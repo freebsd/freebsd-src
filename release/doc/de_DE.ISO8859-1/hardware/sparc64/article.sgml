@@ -1,0 +1,41 @@
+<!--
+	$FreeBSD$
+	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/sparc64/article.sgml,v 1.3 2002/03/12 15:37:30 ue Exp $
+	$Id: article.sgml,v 1.4 2002/03/10 15:37:16 ue Exp $
+	basiert auf: 1.1
+-->
+
+<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
+<!ENTITY % man PUBLIC "-//FreeBSD//ENTITIES DocBook Manual Page Entities//EN">
+%man;
+<!ENTITY % authors PUBLIC  "-//FreeBSD//ENTITIES DocBook Author Entities//EN">
+%authors;
+<!ENTITY % mlists PUBLIC "-//FreeBSD//ENTITIES DocBook Mailing List Entities//DE">
+%mlists;
+<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
+%release;
+<!ENTITY % sections SYSTEM "../common/hw.ent"> %sections;
+
+<!-- Architecture-specific customization -->
+
+<!ENTITY arch "sparc64">
+<!ENTITY arch.print "UltraSparc">
+<!ENTITY unsupported "<emphasis>(nicht unterst&uuml;tzt)</emphasis>">
+<!ENTITY perforce "<emphasis>(noch nicht &ouml;ffentlich)</emphasis>">
+<!ENTITY sect.dev.sparc64 SYSTEM "./dev-sparc64.sgml">
+]>
+
+<article lang="de">
+  &artheader;
+  &sect.intro;
+  &sect.proc.sparc64;
+  &sect.dev.sparc64;
+  <sect1>
+    <title>Danksagung</title>
+
+    <para>Dieses Dokument basiert zum Teil auf den Release Notes
+      f&uuml;r &os;/Alpha und NetBSD/sparc64. Die Information zu
+      einzelne Systemen stammen von <ulink
+      url="http://www.sun.com">Sun</ulink>.</para>
+  </sect1>
+</article>

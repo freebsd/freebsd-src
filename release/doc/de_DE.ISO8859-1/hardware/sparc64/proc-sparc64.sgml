@@ -1,0 +1,319 @@
+<!--
+	$FreeBSD$
+	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/sparc64/proc-sparc64.sgml,v 1.3 2002/03/12 15:37:30 ue Exp $
+	$Id: proc-sparc64.sgml,v 1.5 2002/03/10 16:36:50 ue Exp $
+	basiert auf: 1.3
+-->
+<sect1>
+  <title>Unterst&uuml;tzte Systeme</title>
+
+  <para>Wir freuen uns &uuml;ber Erg&auml;nzungen, Korrekturen und
+    konstruktive Kritik.  Informationen &uuml;ber Fehlverhalten von
+    Systemen sind hochwillkommen.</para>
+
+  <sect2>
+    <title>&Uuml;bersicht</title>
+
+    <para>Dieses Dokument soll die erste Anlaufstelle f&uuml;r alle
+      Anwender sein, die &os; auf einem &arch.print;-System benutzen
+      wollen.  Ziel ist, Hintergrundinformationen &uuml;ber die
+      diversen Varianten der Hardware zu geben.  Es ist nicht als
+      Ersatz f&uuml;r die Handb&uuml;cher der jeweiligen Systeme
+      gedacht.</para>
+
+    <para>Die Information sind wie folgt gegliedert:</para>
+
+    <itemizedlist>
+      <listitem>
+        <para>Mindestanforderungen an die Hardware f&uuml;r den
+          Betrieb von &os; auf &arch;.</para>
+      </listitem>
+
+      <listitem>
+        <para>spezifische Informationen zu jedem von &os;
+          unterst&uuml;tzten Modell/Mainboard</para>
+      </listitem>
+
+      <listitem>
+        <para>Informationen zur Benutzung von Erweiterungskarten mit
+          &os;, inklusive der Abweichungen von der normalen Liste der
+          unterst&uuml;tzten Hardware.</para>
+      </listitem>
+    </itemizedlist>
+  </sect2>
+
+  <sect2>
+    <title>Was braucht man ganz allgemein, um &os; auf &arch; benutzen
+      zu k&ouml;nnen?</title>
+
+    <para>&os;/&arch; l&auml;uft nur auf &arch.print; Maschinen.  Zur
+      Zeit werden die neueren PCI-basierten Systeme besser
+      unterst&uuml;tzt als die alten SBus-basierten Systeme.  Wir
+      wissen, da&szlig; die folgenden Systeme mehr oder weniger gut
+      funktionieren:</para>
+
+    <itemizedlist>
+      <listitem>
+        <para>Sun Ultra 2 Workstation</para>
+      </listitem>
+
+      <listitem>
+        <para>Sun Ultra 5 Workstation</para>
+      </listitem>
+
+      <listitem>
+        <para>Sun Ultra 10 Workstation</para>
+      </listitem>
+
+      <listitem>
+        <para>Sun Ultra 60 Workstation</para>
+      </listitem>
+
+      <listitem>
+        <para>Sun Blade 100 Workstation</para>
+      </listitem>
+    </itemizedlist>
+
+    <para>Wir gehen davon aus, da&szlig; auch Ultra 1, 30, 80 und
+      Blade 1000 benutzt werden k&ouml;nnen, allerdings k&ouml;nnten
+      kleinere &Auml;nderungen notwendig sein.  SMP wird auf den Ultra
+      2 und Ultra 60 Workstation unterst&uuml;tzt.</para>
+  </sect2>
+
+  <sect2>
+    <title>Informationen zu einzelnen Systemen</title>
+
+    <para>Im Rest dieses Kapitels finden Sie eine &Uuml;bersicht
+      &uuml;ber alle Systeme, auf denen &os; genutzt werden kann.  Die
+      Konfigurationsdatei f&uuml;r den Standardkernel
+      <filename>/sys/&arch;/conf/GENERIC</filename> kann unter
+      Umst&auml;nden zus&auml;tzliche Informationen &uuml;ber die
+      unterst&uuml;tzen Ger&auml;te enthalten.</para>
+
+    <sect3>
+      <title>Ultra 1</title>
+
+      <para>Es kaum Erfahrungswert &uuml;ber den Betrieb von
+        UltraSPARC Ultra1-Systemen mit FreeBSD.  Die unterst&uuml;tzt
+        f&uuml;r diese Systeme ist nicht besonders gut, aber es
+        <emphasis>k&ouml;nnte</emphasis> m&ouml;glich sein, FreeBSD
+        auf einer Ultra-1e mit <devicename>hme</devicename> Ethernet
+        zu installieren.</para>
+    </sect3>
+
+    <sect3>
+      <title>Ultra 2</title>
+
+      <para>Die UltraSPARC Ultra2-Systeme enthalten die folgenden
+      Komponenten:</para>
+
+      <itemizedlist>
+        <listitem>
+          <para>eine oder zwei UltraSPARC II CPUs</para>
+        </listitem>
+
+        <listitem>
+          <para>Eingebauter Ethernet-Anschlu&szlig;
+            (<devicename>hme</devicename>-kompatibel)</para>
+        </listitem>
+
+        <listitem>
+          <para>4 SBus Steckpl&auml;tze</para>
+        </listitem>
+
+        <listitem>
+          <para>1 UPA Steckplatz</para>
+        </listitem>
+
+        <listitem>
+          <para>serielle und parallele Schnittstellen</para>
+        </listitem>
+
+        <listitem>
+          <para>16-bit Audio</para>
+        </listitem>
+      </itemizedlist>
+    </sect3>
+
+    <sect3>    
+      <title>Ultra 5/10</title>
+
+      <para>Die UltraSPARC Ultra5/10-Systeme enthalten die folgenden
+            Komponenten:</para>
+
+      <itemizedlist>
+        <listitem><para>UltraSPARC IIi CPU</para></listitem>
+        <listitem><para>Drei PCI Busse</para></listitem>
+        <listitem><para>Eingebauter Ethernet-Anschlu&szlig;
+          (<devicename>hme</devicename>-kompatibel)</para></listitem>
+        <listitem><para>Eingebauter PCI-IDE Controller &perforce;</para></listitem> 
+        <listitem><para>Zwei PC-AT &auml;hnliche `com' Schnittstellen f&uuml;r Maus und Tastatur</para></listitem>
+        <listitem><para>Controller f&uuml;r Diskettenlaufwerk</para></listitem>
+        <listitem><para>Siemens SAB82532 dual-channel serielle Schnittstelle, f&uuml;r ttya und ttyb</para></listitem>
+        <listitem><para>CS4231 Audio-Hardware</para></listitem>
+        <listitem><para>PC-AT &auml;hnliche parallele Schnittstelle</para></listitem>
+        <listitem><para>Sun `ffb' frame buffer (nur Ultra10)</para></listitem>
+        <listitem><para>EBus (Propriet&auml;res Bussystem von Sun
+	f&uuml;r langsame Ger&auml;te)</para></listitem>
+      </itemizedlist>
+    </sect3>
+
+    <sect3>    
+      <title>Ultra 60</title>
+
+      <para>Die Sun Ultra 60 Workstation enth&auml;lt die folgende
+        Hardware:</para>
+
+      <itemizedlist>
+        <listitem>
+          <para>1 oder 2 UltraSPARC II CPUs</para>
+        </listitem>
+
+        <listitem>
+          <para>4 PCI Steckpl&auml;tze</para>
+        </listitem>
+
+        <listitem>
+          <para>2 UPA Steckpl&auml;tze</para>
+        </listitem>
+
+        <listitem>
+          <para>&man.sym.4;-basierte UltraSCSI Controller</para>
+        </listitem>
+
+        <listitem>
+          <para>Eingebauter Ethernet-Anschlu&szlig;
+            (<devicename>hme</devicename>-kompatibel)</para>
+        </listitem>
+
+        <listitem>
+          <para>serielle und parallele Schnittstelle</para>
+        </listitem>
+
+        <listitem>
+          <para>16-bit Audio</para>
+        </listitem>
+
+        <listitem>
+          <para>EBus (Propriet&auml;res Bussystem von Sun f&uuml;r
+            langsame Ger&auml;te)</para>
+        </listitem>
+      </itemizedlist>
+    </sect3>
+
+    <sect3>
+      <title>Blade 100</title>
+
+      <para>Die Sun Blade 100 Workstations sind wie folgt
+        ausgestattet:</para>
+
+      <itemizedlist>
+        <listitem>
+          <para>UltraSPARC IIe CPU</para>
+        </listitem>
+
+        <listitem>
+          <para>Drei PCI Busse</para>
+        </listitem>
+
+        <listitem>
+          <para>Eingebauter Ethernet-Anschlu&szlig;
+            (<devicename>gem</devicename>-kompatibel)</para>
+        </listitem>
+
+        <listitem>
+          <para>Zwei USB Schnittstellen &unsupported;</para>
+        </listitem>
+
+        <listitem>
+          <para>Zwei Firewire Schnittstellen &unsupported;</para>
+        </listitem>
+
+        <listitem>
+          <para>Eingebauter PCI-IDE Controller &perforce;</para>
+        </listitem>
+
+        <listitem>
+          <para>Zwei PC-AT &auml;hnliche `com' Schnittstellen f&uuml;r
+            Maus und Tastatur</para>
+        </listitem>
+
+        <listitem>
+          <para>Controller f&uuml;r Diskettenlaufwerk</para>
+        </listitem>
+
+        <listitem>
+          <para>Von &man.sio.4; unterst&uuml;tzte serielle
+            Schnittstellen f&uuml;r ttya und ttyb</para>
+        </listitem>
+
+        <listitem>
+          <para>CS4231 Audio Hardware</para>
+        </listitem>
+
+        <listitem>
+          <para>eine PC-AT &auml;hnliche parallele
+            Schnittstelle</para>
+        </listitem>
+
+        <listitem>
+          <para>Eingebaute PGX64 (ATI) Graphik</para>
+        </listitem>
+
+        <listitem>
+          <para>EBus (Propriet&auml;res Bussystem von Sun f&uuml;r
+            langsame Ger&auml;te)</para>
+        </listitem>
+
+        <listitem>
+          <para>ISA Bus</para>
+        </listitem>
+      </itemizedlist>
+    </sect3>
+  </sect2>
+
+  <sect2>
+    <title>&Uuml;bersicht &uuml;ber die unterst&uuml;tzte Hardware</title>
+
+    <para>Eine Warnung vorab:  Es sind l&auml;ngst nicht so viele &os;/&arch;
+      Systeme in Betrieb wie bei &os;/Intel.  Mit anderen Worten, es
+      ist sehr viel unwahrscheinlicher, da&szlig; eine der vielen
+      verschiedenen PCI/ISA Karten auf einer &arch;  getestet wurde,
+      als das bei Intel der Fall ist.  Das bedeutet nicht unbedingt,
+      da&szlig; es Probleme geben mu&szlig;, allerdings ist es
+      deutlich wahrscheinlicher, da&szlig;  Sie sich auf unbekanntes
+      Gebiet wagen.  <filename>GENERIC</filename> enth&auml;lt nur
+      Ger&auml;te, von denen wir wissen, da&szlig; Sie in einer &arch;
+      funktionieren.</para>
+
+    <para>PCI Steckpl&auml;tze werden vollst&auml;ndig
+      unterst&uuml;tzt.  Die Unterst&uuml;tzung f&uuml;r den SBus ist
+      schlechter, aber immer noch gut genug, um eine Ultra 2
+      Workstation mit SBus via Ethernet zu booten.</para>
+
+    <para>1.44 MByte Diskettenlaufwerke werden noch
+      <emphasis>nicht</emphasis> unterst&uuml;tzt.</para>
+
+    <para>ATA and ATAPI (IDE) Ger&auml;te werden von der &man.ata.4;
+      Treiberfamilie unterst&uuml;tzt.  &perforce;</para>
+
+    <para>SCSI wird &uuml;ber die CAM Schicht vollst&auml;ndig
+      unterst&uuml;tzt.  Allerdings funktionieren zur Zeit nur
+      NCR/Symbios Karten.  Adaptec 2940x (alle Controller mit AIC 7xxx
+      Chips) und die von &man.isp.4; unterst&uuml;tzen Karten werden
+      demn&auml;chst hinzukommen.  Denken Sie daran, da&szlig;  SCSI
+      Controller den Sun FCODE enthalten m&uuml;ssen, wenn Sie via
+      OpenBoot davon booten wollen.</para>
+
+    <para>Wenn Sie Ihre &arch; &uuml;ber Ethernet booten wollen,
+      brauchen Sie eine Ethernet-Karte, die von OpenBoot
+      unterst&uuml;tzt wird.</para>
+
+    <para><devicename>hme</devicename>, <devicename>gem</devicename>,
+      und <devicename>eri</devicename> Netzwerk.</para>
+
+    <para>Die seriellen Schnittstellen nach
+      <quote>PC-Standard</quote>, die man in den meisten neuen Sun
+      Workstations findet, werden ebenfalls unterst&uuml;tzt.</para>
+  </sect2>
+</sect1>
