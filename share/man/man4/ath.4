@@ -59,7 +59,7 @@ driver encapsulates all IP and ARP traffic as 802.11 frames, however
 it can receive either 802.11 or 802.3 frames.
 Transmit speed and operating mode is selectable
 depending on your hardware.
-AR5210-based devices support 802.11a operation with trasmit speeds
+AR5210-based devices support 802.11a operation with transmit speeds
 of 6 Mbps, 9 Mbps, 12 Mbps, 18 Mbps, 24 Mbps, 36 Mbps, 48 Mbps, and 54 Mbps.
 AR5211-based devices support 802.11a and 802.11b operation with transmit
 speeds as above for 802.11a operation and
@@ -174,7 +174,7 @@ The status code is explained in the HAL include file
 .Pa sys/contrib/dev/ath/ah.h .
 .It "ath%d: failed to allocate descriptors: %d"
 The driver was unable to allocate contiguous memory for the transmit
-ad receive descriptors.
+and receive descriptors.
 This usually indicates system memory is scarce and/or fragmented.
 .It "ath%d: unable to setup a data xmit queue!"
 The request to the HAL to setup the transmit queue for normal
@@ -187,7 +187,7 @@ This should not happen.
 .It "ath%d: 802.11 address: %s"
 The MAC address programmed in the EEPROM is displayed.
 .It "ath%d: hardware error; resetting"
-A nunrecoverable error in the hardware occurred.
+An unrecoverable error in the hardware occurred.
 Errors of this sort include unrecoverable DMA errors.
 The driver will reset the hardware and continue.
 .It "ath%d: rx FIFO overrun; resetting"
@@ -250,7 +250,7 @@ This should not happen.
 .Sh SEE ALSO
 .Xr an 4 ,
 .Xr arp 4 ,
-.Xr ath_hal 4,
+.Xr ath_hal 4 ,
 .Xr card 4 ,
 .Xr netintro 4 ,
 .Xr pcic 4 ,
@@ -274,14 +274,14 @@ See
 .Xr wicontrol 8
 for information on different regulatory domains.
 .Pp
-802.11g support is little tested and may have interoperabity problems.
+802.11g support is little tested and may have interoperability problems.
 The software is known to function with an Atheros 11g access point but
 interoperability may be problematic until vendors update firmware in
 existing 11g products.
 If you encounter problems using an 11g access point you should be able
 to workaround incompatibilities by locking the driver to 11b mode.
 Alternatively, most 11g compatibility issues are in the 802.11 layer
-and you may be able to workaround issues by modifying the
+and you may be able to work around issues by modifying the
 .Xr wlan 4
 module.
 .Sh BUGS
