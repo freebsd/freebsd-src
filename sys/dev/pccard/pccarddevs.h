@@ -4,7 +4,7 @@
  * THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.
  *
  * generated from:
- *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.76 2003/10/26 22:22:34 imp Exp 
+ *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.77 2003/10/27 05:37:01 imp Exp 
  */
 /* $NetBSD: pcmciadevs,v 1.186 2003/09/16 08:26:37 onoe Exp $ */
 /* $OpenBSD: pcmciadevs,v 1.93 2002/06/21 08:31:10 henning Exp $ */
@@ -817,12 +817,12 @@
 #define	PCMCIA_CIS_XIRCOM_CEM28	{ NULL, NULL, NULL, NULL }
 #define	PCMCIA_PRODUCT_XIRCOM_CEM28	0x110b
 #define	PCMCIA_STR_XIRCOM_CEM28	"Xircom CreditCard Ethernet + Modem 28"
-#define	PCMCIA_CIS_XIRCOM_CEM33	{ NULL, NULL, NULL, NULL }
-#define	PCMCIA_PRODUCT_XIRCOM_CEM33	0x110b
-#define	PCMCIA_STR_XIRCOM_CEM33	"Xircom CreditCard Ethernet + Modem 33"
 #define	PCMCIA_CIS_XIRCOM_CEM56	{ NULL, NULL, NULL, NULL }
 #define	PCMCIA_PRODUCT_XIRCOM_CEM56	0x110b
 #define	PCMCIA_STR_XIRCOM_CEM56	"Xircom CreditCard Ethernet + Modem 56"
+#define	PCMCIA_CIS_XIRCOM_CEM33	{ NULL, NULL, NULL, NULL }
+#define	PCMCIA_PRODUCT_XIRCOM_CEM33	0x110d
+#define	PCMCIA_STR_XIRCOM_CEM33	"Xircom CreditCard Ethernet + Modem 33"
 
 /* ZONET */
 #define	PCMCIA_CIS_ZONET_ZEN	{ NULL, NULL, NULL, NULL }
