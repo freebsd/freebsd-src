@@ -20,8 +20,6 @@
  *    must display the following acknowledgement:
  *	This product includes software developed by Aaron Brown and
  *	Harvard University.
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
