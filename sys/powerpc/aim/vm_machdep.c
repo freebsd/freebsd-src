@@ -128,7 +128,7 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 	struct	switchframe *sf;
 	struct	pcb *pcb;
 
-	KASSERT(td1 == curthread || td1 == thread0,
+	KASSERT(td1 == curthread || td1 == &thread0,
 	    ("cpu_fork: p1 not curproc and not proc0"));
 	CTR3(KTR_PROC, "cpu_fork: called td1=%08x p2=%08x flags=%x", (u_int)td1, (u_int)p2, flags);
 
@@ -137,8 +137,8 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 
 	p1 = td1->td_proc;
 
-	pcb = (struct pcb *)(td2->td_kstack + KSTACK_PAGES * PAGE_SIZE -
-	    sizeof(struct pcb));
+	pcb = (struct pcb *)((td2->td_kstack + KSTACK_PAGES * PAGE_SIZE -
+	    sizeof(struct pcb)) & ~0x2fU);
 	td2->td_pcb = pcb;
 
 	/* Copy the pcb */
@@ -149,7 +149,6 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 	 * Copy the trap frame for the return to user mode as if from a
 	 * syscall.  This copies most of the user mode register values.
 	 */
-
 	tf = (struct trapframe *)pcb - 1;
 	bcopy(td1->td_frame, tf, sizeof(*tf));
 
@@ -157,18 +156,13 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 
 	td2->td_frame = tf;
 
-	/*
-	 * There happens to be a callframe, too.
-	 */
 	cf = (struct callframe *)tf - 1;
-	cf->lr = (int)fork_trampoline;
+	cf->cf_func = (register_t)fork_return;
+	cf->cf_arg0 = (register_t)td2;
+	cf->cf_arg1 = (register_t)tf;
 
-	/*
-	 * Below that, we allocate the switch frame.
-	 */
-	sf = (struct switchframe *)cf - 1;
-	sf->sp = (int)cf;
-	pcb->pcb_sp = (int)sf;
+	pcb->pcb_sp = (register_t)cf;
+	pcb->pcb_lr = (register_t)fork_trampoline;
 
 	/*
  	 * Now cpu_switch() can schedule the new process.
@@ -187,17 +181,15 @@ cpu_set_fork_handler(td, func, arg)
 	void (*func) __P((void *));
 	void *arg;
 {
-	struct	switchframe *sf;
 	struct	callframe *cf;
 
 	CTR3(KTR_PROC, "cpu_set_fork_handler: called with td=%08x func=%08x arg=%08x",
 	    (u_int)td, (u_int)func, (u_int)arg);
 
-	sf = (struct switchframe *)td->td_pcb->pcb_sp;
-	cf = (struct callframe *)sf->sp;
+	cf = (struct callframe *)td->td_pcb->pcb_sp;
 
-	cf->r31 = (register_t)func;
-	cf->r30 = (register_t)arg;
+	cf->cf_func = (register_t)func;
+	cf->cf_arg0 = (register_t)arg;
 }
 
 /*
