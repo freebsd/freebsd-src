@@ -173,8 +173,7 @@ static int nswapdev;		/* Number of swap devices */
 int swap_pager_avail;
 static int swdev_syscall_active = 0; /* serialize swap(on|off) */
 
-static int swapdev_strategy(struct vop_strategy_args *ap);
-static struct vnode *swapdev_vp;
+static void swapdev_strategy(struct buf *);
 
 #define SWM_FREE	0x02	/* free, period			*/
 #define SWM_POP		0x04	/* pop out			*/
@@ -1077,8 +1076,6 @@ swap_pager_getpages(object, m, count, reqpage)
 	VM_OBJECT_UNLOCK(object);
 	bp->b_npages = j - i;
 
-	pbgetvp(swapdev_vp, bp);
-
 	cnt.v_swapin++;
 	cnt.v_swappgsin += bp->b_npages;
 
@@ -1100,10 +1097,10 @@ swap_pager_getpages(object, m, count, reqpage)
 	 * The other pages in our m[] array are also released on completion,
 	 * so we cannot assume they are valid anymore either.
 	 *
-	 * NOTE: b_blkno is destroyed by the call to VOP_STRATEGY
+	 * NOTE: b_blkno is destroyed by the call to swapdev_strategy
 	 */
 	BUF_KERNPROC(bp);
-	VOP_STRATEGY(bp->b_vp, bp);
+	swapdev_strategy(bp);
 
 	/*
 	 * wait for the page we want to complete.  PG_SWAPINPROG is always
@@ -1309,8 +1306,6 @@ swap_pager_putpages(object, m, count, sync, rtvals)
 		bp->b_bufsize = PAGE_SIZE * n;
 		bp->b_blkno = blk;
 
-		pbgetvp(swapdev_vp, bp);
-
 		for (j = 0; j < n; ++j) {
 			vm_page_t mreq = m[i+j];
 
@@ -1336,21 +1331,18 @@ swap_pager_putpages(object, m, count, sync, rtvals)
 
 		cnt.v_swapout++;
 		cnt.v_swappgsout += bp->b_npages;
-		VI_LOCK(swapdev_vp);
-		swapdev_vp->v_numoutput++;
-		VI_UNLOCK(swapdev_vp);
 
 		splx(s);
 
 		/*
 		 * asynchronous
 		 *
-		 * NOTE: b_blkno is destroyed by the call to VOP_STRATEGY
+		 * NOTE: b_blkno is destroyed by the call to swapdev_strategy
 		 */
 		if (sync == FALSE) {
 			bp->b_iodone = swp_pager_async_iodone;
 			BUF_KERNPROC(bp);
-			VOP_STRATEGY(bp->b_vp, bp);
+			swapdev_strategy(bp);
 
 			for (j = 0; j < n; ++j)
 				rtvals[i+j] = VM_PAGER_PEND;
@@ -1361,10 +1353,10 @@ swap_pager_putpages(object, m, count, sync, rtvals)
 		/*
 		 * synchronous
 		 *
-		 * NOTE: b_blkno is destroyed by the call to VOP_STRATEGY
+		 * NOTE: b_blkno is destroyed by the call to swapdev_strategy
 		 */
 		bp->b_iodone = swp_pager_sync_iodone;
-		VOP_STRATEGY(bp->b_vp, bp);
+		swapdev_strategy(bp);
 
 		/*
 		 * Wait for the sync I/O to complete, then update rtvals.
@@ -2043,26 +2035,19 @@ swp_pager_meta_ctl(
 /*
  *	swapdev_strategy:
  *
- *	VOP_STRATEGY() for swapdev_vp.
  *	Perform swap strategy interleave device selection.
  *
  *	The bp is expected to be locked and *not* B_DONE on call.
  */
-static int
-swapdev_strategy(ap)
-	struct vop_strategy_args /* {
-		struct vnode *a_vp;
-		struct buf *a_bp;
-	} */ *ap;
+static void
+swapdev_strategy(struct buf *a_bp)
 {
 	int s, sz;
 	struct swdevt *sp;
 	struct vnode *vp;
 	struct buf *bp;
 
-	KASSERT(ap->a_vp == ap->a_bp->b_vp, ("%s(%p != %p)",
-	    __func__, ap->a_vp, ap->a_bp->b_vp));
-	bp = ap->a_bp;
+	bp = a_bp;
 	sz = howmany(bp->b_bcount, PAGE_SIZE);
 
 	/*
@@ -2096,29 +2081,12 @@ swapdev_strategy(ap)
 	}
 	bp->b_vp = sp->sw_vp;
 	splx(s);
-	bp->b_flags |= B_KEEPGIANT;
 	if (bp->b_vp->v_type == VCHR)
 		VOP_SPECSTRATEGY(bp->b_vp, bp);
 	else
 		VOP_STRATEGY(bp->b_vp, bp);
-	return 0;
+	return;
 }
-
-/*
- * Create a special vnode op vector for swapdev_vp - we only use
- * VOP_STRATEGY() and reclaim; everything else returns an error.
- */
-vop_t **swapdev_vnodeop_p;
-static struct vnodeopv_entry_desc swapdev_vnodeop_entries[] = {  
-	{ &vop_default_desc,		(vop_t *) vop_defaultop },
-	{ &vop_reclaim_desc,		(vop_t *) vop_null },
-	{ &vop_strategy_desc,		(vop_t *) swapdev_strategy },
-	{ NULL, NULL }
-};
-static struct vnodeopv_desc swapdev_vnodeop_opv_desc =
-	{ &swapdev_vnodeop_p, swapdev_vnodeop_entries };
-
-VNODEOP_SET(swapdev_vnodeop_opv_desc);
 
 /*
  * System call swapon(name) enables swapping on device name,
@@ -2215,15 +2183,6 @@ swaponvp(td, vp, dev, nblks)
 	u_long mblocks;
 	off_t mediasize;
 
-	if (!swapdev_vp) {
-		error = getnewvnode("none", NULL, swapdev_vnodeop_p,
-		    &swapdev_vp);
-		if (error)
-			panic("Cannot get vnode for swapdev");
-		swapdev_vp->v_type = VNON;	/* Untyped */
-	}
-
-	ASSERT_VOP_UNLOCKED(vp, "swaponvp");
 	dvbase = 0;
 	TAILQ_FOREACH(sp, &swtailq, sw_list) {
 		if (sp->sw_vp == vp)
