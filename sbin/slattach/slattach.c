@@ -77,6 +77,8 @@ void	acquire_line();		/* get tty device as controling terminal */
 
 int	fd = -1;
 char	*dev = (char *)0;	/* path name of the tty (e.g. /dev/tty01) */
+char    *dvname;                /* basename of dev */
+int     locked = 0;             /* uucp lock */
 int	flow_control = 0;	/* non-zero to enable hardware flow control. */
 int	modem_control =	HUPCL;	/* !CLOCAL+HUPCL iff we	watch carrier. */
 int	comstate;		/* TIOCMGET current state of serial driver */
@@ -122,7 +124,6 @@ int main(int argc, char **argv)
 	int option;
 	extern char *optarg;
 	extern int optind;
-	char *cp;
 
 	while ((option = getopt(argc, argv, "ace:fhlnr:s:u:zK:O:S:")) != EOF) {
 		switch (option) {
@@ -199,9 +200,9 @@ int main(int argc, char **argv)
 		strncat(tty_path, dev, 10);
 		dev = tty_path;
 	}
-	cp = strrchr(dev, '/'); /* always succeeds */
-	cp++;			/* trailing tty pathname component */
-	sprintf(pidfilename, "%sslattach.%s.pid", _PATH_VARRUN, cp);
+	dvname = strrchr(dev, '/'); /* always succeeds */
+	dvname++;                   /* trailing tty pathname component */
+	sprintf(pidfilename, "%sslattach.%s.pid", _PATH_VARRUN, dvname);
 	printf("%s\n",pidfilename);
 
 	if (!foreground)
@@ -251,7 +252,10 @@ void acquire_line()
 	int ttydisc = TTYDISC;
 	FILE *pidfile;
 
-	ioctl(fd, TIOCSETD, &ttydisc); /* reset to tty discipline */
+	if (ioctl(fd, TIOCSETD, &ttydisc) < 0) { /* reset to tty discipline */
+		syslog(LOG_ERR, "ioctl(TIOCSETD): %m");
+		exit_handler(1);
+	}
 
 	(void)close(STDIN_FILENO); /* close FDs before forking. */
 	(void)close(STDOUT_FILENO);
@@ -260,7 +264,10 @@ void acquire_line()
 		(void)close(fd);
 
 	signal(SIGHUP, SIG_IGN); /* ignore HUP signal when parent dies. */
-	daemon(0,0);		/* fork, setsid, chdir /, and close std*. */
+	if (daemon(0,0)) {       /* fork, setsid, chdir /, and close std*. */
+		syslog(LOG_ERR, "daemon(0,0): %m");
+		exit_handler(1);
+	}
 
 	while (getppid () != 1)
 		sleep (1);	/* Wait for parent to die. */
@@ -274,8 +281,15 @@ void acquire_line()
 	if ((int)signal(SIGHUP,sighup_handler) < 0) /* Re-enable HUP signal */
 		syslog(LOG_NOTICE,"cannot install SIGHUP handler: %m");
 
+	/* unlock not needed here, always re-lock with new pid */
+	if (uu_lock(dvname)) {
+		syslog(LOG_ERR, "can't lock %s", dev);
+		exit_handler(1);
+	}
+	locked = 1;
+
 	if ((fd = open(dev, O_RDWR | O_NONBLOCK, 0)) < 0) {
-		syslog(LOG_ERR, "open(%s) fd=%d: %m", dev, fd);
+		syslog(LOG_ERR, "open(%s) %m", dev);
 		exit_handler(1);
 	}
 	(void)dup2(fd, STDIN_FILENO);
@@ -286,8 +300,10 @@ void acquire_line()
 	fd = STDIN_FILENO;
 
 	/* acquire the serial line as a controling terminal. */
-	if (ioctl(fd, TIOCSCTTY, 0) < 0)
-		syslog(LOG_NOTICE,"ioctl(TIOCSCTTY) failed: %m");
+	if (ioctl(fd, TIOCSCTTY, 0) < 0) {
+		syslog(LOG_ERR,"ioctl(TIOCSCTTY): %m");
+		exit_handler(1);
+	}
 	/* Make us the foreground process group associated with the
 	   slip line which is our controlling terminal. */
 	if (tcsetpgrp(fd, getpid()) < 0)
@@ -514,6 +530,8 @@ void exit_handler(int ret)
 	 */
 	if (fd != -1)
 		close(fd);
+	if (locked)
+		uu_unlock(dvname);
 
 	/* Remove the PID file */
 	(void)unlink(pidfilename);
