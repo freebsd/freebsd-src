@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: logo_saver.c,v 1.3 1999/01/11 03:18:49 yokota Exp $
+ *	$Id: logo_saver.c,v 1.4 1999/01/16 10:20:16 des Exp $
  */
 
 #include <sys/param.h>
@@ -37,7 +37,7 @@
 #include <saver.h>
 
 static u_char *vid;
-static int banksize, scrmode, scrw, scrh;
+static int banksize, scrmode, bpsl, scrw, scrh;
 static int blanked;
 
 #include "logo.c"
@@ -47,25 +47,25 @@ logo_blit(video_adapter_t *adp, int x, int y)
 {
     int d, l, o, p;
     
-    for (o = 0, p = y * scrw + x; p > banksize; p -= banksize)
+    for (o = 0, p = y * bpsl + x; p > banksize; p -= banksize)
 	o += banksize;
     set_origin(adp, o);
 
     for (d = 0; d < sizeof logo_img; d += logo_w) {
 	if (p + logo_w < banksize) {
 	    bcopy(logo_img + d, vid + p, logo_w);
-	    p += scrw;
+	    p += bpsl;
 	} else if (p < banksize) {
 	    l = banksize - p;
 	    bcopy(logo_img + d, vid + p, l);
 	    set_origin(adp, (o += banksize));
 	    bcopy(logo_img + d + l, vid, logo_w - l);
-	    p += scrw - banksize;
+	    p += bpsl - banksize;
 	} else {
 	    p -= banksize;
 	    set_origin(adp, (o += banksize));
 	    bcopy(logo_img + d, vid + p, logo_w);
-	    p += scrw;
+	    p += bpsl;
 	}
     }
 }
@@ -100,8 +100,9 @@ logo_saver(video_adapter_t *adp, int blank)
 	    set_video_mode(adp, scrmode, logo_pal, 0);
 	    blanked++;
 	    vid = (u_char *)adp->va_window;
+	    bpsl = adp->va_line_width;
 	    splx(pl);
-	    for (i = 0; i < scrw*scrh; i += banksize) {
+	    for (i = 0; i < bpsl*scrh; i += banksize) {
 		set_origin(adp, i);
 		bzero(vid, banksize);
 	    }
