@@ -253,6 +253,7 @@ iq80321_attach(device_t dev)
 		busno = 0;
 	device_add_child(dev, "obio", 0);
 	device_add_child(dev, "itimer", 0);
+	device_add_child(dev, "iopwdog", 0);
 	device_add_child(dev, "pcib", busno);
 	bus_generic_probe(dev);
 	bus_generic_attach(dev);
