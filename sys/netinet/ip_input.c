@@ -146,11 +146,15 @@ SYSCTL_INT(_net_inet_ip, OID_AUTO, check_interface, CTLFLAG_RW,
 static int	ipprintfs = 0;
 #endif
 
+static int	ipqmaxlen = IFQ_MAXLEN;
+
 extern	struct domain inetdomain;
 extern	struct protosw inetsw[];
 u_char	ip_protox[IPPROTO_MAX];
-static int	ipqmaxlen = IFQ_MAXLEN;
-struct	in_ifaddrhead in_ifaddrhead; /* first inet address */
+struct	in_ifaddrhead in_ifaddrhead; 		/* first inet address */
+struct	in_ifaddrhashhead *in_ifaddrhashtbl;	/* inet addr hash table  */
+u_long 	in_ifaddrhmask;				/* mask for hash table */
+
 SYSCTL_INT(_net_inet_ip, IPCTL_INTRQMAXLEN, intr_queue_maxlen, CTLFLAG_RW,
     &ipintrq.ifq_maxlen, 0, "Maximum size of the IP input queue");
 SYSCTL_INT(_net_inet_ip, IPCTL_INTRQDROPS, intr_queue_drops, CTLFLAG_RD,
@@ -234,6 +238,7 @@ ip_init()
 	register int i;
 
 	TAILQ_INIT(&in_ifaddrhead);
+	in_ifaddrhashtbl = hashinit(INADDR_NHASH, M_IFADDR, &in_ifaddrhmask);
 	pr = pffindproto(PF_INET, IPPROTO_RAW, SOCK_RAW);
 	if (pr == 0)
 		panic("ip_init");
@@ -273,6 +278,7 @@ ip_input(struct mbuf *m)
 	struct ip *ip;
 	struct ipq *fp;
 	struct in_ifaddr *ia = NULL;
+	struct ifaddr *ifa;
 	int    i, hlen, checkif;
 	u_short sum;
 	u_int16_t divert_cookie;		/* firewall cookie */
@@ -557,12 +563,10 @@ pass:
 	    ((m->m_pkthdr.rcvif->if_flags & IFF_LOOPBACK) == 0) &&
 	    (ip_fw_fwd_addr == NULL);
 
-	TAILQ_FOREACH(ia, &in_ifaddrhead, ia_link) {
-
-#ifdef BOOTP_COMPAT
-		if (IA_SIN(ia)->sin_addr.s_addr == INADDR_ANY)
-			goto ours;
-#endif
+	/*
+	 * Check for exact addresses in the hash bucket.
+	 */
+	LIST_FOREACH(ia, INADDR_HASH(pkt_dst.s_addr), ia_hash) {
 		/*
 		 * If the address matches, verify that the packet
 		 * arrived via the correct interface if checking is
@@ -571,20 +575,29 @@ pass:
 		if (IA_SIN(ia)->sin_addr.s_addr == pkt_dst.s_addr && 
 		    (!checkif || ia->ia_ifp == m->m_pkthdr.rcvif))
 			goto ours;
-		/*
-		 * Only accept broadcast packets that arrive via the
-		 * matching interface.  Reception of forwarded directed
-		 * broadcasts would be handled via ip_forward() and
-		 * ether_output() with the loopback into the stack for
-		 * SIMPLEX interfaces handled by ether_output().
-		 */
-		if (ia->ia_ifp == m->m_pkthdr.rcvif &&
-		    ia->ia_ifp && ia->ia_ifp->if_flags & IFF_BROADCAST) {
+	}
+	/*
+	 * Check for broadcast addresses.
+	 *
+	 * Only accept broadcast packets that arrive via the matching
+	 * interface.  Reception of forwarded directed broadcasts would
+	 * be handled via ip_forward() and ether_output() with the loopback
+	 * into the stack for SIMPLEX interfaces handled by ether_output().
+	 */
+	if (m->m_pkthdr.rcvif->if_flags & IFF_BROADCAST) {
+	        TAILQ_FOREACH(ifa, &m->m_pkthdr.rcvif->if_addrhead, ifa_link) {
+			if (ifa->ifa_addr->sa_family != AF_INET)
+				continue;
+			ia = ifatoia(ifa);
 			if (satosin(&ia->ia_broadaddr)->sin_addr.s_addr ==
 			    pkt_dst.s_addr)
 				goto ours;
 			if (ia->ia_netbroadcast.s_addr == pkt_dst.s_addr)
 				goto ours;
+#ifdef BOOTP_COMPAT
+			if (IA_SIN(ia)->sin_addr.s_addr == INADDR_ANY)
+				goto ours;
+#endif
 		}
 	}
 	if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr))) {
