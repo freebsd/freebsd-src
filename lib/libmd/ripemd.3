@@ -44,18 +44,23 @@
 The
 .Li RIPEMD160_
 functions calculate a 160-bit cryptographic checksum (digest)
-for any number of input bytes.  A cryptographic checksum is a one-way
+for any number of input bytes.
+A cryptographic checksum is a one-way
 hash function; that is, it is computationally impractical to find
-the input corresponding to a particular output.  This net result is
-a ``fingerprint'' of the input-data, which doesn't disclose the actual
-input.
+the input corresponding to a particular output.
+This net result is a
+.Dq fingerprint
+of the input-data, which doesn't disclose the actual input.
 .Pp
 The
 .Fn RIPEMD160_Init  ,
 .Fn RIPEMD160_Update ,
 and
 .Fn RIPEMD160_Final
-functions are the core functions.  Allocate an RIPEMD160_CTX, initialize it with
+functions are the core functions.
+Allocate an
+.Vt RIPEMD160_CTX ,
+initialize it with
 .Fn RIPEMD160_Init ,
 run over the data with
 .Fn RIPEMD160_Update ,
