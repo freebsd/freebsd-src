@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: options.c,v 1.16 1995/10/20 07:02:46 jkh Exp $
+ * $Id: options.c,v 1.19 1995/10/20 14:25:01 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -45,17 +45,6 @@
 #include <ctype.h>
 
 static char *
-ftpFlagCheck(Option opt)
-{
-    /* Verify that everything's sane */
-    if ((int)opt.aux == OPT_FTP_ABORT && optionIsSet(OPT_FTP_RESELECT))
-        optionUnset(OPT_FTP_RESELECT);
-    else if ((int)opt.aux == OPT_FTP_RESELECT && optionIsSet(OPT_FTP_ABORT))
-        optionUnset(OPT_FTP_ABORT);
-    return (*(int *)opt.data) & (int)opt.aux ? "ON" : "OFF";
-}
-
-static char *
 varCheck(Option opt)
 {
     if (opt.aux)
@@ -68,12 +57,6 @@ static char *
 resetLogo(char *str)
 {
     return "[WHAP!]";
-}
-
-static char *
-debugCheck(char *str)
-{
-    return isDebug() ? "ON" : "OFF";
 }
 
 static char *
@@ -115,21 +98,19 @@ mediaCheck(Option opt)
 
 static Option Options[] = {
 { "NFS Secure",		"NFS server talks only on a secure port",
-      OPT_IS_FLAG,	&OptFlags,	(void *)OPT_NFS_SECURE,		NULL		},
+      OPT_IS_VAR,	"Set if your server refuses to talk to you (usually Suns)", OPT_NFS_SECURE, varCheck },
 { "NFS Slow",		"User is using a slow PC or ethernet card",
-      OPT_IS_FLAG,	&OptFlags,	(void *)OPT_SLOW_ETHER,		NULL		},
+      OPT_IS_VAR,	"Set if your cheap PC ethernet card is dropping NFS packets", OPT_SLOW_ETHER, varCheck },
 { "Debugging",		"Emit extra debugging output on VTY2 (ALT-F2)",
-      OPT_IS_FLAG,	&OptFlags,	(void *)OPT_DEBUG,		debugCheck	},
+      OPT_IS_VAR,	"Turn this on for more info if you're experiencing any weirdness", OPT_DEBUG, varCheck },
 { "Yes to All",		"Assume \"Yes\" answers to all non-critical dialogs",
-      OPT_IS_FLAG,	&OptFlags,	(void *)OPT_NO_CONFIRM,		NULL		},
-{ "FTP Abort",		"On transfer failure, abort the installation of a distribution",
-      OPT_IS_FLAG,	&OptFlags,	(void *)OPT_FTP_ABORT,		ftpFlagCheck	},
-{ "FTP Reselect",	"On transfer failure, ask for another host and try to resume",
-      OPT_IS_FLAG,	&OptFlags,	(void *)OPT_FTP_RESELECT,	ftpFlagCheck	},
+      OPT_IS_VAR,	"This is a good idea for unattended installation.", OPT_NO_CONFIRM, varCheck },
+{ "FTP OnError",	"What to do when FTP requests fail:  abort, retry, reselect.",
+      OPT_IS_FUNC,	mediaSetFtpOnError, OPT_FTP_ONERROR, varCheck },
 { "FTP username",	"Username and password to use instead of anonymous",
       OPT_IS_FUNC,	mediaSetFtpUserPass,	FTP_USER,		varCheck	},
 { "Tape Blocksize",	"Tape media block size in 512 byte blocks",
-      OPT_IS_VAR,	"Please enter the tape block size in 512 byte blocks", TAPE_BLOCKSIZE,		varCheck },
+      OPT_IS_VAR,	"Please enter the tape block size in 512 byte blocks", TAPE_BLOCKSIZE, varCheck },
 { "Extract Detail",	"How verbosely to display file name information during extractions",
       OPT_IS_FUNC,	mediaSetCPIOVerbosity,	CPIO_VERBOSITY_LEVEL,	varCheck	},
 { "Release Name",	"Which release to attempt to load from installation media",
@@ -152,18 +133,6 @@ static Option Options[] = {
 #define OPT_NAME_COL	0
 #define OPT_VALUE_COL	16
 #define GROUP_OFFSET	40
-
-Boolean
-optionIsSet(int opt)
-{
-    return OptFlags & opt;
-}
-
-void
-optionUnset(int opt)
-{
-    OptFlags &= ~opt;
-}
 
 static char *
 value_of(Option opt)
