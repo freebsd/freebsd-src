@@ -34,7 +34,8 @@ issue a series of
 system calls to control the execution of the process, as well as access
 process memory and register state.
 For the duration of the tracing session, the traced process will be
-"re-parented", with its parent process id (and resulting behavior)
+.Dq re-parented ,
+with its parent process ID (and resulting behavior)
 changed to the tracing process.
 It is permissible for a tracing process to attach to more than one
 other process at a time.
@@ -61,7 +62,7 @@ as a result of attaching, system calls, or stepping by the tracing
 process.
 The tracing process may choose to intercept the signal, using it to
 observe process behavior (such as
-.Dv SIGTRAP ),
+.Dv SIGTRAP ) ,
 or forward the signal to the process if appropriate.
 The
 .Fn ptrace

@@ -165,10 +165,10 @@ The file was marked for non-blocking I/O,
 and no data were ready to be read.
 .It Bq Er EISDIR
 The file descriptor is associated with a directory residing
-on a filesystem that does not allow regular read operations on
+on a file system that does not allow regular read operations on
 directories (e.g. NFS).
 .It Bq Er EOPNOTSUPP
-The file descriptor is associated with a filesystem and file type that
+The file descriptor is associated with a file system and file type that
 do not allow regular read operations on it.
 .It Bq Er EOVERFLOW
 The file descriptor is associated with a regular file,
@@ -178,7 +178,7 @@ is greater than 0,
 is before the end-of-file, and
 .Fa offset
 is greater than or equal to the offset maximum established
-for this filesystem.
+for this file system.
 .El
 .Pp
 In addition,
@@ -190,7 +190,7 @@ The
 .Fa iovcnt
 argument
 was less than or equal to 0, or greater than
-.Li IOV_MAX .
+.Dv IOV_MAX .
 .It Bq Er EINVAL
 One of the
 .Fa iov_len

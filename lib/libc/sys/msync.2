@@ -65,11 +65,15 @@ succeeding locations will be examined.
 The
 .Fa flags
 argument may be specified as follows:
-.Bd -literal
-MS_ASYNC	Return immediately
-MS_SYNC		Perform synchronous writes
-MS_INVALIDATE	Invalidate all cached data
-.Ed
+.Pp
+.Bl -tag -width ".Dv MS_INVALIDATE" -compact
+.It Dv MS_ASYNC
+Return immediately
+.It Dv MS_SYNC
+Perform synchronous writes
+.It Dv MS_INVALIDATE
+Invalidate all cached data
+.El
 .Sh RETURN VALUES
 .Rv -std msync
 .Sh ERRORS
@@ -80,7 +84,8 @@ will fail if:
 .Bl -tag -width Er
 .It Bq Er EBUSY
 Some or all of the pages in the specified region are locked and
-MS_INVALIDATE is specified.
+.Dv MS_INVALIDATE
+is specified.
 .It Bq Er EINVAL
 The
 .Fa addr
