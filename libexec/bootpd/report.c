@@ -111,7 +111,7 @@ report(priority, fmt, va_alist)
 #else
 	va_start(ap);
 #endif
-	vsprintf(buf, fmt, ap);
+	vsnprintf(buf, sizeof(buf), fmt, ap);
 	va_end(ap);
 
 	/*
