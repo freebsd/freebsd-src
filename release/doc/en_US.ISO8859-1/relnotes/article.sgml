@@ -10,15 +10,15 @@
     <year>2001</year>
     <holder role="mailto:doc@FreeBSD.org">The FreeBSD Documentation Project</holder>
   </copyright>
-</articleinfo>
 
-<abstract>
-  <para>The release notes for &os; &release.current; contain a summary
-    of the changes made in the &os; base system since &release.prev;.
-    Both changes for kernel and userland are listed, as well as
-    applicable security advisories that were issued since the last
-    release.  Some brief remarks on upgrading are also presented.</para>
-</abstract>
+  <abstract>
+    <para>The release notes for &os; &release.current; contain a summary
+      of the changes made in the &os; base system since &release.prev;.
+      Both changes for kernel and userland are listed, as well as
+      applicable security advisories that were issued since the last
+      release.  Some brief remarks on upgrading are also presented.</para>
+  </abstract>
+</articleinfo>
 
 <sect1>
   <title>Introduction</title>
