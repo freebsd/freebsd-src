@@ -137,6 +137,17 @@ _thread_suspend(pthread_t pthread, const struct timespec *abstime)
 		remaining = *abstime;
 		timespecsub(&remaining, &now);
 		ts = &remaining;
+
+		/*
+		 * If the absolute timeout has already passed set the
+		 * relative timeout to 0 sec. so that sigtimedwait()
+		 * returns immediately.
+		 * NOTE: timespecsub() makes sure the tv_nsec member >= 0.
+		 */
+		if (ts->tv_sec < 0) {
+			ts->tv_sec = 0;
+			ts->tv_nsec = 0;
+		}
 	} else
 		ts = NULL;
 
