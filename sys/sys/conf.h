@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)conf.h	8.5 (Berkeley) 1/9/95
- * $Id: conf.h,v 1.45 1998/09/05 14:13:12 phk Exp $
+ * $Id: conf.h,v 1.46 1998/11/08 12:39:07 dfr Exp $
  */
 
 #ifndef _SYS_CONF_H_
@@ -221,7 +221,7 @@ struct bdevsw_module_data {
 
 #define CDEV_MODULE(name, major, devsw, evh, arg)			\
 static struct cdevsw_module_data name##_cdevsw_mod = {			\
-    evh, arg, makedev(major, 0), &devsw					\
+    evh, arg, major == NODEV ? NODEV : makedev(major, 0), &devsw	\
 };									\
 									\
 static moduledata_t name##_mod = {					\
@@ -233,7 +233,8 @@ DECLARE_MODULE(name, name##_mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE+major)
 
 #define BDEV_MODULE(name, bdev, cdev, devsw, evh, arg)			\
 static struct bdevsw_module_data name##_bdevsw_mod = {			\
-    evh, arg, makedev(bdev, 0), makedev(cdev, 0), &devsw		\
+    evh, arg, mdev == NODEV ? NODEV : makedev(bdev, 0),			\
+    cdev == NODEV ? NODEV :  makedev(cdev, 0), &devsw			\
 };									\
 									\
 static moduledata_t name##_mod = {					\
