@@ -561,6 +561,9 @@ icmp6_input(mp, offp, proto)
 				break;
 			}
 			MGETHDR(n, M_DONTWAIT, n0->m_type);
+			n0len = n0->m_pkthdr.len;	/* save for use below */
+			if (n)
+				M_MOVE_PKTHDR(n, n0);
 			if (n && maxlen >= MHLEN) {
 				MCLGET(n, M_DONTWAIT);
 				if ((n->m_flags & M_EXT) == 0) {
@@ -573,8 +576,6 @@ icmp6_input(mp, offp, proto)
 				m_freem(n0);
 				break;
 			}
-			n0len = n0->m_pkthdr.len;	/* save for use below */
-			M_MOVE_PKTHDR(n, n0);
 			/*
 			 * Copy IPv6 and ICMPv6 only.
 			 */
