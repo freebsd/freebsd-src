@@ -61,9 +61,13 @@ INCLUDES+= -I$S/../include
 INCLUDES+= -I/usr/include
 .endif
 
-COPTS=	${INCLUDES} ${IDENT} -D_KERNEL -D__ELF__ -D__FreeBSD__ -include opt_global.h -msoft-float
+COPTS=	${INCLUDES} ${IDENT} -D_KERNEL -include opt_global.h
+_OS!=uname
+.if ${_OS} != "FreeBSD"
 CWARNFLAGS=-Wall -Wredundant-decls -Wnested-externs -Wstrict-prototypes \
-	-Wmissing-prototypes -Wpointer-arith -Winline -Wcast-qual
+	   -Wmissing-prototypes -Wpointer-arith -Winline -Wcast-qual
+COPTS+= -D__ELF__ -D__FreeBSD__ -msoft-float
+.endif
 CFLAGS=	${COPTFLAGS} ${CWARNFLAGS} ${DEBUG} ${COPTS}
 
 # XXX LOCORE means "don't declare C stuff" not "for locore.s".
