@@ -27,3 +27,10 @@ maintaining a list of current [American] English spellings.
 A few words have been removed because their spellings have depreciated.
 This list of words includes:
 	corelation (and its derivatives) -- "correlation" is the preferred spelling
+
+--
+
+A list of technical terms has been added in the file 'tech'.  This
+word list contains FreeBSD/Unix lexicon that is used by the system
+documentation.  It makes a great ispell(1) personal dictionary to
+supplement the standard English language dictionary.
