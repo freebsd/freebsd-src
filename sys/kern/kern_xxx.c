@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_xxx.c	8.2 (Berkeley) 11/14/93
- * $Id: kern_xxx.c,v 1.21 1995/12/02 18:58:50 bde Exp $
+ * $Id: kern_xxx.c,v 1.22 1995/12/06 23:37:12 bde Exp $
  */
 
 #include <sys/param.h>
@@ -39,49 +39,9 @@
 #include <sys/sysproto.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
-#include <sys/reboot.h>
 #include <sys/sysctl.h>
 #include <sys/utsname.h>
-#include <sys/signalvar.h>
 
-/* This implements a "TEXT_SET" for cleanup functions */
-static void	dummy_cleanup __P((void));
-static void
-dummy_cleanup() {}
-TEXT_SET(cleanup_set, dummy_cleanup);
-
-typedef void (*cleanup_func_t)(void);
-extern const struct linker_set cleanup_set;
-static const cleanup_func_t *cleanups =
-        (const cleanup_func_t *)&cleanup_set.ls_items[0];
-
-#ifndef _SYS_SYSPROTO_H_
-struct reboot_args {
-	int	opt;
-};
-#endif
-/* ARGSUSED */
-int
-reboot(p, uap, retval)
-	struct proc *p;
-	struct reboot_args *uap;
-	int *retval;
-{
-	int error;
-
-	if ((error = suser(p->p_ucred, &p->p_acflag)))
-		return (error);
-
-	if (!uap->opt & RB_NOSYNC) {
-		printf("\ncleaning up... ");
-                while(*cleanups) {
-                        (**cleanups++)();
-                }
-	}
-
-	boot(uap->opt);
-	return (0);
-}
 
 #if defined(COMPAT_43) || defined(COMPAT_SUNOS)
 
@@ -179,20 +139,6 @@ oquota(p, uap, retval)
 	return (ENOSYS);
 }
 #endif /* COMPAT_43 */
-
-void
-shutdown_nice(void)
-{
-	/* Send a signal to init(8) and have it shutdown the world */
-	if (initproc != NULL) {
-		psignal(initproc, SIGINT);
-	} else {
-		/* No init(8) running, so simply reboot */
-		boot(RB_NOSYNC);
-	}
-	return;
-}
-
 
 #ifndef _SYS_SYSPROTO_H_
 struct uname_args {

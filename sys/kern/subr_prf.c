@@ -36,23 +36,19 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_prf.c	8.3 (Berkeley) 1/21/94
- * $Id: subr_prf.c,v 1.36 1996/05/08 04:28:51 gpalmer Exp $
+ * $Id: subr_prf.c,v 1.37 1996/05/09 18:58:06 gpalmer Exp $
  */
 
 #include "opt_ddb.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/reboot.h>
 #include <sys/msgbuf.h>
 #include <sys/proc.h>
-#include <sys/vnode.h>
 #include <sys/tty.h>
 #include <sys/tprintf.h>
 #include <sys/syslog.h>
 #include <sys/malloc.h>
-#include <sys/kernel.h>
-#include <sys/sysctl.h>
 #include <machine/cons.h>
 
 /*
@@ -61,17 +57,6 @@
  */
 #include <machine/stdarg.h>
 
-#if defined(DDB)
-#ifdef DDB_UNATTENDED
-	static int debugger_on_panic = 0;
-#else
-	static int debugger_on_panic = 1;
-#endif
-
-SYSCTL_INT(_debug, OID_AUTO, debugger_on_panic, CTLFLAG_RW,
-	&debugger_on_panic, 0, "");
-#endif
-
 #define TOCONS	0x01
 #define TOTTY	0x02
 #define TOLOG	0x04
@@ -79,7 +64,6 @@ SYSCTL_INT(_debug, OID_AUTO, debugger_on_panic, CTLFLAG_RW,
 struct	tty *constty;			/* pointer to console "window" tty */
 
 static void (*v_putc)(int) = cnputc;	/* routine to putc on virtual console */
-
 static void  logpri __P((int level));
 static void  msglogchar(int c, void *dummyarg);
 struct putchar_arg {int flags; struct tty *tty; };
@@ -87,45 +71,6 @@ static void  putchar __P((int ch, void *arg));
 static char *ksprintn __P((u_long num, int base, int *len));
 
 static int consintr = 1;		/* Ok to handle console interrupts? */
-
-/*
- * Variable panicstr contains argument to first call to panic; used as flag
- * to indicate that the kernel has already called panic.
- */
-const char *panicstr;
-
-/*
- * Panic is called on unresolvable fatal errors.  It prints "panic: mesg",
- * and then reboots.  If we are called twice, then we avoid trying to sync
- * the disks as this often leads to recursive panics.
- */
-#ifdef __GNUC__
-__dead			/* panic() does not return */
-#endif
-void
-panic(const char *fmt, ...)
-{
-	int bootopt;
-	va_list ap;
-
-	bootopt = RB_AUTOBOOT | RB_DUMP;
-	if (panicstr)
-		bootopt |= RB_NOSYNC;
-	else
-		panicstr = fmt;
-
-	printf("panic: ");
-	va_start(ap, fmt);
-	vprintf(fmt, ap);
-	va_end(ap);
-	printf("\n");
-
-#if defined(DDB)
-	if (debugger_on_panic)
-		Debugger ("panic");
-#endif
-	boot(bootopt);
-}
 
 /*
  * Warn that a system table is full.

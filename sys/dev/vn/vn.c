@@ -38,7 +38,7 @@
  * from: Utah Hdr: vn.c 1.13 94/04/02
  *
  *	from: @(#)vn.c	8.6 (Berkeley) 4/1/94
- *	$Id: vn.c,v 1.36 1996/03/28 15:25:43 bde Exp $
+ *	$Id: vn.c,v 1.37 1996/07/23 21:51:26 phk Exp $
  */
 
 /*
@@ -149,7 +149,7 @@ static u_long	vn_options;
 
 static void	vniodone (struct buf *bp);
 static int	vnsetcred (struct vn_softc *vn, struct ucred *cred);
-static void	vnshutdown (void);
+static void	vnshutdown (int ,void *);
 static void	vnclear (struct vn_softc *vn);
 
 static	int
@@ -563,7 +563,7 @@ vnsetcred(struct vn_softc *vn, struct ucred *cred)
 }
 
 void
-vnshutdown()
+vnshutdown(int howto, void *ignored)
 {
 	int i;
 
@@ -571,8 +571,6 @@ vnshutdown()
 		if (vn_softc[i] && vn_softc[i]->sc_flags & VNF_INITED)
 			vnclear(vn_softc[i]);
 }
-
-TEXT_SET(cleanup_set, vnshutdown);
 
 void
 vnclear(struct vn_softc *vn)
@@ -624,6 +622,9 @@ vn_drvinit(void *unused)
 	if( ! vn_devsw_installed ) {
 		bdevsw_add_generic(BDEV_MAJOR,CDEV_MAJOR, &vn_bdevsw);
 		vn_devsw_installed = 1;
+		if(at_shutdown(&vnshutdown,NULL) {
+			printf("vn: could not install shutdown hook\n");
+		}
 #ifdef DEVFS
 		for (unit = 0; unit < NVN; unit++) {
 			vn = vn_softc[unit];
