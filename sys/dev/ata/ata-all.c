@@ -279,8 +279,10 @@ ata_pci_match(device_t dev)
 	    return "AcerLabs Aladdin ATA33 controller";
 
     case 0x05711106: 
-	if (ata_find_dev(dev, 0x05861106, 0))
+	if (ata_find_dev(dev, 0x05861106, 0x02))
 	    return "VIA 82C586 ATA33 controller";
+	if (ata_find_dev(dev, 0x05861106, 0))
+	    return "VIA 82C586 ATA controller";
 	if (ata_find_dev(dev, 0x05961106, 0x12))
 	    return "VIA 82C596 ATA66 controller";
 	if (ata_find_dev(dev, 0x05961106, 0))
