@@ -43,39 +43,13 @@
 
 #include <pci/pcivar.h>
 #include <pci/pcireg.h>
+#include <pci/pcib_private.h>
 
 #include "pcib_if.h"
 #include "opt_pci.h"
 
-/*
- * Bridge-specific data.
- */
-struct pcib_softc 
-{
-    device_t	dev;
-    u_int16_t	command;	/* command register */
-    u_int8_t	secbus;		/* secondary bus number */
-    u_int8_t	subbus;		/* subordinate bus number */
-    pci_addr_t	pmembase;	/* base address of prefetchable memory */
-    pci_addr_t	pmemlimit;	/* topmost address of prefetchable memory */
-    pci_addr_t	membase;	/* base address of memory window */
-    pci_addr_t	memlimit;	/* topmost address of memory window */
-    u_int32_t	iobase;		/* base address of port window */
-    u_int32_t	iolimit;	/* topmost address of port window */
-    u_int16_t	secstat;	/* secondary bus status register */
-    u_int16_t	bridgectl;	/* bridge control register */
-    u_int8_t	seclat;		/* secondary bus latency timer */
-};
-
 static int		pcib_probe(device_t dev);
 static int		pcib_attach(device_t dev);
-static int		pcib_read_ivar(device_t dev, device_t child, int which, uintptr_t *result);
-static int		pcib_write_ivar(device_t dev, device_t child, int which, uintptr_t value);
-static struct resource *pcib_alloc_resource(device_t dev, device_t child, int type, int *rid, 
-					    u_long start, u_long end, u_long count, u_int flags);
-static int		pcib_maxslots(device_t dev);
-static u_int32_t	pcib_read_config(device_t dev, int b, int s, int f, int reg, int width);
-static void		pcib_write_config(device_t dev, int b, int s, int f, int reg, u_int32_t val, int width);
 static int		pcib_route_interrupt(device_t pcib, device_t dev, int pin);
 
 static device_method_t pcib_methods[] = {
@@ -112,7 +86,7 @@ static driver_t pcib_driver = {
     sizeof(struct pcib_softc),
 };
 
-static devclass_t pcib_devclass;
+devclass_t pcib_devclass;
 
 DRIVER_MODULE(pcib, pci, pcib_driver, pcib_devclass, 0, 0);
 
@@ -130,11 +104,10 @@ pcib_probe(device_t dev)
     return(ENXIO);
 }
 
-static int
-pcib_attach(device_t dev)
+void
+pcib_attach_common(device_t dev)
 {
     struct pcib_softc	*sc;
-    device_t		child;
     u_int8_t		iolow;
 
     sc = device_get_softc(dev);
@@ -219,7 +192,16 @@ pcib_attach(device_t dev)
      *     pick 255; the only tradeoff here is that configuration transactions
      *     would be more widely routed than absolutely necessary.
      */
+}
 
+static int
+pcib_attach(device_t dev)
+{
+    struct pcib_softc	*sc;
+    device_t		child;
+
+    pcib_attach_common(dev);
+    sc = device_get_softc(dev);
     if (sc->secbus != 0) {
 	child = device_add_child(dev, "pci", -1);
 	if (child != NULL)
@@ -230,7 +212,7 @@ pcib_attach(device_t dev)
     return(0);
 }
 
-static int
+int
 pcib_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 {
     struct pcib_softc	*sc = device_get_softc(dev);
@@ -243,7 +225,7 @@ pcib_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
     return(ENOENT);
 }
 
-static int
+int
 pcib_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
 {
     struct pcib_softc	*sc = device_get_softc(dev);
@@ -284,7 +266,7 @@ pcib_is_isa_mem(u_long start)
  * We have to trap resource allocation requests and ensure that the bridge
  * is set up to, or capable of handling them.
  */
-static struct resource *
+struct resource *
 pcib_alloc_resource(device_t dev, device_t child, int type, int *rid, 
 		    u_long start, u_long end, u_long count, u_int flags)
 {
@@ -393,7 +375,7 @@ pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
 /*
  * PCIB interface.
  */
-static int
+int
 pcib_maxslots(device_t dev)
 {
     return(PCI_SLOTMAX);
@@ -402,13 +384,13 @@ pcib_maxslots(device_t dev)
 /*
  * Since we are a child of a PCI bus, its parent must support the pcib interface.
  */
-static u_int32_t
+u_int32_t
 pcib_read_config(device_t dev, int b, int s, int f, int reg, int width)
 {
     return(PCIB_READ_CONFIG(device_get_parent(device_get_parent(dev)), b, s, f, reg, width));
 }
 
-static void
+void
 pcib_write_config(device_t dev, int b, int s, int f, int reg, u_int32_t val, int width)
 {
     PCIB_WRITE_CONFIG(device_get_parent(device_get_parent(dev)), b, s, f, reg, val, width);
