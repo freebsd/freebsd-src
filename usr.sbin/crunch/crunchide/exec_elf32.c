@@ -50,6 +50,7 @@ static const char rcsid[] =
 #include <string.h>
 #include <unistd.h>
 
+#include "endian.h"
 #include "extern.h"
 
 #if (defined(NLIST_ELF32) && (ELFSIZE == 32)) || \
@@ -58,8 +59,10 @@ static const char rcsid[] =
 #define	__ELF_WORD_SIZE ELFSIZE
 #if (ELFSIZE == 32)
 #include <sys/elf32.h>
+#define	xewtoh(x)	((data == ELFDATA2MSB) ? be32toh(x) : le32toh(x))
 #elif (ELFSIZE == 64)
 #include <sys/elf64.h>
+#define	xewtoh(x)	((data == ELFDATA2MSB) ? be64toh(x) : le64toh(x))
 #endif
 #include <sys/elf_generic.h>
 
@@ -68,6 +71,10 @@ static const char rcsid[] =
 #define ELFNAME2(x,y)   CONCAT(x,CONCAT(_elf,CONCAT(ELFSIZE,CONCAT(_,y))))
 #define ELFNAMEEND(x)   CONCAT(x,CONCAT(_elf,ELFSIZE))
 #define ELFDEFNNAME(x)  CONCAT(ELF,CONCAT(ELFSIZE,CONCAT(_,x)))
+
+#define	xe16toh(x)	((data == ELFDATA2MSB) ? be16toh(x) : le16toh(x))
+#define	xe32toh(x)	((data == ELFDATA2MSB) ? be32toh(x) : le32toh(x))
+#define	htoxe32(x)	((data == ELFDATA2MSB) ? htobe32(x) : htole32(x))
 
 struct listelem {
 	struct listelem *next;
@@ -127,6 +134,7 @@ ELFNAMEEND(check)(int fd, const char *fn)
 {
 	Elf_Ehdr eh;
 	struct stat sb;
+	unsigned char data;
 
 	/*
 	 * Check the header to maek sure it's an ELF file (of the
@@ -142,7 +150,9 @@ ELFNAMEEND(check)(int fd, const char *fn)
 	if (IS_ELF(eh) == 0)
                 return 0;
 
-        switch (eh.e_machine) {
+	data = eh.e_ident[EI_DATA];
+
+	switch (xe16toh(eh.e_machine)) {
 	case EM_386: break;
 	case EM_ALPHA: break;
 	case EM_IA_64: break;
@@ -167,26 +177,30 @@ ELFNAMEEND(hide)(int fd, const char *fn)
 	struct listelem *relalist = NULL, *rellist = NULL, *tmpl;
 	ssize_t shdrsize;
 	int rv, i, weird;
+	unsigned char data;
 
 	rv = 0;
 	if (xreadatoff(fd, &ehdr, 0, sizeof ehdr, fn) != sizeof ehdr)
 		goto bad;
 
-	shdrsize = ehdr.e_shnum * ehdr.e_shentsize;
+	data = ehdr.e_ident[EI_DATA];
+
+	shdrsize = xe16toh(ehdr.e_shnum) * xe16toh(ehdr.e_shentsize);
 	if ((shdrp = xmalloc(shdrsize, fn, "section header table")) == NULL)
 		goto bad;
-	if (xreadatoff(fd, shdrp, ehdr.e_shoff, shdrsize, fn) != shdrsize)
+	if (xreadatoff(fd, shdrp, xewtoh(ehdr.e_shoff), shdrsize, fn) !=
+	    shdrsize)
 		goto bad;
 
 	symtabshdr = strtabshdr = NULL;
 	weird = 0;
-	for (i = 0; i < ehdr.e_shnum; i++) {
-		switch (shdrp[i].sh_type) {
+	for (i = 0; i < xe16toh(ehdr.e_shnum); i++) {
+		switch (xe32toh(shdrp[i].sh_type)) {
 		case SHT_SYMTAB:
 			if (symtabshdr != NULL)
 				weird = 1;
 			symtabshdr = &shdrp[i];
-			strtabshdr = &shdrp[shdrp[i].sh_link];
+			strtabshdr = &shdrp[xe32toh(shdrp[i].sh_link)];
 			break;
 		case SHT_RELA:
 			tmpl = xmalloc(sizeof *tmpl, fn, "rela list element");
@@ -224,44 +238,44 @@ ELFNAMEEND(hide)(int fd, const char *fn)
 	 */
 
 	/* symbol table */
-	if ((symtabp = xmalloc(symtabshdr->sh_size, fn, "symbol table"))
+	if ((symtabp = xmalloc(xewtoh(symtabshdr->sh_size), fn, "symbol table"))
 	    == NULL)
 		goto bad;
-	if (xreadatoff(fd, symtabp, symtabshdr->sh_offset, symtabshdr->sh_size,
-	    fn) != symtabshdr->sh_size)
+	if (xreadatoff(fd, symtabp, xewtoh(symtabshdr->sh_offset),
+	    xewtoh(symtabshdr->sh_size), fn) != xewtoh(symtabshdr->sh_size))
 		goto bad;
 
 	/* string table */
-	if ((strtabp = xmalloc(strtabshdr->sh_size, fn, "string table"))
+	if ((strtabp = xmalloc(xewtoh(strtabshdr->sh_size), fn, "string table"))
 	    == NULL)
 		goto bad;
-	if (xreadatoff(fd, strtabp, strtabshdr->sh_offset, strtabshdr->sh_size,
-	    fn) != strtabshdr->sh_size)
+	if (xreadatoff(fd, strtabp, xewtoh(strtabshdr->sh_offset),
+	    xewtoh(strtabshdr->sh_size), fn) != xewtoh(strtabshdr->sh_size))
 		goto bad;
 
 	/* any rela tables */
 	for (tmpl = relalist; tmpl != NULL; tmpl = tmpl->next) {
-		if ((tmpl->mem = xmalloc(tmpl->size, fn, "rela table"))
+		if ((tmpl->mem = xmalloc(xewtoh(tmpl->size), fn, "rela table"))
 		    == NULL)
 			goto bad;
-		if (xreadatoff(fd, tmpl->mem, tmpl->file, tmpl->size, fn) !=
-		    tmpl->size)
+		if (xreadatoff(fd, tmpl->mem, xewtoh(tmpl->file),
+		    xewtoh(tmpl->size), fn) != xewtoh(tmpl->size))
 			goto bad;
 	}
 
 	/* any rel tables */
 	for (tmpl = rellist; tmpl != NULL; tmpl = tmpl->next) {
-		if ((tmpl->mem = xmalloc(tmpl->size, fn, "rel table"))
+		if ((tmpl->mem = xmalloc(xewtoh(tmpl->size), fn, "rel table"))
 		    == NULL)
 			goto bad;
-		if (xreadatoff(fd, tmpl->mem, tmpl->file, tmpl->size, fn) !=
-		    tmpl->size)
+		if (xreadatoff(fd, tmpl->mem, xewtoh(tmpl->file),
+		    xewtoh(tmpl->size), fn) != xewtoh(tmpl->size))
 			goto bad;
 	}
 
 	/* Prepare data structures for symbol movement. */
-	nsyms = symtabshdr->sh_size / symtabshdr->sh_entsize;
-	nlocalsyms = symtabshdr->sh_info;
+	nsyms = xewtoh(symtabshdr->sh_size) / xewtoh(symtabshdr->sh_entsize);
+	nlocalsyms = xe32toh(symtabshdr->sh_info);
 	if ((symfwmap = xmalloc(nsyms * sizeof (Elf_Word), fn,
 	    "symbol forward mapping table")) == NULL)
 		goto bad;
@@ -281,11 +295,11 @@ ELFNAMEEND(hide)(int fd, const char *fn)
 		sp = &symtabp[ewi];
 
 		/* if it's on our keep list, don't move it */
-		if (in_keep_list(strtabp + sp->st_name))
+		if (in_keep_list(strtabp + xe32toh(sp->st_name)))
 			continue;
 
 		/* if it's an undefined symbol, keep it */
-		if (sp->st_shndx == SHN_UNDEF)
+		if (xe16toh(sp->st_shndx) == SHN_UNDEF)
 			continue;
 
 		/* adjust the symbol so that it's local */
@@ -309,7 +323,7 @@ ELFNAMEEND(hide)(int fd, const char *fn)
 
 		nlocalsyms++;			/* note new local sym */
 	}
-	symtabshdr->sh_info = nlocalsyms;
+	symtabshdr->sh_info = htoxe32(nlocalsyms);
 
 	/* set up symbol # -> location mapping table */
 	for (ewi = 0; ewi < nsyms; ewi++)
@@ -319,14 +333,14 @@ ELFNAMEEND(hide)(int fd, const char *fn)
 	for (tmpl = relalist; tmpl != NULL; tmpl = tmpl->next) {
 		Elf_Rela *relap = tmpl->mem;
 
-		for (ewi = 0; ewi < tmpl->size / sizeof(*relap); ewi++) {
+		for (ewi = 0; ewi < xewtoh(tmpl->size) / sizeof(*relap); ewi++) {
 			relap[ewi].r_info =
 #if (ELFSIZE == 32)					/* XXX */
-			    symfwmap[ELF_R_SYM(relap[ewi].r_info)] << 8 |
-			    ELF_R_TYPE(relap[ewi].r_info);
+			    symfwmap[ELF_R_SYM(xe32toh(relap[ewi].r_info))] << 8 |
+			    ELF_R_TYPE(xe32toh(relap[ewi].r_info));
 #elif (ELFSIZE == 64)					/* XXX */
-			    symfwmap[ELF_R_SYM(relap[ewi].r_info)] << 32 |
-			    ELF_R_TYPE(relap[ewi].r_info);
+			    symfwmap[ELF_R_SYM(xewtoh(relap[ewi].r_info))] << 32 |
+			    ELF_R_TYPE(xewtoh(relap[ewi].r_info));
 #endif							/* XXX */
 		}
 	}
@@ -335,14 +349,14 @@ ELFNAMEEND(hide)(int fd, const char *fn)
 	for (tmpl = rellist; tmpl != NULL; tmpl = tmpl->next) {
 		Elf_Rel *relp = tmpl->mem;
 
-		for (ewi = 0; ewi < tmpl->size / sizeof *relp; ewi++) {
+		for (ewi = 0; ewi < xewtoh(tmpl->size) / sizeof *relp; ewi++) {
 			relp[ewi].r_info =
 #if (ELFSIZE == 32)					/* XXX */
-			    symfwmap[ELF_R_SYM(relp[ewi].r_info)] << 8 |
-			    ELF_R_TYPE(relp[ewi].r_info);
+			    symfwmap[ELF_R_SYM(xe32toh(relp[ewi].r_info))] << 8 |
+			    ELF_R_TYPE(xe32toh(relp[ewi].r_info));
 #elif (ELFSIZE == 64)					/* XXX */
-			    symfwmap[ELF_R_SYM(relp[ewi].r_info)] << 32 |
-			    ELF_R_TYPE(relp[ewi].r_info);
+			    symfwmap[ELF_R_SYM(xewtoh(relp[ewi].r_info))] << 32 |
+			    ELF_R_TYPE(xewtoh(relp[ewi].r_info));
 #endif							/* XXX */
 		}
 	}
@@ -350,19 +364,20 @@ ELFNAMEEND(hide)(int fd, const char *fn)
 	/*
 	 * write new tables to the file
 	 */
-	if (xwriteatoff(fd, shdrp, ehdr.e_shoff, shdrsize, fn) != shdrsize)
+	if (xwriteatoff(fd, shdrp, xewtoh(ehdr.e_shoff), shdrsize, fn) !=
+	    shdrsize)
 		goto bad;
-	if (xwriteatoff(fd, symtabp, symtabshdr->sh_offset,
-	    symtabshdr->sh_size, fn) != symtabshdr->sh_size)
+	if (xwriteatoff(fd, symtabp, xewtoh(symtabshdr->sh_offset),
+	    xewtoh(symtabshdr->sh_size), fn) != xewtoh(symtabshdr->sh_size))
 		goto bad;
 	for (tmpl = relalist; tmpl != NULL; tmpl = tmpl->next) {
-		if (xwriteatoff(fd, tmpl->mem, tmpl->file, tmpl->size, fn) !=
-		    tmpl->size)
+		if (xwriteatoff(fd, tmpl->mem, xewtoh(tmpl->file),
+		    xewtoh(tmpl->size), fn) != xewtoh(tmpl->size))
 			goto bad;
 	}
 	for (tmpl = rellist; tmpl != NULL; tmpl = tmpl->next) {
-		if (xwriteatoff(fd, tmpl->mem, tmpl->file, tmpl->size, fn) !=
-		    tmpl->size)
+		if (xwriteatoff(fd, tmpl->mem, xewtoh(tmpl->file),
+		    xewtoh(tmpl->size), fn) != xewtoh(tmpl->size))
 			goto bad;
 	}
 
