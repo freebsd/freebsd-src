@@ -63,9 +63,12 @@ MLINKS=		kerberos.3 krb_mk_req.3 \
 		tf_util.3 tf_get_cred.3 \
 		tf_util.3 tf_close.3
 
-INCLUDES=	${KRB4DIR}/lib/krb/krb.h ${KRB4DIR}/lib/krb/klog.h \
+INCLUDES=	${KRB4DIR}/lib/krb/krb.h \
+		${KRB4DIR}/lib/krb/klog.h \
 		${KRB4DIR}/lib/krb/krb-protos.h \
-		${KRB4DIR}/lib/krb/prot.h ${KRBOBJDIR}/krb_err.h
+		${KRB4DIR}/lib/krb/prot.h \
+		${.CURDIR}/../../include/ktypes.h \
+		${KRBOBJDIR}/krb_err.h
 
 .include <bsd.lib.mk>
 
