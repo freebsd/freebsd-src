@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: syscons.c,v 1.280 1998/09/26 03:34:08 yokota Exp $
+ *	$Id: syscons.c,v 1.281 1998/09/26 03:38:38 yokota Exp $
  */
 
 #include "sc.h"
@@ -144,7 +144,7 @@ static	void		*sc_console_devfs_token;
 static  scr_stat    	*new_scp, *old_scp;
 static  term_stat   	kernel_console;
 static  default_attr    *current_default;
-static  int     	flags = 0;
+	int             sc_flags;
 static  int		sc_port = IO_KBD;
 static  KBDC		sc_kbdc = NULL;
 static  char        	init_done = COLD;
@@ -274,7 +274,6 @@ static int history_down_line(scr_stat *scp);
 static int mask2attr(struct term_stat *term);
 static void set_keyboard(int command, int data);
 static void update_leds(int which);
-static void set_destructive_cursor(scr_stat *scp);
 static void set_mouse_pos(scr_stat *scp);
 static int skip_spc_right(scr_stat *scp, u_short *p);
 static int skip_spc_left(scr_stat *scp, u_short *p);
@@ -337,7 +336,7 @@ draw_cursor_image(scr_stat *scp)
 			 + (scp->cursor_pos - scp->scr_buf);
 
     /* do we have a destructive cursor ? */
-    if (flags & CHAR_CURSOR) {
+    if (sc_flags & CHAR_CURSOR) {
 	prev_image = scp->cursor_saveunder;
 	cursor_image = *ptr & 0x00ff;
 	if (cursor_image == DEAD_CHAR) 
@@ -348,7 +347,7 @@ draw_cursor_image(scr_stat *scp)
 	if (prev_image != cursor_image) 
 	    set_destructive_cursor(scp);
 	/* modify cursor_image */
-	if (!(flags & BLINK_CURSOR)||((flags & BLINK_CURSOR)&&(blinkrate & 4))){
+	if (!(sc_flags & BLINK_CURSOR)||((sc_flags & BLINK_CURSOR)&&(blinkrate & 4))){
 	    /* 
 	     * When the mouse pointer is at the same position as the cursor,
 	     * the cursor bitmap needs to be updated even if the char under 
@@ -364,7 +363,7 @@ draw_cursor_image(scr_stat *scp)
     } else {
 	cursor_image = (*(ptr) & 0x00ff) | *(scp->cursor_pos) & 0xff00;
 	scp->cursor_saveunder = cursor_image;
-	if (!(flags & BLINK_CURSOR)||((flags & BLINK_CURSOR)&&(blinkrate & 4))){
+	if (!(sc_flags & BLINK_CURSOR)||((sc_flags & BLINK_CURSOR)&&(blinkrate & 4))){
 	    if ((cursor_image & 0x7000) == 0x7000) {
 		cursor_image &= 0x8fff;
 		if(!(cursor_image & 0x0700))
@@ -646,9 +645,9 @@ scattach(struct isa_device *dev)
 #endif
 
     scinit();
-    flags = dev->id_flags;
+    sc_flags = dev->id_flags;
     if (!ISFONTAVAIL(adp_flags))
-	flags &= ~CHAR_CURSOR;
+	sc_flags &= ~CHAR_CURSOR;
 
     scp = console[0];
 
@@ -665,7 +664,7 @@ scattach(struct isa_device *dev)
     sc_alloc_history_buffer(scp, sc_history_size, 0, FALSE);
 
 #if defined(VESA) && defined(VM86)
-    if ((flags & VESA800X600) 
+    if ((sc_flags & VESA800X600)
 	&& ((*biosvidsw.get_info)(scp->adp, M_VESA_800x600, &info) == 0)) {
 #ifdef SC_SPLASH_SCREEN
 	scsplash_term(scp);
@@ -705,7 +704,7 @@ scattach(struct isa_device *dev)
 	printf("MDA/Hercules");
 	break;
     }
-    printf(" <%d virtual consoles, flags=0x%x>\n", MAXCONS, flags);
+    printf(" <%d virtual consoles, flags=0x%x>\n", MAXCONS, sc_flags);
 
 #if NAPM > 0
     scp->r_hook.ah_fun = scresume;
@@ -962,22 +961,22 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 
     case CONS_CURSORTYPE:   	/* set cursor type blink/noblink */
 	if ((*(int*)data) & 0x01)
-	    flags |= BLINK_CURSOR;
+	    sc_flags |= BLINK_CURSOR;
 	else
-	    flags &= ~BLINK_CURSOR;
+	    sc_flags &= ~BLINK_CURSOR;
 	if ((*(int*)data) & 0x02) {
 	    if (!ISFONTAVAIL(get_adapter(scp)->va_flags))
 		return ENXIO;
-	    flags |= CHAR_CURSOR;
+	    sc_flags |= CHAR_CURSOR;
 	} else
-	    flags &= ~CHAR_CURSOR;
+	    sc_flags &= ~CHAR_CURSOR;
 	/* 
 	 * The cursor shape is global property; all virtual consoles
 	 * are affected. Update the cursor in the current console...
 	 */
 	if (!ISGRAPHSC(cur_console)) {
             remove_cursor_image(cur_console);
-	    if (flags & CHAR_CURSOR)
+	    if (sc_flags & CHAR_CURSOR)
 	        set_destructive_cursor(cur_console);
 	    draw_cursor_image(cur_console);
 	}
@@ -985,13 +984,13 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 
     case CONS_BELLTYPE: 	/* set bell type sound/visual */
 	if ((*(int *)data) & 0x01)
-	    flags |= VISUAL_BELL;
+	    sc_flags |= VISUAL_BELL;
 	else
-	    flags &= ~VISUAL_BELL;
+	    sc_flags &= ~VISUAL_BELL;
 	if ((*(int *)data) & 0x02)
-	    flags |= QUIET_BELL;
+	    sc_flags |= QUIET_BELL;
 	else
-	    flags &= ~QUIET_BELL;
+	    sc_flags &= ~QUIET_BELL;
 	return 0;
 
     case CONS_HISTORY:  	/* set history size */
@@ -2145,7 +2144,7 @@ scrn_update(scr_stat *scp, int show_cursor)
                 draw_cursor_image(scp);
             } else {
                 /* if its a blinking cursor, we may have to update it */
-                if (flags & BLINK_CURSOR)
+		if (sc_flags & BLINK_CURSOR)
                     draw_cursor_image(scp);
             }
         }
@@ -2323,7 +2322,7 @@ exchange_scr(void)
     if (old_scp->mode != new_scp->mode || ISUNKNOWNSC(old_scp))
 	set_mode(new_scp);
     move_crsr(new_scp, new_scp->xpos, new_scp->ypos);
-    if (ISTEXTSC(new_scp) && (flags & CHAR_CURSOR))
+    if (ISTEXTSC(new_scp) && (sc_flags & CHAR_CURSOR))
 	set_destructive_cursor(new_scp);
     if (ISGRAPHSC(old_scp))
 	load_palette(new_scp, palette);
@@ -2800,14 +2799,14 @@ scan_esc(scr_stat *scp, u_char c)
 	case 'C':   /* set cursor type & shape */
 	    if (scp->term.num_param == 1) {
 		if (scp->term.param[0] & 0x01)
-		    flags |= BLINK_CURSOR;
+		    sc_flags |= BLINK_CURSOR;
 		else
-		    flags &= ~BLINK_CURSOR;
+		    sc_flags &= ~BLINK_CURSOR;
 		if ((scp->term.param[0] & 0x02) 
 		    && ISFONTAVAIL(get_adapter(scp)->va_flags)) 
-		    flags |= CHAR_CURSOR;
+		    sc_flags |= CHAR_CURSOR;
 		else
-		    flags &= ~CHAR_CURSOR;
+		    sc_flags &= ~CHAR_CURSOR;
 	    }
 	    else if (scp->term.num_param == 2) {
 		scp->cursor_start = scp->term.param[0] & 0x1F;
@@ -2819,7 +2818,7 @@ scan_esc(scr_stat *scp, u_char c)
 	     */
 	    if (!ISGRAPHSC(cur_console)) {
 		remove_cursor_image(cur_console);
-		if (flags & CHAR_CURSOR)
+		if (sc_flags & CHAR_CURSOR)
 	            set_destructive_cursor(cur_console);
 		draw_cursor_image(cur_console);
 	    }
@@ -4061,7 +4060,7 @@ copy_font(scr_stat *scp, int operation, int font_size, u_char *buf)
     font_loading_in_progress = TRUE;
     if (operation == LOAD) {
 	(*biosvidsw.load_font)(scp->adp, 0, font_size, buf, 0, 256);
-	if (flags & CHAR_CURSOR)
+	if (sc_flags & CHAR_CURSOR)
 	    set_destructive_cursor(scp);
     } else if (operation == SAVE) {
 	(*biosvidsw.save_font)(scp->adp, 0, font_size, buf, 0, 256);
@@ -4069,7 +4068,7 @@ copy_font(scr_stat *scp, int operation, int font_size, u_char *buf)
     font_loading_in_progress = FALSE;
 }
 
-static void
+void
 set_destructive_cursor(scr_stat *scp)
 {
     u_char cursor[32];
@@ -4480,10 +4479,10 @@ draw_cutmarking(scr_stat *scp)
 	    if (ptr != scp->cursor_pos)
 		nch = (och & 0x88ff) | (*ptr & 0x7000)>>4 | (*ptr & 0x0700)<<4;
 	    else {
-		if (flags & CHAR_CURSOR)
+		if (sc_flags & CHAR_CURSOR)
 		    nch = (och & 0x88ff)|(*ptr & 0x7000)>>4|(*ptr & 0x0700)<<4;
 		else 
-		    if (!(flags & BLINK_CURSOR))
+		    if (!(sc_flags & BLINK_CURSOR))
 		        nch = (och & 0xff) | (*ptr & 0xff00);
 	    }
 	}
@@ -4506,10 +4505,10 @@ do_bell(scr_stat *scp, int pitch, int duration)
     if (cold || shutdown_in_progress)
 	return;
 
-    if (scp != cur_console && (flags & QUIET_BELL))
+    if (scp != cur_console && (sc_flags & QUIET_BELL))
 	return;
 
-    if (flags & VISUAL_BELL) {
+    if (sc_flags & VISUAL_BELL) {
 	if (blink_in_progress)
 	    return;
 	blink_in_progress = 4;

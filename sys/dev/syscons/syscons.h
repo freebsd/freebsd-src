@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: syscons.h,v 1.41 1998/09/23 09:59:00 yokota Exp $
+ *	$Id: syscons.h,v 1.42 1998/09/26 03:34:10 yokota Exp $
  */
 
 #ifndef _I386_ISA_SYSCONS_H_
@@ -219,6 +219,7 @@ int add_scrn_saver(void (*this)(int));
 int remove_scrn_saver(void (*this)(int));
 
 void sc_clear_screen(scr_stat *scp);
+void set_destructive_cursor(scr_stat *scp);
 void sc_move_mouse(scr_stat *scp, int x, int y);
 int sc_clean_up(scr_stat *scp);
 void sc_alloc_scr_buffer(scr_stat *scp, int wait, int clear);
