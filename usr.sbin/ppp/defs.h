@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: defs.h,v 1.13 1997/05/04 02:39:03 ache Exp $
+ * $Id: defs.h,v 1.4.2.3 1997/05/09 17:36:14 brian Exp $
  *
  *	TODO:
  */
@@ -39,8 +39,10 @@
 #define	LOGFILE		"/var/log/ppp.tun%d.log" /* Name of log	file */
 #ifdef __FreeBSD__
 #define	MODEM_DEV	"/dev/cuaa1"		/* name of tty device */
+#define	BASE_MODEM_DEV	"cuaa1"			/* name of base tty device */
 #else
 #define	MODEM_DEV	"/dev/tty01"		/* name of tty device */
+#define	BASE_MODEM_DEV	"tty01"			/* name of base tty device */
 #endif
 #define MODEM_SPEED	B38400			/* tty speed */
 #define	SERVER_PORT	3000			/* Base server port no. */
