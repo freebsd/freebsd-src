@@ -1,21 +1,11 @@
-Updating Information for FreeBSD current users
+Updating Information for FreeBSD 5.0 users
 
 This file is maintained and copyrighted by M. Warner Losh
 <imp@village.org>.  See end of file for further details.  For commonly
 done items, please see the COMMON ITEMS: section later in the file.
 
-NOTE TO PEOPLE WHO THINK THAT 5.0-CURRENT IS SLOW:
-	FreeBSD 5.0-CURRENT has many debugging features turned on, in
-	both the kernel and userland.  These features attempt to detect
-	incorrect use of system primitives, and encourage loud failure
-	through extra sanity checking and fail stop semantics.  They
-	also substantially impact system performance.  If you want to
-	do performance measurement, benchmarking, and optimization,
-	you'll want to turn them off.  This includes various WITNESS-
-	related kernel options, INVARIANTS, malloc debugging flags
-	in userland, and various verbose features in the kernel.  Many
-	developers choose to disable these features on build machines
-	to maximize performance.
+20030117:
+	FreeBSD 5.0-RELEASE
 
 20021222:
         For a period after the GCC 3.2.1 import (from 12/04 to 12/22), GCC
