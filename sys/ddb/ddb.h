@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: ddb.h,v 1.2 1994/05/25 08:51:18 rgrimes Exp $
  */
 
 /*
@@ -90,7 +90,6 @@ extern int db_get_variable (db_expr_t *valuep);
 extern void db_putchar (int c);
 extern void db_error (char *s);
 extern int db_readline (char *lstart, int lsize);
-extern void db_printf (const char *fmt, ...);
 extern void db_check_interrupt(void);
 extern void db_print_loc_and_inst (db_addr_t loc);
 
