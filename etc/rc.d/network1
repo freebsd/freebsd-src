@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: rc.network,v 1.46 1999/06/05 12:06:19 bde Exp $
+#	$Id: rc.network,v 1.47 1999/06/08 13:00:30 brian Exp $
 #	From: @(#)netstart	5.9 (Berkeley) 3/30/91
 
 # Note that almost all the user-configurable behavior is no longer in
@@ -51,14 +51,18 @@ network_pass1() {
     done
 
     # Set up all the network interfaces, calling startup scripts if needed
-    for ifn in ${network_interfaces}; do
+    interfaces="`ifconfig -l`"
+    for ifn in ${interfaces}; do
+	    showstat=false
 	    if [ -e /etc/start_if.${ifn} ]; then
 		    . /etc/start_if.${ifn}
+		    showstat=true
 	    fi
 	    # Do the primary ifconfig if specified
 	    eval ifconfig_args=\$ifconfig_${ifn}
 	    if [ -n "${ifconfig_args}" ] ; then
 		    ifconfig ${ifn} ${ifconfig_args}
+		    showstat=true
 	    fi
 	    # Check to see if aliases need to be added
 	    alias=0
@@ -67,6 +71,7 @@ network_pass1() {
 		    eval ifconfig_args=\$ifconfig_${ifn}_alias${alias}
 		    if [ -n "${ifconfig_args}" ]; then
 			    ifconfig ${ifn} ${ifconfig_args} alias
+			    showstat=true
 			    alias=`expr ${alias} + 1`
 		    else
 			    break;
@@ -76,8 +81,12 @@ network_pass1() {
 	    eval ifconfig_args=\$ifconfig_${ifn}_ipx
 	    if [ -n "${ifconfig_args}" ]; then
 		    ifconfig ${ifn} ${ifconfig_args}
+		    showstat=true
 	    fi
-	    ifconfig ${ifn}
+	    if [ "${showstat}" = "true" ]
+	    then
+		    ifconfig ${ifn}
+	    fi
     done
 
     # Initialize IP filtering using ipfw
