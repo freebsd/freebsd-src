@@ -61,6 +61,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/rman.h>
 
+#include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/pmap.h>
+
 #include <compat/ndis/pe_var.h>
 #include <compat/ndis/ntoskrnl_var.h>
 #include <compat/ndis/hal_var.h>
@@ -69,34 +73,28 @@ __FBSDID("$FreeBSD$");
 
 #define __regparm __attribute__((regparm(3)))
 
-#define FUNC void(*)(void)
-
-__stdcall static uint8_t ntoskrnl_unicode_equal(ndis_unicode_string *,
+__stdcall static uint8_t RtlEqualUnicodeString(ndis_unicode_string *,
 	ndis_unicode_string *, uint8_t);
-__stdcall static void ntoskrnl_unicode_copy(ndis_unicode_string *,
+__stdcall static void RtlCopyUnicodeString(ndis_unicode_string *,
 	ndis_unicode_string *);
-__stdcall static ndis_status ntoskrnl_unicode_to_ansi(ndis_ansi_string *,
+__stdcall static ndis_status RtlUnicodeStringToAnsiString(ndis_ansi_string *,
 	ndis_unicode_string *, uint8_t);
-__stdcall static ndis_status ntoskrnl_ansi_to_unicode(ndis_unicode_string *,
+__stdcall static ndis_status RtlAnsiStringToUnicodeString(ndis_unicode_string *,
 	ndis_ansi_string *, uint8_t);
-__stdcall static void *ntoskrnl_iobuildsynchfsdreq(uint32_t, void *,
+__stdcall static void *IoBuildSynchronousFsdRequest(uint32_t, void *,
 	void *, uint32_t, uint32_t *, void *, void *);
-__fastcall static uint32_t ntoskrnl_iofcalldriver(REGARGS2(void *dobj,
-	void *irp));
-__fastcall static void ntoskrnl_iofcompletereq(REGARGS2(void *irp,
-	uint8_t prioboost));
-__stdcall static uint32_t ntoskrnl_waitforobjs(uint32_t,
+__stdcall static uint32_t KeWaitForMultipleObjects(uint32_t,
 	nt_dispatch_header **, uint32_t, uint32_t, uint32_t, uint8_t,
 	int64_t *, wait_block *);
 static void ntoskrnl_wakeup(void *);
 static void ntoskrnl_timercall(void *);
 static void ntoskrnl_run_dpc(void *);
-__stdcall static void ntoskrnl_writereg_ushort(uint16_t *, uint16_t);
-__stdcall static uint16_t ntoskrnl_readreg_ushort(uint16_t *);
-__stdcall static void ntoskrnl_writereg_ulong(uint32_t *, uint32_t);
-__stdcall static uint32_t ntoskrnl_readreg_ulong(uint32_t *);
-__stdcall static void ntoskrnl_writereg_uchar(uint8_t *, uint8_t);
-__stdcall static uint8_t ntoskrnl_readreg_uchar(uint8_t *);
+__stdcall static void WRITE_REGISTER_USHORT(uint16_t *, uint16_t);
+__stdcall static uint16_t READ_REGISTER_USHORT(uint16_t *);
+__stdcall static void WRITE_REGISTER_ULONG(uint32_t *, uint32_t);
+__stdcall static uint32_t READ_REGISTER_ULONG(uint32_t *);
+__stdcall static void WRITE_REGISTER_UCHAR(uint8_t *, uint8_t);
+__stdcall static uint8_t READ_REGISTER_UCHAR(uint8_t *);
 __stdcall static int64_t _allmul(int64_t, int64_t);
 __stdcall static int64_t _alldiv(int64_t, int64_t);
 __stdcall static int64_t _allrem(int64_t, int64_t);
@@ -111,66 +109,68 @@ __stdcall static void *ntoskrnl_allocfunc(uint32_t, size_t, uint32_t);
 __stdcall static void ntoskrnl_freefunc(void *);
 static slist_entry *ntoskrnl_pushsl(slist_header *, slist_entry *);
 static slist_entry *ntoskrnl_popsl(slist_header *);
-__stdcall static void ntoskrnl_init_lookaside(paged_lookaside_list *,
+__stdcall static void ExInitializePagedLookasideList(paged_lookaside_list *,
 	lookaside_alloc_func *, lookaside_free_func *,
 	uint32_t, size_t, uint32_t, uint16_t);
-__stdcall static void ntoskrnl_delete_lookaside(paged_lookaside_list *);
-__stdcall static void ntoskrnl_init_nplookaside(npaged_lookaside_list *,
+__stdcall static void ExDeletePagedLookasideList(paged_lookaside_list *);
+__stdcall static void ExInitializeNPagedLookasideList(npaged_lookaside_list *,
 	lookaside_alloc_func *, lookaside_free_func *,
 	uint32_t, size_t, uint32_t, uint16_t);
-__stdcall static void ntoskrnl_delete_nplookaside(npaged_lookaside_list *);
-__fastcall static slist_entry *ntoskrnl_push_slist(REGARGS2(slist_header *head,
+__stdcall static void ExDeleteNPagedLookasideList(npaged_lookaside_list *);
+__fastcall static slist_entry
+	*InterlockedPushEntrySList(REGARGS2(slist_header *head,
 	slist_entry *entry));
-__fastcall static slist_entry *ntoskrnl_pop_slist(REGARGS1(slist_header
+__fastcall static slist_entry *InterlockedPopEntrySList(REGARGS1(slist_header
 	*head));
 __fastcall static slist_entry
-	*ntoskrnl_push_slist_ex(REGARGS2(slist_header *head,
+	*ExInterlockedPushEntrySList(REGARGS2(slist_header *head,
 	slist_entry *entry), kspin_lock *lock);
 __fastcall static slist_entry
-	*ntoskrnl_pop_slist_ex(REGARGS2(slist_header *head,
+	*ExInterlockedPopEntrySList(REGARGS2(slist_header *head,
 	kspin_lock *lock));
 __fastcall static uint32_t
-	ntoskrnl_interlock_inc(REGARGS1(volatile uint32_t *addend));
+	InterlockedIncrement(REGARGS1(volatile uint32_t *addend));
 __fastcall static uint32_t
-	ntoskrnl_interlock_dec(REGARGS1(volatile uint32_t *addend));
-__fastcall static void ntoskrnl_interlock_addstat(REGARGS2(uint64_t *addend,
-	uint32_t inc));
-__stdcall static void ntoskrnl_freemdl(ndis_buffer *);
-__stdcall static uint32_t ntoskrnl_sizeofmdl(void *, size_t);
-__stdcall static void ntoskrnl_build_npaged_mdl(ndis_buffer *);
-__stdcall static void *ntoskrnl_mmaplockedpages(ndis_buffer *, uint8_t);
-__stdcall static void *ntoskrnl_mmaplockedpages_cache(ndis_buffer *,
+	InterlockedDecrement(REGARGS1(volatile uint32_t *addend));
+__fastcall static void
+	ExInterlockedAddLargeStatistic(REGARGS2(uint64_t *addend, uint32_t));
+__stdcall static mdl *IoAllocateMdl(void *, uint32_t, uint8_t, uint8_t, irp *);
+__stdcall static void IoFreeMdl(mdl *);
+__stdcall static uint32_t MmSizeOfMdl(void *, size_t);
+__stdcall static void MmBuildMdlForNonPagedPool(mdl *);
+__stdcall static void *MmMapLockedPages(mdl *, uint8_t);
+__stdcall static void *MmMapLockedPagesSpecifyCache(mdl *,
 	uint8_t, uint32_t, void *, uint32_t, uint32_t);
-__stdcall static void ntoskrnl_munmaplockedpages(void *, ndis_buffer *);
-__stdcall static size_t ntoskrnl_memcmp(const void *, const void *, size_t);
-__stdcall static void ntoskrnl_init_ansi_string(ndis_ansi_string *, char *);
-__stdcall static void ntoskrnl_init_unicode_string(ndis_unicode_string *,
+__stdcall static void MmUnmapLockedPages(void *, mdl *);
+__stdcall static size_t RtlCompareMemory(const void *, const void *, size_t);
+__stdcall static void RtlInitAnsiString(ndis_ansi_string *, char *);
+__stdcall static void RtlInitUnicodeString(ndis_unicode_string *,
 	uint16_t *);
-__stdcall static void ntoskrnl_free_unicode_string(ndis_unicode_string *);
-__stdcall static void ntoskrnl_free_ansi_string(ndis_ansi_string *);
-__stdcall static ndis_status ntoskrnl_unicode_to_int(ndis_unicode_string *,
+__stdcall static void RtlFreeUnicodeString(ndis_unicode_string *);
+__stdcall static void RtlFreeAnsiString(ndis_ansi_string *);
+__stdcall static ndis_status RtlUnicodeStringToInteger(ndis_unicode_string *,
 	uint32_t, uint32_t *);
 static int atoi (const char *);
 static long atol (const char *);
 static int rand(void);
 static void srand(unsigned int);
 static void ntoskrnl_time(uint64_t *);
-__stdcall static uint8_t ntoskrnl_wdmver(uint8_t, uint8_t);
+__stdcall static uint8_t IoIsWdmVersionAvailable(uint8_t, uint8_t);
 static void ntoskrnl_thrfunc(void *);
-__stdcall static ndis_status ntoskrnl_create_thread(ndis_handle *,
+__stdcall static ndis_status PsCreateSystemThread(ndis_handle *,
 	uint32_t, void *, ndis_handle, void *, void *, void *);
-__stdcall static ndis_status ntoskrnl_thread_exit(ndis_status);
-__stdcall static ndis_status ntoskrnl_devprop(device_object *, uint32_t,
+__stdcall static ndis_status PsTerminateSystemThread(ndis_status);
+__stdcall static ndis_status IoGetDeviceProperty(device_object *, uint32_t,
 	uint32_t, void *, uint32_t *);
-__stdcall static void ntoskrnl_init_mutex(kmutant *, uint32_t);
-__stdcall static uint32_t ntoskrnl_release_mutex(kmutant *, uint8_t);
-__stdcall static uint32_t ntoskrnl_read_mutex(kmutant *);
-__stdcall static ndis_status ntoskrnl_objref(ndis_handle, uint32_t, void *,
-    uint8_t, void **, void **);
-__fastcall static void ntoskrnl_objderef(REGARGS1(void *object));
-__stdcall static uint32_t ntoskrnl_zwclose(ndis_handle);
-static uint32_t ntoskrnl_dbgprint(char *, ...);
-__stdcall static void ntoskrnl_debugger(void);
+__stdcall static void KeInitializeMutex(kmutant *, uint32_t);
+__stdcall static uint32_t KeReleaseMutex(kmutant *, uint8_t);
+__stdcall static uint32_t KeReadStateMutex(kmutant *);
+__stdcall static ndis_status ObReferenceObjectByHandle(ndis_handle,
+	uint32_t, void *, uint8_t, void **, void **);
+__fastcall static void ObfDereferenceObject(REGARGS1(void *object));
+__stdcall static uint32_t ZwClose(ndis_handle);
+static uint32_t DbgPrint(char *, ...);
+__stdcall static void DbgBreakPoint(void);
 __stdcall static void dummy(void);
 
 static struct mtx ntoskrnl_dispatchlock;
@@ -183,7 +183,7 @@ ntoskrnl_libinit()
 {
 	mtx_init(&ntoskrnl_dispatchlock,
 	    "ntoskrnl dispatch lock", MTX_NDIS_LOCK, MTX_DEF);
-	ntoskrnl_init_lock(&ntoskrnl_global);
+	KeInitializeSpinLock(&ntoskrnl_global);
 	TAILQ_INIT(&ntoskrnl_reflist);
 	return(0);
 }
@@ -196,7 +196,7 @@ ntoskrnl_libfini()
 }
 
 __stdcall static uint8_t 
-ntoskrnl_unicode_equal(str1, str2, caseinsensitive)
+RtlEqualUnicodeString(str1, str2, caseinsensitive)
 	ndis_unicode_string	*str1;
 	ndis_unicode_string	*str2;
 	uint8_t			caseinsensitive;
@@ -221,7 +221,7 @@ ntoskrnl_unicode_equal(str1, str2, caseinsensitive)
 }
 
 __stdcall static void
-ntoskrnl_unicode_copy(dest, src)
+RtlCopyUnicodeString(dest, src)
 	ndis_unicode_string	*dest;
 	ndis_unicode_string	*src;
 {
@@ -235,7 +235,7 @@ ntoskrnl_unicode_copy(dest, src)
 }
 
 __stdcall static ndis_status
-ntoskrnl_unicode_to_ansi(dest, src, allocate)
+RtlUnicodeStringToAnsiString(dest, src, allocate)
 	ndis_ansi_string	*dest;
 	ndis_unicode_string	*src;
 	uint8_t			allocate;
@@ -261,7 +261,7 @@ ntoskrnl_unicode_to_ansi(dest, src, allocate)
 }
 
 __stdcall static ndis_status
-ntoskrnl_ansi_to_unicode(dest, src, allocate)
+RtlAnsiStringToUnicodeString(dest, src, allocate)
 	ndis_unicode_string	*dest;
 	ndis_ansi_string	*src;
 	uint8_t			allocate;
@@ -286,7 +286,7 @@ ntoskrnl_ansi_to_unicode(dest, src, allocate)
 }
 
 __stdcall static void *
-ntoskrnl_iobuildsynchfsdreq(func, dobj, buf, len, off, event, status)
+IoBuildSynchronousFsdRequest(func, dobj, buf, len, off, event, status)
 	uint32_t		func;
 	void			*dobj;
 	void			*buf;
@@ -298,14 +298,14 @@ ntoskrnl_iobuildsynchfsdreq(func, dobj, buf, len, off, event, status)
 	return(NULL);
 }
 	
-__fastcall static uint32_t
-ntoskrnl_iofcalldriver(REGARGS2(void *dobj, void *irp))
+__fastcall uint32_t
+IofCallDriver(REGARGS2(device_object *dobj, irp *ip))
 {
 	return(0);
 }
 
-__fastcall static void
-ntoskrnl_iofcompletereq(REGARGS2(void *irp, uint8_t prioboost))
+__fastcall void
+IofCompleteRequest(REGARGS2(irp *ip, uint8_t prioboost))
 {
 	return;
 }
@@ -407,7 +407,7 @@ ntoskrnl_time(tval)
  */
 
 __stdcall uint32_t
-ntoskrnl_waitforobj(obj, reason, mode, alertable, duetime)
+KeWaitForSingleObject(obj, reason, mode, alertable, duetime)
 	nt_dispatch_header	*obj;
 	uint32_t		reason;
 	uint32_t		mode;
@@ -524,7 +524,7 @@ ntoskrnl_waitforobj(obj, reason, mode, alertable, duetime)
 }
 
 __stdcall static uint32_t
-ntoskrnl_waitforobjs(cnt, obj, wtype, reason, mode,
+KeWaitForMultipleObjects(cnt, obj, wtype, reason, mode,
 	alertable, duetime, wb_array)
 	uint32_t		cnt;
 	nt_dispatch_header	*obj[];
@@ -671,7 +671,7 @@ ntoskrnl_waitforobjs(cnt, obj, wtype, reason, mode,
 }
 
 __stdcall static void
-ntoskrnl_writereg_ushort(reg, val)
+WRITE_REGISTER_USHORT(reg, val)
 	uint16_t		*reg;
 	uint16_t		val;
 {
@@ -680,14 +680,14 @@ ntoskrnl_writereg_ushort(reg, val)
 }
 
 __stdcall static uint16_t
-ntoskrnl_readreg_ushort(reg)
+READ_REGISTER_USHORT(reg)
 	uint16_t		*reg;
 {
 	return(bus_space_read_2(NDIS_BUS_SPACE_MEM, 0x0, (bus_size_t)reg));
 }
 
 __stdcall static void
-ntoskrnl_writereg_ulong(reg, val)
+WRITE_REGISTER_ULONG(reg, val)
 	uint32_t		*reg;
 	uint32_t		val;
 {
@@ -696,21 +696,21 @@ ntoskrnl_writereg_ulong(reg, val)
 }
 
 __stdcall static uint32_t
-ntoskrnl_readreg_ulong(reg)
+READ_REGISTER_ULONG(reg)
 	uint32_t		*reg;
 {
 	return(bus_space_read_4(NDIS_BUS_SPACE_MEM, 0x0, (bus_size_t)reg));
 }
 
 __stdcall static uint8_t
-ntoskrnl_readreg_uchar(reg)
+READ_REGISTER_UCHAR(reg)
 	uint8_t			*reg;
 {
 	return(bus_space_read_1(NDIS_BUS_SPACE_MEM, 0x0, (bus_size_t)reg));
 }
 
 __stdcall static void
-ntoskrnl_writereg_uchar(reg, val)
+WRITE_REGISTER_UCHAR(reg, val)
 	uint8_t			*reg;
 	uint8_t			val;
 {
@@ -848,7 +848,7 @@ ntoskrnl_freefunc(buf)
 }
 
 __stdcall static void
-ntoskrnl_init_lookaside(lookaside, allocfunc, freefunc,
+ExInitializePagedLookasideList(lookaside, allocfunc, freefunc,
     flags, size, tag, depth)
 	paged_lookaside_list	*lookaside;
 	lookaside_alloc_func	*allocfunc;
@@ -875,7 +875,7 @@ ntoskrnl_init_lookaside(lookaside, allocfunc, freefunc,
 	else
 		lookaside->nll_l.gl_freefunc = freefunc;
 
-	ntoskrnl_init_lock(&lookaside->nll_obsoletelock);
+	KeInitializeSpinLock(&lookaside->nll_obsoletelock);
 
 	lookaside->nll_l.gl_depth = LOOKASIDE_DEPTH;
 	lookaside->nll_l.gl_maxdepth = LOOKASIDE_DEPTH;
@@ -884,7 +884,7 @@ ntoskrnl_init_lookaside(lookaside, allocfunc, freefunc,
 }
 
 __stdcall static void
-ntoskrnl_delete_lookaside(lookaside)
+ExDeletePagedLookasideList(lookaside)
 	paged_lookaside_list   *lookaside;
 {
 	void			*buf;
@@ -898,7 +898,7 @@ ntoskrnl_delete_lookaside(lookaside)
 }
 
 __stdcall static void
-ntoskrnl_init_nplookaside(lookaside, allocfunc, freefunc,
+ExInitializeNPagedLookasideList(lookaside, allocfunc, freefunc,
     flags, size, tag, depth)
 	npaged_lookaside_list	*lookaside;
 	lookaside_alloc_func	*allocfunc;
@@ -925,7 +925,7 @@ ntoskrnl_init_nplookaside(lookaside, allocfunc, freefunc,
 	else
 		lookaside->nll_l.gl_freefunc = freefunc;
 
-	ntoskrnl_init_lock(&lookaside->nll_obsoletelock);
+	KeInitializeSpinLock(&lookaside->nll_obsoletelock);
 
 	lookaside->nll_l.gl_depth = LOOKASIDE_DEPTH;
 	lookaside->nll_l.gl_maxdepth = LOOKASIDE_DEPTH;
@@ -934,7 +934,7 @@ ntoskrnl_init_nplookaside(lookaside, allocfunc, freefunc,
 }
 
 __stdcall static void
-ntoskrnl_delete_nplookaside(lookaside)
+ExDeleteNPagedLookasideList(lookaside)
 	npaged_lookaside_list   *lookaside;
 {
 	void			*buf;
@@ -956,56 +956,56 @@ ntoskrnl_delete_nplookaside(lookaside)
  */
 
 __fastcall static slist_entry *
-ntoskrnl_push_slist(REGARGS2(slist_header *head, slist_entry *entry))
+InterlockedPushEntrySList(REGARGS2(slist_header *head, slist_entry *entry))
 {
 	slist_entry		*oldhead;
 
-	oldhead = (slist_entry *)FASTCALL3(ntoskrnl_push_slist_ex,
+	oldhead = (slist_entry *)FASTCALL3(ExInterlockedPushEntrySList,
 	    head, entry, &ntoskrnl_global);
 
 	return(oldhead);
 }
 
 __fastcall static slist_entry *
-ntoskrnl_pop_slist(REGARGS1(slist_header *head))
+InterlockedPopEntrySList(REGARGS1(slist_header *head))
 {
 	slist_entry		*first;
 
-	first = (slist_entry *)FASTCALL2(ntoskrnl_pop_slist_ex,
+	first = (slist_entry *)FASTCALL2(ExInterlockedPopEntrySList,
 	    head, &ntoskrnl_global);
 
 	return(first);
 }
 
 __fastcall static slist_entry *
-ntoskrnl_push_slist_ex(REGARGS2(slist_header *head,
+ExInterlockedPushEntrySList(REGARGS2(slist_header *head,
 	slist_entry *entry), kspin_lock *lock)
 {
 	slist_entry		*oldhead;
 	uint8_t			irql;
 
-	ntoskrnl_acquire_spinlock(lock, &irql);
+	KeAcquireSpinLock(lock, &irql);
 	oldhead = ntoskrnl_pushsl(head, entry);
-	ntoskrnl_release_spinlock(lock, irql);
+	KeReleaseSpinLock(lock, irql);
 
 	return(oldhead);
 }
 
 __fastcall static slist_entry *
-ntoskrnl_pop_slist_ex(REGARGS2(slist_header *head, kspin_lock *lock))
+ExInterlockedPopEntrySList(REGARGS2(slist_header *head, kspin_lock *lock))
 {
 	slist_entry		*first;
 	uint8_t			irql;
 
-	ntoskrnl_acquire_spinlock(lock, &irql);
+	KeAcquireSpinLock(lock, &irql);
 	first = ntoskrnl_popsl(head);
-	ntoskrnl_release_spinlock(lock, irql);
+	KeReleaseSpinLock(lock, irql);
 
 	return(first);
 }
 
 __fastcall void
-ntoskrnl_lock_dpc(REGARGS1(kspin_lock *lock))
+KefAcquireSpinLockAtDpcLevel(REGARGS1(kspin_lock *lock))
 {
 	while (atomic_cmpset_acq_int((volatile u_int *)lock, 0, 1) == 0)
 		/* sit and spin */;
@@ -1014,7 +1014,7 @@ ntoskrnl_lock_dpc(REGARGS1(kspin_lock *lock))
 }
 
 __fastcall void
-ntoskrnl_unlock_dpc(REGARGS1(kspin_lock *lock))
+KefReleaseSpinLockFromDpcLevel(REGARGS1(kspin_lock *lock))
 {
 	atomic_store_rel_int((volatile u_int *)lock, 0);
 
@@ -1022,110 +1022,148 @@ ntoskrnl_unlock_dpc(REGARGS1(kspin_lock *lock))
 }
 
 __fastcall static uint32_t
-ntoskrnl_interlock_inc(REGARGS1(volatile uint32_t *addend))
+InterlockedIncrement(REGARGS1(volatile uint32_t *addend))
 {
 	atomic_add_long((volatile u_long *)addend, 1);
 	return(*addend);
 }
 
 __fastcall static uint32_t
-ntoskrnl_interlock_dec(REGARGS1(volatile uint32_t *addend))
+InterlockedDecrement(REGARGS1(volatile uint32_t *addend))
 {
 	atomic_subtract_long((volatile u_long *)addend, 1);
 	return(*addend);
 }
 
 __fastcall static void
-ntoskrnl_interlock_addstat(REGARGS2(uint64_t *addend, uint32_t inc))
+ExInterlockedAddLargeStatistic(REGARGS2(uint64_t *addend, uint32_t inc))
 {
 	uint8_t			irql;
 
-	ntoskrnl_acquire_spinlock(&ntoskrnl_global, &irql);
+	KeAcquireSpinLock(&ntoskrnl_global, &irql);
 	*addend += inc;
-	ntoskrnl_release_spinlock(&ntoskrnl_global, irql);
+	KeReleaseSpinLock(&ntoskrnl_global, irql);
 
 	return;
 };
 
-__stdcall static void
-ntoskrnl_freemdl(mdl)
-	ndis_buffer		*mdl;
+__stdcall static mdl *
+IoAllocateMdl(vaddr, len, secondarybuf, chargequota, iopkt)
+	void			*vaddr;
+	uint32_t		len;
+	uint8_t			secondarybuf;
+	uint8_t			chargequota;
+	irp			*iopkt;
 {
-	ndis_buffer		*head;
+	mdl			*m;
 
-	if (mdl == NULL || mdl->nb_process == NULL)
+	m = malloc(MmSizeOfMdl(vaddr, len), M_DEVBUF, M_NOWAIT|M_ZERO);
+
+	if (m == NULL)
+		return (NULL);
+
+	MmInitializeMdl(m, vaddr, len);
+
+	if (iopkt != NULL) {
+		if (secondarybuf == TRUE) {
+			mdl			*last;
+			last = iopkt->irp_mdl;
+			while (last->mdl_next != NULL)
+				last = last->mdl_next;
+			last->mdl_next = m;
+		} else {
+			if (iopkt->irp_mdl != NULL)
+				panic("leaking an MDL in IoAllocateMdl()");
+			iopkt->irp_mdl = m;
+		}
+	}
+
+	return (NULL);
+}
+
+__stdcall static void
+IoFreeMdl(m)
+	mdl			*m;
+{
+	if (m == NULL)
 		return;
 
-        head = mdl->nb_process;
-
-        if (head->nb_flags != 0x1)
-                return;
-
-        mdl->nb_next = head->nb_next;
-        head->nb_next = mdl;
-
-	/* Decrement count of busy buffers. */
-
-	head->nb_bytecount--;
-
-	/*
-	 * If the pool has been marked for deletion and there are
-	 * no more buffers outstanding, nuke the pool.
-	 */
-
-	if (head->nb_byteoffset && head->nb_bytecount == 0)
-		free(head, M_DEVBUF);
+	free (m, M_DEVBUF);
 
         return;
 }
 
 __stdcall static uint32_t
-ntoskrnl_sizeofmdl(vaddr, len)
+MmSizeOfMdl(vaddr, len)
 	void			*vaddr;
 	size_t			len;
 {
 	uint32_t		l;
 
-        l = sizeof(struct ndis_buffer) +
-	    (sizeof(uint32_t) * SPAN_PAGES(vaddr, len));
+        l = sizeof(struct mdl) +
+	    (sizeof(vm_offset_t *) * SPAN_PAGES(vaddr, len));
 
 	return(l);
 }
 
+/*
+ * The Microsoft documentation says this routine fills in the
+ * page array of an MDL with the _physical_ page addresses that
+ * comprise the buffer, but we don't really want to do that here.
+ * Instead, we just fill in the page array with the kernel virtual
+ * addresses of the buffers.
+ */
 __stdcall static void
-ntoskrnl_build_npaged_mdl(mdl)
-	ndis_buffer		*mdl;
+MmBuildMdlForNonPagedPool(m)
+	mdl			*m;
 {
-	mdl->nb_mappedsystemva = (char *)mdl->nb_startva + mdl->nb_byteoffset;
+	vm_offset_t		*mdl_pages;
+	int			pagecnt, i;
+
+	pagecnt = SPAN_PAGES(m->mdl_byteoffset, m->mdl_bytecount);
+
+	if (pagecnt > (m->mdl_size - sizeof(mdl)) / sizeof(vm_offset_t *))
+		panic("not enough pages in MDL to describe buffer");
+
+	mdl_pages = MmGetMdlPfnArray(m);
+
+	for (i = 0; i < pagecnt; i++)
+		*mdl_pages = (vm_offset_t)m->mdl_startva + (i * PAGE_SIZE);
+
+	m->mdl_flags |= MDL_SOURCE_IS_NONPAGED_POOL;
+	m->mdl_mappedsystemva = MmGetMdlVirtualAddress(m);
+
 	return;
 }
 
 __stdcall static void *
-ntoskrnl_mmaplockedpages(buf, accessmode)
-	ndis_buffer		*buf;
+MmMapLockedPages(buf, accessmode)
+	mdl			*buf;
 	uint8_t			accessmode;
 {
-	return(MDL_VA(buf));
+	buf->mdl_flags |= MDL_MAPPED_TO_SYSTEM_VA;
+	return(MmGetMdlVirtualAddress(buf));
 }
 
 __stdcall static void *
-ntoskrnl_mmaplockedpages_cache(buf, accessmode, cachetype, vaddr,
+MmMapLockedPagesSpecifyCache(buf, accessmode, cachetype, vaddr,
     bugcheck, prio)
-	ndis_buffer		*buf;
+	mdl			*buf;
 	uint8_t			accessmode;
 	uint32_t		cachetype;
 	void			*vaddr;
 	uint32_t		bugcheck;
 	uint32_t		prio;
 {
-	return(MDL_VA(buf));
+	return(MmMapLockedPages(buf, accessmode));
 }
 
 __stdcall static void
-ntoskrnl_munmaplockedpages(vaddr, buf)
+MmUnmapLockedPages(vaddr, buf)
 	void			*vaddr;
-	ndis_buffer		*buf;
+	mdl			*buf;
 {
+	buf->mdl_flags &= ~MDL_MAPPED_TO_SYSTEM_VA;
 	return;
 }
 
@@ -1137,7 +1175,7 @@ ntoskrnl_munmaplockedpages(vaddr, buf)
  * function. Instead, we grab a mutex from the mutex pool.
  */
 __stdcall void
-ntoskrnl_init_lock(lock)
+KeInitializeSpinLock(lock)
 	kspin_lock		*lock;
 {
 	*lock = 0;
@@ -1146,7 +1184,7 @@ ntoskrnl_init_lock(lock)
 }
 
 __stdcall static size_t
-ntoskrnl_memcmp(s1, s2, len)
+RtlCompareMemory(s1, s2, len)
 	const void		*s1;
 	const void		*s2;
 	size_t			len;
@@ -1165,7 +1203,7 @@ ntoskrnl_memcmp(s1, s2, len)
 }
 
 __stdcall static void
-ntoskrnl_init_ansi_string(dst, src)
+RtlInitAnsiString(dst, src)
 	ndis_ansi_string	*dst;
 	char			*src;
 {
@@ -1186,7 +1224,7 @@ ntoskrnl_init_ansi_string(dst, src)
 }
 
 __stdcall static void
-ntoskrnl_init_unicode_string(dst, src)
+RtlInitUnicodeString(dst, src)
 	ndis_unicode_string	*dst;
 	uint16_t		*src;
 {
@@ -1211,7 +1249,7 @@ ntoskrnl_init_unicode_string(dst, src)
 }
 
 __stdcall ndis_status
-ntoskrnl_unicode_to_int(ustr, base, val)
+RtlUnicodeStringToInteger(ustr, base, val)
 	ndis_unicode_string	*ustr;
 	uint32_t		base;
 	uint32_t		*val;
@@ -1265,7 +1303,7 @@ ntoskrnl_unicode_to_int(ustr, base, val)
 }
 
 __stdcall static void
-ntoskrnl_free_unicode_string(ustr)
+RtlFreeUnicodeString(ustr)
 	ndis_unicode_string	*ustr;
 {
 	if (ustr->nus_buf == NULL)
@@ -1276,7 +1314,7 @@ ntoskrnl_free_unicode_string(ustr)
 }
 
 __stdcall static void
-ntoskrnl_free_ansi_string(astr)
+RtlFreeAnsiString(astr)
 	ndis_ansi_string	*astr;
 {
 	if (astr->nas_buf == NULL)
@@ -1319,7 +1357,7 @@ srand(seed)
 }
 
 __stdcall static uint8_t
-ntoskrnl_wdmver(major, minor)
+IoIsWdmVersionAvailable(major, minor)
 	uint8_t			major;
 	uint8_t			minor;
 {
@@ -1329,7 +1367,7 @@ ntoskrnl_wdmver(major, minor)
 }
 
 __stdcall static ndis_status
-ntoskrnl_devprop(devobj, regprop, buflen, prop, reslen)
+IoGetDeviceProperty(devobj, regprop, buflen, prop, reslen)
 	device_object		*devobj;
 	uint32_t		regprop;
 	uint32_t		buflen;
@@ -1355,7 +1393,7 @@ ntoskrnl_devprop(devobj, regprop, buflen, prop, reslen)
 }
 
 __stdcall static void
-ntoskrnl_init_mutex(kmutex, level)
+KeInitializeMutex(kmutex, level)
 	kmutant			*kmutex;
 	uint32_t		level;
 {
@@ -1371,7 +1409,7 @@ ntoskrnl_init_mutex(kmutex, level)
 }
 
 __stdcall static uint32_t
-ntoskrnl_release_mutex(kmutex, kwait)
+KeReleaseMutex(kmutex, kwait)
 	kmutant			*kmutex;
 	uint8_t			kwait;
 {
@@ -1392,14 +1430,14 @@ ntoskrnl_release_mutex(kmutex, kwait)
 }
 
 __stdcall static uint32_t
-ntoskrnl_read_mutex(kmutex)
+KeReadStateMutex(kmutex)
 	kmutant			*kmutex;
 {
 	return(kmutex->km_header.dh_sigstate);
 }
 
 __stdcall void
-ntoskrnl_init_event(kevent, type, state)
+KeInitializeEvent(kevent, type, state)
 	nt_kevent		*kevent;
 	uint32_t		type;
 	uint8_t			state;
@@ -1412,7 +1450,7 @@ ntoskrnl_init_event(kevent, type, state)
 }
 
 __stdcall uint32_t
-ntoskrnl_reset_event(kevent)
+KeResetEvent(kevent)
 	nt_kevent		*kevent;
 {
 	uint32_t		prevstate;
@@ -1426,7 +1464,7 @@ ntoskrnl_reset_event(kevent)
 }
 
 __stdcall uint32_t
-ntoskrnl_set_event(kevent, increment, kwait)
+KeSetEvent(kevent, increment, kwait)
 	nt_kevent		*kevent;
 	uint32_t		increment;
 	uint8_t			kwait;
@@ -1440,7 +1478,7 @@ ntoskrnl_set_event(kevent, increment, kwait)
 }
 
 __stdcall void
-ntoskrnl_clear_event(kevent)
+KeClearEvent(kevent)
 	nt_kevent		*kevent;
 {
 	kevent->k_header.dh_sigstate = FALSE;
@@ -1448,14 +1486,15 @@ ntoskrnl_clear_event(kevent)
 }
 
 __stdcall uint32_t
-ntoskrnl_read_event(kevent)
+KeReadStateEvent(kevent)
 	nt_kevent		*kevent;
 {
 	return(kevent->k_header.dh_sigstate);
 }
 
 __stdcall static ndis_status
-ntoskrnl_objref(handle, reqaccess, otype, accessmode, object, handleinfo)
+ObReferenceObjectByHandle(handle, reqaccess, otype,
+    accessmode, object, handleinfo)
 	ndis_handle		handle;
 	uint32_t		reqaccess;
 	void			*otype;
@@ -1479,7 +1518,7 @@ ntoskrnl_objref(handle, reqaccess, otype, accessmode, object, handleinfo)
 }
 
 __fastcall static void
-ntoskrnl_objderef(REGARGS1(void *object))
+ObfDereferenceObject(REGARGS1(void *object))
 {
 	nt_objref		*nr;
 
@@ -1491,7 +1530,7 @@ ntoskrnl_objderef(REGARGS1(void *object))
 }
 
 __stdcall static uint32_t
-ntoskrnl_zwclose(handle)
+ZwClose(handle)
 	ndis_handle		handle;
 {
 	return(STATUS_SUCCESS);
@@ -1517,12 +1556,12 @@ ntoskrnl_thrfunc(arg)
 
 	rval = tfunc(tctx);
 
-	ntoskrnl_thread_exit(rval);
+	PsTerminateSystemThread(rval);
 	return; /* notreached */
 }
 
 __stdcall static ndis_status
-ntoskrnl_create_thread(handle, reqaccess, objattrs, phandle,
+PsCreateSystemThread(handle, reqaccess, objattrs, phandle,
 	clientid, thrfunc, thrctx)
 	ndis_handle		*handle;
 	uint32_t		reqaccess;
@@ -1563,7 +1602,7 @@ ntoskrnl_create_thread(handle, reqaccess, objattrs, phandle,
  * them.
  */
 __stdcall static ndis_status
-ntoskrnl_thread_exit(status)
+PsTerminateSystemThread(status)
 	ndis_status		status;
 {
 	struct nt_objref	*nr;
@@ -1585,7 +1624,7 @@ ntoskrnl_thread_exit(status)
 }
 
 static uint32_t
-ntoskrnl_dbgprint(char *fmt, ...)
+DbgPrint(char *fmt, ...)
 {
 	va_list			ap;
 
@@ -1598,13 +1637,13 @@ ntoskrnl_dbgprint(char *fmt, ...)
 }
 
 __stdcall static void
-ntoskrnl_debugger(void)
+DbgBreakPoint(void)
 {
 
 #if __FreeBSD_version < 502113
-	Debugger("ntoskrnl_debugger(): breakpoint");
+	Debugger("DbgBreakPoint(): breakpoint");
 #else
-	kdb_enter("ntoskrnl_debugger(): breakpoint");
+	kdb_enter("DbgBreakPoint(): breakpoint");
 #endif
 }
 
@@ -1639,7 +1678,7 @@ ntoskrnl_timercall(arg)
 	}
 
 	if (timer->k_dpc != NULL)
-		ntoskrnl_queue_dpc(timer->k_dpc, NULL, NULL);
+		KeInsertQueueDpc(timer->k_dpc, NULL, NULL);
 
 	ntoskrnl_wakeup(&timer->k_header);
 
@@ -1649,19 +1688,19 @@ ntoskrnl_timercall(arg)
 }
 
 __stdcall void
-ntoskrnl_init_timer(timer)
+KeInitializeTimer(timer)
 	ktimer			*timer;
 {
 	if (timer == NULL)
 		return;
 
-	ntoskrnl_init_timer_ex(timer,  EVENT_TYPE_NOTIFY);
+	KeInitializeTimerEx(timer,  EVENT_TYPE_NOTIFY);
 
 	return;
 }
 
 __stdcall void
-ntoskrnl_init_timer_ex(timer, type)
+KeInitializeTimerEx(timer, type)
 	ktimer			*timer;
 	uint32_t		type;
 {
@@ -1694,15 +1733,15 @@ ntoskrnl_run_dpc(arg)
 
 	dpc = arg;
 	dpcfunc = (__stdcall kdpc_func) dpc->k_deferedfunc;
-	irql = ntoskrnl_raise_irql(DISPATCH_LEVEL);
+	irql = KeRaiseIrql(DISPATCH_LEVEL);
 	dpcfunc(dpc, dpc->k_deferredctx, dpc->k_sysarg1, dpc->k_sysarg2);
-	ntoskrnl_lower_irql(irql);
+	KeLowerIrql(irql);
 
 	return;
 }
 
 __stdcall void
-ntoskrnl_init_dpc(dpc, dpcfunc, dpcctx)
+KeInitializeDpc(dpc, dpcfunc, dpcctx)
 	kdpc			*dpc;
 	void			*dpcfunc;
 	void			*dpcctx;
@@ -1717,7 +1756,7 @@ ntoskrnl_init_dpc(dpc, dpcfunc, dpcctx)
 }
 
 __stdcall uint8_t
-ntoskrnl_queue_dpc(dpc, sysarg1, sysarg2)
+KeInsertQueueDpc(dpc, sysarg1, sysarg2)
 	kdpc			*dpc;
 	void			*sysarg1;
 	void			*sysarg2;
@@ -1731,7 +1770,7 @@ ntoskrnl_queue_dpc(dpc, sysarg1, sysarg2)
 }
 
 __stdcall uint8_t
-ntoskrnl_dequeue_dpc(dpc)
+KeRemoveQueueDpc(dpc)
 	kdpc			*dpc;
 {
 	if (ndis_unsched(ntoskrnl_run_dpc, dpc, NDIS_SWI))
@@ -1741,7 +1780,7 @@ ntoskrnl_dequeue_dpc(dpc)
 }
 
 __stdcall uint8_t
-ntoskrnl_set_timer_ex(timer, duetime, period, dpc)
+KeSetTimerEx(timer, duetime, period, dpc)
 	ktimer			*timer;
 	int64_t			duetime;
 	uint32_t		period;
@@ -1788,16 +1827,16 @@ ntoskrnl_set_timer_ex(timer, duetime, period, dpc)
 }
 
 __stdcall uint8_t
-ntoskrnl_set_timer(timer, duetime, dpc)
+KeSetTimer(timer, duetime, dpc)
 	ktimer			*timer;
 	int64_t			duetime;
 	kdpc			*dpc;
 {
-	return (ntoskrnl_set_timer_ex(timer, duetime, 0, dpc));
+	return (KeSetTimerEx(timer, duetime, 0, dpc));
 }
 
 __stdcall uint8_t
-ntoskrnl_cancel_timer(timer)
+KeCancelTimer(timer)
 	ktimer			*timer;
 {
 	uint8_t			pending;
@@ -1808,7 +1847,7 @@ ntoskrnl_cancel_timer(timer)
 	if (timer->k_header.dh_inserted == TRUE) {
 		untimeout(ntoskrnl_timercall, timer, timer->k_handle);
 		if (timer->k_dpc != NULL)
-			ntoskrnl_dequeue_dpc(timer->k_dpc);
+			KeRemoveQueueDpc(timer->k_dpc);
 		pending = TRUE;
 	} else
 		pending = FALSE;
@@ -1818,7 +1857,7 @@ ntoskrnl_cancel_timer(timer)
 }
 
 __stdcall uint8_t
-ntoskrnl_read_timer(timer)
+KeReadStateTimer(timer)
 	ktimer			*timer;
 {
 	return(timer->k_header.dh_sigstate);
@@ -1833,101 +1872,100 @@ dummy()
 
 
 image_patch_table ntoskrnl_functbl[] = {
-	{ "RtlCompareMemory",		(FUNC)ntoskrnl_memcmp },
-	{ "RtlEqualUnicodeString",	(FUNC)ntoskrnl_unicode_equal },
-	{ "RtlCopyUnicodeString",	(FUNC)ntoskrnl_unicode_copy },
-	{ "RtlUnicodeStringToAnsiString", (FUNC)ntoskrnl_unicode_to_ansi },
-	{ "RtlAnsiStringToUnicodeString", (FUNC)ntoskrnl_ansi_to_unicode },
-	{ "RtlInitAnsiString",		(FUNC)ntoskrnl_init_ansi_string },
-	{ "RtlInitUnicodeString",	(FUNC)ntoskrnl_init_unicode_string },
-	{ "RtlFreeAnsiString",		(FUNC)ntoskrnl_free_ansi_string },
-	{ "RtlFreeUnicodeString",	(FUNC)ntoskrnl_free_unicode_string },
-	{ "RtlUnicodeStringToInteger",	(FUNC)ntoskrnl_unicode_to_int },
-	{ "sprintf",			(FUNC)sprintf },
-	{ "vsprintf",			(FUNC)vsprintf },
-	{ "_snprintf",			(FUNC)snprintf },
-	{ "_vsnprintf",			(FUNC)vsnprintf },
-	{ "DbgPrint",			(FUNC)ntoskrnl_dbgprint },
-	{ "DbgBreakPoint",		(FUNC)ntoskrnl_debugger },
-	{ "strncmp",			(FUNC)strncmp },
-	{ "strcmp",			(FUNC)strcmp },
-	{ "strncpy",			(FUNC)strncpy },
-	{ "strcpy",			(FUNC)strcpy },
-	{ "strlen",			(FUNC)strlen },
-	{ "memcpy",			(FUNC)memcpy },
-	{ "memmove",			(FUNC)memcpy },
-	{ "memset",			(FUNC)memset },
-	{ "IofCallDriver",		(FUNC)ntoskrnl_iofcalldriver },
-	{ "IofCompleteRequest",		(FUNC)ntoskrnl_iofcompletereq },
-	{ "IoBuildSynchronousFsdRequest", (FUNC)ntoskrnl_iobuildsynchfsdreq },
-	{ "KeWaitForSingleObject",	(FUNC)ntoskrnl_waitforobj },
-	{ "KeWaitForMultipleObjects",	(FUNC)ntoskrnl_waitforobjs },
-	{ "_allmul",			(FUNC)_allmul },
-	{ "_alldiv",			(FUNC)_alldiv },
-	{ "_allrem",			(FUNC)_allrem },
-	{ "_allshr",			(FUNC)_allshr },
-	{ "_allshl",			(FUNC)_allshl },
-	{ "_aullmul",			(FUNC)_aullmul },
-	{ "_aulldiv",			(FUNC)_aulldiv },
-	{ "_aullrem",			(FUNC)_aullrem },
-	{ "_aullshr",			(FUNC)_aullshr },
-	{ "_aullshl",			(FUNC)_aullshl },
-	{ "atoi",			(FUNC)atoi },
-	{ "atol",			(FUNC)atol },
-	{ "rand",			(FUNC)rand },
-	{ "srand",			(FUNC)srand },
-	{ "WRITE_REGISTER_USHORT",	(FUNC)ntoskrnl_writereg_ushort },
-	{ "READ_REGISTER_USHORT",	(FUNC)ntoskrnl_readreg_ushort },
-	{ "WRITE_REGISTER_ULONG",	(FUNC)ntoskrnl_writereg_ulong },
-	{ "READ_REGISTER_ULONG",	(FUNC)ntoskrnl_readreg_ulong },
-	{ "READ_REGISTER_UCHAR",	(FUNC)ntoskrnl_readreg_uchar },
-	{ "WRITE_REGISTER_UCHAR",	(FUNC)ntoskrnl_writereg_uchar },
-	{ "ExInitializePagedLookasideList", (FUNC)ntoskrnl_init_lookaside },
-	{ "ExDeletePagedLookasideList", (FUNC)ntoskrnl_delete_lookaside },
-	{ "ExInitializeNPagedLookasideList", (FUNC)ntoskrnl_init_nplookaside },
-	{ "ExDeleteNPagedLookasideList", (FUNC)ntoskrnl_delete_nplookaside },
-	{ "InterlockedPopEntrySList",	(FUNC)ntoskrnl_pop_slist },
-	{ "InterlockedPushEntrySList",	(FUNC)ntoskrnl_push_slist },
-	{ "ExInterlockedPopEntrySList",	(FUNC)ntoskrnl_pop_slist_ex },
-	{ "ExInterlockedPushEntrySList",(FUNC)ntoskrnl_push_slist_ex },
-	{ "KefAcquireSpinLockAtDpcLevel", (FUNC)ntoskrnl_lock_dpc },
-	{ "KefReleaseSpinLockFromDpcLevel", (FUNC)ntoskrnl_unlock_dpc },
-	{ "InterlockedIncrement",	(FUNC)ntoskrnl_interlock_inc },
-	{ "InterlockedDecrement",	(FUNC)ntoskrnl_interlock_dec },
-	{ "ExInterlockedAddLargeStatistic",
-					(FUNC)ntoskrnl_interlock_addstat },
-	{ "IoFreeMdl",			(FUNC)ntoskrnl_freemdl },
-	{ "MmSizeOfMdl",		(FUNC)ntoskrnl_sizeofmdl },
-	{ "MmMapLockedPages",		(FUNC)ntoskrnl_mmaplockedpages },
-	{ "MmMapLockedPagesSpecifyCache",
-					(FUNC)ntoskrnl_mmaplockedpages_cache },
-	{ "MmUnmapLockedPages",		(FUNC)ntoskrnl_munmaplockedpages },
-	{ "MmBuildMdlForNonPagedPool",	(FUNC)ntoskrnl_build_npaged_mdl },
-	{ "KeInitializeSpinLock",	(FUNC)ntoskrnl_init_lock },
-	{ "IoIsWdmVersionAvailable",	(FUNC)ntoskrnl_wdmver },
-	{ "IoGetDeviceProperty",	(FUNC)ntoskrnl_devprop },
-	{ "KeInitializeMutex",		(FUNC)ntoskrnl_init_mutex },
-	{ "KeReleaseMutex",		(FUNC)ntoskrnl_release_mutex },
-	{ "KeReadStateMutex",		(FUNC)ntoskrnl_read_mutex },
-	{ "KeInitializeEvent",		(FUNC)ntoskrnl_init_event },
-	{ "KeSetEvent",			(FUNC)ntoskrnl_set_event },
-	{ "KeResetEvent",		(FUNC)ntoskrnl_reset_event },
-	{ "KeClearEvent",		(FUNC)ntoskrnl_clear_event },
-	{ "KeReadStateEvent",		(FUNC)ntoskrnl_read_event },
-	{ "KeInitializeTimer",		(FUNC)ntoskrnl_init_timer },
-	{ "KeInitializeTimerEx",	(FUNC)ntoskrnl_init_timer_ex },
-	{ "KeSetTimer",			(FUNC)ntoskrnl_set_timer },
-	{ "KeSetTimerEx",		(FUNC)ntoskrnl_set_timer_ex },
-	{ "KeCancelTimer",		(FUNC)ntoskrnl_cancel_timer },
-	{ "KeReadStateTimer",		(FUNC)ntoskrnl_read_timer },
-	{ "KeInitializeDpc",		(FUNC)ntoskrnl_init_dpc },
-	{ "KeInsertQueueDpc",		(FUNC)ntoskrnl_queue_dpc },
-	{ "KeRemoveQueueDpc",		(FUNC)ntoskrnl_dequeue_dpc },
-	{ "ObReferenceObjectByHandle",	(FUNC)ntoskrnl_objref },
-	{ "ObfDereferenceObject",	(FUNC)ntoskrnl_objderef },
-	{ "ZwClose",			(FUNC)ntoskrnl_zwclose },
-	{ "PsCreateSystemThread",	(FUNC)ntoskrnl_create_thread },
-	{ "PsTerminateSystemThread",	(FUNC)ntoskrnl_thread_exit },
+	IMPORT_FUNC(RtlCompareMemory),
+	IMPORT_FUNC(RtlEqualUnicodeString),
+	IMPORT_FUNC(RtlCopyUnicodeString),
+	IMPORT_FUNC(RtlUnicodeStringToAnsiString),
+	IMPORT_FUNC(RtlAnsiStringToUnicodeString),
+	IMPORT_FUNC(RtlInitAnsiString),
+	IMPORT_FUNC(RtlInitUnicodeString),
+	IMPORT_FUNC(RtlFreeAnsiString),
+	IMPORT_FUNC(RtlFreeUnicodeString),
+	IMPORT_FUNC(RtlUnicodeStringToInteger),
+	IMPORT_FUNC(sprintf),
+	IMPORT_FUNC(vsprintf),
+	IMPORT_FUNC_MAP(_snprintf, snprintf),
+	IMPORT_FUNC_MAP(_vsnprintf, vsnprintf),
+	IMPORT_FUNC(DbgPrint),
+	IMPORT_FUNC(DbgBreakPoint),
+	IMPORT_FUNC(strncmp),
+	IMPORT_FUNC(strcmp),
+	IMPORT_FUNC(strncpy),
+	IMPORT_FUNC(strcpy),
+	IMPORT_FUNC(strlen),
+	IMPORT_FUNC(memcpy),
+	IMPORT_FUNC_MAP(memmove, memset),
+	IMPORT_FUNC(memset),
+	IMPORT_FUNC(IofCallDriver),
+	IMPORT_FUNC(IofCompleteRequest),
+	IMPORT_FUNC(IoBuildSynchronousFsdRequest),
+	IMPORT_FUNC(KeWaitForSingleObject),
+	IMPORT_FUNC(KeWaitForMultipleObjects),
+	IMPORT_FUNC(_allmul),
+	IMPORT_FUNC(_alldiv),
+	IMPORT_FUNC(_allrem),
+	IMPORT_FUNC(_allshr),
+	IMPORT_FUNC(_allshl),
+	IMPORT_FUNC(_aullmul),
+	IMPORT_FUNC(_aulldiv),
+	IMPORT_FUNC(_aullrem),
+	IMPORT_FUNC(_aullshr),
+	IMPORT_FUNC(_aullshl),
+	IMPORT_FUNC(atoi),
+	IMPORT_FUNC(atol),
+	IMPORT_FUNC(rand),
+	IMPORT_FUNC(srand),
+	IMPORT_FUNC(WRITE_REGISTER_USHORT),
+	IMPORT_FUNC(READ_REGISTER_USHORT),
+	IMPORT_FUNC(WRITE_REGISTER_ULONG),
+	IMPORT_FUNC(READ_REGISTER_ULONG),
+	IMPORT_FUNC(READ_REGISTER_UCHAR),
+	IMPORT_FUNC(WRITE_REGISTER_UCHAR),
+	IMPORT_FUNC(ExInitializePagedLookasideList),
+	IMPORT_FUNC(ExDeletePagedLookasideList),
+	IMPORT_FUNC(ExInitializeNPagedLookasideList),
+	IMPORT_FUNC(ExDeleteNPagedLookasideList),
+	IMPORT_FUNC(InterlockedPopEntrySList),
+	IMPORT_FUNC(InterlockedPushEntrySList),
+	IMPORT_FUNC(ExInterlockedPopEntrySList),
+	IMPORT_FUNC(ExInterlockedPushEntrySList),
+	IMPORT_FUNC(KefAcquireSpinLockAtDpcLevel),
+	IMPORT_FUNC(KefReleaseSpinLockFromDpcLevel),
+	IMPORT_FUNC(InterlockedIncrement),
+	IMPORT_FUNC(InterlockedDecrement),
+	IMPORT_FUNC(ExInterlockedAddLargeStatistic),
+	IMPORT_FUNC(IoAllocateMdl),
+	IMPORT_FUNC(IoFreeMdl),
+	IMPORT_FUNC(MmSizeOfMdl),
+	IMPORT_FUNC(MmMapLockedPages),
+	IMPORT_FUNC(MmMapLockedPagesSpecifyCache),
+	IMPORT_FUNC(MmUnmapLockedPages),
+	IMPORT_FUNC(MmBuildMdlForNonPagedPool),
+	IMPORT_FUNC(KeInitializeSpinLock),
+	IMPORT_FUNC(IoIsWdmVersionAvailable),
+	IMPORT_FUNC(IoGetDeviceProperty),
+	IMPORT_FUNC(KeInitializeMutex),
+	IMPORT_FUNC(KeReleaseMutex),
+	IMPORT_FUNC(KeReadStateMutex),
+	IMPORT_FUNC(KeInitializeEvent),
+	IMPORT_FUNC(KeSetEvent),
+	IMPORT_FUNC(KeResetEvent),
+	IMPORT_FUNC(KeClearEvent),
+	IMPORT_FUNC(KeReadStateEvent),
+	IMPORT_FUNC(KeInitializeTimer),
+	IMPORT_FUNC(KeInitializeTimerEx),
+	IMPORT_FUNC(KeSetTimer),
+	IMPORT_FUNC(KeSetTimerEx),
+	IMPORT_FUNC(KeCancelTimer),
+	IMPORT_FUNC(KeReadStateTimer),
+	IMPORT_FUNC(KeInitializeDpc),
+	IMPORT_FUNC(KeInsertQueueDpc),
+	IMPORT_FUNC(KeRemoveQueueDpc),
+	IMPORT_FUNC(ObReferenceObjectByHandle),
+	IMPORT_FUNC(ObfDereferenceObject),
+	IMPORT_FUNC(ZwClose),
+	IMPORT_FUNC(PsCreateSystemThread),
+	IMPORT_FUNC(PsTerminateSystemThread),
 
 	/*
 	 * This last entry is a catch-all for any function we haven't
