@@ -565,3 +565,8 @@ command should work to join an arbitrary number of
 archives
 together, but it does not; attempting to do so leaves the
 end-of-archive blocks in place for the second and subsequent archives.
+.Pp
+The tar file format is a semi fixed width field format, and the field
+for device numbers were designed for 16 bit (8 major, 8 minor)
+and can not absorb our 32 bit (8 major, 16+8 minor) numbers.
+
