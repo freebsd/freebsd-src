@@ -142,6 +142,55 @@ mii_phy_auto_timeout(arg)
 	splx(s);
 }
 
+int
+mii_phy_tick(sc)
+	struct mii_softc *sc;
+{
+	struct ifmedia_entry *ife = sc->mii_pdata->mii_media.ifm_cur;
+	struct ifnet *ifp = sc->mii_pdata->mii_ifp;
+	int reg;
+
+	/*
+	 * Is the interface even up?
+	 */
+	if ((ifp->if_flags & IFF_UP) == 0)
+		return (EJUSTRETURN);
+
+	/*
+	 * If we're not doing autonegotiation, we don't need to do
+	 * any extra work here.  However, we need to check the link
+	 * status so we can generate an announcement if the status
+	 * changes.
+	 */
+	if (IFM_SUBTYPE(ife->ifm_media) != IFM_AUTO)
+		return (0);
+
+	/*
+	 * check for link.
+	 * Read the status register twice; BMSR_LINK is latch-low.
+	 */
+	reg = PHY_READ(sc, MII_BMSR) | PHY_READ(sc, MII_BMSR);
+	if (reg & BMSR_LINK)
+		return (0);
+
+	/*
+	 * Only retry autonegotiation every 5 seconds.
+	 */
+	if (++sc->mii_ticks != 5)
+		return (EJUSTRETURN);
+
+	sc->mii_ticks = 0;
+	mii_phy_reset(sc);
+	if (mii_phy_auto(sc, 0) == EJUSTRETURN)
+		return (EJUSTRETURN);
+
+	/*
+	 * Might need to generate a status message if autonegotiation
+	 * failed.
+	 */
+	return (0);
+}
+
 void
 mii_phy_reset(mii)
 	struct mii_softc *mii;
@@ -164,6 +213,23 @@ mii_phy_reset(mii)
 
 	if (mii->mii_inst != 0 && ((mii->mii_flags & MIIF_NOISOLATE) == 0))
 		PHY_WRITE(mii, MII_BMCR, reg | BMCR_ISO);
+}
+
+void
+mii_phy_update(sc, cmd)
+	struct mii_softc *sc;
+	int cmd;
+{
+	struct mii_data *mii = sc->mii_pdata;
+
+	if (sc->mii_active != mii->mii_media_active || cmd == MII_MEDIACHG) {
+		MIIBUS_STATCHG(sc->mii_dev);
+		sc->mii_active = mii->mii_media_active;
+	}
+	if (sc->mii_status != mii->mii_media_status) {
+		MIIBUS_LINKCHG(sc->mii_dev);
+		sc->mii_status = mii->mii_media_status;
+	}
 }
 
 /*
