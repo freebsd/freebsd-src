@@ -1,41 +1,34 @@
-/*
- * Based on src/backend/utils/misc/pg_status.c from 
- * PostgreSQL Database Management System
- * 
- * Portions Copyright (c) 1996-2001, The PostgreSQL Global Development Group
- * 
- * Portions Copyright (c) 1994, The Regents of the University of California
- * 
- * Permission to use, copy, modify, and distribute this software and its
- * documentation for any purpose, without fee, and without a written agreement
- * is hereby granted, provided that the above copyright notice and this
- * paragraph and the following two paragraphs appear in all copies.
- * 
- * IN NO EVENT SHALL THE UNIVERSITY OF CALIFORNIA BE LIABLE TO ANY PARTY FOR
- * DIRECT, INDIRECT, SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES, INCLUDING
- * LOST PROFITS, ARISING OUT OF THE USE OF THIS SOFTWARE AND ITS
- * DOCUMENTATION, EVEN IF THE UNIVERSITY OF CALIFORNIA HAS BEEN ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- * 
- * THE UNIVERSITY OF CALIFORNIA SPECIFICALLY DISCLAIMS ANY WARRANTIES,
- * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
- * AND FITNESS FOR A PARTICULAR PURPOSE.  THE SOFTWARE PROVIDED HEREUNDER IS
- * ON AN "AS IS" BASIS, AND THE UNIVERSITY OF CALIFORNIA HAS NO OBLIGATIONS TO
- * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
- */
+/* Based on conf.c from UCB sendmail 8.8.8 */
 
-/*--------------------------------------------------------------------
- * ps_status.c
+/*
+ * Copyright 2003 Damien Miller
+ * Copyright (c) 1983, 1995-1997 Eric P. Allman
+ * Copyright (c) 1988, 1993
+ *	The Regents of the University of California.  All rights reserved.
  *
- * Routines to support changing the ps display of PostgreSQL backends
- * to contain some useful information. Mechanism differs wildly across
- * platforms.
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. Neither the name of the University nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
- * $Header: /var/cvs/openssh/openbsd-compat/setproctitle.c,v 1.5 2003/01/20 02:15:11 djm Exp $
- *
- * Copyright 2000 by PostgreSQL Global Development Group
- * various details abducted from various places
- *--------------------------------------------------------------------
+ * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
 #include "includes.h"
@@ -44,200 +37,121 @@
 
 #include <unistd.h>
 #ifdef HAVE_SYS_PSTAT_H
-#include <sys/pstat.h>		/* for HP-UX */
-#endif
-#ifdef HAVE_PS_STRINGS
-#include <machine/vmparam.h>	/* for old BSD */
-#include <sys/exec.h>
+#include <sys/pstat.h>
 #endif
 
-/*------
- * Alternative ways of updating ps display:
- *
- * SETPROCTITLE_STRATEGY == PS_USE_PSTAT
- *	   use the pstat(PSTAT_SETCMD, )
- *	   (HPUX)
- * SETPROCTITLE_STRATEGY == PS_USE_PS_STRINGS
- *	   assign PS_STRINGS->ps_argvstr = "string"
- *	   (some BSD systems)
- * SETPROCTITLE_STRATEGY == PS_USE_CHANGE_ARGV
- *	   assign argv[0] = "string"
- *	   (some other BSD systems)
- * SETPROCTITLE_STRATEGY == PS_USE_CLOBBER_ARGV
- *	   write over the argv and environment area
- *	   (most SysV-like systems)
- * SETPROCTITLE_STRATEGY == PS_USE_NONE
- *	   don't update ps display
- *	   (This is the default, as it is safest.)
- */
+#define SPT_NONE	0	/* don't use it at all */
+#define SPT_PSTAT	1	/* cover argv with title information */
+#define SPT_REUSEARGV	2	/* use pstat(PSTAT_SETCMD, ...) */
 
-#define PS_USE_NONE			0
-#define PS_USE_PSTAT			1
-#define PS_USE_PS_STRINGS		2
-#define PS_USE_CHANGE_ARGV		3
-#define PS_USE_CLOBBER_ARGV		4
-
-#ifndef SETPROCTITLE_STRATEGY
-# define SETPROCTITLE_STRATEGY	PS_USE_NONE 
+#ifndef SPT_TYPE
+# define SPT_TYPE	SPT_NONE
 #endif
 
-#ifndef SETPROCTITLE_PS_PADDING
-# define SETPROCTITLE_PS_PADDING	' '
-#endif
-#endif /* HAVE_SETPROCTITLE */
-
-extern char **environ;
-
-/*
- * argv clobbering uses existing argv space, all other methods need a buffer
- */
-#if SETPROCTITLE_STRATEGY != PS_USE_CLOBBER_ARGV
-static char ps_buffer[256];
-static const size_t ps_buffer_size = sizeof(ps_buffer);
-#else
-static char *ps_buffer;			/* will point to argv area */
-static size_t ps_buffer_size;		/* space determined at run time */
+#ifndef SPT_PADCHAR
+# define SPT_PADCHAR	'\0'
 #endif
 
-/* save the original argv[] location here */
-static int	save_argc;
-static char **save_argv;
-
-extern char *__progname;
-
-#ifndef HAVE_SETPROCTITLE
-/*
- * Call this to update the ps status display to a fixed prefix plus an
- * indication of what you're currently doing passed in the argument.
- */
-void
-setproctitle(const char *fmt, ...)
-{
-#if SETPROCTITLE_STRATEGY == PS_USE_PSTAT
-	union pstun pst;
+#if SPT_TYPE == SPT_REUSEARGV
+static char *argv_start = NULL;
+static size_t argv_env_len = 0;
 #endif
-#if SETPROCTITLE_STRATEGY != PS_USE_NONE
-	ssize_t used;
-	va_list ap;
-
-	/* no ps display if you didn't call save_ps_display_args() */
-	if (save_argv == NULL)
-		return;
-#if SETPROCTITLE_STRATEGY == PS_USE_CLOBBER_ARGV
-	/* If ps_buffer is a pointer, it might still be null */
-	if (ps_buffer == NULL)
-		return;
-#endif /* PS_USE_CLOBBER_ARGV */
-
-	/*
-	 * Overwrite argv[] to point at appropriate space, if needed
-	 */
-#if SETPROCTITLE_STRATEGY == PS_USE_CHANGE_ARGV
-	save_argv[0] = ps_buffer;
-	save_argv[1] = NULL;
-#endif /* PS_USE_CHANGE_ARGV */
-
-#if SETPROCTITLE_STRATEGY == PS_USE_CLOBBER_ARGV
-	save_argv[1] = NULL;
-#endif /* PS_USE_CLOBBER_ARGV */
-
-	/*
-	 * Make fixed prefix of ps display.
-	 */
-
-	va_start(ap, fmt);
-	if (fmt == NULL)
-		snprintf(ps_buffer, ps_buffer_size, "%s", __progname);
-	else {
-		used = snprintf(ps_buffer, ps_buffer_size, "%s: ", __progname);
-		if (used == -1 || used >= ps_buffer_size)
-			used = ps_buffer_size;
-		vsnprintf(ps_buffer + used, ps_buffer_size - used, fmt, ap);
-	}
-	va_end(ap);
-
-#if SETPROCTITLE_STRATEGY == PS_USE_PSTAT
-	pst.pst_command = ps_buffer;
-	pstat(PSTAT_SETCMD, pst, strlen(ps_buffer), 0, 0);
-#endif   /* PS_USE_PSTAT */
-
-#if SETPROCTITLE_STRATEGY == PS_USE_PS_STRINGS
-	PS_STRINGS->ps_nargvstr = 1;
-	PS_STRINGS->ps_argvstr = ps_buffer;
-#endif   /* PS_USE_PS_STRINGS */
-
-#if SETPROCTITLE_STRATEGY == PS_USE_CLOBBER_ARGV
-	/* pad unused memory */
-	used = strlen(ps_buffer);
-	memset(ps_buffer + used, SETPROCTITLE_PS_PADDING, 
-	    ps_buffer_size - used);
-#endif   /* PS_USE_CLOBBER_ARGV */
-
-#endif /* PS_USE_NONE */
-}
 
 #endif /* HAVE_SETPROCTITLE */
 
-/*
- * Call this early in startup to save the original argc/argv values.
- *
- * argv[] will not be overwritten by this routine, but may be overwritten
- * during setproctitle. Also, the physical location of the environment
- * strings may be moved, so this should be called before any code that
- * might try to hang onto a getenv() result.
- */
 void
 compat_init_setproctitle(int argc, char *argv[])
 {
-#if SETPROCTITLE_STRATEGY == PS_USE_CLOBBER_ARGV
-	char *end_of_area = NULL;
-	char **new_environ;
+#if defined(SPT_TYPE) && SPT_TYPE == SPT_REUSEARGV
+	extern char **environ;
+	char *lastargv = NULL;
+	char **envp = environ;
 	int i;
-#endif
-
-	save_argc = argc;
-	save_argv = argv;
-
-#if SETPROCTITLE_STRATEGY == PS_USE_CLOBBER_ARGV
-	/*
-	 * If we're going to overwrite the argv area, count the available
-	 * space.  Also move the environment to make additional room.
-	 */
 
 	/*
-	 * check for contiguous argv strings
+	 * NB: This assumes that argv has already been copied out of the
+	 * way. This is true for sshd, but may not be true for other 
+	 * programs. Beware.
 	 */
-	for (i = 0; i < argc; i++) {
-		if (i == 0 || end_of_area + 1 == argv[i])
-			end_of_area = argv[i] + strlen(argv[i]);
-	}
 
-	/* probably can't happen? */
-	if (end_of_area == NULL) {
-		ps_buffer = NULL;
-		ps_buffer_size = 0;
+	if (argc == 0 || argv[0] == NULL)
+		return;
+
+	/* Fail if we can't allocate room for the new environment */
+	for (i = 0; envp[i] != NULL; i++)
+		;
+	if ((environ = malloc(sizeof(*environ) * (i + 1))) == NULL) {
+		environ = envp;	/* put it back */
 		return;
 	}
 
 	/*
-	 * check for contiguous environ strings following argv
+	 * Find the last argv string or environment variable within 
+	 * our process memory area.
 	 */
-	for (i = 0; environ[i] != NULL; i++) {
-		if (end_of_area + 1 == environ[i])
-			end_of_area = environ[i] + strlen(environ[i]);
+	for (i = 0; i < argc; i++) {
+		if (lastargv == NULL || lastargv + 1 == argv[i])
+			lastargv = argv[i] + strlen(argv[i]);
+	}
+	for (i = 0; envp[i] != NULL; i++) {
+		if (lastargv + 1 == envp[i])
+			lastargv = envp[i] + strlen(envp[i]);
 	}
 
-	ps_buffer = argv[0];
-	ps_buffer_size = end_of_area - argv[0] - 1;
+	argv[1] = NULL;
+	argv_start = argv[0];
+	argv_env_len = lastargv - argv[0] - 1;
 
-	/*
-	 * Duplicate and move the environment out of the way
+	/* 
+	 * Copy environment 
+	 * XXX - will truncate env on strdup fail
 	 */
-	new_environ = malloc(sizeof(char *) * (i + 1));
-	for (i = 0; environ[i] != NULL; i++)
-		new_environ[i] = strdup(environ[i]);
-	new_environ[i] = NULL;
-	environ = new_environ;
-#endif /* PS_USE_CLOBBER_ARGV */
+	for (i = 0; envp[i] != NULL; i++)
+		environ[i] = strdup(envp[i]);
+	environ[i] = NULL;
+#endif /* SPT_REUSEARGV */
 }
 
+#ifndef HAVE_SETPROCTITLE
+void
+setproctitle(const char *fmt, ...)
+{
+#if SPT_TYPE != SPT_NONE
+	va_list ap;
+	char buf[1024];
+	size_t len;
+	extern char *__progname;
+#if SPT_TYPE == SPT_PSTAT
+	union pstun pst;
+#endif
+
+#if SPT_TYPE == SPT_REUSEARGV
+	if (argv_env_len <= 0)
+		return;
+#endif
+
+	strlcpy(buf, __progname, sizeof(buf));
+
+	va_start(ap, fmt);
+	if (fmt != NULL) {
+		len = strlcat(buf, ": ", sizeof(buf));
+		if (len < sizeof(buf))
+			vsnprintf(buf + len, sizeof(buf) - len , fmt, ap);
+	}
+	va_end(ap);
+
+#if SPT_TYPE == SPT_PSTAT
+	pst.pst_command = buf;
+	pstat(PSTAT_SETCMD, pst, strlen(buf), 0, 0);
+#elif SPT_TYPE == SPT_REUSEARGV
+/*	debug("setproctitle: copy \"%s\" into len %d", 
+	    buf, argv_env_len); */
+	len = strlcpy(argv_start, buf, argv_env_len);
+	for(; len < argv_env_len; len++)
+		argv_start[len] = SPT_PADCHAR;
+#endif
+
+#endif /* SPT_NONE */
+}
+
+#endif /* HAVE_SETPROCTITLE */

@@ -12,7 +12,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: canohost.c,v 1.35 2002/11/26 02:38:54 stevesk Exp $");
+RCSID("$OpenBSD: canohost.c,v 1.37 2003/06/02 09:17:34 markus Exp $");
 
 #include "packet.h"
 #include "xmalloc.h"
@@ -27,7 +27,7 @@ static void check_ip_options(int, char *);
  */
 
 static char *
-get_remote_hostname(int socket, int verify_reverse_mapping)
+get_remote_hostname(int socket, int use_dns)
 {
 	struct sockaddr_storage from;
 	int i;
@@ -72,6 +72,9 @@ get_remote_hostname(int socket, int verify_reverse_mapping)
 	    NULL, 0, NI_NUMERICHOST) != 0)
 		fatal("get_remote_hostname: getnameinfo NI_NUMERICHOST failed");
 
+	if (!use_dns)
+		return xstrdup(ntop);
+
 	if (from.ss_family == AF_INET)
 		check_ip_options(socket, ntop);
 
@@ -80,14 +83,24 @@ get_remote_hostname(int socket, int verify_reverse_mapping)
 	if (getnameinfo((struct sockaddr *)&from, fromlen, name, sizeof(name),
 	    NULL, 0, NI_NAMEREQD) != 0) {
 		/* Host name not found.  Use ip address. */
-#if 0
-		log("Could not reverse map address %.100s.", ntop);
-#endif
 		return xstrdup(ntop);
 	}
 
-	/* Got host name. */
-	name[sizeof(name) - 1] = '\0';
+	/*
+	 * if reverse lookup result looks like a numeric hostname,
+	 * someone is trying to trick us by PTR record like following:
+	 *	1.1.1.10.in-addr.arpa.	IN PTR	2.3.4.5
+	 */
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_socktype = SOCK_DGRAM;	/*dummy*/
+	hints.ai_flags = AI_NUMERICHOST;
+	if (getaddrinfo(name, "0", &hints, &ai) == 0) {
+		logit("Nasty PTR record \"%s\" is set up for %s, ignoring",
+		    name, ntop);
+		freeaddrinfo(ai);
+		return xstrdup(ntop);
+	}
+
 	/*
 	 * Convert it to all lowercase (which is expected by the rest
 	 * of this software).
@@ -95,9 +108,6 @@ get_remote_hostname(int socket, int verify_reverse_mapping)
 	for (i = 0; name[i]; i++)
 		if (isupper(name[i]))
 			name[i] = tolower(name[i]);
-
-	if (!verify_reverse_mapping)
-		return xstrdup(name);
 	/*
 	 * Map it back to an IP address and check that the given
 	 * address actually is an address of this host.  This is
@@ -111,7 +121,7 @@ get_remote_hostname(int socket, int verify_reverse_mapping)
 	hints.ai_family = from.ss_family;
 	hints.ai_socktype = SOCK_STREAM;
 	if (getaddrinfo(name, NULL, &hints, &aitop) != 0) {
-		log("reverse mapping checking getaddrinfo for %.700s "
+		logit("reverse mapping checking getaddrinfo for %.700s "
 		    "failed - POSSIBLE BREAKIN ATTEMPT!", name);
 		return xstrdup(ntop);
 	}
@@ -126,7 +136,7 @@ get_remote_hostname(int socket, int verify_reverse_mapping)
 	/* If we reached the end of the list, the address was not there. */
 	if (!ai) {
 		/* Address not found for the host name. */
-		log("Address %.100s maps to %.600s, but this does not "
+		logit("Address %.100s maps to %.600s, but this does not "
 		    "map back to the address - POSSIBLE BREAKIN ATTEMPT!",
 		    ntop, name);
 		return xstrdup(ntop);
@@ -149,6 +159,7 @@ get_remote_hostname(int socket, int verify_reverse_mapping)
 static void
 check_ip_options(int socket, char *ipaddr)
 {
+#ifdef IP_OPTIONS
 	u_char options[200];
 	char text[sizeof(options) * 3 + 1];
 	socklen_t option_size;
@@ -166,11 +177,12 @@ check_ip_options(int socket, char *ipaddr)
 		for (i = 0; i < option_size; i++)
 			snprintf(text + i*3, sizeof(text) - i*3,
 			    " %2.2x", options[i]);
-		log("Connection from %.100s with IP options:%.800s",
+		logit("Connection from %.100s with IP options:%.800s",
 		    ipaddr, text);
 		packet_disconnect("Connection from %.100s with IP options:%.800s",
 		    ipaddr, text);
 	}
+#endif /* IP_OPTIONS */
 }
 
 /*
@@ -180,14 +192,14 @@ check_ip_options(int socket, char *ipaddr)
  */
 
 const char *
-get_canonical_hostname(int verify_reverse_mapping)
+get_canonical_hostname(int use_dns)
 {
 	static char *canonical_host_name = NULL;
-	static int verify_reverse_mapping_done = 0;
+	static int use_dns_done = 0;
 
 	/* Check if we have previously retrieved name with same option. */
 	if (canonical_host_name != NULL) {
-		if (verify_reverse_mapping_done != verify_reverse_mapping)
+		if (use_dns_done != use_dns)
 			xfree(canonical_host_name);
 		else
 			return canonical_host_name;
@@ -196,11 +208,11 @@ get_canonical_hostname(int verify_reverse_mapping)
 	/* Get the real hostname if socket; otherwise return UNKNOWN. */
 	if (packet_connection_is_on_socket())
 		canonical_host_name = get_remote_hostname(
-		    packet_get_connection_in(), verify_reverse_mapping);
+		    packet_get_connection_in(), use_dns);
 	else
 		canonical_host_name = xstrdup("UNKNOWN");
 
-	verify_reverse_mapping_done = verify_reverse_mapping;
+	use_dns_done = use_dns;
 	return canonical_host_name;
 }
 
@@ -294,11 +306,11 @@ get_remote_ipaddr(void)
 }
 
 const char *
-get_remote_name_or_ip(u_int utmp_len, int verify_reverse_mapping)
+get_remote_name_or_ip(u_int utmp_len, int use_dns)
 {
 	static const char *remote = "";
 	if (utmp_len > 0)
-		remote = get_canonical_hostname(verify_reverse_mapping);
+		remote = get_canonical_hostname(use_dns);
 	if (utmp_len == 0 || strlen(remote) > utmp_len)
 		remote = get_remote_ipaddr();
 	return remote;

@@ -23,7 +23,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: dh.c,v 1.23 2002/11/21 22:22:50 markus Exp $");
+RCSID("$OpenBSD: dh.c,v 1.24 2003/04/08 20:21:28 itojun Exp $");
 
 #include "xmalloc.h"
 
@@ -112,7 +112,7 @@ choose_dh(int min, int wantbits, int max)
 
 	if ((f = fopen(_PATH_DH_MODULI, "r")) == NULL &&
 	    (f = fopen(_PATH_DH_PRIMES, "r")) == NULL) {
-		log("WARNING: %s does not exist, using old modulus", _PATH_DH_MODULI);
+		logit("WARNING: %s does not exist, using old modulus", _PATH_DH_MODULI);
 		return (dh_new_group1());
 	}
 
@@ -140,7 +140,7 @@ choose_dh(int min, int wantbits, int max)
 
 	if (bestcount == 0) {
 		fclose(f);
-		log("WARNING: no suitable primes in %s", _PATH_DH_PRIMES);
+		logit("WARNING: no suitable primes in %s", _PATH_DH_PRIMES);
 		return (NULL);
 	}
 
@@ -176,7 +176,7 @@ dh_pub_is_valid(DH *dh, BIGNUM *dh_pub)
 	int bits_set = 0;
 
 	if (dh_pub->neg) {
-		log("invalid public DH value: negativ");
+		logit("invalid public DH value: negativ");
 		return 0;
 	}
 	for (i = 0; i <= n; i++)
@@ -187,7 +187,7 @@ dh_pub_is_valid(DH *dh, BIGNUM *dh_pub)
 	/* if g==2 and bits_set==1 then computing log_g(dh_pub) is trivial */
 	if (bits_set > 1 && (BN_cmp(dh_pub, dh->p) == -1))
 		return 1;
-	log("invalid public DH value (%d/%d)", bits_set, BN_num_bits(dh->p));
+	logit("invalid public DH value (%d/%d)", bits_set, BN_num_bits(dh->p));
 	return 0;
 }
 

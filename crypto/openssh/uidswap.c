@@ -12,7 +12,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: uidswap.c,v 1.23 2002/07/15 17:15:31 stevesk Exp $");
+RCSID("$OpenBSD: uidswap.c,v 1.24 2003/05/29 16:58:45 deraadt Exp $");
 
 #include "log.h"
 #include "uidswap.h"
@@ -143,12 +143,65 @@ restore_uid(void)
 void
 permanently_set_uid(struct passwd *pw)
 {
+	uid_t old_uid = getuid();
+	gid_t old_gid = getgid();
+
 	if (temporarily_use_uid_effective)
 		fatal("permanently_set_uid: temporarily_use_uid effective");
 	debug("permanently_set_uid: %u/%u", (u_int)pw->pw_uid,
 	    (u_int)pw->pw_gid);
+
+#if defined(HAVE_SETRESGID)
+	if (setresgid(pw->pw_gid, pw->pw_gid, pw->pw_gid) < 0)
+		fatal("setresgid %u: %.100s", (u_int)pw->pw_gid, strerror(errno));
+#elif defined(HAVE_SETREGID) && !defined(BROKEN_SETREGID)
+	if (setregid(pw->pw_gid, pw->pw_gid) < 0)
+		fatal("setregid %u: %.100s", (u_int)pw->pw_gid, strerror(errno));
+#else
+	if (setegid(pw->pw_gid) < 0)
+		fatal("setegid %u: %.100s", (u_int)pw->pw_gid, strerror(errno));
 	if (setgid(pw->pw_gid) < 0)
 		fatal("setgid %u: %.100s", (u_int)pw->pw_gid, strerror(errno));
+#endif
+
+#if defined(HAVE_SETRESUID)
+	if (setresuid(pw->pw_uid, pw->pw_uid, pw->pw_uid) < 0)
+		fatal("setresuid %u: %.100s", (u_int)pw->pw_uid, strerror(errno));
+#elif defined(HAVE_SETREUID) && !defined(BROKEN_SETREUID)
+	if (setreuid(pw->pw_uid, pw->pw_uid) < 0)
+		fatal("setreuid %u: %.100s", (u_int)pw->pw_uid, strerror(errno));
+#else
+# ifndef SETEUID_BREAKS_SETUID
+	if (seteuid(pw->pw_uid) < 0)
+		fatal("seteuid %u: %.100s", (u_int)pw->pw_uid, strerror(errno));
+# endif
 	if (setuid(pw->pw_uid) < 0)
 		fatal("setuid %u: %.100s", (u_int)pw->pw_uid, strerror(errno));
+#endif
+
+	/* Try restoration of GID if changed (test clearing of saved gid) */
+	if (old_gid != pw->pw_gid && 
+	    (setgid(old_gid) != -1 || setegid(old_gid) != -1))
+		fatal("%s: was able to restore old [e]gid", __func__);
+
+	/* Verify GID drop was successful */
+	if (getgid() != pw->pw_gid || getegid() != pw->pw_gid) {
+		fatal("%s: egid incorrect gid:%u egid:%u (should be %u)", 
+		    __func__, (u_int)getgid(), (u_int)getegid(), 
+		    (u_int)pw->pw_gid);
+	}
+
+#ifndef HAVE_CYGWIN
+	/* Try restoration of UID if changed (test clearing of saved uid) */
+	if (old_uid != pw->pw_uid && 
+	    (setuid(old_uid) != -1 || seteuid(old_uid) != -1))
+		fatal("%s: was able to restore old [e]uid", __func__);
+#endif
+
+	/* Verify UID drop was successful */
+	if (getuid() != pw->pw_uid || geteuid() != pw->pw_uid) {
+		fatal("%s: euid incorrect uid:%u euid:%u (should be %u)", 
+		    __func__, (u_int)getuid(), (u_int)geteuid(), 
+		    (u_int)pw->pw_uid);
+	}
 }

@@ -39,7 +39,7 @@
 #include "pathnames.h"
 #include "log.h"
 
-RCSID("$Id: ssh-rand-helper.c,v 1.10 2003/03/17 05:13:53 djm Exp $");
+RCSID("$Id: ssh-rand-helper.c,v 1.13 2003/08/21 23:34:41 djm Exp $");
 
 /* Number of bytes we write out */
 #define OUTPUT_SEED_SIZE	48
@@ -187,7 +187,7 @@ reopen:
 	msg[0] = 0x02;
 	msg[1] = len;
 
-	if (atomicio(write, fd, msg, sizeof(msg)) != sizeof(msg)) {
+	if (atomicio(vwrite, fd, msg, sizeof(msg)) != sizeof(msg)) {
 		if (errno == EPIPE && errors < 10) {
 			close(fd);
 			errors++;
@@ -532,7 +532,7 @@ prng_check_seedfile(char *filename)
 	/* mode 0600, owned by root or the current user? */
 	if (((st.st_mode & 0177) != 0) || !(st.st_uid == getuid())) {
 		debug("WARNING: PRNG seedfile %.100s must be mode 0600, "
-		    "owned by uid %d", filename, getuid());
+		    "owned by uid %li", filename, (long int)getuid());
 		return 0;
 	}
 
@@ -550,7 +550,7 @@ prng_write_seedfile(void)
 	pw = getpwuid(getuid());
 	if (pw == NULL)
 		fatal("Couldn't get password entry for current user "
-		    "(%i): %s", getuid(), strerror(errno));
+		    "(%li): %s", (long int)getuid(), strerror(errno));
 
 	/* Try to ensure that the parent directory is there */
 	snprintf(filename, sizeof(filename), "%.512s/%s", pw->pw_dir,
@@ -572,7 +572,7 @@ prng_write_seedfile(void)
 		debug("WARNING: couldn't access PRNG seedfile %.100s "
 		    "(%.100s)", filename, strerror(errno));
 	} else {
-		if (atomicio(write, fd, &seed, sizeof(seed)) < sizeof(seed))
+		if (atomicio(vwrite, fd, &seed, sizeof(seed)) < sizeof(seed))
 			fatal("problem writing PRNG seedfile %.100s "
 			    "(%.100s)", filename, strerror(errno));
 		close(fd);
@@ -589,7 +589,7 @@ prng_read_seedfile(void)
 	pw = getpwuid(getuid());
 	if (pw == NULL)
 		fatal("Couldn't get password entry for current user "
-		    "(%i): %s", getuid(), strerror(errno));
+		    "(%li): %s", (long int)getuid(), strerror(errno));
 
 	snprintf(filename, sizeof(filename), "%.512s/%s", pw->pw_dir,
 		SSH_PRNG_SEED_FILE);
@@ -769,7 +769,7 @@ main(int argc, char **argv)
 	extern char *optarg;
 	LogLevel ll;
 
-	__progname = get_progname(argv[0]);
+	__progname = ssh_get_progname(argv[0]);
 	log_init(argv[0], SYSLOG_LEVEL_INFO, SYSLOG_FACILITY_USER, 1);
 
 	ll = SYSLOG_LEVEL_INFO;
@@ -858,7 +858,7 @@ main(int argc, char **argv)
 			printf("%02x", (unsigned char)(buf[ret]));
 		printf("\n");
 	} else
-		ret = atomicio(write, STDOUT_FILENO, buf, bytes);
+		ret = atomicio(vwrite, STDOUT_FILENO, buf, bytes);
 		
 	memset(buf, '\0', bytes);
 	xfree(buf);

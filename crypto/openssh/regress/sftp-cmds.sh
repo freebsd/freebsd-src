@@ -1,17 +1,42 @@
-#	$OpenBSD: sftp-cmds.sh,v 1.2 2003/01/10 07:52:41 djm Exp $
+#	$OpenBSD: sftp-cmds.sh,v 1.5 2003/07/19 00:46:31 djm Exp $
 #	Placed in the Public Domain.
 
 # XXX - TODO: 
-# - globbed operations
 # - chmod / chown / chgrp
 # - -p flag for get & put
 
 tid="sftp commands"
 
-DATA=/bin/ls
+DATA=/bin/ls${EXEEXT}
 COPY=${OBJ}/copy
+# test that these files are readable!
+for i in `(cd /bin;echo l*)`
+do
+	if [ -r $i ]; then
+		GLOBFILES="$GLOBFILES $i"
+	fi
+done
 
-rm -rf ${COPY} ${COPY}.1 ${COPY}.2 ${COPY}.dd ${BATCH}.*
+if have_prog uname
+then
+	case `uname` in
+	CYGWIN*)
+		os=cygwin
+		;;
+	*)
+		os=`uname`
+		;;
+	esac
+else
+	os="unknown"
+fi
+
+# Path with embedded quote
+QUOTECOPY=${COPY}".\"blah\""
+QUOTECOPY_ARG=${COPY}'.\"blah\"'
+
+rm -rf ${COPY} ${COPY}.1 ${COPY}.2 ${COPY}.dd ${COPY}.dd2
+mkdir ${COPY}.dd
 
 verbose "$tid: lls"
 echo "lls ${OBJ}" | ${SFTP} -P ${SFTPSERVER} >/dev/null 2>&1 \
@@ -54,11 +79,75 @@ echo "get $DATA $COPY" | ${SFTP} -P ${SFTPSERVER} >/dev/null 2>&1 \
 	|| fail "get failed"
 cmp $DATA ${COPY} || fail "corrupted copy after get"
 
+rm -f ${COPY}.dd/*
+verbose "$tid: get to directory"
+echo "get $DATA ${COPY}.dd" | ${SFTP} -P ${SFTPSERVER} >/dev/null 2>&1 \
+        || fail "get failed"
+cmp $DATA ${COPY}.dd/`basename $DATA` || fail "corrupted copy after get"
+
+rm -f ${COPY}.dd/*
+verbose "$tid: glob get to directory"
+echo "get /bin/l* ${COPY}.dd" | ${SFTP} -P ${SFTPSERVER} >/dev/null 2>&1 \
+        || fail "get failed"
+for x in $GLOBFILES; do
+        cmp /bin/$x ${COPY}.dd/$x || fail "corrupted copy after get"
+done
+
+rm -f ${COPY}.dd/*
+verbose "$tid: get to local dir"
+(echo "lcd ${COPY}.dd"; echo "get $DATA" ) | ${SFTP} -P ${SFTPSERVER} >/dev/null 2>&1 \
+        || fail "get failed"
+cmp $DATA ${COPY}.dd/`basename $DATA` || fail "corrupted copy after get"
+
+rm -f ${COPY}.dd/*
+verbose "$tid: glob get to local dir"
+(echo "lcd ${COPY}.dd"; echo "get /bin/l*") | ${SFTP} -P ${SFTPSERVER} >/dev/null 2>&1 \
+        || fail "get failed"
+for x in $GLOBFILES; do
+        cmp /bin/$x ${COPY}.dd/$x || fail "corrupted copy after get"
+done
+
 rm -f ${COPY}
 verbose "$tid: put"
 echo "put $DATA $COPY" | ${SFTP} -P ${SFTPSERVER} >/dev/null 2>&1 \
 	|| fail "put failed"
 cmp $DATA ${COPY} || fail "corrupted copy after put"
+
+if [ "$os" != "cygwin" ]; then
+rm -f ${QUOTECOPY}
+verbose "$tid: put filename with quotes"
+echo "put $DATA \"$QUOTECOPY_ARG\"" | ${SFTP} -P ${SFTPSERVER} >/dev/null 2>&1 \
+	|| fail "put failed"
+cmp $DATA ${QUOTECOPY} || fail "corrupted copy after put with quotes"
+fi
+
+rm -f ${COPY}.dd/*
+verbose "$tid: put to directory"
+echo "put $DATA ${COPY}.dd" | ${SFTP} -P ${SFTPSERVER} >/dev/null 2>&1 \
+	|| fail "put failed"
+cmp $DATA ${COPY}.dd/`basename $DATA` || fail "corrupted copy after put"
+
+rm -f ${COPY}.dd/*
+verbose "$tid: glob put to directory"
+echo "put /bin/l* ${COPY}.dd" | ${SFTP} -P ${SFTPSERVER} >/dev/null 2>&1 \
+	|| fail "put failed"
+for x in $GLOBFILES; do
+	cmp /bin/$x ${COPY}.dd/$x || fail "corrupted copy after put"
+done
+
+rm -f ${COPY}.dd/*
+verbose "$tid: put to local dir"
+(echo "cd ${COPY}.dd"; echo "put $DATA") | ${SFTP} -P ${SFTPSERVER} >/dev/null 2>&1 \
+	|| fail "put failed"
+cmp $DATA ${COPY}.dd/`basename $DATA` || fail "corrupted copy after put"
+
+rm -f ${COPY}.dd/*
+verbose "$tid: glob put to local dir"
+(echo "cd ${COPY}.dd"; echo "put /bin/l*") | ${SFTP} -P ${SFTPSERVER} >/dev/null 2>&1 \
+	|| fail "put failed"
+for x in $GLOBFILES; do
+        cmp /bin/$x ${COPY}.dd/$x || fail "corrupted copy after put"
+done
 
 verbose "$tid: rename"
 echo "rename $COPY ${COPY}.1" | ${SFTP} -P ${SFTPSERVER} >/dev/null 2>&1 \
@@ -66,9 +155,15 @@ echo "rename $COPY ${COPY}.1" | ${SFTP} -P ${SFTPSERVER} >/dev/null 2>&1 \
 test -f ${COPY}.1 || fail "missing file after rename"
 cmp $DATA ${COPY}.1 >/dev/null 2>&1 || fail "corrupted copy after rename"
 
+verbose "$tid: rename directory"
+echo "rename ${COPY}.dd ${COPY}.dd2" | ${SFTP} -P ${SFTPSERVER} >/dev/null 2>&1 \
+	|| fail "rename directory failed"
+test -d ${COPY}.dd && fail "oldname exists after rename directory"
+test -d ${COPY}.dd2 || fail "missing newname after rename directory"
+
 verbose "$tid: ln"
 echo "ln ${COPY}.1 ${COPY}.2" | ${SFTP} -P ${SFTPSERVER} >/dev/null 2>&1 || fail "ln failed"
-test -L ${COPY}.2 || fail "missing file after ln"
+test -h ${COPY}.2 || fail "missing file after ln"
 
 verbose "$tid: mkdir"
 echo "mkdir ${COPY}.dd" | ${SFTP} -P ${SFTPSERVER} >/dev/null 2>&1 \
@@ -95,6 +190,6 @@ verbose "$tid: lchdir"
 echo "lchdir ${COPY}.dd" | ${SFTP} -P ${SFTPSERVER} >/dev/null 2>&1 \
 	|| fail "lchdir failed"
 
-rm -rf ${COPY} ${COPY}.1 ${COPY}.2 ${COPY}.dd ${BATCH}.*
+rm -rf ${COPY} ${COPY}.1 ${COPY}.2 ${COPY}.dd ${COPY}.dd2
 
 

@@ -23,7 +23,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: auth2-pubkey.c,v 1.2 2002/05/31 11:35:15 markus Exp $");
+RCSID("$OpenBSD: auth2-pubkey.c,v 1.4 2003/06/24 08:23:46 markus Exp $");
 
 #include "ssh2.h"
 #include "xmalloc.h"
@@ -44,7 +44,7 @@ RCSID("$OpenBSD: auth2-pubkey.c,v 1.2 2002/05/31 11:35:15 markus Exp $");
 /* import */
 extern ServerOptions options;
 extern u_char *session_id2;
-extern int session_id2_len;
+extern u_int session_id2_len;
 
 static int
 userauth_pubkey(Authctxt *authctxt)
@@ -78,7 +78,7 @@ userauth_pubkey(Authctxt *authctxt)
 	pktype = key_type_from_name(pkalg);
 	if (pktype == KEY_UNSPEC) {
 		/* this is perfectly legal */
-		log("userauth_pubkey: unsupported public key algorithm: %s",
+		logit("userauth_pubkey: unsupported public key algorithm: %s",
 		    pkalg);
 		goto done;
 	}
@@ -199,7 +199,7 @@ user_key_allowed2(struct passwd *pw, Key *key, char *file)
 	if (options.strict_modes &&
 	    secure_filename(f, file, pw, line, sizeof(line)) != 0) {
 		fclose(f);
-		log("Authentication refused: %s", line);
+		logit("Authentication refused: %s", line);
 		restore_uid();
 		return 0;
 	}

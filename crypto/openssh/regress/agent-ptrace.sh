@@ -3,6 +3,22 @@
 
 tid="disallow agent ptrace attach"
 
+if have_prog uname ; then
+	case `uname` in
+	Linux|HP-UX|SunOS|NetBSD|AIX|CYGWIN*)
+		echo "skipped (not supported on this platform)"
+		exit 0
+		;;
+	esac
+fi
+
+if have_prog gdb ; then
+	: ok
+else
+	echo "skipped (gdb not found)"
+	exit 0
+fi
+
 trace "start agent"
 eval `${SSHAGENT} -s` > /dev/null
 r=$?
@@ -16,7 +32,7 @@ EOF
 	if [ $? -ne 0 ]; then
 		fail "gdb failed: exit code $?"
 	fi
-	grep -q 'ptrace: Operation not permitted.' ${OBJ}/gdb.out
+	grep 'ptrace: Operation not permitted.' >/dev/null ${OBJ}/gdb.out
 	r=$?
 	rm -f ${OBJ}/gdb.out
 	if [ $r -ne 0 ]; then

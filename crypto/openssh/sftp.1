@@ -1,4 +1,4 @@
-.\" $OpenBSD: sftp.1,v 1.41 2003/03/28 10:11:43 jmc Exp $
+.\" $OpenBSD: sftp.1,v 1.45 2003/09/02 18:50:06 jmc Exp $
 .\"
 .\" Copyright (c) 2001 Damien Miller.  All rights reserved.
 .\"
@@ -27,7 +27,7 @@
 .Os
 .Sh NAME
 .Nm sftp
-.Nd Secure file transfer program
+.Nd secure file transfer program
 .Sh SYNOPSIS
 .Nm sftp
 .Bk -words
@@ -43,13 +43,16 @@
 .Ar host
 .Ek
 .Nm sftp
-.Oo Oo Ar user Ns No @ Oc Ns
+.Oo Oo Ar user Ns @ Oc Ns
 .Ar host Ns Oo : Ns Ar file Oo
 .Ar file Oc Oc Oc
 .Nm sftp
-.Oo Oo Ar user Ns No @ Oc Ns
+.Oo Oo Ar user Ns @ Oc Ns
 .Ar host Ns Oo : Ns Ar dir Ns
 .Oo Ar / Oc Oc Oc
+.Nm sftp
+.Fl b Ar batchfile
+.Oo Ar user Ns @ Oc Ns Ar host
 .Sh DESCRIPTION
 .Nm
 is an interactive file transfer program, similar to
@@ -68,8 +71,17 @@ The second usage format will retrieve files automatically if a non-interactive
 authentication method is used; otherwise it will do so after
 successful interactive authentication.
 .Pp
-The last usage format allows the sftp client to start in a remote directory.
+The third usage format allows the sftp client to start in a remote directory.
 .Pp
+The final usage format allows for automated sessions using the
+.Fl b
+option.
+In such cases, it is usually necessary to configure public key authentication
+to obviate the need to enter a password at connection time (see
+.Xr sshd 8
+and
+.Xr ssh-keygen 1
+for details).
 The options are as follows:
 .Bl -tag -width Ds
 .It Fl b Ar batchfile
@@ -89,10 +101,9 @@ and
 .Ic lmkdir .
 Termination on error can be suppressed on a command by command basis by
 prefixing the command with a
-.Ic '-'
-character (For example,
-.Ic -rm /tmp/blah*
-).
+.Sq Ic \-
+character (for example,
+.Ic -rm /tmp/blah* ) .
 .It Fl o Ar ssh_option
 Can be used to pass options to
 .Nm ssh
@@ -101,22 +112,27 @@ in the format used in
 This is useful for specifying options
 for which there is no separate
 .Nm sftp
-command-line flag. For example, to specify an alternate
-port use:
+command-line flag.
+For example, to specify an alternate port use:
 .Ic sftp -oPort=24 .
 .It Fl s Ar subsystem | sftp_server
 Specifies the SSH2 subsystem or the path for an sftp server
-on the remote host. A path is useful for using sftp over
-protocol version 1, or when the remote
-.Nm sshd
+on the remote host.
+A path is useful for using
+.Nm
+over protocol version 1, or when the remote
+.Xr sshd 8
 does not have an sftp subsystem configured.
 .It Fl v
-Raise logging level. This option is also passed to ssh.
+Raise logging level.
+This option is also passed to ssh.
 .It Fl B Ar buffer_size
 Specify the size of the buffer that
 .Nm
-uses when transferring files. Larger buffers require fewer round trips at
-the cost of higher memory consumption. The default is 32768 bytes.
+uses when transferring files.
+Larger buffers require fewer round trips at the cost of higher
+memory consumption.
+The default is 32768 bytes.
 .It Fl C
 Enables compression (via ssh's
 .Fl C
@@ -124,19 +140,19 @@ flag).
 .It Fl F Ar ssh_config
 Specifies an alternative
 per-user configuration file for
-.Nm ssh .
+.Xr ssh 1 .
 This option is directly passed to
 .Xr ssh 1 .
 .It Fl P Ar sftp_server path
-Connect directly to a local
-.Nm sftp-server
+Connect directly to a local sftp server
 (rather than via
-.Nm ssh )
+.Xr ssh 1 )
 This option may be useful in debugging the client and server.
 .It Fl R Ar num_requests
-Specify how many requests may be outstanding at any one time. Increasing
-this may slightly improve file transfer speed but will increase memory
-usage. The default is 16 outstanding requests.
+Specify how many requests may be outstanding at any one time.
+Increasing this may slightly improve file transfer speed
+but will increase memory usage.
+The default is 16 outstanding requests.
 .It Fl S Ar program
 Name of the
 .Ar program
@@ -156,7 +172,8 @@ Commands are case insensitive and pathnames may be enclosed in quotes if they
 contain spaces.
 .Bl -tag -width Ds
 .It Ic bye
-Quit sftp.
+Quit
+.Nm sftp .
 .It Ic cd Ar path
 Change remote directory to
 .Ar path .
@@ -183,7 +200,8 @@ to
 .Ar own
 must be a numeric UID.
 .It Ic exit
-Quit sftp.
+Quit
+.Nm sftp .
 .It Xo Ic get
 .Op Ar flags
 .Ar remote-path
@@ -194,7 +212,8 @@ Retrieve the
 and store it on the local machine.
 If the local
 path name is not specified, it is given the same name it has on the
-remote machine. If the
+remote machine.
+If the
 .Fl P
 flag is specified, then the file's full permission and access time are
 copied too.
@@ -224,7 +243,8 @@ Display remote directory listing of either
 .Ar path
 or current directory if
 .Ar path
-is not specified. If the
+is not specified.
+If the
 .Fl l
 flag is specified, then display additional details including permissions
 and ownership information.
@@ -243,15 +263,18 @@ Toggle display of progress meter.
 .Xc
 Upload
 .Ar local-path
-and store it on the remote machine. If the remote path name is not
-specified, it is given the same name it has on the local machine. If the
+and store it on the remote machine.
+If the remote path name is not specified, it is given the same name it has
+on the local machine.
+If the
 .Fl P
 flag is specified, then the file's full permission and access time are
 copied too.
 .It Ic pwd
 Display remote working directory.
 .It Ic quit
-Quit sftp.
+Quit
+.Nm sftp .
 .It Ic rename Ar oldpath Ar newpath
 Rename remote file from
 .Ar oldpath
@@ -272,17 +295,15 @@ to
 Display the
 .Nm
 protocol version.
-.It Ic ! Ar command
+.It Ic \&! Ar command
 Execute
 .Ar command
 in local shell.
-.It Ic !
+.It Ic \&!
 Escape to local shell.
-.It Ic ?
+.It Ic \&?
 Synonym for help.
 .El
-.Sh AUTHORS
-Damien Miller <djm@mindrot.org>
 .Sh SEE ALSO
 .Xr scp 1 ,
 .Xr ssh 1 ,

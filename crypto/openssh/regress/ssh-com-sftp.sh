@@ -1,10 +1,17 @@
-#	$OpenBSD: ssh-com-sftp.sh,v 1.3 2002/07/16 08:58:16 markus Exp $
+#	$OpenBSD: ssh-com-sftp.sh,v 1.4 2003/05/14 22:08:27 markus Exp $
 #	Placed in the Public Domain.
 
 tid="basic sftp put/get with ssh.com server"
 
-DATA=/bin/ls
+DATA=/bin/ls${EXEEXT}
 COPY=${OBJ}/copy
+SFTPCMDFILE=${OBJ}/batch
+
+cat >$SFTPCMDFILE <<EOF
+version
+get $DATA ${COPY}.1
+put $DATA ${COPY}.2
+EOF
 
 BUFFERSIZE="5 1000 32000 64000"
 REQUESTS="1 2 10"
@@ -26,6 +33,8 @@ VERSIONS="
 	3.0.0
 	3.1.0
 	3.2.0
+	3.2.2
+	3.2.3
 	3.3.0"
 
 # go for it
@@ -39,18 +48,17 @@ for v in ${VERSIONS}; do
 		for R in ${REQUESTS}; do
 			verbose "test $tid: buffer_size $B num_requests $R"
 			rm -f ${COPY}.1 ${COPY}.2
-			${SFTP} -P ${server} -B $B -R $R -b /dev/stdin \
-			> /dev/null 2>&1 << EOF
-			version
-			get $DATA ${COPY}.1
-			put $DATA ${COPY}.2
-EOF
+			${SFTP} -P ${server} -B $B -R $R -b $SFTPCMDFILE \
+			> /dev/null 2>&1
 			r=$?
 			if [ $r -ne 0 ]; then
 				fail "sftp failed with $r"
+			else                                
+				cmp $DATA ${COPY}.1 || fail "corrupted copy after get"
+				cmp $DATA ${COPY}.2 || fail "corrupted copy after put"
 			fi
-			cmp $DATA ${COPY}.1 || fail "corrupted copy after get"
-			cmp $DATA ${COPY}.2 || fail "corrupted copy after put"
 		done
 	done
 done
+rm -f ${COPY}.1 ${COPY}.2                
+rm -f $SFTPCMDFILE

@@ -1,5 +1,7 @@
+/* $Id: bsd-misc.h,v 1.13 2003/08/29 16:59:52 mouring Exp $ */
+
 /*
- * Copyright (c) 1999-2000 Damien Miller.  All rights reserved.
+ * Copyright (c) 1999-2003 Damien Miller.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -22,42 +24,39 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* $Id: bsd-misc.h,v 1.7 2003/03/18 18:21:41 tim Exp $ */
-
 #ifndef _BSD_MISC_H
 #define _BSD_MISC_H
 
-#include "config.h"
+#include "includes.h"
 
-char *get_progname(char *argv0);
+char *ssh_get_progname(char *);
 
 #ifndef HAVE_SETSID
 #define setsid() setpgrp(0, getpid())
 #endif /* !HAVE_SETSID */
 
 #ifndef HAVE_SETENV
-int setenv(const char *name, const char *value, int overwrite);
+int setenv(const char *, const char *, int);
 #endif /* !HAVE_SETENV */
 
 #ifndef HAVE_SETLOGIN
-int setlogin(const char *name);
+int setlogin(const char *);
 #endif /* !HAVE_SETLOGIN */
 
 #ifndef HAVE_INNETGR
-int innetgr(const char *netgroup, const char *host, 
-            const char *user, const char *domain);
+int innetgr(const char *, const char *, const char *, const char *);
 #endif /* HAVE_INNETGR */
 
 #if !defined(HAVE_SETEUID) && defined(HAVE_SETREUID)
-int seteuid(uid_t euid);
+int seteuid(uid_t);
 #endif /* !defined(HAVE_SETEUID) && defined(HAVE_SETREUID) */
 
 #if !defined(HAVE_SETEGID) && defined(HAVE_SETRESGID)
-int setegid(uid_t egid);
+int setegid(uid_t);
 #endif /* !defined(HAVE_SETEGID) && defined(HAVE_SETRESGID) */
 
 #if !defined(HAVE_STRERROR) && defined(HAVE_SYS_ERRLIST) && defined(HAVE_SYS_NERR)
-const char *strerror(int e);
+const char *strerror(int);
 #endif 
 
 
@@ -69,15 +68,15 @@ struct timeval {
 }
 #endif /* HAVE_STRUCT_TIMEVAL */
 
-int utimes(char *filename, struct timeval *tvp);
+int utimes(char *, struct timeval *);
 #endif /* HAVE_UTIMES */
 
 #ifndef HAVE_TRUNCATE
-int truncate (const char *path, off_t length);
+int truncate (const char *, off_t);
 #endif /* HAVE_TRUNCATE */
 
 #if !defined(HAVE_SETGROUPS) && defined(SETGROUPS_NOOP)
-int setgroups(size_t size, const gid_t *list);
+int setgroups(size_t, const gid_t *);
 #endif
 
 #if !defined(HAVE_NANOSLEEP) && !defined(HAVE_NSLEEP)
@@ -87,7 +86,21 @@ struct timespec {
 	long	tv_nsec;
 };
 #endif
-int nanosleep(const struct timespec *req, struct timespec *rem);
+int nanosleep(const struct timespec *, struct timespec *);
 #endif
+
+#ifndef HAVE_TCGETPGRP
+pid_t tcgetpgrp(int);
+#endif
+
+#ifndef HAVE_TCSENDBREAK
+int tcsendbreak(int, int);
+#endif
+
+/* wrapper for signal interface */
+typedef void (*mysig_t)(int);
+mysig_t mysignal(int sig, mysig_t act);
+
+#define signal(a,b) mysignal(a,b)
 
 #endif /* _BSD_MISC_H */

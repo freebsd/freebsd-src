@@ -1,4 +1,4 @@
-.\"	$OpenBSD: ssh-keygen.1,v 1.56 2003/03/28 10:11:43 jmc Exp $
+.\"	$OpenBSD: ssh-keygen.1,v 1.60 2003/07/28 09:49:56 djm Exp $
 .\"
 .\"  -*- nroff -*-
 .\"
@@ -83,16 +83,37 @@
 .Nm ssh-keygen
 .Fl U Ar reader
 .Op Fl f Ar input_keyfile
+.Nm ssh-keygen
+.Fl r Ar hostname
+.Op Fl f Ar input_keyfile
+.Op Fl g
+.Nm ssh-keygen
+.Fl G Ar output_file
+.Op Fl b Ar bits
+.Op Fl M Ar memory
+.Op Fl S Ar start_point
+.Nm ssh-keygen
+.Fl T Ar output_file
+.Fl f Ar input_file
+.Op Fl a Ar num_trials
+.Op Fl W Ar generator
 .Sh DESCRIPTION
 .Nm
 generates, manages and converts authentication keys for
 .Xr ssh 1 .
 .Nm
 can create RSA keys for use by SSH protocol version 1 and RSA or DSA
-keys for use by SSH protocol version 2. The type of key to be generated
-is specified with the
+keys for use by SSH protocol version 2.
+The type of key to be generated is specified with the
 .Fl t
 option.
+.Pp
+.Nm
+is also used to generate groups for use in Diffie-Hellman group
+exchange (DH-GEX).
+See the
+.Sx MODULI GENERATION
+section for details.
 .Pp
 Normally each user wishing to use SSH
 with RSA or DSA authentication runs this once to create the authentication
@@ -146,6 +167,11 @@ should be placed to be activated.
 .Pp
 The options are as follows:
 .Bl -tag -width Ds
+.It Fl a Ar trials
+Specifies the number of primality tests to perform when screening DH-GEX
+candidates using the
+.Fl T
+command.
 .It Fl b Ar bits
 Specifies the number of bits in the key to create.
 Minimum is 512 bits.
@@ -163,6 +189,8 @@ print the key in a
 to stdout.
 This option allows exporting keys for use by several commercial
 SSH implementations.
+.It Fl g
+Use generic DNS resource record format.
 .It Fl f Ar filename
 Specifies the filename of the key file.
 .It Fl i
@@ -211,14 +239,88 @@ Provides the new comment.
 .It Fl D Ar reader
 Download the RSA public key stored in the smartcard in
 .Ar reader .
+.It Fl G Ar output_file
+Generate candidate primes for DH-GEX.
+These primes must be screened for
+safety (using the
+.Fl T
+option) before use.
+.It Fl M Ar memory
+Specify the amount of memory to use (in megabytes) when generating
+candidate moduli for DH-GEX.
 .It Fl N Ar new_passphrase
 Provides the new passphrase.
 .It Fl P Ar passphrase
 Provides the (old) passphrase.
+.It Fl S Ar start
+Specify start point (in hex) when generating candidate moduli for DH-GEX.
+.It Fl T Ar output_file
+Test DH group exchange candidate primes (generated using the
+.Fl G
+option) for safety.
+.It Fl W Ar generator
+Specify desired generator when testing candidate moduli for DH-GEX.
 .It Fl U Ar reader
 Upload an existing RSA private key into the smartcard in
 .Ar reader .
+.It Fl r Ar hostname
+Print DNS resource record with the specified
+.Ar hostname .
 .El
+.Sh MODULI GENERATION
+.Nm
+may be used to generate groups for the Diffie-Hellman Group Exchange
+(DH-GEX) protocol.
+Generating these groups is a two-step process: first, candidate
+primes are generated using a fast, but memory intensive process.
+These candidate primes are then tested for suitability (a CPU-intensive
+process).
+.Pp
+Generation of primes is performed using the
+.Fl G
+option.
+The desired length of the primes may be specified by the
+.Fl b
+option.
+For example:
+.Pp
+.Dl ssh-keygen -G moduli-2048.candidates -b 2048
+.Pp
+By default, the search for primes begins at a random point in the
+desired length range.
+This may be overridden using the
+.Fl S
+option, which specifies a different start point (in hex).
+.Pp
+Once a set of candidates have been generated, they must be tested for
+suitability.
+This may be performed using the
+.Fl T
+option.
+In this mode
+.Nm
+will read candidates from standard input (or a file specified using the
+.Fl f
+option).
+For example:
+.Pp
+.Dl ssh-keygen -T moduli-2048 -f moduli-2048.candidates
+.Pp
+By default, each candidate will be subjected to 100 primality tests.
+This may be overridden using the
+.Fl a
+option.
+The DH generator value will be chosen automatically for the
+prime under consideration.
+If a specific generator is desired, it may be requested using the
+.Fl W
+option.
+Valid generator values are 2, 3 and 5.
+.Pp
+Screened DH groups may be installed in
+.Pa /etc/moduli .
+It is important that this file contains moduli of a range of bit lengths and
+that both ends of a connection share common moduli.
 .Sh FILES
 .Bl -tag -width Ds
 .It Pa $HOME/.ssh/identity
@@ -275,20 +377,16 @@ The contents of this file should be added to
 on all machines
 where the user wishes to log in using public key authentication.
 There is no need to keep the contents of this file secret.
+.It Pa /etc/moduli
+Contains Diffie-Hellman groups used for DH-GEX.
+The file format is described in
+.Xr moduli 5 .
 .El
-.Sh AUTHORS
-OpenSSH is a derivative of the original and free
-ssh 1.2.12 release by Tatu Ylonen.
-Aaron Campbell, Bob Beck, Markus Friedl, Niels Provos,
-Theo de Raadt and Dug Song
-removed many bugs, re-added newer features and
-created OpenSSH.
-Markus Friedl contributed the support for SSH
-protocol versions 1.5 and 2.0.
 .Sh SEE ALSO
 .Xr ssh 1 ,
 .Xr ssh-add 1 ,
 .Xr ssh-agent 1 ,
+.Xr moduli 5 ,
 .Xr sshd 8
 .Rs
 .%A J. Galbraith
@@ -298,3 +396,12 @@ protocol versions 1.5 and 2.0.
 .%D March 2001
 .%O work in progress material
 .Re
+.Sh AUTHORS
+OpenSSH is a derivative of the original and free
+ssh 1.2.12 release by Tatu Ylonen.
+Aaron Campbell, Bob Beck, Markus Friedl, Niels Provos,
+Theo de Raadt and Dug Song
+removed many bugs, re-added newer features and
+created OpenSSH.
+Markus Friedl contributed the support for SSH
+protocol versions 1.5 and 2.0.
