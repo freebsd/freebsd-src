@@ -2,6 +2,8 @@
 # $FreeBSD$
 
 PROG=	xinstall
+SRCS=	setflags.c xinstall.c
+.PATH:	${.CURDIR}/../../lib/libc/gen
 MAN1=	install.1
 
 install: maninstall

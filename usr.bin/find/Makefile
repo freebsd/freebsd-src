@@ -2,6 +2,7 @@
 # $FreeBSD$
 
 PROG=	find
-SRCS=	find.c function.c ls.c main.c misc.c operator.c option.c
+SRCS=	find.c function.c ls.c main.c misc.c operator.c option.c setflags.c
+.PATH:	${.CURDIR}/../../lib/libc/gen
 
 .include <bsd.prog.mk>
