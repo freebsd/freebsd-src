@@ -103,6 +103,14 @@ __FBSDID("$FreeBSD$");
 #define PSM_INPUT_TIMEOUT	2000000	/* 2 sec */
 #endif
 
+#ifndef PSM_TAP_TIMEOUT
+#define PSM_TAP_TIMEOUT		125000
+#endif
+
+#ifndef PSM_TAP_THRESHOLD
+#define PSM_TAP_THRESHOLD	25
+#endif
+
 /* end of driver specific options */
 
 #define PSM_DRIVER_NAME		"psm"
@@ -170,10 +178,12 @@ struct psm_softc {		/* Driver status information */
     int           button;	/* the latest button state */
     int		  xold;	/* previous absolute X position */
     int		  yold;	/* previous absolute Y position */
+    int		  zmax;	/* maximum pressure value for touchpads */
     int		  syncerrors; /* XXX: KILL ME! */
     struct timeval inputtimeout;
     struct timeval lastsoftintr;	/* time of last soft interrupt */
     struct timeval lastinputerr;	/* time last sync error happened */
+    struct timeval taptimeout;		/* tap timeout for touchpads */
     int		  watchdog;	/* watchdog timer flag */
     struct callout_handle callout;	/* watchdog timer call out */
     struct callout_handle softcallout;	/* buffer timer call out */
@@ -2537,8 +2547,24 @@ psmsoftintr(void *arg)
 
 		sc->xold = x0;
 		sc->yold = y0;
+		sc->zmax = imax(z, sc->zmax);
 	    } else {
 		sc->flags &= ~PSM_FLAGS_FINGERDOWN;
+
+		if (sc->zmax > PSM_TAP_THRESHOLD &&
+		    timevalcmp(&sc->lastsoftintr, &sc->taptimeout, <=)) {
+			if (w == 0)
+			    ms.button |= MOUSE_BUTTON3DOWN;
+			else if (w == 1)
+			    ms.button |= MOUSE_BUTTON2DOWN;
+			else
+			    ms.button |= MOUSE_BUTTON1DOWN;
+		}
+
+		sc->zmax = 0;
+		sc->taptimeout.tv_sec = PSM_TAP_TIMEOUT / 1000000;
+		sc->taptimeout.tv_usec = PSM_TAP_TIMEOUT % 1000000;
+		timevaladd(&sc->taptimeout, &sc->lastsoftintr);
 	    }
 
 	    /* Use the extra buttons as a scrollwheel */
