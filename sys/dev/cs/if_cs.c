@@ -1151,7 +1151,7 @@ cs_ioctl(register struct ifnet *ifp, u_long command, caddr_t data)
                 break;
 
         default:
-		ether_ioctl(ifp, command, data);
+		error = ether_ioctl(ifp, command, data);
 		break;
         }
 
