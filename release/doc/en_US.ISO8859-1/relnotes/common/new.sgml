@@ -70,6 +70,13 @@
       Transmeta Crusoe, and Transmeta Crusoe with LongRun, has been
       added.</para>
 
+      <para arch="alpha">Because of space constraints on the boot floppy
+      support for DEC3000 TurboChannel-based machines has been removed from
+      the installation kernel. For the same reason the following device 
+      drivers are no longer present in the installation kernel: 
+      ncr, sa, amr, plip, le, pcn, wx and sl. Note that most if not
+      all Symbios adapters are covered by the new sym driver.</para>
+
     </sect3>
 
     <sect3>
