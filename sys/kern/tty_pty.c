@@ -38,7 +38,6 @@
  * Pseudo-teletype Driver
  * (Actually two drivers, requiring two entries in 'cdevsw')
  */
-#include "pty.h"		/* XXX */
 #include "opt_compat.h"
 #include <sys/param.h>
 #include <sys/systm.h>
