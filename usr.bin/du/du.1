@@ -41,6 +41,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl H | L | P
+.Op Fl I Ar mask
 .Op Fl a | s | d Ar depth
 .Op Fl c
 .Op Fl h | k
@@ -69,6 +70,9 @@ Symbolic links on the command line are followed, symbolic links in file
 hierarchies are not followed.
 .It Fl L
 Symbolic links on the command line and in file hierarchies are followed.
+.It Fl I Ar mask
+Ignore files and directories matching the specified
+.Ar mask .
 .It Fl P
 No symbolic links are followed.
 This is the default.
