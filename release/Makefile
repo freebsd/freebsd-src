@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.231 1996/07/09 16:52:52 jkh Exp $
+#	$Id: Makefile,v 1.232 1996/07/10 06:36:01 markm Exp $
 #
 # How to roll a release:
 #
@@ -79,9 +79,17 @@ rerelease release:
 	cd ${.CURDIR}/../etc && ${MAKE} distribution DESTDIR=${CHROOTDIR}
 	cd ${.CURDIR}/.. && ${MAKE} install DESTDIR=${CHROOTDIR}
 .if !defined(RELEASETAG)
-	cd ${CHROOTDIR}/usr && cvs co -P src
+	cd ${CHROOTDIR}/usr && rm -rf src && cvs co -P src
+.if defined(INTCVSROOT)
+	cd ${CHROOTDIR}/usr && \
+	    cvs -d ${INTCVSROOT} co -P src/secure src/eBones
+.endif
 .else
-	cd ${CHROOTDIR}/usr && cvs co -P -r ${RELEASETAG} src
+	cd ${CHROOTDIR}/usr && rm -rf src && cvs co -P -r ${RELEASETAG} src
+.if defined(INTCVSROOT)
+	cd ${CHROOTDIR}/usr && \
+	    cvs -d ${INTCVSROOT} co -P -r ${RELEASETAG} src/secure src/eBones
+.endif
 .endif
 .endif
 .if make(rerelease)
