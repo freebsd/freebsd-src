@@ -40,21 +40,25 @@ static const char copyright[] =
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
-#ifndef lint
 #if 0
+#ifndef lint
 static char sccsid[] = "@(#)xargs.c	8.1 (Berkeley) 6/6/93";
-#endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+#endif
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/wait.h>
+
 #include <err.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+
 #include "pathnames.h"
 
 int tflag, rval;
@@ -63,13 +67,15 @@ int zflag;
 void run __P((char **));
 static void usage __P((void));
 
+static char echo[] = _PATH_ECHO;
+
 int
 main(argc, argv, env)
 	int argc;
 	char **argv, **env;
 {
-	register int ch;
-	register char *p, *bbp, *ebp, **bxp, **exp, **xp;
+	int ch;
+	char *p, *bbp, **bxp, *ebp, **exp, **xp;
 	int cnt, jfound, indouble, insingle;
 	int nargs, nflag, nline, xflag, wasquoted;
 	char **av, **avj, *argp, **ep, *replstr;
@@ -148,7 +154,7 @@ main(argc, argv, env)
 	 * arguments.
 	 */
 	if (!*argv)
-		cnt = strlen(*bxp++ = _PATH_ECHO);
+		cnt = strlen((*bxp++ = echo));
 	else {
 		cnt = 0;
 		do {
@@ -292,8 +298,8 @@ void
 run(argv)
 	char **argv;
 {
-	volatile int noinvoke;
-	register char **p;
+	volatile int childerr;
+	char **p;
 	pid_t pid;
 	int status;
 
@@ -304,22 +310,24 @@ run(argv)
 		(void)fprintf(stderr, "\n");
 		(void)fflush(stderr);
 	}
-	noinvoke = 0;
-	switch(pid = fork()) {
+	childerr = 0;
+	switch(pid = vfork()) {
 	case -1:
-		err(1, "fork");
+		err(1, "vfork");
 	case 0:
 		execvp(argv[0], argv);
-		warn("%s", argv[0]);
-		noinvoke = 1;
+		childerr = errno;
 		_exit(1);
 	}
 	pid = waitpid(pid, &status, 0);
 	if (pid == -1)
 		err(1, "waitpid");
 	/* If we couldn't invoke the utility, exit 127. */
-	if (noinvoke)
+	if (childerr != 0) {
+		errno = childerr;
+		warn("%s", argv[0]);
 		exit(127);
+	}
 	/* If utility signaled or exited with a value of 255, exit 1-125. */
 	if (WIFSIGNALED(status) || WEXITSTATUS(status) == 255)
 		exit(1);
