@@ -28,11 +28,11 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/mutex.h>
 #include <sys/ktr.h>
 #include <sys/proc.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/mutex.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 
@@ -58,9 +58,9 @@ volatile u_int		started_cpus;
 volatile u_int		checkstate_probed_cpus;
 volatile u_int		checkstate_need_ast;
 volatile u_int		checkstate_pending_ast;
-struct proc*		checkstate_curproc[NCPUS];
-int			checkstate_cpustate[NCPUS];
-u_long			checkstate_pc[NCPUS];
+struct proc*		checkstate_curproc[MAXCPU];
+int			checkstate_cpustate[MAXCPU];
+u_long			checkstate_pc[MAXCPU];
 volatile u_int		resched_cpus;
 void (*cpustop_restartfunc) __P((void));
 int			mp_ncpus;
@@ -69,7 +69,7 @@ int			smp_started;
 int			boot_cpu_id;
 u_int32_t		all_cpus;
 
-static struct globaldata	*cpuid_to_globaldata[NCPUS];
+static struct globaldata	*cpuid_to_globaldata[MAXCPU];
 
 int smp_active = 0;	/* are the APs allowed to run? */
 SYSCTL_INT(_machdep, OID_AUTO, smp_active, CTLFLAG_RW, &smp_active, 0, "");
