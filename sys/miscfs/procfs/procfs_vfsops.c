@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_vfsops.c	8.4 (Berkeley) 1/21/94
  *
- *	$Id: procfs_vfsops.c,v 1.2 1994/05/25 09:08:33 rgrimes Exp $
+ *	$Id: procfs_vfsops.c,v 1.3 1994/08/02 07:45:23 davidg Exp $
  */
 
 /*
@@ -44,6 +44,7 @@
  */
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/time.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>

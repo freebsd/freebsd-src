@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ether.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: if_ether.h,v 1.2 1994/08/02 07:48:01 davidg Exp $
  */
 
 /*
@@ -138,20 +138,19 @@ struct sockaddr_inarp {
 #define RTF_ANNOUNCE	RTF_PROTO2	/* announce new arp entry */
 
 #ifdef	KERNEL
-u_char	etherbroadcastaddr[6];
-u_char	ether_ipmulticast_min[6];
-u_char	ether_ipmulticast_max[6];
-struct	ifqueue arpintrq;
+extern u_char	etherbroadcastaddr[6];
+extern u_char	ether_ipmulticast_min[6];
+extern u_char	ether_ipmulticast_max[6];
+extern struct	ifqueue arpintrq;
 
 struct	llinfo_arp *arptnew __P((struct in_addr *));
-struct	llinfo_arp llinfo_arp;		/* head of the llinfo queue */
+extern struct	llinfo_arp llinfo_arp;		/* head of the llinfo queue */
 
 void	arpwhohas __P((struct arpcom *, struct in_addr *));
 void	arpintr __P((void));
 int	arpresolve __P((struct arpcom *,
 	   struct rtentry *, struct mbuf *, struct sockaddr *, u_char *));
 void	arp_rtrequest __P((int, struct rtentry *, struct sockaddr *));
-void	arpwhohas __P((struct arpcom *, struct in_addr *));
 
 int	ether_addmulti __P((struct ifreq *, struct arpcom *));
 int	ether_delmulti __P((struct ifreq *, struct arpcom *));

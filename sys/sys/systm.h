@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)systm.h	8.4 (Berkeley) 2/23/94
- * $Id: systm.h,v 1.5 1994/08/05 09:28:55 davidg Exp $
+ * $Id: systm.h,v 1.6 1994/08/13 14:21:58 davidg Exp $
  */
 
 #include <machine/cpufunc.h>
@@ -123,6 +123,7 @@ void	tablefull __P((const char *));
 void	addlog __P((const char *, ...));
 void	log __P((int, const char *, ...));
 void	printf __P((const char *, ...));
+void	uprintf __P((const char *, ...));
 int	sprintf __P((char *buf, const char *, ...));
 void	ttyprintf __P((struct tty *, const char *, ...));
 
@@ -148,9 +149,6 @@ int	suword __P((void *base, int word));
 int	suiword __P((void *base, int word));
 
 int	hzto __P((struct timeval *tv));
-typedef void (*timeout_func_t)(void *);
-void	timeout __P((void (*func)(void *), void *arg, int ticks));
-void	untimeout __P((void (*func)(void *), void *arg));
 void	realitexpire __P((void *));
 
 struct clockframe;
@@ -165,3 +163,29 @@ void	stopprofclock __P((struct proc *));
 void	setstatclockrate __P((int hzrate));
 
 #include <libkern/libkern.h>
+
+/* Initialize the world */
+extern void consinit(void);
+extern void kmeminit(void);
+extern void cpu_startup(void);
+extern void usrinfoinit(void);
+extern void rqinit(void);
+extern void vfsinit(void);
+extern void mbinit(void);
+extern void clist_init(void);
+extern void ifinit(void);
+extern void domaininit(void);
+extern void cpu_initclocks(void);
+extern void vntblinit(void);
+extern void nchinit(void);
+
+extern __dead void vm_pageout(void) __dead2; /* pagedaemon, called in proc 2 */
+extern __dead void vfs_update(void) __dead2; /* update, called in proc 3 */
+extern __dead void scheduler(void) __dead2; /* sched, called in process 0 */
+
+/* Timeouts */
+typedef void (timeout_t)(void *); /* actual timeout function type */
+typedef timeout_t *timeout_func_t; /* a pointer to this type */
+
+void timeout(timeout_func_t, void *, int);
+void untimeout(timeout_func_t, void *);

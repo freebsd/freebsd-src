@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.6 1994/08/04 03:06:47 davidg Exp $
+ * $Id: vm_pageout.c,v 1.7 1994/08/06 09:15:39 davidg Exp $
  */
 
 /*
@@ -732,8 +732,8 @@ rescan1:
 void
 vm_pageout()
 {
-	extern npendingio, swiopend;
-	static nowakeup;
+	extern swiopend;
+	static int nowakeup;
 	(void) spl0();
 
 	/*
@@ -765,7 +765,6 @@ vmretry:
 	 */
 	while (TRUE) {
 		int force_wakeup;
-		extern struct loadavg averunnable;
 /*
 		cnt.v_free_min = 12 + averunnable.ldavg[0] / 1024;
 		cnt.v_free_target = 2*cnt.v_free_min + cnt.v_free_reserved;

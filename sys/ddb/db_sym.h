@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_sym.h,v 1.2 1993/10/16 16:47:27 rgrimes Exp $
+ *	$Id: db_sym.h,v 1.3 1993/11/07 17:39:25 wollman Exp $
  */
 
 #ifndef _DDB_DB_SYM_H_
@@ -77,9 +77,6 @@ extern boolean_t	db_qualify_ambiguous_names;
 extern void	db_add_symbol_table();
 					/* extend the list of symbol tables */
 
-extern int	db_value_of_name(/* char*, db_expr_t* */);
-					/* find symbol value given name */
-
 extern db_sym_t	db_search_symbol(/* db_expr_t, db_strategy_t, int* */);
 					/* find symbol given value */
 
@@ -99,4 +96,7 @@ extern int	db_eqname(/* char*, char*, char */);
 
 extern void	db_printsym(/* db_expr_t, db_strategy_t */);
 					/* print closest symbol to a value */
+extern boolean_t db_line_at_pc(int, int, int, int);
+extern int X_db_sym_nymargs(db_symtab_t *, db_sym_t, int *, char **);
+
 #endif /* _DDB_DB_SYM_H_ */

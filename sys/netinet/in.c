@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in.c	8.2 (Berkeley) 11/15/93
- * $Id$
+ * $Id: in.c,v 1.3 1994/08/02 07:48:12 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -409,7 +409,7 @@ in_ifinit(ifp, ia, sin, scrub)
 {
 	register u_long i = ntohl(sin->sin_addr.s_addr);
 	struct sockaddr_in oldaddr;
-	int s = splimp(), flags = RTF_UP, error, ether_output();
+	int s = splimp(), flags = RTF_UP, error;
 
 	oldaddr = ia->ia_addr;
 	ia->ia_addr = *sin;

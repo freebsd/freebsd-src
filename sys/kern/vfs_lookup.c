@@ -36,10 +36,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_lookup.c	8.4 (Berkeley) 2/16/94
- * $Id$
+ * $Id: vfs_lookup.c,v 1.2 1994/08/02 07:43:25 davidg Exp $
  */
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/syslimits.h>
 #include <sys/time.h>
 #include <sys/namei.h>

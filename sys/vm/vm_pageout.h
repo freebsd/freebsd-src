@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id$
+ * $Id: vm_pageout.h,v 1.3 1994/08/02 07:55:34 davidg Exp $
  */
 
 /*
@@ -91,7 +91,6 @@ extern int vm_pageout_pages_needed;
 #define VM_WAIT vm_wait()
 
 inline static void vm_wait() {
-	extern struct proc *curproc, *pageproc;
 	int s;
 	s = splhigh();
 	if (curproc == pageproc) {
@@ -107,7 +106,6 @@ inline static void vm_wait() {
 
 
 #ifdef KERNEL
-void		 vm_pageout __P((void));
 int		 vm_pageout_scan __P((void));
 void		 vm_pageout_page __P((vm_page_t, vm_object_t));
 void		 vm_pageout_cluster __P((vm_page_t, vm_object_t));

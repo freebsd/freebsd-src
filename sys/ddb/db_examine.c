@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_examine.c,v 1.4 1993/12/19 00:49:43 wollman Exp $
+ *	$Id: db_examine.c,v 1.5 1994/08/13 03:49:17 wollman Exp $
  */
 
 /*
@@ -43,9 +43,6 @@
 #include <ddb/db_access.h>
 
 char	db_examine_format[TOK_STRING_SIZE] = "x";
-
-extern	db_addr_t db_disasm(/* db_addr_t, boolean_t */);
-			/* instruction disassembler */
 
 static void db_examine(db_addr_t, char *, int);
 static void db_search(db_addr_t, int, db_expr_t, db_expr_t, u_int);

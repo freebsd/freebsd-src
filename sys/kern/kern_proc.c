@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_proc.c	8.4 (Berkeley) 1/4/94
- * $Id$
+ * $Id: kern_proc.c,v 1.3 1994/08/02 07:42:07 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -49,6 +49,9 @@
 #include <sys/mbuf.h>
 #include <sys/ioctl.h>
 #include <sys/tty.h>
+
+volatile struct proc *allproc;	/* all processes */
+struct proc *zombproc;		/* just zombies */
 
 void pgdelete	__P((struct pgrp *));
 void fixjobc	__P((struct proc *, struct pgrp *, int));

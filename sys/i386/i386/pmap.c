@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.31 1994/08/07 14:53:10 davidg Exp $
+ *	$Id: pmap.c,v 1.32 1994/08/13 03:49:44 wollman Exp $
  */
 
 /*
@@ -153,7 +153,6 @@ static inline pv_entry_t	get_pv_entry();
 static inline void		pmap_use_pt();
 static inline void		pmap_unuse_pt();
 
-inline pt_entry_t * pmap_pte();
 
 extern vm_offset_t clean_sva, clean_eva;
 extern int cpu_class;
@@ -338,7 +337,6 @@ pmap_bootstrap(firstaddr, loadaddr)
 	vm_offset_t va;
 	pt_entry_t *pte;
 #endif
-	extern int IdlePTD;
 
 	avail_start = firstaddr + DMAPAGES*NBPG;
 
@@ -414,7 +412,6 @@ pmap_init(phys_start, phys_end)
 	int		rv;
 	int i;
 	extern int KPTphys;
-	extern int IdlePTD;
 
 	/*
 	 * Now that kernel map has been allocated, we can mark as
@@ -1465,7 +1462,6 @@ pmap_object_init_pt(pmap, addr, object, offset, size)
 	int s;
 	vm_offset_t v, lastv=0;
 	pt_entry_t pte;
-	extern vm_map_t kernel_map;
 	vm_offset_t objbytes;
 	int anyvalid = 0;
 

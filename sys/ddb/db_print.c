@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_print.c,v 1.3 1993/11/25 01:30:09 wollman Exp $
+ *	$Id: db_print.c,v 1.4 1994/08/13 03:49:21 wollman Exp $
  */
 
 /*
@@ -43,8 +43,6 @@
 #include <ddb/db_lex.h>
 #include <ddb/db_variables.h>
 #include <ddb/db_sym.h>
-
-extern unsigned int	db_maxoff;
 
 void
 db_show_regs(db_expr_t dummy1, int dummy2, db_expr_t dummy3, char *dummy4)

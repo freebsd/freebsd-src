@@ -59,7 +59,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_glue.c,v 1.4 1994/08/04 03:06:43 davidg Exp $
+ * $Id: vm_glue.c,v 1.5 1994/08/09 10:42:41 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -84,7 +84,6 @@ int	avefree = 0;		/* XXX */
 int	readbuffers = 0;	/* XXX allow kgdb to read kernel buffer pool */
 /* vm_map_t upages_map; */
 
-void swapout(struct proc *p);
 int
 kernacc(addr, len, rw)
 	caddr_t addr;

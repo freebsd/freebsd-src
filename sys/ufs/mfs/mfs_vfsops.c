@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_vfsops.c	8.4 (Berkeley) 4/16/94
- * $Id$
+ * $Id: mfs_vfsops.c,v 1.3 1994/08/02 07:54:43 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -90,7 +90,6 @@ struct vfsops mfs_vfsops = {
 int
 mfs_mountroot()
 {
-	extern struct vnode *rootvp;
 	register struct fs *fs;
 	register struct mount *mp;
 	struct proc *p = curproc;	/* XXX */

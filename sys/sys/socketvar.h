@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)socketvar.h	8.1 (Berkeley) 6/2/93
- * $Id$
+ * $Id: socketvar.h,v 1.2 1994/08/02 07:53:36 davidg Exp $
  */
 
 #include <sys/select.h>			/* for struct selinfo */
@@ -189,7 +189,7 @@ struct socket {
 #define	sowwakeup(so)	sowakeup((so), &(so)->so_snd)
 
 #ifdef KERNEL
-u_long	sb_max;
+extern u_long	sb_max;
 /* to catch callers missing new second argument to sonewconn: */
 #define	sonewconn(head, connstatus)	sonewconn1((head), (connstatus))
 struct	socket *sonewconn1 __P((struct socket *head, int connstatus));

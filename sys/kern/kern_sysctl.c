@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_sysctl.c,v 1.5 1994/08/08 15:40:58 wollman Exp $
+ * $Id: kern_sysctl.c,v 1.7 1994/08/10 06:25:02 wollman Exp $
  */
 
 /*
@@ -198,7 +198,7 @@ kern_sysctl(name, namelen, oldp, oldlenp, newp, newlen, p)
 	struct proc *p;
 {
 	int error, level, inthostid;
-	extern char ostype[], osrelease[], version[];
+	extern char ostype[], osrelease[];
 
 	/* all sysctl names at this level are terminal */
 	if (namelen != 1 && !(name[0] == KERN_PROC || name[0] == KERN_PROF))

@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: kern_physio.c,v 1.5 1994/08/07 13:10:31 davidg Exp $
+ * $Id: kern_physio.c,v 1.6 1994/08/08 13:53:55 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -27,7 +27,6 @@
 #include <vm/vm.h>
 
 static void physwakeup();
-u_int minphys(struct buf *bp);
 
 int
 physio(strategy, bp, dev, rw, minp, uio)

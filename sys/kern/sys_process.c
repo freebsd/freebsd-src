@@ -28,10 +28,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sys_process.c,v 1.4 1994/08/08 13:00:14 davidg Exp $
+ *	$Id: sys_process.c,v 1.5 1994/08/13 03:50:25 wollman Exp $
  */
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/proc.h>
 #include <sys/vnode.h>
 #include <sys/ptrace.h>
@@ -83,7 +84,8 @@ pread (struct proc *procp, unsigned int addr, unsigned int *retval) {
 		rv = vm_map_pageable (kernel_map, kva, kva + PAGE_SIZE, 0);
 		if (!rv) {
 			*retval = 0;
-			bcopy (kva + page_offset, retval, sizeof *retval);
+			bcopy ((caddr_t)kva + page_offset,
+			       retval, sizeof *retval);
 		}
 		vm_map_remove (kernel_map, kva, kva + PAGE_SIZE);
 	}
@@ -174,7 +176,7 @@ pwrite (struct proc *procp, unsigned int addr, unsigned int datum) {
 
 		rv = vm_map_pageable (kernel_map, kva, kva + PAGE_SIZE, 0);
 		if (!rv) {
-		  bcopy (&datum, kva + page_offset, sizeof datum);
+		  bcopy (&datum, (caddr_t)kva + page_offset, sizeof datum);
 		}
 		vm_map_remove (kernel_map, kva, kva + PAGE_SIZE);
 	}

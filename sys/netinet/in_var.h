@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_var.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: in_var.h,v 1.3 1994/08/02 07:48:28 davidg Exp $
  */
 
 /*
@@ -78,8 +78,6 @@ struct	in_aliasreq {
 #ifdef	KERNEL
 extern	struct	in_ifaddr *in_ifaddr;
 extern	struct	ifqueue	ipintrq;		/* ip packet input queue */
-void	in_socktrim __P((struct sockaddr_in *));
-
 
 /*
  * Macro for finding the interface (ifnet structure) corresponding to one
