@@ -1,4 +1,4 @@
-/* $Id: trap.c,v 1.2 1998/06/10 20:12:22 dfr Exp $ */
+/* $Id: trap.c,v 1.3 1998/06/28 00:47:20 dfr Exp $ */
 /* $NetBSD: trap.c,v 1.31 1998/03/26 02:21:46 thorpej Exp $ */
 
 /*
@@ -273,7 +273,7 @@ trap(a0, a1, a2, entry, framep)
 			    || a0 == ALPHA_IF_CODE_GENTRAP
 #endif
 			    ) {
-				if (ddb_trap(a0, a1, a2, entry, framep))
+				if (kdb_trap(a0, a1, a2, entry, framep))
 					goto out;
 			}
 
@@ -467,20 +467,7 @@ dopanic:
 	/* XXX dump registers */
 
 #ifdef DDB
-	/* XXX
-	 * Really would like to be able to indicate that the
-	 * kernel should _not_ panic, here.  However, two problems
-	 * exist:
-	 *
-	 *	(a) There is not currently a way for DDB to distinguish
-	 *	    between "continue and panic" and "continue, and
-	 *	    don't panic".
-	 *
-	 *	(b) panic() will again invoke the debugger, so calling
-	 *	    it here is silly.
-	 *
-	 * For now, we just do nothing.
-	 */
+	kdb_trap(a0, a1, a2, entry, framep);
 #endif
 
 	panic("trap");
