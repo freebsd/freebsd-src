@@ -135,7 +135,7 @@ main(int argc, char **argv)
 	    extern char *distWanted;
 
 	    /* Tell mediaSetFloppy() to try floppy now */
-	    distWanted = (char *)1;
+	    distWanted = LOAD_CONFIG_FILE;
 
 	    /* Try to open the floppy drive if we can do that first */
 	    if (DITEM_STATUS(mediaSetFloppy(NULL)) != DITEM_FAILURE && mediaDevice->init(mediaDevice)) {
