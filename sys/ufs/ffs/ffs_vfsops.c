@@ -550,7 +550,6 @@ ffs_mountfs(devvp, mp, td, malloctype)
 	struct ucred *cred;
 	size_t strsize;
 	int ncount;
-	u_int sectorsize;
 
 	dev = devvp->v_rdev;
 	cred = td ? td->td_ucred : NOCRED;
@@ -607,12 +606,6 @@ ffs_mountfs(devvp, mp, td, malloctype)
 	if (mp->mnt_iosize_max > MAXPHYS)
 		mp->mnt_iosize_max = MAXPHYS;
 
-	if (VOP_IOCTL(devvp, DIOCGSECTORSIZE, (caddr_t)&sectorsize,
-	    FREAD, cred, td) != 0)
-		size = DEV_BSIZE;
-	else
-		size = sectorsize;
-
 	bp = NULL;
 	ump = NULL;
 	fs = NULL;
@@ -621,7 +614,7 @@ ffs_mountfs(devvp, mp, td, malloctype)
 	 * Try reading the superblock in each of its possible locations.
 	 */
 	for (i = 0; sblock_try[i] != -1; i++) {
-		if ((error = bread(devvp, sblock_try[i] / size, SBLOCKSIZE,
+		if ((error = bread(devvp, sblock_try[i] / DEV_BSIZE, SBLOCKSIZE,
 		    cred, &bp)) != 0)
 			goto out;
 		fs = (struct fs *)bp->b_data;
