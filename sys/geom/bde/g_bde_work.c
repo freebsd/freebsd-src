@@ -560,7 +560,8 @@ g_bde_worker(void *arg)
 				    ("Illegal sector state (JUNK ?)"));
 			}
 
-			if (wp->bp->bio_cmd == BIO_READ && wp->sp->state != VALID)
+			if (wp->bp->bio_cmd == BIO_READ &&
+			     wp->sp->state == IO)
 				continue;
 
 			if (wp->ksp != NULL && wp->ksp->error != 0) {
