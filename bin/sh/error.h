@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)error.h	8.2 (Berkeley) 5/4/95
- *	$Id: error.h,v 1.4 1996/09/03 14:15:48 peter Exp $
+ *	$Id: error.h,v 1.4.2.1 1997/08/25 09:09:40 jkh Exp $
  */
 
 /*
@@ -57,6 +57,7 @@
  */
 
 #include <setjmp.h>
+#include <signal.h>
 
 struct jmploc {
 	jmp_buf loc;
@@ -79,8 +80,8 @@ extern int exception;
  * more fun than worrying about efficiency and portability. :-))
  */
 
-extern volatile int suppressint;
-extern volatile int intpending;
+extern volatile sig_atomic_t suppressint;
+extern volatile sig_atomic_t intpending;
 extern char *commandname;	/* name of command--printed on error */
 
 #define INTOFF suppressint++

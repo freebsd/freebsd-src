@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: jobs.c,v 1.8.2.3 1997/08/25 09:10:00 jkh Exp $
+ *	$Id: jobs.c,v 1.8.2.4 1998/02/15 11:32:25 jkh Exp $
  */
 
 #ifndef lint
@@ -85,6 +85,8 @@ MKINIT pid_t backgndpid = -1;	/* pid of last background process */
 int initialpgrp;		/* pgrp of shell on invocation */
 int curjob;			/* current job */
 #endif
+int in_waitcmd = 0;		/* are we in waitcmd()? */
+volatile sig_atomic_t breakwaitcmd = 0;	/* should wait be terminated? */
 
 #if JOBS
 STATIC void restartjob __P((struct job *));
@@ -383,7 +385,14 @@ waitcmd(argc, argv)
 	} else {
 		job = NULL;
 	}
-	for (;;) {	/* loop until process terminated or stopped */
+
+	/*
+	 * Loop until a process is terminated or stopped, or a SIGINT is
+	 * received.
+	 */
+
+	in_waitcmd++;
+	do {
 		if (job != NULL) {
 			if (job->state) {
 				status = job->ps[job->nprocs - 1].status;
@@ -397,19 +406,23 @@ waitcmd(argc, argv)
 					retval = WTERMSIG(status) + 128;
 				if (! iflag)
 					freejob(job);
+				in_waitcmd--;
 				return retval;
 			}
 		} else {
 			for (jp = jobtab ; ; jp++) {
 				if (jp >= jobtab + njobs) {	/* no running procs */
+					in_waitcmd--;
 					return 0;
 				}
 				if (jp->used && jp->state == 0)
 					break;
 			}
 		}
-		dowait(1, (struct job *)NULL);
-	}
+	} while (dowait(1, (struct job *)NULL) != -1);
+	in_waitcmd--;
+
+	return 0;
 }
 
 
@@ -725,9 +738,12 @@ waitforjob(jp)
 		st = WTERMSIG(status) + 128;
 	if (! JOBS || jp->state == JOBDONE)
 		freejob(jp);
-	CLEAR_PENDING_INT;
-	if (WIFSIGNALED(status) && WTERMSIG(status) == SIGINT)
-		kill(getpid(), SIGINT);
+	if (int_pending()) {
+		if (WIFSIGNALED(status) && WTERMSIG(status) == SIGINT)
+			kill(getpid(), SIGINT);
+		else
+			CLEAR_PENDING_INT;
+	}
 	INTON;
 	return st;
 }
@@ -757,7 +773,11 @@ dowait(block, job)
 	do {
 		pid = waitproc(block, &status);
 		TRACE(("wait returns %d, status=%d\n", pid, status));
-	} while (pid == -1 && errno == EINTR);
+	} while (pid == -1 && errno == EINTR && breakwaitcmd == 0);
+	if (breakwaitcmd != 0) {
+		breakwaitcmd = 0;
+		return -1;
+	}
 	if (pid <= 0)
 		return pid;
 	INTOFF;
@@ -865,7 +885,7 @@ dowait(block, job)
  */
 
 #ifdef SYSV
-STATIC int gotsigchild;
+STATIC sig_atomic_t gotsigchild;
 
 STATIC int onsigchild() {
 	gotsigchild = 1;

@@ -88,11 +88,15 @@ expr:	ARITH_LPAREN expr ARITH_RPAREN = { $$ = $2; }
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: arith.y,v 1.3 1996/09/01 10:19:38 peter Exp $
+ *	$Id: arith.y,v 1.3.2.1 1997/08/25 09:09:32 jkh Exp $
  */
 
 #ifndef lint
+#if 0
 static char const sccsid[] = "@(#)arith.y	8.3 (Berkeley) 5/4/95";
+#endif
+static const char rcsid[] =                                  
+	"$Id$";                                                
 #endif /* not lint */
 
 #include "shell.h"
@@ -102,6 +106,9 @@ static char const sccsid[] = "@(#)arith.y	8.3 (Berkeley) 5/4/95";
 
 char *arith_buf, *arith_startbuf;
 extern void arith_lex_reset();
+
+int yylex __P((void));
+int yyparse __P((void));
 
 int
 arith(s)

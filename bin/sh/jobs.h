@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)jobs.h	8.2 (Berkeley) 5/4/95
- *	$Id: jobs.h,v 1.3 1996/09/01 10:20:27 peter Exp $
+ *	$Id: jobs.h,v 1.3.2.1 1997/08/25 09:10:02 jkh Exp $
  */
 
 /* Mode argument to forkshell.  Don't change FORK_FG or FORK_BG. */
@@ -42,6 +42,7 @@
 #define FORK_BG 1
 #define FORK_NOJOB 2
 
+#include <signal.h>		/* for sig_atomic_t */
 
 /*
  * A job structure contains information about a job.  A job is either a
@@ -77,6 +78,8 @@ struct job {
 
 extern pid_t backgndpid;	/* pid of last background process */
 extern int job_warning;		/* user was warned about stopped jobs */
+extern int in_waitcmd;		/* are we in waitcmd()? */
+extern volatile sig_atomic_t breakwaitcmd; /* should wait be terminated? */
 
 void setjobctl __P((int));
 int fgcmd __P((int, char **));

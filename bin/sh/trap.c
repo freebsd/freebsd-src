@@ -33,11 +33,15 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: trap.c,v 1.4.2.1 1997/08/25 09:10:46 jkh Exp $
+ *	$Id: trap.c,v 1.4.2.2 1998/02/15 11:32:27 jkh Exp $
  */
 
 #ifndef lint
+#if 0
 static char const sccsid[] = "@(#)trap.c	8.5 (Berkeley) 6/5/95";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <signal.h>
@@ -73,9 +77,11 @@ static char const sccsid[] = "@(#)trap.c	8.5 (Berkeley) 6/5/95";
 
 
 MKINIT char sigmode[NSIG];	/* current value of signal */
-int pendingsigs;			/* indicates some signal received */
+int pendingsigs;		/* indicates some signal received */
+int in_dotrap;			/* do we execute in a trap handler? */
 static char *trap[NSIG];	/* trap handler commands */
-static char gotsig[NSIG];	/* indicates specified signal received */
+static volatile sig_atomic_t gotsig[NSIG]; 
+				/* indicates specified signal received */
 static int ignore_sigchld;	/* Used while handling SIGCHLD traps. */
 
 static int getsigaction __P((int, sig_t *));
@@ -219,11 +225,10 @@ setsignal(signo)
 		action = S_CATCH;
 	else
 		action = S_IGN;
-	if (rootshell && action == S_DFL) {
+	if (action == S_DFL) {
 		switch (signo) {
 		case SIGINT:
-			if (iflag)
-				action = S_CATCH;
+			action = S_CATCH;
 			break;
 		case SIGQUIT:
 #ifdef DEBUG
@@ -234,15 +239,16 @@ setsignal(signo)
 				break;
 			}
 #endif
-			/* FALLTHROUGH */
+			action = S_CATCH;
+			break;
 		case SIGTERM:
-			if (iflag)
+			if (rootshell && iflag)
 				action = S_IGN;
 			break;
 #if JOBS
 		case SIGTSTP:
 		case SIGTTOU:
-			if (mflag)
+			if (rootshell && mflag)
 				action = S_IGN;
 			break;
 #endif
@@ -354,6 +360,10 @@ onsig(signo)
 	if (signo != SIGCHLD || !ignore_sigchld)
 		gotsig[signo] = 1;
 	pendingsigs++;
+	if (signo == SIGINT && in_waitcmd != 0) {
+		dotrap();
+		breakwaitcmd = 1;
+	}
 }
 
 
@@ -367,6 +377,7 @@ dotrap()
 	int i;
 	int savestatus;
 
+	in_dotrap++;
 	for (;;) {
 		for (i = 1; i < NSIG; i++) {
 			if (gotsig[i]) {
@@ -390,6 +401,7 @@ dotrap()
 		if (i >= NSIG)
 			break;
 	}
+	in_dotrap--;
 	pendingsigs = 0;
 }
 
@@ -401,7 +413,7 @@ void
 setinteractive(on)
 	int on;
 {
-	static int is_interactive = 0;
+	static int is_interactive = -1;
 
 	if (on == is_interactive)
 		return;
