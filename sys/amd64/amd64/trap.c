@@ -172,11 +172,8 @@ userret(p, frame, oticks)
 {
 	int sig;
 
-	while ((sig = CURSIG(p)) != 0) {
-		if (!mtx_owned(&Giant))
-			mtx_lock(&Giant);
+	while ((sig = CURSIG(p)) != 0)
 		postsig(sig);
-	}
 
 	mtx_lock_spin(&sched_lock);
 	p->p_pri.pri_level = p->p_pri.pri_user;
@@ -195,11 +192,8 @@ userret(p, frame, oticks)
 		mi_switch();
 		mtx_unlock_spin(&sched_lock);
 		PICKUP_GIANT();
-		while ((sig = CURSIG(p)) != 0) {
-			if (!mtx_owned(&Giant))
-				mtx_lock(&Giant);
+		while ((sig = CURSIG(p)) != 0)
 			postsig(sig);
-		}
 		mtx_lock_spin(&sched_lock);
 	}
 
@@ -508,9 +502,9 @@ restart:
 			 */
 			if (frame.tf_eip == (int)cpu_switch_load_gs) {
 				PCPU_GET(curpcb)->pcb_gs = 0;
-				mtx_lock(&Giant);
+				PROC_LOCK(p);
 				psignal(p, SIGBUS);
-				mtx_unlock(&Giant);
+				PROC_UNLOCK(p);
 				goto out;
 			}
 
@@ -1247,17 +1241,17 @@ bad:
 #endif
 
 	/*
+	 * Release Giant if we had to get it
+	 */
+	if (mtx_owned(&Giant))
+		mtx_unlock(&Giant);
+
+	/*
 	 * This works because errno is findable through the
 	 * register set.  If we ever support an emulation where this
 	 * is not the case, this code will need to be revisited.
 	 */
 	STOPEVENT(p, S_SCX, code);
-
-	/*
-	 * Release Giant if we had to get it
-	 */
-	if (mtx_owned(&Giant))
-		mtx_unlock(&Giant);
 
 #ifdef WITNESS
 	if (witness_list(p)) {
@@ -1305,17 +1299,17 @@ ast(framep)
 	if (p->p_sflag & PS_ALRMPEND) {
 		p->p_sflag &= ~PS_ALRMPEND;
 		mtx_unlock_spin(&sched_lock);
-		if (!mtx_owned(&Giant))
-			mtx_lock(&Giant);
+		PROC_LOCK(p);
 		psignal(p, SIGVTALRM);
+		PROC_UNLOCK(p);
 		mtx_lock_spin(&sched_lock);
 	}
 	if (p->p_sflag & PS_PROFPEND) {
 		p->p_sflag &= ~PS_PROFPEND;
 		mtx_unlock_spin(&sched_lock);
-		if (!mtx_owned(&Giant))
-			mtx_lock(&Giant);
+		PROC_LOCK(p);
 		psignal(p, SIGPROF);
+		PROC_UNLOCK(p);
 	} else
 		mtx_unlock_spin(&sched_lock);
 
