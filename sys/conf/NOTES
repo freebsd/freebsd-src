@@ -1102,6 +1102,7 @@ options 	SC_NO_CUTPASTE
 options 	SC_NO_FONT_LOADING
 options 	SC_NO_HISTORY
 options 	SC_NO_SYSMOUSE
+options 	SC_NO_SUSPEND_VTYSWITCH
 
 # `flags' for sc
 #	0x80	Put the video card in the VESA 800x600 dots, 16 color mode
