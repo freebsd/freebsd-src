@@ -502,8 +502,8 @@ maybe_preempt(struct thread *td)
 	 * to the new thread.
 	 */
 	ctd = curthread;
-	if (ctd->td_kse == NULL || ctd->td_kse->ke_thread != ctd)
-		return (0);
+	KASSERT ((ctd->td_kse != NULL && ctd->td_kse->ke_thread == ctd),
+	  ("thread has no (or wrong) sched-private part."));
 	pri = td->td_priority;
 	cpri = ctd->td_priority;
 	if (pri >= cpri || cold /* || dumping */ || TD_IS_INHIBITED(ctd) ||
