@@ -60,6 +60,7 @@
  *
  */
 
+#include "pci.h"
 #include "lnc.h"
 #if NLNC > 0
 
@@ -131,14 +132,14 @@ static struct lnc_softc {
 #ifdef LNC_MULTICAST
 static void lnc_setladrf __P((struct lnc_softc *sc));
 #endif
-static void lnc_stop __P((int unit));
-static void lnc_reset __P((int unit));
+static void lnc_stop __P((struct lnc_softc *sc));
+static void lnc_reset __P((struct lnc_softc *sc));
 static void lnc_free_mbufs __P((struct lnc_softc *sc));
 static int alloc_mbuf_cluster __P((struct lnc_softc *sc, struct host_ring_entry *desc));
 static struct mbuf *chain_mbufs __P((struct lnc_softc *sc, int start_of_packet, int pkt_len));
 static struct mbuf *mbuf_packet __P((struct lnc_softc *sc, int start_of_packet, int pkt_len));
-static void lnc_rint __P((int unit));
-static void lnc_tint __P((int unit));
+static void lnc_rint __P((struct lnc_softc *sc));
+static void lnc_tint __P((struct lnc_softc *sc));
 static int lnc_probe __P((struct isa_device *isa_dev));
 static int ne2100_probe __P((struct isa_device *isa_dev));
 static int bicc_probe __P((struct isa_device *isa_dev));
@@ -146,19 +147,25 @@ static int dec_macaddr_extract __P((u_char ring[], struct lnc_softc *sc));
 static int depca_probe __P((struct isa_device *isa_dev));
 static int lance_probe __P((int unit));
 static int pcnet_probe __P((int unit));
-static int lnc_attach __P((struct isa_device *isa_dev));
-static void lnc_init __P((int unit));
+static int lnc_attach __P((struct lnc_softc *sc, int unit));
+static int lnc_attach_isa __P((struct isa_device *isa_dev));
+static void lnc_init __P((struct lnc_softc *sc));
 static int mbuf_to_buffer __P((struct mbuf *m, char *buffer));
 static struct mbuf *chain_to_cluster __P((struct mbuf *m));
 static void lnc_start __P((struct ifnet *ifp));
 static int lnc_ioctl __P((struct ifnet *ifp, int command, caddr_t data));
 static void lnc_watchdog __P((struct ifnet *ifp));
 #ifdef DEBUG
-static void lnc_dump_state __P((int unit));
+static void lnc_dump_state __P((struct lnc_softc *sc));
 static void mbuf_dump_chain __P((struct mbuf *m));
 #endif
 
-struct isa_driver lncdriver = {lnc_probe, lnc_attach, "lnc"};
+#if NPCI > 0
+void *lnc_attach_ne2100_pci __P((int unit, unsigned iobase));
+#endif
+void lncintr_sc __P((struct lnc_softc *sc));
+
+struct isa_driver lncdriver = {lnc_probe, lnc_attach_isa, "lnc"};
 
 static struct kern_devconf kdc_lnc = {
 	0, 0, 0,		/* filled in by dev_attach */
@@ -172,17 +179,17 @@ static struct kern_devconf kdc_lnc = {
 };
 
 static inline void
-write_csr(int unit, u_short port, u_short val)
+write_csr(struct lnc_softc *sc, u_short port, u_short val)
 {
-	outw(lnc_softc[unit].rap, port);
-	outw(lnc_softc[unit].rdp, val);
+	outw(sc->rap, port);
+	outw(sc->rdp, val);
 }
 
 static inline u_short
-read_csr(int unit, u_short port)
+read_csr(struct lnc_softc *sc, u_short port)
 {
-	outw(lnc_softc[unit].rap, port);
-	return (inw(lnc_softc[unit].rdp));
+	outw(sc->rap, port);
+	return (inw(sc->rdp));
 }
 
 static inline void
@@ -221,6 +228,9 @@ lnc_registerdev(struct isa_device *isa_dev)
 			kdc->kdc_description = "PCnet-32 VL-Bus Ethernet controller";
 			break;
 		case PCnet_PCI:
+			/*
+			 * XXX - This should never be the case ...
+			 */
 			kdc->kdc_description = "PCnet-PCI Ethernet controller";
 			break;
 		default:
@@ -305,15 +315,15 @@ lnc_setladrf(struct lnc_softc *sc)
 #endif /* LNC_MULTICAST */
 
 static void
-lnc_stop(int unit)
+lnc_stop(struct lnc_softc *sc)
 {
-	write_csr(unit, CSR0, STOP);
+	write_csr(sc, CSR0, STOP);
 }
 
 static void
-lnc_reset(int unit)
+lnc_reset(struct lnc_softc *sc)
 {
-	lnc_init(unit);
+	lnc_init(sc);
 }
 
 static void
@@ -481,9 +491,9 @@ mbuf_packet(struct lnc_softc *sc, int start_of_packet, int pkt_len)
 
 
 static inline void
-lnc_rint(int unit)
+lnc_rint(struct lnc_softc *sc)
 {
-	register struct lnc_softc *sc = &lnc_softc[unit];
+	int unit = sc->arpcom.ac_if.if_unit;
 	struct host_ring_entry *next, *start;
 	int start_of_packet;
 	struct mbuf *head;
@@ -540,7 +550,7 @@ lnc_rint(int unit)
 
 			if (flags & STP) {
 				log(LOG_ERR, "lnc%d: Start of packet found before end of previous in receive ring -- Resetting\n", unit);
-				lnc_reset(unit);
+				lnc_reset(sc);
 				return;
 			}
 			if (flags & OWN) {
@@ -553,7 +563,7 @@ lnc_rint(int unit)
 					break;
 				} else {
 					log(LOG_ERR, "lnc%d: End of received packet not found-- Resetting\n", unit);
-					lnc_reset(unit);
+					lnc_reset(sc);
 					return;
 				}
 			}
@@ -671,9 +681,9 @@ lnc_rint(int unit)
 }
 
 static inline void
-lnc_tint(int unit)
+lnc_tint(struct lnc_softc *sc)
 {
-	register struct lnc_softc *sc = &lnc_softc[unit];
+	int unit = sc->arpcom.ac_if.if_unit;
 	struct host_ring_entry *next, *start;
 	int start_of_packet;
 	int lookahead;
@@ -742,7 +752,7 @@ lnc_tint(int unit)
 
 			if (next->md->md1 & STP) {
 				log(LOG_ERR, "lnc%d: Start of packet found before end of previous in transmit ring -- Resetting\n", unit);
-				lnc_reset(unit);
+				lnc_reset(sc);
 				return;
 			}
 			if (next->md->md1 & OWN) {
@@ -755,7 +765,7 @@ lnc_tint(int unit)
 					break;
 				} else {
 					log(LOG_ERR, "lnc%d: End of transmitted packet not found -- Resetting\n", unit);
-					lnc_reset(unit);
+					lnc_reset(sc);
 					return;
 				}
 			}
@@ -814,7 +824,7 @@ lnc_tint(int unit)
 					log(LOG_ERR, "lnc%d: Transmit buffer error -- Resetting\n", unit);
 				} else
 					log(LOG_ERR, "lnc%d: Transmit underflow error -- Resetting\n", unit);
-				lnc_reset(unit);
+				lnc_reset(sc);
 				return;
 			}
 			do {
@@ -1057,16 +1067,18 @@ depca_probe(struct isa_device * isa_dev)
 static int
 lance_probe(int unit)
 {
-	write_csr(unit, CSR0, STOP);
+	struct lnc_softc *sc = &lnc_softc[unit];
 
-	if ((inw(lnc_softc[unit].rdp) & STOP) && !(read_csr(unit, CSR3))) {
+	write_csr(sc, CSR0, STOP);
+
+	if ((inw(sc->rdp) & STOP) && !(read_csr(sc, CSR3))) {
 		/*
 		 * Check to see if it's a C-LANCE. For the LANCE the INEA bit
 		 * cannot be set while the STOP bit is. This restriction is
 		 * removed for the C-LANCE.
 		 */
-		write_csr(unit, CSR0, INEA);
-		if (read_csr(unit, CSR0) & INEA)
+		write_csr(sc, CSR0, INEA);
+		if (read_csr(sc, CSR0) & INEA)
 			return (C_LANCE);
 		else
 			return (LANCE);
@@ -1077,6 +1089,8 @@ lance_probe(int unit)
 static int
 pcnet_probe(int unit)
 {
+	struct lnc_softc *sc = &lnc_softc[unit];
+
 	u_long chip_id;
 	int type;
 
@@ -1088,9 +1102,9 @@ pcnet_probe(int unit)
 
 	if (type = lance_probe(unit)) {
 
-		chip_id = read_csr(unit, CSR89);
+		chip_id = read_csr(sc, CSR89);
 		chip_id <<= 16;
-		chip_id |= read_csr(unit, CSR88);
+		chip_id |= read_csr(sc, CSR88);
 		if (chip_id & AMD_MASK) {
 			chip_id >>= 12;
 			switch (chip_id & PART_MASK) {
@@ -1101,7 +1115,7 @@ pcnet_probe(int unit)
 			case Am79C965:
 				return (PCnet_32);
 			case Am79C970:
-				return (PCnet_PCI);
+				return (0);
 			default:
 				break;
 			}
@@ -1111,9 +1125,8 @@ pcnet_probe(int unit)
 }
 
 static int
-lnc_attach(struct isa_device * isa_dev)
+lnc_attach(struct lnc_softc *sc, int unit)
 {
-	struct lnc_softc *sc = &lnc_softc[isa_dev->id_unit];
 	int lnc_mem_size;
 
 	/*
@@ -1144,19 +1157,19 @@ lnc_attach(struct isa_device * isa_dev)
 	sc->recv_ring = malloc(lnc_mem_size, M_DEVBUF, M_NOWAIT);
 
 	if (!sc->recv_ring) {
-		log(LOG_ERR, "lnc%d: Couldn't allocate memory for NIC\n", isa_dev->id_unit);
+		log(LOG_ERR, "lnc%d: Couldn't allocate memory for NIC\n", unit);
 		return (0);	/* XXX -- attach failed -- not tested in
 				 * calling routines */
 	}
+	/*
+	 * XXX - Shouldn't this be skipped for the EISA and PCI versions ???
+	 *       Print the message but do not return for the PCnet_PCI !
+	 */
 	if ((sc->nic.mem_mode != SHMEM) && (kvtop(sc->recv_ring) > 0x1000000)) {
-		log(LOG_ERR, "lnc%d: Memory allocated above 16Mb limit\n", isa_dev->id_unit);
-		return (0);
+		log(LOG_ERR, "lnc%d: Memory allocated above 16Mb limit\n", unit);
+		if (sc->nic.ic != PCnet_PCI)
+			return (0);
 	}
-
-	if ((sc->nic.mem_mode != SHMEM) &&
-		 (sc->nic.ic != PCnet_32) &&
-		 (sc->nic.ic != PCnet_PCI))
-		isa_dmacascade(isa_dev->id_drq);
 
 	/* Set default mode */
 	sc->nic.mode = NORMAL;
@@ -1165,7 +1178,7 @@ lnc_attach(struct isa_device * isa_dev)
 
 	sc->arpcom.ac_if.if_softc = sc;
 	sc->arpcom.ac_if.if_name = lncdriver.name;
-	sc->arpcom.ac_if.if_unit = isa_dev->id_unit;
+	sc->arpcom.ac_if.if_unit = unit;
 	sc->arpcom.ac_if.if_mtu = ETHERMTU;
 	sc->arpcom.ac_if.if_flags = IFF_BROADCAST | IFF_SIMPLEX;
 	sc->arpcom.ac_if.if_timer = 0;
@@ -1185,9 +1198,12 @@ lnc_attach(struct isa_device * isa_dev)
 	ether_ifattach(&sc->arpcom.ac_if);
 	sc->kdc.kdc_state = DC_IDLE;
 
+	if (sc->kdc.kdc_description == NULL)
+		sc->kdc.kdc_description = "Lance Ethernet controller";
+
 	printf("lnc%d: %s, address %6D\n",
-	       isa_dev->id_unit,
-		   sc->kdc.kdc_description,
+	       unit,
+	       sc->kdc.kdc_description,
 	       sc->arpcom.ac_enaddr, ":");
 
 #if NBPFILTER > 0
@@ -1197,10 +1213,70 @@ lnc_attach(struct isa_device * isa_dev)
 	return (1);
 }
 
-static void
-lnc_init(int unit)
+static int
+lnc_attach_isa(struct isa_device * isa_dev)
 {
+	int unit = isa_dev->id_unit;
 	struct lnc_softc *sc = &lnc_softc[unit];
+
+	int result = lnc_attach (sc, unit);
+	if (result == 0)
+		return (0);
+	/*
+	 * XXX - is it safe to call isa_dmacascade() after if_attach() 
+	 *       and ether_ifattach() have been called in lnc_attach() ???
+	 */
+	if ((sc->nic.mem_mode != SHMEM) &&
+		 (sc->nic.ic != PCnet_32) &&
+		 (sc->nic.ic != PCnet_PCI))
+		isa_dmacascade(isa_dev->id_drq);
+
+	return result;
+}
+
+#if NPCI > 0
+void *
+lnc_attach_ne2100_pci(int unit, unsigned iobase)
+{
+	struct lnc_softc *sc = malloc(sizeof *sc, M_DEVBUF, M_NOWAIT);
+
+	if (!sc)
+		return sc;
+
+	bzero (sc, sizeof *sc);
+
+	/*
+	 * Copied from ne2100_probe()
+	 */
+	sc->rap = iobase + PCNET_RAP;
+	sc->rdp = iobase + PCNET_RDP;
+
+	sc->nic.ic = PCnet_PCI;
+	sc->nic.ident = NE2100;
+	sc->nic.mem_mode = DMA_FIXED;
+
+	/* XXX - For now just use the defines */
+	sc->nrdre = NRDRE;
+	sc->ntdre = NTDRE;
+
+	/* Extract MAC address from PROM */
+	{
+		int i;
+		for (i = 0; i < ETHER_ADDR_LEN; i++)
+			sc->arpcom.ac_enaddr[i] = inb(iobase + i);
+	}
+
+	if (lnc_attach(sc, unit) == 0) {
+		free(sc, M_DEVBUF);
+		return NULL;
+	}
+	return sc;
+}
+#endif
+
+static void
+lnc_init(struct lnc_softc *sc)
+{
 	int s, i;
 	char *lnc_mem;
 
@@ -1212,7 +1288,7 @@ lnc_init(int unit)
 	/* Shut down interface */
 
 	s = splimp();
-	lnc_stop(unit);
+	lnc_stop(sc);
 	sc->arpcom.ac_if.if_flags |= IFF_BROADCAST | IFF_SIMPLEX; /* XXX??? */
 
 	/*
@@ -1326,8 +1402,8 @@ lnc_init(int unit)
 
 	/* Give the LANCE the physical address of the initialisation block */
 
-	write_csr(unit, CSR1, kvtop(sc->init_block));
-	write_csr(unit, CSR2, (kvtop(sc->init_block) >> 16) & 0xff);
+	write_csr(sc, CSR1, kvtop(sc->init_block));
+	write_csr(sc, CSR2, (kvtop(sc->init_block) >> 16) & 0xff);
 
 	/*
 	 * Depending on which controller this is, CSR3 has different meanings.
@@ -1337,13 +1413,13 @@ lnc_init(int unit)
 	 *
 	 */
 
-	write_csr(unit, CSR3, 0);
+	write_csr(sc, CSR3, 0);
 
 	/* Let's see if it starts */
 
-	write_csr(unit, CSR0, INIT);
+	write_csr(sc, CSR0, INIT);
 	for (i = 0; i < 1000; i++)
-		if (read_csr(unit, CSR0) & IDON)
+		if (read_csr(sc, CSR0) & IDON)
 			break;
 
 	/*
@@ -1353,17 +1429,18 @@ lnc_init(int unit)
 	 * time.
 	 */
 
-	if (read_csr(unit, CSR0) & IDON) {
+	if (read_csr(sc, CSR0) & IDON) {
 		/*
 		 * Enable interrupts, start the LANCE, mark the interface as
 		 * running and transmit any pending packets.
 		 */
-		write_csr(unit, CSR0, STRT | INEA);
+		write_csr(sc, CSR0, STRT | INEA);
 		sc->arpcom.ac_if.if_flags |= IFF_RUNNING;
 		sc->arpcom.ac_if.if_flags &= ~IFF_OACTIVE;
 		lnc_start(&sc->arpcom.ac_if);
 	} else
-		log(LOG_ERR, "lnc%d: Initialisation failed\n", unit);
+		log(LOG_ERR, "lnc%d: Initialisation failed\n", 
+		    sc->arpcom.ac_if.if_unit);
 
 	splx(s);
 }
@@ -1390,9 +1467,9 @@ lnc_init(int unit)
  */
 
 void
-lncintr(int unit)
+lncintr_sc(struct lnc_softc *sc)
 {
-	struct lnc_softc *sc = &lnc_softc[unit];
+	int unit = sc->arpcom.ac_if.if_unit;
 	u_short csr0;
 
 	/*
@@ -1432,18 +1509,18 @@ lncintr(int unit)
 			if (csr0 & MERR) {
 				log(LOG_ERR, "lnc%d: Memory error  -- Resetting\n", unit);
 				LNCSTATS(merr)
-				lnc_reset(unit);
+				lnc_reset(sc);
 				continue;
 			}
 		}
 		if (csr0 & RINT) {
 			LNCSTATS(rint)
-			lnc_rint(unit);
+			lnc_rint(sc);
 		}
 		if (csr0 & TINT) {
 			LNCSTATS(tint)
 			sc->arpcom.ac_if.if_timer = 0;
-			lnc_tint(unit);
+			lnc_tint(sc);
 		}
 
 		/*
@@ -1454,6 +1531,13 @@ lncintr(int unit)
 		if (!(sc->arpcom.ac_if.if_flags & IFF_OACTIVE))
 			lnc_start(&sc->arpcom.ac_if);
 	}
+}
+
+void
+lncintr(int unit)
+{
+	struct lnc_softc *sc = &lnc_softc[unit];
+	lncintr_sc (sc);
 }
 
 
@@ -1542,7 +1626,7 @@ lnc_start(struct ifnet *ifp)
 			if (no_entries_needed > (NDESC(sc->ntdre) - sc->pending_transmits))
 				if (!(head = chain_to_cluster(head))) {
 					log(LOG_ERR, "lnc%d: Couldn't get mbuf for transmit packet -- Resetting \n ",ifp->if_unit);
-					lnc_reset(ifp->if_unit);
+					lnc_reset(sc);
 					return;
 				}
 			else if ((sc->nic.ic == LANCE) || (sc->nic.ic == C_LANCE)) {
@@ -1676,12 +1760,12 @@ lnc_ioctl(struct ifnet * ifp, int command, caddr_t data)
 		switch (ifa->ifa_addr->sa_family) {
 #ifdef INET
 		case AF_INET:
-			lnc_init(ifp->if_unit);
+			lnc_init(sc);
 			arp_ifinit((struct arpcom *)ifp, ifa);
 			break;
 #endif
 		default:
-			lnc_init(ifp->if_unit);
+			lnc_init(sc);
 			break;
 		}
 		break;
@@ -1696,11 +1780,11 @@ lnc_ioctl(struct ifnet * ifp, int command, caddr_t data)
 		if (ifp->if_flags & IFF_PROMISC) {
 			if (!(sc->nic.mode & PROM)) {
 				sc->nic.mode |= PROM;
-				lnc_init(ifp->if_unit);
+				lnc_init(sc);
 			}
 		} else if (sc->nic.mode & PROM) {
 			sc->nic.mode &= ~PROM;
-			lnc_init(ifp->if_unit);
+			lnc_init(sc);
 		}
 		if ((ifp->if_flags & IFF_UP) == 0 &&
 		    (ifp->if_flags & IFF_RUNNING) != 0) {
@@ -1708,7 +1792,7 @@ lnc_ioctl(struct ifnet * ifp, int command, caddr_t data)
 			 * If interface is marked down and it is running,
 			 * then stop it.
 			 */
-			lnc_stop(ifp->if_unit);
+			lnc_stop(sc);
 			ifp->if_flags &= ~IFF_RUNNING;
 		} else if ((ifp->if_flags & IFF_UP) != 0 &&
 			   (ifp->if_flags & IFF_RUNNING) == 0) {
@@ -1716,7 +1800,7 @@ lnc_ioctl(struct ifnet * ifp, int command, caddr_t data)
 			 * If interface is marked up and it is stopped, then
 			 * start it.
 			 */
-			lnc_init(ifp->if_unit);
+			lnc_init(sc);
 		}
 		sc->kdc.kdc_state =
 			((ifp->if_flags & IFF_UP) ? DC_BUSY : DC_IDLE);
@@ -1756,14 +1840,13 @@ lnc_watchdog(struct ifnet *ifp)
 {
 	log(LOG_ERR, "lnc%d: Device timeout -- Resetting\n", ifp->if_unit);
 	ifp->if_oerrors++;
-	lnc_reset(ifp->if_unit);
+	lnc_reset(ifp->if_softc);
 }
 
 #ifdef DEBUG
 static void
-lnc_dump_state(int unit)
+lnc_dump_state(	struct lnc_softc *sc)
 {
-	struct lnc_softc *sc = &lnc_softc[unit];
 	int             i;
 
 	printf("\nDriver/NIC [%d] state dump\n", unit);
