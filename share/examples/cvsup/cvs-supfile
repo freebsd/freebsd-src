@@ -176,6 +176,12 @@ ports-all
 # collections,
 doc-all
 
+## Website
+#
+# This collection retrieves the www tree of the FreeBSD
+# repository
+www
+
 ## CVSROOT control files
 #
 # This is to get the control files that cvs(1) needs and the commit logs.
