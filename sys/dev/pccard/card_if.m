@@ -165,6 +165,8 @@ METHOD int compat_attach {
 }
 
 CODE {
+	static int null_do_probe(device_t bus, device_t dev) __unused;
+
 	static int null_do_probe(device_t bus, device_t dev)
 	{
 		return (CARD_COMPAT_DO_PROBE(device_get_parent(bus), dev));
