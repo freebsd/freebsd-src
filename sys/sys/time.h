@@ -83,13 +83,13 @@ struct timezone {
 
 struct bintime {
 	time_t		sec;
-	u_int64_t	frac;
+	uint64_t	frac;
 };
 
 static __inline void
-bintime_addx(struct bintime *bt, u_int64_t x)
+bintime_addx(struct bintime *bt, uint64_t x)
 {
-	u_int64_t u;
+	uint64_t u;
 
 	u = bt->frac;
 	bt->frac += x;
@@ -100,7 +100,7 @@ bintime_addx(struct bintime *bt, u_int64_t x)
 static __inline void
 bintime_add(struct bintime *bt, struct bintime *bt2)
 {
-	u_int64_t u;
+	uint64_t u;
 
 	u = bt->frac;
 	bt->frac += bt2->frac;
@@ -112,7 +112,7 @@ bintime_add(struct bintime *bt, struct bintime *bt2)
 static __inline void
 bintime_sub(struct bintime *bt, struct bintime *bt2)
 {
-	u_int64_t u;
+	uint64_t u;
 
 	u = bt->frac;
 	bt->frac -= bt2->frac;
@@ -121,12 +121,28 @@ bintime_sub(struct bintime *bt, struct bintime *bt2)
 	bt->sec -= bt2->sec;
 }
 
+/*-
+ * Background information:
+ *
+ * When converting between timestamps on parallel timescales of differing
+ * resolutions it is historical and scientific practice to round down rather
+ * than doing 4/5 rounding.
+ *
+ *   The date changes at midnight, not at noon.
+ *
+ *   Even at 15:59:59.999999999 it's not four'o'clock.
+ *
+ *   time_second ticks after N.999999999 not after N.4999999999
+ *
+ */
+
 static __inline void
 bintime2timespec(struct bintime *bt, struct timespec *ts)
 {
 
 	ts->tv_sec = bt->sec;
-	ts->tv_nsec =  (1000000000ULL * (u_int32_t)(bt->frac >> 32)) >> 32;
+	ts->tv_nsec =
+	    ((uint64_t)1000000000 * (uint32_t)(bt->frac >> 32)) >> 32;
 }
 
 static __inline void
@@ -134,7 +150,8 @@ timespec2bintime(struct timespec *ts, struct bintime *bt)
 {
 
 	bt->sec = ts->tv_sec;
-	bt->frac = ts->tv_nsec * 18446744073ULL;  /* int(2^64 / 1000000000) */
+	/* 18446744073 = int(2^64 / 1000000000) */
+	bt->frac = ts->tv_nsec * (uint64_t)18446744073LL; 
 }
 
 static __inline void
@@ -142,7 +159,8 @@ bintime2timeval(struct bintime *bt, struct timeval *tv)
 {
 
 	tv->tv_sec = bt->sec;
-	tv->tv_usec =  (1000000ULL * (u_int32_t)(bt->frac >> 32)) >> 32;
+	tv->tv_usec =
+	    ((uint64_t)1000000 * (uint32_t)(bt->frac >> 32)) >> 32;
 }
 
 static __inline void
@@ -150,7 +168,8 @@ timeval2bintime(struct timeval *tv, struct bintime *bt)
 {
 
 	bt->sec = tv->tv_sec;
-	bt->frac = tv->tv_usec * 18446744073709ULL;  /* int(2^64 / 1000000) */
+	/* 18446744073709 = int(2^64 / 1000000) */
+	bt->frac = tv->tv_usec * (uint64_t)18446744073709LL;
 }
 
 /* end of struct bintime stuff */
