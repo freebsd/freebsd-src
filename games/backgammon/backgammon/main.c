@@ -104,6 +104,11 @@ char	**argv;
 	register int	l;		/* non-descript index */
 	register char	c;		/* non-descript character storage */
 	long	t;			/* time for random num generator */
+	uid_t uid;
+
+	/*Drop the privilege.*/
+	uid = getuid();
+	setreuid (uid,uid);
 
 	/* initialization */
 	bflag = 2;					/* default no board */
