@@ -3,7 +3,7 @@
  * Based on the non-X based CD player by Jean-Marc Zucconi and
  * Andrey A. Chernov.
  *
- * $Id$
+ * $Id: cdcontrol.c,v 1.9 1996/02/03 15:07:32 ache Exp $
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -418,8 +418,12 @@ int pstatus (char *arg)
 	ss.data_format = CD_MEDIA_CATALOG;
 	rc = ioctl (fd, CDIOCREADSUBCHANNEL, (char *) &ss);
 	if (rc >= 0) {
-		printf("Media catalog is %sactive\n",
+		printf("Media catalog is %sactive",
 		ss.data->what.media_catalog.mc_valid ? "": "in");
+		if (ss.data->what.media_catalog.mc_number[0])
+			printf(", number \"%.15s\"",
+			       ss.data->what.media_catalog.mc_number);
+		putchar('\n');
 	} else
 		printf("No media catalog info available\n");
 
