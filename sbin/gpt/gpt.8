@@ -1,0 +1,232 @@
+.\" Copyright (c) 2002 Marcel Moolenaar
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 30, 2002
+.Os
+.Dt GPT 8
+.Sh NAME
+.Nm gpt
+.Nd GUID partition table maintenance utility
+.Sh SYNOPSIS
+.Nm
+.Op Ar general_options
+.Ar command
+.Op Ar command_options
+.Ar device ...
+.Sh DESCRIPTION
+The
+.Nm
+utility provides the necessary functionality to manipulate GUID partition
+tables (GPTs), but see BUGS below for how and where functionality is missing.
+The general usage model of the
+.Nm
+tool follows that of the
+.Xr cvs 1
+tool.
+The general options are described in the following paragraph.
+The remaining paragraphs describe the individual commands with their options.
+Here we conclude by mentioning that a device is either a special file
+corresponding to a disk-like device or a regular file.
+The command is applied to each device listed on the command line.
+.Ss General options
+.Pp
+The general options allow the user to change default settings or otherwise
+change behaviour that's applicable to all commands.
+Not all commands use all default settings, so some general options may not
+have an effect on all commands.
+.Pp
+The
+.Fl p Ar count
+option allows the user to change the the number of partitions the GPT can
+accomodate.
+This is used whenever a new GPT is created.
+By default the
+.Nm
+utility will create space for 128 partitions (or 32 sectors of 512 bytes).
+.Pp
+The
+.Fl r
+option causes the
+.Nm
+utility to open the device for reading only.
+Currently this option is primarily useful for the show command, but the intend
+is to use it to implement dry-run behaviour.
+.Pp
+The
+.Fl v
+option controls the verbosity level.
+The level increases with every occurrence of this option.
+There is no formalized definition of the different levels yet.
+.\" ==== add ====
+.Ss The add command
+.Pp
+.Nm
+.Ic add
+.Op Fl b Ar number
+.Op Fl s Ar count
+.Op Fl t Ar type
+.Ar device ...
+.Pp
+The
+.Ic add
+command allows the user to add a new partition to an existing table.
+By default it will create an UFS partition covering the first available block
+of unused disk space.
+The command-specific options can be used to control this behaviour.
+.Pp
+The
+.Fl b Ar number
+option allows the user to specify the starting (beginning) sector number of
+the partition.
+The minium sector number is 1, but has to fall inside an unused region of
+disk space that is covered by the GPT.
+.Pp
+The
+.Fl s Ar count
+option allows the user to specify the size of the partition in sectors.
+The minimum size is 1.
+.Pp
+The
+.Fl t Ar type
+option allows the user to specify the partition type.
+The type is given as an UUID, but
+.Nm
+has created
+.Em efi ,
+.Em swap
+and
+.Em ufs 
+as aliases for the three most commonly used partition types.
+.\" ==== create ====
+.Ss The create command
+.Pp
+.Nm
+.Ic create
+.Op Fl p
+.Ar device ...
+.Pp
+The
+.Ic create
+command allows the user to create a new (empty) GPT.
+.Pp
+The
+.Fl p
+option tells
+.Nm
+to create only the primary table and not the backup table.
+This option is only useful for debugging and should not be used otherwise.
+.\" ==== destroy ====
+.Ss The destroy command
+.Pp
+.Nm
+.Ic destroy
+.Op Fl r
+.Ar device ...
+.Pp
+The
+.Ic destroy
+command allows the user to destroy an existing, possibly not empty GPT.
+.Pp
+The
+.Fl r
+option instructs
+.Nm
+to destroy the table in a way that it can be recovered.
+.\" ==== migrate ====
+.Ss The migrate command
+.Pp
+.Nm
+.Ic migrate
+.Op Fl k
+.Op Fl s
+.Ar device ...
+.Pp
+The
+.Ic migrate
+command allows the user to migrate a MBR-based disk partitioning into a
+GPT-based partitioning.
+.Pp
+The
+.Fl k
+option instructs
+.Nm
+to not destroy the current MBR.
+This option is primarily useful for debugging and should not be used by
+users.
+.Pp
+The
+.Fl s
+option prevents migrating BSD disklabels into GPT partitions by creating
+the GPT equivalent of a slice.
+.\" ==== show ====
+.Ss The show command
+.Pp
+.Nm
+.Ic show
+.Ar device ...
+.Pp
+The
+.Ic show
+command displays the current partitioning on the listed devices and gives
+an overall view of the disk contents.
+.Pp
+.Sh SEE ALSO
+.Xr fdisk 8 ,
+.Xr mount 8 ,
+.Xr newfs 8 ,
+.Xr swapon 8
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Fx 5.0 
+for ia64.
+.Sh BUGS
+The development of the
+.Nm
+utility is still work in progress.
+Many necessary features are missing or partially implemented.
+In practice this means that the manual page, supposed to describe these
+features, is farther removed from being complete or useful.
+As such, missing functionality is not even documented as missing.
+However, it is believed that the currently present functionality is reliable
+and stable enough that this tool can be used without bullet-proof footware if
+one thinks one does not make mistakes.
+.Pp
+It is expected that the generic usage model does not change, but it is
+possible that future versions will not be compatible in the strictest sense
+of the word.
+For example, the
+.Fl p Ar count
+option may be changed to a command option rather than a generic option.
+There are only two commands that use it so there's a chance that the natural
+tendency for people is to use it as a command option.
+Also, options primarily intended for diagnostic of debug purposes may be
+removed in future versions.
+.Pp
+Another possibility is that the current usage model is accompanied by
+other interfaces to make the tool usable as a back-end.
+This all depends on demand and thus feedback.
