@@ -30,6 +30,11 @@
 #include "opt_ddb.h"
 #include "opt_ski.h"
 #include "opt_msgbuf.h"
+#include "opt_acpica.h"
+
+#if !defined(SKI) && !defined(DEV_ACPICA)
+#error "You need the SKI option and/or the acpica device"
+#endif
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -223,12 +228,19 @@ cpu_startup(dummy)
 	bufinit();
 	vm_pager_bufferinit();
 
-#ifndef SKI
+#ifdef DEV_ACPICA
 	/*
 	 * Traverse the MADT to discover IOSAPIC and Local SAPIC
 	 * information.
 	 */
-	ia64_probe_sapics();
+	if (!ia64_running_in_simulator())
+		ia64_probe_sapics();
+#else
+	/*
+	 * It is an error to boot a SKI-only kernel on hardware.
+	 */
+	if (!ia64_running_in_simulator())
+		panic("Mandatory 'device acpica' is missing");
 #endif
 }
 
