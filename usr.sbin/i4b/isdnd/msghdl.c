@@ -143,6 +143,7 @@ msg_connect_ind(msg_connect_ind_t *mp)
 			log(LL_CHD, "%05d %s ignoring: incoming call from %s to %s",
 				mp->header.cdid, cep->name, SRC, DST);
 			sendm_connect_resp(NULL, mp->header.cdid, SETUP_RESP_DNTCRE, 0);
+			cep->cdid = CDID_UNUSED;
 			break;
 
 		case REACT_ANSWER:
@@ -764,6 +765,7 @@ msg_disconnect_ind(msg_disconnect_ind_t *mp)
 	incr_free_channels(cep->isdncontrollerused);
 	
 	cep->connect_time = 0;			
+	cep->cdid = CDID_UNUSED;
 
 	next_state(cep, EV_MDI);
 }
@@ -816,6 +818,7 @@ msg_dialout(msg_dialout_ind_t *mp)
 	
 	cep->charge = 0;
 	cep->last_charge = 0;
+	cep->hangup = 0;
 
 	next_state(cep, EV_MDO);	
 }
@@ -868,6 +871,7 @@ msg_dialoutnumber(msg_dialoutnumber_ind_t *mp)
 	
 	cep->charge = 0;
 	cep->last_charge = 0;
+	cep->hangup = 0;
 
 	next_state(cep, EV_MDO);	
 }
