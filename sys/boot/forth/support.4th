@@ -1493,7 +1493,7 @@ also builtins
   abort" Unable to load a kernel!"
 ;
 
-: set-defaultoptions  ( -- )
+: set_defaultoptions  ( -- )
   s" kernel_options" getenv dup -1 = if
     drop
   else
@@ -1511,7 +1511,7 @@ also builtins
   pick
 ;
 
-: drop-args  ( aN uN ... a1 u1 N -- )
+: drop_args  ( aN uN ... a1 u1 N -- )
   0 ?do 2drop loop
 ;
 
@@ -1519,7 +1519,7 @@ also builtins
   dup
 ;
 
-: queue-argv  ( aN uN ... a1 u1 N a u -- a u aN uN ... a1 u1 N+1 )
+: queue_argv  ( aN uN ... a1 u1 N a u -- a u aN uN ... a1 u1 N+1 )
   >r
   over 2* 1+ -roll
   r>
@@ -1527,7 +1527,7 @@ also builtins
   1+
 ;
 
-: unqueue-argv  ( aN uN ... a1 u1 N -- aN uN ... a2 u2 N-1 a1 u1 )
+: unqueue_argv  ( aN uN ... a1 u1 N -- aN uN ... a2 u2 N-1 a1 u1 )
   1- -rot
 ;
 
@@ -1547,28 +1547,28 @@ also builtins
   r>
 ;
 
-: concat-argv  ( aN uN ... a1 u1 N -- a u )
+: concat_argv  ( aN uN ... a1 u1 N -- a u )
   strlen(argv) allocate if out_of_memory throw then
   0 2>r
 
   begin
     argc
   while
-    unqueue-argv
+    unqueue_argv
     2r> 2swap
     strcat
     s"  " strcat
     2>r
   repeat
-  drop-args
+  drop_args
   2r>
 ;
 
-: set-tempoptions  ( addrN lenN ... addr1 len1 N -- addr len 1 | 0 )
+: set_tempoptions  ( addrN lenN ... addr1 len1 N -- addr len 1 | 0 )
   \ Save the first argument, if it exists and is not a flag
   argc if
     0 argv[] drop c@ [char] - <> if
-      unqueue-argv 2>r  \ Filename
+      unqueue_argv 2>r  \ Filename
       1 >r		\ Filename present
     else
       0 >r		\ Filename not present
@@ -1579,33 +1579,33 @@ also builtins
 
   \ If there are other arguments, assume they are flags
   ?dup if
-    concat-argv
+    concat_argv
     2dup s" temp_options" setenv
     drop free if free_error throw then
   else
-    set-defaultoptions
+    set_defaultoptions
   then
 
   \ Bring back the filename, if one was provided
   r> if 2r> 1 else 0 then
 ;
 
-: get-arguments ( -- addrN lenN ... addr1 len1 N )
+: get_arguments ( -- addrN lenN ... addr1 len1 N )
   0
   begin
     \ Get next word on the command line
     parse-word
   ?dup while
-    queue-argv
+    queue_argv
   repeat
   drop ( empty string )
 ;
 
 : load_kernel_and_modules  ( args -- flag )
-  set-tempoptions
+  set_tempoptions
   argc >r
   s" temp_options" getenv dup -1 <> if
-    queue-argv
+    queue_argv
   else
     drop
   then
