@@ -79,9 +79,6 @@ char *progname;
 #define	INITIALIZE_HEADER	outheader.a_mid = MID_HP300
 #endif
 
-/* create screwball format for 386BSD to save space on floppies -wfj */
-int screwballmode;
-
 /*
  * Ok.  Following are the relocation information macros.  If your
  * system should not be able to use the default set (below), you must
@@ -895,7 +892,7 @@ main (argc, argv)
     text_size = 0;
   entry_offset = text_size;
 
-  if (!T_flag_specified && !relocatable_output && !screwballmode)
+  if (!T_flag_specified && !relocatable_output)
     text_start = TEXT_START (outheader);
 
   /* The text-start address is normally this far past a page boundary.  */
@@ -1171,13 +1168,6 @@ decode_option (swt, arg)
       force_executable = 1;
       return;
     }
-  if (! strcmp (swt + 1, "screwballmode"))
-    {
-      screwballmode = 1;
-      magic = OMAGIC;
-      text_start = sizeof(struct exec);
-      return;
-    }
 
   if (swt[2] != 0)
     arg = &swt[2];
@@ -1223,10 +1213,6 @@ decode_option (swt, arg)
 
     case 'N':
       magic = OMAGIC;
-#ifdef notnow
-text_start = sizeof(struct exec); /* XXX */
-screwballmode=1;
-#endif
       return;
 
 #ifdef NMAGIC
@@ -1238,6 +1224,12 @@ screwballmode=1;
     case 'o':
       output_filename = arg;
       return;
+
+#ifdef QMAGIC
+    case 'q':
+      magic = QMAGIC;
+      return;
+#endif
 
     case 'r':
       relocatable_output = 1;
@@ -1847,8 +1839,7 @@ enter_global_ref (nlist_p, name, entry)
       }
 #endif
 
-  if (sp == end_symbol && entry->just_syms_flag && !T_flag_specified
-	&& !screwballmode)
+  if (sp == end_symbol && entry->just_syms_flag && !T_flag_specified)
     text_start = nlist_p->n_value;
 
   if (sp->trace)
@@ -2363,7 +2354,7 @@ digest_symbols ()
   /* If necessary, pad text section to full page in the file.
      Include the padding in the text segment size.  */
 
-  if (magic == ZMAGIC)
+  if (magic == ZMAGIC || magic == QMAGIC)
     {
       int text_end = text_size + N_TXTOFF (outheader);
       text_pad = ((text_end + page_size - 1) & (- page_size)) - text_end;
@@ -2543,7 +2534,7 @@ digest_symbols ()
   if (specified_data_size && specified_data_size > data_size)
     data_pad = specified_data_size - data_size;
 
-  if (magic == ZMAGIC)
+  if (magic == ZMAGIC || magic == QMAGIC)
     data_pad = ((data_pad + data_size + page_size - 1) & (- page_size))
                - data_size;
 
@@ -3262,13 +3253,6 @@ write_header ()
   outheader.a_bss = bss_size;
   outheader.a_entry = (entry_symbol ? entry_symbol->value
 		       : text_start + entry_offset);
-if (screwballmode)  {
-  N_SET_MAGIC (outheader, ZMAGIC);
-  outheader.a_text = 0;
-  outheader.a_data = text_size + data_size;
-  outheader.a_entry = (entry_symbol ? entry_symbol->value
-		       : sizeof(struct exec));
-}
 #ifdef COFF_ENCAPSULATE
   if (need_coff_header)
     {
@@ -3372,8 +3356,6 @@ if (screwballmode)  {
     mywrite (&coffheader, sizeof coffheader, 1, outdesc);
 #endif
   mywrite (&outheader, sizeof (struct exec), 1, outdesc);
-if (screwballmode)
-  N_SET_MAGIC (outheader, OMAGIC);
 
   /* Output whatever padding is required in the executable file
      between the header and the start of the text.  */
