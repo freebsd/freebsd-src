@@ -24,12 +24,12 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
+#include "archive_platform.h"
 __FBSDID("$FreeBSD$");
 
 #include <sys/stat.h>
 #include <errno.h>
-#ifdef DMALLOC
+#ifdef HAVE_DMALLOC
 #include <dmalloc.h>
 #endif
 #include <stdlib.h>
@@ -270,11 +270,11 @@ archive_write_pax_header(struct archive *a,
 		case S_IFIFO:
 			break;
 		case S_IFSOCK:
-			archive_set_error(a, -1,
+			archive_set_error(a, ARCHIVE_ERRNO_FILE_FORMAT,
 			    "tar format cannot archive socket");
 			return (ARCHIVE_WARN);
 		default:
-			archive_set_error(a, -1,
+			archive_set_error(a, ARCHIVE_ERRNO_FILE_FORMAT,
 			    "tar format cannot archive this");
 			return (ARCHIVE_WARN);
 		}
@@ -294,15 +294,12 @@ archive_write_pax_header(struct archive *a,
 	p = archive_entry_pathname(entry_main);
 	if (strlen(p) <= 100)	/* Short enough for just 'name' field */
 		name_start = p;	/* Record a zero-length prefix */
-	else {
+	else
 		/* Find the largest suffix that fits in 'name' field. */
 		name_start = strchr(p + strlen(p) - 100 - 1, '/');
-		if (name_start == NULL)  /* No feasible break point. */
-			name_start =  p + strlen(p);
-	}
 
 	/* If name is too long, add 'path' to pax extended attrs. */
-	if (name_start - p > 155) {
+	if (name_start == NULL || name_start - p > 155) {
 		add_pax_attr(&(pax->pax_header), "path", p);
 		archive_entry_set_pathname(entry_main,
 		    build_ustar_entry_name(ustar_entry_name, p));
@@ -599,7 +596,10 @@ build_ustar_entry_name(char *dest, const char *src)
 		}
 	}
 
-	strlcpy(dest, prefix, basename - prefix + 1 + basename_length);
+	/* The OpenBSD strlcpy function is safer, but less portable. */
+	/* Rather than maintain two versions, just use the strncpy version. */
+	strncpy(dest, prefix, basename - prefix + basename_length);
+	dest[basename - prefix + basename_length] = '\0';
 
 	return (dest);
 }

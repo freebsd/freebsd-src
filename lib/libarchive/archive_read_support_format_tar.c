@@ -24,11 +24,11 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
+#include "archive_platform.h"
 __FBSDID("$FreeBSD$");
 
 #include <sys/stat.h>
-#ifdef DMALLOC
+#ifdef HAVE_DMALLOC
 #include <dmalloc.h>
 #endif
 #include <errno.h>
@@ -627,6 +627,9 @@ pax_header(struct archive *a, struct archive_entry *entry, struct stat *st,
 			return (0);
 
 		/* Null-terminate 'key' value. */
+		/* XXX TODO: 'key' is officially UTF-8; should
+		 * decode UTF-8 key to wchar here, then do
+		 * all wchar matching below. XXX */
 		key = p;
 		p = strchr(key, '=');
 		if (p == NULL)
@@ -638,13 +641,12 @@ pax_header(struct archive *a, struct archive_entry *entry, struct stat *st,
 			return (-1);
 
 		/* Null-terminate 'value' portion. */
+		/* XXX need to decode UTF-8 value, make everything
+		 * else wchar-clean. */
+		/* XXX should use pointer/length so that NULLs can
+		 * appear within the value portion. <sigh> */
 		value = p + 1;
-		p = strchr(value, '\n');
-		if (p == NULL)
-			return (-1);
-		if (p > line + line_length)
-			return (-1);
-		*p = 0;
+		line[line_length - 1] = 0;
 
 		if (pax_attribute(a, entry, st, key, value))
 			return (-1);
