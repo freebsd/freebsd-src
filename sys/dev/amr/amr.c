@@ -976,7 +976,7 @@ amr_quartz_poll_command(struct amr_command *ac)
 {
     struct amr_softc	*sc = ac->ac_sc;
     int			s;
-    int			error;
+    int			error,count;
 
     debug_called(2);
 
@@ -985,8 +985,16 @@ amr_quartz_poll_command(struct amr_command *ac)
 
     s = splbio();
 
+    count=0;
+    while (sc->amr_busyslots){
+	tsleep(sc, PRIBIO | PCATCH, "amrpoll", hz);
+	if(count++>10) {
+	    break;
+	}
+    }
+
     if(sc->amr_busyslots) {
-	device_printf(sc->amr_dev, "adapter is busy");
+	device_printf(sc->amr_dev, "adapter is busy\n");
 	splx(s);
 	amr_unmapcmd(ac);
     	ac->ac_status=0;
@@ -1001,6 +1009,7 @@ amr_quartz_poll_command(struct amr_command *ac)
     sc->amr_mailbox->mb_status = 0xFF;
     sc->amr_mailbox->mb_poll = 0;
     sc->amr_mailbox->mb_ack = 0;
+    sc->amr_mailbox->mb_busy = 1;
 
     AMR_QPUT_IDB(sc, sc->amr_mailboxphys | AMR_QIDB_SUBMIT);
 
@@ -1014,6 +1023,7 @@ amr_quartz_poll_command(struct amr_command *ac)
 
     /* acknowledge that we have the commands */
     AMR_QPUT_IDB(sc, sc->amr_mailboxphys | AMR_QIDB_ACK);
+    while(AMR_QGET_IDB(sc) & AMR_QIDB_ACK);
 
     splx(s);
 
@@ -1402,6 +1412,10 @@ amr_complete(void *context, int pending)
 	} else if (ac->ac_flags & AMR_CMD_SLEEP) {
 	    wakeup(ac);
 	}
+
+	if(!sc->amr_busyslots) {
+	    wakeup(sc);
+	}
     }
 }
 
@@ -1753,7 +1767,7 @@ amr_describe_controller(struct amr_softc *sc)
 	/* this looks like we have an HP NetRaid version of the MegaRaid */
 
     	if(ae->ae_signature == AMR_SIG_438) {
-    		/* the AMI 438 is an NetRaid 3si in HP-land */
+    		/* the AMI 438 is a NetRaid 3si in HP-land */
     		prod = "HP NetRaid 3si";
     	}
     	
