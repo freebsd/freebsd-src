@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.20 1995/09/07 15:40:51 se Exp $
+**  $Id: pcisupport.c,v 1.21 1995/09/14 13:13:33 se Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -434,7 +434,6 @@ chipset_attach (pcici_t config_id, int unit)
 #endif /* PCI_QUIET */
 }
 
-#ifdef undef
 /*---------------------------------------------------------
 **
 **	Catchall driver for VGA devices
@@ -494,7 +493,6 @@ static void vga_attach (pcici_t tag, int unit)
 		(void) pci_map_mem (tag, reg, &va, &pa);
 #endif
 }
-#endif /* undef */
 
 /*---------------------------------------------------------
 **
