@@ -27,7 +27,7 @@
  */
 
 #include <machine/asm.h>
-#include <machine/pmap.h>
+#include <machine/pte.h>
 #include <assym.s>
 
 /*
