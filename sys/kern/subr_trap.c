@@ -149,10 +149,10 @@ userret(td, frame, oticks)
 void
 ast(struct trapframe *framep)
 {
-	struct thread *td = curthread;
-	struct proc *p = td->td_proc;
+	struct thread *td;
+	struct proc *p;
 	struct kse *ke;
-	struct ksegrp *kg = td->td_ksegrp;
+	struct ksegrp *kg;
 	struct rlimit *rlim;
 	u_int prticks, sticks;
 	int sflag;
@@ -162,6 +162,8 @@ ast(struct trapframe *framep)
 	int ucode;
 #endif
 
+	td = curthread;
+	p = td->td_proc;
 	CTR3(KTR_SYSC, "ast: thread %p (pid %d, %s)", td, p->p_pid,
             p->p_comm);
 	KASSERT(TRAPF_USERMODE(framep), ("ast in kernel mode"));
@@ -171,8 +173,9 @@ ast(struct trapframe *framep)
 #endif
 	mtx_assert(&Giant, MA_NOTOWNED);
 	mtx_assert(&sched_lock, MA_NOTOWNED);
-	prticks = 0;		/* XXX: Quiet warning. */
+	kg = td->td_ksegrp;
 	td->td_frame = framep;
+
 	/*
 	 * This updates the p_sflag's for the checks below in one
 	 * "atomic" operation with turning off the astpending flag.
@@ -183,11 +186,12 @@ ast(struct trapframe *framep)
 	mtx_lock_spin(&sched_lock);
 	ke = td->td_kse;
 	sticks = ke->ke_sticks;
-	sflag = p->p_sflag;
 	flags = ke->ke_flags;
+	sflag = p->p_sflag;
 	p->p_sflag &= ~(PS_ALRMPEND | PS_NEEDSIGCHK | PS_PROFPEND | PS_XCPU);
 	ke->ke_flags &= ~(KEF_ASTPENDING | KEF_NEEDRESCHED | KEF_OWEUPC);
 	cnt.v_soft++;
+	prticks = 0;
 	if (flags & KEF_OWEUPC && sflag & PS_PROFIL) {
 		prticks = p->p_stats->p_prof.pr_ticks;
 		p->p_stats->p_prof.pr_ticks = 0;
@@ -233,7 +237,7 @@ ast(struct trapframe *framep)
 		else {
 			psignal(p, SIGXCPU);
 			if (rlim->rlim_cur < rlim->rlim_max)
-				/* XXX: we should make a private copy */
+				/* XXX: we should make a private copy. */
 				rlim->rlim_cur += 5;
 		}
 		PROC_UNLOCK(p);
