@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_da.c,v 1.15 1998/12/11 03:54:43 gibbs Exp $
+ *      $Id: scsi_da.c,v 1.16 1998/12/23 16:48:17 mjacob Exp $
  */
 
 #include "opt_hw_wdog.h"
@@ -1367,7 +1367,8 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 						printf("got CAM status %#x\n",
 						       done_ccb->ccb_h.status);
 					}
-
+					xpt_release_ccb(done_ccb);
+					done_ccb = NULL;
 					xpt_print_path(periph->path);
 					printf("fatal error, failed" 
 					       " to attach to device\n");
@@ -1397,7 +1398,8 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 		/* No-op.  We're polling */
 		return;
 	}
-	xpt_release_ccb(done_ccb);
+	if (done_ccb)
+		xpt_release_ccb(done_ccb);
 }
 
 static int
