@@ -1,4 +1,4 @@
-#     $Id: BSD.local.dist,v 1.41 1998/09/19 18:50:27 obrien Exp $
+#     $Id: BSD.local.dist,v 1.42 1998/10/11 17:31:35 markm Exp $
 #
 
 /set type=dir uname=root gname=wheel mode=0755
@@ -224,6 +224,8 @@
 	    lt_LN.ISO_8859-1
 	    ..
     	    lt_LN.ISO_8859-2
+            ..
+    	    lt_LN.DIS_8859-15
             ..
 	    nl_BE.ISO_8859-1
             ..
