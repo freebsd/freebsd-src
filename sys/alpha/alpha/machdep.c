@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: machdep.c,v 1.33 1999/02/27 18:41:40 dfr Exp $
+ *	$Id: machdep.c,v 1.34 1999/03/06 04:46:10 wollman Exp $
  */
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -1508,7 +1508,7 @@ cpu_halt(void)
  * Clear registers on exec
  */
 void
-setregs(struct proc *p, u_long entry, u_long stack)
+setregs(struct proc *p, u_long entry, u_long stack, u_long ps_strings)
 {
 	struct trapframe *tfp = p->p_md.md_tf;
 

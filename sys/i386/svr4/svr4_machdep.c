@@ -95,7 +95,7 @@ svr4_setregs(p, epp, stack)
 	register struct pcb *pcb = &p->p_addr->u_pcb;
 
 	pcb->pcb_savefpu.sv_env.en_cw = __SVR4_NPXCW__;
-	setregs(p, epp, stack);
+	setregs(p, epp, stack, 0UL);
 }
 #endif /* __NetBSD__ */
 

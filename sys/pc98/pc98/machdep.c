@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.109 1999/02/16 11:07:06 kato Exp $
+ *	$Id: machdep.c,v 1.110 1999/03/06 09:43:01 kato Exp $
  */
 
 #include "apm.h"
@@ -819,10 +819,11 @@ cpu_halt(void)
  * Clear registers on exec
  */
 void
-setregs(p, entry, stack)
+setregs(p, entry, stack, ps_strings)
 	struct proc *p;
 	u_long entry;
 	u_long stack;
+	u_long ps_strings;
 {
 	struct trapframe *regs = p->p_md.md_regs;
 	struct pcb *pcb = &p->p_addr->u_pcb;
