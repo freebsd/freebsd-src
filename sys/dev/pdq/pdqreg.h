@@ -1,3 +1,5 @@
+/*	$NetBSD: pdqreg.h,v 1.14 2001/06/13 10:46:03 wiz Exp $	*/
+
 /*-
  * Copyright (c) 1995, 1996 Matt Thomas <matt@3am-software.com>
  * All rights reserved.
@@ -8,7 +10,7 @@
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions and the following disclaimer.
  * 2. The name of the author may not be used to endorse or promote products
- *    derived from this software withough specific prior written permission
+ *    derived from this software without specific prior written permission
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -21,6 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
+ * Id: pdqreg.h,v 1.11 1997/03/21 21:16:04 thomas Exp
  * $FreeBSD$
  *
  */
@@ -33,6 +36,11 @@
 #ifndef _PDQREG_H
 #define	_PDQREG_H
 
+#if !defined(KERNEL) && !defined(_KERNEL)
+#include <stddef.h>
+#elif !defined(offsetof)
+#define	offsetof(t, m)	((char *) (&((t *)0L)->m) - (char *) 0L)
+#endif
 #if defined(PDQTEST) && !defined(PDQ_NDEBUG)
 #include <assert.h>
 #define	PDQ_ASSERT	assert
@@ -303,19 +311,36 @@ typedef struct {
 
 typedef union {
     pdq_uint32_t rxs_status;
-    pdq_uint32_t PDQ_BITFIELD12(rxs_len : 13,
-				rxs_rcc_ss : 2,
-				rxs_rcc_dd : 2,
-				rxs_rcc_reason : 3,
-				rxs_rcc_badcrc : 1,
-				rxs_rcc_badpdu : 1,
-				rxs_fsb__reserved : 2,
-				rxs_fsb_c : 1,
-				rxs_fsb_a : 1,
-				rxs_fsb_e : 1,
-				rxs_fsc : 3,
-				rxs__reserved : 2);
+    struct {
+	pdq_uint32_t PDQ_BITFIELD12(st_len : 13,
+				    st_rcc_ss : 2,
+				    st_rcc_dd : 2,
+				    st_rcc_reason : 3,
+				    st_rcc_badcrc : 1,
+				    st_rcc_badpdu : 1,
+				    st_fsb__reserved : 2,
+				    st_fsb_c : 1,
+				    st_fsb_a : 1,
+				    st_fsb_e : 1,
+				    st_fsc : 3,
+				    st__reserved : 2);
+    } rxs_st;
 } pdq_rxstatus_t;
+#define rxs_len			rxs_st.st_len
+#define rxs_rcc_ss		rxs_st.st_rcc_ss
+#define rxs_rcc_dd		rxs_st.st_rcc_dd
+#define rxs_rcc_reason		rxs_st.st_rcc_reason
+#define rxs_rcc_badcrc		rxs_st.st_rcc_badcrc
+#define rxs_rcc_badpdu		rxs_st.st_rcc_badpdu
+#define rxs_fsb_c		rxs_st.st_fsb_c
+#define rxs_fsb_a		rxs_st.st_fsb_a
+#define rxs_fsb_e		rxs_st.st_fsb_e
+#define rxs_fsc			rxs_st.st_fsc
+
+#define	PDQ_RXS_RCC_DD_NO_MATCH		0x00
+#define	PDQ_RXS_RCC_DD_PROMISC_MATCH	0x01
+#define	PDQ_RXS_RCC_DD_CAM_MATCH	0x02
+#define	PDQ_RXS_RCC_DD_MLA_MATCH	0x03
 
 typedef struct {
     pdq_uint32_t PDQ_BITFIELD5(txd_pa_hi : 16,
@@ -337,27 +362,52 @@ typedef struct {
      * The rest of the descriptor block is unused.
      * As such we could use it for other things.
      */
-    pdq_consumer_block_t pdqdb_consumer;	/*   64;	0x1380..0x13BF */
-    void *pdqdb_receive_buffers[256];		/* 1024/2048;	0x13C0..0x17BF 0x13C0..0x1BBF */
-    void *pdqdb_host_smt_buffers[64];		/*  256/ 512;	0x17C0..0x18BF 0x1BC0..0x1DBF */
+    pdq_uint32_t pdqdb__filler1[16];		/*   64;	0x1380..0x13BF */
+    pdq_consumer_block_t pdqdb_consumer;	/*   64;	0x13C0..0x13FF */
     /*
      * The maximum command size is 512 so as long as thes
      * command is at least that long all will be fine.
      */
-#if defined(__alpha) || defined(__alpha__)
-    pdq_uint32_t pdqdb_command_pool[144];
-#else
-    pdq_uint32_t pdqdb_command_pool[464];
-#endif
+    pdq_uint32_t pdqdb__filler2[64];		/*  256;	0x1400..0x14FF */
+    pdq_uint8_t pdqdb_cmd_request_buf[1024];	/* 1024;	0x1500..0x18FF */
+    pdq_uint8_t pdqdb_cmd_response_buf[1024];	/* 1024;	0x1900..0x1CFF */
+    pdq_uint32_t pdqdb__filler3[128];		/*  512;	0x1D00..0x1EFF */
+    pdq_uint8_t pdqdb_tx_hdr[4];		/*    4;	0x1F00..0x1F03 */
+    pdq_uint32_t pdqdb__filler4[63];		/*  252;	0x1F04..0x1FFF */
 } pdq_descriptor_block_t;
+
+#define	PDQ_SIZE_COMMAND_RESPONSE	512
+
+typedef enum {
+    PDQC_START=0,
+    PDQC_FILTER_SET=1,
+    PDQC_FILTER_GET=2,
+    PDQC_CHARS_SET=3,
+    PDQC_STATUS_CHARS_GET=4,
+    PDQC_COUNTERS_GET=5,
+    PDQC_COUNTERS_SET=6,
+    PDQC_ADDR_FILTER_SET=7,
+    PDQC_ADDR_FILTER_GET=8,
+    PDQC_ERROR_LOG_CLEAR=9,
+    PDQC_ERROR_LOG_GET=10,
+    PDQC_FDDI_MIB_GET=11,
+    PDQC_DEC_EXT_MIB_GET=12,
+    PDQC_DEV_SPECIFIC_GET=13,
+    PDQC_SNMP_SET=14,
+    PDQC_SMT_MIB_GET=16,
+    PDQC_SMT_MIB_SET=17,
+    PDQC_BOGUS_CMD=18
+} pdq_cmd_code_t;
 
 typedef struct {
     /*
      * These value manage the available space in command/response
      * buffer area.
      */
-    pdq_physaddr_t ci_pa_bufstart;
-    pdq_uint8_t *ci_bufstart;
+    pdq_physaddr_t ci_pa_request_bufstart;
+    pdq_uint8_t *ci_request_bufstart;
+    pdq_physaddr_t ci_pa_response_bufstart;
+    pdq_uint8_t *ci_response_bufstart;
     /*
      * Bitmask of commands to sent to the PDQ
      */
@@ -370,6 +420,13 @@ typedef struct {
     pdq_uint32_t ci_response_producer;
     pdq_uint32_t ci_request_completion;
     pdq_uint32_t ci_response_completion;
+    /*
+     *
+     */
+    pdq_physaddr_t ci_pa_request_descriptors;
+    pdq_physaddr_t ci_pa_response_descriptors;
+
+    pdq_cmd_code_t ci_queued_commands[16];
 } pdq_command_info_t;
 
 #define	PDQ_SIZE_UNSOLICITED_EVENT	512
@@ -379,6 +436,7 @@ typedef struct _pdq_unsolicited_event_t pdq_unsolicited_event_t;
 
 typedef struct {
     pdq_physaddr_t ui_pa_bufstart;
+    pdq_physaddr_t ui_pa_descriptors;
     pdq_unsolicited_event_t *ui_events;
 
     pdq_uint32_t ui_free;
@@ -409,6 +467,7 @@ typedef struct {
 
 typedef struct {
     void *rx_buffers;
+    pdq_physaddr_t rx_pa_descriptors;
 
     pdq_uint32_t rx_target;
     pdq_uint32_t rx_free;
@@ -420,12 +479,14 @@ typedef struct {
     pdq_databuf_queue_t tx_txq;
     pdq_txdesc_t tx_hdrdesc;
     pdq_uint8_t tx_descriptor_count[256];
+    pdq_physaddr_t tx_pa_descriptors;
 
     pdq_uint32_t tx_free;
     pdq_uint32_t tx_producer;
     pdq_uint32_t tx_completion;
 } pdq_tx_info_t;
 
+typedef struct _pdq_os_ctx_t pdq_os_ctx_t;
 struct _pdq_t {
     pdq_csrs_t pdq_csrs;
     pdq_pci_csrs_t pdq_pci_csrs;
@@ -435,6 +496,7 @@ struct _pdq_t {
     pdq_fwrev_t pdq_fwrev;
     pdq_descriptor_block_t *pdq_dbp;
     volatile pdq_consumer_block_t *pdq_cbp;
+    pdq_uint32_t pdq_intrmask;
     pdq_uint32_t pdq_flags;
 #define	PDQ_PROMISC	0x0001
 #define	PDQ_ALLMULTI	0x0002
@@ -442,36 +504,27 @@ struct _pdq_t {
 #define	PDQ_RUNNING	0x0008
 #define	PDQ_PRINTCHARS	0x0010
 #define	PDQ_TXOK	0x0020
+#define	PDQ_WANT_FDX	0x0040
+#define	PDQ_IS_FDX	0x0080
+#define	PDQ_IS_ONRING	0x0100
     const char *pdq_os_name;
-    void *pdq_os_ctx;
+    pdq_os_ctx_t *pdq_os_ctx;
     pdq_uint32_t pdq_unit;
     pdq_command_info_t pdq_command_info;
     pdq_unsolicited_info_t pdq_unsolicited_info;
     pdq_tx_info_t pdq_tx_info;
     pdq_rx_info_t pdq_rx_info;
     pdq_rx_info_t pdq_host_smt_info;
-    pdq_uint8_t pdq_tx_hdr[3];
+    void *pdq_receive_buffers[256];
+    void *pdq_host_smt_buffers[64];
+    pdq_physaddr_t pdq_pa_consumer_block;
+    pdq_physaddr_t pdq_pa_descriptor_block;
 };
 
-typedef enum {
-    PDQC_START=0,
-    PDQC_FILTER_SET=1,
-    PDQC_FILTER_GET=2,
-    PDQC_CHARS_SET=3,
-    PDQC_STATUS_CHARS_GET=4,
-    PDQC_COUNTERS_GET=5,
-    PDQC_COUNTERS_SET=6,
-    PDQC_ADDR_FILTER_SET=7,
-    PDQC_ADDR_FILTER_GET=8,
-    PDQC_ERROR_LOG_CLEAR=9,
-    PDQC_ERROR_LOG_GET=10,
-    PDQC_FDDI_MIB_GET=11,
-    PDQC_DEC_EXT_MIB_GET=12,
-    PDQC_DEV_SPECIFIC_GET=13,
-    PDQC_SNMP_SET=14,
-    PDQC_SMT_MIB_GET=16,
-    PDQC_SMT_MIB_SET=17
-} pdq_cmd_code_t;
+#define	PDQ_DB_BUSPA(pdq, m) \
+	((pdq)->pdq_pa_descriptor_block + \
+		((u_int8_t *) (m) - (u_int8_t *) (pdq)->pdq_dbp))
+
 
 typedef enum {
     PDQR_SUCCESS=0,
@@ -555,6 +608,11 @@ typedef enum {
     PDQI_EMAC_RTOKEN_TIMEOUT=43,
     PDQI_FULL_DUPLEX_ENABLE=44
 } pdq_item_code_t;
+
+typedef enum {
+    PDQSNMP_EOL=0,
+    PDQSNMP_FULL_DUPLEX_ENABLE=0x2F11
+} pdq_snmp_item_code_t;
 
 enum _pdq_boolean_t {
     PDQ_FALSE=0,
@@ -956,6 +1014,16 @@ typedef struct {
 
 #define	PDQ_SIZE_RESPONSE_DEC_EXT_MIB_GET	0x50
 
+typedef struct {
+    pdq_cmd_code_t snmp_set_op;
+    struct {
+	pdq_item_code_t item_code;
+	pdq_uint32_t item_value;
+	pdq_port_type_t item_port;
+    } snmp_set_items[7];
+    pdq_item_code_t snmp_set_eol_item_code;
+} pdq_cmd_snmp_set_t;
+
 typedef enum {
     PDQ_CALLER_ID_NONE=0,
     PDQ_CALLER_ID_SELFTEST=1,
@@ -994,11 +1062,13 @@ typedef enum {
 typedef enum {
     PDQ_ENTITY_STATION=0,
     PDQ_ENTITY_LINK=1,
-    PDQ_ENTITY_PHY_PORT=2
+    PDQ_ENTITY_PHY_PORT=2,
+    PDQ_ENTITY_MAX=3
 } pdq_entity_t;
 
 typedef enum {
-    PDQ_STATION_EVENT_TRACE_RECEIVED=1
+    PDQ_STATION_EVENT_TRACE_RECEIVED=1,
+    PDQ_STATION_EVENT_MAX=2
 } pdq_station_event_t;
 
 typedef enum {
@@ -1022,7 +1092,8 @@ typedef enum {
     PDQ_LINK_EVENT_RING_PURGE_ERROR=15,
     PDQ_LINK_EVENT_FCI_STRIP_ERROR=16,
     PDQ_LINK_EVENT_TRACE_INITIATED=17,
-    PDQ_LINK_EVENT_DIRECTED_BEACON_RECEIVED=18
+    PDQ_LINK_EVENT_DIRECTED_BEACON_RECEIVED=18,
+    PDQ_LINK_EVENT_MAX=19
 } pdq_link_event_t;
 
 typedef enum {
@@ -1036,7 +1107,8 @@ typedef enum {
 typedef enum {
     PDQ_PHY_EVENT_LEM_ERROR_MONITOR_REJECT=0,
     PDQ_PHY_EVENT_ELASTICITY_BUFFER_ERROR=1,
-    PDQ_PHY_EVENT_LINK_CONFIDENCE_TEST_REJECT=2
+    PDQ_PHY_EVENT_LINK_CONFIDENCE_TEST_REJECT=2,
+    PDQ_PHY_EVENT_MAX=3
 } pdq_phy_event_t;
 
 typedef enum {

@@ -94,8 +94,11 @@ extern u_char	aarp_org_code[ 3 ];
 static u_char fddibroadcastaddr[FDDI_ADDR_LEN] =
 			{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
-static	int fddi_resolvemulti(struct ifnet *, struct sockaddr **,
+static int fddi_resolvemulti(struct ifnet *, struct sockaddr **,
 			      struct sockaddr *);
+static int fddi_output(struct ifnet *, struct mbuf *, struct sockaddr *,
+		       struct rtentry *); 
+
 
 #define	IFP2AC(IFP)	((struct arpcom *)IFP)
 #define	senderr(e)	{ error = (e); goto bad; }
@@ -107,7 +110,7 @@ static	int fddi_resolvemulti(struct ifnet *, struct sockaddr **,
  * packet leaves a multiple of 512 bytes of data in remainder.
  * Assumes that ifp is actually pointer to arpcom structure.
  */
-int
+static int
 fddi_output(ifp, m, dst, rt0)
 	struct ifnet *ifp;
 	struct mbuf *m;
@@ -519,8 +522,9 @@ dropanyway:
  * Perform common duties while attaching to interface list
  */
 void
-fddi_ifattach(ifp)
+fddi_ifattach(ifp, bpf)
 	struct ifnet *ifp;
+	int bpf;
 {
 	struct ifaddr *ifa;
 	struct sockaddr_dl *sdl;
@@ -550,6 +554,9 @@ fddi_ifattach(ifp)
 	sdl->sdl_type = IFT_FDDI;
 	sdl->sdl_alen = ifp->if_addrlen;
 	bcopy(IFP2AC(ifp)->ac_enaddr, LLADDR(sdl), ifp->if_addrlen);
+
+	if (bpf)
+		bpfattach(ifp, DLT_FDDI, FDDI_HDR_LEN);
 
 	return;
 }

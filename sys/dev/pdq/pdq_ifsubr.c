@@ -1,3 +1,5 @@
+/*	$NetBSD: pdq_ifsubr.c,v 1.38 2001/12/21 23:21:47 matt Exp $	*/
+
 /*-
  * Copyright (c) 1995, 1996 Matt Thomas <matt@3am-software.com>
  * All rights reserved.
@@ -8,7 +10,7 @@
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions and the following disclaimer.
  * 2. The name of the author may not be used to endorse or promote products
- *    derived from this software withough specific prior written permission
+ *    derived from this software without specific prior written permission
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -21,8 +23,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
+ * $NetBSD: pdq_ifsubr.c,v 1.12 1997/06/05 01:56:35 thomas Exp$
  * $FreeBSD$
- *
  */
 
 /*
@@ -32,65 +34,45 @@
  *	(ie. it provides an ifnet interface to the rest of the system)
  */
 
-
-#include "opt_inet.h"
-
-#include <sys/param.h>
-#include <sys/socket.h>
-#include <sys/sockio.h>
-#if defined(__bsdi__) || defined(__NetBSD__)
-#include <sys/device.h>
+#ifdef __NetBSD__
+#include <sys/cdefs.h>
+__KERNEL_RCSID(0, "$NetBSD: pdq_ifsubr.c,v 1.38 2001/12/21 23:21:47 matt Exp $");
 #endif
 
+#define PDQ_OSSUPPORT
+
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/malloc.h>
+#include <sys/socket.h>
+#include <sys/sockio.h>
+
+#include <sys/module.h>
+#include <sys/bus.h>
+
+#include <machine/bus_memio.h>
+#include <machine/bus_pio.h>
+#include <machine/bus.h>
+#include <machine/resource.h>
+#include <sys/rman.h> 
+
 #include <net/if.h>
+#include <net/if_arp.h>
 #include <net/if_dl.h>
+#include <net/if_media.h> 
+#include <net/fddi.h>
 
 #include <net/bpf.h>
 
-#if defined(__FreeBSD__)
-#ifdef INET
-#include <netinet/in.h>
-#include <netinet/if_ether.h>
-#endif
-#include <netinet/if_fddi.h>
-#else
-#include <net/if_fddi.h>
-#endif
-
-#if defined(__bsdi__)
-#include <i386/isa/isavar.h>
-#endif
-
-#ifdef NS
-#include <netns/ns.h>
-#include <netns/ns_if.h>
-#endif
-
-#if defined(__FreeBSD__)
-#include <dev/pdq/pdqvar.h>
+#include <dev/pdq/pdq_freebsd.h>
 #include <dev/pdq/pdqreg.h>
-#else
-#include "pdqvar.h"
-#include "pdqreg.h"
-#endif
 
-#if defined(__bsdi__) && _BSDI_VERSION < 199506 /* XXX */
+devclass_t pdq_devclass;
+
 static void
-arp_ifinit(
-    struct arpcom *ac,
-    struct ifaddr *ifa)
-{
-    sc->sc_ac.ac_ipaddr = IA_SIN(ifa)->sin_addr;
-    arpwhohas(&sc->sc_ac, &IA_SIN(ifa)->sin_addr);
-#if _BSDI_VERSION >= 199401
-    ifa->ifa_rtrequest = arp_rtrequest;
-    ifa->ifa_flags |= RTF_CLONING;
-#endif
-}
-#endif
-
-
-void
 pdq_ifinit(
     pdq_softc_t *sc)
 {
@@ -100,11 +82,6 @@ pdq_ifinit(
 	    sc->sc_pdq->pdq_flags |= PDQ_PROMISC;
 	} else {
 	    sc->sc_pdq->pdq_flags &= ~PDQ_PROMISC;
-	}
-	if (sc->sc_if.if_flags & IFF_ALLMULTI) {
-	    sc->sc_pdq->pdq_flags |= PDQ_ALLMULTI;
-	} else {
-	    sc->sc_pdq->pdq_flags &= ~PDQ_ALLMULTI;
 	}
 	if (sc->sc_if.if_flags & IFF_LINK1) {
 	    sc->sc_pdq->pdq_flags |= PDQ_PASS_SMT;
@@ -120,7 +97,7 @@ pdq_ifinit(
     }
 }
 
-void
+static void
 pdq_ifwatchdog(
     struct ifnet *ifp)
 {
@@ -131,15 +108,20 @@ pdq_ifwatchdog(
 
     ifp->if_flags &= ~IFF_OACTIVE;
     ifp->if_timer = 0;
-    IF_DRAIN(&ifp->if_snd);
+    for (;;) {
+	struct mbuf *m;
+	IFQ_DEQUEUE(&ifp->if_snd, m);
+	if (m == NULL)
+	    return;
+	PDQ_OS_DATABUF_FREE(PDQ_OS_IFP_TO_SOFTC(ifp)->sc_pdq, m);
+    }
 }
 
-ifnet_ret_t
+static void
 pdq_ifstart(
     struct ifnet *ifp)
 {
-    pdq_softc_t *sc = (pdq_softc_t *) ((caddr_t) ifp - offsetof(pdq_softc_t, sc_ac.ac_if));
-    struct ifqueue *ifq = &ifp->if_snd;
+    pdq_softc_t * const sc = PDQ_OS_IFP_TO_SOFTC(ifp);
     struct mbuf *m;
     int tx = 0;
 
@@ -153,41 +135,95 @@ pdq_ifstart(
 	sc->sc_if.if_flags |= IFF_OACTIVE;
 	return;
     }
+    sc->sc_flags |= PDQIF_DOWNCALL;
     for (;; tx = 1) {
-	IF_DEQUEUE(ifq, m);
+	IF_DEQUEUE(&ifp->if_snd, m);
 	if (m == NULL)
 	    break;
-
-	if (pdq_queue_transmit_data(sc->sc_pdq, m) == PDQ_FALSE) {
-	    ifp->if_flags |= IFF_OACTIVE;
-	    IF_PREPEND(ifq, m);
-	    break;
+#if defined(PDQ_BUS_DMA) && !defined(PDQ_BUS_DMA_NOTX)
+	if ((m->m_flags & M_HASTXDMAMAP) == 0) {
+	    bus_dmamap_t map;
+	    if (PDQ_OS_HDR_OFFSET != PDQ_RX_FC_OFFSET) {
+		m->m_data[0] = PDQ_FDDI_PH0;
+		m->m_data[1] = PDQ_FDDI_PH1;
+		m->m_data[2] = PDQ_FDDI_PH2;
+	    }
+	    if (!bus_dmamap_create(sc->sc_dmatag, m->m_pkthdr.len, 255,
+				   m->m_pkthdr.len, 0, BUS_DMA_NOWAIT, &map)) {
+		if (!bus_dmamap_load_mbuf(sc->sc_dmatag, map, m,
+					  BUS_DMA_WRITE|BUS_DMA_NOWAIT)) {
+		    bus_dmamap_sync(sc->sc_dmatag, map, 0, m->m_pkthdr.len,
+				    BUS_DMASYNC_PREWRITE);
+		    M_SETCTX(m, map);
+		    m->m_flags |= M_HASTXDMAMAP;
+		}
+	    }
+	    if ((m->m_flags & M_HASTXDMAMAP) == 0)
+		break;
 	}
+#else
+	if (PDQ_OS_HDR_OFFSET != PDQ_RX_FC_OFFSET) {
+	    m->m_data[0] = PDQ_FDDI_PH0;
+	    m->m_data[1] = PDQ_FDDI_PH1;
+	    m->m_data[2] = PDQ_FDDI_PH2;
+	}
+#endif
+
+	if (pdq_queue_transmit_data(sc->sc_pdq, m) == PDQ_FALSE)
+	    break;
+    }
+    if (m != NULL) {
+	ifp->if_flags |= IFF_OACTIVE;
+	IF_PREPEND(&ifp->if_snd, m);
     }
     if (tx)
 	PDQ_DO_TYPE2_PRODUCER(sc->sc_pdq);
+    sc->sc_flags &= ~PDQIF_DOWNCALL;
 }
 
 void
 pdq_os_receive_pdu(
     pdq_t *pdq,
     struct mbuf *m,
-    size_t pktlen)
+    size_t pktlen,
+    int drop)
 {
-    pdq_softc_t *sc = (pdq_softc_t *) pdq->pdq_os_ctx;
-    struct fddi_header *fh = mtod(m, struct fddi_header *);
+    pdq_softc_t *sc = pdq->pdq_os_ctx;
+    struct fddi_header *fh;
 
     sc->sc_if.if_ipackets++;
+#if defined(PDQ_BUS_DMA)
+    {
+	/*
+	 * Even though the first mbuf start at the first fddi header octet,
+	 * the dmamap starts PDQ_OS_HDR_OFFSET octets earlier.  Any additional
+	 * mbufs will start normally.
+	 */
+	int offset = PDQ_OS_HDR_OFFSET;
+	struct mbuf *m0;
+	for (m0 = m; m0 != NULL; m0 = m0->m_next, offset = 0) {
+	    pdq_os_databuf_sync(sc, m0, offset, m0->m_len, BUS_DMASYNC_POSTREAD);
+	    bus_dmamap_unload(sc->sc_dmatag, M_GETCTX(m0, bus_dmamap_t));
+	    bus_dmamap_destroy(sc->sc_dmatag, M_GETCTX(m0, bus_dmamap_t));
+	    m0->m_flags &= ~M_HASRXDMAMAP;
+	    M_SETCTX(m0, NULL);
+	}
+    }
+#endif
+    m->m_pkthdr.len = pktlen;
+#if NBPFILTER > 0
     if (sc->sc_bpf != NULL)
 	PDQ_BPF_MTAP(sc, m);
-    if ((fh->fddi_fc & (FDDIFC_L|FDDIFC_F)) != FDDIFC_LLC_ASYNC) {
-	m_freem(m);
+#endif
+    fh = mtod(m, struct fddi_header *);
+    if (drop || (fh->fddi_fc & (FDDIFC_L|FDDIFC_F)) != FDDIFC_LLC_ASYNC) {
+	sc->sc_if.if_iqdrops++;
+	sc->sc_if.if_ierrors++;
+	PDQ_OS_DATABUF_FREE(pdq, m);
 	return;
     }
 
-    m->m_data += sizeof(struct fddi_header);
-    m->m_len  -= sizeof(struct fddi_header);
-    m->m_pkthdr.len = pktlen - sizeof(struct fddi_header);
+    m_adj(m, FDDI_HDR_LEN);
     m->m_pkthdr.rcvif = &sc->sc_if;
     fddi_input(&sc->sc_if, fh, m);
 }
@@ -196,11 +232,12 @@ void
 pdq_os_restart_transmitter(
     pdq_t *pdq)
 {
-    pdq_softc_t *sc = (pdq_softc_t *) pdq->pdq_os_ctx;
+    pdq_softc_t *sc = pdq->pdq_os_ctx;
     sc->sc_if.if_flags &= ~IFF_OACTIVE;
-    if (sc->sc_if.if_snd.ifq_head != NULL) {
+    if (IFQ_IS_EMPTY(&sc->sc_if.if_snd) == 0) {
 	sc->sc_if.if_timer = PDQ_OS_TX_TIMEOUT;
-	pdq_ifstart(&sc->sc_if);
+	if ((sc->sc_flags & PDQIF_DOWNCALL) == 0)
+	    pdq_ifstart(&sc->sc_if);
     } else {
 	sc->sc_if.if_timer = 0;
     }
@@ -211,10 +248,12 @@ pdq_os_transmit_done(
     pdq_t *pdq,
     struct mbuf *m)
 {
-    pdq_softc_t *sc = (pdq_softc_t *) pdq->pdq_os_ctx;
+    pdq_softc_t *sc = pdq->pdq_os_ctx;
+#if NBPFILTER > 0
     if (sc->sc_bpf != NULL)
 	PDQ_BPF_MTAP(sc, m);
-    m_freem(m);
+#endif
+    PDQ_OS_DATABUF_FREE(pdq, m);
     sc->sc_if.if_opackets++;
 }
 
@@ -224,8 +263,22 @@ pdq_os_addr_fill(
     pdq_lanaddr_t *addr,
     size_t num_addrs)
 {
-    pdq_softc_t *sc = (pdq_softc_t *) pdq->pdq_os_ctx;
+    pdq_softc_t *sc = pdq->pdq_os_ctx;
+    struct ifnet *ifp;
     struct ifmultiaddr *ifma;
+
+    ifp = &sc->arpcom.ac_if;
+
+    /*
+     * ADDR_FILTER_SET is always issued before FILTER_SET so
+     * we can play with PDQ_ALLMULTI and not worry about 
+     * queueing a FILTER_SET ourselves.
+     */
+
+    pdq->pdq_flags &= ~PDQ_ALLMULTI;
+#if defined(IFF_ALLMULTI)
+    sc->sc_if.if_flags &= ~IFF_ALLMULTI;
+#endif
 
     for (ifma = TAILQ_FIRST(&sc->sc_if.if_multiaddrs); ifma && num_addrs > 0;
 	 ifma = TAILQ_NEXT(ifma, ifma_link)) {
@@ -239,66 +292,95 @@ pdq_os_addr_fill(
 	    addr++;
 	    num_addrs--;
     }
+    /*
+     * If not all the address fit into the CAM, turn on all-multicast mode.
+     */
+    if (ifma != NULL) {
+	pdq->pdq_flags |= PDQ_ALLMULTI;
+#if defined(IFF_ALLMULTI)
+	sc->sc_if.if_flags |= IFF_ALLMULTI;
+#endif
+    }
 }
 
-int
+#if defined(IFM_FDDI)
+static int
+pdq_ifmedia_change(
+    struct ifnet *ifp)
+{
+    pdq_softc_t * const sc = PDQ_OS_IFP_TO_SOFTC(ifp);
+
+    if (sc->sc_ifmedia.ifm_media & IFM_FDX) {
+	if ((sc->sc_pdq->pdq_flags & PDQ_WANT_FDX) == 0) {
+	    sc->sc_pdq->pdq_flags |= PDQ_WANT_FDX;
+	    if (sc->sc_pdq->pdq_flags & PDQ_RUNNING)
+		pdq_run(sc->sc_pdq);
+	}
+    } else if (sc->sc_pdq->pdq_flags & PDQ_WANT_FDX) {
+	sc->sc_pdq->pdq_flags &= ~PDQ_WANT_FDX;
+	if (sc->sc_pdq->pdq_flags & PDQ_RUNNING)
+	    pdq_run(sc->sc_pdq);
+    }
+
+    return 0;
+}
+
+static void
+pdq_ifmedia_status(
+    struct ifnet *ifp,
+    struct ifmediareq *ifmr)
+{
+    pdq_softc_t * const sc = PDQ_OS_IFP_TO_SOFTC(ifp);
+
+    ifmr->ifm_status = IFM_AVALID;
+    if (sc->sc_pdq->pdq_flags & PDQ_IS_ONRING)
+	ifmr->ifm_status |= IFM_ACTIVE;
+
+    ifmr->ifm_active = (ifmr->ifm_current & ~IFM_FDX);
+    if (sc->sc_pdq->pdq_flags & PDQ_IS_FDX)
+	ifmr->ifm_active |= IFM_FDX;
+}
+
+void
+pdq_os_update_status(
+    pdq_t *pdq,
+    const void *arg)
+{
+    pdq_softc_t * const sc = pdq->pdq_os_ctx;
+    const pdq_response_status_chars_get_t *rsp = arg;
+    int media = 0;
+
+    switch (rsp->status_chars_get.pmd_type[0]) {
+	case PDQ_PMD_TYPE_ANSI_MUTLI_MODE:         media = IFM_FDDI_MMF; break;
+	case PDQ_PMD_TYPE_ANSI_SINGLE_MODE_TYPE_1: media = IFM_FDDI_SMF; break;
+	case PDQ_PMD_TYPE_ANSI_SIGNLE_MODE_TYPE_2: media = IFM_FDDI_SMF; break;
+	case PDQ_PMD_TYPE_UNSHIELDED_TWISTED_PAIR: media = IFM_FDDI_UTP; break;
+	default: media |= IFM_MANUAL;
+    }
+
+    if (rsp->status_chars_get.station_type == PDQ_STATION_TYPE_DAS)
+	media |= IFM_FDDI_DA;
+
+    sc->sc_ifmedia.ifm_media = media | IFM_FDDI;
+}
+#endif /* defined(IFM_FDDI) */
+
+static int
 pdq_ifioctl(
     struct ifnet *ifp,
-    ioctl_cmd_t cmd,
+    u_long cmd,
     caddr_t data)
 {
-    pdq_softc_t *sc = (pdq_softc_t *) ((caddr_t) ifp - offsetof(pdq_softc_t, sc_ac.ac_if));
-    int s, error = 0;
+    pdq_softc_t *sc = PDQ_OS_IFP_TO_SOFTC(ifp);
+    int error = 0;
 
-    s = splimp();
+    PDQ_LOCK(sc);
 
     switch (cmd) {
+	case SIOCSIFMTU:
+	case SIOCGIFADDR:
 	case SIOCSIFADDR: {
-	    struct ifaddr *ifa = (struct ifaddr *)data;
-
-	    ifp->if_flags |= IFF_UP;
-	    switch(ifa->ifa_addr->sa_family) {
-#if defined(INET)
-		case AF_INET: {
-		    pdq_ifinit(sc);
-		    arp_ifinit(&sc->sc_ac.ac_if, ifa);
-		    break;
-		}
-#endif /* INET */
-
-#if defined(NS)
-		/* This magic copied from if_is.c; I don't use XNS,
-		 * so I have no way of telling if this actually
-		 * works or not.
-		 */
-		case AF_NS: {
-		    struct ns_addr *ina = &(IA_SNS(ifa)->sns_addr);
-		    if (ns_nullhost(*ina)) {
-			ina->x_host = *(union ns_host *)(sc->sc_ac.ac_enaddr);
-		    } else {
-			ifp->if_flags &= ~IFF_RUNNING;
-			bcopy((caddr_t)ina->x_host.c_host,
-			      (caddr_t)sc->sc_ac.ac_enaddr,
-			      sizeof sc->sc_ac.ac_enaddr);
-		    }
-
-		    pdq_ifinit(sc);
-		    break;
-		}
-#endif /* NS */
-
-		default: {
-		    pdq_ifinit(sc);
-		    break;
-		}
-	    }
-	    break;
-	}
-	case SIOCGIFADDR: {
-	    struct ifreq *ifr = (struct ifreq *)data;
-	    bcopy((caddr_t) sc->sc_ac.ac_enaddr,
-		  (caddr_t) ((struct sockaddr *)&ifr->ifr_data)->sa_data,
-		  6);
+	    error = fddi_ioctl(ifp, cmd, data);
 	    break;
 	}
 
@@ -308,32 +390,22 @@ pdq_ifioctl(
 	}
 
 	case SIOCADDMULTI:
-	case SIOCDELMULTI:
-		/*
-		 * Update multicast listeners
-		 */
-		if (sc->sc_if.if_flags & IFF_RUNNING)
-			pdq_run(sc->sc_pdq);
+	case SIOCDELMULTI: {
+	    if (sc->sc_if.if_flags & IFF_RUNNING) {
+		    pdq_run(sc->sc_pdq);
 		error = 0;
-		break;
-
-#if defined(SIOCSIFMTU)
-#if !defined(ifr_mtu)
-#define ifr_mtu ifr_metric
-#endif
-	case SIOCSIFMTU: {
-	    struct ifreq *ifr = (struct ifreq *)data;
-	    /*
-	     * Set the interface MTU.
-	     */
-	    if (ifr->ifr_mtu > FDDIMTU) {
-		error = EINVAL;
-		break;
 	    }
-	    ifp->if_mtu = ifr->ifr_mtu;
 	    break;
 	}
-#endif /* SIOCSIFMTU */
+
+#if defined(IFM_FDDI) && defined(SIOCSIFMEDIA)
+	case SIOCSIFMEDIA:
+	case SIOCGIFMEDIA: {
+	    struct ifreq *ifr = (struct ifreq *)data;
+	    error = ifmedia_ioctl(ifp, ifr, &sc->sc_ifmedia, cmd);
+	    break;
+	}
+#endif
 
 	default: {
 	    error = EINVAL;
@@ -341,7 +413,7 @@ pdq_ifioctl(
 	}
     }
 
-    splx(s);
+    PDQ_UNLOCK(sc);
     return error;
 }
 
@@ -350,12 +422,15 @@ pdq_ifioctl(
 #endif
 
 void
-pdq_ifattach(
-    pdq_softc_t *sc,
-    ifnet_ret_t (*ifwatchdog)(int unit))
+pdq_ifattach(pdq_softc_t *sc)
 {
     struct ifnet *ifp = &sc->sc_if;
 
+    mtx_init(&sc->mtx, device_get_nameunit(sc->dev), MTX_DEF | MTX_RECURSE);
+
+    ifp->if_softc = sc;
+    ifp->if_init = (if_init_f_t *)pdq_ifinit;
+    ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
     ifp->if_flags = IFF_BROADCAST|IFF_SIMPLEX|IFF_NOTRAILERS|IFF_MULTICAST;
 
 #if (defined(__FreeBSD__) && BSD >= 199506) || defined(__NetBSD__)
@@ -365,13 +440,296 @@ pdq_ifattach(
 #endif
 
     ifp->if_ioctl = pdq_ifioctl;
+#if !defined(__NetBSD__) && !defined(__FreeBSD__)
     ifp->if_output = fddi_output;
+#endif
     ifp->if_start = pdq_ifstart;
-    ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
-#warning "Implement fddi_resolvemulti!"
-/*    ifp->if_resolvemulti = ether_resolvemulti; XXX */
+
+#if defined(IFM_FDDI)
+    {
+	const int media = sc->sc_ifmedia.ifm_media;
+	ifmedia_init(&sc->sc_ifmedia, IFM_FDX,
+		     pdq_ifmedia_change, pdq_ifmedia_status);
+	ifmedia_add(&sc->sc_ifmedia, media, 0, 0);
+	ifmedia_set(&sc->sc_ifmedia, media);
+    }
+#endif
   
     if_attach(ifp);
-    fddi_ifattach(ifp);
-    PDQ_BPFATTACH(sc, DLT_FDDI, sizeof(struct fddi_header));
+#if defined(__NetBSD__)
+    fddi_ifattach(ifp, (caddr_t)&sc->sc_pdq->pdq_hwaddr);
+#else
+    fddi_ifattach(ifp, FDDI_BPF_SUPPORTED);
+#endif
 }
+
+void
+pdq_ifdetach (pdq_softc_t *sc)
+{
+    struct ifnet *ifp;
+
+    ifp = &sc->arpcom.ac_if;
+
+    fddi_ifdetach(ifp, FDDI_BPF_SUPPORTED);
+    pdq_stop(sc->sc_pdq);
+    pdq_free(sc->dev);
+
+    return;
+}
+
+void
+pdq_free (device_t dev)
+{
+	pdq_softc_t *sc;
+
+	sc = device_get_softc(dev);
+
+	if (sc->io)
+		bus_release_resource(dev, sc->io_type, sc->io_rid, sc->io);
+	if (sc->mem)
+		bus_release_resource(dev, sc->mem_type, sc->mem_rid, sc->mem);
+	if (sc->irq_ih)
+		bus_teardown_intr(dev, sc->irq, sc->irq_ih);
+	if (sc->irq)
+		bus_release_resource(dev, SYS_RES_IRQ, sc->irq_rid, sc->irq);
+
+	/*
+	 * Destroy the mutex.
+	 */
+	if (mtx_initialized(&sc->mtx) != 0) {
+		mtx_destroy(&sc->mtx);
+	}
+
+	return;
+}
+
+#if defined(PDQ_BUS_DMA) 
+int
+pdq_os_memalloc_contig(
+    pdq_t *pdq)
+{
+    pdq_softc_t * const sc = pdq->pdq_os_ctx;
+    bus_dma_segment_t db_segs[1], ui_segs[1], cb_segs[1];
+    int db_nsegs = 0, ui_nsegs = 0;
+    int steps = 0;
+    int not_ok;
+
+    not_ok = bus_dmamem_alloc(sc->sc_dmatag,
+			 sizeof(*pdq->pdq_dbp), sizeof(*pdq->pdq_dbp),
+			 sizeof(*pdq->pdq_dbp), db_segs, 1, &db_nsegs,
+			 BUS_DMA_NOWAIT);
+    if (!not_ok) {
+	steps = 1;
+	not_ok = bus_dmamem_map(sc->sc_dmatag, db_segs, db_nsegs,
+				sizeof(*pdq->pdq_dbp), (caddr_t *) &pdq->pdq_dbp,
+				BUS_DMA_NOWAIT);
+    }
+    if (!not_ok) {
+	steps = 2;
+	not_ok = bus_dmamap_create(sc->sc_dmatag, db_segs[0].ds_len, 1,
+				   0x2000, 0, BUS_DMA_NOWAIT, &sc->sc_dbmap);
+    }
+    if (!not_ok) {
+	steps = 3;
+	not_ok = bus_dmamap_load(sc->sc_dmatag, sc->sc_dbmap,
+				 pdq->pdq_dbp, sizeof(*pdq->pdq_dbp),
+				 NULL, BUS_DMA_NOWAIT);
+    }
+    if (!not_ok) {
+	steps = 4;
+	pdq->pdq_pa_descriptor_block = sc->sc_dbmap->dm_segs[0].ds_addr;
+	not_ok = bus_dmamem_alloc(sc->sc_dmatag,
+			 PDQ_OS_PAGESIZE, PDQ_OS_PAGESIZE, PDQ_OS_PAGESIZE,
+			 ui_segs, 1, &ui_nsegs, BUS_DMA_NOWAIT);
+    }
+    if (!not_ok) {
+	steps = 5;
+	not_ok = bus_dmamem_map(sc->sc_dmatag, ui_segs, ui_nsegs,
+			    PDQ_OS_PAGESIZE,
+			    (caddr_t *) &pdq->pdq_unsolicited_info.ui_events,
+			    BUS_DMA_NOWAIT);
+    }
+    if (!not_ok) {
+	steps = 6;
+	not_ok = bus_dmamap_create(sc->sc_dmatag, ui_segs[0].ds_len, 1,
+				   PDQ_OS_PAGESIZE, 0, BUS_DMA_NOWAIT,
+				   &sc->sc_uimap);
+    }
+    if (!not_ok) {
+	steps = 7;
+	not_ok = bus_dmamap_load(sc->sc_dmatag, sc->sc_uimap,
+				 pdq->pdq_unsolicited_info.ui_events,
+				 PDQ_OS_PAGESIZE, NULL, BUS_DMA_NOWAIT);
+    }
+    if (!not_ok) {
+	steps = 8;
+	pdq->pdq_unsolicited_info.ui_pa_bufstart = sc->sc_uimap->dm_segs[0].ds_addr;
+	cb_segs[0] = db_segs[0];
+	cb_segs[0].ds_addr += offsetof(pdq_descriptor_block_t, pdqdb_consumer);
+	cb_segs[0].ds_len = sizeof(pdq_consumer_block_t);
+	not_ok = bus_dmamem_map(sc->sc_dmatag, cb_segs, 1,
+				sizeof(*pdq->pdq_cbp), (caddr_t *) &pdq->pdq_cbp,
+				BUS_DMA_NOWAIT|BUS_DMA_COHERENT);
+    }
+    if (!not_ok) {
+	steps = 9;
+	not_ok = bus_dmamap_create(sc->sc_dmatag, cb_segs[0].ds_len, 1,
+				   0x2000, 0, BUS_DMA_NOWAIT, &sc->sc_cbmap);
+    }
+    if (!not_ok) {
+	steps = 10;
+	not_ok = bus_dmamap_load(sc->sc_dmatag, sc->sc_cbmap,
+				 (caddr_t) pdq->pdq_cbp, sizeof(*pdq->pdq_cbp),
+				 NULL, BUS_DMA_NOWAIT);
+    }
+    if (!not_ok) {
+	pdq->pdq_pa_consumer_block = sc->sc_cbmap->dm_segs[0].ds_addr;
+	return not_ok;
+    }
+
+    switch (steps) {
+	case 11: {
+	    bus_dmamap_unload(sc->sc_dmatag, sc->sc_cbmap);
+	    /* FALL THROUGH */
+	}
+	case 10: {
+	    bus_dmamap_destroy(sc->sc_dmatag, sc->sc_cbmap);
+	    /* FALL THROUGH */
+	}
+	case 9: {
+	    bus_dmamem_unmap(sc->sc_dmatag,
+			     (caddr_t) pdq->pdq_cbp, sizeof(*pdq->pdq_cbp));
+	    /* FALL THROUGH */
+	}
+	case 8: {
+	    bus_dmamap_unload(sc->sc_dmatag, sc->sc_uimap);
+	    /* FALL THROUGH */
+	}
+	case 7: {
+	    bus_dmamap_destroy(sc->sc_dmatag, sc->sc_uimap);
+	    /* FALL THROUGH */
+	}
+	case 6: {
+	    bus_dmamem_unmap(sc->sc_dmatag,
+			     (caddr_t) pdq->pdq_unsolicited_info.ui_events,
+			     PDQ_OS_PAGESIZE);
+	    /* FALL THROUGH */
+	}
+	case 5: {
+	    bus_dmamem_free(sc->sc_dmatag, ui_segs, ui_nsegs);
+	    /* FALL THROUGH */
+	}
+	case 4: {
+	    bus_dmamap_unload(sc->sc_dmatag, sc->sc_dbmap);
+	    /* FALL THROUGH */
+	}
+	case 3: {
+	    bus_dmamap_destroy(sc->sc_dmatag, sc->sc_dbmap);
+	    /* FALL THROUGH */
+	}
+	case 2: {
+	    bus_dmamem_unmap(sc->sc_dmatag,
+			     (caddr_t) pdq->pdq_dbp,
+			     sizeof(*pdq->pdq_dbp));
+	    /* FALL THROUGH */
+	}
+	case 1: {
+	    bus_dmamem_free(sc->sc_dmatag, db_segs, db_nsegs);
+	    /* FALL THROUGH */
+	}
+    }
+
+    return not_ok;
+}
+
+extern void
+pdq_os_descriptor_block_sync(
+    pdq_os_ctx_t *sc,
+    size_t offset,
+    size_t length,
+    int ops)
+{
+    bus_dmamap_sync(sc->sc_dmatag, sc->sc_dbmap, offset, length, ops);
+}
+
+extern void
+pdq_os_consumer_block_sync(
+    pdq_os_ctx_t *sc,
+    int ops)
+{
+    bus_dmamap_sync(sc->sc_dmatag, sc->sc_cbmap, 0, sizeof(pdq_consumer_block_t), ops);
+}
+
+extern void
+pdq_os_unsolicited_event_sync(
+    pdq_os_ctx_t *sc,
+    size_t offset,
+    size_t length,
+    int ops)
+{
+    bus_dmamap_sync(sc->sc_dmatag, sc->sc_uimap, offset, length, ops);
+}
+
+extern void
+pdq_os_databuf_sync(
+    pdq_os_ctx_t *sc,
+    struct mbuf *m,
+    size_t offset,
+    size_t length,
+    int ops)
+{
+    bus_dmamap_sync(sc->sc_dmatag, M_GETCTX(m, bus_dmamap_t), offset, length, ops);
+}
+
+extern void
+pdq_os_databuf_free(
+    pdq_os_ctx_t *sc,
+    struct mbuf *m)
+{
+    if (m->m_flags & (M_HASRXDMAMAP|M_HASTXDMAMAP)) {
+	bus_dmamap_t map = M_GETCTX(m, bus_dmamap_t);
+	bus_dmamap_unload(sc->sc_dmatag, map);
+	bus_dmamap_destroy(sc->sc_dmatag, map);
+	m->m_flags &= ~(M_HASRXDMAMAP|M_HASTXDMAMAP);
+    }
+    m_freem(m);
+}
+
+extern struct mbuf *
+pdq_os_databuf_alloc(
+    pdq_os_ctx_t *sc)
+{
+    struct mbuf *m;
+    bus_dmamap_t map;
+
+    MGETHDR(m, M_DONTWAIT, MT_DATA);
+    if (m == NULL) {
+	printf("%s: can't alloc small buf\n", sc->sc_dev.dv_xname);
+	return NULL;
+    }
+    MCLGET(m, M_DONTWAIT);
+    if ((m->m_flags & M_EXT) == 0) {
+	printf("%s: can't alloc cluster\n", sc->sc_dev.dv_xname);
+        m_free(m);
+	return NULL;
+    }
+    m->m_pkthdr.len = m->m_len = PDQ_OS_DATABUF_SIZE;
+
+    if (bus_dmamap_create(sc->sc_dmatag, PDQ_OS_DATABUF_SIZE,
+			   1, PDQ_OS_DATABUF_SIZE, 0, BUS_DMA_NOWAIT, &map)) {
+	printf("%s: can't create dmamap\n", sc->sc_dev.dv_xname);
+	m_free(m);
+	return NULL;
+    }
+    if (bus_dmamap_load_mbuf(sc->sc_dmatag, map, m,
+    			     BUS_DMA_READ|BUS_DMA_NOWAIT)) {
+	printf("%s: can't load dmamap\n", sc->sc_dev.dv_xname);
+	bus_dmamap_destroy(sc->sc_dmatag, map);
+	m_free(m);
+	return NULL;
+    }
+    m->m_flags |= M_HASRXDMAMAP;
+    M_SETCTX(m, map);
+    return m;
+}
+#endif
