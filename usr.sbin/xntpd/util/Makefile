@@ -1,18 +1,11 @@
 #
-# $Id$
+# $Id: Makefile,v 1.7 1997/02/22 16:14:37 peter Exp $
 #
 
 CFLAGS+= -I${.CURDIR}/../include
 
-.if exists(${.OBJDIR}/../lib)
-LDADD+= -L${.OBJDIR}/../lib
-DPADD+= ${.OBJDIR}/../lib/libntp.a
-.else
-LDADD+= -L${.CURDIR}/../lib
-DPADD+= ${.CURDIR}/../lib/libntp.a
-.endif
-
-LDADD+= -lntp
+DPADD=	${LIBNTP}
+LDADD=	${LIBNTP}
 
 PROG= tickadj
 MAN8= ${.CURDIR}/../doc/tickadj.8

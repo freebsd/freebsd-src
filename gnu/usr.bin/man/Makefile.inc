@@ -2,7 +2,6 @@
 # Set a bunch of things to hardcoded paths so that we don't accidently
 # pick up a user's own version of some utility and hose ourselves.
 #
-BINDIR?=		/usr/bin
 libdir=			/etc
 bindir=			${BINDIR}
 pager=			more -s
@@ -21,3 +20,13 @@ pic=			/usr/bin/pic
 zcat=			/usr/bin/zcat
 compress=		/usr/bin/gzip -c
 compext=		.gz
+
+.if exists(${.OBJDIR}/../lib)
+LIBDESTDIR=		${.OBJDIR}/../lib
+.else
+LIBDESTDIR=		${.CURDIR}/../lib
+.endif
+
+LIBMAN=	${LIBDESTDIR}/libman.a
+
+.include "../Makefile.inc"
