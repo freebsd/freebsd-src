@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.128 1998/09/14 20:05:46 obrien Exp $
+#	$Id: BSD.usr.dist,v 1.129 1998/09/15 12:08:49 jkh Exp $
 #
 
 /set type=dir uname=root gname=wheel mode=0755
@@ -336,6 +336,8 @@
 	    printing
 	    ..
 	    slattach
+	    ..
+	    scsi_target
 	    ..
             sliplogin
             ..
