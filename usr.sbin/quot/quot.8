@@ -59,10 +59,8 @@ Despite that this doesn't give the correct results (it doesn't
 account for the holes in files), this option isn't any faster
 and thus is discouraged.
 .It Fl k
+Cause the numbers to be reported in kilobyte counts.
 By default, all sizes are reported in 512-byte block counts.
-The
-.Fl k
-options causes the numbers to be reported in kilobyte counts.
 .It Fl n
 Given a list of inodes (plus some optional data on each line)
 in the standard input, for each file print out the owner (plus
@@ -83,12 +81,14 @@ not accessed within 30, 60 and 90 days.
 If the environment variable
 .Ev BLOCKSIZE
 is set, and the
-.Gl k
+.Fl k
 option is not specified, the block counts will be displayed in units of that
 size block.
 .El
 .Sh BUGS
-ncheck does not exist in FreeBSD.. :-)
+.Xr ncheck
+does not exist in
+.Bx Free Ns .. :-)
 .Sh SEE ALSO
 .Xr df 1 ,
 .Xr quota 1 ,
