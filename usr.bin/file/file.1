@@ -1,5 +1,5 @@
 .\" $FreeBSD$
-.Dd December 08, 2000
+.Dd December 8, 2000
 .Dt FILE 1 "Copyright but distributable"
 .Os
 .Sh NAME
@@ -167,7 +167,7 @@ Either
 .Ar namefile
 or at least one filename argument must be present;
 to test the standard input, use
-.Dq -
+.Dq Ar -
 as a filename argument.
 .It Fl i
 Causes the file command to output mime type strings rather than the
@@ -180,7 +180,8 @@ In order for this option to work, file changes the way it handles
 files recognised by the command itself (such as many of the text
 file types, directories etc), and makes use of an alternative
 .Dq Pa magic
-file. (See
+file.
+(See
 .Sx FILES
 section, below).
 .It Fl k
@@ -201,7 +202,8 @@ the type of argument files which
 .Xr stat 2
 reports are ordinary files.
 This prevents problems, because reading special files
-may have peculiar consequences. Specifying the
+may have peculiar consequences.
+Specifying the
 .Fl s
 option causes file to also read argument files which
 are block or character special files.
@@ -238,7 +240,6 @@ can be used to set the default magic number files.
 .Xr od 1 ,
 .Xr strings 1 ,
 .Xr magic 5
-
 .Sh STANDARDS CONFORMANCE
 This program is believed to exceed the System V Interface Definition
 of FILE(CMD), as near as one can determine from the vague language
@@ -419,7 +420,8 @@ There should be an
 clause to follow a series of continuation lines.
 .Pp
 The magic file and keywords should have regular expression
-support. Their use of ASCII TAB as a field delimiter is
+support.
+Their use of ASCII TAB as a field delimiter is
 ugly and makes it hard to edit the files, but is
 entrenched.
 .Pp
@@ -443,7 +445,8 @@ This could be done by using some keyword like
 Another optimisation would be to sort the magic file so
 that we can just run down all the tests for the first
 byte, first word, first long, etc, once we have fetched
-it. Complain about conflicts in the magic file entries.
+it.
+Complain about conflicts in the magic file entries.
 Make a rule that the magic entries sort based on file offset
 rather than position within the magic file?
 .Pp
