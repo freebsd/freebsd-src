@@ -63,33 +63,33 @@ static int	nullfs_fhtovp(struct mount *mp, struct fid *fidp,
 static int	nullfs_checkexp(struct mount *mp, struct sockaddr *nam,
 				    int *extflagsp, struct ucred **credanonp);
 static int	nullfs_mount(struct mount *mp, char *path, caddr_t data,
-				  struct nameidata *ndp, struct proc *p);
+				  struct nameidata *ndp, struct thread *td);
 static int	nullfs_quotactl(struct mount *mp, int cmd, uid_t uid,
-				     caddr_t arg, struct proc *p);
+				     caddr_t arg, struct thread *td);
 static int	nullfs_root(struct mount *mp, struct vnode **vpp);
-static int	nullfs_start(struct mount *mp, int flags, struct proc *p);
+static int	nullfs_start(struct mount *mp, int flags, struct thread *td);
 static int	nullfs_statfs(struct mount *mp, struct statfs *sbp,
-				   struct proc *p);
+				   struct thread *td);
 static int	nullfs_sync(struct mount *mp, int waitfor,
-				 struct ucred *cred, struct proc *p);
-static int	nullfs_unmount(struct mount *mp, int mntflags, struct proc *p);
+				 struct ucred *cred, struct thread *td);
+static int	nullfs_unmount(struct mount *mp, int mntflags, struct thread *td);
 static int	nullfs_vget(struct mount *mp, ino_t ino, struct vnode **vpp);
 static int	nullfs_vptofh(struct vnode *vp, struct fid *fhp);
 static int	nullfs_extattrctl(struct mount *mp, int cmd,
 				       struct vnode *filename_vp,
 				       int namespace, const char *attrname,
-				       struct proc *p);
+				       struct thread *td);
 
 /*
  * Mount null layer
  */
 static int
-nullfs_mount(mp, path, data, ndp, p)
+nullfs_mount(mp, path, data, ndp, td)
 	struct mount *mp;
 	char *path;
 	caddr_t data;
 	struct nameidata *ndp;
-	struct proc *p;
+	struct thread *td;
 {
 	int error = 0;
 	struct null_args args;
@@ -106,7 +106,7 @@ nullfs_mount(mp, path, data, ndp, p)
 	 */
 	if (mp->mnt_flag & MNT_UPDATE) {
 		return (EOPNOTSUPP);
-		/* return VFS_MOUNT(MOUNTTONULLMOUNT(mp)->nullm_vfs, path, data, ndp, p);*/
+		/* return VFS_MOUNT(MOUNTTONULLMOUNT(mp)->nullm_vfs, path, data, ndp, td);*/
 	}
 
 	/*
@@ -122,20 +122,20 @@ nullfs_mount(mp, path, data, ndp, p)
 	 */
 	if ((mp->mnt_vnodecovered->v_op == null_vnodeop_p) &&
 		VOP_ISLOCKED(mp->mnt_vnodecovered, NULL)) {
-		VOP_UNLOCK(mp->mnt_vnodecovered, 0, p);
+		VOP_UNLOCK(mp->mnt_vnodecovered, 0, td);
 		isvnunlocked = 1;
 	}
 	/*
 	 * Find lower node
 	 */
 	NDINIT(ndp, LOOKUP, FOLLOW|WANTPARENT|LOCKLEAF,
-		UIO_USERSPACE, args.target, p);
+		UIO_USERSPACE, args.target, td);
 	error = namei(ndp);
 	/*
 	 * Re-lock vnode.
 	 */
 	if (isvnunlocked && !VOP_ISLOCKED(mp->mnt_vnodecovered, NULL))
-		vn_lock(mp->mnt_vnodecovered, LK_EXCLUSIVE | LK_RETRY, p);
+		vn_lock(mp->mnt_vnodecovered, LK_EXCLUSIVE | LK_RETRY, td);
 
 	if (error)
 		return (error);
@@ -174,7 +174,7 @@ nullfs_mount(mp, path, data, ndp, p)
 	/*
 	 * Unlock the node (either the lower or the alias)
 	 */
-	VOP_UNLOCK(vp, 0, p);
+	VOP_UNLOCK(vp, 0, td);
 	/*
 	 * Make sure the node alias worked
 	 */
@@ -199,7 +199,7 @@ nullfs_mount(mp, path, data, ndp, p)
 	(void) copyinstr(args.target, mp->mnt_stat.f_mntfromname,
 	    MNAMELEN - 1, &size);
 	bzero(mp->mnt_stat.f_mntfromname + size, MNAMELEN - size);
-	(void)nullfs_statfs(mp, &mp->mnt_stat, p);
+	(void)nullfs_statfs(mp, &mp->mnt_stat, td);
 	NULLFSDEBUG("nullfs_mount: lower %s, alias at %s\n",
 		mp->mnt_stat.f_mntfromname, mp->mnt_stat.f_mntonname);
 	return (0);
@@ -211,23 +211,23 @@ nullfs_mount(mp, path, data, ndp, p)
  * when that filesystem was mounted.
  */
 static int
-nullfs_start(mp, flags, p)
+nullfs_start(mp, flags, td)
 	struct mount *mp;
 	int flags;
-	struct proc *p;
+	struct thread *td;
 {
 	return (0);
-	/* return VFS_START(MOUNTTONULLMOUNT(mp)->nullm_vfs, flags, p); */
+	/* return VFS_START(MOUNTTONULLMOUNT(mp)->nullm_vfs, flags, td); */
 }
 
 /*
  * Free reference to null layer
  */
 static int
-nullfs_unmount(mp, mntflags, p)
+nullfs_unmount(mp, mntflags, td)
 	struct mount *mp;
 	int mntflags;
-	struct proc *p;
+	struct thread *td;
 {
 	void *mntdata;
 	int error;
@@ -257,7 +257,7 @@ nullfs_root(mp, vpp)
 	struct mount *mp;
 	struct vnode **vpp;
 {
-	struct proc *p = curproc;	/* XXX */
+	struct thread *td = curthread;	/* XXX */
 	struct vnode *vp;
 
 	NULLFSDEBUG("nullfs_root(mp = %p, vp = %p->%p)\n", (void *)mp,
@@ -277,27 +277,27 @@ nullfs_root(mp, vpp)
 		return (EDEADLK);
 	}
 #endif
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	*vpp = vp;
 	return 0;
 }
 
 static int
-nullfs_quotactl(mp, cmd, uid, arg, p)
+nullfs_quotactl(mp, cmd, uid, arg, td)
 	struct mount *mp;
 	int cmd;
 	uid_t uid;
 	caddr_t arg;
-	struct proc *p;
+	struct thread *td;
 {
-	return VFS_QUOTACTL(MOUNTTONULLMOUNT(mp)->nullm_vfs, cmd, uid, arg, p);
+	return VFS_QUOTACTL(MOUNTTONULLMOUNT(mp)->nullm_vfs, cmd, uid, arg, td);
 }
 
 static int
-nullfs_statfs(mp, sbp, p)
+nullfs_statfs(mp, sbp, td)
 	struct mount *mp;
 	struct statfs *sbp;
-	struct proc *p;
+	struct thread *td;
 {
 	int error;
 	struct statfs mstat;
@@ -308,7 +308,7 @@ nullfs_statfs(mp, sbp, p)
 
 	bzero(&mstat, sizeof(mstat));
 
-	error = VFS_STATFS(MOUNTTONULLMOUNT(mp)->nullm_vfs, &mstat, p);
+	error = VFS_STATFS(MOUNTTONULLMOUNT(mp)->nullm_vfs, &mstat, td);
 	if (error)
 		return (error);
 
@@ -331,11 +331,11 @@ nullfs_statfs(mp, sbp, p)
 }
 
 static int
-nullfs_sync(mp, waitfor, cred, p)
+nullfs_sync(mp, waitfor, cred, td)
 	struct mount *mp;
 	int waitfor;
 	struct ucred *cred;
-	struct proc *p;
+	struct thread *td;
 {
 	/*
 	 * XXX - Assumes no data cached at null layer.
@@ -392,16 +392,16 @@ nullfs_vptofh(vp, fhp)
 }
 
 static int                        
-nullfs_extattrctl(mp, cmd, filename_vp, namespace, attrname, p)
+nullfs_extattrctl(mp, cmd, filename_vp, namespace, attrname, td)
 	struct mount *mp;
 	int cmd;
 	struct vnode *filename_vp;
 	int namespace;
 	const char *attrname;
-	struct proc *p;            
+	struct thread *td;            
 {
 	return VFS_EXTATTRCTL(MOUNTTONULLMOUNT(mp)->nullm_vfs, cmd, filename_vp,
-	    namespace, attrname, p);
+	    namespace, attrname, td);
 }
 
 

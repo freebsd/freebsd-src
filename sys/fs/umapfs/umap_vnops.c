@@ -283,7 +283,7 @@ umap_getattr(ap)
 		struct vnode *a_vp;
 		struct vattr *a_vap;
 		struct ucred *a_cred;
-		struct proc *a_p;
+		struct thread *a_td;
 	} */ *ap;
 {
 	short uid, gid;
@@ -359,7 +359,7 @@ umap_lock(ap)
 	struct vop_lock_args /* {
 		struct vnode *a_vp;
 		int a_flags;
-		struct proc *a_p;
+		struct thread *a_td;
 	} */ *ap;
 {
 
@@ -380,7 +380,7 @@ umap_unlock(ap)
 	struct vop_unlock_args /* {
 		struct vnode *a_vp;
 		int a_flags;
-		struct proc *a_p;
+		struct thread *a_td;
 	} */ *ap;
 {
 	vop_nounlock(ap);
@@ -392,7 +392,7 @@ static int
 umap_inactive(ap)
 	struct vop_inactive_args /* {
 		struct vnode *a_vp;
-		struct proc *a_p;
+		struct thread *a_td;
 	} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
@@ -405,8 +405,8 @@ umap_inactive(ap)
 	 * cache and reusable.
 	 *
 	 */
-	VOP_INACTIVE(lowervp, ap->a_p);
-	VOP_UNLOCK(ap->a_vp, 0, ap->a_p);
+	VOP_INACTIVE(lowervp, ap->a_td);
+	VOP_UNLOCK(ap->a_vp, 0, ap->a_td);
 	return (0);
 }
 

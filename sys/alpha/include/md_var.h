@@ -40,7 +40,7 @@ extern	int	Maxmem;
 extern	int	busdma_swi_pending;
 
 struct fpreg;
-struct proc;
+struct thread;
 struct reg;
 struct cam_sim;
 struct pcicfg;
@@ -50,10 +50,10 @@ void	cpu_halt __P((void));
 void	cpu_reset __P((void));
 int	is_physical_memory __P((vm_offset_t addr));
 void	swi_vm __P((void *));
-int	fill_regs __P((struct proc *, struct reg *));
-int	set_regs __P((struct proc *, struct reg *));
-int	fill_fpregs __P((struct proc *, struct fpreg *));
-int	set_fpregs __P((struct proc *, struct fpreg *));
+int	fill_regs __P((struct thread *, struct reg *));
+int	set_regs __P((struct thread *, struct reg *));
+int	fill_fpregs __P((struct thread *, struct fpreg *));
+int	set_fpregs __P((struct thread *, struct fpreg *));
 void	alpha_register_pci_scsi __P((int bus, int slot, struct cam_sim *sim));
 #ifdef _SYS_BUS_H_
 struct resource *alpha_platform_alloc_ide_intr(int chan);

@@ -79,6 +79,7 @@ struct shminfo {
 extern struct shminfo	shminfo;
 extern struct shmid_ds	*shmsegs;
 
+struct thread;
 struct proc;
 
 void	shmexit __P((struct proc *));

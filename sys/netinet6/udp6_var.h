@@ -76,7 +76,7 @@ void	udp6_ctlinput __P((int, struct sockaddr *, void *));
 int	udp6_input __P((struct mbuf **, int *, int));
 int	udp6_output __P((struct inpcb *inp, struct mbuf *m,
 			struct sockaddr *addr, struct mbuf *control,
-			struct proc *p));
+			struct thread *td));
 #endif
 
 #endif /*_NETINET6_UDP6_VAR_H_*/

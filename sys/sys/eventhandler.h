@@ -87,7 +87,7 @@ do {										\
     struct eventhandler_entry *_ep, *_en;					\
 										\
     if (_el->el_flags & EHE_INITTED) {						\
-	lockmgr(&_el->el_lock, LK_EXCLUSIVE, NULL, CURPROC);			\
+	lockmgr(&_el->el_lock, LK_EXCLUSIVE, NULL, curthread);			\
 	_ep = TAILQ_FIRST(&(_el->el_entries));					\
 	while (_ep != NULL) {							\
 	    _en = TAILQ_NEXT(_ep, ee_link);					\
@@ -95,7 +95,7 @@ do {										\
 								 ## args); 	\
 	    _ep = _en;								\
 	}									\
-	lockmgr(&_el->el_lock, LK_RELEASE, NULL, CURPROC);			\
+	lockmgr(&_el->el_lock, LK_RELEASE, NULL, curthread);			\
     }										\
 } while (0)
 
@@ -127,7 +127,7 @@ do {										\
 										\
     if (((_el = eventhandler_find_list(#name)) != NULL) && 			\
 	(_el->el_flags & EHE_INITTED)) {					\
-	lockmgr(&_el->el_lock, LK_EXCLUSIVE, NULL, CURPROC);			\
+	lockmgr(&_el->el_lock, LK_EXCLUSIVE, NULL, curthread);			\
 	_ep = TAILQ_FIRST(&(_el->el_entries));					\
 	while (_ep != NULL) {							\
 	    _en = TAILQ_NEXT(_ep, ee_link);					\
@@ -135,7 +135,7 @@ do {										\
 								 ## args); 	\
 	    _ep = _en;								\
 	}									\
-	lockmgr(&_el->el_lock, LK_RELEASE, NULL, CURPROC);			\
+	lockmgr(&_el->el_lock, LK_RELEASE, NULL, curthread);			\
     }										\
 } while (0)
 

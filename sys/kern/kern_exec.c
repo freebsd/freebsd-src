@@ -102,10 +102,11 @@ struct execve_args {
  * MPSAFE
  */
 int
-execve(p, uap)
-	struct proc *p;
+execve(td, uap)
+	struct thread *td;
 	register struct execve_args *uap;
 {
+	struct proc *p = td->td_proc;
 	struct nameidata nd, *ndp;
 	struct ucred *newcred, *oldcred;
 	register_t *stack_base;
@@ -116,6 +117,10 @@ execve(p, uap)
 	struct pargs *pa;
 
 	imgp = &image_params;
+
+/* XXXKSE */
+/* !!!!!!!! we need abort all the other threads of this process before we */
+/* proceed beyond his point! */
 
 	/*
 	 * Initialize part of the common data
@@ -156,7 +161,7 @@ execve(p, uap)
 	 */
 	ndp = &nd;
 	NDINIT(ndp, LOOKUP, LOCKLEAF | FOLLOW | SAVENAME,
-	    UIO_USERSPACE, uap->fname, p);
+	    UIO_USERSPACE, uap->fname, td);
 
 interpret:
 
@@ -175,12 +180,12 @@ interpret:
 	 */
 	error = exec_check_permissions(imgp);
 	if (error) {
-		VOP_UNLOCK(imgp->vp, 0, p);
+		VOP_UNLOCK(imgp->vp, 0, td);
 		goto exec_fail_dealloc;
 	}
 
 	error = exec_map_first_page(imgp);
-	VOP_UNLOCK(imgp->vp, 0, p);
+	VOP_UNLOCK(imgp->vp, 0, td);
 	if (error)
 		goto exec_fail_dealloc;
 
@@ -223,7 +228,7 @@ interpret:
 		vrele(ndp->ni_vp);
 		/* set new name to that of the interpreter */
 		NDINIT(ndp, LOOKUP, LOCKLEAF | FOLLOW | SAVENAME,
-		    UIO_SYSSPACE, imgp->interpreter_name, p);
+		    UIO_SYSSPACE, imgp->interpreter_name, td);
 		goto interpret;
 	}
 
@@ -250,8 +255,8 @@ interpret:
 	if (p->p_fd->fd_refcnt > 1) {
 		struct filedesc *tmp;
 
-		tmp = fdcopy(p);
-		fdfree(p);
+		tmp = fdcopy(td);
+		fdfree(td);
 		p->p_fd = tmp;
 	}
 
@@ -270,17 +275,17 @@ interpret:
 		p->p_procsig->ps_refcnt--;
 		p->p_procsig = newprocsig;
 		p->p_procsig->ps_refcnt = 1;
-		if (p->p_sigacts == &p->p_addr->u_sigacts)
+		if (p->p_sigacts == &p->p_uarea->u_sigacts)
 			panic("shared procsig but private sigacts?");
 
-		p->p_addr->u_sigacts = *p->p_sigacts;
-		p->p_sigacts = &p->p_addr->u_sigacts;
+		p->p_uarea->u_sigacts = *p->p_sigacts;
+		p->p_sigacts = &p->p_uarea->u_sigacts;
 	}
 	/* Stop profiling */
 	stopprofclock(p);
 
 	/* close files on exec */
-	fdcloseexec(p);
+	fdcloseexec(td);
 
 	/* reset caught signals */
 	execsigs(p);
@@ -342,7 +347,7 @@ interpret:
 			change_euid(newcred, attr.va_uid);
 		if (attr.va_mode & VSGID)
 			change_egid(newcred, attr.va_gid);
-		setugidsafety(p);
+		setugidsafety(td);
 	} else {
 		if (oldcred->cr_uid == oldcred->cr_ruid &&
 		    oldcred->cr_gid == oldcred->cr_rgid)
@@ -408,7 +413,7 @@ interpret:
 	p->p_acflag &= ~AFORK;
 
 	/* Set values passed into the program in registers. */
-	setregs(p, imgp->entry_addr, (u_long)(uintptr_t)stack_base,
+	setregs(td, imgp->entry_addr, (u_long)(uintptr_t)stack_base,
 	    imgp->ps_strings);
 
 	/* Free any previous argument cache */
@@ -454,7 +459,7 @@ exec_fail_dealloc:
 exec_fail:
 	if (imgp->vmspace_destroyed) {
 		/* sorry, no more process anymore. exit gracefully */
-		exit1(p, W_EXITCODE(0, SIGABRT));
+		exit1(td, W_EXITCODE(0, SIGABRT));
 		/* NOT REACHED */
 		error = 0;
 	} 
@@ -587,7 +592,7 @@ exec_new_vmspace(imgp)
 		error = vm_map_find(&vmspace->vm_map, 0, 0, &bsaddr,
 				    4*PAGE_SIZE, 0,
 				    VM_PROT_ALL, VM_PROT_ALL, 0);
-		imgp->proc->p_md.md_bspstore = bsaddr;
+		imgp->proc->p_thread.td_md.md_bspstore = bsaddr;
 	}
 #endif
 
@@ -798,7 +803,7 @@ exec_check_permissions(imgp)
 	int error;
 
 	/* Get file attributes */
-	error = VOP_GETATTR(vp, attr, p->p_ucred, p);
+	error = VOP_GETATTR(vp, attr, p->p_ucred, curthread); /* XXXKSE */
 	if (error)
 		return (error);
 
@@ -825,7 +830,7 @@ exec_check_permissions(imgp)
 	/*
 	 *  Check for execute permission to file based on current credentials.
 	 */
-	error = VOP_ACCESS(vp, VEXEC, p->p_ucred, p);
+	error = VOP_ACCESS(vp, VEXEC, p->p_ucred, curthread); /* XXXKSE */
 	if (error)
 		return (error);
 
@@ -840,7 +845,7 @@ exec_check_permissions(imgp)
 	 * Call filesystem specific open routine (which does nothing in the
 	 * general case).
 	 */
-	error = VOP_OPEN(vp, FREAD, p->p_ucred, p);
+	error = VOP_OPEN(vp, FREAD, p->p_ucred, curthread); /* XXXKSE */
 	if (error)
 		return (error);
 

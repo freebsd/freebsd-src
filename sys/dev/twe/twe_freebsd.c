@@ -90,7 +90,7 @@ static struct cdevsw twe_cdevsw = {
  * Accept an open operation on the control device.
  */
 static int
-twe_open(dev_t dev, int flags, int fmt, struct proc *p)
+twe_open(dev_t dev, int flags, int fmt, struct thread *td)
 {
     int			unit = minor(dev);
     struct twe_softc	*sc = devclass_get_softc(twe_devclass, unit);
@@ -103,7 +103,7 @@ twe_open(dev_t dev, int flags, int fmt, struct proc *p)
  * Accept the last close on the control device.
  */
 static int
-twe_close(dev_t dev, int flags, int fmt, struct proc *p)
+twe_close(dev_t dev, int flags, int fmt, struct thread *td)
 {
     int			unit = minor(dev);
     struct twe_softc	*sc = devclass_get_softc(twe_devclass, unit);
@@ -116,7 +116,7 @@ twe_close(dev_t dev, int flags, int fmt, struct proc *p)
  * Handle controller-specific control operations.
  */
 static int
-twe_ioctl_wrapper(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
+twe_ioctl_wrapper(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct thread *td)
 {
     struct twe_softc		*sc = (struct twe_softc *)dev->si_drv1;
     
@@ -599,7 +599,7 @@ static int		disks_registered = 0;
  * for opens on subdevices (eg. slices, partitions).
  */
 static int
-twed_open(dev_t dev, int flags, int fmt, struct proc *p)
+twed_open(dev_t dev, int flags, int fmt, struct thread *td)
 {
     struct twed_softc	*sc = (struct twed_softc *)dev->si_drv1;
     struct disklabel	*label;
@@ -632,7 +632,7 @@ twed_open(dev_t dev, int flags, int fmt, struct proc *p)
  * Handle last close of the disk device.
  */
 static int
-twed_close(dev_t dev, int flags, int fmt, struct proc *p)
+twed_close(dev_t dev, int flags, int fmt, struct thread *td)
 {
     struct twed_softc	*sc = (struct twed_softc *)dev->si_drv1;
 

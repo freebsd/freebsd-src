@@ -389,17 +389,17 @@ tapcreate(dev)
  * to open tunnel. must be superuser
  */
 static int
-tapopen(dev, flag, mode, p)
+tapopen(dev, flag, mode, td)
 	dev_t		 dev;
 	int		 flag;
 	int		 mode;
-	struct proc	*p;
+	struct thread	*td;
 {
 	struct tap_softc	*tp = NULL;
 	int			 unit, error;
 	struct resource		*r = NULL;
 
-	if ((error = suser(p)) != 0)
+	if ((error = suser_td(td)) != 0)
 		return (error);
 
 	unit = dev2unit(dev) & TAPMAXUNIT;
@@ -428,7 +428,7 @@ tapopen(dev, flag, mode, p)
 	bcopy(tp->arpcom.ac_enaddr, tp->ether_addr, sizeof(tp->ether_addr));
 
 	tp->tap_unit = r;
-	tp->tap_pid = p->p_pid;
+	tp->tap_pid = td->td_proc->p_pid;
 	tp->tap_flags |= TAP_OPEN;
 
 	TAPDEBUG("%s%d is open. minor = %#x\n", 
@@ -444,11 +444,11 @@ tapopen(dev, flag, mode, p)
  * close the device - mark i/f down & delete routing info
  */
 static int
-tapclose(dev, foo, bar, p)
+tapclose(dev, foo, bar, td)
 	dev_t		 dev;
 	int		 foo;
 	int		 bar;
-	struct proc	*p;
+	struct thread	*td;
 {
 	int			 s, error;
 	struct tap_softc	*tp = dev->si_drv1;
@@ -643,12 +643,12 @@ tapifstart(ifp)
  * the cdevsw interface is now pretty minimal
  */
 static int
-tapioctl(dev, cmd, data, flag, p)
+tapioctl(dev, cmd, data, flag, td)
 	dev_t		 dev;
 	u_long		 cmd;
 	caddr_t		 data;
 	int		 flag;
-	struct proc	*p;
+	struct thread	*td;
 {
 	struct tap_softc	*tp = dev->si_drv1;
 	struct ifnet		*ifp = &tp->tap_if;
@@ -911,10 +911,10 @@ tapwrite(dev, uio, flag)
  * anyway, it either accepts the packet or drops it
  */
 static int
-tappoll(dev, events, p)
+tappoll(dev, events, td)
 	dev_t		 dev;
 	int		 events;
-	struct proc	*p;
+	struct thread	*td;
 {
 	struct tap_softc	*tp = dev->si_drv1;
 	struct ifnet		*ifp = &tp->tap_if;
@@ -935,7 +935,7 @@ tappoll(dev, events, p)
 			TAPDEBUG("%s%d waiting for data, minor = %#x\n",
 				ifp->if_name, ifp->if_unit, minor(dev));
 
-			selrecord(p, &tp->tap_rsel);
+			selrecord(curthread, &tp->tap_rsel);
 		}
 	}
 

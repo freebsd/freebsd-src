@@ -142,132 +142,301 @@ struct ithd;
 struct nlminfo;
 struct trapframe;
 
-struct proc {
-	TAILQ_ENTRY(proc) p_procq;	/* (j) Run/mutex queue. */
-	TAILQ_ENTRY(proc) p_slpq;	/* (j) Sleep queue. */
+/*
+ * Here we define the four structures used for process information.
+ *
+ * The first is the thread. It might be though of as a "Kernel
+ * Schedulable Entity Context".
+ * This structure contains all the information as to where a thread of 
+ * execution is now, or was when it was suspended, why it was suspended,
+ * and anything else that will be needed to restart it when it is
+ * rescheduled. Always associated with a KSE when running, but can be
+ * reassigned to an equivalent KSE  when being restarted for
+ * load balancing. Each of these is associated with a kernel stack
+ * and a pcb.
+ * 
+ * It is important to remember that a particular thread structure only
+ * exists as long as the system call or kernel entrance (e.g. by pagefault)
+ * which it is currently executing. It should threfore NEVER be referenced
+ * by pointers in long lived structures that live longer than a single
+ * request. If several threads complete their work at the same time,
+ * they will all rewind their stacks to the uer boundary, report their
+ * completion state, and all but one will be freed. That last one will
+ * be kept to provide a kernel stack and pcb for the NEXT syscall or kernel
+ * entrance. (basically to save freeing and then re-allocating it) A process
+ * might keep a cache of threads available to allow it to quickly
+ * get one when it needs a new one. There would probably also be a system
+ * cache of free threads.
+ */
+struct thread;
+
+/* 
+ * The second structure is the Kernel Schedulable Entity. (KSE)
+ * As long as this is scheduled, it will continue to run any threads that
+ * are assigned to it or the KSEGRP (see later) until either it runs out
+ * of runnable threads or CPU.
+ * It runs on one CPU and is assigned a quantum of time. When a thread is
+ * blocked, The KSE continues to run and will search for another thread
+ * in a runnable state amongst those it has. It May decide to return to user
+ * mode with a new 'empty' thread if there are no runnable threads.
+ * threads are associated with a KSE for cache reasons, but a sheduled KSE with
+ * no runnable thread will try take a thread from a sibling KSE before
+ * surrendering its quantum. In some schemes it gets it's quantum from the KSEG
+ * and contributes to draining that quantum, along withthe other KSEs in
+ * the group. (undecided)
+ */
+struct kse;
+
+/*
+ * The KSEGRP is allocated resources across a number of CPUs.
+ * (Including a number of CPUxQUANTA. It parcels these QUANTA up among
+ * Its KSEs, each of which should be running in a different CPU.
+ * Priority and total available sheduled quanta are properties of a KSEGRP.
+ * Multiple KSEGRPs in a single process compete against each other
+ * for total quanta in the same way that a forked child competes against
+ * it's parent process.
+ */
+struct ksegrp;
+
+/*
+ * A process is the owner of all system resources allocated to a task
+ * except CPU quanta.
+ * All KSEGs under one process see, and have the same access to, these
+ * resources (e.g. files, memory, sockets, permissions kqueues).
+ * A process may compete for CPU cycles on the same basis as a
+ * forked process cluster by spawning several KSEGRPs. 
+ */
+struct proc;
+
+/***************
+ * In pictures:
+ With a single run queue used by all processors:
+
+ RUNQ: --->KSE---KSE--...               SLEEPQ:[]---THREAD---THREAD---THREAD
+	   |   /                               []---THREAD
+	   KSEG---THREAD--THREAD--THREAD       []
+	                                       []---THREAD---THREAD
+
+  (processors run THREADs from the KSEG until they are exhausted or
+  the KSEG exhausts its quantum) 
+
+With PER-CPU run queues:
+KSEs on the separate run queues directly
+They would be given priorities calculated from the KSEG.
+
+ *
+ *****************/
+
+/*
+ * Kernel runnable context (thread).
+ * This is what is put to sleep and reactivated.
+ * The first KSE available in the correct group will run this thread.
+ * If several are available, use the one on the same CPU as last time.
+ */
+struct	thread {
+	struct proc	*td_proc;	/* Associated process. */
+	struct ksegrp	*td_ksegrp;	/* Associated KSEG. */
+	struct kse	*td_last_kse;	/* Where it wants to be if possible */
+	struct kse	*td_kse;	/* and is now if running */
+
+	TAILQ_ENTRY(thread) td_plist;	/* All threads in this proc */
+	TAILQ_ENTRY(thread) td_kglist;	/* All threads in this ksegrp */
+
+	/* The two queues below should someday be merged */
+	TAILQ_ENTRY(thread) td_slpq; 	/* (j) Sleep queue. XXXKSE */ 
+	TAILQ_ENTRY(thread) td_blkq; 	/* (j) mutex queue. XXXKSE */ 
+	TAILQ_ENTRY(thread) td_runq; 	/* (j) run queue(s). XXXKSE */ 
+
+#define	td_startzero td_flags
+	int		td_flags;	/* (c) P_* flags. */
+	int		td_dupfd;	/* (c) ret value from fdopen. XXX */
+	void		*td_wchan;	/* (j) Sleep address. */
+	const char	*td_wmesg;	/* (j) Reason for sleep. */
+	u_char		td_lastcpu;	/* (j) Last cpu we were on. */
+	short		td_locks;	/* (*) DEBUG: lockmgr count of locks */
+	struct mtx	*td_blocked;	/* (j) Mutex process is blocked on. */
+	struct ithd 	*td_ithd;	/* (b) For interrupt threads only. */
+	const char	*td_mtxname;	/* (j) Name of mutex blocked on. */
+	LIST_HEAD(, mtx) td_contested;	/* (j) Contested locks. */
+	struct lock_list_entry *td_sleeplocks; /* (k) Held sleep locks. */
+	int		td_intr_nesting_level;	/* (k) Interrupt recursion. */
+#define	td_endzero td_md
+
+#define	td_startcopy td_endzero
+	/* XXXKSE p_md is in the "on your own" section in old struct proc */
+	struct	mdthread td_md;		/* (k) Any machine-dependent fields. */
+	register_t 	td_retval[2];	/* (k) Syscall aux returns. */
+#define	td_endcopy td_pcb
+
+	struct	pcb 	*td_pcb;	/* (k) Kv addr of pcb and kstack. */
+	struct	callout td_slpcallout;	/* (h) Callout for sleep. */
+	struct trapframe *td_frame;	/* (k) */
+	struct vm_object *td_kstack_obj;/* (a) kstack object. */
+	vm_offset_t	td_kstack;	/* kstack mapped address */
+};
+#define TDF_ONRUNQ	0x00000001	/* This KE is on a run queue */
+
+/*
+ * The schedulable entity that can be given a context to run.
+ * A process may have several of these. Probably one per processor
+ * but posibly a few more. In this universe they are grouped
+ * with a KSEG that contains the priority and niceness
+ * for the group.
+ */
+struct	kse {
+	struct proc	*ke_proc;	/* Associated process. */
+	struct ksegrp	*ke_ksegrp;	/* Associated KSEG. */
+	struct thread	*ke_thread;	/* Associated thread, if running. */
+	TAILQ_ENTRY(kse) ke_kglist;	/* Queue of all KSEs in ke_ksegrp. */
+	TAILQ_ENTRY(kse) ke_kgrlist;	/* Queue of all KSEs in this state. */
+	TAILQ_ENTRY(kse) ke_procq;	/* (j) Run queue. */
+	TAILQ_HEAD(, thread) ke_runq;	/* (td_runq) RUNNABLE bound to KSE. */
+
+#define ke_startzero ke_flags
+	int		ke_flags; 	/* (c) P_* flags. */
+	/*u_int		ke_estcpu; */	/* (j) Time averaged val of cpticks. */
+	int		ke_cpticks;	/* (j) Ticks of cpu time. */
+	fixpt_t		ke_pctcpu;	/* (j) %cpu during p_swtime. */
+	u_int64_t	ke_uu;		/* (j) Previous user time in usec. */
+	u_int64_t	ke_su;		/* (j) Previous system time in usec. */
+	u_int64_t	ke_iu;		/* (j) Previous intr time in usec. */
+	u_int64_t	ke_uticks;	/* (j) Statclock hits in user mode. */
+	u_int64_t	ke_sticks;	/* (j) Statclock hits in system mode. */
+	u_int64_t	ke_iticks;	/* (j) Statclock hits in intr. */
+	u_char		ke_oncpu;	/* (j) Which cpu we are on. */
+	u_int		ke_slptime;	/* (j) Time since last idle. */
+	char		ke_rqindex;	/* (j) Run queue index. */
+#define ke_endzero ke_priority
+
+#define ke_startcopy ke_endzero
+	u_char		ke_priority;	/* (j) Process priority. */
+	u_char		ke_usrpri;	/* (j) User pri from cpu & nice. */
+#define ke_endcopy ke_end
+
+	int		ke_end;		/* dummy entry */
+};
+
+/*
+ * Kernel-scheduled entity group (KSEG).  The scheduler considers each KSEG to
+ * be an indivisible unit from a time-sharing perspective, though each KSEG may
+ * contain multiple KSEs.
+ */
+struct	ksegrp {
+	struct proc	*kg_proc;	/* Process that contains this KSEG. */
+	TAILQ_ENTRY(ksegrp) kg_ksegrp;	/* Queue of KSEGs in kg_proc. */
+	TAILQ_HEAD(, kse) kg_kseq;	/* (ke_kglist) All KSEs */
+	TAILQ_HEAD(, kse) kg_rq;	/* (ke_kgrlist) Runnable KSEs */
+	TAILQ_HEAD(, kse) kg_iq;	/* (ke_kgrlist) Idle KSEs */
+	TAILQ_HEAD(, thread) kg_threads;/* (td_kglist) All threads. */
+	TAILQ_HEAD(, thread) kg_runq;	/* (td_runq)unbound RUNNABLE threads */
+	TAILQ_HEAD(, thread) kg_slpq;	/* (td_runq)NONRUNNABLE threads. */
+
+#define kg_startzero kg_estcpu
+ 	u_int		kg_slptime;	/* (j) how long completely blocked. */
+	u_int		kg_estcpu;	/* sum of the same field in kses */
+#define	kg_endzero kg_pri
+
+#define	kg_startcopy kg_endzero
+	struct priority	kg_pri;		/* (j) Process priority. */
+	char		kg_nice;	/* (j?/k?) Process "nice" value. */
+	struct rtprio	kg_rtprio;	/* (j) Realtime priority. */
+#define	kg_endcopy kg_runnable
+
+	int		kg_runnable;	/* # runnable threads on queue */
+	int		kg_runq_kses;	/* # kse's on runq. */
+	int		kg_kses;	/* # kse's in group. */
+};
+
+/*
+ * The old fashionned process. May have multiple threads, KSEGRPs
+ * and KSEs. Starts off with a single embedded KSEGRP, KSE and THREAD.
+ */
+struct	proc {
 	LIST_ENTRY(proc) p_list;	/* (d) List of all processes. */
+	TAILQ_HEAD(, ksegrp) p_ksegrps;	/* (kg_ksegrp) All KSEGs. */
+	TAILQ_HEAD(, thread) p_threads;	/* (td_plist) threads. (shortcut) */
+	struct ucred	*p_ucred;	/* (c + k) Process owner's identity. */
+	struct filedesc *p_fd;		/* (b) Ptr to open files structure. */
+					/* accumulated stats for all KSEs? */
+	struct pstats	*p_stats;	/* (b) Accounting/statistics (CPU). */
+	struct plimit	*p_limit;	/* (m) Process limits. */
+	struct vm_object *p_upages_obj;	/* (a) Upages object. */
+	struct procsig *p_procsig;	/* (c) Signal actions, state (CPU). */
 
-	/* substructures: */
-	struct	ucred *p_ucred;		/* (c + k) Process owner's identity. */
-	struct	filedesc *p_fd;		/* (b) Ptr to open files structure. */
-	struct	pstats *p_stats;	/* (b) Accounting/statistics (CPU). */
-	struct	plimit *p_limit;	/* (m) Process limits. */
-	struct	vm_object *p_upages_obj;/* (a) Upages object. */
-	struct	procsig *p_procsig;	/* (c) Signal actions, state (CPU). */
-#define	p_sigacts	p_procsig->ps_sigacts
-#define	p_sigignore	p_procsig->ps_sigignore
-#define	p_sigcatch	p_procsig->ps_sigcatch
+	struct ksegrp	p_ksegrp;
+	struct kse	p_kse;
+	struct thread	p_thread;
 
-#define	p_rlimit	p_limit->pl_rlimit
-
-	int	p_flag;			/* (c) P_* flags. */
-	int	p_sflag;		/* (j) PS_* flags. */
-	int	p_stat;			/* (j) S* process status. */
+	/*
+	 * The following don't make too much sense..
+	 * See the td_ or ke_ versions of the same flags
+	 */
+	int		p_flag;		/* (c) P_* flags. */
+	int		p_sflag;	/* (j) PS_* flags. */
+	int		p_stat;		/* (j) S* process status. */
 
 	pid_t	p_pid;			/* (b) Process identifier. */
 	LIST_ENTRY(proc) p_hash;	/* (d) Hash chain. */
 	LIST_ENTRY(proc) p_pglist;	/* (c) List of processes in pgrp. */
-	struct	proc *p_pptr;		/* (c + e) Pointer to parent process. */
+	struct proc 	*p_pptr;	/* (c + e) Pointer to parent process. */
 	LIST_ENTRY(proc) p_sibling;	/* (e) List of sibling processes. */
 	LIST_HEAD(, proc) p_children;	/* (e) Pointer to list of children. */
 
 /* The following fields are all zeroed upon creation in fork. */
 #define	p_startzero	p_oppid
-
-	pid_t	p_oppid;	 /* (c + e) Save parent pid during ptrace. XXX */
-	int	p_dupfd;	 /* (c) Sideways ret value from fdopen. XXX */
-	struct	vmspace *p_vmspace;	/* (b) Address space. */
-
-	/* scheduling */
-	u_int	p_estcpu;	 /* (j) Time averaged value of p_cpticks. */
-	int	p_cpticks;	 /* (j) Ticks of cpu time. */
-	fixpt_t	p_pctcpu;	 /* (j) %cpu during p_swtime. */
-	struct	callout p_slpcallout;	/* (h) Callout for sleep. */
-	void	*p_wchan;	 /* (j) Sleep address. */
-	const char *p_wmesg;	 /* (j) Reason for sleep. */
-	u_int	p_swtime;	 /* (j) Time swapped in or out. */
-	u_int	p_slptime;	 /* (j) Time since last blocked. */
-
-	struct	callout p_itcallout;	/* (h) Interval timer callout. */
-	struct	itimerval p_realtimer;	/* (h?/k?) Alarm timer. */
-	u_int64_t p_runtime;	/* (j) Real time in microsec. */
-	u_int64_t p_uu;		/* (j) Previous user time in microsec. */
-	u_int64_t p_su;		/* (j) Previous system time in microsec. */
-	u_int64_t p_iu;		/* (j) Previous interrupt time in microsec. */
-	u_int64_t p_uticks;	/* (j) Statclock hits in user mode. */
-	u_int64_t p_sticks;	/* (j) Statclock hits in system mode. */
-	u_int64_t p_iticks;	/* (j) Statclock hits processing intr. */
-
-	int	p_traceflag;		/* (j?) Kernel trace points. */
-	struct	vnode *p_tracep;	/* (j?) Trace to vnode. */
-
-	sigset_t p_siglist;	/* (c) Signals arrived but not delivered. */
-
-	struct	vnode *p_textvp;	/* (b) Vnode of executable. */
-
-	struct	mtx p_mtx;		/* (k) Lock for this struct. */
-	char	p_lock;		/* (c) Process lock (prevent swap) count. */
-	u_char	p_oncpu;		/* (j) Which cpu we are on. */
-	u_char	p_lastcpu;		/* (j) Last cpu we were on. */
-	char	p_rqindex;		/* (j) Run queue index. */
-
-	short	p_locks;	/* (*) DEBUG: lockmgr count of held locks */
-	u_int	p_stops;		/* (c) Procfs event bitmask. */
-	u_int	p_stype;		/* (c) Procfs stop event type. */
-	char	p_step;			/* (c) Procfs stop *once* flag. */
-	u_char	p_pfsflags;		/* (c) Procfs flags. */
-	char	p_pad3[2];		/* Alignment. */
-	register_t p_retval[2];		/* (k) Syscall aux returns. */
-	struct	sigiolst p_sigiolst;	/* (c) List of sigio sources. */
-	int	p_sigparent;		/* (c) Signal to parent on exit. */
-	sigset_t p_oldsigmask;	/* (c) Saved mask from before sigpause. */
-	int	p_sig;			/* (n) For core dump/debugger XXX. */
-	u_long	p_code;			/* (n) For core dump/debugger XXX. */
-	struct	klist p_klist;	/* (c) Knotes attached to this process. */
-	struct	lock_list_entry *p_sleeplocks; /* (k) Held sleep locks. */
-	struct	mtx *p_blocked;		/* (j) Mutex process is blocked on. */
-	const char *p_mtxname;		/* (j) Name of mutex blocked on. */
-	LIST_HEAD(, mtx) p_contested;	/* (j) Contested locks. */
-
+	pid_t		p_oppid; 	/* (c + e) Save ppid in ptrace. XXX */
+	struct vmspace	*p_vmspace;	/* (b) Address space. */
+	u_int		p_swtime;	/* (j) Time swapped in or out. */
+	struct itimerval p_realtimer;	/* (h?/k?) Alarm timer. */
+	u_int64_t	p_runtime;	/* (j) Real time in microsec. */
+	int		p_traceflag;	/* (j?) Kernel trace points. */
+	struct vnode 	*p_tracep;	/* (j?) Trace to vnode. */
+	sigset_t	p_siglist;	/* (c) Sigs arrived, not delivered. */
+	struct vnode	*p_textvp;	/* (b) Vnode of executable. */
+	struct mtx	p_mtx;		/* (k) Lock for this struct. */
+	char		p_lock;		/* (c) Proclock (prevent swap) count. */
+	struct	klist 	p_klist;	/* (c) Knotes attached to this proc. */
+	struct sigiolst p_sigiolst;	/* (c) List of sigio sources. */
+	int		p_sigparent;	/* (c) Signal to parent on exit. */
+	sigset_t 	p_oldsigmask;	/* (c) Saved mask from pre sigpause. */
+	int		p_sig;		/* (n) For core dump/debugger XXX. */
+	u_long		p_code;		/* (n) For core dump/debugger XXX. */
+	u_int		p_stops;	/* (c) Procfs event bitmask. */
+	u_int		p_stype;	/* (c) Procfs stop event type. */
+	char		p_step;		/* (c) Procfs stop *once* flag. */
+	u_char		p_pfsflags;	/* (c) Procfs flags. */
 	struct nlminfo	*p_nlminfo;	/* (?) only used by/for lockd */
-	void	*p_aioinfo;	/* (c) ASYNC I/O info. */
-	struct	ithd *p_ithd;	/* (b) For interrupt threads only. */
-	int	p_intr_nesting_level;	/* (k) Interrupt recursion. */
-
+	void		*p_aioinfo;	/* (c) ASYNC I/O info. */
 /* End area that is zeroed on creation. */
-#define	p_endzero	p_startcopy
-
-/* The following fields are all copied upon creation in fork. */
 #define	p_startcopy	p_sigmask
 
-	sigset_t p_sigmask;	/* (c) Current signal mask. */
-	stack_t	p_sigstk;	/* (c) Stack pointer and on-stack flag. */
-
-	int	p_magic;	/* (b) Magic number. */
-	struct	priority p_pri;	/* (j) Process priority. */
-	char	p_nice;		/* (j?/k?) Process "nice" value. */
-	char	p_comm[MAXCOMLEN + 1];	/* (b) Process name. */
-
-	struct 	pgrp *p_pgrp;	/* (e?/c?) Pointer to process group. */
-	struct 	sysentvec *p_sysent; /* (b) System call dispatch information. */
-	struct	pargs *p_args;		/* (c + k) Process arguments. */
-
+/* The following fields are all copied upon creation in fork. */
+#define	p_endzero	p_startcopy
+	sigset_t 	p_sigmask;	/* (c) Current signal mask. */
+	stack_t		p_sigstk;	/* (c) Stack ptr and on-stack flag. */
+	int		p_magic;	/* (b) Magic number. */
+	char		p_comm[MAXCOMLEN + 1];	/* (b) Process name. */
+	struct 	pgrp 	*p_pgrp;	/* (e?/c?) Pointer to process group. */
+	struct sysentvec *p_sysent;	/* (b) Syscall dispatch info. */
+	struct		pargs *p_args;	/* (c + k) Process arguments. */
 /* End area that is copied on creation. */
-#define	p_endcopy	p_addr
+#define	p_endcopy	p_xstat
 
-	struct	user *p_addr;	/* (k) Kernel virtual addr of u-area (CPU). */
-	struct	mdproc p_md;	/* (k) Any machine-dependent fields. */
-
-	u_short	p_xstat;	/* (c) Exit status for wait; also stop sig. */
-	u_short	p_acflag;	/* (c) Accounting flags. */
-	struct	rusage *p_ru;	/* (a) Exit information. XXX */
-
-	struct proc *p_peers;	/* (c) */
-	struct proc *p_leader;	/* (c) */
-	void	*p_emuldata;	/* (c) Emulator state data. */
-	struct trapframe *p_frame; /* (k) */
+	u_short		p_xstat;	/* (c) Exit status; also stop sig. */
+	struct	mdproc	p_md;		/* (k) Any machine-dependent fields. */
+	struct	callout	p_itcallout;	/* (h) Interval timer callout. */
+	struct user	*p_uarea;	/* was p_addr. changed to break stuff */
+	u_short		p_acflag;	/* (c) Accounting flags. */
+	struct	rusage 	*p_ru;		/* (a) Exit information. XXX */
+	struct proc	*p_peers;	/* (c) */
+	struct proc	*p_leader;	/* (c) */
+	void		*p_emuldata;	/* (c) Emulator state data. */
 };
 
+#define	p_rlimit	p_limit->pl_rlimit
+#define	p_sigacts	p_procsig->ps_sigacts
+#define	p_sigignore	p_procsig->ps_sigignore
+#define	p_sigcatch	p_procsig->ps_sigcatch
 #define	p_session	p_pgrp->pg_session
 #define	p_pgid		p_pgrp->pg_id
 
@@ -283,25 +452,25 @@ struct proc {
 #define	SMTX	7		/* Blocked on a mutex. */
 
 /* These flags are kept in p_flag. */
+/* In a KSE world some go to a thread or a KSE (*)*/
 #define	P_ADVLOCK	0x00001	/* Process may hold a POSIX advisory lock. */
 #define	P_CONTROLT	0x00002	/* Has a controlling terminal. */
-#define	P_KTHREAD	0x00004 /* Kernel thread. */
+#define	P_KTHREAD	0x00004 /* Kernel thread. (*)*/
 #define	P_NOLOAD	0x00008	/* Ignore during load avg calculations. */
 #define	P_PPWAIT	0x00010	/* Parent is waiting for child to exec/exit. */
-#define	P_SELECT	0x00040	/* Selecting; wakeup/waiting danger. */
 #define	P_SUGID		0x00100	/* Had set id privileges since last exec. */
 #define	P_SYSTEM	0x00200	/* System proc: no sigs, stats or swapping. */
 #define	P_TRACED	0x00800	/* Debugged process being traced. */
 #define	P_WAITED	0x01000	/* Debugging process has waited for child. */
 #define	P_WEXIT		0x02000	/* Working on exiting. */
 #define	P_EXEC		0x04000	/* Process called exec. */
+#define	P_KSES		0x08000	/* Process is using KSEs. */
 
 /* Should be moved to machine-dependent areas. */
 
 #define	P_BUFEXHAUST	0x100000 /* Dirty buffers flush is in progress. */
 #define	P_COWINPROGRESS	0x400000 /* Snapshot copy-on-write in progress. */
 
-#define	P_DEADLKTREAT	0x800000 /* Lock aquisition - deadlock treatment. */
 
 #define	P_JAILED	0x1000000 /* Process is in jail. */
 #define	P_OLDMASK	0x2000000 /* Need to restore mask after suspend. */
@@ -309,18 +478,24 @@ struct proc {
 
 /* These flags are kept in p_sflag and are protected with sched_lock. */
 #define	PS_INMEM	0x00001	/* Loaded into memory. */
-#define	PS_OWEUPC	0x00002	/* Owe process an addupc() call at next ast. */
 #define	PS_PROFIL	0x00004	/* Has started profiling. */
-#define	PS_SINTR	0x00008	/* Sleep is interruptible. */
-#define	PS_TIMEOUT	0x00010	/* Timing out during sleep. */
 #define	PS_ALRMPEND	0x00020 /* Pending SIGVTALRM needs to be posted. */
 #define	PS_PROFPEND	0x00040 /* Pending SIGPROF needs to be posted. */
-#define	PS_CVWAITQ	0x00080 /* Proces is on a cv_waitq (not slpq). */
 #define	PS_SWAPINREQ	0x00100	/* Swapin request due to wakeup. */
 #define	PS_SWAPPING	0x00200	/* Process is being swapped. */
-#define	PS_ASTPENDING	0x00400	/* Process has a pending ast. */
-#define	PS_NEEDRESCHED	0x00800	/* Process needs to yield. */
-#define	PS_TIMOFAIL	0x01000	/* Timeout from sleep after we were awake. */
+
+#define	TDF_SINTR	0x00008	/* Sleep is interruptible. */
+#define	TDF_TIMEOUT	0x00010	/* Timing out during sleep. */
+#define	TDF_SELECT	0x00040	/* Selecting; wakeup/waiting danger. */
+#define	TDF_CVWAITQ	0x00080 /* Proces is on a cv_waitq (not slpq). */
+#define	TDF_DEADLKTREAT	0x800000 /* Lock aquisition - deadlock treatment. */
+
+#define	KEF_OWEUPC	0x00002	/* Owe process an addupc() call at next ast. */
+#define	KEF_ASTPENDING	0x00400	/* KSE has a pending ast. */
+#define	KEF_NEEDRESCHED	0x00800	/* Process needs to yield. */
+#define	TDF_TIMOFAIL	0x01000	/* Timeout from sleep after we were awake. */
+
+#define KEF_ONRUNQ	0x00000001	/* This KE is on a run queue */
 
 #define	P_MAGIC		0xbeefface
 
@@ -333,10 +508,22 @@ MALLOC_DECLARE(M_SUBPROC);
 MALLOC_DECLARE(M_ZOMBIE);
 #endif
 
+#define FOREACH_PROC_IN_SYSTEM(p)      \
+		LIST_FOREACH((p), &allproc, p_list)
+#define FOREACH_KSEGRP_IN_PROC(p, kg)  \
+		TAILQ_FOREACH((kg), &(p)->p_ksegrps, kg_ksegrp)
+#define FOREACH_THREAD_IN_GROUP(kg, td) \
+		TAILQ_FOREACH((td), &(kg)->kg_threads, td_kglist)
+#define FOREACH_KSE_IN_GROUP(kg, ke) \
+		TAILQ_FOREACH((ke), &(kg)->kg_kseq, ke_kglist)
+#define FOREACH_THREAD_IN_PROC(p, td) \
+		TAILQ_FOREACH((td), &(p)->p_threads, td_plist)
+
 static __inline int
 sigonstack(size_t sp)
 {
-	register struct proc *p = curproc;
+	register struct thread *td = curthread;
+	struct proc *p = td->td_proc;
 
 	return ((p->p_flag & P_ALTSTACK) ?
 #if defined(COMPAT_43) || defined(COMPAT_SUNOS)
@@ -352,9 +539,9 @@ sigonstack(size_t sp)
  * Notify the current process (p) that it has a signal pending,
  * process as soon as possible.
  */
-#define	signotify(p) do {						\
+#define	signotify(ke) do {						\
 	mtx_assert(&sched_lock, MA_OWNED);				\
-	(p)->p_sflag |= PS_ASTPENDING;					\
+	(ke)->ke_flags |= KEF_ASTPENDING;				\
 } while (0)
 
 /* Handy macro to determine if p1 can mangle p2. */
@@ -429,6 +616,7 @@ extern u_long pgrphash;
 extern struct sx allproc_lock;
 extern struct sx proctree_lock;
 extern struct proc proc0;		/* Process slot for swapper. */
+extern struct thread *thread0;		/* Primary thread in proc0 */
 extern int hogticks;			/* Limit on kernel cpu hogs. */
 extern int nprocs, maxproc;		/* Current and max number of procs. */
 extern int maxprocperuid;		/* Max procs per uid. */
@@ -439,6 +627,7 @@ extern int sched_quantum;		/* Scheduling quantum in ticks. */
 
 LIST_HEAD(proclist, proc);
 TAILQ_HEAD(procqueue, proc);
+TAILQ_HEAD(threadqueue, thread);
 extern struct proclist allproc;		/* List of all processes. */
 extern struct proclist zombproc;	/* List of zombie processes. */
 extern struct proc *initproc, *pageproc; /* Process slots for init, pager. */
@@ -465,14 +654,14 @@ struct	pgrp *pgfind __P((pid_t));	/* Find process group by id. */
 struct	proc *zpfind __P((pid_t));	/* Find zombie process by id. */
 
 void	ast __P((struct trapframe *framep));
-struct	proc *chooseproc __P((void));
+struct	thread *choosethread __P((void));
 int	enterpgrp __P((struct proc *p, pid_t pgid, int mksess));
 void	faultin __P((struct proc *p));
 void	fixjobc __P((struct proc *p, struct pgrp *pgrp, int entering));
-int	fork1 __P((struct proc *, int, struct proc **));
+int	fork1 __P((struct thread *, int, struct proc **));
 void	fork_exit __P((void (*)(void *, struct trapframe *), void *,
 	    struct trapframe *));
-void	fork_return __P((struct proc *, struct trapframe *));
+void	fork_return __P((struct thread *, struct trapframe *));
 int	inferior __P((struct proc *p));
 int	leavepgrp __P((struct proc *p));
 void	mi_switch __P((void));
@@ -482,32 +671,33 @@ int	p_cansched __P((struct proc *p1, struct proc *p2));
 int	p_cansignal __P((struct proc *p1, struct proc *p2, int signum));
 int	p_trespass __P((struct proc *p1, struct proc *p2));
 void	procinit __P((void));
+void	proc_linkup __P((struct proc *p));
 void	proc_reparent __P((struct proc *child, struct proc *newparent));
 int	procrunnable __P((void));
-void	remrunqueue __P((struct proc *));
-void	resetpriority __P((struct proc *));
+void	remrunqueue __P((struct thread *));
+void	resetpriority __P((struct ksegrp *));
 int	roundrobin_interval __P((void));
-void	schedclock __P((struct proc *));
-void	setrunnable __P((struct proc *));
-void	setrunqueue __P((struct proc *));
+void	schedclock __P((struct thread *));
+void	setrunnable __P((struct thread *));
+void	setrunqueue __P((struct thread *));
 void	setsugid __P((struct proc *p));
 void	sleepinit __P((void));
 void	stopevent __P((struct proc *, u_int, u_int));
 void	cpu_idle __P((void));
 void	cpu_switch __P((void));
 void	cpu_throw __P((void)) __dead2;
-void	unsleep __P((struct proc *));
-void	updatepri __P((struct proc *));
-void	userret __P((struct proc *, struct trapframe *, u_int));
-void	maybe_resched __P((struct proc *));
+void	unsleep __P((struct thread *));
+void	updatepri __P((struct thread *));
+void	userret __P((struct thread *, struct trapframe *, u_int));
+void	maybe_resched __P((struct ksegrp *));
 
-void	cpu_exit __P((struct proc *));
-void	exit1 __P((struct proc *, int)) __dead2;
-void	cpu_fork __P((struct proc *, struct proc *, int));
-void	cpu_set_fork_handler __P((struct proc *, void (*)(void *), void *));
+void	cpu_exit __P((struct thread *));
+void	exit1 __P((struct thread *, int)) __dead2;
+void	cpu_fork __P((struct thread *, struct proc *, int));
+void	cpu_set_fork_handler __P((struct thread *, void (*)(void *), void *));
 int	trace_req __P((struct proc *));
 void	cpu_wait __P((struct proc *));
-int	cpu_coredump __P((struct proc *, struct vnode *, struct ucred *));
+int	cpu_coredump __P((struct thread *, struct vnode *, struct ucred *));
 #endif	/* _KERNEL */
 
 #endif	/* !_SYS_PROC_H_ */

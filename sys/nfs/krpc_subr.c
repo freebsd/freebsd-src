@@ -124,11 +124,11 @@ struct rpc_reply {
  * Returns non-zero error on failure.
  */
 int
-krpc_portmap(sin,  prog, vers, portp, procp)
+krpc_portmap(sin,  prog, vers, portp, td)
 	struct sockaddr_in *sin;		/* server address */
 	u_int prog, vers;	/* host order */
 	u_int16_t *portp;	/* network order */
-	struct proc *procp;
+	struct thread *td;
 {
 	struct sdata {
 		u_int32_t prog;		/* call program */
@@ -163,7 +163,7 @@ krpc_portmap(sin,  prog, vers, portp, procp)
 
 	sin->sin_port = htons(PMAPPORT);
 	error = krpc_call(sin, PMAPPROG, PMAPVERS,
-					  PMAPPROC_GETPORT, &m, NULL, procp);
+					  PMAPPROC_GETPORT, &m, NULL, td);
 	if (error) 
 		return error;
 
@@ -185,12 +185,12 @@ krpc_portmap(sin,  prog, vers, portp, procp)
  * the address from whence the response came is saved there.
  */
 int
-krpc_call(sa, prog, vers, func, data, from_p, procp)
+krpc_call(sa, prog, vers, func, data, from_p, td)
 	struct sockaddr_in *sa;
 	u_int prog, vers, func;
 	struct mbuf **data;	/* input/output */
 	struct sockaddr **from_p;	/* output */
-	struct proc *procp;
+	struct thread *td;
 {
 	struct socket *so;
 	struct sockaddr_in *sin, ssin;
@@ -220,7 +220,7 @@ krpc_call(sa, prog, vers, func, data, from_p, procp)
 	/*
 	 * Create socket and set its recieve timeout.
 	 */
-	if ((error = socreate(AF_INET, &so, SOCK_DGRAM, 0, procp)))
+	if ((error = socreate(AF_INET, &so, SOCK_DGRAM, 0, td)))
 		goto out;
 
 	tv.tv_sec = 1;
@@ -260,7 +260,7 @@ krpc_call(sa, prog, vers, func, data, from_p, procp)
 	do {
 		tport--;
 		sin->sin_port = htons(tport);
-		error = sobind(so, (struct sockaddr *)sin, procp);
+		error = sobind(so, (struct sockaddr *)sin, td);
 	} while (error == EADDRINUSE &&
 			 tport > IPPORT_RESERVED / 2);
 	if (error) {
@@ -321,7 +321,7 @@ krpc_call(sa, prog, vers, func, data, from_p, procp)
 			goto out;
 		}
 		error = sosend(so, (struct sockaddr *)sa, NULL, m,
-			       NULL, 0, procp);
+			       NULL, 0, td);
 		if (error) {
 			printf("krpc_call: sosend: %d\n", error);
 			goto out;

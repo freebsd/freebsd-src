@@ -201,8 +201,12 @@ static struct proc *
 curProc ()
 {
   struct proc *p;
-  CORE_ADDR addr = pcpu + PCPU_OFFSET (curproc);
+  struct thread *td;
+  CORE_ADDR addr = pcpu + PCPU_OFFSET (curthread);
 
+  if (kvread (addr, &td))
+    error ("cannot read thread pointer at %x\n", addr);
+  addr = (CORE_ADDR)td->td_proc;
   if (kvread (addr, &p))
     error ("cannot read proc pointer at %x\n", addr);
   return p;
@@ -380,13 +384,13 @@ static void
 get_kcore_registers (regno)
      int regno;
 {
-  struct user *uaddr;
+  struct pcb *pcbaddr;
 
   /* find the pcb for the current process */
-  if (cur_proc == NULL || kvread (&cur_proc->p_addr, &uaddr))
+  if (cur_proc == NULL || kvread (&cur_proc->p_thread.td_pcb, &pcbaddr)) /* XXXKSE */
     error ("cannot read u area ptr for proc at %#x", cur_proc);
-  if (read_pcb (core_kd, (CORE_ADDR)&uaddr->u_pcb) < 0)
-    error ("cannot read pcb at %#x", &uaddr->u_pcb);
+  if (read_pcb (core_kd, (CORE_ADDR)pcbaddr) < 0)
+    error ("cannot read pcb at %#x", pcbaddr);
 }
 
 static void

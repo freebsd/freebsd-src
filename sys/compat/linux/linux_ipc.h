@@ -112,19 +112,19 @@ struct linux_shmget_args
 	l_int		shmflg;
 };
 
-int linux_msgctl __P((struct proc *, struct linux_msgctl_args *));
-int linux_msgget __P((struct proc *, struct linux_msgget_args *));
-int linux_msgrcv __P((struct proc *, struct linux_msgrcv_args *));
-int linux_msgsnd __P((struct proc *, struct linux_msgsnd_args *));
+int linux_msgctl __P((struct thread *, struct linux_msgctl_args *));
+int linux_msgget __P((struct thread *, struct linux_msgget_args *));
+int linux_msgrcv __P((struct thread *, struct linux_msgrcv_args *));
+int linux_msgsnd __P((struct thread *, struct linux_msgsnd_args *));
 
-int linux_semctl __P((struct proc *, struct linux_semctl_args *));
-int linux_semget __P((struct proc *, struct linux_semget_args *));
-int linux_semop  __P((struct proc *, struct linux_semop_args *));
+int linux_semctl __P((struct thread *, struct linux_semctl_args *));
+int linux_semget __P((struct thread *, struct linux_semget_args *));
+int linux_semop  __P((struct thread *, struct linux_semop_args *));
 
-int linux_shmat  __P((struct proc *, struct linux_shmat_args *));
-int linux_shmctl __P((struct proc *, struct linux_shmctl_args *));
-int linux_shmdt  __P((struct proc *, struct linux_shmdt_args *));
-int linux_shmget __P((struct proc *, struct linux_shmget_args *));
+int linux_shmat  __P((struct thread *, struct linux_shmat_args *));
+int linux_shmctl __P((struct thread *, struct linux_shmctl_args *));
+int linux_shmdt  __P((struct thread *, struct linux_shmdt_args *));
+int linux_shmget __P((struct thread *, struct linux_shmget_args *));
 
 #endif	/* __i386__ */
 

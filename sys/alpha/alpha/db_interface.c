@@ -592,23 +592,26 @@ DB_SHOW_COMMAND(pcpu, db_show_pcpu)
 	db_printf("cpuid     = %d\n", gd->gd_cpuid);
 	db_printf("ipis      = %lx\n", gd->gd_pending_ipis);
 	db_printf("next ASN  = %d\n", gd->gd_next_asn);
-	db_printf("curproc   = ");
-	if (gd->gd_curproc != NULL)
-		db_printf("%p: pid %d \"%s\"\n", gd->gd_curproc,
-		    gd->gd_curproc->p_pid, gd->gd_curproc->p_comm);
+	db_printf("curthread   = ");
+	if (gd->gd_curthread != NULL)
+		db_printf("%p: pid %d \"%s\"\n", gd->gd_curthread,
+		    gd->gd_curthread->td_proc->p_pid,
+		    gd->gd_curthread->td_proc->p_comm);
 	else
 		db_printf("none\n");
 	db_printf("curpcb    = %p\n", gd->gd_curpcb);
-	db_printf("fpcurproc = ");
-	if (gd->gd_fpcurproc != NULL)
-		db_printf("%p: pid %d \"%s\"\n", gd->gd_fpcurproc,
-		    gd->gd_fpcurproc->p_pid, gd->gd_fpcurproc->p_comm);
+	db_printf("fpcurthread = ");
+	if (gd->gd_fpcurthread != NULL)
+		db_printf("%p: pid %d \"%s\"\n", gd->gd_fpcurthread,
+		    gd->gd_fpcurthread->td_proc->p_pid,
+		    gd->gd_fpcurthread->td_proc->p_comm);
 	else
 		db_printf("none\n");
-	db_printf("idleproc  = ");
-	if (gd->gd_idleproc != NULL)
-		db_printf("%p: pid %d \"%s\"\n", gd->gd_idleproc,
-		    gd->gd_idleproc->p_pid, gd->gd_idleproc->p_comm);
+	db_printf("idlethread  = ");
+	if (gd->gd_idlethread != NULL)
+		db_printf("%p: pid %d \"%s\"\n", gd->gd_idlethread,
+		    gd->gd_idlethread->td_proc->p_pid,
+		    gd->gd_idlethread->td_proc->p_comm);
 	else
 		db_printf("none\n");
 		

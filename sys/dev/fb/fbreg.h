@@ -184,15 +184,15 @@ typedef struct genfb_softc {
 } genfb_softc_t;
 
 int		genfbopen(genfb_softc_t *sc, video_adapter_t *adp,
-			  int flag, int mode, struct proc *p);
+			  int flag, int mode, struct thread *td);
 int		genfbclose(genfb_softc_t *sc, video_adapter_t *adp,
-			   int flag, int mode, struct proc *p);
+			   int flag, int mode, struct thread *td);
 int		genfbread(genfb_softc_t *sc, video_adapter_t *adp,
 			  struct uio *uio, int flag);
 int		genfbwrite(genfb_softc_t *sc, video_adapter_t *adp,
 			   struct uio *uio, int flag);
 int		genfbioctl(genfb_softc_t *sc, video_adapter_t *adp,
-			   u_long cmd, caddr_t arg, int flag, struct proc *p);
+			   u_long cmd, caddr_t arg, int flag, struct thread *td);
 int		genfbmmap(genfb_softc_t *sc, video_adapter_t *adp,
 			  vm_offset_t offset, int prot);
 

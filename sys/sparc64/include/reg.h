@@ -39,10 +39,10 @@ struct dbreg {
 };
 
 #ifdef _KERNEL
-int	set_fpregs(struct proc *p, struct fpreg *fpregs);
-int	set_regs(struct proc *p, struct reg *regs);
-void	setregs(struct proc *p, u_long e, u_long s, u_long ps);
-int	set_dbregs(struct proc *p, struct dbreg *dbregs);
+int	set_fpregs(struct thread *td, struct fpreg *fpregs);
+int	set_regs(struct thread *td, struct reg *regs);
+void	setregs(struct thread *td, u_long e, u_long s, u_long ps);
+int	set_dbregs(struct thread *td, struct dbreg *dbregs);
 #endif
 
 #endif /* !_MACHINE_REG_H_ */

@@ -222,18 +222,18 @@ module_setspecific(module_t mod, modspecific_t *datap)
  * MPSAFE
  */
 int
-modnext(struct proc* p, struct modnext_args* uap)
+modnext(struct thread *td, struct modnext_args *uap)
 {
     module_t mod;
     int error = 0;
 
     mtx_lock(&Giant);
 
-    p->p_retval[0] = -1;
+    td->td_retval[0] = -1;
     if (SCARG(uap, modid) == 0) {
 	mod = TAILQ_FIRST(&modules);
 	if (mod)
-	    p->p_retval[0] = mod->id;
+	    td->td_retval[0] = mod->id;
 	else
 	    error = ENOENT;
 	goto done2;
@@ -246,9 +246,9 @@ modnext(struct proc* p, struct modnext_args* uap)
     }
 
     if (TAILQ_NEXT(mod, link))
-	p->p_retval[0] = TAILQ_NEXT(mod, link)->id;
+	td->td_retval[0] = TAILQ_NEXT(mod, link)->id;
     else
-	p->p_retval[0] = 0;
+	td->td_retval[0] = 0;
 done2:
     mtx_unlock(&Giant);
     return (error);
@@ -258,12 +258,12 @@ done2:
  * MPSAFE
  */
 int
-modfnext(struct proc* p, struct modfnext_args* uap)
+modfnext(struct thread *td, struct modfnext_args *uap)
 {
     module_t mod;
     int error;
 
-    p->p_retval[0] = -1;
+    td->td_retval[0] = -1;
 
     mtx_lock(&Giant);
 
@@ -273,9 +273,9 @@ modfnext(struct proc* p, struct modfnext_args* uap)
     } else {
 	error = 0;
 	if (TAILQ_NEXT(mod, flink))
-	    p->p_retval[0] = TAILQ_NEXT(mod, flink)->id;
+	    td->td_retval[0] = TAILQ_NEXT(mod, flink)->id;
 	else
-	    p->p_retval[0] = 0;
+	    td->td_retval[0] = 0;
     }
     mtx_unlock(&Giant);
     return (error);
@@ -292,7 +292,7 @@ struct module_stat_v1 {
  * MPSAFE
  */
 int
-modstat(struct proc* p, struct modstat_args* uap)
+modstat(struct thread *td, struct modstat_args *uap)
 {
     module_t mod;
     int error = 0;
@@ -340,7 +340,7 @@ modstat(struct proc* p, struct modstat_args* uap)
 	    goto out;
     }
 
-    p->p_retval[0] = 0;
+    td->td_retval[0] = 0;
 
 out:
     mtx_unlock(&Giant);
@@ -351,7 +351,7 @@ out:
  * MPSAFE
  */
 int
-modfind(struct proc* p, struct modfind_args* uap)
+modfind(struct thread *td, struct modfind_args *uap)
 {
     int error = 0;
     char name[MAXMODNAME];
@@ -365,7 +365,7 @@ modfind(struct proc* p, struct modfind_args* uap)
     if (mod == NULL)
 	error = ENOENT;
     else
-	p->p_retval[0] = mod->id;
+	td->td_retval[0] = mod->id;
     mtx_unlock(&Giant);
 out:
     return error;

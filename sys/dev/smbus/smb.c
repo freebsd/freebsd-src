@@ -134,7 +134,7 @@ smb_attach(device_t dev)
 }
 
 static int
-smbopen (dev_t dev, int flags, int fmt, struct proc *p)
+smbopen (dev_t dev, int flags, int fmt, struct thread *td)
 {
 	struct smb_softc *sc = IIC_SOFTC(minor(dev));
 
@@ -150,7 +150,7 @@ smbopen (dev_t dev, int flags, int fmt, struct proc *p)
 }
 
 static int
-smbclose(dev_t dev, int flags, int fmt, struct proc *p)
+smbclose(dev_t dev, int flags, int fmt, struct thread *td)
 {
 	struct smb_softc *sc = IIC_SOFTC(minor(dev));
 
@@ -182,7 +182,7 @@ smbread(dev_t dev, struct uio * uio, int ioflag)
 }
 
 static int
-smbioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct proc *p)
+smbioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct thread *td)
 {
 	device_t smbdev = IIC_DEVICE(minor(dev));
 	struct smb_softc *sc = IIC_SOFTC(minor(dev));

@@ -45,10 +45,10 @@ SYSINIT(runq, SI_SUB_RUN_QUEUE, SI_ORDER_FIRST, runq_init, &runq)
  * Wrappers which implement old interface; act on global run queue.
  */
 
-struct proc *
-chooseproc(void)
+struct thread *
+choosethread(void)
 {
-	return runq_choose(&runq);
+	return (runq_choose(&runq)->ke_thread);
 }
 
 int
@@ -58,15 +58,15 @@ procrunnable(void)
 }
 
 void
-remrunqueue(struct proc *p)
+remrunqueue(struct thread *td)
 {
-	runq_remove(&runq, p);
+	runq_remove(&runq, td->td_kse);
 }
 
 void
-setrunqueue(struct proc *p)
+setrunqueue(struct thread *td)
 {
-	runq_add(&runq, p);
+	runq_add(&runq, td->td_kse);
 }
 
 /*
@@ -132,15 +132,15 @@ runq_setbit(struct runq *rq, int pri)
  * Return true if the specified process is already in the run queue.
  */
 static __inline int
-runq_find(struct runq *rq, struct proc *p)
+runq_find(struct runq *rq, struct kse *ke)
 {
-	struct proc *p2;
+	struct kse *ke2;
 	int i;
 
 	mtx_assert(&sched_lock, MA_OWNED);
 	for (i = 0; i < RQB_LEN; i++)
-		TAILQ_FOREACH(p2, &rq->rq_queues[i], p_procq)
-		    if (p2 == p)
+		TAILQ_FOREACH(ke2, &rq->rq_queues[i], ke_procq)
+		    if (ke2 == ke)
 			    return 1;
 	return 0;
 }
@@ -151,23 +151,30 @@ runq_find(struct runq *rq, struct proc *p)
  * corresponding status bit.
  */
 void
-runq_add(struct runq *rq, struct proc *p)
+runq_add(struct runq *rq, struct kse *ke)
 {
 	struct rqhead *rqh;
 	int pri;
 
+	struct ksegrp *kg = ke->ke_ksegrp;
+#ifdef INVARIANTS
+	struct proc *p = ke->ke_proc;
+#endif
+	if (ke->ke_flags & KEF_ONRUNQ)
+		return;
 	mtx_assert(&sched_lock, MA_OWNED);
 	KASSERT(p->p_stat == SRUN, ("runq_add: proc %p (%s) not SRUN",
 	    p, p->p_comm));
-	KASSERT(runq_find(rq, p) == 0,
-	    ("runq_add: proc %p (%s) already in run queue", p, p->p_comm));
-	pri = p->p_pri.pri_level / RQ_PPQ;
-	p->p_rqindex = pri;
+	KASSERT(runq_find(rq, ke) == 0,
+	    ("runq_add: proc %p (%s) already in run queue", ke, p->p_comm));
+	pri = kg->kg_pri.pri_level / RQ_PPQ;
+	ke->ke_rqindex = pri;
 	runq_setbit(rq, pri);
 	rqh = &rq->rq_queues[pri];
 	CTR4(KTR_RUNQ, "runq_add: p=%p pri=%d %d rqh=%p",
-	    p, p->p_pri.pri_level, pri, rqh);
-	TAILQ_INSERT_TAIL(rqh, p, p_procq);
+	    p, kg->kg_pri.pri_level, pri, rqh);
+	TAILQ_INSERT_TAIL(rqh, ke, ke_procq);
+	ke->ke_flags |= KEF_ONRUNQ;
 }
 
 /*
@@ -198,32 +205,33 @@ runq_check(struct runq *rq)
  * If there are no runnable processes, the per-cpu idle process is
  * returned.  Will not return NULL under any circumstances.
  */
-struct proc *
+struct kse *
 runq_choose(struct runq *rq)
 {
 	struct rqhead *rqh;
-	struct proc *p;
+	struct kse *ke;
 	int pri;
 
 	mtx_assert(&sched_lock, MA_OWNED);
 	if ((pri = runq_findbit(rq)) != -1) {
 		rqh = &rq->rq_queues[pri];
-		p = TAILQ_FIRST(rqh);
-		KASSERT(p != NULL, ("runq_choose: no proc on busy queue"));
-		KASSERT(p->p_stat == SRUN,
-		    ("runq_choose: process %d(%s) in state %d", p->p_pid,
-		    p->p_comm, p->p_stat));
-		CTR3(KTR_RUNQ, "runq_choose: pri=%d p=%p rqh=%p", pri, p, rqh);
-		TAILQ_REMOVE(rqh, p, p_procq);
+		ke = TAILQ_FIRST(rqh);
+		KASSERT(ke != NULL, ("runq_choose: no proc on busy queue"));
+		KASSERT(ke->ke_proc->p_stat == SRUN,
+		    ("runq_choose: process %d(%s) in state %d", ke->ke_proc->p_pid,
+		    ke->ke_proc->p_comm, ke->ke_proc->p_stat));
+		CTR3(KTR_RUNQ, "runq_choose: pri=%d kse=%p rqh=%p", pri, ke, rqh);
+		TAILQ_REMOVE(rqh, ke, ke_procq);
 		if (TAILQ_EMPTY(rqh)) {
 			CTR0(KTR_RUNQ, "runq_choose: empty");
 			runq_clrbit(rq, pri);
 		}
-		return (p);
+		ke->ke_flags &= ~KEF_ONRUNQ;
+		return (ke);
 	}
 	CTR1(KTR_RUNQ, "runq_choose: idleproc pri=%d", pri);
 
-	return (PCPU_GET(idleproc));
+	return (PCPU_GET(idlethread)->td_kse);
 }
 
 /*
@@ -244,20 +252,26 @@ runq_init(struct runq *rq)
  * corresponding status bit if the queue becomes empty.
  */
 void
-runq_remove(struct runq *rq, struct proc *p)
+runq_remove(struct runq *rq, struct kse *ke)
 {
+#ifdef KTR
+	struct ksegrp *kg = ke->ke_ksegrp;
+#endif
 	struct rqhead *rqh;
 	int pri;
 
+	if (!(ke->ke_flags & KEF_ONRUNQ))
+		return;
 	mtx_assert(&sched_lock, MA_OWNED);
-	pri = p->p_rqindex;
+	pri = ke->ke_rqindex;
 	rqh = &rq->rq_queues[pri];
 	CTR4(KTR_RUNQ, "runq_remove: p=%p pri=%d %d rqh=%p",
-	    p, p->p_pri.pri_level, pri, rqh);
-	KASSERT(p != NULL, ("runq_remove: no proc on busy queue"));
-	TAILQ_REMOVE(rqh, p, p_procq);
+	    ke, kg->kg_pri.pri_level, pri, rqh);
+	KASSERT(ke != NULL, ("runq_remove: no proc on busy queue"));
+	TAILQ_REMOVE(rqh, ke, ke_procq);
 	if (TAILQ_EMPTY(rqh)) {
 		CTR0(KTR_RUNQ, "runq_remove: empty");
 		runq_clrbit(rq, pri);
 	}
+	ke->ke_flags &= ~KEF_ONRUNQ;
 }

@@ -125,12 +125,12 @@ soalloc(waitok)
 }
 
 int
-socreate(dom, aso, type, proto, p)
+socreate(dom, aso, type, proto, td)
 	int dom;
 	struct socket **aso;
 	register int type;
 	int proto;
-	struct proc *p;
+	struct thread *td;
 {
 	register struct protosw *prp;
 	register struct socket *so;
@@ -144,7 +144,7 @@ socreate(dom, aso, type, proto, p)
 	if (prp == 0 || prp->pr_usrreqs->pru_attach == 0)
 		return (EPROTONOSUPPORT);
 
-	if (jailed(p->p_ucred) && jail_socket_unixiproute_only &&
+	if (jailed(td->td_proc->p_ucred) && jail_socket_unixiproute_only &&
 	    prp->pr_domain->dom_family != PF_LOCAL &&
 	    prp->pr_domain->dom_family != PF_INET &&
 	    prp->pr_domain->dom_family != PF_ROUTE) {
@@ -153,17 +153,17 @@ socreate(dom, aso, type, proto, p)
 
 	if (prp->pr_type != type)
 		return (EPROTOTYPE);
-	so = soalloc(p != 0);
+	so = soalloc(td != 0);
 	if (so == 0)
 		return (ENOBUFS);
 
 	TAILQ_INIT(&so->so_incomp);
 	TAILQ_INIT(&so->so_comp);
 	so->so_type = type;
-	so->so_cred = p->p_ucred;
+	so->so_cred = td->td_proc->p_ucred;
 	crhold(so->so_cred);
 	so->so_proto = prp;
-	error = (*prp->pr_usrreqs->pru_attach)(so, proto, p);
+	error = (*prp->pr_usrreqs->pru_attach)(so, proto, td);
 	if (error) {
 		so->so_state |= SS_NOFDREF;
 		sofree(so);
@@ -174,15 +174,15 @@ socreate(dom, aso, type, proto, p)
 }
 
 int
-sobind(so, nam, p)
+sobind(so, nam, td)
 	struct socket *so;
 	struct sockaddr *nam;
-	struct proc *p;
+	struct thread *td;
 {
 	int s = splnet();
 	int error;
 
-	error = (*so->so_proto->pr_usrreqs->pru_bind)(so, nam, p);
+	error = (*so->so_proto->pr_usrreqs->pru_bind)(so, nam, td);
 	splx(s);
 	return (error);
 }
@@ -215,15 +215,15 @@ sodealloc(so)
 }
 
 int
-solisten(so, backlog, p)
+solisten(so, backlog, td)
 	register struct socket *so;
 	int backlog;
-	struct proc *p;
+	struct thread *td;
 {
 	int s, error;
 
 	s = splnet();
-	error = (*so->so_proto->pr_usrreqs->pru_listen)(so, p);
+	error = (*so->so_proto->pr_usrreqs->pru_listen)(so, td);
 	if (error) {
 		splx(s);
 		return (error);
@@ -369,10 +369,10 @@ soaccept(so, nam)
 }
 
 int
-soconnect(so, nam, p)
+soconnect(so, nam, td)
 	register struct socket *so;
 	struct sockaddr *nam;
-	struct proc *p;
+	struct thread *td;
 {
 	int s;
 	int error;
@@ -391,7 +391,7 @@ soconnect(so, nam, p)
 	    (error = sodisconnect(so))))
 		error = EISCONN;
 	else
-		error = (*so->so_proto->pr_usrreqs->pru_connect)(so, nam, p);
+		error = (*so->so_proto->pr_usrreqs->pru_connect)(so, nam, td);
 	splx(s);
 	return (error);
 }
@@ -449,14 +449,14 @@ bad:
  * Data and control buffers are freed on return.
  */
 int
-sosend(so, addr, uio, top, control, flags, p)
+sosend(so, addr, uio, top, control, flags, td)
 	register struct socket *so;
 	struct sockaddr *addr;
 	struct uio *uio;
 	struct mbuf *top;
 	struct mbuf *control;
 	int flags;
-	struct proc *p;
+	struct thread *td;
 {
 	struct mbuf **mp;
 	register struct mbuf *m;
@@ -486,8 +486,8 @@ sosend(so, addr, uio, top, control, flags, p)
 	dontroute =
 	    (flags & MSG_DONTROUTE) && (so->so_options & SO_DONTROUTE) == 0 &&
 	    (so->so_proto->pr_flags & PR_ATOMIC);
-	if (p)
-		p->p_stats->p_ru.ru_msgsnd++;
+	if (td)
+		td->td_proc->p_stats->p_ru.ru_msgsnd++;
 	if (control)
 		clen = control->m_len;
 #define	snderr(errno)	{ error = errno; splx(s); goto release; }
@@ -624,7 +624,7 @@ nopages:
 				PRUS_EOF :
 			/* If there is more to send set PRUS_MORETOCOME */
 			(resid > 0 && space > 0) ? PRUS_MORETOCOME : 0,
-			top, addr, control, p);
+			top, addr, control, td);
 		    splx(s);
 		    if (dontroute)
 			    so->so_options &= ~SO_DONTROUTE;
@@ -774,8 +774,8 @@ restart:
 		goto restart;
 	}
 dontblock:
-	if (uio->uio_procp)
-		uio->uio_procp->p_stats->p_ru.ru_msgrcv++;
+	if (uio->uio_td)
+		uio->uio_td->td_proc->p_stats->p_ru.ru_msgrcv++;
 	nextrecord = m->m_nextpkt;
 	if (pr->pr_flags & PR_ADDR) {
 		KASSERT(m->m_type == MT_SONAME, ("receive 1a"));
@@ -1103,7 +1103,7 @@ sooptcopyin(sopt, buf, len, minlen)
 	if (valsize > len)
 		sopt->sopt_valsize = valsize = len;
 
-	if (sopt->sopt_p != 0)
+	if (sopt->sopt_td != 0)
 		return (copyin(sopt->sopt_val, buf, valsize));
 
 	bcopy(sopt->sopt_val, buf, valsize);
@@ -1189,7 +1189,7 @@ sosetopt(so, sopt)
 			case SO_RCVBUF:
 				if (sbreserve(sopt->sopt_name == SO_SNDBUF ?
 				    &so->so_snd : &so->so_rcv, (u_long)optval,
-				    so, curproc) == 0) {
+				    so, curthread) == 0) {
 					error = ENOBUFS;
 					goto bad;
 				}
@@ -1279,7 +1279,7 @@ sooptcopyout(sopt, buf, len)
 	valsize = min(len, sopt->sopt_valsize);
 	sopt->sopt_valsize = valsize;
 	if (sopt->sopt_val != 0) {
-		if (sopt->sopt_p != 0)
+		if (sopt->sopt_td != 0)
 			error = copyout(buf, sopt->sopt_val, valsize);
 		else
 			bcopy(buf, sopt->sopt_val, valsize);
@@ -1394,11 +1394,11 @@ soopt_getm(struct sockopt *sopt, struct mbuf **mp)
 	struct mbuf *m, *m_prev;
 	int sopt_size = sopt->sopt_valsize;
 
-	MGET(m, sopt->sopt_p ? M_TRYWAIT : M_DONTWAIT, MT_DATA);
+	MGET(m, sopt->sopt_td ? M_TRYWAIT : M_DONTWAIT, MT_DATA);
 	if (m == 0)
 		return ENOBUFS;
 	if (sopt_size > MLEN) {
-		MCLGET(m, sopt->sopt_p ? M_TRYWAIT : M_DONTWAIT);
+		MCLGET(m, sopt->sopt_td ? M_TRYWAIT : M_DONTWAIT);
 		if ((m->m_flags & M_EXT) == 0) {
 			m_free(m);
 			return ENOBUFS;
@@ -1412,13 +1412,13 @@ soopt_getm(struct sockopt *sopt, struct mbuf **mp)
 	m_prev = m;
 
 	while (sopt_size) {
-		MGET(m, sopt->sopt_p ? M_TRYWAIT : M_DONTWAIT, MT_DATA);
+		MGET(m, sopt->sopt_td ? M_TRYWAIT : M_DONTWAIT, MT_DATA);
 		if (m == 0) {
 			m_freem(*mp);
 			return ENOBUFS;
 		}
 		if (sopt_size > MLEN) {
-			MCLGET(m, sopt->sopt_p ? M_TRYWAIT : M_DONTWAIT);
+			MCLGET(m, sopt->sopt_td ? M_TRYWAIT : M_DONTWAIT);
 			if ((m->m_flags & M_EXT) == 0) {
 				m_freem(*mp);
 				return ENOBUFS;
@@ -1443,7 +1443,7 @@ soopt_mcopyin(struct sockopt *sopt, struct mbuf *m)
 	if (sopt->sopt_val == NULL)
 		return 0;
 	while (m != NULL && sopt->sopt_valsize >= m->m_len) {
-		if (sopt->sopt_p != NULL) {
+		if (sopt->sopt_td != NULL) {
 			int error;
 
 			error = copyin(sopt->sopt_val, mtod(m, char *),
@@ -1473,7 +1473,7 @@ soopt_mcopyout(struct sockopt *sopt, struct mbuf *m)
 	if (sopt->sopt_val == NULL)
 		return 0;
 	while (m != NULL && sopt->sopt_valsize >= m->m_len) {
-		if (sopt->sopt_p != NULL) {
+		if (sopt->sopt_td != NULL) {
 			int error;
 
 			error = copyout(mtod(m, char *), sopt->sopt_val,
@@ -1508,7 +1508,7 @@ sohasoutofband(so)
 }
 
 int
-sopoll(struct socket *so, int events, struct ucred *cred, struct proc *p)
+sopoll(struct socket *so, int events, struct ucred *cred, struct thread *td)
 {
 	int revents = 0;
 	int s = splnet();
@@ -1527,12 +1527,12 @@ sopoll(struct socket *so, int events, struct ucred *cred, struct proc *p)
 
 	if (revents == 0) {
 		if (events & (POLLIN | POLLPRI | POLLRDNORM | POLLRDBAND)) {
-			selrecord(p, &so->so_rcv.sb_sel);
+			selrecord(curthread, &so->so_rcv.sb_sel);
 			so->so_rcv.sb_flags |= SB_SEL;
 		}
 
 		if (events & (POLLOUT | POLLWRNORM)) {
-			selrecord(p, &so->so_snd.sb_sel);
+			selrecord(curthread, &so->so_snd.sb_sel);
 			so->so_snd.sb_flags |= SB_SEL;
 		}
 	}

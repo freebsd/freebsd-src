@@ -68,7 +68,8 @@ ASSYM(ASI_BLK_S, ASI_BLK_S);
 ASSYM(EFAULT, EFAULT);
 ASSYM(ENAMETOOLONG, ENAMETOOLONG);
 
-ASSYM(UPAGES, UPAGES);
+ASSYM(KSTACK_PAGES, KSTACK_PAGES);
+ASSYM(UAREA_PAGES, UAREA_PAGES);
 ASSYM(PAGE_SIZE, PAGE_SIZE);
 
 ASSYM(PIL_TICK, PIL_TICK);
@@ -122,7 +123,7 @@ ASSYM(TT_VA_MASK, TT_VA_MASK);
 ASSYM(TT_VA_SHIFT, TT_VA_SHIFT);
 ASSYM(TT_CTX_SHIFT, TT_CTX_SHIFT);
 
-ASSYM(GD_CURPROC, offsetof(struct globaldata, gd_curproc));
+ASSYM(GD_CURTHREAD, offsetof(struct globaldata, gd_curthread));
 ASSYM(GD_CURPCB, offsetof(struct globaldata, gd_curpcb));
 ASSYM(GD_CPUID, offsetof(struct globaldata, gd_cpuid));
 
@@ -149,14 +150,20 @@ ASSYM(JB_FP, offsetof(struct _jmp_buf, _jb[_JB_FP]));
 ASSYM(JB_PC, offsetof(struct _jmp_buf, _jb[_JB_PC]));
 ASSYM(JB_SP, offsetof(struct _jmp_buf, _jb[_JB_SP]));
 
-ASSYM(PS_ASTPENDING, PS_ASTPENDING);
-ASSYM(PS_NEEDRESCHED, PS_NEEDRESCHED);
+ASSYM(KEF_ASTPENDING, KEF_ASTPENDING);
+ASSYM(KEF_NEEDRESCHED, KEF_NEEDRESCHED);
 
-ASSYM(P_ADDR, offsetof(struct proc, p_addr));
 ASSYM(P_COMM, offsetof(struct proc, p_comm));
-ASSYM(P_FRAME, offsetof(struct proc, p_frame));
 ASSYM(P_SFLAG, offsetof(struct proc, p_sflag));
 ASSYM(P_VMSPACE, offsetof(struct proc, p_vmspace));
+
+ASSYM(KE_FLAGS, offsetof(struct kse, ke_flags));
+
+ASSYM(TD_FRAME, offsetof(struct thread, td_frame));
+ASSYM(TD_KSE, offsetof(struct thread, td_kse));
+ASSYM(TD_KSTACK, offsetof(struct thread, td_kstack));
+ASSYM(TD_PCB, offsetof(struct thread, td_pcb));
+ASSYM(TD_PROC, offsetof(struct thread, td_proc));
 
 ASSYM(PCB_FPSTATE, offsetof(struct pcb, pcb_fpstate));
 ASSYM(PCB_FP, offsetof(struct pcb, pcb_fp));
@@ -169,8 +176,6 @@ ASSYM(PCB_RWSP, offsetof(struct pcb, pcb_rwsp));
 ASSYM(PCB_RW, offsetof(struct pcb, pcb_rw));
 
 ASSYM(PCB_CWP_EMPTY, PCB_CWP_EMPTY);
-
-ASSYM(U_PCB, offsetof(struct user, u_pcb));
 
 ASSYM(VM_PMAP, offsetof(struct vmspace, vm_pmap));
 ASSYM(PM_CONTEXT, offsetof(struct pmap, pm_context));

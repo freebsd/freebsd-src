@@ -26,7 +26,7 @@
  * $FreeBSD$
  */
 
-#include "opt_upages.h"
+#include "opt_kstack_pages.h"
 
 #include <sys/param.h>
 #include <sys/exec.h>
@@ -250,29 +250,33 @@ exec_aout_imgact(imgp)
  * expand_name(), unless the process was setuid/setgid.
  */
 int
-aout_coredump(p, vp, limit)
-	register struct proc *p;
+aout_coredump(td, vp, limit)
+	register struct thread *td;
 	register struct vnode *vp;
 	off_t limit;
 {
+	struct proc *p = td->td_proc;
 	register struct ucred *cred = p->p_ucred;
 	register struct vmspace *vm = p->p_vmspace;
 	int error;
 
-	if (ctob(UPAGES + vm->vm_dsize + vm->vm_ssize) >= limit)
+	if (ctob((UAREA_PAGES + KSTACK_PAGES)
+	    + vm->vm_dsize + vm->vm_ssize) >= limit)
 		return (EFAULT);
-	fill_kinfo_proc(p, &p->p_addr->u_kproc);
-	error = cpu_coredump(p, vp, cred);
+	fill_kinfo_proc(p, &p->p_uarea->u_kproc);
+	error = cpu_coredump(td, vp, cred);
 	if (error == 0)
-		error = vn_rdwr_inchunks(UIO_WRITE, vp, vm->vm_daddr,
-		    (int)ctob(vm->vm_dsize), (off_t)ctob(UPAGES), UIO_USERSPACE,
-		    IO_UNIT, cred, (int *) NULL, p);
+		error = vn_rdwr(UIO_WRITE, vp, vm->vm_daddr,
+		    (int)ctob(vm->vm_dsize),
+		    (off_t)ctob(UAREA_PAGES + KSTACK_PAGES), UIO_USERSPACE,
+		    IO_UNIT, cred, (int *) NULL, td);
 	if (error == 0)
 		error = vn_rdwr_inchunks(UIO_WRITE, vp,
 		    (caddr_t) trunc_page(USRSTACK - ctob(vm->vm_ssize)),
 		    round_page(ctob(vm->vm_ssize)),
-		    (off_t)ctob(UPAGES) + ctob(vm->vm_dsize), UIO_USERSPACE,
-		    IO_UNIT, cred, (int *) NULL, p);
+		    (off_t)ctob(UAREA_PAGES + KSTACK_PAGES) +
+		        ctob(vm->vm_dsize), UIO_USERSPACE,
+		    IO_UNIT, cred, (int *) NULL, td);
 	return (error);
 }
 

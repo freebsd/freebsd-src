@@ -65,11 +65,8 @@
 #include <nfs/nfs.h>
 #include <nfs/nfsdiskless.h>
 
-ASSYM(UPAGES,		UPAGES);
-ASSYM(PAGE_SIZE,	PAGE_SIZE);
-
-ASSYM(GD_CURPROC, offsetof(struct globaldata, gd_curproc));
-ASSYM(GD_FPCURPROC, offsetof(struct globaldata, gd_fpcurproc));
+ASSYM(GD_CURTHREAD, offsetof(struct globaldata, gd_curthread));
+ASSYM(GD_FPCURTHREAD, offsetof(struct globaldata, gd_fpcurthread));
 ASSYM(GD_CURPCB, offsetof(struct globaldata, gd_curpcb));
 ASSYM(GD_SWITCHTIME, offsetof(struct globaldata, gd_switchtime));
 ASSYM(GD_CPUID, offsetof(struct globaldata, gd_cpuid));
@@ -79,12 +76,12 @@ ASSYM(MTX_RECURSE, offsetof(struct mtx, mtx_recurse));
 ASSYM(MTX_SAVECRIT, offsetof(struct mtx, mtx_savecrit));
 ASSYM(MTX_UNOWNED, MTX_UNOWNED);
 
-ASSYM(P_ADDR, offsetof(struct proc, p_addr));
-ASSYM(P_MD_FLAGS, offsetof(struct proc, p_md.md_flags));
+ASSYM(TD_PROC, offsetof(struct thread, td_proc));
+ASSYM(TD_PCB, offsetof(struct thread, td_pcb));
+ASSYM(TD_KSTACK, offsetof(struct thread, td_kstack));
+ASSYM(TD_MD_FLAGS, offsetof(struct thread, td_md.md_flags));
 
 ASSYM(VM_MAXUSER_ADDRESS, VM_MAXUSER_ADDRESS);
-
-ASSYM(SIZEOF_USER,	sizeof(struct user));
 
 ASSYM(FRAME_SYSCALL,	FRAME_SYSCALL);
 
@@ -101,35 +98,35 @@ ASSYM(FRAME_R6,		FRAME_R6);
 ASSYM(FRAME_R7,		FRAME_R7);
 ASSYM(FRAME_SP,		FRAME_SP);
 
-ASSYM(U_PCB_R4,		offsetof(struct user, u_pcb.pcb_r4));
-ASSYM(U_PCB_R5,		offsetof(struct user, u_pcb.pcb_r5));
-ASSYM(U_PCB_R6,		offsetof(struct user, u_pcb.pcb_r6));
-ASSYM(U_PCB_R7,		offsetof(struct user, u_pcb.pcb_r7));
+ASSYM(PCB_R4,		offsetof(struct pcb, pcb_r4));
+ASSYM(PCB_R5,		offsetof(struct pcb, pcb_r5));
+ASSYM(PCB_R6,		offsetof(struct pcb, pcb_r6));
+ASSYM(PCB_R7,		offsetof(struct pcb, pcb_r7));
 
-ASSYM(U_PCB_F2,		offsetof(struct user, u_pcb.pcb_f2));
-ASSYM(U_PCB_F3,		offsetof(struct user, u_pcb.pcb_f3));
-ASSYM(U_PCB_F4,		offsetof(struct user, u_pcb.pcb_f4));
-ASSYM(U_PCB_F5,		offsetof(struct user, u_pcb.pcb_f5));
+ASSYM(PCB_F2,		offsetof(struct pcb, pcb_f2));
+ASSYM(PCB_F3,		offsetof(struct pcb, pcb_f3));
+ASSYM(PCB_F4,		offsetof(struct pcb, pcb_f4));
+ASSYM(PCB_F5,		offsetof(struct pcb, pcb_f5));
 
-ASSYM(U_PCB_B0,		offsetof(struct user, u_pcb.pcb_b0));
-ASSYM(U_PCB_B1,		offsetof(struct user, u_pcb.pcb_b1));
-ASSYM(U_PCB_B2,		offsetof(struct user, u_pcb.pcb_b2));
-ASSYM(U_PCB_B3,		offsetof(struct user, u_pcb.pcb_b3));
-ASSYM(U_PCB_B4,		offsetof(struct user, u_pcb.pcb_b4));
-ASSYM(U_PCB_B5,		offsetof(struct user, u_pcb.pcb_b5));
+ASSYM(PCB_B0,		offsetof(struct pcb, pcb_b0));
+ASSYM(PCB_B1,		offsetof(struct pcb, pcb_b1));
+ASSYM(PCB_B2,		offsetof(struct pcb, pcb_b2));
+ASSYM(PCB_B3,		offsetof(struct pcb, pcb_b3));
+ASSYM(PCB_B4,		offsetof(struct pcb, pcb_b4));
+ASSYM(PCB_B5,		offsetof(struct pcb, pcb_b5));
 
-ASSYM(U_PCB_OLD_UNAT,	offsetof(struct user, u_pcb.pcb_old_unat));
-ASSYM(U_PCB_SP,		offsetof(struct user, u_pcb.pcb_sp));
-ASSYM(U_PCB_PFS,	offsetof(struct user, u_pcb.pcb_pfs));
-ASSYM(U_PCB_BSPSTORE,	offsetof(struct user, u_pcb.pcb_bspstore));
+ASSYM(PCB_OLD_UNAT,	offsetof(struct pcb, pcb_old_unat));
+ASSYM(PCB_SP,		offsetof(struct pcb, pcb_sp));
+ASSYM(PCB_PFS,		offsetof(struct pcb, pcb_pfs));
+ASSYM(PCB_BSPSTORE,	offsetof(struct pcb, pcb_bspstore));
 
-ASSYM(U_PCB_UNAT,	offsetof(struct user, u_pcb.pcb_unat));
-ASSYM(U_PCB_RNAT,	offsetof(struct user, u_pcb.pcb_rnat));
-ASSYM(U_PCB_PR,		offsetof(struct user, u_pcb.pcb_pr));
+ASSYM(PCB_UNAT,		offsetof(struct pcb, pcb_unat));
+ASSYM(PCB_RNAT,		offsetof(struct pcb, pcb_rnat));
+ASSYM(PCB_PR,		offsetof(struct pcb, pcb_pr));
 
-ASSYM(U_PCB_ONFAULT,	offsetof(struct user, u_pcb.pcb_onfault));
+ASSYM(PCB_ONFAULT,	offsetof(struct pcb, pcb_onfault));
 
-ASSYM(U_PCB_HIGHFP,	offsetof(struct user, u_pcb.pcb_highfp));
+ASSYM(PCB_HIGHFP,	offsetof(struct pcb, pcb_highfp));
 
 ASSYM(UC_MCONTEXT_MC_AR_BSP,  offsetof(ucontext_t, uc_mcontext.mc_ar_bsp));
 ASSYM(UC_MCONTEXT_MC_AR_RNAT, offsetof(ucontext_t, uc_mcontext.mc_ar_rnat));
@@ -137,4 +134,8 @@ ASSYM(UC_MCONTEXT_MC_AR_RNAT, offsetof(ucontext_t, uc_mcontext.mc_ar_rnat));
 ASSYM(EFAULT, EFAULT);
 ASSYM(ENAMETOOLONG, ENAMETOOLONG);
 
+ASSYM(PAGE_SIZE, PAGE_SIZE);
+ASSYM(KSTACK_PAGES, KSTACK_PAGES);
+
 ASSYM(SIZEOF_TRAPFRAME, sizeof(struct trapframe));
+ASSYM(SIZEOF_PCB, sizeof(struct pcb));

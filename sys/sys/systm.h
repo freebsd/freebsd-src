@@ -88,6 +88,8 @@ struct clockframe;
 struct malloc_type;
 struct mtx;
 struct proc;
+struct kse;
+struct thread;
 struct timeval;
 struct tty;
 struct ucred;
@@ -101,7 +103,7 @@ int	dumpstatus __P((vm_offset_t addr, long count));
 int	nullop __P((void));
 int	eopnotsupp __P((void));
 int	einval __P((void));
-int	seltrue __P((dev_t dev, int which, struct proc *p));
+int	seltrue __P((dev_t dev, int which, struct thread *td));
 int	ureadc __P((int, struct uio *));
 void	*hashinit __P((int count, struct malloc_type *type, u_long *hashmask));
 void	*phashinit __P((int count, struct malloc_type *type, u_long *nentries));
@@ -134,7 +136,7 @@ void	bcopy __P((const void *from, void *to, size_t len));
 void	ovbcopy __P((const void *from, void *to, size_t len));
 
 #ifdef __i386__
-extern void	(*bzero) __P((void *buf, size_t len));
+extern void	(*bzero) __P((volatile void *buf, size_t len));
 #else
 void	bzero __P((void *buf, size_t len));
 #endif
@@ -159,10 +161,10 @@ int	susword __P((void *base, int word));
 void	realitexpire __P((void *));
 
 void	hardclock __P((struct clockframe *frame));
-void	hardclock_process __P((struct proc *p, int user));
+void	hardclock_process __P((struct thread *td, int user));
 void	softclock __P((void *));
 void	statclock __P((struct clockframe *frame));
-void	statclock_process __P((struct proc *p, register_t pc, int user));
+void	statclock_process __P((struct kse *ke, register_t pc, int user));
 
 void	startprofclock __P((struct proc *));
 void	stopprofclock __P((struct proc *));
@@ -172,7 +174,9 @@ void	setstatclockrate __P((int hzrate));
 #define PRISON_ROOT	1
 
 int	suser __P((struct proc *));
+int	suser_td __P((struct thread *));
 int	suser_xxx __P((struct ucred *cred, struct proc *proc, int flag));
+int	suser_xxx_td __P((struct ucred *cred, struct thread *thread, int flag));
 int	u_cansee __P((struct ucred *u1, struct ucred *u2));
 
 char	*getenv __P((const char *name));

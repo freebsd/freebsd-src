@@ -23,9 +23,9 @@
 static void at_pcbdisconnect( struct ddpcb *ddp );
 static void at_sockaddr(struct ddpcb *ddp, struct sockaddr **addr);
 static int at_pcbsetaddr(struct ddpcb *ddp, struct sockaddr *addr,
-			  struct proc *p);
+			  struct thread *td);
 static int at_pcbconnect(struct ddpcb *ddp, struct sockaddr *addr, 
-			 struct proc *p);
+			 struct thread *td);
 static void at_pcbdetach(struct socket *so, struct ddpcb *ddp);
 static int at_pcballoc(struct socket *so);
 
@@ -36,7 +36,7 @@ static u_long	ddp_recvspace = 10 * ( 587 + sizeof( struct sockaddr_at ));
 
 
 static int
-ddp_attach(struct socket *so, int proto, struct proc *p)
+ddp_attach(struct socket *so, int proto, struct thread *td)
 {
 	struct ddpcb	*ddp;
 	int		error = 0;
@@ -74,7 +74,7 @@ ddp_detach(struct socket *so)
 }
 
 static int      
-ddp_bind(struct socket *so, struct sockaddr *nam, struct proc *p)
+ddp_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
 	struct ddpcb	*ddp;
 	int		error = 0;
@@ -85,13 +85,13 @@ ddp_bind(struct socket *so, struct sockaddr *nam, struct proc *p)
 	    return( EINVAL);
 	}
 	s = splnet();
-	error = at_pcbsetaddr(ddp, nam, p);
+	error = at_pcbsetaddr(ddp, nam, td);
 	splx(s);
 	return (error);
 }
     
 static int
-ddp_connect(struct socket *so, struct sockaddr *nam, struct proc *p)
+ddp_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
 	struct ddpcb	*ddp;
 	int		error = 0;
@@ -107,7 +107,7 @@ ddp_connect(struct socket *so, struct sockaddr *nam, struct proc *p)
 	}
 
 	s = splnet();
-	error = at_pcbconnect( ddp, nam, p );
+	error = at_pcbconnect( ddp, nam, td );
 	splx(s);
 	if ( error == 0 )
 	    soisconnected( so );
@@ -152,7 +152,7 @@ ddp_shutdown(struct socket *so)
 
 static int
 ddp_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
-            struct mbuf *control, struct proc *p)
+            struct mbuf *control, struct thread *td)
 {
 	struct ddpcb	*ddp;
 	int		error = 0;
@@ -173,7 +173,7 @@ ddp_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 		}
 
 		s = splnet();
-		error = at_pcbconnect(ddp, addr, p);
+		error = at_pcbconnect(ddp, addr, td);
 		splx( s );
 		if ( error ) {
 			return(error);
@@ -218,7 +218,7 @@ at_sockaddr(struct ddpcb *ddp, struct sockaddr **addr)
 }
 
 static int 
-at_pcbsetaddr(struct ddpcb *ddp, struct sockaddr *addr, struct proc *p)
+at_pcbsetaddr(struct ddpcb *ddp, struct sockaddr *addr, struct thread *td)
 {
     struct sockaddr_at	lsat, *sat;
     struct at_ifaddr	*aa;
@@ -253,7 +253,7 @@ at_pcbsetaddr(struct ddpcb *ddp, struct sockaddr *addr, struct proc *p)
 		return( EINVAL );
 	    }
 	    if ( sat->sat_port < ATPORT_RESERVED &&
-		 suser(p) ) {
+		 suser_td(td) ) {
 		return( EACCES );
 	    }
 	}
@@ -312,7 +312,7 @@ at_pcbsetaddr(struct ddpcb *ddp, struct sockaddr *addr, struct proc *p)
 }
 
 static int
-at_pcbconnect(struct ddpcb *ddp, struct sockaddr *addr, struct proc *p)
+at_pcbconnect(struct ddpcb *ddp, struct sockaddr *addr, struct thread *td)
 {
     struct sockaddr_at	*sat = (struct sockaddr_at *)addr;
     struct route	*ro;
@@ -401,7 +401,7 @@ at_pcbconnect(struct ddpcb *ddp, struct sockaddr *addr, struct proc *p)
 
     ddp->ddp_fsat = *sat;
     if ( ddp->ddp_lsat.sat_port == ATADDR_ANYPORT ) {
-	return(at_pcbsetaddr(ddp, (struct sockaddr *)0, p));
+	return(at_pcbsetaddr(ddp, (struct sockaddr *)0, td));
     }
     return( 0 );
 }

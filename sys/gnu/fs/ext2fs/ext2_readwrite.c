@@ -172,7 +172,7 @@ WRITE(ap)
 	register struct inode *ip;
 	register FS *fs;
 	struct buf *bp;
-	struct proc *p;
+	struct thread *td;
 	daddr_t lbn;
 	off_t osize;
 	int seqcount;
@@ -216,15 +216,15 @@ WRITE(ap)
 	 * Maybe this should be above the vnode op call, but so long as
 	 * file servers have no limits, I don't think it matters.
 	 */
-	p = uio->uio_procp;
+	td = uio->uio_td;
 	/* For p_rlimit. */
 	mtx_assert(&Giant, MA_OWNED);
-	if (vp->v_type == VREG && p &&
+	if (vp->v_type == VREG && td &&
 	    uio->uio_offset + uio->uio_resid >
-	    p->p_rlimit[RLIMIT_FSIZE].rlim_cur) {
-		PROC_LOCK(p);
-		psignal(p, SIGXFSZ);
-		PROC_UNLOCK(p);
+	    td->td_proc->p_rlimit[RLIMIT_FSIZE].rlim_cur) {
+		PROC_LOCK(td->td_proc);
+		psignal(td->td_proc, SIGXFSZ);
+		PROC_UNLOCK(td->td_proc);
 		return (EFBIG);
 	}
 
@@ -302,7 +302,7 @@ WRITE(ap)
 	if (error) {
 		if (ioflag & IO_UNIT) {
 			(void)UFS_TRUNCATE(vp, osize,
-			    ioflag & IO_SYNC, ap->a_cred, uio->uio_procp);
+			    ioflag & IO_SYNC, ap->a_cred, uio->uio_td);
 			uio->uio_offset -= resid - uio->uio_resid;
 			uio->uio_resid = resid;
 		}

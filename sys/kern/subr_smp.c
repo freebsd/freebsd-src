@@ -100,7 +100,7 @@ mp_start(void *dummy)
 SYSINIT(cpu_mp, SI_SUB_CPU, SI_ORDER_SECOND, mp_start, NULL)
 
 void
-forward_signal(struct proc *p)
+forward_signal(struct thread *td)
 {
 	int id;
 
@@ -110,9 +110,9 @@ forward_signal(struct proc *p)
 	 * executes ast().
 	 */
 	mtx_assert(&sched_lock, MA_OWNED);
-	KASSERT(p->p_stat == SRUN, ("forward_signal: process is not SRUN"));
+	KASSERT(td->td_proc->p_stat == SRUN, ("forward_signal: process is not SRUN"));
 
-	CTR1(KTR_SMP, "forward_signal(%p)", p);
+	CTR1(KTR_SMP, "forward_signal(%p)", td->td_proc);
 
 	if (!smp_started || cold || panicstr)
 		return;
@@ -120,10 +120,10 @@ forward_signal(struct proc *p)
 		return;
 
 	/* No need to IPI ourself. */
-	if (p == curproc)
+	if (td == curthread)
 		return;
 
-	id = p->p_oncpu;
+	id = td->td_kse->ke_oncpu;
 	if (id == NOCPU)
 		return;
 	ipi_selected(1 << id, IPI_AST);
@@ -133,7 +133,7 @@ void
 forward_roundrobin(void)
 {
 	struct globaldata *gd;
-	struct proc *p;
+	struct thread *td;
 	u_int id, map;
 
 	mtx_assert(&sched_lock, MA_OWNED);
@@ -146,11 +146,11 @@ forward_roundrobin(void)
 		return;
 	map = 0;
 	SLIST_FOREACH(gd, &cpuhead, gd_allcpu) {
-		p = gd->gd_curproc;
+		td = gd->gd_curthread;
 		id = gd->gd_cpuid;
 		if (id != PCPU_GET(cpuid) && (id & stopped_cpus) == 0 &&
-		    p != gd->gd_idleproc) {
-			p->p_sflag |= PS_NEEDRESCHED;
+		    td != gd->gd_idlethread) {
+			td->td_kse->ke_flags |= KEF_NEEDRESCHED;
 			map |= id;
 		}
 	}

@@ -140,9 +140,9 @@ struct aiocblist {
         int	inputcharge, outputcharge;
 	struct	callout_handle timeouthandle;
         struct	buf *bp;		/* Buffer pointer */
-        struct	proc *userproc;		/* User process */
+        struct	proc *userproc;		/* User process */ /* Not td! */
         struct	file *fd_file;		/* Pointer to file structure */ 
-	struct	aioproclist *jobaioproc;/* AIO process descriptor */
+	struct	aiothreadlist *jobaiothread;  /* AIO process descriptor */
         struct	aio_liojob *lio;	/* Optional lio job */
         struct	aiocb *uuaiocb;		/* Pointer in userspace of aiocb */
 	struct	klist klist;		/* list of knotes */

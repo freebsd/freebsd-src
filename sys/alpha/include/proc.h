@@ -43,7 +43,7 @@ struct mdbpt {
 	u_int32_t	contents;
 };
 
-struct mdproc {
+struct mdthread {
 	u_long		md_flags;
 	struct pcb	*md_pcbpaddr;	/* phys addr of the pcb */
 	struct mdbpt	md_sstep[2];	/* two single step breakpoints */
@@ -61,5 +61,8 @@ struct mdproc {
 #define MDP_UAC_SIGBUS	0x0040		/* Deliver SIGBUS upon
 					   unaligned access */
 #define MDP_UAC_MASK	(MDP_UAC_NOPRINT | MDP_UAC_NOFIX | MDP_UAC_SIGBUS)
+
+struct mdproc {
+};
 
 #endif /* !_MACHINE_PROC_H_ */

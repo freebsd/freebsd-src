@@ -80,14 +80,14 @@ procfs_dofpregs(curp, p, pfs, uio)
 	if (kl < 0)
 		error = EINVAL;
 	else
-		error = procfs_read_fpregs(p, &r);
+		error = procfs_read_fpregs(&p->p_thread, &r);
 	if (error == 0)
 		error = uiomove(kv, kl, uio);
 	if (error == 0 && uio->uio_rw == UIO_WRITE) {
 		if (p->p_stat != SSTOP)
 			error = EBUSY;
 		else
-			error = procfs_write_fpregs(p, &r);
+			error = procfs_write_fpregs(&p->p_thread, &r);
 	}
 	PRELE(p);
 
@@ -96,9 +96,8 @@ procfs_dofpregs(curp, p, pfs, uio)
 }
 
 int
-procfs_validfpregs(p)
-	struct proc *p;
+procfs_validfpregs(struct thread *td)
 {
 
-	return ((p->p_flag & P_SYSTEM) == 0);
+	return (( td->td_proc->p_flag & P_SYSTEM) == 0);
 }

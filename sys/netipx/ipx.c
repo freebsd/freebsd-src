@@ -59,12 +59,12 @@ static	int ipx_ifinit(struct ifnet *ifp, struct ipx_ifaddr *ia,
  * Generic internet control operations (ioctl's).
  */
 int
-ipx_control(so, cmd, data, ifp, p)
+ipx_control(so, cmd, data, ifp, td)
 	struct socket *so;
 	u_long cmd;
 	caddr_t data;
 	register struct ifnet *ifp;
-	struct proc *p;
+	struct thread *td;
 {
 	register struct ifreq *ifr = (struct ifreq *)data;
 	register struct ipx_aliasreq *ifra = (struct ipx_aliasreq *)data;
@@ -108,7 +108,7 @@ ipx_control(so, cmd, data, ifp, p)
 		return (0);
 	}
 
-	if (p && (error = suser(p)) != 0)
+	if (td && (error = suser_td(td)) != 0)
 		return (error);
 
 	switch (cmd) {

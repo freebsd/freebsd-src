@@ -361,7 +361,7 @@ DRIVER_MODULE(pca, isa, pca_driver, pca_devclass, 0, 0);
 
 
 static int
-pcaopen(dev_t dev, int flags, int fmt, struct proc *p)
+pcaopen(dev_t dev, int flags, int fmt, struct thread *td)
 {
 	/* audioctl device can always be opened */
 	if (minor(dev) == 128)
@@ -389,7 +389,7 @@ pcaopen(dev_t dev, int flags, int fmt, struct proc *p)
 
 
 static int
-pcaclose(dev_t dev, int flags, int fmt, struct proc *p)
+pcaclose(dev_t dev, int flags, int fmt, struct thread *td)
 {
 	/* audioctl device can always be closed */
 	if (minor(dev) == 128)
@@ -460,7 +460,7 @@ pcawrite(dev_t dev, struct uio *uio, int flag)
 
 
 static int
-pcaioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
+pcaioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 {
 	audio_info_t *auptr;
 
@@ -560,7 +560,7 @@ pcaintr(struct clockframe *frame)
 
 
 static int
-pcapoll(dev_t dev, int events, struct proc *p)
+pcapoll(dev_t dev, int events, struct thread *td)
 {
  	int s;
 	int revents = 0;
@@ -572,7 +572,7 @@ pcapoll(dev_t dev, int events, struct proc *p)
  		    !pca_status.in_use[2])
  			revents |= events & (POLLOUT | POLLWRNORM);
  		else
-			selrecord(p, &pca_status.wsel);
+			selrecord(td, &pca_status.wsel);
 	}
 	splx(s);
 	return (revents);

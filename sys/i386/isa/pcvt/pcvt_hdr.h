@@ -994,7 +994,7 @@ void 	update_hp ( struct video_state *svsp );
 void	update_led ( void );
 
 #ifdef XSERVER
-int	usl_vt_ioctl (dev_t dev, int cmd, caddr_t data, int flag, struct proc *);
+int	usl_vt_ioctl (dev_t dev, int cmd, caddr_t data, int flag, struct thread *);
 #endif
 
 void	vga10_vga10 ( u_char *invga, u_char *outvga );

@@ -105,7 +105,7 @@ ffs_snapshot(mp, snapfile)
 	void *space;
 	struct fs *copy_fs = NULL, *fs = VFSTOUFS(mp)->um_fs;
 	struct snaphead *snaphead;
-	struct proc *p = CURPROC;
+	struct thread *td = curthread;
 	struct inode *ip, *xp;
 	struct buf *bp, *nbp, *ibp, *sbp = NULL;
 	struct nameidata nd;
@@ -129,7 +129,7 @@ ffs_snapshot(mp, snapfile)
 	 * Create the snapshot file.
 	 */
 restart:
-	NDINIT(&nd, CREATE, LOCKPARENT | LOCKLEAF, UIO_USERSPACE, snapfile, p);
+	NDINIT(&nd, CREATE, LOCKPARENT | LOCKLEAF, UIO_USERSPACE, snapfile, td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	if (nd.ni_vp != NULL) {
@@ -162,7 +162,7 @@ restart:
 			return (error);
 		goto restart;
 	}
-	VOP_LEASE(nd.ni_dvp, p, KERNCRED, LEASE_WRITE);
+	VOP_LEASE(nd.ni_dvp, td, KERNCRED, LEASE_WRITE);
 	error = VOP_CREATE(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, &vat);
 	vput(nd.ni_dvp);
 	if (error) {
@@ -199,7 +199,7 @@ restart:
 	 */
 	for (blkno = NDADDR; blkno < numblks; blkno += NINDIR(fs)) {
 		error = UFS_BALLOC(vp, lblktosize(fs, (off_t)blkno),
-		    fs->fs_bsize, p->p_ucred, B_METAONLY, &ibp);
+		    fs->fs_bsize, td->td_proc->p_ucred, B_METAONLY, &ibp);
 		if (error)
 			goto out;
 		bdwrite(ibp);
@@ -260,7 +260,7 @@ restart:
 	/*
 	 * Ensure that the snapshot is completely on disk.
 	 */
-	if ((error = VOP_FSYNC(vp, KERNCRED, MNT_WAIT, p)) != 0)
+	if ((error = VOP_FSYNC(vp, KERNCRED, MNT_WAIT, td)) != 0)
 		goto out;
 	/*
 	 * All allocations are done, so we can now snapshot the system.
@@ -464,12 +464,12 @@ out1:
 out:
 	mp->mnt_flag = flag;
 	if (error)
-		(void) UFS_TRUNCATE(vp, (off_t)0, 0, NOCRED, p);
-	(void) VOP_FSYNC(vp, KERNCRED, MNT_WAIT, p);
+		(void) UFS_TRUNCATE(vp, (off_t)0, 0, NOCRED, td);
+	(void) VOP_FSYNC(vp, KERNCRED, MNT_WAIT, td);
 	if (error)
 		vput(vp);
 	else
-		VOP_UNLOCK(vp, 0, p);
+		VOP_UNLOCK(vp, 0, td);
 	vn_finished_write(wrtmp);
 	return (error);
 }
@@ -840,7 +840,7 @@ ffs_snapblkfree(freeip, bno, size)
 {
 	struct buf *ibp, *cbp, *savedcbp = 0;
 	struct fs *fs = freeip->i_fs;
-	struct proc *p = CURPROC;
+	struct thread *td = curthread;
 	struct inode *ip;
 	struct vnode *vp;
 	ufs_daddr_t lbn, blkno;
@@ -857,12 +857,12 @@ ffs_snapblkfree(freeip, bno, size)
 		if (lbn < NDADDR) {
 			blkno = ip->i_db[lbn];
 		} else {
-			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
-			p->p_flag |= P_COWINPROGRESS;
+			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+			td->td_proc->p_flag |= P_COWINPROGRESS;
 			error = UFS_BALLOC(vp, lblktosize(fs, (off_t)lbn),
 			    fs->fs_bsize, KERNCRED, B_METAONLY, &ibp);
-			p->p_flag &= ~P_COWINPROGRESS;
-			VOP_UNLOCK(vp, 0, p);
+			td->td_proc->p_flag &= ~P_COWINPROGRESS;
+			VOP_UNLOCK(vp, 0, td);
 			if (error)
 				break;
 			indiroff = (lbn - NDADDR) % NINDIR(fs);
@@ -888,7 +888,7 @@ ffs_snapblkfree(freeip, bno, size)
 		case BLK_SNAP:
 			if (claimedblk)
 				panic("snapblkfree: inconsistent block type");
-			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
+			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 			if (lbn < NDADDR) {
 				ip->i_db[lbn] = BLK_NOCOPY;
 				ip->i_flag |= IN_CHANGE | IN_UPDATE;
@@ -897,7 +897,7 @@ ffs_snapblkfree(freeip, bno, size)
 				    BLK_NOCOPY;
 				bdwrite(ibp);
 			}
-			VOP_UNLOCK(vp, 0, p);
+			VOP_UNLOCK(vp, 0, td);
 			continue;
 		/*
 		 * A block that we map is being freed. If it has not been
@@ -921,7 +921,7 @@ ffs_snapblkfree(freeip, bno, size)
 				    "Grabonremove: snapino", ip->i_number, lbn,
 				    freeip->i_number);
 #endif
-			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
+			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 			if (lbn < NDADDR) {
 				ip->i_db[lbn] = bno;
 			} else {
@@ -930,7 +930,7 @@ ffs_snapblkfree(freeip, bno, size)
 			}
 			ip->i_blocks += btodb(size);
 			ip->i_flag |= IN_CHANGE | IN_UPDATE;
-			VOP_UNLOCK(vp, 0, p);
+			VOP_UNLOCK(vp, 0, td);
 			return (1);
 		}
 		if (lbn >= NDADDR)
@@ -940,13 +940,13 @@ ffs_snapblkfree(freeip, bno, size)
 		 * allocation will never require any additional allocations for
 		 * the snapshot inode.
 		 */
-		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
-		p->p_flag |= P_COWINPROGRESS;
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+		td->td_proc->p_flag |= P_COWINPROGRESS;
 		error = UFS_BALLOC(vp, lblktosize(fs, (off_t)lbn),
 		    fs->fs_bsize, KERNCRED, 0, &cbp);
-		p->p_flag &= ~P_COWINPROGRESS;
+		td->td_proc->p_flag &= ~P_COWINPROGRESS;
 		if (error) {
-			VOP_UNLOCK(vp, 0, p);
+			VOP_UNLOCK(vp, 0, td);
 			break;
 		}
 #ifdef DEBUG
@@ -966,8 +966,8 @@ ffs_snapblkfree(freeip, bno, size)
 			bcopy(savedcbp->b_data, cbp->b_data, fs->fs_bsize);
 			bawrite(cbp);
 			if (dopersistence && ip->i_effnlink > 0)
-				(void) VOP_FSYNC(vp, KERNCRED, MNT_WAIT, p);
-			VOP_UNLOCK(vp, 0, p);
+				(void) VOP_FSYNC(vp, KERNCRED, MNT_WAIT, td);
+			VOP_UNLOCK(vp, 0, td);
 			continue;
 		}
 		/*
@@ -977,11 +977,11 @@ ffs_snapblkfree(freeip, bno, size)
 			bzero(cbp->b_data, fs->fs_bsize);
 			bawrite(cbp);
 			if (dopersistence && ip->i_effnlink > 0)
-				(void) VOP_FSYNC(vp, KERNCRED, MNT_WAIT, p);
-			VOP_UNLOCK(vp, 0, p);
+				(void) VOP_FSYNC(vp, KERNCRED, MNT_WAIT, td);
+			VOP_UNLOCK(vp, 0, td);
 			break;
 		}
-		VOP_UNLOCK(vp, 0, p);
+		VOP_UNLOCK(vp, 0, td);
 		savedcbp = cbp;
 	}
 	/*
@@ -993,9 +993,9 @@ ffs_snapblkfree(freeip, bno, size)
 		vp = savedcbp->b_vp;
 		bawrite(savedcbp);
 		if (dopersistence && VTOI(vp)->i_effnlink > 0) {
-			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
-			(void) VOP_FSYNC(vp, KERNCRED, MNT_WAIT, p);
-			VOP_UNLOCK(vp, 0, p);
+			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+			(void) VOP_FSYNC(vp, KERNCRED, MNT_WAIT, td);
+			VOP_UNLOCK(vp, 0, td);
 		}
 	}
 	/*
@@ -1016,7 +1016,7 @@ ffs_snapshot_mount(mp)
 {
 	struct ufsmount *ump = VFSTOUFS(mp);
 	struct fs *fs = ump->um_fs;
-	struct proc *p = CURPROC;
+	struct thread *td = curthread;
 	struct snaphead *snaphead;
 	struct vnode *vp;
 	struct inode *ip;
@@ -1052,7 +1052,7 @@ ffs_snapshot_mount(mp)
 		vp->v_flag |= VSYSTEM;
 		ump->um_devvp->v_rdev->si_copyonwrite = ffs_copyonwrite;
 		ump->um_devvp->v_flag |= VCOPYONWRITE;
-		VOP_UNLOCK(vp, 0, p);
+		VOP_UNLOCK(vp, 0, td);
 	}
 }
 
@@ -1087,7 +1087,7 @@ ffs_copyonwrite(devvp, bp)
 	struct buf *bp;
 {
 	struct buf *ibp, *cbp, *savedcbp = 0;
-	struct proc *p = CURPROC;
+	struct thread *td = curthread;
 	struct fs *fs;
 	struct inode *ip;
 	struct vnode *vp;
@@ -1096,7 +1096,7 @@ ffs_copyonwrite(devvp, bp)
 
 	fs = TAILQ_FIRST(&devvp->v_rdev->si_snapshots)->i_fs;
 	lbn = fragstoblks(fs, dbtofsb(fs, bp->b_blkno));
-	if (p->p_flag & P_COWINPROGRESS)
+	if (td->td_proc->p_flag & P_COWINPROGRESS)
 		panic("ffs_copyonwrite: recursive call");
 	TAILQ_FOREACH(ip, &devvp->v_rdev->si_snapshots, i_nextsnap) {
 		vp = ITOV(ip);
@@ -1117,19 +1117,19 @@ ffs_copyonwrite(devvp, bp)
 		 * sleep briefly, and try again.
 		 */
 retry:
-		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 		if (lbn < NDADDR) {
 			blkno = ip->i_db[lbn];
 		} else {
-			p->p_flag |= P_COWINPROGRESS;
+			td->td_proc->p_flag |= P_COWINPROGRESS;
 			error = UFS_BALLOC(vp, lblktosize(fs, (off_t)lbn),
 			   fs->fs_bsize, KERNCRED, B_METAONLY | B_NOWAIT, &ibp);
-			p->p_flag &= ~P_COWINPROGRESS;
+			td->td_proc->p_flag &= ~P_COWINPROGRESS;
 			if (error) {
-				VOP_UNLOCK(vp, 0, p);
+				VOP_UNLOCK(vp, 0, td);
 				if (error != EWOULDBLOCK)
 					break;
-				tsleep(vp, p->p_pri.pri_user, "nap", 1);
+				tsleep(vp, td->td_ksegrp->kg_pri.pri_user, "nap", 1);
 				goto retry;
 			}
 			indiroff = (lbn - NDADDR) % NINDIR(fs);
@@ -1141,7 +1141,7 @@ retry:
 			panic("ffs_copyonwrite: bad copy block");
 #endif
 		if (blkno != 0) {
-			VOP_UNLOCK(vp, 0, p);
+			VOP_UNLOCK(vp, 0, td);
 			continue;
 		}
 		/*
@@ -1149,15 +1149,15 @@ retry:
 		 * allocation will never require any additional allocations for
 		 * the snapshot inode.
 		 */
-		p->p_flag |= P_COWINPROGRESS;
+		td->td_proc->p_flag |= P_COWINPROGRESS;
 		error = UFS_BALLOC(vp, lblktosize(fs, (off_t)lbn),
 		    fs->fs_bsize, KERNCRED, B_NOWAIT, &cbp);
-		p->p_flag &= ~P_COWINPROGRESS;
+		td->td_proc->p_flag &= ~P_COWINPROGRESS;
 		if (error) {
-			VOP_UNLOCK(vp, 0, p);
+			VOP_UNLOCK(vp, 0, td);
 			if (error != EWOULDBLOCK)
 				break;
-			tsleep(vp, p->p_pri.pri_user, "nap", 1);
+			tsleep(vp, td->td_ksegrp->kg_pri.pri_user, "nap", 1);
 			goto retry;
 		}
 #ifdef DEBUG
@@ -1183,8 +1183,8 @@ retry:
 			bcopy(savedcbp->b_data, cbp->b_data, fs->fs_bsize);
 			bawrite(cbp);
 			if (dopersistence && ip->i_effnlink > 0)
-				(void) VOP_FSYNC(vp, KERNCRED, MNT_WAIT, p);
-			VOP_UNLOCK(vp, 0, p);
+				(void) VOP_FSYNC(vp, KERNCRED, MNT_WAIT, td);
+			VOP_UNLOCK(vp, 0, td);
 			continue;
 		}
 		/*
@@ -1194,12 +1194,12 @@ retry:
 			bzero(cbp->b_data, fs->fs_bsize);
 			bawrite(cbp);
 			if (dopersistence && ip->i_effnlink > 0)
-				(void) VOP_FSYNC(vp, KERNCRED, MNT_WAIT, p);
-			VOP_UNLOCK(vp, 0, p);
+				(void) VOP_FSYNC(vp, KERNCRED, MNT_WAIT, td);
+			VOP_UNLOCK(vp, 0, td);
 			break;
 		}
 		savedcbp = cbp;
-		VOP_UNLOCK(vp, 0, p);
+		VOP_UNLOCK(vp, 0, td);
 	}
 	/*
 	 * Note that we need to synchronously write snapshots that
@@ -1210,9 +1210,9 @@ retry:
 		vp = savedcbp->b_vp;
 		bawrite(savedcbp);
 		if (dopersistence && VTOI(vp)->i_effnlink > 0) {
-			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
-			(void) VOP_FSYNC(vp, KERNCRED, MNT_WAIT, p);
-			VOP_UNLOCK(vp, 0, p);
+			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+			(void) VOP_FSYNC(vp, KERNCRED, MNT_WAIT, td);
+			VOP_UNLOCK(vp, 0, td);
 		}
 	}
 	return (error);
@@ -1229,7 +1229,7 @@ readblock(bp, lbn)
 {
 	struct uio auio;
 	struct iovec aiov;
-	struct proc *p = CURPROC;
+	struct thread *td = curthread;
 	struct inode *ip = VTOI(bp->b_vp);
 
 	aiov.iov_base = bp->b_data;
@@ -1240,6 +1240,6 @@ readblock(bp, lbn)
 	auio.uio_resid = bp->b_bcount;
 	auio.uio_rw = UIO_READ;
 	auio.uio_segflg = UIO_SYSSPACE;
-	auio.uio_procp = p;
+	auio.uio_td = td;
 	return (physio(ip->i_devvp->v_rdev, &auio, 0));
 }

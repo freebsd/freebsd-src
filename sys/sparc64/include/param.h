@@ -116,7 +116,11 @@
 #define MAXDUMPPGS	(DFLTPHYS/PAGE_SIZE)
 
 #define IOPAGES	2		/* pages of i/o permission bitmap */
-#define UPAGES	4		/* pages of u-area */
+
+#define KSTACK_PAGES	4	/* pages of kernel stack (with pcb) */
+#define UAREA_PAGES	1	/* pages of user area */
+
+/* #define KSTACK_GUARD */	/* compile in kstack guard page */
 
 /*
  * Constants related to network buffer management.

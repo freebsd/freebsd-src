@@ -264,7 +264,7 @@ zs_cnputc(dev_t dev, int c)
 
 
 static int
-zsopen(dev_t dev, int flag, int mode, struct proc *p)
+zsopen(dev_t dev, int flag, int mode, struct thread *td)
 {
 	struct zs_softc *sc = ZS_SOFTC(minor(dev));
 	struct tty *tp;
@@ -290,7 +290,7 @@ zsopen(dev_t dev, int flag, int mode, struct proc *p)
 		tp->t_ispeed = tp->t_ospeed = TTYDEF_SPEED;
 		ttsetwater(tp);
 		setuptimeout = 1;
-	} else if ((tp->t_state & TS_XCLUDE) && suser(p)) {
+	} else if ((tp->t_state & TS_XCLUDE) && suser(td->td_proc)) {
 		splx(s);
 		return EBUSY;
 	}
@@ -311,7 +311,7 @@ zsopen(dev_t dev, int flag, int mode, struct proc *p)
 }
  
 static int
-zsclose(dev_t dev, int flag, int mode, struct proc *p)
+zsclose(dev_t dev, int flag, int mode, struct thread *td)
 {
 	struct zs_softc *sc = ZS_SOFTC(minor(dev));
 	struct tty *tp;
@@ -332,7 +332,7 @@ zsclose(dev_t dev, int flag, int mode, struct proc *p)
 }
  
 static int
-zsioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
+zsioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 {
 	struct zs_softc *sc = ZS_SOFTC(minor(dev));
 	struct tty *tp;
@@ -343,7 +343,7 @@ zsioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 
 	tp = ZS_SOFTC(minor(dev))->tp;
 
-	error = (*linesw[tp->t_line].l_ioctl)(tp, cmd, data, flag, p);
+	error = (*linesw[tp->t_line].l_ioctl)(tp, cmd, data, flag, td);
 
 	if (error != ENOIOCTL)
 		return (error);

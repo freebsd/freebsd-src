@@ -62,7 +62,7 @@
  * with a 32bit value.  OSF1 manages to have a variable location for
  * the user stack which we should probably also support.
  */
-#define USRSTACK	(0x12000000LL - (UPAGES*PAGE_SIZE))
+#define USRSTACK	(0x12000000LL)
 
 /*
  * Virtual memory related constants, all in bytes

@@ -43,7 +43,7 @@ struct indir;
 struct inode;
 struct mount;
 struct netcred;
-struct proc;
+struct thread;
 struct sockaddr;
 struct ucred;
 struct ufid;
@@ -89,7 +89,7 @@ int	 ufs_readdir __P((struct vop_readdir_args *));
 int	 ufs_reclaim __P((struct vop_reclaim_args *));
 void	 ffs_snapgone __P((struct inode *));
 int	 ufs_root __P((struct mount *, struct vnode **));
-int	 ufs_start __P((struct mount *, int, struct proc *));
+int	 ufs_start __P((struct mount *, int, struct thread *));
 int	 ufs_vinit __P((struct mount *, vop_t **, vop_t **, struct vnode **));
 
 /*

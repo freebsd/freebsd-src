@@ -40,8 +40,8 @@
  */
 extern u_char linux_debug_map[];
 #define ldebug(name)	isclr(linux_debug_map, LINUX_SYS_linux_ ## name)
-#define ARGS(nm, fmt)	"linux(%ld): "#nm"("fmt")\n", (long)p->p_pid
-#define LMSG(fmt)	"linux(%ld): "fmt"\n", (long)p->p_pid
+#define ARGS(nm, fmt)	"linux(%ld): "#nm"("fmt")\n", (long)td->td_proc->p_pid
+#define LMSG(fmt)	"linux(%ld): "fmt"\n", (long)td->td_proc->p_pid
 
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_LINUX);
@@ -453,9 +453,9 @@ extern struct sysentvec elf_linux_sysvec;
  * Pluggable ioctl handlers
  */
 struct linux_ioctl_args;
-struct proc;
+struct thread;
 
-typedef int linux_ioctl_function_t(struct proc *, struct linux_ioctl_args *);
+typedef int linux_ioctl_function_t(struct thread *, struct linux_ioctl_args *);
 
 struct linux_ioctl_handler {
 	linux_ioctl_function_t *func;

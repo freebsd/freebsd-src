@@ -120,7 +120,7 @@ static int	ngt_close(struct tty *tp, int flag);
 static int	ngt_read(struct tty *tp, struct uio *uio, int flag);
 static int	ngt_write(struct tty *tp, struct uio *uio, int flag);
 static int	ngt_tioctl(struct tty *tp,
-		    u_long cmd, caddr_t data, int flag, struct proc *);
+		    u_long cmd, caddr_t data, int flag, struct thread *);
 static int	ngt_input(int c, struct tty *tp);
 static int	ngt_start(struct tty *tp);
 
@@ -184,13 +184,13 @@ static int ngt_ldisc;
 static int
 ngt_open(dev_t dev, struct tty *tp)
 {
-	struct proc *const p = curproc;	/* XXX */
+	struct thread *const td = curthread;	/* XXX */
 	char name[sizeof(NG_TTY_NODE_TYPE) + 8];
 	sc_p sc;
 	int s, error;
 
 	/* Super-user only */
-	if ((error = suser(p)))
+	if ((error = suser_td(td)))
 		return (error);
 	s = splnet();
 	(void) spltty();	/* XXX is this necessary? */
@@ -304,7 +304,7 @@ ngt_write(struct tty *tp, struct uio *uio, int flag)
  * We implement the NGIOCGINFO ioctl() defined in ng_message.h.
  */
 static int
-ngt_tioctl(struct tty *tp, u_long cmd, caddr_t data, int flag, struct proc *p)
+ngt_tioctl(struct tty *tp, u_long cmd, caddr_t data, int flag, struct thread *td)
 {
 	const sc_p sc = (sc_p) tp->t_sc;
 	int s, error = 0;

@@ -111,7 +111,7 @@ static void cxoproc (struct tty *tp);
 static void cxstop (struct tty *tp, int flag);
 static int cxparam (struct tty *tp, struct termios *t);
 
-int cxopen (dev_t dev, int flag, int mode, struct proc *p)
+int cxopen (dev_t dev, int flag, int mode, struct thread *td)
 {
 	int unit = UNIT (dev);
 	cx_chan_t *c = cxchan[unit];
@@ -162,7 +162,7 @@ int cxopen (dev_t dev, int flag, int mode, struct proc *p)
 	tp = c->ttyp;
 	tp->t_dev = dev;
 	if ((tp->t_state & TS_ISOPEN) && (tp->t_state & TS_XCLUDE) &&
-	    suser(p))
+	    suser_td(td))
 		return (EBUSY);
 	if (! (tp->t_state & TS_ISOPEN)) {
 		ttychars (tp);
@@ -247,7 +247,7 @@ int cxopen (dev_t dev, int flag, int mode, struct proc *p)
 	return (error);
 }
 
-int cxclose (dev_t dev, int flag, int mode, struct proc *p)
+int cxclose (dev_t dev, int flag, int mode, struct thread *td)
 {
 	int unit = UNIT (dev);
 	cx_chan_t *c = cxchan[unit];
@@ -283,7 +283,7 @@ int cxclose (dev_t dev, int flag, int mode, struct proc *p)
 	return (0);
 }
 
-int cxioctl (dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
+int cxioctl (dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 {
 	int unit = UNIT (dev);
 	cx_chan_t *c, *m;
@@ -419,7 +419,7 @@ int cxioctl (dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	if (! tp)
 		return (EINVAL);
 #if __FreeBSD__ >= 2
-	error = (*linesw[tp->t_line].l_ioctl) (tp, cmd, data, flag, p);
+	error = (*linesw[tp->t_line].l_ioctl) (tp, cmd, data, flag, td);
 #else
 	error = (*linesw[tp->t_line].l_ioctl) (tp, cmd, data, flag);
 #endif

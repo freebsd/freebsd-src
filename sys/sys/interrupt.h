@@ -63,7 +63,7 @@ struct intrhand {
  */
 struct ithd {
 	struct	mtx it_lock;
-	struct	proc *it_proc;		/* Interrupt process. */
+	struct	thread *it_td;		/* Interrupt process. */
 	LIST_ENTRY(ithd) it_list;	/* All interrupt threads. */
 	TAILQ_HEAD(, intrhand) it_handlers; /* Interrupt handlers. */
 	struct	ithd *it_interrupted;	/* Who we interrupted. */

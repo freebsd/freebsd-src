@@ -46,8 +46,8 @@
  * point at the globaldata structure.
  */
 struct globaldata {
-	struct	proc *gd_curproc;		/* current process */
-	struct	proc *gd_idleproc;		/* idle process */
+	struct	thread *gd_curthread;		/* current thread */
+	struct	thread *gd_idlethread;		/* idle thread */
 	struct	pcb *gd_curpcb;			/* current pcb */
 	struct	timeval gd_switchtime;	
 	int	gd_switchticks;

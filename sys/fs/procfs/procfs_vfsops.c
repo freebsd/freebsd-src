@@ -52,11 +52,11 @@
 #include <fs/procfs/procfs.h>
 
 static int	procfs_mount __P((struct mount *mp, char *path, caddr_t data,
-				  struct nameidata *ndp, struct proc *p));
+				  struct nameidata *ndp, struct thread *td));
 static int	procfs_statfs __P((struct mount *mp, struct statfs *sbp,
-				   struct proc *p));
+				   struct thread *td));
 static int	procfs_unmount __P((struct mount *mp, int mntflags,
-				    struct proc *p));
+				    struct thread *td));
 
 /*
  * VFS Operations.
@@ -65,12 +65,12 @@ static int	procfs_unmount __P((struct mount *mp, int mntflags,
  */
 /* ARGSUSED */
 static int
-procfs_mount(mp, path, data, ndp, p)
+procfs_mount(mp, path, data, ndp, td)
 	struct mount *mp;
 	char *path;
 	caddr_t data;
 	struct nameidata *ndp;
-	struct proc *p;
+	struct thread *td;
 {
 	size_t size;
 	int error;
@@ -90,7 +90,7 @@ procfs_mount(mp, path, data, ndp, p)
 	size = sizeof("procfs") - 1;
 	bcopy("procfs", mp->mnt_stat.f_mntfromname, size);
 	bzero(mp->mnt_stat.f_mntfromname + size, MNAMELEN - size);
-	(void)procfs_statfs(mp, &mp->mnt_stat, p);
+	(void)procfs_statfs(mp, &mp->mnt_stat, td);
 
 	return (0);
 }
@@ -99,10 +99,10 @@ procfs_mount(mp, path, data, ndp, p)
  * unmount system call
  */
 static int
-procfs_unmount(mp, mntflags, p)
+procfs_unmount(mp, mntflags, td)
 	struct mount *mp;
 	int mntflags;
-	struct proc *p;
+	struct thread *td;
 {
 	int error;
 	int flags = 0;
@@ -133,10 +133,10 @@ procfs_root(mp, vpp)
  * Get file system statistics.
  */
 static int
-procfs_statfs(mp, sbp, p)
+procfs_statfs(mp, sbp, td)
 	struct mount *mp;
 	struct statfs *sbp;
-	struct proc *p;
+	struct thread *td;
 {
 	sbp->f_bsize = PAGE_SIZE;
 	sbp->f_iosize = PAGE_SIZE;

@@ -21,6 +21,8 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #ifndef	_I386_IBCS2_IBCS2_SOCKSYS_H_
@@ -121,6 +123,6 @@ struct ibcs2_socksys_args {
 	caddr_t argsp;
 };
 
-int ibcs2_socksys __P((struct proc *, struct ibcs2_socksys_args *));
+int ibcs2_socksys __P((struct thread *, struct ibcs2_socksys_args *));
 
 #endif /* !_I386_IBCS2_IBCS2_SOCKSYS_H_ */

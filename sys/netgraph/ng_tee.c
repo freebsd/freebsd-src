@@ -309,8 +309,12 @@ ngt_rcvdata(hook_p hook, item_p item)
 	} else if (hinfo == &sc->left2right) {
 		dup = NULL;
 		dest = &sc->left;
-	} else
+	} else {
 		panic("%s: no hook!", __FUNCTION__);
+#ifdef	RESTARTABLE_PANICS
+		return(EINVAL);
+#endif
+	}
 
 	/* Update stats on incoming hook */
 	hinfo->stats.inOctets += m->m_pkthdr.len;

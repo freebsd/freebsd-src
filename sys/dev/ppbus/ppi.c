@@ -255,7 +255,7 @@ ppiintr(void *arg)
 #endif /* PERIPH_1284 */
 
 static int
-ppiopen(dev_t dev, int flags, int fmt, struct proc *p)
+ppiopen(dev_t dev, int flags, int fmt, struct thread *td)
 {
 	u_int unit = minor(dev);
 	struct ppi_data *ppi = UNITOSOFTC(unit);
@@ -288,7 +288,7 @@ ppiopen(dev_t dev, int flags, int fmt, struct proc *p)
 }
 
 static int
-ppiclose(dev_t dev, int flags, int fmt, struct proc *p)
+ppiclose(dev_t dev, int flags, int fmt, struct thread *td)
 {
 	u_int unit = minor(dev);
 	struct ppi_data *ppi = UNITOSOFTC(unit);
@@ -501,7 +501,7 @@ error:
 }
 
 static int
-ppiioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct proc *p)
+ppiioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct thread *td)
 {
 	u_int unit = minor(dev);
 	device_t ppidev = UNITODEVICE(unit);

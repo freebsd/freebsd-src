@@ -158,7 +158,7 @@ smp_init_secondary(void)
          * Set curproc to our per-cpu idleproc so that mutexes have
          * something unique to lock with.
          */
-        PCPU_SET(curproc, PCPU_GET(idleproc));
+        PCPU_SET(curthread, PCPU_GET(idlethread));
         PCPU_SET(spinlocks, NULL);
 
 	/*
@@ -175,12 +175,12 @@ smp_init_secondary(void)
 	 *
 	 * cache idleproc's physical address.
 	 */
-	curproc->p_md.md_pcbpaddr = (struct pcb *)PCPU_GET(idlepcbphys);
+	curthread->td_md.md_pcbpaddr = (struct pcb *)PCPU_GET(idlepcbphys);
 	/*
 	 * and make idleproc's trapframe pointer point to its
 	 * stack pointer for sanity.
 	 */
-	curproc->p_frame =
+	curthread->td_frame =
 	    (struct trapframe *)globalp->gd_idlepcb.apcb_ksp;
 
 	mtx_lock_spin(&ap_boot_mtx);
@@ -232,7 +232,7 @@ smp_start_secondary(int cpuid)
 	if (bootverbose)
 		printf("smp_start_secondary: starting cpu %d\n", cpuid);
 
-	sz = round_page(UPAGES * PAGE_SIZE);
+	sz = round_page((UAREA_PAGES + KSTACK_PAGES) * PAGE_SIZE);
 	globaldata = malloc(sz, M_TEMP, M_NOWAIT);
 	if (!globaldata) {
 		printf("smp_start_secondary: can't allocate memory\n");

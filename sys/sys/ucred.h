@@ -80,7 +80,6 @@ struct xucred {
 
 #ifdef _KERNEL
 
-struct proc;
 
 void		change_egid __P((struct ucred *newcred, gid_t egid));
 void		change_euid __P((struct ucred *newcred, uid_t euid));

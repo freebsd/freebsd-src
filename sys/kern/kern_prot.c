@@ -81,16 +81,17 @@ struct getpid_args {
  */
 /* ARGSUSED */
 int
-getpid(p, uap)
-	struct proc *p;
+getpid(td, uap)
+	struct thread *td;
 	struct getpid_args *uap;
 {
+	struct proc *p = td->td_proc;
 
 	mtx_lock(&Giant);
-	p->p_retval[0] = p->p_pid;
+	td->td_retval[0] = p->p_pid;
 #if defined(COMPAT_43) || defined(COMPAT_SUNOS)
 	PROC_LOCK(p);
-	p->p_retval[1] = p->p_pptr->p_pid;
+	td->td_retval[1] = p->p_pptr->p_pid;
 	PROC_UNLOCK(p);
 #endif
 	mtx_unlock(&Giant);
@@ -111,14 +112,15 @@ struct getppid_args {
  */
 /* ARGSUSED */
 int
-getppid(p, uap)
-	struct proc *p;
+getppid(td, uap)
+	struct thread *td;
 	struct getppid_args *uap;
 {
+	struct proc *p = td->td_proc;
 
 	mtx_lock(&Giant);
 	PROC_LOCK(p);
-	p->p_retval[0] = p->p_pptr->p_pid;
+	td->td_retval[0] = p->p_pptr->p_pid;
 	PROC_UNLOCK(p);
 	mtx_unlock(&Giant);
 	return (0);
@@ -138,13 +140,14 @@ struct getpgrp_args {
  * MPSAFE
  */
 int
-getpgrp(p, uap)
-	struct proc *p;
+getpgrp(td, uap)
+	struct thread *td;
 	struct getpgrp_args *uap;
 {
+	struct proc *p = td->td_proc;
 
 	mtx_lock(&Giant);
-	p->p_retval[0] = p->p_pgrp->pg_id;
+	td->td_retval[0] = p->p_pgrp->pg_id;
 	mtx_unlock(&Giant);
 	return (0);
 }
@@ -160,16 +163,17 @@ struct getpgid_args {
  * MPSAFE
  */
 int
-getpgid(p, uap)
-	struct proc *p;
+getpgid(td, uap)
+	struct thread *td;
 	struct getpgid_args *uap;
 {
+	struct proc *p = td->td_proc;
 	struct proc *pt;
 	int error = 0;
 
 	mtx_lock(&Giant);
 	if (uap->pid == 0)
-		p->p_retval[0] = p->p_pgrp->pg_id;
+		td->td_retval[0] = p->p_pgrp->pg_id;
 	else {
 		if ((pt = pfind(uap->pid)) == NULL) {
 			error = ESRCH;
@@ -179,7 +183,7 @@ getpgid(p, uap)
 			PROC_UNLOCK(pt);
 			goto done2;
 		}
-		p->p_retval[0] = pt->p_pgrp->pg_id;
+		td->td_retval[0] = pt->p_pgrp->pg_id;
 		PROC_UNLOCK(pt);
 	}
 done2:
@@ -200,16 +204,17 @@ struct getsid_args {
  * MPSAFE
  */
 int
-getsid(p, uap)
-	struct proc *p;
+getsid(td, uap)
+	struct thread *td;
 	struct getsid_args *uap;
 {
+	struct proc *p = td->td_proc;
 	struct proc *pt;
 	int error = 0;
 
 	mtx_lock(&Giant);
 	if (uap->pid == 0) {
-		p->p_retval[0] = p->p_session->s_sid;
+		td->td_retval[0] = p->p_session->s_sid;
 	} else {
 		if ((pt = pfind(uap->pid)) == NULL) {
 			error = ESRCH;
@@ -219,7 +224,7 @@ getsid(p, uap)
 			PROC_UNLOCK(pt);
 			goto done2;
 		}
-		p->p_retval[0] = pt->p_session->s_sid;
+		td->td_retval[0] = pt->p_session->s_sid;
 		PROC_UNLOCK(pt);
 	}
 done2:
@@ -242,15 +247,16 @@ struct getuid_args {
  */
 /* ARGSUSED */
 int
-getuid(p, uap)
-	struct proc *p;
+getuid(td, uap)
+	struct thread *td;
 	struct getuid_args *uap;
 {
+	struct proc *p = td->td_proc;
 
 	mtx_lock(&Giant);
-	p->p_retval[0] = p->p_ucred->cr_ruid;
+	td->td_retval[0] = p->p_ucred->cr_ruid;
 #if defined(COMPAT_43) || defined(COMPAT_SUNOS)
-	p->p_retval[1] = p->p_ucred->cr_uid;
+	td->td_retval[1] = p->p_ucred->cr_uid;
 #endif
 	mtx_unlock(&Giant);
 	return (0);
@@ -267,13 +273,12 @@ struct geteuid_args {
 
 /* ARGSUSED */
 int
-geteuid(p, uap)
-	struct proc *p;
+geteuid(td, uap)
+	struct thread *td;
 	struct geteuid_args *uap;
 {
-
 	mtx_lock(&Giant);
-	p->p_retval[0] = p->p_ucred->cr_uid;
+	td->td_retval[0] = td->td_proc->p_ucred->cr_uid;
 	mtx_unlock(&Giant);
 	return (0);
 }
@@ -292,15 +297,16 @@ struct getgid_args {
  */
 /* ARGSUSED */
 int
-getgid(p, uap)
-	struct proc *p;
+getgid(td, uap)
+	struct thread *td;
 	struct getgid_args *uap;
 {
+	struct proc *p = td->td_proc;
 
 	mtx_lock(&Giant);
-	p->p_retval[0] = p->p_ucred->cr_rgid;
+	td->td_retval[0] = p->p_ucred->cr_rgid;
 #if defined(COMPAT_43) || defined(COMPAT_SUNOS)
-	p->p_retval[1] = p->p_ucred->cr_groups[0];
+	td->td_retval[1] = p->p_ucred->cr_groups[0];
 #endif
 	mtx_unlock(&Giant);
 	return (0);
@@ -322,13 +328,14 @@ struct getegid_args {
  */
 /* ARGSUSED */
 int
-getegid(p, uap)
-	struct proc *p;
+getegid(td, uap)
+	struct thread *td;
 	struct getegid_args *uap;
 {
+	struct proc *p = td->td_proc;
 
 	mtx_lock(&Giant);
-	p->p_retval[0] = p->p_ucred->cr_groups[0];
+	td->td_retval[0] = p->p_ucred->cr_groups[0];
 	mtx_unlock(&Giant);
 	return (0);
 }
@@ -343,18 +350,19 @@ struct getgroups_args {
  * MPSAFE
  */
 int
-getgroups(p, uap)
-	struct proc *p;
+getgroups(td, uap)
+	struct thread *td;
 	register struct	getgroups_args *uap;
 {
 	struct ucred *cred;
+	struct proc *p = td->td_proc;
 	u_int ngrp;
 	int error = 0;
 
 	mtx_lock(&Giant);
 	cred = p->p_ucred;
 	if ((ngrp = uap->gidsetsize) == 0) {
-		p->p_retval[0] = cred->cr_ngroups;
+		td->td_retval[0] = cred->cr_ngroups;
 		error = 0;
 		goto done2;
 	}
@@ -367,7 +375,7 @@ getgroups(p, uap)
 	    (caddr_t)uap->gidset, ngrp * sizeof(gid_t)))) {
 		goto done2;
 	}
-	p->p_retval[0] = ngrp;
+	td->td_retval[0] = ngrp;
 done2:
 	mtx_unlock(&Giant);
 	return (error);
@@ -384,18 +392,19 @@ struct setsid_args {
  */
 /* ARGSUSED */
 int
-setsid(p, uap)
-	register struct proc *p;
+setsid(td, uap)
+	register struct thread *td;
 	struct setsid_args *uap;
 {
 	int error;
+	struct proc *p = td->td_proc;
 
 	mtx_lock(&Giant);
 	if (p->p_pgid == p->p_pid || pgfind(p->p_pid)) {
 		error = EPERM;
 	} else {
 		(void)enterpgrp(p, p->p_pid, 1);
-		p->p_retval[0] = p->p_pid;
+		td->td_retval[0] = p->p_pid;
 		error = 0;
 	}
 	mtx_unlock(&Giant);
@@ -426,10 +435,11 @@ struct setpgid_args {
  */
 /* ARGSUSED */
 int
-setpgid(curp, uap)
-	struct proc *curp;
+setpgid(td, uap)
+	struct thread *td;
 	register struct setpgid_args *uap;
 {
+	struct proc *curp = td->td_proc;
 	register struct proc *targp;		/* target process */
 	register struct pgrp *pgrp;		/* target pgrp */
 	int error;
@@ -510,10 +520,11 @@ struct setuid_args {
  */
 /* ARGSUSED */
 int
-setuid(p, uap)
-	struct proc *p;
+setuid(td, uap)
+	struct thread *td;
 	struct setuid_args *uap;
 {
+	struct proc *p = td->td_proc;
 	struct ucred *newcred, *oldcred;
 	uid_t uid;
 	int error = 0;
@@ -607,10 +618,11 @@ struct seteuid_args {
  */
 /* ARGSUSED */
 int
-seteuid(p, uap)
-	struct proc *p;
+seteuid(td, uap)
+	struct thread *td;
 	struct seteuid_args *uap;
 {
+	struct proc *p = td->td_proc;
 	struct ucred *newcred, *oldcred;
 	uid_t euid;
 	int error = 0;
@@ -650,10 +662,11 @@ struct setgid_args {
  */
 /* ARGSUSED */
 int
-setgid(p, uap)
-	struct proc *p;
+setgid(td, uap)
+	struct thread *td;
 	struct setgid_args *uap;
 {
+	struct proc *p = td->td_proc;
 	struct ucred *newcred, *oldcred;
 	gid_t gid;
 	int error = 0;
@@ -741,10 +754,11 @@ struct setegid_args {
  */
 /* ARGSUSED */
 int
-setegid(p, uap)
-	struct proc *p;
+setegid(td, uap)
+	struct thread *td;
 	struct setegid_args *uap;
 {
+	struct proc *p = td->td_proc;
 	struct ucred *newcred, *oldcred;
 	gid_t egid;
 	int error = 0;
@@ -781,10 +795,11 @@ struct setgroups_args {
  */
 /* ARGSUSED */
 int
-setgroups(p, uap)
-	struct proc *p;
+setgroups(td, uap)
+	struct thread *td;
 	struct setgroups_args *uap;
 {
+	struct proc *p = td->td_proc;
 	struct ucred *newcred, *oldcred;
 	u_int ngrp;
 	int error;
@@ -839,10 +854,11 @@ struct setreuid_args {
  */
 /* ARGSUSED */
 int
-setreuid(p, uap)
-	register struct proc *p;
+setreuid(td, uap)
+	register struct thread *td;
 	struct setreuid_args *uap;
 {
+	struct proc *p = td->td_proc;
 	struct ucred *newcred, *oldcred;
 	uid_t ruid, euid;
 	int error = 0;
@@ -892,10 +908,11 @@ struct setregid_args {
  */
 /* ARGSUSED */
 int
-setregid(p, uap)
-	register struct proc *p;
+setregid(td, uap)
+	register struct thread *td;
 	struct setregid_args *uap;
 {
+	struct proc *p = td->td_proc;
 	struct ucred *newcred, *oldcred;
 	gid_t rgid, egid;
 	int error = 0;
@@ -952,10 +969,11 @@ struct setresuid_args {
  */
 /* ARGSUSED */
 int
-setresuid(p, uap)
-	register struct proc *p;
+setresuid(td, uap)
+	register struct thread *td;
 	struct setresuid_args *uap;
 {
+	struct proc *p = td->td_proc;
 	struct ucred *newcred, *oldcred;
 	uid_t ruid, euid, suid;
 	int error;
@@ -1017,10 +1035,11 @@ struct setresgid_args {
  */
 /* ARGSUSED */
 int
-setresgid(p, uap)
-	register struct proc *p;
+setresgid(td, uap)
+	register struct thread *td;
 	struct setresgid_args *uap;
 {
+	struct proc *p = td->td_proc;
 	struct ucred *newcred, *oldcred;
 	gid_t rgid, egid, sgid;
 	int error;
@@ -1076,11 +1095,12 @@ struct getresuid_args {
  */
 /* ARGSUSED */
 int
-getresuid(p, uap)
-	register struct proc *p;
+getresuid(td, uap)
+	register struct thread *td;
 	struct getresuid_args *uap;
 {
 	struct ucred *cred;
+	struct proc *p = td->td_proc;
 	int error1 = 0, error2 = 0, error3 = 0;
 
 	mtx_lock(&Giant);
@@ -1111,11 +1131,12 @@ struct getresgid_args {
  */
 /* ARGSUSED */
 int
-getresgid(p, uap)
-	register struct proc *p;
+getresgid(td, uap)
+	register struct thread *td;
 	struct getresgid_args *uap;
 {
 	struct ucred *cred;
+	struct proc *p = td->td_proc;
 	int error1 = 0, error2 = 0, error3 = 0;
 
 	mtx_lock(&Giant);
@@ -1142,10 +1163,12 @@ struct issetugid_args {
 #endif
 /* ARGSUSED */
 int
-issetugid(p, uap)
-	register struct proc *p;
+issetugid(td, uap)
+	register struct thread *td;
 	struct issetugid_args *uap;
 {
+	struct proc *p = td->td_proc;
+
 	/*
 	 * Note: OpenBSD sets a P_SUGIDEXEC flag set at execve() time,
 	 * we use P_SUGID because we consider changing the owners as
@@ -1154,7 +1177,7 @@ issetugid(p, uap)
 	 * a user without an exec - programs cannot know *everything*
 	 * that libc *might* have put in their data segment.
 	 */
-	p->p_retval[0] = (p->p_flag & P_SUGID) ? 1 : 0;
+	td->td_retval[0] = (p->p_flag & P_SUGID) ? 1 : 0;
 	return (0);
 }
 
@@ -1162,8 +1185,8 @@ issetugid(p, uap)
  * MPSAFE
  */
 int
-__setugid(p, uap)
-	struct proc *p;
+__setugid(td, uap)
+	struct thread *td;
 	struct __setugid_args *uap;
 {
 #ifdef REGRESSION
@@ -1172,10 +1195,10 @@ __setugid(p, uap)
 	mtx_lock(&Giant);
 	switch (uap->flag) {
 	case 0:
-		p->p_flag &= ~P_SUGID;
+		td->td_proc->p_flag &= ~P_SUGID;
 		break;
 	case 1:
-		p->p_flag |= P_SUGID;
+		td->td_proc->p_flag |= P_SUGID;
 		break;
 	default:
 		error = EINVAL;
@@ -1229,6 +1252,30 @@ suser(p)
 	struct proc *p;
 {
 	return suser_xxx(0, p, 0);
+}
+
+/*
+ * version for when the thread pointer is available and not the proc.
+ * (saves having to include proc.h into every file that needs to do the change.)
+ */
+int
+suser_td(td)
+	
+	struct thread *td;
+{
+	return suser_xxx(0, td->td_proc, 0);
+}
+
+/*
+ * wrapper to use if you have the thread on hand but not the proc.
+ */
+int
+suser_xxx_td(cred, td, flag)
+	struct ucred *cred;
+	struct thread *td;
+	int flag;
+{
+	return(suser_xxx(cred, td->td_proc, flag));
 }
 
 int
@@ -1566,11 +1613,12 @@ struct getlogin_args {
  */
 /* ARGSUSED */
 int
-getlogin(p, uap)
-	struct proc *p;
+getlogin(td, uap)
+	struct thread *td;
 	struct getlogin_args *uap;
 {
 	int error;
+	struct proc *p = td->td_proc;
 
 	mtx_lock(&Giant);
 	if (uap->namelen > MAXLOGNAME)
@@ -1594,10 +1642,11 @@ struct setlogin_args {
  */
 /* ARGSUSED */
 int
-setlogin(p, uap)
-	struct proc *p;
+setlogin(td, uap)
+	struct thread *td;
 	struct setlogin_args *uap;
 {
+	struct proc *p = td->td_proc;
 	int error;
 	char logintmp[MAXLOGNAME];
 

@@ -44,15 +44,16 @@
  * point at the globaldata structure.
  */
 struct globaldata {
-	struct	proc *gd_curproc;		/* current process */
-	struct	proc *gd_idleproc;		/* idle process */
-	struct	proc *gd_fpcurproc;		/* fp state owner */
-	struct	pcb *gd_curpcb;			/* current pcb */
-	struct	timeval gd_switchtime;	
-	int	gd_switchticks;
-	u_int	gd_cpuid;			/* this cpu number */
-	u_int	gd_other_cpus;			/* all other cpus */
-	int	gd_inside_intr;
+	struct thread	*gd_curthread;		/* current thread */
+	struct proc	*gd_idleproc;		/* idle process */
+	struct thread	*gd_fpcurthread;	/* fp state owner */
+	struct proc	*gd_fpcurproc;		/* fp state owner */
+	struct pcb	*gd_curpcb;		/* current pcb */
+	struct timeval	gd_switchtime;	
+	int		gd_switchticks;
+	u_int		gd_cpuid;		/* this cpu number */
+	u_int		gd_other_cpus;		/* all other cpus */
+	int		gd_inside_intr;
 	u_int32_t	gd_next_asn;		/* next ASN to allocate */
 	u_int32_t	gd_current_asngen;	/* ASN rollover check */
 	u_int32_t	gd_intr_nesting_level;  /* interrupt recursion */

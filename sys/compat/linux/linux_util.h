@@ -52,7 +52,7 @@
 static __inline caddr_t stackgap_init(void);
 static __inline void *stackgap_alloc(caddr_t *, size_t);
 
-#define szsigcode (*(curproc->p_sysent->sv_szsigcode))
+#define szsigcode (*(curthread->td_proc->p_sysent->sv_szsigcode))
 
 static __inline caddr_t
 stackgap_init()
@@ -76,7 +76,7 @@ stackgap_alloc(sgp, sz)
 
 extern const char linux_emul_path[];
 
-int linux_emul_find __P((struct proc *, caddr_t *, const char *, char *,
+int linux_emul_find __P((struct thread *, caddr_t *, const char *, char *,
 			char **, int));
 
 #define CHECKALT(p, sgp, path, i) 					\
@@ -94,18 +94,18 @@ int linux_emul_find __P((struct proc *, caddr_t *, const char *, char *,
 
 #define DUMMY(s)							\
 int									\
-linux_ ## s(struct proc *p, struct linux_ ## s ## _args *args)		\
+linux_ ## s(struct thread *p, struct linux_ ## s ## _args *args)		\
 {									\
 	return (unsupported_msg(p, #s));				\
 }									\
 struct __hack
 
 static __inline int
-unsupported_msg(struct proc *p, const char *fname)
+unsupported_msg(struct thread *td, const char *fname)
 {
 
 	printf("linux: syscall %s is obsoleted or not implemented (pid=%ld)\n",
-	    fname, (long)p->p_pid);
+	    fname, (long)td->td_proc->p_pid);
 	return (ENOSYS);
 }
 

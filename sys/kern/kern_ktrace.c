@@ -251,11 +251,12 @@ struct ktrace_args {
 #endif
 /* ARGSUSED */
 int
-ktrace(curp, uap)
-	struct proc *curp;
+ktrace(td, uap)
+	struct thread *td;
 	register struct ktrace_args *uap;
 {
 #ifdef KTRACE
+	struct proc *curp = td->td_proc;
 	register struct vnode *vp = NULL;
 	register struct proc *p;
 	struct pgrp *pg;
@@ -271,7 +272,7 @@ ktrace(curp, uap)
 		/*
 		 * an operation which requires a file argument.
 		 */
-		NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_USERSPACE, uap->fname, curp);
+		NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_USERSPACE, uap->fname, td);
 		flags = FREAD | FWRITE | O_NOFOLLOW;
 		error = vn_open(&nd, &flags, 0);
 		if (error) {
@@ -280,9 +281,9 @@ ktrace(curp, uap)
 		}
 		NDFREE(&nd, NDF_ONLY_PNBUF);
 		vp = nd.ni_vp;
-		VOP_UNLOCK(vp, 0, curp);
+		VOP_UNLOCK(vp, 0, td);
 		if (vp->v_type != VREG) {
-			(void) vn_close(vp, FREAD|FWRITE, curp->p_ucred, curp);
+			(void) vn_close(vp, FREAD|FWRITE, curp->p_ucred, td);
 			curp->p_traceflag &= ~KTRFAC_ACTIVE;
 			return (EACCES);
 		}
@@ -298,7 +299,7 @@ ktrace(curp, uap)
 					p->p_tracep = NULL;
 					p->p_traceflag = 0;
 					(void) vn_close(vp, FREAD|FWRITE,
-						p->p_ucred, p);
+						p->p_ucred, td);
 				} else
 					error = EPERM;
 			}
@@ -349,7 +350,7 @@ ktrace(curp, uap)
 		error = EPERM;
 done:
 	if (vp != NULL)
-		(void) vn_close(vp, FWRITE, curp->p_ucred, curp);
+		(void) vn_close(vp, FWRITE, curp->p_ucred, td);
 	curp->p_traceflag &= ~KTRFAC_ACTIVE;
 	return (error);
 #else
@@ -362,10 +363,11 @@ done:
  */
 /* ARGSUSED */
 int
-utrace(curp, uap)
-	struct proc *curp;
+utrace(td, uap)
+	struct thread *td;
 	register struct utrace_args *uap;
 {
+
 #ifdef KTRACE
 	struct ktr_header *kth;
 	struct proc *p = curproc;	/* XXX */
@@ -474,7 +476,8 @@ ktrwrite(vp, kth, uio)
 {
 	struct uio auio;
 	struct iovec aiov[2];
-	struct proc *p = curproc;	/* XXX */
+	struct thread *td = curthread;	/* XXX */
+	struct proc *p = td->td_proc;	/* XXX */
 	struct mount *mp;
 	int error;
 
@@ -488,7 +491,7 @@ ktrwrite(vp, kth, uio)
 	aiov[0].iov_len = sizeof(struct ktr_header);
 	auio.uio_resid = sizeof(struct ktr_header);
 	auio.uio_iovcnt = 1;
-	auio.uio_procp = curproc;
+	auio.uio_td = curthread;
 	if (kth->ktr_len > 0) {
 		auio.uio_iovcnt++;
 		aiov[1].iov_base = kth->ktr_buffer;
@@ -498,14 +501,14 @@ ktrwrite(vp, kth, uio)
 			kth->ktr_len += uio->uio_resid;
 	}
 	vn_start_write(vp, &mp, V_WAIT);
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
-	(void)VOP_LEASE(vp, p, p->p_ucred, LEASE_WRITE);
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+	(void)VOP_LEASE(vp, td, p->p_ucred, LEASE_WRITE);
 	error = VOP_WRITE(vp, &auio, IO_UNIT | IO_APPEND, p->p_ucred);
 	if (error == 0 && uio != NULL) {
-		(void)VOP_LEASE(vp, p, p->p_ucred, LEASE_WRITE);
+		(void)VOP_LEASE(vp, td, p->p_ucred, LEASE_WRITE);
 		error = VOP_WRITE(vp, uio, IO_UNIT | IO_APPEND, p->p_ucred);
 	}
-	VOP_UNLOCK(vp, 0, p);
+	VOP_UNLOCK(vp, 0, td);
 	vn_finished_write(mp);
 	if (!error)
 		return;

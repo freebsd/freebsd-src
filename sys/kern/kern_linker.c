@@ -354,14 +354,14 @@ linker_find_file_by_name(const char* filename)
 	goto out;
     sprintf(koname, "%s.ko", filename);
 
-    lockmgr(&lock, LK_SHARED, 0, curproc);
+    lockmgr(&lock, LK_SHARED, 0, curthread);
     TAILQ_FOREACH(lf, &linker_files, link) {
 	if (!strcmp(lf->filename, koname))
 	    break;
 	if (!strcmp(lf->filename, filename))
 	    break;
     }
-    lockmgr(&lock, LK_RELEASE, 0, curproc);
+    lockmgr(&lock, LK_RELEASE, 0, curthread);
 
 out:
     if (koname)
@@ -374,11 +374,11 @@ linker_find_file_by_id(int fileid)
 {
     linker_file_t lf = 0;
 
-    lockmgr(&lock, LK_SHARED, 0, curproc);
+    lockmgr(&lock, LK_SHARED, 0, curthread);
     TAILQ_FOREACH(lf, &linker_files, link)
 	if (lf->id == fileid)
 	    break;
-    lockmgr(&lock, LK_RELEASE, 0, curproc);
+    lockmgr(&lock, LK_RELEASE, 0, curthread);
 
     return lf;
 }
@@ -392,7 +392,7 @@ linker_make_file(const char* pathname, linker_class_t lc)
     filename = linker_basename(pathname);
 
     KLD_DPF(FILE, ("linker_make_file: new file, filename=%s\n", filename));
-    lockmgr(&lock, LK_EXCLUSIVE, 0, curproc);
+    lockmgr(&lock, LK_EXCLUSIVE, 0, curthread);
     lf = (linker_file_t) kobj_create((kobj_class_t) lc, M_LINKER, M_WAITOK);
     if (!lf)
 	goto out;
@@ -410,7 +410,7 @@ linker_make_file(const char* pathname, linker_class_t lc)
     TAILQ_INSERT_TAIL(&linker_files, lf, link);
 
 out:
-    lockmgr(&lock, LK_RELEASE, 0, curproc);
+    lockmgr(&lock, LK_RELEASE, 0, curthread);
     return lf;
 }
 
@@ -428,7 +428,7 @@ linker_file_unload(linker_file_t file)
 	return EPERM; 
 
     KLD_DPF(FILE, ("linker_file_unload: lf->refs=%d\n", file->refs));
-    lockmgr(&lock, LK_EXCLUSIVE, 0, curproc);
+    lockmgr(&lock, LK_EXCLUSIVE, 0, curthread);
     if (file->refs == 1) {
 	KLD_DPF(FILE, ("linker_file_unload: file is unloading, informing modules\n"));
 	/*
@@ -443,7 +443,7 @@ linker_file_unload(linker_file_t file)
 	    if ((error = module_unload(mod)) != 0) {
 		KLD_DPF(FILE, ("linker_file_unload: module %x vetoes unload\n",
 			       mod));
-		lockmgr(&lock, LK_RELEASE, 0, curproc);
+		lockmgr(&lock, LK_RELEASE, 0, curthread);
 		goto out;
 	    }
 
@@ -453,7 +453,7 @@ linker_file_unload(linker_file_t file)
 
     file->refs--;
     if (file->refs > 0) {
-	lockmgr(&lock, LK_RELEASE, 0, curproc);
+	lockmgr(&lock, LK_RELEASE, 0, curthread);
 	goto out;
     }
 
@@ -471,7 +471,7 @@ linker_file_unload(linker_file_t file)
     }
 
     TAILQ_REMOVE(&linker_files, file, link);
-    lockmgr(&lock, LK_RELEASE, 0, curproc);
+    lockmgr(&lock, LK_RELEASE, 0, curthread);
 
     if (file->deps) {
 	for (i = 0; i < file->ndeps; i++)
@@ -683,21 +683,21 @@ linker_ddb_symbol_values(c_linker_sym_t sym, linker_symval_t *symval)
  * MPSAFE
  */
 int
-kldload(struct proc* p, struct kldload_args* uap)
+kldload(struct thread* td, struct kldload_args* uap)
 {
     char *kldname, *modname;
     char *pathname = NULL;
     linker_file_t lf;
     int error = 0;
 
-    p->p_retval[0] = -1;
+    td->td_retval[0] = -1;
 
     if (securelevel > 0)	/* redundant, but that's OK */
 	return EPERM;
 
     mtx_lock(&Giant);
 
-    if ((error = suser(p)) != 0)
+    if ((error = suser_td(td)) != 0)
 	goto out;
 
     pathname = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
@@ -720,7 +720,7 @@ kldload(struct proc* p, struct kldload_args* uap)
 	goto out;
 
     lf->userrefs++;
-    p->p_retval[0] = lf->id;
+    td->td_retval[0] = lf->id;
 
 out:
     if (pathname)
@@ -733,7 +733,7 @@ out:
  * MPSAFE
  */
 int
-kldunload(struct proc* p, struct kldunload_args* uap)
+kldunload(struct thread* td, struct kldunload_args* uap)
 {
     linker_file_t lf;
     int error = 0;
@@ -743,7 +743,7 @@ kldunload(struct proc* p, struct kldunload_args* uap)
 
     mtx_lock(&Giant);
 
-    if ((error = suser(p)) != 0)
+    if ((error = suser_td(td)) != 0)
 	goto out;
 
     lf = linker_find_file_by_id(SCARG(uap, fileid));
@@ -770,7 +770,7 @@ out:
  * MPSAFE
  */
 int
-kldfind(struct proc* p, struct kldfind_args* uap)
+kldfind(struct thread* td, struct kldfind_args* uap)
 {
     char* pathname;
     const char *filename;
@@ -778,8 +778,7 @@ kldfind(struct proc* p, struct kldfind_args* uap)
     int error = 0;
 
     mtx_lock(&Giant);
-
-    p->p_retval[0] = -1;
+    td->td_retval[0] = -1;
 
     pathname = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
     if ((error = copyinstr(SCARG(uap, file), pathname, MAXPATHLEN, NULL)) != 0)
@@ -789,7 +788,7 @@ kldfind(struct proc* p, struct kldfind_args* uap)
 
     lf = linker_find_file_by_name(filename);
     if (lf)
-	p->p_retval[0] = lf->id;
+	td->td_retval[0] = lf->id;
     else
 	error = ENOENT;
 
@@ -804,7 +803,7 @@ out:
  * MPSAFE
  */
 int
-kldnext(struct proc* p, struct kldnext_args* uap)
+kldnext(struct thread* td, struct kldnext_args* uap)
 {
     linker_file_t lf;
     int error = 0;
@@ -813,18 +812,18 @@ kldnext(struct proc* p, struct kldnext_args* uap)
 
     if (SCARG(uap, fileid) == 0) {
 	if (TAILQ_FIRST(&linker_files))
-	    p->p_retval[0] = TAILQ_FIRST(&linker_files)->id;
+	    td->td_retval[0] = TAILQ_FIRST(&linker_files)->id;
 	else
-	    p->p_retval[0] = 0;
+	    td->td_retval[0] = 0;
 	goto out;
     }
 
     lf = linker_find_file_by_id(SCARG(uap, fileid));
     if (lf) {
 	if (TAILQ_NEXT(lf, link))
-	    p->p_retval[0] = TAILQ_NEXT(lf, link)->id;
+	    td->td_retval[0] = TAILQ_NEXT(lf, link)->id;
 	else
-	    p->p_retval[0] = 0;
+	    td->td_retval[0] = 0;
     } else {
 	error = ENOENT;
     }
@@ -837,7 +836,7 @@ out:
  * MPSAFE
  */
 int
-kldstat(struct proc* p, struct kldstat_args* uap)
+kldstat(struct thread* td, struct kldstat_args* uap)
 {
     linker_file_t lf;
     int error = 0;
@@ -879,7 +878,7 @@ kldstat(struct proc* p, struct kldstat_args* uap)
     if ((error = copyout(&lf->size, &stat->size, sizeof(size_t))) != 0)
 	goto out;
 
-    p->p_retval[0] = 0;
+    td->td_retval[0] = 0;
 
 out:
     mtx_unlock(&Giant);
@@ -890,7 +889,7 @@ out:
  * MPSAFE
  */
 int
-kldfirstmod(struct proc* p, struct kldfirstmod_args* uap)
+kldfirstmod(struct thread* td, struct kldfirstmod_args* uap)
 {
     linker_file_t lf;
     int error = 0;
@@ -899,9 +898,9 @@ kldfirstmod(struct proc* p, struct kldfirstmod_args* uap)
     lf = linker_find_file_by_id(SCARG(uap, fileid));
     if (lf) {
 	if (TAILQ_FIRST(&lf->modules))
-	    p->p_retval[0] = module_getid(TAILQ_FIRST(&lf->modules));
+	    td->td_retval[0] = module_getid(TAILQ_FIRST(&lf->modules));
 	else
-	    p->p_retval[0] = 0;
+	    td->td_retval[0] = 0;
     } else {
 	error = ENOENT;
     }
@@ -913,7 +912,7 @@ kldfirstmod(struct proc* p, struct kldfirstmod_args* uap)
  * MPSAFE
  */
 int
-kldsym(struct proc *p, struct kldsym_args *uap)
+kldsym(struct thread *td, struct kldsym_args *uap)
 {
     char *symstr = NULL;
     c_linker_sym_t sym;
@@ -1309,7 +1308,7 @@ linker_lookup_file(const char *path, int pathlen,
 	const char *name, int namelen, struct vattr *vap)
 {
     struct nameidata	nd;
-    struct proc		*p = curproc;	/* XXX */
+    struct thread	*td = curthread;	/* XXX */
     char		*result, **cpp, *sep;
     int			error, len, extlen, reclen, flags;
     enum vtype		type;
@@ -1332,16 +1331,16 @@ linker_lookup_file(const char *path, int pathlen,
 	 * Attempt to open the file, and return the path if we succeed
 	 * and it's a regular file.
 	 */
-	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, result, p);
+	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, result, td);
 	flags = FREAD;
 	error = vn_open(&nd, &flags, 0);
 	if (error == 0) {
 	    NDFREE(&nd, NDF_ONLY_PNBUF);
 	    type = nd.ni_vp->v_type;
 	    if (vap)
-		VOP_GETATTR(nd.ni_vp, vap, p->p_ucred, p);
-	    VOP_UNLOCK(nd.ni_vp, 0, p);
-	    vn_close(nd.ni_vp, FREAD, p->p_ucred, p);
+		VOP_GETATTR(nd.ni_vp, vap, td->td_proc->p_ucred, td);
+	    VOP_UNLOCK(nd.ni_vp, 0, td);
+	    vn_close(nd.ni_vp, FREAD, td->td_proc->p_ucred, td);
 	    if (type == VREG)
 	        return(result);
 	}
@@ -1363,8 +1362,8 @@ linker_hints_lookup(const char *path, int pathlen,
 	const char *modname, int modnamelen,
 	struct mod_depend *verinfo)
 {
-    struct proc *p = curproc;
-    struct ucred *cred = p ? p->p_ucred : NULL;
+    struct thread *td = curthread;	/* XXX */
+    struct ucred *cred = td ? td->td_proc->p_ucred : NULL;
     struct nameidata nd;
     struct vattr vattr, mattr;
     u_char *hints = NULL;
@@ -1380,17 +1379,17 @@ linker_hints_lookup(const char *path, int pathlen,
     pathbuf = malloc(reclen, M_LINKER, M_WAITOK);
     snprintf(pathbuf, reclen, "%.*s%s%s", pathlen, path, sep, linker_hintfile);
 
-    NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_SYSSPACE, pathbuf, p);
+    NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_SYSSPACE, pathbuf, td);
     flags = FREAD;
     error = vn_open(&nd, &flags, 0);
     if (error)
 	goto bad;
     NDFREE(&nd, NDF_ONLY_PNBUF);
-    VOP_UNLOCK(nd.ni_vp, 0, p);
+    VOP_UNLOCK(nd.ni_vp, 0, td);
     if (nd.ni_vp->v_type != VREG)
 	goto bad;
     best = cp = NULL;
-    error = VOP_GETATTR(nd.ni_vp, &vattr, cred, p);
+    error = VOP_GETATTR(nd.ni_vp, &vattr, cred, td);
     if (error)
 	goto bad;
     /* 
@@ -1404,10 +1403,10 @@ linker_hints_lookup(const char *path, int pathlen,
     if (hints == NULL)
 	goto bad;
     error = vn_rdwr(UIO_READ, nd.ni_vp, (caddr_t)hints, vattr.va_size, 0,
-		    UIO_SYSSPACE, IO_NODELOCKED, cred, &reclen, p);
+		    UIO_SYSSPACE, IO_NODELOCKED, cred, &reclen, td);
     if (error)
 	goto bad;
-    vn_close(nd.ni_vp, FREAD, cred, p);
+    vn_close(nd.ni_vp, FREAD, cred, td);
     nd.ni_vp = NULL;
     if (reclen != 0) {
 	printf("can't read %d\n", reclen);
@@ -1472,7 +1471,7 @@ bad:
     if (hints)
 	free(hints, M_TEMP);
     if (nd.ni_vp != NULL)
-	vn_close(nd.ni_vp, FREAD, cred, p);
+	vn_close(nd.ni_vp, FREAD, cred, td);
     /*
      * If nothing found or hints is absent - fallback to the old way
      * by using "kldname[.ko]" as module name.

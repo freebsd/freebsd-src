@@ -268,7 +268,7 @@ int	 ttylclose __P((struct tty *tp, int flag));
 struct tty *ttymalloc __P((struct tty *tp));
 int	 ttymodem __P((struct tty *tp, int flag));
 int	 ttyopen __P((dev_t device, struct tty *tp));
-int	 ttypoll __P((dev_t dev, int events, struct proc *p));
+int	 ttypoll __P((dev_t dev, int events, struct thread *td));
 int	 ttyread __P((dev_t dev, struct uio *uio, int flag));
 void	 ttyregister __P((struct tty *tp));
 int	 ttysleep __P((struct tty *tp, void *chan, int pri, char *wmesg,

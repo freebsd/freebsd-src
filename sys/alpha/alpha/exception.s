@@ -139,17 +139,17 @@
 	beq	t1, exception_return
 
 	/* set the hae register if this process has specified a value */
-	ldq	s0, GD_CURPROC(globalp)
-	ldq	t1, P_MD_FLAGS(s0)
+	ldq	s0, GD_CURTHREAD(globalp)
+	ldq	t1, TD_MD_FLAGS(s0)
 	and	t1, MDP_HAEUSED
 	beq	t1, 3f
-	ldq	a0, P_MD_HAE(s0)
+	ldq	a0, TD_MD_HAE(s0)
 	ldq	pv, chipset + CHIPSET_WRITE_HAE
 	CALL((pv))
 3:	
 #ifdef SMP
 	/* leave the kernel */
-	stl	zero, P_MD_KERNNEST(s0)
+	stl	zero, TD_MD_KERNNEST(s0)
 #endif
 
 	/* restore the registers, and return */
@@ -255,9 +255,9 @@ LEAF(exception_return, 1)			/* XXX should be NESTED */
 	br	pv, Ler1
 Ler1:	LDGP(pv)
 
-	ldq	s0, GD_CURPROC(globalp)		/* save curproc in s0 */
+	ldq	s0, GD_CURTHREAD(globalp)		/* save curthread in s0 */
 #ifdef SMP
-	ldl	s1, P_MD_KERNNEST(s0)
+	ldl	s1, TD_MD_KERNNEST(s0)
 	subl	s1, 1, s1			/* decrement nesting level */
 #endif
 
@@ -280,16 +280,16 @@ Lkernelret:
 
 Lrestoreregs:
 	/* set the hae register if this process has specified a value */
-	ldq	t1, P_MD_FLAGS(s0)
+	ldq	t1, TD_MD_FLAGS(s0)
 	and	t1, MDP_HAEUSED
 	beq	t1, Lnohae
-	ldq	a0, P_MD_HAE(t0)
+	ldq	a0, TD_MD_HAE(t0)
 	ldq	pv, chipset + CHIPSET_WRITE_HAE
 	CALL((pv))
 Lnohae:	
 #ifdef SMP
 	/* leave the kernel */
-	stl	s1, P_MD_KERNNEST(s0)
+	stl	s1, TD_MD_KERNNEST(s0)
 #endif
 
 	/* restore the registers, and return */

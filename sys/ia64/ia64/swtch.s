@@ -105,7 +105,7 @@ ENTRY(savectx, 1)
 
 ENTRY(restorectx, 1)
 
-	add	r3=U_PCB_UNAT,in0	// point at NaT for r4..r7
+	add	r3=PCB_UNAT,in0		// point at NaT for r4..r7
 	mov	ar.rsc=0 ;;		// switch off the RSE
 	ld8	r16=[r3]		// load NaT for r4..r7
 	;;
@@ -158,9 +158,9 @@ ENTRY(restorectx, 1)
 
 ENTRY(cpu_switch, 0)
 
-	add	r16=GD_CURPROC,r13 ;;
+	add	r16=GD_CURTHREAD,r13 ;;
 	ld8	r17=[r16] ;; 
-	add	r17=P_ADDR,r17 ;;
+	add	r17=TD_PCB,r17 ;;
 	ld8	r17=[r17]
 
 	flushrs				// push out caller's dirty regs
@@ -209,18 +209,18 @@ ENTRY(cpu_switch, 0)
 
 	mov	ar.rsc=3		// turn RSE back on
 
-	br.call.sptk.few rp=chooseproc
+	br.call.sptk.few rp=choosethread
 
-	add	r14=GD_CURPROC,r13 ;;
+	add	r14=GD_CURTHREAD,r13 ;;
 	ld8	r15=[r14] ;;
 
 #if 0
-	cmp.ne	p6,p0=r15,ret0		// chooseproc() == curproc ?
+	cmp.ne	p6,p0=r15,ret0		// chooseproc() == curthread ?
 (p6)	br.dptk.few 1f
 	;;
-	add	r17=P_ADDR,r15 ;;	// restore b0
+	add	r17=TD_PCB,r15 ;;	// restore b0
 	ld8	r17=[r17] ;;
-	add	r17=U_PCB_B0,r17 ;;
+	add	r17=PCB_B0,r17 ;;
 	ld8	r17=[r17] ;;
 	mov	b0=r17
 
@@ -228,7 +228,7 @@ ENTRY(cpu_switch, 0)
 #endif
 
 1:
-	st8	[r14]=ret0		// set r13->gd_curproc
+	st8	[r14]=ret0		// set r13->gd_curthread
 	mov	ar.k7=ret0
 	mov	r4=ret0			// save from call
 	;; 
@@ -237,12 +237,13 @@ ENTRY(cpu_switch, 0)
 	mov	out0=r4
 	br.call.sptk.few rp=pmap_activate // install RIDs etc.
 
-	add	r15=P_ADDR,r4 ;;
-	ld8	r15=[r15] ;;
-	add	r16=SIZEOF_USER,r15 ;;
+	add	r15=TD_PCB,r4
+	add	r16=TD_KSTACK,r4 ;;
+	ld8	r15=[r15]
+	ld8	r16=[r16] ;;
 	mov	ar.k5=r16
 
-	add	r3=U_PCB_UNAT,r15	// point at NaT for r4..r7
+	add	r3=PCB_UNAT,r15		// point at NaT for r4..r7
 	mov	ar.rsc=0 ;;		// switch off the RSE
 	ld8	r16=[r3]		// load NaT for r4..r7
 	;;

@@ -219,9 +219,9 @@ sysctl_kern_consmute(SYSCTL_HANDLER_ARGS)
 			 */
 			cninit_finish();
 			if(cn_is_open)
-				/* XXX curproc is not what we want really */
+				/* XXX curthread is not what we want really */
 				error = cnopen(cn_dev_t, openflag,
-					openmode, curproc);
+					openmode, curthread);
 			/* if it failed, back it out */
 			if ( error != 0) cnuninit();
 		} else if (!ocn_mute && cn_mute) {
@@ -231,7 +231,7 @@ sysctl_kern_consmute(SYSCTL_HANDLER_ARGS)
 			 */
 			if(cn_is_open)
 				error = cnclose(cn_dev_t, openflag,
-					openmode, curproc);
+					openmode, curthread);
 			if ( error == 0) cnuninit();
 		}
 		if (error != 0) {
@@ -248,10 +248,10 @@ SYSCTL_PROC(_kern, OID_AUTO, consmute, CTLTYPE_INT|CTLFLAG_RW,
 	0, sizeof cn_mute, sysctl_kern_consmute, "I", "");
 
 static int
-cnopen(dev, flag, mode, p)
+cnopen(dev, flag, mode, td)
 	dev_t dev;
 	int flag, mode;
-	struct proc *p;
+	struct thread *td;
 {
 	dev_t cndev, physdev;
 	int retval = 0;
@@ -266,7 +266,7 @@ cnopen(dev, flag, mode, p)
 	 * bypass this and go straight to the device.
 	 */
 	if(!cn_mute)
-		retval = (*cn_phys_open)(physdev, flag, mode, p);
+		retval = (*cn_phys_open)(physdev, flag, mode, td);
 	if (retval == 0) {
 		/* 
 		 * check if we openned it via /dev/console or 
@@ -285,10 +285,10 @@ cnopen(dev, flag, mode, p)
 }
 
 static int
-cnclose(dev, flag, mode, p)
+cnclose(dev, flag, mode, td)
 	dev_t dev;
 	int flag, mode;
-	struct proc *p;
+	struct thread *td;
 {
 	dev_t cndev;
 	struct tty *cn_tp;
@@ -323,7 +323,7 @@ cnclose(dev, flag, mode, p)
 		dev = cndev;
 	}
 	if(cn_phys_close)
-		return ((*cn_phys_close)(dev, flag, mode, p));
+		return ((*cn_phys_close)(dev, flag, mode, td));
 	return (0);
 }
 
@@ -360,12 +360,12 @@ cnwrite(dev, uio, flag)
 }
 
 static int
-cnioctl(dev, cmd, data, flag, p)
+cnioctl(dev, cmd, data, flag, td)
 	dev_t dev;
 	u_long cmd;
 	caddr_t data;
 	int flag;
-	struct proc *p;
+	struct thread *td;
 {
 	int error;
 
@@ -376,28 +376,28 @@ cnioctl(dev, cmd, data, flag, p)
 	 * output from the "virtual" console.
 	 */
 	if (cmd == TIOCCONS && constty) {
-		error = suser(p);
+		error = suser_td(td);
 		if (error)
 			return (error);
 		constty = NULL;
 		return (0);
 	}
 	dev = cn_tab->cn_dev;
-	return ((*devsw(dev)->d_ioctl)(dev, cmd, data, flag, p));
+	return ((*devsw(dev)->d_ioctl)(dev, cmd, data, flag, td));
 }
 
 static int
-cnpoll(dev, events, p)
+cnpoll(dev, events, td)
 	dev_t dev;
 	int events;
-	struct proc *p;
+	struct thread *td;
 {
 	if ((cn_tab == NULL) || cn_mute)
 		return (1);
 
 	dev = cn_tab->cn_dev;
 
-	return ((*devsw(dev)->d_poll)(dev, events, p));
+	return ((*devsw(dev)->d_poll)(dev, events, td));
 }
 
 static int

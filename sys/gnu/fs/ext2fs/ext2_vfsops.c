@@ -71,16 +71,16 @@
 #include <gnu/ext2fs/ext2_fs_sb.h>
 
 static int ext2_fhtovp __P((struct mount *, struct fid *, struct vnode **));
-static int ext2_flushfiles __P((struct mount *mp, int flags, struct proc *p));
+static int ext2_flushfiles __P((struct mount *mp, int flags, struct thread *td));
 static int ext2_mount __P((struct mount *,
-	    char *, caddr_t, struct nameidata *, struct proc *));
-static int ext2_mountfs __P((struct vnode *, struct mount *, struct proc *));
+	    char *, caddr_t, struct nameidata *, struct thread *));
+static int ext2_mountfs __P((struct vnode *, struct mount *, struct thread *));
 static int ext2_reload __P((struct mount *mountp, struct ucred *cred,
-			struct proc *p));
+			struct thread *td));
 static int ext2_sbupdate __P((struct ufsmount *, int));
-static int ext2_statfs __P((struct mount *, struct statfs *, struct proc *));
-static int ext2_sync __P((struct mount *, int, struct ucred *, struct proc *));
-static int ext2_unmount __P((struct mount *, int, struct proc *));
+static int ext2_statfs __P((struct mount *, struct statfs *, struct thread *));
+static int ext2_sync __P((struct mount *, int, struct ucred *, struct thread *));
+static int ext2_unmount __P((struct mount *, int, struct thread *));
 static int ext2_vget __P((struct mount *, ino_t, struct vnode **));
 static int ext2_vptofh __P((struct vnode *, struct fid *));
 
@@ -130,7 +130,7 @@ ext2_mountroot()
 {
 	register struct ext2_sb_info *fs;
 	register struct mount *mp;
-	struct proc *p = curproc;
+	struct thread *td = curthread;
 	struct ufsmount *ump;
 	u_int size;
 	int error;
@@ -143,12 +143,12 @@ ext2_mountroot()
 	bzero((char *)mp, (u_long)sizeof(struct mount));
 	mp->mnt_op = &ext2fs_vfsops;
 	mp->mnt_flag = MNT_RDONLY;
-	if (error = ext2_mountfs(rootvp, mp, p)) {
+	if (error = ext2_mountfs(rootvp, mp, td)) {
 		bsd_free(mp, M_MOUNT);
 		return (error);
 	}
 	if (error = vfs_lock(mp)) {
-		(void)ext2_unmount(mp, 0, p);
+		(void)ext2_unmount(mp, 0, td);
 		bsd_free(mp, M_MOUNT);
 		return (error);
 	}
@@ -164,7 +164,7 @@ ext2_mountroot()
 	(void) copystr(ROOTNAME, mp->mnt_stat.f_mntfromname, MNAMELEN - 1,
 	    &size);
 	bzero(mp->mnt_stat.f_mntfromname + size, MNAMELEN - size);
-	(void)ext2_statfs(mp, &mp->mnt_stat, p);
+	(void)ext2_statfs(mp, &mp->mnt_stat, td);
 	vfs_unlock(mp);
 	inittodr(fs->s_es->s_wtime);		/* this helps to set the time */
 	return (0);
@@ -177,12 +177,12 @@ ext2_mountroot()
  * mount system call
  */
 static int
-ext2_mount(mp, path, data, ndp, p)
+ext2_mount(mp, path, data, ndp, td)
 	register struct mount *mp;	
 	char *path;
 	caddr_t data;		/* this is actually a (struct ufs_args *) */
 	struct nameidata *ndp;
-	struct proc *p;
+	struct thread *td;
 {
 	struct vnode *devvp;
 	struct ufs_args args;
@@ -210,10 +210,10 @@ ext2_mount(mp, path, data, ndp, p)
 			flags = WRITECLOSE;
 			if (mp->mnt_flag & MNT_FORCE)
 				flags |= FORCECLOSE;
-			if (vfs_busy(mp, LK_NOWAIT, 0, p))
+			if (vfs_busy(mp, LK_NOWAIT, 0, td))
 				return (EBUSY);
-			error = ext2_flushfiles(mp, flags, p);
-			vfs_unbusy(mp, p);
+			error = ext2_flushfiles(mp, flags, td);
+			vfs_unbusy(mp, td);
 			if (!error && fs->s_wasvalid) {
 				fs->s_es->s_state |= EXT2_VALID_FS;
 				ext2_sbupdate(ump, MNT_WAIT);
@@ -221,7 +221,7 @@ ext2_mount(mp, path, data, ndp, p)
 			fs->s_rd_only = 1;
 		}
 		if (!error && (mp->mnt_flag & MNT_RELOAD))
-			error = ext2_reload(mp, ndp->ni_cnd.cn_cred, p);
+			error = ext2_reload(mp, ndp->ni_cnd.cn_cred, td);
 		if (error)
 			return (error);
 		devvp = ump->um_devvp;
@@ -233,14 +233,14 @@ ext2_mount(mp, path, data, ndp, p)
 			 * If upgrade to read-write by non-root, then verify
 			 * that user has necessary permissions on the device.
 			 */
-			if (suser(p)) {
-				vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, p);
+			if (suser_td(td)) {
+				vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
 				if ((error = VOP_ACCESS(devvp, VREAD | VWRITE,
-				    p->p_ucred, p)) != 0) {
-					VOP_UNLOCK(devvp, 0, p);
+				    td->td_proc->p_ucred, td)) != 0) {
+					VOP_UNLOCK(devvp, 0, td);
 					return (error);
 				}
-				VOP_UNLOCK(devvp, 0, p);
+				VOP_UNLOCK(devvp, 0, td);
 			}
 
 			if ((fs->s_es->s_state & EXT2_VALID_FS) == 0 ||
@@ -271,7 +271,7 @@ ext2_mount(mp, path, data, ndp, p)
 	 * Not an update, or updating the name: look up the name
 	 * and verify that it refers to a sensible block device.
 	 */
-	NDINIT(ndp, LOOKUP, FOLLOW, UIO_USERSPACE, args.fspec, p);
+	NDINIT(ndp, LOOKUP, FOLLOW, UIO_USERSPACE, args.fspec, td);
 	if ((error = namei(ndp)) != 0)
 		return (error);
 	NDFREE(ndp, NDF_ONLY_PNBUF);
@@ -286,20 +286,20 @@ ext2_mount(mp, path, data, ndp, p)
 	 * If mount by non-root, then verify that user has necessary
 	 * permissions on the device.
 	 */
-	if (suser(p)) {
+	if (suser_td(td)) {
 		accessmode = VREAD;
 		if ((mp->mnt_flag & MNT_RDONLY) == 0)
 			accessmode |= VWRITE;
-		vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, p);
-		if ((error = VOP_ACCESS(devvp, accessmode, p->p_ucred, p)) != 0) {
+		vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
+		if ((error = VOP_ACCESS(devvp, accessmode, td->td_proc->p_ucred, td)) != 0) {
 			vput(devvp);
 			return (error);
 		}
-		VOP_UNLOCK(devvp, 0, p);
+		VOP_UNLOCK(devvp, 0, td);
 	}
 
 	if ((mp->mnt_flag & MNT_UPDATE) == 0) {
-		error = ext2_mountfs(devvp, mp, p);
+		error = ext2_mountfs(devvp, mp, td);
 	} else {
 		if (devvp != ump->um_devvp)
 			error = EINVAL;	/* needs translation */
@@ -321,7 +321,7 @@ ext2_mount(mp, path, data, ndp, p)
 	(void) copyinstr(args.fspec, mp->mnt_stat.f_mntfromname, MNAMELEN - 1, 
 	    &size);
 	bzero(mp->mnt_stat.f_mntfromname + size, MNAMELEN - size);
-	(void)ext2_statfs(mp, &mp->mnt_stat, p);
+	(void)ext2_statfs(mp, &mp->mnt_stat, td);
 	return (0);
 }
 
@@ -522,10 +522,10 @@ static int compute_sb_data(devvp, es, fs)
  *	6) re-read inode data for all active vnodes.
  */
 static int
-ext2_reload(mountp, cred, p)
+ext2_reload(mountp, cred, td)
 	register struct mount *mountp;
 	struct ucred *cred;
-	struct proc *p;
+	struct thread *td;
 {
 	register struct vnode *vp, *nvp, *devvp;
 	struct inode *ip;
@@ -540,7 +540,7 @@ ext2_reload(mountp, cred, p)
 	 * Step 1: invalidate all cached meta-data.
 	 */
 	devvp = VFSTOUFS(mountp)->um_devvp;
-	if (vinvalbuf(devvp, 0, cred, p, 0, 0))
+	if (vinvalbuf(devvp, 0, cred, td, 0, 0))
 		panic("ext2_reload: dirty1");
 	/*
 	 * Step 2: re-read superblock from disk.
@@ -578,16 +578,16 @@ loop:
 		/*
 		 * Step 4: invalidate all inactive vnodes.
 		 */
-  		if (vrecycle(vp, NULL, p))
+  		if (vrecycle(vp, NULL, td))
   			goto loop;
 		/*
 		 * Step 5: invalidate all cached file data.
 		 */
 		mtx_lock(&vp->v_interlock);
-		if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, p)) {
+		if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, td)) {
 			goto loop;
 		}
-		if (vinvalbuf(vp, 0, cred, p, 0, 0))
+		if (vinvalbuf(vp, 0, cred, td, 0, 0))
 			panic("ext2_reload: dirty2");
 		/*
 		 * Step 6: re-read inode data for all active vnodes.
@@ -615,10 +615,10 @@ loop:
  * Common code for mount and mountroot
  */
 static int
-ext2_mountfs(devvp, mp, p)
+ext2_mountfs(devvp, mp, td)
 	register struct vnode *devvp;
 	struct mount *mp;
-	struct proc *p;
+	struct thread *td;
 {
 	register struct ufsmount *ump;
 	struct buf *bp;
@@ -640,7 +640,7 @@ ext2_mountfs(devvp, mp, p)
 		return (error);
 	if (vcount(devvp) > 1 && devvp != rootvp)
 		return (EBUSY);
-	if ((error = vinvalbuf(devvp, V_SAVE, p->p_ucred, p, 0, 0)) != 0)
+	if ((error = vinvalbuf(devvp, V_SAVE, td->td_proc->p_ucred, td, 0, 0)) != 0)
 		return (error);
 #ifdef READONLY
 /* turn on this to force it to be read-only */
@@ -648,12 +648,12 @@ ext2_mountfs(devvp, mp, p)
 #endif
 
 	ronly = (mp->mnt_flag & MNT_RDONLY) != 0;
-	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, p);
-	error = VOP_OPEN(devvp, ronly ? FREAD : FREAD|FWRITE, FSCRED, p);
-	VOP_UNLOCK(devvp, 0, p);
+	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
+	error = VOP_OPEN(devvp, ronly ? FREAD : FREAD|FWRITE, FSCRED, td);
+	VOP_UNLOCK(devvp, 0, td);
 	if (error)
 		return (error);
-	if (VOP_IOCTL(devvp, DIOCGPART, (caddr_t)&dpart, FREAD, NOCRED, p) != 0)
+	if (VOP_IOCTL(devvp, DIOCGPART, (caddr_t)&dpart, FREAD, NOCRED, td) != 0)
 		size = DEV_BSIZE;
 	else {
 		havepart = 1;
@@ -739,7 +739,7 @@ ext2_mountfs(devvp, mp, p)
 out:
 	if (bp)
 		brelse(bp);
-	(void)VOP_CLOSE(devvp, ronly ? FREAD : FREAD|FWRITE, NOCRED, p);
+	(void)VOP_CLOSE(devvp, ronly ? FREAD : FREAD|FWRITE, NOCRED, td);
 	if (ump) {
 		bsd_free(ump->um_e2fs->s_es, M_UFSMNT);
 		bsd_free(ump->um_e2fs, M_UFSMNT);
@@ -753,10 +753,10 @@ out:
  * unmount system call
  */
 static int
-ext2_unmount(mp, mntflags, p)
+ext2_unmount(mp, mntflags, td)
 	struct mount *mp;
 	int mntflags;
-	struct proc *p;
+	struct thread *td;
 {
 	register struct ufsmount *ump;
 	register struct ext2_sb_info *fs;
@@ -768,7 +768,7 @@ ext2_unmount(mp, mntflags, p)
 			return (EINVAL);
 		flags |= FORCECLOSE;
 	}
-	if ((error = ext2_flushfiles(mp, flags, p)) != 0)
+	if ((error = ext2_flushfiles(mp, flags, td)) != 0)
 		return (error);
 	ump = VFSTOUFS(mp);
 	fs = ump->um_e2fs;
@@ -795,7 +795,7 @@ ext2_unmount(mp, mntflags, p)
 
 	ump->um_devvp->v_rdev->si_mountpoint = NULL;
 	error = VOP_CLOSE(ump->um_devvp, ronly ? FREAD : FREAD|FWRITE,
-		NOCRED, p);
+		NOCRED, td);
 	vrele(ump->um_devvp);
 	bsd_free(fs->s_es, M_UFSMNT);
 	bsd_free(fs, M_UFSMNT);
@@ -809,10 +809,10 @@ ext2_unmount(mp, mntflags, p)
  * Flush out all the files in a filesystem.
  */
 static int
-ext2_flushfiles(mp, flags, p)
+ext2_flushfiles(mp, flags, td)
 	register struct mount *mp;
 	int flags;
-	struct proc *p;
+	struct thread *td;
 {
 	register struct ufsmount *ump;
 	int error;
@@ -828,7 +828,7 @@ ext2_flushfiles(mp, flags, p)
 		for (i = 0; i < MAXQUOTAS; i++) {
 			if (ump->um_quotas[i] == NULLVP)
 				continue;
-			quotaoff(p, mp, i);
+			quotaoff(td, mp, i);
 		}
 		/*
 		 * Here we fall through to vflush again to ensure
@@ -845,10 +845,10 @@ ext2_flushfiles(mp, flags, p)
  * taken from ext2/super.c ext2_statfs
  */
 static int
-ext2_statfs(mp, sbp, p)
+ext2_statfs(mp, sbp, td)
 	struct mount *mp;
 	register struct statfs *sbp;
-	struct proc *p;
+	struct thread *td;
 {
         unsigned long overhead;
 	register struct ufsmount *ump;
@@ -904,11 +904,11 @@ ext2_statfs(mp, sbp, p)
  * Note: we are always called with the filesystem marked `MPBUSY'.
  */
 static int
-ext2_sync(mp, waitfor, cred, p)
+ext2_sync(mp, waitfor, cred, td)
 	struct mount *mp;
 	int waitfor;
 	struct ucred *cred;
-	struct proc *p;
+	struct thread *td;
 {
 	struct vnode *nvp, *vp;
 	struct inode *ip;
@@ -945,16 +945,16 @@ loop:
 			mtx_lock(&mntvnode_mtx);
 			continue;
 		}
-		error = vget(vp, LK_EXCLUSIVE | LK_NOWAIT | LK_INTERLOCK, p);
+		error = vget(vp, LK_EXCLUSIVE | LK_NOWAIT | LK_INTERLOCK, td);
 		if (error) {
 			mtx_lock(&mntvnode_mtx);
 			if (error == ENOENT)
 				goto loop;
 			continue;
 		}
-		if ((error = VOP_FSYNC(vp, cred, waitfor, p)) != 0)
+		if ((error = VOP_FSYNC(vp, cred, waitfor, td)) != 0)
 			allerror = error;
-		VOP_UNLOCK(vp, 0, p);
+		VOP_UNLOCK(vp, 0, td);
 		vrele(vp);
 		mtx_lock(&mntvnode_mtx);
 	}
@@ -963,10 +963,10 @@ loop:
 	 * Force stale file system control information to be flushed.
 	 */
 	if (waitfor != MNT_LAZY) {
-		vn_lock(ump->um_devvp, LK_EXCLUSIVE | LK_RETRY, p);
-		if ((error = VOP_FSYNC(ump->um_devvp, cred, waitfor, p)) != 0)
+		vn_lock(ump->um_devvp, LK_EXCLUSIVE | LK_RETRY, td);
+		if ((error = VOP_FSYNC(ump->um_devvp, cred, waitfor, td)) != 0)
 			allerror = error;
-		VOP_UNLOCK(ump->um_devvp, 0, p);
+		VOP_UNLOCK(ump->um_devvp, 0, td);
 	}
 #if QUOTA
 	qsync(mp);

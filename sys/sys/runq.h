@@ -29,6 +29,8 @@
 #ifndef	_RUNQ_H_
 #define	_RUNQ_H_
 
+struct kse;
+
 /*
  * Run queue parameters.
  */
@@ -52,7 +54,7 @@ typedef	u_int32_t	rqb_word_t;
 /*
  * Head of run queues.
  */
-TAILQ_HEAD(rqhead, proc);
+TAILQ_HEAD(rqhead, kse);
 
 /*
  * Bit array which maintains the status of a run queue.  When a queue is
@@ -71,10 +73,10 @@ struct runq {
 	struct	rqhead rq_queues[RQ_NQS];
 };
 
-void	runq_add(struct runq *, struct proc *);
+void	runq_add(struct runq *, struct kse *);
 int	runq_check(struct runq *);
-struct	proc *runq_choose(struct runq *);
+struct	kse *runq_choose(struct runq *);
 void	runq_init(struct runq *);
-void	runq_remove(struct runq *, struct proc *);
+void	runq_remove(struct runq *, struct kse *);
 
 #endif

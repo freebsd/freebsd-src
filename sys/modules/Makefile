@@ -49,13 +49,11 @@ SUBDIR=	3dfx \
 	mii \
 	mlx \
 	msdosfs \
-	ncp \
 	nfs \
 	nge \
 	nmdm \
 	ntfs \
 	nullfs \
-	nwfs \
 	pcn \
 	portalfs \
 	procfs \
@@ -99,6 +97,9 @@ SUBDIR=	3dfx \
 	wx \
 	xl
 
+#removed while KSE settles in:
+#	ncp \
+#	nwfs \
 # XXX some of these can move to the general case when de-i386'ed
 .if ${MACHINE_ARCH} == "i386"
 SUBDIR+=aac \
@@ -120,13 +121,14 @@ SUBDIR+=aac \
 	pecoff \
 	ray \
 	s3 \
-	smbfs \
 	splash \
 	sr \
 	streams \
 	vesa \
 	wi
 .endif
+#removed while KSE settles in:
+#	smbfs \
 
 .if ${MACHINE} == "pc98"
 SUBDIR+=snc

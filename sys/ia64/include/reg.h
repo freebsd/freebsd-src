@@ -54,11 +54,11 @@ struct dbreg {
 
 #ifdef _KERNEL
 
-struct proc;
+struct thread;
 
 void	restorehighfp __P((struct ia64_fpreg *));
 void	savehighfp __P((struct ia64_fpreg *));
-void	setregs __P((struct proc *, u_long, u_long, u_long));
+void	setregs __P((struct thread *, u_long, u_long, u_long));
 #endif
 
 #endif /* _MACHINE_REG_H_ */

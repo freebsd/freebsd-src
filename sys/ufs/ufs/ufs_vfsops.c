@@ -64,10 +64,10 @@ MALLOC_DEFINE(M_UFSMNT, "UFS mount", "UFS mount structure");
  */
 /* ARGSUSED */
 int
-ufs_start(mp, flags, p)
+ufs_start(mp, flags, td)
 	struct mount *mp;
 	int flags;
-	struct proc *p;
+	struct thread *td;
 {
 
 	return (0);
@@ -95,12 +95,12 @@ ufs_root(mp, vpp)
  * Do operations associated with quotas
  */
 int
-ufs_quotactl(mp, cmds, uid, arg, p)
+ufs_quotactl(mp, cmds, uid, arg, td)
 	struct mount *mp;
 	int cmds;
 	uid_t uid;
 	caddr_t arg;
-	struct proc *p;
+	struct thread *td;
 {
 #ifndef QUOTA
 	return (EOPNOTSUPP);
@@ -108,35 +108,35 @@ ufs_quotactl(mp, cmds, uid, arg, p)
 	int cmd, type, error;
 
 	if (uid == -1)
-		uid = p->p_ucred->cr_ruid;
+		uid = td->td_proc->p_ucred->cr_ruid;
 	cmd = cmds >> SUBCMDSHIFT;
 
 	switch (cmd) {
 	case Q_SYNC:
 		break;
 	case Q_GETQUOTA:
-		if (uid == p->p_ucred->cr_ruid)
+		if (uid == td->td_proc->p_ucred->cr_ruid)
 			break;
 		/* fall through */
 	default:
-		if ((error = suser_xxx(0, p, PRISON_ROOT)) != 0)
+		if ((error = suser_xxx(0, td->td_proc, PRISON_ROOT)) != 0)
 			return (error);
 	}
 
 	type = cmds & SUBCMDMASK;
 	if ((u_int)type >= MAXQUOTAS)
 		return (EINVAL);
-	if (vfs_busy(mp, LK_NOWAIT, 0, p))
+	if (vfs_busy(mp, LK_NOWAIT, 0, td))
 		return (0);
 
 	switch (cmd) {
 
 	case Q_QUOTAON:
-		error = quotaon(p, mp, type, arg);
+		error = quotaon(td, mp, type, arg);
 		break;
 
 	case Q_QUOTAOFF:
-		error = quotaoff(p, mp, type);
+		error = quotaoff(td, mp, type);
 		break;
 
 	case Q_SETQUOTA:
@@ -159,7 +159,7 @@ ufs_quotactl(mp, cmds, uid, arg, p)
 		error = EINVAL;
 		break;
 	}
-	vfs_unbusy(mp, p);
+	vfs_unbusy(mp, td);
 	return (error);
 #endif
 }

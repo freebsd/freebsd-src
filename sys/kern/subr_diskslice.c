@@ -816,9 +816,9 @@ dssize(dev, sspp)
 	if (ssp == NULL || slice >= ssp->dss_nslices
 	    || !(ssp->dss_slices[slice].ds_openmask & (1 << part))) {
 		if (devsw(dev)->d_open(dev, FREAD, S_IFCHR,
-		    (struct proc *)NULL) != 0)
+		    (struct thread *)NULL) != 0)
 			return (-1);
-		devsw(dev)->d_close(dev, FREAD, S_IFCHR, (struct proc *)NULL);
+		devsw(dev)->d_close(dev, FREAD, S_IFCHR, (struct thread *)NULL);
 		ssp = *sspp;
 	}
 	lp = ssp->dss_slices[slice].ds_label;

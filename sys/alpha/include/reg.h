@@ -110,7 +110,7 @@ struct dbreg {
 #ifdef _KERNEL
 void	restorefpstate __P((struct fpreg *));
 void	savefpstate __P((struct fpreg *));
-void	setregs __P((struct proc *, u_long, u_long, u_long));
+void	setregs __P((struct thread *, u_long, u_long, u_long));
 #endif
 
 #endif /* _ALPHA_REG_H_ */

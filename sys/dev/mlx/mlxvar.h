@@ -240,8 +240,9 @@ struct mlxd_softc
  * Interface between driver core and disk driver (should be using a bus?)
  */
 extern int	mlx_submit_buf(struct mlx_softc *sc, mlx_bio *bp);
-extern int	mlx_submit_ioctl(struct mlx_softc *sc, struct mlx_sysdrive *drive, u_long cmd, 
-				 caddr_t addr, int32_t flag, struct proc *p);
+extern int	mlx_submit_ioctl(struct mlx_softc *sc,
+			struct mlx_sysdrive *drive, u_long cmd, 
+			caddr_t addr, int32_t flag, struct thread *td);
 extern void	mlxd_intr(void *data);
 
 

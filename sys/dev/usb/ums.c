@@ -586,7 +586,7 @@ ums_disable(priv)
 }
 
 Static int
-ums_open(dev_t dev, int flag, int fmt, struct proc *p)
+ums_open(dev_t dev, int flag, int fmt, struct thread *td)
 {
 	struct ums_softc *sc;
 
@@ -596,7 +596,7 @@ ums_open(dev_t dev, int flag, int fmt, struct proc *p)
 }
 
 Static int
-ums_close(dev_t dev, int flag, int fmt, struct proc *p)
+ums_close(dev_t dev, int flag, int fmt, struct thread *td)
 {
 	struct ums_softc *sc;
 
@@ -682,7 +682,7 @@ ums_read(dev_t dev, struct uio *uio, int flag)
 }
 
 Static int
-ums_poll(dev_t dev, int events, struct proc *p)
+ums_poll(dev_t dev, int events, struct thread *td)
 {
 	struct ums_softc *sc;
 	int revents = 0;
@@ -699,7 +699,7 @@ ums_poll(dev_t dev, int events, struct proc *p)
 			revents = events & (POLLIN | POLLRDNORM);
 		} else {
 			sc->state |= UMS_SELECT;
-			selrecord(p, &sc->rsel);
+			selrecord(td, &sc->rsel);
 		}
 	}
 	splx(s);
@@ -708,7 +708,7 @@ ums_poll(dev_t dev, int events, struct proc *p)
 }
 	
 int
-ums_ioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
+ums_ioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 {
 	struct ums_softc *sc;
 	int error = 0;

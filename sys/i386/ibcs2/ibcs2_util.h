@@ -29,6 +29,8 @@
  *
  * from: svr4_util.h,v 1.5 1994/11/18 02:54:31 christos Exp
  * from: linux_util.h,v 1.2 1995/03/05 23:23:50 fvdl Exp
+ *
+ * $FreeBSD$
  */
 
 /*
@@ -60,7 +62,7 @@ static __inline void *stackgap_alloc(caddr_t *, size_t);
 static __inline caddr_t
 stackgap_init()
 {
-#define szsigcode (*(curproc->p_sysent->sv_szsigcode))
+#define szsigcode (*(curthread->td_proc->p_sysent->sv_szsigcode))
         return (caddr_t)(PS_STRINGS - szsigcode - SPARE_USRSPACE);
 }
 
@@ -82,17 +84,17 @@ stackgap_alloc(sgp, sz)
 
 extern const char ibcs2_emul_path[];
 
-int ibcs2_emul_find __P((struct proc *, caddr_t *, const char *, char *,
+int ibcs2_emul_find __P((struct thread *, caddr_t *, const char *, char *,
 			char **, int));
 
 #define CHECKALTEXIST(p, sgp, path) \
-    ibcs2_emul_find(p, sgp, ibcs2_emul_path, path, &(path), 0)
+    ibcs2_emul_find(td, sgp, ibcs2_emul_path, path, &(path), 0)
 
 #define CHECKALTCREAT(p, sgp, path) \
-    ibcs2_emul_find(p, sgp, ibcs2_emul_path, path, &(path), 1)
+    ibcs2_emul_find(td, sgp, ibcs2_emul_path, path, &(path), 1)
 
 #ifdef SPX_HACK
-int spx_open __P((struct proc *p, void *uap));
+int spx_open __P((struct thread *td, void *uap));
 #endif
 
 #endif /* !_IBCS2_UTIL_H_ */

@@ -171,16 +171,16 @@ extern struct nfsmount *nfs_iodmount[NFS_MAXASYNCDAEMON];
 
 static __inline
 int
-nfs_rslock(struct nfsnode *np, struct proc *p)
+nfs_rslock(struct nfsnode *np, struct thread *td)
 {
-        return(lockmgr(&np->n_rslock, LK_EXCLUSIVE | LK_CANRECURSE | LK_SLEEPFAIL, NULL, p));
+        return(lockmgr(&np->n_rslock, LK_EXCLUSIVE | LK_CANRECURSE | LK_SLEEPFAIL, NULL, td));
 }
 
 static __inline
 void
-nfs_rsunlock(struct nfsnode *np, struct proc *p)
+nfs_rsunlock(struct nfsnode *np, struct thread *td)
 {
-	(void)lockmgr(&np->n_rslock, LK_RELEASE, NULL, p);
+	(void)lockmgr(&np->n_rslock, LK_RELEASE, NULL, td);
 }
 
 extern	vop_t	**fifo_nfsv2nodeop_p;

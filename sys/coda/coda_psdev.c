@@ -117,11 +117,11 @@ vcodaattach(n)
 }
 
 int 
-vc_nb_open(dev, flag, mode, p)    
+vc_nb_open(dev, flag, mode, td)    
     dev_t        dev;      
     int          flag;     
     int          mode;     
-    struct proc *p;             /* NetBSD only */
+    struct thread *td;             /* NetBSD only */
 {
     register struct vcomm *vcp;
     
@@ -149,11 +149,11 @@ vc_nb_open(dev, flag, mode, p)
 }
 
 int 
-vc_nb_close (dev, flag, mode, p)    
+vc_nb_close (dev, flag, mode, td)    
     dev_t        dev;      
     int          flag;     
     int          mode;     
-    struct proc *p;
+    struct thread *td;
 {
     register struct vcomm *vcp;
     register struct vmsg *vmp, *nvmp = NULL;
@@ -225,7 +225,7 @@ vc_nb_close (dev, flag, mode, p)
 #endif
     }
 
-    err = dounmount(mi->mi_vfsp, flag, p);
+    err = dounmount(mi->mi_vfsp, flag, td);
     if (err)
 	myprintf(("Error %d unmounting vfs in vcclose(%d)\n", 
 	           err, minor(dev)));
@@ -387,12 +387,12 @@ vc_nb_write(dev, uiop, flag)
 }
 
 int
-vc_nb_ioctl(dev, cmd, addr, flag, p) 
+vc_nb_ioctl(dev, cmd, addr, flag, td) 
     dev_t         dev;       
     u_long        cmd;       
     caddr_t       addr;      
     int           flag;      
-    struct proc  *p;
+    struct thread *td;
 {
     ENTRY;
 
@@ -441,10 +441,10 @@ vc_nb_ioctl(dev, cmd, addr, flag, p)
 }
 
 int
-vc_nb_poll(dev, events, p)         
+vc_nb_poll(dev, events, td)         
     dev_t         dev;    
     int           events;   
-    struct proc  *p;
+    struct thread *td;
 {
     register struct vcomm *vcp;
     int event_msk = 0;
@@ -463,7 +463,7 @@ vc_nb_poll(dev, events, p)
     if (!EMPTY(vcp->vc_requests))
 	return(events & (POLLIN|POLLRDNORM));
 
-    selrecord(p, &(vcp->vc_selproc));
+    selrecord(curthread, &(vcp->vc_selproc));
     
     return(0);
 }
@@ -490,7 +490,8 @@ coda_call(mntinfo, inSize, outSize, buffer)
 	struct vmsg *vmp;
 	int error;
 #ifdef	CTL_C
-	struct proc *p = curproc;
+	struct thread *td = curthread;
+	struct proc *p = td->td_proc;
 	sigset_t psig_omask;
 	sigset_t tempset;
 	int i;

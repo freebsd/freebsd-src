@@ -127,7 +127,7 @@ SYSCTL_UINT(_hw_aac, OID_AUTO, iosize_max, CTLFLAG_RD, &aac_iosize_max, 0,
  * basic device geometry paramters.
  */
 static int
-aac_disk_open(dev_t dev, int flags, int fmt, struct proc *p)
+aac_disk_open(dev_t dev, int flags, int fmt, struct thread *td)
 {
 	struct aac_disk	*sc;
 	struct disklabel *label;
@@ -162,7 +162,7 @@ aac_disk_open(dev_t dev, int flags, int fmt, struct proc *p)
  * Handle last close of the disk device.
  */
 static int
-aac_disk_close(dev_t dev, int flags, int fmt, struct proc *p)
+aac_disk_close(dev_t dev, int flags, int fmt, struct thread *td)
 {
 	struct aac_disk	*sc;
 

@@ -169,7 +169,7 @@ nfs_nget(mntp, fhp, fhsize, npp)
 	int fhsize;
 	struct nfsnode **npp;
 {
-	struct proc *p = curproc;	/* XXX */
+	struct thread *td = curthread;	/* XXX */
 	struct nfsnode *np, *np2;
 	struct nfsnodehashhead *nhpp;
 	register struct vnode *vp;
@@ -196,7 +196,7 @@ loop:
 		    bcmp((caddr_t)fhp, (caddr_t)np->n_fhp, fhsize))
 			continue;
 		vp = NFSTOV(np);
-		if (vget(vp, LK_EXCLUSIVE, p))
+		if (vget(vp, LK_EXCLUSIVE, td))
 			goto loop;
 		*npp = np;
 		return(0);
@@ -266,7 +266,7 @@ loop:
 	/*
 	 * Lock the new nfsnode.
 	 */
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 
 	return (0);
 }
@@ -275,12 +275,12 @@ int
 nfs_inactive(ap)
 	struct vop_inactive_args /* {
 		struct vnode *a_vp;
-		struct proc *a_p;
+		struct thread *a_td;
 	} */ *ap;
 {
 	register struct nfsnode *np;
 	register struct sillyrename *sp;
-	struct proc *p = curproc;	/* XXX */
+	struct thread *td = curthread;	/* XXX */
 
 	np = VTONFS(ap->a_vp);
 	if (prtactive && ap->a_vp->v_usecount != 0)
@@ -299,11 +299,11 @@ nfs_inactive(ap)
 		 * have our own reference.
 		 */
 		if (ap->a_vp->v_usecount > 0)
-			(void) nfs_vinvalbuf(ap->a_vp, 0, sp->s_cred, p, 1);
-		else if (vget(ap->a_vp, 0, p))
+			(void) nfs_vinvalbuf(ap->a_vp, 0, sp->s_cred, td, 1);
+		else if (vget(ap->a_vp, 0, td))
 			panic("nfs_inactive: lost vnode");
 		else {
-			(void) nfs_vinvalbuf(ap->a_vp, 0, sp->s_cred, p, 1);
+			(void) nfs_vinvalbuf(ap->a_vp, 0, sp->s_cred, td, 1);
 			vrele(ap->a_vp);
 		}
 		/*
@@ -316,7 +316,7 @@ nfs_inactive(ap)
 	}
 	np->n_flag &= (NMODIFIED | NFLUSHINPROG | NFLUSHWANT | NQNFSEVICTED |
 		NQNFSNONCACHE | NQNFSWRITE);
-	VOP_UNLOCK(ap->a_vp, 0, ap->a_p);
+	VOP_UNLOCK(ap->a_vp, 0, ap->a_td);
 	return (0);
 }
 
@@ -459,7 +459,7 @@ int
 nfs_islocked(ap)
 	struct vop_islocked_args /* {
 		struct vnode *a_vp;
-		struct proc *a_p;
+		struct thread *a_td;
 	} */ *ap;
 {
 	return VTONFS(ap->a_vp)->n_flag & NLOCKED ? 1 : 0;

@@ -66,7 +66,7 @@ vinumioctl(dev_t dev,
     u_long cmd,
     caddr_t data,
     int flag,
-    struct proc *p)
+    struct thread *td)
 {
     unsigned int objno;
     int error = 0;
@@ -319,8 +319,8 @@ vinumioctl(dev_t dev,
     default:
 	log(LOG_WARNING,
 	    "vinumioctl: invalid ioctl from process %d (%s): %lx\n",
-	    curproc->p_pid,
-	    curproc->p_comm,
+	    curthread->td_proc->p_pid,
+	    curthread->td_proc->p_comm,
 	    cmd);
 	return EINVAL;
 

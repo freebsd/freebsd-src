@@ -112,7 +112,7 @@ static struct fla_s {
 } softc[8];
 
 static int
-flaopen(dev_t dev, int flag, int fmt, struct proc *p)
+flaopen(dev_t dev, int flag, int fmt, struct thread *td)
 {
 	struct fla_s *sc;
 	int error;
@@ -120,7 +120,7 @@ flaopen(dev_t dev, int flag, int fmt, struct proc *p)
 
 	if (fla_debug)
 		printf("flaopen(%s %x %x %p)\n",
-			devtoname(dev), flag, fmt, p);
+			devtoname(dev), flag, fmt, td);
 
 	sc = dev->si_drv1;
 
@@ -142,14 +142,14 @@ flaopen(dev_t dev, int flag, int fmt, struct proc *p)
 }
 
 static int
-flaclose(dev_t dev, int flags, int fmt, struct proc *p)
+flaclose(dev_t dev, int flags, int fmt, struct thread *td)
 {
 	int error;
 	struct fla_s *sc;
 
 	if (fla_debug)
 		printf("flaclose(%s %x %x %p)\n",
-			devtoname(dev), flags, fmt, p);
+			devtoname(dev), flags, fmt, td);
 
 	sc = dev->si_drv1;
 
@@ -162,12 +162,12 @@ flaclose(dev_t dev, int flags, int fmt, struct proc *p)
 }
 
 static int
-flaioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
+flaioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 {
 
 	if (fla_debug)
 		printf("flaioctl(%s %lx %p %x %p)\n",
-			devtoname(dev), cmd, addr, flags, p);
+			devtoname(dev), cmd, addr, flags, td);
 
 	return (ENOIOCTL);
 }

@@ -120,7 +120,7 @@ cd9660_lookup(ap)
 	struct componentname *cnp = ap->a_cnp;
 	int flags = cnp->cn_flags;
 	int nameiop = cnp->cn_nameiop;
-	struct proc *p = cnp->cn_proc;
+	struct thread *td = cnp->cn_thread;
 
 	bp = NULL;
 	*vpp = NULL;
@@ -351,16 +351,16 @@ found:
 	 * it's a relocated directory.
 	 */
 	if (flags & ISDOTDOT) {
-		VOP_UNLOCK(pdp, 0, p);	/* race to get the inode */
+		VOP_UNLOCK(pdp, 0, td);	/* race to get the inode */
 		error = cd9660_vget_internal(vdp->v_mount, dp->i_ino, &tdp,
 					     dp->i_ino != ino, ep);
 		brelse(bp);
 		if (error) {
-			vn_lock(pdp, LK_EXCLUSIVE | LK_RETRY, p);
+			vn_lock(pdp, LK_EXCLUSIVE | LK_RETRY, td);
 			return (error);
 		}
 		if (lockparent && (flags & ISLASTCN)) {
-			if ((error = vn_lock(pdp, LK_EXCLUSIVE, p)) != 0) {
+			if ((error = vn_lock(pdp, LK_EXCLUSIVE, td)) != 0) {
 				cnp->cn_flags |= PDIRUNLOCK;
 				vput(tdp);
 				return (error);
@@ -380,7 +380,7 @@ found:
 			return (error);
 		if (!lockparent || !(flags & ISLASTCN)) {
 			cnp->cn_flags |= PDIRUNLOCK;
-			VOP_UNLOCK(pdp, 0, p);
+			VOP_UNLOCK(pdp, 0, td);
 		}
 		*vpp = tdp;
 	}

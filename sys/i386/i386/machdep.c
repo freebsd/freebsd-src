@@ -49,7 +49,7 @@
 #include "opt_msgbuf.h"
 #include "opt_npx.h"
 #include "opt_perfmon.h"
-#include "opt_upages.h"
+#include "opt_kstack_pages.h"
 /* #include "opt_userconfig.h" */
 
 #include <sys/param.h>
@@ -289,14 +289,16 @@ osendsig(catcher, sig, mask, code)
 	struct osigframe sf;
 	struct osigframe *fp;
 	struct proc *p;
+	struct thread *td;
 	struct sigacts *psp;
 	struct trapframe *regs;
 	int oonstack;
 
-	p = curproc;
+	td = curthread;
+	p = td->td_proc;
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	psp = p->p_sigacts;
-	regs = p->p_frame;
+	regs = td->td_frame;
 	oonstack = sigonstack(regs->tf_esp);
 
 	/* Allocate and validate space for the signal handler context. */
@@ -386,7 +388,7 @@ osendsig(catcher, sig, mask, code)
 	if (regs->tf_eflags & PSL_VM) {
 		/* XXX confusing names: `tf' isn't a trapframe; `regs' is. */
 		struct trapframe_vm86 *tf = (struct trapframe_vm86 *)regs;
-		struct vm86_kernel *vm86 = &p->p_addr->u_pcb.pcb_ext->ext_vm86;
+		struct vm86_kernel *vm86 = &td->td_pcb->pcb_ext->ext_vm86;
 
 		sf.sf_siginfo.si_sc.sc_gs = tf->tf_vm86_gs;
 		sf.sf_siginfo.si_sc.sc_fs = tf->tf_vm86_fs;
@@ -409,7 +411,7 @@ osendsig(catcher, sig, mask, code)
 		 * ...Kill the process.
 		 */
 		PROC_LOCK(p);
-		sigexit(p, SIGILL);
+		sigexit(td, SIGILL);
 		/* NOTREACHED */
 	}
 
@@ -434,12 +436,14 @@ sendsig(catcher, sig, mask, code)
 {
 	struct sigframe sf;
 	struct proc *p;
+	struct thread *td;
 	struct sigacts *psp;
 	struct trapframe *regs;
 	struct sigframe *sfp;
 	int oonstack;
 
-	p = curproc;
+	td = curthread;
+	p = td->td_proc;
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	psp = p->p_sigacts;
 #ifdef COMPAT_43
@@ -448,7 +452,7 @@ sendsig(catcher, sig, mask, code)
 		return;
 	}
 #endif
-	regs = p->p_frame;
+	regs = td->td_frame;
 	oonstack = sigonstack(regs->tf_esp);
 
 	/* Save user context. */
@@ -528,7 +532,7 @@ sendsig(catcher, sig, mask, code)
 	 */
 	if (regs->tf_eflags & PSL_VM) {
 		struct trapframe_vm86 *tf = (struct trapframe_vm86 *)regs;
-		struct vm86_kernel *vm86 = &p->p_addr->u_pcb.pcb_ext->ext_vm86;
+		struct vm86_kernel *vm86 = &td->td_pcb->pcb_ext->ext_vm86;
 
 		sf.sf_uc.uc_mcontext.mc_gs = tf->tf_vm86_gs;
 		sf.sf_uc.uc_mcontext.mc_fs = tf->tf_vm86_fs;
@@ -561,7 +565,7 @@ sendsig(catcher, sig, mask, code)
 		 * ...Kill the process.
 		 */
 		PROC_LOCK(p);
-		sigexit(p, SIGILL);
+		sigexit(td, SIGILL);
 		/* NOTREACHED */
 	}
 
@@ -586,17 +590,18 @@ sendsig(catcher, sig, mask, code)
  */
 #ifdef COMPAT_43
 int
-osigreturn(p, uap)
-	struct proc *p;
+osigreturn(td, uap)
+	struct thread *td;
 	struct osigreturn_args /* {
 		struct osigcontext *sigcntxp;
 	} */ *uap;
 {
 	struct trapframe *regs;
 	struct osigcontext *scp;
+	struct proc *p = td->td_proc;
 	int eflags;
 
-	regs = p->p_frame;
+	regs = td->td_frame;
 	scp = uap->sigcntxp;
 	if (!useracc((caddr_t)scp, sizeof(*scp), VM_PROT_READ))
 		return (EFAULT);
@@ -609,9 +614,9 @@ osigreturn(p, uap)
 		 * if pcb_ext == 0 or vm86_inited == 0, the user hasn't
 		 * set up the vm86 area, and we can't enter vm86 mode.
 		 */
-		if (p->p_addr->u_pcb.pcb_ext == 0)
+		if (td->td_pcb->pcb_ext == 0)
 			return (EINVAL);
-		vm86 = &p->p_addr->u_pcb.pcb_ext->ext_vm86;
+		vm86 = &td->td_pcb->pcb_ext->ext_vm86;
 		if (vm86->vm86_inited == 0)
 			return (EINVAL);
 
@@ -697,12 +702,13 @@ osigreturn(p, uap)
 #endif
 
 int
-sigreturn(p, uap)
-	struct proc *p;
+sigreturn(td, uap)
+	struct thread *td;
 	struct sigreturn_args /* {
 		ucontext_t *sigcntxp;
 	} */ *uap;
 {
+	struct proc *p = td->td_proc;
 	struct trapframe *regs;
 	ucontext_t *ucp;
 	int cs, eflags;
@@ -712,7 +718,7 @@ sigreturn(p, uap)
 	if (!useracc((caddr_t)ucp, sizeof(struct osigcontext), VM_PROT_READ))
 		return (EFAULT);
 	if (((struct osigcontext *)ucp)->sc_trapno == 0x01d516)
-		return (osigreturn(p, (struct osigreturn_args *)uap));
+		return (osigreturn(td, (struct osigreturn_args *)uap));
 	/*
 	 * Since ucp is not an osigcontext but a ucontext_t, we have to
 	 * check again if all of it is accessible.  A ucontext_t is
@@ -724,7 +730,7 @@ sigreturn(p, uap)
 	if (!useracc((caddr_t)ucp, sizeof(*ucp), VM_PROT_READ))
 		return (EFAULT);
 
-	regs = p->p_frame;
+	regs = td->td_frame;
 	eflags = ucp->uc_mcontext.mc_eflags;
 	if (eflags & PSL_VM) {
 		struct trapframe_vm86 *tf = (struct trapframe_vm86 *)regs;
@@ -734,9 +740,9 @@ sigreturn(p, uap)
 		 * if pcb_ext == 0 or vm86_inited == 0, the user hasn't
 		 * set up the vm86 area, and we can't enter vm86 mode.
 		 */
-		if (p->p_addr->u_pcb.pcb_ext == 0)
+		if (td->td_pcb->pcb_ext == 0)
 			return (EINVAL);
-		vm86 = &p->p_addr->u_pcb.pcb_ext->ext_vm86;
+		vm86 = &td->td_pcb->pcb_ext->ext_vm86;
 		if (vm86->vm86_inited == 0)
 			return (EINVAL);
 
@@ -865,14 +871,14 @@ cpu_idle(void)
  * Clear registers on exec
  */
 void
-setregs(p, entry, stack, ps_strings)
-	struct proc *p;
+setregs(td, entry, stack, ps_strings)
+	struct thread *td;
 	u_long entry;
 	u_long stack;
 	u_long ps_strings;
 {
-	struct trapframe *regs = p->p_frame;
-	struct pcb *pcb = &p->p_addr->u_pcb;
+	struct trapframe *regs = td->td_frame;
+	struct pcb *pcb = td->td_pcb;
 
 	if (pcb->pcb_ldt)
 		user_ldt_free(pcb);
@@ -925,7 +931,7 @@ setregs(p, entry, stack, ps_strings)
 	 * traps to the emulator (if it is done at all) mainly because
 	 * emulators don't provide an entry point for initialization.
 	 */
-	p->p_addr->u_pcb.pcb_flags &= ~FP_SOFTFP;
+	td->td_pcb->pcb_flags &= ~FP_SOFTFP;
 
 	/*
 	 * Arrange to trap the next npx or `fwait' instruction (see npx.c
@@ -948,7 +954,7 @@ setregs(p, entry, stack, ps_strings)
 	 * Make sure sure edx is 0x0 on entry. Linux binaries depend
 	 * on it.
 	 */
-	p->p_retval[1] = 0;
+	td->td_retval[1] = 0;
 }
 
 void
@@ -1016,7 +1022,8 @@ extern int has_f00f_bug;
 static struct i386tss dblfault_tss;
 static char dblfault_stack[PAGE_SIZE];
 
-extern  struct user *proc0paddr;
+extern  struct user	*proc0uarea;
+extern  vm_offset_t	proc0kstack;
 
 
 /* software prototypes -- in more palatable form */
@@ -1661,8 +1668,12 @@ init386(first)
 	struct region_descriptor r_gdt, r_idt;
 #endif
 
-	proc0.p_addr = proc0paddr;
-
+	proc_linkup(&proc0);
+	proc0.p_uarea = proc0uarea;
+	thread0 = &proc0.p_thread;
+	thread0->td_kstack = proc0kstack;
+	thread0->td_pcb = (struct pcb *)
+	   (thread0->td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
 	atdevbase = ISA_HOLE_START + KERNBASE;
 
 	metadata_missing = 0;
@@ -1721,10 +1732,11 @@ init386(first)
 	lgdt(&r_gdt);
 
 	/* setup curproc so that mutexes work */
-	PCPU_SET(curproc, &proc0);
+
+	PCPU_SET(curthread, thread0);
 	PCPU_SET(spinlocks, NULL);
 
-	LIST_INIT(&proc0.p_contested);
+	LIST_INIT(&thread0->td_contested);
 
 	/*
 	 * Initialize mutexes.
@@ -1828,8 +1840,9 @@ init386(first)
 	initializecpu();	/* Initialize CPU registers */
 
 	/* make an initial tss so cpu can get interrupt stack on syscall! */
-	PCPU_SET(common_tss.tss_esp0,
-	    (int) proc0.p_addr + UPAGES*PAGE_SIZE - 16);
+	/* Note: -16 is so we can grow the trapframe if we came from vm86 */
+	PCPU_SET(common_tss.tss_esp0, thread0->td_kstack +
+	    KSTACK_PAGES * PAGE_SIZE - sizeof(struct pcb) - 16);
 	PCPU_SET(common_tss.tss_ss0, GSEL(GDATA_SEL, SEL_KPL));
 	gsel_tss = GSEL(GPROC0_SEL, SEL_KPL);
 	private_tss = 0;
@@ -1884,10 +1897,10 @@ init386(first)
 	_udatasel = LSEL(LUDATA_SEL, SEL_UPL);
 
 	/* setup proc 0's pcb */
-	proc0.p_addr->u_pcb.pcb_flags = 0;
-	proc0.p_addr->u_pcb.pcb_cr3 = (int)IdlePTD;
-	proc0.p_addr->u_pcb.pcb_ext = 0;
-	proc0.p_frame = &proc0_tf;
+	thread0->td_pcb->pcb_flags = 0; /* XXXKSE */
+	thread0->td_pcb->pcb_cr3 = (int)IdlePTD;
+	thread0->td_pcb->pcb_ext = 0;
+	thread0->td_frame = &proc0_tf;
 }
 
 #if defined(I586_CPU) && !defined(NO_F00F_HACK)
@@ -1930,31 +1943,26 @@ f00f_hack(void *unused) {
 #endif /* defined(I586_CPU) && !NO_F00F_HACK */
 
 int
-ptrace_set_pc(p, addr)
-	struct proc *p;
-	unsigned long addr;
+ptrace_set_pc(struct thread *td, unsigned long addr)
 {
-	p->p_frame->tf_eip = addr;
+	td->td_frame->tf_eip = addr;
 	return (0);
 }
 
 int
-ptrace_single_step(p)
-	struct proc *p;
+ptrace_single_step(struct thread *td)
 {
-	p->p_frame->tf_eflags |= PSL_T;
+	td->td_frame->tf_eflags |= PSL_T;
 	return (0);
 }
 
 int
-fill_regs(p, regs)
-	struct proc *p;
-	struct reg *regs;
+fill_regs(struct thread *td, struct reg *regs)
 {
 	struct pcb *pcb;
 	struct trapframe *tp;
 
-	tp = p->p_frame;
+	tp = td->td_frame;
 	regs->r_fs = tp->tf_fs;
 	regs->r_es = tp->tf_es;
 	regs->r_ds = tp->tf_ds;
@@ -1970,20 +1978,18 @@ fill_regs(p, regs)
 	regs->r_eflags = tp->tf_eflags;
 	regs->r_esp = tp->tf_esp;
 	regs->r_ss = tp->tf_ss;
-	pcb = &p->p_addr->u_pcb;
+	pcb = td->td_pcb;
 	regs->r_gs = pcb->pcb_gs;
 	return (0);
 }
 
 int
-set_regs(p, regs)
-	struct proc *p;
-	struct reg *regs;
+set_regs(struct thread *td, struct reg *regs)
 {
 	struct pcb *pcb;
 	struct trapframe *tp;
 
-	tp = p->p_frame;
+	tp = td->td_frame;
 	if (!EFL_SECURE(regs->r_eflags, tp->tf_eflags) ||
 	    !CS_SECURE(regs->r_cs))
 		return (EINVAL);
@@ -2002,7 +2008,7 @@ set_regs(p, regs)
 	tp->tf_eflags = regs->r_eflags;
 	tp->tf_esp = regs->r_esp;
 	tp->tf_ss = regs->r_ss;
-	pcb = &p->p_addr->u_pcb;
+	pcb = td->td_pcb;
 	pcb->pcb_gs = regs->r_gs;
 	return (0);
 }
@@ -2062,45 +2068,39 @@ set_fpregs_xmm(sv_87, sv_xmm)
 #endif /* CPU_ENABLE_SSE */
 
 int
-fill_fpregs(p, fpregs)
-	struct proc *p;
-	struct fpreg *fpregs;
+fill_fpregs(struct thread *td, struct fpreg *fpregs)
 {
 #ifdef CPU_ENABLE_SSE
 	if (cpu_fxsr) {
-		fill_fpregs_xmm(&p->p_addr->u_pcb.pcb_save.sv_xmm,
+		fill_fpregs_xmm(&td->td_pcb->pcb_save.sv_xmm,
 						(struct save87 *)fpregs);
 		return (0);
 	}
 #endif /* CPU_ENABLE_SSE */
-	bcopy(&p->p_addr->u_pcb.pcb_save.sv_87, fpregs, sizeof *fpregs);
+	bcopy(&td->td_pcb->pcb_save.sv_87, fpregs, sizeof *fpregs);
 	return (0);
 }
 
 int
-set_fpregs(p, fpregs)
-	struct proc *p;
-	struct fpreg *fpregs;
+set_fpregs(struct thread *td, struct fpreg *fpregs)
 {
 #ifdef CPU_ENABLE_SSE
 	if (cpu_fxsr) {
 		set_fpregs_xmm((struct save87 *)fpregs,
-					   &p->p_addr->u_pcb.pcb_save.sv_xmm);
+					   &td->td_pcb->pcb_save.sv_xmm);
 		return (0);
 	}
 #endif /* CPU_ENABLE_SSE */
-	bcopy(fpregs, &p->p_addr->u_pcb.pcb_save.sv_87, sizeof *fpregs);
+	bcopy(fpregs, &td->td_pcb->pcb_save.sv_87, sizeof *fpregs);
 	return (0);
 }
 
 int
-fill_dbregs(p, dbregs)
-	struct proc *p;
-	struct dbreg *dbregs;
+fill_dbregs(struct thread *td, struct dbreg *dbregs)
 {
 	struct pcb *pcb;
 
-	if (p == NULL) {
+	if (td == NULL) {
 		dbregs->dr0 = rdr0();
 		dbregs->dr1 = rdr1();
 		dbregs->dr2 = rdr2();
@@ -2109,9 +2109,8 @@ fill_dbregs(p, dbregs)
 		dbregs->dr5 = rdr5();
 		dbregs->dr6 = rdr6();
 		dbregs->dr7 = rdr7();
-	}
-	else {
-		pcb = &p->p_addr->u_pcb;
+	} else {
+		pcb = td->td_pcb;
 		dbregs->dr0 = pcb->pcb_dr0;
 		dbregs->dr1 = pcb->pcb_dr1;
 		dbregs->dr2 = pcb->pcb_dr2;
@@ -2125,15 +2124,13 @@ fill_dbregs(p, dbregs)
 }
 
 int
-set_dbregs(p, dbregs)
-	struct proc *p;
-	struct dbreg *dbregs;
+set_dbregs(struct thread *td, struct dbreg *dbregs)
 {
 	struct pcb *pcb;
 	int i;
 	u_int32_t mask1, mask2;
 
-	if (p == NULL) {
+	if (td == NULL) {
 		load_dr0(dbregs->dr0);
 		load_dr1(dbregs->dr1);
 		load_dr2(dbregs->dr2);
@@ -2142,8 +2139,7 @@ set_dbregs(p, dbregs)
 		load_dr5(dbregs->dr5);
 		load_dr6(dbregs->dr6);
 		load_dr7(dbregs->dr7);
-	}
-	else {
+	} else {
 		/*
 		 * Don't let an illegal value for dr7 get set.	Specifically,
 		 * check for undefined settings.  Setting these bit patterns
@@ -2155,7 +2151,7 @@ set_dbregs(p, dbregs)
 			if ((dbregs->dr7 & mask1) == mask2)
 				return (EINVAL);
 		
-		pcb = &p->p_addr->u_pcb;
+		pcb = td->td_pcb;
 		
 		/*
 		 * Don't let a process set a breakpoint that is not within the
@@ -2172,7 +2168,7 @@ set_dbregs(p, dbregs)
 		 * from within kernel mode?
 		 */
 
-		if (suser(p) != 0) {
+		if (suser_td(td) != 0) {
 			if (dbregs->dr7 & 0x3) {
 				/* dr0 is enabled */
 				if (dbregs->dr0 >= VM_MAXUSER_ADDRESS)

@@ -85,7 +85,7 @@
 	int error;							\
 									\
 	mtx_lock_spin(&sched_lock);					\
-	if ((p->p_sflag & PS_INMEM) == 0)				\
+	if ((td->td_proc->p_sflag & PS_INMEM) == 0)			\
 		error = EIO;						\
 	else								\
 		error = (action);					\
@@ -94,21 +94,21 @@
 } while(0)
 
 int
-procfs_read_regs(p, regs)
-	struct proc *p;
+procfs_read_regs(td, regs)
+	struct thread *td;
 	struct reg *regs;
 {
 
-	PROCFS_ACTION(fill_regs(p, regs));
+	PROCFS_ACTION(fill_regs(td, regs));
 }
 
 int
-procfs_write_regs(p, regs)
-	struct proc *p;
+procfs_write_regs(td, regs)
+	struct thread *td;
 	struct reg *regs;
 {
 
-	PROCFS_ACTION(set_regs(p, regs));
+	PROCFS_ACTION(set_regs(td, regs));
 }
 
 /*
@@ -117,26 +117,26 @@ procfs_write_regs(p, regs)
  */
 
 int
-procfs_read_fpregs(p, fpregs)
-	struct proc *p;
+procfs_read_fpregs(td, fpregs)
+	struct thread *td;
 	struct fpreg *fpregs;
 {
 
-	PROCFS_ACTION(fill_fpregs(p, fpregs));
+	PROCFS_ACTION(fill_fpregs(td, fpregs));
 }
 
 int
-procfs_write_fpregs(p, fpregs)
-	struct proc *p;
+procfs_write_fpregs(td, fpregs)
+	struct thread *td;
 	struct fpreg *fpregs;
 {
 
-	PROCFS_ACTION(set_fpregs(p, fpregs));
+	PROCFS_ACTION(set_fpregs(td, fpregs));
 }
 
 int
-procfs_sstep(p)
-	struct proc *p;
+procfs_sstep(td)
+	struct thread *td;
 {
 	return (EINVAL);
 }
@@ -145,16 +145,16 @@ procfs_sstep(p)
  * Placeholders
  */
 int
-procfs_read_dbregs(p, dbregs)
-	struct proc *p;
+procfs_read_dbregs(td, dbregs)
+	struct thread *td;
 	struct dbreg *dbregs;
 {
 	return (EIO);
 }
 
 int
-procfs_write_dbregs(p, dbregs)
-	struct proc *p;
+procfs_write_dbregs(td, dbregs)
+	struct thread *td;
 	struct dbreg *dbregs;
 {
 	return (EIO);

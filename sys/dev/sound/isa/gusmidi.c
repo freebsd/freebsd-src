@@ -214,7 +214,7 @@ gusmidi_init(device_t dev)
 }
 
 static int
-gusmidi_open(dev_t i_dev, int flags, int mode, struct proc *p)
+gusmidi_open(dev_t i_dev, int flags, int mode, struct thread *td)
 {
 	sc_p scp;
 	mididev_info *devinfo;
@@ -242,7 +242,7 @@ gusmidi_open(dev_t i_dev, int flags, int mode, struct proc *p)
 }
 
 static int
-gusmidi_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc *p)
+gusmidi_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct thread *td)
 {
 	sc_p scp;
 	mididev_info *devinfo;

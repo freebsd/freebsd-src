@@ -110,20 +110,20 @@ SYSCTL_INT(_kern, OID_AUTO, acct_chkfreq, CTLFLAG_RW,
  * MPSAFE
  */
 int
-acct(a1, uap)
-	struct proc *a1;
+acct(td, uap)
+	struct thread *td;
 	struct acct_args /* {
 		syscallarg(char *) path;
 	} */ *uap;
 {
-	struct proc *p = curproc;	/* XXX */
 	struct nameidata nd;
 	int error, flags;
 
 	mtx_lock(&Giant);
-
+	if (td != curthread)
+		panic("acct");		/* XXXKSE DIAGNOSTIC */
 	/* Make sure that the caller is root. */
-	error = suser(p);
+	error = suser(td->td_proc);
 	if (error)
 		goto done2;
 
@@ -133,15 +133,15 @@ acct(a1, uap)
 	 */
 	if (SCARG(uap, path) != NULL) {
 		NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_USERSPACE, SCARG(uap, path),
-		       p);
+		       td);
 		flags = FWRITE;
 		error = vn_open(&nd, &flags, 0);
 		if (error)
 			goto done2;
 		NDFREE(&nd, NDF_ONLY_PNBUF);
-		VOP_UNLOCK(nd.ni_vp, 0, p);
+		VOP_UNLOCK(nd.ni_vp, 0, td);
 		if (nd.ni_vp->v_type != VREG) {
-			vn_close(nd.ni_vp, FWRITE, p->p_ucred, p);
+			vn_close(nd.ni_vp, FWRITE, td->td_proc->p_ucred, td);
 			error = EACCES;
 			goto done2;
 		}
@@ -154,7 +154,7 @@ acct(a1, uap)
 	if (acctp != NULLVP || savacctp != NULLVP) {
 		callout_stop(&acctwatch_callout);
 		error = vn_close((acctp != NULLVP ? acctp : savacctp), FWRITE,
-		    p->p_ucred, p);
+		    td->td_proc->p_ucred, td);
 		acctp = savacctp = NULLVP;
 	}
 	if (SCARG(uap, path) == NULL)
@@ -180,9 +180,10 @@ done2:
  */
 
 int
-acct_process(p)
-	struct proc *p;
+acct_process(td)
+	struct thread *td;
 {
+	struct proc *p = td->td_proc;
 	struct acct acct;
 	struct rusage *r;
 	struct timeval ut, st, tmp;
@@ -253,10 +254,10 @@ acct_process(p)
 	/*
 	 * Write the accounting information to the file.
 	 */
-	VOP_LEASE(vp, p, p->p_ucred, LEASE_WRITE);
+	VOP_LEASE(vp, td, td->td_proc->p_ucred, LEASE_WRITE);
 	return (vn_rdwr(UIO_WRITE, vp, (caddr_t)&acct, sizeof (acct),
-	    (off_t)0, UIO_SYSSPACE, IO_APPEND|IO_UNIT, p->p_ucred,
-	    (int *)0, p));
+	    (off_t)0, UIO_SYSSPACE, IO_APPEND|IO_UNIT, td->td_proc->p_ucred,
+	    (int *)0, td));
 }
 
 /*
@@ -317,7 +318,7 @@ acctwatch(a)
 			savacctp = NULLVP;
 			return;
 		}
-		(void)VFS_STATFS(savacctp->v_mount, &sb, (struct proc *)0);
+		(void)VFS_STATFS(savacctp->v_mount, &sb, (struct thread *)0);
 		if (sb.f_bavail > acctresume * sb.f_blocks / 100) {
 			acctp = savacctp;
 			savacctp = NULLVP;
@@ -331,7 +332,7 @@ acctwatch(a)
 			acctp = NULLVP;
 			return;
 		}
-		(void)VFS_STATFS(acctp->v_mount, &sb, (struct proc *)0);
+		(void)VFS_STATFS(acctp->v_mount, &sb, (struct thread *)0);
 		if (sb.f_bavail <= acctsuspend * sb.f_blocks / 100) {
 			savacctp = acctp;
 			acctp = NULLVP;

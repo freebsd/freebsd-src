@@ -44,7 +44,7 @@ struct fs;
 struct inode;
 struct malloc_type;
 struct mount;
-struct proc;
+struct thread;
 struct sockaddr;
 struct statfs;
 struct ucred;
@@ -64,16 +64,16 @@ ufs_daddr_t ffs_blkpref __P((struct inode *, ufs_daddr_t, int, ufs_daddr_t *));
 void	ffs_clrblock __P((struct fs *, u_char *, ufs_daddr_t));
 void	ffs_clusteracct	__P((struct fs *, struct cg *, ufs_daddr_t, int));
 int	ffs_fhtovp __P((struct mount *, struct fid *, struct vnode **));
-int	ffs_flushfiles __P((struct mount *, int, struct proc *));
+int	ffs_flushfiles __P((struct mount *, int, struct thread *));
 void	ffs_fragacct __P((struct fs *, int, int32_t [], int));
 int	ffs_freefile __P((struct inode *, ino_t, int ));
 int	ffs_isblock __P((struct fs *, u_char *, ufs_daddr_t));
 int	ffs_isfreeblock __P((struct fs *, unsigned char *, ufs_daddr_t));
-int	ffs_mountfs __P((struct vnode *, struct mount *, struct proc *,
+int	ffs_mountfs __P((struct vnode *, struct mount *, struct thread *,
 	     struct malloc_type *));
 int	ffs_mountroot __P((void));
 int	ffs_mount __P((struct mount *, char *, caddr_t, struct nameidata *,
-	    struct proc *));
+	    struct thread *));
 int	ffs_reallocblks __P((struct vop_reallocblks_args *));
 int	ffs_realloccg __P((struct inode *,
 	    ufs_daddr_t, ufs_daddr_t, int, int, struct ucred *, struct buf **));
@@ -83,10 +83,10 @@ void	ffs_snapremove __P((struct vnode *vp));
 int	ffs_snapshot __P((struct mount *mp, char *snapfile));
 void	ffs_snapshot_mount __P((struct mount *mp));
 void	ffs_snapshot_unmount __P((struct mount *mp));
-int	ffs_statfs __P((struct mount *, struct statfs *, struct proc *));
-int	ffs_sync __P((struct mount *, int, struct ucred *, struct proc *));
-int	ffs_truncate __P((struct vnode *, off_t, int, struct ucred *, struct proc *));
-int	ffs_unmount __P((struct mount *, int, struct proc *));
+int	ffs_statfs __P((struct mount *, struct statfs *, struct thread *));
+int	ffs_sync __P((struct mount *, int, struct ucred *, struct thread *));
+int	ffs_truncate __P((struct vnode *, off_t, int, struct ucred *, struct thread *));
+int	ffs_unmount __P((struct mount *, int, struct thread *));
 int	ffs_update __P((struct vnode *, int));
 int	ffs_valloc __P((struct vnode *, int, struct ucred *, struct vnode **));
 
@@ -104,8 +104,8 @@ extern vop_t **ffs_fifoop_p;
 void	softdep_initialize __P((void));
 int	softdep_mount __P((struct vnode *, struct mount *, struct fs *,
 	    struct ucred *));
-int	softdep_flushworklist __P((struct mount *, int *, struct proc *));
-int	softdep_flushfiles __P((struct mount *, int, struct proc *));
+int	softdep_flushworklist __P((struct mount *, int *, struct thread *));
+int	softdep_flushfiles __P((struct mount *, int, struct thread *));
 void	softdep_update_inodeblock __P((struct inode *, struct buf *, int));
 void	softdep_load_inodeblock __P((struct inode *));
 void	softdep_freefile __P((struct vnode *, ino_t, int));

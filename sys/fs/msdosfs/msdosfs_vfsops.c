@@ -88,17 +88,17 @@ static MALLOC_DEFINE(M_MSDOSFSFAT, "MSDOSFS FAT", "MSDOSFS file allocation table
 
 static int	update_mp __P((struct mount *mp, struct msdosfs_args *argp));
 static int	mountmsdosfs __P((struct vnode *devvp, struct mount *mp,
-				  struct proc *p, struct msdosfs_args *argp));
+				  struct thread *td, struct msdosfs_args *argp));
 static int	msdosfs_fhtovp __P((struct mount *, struct fid *,
 				    struct vnode **));
 static int	msdosfs_mount __P((struct mount *, char *, caddr_t,
-				   struct nameidata *, struct proc *));
+				   struct nameidata *, struct thread *));
 static int	msdosfs_root __P((struct mount *, struct vnode **));
 static int	msdosfs_statfs __P((struct mount *, struct statfs *,
-				    struct proc *));
+				    struct thread *));
 static int	msdosfs_sync __P((struct mount *, int, struct ucred *,
-				  struct proc *));
-static int	msdosfs_unmount __P((struct mount *, int, struct proc *));
+				  struct thread *));
+static int	msdosfs_unmount __P((struct mount *, int, struct thread *));
 static int	msdosfs_vptofh __P((struct vnode *, struct fid *));
 
 static int
@@ -159,7 +159,7 @@ int
 msdosfs_mountroot()
 {
 	register struct mount *mp;
-	struct proc *p = curproc;	/* XXX */
+	struct thread *td = curthread;	/* XXX */
 	size_t size;
 	int error;
 	struct msdosfs_args args;
@@ -189,13 +189,13 @@ msdosfs_mountroot()
 	}
 
 	if ((error = update_mp(mp, &args)) != 0) {
-		(void)msdosfs_unmount(mp, 0, p);
+		(void)msdosfs_unmount(mp, 0, td);
 		free(mp, M_MOUNT);
 		return (error);
 	}
 
 	if ((error = vfs_lock(mp)) != 0) {
-		(void)msdosfs_unmount(mp, 0, p);
+		(void)msdosfs_unmount(mp, 0, td);
 		free(mp, M_MOUNT);
 		return (error);
 	}
@@ -208,7 +208,7 @@ msdosfs_mountroot()
 	(void) copystr(ROOTNAME, mp->mnt_stat.f_mntfromname, MNAMELEN - 1,
 	    &size);
 	bzero(mp->mnt_stat.f_mntfromname + size, MNAMELEN - size);
-	(void)msdosfs_statfs(mp, &mp->mnt_stat, p);
+	(void)msdosfs_statfs(mp, &mp->mnt_stat, td);
 	vfs_unlock(mp);
 	return (0);
 }
@@ -220,12 +220,12 @@ msdosfs_mountroot()
  * special file to treat as a filesystem.
  */
 static int
-msdosfs_mount(mp, path, data, ndp, p)
+msdosfs_mount(mp, path, data, ndp, td)
 	struct mount *mp;
 	char *path;
 	caddr_t data;
 	struct nameidata *ndp;
-	struct proc *p;
+	struct thread *td;
 {
 	struct vnode *devvp;	  /* vnode for blk device to mount */
 	struct msdosfs_args args; /* will hold data from mount request */
@@ -263,16 +263,16 @@ msdosfs_mount(mp, path, data, ndp, p)
 			 * If upgrade to read-write by non-root, then verify
 			 * that user has necessary permissions on the device.
 			 */
-			if (p->p_ucred->cr_uid != 0) {
+			if (td->td_proc->p_ucred->cr_uid != 0) {
 				devvp = pmp->pm_devvp;
-				vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, p);
+				vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
 				error = VOP_ACCESS(devvp, VREAD | VWRITE,
-						   p->p_ucred, p);
+						   td->td_proc->p_ucred, td);
 				if (error) {
-					VOP_UNLOCK(devvp, 0, p);
+					VOP_UNLOCK(devvp, 0, td);
 					return (error);
 				}
-				VOP_UNLOCK(devvp, 0, p);
+				VOP_UNLOCK(devvp, 0, td);
 			}
 			pmp->pm_flags &= ~MSDOSFSMNT_RONLY;
 		}
@@ -295,7 +295,7 @@ msdosfs_mount(mp, path, data, ndp, p)
 	 * Not an update, or updating the name: look up the name
 	 * and verify that it refers to a sensible block device.
 	 */
-	NDINIT(ndp, LOOKUP, FOLLOW, UIO_USERSPACE, args.fspec, p);
+	NDINIT(ndp, LOOKUP, FOLLOW, UIO_USERSPACE, args.fspec, td);
 	error = namei(ndp);
 	if (error)
 		return (error);
@@ -310,20 +310,20 @@ msdosfs_mount(mp, path, data, ndp, p)
 	 * If mount by non-root, then verify that user has necessary
 	 * permissions on the device.
 	 */
-	if (p->p_ucred->cr_uid != 0) {
+	if (td->td_proc->p_ucred->cr_uid != 0) {
 		accessmode = VREAD;
 		if ((mp->mnt_flag & MNT_RDONLY) == 0)
 			accessmode |= VWRITE;
-		vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, p);
-		error = VOP_ACCESS(devvp, accessmode, p->p_ucred, p);
+		vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
+		error = VOP_ACCESS(devvp, accessmode, td->td_proc->p_ucred, td);
 		if (error) {
 			vput(devvp);
 			return (error);
 		}
-		VOP_UNLOCK(devvp, 0, p);
+		VOP_UNLOCK(devvp, 0, td);
 	}
 	if ((mp->mnt_flag & MNT_UPDATE) == 0) {
-		error = mountmsdosfs(devvp, mp, p, &args);
+		error = mountmsdosfs(devvp, mp, td, &args);
 #ifdef MSDOSFS_DEBUG		/* only needed for the printf below */
 		pmp = VFSTOMSDOSFS(mp);
 #endif
@@ -340,13 +340,13 @@ msdosfs_mount(mp, path, data, ndp, p)
 
 	error = update_mp(mp, &args);
 	if (error) {
-		msdosfs_unmount(mp, MNT_FORCE, p);
+		msdosfs_unmount(mp, MNT_FORCE, td);
 		return error;
 	}
 	(void) copyinstr(args.fspec, mp->mnt_stat.f_mntfromname, MNAMELEN - 1,
 	    &size);
 	bzero(mp->mnt_stat.f_mntfromname + size, MNAMELEN - size);
-	(void) msdosfs_statfs(mp, &mp->mnt_stat, p);
+	(void) msdosfs_statfs(mp, &mp->mnt_stat, td);
 #ifdef MSDOSFS_DEBUG
 	printf("msdosfs_mount(): mp %p, pmp %p, inusemap %p\n", mp, pmp, pmp->pm_inusemap);
 #endif
@@ -354,10 +354,10 @@ msdosfs_mount(mp, path, data, ndp, p)
 }
 
 static int
-mountmsdosfs(devvp, mp, p, argp)
+mountmsdosfs(devvp, mp, td, argp)
 	struct vnode *devvp;
 	struct mount *mp;
-	struct proc *p;
+	struct thread *td;
 	struct msdosfs_args *argp;
 {
 	struct msdosfsmount *pmp;
@@ -386,16 +386,16 @@ mountmsdosfs(devvp, mp, p, argp)
 		return (error);
 	if (vcount(devvp) > 1 && devvp != rootvp)
 		return (EBUSY);
-	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, p);
-	error = vinvalbuf(devvp, V_SAVE, p->p_ucred, p, 0, 0);
-	VOP_UNLOCK(devvp, 0, p);
+	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
+	error = vinvalbuf(devvp, V_SAVE, td->td_proc->p_ucred, td, 0, 0);
+	VOP_UNLOCK(devvp, 0, td);
 	if (error)
 		return (error);
 
 	ronly = (mp->mnt_flag & MNT_RDONLY) != 0;
-	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, p);
-	error = VOP_OPEN(devvp, ronly ? FREAD : FREAD|FWRITE, FSCRED, p);
-	VOP_UNLOCK(devvp, 0, p);
+	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
+	error = VOP_OPEN(devvp, ronly ? FREAD : FREAD|FWRITE, FSCRED, td);
+	VOP_UNLOCK(devvp, 0, td);
 	if (error)
 		return (error);
 
@@ -415,7 +415,7 @@ mountmsdosfs(devvp, mp, p, argp)
 		 * Let's check it...
 		 */
 		error = VOP_IOCTL(devvp, DIOCGPART, (caddr_t)&dpart,
-				  FREAD, NOCRED, p);
+				  FREAD, NOCRED, td);
 		if (error)
 			goto error_exit;
 		tmp   = dpart.part->p_fstype;
@@ -724,7 +724,7 @@ mountmsdosfs(devvp, mp, p, argp)
 error_exit:
 	if (bp)
 		brelse(bp);
-	(void) VOP_CLOSE(devvp, ronly ? FREAD : FREAD | FWRITE, NOCRED, p);
+	(void) VOP_CLOSE(devvp, ronly ? FREAD : FREAD | FWRITE, NOCRED, td);
 	if (pmp) {
 		if (pmp->pm_inusemap)
 			free(pmp->pm_inusemap, M_MSDOSFSFAT);
@@ -738,10 +738,10 @@ error_exit:
  * Unmount the filesystem described by mp.
  */
 static int
-msdosfs_unmount(mp, mntflags, p)
+msdosfs_unmount(mp, mntflags, td)
 	struct mount *mp;
 	int mntflags;
-	struct proc *p;
+	struct thread *td;
 {
 	struct msdosfsmount *pmp;
 	int error, flags;
@@ -778,7 +778,7 @@ msdosfs_unmount(mp, mntflags, p)
 #endif
 	error = VOP_CLOSE(pmp->pm_devvp,
 		    (pmp->pm_flags&MSDOSFSMNT_RONLY) ? FREAD : FREAD | FWRITE,
-		    NOCRED, p);
+		    NOCRED, td);
 	vrele(pmp->pm_devvp);
 	free(pmp->pm_inusemap, M_MSDOSFSFAT);
 	free(pmp, M_MSDOSFSMNT);
@@ -807,10 +807,10 @@ msdosfs_root(mp, vpp)
 }
 
 static int
-msdosfs_statfs(mp, sbp, p)
+msdosfs_statfs(mp, sbp, td)
 	struct mount *mp;
 	struct statfs *sbp;
-	struct proc *p;
+	struct thread *td;
 {
 	struct msdosfsmount *pmp;
 
@@ -832,11 +832,11 @@ msdosfs_statfs(mp, sbp, p)
 }
 
 static int
-msdosfs_sync(mp, waitfor, cred, p)
+msdosfs_sync(mp, waitfor, cred, td)
 	struct mount *mp;
 	int waitfor;
 	struct ucred *cred;
-	struct proc *p;
+	struct thread *td;
 {
 	struct vnode *vp, *nvp;
 	struct denode *dep;
@@ -879,17 +879,17 @@ loop:
 			mtx_lock(&mntvnode_mtx);
 			continue;
 		}
-		error = vget(vp, LK_EXCLUSIVE | LK_NOWAIT | LK_INTERLOCK, p);
+		error = vget(vp, LK_EXCLUSIVE | LK_NOWAIT | LK_INTERLOCK, td);
 		if (error) {
 			mtx_lock(&mntvnode_mtx);
 			if (error == ENOENT)
 				goto loop;
 			continue;
 		}
-		error = VOP_FSYNC(vp, cred, waitfor, p);
+		error = VOP_FSYNC(vp, cred, waitfor, td);
 		if (error)
 			allerror = error;
-		VOP_UNLOCK(vp, 0, p);
+		VOP_UNLOCK(vp, 0, td);
 		vrele(vp);
 		mtx_lock(&mntvnode_mtx);
 	}
@@ -899,11 +899,11 @@ loop:
 	 * Flush filesystem control info.
 	 */
 	if (waitfor != MNT_LAZY) {
-		vn_lock(pmp->pm_devvp, LK_EXCLUSIVE | LK_RETRY, p);
-		error = VOP_FSYNC(pmp->pm_devvp, cred, waitfor, p);
+		vn_lock(pmp->pm_devvp, LK_EXCLUSIVE | LK_RETRY, td);
+		error = VOP_FSYNC(pmp->pm_devvp, cred, waitfor, td);
 		if (error)
 			allerror = error;
-		VOP_UNLOCK(pmp->pm_devvp, 0, p);
+		VOP_UNLOCK(pmp->pm_devvp, 0, td);
 	}
 	return (allerror);
 }

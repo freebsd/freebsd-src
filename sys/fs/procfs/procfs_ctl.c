@@ -190,7 +190,7 @@ out:
 	/*
 	 * do single-step fixup if needed
 	 */
-	FIX_SSTEP(p);
+	FIX_SSTEP(&p->p_thread);		/* XXXKSE */
 #endif
 
 	/*
@@ -246,7 +246,7 @@ out:
 	case PROCFS_CTL_STEP:
 		_PHOLD(p);
 		PROC_UNLOCK(p);
-		error = procfs_sstep(p);
+		error = procfs_sstep(&p->p_thread); /* XXXKSE */
 		PRELE(p);
 		if (error)
 			return (error);
@@ -300,7 +300,7 @@ out:
 
 	mtx_lock_spin(&sched_lock);
 	if (p->p_stat == SSTOP)
-		setrunnable(p);
+		setrunnable(&p->p_thread); /* XXXKSE */
 	mtx_unlock_spin(&sched_lock);
 	return (0);
 }
@@ -347,9 +347,9 @@ procfs_doctl(curp, p, pfs, uio)
 			if (TRACE_WAIT_P(curp, p)) {
 				p->p_xstat = nm->nm_val;
 #ifdef FIX_SSTEP
-				FIX_SSTEP(p);
+				FIX_SSTEP(&p->p_thread);   /* XXXKSE */
 #endif
-				setrunnable(p);
+				setrunnable(&p->p_thread); /* XXXKSE */
 				mtx_unlock_spin(&sched_lock);
 			} else {
 				mtx_unlock_spin(&sched_lock);

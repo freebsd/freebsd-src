@@ -61,8 +61,8 @@
 #include <compat/svr4/svr4_stropts.h>
 #include <compat/svr4/svr4_socket.h>
 
-static int svr4_soo_close __P((struct file *, struct proc *));
-static int svr4_ptm_alloc __P((struct proc *));
+static int svr4_soo_close __P((struct file *, struct thread *));
+static int svr4_ptm_alloc __P((struct thread *));
 static  d_open_t	streamsopen;
 
 struct svr4_sockcache_entry {
@@ -198,7 +198,7 @@ MODULE_VERSION(streams, 1);
  * routine.
  */
 static  int
-streamsopen(dev_t dev, int oflags, int devtype, struct proc *p)
+streamsopen(dev_t dev, int oflags, int devtype, struct thread *td)
 {
 	int type, protocol;
 	int fd;
@@ -206,9 +206,10 @@ streamsopen(dev_t dev, int oflags, int devtype, struct proc *p)
 	struct socket *so;
 	int error;
 	int family;
+	struct proc *p = td->td_proc;
 	
 	PROC_LOCK(p);
-	if (p->p_dupfd >= 0) {
+	if (td->td_dupfd >= 0) {
 	  PROC_UNLOCK(p);
 	  return ENODEV;
 	}
@@ -254,16 +255,16 @@ streamsopen(dev_t dev, int oflags, int devtype, struct proc *p)
 	  break;
 
 	case dev_ptm:
-	  return svr4_ptm_alloc(p);
+	  return svr4_ptm_alloc(td);
 
 	default:
 	  return EOPNOTSUPP;
 	}
 
-	if ((error = falloc(p, &fp, &fd)) != 0)
+	if ((error = falloc(td, &fp, &fd)) != 0)
 	  return error;
 
-	if ((error = socreate(family, &so, type, protocol, p)) != 0) {
+	if ((error = socreate(family, &so, type, protocol, td)) != 0) {
 	  p->p_fd->fd_ofiles[fd] = 0;
 	  ffree(fp);
 	  return error;
@@ -276,15 +277,16 @@ streamsopen(dev_t dev, int oflags, int devtype, struct proc *p)
 
 	(void)svr4_stream_get(fp);
 	PROC_LOCK(p);
-	p->p_dupfd = fd;
+	td->td_dupfd = fd;
 	PROC_UNLOCK(p);
 	return ENXIO;
 }
 
 static int
-svr4_ptm_alloc(p)
-	struct proc *p;
+svr4_ptm_alloc(td)
+	struct thread *td;
 {
+	struct proc *p = td->td_proc;
 	/*
 	 * XXX this is very, very ugly.  But I can't find a better
 	 * way that won't duplicate a big amount of code from
@@ -319,13 +321,13 @@ svr4_ptm_alloc(p)
 		if ((error = copyout(ptyname, path, sizeof(ptyname))) != 0)
 			return error;
 
-		switch (error = open(p, &oa)) {
+		switch (error = open(td, &oa)) {
 		case ENOENT:
 		case ENXIO:
 			return error;
 		case 0:
 			PROC_LOCK(p);
-			p->p_dupfd = p->p_retval[0];
+			td->td_dupfd = td->td_retval[0];
 			PROC_UNLOCK(p);
 			return ENXIO;
 		default:
@@ -394,14 +396,14 @@ svr4_delete_socket(p, fp)
 }
 
 static int
-svr4_soo_close(struct file *fp, struct proc *p)
+svr4_soo_close(struct file *fp, struct thread *td)
 {
         struct socket *so = (struct socket *)fp->f_data;
 	
 	/*	CHECKUNIT_DIAG(ENXIO);*/
 
-	svr4_delete_socket(p, fp);
+	svr4_delete_socket(td->td_proc, fp);
 	free(so->so_emuldata, M_TEMP);
-	return soo_close(fp, p);
+	return soo_close(fp, td);
 	return (0);
 }

@@ -71,23 +71,23 @@ static struct cdevsw ctty_cdevsw = {
 	/* flags */	D_TTY,
 };
 
-#define cttyvp(p) ((p)->p_flag & P_CONTROLT ? (p)->p_session->s_ttyvp : NULL)
+#define cttyvp(td) ((td)->td_proc->p_flag & P_CONTROLT ? (td)->td_proc->p_session->s_ttyvp : NULL)
 
 /*ARGSUSED*/
 static	int
-cttyopen(dev, flag, mode, p)
+cttyopen(dev, flag, mode, td)
 	dev_t dev;
 	int flag, mode;
-	struct proc *p;
+	struct thread *td;
 {
-	struct vnode *ttyvp = cttyvp(p);
+	struct vnode *ttyvp = cttyvp(td);
 	int error;
 
 	if (ttyvp == NULL)
 		return (ENXIO);
-	vn_lock(ttyvp, LK_EXCLUSIVE | LK_RETRY, p);
-	error = VOP_OPEN(ttyvp, flag, NOCRED, p);
-	VOP_UNLOCK(ttyvp, 0, p);
+	vn_lock(ttyvp, LK_EXCLUSIVE | LK_RETRY, td);
+	error = VOP_OPEN(ttyvp, flag, NOCRED, td);
+	VOP_UNLOCK(ttyvp, 0, td);
 	return (error);
 }
 
@@ -98,15 +98,15 @@ cttyread(dev, uio, flag)
 	struct uio *uio;
 	int flag;
 {
-	struct proc *p = uio->uio_procp;
-	register struct vnode *ttyvp = cttyvp(p);
+	struct thread *td = uio->uio_td;
+	register struct vnode *ttyvp = cttyvp(td);
 	int error;
 
 	if (ttyvp == NULL)
 		return (EIO);
-	vn_lock(ttyvp, LK_EXCLUSIVE | LK_RETRY, p);
+	vn_lock(ttyvp, LK_EXCLUSIVE | LK_RETRY, td);
 	error = VOP_READ(ttyvp, uio, flag, NOCRED);
-	VOP_UNLOCK(ttyvp, 0, p);
+	VOP_UNLOCK(ttyvp, 0, td);
 	return (error);
 }
 
@@ -117,8 +117,8 @@ cttywrite(dev, uio, flag)
 	struct uio *uio;
 	int flag;
 {
-	struct proc *p = uio->uio_procp;
-	struct vnode *ttyvp = cttyvp(uio->uio_procp);
+	struct thread *td = uio->uio_td;
+	struct vnode *ttyvp = cttyvp(uio->uio_td);
 	struct mount *mp;
 	int error;
 
@@ -128,51 +128,51 @@ cttywrite(dev, uio, flag)
 	if (ttyvp->v_type != VCHR &&
 	    (error = vn_start_write(ttyvp, &mp, V_WAIT | PCATCH)) != 0)
 		return (error);
-	vn_lock(ttyvp, LK_EXCLUSIVE | LK_RETRY, p);
+	vn_lock(ttyvp, LK_EXCLUSIVE | LK_RETRY, td);
 	error = VOP_WRITE(ttyvp, uio, flag, NOCRED);
-	VOP_UNLOCK(ttyvp, 0, p);
+	VOP_UNLOCK(ttyvp, 0, td);
 	vn_finished_write(mp);
 	return (error);
 }
 
 /*ARGSUSED*/
 static	int
-cttyioctl(dev, cmd, addr, flag, p)
+cttyioctl(dev, cmd, addr, flag, td)
 	dev_t dev;
 	u_long cmd;
 	caddr_t addr;
 	int flag;
-	struct proc *p;
+	struct thread *td;
 {
-	struct vnode *ttyvp = cttyvp(p);
+	struct vnode *ttyvp = cttyvp(td);
 
 	if (ttyvp == NULL)
 		return (EIO);
 	if (cmd == TIOCSCTTY)  /* don't allow controlling tty to be set    */
 		return EINVAL; /* to controlling tty -- infinite recursion */
 	if (cmd == TIOCNOTTY) {
-		if (!SESS_LEADER(p)) {
-			p->p_flag &= ~P_CONTROLT;
+		if (!SESS_LEADER(td->td_proc)) {
+			td->td_proc->p_flag &= ~P_CONTROLT;
 			return (0);
 		} else
 			return (EINVAL);
 	}
-	return (VOP_IOCTL(ttyvp, cmd, addr, flag, NOCRED, p));
+	return (VOP_IOCTL(ttyvp, cmd, addr, flag, NOCRED, td));
 }
 
 /*ARGSUSED*/
 static	int
-cttypoll(dev, events, p)
+cttypoll(dev, events, td)
 	dev_t dev;
 	int events;
-	struct proc *p;
+	struct thread *td;
 {
-	struct vnode *ttyvp = cttyvp(p);
+	struct vnode *ttyvp = cttyvp(td);
 
 	if (ttyvp == NULL)
 		/* try operation to get EOF/failure */
-		return (seltrue(dev, events, p));
-	return (VOP_POLL(ttyvp, events, p->p_ucred, p));
+		return (seltrue(dev, events, td));
+	return (VOP_POLL(ttyvp, events, td->td_proc->p_ucred, td));
 }
 
 static void ctty_clone __P((void *arg, char *name, int namelen, dev_t *dev));
@@ -188,7 +188,7 @@ ctty_clone(void *arg, char *name, int namelen, dev_t *dev)
 		return;
 	if (strcmp(name, "tty"))
 		return;
-	vp = cttyvp(curproc);
+	vp = cttyvp(curthread);
 	if (vp == NULL) {
 		if (ctty)
 			*dev = ctty;

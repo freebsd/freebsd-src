@@ -83,7 +83,7 @@ struct coda_op_stats coda_vfsopstats[CODA_VFSOPS_SIZE];
 #define MRAK_INT_GEN(op) (coda_vfsopstats[op].gen_intrn++)
 
 extern int coda_nc_initialized;     /* Set if cache has been initialized */
-extern int vc_nb_open __P((dev_t, int, int, struct proc *));
+extern int vc_nb_open __P((dev_t, int, int, struct thread *));
 
 int
 coda_vfsopstats_init(void)
@@ -107,12 +107,12 @@ coda_vfsopstats_init(void)
  */
 /*ARGSUSED*/
 int
-coda_mount(vfsp, path, data, ndp, p)
+coda_mount(vfsp, path, data, ndp, td)
     struct mount *vfsp;		/* Allocated and initialized by mount(2) */
     char *path;			/* path covered: ignored by the fs-layer */
     caddr_t data;		/* Need to define a data type for this in netbsd? */
     struct nameidata *ndp;	/* Clobber this to lookup the device name */
-    struct proc *p;		/* The ever-famous proc pointer */
+    struct thread *td;		/* The ever-famous proc pointer */
 {
     struct vnode *dvp;
     struct cnode *cp;
@@ -135,7 +135,7 @@ coda_mount(vfsp, path, data, ndp, p)
     }
     
     /* Validate mount device.  Similar to getmdev(). */
-    NDINIT(ndp, LOOKUP, FOLLOW, UIO_USERSPACE, data, p);
+    NDINIT(ndp, LOOKUP, FOLLOW, UIO_USERSPACE, data, td);
     error = namei(ndp);
     dvp = ndp->ni_vp;
 
@@ -233,10 +233,10 @@ coda_mount(vfsp, path, data, ndp, p)
 }
 
 int
-coda_unmount(vfsp, mntflags, p)
+coda_unmount(vfsp, mntflags, td)
     struct mount *vfsp;
     int mntflags;
-    struct proc *p;
+    struct thread *td;
 {
     struct coda_mntinfo *mi = vftomi(vfsp);
     int active, error = 0;
@@ -292,8 +292,12 @@ coda_root(vfsp, vpp)
     struct coda_mntinfo *mi = vftomi(vfsp);
     struct vnode **result;
     int error;
-    struct proc *p = curproc;    /* XXX - bnoble */
+    struct thread *td = curthread;    /* XXX - bnoble */
+    struct proc *p = td->td_proc;
     ViceFid VFid;
+ 
+    ENTRY;
+
 
     ENTRY;
     MARK_ENTRY(CODA_ROOT_STATS);
@@ -308,9 +312,9 @@ coda_root(vfsp, vpp)
 		/* On Mach, this is vref.  On NetBSD, VOP_LOCK */
 #if	1
 		vref(*vpp);
-		vn_lock(*vpp, LK_EXCLUSIVE, p);
+		vn_lock(*vpp, LK_EXCLUSIVE, td);
 #else
-		vget(*vpp, LK_EXCLUSIVE, p);
+		vget(*vpp, LK_EXCLUSIVE, td);
 #endif
 		MARK_INT_SAT(CODA_ROOT_STATS);
 		return(0);
@@ -331,9 +335,9 @@ coda_root(vfsp, vpp)
 	*vpp = mi->mi_rootvp;
 #if	1
 	vref(*vpp);
-	vn_lock(*vpp, LK_EXCLUSIVE, p);
+	vn_lock(*vpp, LK_EXCLUSIVE, td);
 #else
-	vget(*vpp, LK_EXCLUSIVE, p);
+	vget(*vpp, LK_EXCLUSIVE, td);
 #endif
 
 	MARK_INT_SAT(CODA_ROOT_STATS);
@@ -351,9 +355,9 @@ coda_root(vfsp, vpp)
 	*vpp = mi->mi_rootvp;
 #if	1
 	vref(*vpp);
-	vn_lock(*vpp, LK_EXCLUSIVE, p);
+	vn_lock(*vpp, LK_EXCLUSIVE, td);
 #else
-	vget(*vpp, LK_EXCLUSIVE, p);
+	vget(*vpp, LK_EXCLUSIVE, td);
 #endif
 
 	MARK_INT_FAIL(CODA_ROOT_STATS);
@@ -374,10 +378,10 @@ coda_root(vfsp, vpp)
  * Get file system statistics.
  */
 int
-coda_nb_statfs(vfsp, sbp, p)
+coda_nb_statfs(vfsp, sbp, td)
     register struct mount *vfsp;
     struct statfs *sbp;
-    struct proc *p;
+    struct thread *td;
 {
     ENTRY;
 /*  MARK_ENTRY(CODA_STATFS_STATS); */
@@ -412,11 +416,11 @@ coda_nb_statfs(vfsp, sbp, p)
  * Flush any pending I/O.
  */
 int
-coda_sync(vfsp, waitfor, cred, p)
+coda_sync(vfsp, waitfor, cred, td)
     struct mount *vfsp;
     int    waitfor;
     struct ucred *cred;
-    struct proc *p;
+    struct thread *td;
 {
     ENTRY;
     MARK_ENTRY(CODA_SYNC_STATS);
@@ -441,7 +445,8 @@ coda_fhtovp(vfsp, fhp, nam, vpp, exflagsp, creadanonp)
     struct cfid *cfid = (struct cfid *)fhp;
     struct cnode *cp = 0;
     int error;
-    struct proc *p = curproc; /* XXX -mach */
+    struct thread *td = curthread; /* XXX -mach */
+    struct proc *p = td->td_proc;
     ViceFid VFid;
     int vtype;
 

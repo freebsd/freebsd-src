@@ -233,7 +233,7 @@ isp_attach(struct ispsoftc *isp)
 }
 
 static int
-ispioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
+ispioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 {
 	struct ispsoftc *isp;
 	int retval = ENOTTY;

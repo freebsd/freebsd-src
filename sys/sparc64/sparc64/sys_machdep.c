@@ -38,7 +38,7 @@ struct sysarch_args {
 #endif
 
 int
-sysarch(struct proc *p, struct sysarch_args *uap)
+sysarch(struct thread *td, struct sysarch_args *uap)
 {
 	TODO;
 	return (0);

@@ -85,9 +85,9 @@ struct acct {
 #define	AHZ	64
 
 #ifdef _KERNEL
-struct proc;
+struct thread;
 
-int	acct_process __P((struct proc *p));
+int	acct_process __P((struct thread *td));
 #endif
 
 #endif /* !_SYS_ACCT_H_ */

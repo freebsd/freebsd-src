@@ -137,7 +137,7 @@ ar_attach(struct ar_softc *raid)
 }
 
 static int
-aropen(dev_t dev, int flags, int fmt, struct proc *p)
+aropen(dev_t dev, int flags, int fmt, struct thread *td)
 {
     struct ar_softc *rdp = dev->si_drv1;
     struct disklabel *dl;

@@ -57,11 +57,11 @@ struct	fileops socketops = {
 
 /* ARGSUSED */
 int
-soo_read(fp, uio, cred, flags, p)
+soo_read(fp, uio, cred, flags, td)
 	struct file *fp;
 	struct uio *uio;
 	struct ucred *cred;
-	struct proc *p;
+	struct thread *td;
 	int flags;
 {
 	struct socket *so = (struct socket *)fp->f_data;
@@ -70,24 +70,24 @@ soo_read(fp, uio, cred, flags, p)
 
 /* ARGSUSED */
 int
-soo_write(fp, uio, cred, flags, p)
+soo_write(fp, uio, cred, flags, td)
 	struct file *fp;
 	struct uio *uio;
 	struct ucred *cred;
-	struct proc *p;
+	struct thread *td;
 	int flags;
 {
 	struct socket *so = (struct socket *)fp->f_data;
 	return so->so_proto->pr_usrreqs->pru_sosend(so, 0, uio, 0, 0, 0,
-						    uio->uio_procp);
+						    uio->uio_td);
 }
 
 int
-soo_ioctl(fp, cmd, data, p)
+soo_ioctl(fp, cmd, data, td)
 	struct file *fp;
 	u_long cmd;
 	register caddr_t data;
-	struct proc *p;
+	struct thread *td;
 {
 	register struct socket *so = (struct socket *)fp->f_data;
 
@@ -140,28 +140,28 @@ soo_ioctl(fp, cmd, data, p)
 	 * different entry since a socket's unnecessary
 	 */
 	if (IOCGROUP(cmd) == 'i')
-		return (ifioctl(so, cmd, data, p));
+		return (ifioctl(so, cmd, data, td));
 	if (IOCGROUP(cmd) == 'r')
 		return (rtioctl(cmd, data));
-	return ((*so->so_proto->pr_usrreqs->pru_control)(so, cmd, data, 0, p));
+	return ((*so->so_proto->pr_usrreqs->pru_control)(so, cmd, data, 0, td));
 }
 
 int
-soo_poll(fp, events, cred, p)
+soo_poll(fp, events, cred, td)
 	struct file *fp;
 	int events;
 	struct ucred *cred;
-	struct proc *p;
+	struct thread *td;
 {
 	struct socket *so = (struct socket *)fp->f_data;
-	return so->so_proto->pr_usrreqs->pru_sopoll(so, events, cred, p);
+	return so->so_proto->pr_usrreqs->pru_sopoll(so, events, cred, td);
 }
 
 int
-soo_stat(fp, ub, p)
+soo_stat(fp, ub, td)
 	struct file *fp;
 	struct stat *ub;
-	struct proc *p;
+	struct thread *td;
 {
 	struct socket *so = (struct socket *)fp->f_data;
 
@@ -184,9 +184,9 @@ soo_stat(fp, ub, p)
 
 /* ARGSUSED */
 int
-soo_close(fp, p)
+soo_close(fp, td)
 	struct file *fp;
-	struct proc *p;
+	struct thread *td;
 {
 	int error = 0;
 

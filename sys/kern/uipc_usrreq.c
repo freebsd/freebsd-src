@@ -80,9 +80,9 @@ static ino_t	unp_ino;		/* prototype for fake inode numbers */
 
 static int     unp_attach __P((struct socket *));
 static void    unp_detach __P((struct unpcb *));
-static int     unp_bind __P((struct unpcb *,struct sockaddr *, struct proc *));
+static int     unp_bind __P((struct unpcb *,struct sockaddr *, struct thread *));
 static int     unp_connect __P((struct socket *,struct sockaddr *,
-				struct proc *));
+				struct thread *));
 static void    unp_disconnect __P((struct unpcb *));
 static void    unp_shutdown __P((struct unpcb *));
 static void    unp_drop __P((struct unpcb *, int));
@@ -90,7 +90,7 @@ static void    unp_gc __P((void));
 static void    unp_scan __P((struct mbuf *, void (*)(struct file *)));
 static void    unp_mark __P((struct file *));
 static void    unp_discard __P((struct file *));
-static int     unp_internalize __P((struct mbuf *, struct proc *));
+static int     unp_internalize __P((struct mbuf *, struct thread *));
 static int     unp_listen __P((struct unpcb *, struct proc *));
 
 static int
@@ -127,7 +127,7 @@ uipc_accept(struct socket *so, struct sockaddr **nam)
 }
 
 static int
-uipc_attach(struct socket *so, int proto, struct proc *p)
+uipc_attach(struct socket *so, int proto, struct thread *td)
 {
 	struct unpcb *unp = sotounpcb(so);
 
@@ -137,24 +137,24 @@ uipc_attach(struct socket *so, int proto, struct proc *p)
 }
 
 static int
-uipc_bind(struct socket *so, struct sockaddr *nam, struct proc *p)
+uipc_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
 	struct unpcb *unp = sotounpcb(so);
 
 	if (unp == 0)
 		return EINVAL;
 
-	return unp_bind(unp, nam, p);
+	return unp_bind(unp, nam, td);
 }
 
 static int
-uipc_connect(struct socket *so, struct sockaddr *nam, struct proc *p)
+uipc_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
 	struct unpcb *unp = sotounpcb(so);
 
 	if (unp == 0)
 		return EINVAL;
-	return unp_connect(so, nam, curproc);
+	return unp_connect(so, nam, curthread);
 }
 
 static int
@@ -194,13 +194,13 @@ uipc_disconnect(struct socket *so)
 }
 
 static int
-uipc_listen(struct socket *so, struct proc *p)
+uipc_listen(struct socket *so, struct thread *td)
 {
 	struct unpcb *unp = sotounpcb(so);
 
 	if (unp == 0 || unp->unp_vnode == 0)
 		return EINVAL;
-	return unp_listen(unp, p);
+	return unp_listen(unp, td->td_proc);
 }
 
 static int
@@ -258,7 +258,7 @@ uipc_rcvd(struct socket *so, int flags)
 
 static int
 uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
-	  struct mbuf *control, struct proc *p)
+	  struct mbuf *control, struct thread *td)
 {
 	int error = 0;
 	struct unpcb *unp = sotounpcb(so);
@@ -274,7 +274,7 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 		goto release;
 	}
 
-	if (control && (error = unp_internalize(control, p)))
+	if (control && (error = unp_internalize(control, td)))
 		goto release;
 
 	switch (so->so_type) {
@@ -287,7 +287,7 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 				error = EISCONN;
 				break;
 			}
-			error = unp_connect(so, nam, p);
+			error = unp_connect(so, nam, td);
 			if (error)
 				break;
 		} else {
@@ -320,7 +320,7 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 		 */
 		if ((so->so_state & SS_ISCONNECTED) == 0) {
 			if (nam) {
-				error = unp_connect(so, nam, p);
+				error = unp_connect(so, nam, td);
 				if (error)
 					break;	/* XXX */
 			} else {
@@ -534,7 +534,7 @@ unp_attach(so)
 	unp_count++;
 	LIST_INIT(&unp->unp_refs);
 	unp->unp_socket = so;
-	unp->unp_rvnode = curproc->p_fd->fd_rdir;
+	unp->unp_rvnode = curthread->td_proc->p_fd->fd_rdir;
 	LIST_INSERT_HEAD(so->so_type == SOCK_DGRAM ? &unp_dhead
 			 : &unp_shead, unp, unp_link);
 	so->so_pcb = (caddr_t)unp;
@@ -576,10 +576,10 @@ unp_detach(unp)
 }
 
 static int
-unp_bind(unp, nam, p)
+unp_bind(unp, nam, td)
 	struct unpcb *unp;
 	struct sockaddr *nam;
-	struct proc *p;
+	struct thread *td;
 {
 	struct sockaddr_un *soun = (struct sockaddr_un *)nam;
 	struct vnode *vp;
@@ -599,7 +599,7 @@ unp_bind(unp, nam, p)
 	buf[namelen] = 0;	/* null-terminate the string */
 restart:
 	NDINIT(&nd, CREATE, NOFOLLOW | LOCKPARENT, UIO_SYSSPACE,
-	    buf, p);
+	    buf, td);
 /* SHOULD BE ABLE TO ADOPT EXISTING AND wakeup() ALA FIFO's */
 	error = namei(&nd);
 	if (error) {
@@ -627,8 +627,8 @@ restart:
 	}
 	VATTR_NULL(&vattr);
 	vattr.va_type = VSOCK;
-	vattr.va_mode = (ACCESSPERMS & ~p->p_fd->fd_cmask);
-	VOP_LEASE(nd.ni_dvp, p, p->p_ucred, LEASE_WRITE);
+	vattr.va_mode = (ACCESSPERMS & ~td->td_proc->p_fd->fd_cmask);
+	VOP_LEASE(nd.ni_dvp, td, td->td_proc->p_ucred, LEASE_WRITE);
 	error = VOP_CREATE(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, &vattr);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vput(nd.ni_dvp);
@@ -640,17 +640,17 @@ restart:
 	vp->v_socket = unp->unp_socket;
 	unp->unp_vnode = vp;
 	unp->unp_addr = (struct sockaddr_un *)dup_sockaddr(nam, 1);
-	VOP_UNLOCK(vp, 0, p);
+	VOP_UNLOCK(vp, 0, td);
 	vn_finished_write(mp);
 	free(buf, M_TEMP);
 	return (0);
 }
 
 static int
-unp_connect(so, nam, p)
+unp_connect(so, nam, td)
 	struct socket *so;
 	struct sockaddr *nam;
-	struct proc *p;
+	struct thread *td;
 {
 	register struct sockaddr_un *soun = (struct sockaddr_un *)nam;
 	register struct vnode *vp;
@@ -666,7 +666,7 @@ unp_connect(so, nam, p)
 	strncpy(buf, soun->sun_path, len);
 	buf[len] = 0;
 
-	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_SYSSPACE, buf, p);
+	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_SYSSPACE, buf, td);
 	error = namei(&nd);
 	if (error)
 		return (error);
@@ -676,7 +676,7 @@ unp_connect(so, nam, p)
 		error = ENOTSOCK;
 		goto bad;
 	}
-	error = VOP_ACCESS(vp, VWRITE, p->p_ucred, p);
+	error = VOP_ACCESS(vp, VWRITE, td->td_proc->p_ucred, td);
 	if (error)
 		goto bad;
 	so2 = vp->v_socket;
@@ -690,7 +690,7 @@ unp_connect(so, nam, p)
 	}
 	if (so->so_proto->pr_flags & PR_CONNREQUIRED) {
 		if ((so2->so_options & SO_ACCEPTCONN) == 0 ||
-		    (so3 = sonewconn3(so2, 0, p)) == 0) {
+		    (so3 = sonewconn3(so2, 0, td)) == 0) {
 			error = ECONNREFUSED;
 			goto bad;
 		}
@@ -710,9 +710,9 @@ unp_connect(so, nam, p)
 		 * (which is now).
 		 */
 		memset(&unp3->unp_peercred, '\0', sizeof(unp3->unp_peercred));
-		unp3->unp_peercred.cr_uid = p->p_ucred->cr_uid;
-		unp3->unp_peercred.cr_ngroups = p->p_ucred->cr_ngroups;
-		memcpy(unp3->unp_peercred.cr_groups, p->p_ucred->cr_groups,
+		unp3->unp_peercred.cr_uid = td->td_proc->p_ucred->cr_uid;
+		unp3->unp_peercred.cr_ngroups = td->td_proc->p_ucred->cr_ngroups;
+		memcpy(unp3->unp_peercred.cr_groups, td->td_proc->p_ucred->cr_groups,
 		    sizeof(unp3->unp_peercred.cr_groups));
 		unp3->unp_flags |= UNP_HAVEPC;
 		/*
@@ -956,7 +956,7 @@ int
 unp_externalize(rights)
 	struct mbuf *rights;
 {
-	struct proc *p = curproc;		/* XXX */
+	struct thread *td = curthread;		/* XXX */
 	register int i;
 	register struct cmsghdr *cm = mtod(rights, struct cmsghdr *);
 	register int *fdp;
@@ -969,7 +969,7 @@ unp_externalize(rights)
 	/*
 	 * if the new FD's will not fit, then we free them all
 	 */
-	if (!fdavail(p, newfds)) {
+	if (!fdavail(td, newfds)) {
 		rp = (struct file **)CMSG_DATA(cm);
 		for (i = 0; i < newfds; i++) {
 			fp = *rp;
@@ -997,10 +997,10 @@ unp_externalize(rights)
 		fdp = (int *)(cm + 1);
 		rp = (struct file **)CMSG_DATA(cm);
 		for (i = 0; i < newfds; i++) {
-			if (fdalloc(p, 0, &f))
+			if (fdalloc(td, 0, &f))
 				panic("unp_externalize");
 			fp = *rp++;
-			p->p_fd->fd_ofiles[f] = fp;
+			td->td_proc->p_fd->fd_ofiles[f] = fp;
 			fp->f_msgcount--;
 			unp_rights--;
 			*fdp++ = f;
@@ -1009,10 +1009,10 @@ unp_externalize(rights)
 		fdp = (int *)(cm + 1) + newfds - 1;
 		rp = (struct file **)CMSG_DATA(cm) + newfds - 1;
 		for (i = 0; i < newfds; i++) {
-			if (fdalloc(p, 0, &f))
+			if (fdalloc(td, 0, &f))
 				panic("unp_externalize");
 			fp = *rp--;
-			p->p_fd->fd_ofiles[f] = fp;
+			td->td_proc->p_fd->fd_ofiles[f] = fp;
 			fp->f_msgcount--;
 			unp_rights--;
 			*fdp-- = f;
@@ -1043,10 +1043,11 @@ unp_init(void)
 #endif
 
 static int
-unp_internalize(control, p)
+unp_internalize(control, td)
 	struct mbuf *control;
-	struct proc *p;
+	struct thread *td;
 {
+	struct proc *p = td->td_proc;
 	struct filedesc *fdescp = p->p_fd;
 	register struct cmsghdr *cm = mtod(control, struct cmsghdr *);
 	register struct file **rp;
@@ -1308,7 +1309,7 @@ unp_gc()
 			sorflush((struct socket *)(tfp->f_data));
 	}
 	for (i = nunref, fpp = extra_ref; --i >= 0; ++fpp)
-		closef(*fpp, (struct proc *) NULL);
+		closef(*fpp, (struct thread *) NULL);
 	free((caddr_t)extra_ref, M_FILE);
 	unp_gcing = 0;
 }
@@ -1386,5 +1387,5 @@ unp_discard(fp)
 
 	fp->f_msgcount--;
 	unp_rights--;
-	(void) closef(fp, (struct proc *)NULL);
+	(void) closef(fp, (struct thread *)NULL);
 }

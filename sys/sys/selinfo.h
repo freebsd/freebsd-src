@@ -39,21 +39,23 @@
 
 #include <sys/event.h>			/* for struct klist */
 
+struct thread;
 /*
  * Used to maintain information about processes that wish to be
  * notified when I/O becomes possible.
  */
 struct selinfo {
 	pid_t	si_pid;		/* process to be notified */
+	struct thread	*si_thread;	/* thread in that process XXXKSE */
 	struct	klist si_note;	/* kernel note list */
 	short	si_flags;	/* see below */
 };
 #define	SI_COLL	0x0001		/* collision occurred */
 
 #ifdef _KERNEL
-struct proc;
+struct thread;
 
-void	selrecord __P((struct proc *selector, struct selinfo *));
+void	selrecord __P((struct thread *selector, struct selinfo *));
 void	selwakeup __P((struct selinfo *));
 #endif
 

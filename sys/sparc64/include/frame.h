@@ -80,10 +80,10 @@ struct rwindow {
 	u_long	rw_in[8];
 };
 
-struct proc;
+struct thread;
 
-int	rwindow_save(struct proc *p);
-int	rwindow_load(struct proc *p, struct trapframe *tf, int n);
+int	rwindow_save(struct thread *td);
+int	rwindow_load(struct thread *td, struct trapframe *tf, int n);
 
 int	kdb_trap(struct trapframe *tf);
 

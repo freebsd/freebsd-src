@@ -498,7 +498,7 @@ chn_sync(struct pcm_channel *c, int threshold)
 
 /* called externally, handle locking */
 int
-chn_poll(struct pcm_channel *c, int ev, struct proc *p)
+chn_poll(struct pcm_channel *c, int ev, struct thread *td)
 {
 	struct snd_dbuf *bs = c->bufsoft;
 	int ret;
@@ -510,7 +510,7 @@ chn_poll(struct pcm_channel *c, int ev, struct proc *p)
 	if (chn_polltrigger(c) && chn_pollreset(c))
 		ret = ev;
 	else
-		selrecord(p, sndbuf_getsel(bs));
+		selrecord(curthread, sndbuf_getsel(bs));
 	return ret;
 }
 

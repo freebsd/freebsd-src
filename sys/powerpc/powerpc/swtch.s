@@ -143,7 +143,7 @@ ENTRY(cpu_switch)
 	mr	30,3
 	mfsprg	3,0
 	xor	31,31,31
-	stw	31,GD_CURPROC(3)	/* Zero to not accumulate cpu time */
+	stw	31,GD_CURTHREAD(3)	/* Zero to not accumulate cpu time */
 	mfsprg	3,0
 	lwz	31,GD_CURPCB(3)
 
@@ -159,7 +159,7 @@ ENTRY(cpu_switch)
 1:
 	/* record new process */
 	mfsprg	4,0
-	stw	3,GD_CURPROC(4)
+	stw	3,GD_CURTHREAD(4)
 
 	cmpl	0,31,30			/* is it the same process? */
 	beq	switch_return
@@ -172,7 +172,7 @@ ENTRY(cpu_switch)
 	mr	12,2			/* save r2 */
 	stwu	1,-SFRAMELEN(1)		/* still running on old stack */
 	stmw	10,8(1)
-	lwz	3,P_ADDR(30)
+	lwz	3,TD_ADDR(30)
 	stw	1,PCB_SP(3)		/* save SP */
 
 switch_exited:
@@ -182,7 +182,7 @@ switch_exited:
 	mtmsr	3
 
 	/* indicate new pcb */
-	lwz	4,P_ADDR(31)
+	lwz	4,TD_ADDR(31)
 	mfsprg	5,0
 	stw	4,GD_CURPCB(5)
 
@@ -227,7 +227,7 @@ switch_return:
 	bl	lcsplx
 #endif
 
-	mr	3,30			/* get curproc for special fork
+	mr	3,30			/* get curthread for special fork
 					   returns */
 
 	lwz	31,12(1)

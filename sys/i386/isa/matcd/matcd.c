@@ -608,7 +608,7 @@ static	int	docmd(char * cmd, int ldrive, int cdrive,
 <15>	the drive to be locked while being accessed.
 ---------------------------------------------------------------------------*/
 int	matcdopen(dev_t dev, int flags, int fmt,
-		  struct proc *p)
+		  struct thread *td)
 {
 	int cdrive,ldrive,partition,controller,lock;
 	struct matcd_data *cd;
@@ -797,7 +797,7 @@ int	matcdopen(dev_t dev, int flags, int fmt,
 ---------------------------------------------------------------------------*/
 
 int matcdclose(dev_t dev, int flags, int fmt,
-	       struct proc *p)
+	       struct thread *td)
 {
 	int	ldrive,cdrive,port,partition,controller,lock;
 	struct matcd_data *cd;
@@ -985,7 +985,7 @@ static void matcd_start(int controller)
 ---------------------------------------------------------------------------*/
 
 int matcdioctl(dev_t dev, u_long command, caddr_t addr,
-	       int flags, struct proc *p)
+	       int flags, struct thread *td)
 {
 	struct	matcd_data *cd;
 	int	ldrive,cdrive,partition;
@@ -2062,7 +2062,7 @@ nextblock:
 
 int docmd(char * cmd, int ldrive, int cdrive, int controller, int port)
 {
-	int retries,i,z;
+	int retries,i=0,z;
 
 	lockbus(controller, ldrive);	/*Request bus*/
 	retries=3;

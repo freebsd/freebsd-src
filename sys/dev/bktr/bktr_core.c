@@ -1277,7 +1277,7 @@ vbi_read(bktr_ptr_t bktr, struct uio *uio, int ioflag)
  * video ioctls
  */
 int
-video_ioctl( bktr_ptr_t bktr, int unit, ioctl_cmd_t cmd, caddr_t arg, struct proc* pr )
+video_ioctl( bktr_ptr_t bktr, int unit, ioctl_cmd_t cmd, caddr_t arg, struct thread* td )
 {
 	volatile u_char		c_temp;
 	unsigned int		temp;
@@ -1565,7 +1565,7 @@ video_ioctl( bktr_ptr_t bktr, int unit, ioctl_cmd_t cmd, caddr_t arg, struct pro
 			break;
 		}
 		bktr->signal = *(int *) arg;
-		bktr->proc = pr;
+		bktr->proc = td->td_proc;
 		break;
 
 	case METEORGSIGNAL:
@@ -1886,7 +1886,7 @@ video_ioctl( bktr_ptr_t bktr, int unit, ioctl_cmd_t cmd, caddr_t arg, struct pro
  * tuner ioctls
  */
 int
-tuner_ioctl( bktr_ptr_t bktr, int unit, ioctl_cmd_t cmd, caddr_t arg, struct proc* pr )
+tuner_ioctl( bktr_ptr_t bktr, int unit, ioctl_cmd_t cmd, caddr_t arg, struct thread* td )
 {
 	int		tmp_int;
 	unsigned int	temp, temp1;

@@ -36,9 +36,9 @@
 
 struct mount;
 struct ntfsmount;
-struct proc;
+struct thread;
 struct vnode;
 
 int ntfs_vgetex(struct mount *, ino_t, u_int32_t, char *, u_long, u_long,
-		struct proc *, struct vnode **);
+		struct thread *, struct vnode **);
 int ntfs_calccfree(struct ntfsmount *, cn_t *);

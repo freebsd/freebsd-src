@@ -322,8 +322,8 @@ line: while (<SRC>) {
 	printf CFILE "\t%s,\n", &find_arg_with_type('struct vnode **');
 	# cred (if any)
 	printf CFILE "\t%s,\n", &find_arg_with_type('struct ucred *');
-	# proc (if any)
-	printf CFILE "\t%s,\n", &find_arg_with_type('struct proc *');
+	# thread (if any)
+	printf CFILE "\t%s,\n", &find_arg_with_type('struct thread *');
 	# componentname
 	printf CFILE "\t%s,\n", &find_arg_with_type('struct componentname *');
 	# transport layer information

@@ -322,7 +322,7 @@ ext2_lookup(ap)
 	struct ucred *cred = cnp->cn_cred;
 	int flags = cnp->cn_flags;
 	int nameiop = cnp->cn_nameiop;
-	struct proc *p = cnp->cn_proc;
+	struct thread *td = cnp->cn_thread;
 
 	int	DIRBLKSIZ = VTOI(ap->a_dvp)->i_e2fs->s_blocksize;
 
@@ -503,7 +503,7 @@ searchloop:
 		 * Access for write is interpreted as allowing
 		 * creation of files in the directory.
 		 */
-		if ((error = VOP_ACCESS(vdp, VWRITE, cred, cnp->cn_proc)) != 0)
+		if ((error = VOP_ACCESS(vdp, VWRITE, cred, cnp->cn_thread)) != 0)
 			return (error);
 		/*
 		 * Return an indication of where the new directory
@@ -541,7 +541,7 @@ searchloop:
 		 */
 		cnp->cn_flags |= SAVENAME;
 		if (!lockparent)
-			VOP_UNLOCK(vdp, 0, p);
+			VOP_UNLOCK(vdp, 0, td);
 		return (EJUSTRETURN);
 	}
 	/*
@@ -584,7 +584,7 @@ found:
 		/*
 		 * Write access to directory required to delete files.
 		 */
-		if ((error = VOP_ACCESS(vdp, VWRITE, cred, cnp->cn_proc)) != 0)
+		if ((error = VOP_ACCESS(vdp, VWRITE, cred, cnp->cn_thread)) != 0)
 			return (error);
 		/*
 		 * Return pointer to current entry in dp->i_offset,
@@ -618,7 +618,7 @@ found:
 		}
 		*vpp = tdp;
 		if (!lockparent)
-			VOP_UNLOCK(vdp, 0, p);
+			VOP_UNLOCK(vdp, 0, td);
 		return (0);
 	}
 
@@ -630,7 +630,7 @@ found:
 	 */
 	if (nameiop == RENAME && wantparent &&
 	    (flags & ISLASTCN)) {
-		if ((error = VOP_ACCESS(vdp, VWRITE, cred, cnp->cn_proc)) != 0)
+		if ((error = VOP_ACCESS(vdp, VWRITE, cred, cnp->cn_thread)) != 0)
 			return (error);
 		/*
 		 * Careful about locking second inode.
@@ -643,7 +643,7 @@ found:
 		*vpp = tdp;
 		cnp->cn_flags |= SAVENAME;
 		if (!lockparent)
-			VOP_UNLOCK(vdp, 0, p);
+			VOP_UNLOCK(vdp, 0, td);
 		return (0);
 	}
 
@@ -668,13 +668,13 @@ found:
 	 */
 	pdp = vdp;
 	if (flags & ISDOTDOT) {
-		VOP_UNLOCK(pdp, 0, p);	/* race to get the inode */
+		VOP_UNLOCK(pdp, 0, td);	/* race to get the inode */
 		if ((error = VFS_VGET(vdp->v_mount, dp->i_ino, &tdp)) != 0) {
-			vn_lock(pdp, LK_EXCLUSIVE | LK_RETRY, p);
+			vn_lock(pdp, LK_EXCLUSIVE | LK_RETRY, td);
 			return (error);
 		}
 		if (lockparent && (flags & ISLASTCN) &&
-		    (error = vn_lock(pdp, LK_EXCLUSIVE, p))) {
+		    (error = vn_lock(pdp, LK_EXCLUSIVE, td))) {
 			vput(tdp);
 			return (error);
 		}
@@ -686,7 +686,7 @@ found:
 		if ((error = VFS_VGET(vdp->v_mount, dp->i_ino, &tdp)) != 0)
 			return (error);
 		if (!lockparent || !(flags & ISLASTCN))
-			VOP_UNLOCK(pdp, 0, p);
+			VOP_UNLOCK(pdp, 0, td);
 		*vpp = tdp;
 	}
 
@@ -799,7 +799,7 @@ ext2_direnter(ip, dvp, cnp)
 		auio.uio_iovcnt = 1;
 		auio.uio_rw = UIO_WRITE;
 		auio.uio_segflg = UIO_SYSSPACE;
-		auio.uio_procp = (struct proc *)0;
+		auio.uio_td = (struct thread *)0;
 		error = VOP_WRITE(dvp, &auio, IO_SYNC, cnp->cn_cred);
 		if (DIRBLKSIZ >
 		    VFSTOUFS(dvp->v_mount)->um_mountp->mnt_stat.f_bsize)
@@ -880,7 +880,7 @@ ext2_direnter(ip, dvp, cnp)
 	dp->i_flag |= IN_CHANGE | IN_UPDATE;
 	if (!error && dp->i_endoff && dp->i_endoff < dp->i_size)
 		error = UFS_TRUNCATE(dvp, (off_t)dp->i_endoff, IO_SYNC,
-		    cnp->cn_cred, cnp->cn_proc);
+		    cnp->cn_cred, cnp->cn_thread);
 	return (error);
 }
 
@@ -983,7 +983,7 @@ ext2_dirempty(ip, parentino, cred)
 
 	for (off = 0; off < ip->i_size; off += dp->rec_len) {
 		error = vn_rdwr(UIO_READ, ITOV(ip), (caddr_t)dp, MINDIRSIZ, off,
-		   UIO_SYSSPACE, IO_NODELOCKED, cred, &count, (struct proc *)0);
+		   UIO_SYSSPACE, IO_NODELOCKED, cred, &count, (struct thread *)0);
 		/*
 		 * Since we read MINDIRSIZ, residual must
 		 * be 0 unless we're at end of file.
@@ -1047,7 +1047,7 @@ ext2_checkpath(source, target, cred)
 		}
 		error = vn_rdwr(UIO_READ, vp, (caddr_t)&dirbuf,
 			sizeof (struct dirtemplate), (off_t)0, UIO_SYSSPACE,
-			IO_NODELOCKED, cred, (int *)0, (struct proc *)0);
+			IO_NODELOCKED, cred, (int *)0, (struct thread *)0);
 		if (error != 0)
 			break;
 		namlen = dirbuf.dotdot_type;	/* like ufs little-endian */

@@ -84,7 +84,7 @@ options 	BLKDEV_IOSIZE=8192
 
 # Options for the VM subsystem
 options 	PQ_CACHESIZE=512	# color for 512k/16k cache
-options 	UPAGES=3		# number of 4k stack pages per process
+options 	KSTACK_PAGES=3		# number of 4k stack pages per process
 # Deprecated options supported for backwards compatibility
 #options 	PQ_NOOPT		# No coloring
 #options 	PQ_LARGECACHE		# color for 512k/16k cache
@@ -442,7 +442,7 @@ options 	IPX			#IPX/SPX communications protocols
 options 	IPXIP			#IPX in IP encapsulation (not available)
 options 	IPTUNNEL		#IP in IPX encapsulation (not available)
 
-options 	NCP			#NetWare Core protocol
+#options 	NCP			#NetWare Core protocol
 
 options 	NETATALK		#Appletalk communications protocols
 options 	NETATALKDEBUG		#Appletalk debugging
@@ -692,7 +692,7 @@ options 	HPFS			#OS/2 File system
 options 	MSDOSFS			#MS DOS File System (FAT, FAT32)
 options 	NTFS			#NT File System
 options 	NULLFS			#NULL filesystem
-options 	NWFS			#NetWare filesystem
+#options 	NWFS			#NetWare filesystem
 options 	PORTALFS		#Portal filesystem
 options 	PROCFS			#Process filesystem
 options 	PSEUDOFS		#Pseudo-filesystem framework

@@ -88,7 +88,7 @@ struct ufsmount {
 	int	um_i_effnlink_valid;		/* i_effnlink valid? */
 	int	(*um_balloc) __P((struct vnode *, off_t, int, struct ucred *, int, struct buf **));
 	int	(*um_blkatoff) __P((struct vnode *, off_t, char **, struct buf **));
-	int	(*um_truncate) __P((struct vnode *, off_t, int, struct ucred *, struct proc *));
+	int	(*um_truncate) __P((struct vnode *, off_t, int, struct ucred *, struct thread *));
 	int	(*um_update) __P((struct vnode *, int));
 	int	(*um_valloc) __P((struct vnode *, int, struct ucred *, struct vnode **));
 	int	(*um_vfree) __P((struct vnode *, ino_t, int));

@@ -313,11 +313,11 @@ bpf_detachd(d)
  */
 /* ARGSUSED */
 static	int
-bpfopen(dev, flags, fmt, p)
+bpfopen(dev, flags, fmt, td)
 	dev_t dev;
 	int flags;
 	int fmt;
-	struct proc *p;
+	struct thread *td;
 {
 	struct bpf_d *d;
 
@@ -353,11 +353,11 @@ bpfopen(dev, flags, fmt, p)
  */
 /* ARGSUSED */
 static	int
-bpfclose(dev, flags, fmt, p)
+bpfclose(dev, flags, fmt, td)
 	dev_t dev;
 	int flags;
 	int fmt;
-	struct proc *p;
+	struct thread *td;
 {
 	struct bpf_d *d = dev->si_drv1;
 
@@ -585,12 +585,12 @@ reset_d(d)
  */
 /* ARGSUSED */
 static	int
-bpfioctl(dev, cmd, addr, flags, p)
+bpfioctl(dev, cmd, addr, flags, td)
 	dev_t dev;
 	u_long cmd;
 	caddr_t addr;
 	int flags;
-	struct proc *p;
+	struct thread *td;
 {
 	struct bpf_d *d = dev->si_drv1;
 	int error = 0;
@@ -966,10 +966,10 @@ bpf_setif(d, ifr)
  * Otherwise, return false but make a note that a selwakeup() must be done.
  */
 int
-bpfpoll(dev, events, p)
+bpfpoll(dev, events, td)
 	register dev_t dev;
 	int events;
-	struct proc *p;
+	struct thread *td;
 {
 	struct bpf_d *d;
 	int revents;
@@ -990,7 +990,7 @@ bpfpoll(dev, events, p)
 		if (d->bd_hlen != 0 || (d->bd_immediate && d->bd_slen != 0))
 			revents |= events & (POLLIN | POLLRDNORM);
 		else
-			selrecord(p, &d->bd_sel);
+			selrecord(curthread, &d->bd_sel);
 	}
 	BPFD_UNLOCK(d);
 	return (revents);

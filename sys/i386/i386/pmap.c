@@ -71,7 +71,7 @@
 #include "opt_disable_pse.h"
 #include "opt_pmap.h"
 #include "opt_msgbuf.h"
-#include "opt_upages.h"
+#include "opt_kstack_pages.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -171,7 +171,7 @@ vm_offset_t kernel_vm_end;
 static vm_zone_t pvzone;
 static struct vm_zone pvzone_store;
 static struct vm_object pvzone_obj;
-static int pv_entry_count=0, pv_entry_max=0, pv_entry_high_water=0;
+static int pv_entry_count = 0, pv_entry_max = 0, pv_entry_high_water = 0;
 static int pmap_pagedaemon_waken = 0;
 static struct pv_entry *pvinit;
 
@@ -183,7 +183,7 @@ static pt_entry_t *CMAP2, *ptmmap;
 caddr_t CADDR1 = 0, ptvmmap = 0;
 static caddr_t CADDR2;
 static pt_entry_t *msgbufmap;
-struct msgbuf *msgbufp=0;
+struct msgbuf *msgbufp = 0;
 
 /*
  * Crashdump maps.
@@ -819,7 +819,7 @@ retry:
 }
 
 /*
- * Create the UPAGES for a new process.
+ * Create the Uarea stack for a new process.
  * This routine directly affects the fork perf for a process.
  */
 void
@@ -840,22 +840,22 @@ pmap_new_proc(p)
 	 */
 	upobj = p->p_upages_obj;
 	if (upobj == NULL) {
-		upobj = vm_object_allocate(OBJT_DEFAULT, UPAGES);
+		upobj = vm_object_allocate(OBJT_DEFAULT, UAREA_PAGES);
 		p->p_upages_obj = upobj;
 	}
 
-	/* get a kernel virtual address for the UPAGES for this proc */
-	up = (vm_offset_t)p->p_addr;
+	/* get a kernel virtual address for the U area for this proc */
+	up = (vm_offset_t)p->p_uarea;
 	if (up == 0) {
-		up = kmem_alloc_nofault(kernel_map, UPAGES * PAGE_SIZE);
+		up = kmem_alloc_nofault(kernel_map, UAREA_PAGES * PAGE_SIZE);
 		if (up == 0)
 			panic("pmap_new_proc: upage allocation failed");
-		p->p_addr = (struct user *)up;
+		p->p_uarea = (struct user *)up;
 	}
 
 	ptek = (unsigned *)vtopte(up);
 
-	for (i = 0; i < UPAGES; i++) {
+	for (i = 0; i < UAREA_PAGES; i++) {
 		/*
 		 * Get a kernel stack page
 		 */
@@ -892,7 +892,7 @@ pmap_new_proc(p)
 }
 
 /*
- * Dispose the UPAGES for a process that has exited.
+ * Dispose the U-Area for a process that has exited.
  * This routine directly impacts the exit perf of a process.
  */
 void
@@ -906,9 +906,9 @@ pmap_dispose_proc(p)
 	unsigned *ptek, oldpte;
 
 	upobj = p->p_upages_obj;
-	up = (vm_offset_t)p->p_addr;
+	up = (vm_offset_t)p->p_uarea;
 	ptek = (unsigned *)vtopte(up);
-	for (i = 0; i < UPAGES; i++) {
+	for (i = 0; i < UAREA_PAGES; i++) {
 		m = vm_page_lookup(upobj, i);
 		if (m == NULL)
 			panic("pmap_dispose_proc: upage already missing?");
@@ -927,7 +927,7 @@ pmap_dispose_proc(p)
 }
 
 /*
- * Allow the UPAGES for a process to be prejudicially paged out.
+ * Allow the U_AREA for a process to be prejudicially paged out.
  */
 void
 pmap_swapout_proc(p)
@@ -939,8 +939,8 @@ pmap_swapout_proc(p)
 	vm_page_t m;
 
 	upobj = p->p_upages_obj;
-	up = (vm_offset_t)p->p_addr;
-	for (i = 0; i < UPAGES; i++) {
+	up = (vm_offset_t)p->p_uarea;
+	for (i = 0; i < UAREA_PAGES; i++) {
 		m = vm_page_lookup(upobj, i);
 		if (m == NULL)
 			panic("pmap_swapout_proc: upage already missing?");
@@ -951,7 +951,7 @@ pmap_swapout_proc(p)
 }
 
 /*
- * Bring the UPAGES for a specified process back in.
+ * Bring the U-Area for a specified process back in.
  */
 void
 pmap_swapin_proc(p)
@@ -963,8 +963,8 @@ pmap_swapin_proc(p)
 	vm_page_t m;
 
 	upobj = p->p_upages_obj;
-	up = (vm_offset_t)p->p_addr;
-	for (i = 0; i < UPAGES; i++) {
+	up = (vm_offset_t)p->p_uarea;
+	for (i = 0; i < UAREA_PAGES; i++) {
 		m = vm_page_grab(upobj, i, VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
 		pmap_kenter(up + i * PAGE_SIZE, VM_PAGE_TO_PHYS(m));
 		if (m->valid != VM_PAGE_BITS_ALL) {
@@ -972,6 +972,191 @@ pmap_swapin_proc(p)
 			if (rv != VM_PAGER_OK)
 				panic("pmap_swapin_proc: cannot get upage for proc: %d\n", p->p_pid);
 			m = vm_page_lookup(upobj, i);
+			m->valid = VM_PAGE_BITS_ALL;
+		}
+		vm_page_wire(m);
+		vm_page_wakeup(m);
+		vm_page_flag_set(m, PG_MAPPED | PG_WRITEABLE);
+	}
+}
+
+/*
+ * Create the kernel stack (including pcb for i386) for a new thread.
+ * This routine directly affects the fork perf for a process and
+ * create performance for a thread.
+ */
+void
+pmap_new_thread(td)
+	struct thread *td;
+{
+#ifdef I386_CPU
+	int updateneeded = 0;
+#endif
+	int i;
+	vm_object_t ksobj;
+	vm_page_t m;
+	vm_offset_t ks;
+	unsigned *ptek, oldpte;
+
+	/*
+	 * allocate object for the kstack
+	 */
+	ksobj = td->td_kstack_obj;
+	if (ksobj == NULL) {
+		ksobj = vm_object_allocate(OBJT_DEFAULT, KSTACK_PAGES);
+		td->td_kstack_obj = ksobj;
+	}
+
+#ifdef KSTACK_GUARD
+	/* get a kernel virtual address for the kstack for this proc */
+	ks = (vm_offset_t)td->td_kstack;
+	if (ks == 0) {
+		ks = kmem_alloc_nofault(kernel_map,
+		    (KSTACK_PAGES + 1) * PAGE_SIZE);
+		if (ks == 0)
+			panic("pmap_new_thread: kstack allocation failed");
+		ks += PAGE_SIZE;
+		td->td_kstack = ks;
+	}
+
+	ptek = (unsigned *)vtopte(ks - PAGE_SIZE);
+	oldpte = *ptek;
+	*ptek = 0;
+	if (oldpte) {
+#ifdef I386_CPU
+		updateneeded = 1;
+#else
+		invlpg(ks - PAGE_SIZE);
+#endif
+	}
+	ptek++;
+#else
+	/* get a kernel virtual address for the kstack for this proc */
+	ks = (vm_offset_t)td->td_kstack;
+	if (ks == 0) {
+		ks = kmem_alloc_nofault(kernel_map, KSTACK_PAGES * PAGE_SIZE);
+		if (ks == 0)
+			panic("pmap_new_thread: kstack allocation failed");
+		td->td_kstack = ks;
+	}
+#endif
+	for (i = 0; i < KSTACK_PAGES; i++) {
+		/*
+		 * Get a kernel stack page
+		 */
+		m = vm_page_grab(ksobj, i, VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
+
+		/*
+		 * Wire the page
+		 */
+		m->wire_count++;
+		cnt.v_wire_count++;
+
+		oldpte = *(ptek + i);
+		/*
+		 * Enter the page into the kernel address space.
+		 */
+		*(ptek + i) = VM_PAGE_TO_PHYS(m) | PG_RW | PG_V | pgeflag;
+		if (oldpte) {
+#ifdef I386_CPU
+			updateneeded = 1;
+#else
+			invlpg(ks + i * PAGE_SIZE);
+#endif
+		}
+
+		vm_page_wakeup(m);
+		vm_page_flag_clear(m, PG_ZERO);
+		vm_page_flag_set(m, PG_MAPPED | PG_WRITEABLE);
+		m->valid = VM_PAGE_BITS_ALL;
+	}
+#ifdef I386_CPU
+	if (updateneeded)
+		invltlb();
+#endif
+}
+
+/*
+ * Dispose the kernel stack for a thread that has exited.
+ * This routine directly impacts the exit perf of a process and thread.
+ */
+void
+pmap_dispose_thread(td)
+	struct thread *td;
+{
+	int i;
+	vm_object_t ksobj;
+	vm_offset_t ks;
+	vm_page_t m;
+	unsigned *ptek, oldpte;
+
+	ksobj = td->td_kstack_obj;
+	ks = td->td_kstack;
+	ptek = (unsigned *)vtopte(ks);
+	for (i = 0; i < KSTACK_PAGES; i++) {
+		m = vm_page_lookup(ksobj, i);
+		if (m == NULL)
+			panic("pmap_dispose_thread: kstack already missing?");
+		vm_page_busy(m);
+		oldpte = *(ptek + i);
+		*(ptek + i) = 0;
+#ifndef I386_CPU
+		invlpg(ks + i * PAGE_SIZE);
+#endif
+		vm_page_unwire(m, 0);
+		vm_page_free(m);
+	}
+#ifdef I386_CPU
+	invltlb();
+#endif
+}
+
+/*
+ * Allow the Kernel stack for a thread to be prejudicially paged out.
+ */
+void
+pmap_swapout_thread(td)
+	struct thread *td;
+{
+	int i;
+	vm_object_t ksobj;
+	vm_offset_t ks;
+	vm_page_t m;
+
+	ksobj = td->td_kstack_obj;
+	ks = td->td_kstack;
+	for (i = 0; i < KSTACK_PAGES; i++) {
+		m = vm_page_lookup(ksobj, i);
+		if (m == NULL)
+			panic("pmap_swapout_thread: kstack already missing?");
+		vm_page_dirty(m);
+		vm_page_unwire(m, 0);
+		pmap_kremove(ks + i * PAGE_SIZE);
+	}
+}
+
+/*
+ * Bring the kernel stack for a specified thread back in.
+ */
+void
+pmap_swapin_thread(td)
+	struct thread *td;
+{
+	int i, rv;
+	vm_object_t ksobj;
+	vm_offset_t ks;
+	vm_page_t m;
+
+	ksobj = td->td_kstack_obj;
+	ks = td->td_kstack;
+	for (i = 0; i < KSTACK_PAGES; i++) {
+		m = vm_page_grab(ksobj, i, VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
+		pmap_kenter(ks + i * PAGE_SIZE, VM_PAGE_TO_PHYS(m));
+		if (m->valid != VM_PAGE_BITS_ALL) {
+			rv = vm_pager_get_pages(ksobj, &m, 1, 0);
+			if (rv != VM_PAGER_OK)
+				panic("pmap_swapin_thread: cannot get kstack for proc: %d\n", td->td_proc->p_pid);
+			m = vm_page_lookup(ksobj, i);
 			m->valid = VM_PAGE_BITS_ALL;
 		}
 		vm_page_wire(m);
@@ -1517,7 +1702,7 @@ pmap_collect()
 {
 	int i;
 	vm_page_t m;
-	static int warningdone=0;
+	static int warningdone = 0;
 
 	if (pmap_pagedaemon_waken == 0)
 		return;
@@ -2333,7 +2518,7 @@ retry:
 
 		pmap->pm_stats.resident_count += size >> PAGE_SHIFT;
 		npdes = size >> PDRSHIFT;
-		for(i=0;i<npdes;i++) {
+		for(i = 0; i < npdes; i++) {
 			pmap->pm_pdir[ptepindex] =
 				(pd_entry_t) (ptepa | PG_U | PG_RW | PG_V | PG_PS);
 			ptepa += NBPDR;
@@ -2444,7 +2629,7 @@ pmap_prefault(pmap, addra, entry)
 	vm_page_t m, mpte;
 	vm_object_t object;
 
-	if (!curproc || (pmap != vmspace_pmap(curproc->p_vmspace)))
+	if (!curthread || (pmap != vmspace_pmap(curthread->td_proc->p_vmspace)))
 		return;
 
 	object = entry->object.vm_object;
@@ -2561,6 +2746,7 @@ pmap_copy(dst_pmap, src_pmap, dst_addr, len, src_addr)
 	vm_offset_t pdnxt;
 	unsigned src_frame, dst_frame;
 	vm_page_t m;
+	pd_entry_t saved_pde;
 
 	if (dst_addr != src_addr)
 		return;
@@ -2580,7 +2766,7 @@ pmap_copy(dst_pmap, src_pmap, dst_addr, len, src_addr)
 		invltlb();
 #endif
 	}
-
+ 	saved_pde = (pd_entry_t)((u_int32_t)APTDpde & (PG_FRAME|PG_RW | PG_V));
 	for(addr = src_addr; addr < end_addr; addr = pdnxt) {
 		unsigned *src_pte, *dst_pte;
 		vm_page_t dstmpte, srcmpte;
@@ -2637,6 +2823,16 @@ pmap_copy(dst_pmap, src_pmap, dst_addr, len, src_addr)
 				 * block.
 				 */
 				dstmpte = pmap_allocpte(dst_pmap, addr);
+				if (((u_int32_t)APTDpde & PG_FRAME) !=
+				    ((u_int32_t)saved_pde & PG_FRAME)) {
+					APTDpde = saved_pde;
+printf ("IT HAPPENNED!");
+#if defined(SMP)
+					cpu_invltlb();
+#else
+					invltlb();
+#endif
+				}
 				if ((*dst_pte == 0) && (ptetemp = *src_pte)) {
 					/*
 					 * Clear the modified and
@@ -2831,7 +3027,7 @@ pmap_remove_pages(pmap, sva, eva)
 	vm_page_t m;
 
 #ifdef PMAP_REMOVE_PAGES_CURPROC_ONLY
-	if (!curproc || (pmap != vmspace_pmap(curproc->p_vmspace))) {
+	if (!curthread || (pmap != vmspace_pmap(curthread->td_proc->p_vmspace))) {
 		printf("warning: pmap_remove_pages called with non-current pmap\n");
 		return;
 	}
@@ -2839,8 +3035,8 @@ pmap_remove_pages(pmap, sva, eva)
 
 	s = splvm();
 	for(pv = TAILQ_FIRST(&pmap->pm_pvlist);
-		pv;
-		pv = npv) {
+	    pv;
+	    pv = npv) {
 
 		if (pv->pv_va >= eva || pv->pv_va < sva) {
 			npv = TAILQ_NEXT(pv, pv_plist);
@@ -2854,6 +3050,12 @@ pmap_remove_pages(pmap, sva, eva)
 #endif
 		tpte = *pte;
 
+		if (tpte == 0) {
+			printf("TPTE at %p  IS ZERO @ VA %08x\n",
+							pte, pv->pv_va);
+			panic("bad pte");
+		}
+
 /*
  * We cannot remove wired pages from a process' mapping at this time
  */
@@ -2861,14 +3063,18 @@ pmap_remove_pages(pmap, sva, eva)
 			npv = TAILQ_NEXT(pv, pv_plist);
 			continue;
 		}
-		*pte = 0;
 
 		m = PHYS_TO_VM_PAGE(tpte);
+		KASSERT(m->phys_addr == (tpte & PG_FRAME),
+		    ("vm_page_t %p phys_addr mismatch %08x %08x",
+		    m, m->phys_addr, tpte));
 
 		KASSERT(m < &vm_page_array[vm_page_array_size],
 			("pmap_remove_pages: bad tpte %x", tpte));
 
 		pv->pv_pmap->pm_stats.resident_count--;
+
+		*pte = 0;
 
 		/*
 		 * Update the vm_page_t clean and reference bits.
@@ -2876,7 +3082,6 @@ pmap_remove_pages(pmap, sva, eva)
 		if (tpte & PG_M) {
 			vm_page_dirty(m);
 		}
-
 
 		npv = TAILQ_NEXT(pv, pv_plist);
 		TAILQ_REMOVE(&pv->pv_pmap->pm_pvlist, pv, pv_plist);
@@ -3255,11 +3460,13 @@ pmap_mincore(pmap, addr)
 }
 
 void
-pmap_activate(struct proc *p)
+pmap_activate(struct thread *td)
 {
+	struct proc *p = td->td_proc;
 	pmap_t	pmap;
+	u_int32_t  cr3;
 
-	pmap = vmspace_pmap(p->p_vmspace);
+	pmap = vmspace_pmap(td->td_proc->p_vmspace);
 #if defined(SMP)
 	pmap->pm_active |= 1 << PCPU_GET(cpuid);
 #else
@@ -3268,7 +3475,20 @@ pmap_activate(struct proc *p)
 #if defined(SWTCH_OPTIM_STATS)
 	tlb_flush_count++;
 #endif
-	load_cr3(p->p_addr->u_pcb.pcb_cr3 = vtophys(pmap->pm_pdir));
+	cr3 = vtophys(pmap->pm_pdir);
+	/* XXXKSE this is wrong.
+	 * pmap_activate is for the current thread on the current cpu
+	 */
+	if (p->p_flag & P_KSES) {
+		/* Make sure all other cr3 entries are updated. */
+		/* what if they are running?  XXXKSE (maybe abort them) */
+		FOREACH_THREAD_IN_PROC(p, td) {
+			td->td_pcb->pcb_cr3 = cr3;
+		}
+	} else {
+		td->td_pcb->pcb_cr3 = cr3;
+	}
+	load_cr3(cr3);
 }
 
 vm_offset_t
@@ -3301,14 +3521,14 @@ pmap_pid_dump(int pid)
 			int i,j;
 			index = 0;
 			pmap = vmspace_pmap(p->p_vmspace);
-			for(i=0;i<1024;i++) {
+			for(i = 0; i < 1024; i++) {
 				pd_entry_t *pde;
 				unsigned *pte;
 				unsigned base = i << PDRSHIFT;
 				
 				pde = &pmap->pm_pdir[i];
 				if (pde && pmap_pde_v(pde)) {
-					for(j=0;j<1024;j++) {
+					for(j = 0; j < 1024; j++) {
 						unsigned va = base + (j << PAGE_SHIFT);
 						if (va >= (vm_offset_t) VM_MIN_KERNEL_ADDRESS) {
 							if (index) {

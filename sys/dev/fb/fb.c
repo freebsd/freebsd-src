@@ -439,7 +439,7 @@ fb_detach(dev_t dev, video_adapter_t *adp, struct cdevsw *cdevsw)
 }
 
 static int
-fbopen(dev_t dev, int flag, int mode, struct proc *p)
+fbopen(dev_t dev, int flag, int mode, struct thread *td)
 {
 	int unit;
 
@@ -449,11 +449,11 @@ fbopen(dev_t dev, int flag, int mode, struct proc *p)
 	if (vidcdevsw[unit] == NULL)
 		return ENXIO;
 	return (*vidcdevsw[unit]->d_open)(makedev(0, adapter[unit]->va_minor),
-					  flag, mode, p);
+					  flag, mode, td);
 }
 
 static int
-fbclose(dev_t dev, int flag, int mode, struct proc *p)
+fbclose(dev_t dev, int flag, int mode, struct thread *td)
 {
 	int unit;
 
@@ -461,7 +461,7 @@ fbclose(dev_t dev, int flag, int mode, struct proc *p)
 	if (vidcdevsw[unit] == NULL)
 		return ENXIO;
 	return (*vidcdevsw[unit]->d_close)(makedev(0, adapter[unit]->va_minor),
-					   flag, mode, p);
+					   flag, mode, td);
 }
 
 static int
@@ -489,7 +489,7 @@ fbwrite(dev_t dev, struct uio *uio, int flag)
 }
 
 static int
-fbioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct proc *p)
+fbioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
 {
 	int unit;
 
@@ -497,7 +497,7 @@ fbioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct proc *p)
 	if (vidcdevsw[unit] == NULL)
 		return ENXIO;
 	return (*vidcdevsw[unit]->d_ioctl)(makedev(0, adapter[unit]->va_minor),
-					   cmd, arg, flag, p);
+					   cmd, arg, flag, td);
 }
 
 static int
@@ -523,7 +523,7 @@ DEV_DRIVER_MODULE(fb, ???, fb_driver, fb_devclass, fb_cdevsw, 0, 0);
  */
 
 int genfbopen(genfb_softc_t *sc, video_adapter_t *adp, int flag, int mode,
-	      struct proc *p)
+	      struct thread *td)
 {
 	int s;
 
@@ -535,7 +535,7 @@ int genfbopen(genfb_softc_t *sc, video_adapter_t *adp, int flag, int mode,
 }
 
 int genfbclose(genfb_softc_t *sc, video_adapter_t *adp, int flag, int mode,
-	       struct proc *p)
+	       struct thread *td)
 {
 	int s;
 
@@ -578,7 +578,7 @@ int genfbwrite(genfb_softc_t *sc, video_adapter_t *adp, struct uio *uio,
 }
 
 int genfbioctl(genfb_softc_t *sc, video_adapter_t *adp, u_long cmd,
-	       caddr_t arg, int flag, struct proc *p)
+	       caddr_t arg, int flag, struct thread *td)
 {
 	int error;
 

@@ -132,20 +132,20 @@ static void *devfs_token;
 
 #define	PDEVSTATIC	/* - not static - */
 PDEVSTATIC void i4battach __P((void));
-PDEVSTATIC int i4bopen __P((dev_t dev, int flag, int fmt, struct proc *p));
-PDEVSTATIC int i4bclose __P((dev_t dev, int flag, int fmt, struct proc *p));
+PDEVSTATIC int i4bopen __P((dev_t dev, int flag, int fmt, struct thread *td));
+PDEVSTATIC int i4bclose __P((dev_t dev, int flag, int fmt, struct thread *td));
 PDEVSTATIC int i4bread __P((dev_t dev, struct uio *uio, int ioflag));
 
 #ifdef __bsdi__
-PDEVSTATIC int i4bioctl __P((dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p));
+PDEVSTATIC int i4bioctl __P((dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td));
 #else
-PDEVSTATIC int i4bioctl __P((dev_t dev, int cmd, caddr_t data, int flag, struct proc *p));
+PDEVSTATIC int i4bioctl __P((dev_t dev, int cmd, caddr_t data, int flag, struct thread *td));
 #endif
 
 #ifdef OS_USES_POLL
-PDEVSTATIC int i4bpoll __P((dev_t dev, int events, struct proc *p));
+PDEVSTATIC int i4bpoll __P((dev_t dev, int events, struct thread *td));
 #else
-PDEVSTATIC int i4bselect __P((dev_t dev, int rw, struct proc *p));
+PDEVSTATIC int i4bselect __P((dev_t dev, int rw, struct thread *td));
 #endif
 
 #endif /* #ifndef __FreeBSD__ */
@@ -275,7 +275,7 @@ i4battach()
  *	i4bopen - device driver open routine
  *---------------------------------------------------------------------------*/
 PDEVSTATIC int
-i4bopen(dev_t dev, int flag, int fmt, struct proc *p)
+i4bopen(dev_t dev, int flag, int fmt, struct thread *td)
 {
 	int x;
 	
@@ -297,7 +297,7 @@ i4bopen(dev_t dev, int flag, int fmt, struct proc *p)
  *	i4bclose - device driver close routine
  *---------------------------------------------------------------------------*/
 PDEVSTATIC int
-i4bclose(dev_t dev, int flag, int fmt, struct proc *p)
+i4bclose(dev_t dev, int flag, int fmt, struct thread *td)
 {
 	int x = splimp();	
 	openflag = 0;
@@ -360,11 +360,11 @@ i4bread(dev_t dev, struct uio *uio, int ioflag)
  *---------------------------------------------------------------------------*/
 PDEVSTATIC int
 #if defined (__FreeBSD_version) && __FreeBSD_version >= 300003
-i4bioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
+i4bioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 #elif defined(__bsdi__)
-i4bioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
+i4bioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 #else
-i4bioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
+i4bioctl(dev_t dev, int cmd, caddr_t data, int flag, struct thread *td)
 #endif
 {
 	call_desc_t *cd;
@@ -920,7 +920,7 @@ diag_done:
  *	i4bselect - device driver select routine
  *---------------------------------------------------------------------------*/
 PDEVSTATIC int
-i4bselect(dev_t dev, int rw, struct proc *p)
+i4bselect(dev_t dev, int rw, struct thread *td)
 {
 	int x;
 	
@@ -933,7 +933,7 @@ i4bselect(dev_t dev, int rw, struct proc *p)
 			if(!IF_QEMPTY(&i4b_rdqueue))
 				return(1);
 			x = splimp();
-			selrecord(p, &select_rd_info);
+			selrecord(td, &select_rd_info);
 			selflag = 1;
 			splx(x);
 			return(0);
@@ -952,7 +952,7 @@ i4bselect(dev_t dev, int rw, struct proc *p)
  *	i4bpoll - device driver poll routine
  *---------------------------------------------------------------------------*/
 PDEVSTATIC int
-i4bpoll(dev_t dev, int events, struct proc *p)
+i4bpoll(dev_t dev, int events, struct thread *td)
 {
 	int x;
 	
@@ -965,7 +965,7 @@ i4bpoll(dev_t dev, int events, struct proc *p)
 			return(1);
 
 		x = splimp();
-		selrecord(p, &select_rd_info);
+		selrecord(td, &select_rd_info);
 		selflag = 1;
 		splx(x);
 		return(0);

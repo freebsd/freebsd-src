@@ -110,7 +110,7 @@ null_node_find(mp, lowervp)
 	struct mount *mp;
 	struct vnode *lowervp;
 {
-	struct proc *p = curproc;	/* XXX */
+	struct thread *td = curthread;	/* XXX */
 	struct null_node_hashhead *hd;
 	struct null_node *a;
 	struct vnode *vp;
@@ -123,17 +123,17 @@ null_node_find(mp, lowervp)
 	 */
 	hd = NULL_NHASH(lowervp);
 loop:
-	lockmgr(&null_hashlock, LK_EXCLUSIVE, NULL, p);
+	lockmgr(&null_hashlock, LK_EXCLUSIVE, NULL, td);
 	LIST_FOREACH(a, hd, null_hash) {
 		if (a->null_lowervp == lowervp && NULLTOV(a)->v_mount == mp) {
 			vp = NULLTOV(a);
-			lockmgr(&null_hashlock, LK_RELEASE, NULL, p);
+			lockmgr(&null_hashlock, LK_RELEASE, NULL, td);
 			/*
 			 * We need vget for the VXLOCK
 			 * stuff, but we don't want to lock
 			 * the lower node.
 			 */
-			if (vget(vp, LK_EXCLUSIVE | LK_CANRECURSE, p)) {
+			if (vget(vp, LK_EXCLUSIVE | LK_CANRECURSE, td)) {
 				printf ("null_node_find: vget failed.\n");
 				goto loop;
 			};
@@ -141,11 +141,11 @@ loop:
 			 * Now we got both vnodes locked, so release the
 			 * lower one.
 			 */
-			VOP_UNLOCK(lowervp, 0, p);
+			VOP_UNLOCK(lowervp, 0, td);
 			return (vp);
 		}
 	}
-	lockmgr(&null_hashlock, LK_RELEASE, NULL, p);
+	lockmgr(&null_hashlock, LK_RELEASE, NULL, td);
 
 	return NULLVP;
 }
@@ -162,7 +162,7 @@ null_node_alloc(mp, lowervp, vpp)
 	struct vnode *lowervp;
 	struct vnode **vpp;
 {
-	struct proc *p = curproc;	/* XXX */
+	struct thread *td = curthread;	/* XXX */
 	struct null_node_hashhead *hd;
 	struct null_node *xp;
 	struct vnode *othervp, *vp;
@@ -211,16 +211,16 @@ null_node_alloc(mp, lowervp, vpp)
 	 * NULL, then we copy that up and manually lock the new vnode.
 	 */
 
-	lockmgr(&null_hashlock, LK_EXCLUSIVE, NULL, p);
+	lockmgr(&null_hashlock, LK_EXCLUSIVE, NULL, td);
 	vp->v_vnlock = lowervp->v_vnlock;
-	error = VOP_LOCK(vp, LK_EXCLUSIVE | LK_THISLAYER, p);
+	error = VOP_LOCK(vp, LK_EXCLUSIVE | LK_THISLAYER, td);
 	if (error)
 		panic("null_node_alloc: can't lock new vnode\n");
 
 	VREF(lowervp);
 	hd = NULL_NHASH(lowervp);
 	LIST_INSERT_HEAD(hd, xp, null_hash);
-	lockmgr(&null_hashlock, LK_RELEASE, NULL, p);
+	lockmgr(&null_hashlock, LK_RELEASE, NULL, td);
 	return 0;
 }
 

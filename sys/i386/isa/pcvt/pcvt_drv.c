@@ -280,7 +280,7 @@ pcvt_attach(device_t dev)
  *	driver open
  *---------------------------------------------------------------------------*/
 static int
-pcvt_open(dev_t dev, int flag, int mode, struct proc *p)
+pcvt_open(dev_t dev, int flag, int mode, struct thread *td)
 {
 	register struct tty *tp;
 	register struct video_state *vsx;
@@ -316,7 +316,7 @@ pcvt_open(dev_t dev, int flag, int mode, struct proc *p)
 		(*linesw[tp->t_line].l_modem)(tp, 1);	/* fake connection */
 		winsz = 1;			/* set winsize later */
 	}
-	else if (tp->t_state & TS_XCLUDE && suser(p))
+	else if (tp->t_state & TS_XCLUDE && suser_td(td))
 	{
 		return (EBUSY);
 	}
@@ -348,7 +348,7 @@ pcvt_open(dev_t dev, int flag, int mode, struct proc *p)
  *	driver close
  *---------------------------------------------------------------------------*/
 static int
-pcvt_close(dev_t dev, int flag, int mode, struct proc *p)
+pcvt_close(dev_t dev, int flag, int mode, struct thread *td)
 {
 	register struct tty *tp;
 	register struct video_state *vsx;
@@ -378,7 +378,7 @@ pcvt_close(dev_t dev, int flag, int mode, struct proc *p)
  *	driver ioctl
  *---------------------------------------------------------------------------*/
 static int
-pcvt_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
+pcvt_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 {
 	register int error;
 	register struct tty *tp;
@@ -396,7 +396,7 @@ pcvt_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	 */
 
 #ifdef XSERVER
-	if((error = usl_vt_ioctl(dev, cmd, data, flag, p)) >= 0)
+	if((error = usl_vt_ioctl(dev, cmd, data, flag, td)) >= 0)
 		return error;
 #endif /* XSERVER */
 
@@ -406,7 +406,7 @@ pcvt_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	if((error = vgaioctl(dev,cmd,data,flag)) >= 0)
 		return error;
 
-	if((error = (*linesw[tp->t_line].l_ioctl)(tp, cmd, data, flag, p))
+	if((error = (*linesw[tp->t_line].l_ioctl)(tp, cmd, data, flag, td))
 	    != ENOIOCTL)
 		return (error);
 

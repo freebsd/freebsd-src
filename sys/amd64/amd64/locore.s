@@ -147,9 +147,11 @@ IdlePTD:	.long	0			/* phys addr of kernel PTD */
 #endif
 KPTphys:	.long	0			/* phys addr of kernel page tables */
 
-	.globl	proc0paddr
-proc0paddr:	.long	0			/* address of proc 0 address space */
-p0upa:		.long	0			/* phys addr of proc0's UPAGES */
+	.globl	proc0uarea, proc0kstack
+proc0uarea:	.long	0			/* address of proc 0 uarea space */
+proc0kstack:	.long	0			/* address of proc 0 kstack space */
+p0upa:		.long	0			/* phys addr of proc0's UAREA */
+p0kpa:		.long	0			/* phys addr of proc0's STACK */
 
 vm86phystk:	.long	0			/* PA of vm86/bios stack */
 
@@ -369,13 +371,14 @@ NON_GPROF_ENTRY(btext)
 /* now running relocated at KERNBASE where the system is linked to run */
 begin:
 	/* set up bootstrap stack */
-	movl	proc0paddr,%eax			/* location of in-kernel pages */
-	leal	UPAGES*PAGE_SIZE(%eax),%esp	/* bootstrap stack end location */
+	movl	proc0kstack,%eax		/* location of in-kernel stack */
+			/* bootstrap stack end location */
+	leal	(KSTACK_PAGES*PAGE_SIZE-PCB_SIZE)(%eax),%esp
 
 	xorl	%ebp,%ebp			/* mark end of frames */
 
 	movl	IdlePTD,%esi
-	movl	%esi,PCB_CR3(%eax)
+	movl	%esi,(KSTACK_PAGES*PAGE_SIZE-PCB_SIZE+PCB_CR3)(%eax)
 
 	testl	$CPUID_PGE, R(cpu_feature)
 	jz	1f
@@ -762,10 +765,15 @@ no_kernend:
 	movl	%esi,R(IdlePTD)
 
 /* Allocate UPAGES */
-	ALLOCPAGES(UPAGES)
+	ALLOCPAGES(UAREA_PAGES)
 	movl	%esi,R(p0upa)
 	addl	$KERNBASE, %esi
-	movl	%esi, R(proc0paddr)
+	movl	%esi, R(proc0uarea)
+
+	ALLOCPAGES(KSTACK_PAGES)
+	movl	%esi,R(p0kpa)
+	addl	$KERNBASE, %esi
+	movl	%esi, R(proc0kstack)
 
 	ALLOCPAGES(1)			/* vm86/bios stack */
 	movl	%esi,R(vm86phystk)
@@ -833,7 +841,12 @@ map_read_write:
 
 /* Map proc0's UPAGES in the physical way ... */
 	movl	R(p0upa), %eax
-	movl	$UPAGES, %ecx
+	movl	$(UAREA_PAGES), %ecx
+	fillkptphys($PG_RW)
+
+/* Map proc0's KSTACK in the physical way ... */
+	movl	R(p0kpa), %eax
+	movl	$(KSTACK_PAGES), %ecx
 	fillkptphys($PG_RW)
 
 /* Map ISA hole */

@@ -546,7 +546,7 @@ vm_pageout_map_deactivate_pages(map, desired)
 	vm_object_t obj, bigobj;
 
 	GIANT_REQUIRED;
-	if (lockmgr(&map->lock, LK_EXCLUSIVE | LK_NOWAIT, (void *)0, curproc)) {
+	if (lockmgr(&map->lock, LK_EXCLUSIVE | LK_NOWAIT, (void *)0, curthread)) {
 		return;
 	}
 
@@ -863,7 +863,7 @@ rescan0:
 				mp = NULL;
 				if (vp->v_type == VREG)
 					vn_start_write(vp, &mp, V_NOWAIT);
-				if (vget(vp, LK_EXCLUSIVE|LK_NOOBJ, curproc)) {
+				if (vget(vp, LK_EXCLUSIVE|LK_NOOBJ, curthread)) {
 					vn_finished_write(mp);
 					if (object->flags & OBJ_MIGHTBEDIRTY)
 						vnodes_skipped++;
@@ -1162,11 +1162,14 @@ rescan0:
 		}
 		sx_sunlock(&allproc_lock);
 		if (bigproc != NULL) {
+			struct ksegrp *kg;
 			killproc(bigproc, "out of swap space");
 			mtx_lock_spin(&sched_lock);
-			bigproc->p_estcpu = 0;
-			bigproc->p_nice = PRIO_MIN;
-			resetpriority(bigproc);
+			FOREACH_KSEGRP_IN_PROC(bigproc, kg) {
+				kg->kg_estcpu = 0;
+				kg->kg_nice = PRIO_MIN; /* XXXKSE ??? */
+				resetpriority(kg);
+			}
 			mtx_unlock_spin(&sched_lock);
 			PROC_UNLOCK(bigproc);
 			wakeup(&cnt.v_free_count);
@@ -1358,9 +1361,9 @@ vm_pageout()
 	if (vm_pageout_stats_free_max == 0)
 		vm_pageout_stats_free_max = 5;
 
-	PROC_LOCK(curproc);
-	curproc->p_flag |= P_BUFEXHAUST;
-	PROC_UNLOCK(curproc);
+	PROC_LOCK(curthread->td_proc);
+	curthread->td_proc->p_flag |= P_BUFEXHAUST;
+	PROC_UNLOCK(curthread->td_proc);
 	swap_pager_swap_init();
 	pass = 0;
 	/*
@@ -1421,7 +1424,7 @@ vm_pageout()
 void
 pagedaemon_wakeup()
 {
-	if (!vm_pages_needed && curproc != pageproc) {
+	if (!vm_pages_needed && curthread->td_proc != pageproc) {
 		vm_pages_needed++;
 		wakeup(&vm_pages_needed);
 	}

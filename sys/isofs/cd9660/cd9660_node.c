@@ -97,7 +97,7 @@ cd9660_ihashget(dev, inum)
 	dev_t dev;
 	ino_t inum;
 {
-	struct proc *p = curproc;		/* XXX */
+	struct thread *td = curthread;		/* XXX */
 	struct iso_node *ip;
 	struct vnode *vp;
 
@@ -108,7 +108,7 @@ loop:
 			vp = ITOV(ip);
 			mtx_lock(&vp->v_interlock);
 			mtx_unlock(&cd9660_ihash_mtx);
-			if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, p))
+			if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, td))
 				goto loop;
 			return (vp);
 		}
@@ -124,7 +124,6 @@ void
 cd9660_ihashins(ip)
 	struct iso_node *ip;
 {
-	struct proc *p = curproc;		/* XXX */
 	struct iso_node **ipp, *iq;
 
 	mtx_lock(&cd9660_ihash_mtx);
@@ -136,7 +135,7 @@ cd9660_ihashins(ip)
 	*ipp = ip;
 	mtx_unlock(&cd9660_ihash_mtx);
 
-	lockmgr(&ip->i_vnode->v_lock, LK_EXCLUSIVE, (struct mtx *)0, p);
+	lockmgr(&ip->i_vnode->v_lock, LK_EXCLUSIVE, (struct mtx *)0, curthread);
 }
 
 /*
@@ -167,11 +166,11 @@ int
 cd9660_inactive(ap)
 	struct vop_inactive_args /* {
 		struct vnode *a_vp;
-		struct proc *a_p;
+		struct thread *a_td;
 	} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
-	struct proc *p = ap->a_p;
+	struct thread *td = ap->a_td;
 	register struct iso_node *ip = VTOI(vp);
 	int error = 0;
 
@@ -179,13 +178,13 @@ cd9660_inactive(ap)
 		vprint("cd9660_inactive: pushing active", vp);
 
 	ip->i_flag = 0;
-	VOP_UNLOCK(vp, 0, p);
+	VOP_UNLOCK(vp, 0, td);
 	/*
 	 * If we are done with the inode, reclaim it
 	 * so that it can be reused immediately.
 	 */
 	if (ip->inode.iso_mode == 0)
-		vrecycle(vp, NULL, p);
+		vrecycle(vp, NULL, td);
 	return error;
 }
 
@@ -196,7 +195,7 @@ int
 cd9660_reclaim(ap)
 	struct vop_reclaim_args /* {
 		struct vnode *a_vp;
-		struct proc *a_p;
+		struct thread *a_td;
 	} */ *ap;
 {
 	register struct vnode *vp = ap->a_vp;

@@ -88,7 +88,7 @@ procfs_allocvp(mp, vpp, pid, pfs_type)
 	long pid;
 	pfstype pfs_type;
 {
-	struct proc *p = curproc;	/* XXX */
+	struct thread *td = curthread;	/* XXX */
 	struct pfsnode *pfs;
 	struct vnode *vp;
 	struct pfsnode **pp;
@@ -100,7 +100,7 @@ loop:
 		if (pfs->pfs_pid == pid &&
 		    pfs->pfs_type == pfs_type &&
 		    vp->v_mount == mp) {
-			if (vget(vp, 0, p))
+			if (vget(vp, 0, td))
 				goto loop;
 			*vpp = vp;
 			return (0);
@@ -246,7 +246,7 @@ procfs_rw(ap)
 {
 	struct vnode *vp = ap->a_vp;
 	struct uio *uio = ap->a_uio;
-	struct proc *curp = uio->uio_procp;
+	struct proc *curp = uio->uio_td->td_proc;
 	struct pfsnode *pfs = VTOPFS(vp);
 	struct proc *p;
 	int rtval;

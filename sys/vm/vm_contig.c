@@ -152,9 +152,9 @@ again1:
 				vm_page_test_dirty(m);
 				if (m->dirty) {
 					if (m->object->type == OBJT_VNODE) {
-						vn_lock(m->object->handle, LK_EXCLUSIVE | LK_RETRY, curproc);
+						vn_lock(m->object->handle, LK_EXCLUSIVE | LK_RETRY, curthread);
 						vm_object_page_clean(m->object, 0, 0, OBJPC_SYNC);
-						VOP_UNLOCK(m->object->handle, 0, curproc);
+						VOP_UNLOCK(m->object->handle, 0, curthread);
 						goto again1;
 					} else if (m->object->type == OBJT_SWAP ||
 								m->object->type == OBJT_DEFAULT) {
@@ -179,9 +179,9 @@ again1:
 				vm_page_test_dirty(m);
 				if (m->dirty) {
 					if (m->object->type == OBJT_VNODE) {
-						vn_lock(m->object->handle, LK_EXCLUSIVE | LK_RETRY, curproc);
+						vn_lock(m->object->handle, LK_EXCLUSIVE | LK_RETRY, curthread);
 						vm_object_page_clean(m->object, 0, 0, OBJPC_SYNC);
-						VOP_UNLOCK(m->object->handle, 0, curproc);
+						VOP_UNLOCK(m->object->handle, 0, curthread);
 						goto again1;
 					} else if (m->object->type == OBJT_SWAP ||
 								m->object->type == OBJT_DEFAULT) {

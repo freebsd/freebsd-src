@@ -862,7 +862,7 @@ mb_reclaim(void)
  * XXX: to avoid this.
  */
 #ifdef WITNESS
-	KASSERT(witness_list(curproc) == 0,
+	KASSERT(witness_list(curthread) == 0,
 	    ("mb_reclaim() called with locks held"));
 #endif
 

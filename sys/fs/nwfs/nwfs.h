@@ -75,9 +75,9 @@ struct nwmount {
 
 int ncp_conn_logged_in(struct nwmount *);
 int nwfs_ioctl(struct vop_ioctl_args *ap);
-int nwfs_doio(struct buf *bp, struct ucred *cr, struct proc *p);
+int nwfs_doio(struct buf *bp, struct ucred *cr, struct thread *td);
 int nwfs_vinvalbuf(struct vnode *vp, int flags, struct ucred *cred, 
-	struct proc *p, int intrflg);
+	struct thread *td, int intrflg);
 #endif	/* _KERNEL */
 
 #endif /* _NWFS_H_ */

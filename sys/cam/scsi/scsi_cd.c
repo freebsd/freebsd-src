@@ -873,7 +873,7 @@ cdregisterexit:
 }
 
 static int
-cdopen(dev_t dev, int flags, int fmt, struct proc *p)
+cdopen(dev_t dev, int flags, int fmt, struct thread *td)
 {
 	struct disklabel *label;
 	struct cam_periph *periph;
@@ -985,7 +985,7 @@ cdopen(dev_t dev, int flags, int fmt, struct proc *p)
 }
 
 static int
-cdclose(dev_t dev, int flag, int fmt, struct proc *p)
+cdclose(dev_t dev, int flag, int fmt, struct thread *td)
 {
 	struct 	cam_periph *periph;
 	struct	cd_softc *softc;
@@ -1806,7 +1806,7 @@ cddone(struct cam_periph *periph, union ccb *done_ccb)
 }
 
 static int
-cdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
+cdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 {
 
 	struct 	cam_periph *periph;

@@ -156,7 +156,8 @@ struct bootinfo_kernel bootinfo;
 struct mtx sched_lock;
 struct mtx Giant;
 
-struct	user *proc0paddr;
+struct	user *proc0uarea;
+vm_offset_t proc0kstack;
 
 char machine[] = "alpha";
 SYSCTL_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD, machine, 0, "");
@@ -887,23 +888,30 @@ alpha_init(pfn, ptb, bim, bip, biv)
 
 	}
 
+	proc_linkup(&proc0);
 	/*
 	 * Init mapping for u page(s) for proc 0
 	 */
-	proc0.p_addr = proc0paddr =
-	    (struct user *)pmap_steal_memory(UPAGES * PAGE_SIZE);
+	proc0uarea = (struct user *)pmap_steal_memory(UAREA_PAGES * PAGE_SIZE);
+	proc0kstack = pmap_steal_memory(KSTACK_PAGES * PAGE_SIZE);
+	proc0.p_uarea = proc0uarea;
+	thread0 = &proc0.p_thread;
+	thread0->td_kstack = proc0kstack;
+	thread0->td_pcb = (struct pcb *)
+	    (thread0->td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
 
 	/*
 	 * Setup the global data for the bootstrap cpu.
 	 */
 	{
-		size_t sz = round_page(UPAGES * PAGE_SIZE);
+		/* This is not a 'struct user' */
+		size_t sz = round_page(KSTACK_PAGES * PAGE_SIZE);
 		globalp = (struct globaldata *) pmap_steal_memory(sz);
 		globaldata_init(globalp, alpha_pal_whami(), sz);
 		alpha_pal_wrval((u_int64_t) globalp);
 		PCPU_GET(next_asn) = 1;	/* 0 used for proc0 pmap */
 #ifdef SMP
-		proc0.p_md.md_kernnest = 1;
+		thread0->td_md.md_kernnest = 1;
 #endif
 	}
 
@@ -921,28 +929,26 @@ alpha_init(pfn, ptb, bim, bip, biv)
 	 * Initialize the rest of proc 0's PCB, and cache its physical
 	 * address.
 	 */
-	proc0.p_md.md_pcbpaddr =
-	    (struct pcb *)ALPHA_K0SEG_TO_PHYS((vm_offset_t)&proc0paddr->u_pcb);
+	thread0->td_md.md_pcbpaddr =
+	    (struct pcb *)ALPHA_K0SEG_TO_PHYS((vm_offset_t)thread0->td_pcb);
 
 	/*
 	 * Set the kernel sp, reserving space for an (empty) trapframe,
 	 * and make proc0's trapframe pointer point to it for sanity.
 	 */
-	proc0paddr->u_pcb.pcb_hw.apcb_ksp =
-	    (u_int64_t)proc0paddr + USPACE - sizeof(struct trapframe);
-	proc0.p_frame =
-	    (struct trapframe *)proc0paddr->u_pcb.pcb_hw.apcb_ksp;
+	thread0->td_frame = (struct trapframe *)thread0->td_pcb - 1;
+	thread0->td_pcb->pcb_hw.apcb_ksp = (u_int64_t)thread0->td_frame;
 
 	/*
 	 * Get the right value for the boot cpu's idle ptbr.
 	 */
-	globalp->gd_idlepcb.apcb_ptbr = proc0.p_addr->u_pcb.pcb_hw.apcb_ptbr;
+	globalp->gd_idlepcb.apcb_ptbr = thread0->td_pcb->pcb_hw.apcb_ptbr;
 
-	/* Setup curproc so that mutexes work */
-	PCPU_SET(curproc, &proc0);
+	/* Setup curthread so that mutexes work */
+	PCPU_SET(curthread, thread0);
 	PCPU_SET(spinlocks, NULL);
 
-	LIST_INIT(&proc0.p_contested);
+	LIST_INIT(&thread0->td_contested);
 
 	/*
 	 * Initialise mutexes.
@@ -1175,13 +1181,16 @@ DELAY(int n)
 void
 osendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 {
-	struct proc *p = curproc;
+	struct proc *p;
+	struct thread *td;
 	osiginfo_t *sip, ksi;
 	struct trapframe *frame;
 	struct sigacts *psp;
 	int oonstack, fsize, rndfsize;
 
-	frame = p->p_frame;
+	td = curthread;
+	p = td->td_proc;
+	frame = td->td_frame;
 	oonstack = sigonstack(alpha_pal_rdusp());
 	fsize = sizeof ksi;
 	rndfsize = ((fsize + 15) / 16) * 16;
@@ -1230,16 +1239,16 @@ osendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	ksi.si_sc.sc_ps = frame->tf_regs[FRAME_PS];
 
 	/* copy the registers. */
-	fill_regs(p, (struct reg *)ksi.si_sc.sc_regs);
+	fill_regs(td, (struct reg *)ksi.si_sc.sc_regs);
 	ksi.si_sc.sc_regs[R_ZERO] = 0xACEDBADE;		/* magic number */
 	ksi.si_sc.sc_regs[R_SP] = alpha_pal_rdusp();
 
 	/* save the floating-point state, if necessary, then copy it. */
-	alpha_fpstate_save(p, 1);		/* XXX maybe write=0 */
-	ksi.si_sc.sc_ownedfp = p->p_md.md_flags & MDP_FPUSED;
-	bcopy(&p->p_addr->u_pcb.pcb_fp, (struct fpreg *)ksi.si_sc.sc_fpregs,
+	alpha_fpstate_save(td, 1);		/* XXX maybe write=0 */
+	ksi.si_sc.sc_ownedfp = td->td_md.md_flags & MDP_FPUSED;
+	bcopy(&td->td_pcb->pcb_fp, (struct fpreg *)ksi.si_sc.sc_fpregs,
 	    sizeof(struct fpreg));
-	ksi.si_sc.sc_fp_control = p->p_addr->u_pcb.pcb_fp_control;
+	ksi.si_sc.sc_fp_control = td->td_pcb->pcb_fp_control;
 	bzero(ksi.si_sc.sc_reserved, sizeof ksi.si_sc.sc_reserved); /* XXX */
 	ksi.si_sc.sc_xxx1[0] = 0;				/* XXX */
 	ksi.si_sc.sc_xxx1[1] = 0;				/* XXX */
@@ -1279,12 +1288,15 @@ osendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 void
 sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 {
-	struct proc *p = curproc;
+	struct proc *p;
+	struct thread *td;
 	struct trapframe *frame;
 	struct sigacts *psp;
 	struct sigframe sf, *sfp;
 	int oonstack, rndfsize;
 
+	td = curthread;
+	p = td->td_proc;
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	psp = p->p_sigacts;
 #ifdef COMPAT_43
@@ -1294,7 +1306,7 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	}
 #endif
 
-	frame = p->p_frame;
+	frame = td->td_frame;
 	oonstack = sigonstack(alpha_pal_rdusp());
 	rndfsize = ((sizeof(sf) + 15) / 16) * 16;
 
@@ -1306,7 +1318,7 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	    ? ((oonstack) ? SS_ONSTACK : 0) : SS_DISABLE;
 	sf.sf_uc.uc_mcontext.mc_onstack = (oonstack) ? 1 : 0;
 
-	fill_regs(p, (struct reg *)sf.sf_uc.uc_mcontext.mc_regs);
+	fill_regs(td, (struct reg *)sf.sf_uc.uc_mcontext.mc_regs);
 	sf.sf_uc.uc_mcontext.mc_regs[R_SP] = alpha_pal_rdusp();
 	sf.sf_uc.uc_mcontext.mc_regs[R_ZERO] = 0xACEDBADE;   /* magic number */
 	sf.sf_uc.uc_mcontext.mc_regs[R_PS] = frame->tf_regs[FRAME_PS];
@@ -1362,12 +1374,12 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	}
 
 	/* save the floating-point state, if necessary, then copy it. */
-	alpha_fpstate_save(p, 1);
-	sf.sf_uc.uc_mcontext.mc_ownedfp = p->p_md.md_flags & MDP_FPUSED;
-	bcopy(&p->p_addr->u_pcb.pcb_fp,
+	alpha_fpstate_save(td, 1);
+	sf.sf_uc.uc_mcontext.mc_ownedfp = td->td_md.md_flags & MDP_FPUSED;
+	bcopy(&td->td_pcb->pcb_fp,
 	      (struct fpreg *)sf.sf_uc.uc_mcontext.mc_fpregs,
 	      sizeof(struct fpreg));
-	sf.sf_uc.uc_mcontext.mc_fp_control = p->p_addr->u_pcb.pcb_fp_control;
+	sf.sf_uc.uc_mcontext.mc_fp_control = td->td_pcb->pcb_fp_control;
 
 #ifdef COMPAT_OSF1
 	/*
@@ -1428,12 +1440,13 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
  */
 #ifdef COMPAT_43
 int
-osigreturn(struct proc *p,
+osigreturn(struct thread *td,
 	struct osigreturn_args /* {
 		struct osigcontext *sigcntxp;
 	} */ *uap)
 {
 	struct osigcontext *scp, ksc;
+	struct proc *p = td->td_proc;
 
 	scp = uap->sigcntxp;
 
@@ -1470,25 +1483,25 @@ osigreturn(struct proc *p,
 	SIG_CANTMASK(p->p_sigmask);
 	PROC_UNLOCK(p);
 
-	set_regs(p, (struct reg *)ksc.sc_regs);
-	p->p_frame->tf_regs[FRAME_PC] = ksc.sc_pc;
-	p->p_frame->tf_regs[FRAME_PS] =
+	set_regs(td, (struct reg *)ksc.sc_regs);
+	td->td_frame->tf_regs[FRAME_PC] = ksc.sc_pc;
+	td->td_frame->tf_regs[FRAME_PS] =
 	    (ksc.sc_ps | ALPHA_PSL_USERSET) & ~ALPHA_PSL_USERCLR;
-	p->p_frame->tf_regs[FRAME_FLAGS] = 0; /* full restore */
+	td->td_frame->tf_regs[FRAME_FLAGS] = 0; /* full restore */
 
 	alpha_pal_wrusp(ksc.sc_regs[R_SP]);
 
 	/* XXX ksc.sc_ownedfp ? */
-	alpha_fpstate_drop(p);
-	bcopy((struct fpreg *)ksc.sc_fpregs, &p->p_addr->u_pcb.pcb_fp,
+	alpha_fpstate_drop(td);
+	bcopy((struct fpreg *)ksc.sc_fpregs, &td->td_pcb->pcb_fp,
 	    sizeof(struct fpreg));
-	p->p_addr->u_pcb.pcb_fp_control = ksc.sc_fp_control;
+	td->td_pcb->pcb_fp_control = ksc.sc_fp_control;
 	return (EJUSTRETURN);
 }
 #endif
 
 int
-sigreturn(struct proc *p,
+sigreturn(struct thread *td,
 	struct sigreturn_args /* {
 		ucontext_t *sigcntxp;
 	} */ *uap)
@@ -1496,14 +1509,16 @@ sigreturn(struct proc *p,
 	ucontext_t uc, *ucp;
 	struct pcb *pcb;
 	unsigned long val;
+	struct proc *p;
 
 #ifdef COMPAT_43
 	if (((struct osigcontext*)uap->sigcntxp)->sc_regs[R_ZERO] == 0xACEDBADE)
-		return osigreturn(p, (struct osigreturn_args *)uap);
+		return osigreturn(td, (struct osigreturn_args *)uap);
 #endif
 
 	ucp = uap->sigcntxp;
-	pcb = &p->p_addr->u_pcb;
+	pcb = td->td_pcb;
+	p = td->td_proc;
 
 #ifdef DEBUG
 	if (sigdebug & SDB_FOLLOW)
@@ -1519,12 +1534,12 @@ sigreturn(struct proc *p,
 	/*
 	 * Restore the user-supplied information
 	 */
-	set_regs(p, (struct reg *)uc.uc_mcontext.mc_regs);
+	set_regs(td, (struct reg *)uc.uc_mcontext.mc_regs);
 	val = (uc.uc_mcontext.mc_regs[R_PS] | ALPHA_PSL_USERSET) &
 	    ~ALPHA_PSL_USERCLR;
-	p->p_frame->tf_regs[FRAME_PS] = val;
-	p->p_frame->tf_regs[FRAME_PC] = uc.uc_mcontext.mc_regs[R_PC];
-	p->p_frame->tf_regs[FRAME_FLAGS] = 0; /* full restore */
+	td->td_frame->tf_regs[FRAME_PS] = val;
+	td->td_frame->tf_regs[FRAME_PC] = uc.uc_mcontext.mc_regs[R_PC];
+	td->td_frame->tf_regs[FRAME_FLAGS] = 0; /* full restore */
 	alpha_pal_wrusp(uc.uc_mcontext.mc_regs[R_SP]);
 
 	PROC_LOCK(p);
@@ -1540,10 +1555,10 @@ sigreturn(struct proc *p,
 	PROC_UNLOCK(p);
 
 	/* XXX ksc.sc_ownedfp ? */
-	alpha_fpstate_drop(p);
+	alpha_fpstate_drop(td);
 	bcopy((struct fpreg *)uc.uc_mcontext.mc_fpregs,
-	      &p->p_addr->u_pcb.pcb_fp, sizeof(struct fpreg));
-	p->p_addr->u_pcb.pcb_fp_control = uc.uc_mcontext.mc_fp_control;
+	      &td->td_pcb->pcb_fp, sizeof(struct fpreg));
+	td->td_pcb->pcb_fp_control = uc.uc_mcontext.mc_fp_control;
 
 #ifdef DEBUG
 	if (sigdebug & SDB_FOLLOW)
@@ -1576,14 +1591,14 @@ cpu_halt(void)
  * Clear registers on exec
  */
 void
-setregs(struct proc *p, u_long entry, u_long stack, u_long ps_strings)
+setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
 {
-	struct trapframe *tfp = p->p_frame;
+	struct trapframe *tfp = td->td_frame;
 
 	bzero(tfp->tf_regs, FRAME_SIZE * sizeof tfp->tf_regs[0]);
-	bzero(&p->p_addr->u_pcb.pcb_fp, sizeof p->p_addr->u_pcb.pcb_fp);
-	p->p_addr->u_pcb.pcb_fp_control = 0;
-	p->p_addr->u_pcb.pcb_fp.fpr_cr = (FPCR_DYN_NORMAL
+	bzero(&td->td_pcb->pcb_fp, sizeof td->td_pcb->pcb_fp);
+	td->td_pcb->pcb_fp_control = 0;
+	td->td_pcb->pcb_fp.fpr_cr = (FPCR_DYN_NORMAL
 					  | FPCR_INVD | FPCR_DZED
 					  | FPCR_OVFD | FPCR_INED
 					  | FPCR_UNFD);
@@ -1599,20 +1614,20 @@ setregs(struct proc *p, u_long entry, u_long stack, u_long ps_strings)
 	tfp->tf_regs[FRAME_T12] = tfp->tf_regs[FRAME_PC];	/* a.k.a. PV */
 	tfp->tf_regs[FRAME_FLAGS] = 0;			/* full restore */
 
-	p->p_md.md_flags &= ~MDP_FPUSED;
-	alpha_fpstate_drop(p);
+	td->td_md.md_flags &= ~MDP_FPUSED;
+	alpha_fpstate_drop(td);
 }
 
 int
-ptrace_set_pc(struct proc *p, unsigned long addr)
+ptrace_set_pc(struct thread *td, unsigned long addr)
 {
-	struct trapframe *tp = p->p_frame;
+	struct trapframe *tp = td->td_frame;
 	tp->tf_regs[FRAME_PC] = addr;
 	return 0;
 }
 
 static int
-ptrace_read_int(struct proc *p, vm_offset_t addr, u_int32_t *v)
+ptrace_read_int(struct thread *td, vm_offset_t addr, u_int32_t *v)
 {
 	struct iovec iov;
 	struct uio uio;
@@ -1624,12 +1639,12 @@ ptrace_read_int(struct proc *p, vm_offset_t addr, u_int32_t *v)
 	uio.uio_resid = sizeof(u_int32_t);
 	uio.uio_segflg = UIO_SYSSPACE;
 	uio.uio_rw = UIO_READ;
-	uio.uio_procp = p;
-	return procfs_domem(curproc, p, NULL, &uio);
+	uio.uio_td = td;
+	return procfs_domem(curproc, td->td_proc, NULL, &uio);
 }
 
 static int
-ptrace_write_int(struct proc *p, vm_offset_t addr, u_int32_t v)
+ptrace_write_int(struct thread *td, vm_offset_t addr, u_int32_t v)
 {
 	struct iovec iov;
 	struct uio uio;
@@ -1641,12 +1656,12 @@ ptrace_write_int(struct proc *p, vm_offset_t addr, u_int32_t v)
 	uio.uio_resid = sizeof(u_int32_t);
 	uio.uio_segflg = UIO_SYSSPACE;
 	uio.uio_rw = UIO_WRITE;
-	uio.uio_procp = p;
-	return procfs_domem(curproc, p, NULL, &uio);
+	uio.uio_td = td;
+	return procfs_domem(curproc, td->td_proc, NULL, &uio);
 }
 
 static u_int64_t
-ptrace_read_register(struct proc *p, int regno)
+ptrace_read_register(struct thread *td, int regno)
 {
 	static int reg_to_frame[32] = {
 		FRAME_V0,
@@ -1689,54 +1704,54 @@ ptrace_read_register(struct proc *p, int regno)
 	if (regno == R_ZERO)
 		return 0;
 
-	return p->p_frame->tf_regs[reg_to_frame[regno]];
+	return td->td_frame->tf_regs[reg_to_frame[regno]];
 }
 
 
 static int
-ptrace_clear_bpt(struct proc *p, struct mdbpt *bpt)
+ptrace_clear_bpt(struct thread *td, struct mdbpt *bpt)
 {
-	return ptrace_write_int(p, bpt->addr, bpt->contents);
+	return ptrace_write_int(td, bpt->addr, bpt->contents);
 }
 
 static int
-ptrace_set_bpt(struct proc *p, struct mdbpt *bpt)
+ptrace_set_bpt(struct thread *td, struct mdbpt *bpt)
 {
 	int error;
 	u_int32_t bpins = 0x00000080;
-	error = ptrace_read_int(p, bpt->addr, &bpt->contents);
+	error = ptrace_read_int(td, bpt->addr, &bpt->contents);
 	if (error)
 		return error;
-	return ptrace_write_int(p, bpt->addr, bpins);
+	return ptrace_write_int(td, bpt->addr, bpins);
 }
 
 int
-ptrace_clear_single_step(struct proc *p)
+ptrace_clear_single_step(struct thread *td)
 {
-	if (p->p_md.md_flags & MDP_STEP2) {
-		ptrace_clear_bpt(p, &p->p_md.md_sstep[1]);
-		ptrace_clear_bpt(p, &p->p_md.md_sstep[0]);
-		p->p_md.md_flags &= ~MDP_STEP2;
-	} else if (p->p_md.md_flags & MDP_STEP1) {
-		ptrace_clear_bpt(p, &p->p_md.md_sstep[0]);
-		p->p_md.md_flags &= ~MDP_STEP1;
+	if (td->td_md.md_flags & MDP_STEP2) {
+		ptrace_clear_bpt(td, &td->td_md.md_sstep[1]);
+		ptrace_clear_bpt(td, &td->td_md.md_sstep[0]);
+		td->td_md.md_flags &= ~MDP_STEP2;
+	} else if (td->td_md.md_flags & MDP_STEP1) {
+		ptrace_clear_bpt(td, &td->td_md.md_sstep[0]);
+		td->td_md.md_flags &= ~MDP_STEP1;
 	}
 	return 0;
 }
 
 int
-ptrace_single_step(struct proc *p)
+ptrace_single_step(struct thread *td)
 {
 	int error;
-	vm_offset_t pc = p->p_frame->tf_regs[FRAME_PC];
+	vm_offset_t pc = td->td_frame->tf_regs[FRAME_PC];
 	alpha_instruction ins;
 	vm_offset_t addr[2];	/* places to set breakpoints */
 	int count = 0;		/* count of breakpoints */
 
-	if (p->p_md.md_flags & (MDP_STEP1|MDP_STEP2))
+	if (td->td_md.md_flags & (MDP_STEP1|MDP_STEP2))
 		panic("ptrace_single_step: step breakpoints not removed");
 
-	error = ptrace_read_int(p, pc, &ins.bits);
+	error = ptrace_read_int(td, pc, &ins.bits);
 	if (error)
 		return error;
 
@@ -1744,7 +1759,7 @@ ptrace_single_step(struct proc *p)
 
 	case op_j:
 		/* Jump: target is register value */
-		addr[0] = ptrace_read_register(p, ins.jump_format.rs) & ~3;
+		addr[0] = ptrace_read_register(td, ins.jump_format.rs) & ~3;
 		count = 1;
 		break;
 
@@ -1775,20 +1790,20 @@ ptrace_single_step(struct proc *p)
 		count = 1;
 	}
 
-	p->p_md.md_sstep[0].addr = addr[0];
-	error = ptrace_set_bpt(p, &p->p_md.md_sstep[0]);
+	td->td_md.md_sstep[0].addr = addr[0];
+	error = ptrace_set_bpt(td, &td->td_md.md_sstep[0]);
 	if (error)
 		return error;
 	if (count == 2) {
-		p->p_md.md_sstep[1].addr = addr[1];
-		error = ptrace_set_bpt(p, &p->p_md.md_sstep[1]);
+		td->td_md.md_sstep[1].addr = addr[1];
+		error = ptrace_set_bpt(td, &td->td_md.md_sstep[1]);
 		if (error) {
-			ptrace_clear_bpt(p, &p->p_md.md_sstep[0]);
+			ptrace_clear_bpt(td, &td->td_md.md_sstep[0]);
 			return error;
 		}
-		p->p_md.md_flags |= MDP_STEP2;
+		td->td_md.md_flags |= MDP_STEP2;
 	} else
-		p->p_md.md_flags |= MDP_STEP1;
+		td->td_md.md_flags |= MDP_STEP1;
 
 	return 0;
 }
@@ -1812,15 +1827,13 @@ alpha_pa_access(vm_offset_t pa)
 }
 
 int
-fill_regs(p, regs)
-	struct proc *p;
+fill_regs(td, regs)
+	struct thread *td;
 	struct reg *regs;
 {
-	struct pcb *pcb = &p->p_addr->u_pcb;
-	struct trapframe *tp = p->p_frame;
+	struct pcb *pcb = td->td_pcb;
+	struct trapframe *tp = td->td_frame;
 
-	tp = p->p_frame;
- 
 #define C(r)	regs->r_regs[R_ ## r] = tp->tf_regs[FRAME_ ## r]
 
 	C(V0);
@@ -1839,14 +1852,12 @@ fill_regs(p, regs)
 }
 
 int
-set_regs(p, regs)
-	struct proc *p;
+set_regs(td, regs)
+	struct thread *td;
 	struct reg *regs;
 {
-	struct pcb *pcb = &p->p_addr->u_pcb;
-	struct trapframe *tp = p->p_frame;
-
-	tp = p->p_frame;
+	struct pcb *pcb = td->td_pcb;
+	struct trapframe *tp = td->td_frame;
 
 #define C(r)	tp->tf_regs[FRAME_ ## r] = regs->r_regs[R_ ## r]
 
@@ -1866,24 +1877,24 @@ set_regs(p, regs)
 }
 
 int
-fill_fpregs(p, fpregs)
-	struct proc *p;
+fill_fpregs(td, fpregs)
+	struct thread *td;
 	struct fpreg *fpregs;
 {
-	alpha_fpstate_save(p, 0);
+	alpha_fpstate_save(td, 0);
 
-	bcopy(&p->p_addr->u_pcb.pcb_fp, fpregs, sizeof *fpregs);
+	bcopy(&td->td_pcb->pcb_fp, fpregs, sizeof *fpregs);
 	return (0);
 }
 
 int
-set_fpregs(p, fpregs)
-	struct proc *p;
+set_fpregs(td, fpregs)
+	struct thread *td;
 	struct fpreg *fpregs;
 {
-	alpha_fpstate_drop(p);
+	alpha_fpstate_drop(td);
 
-	bcopy(fpregs, &p->p_addr->u_pcb.pcb_fp, sizeof *fpregs);
+	bcopy(fpregs, &td->td_pcb->pcb_fp, sizeof *fpregs);
 	return (0);
 }
 
@@ -1976,27 +1987,27 @@ SYSCTL_INT(_machdep, CPU_WALLCLOCK, wall_cmos_clock,
 	CTLFLAG_RW, &wall_cmos_clock, 0, "");
 
 void
-alpha_fpstate_check(struct proc *p)
+alpha_fpstate_check(struct thread *td)
 {
 	/*
-	 * For SMP, we should check the fpcurproc of each cpu.
+	 * For SMP, we should check the fpcurthread of each cpu.
 	 */
 #ifndef SMP
 	critical_t s;
 
 	s = critical_enter();
-	if (p->p_addr->u_pcb.pcb_hw.apcb_flags & ALPHA_PCB_FLAGS_FEN)
-		if (p != PCPU_GET(fpcurproc))
-			panic("alpha_check_fpcurproc: bogus");
+	if (td->td_pcb->pcb_hw.apcb_flags & ALPHA_PCB_FLAGS_FEN)
+		if (td != PCPU_GET(fpcurthread))
+			panic("alpha_check_fpcurthread: bogus");
 	critical_exit(s);
 #endif
 }
 
-#define SET_FEN(p) \
-	(p)->p_addr->u_pcb.pcb_hw.apcb_flags |= ALPHA_PCB_FLAGS_FEN
+#define SET_FEN(td) \
+	(td)->td_pcb->pcb_hw.apcb_flags |= ALPHA_PCB_FLAGS_FEN
 
-#define CLEAR_FEN(p) \
-	(p)->p_addr->u_pcb.pcb_hw.apcb_flags &= ~ALPHA_PCB_FLAGS_FEN
+#define CLEAR_FEN(td) \
+	(td)->td_pcb->pcb_hw.apcb_flags &= ~ALPHA_PCB_FLAGS_FEN
 
 /*
  * Save the floating point state in the pcb. Use this to get read-only
@@ -2006,14 +2017,14 @@ alpha_fpstate_check(struct proc *p)
  * FEN trap.
  */
 void
-alpha_fpstate_save(struct proc *p, int write)
+alpha_fpstate_save(struct thread *td, int write)
 {
 	critical_t s;
 
 	s = critical_enter();
-	if (p != NULL && p == PCPU_GET(fpcurproc)) {
+	if (td != NULL && td == PCPU_GET(fpcurthread)) {
 		/*
-		 * If curproc != fpcurproc, then we need to enable FEN 
+		 * If curthread != fpcurthread, then we need to enable FEN 
 		 * so that we can dump the fp state.
 		 */
 		alpha_pal_wrfen(1);
@@ -2021,27 +2032,27 @@ alpha_fpstate_save(struct proc *p, int write)
 		/*
 		 * Save the state in the pcb.
 		 */
-		savefpstate(&p->p_addr->u_pcb.pcb_fp);
+		savefpstate(&td->td_pcb->pcb_fp);
 
 		if (write) {
 			/*
-			 * If fpcurproc == curproc, just ask the
+			 * If fpcurthread == curthread, just ask the
 			 * PALcode to disable FEN, otherwise we must
-			 * clear the FEN bit in fpcurproc's pcb.
+			 * clear the FEN bit in fpcurthread's pcb.
 			 */
-			if (PCPU_GET(fpcurproc) == curproc)
+			if (PCPU_GET(fpcurthread) == curthread)
 				alpha_pal_wrfen(0);
 			else
-				CLEAR_FEN(PCPU_GET(fpcurproc));
-			PCPU_SET(fpcurproc, NULL);
+				CLEAR_FEN(PCPU_GET(fpcurthread));
+			PCPU_SET(fpcurthread, NULL);
 		} else {
 			/*
 			 * Make sure that we leave FEN enabled if
-			 * curproc == fpcurproc. We must have at most
+			 * curthread == fpcurthread. We must have at most
 			 * one process with FEN enabled. Note that FEN 
-			 * must already be set in fpcurproc's pcb.
+			 * must already be set in fpcurthread's pcb.
 			 */
-			if (curproc != PCPU_GET(fpcurproc))
+			if (curthread != PCPU_GET(fpcurthread))
 				alpha_pal_wrfen(0);
 		}
 	}
@@ -2054,13 +2065,13 @@ alpha_fpstate_save(struct proc *p, int write)
  * (e.g. on sigreturn).
  */
 void
-alpha_fpstate_drop(struct proc *p)
+alpha_fpstate_drop(struct thread *td)
 {
 	critical_t s;
 
 	s = critical_enter();
-	if (p == PCPU_GET(fpcurproc)) {
-		if (p == curproc) {
+	if (td == PCPU_GET(fpcurthread)) {
+		if (td == curthread) {
 			/*
 			 * Disable FEN via the PALcode. This will
 			 * clear the bit in the pcb as well.
@@ -2070,9 +2081,9 @@ alpha_fpstate_drop(struct proc *p)
 			/*
 			 * Clear the FEN bit of the pcb.
 			 */
-			CLEAR_FEN(p);
+			CLEAR_FEN(td);
 		}
-		PCPU_SET(fpcurproc, NULL);
+		PCPU_SET(fpcurthread, NULL);
 	}
 	critical_exit(s);
 }
@@ -2082,7 +2093,7 @@ alpha_fpstate_drop(struct proc *p)
  * from the pcb.
  */
 void
-alpha_fpstate_switch(struct proc *p)
+alpha_fpstate_switch(struct thread *td)
 {
 	critical_t s;
 
@@ -2091,31 +2102,31 @@ alpha_fpstate_switch(struct proc *p)
 	 */
 	s = critical_enter();
 	alpha_pal_wrfen(1);
-	if (PCPU_GET(fpcurproc)) {
+	if (PCPU_GET(fpcurthread)) {
 		/*
 		 * Dump the old fp state if its valid.
 		 */
-		savefpstate(&PCPU_GET(fpcurproc)->p_addr->u_pcb.pcb_fp);
-		CLEAR_FEN(PCPU_GET(fpcurproc));
+		savefpstate(&PCPU_GET(fpcurthread)->td_pcb->pcb_fp);
+		CLEAR_FEN(PCPU_GET(fpcurthread));
 	}
 
 	/*
 	 * Remember the new FP owner and reload its state.
 	 */
-	PCPU_SET(fpcurproc, p);
-	restorefpstate(&PCPU_GET(fpcurproc)->p_addr->u_pcb.pcb_fp);
+	PCPU_SET(fpcurthread, td);
+	restorefpstate(&PCPU_GET(fpcurthread)->td_pcb->pcb_fp);
 
 	/*
-	 * If the new owner is curproc, leave FEN enabled, otherwise
+	 * If the new owner is curthread, leave FEN enabled, otherwise
 	 * mark its PCB so that it gets FEN when we context switch to
 	 * it later.
 	 */
-	if (p != curproc) {
+	if (td != curthread) {
 		alpha_pal_wrfen(0);
-		SET_FEN(p);
+		SET_FEN(td);
 	}
 
-	p->p_md.md_flags |= MDP_FPUSED;
+	td->td_md.md_flags |= MDP_FPUSED;
 	critical_exit(s);
 }
 
@@ -2129,7 +2140,7 @@ globaldata_init(struct globaldata *globaldata, int cpuid, size_t sz)
 	globaldata->gd_idlepcbphys = vtophys((vm_offset_t) &globaldata->gd_idlepcb);
 	globaldata->gd_idlepcb.apcb_ksp = (u_int64_t)
 		((caddr_t) globaldata + sz - sizeof(struct trapframe));
-	globaldata->gd_idlepcb.apcb_ptbr = proc0.p_addr->u_pcb.pcb_hw.apcb_ptbr;
+	globaldata->gd_idlepcb.apcb_ptbr = thread0->td_pcb->pcb_hw.apcb_ptbr;
 	globaldata->gd_cpuid = cpuid;
 	globaldata->gd_next_asn = 0;
 	globaldata->gd_current_asngen = 1;

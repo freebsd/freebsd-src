@@ -337,7 +337,7 @@ static pmap_t pmap_active[MAXCPU];
 static vm_zone_t pvzone;
 static struct vm_zone pvzone_store;
 static struct vm_object pvzone_obj;
-static int pv_entry_count=0, pv_entry_max=0, pv_entry_high_water=0;
+static int pv_entry_count = 0, pv_entry_max = 0, pv_entry_high_water = 0;
 static int pmap_pagedaemon_waken = 0;
 static struct pv_entry *pvinit;
 
@@ -564,9 +564,9 @@ pmap_bootstrap(vm_offset_t ptaddr, u_int maxasn)
 	 * Set up proc0's PCB such that the ptbr points to the right place
 	 * and has the kernel pmap's.
 	 */
-	proc0.p_addr->u_pcb.pcb_hw.apcb_ptbr =
+	thread0->td_pcb->pcb_hw.apcb_ptbr =
 	    ALPHA_K0SEG_TO_PHYS((vm_offset_t)Lev1map) >> PAGE_SHIFT;
-	proc0.p_addr->u_pcb.pcb_hw.apcb_asn = 0;
+	thread0->td_pcb->pcb_hw.apcb_asn = 0;
 }
 
 int
@@ -934,22 +934,22 @@ pmap_new_proc(struct proc *p)
 	 */
 	upobj = p->p_upages_obj;
 	if (upobj == NULL) {
-		upobj = vm_object_allocate(OBJT_DEFAULT, UPAGES);
+		upobj = vm_object_allocate(OBJT_DEFAULT, UAREA_PAGES);
 		p->p_upages_obj = upobj;
 	}
 
 	/* get a kernel virtual address for the UPAGES for this proc */
-	up = (vm_offset_t)p->p_addr;
+	up = (vm_offset_t)p->p_uarea;
 	if (up == 0) {
-		up = kmem_alloc_nofault(kernel_map, UPAGES * PAGE_SIZE);
+		up = kmem_alloc_nofault(kernel_map, UAREA_PAGES * PAGE_SIZE);
 		if (up == 0)
 			panic("pmap_new_proc: upage allocation failed");
-		p->p_addr = (struct user *)up;
+		p->p_uarea = (struct user *)up;
 	}
 
 	ptek = vtopte(up);
 
-	for (i = 0; i < UPAGES; i++) {
+	for (i = 0; i < UAREA_PAGES; i++) {
 		/*
 		 * Get a kernel stack page
 		 */
@@ -992,9 +992,9 @@ pmap_dispose_proc(p)
 	pt_entry_t *ptek, oldpte;
 
 	upobj = p->p_upages_obj;
-	up = (vm_offset_t)p->p_addr;
+	up = (vm_offset_t)p->p_uarea;
 	ptek = vtopte(up);
-	for (i = 0; i < UPAGES; i++) {
+	for (i = 0; i < UAREA_PAGES; i++) {
 		m = vm_page_lookup(upobj, i);
 		if (m == NULL)
 			panic("pmap_dispose_proc: upage already missing?");
@@ -1019,14 +1019,9 @@ pmap_swapout_proc(p)
 	vm_offset_t up;
 	vm_page_t m;
 
-	/*
-	 * Make sure we aren't fpcurproc.
-	 */
-	alpha_fpstate_save(p, 1);
-
 	upobj = p->p_upages_obj;
-	up = (vm_offset_t)p->p_addr;
-	for (i = 0; i < UPAGES; i++) {
+	up = (vm_offset_t)p->p_uarea;
+	for (i = 0; i < UAREA_PAGES; i++) {
 		m = vm_page_lookup(upobj, i);
 		if (m == NULL)
 			panic("pmap_swapout_proc: upage already missing?");
@@ -1049,8 +1044,8 @@ pmap_swapin_proc(p)
 	vm_page_t m;
 
 	upobj = p->p_upages_obj;
-	up = (vm_offset_t)p->p_addr;
-	for (i = 0; i < UPAGES; i++) {
+	up = (vm_offset_t)p->p_uarea;
+	for (i = 0; i < UAREA_PAGES; i++) {
 		m = vm_page_grab(upobj, i, VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
 		pmap_kenter(up + i * PAGE_SIZE, VM_PAGE_TO_PHYS(m));
 		if (m->valid != VM_PAGE_BITS_ALL) {
@@ -1064,12 +1059,180 @@ pmap_swapin_proc(p)
 		vm_page_wakeup(m);
 		vm_page_flag_set(m, PG_MAPPED | PG_WRITEABLE);
 	}
+}
+
+/*
+ * Create the kernel stack for a new thread.
+ * This routine directly affects the fork perf for a process and thread.
+ */
+void
+pmap_new_thread(struct thread *td)
+{
+	int i;
+	vm_object_t ksobj;
+	vm_offset_t ks;
+	vm_page_t m;
+	pt_entry_t *ptek, oldpte;
+
+	/*
+	 * allocate object for the upages
+	 */
+	ksobj = td->td_kstack_obj;
+	if (ksobj == NULL) {
+		ksobj = vm_object_allocate(OBJT_DEFAULT, KSTACK_PAGES);
+		td->td_kstack_obj = ksobj;
+	}
+
+#ifdef KSTACK_GUARD
+	/* get a kernel virtual address for the kstack for this thread */
+	ks = td->td_kstack;
+	if (ks == 0) {
+		ks = kmem_alloc_nofault(kernel_map,
+		    (KSTACK_PAGES + 1) * PAGE_SIZE);
+		if (ks == NULL)
+			panic("pmap_new_thread: kstack allocation failed");
+		ks += PAGE_SIZE;
+		td->td_kstack = ks;
+	}
+
+	ptek = vtopte(ks - PAGE_SIZE);
+	oldpte = *ptek;
+	*ptek = 0;
+	if (oldpte)
+		pmap_invalidate_page(kernel_pmap, ks - PAGE_SIZE);
+	ptek++;
+#else
+	/* get a kernel virtual address for the kstack for this thread */
+	ks = td->td_kstack;
+	if (ks == 0) {
+		ks = kmem_alloc_nofault(kernel_map, KSTACK_PAGES * PAGE_SIZE);
+		if (ks == NULL)
+			panic("pmap_new_thread: kstack allocation failed");
+		td->td_kstack = ks;
+	}
+	ptek = vtopte(ks);
+#endif
+	for (i = 0; i < KSTACK_PAGES; i++) {
+		/*
+		 * Get a kernel stack page
+		 */
+		m = vm_page_grab(ksobj, i, VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
+
+		/*
+		 * Wire the page
+		 */
+		m->wire_count++;
+		cnt.v_wire_count++;
+
+		oldpte = *(ptek + i);
+		/*
+		 * Enter the page into the kernel address space.
+		 */
+		*(ptek + i) = pmap_phys_to_pte(VM_PAGE_TO_PHYS(m))
+			| PG_ASM | PG_KRE | PG_KWE | PG_V;
+		if (oldpte) 
+			pmap_invalidate_page(kernel_pmap, ks + i * PAGE_SIZE);
+
+		vm_page_wakeup(m);
+		vm_page_flag_clear(m, PG_ZERO);
+		vm_page_flag_set(m, PG_MAPPED | PG_WRITEABLE);
+		m->valid = VM_PAGE_BITS_ALL;
+	}
+}
+
+/*
+ * Dispose the kernel stack for a thread that has exited.
+ * This routine directly impacts the exit perf of a thread.
+ */
+void
+pmap_dispose_thread(td)
+	struct thread *td;
+{
+	int i;
+	vm_object_t ksobj;
+	vm_offset_t ks;
+	vm_page_t m;
+	pt_entry_t *ptek, oldpte;
+
+	ksobj = td->td_kstack_obj;
+	ks = td->td_kstack;
+	ptek = vtopte(ks);
+	for (i = 0; i < KSTACK_PAGES; i++) {
+		m = vm_page_lookup(ksobj, i);
+		if (m == NULL)
+			panic("pmap_dispose_thread: kstack already missing?");
+		vm_page_busy(m);
+		oldpte = *(ptek + i);
+		*(ptek + i) = 0;
+		pmap_invalidate_page(kernel_pmap, ks + i * PAGE_SIZE);
+		vm_page_unwire(m, 0);
+		vm_page_free(m);
+	}
+}
+
+/*
+ * Allow the kernel stack for a thread to be prejudicially paged out.
+ */
+void
+pmap_swapout_thread(td)
+	struct thread *td;
+{
+	int i;
+	vm_object_t ksobj;
+	vm_offset_t ks;
+	vm_page_t m;
+
+	/*
+	 * Make sure we aren't fpcurthread.
+	 */
+	alpha_fpstate_save(td, 1);
+
+	ksobj = td->td_kstack_obj;
+	ks = td->td_kstack;
+	for (i = 0; i < KSTACK_PAGES; i++) {
+		m = vm_page_lookup(ksobj, i);
+		if (m == NULL)
+			panic("pmap_swapout_thread: kstack already missing?");
+		vm_page_dirty(m);
+		vm_page_unwire(m, 0);
+		pmap_kremove(ks + i * PAGE_SIZE);
+	}
+}
+
+/*
+ * Bring the kernel stack for a specified thread back in.
+ */
+void
+pmap_swapin_thread(td)
+	struct thread *td;
+{
+	int i, rv;
+	vm_object_t ksobj;
+	vm_offset_t ks;
+	vm_page_t m;
+
+	ksobj = td->td_kstack_obj;
+	ks = td->td_kstack;
+	for (i = 0; i < KSTACK_PAGES; i++) {
+		m = vm_page_grab(ksobj, i, VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
+		pmap_kenter(ks + i * PAGE_SIZE, VM_PAGE_TO_PHYS(m));
+		if (m->valid != VM_PAGE_BITS_ALL) {
+			rv = vm_pager_get_pages(ksobj, &m, 1, 0);
+			if (rv != VM_PAGER_OK)
+				panic("pmap_swapin_thread: cannot get kstack for proc: %d\n", td->td_proc->p_pid);
+			m = vm_page_lookup(ksobj, i);
+			m->valid = VM_PAGE_BITS_ALL;
+		}
+		vm_page_wire(m);
+		vm_page_wakeup(m);
+		vm_page_flag_set(m, PG_MAPPED | PG_WRITEABLE);
+	}
 
 	/*
 	 * The pcb may be at a different physical address now so cache the
 	 * new address.
 	 */
-	p->p_md.md_pcbpaddr = (void*)vtophys((vm_offset_t)&p->p_addr->u_pcb);
+	td->td_md.md_pcbpaddr = (void *)vtophys((vm_offset_t)td->td_pcb);
 }
 
 /***************************************************
@@ -1677,7 +1840,7 @@ pmap_collect()
 {
 	int i;
 	vm_page_t m;
-	static int warningdone=0;
+	static int warningdone = 0;
 
 	if (pmap_pagedaemon_waken == 0)
 		return;
@@ -2917,7 +3080,7 @@ pmap_clear_reference(vm_page_t m)
  *	From NetBSD
  */
 void
-pmap_emulate_reference(struct proc *p, vm_offset_t v, int user, int write)
+pmap_emulate_reference(struct vmspace *vm, vm_offset_t v, int user, int write)
 {
 	pt_entry_t faultoff, *pte;
 	vm_offset_t pa;
@@ -2932,9 +3095,8 @@ pmap_emulate_reference(struct proc *p, vm_offset_t v, int user, int write)
 		pte = vtopte(v);
 		user_addr = 0;
 	} else {
-		KASSERT(p != NULL, ("pmap_emulate_reference: bad proc"));
-		KASSERT(p->p_vmspace != NULL, ("pmap_emulate_reference: bad p_vmspace"));
-		pte = pmap_lev3pte(p->p_vmspace->vm_map.pmap, v);
+		KASSERT(vm != NULL, ("pmap_emulate_reference: bad vmspace"));
+		pte = pmap_lev3pte(vm->vm_map.pmap, v);
 		user_addr = 1;
 	}
 #ifdef DEBUG				/* These checks are more expensive */
@@ -2964,7 +3126,7 @@ pmap_emulate_reference(struct proc *p, vm_offset_t v, int user, int write)
 
 	KASSERT((*pte & PG_MANAGED) != 0,
 	    ("pmap_emulate_reference(%p, 0x%lx, %d, %d): pa 0x%lx not managed",
-	    p, v, user, write, pa));
+	    curthread, v, user, write, pa));
 
 	/*
 	 * Twiddle the appropriate bits to reflect the reference
@@ -3092,11 +3254,11 @@ pmap_mincore(pmap, addr)
 }
 
 void
-pmap_activate(struct proc *p)
+pmap_activate(struct thread *td)
 {
 	pmap_t pmap;
 
-	pmap = vmspace_pmap(p->p_vmspace);
+	pmap = vmspace_pmap(td->td_proc->p_vmspace);
 
 	if (pmap_active[PCPU_GET(cpuid)] && pmap != pmap_active[PCPU_GET(cpuid)]) {
 		atomic_clear_32(&pmap_active[PCPU_GET(cpuid)]->pm_active,
@@ -3104,7 +3266,7 @@ pmap_activate(struct proc *p)
 		pmap_active[PCPU_GET(cpuid)] = 0;
 	}
 
-	p->p_addr->u_pcb.pcb_hw.apcb_ptbr =
+	td->td_pcb->pcb_hw.apcb_ptbr =
 		ALPHA_K0SEG_TO_PHYS((vm_offset_t) pmap->pm_lev1) >> PAGE_SHIFT;
 
 	if (pmap->pm_asn[PCPU_GET(cpuid)].gen != PCPU_GET(current_asngen))
@@ -3113,18 +3275,19 @@ pmap_activate(struct proc *p)
 	pmap_active[PCPU_GET(cpuid)] = pmap;
 	atomic_set_32(&pmap->pm_active, 1 << PCPU_GET(cpuid));
 
-	p->p_addr->u_pcb.pcb_hw.apcb_asn = pmap->pm_asn[PCPU_GET(cpuid)].asn;
+	td->td_pcb->pcb_hw.apcb_asn = pmap->pm_asn[PCPU_GET(cpuid)].asn;
 
-	if (p == curproc) {
-		alpha_pal_swpctx((u_long)p->p_md.md_pcbpaddr);
+	if (td == curthread) {
+		alpha_pal_swpctx((u_long)td->td_md.md_pcbpaddr);
 	}
 }
 
 void
-pmap_deactivate(struct proc *p)
+pmap_deactivate(struct thread *td)
 {
 	pmap_t pmap;
-	pmap = vmspace_pmap(p->p_vmspace);
+
+	pmap = vmspace_pmap(td->td_proc->p_vmspace);
 	atomic_clear_32(&pmap->pm_active, 1 << PCPU_GET(cpuid));
 	pmap_active[PCPU_GET(cpuid)] = 0;
 }
@@ -3154,14 +3317,14 @@ pmap_pid_dump(int pid)
 			int i,j;
 			index = 0;
 			pmap = vmspace_pmap(p->p_vmspace);
-			for(i=0;i<1024;i++) {
+			for (i = 0; i < 1024; i++) {
 				pd_entry_t *pde;
 				pt_entry_t *pte;
 				unsigned base = i << PDRSHIFT;
 				
 				pde = &pmap->pm_pdir[i];
 				if (pde && pmap_pde_v(pde)) {
-					for(j=0;j<1024;j++) {
+					for (j = 0; j < 1024; j++) {
 						unsigned va = base + (j << PAGE_SHIFT);
 						if (va >= (vm_offset_t) VM_MIN_KERNEL_ADDRESS) {
 							if (index) {

@@ -169,7 +169,7 @@ state(k, ve)
 	KINFO *k;
 	VARENT *ve;
 {
-	int flag, sflag;
+	int flag, sflag, tdflags;
 	char *cp;
 	VAR *v;
 	char buf[16];
@@ -177,6 +177,7 @@ state(k, ve)
 	v = ve->var;
 	flag = k->ki_p->ki_flag;
 	sflag = k->ki_p->ki_sflag;
+	tdflags = k->ki_p->ki_tdflags;	/* XXXKSE */
 	cp = buf;
 
 	switch (k->ki_p->ki_stat) {
@@ -186,7 +187,7 @@ state(k, ve)
 		break;
 
 	case SSLEEP:
-		if (sflag & PS_SINTR)	/* interruptable (long) */
+		if (tdflags & TDF_SINTR)	/* interruptable (long) */
 			*cp = k->ki_p->ki_slptime >= MAXSLP ? 'I' : 'S';
 		else
 			*cp = 'D';

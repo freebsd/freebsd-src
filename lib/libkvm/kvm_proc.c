@@ -168,7 +168,8 @@ kvm_proclist(kd, what, arg, p, bp, maxcnt)
 		 * gather kinfo_proc
 		 */
 		kp->ki_paddr = p;
-		kp->ki_addr = proc.p_addr;
+		kp->ki_addr = proc.p_uarea;
+		/* kp->ki_kstack = proc.p_thread.td_kstack; XXXKSE */
 		kp->ki_args = proc.p_args;
 		kp->ki_tracep = proc.p_tracep;
 		kp->ki_textvp = proc.p_textvp;
@@ -258,8 +259,8 @@ kvm_proclist(kd, what, arg, p, bp, maxcnt)
 nopgrp:
 			kp->ki_tdev = NODEV;
 		}
-		if (proc.p_wmesg)
-			(void)kvm_read(kd, (u_long)proc.p_wmesg,
+		if (proc.p_thread.td_wmesg)	/* XXXKSE */
+			(void)kvm_read(kd, (u_long)proc.p_thread.td_wmesg,
 			    kp->ki_wmesg, WMESGLEN);
 
 #ifdef sparc
@@ -297,10 +298,10 @@ nopgrp:
 			strncpy(kp->ki_comm, proc.p_comm, MAXCOMLEN);
 			kp->ki_comm[MAXCOMLEN] = 0;
 		}
-		if (proc.p_blocked != 0) {
+		if (proc.p_thread.td_blocked != 0) {	/* XXXKSE */
 			kp->ki_kiflag |= KI_MTXBLOCK;
-			if (proc.p_mtxname)
-				(void)kvm_read(kd, (u_long)proc.p_mtxname,
+			if (proc.p_thread.td_mtxname)	/* XXXKSE */
+				(void)kvm_read(kd, (u_long)proc.p_thread.td_mtxname,
 				    kp->ki_mtxname, MTXNAMELEN);
 			kp->ki_mtxname[MTXNAMELEN] = 0;
 		}
@@ -310,21 +311,21 @@ nopgrp:
 		kp->ki_sigmask = proc.p_sigmask;
 		kp->ki_xstat = proc.p_xstat;
 		kp->ki_acflag = proc.p_acflag;
-		kp->ki_pctcpu = proc.p_pctcpu;
-		kp->ki_estcpu = proc.p_estcpu;
-		kp->ki_slptime = proc.p_slptime;
+		kp->ki_pctcpu = proc.p_kse.ke_pctcpu;		/* XXXKSE */
+		kp->ki_estcpu = proc.p_ksegrp.kg_estcpu;	/* XXXKSE */
+		kp->ki_slptime = proc.p_kse.ke_slptime;		/* XXXKSE */
 		kp->ki_swtime = proc.p_swtime;
 		kp->ki_flag = proc.p_flag;
 		kp->ki_sflag = proc.p_sflag;
-		kp->ki_wchan = proc.p_wchan;
+		kp->ki_wchan = proc.p_thread.td_wchan;		/* XXXKSE */
 		kp->ki_traceflag = proc.p_traceflag;
 		kp->ki_stat = proc.p_stat;
-		kp->ki_pri = proc.p_pri;
-		kp->ki_nice = proc.p_nice;
+		kp->ki_pri = proc.p_ksegrp.kg_pri;		/* XXXKSE */
+		kp->ki_nice = proc.p_ksegrp.kg_nice;		/* XXXKSE */
 		kp->ki_lock = proc.p_lock;
-		kp->ki_rqindex = proc.p_rqindex;
-		kp->ki_oncpu = proc.p_oncpu;
-		kp->ki_lastcpu = proc.p_lastcpu;
+		kp->ki_rqindex = proc.p_kse.ke_rqindex;		/* XXXKSE */
+		kp->ki_oncpu = proc.p_kse.ke_oncpu;		/* XXXKSE */
+		kp->ki_lastcpu = proc.p_thread.td_lastcpu;	/* XXXKSE */
 		bcopy(&kinfo_proc, bp, sizeof(kinfo_proc));
 		++bp;
 		++cnt;

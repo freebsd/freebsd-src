@@ -239,7 +239,7 @@ afd_describe(struct afd_softc *fdp)
 }
 
 static int
-afdopen(dev_t dev, int flags, int fmt, struct proc *p)
+afdopen(dev_t dev, int flags, int fmt, struct thread *td)
 {
     struct afd_softc *fdp = dev->si_drv1;
     struct disklabel *label = &fdp->disk.d_label;
@@ -266,7 +266,7 @@ afdopen(dev_t dev, int flags, int fmt, struct proc *p)
 }
 
 static int 
-afdclose(dev_t dev, int flags, int fmt, struct proc *p)
+afdclose(dev_t dev, int flags, int fmt, struct thread *td)
 {
     struct afd_softc *fdp = dev->si_drv1;
 
@@ -276,7 +276,7 @@ afdclose(dev_t dev, int flags, int fmt, struct proc *p)
 }
 
 static int 
-afdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
+afdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 {
     struct afd_softc *fdp = dev->si_drv1;
 

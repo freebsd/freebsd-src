@@ -36,9 +36,9 @@
 #ifndef _SYS_SYSENT_H_
 #define	_SYS_SYSENT_H_
 
-struct proc;
+struct thread;
 
-typedef	int	sy_call_t __P((struct proc *, void *));
+typedef	int	sy_call_t __P((struct thread *, void *));
 
 struct sysent {		/* system call table */
 	int	sy_narg;	/* number of arguments */
@@ -76,7 +76,7 @@ struct sysentvec {
 	void		(*sv_prepsyscall) __P((struct trapframe *, int *,
 					       u_int *, caddr_t *));
 	char		*sv_name;	/* name of binary type */
-	int		(*sv_coredump) __P((struct proc *, struct vnode *,
+	int		(*sv_coredump) __P((struct thread *, struct vnode *,
 					    off_t));
 					/* function to dump core, or NULL */
 	int		(*sv_imgact_try) __P((struct image_params *));

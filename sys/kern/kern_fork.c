@@ -110,18 +110,18 @@ SYSINIT(fork_list, SI_SUB_INTRINSIC, SI_ORDER_ANY, init_fork_list, NULL);
  */
 /* ARGSUSED */
 int
-fork(p, uap)
-	struct proc *p;
+fork(td, uap)
+	struct thread *td;
 	struct fork_args *uap;
 {
 	int error;
 	struct proc *p2;
 
 	mtx_lock(&Giant);
-	error = fork1(p, RFFDG | RFPROC, &p2);
+	error = fork1(td, RFFDG | RFPROC, &p2);
 	if (error == 0) {
-		p->p_retval[0] = p2->p_pid;
-		p->p_retval[1] = 0;
+		td->td_retval[0] = p2->p_pid;
+		td->td_retval[1] = 0;
 	}
 	mtx_unlock(&Giant);
 	return error;
@@ -132,18 +132,18 @@ fork(p, uap)
  */
 /* ARGSUSED */
 int
-vfork(p, uap)
-	struct proc *p;
+vfork(td, uap)
+	struct thread *td;
 	struct vfork_args *uap;
 {
 	int error;
 	struct proc *p2;
 
 	mtx_lock(&Giant);
-	error = fork1(p, RFFDG | RFPROC | RFPPWAIT | RFMEM, &p2);
+	error = fork1(td, RFFDG | RFPROC | RFPPWAIT | RFMEM, &p2);
 	if (error == 0) {
-		p->p_retval[0] = p2->p_pid;
-		p->p_retval[1] = 0;
+		td->td_retval[0] = p2->p_pid;
+		td->td_retval[1] = 0;
 	}
 	mtx_unlock(&Giant);
 	return error;
@@ -153,8 +153,8 @@ vfork(p, uap)
  * MPSAFE
  */
 int
-rfork(p, uap)
-	struct proc *p;
+rfork(td, uap)
+	struct thread *td;
 	struct rfork_args *uap;
 {
 	int error;
@@ -162,10 +162,10 @@ rfork(p, uap)
 
 	/* mask kernel only flags out of the user flags */
 	mtx_lock(&Giant);
-	error = fork1(p, uap->flags & ~RFKERNELONLY, &p2);
+	error = fork1(td, uap->flags & ~RFKERNELONLY, &p2);
 	if (error == 0) {
-		p->p_retval[0] = p2 ? p2->p_pid : 0;
-		p->p_retval[1] = 0;
+		td->td_retval[0] = p2 ? p2->p_pid : 0;
+		td->td_retval[1] = 0;
 	}
 	mtx_unlock(&Giant);
 	return error;
@@ -209,9 +209,26 @@ sysctl_kern_randompid(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_kern, OID_AUTO, randompid, CTLTYPE_INT|CTLFLAG_RW,
     0, 0, sysctl_kern_randompid, "I", "Random PID modulus");
 
+#if 0
+void
+kse_init(struct kse *kse1, struct kse *kse2) 
+{
+}
+
+void
+thread_init(struct thread *thread1, struct thread *thread2) 
+{
+}
+
+void
+ksegrp_init(struct ksegrp *ksegrp1, struct ksegrp *ksegrp2) 
+{
+}
+#endif
+
 int
-fork1(p1, flags, procp)
-	struct proc *p1;			/* parent proc */
+fork1(td, flags, procp)
+	struct thread *td;			/* parent proc */
 	int flags;
 	struct proc **procp;			/* child proc */
 {
@@ -223,6 +240,7 @@ fork1(p1, flags, procp)
 	static int pidchecked = 0;
 	struct forklist *ep;
 	struct filedesc *fd;
+	struct proc *p1 = td->td_proc;
 
 	GIANT_REQUIRED;
 
@@ -235,16 +253,16 @@ fork1(p1, flags, procp)
 	 * certain parts of a process from itself.
 	 */
 	if ((flags & RFPROC) == 0) {
-		vm_forkproc(p1, 0, flags);
+		vm_forkproc(td, 0, flags);
 
 		/*
 		 * Close all file descriptors.
 		 */
 		if (flags & RFCFDG) {
 			struct filedesc *fdtmp;
-			fdtmp = fdinit(p1);
+			fdtmp = fdinit(td);	/* XXXKSE */
 			PROC_LOCK(p1);
-			fdfree(p1);
+			fdfree(td);		/* XXXKSE */
 			p1->p_fd = fdtmp;
 			PROC_UNLOCK(p1);
 		}
@@ -255,9 +273,9 @@ fork1(p1, flags, procp)
 		if (flags & RFFDG) {
 			if (p1->p_fd->fd_refcnt > 1) {
 				struct filedesc *newfd;
-				newfd = fdcopy(p1);
+				newfd = fdcopy(td);
 				PROC_LOCK(p1);
-				fdfree(p1);
+				fdfree(td);
 				p1->p_fd = newfd;
 				PROC_UNLOCK(p1);
 			}
@@ -401,13 +419,42 @@ again:
 	 */
 	bzero(&p2->p_startzero,
 	    (unsigned) ((caddr_t)&p2->p_endzero - (caddr_t)&p2->p_startzero));
+	bzero(&p2->p_kse.ke_startzero,
+	    (unsigned) ((caddr_t)&p2->p_kse.ke_endzero
+			- (caddr_t)&p2->p_kse.ke_startzero));
+	bzero(&p2->p_thread.td_startzero,
+	    (unsigned) ((caddr_t)&p2->p_thread.td_endzero
+			- (caddr_t)&p2->p_thread.td_startzero));
+	bzero(&p2->p_ksegrp.kg_startzero,
+	    (unsigned) ((caddr_t)&p2->p_ksegrp.kg_endzero
+			- (caddr_t)&p2->p_ksegrp.kg_startzero));
 	PROC_LOCK(p1);
 	bcopy(&p1->p_startcopy, &p2->p_startcopy,
 	    (unsigned) ((caddr_t)&p2->p_endcopy - (caddr_t)&p2->p_startcopy));
+
+	bcopy(&p1->p_kse.ke_startcopy, &p2->p_kse.ke_startcopy,
+	    (unsigned) ((caddr_t)&p2->p_kse.ke_endcopy
+			- (caddr_t)&p2->p_kse.ke_startcopy));
+
+	bcopy(&p1->p_thread.td_startcopy, &p2->p_thread.td_startcopy,
+	    (unsigned) ((caddr_t)&p2->p_thread.td_endcopy
+			- (caddr_t)&p2->p_thread.td_startcopy));
+
+	bcopy(&p1->p_ksegrp.kg_startcopy, &p2->p_ksegrp.kg_startcopy,
+	    (unsigned) ((caddr_t)&p2->p_ksegrp.kg_endcopy
+			- (caddr_t)&p2->p_ksegrp.kg_startcopy));
 	PROC_UNLOCK(p1);
+
+	/*
+	 * XXXKSE Theoretically only the running thread would get copied 
+	 * Others in the kernel would be 'aborted' in the child.
+	 * i.e return E*something*
+	 */
+	proc_linkup(p2);
 
 	mtx_init(&p2->p_mtx, "process lock", MTX_DEF);
 	PROC_LOCK(p2);
+	/* note.. XXXKSE no pcb or u-area yet */
 
 	/*
 	 * Duplicate sub-structures as needed.
@@ -433,7 +480,7 @@ again:
 	if (flags & RFSIGSHARE) {
 		p2->p_procsig = p1->p_procsig;
 		p2->p_procsig->ps_refcnt++;
-		if (p1->p_sigacts == &p1->p_addr->u_sigacts) {
+		if (p1->p_sigacts == &p1->p_uarea->u_sigacts) {
 			struct sigacts *newsigacts;
 
 			PROC_UNLOCK(p1);
@@ -450,7 +497,7 @@ again:
 			 * the shared p_procsig->ps_sigacts.
 			 */
 			p2->p_sigacts  = newsigacts;
-			*p2->p_sigacts = p1->p_addr->u_sigacts;
+			*p2->p_sigacts = p1->p_uarea->u_sigacts;
 		}
 	} else {
 		PROC_UNLOCK(p1);
@@ -476,9 +523,9 @@ again:
 		VREF(p2->p_textvp);
 
 	if (flags & RFCFDG)
-		fd = fdinit(p1);
+		fd = fdinit(td);
 	else if (flags & RFFDG)
-		fd = fdcopy(p1);
+		fd = fdcopy(td);
 	else
 		fd = fdshare(p1);
 	PROC_LOCK(p2);
@@ -531,10 +578,10 @@ again:
 	sx_xunlock(&proctree_lock);
 	PROC_LOCK(p2);
 	LIST_INIT(&p2->p_children);
-	LIST_INIT(&p2->p_contested);
+	LIST_INIT(&p2->p_thread.td_contested); /* XXXKSE only 1 thread? */
 
 	callout_init(&p2->p_itcallout, 0);
-	callout_init(&p2->p_slpcallout, 1);
+	callout_init(&p2->p_thread.td_slpcallout, 1); /* XXXKSE */
 
 	PROC_LOCK(p1);
 #ifdef KTRACE
@@ -556,9 +603,10 @@ again:
 
 	/*
 	 * set priority of child to be that of parent
+	 * XXXKSE hey! copying the estcpu seems dodgy.. should split it..
 	 */
 	mtx_lock_spin(&sched_lock);
-	p2->p_estcpu = p1->p_estcpu;
+	p2->p_ksegrp.kg_estcpu = p1->p_ksegrp.kg_estcpu;
 	mtx_unlock_spin(&sched_lock);
 
 	/*
@@ -573,7 +621,7 @@ again:
 	 * Finish creating the child process.  It will return via a different
 	 * execution path later.  (ie: directly into user mode)
 	 */
-	vm_forkproc(p1, p2, flags);
+	vm_forkproc(td, p2, flags);
 
 	if (flags == (RFFDG | RFPROC)) {
 		cnt.v_forks++;
@@ -609,7 +657,7 @@ again:
 	if ((flags & RFSTOPPED) == 0) {
 		mtx_lock_spin(&sched_lock);
 		p2->p_stat = SRUN;
-		setrunqueue(p2);
+		setrunqueue(&p2->p_thread);
 		mtx_unlock_spin(&sched_lock);
 	}
 
@@ -708,14 +756,13 @@ fork_exit(callout, arg, frame)
 	void *arg;
 	struct trapframe *frame;
 {
-	struct proc *p;
-
-	p = curproc;
+	struct thread *td = curthread;
+	struct proc *p = td->td_proc;
 
 	/*
 	 * Setup the sched_lock state so that we can release it.
 	 */
-	sched_lock.mtx_lock = (uintptr_t)p;
+	sched_lock.mtx_lock = (uintptr_t)td;
 	sched_lock.mtx_recurse = 0;
 	/*
 	 * XXX: We really shouldn't have to do this.
@@ -760,15 +807,15 @@ fork_exit(callout, arg, frame)
  * first parameter and is called when returning to a new userland process.
  */
 void
-fork_return(p, frame)
-	struct proc *p;
+fork_return(td, frame)
+	struct thread *td;
 	struct trapframe *frame;
 {
 
-	userret(p, frame, 0);
+	userret(td, frame, 0);
 #ifdef KTRACE
-	if (KTRPOINT(p, KTR_SYSRET)) {
-		ktrsysret(p->p_tracep, SYS_fork, 0, 0);
+	if (KTRPOINT(td->td_proc, KTR_SYSRET)) {
+		ktrsysret(td->td_proc->p_tracep, SYS_fork, 0, 0);
 	}
 #endif
 	mtx_assert(&Giant, MA_NOTOWNED);

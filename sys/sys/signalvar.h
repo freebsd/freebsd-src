@@ -188,6 +188,7 @@ __sigseteq(sigset_t *set1, sigset_t *set2)
 #ifdef _KERNEL
 
 struct pgrp;
+struct thread;
 struct proc;
 struct sigio;
 
@@ -205,7 +206,7 @@ void	pgsigio __P((struct sigio *, int signum, int checkctty));
 void	pgsignal __P((struct pgrp *pgrp, int sig, int checkctty));
 void	postsig __P((int sig));
 void	psignal __P((struct proc *p, int sig));
-void	sigexit __P((struct proc *p, int signum)) __dead2;
+void	sigexit __P((struct thread *td, int signum)) __dead2;
 void	siginit __P((struct proc *p));
 void	trapsignal __P((struct proc *p, int sig, u_long code));
 

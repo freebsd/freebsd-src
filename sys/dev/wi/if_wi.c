@@ -72,6 +72,7 @@
 #include <sys/systm.h>
 #include <sys/sockio.h>
 #include <sys/mbuf.h>
+#include <sys/proc.h>
 #include <sys/kernel.h>
 #include <sys/socket.h>
 #include <sys/module.h>

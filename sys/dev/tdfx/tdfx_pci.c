@@ -407,7 +407,7 @@ tdfx_setmtrr(device_t dev) {
 }
 		
 static int
-tdfx_open(dev_t dev, int flags, int fmt, struct proc *p)
+tdfx_open(dev_t dev, int flags, int fmt, struct thread *td)
 {
 	/* 
 	 *	The open cdev method handles open(2) calls to /dev/3dfx[n] 
@@ -417,7 +417,7 @@ tdfx_open(dev_t dev, int flags, int fmt, struct proc *p)
 			UNIT(minor(dev)));
 	if(tdfx_info->busy != 0) return EBUSY;
 #ifdef	DEBUG
-	printf("3dfx: Opened by #%d\n", p->p_pid);
+	printf("3dfx: Opened by #%d\n", td->td_proc->p_pid);
 #endif
 	/* Set the driver as busy */
 	tdfx_info->busy++;
@@ -425,7 +425,7 @@ tdfx_open(dev_t dev, int flags, int fmt, struct proc *p)
 }
 
 static int 
-tdfx_close(dev_t dev, int fflag, int devtype, struct proc* p) 
+tdfx_close(dev_t dev, int fflag, int devtype, struct thread *td) 
 {
 	/* 
 	 *	The close cdev method handles close(2) calls to /dev/3dfx[n] 
@@ -436,7 +436,7 @@ tdfx_close(dev_t dev, int fflag, int devtype, struct proc* p)
 	if(tdfx_info->busy == 0) return EBADF;
 	tdfx_info->busy = 0;
 #ifdef	DEBUG
-	printf("Closed by #%d\n", p->p_pid);
+	printf("Closed by #%d\n", td->td_proc->p_pid);
 #endif
 	return 0;
 }
@@ -790,37 +790,37 @@ tdfx_do_pio(u_int cmd, struct tdfx_pio_data *piod)
  * want to distinguish errors from useful data, and maintain compatibility.
  *
  * There is this portion of the proc struct called p_retval[], we can store a
- * return value in p->p_retval[0] and place the return value if it is positive
+ * return value in td->td_retval[0] and place the return value if it is positive
  * in there, then we can return 0 (good). If the return value is negative, we
  * can return -retval and the error should be properly handled.
  */
 static int
-tdfx_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc * p)
+tdfx_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 {
 	int retval = 0;
 	struct tdfx_pio_data *piod = (struct tdfx_pio_data*)data;
 #ifdef	DEBUG
-	printf("IOCTL'd by #%d, cmd: 0x%x, data: 0x%x\n", p->p_pid, (u_int32_t)cmd,
+	printf("IOCTL'd by #%d, cmd: 0x%x, data: 0x%x\n", td->td_proc->p_pid, (u_int32_t)cmd,
 			(unsigned int)piod);
 #endif
 	switch(_IOC_TYPE(cmd)) {
 		/* Return the real error if negative, or simply stick the valid return
-		 * in p->p_retval */
+		 * in td->td_retval */
 	case 0x33:
 			/* The '3'(0x33) type IOCTL is for querying the installed cards */
-			if((retval = tdfx_do_query(cmd, piod)) > 0) p->p_retval[0] = retval;
+			if((retval = tdfx_do_query(cmd, piod)) > 0) td->td_retval[0] = retval;
 			else return -retval;
 			break;
 		case 0:
 			/* The 0 type IOCTL is for programmed I/O methods */
-			if((tdfx_do_pio(cmd, piod)) > 0) p->p_retval[0] = retval;
+			if((tdfx_do_pio(cmd, piod)) > 0) td->td_retval[0] = retval;
 			else return -retval;
 			break;
 		default:
 			/* Technically, we won't reach this from linux emu, but when glide
 			 * finally gets ported, watch out! */
 #ifdef DEBUG
-			printf("Bad IOCTL from #%d\n", p->p_pid);
+			printf("Bad IOCTL from #%d\n", td->td_proc->p_pid);
 #endif
 			return ENXIO;
 	}
@@ -833,7 +833,7 @@ tdfx_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc * p)
  * Linux emulation IOCTL for /dev/tdfx
  */
 static int
-linux_ioctl_tdfx(struct proc* p, struct linux_ioctl_args* args)
+linux_ioctl_tdfx(struct thread *td, struct linux_ioctl_args* args)
 {
    int error = 0;
    u_long cmd = args->cmd & 0xffff;
@@ -842,11 +842,11 @@ linux_ioctl_tdfx(struct proc* p, struct linux_ioctl_args* args)
       and one void*. */
    char d_pio[2*sizeof(short) + sizeof(int) + sizeof(void*)];
 
-   struct file *fp = p->p_fd->fd_ofiles[args->fd];
+   struct file *fp = td->td_proc->p_fd->fd_ofiles[args->fd];
 
    /* We simply copy the data and send it right to ioctl */
    copyin((caddr_t)args->arg, &d_pio, sizeof(d_pio));
-   error = fo_ioctl(fp, cmd, (caddr_t)&d_pio, p);
+   error = fo_ioctl(fp, cmd, (caddr_t)&d_pio, td);
    return error;
 }
 #endif /* TDFX_LINUX */

@@ -1171,7 +1171,7 @@ struct	saa7116_regs	*m;
 
 
 int
-meteor_open(dev_t dev, int flags, int fmt, struct proc *p)
+meteor_open(dev_t dev, int flags, int fmt, struct thread *td)
 {
 	meteor_reg_t *mtr;
 	int	unit; 
@@ -1215,7 +1215,7 @@ meteor_open(dev_t dev, int flags, int fmt, struct proc *p)
 }
 
 int
-meteor_close(dev_t dev, int flags, int fmt, struct proc *p)
+meteor_close(dev_t dev, int flags, int fmt, struct thread *td)
 {
 	meteor_reg_t *mtr;
 	int	unit; 
@@ -1338,7 +1338,7 @@ meteor_write(dev_t dev, struct uio *uio, int ioflag)
 }
 
 int
-meteor_ioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct proc *pr)
+meteor_ioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
 {
 	int	error;  
 	int	unit;   
@@ -1402,7 +1402,7 @@ meteor_ioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct proc *pr)
 	case METEORSSIGNAL:
 		mtr->signal = *(int *) arg;
 		if (mtr->signal) {
-		  mtr->proc = pr;
+		  mtr->proc = td->td_proc;
 		} else {
 		  mtr->proc = (struct proc *)0;
 		}

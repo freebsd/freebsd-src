@@ -56,7 +56,7 @@ struct pfs_node;
 struct pfs_bitmap;
 
 #define PFS_FILL_ARGS \
-	struct proc *curp, struct proc *p, struct pfs_node *pn, struct sbuf *sb
+	struct thread *td, struct proc *p, struct pfs_node *pn, struct sbuf *sb
 #define PFS_FILL_PROTO(name) \
 	int name(PFS_FILL_ARGS);
 typedef int (*pfs_fill_t)(PFS_FILL_ARGS);
@@ -122,12 +122,12 @@ struct pfs_node {
  */
 int	 pfs_mount		(struct pfs_info *pi,
 				 struct mount *mp, char *path, caddr_t data,
-				 struct nameidata *ndp, struct proc *p);
+				 struct nameidata *ndp, struct thread *td);
 int	 pfs_unmount		(struct mount *mp, int mntflags,
-				 struct proc *p);
+				 struct thread *td);
 int	 pfs_root		(struct mount *mp, struct vnode **vpp);
 int	 pfs_statfs		(struct mount *mp, struct statfs *sbp,
-				 struct proc *p);
+				 struct thread *td);
 int	 pfs_init		(struct pfs_info *pi, struct vfsconf *vfc);
 int	 pfs_uninit		(struct pfs_info *pi, struct vfsconf *vfc);
 
@@ -143,8 +143,8 @@ static struct pfs_info name##_info = {					\
 									\
 static int								\
 _##name##_mount(struct mount *mp, char *path, caddr_t data,		\
-	     struct nameidata *ndp, struct proc *p) {			\
-        return pfs_mount(&name##_info, mp, path, data, ndp, p);		\
+	     struct nameidata *ndp, struct thread *td) {		\
+        return pfs_mount(&name##_info, mp, path, data, ndp, td);		\
 }									\
 									\
 static int								\

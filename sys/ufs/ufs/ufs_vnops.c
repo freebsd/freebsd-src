@@ -83,8 +83,8 @@
 
 static int ufs_access __P((struct vop_access_args *));
 static int ufs_advlock __P((struct vop_advlock_args *));
-static int ufs_chmod __P((struct vnode *, int, struct ucred *, struct proc *));
-static int ufs_chown __P((struct vnode *, uid_t, gid_t, struct ucred *, struct proc *));
+static int ufs_chmod __P((struct vnode *, int, struct ucred *, struct thread *));
+static int ufs_chown __P((struct vnode *, uid_t, gid_t, struct ucred *, struct thread *));
 static int ufs_close __P((struct vop_close_args *));
 static int ufs_create __P((struct vop_create_args *));
 static int ufs_getattr __P((struct vop_getattr_args *));
@@ -267,7 +267,7 @@ ufs_open(ap)
 		struct vnode *a_vp;
 		int  a_mode;
 		struct ucred *a_cred;
-		struct proc *a_p;
+		struct thread *a_td;
 	} */ *ap;
 {
 
@@ -292,7 +292,7 @@ ufs_close(ap)
 		struct vnode *a_vp;
 		int  a_fflag;
 		struct ucred *a_cred;
-		struct proc *a_p;
+		struct thread *a_td;
 	} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
@@ -332,7 +332,7 @@ ufs_access(ap)
 		struct vnode *a_vp;
 		int  a_mode;
 		struct ucred *a_cred;
-		struct proc *a_p;
+		struct thread *a_td;
 	} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
@@ -373,7 +373,7 @@ ufs_access(ap)
 #ifdef UFS_ACL
 	MALLOC(acl, struct acl *, sizeof(*acl), M_ACL, M_WAITOK);
 	len = sizeof(*acl);
-	error = VOP_GETACL(vp, ACL_TYPE_ACCESS, acl, ap->a_cred, ap->a_p);
+	error = VOP_GETACL(vp, ACL_TYPE_ACCESS, acl, ap->a_cred, ap->a_td);
 	switch (error) {
 	case EOPNOTSUPP:
 		error = vaccess(vp->v_type, ip->i_mode, ip->i_uid, ip->i_gid,
@@ -408,7 +408,7 @@ ufs_getattr(ap)
 		struct vnode *a_vp;
 		struct vattr *a_vap;
 		struct ucred *a_cred;
-		struct proc *a_p;
+		struct thread *a_td;
 	} */ *ap;
 {
 	register struct vnode *vp = ap->a_vp;
@@ -452,14 +452,14 @@ ufs_setattr(ap)
 		struct vnode *a_vp;
 		struct vattr *a_vap;
 		struct ucred *a_cred;
-		struct proc *a_p;
+		struct thread *a_td;
 	} */ *ap;
 {
 	struct vattr *vap = ap->a_vap;
 	struct vnode *vp = ap->a_vp;
 	struct inode *ip = VTOI(vp);
 	struct ucred *cred = ap->a_cred;
-	struct proc *p = ap->a_p;
+	struct thread *td = ap->a_td;
 	int error;
 
 	/*
@@ -478,7 +478,7 @@ ufs_setattr(ap)
 		 * Callers may only modify the file flags on objects they
 		 * have VADMIN rights for.
 		 */
-		if ((error = VOP_ACCESS(vp, VADMIN, cred, p)))
+		if ((error = VOP_ACCESS(vp, VADMIN, cred, td)))
 			return (error);
 		/*
 		 * Unprivileged processes and privileged processes in
@@ -519,7 +519,7 @@ ufs_setattr(ap)
 		if (vp->v_mount->mnt_flag & MNT_RDONLY)
 			return (EROFS);
 		if ((error = ufs_chown(vp, vap->va_uid, vap->va_gid, cred,
-		    p)) != 0)
+		    td)) != 0)
 			return (error);
 	}
 	if (vap->va_size != VNOVAL) {
@@ -541,7 +541,7 @@ ufs_setattr(ap)
 		default:
 			break;
 		}
-		if ((error = UFS_TRUNCATE(vp, vap->va_size, 0, cred, p)) != 0)
+		if ((error = UFS_TRUNCATE(vp, vap->va_size, 0, cred, td)) != 0)
 			return (error);
 	}
 	if (vap->va_atime.tv_sec != VNOVAL || vap->va_mtime.tv_sec != VNOVAL) {
@@ -557,9 +557,9 @@ ufs_setattr(ap)
 		 * If times is non-NULL, ... The caller must be the owner of
 		 * the file or be the super-user.
 		 */
-		if ((error = VOP_ACCESS(vp, VADMIN, cred, p)) &&
+		if ((error = VOP_ACCESS(vp, VADMIN, cred, td)) &&
 		    ((vap->va_vaflags & VA_UTIMES_NULL) == 0 ||
-		    (error = VOP_ACCESS(vp, VWRITE, cred, p))))
+		    (error = VOP_ACCESS(vp, VWRITE, cred, td))))
 			return (error);
 		if (vap->va_atime.tv_sec != VNOVAL)
 			ip->i_flag |= IN_ACCESS;
@@ -585,7 +585,7 @@ ufs_setattr(ap)
 		if ((ip->i_flags & SF_SNAPSHOT) != 0 && (vap->va_mode &
 		   (S_IXUSR | S_IWUSR | S_IXGRP | S_IWGRP | S_IXOTH | S_IWOTH)))
 			return (EPERM);
-		error = ufs_chmod(vp, (int)vap->va_mode, cred, p);
+		error = ufs_chmod(vp, (int)vap->va_mode, cred, td);
 	}
 	VN_KNOTE(vp, NOTE_ATTRIB);
 	return (error);
@@ -596,11 +596,11 @@ ufs_setattr(ap)
  * Inode must be locked before calling.
  */
 static int
-ufs_chmod(vp, mode, cred, p)
+ufs_chmod(vp, mode, cred, td)
 	register struct vnode *vp;
 	register int mode;
 	register struct ucred *cred;
-	struct proc *p;
+	struct thread *td;
 {
 	register struct inode *ip = VTOI(vp);
 	int error;
@@ -609,7 +609,7 @@ ufs_chmod(vp, mode, cred, p)
 	 * To modify the permissions on a file, must possess VADMIN
 	 * for that file.
 	 */
-	if ((error = VOP_ACCESS(vp, VADMIN, cred, p)))
+	if ((error = VOP_ACCESS(vp, VADMIN, cred, td)))
 		return (error);
 	/*
 	 * Privileged processes may set the sticky bit on non-directories,
@@ -633,12 +633,12 @@ ufs_chmod(vp, mode, cred, p)
  * inode must be locked prior to call.
  */
 static int
-ufs_chown(vp, uid, gid, cred, p)
+ufs_chown(vp, uid, gid, cred, td)
 	register struct vnode *vp;
 	uid_t uid;
 	gid_t gid;
 	struct ucred *cred;
-	struct proc *p;
+	struct thread *td;
 {
 	register struct inode *ip = VTOI(vp);
 	uid_t ouid;
@@ -657,7 +657,7 @@ ufs_chown(vp, uid, gid, cred, p)
 	 * To modify the ownership of a file, must possess VADMIN
 	 * for that file.
 	 */
-	if ((error = VOP_ACCESS(vp, VADMIN, cred, p)))
+	if ((error = VOP_ACCESS(vp, VADMIN, cred, td)))
 		return (error);
 	/*
 	 * To change the owner of a file, or change the group of a file
@@ -666,7 +666,7 @@ ufs_chown(vp, uid, gid, cred, p)
 	 */
 	if ((uid != ip->i_uid || 
 	    (gid != ip->i_gid && !groupmember(gid, cred))) &&
-	    (error = suser_xxx(cred, p, PRISON_ROOT)))
+	    (error = suser_xxx(cred, td->td_proc, PRISON_ROOT)))
 		return (error);
 	ogid = ip->i_gid;
 	ouid = ip->i_uid;
@@ -780,7 +780,7 @@ ufs_link(ap)
 	struct vnode *vp = ap->a_vp;
 	struct vnode *tdvp = ap->a_tdvp;
 	struct componentname *cnp = ap->a_cnp;
-	struct proc *p = cnp->cn_proc;
+	struct thread *td = cnp->cn_thread;
 	struct inode *ip;
 	struct direct newdir;
 	int error;
@@ -793,7 +793,7 @@ ufs_link(ap)
 		error = EXDEV;
 		goto out2;
 	}
-	if (tdvp != vp && (error = vn_lock(vp, LK_EXCLUSIVE, p))) {
+	if (tdvp != vp && (error = vn_lock(vp, LK_EXCLUSIVE, td))) {
 		goto out2;
 	}
 	ip = VTOI(vp);
@@ -825,7 +825,7 @@ ufs_link(ap)
 	}
 out1:
 	if (tdvp != vp)
-		VOP_UNLOCK(vp, 0, p);
+		VOP_UNLOCK(vp, 0, td);
 out2:
 	VN_KNOTE(vp, NOTE_LINK);
 	VN_KNOTE(tdvp, NOTE_WRITE);
@@ -928,7 +928,7 @@ ufs_rename(ap)
 	struct vnode *fdvp = ap->a_fdvp;
 	struct componentname *tcnp = ap->a_tcnp;
 	struct componentname *fcnp = ap->a_fcnp;
-	struct proc *p = fcnp->cn_proc;
+	struct thread *td = fcnp->cn_thread;
 	struct inode *ip, *xp, *dp;
 	struct direct newdir;
 	int doingdirectory = 0, oldparent = 0, newparent = 0;
@@ -1019,18 +1019,18 @@ abortit:
 		vput(fvp);
 		return (error);
 	}
-	if ((error = vn_lock(fvp, LK_EXCLUSIVE, p)) != 0)
+	if ((error = vn_lock(fvp, LK_EXCLUSIVE, td)) != 0)
 		goto abortit;
 	dp = VTOI(fdvp);
 	ip = VTOI(fvp);
 	if (ip->i_nlink >= LINK_MAX) {
-		VOP_UNLOCK(fvp, 0, p);
+		VOP_UNLOCK(fvp, 0, td);
 		error = EMLINK;
 		goto abortit;
 	}
 	if ((ip->i_flags & (NOUNLINK | IMMUTABLE | APPEND))
 	    || (dp->i_flags & APPEND)) {
-		VOP_UNLOCK(fvp, 0, p);
+		VOP_UNLOCK(fvp, 0, td);
 		error = EPERM;
 		goto abortit;
 	}
@@ -1041,7 +1041,7 @@ abortit:
 		if ((fcnp->cn_namelen == 1 && fcnp->cn_nameptr[0] == '.') ||
 		    dp == ip || (fcnp->cn_flags | tcnp->cn_flags) & ISDOTDOT ||
 		    (ip->i_flag & IN_RENAME)) {
-			VOP_UNLOCK(fvp, 0, p);
+			VOP_UNLOCK(fvp, 0, td);
 			error = EINVAL;
 			goto abortit;
 		}
@@ -1074,7 +1074,7 @@ abortit:
 		softdep_change_linkcnt(ip);
 	if ((error = UFS_UPDATE(fvp, !(DOINGSOFTDEP(fvp) |
 				       DOINGASYNC(fvp)))) != 0) {
-		VOP_UNLOCK(fvp, 0, p);
+		VOP_UNLOCK(fvp, 0, td);
 		goto bad;
 	}
 
@@ -1088,8 +1088,8 @@ abortit:
 	 * to namei, as the parent directory is unlocked by the
 	 * call to checkpath().
 	 */
-	error = VOP_ACCESS(fvp, VWRITE, tcnp->cn_cred, tcnp->cn_proc);
-	VOP_UNLOCK(fvp, 0, p);
+	error = VOP_ACCESS(fvp, VWRITE, tcnp->cn_cred, tcnp->cn_thread);
+	VOP_UNLOCK(fvp, 0, td);
 	if (oldparent != dp->i_number)
 		newparent = dp->i_number;
 	if (doingdirectory && newparent) {
@@ -1172,8 +1172,8 @@ abortit:
 		 * directories.
 		 */
 		if ((dp->i_mode & S_ISTXT) &&
-		    VOP_ACCESS(tdvp, VADMIN, tcnp->cn_cred, p) &&
-		    VOP_ACCESS(tvp, VADMIN, tcnp->cn_cred, p)) {
+		    VOP_ACCESS(tdvp, VADMIN, tcnp->cn_cred, td) &&
+		    VOP_ACCESS(tvp, VADMIN, tcnp->cn_cred, td)) {
 			error = EPERM;
 			goto bad;
 		}
@@ -1232,7 +1232,7 @@ abortit:
 			xp->i_flag |= IN_CHANGE;
 			ioflag = DOINGASYNC(tvp) ? 0 : IO_SYNC;
 			if ((error = UFS_TRUNCATE(tvp, (off_t)0, ioflag,
-			    tcnp->cn_cred, tcnp->cn_proc)) != 0)
+			    tcnp->cn_cred, tcnp->cn_thread)) != 0)
 				goto bad;
 		}
 		VN_KNOTE(tdvp, NOTE_WRITE);
@@ -1307,7 +1307,7 @@ bad:
 out:
 	if (doingdirectory)
 		ip->i_flag &= ~IN_RENAME;
-	if (vn_lock(fvp, LK_EXCLUSIVE, p) == 0) {
+	if (vn_lock(fvp, LK_EXCLUSIVE, td) == 0) {
 		ip->i_effnlink--;
 		ip->i_nlink--;
 		ip->i_flag |= IN_CHANGE;
@@ -1432,7 +1432,7 @@ ufs_mkdir(ap)
 	 * Retrieve default ACL from parent, if any.
 	 */
 	error = VOP_GETACL(dvp, ACL_TYPE_DEFAULT, acl, cnp->cn_cred,
-	    cnp->cn_proc);
+	    cnp->cn_thread);
 	switch (error) {
 	case 0:
 		/*
@@ -1500,10 +1500,10 @@ ufs_mkdir(ap)
 		 * code that the EAs for the file need to be released?
 		 */
 		error = VOP_SETACL(tvp, ACL_TYPE_ACCESS, acl, cnp->cn_cred,
-		    cnp->cn_proc);
+		    cnp->cn_thread);
 		if (error == 0)
 			error = VOP_SETACL(tvp, ACL_TYPE_DEFAULT, dacl,
-			    cnp->cn_cred, cnp->cn_proc);
+			    cnp->cn_cred, cnp->cn_thread);
 		switch (error) {
 		case 0:
 			break;
@@ -1693,7 +1693,7 @@ ufs_rmdir(ap)
 		ip->i_flag |= IN_CHANGE;
 		ioflag = DOINGASYNC(vp) ? 0 : IO_SYNC;
 		error = UFS_TRUNCATE(vp, (off_t)0, ioflag, cnp->cn_cred,
-		    cnp->cn_proc);
+		    cnp->cn_thread);
 	}
 	cache_purge(vp);
 #ifdef UFS_DIRHASH
@@ -1738,7 +1738,7 @@ ufs_symlink(ap)
 	} else
 		error = vn_rdwr(UIO_WRITE, vp, ap->a_target, len, (off_t)0,
 		    UIO_SYSSPACE, IO_NODELOCKED, ap->a_cnp->cn_cred, (int *)0,
-		    (struct proc *)0);
+		    (struct thread *)0);
 	if (error)
 		vput(vp);
 	return (error);
@@ -2014,7 +2014,7 @@ ufsspec_close(ap)
 		struct vnode *a_vp;
 		int  a_fflag;
 		struct ucred *a_cred;
-		struct proc *a_p;
+		struct thread *a_td;
 	} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
@@ -2088,7 +2088,7 @@ ufsfifo_close(ap)
 		struct vnode *a_vp;
 		int  a_fflag;
 		struct ucred *a_cred;
-		struct proc *a_p;
+		struct thread *a_td;
 	} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
@@ -2310,7 +2310,7 @@ ufs_makeinode(mode, dvp, vpp, cnp)
 	 * Retrieve default ACL for parent, if any.
 	 */
 	error = VOP_GETACL(dvp, ACL_TYPE_DEFAULT, acl, cnp->cn_cred,
-	    cnp->cn_proc);
+	    cnp->cn_thread);
 	switch (error) {
 	case 0:
 		/*
@@ -2372,7 +2372,7 @@ ufs_makeinode(mode, dvp, vpp, cnp)
 		 * code that the EAs for the file need to be released?
 		 */
 		error = VOP_SETACL(tvp, ACL_TYPE_ACCESS, acl, cnp->cn_cred,
-		    cnp->cn_proc);
+		    cnp->cn_thread);
 		switch (error) {
 		case 0:
 			break;

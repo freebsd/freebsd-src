@@ -164,11 +164,12 @@ ptyinit(dev_t devc)
 
 /*ARGSUSED*/
 static	int
-ptsopen(dev, flag, devtype, p)
+ptsopen(dev, flag, devtype, td)
 	dev_t dev;
 	int flag, devtype;
-	struct proc *p;
+	struct thread *td;
 {
+	struct proc *p = td->td_proc;
 	register struct tty *tp;
 	int error;
 	struct pt_ioctl *pti;
@@ -206,10 +207,10 @@ ptsopen(dev, flag, devtype, p)
 }
 
 static	int
-ptsclose(dev, flag, mode, p)
+ptsclose(dev, flag, mode, td)
 	dev_t dev;
 	int flag, mode;
-	struct proc *p;
+	struct thread *td;
 {
 	register struct tty *tp;
 	int err;
@@ -227,7 +228,8 @@ ptsread(dev, uio, flag)
 	struct uio *uio;
 	int flag;
 {
-	struct proc *p = curproc;
+	struct thread *td = curthread;
+	struct proc *p = td->td_proc;
 	register struct tty *tp = dev->si_tty;
 	register struct pt_ioctl *pti = dev->si_drv1;
 	int error = 0;
@@ -326,11 +328,12 @@ ptcwakeup(tp, flag)
 }
 
 static	int
-ptcopen(dev, flag, devtype, p)
+ptcopen(dev, flag, devtype, td)
 	dev_t dev;
 	int flag, devtype;
-	struct proc *p;
+	struct thread *td;
 {
+	struct proc *p = td->td_proc;
 	register struct tty *tp;
 	struct pt_ioctl *pti;
 
@@ -355,11 +358,11 @@ ptcopen(dev, flag, devtype, p)
 }
 
 static	int
-ptcclose(dev, flags, fmt, p)
+ptcclose(dev, flags, fmt, td)
 	dev_t dev;
 	int flags;
 	int fmt;
-	struct proc *p;
+	struct thread *td;
 {
 	register struct tty *tp;
 
@@ -471,10 +474,10 @@ ptsstop(tp, flush)
 }
 
 static	int
-ptcpoll(dev, events, p)
+ptcpoll(dev, events, td)
 	dev_t dev;
 	int events;
-	struct proc *p;
+	struct thread *td;
 {
 	register struct tty *tp = dev->si_tty;
 	struct pt_ioctl *pti = dev->si_drv1;
@@ -482,7 +485,7 @@ ptcpoll(dev, events, p)
 	int s;
 
 	if ((tp->t_state & TS_CONNECTED) == 0)
-		return (seltrue(dev, events, p) | POLLHUP);
+		return (seltrue(dev, events, td) | POLLHUP);
 
 	/*
 	 * Need to block timeouts (ttrstart).
@@ -510,10 +513,10 @@ ptcpoll(dev, events, p)
 
 	if (revents == 0) {
 		if (events & (POLLIN | POLLRDNORM))
-			selrecord(p, &pti->pt_selr);
+			selrecord(curthread, &pti->pt_selr);
 
 		if (events & (POLLOUT | POLLWRNORM)) 
-			selrecord(p, &pti->pt_selw);
+			selrecord(curthread, &pti->pt_selw);
 	}
 	splx(s);
 
@@ -632,12 +635,12 @@ block:
 
 /*ARGSUSED*/
 static	int
-ptyioctl(dev, cmd, data, flag, p)
+ptyioctl(dev, cmd, data, flag, td)
 	dev_t dev;
 	u_long cmd;
 	caddr_t data;
 	int flag;
-	struct proc *p;
+	struct thread *td;
 {
 	register struct tty *tp = dev->si_tty;
 	register struct pt_ioctl *pti = dev->si_drv1;
@@ -741,7 +744,7 @@ ptyioctl(dev, cmd, data, flag, p)
 		}
 		return(0);
 	}
-	error = (*linesw[tp->t_line].l_ioctl)(tp, cmd, data, flag, p);
+	error = (*linesw[tp->t_line].l_ioctl)(tp, cmd, data, flag, td);
 	if (error == ENOIOCTL)
 		 error = ttioctl(tp, cmd, data, flag);
 	if (error == ENOIOCTL) {

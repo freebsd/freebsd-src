@@ -93,7 +93,7 @@ enum si_mctl { GET, SET, BIS, BIC };
 static void si_command(struct si_port *, int, int);
 static int si_modem(struct si_port *, enum si_mctl, int);
 static void si_write_enable(struct si_port *, int);
-static int si_Sioctl(dev_t, u_long, caddr_t, int, struct proc *);
+static int si_Sioctl(dev_t, u_long, caddr_t, int, struct thread *);
 static void si_start(struct tty *);
 static void si_stop(struct tty *, int);
 static timeout_t si_lstart;
@@ -595,7 +595,7 @@ try_next2:
 }
 
 static	int
-siopen(dev_t dev, int flag, int mode, struct proc *p)
+siopen(dev_t dev, int flag, int mode, struct thread *td)
 {
 	int oldspl, error;
 	int card, port;
@@ -607,7 +607,7 @@ siopen(dev_t dev, int flag, int mode, struct proc *p)
 
 	/* quickly let in /dev/si_control */
 	if (IS_CONTROLDEV(mynor)) {
-		if ((error = suser(p)))
+		if ((error = suser_td(td)))
 			return(error);
 		return(0);
 	}
@@ -650,7 +650,7 @@ siopen(dev_t dev, int flag, int mode, struct proc *p)
 	dev->si_tty = tp;
 	ccbp = pp->sp_ccb;			/* Find control block */
 	DPRINT((pp, DBG_ENTRY|DBG_OPEN, "siopen(%s,%x,%x,%x)\n",
-		devtoname(dev), flag, mode, p));
+		devtoname(dev), flag, mode, td));
 
 	oldspl = spltty();			/* Keep others out */
 	error = 0;
@@ -686,7 +686,7 @@ open_top:
 			}
 		}
 		if (tp->t_state & TS_XCLUDE &&
-		    suser(p)) {
+		    suser_td(td)) {
 			DPRINT((pp, DBG_OPEN|DBG_FAIL,
 				"already open and EXCLUSIVE set\n"));
 			error = EBUSY;
@@ -764,7 +764,7 @@ out:
 }
 
 static	int
-siclose(dev_t dev, int flag, int mode, struct proc *p)
+siclose(dev_t dev, int flag, int mode, struct thread *td)
 {
 	struct si_port *pp;
 	struct tty *tp;
@@ -781,7 +781,7 @@ siclose(dev_t dev, int flag, int mode, struct proc *p)
 	tp = pp->sp_tty;
 
 	DPRINT((pp, DBG_ENTRY|DBG_CLOSE, "siclose(%s,%x,%x,%x) sp_state:%x\n",
-		devtoname(dev), flag, mode, p, pp->sp_state));
+		devtoname(dev), flag, mode, td, pp->sp_state));
 
 	/* did we sleep and loose a race? */
 	if (pp->sp_state & SS_CLOSING) {
@@ -915,7 +915,7 @@ out:
 
 
 static	int
-siioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
+siioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 {
 	struct si_port *pp;
 	struct tty *tp;
@@ -929,7 +929,7 @@ siioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 #endif
 
 	if (IS_SI_IOCTL(cmd))
-		return(si_Sioctl(dev, cmd, data, flag, p));
+		return(si_Sioctl(dev, cmd, data, flag, td));
 
 	pp = MINOR2PP(mynor);
 	tp = pp->sp_tty;
@@ -951,7 +951,7 @@ siioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 		}
 		switch (cmd) {
 		case TIOCSETA:
-			error = suser(p);
+			error = suser_td(td);
 			if (error != 0)
 				return (error);
 			*ct = *(struct termios *)data;
@@ -1023,7 +1023,7 @@ siioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 		si_write_enable(pp, 0);
 	}
 
-	error = (*linesw[tp->t_line].l_ioctl)(tp, cmd, data, flag, p);
+	error = (*linesw[tp->t_line].l_ioctl)(tp, cmd, data, flag, td);
 	if (error != ENOIOCTL)
 		goto out;
 
@@ -1064,7 +1064,7 @@ siioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 		break;
 	case TIOCMSDTRWAIT:
 		/* must be root since the wait applies to following logins */
-		error = suser(p);
+		error = suser_td(td);
 		if (error == 0)
 			pp->sp_dtr_wait = *(int *)data * hz / 100;
 		break;
@@ -1087,7 +1087,7 @@ out:
  * Handle the Specialix ioctls. All MUST be called via the CONTROL device
  */
 static int
-si_Sioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
+si_Sioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 {
 	struct si_softc *xsc;
 	struct si_port *xpp;
@@ -1117,7 +1117,7 @@ si_Sioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 
 	ip = (int *)data;
 
-#define SUCHECK if ((error = suser(p))) goto out
+#define SUCHECK if ((error = suser_td(td))) goto out
 
 	switch (cmd) {
 	case TCSIPORTS:

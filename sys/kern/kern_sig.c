@@ -74,7 +74,7 @@
 
 #define	ONSIG	32		/* NSIG for osig* syscalls.  XXX. */
 
-static int coredump	__P((struct proc *));
+static int coredump	__P((struct thread *));
 static int do_sigaction	__P((struct proc *p, int sig, struct sigaction *act,
 			     struct sigaction *oact, int old));
 static int do_sigprocmask __P((struct proc *p, int how, sigset_t *set,
@@ -351,10 +351,11 @@ struct sigaction_args {
  */
 /* ARGSUSED */
 int
-sigaction(p, uap)
-	struct proc *p;
+sigaction(td, uap)
+	struct thread *td;
 	register struct sigaction_args *uap;
 {
+	struct proc *p = td->td_proc;
 	struct sigaction act, oact;
 	register struct sigaction *actp, *oactp;
 	int error;
@@ -390,10 +391,11 @@ struct osigaction_args {
  */
 /* ARGSUSED */
 int
-osigaction(p, uap)
-	struct proc *p;
+osigaction(td, uap)
+	struct thread *td;
 	register struct osigaction_args *uap;
 {
+	struct proc *p = td->td_proc;
 	struct osigaction sa;
 	struct sigaction nsa, osa;
 	register struct sigaction *nsap, *osap;
@@ -534,7 +536,7 @@ do_sigprocmask(p, how, set, oset, old)
 }
 
 /*
- * sigprocmask() - MP SAFE
+ * sigprocmask() - MP SAFE (XXXKSE not under KSE it isn't)
  */
 
 #ifndef _SYS_SYSPROTO_H_
@@ -545,10 +547,11 @@ struct sigprocmask_args {
 };
 #endif
 int
-sigprocmask(p, uap)
-	register struct proc *p;
+sigprocmask(td, uap)
+	register struct thread *td;
 	struct sigprocmask_args *uap;
 {
+	struct proc *p = td->td_proc;
 	sigset_t set, oset;
 	sigset_t *setp, *osetp;
 	int error;
@@ -578,16 +581,17 @@ struct osigprocmask_args {
 };
 #endif
 int
-osigprocmask(p, uap)
-	register struct proc *p;
+osigprocmask(td, uap)
+	register struct thread *td;
 	struct osigprocmask_args *uap;
 {
+	struct proc *p = td->td_proc;
 	sigset_t set, oset;
 	int error;
 
 	OSIG2SIG(uap->mask, set);
 	error = do_sigprocmask(p, uap->how, &set, &oset, 1);
-	SIG2OSIG(oset, p->p_retval[0]);
+	SIG2OSIG(oset, td->td_retval[0]);
 	return (error);
 }
 #endif /* COMPAT_43 */
@@ -602,10 +606,11 @@ struct sigpending_args {
  */
 /* ARGSUSED */
 int
-sigpending(p, uap)
-	struct proc *p;
+sigpending(td, uap)
+	struct thread *td;
 	struct sigpending_args *uap;
 {
+	struct proc *p = td->td_proc;
 	sigset_t siglist;
 	int error;
 
@@ -629,13 +634,15 @@ struct osigpending_args {
  */
 /* ARGSUSED */
 int
-osigpending(p, uap)
-	struct proc *p;
+osigpending(td, uap)
+	struct thread *td;
 	struct osigpending_args *uap;
 {
+	struct proc *p = td->td_proc;
+
 	mtx_lock(&Giant);
 	PROC_LOCK(p);
-	SIG2OSIG(p->p_siglist, p->p_retval[0]);
+	SIG2OSIG(p->p_siglist, td->td_retval[0]);
 	PROC_UNLOCK(p);
 	mtx_unlock(&Giant);
 	return (0);
@@ -658,10 +665,11 @@ struct osigvec_args {
  */
 /* ARGSUSED */
 int
-osigvec(p, uap)
-	struct proc *p;
+osigvec(td, uap)
+	struct thread *td;
 	register struct osigvec_args *uap;
 {
+	struct proc *p = td->td_proc;
 	struct sigvec vec;
 	struct sigaction nsa, osa;
 	register struct sigaction *nsap, *osap;
@@ -709,17 +717,18 @@ struct osigblock_args {
  * MPSAFE
  */
 int
-osigblock(p, uap)
-	register struct proc *p;
+osigblock(td, uap)
+	register struct thread *td;
 	struct osigblock_args *uap;
 {
+	struct proc *p = td->td_proc;
 	sigset_t set;
 
 	OSIG2SIG(uap->mask, set);
 	SIG_CANTMASK(set);
 	mtx_lock(&Giant);
 	PROC_LOCK(p);
-	SIG2OSIG(p->p_sigmask, p->p_retval[0]);
+	SIG2OSIG(p->p_sigmask, td->td_retval[0]);
 	SIGSETOR(p->p_sigmask, set);
 	PROC_UNLOCK(p);
 	mtx_unlock(&Giant);
@@ -735,17 +744,18 @@ struct osigsetmask_args {
  * MPSAFE
  */
 int
-osigsetmask(p, uap)
-	struct proc *p;
+osigsetmask(td, uap)
+	struct thread *td;
 	struct osigsetmask_args *uap;
 {
+	struct proc *p = td->td_proc;
 	sigset_t set;
 
 	OSIG2SIG(uap->mask, set);
 	SIG_CANTMASK(set);
 	mtx_lock(&Giant);
 	PROC_LOCK(p);
-	SIG2OSIG(p->p_sigmask, p->p_retval[0]);
+	SIG2OSIG(p->p_sigmask, td->td_retval[0]);
 	SIGSETLO(p->p_sigmask, set);
 	PROC_UNLOCK(p);
 	mtx_unlock(&Giant);
@@ -757,6 +767,9 @@ osigsetmask(p, uap)
  * Suspend process until signal, providing mask to be set
  * in the meantime.  Note nonstandard calling convention:
  * libc stub passes mask, not pointer, to save a copyin.
+ ***** XXXKSE this doesn't make sense under KSE.
+ ***** Do we suspend the thread or all threads in the process?
+ ***** How do we suspend threads running NOW on another processor?
  */
 #ifndef _SYS_SYSPROTO_H_
 struct sigsuspend_args {
@@ -768,10 +781,11 @@ struct sigsuspend_args {
  */
 /* ARGSUSED */
 int
-sigsuspend(p, uap)
-	register struct proc *p;
+sigsuspend(td, uap)
+	struct thread *td;
 	struct sigsuspend_args *uap;
 {
+	struct proc *p = td->td_proc;
 	sigset_t mask;
 	register struct sigacts *ps;
 	int error;
@@ -814,10 +828,11 @@ struct osigsuspend_args {
  */
 /* ARGSUSED */
 int
-osigsuspend(p, uap)
-	register struct proc *p;
+osigsuspend(td, uap)
+	struct thread *td;
 	struct osigsuspend_args *uap;
 {
+	struct proc *p = td->td_proc;
 	sigset_t mask;
 	register struct sigacts *ps;
 
@@ -850,10 +865,11 @@ struct osigstack_args {
  */
 /* ARGSUSED */
 int
-osigstack(p, uap)
-	struct proc *p;
+osigstack(td, uap)
+	struct thread *td;
 	register struct osigstack_args *uap;
 {
+	struct proc *p = td->td_proc;
 	struct sigstack ss;
 	int error = 0;
 
@@ -862,7 +878,7 @@ osigstack(p, uap)
 	if (uap->oss != NULL) {
 		PROC_LOCK(p);
 		ss.ss_sp = p->p_sigstk.ss_sp;
-		ss.ss_onstack = sigonstack(cpu_getstack(p));
+		ss.ss_onstack = sigonstack(cpu_getstack(td));
 		PROC_UNLOCK(p);
 		error = copyout(&ss, uap->oss, sizeof(struct sigstack));
 		if (error)
@@ -896,17 +912,18 @@ struct sigaltstack_args {
  */
 /* ARGSUSED */
 int
-sigaltstack(p, uap)
-	struct proc *p;
+sigaltstack(td, uap)
+	struct thread *td;
 	register struct sigaltstack_args *uap;
 {
+	struct proc *p = td->td_proc;
 	stack_t ss;
 	int oonstack;
 	int error = 0;
 
 	mtx_lock(&Giant);
 
-	oonstack = sigonstack(cpu_getstack(p));
+	oonstack = sigonstack(cpu_getstack(td));
 
 	if (uap->oss != NULL) {
 		PROC_LOCK(p);
@@ -1027,10 +1044,11 @@ struct kill_args {
  */
 /* ARGSUSED */
 int
-kill(cp, uap)
-	register struct proc *cp;
+kill(td, uap)
+	register struct thread *td;
 	register struct kill_args *uap;
 {
+	register struct proc *cp = td->td_proc;
 	register struct proc *p;
 	int error = 0;
 
@@ -1080,8 +1098,8 @@ struct okillpg_args {
  */
 /* ARGSUSED */
 int
-okillpg(p, uap)
-	struct proc *p;
+okillpg(td, uap)
+	struct thread *td;
 	register struct okillpg_args *uap;
 {
 	int error;
@@ -1089,7 +1107,7 @@ okillpg(p, uap)
 	if ((u_int)uap->signum > _SIG_MAXSIG)
 		return (EINVAL);
 	mtx_lock(&Giant);
-	error = killpg1(p, uap->signum, uap->pgid, 0);
+	error = killpg1(td->td_proc, uap->signum, uap->pgid, 0);
 	mtx_unlock(&Giant);
 	return (error);
 }
@@ -1198,6 +1216,8 @@ psignal(p, sig)
 {
 	register int prop;
 	register sig_t action;
+	struct thread *td;
+	struct ksegrp *kg;
 
 	if (sig > _SIG_MAXSIG || sig <= 0) {
 		printf("psignal: signal %d\n", sig);
@@ -1214,9 +1234,9 @@ psignal(p, sig)
 	 * if signal event is tracked by procfs, give *that*
 	 * a chance, as well.
 	 */
-	if ((p->p_flag & P_TRACED) || (p->p_stops & S_SIG))
+	if ((p->p_flag & P_TRACED) || (p->p_stops & S_SIG)) {
 		action = SIG_DFL;
-	else {
+	} else {
 		/*
 		 * If the signal is being ignored,
 		 * then we forget about it immediately.
@@ -1234,10 +1254,27 @@ psignal(p, sig)
 			action = SIG_DFL;
 	}
 
+	/*
+	 * bring the priority of a process up if we want it to get 
+	 * killed in this lifetime.
+	 * XXXKSE think if a better way to do this.
+	 *
+	 * What we need to do is see if there is a thread that will
+	 * be able to accept the signal. e.g.
+	 * FOREACH_THREAD_IN_PROC() {
+	 *	if runnable, we're done
+	 *	else pick one at random.
+	 * }
+	 */
+	/* XXXKSE
+	 * For now there is one thread per proc.
+	 * Effectively select one sucker thread..
+	 */
+	td = &p->p_thread;
 	mtx_lock_spin(&sched_lock);
-	if (p->p_nice > NZERO && action == SIG_DFL && (prop & SA_KILL) &&
-	    (p->p_flag & P_TRACED) == 0)
-		p->p_nice = NZERO;
+	if ((p->p_ksegrp.kg_nice > NZERO) && (action == SIG_DFL) &&
+	    (prop & SA_KILL) && ((p->p_flag & P_TRACED) == 0))
+		p->p_ksegrp.kg_nice = NZERO; /* XXXKSE */
 	mtx_unlock_spin(&sched_lock);
 
 	if (prop & SA_CONT)
@@ -1266,6 +1303,7 @@ psignal(p, sig)
 		mtx_unlock_spin(&sched_lock);
 		return;
 	}
+
 	switch (p->p_stat) {
 
 	case SSLEEP:
@@ -1275,7 +1313,7 @@ psignal(p, sig)
 		 * be noticed when the process returns through
 		 * trap() or syscall().
 		 */
-		if ((p->p_sflag & PS_SINTR) == 0) {
+		if ((td->td_flags & TDF_SINTR) == 0) {
 			mtx_unlock_spin(&sched_lock);
 			goto out;
 		}
@@ -1357,11 +1395,28 @@ psignal(p, sig)
 			if (action == SIG_CATCH)
 				goto runfast;
 			mtx_lock_spin(&sched_lock);
-			if (p->p_wchan == NULL)
-				goto run;
-			p->p_stat = SSLEEP;
-			mtx_unlock_spin(&sched_lock);
-			goto out;
+			/*
+			 * XXXKSE
+			 * do this for each thread.
+			 */
+			if (p->p_flag & P_KSES) {
+				mtx_assert(&sched_lock,
+				    MA_OWNED | MA_NOTRECURSED);
+				FOREACH_THREAD_IN_PROC(p, td) {
+					if (td->td_wchan == NULL) {
+						setrunnable(td); /* XXXKSE */
+					} else {
+						/* mark it as sleeping */
+					}
+				}
+				mtx_unlock_spin(&sched_lock);
+				goto out;
+			} else {
+				if (p->p_thread.td_wchan == NULL)
+					goto run;
+				p->p_stat = SSLEEP;
+				mtx_unlock_spin(&sched_lock);
+			}
 		}
 
 		if (prop & SA_STOP) {
@@ -1378,13 +1433,25 @@ psignal(p, sig)
 		 * wakeup so that when it is continued, it will be made
 		 * runnable and can look at the signal.  But don't make
 		 * the process runnable, leave it stopped.
+		 * XXXKSE should we wake ALL blocked threads?
 		 */
 		mtx_lock_spin(&sched_lock);
-		if (p->p_wchan && p->p_sflag & PS_SINTR) {
-			if (p->p_sflag & PS_CVWAITQ)
-				cv_waitq_remove(p);
-			else
-				unsleep(p);
+		if (p->p_flag & P_KSES) {
+			FOREACH_THREAD_IN_PROC(p, td) {
+				if (td->td_wchan && (td->td_flags & TDF_SINTR)){
+					if (td->td_flags & TDF_CVWAITQ)
+						cv_waitq_remove(td);
+					else
+						unsleep(td); /* XXXKSE */
+				}
+			}
+		} else {
+			if (td->td_wchan && td->td_flags & TDF_SINTR) {
+				if (td->td_flags & TDF_CVWAITQ)
+					cv_waitq_remove(td);
+				else
+					unsleep(td); /* XXXKSE */
+			}
 		}
 		mtx_unlock_spin(&sched_lock);
 		goto out;
@@ -1396,9 +1463,21 @@ psignal(p, sig)
 		 * It will either never be noticed, or noticed very soon.
 		 */
 		if (p->p_stat == SRUN) {
-			signotify(p);
 #ifdef SMP
-			forward_signal(p);
+			struct kse *ke;
+			struct thread *td = curthread;
+			signotify(&p->p_kse);  /* XXXKSE */  
+/* we should only deliver to one thread.. but which one? */
+			FOREACH_KSEGRP_IN_PROC(p, kg) {
+				FOREACH_KSE_IN_GROUP(kg, ke) {
+					if (ke->ke_thread == td) {
+						continue;
+					}
+					forward_signal(ke->ke_thread);
+				}
+			}
+#else
+			signotify(&p->p_kse);  /* XXXKSE */  
 #endif
 		}
 		mtx_unlock_spin(&sched_lock);
@@ -1409,14 +1488,19 @@ psignal(p, sig)
 runfast:
 	/*
 	 * Raise priority to at least PUSER.
+	 * XXXKSE Should we make them all run fast?
+	 * Maybe just one would be enough?
 	 */
 	mtx_lock_spin(&sched_lock);
-	if (p->p_pri.pri_level > PUSER)
-		p->p_pri.pri_level = PUSER;
+	FOREACH_KSEGRP_IN_PROC(p, kg) {
+		if (kg->kg_pri.pri_level > PUSER) {
+			kg->kg_pri.pri_level = PUSER;
+		}
+	}
 run:
 	/* If we jump here, sched_lock has to be owned. */
 	mtx_assert(&sched_lock, MA_OWNED | MA_NOTRECURSED);
-	setrunnable(p);
+	setrunnable(td); /* XXXKSE */
 	mtx_unlock_spin(&sched_lock);
 out:
 	/* If we jump here, sched_lock should not be owned. */
@@ -1623,7 +1707,8 @@ void
 postsig(sig)
 	register int sig;
 {
-	register struct proc *p = curproc;
+	struct thread *td = curthread;
+	register struct proc *p = td->td_proc;
 	struct sigacts *ps;
 	sig_t action;
 	sigset_t returnmask;
@@ -1647,7 +1732,7 @@ postsig(sig)
 		 * Default action, where the default is to kill
 		 * the process.  (Other cases were ignored above.)
 		 */
-		sigexit(p, sig);
+		sigexit(td, sig);
 		/* NOTREACHED */
 	} else {
 		/*
@@ -1722,10 +1807,11 @@ killproc(p, why)
  * does not return.
  */
 void
-sigexit(p, sig)
-	register struct proc *p;
+sigexit(td, sig)
+	struct thread *td;
 	int sig;
 {
+	struct proc *p = td->td_proc;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	p->p_acflag |= AXSIG;
@@ -1740,7 +1826,7 @@ sigexit(p, sig)
 		PROC_UNLOCK(p);
 		if (!mtx_owned(&Giant))
 			mtx_lock(&Giant);
-		if (coredump(p) == 0)
+		if (coredump(td) == 0)
 			sig |= WCOREFLAG;
 		if (kern_logsigexit)
 			log(LOG_INFO,
@@ -1754,7 +1840,7 @@ sigexit(p, sig)
 		if (!mtx_owned(&Giant))
 			mtx_lock(&Giant);
 	}
-	exit1(p, W_EXITCODE(0, sig));
+	exit1(td, W_EXITCODE(0, sig));
 	/* NOTREACHED */
 }
 
@@ -1849,9 +1935,9 @@ const char *name; uid_t uid; pid_t pid; {
  */
 
 static int
-coredump(p)
-	register struct proc *p;
+coredump(struct thread *td)
 {
+	struct proc *p = td->td_proc;
 	register struct vnode *vp;
 	register struct ucred *cred = p->p_ucred;
 	struct flock lf;
@@ -1889,7 +1975,7 @@ restart:
 	name = expand_name(p->p_comm, p->p_ucred->cr_uid, p->p_pid);
 	if (name == NULL)
 		return (EINVAL);
-	NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_SYSSPACE, name, p);
+	NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_SYSSPACE, name, td); /* XXXKSE */
 	flags = O_CREAT | FWRITE | O_NOFOLLOW;
 	error = vn_open(&nd, &flags, S_IRUSR | S_IWUSR);
 	free(name, M_TEMP);
@@ -1898,7 +1984,7 @@ restart:
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vp = nd.ni_vp;
 
-	VOP_UNLOCK(vp, 0, p);
+	VOP_UNLOCK(vp, 0, td);
 	lf.l_whence = SEEK_SET;
 	lf.l_start = 0;
 	lf.l_len = 0;
@@ -1910,7 +1996,7 @@ restart:
 	if (vn_start_write(vp, &mp, V_NOWAIT) != 0) {
 		lf.l_type = F_UNLCK;
 		VOP_ADVLOCK(vp, (caddr_t)p, F_UNLCK, &lf, F_FLOCK);
-		if ((error = vn_close(vp, FWRITE, cred, p)) != 0)
+		if ((error = vn_close(vp, FWRITE, cred, td)) != 0)
 			return (error);
 		if ((error = vn_start_write(NULL, &mp, V_XSLEEP | PCATCH)) != 0)
 			return (error);
@@ -1919,20 +2005,20 @@ restart:
 
 	/* Don't dump to non-regular files or files with links. */
 	if (vp->v_type != VREG ||
-	    VOP_GETATTR(vp, &vattr, cred, p) || vattr.va_nlink != 1) {
+	    VOP_GETATTR(vp, &vattr, cred, td) || vattr.va_nlink != 1) {
 		error = EFAULT;
 		goto out1;
 	}
 	VATTR_NULL(&vattr);
 	vattr.va_size = 0;
-	VOP_LEASE(vp, p, cred, LEASE_WRITE);
-	VOP_SETATTR(vp, &vattr, cred, p);
+	VOP_LEASE(vp, td, cred, LEASE_WRITE);
+	VOP_SETATTR(vp, &vattr, cred, td);
 	PROC_LOCK(p);
 	p->p_acflag |= ACORE;
 	PROC_UNLOCK(p);
 
 	error = p->p_sysent->sv_coredump ?
-	  p->p_sysent->sv_coredump(p, vp, limit) :
+	  p->p_sysent->sv_coredump(td, vp, limit) :
 	  ENOSYS;
 
 out1:
@@ -1940,7 +2026,7 @@ out1:
 	VOP_ADVLOCK(vp, (caddr_t)p, F_UNLCK, &lf, F_FLOCK);
 	vn_finished_write(mp);
 out2:
-	error1 = vn_close(vp, FWRITE, cred, p);
+	error1 = vn_close(vp, FWRITE, cred, td);
 	if (error == 0)
 		error = error1;
 	return (error);
@@ -1960,10 +2046,12 @@ struct nosys_args {
  */
 /* ARGSUSED */
 int
-nosys(p, args)
-	struct proc *p;
+nosys(td, args)
+	struct thread *td;
 	struct nosys_args *args;
 {
+	struct proc *p = td->td_proc;
+
 	mtx_lock(&Giant);
 	PROC_LOCK(p);
 	psignal(p, SIGSYS);

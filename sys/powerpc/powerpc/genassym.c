@@ -64,7 +64,7 @@
 #include <machine/pcb.h>
 #include <machine/pmap.h>
 
-ASSYM(GD_CURPROC, offsetof(struct globaldata, gd_curproc));
+ASSYM(GD_CURTHREAD, offsetof(struct globaldata, gd_curthread));
 ASSYM(GD_CURPCB, offsetof(struct globaldata, gd_curpcb));
 ASSYM(GD_SWITCHTIME, offsetof(struct globaldata, gd_switchtime));
 
@@ -95,6 +95,6 @@ ASSYM(SFRAMELEN, roundup(sizeof(struct switchframe), 16));
 ASSYM(PCB_PMR, offsetof(struct pcb, pcb_pmreal));
 ASSYM(PCB_SP, offsetof(struct pcb, pcb_sp));
 ASSYM(PCB_SPL, offsetof(struct pcb, pcb_spl));
-ASSYM(PCB_FAULT, offsetof(struct pcb, pcb_onfault));
 
-ASSYM(P_ADDR, offsetof(struct proc, p_addr));
+ASSYM(TD_PROC, offsetof(struct thread, td_proc));
+ASSYM(TD_ADDR, offsetof(struct thread, td_addr));

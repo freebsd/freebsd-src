@@ -1,3 +1,6 @@
+/*
+ * $FreeBSD$
+ */
 struct mbuf;
 struct sockaddr_at;
 
@@ -16,7 +19,7 @@ extern void	aarptfree	__P((struct aarptab *));
 #endif
 
 struct ifnet;
-struct proc;
+struct thread;
 struct socket;
 
 extern void	aarp_clean	__P((void));
@@ -24,7 +27,7 @@ extern int	at_control	__P(( struct socket *so,
 					u_long cmd,
 					caddr_t data,
 					struct ifnet *ifp,
-					struct proc *p ));
+					struct thread *td ));
 extern u_short	at_cksum	__P(( struct mbuf *m, int skip));
 extern void	ddp_init	__P((void ));
 extern struct at_ifaddr *at_ifawithnet	__P((struct sockaddr_at *));
