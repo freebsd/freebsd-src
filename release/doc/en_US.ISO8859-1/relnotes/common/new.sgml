@@ -183,6 +183,12 @@
     <filename>/boot/loader.conf</filename>, an Alpha can be dual booted
     without <quote>time warps</quote>.</para>
 
+    <para>The kernel on the installation CDs is now separated from the
+    <filename>mfsroot</filename> image.  This permits the use of a
+    full kernel when installing from CD on machines that support CD
+    booting (instead of the stripped-down kernel used on
+    floppies).</para>
+
     <sect3>
       <title>Processor/Motherboard Support</title>
 
@@ -583,6 +589,12 @@
     size of 8192 bytes for the root filesystem.  This change ensures
     that the parameters for the root filesystem are set correctly for
     new installs.</para>
+
+    <para>&man.sysinstall.8; has received updates for its
+    <quote>auto</quote> partitioning mode which provide more
+    reasonable defaults for the sizes of partitions that are created;
+    auto-sized partitions can now also recover the space that becomes
+    available when other partitions are deleted.</para>
 
     <para>&man.syslogd.8; now has the ability to bind to a specific
     address (as opposed to using every available one) via the
