@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)endian.h	7.8 (Berkeley) 4/3/91
- *	$Id: endian.h,v 1.6 1995/02/12 08:31:31 jkh Exp $
+ *	$Id: endian.h,v 1.7 1996/10/21 17:15:05 nate Exp $
  */
 
 #ifndef _MACHINE_ENDIAN_H_
@@ -64,12 +64,21 @@
 	: "0" (__X)); \
    __X; })
 #if __GNUC__ >= 2
+#if defined(KERNEL) && !defined(I386_CPU)
+#define __byte_swap_long(x) \
+__extension__ ({ register u_long __X = (x); \
+   __asm ("bswap %0" \
+	: "=q" (__X) \
+	: "0" (__X)); \
+   __X; })
+#else
 #define __byte_swap_long(x) \
 __extension__ ({ register u_long __X = (x); \
    __asm ("xchgb %h1, %b1\n\trorl $16, %1\n\txchgb %h1, %b1" \
 	: "=q" (__X) \
 	: "0" (__X)); \
    __X; })
+#endif
 #define __byte_swap_word(x) \
 __extension__ ({ register u_short __X = (x); \
    __asm ("xchgb %h1, %b1" \
