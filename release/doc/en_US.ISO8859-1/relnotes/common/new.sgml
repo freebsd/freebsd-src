@@ -820,16 +820,11 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
       <para arch="i386">Support for the Adaptec FSA family of PCI-SCSI
       RAID controllers has been added, in the form of the &man.aac.4;
-      driver. &merged;</para>
-
-      <para arch="i386">The &man.aac.4; driver now supports the Adaptec
-      SCSI RAID 5400S controller. &merged;</para>
-
-      <para arch="i386">The &man.aac.4; driver has been updated to
-      include proper handling of commands initiated by the adapter,
+      driver.  This driver
+      includes proper handling of commands initiated by the adapter,
       addition/removal of disk devices, crashdump functionality, and
-      &man.ioctl.2; command necessary for the management
-      CLI. &merged;</para>
+      &man.ioctl.2; commands necessary for the management
+      CLI, and is fully qualified and sanctioned by Adaptec. &merged;</para>
 
       <para>The &man.ahc.4; driver has received numerous updates,
       bugfixes, and enhancements.  Among various improvements are
