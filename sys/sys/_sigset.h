@@ -56,4 +56,8 @@ typedef struct __sigset {
 	__uint32_t __bits[_SIG_WORDS];
 } __sigset_t;
 
+#if defined(_KERNEL) && defined(COMPAT_43)
+typedef unsigned int osigset_t;
+#endif
+
 #endif /* !_SYS__SIGSET_H_ */

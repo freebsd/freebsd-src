@@ -31,10 +31,12 @@
 #ifndef _MACHINE_SIGFRAME_H_
 #define _MACHINE_SIGFRAME_H_ 1
 
-#ifdef _KERNEL
-struct osigframe {
-	struct osigcontext	sf_sc;
-	osiginfo_t		sf_si;
+#if defined(_KERNEL) && defined(COMPAT_FREEBSD4)
+/* FreeBSD 4.x */
+struct sigframe4 {
+	unsigned long		__spare__;
+	struct ucontext4	sf_uc;
+	siginfo_t		sf_si;
 };
 #endif
 

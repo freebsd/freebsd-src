@@ -46,14 +46,6 @@ typedef	long sig_atomic_t;
 #define	MINSIGSTKSZ	(1024 * 4)
 #endif
 
-#ifdef _KERNEL
-typedef	int osigset_t;
-
-struct osigcontext {
-	int	dummy;
-};
-#endif
-
 #if __BSD_VISIBLE
 struct sigcontext {
 	int	_dummy;

@@ -47,7 +47,7 @@ typedef long	sig_atomic_t;
 /*
  * Only the kernel should need these old type definitions.
  */
-#ifdef _KERNEL
+#if defined(_KERNEL) && defined(COMPAT_43)
 /*
  * Information pushed on stack when a signal is delivered.
  * This is used by the kernel to restore state following
@@ -58,8 +58,6 @@ typedef long	sig_atomic_t;
  * Note that sc_regs[] and sc_fpregs[]+sc_fpcr are inline
  * representations of 'struct reg' and 'struct fpreg', respectively.
  */
-typedef unsigned int osigset_t;
-
 struct  osigcontext {
 	long	sc_onstack;             /* sigstack state to restore */
 	long	sc_mask;                /* signal mask to restore */

@@ -67,7 +67,7 @@ int	kern_rmdir(struct thread *td, char *path, enum uio_seg pathseg);
 int	kern_select(struct thread *td, int nd, fd_set *fd_in, fd_set *fd_ou,
 	    fd_set *fd_ex, struct timeval *tvp);
 int	kern_sigaction(struct thread *td, int sig, struct sigaction *act,
-	    struct sigaction *oact, int old);
+	    struct sigaction *oact, int flags);
 int	kern_sigaltstack(struct thread *td, stack_t *ss, stack_t *oss);
 int	kern_sigsuspend(struct thread *td, sigset_t mask);
 int	kern_symlink(struct thread *td, char *path, char *link,
@@ -77,5 +77,9 @@ int	kern_truncate(struct thread *td, char *path, enum uio_seg pathseg,
 int	kern_unlink(struct thread *td, char *path, enum uio_seg pathseg);
 int	kern_utimes(struct thread *td, char *path, enum uio_seg pathseg,
 	    struct timeval *tptr, enum uio_seg tptrseg);
+
+/* flags for kern_sigaction */
+#define	KSA_OSIGSET	0x0001	/* uses osigact_t */
+#define	KSA_FREEBSD4	0x0002	/* uses ucontext4 */
 
 #endif /* !_SYS_SYSCALLSUBR_H_ */

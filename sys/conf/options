@@ -77,6 +77,7 @@ ADAPTIVE_MUTEXES
 COMPAT_43	opt_compat.h
 COMPAT_FREEBSD4	opt_compat.h
 COMPAT_SUNOS	opt_compat.h
+NO_COMPAT_FREEBSD4	opt_compat.h
 COMPILING_LINT	opt_global.h
 CY_PCI_FASTINTR
 CONSPEED	opt_comconsole.h
