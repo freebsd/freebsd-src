@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.18 1997/03/12 22:34:07 gj Exp $
+#	$Id: Makefile,v 1.19 1997/03/15 20:59:59 gj Exp $
 
 PROG = gdb
 
@@ -23,7 +23,7 @@ SRCS = annotate.c blockframe.c breakpoint.c buildsym.c c-lang.c \
 	symtab.c target.c thread.c top.c \
 	typeprint.c utils.c valarith.c valops.c \
 	valprint.c values.c version.c serial.c ser-unix.c mdebugread.c\
-	c-exp.tab.c f-exp.tab.c m2-exp.tab.c i387-tdep.c \
+	c-exp.c f-exp.c m2-exp.c i387-tdep.c \
 	kvm-fbsd.c bcache.c \
 	corefile.c ch-exp.c f-lang.c scm-exp.c scm-lang.c \
 	scm-valprint.c f-typeprint.c f-valprint.c nlmread.c \
@@ -35,6 +35,9 @@ CFLAGS+= -I$(.CURDIR) -I${DESTDIR}/usr/include/readline -I$(.CURDIR)/../bfd
 CFLAGS+= -DNO_MMALLOC
 # uncomment the next line if you want to debug gdb
 #CFLAGS+= -g
+
+CLEANFILES+=	c-exp.c f-exp.c m2-exp.c y.tab.h
+beforedepend:	c-exp.c f-exp.c m2-exp.c
 
 .if exists(${.OBJDIR}/../bfd)
 LDADD+=   -L${.OBJDIR}/../bfd -lbfd
