@@ -26,7 +26,7 @@
  */
 /*-
  * Copyright (c) 2002 Eric Moore
- * Copyright (c) 2002 LSI Logic Corporation
+ * Copyright (c) 2002, 2004 LSI Logic Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -128,6 +128,8 @@ static struct
     {0x101e, 0x1960, 0},
     {0x1000, 0x1960, PROBE_SIGNATURE},
     {0x1000, 0x0407, 0},
+    {0x1000, 0x0408, 0},
+    {0x1000, 0x0409, 0},
     {0x1028, 0x000e, PROBE_SIGNATURE}, /* perc4/di i960 */
     {0x1028, 0x000f, 0}, /* perc4/di Verde*/
     {0x1028, 0x0013, 0}, /* perc4/di */
@@ -151,7 +153,7 @@ amr_pci_probe(device_t dev)
 		if ((sig != AMR_SIGNATURE_1) && (sig != AMR_SIGNATURE_2))
 		    continue;
 	    }
-	    device_set_desc(dev, "LSILogic MegaRAID");
+	    device_set_desc(dev, LSI_DESC_PCI);
 	    return(-10);	/* allow room to be overridden */
 	}
     }
@@ -183,6 +185,7 @@ amr_pci_attach(device_t dev)
      */
     command = pci_read_config(dev, PCIR_COMMAND, 1);
     if ((pci_get_device(dev) == 0x1960) || (pci_get_device(dev) == 0x0407) ||
+	(pci_get_device(dev) == 0x0408) || (pci_get_device(dev) == 0x0409) ||
 	(pci_get_device(dev) == 0x000e) || (pci_get_device(dev) == 0x000f) ||
 	(pci_get_device(dev) == 0x0013)) {
 	/*
