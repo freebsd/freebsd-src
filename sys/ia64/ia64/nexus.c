@@ -59,6 +59,7 @@
 #include <machine/resource.h>
 
 #include <isa/isavar.h>
+#include <isa/isareg.h>
 #include <sys/rtprio.h>
 
 static MALLOC_DEFINE(M_NEXUSDEV, "nexusdev", "Nexus device");
@@ -163,7 +164,7 @@ nexus_probe(device_t dev)
 	irq_rman.rm_start = 0;
 	irq_rman.rm_type = RMAN_ARRAY;
 	irq_rman.rm_descr = "Interrupt request lines";
-	irq_rman.rm_end = 15;
+	irq_rman.rm_end = 63;
 	if (rman_init(&irq_rman)
 	    || rman_manage_region(&irq_rman,
 				  irq_rman.rm_start, irq_rman.rm_end))
@@ -211,6 +212,12 @@ nexus_probe(device_t dev)
 static int
 nexus_attach(device_t dev)
 {
+	/*
+	 * Mask the legacy PICs - we will use the I/O SAPIC for interrupt.
+	 */
+	outb(IO_ICU1+1, 0xff);
+	outb(IO_ICU2+1, 0xff);
+
 	bus_generic_attach(dev);
 	return 0;
 }
@@ -472,10 +479,8 @@ nexus_setup_intr(device_t bus, device_t child, struct resource *irq,
 	if (error)
 		return (error);
 
-#if 0
-	error = inthand_add(device_get_nameunit(child), irq->r_start,
-	    ihand, arg, flags, cookiep);
-#endif
+	error = ia64_setup_intr(device_get_nameunit(child), irq->r_start,
+	    ihand, arg, flags, cookiep, 0);
 
 	return (error);
 }

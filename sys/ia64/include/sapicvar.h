@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998 Doug Rabson
+ * Copyright (c) 2001 Doug Rabson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,33 +26,25 @@
  * $FreeBSD$
  */
 
-#ifndef _MACHINE_INTR_H_
-#define _MACHINE_INTR_H_
+#ifndef _MACHINE_SAPICVAR_H_
+#define _MACHINE_SAPICVAR_H_
 
-/*
- * Layout of the Processor Interrupt Block.
- */
-struct ia64_interrupt_block
-{
-	u_int64_t	ib_ipi[0x20000];	/* 1Mb of IPI interrupts */
-	u_int8_t	ib_reserved1[0xe0000];
-	u_int8_t	ib_inta;		/* Generate INTA cycle */
-	u_int8_t	ib_reserved2[7];
-	u_int8_t	ib_xtp;			/* XTP cycle */
-	u_int8_t	ib_reserved3[7];
-	u_int8_t	ib_reserved4[0x1fff0];
+struct sapic {
+	int		sa_id;		/* I/O SAPIC Id */
+	int		sa_base;	/* ACPI vector base */
+	int		sa_limit;	/* last ACPI vector handled here */
+	vm_offset_t	sa_registers;	/* virtual address of sapic */
 };
 
-#define IA64_INTERRUPT_BLOCK	\
-	(struct ia64_interrupt_block *)IA64_PHYS_TO_RR6(0xfee00000)
+#define SAPIC_TRIGGER_EDGE	0
+#define SAPIC_TRIGGER_LEVEL	1
 
-struct sapic;
+#define SAPIC_POLARITY_HIGH	0
+#define SAPIC_POLARITY_LOW	1
 
-void ia64_add_sapic(struct sapic *sa);
-int ia64_setup_intr(const char *name, int irq, driver_intr_t handler,
-		    void *arg, enum intr_type flags, void **cookiep,
-		    volatile long *cntp);
-int ia64_teardown_intr(void *cookie);
-void ia64_dispatch_intr(void *frame, unsigned long vector);
+struct sapic	*sapic_create(int id, int base, u_int64_t address);
+void		sapic_enable(struct sapic *sa, int input, int vector,
+			     int trigger_mode, int polarity);
+void		sapic_eoi(struct sapic *sa, int vector);
 
-#endif /* !_MACHINE_INTR_H_ */
+#endif /* ! _MACHINE_SAPICVAR_H_ */
