@@ -180,10 +180,10 @@ installUpgrade(dialogMenuItem *self)
 	if (!dmenuOpenSimple(&MenuDistributions, FALSE) || !Dists)
 	    return DITEM_FAILURE;
     }
-    else if (!(Dists & DIST_BIN)) {	    /* No bin selected?  Not much of an upgrade.. */
-	if (msgYesNo("You didn't select the bin distribution as one of the distributons to load.\n"
+    else if (!(Dists & DIST_BASE)) {	    /* No base selected?  Not much of an upgrade.. */
+	if (msgYesNo("You didn't select the base distribution as one of the distributons to load.\n"
 		     "This one is pretty vital to a successful upgrade.  Are you SURE you don't\n"
-		     "want to select the bin distribution?  Chose No to bring up the Distributions\n"
+		     "want to select the base distribution?  Chose No to bring up the Distributions\n"
 		     "menu again.") != 0) {
 	    if (!dmenuOpenSimple(&MenuDistributions, FALSE))
 		return DITEM_FAILURE;
@@ -191,7 +191,7 @@ installUpgrade(dialogMenuItem *self)
     }
 
     /* Still?!  OK!  They must know what they're doing.. */
-    if (!(Dists & DIST_BIN))
+    if (!(Dists & DIST_BASE))
 	extractingBin = FALSE;
 
     if (RunningAsInit) {
@@ -325,20 +325,20 @@ media:
     
     msgNotify("Beginning extraction of distributions..");
     if (DITEM_STATUS(distExtractAll(self)) == DITEM_FAILURE) {
-	msgConfirm("Hmmmm.  We couldn't even extract the bin distribution.  This upgrade\n"
+	msgConfirm("Hmmmm.  We couldn't even extract the base distribution.  This upgrade\n"
 		   "should be considered a failure and started from the beginning, sorry!\n"
 		   "The system will reboot now.");
 	dialog_clear();
 	systemShutdown(1);
     }
     else if (Dists) {
-	if (!extractingBin || !(Dists & DIST_BIN)) {
+	if (!extractingBin || !(Dists & DIST_BASE)) {
 	    msgNotify("The extraction process seems to have had some problems, but we got most\n"
 		       "of the essentials.  We'll treat this as a warning since it may have been\n"
 		       "only non-essential distributions which failed to load.");
 	}
 	else {
-	    msgConfirm("Hmmmm.  We couldn't even extract the bin distribution.  This upgrade\n"
+	    msgConfirm("Hmmmm.  We couldn't even extract the base distribution.  This upgrade\n"
 		       "should be considered a failure and started from the beginning, sorry!\n"
 		       "The system will reboot now.");
 	    dialog_clear();
@@ -384,7 +384,7 @@ installUpgradeNonInteractive(dialogMenuItem *self)
     variable_set2(SYSTEM_STATE, "upgrade", 0);
 
     /* Make sure at least BIN is selected */
-    Dists |= DIST_BIN;
+    Dists |= DIST_BASE;
 
     if (RunningAsInit) {
 	Device **devs;
@@ -470,20 +470,20 @@ installUpgradeNonInteractive(dialogMenuItem *self)
 
     msgNotify("Beginning extraction of distributions..");
     if (DITEM_STATUS(distExtractAll(self)) == DITEM_FAILURE) {
-	msgConfirm("Hmmmm.  We couldn't even extract the bin distribution.  This upgrade\n"
+	msgConfirm("Hmmmm.  We couldn't even extract the base distribution.  This upgrade\n"
 		   "should be considered a failure and started from the beginning, sorry!\n"
 		   "The system will reboot now.");
 	dialog_clear();
 	systemShutdown(1);
     }
     else if (Dists) {
-	if (!(Dists & DIST_BIN)) {
+	if (!(Dists & DIST_BASE)) {
 	    msgNotify("The extraction process seems to have had some problems, but we got most\n"
 		       "of the essentials.  We'll treat this as a warning since it may have been\n"
 		       "only non-essential distributions which failed to upgrade.");
 	}
 	else {
-	    msgConfirm("Hmmmm.  We couldn't even extract the bin distribution.  This upgrade\n"
+	    msgConfirm("Hmmmm.  We couldn't even extract the base distribution.  This upgrade\n"
 		       "should be considered a failure and started from the beginning, sorry!\n"
 		       "The system will reboot now.");
 	    dialog_clear();
