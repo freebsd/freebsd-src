@@ -90,6 +90,12 @@ firewire_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 
 	GIANT_REQUIRED;
 
+#ifdef MAC
+	error = mac_check_ifnet_transmit(ifp, m);
+	if (error)
+		goto bad;
+#endif
+
 	if ((ifp->if_flags & (IFF_UP|IFF_RUNNING)) != (IFF_UP|IFF_RUNNING)) {
 		error = ENETDOWN;
 		goto bad;
