@@ -242,6 +242,12 @@ main(int argc, char *argv[])
 		case 'e':			/* XXX set ufmt */
 			needenv = 1;
 			break;
+#ifdef LAZY_PS
+		case 'f':
+			if (getuid() == 0 || getgid() == 0)
+			    forceuread = 1;
+			break;
+#endif
 		case 'G':
 			add_list(&gidlist, optarg);
 			xkeep_implied = 1;
@@ -301,12 +307,6 @@ main(int argc, char *argv[])
 			parsefmt(optarg, 1);
 			_fmt = 1;
 			break;
-#if defined(LAZY_PS)
-		case 'f':
-			if (getuid() == 0 || getgid() == 0)
-			    forceuread = 1;
-			break;
-#endif
 		case 'p':
 			add_list(&pidlist, optarg);
 			/*
