@@ -1736,6 +1736,8 @@ bge_probe(dev)
 			    "%s, ASIC rev. %#04x", t->bge_name,
 			    pci_read_config(dev, BGE_PCI_MISC_CTL, 4) >> 16);
 			device_set_desc_copy(dev, descbuf);
+			if (pci_get_subvendor(dev) == DELL_VENDORID)
+				sc->bge_no_3_led = 1;
 			free(descbuf, M_TEMP);
 			return(0);
 		}
