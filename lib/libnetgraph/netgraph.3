@@ -124,6 +124,8 @@ The
 .Fa cmd ,
 and argument data are defined by the header file corresponding
 to the type of the node being addressed.
+The unique, non-negative token value chosen for use in the message
+header is returned.  This value is typically used to associate replies.
 .Pp
 Use
 .Fn NgSendMsgReply
@@ -147,6 +149,9 @@ string to the node in a
 control message.  The node returns a binary version of the
 message, which is then sent back to the node just as with
 .Fn NgSendMsg .
+As with
+.Fn NgSendMsg ,
+the message token value is returned.
 Note that
 .Tn ASCII
 conversion may not be supported by all node types.
