@@ -18,7 +18,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: main.c,v 1.6 1996/08/11 17:29:33 pst Exp $";
+static char rcsid[] = "$Id: main.c,v 1.7 1996/10/22 21:41:43 scrappy Exp $";
 #endif
 
 #include <stdio.h>
@@ -67,10 +67,13 @@ int ifunit;			/* Interface unit number */
 char *progname;			/* Name of this program */
 char hostname[MAXNAMELEN];	/* Our hostname */
 static char pidfilename[MAXPATHLEN];	/* name of pid file */
+static char iffilename[MAXPATHLEN];	/* name of if file */
 static char default_devnam[MAXPATHLEN];	/* name of default device */
 static pid_t	pid;		/* Our pid */
 static pid_t	pgrpid;		/* Process Group ID */
 static uid_t uid;		/* Our real user-id */
+time_t		etime,stime;	/* End and Start time */
+int		minutes;	/* connection duration */
 
 int fd = -1;			/* Device file descriptor */
 
@@ -152,10 +155,11 @@ main(argc, argv)
     int argc;
     char *argv[];
 {
-    int i, nonblock;
+    int i, n, nonblock;
     struct sigaction sa;
     struct cmd *cmdp;
     FILE *pidfile;
+    FILE *iffile;
     char *p;
     struct passwd *pw;
     struct timeval timo;
@@ -390,6 +394,21 @@ main(argc, argv)
 	    pidfilename[0] = 0;
 	}
 
+	/* write interface unit number to file */
+    	for (n = strlen(devnam); n > 0 ; n--)
+		if (devnam[n] == '/') { 
+			n = n++;
+			break;
+		}
+	(void) sprintf(iffilename, "%s%s.if", _PATH_VARRUN, &devnam[n]);
+	if ((iffile = fopen(iffilename, "w")) != NULL) {
+	    fprintf(iffile, "ppp%d\n", ifunit);
+	    (void) fclose(iffile);
+	} else {
+	    syslog(LOG_ERR, "Failed to create if file %s: %m", iffilename);
+	    iffilename[0] = 0;
+	}
+
 	/*
 	 * Set device for non-blocking reads.
 	 */
@@ -444,6 +463,11 @@ main(argc, argv)
 	if (unlink(pidfilename) < 0 && errno != ENOENT) 
 	    syslog(LOG_WARNING, "unable to delete pid file: %m");
 	pidfilename[0] = 0;
+
+	if (iffile)
+		if (unlink(iffilename) < 0 && errno != ENOENT) 
+			syslog(LOG_WARNING, "unable to delete if file: %m");
+	iffilename[0] = 0;
 
     } while (persist);
 
