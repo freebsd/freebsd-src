@@ -95,7 +95,7 @@ main(argc, argv)
 	int	exit_val;			/* exit value */
 	int	step;				/* step through args */
 	int	ch;				/* getopts char */
-	char	cmd[100];			/* too ugly to explain */
+	char	*cmd;
 
 	aflag = uflag = NO;
 	while ((ch = getopt(argc, argv, "BFadf:tuwvx")) != -1)
@@ -157,11 +157,14 @@ main(argc, argv)
 		else {
 			if (uflag) {
 				for (step = 0; step < argc; step++) {
-					(void)sprintf(cmd,
-						"mv %s OTAGS; fgrep -v '\t%s\t' OTAGS >%s; rm OTAGS",
-							outfile, argv[step],
-							outfile);
+					(void)asprintf(&cmd,
+					    "mv %s OTAGS; fgrep -v '\t%s\t' OTAGS >%s; rm OTAGS",
+					    outfile, argv[step], outfile);
+					if (cmd == NULL)
+						err(1, "out of space");
 					system(cmd);
+					free(cmd);
+					cmd = NULL;
 				}
 				++aflag;
 			}
@@ -170,9 +173,13 @@ main(argc, argv)
 			put_entries(head);
 			(void)fclose(outf);
 			if (uflag) {
-				(void)sprintf(cmd, "sort -o %s %s",
-						outfile, outfile);
+				(void)asprintf(&cmd, "sort -o %s %s",
+				    outfile, outfile);
+				if (cmd == NULL)
+					err(1, "out of space");
 				system(cmd);
+				free(cmd);
+				cmd = NULL;
 			}
 		}
 	}
