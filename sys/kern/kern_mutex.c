@@ -374,11 +374,7 @@ _mtx_lock_spin_flags(struct mtx *m, int opts, const char *file, int line)
 	    m->mtx_object.lo_name, file, line));
 	WITNESS_CHECKORDER(&m->mtx_object, opts | LOP_NEWORDER | LOP_EXCLUSIVE,
 	    file, line);
-#if defined(SMP) || LOCK_DEBUG > 0 || 1
 	_get_spin_lock(m, curthread, opts, file, line);
-#else
-	critical_enter();
-#endif
 	LOCK_LOG_LOCK("LOCK", &m->mtx_object, opts, m->mtx_recurse, file,
 	    line);
 	WITNESS_LOCK(&m->mtx_object, opts | LOP_EXCLUSIVE, file, line);
@@ -396,11 +392,7 @@ _mtx_unlock_spin_flags(struct mtx *m, int opts, const char *file, int line)
 	LOCK_LOG_LOCK("UNLOCK", &m->mtx_object, opts, m->mtx_recurse, file,
 	    line);
 	mtx_assert(m, MA_OWNED);
-#if defined(SMP) || LOCK_DEBUG > 0 || 1
 	_rel_spin_lock(m);
-#else
-	critical_exit();
-#endif
 }
 
 /*
@@ -575,6 +567,7 @@ _mtx_lock_sleep(struct mtx *m, struct thread *td, int opts, const char *file,
 	return;
 }
 
+#ifdef SMP
 /*
  * _mtx_lock_spin: the tougher part of acquiring an MTX_SPIN lock.
  *
@@ -622,6 +615,7 @@ _mtx_lock_spin(struct mtx *m, struct thread *td, int opts, const char *file,
 
 	return;
 }
+#endif /* SMP */
 
 /*
  * _mtx_unlock_sleep: the tougher part of releasing an MTX_DEF lock.

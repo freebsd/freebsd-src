@@ -103,8 +103,10 @@ void	mutex_init(void);
 void	_mtx_lock_sleep(struct mtx *m, struct thread *td, int opts,
 	    const char *file, int line);
 void	_mtx_unlock_sleep(struct mtx *m, int opts, const char *file, int line);
+#ifdef SMP
 void	_mtx_lock_spin(struct mtx *m, struct thread *td, int opts,
 	    const char *file, int line);
+#endif
 void	_mtx_unlock_spin(struct mtx *m, int opts, const char *file, int line);
 int	_mtx_trylock(struct mtx *m, int opts, const char *file, int line);
 void	_mtx_lock_flags(struct mtx *m, int opts, const char *file, int line);
@@ -161,6 +163,7 @@ void	_mtx_assert(struct mtx *m, int what, const char *file, int line);
  * a deal.
  */
 #ifndef _get_spin_lock
+#ifdef SMP
 #define _get_spin_lock(mp, tid, opts, file, line) do {			\
 	struct thread *_tid = (tid);					\
 									\
@@ -172,6 +175,19 @@ void	_mtx_assert(struct mtx *m, int what, const char *file, int line);
 			_mtx_lock_spin((mp), _tid, (opts), (file), (line)); \
 	}								\
 } while (0)
+#else /* SMP */
+#define _get_spin_lock(mp, tid, opts, file, line) do {			\
+	struct thread *_tid = (tid);					\
+									\
+	critical_enter();						\
+	if ((mp)->mtx_lock == (uintptr_t)_tid)				\
+		(mp)->mtx_recurse++;					\
+	else {								\
+		KASSERT((mp)->mtx_lock == MTX_UNOWNED, ("corrupt spinlock")); \
+		(mp)->mtx_lock = (uintptr_t)_tid;			\
+	}								\
+} while (0)
+#endif /* SMP */
 #endif
 
 /*
@@ -196,6 +212,7 @@ void	_mtx_assert(struct mtx *m, int what, const char *file, int line);
  * releasing a spin lock.  This includes the recursion cases.
  */
 #ifndef _rel_spin_lock
+#ifdef SMP
 #define _rel_spin_lock(mp) do {						\
 	if (mtx_recursed((mp)))						\
 		(mp)->mtx_recurse--;					\
@@ -203,6 +220,15 @@ void	_mtx_assert(struct mtx *m, int what, const char *file, int line);
 		_release_lock_quick((mp));				\
 	critical_exit();						\
 } while (0)
+#else /* SMP */
+#define _rel_spin_lock(mp) do {						\
+	if (mtx_recursed((mp)))						\
+		(mp)->mtx_recurse--;					\
+	else								\
+		(mp)->mtx_lock = MTX_UNOWNED;				\
+	critical_exit();						\
+} while (0)
+#endif /* SMP */
 #endif
 
 /*
@@ -283,15 +309,10 @@ extern struct mtx_pool *mtxpool_sleep;
 	_get_sleep_lock((m), curthread, (opts), LOCK_FILE, LOCK_LINE)
 #define	mtx_unlock_flags(m, opts)					\
 	_rel_sleep_lock((m), curthread, (opts), LOCK_FILE, LOCK_LINE)
-#ifndef SMPnotyet
 #define	mtx_lock_spin_flags(m, opts)					\
 	_get_spin_lock((m), curthread, (opts), LOCK_FILE, LOCK_LINE)
 #define	mtx_unlock_spin_flags(m, opts)					\
 	_rel_spin_lock((m))
-#else	/* SMP */
-#define	mtx_lock_spin_flags(m, opts)	critical_enter()
-#define	mtx_unlock_spin_flags(m, opts)	critical_exit()
-#endif	/* SMP */
 #endif	/* LOCK_DEBUG > 0 || MUTEX_NOINLINE */
 
 #define mtx_trylock_flags(m, opts)					\
