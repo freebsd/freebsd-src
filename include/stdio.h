@@ -181,7 +181,7 @@ __END_DECLS
 #define	FILENAME_MAX	1024	/* must be <= PATH_MAX <sys/syslimits.h> */
 
 /* System V/ANSI C; this is the wrong way to do this, do *not* use these. */
-#ifndef _ANSI_SOURCE
+#if __XSI_VISIBLE
 #define	P_tmpdir	"/var/tmp/"
 #endif
 #define	L_tmpnam	1024	/* XXX must be == PATH_MAX */
@@ -208,10 +208,10 @@ __END_DECLS
 #define	stderr	__stderrp
 #endif
 
+__BEGIN_DECLS
 /*
  * Functions defined in ANSI C standard.
  */
-__BEGIN_DECLS
 void	 clearerr(FILE *);
 int	 fclose(FILE *);
 int	 feof(FILE *);
@@ -234,10 +234,6 @@ size_t	 fwrite(const void *, size_t, size_t, FILE *);
 int	 getc(FILE *);
 int	 getchar(void);
 char	*gets(char *);
-#if !defined(_ANSI_SOURCE) && !defined(_POSIX_SOURCE)
-extern __const int sys_nerr;		/* perror(3) external variables */
-extern __const char *__const sys_errlist[];
-#endif
 void	 perror(const char *);
 int	 printf(const char *, ...);
 int	 putc(int, FILE *);
@@ -257,32 +253,112 @@ int	 ungetc(int, FILE *);
 int	 vfprintf(FILE *, const char *, _BSD_VA_LIST_);
 int	 vprintf(const char *, _BSD_VA_LIST_);
 int	 vsprintf(char *, const char *, _BSD_VA_LIST_);
-__END_DECLS
+
+#if __ISO_C_VISIBLE >= 1999
+int	 snprintf(char *, size_t, const char *, ...) __printflike(3, 4);
+int	 vsnprintf(char *, size_t, const char *, _BSD_VA_LIST_)
+	    __printflike(3, 0);
+#endif
 
 /*
- * Functions defined in POSIX 1003.1.
+ * Functions defined in all versions of POSIX 1003.1.
  */
-#ifndef _ANSI_SOURCE
+#if __POSIX_VISIBLE
 /* size for cuserid(3); UT_NAMESIZE + 1, see <utmp.h> */
 #define	L_cuserid	17
 
 #define	L_ctermid	1024	/* size for ctermid(3); PATH_MAX */
 
-__BEGIN_DECLS
 char	*ctermid(char *);
 FILE	*fdopen(int, const char *);
 int	 fileno(FILE *);
+#endif /* __POSIX_VISIBLE */
+
+#if __POSIX_VISIBLE >= 199209
+int	 pclose(FILE *);
+FILE	*popen(const char *, const char *);
+#endif
+
+#if __POSIX_VISIBLE >= 199506
 int	 ftrylockfile(FILE *);
 void	 flockfile(FILE *);
 void	 funlockfile(FILE *);
-__END_DECLS
-#endif /* not ANSI */
+
+/*
+ * These are normally used through macros as defined below, but POSIX
+ * requires functions as well.
+ */
+int	 getc_unlocked(FILE *);
+int	 getchar_unlocked(void);
+int	 putc_unlocked(int, FILE *);
+int	 putchar_unlocked(int);
+#endif
+
+#if __POSIX_VISIBLE >= 200112
+int	 fseeko(FILE *, _BSD_OFF_T_, int);
+_BSD_OFF_T_ ftello(FILE *);
+#endif
+
+#if __BSD_VISIBLE || __XSI_VISIBLE > 0 && __XSI_VISIBLE < 600
+int	 getw(FILE *);
+int	 putw(int, FILE *);
+#endif /* BSD or X/Open before issue 6 */
+
+#if __XSI_VISIBLE
+char	*tempnam(const char *, const char *);
+#endif
+
+/*
+ * Routines that are purely local.
+ */
+#if __BSD_VISIBLE
+int	 asprintf(char **, const char *, ...) __printflike(2, 3);
+char	*ctermid_r(char *);
+char	*fgetln(FILE *, size_t *);
+#if __GNUC__ == 2 && __GNUC_MINOR__ >= 7 || __GNUC__ >= 3
+#define	__ATTR_FORMAT_ARG	__attribute__((__format_arg__(2)))
+#else
+#define	__ATTR_FORMAT_ARG
+#endif
+__const char *fmtcheck(const char *, const char *) __ATTR_FORMAT_ARG;
+int	 fpurge(FILE *);
+void	 setbuffer(FILE *, char *, int);
+int	 setlinebuf(FILE *);
+int	 vasprintf(char **, const char *, _BSD_VA_LIST_)
+	    __printflike(2, 0);
+int	 vscanf(const char *, _BSD_VA_LIST_) __scanflike(1, 0);
+int	 vsscanf(const char *, const char *, _BSD_VA_LIST_)
+	    __scanflike(2, 0);
+
+/*
+ * The system error table contains messages for the first sys_nerr
+ * positive errno values.  Use strerror() or strerror_r() from <string.h>
+ * instead.
+ */
+extern __const int sys_nerr;
+extern __const char *__const sys_errlist[];
+
+/*
+ * This is a #define because the function is used internally and
+ * (unlike vfscanf) the name __vfscanf is guaranteed not to collide
+ * with a user function when _ANSI_SOURCE or _POSIX_SOURCE is defined.
+ */
+#define	 vfscanf	__vfscanf
+
+/*
+ * Stdio function-access interface.
+ */
+FILE	*funopen(const void *,
+	    int (*)(void *, char *, int),
+	    int (*)(void *, const char *, int),
+	    fpos_t (*)(void *, fpos_t, int),
+	    int (*)(void *));
+#define	fropen(cookie, fn) funopen(cookie, fn, 0, 0, 0)
+#define	fwopen(cookie, fn) funopen(cookie, 0, fn, 0, 0)
 
 /*
  * Portability hacks.  See <sys/types.h>.
  */
-#if !defined (_ANSI_SOURCE) && !defined(_POSIX_SOURCE)
-__BEGIN_DECLS
 #ifndef _FTRUNCATE_DECLARED
 #define	_FTRUNCATE_DECLARED
 int	 ftruncate(int, _BSD_OFF_T_);
@@ -299,73 +375,15 @@ void	*mmap(void *, size_t, int, int, int, _BSD_OFF_T_);
 #define	_TRUNCATE_DECLARED
 int	 truncate(const char *, _BSD_OFF_T_);
 #endif
-__END_DECLS
-#endif /* !_ANSI_SOURCE && !_POSIX_SOURCE */
-
-/*
- * Routines that are purely local.
- */
-#if !defined (_ANSI_SOURCE) && !defined(_POSIX_SOURCE)
-__BEGIN_DECLS
-int	 asprintf(char **, const char *, ...) __printflike(2, 3);
-char	*ctermid_r(char *);
-char	*fgetln(FILE *, size_t *);
-#if __GNUC__ == 2 && __GNUC_MINOR__ >= 7 || __GNUC__ >= 3
-#define	__ATTR_FORMAT_ARG	__attribute__((__format_arg__(2)))
-#else
-#define	__ATTR_FORMAT_ARG
-#endif
-__const char *fmtcheck(const char *, const char *) __ATTR_FORMAT_ARG;
-int	 fpurge(FILE *);
-int	 fseeko(FILE *, _BSD_OFF_T_, int);
-_BSD_OFF_T_ ftello(FILE *);
-int	 getw(FILE *);
-int	 pclose(FILE *);
-FILE	*popen(const char *, const char *);
-int	 putw(int, FILE *);
-void	 setbuffer(FILE *, char *, int);
-int	 setlinebuf(FILE *);
-char	*tempnam(const char *, const char *);
-int	 snprintf(char *, size_t, const char *, ...) __printflike(3, 4);
-int	 vasprintf(char **, const char *, _BSD_VA_LIST_)
-	    __printflike(2, 0);
-int	 vsnprintf(char *, size_t, const char *, _BSD_VA_LIST_)
-	    __printflike(3, 0);
-int	 vscanf(const char *, _BSD_VA_LIST_) __scanflike(1, 0);
-int	 vsscanf(const char *, const char *, _BSD_VA_LIST_)
-	    __scanflike(2, 0);
-__END_DECLS
-
-/*
- * This is a #define because the function is used internally and
- * (unlike vfscanf) the name __vfscanf is guaranteed not to collide
- * with a user function when _ANSI_SOURCE or _POSIX_SOURCE is defined.
- */
-#define	 vfscanf	__vfscanf
-
-/*
- * Stdio function-access interface.
- */
-__BEGIN_DECLS
-FILE	*funopen(const void *,
-	    int (*)(void *, char *, int),
-	    int (*)(void *, const char *, int),
-	    fpos_t (*)(void *, fpos_t, int),
-	    int (*)(void *));
-__END_DECLS
-#define	fropen(cookie, fn) funopen(cookie, fn, 0, 0, 0)
-#define	fwopen(cookie, fn) funopen(cookie, 0, fn, 0, 0)
-#endif /* !_ANSI_SOURCE && !_POSIX_SOURCE */
+#endif /* __BSD_VISIBLE */
 
 /*
  * Functions internal to the implementation.
  */
-__BEGIN_DECLS
 int	__srget(FILE *);
 int	__vfscanf(FILE *, const char *, _BSD_VA_LIST_);
 int	__svfscanf(FILE *, const char *, _BSD_VA_LIST_);
 int	__swbuf(int, FILE *);
-__END_DECLS
 
 /*
  * The __sfoo macros are here so that we can
@@ -405,15 +423,12 @@ static __inline int __sputc(int _c, FILE *_p) {
 #define	feof_unlocked(p)	__sfeof(p)
 #define	ferror_unlocked(p)	__sferror(p)
 #define	clearerr_unlocked(p)	__sclearerr(p)
-
-#ifndef _ANSI_SOURCE
 #define	fileno_unlocked(p)	__sfileno(p)
-#endif
-
 #define	getc_unlocked(fp)	__sgetc(fp)
 #define	putc_unlocked(x, fp)	__sputc(x, fp)
 
 #define	getchar_unlocked()	getc_unlocked(stdin)
 #define	putchar_unlocked(x)	putc_unlocked(x, stdout)
 
+__END_DECLS
 #endif /* !_STDIO_H_ */
