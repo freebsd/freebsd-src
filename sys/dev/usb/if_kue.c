@@ -363,7 +363,9 @@ kue_setmulti(struct kue_softc *sc)
 Static void
 kue_reset(struct kue_softc *sc)
 {
-	if (usbd_set_config_no(sc->kue_udev, KUE_CONFIG_NO, 0)) {
+	if (usbd_set_config_no(sc->kue_udev, KUE_CONFIG_NO, 0) ||
+	    usbd_device2interface_handle(sc->kue_udev, KUE_IFACE_IDX,
+	    &sc->kue_iface)) {
 		printf("kue%d: getting interface handle failed\n",
 		    sc->kue_unit);
 	}
