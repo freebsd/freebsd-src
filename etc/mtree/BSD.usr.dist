@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.95 1997/08/12 15:54:05 ache Exp $
+#	$Id: BSD.usr.dist,v 1.96 1997/08/18 00:08:16 jdp Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -7,7 +7,7 @@
     ..
 /set type=dir uname=games gname=bin mode=0700
     games           uname=bin mode=0755
-        hide
+        hide        gname=games uname=root mode=0550
         ..
     ..
 /set type=dir uname=bin gname=bin mode=0755

@@ -1202,6 +1202,10 @@ main(argc, argv)
 int argc;
 char *argv[];
 {
+    /* revoke privs */
+    setegid(getgid());
+    setgid(getgid());
+
     do_options(argc, argv);
 
     intro();

@@ -212,6 +212,10 @@ main(int argc, char **argv)
 	register int    ch;
 	register char  *p;
 
+	/* revoke */
+	setegid(getgid());
+	setgid(getgid());
+
 	while ((ch = getopt(argc, argv, "spw:f:")) != EOF)
 		switch ((char) ch) {
 		case 'f':
