@@ -384,6 +384,7 @@ gv_create(struct g_geom *gp, struct gctl_req *req)
 		}
 
 		p->vinumconf = sc;
+		p->flags |= GV_PLEX_NEWBORN;
 		LIST_INIT(&p->subdisks);
 		LIST_INSERT_HEAD(&sc->plexes, p, plex);
 	}

@@ -421,10 +421,12 @@ gv_update_plex_config(struct gv_plex *p)
 
 	if (p->sdcount == 0)
 		state = GV_PLEX_DOWN;
-	else if ((p->flags & GV_PLEX_ADDED) || (p->org == GV_PLEX_RAID5)) {
+	else if ((p->flags & GV_PLEX_ADDED) ||
+	    ((p->org == GV_PLEX_RAID5) && (p->flags & GV_PLEX_NEWBORN))) {
 		LIST_FOREACH(s, &p->subdisks, in_plex)
 			s->state = GV_SD_STALE;
 		p->flags &= ~GV_PLEX_ADDED;
+		p->flags &= ~GV_PLEX_NEWBORN;
 		p->state = GV_PLEX_DOWN;
 	}
 }
