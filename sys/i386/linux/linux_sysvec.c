@@ -93,13 +93,13 @@ extern struct sysent linux_sysent[LINUX_SYS_MAXSYSCALL];
 SET_DECLARE(linux_ioctl_handler_set, struct linux_ioctl_handler);
 
 static int	linux_fixup(register_t **stack_base,
-				 struct image_params *iparams);
+		    struct image_params *iparams);
 static int	elf_linux_fixup(register_t **stack_base,
-				     struct image_params *iparams);
-static void	linux_prepsyscall(struct trapframe *tf, int *args,
-				       u_int *code, caddr_t *params);
+		    struct image_params *iparams);
+static void	linux_prepsyscall(struct trapframe *tf, int *args, u_int *code,
+		    caddr_t *params);
 static void     linux_sendsig(sig_t catcher, int sig, sigset_t *mask,
-				   u_long code);
+		    u_long code);
 
 /*
  * Linux syscalls return negative errno's, we do positive and map them
