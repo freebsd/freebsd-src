@@ -190,8 +190,7 @@ __collate_load_tables(const char *encoding)
 }
 
 u_char *
-__collate_substitute(s)
-	const u_char *s;
+__collate_substitute(const u_char *s)
 {
 	int dest_len, len, nlen;
 	int delta = strlen(s);
@@ -218,9 +217,7 @@ __collate_substitute(s)
 }
 
 void
-__collate_lookup(t, len, prim, sec)
-	const u_char *t;
-	int *len, *prim, *sec;
+__collate_lookup(const u_char *t, int *len, int *prim, int *sec)
 {
 	struct __collate_st_chain_pri *p2;
 
@@ -240,8 +237,7 @@ __collate_lookup(t, len, prim, sec)
 }
 
 u_char *
-__collate_strdup(s)
-	u_char *s;
+__collate_strdup(u_char *s)
 {
 	u_char *t = strdup(s);
 

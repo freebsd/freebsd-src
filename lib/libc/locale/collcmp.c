@@ -34,8 +34,7 @@ __FBSDID("$FreeBSD$");
  * Compare two characters using collate
  */
 
-int __collate_range_cmp(c1, c2)
-	int c1, c2;
+int __collate_range_cmp(int c1, int c2)
 {
 	static char s1[2], s2[2];
 
