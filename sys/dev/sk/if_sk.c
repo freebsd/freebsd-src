@@ -1598,6 +1598,10 @@ skc_attach(dev)
 		}
 		sc->sk_rboff = SK_RBOFF_0;
 	}
+	device_printf(dev, "type = %s\n",
+	    (sc->sk_type == SK_GENESIS) ? "GENESIS" : "YUKON");
+	device_printf(dev, "SK_EPROM0 = 0x%02x\n", skrs);
+	device_printf(dev, "SRAM size = 0x%06x\n", sc->sk_ramsize);
 
 	/* Read and save physical media type */
 	switch(sk_win_read_1(sc, SK_PMDTYPE)) {
@@ -1650,6 +1654,12 @@ skc_attach(dev)
 			}
 		}
 	}
+
+	/* read CHIPVER 0xb1. */
+	device_printf(dev, "chip ver  0x%02x\n", sk_win_read_1(sc, SK_CHIPVER));
+	/* read CONFIG 0x73. */
+	device_printf(dev, "chip conf 0x%02x\n", sk_win_read_1(sc, SK_CONFIG));
+
 	sc->sk_devs[SK_PORT_A] = device_add_child(dev, "sk", -1);
 	port = malloc(sizeof(int), M_DEVBUF, M_NOWAIT);
 	*port = SK_PORT_A;
