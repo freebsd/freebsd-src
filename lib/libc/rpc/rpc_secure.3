@@ -1,5 +1,5 @@
 .\" @(#)rpc_secure.3n	2.1 88/08/08 4.0 RPCSRC; from 1.19 88/06/24 SMI
-.\" $Id$
+.\" $Id: rpc_secure.3,v 1.2 1998/01/05 07:12:16 charnier Exp $
 .Dd February 16, 1988
 .Dt RPC 3
 .Sh NAME
@@ -11,19 +11,29 @@
 .Fo authdes_create
 .Fa "char *name"
 .Fa "unsigned window"
-.Fa "struct sockaddr_in *addr"
+.Fa "struct sockaddr *addr"
 .Fa "des_block *ckey"
 .Fc
-.Fn authdes_getucred "struct authdes_cred *adc" "short *uid" "short *gid" "short *grouplen" "int *groups"
-.Fn getnetname "char name[MAXNETNAMELEN]"
+.Ft int
+.Fn authdes_getucred "struct authdes_cred *adc" "uid_t *uid" "gid_t *gid" "int *grouplen" "gid_t *groups"
+.Ft int
+.Fn getnetname "char *name"
+.Ft int
 .Fn host2netname "char *name" "char *host" "char *domain"
-.Fn key_decryptsession "char *remotename" "des_block *deskey"
-.Fn key_encryptsession "char *remotename" "des_block *deskey"
+.Ft int
+.Fn key_decryptsession "const char *remotename" "des_block *deskey"
+.Ft int
+.Fn key_encryptsession "const char *remotename" "des_block *deskey"
+.Ft int
 .Fn key_gendes "des_block *deskey"
-.Fn key_setsecret "char *key"
+.Ft int
+.Fn key_setsecret "const char *key"
+.Ft int
 .Fn netname2host "char *name" "char *host" "int hostlen"
-.Fn netname2user "char *name" "int *uidp" "int *gidp" "int *gidlenp" "int *gidlist"
-.Fn user2netname "char *name" "int uid" "char *domain"
+.Ft int
+.Fn netname2user "char *name" "uid_t *uidp" "gid_t *gidp" "int *gidlenp" "gid_t *gidlist"
+.Ft int
+.Fn user2netname "char *name" "uid_t uid" "char *domain"
 .Sh DESCRIPTION
 These routines are part of the
 .Tn RPC
