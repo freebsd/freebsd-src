@@ -346,8 +346,14 @@ fwohci_pci_detach(device_t self)
 
 	s = splfw();
 
-	fwohci_stop(sc, self);
+	if (sc->bsr)
+		fwohci_stop(sc, self);
+
 	bus_generic_detach(self);
+	if (sc->fc.bdev) {
+		device_delete_child(self, sc->fc.bdev);
+		sc->fc.bdev = NULL;
+	}
 
 	/* disable interrupts that might have been switched on */
 	if (sc->bst && sc->bsh)
@@ -364,11 +370,6 @@ fwohci_pci_detach(device_t self)
 		err = bus_teardown_intr(self, sc->irq_res, sc->ih_cam);
 #endif
 		sc->ih = NULL;
-	}
-
-	if (sc->fc.bdev) {
-		device_delete_child(self, sc->fc.bdev);
-		sc->fc.bdev = NULL;
 	}
 
 	if (sc->irq_res) {
