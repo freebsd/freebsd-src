@@ -11,7 +11,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.h,v 1.16 1996/02/24 00:17:33 phk Exp $
+ *	$Id: ip_fw.h,v 1.17 1996/02/24 13:38:27 phk Exp $
  */
 
 /*
@@ -105,6 +105,7 @@ struct ip_fw_chain {
 #define IP_FW_TCPF_PSH		TH_PUSH
 #define IP_FW_TCPF_ACK		TH_ACK
 #define IP_FW_TCPF_URG		TH_URG
+#define IP_FW_TCPF_ESTAB	0x40
 
 /*
  * New IP firewall options for [gs]etsockopt at the RAW IP level.
@@ -121,12 +122,6 @@ struct ip_fw_chain {
  * Main firewall chains definitions and global var's definitions.
  */
 #ifdef KERNEL
-
-/*
- * Function pointers.
- */
-extern int (*ip_fw_chk_ptr)(struct mbuf *, struct ip *,struct ifnet *, int dir);
-extern int (*ip_fw_ctl_ptr)(int,struct mbuf **);
 
 /*
  * Function definitions.

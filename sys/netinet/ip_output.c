@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_output.c	8.3 (Berkeley) 1/21/94
- *	$Id: ip_output.c,v 1.32 1996/03/13 08:02:43 pst Exp $
+ *	$Id: ip_output.c,v 1.33 1996/03/26 18:56:51 fenner Exp $
  */
 
 #include <sys/param.h>
@@ -53,8 +53,6 @@
 #include <netinet/in_pcb.h>
 #include <netinet/in_var.h>
 #include <netinet/ip_var.h>
-
-#include <netinet/ip_fw.h>
 
 #ifdef vax
 #include <machine/mtpr.h>
@@ -86,10 +84,10 @@ ip_output(m0, opt, ro, flags, imo)
 	int flags;
 	struct ip_moptions *imo;
 {
-	register struct ip *ip, *mhip;
-	register struct ifnet *ifp;
-	register struct mbuf *m = m0;
-	register int hlen = sizeof (struct ip);
+	struct ip *ip, *mhip;
+	struct ifnet *ifp;
+	struct mbuf *m = m0;
+	int hlen = sizeof (struct ip);
 	int len, off, error = 0;
 	/*
 	 * It might seem obvious at first glance that one could easily
@@ -339,7 +337,7 @@ sendit:
 	/*
 	 * Check with the firewall...
 	 */
-	if (!(*ip_fw_chk_ptr)(m,ip,ifp,1)) {
+	if (ip_fw_chk_ptr && !(*ip_fw_chk_ptr)(&ip, hlen, ifp, 1, &m)) {
 		error = EACCES;
 		goto done;
 	}
