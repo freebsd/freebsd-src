@@ -74,6 +74,7 @@
 #include <machine/bus.h>
 #include <sys/rman.h>
 #include <sys/selinfo.h>
+#include <sys/time.h>
 #include <sys/uio.h>
 
 #include <machine/limits.h>
@@ -91,6 +92,14 @@
 /* debugging */
 #ifndef PSM_DEBUG
 #define PSM_DEBUG	0	/* logging: 0: none, 1: brief, 2: verbose */
+#endif
+
+#ifndef PSM_SYNCERR_THRESHOLD1
+#define PSM_SYNCERR_THRESHOLD1	20
+#endif
+
+#ifndef PSM_INPUT_TIMEOUT
+#define PSM_INPUT_TIMEOUT	2000000	/* 2 sec */
 #endif
 
 /* end of driver specific options */
@@ -139,6 +148,7 @@ typedef struct ringbuf {
 
 /* driver control block */
 struct psm_softc {		/* Driver status information */
+    int		  unit;
     struct selinfo rsel;	/* Process selecting for Input */
     unsigned char state;	/* Mouse driver state */
     int           config;	/* driver configuration flags */
@@ -156,6 +166,8 @@ struct psm_softc {		/* Driver status information */
     int           button;	/* the latest button state */
     int		  xold;	/* previous absolute X position */
     int		  yold;	/* previous absolute Y position */
+    int		  syncerrors;
+    struct timeval inputtimeout;
     int		  watchdog;	/* watchdog timer flag */
     struct callout_handle callout;	/* watchdog timer call out */
     dev_t	  dev;
@@ -243,8 +255,9 @@ static int get_mouse_buttons __P((KBDC));
 static int is_a_mouse __P((int));
 static void recover_from_error __P((KBDC));
 static int restore_controller __P((KBDC, int));
-static int reinitialize __P((int, mousemode_t *));
-static int doopen __P((int, int));
+static int doinitialize __P((struct psm_softc *, mousemode_t *));
+static int doopen __P((struct psm_softc *, int));
+static int reinitialize __P((struct psm_softc *, int));
 static char *model_name __P((int));
 static void psmintr __P((void *));
 static void psmtimeout __P((void *));
@@ -620,9 +633,8 @@ restore_controller(KBDC kbdc, int command_byte)
  * calling this routine.
  */
 static int
-reinitialize(int unit, mousemode_t *mode)
+doinitialize(struct psm_softc *sc, mousemode_t *mode)
 {
-    struct psm_softc *sc = PSM_SOFTC(unit);
     KBDC kbdc = sc->kbdc;
     int stat[3];
     int i;
@@ -632,7 +644,7 @@ reinitialize(int unit, mousemode_t *mode)
     case PSM_ACK:
 	if (verbose)
 	    log(LOG_DEBUG, "psm%d: strange result for test aux port (%d).\n",
-	        unit, i);
+	        sc->unit, i);
 	/* fall though */
     case 0:	/* no error */
     	break;
@@ -642,7 +654,7 @@ reinitialize(int unit, mousemode_t *mode)
 	if (sc->config & PSM_CONFIG_IGNPORTERROR)
 	    break;
     	log(LOG_ERR, "psm%d: the aux port is not functioning (%d).\n",
-    	    unit, i);
+    	    sc->unit, i);
     	return FALSE;
     }
 
@@ -658,7 +670,7 @@ reinitialize(int unit, mousemode_t *mode)
 	 */
 	if (!reset_aux_dev(kbdc)) {
             recover_from_error(kbdc);
-            log(LOG_ERR, "psm%d: failed to reset the aux device.\n", unit);
+            log(LOG_ERR, "psm%d: failed to reset the aux device.\n", sc->unit);
             return FALSE;
 	}
     }
@@ -668,7 +680,7 @@ reinitialize(int unit, mousemode_t *mode)
      * if the device can be enabled. 
      */
     if (!enable_aux_dev(kbdc) || !disable_aux_dev(kbdc)) {
-        log(LOG_ERR, "psm%d: failed to enable the aux device.\n", unit);
+        log(LOG_ERR, "psm%d: failed to enable the aux device.\n", sc->unit);
         return FALSE;
     }
     empty_both_buffers(kbdc, 10);	/* remove stray data if any */
@@ -683,7 +695,7 @@ reinitialize(int unit, mousemode_t *mode)
 	    if ((*vendortype[i].probefunc)(sc)) {
 		if (verbose >= 2)
 		    log(LOG_ERR, "psm%d: found %s\n", 
-			unit, model_name(vendortype[i].model));
+			sc->unit, model_name(vendortype[i].model));
 		break;
 	    }
 	}
@@ -704,7 +716,8 @@ reinitialize(int unit, mousemode_t *mode)
 
     /* request a data packet and extract sync. bits */
     if (get_mouse_status(kbdc, stat, 1, 3) < 3) {
-        log(LOG_DEBUG, "psm%d: failed to get data (reinitialize).\n", unit);
+        log(LOG_DEBUG, "psm%d: failed to get data (doinitialize).\n",
+	    sc->unit);
         sc->mode.syncmask[0] = 0;
     } else {
         sc->mode.syncmask[1] = stat[0] & sc->mode.syncmask[0];	/* syncbits */
@@ -714,15 +727,15 @@ reinitialize(int unit, mousemode_t *mode)
 
     /* just check the status of the mouse */
     if (get_mouse_status(kbdc, stat, 0, 3) < 3)
-        log(LOG_DEBUG, "psm%d: failed to get status (reinitialize).\n", unit);
+        log(LOG_DEBUG, "psm%d: failed to get status (doinitialize).\n",
+	    sc->unit);
 
     return TRUE;
 }
 
 static int
-doopen(int unit, int command_byte)
+doopen(struct psm_softc *sc, int command_byte)
 {
-    struct psm_softc *sc = PSM_SOFTC(unit);
     int stat[3];
 
     /* enable the mouse device */
@@ -739,7 +752,7 @@ doopen(int unit, int command_byte)
 	 * it again. But it will take long time and it's not a good
 	 * idea to disable the keyboard that long...
 	 */
-	if (!reinitialize(unit, &sc->mode) || !enable_aux_dev(sc->kbdc)) {
+	if (!doinitialize(sc, &sc->mode) || !enable_aux_dev(sc->kbdc)) {
 	    recover_from_error(sc->kbdc);
 #else
         {
@@ -748,13 +761,13 @@ doopen(int unit, int command_byte)
 	    /* mark this device is no longer available */
 	    sc->state &= ~PSM_VALID;	
 	    log(LOG_ERR, "psm%d: failed to enable the device (doopen).\n",
-		unit);
+		sc->unit);
 	    return (EIO);
 	}
     }
 
     if (get_mouse_status(sc->kbdc, stat, 0, 3) < 3) 
-        log(LOG_DEBUG, "psm%d: failed to get status (doopen).\n", unit);
+        log(LOG_DEBUG, "psm%d: failed to get status (doopen).\n", sc->unit);
 
     /* enable the aux port and interrupt */
     if (!set_controller_command_byte(sc->kbdc, 
@@ -765,15 +778,101 @@ doopen(int unit, int command_byte)
 	disable_aux_dev(sc->kbdc);
         restore_controller(sc->kbdc, command_byte);
 	log(LOG_ERR, "psm%d: failed to enable the aux interrupt (doopen).\n",
-	    unit);
+	    sc->unit);
 	return (EIO);
     }
 
     /* start the watchdog timer */
     sc->watchdog = FALSE;
-    sc->callout = timeout(psmtimeout, (void *)(uintptr_t)unit, hz*2);
+    sc->callout = timeout(psmtimeout, (void *)(uintptr_t)sc, hz*2);
 
     return (0);
+}
+
+static int
+reinitialize(struct psm_softc *sc, int doinit)
+{
+    int err;
+    int c;
+    int s;
+
+    /* don't let anybody mess with the aux device */
+    if (!kbdc_lock(sc->kbdc, TRUE))
+	return (EIO);
+    s = spltty();
+
+    /* block our watchdog timer */
+    sc->watchdog = FALSE;
+    untimeout(psmtimeout, (void *)(uintptr_t)sc, sc->callout);
+    callout_handle_init(&sc->callout);
+
+    /* save the current controller command byte */
+    empty_both_buffers(sc->kbdc, 10);
+    c = get_controller_command_byte(sc->kbdc);
+    if (verbose >= 2)
+        log(LOG_DEBUG, "psm%d: current command byte: %04x (reinitialize).\n", 
+	    sc->unit, c);
+
+    /* enable the aux port but disable the aux interrupt and the keyboard */
+    if ((c == -1) || !set_controller_command_byte(sc->kbdc,
+	    kbdc_get_device_mask(sc->kbdc),
+  	    KBD_DISABLE_KBD_PORT | KBD_DISABLE_KBD_INT
+	        | KBD_ENABLE_AUX_PORT | KBD_DISABLE_AUX_INT)) {
+        /* CONTROLLER ERROR */
+	splx(s);
+        kbdc_lock(sc->kbdc, FALSE);
+	log(LOG_ERR, "psm%d: unable to set the command byte (reinitialize).\n",
+	    sc->unit);
+	return (EIO);
+    }
+
+    /* flush any data */
+    if (sc->state & PSM_VALID) {
+	disable_aux_dev(sc->kbdc);	/* this may fail; but never mind... */
+	empty_aux_buffer(sc->kbdc, 10);
+    }
+    sc->inputbytes = 0;
+    sc->syncerrors = 0;
+
+    /* try to detect the aux device; are you still there? */
+    err = 0;
+    if (doinit) {
+	if (doinitialize(sc, &sc->mode)) {
+	    /* yes */
+	    sc->state |= PSM_VALID;
+	} else {
+	    /* the device has gone! */
+	    restore_controller(sc->kbdc, c);
+	    sc->state &= ~PSM_VALID;
+	    log(LOG_ERR, "psm%d: the aux device has gone! (reinitialize).\n",
+		sc->unit);
+	    err = ENXIO;
+	}
+    }
+    splx(s);
+
+    /* restore the driver state */
+    if ((sc->state & PSM_OPEN) && (err == 0)) {
+        /* enable the aux device and the port again */
+	err = doopen(sc, c);
+	if (err != 0) 
+	    log(LOG_ERR, "psm%d: failed to enable the device (reinitialize).\n",
+		sc->unit);
+    } else {
+        /* restore the keyboard port and disable the aux port */
+        if (!set_controller_command_byte(sc->kbdc, 
+                kbdc_get_device_mask(sc->kbdc),
+                (c & KBD_KBD_CONTROL_BITS)
+                    | KBD_DISABLE_AUX_PORT | KBD_DISABLE_AUX_INT)) {
+            /* CONTROLLER ERROR */
+            log(LOG_ERR, "psm%d: failed to disable the aux port (reinitialize).\n",
+                sc->unit);
+            err = EIO;
+	}
+    }
+
+    kbdc_lock(sc->kbdc, FALSE);
+    return (err);
 }
 
 /* psm driver entry points */
@@ -845,6 +944,7 @@ psmprobe(device_t dev)
     }
     bus_release_resource(dev, SYS_RES_IRQ, rid, sc->intr);
 
+    sc->unit = unit;
     sc->kbdc = atkbdc_open(device_get_unit(device_get_parent(dev)));
     sc->config = device_get_flags(dev) & PSM_CONFIG_FLAGS;
     /* XXX: for backward compatibility */
@@ -1235,6 +1335,7 @@ psmopen(dev_t dev, int flag, int fmt, struct thread *td)
     /* empty input buffer */
     bzero(sc->ipacket, sizeof(sc->ipacket));
     sc->inputbytes = 0;
+    sc->syncerrors = 0;
 
     /* don't let timeout routines in the keyboard driver to poll the kbdc */
     if (!kbdc_lock(sc->kbdc, TRUE))
@@ -1267,7 +1368,7 @@ psmopen(dev_t dev, int flag, int fmt, struct thread *td)
     splx(s);
   
     /* enable the mouse device */
-    err = doopen(unit, command_byte);
+    err = doopen(sc, command_byte);
 
     /* done */
     if (err == 0) 
@@ -1315,7 +1416,7 @@ psmclose(dev_t dev, int flag, int fmt, struct thread *td)
     splx(s);
 
     /* stop the watchdog timer */
-    untimeout(psmtimeout, (void *)(uintptr_t)unit, sc->callout);
+    untimeout(psmtimeout, (void *)(uintptr_t)sc, sc->callout);
     callout_handle_init(&sc->callout);
 
     /* remove anything left in the output buffer */
@@ -1843,21 +1944,19 @@ static void
 psmtimeout(void *arg)
 {
     struct psm_softc *sc;
-    int unit;
     int s;
 
-    unit = (int)(uintptr_t)arg;
-    sc = devclass_get_softc(psm_devclass, unit);
+    sc = (struct psm_softc *)arg;
     s = spltty();
     if (sc->watchdog && kbdc_lock(sc->kbdc, TRUE)) {
 	if (verbose >= 4)
-	    log(LOG_DEBUG, "psm%d: lost interrupt?\n", unit);
+	    log(LOG_DEBUG, "psm%d: lost interrupt?\n", sc->unit);
 	psmintr(sc);
 	kbdc_lock(sc->kbdc, FALSE);
     }
     sc->watchdog = TRUE;
     splx(s);
-    sc->callout = timeout(psmtimeout, (void *)(uintptr_t)unit, hz);
+    sc->callout = timeout(psmtimeout, (void *)(uintptr_t)sc, hz);
 }
 
 static void
@@ -1889,6 +1988,7 @@ psmintr(void *arg)
     };
     register struct psm_softc *sc = arg;
     mousestatus_t ms;
+    struct timeval tv;
     int x, y, z;
     int c;
     int l;
@@ -1901,6 +2001,16 @@ psmintr(void *arg)
         if ((sc->state & PSM_OPEN) == 0)
             continue;
     
+	getmicrouptime(&tv);
+	if ((sc->inputbytes > 0) && timevalcmp(&tv, &sc->inputtimeout, >)) {
+	    log(LOG_DEBUG, "psmintr: delay too long; resetting byte count\n");
+	    sc->inputbytes = 0;
+	    sc->syncerrors = 0;
+	}
+	sc->inputtimeout.tv_sec = PSM_INPUT_TIMEOUT/1000000;
+	sc->inputtimeout.tv_usec = PSM_INPUT_TIMEOUT%1000000;
+	timevaladd(&sc->inputtimeout, &tv);
+
         sc->ipacket[sc->inputbytes++] = c;
         if (sc->inputbytes < sc->mode.packetsize) 
 	    continue;
@@ -1916,17 +2026,25 @@ psmintr(void *arg)
 	if ((c & sc->mode.syncmask[0]) != sc->mode.syncmask[1]) {
             log(LOG_DEBUG, "psmintr: out of sync (%04x != %04x).\n", 
 		c & sc->mode.syncmask[0], sc->mode.syncmask[1]);
-	    sc->inputbytes = 0;
-	    if (sc->config & PSM_CONFIG_SYNCHACK) {
-		/*
-		 * XXX: this is a grotesque hack to get us out of
-		 * dreaded "out of sync" error.
-		 */
+	    ++sc->syncerrors;
+	    if (sc->syncerrors < sc->mode.packetsize) {
+		log(LOG_DEBUG, "psmintr: discard a byte (%d).\n", sc->syncerrors);
+		--sc->inputbytes;
+		bcopy(&sc->ipacket[1], &sc->ipacket[0], sc->inputbytes);
+	    } else if (sc->syncerrors == sc->mode.packetsize) {
 		log(LOG_DEBUG, "psmintr: re-enable the mouse.\n");
+		sc->inputbytes = 0;
 		disable_aux_dev(sc->kbdc);
 		enable_aux_dev(sc->kbdc);
+	    } else if (sc->syncerrors < PSM_SYNCERR_THRESHOLD1) {
+		log(LOG_DEBUG, "psmintr: discard a byte (%d).\n", sc->syncerrors);
+		--sc->inputbytes;
+		bcopy(&sc->ipacket[1], &sc->ipacket[0], sc->inputbytes);
+	    } else if (sc->syncerrors >= PSM_SYNCERR_THRESHOLD1) {
+		log(LOG_DEBUG, "psmintr: reset the mouse.\n");
+		reinitialize(sc, TRUE);
 	    }
-            continue;
+	    continue;
 	}
 
 	/* 
@@ -2698,9 +2816,7 @@ psmresume(device_t dev)
 {
     struct psm_softc *sc = device_get_softc(dev);
     int unit = device_get_unit(dev);
-    int err = 0;
-    int s;
-    int c;
+    int err;
 
     if (verbose >= 2)
         log(LOG_NOTICE, "psm%d: system resume hook called.\n", unit);
@@ -2708,81 +2824,8 @@ psmresume(device_t dev)
     if (!(sc->config & PSM_CONFIG_HOOKRESUME))
 	return (0);
 
-    /* don't let anybody mess with the aux device */
-    if (!kbdc_lock(sc->kbdc, TRUE))
-	return (EIO);
-    s = spltty();
+    err = reinitialize(sc, sc->config & PSM_CONFIG_INITAFTERSUSPEND);
 
-    /* block our watchdog timer */
-    sc->watchdog = FALSE;
-    untimeout(psmtimeout, (void *)(uintptr_t)unit, sc->callout);
-    callout_handle_init(&sc->callout);
-
-    /* save the current controller command byte */
-    empty_both_buffers(sc->kbdc, 10);
-    c = get_controller_command_byte(sc->kbdc);
-    if (verbose >= 2)
-        log(LOG_DEBUG, "psm%d: current command byte: %04x (psmresume).\n", 
-	    unit, c);
-
-    /* enable the aux port but disable the aux interrupt and the keyboard */
-    if ((c == -1) || !set_controller_command_byte(sc->kbdc,
-	    kbdc_get_device_mask(sc->kbdc),
-  	    KBD_DISABLE_KBD_PORT | KBD_DISABLE_KBD_INT
-	        | KBD_ENABLE_AUX_PORT | KBD_DISABLE_AUX_INT)) {
-        /* CONTROLLER ERROR */
-	splx(s);
-        kbdc_lock(sc->kbdc, FALSE);
-	log(LOG_ERR, "psm%d: unable to set the command byte (psmresume).\n",
-	    unit);
-	return (EIO);
-    }
-
-    /* flush any data */
-    if (sc->state & PSM_VALID) {
-	disable_aux_dev(sc->kbdc);	/* this may fail; but never mind... */
-	empty_aux_buffer(sc->kbdc, 10);
-    }
-    sc->inputbytes = 0;
-
-    /* try to detect the aux device; are you still there? */
-    if (sc->config & PSM_CONFIG_INITAFTERSUSPEND) {
-	if (reinitialize(unit, &sc->mode)) {
-	    /* yes */
-	    sc->state |= PSM_VALID;
-	} else {
-	    /* the device has gone! */
-	    restore_controller(sc->kbdc, c);
-	    sc->state &= ~PSM_VALID;
-	    log(LOG_ERR, "psm%d: the aux device has gone! (psmresume).\n",
-		unit);
-	    err = ENXIO;
-	}
-    }
-    splx(s);
-
-    /* restore the driver state */
-    if ((sc->state & PSM_OPEN) && (err == 0)) {
-        /* enable the aux device and the port again */
-	err = doopen(unit, c);
-	if (err != 0) 
-	    log(LOG_ERR, "psm%d: failed to enable the device (psmresume).\n",
-		unit);
-    } else {
-        /* restore the keyboard port and disable the aux port */
-        if (!set_controller_command_byte(sc->kbdc, 
-                kbdc_get_device_mask(sc->kbdc),
-                (c & KBD_KBD_CONTROL_BITS)
-                    | KBD_DISABLE_AUX_PORT | KBD_DISABLE_AUX_INT)) {
-            /* CONTROLLER ERROR */
-            log(LOG_ERR, "psm%d: failed to disable the aux port (psmresume).\n",
-                unit);
-            err = EIO;
-	}
-    }
-
-    /* done */
-    kbdc_lock(sc->kbdc, FALSE);
     if ((sc->state & PSM_ASLP) && !(sc->state & PSM_VALID)) {
 	/* 
 	 * Release the blocked process; it must be notified that the device
