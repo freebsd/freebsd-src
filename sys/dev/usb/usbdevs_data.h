@@ -442,6 +442,12 @@ const struct usb_knowndev usb_knowndevs[] = {
 	    "DWL-120 Wireless adapter",
 	},
 	{
+	    USB_VENDOR_ATMEL, USB_PRODUCT_ATMEL_BW002,
+	    0,
+	    "Atmel",
+	    "BW002 Wireless adapter",
+	},
+	{
 	    USB_VENDOR_AVISION, USB_PRODUCT_AVISION_1200U,
 	    0,
 	    "Avision",
