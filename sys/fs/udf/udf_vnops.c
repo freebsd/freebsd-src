@@ -406,7 +406,7 @@ udf_read(struct vop_read_args *a)
 		error = udf_readatoffset(node, &size, offset, &bp, &data);
 		if (error)
 			return (error);
-		error = uiomove((caddr_t)data, size, uio);
+		error = uiomove(data, size, uio);
 		if (bp != NULL)
 			brelse(bp);
 		if (error)
@@ -524,7 +524,7 @@ udf_uiodir(struct udf_uiodir *uiodir, int de_size, struct uio *uio, long cookie)
 		return (-1);
 	}
 
-	return (uiomove((caddr_t)uiodir->dirent, de_size, uio));
+	return (uiomove(uiodir->dirent, de_size, uio));
 }
 
 static struct udf_dirstream *
