@@ -36,29 +36,7 @@
 
 #ifdef _KERNEL
 
-#define	mtx_intr_enable(mutex)	(mutex)->mtx_saveintr = ALPHA_PSL_IPL_0
-
-/*
- * Assembly macros (for internal use only)
- *--------------------------------------------------------------------------
- */
-
-/*
- * Get a spin lock, handle recusion inline.
- */
-#define _get_spin_lock(mp, tid, opts) do {				\
-	u_int _ipl = alpha_pal_swpipl(ALPHA_PSL_IPL_HIGH);		\
-	if (!_obtain_lock((mp), (tid))) {				\
-		if ((mp)->mtx_lock == (uintptr_t)(tid))			\
-			(mp)->mtx_recurse++;				\
-		else							\
-			_mtx_lock_spin((mp), (opts), _ipl, __FILE__,	\
-			    __LINE__);					\
-	} else {							\
-		alpha_mb();						\
-		(mp)->mtx_saveintr = _ipl;				\
-	}								\
-} while (0)
+#define	mtx_intr_enable(mutex)	(mutex)->mtx_savecrit = ALPHA_PSL_IPL_0
 
 #endif	/* _KERNEL */
 
