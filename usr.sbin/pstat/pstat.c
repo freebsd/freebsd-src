@@ -44,7 +44,6 @@ static char sccsid[] = "@(#)pstat.c	8.9 (Berkeley) 2/16/94";
 #include <sys/param.h>
 #include <sys/time.h>
 #include <sys/vnode.h>
-#include <sys/map.h>
 #include <sys/ucred.h>
 #define KERNEL
 #include <sys/file.h>
@@ -59,6 +58,7 @@ static char sccsid[] = "@(#)pstat.c	8.9 (Berkeley) 2/16/94";
 #include <sys/ioctl.h>
 #include <sys/tty.h>
 #include <sys/conf.h>
+#include <sys/rlist.h>
 
 #include <sys/sysctl.h>
 
@@ -72,25 +72,23 @@ static char sccsid[] = "@(#)pstat.c	8.9 (Berkeley) 2/16/94";
 #include <unistd.h>
 
 struct nlist nl[] = {
-#define VM_SWAPMAP	0
-	{ "_swapmap" },	/* list of free swap areas */
-#define VM_NSWAPMAP	1
-	{ "_nswapmap" },/* size of the swap map */
-#define VM_SWDEVT	2
+#define VM_SWAPLIST	0
+	{ "_swaplist" },/* list of free swap areas */
+#define VM_SWDEVT	1
 	{ "_swdevt" },	/* list of swap devices and sizes */
-#define VM_NSWAP	3
+#define VM_NSWAP	2
 	{ "_nswap" },	/* size of largest swap device */
-#define VM_NSWDEV	4
+#define VM_NSWDEV	3
 	{ "_nswdev" },	/* number of swap devices */
-#define VM_DMMAX	5
+#define VM_DMMAX	4
 	{ "_dmmax" },	/* maximum size of a swap block */
-#define	V_MOUNTLIST	6
+#define	V_MOUNTLIST	5
 	{ "_mountlist" },	/* address of head of mount list. */
-#define V_NUMV		7
+#define V_NUMV		6
 	{ "_numvnodes" },
-#define	FNL_NFILE	8
+#define	FNL_NFILE	7
 	{"_nfiles"},
-#define FNL_MAXFILE	9
+#define FNL_MAXFILE	8
 	{"_maxfiles"},
 #define NLMANDATORY FNL_MAXFILE	/* names up to here are mandatory */
 #define VM_NISWAP	NLMANDATORY + 1
@@ -962,6 +960,7 @@ swapmode()
 	struct map *swapmap, *kswapmap;
 	struct mapent *mp;
 
+#if 0
 	KGET(VM_NSWAP, nswap);
 	KGET(VM_NSWDEV, nswdev);
 	KGET(VM_DMMAX, dmmax);
@@ -1099,6 +1098,7 @@ swapmode()
 		    "Total", hlen, avail / div, used / div, nfree / div,
 		    (double)used / (double)avail * 100.0);
 	}
+#endif
 }
 
 void
