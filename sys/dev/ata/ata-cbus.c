@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002 - 2004 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 2002 - 2005 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <isa/isavar.h>
 #include <dev/ata/ata-all.h>
+#include <ata_if.h>
 
 /* local vars */
 struct ata_cbus_controller {
@@ -54,11 +55,10 @@ struct ata_cbus_controller {
     struct resource *bankio;
     struct resource *irq;
     void *ih;
-    void (*setmode)(struct ata_device *, int);
-    int (*locking)(struct ata_channel *, int);
     struct mtx bank_mtx;
-    int current_bank;
+    int locked_bank;
     int restart_bank;
+    int hardware_bank;
     struct {
 	void (*function)(void *);
 	void *argument;
@@ -67,8 +67,7 @@ struct ata_cbus_controller {
 
 /* local prototypes */
 static void ata_cbus_intr(void *);
-static int ata_cbus_banking(struct ata_channel *, int);
-static void ata_cbus_setmode(struct ata_device *, int);
+static int ata_cbus_banking(device_t parent, device_t dev, int flags);
 
 static int
 ata_cbus_probe(device_t dev)
@@ -162,10 +161,9 @@ ata_cbus_attach(device_t dev)
     }
 
     mtx_init(&ctlr->bank_mtx, "ATA cbus bank lock", NULL, MTX_DEF);
-    ctlr->current_bank = -1;
+    ctlr->hardware_bank = -1;
+    ctlr->locked_bank = -1;
     ctlr->restart_bank = -1;
-    ctlr->locking = ata_cbus_banking;
-    ctlr->setmode = ata_cbus_setmode;;
 
     if (!device_add_child(dev, "ata", 0))
 	return ENOMEM;
@@ -229,41 +227,44 @@ ata_cbus_intr(void *data)
     int unit;
 
     for (unit = 0; unit < 2; unit++) {
-        if (!(ch = ctlr->interrupt[unit].argument))
-            continue;
-        if (ch->locking(ch, ATA_LF_WHICH) == unit)
+	if (!(ch = ctlr->interrupt[unit].argument))
+	    continue;
+	if (ata_cbus_banking(device_get_parent(ch->dev), ch->dev,
+			     ATA_LF_WHICH) == unit)
 	    ctlr->interrupt[unit].function(ch);
     }
 }
 
 static int
-ata_cbus_banking(struct ata_channel *ch, int flags)
+ata_cbus_banking(device_t parent, device_t dev, int flags)
 {
-    struct ata_cbus_controller *ctlr =
-	device_get_softc(device_get_parent(ch->dev));
+    struct ata_cbus_controller *ctlr = device_get_softc(parent);
+    struct ata_channel *ch = device_get_softc(dev);
     int res;
 
     mtx_lock(&ctlr->bank_mtx);
     switch (flags) {
     case ATA_LF_LOCK:
-	if (ctlr->current_bank == -1)
-	    ctlr->current_bank = ch->unit;
-	if (ctlr->current_bank == ch->unit)
+	if (ctlr->locked_bank == -1)
+	    ctlr->locked_bank = ch->unit;
+	if (ctlr->locked_bank == ch->unit) {
+	    ctlr->hardware_bank = ch->unit;
 	    ATA_OUTB(ctlr->bankio, 0, ch->unit);
+	}
 	else
 	    ctlr->restart_bank = ch->unit;
 	break;
 
     case ATA_LF_UNLOCK:
-	if (ctlr->current_bank == ch->unit) {
-	    ctlr->current_bank = -1;
+	if (ctlr->locked_bank == ch->unit) {
+	    ctlr->locked_bank = -1;
 	    if (ctlr->restart_bank != -1) {
-		if (ctlr->interrupt[ctlr->restart_bank].argument) {
-    		    mtx_unlock(&ctlr->bank_mtx);
-		    ata_start(ctlr->interrupt[ctlr->restart_bank].argument);
-		    mtx_lock(&ctlr->bank_mtx);
+		if ((ch = ctlr->interrupt[ctlr->restart_bank].argument)) {
+		    ctlr->restart_bank = -1;
+		    mtx_unlock(&ctlr->bank_mtx);
+		    ata_start(ch->dev);
+		    return -1;
 		}
-		ctlr->restart_bank = -1;
 	    }
 	}
 	break;
@@ -271,26 +272,24 @@ ata_cbus_banking(struct ata_channel *ch, int flags)
     case ATA_LF_WHICH:
 	break;
     }
-    res = ctlr->current_bank;
+    res = ctlr->locked_bank;
     mtx_unlock(&ctlr->bank_mtx);
     return res;
 }
 
-static void
-ata_cbus_setmode(struct ata_device *atadev, int mode)
-{
-    atadev->mode = ata_limit_mode(atadev, mode, ATA_PIO_MAX);
-}
-
 static device_method_t ata_cbus_methods[] = {
-    /* device_interface */
-    DEVMETHOD(device_probe,	ata_cbus_probe),
-    DEVMETHOD(device_attach,	ata_cbus_attach),
+    /* device interface */
+    DEVMETHOD(device_probe,             ata_cbus_probe),
+    DEVMETHOD(device_attach,            ata_cbus_attach),
+//  DEVMETHOD(device_detach,            ata_cbus_detach),
 
     /* bus methods */
-    DEVMETHOD(bus_alloc_resource,	ata_cbus_alloc_resource),
-    DEVMETHOD(bus_setup_intr,		ata_cbus_setup_intr),
-    DEVMETHOD(bus_print_child,		ata_cbus_print_child),
+    DEVMETHOD(bus_alloc_resource,       ata_cbus_alloc_resource),
+    DEVMETHOD(bus_setup_intr,           ata_cbus_setup_intr),
+    DEVMETHOD(bus_print_child,          ata_cbus_print_child),
+
+    /* ATA methods */
+    DEVMETHOD(ata_locking,              ata_cbus_banking),
     { 0, 0 }
 };
 
@@ -330,19 +329,17 @@ ata_cbussub_probe(device_t dev)
 
     /* initialize softc for this channel */
     ch->flags |= ATA_USE_16BIT;
-    ch->locking = ctlr->locking;
-    ch->device[MASTER].setmode = ctlr->setmode;
-    ch->device[SLAVE].setmode = ctlr->setmode;
     ata_generic_hw(ch);
     return ata_probe(dev);
 }
 
 static device_method_t ata_cbussub_methods[] = {
     /* device interface */
-    DEVMETHOD(device_probe,	ata_cbussub_probe),
-    DEVMETHOD(device_attach,	ata_attach),
-    DEVMETHOD(device_detach,	ata_detach),
-    DEVMETHOD(device_resume,	ata_resume),
+    DEVMETHOD(device_probe,     ata_cbussub_probe),
+    DEVMETHOD(device_attach,    ata_attach),
+    DEVMETHOD(device_detach,    ata_detach),
+    DEVMETHOD(device_suspend,   ata_suspend),
+    DEVMETHOD(device_resume,    ata_resume),
     { 0, 0 }
 };
 
@@ -353,3 +350,4 @@ static driver_t ata_cbussub_driver = {
 };
 
 DRIVER_MODULE(ata, atacbus, ata_cbussub_driver, ata_devclass, 0, 0);
+MODULE_DEPEND(ata, ata, 1, 1, 1);

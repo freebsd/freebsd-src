@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2000 - 2004 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 2000 - 2005 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -373,17 +373,21 @@ main(int argc, char **argv)
 
 		iocmd.cmd = ATARAIDCREATE;
 		if (argc > 2) {
-			if (!strcmp(argv[2], "RAID0") ||
-			    !strcmp(argv[2], "stripe"))
-				iocmd.u.raid_setup.type = 1;
-			if (!strcmp(argv[2], "RAID1") ||
-			    !strcmp(argv[2],"mirror"))
-				iocmd.u.raid_setup.type = 2;
-			if (!strcmp(argv[2], "RAID0+1"))
-				iocmd.u.raid_setup.type = 3;
-			if (!strcmp(argv[2], "SPAN") ||
-			    !strcmp(argv[2], "JBOD"))
-				iocmd.u.raid_setup.type = 4;
+			if (!strcasecmp(argv[2], "RAID0") ||
+			    !strcasecmp(argv[2], "stripe"))
+				iocmd.u.raid_setup.type = AR_RAID0;
+			if (!strcasecmp(argv[2], "RAID1") ||
+			    !strcasecmp(argv[2],"mirror"))
+				iocmd.u.raid_setup.type = AR_RAID1;
+			if (!strcasecmp(argv[2], "RAID0+1") ||
+			    !strcasecmp(argv[2],"RAID10"))
+				iocmd.u.raid_setup.type = AR_RAID01;
+			if (!strcasecmp(argv[2], "RAID5"))
+				iocmd.u.raid_setup.type = AR_RAID5;
+			if (!strcasecmp(argv[2], "SPAN"))
+				iocmd.u.raid_setup.type = AR_SPAN;
+			if (!strcasecmp(argv[2], "JBOD"))
+				iocmd.u.raid_setup.type = AR_JBOD;
 		}
 		if (!iocmd.u.raid_setup.type) {
 			fprintf(stderr, "atacontrol: Invalid RAID type\n");
@@ -393,7 +397,9 @@ main(int argc, char **argv)
 			exit(EX_USAGE);
 		}
 
-		if (iocmd.u.raid_setup.type & 1) {
+		if (iocmd.u.raid_setup.type == AR_RAID0 ||
+		    iocmd.u.raid_setup.type == AR_RAID01 ||
+		    iocmd.u.raid_setup.type == AR_RAID5) {
 			if (argc < 4 ||
 			    !sscanf(argv[3], "%d",
 				    &iocmd.u.raid_setup.interleave) == 1) {
@@ -451,6 +457,14 @@ main(int argc, char **argv)
 		iocmd.cmd = ATARAIDREBUILD;
 		if (ioctl(fd, IOCATA, &iocmd) < 0)
 			warn("ioctl(ATARAIDREBUILD)");
+		else {
+			char buffer[128];
+			sprintf(buffer, "/usr/bin/nice -n 20 /bin/dd "
+				"if=/dev/ar%d of=/dev/null bs=1m &",
+				iocmd.channel);
+			if (system(buffer))
+				warn("background dd");
+		}
 	}
 	else if (!strcmp(argv[1], "status") && argc == 3) {
 		int i;
@@ -467,10 +481,16 @@ main(int argc, char **argv)
 		case AR_RAID1:
 			printf("RAID1");
 			break;
-		case AR_RAID0 | AR_RAID1:
+		case AR_RAID01:
 			printf("RAID0+1 stripesize=%d",
 				iocmd.u.raid_status.interleave);
 			break;
+		case AR_RAID5:
+			printf("RAID5 stripesize=%d",
+				iocmd.u.raid_status.interleave);
+			break;
+		case AR_JBOD:
+			printf("JBOD");
 		case AR_SPAN:
 			printf("SPAN");
 			break;

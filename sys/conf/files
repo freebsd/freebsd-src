@@ -387,6 +387,7 @@ dev/an/if_an_isa.c		optional an isa
 dev/an/if_an_pccard.c		optional an pccard
 dev/an/if_an_pci.c		optional an pci
 dev/asr/asr.c			optional asr pci
+dev/ata/ata_if.m		optional ata
 dev/ata/ata-all.c		optional ata
 dev/ata/ata-card.c		optional ata pccard
 dev/ata/ata-cbus.c		optional ata pc98

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998 - 2004 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 1998 - 2005 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -43,16 +43,18 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <sys/rman.h>
 #include <dev/ata/ata-all.h>
+#include <ata_if.h>
 
 /* prototypes */
 static void ata_completed(void *, int);
 static void ata_timeout(struct ata_request *);
+static void ata_sort_queue(struct ata_channel *ch, struct ata_request *request);
 static char *ata_skey2str(u_int8_t);
 
 void
 ata_queue_request(struct ata_request *request)
 {
-    struct ata_channel *ch = request->device->channel;
+    struct ata_channel *ch = device_get_softc(device_get_parent(request->dev));
 
     /* mark request as virgin */
     request->result = request->status = request->error = 0;
@@ -61,16 +63,13 @@ ata_queue_request(struct ata_request *request)
     if (!request->callback && !(request->flags & ATA_R_REQUEUE))
 	sema_init(&request->done, 0, "ATA request done");
 
-    /* in IMMEDIATE_MODE we dont queue but call HW directly */
-    /* used only during reinit for getparm and config */
-    if ((ch->flags & ATA_IMMEDIATE_MODE) &&
-	(request->flags & (ATA_R_CONTROL | ATA_R_IMMEDIATE))) {
+    /* in ATA_STALL_QUEUE state we call HW directly (used only during reinit) */
+    if ((ch->state & ATA_STALL_QUEUE) && (request->flags & ATA_R_CONTROL)) {
 
 	/* arm timeout */
 	if (!dumping)
 	    callout_reset(&request->callout, request->timeout * hz,
 			  (timeout_t*)ata_timeout, request);
-	
 	/* kick HW into action */
 	ch->running = request;
 	if (ch->hw.begin_transaction(request) == ATA_OP_FINISHED) {
@@ -84,13 +83,15 @@ ata_queue_request(struct ata_request *request)
     else  {
 	/* put request on the locked queue at the specified location */
 	mtx_lock(&ch->queue_mtx);
-	if (request->flags & ATA_R_IMMEDIATE)
+	if (request->flags & ATA_R_AT_HEAD)
 	    TAILQ_INSERT_HEAD(&ch->ata_queue, request, chain);
+	else if (request->flags & ATA_R_ORDERED)
+	    ata_sort_queue(ch, request);
 	else
 	    TAILQ_INSERT_TAIL(&ch->ata_queue, request, chain);
 	mtx_unlock(&ch->queue_mtx);
 	ATA_DEBUG_RQ(request, "queued");
-	ata_start(ch);
+	ata_start(ch->dev);
     }
 
     /* if this is a requeued request callback/sleep has been setup */
@@ -100,7 +101,12 @@ ata_queue_request(struct ata_request *request)
     /* if this is not a callback wait until request is completed */
     if (!request->callback) {
 	ATA_DEBUG_RQ(request, "wait for completition");
-	sema_wait(&request->done);
+	while (sema_timedwait(&request->done, request->timeout * hz * 4)) {
+	    device_printf(request->dev,
+		"req=%p %s semaphore timeout !! DANGER Will Robinson !!\n",
+		      request, ata_cmd2str(request));
+	    ata_start(ch->dev);
+	}
 	sema_destroy(&request->done);
     }
 }
@@ -113,13 +119,13 @@ ata_controlcmd(struct ata_device *atadev, u_int8_t command, u_int16_t feature,
     int error = ENOMEM;
 
     if (request) {
-	request->device = atadev;
+	request->dev = atadev->dev;
 	request->u.ata.command = command;
 	request->u.ata.lba = lba;
 	request->u.ata.count = count;
 	request->u.ata.feature = feature;
 	request->flags = ATA_R_CONTROL;
-	request->timeout = 5;
+	request->timeout = 1;
 	request->retries = 0;
 	ata_queue_request(request);
 	error = request->result;
@@ -136,8 +142,8 @@ ata_atapicmd(struct ata_device *atadev, u_int8_t *ccb, caddr_t data,
     int error = ENOMEM;
 
     if (request) {
-	request->device = atadev;
-	if ((atadev->param->config & ATA_PROTO_MASK) == ATA_PROTO_ATAPI_12)
+	request->dev = atadev->dev;
+	if ((atadev->param.config & ATA_PROTO_MASK) == ATA_PROTO_ATAPI_12)
 	    bcopy(ccb, request->u.atapi.ccb, 12);
 	else
 	    bcopy(ccb, request->u.atapi.ccb, 16);
@@ -154,47 +160,58 @@ ata_atapicmd(struct ata_device *atadev, u_int8_t *ccb, caddr_t data,
 }
 
 void
-ata_start(struct ata_channel *ch)
+ata_start(device_t dev)
 {
+    struct ata_channel *ch = device_get_softc(dev);
     struct ata_request *request;
-
-    /* if in immediate mode, just skip start requests (stall queue) */
-    if (ch->flags & ATA_IMMEDIATE_MODE)
-	return;
-
-    /* if we dont have any work, ask the subdriver(s) */
-    mtx_lock(&ch->queue_mtx);
-    if (TAILQ_EMPTY(&ch->ata_queue)) {
-	mtx_unlock(&ch->queue_mtx);
-	if (ch->device[MASTER].start)
-	    ch->device[MASTER].start(&ch->device[MASTER]);
-	if (ch->device[SLAVE].start)
-	    ch->device[SLAVE].start(&ch->device[SLAVE]);
-	mtx_lock(&ch->queue_mtx);
-    }
+    struct ata_composite *cptr;
+    int dependencies = 0;
 
     /* if we have a request on the queue try to get it running */
+    mtx_lock(&ch->queue_mtx);
     if ((request = TAILQ_FIRST(&ch->ata_queue))) {
 
 	/* we need the locking function to get the lock for this channel */
-	if (ch->locking(ch, ATA_LF_LOCK) == ch->unit) {
+	if (ATA_LOCKING(device_get_parent(dev), dev, ATA_LF_LOCK) == ch->unit) {
 
-	    /* check for the right state */
+	    /* check for composite dependencies */
+	    if ((cptr = request->composite)) {
+		mtx_lock(&cptr->lock);
+		if ((request->flags & ATA_R_WRITE) &&
+		    (cptr->wr_depend & cptr->rd_done) != cptr->wr_depend) {
+		    dependencies = 1;
+		}
+		mtx_unlock(&cptr->lock);
+	    }
+
+	    /* check we are int the right state and has no dependencies */
 	    mtx_lock(&ch->state_mtx);
-	    if (ch->state == ATA_IDLE) {
+	    if (ch->state == ATA_IDLE && !dependencies) {
 		ATA_DEBUG_RQ(request, "starting");
+#if 0
+		if (request->sequence_count)
+		    request = request->sequence[--request->sequence_count];
+		else
+#else
 		TAILQ_REMOVE(&ch->ata_queue, request, chain);
+#endif
 		ch->running = request;
 		ch->state = ATA_ACTIVE;
+
+		/* if we are the freezing point release it */
+		if (ch->freezepoint == request)
+		    ch->freezepoint = NULL;
+
+		/* arm timeout for this request */
 		if (!dumping)
 		    callout_reset(&request->callout, request->timeout * hz,
 				  (timeout_t*)ata_timeout, request);
 		if (ch->hw.begin_transaction(request) == ATA_OP_FINISHED) {
 		    ch->running = NULL;
 		    ch->state = ATA_IDLE;
-		    mtx_unlock(&ch->queue_mtx);
 		    mtx_unlock(&ch->state_mtx);
-		    ch->locking(ch, ATA_LF_UNLOCK);
+		    mtx_unlock(&ch->queue_mtx);
+		    ATA_LOCKING(device_get_parent(dev), dev, ATA_LF_UNLOCK);
 		    ata_finish(request);
 		    return;
 		}
@@ -208,25 +225,26 @@ ata_start(struct ata_channel *ch)
 void
 ata_finish(struct ata_request *request)
 {
-    struct ata_channel *ch = request->device->channel;
+    struct ata_channel *ch = device_get_softc(device_get_parent(request->dev));
 
-    /* schedule it for completition */
-    if (ch->flags & ATA_IMMEDIATE_MODE) {
+    /* if in STALL_QUEUE state or request is ATA_R_DIRECT call complete now */
+    if ((ch->state & ATA_STALL_QUEUE) || (request->flags & ATA_R_DIRECT)) {
 	ATA_DEBUG_RQ(request, "finish directly");
 	ata_completed(request, 0);
     }
     else {
-	if (!dumping)
+	/* reset timeout and put on the proper taskqueue for completition */
+	if (!dumping && !(request->flags & ATA_R_TIMEOUT))
 	    callout_reset(&request->callout, request->timeout * hz,
 			  (timeout_t*)ata_timeout, request);
-	if (request->bio && !(request->flags & ATA_R_TIMEOUT)) {
+	if (request->bio && !(request->flags & (ATA_R_THREAD | ATA_R_TIMEOUT))){
 	    ATA_DEBUG_RQ(request, "finish bio_taskqueue");
 	    bio_taskqueue(request->bio, (bio_task_t *)ata_completed, request);
 	}
 	else {
 	    TASK_INIT(&request->task, 0, ata_completed, request);
-	    ATA_DEBUG_RQ(request, "finish taskqueue_thread");
-	    taskqueue_enqueue(taskqueue_thread, &request->task);
+	    ATA_DEBUG_RQ(request, "finish taskqueue_swi");
+	    taskqueue_enqueue(taskqueue_swi, &request->task);
 	}
     }
 }
@@ -235,7 +253,9 @@ static void
 ata_completed(void *context, int dummy)
 {
     struct ata_request *request = (struct ata_request *)context;
-    struct ata_channel *ch = request->device->channel;
+    struct ata_channel *ch = device_get_softc(device_get_parent(request->dev));
+    struct ata_device *atadev = device_get_softc(request->dev);
+    struct ata_composite *composite;
 
     ATA_DEBUG_RQ(request, "completed entered");
 
@@ -245,21 +265,25 @@ ata_completed(void *context, int dummy)
 	 * if reinit succeeds, retries still permit and device didn't
 	 * get removed by the reinit, reinject request
 	 */
-	if (!ata_reinit(ch) && request->retries-- > 0
-	    && request->device->param){
+	if (!ata_reinit(ch->dev) && request->dev && (request->retries-- > 0)) {
 	    request->flags &= ~(ATA_R_TIMEOUT | ATA_R_DEBUG);
-	    request->flags |= (ATA_R_IMMEDIATE | ATA_R_REQUEUE);
-	    request->donecount = 0;
+	    request->flags |= (ATA_R_AT_HEAD | ATA_R_REQUEUE);
 	    ATA_DEBUG_RQ(request, "completed reinject");
 	    ata_queue_request(request);
 	    return;
 	}
 
 	/* nothing more to try so finish with error */
-	if (!(request->flags & ATA_R_QUIET))
-	    ata_prtdev(request->device,
-		       "FAILURE - %s timed out\n",
-		       ata_cmd2str(request));
+	if (!(request->flags & ATA_R_QUIET)) {
+	    if (request->dev) {
+		device_printf(request->dev,
+			      "FAILURE - %s timed out",
+			      ata_cmd2str(request));
+		if (!(request->flags & (ATA_R_ATAPI | ATA_R_CONTROL)))
+		    printf(" LBA=%llu", (unsigned long long)request->u.ata.lba);
+		printf("\n");
+	    }
+	}
 	if (!request->result)
 	    request->result = EIO;
     }
@@ -269,9 +293,9 @@ ata_completed(void *context, int dummy)
 
 	/* if this is a soft ECC error warn about it */
 	if ((request->status & (ATA_S_CORR | ATA_S_ERROR)) == ATA_S_CORR) {
-	    ata_prtdev(request->device,
-		       "WARNING - %s soft error (ECC corrected)",
-		       ata_cmd2str(request));
+	    device_printf(request->dev,
+			  "WARNING - %s soft error (ECC corrected)",
+			  ata_cmd2str(request));
 	    if (!(request->flags & (ATA_R_ATAPI | ATA_R_CONTROL)))
 		printf(" LBA=%llu", (unsigned long long)request->u.ata.lba);
 	    printf("\n");
@@ -280,13 +304,13 @@ ata_completed(void *context, int dummy)
 	/* if this is a UDMA CRC error, retry request */
 	if (request->flags & ATA_R_DMA && request->error & ATA_E_ICRC) {
 	    if (request->retries-- > 0) {
-		ata_prtdev(request->device,
-			   "WARNING - %s UDMA ICRC error (retrying request)",
-			   ata_cmd2str(request));
+		device_printf(request->dev,
+			      "WARNING - %s UDMA ICRC error (retrying request)",
+			      ata_cmd2str(request));
 		if (!(request->flags & (ATA_R_ATAPI | ATA_R_CONTROL)))
 		    printf(" LBA=%llu", (unsigned long long)request->u.ata.lba);
 		printf("\n");
-		request->flags |= (ATA_R_IMMEDIATE | ATA_R_REQUEUE);
+		request->flags |= (ATA_R_AT_HEAD | ATA_R_REQUEUE);
 		ata_queue_request(request);
 		return;
 	    }
@@ -299,14 +323,15 @@ ata_completed(void *context, int dummy)
     default:
 	if (!request->result && request->status & ATA_S_ERROR) {
 	    if (!(request->flags & ATA_R_QUIET)) {
-		ata_prtdev(request->device,
-			   "FAILURE - %s status=%b error=%b", 
-			   ata_cmd2str(request),
-			   request->status, "\20\10BUSY\7READY\6DMA_READY"
-			   "\5DSC\4DRQ\3CORRECTABLE\2INDEX\1ERROR",
-			   request->error, "\20\10ICRC\7UNCORRECTABLE"
-			   "\6MEDIA_CHANGED\5NID_NOT_FOUND\4MEDIA_CHANGE_REQEST"
-			   "\3ABORTED\2NO_MEDIA\1ILLEGAL_LENGTH");
+		device_printf(request->dev,
+			      "FAILURE - %s status=%b error=%b", 
+			      ata_cmd2str(request),
+			      request->status, "\20\10BUSY\7READY\6DMA_READY"
+			      "\5DSC\4DRQ\3CORRECTABLE\2INDEX\1ERROR",
+			      request->error, "\20\10ICRC\7UNCORRECTABLE"
+			      "\6MEDIA_CHANGED\5NID_NOT_FOUND"
+			      "\4MEDIA_CHANGE_REQEST"
+			      "\3ABORTED\2NO_MEDIA\1ILLEGAL_LENGTH");
 		if ((request->flags & ATA_R_DMA) &&
 		    (request->dmastat & ATA_BMSTAT_ERROR))
 		    printf(" dma=0x%02x", request->dmastat);
@@ -314,8 +339,6 @@ ata_completed(void *context, int dummy)
 		    printf(" LBA=%llu", (unsigned long long)request->u.ata.lba);
 		printf("\n");
 	    }
-
-	    /* SOS this could be more precise ? XXX */
 	    request->result = EIO;
 	}
 	break;
@@ -330,7 +353,7 @@ ata_completed(void *context, int dummy)
 	if (request->error & ATA_SK_MASK &&
 	    request->u.atapi.ccb[0] != ATAPI_REQUEST_SENSE) {
 	    static u_int8_t ccb[16] = { ATAPI_REQUEST_SENSE, 0, 0, 0,
-                			sizeof(struct atapi_sense),
+					sizeof(struct atapi_sense),
 					0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
 	    request->u.atapi.sense_key = request->error;
@@ -341,7 +364,7 @@ ata_completed(void *context, int dummy)
 	    request->transfersize = sizeof(struct atapi_sense);
 	    request->timeout = 5;
 	    request->flags &= (ATA_R_ATAPI | ATA_R_QUIET);
-	    request->flags |= (ATA_R_READ | ATA_R_IMMEDIATE | ATA_R_REQUEUE);
+	    request->flags |= (ATA_R_READ | ATA_R_AT_HEAD | ATA_R_REQUEUE);
 	    ATA_DEBUG_RQ(request, "autoissue request sense");
 	    ata_queue_request(request);
 	    return;
@@ -349,8 +372,8 @@ ata_completed(void *context, int dummy)
 
 	switch (request->u.atapi.sense_key & ATA_SK_MASK) {
 	case ATA_SK_RECOVERED_ERROR:
-	    ata_prtdev(request->device, "WARNING - %s recovered error\n",
-		       ata_cmd2str(request));
+	    device_printf(request->dev, "WARNING - %s recovered error\n",
+			  ata_cmd2str(request));
 	    /* FALLTHROUGH */
 
 	case ATA_SK_NO_SENSE:
@@ -362,7 +385,7 @@ ata_completed(void *context, int dummy)
 	    break;
 
 	case ATA_SK_UNIT_ATTENTION:
-	    request->device->flags |= ATA_D_MEDIA_CHANGED;
+	    atadev->flags |= ATA_D_MEDIA_CHANGED;
 	    request->result = EIO;
 	    break;
 
@@ -371,12 +394,12 @@ ata_completed(void *context, int dummy)
 	    if (request->flags & ATA_R_QUIET)
 		break;
 
-	    ata_prtdev(request->device,
-		       "FAILURE - %s %s asc=0x%02x ascq=0x%02x ",
-		       ata_cmd2str(request), ata_skey2str(
-		       (request->u.atapi.sense_key & ATA_SK_MASK) >> 4),
-		       request->u.atapi.sense_data.asc,
-		       request->u.atapi.sense_data.ascq);
+	    device_printf(request->dev,
+			  "FAILURE - %s %s asc=0x%02x ascq=0x%02x ",
+			  ata_cmd2str(request), ata_skey2str(
+			  (request->u.atapi.sense_key & ATA_SK_MASK) >> 4),
+			  request->u.atapi.sense_data.asc,
+			  request->u.atapi.sense_data.ascq);
 	    if (request->u.atapi.sense_data.sksv)
 		printf("sks=0x%02x 0x%02x 0x%02x ",
 		       request->u.atapi.sense_data.sk_specific,
@@ -395,29 +418,50 @@ ata_completed(void *context, int dummy)
 
     ATA_DEBUG_RQ(request, "completed callback/wakeup");
 
+    /* if we are part of a composite operation update progress */
+    if ((composite = request->composite)) {
+	int index = 0;
+
+	mtx_lock(&composite->lock);
+	if (request->flags & ATA_R_READ)
+	    composite->rd_done |= (1 << request->this);
+	if (request->flags & ATA_R_WRITE)
+	    composite->wr_done |= (1 << request->this);
+
+	if (composite->wr_depend &&
+	    (composite->rd_done & composite->wr_depend)==composite->wr_depend &&
+	    (composite->wr_needed & (~composite->wr_done))) {
+	    index = ((composite->wr_needed & (~composite->wr_done))) - 1;
+	}
+	mtx_unlock(&composite->lock);
+	if (index)
+	    ata_start(device_get_parent(composite->request[index]->dev));
+    }
+
     /* get results back to the initiator */
     if (request->callback)
 	(request->callback)(request);
     else
 	sema_post(&request->done);
 
-    ata_start(ch);
+    ata_start(ch->dev);
 }
 
 static void
 ata_timeout(struct ata_request *request)
 {
-    struct ata_channel *ch = request->device->channel;
+    struct ata_channel *ch = device_get_softc(device_get_parent(request->dev));
 
     mtx_lock(&ch->state_mtx);
 
+    //request->flags |= ATA_R_DEBUG;
     ATA_DEBUG_RQ(request, "timeout");
 
     /* if interrupt has been seen, shout and just rearm timeout */
     if (request->flags & ATA_R_INTR_SEEN) {
-        ata_prtdev(request->device,
-		   "WARNING - %s interrupt was seen but timeout fired",
-		   ata_cmd2str(request));
+	device_printf(request->dev,
+		      "WARNING - %s interrupt was seen but timeout fired",
+		      ata_cmd2str(request));
 	if (!(request->flags & (ATA_R_ATAPI | ATA_R_CONTROL)))
 	    printf(" LBA=%llu", (unsigned long long)request->u.ata.lba);
 	printf("\n");
@@ -431,29 +475,29 @@ ata_timeout(struct ata_request *request)
     }
 
     /*
-     * if we are waiting for a command to complete set ATA_TIMEOUT so
-     * we wont loose the race with an eventual interrupt arriving late
+     * grap and hold the state lock so we wont loose the race with 
+     * an eventual interrupt arriving late
      */
-    if (ch->state == ATA_ACTIVE) {
+    if (ch->state == ATA_ACTIVE || ch->state == ATA_STALL_QUEUE) {
 	request->flags |= ATA_R_TIMEOUT;
-        ch->state = ATA_TIMEOUT;
-        ch->running = NULL;
 	if (!(request->flags & ATA_R_QUIET) && request->retries > 0) {
-	    ata_prtdev(request->device,
-		       "TIMEOUT - %s retrying (%d retr%s left)",
-		       ata_cmd2str(request), request->retries,
-		       request->retries == 1 ? "y" : "ies");
+	    device_printf(request->dev,
+			  "TIMEOUT - %s retrying (%d retr%s left)",
+			  ata_cmd2str(request), request->retries,
+			  request->retries == 1 ? "y" : "ies");
 	    if (!(request->flags & (ATA_R_ATAPI | ATA_R_CONTROL)))
 		printf(" LBA=%llu", (unsigned long long)request->u.ata.lba);
 	    printf("\n");
 	}
 	ch->hw.end_transaction(request);
+	ch->state |= ATA_TIMEOUT;
 	mtx_unlock(&ch->state_mtx);
+	ATA_LOCKING(device_get_parent(ch->dev), ch->dev, ATA_LF_UNLOCK);
 	ata_finish(request);
     }
     else {
 	mtx_unlock(&ch->state_mtx);
-	ata_prtdev(request->device, "timeout state=%d unexpected\n", ch->state);
+	device_printf(request->dev, "timeout state=%d unexpected\n", ch->state);
     }
 }
 
@@ -468,33 +512,32 @@ ata_catch_inflight(struct ata_channel *ch)
     mtx_unlock(&ch->state_mtx);
 
     if (request) {
-        callout_drain(&request->callout);
-        ata_prtdev(request->device,
-                   "WARNING - %s requeued due to channel reset",
-                   ata_cmd2str(request));
-        if (!(request->flags & (ATA_R_ATAPI | ATA_R_CONTROL)))
-            printf(" LBA=%llu", (unsigned long long)request->u.ata.lba);
-        printf("\n");
-        request->flags |= ATA_R_REQUEUE;
-        ata_queue_request(request);
+	callout_drain(&request->callout);
+	device_printf(request->dev,
+		      "WARNING - %s requeued due to channel reset",
+		      ata_cmd2str(request));
+	if (!(request->flags & (ATA_R_ATAPI | ATA_R_CONTROL)))
+	    printf(" LBA=%llu", (unsigned long long)request->u.ata.lba);
+	printf("\n");
+	request->flags |= ATA_R_REQUEUE;
+	ata_queue_request(request);
     }
 }
 
 void
-ata_fail_requests(struct ata_channel *ch, struct ata_device *device)
+ata_fail_requests(struct ata_channel *ch, device_t dev)
 {
     struct ata_request *request;
 
-    /* fail all requests queued on this channel */
+    /* fail all requests queued on this channel for device dev if !NULL */
     mtx_lock(&ch->queue_mtx);
     while ((request = TAILQ_FIRST(&ch->ata_queue))) {
-	if (!device || request->device == device) {
+	if (!dev || request->dev == dev) {
 	    TAILQ_REMOVE(&ch->ata_queue, request, chain);
+	    mtx_unlock(&ch->queue_mtx);
 	    request->result = ENXIO;
-	    if (request->callback)
-		(request->callback)(request);
-	    else
-		sema_post(&request->done);
+	    ata_finish(request);
+	    mtx_lock(&ch->queue_mtx);
 	}
     }
     mtx_unlock(&ch->queue_mtx);
@@ -505,14 +548,86 @@ ata_fail_requests(struct ata_channel *ch, struct ata_device *device)
     mtx_unlock(&ch->state_mtx);
 
     /* if we have a request "in flight" fail it as well */
-    if (request && (!device || request->device == device)) {
+    if (request && (!dev || request->dev == dev)) {
 	callout_drain(&request->callout);
 	request->result = ENXIO;
-	if (request->callback)
-	    (request->callback)(request);
-	else
-	    sema_post(&request->done);
+	ata_finish(request);
     }
+}
+
+static u_int64_t
+ata_get_lba(struct ata_request *request)
+{
+    if (request->flags & ATA_R_ATAPI) {
+	switch (request->u.atapi.ccb[0]) {
+	case ATAPI_READ_BIG:
+	case ATAPI_WRITE_BIG:
+	case ATAPI_READ_CD:
+	    return (request->u.atapi.ccb[5]) | (request->u.atapi.ccb[4]<<8) |
+		   (request->u.atapi.ccb[3]<<16)|(request->u.atapi.ccb[2]<<24);
+	case ATAPI_READ:
+	case ATAPI_WRITE:
+	    return (request->u.atapi.ccb[4]) | (request->u.atapi.ccb[3]<<8) |
+		   (request->u.atapi.ccb[2]<<16);
+	default:
+	    return 0;
+	}
+    }
+    else
+	return request->u.ata.lba;
+}
+
+static void
+ata_sort_queue(struct ata_channel *ch, struct ata_request *request)
+{
+    struct ata_request *this, *next;
+
+    this = TAILQ_FIRST(&ch->ata_queue);
+
+    /* if the queue is empty just insert */
+    if (!this) {
+	if (request->composite)
+	    ch->freezepoint = request;
+	TAILQ_INSERT_TAIL(&ch->ata_queue, request, chain);
+	return;
+    }
+
+    /* dont sort frozen parts of the queue */
+    if (ch->freezepoint)
+	this = ch->freezepoint;
+	
+    /* if position is less than head we add after tipping point */
+    if (ata_get_lba(request) < ata_get_lba(this)) {
+	while ((next = TAILQ_NEXT(this, chain))) {
+
+	    /* have we reached the tipping point */
+	    if (ata_get_lba(next) < ata_get_lba(this)) {
+
+		/* sort the insert */
+		do {
+		    if (ata_get_lba(request) < ata_get_lba(next))
+			break;
+		    this = next;
+		} while ((next = TAILQ_NEXT(this, chain)));
+		break;
+	    }
+	    this = next;
+	}
+    }
+
+    /* we are after head so sort the insert before tipping point */
+    else {
+	while ((next = TAILQ_NEXT(this, chain))) {
+	    if (ata_get_lba(next) < ata_get_lba(this) ||
+		ata_get_lba(request) < ata_get_lba(next))
+		break;
+	    this = next;
+	}
+    }
+
+    if (request->composite)
+	ch->freezepoint = request;
+    TAILQ_INSERT_AFTER(&ch->ata_queue, this, request, chain);
 }
 
 char *
@@ -579,7 +694,7 @@ ata_cmd2str(struct ata_request *request)
     else {
 	switch (request->u.ata.command) {
 	case 0x00: return ("NOP");
-	case 0x08: return ("ATAPI_RESET");
+	case 0x08: return ("DEVICE_RESET");
 	case 0x20: return ("READ");
 	case 0x24: return ("READ48");
 	case 0x25: return ("READ_DMA48");
@@ -590,6 +705,7 @@ ata_cmd2str(struct ata_request *request)
 	case 0x35: return ("WRITE_DMA48");
 	case 0x36: return ("WRITE_DMA_QUEUED48");
 	case 0x39: return ("WRITE_MUL48");
+	case 0x70: return ("SEEK");
 	case 0xa0: return ("PACKET_CMD");
 	case 0xa1: return ("ATAPI_IDENTIFY");
 	case 0xa2: return ("SERVICE");
@@ -612,7 +728,7 @@ ata_cmd2str(struct ata_request *request)
 	    case 0xaa: return ("SETFEATURES ENABLE RCACHE");
 	    case 0x55: return ("SETFEATURES DISABLE RCACHE");
 	    }
-    	    sprintf(buffer, "SETFEATURES 0x%02x", request->u.ata.feature);
+	    sprintf(buffer, "SETFEATURES 0x%02x", request->u.ata.feature);
 	    return buffer;
 	}
     }
