@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/fcntl.h>
 #include <pwd.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -77,9 +78,7 @@ static void usage(char *);
 extern int yp_update(char *, char *, int, char *, size_t, char *, size_t);
 
 int
-main(argc, argv)
-	int argc;
-	char **argv;
+main(int argc, char **argv)
 {
 	char name[MAXNETNAMELEN+1];
 	char public[HEXKEYBYTES + 1];
@@ -241,8 +240,7 @@ main(argc, argv)
 }
 
 static void
-usage(name)
-	char *name;
+usage(char *name)
 {
 	(void)fprintf(stderr, "usage: %s [-f]\n", name);
 	exit(1);
@@ -254,10 +252,7 @@ usage(name)
  * Set the entry in the public key file
  */
 int
-setpublicmap(name, public, secret)
-	char *name;
-	char *public;
-	char *secret;
+setpublicmap(char *name, char *public, char *secret)
 {
 	char pkent[1024];
 	
@@ -273,8 +268,7 @@ setpublicmap(name, public, secret)
 
 #ifdef YPPASSWD
 struct passwd *
-ypgetpwuid(uid)
-	uid_t uid;
+ypgetpwuid(uid_t uid)
 {
 	char uidstr[10];
 	char *val;
