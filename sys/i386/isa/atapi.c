@@ -103,6 +103,7 @@
 #include "opt_atapi.h"
 
 #ifndef ATAPI_MODULE
+# include "acd.h"
 # include "wcd.h"
 # include "wfd.h"
 # include "wst.h"
@@ -172,6 +173,7 @@ static int atapi_wait_cmd (struct atapi *ata, struct atapicmd *ac);
 static void atapi_poll_dsc(struct atapi *ata);
 
 extern int wdstart (int ctrlr);
+extern int acdattach(struct atapi*, int, struct atapi_params*, int);
 extern int wcdattach(struct atapi*, int, struct atapi_params*, int);
 extern int wfdattach(struct atapi*, int, struct atapi_params*, int);
 extern int wstattach(struct atapi*, int, struct atapi_params*, int);
@@ -295,16 +297,23 @@ int atapi_attach (int ctlr, int unit, int port)
 		}
 #endif
 	case AT_TYPE_CDROM:             /* CD-ROM device */
+#if NACD > 0
+		/* ATAPI CD-ROM & CD-R/RW drives */
+		if (acdattach (ata, unit, ap, ata->debug) < 0)
+			break;
+		ata->attached[unit] = 1;
+		return (1);
+#else
 #if NWCD > 0
-		/* ATAPI CD-ROM */
+		/* ATAPI CD-ROM drives */
 		if (wcdattach (ata, unit, ap, ata->debug) < 0)
 			break;
-		/* Device attached successfully. */
 		ata->attached[unit] = 1;
 		return (1);
 #else
 		printf ("wdc%d: ATAPI CD-ROMs not configured\n", ctlr);
 		break;
+#endif
 #endif
 
 	case AT_TYPE_TAPE:              /* streaming tape */
@@ -340,21 +349,36 @@ static char *cmdname (u_char cmd)
 
 	switch (cmd) {
 	case 0x00: return ("TEST_UNIT_READY");
+	case 0x01: return ("REZERO_UNIT");
 	case 0x03: return ("REQUEST_SENSE");
+	case 0x04: return ("FORMAT_UNIT");
 	case 0x1b: return ("START_STOP");
 	case 0x1e: return ("PREVENT_ALLOW");
 	case 0x25: return ("READ_CAPACITY");
 	case 0x28: return ("READ_BIG");
 	case 0x2a: return ("WRITE_BIG");
-	case 0x43: return ("READ_TOC");
+	case 0x35: return ("SYNCHRONIZE_CACHE");
 	case 0x42: return ("READ_SUBCHANNEL");
-	case 0x55: return ("MODE_SELECT_BIG");
+	case 0x43: return ("READ_TOC");
+	case 0x51: return ("READ_DISC_INFO");
+	case 0x52: return ("READ_TRACK_INFO");
+	case 0x53: return ("RESERVE_TRACK");
+	case 0x54: return ("SEND_OPC_INFO");
+	case 0x55: return ("MODE_SELECT");
+	case 0x58: return ("REPAIR_TRACK");
+	case 0x59: return ("READ_MASTER_CUE");
 	case 0x5a: return ("MODE_SENSE");
-	case 0xb4: return ("PLAY_CD");
+	case 0x5b: return ("CLOSE_TRACK/SESSION");
+	case 0x5c: return ("READ_BUFFER_CAPACITY");
+	case 0x5d: return ("SEND_CUE_SHEET");
 	case 0x47: return ("PLAY_MSF");
 	case 0x4b: return ("PAUSE");
 	case 0x48: return ("PLAY_TRACK");
+	case 0xa1: return ("BLANK_CMD");
 	case 0xa5: return ("PLAY_BIG");
+	case 0xb4: return ("PLAY_CD");
+	case 0xbd: return ("ATAPI_MECH_STATUS"); 
+	case 0xbe: return ("READ_CD");
 	}
 	sprintf (buf, "[0x%x]", cmd);
 	return (buf);
