@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_conf.c	8.8 (Berkeley) 3/31/94
- * $Id: vfs_conf.c,v 1.20 1998/01/09 03:21:01 eivind Exp $
+ * $Id: vfs_conf.c,v 1.21 1998/02/09 06:09:32 eivind Exp $
  */
 
 /*
@@ -135,6 +135,18 @@ vfs_mountrootfs(void *unused)
 	 * Attempt the mount
 	 */
 	err = VFS_MOUNT(mp, NULL, NULL, NULL, p);
+	/*
+	 * rootdev may be bogus (slice field may be incorrect for disks)
+	 * If slice field is nonzero, clear and retry.
+	 *
+	 * XXX Implicit knowledge of device minor number layout.
+	 *     This is placeholder code until saner root mounts arrive with
+	 *     DEVFS.
+	 */
+	if ((err == ENXIO) && (rootdev & 0xff0000)) {
+		rootdev &= ~0xff0000;
+		err = VFS_MOUNT(mp, NULL, NULL, NULL, p);
+	}
 	if (err) {
 		vfs_unbusy(mp, p);
 		/*
