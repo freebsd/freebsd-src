@@ -141,6 +141,7 @@ SYSVSHM		opt_sysvipc.h
 VFS_AIO
 WLCACHE		opt_wavelan.h
 WLDEBUG		opt_wavelan.h
+TTYHOG		opt_tty.h
 
 # POSIX kernel options
 _KPOSIX_PRIORITY_SCHEDULING	opt_posix.h

@@ -39,6 +39,7 @@
 /*****************************************************************************/
 
 #include "opt_compat.h"
+#include "opt_tty.h"
 
 #define	TTYDEFCHARS	1
 
