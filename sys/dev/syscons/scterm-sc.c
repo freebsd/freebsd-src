@@ -407,7 +407,7 @@ scterm_scan_esc(scr_stat *scp, term_stat *tcp, u_char c)
 					tcp->cur_attr = mask2attr(tcp);
 					break;
 				case 39: /* restore fg color back to normal */
-					tcp->attr_mask &= BG_CHANGED;
+					tcp->attr_mask &= ~(FG_CHANGED|BOLD_ATTR);
 					tcp->cur_color.fg = tcp->std_color.fg;
 					tcp->cur_attr = mask2attr(tcp);
 					break;
@@ -419,7 +419,7 @@ scterm_scan_esc(scr_stat *scp, term_stat *tcp, u_char c)
 					tcp->cur_attr = mask2attr(tcp);
 		    			break;
 				case 49: /* restore bg color back to normal */
-					tcp->attr_mask &= ~(BG_CHANGED|REVERSE_ATTR);
+					tcp->attr_mask &= ~BG_CHANGED;
 					tcp->cur_color.bg = tcp->std_color.bg;
 					tcp->cur_attr = mask2attr(tcp);
 					break;
