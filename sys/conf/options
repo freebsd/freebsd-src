@@ -673,3 +673,9 @@ AH_SUPPORT_AR5212	opt_ah.h
 AH_DEBUG		opt_ah.h
 AH_DEBUG_ALQ		opt_ah.h
 AH_ASSERT		opt_ah.h
+
+# dcons options 
+DCONS_BUF_SIZE		opt_dcons.h
+DCONS_POLL_HZ		opt_dcons.h
+DCONS_FORCE_CONSOLE	opt_dcons.h
+DCONS_FORCE_GDB		opt_dcons.h
