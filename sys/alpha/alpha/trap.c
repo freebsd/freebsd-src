@@ -297,13 +297,6 @@ trap(a0, a1, a2, entry, framep)
 	if (user)  {
 		sticks = td->td_kse->ke_sticks;
 		td->td_frame = framep;
-#ifdef DIAGNOSTIC
-		/* see the comment in ast() */
-		if (td->td_ucred != NULL)
-			panic("trap(): thread got a ucred while in userspace");
-		td->td_ucred = td->td_ucred_cache;
-		td->td_ucred_cache = NULL;
-#endif
 		if (td->td_ucred != p->p_ucred)
 			cred_update_thread(td);
 	} else {
@@ -631,12 +624,9 @@ out:
 		framep->tf_regs[FRAME_SP] = alpha_pal_rdusp();
 		userret(td, framep, sticks);
 		mtx_assert(&Giant, MA_NOTOWNED);
-#ifdef DIAGNOSTIC 			/* see the comment in ast() */
-		if (td->td_ucred_cache)
-			panic("trap: thread already has cached ucred");
-		td->td_ucred_cache = td->td_ucred;
-		td->td_ucred = NULL;
-#endif /* DIAGNOSTIC */
+#ifdef DIAGNOSTIC
+		cred_free_thread(td);
+#endif
 	}
 	return;
 
@@ -705,12 +695,6 @@ syscall(code, framep)
 	td->td_frame = framep;
 	opc = framep->tf_regs[FRAME_PC] - 4;
 	sticks = td->td_kse->ke_sticks;
-#ifdef DIAGNOSTIC 			/* see the comment in ast() */
-	if (td->td_ucred)
-		panic("syscall:thread got a cred while in userspace");
-	td->td_ucred = td->td_ucred_cache;
-	td->td_ucred_cache = NULL;
-#endif /* DIAGNOSTIC */
 	if (td->td_ucred != p->p_ucred)
 		cred_update_thread(td);
 
@@ -833,12 +817,9 @@ syscall(code, framep)
 	 */
 	STOPEVENT(p, S_SCX, code);
 
-#ifdef DIAGNOSTIC 			/* see the comment in ast() */
-	if (td->td_ucred_cache)
-		panic("syscall:thread already has cached ucred");
-	td->td_ucred_cache = td->td_ucred;
-	td->td_ucred = NULL;
-#endif /* DIAGNOSTIC */
+#ifdef DIAGNOSTIC
+	cred_free_thread(td);
+#endif
 #ifdef WITNESS
 	if (witness_list(td)) {
 		panic("system call %s returning with mutex(s) held\n",
