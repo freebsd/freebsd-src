@@ -3655,7 +3655,7 @@ int
 vmapbuf(struct buf *bp)
 {
 	caddr_t addr, kva;
-	vm_paddr_t pa;
+	vm_prot_t prot;
 	int pidx, i;
 	struct vm_page *m;
 	struct pmap *pmap = &curproc->p_vmspace->vm_pmap;
@@ -3666,6 +3666,8 @@ vmapbuf(struct buf *bp)
 		panic("vmapbuf");
 	if (bp->b_bufsize < 0)
 		return (-1);
+	prot = (bp->b_iocmd == BIO_READ) ? VM_PROT_READ | VM_PROT_WRITE :
+	    VM_PROT_READ;
 	for (addr = (caddr_t)trunc_page((vm_offset_t)bp->b_data), pidx = 0;
 	     addr < bp->b_data + bp->b_bufsize;
 	     addr += PAGE_SIZE, pidx++) {
@@ -3678,10 +3680,8 @@ vmapbuf(struct buf *bp)
 		 * to work for the kernland address space (see: sparc64 port).
 		 */
 retry:
-		i = vm_fault_quick((addr >= bp->b_data) ? addr : bp->b_data,
-			(bp->b_iocmd == BIO_READ) ?
-			(VM_PROT_READ|VM_PROT_WRITE) : VM_PROT_READ);
-		if (i < 0) {
+		if (vm_fault_quick(addr >= bp->b_data ? addr : bp->b_data,
+		    prot)) {
 			vm_page_lock_queues();
 			for (i = 0; i < pidx; ++i) {
 				vm_page_unhold(bp->b_pages[i]);
@@ -3690,15 +3690,9 @@ retry:
 			vm_page_unlock_queues();
 			return(-1);
 		}
-		pa = pmap_extract(pmap, (vm_offset_t)addr);
-		if (pa == 0) {
-			printf("vmapbuf: warning, race against user address during I/O");
+		m = pmap_extract_and_hold(pmap, (vm_offset_t)addr, prot);
+		if (m == NULL)
 			goto retry;
-		}
-		m = PHYS_TO_VM_PAGE(pa);
-		vm_page_lock_queues();
-		vm_page_hold(m);
-		vm_page_unlock_queues();
 		bp->b_pages[pidx] = m;
 	}
 	if (pidx > btoc(MAXPHYS))
