@@ -1,3 +1,11 @@
+cfs/cfs_namecache.c	optional vcfs
+cfs/cfs_nbsd.c		optional vcfs
+cfs/cfs_fbsd.c		optional vcfs
+cfs/cfs_psdev.c		optional vcfs
+cfs/cfs_subr.c		optional vcfs
+cfs/cfs_venus.c		optional vcfs
+cfs/cfs_vfsops.c	optional vcfs
+cfs/cfs_vnodeops.c	optional vcfs
 ddb/db_access.c		optional ddb
 ddb/db_aout.c		optional ddb
 ddb/db_break.c		optional ddb
@@ -358,6 +366,8 @@ ufs/ffs/ffs_vfsops.c	optional ffs
 ufs/ffs/ffs_vfsops.c	optional mfs
 ufs/ffs/ffs_vnops.c	optional ffs
 ufs/ffs/ffs_vnops.c	optional mfs
+ufs/ifs/ifs_isyscalls.c	optional vcfs
+ufs/ifs/ifs_subr.c	optional vcfs
 ufs/lfs/lfs_alloc.c	optional lfs
 ufs/lfs/lfs_balloc.c	optional lfs
 ufs/lfs/lfs_bio.c	optional lfs
