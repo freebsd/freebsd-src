@@ -46,7 +46,7 @@
 .Ft int
 .Fn getitimer "int which" "struct itimerval *value"
 .Ft int
-.Fn setitimer "int which" "struct itimerval *value" "struct itimerval *ovalue"
+.Fn setitimer "int which" "const struct itimerval *value" "struct itimerval *ovalue"
 .Sh DESCRIPTION
 The system provides each process with three interval timers,
 defined in
@@ -85,7 +85,9 @@ is non-zero, it specifies a value to be used in reloading
 when the timer expires.
 Setting 
 .Fa it_value
-to 0 disables a timer.  Setting 
+to 0 disables a timer, regardless of the value of
+.Fa it_interval .
+Setting
 .Fa it_interval
 to 0 causes a timer to be disabled after its next expiration (assuming
 .Fa it_value
@@ -124,6 +126,14 @@ signal is
 delivered.  Because this signal may interrupt in-progress
 system calls, programs using this timer must be prepared to
 restart interrupted system calls.
+.Pp
+The maximum number of seconds allowed for
+.Fa it_interval
+and
+.Fa it_value
+in
+.Fn setitimer
+is 100000000.
 .Sh NOTES
 Three macros for manipulating time values are defined in
 .Ao Pa sys/time.h Ac .
