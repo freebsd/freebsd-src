@@ -98,7 +98,6 @@ contrib/dev/acpica/exstoren.c	 optional acpica
 contrib/dev/acpica/exstorob.c	 optional acpica
 contrib/dev/acpica/exsystem.c	 optional acpica
 contrib/dev/acpica/exutils.c	 optional acpica
-contrib/dev/acpica/exxface.c	 optional acpica
 contrib/dev/acpica/hwacpi.c	 optional acpica
 contrib/dev/acpica/hwgpe.c	 optional acpica
 contrib/dev/acpica/hwregs.c	 optional acpica
@@ -151,6 +150,7 @@ contrib/dev/acpica/utdelete.c	 optional acpica
 contrib/dev/acpica/uteval.c	 optional acpica
 contrib/dev/acpica/utglobal.c	 optional acpica
 contrib/dev/acpica/utinit.c	 optional acpica
+contrib/dev/acpica/utmath.c	 optional acpica
 contrib/dev/acpica/utmisc.c	 optional acpica
 contrib/dev/acpica/utobject.c	 optional acpica
 contrib/dev/acpica/utxface.c	 optional acpica
