@@ -17,6 +17,14 @@ NOTE TO PEOPLE WHO THINK THAT 5.0-CURRENT IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20030509:
+	CCD has been changed to be a fully GEOMified class.  Kernel
+	and ccdconfig(8) needs to be in sync, this is particularly
+	important to remember beforehand if your source tree is on
+	a ccd device.  Consider making a copy of the old ccdconfig
+	into /boot/kernel.good or wherever you keep your backup
+	kernel.
+
 20030505:
 	Kerberos 5 (Heimdal) is now built by default. Setting
 	MAKE_KERBEROS5 no longer has any effect. If you do NOT

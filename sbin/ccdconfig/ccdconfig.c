@@ -1,6 +1,5 @@
-/*	$NetBSD: ccdconfig.c,v 1.2.2.1 1995/11/11 02:43:35 thorpej Exp $	*/
-
 /*
+ * Copyright (c) 2003 Poul-Henning Kamp
  * Copyright (c) 1995 Jason R. Thorpe.
  * All rights reserved.
  *
@@ -37,13 +36,10 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/linker.h>
-#include <sys/disklabel.h>
-#include <sys/stat.h>
 #include <sys/module.h>
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
-#include <fcntl.h>
 #include <limits.h>
 #include <paths.h>
 #include <stdio.h>
@@ -52,8 +48,8 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include <libgeom.h>
 
-#include <sys/devicestat.h>
-#include <sys/ccdvar.h>
+#define CCDF_UNIFORM    0x02    /* use LCCD of sizes for uniform interleave */
+#define CCDF_MIRROR     0x04    /* use mirroring */
 
 #include "pathnames.h"
 
@@ -63,10 +59,13 @@ static	const char *ccdconf = _PATH_CCDCONF;
 
 struct	flagval {
 	const char	*fv_flag;
-	int	fv_val;
+	int		fv_val;
 } flagvaltab[] = {
 	{ "CCDF_UNIFORM",	CCDF_UNIFORM },
+	{ "uniform",		CCDF_UNIFORM },
 	{ "CCDF_MIRROR",	CCDF_MIRROR },
+	{ "mirror",		CCDF_MIRROR },
+	{ "none",		0 },
 	{ NULL,			0 },
 };
 
@@ -76,8 +75,6 @@ struct	flagval {
 #define CCD_UNCONFIGALL		3	/* unconfigure all devices */
 #define CCD_DUMP		4	/* dump a ccd's configuration */
 
-static	int checkdev(char *);
-static	int do_io(int, u_long, struct ccd_ioctl *);
 static	int do_single(int, char **, int);
 static	int do_all(int);
 static	int dump_ccd(int, char **);
@@ -134,10 +131,10 @@ main(int argc, char *argv[])
 	if (options > 1)
 		usage();
 
-	if (modfind("ccd") < 0) {
+	if (modfind("g_ccd") < 0) {
 		/* Not present in kernel, try loading it */
-		if (kldload("ccd") < 0 || modfind("ccd") < 0)
-			warn("ccd module not available!");
+		if (kldload("g_ccd") < 0 || modfind("g_ccd") < 0)
+			warn("g_ccd module not available!");
 	}
 
 	switch (action) {
@@ -162,17 +159,18 @@ main(int argc, char *argv[])
 static int
 do_single(int argc, char **argv, int action)
 {
-	struct ccd_ioctl ccio;
-	char *cp, *cp2, **disks;
-	int ccd, noflags = 0, i, ileave, flags = 0, j;
-	u_int u;
-
-	bzero(&ccio, sizeof(ccio));
+	char *cp, *cp2;
+	int ccd, noflags = 0, i, ileave, flags = 0;
+	struct gctl_req *grq;
+	char const *errstr;
+	char buf1[BUFSIZ];
+	int ex;
 
 	/*
 	 * If unconfiguring, all arguments are treated as ccds.
 	 */
 	if (action == CCD_UNCONFIG || action == CCD_UNCONFIGALL) {
+		ex = 0;
 		for (i = 0; argc != 0; ) {
 			cp = *argv++; --argc;
 			if ((ccd = resolve_ccdname(cp)) < 0) {
@@ -180,14 +178,24 @@ do_single(int argc, char **argv, int action)
 				i = 1;
 				continue;
 			}
-			ccio.ccio_size = ccd;
-			if (do_io(ccd, CCDIOCCLR, &ccio))
-				i = 1;
-			else
+			grq = gctl_get_handle();
+			gctl_ro_param(grq, "verb", -1, "destroy geom");
+			gctl_ro_param(grq, "class", -1, "CCD");
+			sprintf(buf1, "ccd%d", ccd);
+			gctl_ro_param(grq, "geom", -1, buf1);
+			errstr = gctl_issue(grq);
+			if (errstr == NULL) {		
 				if (verbose)
 					printf("%s unconfigured\n", cp);
+				gctl_free(grq);
+				continue;
+			}
+			warnx(
+			    "%s\nor possibly kernel and ccdconfig out of sync",
+			    errstr);
+			ex = 1;
 		}
-		return (i);
+		return (ex);
 	}
 
 	/* Make sure there are enough arguments. */
@@ -228,56 +236,36 @@ do_single(int argc, char **argv, int action)
 			return (1);
 		}
 	}
-
-	/* Next is the list of disks to make the ccd from. */
-	disks = malloc(argc * sizeof(char *));
-	if (disks == NULL) {
-		warnx("no memory to configure ccd");
-		return (1);
+	grq = gctl_get_handle();
+	gctl_ro_param(grq, "verb", -1, "create geom");
+	gctl_ro_param(grq, "class", -1, "CCD");
+	gctl_ro_param(grq, "unit", sizeof(ccd), &ccd);
+	gctl_ro_param(grq, "ileave", sizeof(ileave), &ileave);
+	if (flags & CCDF_UNIFORM)
+		gctl_ro_param(grq, "uniform", -1, "");
+	if (flags & CCDF_MIRROR)
+		gctl_ro_param(grq, "mirror", -1, "");
+	gctl_ro_param(grq, "nprovider", sizeof(argc), &argc);
+	for (i = 0; i < argc; i++) {
+		sprintf(buf1, "provider%d", i);
+		cp = argv[i];
+		if (!strncmp(cp, _PATH_DEV, strlen(_PATH_DEV)))
+			cp += strlen(_PATH_DEV);
+		gctl_ro_param(grq, buf1, -1, cp);
 	}
-	for (i = 0; argc != 0; ) {
-		cp = *argv++; --argc;
-		if ((j = checkdev(cp)) == 0)
-			disks[i++] = cp;
-		else {
-			warnx("%s: %s", cp, strerror(j));
-			return (1);
+	gctl_rw_param(grq, "output", sizeof(buf1), buf1);
+	errstr = gctl_issue(grq);
+	if (errstr == NULL) {		
+		if (verbose) {
+			printf("%s", buf1);
 		}
+		gctl_free(grq);
+		return (0);
 	}
-
-	/* Fill in the ccio. */
-	ccio.ccio_disks = disks;
-	ccio.ccio_ndisks = i;
-	ccio.ccio_ileave = ileave;
-	ccio.ccio_flags = flags;
-	ccio.ccio_size = ccd;
-
-	if (do_io(ccd, CCDIOCSET, &ccio)) {
-		free(disks);
-		return (1);
-	}
-
-	if (verbose) {
-		printf("ccd%d: %d components ", ccio.ccio_unit,
-		    ccio.ccio_ndisks);
-		for (u = 0; u < ccio.ccio_ndisks; ++u) {
-			if ((cp2 = strrchr(disks[u], '/')) != NULL)
-				++cp2;
-			else
-				cp2 = disks[u];
-			printf("%c%s%c",
-			    u == 0 ? '(' : ' ', cp2,
-			    u == ccio.ccio_ndisks - 1 ? ')' : ',');
-		}
-		printf(", %lu blocks ", (u_long)ccio.ccio_size);
-		if (ccio.ccio_ileave != 0)
-			printf("interleaved at %d blocks\n", ccio.ccio_ileave);
-		else
-			printf("concatenated\n");
-	}
-
-	free(disks);
-	return (0);
+	warnx(
+	    "%s\nor possibly kernel and ccdconfig out of sync",
+	    errstr);
+	return (1);
 }
 
 static int
@@ -345,20 +333,6 @@ do_all(int action)
 }
 
 static int
-checkdev(char *path)
-{
-	struct stat st;
-
-	if (stat(path, &st) != 0)
-		return (errno);
-
-	if (!S_ISBLK(st.st_mode) && !S_ISCHR(st.st_mode))
-		return (EINVAL);
-
-	return (0);
-}
-
-static int
 resolve_ccdname(char *name)
 {
 
@@ -373,48 +347,6 @@ resolve_ccdname(char *name)
 }
 
 static int
-do_io(int unit, u_long cmd, struct ccd_ioctl *cciop)
-{
-	int fd;
-	char *cp;
-	char *path;
-
-	asprintf(&path, "%s%s", _PATH_DEV, _PATH_CCDCTL);
-
-	if ((fd = open(path, O_RDWR, 0640)) < 0) {
-		asprintf(&path, "%sccd%dc", _PATH_DEV, unit);
-		if ((fd = open(path, O_RDWR, 0640)) < 0) {
-			warn("open: %s", path);
-			return (1);
-		}
-		fprintf(stderr,
-		    "***WARNING***: Kernel older than ccdconfig(8), please upgrade it.\n");
-		fprintf(stderr,
-		    "***WARNING***: Continuing in 30 seconds\n");
-		sleep(30);
-	}
-
-	if (ioctl(fd, cmd, cciop) < 0) {
-		switch (cmd) {
-		case CCDIOCSET:
-			cp = "CCDIOCSET";
-			break;
-
-		case CCDIOCCLR:
-			cp = "CCDIOCCLR";
-			break;
-
-		default:
-			cp = "unknown";
-		}
-		warn("ioctl (%s): %s", cp, path);
-		return (1);
-	}
-
-	return (0);
-}
-
-static int
 dumpout(int unit)
 {
 	static int v;
@@ -422,7 +354,6 @@ dumpout(int unit)
 	int ncp;
 	char *cp;
 	char const *errstr;
-	
 
 	grq = gctl_get_handle();
 	ncp = 65536;
@@ -465,19 +396,18 @@ static int
 flags_to_val(char *flags)
 {
 	char *cp, *tok;
-	int i, tmp, val = ~CCDF_USERMASK;
+	int i, tmp, val;
 	size_t flagslen;
 
-	/*
-	 * The most common case is that of NIL flags, so check for
-	 * those first.
-	 */
-	if (strcmp("none", flags) == 0 || strcmp("0x0", flags) == 0 ||
-	    strcmp("0", flags) == 0)
-		return (0);
+	errno = 0;	/* to check for ERANGE */
+	val = (int)strtol(flags, &cp, 0);
+	if ((errno != ERANGE) && (*cp == '\0')) {
+		if (val & ~(CCDF_UNIFORM|CCDF_MIRROR))
+			return (-1);
+		return (val);
+	}
 
 	flagslen = strlen(flags);
-
 	/* Check for values represented by strings. */
 	if ((cp = strdup(flags)) == NULL)
 		err(1, "no memory to parse flags");
@@ -488,35 +418,14 @@ flags_to_val(char *flags)
 				break;
 		if (flagvaltab[i].fv_flag == NULL) {
 			free(cp);
-			goto bad_string;
+			return (-1);
 		}
 		tmp |= flagvaltab[i].fv_val;
 	}
 
 	/* If we get here, the string was ok. */
 	free(cp);
-	val = tmp;
-	goto out;
-
- bad_string:
-
-	/* Check for values represented in hex. */
-	if (flagslen > 2 && flags[0] == '0' && flags[1] == 'x') {
-		errno = 0;	/* to check for ERANGE */
-		val = (int)strtol(&flags[2], &cp, 16);
-		if ((errno == ERANGE) || (*cp != '\0'))
-			return (-1);
-		goto out;
-	}
-
-	/* Check for values represented in decimal. */
-	errno = 0;	/* to check for ERANGE */
-	val = (int)strtol(flags, &cp, 10);
-	if ((errno == ERANGE) || (*cp != '\0'))
-		return (-1);
-
- out:
-	return (((val & ~CCDF_USERMASK) == 0) ? val : -1);
+	return (tmp);
 }
 
 static void
@@ -530,8 +439,3 @@ usage(void)
 		"       ccdconfig -g [ccd [...]]");
 	exit(1);
 }
-
-/* Local Variables: */
-/* c-argdecl-indent: 8 */
-/* c-indent-level: 8 */
-/* End: */
