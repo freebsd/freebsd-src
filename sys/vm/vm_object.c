@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.72 1996/05/21 17:13:31 dyson Exp $
+ * $Id: vm_object.c,v 1.73 1996/05/23 00:45:58 dyson Exp $
  */
 
 /*
@@ -516,6 +516,10 @@ rescan:
 				if ((tp->flags & PG_BUSY) ||
 					(tp->flags & PG_CLEANCHK) == 0)
 					break;
+				if (tp->queue == PQ_CACHE) {
+					tp->flags &= ~PG_CLEANCHK;
+					break;
+				}
 				vm_page_test_dirty(tp);
 				if ((tp->dirty & tp->valid) == 0) {
 					tp->flags &= ~PG_CLEANCHK;
@@ -536,6 +540,10 @@ rescan:
 					if ((tp->flags & PG_BUSY) ||
 						(tp->flags & PG_CLEANCHK) == 0)
 						break;
+					if (tp->queue == PQ_CACHE) {
+						tp->flags &= ~PG_CLEANCHK;
+						break;
+					}
 					vm_page_test_dirty(tp);
 					if ((tp->dirty & tp->valid) == 0) {
 						tp->flags &= ~PG_CLEANCHK;
@@ -740,8 +748,13 @@ vm_object_madvise(object, pindex, count, advise)
 			 */
 			if (object->type == OBJT_SWAP)
 				swap_pager_dmzspace(object, m->pindex, 1);
+/*
 			vm_page_protect(m, VM_PROT_NONE);
 			vm_page_free(m);
+*/
+			pmap_clear_modify(VM_PAGE_TO_PHYS(m));
+			m->dirty = 0;
+			vm_page_cache(m);
 		}
 	}	
 }
