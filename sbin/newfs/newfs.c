@@ -138,7 +138,7 @@ void	fatal();
  *    rotational positions that we distinguish.  With NRPOS of 8 the resolution
  *    of our summary information is 2ms for a typical 3600 rpm drive.
  *
- * ...but now we make this 1 (which escentially disables the rotational
+ * ...but now we make this 1 (which essentially disables the rotational
  * position table because modern drives with read-ahead and write-behind do
  * better without the rotational position table.
  */
@@ -256,7 +256,7 @@ main(argc, argv)
 			break;
 		case 'a':
 			if ((maxcontig = atoi(optarg)) <= 0)
-				fatal("%s: bad maximum contiguous blocks\n",
+				fatal("%s: bad maximum contiguous blocks",
 				    optarg);
 			break;
 		case 'b':
@@ -270,11 +270,11 @@ main(argc, argv)
 			break;
 		case 'd':
 			if ((rotdelay = atoi(optarg)) < 0)
-				fatal("%s: bad rotational delay\n", optarg);
+				fatal("%s: bad rotational delay", optarg);
 			break;
 		case 'e':
 			if ((maxbpg = atoi(optarg)) <= 0)
-		fatal("%s: bad blocks per file in a cylinder group\n",
+		fatal("%s: bad blocks per file in a cylinder group",
 				    optarg);
 			break;
 		case 'f':
@@ -283,7 +283,7 @@ main(argc, argv)
 			break;
 		case 'i':
 			if ((density = atoi(optarg)) <= 0)
-				fatal("%s: bad bytes per inode\n", optarg);
+				fatal("%s: bad bytes per inode", optarg);
 			break;
 		case 'k':
 			if ((trackskew = atoi(optarg)) < 0)
@@ -295,11 +295,11 @@ main(argc, argv)
 			break;
 		case 'm':
 			if ((minfree = atoi(optarg)) < 0 || minfree > 99)
-				fatal("%s: bad free space %%\n", optarg);
+				fatal("%s: bad free space %%", optarg);
 			break;
 		case 'n':
 			if ((nrpos = atoi(optarg)) < 0)
-				fatal("%s: bad rotational layout count\n",
+				fatal("%s: bad rotational layout count",
 				    optarg);
 			if (nrpos == 0)
 				nrpos = 1;
@@ -313,7 +313,7 @@ main(argc, argv)
 				else if (strcmp(optarg, "time") == 0)
 					opt = FS_OPTTIME;
 				else
-	fatal("%s: unknown optimization preference: use `space' or `time'.");
+	fatal("%s: unknown optimization preference: use `space' or `time'");
 			}
 			break;
 		case 'p':
@@ -323,7 +323,7 @@ main(argc, argv)
 			break;
 		case 'r':
 			if ((rpm = atoi(optarg)) <= 0)
-				fatal("%s: bad revolutions/minute\n", optarg);
+				fatal("%s: bad revolutions/minute", optarg);
 			break;
 		case 's':
 			if ((fssize = atoi(optarg)) <= 0)
@@ -502,7 +502,7 @@ main(argc, argv)
 	secpercyl = nsectors * ntracks - cylspares;
 	/*
 	 * Only complain if -t or -u have been specified; the default
-	 * case (4096 sectors per cylinder) is intented to disagree
+	 * case (4096 sectors per cylinder) is intended to disagree
 	 * with the disklabel.
 	 */
 	if (t_or_u_flag && secpercyl != lp->d_secpercyl)
