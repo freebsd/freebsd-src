@@ -15,36 +15,27 @@
  *
  * NEW command line interface for IP firewall facility
  *
- * $Id: ipfw.c,v 1.19 1996/02/23 15:52:28 phk Exp $
+ * $Id: ipfw.c,v 1.20 1996/02/24 00:20:56 phk Exp $
  *
  */
 
 #include <stdio.h>
 #include <ctype.h>
 #include <err.h>
-#include <stdlib.h>
-#include <string.h>
 #include <unistd.h>
-#include <paths.h>
-#include <fcntl.h>
-#include <limits.h>
+#include <string.h>
+#include <stdlib.h>
 #include <netdb.h>
-#include <kvm.h>
-#include <sys/socket.h>
+#include <limits.h>
 #include <sys/queue.h>
-#include <net/if.h>
+#include <sys/socket.h>
 #include <netinet/in.h>
-#include <netinet/in_systm.h>
-#include <netinet/ip.h>
+#include <netinet/ip_fw.h>
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
-#define IPFIREWALL
-#include <netinet/ip_fw.h>
-
-#define MAXSTR	256
 
 int 	lineno = -1;
-char 		progname[MAXSTR];		/* Program name for errors */
+char 		progname[BUFSIZ];		/* Program name for errors */
 
 int 		s;				/* main RAW socket 	   */
 int 		do_resolv=0;			/* Would try to resolv all */
@@ -229,6 +220,8 @@ show_ipfw(chain)
 
 	if (chain->fw_tcpf == IP_FW_TCPF_SYN &&
 	    chain->fw_tcpnf == IP_FW_TCPF_ACK)
+		printf(" setup");
+	else if (chain->fw_tcpnf == IP_FW_TCPF_SYN && !chain->fw_tcpf)
 		printf(" established");
 	else if (chain->fw_tcpf || chain->fw_tcpnf) {
 		int 	_flg_printed = 0;
@@ -252,38 +245,23 @@ show_ipfw(chain)
 	printf("\n");
 }
 
-struct nlist nlf[]={ { "_ip_fw_chain" } };
-
 void
 list(ac, av)
 	int	ac;
 	char 	**av;
 {
-	kvm_t *kd;
-	static char errb[_POSIX2_LINE_MAX];
-	struct ip_fw b;
-	struct ip_fw_chain *fcp,fc;
+	struct ip_fw *r;
+	struct ip_fw rules[1024];
+	int l,i;
 
-	if (!(kd=kvm_openfiles(NULL,NULL,NULL,O_RDONLY,errb))) {
-     		fprintf(stderr,"%s: kvm_openfiles: %s\n",
-					progname,kvm_geterr(kd));
-     		exit(1);
-	}
-
-	if (kvm_nlist(kd,nlf)<0 || nlf[0].n_type==0) {
-		fprintf(stderr,"%s: kvm_nlist: no namelist in %s\n",
-						progname,getbootfile());
-      		exit(1);
-    	}
-
-	kvm_read(kd,(u_long)nlf[0].n_value,&fcp,sizeof fcp);
-	printf("FireWall chain entries:\n");
-	while(fcp!=NULL) {
-		kvm_read(kd,(u_long)fcp,&fc,sizeof fc);
-		kvm_read(kd,(u_long)fc.rule,&b,sizeof b);
-		show_ipfw(&b);
-		fcp = fc.chain.le_next;
-	}
+	memset(rules,0,sizeof rules);
+	l = sizeof rules;
+	i = getsockopt(s, IPPROTO_IP, IP_FW_GET, rules, &l);
+	if (i < 0)
+		err(2,"getsockopt(IP_FW_GET)");
+	printf("FireWall chain entries: %d %d\n",l,i);
+	for (r=rules; l >= sizeof rules[0]; r++, l-=sizeof rules[0])
+		show_ipfw(r);
 }
 
 void
@@ -513,9 +491,6 @@ add(ac,av)
 		rule.fw_flg |= IP_FW_F_PRN; av++; ac--;
 	}
 
-	/* [protocol] */
-	if (ac && !strncmp(*av,"protocol",strlen(*av))) { av++; ac--; }
-
 	/* protocol */
 	if (ac && !strncmp(*av,"ip",strlen(*av))) {
 		rule.fw_flg |= IP_FW_F_ALL; av++; ac--;
@@ -557,6 +532,23 @@ add(ac,av)
 		av++; ac--;
 	}
 
+	if (ac && !strncmp(*av,"via",strlen(*av))) { 
+		av++; ac--; 
+		if (!isdigit(**av)) {
+			char *q;
+
+			strcpy(rule.fw_via_name, *av);
+			for (q = rule.fw_via_name; *q && !isdigit(*q); q++)
+				continue;
+			rule.fw_via_unit = atoi(q);
+			*q = '\0';
+			rule.fw_flg |= IP_FW_F_IFNAME;
+		} else if (inet_aton(*av,&rule.fw_via_ip) == INADDR_NONE) {
+			show_usage("bad IP# after via\n");
+		}
+		av++; ac--; 
+	}
+
 	while (ac) {
 		if (!strncmp(*av,"frag",strlen(*av))) { 
 			rule.fw_flg |= IP_FW_F_FRAG; av++; ac--; continue;
@@ -567,20 +559,26 @@ add(ac,av)
 		if (!strncmp(*av,"out",strlen(*av))) { 
 			rule.fw_flg |= IP_FW_F_OUT; av++; ac--; continue;
 		}
-		if (!strncmp(*av,"established",strlen(*av))) { 
-			rule.fw_tcpf  |= IP_FW_TCPF_SYN;
-			rule.fw_tcpnf |= IP_FW_TCPF_ACK;
-			av++; ac--; continue;
-		}
-		if (ac > 1 && !strncmp(*av,"tcpflags",strlen(*av))) { 
-			av++; ac--; 
-			fill_tcpflag(&rule.fw_tcpf, &rule.fw_tcpnf, av);
-			av++; ac--; continue;
-		}
 		if (ac > 1 && !strncmp(*av,"ipoptions",strlen(*av))) { 
 			av++; ac--; 
 			fill_ipopt(&rule.fw_ipopt, &rule.fw_ipnopt, av);
 			av++; ac--; continue;
+		}
+		if ((rule.fw_flg & IP_FW_F_KIND) == IP_FW_F_TCP) {
+			if (!strncmp(*av,"established",strlen(*av))) { 
+				rule.fw_tcpnf  |= IP_FW_TCPF_SYN;
+				av++; ac--; continue;
+			}
+			if (!strncmp(*av,"setup",strlen(*av))) { 
+				rule.fw_tcpf  |= IP_FW_TCPF_SYN;
+				rule.fw_tcpnf  |= IP_FW_TCPF_ACK;
+				av++; ac--; continue;
+			}
+			if (ac > 1 && !strncmp(*av,"tcpflags",strlen(*av))) { 
+				av++; ac--; 
+				fill_tcpflag(&rule.fw_tcpf, &rule.fw_tcpnf, av);
+				av++; ac--; continue;
+			}
 		}
 		printf("%d %s\n",ac,*av);
 		show_usage("Unknown argument\n");
@@ -606,12 +604,12 @@ ipfw_main(ac,av)
 		show_usage(NULL);
 	}
 
-	while ((ch = getopt(ac, av ,"an")) != EOF)
+	while ((ch = getopt(ac, av ,"aN")) != EOF)
 	switch(ch) {
 		case 'a':
 			do_acct=1;
 			break;
-		case 'n':
+		case 'N':
 	 		do_resolv=1;
         		break;
         	case '?':
@@ -656,7 +654,7 @@ main(ac, av)
 	char	**av;
 {
 #define MAX_ARGS	32
-	char	buf[_POSIX_ARG_MAX];
+	char	buf[BUFSIZ];
 	char	*args[MAX_ARGS];
 	char	linename[10];
 	int 	i;
@@ -676,7 +674,7 @@ main(ac, av)
 	if (av[1] && !access(av[1], R_OK)) {
 		lineno = 0;
 		f = fopen(av[1], "r");
-		while (fgets(buf, _POSIX_ARG_MAX, f)) {
+		while (fgets(buf, BUFSIZ, f)) {
 			if (buf[strlen(buf)-1]=='\n')
 				buf[strlen(buf)-1] = 0;
 
