@@ -152,7 +152,14 @@ sysctl_kern_quantum(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 
-SYSCTL_PROC(_kern, OID_AUTO, quantum, CTLTYPE_INT|CTLFLAG_RW,
+SYSCTL_NODE(_kern, OID_AUTO, sched, CTLFLAG_RD, 0, "SCHED");
+
+#define SCHD_NAME	"4bsd"
+#define SCHD_NAME_LEN	4
+SYSCTL_STRING(_kern_sched, OID_AUTO, name, CTLFALG_RO, SCHD_NAME, SCHD_NAME_LEN,
+	      "System is using the 4BSD scheduler");
+
+SYSCTL_PROC(_kern_sched, OID_AUTO, quantum, CTLTYPE_INT|CTLFLAG_RW,
 	0, sizeof sched_quantum, sysctl_kern_quantum, "I",
 	"Roundrobin scheduling quantum in microseconds");
 
