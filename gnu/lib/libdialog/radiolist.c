@@ -338,17 +338,16 @@ draw:
 			    wmove(dialog, cur_y, cur_x);  /* Restore cursor to previous position */
 			    wrefresh(dialog);
 			}
-			else if (st & DITEM_RECREATE) {
-			    delwin(save);
-			    delwin(list);
-			    delwin(dialog);
-			    goto draw;
-			}
 			delwin(save);
 			if (st & DITEM_LEAVE_MENU) {
 			    /* Allow a fire action to take us out of the menu */
 			    key = ESC;
 			    break;
+			}
+			else if (st & DITEM_RECREATE) {
+			    delwin(list);
+			    delwin(dialog);
+			    goto draw;
 			}
 		    }
 		    for (i = 0; i < item_no; i++)
