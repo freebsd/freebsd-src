@@ -52,28 +52,33 @@ struct sockinet {
 int
 realhostname(char *host, size_t hsize, const struct in_addr *ip)
 {
+	char trimmed[MAXHOSTNAMELEN+1];
 	int result;
 	struct hostent *hp;
 
 	result = HOSTNAME_INVALIDADDR;
 	hp = gethostbyaddr((char *)ip, sizeof(*ip), AF_INET);
 
-	if (hp != NULL && strlen(hp->h_name) <= hsize) {
-		char lookup[MAXHOSTNAMELEN];
+	if (hp != NULL) {
+		strlcpy(trimmed, hp->h_name, sizeof(trimmed));
+		trimdomain(trimmed, strlen(trimmed));
+		if (strlen(trimmed) <= hsize) {
+			char lookup[MAXHOSTNAMELEN];
 
-		strncpy(lookup, hp->h_name, sizeof(lookup) - 1);
-		lookup[sizeof(lookup) - 1] = '\0';
-		hp = gethostbyname(lookup);
-		if (hp == NULL)
-			result = HOSTNAME_INVALIDNAME;
-		else for (; ; hp->h_addr_list++) {
-			if (hp->h_addr_list[0] == NULL) {
-				result = HOSTNAME_INCORRECTNAME;
-				break;
-			}
-			if (!memcmp(*hp->h_addr_list, ip, sizeof(*ip))) {
-				strncpy(host, lookup, hsize);
-				return HOSTNAME_FOUND;
+			strncpy(lookup, hp->h_name, sizeof(lookup) - 1);
+			lookup[sizeof(lookup) - 1] = '\0';
+			hp = gethostbyname(lookup);
+			if (hp == NULL)
+				result = HOSTNAME_INVALIDNAME;
+			else for (; ; hp->h_addr_list++) {
+				if (*hp->h_addr_list == NULL) {
+					result = HOSTNAME_INCORRECTNAME;
+					break;
+				}
+				if (!memcmp(*hp->h_addr_list, ip, sizeof(*ip))) {
+					strncpy(host, trimmed, hsize);
+					return HOSTNAME_FOUND;
+				}
 			}
 		}
 	}
@@ -131,20 +136,15 @@ realhostname_sa(char *host, size_t hsize, struct sockaddr *addr, int addrlen)
 						freeaddrinfo(ores);
 						goto numeric;
 					}
-					if (strlen(ores->ai_canonname) > hsize) {
-						if (addr->sa_family == AF_INET) {
-							freeaddrinfo(ores);
-							goto numeric;
-						}
-						strncpy(buf,
-							ores->ai_canonname,
-							sizeof(buf));
-						trimdomain(buf, hsize);
-						strncpy(host, buf, hsize);
-					} else
-						strncpy(host,
-							ores->ai_canonname,
-							hsize);
+					strncpy(buf, ores->ai_canonname,
+						sizeof(buf));
+					trimdomain(buf, hsize);
+					strncpy(host, buf, hsize);
+					if (strlen(host) > hsize &&
+					    addr->sa_family == AF_INET) {
+						freeaddrinfo(ores);
+						goto numeric;
+					}
 					break;
 				}
 				((struct sockinet *)addr)->si_port = port;
