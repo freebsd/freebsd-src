@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.3 (Berkeley) 1/7/94
-#	$Id: Makefile,v 1.21 1994/09/23 00:00:57 ache Exp $
+#	$Id: Makefile,v 1.22 1994/09/26 23:14:31 pst Exp $
 
 # XXX MISSING:		bc dc deroff diction diff ex graph learn plot
 #			ptx spell spline struct units xsend
@@ -28,7 +28,9 @@ SUBDIR=	apply ar at banner basename biff cal calendar \
 
 # Cmp, look and tail all use mmap, so new-VM only.
 # F77 and pascal are VAX/Tahoe only.
-.if	${MACHINE} == "hp300"
+.if	make(clean) || make(cleandir)
+SUBDIR+=cmp f77 pascal ld look systat tail vmstat vmstat.sparc
+.elif	${MACHINE} == "hp300"
 SUBDIR+=cmp ld look systat tail vmstat
 .elif	${MACHINE} == "i386"
 SUBDIR+=cmp look systat tail vmstat
