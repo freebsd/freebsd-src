@@ -50,13 +50,7 @@
 # bsd.obj.mk: clean, cleandir, obj
 #
 
-
-.if !target(__initialized__)
-__initialized__:
-.if exists(${.CURDIR}/../Makefile.inc)
-.include "${.CURDIR}/../Makefile.inc"
-.endif
-.endif
+.include <bsd.init.mk>
 
 # FORMATS indicates which output formats will be generated.  See
 # the sgmlfmt(1) man page for a list of valid formats.  
@@ -110,7 +104,6 @@ strip: ${_strip}
 .endif
 
 
-.MAIN:	all
 all:	${_docs}
 
 # If FORMATS is empty, do nothing
