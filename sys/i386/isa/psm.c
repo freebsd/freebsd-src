@@ -75,6 +75,7 @@
 #define	PSM_INT_DISABLE	0x65	/* disable controller interrupts */
 #define	PSM_DISABLE	0xa7	/* disable auxiliary port */
 #define	PSM_ENABLE	0xa8	/* enable auxiliary port */
+#define	PSM_ENABLE	0xa9	/* test auxiliary port */
 
 /* mouse commands */
 #define PSM_SET_SCALE11	0xe6	/* set 1:1 scaling */
@@ -99,11 +100,12 @@ static void psm_poll_status(int);
 
 static int psmaddr[NPSM];	/* Base I/O port addresses per unit */
 
-#define MSBSZ	1024		/* Output queue size (pwr of 2 is best) */
+#define PSM_CHUNK	128	/* chunk size for read */
+#define PSM_BSIZE	1024	/* buffer size */
 
 struct ringbuf {
 	int count, first, last;
-	char queue[MSBSZ];
+	char queue[PSM_BSIZE];
 };
 
 static struct psm_softc {	/* Driver status information */
@@ -136,6 +138,27 @@ static	struct	cdevsw psm_cdevsw =
 	  psmioctl,	nostop,		nullreset,	nodevtotty,
 	  psmselect,	nommap,		NULL,	"psm",	NULL,	-1 };
 
+static struct kern_devconf kdc_psm[NPSM] = { {
+	0, 0, 0,		/* filled in by dev_attach */
+	"psm", 0, { MDDT_ISA, 0, "tty" },
+	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
+	&kdc_isa0,		/* parent */
+	0,			/* parentdata */
+	DC_UNCONFIGURED,	/* state */
+	"PS/2 Mouse",
+	DC_CLS_MISC		/* class */
+} };
+
+static inline void
+psm_registerdev(struct isa_device *id)
+{
+	if(id->id_unit)
+		kdc_psm[id->id_unit] = kdc_psm[0];
+	kdc_psm[id->id_unit].kdc_unit = id->id_unit;
+	kdc_psm[id->id_unit].kdc_isa = id;
+	dev_attach(&kdc_psm[id->id_unit]);
+}
+
 static void
 psm_write_dev(int ioport, u_char value)
 {
@@ -160,13 +183,15 @@ psmprobe(struct isa_device *dvp)
 	/* XXX: Needs a real probe routine. */
 	int ioport, c, unit;
 
+	psm_registerdev(dvp);
+
 	ioport=dvp->id_iobase;
 	unit=dvp->id_unit;
 #ifndef PSM_NO_RESET
 	psm_write_dev(ioport, PSM_RESET);	/* Reset aux device */
-	psm_poll_status(ioport);
 #endif
-	outb(ioport+PSM_CNTRL, 0xa9);
+	psm_poll_status(ioport);
+	outb(ioport+PSM_CNTRL, PSM_AUX_TEST);
 	psm_poll_status(ioport);
 	outb(ioport+PSM_CNTRL, 0xaa);
 	c = inb(ioport+PSM_DATA);
@@ -209,6 +234,7 @@ psmattach(struct isa_device *dvp)
 
 	/* Setup initial state */
 	sc->state = 0;
+	kdc_psm[unit].kdc_state = DC_IDLE;
 
 	/* Done */
 	return (0); /* XXX eh? usually 1 indicates success */
@@ -238,6 +264,7 @@ psmopen(dev_t dev, int flag, int fmt, struct proc *p)
 		return (EBUSY);
 
 	/* Initialize state */
+	kdc_psm[unit].kdc_state = DC_BUSY;
 	sc->state |= PSM_OPEN;
 	sc->rsel.si_flags = 0;
 	sc->rsel.si_pid = 0;
@@ -274,10 +301,9 @@ psm_poll_status(int ioport)
 {
 	u_char c;
 
-	while(c = inb(ioport+PSM_STATUS) & 0x03) {
+	while(c = inb(ioport+PSM_STATUS) & 0x03)
 		if(c & PSM_OUTPUT_ACK == PSM_OUTPUT_ACK)
 			inb(ioport+PSM_DATA);
-	}
 	return;
 }
 
@@ -299,6 +325,7 @@ psmclose(dev_t dev, int flag, int fmt, struct proc *p)
 
 	/* Complete the close */
 	sc->state &= ~PSM_OPEN;
+	kdc_psm[unit].kdc_state = DC_IDLE;
 
 	/* close is almost always successful */
 	return (0);
@@ -312,7 +339,7 @@ psmread(dev_t dev, struct uio *uio, int flag)
 			   is unnecessary */
 	unsigned length;
 	struct psm_softc *sc;
-	unsigned char buffer[100];
+	unsigned char buffer[PSM_CHUNK];
 
 	/* Get device information */
 	sc = &psm_softc[PSMUNIT(dev)];
@@ -339,16 +366,16 @@ psmread(dev_t dev, struct uio *uio, int flag)
 			length = sizeof(buffer);
 
 		/* Remove a small chunk from input queue */
-		if (sc->inq.first + length >= MSBSZ) {
+		if (sc->inq.first + length >= PSM_BSIZE) {
 			bcopy(&sc->inq.queue[sc->inq.first],
-		 	      buffer, MSBSZ - sc->inq.first);
-			bcopy(sc->inq.queue, &buffer[MSBSZ-sc->inq.first],
-			      length - (MSBSZ - sc->inq.first));
+		 	      buffer, PSM_BSIZE - sc->inq.first);
+			bcopy(sc->inq.queue, &buffer[PSM_BSIZE - sc->inq.first],
+			      length - (PSM_BSIZE - sc->inq.first));
 		}
 		else
 			bcopy(&sc->inq.queue[sc->inq.first], buffer, length);
 
-		sc->inq.first = (sc->inq.first + length) % MSBSZ;
+		sc->inq.first = (sc->inq.first + length) % PSM_BSIZE;
 		sc->inq.count -= length;
 
 		/* Copy data to user process */
@@ -422,10 +449,10 @@ psmioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p)
 void
 psmintr(int unit)
 {
-        struct psm_softc *sc = &psm_softc[unit];
+	struct psm_softc *sc = &psm_softc[unit];
 	int ioport = psmaddr[unit];
 
-	sc->inq.queue[sc->inq.last++ % MSBSZ] = inb(ioport+PSM_DATA);
+	sc->inq.queue[sc->inq.last++ % PSM_BSIZE] = inb(ioport+PSM_DATA);
 	sc->inq.count++;
 	if (sc -> state & PSM_ASLP) {
 		sc->state &= ~PSM_ASLP;
