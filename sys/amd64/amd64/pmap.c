@@ -786,8 +786,6 @@ pmap_extract(pmap_t pmap, vm_offset_t va)
 	pd_entry_t pde, *pdep;
 
 	rtval = 0;
-	if (pmap == NULL)
-		return (rtval);
 	PMAP_LOCK(pmap);
 	pdep = pmap_pde(pmap, va);
 	if (pdep != NULL) {
@@ -821,8 +819,6 @@ pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 	vm_page_t m;
 
 	m = NULL;
-	if (pmap == NULL)
-		return (m);
 	vm_page_lock_queues();
 	PMAP_LOCK(pmap);
 	pdep = pmap_pde(pmap, va);
@@ -1563,9 +1559,6 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	pt_entry_t *pte;
 	int anyvalid;
 
-	if (pmap == NULL)
-		return;
-
 	/*
 	 * Perform an unsynchronized read.  This is, however, safe.
 	 */
@@ -1737,9 +1730,6 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 	pd_entry_t ptpaddr, *pde;
 	int anychanged;
 
-	if (pmap == NULL)
-		return;
-
 	if ((prot & VM_PROT_READ) == VM_PROT_NONE) {
 		pmap_remove(pmap, sva, eva);
 		return;
@@ -1855,9 +1845,6 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	pd_entry_t ptepde;
 	pt_entry_t origpte, newpte;
 	vm_page_t mpte;
-
-	if (pmap == NULL)
-		return;
 
 	va = trunc_page(va);
 #ifdef PMAP_DIAGNOSTIC
@@ -2210,9 +2197,6 @@ pmap_change_wiring(pmap, va, wired)
 	boolean_t wired;
 {
 	register pt_entry_t *pte;
-
-	if (pmap == NULL)
-		return;
 
 	/*
 	 * Wiring is not a hardware characteristic so there is no need to

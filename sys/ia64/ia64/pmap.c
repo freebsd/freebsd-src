@@ -950,8 +950,6 @@ pmap_extract(pmap_t pmap, vm_offset_t va)
 	vm_paddr_t pa;
 
 	pa = 0;
-	if (pmap == NULL)
-		return (pa);
 	PMAP_LOCK(pmap);
 	oldpmap = pmap_install(pmap);
 	pte = pmap_find_vhpt(va);
@@ -977,8 +975,6 @@ pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 	vm_page_t m;
 
 	m = NULL;
-	if (pmap == NULL)
-		return (m);
 	vm_page_lock_queues();
 	PMAP_LOCK(pmap);
 	oldpmap = pmap_install(pmap);
@@ -1318,9 +1314,6 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	pv_entry_t npv, pv;
 	struct ia64_lpte *pte;
 
-	if (pmap == NULL)
-		return;
-
 	if (pmap->pm_stats.resident_count == 0)
 		return;
 
@@ -1430,9 +1423,6 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 	pmap_t oldpmap;
 	struct ia64_lpte *pte;
 
-	if (pmap == NULL)
-		return;
-
 	if ((prot & VM_PROT_READ) == VM_PROT_NONE) {
 		pmap_remove(pmap, sva, eva);
 		return;
@@ -1505,9 +1495,6 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	struct ia64_lpte origpte;
 	struct ia64_lpte *pte;
 	boolean_t managed;
-
-	if (pmap == NULL)
-		return;
 
 	vm_page_lock_queues();
 	PMAP_LOCK(pmap);
@@ -1712,9 +1699,6 @@ pmap_change_wiring(pmap, va, wired)
 {
 	pmap_t oldpmap;
 	struct ia64_lpte *pte;
-
-	if (pmap == NULL)
-		return;
 
 	PMAP_LOCK(pmap);
 	oldpmap = pmap_install(pmap);
