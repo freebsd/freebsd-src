@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.2 1998/03/12 02:55:30 jdp Exp $
+# $Id: Makefile,v 1.3 1998/03/12 05:14:16 jdp Exp $
 #
 
 .include "../Makefile.inc0"
@@ -9,7 +9,7 @@
 LIB=		binutils
 SRCS+=		arlex.l arparse.y arsup.c bucomm.c debug.c filemode.c \
 		ieee.c rdcoff.c rddbg.c stabs.c wrstabs.c version.c
-CFLAGS+=	-DTARGET=\"${TARGET}\"
+CFLAGS+=	-DTARGET=\"${MACHINE_ARCH}-unknown-freebsdelf\"
 CFLAGS+=	-DVERSION=\"${VERSION}\"
 CFLAGS+=	-I${SRCDIR}/binutils
 CFLAGS+=	-I${SRCDIR}/bfd
