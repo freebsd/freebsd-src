@@ -92,6 +92,10 @@ INCSLINKS+=	machine/$i ${INCLUDEDIR}/$i
 INCSLINKS+=	posix4/$i ${INCLUDEDIR}/$i
 .endfor
 
+.if ${MACHINE} != ${MACHINE_ARCH}
+_MARCH=${MACHINE_ARCH}
+.endif
+
 .include <bsd.prog.mk>
 
 installincludes: ${SHARED}
@@ -99,7 +103,7 @@ ${SHARED}: compat
 
 # Take care of stale directory-level symlinks.
 compat:
-.for i in ${LDIRS} ${LSUBDIRS} machine crypto
+.for i in ${LDIRS} ${LSUBDIRS} machine ${_MARCH} crypto
 	if [ -L ${DESTDIR}${INCLUDEDIR}/$i ]; then \
 		rm -f ${DESTDIR}${INCLUDEDIR}/$i; \
 	fi
@@ -114,7 +118,8 @@ compat:
 .endif
 
 copies:
-.for i in ${LDIRS} ${LSUBDIRS} ${LSUBSUBDIRS} altq crypto machine machine/pc
+.for i in ${LDIRS} ${LSUBDIRS} ${LSUBSUBDIRS} altq crypto machine machine/pc \
+	${_MARCH}
 .if exists(${DESTDIR}${INCLUDEDIR}/$i)
 	cd ${DESTDIR}${INCLUDEDIR}/$i; \
 	for h in *.h; do \
@@ -148,13 +153,23 @@ copies:
 	cd ${.CURDIR}/../sys/opencrypto; \
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
 	    ${DESTDIR}${INCLUDEDIR}/crypto
-	cd ${.CURDIR}/../sys/${MACHINE_ARCH}/include; \
+	cd ${.CURDIR}/../sys/${MACHINE}/include; \
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
 	    ${DESTDIR}${INCLUDEDIR}/machine
-.if exists(${.CURDIR}/../sys/${MACHINE_ARCH}/include/pc)
-	cd ${.CURDIR}/../sys/${MACHINE_ARCH}/include/pc; \
+.if exists(${.CURDIR}/../sys/${MACHINE}/include/pc)
+	cd ${.CURDIR}/../sys/${MACHINE}/include/pc; \
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
 	    ${DESTDIR}${INCLUDEDIR}/machine/pc
+.endif
+.if defined(_MARCH)
+	cd ${.CURDIR}/../sys/${_MARCH}/include; \
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
+	    ${DESTDIR}${INCLUDEDIR}/${_MARCH}
+.if exists(${.CURDIR}/../sys/${_MARCH}/include/pc)
+	cd ${.CURDIR}/../sys/${_MARCH}/include/pc; \
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
+	    ${DESTDIR}${INCLUDEDIR}/${_MARCH}/pc
+.endif
 .endif
 
 symlinks:
@@ -212,15 +227,29 @@ symlinks:
 		ln -fs ../../../sys/opencrypto/$$h \
 		    ${DESTDIR}${INCLUDEDIR}/crypto; \
 	done
-	cd ${.CURDIR}/../sys/${MACHINE_ARCH}/include; \
+	cd ${.CURDIR}/../sys/${MACHINE}/include; \
 	for h in *.h; do \
-		ln -fs ../../../sys/${MACHINE_ARCH}/include/$$h \
+		ln -fs ../../../sys/${MACHINE}/include/$$h \
 		    ${DESTDIR}${INCLUDEDIR}/machine; \
 	done
-.if exists(${.CURDIR}/../sys/${MACHINE_ARCH}/include/pc)
-	cd ${.CURDIR}/../sys/${MACHINE_ARCH}/include/pc; \
+.if exists(${.CURDIR}/../sys/${MACHINE}/include/pc)
+	cd ${.CURDIR}/../sys/${MACHINE}/include/pc; \
 	for h in *.h; do \
-		ln -fs ../../../../sys/${MACHINE_ARCH}/include/pc/$$h \
+		ln -fs ../../../../sys/${MACHINE}/include/pc/$$h \
 		    ${DESTDIR}${INCLUDEDIR}/machine/pc; \
 	done
+.endif
+.if defined(_MARCH)
+	cd ${.CURDIR}/../sys/${_MARCH}/include; \
+	for h in *.h; do \
+		ln -fs ../../../sys/${_MARCH}/include/$$h \
+		    ${DESTDIR}${INCLUDEDIR}/${_MARCH}; \
+	done
+.if exists(${.CURDIR}/../sys/${_MARCH}/include/pc)
+	cd ${.CURDIR}/../sys/${_MARCH}/include/pc; \
+	for h in *.h; do \
+		ln -fs ../../../../sys/${_MARCH}/include/pc/$$h \
+		    ${DESTDIR}${INCLUDEDIR}/${_MARCH}/pc; \
+	done
+.endif
 .endif
