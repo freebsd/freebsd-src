@@ -894,7 +894,7 @@ sub salt {
 
     warn "calculate salt\n" if $verbose > 1;
     # to64
-    for ($i = 0; $i < 8; $i++) {
+    for ($i = 0; $i < 27; $i++) {
 	srand(time + $rand + $$); 
 	$rand = rand(25*29*17 + $rand);
 	$salt .=  $itoa64[$rand & $#itoa64];
