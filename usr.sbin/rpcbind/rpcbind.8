@@ -2,7 +2,7 @@
 .\" Copyright 1989 AT&T
 .\" Copyright 1991 Sun Microsystems, Inc.
 .\" $FreeBSD$
-.Dd September 14, 1992
+.Dd November 7, 2004
 .Dt RPCBIND 8
 .Os
 .Sh NAME
@@ -10,7 +10,8 @@
 .Nd universal addresses to RPC program number mapper
 .Sh SYNOPSIS
 .Nm
-.Op Fl adhiLls
+.Op Fl adiLls
+.Op Fl h Ar bindip
 .Sh DESCRIPTION
 The
 .Nm
@@ -81,7 +82,7 @@ during operation, and will abort on certain errors if
 is also specified.
 With this option, the name-to-address translation consistency
 checks are shown in detail.
-.It Fl h
+.It Fl h Ar bindip
 Specify specific IP addresses to bind to for UDP requests.
 This option
 may be specified multiple times and is typically necessary when running
