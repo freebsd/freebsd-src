@@ -1,4 +1,3 @@
-#define SC_SPLASH_SCREEN
 /*-
  * Copyright (c) 1992-1996 Søren Schmidt
  * All rights reserved.
@@ -26,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.182.2.8 1997/01/19 17:32:51 sos Exp $
+ *  $Id: syscons.c,v 1.182.2.9 1997/01/20 08:14:33 sos Exp $
  */
 
 #include "sc.h"
