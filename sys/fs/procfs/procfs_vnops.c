@@ -157,10 +157,9 @@ procfs_open(ap)
 		}
 
 		p1 = ap->a_p;
-		if (p_candebug(p1, p2) &&
-		    !procfs_kmemaccess(p1)) {
-			error = EPERM;
-		}
+		error = p_candebug(p1, p2);
+		if (error)
+			return (error);
 
 		if (ap->a_mode & FWRITE)
 			pfs->pfs_flags = ap->a_mode & (FWRITE|O_EXCL);
@@ -456,7 +455,6 @@ procfs_getattr(ap)
 					  ((VREAD|VWRITE)>>6));
 		break;
 	case Pmem:
-		/* Retain group kmem readablity. */
 		PROC_LOCK(procp);
 		if (procp->p_flag & P_SUGID)
 			vap->va_mode &= ~(VREAD|VWRITE);
@@ -528,6 +526,8 @@ procfs_getattr(ap)
 		 * If we denied owner access earlier, then we have to
 		 * change the owner to root - otherwise 'ps' and friends
 		 * will break even though they are setgid kmem. *SIGH*
+		 * XXX: ps and friends are no longer setgid kmem, why
+		 * is this needed?
 		 */
 		PROC_LOCK(procp);
 		if (procp->p_flag & P_SUGID)
@@ -535,7 +535,6 @@ procfs_getattr(ap)
 		else
 			vap->va_uid = procp->p_ucred->cr_uid;
 		PROC_UNLOCK(procp);
-		vap->va_gid = KMEM_GROUP;
 		break;
 
 	case Pregs:
