@@ -52,7 +52,7 @@
 #define LogALERT	(23)	/* syslog(LOG_ALERT, ....)	 */
 
 #define LogMAXCONF	(20)  
-#define LogMAX		(24)
+#define LogMAX		(23)
 
 struct mbuf;
 struct cmdargs;
