@@ -81,7 +81,7 @@ struct fsm_callbacks {
   void (*SendTerminateAck) (struct fsm *, u_char); /* Send Term ACK please */
   void (*DecodeConfig) (struct fsm *, u_char *, int, int, struct fsm_decode *);
                                              /* Deal with incoming data */
-  void (*RecvResetReq) (struct fsm *fp);         /* Reset output */
+  int (*RecvResetReq) (struct fsm *fp);         /* Reset output */
   void (*RecvResetAck) (struct fsm *fp, u_char); /* Reset input */
 };
 
@@ -174,7 +174,7 @@ extern void fsm_Up(struct fsm *);
 extern void fsm_Down(struct fsm *);
 extern void fsm_Input(struct fsm *, struct mbuf *);
 extern void fsm_Close(struct fsm *);
-extern void fsm_NullRecvResetReq(struct fsm *);
+extern int fsm_NullRecvResetReq(struct fsm *);
 extern void fsm_NullRecvResetAck(struct fsm *, u_char);
 extern void fsm_Reopen(struct fsm *);
 extern void fsm2initial(struct fsm *);

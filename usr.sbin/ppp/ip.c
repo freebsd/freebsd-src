@@ -906,6 +906,14 @@ ip_PushPacket(struct link *l, struct bundle *bundle)
   if (ipcp->fsm.state != ST_OPENED)
     return 0;
 
+  /*
+   * If ccp is not open but is required, do nothing.
+   */
+  if (l->ccp.fsm.state != ST_OPENED && ccp_Required(&l->ccp)) {
+    log_Printf(LogPHASE, "%s: Not transmitting... waiting for CCP\n", l->name);
+    return 0;
+  }
+
   queue = ipcp->Queue + IPCP_QUEUES(ipcp) - 1;
   do {
     if (queue->top) {
