@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp.c,v 1.23 1999/06/02 23:06:21 brian Exp $
+ *	$Id: mp.c,v 1.24 1999/06/03 13:29:32 brian Exp $
  */
 
 #include <sys/param.h>
@@ -217,6 +217,7 @@ mp_Init(struct mp *mp, struct bundle *bundle)
 
   mp->cfg.mrru = 0;
   mp->cfg.shortseq = NEG_ENABLED|NEG_ACCEPTED;
+  mp->cfg.negenddisc = NEG_ENABLED|NEG_ACCEPTED;
   mp->cfg.enddisc.class = 0;
   *mp->cfg.enddisc.address = '\0';
   mp->cfg.enddisc.len = 0;
@@ -751,6 +752,8 @@ mp_ShowStatus(struct cmdargs const *arg)
     prompt_Printf(arg->prompt, "disabled\n");
   prompt_Printf(arg->prompt, " Short Seq:     %s\n",
                   command_ShowNegval(mp->cfg.shortseq));
+  prompt_Printf(arg->prompt, " Discriminator: %s\n",
+                  command_ShowNegval(mp->cfg.negenddisc));
 
   return 0;
 }

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp.h,v 1.4 1998/08/25 17:48:43 brian Exp $
+ *	$Id: mp.h,v 1.5 1999/05/08 11:07:19 brian Exp $
  */
 
 struct mbuf;
@@ -94,6 +94,7 @@ struct mp {
   struct {
     u_short mrru;		/* Max Reconstructed Receive Unit */
     unsigned shortseq : 2;	/* I want short Sequence Numbers */
+    unsigned negenddisc : 2;	/* I want an endpoint discriminator */
     struct enddisc enddisc;	/* endpoint discriminator */
   } cfg;
 
