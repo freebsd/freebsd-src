@@ -356,7 +356,7 @@ nfs_bioread(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred)
 {
 	struct nfsnode *np = VTONFS(vp);
 	int biosize, i;
-	struct buf *bp = 0, *rabp;
+	struct buf *bp, *rabp;
 	struct vattr vattr;
 	struct thread *td;
 	struct nfsmount *nmp = VFSTONFS(vp->v_mount);
@@ -682,24 +682,17 @@ again:
 		break;
 	    default:
 		printf(" nfs_bioread: type %x unexpected\n", vp->v_type);
+		bp = NULL;
 		break;
 	    };
 
 	    if (n > 0) {
 		    error = uiomove(bp->b_data + on, (int)n, uio);
 	    }
-	    switch (vp->v_type) {
-	    case VREG:
-		break;
-	    case VLNK:
+	    if (vp->v_type == VLNK)
 		n = 0;
-		break;
-	    case VDIR:
-		break;
-	    default:
-		printf(" nfs_bioread: type %x unexpected\n", vp->v_type);
-	    }
-	    brelse(bp);
+	    if (bp != NULL)
+		brelse(bp);
 	} while (error == 0 && uio->uio_resid > 0 && n > 0);
 	return (error);
 }
@@ -1054,12 +1047,6 @@ again:
 				brelse(bp);
 				break;
 			}
-		}
-		if (!bp) {
-			error = nfs_sigintr(nmp, NULL, td);
-			if (!error)
-				error = EINTR;
-			break;
 		}
 		if (bp->b_wcred == NOCRED)
 			bp->b_wcred = crhold(cred);
