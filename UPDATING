@@ -62,6 +62,14 @@ build and install as described in the COMMON ITEMS section.
 	Fix to stat after chdir .. in fts to make sure we wind up where
 	we think we should.
 
+20010521:
+	Minor repo damange has happened.  This may cause problems
+	with cvsup of ports.  If you get errors, please see
+	http://www.FreeBSD.org/cgi/query-pr.cgi?pr=27495
+	at the bottom for details on a workaround.  The error message
+	is
+Updater failed: Cannot delete "/usr/ports/www/jakarta-tomcat/files": Directory not empty
+
 20010421:
 	FreeBSD 4.3 RELEASE
 
