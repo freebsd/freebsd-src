@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.3 (Berkeley) 1/7/94
-#	$Id: Makefile,v 1.80 1997/02/22 19:53:59 peter Exp $
+#	$Id: Makefile,v 1.81 1997/03/23 18:59:47 joerg Exp $
 
 # XXX MISSING:		deroff diction graph learn plot
 #			spell spline struct units xsend
@@ -20,12 +20,17 @@ SUBDIR=	apply ar at banner basename biff brandelf cal calendar \
 	printf quota ranlib rdist renice rev rlogin rpcgen \
 	rpcinfo rs rsh rup ruptime rusers rwall \
 	rwho script sed sgmlfmt sgmls shar showmount size soelim split \
-	strings	strip su symorder talk tclsh tconv tcopy tee tftp time \
+	strings	strip su symorder talk tconv tcopy tee tftp time \
 	tip tn3270 top touch tput tr true tset tsort tty ul uname \
 	unexpand unifdef uniq units unvis users uudecode uuencode vacation \
 	vgrind vi vis w wall wc what whereis which who whois window \
 	write xargs xinstall xlint xstr yacc yes ypcat ypmatch ypwhich
 SUBDIR+=gprof4
+
+.if !defined(NOTCL) && exists (${.CURDIR}/../contrib/tcl) && \
+	exists(${.CURDIR}/tclsh) && exists (${.CURDIR}/../lib/libtcl)
+SUBDIR+=tclsh
+.endif
 
 .if !exists(../eBones) || defined(NOSECURE) || !defined(MAKE_EBONES)
 SUBDIR+=telnet
