@@ -1,3 +1,6 @@
+
+  $FreeBSD$
+
 From: James A. Woods <jaw@eos.arc.nasa.gov>
 
 >From vn Fri Dec  2 18:05:27 1988
@@ -71,48 +74,48 @@ as I recall.)
 	into glass.  although there are restrictions on patenting equations,
 	the "embedded systems" seem to fly past the legal gauntlets.
 
-	anyway, i'm still learning about intellectual property law after
-	several conversations from a unisys (nee sperry) lawyer re 'compress'.
+	anyway, I'm still learning about intellectual property law after
+	several conversations from a Unisys (nee sperry) lawyer re 'compress'.
 
 	it's more complicated than this, but they're letting (oral
 	communication only) software versions of 'compress' slide
 	as far as licensing fees go.  this includes 'arc', 'stuffit',
 	and other commercial wrappers for 'compress'.  yet they are
-	signing up licensees for hardware chips.  hewlett-packard
-	supposedly has an active vlsi project, and unisys has
-	board-level lzw-based tape controllers.  (to build lzw into
+	signing up licensees for hardware chips.  Hewlett-Packard
+	supposedly has an active vlsi project, and Unisys has
+	board-level LZW-based tape controllers.  (to build LZW into
 	a disk controller would be strange, as you'd have to build
 	in a filesystem too!)
 
  	it's byzantine
-	that unisys is in a tiff with hp regarding the patents,
+	that Unisys is in a tiff with HP regarding the patents,
 	after discovering some sort of "compress" button on some
-	hp terminal product.  why?  well, professor abraham lempel jumped
+	HP terminal product.  why?  well, professor Abraham Lempel jumped
 	from being department chairman of computer science at technion in
-	israel to sperry (where he got the first patent), but then to work
-	at hewlett-packard on sabbatical.  the second welch patent
+	Israel to sperry (where he got the first patent), but then to work
+	at Hewlett-Packard on sabbatical.  the second Welch patent
 	is only weakly derivative of the first, so they want chip
-	licenses and hp relented.  however, everyone agrees something
-	like the current unix implementation is the way to go with
-	software, so hp (and ucb) long ago asked spencer thomas and i to sign
+	licenses and HP relented.  however, everyone agrees something
+	like the current Unix implementation is the way to go with
+	software, so HP (and UCB) long ago asked spencer Thomas and i to sign
 	off on copyright permission (although they didn't need to, it being pd).
-	lempel, hp, and unisys grumbles they can't make money off the
+	Lempel, HP, and Unisys grumbles they can't make money off the
 	software since a good free implementation (not the best --
-	i have more ideas!) escaped via usenet.  (lempel's own pascal
+	i have more ideas!) escaped via Usenet.  (Lempel's own pascal
 	code was apparently horribly slow.)
-	i don't follow the ibm 'arc' legal bickering; my impression
+	i don't follow the IBM 'arc' legal bickering; my impression
 	is that the pc folks are making money off the archiver/wrapper
 	look/feel of the thing [if ms-dos can be said to have a look and feel]. 
 
 	now where is telebit with the compress firmware?  in a limbo
 	netherworld, probably, with sperry still welcoming outfits
 	to sign patent licenses, a common tactic to bring other small fry
-	into the fold.  the guy who crammed 12-bit compess into the modem
+	into the fold.  the guy who crammed 12-bit compress into the modem
 	there left.  also what is transpiring with 'compress' and sys 5 rel 4?
 	beats me, but if sperry got a hold of them on these issues,
 	at&t would likely re-implement another algorithm if they
 	thought 'compress' infringes.  needful to say, i don't think
-	it does after the abovementioned legal conversation.
+	it does after the above mentioned legal conversation.
 	my own beliefs on whether algorithms should be patentable at all
 	change with the weather.  if the courts finally nail down
 	patent protection for algorithms, academic publication in
@@ -120,9 +123,9 @@ as I recall.)
 	where the textbook codes will simply be a big tease to get
 	money into the patent holder coffers...
 
-	oh, if you implement lzw from the patent, you won't get
+	oh, if you implement LZW from the patent, you won't get
 	good rates because it doesn't mention adaptive table reset,
-	lack thereof being *the* serious deficiency of thomas' first version.
+	lack thereof being *the* serious deficiency of Thomas' first version.
 
 	now i know that patent law generally protects against independent
 	re-invention (like the 'xor' hash function pleasantly mentioned
@@ -130,9 +133,9 @@ as I recall.)
 	but the upshot is that if anyone ever wanted to sue us,
 	we're partially covered with
 	independently-developed twists, plus the fact that some of us work
-	in a bureacratic morass (as contractor to a public agency in my case).
+	in a bureaucratic morass (as contractor to a public agency in my case).
 
-	quite a mess, huh?  i've wanted to tell someone this stuff
+	quite a mess, huh?  I've wanted to tell someone this stuff
 	for a long time, for posterity if nothing else.
 
 james 

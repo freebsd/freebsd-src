@@ -1,5 +1,6 @@
 
 	@(#)README	8.1 (Berkeley) 6/9/93
+  $FreeBSD$
 
 Compress version 4.0 improvements over 3.0:
 	o compress() speedup (10-50%) by changing division hash to xor
@@ -21,13 +22,13 @@ Compress version 4.0 improvements over 3.0:
 
 The "usermem" script attempts to determine the maximum process size.  Some
 editing of the script may be necessary (see the comments).  [It should work
-fine on 4.3 bsd.] If you can't get it to work at all, just create file
+fine on 4.3 BSD.] If you can't get it to work at all, just create file
 "USERMEM" containing the maximum process size in decimal.
 
 The following preprocessor symbols control the compilation of "compress.c":
 
 	o USERMEM		Maximum process memory on the system
-	o SACREDMEM		Amount to reserve for other proceses
+	o SACREDMEM		Amount to reserve for other processes
 	o SIGNED_COMPARE_SLOW	Unsigned compare instructions are faster
 	o NO_UCHAR		Don't use "unsigned char" types
 	o BITS			Overrules default set by USERMEM-SACREDMEM
@@ -53,7 +54,7 @@ memory: at least		BITS
 
 The default is BITS=16.
 
-The maximum bits can be overrulled by specifying "-DBITS=bits" at
+The maximum bits can be overruled by specifying "-DBITS=bits" at
 compilation time.
 
 WARNING: files compressed on a large machine with more bits than allowed by 
@@ -172,8 +173,8 @@ Organization: CADLINC, Inc. @ Menlo Park, CA
 In the compress 3.0 source recently posted to mod.sources, there is a
 #define variable which can be set for optimum performance on a machine
 with a large amount of memory.  A program (usermem) to calculate the
-useable amount of physical user memory is enclosed, as well as a sample
-4.2bsd Vax Makefile for compress.
+usable amount of physical user memory is enclosed, as well as a sample
+4.2BSD Vax Makefile for compress.
 
 Here is the README file from the previous version of compress (2.0):
 
@@ -189,7 +190,7 @@ Here is the README file from the previous version of compress (2.0):
 >		compiler.  The original posting has a bug which I fixed, 
 >		causing incompatible files.  I recommend you NOT to use this
 >		option unless you already have a lot of packed files from
->		the original posting by thomas.
+>		the original posting by Thomas.
 >2.	The exit status is not well defined (on some machines) causing the
 >	scripts to fail.
 >		The exit status is now 0,1 or 2 and is documented in
@@ -253,7 +254,7 @@ Here is the README file from the previous version of compress (2.0):
 >>>blinding speed and good compression ratios.  It's certainly faster than
 >>>compact (but, then, what wouldn't be), but it's also the same speed as
 >>>pack, and gets better compression than both of them.  On 350K bytes of
->>>unix-wizards, compact took about 8 minutes of CPU, pack took about 80
+>>>Unix-wizards, compact took about 8 minutes of CPU, pack took about 80
 >>>seconds, and compress (herein) also took 80 seconds.  But, compact and
 >>>pack got about 30% compression, whereas compress got over 50%.  So, I
 >>>decided I had something, and that others might be interested, too.
