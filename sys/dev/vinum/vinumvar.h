@@ -37,7 +37,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumvar.h,v 1.33 2003/05/23 01:09:23 grog Exp $
+ * $Id: vinumvar.h,v 1.33 2003/05/23 01:09:23 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -125,16 +125,6 @@ enum constants {
 
 
 #define OBJTYPE(x)	((minor(x) >> VINUM_TYPE_SHIFT) & 3)
-
-    /* Create device minor numbers */
-#define VINUMDEV(o, t)		makedev (VINUM_CDEV_MAJOR, VINUMMINOR (o, t))
-
-#define VINUM_VOL(v)		makedev (VINUM_CDEV_MAJOR, \
-					 VINUMMINOR (v, VINUM_VOLUME_TYPE))
-#define VINUM_PLEX(p)		makedev (VINUM_CDEV_MAJOR, \
-					 VINUMMINOR (p, VINUM_PLEX_TYPE))
-#define VINUM_SD(s)		makedev (VINUM_CDEV_MAJOR, \
-					 VINUMMINOR (s, VINUM_SD_TYPE))
 
     /* extract device type */
 #define DEVTYPE(x) ((minor (x) >> VINUM_TYPE_SHIFT) & 3)
