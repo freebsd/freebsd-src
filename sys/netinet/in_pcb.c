@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_pcb.c	8.4 (Berkeley) 5/24/95
- *	$Id: in_pcb.c,v 1.49 1999/04/28 11:37:44 phk Exp $
+ *	$Id: in_pcb.c,v 1.50 1999/06/17 23:54:50 green Exp $
  */
 
 #include <sys/param.h>
@@ -458,8 +458,11 @@ in_pcbconnect(inp, nam, p)
 		return (EADDRINUSE);
 	}
 	if (inp->inp_laddr.s_addr == INADDR_ANY) {
-		if (inp->inp_lport == 0)
-			(void)in_pcbbind(inp, (struct sockaddr *)0, p);
+		if (inp->inp_lport == 0) {
+			error = in_pcbbind(inp, (struct sockaddr *)0, p);
+			if (error)
+			    return (error);
+		}
 		inp->inp_laddr = ifaddr->sin_addr;
 	}
 	inp->inp_faddr = sin->sin_addr;
