@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: mbuf.h,v 1.16 1999/05/08 11:07:09 brian Exp $
+ * $Id: mbuf.h,v 1.17 1999/05/09 20:02:25 brian Exp $
  *
  *	TODO:
  */
@@ -42,17 +42,46 @@ struct mqueue {
 #define CONST_MBUF_CTOP(bp) \
 	((bp) ? (const u_char *)((bp)+1) + (bp)->offset : NULL)
 
-#define MB_ASYNC	1
-#define MB_FSM		2
-#define MB_CBCP		3
-#define MB_HDLCOUT	4
-#define MB_IPIN		5
-#define MB_ECHO		6
-#define MB_LQR		7
-#define MB_VJCOMP	8
-#define	MB_IPQ		9
-#define	MB_MP		10
-#define	MB_MAX		MB_MP
+#define MB_IPIN		0
+#define MB_IPOUT	1
+#define MB_ALIASIN	2
+#define MB_ALIASOUT	3
+#define MB_MPIN		4
+#define MB_MPOUT	5
+#define MB_VJIN		6
+#define MB_VJOUT	7
+#define MB_ICOMPDIN	8
+#define MB_ICOMPDOUT	9
+#define MB_COMPDIN	10
+#define MB_COMPDOUT	11
+#define MB_LQRIN	12
+#define MB_LQROUT	13
+#define MB_ECHOIN	14
+#define MB_ECHOOUT	15
+#define MB_PROTOIN	16
+#define MB_PROTOOUT	17
+#define MB_ACFIN	18
+#define MB_ACFOUT	19
+#define MB_SYNCIN	20
+#define MB_SYNCOUT	21
+#define MB_HDLCIN	22
+#define MB_HDLCOUT	23
+#define MB_ASYNCIN	24
+#define MB_ASYNCOUT	25
+#define MB_CBCPIN	26
+#define MB_CBCPOUT	27
+#define MB_CHAPIN	28
+#define MB_CHAPOUT	29
+#define MB_PAPIN	30
+#define MB_PAPOUT	31
+#define MB_CCPIN	32
+#define MB_CCPOUT	33
+#define MB_IPCPIN	34
+#define MB_IPCPOUT	35
+#define MB_LCPIN	36
+#define MB_LCPOUT	37
+#define MB_UNKNOWN	38
+#define MB_MAX		MB_UNKNOWN
 
 struct cmdargs;
 
@@ -65,8 +94,8 @@ extern struct mbuf *mbuf_Read(struct mbuf *, void *, size_t);
 extern size_t mbuf_View(struct mbuf *, void *, size_t);
 extern struct mbuf *mbuf_Prepend(struct mbuf *, const void *, size_t, size_t);
 extern struct mbuf *mbuf_Truncate(struct mbuf *, size_t);
-extern void mbuf_Log(void);
 extern int mbuf_Show(struct cmdargs const *);
 extern void mbuf_Enqueue(struct mqueue *, struct mbuf *);
 extern struct mbuf *mbuf_Dequeue(struct mqueue *);
 extern struct mbuf *mbuf_Contiguous(struct mbuf *);
+extern void mbuf_SetType(struct mbuf *, int);

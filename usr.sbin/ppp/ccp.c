@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.c,v 1.48 1999/05/09 20:02:17 brian Exp $
+ * $Id: ccp.c,v 1.49 1999/05/12 09:48:43 brian Exp $
  *
  *	TODO:
  *		o Support other compression protocols
@@ -282,7 +282,7 @@ CcpSendConfigReq(struct fsm *fp)
         o = &(*o)->next;
     }
 
-  fsm_Output(fp, CODE_CONFIGREQ, fp->reqid, buff, cp - buff);
+  fsm_Output(fp, CODE_CONFIGREQ, fp->reqid, buff, cp - buff, MB_CCPOUT);
 }
 
 void
@@ -293,7 +293,7 @@ ccp_SendResetReq(struct fsm *fp)
 
   ccp->reset_sent = fp->reqid;
   ccp->last_reset = -1;
-  fsm_Output(fp, CODE_RESETREQ, fp->reqid, NULL, 0);
+  fsm_Output(fp, CODE_RESETREQ, fp->reqid, NULL, 0, MB_CCPOUT);
 }
 
 static void
@@ -306,7 +306,7 @@ static void
 CcpSendTerminateAck(struct fsm *fp, u_char id)
 {
   /* Send Term ACK please */
-  fsm_Output(fp, CODE_TERMACK, id, NULL, 0);
+  fsm_Output(fp, CODE_TERMACK, id, NULL, 0, MB_CCPOUT);
 }
 
 static void
@@ -534,6 +534,7 @@ extern struct mbuf *
 ccp_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
 {
   /* Got PROTO_CCP from link */
+  mbuf_SetType(bp, MB_CCPIN);
   if (bundle_Phase(bundle) == PHASE_NETWORK)
     fsm_Input(&l->ccp.fsm, bp);
   else {
@@ -578,9 +579,18 @@ ccp_LayerPush(struct bundle *b, struct link *l, struct mbuf *bp,
               int pri, u_short *proto)
 {
   if (PROTO_COMPRESSIBLE(*proto) && l->ccp.fsm.state == ST_OPENED &&
-      l->ccp.out.state != NULL)
-    return (*algorithm[l->ccp.out.algorithm]->o.Write)
-             (l->ccp.out.state, &l->ccp, l, pri, proto, bp);
+      l->ccp.out.state != NULL) {
+    bp = (*algorithm[l->ccp.out.algorithm]->o.Write)
+           (l->ccp.out.state, &l->ccp, l, pri, proto, bp);
+    switch (*proto) {
+      case PROTO_ICOMPD:
+        mbuf_SetType(bp, MB_ICOMPDOUT);
+        break;
+      case PROTO_COMPD:
+        mbuf_SetType(bp, MB_COMPDOUT);
+        break;
+    }
+  }
 
   return bp;
 }
@@ -599,10 +609,21 @@ ccp_LayerPull(struct bundle *b, struct link *l, struct mbuf *bp, u_short *proto)
       /* Decompress incoming data */
       if (l->ccp.reset_sent != -1)
         /* Send another REQ and put the packet in the bit bucket */
-        fsm_Output(&l->ccp.fsm, CODE_RESETREQ, l->ccp.reset_sent, NULL, 0);
-      else if (l->ccp.in.state != NULL)
-        return (*algorithm[l->ccp.in.algorithm]->i.Read)
-                 (l->ccp.in.state, &l->ccp, proto, bp);
+        fsm_Output(&l->ccp.fsm, CODE_RESETREQ, l->ccp.reset_sent, NULL, 0,
+                   MB_CCPOUT);
+      else if (l->ccp.in.state != NULL) {
+        bp = (*algorithm[l->ccp.in.algorithm]->i.Read)
+               (l->ccp.in.state, &l->ccp, proto, bp);
+        switch (*proto) {
+          case PROTO_ICOMPD:
+            mbuf_SetType(bp, MB_ICOMPDIN);
+            break;
+          case PROTO_COMPD:
+            mbuf_SetType(bp, MB_COMPDIN);
+            break;
+        }
+        return bp;
+      }
       mbuf_Free(bp);
       bp = NULL;
     } else if (PROTO_COMPRESSIBLE(*proto) && l->ccp.in.state != NULL) {
