@@ -973,7 +973,11 @@ set_cpufuncs()
 		cpufuncs = arm9_cpufuncs;
 		cpu_reset_needs_v4_MMU_disable = 1;	/* V4 or higher */
 		get_cachetype_cp15();
+#ifdef ARM9_CACHE_WRITE_THROUGH
 		pmap_pte_init_arm9();
+#else
+		pmap_pte_init_generic();
+#endif
 		return 0;
 	}
 #endif /* CPU_ARM9 */
