@@ -31,6 +31,7 @@
 #define	_SYS_SX_H_
 
 #ifndef	LOCORE
+#include <sys/_lock.h>
 #include <sys/_mutex.h>
 #include <sys/condvar.h>	/* XXX */
 
