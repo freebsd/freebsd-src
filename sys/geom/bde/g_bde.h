@@ -91,6 +91,7 @@ struct g_bde_key {
 			/* Physical offsets */
 	uint32_t		sectorsize;
 	uint32_t		flags;
+				/* 1 = lockfile in sector 0 */
 	uint8_t			hash[16];
 	uint8_t			spare[48];
 	uint8_t			key[G_BDE_MKEYLEN];
@@ -135,7 +136,7 @@ void g_bde_encode_lock(struct g_bde_key *gl, u_char *ptr);
 void g_bde_decode_lock(struct g_bde_key *gl, u_char *ptr);
 u_char g_bde_arc4(struct g_bde_softc *sc);
 void g_bde_arc4_seq(struct g_bde_softc *sc, void *ptr, u_int len);
-void g_bde_arc4_seed(struct g_bde_softc *sc, void *ptr, u_int len);
+void g_bde_arc4_seed(struct g_bde_softc *sc, const void *ptr, u_int len);
 int g_bde_keyloc_encrypt(struct g_bde_softc *sc, void *input, void *output);
 int g_bde_keyloc_decrypt(struct g_bde_softc *sc, void *input, void *output);
 int g_bde_decrypt_lock(struct g_bde_softc *sc, u_char *sbox, u_char *meta, off_t mediasize, u_int sectorsize, u_int *nkey);
