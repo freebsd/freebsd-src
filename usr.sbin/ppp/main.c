@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.13 1996/01/11 17:48:52 phk Exp $
+ * $Id: main.c,v 1.14 1996/01/30 11:08:41 dfr Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -67,7 +67,7 @@ static void TerminalStop();
 
 static struct termios oldtio;		/* Original tty mode */
 static struct termios comtio;		/* Command level tty mode */
-static int TermMode;
+int TermMode;
 static int server;
 struct sockaddr_in ifsin;
 char pid_filename[128];
@@ -446,7 +446,10 @@ ShowHelp()
 {
   fprintf(stderr, "The following commands are available:\r\n");
   fprintf(stderr, " ~p\tEnter to Packet mode\r\n");
+  fprintf(stderr, " ~-\tDecrease log level\r\n");
+  fprintf(stderr, " ~+\tIncrease log level\r\n");
   fprintf(stderr, " ~.\tTerminate program\r\n");
+  fprintf(stderr, " ~?\tThis help\r\n");
 }
 
 static void

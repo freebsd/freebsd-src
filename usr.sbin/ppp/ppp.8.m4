@@ -1,5 +1,5 @@
 .\" manual page [] for ppp 0.94 beta2 + alpha
-.\" $Id: ppp.8,v 1.12 1995/10/08 14:57:31 amurai Exp $
+.\" $Id: ppp.8,v 1.13 1996/01/30 13:50:10 mpp Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -538,16 +538,21 @@ To control this IPCP behavior, this implementation has the
 .Dq set ifaddr
 command for defining the local and remote IP address:
 
-.Dl ifaddr src_addr dst_addr
+.Nm set ifaddr
+.Op src_addr Op dst_addr Op netmask Op trg_addr
 
 Where,
 .Sq src_addr
 is the IP address that the local side is willing to use and
 .Sq dst_addr
 is the IP address which the remote side should use.
+.Sq netmask
+is interface netmask.
+.Sq trg_addr
+is the IP address which used in address negotiation.
 
 Ex:
-.Dl ifaddr 192.244.177.38 192.244.177.2
+.Dl set ifaddr 192.244.177.38 192.244.177.2 255.255.255.0
 
 The above specification means:
 .Bl -bullet -compact
@@ -561,15 +566,18 @@ don't permit it to use any IP address but 192.244.177.2.  When peer
 request another IP address, I always suggest that it use 192.244.177.2.
 
 .It
+My interface netmask will be 255.255.255.0.
+
+.It
 This is all fine when each side has a pre-determined IP address, however
 it is often the case that one side is acting as a server which controls
 all IP addresses and the other side should obey the direction from it. 
 .El
 
-In order to allow more flexible behavior, `ifaddr' command allows the
+In order to allow more flexible behavior, `ifaddr' variable allows the
 user to specify IP address more loosely:
 
-.Dl ifaddr 192.244.177.38/24 192.244.177.2/20
+.Dl set ifaddr 192.244.177.38/24 192.244.177.2/20
 
 A number followed by a slash (/) represent the number of bits significant in
 the IP address.  The above example signifies that:
@@ -601,11 +609,14 @@ try to insist that 192.244.177.2 be used first.
 
 .Bl -enum
 .It
-Describe provider's phone number in DialScript: Use the
+Describe provider's phone number(s) in DialScript: Use the
 .Dq set dial
 or
 .Dq set phone
 commands.
+.Dq Set phone
+command allows you to set multiply phone numbers for dialing and redialing
+separated by a colon (:).
 .It
 Describe login procedure in LoginScript: Use the
 .Dq set login
@@ -679,9 +690,10 @@ Please read example configuration files.
 .It
 Use
 .Dq help ,
-.Dq show ?
-and
+.Dq show ? ,
 .Dq set ?
+and
+.Dq set ? <var>
 commands.
 
 .It

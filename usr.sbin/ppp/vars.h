@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vars.h,v 1.3 1995/03/11 15:18:55 amurai Exp $
+ * $Id: vars.h,v 1.4 1995/10/08 14:57:32 amurai Exp $
  *
  *	TODO:
  */
@@ -72,7 +72,8 @@ struct pppvars {
   char   login_script[200];	/* Login script */
   char   auth_key[50];		/* PAP/CHAP key */
   char	 auth_name[50];		/* PAP/CHAP system name */
-  char   phone_number[50];	/* Telephone Number */
+  char   phone_numbers[200];    /* Telephone Numbers */
+  char   *next_phone;           /* Next phone from the list */
   char   shostname[MAXHOSTNAMELEN];/* Local short Host Name */
 };
 
@@ -90,7 +91,8 @@ struct pppvars {
 #define	VarRetryTimeout	pppVars.retry_timeout
 #define	VarAuthKey	pppVars.auth_key
 #define	VarAuthName	pppVars.auth_name
-#define	VarPhone	pppVars.phone_number
+#define VarPhoneList    pppVars.phone_numbers
+#define VarNextPhone    pppVars.next_phone
 #define	VarShortHost	pppVars.shostname
 #define VarRedialTimeout pppVars.redial_timeout
 #define VarDialTries	pppVars.dial_tries
