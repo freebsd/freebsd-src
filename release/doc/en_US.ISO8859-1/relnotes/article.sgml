@@ -653,11 +653,9 @@
       ESS Maestro-3/Allegro has been added, however due to licensing
       restrictions, it cannot be compiled into the kernel. &merged; To
       use this driver, add the following line to
-      <filename>/boot/loader.conf</filename>:
+      <filename>/boot/loader.conf</filename>:</para>
 
-        <screen><userinput>snd_maestro3_load="YES"</userinput></screen>
-
-      </para>
+      <programlisting>snd_maestro3_load="YES"</programlisting>
 
       <para>The &man.bktr.4; driver has been updated to 2.18.  This
       update provides a number of new features:  New tuner

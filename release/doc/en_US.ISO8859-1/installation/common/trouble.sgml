@@ -371,12 +371,12 @@ boot:</screen>
 	  in the future.  In order to get your system installed at
 	  all, boot with the <option>-c</option> option into
 	  UserConfig, but <emphasis>don't</emphasis> use the pretty
-	  visual mode but the plain old CLI mode.  Type:
+	  visual mode but the plain old CLI mode.  Type:</para>
 
           <screen><userinput>eisa 12</userinput>
 <userinput>quit</userinput></screen>
 
-          at the prompt.  (Instead of `quit', you might also
+          <para>at the prompt.  (Instead of `quit', you might also
           type `visual', and continue the rest of the configuration
           session in visual mode.)  While it's recommended to compile
           a custom kernel, dset now also understands to save
@@ -402,11 +402,11 @@ boot:</screen>
           comes to the very first menu (the choice to drop into kernel
           UserConfig mode or not) choose the command-line interface
           (<quote>expert mode</quote>) version and type the following
-          at it:
+          at it:</para>
 
           <screen><userinput>flags npx0 1</userinput></screen>
 
-          Then proceed normally to boot.  This will be saved
+          <para>Then proceed normally to boot.  This will be saved
           into your kernel, so you only need to do it once.</para>
 	</answer>
       </qandaentry>
