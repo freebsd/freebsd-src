@@ -337,7 +337,7 @@ sub garbage {
 
 sub nroff {
     local($man,$cat) = @_;
-    local($nroff) = "nroff -T" . $dev_name . " -mandoc | col";
+    local($nroff) = "nroff -T" . $dev_name . " -man | col";
     local($dev, $ino) = (stat($man))[01];
 
     # It's a link
@@ -386,12 +386,12 @@ sub nroff_device {
   $dev_name = "ascii";
 
   if ($locale) {
-     # Use "nroff -Tkoi8-r -mandoc" to format russian manpages (if catman "-L"
+     # Use "nroff -Tkoi8-r -man" to format russian manpages (if catman "-L"
      # option specified only).
      if ($local_suffix =~ '\.KOI8-R$') {
           $dev_name = "koi8-r";
      }
-     # Use "nroff -Tlatin1 -mandoc" to format ISO 8859-1 manpages
+     # Use "nroff -Tlatin1 -man" to format ISO 8859-1 manpages
      elsif ($local_suffix =~ '\.ISO_8859-1$') {
 	  $dev_name = "latin1";
     }
