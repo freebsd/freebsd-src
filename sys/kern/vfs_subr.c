@@ -1708,12 +1708,6 @@ vflush(mp, rootrefs, flags)
 	struct vattr vattr;
 	int busy = 0, error;
 
-	/* Hack to prevent crashes with old filesystem modules. */
-	if (rootrefs < 0 || rootrefs > 10) {
-		printf("vflush: %s: bad rootrefs %d\n",
-		    mp->mnt_stat.f_fstypename, rootrefs);
-		return (EBUSY);
-	}
 	if (rootrefs > 0) {
 		KASSERT((flags & (SKIPSYSTEM | WRITECLOSE)) == 0,
 		    ("vflush: bad args"));
