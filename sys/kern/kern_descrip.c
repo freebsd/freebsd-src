@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_descrip.c	8.6 (Berkeley) 4/19/94
- * $Id: kern_descrip.c,v 1.33 1996/12/19 19:41:35 bde Exp $
+ * $Id: kern_descrip.c,v 1.34 1996/12/19 19:59:51 bde Exp $
  */
 
 #include <sys/param.h>
@@ -674,6 +674,7 @@ falloc(p, resultfp, resultfd)
 	p->p_fd->fd_ofiles[i] = fp;
 	fp->f_count = 1;
 	fp->f_cred = p->p_ucred;
+	fp->f_seqcount = 1;
 	crhold(fp->f_cred);
 	if (resultfp)
 		*resultfp = fp;

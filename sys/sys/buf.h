@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)buf.h	8.9 (Berkeley) 3/30/95
- * $Id: buf.h,v 1.34 1996/10/13 14:36:37 phk Exp $
+ * $Id: buf.h,v 1.35 1996/11/30 22:41:35 dyson Exp $
  */
 
 #ifndef _SYS_BUF_H_
@@ -82,7 +82,6 @@ struct buf {
 	} b_un;
 	caddr_t	b_kvabase;		/* base kva for buffer */
 	int	b_kvasize;		/* size of kva for buffer */
-	void	*b_saveaddr;		/* Original b_addr for physio. */
 	daddr_t	b_lblkno;		/* Logical block number. */
 	daddr_t	b_blkno;		/* Underlying physical block number. */
 					/* Function to call upon completion. */
@@ -97,6 +96,7 @@ struct buf {
 	int	b_validoff;		/* Offset in buffer of valid region. */
 	int	b_validend;		/* Offset of end of valid region. */
 	daddr_t	b_pblkno;               /* physical block number */
+	void	*b_saveaddr;		/* Original b_addr for physio. */
 	caddr_t	b_savekva;              /* saved kva for transfer while bouncing */
 	void	*b_driver1;		/* for private use by the driver */
 	void	*b_driver2;		/* for private use by the driver */
@@ -144,6 +144,7 @@ struct buf {
 #define	B_XXX		0x02000000	/* Debugging flag. */
 #define	B_PAGING	0x04000000	/* volatile paging I/O -- bypass VMIO */
 #define	B_ORDERED	0x08000000	/* Must guarantee I/O ordering */
+#define B_RAM		0x10000000	/* Read ahead mark (flag) */
 #define B_VMIO		0x20000000	/* VMIO flag */
 #define B_CLUSTER	0x40000000	/* pagein op, so swap() can count it */
 #define B_BOUNCE	0x80000000	/* bounce buffer flag */
@@ -220,7 +221,7 @@ void	biodone __P((struct buf *));
 
 void	cluster_callback __P((struct buf *));
 int	cluster_read __P((struct vnode *, u_quad_t, daddr_t, long,
-	    struct ucred *, struct buf **));
+	    struct ucred *, long, int, struct buf **));
 int	cluster_wbuild __P((struct vnode *, long, daddr_t, int));
 void	cluster_write __P((struct buf *, u_quad_t));
 int	physio __P((void (*)(struct buf *), struct buf *, dev_t, 
