@@ -1,5 +1,5 @@
 /*-
- * Copyright 1996-1998 John D. Polstra.
+ * Copyright 1996, 1997, 1998, 1999, 2000 John D. Polstra.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -52,6 +52,7 @@ typedef unsigned char bool;
 struct stat;
 struct Struct_Obj_Entry;
 
+/* Lists of shared objects */
 typedef struct Struct_Objlist_Entry {
     STAILQ_ENTRY(Struct_Objlist_Entry) link;
     struct Struct_Obj_Entry *obj;
@@ -59,6 +60,17 @@ typedef struct Struct_Objlist_Entry {
 
 typedef STAILQ_HEAD(Struct_Objlist, Struct_Objlist_Entry) Objlist;
 
+/* Lists of init or fini functions */
+typedef void (*InitFunc)(void);
+
+typedef struct Struct_Funclist_Entry {
+    STAILQ_ENTRY(Struct_Funclist_Entry) link;
+    InitFunc func;
+} Funclist_Entry;
+
+typedef STAILQ_HEAD(Struct_Funclist, Struct_Funclist_Entry) Funclist;
+
+/* Lists of shared object dependencies */
 typedef struct Struct_Needed_Entry {
     struct Struct_Needed_Entry *next;
     struct Struct_Obj_Entry *obj;
@@ -122,8 +134,8 @@ typedef struct Struct_Obj_Entry {
     const char *rpath;		/* Search path specified in object */
     Needed_Entry *needed;	/* Shared objects needed by this one (%) */
 
-    void (*init)(void);		/* Initialization function to call */
-    void (*fini)(void);		/* Termination function to call */
+    InitFunc init;		/* Initialization function to call */
+    InitFunc fini;		/* Termination function to call */
 
     bool mainprog;		/* True if this is the main program */
     bool rtld;			/* True if this is the dynamic linker */
@@ -157,6 +169,10 @@ unsigned long elf_hash(const char *);
 const Elf_Sym *find_symdef(unsigned long, Obj_Entry *, const Obj_Entry **,
   bool);
 void init_pltgot(Obj_Entry *);
+void lockdflt_acquire(void *);
+void *lockdflt_create(void *);
+void lockdflt_destroy(void *);
+void lockdflt_release(void *);
 void obj_free(Obj_Entry *);
 Obj_Entry *obj_new(void);
 int reloc_non_plt(Obj_Entry *, Obj_Entry *);
