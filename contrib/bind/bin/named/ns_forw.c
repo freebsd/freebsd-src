@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static const char sccsid[] = "@(#)ns_forw.c	4.32 (Berkeley) 3/3/91";
-static const char rcsid[] = "$Id: ns_forw.c,v 8.90 2002/02/22 05:12:35 marka Exp $";
+static const char rcsid[] = "$Id: ns_forw.c,v 8.91 2002/05/24 03:04:57 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -612,6 +612,11 @@ nslookup(struct databuf *nsp[], struct qinfo *qp,
 			qs->nsdata = dp;
 			qs->forwarder = 0;
 			qs->noedns = dp->d_noedns;
+			if (!qs->noedns) {
+				server_info si = find_server(nsa);
+				if (si && (si->flags & SERVER_INFO_EDNS) == 0)
+					qs->noedns = 1;
+			}
 			qs->nretry = 0;
 			/*
 			 * If this A RR has no RTT, initialize its RTT to a
@@ -1285,6 +1290,11 @@ nsfwdadd(struct qinfo *qp, struct fwdinfo *fwd) {
 		qs->nsdata = fwd->fwddata->nsdata;
 		qs->forwarder = 1;
 		qs->noedns = fwd->fwddata->nsdata->d_noedns;
+		if (!qs->noedns) {
+			server_info si = find_server(qs->ns_addr.sin_addr);
+			if (si && (si->flags & SERVER_INFO_EDNS) == 0)
+				qs->noedns = 1;
+		}
 		qs->nretry = 0;
 		n++;
  nextfwd:

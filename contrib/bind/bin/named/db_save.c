@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static const char sccsid[] = "@(#)db_save.c	4.16 (Berkeley) 3/21/91";
-static const char rcsid[] = "$Id: db_save.c,v 8.29 2001/04/25 13:53:09 marka Exp $";
+static const char rcsid[] = "$Id: db_save.c,v 8.30 2002/05/18 01:02:56 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -137,7 +137,7 @@ savedata(class, type, ttl, data, size)
 	int size;
 {
 	struct databuf *dp;
-	int bytes = DATASIZE(size);
+	int bytes = BIND_DATASIZE(size);
 
 	dp = (struct databuf *)memget(bytes);
 	if (dp == NULL)
