@@ -1,5 +1,4 @@
 /* $FreeBSD$ */
-/* release_6_2_99 */
 /*
  * PCI specific probe and attach routines for Qlogic ISP SCSI adapters.
  * FreeBSD 2.X Version.
@@ -72,7 +71,7 @@ static struct ispmdvec mdvec = {
 	ISP_RISC_CODE,
 	ISP_CODE_LENGTH,
 	ISP_CODE_ORG,
-	ISP_CODE_VERSION,
+	0,
 	BIU_BURST_ENABLE|BIU_PCI_CONF1_FIFO_64,
 	0
 };
@@ -91,7 +90,7 @@ static struct ispmdvec mdvec_1080 = {
 	ISP1080_RISC_CODE,
 	ISP1080_CODE_LENGTH,
 	ISP1080_CODE_ORG,
-	ISP1080_CODE_VERSION,
+	0,
 	BIU_BURST_ENABLE|BIU_PCI_CONF1_FIFO_64,
 	0
 };
@@ -110,7 +109,7 @@ static struct ispmdvec mdvec_2100 = {
 	ISP2100_RISC_CODE,
 	ISP2100_CODE_LENGTH,
 	ISP2100_CODE_ORG,
-	ISP2100_CODE_VERSION,
+	0,
 	0,			/* Irrelevant to the 2100 */
 	0
 };
@@ -129,7 +128,7 @@ static struct ispmdvec mdvec_2200 = {
 	ISP2200_RISC_CODE,
 	ISP2200_CODE_LENGTH,
 	ISP2100_CODE_ORG,
-	ISP2200_CODE_VERSION,
+	0,
 	0,
 	0
 };
@@ -299,7 +298,8 @@ isp_pci_probe(pcici_t tag, pcidi_t type)
 	}
 	if (oneshot) {
 		oneshot = 0;
-		printf("%s Version %d.%d, Core Version %d.%d\n", PVS,
+		printf("Qlogic ISP Driver, FreeBSD Version %d.%d, "
+		    "Core Version %d.%d\n",
 		    ISP_PLATFORM_VERSION_MAJOR, ISP_PLATFORM_VERSION_MINOR,
 		    ISP_CORE_VERSION_MAJOR, ISP_CORE_VERSION_MINOR);
 	}
@@ -488,8 +488,9 @@ isp_pci_attach(pcici_t cfid, int unit)
 		data &= ~0xffff;
 		data |= (PCI_DFLT_LTNCY << 8) | linesz;
 		pci_conf_write(cfid, PCIR_CACHELNSZ, data);
-		printf("%s: set PCI line size to %d\n", isp->isp_name, linesz);
-		printf("%s: set PCI latency to %d\n", isp->isp_name,
+		CFGPRINTF("%s: set PCI line size to %d\n",
+		    isp->isp_name, linesz);
+		CFGPRINTF("%s: set PCI latency to %d\n", isp->isp_name,
 		    PCI_DFLT_LTNCY);
 	}
 
@@ -669,13 +670,24 @@ isp_pci_mbxdma(struct ispsoftc *isp)
 	u_int32_t len;
 	int rseg;
 
-	/* XXXX CHECK FOR ALIGNMENT */
+	if (isp->isp_rquest)	/* been here before? */
+		return (0);
+
+	len = sizeof (ISP_SCSI_XFER_T **) * isp->isp_maxcmds;
+	isp->isp_xflist = (ISP_SCSI_XFER_T **) malloc(len, M_DEVBUF, M_WAITOK);
+	if (isp->isp_xflist == NULL) {
+		printf("%s: can't alloc xflist array\n", isp->isp_name);
+		return (1);
+	}
+	bzero(isp->isp_xflist, len);
+
 	/*
 	 * Allocate and map the request queue.
 	 */
 	len = ISP_QUEUE_SIZE(RQUEST_QUEUE_LEN);
 	isp->isp_rquest = malloc(len, M_DEVBUF, M_NOWAIT);
 	if (isp->isp_rquest == NULL) {
+		free(isp->isp_xflist, M_DEVBUF);
 		printf("%s: cannot malloc request queue\n", isp->isp_name);
 		return (1);
 	}
@@ -691,6 +703,7 @@ isp_pci_mbxdma(struct ispsoftc *isp)
 	len = ISP_QUEUE_SIZE(RESULT_QUEUE_LEN);
 	isp->isp_result = malloc(len, M_DEVBUF, M_NOWAIT);
 	if (isp->isp_result == NULL) {
+		free(isp->isp_xflist, M_DEVBUF);
 		free(isp->isp_rquest, M_DEVBUF);
 		printf("%s: cannot malloc result queue\n", isp->isp_name);
 		return (1);
@@ -705,6 +718,9 @@ isp_pci_mbxdma(struct ispsoftc *isp)
 		fcp->isp_scratch = (caddr_t)
 		    malloc(ISP2100_SCRLEN, M_DEVBUF, M_NOWAIT);
 		if (fcp->isp_scratch == NULL) {
+			free(isp->isp_xflist, M_DEVBUF);
+			free(isp->isp_rquest, M_DEVBUF);
+			free(isp->isp_result, M_DEVBUF);
 			printf("%s: cannot alloc scratch\n", isp->isp_name);
 			return (1);
 		}
