@@ -41,8 +41,6 @@ sparc64/sparc64/elf_machdep.c	standard
 sparc64/sparc64/eeprom.c	optional	eeprom
 sparc64/sparc64/eeprom_ebus.c	optional	eeprom ebus
 sparc64/sparc64/eeprom_sbus.c	optional	eeprom sbus
-sparc64/sparc64/emul.c		standard
-sparc64/sparc64/fp.c		standard
 sparc64/sparc64/identcpu.c	standard
 sparc64/sparc64/in_cksum.c	optional	inet
 sparc64/sparc64/intr_machdep.c	standard

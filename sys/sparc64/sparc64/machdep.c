@@ -606,11 +606,8 @@ setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
 	pcb = td->td_pcb;
 	sp = rounddown(stack, 16);
 	tf = td->td_frame;
-	fp_init_thread(td);
-	bzero(pcb->pcb_rw, sizeof(pcb->pcb_rw));
-	bzero(pcb->pcb_rwsp, sizeof(pcb->pcb_rwsp));
-	pcb->pcb_nsaved = 0;
-	bzero(tf, sizeof (*tf));
+	bzero(pcb, sizeof(*pcb));
+	bzero(tf, sizeof(*tf));
 	tf->tf_out[0] = stack;
 	tf->tf_out[3] = PS_STRINGS;
 	tf->tf_out[6] = sp - SPOFF - sizeof(struct frame);
