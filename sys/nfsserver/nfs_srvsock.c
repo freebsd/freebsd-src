@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_socket.c	8.3 (Berkeley) 1/12/94
- * $Id: nfs_socket.c,v 1.9 1995/08/24 11:04:04 davidg Exp $
+ * $Id: nfs_socket.c,v 1.10 1995/10/29 15:33:04 phk Exp $
  */
 
 /*
@@ -131,39 +131,90 @@ static int proct[NFS_NPROCS] = {
 #define	NFS_CWNDSCALE	256
 #define	NFS_MAXCWND	(NFS_CWNDSCALE * 32)
 static int nfs_backoff[8] = { 2, 4, 8, 16, 32, 64, 128, 256, };
-int	nfs_sbwait();
-void	nfs_disconnect(), nfs_realign(), nfsrv_wakenfsd(), nfs_sndunlock();
-void	nfs_rcvunlock(), nqnfs_serverd(), nqnfs_clientlease();
 int nfsrtton = 0;
 struct nfsrtt nfsrtt;
 
-int	nfsrv_null(),
-	nfsrv_getattr(),
-	nfsrv_setattr(),
-	nfsrv_lookup(),
-	nfsrv3_access(),
-	nfsrv_readlink(),
-	nfsrv_read(),
-	nfsrv_write(),
-	nfsrv_create(),
-	nfsrv_mknod(),
-	nfsrv_remove(),
-	nfsrv_rename(),
-	nfsrv_link(),
-	nfsrv_symlink(),
-	nfsrv_mkdir(),
-	nfsrv_rmdir(),
-	nfsrv_readdir(),
-	nfsrv_readdirplus(),
-	nfsrv_statfs(),
-	nfsrv_fsinfo(),
-	nfsrv_pathconf(),
-	nfsrv_commit(),
-	nfsrv_noop(),
-	nqnfsrv_getlease(),
-	nqnfsrv_vacated();
+extern void	nfs_disconnect __P((struct nfsmount *nmp));
+extern void	nfs_realign __P((struct mbuf *m, int hsiz));
+extern int	nfs_receive __P((struct nfsreq *rep, struct mbuf **aname,
+				 struct mbuf **mp));
+extern int	nfs_reconnect __P((struct nfsreq *rep));
+extern int	nfsrv3_access __P((struct nfsrv_descript *nfsd,
+				   struct nfssvc_sock *slp, struct proc *procp,
+				   struct mbuf **mrq));
+extern int	nfsrv_commit __P((struct nfsrv_descript *nfsd,
+				  struct nfssvc_sock *slp, struct proc *procp,
+				  struct mbuf **mrq));
+extern int	nfsrv_create __P((struct nfsrv_descript *nfsd,
+				  struct nfssvc_sock *slp, struct proc *procp,
+				  struct mbuf **mrq));
+extern int	nfsrv_fsinfo __P((struct nfsrv_descript *nfsd,
+				  struct nfssvc_sock *slp, struct proc *procp,
+				  struct mbuf **mrq));
+extern int	nfsrv_getattr __P((struct nfsrv_descript *nfsd,
+				   struct nfssvc_sock *slp, struct proc *procp,
+				   struct mbuf **mrq));
+extern int	nfsrv_link __P((struct nfsrv_descript *nfsd,
+				struct nfssvc_sock *slp, struct proc *procp,
+				struct mbuf **mrq));
+extern int	nfsrv_lookup __P((struct nfsrv_descript *nfsd,
+				  struct nfssvc_sock *slp, struct proc *procp,
+				  struct mbuf **mrq));
+extern int	nfsrv_mkdir __P((struct nfsrv_descript *nfsd,
+				 struct nfssvc_sock *slp, struct proc *procp,
+				 struct mbuf **mrq));
+extern int	nfsrv_mknod __P((struct nfsrv_descript *nfsd,
+				 struct nfssvc_sock *slp, struct proc *procp,
+				 struct mbuf **mrq));
+extern int	nfsrv_noop __P((struct nfsrv_descript *nfsd,
+				struct nfssvc_sock *slp, struct proc *procp,
+				struct mbuf **mrq));
+extern int	nfsrv_null __P((struct nfsrv_descript *nfsd,
+				struct nfssvc_sock *slp, struct proc *procp,
+				struct mbuf **mrq));
+extern int	nfsrv_pathconf __P((struct nfsrv_descript *nfsd,
+				    struct nfssvc_sock *slp, struct proc *procp,
+				    struct mbuf **mrq));
+extern void	nfsrv_rcv __P((struct socket *so, caddr_t arg, int waitflag));
+extern int	nfsrv_read __P((struct nfsrv_descript *nfsd,
+				struct nfssvc_sock *slp, struct proc *procp,
+				struct mbuf **mrq));
+extern int	nfsrv_readdir __P((struct nfsrv_descript *nfsd,
+				   struct nfssvc_sock *slp, struct proc *procp,
+				   struct mbuf **mrq));
+extern int	nfsrv_readdirplus __P((struct nfsrv_descript *nfsd,
+				       struct nfssvc_sock *slp,
+				       struct proc *procp, struct mbuf **mrq));
+extern int	nfsrv_readlink __P((struct nfsrv_descript *nfsd,
+				    struct nfssvc_sock *slp, struct proc *procp,
+				    struct mbuf **mrq));
+extern int	nfsrv_remove __P((struct nfsrv_descript *nfsd,
+				  struct nfssvc_sock *slp, struct proc *procp,
+				  struct mbuf **mrq));
+extern int	nfsrv_rename __P((struct nfsrv_descript *nfsd,
+				  struct nfssvc_sock *slp, struct proc *procp,
+				  struct mbuf **mrq));
+extern int	nfsrv_rmdir __P((struct nfsrv_descript *nfsd,
+				 struct nfssvc_sock *slp, struct proc *procp,
+				 struct mbuf **mrq));
+extern int	nfsrv_setattr __P((struct nfsrv_descript *nfsd,
+				   struct nfssvc_sock *slp, struct proc *procp,
+				   struct mbuf **mrq));
+extern int	nfsrv_statfs __P((struct nfsrv_descript *nfsd,
+				  struct nfssvc_sock *slp, struct proc *procp,
+				  struct mbuf **mrq));
+extern int	nfsrv_symlink __P((struct nfsrv_descript *nfsd,
+				   struct nfssvc_sock *slp, struct proc *procp,
+				   struct mbuf **mrq));
+extern void	nfsrv_wakenfsd __P((struct nfssvc_sock *slp));
+extern int	nfsrv_write __P((struct nfsrv_descript *nfsd,
+				 struct nfssvc_sock *slp, struct proc *procp,
+				 struct mbuf **mrq));
 
-int (*nfsrv3_procs[NFS_NPROCS])() = {
+int (*nfsrv3_procs[NFS_NPROCS]) __P((struct nfsrv_descript *nd,
+				    struct nfssvc_sock *slp,
+				    struct proc *procp,
+				    struct mbuf **mreqp)) = {
 	nfsrv_null,
 	nfsrv_getattr,
 	nfsrv_setattr,
