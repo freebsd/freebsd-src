@@ -28,8 +28,9 @@ else:
 def disc1_packages():
     # 5.x only
     pkgs = ['lang/perl5.8']
-    if arch != 'ia64':
-        pkgs.append('x11/xorg')
+    pkgs.append('x11/xorg')
+    pkgs.append('x11/xorg-manpages')
+    pkgs.append('devel/imake-6')
     if arch == 'alpha':
         pkgs.append('emulators/osf1_base')
     elif arch == 'i386':
@@ -85,6 +86,7 @@ def disc2_packages():
             'shells/bash2',
             'shells/pdksh',
             'shells/zsh',
+            'security/freebsd-update',
             'security/sudo',
             'sysutils/portsnap',
             'sysutils/portupgrade',
