@@ -118,7 +118,7 @@ __FBSDID("$FreeBSD$");
  *	Debug macros to reduce the unsightly ifdefs
  */
 #if (defined(DEBUG_ASR) || defined(DEBUG_ASR_USR_CMD) || defined(DEBUG_ASR_CMD))
-# define debug_asr_message(message)					       \
+#define debug_asr_message(message)					       \
 	{								       \
 		u_int32_t * pointer = (u_int32_t *)message;		       \
 		u_int32_t   length = I2O_MESSAGE_FRAME_getMessageSize(message);\
@@ -135,20 +135,20 @@ __FBSDID("$FreeBSD$");
 
 #if (defined(DEBUG_ASR))
   /* Breaks on none STDC based compilers :-( */
-# define debug_asr_printf(fmt,args...)	 printf(fmt, ##args)
-# define debug_asr_dump_message(message) debug_asr_message(message)
-# define debug_asr_print_path(ccb)	 xpt_print_path(ccb->ccb_h.path);
+#define debug_asr_printf(fmt,args...)	 printf(fmt, ##args)
+#define debug_asr_dump_message(message) debug_asr_message(message)
+#define debug_asr_print_path(ccb)	 xpt_print_path(ccb->ccb_h.path);
   /* None fatal version of the ASSERT macro */
-# if (defined(__STDC__))
-#  define ASSERT(phrase) if(!(phrase))printf(#phrase " at line %d file %s\n",__LINE__,__FILE__)
-# else
-#  define ASSERT(phrase) if(!(phrase))printf("phrase" " at line %d file %s\n",__LINE__,__FILE__)
-# endif
+#if (defined(__STDC__))
+#define ASSERT(phrase) if(!(phrase))printf(#phrase " at line %d file %s\n",__LINE__,__FILE__)
+#else
+#define ASSERT(phrase) if(!(phrase))printf("phrase" " at line %d file %s\n",__LINE__,__FILE__)
+#endif
 #else /* DEBUG_ASR */
-# define debug_asr_printf(fmt,args...)
-# define debug_asr_dump_message(message)
-# define debug_asr_print_path(ccb)
-# define ASSERT(x)
+#define debug_asr_printf(fmt,args...)
+#define debug_asr_dump_message(message)
+#define debug_asr_print_path(ccb)
+#define ASSERT(x)
 #endif /* DEBUG_ASR */
 
 /*
@@ -158,8 +158,8 @@ __FBSDID("$FreeBSD$");
  *		2 - add in outgoing message frames.
  */
 #if (defined(DEBUG_ASR_CMD))
-# define debug_asr_cmd_printf(fmt,args...)     printf(fmt,##args)
-# define debug_asr_dump_ccb(ccb)				      \
+#define debug_asr_cmd_printf(fmt,args...)     printf(fmt,##args)
+#define debug_asr_dump_ccb(ccb)				      \
 	{							      \
 		u_int8_t * cp = (unsigned char *)&(ccb->csio.cdb_io); \
 		int	   len = ccb->csio.cdb_len;		      \
@@ -169,32 +169,32 @@ __FBSDID("$FreeBSD$");
 			--len;					      \
 		}						      \
 	}
-# if (DEBUG_ASR_CMD > 0)
-#  define debug_asr_cmd1_printf		       debug_asr_cmd_printf
-# else
-#  define debug_asr_cmd1_printf(fmt,args...)
-# endif
-# if (DEBUG_ASR_CMD > 1)
-#  define debug_asr_cmd2_printf		       debug_asr_cmd_printf
-#  define debug_asr_cmd2_dump_message(message) debug_asr_message(message)
-# else
-#  define debug_asr_cmd2_printf(fmt,args...)
-#  define debug_asr_cmd2_dump_message(message)
-# endif
+#if (DEBUG_ASR_CMD > 0)
+#define debug_asr_cmd1_printf		       debug_asr_cmd_printf
+#else
+#define debug_asr_cmd1_printf(fmt,args...)
+#endif
+#if (DEBUG_ASR_CMD > 1)
+#define debug_asr_cmd2_printf		       debug_asr_cmd_printf
+#define debug_asr_cmd2_dump_message(message) debug_asr_message(message)
+#else
+#define debug_asr_cmd2_printf(fmt,args...)
+#define debug_asr_cmd2_dump_message(message)
+#endif
 #else /* DEBUG_ASR_CMD */
-# define debug_asr_cmd_printf(fmt,args...)
-# define debug_asr_cmd_dump_ccb(ccb)
-# define debug_asr_cmd1_printf(fmt,args...)
-# define debug_asr_cmd2_printf(fmt,args...)
-# define debug_asr_cmd2_dump_message(message)
+#define debug_asr_cmd_printf(fmt,args...)
+#define debug_asr_cmd_dump_ccb(ccb)
+#define debug_asr_cmd1_printf(fmt,args...)
+#define debug_asr_cmd2_printf(fmt,args...)
+#define debug_asr_cmd2_dump_message(message)
 #endif /* DEBUG_ASR_CMD */
 
 #if (defined(DEBUG_ASR_USR_CMD))
-# define debug_usr_cmd_printf(fmt,args...)   printf(fmt,##args)
-# define debug_usr_cmd_dump_message(message) debug_usr_message(message)
+#define debug_usr_cmd_printf(fmt,args...)   printf(fmt,##args)
+#define debug_usr_cmd_dump_message(message) debug_usr_message(message)
 #else /* DEBUG_ASR_USR_CMD */
-# define debug_usr_cmd_printf(fmt,args...)
-# define debug_usr_cmd_dump_message(message)
+#define debug_usr_cmd_printf(fmt,args...)
+#define debug_usr_cmd_dump_message(message)
 #endif /* DEBUG_ASR_USR_CMD */
 
 #define	dsDescription_size 46	/* Snug as a bug in a rug */
@@ -251,10 +251,10 @@ static dpt_sig_S ASR_sig = {
 #define	INLINE
 
 #if (defined(DEBUG_ASR) && (DEBUG_ASR > 0))
-# undef STATIC
-# define STATIC
-# undef INLINE
-# define INLINE
+#undef STATIC
+#define STATIC
+#undef INLINE
+#define INLINE
 #endif
 #define	IN
 #define	OUT
@@ -295,7 +295,7 @@ typedef struct {
 	U8	     Address[0x30];
 	volatile U32 Status;
 	volatile U32 Mask;
-#		define Mask_InterruptsDisabled 0x08
+#define Mask_InterruptsDisabled 0x08
 	U32	     x[2];
 	volatile U32 ToFIFO;	/* In Bound FIFO  */
 	volatile U32 FromFIFO;	/* Out Bound FIFO */
@@ -344,24 +344,24 @@ typedef struct Asr_softc {
 	struct resource	      * ha_irq_res;
 	void		      * ha_intr;
 	PI2O_LCT		ha_LCT;	       /* Complete list of devices */
-#		 define le_type	  IdentityTag[0]
-#			 define I2O_BSA	    0x20
-#			 define I2O_FCA	    0x40
-#			 define I2O_SCSI    0x00
-#			 define I2O_PORT    0x80
-#			 define I2O_UNKNOWN 0x7F
-#		 define le_bus	  IdentityTag[1]
-#		 define le_target IdentityTag[2]
-#		 define le_lun	  IdentityTag[3]
+#define le_type	  IdentityTag[0]
+#define I2O_BSA	    0x20
+#define I2O_FCA	    0x40
+#define I2O_SCSI    0x00
+#define I2O_PORT    0x80
+#define I2O_UNKNOWN 0x7F
+#define le_bus	  IdentityTag[1]
+#define le_target IdentityTag[2]
+#define le_lun	  IdentityTag[3]
 	target2lun_t	      * ha_targets[MAX_CHANNEL+1];
 	PI2O_SCSI_ERROR_REPLY_MESSAGE_FRAME ha_Msgs;
 	u_long			ha_Msgs_Phys;
 
 	u_int8_t		ha_in_reset;
-#		define HA_OPERATIONAL	    0
-#		define HA_IN_RESET	    1
-#		define HA_OFF_LINE	    2
-#		define HA_OFF_LINE_RECOVERY 3
+#define HA_OPERATIONAL	    0
+#define HA_IN_RESET	    1
+#define HA_OFF_LINE	    2
+#define HA_OFF_LINE_RECOVERY 3
 	/* Configuration information */
 	/* The target id maximums we take */
 	u_int8_t		ha_MaxBus;     /* Maximum bus */
@@ -1060,7 +1060,7 @@ ASR_getTidAddress(
 	 *	BUS_CHUNK must be a power of two. This is to reduce
 	 *	fragmentation effects on the allocations.
 	 */
-#	define BUS_CHUNK 8
+#define BUS_CHUNK 8
 	new_size = ((target + BUS_CHUNK - 1) & ~(BUS_CHUNK - 1));
 	if ((bus_ptr = sc->ha_targets[bus]) == NULL) {
 		/*
@@ -1110,7 +1110,7 @@ ASR_getTidAddress(
 	 *	TARGET_CHUNK must be a power of two. This is to reduce
 	 *	fragmentation effects on the allocations.
 	 */
-#	define TARGET_CHUNK 8
+#define TARGET_CHUNK 8
 	if ((new_size = lun) != 0) {
 		new_size = ((lun + TARGET_CHUNK - 1) & ~(TARGET_CHUNK - 1));
 	}
@@ -1406,7 +1406,7 @@ ASR_reset(
 		 * good thing. In a production system, however, one may wish
 		 * to instead take the card off-line ...
 		 */
-#		if 0 && (defined(HA_OFF_LINE))
+#if 0 && (defined(HA_OFF_LINE))
 			/*
 			 * Take adapter off-line.
 			 */
@@ -1417,10 +1417,10 @@ ASR_reset(
 			sc->ha_in_reset = HA_OFF_LINE;
 			splx (s);
 			return (ENXIO);
-#		else
+#else
 			/* Wait Forever */
 			while (ASR_resetIOP (sc->ha_Virt, sc->ha_Fvirt) == 0);
-#		endif
+#endif
 	}
 	retVal = ASR_init (sc);
 	splx (s);
@@ -2602,7 +2602,7 @@ asr_attach (ATTACH_ARGS)
 		};
 		defAlignLong (struct BufferInfo, Buffer);
 		PI2O_DPT_EXEC_IOP_BUFFERS_SCALAR Info;
-#			define FW_DEBUG_BLED_OFFSET 8
+#define FW_DEBUG_BLED_OFFSET 8
 
 		if ((Info = (PI2O_DPT_EXEC_IOP_BUFFERS_SCALAR)
 		  ASR_getParams(sc, 0,
@@ -2902,9 +2902,9 @@ asr_action(
 		xpt_done(ccb);
 		break;
 
-#	if (defined(REPORT_LUNS))
+#if (defined(REPORT_LUNS))
 	case REPORT_LUNS:
-#	endif
+#endif
 	case XPT_ABORT:			/* Abort the specified CCB */
 		/* XXX Implement */
 		ccb->ccb_h.status = CAM_REQ_INVALID;
@@ -3084,11 +3084,11 @@ asr_intr (
 			 */
 			Message_Ptr = (PI2O_UTIL_NOP_MESSAGE)ASR_fillMessage(
 			  Message, sizeof(I2O_UTIL_NOP_MESSAGE));
-#			if (I2O_UTIL_NOP != 0)
+#if (I2O_UTIL_NOP != 0)
 				I2O_MESSAGE_FRAME_setFunction (
 				  &(Message_Ptr->StdMessageFrame),
 				  I2O_UTIL_NOP);
-#			endif
+#endif
 			/*
 			 *  Copy the packet out to the Original Message
 			 */
@@ -3248,7 +3248,7 @@ ASR_get_sc (
 
 STATIC u_int8_t ASR_ctlr_held;
 #if (!defined(UNREFERENCED_PARAMETER))
-# define UNREFERENCED_PARAMETER(x) (void)(x)
+#define UNREFERENCED_PARAMETER(x) (void)(x)
 #endif
 
 STATIC int
@@ -3783,9 +3783,9 @@ asr_ioctl(
 	switch(cmd) {
 
 	case DPT_SIGNATURE:
-#	if (dsDescription_size != 50)
+#if (dsDescription_size != 50)
 	    case DPT_SIGNATURE + ((50 - dsDescription_size) << 16):
-#	endif
+#endif
 		if (cmd & 0xFFFF0000) {
 			(void)bcopy ((caddr_t)(&ASR_sig), data,
 			    sizeof(dpt_sig_S));
@@ -3842,7 +3842,7 @@ asr_ioctl(
 		sysInfo_S	Info;
 		char	      * cp;
 		/* Kernel Specific ptok `hack' */
-#		define		ptok(a) ((char *)(uintptr_t)(a) + KERNBASE)
+#define		ptok(a) ((char *)(uintptr_t)(a) + KERNBASE)
 
 		bzero (&Info, sizeof(Info));
 
@@ -3941,7 +3941,7 @@ asr_ioctl(
 		Info.extendedMemSize = j;
 		Info.flags |= SI_MemorySizeValid;
 
-#		if (defined(THIS_IS_BROKEN))
+#if (defined(THIS_IS_BROKEN))
 		/* If There Is 1 or 2 Drives Found, Set Up Drive Parameters */
 		if (Info.numDrives > 0) {
 			/*
@@ -3995,7 +3995,7 @@ asr_ioctl(
 				}
 			}
 		}
-#		endif
+#endif
 		/* Copy Out The Info Structure To The User */
 		if (cmd & 0xFFFF0000) {
 			bcopy (&Info, data, sizeof(Info));
