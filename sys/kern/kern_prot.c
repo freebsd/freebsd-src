@@ -950,6 +950,8 @@ suser_xxx(cred, proc, flag)
 	struct proc *proc;
 	int flag;
 {
+	if (!suser_permitted)
+		return (EPERM);
 	if (!cred && !proc) {
 		printf("suser_xxx(): THINK!\n");
 		return (EPERM);
