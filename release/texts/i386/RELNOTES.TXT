@@ -382,6 +382,9 @@ console devices, Ethernet and point-to-point network interfaces, and
 mass-storage devices.  Entropy from the random(4) device is now
 periodically saved to files in /var/db/entropy.
 
+The fxp(4) driver now requires a "device miibus" entry in the kernel
+configuration file.
+
 
 1.2. SECURITY FIXES
 -------------------
@@ -970,6 +973,20 @@ per-address basis for each interface. [MERGED]
 
 As part of an ongoing process, many manual pages were improved, both
 in terms of their formatting markup and in their content. [MERGED]
+
+pkg_create(1) now records dependencies in dependency order rather than
+in the order specified on the command line.  This improves the
+functioning of "pkg_add -r". [MERGED]
+
+"lprm -" now works for remote printer queues. [MERGED]
+
+mergemaster(8) now sources an /etc/mergemaster.rc file and also
+prompts the user to run recommended commands (such as "newaliases") as
+needed. [MERGED]
+
+ftpd(8) now supports a -r flag for read-only mode and a -E flag to
+disable EPSV.  It also has some fixes to reduce information leakage
+and the ability to specify compile-time port ranges. [MERGED]
 
 
 2. Supported Configurations
