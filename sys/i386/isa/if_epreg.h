@@ -31,7 +31,7 @@
 
  */
 /*
- *  $Id: if_epreg.h,v 1.15 1996/07/19 13:20:05 amurai Exp $
+ *  $Id: if_epreg.h,v 1.16 1996/08/06 21:14:06 phk Exp $
  *
  *  Promiscuous mode added and interrupt logic slightly changed
  *  to reduce the number of adapter failures. Transceiver select
@@ -81,8 +81,6 @@ struct ep_softc {
     struct ep_board *epb;
 
     int unit;
-
-    struct kern_devconf* kdc;
 
 #ifdef  EP_LOCAL_STATS
     short tx_underrun;

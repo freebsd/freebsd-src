@@ -43,14 +43,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: worm.c,v 1.27 1996/03/28 14:33:59 scrappy Exp $
+ *      $Id: worm.c,v 1.28 1996/07/14 10:46:56 joerg Exp $
  */
 
 /* XXX This is PRELIMINARY.
- *
- *     We need the "kern devconf" stuff, but I'm not
- *     going to add it until it is done in a simple way that provides
- *     base behavior in scsi_driver.c
  *
  *     Until Bruce finishes the slice stuff there will be no partitions.
  *     When it is finished I hope to hoist the partition code up into

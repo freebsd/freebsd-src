@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcivar.h,v 1.10 1996/03/19 15:02:58 bde Exp $
+**  $Id: pcivar.h,v 1.11 1996/09/06 23:09:01 phk Exp $
 **
 **  Declarations for pci device drivers.
 **
@@ -125,8 +125,6 @@ void   pci_conf_write (pcici_t tag, u_long reg, u_long data);
 **-----------------------------------------------------------------
 */
 
-struct kern_devconf;
-
 struct pci_device {
     char*    pd_name;
     char*  (*pd_probe ) (pcici_t tag, pcidi_t type);
@@ -162,14 +160,6 @@ struct pci_info {
 	u_char pi_func;
 	u_char pi_dummy;
 	u_char pi_unit;
-};
-
-#define PCI_EXT_CONF_LEN (16)
-#define PCI_EXTERNAL_LEN (sizeof(struct pci_externalize_buffer))
-
-struct pci_externalize_buffer {
-	struct pci_info	peb_pci_info;
-	u_long		peb_config[PCI_EXT_CONF_LEN];
 };
 
 /*-----------------------------------------------------------------
