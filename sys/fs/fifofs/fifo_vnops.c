@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)fifo_vnops.c	8.10 (Berkeley) 5/27/95
- * $Id: fifo_vnops.c,v 1.25 1997/08/16 19:15:13 wollman Exp $
+ * $Id: fifo_vnops.c,v 1.26 1997/09/02 20:06:11 bde Exp $
  */
 
 #include <sys/param.h>
@@ -45,6 +45,7 @@
 #include <sys/fcntl.h>
 #include <sys/file.h>
 #include <sys/malloc.h>
+#include <sys/poll.h>
 #include <sys/un.h>
 #include <miscfs/fifofs/fifo.h>
 
@@ -66,6 +67,7 @@ vop_t **fifo_vnodeop_p;
 static struct vnodeopv_entry_desc fifo_vnodeop_entries[] = {
 	{ &vop_default_desc, (vop_t *)vn_default_error },
 	{ &vop_lookup_desc, (vop_t *)fifo_lookup },	/* lookup */
+/* XXX: vop_cachedlookup */
 	{ &vop_create_desc, (vop_t *)fifo_create },	/* create */
 	{ &vop_mknod_desc, (vop_t *)fifo_mknod },	/* mknod */
 	{ &vop_open_desc, (vop_t *)fifo_open },		/* open */
@@ -77,7 +79,7 @@ static struct vnodeopv_entry_desc fifo_vnodeop_entries[] = {
 	{ &vop_write_desc, (vop_t *)fifo_write },	/* write */
 	{ &vop_lease_desc, (vop_t *)fifo_lease_check },	/* lease */
 	{ &vop_ioctl_desc, (vop_t *)fifo_ioctl },	/* ioctl */
-	{ &vop_select_desc, (vop_t *)fifo_select },	/* select */
+	{ &vop_poll_desc, (vop_t *)fifo_poll },		/* poll */
 	{ &vop_revoke_desc, (vop_t *)fifo_revoke },	/* revoke */
 	{ &vop_mmap_desc, (vop_t *)fifo_mmap },		/* mmap */
 	{ &vop_fsync_desc, (vop_t *)fifo_fsync },	/* fsync */
@@ -341,31 +343,30 @@ fifo_ioctl(ap)
 
 /* ARGSUSED */
 int
-fifo_select(ap)
-	struct vop_select_args /* {
+fifo_poll(ap)
+	struct vop_poll_args /* {
 		struct vnode *a_vp;
-		int  a_which;
-		int  a_fflags;
+		int  a_events;
 		struct ucred *a_cred;
 		struct proc *a_p;
 	} */ *ap;
 {
 	struct file filetmp;
-	int ready;
+	int revents = 0;
 
-	if (ap->a_fflags & FREAD) {
+	if (ap->a_events & (POLLIN | POLLPRI | POLLRDNORM | POLLRDBAND)) {
 		filetmp.f_data = (caddr_t)ap->a_vp->v_fifoinfo->fi_readsock;
-		ready = soo_select(&filetmp, ap->a_which, ap->a_p);
-		if (ready)
-			return (ready);
+		if (filetmp.f_data)
+			revents |= soo_poll(&filetmp, ap->a_events, ap->a_cred,
+			    ap->a_p);
 	}
-	if (ap->a_fflags & FWRITE) {
+	if (ap->a_events & (POLLOUT | POLLWRNORM | POLLWRBAND)) {
 		filetmp.f_data = (caddr_t)ap->a_vp->v_fifoinfo->fi_writesock;
-		ready = soo_select(&filetmp, ap->a_which, ap->a_p);
-		if (ready)
-			return (ready);
+		if (filetmp.f_data)
+			revents |= soo_poll(&filetmp, ap->a_events, ap->a_cred,
+			    ap->a_p);
 	}
-	return (0);
+	return (revents);
 }
 
 int

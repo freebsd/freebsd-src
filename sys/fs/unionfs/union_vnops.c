@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_vnops.c	8.32 (Berkeley) 6/23/95
- * $Id: union_vnops.c,v 1.40 1997/09/04 03:14:49 kato Exp $
+ * $Id: union_vnops.c,v 1.41 1997/09/07 06:46:34 bde Exp $
  */
 
 #include <sys/param.h>
@@ -95,7 +95,7 @@ static int	union_rename __P((struct vop_rename_args *ap));
 static int	union_revoke __P((struct vop_revoke_args *ap));
 static int	union_rmdir __P((struct vop_rmdir_args *ap));
 static int	union_seek __P((struct vop_seek_args *ap));
-static int	union_select __P((struct vop_select_args *ap));
+static int	union_poll __P((struct vop_poll_args *ap));
 static int	union_setattr __P((struct vop_setattr_args *ap));
 static int	union_strategy __P((struct vop_strategy_args *ap));
 static int	union_symlink __P((struct vop_symlink_args *ap));
@@ -948,11 +948,10 @@ union_ioctl(ap)
 }
 
 static int
-union_select(ap)
-	struct vop_select_args /* {
+union_poll(ap)
+	struct vop_poll_args /* {
 		struct vnode *a_vp;
-		int  a_which;
-		int  a_fflags;
+		int  a_events;
 		struct ucred *a_cred;
 		struct proc *a_p;
 	} */ *ap;
@@ -960,7 +959,7 @@ union_select(ap)
 	register struct vnode *ovp = OTHERVP(ap->a_vp);
 
 	ap->a_vp = ovp;
-	return (VCALL(ovp, VOFFSET(vop_select), ap));
+	return (VCALL(ovp, VOFFSET(vop_poll), ap));
 }
 
 static int
@@ -1758,6 +1757,7 @@ vop_t **union_vnodeop_p;
 static struct vnodeopv_entry_desc union_vnodeop_entries[] = {
 	{ &vop_default_desc, (vop_t *)vn_default_error },
 	{ &vop_lookup_desc, (vop_t *)union_lookup },		/* lookup */
+/* XXX: vop_cachedlookup */
 	{ &vop_create_desc, (vop_t *)union_create },		/* create */
 	{ &vop_whiteout_desc, (vop_t *)union_whiteout },	/* whiteout */
 	{ &vop_mknod_desc, (vop_t *)union_mknod },		/* mknod */
@@ -1770,7 +1770,7 @@ static struct vnodeopv_entry_desc union_vnodeop_entries[] = {
 	{ &vop_write_desc, (vop_t *)union_write },		/* write */
 	{ &vop_lease_desc, (vop_t *)union_lease },		/* lease */
 	{ &vop_ioctl_desc, (vop_t *)union_ioctl },		/* ioctl */
-	{ &vop_select_desc, (vop_t *)union_select },		/* select */
+	{ &vop_poll_desc, (vop_t *)union_poll },		/* poll */
 	{ &vop_revoke_desc, (vop_t *)union_revoke },		/* revoke */
 	{ &vop_mmap_desc, (vop_t *)union_mmap },		/* mmap */
 	{ &vop_fsync_desc, (vop_t *)union_fsync },		/* fsync */
@@ -1797,9 +1797,12 @@ static struct vnodeopv_entry_desc union_vnodeop_entries[] = {
 #ifdef notdef
 	{ &vop_blkatoff_desc, (vop_t *)union_blkatoff },	/* blkatoff */
 	{ &vop_valloc_desc, (vop_t *)union_valloc },		/* valloc */
+/* XXX: vop_reallocblks */
 	{ &vop_vfree_desc, (vop_t *)union_vfree },		/* vfree */
 	{ &vop_truncate_desc, (vop_t *)union_truncate },	/* truncate */
 	{ &vop_update_desc, (vop_t *)union_update },		/* update */
+/* XXX: vop_getpages */
+/* XXX: vop_putpages */
 	{ &vop_bwrite_desc, (vop_t *)union_bwrite },		/* bwrite */
 #endif
 	{ NULL, NULL }

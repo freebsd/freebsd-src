@@ -35,7 +35,7 @@
  *
  *	@(#)portal_vnops.c	8.14 (Berkeley) 5/21/95
  *
- * $Id: portal_vnops.c,v 1.19 1997/08/02 14:32:08 bde Exp $
+ * $Id: portal_vnops.c,v 1.20 1997/08/16 19:15:18 wollman Exp $
  */
 
 /*
@@ -654,8 +654,8 @@ portal_badop()
 #define portal_read ((int (*) __P((struct  vop_read_args *)))portal_enotsupp)
 #define portal_write ((int (*) __P((struct  vop_write_args *)))portal_enotsupp)
 #define portal_ioctl ((int (*) __P((struct  vop_ioctl_args *)))portal_enotsupp)
-#define portal_select ((int (*) __P((struct vop_select_args *)))portal_enotsupp)
 #define portal_mmap ((int (*) __P((struct  vop_mmap_args *)))portal_enotsupp)
+#define	portal_poll vop_nopoll
 #define	portal_revoke vop_revoke
 #define portal_fsync ((int (*) __P((struct  vop_fsync_args *)))nullop)
 #define portal_seek ((int (*) __P((struct  vop_seek_args *)))nullop)
@@ -695,7 +695,9 @@ vop_t **portal_vnodeop_p;
 static struct vnodeopv_entry_desc portal_vnodeop_entries[] = {
 	{ &vop_default_desc, (vop_t *)vn_default_error },
 	{ &vop_lookup_desc, (vop_t *)portal_lookup },		/* lookup */
+/* XXX: vop_cachedlookup */
 	{ &vop_create_desc, (vop_t *)portal_create },		/* create */
+/* XXX: vop_whiteout */
 	{ &vop_mknod_desc, (vop_t *)portal_mknod },		/* mknod */
 	{ &vop_open_desc, (vop_t *)portal_open },		/* open */
 	{ &vop_close_desc, (vop_t *)portal_close },		/* close */
@@ -704,8 +706,9 @@ static struct vnodeopv_entry_desc portal_vnodeop_entries[] = {
 	{ &vop_setattr_desc, (vop_t *)portal_setattr },		/* setattr */
 	{ &vop_read_desc, (vop_t *)portal_read },		/* read */
 	{ &vop_write_desc, (vop_t *)portal_write },		/* write */
+/* XXX: vop_lease */
 	{ &vop_ioctl_desc, (vop_t *)portal_ioctl },		/* ioctl */
-	{ &vop_select_desc, (vop_t *)portal_select },		/* select */
+	{ &vop_poll_desc, (vop_t *)portal_poll },		/* poll */
 	{ &vop_mmap_desc, (vop_t *)portal_mmap },		/* mmap */
 	{ &vop_revoke_desc, (vop_t *)portal_revoke },		/* revoke */
 	{ &vop_fsync_desc, (vop_t *)portal_fsync },		/* fsync */
@@ -731,9 +734,12 @@ static struct vnodeopv_entry_desc portal_vnodeop_entries[] = {
 	{ &vop_advlock_desc, (vop_t *)portal_advlock },		/* advlock */
 	{ &vop_blkatoff_desc, (vop_t *)portal_blkatoff },	/* blkatoff */
 	{ &vop_valloc_desc, (vop_t *)portal_valloc },		/* valloc */
+/* XXX: vop_reallocblks */
 	{ &vop_vfree_desc, (vop_t *)portal_vfree },		/* vfree */
 	{ &vop_truncate_desc, (vop_t *)portal_truncate },	/* truncate */
 	{ &vop_update_desc, (vop_t *)portal_update },		/* update */
+/* XXX: vop_getpages */
+/* XXX: vop_putpages */
 	{ &vop_bwrite_desc, (vop_t *)portal_bwrite },		/* bwrite */
 	{ NULL, NULL }
 };

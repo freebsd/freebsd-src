@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.27 (Berkeley) 5/27/95
- * $Id: ufs_vnops.c,v 1.55 1997/08/26 04:36:27 dyson Exp $
+ * $Id: ufs_vnops.c,v 1.56 1997/09/02 20:06:59 bde Exp $
  */
 
 #include "opt_quota.h"
@@ -596,24 +596,6 @@ ufs_ioctl(ap)
 {
 
 	return (ENOTTY);
-}
-
-/* ARGSUSED */
-int
-ufs_select(ap)
-	struct vop_select_args /* {
-		struct vnode *a_vp;
-		int  a_which;
-		int  a_fflags;
-		struct ucred *a_cred;
-		struct proc *a_p;
-	} */ *ap;
-{
-
-	/*
-	 * We should really check to see if I/O is possible.
-	 */
-	return (1);
 }
 
 /*

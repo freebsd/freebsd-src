@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_vnops.c	8.13 (Berkeley) 6/10/95
- * $Id: lfs_vnops.c,v 1.21 1997/03/23 00:45:27 bde Exp $
+ * $Id: lfs_vnops.c,v 1.22 1997/09/02 20:06:49 bde Exp $
  */
 
 #include <sys/param.h>
@@ -74,9 +74,10 @@ vop_t **lfs_vnodeop_p;
 static struct vnodeopv_entry_desc lfs_vnodeop_entries[] = {
 	{ &vop_default_desc, (vop_t *)vn_default_error },
 	{ &vop_lookup_desc, (vop_t *)ufs_lookup },	/* lookup */
+/* XXX: vop_cachedlookup */
 	{ &vop_create_desc, (vop_t *)ufs_create },	/* create */
-	{ &vop_mknod_desc, (vop_t *)ufs_mknod },	/* mknod */
 	{ &vop_whiteout_desc, (vop_t *)ufs_whiteout },	/* whiteout */
+	{ &vop_mknod_desc, (vop_t *)ufs_mknod },	/* mknod */
 	{ &vop_open_desc, (vop_t *)ufs_open },		/* open */
 	{ &vop_close_desc, (vop_t *)lfs_close },	/* close */
 	{ &vop_access_desc, (vop_t *)ufs_access },	/* access */
@@ -86,7 +87,7 @@ static struct vnodeopv_entry_desc lfs_vnodeop_entries[] = {
 	{ &vop_write_desc, (vop_t *)lfs_write },	/* write */
 	{ &vop_lease_desc, (vop_t *)ufs_lease_check },	/* lease */
 	{ &vop_ioctl_desc, (vop_t *)ufs_ioctl },	/* ioctl */
-	{ &vop_select_desc, (vop_t *)ufs_select },	/* select */
+	{ &vop_poll_desc, (vop_t *)ufs_poll },		/* poll */
 	{ &vop_revoke_desc, (vop_t *)ufs_revoke },	/* revoke */
 	{ &vop_mmap_desc, (vop_t *)ufs_mmap },		/* mmap */
 	{ &vop_fsync_desc, (vop_t *)lfs_fsync },	/* fsync */
@@ -112,9 +113,12 @@ static struct vnodeopv_entry_desc lfs_vnodeop_entries[] = {
 	{ &vop_advlock_desc, (vop_t *)ufs_advlock },	/* advlock */
 	{ &vop_blkatoff_desc, (vop_t *)lfs_blkatoff },	/* blkatoff */
 	{ &vop_valloc_desc, (vop_t *)lfs_valloc },	/* valloc */
+/* XXX: vop_reallocblks */
 	{ &vop_vfree_desc, (vop_t *)lfs_vfree },	/* vfree */
 	{ &vop_truncate_desc, (vop_t *)lfs_truncate },	/* truncate */
 	{ &vop_update_desc, (vop_t *)lfs_update },	/* update */
+/* XXX: vop_getpages */
+/* XXX: vop_putpages */
 	{ &vop_bwrite_desc, (vop_t *)lfs_bwrite },	/* bwrite */
 	{ NULL, NULL }
 };
@@ -125,7 +129,9 @@ vop_t **lfs_specop_p;
 static struct vnodeopv_entry_desc lfs_specop_entries[] = {
 	{ &vop_default_desc, (vop_t *)vn_default_error },
 	{ &vop_lookup_desc, (vop_t *)spec_lookup },	/* lookup */
+/* XXX: vop_cachedlookup */
 	{ &vop_create_desc, (vop_t *)spec_create },	/* create */
+/* XXX: vop_whiteout */
 	{ &vop_mknod_desc, (vop_t *)spec_mknod },	/* mknod */
 	{ &vop_open_desc, (vop_t *)spec_open },		/* open */
 	{ &vop_close_desc, (vop_t *)ufsspec_close },	/* close */
@@ -136,7 +142,7 @@ static struct vnodeopv_entry_desc lfs_specop_entries[] = {
 	{ &vop_write_desc, (vop_t *)ufsspec_write },	/* write */
 	{ &vop_lease_desc, (vop_t *)spec_lease_check },	/* lease */
 	{ &vop_ioctl_desc, (vop_t *)spec_ioctl },	/* ioctl */
-	{ &vop_select_desc, (vop_t *)spec_select },	/* select */
+	{ &vop_poll_desc, (vop_t *)spec_poll },		/* poll */
 	{ &vop_revoke_desc, (vop_t *)spec_revoke },	/* revoke */
 	{ &vop_mmap_desc, (vop_t *)spec_mmap },		/* mmap */
 	{ &vop_fsync_desc, (vop_t *)spec_fsync },	/* fsync */
@@ -162,9 +168,12 @@ static struct vnodeopv_entry_desc lfs_specop_entries[] = {
 	{ &vop_advlock_desc, (vop_t *)spec_advlock },	/* advlock */
 	{ &vop_blkatoff_desc, (vop_t *)spec_blkatoff },	/* blkatoff */
 	{ &vop_valloc_desc, (vop_t *)spec_valloc },	/* valloc */
+/* XXX: vop_reallocblks */
 	{ &vop_vfree_desc, (vop_t *)lfs_vfree },	/* vfree */
 	{ &vop_truncate_desc, (vop_t *)spec_truncate },	/* truncate */
 	{ &vop_update_desc, (vop_t *)lfs_update },	/* update */
+/* XXX: vop_getpages */
+/* XXX: vop_putpages */
 	{ &vop_bwrite_desc, (vop_t *)lfs_bwrite },	/* bwrite */
 	{ NULL, NULL }
 };
@@ -175,7 +184,9 @@ vop_t **lfs_fifoop_p;
 static struct vnodeopv_entry_desc lfs_fifoop_entries[] = {
 	{ &vop_default_desc, (vop_t *)vn_default_error },
 	{ &vop_lookup_desc, (vop_t *)fifo_lookup },	/* lookup */
+/* XXX: vop_cachedlookup */
 	{ &vop_create_desc, (vop_t *)fifo_create },	/* create */
+/* XXX: vop_whiteout */
 	{ &vop_mknod_desc, (vop_t *)fifo_mknod },	/* mknod */
 	{ &vop_open_desc, (vop_t *)fifo_open },		/* open */
 	{ &vop_close_desc, (vop_t *)ufsfifo_close },	/* close */
@@ -186,7 +197,7 @@ static struct vnodeopv_entry_desc lfs_fifoop_entries[] = {
 	{ &vop_write_desc, (vop_t *)ufsfifo_write },	/* write */
 	{ &vop_lease_desc, (vop_t *)fifo_lease_check },	/* lease */
 	{ &vop_ioctl_desc, (vop_t *)fifo_ioctl },	/* ioctl */
-	{ &vop_select_desc, (vop_t *)fifo_select },	/* select */
+	{ &vop_poll_desc, (vop_t *)fifo_poll },		/* poll */
 	{ &vop_revoke_desc, (vop_t *)fifo_revoke },	/* revoke */
 	{ &vop_mmap_desc, (vop_t *)fifo_mmap },		/* mmap */
 	{ &vop_fsync_desc, (vop_t *)fifo_fsync },	/* fsync */
@@ -212,9 +223,12 @@ static struct vnodeopv_entry_desc lfs_fifoop_entries[] = {
 	{ &vop_advlock_desc, (vop_t *)fifo_advlock },	/* advlock */
 	{ &vop_blkatoff_desc, (vop_t *)fifo_blkatoff },	/* blkatoff */
 	{ &vop_valloc_desc, (vop_t *)fifo_valloc },	/* valloc */
+/* XXX: vop_reallocblks */
 	{ &vop_vfree_desc, (vop_t *)lfs_vfree },	/* vfree */
 	{ &vop_truncate_desc, (vop_t *)fifo_truncate },	/* truncate */
 	{ &vop_update_desc, (vop_t *)lfs_update },	/* update */
+/* XXX: vop_getpages */
+/* XXX: vop_putpages */
 	{ &vop_bwrite_desc, (vop_t *)lfs_bwrite },	/* bwrite */
 	{ NULL, NULL }
 };
