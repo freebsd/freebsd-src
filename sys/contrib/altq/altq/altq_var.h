@@ -1,3 +1,4 @@
+/*	$FreeBSD$	*/
 /*	$KAME: altq_var.h,v 1.16 2003/10/03 05:05:15 kjc Exp $	*/
 
 /*
@@ -175,7 +176,7 @@ typedef u_long ioctlcmd_t;
 #endif
 #define	CALLOUT_RESET(c,t,f,a)	callout_reset((c),(t),(f),(a))
 #define	CALLOUT_STOP(c)		callout_stop((c))
-#ifndef CALLOUT_INITIALIZER
+#if !defined(CALLOUT_INITIALIZER) && (__FreeBSD_version < 600000)
 #define	CALLOUT_INITIALIZER	{ { { NULL } }, 0, NULL, NULL, 0 }
 #endif
 #elif defined(__OpenBSD__)
