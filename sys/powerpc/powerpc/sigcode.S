@@ -34,6 +34,7 @@
 
 #include <machine/asm.h>
 #include <sys/syscall.h>
+#include "assym.s"
 
 /*
  * The following code gets copied to the top of the user stack on process
@@ -46,9 +47,13 @@
 CNAME(sigcode):
 	addi	1,1,-16			/* reserved space for callee */
 	blrl
-	addi	3,1,16+8		/* compute &sf_sc */
+	addi	3,1,16+SF_UC		/* restore sp, and get &frame->sf_uc */
 	li	0,SYS_sigreturn
 	sc				/* sigreturn(scp) */
 	li	0,SYS_exit
 	sc				/* exit(errno) */
-CNAME(szsigcode) = . - CNAME(sigcode)
+endsigcode:
+	
+	.data
+CNAME(szsigcode):
+	.long	endsigcode - CNAME(sigcode)
