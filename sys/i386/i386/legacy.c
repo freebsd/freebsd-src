@@ -41,7 +41,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <machine/bus.h>
+#include <sys/pcpu.h>
 #include <sys/rman.h>
+#include <sys/smp.h>
 
 #include "opt_mca.h"
 #ifdef DEV_MCA
@@ -143,7 +145,9 @@ legacy_probe(device_t dev)
 static int
 legacy_attach(device_t dev)
 {
-	device_t	child;
+	device_t child;
+	int i;
+	struct pcpu *pc;
 
 	/*
 	 * First, let our child driver's identify any child devices that
@@ -152,6 +156,21 @@ legacy_attach(device_t dev)
 	 */
 	bus_generic_probe(dev);
 	bus_generic_attach(dev);
+
+	/* Attach CPU pseudo-driver. */
+	if (!devclass_get_device(devclass_find("cpu"), 0)) {
+		for (i = 0; i <= mp_maxid; i++)
+			if (!CPU_ABSENT(i)) {
+				pc = pcpu_find(i);
+				KASSERT(pc != NULL, ("pcpu_find failed"));
+				child = BUS_ADD_CHILD(dev, 0, "cpu", i);
+				if (child == NULL)
+					panic("legacy_attach cpu");
+				device_probe_and_attach(child);
+				pc->pc_device = child;
+				device_set_ivars(child, pc);
+			}
+	}
 
 	/*
 	 * If we didn't see EISA or ISA on a pci bridge, create some
@@ -323,4 +342,55 @@ legacy_delete_resource(device_t dev, device_t child, int type, int rid)
 	struct resource_list *rl = &atdev->lg_resources;
 
 	resource_list_delete(rl, type, rid);
+}
+
+/*
+ * Legacy CPU attachment when ACPI is not available.  Drivers like
+ * cpufreq(4) hang off this.
+ */
+static int	cpu_read_ivar(device_t dev, device_t child, int index,
+		    uintptr_t *result);
+
+static device_method_t cpu_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		bus_generic_probe),
+	DEVMETHOD(device_attach,	bus_generic_attach),
+	DEVMETHOD(device_detach,	bus_generic_detach),
+	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
+	DEVMETHOD(device_suspend,	bus_generic_suspend),
+	DEVMETHOD(device_resume,	bus_generic_resume),
+
+	/* Bus interface */
+	DEVMETHOD(bus_read_ivar,	cpu_read_ivar),
+	DEVMETHOD(bus_print_child,	bus_generic_print_child),
+	DEVMETHOD(bus_alloc_resource,	bus_generic_alloc_resource),
+	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
+	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
+	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
+	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
+	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
+
+	{ 0, 0 }
+};
+
+static driver_t cpu_driver = {
+	"cpu",
+	cpu_methods,
+	1,		/* no softc */
+};
+static devclass_t cpu_devclass;
+DRIVER_MODULE(cpu, legacy, cpu_driver, cpu_devclass, 0, 0);
+
+static int
+cpu_read_ivar(device_t dev, device_t child, int index, uintptr_t *result)
+{
+	struct pcpu *pc;
+
+	if (index != 0)
+		return (ENOENT);
+	pc = device_get_ivars(child);
+	if (pc == NULL)
+		return (ENOENT);
+	*result = (uintptr_t)pc;
+	return (0);
 }
