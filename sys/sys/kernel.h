@@ -268,10 +268,7 @@ struct tunable_int {
 	SYSINIT(__Tunable_init_ ## line, SI_SUB_TUNABLES, SI_ORDER_MIDDLE, \
 	     tunable_int_init, &__tunable_int_ ## line)
 
-#define	TUNABLE_INT_FETCH(path, var)			\
-do {							\
-	getenv_int((path), (var));			\
-} while (0)
+#define	TUNABLE_INT_FETCH(path, var)	getenv_int((path), (var))
 
 /* Backwards compatability with the old deprecated TUNABLE_INT_DECL API */
 #define TUNABLE_INT_DECL(path, defval, var)	\
@@ -281,6 +278,26 @@ static void __Tunable_ ## var (void *ignored)	\
 	TUNABLE_INT_FETCH((path), &(var));	\
 }						\
 SYSINIT(__Tunable_init_ ## var, SI_SUB_TUNABLES, SI_ORDER_MIDDLE, __Tunable_ ## var , NULL);
+
+extern void tunable_quad_init(void *);
+struct tunable_quad {
+	const char *path;
+	quad_t *var;
+};
+#define	TUNABLE_QUAD(path, var)					\
+	_TUNABLE_QUAD((path), (var), __LINE__)
+#define	_TUNABLE_QUAD(path, var, line)				\
+	__TUNABLE_QUAD((path), (var), line)
+
+#define	__TUNABLE_QUAD(path, var, line)			\
+	static struct tunable_quad __tunable_quad_ ## line = {	\
+		path,						\
+		var,						\
+	};							\
+	SYSINIT(__Tunable_init_ ## line, SI_SUB_TUNABLES, SI_ORDER_MIDDLE, \
+	    tunable_quad_init, &__tunable_quad_ ## line)
+
+#define	TUNABLE_QUAD_FETCH(path, var)	getenv_quad((path), (var))
 
 extern void tunable_str_init(void *);
 struct tunable_str {
@@ -302,15 +319,9 @@ struct tunable_str {
 	SYSINIT(__Tunable_init_ ## line, SI_SUB_TUNABLES, SI_ORDER_MIDDLE, \
 	     tunable_str_init, &__tunable_str_ ## line)
 
-#define	TUNABLE_STR_FETCH(path, var, size)		\
-do {							\
-	char *tmp;					\
-	tmp = getenv((path));				\
-	if (tmp != NULL) {				\
-		strncpy((var), tmp, (size));		\
-		(var)[(size) - 1] = 0;			\
-	}						\
-} while (0)
+#define	TUNABLE_STR_FETCH(path, var, size)			\
+	getenv_string((path), (var), (size))
+
 /*
  * Compatibility.  To be deprecated after LKM is removed.
  */

@@ -180,6 +180,14 @@ tunable_int_init(void *data)
 }
 
 void
+tunable_quad_init(void *data)
+{
+	struct tunable_quad *d = (struct tunable_quad *)data;
+
+	TUNABLE_QUAD_FETCH(d->path, d->var);
+}
+
+void
 tunable_str_init(void *data)
 {
 	struct tunable_str *d = (struct tunable_str *)data;

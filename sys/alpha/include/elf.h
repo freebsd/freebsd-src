@@ -143,8 +143,8 @@ __ElfType(Auxinfo);
  * calculation is that it leaves room for the heap to grow to
  * its maximum allowed size.
  */
-#define ELF_RTLD_ADDR(vmspace) \
-    (round_page((vm_offset_t)(vmspace)->vm_daddr + MAXDSIZ))
+#define	ELF_RTLD_ADDR(vmspace) \
+    (round_page((vm_offset_t)(vmspace)->vm_daddr + maxdsiz))
 
 #endif
 #endif /* !_MACHINE_ELF_H_ */

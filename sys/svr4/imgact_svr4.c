@@ -104,7 +104,7 @@ exec_svr4_imgact(imgp)
     /*
      * text/data/bss must not exceed limits
      */
-    if (a_out->a_text > MAXTSIZ ||
+    if (a_out->a_text > maxtsiz ||
 	a_out->a_data + bss_size > imgp->proc->p_rlimit[RLIMIT_DATA].rlim_cur)
 	return (ENOMEM);
 

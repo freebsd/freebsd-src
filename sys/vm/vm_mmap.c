@@ -46,7 +46,6 @@
  */
 
 #include "opt_compat.h"
-#include "opt_rlimit.h"
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -263,8 +262,8 @@ mmap(p, uap)
 	 */
 	else if (addr == 0 ||
 	    (addr >= round_page((vm_offset_t)vms->vm_taddr) &&
-	     addr < round_page((vm_offset_t)vms->vm_daddr + MAXDSIZ)))
-		addr = round_page((vm_offset_t)vms->vm_daddr + MAXDSIZ);
+	     addr < round_page((vm_offset_t)vms->vm_daddr + maxdsiz)))
+		addr = round_page((vm_offset_t)vms->vm_daddr + maxdsiz);
 
 	if (flags & MAP_ANON) {
 		/*

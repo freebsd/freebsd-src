@@ -32,7 +32,6 @@
  */
 
 #include "opt_compat.h"
-#include "opt_rlimit.h"
 #include "opt_sysvipc.h"
 
 #include <sys/param.h>
@@ -305,7 +304,7 @@ shmat(p, uap)
 			return EINVAL;
 	} else {
 		/* This is just a hint to vm_map_find() about where to put it. */
-		attach_va = round_page((vm_offset_t)p->p_vmspace->vm_taddr + MAXTSIZ + MAXDSIZ);
+		attach_va = round_page((vm_offset_t)p->p_vmspace->vm_taddr + maxtsiz + maxdsiz);
 	}
 
 	shm_handle = shmseg->shm_internal;

@@ -40,7 +40,6 @@
  */
 
 #include "opt_compat.h"
-#include "opt_rlimit.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -422,17 +421,17 @@ dosetrlimit(p, which, limp)
 			    (rlim_t)1000000 * limp->rlim_cur;
 		break;
 	case RLIMIT_DATA:
-		if (limp->rlim_cur > MAXDSIZ)
-			limp->rlim_cur = MAXDSIZ;
-		if (limp->rlim_max > MAXDSIZ)
-			limp->rlim_max = MAXDSIZ;
+		if (limp->rlim_cur > maxdsiz)
+			limp->rlim_cur = maxdsiz;
+		if (limp->rlim_max > maxdsiz)
+			limp->rlim_max = maxdsiz;
 		break;
 
 	case RLIMIT_STACK:
-		if (limp->rlim_cur > MAXSSIZ)
-			limp->rlim_cur = MAXSSIZ;
-		if (limp->rlim_max > MAXSSIZ)
-			limp->rlim_max = MAXSSIZ;
+		if (limp->rlim_cur > maxssiz)
+			limp->rlim_cur = maxssiz;
+		if (limp->rlim_max > maxssiz)
+			limp->rlim_max = maxssiz;
 		/*
 		 * Stack is allocated to the max at exec time with only
 		 * "rlim_cur" bytes accessible.  If stack limit is going
