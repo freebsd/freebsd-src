@@ -120,7 +120,7 @@ readcis(int fd)
 
 	for (tl = cp->tlist; tl; tl = tl->next)
 		for (tp = tl->tuples; tp; tp = tp->next) {
-#if DEBUG
+#if 0
 			printf("tuple code = 0x%02x, data is\n", tp->code);
 			dump(tp->data, tp->length);
 #endif
