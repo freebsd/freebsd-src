@@ -262,9 +262,9 @@ setpeer(argc, argv)
 		return;
 	}
 	if (argc == 3)
-		setpeer0(argv[1], NULL);
-	else
 		setpeer0(argv[1], argv[2]);
+	else
+		setpeer0(argv[1], NULL);
 }
 
 struct	modes {
