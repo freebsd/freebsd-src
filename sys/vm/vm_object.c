@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.50 1995/07/16 13:28:36 davidg Exp $
+ * $Id: vm_object.c,v 1.51 1995/07/29 11:44:27 bde Exp $
  */
 
 /*
@@ -973,8 +973,6 @@ vm_object_collapse(object)
 					    object->backing_object_offset);
 					vm_object_pip_wakeup(object);
 				} else {
-					extern struct pagerlst swap_pager_un_object_list;
-
 					object->paging_in_progress++;
 					/*
 					 * move the shadow backing_object's pager data to

@@ -43,7 +43,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ie.c,v 1.23 1995/04/12 20:47:50 wollman Exp $
+ *	$Id: if_ie.c,v 1.24 1995/05/30 08:02:13 rgrimes Exp $
  */
 
 /*
@@ -109,6 +109,7 @@ iomem, and to make 16-pointers, we subtract iomem and and with 0xffff.
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/mbuf.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
@@ -1558,7 +1559,6 @@ static int command_and_wait(unit, cmd, pcmd, mask)
 {
   volatile struct ie_cmd_common *cc = pcmd;
   volatile int timedout = 0;
-  extern int hz;
 
   ie_softc[unit].scb->ie_command = (u_short)cmd;
 

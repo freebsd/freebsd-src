@@ -272,6 +272,8 @@ extern int labpcprobe(struct isa_device *dev);
 struct isa_driver labpcdriver =
 	{ labpcprobe, labpcattach, "labpc", 0 /* , labpcdetach */ };
 
+static void start(struct ctlr *ctlr);
+
 static void
 bp_done(struct buf *bp, int err)
 {
@@ -290,8 +292,6 @@ static void tmo_stop(void *p);
 static void
 done_and_start_next(struct ctlr *ctlr, struct buf *bp, int err)
 {
-	static void start(struct ctlr *ctlr);
-
 	bp->b_resid = ctlr->data_end - ctlr->data;
 
 	ctlr->data = 0;
