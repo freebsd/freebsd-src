@@ -37,11 +37,6 @@
 #include <sys/sysent.h>
 #include <sys/cdefs.h>
 
-
-#ifndef	SCARG
-#define	SCARG(p, x)  (p)->x
-#endif
-
 struct ia32_ps_strings {
 	u_int32_t ps_argvstr;	/* first of 0 or more argument strings */
 	int	ps_nargvstr;	/* the number of argument strings */

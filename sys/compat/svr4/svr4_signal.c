@@ -269,12 +269,12 @@ svr4_sys_sigaction(td, uap)
 	int error;
 
 	DPRINTF(("@@@ svr4_sys_sigaction(%d, %d, %d)\n", td->td_proc->p_pid,
-			SCARG(uap, signum),
-			SVR4_SVR42BSD_SIG(SCARG(uap, signum))));
+			uap->signum,
+			SVR4_SVR42BSD_SIG(uap->signum)));
 	
 	sg = stackgap_init();
-	nisa = SCARG(uap, nsa);
-	oisa = SCARG(uap, osa);
+	nisa = uap->nsa;
+	oisa = uap->osa;
 
 	if (oisa != NULL)
 		obsa = stackgap_alloc(&sg, sizeof(struct sigaction));
@@ -301,9 +301,9 @@ svr4_sys_sigaction(td, uap)
 	}
 #endif
 
-	SCARG(&sa, sig) = SVR4_SVR42BSD_SIG(SCARG(uap, signum));
-	SCARG(&sa, act) = nbsa;
-	SCARG(&sa, oact) = obsa;
+	sa.sig = SVR4_SVR42BSD_SIG(uap->signum);
+	sa.act = nbsa;
+	sa.oact = obsa;
 
 	if ((error = sigaction(td, &sa)) != 0)
 		return error;
@@ -332,8 +332,8 @@ svr4_sys_sigaltstack(td, uap)
 
 	retval = td->td_retval;
 	sg = stackgap_init();
-	nsss = SCARG(uap, nss);
-	osss = SCARG(uap, oss);
+	nsss = uap->nss;
+	osss = uap->oss;
 
 	if (osss != NULL)
 		obss = stackgap_alloc(&sg, sizeof(struct sigaltstack));
@@ -350,8 +350,8 @@ svr4_sys_sigaltstack(td, uap)
 	} else
 		nbss = NULL;
 
-	SCARG(&sa, ss) = nbss;
-	SCARG(&sa, oss) = obss;
+	sa.ss = nbss;
+	sa.oss = obss;
 
 	if ((error = sigaltstack(td, &sa)) != 0)
 		return error;
@@ -381,13 +381,13 @@ svr4_sys_signal(td, uap)
 
 	DPRINTF(("@@@ svr4_sys_signal(%d)\n", td->td_proc->p_pid));
 
-	signum = SVR4_SVR42BSD_SIG(SVR4_SIGNO(SCARG(uap, signum)));
+	signum = SVR4_SVR42BSD_SIG(SVR4_SIGNO(uap->signum));
 	if (signum <= 0 || signum > SVR4_NSIG)
 		return (EINVAL);
 
-	switch (SVR4_SIGCALL(SCARG(uap, signum))) {
+	switch (SVR4_SIGCALL(uap->signum)) {
 	case SVR4_SIGDEFER_MASK:
-		if (SCARG(uap, handler) == SVR4_SIG_HOLD)
+		if (uap->handler == SVR4_SIG_HOLD)
 			goto sighold;
 		/* FALLTHROUGH */
 
@@ -398,11 +398,11 @@ svr4_sys_signal(td, uap)
 
 			nbsa = stackgap_alloc(&sg, sizeof(struct sigaction));
 			obsa = stackgap_alloc(&sg, sizeof(struct sigaction));
-			SCARG(&sa_args, sig) = signum;
-			SCARG(&sa_args, act) = nbsa;
-			SCARG(&sa_args, oact) = obsa;
+			sa_args.sig = signum;
+			sa_args.act = nbsa;
+			sa_args.oact = obsa;
 
-			sa.sa_handler = (sig_t) SCARG(uap, handler);
+			sa.sa_handler = (sig_t) uap->handler;
 			SIGEMPTYSET(sa.sa_mask);
 			sa.sa_flags = 0;
 
@@ -432,9 +432,9 @@ sighold:
 			set = stackgap_alloc(&sg, sizeof(sigset_t));
 			SIGEMPTYSET(*set);
 			SIGADDSET(*set, signum);
-			SCARG(&sa, how) = SIG_BLOCK;
-			SCARG(&sa, set) = set;
-			SCARG(&sa, oset) = NULL;
+			sa.how = SIG_BLOCK;
+			sa.set = set;
+			sa.oset = NULL;
 			return sigprocmask(td, &sa);
 		}
 
@@ -446,9 +446,9 @@ sighold:
 			set = stackgap_alloc(&sg, sizeof(sigset_t));
 			SIGEMPTYSET(*set);
 			SIGADDSET(*set, signum);
-			SCARG(&sa, how) = SIG_UNBLOCK;
-			SCARG(&sa, set) = set;
-			SCARG(&sa, oset) = NULL;
+			sa.how = SIG_UNBLOCK;
+			sa.set = set;
+			sa.oset = NULL;
 			return sigprocmask(td, &sa);
 		}
 
@@ -458,9 +458,9 @@ sighold:
 			struct sigaction *bsa, sa;
 
 			bsa = stackgap_alloc(&sg, sizeof(struct sigaction));
-			SCARG(&sa_args, sig) = signum;
-			SCARG(&sa_args, act) = bsa;
-			SCARG(&sa_args, oact) = NULL;
+			sa_args.sig = signum;
+			sa_args.act = bsa;
+			sa_args.oact = NULL;
 
 			sa.sa_handler = SIG_IGN;
 			SIGEMPTYSET(sa.sa_mask);
@@ -484,7 +484,7 @@ sighold:
 			*set = td->td_proc->p_sigmask;
 			PROC_UNLOCK(td->td_proc);
 			SIGDELSET(*set, signum);
-			SCARG(&sa, sigmask) = set;
+			sa.sigmask = set;
 			return sigsuspend(td, &sa);
 		}
 
@@ -504,26 +504,26 @@ svr4_sys_sigprocmask(td, uap)
 	int error = 0, *retval;
 
 	retval = td->td_retval;
-	if (SCARG(uap, oset) != NULL) {
+	if (uap->oset != NULL) {
 		/* Fix the return value first if needed */
 		PROC_LOCK(td->td_proc);
 		bsd_to_svr4_sigset(&td->td_proc->p_sigmask, &sss);
 		PROC_UNLOCK(td->td_proc);
-		if ((error = copyout(&sss, SCARG(uap, oset), sizeof(sss))) != 0)
+		if ((error = copyout(&sss, uap->oset, sizeof(sss))) != 0)
 			return error;
 	}
 
-	if (SCARG(uap, set) == NULL)
+	if (uap->set == NULL)
 		/* Just examine */
 		return 0;
 
-	if ((error = copyin(SCARG(uap, set), &sss, sizeof(sss))) != 0)
+	if ((error = copyin(uap->set, &sss, sizeof(sss))) != 0)
 		return error;
 
 	svr4_to_bsd_sigset(&sss, &bss);
 
 	PROC_LOCK(td->td_proc);
-	switch (SCARG(uap, how)) {
+	switch (uap->how) {
 	case SVR4_SIG_BLOCK:
 		SIGSETOR(td->td_proc->p_sigmask, bss);
 		SIG_CANTMASK(td->td_proc->p_sigmask);
@@ -560,9 +560,9 @@ svr4_sys_sigpending(td, uap)
 
 	DPRINTF(("@@@ svr4_sys_sigpending(%d)\n", td->td_proc->p_pid));
 	retval = td->td_retval;
-	switch (SCARG(uap, what)) {
+	switch (uap->what) {
 	case 1:	/* sigpending */
-		if (SCARG(uap, mask) == NULL)
+		if (uap->mask == NULL)
 			return 0;
 		PROC_LOCK(td->td_proc);
 		bss = td->td_proc->p_siglist;
@@ -586,7 +586,7 @@ svr4_sys_sigpending(td, uap)
 		return EINVAL;
 	}
 		
-	return copyout(&sss, SCARG(uap, mask), sizeof(sss));
+	return copyout(&sss, uap->mask, sizeof(sss));
 }
 
 int
@@ -600,13 +600,13 @@ svr4_sys_sigsuspend(td, uap)
 	int error;
 	caddr_t sg = stackgap_init();
 
-	if ((error = copyin(SCARG(uap, ss), &sss, sizeof(sss))) != 0)
+	if ((error = copyin(uap->ss, &sss, sizeof(sss))) != 0)
 		return error;
 
 	bss = stackgap_alloc(&sg, sizeof(sigset_t));
 	svr4_to_bsd_sigset(&sss, bss);
 
-	SCARG(&sa, sigmask) = bss;
+	sa.sigmask = bss;
 	return sigsuspend(td, &sa);
 }
 
@@ -618,8 +618,8 @@ svr4_sys_kill(td, uap)
 {
 	struct kill_args ka;
 
-	SCARG(&ka, pid) = SCARG(uap, pid);
-	SCARG(&ka, signum) = SVR4_SVR42BSD_SIG(SCARG(uap, signum));
+	ka.pid = uap->pid;
+	ka.signum = SVR4_SVR42BSD_SIG(uap->signum);
 	return kill(td, &ka);
 }
 
@@ -671,6 +671,6 @@ svr4_sys_pause(td, uap)
 {
 	struct sigsuspend_args bsa;
 
-	SCARG(&bsa, sigmask) = &td->td_proc->p_sigmask;
+	bsa.sigmask = &td->td_proc->p_sigmask;
 	return sigsuspend(td, &bsa);
 }

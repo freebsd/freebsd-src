@@ -191,7 +191,7 @@ quotactl(td, uap)
 
 	if (jailed(td->td_ucred) && !prison_quotas)
 		return (EPERM);
-	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, SCARG(uap, path), td);
+	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, uap->path, td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
@@ -199,8 +199,8 @@ quotactl(td, uap)
 	vrele(nd.ni_vp);
 	if (error)
 		return (error);
-	error = VFS_QUOTACTL(mp, SCARG(uap, cmd), SCARG(uap, uid),
-	    SCARG(uap, arg), td);
+	error = VFS_QUOTACTL(mp, uap->cmd, uap->uid,
+	    uap->arg, td);
 	vn_finished_write(mp);
 	return (error);
 }
@@ -229,7 +229,7 @@ statfs(td, uap)
 	struct nameidata nd;
 	struct statfs sb;
 
-	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, SCARG(uap, path), td);
+	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, uap->path, td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	mp = nd.ni_vp->v_mount;
@@ -250,7 +250,7 @@ statfs(td, uap)
 		sb.f_fsid.val[0] = sb.f_fsid.val[1] = 0;
 		sp = &sb;
 	}
-	return (copyout(sp, SCARG(uap, buf), sizeof(*sp)));
+	return (copyout(sp, uap->buf, sizeof(*sp)));
 }
 
 /*
@@ -277,7 +277,7 @@ fstatfs(td, uap)
 	int error;
 	struct statfs sb;
 
-	if ((error = getvnode(td->td_proc->p_fd, SCARG(uap, fd), &fp)) != 0)
+	if ((error = getvnode(td->td_proc->p_fd, uap->fd, &fp)) != 0)
 		return (error);
 	mp = ((struct vnode *)fp->f_data)->v_mount;
 	fdrop(fp, td);
@@ -298,7 +298,7 @@ fstatfs(td, uap)
 		sb.f_fsid.val[0] = sb.f_fsid.val[1] = 0;
 		sp = &sb;
 	}
-	return (copyout(sp, SCARG(uap, buf), sizeof(*sp)));
+	return (copyout(sp, uap->buf, sizeof(*sp)));
 }
 
 /*
@@ -325,8 +325,8 @@ getfsstat(td, uap)
 	caddr_t sfsp;
 	long count, maxcount, error;
 
-	maxcount = SCARG(uap, bufsize) / sizeof(struct statfs);
-	sfsp = (caddr_t)SCARG(uap, buf);
+	maxcount = uap->bufsize / sizeof(struct statfs);
+	sfsp = (caddr_t)uap->buf;
 	count = 0;
 	mtx_lock(&mountlist_mtx);
 	for (mp = TAILQ_FIRST(&mountlist); mp != NULL; mp = nmp) {
@@ -347,8 +347,8 @@ getfsstat(td, uap)
 			 * refresh the fsstat cache. MNT_NOWAIT or MNT_LAZY
 			 * overrides MNT_WAIT.
 			 */
-			if (((SCARG(uap, flags) & (MNT_LAZY|MNT_NOWAIT)) == 0 ||
-			    (SCARG(uap, flags) & MNT_WAIT)) &&
+			if (((uap->flags & (MNT_LAZY|MNT_NOWAIT)) == 0 ||
+			    (uap->flags & MNT_WAIT)) &&
 			    (error = VFS_STATFS(mp, sp, td))) {
 				mtx_lock(&mountlist_mtx);
 				nmp = TAILQ_NEXT(mp, mnt_list);
@@ -398,7 +398,7 @@ fchdir(td, uap)
 	struct file *fp;
 	int error;
 
-	if ((error = getvnode(fdp, SCARG(uap, fd), &fp)) != 0)
+	if ((error = getvnode(fdp, uap->fd, &fp)) != 0)
 		return (error);
 	vp = (struct vnode *)fp->f_data;
 	VREF(vp);
@@ -539,7 +539,7 @@ chroot(td, uap)
 	if (error)
 		return (error);
 	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_USERSPACE,
-	    SCARG(uap, path), td);
+	    uap->path, td);
 	mtx_lock(&Giant);
 	if ((error = change_dir(&nd, td)) != 0)
 		goto error;
@@ -809,9 +809,9 @@ ocreat(td, uap)
 		syscallarg(int) mode;
 	} */ nuap;
 
-	SCARG(&nuap, path) = SCARG(uap, path);
-	SCARG(&nuap, mode) = SCARG(uap, mode);
-	SCARG(&nuap, flags) = O_WRONLY | O_CREAT | O_TRUNC;
+	nuap.path = uap->path;
+	nuap.mode = uap->mode;
+	nuap.flags = O_WRONLY | O_CREAT | O_TRUNC;
 	return (open(td, &nuap));
 }
 #endif /* COMPAT_43 */
@@ -1176,7 +1176,7 @@ undelete(td, uap)
 restart:
 	bwillwrite();
 	NDINIT(&nd, DELETE, LOCKPARENT|DOWHITEOUT, UIO_USERSPACE,
-	    SCARG(uap, path), td);
+	    uap->path, td);
 	error = namei(&nd);
 	if (error)
 		return (error);
@@ -1222,7 +1222,7 @@ unlink(td, uap)
 	} */ *uap;
 {
 
-	return (kern_unlink(td, SCARG(uap, path), UIO_USERSPACE));
+	return (kern_unlink(td, uap->path, UIO_USERSPACE));
 }
 
 int
@@ -1323,8 +1323,8 @@ lseek(td, uap)
 	}
 	vp = (struct vnode *)fp->f_data;
 	noneg = (vp->v_type != VCHR);
-	offset = SCARG(uap, offset);
-	switch (SCARG(uap, whence)) {
+	offset = uap->offset;
+	switch (uap->whence) {
 	case L_INCR:
 		if (noneg &&
 		    (fp->f_offset < 0 ||
@@ -1386,9 +1386,9 @@ olseek(td, uap)
 	} */ nuap;
 	int error;
 
-	SCARG(&nuap, fd) = SCARG(uap, fd);
-	SCARG(&nuap, offset) = SCARG(uap, offset);
-	SCARG(&nuap, whence) = SCARG(uap, whence);
+	nuap.fd = uap->fd;
+	nuap.offset = uap->offset;
+	nuap.whence = uap->whence;
 	error = lseek(td, &nuap);
 	return (error);
 }
@@ -1506,12 +1506,12 @@ eaccess(td, uap)
 	int error;
 
 	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | NOOBJ, UIO_USERSPACE,
-	    SCARG(uap, path), td);
+	    uap->path, td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	vp = nd.ni_vp;
 
-	error = vn_access(vp, SCARG(uap, flags), td->td_ucred, td);
+	error = vn_access(vp, uap->flags, td->td_ucred, td);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vput(vp);
 	return (error);
@@ -1542,7 +1542,7 @@ ostat(td, uap)
 	struct nameidata nd;
 
 	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | NOOBJ, UIO_USERSPACE,
-	    SCARG(uap, path), td);
+	    uap->path, td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
@@ -1551,7 +1551,7 @@ ostat(td, uap)
 	if (error)
 		return (error);
 	cvtstat(&sb, &osb);
-	error = copyout(&osb, SCARG(uap, ub), sizeof (osb));
+	error = copyout(&osb, uap->ub, sizeof (osb));
 	return (error);
 }
 
@@ -1580,7 +1580,7 @@ olstat(td, uap)
 	struct nameidata nd;
 
 	NDINIT(&nd, LOOKUP, NOFOLLOW | LOCKLEAF | NOOBJ, UIO_USERSPACE,
-	    SCARG(uap, path), td);
+	    uap->path, td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	vp = nd.ni_vp;
@@ -1590,7 +1590,7 @@ olstat(td, uap)
 	if (error)
 		return (error);
 	cvtstat(&sb, &osb);
-	error = copyout(&osb, SCARG(uap, ub), sizeof (osb));
+	error = copyout(&osb, uap->ub, sizeof (osb));
 	return (error);
 }
 
@@ -1648,10 +1648,10 @@ stat(td, uap)
 
 #ifdef LOOKUP_SHARED
 	NDINIT(&nd, LOOKUP, FOLLOW | LOCKSHARED | LOCKLEAF | NOOBJ,
-	    UIO_USERSPACE, SCARG(uap, path), td);
+	    UIO_USERSPACE, uap->path, td);
 #else
 	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | NOOBJ, UIO_USERSPACE,
-	    SCARG(uap, path), td);
+	    uap->path, td);
 #endif
 	if ((error = namei(&nd)) != 0)
 		return (error);
@@ -1660,7 +1660,7 @@ stat(td, uap)
 	vput(nd.ni_vp);
 	if (error)
 		return (error);
-	error = copyout(&sb, SCARG(uap, ub), sizeof (sb));
+	error = copyout(&sb, uap->ub, sizeof (sb));
 	return (error);
 }
 
@@ -1688,7 +1688,7 @@ lstat(td, uap)
 	struct nameidata nd;
 
 	NDINIT(&nd, LOOKUP, NOFOLLOW | LOCKLEAF | NOOBJ, UIO_USERSPACE,
-	    SCARG(uap, path), td);
+	    uap->path, td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	vp = nd.ni_vp;
@@ -1697,7 +1697,7 @@ lstat(td, uap)
 	vput(vp);
 	if (error)
 		return (error);
-	error = copyout(&sb, SCARG(uap, ub), sizeof (sb));
+	error = copyout(&sb, uap->ub, sizeof (sb));
 	return (error);
 }
 
@@ -1753,7 +1753,7 @@ nstat(td, uap)
 	struct nameidata nd;
 
 	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | NOOBJ, UIO_USERSPACE,
-	    SCARG(uap, path), td);
+	    uap->path, td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
@@ -1762,7 +1762,7 @@ nstat(td, uap)
 	if (error)
 		return (error);
 	cvtnstat(&sb, &nsb);
-	error = copyout(&nsb, SCARG(uap, ub), sizeof (nsb));
+	error = copyout(&nsb, uap->ub, sizeof (nsb));
 	return (error);
 }
 
@@ -1791,7 +1791,7 @@ nlstat(td, uap)
 	struct nameidata nd;
 
 	NDINIT(&nd, LOOKUP, NOFOLLOW | LOCKLEAF | NOOBJ, UIO_USERSPACE,
-	    SCARG(uap, path), td);
+	    uap->path, td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	vp = nd.ni_vp;
@@ -1801,7 +1801,7 @@ nlstat(td, uap)
 	if (error)
 		return (error);
 	cvtnstat(&sb, &nsb);
-	error = copyout(&nsb, SCARG(uap, ub), sizeof (nsb));
+	error = copyout(&nsb, uap->ub, sizeof (nsb));
 	return (error);
 }
 
@@ -1827,7 +1827,7 @@ pathconf(td, uap)
 	struct nameidata nd;
 
 	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | NOOBJ, UIO_USERSPACE,
-	    SCARG(uap, path), td);
+	    uap->path, td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
@@ -1972,11 +1972,11 @@ chflags(td, uap)
 	int error;
 	struct nameidata nd;
 
-	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, SCARG(uap, path), td);
+	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, uap->path, td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
-	error = setfflags(td, nd.ni_vp, SCARG(uap, flags));
+	error = setfflags(td, nd.ni_vp, uap->flags);
 	vrele(nd.ni_vp);
 	return error;
 }
@@ -1995,11 +1995,11 @@ lchflags(td, uap)
 	int error;
 	struct nameidata nd;
 
-	NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_USERSPACE, SCARG(uap, path), td);
+	NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_USERSPACE, uap->path, td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
-	error = setfflags(td, nd.ni_vp, SCARG(uap, flags));
+	error = setfflags(td, nd.ni_vp, uap->flags);
 	vrele(nd.ni_vp);
 	return error;
 }
@@ -2025,9 +2025,9 @@ fchflags(td, uap)
 	struct file *fp;
 	int error;
 
-	if ((error = getvnode(td->td_proc->p_fd, SCARG(uap, fd), &fp)) != 0)
+	if ((error = getvnode(td->td_proc->p_fd, uap->fd, &fp)) != 0)
 		return (error);
-	error = setfflags(td, (struct vnode *) fp->f_data, SCARG(uap, flags));
+	error = setfflags(td, (struct vnode *) fp->f_data, uap->flags);
 	fdrop(fp, td);
 	return (error);
 }
@@ -2119,11 +2119,11 @@ lchmod(td, uap)
 	int error;
 	struct nameidata nd;
 
-	NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_USERSPACE, SCARG(uap, path), td);
+	NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_USERSPACE, uap->path, td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
-	error = setfmode(td, nd.ni_vp, SCARG(uap, mode));
+	error = setfmode(td, nd.ni_vp, uap->mode);
 	vrele(nd.ni_vp);
 	return error;
 }
@@ -2150,10 +2150,10 @@ fchmod(td, uap)
 	struct vnode *vp;
 	int error;
 
-	if ((error = getvnode(td->td_proc->p_fd, SCARG(uap, fd), &fp)) != 0)
+	if ((error = getvnode(td->td_proc->p_fd, uap->fd, &fp)) != 0)
 		return (error);
 	vp = (struct vnode *)fp->f_data;
-	error = setfmode(td, (struct vnode *)fp->f_data, SCARG(uap, mode));
+	error = setfmode(td, (struct vnode *)fp->f_data, uap->mode);
 	fdrop(fp, td);
 	return (error);
 }
@@ -2294,11 +2294,11 @@ fchown(td, uap)
 	struct vnode *vp;
 	int error;
 
-	if ((error = getvnode(td->td_proc->p_fd, SCARG(uap, fd), &fp)) != 0)
+	if ((error = getvnode(td->td_proc->p_fd, uap->fd, &fp)) != 0)
 		return (error);
 	vp = (struct vnode *)fp->f_data;
 	error = setfown(td, (struct vnode *)fp->f_data,
-		SCARG(uap, uid), SCARG(uap, gid));
+		uap->uid, uap->gid);
 	fdrop(fp, td);
 	return (error);
 }
@@ -2592,7 +2592,7 @@ ftruncate(td, uap)
 
 	if (uap->length < 0)
 		return(EINVAL);
-	if ((error = getvnode(td->td_proc->p_fd, SCARG(uap, fd), &fp)) != 0)
+	if ((error = getvnode(td->td_proc->p_fd, uap->fd, &fp)) != 0)
 		return (error);
 	if ((fp->f_flag & FWRITE) == 0) {
 		fdrop(fp, td);
@@ -2614,7 +2614,7 @@ ftruncate(td, uap)
 #endif
 	else if ((error = vn_writechk(vp)) == 0) {
 		VATTR_NULL(&vattr);
-		vattr.va_size = SCARG(uap, length);
+		vattr.va_size = uap->length;
 		error = VOP_SETATTR(vp, &vattr, fp->f_cred, td);
 	}
 	VOP_UNLOCK(vp, 0, td);
@@ -2648,8 +2648,8 @@ otruncate(td, uap)
 		syscallarg(off_t) length;
 	} */ nuap;
 
-	SCARG(&nuap, path) = SCARG(uap, path);
-	SCARG(&nuap, length) = SCARG(uap, length);
+	nuap.path = uap->path;
+	nuap.length = uap->length;
 	return (truncate(td, &nuap));
 }
 
@@ -2677,8 +2677,8 @@ oftruncate(td, uap)
 		syscallarg(off_t) length;
 	} */ nuap;
 
-	SCARG(&nuap, fd) = SCARG(uap, fd);
-	SCARG(&nuap, length) = SCARG(uap, length);
+	nuap.fd = uap->fd;
+	nuap.length = uap->length;
 	return (ftruncate(td, &nuap));
 }
 #endif /* COMPAT_43 || COMPAT_SUNOS */
@@ -2707,7 +2707,7 @@ fsync(td, uap)
 
 	GIANT_REQUIRED;
 
-	if ((error = getvnode(td->td_proc->p_fd, SCARG(uap, fd), &fp)) != 0)
+	if ((error = getvnode(td->td_proc->p_fd, uap->fd, &fp)) != 0)
 		return (error);
 	vp = (struct vnode *)fp->f_data;
 	if ((error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0) {
@@ -3062,9 +3062,9 @@ ogetdirentries(td, uap)
 	long loff;
 
 	/* XXX arbitrary sanity limit on `count'. */
-	if (SCARG(uap, count) > 64 * 1024)
+	if (uap->count > 64 * 1024)
 		return (EINVAL);
-	if ((error = getvnode(td->td_proc->p_fd, SCARG(uap, fd), &fp)) != 0)
+	if ((error = getvnode(td->td_proc->p_fd, uap->fd, &fp)) != 0)
 		return (error);
 	if ((fp->f_flag & FREAD) == 0) {
 		fdrop(fp, td);
@@ -3076,14 +3076,14 @@ unionread:
 		fdrop(fp, td);
 		return (EINVAL);
 	}
-	aiov.iov_base = SCARG(uap, buf);
-	aiov.iov_len = SCARG(uap, count);
+	aiov.iov_base = uap->buf;
+	aiov.iov_len = uap->count;
 	auio.uio_iov = &aiov;
 	auio.uio_iovcnt = 1;
 	auio.uio_rw = UIO_READ;
 	auio.uio_segflg = UIO_USERSPACE;
 	auio.uio_td = td;
-	auio.uio_resid = SCARG(uap, count);
+	auio.uio_resid = uap->count;
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	loff = auio.uio_offset = fp->f_offset;
 #ifdef MAC
@@ -3105,14 +3105,14 @@ unionread:
 		kuio = auio;
 		kuio.uio_iov = &kiov;
 		kuio.uio_segflg = UIO_SYSSPACE;
-		kiov.iov_len = SCARG(uap, count);
-		MALLOC(dirbuf, caddr_t, SCARG(uap, count), M_TEMP, M_WAITOK);
+		kiov.iov_len = uap->count;
+		MALLOC(dirbuf, caddr_t, uap->count, M_TEMP, M_WAITOK);
 		kiov.iov_base = dirbuf;
 		error = VOP_READDIR(vp, &kuio, fp->f_cred, &eofflag,
 			    NULL, NULL);
 		fp->f_offset = kuio.uio_offset;
 		if (error == 0) {
-			readcnt = SCARG(uap, count) - kuio.uio_resid;
+			readcnt = uap->count - kuio.uio_resid;
 			edp = (struct dirent *)&dirbuf[readcnt];
 			for (dp = (struct dirent *)dirbuf; dp < edp; ) {
 #				if (BYTE_ORDER == LITTLE_ENDIAN)
@@ -3150,7 +3150,7 @@ unionread:
 		fdrop(fp, td);
 		return (error);
 	}
-	if (SCARG(uap, count) == auio.uio_resid) {
+	if (uap->count == auio.uio_resid) {
 		if (union_dircheckp) {
 			error = union_dircheckp(td, &vp, fp);
 			if (error == -1)
@@ -3177,9 +3177,9 @@ unionread:
 		}
 		VOP_UNLOCK(vp, 0, td);
 	}
-	error = copyout(&loff, SCARG(uap, basep), sizeof(long));
+	error = copyout(&loff, uap->basep, sizeof(long));
 	fdrop(fp, td);
-	td->td_retval[0] = SCARG(uap, count) - auio.uio_resid;
+	td->td_retval[0] = uap->count - auio.uio_resid;
 	return (error);
 }
 #endif /* COMPAT_43 */
@@ -3212,7 +3212,7 @@ getdirentries(td, uap)
 	long loff;
 	int error, eofflag;
 
-	if ((error = getvnode(td->td_proc->p_fd, SCARG(uap, fd), &fp)) != 0)
+	if ((error = getvnode(td->td_proc->p_fd, uap->fd, &fp)) != 0)
 		return (error);
 	if ((fp->f_flag & FREAD) == 0) {
 		fdrop(fp, td);
@@ -3224,14 +3224,14 @@ unionread:
 		fdrop(fp, td);
 		return (EINVAL);
 	}
-	aiov.iov_base = SCARG(uap, buf);
-	aiov.iov_len = SCARG(uap, count);
+	aiov.iov_base = uap->buf;
+	aiov.iov_len = uap->count;
 	auio.uio_iov = &aiov;
 	auio.uio_iovcnt = 1;
 	auio.uio_rw = UIO_READ;
 	auio.uio_segflg = UIO_USERSPACE;
 	auio.uio_td = td;
-	auio.uio_resid = SCARG(uap, count);
+	auio.uio_resid = uap->count;
 	/* vn_lock(vp, LK_SHARED | LK_RETRY, td); */
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	loff = auio.uio_offset = fp->f_offset;
@@ -3247,7 +3247,7 @@ unionread:
 		fdrop(fp, td);
 		return (error);
 	}
-	if (SCARG(uap, count) == auio.uio_resid) {
+	if (uap->count == auio.uio_resid) {
 		if (union_dircheckp) {
 			error = union_dircheckp(td, &vp, fp);
 			if (error == -1)
@@ -3274,10 +3274,10 @@ unionread:
 		}
 		VOP_UNLOCK(vp, 0, td);
 	}
-	if (SCARG(uap, basep) != NULL) {
-		error = copyout(&loff, SCARG(uap, basep), sizeof(long));
+	if (uap->basep != NULL) {
+		error = copyout(&loff, uap->basep, sizeof(long));
 	}
-	td->td_retval[0] = SCARG(uap, count) - auio.uio_resid;
+	td->td_retval[0] = uap->count - auio.uio_resid;
 	fdrop(fp, td);
 	return (error);
 }
@@ -3327,7 +3327,7 @@ umask(td, uap)
 	FILEDESC_LOCK(td->td_proc->p_fd);
 	fdp = td->td_proc->p_fd;
 	td->td_retval[0] = fdp->fd_cmask;
-	fdp->fd_cmask = SCARG(uap, newmask) & ALLPERMS;
+	fdp->fd_cmask = uap->newmask & ALLPERMS;
 	FILEDESC_UNLOCK(td->td_proc->p_fd);
 	return (0);
 }
@@ -3355,7 +3355,7 @@ revoke(td, uap)
 	int error;
 	struct nameidata nd;
 
-	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_USERSPACE, SCARG(uap, path),
+	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_USERSPACE, uap->path,
 	    td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
@@ -3508,11 +3508,11 @@ fhopen(td, uap)
 	if (error)
 		return (error);
 
-	fmode = FFLAGS(SCARG(uap, flags));
+	fmode = FFLAGS(uap->flags);
 	/* why not allow a non-read/write open for our lockd? */
 	if (((fmode & (FREAD | FWRITE)) == 0) || (fmode & O_CREAT))
 		return (EINVAL);
-	error = copyin(SCARG(uap,u_fhp), &fhp, sizeof(fhp));
+	error = copyin(uap->u_fhp, &fhp, sizeof(fhp));
 	if (error)
 		return(error);
 	/* find the mount point */
@@ -3703,7 +3703,7 @@ fhstat(td, uap)
 	if (error)
 		return (error);
 	
-	error = copyin(SCARG(uap, u_fhp), &fh, sizeof(fhandle_t));
+	error = copyin(uap->u_fhp, &fh, sizeof(fhandle_t));
 	if (error)
 		return (error);
 
@@ -3715,7 +3715,7 @@ fhstat(td, uap)
 	vput(vp);
 	if (error)
 		return (error);
-	error = copyout(&sb, SCARG(uap, sb), sizeof(sb));
+	error = copyout(&sb, uap->sb, sizeof(sb));
 	return (error);
 }
 
@@ -3750,7 +3750,7 @@ fhstatfs(td, uap)
 	if (error)
 		return (error);
 
-	if ((error = copyin(SCARG(uap, u_fhp), &fh, sizeof(fhandle_t))) != 0)
+	if ((error = copyin(uap->u_fhp, &fh, sizeof(fhandle_t))) != 0)
 		return (error);
 
 	if ((mp = vfs_getvfs(&fh.fh_fsid)) == NULL)
@@ -3773,7 +3773,7 @@ fhstatfs(td, uap)
 		sb.f_fsid.val[0] = sb.f_fsid.val[1] = 0;
 		sp = &sb;
 	}
-	return (copyout(sp, SCARG(uap, buf), sizeof(*sp)));
+	return (copyout(sp, uap->buf, sizeof(*sp)));
 }
 
 /*

@@ -94,13 +94,13 @@ svr4_sys_ioctl(td, uap)
 	int		 num;
 	int		 argsiz;
 
-	svr4_decode_cmd(SCARG(uap, com), dir, &c, &num, &argsiz);
+	svr4_decode_cmd(uap->com, dir, &c, &num, &argsiz);
 
-	DPRINTF(("svr4_ioctl[%lx](%d, _IO%s(%c, %d, %d), %p);\n", SCARG(uap, com), SCARG(uap, fd),
-	    dir, c, num, argsiz, SCARG(uap, data)));
+	DPRINTF(("svr4_ioctl[%lx](%d, _IO%s(%c, %d, %d), %p);\n", uap->com, uap->fd,
+	    dir, c, num, argsiz, uap->data));
 #endif
 	retval = td->td_retval;
-	cmd = SCARG(uap, com);
+	cmd = uap->com;
 
 	if ((error = fget(td, uap->fd, &fp)) != 0)
 		return (error);
@@ -161,7 +161,7 @@ svr4_sys_ioctl(td, uap)
 		DPRINTF((">>> OUT: so_state = 0x%x\n", so->so_state));
 	}
 #endif
-	error = (*fun)(fp, td, retval, SCARG(uap, fd), cmd, SCARG(uap, data));
+	error = (*fun)(fp, td, retval, uap->fd, cmd, uap->data);
 	fdrop(fp, td);
 	return (error);
 }
