@@ -613,7 +613,7 @@ coda_nc_flush(dcstat)
 			}
 			vrele(CTOV(cncp->dcp)); 
 
-			ASSERT_VOP_LOCKED(CTOV(cnp->cp), "coda_nc_flush");
+			ASSERT_VOP_LOCKED(CTOV(cncp->cp), "coda_nc_flush");
 			if (CTOV(cncp->cp)->v_vflag & VV_TEXT) {
 			    if (coda_vmflush(cncp->cp))
 				CODADEBUG(CODA_FLUSH, 
