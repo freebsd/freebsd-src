@@ -138,9 +138,9 @@ db_ps(dummy1, dummy2, dummy3, dummy4)
 			}
 			switch (td->td_state) {
 			case TDS_INHIBITED:
-				if (TD_ON_MUTEX(td)) {
-					db_printf("[MTX %6s %8p]",
-					    td->td_mtxname,
+				if (TD_ON_LOCK(td)) {
+					db_printf("[LOCK %6s %8p]",
+					    td->td_lockname,
 				    	    (void *)td->td_blocked);
 				}
 				if (TD_IS_SLEEPING(td)) {
