@@ -165,6 +165,82 @@ int _pthread_guard_default;
 int _pthread_page_size;
 
 /*
+ * Initialize the current thread.
+ */
+void
+init_td_common(struct pthread *td, struct pthread_attr *attrp, int reinit)
+{
+	/*
+	 * Some parts of a pthread are initialized only once.
+	 */
+	if (!reinit) {
+		memset(td, 0, sizeof(struct pthread));
+		td->cancelflags = PTHREAD_CANCEL_ENABLE |
+		    PTHREAD_CANCEL_DEFERRED;
+		memcpy(&td->attr, attrp, sizeof(struct pthread_attr));
+		td->magic = PTHREAD_MAGIC;
+		TAILQ_INIT(&td->mutexq);
+	} else {
+		memset(&td->join_status, 0, sizeof(struct join_status));
+	}
+	td->joiner = NULL;
+	td->error = 0;
+	td->flags = 0;
+}
+
+/*
+ * Initialize the active and dead threads list. Any threads in the active
+ * list will be removed and the thread td * will be marked as the
+ * initial thread and inserted in the list as the only thread. Any threads
+ * in the dead threads list will also be removed.
+ */
+void
+init_tdlist(struct pthread *td, int reinit)
+{
+	struct pthread *tdTemp, *tdTemp2;
+
+	_thread_initial = td;
+	td->name = strdup("_thread_initial");
+
+	/*
+	 * If this is not the first initialization, remove any entries
+	 * that may be in the list and deallocate their memory. Also
+	 * destroy any global pthread primitives (they will be recreated).
+	 */
+	if (reinit) {
+		TAILQ_FOREACH_SAFE(tdTemp, &_thread_list, tle, tdTemp2) {
+			if (tdTemp != NULL) {
+				TAILQ_REMOVE(&_thread_list, tdTemp, tle);
+				free(tdTemp);
+			}
+		}
+		TAILQ_FOREACH_SAFE(tdTemp, &_dead_list, dle, tdTemp2) {
+			if (tdTemp != NULL) {
+				TAILQ_REMOVE(&_dead_list, tdTemp, dle);
+				free(tdTemp);
+			}
+		}
+		_pthread_mutex_destroy(&dead_list_lock);
+		_pthread_cond_destroy(&_gc_cond);
+	} else {
+		TAILQ_INIT(&_thread_list);
+		TAILQ_INIT(&_dead_list);
+	}
+
+	/* Insert this thread as the first thread in the active list */
+	TAILQ_INSERT_HEAD(&_thread_list, td, tle);
+
+	/*
+	 * Initialize the active thread list lock and the
+	 * dead threads list lock & associated condition variable.
+	 */
+	memset(&thread_list_lock, 0, sizeof(spinlock_t));
+	if (_pthread_mutex_init(&dead_list_lock,NULL) != 0 ||
+	    _pthread_cond_init(&_gc_cond,NULL) != 0)
+		PANIC("Failed to initialize garbage collector primitives");
+}
+
+/*
  * Threaded process initialization
  */
 void
@@ -233,18 +309,13 @@ _thread_init(void)
 		 */
 		PANIC("Cannot allocate memory for initial thread");
 	}
-	/* Zero the initial thread structure: */
-	memset(pthread, 0, sizeof(struct pthread));
 
-	_thread_initial = pthread;
+	init_tdlist(pthread, 0);
+	init_td_common(pthread, &pthread_attr_default, 0);
 	pthread->arch_id = _set_curthread(NULL, pthread, &error);
 
 	/* Get our thread id. */
 	thr_self(&pthread->thr_id);
-
-	/* Give this thread default attributes: */
-	memcpy((void *) &pthread->attr, &pthread_attr_default,
-	    sizeof(struct pthread_attr));
 
 	/* Find the stack top */
 	mib[0] = CTL_KERN;
@@ -271,15 +342,6 @@ _thread_init(void)
 	pthread->attr.stackaddr_attr = pthread->stack;
 	pthread->attr.stacksize_attr = PTHREAD_STACK_INITIAL;
 
-	/*
-	 * Write a magic value to the thread structure
-	 * to help identify valid ones:
-	 */
-	pthread->magic = PTHREAD_MAGIC;
-
-	/* Set the initial cancel state */
-	pthread->cancelflags = PTHREAD_CANCEL_ENABLE | PTHREAD_CANCEL_DEFERRED;
-
 	/* Setup the context for initial thread. */
 	getcontext(&pthread->ctx);
 	pthread->ctx.uc_stack.ss_sp = pthread->stack;
@@ -292,24 +354,6 @@ _thread_init(void)
 
 	/* Initialise the state of the initial thread: */
 	pthread->state = PS_RUNNING;
-
-	/* Set the name of the thread: */
-	pthread->name = strdup("_thread_initial");
-
-	/* Initialize joiner to NULL (no joiner): */
-	pthread->joiner = NULL;
-
-	/* Initialize the owned mutex queue and count: */
-	TAILQ_INIT(&(pthread->mutexq));
-	pthread->priority_mutex_count = 0;
-
-	/* Initialise the rest of the fields: */
-	pthread->specific = NULL;
-	pthread->cleanup = NULL;
-	pthread->flags = 0;
-	pthread->error = 0;
-	TAILQ_INIT(&_thread_list);
-	TAILQ_INSERT_HEAD(&_thread_list, pthread, tle);
 
 	/* Enter a loop to get the existing signal status: */
 	for (i = 1; i < NSIG; i++) {
@@ -360,11 +404,6 @@ _thread_init(void)
 	if (sysctl(mib, 2, &clockinfo, &len, NULL, 0) == 0)
 		_clock_res_usec = clockinfo.tick > CLOCK_RES_USEC_MIN ?
 		    clockinfo.tick : CLOCK_RES_USEC_MIN;
-
-	/* Initialise the garbage collector mutex and condition variable. */
-	if (_pthread_mutex_init(&dead_list_lock,NULL) != 0 ||
-	    _pthread_cond_init(&_gc_cond,NULL) != 0)
-		PANIC("Failed to initialise garbage collector mutex or condvar");
 }
 
 /*
