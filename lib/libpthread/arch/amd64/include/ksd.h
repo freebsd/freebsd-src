@@ -57,7 +57,7 @@ struct pthread;
 	__ksd_type(name) __result;				\
 								\
 	u_long __i;						\
-	__asm __volatile("movq %%gs:%1, %0"			\
+	__asm __volatile("movq %%fs:%1, %0"			\
 	    : "=r" (__i)					\
 	    : "m" (*(u_long *)(__ksd_offset(name))));		\
 	__result = *(__ksd_type(name) *)&__i;			\
@@ -73,7 +73,7 @@ struct pthread;
 								\
 	u_long __i;						\
 	__i = *(u_long *)&__val;					\
-	__asm __volatile("movq %1,%%gs:%0"			\
+	__asm __volatile("movq %1,%%fs:%0"			\
 	    : "=m" (*(u_long *)(__ksd_offset(name)))		\
 	    : "r" (__i));					\
 })
@@ -85,7 +85,7 @@ __ksd_readandclear64(volatile u_long *addr)
 
 	__asm __volatile (
 	    "	xorq	%0, %0;"
-	    "	xchgq	%%gs:%1, %0;"
+	    "	xchgq	%%fs:%1, %0;"
 	    "# __ksd_readandclear64"
 	    : "=&r" (result)
 	    : "m" (*addr));
@@ -126,7 +126,7 @@ _ksd_destroy(struct ksd *ksd)
 static __inline int
 _ksd_setprivate(struct ksd *ksd)
 {
-	return (sysarch(AMD64_SET_GSBASE, &ksd->base));
+	return (sysarch(AMD64_SET_FSBASE, &ksd->base));
 }
 
 #endif
