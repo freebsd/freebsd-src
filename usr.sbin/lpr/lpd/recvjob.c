@@ -111,7 +111,7 @@ recvjob(const char *printer)
 		break;
 	}
 	
-	(void) close(2);			/* set up log file */
+	(void) close(STDERR_FILENO);			/* set up log file */
 	if (open(pp->log_file, O_WRONLY|O_APPEND, 0664) < 0) {
 		syslog(LOG_ERR, "%s: %m", pp->log_file);
 		(void) open(_PATH_DEVNULL, O_WRONLY);
