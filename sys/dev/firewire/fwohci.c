@@ -494,7 +494,7 @@ int fwohci_init(struct fwohci_softc *sc, device_t dev)
 #endif
 	OWRITE(sc, OHCI_HCCCTL, OHCI_HCC_LPS);
 	/* XXX wait for SCLK. */
-	DELAY(10000);
+	DELAY(100000);
 
 	reg = OREAD(sc,  OHCI_BUS_OPT);
 	reg2 = reg | OHCI_BUSFNC;
