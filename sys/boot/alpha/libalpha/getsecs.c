@@ -1,7 +1,9 @@
 /*
- * $FreeBSD$
- * From:	$NetBSD: getsecs.c,v 1.5 1998/01/05 07:02:49 perry Exp $	
+ * $NetBSD: getsecs.c,v 1.5 1998/01/05 07:02:49 perry Exp $	
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <machine/prom.h>
