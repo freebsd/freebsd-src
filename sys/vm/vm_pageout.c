@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.51.4.1 1996/01/31 13:12:39 davidg Exp $
+ * $Id: vm_pageout.c,v 1.51.4.2 1996/02/22 11:10:09 davidg Exp $
  */
 
 /*
@@ -888,6 +888,8 @@ vm_daemon()
 {
 	vm_object_t object;
 	struct proc *p;
+
+	(void) spl0();
 
 	while (TRUE) {
 		tsleep((caddr_t) &vm_daemon_needed, PUSER, "psleep", 0);
