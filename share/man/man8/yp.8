@@ -205,8 +205,9 @@ to a particular
 server using the
 .Xr ypbind 8
 daemon.
-.Xr Ypbind 8
-checks the system's default domain (as set by the
+The
+.Xr ypbind 8
+utility checks the system's default domain (as set by the
 .Xr domainname 1
 command) and begins broadcasting
 .Tn RPC
@@ -227,8 +228,9 @@ From that point
 on, the client system will direct all of its
 .Tn NIS
 requests to that server.
-.Xr Ypbind 8
-will occasionally
+The
+.Xr ypbind 8
+utility will occasionally
 .Dq ping
 the server to make sure it is still up
 and running.
@@ -244,8 +246,9 @@ master and slave servers handle all
 requests with the
 .Xr ypserv 8
 daemon.
-.Xr Ypserv 8
-is responsible for receiving incoming requests from
+The
+.Xr ypserv 8
+utility is responsible for receiving incoming requests from
 .Tn NIS
 clients,
 translating the requested domain and map name to a path to the
