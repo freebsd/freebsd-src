@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: lex.l,v 1.1 1994/08/17 08:59:36 sos Exp $
+ *	$Id: lex.l,v 1.2 1995/01/28 22:17:22 sos Exp $
  */
 
 %{
@@ -37,7 +37,7 @@
 D	[0-9]
 X	[0-9a-fA-F]
 A	.
-L	[OCN]
+L	[OCNB]
 
 %%
 
@@ -111,6 +111,7 @@ scr{D}({D}*)		{
 				if (*yytext == 'O') number = 0;
 				if (*yytext == 'C') number = 1;
 				if (*yytext == 'N') number = 2;
+				if (*yytext == 'B') number = 3;
 				return TFLAG;
 			}
 [ \t\n]		{ /* ignore */ }
