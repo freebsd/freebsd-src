@@ -74,6 +74,12 @@
 
 #define I2C_DELAY	40
 
+/* Compilation is void if BKTR_USE_FREEBSD_SMBUS is not
+ * defined. This allows bktr owners to have smbus active for there
+ * motherboard and still use their bktr without smbus.
+ */
+#if defined(BKTR_USE_FREEBSD_SMBUS)
+
 #define BTI2C_DEBUG(x)	if (bti2c_debug) (x)
 static int bti2c_debug = 0;
 
@@ -86,9 +92,6 @@ int bt848_i2c_attach(device_t dev)
 	struct bktr_softc *bktr_sc = (struct bktr_softc *)device_get_softc(dev);
 	struct bktr_i2c_softc *sc = &bktr_sc->i2c_sc;
 
-	device_t *list;
-	int count;
-
 	sc->smbus = device_add_child(dev, "smbus", -1);
 	sc->iicbb = device_add_child(dev, "iicbb", -1);
 
@@ -96,13 +99,6 @@ int bt848_i2c_attach(device_t dev)
 		return ENXIO;
 
 	bus_generic_attach(dev);
-
-	/* the iicbus is the first child of device iicbb */
-	device_get_children(sc->iicbb, &list, &count);
-	if (count) {
-		sc->iicbus = list[0];
-		free(list, M_TEMP);
-	}
 
 	return (0);
 };
@@ -344,3 +340,5 @@ bti2c_smb_readb(device_t dev, u_char slave, char cmd, char *byte)
 
 	return (0);
 }
+
+#endif /* defined(BKTR_USE_FREEBSD_SMBUS) */
