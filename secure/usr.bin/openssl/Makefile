@@ -29,16 +29,3 @@ SRCS=	apps.c asn1pars.c ca.c ciphers.c crl.c crl2p7.c dgst.c dh.c \
 .PATH:	${OPENSSL_SRC}
 
 .include <bsd.prog.mk>
-
-
-
-
-
-
-
-
-
-
-
-
-
