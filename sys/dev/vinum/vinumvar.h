@@ -233,7 +233,7 @@ enum objflags {
     VF_CONFIG_INCOMPLETE = 0x1000,			    /* haven't finished changing the config */
     VF_CONFIG_SETUPSTATE = 0x2000,			    /* set a volume up if all plexes are empty */
     VF_READING_CONFIG = 0x4000,				    /* we're reading config database from disk */
-    /* 0x8000 going begging */
+    VF_FORCECONFIG = 0x8000,				    /* configure drives even with different names */
     VF_NEWBORN = 0x10000,				    /* for objects: we've just created it */
     VF_CONFIGURED = 0x20000,				    /* for drives: we read the config */
     VF_STOPPING = 0x40000,				    /* for vinum_conf: stop on last close */
