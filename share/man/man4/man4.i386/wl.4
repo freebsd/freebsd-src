@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 1996 Michael Smith
+.\" Copyright (c) 1997, Jim Binkley
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -10,6 +10,11 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by Jim Binkley
+.\" 4. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
 .\"
 .\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
 .\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -23,122 +28,120 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id$
-.\"
-.Dd March 4, 1997
-.Dt ED 4 i386
+.\" $Id$
+.Dd July 7, 1997
+.Dt WL 4 i386
 .Os FreeBSD
 .Sh NAME
 .Nm wl
-.Nd
-NCR Wavelan device driver
+.Nd T1 speed ISA/radio lan card
 .Sh SYNOPSIS
-.Cd "device wl0 at isa? port 0x300 net irq ? vector wlintr"
+.Cd "device wl0 at isa? port 0x300 net irq 5 vector wlintr"
 .Sh DESCRIPTION
 The
-.Nm
-driver provides support for the ISA bus AT&T/NCR/Lucent Wavelan
-ethernet-like wireless network cards. 
+.Nm wl
+driver controls a radio lan card system made originally by
+NCR, then ATT, now Lucent.  The system is spread-spectrum radio
+at around 915 mhz (or 2.4 ghz).  With the supplied omni-directional antennae,
+about 400 feet (indoors, more outdoors) can be covered in circumference.
+This card can talk to the companion (wlp0) pccard.  Speeds vary
+from 1 megabit to theoretically 2 megabits (roughly T1 in speed).
 .Pp
-All card configuration values except for the base address are read from the PSA
-(Parameter Storage Area) on the card, which can be configured with the
-.Xr wlconfig 8
-program.  The base address for the card is set by dipswitches; see the manual
-supplied with the card for details.
-.Pp
-The
-.Nm
-driver does not accept any flags, however its behaviour can be controlled with
-a number of sysctl values:
-.Bl -hang -offset indent
-.It Em machdep.wl_xmit_delay
-On some systems, the driver is too fast for the Wavelan card.  This value can be
-tweaked to slow the output rate of the driver at the expense of CPU performance.
-A value of 200 is believed to be acceptable for 486 systems, while 1000 is 
-considered adequate for a 166MHz Pentium.
-.It Em machdep.wl_xmit_watch
-Causes extra debugging messages concerning the state of transmitted packets to
-be printed.
-.It Em machdep.wl_gather_snr
-SNR statistics are gathered.  This is not completely implemented yet.
-.El
-.Sh DIAGNOSTICS
+The card has 3 fundmental hardware 
+units, a so-called PSA or programmable storage area, a radio modem,
+and a ethernet lan controller.  The latter component is the 
+ancient (and not very honorable) Intel 82586 ethernet chip.
+Fundamentally it appears to the operating system as an ethernet system,
+and speaks IEEE MAC addresses.  The radio modem simply translates
+ethernet packets to/from radio packets, that are either at 2.4 Ghz
+or 915 mhz depending on the radio modem.  It supports a collision
+avoidance scheme.  The lan controller
+supports promiscuous mode, broadcast, and multicasting 
+(although there is a glitch
+in the latter).  "It thinks it is ethernet".  
+.Pp 
+How it is used
+depends on the kind of antennae deployed with it.  Point to point
+applications are possible as are ethernet-like lan use.  The vendor
+ships an omni-directional antennae that works in the 
+vicinity of 400 feet (indoors).
+Point to point antennae can be purchased that will go miles.
+.Sh SETUP
+The card can either be initialized with the vendor supplied DOS setup software.
+Typically minimally an IRQ, port, and Network ID must be supplied.
+Michael Smith's 
+.Nm wlconfig(8) 
+utility can now be used to do this work from
+the UNIX side.  The card is "not" plug and play.
+The network id controls whether one set of cards can hear another.
+If different, cards will read physical packets, but they will be discarded
+by the radio modem.
+.Sh CONTROL
+In addition to the config utility, there are several sysctl
+switches that can be used to modify runtime parameters.
+The 
+.Nm sysctl(8) 
+variables are as follows:
 .Bl -diag
-.It "wl%d: PSA corrupt (invalid IRQ value)" 
-The IRQ value in the PSA is illegal.  The card will be configured not to generate
-any interrupts, ie. it will not work as a network device, however it will be possible
-to use
-.Xr wlconfig 8
-to reconfigure the IRQ to a sensible value.
-.It "wl%d init(): trouble resetting board."
-.It "wl%d bldcu(): iscp_busy timeout."
-.It "wl%d bldcu(): not ready after reset."
-The board failed to respond correctly during reset and configuration.
-.It "wl%d: busy?!"
-While attempting to queue a packet for transmission, the card claims to
-be busy although we were sure it wasn't.
-.It "wl%d read(): board is not running."
-An attempt was made to read a packet from the card, but we don't think that
-it's running.  Should never happen.
-.It "wl%d read(): Invalid buffer"
-The i82586 on the card has corrupted its buffers.
-.It "wl%d read(): hwrst trouble."
-Having failed to meet expectations, the i82586 on the card is refusing to reset.
-.It "wl%d read(): No mbuf nth"
-An error occurred allocating mbufs to copy a received packet to.
-.It "wl%d ioctl(): board is not running"
-The interface was marked as DOWN but still RUNNING.  Harmless.
-.It "wlack() int bits disappeared : %04x != int_type %04x"
-While acknowledging an interrupt, some of the interrupt sources on the i83586
-went away.
-.It "wl%d: xmt intr but not busy, CU %04x"
-A transmit interrupt occurred but we are not expecting one.
-.It "wl%d: xmt intr but ac_status == 0"
-A transmit interrupt occurred but there is no status to indicate that one should
-have been generated.
-.It "wl%d: xmt aborted"
-The transmission of a packet was aborted.
-.It "wl%d: no CTS"
-A packet was not transmitted because the CTS input to the i82586 went away.
-.It "wl%d: DMA underrun"
-The DMA hardware on the Wavelan card failed, causing an outgoing packet to be
-lost.
-.It "wl%d: xmt deferred"
-Transmission of a packet was deferred to avoid other traffic.
-.It "wl%d: heart beat"
-The i82586 thought it heard a heartbeat signal.  This usually means that there's
-someone else transmitting at the same time.
-.It "wl%d: too many collisions"
-A packet was aborted because too many collisions occurred trying to send it.
-.It "wl%d RCV: !OK %x"
-A receive operation did not complete OK.
-.It "wl%d: slow accepting xmit"
-The i82586 on the card is taking a long time to accept a transmit command.
-.It "wl%d: i82586 Self Test failed!"
-Diagnostics on the i82586 failed.
-.It "wl%d: %s failed; status = %d, inw = %x, outw = %x"
-A command to the i82586 failed.
-.It "wl%d wlack(): board not accepting command."
-The card is not responding to an interrupt acknowledge.
+.It "machdep.wl_xmit_delay <useconds>"
+This variable will cause the driver to insert a delay on transmit.
+250 is the default.  The delay should probably be a bit longer
+on faster cpus and less on slower cpus.  It exists because the 82586
+was not designed to work with pentium-speed cpu systems and if overdriven
+will have copious xmit side errors.
+.It machdep.wl_ignore_nwid <0 | 1>
+This switch defaults to 0; i.e., the nwid is not ignored.  It can
+be set to 1 to cause the nwid to not be used.  This may be useful
+when the device is in promiscuous mode as one can watch for all
+packets and ignore nwid differences.
+.It machdep.wl_xmit_watch <milliseconds> 
+This switch is not currently useful.
+.It machdep.wl_gather_snr <milliseconds> 
+This switch is not currently useful.
+.Pp
+There is also a signal strength cache in the driver.  It may be interrogated
+with
+.Nm wlconfig(8) .
+Incoming packets
+are checked for certain hardware radio-modem values including signal
+strength, silence, and quality, which range fro 0..63, 0..63, and 0..15
+respectively.  Thus one can read out signal strenth values to see 
+how close/far peer nodes are.  The signal strength cache is indexed by 
+sender MAC address.
+There are two sysctls that change how it filters packets.  Both are on
+by default.
+.It machdep.wl_wlcache_mcastonly <0 | 1> 
+By default this switch is on. It forces the cache to filter out
+unicast packets.  Only broadcast or multicast packets are accepted.
+.It machdep.wl_wlcache_iponly <0 | 1>
+By default this switch is on.  It forces the driver to discard non-IP
+packets and also stores the IP src address.  ARP packets are ignored,
+as are any other network protocol barring IPv4 packets.
 .El
 .Sh CAVEATS
-The cards are known to lose transmit interrupts under heavy load.  Ajust the
-machdep.wl_xmit_delay parameter to avoid this.
-.Pp
-On one test link, packet loss was significant enough to causes major lagging.
-.Sh BUGS
-The
-.Nm
-driver is very old and has been hacked on by many people.  The i82586 is an
-odd and funky device.  The two are not necessarily a good mix.
+The 82586 has numerous defects.  It may experience transmit-side
+errors when modern faster cpus send packets at it faster than it can handle.
+The driver (and probably the chip) does not support an all multicast mode.
+As a result, it can be used with applications like mrouted(8), but
+it must go into promiscuous mode for that to work.  The driver
+is slow to change modes from "normal" to promiscuous mode, presumably
+due to delays in the configuration code.
 .Sh SEE ALSO
 .Xr wlconfig 8 ,
-.Xr netintro 4 ,
-.Xr ifconfig 8
+.Xr sysctl 8 ,
+.Xr http://www.wavelan.com
 .Sh HISTORY
 The
-.Nm
-device driver was written/ported for Mach by Anders Klemets, ported to BSD/OS
-by Richard Morris, to FreeBSD 2.1 by Jim Binkley and to FreeBSD 2.2 by Michael
-Smith.  It has not appeared in any FreeBSD releases yet.
-
+.Nm wl
+driver was written by Anders Klemets (thousands of years ago?) and
+appears to be based on an even older Intel 82586 driver.  The 82586
+controller was one of the first (if not the first?) integrated lan
+controller on the block.  That does not mean it was the best either.
+Anders ported and or created a driver for the ISA wavelan and PCCARD
+wavelan system too (wlp).  Robert T. Morris, Jr. ported the Mach
+drivers to BSDI.  Jim Binkley ported them to FreeBSD 2.1.  Michael
+Smith ported the wl driver only to 2.2.2.  Jim and Michael have been
+maintaining them.  The current state of the driver is NOT ANYONE'S
+FAULT.  Thanks to Bernie Doehner and Robert Buaas for contributions.
+.Sh AUTHOR
+Too numerous to mention.  See above.
