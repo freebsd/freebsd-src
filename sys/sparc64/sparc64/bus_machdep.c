@@ -129,7 +129,6 @@
 #include <machine/bus.h>
 #include <machine/bus_private.h>
 #include <machine/cache.h>
-#include <machine/pmap.h>
 #include <machine/smp.h>
 #include <machine/tlb.h>
 
@@ -384,13 +383,9 @@ nexus_dmamap_load(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat, bus_dmamap_t map,
  */
 static int
 _nexus_dmamap_load_buffer(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat,
-			bus_dma_segment_t segs[],
-			void *buf, bus_size_t buflen,
-			struct thread *td,
-			int flags,
-			vm_offset_t *lastaddrp,
-			int *segp,
-			int first)
+    bus_dma_segment_t segs[], void *buf, bus_size_t buflen,
+    struct thread *td, int flags, vm_offset_t *lastaddrp,
+    int *segp, int first)
 {
 	bus_size_t sgsize;
 	bus_addr_t curaddr, lastaddr, baddr, bmask;
@@ -468,14 +463,12 @@ _nexus_dmamap_load_buffer(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat,
 }
 
 /*
- * Like _bus_dmamap_load(), but for mbufs.
+ * Like nexus_dmamap_load(), but for mbufs.
  */
 static int
 nexus_dmamap_load_mbuf(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat,
-		     bus_dmamap_t map,
-		     struct mbuf *m0,
-		     bus_dmamap_callback2_t *callback, void *callback_arg,
-		     int flags)
+    bus_dmamap_t map, struct mbuf *m0, bus_dmamap_callback2_t *callback,
+    void *callback_arg, int flags)
 {
 #ifdef __GNUC__
 	bus_dma_segment_t dm_segments[ddmat->nsegments];
@@ -496,9 +489,8 @@ nexus_dmamap_load_mbuf(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat,
 
 		for (m = m0; m != NULL && error == 0; m = m->m_next) {
 			error = _nexus_dmamap_load_buffer(pdmat, ddmat,
-					dm_segments,
-					m->m_data, m->m_len,
-					NULL, flags, &lastaddr, &nsegs, first);
+			    dm_segments, m->m_data, m->m_len, NULL, flags,
+			    &lastaddr, &nsegs, first);
 			first = 0;
 		}
 	} else {
@@ -509,21 +501,19 @@ nexus_dmamap_load_mbuf(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat,
 		/* force "no valid mappings" in callback */
 		(*callback)(callback_arg, dm_segments, 0, 0, error);
 	} else {
-		(*callback)(callback_arg, dm_segments,
-			    nsegs+1, m0->m_pkthdr.len, error);
+		(*callback)(callback_arg, dm_segments, nsegs + 1,
+		    m0->m_pkthdr.len, error);
 	}
 	return (error);
 }
 
 /*
- * Like _bus_dmamap_load(), but for uios.
+ * Like nexus_dmamap_load(), but for uios.
  */
 static int
 nexus_dmamap_load_uio(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat,
-		    bus_dmamap_t map,
-		    struct uio *uio,
-		    bus_dmamap_callback2_t *callback, void *callback_arg,
-		    int flags)
+    bus_dmamap_t map, struct uio *uio, bus_dmamap_callback2_t *callback,
+    void *callback_arg, int flags)
 {
 	vm_offset_t lastaddr;
 #ifdef __GNUC__
@@ -557,10 +547,8 @@ nexus_dmamap_load_uio(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat,
 			resid < iov[i].iov_len ? resid : iov[i].iov_len;
 		caddr_t addr = (caddr_t) iov[i].iov_base;
 
-		error = _nexus_dmamap_load_buffer(pdmat, ddmat,
-				dm_segments,
-				addr, minlen,
-				td, flags, &lastaddr, &nsegs, first);
+		error = _nexus_dmamap_load_buffer(pdmat, ddmat, dm_segments,
+		    addr, minlen, td, flags, &lastaddr, &nsegs, first);
 		first = 0;
 
 		resid -= minlen;
@@ -570,8 +558,8 @@ nexus_dmamap_load_uio(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat,
 		/* force "no valid mappings" in callback */
 		(*callback)(callback_arg, dm_segments, 0, 0, error);
 	} else {
-		(*callback)(callback_arg, dm_segments,
-			    nsegs+1, uio->uio_resid, error);
+		(*callback)(callback_arg, dm_segments, nsegs + 1,
+		    uio->uio_resid, error);
 	}
 	return (error);
 }
@@ -766,7 +754,7 @@ sparc64_bus_mem_map(bus_space_tag_t tag, bus_space_handle_t handle,
 			    "memory");
 	}
 
-	/* note: preserve page offset */
+	/* Preserve page offset. */
 	*hp = (void *)(sva | ((u_long)addr & PAGE_MASK));
 
 	pa = trunc_page(addr);
