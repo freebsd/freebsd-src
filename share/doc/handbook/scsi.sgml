@@ -1,4 +1,4 @@
-<!-- $Id: scsi.sgml,v 1.6 1995/10/07 04:31:46 jfieber Exp $ -->
+<!-- $Id: scsi.sgml,v 1.1.1.1.4.2 1995/10/12 03:16:32 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -464,7 +464,7 @@ Feb  9 19:33:46 yedi /386bsd: sd0: 636MB (1303250 total sec), 1632 cyl, 15 head,
 
           The multi level design allows a decoupling of low-level bit
           banging and more high level stuff. Adding support for another
-          piece of hardware is a much more manageable problem.
+          piece of hardware is a much more managable problem.
         
       <sect2><heading>Kernel configuration</heading>
         <p>
@@ -484,7 +484,7 @@ Feb  9 19:33:46 yedi /386bsd: sd0: 636MB (1303250 total sec), 1632 cyl, 15 head,
 	  system boot messages will be displayed to indicate whether
 	  the configured hardware was actually found.
 
-          An example based on the FreeBSD 2.0.5-Release kernel config 
+          An example loosely based on the FreeBSD 2.0.5-Release kernel config 
 	  file LINT with some added comments (between &lsqb;&rsqb;):
 
 	  <verb>
@@ -501,12 +501,6 @@ Feb  9 19:33:46 yedi /386bsd: sd0: 636MB (1303250 total sec), 1632 cyl, 15 head,
 # sea: Seagate ST01/02 8 bit controller (slow!)
 # wds: Western Digital WD7000 controller (no scatter/gather!).
 #
-# Note that the order is important in order for Buslogic cards to be
-# probed correctly.
-#
-
-&lsqb;For a Bustek controller&rsqb;
-controller	bt0	at isa? port "IO_BT0" bio irq ? vector btintr
 
 &lsqb;For an Adaptec AHA274x, 284x etc controller&rsqb;
 controller	ahc0	at isa? bio irq ? vector ahcintr # port??? iomem?
@@ -514,29 +508,30 @@ controller	ahc0	at isa? bio irq ? vector ahcintr # port??? iomem?
 &lsqb;For an Adaptec AHA174x controller&rsqb;
 controller	ahb0	at isa? bio irq ? vector ahbintr
 
-&lsqb;For an Adaptec AHA154x controller&rsqb;
-controller	aha0	at isa? port "IO_AHA0" bio irq ? drq 5 vector ahaintr
-
 &lsqb;For an Ultrastor adapter&rsqb;
 controller	uha0	at isa? port "IO_UHA0" bio irq ? drq 5 vector uhaintr
 
-controller	scbus0	#base SCSI code
+# Map SCSI buses to specific SCSI adapters
+controller	scbus0	at ahc0
+controller	scbus2  at ahb0
+controller	scbus1  at uha0
 
+# The actual SCSI devices
 disk sd0 at scbus0 target 0 unit 0	[SCSI disk 0 is at scbus 0, LUN 0]
 disk sd1 at scbus0 target 1		[implicit LUN 0 if omitted]
-disk sd2 at scbus0 target 3
-disk sd3 at scbus0 target 4
+disk sd2 at scbus1 target 3		[SCSI disk on the uha0]
+disk sd3 at scbus2 target 4		[SCSI disk on the ahb0]
 tape st1 at scbus0 target 6		[SCSI tape at target 6]
 device cd0 at scbus?			[the first ever CDROM found, no wiring]
 
 	  </verb>
 
-	  The example above tells the kernel to look for a bt (Bustek)
-	  controller, then for an Adaptec 274x, 284x etc board, and 
+	  The example above tells the kernel to look for a ahc (Adaptec 274x)
+	  controller, then for an Adaptec 174x board, and 
 	  so on. The lines following the controller specifications 
 	  tell the kernel to configure specific devices but 
 	  <em>only</em> attach them when they match the target ID and
-	  LUN specified. 
+	  LUN specified on the corresponding bus. 
 
 	  So, if you had a SCSI tape at target ID 2 it would not be
 	  configured, but it will attach when it is at target ID 6.
