@@ -95,7 +95,7 @@ static struct icmpcode icmpcodes[] = {
       { 0, NULL }
 };
 
-static void show_usage(const char *fmt, ...) __printf0like(1, 2);
+static void show_usage(void);
 
 static int
 mask_bits(struct in_addr m_ad)
@@ -869,17 +869,8 @@ list(int ac, char *av[])
 }
 
 static void
-show_usage(const char *fmt, ...)
+show_usage(void)
 {
-	if (fmt) {
-		char buf[100];
-		va_list args;
-
-		va_start(args, fmt);
-		vsnprintf(buf, sizeof(buf), fmt, args);
-		va_end(args);
-		warnx("error: %s", buf);
-	}
 	fprintf(stderr, "usage: ipfw [options]\n"
 "    [pipe] flush\n"
 "    add [number] rule\n"
@@ -917,6 +908,7 @@ show_usage(const char *fmt, ...)
 "    tcpack {acknowledgement number}\n"
 "    tcpwin {window size}\n"
 "    icmptypes {type[, type]}...\n"
+"    keep-state [method]\n"
 "  pipeconfig:\n"
 "    {bw|bandwidth} <number>{bit/s|Kbit/s|Mbit/s|Bytes/s|KBytes/s|MBytes/s}\n"
 "    {bw|bandwidth} interface_name\n"
@@ -964,17 +956,17 @@ fill_ip(struct in_addr *ipno, struct in_addr *mask, int *acp, char ***avp)
 		}
 
 		if (lookup_host(*av, ipno) != 0)
-			show_usage("hostname ``%s'' unknown", *av);
+			errx(EX_NOHOST, "hostname ``%s'' unknown", *av);
 		switch (md) {
 			case ':':
 				if (!inet_aton(p, mask))
-					show_usage("bad netmask ``%s''", p);
+					errx(EX_DATAERR, "bad netmask ``%s''", p);
 				break;
 			case '/':
 				if (atoi(p) == 0) {
 					mask->s_addr = 0;
 				} else if (atoi(p) > 32) {
-					show_usage("bad width ``%s''", p);
+					errx(EX_DATAERR, "bad width ``%s''", p);
 				} else {
 					mask->s_addr =
 					    htonl(~0 << (32 - atoi(p)));
@@ -1009,7 +1001,7 @@ fill_reject_code(u_short *codep, char *str)
 			*codep = ic->code;
 			return;
 		}
-	show_usage("unknown ICMP unreachable code ``%s''", str);
+	errx(EX_DATAERR, "unknown ICMP unreachable code ``%s''", str);
 }
 
 static void
@@ -1161,7 +1153,7 @@ fill_tcpflag(u_char *set, u_char *reset, char **vp)
 				break;
 			}
 		if (i == sizeof(flags) / sizeof(flags[0]))
-			show_usage("invalid tcp flag ``%s''", p);
+			errx(EX_DATAERR, "invalid tcp flag ``%s''", p);
 		p = q;
 	}
 }
@@ -1200,7 +1192,7 @@ fill_tcpopts(u_char *set, u_char *reset, char **vp)
 				break;
 			}
 		if (i == sizeof(opts) / sizeof(opts[0]))
-			show_usage("invalid tcp option ``%s''", p);
+			errx(EX_DATAERR, "invalid tcp option ``%s''", p);
 		p = q;
 	}
 }
@@ -1276,10 +1268,10 @@ fill_icmptypes(unsigned *types, char **vp, u_int *fw_flg)
 		icmptype = strtoul(c, &c, 0);
 
 		if (*c != ',' && *c != '\0')
-			show_usage("invalid ICMP type");
+			errx(EX_DATAERR, "invalid ICMP type");
 
 		if (icmptype >= IP_FW_ICMPTYPES_DIM * sizeof(unsigned) * 8)
-			show_usage("ICMP type out of range");
+			errx(EX_DATAERR, "ICMP type out of range");
 
 		types[icmptype / (sizeof(unsigned) * 8)] |=
 			1 << (icmptype % (sizeof(unsigned) * 8));
@@ -1352,7 +1344,7 @@ static void
 fill_iface(char *which, union ip_fw_if *ifu, int *byname, int ac, char *arg)
 {
 	if (!ac)
-	    show_usage("missing argument for ``%s''", which);
+	    errx(EX_USAGE, "missing argument for ``%s''", which);
 
 	/* Parse the interface or address */
 	if (!strcmp(arg, "any")) {
@@ -1372,7 +1364,7 @@ fill_iface(char *which, union ip_fw_if *ifu, int *byname, int ac, char *arg)
 		*q = '\0';
 		verify_interface(ifu);
 	} else if (!inet_aton(arg, &ifu->fu_via_ip)) {
-		show_usage("bad ip address ``%s''", arg);
+		errx(EX_DATAERR, "bad ip address ``%s''", arg);
 	} else
 		*byname = 0;
 }
@@ -1463,8 +1455,8 @@ config_pipe(int ac, char **av)
 				else
 					break;
 				if (ac < 2)
-					show_usage("mask: %s value missing",
-					    *av);
+					errx(EX_USAGE, "mask: %s value"
+					     " missing", *av);
 				if (*av[1] == '/') {
 					a = strtoul(av[1]+1, &end, 0);
 					if (a == 32) /* special case... */
@@ -1477,15 +1469,16 @@ config_pipe(int ac, char **av)
 				if (par == &pipe.fs.flow_mask.src_port
 				    || par == &pipe.fs.flow_mask.dst_port) {
 					if (a >= (1 << 16))
-						show_usage("mask: %s must be "
-						    "16 bit, not 0x%08x",
-						    *av, a);
+						errx(EX_DATAERR, "mask: %s"
+						     " must be 16 bit, not"
+						     " 0x%08x", *av, a);
 					*((u_int16_t *)par) = (u_int16_t)a;
 				} else if (par == &pipe.fs.flow_mask.proto) {
 					if (a >= (1 << 8))
-						show_usage("mask: %s must be "
-						    "8 bit, not 0x%08x",
-						    *av, a);
+						errx(EX_DATAERR, "mask: %s"
+						     " must be"
+						     " 8 bit, not 0x%08x",
+						     *av, a);
 					*((u_int8_t *)par) = (u_int8_t)a;
 				} else
 					*((u_int32_t *)par) = a;
@@ -1503,7 +1496,7 @@ config_pipe(int ac, char **av)
 			if ((end = strsep(&av[1], "/"))) {
 				double w_q = strtod(end, NULL);
 				if (w_q > 1 || w_q <= 0)
-					show_usage("w_q %f must be "
+					errx(EX_DATAERR, "w_q %f must be "
 					    "0 < x <= 1", w_q);
 				pipe.fs.w_q = (int) (w_q * (1 << SCALE_RED));
 			}
@@ -1520,7 +1513,7 @@ config_pipe(int ac, char **av)
 			if ((end = strsep(&av[1], "/"))) {
 				double max_p = strtod(end, NULL);
 				if (max_p > 1 || max_p <= 0)
-					show_usage("max_p %f must be "
+					errx(EX_DATAERR, "max_p %f must be "
 					    "0 < x <= 1", max_p);
 				pipe.fs.max_p =
 				    (int)(max_p * (1 << SCALE_RED));
@@ -1568,8 +1561,8 @@ config_pipe(int ac, char **av)
 					pipe.delay = strtoul(av[1], NULL, 0);
 					av += 2; ac -= 2;
 				} else {
-					show_usage("unrecognised pipe option "
-					    "``%s''", *av);
+					errx(EX_DATAERR, "unrecognised pipe"
+					     " option ``%s''", *av);
 				}
 			} else { /* this refers to a queue */
 				if (!strncmp(*av, "weight", len)) {
@@ -1583,7 +1576,7 @@ config_pipe(int ac, char **av)
 					av += 2;
 					ac -= 2;
 				} else {
-					show_usage("unrecognised option "
+					errx(EX_DATAERR, "unrecognised option "
 					    "``%s''", *av);
 				}
 			}
@@ -1591,31 +1584,34 @@ config_pipe(int ac, char **av)
 	}
 	if (do_pipe == 1) {
 		if (pipe.pipe_nr == 0)
-			show_usage("pipe_nr %d must be > 0", pipe.pipe_nr);
+			errx(EX_DATAERR, "pipe_nr %d must be > 0",
+			     pipe.pipe_nr);
 		if (pipe.delay > 10000)
-			show_usage("delay %d must be < 10000", pipe.delay);
+			errx(EX_DATAERR, "delay %d must be < 10000",
+			     pipe.delay);
 	} else { /* do_pipe == 2, queue */
 		if (pipe.fs.parent_nr == 0)
-			show_usage("pipe %d must be > 0", pipe.fs.parent_nr);
+			errx(EX_DATAERR, "pipe %d must be > 0",
+			     pipe.fs.parent_nr);
 		if (pipe.fs.weight >100)
-			show_usage("weight %d must be <= 100",
+			errx(EX_DATAERR, "weight %d must be <= 100",
 			    pipe.fs.weight);
 	}
 	if (pipe.fs.flags_fs & DN_QSIZE_IS_BYTES) {
 		if (pipe.fs.qsize > 1024*1024)
-			show_usage("queue size %d, must be < 1MB",
+			errx(EX_DATAERR, "queue size %d, must be < 1MB",
 			    pipe.fs.qsize);
 	} else {
 		if (pipe.fs.qsize > 100)
-			show_usage("queue size %d, must be 2 <= x <= 100",
-			    pipe.fs.qsize);
+			errx(EX_DATAERR, "queue size %d, must be"
+			     " 2 <= x <= 100", pipe.fs.qsize);
 	}
 	if (pipe.fs.flags_fs & DN_IS_RED) {
 		if (pipe.fs.min_th >= pipe.fs.max_th)
-			show_usage("min_th %d must be < than max_th %d",
+			errx(EX_DATAERR, "min_th %d must be < than max_th %d",
 			    pipe.fs.min_th, pipe.fs.max_th);
 		if (pipe.fs.max_th == 0)
-			show_usage("max_th must be > 0");
+			errx(EX_DATAERR, "max_th must be > 0");
 		if (pipe.bandwidth) {
 			size_t len;
 			int lookup_depth, avg_pkt_size;
@@ -1630,8 +1626,8 @@ config_pipe(int ac, char **av)
 				errx(1, "sysctlbyname(\"%s\")",
 				    "net.inet.ip.dummynet.red_lookup_depth");
 			if (lookup_depth == 0)
-				show_usage("net.inet.ip.dummynet.red_lookup_depth must"
-				    "greater than zero");
+				errx(EX_DATAERR, "net.inet.ip.dummynet.red_lookup_depth"
+				     " must greater than zero");
 
 			len = sizeof(int);
 			if (sysctlbyname("net.inet.ip.dummynet.red_avg_pkt_size",
@@ -1640,7 +1636,7 @@ config_pipe(int ac, char **av)
 				errx(1, "sysctlbyname(\"%s\")",
 				    "net.inet.ip.dummynet.red_avg_pkt_size");
 			if (avg_pkt_size == 0)
-				show_usage("net.inet.ip.dummynet.red_avg_pkt_size must"
+				errx(EX_DATAERR, "net.inet.ip.dummynet.red_avg_pkt_size must"
 				    "greater than zero");
 
 			len = sizeof(struct clockinfo);
@@ -1703,7 +1699,7 @@ add(int ac, char *av[])
 	if (ac > 1 && !strncmp(*av, "prob", strlen(*av))) {
 		double d = strtod(av[1], NULL);
 		if (d <= 0 || d > 1)
-			show_usage("illegal match prob. %s", av[1]);
+			errx(EX_DATAERR, "illegal match prob. %s", av[1]);
 		if (d != 1) { /* 1 means always match */
 			rule.fw_flg |= IP_FW_F_RND_MATCH;
 			/* we really store dont_match probability */
@@ -1713,7 +1709,7 @@ add(int ac, char *av[])
 	}
 
 	if (ac == 0)
-		show_usage("missing action");
+		errx(EX_USAGE, "missing action");
 	if (!strncmp(*av, "accept", strlen(*av))
 		    || !strncmp(*av, "pass", strlen(*av))
 		    || !strncmp(*av, "allow", strlen(*av))
@@ -1724,17 +1720,17 @@ add(int ac, char *av[])
 	} else if (!strncmp(*av, "pipe", strlen(*av))) {
 		rule.fw_flg |= IP_FW_F_PIPE; av++; ac--;
 		if (!ac)
-			show_usage("missing pipe number");
+			errx(EX_USAGE, "missing pipe number");
 		rule.fw_divert_port = strtoul(*av, NULL, 0); av++; ac--;
 	} else if (!strncmp(*av, "queue", strlen(*av))) {
 		rule.fw_flg |= IP_FW_F_QUEUE; av++; ac--;
 		if (!ac)
-			show_usage("missing queue number");
+			errx(EX_USAGE, "missing queue number");
 		rule.fw_divert_port = strtoul(*av, NULL, 0); av++; ac--;
 	} else if (!strncmp(*av, "divert", strlen(*av))) {
 		rule.fw_flg |= IP_FW_F_DIVERT; av++; ac--;
 		if (!ac)
-			show_usage("missing %s port", "divert");
+			errx(EX_USAGE, "missing %s port", "divert");
 		rule.fw_divert_port = strtoul(*av, NULL, 0); av++; ac--;
 		if (rule.fw_divert_port == 0) {
 			struct servent *s;
@@ -1743,12 +1739,12 @@ add(int ac, char *av[])
 			if (s != NULL)
 				rule.fw_divert_port = ntohs(s->s_port);
 			else
-				show_usage("illegal %s port", "divert");
+				errx(EX_DATAERR, "illegal %s port", "divert");
 		}
 	} else if (!strncmp(*av, "tee", strlen(*av))) {
 		rule.fw_flg |= IP_FW_F_TEE; av++; ac--;
 		if (!ac)
-			show_usage("missing %s port", "tee divert");
+			errx(EX_USAGE, "missing %s port", "tee divert");
 		rule.fw_divert_port = strtoul(*av, NULL, 0); av++; ac--;
 		if (rule.fw_divert_port == 0) {
 			struct servent *s;
@@ -1757,7 +1753,8 @@ add(int ac, char *av[])
 			if (s != NULL)
 				rule.fw_divert_port = ntohs(s->s_port);
 			else
-				show_usage("illegal %s port", "tee divert");
+				errx(EX_DATAERR, "illegal %s port", 
+				     "tee divert");
 		}
 	} else if (!strncmp(*av, "fwd", strlen(*av))
 	    || !strncmp(*av, "forward", strlen(*av))) {
@@ -1765,7 +1762,7 @@ add(int ac, char *av[])
 		char *pp;
 		rule.fw_flg |= IP_FW_F_FWD; av++; ac--;
 		if (!ac)
-			show_usage("missing forwarding IP address");
+			errx(EX_USAGE, "missing forwarding IP address");
 		rule.fw_fwd_ip.sin_len = sizeof(struct sockaddr_in);
 		rule.fw_fwd_ip.sin_family = AF_INET;
 		rule.fw_fwd_ip.sin_port = 0;
@@ -1777,19 +1774,19 @@ add(int ac, char *av[])
 			*(pp++) = '\0';
 			i = lookup_port(pp, 0, 1, 0);
 			if (i == -1)
-				show_usage("illegal forwarding port ``%s''",
-				    pp);
+				errx(EX_DATAERR, "illegal forwarding"
+				     " port ``%s''", pp);
 			else
 				rule.fw_fwd_ip.sin_port = (u_short)i;
 		}
 		fill_ip(&(rule.fw_fwd_ip.sin_addr), &dummyip, &ac, &av);
 		if (rule.fw_fwd_ip.sin_addr.s_addr == 0)
-			show_usage("illegal forwarding IP address");
+			errx(EX_DATAERR, "illegal forwarding IP address");
 
 	} else if (!strncmp(*av, "skipto", strlen(*av))) {
 		rule.fw_flg |= IP_FW_F_SKIPTO; av++; ac--;
 		if (!ac)
-			show_usage("missing skipto rule number");
+			errx(EX_USAGE, "missing skipto rule number");
 		rule.fw_skipto_rule = strtoul(*av, NULL, 0); av++; ac--;
 	} else if ((!strncmp(*av, "deny", strlen(*av))
 		    || !strncmp(*av, "drop", strlen(*av)))) {
@@ -1807,7 +1804,7 @@ add(int ac, char *av[])
 		rule.fw_flg |= IP_FW_F_CHECK_S; av++; ac--;
 		goto done;
 	} else {
-		show_usage("invalid action ``%s''", *av);
+		errx(EX_DATAERR, "invalid action ``%s''", *av);
 	}
 
 	/* [log] */
@@ -1816,13 +1813,15 @@ add(int ac, char *av[])
 	}
 	if (ac && !strncmp(*av, "logamount", strlen(*av))) {
 		if (!(rule.fw_flg & IP_FW_F_PRN))
-			show_usage("``logamount'' not valid without ``log''");
+			errx(EX_USAGE, "``logamount'' not valid without"
+			     " ``log''");
 		ac--; av++;
 		if (!ac)
-			show_usage("``logamount'' requires argument");
+			errx(EX_USAGE, "``logamount'' requires argument");
 		rule.fw_logamount = atoi(*av);
 		if (rule.fw_logamount < 0)
-			show_usage("``logamount'' argument must be positive");
+			errx(EX_DATAERR, "``logamount'' argument must be"
+			     " positive");
 		if (rule.fw_logamount == 0)
 			rule.fw_logamount = -1;
 		ac--; av++;
@@ -1830,7 +1829,7 @@ add(int ac, char *av[])
 
 	/* protocol */
 	if (ac == 0)
-		show_usage("missing protocol");
+		errx(EX_USAGE, "missing protocol");
 	if ((proto = atoi(*av)) > 0) {
 		rule.fw_prot = proto; av++; ac--;
 	} else if (!strncmp(*av, "all", strlen(*av))) {
@@ -1838,25 +1837,25 @@ add(int ac, char *av[])
 	} else if ((pe = getprotobyname(*av)) != NULL) {
 		rule.fw_prot = pe->p_proto; av++; ac--;
 	} else {
-		show_usage("invalid protocol ``%s''", *av);
+		errx(EX_DATAERR, "invalid protocol ``%s''", *av);
 	}
 
 	if (rule.fw_prot != IPPROTO_TCP
 	    && (rule.fw_flg & IP_FW_F_COMMAND) == IP_FW_F_REJECT
 	    && rule.fw_reject_code == IP_FW_REJECT_RST)
-		show_usage("``reset'' is only valid for tcp packets");
+		errx(EX_DATAERR, "``reset'' is only valid for tcp packets");
 
 	/* from */
 	if (ac && !strncmp(*av, "from", strlen(*av))) { av++; ac--; }
 	else
-		show_usage("missing ``from''");
+		errx(EX_USAGE, "missing ``from''");
 
 	if (ac && !strncmp(*av, "not", strlen(*av))) {
 		rule.fw_flg |= IP_FW_F_INVSRC;
 		av++; ac--;
 	}
 	if (!ac)
-		show_usage("missing arguments");
+		errx(EX_USAGE, "missing arguments");
 
 	if (ac && !strncmp(*av, "me", strlen(*av))) {
 		rule.fw_flg |= IP_FW_F_SME;
@@ -1883,14 +1882,14 @@ add(int ac, char *av[])
 	/* to */
 	if (ac && !strncmp(*av, "to", strlen(*av))) { av++; ac--; }
 	else
-		show_usage("missing ``to''");
+		errx(EX_USAGE, "missing ``to''");
 
 	if (ac && !strncmp(*av, "not", strlen(*av))) {
 		rule.fw_flg |= IP_FW_F_INVDST;
 		av++; ac--;
 	}
 	if (!ac)
-		show_usage("missing arguments");
+		errx(EX_USAGE, "missing arguments");
 
 	
 	if (ac && !strncmp(*av, "me", strlen(*av))) {
@@ -1917,7 +1916,7 @@ add(int ac, char *av[])
 
 	if ((rule.fw_prot != IPPROTO_TCP) && (rule.fw_prot != IPPROTO_UDP)
 	    && (IP_FW_GETNSRCP(&rule) || IP_FW_GETNDSTP(&rule))) {
-		show_usage("only TCP and UDP protocols are valid"
+		errx(EX_USAGE, "only TCP and UDP protocols are valid"
 		    " with port specifications");
 	}
 
@@ -1930,7 +1929,7 @@ add(int ac, char *av[])
 			rule.fw_flg |= IP_FW_F_UID;
 			ac--; av++;
 			if (!ac)
-				show_usage("``uid'' requires argument");
+				errx(EX_USAGE, "``uid'' requires argument");
 			
 			uid = strtoul(*av, &end, 0);
 			if (*end == '\0')
@@ -1938,7 +1937,8 @@ add(int ac, char *av[])
 			else
 				pwd = getpwnam(*av);
 			if (pwd == NULL)
-				show_usage("uid \"%s\" is nonexistant", *av);
+				errx(EX_DATAERR, "uid \"%s\" is"
+				     " nonexistent", *av);
 			rule.fw_uid = pwd->pw_uid;
 			ac--; av++;
 		} else if (!strncmp(*av, "gid", strlen(*av))) {
@@ -1949,7 +1949,7 @@ add(int ac, char *av[])
 			rule.fw_flg |= IP_FW_F_GID;
 			ac--; av++;
 			if (!ac)
-				show_usage("``gid'' requires argument");
+				errx(EX_USAGE, "``gid'' requires argument");
 			
 			gid = strtoul(*av, &end, 0);
 			if (*end == '\0')
@@ -1957,7 +1957,8 @@ add(int ac, char *av[])
 			else
 				grp = getgrnam(*av);
 			if (grp == NULL)
-				show_usage("gid \"%s\" is nonexistant", *av);
+				errx(EX_DATAERR, "gid \"%s\" is"
+				     " nonexistent", *av);
 			rule.fw_gid = grp->gr_gid;
 			ac--; av++;
 		} else if (!strncmp(*av, "in", strlen(*av))) {
@@ -1984,7 +1985,7 @@ add(int ac, char *av[])
 
 			if (saw_via) {
 badviacombo:
-				show_usage("``via'' is incompatible"
+				errx(EX_USAGE, "``via'' is incompatible"
 				    " with ``xmit'' and ``recv''");
 			}
 			saw_xmrc = 1;
@@ -2030,7 +2031,7 @@ badviacombo:
 		    || !strncmp(*av, "ipopts", strlen(*av))) {
 			av++; ac--;
 			if (!ac)
-				show_usage("missing argument"
+				errx(EX_USAGE, "missing argument"
 				    " for ``ipoptions''");
 			rule.fw_ipflg |= IP_FW_IF_IPOPT;
 			fill_ipopt(&rule.fw_ipopt, &rule.fw_ipnopt, av);
@@ -2038,7 +2039,7 @@ badviacombo:
 		} else if (!strncmp(*av, "iplen", strlen(*av))) {
 			av++; ac--;
 			if (!ac)
-				show_usage("missing argument"
+				errx(EX_USAGE, "missing argument"
 					" for ``iplen''");
 			rule.fw_ipflg |= IP_FW_IF_IPLEN;
 			rule.fw_iplen = (u_short)strtoul(*av, NULL, 0);
@@ -2049,20 +2050,22 @@ badviacombo:
 
 			av++; ac--;
 			if (!ac)
-				show_usage("missing argument"
+				errx(EX_USAGE, "missing argument"
 					" for ``ipid''");
 			ipid = strtoul(*av, &c, 0);
 			if (*c != '\0')
-				show_usage("argument to ipid must be numeric");
+				errx(EX_DATAERR, "argument to ipid must"
+				     " be numeric");
 			if (ipid > 65535)
-				show_usage("argument to ipid out of range");
+				errx(EX_DATAERR, "argument to ipid out"
+				     " of range");
 			rule.fw_ipflg |= IP_FW_IF_IPID;
 			rule.fw_ipid = (u_short)ipid;
 			av++; ac--;
 		} else if (!strncmp(*av, "iptos", strlen(*av))) {
 			av++; ac--;
 			if (!ac)
-				show_usage("missing argument"
+				errx(EX_USAGE, "missing argument"
 					" for ``iptos''");
 			rule.fw_ipflg |= IP_FW_IF_IPTOS;
 			fill_iptos(&rule.fw_iptos, &rule.fw_ipntos, av);
@@ -2070,7 +2073,7 @@ badviacombo:
 		} else if (!strncmp(*av, "ipttl", strlen(*av))) {
 			av++; ac--;
 			if (!ac)
-				show_usage("missing argument"
+				errx(EX_USAGE, "missing argument"
 					" for ``ipttl''");
 			rule.fw_ipflg |= IP_FW_IF_IPTTL;
 			rule.fw_ipttl = (u_short)strtoul(*av, NULL, 0);
@@ -2079,7 +2082,7 @@ badviacombo:
 		    || !strncmp(*av, "ipver", strlen(*av))) {
 			av++; ac--;
 			if (!ac)
-				show_usage("missing argument"
+				errx(EX_USAGE, "missing argument"
 					" for ``ipversion''");
 			rule.fw_ipflg |= IP_FW_IF_IPVER;
 			rule.fw_ipver = (u_short)strtoul(*av, NULL, 0);
@@ -2097,7 +2100,7 @@ badviacombo:
 			    || !strncmp(*av, "tcpflgs", strlen(*av))) {
 				av++; ac--;
 				if (!ac)
-					show_usage("missing argument"
+					errx(EX_USAGE, "missing argument"
 					    " for ``tcpflags''");
 				rule.fw_ipflg |= IP_FW_IF_TCPFLG;
 				fill_tcpflag(&rule.fw_tcpf,
@@ -2107,7 +2110,7 @@ badviacombo:
 			    || !strncmp(*av, "tcpopts", strlen(*av))) {
 				av++; ac--;
 				if (!ac)
-					show_usage("missing argument"
+					errx(EX_USAGE, "missing argument"
 					    " for ``tcpoptions''");
 				rule.fw_ipflg |= IP_FW_IF_TCPOPT;
 				fill_tcpopts(&rule.fw_tcpopt,
@@ -2116,7 +2119,7 @@ badviacombo:
 			} else if (!strncmp(*av, "tcpseq", strlen(*av))) {
 				av++; ac--;
 				if (!ac)
-					show_usage("missing argument"
+					errx(EX_USAGE, "missing argument"
 						" for ``tcpseq''");
 				rule.fw_ipflg |= IP_FW_IF_TCPSEQ;
 				rule.fw_tcpseq =
@@ -2125,7 +2128,7 @@ badviacombo:
 			} else if (!strncmp(*av, "tcpack", strlen(*av))) {
 				av++; ac--;
 				if (!ac)
-					show_usage("missing argument"
+					errx(EX_USAGE, "missing argument"
 						" for ``tcpack''");
 				rule.fw_ipflg |= IP_FW_IF_TCPACK;
 				rule.fw_tcpack =
@@ -2134,30 +2137,30 @@ badviacombo:
 			} else if (!strncmp(*av, "tcpwin", strlen(*av))) {
 				av++; ac--;
 				if (!ac)
-					show_usage("missing argument"
+					errx(EX_USAGE, "missing argument"
 						" for ``tcpwin''");
 				rule.fw_ipflg |= IP_FW_IF_TCPWIN;
 				rule.fw_tcpwin =
 				    htons((u_short)strtoul(*av, NULL, 0));
 				av++; ac--;
 			} else
-				break;
+				errx(EX_USAGE, "unknown or out of order"
+				     " argument ``%s''", *av);
 		} else if (rule.fw_prot == IPPROTO_ICMP) {
 			if (!strncmp(*av, "icmptypes", strlen(*av))) {
 				av++; ac--;
 				if (!ac)
-					show_usage("missing argument"
+					errx(EX_USAGE, "missing argument"
 					    " for ``icmptypes''");
 				fill_icmptypes(rule.fw_uar.fw_icmptypes,
 				    av, &rule.fw_flg);
 				av++; ac--;
 			} else
-				break;
+				errx(EX_USAGE, "unknown or out of"
+				     " order argument ``%s''", *av);
 		} else
-			break;
+			errx(EX_USAGE, "unknown argument ``%s''", *av);
 	}
-	if (ac)
-		show_usage("unknown argument ``%s''", *av);
 
 	/* No direction specified -> do both directions */
 	if (!(rule.fw_flg & (IP_FW_F_OUT|IP_FW_F_IN)))
@@ -2171,16 +2174,18 @@ badviacombo:
 			rule.fw_flg |= IP_FW_F_OIFACE;
 	} else if ((rule.fw_flg & IP_FW_F_OIFACE)
 	    && (rule.fw_flg & IP_FW_F_IN)) {
-		show_usage("can't check xmit interface of incoming packets");
+		errx(EX_DATAERR, "can't check xmit interface of incoming"
+		     " packets");
 	}
 
 	/* frag may not be used in conjunction with ports or TCP flags */
 	if (rule.fw_flg & IP_FW_F_FRAG) {
 		if (rule.fw_tcpf || rule.fw_tcpnf)
-			show_usage("can't mix 'frag' and tcpflags");
+			errx(EX_DATAERR, "can't mix 'frag' and tcpflags");
 
 		if (rule.fw_nports)
-			show_usage("can't mix 'frag' and port specifications");
+			errx(EX_DATAERR, "can't mix 'frag' and port"
+			     " specifications");
 	}
 	if (rule.fw_flg & IP_FW_F_PRN) {
 		if (!rule.fw_logamount) {
@@ -2235,7 +2240,7 @@ zero (int ac, char *av[])
 				printf("Entry %d cleared\n",
 				    rule.fw_number);
 		} else {
-			show_usage("invalid rule number ``%s''", *av);
+			errx(EX_USAGE, "invalid rule number ``%s''", *av);
 		}
 	}
 	if (failed != EX_OK)
@@ -2274,7 +2279,7 @@ resetlog (int ac, char *av[])
 				printf("Entry %d logging count reset\n",
 				    rule.fw_number);
 		} else {
-			show_usage("invalid rule number ``%s''", *av);
+			errx(EX_DATAERR, "invalid rule number ``%s''", *av);
 		}
 	}
 	if (failed != EX_OK)
@@ -2288,7 +2293,7 @@ ipfw_main(int ac, char **av)
 	int ch;
 
 	if (ac == 1)
-		show_usage(NULL);
+		show_usage();
 
 	/* Set the force flag for non-interactive processes */
 	do_force = !isatty(STDIN_FILENO);
@@ -2324,13 +2329,12 @@ ipfw_main(int ac, char **av)
 		verbose++;
 		break;
 	default:
-		show_usage(NULL);
+		show_usage();
 	}
 
 	ac -= optind;
-	if (*(av += optind) == NULL) {
-		 show_usage("bad arguments");
-	}
+	if (*(av += optind) == NULL)
+		 errx(EX_USAGE, "bad arguments, for usage summary ``ipfw''");
 
 	if (!strncmp(*av, "pipe", strlen(*av))) {
 		do_pipe = 1;
@@ -2342,7 +2346,7 @@ ipfw_main(int ac, char **av)
 		av++;
 	}
 	if (!ac)
-		show_usage("pipe requires arguments");
+		errx(EX_USAGE, "pipe requires arguments");
 
 	/* allow argument swapping */
 	if (ac > 1 && *av[0] >= '0' && *av[0] <= '9') {
@@ -2399,7 +2403,7 @@ ipfw_main(int ac, char **av)
 		do_acct++;
 		list(--ac, ++av);
 	} else {
-		show_usage("bad arguments");
+		errx(EX_USAGE, "bad arguments, for usage summary ``ipfw''");
 	}
 	return 0;
 }
@@ -2465,13 +2469,14 @@ main(int ac, char *av[])
 				break;
 
 			default:
-				show_usage(NULL);
+				errx(EX_USAGE, "bad arguments, for usage"
+				     " summary ``ipfw''");
 			}
 
 		av += optind;
 		ac -= optind;
 		if (ac != 1)
-			show_usage("extraneous filename arguments");
+			errx(EX_USAGE, "extraneous filename arguments");
 
 		if ((f = fopen(av[0], "r")) == NULL)
 			err(EX_UNAVAILABLE, "fopen: %s", av[0]);
