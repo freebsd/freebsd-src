@@ -83,12 +83,13 @@ This node type supports the generic control messages as well as the following,
 which must be sent with the
 .Em NGM_SOURCE_COOKIE
 attached.
-.Bl -tag -width ########
+.Bl -tag -width ######
 .It NGM_SOURCE_GET_STATS
-"getstats":
+.Bl -tag -width #########
+.It "getstats":
 Returns a structure containing the following fields:
 .\".Bl -bullet -compact -offset 2n
-.Bl -tag -width ########
+.Bl -tag -width #####
 .It outOctets:
 The number of octets/bytes sent out the 'output' hook.
 .It outFrames:
@@ -104,6 +105,7 @@ The time the last end message was recieved or
 the output packet count was reached.
 .It elapsedTime:
 Either endTime-startTime or current time - startTime.
+.El
 .El
 .It NGM_SOURCE_CLR_STATS
 "clrstats":
