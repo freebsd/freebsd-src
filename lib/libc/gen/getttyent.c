@@ -57,7 +57,7 @@ getttynam(tty)
 {
 	register struct ttyent *t;
 
-	if (strnchr(tty, "/dev/", 5) == 0)
+	if (strncmp(tty, "/dev/", 5) == 0)
 		tty += 5;
 	setttyent();
 	while ( (t = getttyent()) )
