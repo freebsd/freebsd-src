@@ -42,7 +42,7 @@
 protocol
 .Sh SYNOPSIS
 .Nm
-.Op Fl u468EFKLNacdfrx
+.Op Fl 468EFKLNacdfrux
 .Op Fl S Ar tos
 .Op Fl X Ar authtype
 .Op Fl e Ar escapechar
@@ -75,11 +75,6 @@ command with those arguments.
 .Pp
 Options:
 .Bl -tag -width indent
-.It Fl u
-Forces
-.Nm
-to use
-AF_UNIX addresses only (e.g. unix domain sockets, accessed with a file path)
 .It Fl 4
 Forces
 .Nm
@@ -204,15 +199,25 @@ Set the source IP address for the
 connection to
 .Ar src_addr ,
 which can be an IP address or a host name.
+.It Fl u
+Forces
+.Nm
+to use
+.Dv AF_UNIX
+addresses only (e.g.,
+.Ux
+domain sockets, accessed with a file path).
 .It Fl x
 Turns on encryption of the data stream if possible.  This
 option is not available outside of the United States and
 Canada.
 .It Ar host
 Indicates the official name, an alias, or the Internet address
-of a remote host. If
+of a remote host.
+If
 .Ar host
-starts with a /,
+starts with a
+.Ql / ,
 .Nm
 establishes a connection to the corresponding named socket.
 .It Ar port
