@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.16 (Berkeley) 5/27/95
- * $Id: nfs_vnops.c,v 1.80 1998/03/07 21:36:06 dyson Exp $
+ * $Id: nfs_vnops.c,v 1.81 1998/03/08 09:57:57 julian Exp $
  */
 
 
@@ -54,6 +54,7 @@
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/namei.h>
+#include <sys/socket.h>
 #include <sys/vnode.h>
 #include <sys/dirent.h>
 #include <sys/fcntl.h>
