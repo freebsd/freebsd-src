@@ -37,6 +37,7 @@
 #endif	/* __NetBSD__ */
 #ifdef __FreeBSD__
 #include "opt_bs.h"
+#include "opt_pc98.h"
 #include "bs.h"
 #include <i386/isa/bs/bsif.h>
 #endif	/* __FreeBSD__ */
