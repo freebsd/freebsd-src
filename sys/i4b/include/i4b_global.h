@@ -29,7 +29,7 @@
  *
  * $FreeBSD$
  *
- *	last edit-date: [Mon Jan 15 15:47:40 2001]
+ *	last edit-date: [Sun Jul  7 12:11:35 2002]
  *
  *---------------------------------------------------------------------------*/
 
@@ -48,7 +48,11 @@
 
 #define IF_LOCK(a)
 #define IF_UNLOCK(a)
+
+#ifndef _IF_QFULL
 #define _IF_QFULL(a)		IF_QFULL((a))
+#endif
+
 #define _IF_ENQUEUE(a, b)	IF_ENQUEUE((a), (b))
 #define _IF_DEQUEUE(a, b)	IF_DEQUEUE((a), (b))
 #define _IF_PREPEND(a, b)	IF_PREPEND((a), (b))
