@@ -43,7 +43,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: worm.c,v 1.28 1996/07/14 10:46:56 joerg Exp $
+ *      $Id: worm.c,v 1.29 1996/09/08 10:44:18 phk Exp $
  */
 
 /* XXX This is PRELIMINARY.
@@ -197,6 +197,11 @@ struct worm_quirks worm_quirks[] = {
 		hp4020i_prepare_disk, hp4020i_prepare_track,
 		hp4020i_finalize_track, hp4020i_finalize_disk
 	},
+	{
+		"PHILIPS", "CDD2000",
+		hp4020i_prepare_disk, hp4020i_prepare_track,
+		hp4020i_finalize_track, hp4020i_finalize_disk
+	},
 	{0}
 };
 
@@ -211,9 +216,14 @@ worm_size(struct scsi_link *sc_link, int flags)
 	worm->n_blks = scsi_read_capacity(sc_link, &worm->blk_size,
 					  flags);
 
-	if(worm->blk_size == 0)
-		/* XXX */
-		worm->blk_size = 2048;
+	/*
+	 * CD-R devices can assume various sizes, depending on the
+	 * intended purpose of the track.  Hence, READ CAPACITY
+	 * doesn't give us any good results.  Make a more educated
+	 * guess instead.
+	 */
+	worm->blk_size = (worm->audio? 2352: 2048);
+
 	if (worm->n_blks)
 	{
 		sc_link->flags |= SDEV_MEDIA_LOADED;
@@ -238,12 +248,6 @@ wormattach(struct scsi_link *sc_link)
 
 	TAILQ_INIT(&worm->buf_queue);
 
-	printf("- see worm(4) for usage warnings");
-
-	if (worm_size(sc_link, SCSI_NOSLEEP | SCSI_NOMASK) != 0)
-		printf("- can't get capacity.");
-	else
-		printf("with %ld blocks.", worm->n_blks);
 #ifdef DEVFS
 	mynor = wormunit(sc_link->dev);
 	worm->devfs_token =
@@ -575,8 +579,7 @@ worm_ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p,
 				error = EINVAL;
 			else if (w->audio == 0 && w->preemp)
 				error = EINVAL;
-			else if ((worm->worm_flags & WORMFL_DISK_PREPED)==0 ||
-				 (worm->worm_flags & WORMFL_WRITTEN) != 0)
+			else if ((worm->worm_flags & WORMFL_DISK_PREPED)==0)
 				error = EINVAL;
 			else {
 				worm->audio = w->audio;
