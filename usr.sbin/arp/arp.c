@@ -460,6 +460,7 @@ search(u_long addr, void (*action)(struct sockaddr_dl *sdl,
 		}
 		(*action)(sdl, sin, rtm);
 	}
+	free(buf);
 }
 
 /*
