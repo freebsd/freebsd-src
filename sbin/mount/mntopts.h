@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mntopts.h	8.7 (Berkeley) 3/29/95
- *	$Id: mntopts.h,v 1.9 1997/08/24 21:02:48 steve Exp $
+ *	$Id: mntopts.h,v 1.10 1997/08/25 21:02:21 bde Exp $
  */
 
 struct mntopt {
@@ -52,6 +52,8 @@ struct mntopt {
 #define MOPT_UNION		{ "union",	0, MNT_UNION, 0 }
 #define MOPT_USERQUOTA		{ "userquota",	0, 0, 0 }
 #define MOPT_GROUPQUOTA		{ "groupquota",	0, 0, 0 }
+#define MOPT_NOCLUSTERR		{ "clusterr",	1, MNT_NOCLUSTERR, 0 }
+#define MOPT_NOCLUSTERW		{ "clusterw",	1, MNT_NOCLUSTERW, 0 }
 
 /* Control flags. */
 #define MOPT_FORCE		{ "force",	0, MNT_FORCE, 0 }
@@ -77,7 +79,9 @@ struct mntopt {
 	MOPT_NOEXEC,							\
 	MOPT_NOSUID,							\
 	MOPT_RDONLY,							\
-	MOPT_UNION
+	MOPT_UNION,							\
+	MOPT_NOCLUSTERR,						\
+	MOPT_NOCLUSTERW
 
 void getmntopts __P((const char *, const struct mntopt *, int *, int *));
 extern int getmnt_silent;
