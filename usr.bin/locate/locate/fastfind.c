@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: fastfind.c,v 1.2 1996/08/29 22:39:41 wosch Exp wosch $
+ * $Id: fastfind.c,v 1.1 1996/08/31 23:14:52 wosch Exp $
  */
 
 
@@ -160,8 +160,16 @@ fastfind
 #endif
 
 	/* find optimal (last) char for searching */
+	for (p = pathpart; *p != '\0'; p++)
+		if (index(LOCATE_REG, *p) != NULL)
+			break;
+
+	if (*p == '\0')
+		globflag = 0;
+	else
+		globflag = 1;
+
 	p = pathpart;
-	globflag = index(p, '*') || index(p, '?') || index(p, '[');
 	patend = patprep(p);
 	cc = *patend;
 

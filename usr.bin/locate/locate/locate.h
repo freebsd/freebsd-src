@@ -65,3 +65,5 @@ u_char myctype[UCHAR_MAX + 1];
 #endif
 
 #define INTSIZE (sizeof(int))
+
+#define LOCATE_REG "*?[]\\"  /* fnmatch(3) meta characters */
