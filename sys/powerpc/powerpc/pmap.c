@@ -168,6 +168,8 @@ static const char rcsid[] =
 #define	PVO_WIRED		0x0010		/* PVO entry is wired */
 #define	PVO_MANAGED		0x0020		/* PVO entry is managed */
 #define	PVO_EXECUTABLE		0x0040		/* PVO entry is executable */
+#define	PVO_BOOTSTRAP		0x0004		/* PVO entry allocated during
+						   bootstrap */
 #define	PVO_VADDR(pvo)		((pvo)->pvo_vaddr & ~ADDR_POFF)
 #define	PVO_ISEXECUTABLE(pvo)	((pvo)->pvo_vaddr & PVO_EXECUTABLE)
 #define	PVO_PTEGIDX_GET(pvo)	((pvo)->pvo_vaddr & PVO_PTEGIDX_MASK)
@@ -245,13 +247,13 @@ struct	pvo_head pmap_pvo_unmanaged =
 
 vm_zone_t	pmap_upvo_zone;	/* zone for pvo entries for unmanaged pages */
 vm_zone_t	pmap_mpvo_zone;	/* zone for pvo entries for managed pages */
-struct		vm_zone pmap_upvo_zone_store;
-struct		vm_zone pmap_mpvo_zone_store;
 struct		vm_object pmap_upvo_zone_obj;
 struct		vm_object pmap_mpvo_zone_obj;
 
 #define	PMAP_PVO_SIZE	1024
-struct		pvo_entry pmap_upvo_pool[PMAP_PVO_SIZE];
+static struct	pvo_entry *pmap_bpvo_pool;
+static int	pmap_bpvo_pool_index;
+static int	pmap_bpvo_pool_count;
 
 #define	VSID_NBPW	(sizeof(u_int32_t) * 8)
 static u_int	pmap_vsid_bitmap[NPMAPS / VSID_NBPW];
@@ -623,9 +625,9 @@ pmap_bootstrap(vm_offset_t kernelstart, vm_offset_t kernelend)
 	/*
 	 * Initialise the unmanaged pvo pool.
 	 */
-	pmap_upvo_zone = &pmap_upvo_zone_store;
-	zbootinit(pmap_upvo_zone, "unmanaged pvo", sizeof (struct pvo_entry),
-	    pmap_upvo_pool, PMAP_PVO_SIZE);
+	pmap_bpvo_pool = (struct pvo_entry *)pmap_bootstrap_alloc(PAGE_SIZE, 0);
+	pmap_bpvo_pool_index = 0;
+	pmap_bpvo_pool_count = (int)PAGE_SIZE / sizeof(struct pvo_entry);
 
 	/*
 	 * Make sure kernel vsid is allocated as well as VSID 0.
@@ -931,9 +933,10 @@ pmap_init2(void)
 {
 
 	CTR(KTR_PMAP, "pmap_init2");
-	zinitna(pmap_upvo_zone, &pmap_upvo_zone_obj, NULL, 0, PMAP_PVO_SIZE,
-	    ZONE_INTERRUPT, 1);
-	pmap_mpvo_zone = zinit("managed pvo", sizeof(struct pvo_entry),
+
+	pmap_upvo_zone = zinit("UPVO entry", sizeof (struct pvo_entry),
+	    0, 0, 0);
+	pmap_mpvo_zone = zinit("MPVO entry", sizeof(struct pvo_entry),
 	    PMAP_PVO_SIZE, ZONE_INTERRUPT, 1);
 	pmap_initialized = TRUE;
 }
@@ -1641,6 +1644,8 @@ pmap_pvo_enter(pmap_t pm, vm_zone_t zone, struct pvo_head *pvo_head,
 	 */
 	LIST_FOREACH(pvo, &pmap_pvo_table[ptegidx], pvo_olink) {
 		if (pvo->pvo_pmap == pm && PVO_VADDR(pvo) == va) {
+			if ((pvo->pvo_pte.pte_lo & PTE_RPGN) == pa)
+				return (0);
 			pmap_pvo_remove(pvo, -1);
 			break;
 		}
@@ -1649,7 +1654,18 @@ pmap_pvo_enter(pmap_t pm, vm_zone_t zone, struct pvo_head *pvo_head,
 	/*
 	 * If we aren't overwriting a mapping, try to allocate.
 	 */
-	pvo = zalloc(zone);
+	if (pmap_initialized) {
+		pvo = zalloc(zone);
+	} else {
+		if (pmap_bpvo_pool_index >= pmap_bpvo_pool_count) {
+			pmap_bpvo_pool = (struct pvo_entry *)
+			    pmap_bootstrap_alloc(PAGE_SIZE, 0);
+			pmap_bpvo_pool_index = 0;
+		}
+		pvo = &pmap_bpvo_pool[pmap_bpvo_pool_index];
+		pmap_bpvo_pool_index++;
+		pvo->pvo_vaddr |= PVO_BOOTSTRAP;
+	}
 
 	if (pvo == NULL) {
 		return (ENOMEM);
@@ -1740,8 +1756,9 @@ pmap_pvo_remove(struct pvo_entry *pvo, int pteidx)
 	 * if we aren't going to reuse it.
 	 */
 	LIST_REMOVE(pvo, pvo_olink);
-	zfree(pvo->pvo_vaddr & PVO_MANAGED ? pmap_mpvo_zone : pmap_upvo_zone,
-	    pvo);
+	if (!(pvo->pvo_vaddr & PVO_BOOTSTRAP))
+		zfree(pvo->pvo_vaddr & PVO_MANAGED ? pmap_mpvo_zone :
+		    pmap_upvo_zone, pvo);
 	pmap_pvo_entries--;
 	pmap_pvo_remove_calls++;
 }
