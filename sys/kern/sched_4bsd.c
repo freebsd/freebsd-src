@@ -718,8 +718,6 @@ sched_add(struct thread *td)
 #endif
 	if (maybe_preempt(td))
 		return;
-	ke->ke_ksegrp->kg_runq_kses++;
-	ke->ke_state = KES_ONRUNQ;
 
 #ifdef SMP
 	if (KSE_CAN_MIGRATE(ke)) {
@@ -737,6 +735,8 @@ sched_add(struct thread *td)
 	if ((td->td_proc->p_flag & P_NOLOAD) == 0)
 		sched_tdcnt++;
 	runq_add(ke->ke_runq, ke);
+	ke->ke_ksegrp->kg_runq_kses++;
+	ke->ke_state = KES_ONRUNQ;
 	maybe_resched(td);
 }
 
@@ -792,6 +792,7 @@ sched_choose(void)
 	if (ke != NULL) {
 		runq_remove(rq, ke);
 		ke->ke_state = KES_THREAD;
+		ke->ke_ksegrp->kg_runq_kses--;
 
 		KASSERT((ke->ke_thread != NULL),
 		    ("sched_choose: No thread on KSE"));
