@@ -174,7 +174,7 @@ res_find(int *line, int *startln,
 	if (ret_name)
 		*ret_name = s;
 	s = index(s, '.') + 1;		/* start of unit */
-	if (ret_namelen)
+	if (ret_namelen && ret_name)
 		*ret_namelen = s - *ret_name - 1; /* device length */
 	if (ret_unit)
 		*ret_unit = r_unit;
@@ -182,7 +182,7 @@ res_find(int *line, int *startln,
 	if (ret_resname)
 		*ret_resname = s;
 	s = index(s, '=') + 1;		/* start of value */
-	if (ret_resnamelen)
+	if (ret_resnamelen && ret_resname)
 		*ret_resnamelen = s - *ret_resname - 1; /* value len */
 	if (ret_value)
 		*ret_value = s;
