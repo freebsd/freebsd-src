@@ -487,8 +487,7 @@ ahc_handle_seqint(struct ahc_softc *ahc, u_int intstat)
 					printf("Sending Sense\n");
 				}
 #endif
-				sg->addr = ahc->scb_data->sense_busaddr
-				   + (hscb->tag*sizeof(struct scsi_sense_data));
+				sg->addr = ahc_get_sense_bufaddr(ahc, scb);
 				sg->len = ahc_get_sense_bufsize(ahc, scb);
 				sg->len |= AHC_DMA_LAST_SEG;
 
