@@ -39,14 +39,17 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	8.1 (Berkeley) 6/4/93
- *	$Id$
  *
  * From: Utah Hdr: conf.c 3.1 92/07/06
  * Author: Jeff Forys, University of Utah CSS
  */
 
 #ifndef lint
+#if 0
 static const char sccsid[] = "@(#)conf.c	8.1 (Berkeley) 6/4/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>

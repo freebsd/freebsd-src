@@ -39,14 +39,17 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)parseconf.c	8.1 (Berkeley) 6/4/93
- *	$Id: parseconf.c,v 1.6 1997/06/29 19:00:08 steve Exp $
  *
  * From: Utah Hdr: parseconf.c 3.1 92/07/06
  * Author: Jeff Forys, University of Utah CSS
  */
 
 #ifndef lint
+#if 0
 static const char sccsid[] = "@(#)parseconf.c	8.1 (Berkeley) 6/4/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>

@@ -39,14 +39,17 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)bpf.c	8.1 (Berkeley) 6/4/93
- *	$Id: bpf.c,v 1.7 1997/06/29 19:00:01 steve Exp $
  *
  * From: Utah Hdr: bpf.c 3.1 92/07/06
  * Author: Jeff Forys, University of Utah CSS
  */
 
 #ifndef lint
+#if 0
 static const char sccsid[] = "@(#)bpf.c	8.1 (Berkeley) 6/4/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
