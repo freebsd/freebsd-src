@@ -29,6 +29,7 @@
  */
 
 #include <machine/asm.h>
+__FBSDID("$FreeBSD$");
 
 #if defined(MEMCOPY) || defined(MEMMOVE)
 #ifdef MEMCOPY

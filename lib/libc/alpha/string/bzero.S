@@ -28,6 +28,7 @@
  */
 
 #include <machine/asm.h>
+__FBSDID("$FreeBSD$");
 
 LEAF(bzero,2)
 	ble	a1,bzero_done
