@@ -197,6 +197,8 @@ main(int argc, char *argv[])
 		    (fs = getfsspec(spec)) == NULL) {
 			if (vfstype == NULL)
 				vfstype = getfslab(spec);
+			if (vfstype == NULL)
+				errx(1, "Could not determine filesystem type");
 			type = vfstype;
 			devcheck(spec);
 		} else {
@@ -555,7 +557,7 @@ getfslab(const char *str)
 		err(1, "cannot open `%s'", str);
 
 	if (ioctl(fd, DIOCGDINFO, &dl) == -1)
-		err(1, "cannot get disklabel for `%s'", str);
+		return(NULL);
 
 	(void) close(fd);
 
