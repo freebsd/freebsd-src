@@ -42,7 +42,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)login.c	8.4 (Berkeley) 4/2/94";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: login.c,v 1.28 1997/07/22 07:39:43 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -111,6 +111,7 @@ void	 sleepexit __P((int));
 void	 refused __P((char *,char *,int));
 char	*stypeof __P((char *));
 void	 timedout __P((int));
+int	 login_access __P((char *, char *));
 void     login_fbtab __P((char *, uid_t, gid_t));
 #ifdef KERBEROS
 int	 klogin __P((struct passwd *, char *, char *, char *));
