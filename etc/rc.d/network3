@@ -578,6 +578,16 @@ network_pass3() {
 		;;
 	esac
 
+	case ${pppoed_enable} in
+	[Yy][Ee][Ss])
+		if [ -n "$pppoed_provider ]; then
+			pppoed_flags="${pppoed_flags} -p ${pppoed_provider}"
+		fi
+		echo -n ' pppoed';
+		/usr/libexec/pppoed ${pppoed_flags} ${pppoed_interface}
+		;;
+	esac
+
 	echo '.'
 	network_pass3_done=YES
 }
