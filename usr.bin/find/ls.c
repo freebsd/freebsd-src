@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/stat.h>
 
+#include <inttypes.h>
 #include <err.h>
 #include <errno.h>
 #include <fts.h>
@@ -69,7 +70,7 @@ printlong(name, accpath, sb)
 {
 	char modep[15];
 
-	(void)printf("%6lu %4qd ", (u_long) sb->st_ino, sb->st_blocks);
+	(void)printf("%6lu %4"PRId64" ", (u_long) sb->st_ino, sb->st_blocks);
 	(void)strmode(sb->st_mode, modep);
 	(void)printf("%s %3u %-*s %-*s ", modep, sb->st_nlink, UT_NAMESIZE,
 	    user_from_uid(sb->st_uid, 0), UT_NAMESIZE,
@@ -79,7 +80,7 @@ printlong(name, accpath, sb)
 		(void)printf("%3d, %3d ", major(sb->st_rdev),
 		    minor(sb->st_rdev));
 	else
-		(void)printf("%8qd ", sb->st_size);
+		(void)printf("%8"PRId64" ", sb->st_size);
 	printtime(sb->st_mtime);
 	(void)printf("%s", name);
 	if (S_ISLNK(sb->st_mode))
