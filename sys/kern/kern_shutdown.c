@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_shutdown.c	8.3 (Berkeley) 1/21/94
- * $Id: kern_shutdown.c,v 1.58 1999/08/09 10:34:57 phk Exp $
+ * $Id: kern_shutdown.c,v 1.59 1999/08/11 14:02:20 alfred Exp $
  */
 
 #include "opt_ddb.h"
@@ -370,11 +370,11 @@ setdumpdev(dev)
 		return (0);
 	}
 	maj = major(dev);
-	if (bdevsw(dev) == NULL)
+	if (devsw(dev) == NULL)
 		return (ENXIO);		/* XXX is this right? */
-	if (bdevsw(dev)->d_psize == NULL)
+	if (devsw(dev)->d_psize == NULL)
 		return (ENXIO);		/* XXX should be ENODEV ? */
-	psize = bdevsw(dev)->d_psize(dev);
+	psize = devsw(dev)->d_psize(dev);
 	if (psize == -1)
 		return (ENXIO);		/* XXX should be ENODEV ? */
 	/*
@@ -432,15 +432,15 @@ dumpsys(void)
 		return;
 	if (dumpdev == NODEV)
 		return;
-	if (!(bdevsw(dumpdev)))
+	if (!(devsw(dumpdev)))
 		return;
-	if (!(bdevsw(dumpdev)->d_dump))
+	if (!(devsw(dumpdev)->d_dump))
 		return;
 	dumpsize = Maxmem;
 	printf("\ndumping to dev (%d,%d), offset %ld\n",
 		major(dumpdev), minor(dumpdev), dumplo);
 	printf("dump ");
-	error = (*bdevsw(dumpdev)->d_dump)(dumpdev);
+	error = (*devsw(dumpdev)->d_dump)(dumpdev);
 	if (error == 0) {
 		printf("succeeded\n");
 		return;

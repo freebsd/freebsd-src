@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spec_vnops.c	8.14 (Berkeley) 5/21/95
- * $Id: spec_vnops.c,v 1.91 1999/08/08 18:42:52 phk Exp $
+ * $Id: spec_vnops.c,v 1.92 1999/08/13 10:10:10 phk Exp $
  */
 
 #include <sys/param.h>
@@ -208,7 +208,7 @@ spec_open(ap)
 		return (error);
 		/* NOT REACHED */
 	case VBLK:
-		dsw = bdevsw(dev);
+		dsw = devsw(dev);
 		if ( (dsw == NULL) || (dsw->d_open == NULL))
 			return ENXIO;
 		/*
@@ -290,7 +290,7 @@ spec_read(ap)
 
 		bsize = vp->v_rdev->si_bsize_best;
 
-		if ((ioctl = bdevsw(dev)->d_ioctl) != NULL &&
+		if ((ioctl = devsw(dev)->d_ioctl) != NULL &&
 		    (*ioctl)(dev, DIOCGPART, (caddr_t)&dpart, FREAD, p) == 0 &&
 		    dpart.part->p_fstype == FS_BSDFFS &&
 		    dpart.part->p_frag != 0 && dpart.part->p_fsize != 0)
@@ -374,7 +374,7 @@ spec_write(ap)
 		 */
 		bsize = vp->v_rdev->si_bsize_best;
 
-		if ((*bdevsw(vp->v_rdev)->d_ioctl)(vp->v_rdev, DIOCGPART,
+		if ((*devsw(vp->v_rdev)->d_ioctl)(vp->v_rdev, DIOCGPART,
 		    (caddr_t)&dpart, FREAD, p) == 0) {
 			if (dpart.part->p_fstype == FS_BSDFFS &&
 			    dpart.part->p_frag != 0 && dpart.part->p_fsize != 0)
@@ -432,7 +432,7 @@ spec_ioctl(ap)
 		return ((*devsw(dev)->d_ioctl)(dev, ap->a_command, 
 		    ap->a_data, ap->a_fflag, ap->a_p));
 	case VBLK:
-		return ((*bdevsw(dev)->d_ioctl)(dev, ap->a_command, 
+		return ((*devsw(dev)->d_ioctl)(dev, ap->a_command, 
 		    ap->a_data, ap->a_fflag, ap->a_p));
 	default:
 		panic("spec_ioctl");
@@ -548,7 +548,7 @@ spec_strategy(ap)
 	if (((bp->b_flags & B_READ) == 0) &&
 		(LIST_FIRST(&bp->b_dep)) != NULL && bioops.io_start)
 		(*bioops.io_start)(bp);
-	(*bdevsw(bp->b_dev)->d_strategy)(bp);
+	(*devsw(bp->b_dev)->d_strategy)(bp);
 	return (0);
 }
 
@@ -563,7 +563,7 @@ spec_freeblks(ap)
 	struct cdevsw *bsw;
 	struct buf *bp;
 
-	bsw = bdevsw(ap->a_vp->v_rdev);
+	bsw = devsw(ap->a_vp->v_rdev);
 	if ((bsw->d_flags & D_CANFREE) == 0)
 		return (0);
 	bp = geteblk(ap->a_length);
@@ -673,7 +673,7 @@ spec_close(ap)
 		if ((vcount(vp) > 1) && (vp->v_flag & VXLOCK) == 0)
 			return (0);
 
-		devclose = bdevsw(dev)->d_close;
+		devclose = devsw(dev)->d_close;
 		mode = S_IFBLK;
 		break;
 
@@ -951,7 +951,7 @@ spec_getattr(ap)
 		vap->va_blocksize = MAXBSIZE;
 	}
 
-	if ((*bdevsw(vp->v_rdev)->d_ioctl)(vp->v_rdev, DIOCGPART,
+	if ((*devsw(vp->v_rdev)->d_ioctl)(vp->v_rdev, DIOCGPART,
 	    (caddr_t)&dpart, FREAD, ap->a_p) == 0) {
 		vap->va_bytes = dbtob(dpart.disklab->d_partitions
 				      [minor(vp->v_rdev)].p_size);

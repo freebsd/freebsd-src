@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vfsops.c	8.31 (Berkeley) 5/20/95
- * $Id: ffs_vfsops.c,v 1.100 1999/07/11 19:16:50 phk Exp $
+ * $Id: ffs_vfsops.c,v 1.101 1999/08/08 18:43:01 phk Exp $
  */
 
 #include "opt_quota.h"
@@ -156,9 +156,9 @@ ffs_mount( mp, path, data, ndp, p)
 			return (err);
 		}
 
-		if (bdevsw(rootdev)->d_flags & D_NOCLUSTERR)
+		if (devsw(rootdev)->d_flags & D_NOCLUSTERR)
 			mp->mnt_flag |= MNT_NOCLUSTERR;
-		if (bdevsw(rootdev)->d_flags & D_NOCLUSTERW)
+		if (devsw(rootdev)->d_flags & D_NOCLUSTERW)
 			mp->mnt_flag |= MNT_NOCLUSTERW;
 		if( ( err = ffs_mountfs(rootvp, mp, p, M_FFSNODE)) != 0) {
 			/* fs specific cleanup (if any)*/
@@ -192,9 +192,9 @@ ffs_mount( mp, path, data, ndp, p)
 		devvp = ump->um_devvp;
 		err = 0;
 		ronly = fs->fs_ronly;	/* MNT_RELOAD might change this */
-		if (bdevsw(ump->um_dev)->d_flags & D_NOCLUSTERR)
+		if (devsw(ump->um_dev)->d_flags & D_NOCLUSTERR)
 			mp->mnt_flag |= MNT_NOCLUSTERR;
-		if (bdevsw(ump->um_dev)->d_flags & D_NOCLUSTERW)
+		if (devsw(ump->um_dev)->d_flags & D_NOCLUSTERW)
 			mp->mnt_flag |= MNT_NOCLUSTERW;
 		if (ronly == 0 && (mp->mnt_flag & MNT_RDONLY)) {
 			flags = WRITECLOSE;
@@ -288,7 +288,7 @@ ffs_mount( mp, path, data, ndp, p)
 		err = ENOTBLK;
 		goto error_2;
 	}
-	if (bdevsw(devvp->v_rdev) == NULL) {
+	if (devsw(devvp->v_rdev) == NULL) {
 		err = ENXIO;
 		goto error_2;
 	}
@@ -344,9 +344,9 @@ ffs_mount( mp, path, data, ndp, p)
 		 ********************
 		 */
 
-		if (bdevsw(devvp->v_rdev)->d_flags & D_NOCLUSTERR)
+		if (devsw(devvp->v_rdev)->d_flags & D_NOCLUSTERR)
 			mp->mnt_flag |= MNT_NOCLUSTERR;
-		if (bdevsw(devvp->v_rdev)->d_flags & D_NOCLUSTERW)
+		if (devsw(devvp->v_rdev)->d_flags & D_NOCLUSTERW)
 			mp->mnt_flag |= MNT_NOCLUSTERW;
 
 		/*

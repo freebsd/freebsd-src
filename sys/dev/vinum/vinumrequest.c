@@ -37,7 +37,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumrequest.c,v 1.29 1999/08/07 08:13:23 grog Exp $
+ * $Id: vinumrequest.c,v 1.30 1999/08/08 18:42:41 phk Exp $
  */
 
 #include <dev/vinum/vinumhdr.h>
@@ -399,7 +399,7 @@ launch_requests(struct request *rq, int reviveok)
 		    logrq(loginfo_rqe, (union rqinfou) rqe, rq->bp);
 #endif
 		/* fire off the request */
-		(*bdevsw(rqe->b.b_dev)->d_strategy) (&rqe->b);
+		(*devsw(rqe->b.b_dev)->d_strategy) (&rqe->b);
 	    }
 	}
     }
@@ -947,7 +947,7 @@ sdio(struct buf *bp)
 	    sbp->b.b_vp->v_numoutput);
 #endif
     s = splbio();
-    (*bdevsw(sbp->b.b_dev)->d_strategy) (&sbp->b);
+    (*devsw(sbp->b.b_dev)->d_strategy) (&sbp->b);
     splx(s);
 }
 
