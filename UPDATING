@@ -9,6 +9,13 @@ A reverse chronology since 4.0 was released is included, followed by
 the common items quick how-tos, followed by entries for versions of
 -current prior to 4.0 Release.
 
+20011110:
+	Some linux module changed, merged from current, require that you
+	clean out the old compile directory.  If you are building with
+	MODULES_WITH_WORLD=yes, then you need to cd to src/sys/modules/linux
+	and run "make cleandir".  If not, then you need to cd
+	src/sys/compile/$KERNCONF and do a make modules-clean.
+
 20011102:
 	ipfw/bridge/dummynet features merged from current.
 
