@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 SUBDIR=		libgroff libdriver libbib \
-		addftinfo afmtodit eqn grn \
+		addftinfo afmtodit doc eqn grn \
 		grodvi groff grog grohtml grolbp grolj4 grops grotty \
 		hpftodit indxbib lkbib lookbib man mm nroff \
 		pfbtops pic refer tbl tfmtodit tmac troff \
@@ -10,6 +10,6 @@ SUBDIR=		libgroff libdriver libbib \
 		devutf8
 
 # BSD already provides soelim and we don't want xditview compiled by default
-MISC=		soelim doc xditview
+MISC=		soelim xditview
 
 .include <bsd.subdir.mk>
