@@ -37,7 +37,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aic79xx_inline.h#34 $
+ * $Id: //depot/aic7xxx/aic7xxx/aic79xx_inline.h#36 $
  *
  * $FreeBSD$
  */
@@ -226,48 +226,6 @@ ahd_unpause(struct ahd_softc *ahd)
 	ahd_known_modes(ahd, AHD_MODE_UNKNOWN, AHD_MODE_UNKNOWN);
 }
 
-/*********************** Untagged Transaction Routines ************************/
-static __inline void	ahd_freeze_untagged_queues(struct ahd_softc *ahd);
-static __inline void	ahd_release_untagged_queues(struct ahd_softc *ahd);
-
-/*
- * Block our completion routine from starting the next untagged
- * transaction for this target or target lun.
- */
-static __inline void
-ahd_freeze_untagged_queues(struct ahd_softc *ahd)
-{
-	/*
-	 * Assume we have enough space in the card's SCB
-	 * to obviate the need for a per target untagged
-	 * transaction limit.
-	 */
-#if 0
-	ahd->untagged_queue_lock++;
-#endif
-}
-
-/*
- * Allow the next untagged transaction for this target or target lun
- * to be executed.  We use a counting semaphore to allow the lock
- * to be acquired recursively.  Once the count drops to zero, the
- * transaction queues will be run.
- */
-static __inline void
-ahd_release_untagged_queues(struct ahd_softc *ahd)
-{
-	/*
-	 * Assume we have enough space in the card's SCB
-	 * to obviate the need for a per target untagged
-	 * transaction limit.
-	 */
-#if 0
-	ahd->untagged_queue_lock--;
-	if (ahd->untagged_queue_lock == 0)
-		ahd_run_untagged_queues(ahd);
-#endif
-}
-
 /*********************** Scatter Gather List Handling *************************/
 static __inline void	*ahd_sg_setup(struct ahd_softc *ahd, struct scb *scb,
 				      void *sgptr, bus_addr_t addr,
@@ -296,7 +254,7 @@ ahd_sg_setup(struct ahd_softc *ahd, struct scb *scb,
 		struct ahd_dma_seg *sg;
 
 		sg = (struct ahd_dma_seg *)sgptr;
-		sg->addr = ahd_htole64(addr);
+		sg->addr = ahd_htole32(addr & 0xFFFFFFFF);
 		sg->len = ahd_htole32(len | ((addr >> 8) & 0x7F000000)
 				    | (last ? AHD_DMA_LAST_SEG : 0));
 		return (sg + 1);
@@ -309,15 +267,12 @@ ahd_setup_scb_common(struct ahd_softc *ahd, struct scb *scb)
 	/* XXX Handle target mode SCBs. */
 	if ((scb->flags & SCB_PACKETIZED) != 0) {
 		/* XXX what about ACA??  It is type 4, but TAG_TYPE == 0x3. */
-		scb->hscb->task_attribute_nonpkt_tag =
-		    scb->hscb->control & SCB_TAG_TYPE;
+		scb->hscb->task_attribute= scb->hscb->control & SCB_TAG_TYPE;
 		scb->hscb->task_management = 0;
 		/*
 		 * For Rev A short lun workaround.
 		 */
 		scb->hscb->pkt_long_lun[6] = scb->hscb->lun;
-	} else {
-		scb->hscb->task_attribute_nonpkt_tag = SCB_GET_TAG(scb);
 	}
 
 	if (scb->hscb->cdb_len <= MAX_CDB_LEN_WITH_SENSE_ADDR
@@ -783,7 +738,6 @@ ahd_swap_with_next_hscb(struct ahd_softc *ahd, struct scb *scb)
 	scb->hscb = q_hscb;
 
 	/* Now define the mapping from tag to SCB in the scbindex */
-/* XXX This should be constant now.  Can we avoid the mapping? */
 	ahd->scb_data.scbindex[SCB_GET_TAG(scb)] = scb;
 }
 
