@@ -1,8 +1,5 @@
 # $FreeBSD$
 
-NOMAN=YES
-CLEANFILES+= ${LOCALES:S/$/.out/g}
-
 LOCALES=	af_ZA.ISO8859-1 \
 		am_ET.UTF-8 \
 		be_BY.CP1131 \
@@ -68,151 +65,73 @@ LOCALES=	af_ZA.ISO8859-1 \
 		zh_TW.Big5 \
 		zh_TW.UTF-8
 
-LOCALEDIR=	${DESTDIR}/usr/share/locale
-
-ASCIILINKS=	en_CA en_GB en_US
-LATIN15LINKS=   af_ZA ca_ES da_DK de_DE en_CA en_GB en_US es_ES eu_ES fi_FI \
-		fr_BE \
-		fr_CH fr_FR is_IS it_IT nl_NL no_NO pt_PT sv_SE
-
-UTF8_LATIN1LINKS=	af_ZA ca_ES da_DK de_DE en_CA en_GB en_US es_ES eu_ES \
-			fi_FI \
-			fr_BE fr_CH fr_FR is_IS it_IT nl_NL no_NO pt_PT sv_SE
-UTF8_LATIN2LINKS=	cs_CZ hr_HR hu_HU pl_PL ro_RO sl_SI
-UTF8_LATIN9LINKS=	tr_TR
-UTF8_LATIN13LINKS=	lt_LT
-UTF8_LATIN15LINKS=	et_EE
-
-GB_LINKS=	en_AU en_NZ
-FR_LINKS=	fr_CA
-DE_LINKS=	de_AT de_CH
-CZ_LINKS=	sk_SK
-IT_LINKS=	it_CH
-NL_LINKS=	nl_BE
-PT_LINKS=	pt_BR
+LOCALEDIR=	/usr/share/locale
 
 .SUFFIXES: .src .out
 
 .src.out:
 	grep -v '^#' < ${.IMPSRC} > ${.TARGET}
 
-all: ${LOCALES:S/$/.out/g}
+FILES=		${LOCALES:S/$/.out/}
+FILESNAME=	LC_MESSAGES
 
-afterinstall:
-.for lang in ${LOCALES}
-	rm -rf ${LOCALEDIR}/${lang}/LC_MESSAGES
-	${INSTALL} -m 644 -o ${BINOWN} -g ${BINGRP} ${lang}.out \
-			   ${LOCALEDIR}/${lang}/LC_MESSAGES
+.for locale in ${LOCALES}
+FILESDIR_${locale}.out= ${LOCALEDIR}/${locale}
 .endfor
-.for link in ${LATIN15LINKS}
-	ln -sf ../${link}.ISO8859-1/LC_MESSAGES \
-	       ${LOCALEDIR}/${link}.ISO8859-15/LC_MESSAGES
+
+CLEANFILES=	${FILES}
+
+CZ_LINKS=	cs_CZ:sk_SK
+DE_LINKS=	de_DE:de_AT de_DE:de_CH
+FR_LINKS=	fr_FR:fr_CA
+GB_LINKS=	en_GB:en_AU en_GB:en_NZ
+IT_LINKS=	it_IT:it_CH
+NL_LINKS=	nl_NL:nl_BE
+PT_LINKS=	pt_PT:pt_BR
+
+ENCODINGS=	Big5 Big5HKSCS CP949 eucKR GB2312 GBK \
+		ISO8859-1 ISO8859-2 ISO8859-4 ISO8859-9 ISO8859-13 ISO8859-15 \
+		US-ASCII UTF-8
+
+Big5_Big5HKSCS=	zh_TW:zh_HK
+eucKR_CP949=	ko_KR
+eucKR_UTF-8=	ko_KR
+GB2312_GBK=	zh_CN
+ISO8859-1_ISO8859-1= ${DE_LINKS} ${FR_LINKS} ${GB_LINKS} ${IT_LINKS} \
+		${NL_LINKS} ${PT_LINKS}
+ISO8859-1_ISO8859-15= af_ZA ca_ES da_DK de_DE en_CA en_GB en_US es_ES \
+		eu_ES fi_FI fr_BE fr_CH fr_FR is_IS it_IT nl_NL no_NO \
+		pt_PT sv_SE \
+		${DE_LINKS} ${FR_LINKS} ${GB_LINKS} ${IT_LINKS} \
+		${NL_LINKS}
+ISO8859-1_US-ASCII= ${GB_LINKS} en_CA en_GB en_US
+ISO8859-1_UTF-8= af_ZA ca_ES da_DK de_DE en_CA en_GB en_US es_ES eu_ES \
+		fi_FI fr_BE fr_CH fr_FR is_IS it_IT nl_NL no_NO pt_PT \
+		sv_SE
+ISO8859-2_ISO8859-2= ${CZ_LINKS}
+ISO8859-2_UTF-8= cs_CZ hr_HR hu_HU pl_PL ro_RO sl_SI
+ISO8859-9_UTF-8= tr_TR
+ISO8859-13_ISO8859-4= lt_LT
+ISO8859-13_UTF-8= lt_LT
+ISO8859-15_UTF-8= et_EE
+UTF-8_UTF-8=	${CZ_LINKS} ${DE_LINKS} ${FR_LINKS} ${GB_LINKS} en_GB:en_IE \
+		${IT_LINKS} ${NL_LINKS} ${PT_LINKS} zh_TW:zh_HK
+
+SYMLINKS=
+.for enc1 in ${ENCODINGS}
+.for enc2 in ${ENCODINGS}
+.for lang_terr in ${${enc1}_${enc2}}
+SYMLINKS+=	../${lang_terr:C/:.*$//}.${enc1}/${FILESNAME} \
+		${LOCALEDIR}/${lang_terr:C/^.*://}.${enc2}
 .endfor
-.for link in ${GB_LINKS}
-	ln -sf ../en_GB.ISO8859-1/LC_MESSAGES \
-		${LOCALEDIR}/${link}.ISO8859-1/LC_MESSAGES
-	ln -sf ../en_GB.ISO8859-1/LC_MESSAGES \
-		${LOCALEDIR}/${link}.ISO8859-15/LC_MESSAGES
-	ln -sf ../en_GB.ISO8859-1/LC_MESSAGES \
-		${LOCALEDIR}/${link}.US-ASCII/LC_MESSAGES
 .endfor
-.for link in ${FR_LINKS}
-	ln -sf ../fr_FR.ISO8859-1/LC_MESSAGES \
-		${LOCALEDIR}/${link}.ISO8859-1/LC_MESSAGES
-	ln -sf ../fr_FR.ISO8859-1/LC_MESSAGES \
-		${LOCALEDIR}/${link}.ISO8859-15/LC_MESSAGES
 .endfor
-.for link in ${DE_LINKS}
-	ln -sf ../de_DE.ISO8859-1/LC_MESSAGES \
-		${LOCALEDIR}/${link}.ISO8859-1/LC_MESSAGES
-	ln -sf ../de_DE.ISO8859-1/LC_MESSAGES \
-		${LOCALEDIR}/${link}.ISO8859-15/LC_MESSAGES
+
+beforeinstall:
+.for locale in ${LOCALES}
+.if exists(${DESTDIR}${LOCALEDIR}/${locale}/LC_MESSAGES/)
+	rm -rf ${DESTDIR}${LOCALEDIR}/${locale}/LC_MESSAGES
+.endif
 .endfor
-.for link in ${IT_LINKS}
-	ln -sf ../it_IT.ISO8859-1/LC_MESSAGES \
-		${LOCALEDIR}/${link}.ISO8859-1/LC_MESSAGES
-	ln -sf ../it_IT.ISO8859-1/LC_MESSAGES \
-		${LOCALEDIR}/${link}.ISO8859-15/LC_MESSAGES
-.endfor
-.for link in ${NL_LINKS}
-	ln -sf ../nl_NL.ISO8859-1/LC_MESSAGES \
-		${LOCALEDIR}/${link}.ISO8859-1/LC_MESSAGES
-	ln -sf ../nl_NL.ISO8859-1/LC_MESSAGES \
-		${LOCALEDIR}/${link}.ISO8859-15/LC_MESSAGES
-.endfor
-.for link in ${CZ_LINKS}
-	ln -sf ../cs_CZ.ISO8859-2/LC_MESSAGES \
-		${LOCALEDIR}/${link}.ISO8859-2/LC_MESSAGES
-.endfor
-.for link in ${PT_LINKS}
-	ln -sf ../pt_PT.ISO8859-1/LC_MESSAGES \
-		${LOCALEDIR}/${link}.ISO8859-1/LC_MESSAGES
-.endfor
-.for link in ${ASCIILINKS}
-	ln -sf ../${link}.ISO8859-1/LC_MESSAGES \
-		${LOCALEDIR}/${link}.US-ASCII/LC_MESSAGES
-.endfor
-	ln -sf ../ko_KR.eucKR/LC_MESSAGES \
-		${LOCALEDIR}/ko_KR.CP949/LC_MESSAGES
-	ln -sf ../zh_CN.GB2312/LC_MESSAGES \
-		${LOCALEDIR}/zh_CN.GBK/LC_MESSAGES
-.for link in ${UTF8_LATIN1LINKS}
-	ln -sf ../${link}.ISO8859-1/LC_MESSAGES \
-	       ${LOCALEDIR}/${link}.UTF-8/LC_MESSAGES
-.endfor
-.for link in ${UTF8_LATIN2LINKS}
-	ln -sf ../${link}.ISO8859-2/LC_MESSAGES \
-	       ${LOCALEDIR}/${link}.UTF-8/LC_MESSAGES
-.endfor
-.for link in ${UTF8_LATIN9LINKS}
-	ln -sf ../${link}.ISO8859-9/LC_MESSAGES \
-	       ${LOCALEDIR}/${link}.UTF-8/LC_MESSAGES
-.endfor
-.for link in ${UTF8_LATIN13LINKS}
-	ln -sf ../${link}.ISO8859-13/LC_MESSAGES \
-	       ${LOCALEDIR}/${link}.UTF-8/LC_MESSAGES
-.endfor
-.for link in ${UTF8_LATIN15LINKS}
-	ln -sf ../${link}.ISO8859-15/LC_MESSAGES \
-	       ${LOCALEDIR}/${link}.UTF-8/LC_MESSAGES
-.endfor
-.for link in ${GB_LINKS}
-	ln -sf ../en_GB.UTF-8/LC_MESSAGES \
-		${LOCALEDIR}/${link}.UTF-8/LC_MESSAGES
-.endfor
-	ln -sf ../en_GB.UTF-8/LC_MESSAGES \
-		${LOCALEDIR}/en_IE.UTF-8/LC_MESSAGES
-.for link in ${FR_LINKS}
-	ln -sf ../fr_FR.UTF-8/LC_MESSAGES \
-		${LOCALEDIR}/${link}.UTF-8/LC_MESSAGES
-.endfor
-.for link in ${DE_LINKS}
-	ln -sf ../de_DE.UTF-8/LC_MESSAGES \
-		${LOCALEDIR}/${link}.UTF-8/LC_MESSAGES
-.endfor
-.for link in ${IT_LINKS}
-	ln -sf ../it_IT.UTF-8/LC_MESSAGES \
-		${LOCALEDIR}/${link}.UTF-8/LC_MESSAGES
-.endfor
-.for link in ${NL_LINKS}
-	ln -sf ../nl_NL.UTF-8/LC_MESSAGES \
-		${LOCALEDIR}/${link}.UTF-8/LC_MESSAGES
-.endfor
-.for link in ${CZ_LINKS}
-	ln -sf ../cs_CZ.UTF-8/LC_MESSAGES \
-		${LOCALEDIR}/${link}.UTF-8/LC_MESSAGES
-.endfor
-.for link in ${PT_LINKS}
-	ln -sf ../pt_PT.UTF-8/LC_MESSAGES \
-		${LOCALEDIR}/${link}.UTF-8/LC_MESSAGES
-.endfor
-	ln -sf ../ko_KR.eucKR/LC_MESSAGES \
-		${LOCALEDIR}/ko_KR.UTF-8/LC_MESSAGES
-	ln -sf ../zh_TW.UTF-8/LC_MESSAGES \
-		${LOCALEDIR}/zh_HK.UTF-8/LC_MESSAGES
-	ln -sf ../zh_TW.Big5/LC_MESSAGES \
-		${LOCALEDIR}/zh_HK.Big5HKSCS/LC_MESSAGES
-	ln -sf ../lt_LT.ISO8859-13/LC_MESSAGES \
-		${LOCALEDIR}/lt_LT.ISO8859-4/LC_MESSAGES
 
 .include <bsd.prog.mk>
