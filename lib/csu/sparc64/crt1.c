@@ -90,7 +90,7 @@ _start(char **ap,
 	argv = ap + 1;
 	env  = ap + 2 + argc;
 	environ = env;
-	if(argc > 0 && argv[0] != NULL) {
+	if (argc > 0 && argv[0] != NULL) {
 		char *s;
 		__progname = argv[0];
 		for (s = __progname; *s != '\0'; s++)
@@ -132,8 +132,4 @@ __asm__("eprol:");
 __asm__(".previous");
 #endif
 
-/*
- * NOTE: Leave the RCS ID _after_ __start(), in case it gets placed in .text.
- */
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__asm__(".ident\t\"$FreeBSD$\"");
