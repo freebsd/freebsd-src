@@ -73,7 +73,7 @@ struct reg {
  */
 struct fpreg {
 	/*
-	 * XXX should get struct from npx.h.  Here we give a slightly
+	 * XXX should get struct from fpu.h.  Here we give a slightly
 	 * simplified struct.  This may be too much detail.  Perhaps
 	 * an array of unsigned longs is best.
 	 */
