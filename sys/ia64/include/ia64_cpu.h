@@ -221,6 +221,17 @@ ia64_ptc_l(u_int64_t va, u_int64_t log2size)
 }
 
 /*
+ * Read the value of psr.
+ */
+static __inline u_int64_t
+ia64_get_psr(void)
+{
+	u_int64_t result;
+	__asm __volatile("mov %0=psr;;" : "=r" (result));
+	return result;
+}
+
+/*
  * Read the value of ar.k0.
  */
 static __inline u_int64_t
