@@ -9,22 +9,22 @@ KPROGS=	lib/libpam secure/lib/libssh secure/usr.bin/ssh secure/usr.sbin/sshd
 kerberize:
 .for entry in ${KPROGS}
 	cd ${.CURDIR}/../${entry}; \
-	${MAKE} ${MFLAGS} -DMAKE_KERBEROS5 cleandir; \
-	${MAKE} ${MFLAGS} -DMAKE_KERBEROS5 obj; \
-	${MAKE} ${MFLAGS} -DMAKE_KERBEROS5 depend; \
-	${MAKE} ${MFLAGS} -DMAKE_KERBEROS5 all; \
-	${MAKE} ${MFLAGS} -DMAKE_KERBEROS5 install
+	${MAKE} ${MFLAGS} cleandir; \
+	${MAKE} ${MFLAGS} obj; \
+	${MAKE} ${MFLAGS} depend; \
+	${MAKE} ${MFLAGS} all; \
+	${MAKE} ${MFLAGS} install
 .endfor
 
 # This target is used to rebuild these programs WITHOUT Kerberos.
 dekerberize:
 .for entry in ${KPROGS}
 	cd ${.CURDIR}/../${entry}; \
-	${MAKE} ${MFLAGS} cleandir; \
-	${MAKE} ${MFLAGS} obj; \
-	${MAKE} ${MFLAGS} depend; \
-	${MAKE} ${MFLAGS} all; \
-	${MAKE} ${MFLAGS} install
+	${MAKE} ${MFLAGS} -DNO_KERBEROS cleandir; \
+	${MAKE} ${MFLAGS} -DNO_KERBEROS obj; \
+	${MAKE} ${MFLAGS} -DNO_KERBEROS depend; \
+	${MAKE} ${MFLAGS} -DNO_KERBEROS all; \
+	${MAKE} ${MFLAGS} -DNO_KERBEROS install
 .endfor
 
 .include <bsd.subdir.mk>

@@ -6,7 +6,7 @@ SUBDIR+=libcrypto libssl
 .if !defined(NO_OPENSSH)
 SUBDIR+=libssh
 .endif
-.if !defined(MAKE_KERBEROS5)
+.if defined(NO_KERBEROS)
 SUBDIR+=libtelnet
 .endif
 .endif

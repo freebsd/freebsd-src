@@ -50,7 +50,7 @@ my %CONFIGS	= (
 	    'ia64'	=> [ 'ia64' ],
 	    'sparc64'	=> [ 'sparc64' ],
 	},
-	'ENV'		=> [ 'MAKE_KERBEROS5=YES', 'BOOT2_UFS=UFS1_ONLY' ],
+	'ENV'		=> [ 'BOOT2_UFS=UFS1_ONLY' ],
     },
     # 4-STABLE tinderbox
     'triangle' => {
@@ -61,7 +61,7 @@ my %CONFIGS	= (
 	    'alpha'	=> [ 'alpha' ],
 	    'i386'	=> [ 'i386', 'pc98' ],
 	},
-	'ENV'		=> [ 'MAKE_KERBEROS5=YES' ],
+	'ENV'		=> [ ],
     },
     # Test setup
     '9ball' => {
@@ -71,8 +71,7 @@ my %CONFIGS	= (
 	    'amd64'	=> [ 'amd64' ],
 	    'powerpc'	=> [ 'powerpc' ],
 	},
-	'ENV'		=> [ 'MAKE_KERBEROS5=YES',
-			     'NOLIBC_R=YES', 'NOFORTH=YES' ],
+	'ENV'		=> [ 'NOLIBC_R=YES', 'NOFORTH=YES' ],
     },
 );
 my %CONFIG = ();
