@@ -1772,7 +1772,7 @@ osf1_sysinfo(td, uap)
 		name[1] = KERN_HOSTNAME;
 		mtx_lock(&Giant);
 		retval = userland_sysctl(td, name, 2, uap->buf, &len,
-					1, 0, 0, &bytes);
+					1, 0, 0, &bytes, 0);
 		mtx_unlock(&Giant);
 		td->td_retval[0] =  bytes;
 		return(retval);
