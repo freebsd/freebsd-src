@@ -1,0 +1,10 @@
+#!/bin/sh
+#
+# $Id$
+#
+if [ -x /usr/sbin/mailq -a -d /var/spool/mqueue ] ; then
+    echo ""
+    echo "Mail in local queue:"
+
+    mailq
+fi
