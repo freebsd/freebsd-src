@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_subs.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_subs.c,v 1.15.4.1 1995/06/28 05:49:39 davidg Exp $
+ * $Id: nfs_subs.c,v 1.15.4.2 1995/07/20 07:52:09 davidg Exp $
  */
 
 /*
@@ -1203,16 +1203,20 @@ nfsrv_vmio( struct vnode *vp) {
 		return 1;
 
 retry:
-	if( (vp->v_flag & VVMIO) == 0) {
-		pager = (vm_pager_t) vnode_pager_alloc((caddr_t) vp, 0, 0, 0);
-		object = (vm_object_t) vp->v_vmdata;
-		if( object->pager != pager)
-			panic("nfsrv_vmio: pager/object mismatch");
+	if ((vp->v_flag & VVMIO) == 0) {
+		struct vattr vat;
+		struct proc *p = curproc;
+
+		if (VOP_GETATTR(vp, &vat, p->p_ucred, p) != 0)
+			panic("nfsrv_vmio: VOP_GETATTR failed");
+
+		(void) vnode_pager_alloc(vp, vat.va_size, 0, 0);
+
 		vp->v_flag |= VVMIO;
 	} else {
-		if( (object = (vm_object_t)vp->v_vmdata) &&
+		if ((object = (vm_object_t)vp->v_vmdata) &&
 			(object->flags & OBJ_DEAD)) {
-			tsleep( (caddr_t) object, PVM, "nfdead", 0);
+			tsleep(object, PVM, "nfdead", 0);
 			goto retry;
 		}
 		if( !object)
