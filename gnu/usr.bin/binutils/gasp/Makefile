@@ -1,8 +1,5 @@
 # $FreeBSD$
 
-# must be before -I${DESTDIR}/usr/include
-CFLAGS+= -I${DESTDIR}/usr/include/gnu
-
 .include "../Makefile.inc0"
 
 .PATH: ${SRCDIR}/gas
@@ -13,6 +10,7 @@ WARNS?=	2
 CFLAGS+= -DBFD_ASSEMBLER
 CFLAGS+= -I${.CURDIR}/../as/${TARGET_ARCH}-freebsd -I${.CURDIR}/../as
 CFLAGS+= -I${.CURDIR}
+CFLAGS+= -I${DESTDIR}/usr/include/gnu
 CFLAGS+= -I${SRCDIR} -I${SRCDIR}/gas -I${SRCDIR}/gas/config
 DPADD=	${RELTOP}/libiberty/libiberty.a
 LDADD=	${DPADD}

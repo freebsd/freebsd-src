@@ -24,8 +24,6 @@ CFLAGS+= -I${.CURDIR}/${TARGET_ARCH}
 .endif
 CFLAGS+= -I${.CURDIR}
 CFLAGS+= -I${.CURDIR}/${RELTOP}/libbfd/${TARGET_ARCH}
-# to pick right getopt.h
-CFLAGS+= -I${DESTDIR}/usr/include	
 CFLAGS+= -I${SRCDIR}/include
 
 .if exists(${.CURDIR}/${TARGET_ARCH})
