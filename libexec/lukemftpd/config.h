@@ -3,7 +3,7 @@
 
 /* config.h.  Generated automatically by configure.  */
 /* config.h.in.  Generated automatically from configure.in by autoheader.  */
-/* $Id: config.h.in,v 1.16 2002/05/23 02:42:55 lukem Exp $ */
+/* $Id: config.h.in,v 1.6 2004/08/10 00:40:22 lukem Exp $ */
 
 
 /* Define if the closedir function returns void instead of int.  */
@@ -87,11 +87,23 @@
 /* Define if you have the mkstemp function.  */
 #define HAVE_MKSTEMP 1
 
+/* Define if you have the setegid function.  */
+#define HAVE_SETEGID 1
+
+/* Define if you have the seteuid function.  */
+#define HAVE_SETEUID 1
+
 /* Define if you have the setlogin function.  */
 #define HAVE_SETLOGIN 1
 
 /* Define if you have the setproctitle function.  */
 #define HAVE_SETPROCTITLE 1
+
+/* Define if you have the setresgid function.  */
+#define HAVE_SETRESGID 1
+
+/* Define if you have the setresuid function.  */
+#define HAVE_SETRESUID 1
 
 /* Define if you have the sl_init function.  */
 #define HAVE_SL_INIT 1
@@ -116,6 +128,9 @@
 
 /* Define if you have the strsep function.  */
 #define HAVE_STRSEP 1
+
+/* Define if you have the strsuftollx function.  */
+/* #undef HAVE_STRSUFTOLLX */
 
 /* Define if you have the strtoll function.  */
 #define HAVE_STRTOLL 1
@@ -244,6 +259,7 @@
 #define HAVE_GETUSERSHELL_D 1
 
 /* Define if `long long' is supported and sizeof(off_t) >= 8 */
+/* #undef HAVE_WORKING_LONG_LONG */
 #define HAVE_QUAD_SUPPORT 1
 
 /* Define if not using in-built /bin/ls code */
