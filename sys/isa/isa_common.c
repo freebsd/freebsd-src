@@ -386,17 +386,19 @@ isa_assign_resources(device_t child)
 {
 	struct isa_device *idev = DEVTOISA(child);
 	struct isa_config_entry *ice;
-	struct isa_config config;
+	struct isa_config *cfg;
 
-	bzero(&config, sizeof config);
+	cfg = malloc(sizeof(struct isa_config), M_TEMP, M_NOWAIT|M_ZERO);
+	if (cfg == NULL)
+		return(0);
 	TAILQ_FOREACH(ice, &idev->id_configs, ice_link) {
-		if (!isa_find_memory(child, &ice->ice_config, &config))
+		if (!isa_find_memory(child, &ice->ice_config, cfg))
 			continue;
-		if (!isa_find_port(child, &ice->ice_config, &config))
+		if (!isa_find_port(child, &ice->ice_config, cfg))
 			continue;
-		if (!isa_find_irq(child, &ice->ice_config, &config))
+		if (!isa_find_irq(child, &ice->ice_config, cfg))
 			continue;
-		if (!isa_find_drq(child, &ice->ice_config, &config))
+		if (!isa_find_drq(child, &ice->ice_config, cfg))
 			continue;
 
 		/*
@@ -405,7 +407,8 @@ isa_assign_resources(device_t child)
 		 */
 		if (idev->id_config_cb) {
 			idev->id_config_cb(idev->id_config_arg,
-					   &config, 1);
+					   cfg, 1);
+			free(cfg, M_TEMP);
 			return 1;
 		}
 	}
@@ -417,11 +420,12 @@ isa_assign_resources(device_t child)
 	printf(" can't assign resources\n");
 	if (bootverbose)
 	    isa_print_child(device_get_parent(child), child);
-	bzero(&config, sizeof config);
+	bzero(cfg, sizeof (*cfg));
 	if (idev->id_config_cb)
-		idev->id_config_cb(idev->id_config_arg, &config, 0);
+		idev->id_config_cb(idev->id_config_arg, cfg, 0);
 	device_disable(child);
 
+	free(cfg, M_TEMP);
 	return 0;
 }
 
@@ -432,6 +436,7 @@ void
 isa_probe_children(device_t dev)
 {
 	device_t *children;
+	struct isa_config *cfg;
 	int nchildren, i;
 
 	/*
@@ -448,15 +453,23 @@ isa_probe_children(device_t dev)
 	 */
 	if (bootverbose)
 		printf("isa_probe_children: disabling PnP devices\n");
+
+	cfg = malloc(sizeof(*cfg), M_TEMP, M_NOWAIT|M_ZERO);
+	if (cfg == NULL) {
+		free(children, M_TEMP);
+		return;
+	}
+
 	for (i = 0; i < nchildren; i++) {
 		device_t child = children[i];
 		struct isa_device *idev = DEVTOISA(child);
-		struct isa_config config;
 
-		bzero(&config, sizeof config);
+		bzero(cfg, sizeof(*cfg));
 		if (idev->id_config_cb)
-			idev->id_config_cb(idev->id_config_arg, &config, 0);
+			idev->id_config_cb(idev->id_config_arg, cfg, 0);
 	}
+
+	free(cfg, M_TEMP);
 
 	/*
 	 * Next probe all non-pnp devices so that they claim their
