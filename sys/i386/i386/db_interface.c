@@ -33,8 +33,10 @@
 #include <sys/systm.h>
 #include <sys/reboot.h>
 #include <sys/cons.h>
-#include <sys/linker_set.h>
 #include <sys/ktr.h>
+#include <sys/linker_set.h>
+#include <sys/lock.h>
+#include <sys/proc.h>
 
 #include <machine/cpu.h>
 #ifdef SMP
@@ -326,5 +328,47 @@ Debugger(msg)
 	    breakpoint();
 	    critical_exit(savecrit);
 	    atomic_store_rel_int(&in_Debugger, 0);
+	}
+}
+
+DB_SHOW_COMMAND(pcpu, db_show_pcpu)
+{
+	struct globaldata *gd;
+	int id;
+
+	if (have_addr)
+		id = ((addr >> 4) % 16) * 10 + (addr % 16);
+	else
+		id = PCPU_GET(cpuid);
+	SLIST_FOREACH(gd, &cpuhead, gd_allcpu) {
+		if (gd->gd_cpuid == id)
+			break;
+	}
+	if (gd == NULL)
+		db_printf("CPU %d not found\n", id);
+	else {
+		db_printf("cpuid\t = %d\ncurproc\t = ", gd->gd_cpuid);
+		if (gd->gd_curproc != NULL)
+			db_printf("%p: pid %d \"%s\"\n", gd->gd_curproc,
+			    gd->gd_curproc->p_pid, gd->gd_curproc->p_comm);
+		else
+			db_printf("none\n");
+		db_printf("curpcb\t = %p\nnpxproc\t = ", gd->gd_curpcb);
+		if (gd->gd_npxproc != NULL)
+			db_printf("%p: pid %d \"%s\"\n", gd->gd_npxproc,
+			    gd->gd_npxproc->p_pid, gd->gd_npxproc->p_comm);
+		else
+			db_printf("none\n");
+		db_printf("idleproc = ");
+		if (gd->gd_idleproc != NULL)
+			db_printf("%p: pid %d \"%s\"\n", gd->gd_idleproc,
+			    gd->gd_idleproc->p_pid, gd->gd_idleproc->p_comm);
+		else
+			db_printf("none\n");
+		
+#ifdef WITNESS
+		db_printf("spin locks held:\n");
+		witness_list_locks(&gd->gd_spinlocks);
+#endif
 	}
 }
