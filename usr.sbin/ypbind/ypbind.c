@@ -29,7 +29,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: ypbind.c,v 1.26 1997/10/27 07:45:47 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -96,8 +96,8 @@ extern bool_t xdr_ypreq_key(), xdr_ypresp_val();
 extern bool_t xdr_ypbind_setdom();
 
 void	checkwork __P((void));
-void	*ypbindproc_null_2 __P((SVCXPRT *, void *, CLIENT *));
-void	*ypbindproc_setdom_2 __P((SVCXPRT *, struct ypbind_setdom *, CLIENT *));
+void	*ypbindproc_null_2_yp __P((SVCXPRT *, void *, CLIENT *));
+void	*ypbindproc_setdom_2_yp __P((SVCXPRT *, struct ypbind_setdom *, CLIENT *));
 void	rpc_received __P((char *, struct sockaddr_in *, int ));
 void	broadcast __P((struct _dom_binding *));
 int	ping __P((struct _dom_binding *));
@@ -156,7 +156,7 @@ fd_set fdsr;
 SVCXPRT *udptransp, *tcptransp;
 
 void *
-ypbindproc_null_2(transp, argp, clnt)
+ypbindproc_null_2_yp(transp, argp, clnt)
 SVCXPRT *transp;
 void *argp;
 CLIENT *clnt;
@@ -168,7 +168,7 @@ CLIENT *clnt;
 }
 
 struct ypbind_resp *
-ypbindproc_domain_2(transp, argp, clnt)
+ypbindproc_domain_2_yp(transp, argp, clnt)
 SVCXPRT *transp;
 domainname *argp;
 CLIENT *clnt;
@@ -241,7 +241,7 @@ rejecting.", *argp);
 }
 
 void *
-ypbindproc_setdom_2(transp, argp, clnt)
+ypbindproc_setdom_2_yp(transp, argp, clnt)
 SVCXPRT *transp;
 ypbind_setdom *argp;
 CLIENT *clnt;
@@ -307,13 +307,13 @@ register SVCXPRT *transp;
 	case YPBINDPROC_NULL:
 		xdr_argument = xdr_void;
 		xdr_result = xdr_void;
-		local = (char *(*)()) ypbindproc_null_2;
+		local = (char *(*)()) ypbindproc_null_2_yp;
 		break;
 
 	case YPBINDPROC_DOMAIN:
 		xdr_argument = xdr_domainname;
 		xdr_result = xdr_ypbind_resp;
-		local = (char *(*)()) ypbindproc_domain_2;
+		local = (char *(*)()) ypbindproc_domain_2_yp;
 		break;
 
 	case YPBINDPROC_SETDOM:
@@ -332,7 +332,7 @@ register SVCXPRT *transp;
 
 		xdr_argument = xdr_ypbind_setdom;
 		xdr_result = xdr_void;
-		local = (char *(*)()) ypbindproc_setdom_2;
+		local = (char *(*)()) ypbindproc_setdom_2_yp;
 		break;
 
 	default:
