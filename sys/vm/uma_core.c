@@ -133,9 +133,6 @@ static int booted = 0;
 static struct callout uma_callout;
 #define	UMA_TIMEOUT	20		/* Seconds for callout interval. */
 
-/* This is mp_maxid + 1, for use while looping over each cpu */
-static int maxcpu;
-
 /*
  * This structure is passed as the zone ctor arg so that I don't have to create
  * a special allocation function just for zones.
@@ -345,7 +342,7 @@ zone_timeout(uma_zone_t zone)
 	 * far out of sync.
 	 */
 	if (!(zone->uz_flags & UMA_ZFLAG_INTERNAL)) {
-		for (cpu = 0; cpu < maxcpu; cpu++) {
+		for (cpu = 0; cpu < mp_maxid; cpu++) {
 			if (CPU_ABSENT(cpu))
 				continue;
 			CPU_LOCK(cpu); 
@@ -572,7 +569,7 @@ cache_drain(uma_zone_t zone)
 	/*
 	 * We have to lock each cpu cache before locking the zone
 	 */
-	for (cpu = 0; cpu < maxcpu; cpu++) {
+	for (cpu = 0; cpu < mp_maxid; cpu++) {
 		if (CPU_ABSENT(cpu))
 			continue;
 		CPU_LOCK(cpu);
@@ -604,7 +601,7 @@ cache_drain(uma_zone_t zone)
 		LIST_REMOVE(bucket, ub_link);
 		bucket_free(bucket);
 	}
-	for (cpu = 0; cpu < maxcpu; cpu++) {
+	for (cpu = 0; cpu < mp_maxid; cpu++) {
 		if (CPU_ABSENT(cpu))
 			continue;
 		CPU_UNLOCK(cpu);
@@ -1172,10 +1169,12 @@ zone_dtor(void *arg, int size, void *udata)
 	mtx_unlock(&uma_mtx);
 
 	ZONE_LOCK(zone);
-	if (zone->uz_free != 0)
+	if (zone->uz_free != 0) {
 		printf("Zone %s was not empty (%d items). "
 		    " Lost %d pages of memory.\n",
 		    zone->uz_name, zone->uz_free, zone->uz_pages);
+		uma_print_zone(zone);
+	}
 
 	ZONE_UNLOCK(zone);
 	if (zone->uz_flags & UMA_ZONE_HASH)
@@ -1217,19 +1216,11 @@ uma_startup(void *bootmem)
 #ifdef UMA_DEBUG
 	printf("Creating uma zone headers zone.\n");
 #endif
-#ifdef SMP
-	maxcpu = mp_maxid + 1;
-#else
-	maxcpu = 1;
-#endif
-#ifdef UMA_DEBUG 
-	printf("Max cpu = %d, mp_maxid = %d\n", maxcpu, mp_maxid);
-#endif
 	mtx_init(&uma_mtx, "UMA lock", NULL, MTX_DEF);
 	/* "manually" Create the initial zone */
 	args.name = "UMA Zones";
 	args.size = sizeof(struct uma_zone) +
-	    (sizeof(struct uma_cache) * (maxcpu - 1));
+	    (sizeof(struct uma_cache) * mp_maxid);
 	args.ctor = zone_ctor;
 	args.dtor = zone_dtor;
 	args.uminit = zero_init;
@@ -1240,9 +1231,8 @@ uma_startup(void *bootmem)
 	zone_ctor(zones, sizeof(struct uma_zone), &args);
 
 	/* Initialize the pcpu cache lock set once and for all */
-	for (i = 0; i < maxcpu; i++)
+	for (i = 0; i < mp_maxid; i++)
 		CPU_LOCK_INIT(i);
-
 #ifdef UMA_DEBUG
 	printf("Filling boot free list.\n");
 #endif
@@ -2069,13 +2059,51 @@ uma_print_stats(void)
 	zone_foreach(uma_print_zone);
 }
 
+static void
+slab_print(uma_slab_t slab)
+{
+	printf("slab: zone %p, data %p, freecount %d, firstfree %d\n",
+		slab->us_zone, slab->us_data, slab->us_freecount,
+		slab->us_firstfree);
+}
+
+static void
+cache_print(uma_cache_t cache)
+{
+	printf("alloc: %p(%d), free: %p(%d)\n", 
+		cache->uc_allocbucket,
+		cache->uc_allocbucket?cache->uc_allocbucket->ub_cnt:0,
+		cache->uc_freebucket,
+		cache->uc_freebucket?cache->uc_freebucket->ub_cnt:0);
+}
+
 void
 uma_print_zone(uma_zone_t zone)
 {
+	uma_cache_t cache;
+	uma_slab_t slab;
+	int i;
+
 	printf("%s(%p) size %d(%d) flags %d ipers %d ppera %d out %d free %d\n",
 	    zone->uz_name, zone, zone->uz_size, zone->uz_rsize, zone->uz_flags,
 	    zone->uz_ipers, zone->uz_ppera,
 	    (zone->uz_ipers * zone->uz_pages) - zone->uz_free, zone->uz_free);
+	printf("Part slabs:\n");
+	LIST_FOREACH(slab, &zone->uz_part_slab, us_link)
+		slab_print(slab);
+	printf("Free slabs:\n");
+	LIST_FOREACH(slab, &zone->uz_free_slab, us_link)
+		slab_print(slab);
+	printf("Full slabs:\n");
+	LIST_FOREACH(slab, &zone->uz_full_slab, us_link)
+		slab_print(slab);
+	for (i = 0; i < mp_maxid; i++) {
+		if (CPU_ABSENT(i))
+			continue;
+		cache = &zone->uz_cpu[i];
+		printf("CPU %d Cache:\n", i);
+		cache_print(cache);
+	}
 }
 
 /*
@@ -2117,7 +2145,7 @@ sysctl_vm_zone(SYSCTL_HANDLER_ARGS)
 		if (cnt == 0)	/* list may have changed size */
 			break;
 		if (!(z->uz_flags & UMA_ZFLAG_INTERNAL)) {
-			for (cpu = 0; cpu < maxcpu; cpu++) {
+			for (cpu = 0; cpu < mp_maxid; cpu++) {
 				if (CPU_ABSENT(cpu))
 					continue;
 				CPU_LOCK(cpu);
@@ -2126,7 +2154,7 @@ sysctl_vm_zone(SYSCTL_HANDLER_ARGS)
 		ZONE_LOCK(z);
 		cachefree = 0;
 		if (!(z->uz_flags & UMA_ZFLAG_INTERNAL)) {
-			for (cpu = 0; cpu < maxcpu; cpu++) {
+			for (cpu = 0; cpu < mp_maxid; cpu++) {
 				if (CPU_ABSENT(cpu))
 					continue;
 				cache = &z->uz_cpu[cpu];
