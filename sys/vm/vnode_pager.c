@@ -311,8 +311,10 @@ vnode_pager_setsize(vp, nsize)
 		vm_freeze_copyopts(object, OFF_TO_IDX(nsize), object->size);
 #endif
 		if (nobjsize < object->size) {
+			vm_object_lock(object);
 			vm_object_page_remove(object, nobjsize, object->size,
 				FALSE);
+			vm_object_unlock(object);
 		}
 		/*
 		 * this gets rid of garbage at the end of a page that is now
