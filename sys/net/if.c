@@ -100,6 +100,12 @@ LIST_HEAD(, if_clone) if_cloners = LIST_HEAD_INITIALIZER(if_cloners);
 static int	if_indexlim = 8;
 static struct	klist ifklist;
 
+static void	filt_netdetach(struct knote *kn);
+static int	filt_netdev(struct knote *kn, long hint);
+
+static struct filterops netdev_filtops =
+    { 1, NULL, filt_netdetach, filt_netdev };
+
 /*
  * System initialization
  */
@@ -114,6 +120,7 @@ MALLOC_DEFINE(M_IFMADDR, "ether_multi", "link-level multicast address");
 static d_open_t		netopen;
 static d_close_t	netclose;
 static d_ioctl_t	netioctl;
+static d_kqfilter_t	netkqfilter;
 
 static struct cdevsw net_cdevsw = {
 	/* open */	netopen,
@@ -128,7 +135,8 @@ static struct cdevsw net_cdevsw = {
 	/* maj */	CDEV_MAJOR,
 	/* dump */	nodump,
 	/* psize */	nopsize,
-	/* flags */	0
+	/* flags */	D_KQFILTER,
+	/* kqfilter */	netkqfilter,
 };
 
 static int
@@ -170,6 +178,68 @@ netioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 	if (error == ENOIOCTL)
 		error = EOPNOTSUPP;
 	return (error);
+}
+
+static int
+netkqfilter(dev_t dev, struct knote *kn)
+{
+	struct klist *klist;
+	struct ifnet *ifp;
+	int idx;
+
+	idx = minor(dev);
+	if (idx == 0) {
+		klist = &ifklist;
+	} else {
+		ifp = ifnet_byindex(idx);
+		if (ifp == NULL)
+			return (1);
+		klist = &ifp->if_klist;
+	}
+
+	switch (kn->kn_filter) {
+	case EVFILT_NETDEV:
+		kn->kn_fop = &netdev_filtops;
+		break;
+	default:
+		return (1);
+	}
+
+	kn->kn_hook = (caddr_t)klist;
+
+	/* XXX locking? */
+	SLIST_INSERT_HEAD(klist, kn, kn_selnext);
+
+	return (0);
+}
+
+static void
+filt_netdetach(struct knote *kn)
+{
+	struct klist *klist = (struct klist *)kn->kn_hook;
+
+	if (kn->kn_status & KN_DETACHED)
+		return;
+	SLIST_REMOVE(klist, kn, knote, kn_selnext);
+}
+
+static int
+filt_netdev(struct knote *kn, long hint)
+{
+
+	/*
+	 * Currently NOTE_EXIT is abused to indicate device detach.
+	 */
+	if (hint == NOTE_EXIT) {
+		kn->kn_data = NOTE_LINKINV;
+                kn->kn_status |= KN_DETACHED;
+                kn->kn_flags |= (EV_EOF | EV_ONESHOT); 
+                return (1);
+        }
+	kn->kn_data = hint;			/* current status */
+	if (kn->kn_sfflags & hint)
+		kn->kn_fflags |= hint;
+	return (kn->kn_fflags != 0);
 }
 
 /*
@@ -258,6 +328,7 @@ if_attach(ifp)
 	TAILQ_INIT(&ifp->if_addrhead);
 	TAILQ_INIT(&ifp->if_prefixhead);
 	TAILQ_INIT(&ifp->if_multiaddrs);
+	SLIST_INIT(&ifp->if_klist);
 	getmicrotime(&ifp->if_lastchange);
 	if (if_index >= if_indexlim)
 		if_grow();
@@ -385,6 +456,7 @@ if_detach(ifp)
 		(void) rnh->rnh_walktree(rnh, if_rtdel, ifp);
 	}
 
+	KNOTE(&ifp->if_klist, NOTE_EXIT);
 	TAILQ_REMOVE(&ifnet, ifp, if_link);
 	mtx_destroy(&ifp->if_snd.ifq_mtx);
 	splx(s);
