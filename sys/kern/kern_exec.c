@@ -350,7 +350,7 @@ interpret:
 	 * Implement correct POSIX saved-id behavior.
 	 *
 	 * XXX: It's not clear that the existing behavior is
-	 * POSIX-compliant.  A number of sourses indicate that the saved
+	 * POSIX-compliant.  A number of sources indicate that the saved
 	 * uid/gid should only be updated if the new ruid is not equal to
 	 * the old ruid, or the new euid is not equal to the old euid and
 	 * the new euid is not equal to the old ruid.  The FreeBSD code
