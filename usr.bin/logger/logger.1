@@ -51,9 +51,8 @@ provides a shell command interface to the
 .Xr syslog  3
 system log module.
 .Pp
-Options:
-.Pp
-.Bl -tag -width "message"
+The following options are available:
+.Bl -tag -width indent
 .It Fl i
 Log the process id of the logger process
 with each line.
@@ -80,7 +79,7 @@ Write the message to log; if not specified, and the
 flag is not
 provided, standard input is logged.
 .El
-.Pp
+.Sh DIAGNOSTICS
 The
 .Nm
 utility exits 0 on success, and >0 if an error occurs.
