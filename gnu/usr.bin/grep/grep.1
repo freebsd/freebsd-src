@@ -312,8 +312,9 @@ Displays input actually coming from standard input as input coming from file
 This is especially useful for tools like zgrep, e.g.
 .B "gzip -cd foo.gz |grep --label=foo something"
 .TP
-.BR \-\^\-line-buffering
-Use line buffering, it can be a performance penality.
+.BR \-\^\-line-buffered
+Flush output on every line.
+Note that this incurs a performance penalty.
 .TP
 .BR \-q ", " \-\^\-quiet ", " \-\^\-silent
 Quiet; do not write anything to standard output.
