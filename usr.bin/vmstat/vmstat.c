@@ -59,7 +59,6 @@ static const char rcsid[] =
 #include <sys/vmmeter.h>
 
 #include <vm/vm_param.h>
-#include <vm/vm_zone.h>
 
 #include <ctype.h>
 #include <err.h>
@@ -165,8 +164,7 @@ main(argc, argv)
 	u_int interval;
 	int reps;
 	char *memf, *nlistf;
-        char errbuf[_POSIX2_LINE_MAX];
-	char *err_str;
+	char errbuf[_POSIX2_LINE_MAX];
 
 	memf = nlistf = NULL;
 	interval = reps = todo = 0;
@@ -319,9 +317,6 @@ char **
 getdrivedata(argv)
 	char **argv;
 {
-	register int i;
-	char buf[30];
-
 	if ((num_devices = getnumdevs()) < 0)
 		errx(1, "%s", devstat_errbuf);
 
@@ -478,12 +473,12 @@ dovmstat(interval, reps)
 			printf("Can't get kerninfo: %s\n", strerror(errno));
 			bzero(&total, sizeof(total));
 		}
-		(void)printf("%2d%2d%2d",
+		(void)printf("%2d %1d %1d",
 		    total.t_rq - 1, total.t_dw + total.t_pw, total.t_sw);
-#define pgtok(a) ((a) * sum.v_page_size >> 10)
+#define vmstat_pgtok(a) ((a) * sum.v_page_size >> 10)
 #define	rate(x)	(((x) + halfuptime) / uptime)	/* round */
-		(void)printf("%8ld%6ld ",
-		    (long)pgtok(total.t_avm), (long)pgtok(total.t_free));
+		(void)printf(" %7ld %6ld ",
+		    (long)vmstat_pgtok(total.t_avm), (long)vmstat_pgtok(total.t_free));
 		(void)printf("%4lu ",
 		    (u_long)rate(sum.v_vm_faults - osum.v_vm_faults));
 		(void)printf("%3lu ",
@@ -528,13 +523,13 @@ printhdr()
 	int i, num_shown;
 
 	num_shown = (num_selected < maxshowdevs) ? num_selected : maxshowdevs;
-	(void)printf(" procs      memory     page%*s", 19, "");
+	(void)printf(" procs      memory      page%*s", 19, "");
 	if (num_shown > 1)
 		(void)printf(" disks %*s", num_shown * 4 - 7, "");
 	else if (num_shown == 1)
 		(void)printf("disk");
 	(void)printf("   faults      cpu\n");
-	(void)printf(" r b w     avm   fre  flt  re  pi  po  fr  sr ");
+	(void)printf(" r b w     avm    fre  flt  re  pi  po  fr  sr ");
 	for (i = 0; i < num_devices; i++)
 		if ((dev_select[i].selected)
 		 && (dev_select[i].selected <= maxshowdevs))
@@ -739,17 +734,17 @@ dointr()
 		errx(1, "malloc");
 	kread(X_INTRCNT, intrcnt, (size_t)nintr);
 	kread(X_INTRNAMES, intrname, (size_t)inamlen);
-	(void)printf("interrupt      total      rate\n");
+	(void)printf("interrupt                   total       rate\n");
 	inttotal = 0;
 	nintr /= sizeof(long);
 	while (--nintr >= 0) {
 		if (*intrcnt)
-			(void)printf("%-12s %8lu %8lu\n", intrname,
+			(void)printf("%-12s %20lu %10lu\n", intrname,
 			    *intrcnt, *intrcnt / uptime);
 		intrname += strlen(intrname) + 1;
 		inttotal += *intrcnt++;
 	}
-	(void)printf("Total        %8llu %8llu\n", inttotal,
+	(void)printf("Total        %20llu %10llu\n", inttotal,
 			inttotal / (u_int64_t) uptime);
 }
 
@@ -765,7 +760,6 @@ domem()
 	long totuse = 0, totfree = 0, totreq = 0;
 	const char *name;
 	struct malloc_type kmemstats[MAX_KMSTATS], *kmsp;
-	char *kmemnames[MAX_KMSTATS];
 	char buf[1024];
 	struct kmembuckets buckets[MINBUCKET + 16];
 
@@ -796,7 +790,7 @@ domem()
 			(void)printf("%4d",size);
 		else
 			(void)printf("%3dK",size>>10);
-		(void)printf(" %8ld %6ld %10ld %7ld %10ld\n",
+		(void)printf(" %8ld %6ld %10lld %7ld %10ld\n",
 			kp->kb_total - kp->kb_totalfree,
 			kp->kb_totalfree, kp->kb_calls,
 			kp->kb_highwat, kp->kb_couldfree);
@@ -842,7 +836,7 @@ domem()
 	for (i = 0, ks = &kmemstats[0]; i < nkms; i++, ks++) {
 		if (ks->ks_calls == 0)
 			continue;
-		(void)printf("%13s%6ld%6ldK%7ldK%6ldK%9ld%5u%6u",
+		(void)printf("%13s%6ld%6ldK%7ldK%6ldK%9lld%5u%6u",
 		    ks->ks_shortdesc,
 		    ks->ks_inuse, (ks->ks_memuse + 1023) / 1024,
 		    (ks->ks_maxused + 1023) / 1024,
@@ -874,55 +868,23 @@ domem()
 void
 dozmem()
 {
-	vm_zone_t zonep;
-	int nmax = 512;
-	int zused_bytes = 0;
-	int ztotal_bytes = 0;
+	char *buf;
+	size_t bufsize;
 
-	printf(
-	    "\n"
-	    "%-16s%-8s%-8s%-8s\n",
-	    "ZONE", 
-	    "used",
-	    "total",
-	    "mem-use"
-	);
-
-	kread(X_ZLIST, &zonep, sizeof(zonep));
-	while (zonep != NULL && nmax) {
-		struct vm_zone zone;
-		char buf[32];
-		int n;
-
-		if (kvm_read(kd, (u_long)zonep, &zone, sizeof(zone)) != sizeof(zone))
+	buf = NULL;
+	bufsize = 1024;
+	for (;;) {
+		if ((buf = realloc(buf, bufsize)) == NULL)
+			err(1, "realloc()");
+		if (sysctlbyname("vm.zone", buf, &bufsize, 0, NULL) == 0)
 			break;
-		n = kvm_read(kd, (u_long)zone.zname, buf, sizeof(buf) - 1);
-		if (n < 0)
-		    n = 0;
-		buf[n] = 0;
-
-		printf(
-		    "%-15.15s %-7d %-7d %4d/%dK\n",
-		    buf,
-		    zone.ztotal - zone.zfreecnt,
-		    zone.ztotal,
-		    (zone.ztotal - zone.zfreecnt) * zone.zsize / 1024,
-		    zone.ztotal * zone.zsize / 1024
-		);
-		zused_bytes += (zone.ztotal - zone.zfreecnt) * zone.zsize;
-		ztotal_bytes += zone.ztotal * zone.zsize;
-		--nmax;
-		zonep = zone.znext;
+		if (errno != ENOMEM)
+			err(1, "sysctl()");
+		bufsize *= 2;
 	}
-	printf(
-	    "------------------------------------------\n"
-	    "%-15.15s %-7s %-7s %4d/%dK\n\n",
-	    "TOTAL",
-	    "",
-	    "",
-	    zused_bytes / 1024,
-	    ztotal_bytes / 1024
-	);
+	buf[bufsize] = '\0'; /* play it safe */
+	(void)printf("%s\n\n", buf);
+	free(buf);
 }
 
 /*
@@ -953,7 +915,8 @@ kread(nlx, addr, size)
 void
 usage()
 {
-	(void)fprintf(stderr,
-"usage: vmstat [-imsz] [-c count] [-M core] [-N system] [-w wait] [disks]\n");
+	(void)fprintf(stderr, "%s%s",
+		"usage: vmstat [-imsz] [-c count] [-M core] [-N system] [-w wait]\n",
+		"              [-n devs] [disks]\n");
 	exit(1);
 }
