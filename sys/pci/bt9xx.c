@@ -19,7 +19,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: bt9xx.c,v 1.3 1995/12/14 14:19:19 peter Exp $
+ *	$Id: bt9xx.c,v 1.3.2.1 1996/02/12 17:03:27 gibbs Exp $
  */
 
 #include <pci.h>
@@ -35,7 +35,6 @@
 #include <i386/scsi/btreg.h>
 
 /* XXX Need more device IDs */
-#define PCI_BASEADR0	PCI_MAP_REG_START
 #define PCI_DEVICE_ID_BUSLOGIC_946	0x1040104Bul
 
 static char* bt_pci_probe __P((pcici_t tag, pcidi_t type));
@@ -71,17 +70,21 @@ bt_pci_attach(config_id, unit)
 	pcici_t config_id;
 	int	unit;
 {
+	u_char reg;
 	u_long io_port;
 	unsigned opri = 0;
 	struct bt_data *bt;
 
-        if(!(io_port = pci_conf_read(config_id, PCI_BASEADR0)))
+	for(reg = PCI_MAP_REG_START; reg < PCI_MAP_REG_END; reg+=4) {
+	        io_port = pci_conf_read(config_id, reg);
+		if ((io_port&~7)==0) continue;
+		if(io_port & PCI_MAP_IO) {
+			io_port &= ~PCI_MAP_IO;
+			break;
+		}
+	}
+	if(reg == PCI_MAP_REG_END)
 		return;
-	/*
-	 * The first bit of PCI_BASEADR0 is always
-	 * set hence we mask it off.
-	 */
-	io_port &= 0xfffffffe;
 
 	if(!(bt = bt_alloc(unit, io_port)))
 		return;  /* XXX PCI code should take return status */
