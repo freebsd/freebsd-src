@@ -9,7 +9,7 @@ SRCS+=	ansi.c big5.c collate.c collcmp.c euc.c fix_grouping.c frune.c \
 	ldpart.c lmessages.c lmonetary.c lnumeric.c localeconv.c mbrune.c \
         mskanji.c nl_langinfo.c nomacros.c none.c rune.c \
 	runetype.c setinvalidrune.c setlocale.c setrunelocale.c table.c \
-	tolower.c toupper.c utf2.c
+	tolower.c toupper.c utf2.c utf8.c
 
 .if ${LIB} == "c"
 MAN+=	ctype.3 isalnum.3 isalpha.3 isascii.3 isblank.3 iscntrl.3 \
@@ -17,6 +17,7 @@ MAN+=	ctype.3 isalnum.3 isalpha.3 isascii.3 isblank.3 iscntrl.3 \
 	isupper.3 isxdigit.3 mbrune.3 multibyte.3 nl_langinfo.3 rune.3 \
 	setlocale.3 toascii.3 tolower.3 toupper.3
 MAN+=	euc.4 utf2.4
+MAN+=	utf8.5
 
 MLINKS+=mbrune.3 mbmb.3 mbrune.3 mbrrune.3
 MLINKS+=multibyte.3 mblen.3 multibyte.3 mbstowcs.3 multibyte.3 mbtowc.3 \
