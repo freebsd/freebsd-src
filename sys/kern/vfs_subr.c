@@ -83,6 +83,7 @@
 
 static MALLOC_DEFINE(M_NETADDR, "Export Host", "Export host address structure");
 
+static void	addalias __P((struct vnode *vp, dev_t nvp_rdev));
 static void	insmntque __P((struct vnode *vp, struct mount *mp));
 static void	vclean __P((struct vnode *vp, int flags, struct proc *p));
 static unsigned long	numvnodes;
@@ -1338,7 +1339,7 @@ addaliasu(nvp, nvp_rdev)
 	return (ovp);
 }
 
-void
+static void
 addalias(nvp, dev)
 	struct vnode *nvp;
 	dev_t dev;
