@@ -40,6 +40,7 @@
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
+#include <sys/sysctl.h>
 
 #include <sys/bus.h>
 #include <sys/conf.h>
@@ -113,7 +114,9 @@
     bus_dma_tag_t		twe_buffer_dmat;	/* data buffer DMA tag */	\
     struct resource		*twe_irq;		/* interrupt */			\
     void			*twe_intr;		/* interrupt handle */		\
-    struct intr_config_hook	twe_ich;		/* delayed-startup hook */
+    struct intr_config_hook	twe_ich;		/* delayed-startup hook */	\
+    struct sysctl_ctx_list	sysctl_ctx;						\
+    struct sysctl_oid		*sysctl_tree;
 
 /*
  * FreeBSD-specific request elements
