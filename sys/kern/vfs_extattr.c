@@ -319,6 +319,7 @@ vfs_mount(td, fstype, fspath, fsflags, fsdata)
 	 * Allocate and initialize the filesystem.
 	 */
 	mp = malloc(sizeof(struct mount), M_MOUNT, M_WAITOK | M_ZERO);
+	TAILQ_INIT(&mp->mnt_nvnodelist);
 	lockinit(&mp->mnt_lock, PVFS, "vfslock", 0, LK_NOPAUSE);
 	(void)vfs_busy(mp, LK_NOWAIT, 0, td);
 	mp->mnt_op = vfsp->vfc_vfsops;
@@ -591,7 +592,7 @@ dounmount(mp, flags, td)
 	if ((coveredvp = mp->mnt_vnodecovered) != NULL)
 		coveredvp->v_mountedhere = NULL;
 	mp->mnt_vfc->vfc_refcount--;
-	if (!LIST_EMPTY(&mp->mnt_vnodelist))
+	if (!TAILQ_EMPTY(&mp->mnt_nvnodelist))
 		panic("unmount: dangling vnode");
 	lockmgr(&mp->mnt_lock, LK_RELEASE | LK_INTERLOCK, &mountlist_mtx, td);
 	lockdestroy(&mp->mnt_lock);

@@ -788,10 +788,10 @@ nfs_clearcommit(struct mount *mp)
 	s = splbio();
 	mtx_lock(&mntvnode_mtx);
 loop:
-	for (vp = LIST_FIRST(&mp->mnt_vnodelist); vp; vp = nvp) {
+	for (vp = TAILQ_FIRST(&mp->mnt_nvnodelist); vp; vp = nvp) {
 		if (vp->v_mount != mp)	/* Paranoia */
 			goto loop;
-		nvp = LIST_NEXT(vp, v_mntvnodes);
+		nvp = TAILQ_NEXT(vp, v_nmntvnodes);
 		for (bp = TAILQ_FIRST(&vp->v_dirtyblkhd); bp; bp = nbp) {
 			nbp = TAILQ_NEXT(bp, b_vnbufs);
 			if (BUF_REFCNT(bp) == 0 &&
