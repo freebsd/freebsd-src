@@ -199,7 +199,8 @@ Elf32_Brandinfo svr4_brand = {
   "SVR4",
   svr4_emul_path,
   "/lib/libc.so.1",
-  &svr4_sysvec
+  &svr4_sysvec,
+  NULL,
 };
 
 const char      svr4_emul_path[] = "/compat/svr4";
