@@ -206,12 +206,11 @@ vm_page_startup(vm_offset_t starta, vm_offset_t enda, vm_offset_t vaddr)
 	end = phys_avail[biggestone+1];
 
 	/*
-	 * Initialize the locks.  Recursive acquisition of the vm page
-	 * queue free mutex begins in contigmalloc1().  
+	 * Initialize the locks.
 	 */
 	mtx_init(&vm_page_queue_mtx, "vm page queue mutex", NULL, MTX_DEF);
 	mtx_init(&vm_page_queue_free_mtx, "vm page queue free mutex", NULL,
-	   MTX_RECURSE | MTX_SPIN);
+	    MTX_SPIN);
 
 	/*
 	 * Initialize the queue headers for the free queue, the active queue
