@@ -1,6 +1,6 @@
 <!-- This is an SGML document in the linuxdoc DTD of the Tutorial for
      Configuring a FreeBSD for Dialup Services by Guy Helmer.
-     $Id: dialup.sgml,v 1.13 1996/08/15 20:52:18 mpp Exp $
+     $Id: dialup.sgml,v 1.14 1996/11/28 18:09:26 jfieber Exp $
 
 <!DOCTYPE linuxdoc PUBLIC "-//Linux//DTD linuxdoc//EN">
 
@@ -34,7 +34,7 @@ suggestions here.
 To begin with, the author assumes you have some basic knowledge of
 FreeBSD.  You need to have FreeBSD installed, know how to edit files
 in a UNIX-like environment, and how to look up manual pages on the
-system.  As discussed below, you'll need certain versions of FreeBSD,
+system.  As discussed below, you will need certain versions of FreeBSD,
 and knowledge of some terminology &amp; modem and cabling.
 
 <sect2><heading>FreeBSD Version</heading>
@@ -140,7 +140,7 @@ modem's reference book or user's guide handy.  Sample commands for USR
 Sportster 14,400 external modems will be given, which you may be able
 to use as a reference for your own modem's commands.
 
-Lastly, you'll need to know how to setup your modem so that it will
+Lastly, you will need to know how to setup your modem so that it will
 work well with FreeBSD.  Like other UNIX-like operating systems,
 FreeBSD uses the hardware signals to find out when a call has been
 answered or a line has been hung up and to hangup and reset the modem
@@ -590,7 +590,7 @@ stty -f /dev/ttyd3 crtscts
 
 Since there is no initialization device special file on FreeBSD
 1.1, one has to just set the flags on the sole device special file and
-hope the flags aren't cleared by a miscreant.
+hope the flags are not cleared by a miscreant.
 
 <sect1><heading>Modem Settings</heading>
 <p>

@@ -1,4 +1,4 @@
-<!-- $Id: ports.sgml,v 1.17 1996/11/11 06:50:45 asami Exp $ -->
+<!-- $Id: ports.sgml,v 1.18 1996/12/21 11:51:33 max Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>The Ports collection<label id="ports"></heading>
@@ -10,7 +10,7 @@ wide range of applications with a minimum of effort.
 
 <p> For all the hype about open standards, getting a program to work
 on different versions of Unix in the real world can be a tedious and
-tricky business, as anyone who's tried it will know. You may be lucky
+tricky business, as anyone who has tried it will know. You may be lucky
 enough to find that the program you want will compile cleanly on your
 system, install itself in all the right places and run flawlessly
 ``out of the box'', but this is unfortunately rather rare. With most
@@ -21,7 +21,7 @@ greying, or even chronic alopecia...
 <p> Some software distributions have attacked this problem by
 providing configuration scripts. Some of these are very clever, but
 they have an unfortunate tendency to triumphantly announce that your
-system is something you've never heard of and then ask you lots of
+system is something you have never heard of and then ask you lots of
 questions that sound like a final exam in system-level Unix
 programming (``Does your system's gethitlist function return a const
 pointer to a fromboz or a pointer to a const fromboz? Do you have
@@ -34,23 +34,23 @@ working program.
 <sect1><heading>Why have a Ports Collection?</heading>
 
 <p>The base FreeBSD system comes with a very wide range of tools and
-system utilities, but a lot of popular programs aren't in the base
+system utilities, but a lot of popular programs are not in the base
 system, for good reasons:-
 
 <enum>
-<item>``I can't live without x y and z on my system'' type programs
+<item>``I can not  live without x y and z on my system'' type programs
 (eg a certain Lisp-based editor, or the mtools set of programs for
-dealing with DOS floppy disks), because it's too subjective (many
-people can't stand Emacs and/or never use DOS floppies and seem none
+dealing with DOS floppy disks), because it is too subjective (many
+people can not stand Emacs and/or never use DOS floppies and seem none
 the worse for it).
 
 <item>Too specialised to put in the base system (CAD, databases).
 
-<item>Programs which fall into the ``I wouldn't mind having a look at
+<item>Programs which fall into the ``I wouldn not mind having a look at
 that when I get a spare minute'' category, rather than system-critical
 ones (some languages, perhaps).
 
-<item>``Wow fab this is way cool'' fun type programs that couldn't
+<item>``Wow fab this is way cool'' fun type programs that could not
 possibly be supplied with a serious operating system like FreeBSD ;-)
 
 <item>However many programs you put in the base system, people will
@@ -94,17 +94,17 @@ url="ftp://www.freebsd.org/pub/FreeBSD/ports/shells/bash" name="the
 FTP site">) and expect to find all sorts of pointy-headed rocket
 science lurking there, you may be disappointed by the one or two
 rather unexciting-looking files and directories you find there.
-(We'll discuss in a minute how to go about <ref id="ports:getting"
+(We will discuss in a minute how to go about <ref id="ports:getting"
 name="Getting a port">).
 
 <p>``How on earth can this do anything?'' I hear you cry. ``There
-isn't even any source code there!''
+is not even any source code there!''
 
 <p> Fear not, gentle reader, all will become clear (hopefully). Let's
-see what happens if we try and install a port. I've chose `bash', also
+see what happens if we try and install a port. I have chosen `bash', also
 known as the Bourne-Again Shell, as that seems fairly typical.
 
-<em>Note</em> if you're trying this at home, you'll need to be root.
+<em>Note</em> if you are trying this at home, you will need to be root.
 
 <verb>
  # cd /usr/ports/shells/bash
@@ -133,30 +133,30 @@ known as the Bourne-Again Shell, as that seems fairly typical.
  ===>  Registering installation for bash-1.14.5
 </verb>
 
-<p> To avoid confusing the issue, I've slightly pruned the install
+<p> To avoid confusing the issue, I have slightly pruned the install
 output, as well as completely removing the build output. If you tried
 this yourself, you may well have got something like this at the start:-
 
 <label id="ports:fetch">
 <verb>
- >> bash-1.14.5.tar.gz doesn't seem to exist on this system.
+ >> bash-1.14.5.tar.gz does not seem to exist on this system.
  >> Attempting to fetch from ftp://slc2.ins.cwru.edu/pub/dist/.
 </verb>
 
-<p> The `make' program has noticed that you didn't have a local copy
+<p> The `make' program has noticed that you did not have a local copy
 of the source code and tried to FTP it down so it could get the job
 done (are you starting to feel impressed? 8-)). I already had the
-source handy in my example, so it didn't need to fetch it.
+source handy in my example, so it did not need to fetch it.
 
 <p> Let's go through this and see what the `make' program was doing.
 
 <enum>
 <item> Locate the source code <ref id="ports:tarball"
-name="tarball."> If it's not available locally, try to grab it from an
+name="tarball."> If it is not available locally, try to grab it from an
 FTP site.
 
 <item> Run a <ref id="ports:checksum" name="checksum"> test on the
-tarball to make sure it hasn't been tampered with, accidentally
+tarball to make sure it has not been tampered with, accidentally
 truncated, struck by neutrinos while in transit, etc.
 
 <item> Extract the tarball into a temporary work directory.
@@ -170,19 +170,19 @@ correctly answer any questions it asks.
 <item> (Finally!) Compile the code.
 
 <item> Install the program executable and other supporting files, man
-pages, etc. under the /usr/local hierarchy, where they won't get mixed
+pages, etc. under the /usr/local hierarchy, where they will not get mixed
 up with system programs. This also makes sure that all the ports you
 install will go in the same place, instead of being flung all over
 your system.
 
 <item> Register the installation in a database. This means
-that, if you don't like the program, you can cleanly <ref
+that, if you do not like the program, you can cleanly <ref
 id="ports:remove" name="remove"> all traces of it from your system.
 
 </enum>
 
 <p> See if you can match these steps to the make output. And if you
-weren't impressed before, you should be by now!
+were not impressed before, you should be by now!
 
 <sect1><heading>Getting a FreeBSD Port<label id="ports:getting"></heading>
 <p>
@@ -211,7 +211,7 @@ find them in /usr/ports/distfiles, which is why we sym-linked the
 CDROM's tarball directory to there).
 <p>
 Now, suppose you want to install the gnats program from the databases
-directory. Here's how to do it:-
+directory. Here is how to do it:-
 
 <verb>
  # cd /usr/ports
@@ -221,7 +221,7 @@ directory. Here's how to do it:-
  # make install
 </verb>
 
-Or if you're a serious database user and you want to compare all the
+Or if you are a serious database user and you want to compare all the
 ones available in the Ports collection, do
 
 <verb>
@@ -232,12 +232,12 @@ ones available in the Ports collection, do
 </verb>
 
 (yes, that really is a dot on its own after the cp command and not a
-mistake. It's Unix-ese for ``the current directory'')
+mistake. It is Unix-ese for ``the current directory'')
 <p>
 and the ports make mechanism will automatically compile and install
 all the ports in the databases directory for you!
 <p>
-If you don't like this method, here's a completely different way of
+If you do not like this method, here is a completely different way of
 doing it:-
 <p>
 Create a "link tree" to it using the <tt>lndir(1)</tt> command that
@@ -258,17 +258,17 @@ name="Compiling ports using an Internet connection.">
 <sect2><heading>Compiling ports from the Internet<label
 id="ports:inet"></heading>
 <p>
-If you don't have a CDROM, or you want to make sure you get the very
-latest version of the port you want, you'll need to download the
+If you do not have a CDROM, or you want to make sure you get the very
+latest version of the port you want, you will need to download the
 <ref id="ports:skeleton" name="skeleton"> for the port. Now this 
 might sound like rather a fiddly job
 full of pitfalls, like downloading the patches into the pkg
-sub-directory by mistake, but it's actually very easy. 
+sub-directory by mistake, but it is actually very easy. 
 <p>
 The key to it is that the FreeBSD FTP server can create on-the-fly
-<ref id="ports:tarball" name="tarballs"> for you. Here's how it works,
+<ref id="ports:tarball" name="tarballs"> for you. Here is how it works,
 with the gnats program in the databases directory as an example (the
-bits in square brackets are comments, don't type them in if you're
+bits in square brackets are comments, do not type them in if you are
 trying this yourself!):-
 
 <verb>
@@ -295,7 +295,7 @@ on it a little quicker.
 <p>
 We then extracted the gnats skeleton and went into the gnats directory
 to build the port. As we explained <ref id="ports:fetch"
-name="earlier">, the make process noticed we didn't have a copy of the
+name="earlier">, the make process noticed we did not have a copy of the
 source locally, so it fetched one before extracting, patching and
 building it.
 <p>
@@ -322,16 +322,16 @@ different from getting a single port skeleton and building it was that
 we got a whole directory at once, and compiled everything in it at
 once. Pretty impressive, no?
 <p>
-If you expect to be installing more than one or two ports, it's
+If you expect to be installing more than one or two ports, it is
 probably worth downloading all the ports directories - this involves
-downloading 2 or 3MB, when they're compressed. However, don't get
-carried away and type 'get ports.tar.gz' unless you're prepared to
+downloading 2 or 3MB, when they are compressed. However, don't get
+carried away and type 'get ports.tar.gz' unless you are prepared to
 download the distfiles directory as well - this contains the source
 code for every single port and will take a very long time to download!
 
 <sect1><heading>Skeletons<label id="ports:skeleton"></heading>
 <p>
-A team of compulsive hackers who've forgotten to eat in a frantic
+A team of compulsive hackers who have forgotten to eat in a frantic
 attempt to make a deadline? Something unpleasant lurking in the FreeBSD 
 attic? No, a skeleton here is a minimal framework that supplies everything
 needed to make the ports magic work.
@@ -340,7 +340,7 @@ needed to make the ports magic work.
 <p>
 The most important component of a skeleton is the Makefile. This contains
 various statements that specify how the port should be compiled and
-installed. Here's the Makefile for bash:-
+installed. Here is the Makefile for bash:-
 
 <verb>
  # New ports collection makefile for:	bash
@@ -412,7 +412,7 @@ used for ports checksums. It lives in a directory with the slightly
 confusing name of &quot;files&quot;.
 <p>
 This directory can also contain other miscellaneous files that are required
-by the port and don't belong anywhere else.
+by the port and do not belong anywhere else.
 
 <sect2><heading>The patches directory</heading>
 <p>
@@ -473,7 +473,7 @@ dddprogram to install them to your system.
 
 </enum>
 
-<sect1><heading>I've got this program I'd like to make into a port...</heading>
+<sect1><heading>I have this program that I would like to make into a port...</heading>
 
 <p>Great! Please see the <ref id="porting:starting" name="guidelines">
 for detailed instructions on how to do this.
@@ -485,8 +485,8 @@ for detailed instructions on how to do this.
 Q. I thought this was going to be a discussion about modems??!
 <p>
 A. Ah. You must be thinking of the serial ports on the back of your
-computer. We're using `port' here to mean the result of `porting' a
-program from one version of Unix to another. (It's an unfortunate bad
+computer. We are using `port' here to mean the result of `porting' a
+program from one version of Unix to another. (It is an unfortunate bad
 habit of computer people to use the same word to refer to several
 completely different things).
 
@@ -494,7 +494,7 @@ completely different things).
 Q. I thought you were supposed to use packages to install extra
 programs?
 <p>
-A. Yes, that's usually the quickest and easiest way of doing it.
+A. Yes, that is usually the quickest and easiest way of doing it.
 
 <item>
 Q. So why bother with ports then?
@@ -505,11 +505,11 @@ A. Several reasons:-
 <item> The licensing conditions on some software distributions
 require that they be distributed as source code, not binaries.
 
-<item> Some people don't trust binary distributions. At least with
+<item> Some people do not trust binary distributions. At least with
 source code you can (in theory) read through it and look for potential
 problems yourself.
 
-<item> If you've got some local patches, you'll need the source to add
+<item> If you have some local patches, you will need the source to add
 them yourself.
 
 <item> You might have opinions on how a program should be compiled
@@ -525,23 +525,23 @@ permitting, of course!) and so on.
 </enum>
 
 <item><label id="ports:patch">
-Q. What's a patch?
+Q. What is a patch?
 <p>
 A. A patch is a small (usually) file that specifies how to go from one
 version of a file to another. It contains text that says, in effect,
 things like ``delete line 23'', ``add these two lines after line 468''
-or ``change line 197 to this''. Also known as a `diff', since it's
+or ``change line 197 to this''. Also known as a `diff', since it is
 generated by a program of that name.
 
 <item><label id="ports:tarball">
-Q. What's all this about tarballs?
+Q. What is all this about tarballs?
 <p>
-A. It's a file ending in .tar.gz (with variations like .tar.Z, or
-even .tgz if you're trying to squeeze the names into a DOS filesystem).
+A. It is a file ending in .tar.gz (with variations like .tar.Z, or
+even .tgz if you are trying to squeeze the names into a DOS filesystem).
 <p>
-Basically, it's a directory tree that's been archived into a single
+Basically, it is a directory tree that has been archived into a single
 file (.tar) and then compressed (.gz). This technique was originally
-used for <em /T/ape <em /AR/chives (hence the name `tar'), but it's a
+used for <em /T/ape <em /AR/chives (hence the name `tar'), but it is a
 widely used way of distributing program source code around the
 Internet.
 <p>
@@ -557,11 +557,11 @@ system, like this:-
 <item><label id="ports:checksum">
 Q. And a checksum?
 <p>
-A. It's a number generated by adding up all the data in the file you
+A. It is a number generated by adding up all the data in the file you
 want to check. If any of the characters change, the checksum will no
 longer be equal to the total, so a simple comparison will allow you to
-spot the difference. (In practice, it's done in a more complicated way
-to spot problems like position-swapping, which won't show up with a
+spot the difference. (In practice, it is done in a more complicated way
+to spot problems like position-swapping, which will not show up with a
 simplistic addition).
 
 <item>
@@ -575,12 +575,12 @@ port:-
  >> Attempting to fetch from ftp://kermit.columbia.edu/kermit/archives/.
 </verb>
 
-Why can't it find it? Have I got a dud CDROM?
+Why can it not be found? Have I got a dud CDROM?
 <p>
-A. The licensing terms for kermit don't allow us to put the tarball
-for it on the CDROM, so you'll have to fetch it by hand - sorry!
+A. The licensing terms for kermit do not allow us to put the tarball
+for it on the CDROM, so you will have to fetch it by hand - sorry!
 The reason why you got all those error messages was because you
-weren't connected to the Internet at the time. Once you've downloaded
+were not connected to the Internet at the time. Once you have downloaded
 it from any of the sites above, you can re-start the process (try and
 choose the nearest site to you, though, to save your time and the
 Internet's bandwidth).
@@ -590,7 +590,7 @@ Q. I did that, but when I tried to put it into /usr/ports/distfiles I
 got some error about not having permission.
 <p>
 A. The ports mechanism looks for the tarball in /usr/ports/distfiles,
-but you won't be able to copy anything there because it's sym-linked
+but you will not be able to copy anything there because it is sym-linked
 to the CDROM, which is read-only. You can tell it to look somewhere
 else by doing
 
@@ -601,7 +601,7 @@ else by doing
 <item>
 Q. Does the ports scheme only work if you have everything in
 /usr/ports? My system administrator says I must put everything under
-/u/people/guests/wurzburger, but it doesn't seem to work.
+/u/people/guests/wurzburger, but it does not seem to work.
 <p>
 A. You can use the PORTSDIR and PREFIX variables to tell the ports
 mechanism to use different directories. For instance,
@@ -626,16 +626,16 @@ And of course
  PORTSDIR=.../ports PREFIX=.../local make install
 </verb>
 
-will combine the two (it's too long to fit on the page if I write it
-in full, but I'm sure you get the idea).
+will combine the two (it is too long to fit on the page if I write it
+in full, but I am sure you get the idea).
 <p>
-If you don't fancy typing all that in every time you install a port
-(and to be honest, who would?), it's a good idea to put these variables
+If you do not fancy typing all that in every time you install a port
+(and to be honest, who would?), it is a good idea to put these variables
 into your environment.
 
 <item>
-Q. I don't have a FreeBSD CDROM, but I'd like to have all the tarballs
-handy on my system so I don't have to wait for a download every time I
+Q. I do not have a FreeBSD CDROM, but I would like to have all the tarballs
+handy on my system so I do not have to wait for a download every time I
 install a port. Is there an easy way to get them all at once?
 <p>
 A. To get every single tarball for the ports collection, do
@@ -652,10 +652,10 @@ For all the tarballs for a single ports directory, do
  # make fetch
 </verb>
 
-and for just one port - well, I think you've guessed already.
+and for just one port - well, I think you have guessed already.
 
 <item>
-Q. I know it's probably faster to fetch the tarballs from one of the
+Q. I know it is probably faster to fetch the tarballs from one of the
 FreeBSD mirror sites close by. Is there any way to tell the port to
 fetch them from servers other than ones listed in the MASTER_SITES?
 <p>
@@ -674,22 +674,22 @@ A. 'make fetch-list' will display a list of the files needed for a port.
 
 <item>
 Q. Is there any way to stop the port from compiling? I want to do some
-hacking on the source before I install it, but it's a bit tiresome having 
+hacking on the source before I install it, but it is a bit tiresome having 
 to watch it and hit control-C every time.
 <p>
 A. Doing 'make extract' will stop it after it has fetched and
 extracted the source code.
 
 <item>
-Q. I'm trying to make my own port and I want to be able to stop it
-compiling until I've had a chance to see if my patches worked properly. 
+Q. I am trying to make my own port and I want to be able to stop it
+compiling until I have had a chance to see if my patches worked properly. 
 Is there something like 'make extract', but for patches?
 <p>
 A. Yep, 'make patch' is what you want. And by the way, thank you for
 your efforts!
 
 <item>
-Q. I've heard that some compiler options can cause bugs. Is this true?
+Q. I have heard that some compiler options can cause bugs. Is this true?
 How can I make sure that I compile ports with the right settings?
 <p>
 A. Yes, with version 2.6.3 of gcc (the version shipped with FreeBSD
@@ -702,14 +702,14 @@ used by something like
  # CFLAGS='-O2 -fno-strength-reduce' make install
 </verb>
 
-or by editing /etc/make.conf, but this doesn't always seem to get
+or by editing /etc/make.conf, but this does not always seem to get
 picked up. The surest way is to do 'make configure', then go into the
 source directory and inspect the Makefiles by hand, but this can get
 tedious if the source has lots of sub-directories, each with their own
 Makefiles.
 
 <item>
-Q. There's so many ports it's hard to find the one I want. Is there a
+Q. There are so many ports it is hard to find the one I want. Is there a
 list anywhere of what ports are available?
 <p>
 A. Look in the INDEX file in /usr/ports.
@@ -718,14 +718,14 @@ A. Look in the INDEX file in /usr/ports.
 Q. I went to install the 'foo' port but the system suddenly stopped
 and starting compiling the 'bar' port. What's going on?
 <p>
-A. The 'foo' port needs something that's supplied with 'bar' - for
+A. The 'foo' port needs something that is supplied with 'bar' - for
 instance, if 'foo' uses graphics, 'bar' might have a library with
-useful graphics processing routines. Or 'bar' might be a tool that's
+useful graphics processing routines. Or 'bar' might be a tool that is
 needed to compile the 'foo' port.
 
 <item><label id="ports:remove"> 
-Q. I installed the grizzle program from the ports and frankly it's a
-complete waste of disk space. I want to delete it but I don't know
+Q. I installed the grizzle program from the ports and frankly it is a
+complete waste of disk space. I want to delete it but I do not know
 where it put all the files. Any clues?
 <p>
 A. No problem, just do
@@ -736,7 +736,7 @@ A. No problem, just do
 <item>
 
 Q. Hang on a minute, you have to know the version number to use that
-command. You don't seriously expect me to remember that, do you??
+command. You do not seriously expect me to remember that, do you??
 <p>
 A. Not at all, you can find it out by doing
 
@@ -744,7 +744,7 @@ A. Not at all, you can find it out by doing
  pkg_info -a | grep grizzle
 </verb>
 
-And it'll tell you:-
+And it will tell you:-
 
 <verb>
  Information for grizzle-6.5:
@@ -755,8 +755,8 @@ And it'll tell you:-
 Q. Talking of disk space, the ports directory seems to be taking up
 an awful lot of room. Is it safe to go in there and delete things?
 <p>
-A. Yes, if you've installed the program and are fairly certain you
-won't need the source again, there's no point in keeping it hanging
+A. Yes, if you have installed the program and are fairly certain you
+will not need the source again, there is no point in keeping it hanging
 around. The best way to do this is
 
 <verb>
@@ -770,7 +770,7 @@ everything except the skeletons for each port.
 Q. I tried that and it still left all those tarballs or whatever you
 called them in the distfiles directory. Can I delete those as well?
 <p>
-A. Yes, if you're sure you've finished with them, those can go as
+A. Yes, if you are sure you have finished with them, those can go as
 well.
 
 <item>
@@ -791,12 +791,12 @@ computer this morning, it had only done three and a half ports. Did
 something go wrong?
 <p>
 A. No, the problem is that some of the ports need to ask you questions
-that we can't answer for you (eg ``Do you want to print on A4 or US
+that we can not for you (eg ``Do you want to print on A4 or US
 letter sized paper?'') and they need to have someone on hand to answer
 them.
 
 <item>
-Q. I really don't want to spend all day staring at the monitor. Any
+Q. I really do nott want to spend all day staring at the monitor. Any
 better ideas?
 <p>
 A. OK, do this before you go to bed/work/the local park:-
@@ -817,8 +817,8 @@ input. Then, when you come back, do
 to finish the job.
 
 <item>
-Q. At work, we're using frobble, which is in your ports collection,
-but we've altered it quite a bit to get it to do what we need. Is
+Q. At work, we are using frobble, which is in your ports collection,
+but we have altered it quite a bit to get it to do what we need. Is
 there any way of making our own packages, so we can distribute it more
 easily around our sites?
 <p>
@@ -834,8 +834,8 @@ A. No problem, assuming you know how to make patches for your changes:-
 </verb>
 
 <item>
-Q. This ports stuff is really clever. I'm desperate to find out how
-you did it. What's the secret?
+Q. This ports stuff is really clever. I am desperate to find out how
+you did it. What is the secret?
 <p>
 A. Nothing secret about it at all, just look at the bsd.ports.mk and
 bsd.ports.subdir.mk files in your <htmlurl
