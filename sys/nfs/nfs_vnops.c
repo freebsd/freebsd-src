@@ -3046,7 +3046,6 @@ done:
 
 /*
  * NFS advisory byte-level locks.
- * Currently unsupported.
  */
 static int
 nfs_advlock(ap)
