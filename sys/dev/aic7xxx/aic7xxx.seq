@@ -7,7 +7,7 @@
  *
  *FreeBSD, Twin, Wide, 2 command per target support, tagged queuing,
  *SCB paging and other optimizations:
- *Copyright (c) 1994, 1995, 1996 Justin Gibbs. All rights reserved.
+ *Copyright (c) 1994, 1995, 1996, 1997 Justin Gibbs. All rights reserved.
  *
  *Redistribution and use in source and binary forms, with or without
  *modification, are permitted provided that the following conditions
@@ -152,9 +152,9 @@ dma_queued_scb:
  */
 test_busy:
 	test	SCB_CONTROL, TAG_ENB	jnz start_scb
+	mvi	SEQCTL,0x50			/* PAUSEDIS|FASTMODE */
 	mov	SAVED_SCBPTR, SCBPTR
 	mov	SCB_TCL		call	index_untagged_scb
-	mvi	SEQCTL,0x50			/* PAUSEDIS|FASTMODE */
 	mov	ARG_1, SINDIR			/*
 						 * ARG_1 should
 						 * now have the SCB ID of
@@ -191,9 +191,9 @@ simple_busy_link:
 	mvi	SEQCTL,0x10			/* FASTMODE */
 	jmp	poll_for_work
 make_busy:
-	mvi	SEQCTL,0x10			/* FASTMODE */
 	mov	DINDIR, CUR_SCBID
 	mov	SCBPTR, SAVED_SCBPTR
+	mvi	SEQCTL,0x10			/* FASTMODE */
 
 start_scb:
 	/*
@@ -505,19 +505,9 @@ p_command:
 
 	call	set_stcnt_from_hcnt
 
-	mvi	DFCNTRL, 0x3d			/*  SCSIEN|SDMAEN|HDMAEN
+	mvi	0x3d		call dma	/*  SCSIEN|SDMAEN|HDMAEN
 						 * |DIRECTION|FIFORESET
 						 */
-p_command_dma:
-	test	SSTAT0, SDONE		jnz p_command_dma_done
-	test	SSTAT1, PHASEMIS	jz  p_command_dma
-	test	SSTAT0, SDONE		jnz p_command_dma_done
-	clr	DFCNTRL
-	jmp	ITloop
-p_command_dma_done:
-	and	DFCNTRL, 0xc7		/* ~(SCSIEN|SDMAEN|HDMAEN) */
-p_command_dma_clear:
-	test	DFCNTRL, 0x38		jnz p_command_dma_clear
 	jmp	ITloop
 
 /*
@@ -945,7 +935,7 @@ dma5:
 	/* disable DMA */
 	and	DFCNTRL, 0xc7		/* ~(SCSIEN|SDMAEN|HDMAEN|DIRECTION) */
 dma6:
-	test	DFCNTRL, HDMAENACK	jnz dma6 
+	test	DFCNTRL, 0x38	jnz dma6  /* (SCSIEN|SDMAEN|HDMAEN|DIRECTION) */
 return:
 	ret
 
@@ -1001,6 +991,7 @@ find_dma_scb:
 	mvi	DMAPARAMS, 0xd	/* HDMAEN|DIRECTION|FIFORESET */
 	mov	ARG_1	call dma_scb
 	test	SCB_CONTROL, ABORT_SCB jz return
+	call	add_scb_to_free_list
 find_error:
 	mvi	SINDEX, SCB_LIST_NULL ret
 findBySCBID:
