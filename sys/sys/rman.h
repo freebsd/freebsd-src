@@ -129,9 +129,19 @@ TAILQ_HEAD(rman_head, rman);
 
 int	rman_activate_resource(struct resource *r);
 int	rman_await_resource(struct resource *r, int pri, int timo);
+bus_space_handle_t rman_get_bushandle(struct resource *);
+bus_space_tag_t rman_get_bustag(struct resource *);
+u_long	rman_get_end(struct resource *);
+struct device *rman_get_device(struct resource *);
+u_int	rman_get_flags(struct resource *);
+int	rman_get_rid(struct resource *);
+u_long	rman_get_size(struct resource *);
+u_long	rman_get_start(struct resource *);
+void   *rman_get_virtual(struct resource *);
 int	rman_deactivate_resource(struct resource *r);
 int	rman_fini(struct rman *rm);
 int	rman_init(struct rman *rm);
+uint32_t rman_make_alignment_flags(uint32_t size);
 int	rman_manage_region(struct rman *rm, u_long start, u_long end);
 int	rman_release_resource(struct resource *r);
 struct resource *rman_reserve_resource(struct rman *rm, u_long start,
@@ -140,23 +150,12 @@ struct resource *rman_reserve_resource(struct rman *rm, u_long start,
 struct resource *rman_reserve_resource_bound(struct rman *rm, u_long start,
 					u_long end, u_long count, u_long bound,
 					u_int flags, struct device *dev);
-uint32_t rman_make_alignment_flags(uint32_t size);
-
-u_long	rman_get_start(struct resource *_r);
-u_long	rman_get_end(struct resource *_r);
-struct device *rman_get_device(struct resource *);
-u_long	rman_get_size(struct resource *_r);
-u_int	rman_get_flags(struct resource *_r);
-void	rman_set_virtual(struct resource *_r, void *_v);
-void   *rman_get_virtual(struct resource *_r);
 void	rman_set_bustag(struct resource *_r, bus_space_tag_t _t);
-bus_space_tag_t rman_get_bustag(struct resource *_r);
-void	rman_set_bushandle(struct resource *_r, bus_space_handle_t _h);
-bus_space_handle_t rman_get_bushandle(struct resource *_r);
-void	rman_set_rid(struct resource *_r, int _rid);
-int	rman_get_rid(struct resource *_r);
-void	rman_set_start(struct resource *_r, u_long _start);
 void	rman_set_end(struct resource *_r, u_long _end);
+void	rman_set_bushandle(struct resource *_r, bus_space_handle_t _h);
+void	rman_set_rid(struct resource *_r, int _rid);
+void	rman_set_start(struct resource *_r, u_long _start);
+void	rman_set_virtual(struct resource *_r, void *_v);
 
 extern	struct rman_head rman_head;
 #endif /* _KERNEL */
