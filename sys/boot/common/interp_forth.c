@@ -64,7 +64,7 @@ static void
 bf_command(FICL_VM *vm)
 {
     char			*name, *line, *tail, *cp;
-    int				len;
+    size_t			len;
     struct bootblk_command	**cmdp;
     bootblk_cmd_t		*cmd;
     int				nstrings, i;

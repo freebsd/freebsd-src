@@ -57,11 +57,11 @@ struct bcachectl
 static struct bcachectl	*bcache_ctl;
 static caddr_t		bcache_data;
 static bitstr_t		*bcache_miss;
-static int		bcache_nblks;
-static int		bcache_blksize;
-static int		bcache_hits, bcache_misses, bcache_ops, bcache_bypasses;
-static int		bcache_flushes;
-static int		bcache_bcount;
+static u_int		bcache_nblks;
+static u_int		bcache_blksize;
+static u_int		bcache_hits, bcache_misses, bcache_ops, bcache_bypasses;
+static u_int		bcache_flushes;
+static u_int		bcache_bcount;
 
 static void	bcache_insert(caddr_t buf, daddr_t blkno);
 static int	bcache_lookup(caddr_t buf, daddr_t blkno);
@@ -70,7 +70,7 @@ static int	bcache_lookup(caddr_t buf, daddr_t blkno);
  * Initialise the cache for (nblks) of (bsize).
  */
 int
-bcache_init(int nblks, size_t bsize)
+bcache_init(u_int nblks, size_t bsize)
 {
     /* discard any old contents */
     if (bcache_data != NULL) {
@@ -103,9 +103,9 @@ bcache_init(int nblks, size_t bsize)
  * Flush the cache
  */
 void
-bcache_flush()
+bcache_flush(void)
 {
-    int		i;
+    u_int	i;
 
     bcache_flushes++;
 
@@ -125,14 +125,14 @@ bcache_flush()
  * directly to the disk.  XXX tune this.
  */
 int
-bcache_strategy(void *devdata, int unit, int rw, daddr_t blk, size_t size, void *buf, size_t *rsize)
+bcache_strategy(void *devdata, int unit, int rw, daddr_t blk, size_t size,
+		char *buf, size_t *rsize)
 {
     static int			bcache_unit = -1;
     struct bcache_devdata	*dd = (struct bcache_devdata *)devdata;
-    int				nblk, p_size;
-    daddr_t			p_blk;
+    int				p_size, result;
+    daddr_t			p_blk, i, j, nblk;
     caddr_t			p_buf;
-    int				i, j, result;
 
     bcache_ops++;
 
@@ -211,7 +211,8 @@ static void
 bcache_insert(caddr_t buf, daddr_t blkno) 
 {
     time_t	now;
-    int		i, cand, ocount;
+    int		cand, ocount;
+    u_int	i;
     
     time(&now);
     cand = 0;				/* assume the first block */
@@ -246,7 +247,7 @@ static int
 bcache_lookup(caddr_t buf, daddr_t blkno)
 {
     time_t	now;
-    int		i;
+    u_int	i;
     
     time(&now);
 
@@ -265,7 +266,7 @@ COMMAND_SET(bcachestat, "bcachestat", "get disk block cache stats", command_bcac
 static int
 command_bcache(int argc, char *argv[])
 {
-    int		i;
+    u_int	i;
     
     for (i = 0; i < bcache_nblks; i++) {
 	printf("%08x %04x %04x|", bcache_ctl[i].bc_blkno, (unsigned int)bcache_ctl[i].bc_stamp & 0xffff, bcache_ctl[i].bc_count & 0xffff);

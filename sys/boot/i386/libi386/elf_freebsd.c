@@ -43,8 +43,6 @@ static int	elf_exec(struct preloaded_file *amp);
 
 struct file_format i386_elf = { elf_loadfile, elf_exec };
 
-static struct bootinfo	bi;
-
 /*
  * There is an a.out kernel and one or more a.out modules loaded.  
  * We wish to start executing the kernel image, so make such 
