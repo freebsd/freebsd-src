@@ -730,7 +730,7 @@ ttymode()
 	struct tty ttyb[1000];
 	int error, len, i;
 
-	(void)printf(hdr);
+	(void)printf("%s", hdr);
 	len = sizeof(ttyb);
 	error = sysctlbyname("kern.ttys", &ttyb, &len, 0, 0);
 	if (!error) {
@@ -787,7 +787,7 @@ ttytype(tty, name, type, number, indir)
 	} else {
 		KGET1(type, tty, ntty * sizeof(struct tty), "tty structs");
 	}
-	(void)printf(hdr);
+	(void)printf("%s", hdr);
 	for (tp = tty; tp < &tty[ntty]; tp++)
 		ttyprt(tp, tp - tty);
 }
