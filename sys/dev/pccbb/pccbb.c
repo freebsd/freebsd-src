@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2003 M. Warner Losh.
- * Copyright (c) 2000,2001 Jonathan Chen.
+ * Copyright (c) 2002-2004 M. Warner Losh.
+ * Copyright (c) 2000-2001 Jonathan Chen.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -189,7 +189,7 @@ struct yenta_chipinfo {
 	{PCIC_ID_OZ6912, "O2Micro OZ6912/6972 PCI-CardBus Bridge", CB_O2MICRO},
 	{PCIC_ID_OZ6922, "O2Micro OZ6922 PCI-CardBus Bridge", CB_O2MICRO},
 	{PCIC_ID_OZ6933, "O2Micro OZ6933 PCI-CardBus Bridge", CB_O2MICRO},
-	/* 711E1 */
+	{PCIC_ID_OZ711E1, "O2Micro OZ711E1 PCI-CardBus Bridge", CB_O2MICRO},
 
 	/* sentinel */
 	{0 /* null id */, "unknown", CB_UNKNOWN},

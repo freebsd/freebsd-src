@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001 M. Warner Losh. All rights reserved.
+ * Copyright (c) 2001-2004 M. Warner Losh. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -48,7 +48,7 @@
 #define	PCIC_ID_OZ6912		0x69721217ul	/* Also 6972 */
 #define	PCIC_ID_OZ6922		0x69251217ul
 #define	PCIC_ID_OZ6933		0x69331217ul
-/* O2Micro 711E1 */
+#define PCIC_ID_OZ711E1		0x71131217ul	/* O2Micro 711E1 */
 #define	PCIC_ID_RICOH_RL5C465	0x04651180ul
 #define	PCIC_ID_RICOH_RL5C466	0x04661180ul
 #define	PCIC_ID_RICOH_RL5C475	0x04751180ul
