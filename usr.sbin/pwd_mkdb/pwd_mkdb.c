@@ -101,6 +101,7 @@ main(argc, argv)
 	FILE *fp, *oldfp;
 	sigset_t set;
 	int ch, cnt, ypcnt, len, makeold, tfd, yp_enabled = 0;
+	int32_t pw_change, pw_expire;
 	char *p, *t;
 	char buf[MAX(MAXPATHLEN, LINE_MAX * 2)], tbuf[1024];
 	char sbuf[MAX(MAXPATHLEN, LINE_MAX * 2)];
@@ -316,6 +317,8 @@ main(argc, argv)
 #define	COMPACT(e)	t = e; while ((*p++ = *t++));
 		if (!is_comment && 
 		    (!username || (strcmp(username, pwd.pw_name) == 0))) {
+			pw_change = pwd.pw_change;
+			pw_expire = pwd.pw_expire;
 			/* Create insecure data. */
 			p = buf;
 			COMPACT(pwd.pw_name);
@@ -324,14 +327,14 @@ main(argc, argv)
 			p += sizeof(int);
 			memmove(p, &pwd.pw_gid, sizeof(pwd.pw_gid));
 			p += sizeof(int);
-			memmove(p, &pwd.pw_change, sizeof(time_t));
-			p += sizeof(time_t);
+			memmove(p, &pw_change, sizeof(pw_change));
+			p += sizeof(pw_change);
 			COMPACT(pwd.pw_class);
 			COMPACT(pwd.pw_gecos);
 			COMPACT(pwd.pw_dir);
 			COMPACT(pwd.pw_shell);
-			memmove(p, &pwd.pw_expire, sizeof(time_t));
-			p += sizeof(time_t);
+			memmove(p, &pw_expire, sizeof(pw_expire));
+			p += sizeof(pw_expire);
 			memmove(p, &pwd.pw_fields, sizeof pwd.pw_fields);
 			p += sizeof pwd.pw_fields;
 			data.size = p - buf;
@@ -344,14 +347,14 @@ main(argc, argv)
 			p += sizeof(int);
 			memmove(p, &pwd.pw_gid, sizeof(pwd.pw_gid));
 			p += sizeof(int);
-			memmove(p, &pwd.pw_change, sizeof(time_t));
-			p += sizeof(time_t);
+			memmove(p, &pw_change, sizeof(pw_change));
+			p += sizeof(pw_change);
 			COMPACT(pwd.pw_class);
 			COMPACT(pwd.pw_gecos);
 			COMPACT(pwd.pw_dir);
 			COMPACT(pwd.pw_shell);
-			memmove(p, &pwd.pw_expire, sizeof(time_t));
-			p += sizeof(time_t);
+			memmove(p, &pw_expire, sizeof(pw_expire));
+			p += sizeof(pw_expire);
 			memmove(p, &pwd.pw_fields, sizeof pwd.pw_fields);
 			p += sizeof pwd.pw_fields;
 			sdata.size = p - sbuf;
