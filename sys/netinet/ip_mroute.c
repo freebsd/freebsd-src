@@ -367,8 +367,6 @@ X_mrt_ioctl(cmd, data)
 
 #ifndef MROUTE_LKM
 int (*mrt_ioctl)(int, caddr_t, struct proc *) = X_mrt_ioctl;
-#else
-extern int (*mrt_ioctl)(int, caddr_t, struct proc *);
 #endif
 
 /*
@@ -582,7 +580,6 @@ add_vif(vifcp)
 	if ((vifcp->vifc_flags & VIFF_SRCRT) == 0) {
           if (encap_oldrawip == 0) {
               extern struct protosw inetsw[];
-              extern u_char ip_protox[];
               register u_char pr = ip_protox[ENCAP_PROTO];
 
               encap_oldrawip = inetsw[pr].pr_input;
