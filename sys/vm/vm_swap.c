@@ -186,6 +186,7 @@ swapon(p, uap)
 	struct proc *p;
 	struct swapon_args *uap;
 {
+	struct vattr attr;
 	register struct vnode *vp;
 	struct nameidata nd;
 	int error;
@@ -202,10 +203,16 @@ swapon(p, uap)
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vp = nd.ni_vp;
 
-	vn_isdisk(vp, &error);
-
-	if (!error)
+	if (vn_isdisk(vp, &error))
 		error = swaponvp(p, vp, vp->v_rdev, 0);
+	else if (vp->v_type == VREG && vp->v_tag == VT_NFS &&
+	    (error = VOP_GETATTR(vp, &attr, p->p_ucred, p)) == 0) {
+		/*
+		 * Allow direct swapping to NFS regular files in the same
+		 * way that nfs_mountroot() sets up diskless swapping.
+		 */
+		error = swaponvp(p, vp, NODEV, attr.va_size / DEV_BSIZE);
+	}
 
 	if (error)
 		vrele(vp);
