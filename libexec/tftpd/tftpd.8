@@ -167,9 +167,12 @@ The user must be specified by name, not a numeric UID.
 .It Fl U Ar umask
 Set the
 .Ar umask
-for newly created files.  The default is 022 (S_IWGRP|S_IWOTH).
+for newly created files.
+The default is 022
+.Pq Dv S_IWGRP | S_IWOTH .
 .It Fl w
-Allow writes requests to create new files.  By default
+Allow writes requests to create new files.
+By default
 .Nm
 requires that the file specified in a write request exist.
 .El
