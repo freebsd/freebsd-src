@@ -80,7 +80,7 @@ transfer.
 In some cases, the code tries to track the current status of DMA
 operations by calling dsp_wr_dmaupdate() which changes rp, rl and fl.
 
-The sistem tries to make all DMA transfers use the same size,
+The system tries to make all DMA transfers use the same size,
 play_blocksize or rec_blocksize. The size is either selected by
 the user, or computed by the system to correspond to about .25s of
 audio. The blocksize must be within a range which is currently:
