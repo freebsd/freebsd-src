@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: sysctlbyname.c,v 1.1 1997/05/30 20:53:13 phk Exp $
+ * $Id: sysctlbyname.c,v 1.2 1997/07/12 11:14:30 peter Exp $
  *
  */
 #include <sys/types.h>

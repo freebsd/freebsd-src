@@ -1,5 +1,5 @@
 #	From: @(#)Makefile.inc	8.3 (Berkeley) 4/16/94
-#	$Id: Makefile.inc,v 1.22.2.4 1997/06/24 03:51:30 julian Exp $
+#	$Id: Makefile.inc,v 1.22.2.5 1997/06/24 19:23:07 julian Exp $
 
 # machine-independent gen sources
 .PATH: ${.CURDIR}/../libc/${MACHINE}/gen ${.CURDIR}/../libc/gen
@@ -16,7 +16,7 @@ SRCS+=	alarm.c assert.c clock.c closedir.c config.c confstr.c crypt.c \
 	scandir.c seekdir.c semconfig.c semctl.c semget.c semop.c \
 	setdomainname.c sethostname.c setjmperr.c setmode.c shmat.c \
 	shmctl.c shmdt.c shmget.c siginterrupt.c siglist.c signal.c \
-	sigsetops.c sleep.c sysconf.c sysctl.c syslog.c \
+	sigsetops.c sleep.c sysconf.c sysctl.c sysctlbyname.c syslog.c \
 	telldir.c termios.c time.c times.c timezone.c ttyname.c ttyslot.c \
 	ualarm.c uname.c unvis.c usleep.c utime.c valloc.c vis.c wait.c \
 	wait3.c waitpid.c
@@ -111,6 +111,7 @@ MLINKS+=setmode.3 getmode.3
 MLINKS+=sigsetops.3 sigemptyset.3 sigsetops.3 sigfillset.3 \
 	sigsetops.3 sigaddset.3 sigsetops.3 sigdelset.3 \
 	sigsetops.3 sigismember.3
+MLINKS+=sysctl.3 sysctlbyname.3
 MLINKS+=syslog.3 closelog.3 syslog.3 openlog.3 syslog.3 setlogmask.3 \
 	syslog.3 vsyslog.3
 MLINKS+=tcsendbreak.3 tcdrain.3 tcsendbreak.3 tcflush.3 tcsendbreak.3 tcflow.3
