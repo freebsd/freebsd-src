@@ -157,7 +157,7 @@ ffs_mount(struct mount *mp, struct thread *td)
 			/*
 			 * Flush any dirty data.
 			 */
-			if ((error = VFS_SYNC(mp, MNT_WAIT, td)) != 0) {
+			if ((error = ffs_sync(mp, MNT_WAIT, td)) != 0) {
 				vn_finished_write(mp);
 				return (error);
 			}
