@@ -47,7 +47,7 @@
 #include "debug.h"
 #include "rtld.h"
 
-extern Elf_Dyn _DYNAMIC;
+extern Elf_Dyn _GOT_END_;
 
 /*
  * Macros for loading/storing unaligned 64-bit values.  These are
@@ -111,7 +111,7 @@ reloc_non_plt_obj(Obj_Entry *obj_rtld, Obj_Entry *obj, const Elf_Rela *rela,
 		case R_ALPHA_RELATIVE: {
 			if (obj != obj_rtld ||
 			    (caddr_t)where < (caddr_t)_GLOBAL_OFFSET_TABLE_ ||
-			    (caddr_t)where >= (caddr_t)&_DYNAMIC)
+			    (caddr_t)where >= (caddr_t)&_GOT_END_)
 				store64(where,
 				    load64(where) + (Elf_Addr) obj->relocbase);
 		}
@@ -476,10 +476,20 @@ do_copy_relocations(Obj_Entry *dstobj)
 void
 init_pltgot(Obj_Entry *obj)
 {
+	u_int32_t *pltgot;
+
 	if (obj->pltgot != NULL &&
 	    (obj->pltrelsize != 0 || obj->pltrelasize != 0)) {
-		/* This function will be called to perform the relocation.  */
-		obj->pltgot[2] = (Elf_Addr) &_rtld_bind_start;
+		/*
+		 * This function will be called to perform the relocation.
+		 * Look for the ldah instruction from the old PLT format since
+		 * that will tell us what format we are trying to relocate.
+		 */
+		pltgot = (u_int32_t *) obj->pltgot;
+		if ((pltgot[8] & 0xffff0000) == 0x279f0000)
+			obj->pltgot[2] = (Elf_Addr) &_rtld_bind_start_old;
+		else
+			obj->pltgot[2] = (Elf_Addr) &_rtld_bind_start;
 		/* Identify this shared object */
 		obj->pltgot[3] = (Elf_Addr) obj;
 	}
