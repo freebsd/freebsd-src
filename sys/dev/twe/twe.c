@@ -96,7 +96,6 @@ static void	twe_release_request(struct twe_request *tr);
  */
 static char 	*twe_format_aen(struct twe_softc *sc, u_int16_t aen);
 static int	twe_report_request(struct twe_request *tr);
-static int	twe_request_qlen(struct twe_request *tr);
 static void	twe_panic(struct twe_softc *sc, char *reason);
 
 /********************************************************************************
