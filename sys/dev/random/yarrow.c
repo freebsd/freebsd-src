@@ -369,7 +369,7 @@ reseed(int fastslow)
 }
 
 u_int
-read_random(struct proc *proc, void *buf, u_int count)
+read_random(void *buf, u_int count)
 {
 	static u_int64_t genval;
 	static int cur = 0;

@@ -109,7 +109,7 @@ random_read(dev_t dev, struct uio *uio, int flag)
 	c = min(uio->uio_resid, PAGE_SIZE);
 	random_buf = (void *)malloc(c, M_TEMP, M_WAITOK);
 	while (uio->uio_resid > 0 && error == 0) {
-		ret = read_random(uio->uio_procp, random_buf, c);
+		ret = read_random(random_buf, c);
 		error = uiomove(random_buf, ret, uio);
 	}
 	free(random_buf, M_TEMP);
