@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ipl.h,v 1.1 1997/08/20 19:47:48 smp Exp $
+ *	$Id: ipl.h,v 1.11 1997/08/21 05:15:08 fsmp Exp $
  */
 
 #ifndef _MACHINE_IPL_H_
@@ -51,6 +51,8 @@
  */
 #define	SWI_TTY		(NHWI + 0)
 #define	SWI_NET		(NHWI + 1)
+#define	SWI_CAMNET	(NHWI + 2)
+#define	SWI_CAMBIO	(NHWI + 3)
 #define	SWI_CLOCK	30
 #define	SWI_AST		31
 
@@ -59,6 +61,8 @@
  */
 #define	SWI_TTY_PENDING		(1 << SWI_TTY)
 #define	SWI_NET_PENDING		(1 << SWI_NET)
+#define	SWI_CAMNET_PENDING	(1 << SWI_CAMNET)
+#define	SWI_CAMBIO_PENDING	(1 << SWI_CAMBIO)
 #define	SWI_CLOCK_PENDING	(1 << SWI_CLOCK)
 #define	SWI_AST_PENDING		(1 << SWI_AST)
 
@@ -75,6 +79,8 @@
  * spltty() apparently only needs to mask soft net interrupts).
  */
 #define	SWI_TTY_MASK	(SWI_TTY_PENDING | SWI_CLOCK_MASK | SWI_NET_MASK)
+#define	SWI_CAMNET_MASK	(SWI_CAMNET_PENDING | SWI_CLOCK_MASK)
+#define	SWI_CAMBIO_MASK	(SWI_CAMBIO_PENDING | SWI_CLOCK_MASK)
 #define	SWI_NET_MASK	(SWI_NET_PENDING | SWI_CLOCK_MASK)
 #define	SWI_CLOCK_MASK	(SWI_CLOCK_PENDING | SWI_AST_MASK)
 #define	SWI_AST_MASK	SWI_AST_PENDING
