@@ -108,7 +108,7 @@ static struct rman faithunits[1];
 static LIST_HEAD(, faith_softc) faith_softc_list;
 
 int	faith_clone_create __P((struct if_clone *, int *));
-void	faith_clone_destroy __P((struct ifnet *));
+int	faith_clone_destroy __P((struct ifnet *));
 
 struct if_clone faith_cloner =
     IF_CLONE_INITIALIZER(FAITHNAME, faith_clone_create, faith_clone_destroy);
@@ -221,7 +221,7 @@ faith_clone_create(ifc, unit)
 	return (0);
 }
 
-void
+int
 faith_clone_destroy(ifp)
 	struct ifnet *ifp;
 {
@@ -236,6 +236,7 @@ faith_clone_destroy(ifp)
 	KASSERT(err == 0, ("Unexpected error freeing resource"));
 
 	free(sc, M_FAITH);
+	return (0);
 }
 
 int

@@ -65,7 +65,7 @@ struct if_clone {
 	size_t ifc_namelen;		/* length of name */
 
 	int	(*ifc_create)(struct if_clone *, int *);
-	void	(*ifc_destroy)(struct ifnet *);
+	int	(*ifc_destroy)(struct ifnet *);
 };
 
 #define IF_CLONE_INITIALIZER(name, create, destroy)			\

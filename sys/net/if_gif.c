@@ -94,7 +94,7 @@ void	(*ng_gif_attach_p)(struct ifnet *ifp);
 void	(*ng_gif_detach_p)(struct ifnet *ifp);
 
 int	gif_clone_create __P((struct if_clone *, int *));
-void	gif_clone_destroy __P((struct ifnet *));
+int	gif_clone_destroy __P((struct ifnet *));
 
 struct if_clone gif_cloner =
     IF_CLONE_INITIALIZER("gif", gif_clone_create, gif_clone_destroy);
@@ -229,7 +229,7 @@ gif_clone_create(ifc, unit)
 	return (0);
 }
 
-void
+int
 gif_clone_destroy(ifp)
 	struct ifnet *ifp;
 {
@@ -256,6 +256,7 @@ gif_clone_destroy(ifp)
 	KASSERT(err == 0, ("Unexpected error freeing resource"));
 
 	free(sc, M_GIF);
+	return (0);
 }
 
 static int
