@@ -396,7 +396,8 @@ vm_page_wakeup(vm_page_t m)
 void
 vm_page_io_start(vm_page_t m)
 {
-	GIANT_REQUIRED;
+
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	m->busy++;
 }
 

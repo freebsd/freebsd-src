@@ -475,6 +475,7 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run, fbp)
 		BUF_KERNPROC(tbp);
 		TAILQ_INSERT_TAIL(&bp->b_cluster.cluster_head,
 			tbp, b_cluster.cluster_entry);
+		vm_page_lock_queues();
 		for (j = 0; j < tbp->b_npages; j += 1) {
 			vm_page_t m;
 			m = tbp->b_pages[j];
@@ -488,6 +489,7 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run, fbp)
 			if ((m->valid & VM_PAGE_BITS_ALL) == VM_PAGE_BITS_ALL)
 				tbp->b_pages[j] = bogus_page;
 		}
+		vm_page_unlock_queues();
 		/*
 		 * XXX shouldn't this be += size for both, like in
 		 * cluster_wbuild()?
@@ -931,7 +933,7 @@ cluster_wbuild(vp, size, start_lbn, len)
 						}
 					}
 				}
-					
+				vm_page_lock_queues();
 				for (j = 0; j < tbp->b_npages; j += 1) {
 					m = tbp->b_pages[j];
 					vm_page_io_start(m);
@@ -942,6 +944,7 @@ cluster_wbuild(vp, size, start_lbn, len)
 						bp->b_npages++;
 					}
 				}
+				vm_page_unlock_queues();
 			}
 			bp->b_bcount += size;
 			bp->b_bufsize += size;
