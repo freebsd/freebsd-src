@@ -19,7 +19,7 @@ SRCS+=  _rand48.c _spinlock_stub.c alarm.c arc4random.c assert.c \
 	lockf.c lrand48.c mrand48.c msgctl.c \
 	msgget.c msgrcv.c msgsnd.c nice.c \
 	nlist.c nrand48.c ntp_gettime.c opendir.c \
-	pause.c popen.c psignal.c pwcache.c raise.c readdir.c rewinddir.c \
+	pause.c popen.c psignal.c pw_scan.c pwcache.c raise.c readdir.c rewinddir.c \
 	posixshm.c \
 	scandir.c seed48.c seekdir.c semconfig.c semctl.c semget.c semop.c \
 	setdomainname.c sethostname.c setjmperr.c setmode.c setproctitle.c \

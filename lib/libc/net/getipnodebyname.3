@@ -405,9 +405,9 @@ or
 .Fn getipnodebyaddr .
 .\"
 .Sh FILES
-.Bl -tag -width /etc/resolv.conf -compact
+.Bl -tag -width /etc/nsswitch.conf -compact
 .It Pa /etc/hosts
-.It Pa /etc/host.conf
+.It Pa /etc/nsswitch.conf
 .It Pa /etc/resolv.conf
 .El
 .\"
@@ -429,6 +429,7 @@ The meanings of each error code are described in
 .Xr gethostbyname 3 ,
 .Xr gethostbyaddr 3 ,
 .Xr hosts 5 ,
+.Xr nsswitch.conf 5 ,
 .Xr services 5 ,
 .Xr hostname 7 ,
 .Xr named 8

@@ -66,12 +66,10 @@ static const char rcsid[] =
  * it will be set based on the existance of PW_SCAN_BIG_IDS in the
  * environment.
  */
-int	pw_big_ids_warning = -1;
+static int	pw_big_ids_warning = -1;
 
 int
-pw_scan(bp, pw)
-	char *bp;
-	struct passwd *pw;
+__pw_scan(char *bp, struct passwd *pw, int flags)
 {
 	uid_t id;
 	int root;
@@ -97,20 +95,23 @@ pw_scan(bp, pw)
 		pw->pw_fields |= _PWF_UID;
 	else {
 		if (pw->pw_name[0] != '+' && pw->pw_name[0] != '-') {
-			warnx("no uid for user %s", pw->pw_name);
+			if (flags & _PWSCAN_WARN)
+				warnx("no uid for user %s", pw->pw_name);
 			return (0);
 		}
 	}
 	id = strtoul(p, (char **)NULL, 10);
 	if (errno == ERANGE) {
-		warnx("%s > max uid value (%u)", p, ULONG_MAX);
+		if (flags & _PWSCAN_WARN)
+			warnx("%s > max uid value (%u)", p, ULONG_MAX);
 		return (0);
 	}
 	if (root && id) {
-		warnx("root uid should be 0");
+		if (flags & _PWSCAN_WARN)
+			warnx("root uid should be 0");
 		return (0);
 	}
-	if (pw_big_ids_warning && id > USHRT_MAX) {
+	if (flags & _PWSCAN_WARN && pw_big_ids_warning && id > USHRT_MAX) {
 		warnx("%s > recommended max uid value (%u)", p, USHRT_MAX);
 		/*return (0);*/ /* THIS SHOULD NOT BE FATAL! */
 	}
@@ -121,28 +122,30 @@ pw_scan(bp, pw)
 	if(p[0]) pw->pw_fields |= _PWF_GID;
 	id = strtoul(p, (char **)NULL, 10);
 	if (errno == ERANGE) {
-		warnx("%s > max gid value (%u)", p, ULONG_MAX);
+		if (flags & _PWSCAN_WARN)
+			warnx("%s > max gid value (%u)", p, ULONG_MAX);
 		return (0);
 	}
-	if (pw_big_ids_warning && id > USHRT_MAX) {
+	if (flags & _PWSCAN_WARN && pw_big_ids_warning && id > USHRT_MAX) {
 		warnx("%s > recommended max gid value (%u)", p, USHRT_MAX);
 		/* return (0); This should not be fatal! */
 	}
 	pw->pw_gid = id;
 
-	pw->pw_class = strsep(&bp, ":");		/* class */
-	if(pw->pw_class[0]) pw->pw_fields |= _PWF_CLASS;
-
-	if (!(p = strsep(&bp, ":")))			/* change */
-		goto fmt;
-	if(p[0]) pw->pw_fields |= _PWF_CHANGE;
-	pw->pw_change = atol(p);
-
-	if (!(p = strsep(&bp, ":")))			/* expire */
-		goto fmt;
-	if(p[0]) pw->pw_fields |= _PWF_EXPIRE;
-	pw->pw_expire = atol(p);
-
+	if (flags & _PWSCAN_MASTER ) {
+		pw->pw_class = strsep(&bp, ":");		/* class */
+		if(pw->pw_class[0]) pw->pw_fields |= _PWF_CLASS;
+		
+		if (!(p = strsep(&bp, ":")))			/* change */
+			goto fmt;
+		if(p[0]) pw->pw_fields |= _PWF_CHANGE;
+		pw->pw_change = atol(p);
+		
+		if (!(p = strsep(&bp, ":")))			/* expire */
+			goto fmt;
+		if(p[0]) pw->pw_fields |= _PWF_EXPIRE;
+		pw->pw_expire = atol(p);
+	}
 	if (!(pw->pw_gecos = strsep(&bp, ":")))		/* gecos */
 		goto fmt;
 	if(pw->pw_gecos[0]) pw->pw_fields |= _PWF_GECOS;
@@ -158,7 +161,8 @@ pw_scan(bp, pw)
 	if (root && *p)					/* empty == /bin/sh */
 		for (setusershell();;) {
 			if (!(sh = getusershell())) {
-				warnx("warning, unknown root shell");
+				if (flags & _PWSCAN_WARN)
+					warnx("warning, unknown root shell");
 				break;
 			}
 			if (!strcmp(p, sh))
@@ -167,7 +171,9 @@ pw_scan(bp, pw)
 	if(p[0]) pw->pw_fields |= _PWF_SHELL;
 
 	if ((p = strsep(&bp, ":"))) {			/* too many */
-fmt:		warnx("corrupted entry");
+fmt:		
+		if (flags & _PWSCAN_WARN)
+			warnx("corrupted entry");
 		return (0);
 	}
 	return (1);

@@ -1,0 +1,226 @@
+.\"	$NetBSD: hesinfo.1,v 1.1 1999/01/25 22:45:55 lukem Exp $
+.\"	$FreeBSD$
+.\"
+.\" from: #Id: hesinfo.1,v 1.9 1996/11/07 01:57:12 ghudson Exp #
+.\"
+.\" Copyright 1987, 1996 by the Massachusetts Institute of Technology.
+.\"
+.\" Permission to use, copy, modify, and distribute this
+.\" software and its documentation for any purpose and without
+.\" fee is hereby granted, provided that the above copyright
+.\" notice appear in all copies and that both that copyright
+.\" notice and this permission notice appear in supporting
+.\" documentation, and that the name of M.I.T. not be used in
+.\" advertising or publicity pertaining to distribution of the
+.\" software without specific, written prior permission.
+.\" M.I.T. makes no representations about the suitability of
+.\" this software for any purpose.  It is provided "as is"
+.\" without express or implied warranty.
+.TH HESINFO 1 "27 October 1996"
+.FM mit
+.SH NAME
+hesinfo \- find out what is stored in the Hesiod database
+.SH SYNOPSIS
+.nf
+hesinfo \fI[-bl]\fR \fIHesiodName\fR \fIHesiodNameType\fR
+.SH DESCRIPTION
+.I hesinfo
+takes two arguments, a name to be resolved and a string, known
+as a HesiodNameType.  It then prints the information returned by
+the Hesiod nameserver.
+.PP
+The value returned by
+.B hesinfo
+is of the type
+.I HesiodNameType.
+.PP
+.I hesinfo
+understands the following options:
+.TP
+.B -l
+Selects long format.
+.TP
+.B -b
+Prints the fully-qualified string passed to the nameserver.
+
+.PP
+.SS VALID Hesiod_Names
+The following types of identifiers may be used in the
+.I HesiodName
+argument to
+.B hesinfo.
+These values will be resolved by accessing the
+.B hesiod
+database.
+
+.TP
+.B \<username>
+the 8-character-or-less string used to identify users or classes
+(e.g. joeuser, root, 1.00, etc).
+Used with the
+.I Hesiod_Name_Types
+.BR passwd,
+.BR pobox,
+and
+.BR filsys.
+
+
+.TP
+.B \<uid>
+the id number assigned to a user.
+
+.TP
+.B \<groupid>
+the id number assigned to a group.
+
+.TP
+.B \<groupname>
+a name identifying a unique group.
+
+.TP 
+.B \<file-system-name>
+the name of an athena file system.
+
+.TP
+.B \<rvd server>:<pack>
+the name of an rvd's server and pack  seperated by a colon.
+
+.TP
+.B \<nfs server>:<partition>
+the name of an nfs server and its partition seperated by a colon.
+
+.TP
+.B \<workstation-name>
+the machine name of an Athena workstation (e.g. E40-343-3).
+
+.TP 
+.B \<service-name>
+name of an Athena service (e.g. Zephyr).
+
+.TP
+.B \<service-type>
+name of Unix service (valid entries are defined in /etc/services).
+
+.TP
+.B \<printer-name>
+name of a printer.
+
+.TP
+.B \<printer-cluster-name>
+name of an Athena print cluster.
+
+.TP
+.B \<foo>
+some
+.B hesinfo
+calls (e.g. 
+.B prclusterlist
+) do not require a specific
+.I HesiodName
+argument.  However, you must include a dummy string (e.g. 'foo') for
+.B hesinfo
+ to work properly.
+
+
+
+
+.PP
+.SS VALID Hesiod_Name_Types
+The following symbols are valid substitutions for the
+.I HesiodNameType
+argument to
+.B hesinfo.
+
+.TP
+.B \ passwd
+returns string suitable for inclusion in
+.I /etc/passwd,
+searching with
+.B <username>.
+
+.TP
+.B \ pobox
+returns information on the pobox assigned to the user specified by
+.I HesiodName,
+searching with
+.B <username>.
+
+
+.TP
+.B \ uid   
+returns string suitable for inclusion in
+.I /etc/passwd,
+searching with
+.B <uid>.
+
+.TP
+.B \ gid   
+returns string suitable for inclusion in
+.I /etc/group,
+searching with
+.B <groupid>.
+
+.TP
+.B \ group
+returns string suitable for inclusion in
+.I /etc/group,
+searching with
+.B <groupname>.
+
+.TP
+.B \ grplist
+returns subgroups included in superset
+defined by 
+.B <groupname>.
+
+.TP
+.B \ filsys
+returns file system type, export point, server, mount mode, and import point
+for the following valid
+.I HesiodNames
+(see above)
+.B - <file system name>, <username>, <rvd server>:<pack>, 
+.B and <nfs server>:<partition>
+
+.TP
+.B \ cluster
+returns information about the local cluster the workstation, specified by
+.B <workstation name>.
+Included is information about the local file and print servers.  This
+information is accesses by 
+.B clusterinfo 
+at boot time.
+
+.TP
+.B \ sloc
+returns network name of service host for
+.B <service-name>.
+
+.TP
+.B \ service
+returns Internet protocol type and protocol service port for
+.B <service-type>.
+
+.TP
+.B \ pcap
+returns a valid entry for /etc/printcap for
+.B <printer-name>.
+
+.TP 
+.B \ prcluserlist
+returns a list of print clusters.
+
+.TP 
+.B \ prcluster
+returns a list of printers in a cluster specified by
+.B <printer-cluster-name>.
+
+.SH FILES
+/etc/hesiod.conf
+.SH "SEE ALSO"
+`Hesiod - Project Athena Technical Plan -- Name Service', named(8), hesiod(3)
+.SH AUTHOR
+Steve Dyer, IBM/Project Athena
+.br
+Copyright 1987, 1988, 1996 by the Massachusetts Institute of Technology.
+.br

@@ -39,6 +39,14 @@
 .Nm group
 .Nd format of the group permissions file
 .Sh DESCRIPTION
+The
+.Nm
+file is the local source of group information.  It 
+can be used in conjunction with the Hesiod domain
+`group', and the NIS maps `group.byname' and `group.bygid',
+as controlled by 
+.Xr nsswitch.conf 5 .
+.Pp
 The file
 .Aq Pa /etc/group
 consists of newline separated
@@ -107,28 +115,6 @@ entry and does not need to be added to that group in the
 .\"	char    **gr_mem;        /* group members */
 .\" };
 .\" .Ed
-.Sh YP/NIS INTERACTION
-The
-.Pa /etc/group
-file can be configured to enable the YP/NIS group database.
-An entry whose
-.Ar name
-field consists of a plus sign (`+') followed by a group name, will be
-replaced internally to the C library with the YP/NIS group entry for the
-named group.  An entry whose
-.Ar name
-field consists of a single plus sign with no group name following,
-will be replaced with the entire YP/NIS
-.Dq Li group.byname
-map.
-.Pp
-If the YP/NIS group database is enabled for any reason, all reverse
-lookups (i.e.,
-.Fn getgrgid )
-will use the entire database, even if only a few groups are enabled.
-Thus, the group name returned by
-.Fn getgrgid
-is not guaranteed to have a valid forward mapping.
 .Sh LIMITS
 There are various limitations which are explained in
 the function where they occur; see section
@@ -156,6 +142,7 @@ may still have this limits.
 .Xr getgrent 3 ,
 .Xr initgroups 3 ,
 .Xr yp 4 ,
+.Xr nsswitch.conf 5 ,
 .Xr passwd 5
 .Sh BUGS
 The
@@ -168,10 +155,5 @@ A
 .Nm
 file format appeared in
 .At v6 .
-The YP/NIS functionality is modeled after
-.Tn SunOS
-and first appeared in
-.Tn FreeBSD
-1.1.
 Support for comments first appeared in
 .Fx 3.0 .
