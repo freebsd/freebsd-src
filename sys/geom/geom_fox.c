@@ -190,8 +190,8 @@ g_fox_orphan(struct g_consumer *cp)
 	}
 
 	mtx_destroy(&sc->lock);
-	gp->softc = NULL;
 	g_free(gp->softc);
+	gp->softc = NULL;
 	g_wither_geom(gp, ENXIO);
 }
 
