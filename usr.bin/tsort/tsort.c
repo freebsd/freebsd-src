@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: tsort.c,v 1.3 1996/06/10 16:12:43 phk Exp $
  */
 
 #ifndef lint
@@ -43,7 +43,7 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)tsort.c	8.2 (Berkeley) 3/30/94";
+static char sccsid[] = "@(#)tsort.c	8.3 (Berkeley) 5/4/95";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -63,7 +63,7 @@ static char sccsid[] = "@(#)tsort.c	8.2 (Berkeley) 3/30/94";
  *  standard output in sorted order, one per line.
  *
  *  usage:
- *     tsort [-l] [inputfile]
+ *     tsort [-dlq] [inputfile]
  *  If no input file is specified, standard input is read.
  *
  *  Should be compatable with AT&T tsort HOWEVER the output is not identical
@@ -100,7 +100,7 @@ typedef struct _buf {
 
 DB *db;
 NODE *graph, **cycle_buf, **longest_cycle;
-int debug, longest;
+int debug, longest, quiet;
 
 void	 add_arc __P((char *, char *));
 int	 find_cycle __P((NODE *, NODE *, int, int));
@@ -121,13 +121,16 @@ main(argc, argv)
 	int bsize, ch, nused;
 	BUF bufs[2];
 
-	while ((ch = getopt(argc, argv, "dl")) != EOF)
+	while ((ch = getopt(argc, argv, "dlq")) != EOF)
 		switch (ch) {
 		case 'd':
 			debug = 1;
 			break;
 		case 'l':
 			longest = 1;
+			break;
+		case 'q':
+			quiet = 1;
 			break;
 		case '?':
 		default:
@@ -337,11 +340,13 @@ tsort()
 		}
 		for (n = graph; n != NULL; n = n->n_next)
 			if (!(n->n_flags & NF_ACYCLIC))
-				if (cnt = find_cycle(n, n, 0, 0)) {
-					warnx("cycle in data");
-					for (i = 0; i < cnt; i++)
-						warnx("%s",
-						    longest_cycle[i]->n_name);
+				if ((cnt = find_cycle(n, n, 0, 0))) {
+					if (!quiet) {
+						warnx("cycle in data");
+						for (i = 0; i < cnt; i++)
+							warnx("%s",
+							    longest_cycle[i]->n_name);
+					}
 					remove_node(n);
 					clear_cycle();
 					break;
@@ -426,6 +431,6 @@ find_cycle(from, to, longest_len, depth)
 void
 usage()
 {
-	(void)fprintf(stderr, "usage: tsort [-dl] [file]\n");
+	(void)fprintf(stderr, "usage: tsort [-dlq] [file]\n");
 	exit(1);
 }

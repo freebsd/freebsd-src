@@ -44,6 +44,7 @@
 .Nm tsort
 .Op Fl d
 .Op Fl l
+.Op Fl q
 .Op Ar file
 .Sh DESCRIPTION
 .Nm Tsort
@@ -72,6 +73,10 @@ Turn on debugging.
 .It Fl l 
 Search for and display the longest cycle.
 Can take a very long time.
+.It Fl q
+Do not display informational messages about cycles.  This is primarily
+intended for building libraries, where optimal ordering is not critical,
+and cycles occur often.
 .El
 .Sh SEE ALSO
 .Xr ar 1
