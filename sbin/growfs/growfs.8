@@ -158,7 +158,8 @@ starting with
 .Fx 4.4 .
 To avoid an unexpected relocation of that structure it is possible to use
 .Nm ffsinfo
-.Fl c Ar 0
+.Fl g Ar 0
+.Fl l Ar 4
 on the first cylinder group to verify that
 .Em nbfree
 in the CYLINDER SUMMARY (internal cs) of the CYLINDER GROUP
