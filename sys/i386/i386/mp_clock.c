@@ -101,17 +101,22 @@ piix_probe(device_t dev)
 {
 	u_int32_t d;
 
+	if (devclass_get_device(devclass_find("acpi"), 0) != NULL)
+		return (ENXIO);
 	switch (pci_get_devid(dev)) {
 	case 0x71138086:
-		d = pci_read_config(dev, PCIR_COMMAND, 2);
-		if (d & PCIM_CMD_PORTEN)
-			return (0);
-		printf("PIIX I/O space not mapped\n");
-		return (ENXIO);
+		device_set_desc(dev, "PIIX Timecounter");
+		break;
 	default:
 		return (ENXIO);
-	};
-	return (ENXIO);
+	}
+
+	d = pci_read_config(dev, PCIR_COMMAND, 2);
+	if (!(d & PCIM_CMD_PORTEN)) {
+		device_printf(dev, "PIIX I/O space not mapped\n");
+		return (ENXIO);
+	}
+	return (0);
 }
 
 static int
