@@ -323,6 +323,8 @@ mail1(hp, printheaders)
 		}
 	}
 	if (fsize(mtf) == 0) {
+		if (value("dontsendempty") != NULL)
+			goto out;
 		if (hp->h_subject == NULL)
 			printf("No message, no subject; hope that's ok\n");
 		else
