@@ -371,6 +371,10 @@ write_plist(Package *pkg, FILE *fp)
 	    fprintf(fp, "%coption %s\n", CMD_CHAR, plist->name);
 	    break;
 
+	case PLIST_ORIGIN:
+	    fprintf(fp, "%ccomment ORIGIN:%s\n", CMD_CHAR, plist->name);
+	    break;
+
 	default:
 	    cleanup(0);
 	    errx(2, __FUNCTION__ ": unknown command type %d (%s)", plist->type, plist->name);
