@@ -40,7 +40,7 @@
  * $FreeBSD$
  */
 
-VERSION = "$Id: //depot/aic7xxx/aic7xxx/aic79xx.seq#91 $"
+VERSION = "$Id: //depot/aic7xxx/aic7xxx/aic79xx.seq#92 $"
 PATCH_ARG_LIST = "struct ahd_softc *ahd"
 PREFIX = "ahd_"
 
@@ -212,44 +212,44 @@ fill_qoutfifo_dmadone:
 qoutfifo_updated:
 	/*
 	 * If there are more commands waiting to be dma'ed
-	 * to the host, always coaless.  Otherwise honor the
+	 * to the host, always coalesce.  Otherwise honor the
 	 * host's wishes.
 	 */
-	cmp	COMPLETE_DMA_SCB_HEAD[1], SCB_LIST_NULL jne coaless_by_count;
-	cmp	COMPLETE_SCB_HEAD[1], SCB_LIST_NULL jne coaless_by_count;
-	test	LOCAL_HS_MAILBOX, ENINT_COALESS jz issue_cmdcmplt;
+	cmp	COMPLETE_DMA_SCB_HEAD[1], SCB_LIST_NULL jne coalesce_by_count;
+	cmp	COMPLETE_SCB_HEAD[1], SCB_LIST_NULL jne coalesce_by_count;
+	test	LOCAL_HS_MAILBOX, ENINT_COALESCE jz issue_cmdcmplt;
 
 	/*
 	 * If we have relatively few commands outstanding, don't
 	 * bother waiting for another command to complete.
 	 */
-	test	CMDS_PENDING[1], 0xFF jnz coaless_by_count;
+	test	CMDS_PENDING[1], 0xFF jnz coalesce_by_count;
 	/* Add -1 so that jnc means <= not just < */
-	add	A, -1, INT_COALESSING_MINCMDS;
+	add	A, -1, INT_COALESCING_MINCMDS;
 	add	NONE, A, CMDS_PENDING;
 	jnc	issue_cmdcmplt;
 	
 	/*
-	 * If coalessing, only coaless up to the limit
+	 * If coalescing, only coalesce up to the limit
 	 * provided by the host driver.
 	 */
-coaless_by_count:
-	mov	A, INT_COALESSING_MAXCMDS;
-	add	NONE, A, INT_COALESSING_CMDCOUNT;
+coalesce_by_count:
+	mov	A, INT_COALESCING_MAXCMDS;
+	add	NONE, A, INT_COALESCING_CMDCOUNT;
 	jc	issue_cmdcmplt;
 	/*
 	 * If the timer is not currently active,
 	 * fire it up.
 	 */
 	test	INTCTL, SWTMINTMASK jz return;
-	bmov	SWTIMER, INT_COALESSING_TIMER, 2;
+	bmov	SWTIMER, INT_COALESCING_TIMER, 2;
 	mvi	CLRSEQINTSTAT, CLRSEQ_SWTMRTO;
 	or	INTCTL, SWTMINTEN|SWTIMER_START;
 	and	INTCTL, ~SWTMINTMASK ret;
 
 issue_cmdcmplt:
 	mvi	INTSTAT, CMDCMPLT;
-	clr	INT_COALESSING_CMDCOUNT;
+	clr	INT_COALESCING_CMDCOUNT;
 	or	INTCTL, SWTMINTMASK ret;
 
 BEGIN_CRITICAL;
@@ -324,7 +324,7 @@ fill_qoutfifo_loop:
 	mov	CCSCBRAM, SCBPTR;
 	or	CCSCBRAM, A, SCBPTR[1];
 	mov	NONE, SDSCB_QOFF;
-	inc	INT_COALESSING_CMDCOUNT;
+	inc	INT_COALESCING_CMDCOUNT;
 	add	CMDS_PENDING, -1;
 	adc	CMDS_PENDING[1], -1;
 	cmp	SCB_NEXT_COMPLETE[1], SCB_LIST_NULL je fill_qoutfifo_done;

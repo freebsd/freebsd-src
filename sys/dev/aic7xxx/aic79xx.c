@@ -37,7 +37,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aic79xx.c#190 $
+ * $Id: //depot/aic7xxx/aic7xxx/aic79xx.c#191 $
  *
  * $FreeBSD$
  */
@@ -4806,12 +4806,12 @@ ahd_alloc(void *platform_arg, char *name)
 		   | AHD_EXTENDED_TRANS_A|AHD_STPWLEVEL_A;
 	ahd_timer_init(&ahd->reset_timer);
 	ahd_timer_init(&ahd->stat_timer);
-	ahd->int_coalessing_timer = AHD_INT_COALESSING_TIMER_DEFAULT;
-	ahd->int_coalessing_maxcmds = AHD_INT_COALESSING_MAXCMDS_DEFAULT;
-	ahd->int_coalessing_mincmds = AHD_INT_COALESSING_MINCMDS_DEFAULT;
-	ahd->int_coalessing_threshold = AHD_INT_COALESSING_THRESHOLD_DEFAULT;
-	ahd->int_coalessing_stop_threshold =
-	    AHD_INT_COALESSING_STOP_THRESHOLD_DEFAULT;
+	ahd->int_coalescing_timer = AHD_INT_COALESCING_TIMER_DEFAULT;
+	ahd->int_coalescing_maxcmds = AHD_INT_COALESCING_MAXCMDS_DEFAULT;
+	ahd->int_coalescing_mincmds = AHD_INT_COALESCING_MINCMDS_DEFAULT;
+	ahd->int_coalescing_threshold = AHD_INT_COALESCING_THRESHOLD_DEFAULT;
+	ahd->int_coalescing_stop_threshold =
+	    AHD_INT_COALESCING_STOP_THRESHOLD_DEFAULT;
 
 	if (ahd_platform_alloc(ahd, platform_arg) != 0) {
 		ahd_free(ahd);
@@ -6341,14 +6341,14 @@ ahd_chip_init(struct ahd_softc *ahd)
 	ahd_outb(ahd, NEXT_QUEUED_SCB_ADDR + 3, (busaddr >> 24) & 0xFF);
 
 	/*
-	 * Default to coalessing disabled.
+	 * Default to coalescing disabled.
 	 */
-	ahd_outw(ahd, INT_COALESSING_CMDCOUNT, 0);
+	ahd_outw(ahd, INT_COALESCING_CMDCOUNT, 0);
 	ahd_outw(ahd, CMDS_PENDING, 0);
-	ahd_update_coalessing_values(ahd, ahd->int_coalessing_timer,
-				     ahd->int_coalessing_maxcmds,
-				     ahd->int_coalessing_mincmds);
-	ahd_enable_coalessing(ahd, FALSE);
+	ahd_update_coalescing_values(ahd, ahd->int_coalescing_timer,
+				     ahd->int_coalescing_maxcmds,
+				     ahd->int_coalescing_mincmds);
+	ahd_enable_coalescing(ahd, FALSE);
 
 	ahd_loadseq(ahd);
 	ahd_set_modes(ahd, AHD_MODE_SCSI, AHD_MODE_SCSI);
@@ -6601,30 +6601,30 @@ ahd_intr_enable(struct ahd_softc *ahd, int enable)
 }
 
 void
-ahd_update_coalessing_values(struct ahd_softc *ahd, u_int timer, u_int maxcmds,
+ahd_update_coalescing_values(struct ahd_softc *ahd, u_int timer, u_int maxcmds,
 			     u_int mincmds)
 {
 	if (timer > AHD_TIMER_MAX_US)
 		timer = AHD_TIMER_MAX_US;
-	ahd->int_coalessing_timer = timer;
+	ahd->int_coalescing_timer = timer;
 
-	if (maxcmds > AHD_INT_COALESSING_MAXCMDS_MAX)
-		maxcmds = AHD_INT_COALESSING_MAXCMDS_MAX;
-	if (mincmds > AHD_INT_COALESSING_MINCMDS_MAX)
-		mincmds = AHD_INT_COALESSING_MINCMDS_MAX;
-	ahd->int_coalessing_maxcmds = maxcmds;
-	ahd_outw(ahd, INT_COALESSING_TIMER, timer / AHD_TIMER_US_PER_TICK);
-	ahd_outb(ahd, INT_COALESSING_MAXCMDS, -maxcmds);
-	ahd_outb(ahd, INT_COALESSING_MINCMDS, -mincmds);
+	if (maxcmds > AHD_INT_COALESCING_MAXCMDS_MAX)
+		maxcmds = AHD_INT_COALESCING_MAXCMDS_MAX;
+	if (mincmds > AHD_INT_COALESCING_MINCMDS_MAX)
+		mincmds = AHD_INT_COALESCING_MINCMDS_MAX;
+	ahd->int_coalescing_maxcmds = maxcmds;
+	ahd_outw(ahd, INT_COALESCING_TIMER, timer / AHD_TIMER_US_PER_TICK);
+	ahd_outb(ahd, INT_COALESCING_MAXCMDS, -maxcmds);
+	ahd_outb(ahd, INT_COALESCING_MINCMDS, -mincmds);
 }
 
 void
-ahd_enable_coalessing(struct ahd_softc *ahd, int enable)
+ahd_enable_coalescing(struct ahd_softc *ahd, int enable)
 {
 
-	ahd->hs_mailbox &= ~ENINT_COALESS;
+	ahd->hs_mailbox &= ~ENINT_COALESCE;
 	if (enable)
-		ahd->hs_mailbox |= ENINT_COALESS;
+		ahd->hs_mailbox |= ENINT_COALESCE;
 	ahd_outb(ahd, HS_MAILBOX, ahd->hs_mailbox);
 	ahd_flush_device_writes(ahd);
 	ahd_run_qoutfifo(ahd);
@@ -7718,20 +7718,20 @@ ahd_stat_timer(void *arg)
 	}
 	ahd_lock(ahd, &s);
 
-	enint_coal = ahd->hs_mailbox & ENINT_COALESS;
-	if (ahd->cmdcmplt_total > ahd->int_coalessing_threshold)
-		enint_coal |= ENINT_COALESS;
-	else if (ahd->cmdcmplt_total < ahd->int_coalessing_stop_threshold)
-		enint_coal &= ~ENINT_COALESS;
+	enint_coal = ahd->hs_mailbox & ENINT_COALESCE;
+	if (ahd->cmdcmplt_total > ahd->int_coalescing_threshold)
+		enint_coal |= ENINT_COALESCE;
+	else if (ahd->cmdcmplt_total < ahd->int_coalescing_stop_threshold)
+		enint_coal &= ~ENINT_COALESCE;
 
-	if (enint_coal != (ahd->hs_mailbox & ENINT_COALESS)) {
-		ahd_enable_coalessing(ahd, enint_coal);
+	if (enint_coal != (ahd->hs_mailbox & ENINT_COALESCE)) {
+		ahd_enable_coalescing(ahd, enint_coal);
 #ifdef AHD_DEBUG
-		if ((ahd_debug & AHD_SHOW_INT_COALESSING) != 0)
-			printf("%s: Interrupt coalessing "
+		if ((ahd_debug & AHD_SHOW_INT_COALESCING) != 0)
+			printf("%s: Interrupt coalescing "
 			       "now %sabled. Cmds %d\n",
 			       ahd_name(ahd),
-			       (enint_coal & ENINT_COALESS) ? "en" : "dis",
+			       (enint_coal & ENINT_COALESCE) ? "en" : "dis",
 			       ahd->cmdcmplt_total);
 #endif
 	}
