@@ -72,9 +72,7 @@ int mode;
 char **av;
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	struct stat sb;
 	int base64;
