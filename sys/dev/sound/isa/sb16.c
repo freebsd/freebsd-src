@@ -34,8 +34,11 @@
 #include <dev/sound/pcm/sound.h>
 #if NPCM > 0
 
+#include "sbc.h"
+
 #define __SB_MIXER_C__	/* XXX warning... */
 #include  <dev/sound/isa/sb.h>
+#include  <dev/sound/chip.h>
 
 /* channel interface */
 static void *sbchan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir);
@@ -1258,25 +1261,6 @@ sbpnp_probe(device_t dev)
     	u_int32_t logical_id = isa_get_logicalid(dev);
 
     	switch(logical_id) {
-    	case 0x43008c0e: /* CTL0043 */
-    	case 0x01008c0e: /* CTL0001 */
-		s = "Vibra16X";
-		break;
-
-    	case 0x31008c0e: /* CTL0031 */
-    	case 0x41008c0e: /* CTL0041 */
-    	case 0x42008c0e: /* CTL0042 */
-		s = "SB16 PnP";
-		break;
-
-    	case 0x44008c0e: /* CTL0044 */
-		s = "Creative SB AWE64 Gold";
-		break;
-
-    	case 0x45008c0e: /* CTL0045 */
-		s = "Creative AWE64 PnP";
-		break;
-
     	case 0x01100000: /* @@@1001 */
     		s = "Avance Asound 110";
 		break;
@@ -1299,7 +1283,7 @@ sbpnp_probe(device_t dev)
     	}
     	if (s) {
 		device_set_desc(dev, s);
-		return 0;
+		return (0);
     	}
     	return ENXIO;
 }
@@ -1341,6 +1325,67 @@ static driver_t sbpnp_driver = {
 DRIVER_MODULE(sbpnp, isa, sbpnp_driver, pcm_devclass, 0, 0);
 
 #endif /* NPNP > 0 */
+
+#if NSBC > 0
+#define DESCSTR " PCM Audio"
+static int
+sbsbc_probe(device_t dev)
+{
+    	char *s = NULL;
+	struct sndcard_func *func;
+
+	/* The parent device has already been probed. */
+
+	func = device_get_ivars(dev);
+	if (func == NULL || func->func != SCF_PCM)
+		return (ENXIO);
+
+	s = "SB PCM Audio";
+
+	device_set_desc(dev, s);
+	return 0;
+}
+
+static int
+sbsbc_attach(device_t dev)
+{
+    	struct sb_info *sb;
+    	u_int32_t vend_id;
+	device_t sbc;
+
+	sbc = device_get_parent(dev);
+	vend_id = isa_get_vendorid(sbc);
+    	sb = (struct sb_info *)malloc(sizeof *sb, M_DEVBUF, M_NOWAIT);
+    	if (!sb) return ENXIO;
+    	bzero(sb, sizeof *sb);
+
+    	switch(vend_id) {
+    	case 0xf0008c0e:
+    	case 0x10019305:
+    	case 0x20019305:
+		/* XXX add here the vend_id for other vibra16X cards... */
+		sb->bd_flags = BD_F_SB16X;
+    	}
+    	return sb_doattach(dev, sb);
+}
+
+static device_method_t sbsbc_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		sbsbc_probe),
+	DEVMETHOD(device_attach,	sbsbc_attach),
+
+	{ 0, 0 }
+};
+
+static driver_t sbsbc_driver = {
+	"pcm",
+	sbsbc_methods,
+	sizeof(snddev_info),
+};
+
+DRIVER_MODULE(sbsbc, sbc, sbsbc_driver, pcm_devclass, 0, 0);
+
+#endif /* NSBC > 0 */
 
 #endif /* NPCM > 0 */
 
