@@ -1,7 +1,7 @@
 #
 #  Makefile for configuration files.
 #
-#	$Id: Makefile,v 8.40.8.3 2000/08/08 22:23:30 gshapiro Exp $
+#	$Id: Makefile,v 8.40.8.4 2000/10/26 18:27:44 gshapiro Exp $
 #
 
 #
@@ -25,10 +25,10 @@ RM=	rm -f
 	$(CHMOD) $(ROMODE) $@
 
 GENERIC=generic-bsd4.4.cf generic-hpux9.cf generic-hpux10.cf \
-		generic-linux.cf \
+		generic-linux.cf generic-nextstep3.3.cf \
 		generic-osf1.cf generic-solaris2.cf \
 		generic-sunos4.1.cf generic-ultrix4.cf
-BERKELEY=cs-hpux9.cf cs-osf1.cf cs-solaris2.cf \
+BERKELEY=cs-hpux9.cf cs-hpux10.cf cs-osf1.cf cs-solaris2.cf \
 	cs-sunos4.1.cf cs-ultrix4.cf \
 	s2k-osf1.cf s2k-ultrix4.cf \
 	chez.cs.cf huginn.cs.cf mail.cs.cf mail.eecs.cf mailspool.cs.cf \

@@ -13,7 +13,7 @@
 #include <sendmail.h>
 
 #ifndef lint
-static char id[] = "@(#)$Id: alias.c,v 8.142.4.3 2000/09/21 21:52:16 ca Exp $";
+static char id[] = "@(#)$Id: alias.c,v 8.142.4.9 2000/11/08 20:58:42 geir Exp $";
 #endif /* ! lint */
 
 # define SEPARATOR ':'
@@ -279,7 +279,7 @@ setalias(spec)
 		map = &s->s_map;
 		memset(map, '\0', sizeof *map);
 		map->map_mname = s->s_name;
-		p = strpbrk(p,ALIAS_SPEC_SEPARATORS);
+		p = strpbrk(p, ALIAS_SPEC_SEPARATORS);
 		if (p != NULL && *p == SEPARATOR)
 		{
 			/* map name */
@@ -732,7 +732,7 @@ readaliases(map, af, announcestats, logstats)
 			register char *nlp;
 
 			nlp = &p[strlen(p)];
-			if (nlp[-1] == '\n')
+			if (nlp > p && nlp[-1] == '\n')
 				*--nlp = '\0';
 
 			if (CheckAliases)

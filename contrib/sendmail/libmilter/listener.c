@@ -9,7 +9,7 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: listener.c,v 8.38.2.1.2.11 2000/09/01 00:49:04 ca Exp $";
+static char id[] = "@(#)$Id: listener.c,v 8.38.2.1.2.18 2000/12/29 19:44:28 gshapiro Exp $";
 #endif /* ! lint */
 
 #if _FFR_MILTER
@@ -47,7 +47,6 @@ mi_milteropen(conn, backlog, socksize, name)
 	char *p;
 	char *colon;
 	char *at;
-	struct hostent *hp = NULL;
 	SOCKADDR addr;
 
 	if (conn == NULL || conn[0] == '\0')
@@ -299,6 +298,8 @@ mi_milteropen(conn, backlog, socksize, name)
 			}
 			else
 			{
+				struct hostent *hp = NULL;
+
 				hp = mi_gethostbyname(at, addr.sa.sa_family);
 				if (hp == NULL)
 				{
@@ -334,6 +335,9 @@ mi_milteropen(conn, backlog, socksize, name)
 						name, at, hp->h_addrtype);
 					return INVALID_SOCKET;
 				}
+# if _FFR_FREEHOSTENT && NETINET6
+				freehostent(hp);
+# endif /* _FFR_FREEHOSTENT && NETINET6 */
 			}
 		}
 		else
@@ -411,6 +415,8 @@ mi_thread_handle_wrapper(arg)
 
 static socket_t listenfd = INVALID_SOCKET;
 
+static smutex_t L_Mutex;
+
 /*
 **  MI_CLOSENER -- close listen socket
 **
@@ -424,11 +430,13 @@ static socket_t listenfd = INVALID_SOCKET;
 void
 mi_closener()
 {
+	(void) smutex_lock(&L_Mutex);
 	if (ValidSocket(listenfd))
 	{
 		(void) close(listenfd);
 		listenfd = INVALID_SOCKET;
 	}
+	(void) smutex_unlock(&L_Mutex);
 }
 
 /*
@@ -475,37 +483,56 @@ mi_listener(conn, dbg, smfi, timeout, backlog)
 		smi_log(SMI_LOG_DEBUG,
 			"%s: Opening listen socket on conn %s",
 			smfi->xxfi_name, conn);
+	(void) smutex_init(&L_Mutex);
+	(void) smutex_lock(&L_Mutex);
 	listenfd = mi_milteropen(conn, backlog, &socksize, smfi->xxfi_name);
 	if (!ValidSocket(listenfd))
 	{
 		smi_log(SMI_LOG_FATAL,
 			"%s: Unable to create listening socket on conn %s",
 			smfi->xxfi_name, conn);
+		(void) smutex_unlock(&L_Mutex);
 		return MI_FAILURE;
 	}
 	clilen = socksize;
+
 	if (listenfd >= FD_SETSIZE)
 	{
 		smi_log(SMI_LOG_ERR, "%s: fd %d is larger than FD_SETSIZE %d",
 			smfi->xxfi_name, listenfd, FD_SETSIZE);
+		(void) smutex_unlock(&L_Mutex);
 		return MI_FAILURE;
 	}
+	(void) smutex_unlock(&L_Mutex);
 
 	while (mi_stop() == MILTER_CONT)
 	{
+		(void) smutex_lock(&L_Mutex);
+		if (!ValidSocket(listenfd))
+		{
+			(void) smutex_unlock(&L_Mutex);
+			break;
+		}
+
 		/* select on interface ports */
 		FD_ZERO(&readset);
-		FD_SET((u_int) listenfd, &readset);
 		FD_ZERO(&excset);
+		FD_SET((u_int) listenfd, &readset);
 		FD_SET((u_int) listenfd, &excset);
 		chktime.tv_sec = MI_CHK_TIME;
 		chktime.tv_usec = 0;
 		r = select(listenfd + 1, &readset, NULL, &excset, &chktime);
 		if (r == 0)		/* timeout */
+		{
+			(void) smutex_unlock(&L_Mutex);
 			continue;	/* just check mi_stop() */
+		}
 		if (r < 0)
 		{
-			if (errno == EINTR)
+			int err = errno;
+
+			(void) smutex_unlock(&L_Mutex);
+			if (err == EINTR)
 				continue;
 			ret = MI_FAILURE;
 			break;
@@ -514,11 +541,13 @@ mi_listener(conn, dbg, smfi, timeout, backlog)
 		{
 			/* some error: just stop for now... */
 			ret = MI_FAILURE;
+			(void) smutex_unlock(&L_Mutex);
 			break;
 		}
 
 		connfd = accept(listenfd, (struct sockaddr *) &cliaddr,
 				&clilen);
+		(void) smutex_unlock(&L_Mutex);
 
 		if (!ValidSocket(connfd))
 		{
@@ -577,7 +606,7 @@ mi_listener(conn, dbg, smfi, timeout, backlog)
 
 		if ((r = thread_create(&thread_id,
 					mi_thread_handle_wrapper,
-					(void *) ctx)) != MI_SUCCESS)
+					(void *) ctx)) != 0)
 		{
 			smi_log(SMI_LOG_ERR,
 				"%s: thread_create() failed: %d",
@@ -596,8 +625,9 @@ mi_listener(conn, dbg, smfi, timeout, backlog)
 	}
 	if (ret != MI_SUCCESS)
 		mi_stop_milters(MILTER_ABRT);
-	if (listenfd >= 0)
-		(void) close(listenfd);
+	else
+		mi_closener();
+	(void) smutex_destroy(&L_Mutex);
 	return ret;
 }
 #endif /* _FFR_MILTER */
