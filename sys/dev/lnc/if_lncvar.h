@@ -33,8 +33,6 @@
  * $FreeBSD$
  */
 
-#include <dev/lnc/if_lncreg.h>
-
 /*
  * Initialize multicast address hashing registers to accept
  * all multicasts (only used when in promiscuous mode)
