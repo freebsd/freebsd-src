@@ -164,6 +164,16 @@ printf("ext2_truncate called %d to %d\n", VTOI(ovp)->i_number, length);
 	 * value of oszie is 0, length will be at least 1.
 	 */
 	if (osize < length) {
+		/*
+		 * XXX Refuse to extend files past 2GB on old format
+		 * filesystems or ones that don't already have the
+		 * large file flag set in the superblock.
+		 */
+		if (osize < 0x8000000 && length >= 0x80000000 &&
+		    (oip->i_e2fs->s_es->s_rev_level == EXT2_GOOD_OLD_REV ||
+		    (oip->i_e2fs->s_es->s_feature_ro_compat &
+		    EXT2_FEATURE_RO_COMPAT_LARGE_FILE) == 0))
+			return (EFBIG);
 		offset = blkoff(fs, length - 1);
 		lbn = lblkno(fs, length - 1);
 		aflags = B_CLRBUF;
