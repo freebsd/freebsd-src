@@ -1800,6 +1800,13 @@ device		agp
 # The `ahc' device provides support for the Adaptec 29/3940(U)(W)
 # and motherboard based AIC7870/AIC7880 adapters.
 #
+# The 'ahd' device provides support for the Adaptec 79xx Ultra320
+# SCSI adapters. Options are documented in the ahd(4) manpage:
+options		AHD_DEBUG
+options		AHD_DEBUG_OPTS=0xffffffff
+options		AHD_REG_PRETTY_PRINT
+#options	AHD_TMODE_ENABLE=0xff
+#
 # The `amd' device provides support for the AMD 53C974 SCSI host
 # adapter chip as found on devices such as the Tekram DC-390(T).
 #
@@ -1983,6 +1990,7 @@ device		agp
 # OC-3136, OC-3137, OC-3139, OC-3140, OC-3141, OC-3540, OC-3250
 #
 device		ahc		# AHA2940 and onboard AIC7xxx devices
+device		ahd		# AIC79xx devices
 device		amd		# AMD 53C974 (Teckram DC-390(T))
 device		isp		# Qlogic family
 device		ispfw		# Firmware for QLogic HBAs
