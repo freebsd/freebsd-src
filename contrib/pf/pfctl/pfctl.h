@@ -83,7 +83,7 @@ int	 pfctl_command_tables(int, char *[], char *, const char *, char *,
 int	 pfctl_show_altq(int, int, int);
 void	 warn_namespace_collision(const char *);
 
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 extern int altqsupport;
 #endif
 

@@ -135,7 +135,7 @@ struct node_queue_opt {
 	}			 data;
 };
 
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 /*
  * XXX
  * Absolutely this is not correct location to define this.
