@@ -1,3 +1,4 @@
+/* $FreeBSD$ */
 /* config.h.  Generated automatically by configure.  */
 /* config.h.in.  Generated automatically from configure.in by autoheader.  */
 
@@ -177,8 +178,9 @@
 /* Defined if su should not switch to disabled accounts */
 /* #undef SU_STAR_CHECK */
 
+/* Don't turn it on! It allows intruder easily disable whole OPIE for user */
 /* Defined if user locking is to be used */
-#define USER_LOCKING 1
+/* #undef USER_LOCKING */
 
 /* Define if you have the bcopy function.  */
 /* #undef HAVE_BCOPY */
