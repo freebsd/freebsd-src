@@ -1,37 +1,290 @@
-Fri Mar 16 12:46:19 GMT 2001 Bernd Schmidt  (bernds@redhat.com)
+2002-05-08  Alexandre Oliva  <aoliva@redhat.com>
 
-	* gcc-2.95.3 Released.
+	* configure.in (ORIGINAL_LD_FOR_MULTILIBS): Preserve LD at
+	script entry, and set LD to it when configuring multilibs.
+	* configure: Rebuilt.
 
-2001-01-11  Joseph S. Myers  <jsm28@cam.ac.uk>
+2002-04-19  David O'Brien  <obrien@FreeBSD.org>
+
+	* encoding.c (MAX, MIN, ROUNDING): #undef before defining.
+
+2002-04-09  Hans-Peter Nilsson  <hp@bitrange.com>
+
+	PR objc/6107
+	* objc/objc-api.h (struct objc_protocol_list): Change type of
+	member count from int to size_t.
+
+2002-02-11  Franz Sirl  <Franz.Sirl-kernel@lauterbach.com>
+
+	PR libobjc/4039
+	* aclocal.m4: Replace with version copied from libstdc++-v3.
+	* configure.in: Update for changes to aclocal and Makefile.
+	* configure: Regenerate.
+	* Makefile.in: Correct install of multilibs and shared libs, use
+	INSTALL_DATA for include files.
+
+Mon Dec 17 17:02:12 2001  Nicola Pero  <nicola@brainstorm.co.uk>
+
+	* init.c (__objc_exec_class): Fixed bug in the loop on unclaimed
+	categories - when an unclaimed category was found, the loop was
+	doing two steps forward instead of one, so that in certain cases
+	it was failing to properly load all the categories.  (Reported
+	with fix by Alexander Malmberg <alexander@malmberg.org>).
+
+2001-11-14  Aldy Hernandez  <aldyh@redhat.com>
+
+        * encoding.c: Add target_flags.
+
+2001-11-07  Aldy Hernandez  <aldyh@redhat.com>
+
+	 * objc/objc-api.h (_C_VECTOR): New.
+
+	 * encoding.c (VECTOR_TYPE): New.
+
+Mon Oct 29 21:29:21 2001  Nicola Pero  <n.pero@mi.flashnet.it>
+
+	* class.c: Rewritten the class table to use optimized, lock-free
+        lookup.  This more than doubles the speed of class method
+        invocations.  (class_table_setup), (class_table_insert),
+        (class_table_replace), (class_table_get_safe),
+        (class_table_next), (class_table_print),
+        (class_table_print_histogram): New functions.
+        (__objc_init_class_tables): Use class_table_setup.
+        (__objc_add_class_to_hash): Use class_table_get_safe and
+        class_table_insert.  (objc_lookup_class), (objc_get_class): Do not
+        assert the existence of the table; do not lock the runtime; use
+        class_table_get_safe.  (objc_next_class): Use class_table_next.
+        (__objc_resolve_class_links): Use class_table_next.
+        (class_pose_as): Use class_table_replace.
+
+2001-09-10  Ovidiu Predescu  <ovidiu@cup.hp.com>
+
+	* gc.c: Removed the DEBUG declaration.
+
+Wed Jul 18 12:48:56 2001  Nicola Pero  <n.pero@mi.flashnet.it>
+
+	* thr.c (objc_mutex_lock): Invoke __objc_thread_id directly,
+	rather than through objc_thread_id, to save a function call.
+	(objc_mutex_trylock, objc_mutex_unlock, objc_condition_wait):
+	Ditto.
+
+Mon Jul 16 12:15:00 2001  Nicola Pero  <n.pero@mi.flashnet.it>
+
+	* objc/objc-api.h (object_is_class): Fixed - buggy code was trying
+	to cast an id to a Class, which can not be done.  Make the check
+	by using CLS_ISMETA on the class pointer instead.
+	(object_is_meta_class): Similar fix.
+
+2001-06-09  Alexandre Oliva  <aoliva@redhat.com>, Stephen L Moshier  <moshier@mediaone.net>
+
+	* configure.in (AC_EXEEXT): Work around in case it expands to
+	nothing, as in autoconf 2.50.
+	* acinclude.m4: Likewise.
+	* configure: Rebuilt.
+
+2001-06-08  Nicola Pero  <n.pero@mi.flashnet.it>
+
+	* THREADS: Explain that when we compile libobjc inside GCC, we
+	always use thr-objc.c as a backend, which uses GCC's thread code.
+
+2001-06-06  Richard Frith-Macdonald  <rrfm@gnu.org>
+
+	* init.c (__objc_send_message_in_list): When setting a new entry
+	in __objc_load_methods use the method IMP as key, but check to see
+	if the method is in the hashtable by looking at the IMP also.
+	Also ... call the method after adding it to the hashtable rather
+	than before ... thus preventing an obscure possibility of infinite
+	recursion if a +load method itself loads a subclass.
+
+2001-05-25  Ovidiu Predescu  <ovidiu@cup.hp.com>
+
+	* init.c (__objc_send_message_in_list): When setting a new entry
+	in __objc_load_methods use the method name as key, not the method
+	IMP (reported by Richard Frith-Macdonald <richard@brainstorm.co.uk>).
+
+2001-05-09  Joseph S. Myers  <jsm28@cam.ac.uk>
+
+	* objc-features.texi: Move to ../gcc/objc.texi.
+	* fdl.texi: Remove.
+	* Makefile.in: Don't generate documentation from
+	objc-features.texi.
+
+2001-05-01  Mark Mitchell  <mark@codesourcery.com>
+
+	* fdl.texi: New file.
+	* objc-features.texi: Simplify.
+	* Makefile.in: Adjust accordingly.
+
+2001-04-30  Mark Mitchell  <mark@codesourcery.com>
+
+	* objc-features.texi: Use the GFDL.
+
+Wed Mar 21 04:44:58 EST 2001  John Wehle  (john@feith.com)
+
+	* encoding.c (REAL_TYPE): Define.
+
+2001-03-19  David Edelsohn  <edelsohn@gnu.org>
+
+	* encoding.c (TYPE_MODE): Define.
+
+2001-03-14  Nicola Pero  <n.pero@mi.flashnet.it>
+
+	* thr.c (objc_thread_add): New function.
+	(objc_thread_remove): Ditto.
+	* objc/thr.h: Declare them.
+	* libobjc.def: Mention them.
+
+2001-02-28  Ovidiu Predescu  <ovidiu@cup.hp.com>
+
+	* objc-features.texi: Document the @compatibility_alias compiler
+	directive (description from Nicola Pero <n.pero@mi.flashnet.it>).
+
+Fri Feb 23 18:12:00 2001  Rainer Orth  <ro@TechFak.Uni-Bielefeld.DE>
+
+	* sendmsg.c (__objc_forward): Delete strlen() declaration.
+
+2001-02-08  Geoffrey Keating  <geoffk@redhat.com>
+
+	* configure.in: Don't run AC_PROG_CC_WORKS or AC_EXEEXT, because
+	we're not interested in the result and they might fail.
+	* configure: Regenerated.
+
+2001-01-12  Joseph S. Myers  <jsm28@cam.ac.uk>
+
+	* objc-features.texi: Use @email.
+
+2001-01-12  Joseph S. Myers  <jsm28@cam.ac.uk>
 
 	* sendmsg.c (__objc_print_dtable_stats): Don't use #ifdef inside
 	printf.
+
+2000-01-11  Richard Earnshaw  <rearnsha@arm.com>
+
+	* encoding.c (STRUCTURE_SIZE_BOUNDARY): Redefine in a way that
+	determines the value dynamically.
+
+Wed Jan  3 00:49:10 2001  Ovidiu Predescu  <ovidiu@cup.hp.com>
+
+	* sendmsg.c: Added __objc_msg_forward, a hook that allows external
+	libraries to provide a function that returns the real forwarding
+	function. This can alleviate problems __builtin_apply() and
+	friends have on various platforms. (Solution suggested by Helge
+	Hess.)
+	
+	* objc/objc-api.h: Define __objc_msg_forward.
+
+	* sendmsg.c: Define gen_rtx_REG.
+
+2000-12-06      Ralf Corsepius <corsepiu@faw.uni-ulm.de>
+
+	* thr-rtems.c: New file. Stub to compile. 
+
+2000-09-06  Alexandre Oliva  <aoliva@redhat.com>
+
+	* configure: Rebuilt with new libtool.m4.
+
+Tue Aug 15 00:38:56 2000  Ovidiu Predescu  <ovidiu@cup.hp.com>
+
+	* configure.in: Create a config.h file. Check for <sched.h>.
+	* configure: Regenerate.
+
+	* config.h.in: Check for <sched.h>.
+
+2000-08-14  Zack Weinberg  <zack@wolery.cumb.org>
+
+	* configure: Regenerate after change to ../libtool.m4.
+
+2000-08-14  Andreas Schwab  <schwab@suse.de>
+
+	* objc-features.texi (Top): Move @menu at end of node.
+
+2000-08-11  Manfred Hollstein  <manfredh@redhat.com>
+
+	* objc-features.texi: Move @node Top before @menu.
+
+Sun Aug  6 23:27:49 2000  Ovidiu Predescu  <ovidiu@cup.hp.com>
+
+	* objc-features.texi: Documented the new -fconstant-string-class
+	option.
+
+Sun Aug  6 22:51:16 2000  Ovidiu Predescu  <ovidiu@cup.hp.com>
+
+	* thr-posix.c: Integrated Chris Ball's <cball@fmco.com> changes to
+	improve the Posix thread support for Objective-C.
+
+2000-08-04  Zack Weinberg  <zack@wolery.cumb.org>
+
+	* aclocal.m4: Replace copy of ../libtool.m4 with
+	sinclude(../libtool.m4).
+
+Fri Jul 28 08:58:02 2000  Nicola Pero  <nicola@brainstorm.co.uk>
+
+	* configure.in: Added libtool support; build shared libraries 
+	if --enable-shared was passed on command line.
+	* Makefile.in: Modified most compilation commands to use libtool.
+	* aclocal.m4: New symbolic link to the ../libtool.m4, from the
+	libtool distribution.
+
+Sat Jul 29 00:10:21 2000  Ovidiu Predescu  <ovidiu@cup.hp.com>
+
+	* sarray.c, Object.m: Removed the explicit prototypes for strlen
+	and memcpy on 64-bit platforms (Suggested by Rodney Brown
+	<rdb@cup.hp.com>).
+
+2000-05-12  H.J. Lu  (hjl@gnu.org)
+
+	* Makefile.in (GTHREAD_FLAGS): New.
+	(ALL_CFLAGS): Add $(GTHREAD_FLAGS).
+	(OBJC_THREAD_FILE): Changed to thr-objc.
+
+	* configure.in (GTHREAD_FLAGS): New, check and replace it for
+	Makefile.
+	(OBJC_THREAD_FILE): Removed.
+
+	* thr-objc.c: New.
+
+2000-07-13  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* objc/hash.h: Include string.h.
+
+2000-04-15  David Edelsohn  <edelsohn@gnu.org>
+
+	* Object.m (strlen): 64-bit PowerPC is a 64bit platform as well.
+
+2000-04-12  Jakub Jelinek  <jakub@redhat.com>
+
+	* Object.m (strlen): Provide prototype on all 64bit platforms,
+	not only alpha.
+	* sarray.c (memcpy): Likewise.
+	* encoding.c (objc_layout_finish_structure): Don't use
+	ROUND_TYPE_ALIGN on sparc.
+
+	* encoding.c (objc_layout_structure_next_member): Do the whole
+	procedure even for the first member, so that we get correct
+	alignment.
 
 2000-03-29  Zack Weinberg  <zack@wolery.cumb.org>
 
 	* objc/Protocol.h, objc/objc-list.h: Change #endif labels to
 	comments.
 
-Sun Oct 24 23:54:10 PDT 1999 Jeff Law  (law@cygnus.com)
+2000-02-23  Zack Weinberg  <zack@wolery.cumb.org>
 
-	* gcc-2.95.2 Released.
+	* Makefile.in: Add -DIN_TARGET_LIBS to ALL_CFLAGS.
 
-Mon Aug 16 01:29:24 PDT 1999 Jeff Law  (law@cygnus.com)
+Thu Sep 23 07:19:12 1999   Chris Ball <cball@fmco.com>
 
-	* gcc-2.95.1 Released.
+	* thr-posix.c (__objc_mutex_deallocate): made deallocate work.
 
+Tue Sep 21 07:47:10 1999  Jeffrey A Law  (law@cygnus.com)
+
+	* Makefile.in (gc.o, gc_gc.o): Do not pass -fgnu-runtime to
+	the compiler when building C code.
+	
 Fri Aug  6 23:32:29 1999  Daniel Jacobowitz <drow@drow.them.org>
 
 	* Makefile.in (FLAGS_TO_PASS): Include prefix, exec_prefix,
 	libdir, libsubdir and tooldir.
-
-Wed Jul 28 21:39:31 PDT 1999 Jeff Law  (law@cygnus.com)
-
-	* gcc-2.95 Released.
-
-Sun Jul 25 23:40:51 PDT 1999 Jeff Law  (law@cygnus.com)
-
-	* gcc-2.95 Released.
 
 Mon Jun 21 05:40:15 1999  John David Anglin <dave@hiauly1>
 

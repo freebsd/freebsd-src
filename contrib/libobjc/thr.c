@@ -318,7 +318,7 @@ objc_mutex_lock(objc_mutex_t mutex)
     return -1;
 
   /* If we already own the lock then increment depth */
-  thread_id = objc_thread_id();
+  thread_id = __objc_thread_id();
   if (mutex->owner == thread_id)
     return ++mutex->depth;
 
@@ -350,7 +350,7 @@ objc_mutex_trylock(objc_mutex_t mutex)
     return -1;
 
   /* If we already own the lock then increment depth */ 
-  thread_id = objc_thread_id();
+  thread_id = __objc_thread_id();
   if (mutex->owner == thread_id)
     return ++mutex->depth;
     
@@ -385,7 +385,7 @@ objc_mutex_unlock(objc_mutex_t mutex)
     return -1;
 
   /* If another thread owns the lock then abort */
-  thread_id = objc_thread_id();
+  thread_id = __objc_thread_id();
   if (mutex->owner != thread_id)
     return -1;
 
@@ -477,7 +477,7 @@ objc_condition_wait(objc_condition_t condition, objc_mutex_t mutex)
     return -1;
 
   /* Make sure we are owner of mutex */
-  thread_id = objc_thread_id();
+  thread_id = __objc_thread_id();
   if (mutex->owner != thread_id)
     return -1;
 
@@ -529,6 +529,35 @@ objc_condition_signal(objc_condition_t condition)
     return -1;
 
   return __objc_condition_signal(condition);
+}
+
+/* Make the objc thread system aware that a thread which is managed
+   (started, stopped) by external code could access objc facilities
+   from now on.  This is used when you are interfacing with some
+   external non-objc-based environment/system - you must call
+   objc_thread_add() before an alien thread makes any calls to
+   Objective-C.  Do not cause the _objc_became_multi_threaded hook to
+   be executed. */
+void 
+objc_thread_add(void)
+{
+  objc_mutex_lock(__objc_runtime_mutex);
+  __objc_is_multi_threaded = 1;
+  __objc_runtime_threads_alive++;
+  objc_mutex_unlock(__objc_runtime_mutex);  
+}
+
+/* Make the objc thread system aware that a thread managed (started,
+   stopped) by some external code will no longer access objc and thus
+   can be forgotten by the objc thread system.  Call
+   objc_thread_remove() when your alien thread is done with making
+   calls to Objective-C. */
+void
+objc_thread_remove(void)
+{
+  objc_mutex_lock(__objc_runtime_mutex);
+  __objc_runtime_threads_alive--;
+  objc_mutex_unlock(__objc_runtime_mutex);  
 }
 
 /* End of File */
