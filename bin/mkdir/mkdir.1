@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)mkdir.1	8.2 (Berkeley) 1/25/94
-.\"	$Id: mkdir.1,v 1.2 1994/09/24 02:56:02 davidg Exp $
+.\"	$Id: mkdir.1,v 1.3 1996/08/29 18:06:01 wosch Exp $
 .\"
 .Dd January 25, 1994
 .Dt MKDIR 1
@@ -47,7 +47,7 @@
 .Op Fl m Ar mode
 .Ar directory_name  ...
 .Sh DESCRIPTION
-.Nm Mkdir
+.Nm
 creates the directories named as operands, in the order specified,
 using mode
 .Li rwxrwxrwx (\&0777)
@@ -81,7 +81,7 @@ permission for the owner.
 .Pp
 The user must have write permission in the parent directory.
 .Pp
-.Nm Mkdir
+.Nm
 exits 0 if successful, and >0 if an error occurred.
 .Sh SEE ALSO
 .Xr rmdir 1
