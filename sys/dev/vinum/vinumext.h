@@ -70,7 +70,7 @@ int vinum_inactive(int);
 void free_vinum(int);
 int give_sd_to_plex(int plexno, int sdno);
 void give_sd_to_drive(int sdno);
-int give_plex_to_volume(int volno, int plexno);
+int give_plex_to_volume(int, int, int);
 struct drive *check_drive(char *);
 enum drive_label_info read_drive_label(struct drive *, int);
 int parse_config(char *, struct keywordset *, int);
