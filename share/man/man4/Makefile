@@ -99,6 +99,7 @@ MAN=	aac.4 \
 	my.4 \
 	natm.4 \
 	ncr.4 \
+	ncv.4 \
 	netgraph.4 \
 	netintro.4 \
 	ng_UI.4 \
@@ -127,6 +128,7 @@ MAN=	aac.4 \
 	ng_vjc.4 \
 	nge.4 \
 	nmdm.4 \
+	nsp.4 \
 	null.4 \
 	ohci.4 \
 	orm.4 \
@@ -179,6 +181,7 @@ MAN=	aac.4 \
 	st.4 \
 	ste.4 \
 	stf.4 \
+	stg.4 \
 	sym.4 \
 	syncer.4 \
 	syscons.4 \
