@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 2000, 2001 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,9 @@
  *	i4b_l1.h - isdn4bsd layer 1 header file
  *	---------------------------------------
  *
- *	$Id: i4b_l1.h,v 1.15 2000/06/02 16:14:36 hm Exp $ 
- *
  * $FreeBSD$
  *
- *      last edit-date: [Thu Oct 26 08:42:44 2000]
+ *      last edit-date: [Wed Jan 10 16:42:27 2001]
  *
  *---------------------------------------------------------------------------*/
 
@@ -71,6 +69,7 @@
 #define FLAG_ACER_P10		26
 #define FLAG_TELEINT_NO_1	27
 #define FLAG_CCD_HFCS_PCI	28
+#define FLAG_NETJET_S		29
 
 #define SEC_DELAY		1000000	/* one second DELAY for DELAY*/
 
@@ -91,6 +90,7 @@
 #define L0IHFCUNIT(u) ( (((L1DRVR_IHFC) << 8) & 0xff00) | ((u) & 0xff))
 #define L0IFPNPUNIT(u) ( (((L1DRVR_IFPNP) << 8) & 0xff00) | ((u) & 0xff))
 #define L0ICCHPUNIT(u) ( (((L1DRVR_ICCHP) << 8) & 0xff00) | ((u) & 0xff))
+#define L0ITJCUNIT(u) ( (((L1DRVR_ITJC) << 8) & 0xff00) | ((u) & 0xff))
 
 /* jump table for the multiplex functions */
 struct i4b_l1mux_func {

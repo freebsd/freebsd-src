@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 2000, 2001 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,9 @@
  *	i4b_l1dmux.c - isdn4bsd layer 1 driver multiplexer
  *	--------------------------------------------------
  *
- *	$Id: i4b_l1dmux.c,v 1.12 2000/06/02 16:14:36 hm Exp $
- *
  * $FreeBSD$
  *
- *      last edit-date: [Fri Jun  2 14:37:39 2000]
+ *      last edit-date: [Wed Jan 10 16:43:24 2001]
  *
  *---------------------------------------------------------------------------*/
 
@@ -40,10 +38,10 @@
 #include "ifpi.h"
 #include "ifpnp.h"
 #include "ihfc.h"
+#include "itjc.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
-
 
 #include <machine/i4b_debug.h>
 #include <machine/i4b_ioctl.h>
@@ -103,6 +101,10 @@ static int l1ihfcunittab[MAXL1UNITS];
 
 #if NIFPNP > 0
 static int l1ifpnpunittab[MAXL1UNITS];
+#endif
+
+#if NITJC > 0
+static int l1itjcunittab[MAXL1UNITS];
 #endif
 
 static int numl1units = 0;
@@ -183,6 +185,11 @@ getl1tab(int drv)
 #if NIFPNP > 0
 		case L1DRVR_IFPNP:
 			return(l1ifpnpunittab);
+			break;
+#endif
+#if NITJC > 0
+		case L1DRVR_ITJC:
+			return(l1itjcunittab);
 			break;
 #endif
 		default:
@@ -316,6 +323,12 @@ i4b_l1_mph_status_ind(int drv_unit, int status, int parm, struct i4b_l1mux_func 
 #if NIHFC > 0
 				case L1DRVR_IHFC:
 					printf("ihfc%d: passive stack unit %d\n", L0UNIT(drv_unit), numl1units);
+					break;
+#endif
+#if NITJC > 0
+				case L1DRVR_ITJC:
+					printf("itjc%d: passive stack unit %d\n", L0UNIT(drv_unit), numl1units);
+					break;
 #endif
 			}
 			
