@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.25.2.19 1995/10/21 18:28:05 jkh Exp $
+ * $Id: media.c,v 1.25.2.20 1995/10/22 01:32:50 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -70,6 +70,16 @@ static int
 cdromHook(char *str)
 {
     return genericHook(str, DEVICE_TYPE_CDROM);
+}
+
+char *
+cpioVerbosity()
+{
+    if (!strcmp(variable_get(VAR_CPIO_VERBOSITY), "high"))
+	return "-v";
+    else if (!strcmp(variable_get(VAR_CPIO_VERBOSITY), "medium"))
+	return "-V";
+    return "";
 }
 
 /*
@@ -401,7 +411,7 @@ mediaExtractDistBegin(char *dir, int *fd, int *zpid, int *cpid)
 	    close(1); open("/dev/null", O_WRONLY);
 	    dup2(1, 2);
 	}
-	i = execl("/stand/cpio", "/stand/cpio", "-idum", VAR_CPIO_VERBOSITY, "--block-size", mediaTapeBlocksize(), 0);
+	i = execl("/stand/cpio", "/stand/cpio", "-idum", cpioVerbosity(), "--block-size", mediaTapeBlocksize(), 0);
 	if (isDebug())
 	    msgDebug("/stand/cpio command returns %d status\n", i);
 	exit(i);
@@ -474,7 +484,7 @@ mediaExtractDist(char *dir, int fd)
 	    close(1); open("/dev/null", O_WRONLY);
 	    dup2(1, 2);
 	}
-	i = execl("/stand/cpio", "/stand/cpio", "-idum", VAR_CPIO_VERBOSITY, "--block-size", mediaTapeBlocksize(), 0);
+	i = execl("/stand/cpio", "/stand/cpio", "-idum", cpioVerbosity(), "--block-size", mediaTapeBlocksize(), 0);
 	if (isDebug())
 	    msgDebug("/stand/cpio command returns %d status\n", i);
 	exit(i);
