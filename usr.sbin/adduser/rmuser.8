@@ -24,7 +24,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id: rmuser.8,v 1.5 1997/02/22 16:01:20 peter Exp $
+.\"	$Id: rmuser.8,v 1.1.2.2 1997/03/06 07:59:15 mpp Exp $
 .\"
 .Dd July 16, 1996
 .Dt RMUSER 8
@@ -37,7 +37,7 @@
 .Op Ar username
 .Sh DESCRIPTION
 The 
-.Nm rmuser
+.Nm
 utility removes a user's 
 .Xr crontab 1
 entry (if any) and any 
@@ -53,17 +53,17 @@ the group is removed (this complements
 .Xr adduser 8 's
 per-user unique groups).
 .Pp
-.Nm rmuser
+.Nm Rmuser
 politely refuses to remove users whose uid is 0 (typically root), since
 it seemed like a good idea at the time
-.Nm rmuser
+.Nm
 was written.
 .Pp
-.Nm rmuser
+.Nm Rmuser
 shows the selected user's password file entry and asks for confirmation
 that you wish to remove the user.  If the user's home directory is owned
 by the user (and not by any other user),
-.Nm rmuser
+.Nm
 asks whether you wish to remove the user's home directory and everything
 below.
 .Pp
@@ -72,7 +72,7 @@ Available options:
 .Bl -tag -width username
 .It Ar \&username
 Identifies the user to be removed; if not present,
-.Nm rmuser
+.Nm
 interactively asks for the user to be removed.
 .Sh FILES
 .Bl -tag -width /etc/master.passwd -compact
