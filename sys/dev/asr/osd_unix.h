@@ -402,7 +402,7 @@ typedef struct EATACommandPacket {
 #endif  /* _DPT_SOLARIS else */
 
 				  } EATA_CP;
-#endif // SNI_MIPS
+#endif /* SNI_MIPS */
 
 
                       /* Control Flags 1 Definitions */
@@ -509,7 +509,7 @@ typedef struct {
 	       } HbaInfo;
 
 #endif  /* _DPT_UNIXWARE */
-#endif // SNI_MIPS
+#endif /* SNI_MIPS */
 
 
 #ifdef _DPT_AIX

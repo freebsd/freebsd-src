@@ -69,7 +69,7 @@
 #else
 #pragma pack(1)
 #endif  /* aix */
-#endif  // no unpack
+#endif  /* no unpack */
 
 
 /*struct - driveParam_S - start
@@ -98,7 +98,7 @@
 #ifdef DPT_PORTABLE
 	uSHORT		netInsert(dptBuffer_S *buffer);
 	uSHORT		netExtract(dptBuffer_S *buffer);
-#endif // DPT PORTABLE
+#endif /* DPT PORTABLE */
 //--------------------------------------------
 
    };
@@ -176,7 +176,7 @@
 #ifdef DPT_PORTABLE
 	uSHORT		netInsert(dptBuffer_S *buffer);
 	uSHORT		netExtract(dptBuffer_S *buffer);
-#endif // DPT PORTABLE
+#endif /* DPT PORTABLE */
 //--------------------------------------------
 
    };
@@ -217,7 +217,7 @@
 #ifdef DPT_PORTABLE
 	uSHORT		netInsert(dptBuffer_S *buffer);
 	uSHORT		netExtract(dptBuffer_S *buffer);
-#endif // DPT PORTABLE
+#endif /* DPT PORTABLE */
 //--------------------------------------------
 
    };
@@ -265,7 +265,7 @@
 #ifdef DPT_PORTABLE
 	uSHORT		netInsert(dptBuffer_S *buffer);
 	uSHORT		netExtract(dptBuffer_S *buffer);
-#endif // DPT PORTABLE
+#endif /* DPT PORTABLE */
 //--------------------------------------------
 
    };
@@ -299,7 +299,7 @@
 #ifdef DPT_PORTABLE
 	uSHORT		netInsert(dptBuffer_S *buffer);
 	uSHORT		netExtract(dptBuffer_S *buffer);
-#endif // DPT PORTABLE
+#endif /* DPT PORTABLE */
 //--------------------------------------------
 
    };
@@ -333,7 +333,7 @@
 #ifdef DPT_PORTABLE
 	uSHORT		netInsert(dptBuffer_S *buffer);
 	uSHORT		netExtract(dptBuffer_S *buffer);
-#endif // DPT PORTABLE
+#endif /* DPT PORTABLE */
 //--------------------------------------------
 
    };
@@ -367,7 +367,7 @@
 #ifdef DPT_PORTABLE
 	uSHORT		netInsert(dptBuffer_S *buffer);
 	uSHORT		netExtract(dptBuffer_S *buffer);
-#endif // DPT PORTABLE
+#endif /* DPT PORTABLE */
 //--------------------------------------------
 
    };
@@ -401,7 +401,7 @@
 #ifdef DPT_PORTABLE
 	uSHORT		netInsert(dptBuffer_S *buffer);
 	uSHORT		netExtract(dptBuffer_S *buffer);
-#endif // DPT PORTABLE
+#endif /* DPT PORTABLE */
 //--------------------------------------------
 
    };
@@ -420,7 +420,7 @@
 #else
 #pragma pack()
 #endif  /* aix */
-#endif  // no unpack
+#endif  /* no unpack */
 
 #ifdef DPT_MEASURE_PERFORMANCE
 typedef struct dpt_metrics {
@@ -478,5 +478,5 @@ typedef struct dpt_metrics {
 } dpt_perf_t;
 #endif
 
-#endif  // __SYS_INFO_H
+#endif  /* __SYS_INFO_H */
 
