@@ -256,26 +256,26 @@ streamsopen(struct cdev *dev, int oflags, int devtype, struct thread *td)
 
 	if ((error = socreate(family, &so, type, protocol,
 	    td->td_ucred, td)) != 0) {
-	  FILEDESC_LOCK(p->p_fd);
+	  FILEDESC_LOCK_FAST(p->p_fd);
 	  /* Check the fd table entry hasn't changed since we made it. */
 	  extraref = 0;
 	  if (p->p_fd->fd_ofiles[fd] == fp) {
 	    p->p_fd->fd_ofiles[fd] = NULL;
 	    extraref = 1;
 	  }
-	  FILEDESC_UNLOCK(p->p_fd);
+	  FILEDESC_UNLOCK_FAST(p->p_fd);
 	  if (extraref)
 	    fdrop(fp, td);
 	  fdrop(fp, td);
 	  return error;
 	}
 
-	FILEDESC_LOCK(p->p_fd);
+	FILEDESC_LOCK_FAST(p->p_fd);
 	fp->f_data = so;
 	fp->f_flag = FREAD|FWRITE;
 	fp->f_ops = &svr4_netops;
 	fp->f_type = DTYPE_SOCKET;
-	FILEDESC_UNLOCK(p->p_fd);
+	FILEDESC_UNLOCK_FAST(p->p_fd);
 
 	(void)svr4_stream_get(fp);
 	fdrop(fp, td);
