@@ -104,7 +104,7 @@ pnp_load(int argc, char *argv[])
 	    pnp_readconf("/boot/pnpdata.local");
 	    pnp_readconf("/boot/pnpdata");
 	} else {
-	    if (pnp_readconf("fname")) {
+	    if (pnp_readconf(fname)) {
 		sprintf(command_errbuf, "can't read PnP information from '%s'", fname);
 		return(CMD_ERROR);
 	    }
