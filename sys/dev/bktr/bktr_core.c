@@ -859,8 +859,10 @@ bktr_attach( ATTACH_ARGS )
 	probeCard( bktr, TRUE );
 
 #ifdef DEVFS
-	bktr->devfs_token = devfs_add_devswf(&bktr_cdevsw, unit,
-					     DV_CHR, 0, 0, 0644, "brooktree");
+	bktr->devfs_bktr_token = devfs_add_devswf(&bktr_cdevsw, unit,
+					     DV_CHR, 0, 0, 0444, "bktr%d", unit);
+	bktr->devfs_tuner_token = devfs_add_devswf(&bktr_cdevsw, unit+16,
+					     DV_CHR, 0, 0, 0444, "tuner%d", unit);
 #endif /* DEVFS */
 	fun = pci_conf_read(tag, PCI_COMMAND_STATUS_REG);
 	pci_conf_write(tag, PCI_COMMAND_STATUS_REG, fun | 4);
