@@ -144,13 +144,24 @@ void	fatal();
  */
 #define	NRPOS		1	/* number distinct rotational positions */
 
+/*
+ * About the same time as the above, we knew what went where on the disks.
+ * no longer so, so kill the code which finds the different platters too...
+ * We do this by saying one head, with a lot of sectors on it.
+ * The number of sectors are used to determine the size of a cyl-group.
+ * Kirk suggested one or two meg per "cylinder" so we say two.
+ */
+
+#define NTRACKS		1	/* number of heads */
+
+#define NSECTORS	4096	/* number of sectors */
 
 int	mfs;			/* run as the memory based filesystem */
 int	Nflag;			/* run without writing file system */
 int	Oflag;			/* format as an 4.3BSD file system */
 int	fssize;			/* file system size */
-int	ntracks;		/* # tracks/cylinder */
-int	nsectors;		/* # sectors/track */
+int	ntracks = NTRACKS;	/* # tracks/cylinder */
+int	nsectors = NSECTORS;	/* # sectors/track */
 int	nphyssectors;		/* # sectors/track including spares */
 int	secpercyl;		/* sectors per cylinder */
 int	trackspares = -1;	/* spare sectors per track */
