@@ -4,16 +4,18 @@
 .Os FreeBSD
 .Sh NAME
 .Nm comcontrol
-.Nd control an sio device.
+.Nd control a special tty device
 .Sh SYNOPSIS
 .Nm
-.Ar sio_special_device
-.Op options
+.Ar special_device
+.Op dtrwait Ar number
+.Op drainwait Ar number
 .Sh DESCRIPTION
 .Nm Comcontrol
 is used to examine and modify some of the special characteristics
-of the specified sio device.
-If no arguments other than the device are specified,
+of the specified tty device.
+If no arguments other than the device (or "-" for stdin)
+are specified,
 it prints the settings of all controllable characteristics.
 This usage requires only read access on the device.
 Only the superuser can change the settings.
@@ -31,7 +33,8 @@ modem reset.
 Set the time to wait for output drain
 to the given number.
 The units are seconds.
-The default is 0, i.e. wait forever.
+The default is 5 minutes, 0 means
+waiting forever.
 This option needed mainly to specify upper limit of minutes
 to prevent modem hanging.
 .El
