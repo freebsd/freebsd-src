@@ -54,13 +54,15 @@
 .Fl x
 .\"
 .Sh DESCRIPTION
+The
 .Nm
-adds, updates, dumps, or flushes
+utility adds, updates, dumps, or flushes
 Security Association Database (SAD) entries
 as well as Security Policy Database (SPD) entries in the kernel.
 .Pp
+The
 .Nm
-takes a series of operations from the standard input
+utility takes a series of operations from the standard input
 (if invoked with
 .Fl c )
 or the file named
@@ -79,8 +81,7 @@ If with
 .Fl P ,
 the SPD entries are flushed.
 .It Fl a
-.Nm
-usually does not display dead SAD entries with
+Dead SAD entries are usually not displayed with
 .Fl D .
 If with
 .Fl a ,
@@ -195,8 +196,9 @@ Meta-arguments are as follows:
 .It Ar dst
 Source/destination of the secure communication is specified as
 IPv4/v6 address.
+The
 .Nm
-does not consult hostname-to-address for arguments
+utility does not consult hostname-to-address for arguments
 .Ar src
 and
 .Ar dst .
@@ -368,8 +370,9 @@ The square bracket around
 is really necessary.
 They are not manpage metacharacters.
 .Pp
+The
 .Nm
-does not consult hostname-to-address for arguments
+utility does not consult hostname-to-address for arguments
 .Ar src
 and
 .Ar dst .
@@ -400,7 +403,7 @@ as it requires extra reassembly at forwarding node
 (not implemented at this moment).
 We have many protocols in
 .Pa /etc/protocols ,
-but protocols except of TCP, UDP and ICMP may not be suitable to use with IPSec.
+but protocols except of TCP, UDP and ICMP may not be suitable to use with IPsec.
 You have to consider and be careful to use them.
 .Li icmp
 .Li tcp
@@ -623,7 +626,7 @@ The command exits with 0 on success, and non-zero on errors.
 .Sh HISTORY
 The
 .Nm
-command first appeared in WIDE Hydrangea IPv6 protocol stack kit.
+utility first appeared in WIDE Hydrangea IPv6 protocol stack kit.
 The command was completely re-designed in June 1998.
 .\"
 .\" .Sh BUGS
