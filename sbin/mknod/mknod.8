@@ -103,6 +103,19 @@ so that a leading
 indicates a hexadecimal number, and a leading
 .Ql 0
 will cause the number to be interpreted as octal.
+.Pp
+The
+.Nm
+tool can be used to recreate deleted device nodes under a
+.Xr devfs 5 ,
+mount point by invoking it using dummy arguments.  Example:
+.Bd -literal -offset indent
+mknod cd0 c 0 0
+.Ed
+.Pp
+Where
+.Fa cd0
+is the name of the deleted device node.
 .Sh COMPATIBILITY
 The
 .Xr chown 8 Ns - Ns
