@@ -230,8 +230,8 @@ uninorth_attach(device_t dev)
 	}
 
 	/*
-	 * Enable the GMAC ethernet cell if OpenFirmware says it is
-	 * used
+	 * Enable the GMAC Ethernet cell if Open Firmware says it is
+	 * used.
 	 */
 	for (child = OF_child(node); child; child = OF_peer(child)) {
 		char compat[32];

@@ -141,7 +141,7 @@ ata_kauai_probe(device_t dev)
 	 * This device seems to ignore writes to the interrupt
 	 * config register, resulting in interrupt resources
 	 * not being attached. If this is the case, use
-	 * OpenFirmware to determine the irq, and then attach
+	 * Open Firmware to determine the irq, and then attach
 	 * the resource. This allows the ATA common code to
 	 * allocate the irq.
 	 */

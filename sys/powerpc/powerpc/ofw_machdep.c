@@ -178,7 +178,7 @@ openfirmware(void *args)
 
 	if (pmap_bootstrapped) {
 		/*
-		 * Swap the kernel's address space with OpenFirmware's
+		 * Swap the kernel's address space with Open Firmware's
 		 */
 		for (i = 0; i < 16; i++) {
 			srsave[i] = mfsrin(i << ADDR_SR_SHFT);

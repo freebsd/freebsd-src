@@ -68,7 +68,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/ofw/openfirm.h>
 
-MALLOC_DEFINE(M_OFWPROP, "openfirm", "OpenFirmware properties");
+MALLOC_DEFINE(M_OFWPROP, "openfirm", "Open Firmware properties");
 
 static ihandle_t stdin;
 static ihandle_t stdout;
@@ -743,7 +743,7 @@ OF_boot(char *bootspec)
 	for (;;);			/* just in case */
 }
 
-/* Suspend and drop back to the OpenFirmware interface. */
+/* Suspend and drop back to the Open Firmware interface. */
 void
 OF_enter()
 {
@@ -761,7 +761,7 @@ OF_enter()
 	return;				/* We may come back. */
 }
 
-/* Shut down and drop back to the OpenFirmware interface. */
+/* Shut down and drop back to the Open Firmware interface. */
 void
 OF_exit()
 {

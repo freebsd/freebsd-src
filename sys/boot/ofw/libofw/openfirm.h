@@ -59,7 +59,7 @@
 #ifndef _OPENFIRM_H_
 #define	_OPENFIRM_H_
 /*
- * Prototypes for Openfirmware Interface Routines
+ * Prototypes for Open Firmware Interface Routines
  */
 
 #include <sys/cdefs.h>
@@ -74,7 +74,7 @@ extern phandle_t	chosen;
 extern ihandle_t	memory, mmu;
 
 /*
- * This isn't actually an OpenFirmware function, but it seemed like the right
+ * This isn't actually an Open Firmware function, but it seemed like the right
  * place for it to go.
  */
 void		OF_init(int (*openfirm)(void *));
