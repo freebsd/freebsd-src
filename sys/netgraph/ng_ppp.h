@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF WHISTLE COMMUNICATIONS IS ADVISED OF THE POSSIBILITY
  * OF SUCH DAMAGE.
  *
- * Author: Archie Cobbs <archie@whistle.com>
+ * Author: Archie Cobbs <archie@freebsd.org>
  *
  * $FreeBSD$
  * $Whistle: ng_ppp.h,v 1.8 1999/01/25 02:40:02 archie Exp $
@@ -45,7 +45,7 @@
 
 /* Node type name and magic cookie */
 #define NG_PPP_NODE_TYPE	"ppp"
-#define NGM_PPP_COOKIE		940897794
+#define NGM_PPP_COOKIE		940897795
 
 /* Maximum number of supported links */
 #define NG_PPP_MAX_LINKS	16
@@ -78,10 +78,28 @@
 enum {
 	NGM_PPP_SET_CONFIG = 1,		/* takes struct ng_ppp_node_conf */
 	NGM_PPP_GET_CONFIG,		/* returns ng_ppp_node_conf */
+	NGM_PPP_GET_MP_STATE,		/* returns ng_ppp_mp_state */
 	NGM_PPP_GET_LINK_STATS,		/* takes link #, returns stats struct */
 	NGM_PPP_CLR_LINK_STATS,		/* takes link #, clears link stats */
 	NGM_PPP_GETCLR_LINK_STATS,	/* takes link #, returns & clrs stats */
 };
+
+/* Multi-link sequence number state (for debugging) */
+struct ng_ppp_mp_state {
+	int32_t		rseq[NG_PPP_MAX_LINKS];	/* highest rec'd MP seq # */
+	int32_t		mseq;			/* min rseq[i] */
+	int32_t		xseq;			/* next xmit MP seq # */
+};
+
+/* Keep this in sync with the above structure definition */
+#define NG_PPP_MP_STATE_TYPE_INFO(atype)	{		\
+	{							\
+	  { "rseq",	(atype)			},		\
+	  { "mseq",	&ng_parse_hint32_type	},		\
+	  { "xseq",	&ng_parse_hint32_type	},		\
+	  { NULL },						\
+	}							\
+}
 
 /* Per-link config structure */
 struct ng_ppp_link_conf {
