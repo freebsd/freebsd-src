@@ -934,7 +934,7 @@ COMMON ITEMS:
 	make buildworld
 	make buildkernel KERNCONF=YOUR_KERNEL_HERE
 	cp src/sys/${MACHINE_ARCH}/conf/GENERIC.hints /boot/device.hints [2]
-	make installkernel KERNCONF=YOUR_KERNEL_HERE
+	make installkernel KERNCONF=YOUR_KERNEL_HERE [6]
 	reboot in single user [3]
 	mergemaster -p		[5]
 	make installworld
@@ -968,6 +968,8 @@ COMMON ITEMS:
 		mount -a
 		cd /usr/src
 		adjkerntz -i		# if CMOS is wall time
+	Also, when doing a major release upgrade, it is required that
+	you boot into single user mode to do the installworld.
 
 	[4] Note: This step is non-optional.  Failure to do this step
 	can result in a significant reduction in the functionality of the
@@ -982,6 +984,9 @@ COMMON ITEMS:
 	install a new mergemaster (cd src/usr.sbin/mergemaster && make
 	install) after the buildworld before this step if you last updated
 	from current before 20020224 or from -stable before 20020408.
+
+	[6] You may get a warning from kldxref.  Ignore it.  It doesn't
+	matter.
 
 FORMAT:
 
