@@ -79,13 +79,12 @@ __FBSDID("$FreeBSD$");
 static int  an_pccard_match(device_t);
 static int  an_pccard_probe(device_t);
 static int  an_pccard_attach(device_t);
-static int  an_pccard_detach(device_t);
 
 static device_method_t an_pccard_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		pccard_compat_probe),
 	DEVMETHOD(device_attach,	pccard_compat_attach),
-	DEVMETHOD(device_detach,	an_pccard_detach),
+	DEVMETHOD(device_detach,	an_detach),
 	DEVMETHOD(device_shutdown,	an_shutdown),
 
 	/* Card interface */
@@ -128,27 +127,6 @@ an_pccard_match(device_t dev)
 		return (0);
 	}
 	return (ENXIO);
-}
-
-static int
-an_pccard_detach(device_t dev)
-{
-	struct an_softc		*sc = device_get_softc(dev);
-	struct ifnet		*ifp = &sc->arpcom.ac_if;
-
-	if (sc->an_gone) {
-		device_printf(dev,"already unloaded\n");
-		return(0);
-	}
-	an_stop(sc);
-	ifmedia_removeall(&sc->an_ifmedia);
-	ifp->if_flags &= ~IFF_RUNNING;
-	ether_ifdetach(ifp);
-	sc->an_gone = 1;
-	bus_teardown_intr(dev, sc->irq_res, sc->irq_handle);
-	an_release_resources(dev);
-	mtx_destroy(&sc->an_mtx);
-	return (0);
 }
 
 static int
