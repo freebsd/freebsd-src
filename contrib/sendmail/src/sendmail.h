@@ -728,6 +728,7 @@ MCI
 
 /* functions */
 extern void	mci_cache __P((MCI *));
+extern void	mci_close __P((MCI *, char *where));
 extern void	mci_dump __P((SM_FILE_T *, MCI *, bool));
 extern void	mci_dump_all __P((SM_FILE_T *, bool));
 extern void	mci_flush __P((bool, MCI *));
