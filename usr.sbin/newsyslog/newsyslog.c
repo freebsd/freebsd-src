@@ -511,8 +511,8 @@ parse_file(char **files)
 			errx(1, "malformed line (missing fields):\n%s",
 			    errline);
 		*parse = '\0';
-		if (!sscanf(q, "%d", &working->numlogs))
-			errx(1, "error in config file; bad number:\n%s",
+		if (!sscanf(q, "%d", &working->numlogs) || working->numlogs < 0)
+			errx(1, "error in config file; bad value for count of logs to save:\n%s",
 			    errline);
 
 		q = parse = missing_field(sob(++parse), errline);
