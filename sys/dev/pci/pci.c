@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pci.c,v 1.27 1995/07/27 21:56:51 se Exp $
+**  $Id: pci.c,v 1.28 1995/07/29 18:21:48 davidg Exp $
 **
 **  General subroutines for the PCI bus.
 **  pci_configure ()
@@ -137,7 +137,7 @@ pci_bridge_config (void);
 **      log2 of safe burst len (in words)
 */
 
-unsigned pci_max_burst_len = 2;
+unsigned pci_max_burst_len = 2; /* 2=16Byte, 3=32Byte, 4=64Byte, ... */
 unsigned pci_mechanism     = 0;
 unsigned pci_maxdevice     = 0;
 struct pcibus* pcibus;
@@ -223,8 +223,9 @@ static void
 pci_register_io (struct pcicb * cb, u_int base, u_int limit)
 {
 #ifdef PCI_BRIDGE_DEBUG
-	printf ("register_io:  bus=%d base=%x limit=%x\n",
-		cb->pcicb_bus, base, limit);
+	if (bootverbose)
+		printf ("register_io:  bus=%d base=%x limit=%x\n",
+			cb->pcicb_bus, base, limit);
 #endif
 
 	if (!cb->pcicb_pfrom || base < cb->pcicb_pfrom)
@@ -243,8 +244,9 @@ static void
 pci_register_memory (struct pcicb * cb, u_int base, u_int limit)
 {
 #ifdef PCI_BRIDGE_DEBUG
-	printf ("register_mem: bus=%d base=%x limit=%x\n",
-		cb->pcicb_bus, base, limit);
+	if (bootverbose)
+		printf ("register_mem: bus=%d base=%x limit=%x\n",
+			cb->pcicb_bus, base, limit);
 #endif
 
 	if (!cb->pcicb_mfrom || base < cb->pcicb_mfrom)
@@ -261,10 +263,11 @@ pci_register_memory (struct pcicb * cb, u_int base, u_int limit)
 			PCI_PCI_BRIDGE_MEM_REG,
 			(cb->pcicb_memlimit & 0xffff0000) |
 			(cb->pcicb_membase >> 16));
-		printf ("\t[pci%d uses memory from %x to %x]\n",
-			cb->pcicb_bus,
-			(unsigned) cb->pcicb_membase,
-			(unsigned) cb->pcicb_memlimit);
+		if (bootverbose)
+			printf ("\t[pci%d uses memory from %x to %x]\n",
+				cb->pcicb_bus,
+				(unsigned) cb->pcicb_membase,
+				(unsigned) cb->pcicb_memlimit);
 	}
 }
 
@@ -279,8 +282,9 @@ pci_memalloc (struct pcicb * cb, u_int addr, u_int size)
 {
 	u_int result = 0, limit=0, newbase=0;
 #ifdef PCI_BRIDGE_DEBUG
-	printf ("memalloc:  bus=%d addr=%x size=%x ..\n",
-		cb->pcicb_bus, addr, size);
+	if (bootverbose)
+		printf ("memalloc:  bus=%d addr=%x size=%x ..\n",
+			cb->pcicb_bus, addr, size);
 #endif
 
 	if (!cb) goto done;
@@ -365,14 +369,14 @@ pci_bus_config (void)
 #ifndef PCI_QUIET
 	printf ("Probing for devices on the %s%d bus:\n",
 		pcibus->pb_name, pcicb->pcicb_bus);
-	if (!pci_info_done) {
+	if (bootverbose && !pci_info_done) {
 		pci_info_done=1;
 		printf ("\tconfiguration mode %d allows %d devices.\n",
 			pci_mechanism, pci_maxdevice);
 	};
 #endif
 	for (device=0; device<pci_maxdevice; device ++) {
-		char*   name = "";
+		char *name = NULL;
 		struct pci_device **dvpp;
 
 		if ((pcicb->pcicb_seen >> device) & 1)
@@ -415,8 +419,9 @@ pci_bus_config (void)
 
 #ifndef PCI_QUIET
 		if (dvp==NULL) continue;
-		printf ("%s? <%s> mirrored on pci%d:%d\n",
-			dvp->pd_name, name, pcicb->pcicb_bus, device);
+		if (bootverbose)
+			printf ("%s? <%s> mirrored on pci%d:%d\n",
+				dvp->pd_name, name, pcicb->pcicb_bus, device);
 #endif
 		continue;
 
@@ -529,10 +534,9 @@ pci_bus_config (void)
 				};
 				break;
 			};
-			if (!bootverbose)
-				continue;
-			printf ("\tmapreg[%02x] type=%d addr=%08x size=%04x.\n",
-				reg, map&7, addr, size);
+			if (bootverbose)
+				printf ("\tmapreg[%02x] type=%d addr=%08x size=%04x.\n",
+					reg, map&7, addr, size);
 		};
 
 		/*
@@ -598,12 +602,14 @@ pci_bus_config (void)
 			secondary   = PCI_SECONDARY_BUS_EXTRACT(data);
 			subordinate = PCI_SUBORDINATE_BUS_EXTRACT(data);
 #ifndef PCI_QUIET
-			printf ("\tbridge from pci%d to pci%d through %d.\n",
+			if (bootverbose) {
+			    printf ("\tbridge from pci%d to pci%d through %d.\n",
 				primary, secondary, subordinate);
-			printf ("\tmapping regs: io:%08x mem:%08x pmem:%08x",
+			    printf ("\tmapping regs: io:%08lx mem:%08lx pmem:%08lx",
 				pci_conf_read (tag, PCI_PCI_BRIDGE_IO_REG),
 				pci_conf_read (tag, PCI_PCI_BRIDGE_MEM_REG),
 				pci_conf_read (tag, PCI_PCI_BRIDGE_PMEM_REG));
+			}
 #endif
 			/*
 			**	check for uninitialized bridge.
@@ -744,25 +750,27 @@ pci_bus_config (void)
 			if (subordinate > pcicb->pcicb_bupto)
 				pcicb->pcicb_bupto = subordinate;
 
-  			break;
+			break;
 		}
 	}
 
 #ifndef PCI_QUIET
-	if (pcicb->pcicb_mamount)
+	if (bootverbose) {
+	    if (pcicb->pcicb_mamount)
 		printf ("%s%d: uses %d bytes of memory from %x upto %x.\n",
 			pcibus->pb_name, pcicb->pcicb_bus,
 			pcicb->pcicb_mamount,
 			pcicb->pcicb_mfrom, pcicb->pcicb_mupto);
-	if (pcicb->pcicb_pamount)
+	    if (pcicb->pcicb_pamount)
 		printf ("%s%d: uses %d bytes of I/O space from %x upto %x.\n",
 			pcibus->pb_name, pcicb->pcicb_bus,
 			pcicb->pcicb_pamount,
 			pcicb->pcicb_pfrom, pcicb->pcicb_pupto);
-	if (pcicb->pcicb_bfrom)
+	    if (pcicb->pcicb_bfrom)
 		printf ("%s%d: subordinate busses from %x upto %x.\n",
 			pcibus->pb_name, pcicb->pcicb_bus,
 			pcicb->pcicb_bfrom, pcicb->pcicb_bupto);
+	}
 #endif
 }
 
@@ -925,8 +933,9 @@ int pci_map_port (pcici_t tag, u_long reg, u_short* pa)
 	}
 
 #ifndef PCI_QUIET
-	printf ("\treg%d: ioaddr=0x%x size=0x%x\n",
-		(unsigned) reg, (unsigned) ioaddr, (unsigned) iosize);
+	if (bootverbose)
+		printf ("\treg%d: ioaddr=0x%x size=0x%x\n",
+			(unsigned) reg, (unsigned) ioaddr, (unsigned) iosize);
 #endif
 	/*
 	**	set the configuration register of and
@@ -1049,8 +1058,9 @@ int pci_map_mem (pcici_t tag, u_long reg, vm_offset_t* va, vm_offset_t* pa)
 	**	display values.
 	*/
 
-	printf ("\treg%d: virtual=0x%lx physical=0x%lx size=0x%lx\n",
-		(unsigned) reg, (u_long)vaddr, (u_long)paddr, (u_long)psize);
+	if (bootverbose)
+		printf ("\treg%d: virtual=0x%lx physical=0x%lx size=0x%lx\n",
+		 (unsigned) reg, (u_long)vaddr, (u_long)paddr, (u_long)psize);
 #endif
 	/*
 	**      set the configuration register and
@@ -1148,7 +1158,7 @@ pci_int (int irq)
 	int i, n;
 #endif
 	if (irq<0 || irq >= PCI_MAX_IRQ) {
-		printf ("pci_int(%d)\n", irq);
+		printf ("pci_int: irq %d out of range, ignored\n", irq);
 		return;
 	};
 
@@ -1190,18 +1200,18 @@ getirq (pcici_t tag)
 {
 	u_int irq;
 
-        irq = PCI_INTERRUPT_LINE_EXTRACT(
-                pcibus->pb_read (tag, PCI_INTERRUPT_REG));
+	irq = PCI_INTERRUPT_LINE_EXTRACT(
+		pcibus->pb_read (tag, PCI_INTERRUPT_REG));
 
-        if (irq <= 0) {
+	if (irq <= 0) {
 		printf ("\tint line register not set by bios\n");
 		return (0);
-        }
+	}
 
-        if (irq >= pcibus->pb_maxirq || irq >= PCI_MAX_IRQ) {
+	if (irq >= pcibus->pb_maxirq || irq >= PCI_MAX_IRQ) {
 		printf ("\tirq %d invalid.\n", irq);
 		return (0);
-        }
+	}
 
 	return (irq);
 }
@@ -1211,9 +1221,9 @@ getintdescbytag (u_int irq, pcici_t tag)
 {
 	struct pci_int_desc *p, **pp;
 
-        pp=&pci_int_desc[irq];
+	pp=&pci_int_desc[irq];
 	while (((p=*pp)) && !sametag(p->pcid_tag,tag))
-                pp=&p->pcid_next;
+		pp=&p->pcid_next;
 
 	if (!p) return (NULL);
 
@@ -1251,18 +1261,18 @@ int pci_map_int (pcici_t tag, int(*func)(), void* arg, unsigned* maskptr)
 	**	and check for consistency.
 	*/
 
-        irq = getirq (tag);
+	irq = getirq (tag);
 	if (irq >= PCI_MAX_IRQ) {
 		printf ("\tillegal irq %d.\n", irq);
 		return (0);
 	};
 	mask= 1ul << irq;
 
-        /*
-        **      disable this interrupt.
-        */
+	/*
+	**      disable this interrupt.
+	*/
 
-        oldspl = splq (mask);
+	oldspl = splq (mask);
 
 	/*
 	**	If handler for this tag already installed,
@@ -1272,7 +1282,7 @@ int pci_map_int (pcici_t tag, int(*func)(), void* arg, unsigned* maskptr)
 	if (getintdescbytag (irq, tag) != NULL)
 		pci_unmap_int (tag);
 
-        /*
+	/*
 	**	If this irq not yet included in the mask, include it.
 	*/
 
@@ -1281,7 +1291,7 @@ int pci_map_int (pcici_t tag, int(*func)(), void* arg, unsigned* maskptr)
 		result = pcibus->pb_imaskinc (irq, maskptr);
 		if (result)
 			goto conflict;
-        };
+	};
 
 	/*
 	**	Allocate descriptor and initialize it.
@@ -1289,7 +1299,7 @@ int pci_map_int (pcici_t tag, int(*func)(), void* arg, unsigned* maskptr)
 
 	tail = pci_int_desc[irq];
 
-        new = malloc (sizeof (*new), M_DEVBUF, M_WAITOK);
+	new = malloc (sizeof (*new), M_DEVBUF, M_WAITOK);
 	bzero (new, sizeof (*new));
 
 	new->pcid_next	   = tail;
@@ -1317,12 +1327,13 @@ int pci_map_int (pcici_t tag, int(*func)(), void* arg, unsigned* maskptr)
 #ifdef NO_SHARED_IRQ
 	} else goto conflict;
 #else
-        } else if (!tail->pcid_next) {
+	} else if (!tail->pcid_next) {
 		/*
 		**	Second handler for this irq.
 		*/
 
-                printf ("\tusing shared irq %d.\n", irq);
+		if (bootverbose)
+			printf ("\tusing shared irq %d.\n", irq);
 
 		/*
 		**	replace old handler by shared-int-handler.
@@ -1337,15 +1348,15 @@ int pci_map_int (pcici_t tag, int(*func)(), void* arg, unsigned* maskptr)
 			printf ("\tCANNOT ATTACH SHARED INT HANDLER.\n");
 			goto fail;
 		};
-        }
+	}
 #endif
 	/*
 	**	Link new descriptor, reenable ints and done.
 	*/
 
-        pci_int_desc[irq]  = new;
+	pci_int_desc[irq]  = new;
 	splx (oldspl);
-        return (1);
+	return (1);
 
 	/*
 	**	Handle some problems.
@@ -1359,10 +1370,10 @@ fail:
 	**	If included in mask, remove it.
 	*/
 
-        if (free) free (new, M_DEVBUF);
+	if (free) free (new, M_DEVBUF);
 	if (!mdp) (void) pcibus->pb_imaskexc (irq, maskptr);
 	splx (oldspl);
-        return (0);
+	return (0);
 }
 
 /*-----------------------------------------------------------------------
@@ -1383,7 +1394,7 @@ int pci_unmap_int (pcici_t tag)
 	**	and check for consistency.
 	*/
 
-        irq = getirq (tag);
+	irq = getirq (tag);
 	if (irq >= PCI_MAX_IRQ) {
 		printf ("\tillegal irq %d.\n", irq);
 		return (0);
@@ -1400,7 +1411,7 @@ int pci_unmap_int (pcici_t tag)
 		return (0);
 	};
 
-        this = *hook;
+	this = *hook;
 	*hook= this->pcid_next;
 
 	/*
@@ -1411,16 +1422,16 @@ int pci_unmap_int (pcici_t tag)
 		irq, this->pcid_handler, this->pcid_argument,
 		this->pcid_tag.tag, this->pcid_tally);
 
-        /*
+	/*
 	**	If this irq no longer included in the mask, remove it.
 	*/
 
 	if (!getintdescbymptr (irq, this->pcid_maskptr))
 		(void) pcibus->pb_imaskexc (irq, this->pcid_maskptr);
 
-        tail = pci_int_desc[irq];
+	tail = pci_int_desc[irq];
 
-        if (tail == NULL) {
+	if (tail == NULL) {
 
 		/*
 		**	Remove the old handler.
@@ -1439,22 +1450,22 @@ int pci_unmap_int (pcici_t tag)
 
 		oldspl = splq (1ul << irq);
 
-                result = pcibus->pb_idetach (irq, pci_int);
+		result = pcibus->pb_idetach (irq, pci_int);
 		if (result)
-                        printf ("\tirq %d: cannot remove handler.\n", irq);
+			printf ("\tirq %d: cannot remove handler.\n", irq);
 
 		result = pcibus->pb_iattach (irq,
 				(void(*)()) tail->pcid_handler,
 				(int) tail->pcid_argument,
 				tail->pcid_maskptr);
 
-                if (result)
+		if (result)
 			printf ("\tirq %d: cannot install handler.\n", irq);
 
 		splx (oldspl);
-        };
+	};
 
-        free (this, M_DEVBUF);
+	free (this, M_DEVBUF);
 	return (1);
 }
 
@@ -1497,10 +1508,100 @@ static struct vt VendorTable[] = {
 	{0,0}
 };
 
-static const char *const majclasses[] = {
-	"old", "storage", "network", "display",
-	"multimedia", "memory", "bridge"
+typedef struct {
+	const char 	subclass;
+	const char	*name;
+} subclass_name;
+
+/* 0x00 prehistoric subclasses */
+static const subclass_name old_subclasses[] =
+{
+	{ 0x00, "misc"	},
+	{ 0x01, "vga"	},
+	{ 0x00, NULL	}
 };
+
+/* 0x01 mass storage subclasses */
+static const subclass_name storage_subclasses[] =
+{
+	{ 0x00, "scsi"	},
+	{ 0x01, "ide"	},
+	{ 0x02, "floppy"},
+	{ 0x03, "ipi"	},
+	{ 0x80, "misc"	},
+	{ 0x00, NULL	}
+};
+
+/* 0x02 network subclasses */
+static const subclass_name network_subclasses[] =
+{
+	{ 0x00, "ethernet"	},
+	{ 0x01, "tokenring"	},
+	{ 0x02, "fddi"	},
+	{ 0x80, "misc"	},
+	{ 0x00, NULL	}
+};
+
+/* 0x03 display subclasses */
+static const subclass_name display_subclasses[] =
+{
+	{ 0x00, "vga"	},
+	{ 0x01, "xga"	},
+	{ 0x80, "misc"	},
+	{ 0x00, NULL	}
+};
+
+/* 0x04 multimedia subclasses */
+static const subclass_name multimedia_subclasses[] =
+{
+	{ 0x00, "video"	},
+	{ 0x01, "audio"	},
+	{ 0x80, "misc"	},
+	{ 0x00, NULL	}
+};
+
+/* 0x05 memory subclasses */
+static const subclass_name memory_subclasses[] =
+{
+	{ 0x00, "ram"	},
+	{ 0x01, "flash"	},
+	{ 0x80, "misc"	},
+	{ 0x00, NULL	}
+};
+
+/* 0x06 bridge subclasses */
+static const subclass_name bridge_subclasses[] =
+{
+	{ 0x00, "host"	},
+	{ 0x01, "isa"	},
+	{ 0x02, "eisa"	},
+	{ 0x03, "mc"	},
+	{ 0x04, "pci"	},
+	{ 0x05, "pcmcia"},
+	{ 0x80, "misc"	},
+	{ 0x00, NULL	}
+};
+
+static const subclass_name *const subclasses[] = {
+	old_subclasses, 
+	storage_subclasses, 
+	network_subclasses, 
+	display_subclasses,
+	multimedia_subclasses,
+	memory_subclasses, 
+	bridge_subclasses,
+};
+
+static const char *const majclasses[] = {
+	"old", 
+	"storage", 
+	"network", 
+	"display",
+	"multimedia", 
+	"memory", 
+	"bridge"
+};
+
 
 void not_supported (pcici_t tag, u_long type)
 {
@@ -1528,10 +1629,23 @@ void not_supported (pcici_t tag, u_long type)
 	data = (pcibus->pb_read(tag, PCI_CLASS_REG) >> 24) & 0xff;
 	if (data < sizeof(majclasses) / sizeof(majclasses[0]))
 		printf(", class=%s", majclasses[data]);
+	if (data < sizeof(subclasses) / sizeof(subclasses[0])) {
+		const subclass_name *p = subclasses[data];
+
+		data = (pcibus->pb_read(tag, PCI_CLASS_REG) >> 16) & 0xff;
+		while (p->name && (p->subclass != data)) 
+			p++;
+		if (p->name) {
+			printf(" (%s)", p->name);
+		} else {
+			printf(" (unknown subclass 0x%02lx)", data);
+		}
+	}
 
 	printf (" [no driver assigned]\n");
 
-	for (reg=PCI_MAP_REG_START; reg<PCI_MAP_REG_END; reg+=4) {
+	if (bootverbose) {
+	    for (reg=PCI_MAP_REG_START; reg<PCI_MAP_REG_END; reg+=4) {
 		data = pcibus->pb_read (tag, reg);
 		if ((data&~7)==0) continue;
 		switch (data&7) {
@@ -1554,6 +1668,7 @@ void not_supported (pcici_t tag, u_long type)
 				reg, data & ~7);
 			break;
 		}
+	    }
 	}
 }
 #endif /* NPCI */
