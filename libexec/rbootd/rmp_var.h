@@ -1,5 +1,3 @@
-/*	$NetBSD: rmp_var.h,v 1.8 1995/11/14 08:41:44 thorpej Exp $	*/
-
 /*
  * Copyright (c) 1988, 1992 The University of Utah and the Center
  *	for Software Science (CSS).
