@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: lca.c,v 1.6 1999/04/16 21:21:39 peter Exp $
+ *	$Id: lca.c,v 1.7 1999/05/08 21:58:43 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -399,8 +399,6 @@ lca_probe(device_t dev)
 static int
 lca_attach(device_t dev)
 {
-	struct lca_softc* sc = LCA_SOFTC(dev);
-
 	lca_init();
 
 	set_iointr(alpha_dispatch_intr);
