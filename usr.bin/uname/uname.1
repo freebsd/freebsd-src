@@ -32,7 +32,7 @@
 .\"	@(#)uname.1	8.3 (Berkeley) 4/8/94
 .\" $FreeBSD$
 .\"
-.Dd January 14, 2002
+.Dd September 18, 2002
 .Dt UNAME 1
 .Os
 .Sh NAME
@@ -79,6 +79,15 @@ flag is specified, or multiple flags are specified, all
 output is written on a single line, separated by spaces.
 .Sh DIAGNOSTICS
 .Ex -std
+.Sh ENVIRONMENT
+An environment variable composed of the string
+.Ev UNAME_
+followed by any flag to the
+.Nm
+utility (except for
+.Fl a )
+will allow the corresponding data to be set to the contents
+of the environment variable.
 .Sh SEE ALSO
 .Xr sysctl 3 ,
 .Xr uname 3 ,
