@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sysctl.h	8.1 (Berkeley) 6/2/93
- * $Id: sysctl.h,v 1.28 1995/11/06 16:18:29 phk Exp $
+ * $Id: sysctl.h,v 1.29 1995/11/08 08:48:36 phk Exp $
  */
 
 #ifndef _SYS_SYSCTL_H_
@@ -369,6 +369,7 @@ extern char	machine[];
 extern char	osrelease[];
 extern char	ostype[];
 
+int userland_sysctl(struct proc *p, int *name, u_int namelen, void *old, size_t *oldlenp, int inkernel, void *new, size_t newlen, int *retval);
 /*
  * Internal sysctl function calling convention:
  *

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)libkern.h	8.1 (Berkeley) 6/10/93
- * $Id: libkern.h,v 1.6 1995/03/16 18:12:58 bde Exp $
+ * $Id: libkern.h,v 1.7 1995/04/23 08:05:25 bde Exp $
  */
 
 #include <sys/types.h>
@@ -63,3 +63,5 @@ char	*strcpy __P((char *, const char *));
 size_t	 strlen __P((const char *));
 int	 strncmp __P((const char *, const char *, size_t));
 char	*strncpy __P((char *, const char *, size_t));
+void	 qsort(void *base, size_t nmemb, size_t size, int (*compar)(const void *, const void *));
+
