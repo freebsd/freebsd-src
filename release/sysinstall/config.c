@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.16.2.40 1995/11/11 11:20:45 jkh Exp $
+ * $Id: config.c,v 1.16.2.41 1995/11/11 11:44:26 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -503,7 +503,7 @@ configPorts(char *str)
 		unlink("/usr/ports");
 		if (symlink(cp, "/usr/ports") == -1) {
 		    msgConfirm("Unable to create a symlink from /usr/ports to %s!\n"
-			       "I can't continue, sorry!");
+			       "I can't continue, sorry!", cp);
 		    return RET_FAIL;
 		}
 		else {
@@ -511,7 +511,7 @@ configPorts(char *str)
 			       "which, for a variety of reasons, is the directory the ports\n"
 			       "framework expects to find its files in.  You should refer to\n"
 			       "/usr/ports instead of %s directly when you're working in the\n"
-			       "ports collection.");
+			       "ports collection.", cp);
 		}
 	    }
 	    msgNotify("Making a link tree from %s to %s.", dist, cp);
