@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)ftpd.8	8.2 (Berkeley) 4/19/94
-.\"	$Id: ftpd.8,v 1.11 1997/01/11 20:17:05 mpp Exp $
+.\"	$Id: ftpd.8,v 1.14 1997/03/25 03:45:52 mpp Exp $
 .\"
 .Dd April 19, 1994
 .Dt FTPD 8
@@ -245,8 +245,7 @@ authenticates users according to five rules.
 .Pp
 .Bl -enum -offset indent
 .It
-The login name must be in the password data base,
-.Pa /etc/pwd.db ,
+The login name must be in the password data base
 and not have a null password.
 In this case a password must be provided by the client before any
 file operations may be performed.
