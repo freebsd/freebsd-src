@@ -258,7 +258,6 @@ deget(pmp, dirclust, diroffset, depp)
 	nvp->v_data = ldep;
 	ldep->de_vnode = nvp;
 	ldep->de_flag = 0;
-	ldep->de_devvp = 0;
 	ldep->de_dev = dev;
 	ldep->de_dirclust = dirclust;
 	ldep->de_diroffset = diroffset;
@@ -372,8 +371,6 @@ deget(pmp, dirclust, diroffset, depp)
 	} else
 		nvp->v_type = VREG;
 	ldep->de_modrev = init_va_filerev();
-	ldep->de_devvp = pmp->pm_devvp;
-	VREF(ldep->de_devvp);
 	*depp = ldep;
 	return (0);
 }
@@ -646,10 +643,6 @@ msdosfs_reclaim(ap)
 	/*
 	 * Purge old data structures associated with the denode.
 	 */
-	if (dep->de_devvp) {
-		vrele(dep->de_devvp);
-		dep->de_devvp = 0;
-	}
 #if 0 /* XXX */
 	dep->de_flag = 0;
 #endif
