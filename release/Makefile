@@ -961,7 +961,7 @@ doMFSKERN:
 	@echo "Running ${.TARGET} for ${FSIMAGE}"
 	@rm -f ${RD}/kernels/BOOTMFS ${RD}/kernels/BOOTMFS.${FSIMAGE}
 	@cd ${.CURDIR}/../sys/${TARGET}/conf && \
-	    sh ${.CURDIR}/${TARGET_ARCH}/dokern.sh ${FDSIZE} < GENERIC > BOOTMFS
+	    sh ${.CURDIR}/${TARGET}/dokern.sh ${FDSIZE} < GENERIC > BOOTMFS
 .if ${TARGET_ARCH} == "i386"
 	@echo "options  INTRO_USERCONFIG" >> \
 	  ${.CURDIR}/../sys/${TARGET}/conf/BOOTMFS
