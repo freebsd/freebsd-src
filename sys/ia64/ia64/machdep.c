@@ -69,6 +69,7 @@
 #include <sys/user.h>
 #include <sys/ptrace.h>
 #include <machine/clock.h>
+#include <machine/cpu.h>
 #include <machine/md_var.h>
 #include <machine/reg.h>
 #include <machine/fpu.h>

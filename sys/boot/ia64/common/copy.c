@@ -37,6 +37,7 @@ static const char rcsid[] =
 #include <efi.h>
 #include <efilib.h>
 #include <machine/ia64_cpu.h>
+#include <machine/vmparam.h>
 
 int
 efi_copyin(void *src, vm_offset_t dest, size_t len)

@@ -52,9 +52,11 @@
 #include <sys/smp.h>
 
 #include <machine/clock.h>
+#include <machine/cpu.h>
 #include <machine/reg.h>
 #include <machine/frame.h>
 #include <machine/intr.h>
+#include <machine/pcb.h>
 #include <machine/sapicvar.h>
 #include <machine/smp.h>
 

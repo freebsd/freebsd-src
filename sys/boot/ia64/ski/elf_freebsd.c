@@ -83,6 +83,8 @@
 #include <sys/linker.h>
 #include <machine/elf.h>
 #include <machine/bootinfo.h>
+#include <machine/ia64_cpu.h>
+#include <machine/vmparam.h>
 
 #include "bootstrap.h"
 #include "libski.h"
