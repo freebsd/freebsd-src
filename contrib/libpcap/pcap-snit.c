@@ -24,8 +24,8 @@
  */
 
 #ifndef lint
-static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/libpcap/pcap-snit.c,v 1.56 2001/12/10 07:14:20 guy Exp $ (LBL)";
+static const char rcsid[] _U_ =
+    "@(#) $Header: /tcpdump/master/libpcap/pcap-snit.c,v 1.66.2.3 2003/11/21 10:20:48 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -84,8 +84,8 @@ static const char rcsid[] =
 /* Forwards */
 static int nit_setflags(int, int, int, char *);
 
-int
-pcap_stats(pcap_t *p, struct pcap_stat *ps)
+static int
+pcap_stats_snit(pcap_t *p, struct pcap_stat *ps)
 {
 
 	/*
@@ -109,8 +109,8 @@ pcap_stats(pcap_t *p, struct pcap_stat *ps)
 	return (0);
 }
 
-int
-pcap_read(pcap_t *p, int cnt, pcap_handler callback, u_char *user)
+static int
+pcap_read_snit(pcap_t *p, int cnt, pcap_handler callback, u_char *user)
 {
 	register int cc, n;
 	register struct bpf_insn *fcode = p->fcode.bf_insns;
@@ -141,6 +141,26 @@ pcap_read(pcap_t *p, int cnt, pcap_handler callback, u_char *user)
 	n = 0;
 	ep = bp + cc;
 	while (bp < ep) {
+		/*
+		 * Has "pcap_breakloop()" been called?
+		 * If so, return immediately - if we haven't read any
+		 * packets, clear the flag and return -2 to indicate
+		 * that we were told to break out of the loop, otherwise
+		 * leave the flag set, so that the *next* call will break
+		 * out of the loop without having read any packets, and
+		 * return the number of packets we've processed so far.
+		 */
+		if (p->break_loop) {
+			if (n == 0) {
+				p->break_loop = 0;
+				return (-2);
+			} else {
+				p->bp = bp;
+				p->cc = ep - bp;
+				return (n);
+			}
+		}
+
 		++p->md.stat.ps_recv;
 		cp = bp;
 
@@ -218,8 +238,18 @@ nit_setflags(int fd, int promisc, int to_ms, char *ebuf)
 	return (0);
 }
 
+static void
+pcap_close_snit(pcap_t *p)
+{
+	if (p->buffer != NULL)
+		free(p->buffer);
+	if (p->fd >= 0)
+		close(p->fd);
+}
+
 pcap_t *
-pcap_open_live(char *device, int snaplen, int promisc, int to_ms, char *ebuf)
+pcap_open_live(const char *device, int snaplen, int promisc, int to_ms,
+    char *ebuf)
 {
 	struct strioctl si;		/* struct for ioctl() */
 	struct ifreq ifr;		/* interface request struct */
@@ -272,7 +302,7 @@ pcap_open_live(char *device, int snaplen, int promisc, int to_ms, char *ebuf)
 
 	/* request the interface */
 	strncpy(ifr.ifr_name, device, sizeof(ifr.ifr_name));
-	ifr.ifr_name[sizeof(ifr.ifr_name) - 1] = ' ';
+	ifr.ifr_name[sizeof(ifr.ifr_name) - 1] = '\0';
 	si.ic_cmd = NIOCBIND;
 	si.ic_len = sizeof(ifr);
 	si.ic_dp = (char *)&ifr;
@@ -307,6 +337,21 @@ pcap_open_live(char *device, int snaplen, int promisc, int to_ms, char *ebuf)
 		strlcpy(ebuf, pcap_strerror(errno), PCAP_ERRBUF_SIZE);
 		goto bad;
 	}
+
+	/*
+	 * "p->fd" is an FD for a STREAMS device, so "select()" and
+	 * "poll()" should work on it.
+	 */
+	p->selectable_fd = p->fd;
+
+	p->read_op = pcap_read_snit;
+	p->setfilter_op = install_bpf_program;	/* no kernel filtering */
+	p->set_datalink_op = NULL;	/* can't change data link type */
+	p->getnonblock_op = pcap_getnonblock_fd;
+	p->setnonblock_op = pcap_setnonblock_fd;
+	p->stats_op = pcap_stats_snit;
+	p->close_op = pcap_close_snit;
+
 	return (p);
  bad:
 	if (fd >= 0)
@@ -316,10 +361,7 @@ pcap_open_live(char *device, int snaplen, int promisc, int to_ms, char *ebuf)
 }
 
 int
-pcap_setfilter(pcap_t *p, struct bpf_program *fp)
+pcap_platform_finddevs(pcap_if_t **alldevsp, char *errbuf)
 {
-
-	if (install_bpf_program(p, fp) < 0)
-		return (-1);
 	return (0);
 }
