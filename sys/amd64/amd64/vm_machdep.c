@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.65 1996/06/20 01:47:21 davidg Exp $
+ *	$Id: vm_machdep.c,v 1.66 1996/06/20 08:07:30 davidg Exp $
  */
 
 #include "npx.h"
@@ -226,13 +226,13 @@ more:
 
 	if( size == 0) {
 		splx(s);
-		return NULL;
+		return 0;
 	}
 
 	if ((kva = kmem_alloc_pageable(io_map, size)) == 0) {
 		if( !waitok) {
 			splx(s);
-			return NULL;
+			return 0;
 		}
 		bmwait = 1;
 		tsleep((caddr_t) io_map, PRIBIO, "bmwait", 0);

@@ -16,7 +16,7 @@
  *
  * New configuration setup: dufault@hda.com
  *
- *      $Id: scsiconf.c,v 1.59 1996/06/03 14:25:11 jfieber Exp $
+ *      $Id: scsiconf.c,v 1.60 1996/06/14 11:02:16 asami Exp $
  */
 
 #include "opt_scsi.h"
@@ -407,10 +407,6 @@ static struct scsi_device probe_switch =
     NULL,
     NULL,
     "probe",
-    0,
-	{0, 0},
-    NULL,
-    0
 };
 
 /*
