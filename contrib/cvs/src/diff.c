@@ -12,6 +12,8 @@
  * 
  * Without any file arguments, runs diff against all the currently modified
  * files.
+ *
+ * $FreeBSD$
  */
 
 #include "cvs.h"
@@ -40,7 +42,13 @@ static enum diff_file diff_file_nodiff PROTO ((struct file_info *finfo,
 static int diff_fileproc PROTO ((void *callerdat, struct file_info *finfo));
 static void diff_mark_errors PROTO((int err));
 
+
+/* Global variables.  Would be cleaner if we just put this stuff in a
+   struct like log.c does.  */
+
+/* Command line tags, from -r option.  Points into argv.  */
 static char *diff_rev1, *diff_rev2;
+/* Command line dates, from -D option.  Malloc'd.  */
 static char *diff_date1, *diff_date2;
 static char *use_rev1, *use_rev2;
 static int have_rev1_label, have_rev2_label;
@@ -224,15 +232,19 @@ diff (argc, argv)
      * non-recursive/recursive diff.
      */
 
-    /* For server, need to be able to do this command more than once
-       (according to the protocol spec, even if the current client
-       doesn't use it).  */
+    /* Clean out our global variables (multiroot can call us multiple
+       times and the server can too, if the client sends several
+       diff commands).  */
     if (opts == NULL)
     {
 	opts_allocated = 1;
 	opts = xmalloc (opts_allocated);
     }
     opts[0] = '\0';
+    diff_rev1 = NULL;
+    diff_rev2 = NULL;
+    diff_date1 = NULL;
+    diff_date2 = NULL;
 
     optind = 0;
     while ((c = getopt_long (argc, argv,
@@ -267,7 +279,7 @@ diff (argc, argv)
 		break;
 	    case 131:
 		/* --ifdef.  */
-		strcat_and_allocate (&opts, &opts_allocated, " -D");
+		strcat_and_allocate (&opts, &opts_allocated, " --ifdef=");
 		strcat_and_allocate (&opts, &opts_allocated, optarg);
 		break;
 	    case 129: case 130:           case 132: case 133: case 134:
@@ -353,17 +365,18 @@ diff (argc, argv)
 	if (diff_date2)
 	    client_senddate (diff_date2);
 
-	send_file_names (argc, argv, SEND_EXPAND_WILD);
-
 	/* Send the current files unless diffing two revs from the archive */
 	if (diff_rev2 == NULL && diff_date2 == NULL)
 	    send_files (argc, argv, local, 0, 0);
 	else
 	    send_files (argc, argv, local, 0, SEND_NO_CONTENTS);
 
+	send_file_names (argc, argv, SEND_EXPAND_WILD);
+
 	send_to_server ("diff\012", 0);
         err = get_responses_and_close ();
 	free (options);
+	options = NULL;
 	return (err);
     }
 #endif
@@ -386,6 +399,13 @@ diff (argc, argv)
 
     /* clean up */
     free (options);
+    options = NULL;
+
+    if (diff_date1 != NULL)
+	free (diff_date1);
+    if (diff_date2 != NULL)
+	free (diff_date2);
+
     return (err);
 }
 
