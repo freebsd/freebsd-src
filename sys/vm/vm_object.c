@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.136 1999/01/02 11:34:57 bde Exp $
+ * $Id: vm_object.c,v 1.137 1999/01/08 17:31:26 eivind Exp $
  */
 
 /*
@@ -243,7 +243,7 @@ vm_object_reference(object)
 		return;
 
 	KASSERT(!(object->flags & OBJ_DEAD),
-		("vm_object_reference: attempting to reference dead obj"));
+	    ("vm_object_reference: attempting to reference dead obj"));
 
 	object->ref_count++;
 	if (object->type == OBJT_VNODE) {
@@ -260,10 +260,11 @@ vm_object_vndeallocate(object)
 	vm_object_t object;
 {
 	struct vnode *vp = (struct vnode *) object->handle;
+
 	KASSERT(object->type == OBJT_VNODE,
-		("vm_object_vndeallocate: not a vnode object"));
-	KASSERT(vp, ("vm_object_vndeallocate: missing vp"));
-#if defined(INVARIANTS)
+	    ("vm_object_vndeallocate: not a vnode object"));
+	KASSERT(vp != NULL, ("vm_object_vndeallocate: missing vp"));
+#ifdef INVARIANTS
 	if (object->ref_count == 0) {
 		vprint("vm_object_vndeallocate", vp);
 		panic("vm_object_vndeallocate: bad object reference count");
@@ -326,8 +327,7 @@ vm_object_deallocate(object)
 
 				robject = TAILQ_FIRST(&object->shadow_head);
 				KASSERT(robject != NULL,
-					("vm_object_deallocate: ref_count: %d,"
-					 " shadow_count: %d",
+				    ("vm_object_deallocate: ref_count: %d, shadow_count: %d",
 					 object->ref_count,
 					 object->shadow_count));
 				if ((robject->handle == NULL) &&

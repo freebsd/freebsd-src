@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_lock.c	8.18 (Berkeley) 5/21/95
- * $Id: kern_lock.c,v 1.20 1998/11/26 18:50:23 eivind Exp $
+ * $Id: kern_lock.c,v 1.21 1999/01/08 17:31:08 eivind Exp $
  */
 
 #include "opt_lint.h"
@@ -83,6 +83,7 @@ sharelock(struct lock *lkp, int incr) {
 
 static LOCK_INLINE void
 shareunlock(struct lock *lkp, int decr) {
+
 	KASSERT(lkp->lk_sharecount >= decr, ("shareunlock: count < decr"));
 
 	if (lkp->lk_sharecount == decr) {

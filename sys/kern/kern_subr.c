@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_subr.c	8.3 (Berkeley) 1/21/94
- * $Id: kern_subr.c,v 1.22 1998/08/04 09:21:04 phk Exp $
+ * $Id: kern_subr.c,v 1.23 1999/01/08 17:31:10 eivind Exp $
  */
 
 #include <sys/param.h>
@@ -62,9 +62,9 @@ uiomove(cp, n, uio)
 	int error;
 
 	KASSERT(uio->uio_rw == UIO_READ || uio->uio_rw == UIO_WRITE,
-		("uiomove: mode"));
+	    ("uiomove: mode"));
 	KASSERT(uio->uio_segflg != UIO_USERSPACE || uio->uio_procp == curproc,
-		("uiomove proc"));
+	    ("uiomove proc"));
 
 	while (n > 0 && uio->uio_resid) {
 		iov = uio->uio_iov;
@@ -120,9 +120,9 @@ uiomoveco(cp, n, uio, obj)
 	int error;
 
 	KASSERT(uio->uio_rw == UIO_READ || uio->uio_rw == UIO_WRITE,
-		("uiomoveco: mode"));
+	    ("uiomoveco: mode"));
 	KASSERT(uio->uio_segflg != UIO_USERSPACE || uio->uio_procp == curproc,
-		("uiomoveco proc"));
+	    ("uiomoveco proc"));
 
 	while (n > 0 && uio->uio_resid) {
 		iov = uio->uio_iov;
