@@ -600,11 +600,11 @@
 427	UNIMPL	BSD	__acl_delete_link
 428	UNIMPL	BSD	__acl_aclcheck_link
 429	UNIMPL	NOHIDE	sigwait
-430	STD	BSD	{ int thr_create(ucontext_t *ctx, thr_id_t *id,
+430	MSTD	BSD	{ int thr_create(ucontext_t *ctx, thr_id_t *id, \
 			    int flag s); }
-431	STD	BSD	{ void thr_exit(void); }
-432	STD	BSD	{ int thr_self(thr_id_t *id); }
-433	STD	BSD	{ int thr_kill(thr_id_t id, int sig); }
+431	MSTD	BSD	{ void thr_exit(void); }
+432	MSTD	BSD	{ int thr_self(thr_id_t *id); }
+433	MSTD	BSD	{ int thr_kill(thr_id_t id, int sig); }
 434	MSTD	BSD	{ int _umtx_lock(struct umtx *umtx); }
 435	MSTD	BSD	{ int _umtx_unlock(struct umtx *umtx); }
 436	MSTD	BSD	{ int jail_attach(int jid); }
