@@ -1,4 +1,4 @@
-<!-- $Id: nutshell.sgml,v 1.3 1995/06/30 17:37:44 jfieber Exp $ -->
+<!-- $Id: nutshell.sgml,v 1.4 1995/07/07 22:25:52 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>FreeBSD in a nutshell<label id="nutshell"></heading>
@@ -145,3 +145,7 @@
 	included the renowned GNU C/C++ compiler and
 	debugger. </item>
     </itemize>
+
+FreeBSD is available in both source and binary form on CDROM and
+via anonymous ftp.  See <ref id="mirrors" name="Obtaining FreeBSD"> 
+for more details.
