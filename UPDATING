@@ -22,6 +22,14 @@ NOTE TO PEOPLE WHO THINK THAT 5.0-CURRENT IS SLOW:
 	integrity.  Re-enabling write caching can substantially improve
 	performance.
 
+20020831:
+	gcc has been upgraded to 3.2.  It is not all binary compatible
+	with earlier versions of gcc for c++ programs.  All c++
+	programs and libraries need to be recompiled.
+
+	Also, if you encounter g++ issues, rm /usr/include/g++/* before
+	doing an installworld to make sure that stale files are removed.
+
 20020827:
 	Our /etc/termcap now has all the entries from the XFree86 xterm
 	almost unchanged. This means xterm now supports color by default.
@@ -987,6 +995,7 @@ COMMON ITEMS:
 	make installkernel KERNCONF=YOUR_KERNEL_HERE
 	reboot in single user [3]
 	mergemaster -p		[5]
+	rm -rf /usr/include/g++
 	make installworld
 	mergemaster		[4]
 	[1]
