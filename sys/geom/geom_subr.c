@@ -584,44 +584,6 @@ g_class_by_name(const char *name)
 	return (NULL);
 }
 
-struct g_geom *
-g_insert_geom(const char *class, struct g_consumer *cp)
-{
-	struct g_class *mp;
-	struct g_geom *gp;
-	struct g_provider *pp, *pp2;
-	struct g_consumer *cp2;
-	int error;
-
-	g_trace(G_T_TOPOLOGY, "g_insert_geomf(%s, %p)", class, cp);
-	g_topology_assert();
-	KASSERT(cp->provider != NULL, ("g_insert_geomf but not attached"));
-	/* XXX: check for events ?? */
-	mp = g_class_by_name(class);
-	if (mp == NULL)
-		return (NULL);
-	if (mp->config == NULL)
-		return (NULL);
-	pp = cp->provider;
-	gp = mp->taste(mp, pp, G_TF_TRANSPARENT);
-	if (gp == NULL)
-		return (NULL);
-	pp2 = LIST_FIRST(&gp->provider);
-	cp2 = LIST_FIRST(&gp->consumer);
-	cp2->acr += pp->acr;
-	cp2->acw += pp->acw;
-	cp2->ace += pp->ace;
-	pp2->acr += pp->acr;
-	pp2->acw += pp->acw;
-	pp2->ace += pp->ace;
-	LIST_REMOVE(cp, consumers);
-	LIST_INSERT_HEAD(&pp2->consumers, cp, consumers);
-	cp->provider = pp2;
-	error = redo_rank(gp);
-	KASSERT(error == 0, ("redo_rank failed in g_insert_geom"));
-	return (gp);
-}
-
 int
 g_getattr__(const char *attr, struct g_consumer *cp, void *var, int len)
 {
