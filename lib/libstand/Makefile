@@ -114,9 +114,6 @@ SRCS+= __udivdi3.S __udivsi3.S __umoddi3.S __umodsi3.S
 SRCS+=	_setjmp.S
 .endif
 
-# really only required for i386
-CFLAGS+=-I${.CURDIR}/../libc/${MACHINE_ARCH}
-
 # decompression functionality from libbz2
 .PATH:	${.CURDIR}/../../contrib/bzip2
 CFLAGS+=-I${.CURDIR}/../../contrib/bzip2 -DBZ_NO_STDIO -DBZ_NO_COMPRESS
