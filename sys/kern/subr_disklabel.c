@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_disksubr.c	8.5 (Berkeley) 1/21/94
- * $Id: ufs_disksubr.c,v 1.35 1998/07/28 18:25:51 bde Exp $
+ * $Id: ufs_disksubr.c,v 1.36 1998/09/15 08:55:03 gibbs Exp $
  */
 
 #include <sys/param.h>
@@ -305,6 +305,9 @@ writedisklabel(dev, strat, lp)
 			*dlp = *lp;
 			bp->b_flags &= ~(B_DONE | B_READ);
 			bp->b_flags |= B_BUSY | B_WRITE;
+#ifdef __alpha__
+			alpha_fix_srm_checksum(bp);
+#endif
 			(*strat)(bp);
 			error = biowait(bp);
 			goto done;
