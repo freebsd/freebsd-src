@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: link.h,v 1.17 1997/12/06 17:59:52 jdp Exp $
+ *	$Id: link.h,v 1.18 1998/02/06 16:46:44 jdp Exp $
  */
 
 /*
@@ -40,6 +40,33 @@
 
 #ifndef _LINK_H_
 #define _LINK_H_
+
+#if (defined(FREEBSD_ELF) || defined(__ELF__)) && !defined(FREEBSD_AOUT)
+
+#include <sys/types.h>
+
+struct link_map {
+	caddr_t		l_addr;			/* Base Address of library */
+#ifdef __mips__
+	caddr_t		l_offs;			/* Load Offset of library */
+#endif
+	const char	*l_name;		/* Absolute Path to Library */
+	const void	*l_ld;			/* Pointer to .dynamic in memory */
+	struct link_map	*l_next, *l_prev;	/* linked list of of mapped libs */
+};
+
+struct r_debug {
+	int		r_version;		/* not used */
+	struct link_map *r_map;			/* list of loaded images */
+	void		(*r_brk)(void);		/* pointer to break point */
+	enum {
+	    RT_CONSISTENT,			/* things are stable */
+	    RT_ADD,				/* adding a shared library */
+	    RT_DELETE				/* removing a shared library */
+	}		r_state;
+};
+
+#else /* !__ELF__ */
 
 struct dl_info;
 
@@ -285,5 +312,7 @@ struct hints_bucket {
 };
 
 #define _PATH_LD_HINTS		"/var/run/ld.so.hints"
+
+#endif /* !__ELF__ */
 
 #endif /* _LINK_H_ */
