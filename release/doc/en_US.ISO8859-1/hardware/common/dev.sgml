@@ -1712,6 +1712,11 @@
       </note>
     </para>
 
+    <para arch="sparc64">Sun HME Ethernet and Fast Ethernet NICs
+    (hme driver)</para>
+
+    <para arch="sparc64">Sun GEM (Gigabit Ethernet) and ERI (Fast
+    Ethernet) NICs (gem driver)</para>
   </sect2>
 
   <sect2>
