@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.c	8.3 (Berkeley) 1/4/94
- *	$Id: if.c,v 1.59 1998/06/07 17:12:02 dfr Exp $
+ *	$Id: if.c,v 1.60 1998/06/08 20:33:29 julian Exp $
  */
 
 #include "opt_compat.h"
@@ -148,9 +148,9 @@ if_attach(ifp)
 	masklen = _offsetof(struct sockaddr_dl, sdl_data[0]) + namelen;
 	socksize = masklen + ifp->if_addrlen;
 #define ROUNDUP(a) (1 + (((a) - 1) | (sizeof(long) - 1)))
-	socksize = ROUNDUP(socksize);
 	if (socksize < sizeof(*sdl))
 		socksize = sizeof(*sdl);
+	socksize = ROUNDUP(socksize);
 	ifasize = sizeof(*ifa) + 2 * socksize;
 	ifa = (struct ifaddr *)malloc(ifasize, M_IFADDR, M_WAITOK);
 	if (ifa) {
