@@ -67,7 +67,7 @@ int secsize = 0;		/* the sensed sector size */
 const char *disk;
 const char *disks[] =
 {
-  "/dev/rad0", "/dev/rwd0", "/dev/rda0", "/dev/rod0", 0
+  "/dev/ad0", "/dev/wd0", "/dev/da0", "/dev/od0", 0
 };
 
 struct disklabel disklabel;		/* disk parameters */
@@ -141,7 +141,7 @@ struct part_type
 	,{0x04, "Primary DOS with 16 bit FAT (<= 32MB)"}
 	,{0x05, "Extended DOS"}
 	,{0x06, "Primary 'big' DOS (> 32MB)"}
-	,{0x07, "OS/2 HPFS, NTFS, QNX or Advanced UNIX"}
+	,{0x07, "OS/2 HPFS, NTFS, QNX-2 (16 bit) or Advanced UNIX"}
 	,{0x08, "AIX filesystem"}
 	,{0x09, "AIX boot partition or Coherent"}
 	,{0x0A, "OS/2 Boot Manager or OPUS"}
@@ -150,7 +150,11 @@ struct part_type
 	,{0x0E, "Primary 'big' DOS (> 32MB, LBA)"}
 	,{0x0F, "Extended DOS, LBA"}
 	,{0x10, "OPUS"}
+	,{0x39, "plan9"}
 	,{0x40, "VENIX 286"}
+	,{0x4D, "QNX 4.2 Primary"}
+	,{0x4E, "QNX 4.2 Secondary"}
+	,{0x4F, "QNX 4.2 Tertiary"}
 	,{0x50, "DM"}
 	,{0x51, "DM"}
 	,{0x52, "CP/M or Microport SysV/AT"}
