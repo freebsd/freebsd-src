@@ -32,7 +32,11 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)ns.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+  "$FreeBSD$";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -81,9 +85,7 @@ static	int first = 1;
  */
 
 void
-nsprotopr(off, name)
-	u_long off;
-	char *name;
+nsprotopr(u_long off, char *name, int af __unused)
 {
 	struct nspcb cb;
 	register struct nspcb *prev, *next;
@@ -156,9 +158,7 @@ nsprotopr(off, name)
  * Dump SPP statistics structure.
  */
 void
-spp_stats(off, name)
-	u_long off;
-	char *name;
+spp_stats(u_long off, char *name, int af __unused)
 {
 	struct spp_istat spp_istat;
 #define sppstat spp_istat.newstats
@@ -234,9 +234,7 @@ spp_stats(off, name)
  * Dump IDP statistics structure.
  */
 void
-idp_stats(off, name)
-	u_long off;
-	char *name;
+idp_stats(u_long off, char *name, int af __unused)
 {
 	struct idpstat idpstat;
 
@@ -270,9 +268,7 @@ static	struct {
  */
 /*ARGSUSED*/
 void
-nserr_stats(off, name)
-	u_long off;
-	char *name;
+nserr_stats(u_long off, char *name, int af __unused)
 {
 	struct ns_errstat ns_errstat;
 	register int j;
@@ -313,8 +309,7 @@ nserr_stats(off, name)
 }
 
 static void
-ns_erputil(z, c)
-	int z, c;
+ns_erputil(int z, int c)
 {
 	int j;
 	char codebuf[30];
@@ -341,8 +336,7 @@ ns_erputil(z, c)
 static struct sockaddr_ns ssns = {AF_NS};
 
 static
-char *ns_prpr(x)
-	struct ns_addr *x;
+char *ns_prpr(struct ns_addr *x)
 {
 	struct sockaddr_ns *sns = &ssns;
 
