@@ -312,6 +312,9 @@ SMC Elite 16 WD8013 ethernet interface, and most other WD8003E,
 WD8003EBT, WD8003W, WD8013W, WD8003S, WD8003SBT and WD8013EBT
 based clones.  SMC Elite Ultra is also supported.
 
+DEC EtherWORKS III NICs (DE203, DE204, and DE205)
+DEC EtherWORKS II NICs (DE200, DE201, DE202, and DE422)
+
 Isolan AT 4141-0 (16 bit)
 Isolink 4110     (8 bit)
 
@@ -508,4 +511,4 @@ hope you enjoy this release of FreeBSD!
 
 			The FreeBSD Core Team
 
-$Id: RELNOTES.FreeBSD,v 1.9 1994/11/11 07:39:40 jkh Exp $
+$Id: RELNOTES.FreeBSD,v 1.10 1994/11/13 09:19:04 nate Exp $
