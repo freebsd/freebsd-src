@@ -153,12 +153,10 @@ scterm_init(scr_stat *scp, void **softc, int code)
 		tcp->esc = 0;
 		tcp->saved_xpos = -1;
 		tcp->saved_ypos = -1;
-
 #ifdef KANJI
 		tcp->kanji_1st_char = 0;
 		tcp->kanji_type = KTYPE_ASCII;
 #endif
-
 		tcp->attr_mask = NORMAL_ATTR;
 		/* XXX */
 		tcp->dflt_std_color.fg = SC_NORM_ATTR & 0x0f;
@@ -564,39 +562,37 @@ scterm_scan_esc(scr_stat *scp, term_stat *tcp, u_char c)
 			switch (n) {
 			case 0: /* reset colors and attributes back to normal */
 				tcp->attr_mask = NORMAL_ATTR;
-				tcp->cur_color = tcp->std_color =
-				    tcp->dflt_std_color;
+				tcp->cur_color = tcp->std_color
+					       = tcp->dflt_std_color;
 				tcp->rev_color = tcp->dflt_rev_color;
 				tcp->cur_attr = mask2attr(tcp);
 				break;
 			case 1:	/* set ansi background */
 				tcp->attr_mask &= ~BG_CHANGED;
-				tcp->cur_color.bg = tcp->std_color.bg =
-				    ansi_col[tcp->param[1] & 0x0f];
+				tcp->cur_color.bg = tcp->std_color.bg
+						  = ansi_col[tcp->param[1] & 0x0f];
 				tcp->cur_attr = mask2attr(tcp);
 				break;
 			case 2:	/* set ansi foreground */
 				tcp->attr_mask &= ~FG_CHANGED;
-				tcp->cur_color.fg = tcp->std_color.fg =
-				    ansi_col[tcp->param[1] & 0x0f];
+				tcp->cur_color.fg = tcp->std_color.fg
+						  = ansi_col[tcp->param[1] & 0x0f];
 				tcp->cur_attr = mask2attr(tcp);
 				break;
 			case 3: /* set adapter attribute directly */
 				tcp->attr_mask &= ~(FG_CHANGED | BG_CHANGED);
-				tcp->cur_color.fg = tcp->std_color.fg =
-				    tcp->param[1] & 0x0f;
-				tcp->cur_color.bg = tcp->std_color.bg =
-				    (tcp->param[1] >> 4) & 0x0f;
+				tcp->cur_color.fg = tcp->std_color.fg
+						  = tcp->param[1] & 0x0f;
+				tcp->cur_color.bg = tcp->std_color.bg
+						  = (tcp->param[1] >> 4) & 0x0f;
 				tcp->cur_attr = mask2attr(tcp);
 				break;
 			case 5: /* set ansi reverse background */
-				tcp->rev_color.bg =
-				    ansi_col[tcp->param[1] & 0x0f];
+				tcp->rev_color.bg = ansi_col[tcp->param[1] & 0x0f];
 				tcp->cur_attr = mask2attr(tcp);
 				break;
 			case 6: /* set ansi reverse foreground */
-				tcp->rev_color.fg =
-				    ansi_col[tcp->param[1] & 0x0f];
+				tcp->rev_color.fg = ansi_col[tcp->param[1] & 0x0f];
 				tcp->cur_attr = mask2attr(tcp);
 				break;
 			case 7: /* set adapter reverse attribute directly */
@@ -684,8 +680,8 @@ scterm_scan_esc(scr_stat *scp, term_stat *tcp, u_char c)
 		case 'F':   /* set adapter foreground */
 			if (tcp->num_param == 1) {
 				tcp->attr_mask &= ~FG_CHANGED;
-				tcp->cur_color.fg = tcp->std_color.fg =
-				    tcp->param[0] & 0x0f;
+				tcp->cur_color.fg = tcp->std_color.fg
+						  = tcp->param[0] & 0x0f;
 				tcp->cur_attr = mask2attr(tcp);
 			}
 			break;
@@ -693,8 +689,8 @@ scterm_scan_esc(scr_stat *scp, term_stat *tcp, u_char c)
 		case 'G':   /* set adapter background */
 			if (tcp->num_param == 1) {
 				tcp->attr_mask &= ~BG_CHANGED;
-				tcp->cur_color.bg = tcp->std_color.bg = 
-				    tcp->param[0] & 0x0f;
+				tcp->cur_color.bg = tcp->std_color.bg
+						  = tcp->param[0] & 0x0f;
 				tcp->cur_attr = mask2attr(tcp);
 			}
 			break;
@@ -749,12 +745,14 @@ scterm_scan_esc(scr_stat *scp, term_stat *tcp, u_char c)
 static void
 scterm_puts(scr_stat *scp, u_char *buf, int len)
 {
-	term_stat *tcp = scp->ts;
-	u_char *ptr = buf;
+	term_stat *tcp;
+	u_char *ptr;
 #ifdef KANJI
 	u_short kanji_code;
 #endif
 
+	tcp = scp->ts;
+	ptr = buf;
 outloop:
 	scp->sc->write_in_progress++;
 
