@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.438 1998/06/21 13:36:53 bde Exp $
+#	$Id: LINT,v 1.439 1998/06/24 22:01:32 msmith Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -532,6 +532,18 @@ options		SUIDDIR
 # Add some error checking code to the null_bypass routine
 # in the NULL filesystem
 #options		SAFETY
+
+
+# NFS options:
+options		"NFS_MINATTRTIMO=3"	# VREG attrib cache timeout in sec
+options		"NFS_MAXATTRTIMO=60"
+options		"NFS_MINDIRATTRTIMO=30"	# VDIR attrib cache timeout in sec
+options		"NFS_MAXDIRATTRTIMO=60"
+options		"NFS_GATHERDELAY=10"	# Default write gather delay (msec)
+options		"NFS_UIDHASHSIZ=29"	# Tune the size of nfssvc_sock with this
+options		"NFS_WDELAYHASHSIZ=16"	# and with this
+options		"NFS_MUIDHASHSIZ=63"	# Tune the size of nfsmount with this
+options		NFS_DEBUG		# Enable NFS Debugging
 
 
 #####################################################################
