@@ -70,6 +70,10 @@ An emulator for SVR4 binaries has been added.
 
 Support has been added for direct access to NTFS filesystems.
 
+Support for NetWare client connections has been added, as well as
+support for the NWFS filesystem.  A library of NCP support routines
+has been added in ports/net/ncplib.
+
 Driver support has been added for PCI gigabit ethernet adapters
 based on the Alteon Networks Tigon 1 and Tigon 2 chipsets, including
 the Alteon AceNIC, 3Com 3c985 and Netgear GA620. [MERGED]
