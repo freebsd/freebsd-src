@@ -18,7 +18,5 @@ SRCS=	faithd.c tcp.c ftp.c rsh.c
 MAN8=	faithd.8
 #CFLAGS+= -DFAITH4
 CFLAGS+= -Wall
-DPADD=	${LIBUTIL}
-LDADD=	-lutil
 
 .include <bsd.prog.mk>
