@@ -48,8 +48,10 @@
 #if defined(__FreeBSD__)
 #include <sys/malloc.h>
 
+#if defined(KERNEL)
 MALLOC_DECLARE(M_USB);
 MALLOC_DECLARE(M_USBDEV);
+#endif
 #endif
 
 #define USB_MAX_DEVICES 128
