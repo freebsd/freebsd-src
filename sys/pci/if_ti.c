@@ -700,16 +700,11 @@ static int ti_newbuf_std(sc, i, m)
 
 	if (m == NULL) {
 		MGETHDR(m_new, M_DONTWAIT, MT_DATA);
-		if (m_new == NULL) {
-			printf("ti%d: mbuf allocation failed "
-			    "-- packet dropped!\n", sc->ti_unit);
+		if (m_new == NULL)
 			return(ENOBUFS);
-		}
 
 		MCLGET(m_new, M_DONTWAIT);
 		if (!(m_new->m_flags & M_EXT)) {
-			printf("ti%d: cluster allocation failed "
-			    "-- packet dropped!\n", sc->ti_unit);
 			m_freem(m_new);
 			return(ENOBUFS);
 		}
