@@ -1,5 +1,5 @@
 #	From: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id$
+#	$Id: bsd.kmod.mk,v 1.30 1997/02/22 13:56:10 peter Exp $
 #
 # The include file <bsd.kmod.mk> handles installing Loadable Kernel Modules.
 # <bsd.kmod.mk> includes the file named "../Makefile.inc" if it exists,
@@ -185,11 +185,17 @@ distribute: _SUBDIR
 	cd ${.CURDIR} ; $(MAKE) install DESTDIR=${DISTDIR}/${DISTRIBUTION} SHARED=copies
 .endif
 
+.if defined(NOTAGS)
+tags:
+.endif
+
 .if !target(tags)
 tags: ${SRCS} _SUBDIR
 .if defined(PROG)
-	-cd ${.CURDIR}; ctags -f /dev/stdout ${.ALLSRC} | \
-	    sed "s;\${.CURDIR}/;;" > tags
+	@cd ${.CURDIR} && gtags ${GTAGSFLAGS}
+.if defined(HTML)
+	@cd ${.CURDIR} && htags ${HTAGSFLAGS}
+.endif
 .endif
 .endif
 

@@ -1,5 +1,5 @@
 #	from: @(#)sys.mk	8.2 (Berkeley) 3/21/94
-#	$Id$
+#	$Id: sys.mk,v 1.22 1997/02/22 13:56:15 peter Exp $
 
 unix		?=	We run FreeBSD, not UNIX.
 
@@ -93,6 +93,10 @@ YFLAGS		?=
 .else
 YFLAGS		?=	-d
 .endif
+
+# For tags rule.
+GTAGSFLAGS=	-se
+HTAGSFLAGS=
 
 .if defined(%POSIX)
 # Posix 1003.2 mandated rules
