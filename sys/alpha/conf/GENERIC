@@ -119,7 +119,7 @@ device		sc0	at isa?
 # real time clock
 device		mcclock0 at isa? port 0x70
 
-# Serial (COM) ports
+# Serial (COM) ports (required)
 device		sio0	at isa? port IO_COM1 irq 4
 device		sio1	at isa? port IO_COM2 irq 3 flags 0x50
 
