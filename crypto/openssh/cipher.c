@@ -13,7 +13,7 @@
  */
 
 #include "includes.h"
-RCSID("$Id: cipher.c,v 1.26 2000/04/14 10:30:30 markus Exp $");
+RCSID("$Id: cipher.c,v 1.27 2000/05/22 18:42:00 markus Exp $");
 
 #include "ssh.h"
 #include "cipher.h"
@@ -179,7 +179,7 @@ ciphers_valid(const char *names)
 	char *p;
 	int i;
 
-	if (strcmp(names, "") == 0)
+	if (names == NULL || strcmp(names, "") == 0)
 		return 0;
 	ciphers = xstrdup(names);
 	for ((p = strtok(ciphers, CIPHER_SEP)); p; (p = strtok(NULL, CIPHER_SEP))) {
@@ -202,6 +202,8 @@ int
 cipher_number(const char *name)
 {
 	int i;
+	if (name == NULL)
+		return -1;
 	for (i = 0; i < sizeof(cipher_names) / sizeof(cipher_names[0]); i++)
 		if (strcmp(cipher_names[i], name) == 0 &&
 		    (cipher_mask() & (1 << i)))

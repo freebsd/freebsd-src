@@ -7,7 +7,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: auth.c,v 1.6 2000/04/26 21:28:31 markus Exp $");
+RCSID("$OpenBSD: auth.c,v 1.7 2000/05/17 21:37:24 deraadt Exp $");
 
 #include "xmalloc.h"
 #include "rsa.h"
@@ -47,14 +47,21 @@ allowed_user(struct passwd * pw)
 {
 	struct stat st;
 	struct group *grp;
+	char *shell;
 	int i;
 
 	/* Shouldn't be called if pw is NULL, but better safe than sorry... */
 	if (!pw)
 		return 0;
 
+	/*
+	 * Get the shell from the password data.  An empty shell field is
+	 * legal, and means /bin/sh.
+	 */
+	shell = (pw->pw_shell[0] == '\0') ? _PATH_BSHELL : pw->pw_shell;
+
 	/* deny if shell does not exists or is not executable */
-	if (stat(pw->pw_shell, &st) != 0)
+	if (stat(shell, &st) != 0)
 		return 0;
 	if (!((st.st_mode & S_IFREG) && (st.st_mode & (S_IXOTH|S_IXUSR|S_IXGRP))))
 		return 0;
