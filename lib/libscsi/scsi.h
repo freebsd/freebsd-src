@@ -52,6 +52,8 @@ scsireq_t *scsireq_reset __P((scsireq_t *));
 scsireq_t *scsireq_new __P((void));
 
 int scsireq_buff_decode __P((u_char *, size_t, char *, ...));
+int scsireq_buff_decode_visit __P((u_char *, size_t, char *,
+void (*a)(void *, int, void *, int, char *), void *));
 
 int scsireq_decode __P((scsireq_t *, char *, ...));
 int scsireq_decode_visit __P((scsireq_t *, char *,
