@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.48 1995/11/02 06:42:45 davidg Exp $
+ * $Id: swap_pager.c,v 1.49 1995/11/14 20:53:20 phk Exp $
  */
 
 /*
@@ -117,6 +117,14 @@ static struct pagerlst *swp_qs[] = {
 /*
  * pagerops for OBJT_SWAP - "swap pager".
  */
+static vm_object_t
+		swap_pager_alloc __P((void *handle, vm_size_t size,
+				      vm_prot_t prot, vm_offset_t offset));
+static void	swap_pager_dealloc __P((vm_object_t object));
+static boolean_t
+		swap_pager_haspage __P((vm_object_t object, vm_offset_t offset,
+					int *before, int *after));
+static void	swap_pager_init __P((void));
 struct pagerops swappagerops = {
 	swap_pager_init,
 	swap_pager_alloc,
@@ -131,6 +139,7 @@ static int npendingio = NPENDINGIO;
 static void swap_pager_finish();
 int dmmin, dmmax;
 
+static void	swap_pager_iodone __P((struct buf *));
 
 static inline void
 swapsizecheck()
