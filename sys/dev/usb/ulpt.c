@@ -1,4 +1,4 @@
-/*	$NetBSD: ulpt.c,v 1.42 2001/04/16 00:18:06 augustss Exp $	*/
+/*	$NetBSD: ulpt.c,v 1.46 2001/12/31 12:15:21 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -44,12 +44,13 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/proc.h>
 #include <sys/kernel.h>
 #if defined(__NetBSD__) || defined(__OpenBSD__)
-#include <sys/proc.h>
 #include <sys/device.h>
 #include <sys/ioctl.h>
 #elif defined(__FreeBSD__)
+#include <sys/ioccom.h>
 #include <sys/module.h>
 #include <sys/bus.h>
 #endif
@@ -155,7 +156,9 @@ int ulpt_status(struct ulpt_softc *);
 void ulpt_reset(struct ulpt_softc *);
 int ulpt_statusmsg(u_char, struct ulpt_softc *);
 
+#if 0
 void ieee1284_print_id(char *);
+#endif
 
 #define	ULPTUNIT(s)	(minor(s) & 0x1f)
 #define	ULPTFLAGS(s)	(minor(s) & 0xe0)
@@ -176,7 +179,8 @@ USB_MATCH(ulpt)
 	    id->bInterfaceClass == UICLASS_PRINTER &&
 	    id->bInterfaceSubClass == UISUBCLASS_PRINTER &&
 	    (id->bInterfaceProtocol == UIPROTO_PRINTER_UNI ||
-	     id->bInterfaceProtocol == UIPROTO_PRINTER_BI))
+	     id->bInterfaceProtocol == UIPROTO_PRINTER_BI ||
+	     id->bInterfaceProtocol == UIPROTO_PRINTER_1284))
 		return (UMATCH_IFACECLASS_IFACESUBCLASS_IFACEPROTO);
 	return (UMATCH_NONE);
 }
@@ -225,7 +229,8 @@ USB_ATTACH(ulpt)
 		    id->bInterfaceNumber == ifcd->bInterfaceNumber) {
 			if (id->bInterfaceClass == UICLASS_PRINTER &&
 			    id->bInterfaceSubClass == UISUBCLASS_PRINTER &&
-			    id->bInterfaceProtocol == UIPROTO_PRINTER_BI)
+			    (id->bInterfaceProtocol == UIPROTO_PRINTER_BI ||
+			     id->bInterfaceProtocol == UIPROTO_PRINTER_1284))
 				goto found;
 			altno++;
 		}
@@ -328,6 +333,8 @@ USB_ATTACH(ulpt)
 		UID_ROOT, GID_OPERATOR, 0644, "unlpt%d", device_get_unit(self));
 #endif
 
+	usbd_add_drv_event(USB_EVENT_DRIVER_ATTACH, sc->sc_udev,
+			   USBDEV(sc->sc_dev));
 
 	USB_ATTACH_SUCCESS_RETURN;
 }
@@ -402,6 +409,9 @@ USB_DETACH(ulpt)
 	destroy_dev(sc->dev_noprime);
 #endif
 
+	usbd_add_drv_event(USB_EVENT_DRIVER_DETACH, sc->sc_udev,
+			   USBDEV(sc->sc_dev));
+
 	return (0);
 }
 
@@ -461,7 +471,7 @@ ulpt_input(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 		usbd_transfer(sc->sc_in_xfer1);
 }
 
-int ulptusein = 0;
+int ulptusein = 1;
 
 /*
  * Reset the printer, then wait until it's selected and not busy.
@@ -542,8 +552,18 @@ ulptopen(dev_t dev, int flag, int mode, usb_proc_ptr p)
 		sc->sc_in_xfer2 = usbd_alloc_xfer(sc->sc_udev);
 		if (sc->sc_in_xfer1 == NULL || sc->sc_in_xfer2 == NULL) {
 			error = ENOMEM;
+			if (sc->sc_in_xfer1 != NULL) {
+				usbd_free_xfer(sc->sc_in_xfer1);
+				sc->sc_in_xfer1 = NULL;
+			}
+			if (sc->sc_in_xfer2 != NULL) {
+				usbd_free_xfer(sc->sc_in_xfer2);
+				sc->sc_in_xfer2 = NULL;
+			}
 			usbd_close_pipe(sc->sc_out_pipe);
 			sc->sc_out_pipe = NULL;
+			usbd_close_pipe(sc->sc_in_pipe);
+			sc->sc_in_pipe = NULL;
 			sc->sc_state = 0;
 			goto done;
 		}
