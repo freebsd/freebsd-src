@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.161 1998/03/12 10:55:02 bde Exp $
+#	$Id: Makefile,v 1.162 1998/03/12 13:19:59 bde Exp $
 #
 # While porting to the another architecture include the bootstrap instead
 # of the normal build.
@@ -137,10 +137,10 @@ SUP?=		sup
 SUPFLAGS?=	-v
 
 #
-# While building tools for bootstrapping, we dont need to waste time on
-# profiled libraries or man pages.  This speeds things up somewhat.
+# While building tools for bootstrapping, we don't need to waste time on
+# shared or profiled libraries, shared linkage, or documentation.
 #
-MK_FLAGS=	-DNOINFO -DNOMAN -DNOPROFILE
+MK_FLAGS=	-DNOINFO -DNOMAN -DNOPIC -DNOPROFILE -DNOSHARED
 
 #
 # world
@@ -569,54 +569,60 @@ lib-tools:
 #
 # libraries - build and install the libraries
 #
+
+# We have to know too much about botches in the lib tree:
+.if exists(csu/${MACHINE}.pcc)
+_csu=csu/${MACHINE}.pcc
+.else
+_csu=csu/${MACHINE}
+.endif
+
+.if defined(WANT_CSRG_LIBM)
+_libm=	libm
+.else
+_libm=	msun
+.endif
+
 libraries:
-.if exists(lib/csu/${MACHINE})
-	cd ${.CURDIR}/lib/csu/${MACHINE} && ${MAKE} ${MK_FLAGS} depend && \
+#
+# Build csu early so that some tools get linked to the new version (too
+# late for the main tools, however).
+#
+# To satisfy shared library or ELF linkage when only the libraries being
+# built are visible:
+#
+# libcom_err must be built before libss.
+# libcrypt and libmd must be built before libskey.
+# libm must be built before libtcl.
+# libmytinfo must be built before libdialog and libncurses.
+# libncurses must be built before libdialog.
+# libtermcap must be built before libcurses, libedit and libreadline.
+#
+.for _lib in ${_csu} libcom_err libcrypt ${_libm} libmytinfo \
+	     libncurses libtermcap
+.if exists(${.CURDIR}/lib/${_lib})
+	cd ${.CURDIR}/lib/${_lib} && \
+		${MAKE} ${MK_FLAGS:S/-DNOPIC//} depend && \
+		${MAKE} ${MK_FLAGS:S/-DNOPIC//} all && \
+		${MAKE} ${MK_FLAGS:S/-DNOPIC//} -B install
+.endif
+.endfor
+.for _lib in gnu/lib lib usr.bin/lex/lib usr.sbin/pcvt/keycap
+.if exists(${.CURDIR}/${_lib})
+	cd ${.CURDIR}/${_lib} && \
+		${MAKE} ${MK_FLAGS} depend && \
 		${MAKE} ${MK_FLAGS} all && \
 		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
 .endif
-.if exists(lib/libcompat)
-	cd ${.CURDIR}/lib/libcompat && ${MAKE} ${MK_FLAGS} depend && \
-		${MAKE} ${MK_FLAGS} all && \
-		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
-.endif
-.if exists(lib/libncurses)
-	cd ${.CURDIR}/lib/libncurses && ${MAKE} ${MK_FLAGS} depend && \
-		${MAKE} ${MK_FLAGS} all && \
-		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
-.endif
-.if exists(lib/libtermcap)
-	cd ${.CURDIR}/lib/libtermcap && ${MAKE} ${MK_FLAGS} depend && \
-		${MAKE} ${MK_FLAGS} all && \
-		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
-.endif
-.if exists(gnu)
-	cd ${.CURDIR}/gnu/lib && ${MAKE} ${MK_FLAGS} depend && \
-		${MAKE} ${MK_FLAGS} all && \
-		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
-.endif
-.if exists(secure) && !defined(NOCRYPT) && !defined(NOSECURE)
+.endfor
+.if exists(${.CURDIR}/secure/lib) && !defined(NOCRYPT) && !defined(NOSECURE)
 	cd ${.CURDIR}/secure/lib && ${MAKE} ${MK_FLAGS} depend && \
 		${MAKE} ${MK_FLAGS} all && \
 		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
 .endif
-.if exists(lib)
-	cd ${.CURDIR}/lib && ${MAKE} ${MK_FLAGS} depend && \
-		${MAKE} ${MK_FLAGS} all && \
-		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
-.endif
-.if exists(usr.bin/lex/lib)
-	cd ${.CURDIR}/usr.bin/lex/lib && ${MAKE} ${MK_FLAGS} depend && \
-		${MAKE} ${MK_FLAGS} all && \
-		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
-.endif
-.if exists(kerberosIV) && !defined(NOCRYPT) && defined(MAKE_KERBEROS4)
+.if exists(${.CURDIR}/kerberosIV/lib) && !defined(NOCRYPT) && \
+    defined(MAKE_KERBEROS4)
 	cd ${.CURDIR}/kerberosIV/lib && ${MAKE} ${MK_FLAGS} depend && \
-		${MAKE} ${MK_FLAGS} all && \
-		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
-.endif
-.if exists(usr.sbin/pcvt/keycap)
-	cd ${.CURDIR}/usr.sbin/pcvt/keycap && ${MAKE} ${MK_FLAGS} depend && \
 		${MAKE} ${MK_FLAGS} all && \
 		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
 .endif
