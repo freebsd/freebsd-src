@@ -79,6 +79,7 @@ static Distribution DistTable[] = {
 { "compat21",	"/",			&Dists,		DIST_COMPAT21,		NULL		},
 { "compat22",	"/",			&Dists,		DIST_COMPAT22,		NULL		},
 { "compat3x",	"/",			&Dists,		DIST_COMPAT3X,		NULL		},
+{ "compat4x",	"/",			&Dists,		DIST_COMPAT4X,		NULL		},
 #endif
 { "ports",	"/usr",			&Dists,		DIST_PORTS,		NULL		},
 { "local",	"/",			&Dists,		DIST_LOCAL,		NULL		},
@@ -223,6 +224,9 @@ distVerifyFlags(void)
 	Dists |= DIST_COMPAT22;	/* For certain old X applications */
 #if __FreeBSD__ > 3
 	Dists |= DIST_COMPAT3X;
+#endif
+#if __FreeBSD__ > 4
+	Dists |= DIST_COMPAT4X;
 #endif
 #endif
     }
