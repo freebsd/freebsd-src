@@ -647,8 +647,9 @@ ncp_sysctl_connstat(SYSCTL_HANDLER_ARGS)
 	struct ncp_conn *ncp;
 /*	struct ucred *cred = req->td->td_ucred;*/
 
-	error = 0;
-	sysctl_wire_old_buffer(req, 0);
+	error = sysctl_wire_old_buffer(req, 0);
+	if (error != 0)
+		return (error);
 	ncp_conn_locklist(LK_SHARED, req->td);
 	error = SYSCTL_OUT(req, &ncp_conn_cnt, sizeof(ncp_conn_cnt));
 	SLIST_FOREACH(ncp, &conn_list, nc_next) {

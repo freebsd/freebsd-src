@@ -1796,7 +1796,9 @@ sysctl_kern_function_list(SYSCTL_HANDLER_ARGS)
 	if (error)
 		return (error);
 #endif
-	sysctl_wire_old_buffer(req, 0);
+	error = sysctl_wire_old_buffer(req, 0);
+	if (error != 0)
+		return (error);
 	mtx_lock(&kld_mtx);
 	TAILQ_FOREACH(lf, &linker_files, link) {
 		error = LINKER_EACH_FUNCTION_NAME(lf,
