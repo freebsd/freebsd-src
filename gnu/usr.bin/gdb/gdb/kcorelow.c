@@ -17,7 +17,7 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
-	$Id: kcorelow.c,v 1.2 1994/05/18 12:42:15 pk Exp $
+	$Id: kcorelow.c,v 1.1 1994/12/30 23:32:56 jkh Exp $
 */
 
 #include "defs.h"
@@ -170,8 +170,18 @@ kcore_open (filename, from_tty)
 
 	old_chain = make_cleanup (free, filename);
 
+      /*
+       * gdb doesn't really do anything if the exec-file couldn't
+       * be opened (in that case exec_bfd is NULL). Usually that's
+       * no big deal, but kvm_open needs the exec-file's name,
+       * which results in dereferencing a NULL pointer, a real NO-NO !
+       * So, check here if the open of the exec-file succeeded.
+       */
+      if (exec_bfd == NULL) /* the open failed */
+              error ("kgdb could not open the exec-file, please check the name you used !");
+
 	core_kd = kvm_open (exec_bfd->filename, filename, NULL,
-			    write_files? O_RDWR: O_RDONLY, 0);
+                          write_files? O_RDWR: O_RDONLY, "kgdb: ");
 	if (core_kd < 0)
 		perror_with_name (filename);
 
