@@ -144,7 +144,7 @@ exit1(td, rv)
 
 	/* are we a task leader? */
 	PROC_LOCK(p);
-	if(p == p->p_leader) {
+	if (p == p->p_leader) {
 		q = p->p_peers;
 		while (q != NULL) {
 			PROC_LOCK(q);
@@ -207,9 +207,9 @@ exit1(td, rv)
 	 * Remove ourself from our leader's peer list and wake our leader.
 	 */
 	PROC_LOCK(p->p_leader);
-	if(p->p_leader->p_peers) {
+	if (p->p_leader->p_peers) {
 		q = p->p_leader;
-		while(q->p_peers != p)
+		while (q->p_peers != p)
 			q = q->p_peers;
 		q->p_peers = p->p_peers;
 		wakeup((caddr_t)p->p_leader);
