@@ -415,11 +415,11 @@ static struct {
 } cmdsw[] = {
 	{ cmd_add, "add" },
 	{ cmd_create, "create" },
-	{ NULL, "delete" },
 	{ cmd_destroy, "destroy" },
 	{ NULL, "help" },
 	{ cmd_migrate, "migrate" },
 	{ cmd_recover, "recover" },
+	{ cmd_remove, "remove" },
 	{ NULL, "rename" },
 	{ cmd_show, "show" },
 	{ NULL, "verify" },

@@ -69,6 +69,7 @@ int	cmd_create(int, char *[]);
 int	cmd_destroy(int, char *[]);
 int	cmd_migrate(int, char *[]);
 int	cmd_recover(int, char *[]);
+int	cmd_remove(int, char *[]);
 int	cmd_show(int, char *[]);
 
 #endif /* _GPT_H_ */
