@@ -73,12 +73,15 @@
 #if defined(__alpha__) || defined(__ia64__) || defined(__sparc64__) || \
     defined(__amd64__)
 #define	KINFO_PROC_SIZE	912		/* the correct size for kinfo_proc */
+#define	KI_NSPARE	16		/* number of spare longs to define */
 #endif
-#if	__i386__ || defined __arm__
+#if defined(__i386__) || defined(__arm__)
 #define	KINFO_PROC_SIZE	648		/* the correct size for kinfo_proc */
+#define	KI_NSPARE	15
 #endif
 #ifdef  __powerpc__
 #define	KINFO_PROC_SIZE	656
+#define	KI_NSPARE	16
 #endif
 #ifndef	KINFO_PROC_SIZE
 #error	"Unknown architecture"
@@ -87,6 +90,7 @@
 #define	LOCKNAMELEN	8		/* size of returned lock name */
 #define	OCOMMLEN	16		/* size of returned ki_ocomm name */
 #define	COMMLEN		19		/* size of returned ki_comm name */
+#define	KI_EMULNAMELEN	16		/* size of returned ki_emul */
 #define	KI_NGROUPS	16		/* number of groups in ki_groups */
 #define	LOGNAMELEN	17		/* size of returned ki_login */
 
@@ -108,6 +112,7 @@ struct kinfo_proc {
 	pid_t	ki_sid;			/* Process session ID */
 	pid_t	ki_tsid;		/* Terminal session ID */
 	short	ki_jobc;		/* job control counter */
+	short	ki_spare_short1;	/* unused (just here for alignment) */
 	dev_t	ki_tdev;		/* controlling tty dev */
 	sigset_t ki_siglist;		/* Signals arrived but not delivered */
 	sigset_t ki_sigmask;		/* Current signal mask */
@@ -119,6 +124,7 @@ struct kinfo_proc {
 	gid_t	ki_rgid;		/* Real group id */
 	gid_t	ki_svgid;		/* Saved effective group id */
 	short	ki_ngroups;		/* number of groups */
+	short	ki_spare_short2;	/* unused (just here for alignment) */
 	gid_t	ki_groups[KI_NGROUPS];	/* groups */
 	vm_size_t ki_size;		/* virtual size */
 	segsz_t ki_rssize;		/* current resident set size in pages */
@@ -149,14 +155,20 @@ struct kinfo_proc {
 	char	ki_login[LOGNAMELEN+1];	/* setlogin name */
 	char	ki_lockname[LOCKNAMELEN+1]; /* lock name */
 	char	ki_comm[COMMLEN+1];	/* command name */
-	char	ki_sparestrings[85];	/* spare string space */
+	char	ki_emul[KI_EMULNAMELEN+1];  /* emulation name */
+	char	ki_sparestrings[68];	/* spare string space */
 	struct	rusage ki_rusage;	/* process rusage statistics */
 	long	ki_sflag;		/* PS_* flags */
 	struct	priority ki_pri;	/* process priority */
 	long	ki_tdflags;		/* XXXKSE kthread flag */
 	struct	pcb *ki_pcb;		/* kernel virtual addr of pcb */
 	void	*ki_kstack;		/* kernel virtual addr of stack */
-	long	ki_spare[22];		/* spare constants */
+	struct	timeval ki_childstime;	/* system time used by children */
+	struct	timeval ki_childutime;	/* user time used by children */
+	segsz_t	ki_ps_segsz1;		/* used by `ps', for its processing */
+	float	ki_ps_float1;		/* used by `ps', for its processing */
+	int	ki_spare_int1;		/* unused (just here for alignment) */
+	long	ki_spare[KI_NSPARE];	/* spare room for later growth */
 };
 void fill_kinfo_proc(struct proc *, struct kinfo_proc *);
 
