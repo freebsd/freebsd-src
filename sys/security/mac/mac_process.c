@@ -46,6 +46,7 @@
 #include "opt_devfs.h"
 
 #include <sys/param.h>
+#include <sys/condvar.h>
 #include <sys/extattr.h>
 #include <sys/imgact.h>
 #include <sys/kernel.h>
@@ -223,20 +224,54 @@ MALLOC_DEFINE(M_MACPIPELABEL, "macpipelabel", "MAC labels for pipes");
 MALLOC_DEFINE(M_MACTEMP, "mactemp", "MAC temporary label storage");
 
 /*
- * mac_policy_list_lock protects the consistency of 'mac_policy_list',
- * the linked list of attached policy modules.  Read-only consumers of
- * the list must acquire a shared lock for the duration of their use;
- * writers must acquire an exclusive lock.  Note that for compound
- * operations, locks should be held for the entire compound operation,
- * and that this is not yet done for relabel requests.
+ * mac_policy_list stores the list of active policies.  A busy count is
+ * maintained for the list, stored in mac_policy_busy.  The busy count
+ * is protected by mac_policy_list_lock; the list may be modified only
+ * while the busy count is 0, requiring that the lock be held to
+ * prevent new references to the list from being acquired.  For almost
+ * all operations, incrementing the busy count is sufficient to
+ * guarantee consistency, as the list cannot be modified while the
+ * busy count is elevated.  For a few special operations involving a
+ * change to the list of active policies, the lock itself must be held.
+ * A condition variable, mac_policy_list_not_busy, is used to signal
+ * potential exclusive consumers that they should try to acquire the
+ * lock if a first attempt at exclusive access fails.
  */
 static struct mtx mac_policy_list_lock;
+static struct cv mac_policy_list_not_busy;
 static LIST_HEAD(, mac_policy_conf) mac_policy_list;
 static int mac_policy_list_busy;
-#define	MAC_POLICY_LIST_LOCKINIT()	mtx_init(&mac_policy_list_lock,	\
-	"mac_policy_list_lock", NULL, MTX_DEF);
-#define	MAC_POLICY_LIST_LOCK()	mtx_lock(&mac_policy_list_lock);
-#define	MAC_POLICY_LIST_UNLOCK()	mtx_unlock(&mac_policy_list_lock);
+
+#define	MAC_POLICY_LIST_LOCKINIT() do {					\
+	mtx_init(&mac_policy_list_lock, "mac_policy_list_lock", NULL,	\
+	    MTX_DEF);							\
+	cv_init(&mac_policy_list_not_busy, "mac_policy_list_not_busy");	\
+} while (0)
+
+#define	MAC_POLICY_LIST_LOCK() do {					\
+	mtx_lock(&mac_policy_list_lock);				\
+} while (0)
+
+#define	MAC_POLICY_LIST_UNLOCK() do {					\
+	mtx_unlock(&mac_policy_list_lock);				\
+} while (0)
+
+/*
+ * We manually invoke WITNESS_SLEEP() to allow Witness to generate
+ * warnings even if we don't end up ever triggering the wait at
+ * run-time.  The consumer of the exclusive interface must not hold
+ * any locks (other than potentially Giant) since we may sleep for
+ * long (potentially indefinite) periods of time waiting for the
+ * framework to become quiescent so that a policy list change may
+ * be made.
+ */
+#define	MAC_POLICY_LIST_EXCLUSIVE() do {				\
+	WITNESS_SLEEP(1, NULL);						\
+	mtx_lock(&mac_policy_list_lock);				\
+	while (mac_policy_list_busy != 0)				\
+		cv_wait(&mac_policy_list_not_busy,			\
+		    &mac_policy_list_lock);				\
+} while (0)
 
 #define	MAC_POLICY_LIST_BUSY() do {					\
 	MAC_POLICY_LIST_LOCK();						\
@@ -247,8 +282,9 @@ static int mac_policy_list_busy;
 #define	MAC_POLICY_LIST_UNBUSY() do {					\
 	MAC_POLICY_LIST_LOCK();						\
 	mac_policy_list_busy--;						\
-	if (mac_policy_list_busy < 0)					\
-		panic("Extra mac_policy_list_busy--");			\
+	KASSERT(mac_policy_list_busy >= 0, ("MAC_POLICY_LIST_LOCK"));	\
+	if (mac_policy_list_busy == 0)					\
+		cv_signal(&mac_policy_list_not_busy);			\
 	MAC_POLICY_LIST_UNLOCK();					\
 } while (0)
 
@@ -463,11 +499,7 @@ mac_policy_register(struct mac_policy_conf *mpc)
 	struct mac_policy_conf *tmpc;
 	int slot;
 
-	MAC_POLICY_LIST_LOCK();
-	if (mac_policy_list_busy > 0) {
-		MAC_POLICY_LIST_UNLOCK();
-		return (EBUSY);
-	}
+	MAC_POLICY_LIST_EXCLUSIVE();
 	LIST_FOREACH(tmpc, &mac_policy_list, mpc_list) {
 		if (strcmp(tmpc->mpc_name, mpc->mpc_name) == 0) {
 			MAC_POLICY_LIST_UNLOCK();
@@ -507,7 +539,7 @@ mac_policy_unregister(struct mac_policy_conf *mpc)
 	 * to see if we did the run-time registration, and if not,
 	 * silently succeed.
 	 */
-	MAC_POLICY_LIST_LOCK();
+	MAC_POLICY_LIST_EXCLUSIVE();
 	if ((mpc->mpc_runtime_flags & MPC_RUNTIME_FLAG_REGISTERED) == 0) {
 		MAC_POLICY_LIST_UNLOCK();
 		return (0);
@@ -529,22 +561,13 @@ mac_policy_unregister(struct mac_policy_conf *mpc)
 		MAC_POLICY_LIST_UNLOCK();
 		return (EBUSY);
 	}
-	/*
-	 * Right now, we EBUSY if the list is in use.  In the future,
-	 * for reliability reasons, we might want to sleep and wakeup
-	 * later to try again.
-	 */
-	if (mac_policy_list_busy > 0) {
-		MAC_POLICY_LIST_UNLOCK();
-		return (EBUSY);
-	}
 	if (mpc->mpc_ops->mpo_destroy != NULL)
 		(*(mpc->mpc_ops->mpo_destroy))(mpc);
 
 	LIST_REMOVE(mpc, mpc_list);
-	MAC_POLICY_LIST_UNLOCK();
-
 	mpc->mpc_runtime_flags &= ~MPC_RUNTIME_FLAG_REGISTERED;
+
+	MAC_POLICY_LIST_UNLOCK();
 
 	printf("Security policy unload: %s (%s)\n", mpc->mpc_fullname,
 	    mpc->mpc_name);
