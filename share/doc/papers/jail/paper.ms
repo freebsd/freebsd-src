@@ -75,7 +75,7 @@ security environment is both difficult and costly: in many cases,
 the burden of implementing these policies falls on user
 applications, which means an increase in the size and complexity
 of the code base, in turn translating to higher development 
-and maintaennce cost, as well as less overall flexibility.
+and maintenance cost, as well as less overall flexibility.
 .PP
 This abstract risk becomes more clear when applied to a practical,
 real-world example:
