@@ -259,7 +259,8 @@ aac_attach(struct aac_softc *sc)
 		return(error);
 
 	/*
-	 * Allocate command structures.
+	 * Allocate command structures.  This must be done before aac_init()
+	 * in order to work around a 2120/2200 bug.
 	 */
 	if ((error = aac_alloc_commands(sc)) != 0)
 		return(error);
@@ -1119,11 +1120,24 @@ aac_alloc_commands(struct aac_softc *sc)
 		printf("Not enough contiguous memory available.\n");
 		return (ENOMEM);
 	}
+
+	/*
+	 * Work around a bug in the 2120 and 2200 that cannot DMA commands
+	 * below address 8192 in physical memory.
+	 * XXX If the padding is not needed, can it be put to use instead
+	 * of ignored?
+	 */
 	bus_dmamap_load(sc->aac_fib_dmat, sc->aac_fibmap, sc->aac_fibs, 
-			AAC_FIB_COUNT * sizeof(struct aac_fib),
+			8192 + AAC_FIB_COUNT * sizeof(struct aac_fib),
 			aac_map_command_helper, sc, 0);
-	bzero(sc->aac_fibs, AAC_FIB_COUNT * sizeof(struct aac_fib));
+
+	if (sc->aac_fibphys < 8192) {
+		sc->aac_fibs += (8192 / sizeof(struct aac_fib));
+		sc->aac_fibphys += 8192;
+	}
+
 	/* initialise constant fields in the command structure */
+	bzero(sc->aac_fibs, AAC_FIB_COUNT * sizeof(struct aac_fib));
 	for (i = 0; i < AAC_FIB_COUNT; i++) {
 		cm = &sc->aac_command[i];
 		cm->cm_sc = sc;
