@@ -2053,7 +2053,6 @@ ipfw_main(ac,av)
 {
 
 	int 		ch;
-	extern int 	optreset; /* XXX should be declared in <unistd.h> */
 
 	if ( ac == 1 ) {
 		show_usage(NULL);
