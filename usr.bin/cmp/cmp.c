@@ -116,7 +116,7 @@ endargs:
 		if (!sflag)
 			err(ERR_EXIT, "%s", file1);
 		else
-			exit(1);
+			exit(ERR_EXIT);
 	}
 	if (strcmp(file2 = argv[1], "-") == 0) {
 		if (special)
@@ -130,7 +130,7 @@ endargs:
 		if (!sflag)
 			err(ERR_EXIT, "%s", file2);
 		else
-			exit(1);
+			exit(ERR_EXIT);
 	}
 
 	skip1 = argc > 2 ? strtol(argv[2], NULL, 0) : 0;
@@ -141,7 +141,7 @@ endargs:
 			if (!sflag)
 				err(ERR_EXIT, "%s", file1);
 			else
-				exit(1);
+				exit(ERR_EXIT);
 		}
 		if (!S_ISREG(sb1.st_mode))
 			special = 1;
@@ -150,7 +150,7 @@ endargs:
 				if (!sflag)
 					err(ERR_EXIT, "%s", file2);
 				else
-					exit(1);
+					exit(ERR_EXIT);
 			}
 			if (!S_ISREG(sb2.st_mode))
 				special = 1;
