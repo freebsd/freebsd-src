@@ -68,10 +68,10 @@
 
 struct message {
 	short	m_flag;			/* flags, see below */
-	short	m_block;		/* block number of this message */
 	short	m_offset;		/* offset in block of message */
+	long	m_block;		/* block number of this message */
 	long	m_size;			/* Bytes in the message */
-	short	m_lines;		/* Lines in the message */
+	long	m_lines;		/* Lines in the message */
 };
 
 /*
