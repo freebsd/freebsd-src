@@ -1,0 +1,184 @@
+THINGS TO WORK ON
+
+Note that many of these things mentioned here are already fixed in GMP 2.0.
+
+* Improve speed for non-gcc compilers by defining umul_ppmm, udiv_qrnnd,
+  etc, to call __umul_ppmm, __udiv_qrnnd.  A typical definition for
+  umul_ppmm would be
+  #define umul_ppmm(ph,pl,m0,m1) \
+    {unsigned long __ph; (pl) = __umul_ppmm (&__ph, (m0), (m1)); (ph) = __ph;}
+  In order to maintain just one version of longlong.h (gmp and gcc), this
+  has to be done outside of longlong.h.
+
+* Change mpn-routines to not deal with normalisation?
+    mpn_add: Unchanged.
+    mpn_sub: Remove normalization loop.  Does it assume normalised input?
+    mpn_mul: Make it return most sign limb, to simplify normalisation.
+	     Karatsubas algorith will be greatly simplified if mpn_add and
+	     mpn_sub doesn't normalise their results.
+    mpn_div: Still requires strict normalisation.
+  Beware of problems with mpn_cmp (and similar), a larger size does not
+  ensure that an operand is larger, since it may be "less normalised".
+  Normalization has to be moved into mpz-functions.
+
+Bennet Yee at CMU proposes:
+* mpz_{put,get}_raw for memory oriented I/O like other *_raw functions.
+* A function mpfatal that is called for exceptions.  The user may override
+  the default definition.
+
+* mout should group in 10-digit groups.
+* ASCII dependence?
+* Error reporting from I/O functions (linkoping)?
+
+* Make all computation mpz_* functions return a signed int indicating if
+  the result was zero, positive, or negative?
+
+* Implement mpz_cmpabs, mpz_xor, mpz_to_double, mpz_to_si, mpz_lcm,
+  mpz_dpb, mpz_ldb, various bit string operations like mpz_cntbits.  Also
+  mpz_@_si for most @??
+
+Brian Beuning proposes:
+   1. An array of small primes
+   3. A function to factor an MINT
+   4. A routine to look for "small" divisors of an MINT
+   5. A 'multiply mod n' routine based on Montgomery's algorithm.
+
+Doug Lea proposes:
+   1. A way to find out if an integer fits into a signed int, and if so, a
+      way to convert it out.
+   2. Similarly for double precision float conversion.
+   3. A function to convert the ratio of two integers to a double.  This
+      can be useful for mixed mode operations with integers, rationals, and
+      doubles.
+   5. Bit-setting, clearing, and testing operations, as in
+	   mpz_setbit(MP_INT* dest, MP_INT* src, unsigned long bit_number),
+       and used, for example in
+	   mpz_setbit(x, x, 123)
+       to directly set the 123rd bit of x.
+       If these are supported, you don't first have to set up
+       an otherwise unnecessary mpz holding a shifted value, then
+       do an "or" operation.
+
+Elliptic curve method descrition in the Chapter `Algorithms in Number
+Theory' in the Handbook of Theoretical Computer Science, Elsevier,
+Amsterdam, 1990.  Also in Carl Pomerance's lecture notes on Cryptology and
+Computational Number Theory, 1990.
+
+* New function: mpq_get_ifstr (int_str, frac_str, base,
+  precision_in_som_way, rational_number).  Convert RATIONAL_NUMBER to a
+  string in BASE and put the integer part in INT_STR and the fraction part
+  in FRAC_STR.  (This function would do a division of the numerator and the
+  denominator.)
+
+* Should mpz_powm* handle negative exponents?
+
+* udiv_qrnnd: If the denominator is normalized, the n0 argument has very
+  little effect on the quotient.  Maybe we can assume it is 0, and
+  compensate at a later stage?
+
+* Better sqrt: First calculate the reciprocal square root, then multiply by
+  the operand to get the square root.  The reciprocal square root can be
+  obtained through Newton-Raphson without division.  The iteration is x :=
+  x*(3-a*x^2)/2, where a is the operand.
+
+* Newton-Raphson using multiplication: We get twice as many correct digits
+  in each iteration.  So if we square x(k) as part of the iteration, the
+  result will have the leading digits in common with the entire result from
+  iteration k-1.  A _mpn_mul_lowpart could implement this.
+
+* Peter Montgomery: If 0 <= a, b < p < 2^31 and I want a modular product
+  a*b modulo p and the long long type is unavailable, then I can write
+
+	  typedef   signed long slong;	
+	  typedef unsigned long ulong;
+	  slong a, b, p, quot, rem;	
+
+	  quot = (slong) (0.5 + (double)a * (double)b / (double)p);
+	  rem =  (slong)((ulong)a * (ulong)b - (ulong)p * (ulong)q);
+	  if (rem < 0} {rem += p; quot--;}
+
+FFT:
+{
+  * Multiplication could be done with Montgomery's method combined with
+    the "three primes" method described in Lipson.  Maybe this would be
+    faster than to Nussbaumer's method with 3 (simple) moduli?
+
+  * Maybe the modular tricks below are not needed: We are using very
+    special numbers, Fermat numbers with a small base and a large exponent,
+    and maybe it's possible to just subtract and add?
+
+  * Modify Nussbaumer's convolution algorithm, to use 3 words for each
+    coefficient, calculating in 3 relatively prime moduli (e.g.
+    0xffffffff, 0x100000000, and 0x7fff on a 32-bit computer).  Both all
+    operations and CRR would be very fast with such numbers.
+
+  * Optimize the Shoenhage-Stassen multiplication algorithm.  Take
+    advantage of the real valued input to save half of the operations and
+    half of the memory.  Try recursive variants with large, optimized base
+    cases.  Use recursive FFT with large base cases, since recursive FFT
+    has better memory locality.  A normal FFT get 100% cache miss.
+}
+
+* Speed modulo arithmetic, using Montgomery's method or my pre-invertion
+  method.  In either case, special arithmetic calls would be needed,
+  mpz_mmmul, mpz_mmadd, mpz_mmsub, plus some kind of initialization
+  functions.
+
+* mpz_powm* should not use division to reduce the result in the loop, but
+  instead pre-compute the reciprocal of the MOD argument and do reduced_val
+  = val-val*reciprocal(MOD)*MOD, or use Montgomery's method.
+
+* mpz_mod_2expplussi -- to reduce a bignum modulo (2**n)+s
+
+* It would be a quite important feature never to allocate more memory than
+  really necessary for a result.  Sometimes we can achieve this cheaply, by
+  deferring reallocation until the result size is known.
+
+* New macro in longlong.h: shift_rhl that extracts a word by shifting two
+  words as a unit.  (Supported by i386, i860, HP-PA, RS6000, 29k.)  Useful
+  for shifting multiple precision numbers.
+
+* The installation procedure should make a test run of multiplication to
+  decide the threshold values for algorithm switching between the available
+  methods.
+
+* The gcd algorithm could probably be improved with a divide-and-conquer
+  (DAC) approach.  At least the bulk of the operations should be done with
+  single precision.
+
+* Fast output conversion of x to base B:
+    1. Find n, such that (B^n > x).
+    2. Set y to (x*2^m)/(B^n), where m large enough to make 2^n ~~ B^n
+    3. Multiply the low half of y by B^(n/2), and recursively convert the
+       result.  Truncate the low half of y and convert that recursively.
+  Complexity: O(M(n)log(n))+O(D(n))!
+
+* Extensions for floating-point arithmetic.
+
+* Improve special cases for division.
+
+  1. When the divisor is just one word, normalization is not needed for
+  most CPUs, and can be done in the division loop for CPUs that need
+  normalization.
+
+  2. Even when the result is going to be very small, (i.e. nsize-dsize is
+  small) normalization should also be done in the division loop.
+
+  To fix this, a new routine mpn_div_unnormalized is needed.
+
+* Never allocate temporary space for a source param that overlaps with a
+  destination param needing reallocation.  Instead malloc a new block for
+  the destination (and free the source before returning to the caller).
+
+* When any of the source operands overlap with the destination, mult (and
+  other routines) slow down.  This is so because the need of temporary
+  allocation (with alloca) and copying.  If a new destination were
+  malloc'ed instead (and the overlapping source free'd before return) no
+  copying would be needed.  Is GNU malloc quick enough to make this faster
+  even for reasonably small operands?
+
+Local Variables:
+mode: text
+fill-column: 75
+version-control: never
+End:
