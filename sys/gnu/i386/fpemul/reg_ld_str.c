@@ -56,7 +56,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *     $Id: reg_ld_str.c,v 1.2 1994/04/29 21:30:20 gclarkii Exp $
+ *     $Id: reg_ld_str.c,v 1.3 1994/06/10 07:44:52 rich Exp $
  *
  */
 
@@ -725,7 +725,7 @@ int
 reg_store_single(void)
 {
 	float  *single = (float *) FPU_data_address;
-	long    templ;
+	long    templ = 0;
 
 	if (FPU_st0_tag == TW_Valid) {
 		int     exp;
