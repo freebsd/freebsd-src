@@ -150,7 +150,7 @@ static void bzcompress_log(char *logname, int dowait);
 static int sizefile(char *file);
 static int age_old_log(char *file);
 static int send_signal(const struct conf_entry *ent);
-static void movefile(char *from, char *to);
+static void savelog(char *from, char *to);
 static void createdir(const struct conf_entry *ent, char *dirpart);
 static void createlog(const struct conf_entry *ent);
 
@@ -1284,8 +1284,7 @@ dotrim(const struct conf_entry *ent)
 	char file1[MAXPATHLEN], file2[MAXPATHLEN];
 	char zfile1[MAXPATHLEN], zfile2[MAXPATHLEN];
 	char jfile1[MAXPATHLEN];
-	char tfile[MAXPATHLEN];
-	int flags, notified, need_notification, fd, numlogs_c;
+	int flags, notified, need_notification, numlogs_c;
 	struct stat st;
 
 	flags = ent->flags;
@@ -1389,28 +1388,29 @@ dotrim(const struct conf_entry *ent)
 					warn("can't chown %s", zfile2);
 		}
 	}
-	if (!noaction && !(flags & CE_BINARY)) {
-		/* Report the trimming to the old log */
-		(void) log_trim(ent->log, ent);
-	}
 
-	if (ent->numlogs == 0) {
-		if (noaction)
-			printf("\trm %s\n", ent->log);
-		else
-			(void) unlink(ent->log);
-	} else {
+	if (ent->numlogs > 0) {
 		if (noaction) {
-			printf("\tmv %s to %s\n", ent->log, file1);
+			/*
+			 * Note that savelog() may succeed with using link()
+			 * for the archtodir case, but there is no good way
+			 * of knowing if it will when doing "noaction", so
+			 * here we claim that it will have to do a copy...
+			 */
+			if (archtodir)
+				printf("\tcp %s %s\n", ent->log, file1);
+			else
+				printf("\tln %s %s\n", ent->log, file1);
 			printf("\tchmod %o %s\n", ent->permissions, file1);
 			if (ent->uid != (uid_t)-1 || ent->gid != (gid_t)-1)
 				printf("\tchown %u:%u %s\n", ent->uid,
 				    ent->gid, file1);
  		} else {
-			if (archtodir)
-				movefile(ent->log, file1);
-			else
-				(void) rename(ent->log, file1);
+			if (!(flags & CE_BINARY)) {
+				/* Report the trimming to the old log */
+				log_trim(ent->log, ent);
+			}
+			savelog(ent->log, file1);
 			if (chmod(file1, ent->permissions))
 				warn("can't chmod %s", file1);
 			if (ent->uid != (uid_t)-1 || ent->gid != (gid_t)-1)
@@ -1419,40 +1419,10 @@ dotrim(const struct conf_entry *ent)
 		}
 	}
 
-	/* Now move the new log file into place */
-	/* XXX - We should replace the above 'rename' with
-	*	'link(ent->log, file1)' and then replace
-	 *	the following with 'createfile(ent)' */
-	strlcpy(tfile, ent->log, sizeof(tfile));
-	strlcat(tfile, ".XXXXXX", sizeof(tfile));
-	if (noaction) {
+	/* Create the new log file and move it into place */
+	if (noaction)
 		printf("Start new log...\n");
-		printf("\tmktemp %s\n", tfile);
-	} else {
-		mkstemp(tfile);
-		fd = creat(tfile, ent->permissions);
-		if (fd < 0)
-			err(1, "can't start new log");
-		if (ent->uid != (uid_t)-1 || ent->gid != (gid_t)-1)
-			if (fchown(fd, ent->uid, ent->gid))
-			    err(1, "can't chown new log file");
-		(void) close(fd);
-		if (!(flags & CE_BINARY)) {
-			/* Add status message to new log file */
-			if (log_trim(tfile, ent))
-				err(1, "can't add status message to log");
-		}
-	}
-	if (noaction) {
-		printf("\tchmod %o %s\n", ent->permissions, tfile);
-		printf("\tmv %s %s\n", tfile, ent->log);
-	} else {
-		(void) chmod(tfile, ent->permissions);
-		if (rename(tfile, ent->log) < 0) {
-			err(1, "can't start new log");
-			(void) unlink(tfile);
-		}
-	}
+	createlog(ent);
 
 	/*
 	 * Find out if there is a process to signal.  If nosignal (-s) was
@@ -1669,12 +1639,21 @@ isnumberstr(const char *string)
 	return (1);
 }
 
-/* physically move file */
+/*
+ * Save the active log file under a new name.  A link to the new name
+ * is the quick-and-easy way to do this.  If that fails (which it will
+ * if the destination is on another partition), then make a copy of
+ * the file to the new location.
+ */
 static void
-movefile(char *from, char *to)
+savelog(char *from, char *to)
 {
 	FILE *src, *dst;
-	int c;
+	int c, res;
+
+	res = link(from, to);
+	if (res == 0)
+		return;
 
 	if ((src = fopen(from, "r")) == NULL)
 		err(1, "can't fopen %s for reading", from);
@@ -1692,8 +1671,6 @@ movefile(char *from, char *to)
 		err(1, "can't fclose %s", to);
 	if ((fclose(dst)) != 0)
 		err(1, "can't fclose %s", from);
-	if ((unlink(from)) != 0)
-		err(1, "can't unlink %s", from);
 }
 
 /* create one or more directory components of a path */
