@@ -5,8 +5,8 @@ This is a SNAPSHOT release of FreeBSD 3.0-CURRENT and is aimed primarily
 at release testers.  Some parts of the documentation may not be updated
 yet and should be reported if and when seen.  Naturally, any installation
 failures or crashes should also be reported ASAP by sending mail to
-bugs@freebsd.org or using the send-pr command (those preferring a WEB based
-interface can also see http://www.freebsd.org/send-pr.html).
+freebsd-bugs@FreeBSD.org or using the send-pr command (those preferring a 
+WEB based interface can also see http://www.freebsd.org/send-pr.html).
 
 For information about the layout of the 3.0-SNAPSHOT release directory,
 see ABOUT.TXT.  For general information about FreeBSD, see README.TXT.
@@ -287,7 +287,7 @@ watch out for.
 If, for some reason, you are unable to use the send-pr command to
 submit a bug report, you can try to send it to:
 
-                bugs@FreeBSD.org
+                freebsd-bugs@FreeBSD.org
 
 Note that send-pr itself is a shell script that should be easy to move
 even onto a totally different system.  We much prefer if you could use
@@ -298,7 +298,7 @@ the problem might have already been fixed since.
 
 Otherwise, for any questions or suggestions, please send mail to:
 
-                questions@FreeBSD.org
+                freebsd-questions@FreeBSD.org
 
 
 Additionally, being a volunteer effort, we are always happy to have
@@ -307,7 +307,7 @@ enhancements than we'll ever be able to manage by ourselves!  To
 contact us on technical matters, or with offers of help, please send
 mail to:
 
-                hackers@FreeBSD.org
+                freebsd-hackers@FreeBSD.org
 
 
 Please note that these mailing lists can experience *significant*
@@ -315,10 +315,10 @@ amounts of traffic and if you have slow or expensive mail access and
 are only interested in keeping up with significant FreeBSD events, you
 may find it preferable to subscribe instead to:
 
-                announce@FreeBSD.org
+                freebsd-announce@FreeBSD.org
 
 
-All but the freebsd-bugs groups can be freely joined by anyone wishing
+All of the mailing lists can be freely joined by anyone wishing
 to do so.  Send mail to MajorDomo@FreeBSD.org and include the keyword
 `help' on a line by itself somewhere in the body of the message.  This
 will give you more information on joining the various lists, accessing
