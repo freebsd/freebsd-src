@@ -20,7 +20,7 @@
 ;	OBSOL	obsolete, not included in system, only specifies name
 ;	UNIMPL	not implemented, placeholder only
 ;
-; $Id$
+; $Id: syscalls.master,v 1.2 1999/07/30 12:45:21 newton Exp $
 ;
 #include <sys/types.h>
 #include <sys/socket.h>
