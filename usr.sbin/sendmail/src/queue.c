@@ -36,9 +36,9 @@
 
 #ifndef lint
 #ifdef QUEUE
-static char sccsid[] = "@(#)queue.c	8.98 (Berkeley) 11/11/95 (with queueing)";
+static char sccsid[] = "@(#)queue.c	8.98.1.1 (Berkeley) 2/18/96 (with queueing)";
 #else
-static char sccsid[] = "@(#)queue.c	8.98 (Berkeley) 11/11/95 (without queueing)";
+static char sccsid[] = "@(#)queue.c	8.98.1.1 (Berkeley) 2/18/96 (without queueing)";
 #endif
 #endif /* not lint */
 
@@ -247,7 +247,7 @@ queueup(e, announce)
 
 	/* output body type */
 	if (e->e_bodytype != NULL)
-		fprintf(tfp, "B%s\n", e->e_bodytype);
+		fprintf(tfp, "B%s\n", denlstring(e->e_bodytype, TRUE, FALSE));
 
 	/* message from envelope, if it exists */
 	if (e->e_message != NULL)
@@ -380,7 +380,9 @@ queueup(e, announce)
 		/* output the header: expand macros, convert addresses */
 		if (bitset(H_DEFAULT, h->h_flags))
 		{
-			fprintf(tfp, "%s: %s\n", h->h_field, buf);
+			fprintf(tfp, "%s: %s\n",
+				h->h_field,
+				denlstring(buf, FALSE, TRUE));
 		}
 		else if (bitset(H_FROM|H_RCPT, h->h_flags))
 		{
@@ -397,7 +399,11 @@ queueup(e, announce)
 			TrafficLogFile = savetrace;
 		}
 		else
-			fprintf(tfp, "%s: %s\n", h->h_field, h->h_value);
+		{
+			fprintf(tfp, "%s: %s\n",
+				h->h_field,
+				denlstring(h->h_value, FALSE, TRUE));
+		}
 	}
 
 	/*
