@@ -235,9 +235,9 @@ static struct witness_child_list_entry w_childdata[WITNESS_CHILDCOUNT];
 static struct lock_list_entry w_locklistdata[LOCK_CHILDCOUNT];
 
 static struct witness_order_list_entry order_lists[] = {
-	{ "Giant", &lock_class_mtx_sleep },
 	{ "proctree", &lock_class_sx },
 	{ "allproc", &lock_class_sx },
+	{ "Giant", &lock_class_mtx_sleep },
 	{ "filedesc structure", &lock_class_mtx_sleep },
 	{ "pipe mutex", &lock_class_mtx_sleep },
 	{ "sigio lock", &lock_class_mtx_sleep },
