@@ -58,7 +58,7 @@ asl_dump_from_devmem()
 		errx(1, "Can't find ACPI information\n");
 
 	acpi_print_rsd_ptr(rp);
-	rsdp = (struct ACPIsdt *) acpi_map_sdt(rp->addr);
+	rsdp = (struct ACPIsdt *) acpi_map_sdt(rp->rsdt_addr);
 	if (memcmp(rsdp->signature, "RSDT", 4) ||
 	    acpi_checksum(rsdp, rsdp->len))
 		errx(1, "RSDT is corrupted\n");

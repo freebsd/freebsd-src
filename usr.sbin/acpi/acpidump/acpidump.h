@@ -51,8 +51,12 @@ struct ACPIrsdp {
 	u_char		signature[8];
 	u_char		sum;
 	u_char		oem[6];
-	u_char		res;
-	u_int32_t	addr;
+	u_char		revision;
+	u_int32_t	rsdt_addr;
+	u_int32_t	length;
+	u_int64_t	xsdt_addr;
+	u_char		xsum;
+	u_char		_reserved_[3];
 } __packed;
 
 /* System Description Table */
