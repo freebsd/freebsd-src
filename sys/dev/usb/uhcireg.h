@@ -1,4 +1,5 @@
 /*	$NetBSD: uhcireg.h,v 1.2 1998/07/26 00:40:59 augustss Exp $	*/
+/*	FreeBSD $Id$ */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.

@@ -1,4 +1,5 @@
 /*	$NetBSD: usbdevs.h,v 1.8 1998/12/02 22:51:50 augustss Exp $	*/
+/*	FreeBSD $Id$ */
 
 /*
  * THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.

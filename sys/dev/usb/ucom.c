@@ -1,4 +1,5 @@
 /*	$NetBSD: ucom.c,v 1.1 1998/12/02 22:47:19 augustss Exp $	*/
+/*	FreeBSD $Id$ */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
