@@ -37,7 +37,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: pt.c,v 1.17 1996/07/14 10:46:48 joerg Exp $
+ *      $Id: pt.c,v 1.18 1996/09/06 23:09:12 phk Exp $
  */
 
 #include "opt_bounce.h"
@@ -86,7 +86,7 @@ static struct scsi_device pt_switch =
     0,
 	{0, 0},
 	SDEV_ONCE_ONLY,	/* Only one open allowed */
-	0,
+	ptattach,
 	"Processor",
 	ptopen,
     sizeof(struct scsi_data),
@@ -98,6 +98,15 @@ static struct scsi_device pt_switch =
 	0,
 	pt_strategy,
 };
+
+static errval
+ptattach(struct scsi_link *sc_link)
+{
+	struct scsi_data *pt = sc_link->sd;
+
+	TAILQ_INIT(&pt->buf_queue);
+	return 0;
+}
 
 /*
  * ptstart looks to see if there is a buf waiting for the device
