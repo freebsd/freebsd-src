@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.17 1994/02/08 09:26:01 davidg Exp $
+ *	$Id: trap.c,v 1.18 1994/03/07 11:38:35 davidg Exp $
  */
 
 /*
@@ -318,12 +318,12 @@ skiptoswitch:
 			/* Fault the pte only if needed: */
 			*(volatile char *)v += 0;	
 
-			vm_page_wire(pmap_pte_vm_page(vm_map_pmap(map),v));
+			vm_page_hold(pmap_pte_vm_page(vm_map_pmap(map),v));
 
 			/* Fault in the user page: */
 			rv = vm_fault(map, va, ftype, FALSE);
 
-			vm_page_unwire(pmap_pte_vm_page(vm_map_pmap(map),v));
+			vm_page_unhold(pmap_pte_vm_page(vm_map_pmap(map),v));
 
 			p->p_flag &= ~SLOCK;
 			p->p_flag |= (oldflags & SLOCK);
