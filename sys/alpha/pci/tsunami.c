@@ -31,7 +31,9 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/bus.h>
 #include <machine/bus.h>
 #include <sys/proc.h>
@@ -305,15 +307,23 @@ tsunami_attach(device_t dev)
 static void
 tsunami_disable_intr_vec(int vector)
 {
-	int irq = (vector - 0x900) >> 4;
+	int irq;
+
+	irq = (vector - 0x900) >> 4;
+	mtx_lock_spin(&icu_lock);
 	platform.pci_intr_disable(irq);
+	mtx_unlock_spin(&icu_lock);
 }
 
 static void
 tsunami_enable_intr_vec(int vector)
 {
-	int irq = (vector - 0x900) >> 4;
+	int irq;
+
+	irq = (vector - 0x900) >> 4;
+	mtx_lock_spin(&icu_lock);
 	platform.pci_intr_enable(irq);
+	mtx_unlock_spin(&icu_lock);
 }
 
 static int
@@ -335,7 +345,9 @@ tsunami_setup_intr(device_t dev, device_t child,
 		return error;
 
 	/* Enable PCI interrupt */
+	mtx_lock_spin(&icu_lock);
 	platform.pci_intr_enable(irq->r_start);
+	mtx_unlock_spin(&icu_lock);
 
 	device_printf(child, "interrupting at TSUNAMI irq %d\n",
 		      (int) irq->r_start);
@@ -391,7 +403,6 @@ tsunami_intr_disable(int irq)
 	saved_mask = *mask;
 	alpha_mb();
 	alpha_mb();
-
 }
 
 

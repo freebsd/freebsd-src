@@ -29,8 +29,10 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/module.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/bus.h>
 #include <machine/bus.h>
 #include <machine/md_var.h>
@@ -247,6 +249,7 @@ mcpcia_attach(device_t dev)
 static void
 mcpcia_enable_intr(struct mcpcia_softc *sc, int irq)
 {
+
 	REGVAL(MCPCIA_INT_MASK0(sc)) |= (1 << irq);
 	alpha_mb();
 }
@@ -254,6 +257,7 @@ mcpcia_enable_intr(struct mcpcia_softc *sc, int irq)
 static void
 mcpcia_disable_intr(struct mcpcia_softc *sc, int irq)
 {
+
 	/*
 	 * We need to write to INT_REQ as well as INT_MASK0 in case we
 	 * are trying to mask an interrupt which is already
@@ -262,7 +266,7 @@ mcpcia_disable_intr(struct mcpcia_softc *sc, int irq)
 	 */
  	REGVAL(MCPCIA_INT_MASK0(sc)) &= ~(1 << irq);
 	REGVAL(MCPCIA_INT_REQ(sc)) = (1 << irq);
- 	alpha_mb();
+	alpha_mb();
 }
 
 static void
@@ -302,7 +306,9 @@ mcpcia_disable_intr_vec(int vector)
 	if (sc == NULL) {
 		panic("couldn't find MCPCIA softc for vector 0x%x", vector);
 	}
+	mtx_lock_spin(&icu_lock);
 	mcpcia_disable_intr(sc, irq);
+	mtx_unlock_spin(&icu_lock);
 }
 
 static void
@@ -342,7 +348,9 @@ mcpcia_enable_intr_vec(int vector)
 	if (sc == NULL) {
 		panic("couldn't find MCPCIA softc for vector 0x%x", vector);
 	}
+	mtx_lock_spin(&icu_lock);
 	mcpcia_enable_intr(sc, irq);
+	mtx_unlock_spin(&icu_lock);
 }
 
 static int
@@ -405,7 +413,9 @@ mcpcia_setup_intr(device_t dev, device_t child, struct resource *ir, int flags,
 	    mcpcia_disable_intr_vec, mcpcia_enable_intr_vec);
 	if (error)
 		return error;
+	mtx_lock_spin(&icu_lock);
 	mcpcia_enable_intr(sc, irq);
+	mtx_unlock_spin(&icu_lock);
 	device_printf(child, "interrupting at IRQ 0x%x int%c (vec 0x%x)\n",
 	    irq, intpin - 1 + 'A' , h);
 	return (0);
@@ -437,7 +447,9 @@ mcpcia_teardown_intr(device_t dev, device_t child, struct resource *i, void *c)
 	} else {
 		return (ENXIO);
 	}
+	mtx_lock_spin(&icu_lock);
 	mcpcia_disable_intr(sc, irq);
+	mtx_unlock_spin(&icu_lock);
 	alpha_teardown_intr(c);
 	return (rman_deactivate_resource(i));
 }

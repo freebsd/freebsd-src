@@ -74,11 +74,7 @@ bad_mask:	.asciz	"bad mask"
  * It sets the mask bit of the associated IO APIC register.
  */
 ENTRY(INTREN)
-	pushfl				/* save state of EI flag */
-	cli				/* prevent recursion */
-	IMASK_LOCK			/* enter critical reg */
-
-	movl	8(%esp), %eax		/* mask into %eax */
+	movl	4(%esp), %eax		/* mask into %eax */
 	bsfl	%eax, %ecx		/* get pin index */
 	btrl	%ecx, apic_imen		/* update apic_imen */
 
@@ -91,12 +87,10 @@ ENTRY(INTREN)
 	jz	1f
 
 	movl	%ecx, (%edx)		/* write the target register index */
-	movl	16(%edx), %eax		/* read the target register data */
+	movl	IOAPIC_WINDOW(%edx), %eax /* read the target register data */
 	andl	$~IOART_INTMASK, %eax	/* clear mask bit */
-	movl	%eax, 16(%edx)		/* write the APIC register data */
+	movl	%eax, IOAPIC_WINDOW(%edx) /* write the APIC register data */
 1:	
-	IMASK_UNLOCK			/* exit critical reg */
-	popfl				/* restore old state of EI flag */
 	ret
 
 /*
@@ -106,11 +100,7 @@ ENTRY(INTREN)
  * It clears the mask bit of the associated IO APIC register.
  */
 ENTRY(INTRDIS)
-	pushfl				/* save state of EI flag */
-	cli				/* prevent recursion */
-	IMASK_LOCK			/* enter critical reg */
-
-	movl	8(%esp), %eax		/* mask into %eax */
+	movl	4(%esp), %eax		/* mask into %eax */
 	bsfl	%eax, %ecx		/* get pin index */
 	btsl	%ecx, apic_imen		/* update apic_imen */
 
@@ -123,10 +113,8 @@ ENTRY(INTRDIS)
 	jz	1f
 
 	movl	%ecx, (%edx)		/* write the target register index */
-	movl	16(%edx), %eax		/* read the target register data */
+	movl	IOAPIC_WINDOW(%edx), %eax /* read the target register data */
 	orl	$IOART_INTMASK, %eax	/* set mask bit */
-	movl	%eax, 16(%edx)		/* write the APIC register data */
+	movl	%eax, IOAPIC_WINDOW(%edx) /* write the APIC register data */
 1:	
-	IMASK_UNLOCK			/* exit critical reg */
-	popfl				/* restore old state of EI flag */
 	ret

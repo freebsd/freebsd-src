@@ -29,6 +29,8 @@
 #ifndef _MACHINE_INTR_H_
 #define _MACHINE_INTR_H_
 
+extern struct mtx icu_lock;
+
 int	alpha_setup_intr(const char *name, int vector, driver_intr_t handler,
 	    void *arg, enum intr_type flags, void **cookiep,
 	    volatile long *cntp, void (*disable)(int), void (*enable)(int));
