@@ -29,9 +29,6 @@
  */
 
 /*#define NTFS_DEBUG 1*/
-#if defined(__NetBSD__) && defined(_KERNEL) && !defined(_LKM)
-#include "opt_ntfs.h"
-#endif
 
 typedef u_int64_t cn_t;
 typedef u_int16_t wchar;
@@ -255,9 +252,6 @@ struct ntfsmount {
 	cn_t		ntm_cfree;
 	struct ntvattrdef *ntm_ad;
 	int		ntm_adnum;
-#if !defined(__FreeBSD__)
-	struct netexport ntm_export;	/* export information */
-#endif
  	wchar *		ntm_82u;	/* 8bit to Unicode */
  	char **		ntm_u28;	/* Unicode to 8 bit */
 };
@@ -295,31 +289,11 @@ MALLOC_DECLARE(M_NTFSDIR);
 MALLOC_DECLARE(M_NTFSNTHASH);
 #endif
 
-#ifdef __NetBSD__
-#define MALLOC_DEFINE(a, b, c)
-#define M_NTFSNTHASH	M_NTFS
-#define M_NTFSNTVATTR	M_NTFS
-#define M_NTFSRDATA	M_NTFS
-#define M_NTFSRUN	M_NTFS
-#define M_NTFSDECOMP	M_NTFS
-#define M_NTFSMNT	M_NTFS
-#define M_NTFSNTNODE	M_NTFS
-#define M_NTFSFNODE	M_NTFS
-#define M_NTFSDIR	M_NTFS
-typedef int (vop_t) __P((void *));
-#define HASHINIT(a, b, c, d)	hashinit((a), (b), (c), (d))
-#define bqrelse(bp)		brelse(bp)
-#define VOP__UNLOCK(a, b, c)	VOP_UNLOCK((a), (b))
-#define VGET(a, b, c)		vget((a), (b))
-#define VN_LOCK(a, b, c)	vn_lock((a), (b))
-#define	LOCKMGR(a, b, c)	lockmgr((a), (b), (c))
-#else /* !NetBSD */
 #define HASHINIT(a, b, c, d)	hashinit((a), (b), (d))
 #define VOP__UNLOCK(a, b, c)	VOP_UNLOCK((a), (b), (c))
 #define VGET(a, b, c)		vget((a), (b), (c))
 #define VN_LOCK(a, b, c)	vn_lock((a), (b), (c))
 #define	LOCKMGR(a, b, c)	lockmgr((a), (b), (c), NULL)
-#endif /* NetBSD */
 
 #if defined(NTFS_DEBUG)
 #define dprintf(a) printf a
