@@ -58,7 +58,6 @@ int	db_active;
 db_regs_t ddb_regs;
 
 static jmp_buf	db_global_jmpbuf;
-static int	db_global_jmpbuf_valid;
 
 #ifdef __GNUC__
 #define	rss() ({u_short ss; __asm __volatile("mov %%ss,%0" : "=r" (ss)); ss;})
@@ -119,7 +118,7 @@ kdb_trap(type, code, regs)
 	 * non-ddb functions.  db_nofault only applies to memory accesses by
 	 * internal ddb commands.
 	 */
-	if (db_global_jmpbuf_valid)
+	if (db_active)
 	    longjmp(db_global_jmpbuf, 1);
 
 	/*
@@ -154,16 +153,17 @@ kdb_trap(type, code, regs)
 #endif /* SMP */
 
 	(void) setjmp(db_global_jmpbuf);
-	db_global_jmpbuf_valid = TRUE;
-	db_active++;
 	if (ddb_mode) {
-	    cndbctl(TRUE);
+	    if (!db_active)
+		cndbctl(TRUE);
+	    db_active = 1;
 	    db_trap(type, code);
 	    cndbctl(FALSE);
-	} else
+	} else {
+	    db_active = 1;
 	    gdb_handle_exception(&ddb_regs, type, code);
-	db_active--;
-	db_global_jmpbuf_valid = FALSE;
+	}
+	db_active = 0;
 
 #ifdef SMP
 #ifdef CPUSTOP_ON_DDBBREAK
