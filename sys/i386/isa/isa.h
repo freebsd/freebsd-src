@@ -107,4 +107,15 @@
 #define	RAM_SIZE	(RAM_END - RAM_BEGIN)
 #endif /* !RAM_BEGIN */
 
+/*
+ * IRQs
+ */
+#define IRQ_NPX		13
+
+/*
+ * Npx MD defines
+ */
+/* full reset on some systems, NOP on others */
+#define npx_full_reset() outb(IO_NPX + 1, 0)
+
 #endif /* !_I386_ISA_ISA_H_ */

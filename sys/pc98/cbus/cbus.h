@@ -106,6 +106,17 @@
 #define	RAM_SIZE	(RAM_END - RAM_BEGIN)
 #endif /* !RAM_BEGIN */
 
+/*
+ * IRQs
+ */
+#define IRQ_NPX		8
+
+/*
+ * Npx MD defines
+ */
+/* full reset of npx: not needed on pc98 */
+#define npx_full_reset()
+
 #define	M_NEC_PC98	0x0001
 #define	M_EPSON_PC98	0x0002
 #define	M_NOT_H98	0x0010
