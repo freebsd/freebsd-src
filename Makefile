@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.57.4.10 1996/02/27 20:51:58 peter Exp $
+#	$Id: Makefile,v 1.57.4.11 1996/05/09 06:15:02 jkh Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include and MOST of /usr/lib
@@ -106,6 +106,7 @@ world:	hierarchy mk $(WORLD_CLEANDIST) include-tools includes lib-tools librarie
 	@echo
 	${MAKE} depend all install
 	cd ${.CURDIR}/share/man &&		${MAKE} makedb
+	@echo "make world completed on `date`"
 
 hierarchy:
 	@echo "--------------------------------------------------------------"
