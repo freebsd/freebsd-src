@@ -1,5 +1,5 @@
 #	From: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.kmod.mk,v 1.42 1998/01/26 20:36:38 bde Exp $
+#	$Id: bsd.kmod.mk,v 1.43 1998/02/01 17:19:54 bde Exp $
 #
 # The include file <bsd.kmod.mk> handles installing Loadable Kernel Modules.
 #
@@ -70,14 +70,11 @@
 # 	load:	
 #		Load LKM.
 #
-# 	tags:
-#		Create a tags file for the source files.
-#
 # 	unload:
 #		Unload LKM.
 #
 # bsd.obj.mk: clean, cleandir and obj
-# bsd.dep.mk: depend
+# bsd.dep.mk: cleandepend, depend and tags
 # bsd.man.mk: maninstall
 #
 
@@ -220,21 +217,6 @@ distribute: _SUBDIR
 	cd ${.CURDIR} ; $(MAKE) install DESTDIR=${DISTDIR}/${dist} SHARED=copies
 .endfor
 .endif
-
-.if defined(NOTAGS)
-tags:
-.endif
-
-.if !target(tags)
-tags: ${SRCS} _SUBDIR
-.if defined(PROG)
-	@cd ${.CURDIR} && gtags ${GTAGSFLAGS}
-.if defined(HTML)
-	@cd ${.CURDIR} && htags ${HTAGSFLAGS}
-.endif
-.endif
-.endif
-
 
 .if !target(load)
 load:	${PROG}
