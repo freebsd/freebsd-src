@@ -691,8 +691,8 @@ lapic_ipi_raw(register_t icrlo, u_int dest)
 	intr_restore(eflags);
 }
 
-#ifdef DETECT_DEADLOCK
 #define	BEFORE_SPIN	1000000
+#ifdef DETECT_DEADLOCK
 #define	AFTER_SPIN	1000
 #endif
 
@@ -723,11 +723,9 @@ lapic_ipi_vectored(u_int vector, int dest)
 		destfield = dest;
 	}
 
-#ifdef DETECT_DEADLOCK
-	/* Check for an earlier stuck IPI. */
+	/* Wait for an earlier IPI to finish. */
 	if (!lapic_ipi_wait(BEFORE_SPIN))
 		panic("APIC: Previous IPI is stuck");
-#endif
 
 	lapic_ipi_raw(icrlo, destfield);
 
