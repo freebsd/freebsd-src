@@ -89,6 +89,8 @@ agp_via_match(device_t dev)
 		return ("VIA 82C691 (Apollo Pro) host to PCI bridge");
 	case 0x31881106:
 		return ("VIA 8385 host to PCI bridge");
+	case 0x31891106:
+		return ("VIA 8377 (Apollo KT400/KT400A/KT600) host to PCI bridge");
 	};
 
 	if (pci_get_vendor(dev) == 0x1106)
@@ -123,6 +125,7 @@ agp_via_attach(device_t dev)
 
 	switch (pci_get_devid(dev)) {
 	case 0x31881106:
+	case 0x31891106:
 		sc->regs = via_v3_regs;
 		break;
 	default:
