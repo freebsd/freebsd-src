@@ -13,7 +13,7 @@
  * bad that happens because of using this software isn't the responsibility
  * of the author.  This software is distributed AS-IS.
  *
- * $Id: vfs_aio.c,v 1.49 1999/05/08 06:39:46 phk Exp $
+ * $Id: vfs_aio.c,v 1.50 1999/05/09 13:13:52 phk Exp $
  */
 
 /*
@@ -981,7 +981,7 @@ aio_qphysio(p, aiocbe)
 		return -1;
 	}
 
-	dev = makedev(bdev->d_bmaj, minor(vp->v_rdev));
+	dev = makebdev(bdev->d_bmaj, minor(vp->v_rdev));
 
 	/*
 	 * Physical I/O is charged directly to the process, so we don't have

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.123 1999/05/24 00:30:49 jb Exp $
+ *	$Id: autoconf.c,v 1.124 1999/05/31 11:25:39 phk Exp $
  */
 
 /*
@@ -158,7 +158,7 @@ find_cdrom_root()
 		for (j = 0 ; try_cdrom[j].name ; j++) {
 			if (try_cdrom[j].major >= NUMCDEVSW)
 				continue;
-			rootdev = makedev(try_cdrom[j].major, i * 8);
+			rootdev = makebdev(try_cdrom[j].major, i * 8);
 			bd = bdevsw(rootdev);
 			if (bd == NULL || bd->d_open == NULL)
 				continue;
@@ -434,7 +434,7 @@ setroot()
 	if ((bootdev & B_MAGICMASK) != B_DEVMAGIC)
 		return;
 	majdev = B_TYPE(bootdev);
-	dev = makedev(majdev, 0);
+	dev = makebdev(majdev, 0);
 	if (bdevsw(dev) == NULL)
 		return;
 	unit = B_UNIT(bootdev);
@@ -457,7 +457,7 @@ setroot()
 		mindev = dkmakeminor(unit, slice, part);
 	}
 
-	newrootdev = makedev(majdev, mindev);
+	newrootdev = makebdev(majdev, mindev);
 	rootdevs[0] = newrootdev;
 	sname = dsname(bdevsw(newrootdev)->d_name, unit, slice, part, partname);
 	rootdevnames[0] = malloc(strlen(sname) + 2, M_DEVBUF, M_NOWAIT);
@@ -524,7 +524,7 @@ setrootbyname(char *name)
 	unit = *cp - '0';
 	*cp++ = '\0';
 	for (bd = 0; bd < NUMCDEVSW; bd++) {
-		dev = makedev(bd, 0);
+		dev = makebdev(bd, 0);
 		if (bdevsw(dev) != NULL &&
 		    strcmp(bdevsw(dev)->d_name, name) == 0)
 			goto gotit;
@@ -547,7 +547,7 @@ gotit:
 	}
 	printf("driver=%s, unit=%d, slice=%d, part=%d\n",
 		name, unit, slice, part);
-	rootdev = makedev(bd, dkmakeminor(unit, slice, part));
+	rootdev = makebdev(bd, dkmakeminor(unit, slice, part));
 	return 0;
 }
 
@@ -567,7 +567,7 @@ setconf()
 	
 		printf("use one of:\n");
 		for (i = 0; i < NUMCDEVSW; i++) {
-			dev = makedev(i, 0);
+			dev = makebdev(i, 0);
 			if (bdevsw(dev) != NULL)
 			    printf(" %s", bdevsw(dev)->d_name);
 		}
