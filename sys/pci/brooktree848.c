@@ -1,4 +1,4 @@
-/* BT848 1.36 Driver for Brooktree's Bt848 based cards.
+/* BT848 1.38 Driver for Brooktree's Bt848 based cards.
    The Brooktree  BT848 Driver driver is based upon Mark Tinguely and
    Jim Lowe's driver for the Matrox Meteor PCI card . The 
    Philips SAA 7116 and SAA 7196 are very different chipsets than
@@ -261,6 +261,11 @@
 
 1.36                       added bt848.format sysctl variable. 
                            1 denotes NTSC , 0 denotes PAL
+
+1.37                       added support for Bt878 and improved Hauppauge's
+                           bt848 tuner recognition
+1.38                       Further improvements on Hauppauge's rely on
+                           eeprom[9] to determine the tuner type 8)
 
 */
 
@@ -2763,8 +2768,8 @@ common_ioctl( bktr_ptr_t bktr, bt848_ptr_t bt848, int cmd, caddr_t arg )
 		/* this is the RCA video input */
 		case 0:		/* default */
 		case METEOR_INPUT_DEV0:
-			bktr->flags = (bktr->flags & ~METEOR_DEV_MASK)
-				| METEOR_DEV0;
+		        bktr->flags = (bktr->flags & ~METEOR_DEV_MASK)
+			  | METEOR_DEV0;
 			bt848->iform &= ~BT848_IFORM_MUXSEL;
 			bt848->iform |= BT848_IFORM_M_MUX1;
 			bt848->e_control &= ~BT848_E_CONTROL_COMP;
@@ -4263,6 +4268,8 @@ probeCard( bktr_ptr_t bktr, int verbose )
         int   any_i2c_devices;
 	u_char probe_eeprom[128];
 	u_long code = 0;
+	u_long tuner_code = 0;
+
 
         any_i2c_devices = check_for_i2c_devices( bktr );
 	bt848 = bktr->base;
@@ -4384,30 +4391,43 @@ checkTuner:
 	  if (probe_eeprom[0] == 0x84) {
 	    if (probe_eeprom[8] == 0x8) {
 	      code = 1; /* NTSC */
-	    } else if (probe_eeprom[8] == 0x4) {
+	    } else if (probe_eeprom[8] == 0x4 || probe_eeprom[8] == 0x10 ) {
 	      code = 2; /* PAL */
 	    }
+
 	    if (probe_eeprom[1] == 0x11 ||
 		probe_eeprom[1] == 0x12 ) {
-	      if (probe_eeprom[probe_eeprom[1]] == 1) {
+	      if (probe_eeprom[probe_eeprom[1]+2] == 1) {
 		code |= 1 << 8;
 	      }
 	    }
-		      
+	    tuner_code = probe_eeprom[9];
+	    switch (tuner_code) {
 
-	    switch (code) {
-	       case 0x1:
+               case 0x10:
+	       case 0x5:
 		 bktr->card.tuner = &tuners[ PHILIPS_NTSC  ];
 		 goto checkDBX;
-	       case 0x11:
+
+               case 0x12:
+	       case 0x17:
 		 bktr->card.tuner = &tuners[ PHILIPS_FR1236_NTSC  ];
 		 goto checkDBX;
 
-	       case 0x2:
-		 bktr->card.tuner = &tuners[ TEMIC_PAL ];
+
+	       case 0xb:
+		 bktr->card.tuner = &tuners[ PHILIPS_PALI ];
 		 goto checkDBX;
 
-	       case 0x22:
+               case 0xe:
+		 bktr->card.tuner = &tuners[ TEMIC_PAL];
+		 goto checkDBX;
+
+	       case 0xf:
+		 bktr->card.tuner = &tuners[ TEMIC_PALI ];
+		 goto checkDBX;
+
+               case 0x15:
 		 bktr->card.tuner = &tuners[ PHILIPS_FR1216_PAL];
 		 goto checkDBX;
 	    }
