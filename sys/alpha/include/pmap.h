@@ -177,7 +177,7 @@ struct pmap {
 	struct {
 		u_int32_t	asn:ASN_BITS;	/* address space number */
 		u_int32_t	gen:ASNGEN_BITS; /* generation number */
-	}			pm_asn[MAXCPU];
+	}			pm_asn[MAXSMPCPU];
 	struct pmap_statistics	pm_stats;	/* pmap statistics */
 	struct	vm_page		*pm_ptphint;	/* pmap ptp hint */
 	LIST_ENTRY(pmap)	pm_list;	/* list of all pmaps. */
