@@ -50,11 +50,16 @@ __select(int numfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds,
 	struct timeval *timeout)
 {
 	struct pthread *curthread = _get_curthread();
+	struct timespec ts;
 	int ret;
 
-	_thr_enter_cancellation_point(curthread);
-	ret = __sys_select(numfds, readfds, writefds, exceptfds, timeout);
-	_thr_leave_cancellation_point(curthread);
-
+	if (numfds == 0 && timeout != NULL) {
+		TIMEVAL_TO_TIMESPEC(timeout, &ts);
+		return nanosleep(&ts, NULL);
+	} else {
+		_thr_enter_cancellation_point(curthread);
+		ret = __sys_select(numfds, readfds, writefds, exceptfds, timeout);
+		_thr_leave_cancellation_point(curthread);
+	}
 	return ret;
 }
