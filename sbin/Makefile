@@ -53,7 +53,6 @@ SUBDIR=	adjkerntz \
 	mount_ntfs \
 	mount_nullfs \
 	mount_portalfs \
-	mount_smbfs \
 	mount_std \
 	mount_umapfs \
 	mount_unionfs \
@@ -87,6 +86,7 @@ SUBDIR=	adjkerntz \
 SUBDIR+=cxconfig \
 	kget \
 	mount_nwfs \
+	mount_smbfs \
 	nextboot
 .if ${MACHINE} == "pc98"
 SUBDIR+=fdisk_pc98

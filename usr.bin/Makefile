@@ -134,7 +134,6 @@ SUBDIR=	apply \
 	sed \
 	shar \
 	showmount \
-	smbutil \
 	sockstat \
 	soelim \
 	split \
@@ -223,6 +222,7 @@ SUBDIR+=ar \
 	ranlib \
 	sasc \
 	size \
+	smbutil \
 	strings \
 	strip
 .endif
