@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kget.c,v 1.6 1999/05/05 11:34:03 jkh Exp $
+ * $Id: kget.c,v 1.7 1999/05/06 11:03:17 jkh Exp $
  */
 
 #include "sysinstall.h"
@@ -39,7 +39,7 @@ kget(char *out)
     char *mib1 = "machdep.uc_devlist";
     char *mib2 = "machdep.uc_pnplist";
     char name[9];
-    FILE *fout;
+    FILE *fout = NULL;
     struct isa_device *id;
     struct pnp_cinfo *c;
     char *p;
