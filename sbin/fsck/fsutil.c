@@ -31,35 +31,32 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #include <sys/cdefs.h>
 #ifndef lint
 __RCSID("$NetBSD: fsutil.c,v 1.7 1998/07/30 17:41:03 thorpej Exp $");
 #endif /* not lint */
-
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#include <stdarg.h>
-#include <errno.h>
-#include <fstab.h>
-#include <err.h>
-#include <paths.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <sys/mount.h>
+
+#include <err.h>
+#include <errno.h>
+#include <fstab.h>
+#include <paths.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "fsutil.h"
 
 static const char *dev = NULL;
 static int hot = 0;
 static int preen = 0;
-
-extern char *__progname;
 
 static void vmsg(int, const char *, va_list) __printflike(2, 0);
 
@@ -108,7 +105,7 @@ vmsg(int fatal, const char *fmt, va_list ap)
 	if (fatal && preen) {
 		(void) printf(
 		    "%s: UNEXPECTED INCONSISTENCY; RUN %s MANUALLY.\n",
-		    dev, __progname);
+		    dev, getprogname());
 		exit(8);
 	}
 }

@@ -39,9 +39,7 @@
  */
 
 #include <sys/cdefs.h>
-#ifndef lint
-__RCSID("$FreeBSD$");
-#endif /* not lint */
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/mount.h>
@@ -52,6 +50,7 @@ __RCSID("$FreeBSD$");
 #include <sys/disklabel.h>
 #include <sys/ioctl.h>
 
+#include <ctype.h>
 #include <err.h>
 #include <errno.h>
 #include <fstab.h>
@@ -580,11 +579,10 @@ getfslab(const char *str)
 static void
 usage(void)
 {
-	extern char *__progname;
 	static const char common[] =
 	    "[-BFdpvlyn] [-T fstype:fsoptions] [-t fstype]";
 
 	(void)fprintf(stderr, "Usage: %s %s [special|node]...\n",
-	    __progname, common);
+	    getprogname(), common);
 	exit(1);
 }
