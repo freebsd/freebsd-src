@@ -117,16 +117,6 @@ SYSCTL_INT(_hw_usb_ucom, OID_AUTO, debug, CTLFLAG_RW,
 #define DPRINTFN(n, x)
 #endif
 
-
-
-static struct cdevsw ucom_cdevsw = {
-	.d_version =	D_VERSION,
-	.d_open =	ttyopen,
-	.d_close =	ttyclose,
-	.d_name =	"ucom",
-	.d_flags =	D_TTY | D_NEEDGIANT,
-};
-
 Static void ucom_cleanup(struct ucom_softc *);
 Static int ucomparam(struct tty *, struct termios *);
 Static void ucomstart(struct tty *);
@@ -166,11 +156,6 @@ ucom_attach(struct ucom_softc *sc)
 	unit = device_get_unit(sc->sc_dev);
 
 	sc->sc_tty = tp = ttyalloc();
-	sc->dev = make_dev(&ucom_cdevsw, unit | UCOM_CALLOUT_MASK,
-			UID_UUCP, GID_DIALER, 0660,
-			"ucom%d", unit);
-	sc->dev->si_tty = tp;
-	tp->t_dev = sc->dev;
 	tp->t_sc = sc;
 	tp->t_oproc = ucomstart;
 	tp->t_param = ucomparam;
@@ -183,7 +168,8 @@ ucom_attach(struct ucom_softc *sc)
 
 	DPRINTF(("ucom_attach: tty_attach tp = %p\n", tp));
 
-	DPRINTF(("ucom_attach: make_dev: ucom%d\n", unit));
+	ttycreate(tp, NULL, unit, MINOR_CALLOUT, "U%d", unit);
+	DPRINTF(("ucom_attach: ttycreate: ttyU%d\n", unit));
 
 	return (0);
 }
@@ -191,39 +177,24 @@ ucom_attach(struct ucom_softc *sc)
 int
 ucom_detach(struct ucom_softc *sc)
 {
-	struct tty *tp = sc->sc_tty;
 	int s;
 
 	DPRINTF(("ucom_detach: sc = %p, tp = %p\n", sc, sc->sc_tty));
 
 	sc->sc_dying = 1;
 	ttygone(sc->sc_tty);
+	if (sc->sc_tty->t_state & TS_ISOPEN)
+		ucomclose(sc->sc_tty);
 
 	if (sc->sc_bulkin_pipe != NULL)
 		usbd_abort_pipe(sc->sc_bulkin_pipe);
 	if (sc->sc_bulkout_pipe != NULL)
 		usbd_abort_pipe(sc->sc_bulkout_pipe);
 
-	if (tp != NULL) {
-		if (tp->t_state & TS_ISOPEN) {
-			device_printf(sc->sc_dev,
-				      "still open, forcing close\n");
-			ttyld_close(tp, 0);
-			tty_close(tp);
-		}
-	} else {
-		DPRINTF(("ucom_detach: no tty\n"));
-		return (0);
-	}
+	ttyfree(sc->sc_tty);
 
 	s = splusb();
-	if (--sc->sc_refcnt >= 0) {
-		/* Wait for processes to go away. */
-		usb_detach_wait(USBDEV(sc->sc_dev));
-	}
 	splx(s);
-
-	destroy_dev(sc->dev);
 
 	return (0);
 }
@@ -329,7 +300,6 @@ ucomopen(struct tty *tp, struct cdev *dev)
 	ucomstartread(sc);
 
 	sc->sc_poll = 1;
-	sc->sc_refcnt++;
 
 	return (0);
 
@@ -351,8 +321,6 @@ ucomclose(struct tty *tp)
 
 	if (sc->sc_callback->ucom_close != NULL)
 		sc->sc_callback->ucom_close(sc->sc_parent, sc->sc_portno);
-	if (--sc->sc_refcnt < 0)
-		usb_detach_wakeup(USBDEV(sc->sc_dev));
 }
 
 static int
