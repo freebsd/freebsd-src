@@ -284,7 +284,7 @@ main(argc, argv)
 						(void) printf("\t%s\n", p->fts_path);
 					} else {
 						(void) printf("%qd\t%s\n",
-							howmany(p->fts_statp->st_blocks, blocksize),
+							(long long)howmany(p->fts_statp->st_blocks, blocksize),
 							p->fts_path);
 					}
 				}
