@@ -146,8 +146,6 @@ int	 mkstemp __P((char *));
 char	*mktemp __P((char *));
 int	 nfssvc __P((int, void *));
 int	 nice __P((int));
-void	 psignal __P((unsigned int, const char *));
-extern __const char *__const sys_siglist[];
 int	 profil __P((char *, int, int, int));
 int	 rcmd __P((char **, int, const char *,
 		const char *, const char *, int *));
