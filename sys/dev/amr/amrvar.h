@@ -106,8 +106,8 @@ struct amr_softc
     void			*amr_intr;
 
     /* mailbox */
-    struct amr_mailbox		*amr_mailbox;
-    struct amr_mailbox64	*amr_mailbox64;
+    volatile struct amr_mailbox		*amr_mailbox;
+    volatile struct amr_mailbox64	*amr_mailbox64;
     u_int32_t			amr_mailboxphys;
     bus_dma_tag_t		amr_mailbox_dmat;
     bus_dmamap_t		amr_mailbox_dmamap;

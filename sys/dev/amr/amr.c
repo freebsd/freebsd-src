@@ -1126,7 +1126,7 @@ amr_start(struct amr_command *ac)
 
     /* spin waiting for the mailbox */
     debug("wait for mailbox");
-    for (i = 100000, done = 0, worked = 0; (i > 0) && !done; i--) {
+    for (i = 10000, done = 0, worked = 0; (i > 0) && !done; i--) {
 	s = splbio();
 	
 	/* is the mailbox free? */
@@ -1142,7 +1142,12 @@ amr_start(struct amr_command *ac)
 	    /* not free, try to clean up while we wait */
 	} else {
 	    debug("busy flag %x\n", sc->amr_mailbox->mb_busy);
-	    worked = amr_done(sc);
+	    /* try to kill some time being useful */
+	    if (amr_done(sc)) {
+		worked = 1;
+	    } else {
+		DELAY(100);
+	    }
 	}
 	splx(s);
     }
