@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: rc.network,v 1.1.2.19 1998/05/05 21:39:44 andreas Exp $
+#	$Id: rc.network,v 1.1.2.20 1998/05/06 17:43:00 andreas Exp $
 #	From: @(#)netstart	5.9 (Berkeley) 3/30/91
 
 # Note that almost all the user-configurable behavior is no longer in
@@ -256,6 +256,12 @@ network_pass3() {
     if [ "X${mrouted_enable}" = X"YES" ]; then
 	    echo -n ' mrouted'; mrouted ${mrouted_flags}
     fi
+
+    # Network Address Translation daemon
+    if [ "X${natd_enable}" = X"YES" -a "X${natd_interface}" != X"" -a "X${firewall_enable}" = X"YES" ]; then
+            echo -n ' natd'; natd ${natd_flags} -n ${natd_interface}
+    fi
+
     echo '.'
     network_pass3_done=YES
 }

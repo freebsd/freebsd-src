@@ -1,6 +1,6 @@
 ############
 # Setup system for firewall service.
-# $Id: rc.firewall,v 1.6.2.7 1998/05/01 16:28:03 alex Exp $
+# $Id: rc.firewall,v 1.6.2.8 1998/05/25 07:30:04 steve Exp $
 
 if [ -f /etc/rc.conf ]; then
 	. /etc/rc.conf
@@ -56,6 +56,14 @@ fi
 ############
 # Flush out the list before we begin.
 $fwcmd -f flush
+
+############
+# These rules are required for using natd.  All packets are passed to natd before
+# they encounter your remaining rules.  The firewall rules will then be run again
+# on each packet after translation by natd, minus any divert rules (see natd(8)).
+if [ "X${natd_enable}" = X"YES" -a "X${natd_interface}" != X"" ]; then
+        $fwcmd add divert natd all from any to any via ${natd_interface}
+fi
 
 ############
 # If you just configured ipfw in the kernel as a tool to solve network
