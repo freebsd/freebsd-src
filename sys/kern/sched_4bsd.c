@@ -463,7 +463,7 @@ sched_setup(void *dummy)
 		sched_quantum = SCHED_QUANTUM;
 	hogticks = 2 * sched_quantum;
 
-	callout_init(&roundrobin_callout, 0);
+	callout_init(&roundrobin_callout, CALLOUT_MPSAFE);
 
 	/* Kick off timeout driven events by calling first time. */
 	roundrobin(NULL);
