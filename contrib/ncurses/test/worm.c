@@ -34,7 +34,7 @@ Options:
   traces will be dumped.  The program stops and waits for one character of
   input at the beginning and end of the interval.
 
-  $Id: worm.c,v 1.30 2000/04/15 17:51:56 tom Exp $
+  $Id: worm.c,v 1.31 2000/09/02 18:41:01 tom Exp $
 */
 
 #include <test.priv.h>
@@ -251,7 +251,7 @@ main(int argc, char *argv[])
     if (has_colors()) {
 	int bg = COLOR_BLACK;
 	start_color();
-#ifdef HAVE_USE_DEFAULT_COLORS
+#if HAVE_USE_DEFAULT_COLORS
 	if (use_default_colors() == OK)
 	    bg = -1;
 #endif

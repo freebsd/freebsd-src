@@ -40,7 +40,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_hline.c,v 1.5 2000/04/29 21:14:30 tom Exp $")
+MODULE_ID("$Id: lib_hline.c,v 1.6 2000/07/04 14:08:09 Philippe.Blain Exp $")
 
 int
 whline(WINDOW *win, chtype ch, int n)
@@ -69,6 +69,8 @@ whline(WINDOW *win, chtype ch, int n)
 	    line->text[end] = ch;
 	    end--;
 	}
+
+	_nc_synchook(win);
 	code = OK;
     }
     returnCode(code);

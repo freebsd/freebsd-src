@@ -35,7 +35,7 @@
 #include "cursesapp.h"
 #include "internal.h"
 
-MODULE_ID("$Id: cursesf.cc,v 1.10 1999/10/30 23:49:28 tom Exp $")
+MODULE_ID("$Id: cursesf.cc,v 1.11 2000/06/09 16:15:40 juergen Exp $")
   
 NCursesFormField::~NCursesFormField () {
   if (field)
@@ -48,7 +48,8 @@ NCursesFormField::~NCursesFormField () {
 FIELD**
 NCursesForm::mapFields(NCursesFormField* nfields[]) {
   int fieldCount = 0,lcv;
-  
+  FIELD** old_fields;
+
   assert(nfields != 0);
 
   for (lcv=0; nfields[lcv]->field; ++lcv)
@@ -63,8 +64,10 @@ NCursesForm::mapFields(NCursesFormField* nfields[]) {
   
   my_fields = nfields;
   
-  if (form)
-    delete[] ::form_fields(form);  
+  if (form && (old_fields = ::form_fields(form))) {
+    ::set_form_fields(form,(FIELD**)0);
+    delete[] old_fields;
+  }
   return fields;
 }
 

@@ -1,5 +1,5 @@
 dnl***************************************************************************
-dnl Copyright (c) 1998,1999 Free Software Foundation, Inc.                   *
+dnl Copyright (c) 1998,1999,2000 Free Software Foundation, Inc.              *
 dnl                                                                          *
 dnl Permission is hereby granted, free of charge, to any person obtaining a  *
 dnl copy of this software and associated documentation files (the            *
@@ -28,15 +28,19 @@ dnl***************************************************************************
 dnl
 dnl Author: Thomas E. Dickey <dickey@clark.net> 1996,1997
 dnl
-dnl $Id: configure.in,v 1.194 2000/07/01 21:31:07 tom Exp $
+dnl $Id: configure.in,v 1.217 2000/10/08 01:02:43 tom Exp $
 dnl Process this file with autoconf to produce a configure script.
-AC_PREREQ(2.12.971230)
-AC_REVISION($Revision: 1.194 $)
+dnl
+dnl See http://dickey.his.com/autoconf/ for additional information.
+dnl
+dnl ---------------------------------------------------------------------------
+AC_PREREQ(2.13.20000819)
+AC_REVISION($Revision: 1.217 $)
 AC_INIT(ncurses/base/lib_initscr.c)
 AC_CONFIG_HEADER(include/ncurses_cfg.h:include/ncurses_cfg.hin)
 
 CF_SUBST_NCURSES_VERSION
-CF_CHECK_CACHE
+CF_CHECK_CACHE([AC_CANONICAL_SYSTEM])
 AC_ARG_WITH(system-type,
 [  --with-system-type=XXX  test: override derived host system-type],
 [AC_MSG_WARN(overriding system type to $withval)
@@ -79,13 +83,16 @@ CF_CFG_DEFAULTS
 
 ###	Checks for programs.
 AC_PROG_CC
-if test -n "$GCC" ; then
-AC_MSG_CHECKING(version of gcc)
-eval "$CC --version"
+if test "$GCC" = yes ; then
+	AC_MSG_CHECKING(version of gcc)
+	eval "$CC --version"
 fi
-if test $host != $build; then
-  AC_CHECK_PROGS(BUILD_CC, $CC gcc cc)
+if test "$host" != $build; then
+	AC_CHECK_PROGS(BUILD_CC, $CC gcc cc)
+else
+	BUILD_CC="$CC"
 fi
+AC_SUBST(BUILD_CC)
 AC_PROG_CPP
 AC_PROG_GCC_TRADITIONAL
 AC_ISC_POSIX
@@ -121,8 +128,17 @@ else
 	AC_PROG_CXX
 	popdef([AC_MSG_ERROR])dnl
 fi
+
 changequote(,)dnl
-if test -n "$GXX" ; then case "`${CXX-g++} --version`" in 1*|2.[0-6]*) GXX=""; CXX=""; ac_cv_prog_gxx=no; cf_cxx_library=no ; echo No: templates do not work;; esac; fi
+if test "$GXX" = yes; then
+	case "`${CXX-g++} --version`" in
+	1*|2.[0-6]*)
+		GXX=""; CXX=""; ac_cv_prog_gxx=no
+		cf_cxx_library=no
+		echo No: templates do not work
+		;;
+	esac
+fi
 changequote([,])dnl
 
 AC_MSG_CHECKING(if you want to build C++ binding and demo)
@@ -152,12 +168,15 @@ modules_to_build="$modules_to_build progs tack"
 fi
 modules_to_build="$modules_to_build panel menu form"
 
+AC_ARG_PROGRAM
 AC_PROG_AWK
 AC_PROG_MAKE_SET
 CF_PROG_INSTALL
 AC_SYS_LONG_FILE_NAMES
+CF_MIXEDCASE_FILENAMES
 AC_PROG_LN_S
 AC_PROG_RANLIB
+CF_MAKE_TAGS
 AC_CHECK_PROGS(LINT, tdlint lint alint)
 AC_CHECK_PROGS(MAN, man man_db)
 AC_SUBST(LINT_OPTS)
@@ -178,14 +197,11 @@ AC_ARG_WITH(install-prefix,
 	[case "$withval" in #(vi
 	yes|no) #(vi
 		;;
-	*)	INSTALL_PREFIX="$withval"
+	*)	DESTDIR="$withval"
 		;;
 	esac])
-AC_MSG_RESULT($INSTALL_PREFIX)
-AC_SUBST(INSTALL_PREFIX)
-
-###############################################################################
-CF_MAN_PAGES
+AC_MSG_RESULT($DESTDIR)
+AC_SUBST(DESTDIR)
 
 ###############################################################################
 CF_HELP_MESSAGE(Options to Specify the Libraries Built/Used:)
@@ -275,7 +291,7 @@ AC_ARG_WITH(dbmalloc,
 	[with_dbmalloc=$withval],
 	[with_dbmalloc=no])
 AC_MSG_RESULT($with_dbmalloc)
-if test $with_dbmalloc = yes ; then
+if test "$with_dbmalloc" = yes ; then
 	AC_CHECK_LIB(dbmalloc,debug_malloc)
 fi
 
@@ -285,7 +301,7 @@ AC_ARG_WITH(dmalloc,
 	[with_dmalloc=$withval],
 	[with_dmalloc=no])
 AC_MSG_RESULT($with_dmalloc)
-if test $with_dmalloc = yes ; then
+if test "$with_dmalloc" = yes ; then
 	AC_CHECK_LIB(dmalloc,dmalloc_debug)
 fi
 
@@ -296,7 +312,7 @@ AC_ARG_WITH(gpm,
 	[with_gpm=$withval],
 	[with_gpm=no])
 AC_MSG_RESULT($with_gpm)
-if test $with_gpm = yes ; then
+if test "$with_gpm" = yes ; then
 	AC_CHECK_LIB(gpm,Gpm_Open,[
 		EXTRA_LIBS="-lgpm -lncurses $EXTRA_LIBS"
 		SHLIB_LIST="-lgpm $SHLIB_LIST"
@@ -359,10 +375,28 @@ AC_MSG_RESULT($with_overwrite)
 AC_MSG_CHECKING(if external terminfo-database is used)
 AC_ARG_ENABLE(database,
 	[  --disable-database      use only built-in data],
-	[with_database=$enableval],
-	[with_database=yes])
-AC_MSG_RESULT($with_database)
-test $with_database != no && AC_DEFINE(USE_DATABASE)
+	[use_database=$enableval],
+	[use_database=yes])
+AC_MSG_RESULT($use_database)
+
+case $host_os in #(vi
+os2*) #(vi
+	TERMINFO_SRC='${top_srcdir}/misc/emx.src'
+	;;
+*) #(vi
+	TERMINFO_SRC='${top_srcdir}/misc/terminfo.src'
+	;;
+esac
+AC_SUBST(TERMINFO_SRC)
+
+if test "$use_database" != no ; then
+	AC_DEFINE(USE_DATABASE)
+	AC_MSG_CHECKING(which terminfo source-file will be installed)
+	AC_ARG_ENABLE(database,
+		[  --with-database=XXX     specify terminfo source to install],
+		[TERMINFO_SRC=$withval])
+	AC_MSG_RESULT($TERMINFO_SRC)
+fi
 
 AC_MSG_CHECKING(for list of fallback descriptions)
 AC_ARG_WITH(fallbacks,
@@ -373,6 +407,13 @@ AC_MSG_RESULT($with_fallback)
 FALLBACK_LIST=`echo $with_fallback|sed -e 's/,/ /g'`
 AC_SUBST(FALLBACK_LIST)
 
+if test "$use_database" = no ; then
+	if test -z $with_fallback ; then
+		AC_ERROR(You have disabled the database w/o specifying fallbacks)
+	fi
+	TERMINFO="${datadir}/terminfo"
+else
+
 AC_MSG_CHECKING(for list of terminfo directories)
 CF_WITH_PATHLIST(terminfo-dirs,
 	[  --with-terminfo-dirs=XXX specify list of terminfo directories],
@@ -382,11 +423,18 @@ CF_WITH_PATHLIST(terminfo-dirs,
 AC_MSG_RESULT($TERMINFO_DIRS)
 test -n "$TERMINFO_DIRS" && AC_DEFINE_UNQUOTED(TERMINFO_DIRS,"$TERMINFO_DIRS")
 
-if test $with_database = no ; then
-	if test -z $with_fallback ; then
-		AC_ERROR(You have disabled the database w/o specifying fallbacks)
-	fi
+AC_MSG_CHECKING(for default terminfo directory)
+CF_WITH_PATH(default-terminfo-dir,
+	[  --with-default-terminfo-dir=DIR default terminfo directory],
+	TERMINFO,
+	DATADIR/terminfo,
+	${datadir}/terminfo)
+AC_MSG_RESULT($TERMINFO)
+AC_DEFINE_UNQUOTED(TERMINFO,"$TERMINFO")
+
 fi
+
+AC_SUBST(TERMINFO)
 
 ###	use option --disable-big-core to make tic run on small machines
 ###	We need 4Mb, check if we can allocate 50% more than that.
@@ -397,7 +445,13 @@ AC_ARG_ENABLE(big-core,
 	[AC_TRY_RUN([
 #include <stdlib.h>
 #include <string.h>
-int main() { exit(malloc(6000000L) == 0); }],
+int main() {
+	unsigned long n = 6000000L;
+	char *s = malloc(n);
+	if (s != 0)
+		s[0] = s[n-1] = 0;
+	exit(s == 0);
+}],
 	[with_big_core=yes],
 	[with_big_core=no],
 	[with_big_core=no])])
@@ -498,6 +552,9 @@ AC_MSG_RESULT($with_rcs_ids)
 test "$with_rcs_ids" = yes && AC_DEFINE(USE_RCS_IDS)
 
 ###############################################################################
+CF_MAN_PAGES([ captoinfo clear infocmp infotocap tic toe tput ])
+
+###############################################################################
 CF_HELP_MESSAGE(Extensions:)
 
 ### Note that some functions (such as const) are normally disabled anyway.
@@ -508,6 +565,7 @@ AC_ARG_ENABLE(ext-funcs,
 	[with_ext_funcs=yes])
 AC_MSG_RESULT($with_ext_funcs)
 if test "$with_ext_funcs" = yes ; then
+	AC_DEFINE(HAVE_CURSES_VERSION)
 	AC_DEFINE(HAVE_HAS_KEY)
 	AC_DEFINE(HAVE_RESIZETERM)
 	AC_DEFINE(HAVE_USE_DEFAULT_COLORS)
@@ -522,21 +580,11 @@ AC_ARG_ENABLE(const,
 	[with_ext_const=$enableval],
 	[with_ext_const=no])
 AC_MSG_RESULT($with_ext_const)
-NCURSES_CONST=""
+NCURSES_CONST='/*nothing*/'
 if test "$with_ext_const" = yes ; then
-	AC_DEFINE(NCURSES_CONST,const)
 	NCURSES_CONST=const
 fi
 AC_SUBST(NCURSES_CONST)
-
-###   use option --enable-hashmap to turn on use of hashmap scrolling logic
-AC_MSG_CHECKING(if you want hashmap scrolling-optimization code)
-AC_ARG_ENABLE(hashmap,
-	[  --enable-hashmap        compile with hashmap scrolling-optimization code],
-	[with_hashmap=$enableval],
-	[with_hashmap=yes])
-AC_MSG_RESULT($with_hashmap)
-test "$with_hashmap" = yes && AC_DEFINE(USE_HASHMAP)
 
 AC_MSG_CHECKING(if you want \$NCURSES_NO_PADDING code)
 AC_ARG_ENABLE(no-padding,
@@ -567,31 +615,70 @@ test "$with_tcap_names" = yes && NCURSES_XNAMES=1
 AC_SUBST(NCURSES_XNAMES)
 
 ###############################################################################
-CF_HELP_MESSAGE(Experimental Code:)
-AC_MSG_CHECKING(if you want all experimental code)
+# These options are relatively safe to experiment with.
+CF_HELP_MESSAGE(Development Code:)
+AC_MSG_CHECKING(if you want all development code)
 AC_ARG_WITH(develop,
-	[  --with-develop          enable all experimental options for testing],
+	[  --with-develop          enable all development options],
 	[with_develop=$withval],
 	[with_develop=no])
 AC_MSG_RESULT($with_develop)
 
 ###   use option --enable-colorfgbg to turn on use of $COLORFGBG environment
-AC_MSG_CHECKING(if you want experimental colorfgbg code)
+AC_MSG_CHECKING(if you want colorfgbg code)
 AC_ARG_ENABLE(hard-tabs,
-	[  --enable-colorfgbg      compile with experimental \$COLORFGBG code],
+	[  --enable-colorfgbg      compile with \$COLORFGBG code],
 	[with_colorfgbg=$enableval],
 	[with_colorfgbg=$with_develop])
 AC_MSG_RESULT($with_colorfgbg)
 test "$with_colorfgbg" = yes && AC_DEFINE(USE_COLORFGBG)
 
 ###   use option --enable-hard-tabs to turn on use of hard-tabs optimize
-AC_MSG_CHECKING(if you want experimental hard-tabs code)
+AC_MSG_CHECKING(if you want hard-tabs code)
 AC_ARG_ENABLE(hard-tabs,
-	[  --enable-hard-tabs      compile with experimental hard-tabs code],
+	[  --enable-hard-tabs      compile with hard-tabs code],
 	[with_hardtabs=$enableval],
 	[with_hardtabs=$with_develop])
 AC_MSG_RESULT($with_hardtabs)
 test "$with_hardtabs" = yes && AC_DEFINE(USE_HARD_TABS)
+
+AC_MSG_CHECKING(if you want to use restrict environment when running as root)
+AC_ARG_ENABLE(root-environ,
+	[  --disable-root-environ  limit environment when running as root],
+	[with_root_environ=$enableval],
+	[with_root_environ=yes])
+AC_MSG_RESULT($with_root_environ)
+test "$with_root_environ" = yes && AC_DEFINE(USE_ROOT_ENVIRON)
+
+###   use option --enable-xmc-glitch to turn on use of magic-cookie optimize
+AC_MSG_CHECKING(if you want limited support for xmc)
+AC_ARG_ENABLE(xmc-glitch,
+	[  --enable-xmc-glitch     compile with limited support for xmc],
+	[with_xmc_glitch=$enableval],
+	[with_xmc_glitch=$with_develop])
+AC_MSG_RESULT($with_xmc_glitch)
+test "$with_xmc_glitch" = yes && AC_DEFINE(USE_XMC_SUPPORT)
+
+###############################################################################
+# These are just experimental, probably should not be in a package:
+CF_HELP_MESSAGE(Experimental Code:)
+
+AC_MSG_CHECKING(if you do not want to assume colors are white-on-black)
+AC_ARG_ENABLE(assumed-color,
+	[  --disable-assumed-color do not assume anything about default-colors],
+	[with_assumed_color=$enableval],
+	[with_assumed_color=yes])
+AC_MSG_RESULT($with_assumed_color)
+test "$with_assumed_color" = yes && AC_DEFINE(USE_ASSUMED_COLOR)
+
+###   use option --enable-hashmap to turn on use of hashmap scrolling logic
+AC_MSG_CHECKING(if you want hashmap scrolling-optimization code)
+AC_ARG_ENABLE(hashmap,
+	[  --disable-hashmap       compile without hashmap scrolling-optimization],
+	[with_hashmap=$enableval],
+	[with_hashmap=yes])
+AC_MSG_RESULT($with_hashmap)
+test "$with_hashmap" = yes && AC_DEFINE(USE_HASHMAP)
 
 AC_MSG_CHECKING(if you want experimental safe-sprintf code)
 AC_ARG_ENABLE(safe-sprintf,
@@ -616,7 +703,7 @@ fi
 ###   use option --enable-widec to turn on use of wide-character support
 AC_MSG_CHECKING(if you want experimental wide-character code)
 AC_ARG_ENABLE(widec,
-	[  --enable-widec          compile with experimental wide-char code],
+	[  --enable-widec          compile with experimental wide-char/UTF-8 code],
 	[with_widec=$enableval],
 	[with_widec=no])
 AC_MSG_RESULT($with_widec)
@@ -625,19 +712,11 @@ if test "$with_widec" = yes ; then
 	AC_DEFINE(USE_WIDEC_SUPPORT)
 fi
 
-###   use option --enable-xmc-glitch to turn on use of magic-cookie optimize
-AC_MSG_CHECKING(if you want experimental xmc code)
-AC_ARG_ENABLE(xmc-glitch,
-	[  --enable-xmc-glitch     compile with experimental xmc code],
-	[with_xmc_glitch=$enableval],
-	[with_xmc_glitch=$with_develop])
-AC_MSG_RESULT($with_xmc_glitch)
-test "$with_xmc_glitch" = yes && AC_DEFINE(USE_XMC_SUPPORT)
-
 ###############################################################################
 CF_HELP_MESSAGE(Testing/development Options:)
 
 ###	use option --disable-echo to suppress full display compiling commands
+AC_MSG_CHECKING(if you want to display full commands during build)
 AC_ARG_ENABLE(echo,
 	[  --enable-echo           build: display "compiling" commands (default)],
 	[with_echo=$enableval],
@@ -647,9 +726,11 @@ if test "$with_echo" = yes; then
 else
 	ECHO_LINK='@ echo linking $@ ... ;'
 fi
+AC_MSG_RESULT($with_echo)
 AC_SUBST(ECHO_LINK)
 
 ###	use option --enable-warnings to turn on all gcc warnings
+AC_MSG_CHECKING(if you want to see compiler warnings)
 AC_ARG_ENABLE(warnings,
 	[  --enable-warnings       build: turn on GCC compiler warnings],
 	[with_warnings=$enableval])
@@ -657,16 +738,19 @@ if test -n "$with_warnings"; then
  	ADAFLAGS="$ADAFLAGS -gnatg"
 	CF_GCC_WARNINGS
 fi
+AC_MSG_RESULT($with_warnings)
 CF_GCC_ATTRIBUTES
 
 ###	use option --enable-assertions to turn on generation of assertion code
+AC_MSG_CHECKING(if you want to enable runtime assertions)
 AC_ARG_ENABLE(assertions,
 	[  --enable-assertions     test: turn on generation of assertion code],
 	[with_assertions=$enableval],
 	[with_assertions=no])
+AC_MSG_RESULT($with_assertions)
 if test -n "$GCC"
 then
-	if test $with_assertions = no
+	if test "$with_assertions" = no
 	then
 		AC_DEFINE(NDEBUG)
 		CPPFLAGS="$CPPFLAGS -DNDEBUG"
@@ -678,18 +762,18 @@ fi
 ###	use option --disable-leaks to suppress "permanent" leaks, for testing
 AC_ARG_ENABLE(leaks,
 	[  --disable-leaks         test: suppress permanent memory-leaks],
-	[test $enableval = no && AC_DEFINE(NO_LEAKS)])
+	[test "$enableval" = no && AC_DEFINE(NO_LEAKS)])
 AC_DEFINE(HAVE_NC_ALLOC_H)
 
 ###	use option --enable-expanded to generate certain macros as functions
 AC_ARG_ENABLE(expanded,
 	[  --enable-expanded       test: generate functions for certain macros],
-	[test $enableval = yes && AC_DEFINE(NCURSES_EXPANDED)])
+	[test "$enableval" = yes && AC_DEFINE(NCURSES_EXPANDED)])
 
 ###	use option --disable-macros to suppress macros in favor of functions
 AC_ARG_ENABLE(macros,
 	[  --disable-macros        test: use functions rather than macros],
-	[test $enableval = no && AC_DEFINE(NCURSES_NOMACROS)])
+	[test "$enableval" = no && AC_DEFINE(NCURSES_NOMACROS)])
 
 ###	Checks for libraries.
 AC_CHECK_FUNC(gettimeofday,
@@ -722,8 +806,6 @@ sys/poll.h \
 sys/select.h \
 sys/time.h \
 sys/times.h \
-termio.h \
-termios.h \
 ttyent.h \
 unistd.h \
 )
@@ -733,7 +815,6 @@ unistd.h \
 if test "$ISC" = yes ; then
 	AC_CHECK_LIB(cposix,main)
 	AC_CHECK_LIB(inet,bzero,LIBS="$LIBS -linet")dnl also 'select()'
-	AC_CHECK_HEADERS( sys/termio.h )
 fi
 
 CF_SYS_TIME_SELECT
@@ -742,7 +823,7 @@ CF_SYS_TIME_SELECT
 AC_LANG_C
 AC_C_CONST
 AC_C_INLINE
-test $ac_cv_c_inline != no && AC_DEFINE(CC_HAS_INLINE_FUNCS)
+test "$ac_cv_c_inline" != no && AC_DEFINE(CC_HAS_INLINE_FUNCS)
 
 CF_TYPEOF_CHTYPE
 CF_WIDEC_SHIFT
@@ -750,12 +831,14 @@ CF_WIDEC_SHIFT
 ###	Checks for external-data
 CF_ERRNO
 CF_LINK_DATAONLY
-CF_SPEED_TYPE
 
 ###	Checks for library functions.
 AC_CHECK_FUNCS( \
 getcwd \
+getegid \
+geteuid \
 getttynam \
+issetugid \
 memccpy \
 mkstemp \
 nanosleep \
@@ -769,7 +852,6 @@ sigaction \
 sigvec \
 strdup \
 strstr \
-tcgetattr \
 tcgetpgrp \
 times \
 vfscanf \
@@ -782,7 +864,7 @@ fi
 
 CF_ISASCII
 CF_STRUCT_SIGACTION
-CF_STRUCT_TERMIOS
+CF_FUNC_TERMIOS
 
 dnl FIXME (may need this) AC_SYS_RESTARTABLE_SYSCALLS
 if test "$cross_compiling" = yes ; then
@@ -807,17 +889,21 @@ CF_BOOL_DECL(cf_cv_cc_bool_type)
 if test -n "$CXX" ; then
 	AC_LANG_CPLUSPLUS
 	CF_STDCPP_LIBRARY
-	case "`${CXX-g++} --version`" in
-	1*|2.[0-6]*)
-	    cf_cxx_library=yes
-	    ;;
-	2.7*)
-	    CF_GPP_LIBRARY
-	    ;;
-	*)
-	    cf_cxx_library=no
-	    ;;
-	esac
+	if test "$GXX" = yes; then
+		case "`${CXX-g++} --version`" in
+		1*|2.[0-6]*)
+			cf_cxx_library=yes
+			;;
+		2.7*)
+			CF_GPP_LIBRARY
+			;;
+		*)
+			cf_cxx_library=no
+			;;
+		esac
+	else
+		cf_cxx_library=no
+	fi
 	AC_CHECK_HEADERS(typeinfo)
 	CF_BOOL_DECL
 	CF_BOOL_SIZE
@@ -862,8 +948,8 @@ if test "$ac_cv_prog_gnat_exists" = no; then
    cf_ada_make=
 else
    CF_GNAT_VERSION
-   AC_CHECK_PROG(m4_exists, m4, yes, no)
-   if test "$ac_cv_prog_m4_exists" = no; then
+   AC_CHECK_PROG(M4_exists, m4, yes, no)
+   if test "$ac_cv_prog_M4_exists" = no; then
       cf_cv_prog_gnat_correct=no
       echo Ada95 binding required program m4 not found. Ada95 binding disabled.
    fi
@@ -885,7 +971,7 @@ if test	"$cf_cv_prog_gnat_correct" = yes; then
    ADAFLAGS="-O3 -gnatpn $ADAFLAGS"
 
    AC_ARG_WITH(ada-compiler,
-	[  --with-ada-compiler=CMD Specify Ada95 compiler command (default gnatmake)],
+	[  --with-ada-compiler=CMD specify Ada95 compiler command (default gnatmake)],
 	[cf_ada_compiler=$withval],
 	[cf_ada_compiler=gnatmake])
 
@@ -912,11 +998,6 @@ if test	"$cf_cv_prog_gnat_correct" = yes; then
        [$]prefix/lib/ada/adalib)
    AC_SUBST(ADA_OBJECTS)
 
-# This has been fixed!
-#   if test $with_shared = no
-#   then
-#      AC_MSG_WARN(Ada95 applications will not link properly with static libraries)
-#   fi
 fi
 fi
 
@@ -924,7 +1005,7 @@ fi
 ### using a 'char' for bools.  gcc 2.7.0's conversion-warnings are broken too
 ### badly to consider using for development purposes, but 2.5.8 is okay.
 if test -n "$with_warnings"; then
-	if test -n "$GCC"; then
+	if test "$GCC" = yes; then
 		case "`$CC --version`" in
 		2.6.3)
 			if test "$cf_cv_type_of_bool" != "char"; then
@@ -978,7 +1059,7 @@ AC_SUBST(DFT_OBJ_SUBDIR)dnl the default object-directory ("obj")
 AC_MSG_RESULT($DFT_OBJ_SUBDIR)
 
 TINFO_LIST="$SHLIB_LIST"
-test $with_termlib = yes && SHLIB_LIST="$SHLIB_LIST -ltinfo${LIB_SUFFIX}"
+test "$with_termlib" = yes && SHLIB_LIST="$SHLIB_LIST -ltinfo${LIB_SUFFIX}"
 
 AC_MSG_CHECKING(where we will install curses.h)
 test "$with_overwrite" = no && \
@@ -1014,6 +1095,7 @@ AC_OUTPUT( \
 	include/curses.h \
 	include/termcap.h \
 	include/unctrl.h \
+	misc/run_tic.sh:misc/run_tic.in \
 	$SUB_MAKEFILES \
 	Makefile,[
 CF_LIB_RULES
@@ -1030,6 +1112,7 @@ LIB_SUFFIX="$LIB_SUFFIX"
 LIB_SUBSETS="$LIB_SUBSETS"
 LIB_TRACING="$LIB_TRACING"
 SRC_SUBDIRS="$SRC_SUBDIRS"
+TERMINFO="$TERMINFO"
 TINFO_NAME="$TINFO_NAME"
 WITH_ECHO="$with_echo"
 WITH_OVERWRITE="$with_overwrite"
@@ -1039,6 +1122,7 @@ cf_cv_rel_version="$cf_cv_rel_version"
 cf_cv_rm_so_locs="$cf_cv_rm_so_locs"
 cf_cv_system_name="$cf_cv_system_name"
 cf_with_cxx_binding="$cf_with_cxx_binding"
+cf_cv_shlib_version="$cf_cv_shlib_version"
 target="$target"
 
 ],sort)dnl

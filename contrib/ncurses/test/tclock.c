@@ -128,7 +128,7 @@ main(
 
     if (has_colors()) {
 	start_color();
-#ifdef HAVE_USE_DEFAULT_COLORS
+#if HAVE_USE_DEFAULT_COLORS
 	if (use_default_colors() == OK)
 	    my_bg = -1;
 #endif

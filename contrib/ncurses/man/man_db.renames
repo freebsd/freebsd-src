@@ -1,4 +1,4 @@
-# $Id: man_db.renames,v 0.18 2000/03/19 00:10:15 tom Exp $
+# $Id: man_db.renames,v 0.20 2000/07/15 22:58:35 tom Exp $
 # Manual-page renamings for the man_db program
 #
 captoinfo.1m			captoinfo.1
@@ -42,11 +42,12 @@ curs_termattrs.3x		termattrs.3ncurses
 curs_termcap.3x			termcap.3ncurses
 curs_terminfo.3x		terminfo.3ncurses
 curs_touch.3x			touch.3ncurses
+curs_trace.3x			trace.3ncurses
 curs_util.3x			util.3ncurses
 curs_window.3x			window.3ncurses
 curses.3x			ncurses.3ncurses
+default_colors.3x		default_colors.3ncurses
 define_key.3x			define_key.3ncurses
-dft_fgbg.3x			use_default_colors.3ncurses
 form.3x				form.3form
 form_cursor.3x			cursor.3form
 form_data.3x			data.3form
@@ -75,7 +76,7 @@ infotocap.1m			infotocap.1
 keybound.3x			keybound.3ncurses
 keyok.3x			keyok.3ncurses
 menu.3x				menu.3menu
-menu_attribs.3x			attribs.3menu
+menu_attributes.3x		attributes.3menu
 menu_cursor.3x			cursor.3menu
 menu_driver.3x			driver.3menu
 menu_format.3x			format.3menu

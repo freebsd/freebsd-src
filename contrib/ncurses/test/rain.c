@@ -1,5 +1,5 @@
 /*
- * $Id: rain.c,v 1.14 1999/11/13 23:39:07 tom Exp $
+ * $Id: rain.c,v 1.15 2000/09/02 18:41:22 tom Exp $
  */
 #include <test.priv.h>
 
@@ -42,7 +42,7 @@ float c;
     if (has_colors()) {
 	int bg = COLOR_BLACK;
 	start_color();
-#ifdef HAVE_USE_DEFAULT_COLORS
+#if HAVE_USE_DEFAULT_COLORS
 	if (use_default_colors() == OK)
 		bg = -1;
 #endif

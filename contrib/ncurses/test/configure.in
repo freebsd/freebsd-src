@@ -1,5 +1,5 @@
 dnl***************************************************************************
-dnl Copyright (c) 1998,1999 Free Software Foundation, Inc.                   *
+dnl Copyright (c) 1998,1999,2000 Free Software Foundation, Inc.              *
 dnl                                                                          *
 dnl Permission is hereby granted, free of charge, to any person obtaining a  *
 dnl copy of this software and associated documentation files (the            *
@@ -26,9 +26,9 @@ dnl sale, use or other dealings in this Software without prior written       *
 dnl authorization.                                                           *
 dnl***************************************************************************
 dnl
-dnl Author: Thomas E. Dickey <dickey@clark.net> 1996,1997,1998
+dnl Author: Thomas E. Dickey 1996,1997,1998,2000
 dnl
-dnl $Id: configure.in,v 1.29 1999/12/19 03:12:13 tom Exp $
+dnl $Id: configure.in,v 1.30 2000/08/12 22:43:08 tom Exp $
 dnl This is a simple configuration-script for the ncurses test programs that
 dnl allows the test-directory to be separately configured against a reference
 dnl system (i.e., sysvr4 curses)
@@ -36,7 +36,7 @@ dnl
 dnl If you're configuring ncurses, you shouldn't need to use this script.
 dnl It's only for testing purposes.
 dnl
-dnl dickey@clark.net (Thomas Dickey)
+dnl dickey@herndon4.his.com (Thomas Dickey)
 AC_PREREQ(2.12)
 AC_INIT(ncurses.c)
 AC_CONFIG_HEADER(ncurses_cfg.h:ncurses_tst.hin)
@@ -86,6 +86,7 @@ AC_ARG_WITH(ncurses,
 	 	if test -f $p/include/ncurses/curses.h
 		then
 			CPPFLAGS="$CPPFLAGS -I$p/include/ncurses"
+			test $p != /usr && CPPFLAGS="$CPPFLAGS -I$p/include"
 			test $p != /usr && LIBS="-L$p/lib $LIBS"
 			break
 		elif test $p != /usr
