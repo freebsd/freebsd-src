@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.123 1999/01/28 00:57:57 dillon Exp $
+ *	$Id: vm_page.c,v 1.124 1999/02/07 20:45:15 dillon Exp $
  */
 
 /*
@@ -87,8 +87,6 @@
 #include <vm/vm_extern.h>
 
 static void	vm_page_queue_init __P((void));
-static vm_page_t _vm_page_select_free __P((vm_object_t object,
-			vm_pindex_t pindex, int prefqueue));
 static vm_page_t vm_page_select_cache __P((vm_object_t, vm_pindex_t));
 
 /*
@@ -102,7 +100,6 @@ static int vm_page_hash_mask;		/* Mask for hash function */
 static volatile int vm_page_bucket_generation;
 
 struct pglist vm_page_queue_free[PQ_L2_SIZE] = {{0}};
-struct pglist vm_page_queue_zero[PQ_L2_SIZE] = {{0}};
 struct pglist vm_page_queue_active = {0};
 struct pglist vm_page_queue_inactive = {0};
 struct pglist vm_page_queue_cache[PQ_L2_SIZE] = {{0}};
@@ -121,10 +118,6 @@ vm_page_queue_init(void) {
 	for(i=0;i<PQ_L2_SIZE;i++) {
 		vm_page_queues[PQ_FREE+i].pl = &vm_page_queue_free[i];
 		vm_page_queues[PQ_FREE+i].cnt = &cnt.v_free_count;
-	}
-	for(i=0;i<PQ_L2_SIZE;i++) {
-		vm_page_queues[PQ_ZERO+i].pl = &vm_page_queue_zero[i];
-		vm_page_queues[PQ_ZERO+i].cnt = &cnt.v_free_count;
 	}
 	vm_page_queues[PQ_INACTIVE].pl = &vm_page_queue_inactive;
 	vm_page_queues[PQ_INACTIVE].cnt = &cnt.v_inactive_count;
@@ -726,7 +719,8 @@ vm_page_select_cache(object, pindex)
 	while (TRUE) {
 		m = vm_page_list_find(
 		    PQ_CACHE,
-		    (pindex + object->pg_color) & PQ_L2_MASK
+		    (pindex + object->pg_color) & PQ_L2_MASK,
+		    FALSE
 		);
 		if (m && ((m->flags & PG_BUSY) || m->busy ||
 			       m->hold_count || m->wire_count)) {
@@ -749,64 +743,17 @@ vm_page_select_cache(object, pindex)
  */
 
 static __inline vm_page_t
-vm_page_select_free(vm_object_t object, vm_pindex_t pindex, int prefqueue)
+vm_page_select_free(vm_object_t object, vm_pindex_t pindex, boolean_t prefer_zero)
 {
-        vm_page_t m;
-        int otherq = (prefqueue == PQ_ZERO) ? PQ_FREE : PQ_ZERO;
+	vm_page_t m;
 
-#if PQ_L2_SIZE > 1
-        int i = (pindex + object->pg_color) & PQ_L2_MASK;
-
-        if ((m = TAILQ_FIRST(vm_page_queues[prefqueue+i].pl)) == NULL &&
-            (m = TAILQ_FIRST(vm_page_queues[otherq+i].pl)) == NULL
-        ) {
-                m = _vm_page_select_free(object, pindex, prefqueue);
-        }
-#else
-        if ((m = TAILQ_FIRST(vm_page_queues[prefqueue].pl)) == NULL)
-                m = TAILQ_FIRST(vm_page_queues[otherq].pl);
-#endif
-        return(m);
-}
-
-#if PQ_L2_SIZE > 1
-
-static vm_page_t
-_vm_page_select_free(object, pindex, prefqueue)
-	vm_object_t object;
-	vm_pindex_t pindex;
-	int prefqueue;
-{
-	int i;
-	int index;
-	vm_page_t m = NULL;
-	struct vpgqueues *pq;
-	struct vpgqueues *po;
-
-	if (prefqueue == PQ_ZERO) {
-		pq = &vm_page_queues[PQ_ZERO];
-		po = &vm_page_queues[PQ_FREE];
-	} else {
-		pq = &vm_page_queues[PQ_FREE];
-		po = &vm_page_queues[PQ_ZERO];
-	}
-
-	index = pindex + object->pg_color;
-
-	for(i = PQ_L2_SIZE / 2; i > 0; --i) {
-		if ((m = TAILQ_FIRST(pq[(index+i) & PQ_L2_MASK].pl)) != NULL)
-			break;
-		if ((m = TAILQ_FIRST(po[(index+i) & PQ_L2_MASK].pl)) != NULL)
-			break;
-		if ((m = TAILQ_FIRST(pq[(index-i) & PQ_L2_MASK].pl)) != NULL)
-			break;
-		if ((m = TAILQ_FIRST(po[(index-i) & PQ_L2_MASK].pl)) != NULL)
-			break;
-	}
+	m = vm_page_list_find(
+		PQ_FREE,
+		(pindex + object->pg_color) & PQ_L2_MASK,
+		prefer_zero
+	);
 	return(m);
 }
-
-#endif
 
 /*
  *	vm_page_alloc:
@@ -859,7 +806,7 @@ loop:
 
 	case VM_ALLOC_NORMAL:
 		if (cnt.v_free_count >= cnt.v_free_reserved) {
-			m = vm_page_select_free(object, pindex, PQ_FREE);
+			m = vm_page_select_free(object, pindex, FALSE);
 			KASSERT(m != NULL, ("vm_page_alloc(NORMAL): missing page on free queue\n"));
 		} else {
 			m = vm_page_select_cache(object, pindex);
@@ -878,7 +825,7 @@ loop:
 
 	case VM_ALLOC_ZERO:
 		if (cnt.v_free_count >= cnt.v_free_reserved) {
-			m = vm_page_select_free(object, pindex, PQ_ZERO);
+			m = vm_page_select_free(object, pindex, TRUE);
 			KASSERT(m != NULL, ("vm_page_alloc(ZERO): missing page on free queue\n"));
 		} else {
 			m = vm_page_select_cache(object, pindex);
@@ -899,7 +846,7 @@ loop:
 		if ((cnt.v_free_count >= cnt.v_free_reserved) ||
 		    ((cnt.v_cache_count == 0) &&
 		    (cnt.v_free_count >= cnt.v_interrupt_free_min))) {
-			m = vm_page_select_free(object, pindex, PQ_FREE);
+			m = vm_page_select_free(object, pindex, FALSE);
 			KASSERT(m != NULL, ("vm_page_alloc(SYSTEM): missing page on free queue\n"));
 		} else {
 			m = vm_page_select_cache(object, pindex);
@@ -918,7 +865,7 @@ loop:
 
 	case VM_ALLOC_INTERRUPT:
 		if (cnt.v_free_count > 0) {
-			m = vm_page_select_free(object, pindex, PQ_FREE);
+			m = vm_page_select_free(object, pindex, FALSE);
 			KASSERT(m != NULL, ("vm_page_alloc(INTERRUPT): missing page on free queue\n"));
 		} else {
 			splx(s);
@@ -963,7 +910,7 @@ loop:
 	(*pq->lcnt)--;
 	oldobject = NULL;
 
-	if (qtype == PQ_ZERO) {
+	if (m->flags & PG_ZERO) {
 		vm_page_zero_count--;
 		m->flags = PG_ZERO | PG_BUSY;
 	} else {
@@ -1182,7 +1129,7 @@ vm_page_free_wakeup()
  */
 
 void
-vm_page_free_toq(vm_page_t m, int queue)
+vm_page_free_toq(vm_page_t m)
 {
 	int s;
 	struct vpgqueues *pq;
@@ -1265,27 +1212,29 @@ vm_page_free_toq(vm_page_t m, int queue)
 	pmap_page_is_free(m);
 #endif
 
-	m->queue = queue + m->pc;
+	m->queue = PQ_FREE + m->pc;
 	pq = &vm_page_queues[m->queue];
 	++(*pq->lcnt);
 	++(*pq->cnt);
 
-	if (queue == PQ_ZERO) {
-		TAILQ_INSERT_HEAD(pq->pl, m, pageq);
-		++vm_page_zero_count;
-	} else {
-		/*
-		 * If the pageout process is grabbing the page, it is likely
-		 * that the page is NOT in the cache.  It is more likely that
-		 * the page will be partially in the cache if it is being
-		 * explicitly freed.
-		 */
+	/*
+	 * Put zero'd pages on the end ( where we look for zero'd pages
+	 * first ) and non-zerod pages at the head.
+	 */
 
-		if (curproc == pageproc) {
-			TAILQ_INSERT_TAIL(pq->pl, m, pageq);
-		} else {
-			TAILQ_INSERT_HEAD(pq->pl, m, pageq);
-		}
+	if (m->flags & PG_ZERO) {
+		TAILQ_INSERT_TAIL(pq->pl, m, pageq);
+		++vm_page_zero_count;
+	} else if (curproc == pageproc) {
+		/*
+		 * If the pageout daemon is freeing pages, the pages are 
+		 * likely to NOT be in the L1 or L2 caches due to their age.
+		 * For now we do not try to do anything special with this
+		 * info.
+		 */
+		TAILQ_INSERT_HEAD(pq->pl, m, pageq);
+	} else {
+		TAILQ_INSERT_HEAD(pq->pl, m, pageq);
 	}
 
 	vm_page_free_wakeup();
@@ -1640,7 +1589,7 @@ again:
 			int pqtype;
 			phys = VM_PAGE_TO_PHYS(&pga[i]);
 			pqtype = pga[i].queue - pga[i].pc;
-			if (((pqtype == PQ_ZERO) || (pqtype == PQ_FREE) || (pqtype == PQ_CACHE)) &&
+			if (((pqtype == PQ_FREE) || (pqtype == PQ_CACHE)) &&
 			    (phys >= low) && (phys < high) &&
 			    ((phys & (alignment - 1)) == 0) &&
 			    (((phys ^ (phys + size - 1)) & ~(boundary - 1)) == 0))
@@ -1724,7 +1673,7 @@ again1:
 			pqtype = pga[i].queue - pga[i].pc;
 			if ((VM_PAGE_TO_PHYS(&pga[i]) !=
 			    (VM_PAGE_TO_PHYS(&pga[i - 1]) + PAGE_SIZE)) ||
-			    ((pqtype != PQ_ZERO) && (pqtype != PQ_FREE) && (pqtype != PQ_CACHE))) {
+			    ((pqtype != PQ_FREE) && (pqtype != PQ_CACHE))) {
 				start++;
 				goto again;
 			}
@@ -1840,12 +1789,6 @@ DB_SHOW_COMMAND(pageq, vm_page_print_pageq_info)
 	db_printf("PQ_CACHE:");
 	for(i=0;i<PQ_L2_SIZE;i++) {
 		db_printf(" %d", *vm_page_queues[PQ_CACHE + i].lcnt);
-	}
-	db_printf("\n");
-
-	db_printf("PQ_ZERO:");
-	for(i=0;i<PQ_L2_SIZE;i++) {
-		db_printf(" %d", *vm_page_queues[PQ_ZERO + i].lcnt);
 	}
 	db_printf("\n");
 

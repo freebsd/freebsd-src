@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_page.h,v 1.53 1999/01/24 05:57:50 dillon Exp $
+ * $Id: vm_page.h,v 1.54 1999/02/07 20:45:15 dillon Exp $
  */
 
 /*
@@ -139,7 +139,7 @@ struct vm_page {
 /*
  * Page coloring parameters
  */
-/* Each of PQ_FREE, PQ_ZERO and PQ_CACHE have PQ_HASH_SIZE entries */
+/* Each of PQ_FREE, and PQ_CACHE have PQ_HASH_SIZE entries */
 
 /* Define one of the following */
 #if defined(PQ_HUGECACHE)
@@ -186,11 +186,11 @@ struct vm_page {
 
 #define PQ_NONE 0
 #define PQ_FREE	1
-#define PQ_ZERO (1 + PQ_L2_SIZE)
-#define PQ_INACTIVE (1 + 2*PQ_L2_SIZE)
-#define PQ_ACTIVE (2 + 2*PQ_L2_SIZE)
-#define PQ_CACHE (3 + 2*PQ_L2_SIZE)
-#define PQ_COUNT (3 + 3*PQ_L2_SIZE)
+/* #define PQ_ZERO (1 + PQ_L2_SIZE) */
+#define PQ_INACTIVE (1 + 1*PQ_L2_SIZE)
+#define PQ_ACTIVE (2 + 1*PQ_L2_SIZE)
+#define PQ_CACHE (3 + 1*PQ_L2_SIZE)
+#define PQ_COUNT (3 + 2*PQ_L2_SIZE)
 
 extern struct vpgqueues {
 	struct pglist *pl;
@@ -253,7 +253,6 @@ extern struct vpgqueues {
  */
 
 extern struct pglist vm_page_queue_free[PQ_L2_SIZE];/* memory free queue */
-extern struct pglist vm_page_queue_zero[PQ_L2_SIZE];/* zeroed memory free queue */
 extern struct pglist vm_page_queue_active;	/* active memory queue */
 extern struct pglist vm_page_queue_inactive;	/* inactive memory queue */
 extern struct pglist vm_page_queue_cache[PQ_L2_SIZE];/* cache memory queue */
@@ -406,7 +405,7 @@ int vm_page_queue_index __P((vm_offset_t, int));
 int vm_page_sleep(vm_page_t m, char *msg, char *busy);
 int vm_page_asleep(vm_page_t m, char *msg, char *busy);
 #endif
-void vm_page_free_toq(vm_page_t m, int queue);
+void vm_page_free_toq(vm_page_t m);
 
 /*
  * Keep page from being freed by the page daemon
@@ -483,12 +482,18 @@ vm_page_copy(src_m, dest_m)
  *	vm_page_free:
  *
  *	Free a page
+ *
+ *	The clearing of PG_ZERO is a temporary safety until the code can be
+ *	reviewed to determine that PG_ZERO is being properly cleared on
+ *	write faults or maps.  PG_ZERO was previously cleared in 
+ *	vm_page_alloc().
  */
 static __inline void
 vm_page_free(m)
 	vm_page_t m;
 {
-	vm_page_free_toq(m, PQ_FREE);
+	vm_page_flag_clear(m, PG_ZERO);
+	vm_page_free_toq(m);
 }
 
 /*
@@ -500,7 +505,8 @@ static __inline void
 vm_page_free_zero(m)
 	vm_page_t m;
 {
-	vm_page_free_toq(m, PQ_ZERO);
+	vm_page_flag_set(m, PG_ZERO);
+	vm_page_free_toq(m);
 }
 
 /*
@@ -552,16 +558,24 @@ vm_page_dirty(vm_page_t m)
 }
 
 static __inline vm_page_t
-vm_page_list_find(int basequeue, int index)
+vm_page_list_find(int basequeue, int index, boolean_t prefer_zero)
 {
 	vm_page_t m;
 
 #if PQ_L2_SIZE > 1
-	m = TAILQ_FIRST(vm_page_queues[basequeue+index].pl);
+	if (prefer_zero) {
+		m = TAILQ_LAST(vm_page_queues[basequeue+index].pl, pglist);
+	} else {
+		m = TAILQ_FIRST(vm_page_queues[basequeue+index].pl);
+	}
 	if (m == NULL)
 		m = _vm_page_list_find(basequeue, index);
 #else
-	m = TAILQ_FIRST(vm_page_queues[basequeue].pl);
+	if (prefer_zero) {
+		m = TAILQ_LAST(vm_page_queues[basequeue].pl, pglist);
+	} else {
+		m = TAILQ_FIRST(vm_page_queues[basequeue].pl);
+	}
 #endif
 	return(m);
 }

@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.7 1998/12/30 10:38:58 dfr Exp $
+ *	$Id: vm_machdep.c,v 1.8 1999/01/26 02:49:51 julian Exp $
  */
 /*
  * Copyright (c) 1994, 1995, 1996 Carnegie-Mellon University.
@@ -469,8 +469,8 @@ vm_page_zero_idle()
 	if (try_mplock()) {
 #endif
 		s = splvm();
-		m = vm_page_list_find(PQ_FREE, free_rover);
-		if (m != NULL) {
+		m = vm_page_list_find(PQ_FREE, free_rover, FALSE);
+		if (m != NULL && (m->flags & PG_ZERO) == 0) {
 			--(*vm_page_queues[m->queue].lcnt);
 			TAILQ_REMOVE(vm_page_queues[m->queue].pl, m, pageq);
 			m->queue = PQ_NONE;
@@ -483,14 +483,15 @@ vm_page_zero_idle()
 			get_mplock();
 #endif
 			(void)splvm();
-			m->queue = PQ_ZERO + m->pc;
+			vm_page_flag_set(m, PG_ZERO);
+			m->queue = PQ_FREE + m->pc;
 			++(*vm_page_queues[m->queue].lcnt);
-			TAILQ_INSERT_HEAD(vm_page_queues[m->queue].pl, m,
+			TAILQ_INSERT_TAIL(vm_page_queues[m->queue].pl, m,
 			    pageq);
-			free_rover = (free_rover + PQ_PRIME3) & PQ_L2_MASK;
 			++vm_page_zero_count;
 			++cnt_prezero;
 		}
+		free_rover = (free_rover + PQ_PRIME3) & PQ_L2_MASK;
 		splx(s);
 #ifdef SMP
 		rel_mplock();
