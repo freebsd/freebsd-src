@@ -106,7 +106,7 @@ void	intpr (int, u_long, void (*)(char *));
 
 void	pr_rthdr (int);
 void	pr_family (int);
-void	rt_stats (u_long);
+void	rt_stats (u_long, u_long);
 char	*ipx_pnet (struct sockaddr *);
 char	*ipx_phost (struct sockaddr *);
 char	*ns_phost (struct sockaddr *);
