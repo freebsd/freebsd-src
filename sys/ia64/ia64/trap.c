@@ -536,6 +536,13 @@ trap(int vector, int imm, struct trapframe *framep)
 		break;
 
 	case IA64_VEC_GENERAL_EXCEPTION:
+		if (user) {
+			ucode = vector;
+			i = SIGILL;
+			break;
+		}
+		goto dopanic;
+
 	case IA64_VEC_UNSUPP_DATA_REFERENCE:
 	case IA64_VEC_LOWER_PRIVILEGE_TRANSFER:
 		if (user) {
