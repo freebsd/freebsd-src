@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.50 1996/06/10 00:25:40 dyson Exp $
+ * $Id: vm_fault.c,v 1.51 1996/06/14 23:26:40 davidg Exp $
  */
 
 /*
@@ -522,10 +522,13 @@ readrest:
 		if (fault_type & VM_PROT_WRITE) {
 
 			/*
-			 * We already have an empty page in first_object - use
-			 * it.
+			 * This allows pages to be virtually copied from a backing_object
+			 * into the first_object, where the backing object has no other
+			 * refs to it, and cannot gain any more refs.  Instead of a
+			 * bcopy, we just move the page from the backing object to the
+			 * first object.  Note that we must mark the page dirty in the
+			 * first object so that it will go out to swap when needed.
 			 */
-
 			if (lookup_still_valid &&
 				/*
 				 * Only one shadow object
@@ -570,6 +573,17 @@ readrest:
 				vm_page_copy(m, first_m);
 			}
 
+			/*
+			 * This code handles the case where there are two references to the
+			 * backing object, and one reference is getting a copy of the
+			 * page.  If the other reference is the only other object that
+			 * points to the backing object, then perform a virtual copy
+			 * from the backing object to the other object after the
+			 * page is copied to the current first_object.  If the other
+			 * object already has the page, we destroy it in the backing object
+			 * performing an optimized collapse-type operation.  We don't
+			 * bother removing the page from the backing object's swap space.
+			 */
 			if (lookup_still_valid &&
 				/*
 				 * make sure that we have two shadow objs
@@ -826,14 +840,6 @@ vm_fault_wire(map, start, end)
 	 */
 
 	for (va = start; va < end; va += PAGE_SIZE) {
-
-/*
-		while( curproc != pageproc &&
-			(cnt.v_free_count <= cnt.v_pageout_free_min)) {
-			VM_WAIT;
-		}
-*/
-
 		rv = vm_fault(map, va, VM_PROT_READ|VM_PROT_WRITE, TRUE);
 		if (rv) {
 			if (va != start)
@@ -966,10 +972,10 @@ vm_fault_copy_entry(dst_map, src_map, dst_entry, src_entry)
 		 * Enter it in the pmap...
 		 */
 
+		dst_m->flags |= PG_WRITEABLE|PG_MAPPED;
 		dst_m->flags &= ~PG_ZERO;
 		pmap_enter(dst_map->pmap, vaddr, VM_PAGE_TO_PHYS(dst_m),
 		    prot, FALSE);
-		dst_m->flags |= PG_WRITEABLE|PG_MAPPED;
 
 		/*
 		 * Mark it no longer busy, and put it on the active list.
