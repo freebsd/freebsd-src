@@ -1,3 +1,4 @@
+/* $Id$
  # Alpha 21064 __mpn_submul_1 -- Multiply a limb vector with a limb and
  # subtract the result from a second limb vector.
 
@@ -28,6 +29,7 @@
  # s2_limb	r19
 
  # This code runs at 42 cycles/limb on EV4 and 18 cycles/limb on EV5.
+*/
 
 	.set	noreorder
 	.set	noat
