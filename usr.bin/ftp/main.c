@@ -237,8 +237,7 @@ main(argc, argv)
 				warnx("%s", strerror(errno));
 			exit(1);
 		}
-		memcpy(&bindto, res->ai_addr, res->ai_addrlen);
-		freeaddrinfo(res);
+		bindres0 = res;
 	}
 
 	/*

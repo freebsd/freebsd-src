@@ -144,7 +144,7 @@ char *httpport;			/* port number to use for http connections */
 char *gateport;			/* port number to use for gateftp connections */
 
 int	dobind;			/* bind to specific address */
-struct sockaddr_storage bindto;	/* address to bind to */
+struct addrinfo * bindres0;	/* addrinfo for address to bind to */
 
 jmp_buf	toplevel;		/* non-local goto stuff for cmd scanner */
 
