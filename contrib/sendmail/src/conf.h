@@ -69,6 +69,12 @@ struct rusage;	/* forward declaration to get gcc to shut up in wait.h */
 # else
 #  define MAXMACNAMELEN	20		/* max macro name length */
 # endif
+# ifndef MAXHDRLINES
+#  define MAXHDRLINES	1000		/* max lines in a message header */
+# endif
+# ifndef MAXHDRLINELEN
+#  define MAXHDRLINELEN	SMTPLINELIM	/* max length of a header line */
+# endif
 
 /**********************************************************************
 **  Compilation options.
