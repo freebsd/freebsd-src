@@ -79,7 +79,7 @@ __weak_reference(__sem_init, sem_init);
 __weak_reference(__sem_destroy, sem_destroy);
 __weak_reference(__sem_open, sem_open);
 __weak_reference(__sem_close, sem_close);
-__weak_reference(__sem_unlink, sem_post);
+__weak_reference(__sem_unlink, sem_unlink);
 __weak_reference(__sem_wait, sem_wait);
 __weak_reference(__sem_trywait, sem_trywait);
 __weak_reference(__sem_timedwait, sem_timedwait);
