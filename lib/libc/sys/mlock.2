@@ -30,6 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)mlock.2	8.2 (Berkeley) 12/11/93
+.\"	$Id$
 .\"
 .Dd June 2, 1993
 .Dt MLOCK 2
@@ -132,6 +133,8 @@ Some portion of the indicated address range is not locked.
 .El
 .Sh "SEE ALSO"
 .Xr fork 2 ,
+.Xr mincore 2 ,
+.Xr minherit 2 ,
 .Xr mmap 2 ,
 .Xr munmap 2 ,
 .Xr setrlimit 2 ,
