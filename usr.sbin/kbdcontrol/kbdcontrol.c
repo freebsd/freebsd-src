@@ -28,7 +28,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: kbdcontrol.c,v 1.21 1999/01/12 23:06:29 mjacob Exp $";
+	"$Id: kbdcontrol.c,v 1.22 1999/01/23 17:04:13 dfr Exp $";
 #endif /* not lint */
 
 #include <ctype.h>
@@ -88,13 +88,6 @@ char fkey_table[96][MAXFK] = {
 /* 93-96 */	""      , ""      , ""      , ""      ,
 	};
 
-const int	delays[]  = {250, 500, 750, 1000};
-const int	repeats[] = { 34,  38,  42,  46,  50,  55,  59,  63,
-			      68,  76,  84,  92, 100, 110, 118, 126,
-			     136, 152, 168, 184, 200, 220, 236, 252,
-			     272, 304, 336, 368, 400, 440, 472, 504};
-const int	ndelays = (sizeof(delays) / sizeof(int));
-const int	nrepeats = (sizeof(repeats) / sizeof(int));
 int 		hex = 0;
 int 		number;
 char 		letter;
@@ -417,8 +410,13 @@ print_entry(FILE *fp, int value)
 }
 
 
+#ifdef __i386__
 void
 print_key_definition_line(FILE *fp, int scancode, struct keyent_t *key)
+#else
+void
+print_key_definition_line(FILE *fp, int scancode, struct key_t *key)
+#endif
 {
 	int i;
 
@@ -814,13 +812,14 @@ badopt:
 void
 set_keyrates(char *opt)
 {
+	int arg[2];
 	int repeat;
 	int delay;
 
 	if (!strcmp(opt, "slow"))
-		delay = 3, repeat = 31;
+		delay = 1000, repeat = 500;
 	else if (!strcmp(opt, "normal"))
-		delay = 1, repeat = 15;
+		delay = 500, repeat = 125;
 	else if (!strcmp(opt, "fast"))
 		delay = repeat = 0;
 	else {
@@ -837,17 +836,11 @@ badopt:
 			warnx("argument to -r must be delay.repeat");
 			return;
 		}
-		for (n = 0; n < ndelays - 1; n++)
-			if (delay <= delays[n])
-				break;
-		delay = n;
-		for (n = 0; n < nrepeats - 1; n++)
-			if (repeat <= repeats[n])
-				break;
-		repeat = n;
 	}
 
-	if (ioctl(0, KDSETRAD, (delay << 5) | repeat) < 0)
+	arg[0] = delay;
+	arg[1] = repeat;
+	if (ioctl(0, KDSETREPEAT, arg))
 		warn("setting keyboard rate");
 }
 
@@ -866,7 +859,6 @@ set_history(char *opt)
 		warn("setting history buffer size");
 }
 
-#ifdef __i386__
 static char
 *get_kbd_type_name(int type)
 {
@@ -960,22 +952,15 @@ release_keyboard(void)
 	if (ioctl(0, CONS_RELKBD, 0) == -1)
 		warn("unable to release the keyboard");
 }
-#endif /* __i386__ */
 
 
 static void
 usage()
 {
 	fprintf(stderr, "%s\n%s\n%s\n",
-#ifdef __i386__
 "usage: kbdcontrol [-dFKix] [-b  duration.pitch | [quiet.]belltype]",
 "                  [-r delay.repeat | speed] [-l mapfile] [-f # string]",
 "                  [-h size] [-k device] [-L mapfile]");
-#else
-"usage: kbdcontrol [-dFx] [-b  duration.pitch | [quiet.]belltype]",
-"                  [-r delay.repeat | speed] [-l mapfile] [-f # string]",
-"                  [-h size] [-L mapfile]");
-#endif
 	exit(1);
 }
 
@@ -985,11 +970,7 @@ main(int argc, char **argv)
 {
 	int		opt;
 
-#ifdef __i386__
 	while((opt = getopt(argc, argv, "b:df:h:iKk:Fl:L:r:x")) != -1)
-#else
-	while((opt = getopt(argc, argv, "b:df:h:Fl:L:r:x")) != -1)
-#endif
 		switch(opt) {
 			case 'b':
 				set_bell_values(optarg);
@@ -1013,7 +994,6 @@ main(int argc, char **argv)
 			case 'h':
 				set_history(optarg);
 				break;
-#ifdef __i386__
 			case 'i':
 				show_kbd_info();
 				break;
@@ -1023,7 +1003,6 @@ main(int argc, char **argv)
 			case 'k':
 				set_keyboard(optarg);
 				break;
-#endif /* __i386__ */
 			case 'r':
 				set_keyrates(optarg);
 				break;
