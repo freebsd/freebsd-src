@@ -302,6 +302,7 @@ vendor EXTENDED		0x08e9	Extended Systems
 vendor MSYSTEMS		0x08ec	M-Systems
 vendor AUTHENTEC	0x08ff	AuthenTec
 vendor ALATION		0x0910	Alation Systems
+vendor GOHUBS		0x0921	GoHubs
 vendor BIOMETRIC	0x0929	American Biometric Company
 vendor YANO		0x094f	Yano
 vendor KINGSTON		0x0951	Kingston Technology
@@ -461,6 +462,8 @@ product AVISION 1200U		0x0268	1200U scanner
 /*product BELKIN F5U111		0x????	F5U111 Ethernet adapter*/
 product BELKIN2 F5U002		0x0002	F5U002 Parallel printer adapter
 product BELKIN USB2LAN		0x0121	USB to LAN Converter
+product BELKIN F5U103		0x0103	F5U103 Serial adapter
+product BELKIN F5U120		0x1203	F5U120-PC Hub
 
 /* Billionton products */
 product BILLIONTON USB100	0x0986	USB100N 10/100 FastEthernet Adapter
@@ -596,6 +599,9 @@ product ETEK 1COM		0x8007	Serial port
 
 /* Extended Systems products */
 product EXTENDED XTNDACCESS	0x0100	XTNDAccess IrDA
+
+/* GoHubs products */
+product GOHUBS 	GOCOM232	0x1001	GoCOM232 Serial converter
 
 /* Gravis products */
 product GRAVIS GAMEPADPRO	0x4001	GamePad Pro
