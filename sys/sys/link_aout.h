@@ -58,7 +58,8 @@ struct link_map {
 struct r_debug {
 	int		r_version;		/* not used */
 	struct link_map *r_map;			/* list of loaded images */
-	void		(*r_brk)(void);		/* pointer to break point */
+	void		(*r_brk)(struct r_debug *, struct link_map *);
+						/* pointer to break point */
 	enum {
 	    RT_CONSISTENT,			/* things are stable */
 	    RT_ADD,				/* adding a shared library */
