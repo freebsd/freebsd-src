@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_lnc.c,v 1.55 1999/04/18 01:03:46 paul Exp $
+ * $Id: if_lnc.c,v 1.56 1999/04/18 01:37:19 paul Exp $
  */
 
 /*
@@ -1276,7 +1276,7 @@ lnc_attach_sc(struct lnc_softc *sc, int unit)
 	sc->arpcom.ac_if.if_type = IFT_ETHER;
 	sc->arpcom.ac_if.if_addrlen = ETHER_ADDR_LEN;
 	sc->arpcom.ac_if.if_hdrlen = ETHER_HDR_LEN;
-	sc->arpcom.ac_if.if_snd.ifq_maxlen = NDESC(sc->ntdre);
+	sc->arpcom.ac_if.if_snd.ifq_maxlen = IFQ_MAXLEN;
 
 	/*
 	 * XXX -- should check return status of if_attach
