@@ -97,8 +97,7 @@ static struct linesw		ng_h4_disc = {
 	ng_h4_ioctl,		/* ioctl */
 	ng_h4_input,		/* input */
 	ng_h4_start,		/* start */
-	ttymodem,		/* modem */
-	0 			/* hotchar (don't really care which one) */
+	ttymodem		/* modem */
 };
 
 /* Netgraph methods */
@@ -160,13 +159,6 @@ ng_h4_open(struct cdev *dev, struct tty *tp)
 
 	s = splnet(); /* XXX */
 	spltty(); /* XXX */
-
-	/* Already installed? */
-	if (tp->t_line == H4DISC) {
-		sc = (ng_h4_info_p) tp->t_sc;
-		if (sc != NULL && sc->tp == tp)
-			goto out;
-	}
 
 	/* Initialize private struct */
 	MALLOC(sc, ng_h4_info_p, sizeof(*sc), M_NETGRAPH_H4, M_NOWAIT|M_ZERO);
@@ -243,7 +235,6 @@ ng_h4_close(struct tty *tp, int flag)
 
 	ttyflush(tp, FREAD | FWRITE);
 	clist_free_cblocks(&tp->t_outq);
-	tp->t_line = 0;
 	if (sc != NULL) {
 		tp->t_sc = NULL;
 
