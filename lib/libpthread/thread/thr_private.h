@@ -95,10 +95,10 @@
 #define	SET_STACK_UC(ucp, stk)	(ucp)->uc_mcontext.mc_regs[R_SP] = (unsigned long)(stk)
 #define	FP_SAVE_UC(ucp)
 #define	FP_RESTORE_UC(ucp)
-#define SET_RETURN_ADDR_JB(jb, ra) do {		\
-	(jb)[0]._jb[2] = (long)(ra);		\
-	(jb)[0]._jb[R_RA + 4] = 0;		\
-	(jb)[0]._jb[R_T12 + 4] = (long)(ra);	\
+#define SET_RETURN_ADDR_JB(jb, ra) do {			\
+	(jb)[0]._jb[2] = (unsigned long)(ra) + 8UL;	\
+	(jb)[0]._jb[R_RA + 4] = 0;			\
+	(jb)[0]._jb[R_T12 + 4] = (long)(ra);		\
 } while (0)
 #else
 #error "Don't recognize this architecture!"
