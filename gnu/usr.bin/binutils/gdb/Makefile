@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.23 1997/04/30 15:23:02 bde Exp $
+#	$Id: Makefile,v 1.24 1997/05/01 00:18:50 pst Exp $
 
 PROG = gdb
 
@@ -72,8 +72,6 @@ LDADD+=   -L${.CURDIR}/../libiberty/ -liberty
 DPADD+=   ${.CURDIR}/../libiberty/libiberty.a
 .endif
 
-.include <bsd.prog.mk>
-
 # We do this by grepping through sources.  If that turns out to be too slow,
 # maybe we could just require every .o file to have an initialization routine
 # of a given name (remote-udi.o -> _initialize_remote_udi, etc.).
@@ -113,8 +111,10 @@ ${.OBJDIR}/init.c: ${XSRCS}
 	       sed <$$fn >>init.c-tmp -n \
 	-e '/^_initialize_[a-z_0-9A-Z]* *(/s/^\([a-z_0-9A-Z]*\).*/  {extern void \1 (); \1 ();}/p' ; ;; \
 	  esac ; \
-	@done
+	done
 	@echo '}' >>init.c-tmp
 	@mv init.c-tmp init.c
 
 .PRECIOUS: init.c
+
+.include <bsd.prog.mk>
