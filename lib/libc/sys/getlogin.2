@@ -148,13 +148,6 @@ The caller tried to set the login name and was not the super-user.
 .Xr setsid 2 ,
 .Xr daemon 3
 .Sh BUGS
-Login names are limited in length by
-.Fn setlogin .
-However, lower limits are placed on login names elsewhere in the system
-.Pf ( Dv UT_NAMESIZE
-in
-.Ao Pa utmp.h Ac ) .
-.Pp
 In earlier versions of the system,
 .Fn getlogin
 failed unless the process was associated with a login terminal.
