@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: scsi_driver.c,v 1.14 1996/03/10 07:13:08 gibbs Exp $
+ * $Id: scsi_driver.c,v 1.15 1996/04/07 17:32:41 bde Exp $
  *
  */
 #include <sys/types.h>
@@ -130,7 +130,10 @@ struct scsi_device *device)
 	 * entry.
 	 */
 	if (SCSI_CONTROL(dev) || (device->dev_open == 0))
+	{
+		scsi_test_unit_ready(sc_link, SCSI_SILENT);
 		errcode = 0;
+	}
 	else
 		errcode = (*device->dev_open)(dev, flags, fmt, p, sc_link);
 
