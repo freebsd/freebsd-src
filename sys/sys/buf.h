@@ -124,9 +124,6 @@ struct buf {
 #define B_MAGIC_NFS	0x67238234
 	void	(*b_iodone)(struct buf *);
 	off_t	b_offset;		/* Offset into file. */
-#ifdef USE_BUFHASH
-	LIST_ENTRY(buf) b_hash;		/* Hash chain. */
-#endif
 	TAILQ_ENTRY(buf) b_vnbufs;	/* (V) Buffer's associated vnode. */
 	struct buf	*b_left;	/* (V) splay tree link */
 	struct buf	*b_right;	/* (V) splay tree link */
