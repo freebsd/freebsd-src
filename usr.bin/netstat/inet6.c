@@ -1022,7 +1022,7 @@ rip6_stats(off, name)
 
 /*
  * Pretty print an Internet address (net address + port).
- * If the nflag was specified, use numbers instead of names.
+ * Take numeric_addr and numeric_port into consideration.
  */
 #define GETSERVBYPORT6(port, proto, ret)\
 {\
@@ -1060,7 +1060,7 @@ inet6print(in6, port, proto, numeric)
 
 /*
  * Construct an Internet address representation.
- * If the nflag has been supplied, give
+ * If the numeric_addr has been supplied, give
  * numeric value, otherwise try for symbolic name.
  */
 
@@ -1074,7 +1074,7 @@ inet6name(in6p)
 	static char domain[MAXHOSTNAMELEN];
 	static int first = 1;
 
-	if (first && !nflag) {
+	if (first && !numeric_addr) {
 		first = 0;
 		if (gethostname(domain, MAXHOSTNAMELEN) == 0 &&
 		    (cp = index(domain, '.')))
@@ -1083,7 +1083,7 @@ inet6name(in6p)
 			domain[0] = 0;
 	}
 	cp = 0;
-	if (!nflag && !IN6_IS_ADDR_UNSPECIFIED(in6p)) {
+	if (!numeric_addr && !IN6_IS_ADDR_UNSPECIFIED(in6p)) {
 		hp = gethostbyaddr((char *)in6p, sizeof(*in6p), AF_INET6);
 		if (hp) {
 			if ((cp = index(hp->h_name, '.')) &&
