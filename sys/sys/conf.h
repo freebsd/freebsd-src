@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)conf.h	8.5 (Berkeley) 1/9/95
- * $Id$
+ * $Id: conf.h,v 1.34 1997/02/22 09:44:58 peter Exp $
  */
 
 #ifndef _SYS_CONF_H_
@@ -65,7 +65,7 @@ typedef int d_write_t __P((dev_t dev, struct uio *uio, int ioflag));
 typedef void d_stop_t __P((struct tty *tp, int rw));
 typedef int d_reset_t __P((dev_t dev));
 typedef struct tty *d_devtotty_t __P((dev_t dev));
-typedef int d_select_t __P((dev_t dev, int which, struct proc *p));
+typedef int d_poll_t __P((dev_t dev, int events, struct proc *p));
 typedef int d_mmap_t __P((dev_t dev, int offset, int nprot));
 
 typedef int l_open_t __P((dev_t dev, struct tty *tp));
@@ -117,7 +117,7 @@ struct cdevsw {
 	d_stop_t	*d_stop;
 	d_reset_t	*d_reset;	/* XXX not used */
 	d_devtotty_t	*d_devtotty;
-	d_select_t	*d_select;
+	d_poll_t	*d_poll;
 	d_mmap_t	*d_mmap;
 	d_strategy_t	*d_strategy;
 	char		*d_name;	/* see above */
@@ -174,7 +174,6 @@ d_ioctl_t	noioctl;
 d_stop_t	nostop;
 d_reset_t	noreset;
 d_devtotty_t	nodevtotty;
-d_select_t	noselect;
 d_mmap_t	nommap;
 
 /* Bogus defines for compatibility. */
@@ -207,7 +206,6 @@ d_ioctl_t	nxioctl;
 #define	nxstop	nostop		/* one void return is as good as another */
 #define	nxreset	noreset		/* one unused function is as good as another */
 #define	nxdevtotty nodevtotty	/* one NULL return is as good as another */
-d_select_t	nxselect;
 #define	nxmmap	nommap		/* one -1 return is as good as another */
 #define	nxstrategy nostrategy	/* one NULL value is as good as another */
 d_dump_t	nxdump;

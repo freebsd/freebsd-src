@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)socketvar.h	8.3 (Berkeley) 2/19/95
- * $Id: socketvar.h,v 1.20 1997/07/19 20:15:43 fenner Exp $
+ * $Id: socketvar.h,v 1.21 1997/08/16 19:16:14 wollman Exp $
  */
 
 #ifndef _SYS_SOCKETVAR_H_
@@ -210,7 +210,8 @@ struct stat;
  */
 int	soo_ioctl __P((struct file *fp, int cmd, caddr_t data,
 	    struct proc *p));
-int	soo_select __P((struct file *fp, int which, struct proc *p));
+int	soo_poll __P((struct file *fp, int events, struct ucred *cred,
+	    struct proc *p));
 int	soo_stat __P((struct socket *so, struct stat *ub));
 
 /*
@@ -262,12 +263,13 @@ struct socket *
 	sodropablereq __P((struct socket *head));
 struct socket *
 	sonewconn __P((struct socket *head, int connstatus));
+int	sopoll __P((struct socket *so, int events, struct ucred *cred,
+		    struct proc *p));
 int	soreceive __P((struct socket *so, struct sockaddr **paddr,
 		       struct uio *uio, struct mbuf **mp0,
 		       struct mbuf **controlp, int *flagsp));
 int	soreserve __P((struct socket *so, u_long sndcc, u_long rcvcc));
 void	sorflush __P((struct socket *so));
-int	soselect __P((struct socket *so, int which, struct proc *p));
 int	sosend __P((struct socket *so, struct sockaddr *addr, struct uio *uio,
 		    struct mbuf *top, struct mbuf *control, int flags,
 		    struct proc *p));
