@@ -213,9 +213,17 @@ trap(frame)
 		 * do the VM lookup, so just consider it a fatal trap so the
 		 * kernel can print out a useful trap message and even get
 		 * to the debugger.
+		 *
+		 * Note that T_PAGEFLT is registered as an interrupt gate.  This
+		 * is just like a trap gate, except interrupts are disabled.  This
+		 * happens to be critically important, because we could otherwise
+		 * preempt and run another process that may cause %cr2 to be
+		 * clobbered for something else.
 		 */
 		eva = rcr2();
-		if (PCPU_GET(spinlocks) != NULL)
+		if (PCPU_GET(spinlocks) == NULL)
+			enable_intr();
+		else
 			trap_fatal(&frame, eva);
 	}
 
