@@ -33,21 +33,20 @@
 .\"
 .\"
 .Dd August 13, 1995
-.Dt FSCK_MSDOS 8
-.Os NetBSD 1.1a
+.Dt FSCK_MSDOSFS 8
+.Os
 .Sh NAME
-.Nm fsck_msdos
+.Nm fsck_msdosfs
 .Nd DOS/Windows (FAT) filesystem consistency checker
 .Sh SYNOPSIS
-.Nm ""
+.Nm
 .Fl p
 .Op Fl f
 .Ar filesystem ...
-.Nm ""
+.Nm
 .Op Fl fny
 .Ar filesystem ...
 .Sh DESCRIPTION
-.Pp
 The
 .Nm
 utility verifies and repairs
@@ -67,8 +66,8 @@ run from
 during automatic reboot, when a FAT filesystem is detected.
 When preening file systems,
 .Nm
-will fix common inconsistencies non-interactively.  If
-more serious problems are found,
+will fix common inconsistencies non-interactively.
+If more serious problems are found,
 .Nm
 does not try to fix them, indicates that it was not
 successful, and exits.
@@ -80,25 +79,29 @@ detected inconsistencies, requesting confirmation before
 making any changes.
 .Pp
 The options are as follows:
-.Bl -hang -offset indent
+.Bl -tag -width indent
 .It Fl f
 This option is ignored by
-.Nm "" ,
+.Nm ,
 and is present only for compatibility with programs that
 check other file system types for consistency, such as
 .Xr fsck_ffs 8 .
 .It Fl n
 Causes
 .Nm
-to assume no as the answer to all operator
+to assume
+.Dq Li no
+as the answer to all operator
 questions, except
-.Dq CONTINUE? .
+.Dq Li CONTINUE? .
 .It Fl p
 Preen the specified filesystems.
 .It Fl y
 Causes
 .Nm
-to assume yes as the answer to all operator questions.
+to assume
+.Dq Li yes
+as the answer to all operator questions.
 .El
 .Sh SEE ALSO
 .Xr fsck 8 ,
