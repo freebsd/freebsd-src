@@ -217,7 +217,7 @@ options 	MUTEX_WAKE_ALL
 #	  a lock hierarchy violation occurs or if locks are held when going to
 #	  sleep.
 # WITNESS_SKIPSPIN disables the witness checks on spin mutexes.
-options		PREEMPTION
+options 	PREEMPTION
 options 	FULL_PREEMPTION
 options 	MUTEX_DEBUG
 options 	WITNESS
