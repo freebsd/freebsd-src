@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_output.c	8.3 (Berkeley) 12/30/93
- * $Id: tcp_output.c,v 1.6 1995/01/26 03:56:20 davidg Exp $
+ * $Id: tcp_output.c,v 1.7 1995/02/09 23:13:24 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -81,10 +81,8 @@ tcp_output(tp)
 	u_char opt[TCP_MAXOLEN];
 	unsigned optlen, hdrlen;
 	int idle, sendalot;
-#ifdef TTCP
 	struct rmxp_tao *taop;
 	struct rmxp_tao tao_noncached;
-#endif
 
 	/*
 	 * Determine length of data that should be transmitted,
@@ -106,7 +104,6 @@ again:
 	win = min(tp->snd_wnd, tp->snd_cwnd);
 
 	flags = tcp_outflags[tp->t_state];
-#ifdef TTCP
 	/*
 	 * Get standard flags, and add SYN or FIN if requested by 'hidden'
 	 * state flags.
@@ -115,7 +112,6 @@ again:
 		flags |= TH_FIN;
 	if (tp->t_flags & TF_NEEDSYN)
 		flags |= TH_SYN;
-#endif /* TTCP */
 
 	/*
 	 * If in persist timeout with window of 0, send 1 byte.
@@ -152,7 +148,6 @@ again:
 
 	len = min(so->so_snd.sb_cc, win) - off;
 
-#ifdef TTCP
 	if ((taop = tcp_gettaocache(tp->t_inpcb)) == NULL) {
 		taop = &tao_noncached;
 		bzero(taop, sizeof(*taop));
@@ -170,7 +165,6 @@ again:
 		    taop->tao_ccsent == 0)
 			return 0;
 	}
-#endif /* TTCP */
 
 	if (len < 0) {
 		/*
@@ -212,18 +206,12 @@ again:
 		if (len == tp->t_maxseg)
 			goto send;
 		if ((idle || tp->t_flags & TF_NODELAY) &&
-#ifdef TTCP
 		    (tp->t_flags & TF_NOPUSH) == 0 &&
-#endif
 		    len + off >= so->so_snd.sb_cc)
 			goto send;
 		if (tp->t_force)
 			goto send;
-#ifdef TTCP
 		if (len >= tp->max_sndwnd / 2 && tp->max_sndwnd > 0)
-#else
-		if (len >= tp->max_sndwnd / 2)
-#endif
 			goto send;
 		if (SEQ_LT(tp->snd_nxt, tp->snd_max))
 			goto send;
@@ -256,12 +244,8 @@ again:
 	 */
 	if (tp->t_flags & TF_ACKNOW)
 		goto send;
-#ifdef TTCP
 	if ((flags & TH_RST) ||
 	    ((flags & TH_SYN) && (tp->t_flags & TF_NEEDSYN) == 0))
-#else
-	if (flags & (TH_SYN|TH_RST))
-#endif
 		goto send;
 	if (SEQ_GT(tp->snd_up, tp->snd_una))
 		goto send;
@@ -349,11 +333,7 @@ send:
  	 */
  	if ((tp->t_flags & (TF_REQ_TSTMP|TF_NOOPT)) == TF_REQ_TSTMP &&
  	    (flags & TH_RST) == 0 &&
-#ifdef TTCP
 	    ((flags & TH_ACK) == 0 ||
-#else
- 	    ((flags & (TH_SYN|TH_ACK)) == TH_SYN ||
-#endif
 	     (tp->t_flags & TF_RCVD_TSTMP))) {
 		u_long *lp = (u_long *)(opt + optlen);
  
@@ -364,7 +344,6 @@ send:
  		optlen += TCPOLEN_TSTAMP_APPA;
  	}
 
-#ifdef TTCP
  	/*
 	 * Send `CC-family' options if our side wants to use them (TF_REQ_CC),
 	 * options are allowed (!TF_NOOPT) and it's not a RST.
@@ -442,7 +421,6 @@ send:
 			break;
 		}
  	}
-#endif /* TTCP */
 
  	hdrlen += optlen;
  

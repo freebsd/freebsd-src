@@ -322,13 +322,8 @@ struct tcpcb *
 	 tcp_disconnect __P((struct tcpcb *));
 struct tcpcb *
 	 tcp_drop __P((struct tcpcb *, int));
-#ifdef TTCP
 void	 tcp_dooptions __P((struct tcpcb *,
 	    u_char *, int, struct tcpiphdr *, struct tcpopt *));
-#else
-void	 tcp_dooptions __P((struct tcpcb *,
-	    u_char *, int, struct tcpiphdr *, int *, u_long *, u_long *));
-#endif
 void	 tcp_drain __P((void));
 void	 tcp_fasttimo __P((void));
 struct rmxp_tao *
