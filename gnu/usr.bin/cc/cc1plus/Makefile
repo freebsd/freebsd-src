@@ -6,7 +6,7 @@
 
 PROG=	cc1plus
 SRCS=	parse+%DIKED.c parse.h cfns.h
-SRCS+=	main.c cp-lang.c \
+SRCS+=	main.c cp-lang.c c-opts.c \
 	call.c class.c cvt.c decl.c decl2.c error.c except.c expr.c friend.c \
 	init.c lex.c mangle.c method.c pt.c ptree.c repo.c rtti.c search.c \
 	semantics.c spew.c tree.c typeck.c typeck2.c dump.c optimize.c 

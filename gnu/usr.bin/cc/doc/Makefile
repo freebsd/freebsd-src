@@ -14,7 +14,7 @@ INFOENTRY_cppinternals= "* cppinternals: (cppinternals).		The GNU compiler prepr
 
 gcc.info: gcc.texi include/gcc-common.texi frontends.texi standards.texi \
     invoke.texi extend.texi md.texi objc.texi gcov.texi trouble.texi \
-    bugreport.texi service.texi contribute.texi vms.texi \
+    bugreport.texi service.texi contribute.texi compat.texi \
     include/funding.texi gnu.texi include/gpl.texi include/fdl.texi \
     contrib.texi cppenv.texi cppopts.texi
 
@@ -23,7 +23,7 @@ gccint.info: gccint.texi include/gcc-common.texi contribute.texi \
     passes.texi c-tree.texi rtl.texi md.texi tm.texi hostconfig.texi \
     fragments.texi configfiles.texi collect2.texi headerdirs.texi \
     include/funding.texi gnu.texi include/gpl.texi include/fdl.texi \
-    contrib.texi languages.texi sourcebuild.texi
+    contrib.texi languages.texi sourcebuild.texi gty.texi
 
 cpp.info: cpp.texi include/fdl.texi cppenv.texi cppopts.texi
 

@@ -5,7 +5,7 @@
 .PATH: ${GCCDIR}
  
 PROG=	cc1
-SRCS=	main.c c-parse+%DIKED.c c-lang.c c-decl.c
+SRCS=	main.c c-parse+%DIKED.c c-lang.c c-decl.c c-opts.c
 BINDIR=	/usr/libexec
 NOMAN=	1
 NOSHARED?=yes
