@@ -508,7 +508,7 @@ print(format, file)
 {
 	register int n;
 	register char *prog;
-	int fi, fo;
+	int dtablesize, fi, fo;
 	FILE *fp;
 	char *av[15], buf[BUFSIZ];
 	int pid, p[2], stopped = 0;
@@ -558,7 +558,8 @@ print(format, file)
 			dup2(fi, 0);		/* file is stdin */
 			dup2(p[1], 1);		/* pipe is stdout */
 			closelog();
-			for (n = 3; n < NOFILE; n++)
+			for (n = 3, dtablesize = getdtablesize();
+			     n < dtablesize; n++)
 				(void) close(n);
 			execl(_PATH_PR, "pr", width, length,
 			    "-h", *title ? title : " ", "-F", 0);
@@ -680,7 +681,7 @@ start:
 		if (n >= 0)
 			dup2(n, 2);
 		closelog();
-		for (n = 3; n < NOFILE; n++)
+		for (n = 3, dtablesize = getdtablesize(); n < dtablesize; n++)
 			(void) close(n);
 		execv(prog, av);
 		syslog(LOG_ERR, "cannot execv %s", prog);
@@ -1027,6 +1028,7 @@ sendmail(user, bombed)
 	int bombed;
 {
 	register int i;
+	int dtablesize;
 	int p[2], s;
 	register char *cp;
 	char buf[100];
@@ -1037,7 +1039,7 @@ sendmail(user, bombed)
 	if ((s = dofork(DORETURN)) == 0) {		/* child */
 		dup2(p[0], 0);
 		closelog();
-		for (i = 3; i < NOFILE; i++)
+		for (i = 3, dtablesize = getdtablesize(); i < dtablesize; i++)
 			(void) close(i);
 		if ((cp = rindex(_PATH_SENDMAIL, '/')) != NULL)
 			cp++;
@@ -1225,6 +1227,7 @@ static void
 openpr()
 {
 	register int i;
+	int dtablesize;
 	char *cp;
 
 	if (!remote && *LP) {
@@ -1251,7 +1254,8 @@ openpr()
 			dup2(p[0], 0);		/* pipe is std in */
 			dup2(pfd, 1);		/* printer is std out */
 			closelog();
-			for (i = 3; i < NOFILE; i++)
+			for (i = 3, dtablesize = getdtablesize();
+			     i < dtablesize; i++)
 				(void) close(i);
 			if ((cp = rindex(OF, '/')) == NULL)
 				cp = OF;
