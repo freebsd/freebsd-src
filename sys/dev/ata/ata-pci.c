@@ -154,20 +154,8 @@ static int
 ata_pci_attach(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
-    u_int8_t class, subclass;
-    u_int32_t type, cmd;
+    u_int32_t cmd;
     int unit;
-
-    /* set up vendor-specific stuff */
-    type = pci_get_devid(dev);
-    class = pci_get_class(dev);
-    subclass = pci_get_subclass(dev);
-    cmd = pci_read_config(dev, PCIR_COMMAND, 2);
-
-    if (!(cmd & (PCIM_CMD_PORTEN | PCIM_CMD_MEMEN))) {
-	device_printf(dev, "ATA channel disabled by BIOS\n");
-	return 0;
-    }
 
     /* do chipset specific setups only needed once */
     if (ATA_MASTERDEV(dev) || pci_read_config(dev, 0x18, 4) & IOMASK)
@@ -178,18 +166,19 @@ ata_pci_attach(device_t dev)
     ctlr->dmainit = ata_pci_dmainit;
     ctlr->locking = ata_pci_locknoop;
 
-#ifdef __sparc64__
+    /* if needed try to enable busmastering */
+    cmd = pci_read_config(dev, PCIR_COMMAND, 2);
     if (!(cmd & PCIM_CMD_BUSMASTEREN)) {
 	pci_write_config(dev, PCIR_COMMAND, cmd | PCIM_CMD_BUSMASTEREN, 2);
 	cmd = pci_read_config(dev, PCIR_COMMAND, 2);
     }
-#endif
-    /* if busmastering configured get the I/O resource */
-    if ((cmd & PCIM_CMD_BUSMASTEREN) == PCIM_CMD_BUSMASTEREN) {
-	int rid = ATA_BMADDR_RID;
 
-	ctlr->r_io1 = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
-					 0, ~0, 1, RF_ACTIVE);
+    /* if busmastering mode "stuck" use it */
+    if ((cmd & PCIM_CMD_BUSMASTEREN) == PCIM_CMD_BUSMASTEREN) {
+	ctlr->r_type1 = SYS_RES_IOPORT;
+	ctlr->r_rid1 = ATA_BMADDR_RID;
+	ctlr->r_res1 = bus_alloc_resource(dev, ctlr->r_type1, &ctlr->r_rid1,
+					  0, ~0, 1, RF_ACTIVE);
     }
 
     ctlr->chipinit(dev);
@@ -199,9 +188,34 @@ ata_pci_attach(device_t dev)
 	device_add_child(dev, "ata", ATA_MASTERDEV(dev) ?
 			 unit : devclass_find_free_unit(ata_devclass, 2));
 
-    return bus_generic_attach(dev);
-}
+    return bus_generic_attach(dev); }
 
+static int
+ata_pci_detach(device_t dev)
+{
+    struct ata_pci_controller *ctlr = device_get_softc(dev);
+    struct ata_channel *ch;
+    int unit;
+
+    /* mark HW as gone, we dont want to issue commands to HW no longer there */
+    for (unit = 0; unit < ctlr->channels; unit++) {
+	if ((ch = ctlr->interrupt[unit].argument))
+	    ch->flags |= ATA_HWGONE;
+    }
+
+    bus_generic_detach(dev);
+
+    if (ctlr->r_irq) {
+	bus_teardown_intr(dev, ctlr->r_irq, ctlr->handle);
+	bus_release_resource(dev, SYS_RES_IRQ, ATA_IRQ_RID, ctlr->r_irq);
+    }
+    if (ctlr->r_res2)
+	bus_release_resource(dev, ctlr->r_type2, ctlr->r_rid2, ctlr->r_res2);
+    if (ctlr->r_res1)
+	bus_release_resource(dev, ctlr->r_type1, ctlr->r_rid1, ctlr->r_res1);
+
+    return 0;
+}
 
 static int
 ata_pci_print_child(device_t dev, device_t child)
@@ -420,9 +434,9 @@ ata_pci_allocate(device_t dev, struct ata_channel *ch)
     ch->r_io[ATA_ALTSTAT].offset = 0;
     ch->r_io[ATA_IDX_ADDR].res = io;
 
-    if (ctlr->r_io1) {
+    if (ctlr->r_res1) {
 	for (i = ATA_BMCMD_PORT; i <= ATA_BMDTP_PORT; i++) {
-	    ch->r_io[i].res = ctlr->r_io1;
+	    ch->r_io[i].res = ctlr->r_res1;
 	    ch->r_io[i].offset = (i - ATA_BMCMD_PORT)+(ch->unit * ATA_BMIOSIZE);
 	}
 
@@ -481,6 +495,7 @@ static device_method_t ata_pci_methods[] = {
     /* device interface */
     DEVMETHOD(device_probe,		ata_pci_probe),
     DEVMETHOD(device_attach,		ata_pci_attach),
+    DEVMETHOD(device_detach,		ata_pci_detach),
     DEVMETHOD(device_shutdown,		bus_generic_shutdown),
     DEVMETHOD(device_suspend,		bus_generic_suspend),
     DEVMETHOD(device_resume,		bus_generic_resume),
@@ -514,6 +529,9 @@ ata_pcisub_probe(device_t dev)
     device_t *children;
     int count, error, i;
 
+    /* take care of green memory */
+    bzero(ch, sizeof(struct ata_channel));
+
     /* find channel number on this controller */
     device_get_children(device_get_parent(dev), &children, &count);
     for (i = 0; i < count; i++) {
@@ -528,6 +546,8 @@ ata_pcisub_probe(device_t dev)
     ch->device[MASTER].setmode = ctlr->setmode;
     ch->device[SLAVE].setmode = ctlr->setmode;
     ch->locking = ctlr->locking;
+    if (ch->reset)
+	ch->reset(ch);
     return ata_probe(dev);
 }
 

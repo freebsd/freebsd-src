@@ -459,6 +459,39 @@ ata_timeout(struct ata_request *request)
     return;
 }
 
+void
+ata_fail_requests(struct ata_channel *ch, struct ata_device *device)
+{
+    struct ata_request *request;
+
+    /* fail all requests queued on this channel */
+    mtx_lock(&ch->queue_mtx);
+    while ((request = TAILQ_FIRST(&ch->ata_queue))) {
+	if (!device || request->device == device) {
+	    TAILQ_REMOVE(&ch->ata_queue, request, chain);
+	    request->result = ENXIO;
+	    if (request->callback)
+		(request->callback)(request);
+	    else
+		sema_post(&request->done);
+	}
+    }
+    mtx_unlock(&ch->queue_mtx);
+
+    /* if we have a request "in flight" fail it as well */
+    if ((!device || request->device == device) && (request = ch->running)) {
+	untimeout((timeout_t *)ata_timeout, request, request->timeout_handle);
+	ATA_UNLOCK_CH(request->device->channel);
+	request->device->channel->locking(request->device->channel,
+					  ATA_LF_UNLOCK);
+	request->result = ENXIO;
+	if (request->callback)
+	    (request->callback)(request);
+	else
+	    sema_post(&request->done);
+    }
+}
+
 char *
 ata_cmd2str(struct ata_request *request)
 {
