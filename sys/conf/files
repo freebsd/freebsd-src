@@ -373,6 +373,7 @@ dev/isp/isp_freebsd.c	optional isp
 dev/isp/isp_target.c	optional isp
 dev/isp/isp_pci.c	optional isp
 dev/ispfw/ispfw.c	optional ispfw
+dev/joy/joy.c		optional joy
 dev/lge/if_lge.c	optional lge
 dev/lmc/if_lmc.c	optional lmc
 dev/lnc/if_lnc.c	optional lnc
@@ -740,7 +741,6 @@ i4b/layer4/i4b_l4timer.c	optional i4b
 isa/isa_if.m		optional isa
 isa/isa_common.c	optional isa
 isa/isahint.c		optional isa
-isa/joy.c		optional joy
 isa/orm.c		optional isa
 isa/pnp.c		optional isa
 isa/pnpparse.c		optional isa
