@@ -50,6 +50,7 @@ static char rcsid[] = "$OpenBSD: fsirand.c,v 1.9 1997/02/28 00:46:33 millert Exp
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 
 void usage __P((int));
@@ -84,6 +85,9 @@ main(argc, argv)
 	}
 	if (argc - optind < 1)
 		usage(1);
+
+	if (srandomdev() < 0)
+		srandom(time(NULL) ^ getpid());
 
 	/* Increase our data size to the max */
 	if (getrlimit(RLIMIT_DATA, &rl) == 0) {
