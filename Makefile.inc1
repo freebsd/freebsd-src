@@ -538,14 +538,14 @@ buildkernel:
 #
 # Install the kernel defined by INSTALLKERNEL
 #
-installkernel reinstallkernel:
+installkernel reinstallkernel installkernel.debug reinstallkernel.debug:
 .if empty(INSTALLKERNEL)
 	@echo "ERROR: No kernel \"${KERNCONF}\" to install."
 	@false
 .endif
 	cd ${KRNLOBJDIR}/${INSTALLKERNEL}; \
 	    ${CROSSENV} PATH=${TMPPATH} \
-	    ${MAKE} KERNEL=${INSTKERNNAME} ${.TARGET:S/kernel$//}
+	    ${MAKE} KERNEL=${INSTKERNNAME} ${.TARGET:S/kernel//}
 
 #
 # update
