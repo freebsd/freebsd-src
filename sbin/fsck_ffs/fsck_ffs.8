@@ -42,41 +42,14 @@
 .Nd filesystem consistency check and interactive repair
 .Sh SYNOPSIS
 .Nm
-.Fl p
-.Op Fl f
-.Op Fl m Ar mode
-.Op Ar filesystem
-.Ar ...
-.Nm
-.Op Fl ny
+.Op Fl BFpfny
 .Op Fl b Ar block#
 .Op Fl c Ar level
-.Op Fl l Ar maxparallel
 .Op Fl m Ar mode
-.Op Ar filesystem
+.Ar filesystem
 .Ar ...
 .Sh DESCRIPTION
-The first form of
-.Nm
-preens a standard set of filesystems or the specified filesystems.
-It is normally used in the script
-.Pa /etc/rc
-during automatic reboot.
-Here
-.Nm
-reads the table
-.Pa /etc/fstab
-to determine which filesystems to check.
-Only partitions in fstab that are mounted ``rw,'' ``rq'' or ``ro''
-and that have non-zero pass number are checked.
-Filesystems with pass number 1 (normally just the root filesystem)
-are checked one at a time.
-When pass 1 completes, all remaining filesystems are checked,
-running one process per disk drive.
-The disk drive containing each filesystem is inferred from the longest prefix
-of the device name that ends in a digit; the remaining characters are assumed
-to be the partition designator.
-.Pp
+The specified disk partitions and/or filesystems are checked.
 In "preen" mode the clean flag of each filesystem's superblock is examined
 and only those filesystems that
 are not marked clean are checked.
@@ -166,17 +139,40 @@ will default to a
 .Fl n
 action.
 .Pp
-.Nm Fsck
-has more consistency checks than
-its predecessors
-.Em check , dcheck , fcheck ,
-and
-.Em icheck
-combined.
-.Pp
 The following flags are interpreted by
-.Nm .
+.Nm
 .Bl -tag -width indent
+.It Fl F
+Determine whether the filesystem needs to be cleaned immediately
+in foreground, or if its cleaning can be deferred to background.
+To be eligible for background cleaning it must have been running
+with soft updates, not have been marked as needing a foreground check,
+and be mounted and writable when the background check is to be done.
+If these conditions are met, then
+.Nm
+exits with a zero exit status.
+Otherwise it exits with a non-zero exit status.
+If the filesystem is clean,
+it will exit with a non-zero exit status so that the clean status
+of the filesystem can be verified and reported during the foreground
+checks.
+Note that when invoked with the
+.Fl F
+flag, no cleanups are done.
+The only thing that
+.Nm
+does is to determine whether a foreground or background
+check is needed and exit with an appropriate status code.
+.It Fl B
+A check is done on the specified and possibly active filesystem.
+The set of corrections that can be done is limited to those done
+when running in preen mode (see the
+.Fl p
+flag).
+If unexpected errors are found,
+the filesystem is marked as needing a foreground check and
+.Nm
+exits without attempting any further cleaning.
 .It Fl b
 Use the block specified immediately after the flag as
 the super block for the filesystem.  Block 32 is usually
@@ -220,12 +216,6 @@ Force
 to check
 .Sq clean
 filesystems when preening.
-.It Fl l
-Limit the number of parallel checks to the number specified in the following
-argument.
-By default, the limit is the number of disks, running one process per disk.
-If a smaller limit is given, the disks are checked round-robin, one filesystem
-at a time.
 .It Fl m
 Use the mode specified in octal immediately after the flag as the
 permission bits to use when creating the
@@ -249,12 +239,6 @@ Assume a yes response to all questions asked by
 this should be used with great caution as this is a free license
 to continue after essentially unlimited trouble has been encountered.
 .El
-.Pp
-If no filesystems are given to 
-.Nm
-then a default list of filesystems is read from
-the file
-.Pa /etc/fstab .
 .Pp
 Inconsistencies checked are as follows:
 .Pp
@@ -312,9 +296,6 @@ If the
 .Pa lost+found
 directory does not exist, it is created.
 If there is insufficient space its size is increased.
-.Pp
-Because of inconsistencies between the block device and the buffer cache,
-the raw device should always be used.
 .Sh FILES
 .Bl -tag -width /etc/fstab -compact
 .It Pa /etc/fstab
