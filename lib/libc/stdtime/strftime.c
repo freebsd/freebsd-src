@@ -13,13 +13,11 @@
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
- *
- *      $Id:$
  */
 
 #ifdef LIBC_RCS
 static const char rcsid[] =
-	"$Id: strftime.c,v 1.6 1995/10/23 19:52:43 ache Exp $";
+	"$Id: strftime.c,v 1.7 1996/05/27 04:10:27 scrappy Exp $";
 #endif
 
 #ifndef lint
