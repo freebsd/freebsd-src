@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)sigaltstack.2	8.2 (Berkeley) 5/1/95
-.\"	$Id: sigaltstack.2,v 1.7 1997/03/12 16:23:36 mpp Exp $
+.\"	$Id: sigaltstack.2,v 1.8 1997/03/12 17:16:22 bde Exp $
 .\"
 .Dd May 1, 1995
 .Dt SIGALTSTACK 2
@@ -39,12 +39,11 @@
 .Nm sigaltstack
 .Nd set and/or get signal stack context
 .Sh SYNOPSIS
-.Fd #include <sys/types.h>
 .Fd #include <signal.h>
 .Bd -literal
 struct sigaltstack {
 	char	*ss_sp;
-	long	ss_size;
+	size_t	ss_size;
 	int     ss_flags;
 };
 .Ed
