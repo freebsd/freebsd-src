@@ -1,6 +1,6 @@
 /**
  ** Copyright (c) 1995
- **      Michael Smith, msmith@atrad.adelaide.edu.au.  All rights reserved.
+ **      Michael Smith, msmith@freebsd.org.  All rights reserved.
  **
  ** This code contains a module marked :
 
@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.107 1998/09/07 13:00:58 jkh Exp $
+ **      $Id: userconfig.c,v 1.108 1998/09/15 10:03:43 gibbs Exp $
  **/
 
 /**
@@ -64,7 +64,7 @@
 /**
  ** USERCONFIG, visual mode.
  **
- **   msmith@atrad.adelaide.edu.au
+ **   msmith@freebsd.org
  **
  ** Look for "EDIT THIS LIST" to add to the list of known devices
  ** 
@@ -231,9 +231,8 @@ static DEVCLASS_INFO devclass_names[] = {
 
 static DEV_INFO device_info[] = {
 /*---Name-----   ---Description---------------------------------------------- */
-{"isp",		"QLogic ISP SCSI Controller",		FLG_IMMUTABLE,
-CLS_STORAGE},
-{"dpt",          "DPT SCSI RAID Controller",		FLG_IMMUTABLE,		CLS_STORAGE},
+{"isp",	        "QLogic ISP SCSI Controller",		FLG_IMMUTABLE,	CLS_STORAGE},
+{"dpt",         "DPT SCSI RAID Controller",		FLG_IMMUTABLE,	CLS_STORAGE},
 {"adv",         "Advanced Systems SCSI controller",	0,		CLS_STORAGE},
 {"bt",          "Buslogic SCSI controller",		0,		CLS_STORAGE},
 {"ahc",         "Adaptec 274x/284x/294x SCSI controller",	0,	CLS_STORAGE},
@@ -251,7 +250,7 @@ CLS_STORAGE},
 {"scd",         "Sony CD-ROM",				0,		CLS_STORAGE},
 {"matcdc",       "Matsushita/Panasonic/Creative CDROM",	0,		CLS_STORAGE},
 {"wt",          "Wangtek/Archive QIC-02 Tape drive",	0,		CLS_STORAGE},
-{"amd",		"Tekram DC-390(T) / AMD 53c974 based PCI SCSI",	FLG_FIXED, CLS_STORAGE},
+{"amd",	        "Tekram DC-390(T) / AMD 53c974 based PCI SCSI",	FLG_FIXED, CLS_STORAGE},
 
 {"cs",          "IBM EtherJet, CS89x0-based Ethernet adapters",0,	CLS_NETWORK},
 {"ed",          "NE1000,NE2000,3C503,WD/SMC80xx Ethernet adapters",0,	CLS_NETWORK},
@@ -272,7 +271,7 @@ CLS_STORAGE},
 {"de",          "DEC DC21040 Ethernet adapter",		FLG_FIXED,	CLS_NETWORK},
 {"fpa",         "DEC DEFPA PCI FDDI adapter",		FLG_FIXED,	CLS_NETWORK},
 {"tlc",         "Texas Instruments ThunderLAN ethernet adapter", FLG_FIXED, CLS_NETWORK},
-{"xl",         "3COM 3C90x PCI FDDI adapter",		FLG_FIXED,	CLS_NETWORK},
+{"xl",          "3COM 3C90x PCI FDDI adapter",		FLG_FIXED,	CLS_NETWORK},
 
 {"sio",         "8250/16450/16550 Serial port",		0,		CLS_COMMS},
 {"cx",          "Cronyx/Sigma multiport sync/async adapter",0,		CLS_COMMS},
@@ -290,8 +289,8 @@ CLS_STORAGE},
 {"mse",         "Microsoft Bus Mouse",			0,		CLS_INPUT},
 {"psm",         "PS/2 Mouse",				0,		CLS_INPUT},
 {"joy",         "Joystick",				FLG_FIXED,	CLS_INPUT},
-{"vt",          "PCVT console driver",			FLG_FIXED,	CLS_INPUT},
-{"sc",          "Syscons console driver",		FLG_FIXED,	CLS_INPUT},
+{"vt",          "PCVT console driver",			FLG_IMMUTABLE,	CLS_INPUT},
+{"sc",          "Syscons console driver",		FLG_IMMUTABLE,	CLS_INPUT},
 
 {"bktr",        "Brooktree BT848 based frame grabber/tuner card",	0,CLS_MMEDIA},
 {"pcm",         "New Luigi audio driver for all supported sound cards",	0,CLS_MMEDIA},
@@ -315,16 +314,16 @@ CLS_STORAGE},
 {"scc",         "IBM Smart Capture Card",		0,		CLS_MMEDIA},
 {"gsc",         "Genius GS-4500 hand scanner",		0,		CLS_MMEDIA},
 {"asc",         "AmiScan scanner",			0,		CLS_MMEDIA},
-{"qcam",	"QuickCam parallel port camera",	0,		CLS_MMEDIA},
+{"qcam",        "QuickCam parallel port camera",	0,		CLS_MMEDIA},
 
 {"apm",         "Advanced Power Management",		FLG_FIXED,	CLS_MISC},
 {"labpc",       "National Instruments Lab-PC/Lab-PC+",	0,		CLS_MISC},
 {"npx",	        "Math coprocessor",			FLG_INVISIBLE,	CLS_MISC},
 {"lkm",		"Loadable PCI driver support",		FLG_INVISIBLE,	CLS_MISC},
-{"vga",		"Catchall PCI VGA driver",		FLG_INVISIBLE,	CLS_MISC},
-{"chip",	"PCI chipset support",			FLG_INVISIBLE,	CLS_MISC},
+{"vga",	        "Catchall PCI VGA driver",		FLG_INVISIBLE,	CLS_MISC},
+{"chip",        "PCI chipset support",			FLG_INVISIBLE,	CLS_MISC},
 {"piix",        "Intel 82371 Bus-master IDE controller", FLG_INVISIBLE, CLS_MISC},
-{"ide_pci",	"PCI IDE controller",			FLG_INVISIBLE,	CLS_MISC},
+{"ide_pci",     "PCI IDE controller",			FLG_INVISIBLE,	CLS_MISC},
 {"","",0,0}};
 
 
@@ -2385,7 +2384,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.107 1998/09/07 13:00:58 jkh Exp $
+ *      $Id: userconfig.c,v 1.108 1998/09/15 10:03:43 gibbs Exp $
  */
 
 #include "scbus.h"
