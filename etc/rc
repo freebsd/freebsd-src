@@ -71,6 +71,21 @@ elif [ -r /etc/rc.conf ]; then
 	. /etc/rc.conf
 fi
 
+# Deal with dependancies.
+	case ${amd_enable} in
+	[Yy][Ee][Ss])
+		
+		portmap_enable="YES"
+		;;
+	esac
+	case ${nfs_server_enable} in
+	[Yy][Ee][Ss])
+		if [ -r /etc/exports ]; then
+			portmap_enable="YES"
+		fi
+		;;
+	esac
+
 
 # First pass at entropy recovery so the rebooting /dev/random can reseed.
 #
