@@ -7,7 +7,6 @@ int	dev_add_node(int entrytype, union typeinfo *by, dn_p proto, dn_p *dn_pp) /*p
 int	dev_touch(devnm_p key)		/* update the node for this dev */ /*proto*/;
 void	devfs_dn_free(dn_p dnp) /*proto*/;
 int devfs_add_fronts(devnm_p parent,devnm_p child) /*proto*/;
-void	dev_remove_dev(devnm_p devnmp) /*proto*/;
 int dev_dup_plane(struct devfsmount *devfs_mp_p) /*proto*/;
 void  devfs_free_plane(struct devfsmount *devfs_mp_p) /*proto*/;
 int dev_dup_entry(dn_p parent, devnm_p back, devnm_p *dnm_pp, struct devfsmount *dvm) /*proto*/;
