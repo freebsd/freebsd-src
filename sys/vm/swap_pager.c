@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.106 1999/01/08 17:31:23 eivind Exp $
+ * $Id: swap_pager.c,v 1.101 1998/09/04 08:06:56 dfr Exp $
  */
 
 /*
@@ -81,6 +81,7 @@
 static int nswiodone;
 int swap_pager_full;
 extern int vm_swap_size;
+static int suggest_more_swap = 0;
 static int no_swap_space = 1;
 static int max_pageout_cluster;
 struct rlisthdr swaplist;
@@ -397,6 +398,11 @@ swap_pager_getswapspace(object, amount, rtval)
 	unsigned location;
 
 	vm_swap_size -= amount;
+	if (!suggest_more_swap && (vm_swap_size < btodb(cnt.v_page_count * PAGE_SIZE))) {
+		printf("swap_pager: suggest more swap space: %d MB\n",
+			(2 * cnt.v_page_count * (PAGE_SIZE / 1024)) / 1000);
+		suggest_more_swap = 1;
+	}
 		
 	if (!rlist_alloc(&swaplist, amount, &location)) {
 		vm_swap_size += amount;
@@ -1122,6 +1128,22 @@ swap_pager_getpages(object, m, count, reqpage)
 		}
 
 		m[reqpage]->object->last_read = m[count-1]->pindex;
+
+		/*
+		 * If we're out of swap space, then attempt to free
+		 * some whenever multiple pages are brought in. We
+		 * must set the dirty bits so that the page contents
+		 * will be preserved.
+		 */
+		if (SWAPLOW ||
+			(vm_swap_size < btodb((cnt.v_page_count - cnt.v_wire_count)) * PAGE_SIZE)) {
+			for (i = 0; i < count; i++) {
+				m[i]->dirty = VM_PAGE_BITS_ALL;
+			}
+			swap_pager_freespace(object,
+				m[0]->pindex + paging_offset, count);
+		}
+
 	} else {
 		swap_pager_ridpages(m, count, reqpage);
 	}
@@ -1297,7 +1319,7 @@ swap_pager_putpages(object, m, count, sync, rtvals)
 			swb[i]->swb_locked--;
 	}
 
-#ifdef INVARIANTS
+#if defined(DIAGNOSTIC)
 	for (i = firstidx; i < lastidx; i++) {
 		if (reqaddr[i] == SWB_EMPTY) {
 			printf("I/O to empty block???? -- pindex: %d, i: %d\n",
@@ -1348,9 +1370,11 @@ swap_pager_putpages(object, m, count, sync, rtvals)
 		}
 
 		spc = TAILQ_FIRST(&swap_pager_free);
-		KASSERT(spc != NULL,
-		    ("swap_pager_putpages: free queue is empty, %d expected\n",
-		    swap_pager_free_count));
+#if defined(DIAGNOSTIC)
+		if (spc == NULL)
+			panic("swap_pager_putpages: free queue is empty, %d expected\n",
+				swap_pager_free_count);
+#endif
 		TAILQ_REMOVE(&swap_pager_free, spc, spc_list);
 		swap_pager_free_count--;
 
@@ -1358,7 +1382,7 @@ swap_pager_putpages(object, m, count, sync, rtvals)
 		bp = spc->spc_bp;
 		bzero(bp, sizeof *bp);
 		bp->b_spc = spc;
-		bp->b_xflags = 0;
+		bp->b_vnbufs.le_next = NOLIST;
 		bp->b_data = (caddr_t) kva;
 	} else {
 		spc = NULL;
@@ -1511,14 +1535,12 @@ swap_pager_putpages(object, m, count, sync, rtvals)
 		}
 	}
 
-	if (spc != NULL) {
-		if (bp->b_rcred != NOCRED)
-			crfree(bp->b_rcred);
-		if (bp->b_wcred != NOCRED)
-			crfree(bp->b_wcred);
-		spc_free(spc);
-	} else
-		relpbuf(bp);
+	if (bp->b_rcred != NOCRED)
+		crfree(bp->b_rcred);
+	if (bp->b_wcred != NOCRED)
+		crfree(bp->b_wcred);
+
+	spc_free(spc);
 	if (swap_pager_free_pending)
 		swap_pager_sync();
 

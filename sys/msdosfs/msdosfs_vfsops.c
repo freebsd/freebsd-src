@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vfsops.c,v 1.38 1998/10/31 15:31:24 peter Exp $ */
+/*	$Id: msdosfs_vfsops.c,v 1.35 1998/05/06 05:29:38 msmith Exp $ */
 /*	$NetBSD: msdosfs_vfsops.c,v 1.51 1997/11/17 15:36:58 ws Exp $	*/
 
 /*-
@@ -50,7 +50,6 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/conf.h>
 #include <sys/namei.h>
 #include <sys/proc.h>
 #include <sys/kernel.h>
@@ -298,8 +297,7 @@ msdosfs_mount(mp, path, data, ndp, p)
 		vrele(devvp);
 		return (ENOTBLK);
 	}
-	if (major(devvp->v_rdev) >= nblkdev ||
-	    bdevsw[major(devvp->v_rdev)] == NULL) {
+	if (major(devvp->v_rdev) >= nblkdev) {
 		vrele(devvp);
 		return (ENXIO);
 	}
@@ -365,7 +363,6 @@ mountmsdosfs(devvp, mp, p, argp)
 	dev_t dev = devvp->v_rdev;
 #ifndef __FreeBSD__
 	struct partinfo dpart;
-	int bsize = 0, dtype = 0, tmp;
 #endif
 	union bootsector *bsp;
 	struct byte_bpb33 *b33;
@@ -373,6 +370,7 @@ mountmsdosfs(devvp, mp, p, argp)
 	struct byte_bpb710 *b710;
 	u_int8_t SecPerClust;
 	int	ronly, error;
+	int	bsize = 0, dtype = 0, tmp;
 
 	/*
 	 * Disallow multiple mounts of the same device.
@@ -797,8 +795,8 @@ msdosfs_unmount(mp, mntflags, p)
 		    vp->v_freelist.tqe_next, vp->v_freelist.tqe_prev,
 		    vp->v_mount);
 		printf("cleanblkhd %p, dirtyblkhd %p, numoutput %ld, type %d\n",
-		    TAILQ_FIRST(&vp->v_cleanblkhd),
-		    TAILQ_FIRST(&vp->v_dirtyblkhd),
+		    vp->v_cleanblkhd.lh_first,
+		    vp->v_dirtyblkhd.lh_first,
 		    vp->v_numoutput, vp->v_type);
 		printf("union %p, tag %d, data[0] %08x, data[1] %08x\n",
 		    vp->v_socket, vp->v_tag,
@@ -913,7 +911,8 @@ loop:
 		if (vp->v_type == VNON ||
 		    (dep->de_flag &
 		    (DE_ACCESS | DE_CREATE | DE_UPDATE | DE_MODIFIED)) == 0 &&
-		    (TAILQ_EMPTY(&vp->v_dirtyblkhd) || waitfor == MNT_LAZY)) {
+		    (vp->v_dirtyblkhd.lh_first == NULL || 
+		    waitfor == MNT_LAZY)) {
 			simple_unlock(&vp->v_interlock);
 			continue;
 		}

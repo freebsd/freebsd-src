@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)rshd.8	8.1 (Berkeley) 6/4/93
-.\"	$Id: rshd.8,v 1.14 1998/12/16 07:20:44 peter Exp $
+.\"	$Id: rshd.8,v 1.10 1997/12/02 12:29:56 charnier Exp $
 .\"
 .Dd June 4, 1993
 .Dt RSHD 8
@@ -40,7 +40,7 @@
 .Nd remote shell server
 .Sh SYNOPSIS
 .Nm rshd
-.Op Fl alnDL
+.Op Fl alnL
 .Sh DESCRIPTION
 The
 .Nm
@@ -88,9 +88,17 @@ and requests the corresponding host name (see
 .Xr hosts 5
 and
 .Xr named 8 ).
-If the hostname cannot be determined or the hostname and address do
-not match after verification,
+If the hostname cannot be determined,
 the dot-notation representation of the host address is used.
+If the hostname is in the same domain as the server (according to
+the last two components of the domain name),
+or if the
+.Fl a
+option is given,
+the addresses for the hostname are requested,
+verifying that the name and address correspond.
+If address verification fails, the connection is aborted
+with the message: ``Host address mismatch.''.
 .It
 A null terminated user name of at most 16 characters
 is retrieved on the initial socket.  This user name
@@ -126,7 +134,7 @@ file,
 unless the user is the superuser.
 .It
 If the file 
-.Pa /var/run/nologin
+.Pa /etc/nologin
 exists and the user is not the superuser,
 the connection is closed.
 The name of the nologin file may be overridden
@@ -154,12 +162,6 @@ Transport-level keepalive messages are enabled unless the
 option is present.
 The use of keepalive messages allows sessions to be timed out
 if the client crashes or becomes unreachable.
-.Pp
-The
-.Fl D
-option sets the TCP_NODELAY socket option which improves
-performance of small back-to-back
-writes at the expense of additional network traffic.
 .Pp
 The
 .Fl L
@@ -231,7 +233,7 @@ and is not preceded by a flag byte.
 .It Pa /etc/hosts.equiv
 .It Pa /etc/login.conf
 .It Pa $HOME/.rhosts
-.It Pa /var/run/nologin
+.It Pa /etc/nologin
 .El
 .Sh BUGS
 The authentication procedure used here assumes the integrity

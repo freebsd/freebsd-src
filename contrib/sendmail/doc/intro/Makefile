@@ -1,4 +1,4 @@
-#	@(#)Makefile	8.2 (Berkeley) 2/28/1994
+#	@(#)Makefile	8.2 (Berkeley) 2/28/94
 
 DIR=	smm/09.sendmail
 SRCS=	intro.me

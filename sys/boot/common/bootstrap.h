@@ -23,11 +23,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bootstrap.h,v 1.17 1999/01/15 00:31:45 abial Exp $
+ *	$Id: bootstrap.h,v 1.12 1998/10/09 07:09:22 msmith Exp $
  */
 
 #include <sys/types.h>
-#include <sys/queue.h>
 
 /* XXX debugging */
 extern struct console vidconsole;
@@ -56,7 +55,7 @@ extern char	command_errbuf[];	/* XXX blah, length */
 
 /* interp.c */
 extern void	interact(void);
-extern int	source(char *filename);
+extern void	source(char *filename);
 
 /* interp_parse.c */
 extern int	parse(int *argc, char ***argv, char *str);
@@ -70,15 +69,6 @@ extern char	*unargv(int argc, char *argv[]);
 extern void	hexdump(caddr_t region, size_t len);
 extern size_t	strlenout(vm_offset_t str);
 extern char	*strdupout(vm_offset_t str);
-
-/*
- * Disk block cache
- */
-struct bcache_devdata
-{
-    int         (*dv_strategy)(void *devdata, int rw, daddr_t blk, size_t size, void *buf, size_t *rsize);
-    void	*dv_devdata;
-};
 
 /*
  * Modular console support.
@@ -104,44 +94,33 @@ extern void		cons_probe(void);
 /*
  * Plug-and-play enumerator/configurator interface.
  */
-struct pnphandler 
-{
-    char	*pp_name;		/* handler/bus name */
-    void	(* pp_enumerate)(void);	/* enumerate PnP devices, add to chain */
-};
-
 struct pnpident
 {
-    char			*id_ident;	/* ASCII identifier, actual format varies with bus/handler */
-    STAILQ_ENTRY(pnpident)	id_link;
+    char		*id_ident;	/* ASCII identifier, actual format varies with bus/handler */
+    struct pnpident	*id_next;	/* the next identifier */
 };
 
+struct pnphandler;
 struct pnpinfo
 {
-    char			*pi_desc;	/* ASCII description, optional */
-    int				pi_revision;	/* optional revision (or -1) if not supported */
-    char			*pi_module;	/* module/args nominated to handle device */
-    int				pi_argc;	/* module arguments */
-    char			**pi_argv;
-    struct pnphandler		*pi_handler;	/* handler which detected this device */
-    STAILQ_HEAD(,pnpident)	pi_ident;	/* list of identifiers */
-    STAILQ_ENTRY(pnpinfo)	pi_link;
+    struct pnpident	*pi_ident;	/* list of identifiers */
+    int			pi_revision;	/* optional revision (or -1) if not supported */
+    char		*pi_module;	/* module/args nominated to handle device */
+    int			pi_argc;	/* module arguments */
+    char		**pi_argv;
+    struct pnphandler	*pi_handler;	/* handler which detected this device */
+    struct pnpinfo	*pi_next;
+};
+
+struct pnphandler 
+{
+    char	*pp_name;				/* handler/bus name */
+    void	(* pp_enumerate)(struct pnpinfo **);    /* add detected devices to chain */
 };
 
 extern struct pnphandler	*pnphandlers[];		/* provided by MD code */
 
 extern void			pnp_addident(struct pnpinfo *pi, char *ident);
-extern struct pnpinfo		*pnp_allocinfo(void);
-extern void			pnp_freeinfo(struct pnpinfo *pi);
-extern void			pnp_addinfo(struct pnpinfo *pi);
-extern char			*pnp_eisaformat(u_int8_t *data);
-
-/*
- *  < 0	- No ISA in system
- * == 0	- Maybe ISA, search for read data port
- *  > 0	- ISA in system, value is read data port address
- */
-extern int			isapnp_readport;
 
 /*
  * Module metadata header.
@@ -201,52 +180,57 @@ extern vm_offset_t	aout_findsym(char *name, struct loaded_module *mp);
 
 extern int	elf_loadmodule(char *filename, vm_offset_t dest, struct loaded_module **result);
 
-#ifndef NEW_LINKER_SET
-#include <sys/linker_set.h>
-
-/* XXX just for conversion's sake, until we move to the new linker set code */
-
-#define SET_FOREACH(pvar, set)				\
-	    for (pvar = set.ls_items;			\
-		 pvar < set.ls_items + set.ls_length;	\
-		 pvar++)
-
-#else /* NEW_LINKER_SET */
+#if defined(__ELF__)
 
 /*
- * Private macros, not to be used outside this header file.
- */
-#define __MAKE_SET(set, sym)						\
-	static void *__CONCAT(__setentry,__LINE__)			\
-	__attribute__((__section__("set_" #set),__unused__)) = &sym
-#define __SET_BEGIN(set)						\
-	({ extern void *__CONCAT(__start_set_,set);			\
-	    &__CONCAT(__start_set_,set); })
-#define __SET_END(set)							\
-	({ extern void *__CONCAT(__stop_set_,set);			\
-	    &__CONCAT(__stop_set_,set); })
-
-/*
- * Public macros.
+ * Alpha GAS needs an align before the section change.  It seems to assume
+ * that after the .previous, it is aligned, so the following .align 3 is
+ * ignored.  Since the previous instructions often contain strings, this is
+ * a problem.
  */
 
-/* Add an entry to a set. */
-#define TEXT_SET(set, sym) __MAKE_SET(set, sym)
-#define DATA_SET(set, sym) __MAKE_SET(set, sym)
-#define BSS_SET(set, sym)  __MAKE_SET(set, sym)
-#define ABS_SET(set, sym)  __MAKE_SET(set, sym)
-
-/*
- * Iterate over all the elements of a set.
- *
- * Sets always contain addresses of things, and "pvar" points to words
- * containing those addresses.  Thus is must be declared as "type **pvar",
- * and the address of each set item is obtained inside the loop by "*pvar".
- */
-#define SET_FOREACH(pvar, set)						\
-	for (pvar = (__typeof__(pvar))__SET_BEGIN(set);			\
-	    pvar < (__typeof__(pvar))__SET_END(set); pvar++)
+#ifdef __alpha__
+#define MAKE_SET(set, sym)			\
+	static void const * const __set_##set##_sym_##sym = &sym; \
+	__asm(".align 3");			\
+	__asm(".section .set." #set ",\"aw\"");	\
+	__asm(".quad " #sym);			\
+	__asm(".previous")
+#else
+#define MAKE_SET(set, sym)			\
+	static void const * const __set_##set##_sym_##sym = &sym; \
+	__asm(".section .set." #set ",\"aw\"");	\
+	__asm(".long " #sym);			\
+	__asm(".previous")
 #endif
+#define TEXT_SET(set, sym) MAKE_SET(set, sym)
+#define DATA_SET(set, sym) MAKE_SET(set, sym)
+#define BSS_SET(set, sym)  MAKE_SET(set, sym)
+#define ABS_SET(set, sym)  MAKE_SET(set, sym)
+
+#else
+
+/*
+ * Linker set support, directly from <sys/kernel.h>
+ * 
+ * NB: the constants defined below must match those defined in
+ * ld/ld.h.  Since their calculation requires arithmetic, we
+ * can't name them symbolically (e.g., 23 is N_SETT | N_EXT).
+ */
+#define MAKE_SET(set, sym, type) \
+	static void const * const __set_##set##_sym_##sym = &sym; \
+	__asm(".stabs \"_" #set "\", " #type ", 0, 0, _" #sym)
+#define TEXT_SET(set, sym) MAKE_SET(set, sym, 23)
+#define DATA_SET(set, sym) MAKE_SET(set, sym, 25)
+#define BSS_SET(set, sym)  MAKE_SET(set, sym, 27)
+#define ABS_SET(set, sym)  MAKE_SET(set, sym, 21)
+
+#endif
+
+struct linker_set {
+    int             ls_length;
+    const void      *ls_items[1];	/* really ls_length of them, trailing NULL */
+};
 
 /*
  * Support for commands 

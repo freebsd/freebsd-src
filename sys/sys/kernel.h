@@ -39,13 +39,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernel.h	8.3 (Berkeley) 1/21/94
- * $Id: kernel.h,v 1.48 1998/12/20 16:54:27 bde Exp $
+ * $Id: kernel.h,v 1.42 1998/10/09 23:03:27 peter Exp $
  */
 
 #ifndef _SYS_KERNEL_H_
 #define _SYS_KERNEL_H_
-
-#include <sys/linker_set.h>
 
 #ifdef KERNEL
 
@@ -76,6 +74,56 @@ extern int tickdelta;
 extern long timedelta;
 
 #endif /* KERNEL */
+
+/*
+ * The following macros are used to declare global sets of objects, which
+ * are collected by the linker into a `struct linker_set' as defined below.
+ * For ELF, this is done by constructing a separate segment for each set.
+ * For a.out, it is done automatically by the linker.
+ */
+#if defined(__ELF__)
+
+/*
+ * Alpha GAS needs an align before the section change.  It seems to assume
+ * that after the .previous, it is aligned, so the following .align 3 is
+ * ignored.  Since the previous instructions often contain strings, this is
+ * a problem.
+ */
+
+#ifdef __alpha__
+#define MAKE_SET(set, sym)			\
+	__asm(".align 3");			\
+	__asm(".section .set." #set ",\"aw\"");	\
+	__asm(".quad " #sym);			\
+	__asm(".previous")
+#else
+#define MAKE_SET(set, sym)			\
+	__asm(".section .set." #set ",\"aw\"");	\
+	__asm(".long " #sym);			\
+	__asm(".previous")
+#endif
+#define TEXT_SET(set, sym) MAKE_SET(set, sym)
+#define DATA_SET(set, sym) MAKE_SET(set, sym)
+#define BSS_SET(set, sym)  MAKE_SET(set, sym)
+#define ABS_SET(set, sym)  MAKE_SET(set, sym)
+
+#else
+
+/*
+ * NB: the constants defined below must match those defined in
+ * ld/ld.h.  Since their calculation requires arithmetic, we
+ * can't name them symbolically (e.g., 23 is N_SETT | N_EXT).
+ */
+#define MAKE_SET(set, sym, type) \
+	static void const * const __set_##set##_sym_##sym = &sym; \
+	__asm(".stabs \"_" #set "\", " #type ", 0, 0, _" #sym)
+#define TEXT_SET(set, sym) MAKE_SET(set, sym, 23)
+#define DATA_SET(set, sym) MAKE_SET(set, sym, 25)
+#define BSS_SET(set, sym)  MAKE_SET(set, sym, 27)
+#define ABS_SET(set, sym)  MAKE_SET(set, sym, 21)
+
+#endif
+
 
 /*
  * Enumerated types for known system startup interfaces.
@@ -199,18 +247,6 @@ struct sysinit {
 		SI_TYPE_DEFAULT					\
 	};							\
 	DATA_SET(sysinit_set,uniquifier ## _sys_init);
-/*
- * Called on module unload: no special processing
- */
-#define	SYSUNINIT(uniquifier, subsystem, order, func, ident)	\
-	static struct sysinit uniquifier ## _sys_uninit = {	\
-		subsystem,					\
-		order,						\
-		func,						\
-		ident,						\
-		SI_TYPE_DEFAULT					\
-	};							\
-	DATA_SET(sysuninit_set,uniquifier ## _sys_uninit)
 
 /*
  * Call 'fork()' before calling '(*func)(ident)';
@@ -278,7 +314,8 @@ void	sysinit_add __P((struct sysinit **set));
  */
 #include <sys/module.h>
 #define	PSEUDO_SET(sym, name) \
-	static int name ## _modevent(module_t mod, int type, void *data) \
+	static int name ## _modevent(module_t mod, modeventtype_t type, \
+		void *data) \
 	{ \
 		void (*initfunc)(void *) = (void (*)(void *))data; \
 		switch (type) { \
@@ -300,6 +337,12 @@ void	sysinit_add __P((struct sysinit **set));
 	DECLARE_MODULE(name, name ## _mod, SI_SUB_PSEUDO, SI_ORDER_ANY)
 
 #endif /* PSEUDO_LKM */
+
+struct linker_set {
+	int		ls_length;
+	const void	*ls_items[1];		/* really ls_length of them,
+						 * trailing NULL */
+};
 
 extern struct linker_set execsw_set;
 

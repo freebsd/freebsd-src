@@ -29,7 +29,6 @@
 #include "os.h"
 #include <ctype.h>
 #include <time.h>
-#include <sys/time.h>
 
 #include "screen.h"		/* interface to screen package */
 #include "layout.h"		/* defines for screen position layout */
@@ -1168,39 +1167,4 @@ char *str;
 	ptr++;
     }
     return(str);
-}
-
-i_uptime(bt, tod)
-
-struct timeval* bt;
-time_t *tod;
-
-{
-    time_t uptime;
-    int days, hrs, mins, secs;
-
-    if (bt->tv_sec != -1) {
-	uptime = *tod - bt->tv_sec;
-	uptime += 30;
-	days = uptime / 86400;
-	uptime %= 86400;
-	hrs = uptime / 3600;
-	uptime %= 3600;
-	mins = uptime / 60;
-	secs = uptime % 60;
-
-	/*
-	 *  Display the uptime.
-	 */
-
-	if (smart_terminal)
-	{
-	    Move_to((screen_width - 24) - (days > 9 ? 1 : 0), 0);
-	}
-	else
-	{
-	    fputs(" ", stdout);
-	}
-	printf(" up %d+%02d:%02d:%02d", days, hrs, mins, secs);
-    }
 }

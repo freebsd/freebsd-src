@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: biosdisk.c,v 1.19 1999/01/09 02:36:19 msmith Exp $
+ *	$Id: biosdisk.c,v 1.13 1998/10/11 10:01:55 peter Exp $
  */
 
 /*
@@ -101,14 +101,10 @@ static int	bd_read(struct open_disk *od, daddr_t dblk, int blks, caddr_t dest);
 
 static int	bd_int13probe(struct bdinfo *bd);
 
-static void	bd_printslice(struct open_disk *od, int offset, char *prefix);
-
 static int	bd_init(void);
 static int	bd_strategy(void *devdata, int flag, daddr_t dblk, size_t size, void *buf, size_t *rsize);
-static int	bd_realstrategy(void *devdata, int flag, daddr_t dblk, size_t size, void *buf, size_t *rsize);
 static int	bd_open(struct open_file *f, ...);
 static int	bd_close(struct open_file *f);
-static void	bd_print(int verbose);
 
 struct devsw biosdisk = {
     "disk", 
@@ -117,8 +113,7 @@ struct devsw biosdisk = {
     bd_strategy, 
     bd_open, 
     bd_close, 
-    noioctl,
-    bd_print
+    noioctl
 };
 
 static int	bd_opendisk(struct open_disk **odp, struct i386_devdesc *dev);
@@ -174,6 +169,7 @@ bd_init(void)
 	    /* XXX we need "disk aliases" to make this simpler */
 	    printf("BIOS drive %c: is disk%d\n", 
 		   (unit < 0x80) ? ('A' + unit) : ('C' + unit - 0x80), nbdinfo);
+	    bdinfo[nbdinfo].bd_unit = unit;
 	    nbdinfo++;
 	}
     }
@@ -202,91 +198,6 @@ bd_int13probe(struct bdinfo *bd)
     }
     return(0);
 }
-
-/*
- * Print information about disks
- */
-static void
-bd_print(int verbose)
-{
-    int				i, j;
-    char			line[80];
-    struct i386_devdesc		dev;
-    struct open_disk		*od;
-    struct dos_partition	*dptr;
-    
-    for (i = 0; i < nbdinfo; i++) {
-	sprintf(line, "    disk%d:   BIOS drive %c:\n", i, 
-		(bdinfo[i].bd_unit < 0x80) ? ('A' + bdinfo[i].bd_unit) : ('C' + bdinfo[i].bd_unit - 0x80));
-	pager_output(line);
-
-	/* try to open the whole disk */
-	dev.d_kind.biosdisk.unit = i;
-	dev.d_kind.biosdisk.slice = -1;
-	dev.d_kind.biosdisk.partition = -1;
-	
-	if (!bd_opendisk(&od, &dev)) {
-
-	    /* Do we have a partition table? */
-	    if (od->od_flags & BD_PARTTABOK) {
-		dptr = &od->od_parttab[0];
-
-		/* Check for a "truly dedicated" disk */
-		if ((dptr[3].dp_typ == DOSPTYP_386BSD) &&
-		    (dptr[3].dp_start == 0) &&
-		    (dptr[3].dp_size == 50000)) {
-		    sprintf(line, "      disk%d", i);
-		    bd_printslice(od, 0, line);
-		} else {
-		    for (j = 0; j < NDOSPART; j++) {
-			switch(dptr[j].dp_typ) {
-			case DOSPTYP_386BSD:
-			    sprintf(line, "      disk%ds%d", i, j + 1);
-			    bd_printslice(od, dptr[j].dp_start, line);
-			    break;
-			default:
-			}
-		    }
-		    
-		}
-	    }
-	    bd_closedisk(od);
-	}
-    }
-}
-
-static void
-bd_printslice(struct open_disk *od, int offset, char *prefix)
-{
-    char		line[80];
-    u_char		buf[BIOSDISK_SECSIZE];
-    struct disklabel	*lp;
-    int			i;
-
-    /* read disklabel */
-    if (bd_read(od, offset + LABELSECTOR, 1, buf))
-	return;
-    lp =(struct disklabel *)(&buf[0]);
-    if (lp->d_magic != DISKMAGIC) {
-	sprintf(line, "%s: bad disklabel\n");
-	pager_output(line);
-	return;
-    }
-    
-    /* Print partitions */
-    for (i = 0; i < lp->d_npartitions; i++) {
-	if ((lp->d_partitions[i].p_fstype == FS_BSDFFS) || (lp->d_partitions[i].p_fstype == FS_SWAP) ||
-	    ((lp->d_partitions[i].p_fstype == FS_UNUSED) && 
-	     (od->od_flags & BD_FLOPPY) && (i == 0))) {	/* Floppies often have bogus fstype, print 'a' */
-	    sprintf(line, "  %s%c: %s  %.6dMB (%d - %d)\n", prefix, 'a' + i,
-		    (lp->d_partitions[i].p_fstype == FS_SWAP) ? "swap" : "FFS",
-		    lp->d_partitions[i].p_size / 2048,	/* 512-byte sector assumption */
-		    lp->d_partitions[i].p_offset, lp->d_partitions[i].p_offset + lp->d_partitions[i].p_size);
-	    pager_output(line);
-	}
-    }
-}
-
 
 /*
  * Attempt to open the disk described by (dev) for use by (f).
@@ -391,14 +302,8 @@ bd_opendisk(struct open_disk **odp, struct i386_devdesc *dev)
     dptr = &od->od_parttab[0];
     od->od_flags |= BD_PARTTABOK;
 
-    /* Is this a request for the whole disk? */
-    if (dev->d_kind.biosdisk.slice == -1) {
-	sector == 0;
-	goto unsliced;
-    }
-
     /* Try to auto-detect the best slice; this should always give a slice number */
-    if (dev->d_kind.biosdisk.slice == 0)
+    if (dev->d_kind.biosdisk.slice < 1)
 	dev->d_kind.biosdisk.slice = bd_bestslice(dptr);
 
     switch (dev->d_kind.biosdisk.slice) {
@@ -406,7 +311,6 @@ bd_opendisk(struct open_disk **odp, struct i386_devdesc *dev)
 	error = ENOENT;
 	goto out;
     case 0:
-	sector = 0;
 	goto unsliced;
     default:
 	break;
@@ -569,16 +473,6 @@ bd_closedisk(struct open_disk *od)
 
 static int 
 bd_strategy(void *devdata, int rw, daddr_t dblk, size_t size, void *buf, size_t *rsize)
-{
-    struct bcache_devdata	bcd;
-    
-    bcd.dv_strategy = bd_realstrategy;
-    bcd.dv_devdata = devdata;
-    return(bcache_strategy(&bcd, rw, dblk, size, buf, rsize));
-}
-
-static int 
-bd_realstrategy(void *devdata, int rw, daddr_t dblk, size_t size, void *buf, size_t *rsize)
 {
     struct open_disk	*od = (struct open_disk *)(((struct i386_devdesc *)devdata)->d_kind.biosdisk.data);
     int			blks;
@@ -747,10 +641,7 @@ bd_getgeom(struct open_disk *od)
 }
 
 /*
- * Return a suitable dev_t value for (dev).
- *
- * In the case where it looks like (dev) is a SCSI disk, we allow the number of
- * IDE disks to be specified in $num_ide_disks.  There should be a Better Way.
+ * Return a suitable dev_t value for (dev)
  */
 int
 bd_getdev(struct i386_devdesc *dev)
@@ -759,8 +650,6 @@ bd_getdev(struct i386_devdesc *dev)
     int				biosdev;
     int 			major;
     int				rootdev;
-    char			*nip, *cp;
-    int				unitofs = 0;
 
     biosdev = bd_unit2bios(dev->d_kind.biosdisk.unit);
     DEBUG("unit %d BIOS device %d", dev->d_kind.biosdisk.unit, biosdev);
@@ -783,13 +672,6 @@ bd_getdev(struct i386_devdesc *dev)
 	if ((od->od_flags & BD_LABELOK) && (od->od_disklabel.d_type == DTYPE_SCSI)) {
 	    /* label OK, disk labelled as SCSI */
 	    major = DAMAJOR;
-	    /* check for unit number correction hint */
-	    if ((nip = getenv("num_ide_disks")) != NULL) {
-		unitofs = strtol(nip, &cp, 0);
-		/* check for parse error */
-		if ((cp == nip) || (*cp != 0))
-		    unitofs = 0;
-	    }
 	} else {
 	    /* assume an IDE disk */
 	    major = WDMAJOR;
@@ -798,7 +680,7 @@ bd_getdev(struct i386_devdesc *dev)
     rootdev = MAKEBOOTDEV(major,
 			  (dev->d_kind.biosdisk.slice + 1) >> 4, 	/* XXX slices may be wrong here */
 			  (dev->d_kind.biosdisk.slice + 1) & 0xf, 
-			  (biosdev & 0x7f) - unitofs,			/* allow for #wd compenstation in da case */
+			  biosdev & 0x7f,				/* XXX allow/compute shift for da when wd present */
 			  dev->d_kind.biosdisk.partition);
     DEBUG("dev is 0x%x\n", rootdev);
     return(rootdev);

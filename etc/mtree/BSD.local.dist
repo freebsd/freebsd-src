@@ -1,4 +1,4 @@
-#     $Id: BSD.local.dist,v 1.43 1998/12/14 07:44:46 dillon Exp $
+#     $Id: BSD.local.dist,v 1.41 1998/09/19 18:50:27 obrien Exp $
 #
 
 /set type=dir uname=root gname=wheel mode=0755
@@ -168,10 +168,6 @@
         ..
         doc
         ..
-        emacs
-            site-lisp
-            ..
-        ..
         examples
         ..
         misc
@@ -228,8 +224,6 @@
 	    lt_LN.ISO_8859-1
 	    ..
     	    lt_LN.ISO_8859-2
-            ..
-    	    lt_LN.DIS_8859-15
             ..
 	    nl_BE.ISO_8859-1
             ..

@@ -21,7 +21,7 @@
 
    Written by Brian Fox (bfox@ai.mit.edu). */
 
-#include "info.h"
+#include <stdio.h>
 #include "dribble.h"
 
 /* When non-zero, it is a stream to write all input characters to for the

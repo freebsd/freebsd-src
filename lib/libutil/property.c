@@ -35,7 +35,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <err.h>
 #include <sys/types.h>
 #include <libutil.h>
 
@@ -63,7 +62,7 @@ properties_read(int fd)
     char buf[BUFSIZ * 4];
     int bp, n, v, max;
     enum { LOOK, COMMENT, NAME, VALUE, MVALUE, COMMIT, FILL, STOP } state;
-    int ch = 0, blevel = 0;
+    int ch = 0;
 
     n = v = bp = max = 0;
     head = ptr = NULL;
@@ -136,10 +135,8 @@ properties_read(int fd)
 	case VALUE:
 	    if (v == 0 && isspace(ch))
 		continue;
-	    else if (ch == '{') {
+	    else if (ch == '{')
 		state = MVALUE;
-		++blevel;
-	    }
 	    else if (ch == '\n' || !ch) {
 		hold_v[v] = '\0';
 		v = n = 0;
@@ -159,20 +156,16 @@ properties_read(int fd)
 	case MVALUE:
 	    /* multiline value */
 	    if (v >= MAX_VALUE) {
-		warn("properties_read: value exceeds max length");
 		state = COMMENT;
 		n = v = 0;
 	    }
-	    else if (ch == '}' && !--blevel) {
+	    else if (ch == '}') {
 		hold_v[v] = '\0';
 		v = n = 0;
 		state = COMMIT;
 	    }
-	    else {
+	    else
 		hold_v[v++] = ch;
-		if (ch == '{')
-		    ++blevel;
-	    }
 	    break;
 
 	case COMMIT:

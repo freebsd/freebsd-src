@@ -57,6 +57,15 @@ static char    *wr_dma_buf[MAX_AUDIO_DEV];
 static int      audio_format[MAX_AUDIO_DEV];
 static int      local_conversion[MAX_AUDIO_DEV];
 
+#if defined(NO_INLINE_ASM) || !defined(__i386__)
+static void
+translate_bytes(const u_char *table, u_char *buff, int n);
+
+#else
+extern __inline void
+translate_bytes(const void *table, void *buff, int n);
+#endif
+
 static int
 set_format(int dev, int fmt)
 {
@@ -139,6 +148,7 @@ audio_release(int dev, struct fileinfo * file)
 
 }
 
+#if defined(NO_INLINE_ASM) || !defined(__i386__)
 static void
 translate_bytes(const u_char *table, u_char *buff, int n)
 {
@@ -150,6 +160,23 @@ translate_bytes(const u_char *table, u_char *buff, int n)
     for (i = 0; i < n; ++i)
 	buff[i] = table[buff[i]];
 }
+
+#else
+extern __inline void
+translate_bytes(const void *table, void *buff, int n)
+{
+    if (n > 0) {
+	__asm__("cld\n"
+		"1:\tlodsb\n\t"
+		"xlatb\n\t"
+		"stosb\n\t"
+		"loop 1b\n\t":
+		:"b"(table), "c"(n), "D"(buff), "S"(buff)
+		:"bx", "cx", "di", "si", "ax");
+    }
+}
+
+#endif
 
 int
 audio_write(int dev, struct fileinfo * file, snd_rw_buf * buf, int count)

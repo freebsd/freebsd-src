@@ -5,7 +5,7 @@
  * provided that this notice is preserved and due credit is given
  * to the original author and the contributors.
  *
- * $Id: ip_log.c,v 1.5 1998/11/26 18:54:52 eivind Exp $
+ * $Id: ip_log.c,v 1.3 1998/03/21 14:42:45 peter Exp $
  */
 #include "opt_ipfilter.h"
 
@@ -122,8 +122,8 @@ extern	kcondvar_t	iplwait;
 
 iplog_t	**iplh[IPL_LOGMAX+1], *iplt[IPL_LOGMAX+1];
 int	iplused[IPL_LOGMAX+1];
-static u_long	iplcrc[IPL_LOGMAX+1];
-static u_long	iplcrcinit;
+u_long	iplcrc[IPL_LOGMAX+1];
+u_long	iplcrcinit;
 #ifdef	linux
 static struct wait_queue *iplwait[IPL_LOGMAX+1];
 #endif
@@ -135,6 +135,7 @@ static struct wait_queue *iplwait[IPL_LOGMAX+1];
  */
 void ipflog_init()
 {
+	struct	timeval	tv;
 	int	i;
 
 	for (i = IPL_LOGMAX; i >= 0; i--) {
@@ -145,16 +146,12 @@ void ipflog_init()
 # if defined(__FreeBSD__) &&  __FreeBSD_version >= 300000
 	read_random(&iplcrcinit, sizeof iplcrcinit);
 # else
-	{
-		struct timeval tv;
-
 #if BSD >= 199306 || defined(__FreeBSD__) || defined(__sgi)
-		microtime(&tv);
+	microtime(&tv);
 # else
-		uniqtime(&tv);
+	uniqtime(&tv);
 # endif
-		iplcrcinit = tv.tv_sec ^ (tv.tv_usec << 8) ^ tv.tv_usec;
-	}
+	iplcrcinit = tv.tv_sec ^ (tv.tv_usec << 8) ^ tv.tv_usec;
 # endif
 }
 

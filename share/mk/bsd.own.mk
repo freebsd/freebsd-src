@@ -1,4 +1,4 @@
-#	$Id: bsd.own.mk,v 1.20 1998/10/19 20:09:17 imp Exp $
+#	$Id: bsd.own.mk,v 1.18 1998/08/31 23:34:37 jb Exp $
 #
 # The include file <bsd.own.mk> set common variables for owner,
 # group, mode, and directories. Defaults are in brackets.
@@ -131,7 +131,11 @@ MACHINE_ARCH?=	i386
 .endif
 
 # Default executable format
+.if ${MACHINE_ARCH} == "alpha"
 OBJFORMAT?=	elf
+.else
+OBJFORMAT?=	aout
+.endif
 
 # Binaries
 BINOWN?=	root

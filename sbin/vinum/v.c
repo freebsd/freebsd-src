@@ -36,7 +36,7 @@
  *
  */
 
-/* $Id: v.c,v 1.24 1999/01/17 02:53:38 grog Exp grog $ */
+/* $Id: v.c,v 1.22 1998/08/11 07:44:54 grog Exp grog $ */
 
 #include <ctype.h>
 #include <errno.h>
@@ -51,15 +51,12 @@
 #include <syslog.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
-#include <dev/vinum/vinumhdr.h>
+#include "vinumhdr.h"
 #include "vext.h"
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <readline/history.h>
 #include <readline/readline.h>
-#include <sys/linker.h>
-#include <sys/module.h>
-#include <sys/resource.h>
 
 FILE *cf;						    /* config file handle */
 
@@ -71,7 +68,7 @@ int inerror;						    /* set to 1 to exit after end of config file */
 
 /* flags */
 
-#if VINUMDEBUG
+#if DEBUG
 int debug = 0;						    /* debug flag, usage varies */
 #endif
 int force = 0;						    /* set to 1 to force some dangerous ops */
@@ -90,8 +87,6 @@ struct drive drive;
 
 jmp_buf command_fail;					    /* return on a failed command */
 int superdev;						    /* vinum super device */
-
-void start_daemon(void);
 
 #define ofs(x) ((void *) (& ((struct confdata *) 0)->x))    /* offset of x in struct confdata */
 
@@ -117,20 +112,6 @@ int tokens;						    /* number of tokens */
 int 
 main(int argc, char *argv[])
 {
-#if RAID5
-#define VINUMMOD "Vinum"
-#else
-#define VINUMMOD "vinum"
-#endif
-
-    if (modfind(VINUMMOD) < 0) {
-	/* need to load the vinum module */
-	if (kldload(VINUMMOD) < 0 || modfind(VINUMMOD) < 0) {
-	    perror("vinum kernel module not available");
-	    return 1;
-	}
-    }
-
     superdev = open(VINUM_SUPERDEV_NAME, O_RDWR);	    /* open it */
 
     if (superdev < 0) {					    /* no go */
@@ -141,10 +122,6 @@ main(int argc, char *argv[])
 	    return 1;
 	}
     }
-    /* Check if the dæmon is running.  If not, start it in the
-     * background */
-    start_daemon();
-
     if (argc > 1) {					    /* we have a command on the line */
 	if (setjmp(command_fail) != 0)			    /* long jumped out */
 	    return -1;
@@ -179,13 +156,6 @@ main(int argc, char *argv[])
     return 0;						    /* normal completion */
 }
 
-/* stop the hard way */
-void 
-vinum_quit(int argc, char *argv[], char *argv0[])
-{
-    exit(0);
-}
-
 #define FUNKEY(x) { kw_##x, &vinum_##x }		    /* create pair "kw_foo", vinum_foo */
 
 struct funkey {
@@ -195,7 +165,7 @@ struct funkey {
 
     FUNKEY(create),
 	FUNKEY(read),
-#ifdef VINUMDEBUG
+#ifdef DEBUG
 	FUNKEY(debug),
 #endif
 	FUNKEY(volume),
@@ -221,10 +191,6 @@ struct funkey {
 	FUNKEY(printconfig),
 	FUNKEY(start),
 	FUNKEY(stop),
-	FUNKEY(makedev),
-	FUNKEY(help),
-	FUNKEY(quit),
-	FUNKEY(setdaemon),
 	FUNKEY(resetstats)
 };
 
@@ -253,7 +219,7 @@ parseline(int args, char *argv[])
     for (i = 1; (i < args) && (argv[i][0] == '-'); i++) {   /* while we have flags */
 	for (j = 1; j < strlen(argv[i]); j++)
 	    switch (argv[i][j]) {
-#if VINUMDEBUG
+#if DEBUG
 	    case 'd':					    /* -d: debug */
 		debug = 1;
 		break;
@@ -382,7 +348,6 @@ make_devices(void)
     system("mkdir -p " VINUM_DIR "/drive "		    /* and make them again */
 	VINUM_DIR "/plex "
 	VINUM_DIR "/sd "
-	VINUM_DIR "/rsd "
 	VINUM_DIR "/vol "
 	VINUM_DIR "/rvol "
 	VINUM_RDIR);
@@ -475,15 +440,9 @@ make_devices(void)
 			    if (mknod(filename, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IFBLK, sddev) < 0)
 				fprintf(stderr, "Can't create %s: %s\n", filename, strerror(errno));
 
-							    /* /dev/vinum/sd/<sd> */
+							    /* And /dev/vinum/sd/<sd> */
 			    sprintf(filename, VINUM_DIR "/sd/%s", sd.name);
 			    if (mknod(filename, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IFBLK, sddev) < 0)
-				fprintf(stderr, "Can't create %s: %s\n", filename, strerror(errno));
-
-							    /* And /dev/vinum/rsd/<sd> */
-			    sprintf(filename, VINUM_DIR "/rsd/%s", sd.name);
-			    sddev = VINUMCDEV(volno, plexno, sdno, VINUM_SD_TYPE);
-			    if (mknod(filename, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IFCHR, sddev) < 0)
 				fprintf(stderr, "Can't create %s: %s\n", filename, strerror(errno));
 			}
 		    }
@@ -500,13 +459,6 @@ make_devices(void)
 	    system(filename);
 	}
     }
-}
-
-/* command line interface for the 'makedev' command */
-void 
-vinum_makedev(int argc, char *argv[], char *arg0[])
-{
-    make_devices();
 }
 
 /* Find the object "name".  Return object type at type,
@@ -564,80 +516,46 @@ find_object(const char *name, enum objecttype *type)
     return -1;
 }
 
-/* Continue reviving a subdisk in the background */
+/* Continue reviving a plex in the background */
 void 
-continue_revive(int sdno)
+continue_revive(int plexno)
 {
-    struct sd sd;
+    struct plex plex;
     pid_t pid;
-    get_sd_info(&sd, sdno);
+    get_plex_info(&plex, plexno);
 
-#if VINUMDEBUG
+#if DEBUG
     if (debug)
 	pid = 0;					    /* wander through into the "child" process */
     else
 	pid = fork();					    /* do this in the background */
-#else
-    pid = fork();					    /* do this in the background */
 #endif
     if (pid == 0) {					    /* we're the child */
 	struct _ioctl_reply reply;
 	struct vinum_ioctl_msg *message = (struct vinum_ioctl_msg *) &reply;
 
 	openlog("vinum", LOG_CONS | LOG_PERROR | LOG_PID, LOG_KERN);
-	syslog(LOG_INFO | LOG_KERN, "reviving %s", sd.name);
+	syslog(LOG_INFO | LOG_KERN, "reviving plex %s", plex.name);
 
 	for (reply.error = EAGAIN; reply.error == EAGAIN;) {
-	    message->index = sdno;			    /* pass sd number */
-	    message->type = sd_object;			    /* and type of object */
+	    message->index = plexno;			    /* pass plex number */
+	    message->type = plex_object;		    /* and type of object */
 	    message->state = object_up;
 	    ioctl(superdev, VINUM_SETSTATE, message);
 	}
 	if (reply.error) {
 	    syslog(LOG_ERR | LOG_KERN,
-		"can't revive %s: %s",
-		sd.name,
+		"can't revive plex %s: %s",
+		plex.name,
 		reply.msg[0] ? reply.msg : strerror(reply.error));
 	    exit(1);
 	} else {
-	    get_sd_info(&sd, sdno);			    /* update the info */
-	    syslog(LOG_INFO | LOG_KERN, "%s is %s", sd.name, sd_state(sd.state));
+	    get_plex_info(&plex, plexno);		    /* update the info */
+	    syslog(LOG_INFO | LOG_KERN, "plex %s is %s", plex.name, plex_state(plex.state));
 	    exit(0);
 	}
     } else if (pid < 0)					    /* couldn't fork? */
-	fprintf(stderr, "Can't continue reviving %s: %s\n", sd.name, strerror(errno));
+	fprintf(stderr, "Can't continue reviving %s: %s\n", plex.name, strerror(errno));
     else
-	printf("Reviving %s in the background\n", sd.name);
-}
-
-/* Check if the daemon is running,
- * start it if it isn't.  The check itself
- * could take a while, so we do it as a separate
- * process, which will become the daemon if one isn't
- * running already */
-void 
-start_daemon(void)
-{
-    int pid;
-    int status;
-    int error;
-
-    pid = (int) fork();
-
-    if (pid == 0) {					    /* We're the child, do the work */
-	error = daemon(0, 0);				    /* this will fork again, but who's counting? */
-	if (error != 0) {
-	    fprintf(stderr, "Can't start daemon: %s (%d)\n", strerror(errno), errno);
-	    exit(1);
-	}
-	setproctitle("Vinum daemon");			    /* show what we're doing */
-	status = ioctl(superdev, VINUM_FINDDAEMON, NULL);
-	if (status != 0) {				    /* no daemon, */
-	    ioctl(superdev, VINUM_DAEMON, &verbose);	    /* we should hang here */
-	    syslog(LOG_ERR | LOG_KERN, "%s", strerror(errno));
-	    exit(1);
-	}
-	exit(0);					    /* when told to die */
-    } else if (pid < 0)					    /* couldn't fork */
-	printf("Can't fork to check daemon\n");
+	printf("Reviving %s in the background\n", plex.name);
 }

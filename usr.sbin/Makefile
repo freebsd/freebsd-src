@@ -1,9 +1,8 @@
 #	From: @(#)Makefile	5.20 (Berkeley) 6/12/93
-#	$Id: Makefile,v 1.146 1999/01/11 08:06:04 msmith Exp $
+#	$Id: Makefile,v 1.132 1998/09/17 08:55:02 dfr Exp $
 
 # XXX MISSING:		mkproto
-SUBDIR=	IPXrouted \
-	ac \
+SUBDIR= ac \
 	accton \
 	adduser \
 	amd \
@@ -14,32 +13,21 @@ SUBDIR=	IPXrouted \
 	chkgrp \
 	chown \
 	chroot \
+	crunch \
 	ckdist \
 	config \
 	cron \
-	crunch \
 	ctm \
 	dev_mkdb \
 	diskpart \
 	edquota \
 	inetd \
-	iostat \
-	ipfstat \
-	ipftest \
-	ipmon \
-	ipnat \
-	ipresend \
-	ipsend \
-	iptest \
-	kbdcontrol \
-	kbdmap \
 	kernbb \
 	keyadmin \
 	keyserv \
 	kvm_mkdb \
 	lpr \
 	manctl \
-	moused \
 	mrouted \
 	mtest \
 	mtree \
@@ -72,9 +60,8 @@ SUBDIR=	IPXrouted \
 	rpc.lockd \
 	rpc.statd \
 	rpc.yppasswdd \
-	rpc.ypupdated \
 	rpc.ypxfrd \
-	rtprio \
+	rpc.ypupdated \
 	rwhod \
 	sa \
 	sliplogin \
@@ -87,22 +74,27 @@ SUBDIR=	IPXrouted \
 	traceroute \
 	trpt \
 	tzsetup \
-	usbd \
-	usbdevs \
-	vidcontrol \
 	vipw \
 	vnconfig \
 	watch \
 	wormcontrol \
 	xntpd \
 	xten \
-	yp_mkdb \
 	ypbind \
+	yp_mkdb \
 	yppoll \
 	yppush \
-	ypserv \
 	ypset \
+	ypserv \
 	zic
+
+SUBDIR+=ipfstat \
+	ipftest \
+	ipmon \
+	ipnat \
+	ipresend \
+	ipsend \
+	iptest
 
 .if !defined(NO_SENDMAIL)
 SUBDIR+=mailstats \
@@ -112,26 +104,44 @@ SUBDIR+=mailstats \
 .endif
 
 .if ${MACHINE_ARCH} == "i386"
-SUBDIR+=apm \
-	apmconf \
-	bad144 \
-	btxld \
-	fdcontrol \
-	fdformat \
-	fdwrite \
-	i4b \
+SUBDIR+=btxld \
 	kgmon \
-	lptcontrol \
-	mixer \
-	mptable \
 	pcvt \
 	pnpinfo \
 	rndcontrol \
+	wlconfig \
+	IPXrouted
+
+SUBDIR+=apm \
+	apmconf \
+	bad144 \
+	fdformat \
+	fdwrite \
+	fdcontrol \
+	iostat \
+	kbdcontrol \
+	kbdmap \
+	lptcontrol \
+	mixer \
+	moused \
+	mptable \
+	rtprio \
 	sgsc \
 	sicontrol \
 	spkrtest \
 	stallion \
-	wlconfig
+	vidcontrol
+.endif
+
+.if ${MACHINE_ARCH} == "alpha"
+SUBDIR+=kvm_mkdb \
+	natd \
+	kbdcontrol \
+	kbdmap \
+	moused \
+	pstat \
+	rtprio \
+	vidcontrol
 .endif
 
 .include <bsd.subdir.mk>

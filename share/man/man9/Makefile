@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.42 1998/12/22 19:47:48 dillon Exp $
+#	$Id: Makefile,v 1.38 1998/09/15 10:26:57 gibbs Exp $
 
 MAN9=	MD5.9 \
 	VFS.9 VFS_FHTOVP.9 VFS_INIT.9 VFS_MOUNT.9 VFS_QUOTACTL.9 \
@@ -11,10 +11,10 @@ MAN9=	MD5.9 \
 	VOP_PATHCONF.9 VOP_PRINT.9 VOP_RDWR.9 VOP_READDIR.9 \
 	VOP_READLINK.9 VOP_REALLOCBLKS.9 VOP_REMOVE.9 VOP_RENAME.9 \
 	VOP_STRATEGY.9 \
-	at_exit.9 at_fork.9 at_shutdown.9 bios.9 boot.9 buf.9 cd.9 copy.9 \
+	at_exit.9 at_fork.9 at_shutdown.9 bios.9 boot.9 cd.9 copy.9 \
 	devfs_add_devswf.9 devfs_link.9 devfs_remove_dev.9 devstat.9 \
-	fetch.9 ifnet.9 inittodr.9 intro.9 kernacc.9 malloc.9 microseq.9 \
-	mi_switch.9 namei.9 panic.9 physio.9 posix4.9 ppbconf.9 psignal.9 \
+	fetch.9 ifnet.9 inittodr.9 intro.9 kernacc.9 malloc.9 \
+	mi_switch.9 namei.9 panic.9 physio.9 posix4.9 psignal.9 \
 	resettodr.9 rtalloc.9 rtentry.9 scsiconf.9 sd.9 sleep.9 spl.9 st.9 \
 	store.9 style.9 suser.9 time.9 timeout.9 uio.9 \
 	vget.9 vnode.9 vput.9 vref.9 vrele.9 vslock.9
@@ -53,9 +53,7 @@ MLINKS+=at_exit.9 rm_at_exit.9
 MLINKS+=at_fork.9 rm_at_fork.9
 MLINKS+=at_shutdown.9 rm_at_shutdown.9
 MLINKS+=copy.9 copyin.9 copy.9 copyinstr.9 copy.9 copyout.9 copy.9 copystr.9
-MLINKS+=devstat.9 devicestat.9 devstat.9 devstat_add_entry.9 
-MLINKS+=devstat.9 devstat_remove_entry.9 devstat.9 devstat_start_transaction.9
-MLINKS+=devstat.9 devstat_end_transaction.9
+MLINKS+=devstat.9 devicestat.9
 MLINKS+=fetch.9 fubyte.9 fetch.9 fuswintr.9 fetch.9 fusword.9 fetch.9 fuword.9
 MLINKS+=ifnet.9 if_data.9 ifnet.9 ifaddr.9 ifnet.9 ifqueue.9
 MLINKS+=kernacc.9 useracc.9
@@ -65,8 +63,6 @@ MLINKS+=posix4.9 p1003_1b.9
 MLINKS+=psignal.9 gsignal.9 psignal.9 pgsignal.9
 MLINKS+=rtalloc.9 rtalloc1.9 rtalloc.9 rtalloc_ign.9
 MLINKS+=sleep.9 tsleep.9 sleep.9 wakeup.9 sleep.9 wakeup_one.9
-MLINKS+=sleep.9 asleep.9 sleep.9 await.9
-MLINKS+=buf.9 bp.9
 MLINKS+=spl.9 spl0.9
 MLINKS+=spl.9 splbio.9 spl.9 splclock.9 spl.9 splhigh.9 spl.9 splimp.9
 MLINKS+=spl.9 splnet.9 spl.9 splsoftclock.9 spl.9 splsofttty.9

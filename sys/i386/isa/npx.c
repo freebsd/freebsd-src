@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)npx.c	7.2 (Berkeley) 5/12/91
- *	$Id: npx.c,v 1.64 1998/12/14 19:16:17 bde Exp $
+ *	$Id: npx.c,v 1.60 1998/04/19 15:39:26 bde Exp $
  */
 
 #include "npx.h"
@@ -58,7 +58,9 @@
 #include <machine/cputypes.h>
 #include <machine/frame.h>
 #include <machine/ipl.h>
+#ifndef SMP
 #include <machine/md_var.h>
+#endif
 #include <machine/pcb.h>
 #include <machine/psl.h>
 #ifndef SMP
@@ -84,7 +86,15 @@
 #define	NPX_DISABLE_I586_OPTIMIZED_COPYIO	(1 << 2)
 
 /* XXX - should be in header file. */
-ointhand2_t	npxintr;
+extern void (*bcopy_vector) __P((const void *from, void *to, size_t len));
+extern void (*ovbcopy_vector) __P((const void *from, void *to, size_t len));
+extern int (*copyin_vector) __P((const void *udaddr, void *kaddr, size_t len));
+extern int (*copyout_vector) __P((const void *kaddr, void *udaddr, size_t len));
+
+void	i586_bcopy __P((const void *from, void *to, size_t len));
+void	i586_bzero __P((void *buf, size_t len));
+int	i586_copyin __P((const void *udaddr, void *kaddr, size_t len));
+int	i586_copyout __P((const void *kaddr, void *udaddr, size_t len));
 
 #ifdef	__GNUC__
 
@@ -135,17 +145,15 @@ SYSCTL_INT(_hw,HW_FLOATINGPT, floatingpoint,
 	CTLFLAG_RD, &hw_float, 0, 
 	"Floatingpoint instructions executed in hardware");
 
-#ifndef SMP
-static	u_int			npx0_imask = SWI_CLOCK_MASK;
-static	struct gate_descriptor	npx_idt_probeintr;
-static	int			npx_intrno;
-static	volatile u_int		npx_intrs_while_probing;
-static	volatile u_int		npx_traps_while_probing;
-#endif
+static u_int	npx0_imask = SWI_CLOCK_MASK;
 
 static	bool_t			npx_ex16;
 static	bool_t			npx_exists;
+static	struct gate_descriptor	npx_idt_probeintr;
+static	int			npx_intrno;
+static	volatile u_int		npx_intrs_while_probing;
 static	bool_t			npx_irq13;
+static	volatile u_int		npx_traps_while_probing;
 
 #ifndef SMP
 /*
@@ -240,10 +248,8 @@ static int
 npxprobe1(dvp)
 	struct isa_device *dvp;
 {
-#ifndef SMP
 	u_short control;
 	u_short status;
-#endif
 
 	/*
 	 * Partially reset the coprocessor, if any.  Some BIOS's don't reset
@@ -378,8 +384,6 @@ int
 npxattach(dvp)
 	struct isa_device *dvp;
 {
-	dvp->id_ointr = npxintr;
-
 	/* The caller has printed "irq 13" for the npx_irq13 case. */
 	if (!npx_irq13) {
 		printf("npx%d: ", dvp->id_unit);

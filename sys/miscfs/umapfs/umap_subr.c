@@ -35,7 +35,7 @@
  *
  *	@(#)umap_subr.c	8.9 (Berkeley) 5/14/95
  *
- * $Id: umap_subr.c,v 1.15 1998/11/09 09:21:25 peter Exp $
+ * $Id: umap_subr.c,v 1.13 1998/02/09 06:09:48 eivind Exp $
  */
 
 #include <sys/param.h>
@@ -259,7 +259,7 @@ umap_node_create(mp, targetvp, newvpp)
 		 * Take another reference to the alias vnode
 		 */
 #ifdef UMAPFS_DIAGNOSTIC
-		vprint("umap_node_create: exists", aliasvp);
+		vprint("umap_node_create: exists", ap->umap_vnode);
 #endif
 		/* VREF(aliasvp); */
 	} else {
@@ -352,18 +352,22 @@ umap_mapids(v_mount, credp)
 	struct mount *v_mount;
 	struct ucred *credp;
 {
-	int i;
+	int i, unentries, gnentries;
+	u_long *groupmap, *usermap;
 	uid_t uid;
 	gid_t gid;
 
 	if (credp == NOCRED)
 		return;
 
+	unentries =  MOUNTTOUMAPMOUNT(v_mount)->info_nentries;
+	usermap =  &(MOUNTTOUMAPMOUNT(v_mount)->info_mapdata[0][0]);
+	gnentries =  MOUNTTOUMAPMOUNT(v_mount)->info_gnentries;
+	groupmap =  &(MOUNTTOUMAPMOUNT(v_mount)->info_gmapdata[0][0]);
+
 	/* Find uid entry in map */
 
-	uid = (uid_t) umap_findid(credp->cr_uid,
-				MOUNTTOUMAPMOUNT(v_mount)->info_mapdata,
-				MOUNTTOUMAPMOUNT(v_mount)->info_nentries);
+	uid = (uid_t) umap_findid(credp->cr_uid, usermap, unentries);
 
 	if (uid != -1)
 		credp->cr_uid = uid;
@@ -375,9 +379,7 @@ umap_mapids(v_mount, credp)
 
 	/* Find gid entry in map */
 
-	gid = (gid_t) umap_findid(credp->cr_gid,
-				MOUNTTOUMAPMOUNT(v_mount)->info_gmapdata,
-				MOUNTTOUMAPMOUNT(v_mount)->info_gnentries);
+	gid = (gid_t) umap_findid(credp->cr_gid, groupmap, gnentries);
 
 	if (gid != -1)
 		credp->cr_gid = gid;
@@ -391,8 +393,7 @@ umap_mapids(v_mount, credp)
 	i = 0;
 	while (credp->cr_groups[i] != 0) {
 		gid = (gid_t) umap_findid(credp->cr_groups[i],
-				MOUNTTOUMAPMOUNT(v_mount)->info_gmapdata,
-				MOUNTTOUMAPMOUNT(v_mount)->info_gnentries);
+					groupmap, gnentries);
 
 		if (gid != -1)
 			credp->cr_groups[i++] = gid;

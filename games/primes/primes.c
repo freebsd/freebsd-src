@@ -101,8 +101,6 @@ extern ubig *pr_limit;		/* largest prime in the prime array */
 extern char pattern[];
 extern int pattern_size;	/* length of pattern array */
 
-int	hflag;
-
 void	primes __P((ubig, ubig));
 ubig	read_num_buf __P((void));
 void	usage __P((void));
@@ -117,11 +115,8 @@ main(argc, argv)
 	int ch;
 	char *p;
 
-	while ((ch = getopt(argc, argv, "h")) != -1)
+	while ((ch = getopt(argc, argv, "")) != -1)
 		switch (ch) {
-		case 'h':
-			hflag++;
-			break;
 		case '?':
 		default:
 			usage();
@@ -145,14 +140,14 @@ main(argc, argv)
 			errx(1, "negative numbers aren't permitted.");
 
 		errno = 0;
-		start = strtoul(argv[0], &p, 0);
+		start = strtoul(argv[0], &p, 10);
 		if (errno)
 			err(1, "%s", argv[0]);
 		if (*p != '\0')
 			errx(1, "%s: illegal numeric format.", argv[0]);
 
 		errno = 0;
-		stop = strtoul(argv[1], &p, 0);
+		stop = strtoul(argv[1], &p, 10);
 		if (errno)
 			err(1, "%s", argv[1]);
 		if (*p != '\0')
@@ -164,7 +159,7 @@ main(argc, argv)
 			errx(1, "negative numbers aren't permitted.");
 
 		errno = 0;
-		start = strtoul(argv[0], &p, 0);
+		start = strtoul(argv[0], &p, 10);
 		if (errno)
 			err(1, "%s", argv[0]);
 		if (*p != '\0')
@@ -205,7 +200,7 @@ read_num_buf()
 		if (*p == '-')
 			errx(1, "negative numbers aren't permitted.");
 		errno = 0;
-		val = strtoul(buf, &p, 0);
+		val = strtoul(buf, &p, 10);
 		if (errno)
 			err(1, "%s", buf);
 		if (*p != '\n')
@@ -261,7 +256,7 @@ primes(start, stop)
 		for (p = &prime[0], factor = prime[0];
 		    factor < stop && p <= pr_limit; factor = *(++p)) {
 			if (factor >= start) {
-				printf(hflag ? "0x%lx\n" : "%lu\n", factor);
+				printf("%lu\n", factor);
 			}
 		}
 		/* return early if we are done */
@@ -324,7 +319,7 @@ primes(start, stop)
 		 */
 		for (q = table; q < tab_lim; ++q, start+=2) {
 			if (*q) {
-				printf(hflag ? "0x%lx\n" : "%lu\n", start);
+				printf("%lu\n", start);
 			}
 		}
 	}
@@ -333,6 +328,6 @@ primes(start, stop)
 void
 usage()
 {
-	(void)fprintf(stderr, "usage: primes [-h] [start [stop]]\n");
+	(void)fprintf(stderr, "usage: primes [start [stop]]\n");
 	exit(1);
 }

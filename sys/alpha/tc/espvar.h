@@ -1,4 +1,4 @@
-/* $Id: espvar.h,v 1.1 1998/08/20 08:27:10 dfr Exp $ */
+/* $Id$ */
 /*	$NetBSD: espvar.h,v 1.3.4.1 1996/09/10 17:28:18 cgd Exp $	*/
 
 /*
@@ -74,7 +74,8 @@ struct ecb {
 #define ECB_TRACE(ecb, msg, a, b) do { \
 	const char *f = "[" msg "]"; \
 	int n = strlen((ecb)->trace); \
-	snprintf((ecb)->trace + n, sizeof((ecb)->trace) - n, f, a, b); \
+	if (n < (sizeof((ecb)->trace)-100)) \
+		sprintf((ecb)->trace + n, f,  a, b); \
 } while(0)
 #else
 #define ECB_TRACE(ecb, msg, a, b)

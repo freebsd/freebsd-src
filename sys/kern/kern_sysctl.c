@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_sysctl.c,v 1.81 1998/12/27 18:03:29 dfr Exp $
+ * $Id: kern_sysctl.c,v 1.77 1998/09/05 17:13:27 bde Exp $
  */
 
 #include "opt_compat.h"
@@ -225,7 +225,7 @@ sysctl_sysctl_name SYSCTL_HANDLER_ARGS
 
 	while (namelen) {
 		if (!lsp) {
-			snprintf(buf,sizeof(buf),"%d",*name);
+			sprintf(buf,"%d",*name);
 			if (req->oldidx)
 				error = SYSCTL_OUT(req, ".", 1);
 			if (!error)
@@ -497,7 +497,7 @@ SYSCTL_NODE(_sysctl, 4, oidfmt, CTLFLAG_RD, sysctl_sysctl_oidfmt, "");
  */
 
 /*
- * Handle an int, signed or unsigned.
+ * Handle an integer, signed or unsigned.
  * Two cases:
  *     a variable:  point arg1 at it.
  *     a constant:  pass it in arg2.
@@ -524,7 +524,7 @@ sysctl_handle_int SYSCTL_HANDLER_ARGS
 }
 
 /*
- * Handle a long, signed or unsigned.
+ * Handle an integer, signed or unsigned.
  * Two cases:
  *     a variable:  point arg1 at it.
  *     a constant:  pass it in arg2.
@@ -535,7 +535,10 @@ sysctl_handle_long SYSCTL_HANDLER_ARGS
 {
 	int error = 0;
 
-	error = SYSCTL_OUT(req, arg1, sizeof(long));
+	if (arg1)
+		error = SYSCTL_OUT(req, arg1, sizeof(long));
+	else
+		error = SYSCTL_OUT(req, &arg2, sizeof(long));
 
 	if (error || !req->newptr)
 		return (error);
@@ -544,6 +547,33 @@ sysctl_handle_long SYSCTL_HANDLER_ARGS
 		error = EPERM;
 	else
 		error = SYSCTL_IN(req, arg1, sizeof(long));
+	return (error);
+}
+
+/*
+ * Handle an integer, signed or unsigned.
+ * Two cases:
+ *     a variable:  point arg1 at it.
+ *     a constant:  pass it in arg2.
+ */
+
+int
+sysctl_handle_intptr SYSCTL_HANDLER_ARGS
+{
+	int error = 0;
+
+	if (arg1)
+		error = SYSCTL_OUT(req, arg1, sizeof(intptr_t));
+	else
+		error = SYSCTL_OUT(req, &arg2, sizeof(intptr_t));
+
+	if (error || !req->newptr)
+		return (error);
+
+	if (!arg1)
+		error = EPERM;
+	else
+		error = SYSCTL_IN(req, arg1, sizeof(intptr_t));
 	return (error);
 }
 
@@ -774,8 +804,7 @@ sysctl_root SYSCTL_HANDLER_ARGS
 	return ENOENT;
 found:
 	/* If writing isn't allowed */
-	if (req->newptr && (!((*oidpp)->oid_kind & CTLFLAG_WR) ||
-	    (((*oidpp)->oid_kind & CTLFLAG_SECURE) && securelevel > 0)))
+	if (req->newptr && !((*oidpp)->oid_kind & CTLFLAG_WR))
 		return (EPERM);
 
 	/* Most likely only root can write */

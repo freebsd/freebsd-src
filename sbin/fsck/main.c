@@ -42,13 +42,12 @@ static const char copyright[] =
 static char sccsid[] = "@(#)main.c	8.6 (Berkeley) 5/14/95";
 #endif
 static const char rcsid[] =
-	"$Id: main.c,v 1.15 1998/11/05 03:26:36 mjacob Exp $";
+	"$Id: main.c,v 1.13 1998/03/08 09:55:26 julian Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
 #include <sys/time.h>
 #include <sys/mount.h>
-#include <sys/resource.h>
 
 #include <ufs/ufs/dinode.h>
 #include <ufs/ufs/ufsmount.h>
@@ -58,6 +57,8 @@ static const char rcsid[] =
 #include <fstab.h>
 
 #include "fsck.h"
+
+int	returntosingle;
 
 static int argtoi __P((int flag, char *req, char *str, int base));
 static int docheck __P((struct fstab *fsp));
@@ -72,7 +73,6 @@ main(argc, argv)
 {
 	int ch;
 	int ret, maxrun = 0;
-	struct rlimit rlimit;
 
 	sync();
 	while ((ch = getopt(argc, argv, "dfpnNyYb:c:l:m:")) != -1) {
@@ -131,24 +131,9 @@ main(argc, argv)
 		(void)signal(SIGINT, catch);
 	if (preen)
 		(void)signal(SIGQUIT, catchquit);
-	/*
-	 * Push up our allowed memory limit so we can cope
-	 * with huge filesystems.
-	 */
-	if (getrlimit(RLIMIT_DATA, &rlimit) == 0) {
-		rlimit.rlim_cur = rlimit.rlim_max;
-		(void)setrlimit(RLIMIT_DATA, &rlimit);
-	}
 	if (argc) {
-		while (argc-- > 0) {
-			char *path = blockcheck(*argv);
-
-			if (path == NULL)
-				pfatal("Can't check %s\n", *argv);
-			else
-				(void)checkfilesys(path, 0, 0L, 0);
-			++argv;
-		}
+		while (argc-- > 0)
+			(void)checkfilesys(blockcheck(*argv++), 0, 0L, 0);
 		exit(0);
 	}
 	ret = checkfstab(preen, maxrun, docheck, checkfilesys);
@@ -313,7 +298,7 @@ checkfilesys(filesys, mntpt, auxdata, child)
 	muldup = (struct dups *)0;
 	inocleanup();
 	if (fsmodified) {
-		sblock.fs_time = time(NULL);
+		(void)time(&sblock.fs_time);
 		sbdirty();
 	}
 	if (cvtlevel && sblk.b_dirty) {
@@ -338,13 +323,12 @@ checkfilesys(filesys, mntpt, auxdata, child)
 			resolved = 0;
 	}
 	ckfini(resolved);
-
-	for (cylno = 0; cylno < sblock.fs_ncg; cylno++)
-		if (inostathead[cylno].il_stat != NULL)
-			free((char *)inostathead[cylno].il_stat);
-	free((char *)inostathead);
-	inostathead = NULL;
-	if (fsmodified && !preen)
+	free(blockmap);
+	free(statemap);
+	free((char *)lncntp);
+	if (!fsmodified)
+		return (0);
+	if (!preen)
 		printf("\n***** FILE SYSTEM WAS MODIFIED *****\n");
 	if (rerun)
 		printf("\n***** PLEASE RERUN FSCK *****\n");
@@ -364,8 +348,6 @@ checkfilesys(filesys, mntpt, auxdata, child)
 			if (ret == 0)
 				return (0);
 		}
-		if (!fsmodified)
-			return (0);
 		if (!preen)
 			printf("\n***** REBOOT NOW *****\n");
 		sync();

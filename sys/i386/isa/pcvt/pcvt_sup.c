@@ -261,7 +261,7 @@ vgaioctl(Dev_t dev, int cmd, caddr_t data, int flag)
 static void
 vgapcvtid(struct pcvtid *data)
 {
-	snprintf(data->name, sizeof(data->name), "%s", PCVTIDNAME);
+	strcpy(data->name, PCVTIDNAME);
 	data->rmajor	= PCVTIDMAJOR;
 	data->rminor	= PCVTIDMINOR;
 }

@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: cdrom.c,v 1.44 1998/12/22 12:31:24 jkh Exp $
+ * $Id: cdrom.c,v 1.42 1998/08/27 00:50:14 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -54,7 +54,6 @@
 #undef CD9660
 
 static Boolean cdromMounted;
-static char mountpoint[] = "/dist";
 
 static properties
 read_props(char *name)
@@ -75,7 +74,7 @@ mediaInitCDROM(Device *dev)
 {
     struct iso_args	args;
     properties cd_attr = NULL;
-    char *cp = NULL;
+    char *cp = NULL, *mountpoint = "/dist";
     Boolean readInfo = TRUE;
     static Boolean bogusCDOK = FALSE;
 
@@ -83,6 +82,7 @@ mediaInitCDROM(Device *dev)
 	return TRUE;
 
     Mkdir(mountpoint);
+
     bzero(&args, sizeof(args));
     args.fspec = dev->devname;
     args.flags = 0;
@@ -95,8 +95,10 @@ mediaInitCDROM(Device *dev)
 	    msgConfirm("Error mounting %s on %s: %s (%u)", dev->devname, mountpoint, strerror(errno), errno);
 	    return FALSE;
 	}
+	cdromMounted = TRUE;
     }
-    cdromMounted = TRUE;
+    else
+	cdromMounted = TRUE;
 
     if (!file_readable(string_concat(mountpoint, "/cdrom.inf")) && !bogusCDOK) {
 	if (msgYesNo("Warning: The CD currently in the drive is either not a FreeBSD\n"
@@ -141,6 +143,7 @@ mediaInitCDROM(Device *dev)
 		bogusCDOK = TRUE;
 	}
     }
+    msgDebug("Mounted FreeBSD CDROM from device %s\n", dev->devname);
     properties_free(cd_attr);
     return TRUE;
 }
@@ -148,17 +151,35 @@ mediaInitCDROM(Device *dev)
 FILE *
 mediaGetCDROM(Device *dev, char *file, Boolean probe)
 {
-    return mediaGenericGet(mountpoint, file);
+    char	buf[PATH_MAX];
+
+    if (isDebug())
+	msgDebug("Request for %s from CDROM\n", file);
+    snprintf(buf, PATH_MAX, "/dist/%s", file);
+    if (file_readable(buf))
+	return fopen(buf, "r");
+    snprintf(buf, PATH_MAX, "/dist/dists/%s", file);
+    if (file_readable(buf))
+	return fopen(buf, "r");
+    snprintf(buf, PATH_MAX, "/dist/%s/%s", variable_get(VAR_RELNAME), file);
+    if (file_readable(buf))
+	return fopen(buf, "r");
+    snprintf(buf, PATH_MAX, "/dist/%s/dists/%s", variable_get(VAR_RELNAME), file);
+    return fopen(buf, "r");
 }
 
 void
 mediaShutdownCDROM(Device *dev)
 {
+    char *mountpoint = "/dist";
+
     if (!cdromMounted)
 	return;
-
+    msgDebug("Unmounting %s from %s\n", dev->devname, mountpoint);
     if (unmount(mountpoint, MNT_FORCE) != 0)
 	msgConfirm("Could not unmount the CDROM from %s: %s", mountpoint, strerror(errno));
-    else
+    else {
+	msgDebug("Unmount of CDROM successful\n");
 	cdromMounted = FALSE;
+    }
 }

@@ -12,16 +12,19 @@ CFLAGS+=	-mno-fp-regs
 CFLAGS+=	-I${.CURDIR}/../../common -I${.CURDIR}
 CFLAGS+=	-I${LIBSTANDDIR}
 CFLAGS+=	-I${.CURDIR}/..
-CFLAGS+=	-DSECONDARY_LOAD_ADDRESS=${SECONDARY_LOAD_ADDRESS} -DMINIMAL
+CFLAGS+=	-DSECONDARY_LOAD_ADDRESS=0x${SECONDARY_LOAD_ADDRESS} -DMINIMAL
 NOMAN=1
 STRIP=
-BINDIR?=	/boot
 
 BOOT_RELOC = ${PRIMARY_LOAD_ADDRESS}
 
 CLEANFILES+= ${PROG}.sym ${PROG}.nosym ${PROG}.list
 
 all:	${PROG}
+
+afterinstall:
+	ln -sf boot1 /usr/mdec/daboot
+	ln -sf boot1 /usr/mdec/fdboot
 
 ${PROG}.nosym: ${PROG}.sym
 	cp ${PROG}.sym ${PROG}.nosym
@@ -33,9 +36,10 @@ ${PROG}: ${PROG}.nosym
 .include <bsd.prog.mk>
 
 start.o:	${.CURDIR}/../libalpha/start.S
-	${CC} -c ${CFLAGS} $<
+	${CC} -c -DPRIMARY_BOOTBLOCK $<
 
 ${PROG}.sym: ${OBJS} ${LIBKERN}
 	${LD} -M -Ttext ${BOOT_RELOC} -N -e start -o ${PROG}.sym ${OBJS} \
 		${LIBSTAND} ${LIBALPHA} ${LIBSTAND} > ${.OBJDIR}/${PROG}.list
 	size ${PROG}.sym
+

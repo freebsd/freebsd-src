@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_sr.c,v 1.20 1999/01/18 21:23:47 julian Exp $
+ * $Id: if_sr.c,v 1.14 1998/06/17 13:54:56 bde Exp $
  */
 
 /*
@@ -269,7 +269,6 @@ struct	sr_hardc *srattach_pci(int unit, vm_offset_t plx_vaddr,
 				vm_offset_t sca_vaddr);
 void	srintr_hc(struct sr_hardc *hc);
 
-static ointhand2_t srintr;
 static int	srattach(struct sr_hardc *hc);
 static void	sr_xmit(struct sr_softc *sc);
 static void	srstart(struct ifnet *ifp);
@@ -572,8 +571,6 @@ srattach_isa(struct isa_device *id)
 	u_char mar;
 	struct sr_hardc *hc = &sr_hardc[id->id_unit];
 
-	id->id_ointr = srintr;
-
 	outb(hc->iobase + SR_PCR, inb(hc->iobase + SR_PCR) | SR_PCR_SCARUN);
 	outb(hc->iobase + SR_PSR, inb(hc->iobase + SR_PSR) | SR_PSR_EN_SCA_DMA);
 	outb(hc->iobase + SR_MCR,
@@ -860,26 +857,24 @@ srattach(struct sr_hardc *hc)
 }
 
 /*
- * N2 Interrupt Service Routine.
- * Get the ISA interrupts.
- * 
+ * N2 Interrupt Service Routine
+ *
  * First figure out which SCA gave the interrupt.
- * 
+ * Process it.
+ * See if there is other interrupts pending.
+ * Repeat until there no interrupts remain.
  */
-static void
+void
 srintr(int unit)
-{ 
-	struct sr_hardc *hc; 
+{
+	struct sr_hardc *hc;
 
 	hc = &sr_hardc[unit];
 	srintr_hc(hc);
 
-	return; 
+	return;
 }
 
-/*
- * PCI interrupts come straight here
- */
 void
 srintr_hc(struct sr_hardc *hc)
 {
@@ -1315,6 +1310,13 @@ srioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			sc->ifsppp.pp_flags |= PP_KEEPALIVE;
 			sppp_attach(&sc->ifsppp.pp_if);
 
+			/*
+			 * Shortcut the sppp tls/tlf actions to
+			 * up/down events since our lower layer is
+			 * always ready.
+			 */
+			sc->ifsppp.pp_tls = sc->ifsppp.pp_up;
+			sc->ifsppp.pp_tlf = sc->ifsppp.pp_down;
 		}
 
 		sc->attached = sc->protocol;
@@ -1499,6 +1501,13 @@ sr_up(struct sr_softc *sc)
 			sc->ifsppp.pp_flags |= PP_KEEPALIVE;
 			sppp_attach(&sc->ifsppp.pp_if);
 	
+			/*
+			 * Shortcut the sppp tls/tlf actions to
+			 * up/down events since our lower layer is
+			 * always ready.
+			 */
+			sc->ifsppp.pp_tls = sc->ifsppp.pp_up;
+			sc->ifsppp.pp_tlf = sc->ifsppp.pp_down;
 	}
 
 		sc->attached = sc->protocol;

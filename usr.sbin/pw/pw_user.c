@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: pw_user.c,v 1.24 1999/01/02 04:37:46 billf Exp $";
+	"$Id$";
 #endif /* not lint */
 
 #include <ctype.h>
@@ -925,7 +925,7 @@ pw_password(struct userconf * cnf, struct cargs * args, char const * user)
 		l = (random() % 8 + 8);	/* 8 - 16 chars */
 		pw_getrand(rndbuf, l);
 		for (i = 0; i < l; i++)
-			pwbuf[i] = chars[rndbuf[i] % (sizeof(chars)-1)];
+			pwbuf[i] = chars[rndbuf[i] % sizeof(chars)];
 		pwbuf[i] = '\0';
 
 		/*

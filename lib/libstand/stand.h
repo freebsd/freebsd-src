@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: stand.h,v 1.12 1998/11/04 07:39:53 msmith Exp $
+ *	$Id: stand.h,v 1.6 1998/09/26 10:48:50 dfr Exp $
  * From	$NetBSD: stand.h,v 1.22 1997/06/26 19:17:40 drochner Exp $	
  */
 
@@ -137,7 +137,6 @@ struct devsw {
     int		(*dv_open)(struct open_file *f, ...);
     int		(*dv_close)(struct open_file *f);
     int		(*dv_ioctl)(struct open_file *f, u_long cmd, void *data);
-    void	(*dv_print)(int verbose);	/* print device information */
 };
 
 extern int errno;
@@ -162,7 +161,7 @@ extern struct open_file files[];
 
 #define isupper(c)	((c) >= 'A' && (c) <= 'Z')
 #define islower(c)	((c) >= 'a' && (c) <= 'z')
-#define isspace(c)	((c) == ' ' || ((c) >= 0x9 && (c) <= 0xd))
+#define isspace(c)	((c) == ' ' || (c) == '\t')
 #define isdigit(c)	((c) >= '0' && (c) <= '9')
 #define isxdigit(c)	(isdigit(c) || ((c) >= 'a' && (c) <= 'f') || ((c) >= 'A' && (c) <= 'F'))
 #define isascii(c)	((c) >= 0 || (c <= 0x7f))
@@ -182,9 +181,6 @@ extern void	*calloc(size_t n1, size_t n2);
 extern void	*realloc(void *ptr, size_t size);
 extern void	*reallocf(void *ptr, size_t size);
 extern void	mallocstats(void);
-#ifdef __alpha__
-extern void	free_region(void *start, void *end);
-#endif
 
 /* disklabel support (undocumented, may be junk) */
 struct		disklabel;
@@ -194,7 +190,6 @@ extern int	dkcksum(struct disklabel *);
 extern int	printf(const char *fmt, ...);
 extern void	vprintf(const char *fmt, _BSD_VA_LIST_);
 extern int	sprintf(char *buf, const char *cfmt, ...);
-extern void	vsprintf(char *buf, const char *cfmt, _BSD_VA_LIST_);
 
 extern void	twiddle(void);
 
@@ -220,7 +215,7 @@ extern u_long	random(void);
 extern long	strtol(const char *, char **, int);
 extern char *	strerror(int err);
 extern char	*optarg;			/* getopt(3) external variables */
-extern int	optind, opterr, optopt, optreset;
+extern int	optind, opterr, optopt;
 extern int	getopt(int, char * const [], const char *);
 
 /* pager.c */
@@ -228,10 +223,6 @@ extern void	pager_open(void);
 extern void	pager_close(void);
 extern int	pager_output(const char *lines);
 extern int	pager_file(const char *fname);
-
-/* No signal state to preserve */
-#define setjmp	_setjmp
-#define longjmp	_longjmp
 
 /* environment.c */
 #define EV_DYNAMIC	(1<<0)		/* value was dynamically allocated, free if changed/unset */

@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.11 1998/12/27 17:25:27 bde Exp $
+# $Id: Makefile,v 1.9 1998/03/20 15:10:59 bde Exp $
 #
 
 GPPDIR=	${.CURDIR}/../../../contrib/libg++
@@ -93,40 +93,32 @@ beforeinstall:
 
 # ======== typeinfoi.o, stdexcepti.o ========
 .for file in typeinfoi stdexcepti
-CLEANFILES+=	${file}.o.tmp ${file}.po.tmp ${file}.so.tmp
 ${file}.o: ${file}.cc
 	${CXX} ${CXXFLAGS} -frtti -c ${DIR}/${file}.cc -o ${.TARGET}
-	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
-	@mv ${.TARGET}.tmp ${.TARGET}
+	@${LD} -O ${.TARGET} -x -r ${.TARGET}
 
-${file}.So: ${file}.cc
+${file}.so: ${file}.cc
 	${CXX} ${PICFLAG} -DPIC ${CXXFLAGS} -frtti -c ${DIR}/${file}.cc -o ${.TARGET}
-	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
-	@mv ${.TARGET}.tmp ${.TARGET}
+	@${LD} -O ${.TARGET} -x -r ${.TARGET}
 
 ${file}.po: ${file}.cc
 	${CXX} -p ${CXXFLAGS} -frtti -c ${DIR}/${file}.cc -o ${.TARGET}
-	@${LD} -o ${.TARGET}.tmp -X -r ${.TARGET}
-	@mv ${.TARGET}.tmp ${.TARGET}
+	@${LD} -O ${.TARGET} -X -r ${.TARGET}
 .endfor
 
 # ======== exceptioni.o ========
 .for file in exceptioni
-CLEANFILES+=	${file}.o.tmp ${file}.po.tmp ${file}.so.tmp
 ${file}.o: ${file}.cc
 	${CXX} ${CXXFLAGS} -O0 -frtti -fhandle-exceptions -c ${DIR}/${file}.cc -o ${.TARGET}
-	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
-	@mv ${.TARGET}.tmp ${.TARGET}
+	@${LD} -O ${.TARGET} -x -r ${.TARGET}
 
-${file}.So: ${file}.cc
+${file}.so: ${file}.cc
 	${CXX} ${PICFLAG} -DPIC ${CXXFLAGS} -O0 -frtti -fhandle-exceptions -c ${DIR}/${file}.cc -o ${.TARGET}
-	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
-	@mv ${.TARGET}.tmp ${.TARGET}
+	@${LD} -O ${.TARGET} -x -r ${.TARGET}
 
 ${file}.po: ${file}.cc
 	${CXX} -p ${CXXFLAGS} -O0 -frtti -fhandle-exceptions -c ${DIR}/${file}.cc -o ${.TARGET}
-	@${LD} -o ${.TARGET}.tmp -X -r ${.TARGET}
-	@mv ${.TARGET}.tmp ${.TARGET}
+	@${LD} -O ${.TARGET} -X -r ${.TARGET}
 .endfor
 
 # ======== cstrmain.o ========

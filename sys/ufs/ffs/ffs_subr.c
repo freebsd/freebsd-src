@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_subr.c	8.5 (Berkeley) 3/21/95
- * $Id: ffs_subr.c,v 1.22 1998/11/29 03:12:06 bde Exp $
+ * $Id: ffs_subr.c,v 1.20 1998/03/08 09:58:59 julian Exp $
  */
 
 #include <sys/param.h>
@@ -53,7 +53,7 @@
 #include <ufs/ffs/ffs_extern.h>
 
 #ifdef DDB
-void	ffs_checkoverlap __P((struct buf *, struct inode *));
+static void	ffs_checkoverlap __P((struct buf *, struct inode *));
 #endif
 
 /*
@@ -128,7 +128,7 @@ ffs_fragacct(fs, fragmap, fraglist, cnt)
 }
 
 #ifdef DDB
-void
+static void
 ffs_checkoverlap(bp, ip)
 	struct buf *bp;
 	struct inode *ip;
@@ -144,8 +144,8 @@ ffs_checkoverlap(bp, ip)
 		if (ep == bp || (ep->b_flags & B_INVAL) ||
 		    ep->b_vp == NULLVP)
 			continue;
-		if (VOP_BMAP(ep->b_vp, (ufs_daddr_t)0, &vp, (ufs_daddr_t *)NULL,
-		    (int *)NULL, (int *)NULL))
+		if (VOP_BMAP(ep->b_vp, (ufs_daddr_t)0, &vp, (ufs_daddr_t)0,
+		    NULL, NULL))
 			continue;
 		if (vp != ip->i_devvp)
 			continue;

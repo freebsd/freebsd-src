@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vfsops.c	8.12 (Berkeley) 5/20/95
- * $Id: nfs_vfsops.c,v 1.78 1998/10/31 15:31:26 peter Exp $
+ * $Id: nfs_vfsops.c,v 1.76 1998/09/07 13:17:05 bde Exp $
  */
 
 #include <sys/param.h>
@@ -486,7 +486,7 @@ nfs_mountroot(mp)
 	nd->root_args.fh = nd->root_fh;
 	nd->root_args.fhsize = nd->root_fhsize;
 	l = ntohl(nd->root_saddr.sin_addr.s_addr);
-	snprintf(buf, sizeof(buf), "%ld.%ld.%ld.%ld:%s",
+	sprintf(buf,"%ld.%ld.%ld.%ld:%s",
 		(l >> 24) & 0xff, (l >> 16) & 0xff,
 		(l >>  8) & 0xff, (l >>  0) & 0xff,nd->root_hostnam);
 	printf("NFS ROOT: %s\n",buf);
@@ -512,7 +512,7 @@ nfs_mountroot(mp)
 		nd->swap_args.fh = nd->swap_fh;
 		nd->swap_args.fhsize = nd->swap_fhsize;
 		l = ntohl(nd->swap_saddr.sin_addr.s_addr);
-		snprintf(buf, sizeof(buf), "%ld.%ld.%ld.%ld:%s",
+		sprintf(buf,"%ld.%ld.%ld.%ld:%s",
 			(l >> 24) & 0xff, (l >> 16) & 0xff,
 			(l >>  8) & 0xff, (l >>  0) & 0xff,nd->swap_hostnam);
 		printf("NFS SWAP: %s\n",buf);
@@ -1066,7 +1066,7 @@ loop:
 		 */
 		if (vp->v_mount != mp)
 			goto loop;
-		if (VOP_ISLOCKED(vp) || TAILQ_EMPTY(&vp->v_dirtyblkhd) ||
+		if (VOP_ISLOCKED(vp) || vp->v_dirtyblkhd.lh_first == NULL ||
 		    waitfor == MNT_LAZY)
 			continue;
 		if (vget(vp, LK_EXCLUSIVE, p))

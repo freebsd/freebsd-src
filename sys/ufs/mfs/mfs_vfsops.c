@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_vfsops.c	8.11 (Berkeley) 6/19/95
- * $Id: mfs_vfsops.c,v 1.52 1998/12/07 21:58:49 archie Exp $
+ * $Id: mfs_vfsops.c,v 1.50 1998/10/10 08:12:24 jkh Exp $
  */
 
 
@@ -103,7 +103,7 @@ VFS_SET(mfs_vfsops, mfs, 0);
 #ifdef MFS_ROOT_SIZE
 /* Image was already written into mfs_root */
 static u_char mfs_root[MFS_ROOT_SIZE*1024] = "MFS Filesystem goes here";
-static u_char end_mfs_root[] __unused = "MFS Filesystem had better STOP here";
+static u_char end_mfs_root[] = "MFS Filesystem had better STOP here";
 #endif
 
 u_char *
@@ -391,16 +391,6 @@ mfs_start(mp, flags, p)
 	register int gotsig = 0;
 
 	base = mfsp->mfs_baseoff;
-
-	/*
-	 * Must set P_SYSTEM to prevent system from trying to kill
-	 * this process.  What happens is that the process is unkillable,
-	 * and the swapper loops trying to continuously kill it.  Nor
-	 * can we swap out this process - not unless you want a deadlock,
-	 * anyway.
-	 */
-	curproc->p_flag |= P_SYSTEM;
-
 	while (mfsp->mfs_active) {
 		while (bp = bufq_first(&mfsp->buf_queue)) {
 			bufq_remove(&mfsp->buf_queue, bp);

@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_queue.h,v 1.1 1998/09/15 06:33:23 gibbs Exp $
+ *      $Id$
  */
 
 #ifndef _CAM_CAM_QUEUE_H
@@ -50,9 +50,7 @@ struct camq {
 	u_int32_t  qfrozen_cnt;
 };
 
-TAILQ_HEAD(ccb_hdr_tailq, ccb_hdr);
-LIST_HEAD(ccb_hdr_list, ccb_hdr);
-SLIST_HEAD(ccb_hdr_slist, ccb_hdr);
+TAILQ_HEAD(ccb_hdr_list, ccb_hdr);
 
 struct cam_ccbq {
 	struct	camq queue;
@@ -60,7 +58,7 @@ struct cam_ccbq {
 	int	dev_openings;	
 	int	dev_active;
 	int	held;
-	struct	ccb_hdr_tailq active_ccbs;
+	struct	ccb_hdr_list active_ccbs;
 };
 
 struct cam_ed;

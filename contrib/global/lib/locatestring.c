@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 1997, 1998 Shigio Yamaguchi. All rights reserved.
+ * Copyright (c) 1996, 1997 Shigio Yamaguchi. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	locatestring.c				25-Jul-98
+ *	locatestring.c				20-Oct-97
  *
  */
 #include <string.h>
@@ -40,36 +40,35 @@
  *
  *	i)	string	string
  *	i)	pattern	pattern
- *	i)	flag	MATCH_FIRST:	match first
- *			MATCH_AT_FIRST: match only at first column
- *			MATCH_LAST:	match last
- *			MATCH_AT_LAST:	match only at last column
+ *	i)	flag	0: match first
+ *			1: match only at first column
+ *			2: match last
+ *			3: match only at last column
  *	r)		pointer or NULL
  *
  * This function is made to avoid compatibility problems.
  */
 char	*
 locatestring(string, pattern, flag)
-const char *string;
-const char *pattern;
+char	*string;
+char	*pattern;
 int	flag;
 {
 	int	c = *pattern;
-	int	slen, plen;
-	const char *p = NULL;
+	char	*p = (char *)0;
 
-	plen = strlen(pattern);
-	if (flag == MATCH_AT_LAST && (slen = strlen(string)) > plen)
-		string += (slen - plen);
+	if (flag == 3 && strlen(string) > strlen(pattern)) {
+		string += strlen(string) - strlen(pattern);
+	}
 	for (; *string; string++) {
 		if (*string == c)
-			if (!strncmp(string, pattern, plen)) {
+			if (!strncmp(string, pattern, strlen(pattern))) {
 				p = string;
-				if (flag == MATCH_FIRST)
+				if (flag == 0)
 					break;
 			}
-		if (flag == MATCH_AT_FIRST || flag == MATCH_AT_LAST)
+		if (flag == 1 || flag == 3)
 			break;
 	}
-	return (char *)p;
+	return p;
 }

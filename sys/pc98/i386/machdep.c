@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.104 1999/01/08 16:04:20 kato Exp $
+ *	$Id: machdep.c,v 1.98 1998/10/09 12:36:25 kato Exp $
  */
 
 #include "apm.h"
@@ -109,6 +109,9 @@
 #include <net/netisr.h>
 #endif
 
+#if NAPM > 0
+#include <machine/apm_bios.h>
+#endif
 #include <machine/cpu.h>
 #include <machine/reg.h>
 #include <machine/clock.h>
@@ -423,12 +426,6 @@ again:
 	 */
 	{
 		vm_offset_t mb_map_size;
-		int xclusters;
-
-		/* Allow override of NMBCLUSTERS from the kernel environment */
-		if (getenv_int("kern.ipc.nmbclusters", &xclusters) && 
-		    xclusters > nmbclusters)
-		    nmbclusters = xclusters;
 
 		mb_map_size = nmbufs * MSIZE + nmbclusters * MCLBYTES;
 		mb_map_size = roundup2(mb_map_size, max(MCLBYTES, PAGE_SIZE));
@@ -452,8 +449,14 @@ again:
 	}
 
 #if defined(USERCONFIG)
-	userconfig();
-	cninit();		/* the preferred console may have changed */
+#if defined(USERCONFIG_BOOT)
+	if (1) {
+#else
+        if (boothowto & RB_CONFIG) {
+#endif
+		userconfig();
+		cninit();	/* the preferred console may have changed */
+	}
 #endif
 
 	printf("avail memory = %d (%dK bytes)\n", ptoa(cnt.v_free_count),
@@ -545,11 +548,7 @@ sendsig(catcher, sig, mask, code)
 	 *	and the stack can not be grown. useracc will return FALSE
 	 *	if access is denied.
 	 */
-#ifdef VM_STACK
-	if ((grow_stack (p, (int)fp) == FALSE) ||
-#else
 	if ((grow(p, (int)fp) == FALSE) ||
-#endif
 	    (useracc((caddr_t)fp, sizeof(struct sigframe), B_WRITE) == FALSE)) {
 		/*
 		 * Process has trashed its stack; give it an illegal
@@ -644,7 +643,7 @@ sendsig(catcher, sig, mask, code)
 	}
 
 	regs->tf_esp = (int)fp;
-	regs->tf_eip = PS_STRINGS - *(p->p_sysent->sv_szsigcode);
+	regs->tf_eip = (int)(((char *)PS_STRINGS) - *(p->p_sysent->sv_szsigcode));
 	regs->tf_cs = _ucodesel;
 	regs->tf_ds = _udatasel;
 	regs->tf_es = _udatasel;
@@ -805,6 +804,17 @@ cpu_halt(void)
 {
 	for (;;)
 		__asm__ ("hlt");
+}
+
+/*
+ * Turn the power off.
+ */
+void
+cpu_power_down(void)
+{
+#if NAPM > 0
+	apm_power_off();
+#endif
 }
 
 /*
@@ -1255,7 +1265,11 @@ init386(first)
 	setidt(11, &IDTVEC(missing),  SDT_SYS386TGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
 	setidt(12, &IDTVEC(stk),  SDT_SYS386TGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
 	setidt(13, &IDTVEC(prot),  SDT_SYS386TGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
+#ifdef CPU_BUGGY_CYRIX
 	setidt(14, &IDTVEC(page),  SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
+#else
+	setidt(14, &IDTVEC(page),  SDT_SYS386TGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
+#endif
 	setidt(15, &IDTVEC(rsvd),  SDT_SYS386TGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
 	setidt(16, &IDTVEC(fpu),  SDT_SYS386TGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
 	setidt(17, &IDTVEC(align), SDT_SYS386TGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
@@ -1680,7 +1694,7 @@ f00f_hack(void *unused) {
 	if (!has_f00f_bug)
 		return;
 
-	printf("Intel Pentium detected, installing workaround for F00F bug\n");
+	printf("Intel Pentium F00F detected, installing workaround\n");
 
 	r_idt.rd_limit = sizeof(idt) - 1;
 

@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: unisig_if.c,v 1.4 1998/12/04 22:54:53 archie Exp $
+ *	@(#) $Id: unisig_if.c,v 1.1 1998/09/15 08:23:11 phk Exp $
  *
  */
 
@@ -35,6 +35,10 @@
  *
  */
 
+#ifndef lint
+static char *RCSid = "@(#) $Id: unisig_if.c,v 1.1 1998/09/15 08:23:11 phk Exp $";
+#endif
+
 #include <netatm/kern_include.h>
 
 #include <netatm/ipatm/ipatm_var.h>
@@ -45,10 +49,6 @@
 #include <netatm/uni/unisig.h>
 #include <netatm/uni/unisig_var.h>
 #include <netatm/uni/unisig_msg.h>
-
-#ifndef lint
-__RCSID("@(#) $Id: unisig_if.c,v 1.4 1998/12/04 22:54:53 archie Exp $");
-#endif
 
 
 /*
@@ -863,7 +863,7 @@ unisig_ioctl(code, data, arg1)
 		/*
 		 * Schedule VCC termination
 		 */
-		unisig_cause_attr_from_user(&uvp->uv_connvc->cvc_attr,
+		unisig_set_cause_attr(&uvp->uv_connvc->cvc_attr,
 				T_ATM_CAUSE_UNSPECIFIED_NORMAL);
 		err = unisig_abort((struct vccb *)uvp);
 		break;
@@ -894,8 +894,7 @@ unisig_ioctl(code, data, arg1)
 			/*
 			 * Fill out the response struct for the VCC
 			 */
-			(void) snprintf(rsp.avp_intf,
-				    sizeof(rsp.avp_intf), "%s%d",
+			(void) sprintf(rsp.avp_intf, "%s%d",
 					usp->us_pif->pif_name,
 					usp->us_pif->pif_unit);
 			rsp.avp_vpi = uvp->uv_vpi;

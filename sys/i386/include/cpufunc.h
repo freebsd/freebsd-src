@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cpufunc.h,v 1.84 1999/01/08 19:51:02 bde Exp $
+ *	$Id: cpufunc.h,v 1.80 1998/07/11 04:58:25 bde Exp $
  */
 
 /*
@@ -39,6 +39,15 @@
 
 #ifndef _MACHINE_CPUFUNC_H_
 #define	_MACHINE_CPUFUNC_H_
+
+#include <sys/cdefs.h>
+#include <sys/types.h>
+
+#include <machine/lock.h>
+
+#if defined(SWTCH_OPTIM_STATS)
+extern int tlb_flush_count;
+#endif
 
 #define readb(va)	(*(volatile u_int8_t *) (va))
 #define readw(va)	(*(volatile u_int16_t *) (va))
@@ -50,14 +59,6 @@
 
 #ifdef	__GNUC__
 
-#ifdef SMP
-#include <machine/lock.h>		/* XXX */
-#endif
-
-#ifdef SWTCH_OPTIM_STATS
-extern	int	tlb_flush_count;	/* XXX */
-#endif
-
 static __inline void
 breakpoint(void)
 {
@@ -68,17 +69,13 @@ static __inline void
 disable_intr(void)
 {
 	__asm __volatile("cli" : : : "memory");
-#ifdef SMP
 	MPINTR_LOCK();
-#endif
 }
 
 static __inline void
 enable_intr(void)
 {
-#ifdef SMP
 	MPINTR_UNLOCK();
-#endif
 	__asm __volatile("sti");
 }
 
@@ -194,27 +191,24 @@ static __inline void
 insb(u_int port, void *addr, size_t cnt)
 {
 	__asm __volatile("cld; rep; insb"
-			 : "=D" (addr), "=c" (cnt)
-			 :  "0" (addr),  "1" (cnt), "d" (port)
-			 : "memory");
+			 : : "d" (port), "D" (addr), "c" (cnt)
+			 : "di", "cx", "memory");
 }
 
 static __inline void
 insw(u_int port, void *addr, size_t cnt)
 {
 	__asm __volatile("cld; rep; insw"
-			 : "=D" (addr), "=c" (cnt)
-			 :  "0" (addr),  "1" (cnt), "d" (port)
-			 : "memory");
+			 : : "d" (port), "D" (addr), "c" (cnt)
+			 : "di", "cx", "memory");
 }
 
 static __inline void
 insl(u_int port, void *addr, size_t cnt)
 {
 	__asm __volatile("cld; rep; insl"
-			 : "=D" (addr), "=c" (cnt)
-			 :  "0" (addr),  "1" (cnt), "d" (port)
-			 : "memory");
+			 : : "d" (port), "D" (addr), "c" (cnt)
+			 : "di", "cx", "memory");
 }
 
 static __inline void
@@ -223,11 +217,11 @@ invd(void)
 	__asm __volatile("invd");
 }
 
-#if defined(SMP) && defined(KERNEL)
+#ifdef KERNEL
+#ifdef SMP
 
 /*
- * When using APIC IPI's, invlpg() is not simply the invlpg instruction
- * (this is a bug) and the inlining cost is prohibitive since the call
+ * When using APIC IPI's, the inlining cost is prohibitive since the call
  * executes into the IPI transmission system.
  */
 void	invlpg		__P((u_int addr));
@@ -236,7 +230,7 @@ void	invltlb		__P((void));
 static __inline void
 cpu_invlpg(void *addr)
 {
-	__asm __volatile("invlpg %0" : : "m" (*(char *)addr) : "memory");
+	__asm   __volatile("invlpg %0"::"m"(*(char *)addr):"memory");
 }
 
 static __inline void
@@ -253,14 +247,14 @@ cpu_invltlb(void)
 	++tlb_flush_count;
 #endif
 }
-
-#else /* !(SMP && KERNEL) */
+#else  /* !SMP */
 
 static __inline void
 invlpg(u_int addr)
 {
-	__asm __volatile("invlpg %0" : : "m" (*(char *)addr) : "memory");
+	__asm   __volatile("invlpg %0"::"m"(*(char *)addr):"memory");
 }
+
 
 static __inline void
 invltlb(void)
@@ -272,12 +266,13 @@ invltlb(void)
 	 */
 	__asm __volatile("movl %%cr3, %0; movl %0, %%cr3" : "=r" (temp)
 			 : : "memory");
-#ifdef SWTCH_OPTIM_STATS
+#if defined(SWTCH_OPTIM_STATS)
 	++tlb_flush_count;
 #endif
 }
 
-#endif /* SMP && KERNEL */
+#endif	/* SMP */
+#endif  /* KERNEL */
 
 static __inline u_short
 inw(u_int port)
@@ -327,24 +322,24 @@ static __inline void
 outsb(u_int port, const void *addr, size_t cnt)
 {
 	__asm __volatile("cld; rep; outsb"
-			 : "=S" (addr), "=c" (cnt)
-			 :  "0" (addr),  "1" (cnt), "d" (port));
+			 : : "d" (port), "S" (addr), "c" (cnt)
+			 : "si", "cx");
 }
 
 static __inline void
 outsw(u_int port, const void *addr, size_t cnt)
 {
 	__asm __volatile("cld; rep; outsw"
-			 : "=S" (addr), "=c" (cnt)
-			 :  "0" (addr),  "1" (cnt), "d" (port));
+			 : : "d" (port), "S" (addr), "c" (cnt)
+			 : "si", "cx");
 }
 
 static __inline void
 outsl(u_int port, const void *addr, size_t cnt)
 {
 	__asm __volatile("cld; rep; outsl"
-			 : "=S" (addr), "=c" (cnt)
-			 :  "0" (addr),  "1" (cnt), "d" (port));
+			 : : "d" (port), "S" (addr), "c" (cnt)
+			 : "si", "cx");
 }
 
 static __inline void
@@ -399,7 +394,7 @@ rdtsc(void)
 }
 
 static __inline void
-setbits(volatile u_int *addr, u_int bits)
+setbits(volatile unsigned *addr, u_int bits)
 {
 	__asm __volatile(
 #ifdef SMP
@@ -452,7 +447,7 @@ u_int64_t rdmsr		__P((u_int msr));
 u_int64_t rdpmc		__P((u_int pmc));
 u_int64_t rdtsc		__P((void));
 u_int	read_eflags	__P((void));
-void	setbits		__P((volatile u_int *addr, u_int bits));
+void	setbits		__P((volatile unsigned *addr, u_int bits));
 void	wbinvd		__P((void));
 void	write_eflags	__P((u_int ef));
 void	wrmsr		__P((u_int msr, u_int64_t newval));
@@ -466,5 +461,6 @@ void	ltr		__P((u_short sel));
 u_int	rcr0		__P((void));
 u_int	rcr3		__P((void));
 u_int	rcr4		__P((void));
+void	i686_pagezero	__P((void *addr));
 
 #endif /* !_MACHINE_CPUFUNC_H_ */

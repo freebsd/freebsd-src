@@ -65,7 +65,6 @@ int ftsoptions;			/* options for the ftsopen(3) call */
 int isdeprecated;		/* using deprecated syntax */
 int isdepth;			/* do directories on post-order visit */
 int isoutput;			/* user specified output operator */
-int issort;         		/* do hierarchies in lexicographical order */
 int isxargs;			/* don't permit xargs delimiting chars */
 
 static void usage __P((void));
@@ -85,7 +84,7 @@ main(argc, argv)
 	p = start = argv;
 	Hflag = Lflag = 0;
 	ftsoptions = FTS_NOSTAT | FTS_PHYSICAL;
-	while ((ch = getopt(argc, argv, "HLPXdf:sx")) != -1)
+	while ((ch = getopt(argc, argv, "HLPXdf:x")) != -1)
 		switch (ch) {
 		case 'H':
 			Hflag = 1;
@@ -106,9 +105,6 @@ main(argc, argv)
 			break;
 		case 'f':
 			*p++ = optarg;
-			break;
-		case 's':
-			issort = 1;
 			break;
 		case 'x':
 			ftsoptions |= FTS_XDEV;
@@ -155,6 +151,6 @@ static void
 usage()
 {
 	(void)fprintf(stderr,
-"usage: find [-H | -L | -P] [-Xdsx] [-f file] [file ...] [expression]\n");
+"usage: find [-H | -L | -P] [-Xdx] [-f file] [file ...] [expression]\n");
 	exit(1);
 }

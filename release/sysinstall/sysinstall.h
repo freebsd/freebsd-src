@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.152 1998/12/22 12:31:25 jkh Exp $
+ * $Id: sysinstall.h,v 1.148 1998/09/30 11:49:37 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -51,8 +51,14 @@
 #include "colors.h"
 #include "libdisk.h"
 #include "dist.h"
+#include "version.h"
 
 /*** Defines ***/
+
+/* Different packages we depend on - update symlinks when versions change! */
+#define PACKAGE_GATED	"gated"
+#define PACKAGE_PCNFSD	"pcnfsd"
+#define PACKAGE_LYNX	"lynx"
 
 /* device limits */
 #define DEV_NAME_MAX		64	/* The maximum length of a device name	*/
@@ -401,13 +407,13 @@ extern void	command_shell_add(char *key, char *fmt, ...);
 extern void	command_func_add(char *key, commandFunc func, void *data);
 
 /* config.c */
+extern int	configFstab(void);
 extern void	configEnvironmentRC_conf(char *config);
 extern void	configEnvironmentResolv(char *config);
 extern void	configRC_conf(char *config);
-extern int	configFstab(dialogMenuItem *self);
 extern int	configRC(dialogMenuItem *self);
 extern int	configRegister(dialogMenuItem *self);
-extern int	configResolv(dialogMenuItem *self);
+extern void	configResolv(void);
 extern int	configPackages(dialogMenuItem *self);
 extern int	configSaver(dialogMenuItem *self);
 extern int	configSaverTimeout(dialogMenuItem *self);
@@ -531,16 +537,12 @@ extern int	installNovice(dialogMenuItem *self);
 extern int	installFixitHoloShell(dialogMenuItem *self);
 extern int	installFixitCDROM(dialogMenuItem *self);
 extern int	installFixitFloppy(dialogMenuItem *self);
-extern int	installFixupBin(dialogMenuItem *self);
-extern int	installFixupXFree(dialogMenuItem *self);
+extern int	installFixup(dialogMenuItem *self);
 extern int	installUpgrade(dialogMenuItem *self);
 extern int	installFilesystems(dialogMenuItem *self);
 extern int	installVarDefaults(dialogMenuItem *self);
 extern void	installEnvironment(void);
 extern Boolean	copySelf(void);
-
-/* kget.c */
-extern int	kget(char *out);
 
 /* keymap.c */
 extern int	loadKeymap(const char *lang);
@@ -587,7 +589,6 @@ extern Boolean	mediaExtractDist(char *dir, char *dist, FILE *fp);
 extern Boolean	mediaExtractDistBegin(char *dir, int *fd, int *zpid, int *cpic);
 extern Boolean	mediaExtractDistEnd(int zpid, int cpid);
 extern Boolean	mediaVerify(void);
-extern FILE	*mediaGenericGet(char *base, const char *file);
 
 /* misc.c */
 extern Boolean	file_readable(char *fname);

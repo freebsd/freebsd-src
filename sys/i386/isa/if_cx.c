@@ -62,7 +62,6 @@ static int cxattach __P((struct isa_device *id));
 static void cxput __P((cx_chan_t *c, char b));
 static void cxsend __P((cx_chan_t *c));
 static void cxrinth __P((cx_chan_t *c));
-static ointhand2_t cxintr;
 static int cxtinth __P((cx_chan_t *c));
 
 #ifdef DEBUG
@@ -231,8 +230,6 @@ cxattach (struct isa_device *id)
 	int i;
 	struct sppp *sp;
 
-	id->id_ointr = cxintr;
-
 	/* Initialize the board structure. */
 	cx_init (b, unit, iobase, ffs(irq)-1, drq);
 
@@ -284,7 +281,13 @@ cxattach (struct isa_device *id)
 			/* Init routine is never called by upper level? */
 			sppp_attach (c->ifp);
 			if_attach (c->ifp);
+			/*
+			 * Shortcut the sppp tls/tlf actions to up/down
+			 * events since our lower layer is always ready.
+			 */
 			sp = (struct sppp*) c->ifp;
+			sp->pp_tls = sp->pp_up;
+			sp->pp_tlf = sp->pp_down;
 #if NBPFILTER > 0
 			/* If BPF is in the kernel, call the attach for it. */
 			bpfattach (c->ifp, DLT_PPP, PPP_HEADER_LEN);
@@ -704,7 +707,7 @@ cxtinth (cx_chan_t *c)
 	return (teoir);
 }
 
-static void
+void
 cxintr (int bnum)
 {
 	cx_board_t *b = cxboard + bnum;

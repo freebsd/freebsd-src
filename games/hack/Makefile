@@ -18,7 +18,7 @@ DPADD=	${LIBTERMCAP} ${LIBCOMPAT}
 LDADD=	-ltermcap -lcompat
 CFLAGS+= -fwritable-strings -I${.CURDIR} -I.
 HIDEGAME=hidegame
-CLEANFILES=hack.onames.h makedefs makedefs.o
+CLEANFILES+= hack.onames.h makedefs
 
 build-tools: makedefs
 

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_linker.c,v 1.20 1999/01/19 16:26:32 peter Exp $
+ *	$Id: kern_linker.c,v 1.9 1998/10/10 02:29:07 peter Exp $
  */
 
 #include "opt_ddb.h"
@@ -47,13 +47,8 @@
 #include <sys/vnode.h>
 #include <sys/sysctl.h>
 
-#ifdef KLD_DEBUG
-int kld_debug = 0;
-#endif
-
 MALLOC_DEFINE(M_LINKER, "kld", "kernel linker");
 linker_file_t linker_current_file;
-linker_file_t linker_kernel_file;
 
 static struct lock lock;	/* lock for the file list */
 static linker_class_list_t classes;
@@ -123,11 +118,11 @@ linker_file_sysinit(linker_file_t lf)
      * Since some things care about execution order, this is the
      * operation which ensures continued function.
      */
-    for (sipp = (struct sysinit **)sysinits->ls_items; *sipp; sipp++) {
-	for (xipp = sipp + 1; *xipp; xipp++) {
-	    if ((*sipp)->subsystem <= (*xipp)->subsystem ||
-		 ((*sipp)->subsystem == (*xipp)->subsystem &&
-		  (*sipp)->order <= (*xipp)->order))
+    for( sipp = (struct sysinit **)sysinits->ls_items; *sipp; sipp++) {
+	for( xipp = sipp + 1; *xipp; xipp++) {
+	    if( (*sipp)->subsystem < (*xipp)->subsystem ||
+		( (*sipp)->subsystem == (*xipp)->subsystem &&
+		  (*sipp)->order < (*xipp)->order))
 		continue;	/* skip*/
 	    save = *sipp;
 	    *sipp = *xipp;
@@ -139,15 +134,18 @@ linker_file_sysinit(linker_file_t lf)
     /*
      * Traverse the (now) ordered list of system initialization tasks.
      * Perform each task, and continue on to the next task.
+     *
+     * The last item on the list is expected to be the scheduler,
+     * which will not return.
      */
-    for (sipp = (struct sysinit **)sysinits->ls_items; *sipp; sipp++) {
-	if ((*sipp)->subsystem == SI_SUB_DUMMY)
+    for( sipp = (struct sysinit **)sysinits->ls_items; *sipp; sipp++) {
+	if( (*sipp)->subsystem == SI_SUB_DUMMY)
 	    continue;	/* skip dummy task(s)*/
 
-	switch ((*sipp)->type) {
+	switch( (*sipp)->type) {
 	case SI_TYPE_DEFAULT:
 	    /* no special processing*/
-	    (*((*sipp)->func))((*sipp)->udata);
+	    (*((*sipp)->func))( (*sipp)->udata);
 	    break;
 
 	case SI_TYPE_KTHREAD:
@@ -169,65 +167,7 @@ linker_file_sysinit(linker_file_t lf)
 	    break;
 
 	default:
-	    panic ("linker_file_sysinit: unrecognized init type");
-	}
-    }
-}
-
-static void
-linker_file_sysuninit(linker_file_t lf)
-{
-    struct linker_set* sysuninits;
-    struct sysinit** sipp;
-    struct sysinit** xipp;
-    struct sysinit* save;
-
-    KLD_DPF(FILE, ("linker_file_sysuninit: calling SYSUNINITs for %s\n",
-		   lf->filename));
-
-    sysuninits = (struct linker_set*)
-	linker_file_lookup_symbol(lf, "sysuninit_set", 0);
-
-    KLD_DPF(FILE, ("linker_file_sysuninit: SYSUNINITs %p\n", sysuninits));
-    if (!sysuninits)
-	return;
-
-    /*
-     * Perform a reverse bubble sort of the system initialization objects
-     * by their subsystem (primary key) and order (secondary key).
-     *
-     * Since some things care about execution order, this is the
-     * operation which ensures continued function.
-     */
-    for (sipp = (struct sysinit **)sysuninits->ls_items; *sipp; sipp++) {
-	for (xipp = sipp + 1; *xipp; xipp++) {
-	    if ((*sipp)->subsystem >= (*xipp)->subsystem ||
-		 ((*sipp)->subsystem == (*xipp)->subsystem &&
-		  (*sipp)->order >= (*xipp)->order))
-		continue;	/* skip*/
-	    save = *sipp;
-	    *sipp = *xipp;
-	    *xipp = save;
-	}
-    }
-
-
-    /*
-     * Traverse the (now) ordered list of system initialization tasks.
-     * Perform each task, and continue on to the next task.
-     */
-    for (sipp = (struct sysinit **)sysuninits->ls_items; *sipp; sipp++) {
-	if ((*sipp)->subsystem == SI_SUB_DUMMY)
-	    continue;	/* skip dummy task(s)*/
-
-	switch ((*sipp)->type) {
-	case SI_TYPE_DEFAULT:
-	    /* no special processing*/
-	    (*((*sipp)->func))((*sipp)->udata);
-	    break;
-
-	default:
-	    panic("linker_file_sysuninit: unrecognized uninit type");
+	    panic( "linker_file_sysinit: unrecognized init type");
 	}
     }
 }
@@ -237,8 +177,7 @@ linker_load_file(const char* filename, linker_file_t* result)
 {
     linker_class_t lc;
     linker_file_t lf;
-    int foundfile, error = 0;
-    char *koname = NULL;
+    int error = 0;
 
     lf = linker_find_file_by_name(filename);
     if (lf) {
@@ -248,47 +187,22 @@ linker_load_file(const char* filename, linker_file_t* result)
 	goto out;
     }
 
-    koname = malloc(strlen(filename) + 4, M_LINKER, M_WAITOK);
-    if (koname == NULL) {
-	error = ENOMEM;
-	goto out;
-    }
-    sprintf(koname, "%s.ko", filename);
     lf = NULL;
-    foundfile = 0;
     for (lc = TAILQ_FIRST(&classes); lc; lc = TAILQ_NEXT(lc, link)) {
 	KLD_DPF(FILE, ("linker_load_file: trying to load %s as %s\n",
 		       filename, lc->desc));
-
-	error = lc->ops->load_file(koname, &lf);	/* First with .ko */
-	if (lf == NULL && error == ENOENT)
-	    error = lc->ops->load_file(filename, &lf);	/* Then try without */
-	/*
-	 * If we got something other than ENOENT, then it exists but we cannot
-	 * load it for some other reason.
-	 */
-	if (error != ENOENT)
-	    foundfile = 1;
+	if (error = lc->ops->load_file(filename, &lf))
+	    goto out;
 	if (lf) {
 	    linker_file_sysinit(lf);
 
 	    *result = lf;
-	    error = 0;
 	    goto out;
 	}
     }
-    /*
-     * Less than ideal, but tells the user whether it failed to load or
-     * the module was not found.
-     */
-    if (foundfile)
-	error = ENOEXEC;	/* Format not recognised (or unloadable) */
-    else
-	error = ENOENT;		/* Nothing found */
+    error = ENOEXEC;		/* format not recognised */
 
 out:
-    if (koname)
-	free(koname, M_LINKER);
     return error;
 }
 
@@ -296,25 +210,13 @@ linker_file_t
 linker_find_file_by_name(const char* filename)
 {
     linker_file_t lf = 0;
-    char *koname;
-
-    koname = malloc(strlen(filename) + 4, M_LINKER, M_WAITOK);
-    if (koname == NULL)
-	goto out;
-    sprintf(koname, "%s.ko", filename);
 
     lockmgr(&lock, LK_SHARED, 0, curproc);
-    for (lf = TAILQ_FIRST(&files); lf; lf = TAILQ_NEXT(lf, link)) {
-	if (!strcmp(lf->filename, koname))
-	    break;
+    for (lf = TAILQ_FIRST(&files); lf; lf = TAILQ_NEXT(lf, link))
 	if (!strcmp(lf->filename, filename))
 	    break;
-    }
     lockmgr(&lock, LK_RELEASE, 0, curproc);
 
-out:
-    if (koname)
-	free(koname, M_LINKER);
     return lf;
 }
 
@@ -410,8 +312,6 @@ linker_file_unload(linker_file_t file)
 	goto out;
     }
 
-    linker_file_sysuninit(file);
-
     TAILQ_REMOVE(&files, file, link);
     lockmgr(&lock, LK_RELEASE, 0, curproc);
 
@@ -459,7 +359,6 @@ linker_file_lookup_symbol(linker_file_t file, const char* name, int deps)
 {
     linker_sym_t sym;
     linker_symval_t symval;
-    linker_file_t lf;
     caddr_t address;
     size_t common_size = 0;
     int i;
@@ -481,7 +380,7 @@ linker_file_lookup_symbol(linker_file_t file, const char* name, int deps)
 	}
     }
 
-    if (deps) {
+    if (deps)
 	for (i = 0; i < file->ndeps; i++) {
 	    address = linker_file_lookup_symbol(file->deps[i], name, 0);
 	    if (address) {
@@ -489,25 +388,6 @@ linker_file_lookup_symbol(linker_file_t file, const char* name, int deps)
 		return address;
 	    }
 	}
-
-	/* If we have not found it in the dependencies, search globally */
-	for (lf = TAILQ_FIRST(&files); lf; lf = TAILQ_NEXT(lf, link)) {
-	    /* But skip the current file if it's on the list */
-	    if (lf == file)
-		continue;
-	    /* And skip the files we searched above */
-	    for (i = 0; i < file->ndeps; i++)
-		if (lf == file->deps[i])
-		    break;
-	    if (i < file->ndeps)
-		continue;
-	    address = linker_file_lookup_symbol(lf, name, 0);
-	    if (address) {
-		KLD_DPF(SYM, ("linker_file_lookup_symbol: global value=%x\n", address));
-		return address;
-	    }
-	}
-    }
 
     if (common_size > 0) {
 	/*
@@ -627,7 +507,7 @@ linker_ddb_symbol_values(linker_sym_t sym, linker_symval_t *symval)
 int
 kldload(struct proc* p, struct kldload_args* uap)
 {
-    char* filename = NULL, *modulename;
+    char* filename = NULL;
     linker_file_t lf;
     int error = 0;
 
@@ -643,16 +523,7 @@ kldload(struct proc* p, struct kldload_args* uap)
     if (error = copyinstr(SCARG(uap, file), filename, MAXPATHLEN, NULL))
 	goto out;
 
-    /* Can't load more than one module with the same name */
-    modulename = rindex(filename, '/');
-    if (modulename == NULL)
-	modulename = filename;
-    if (linker_find_file_by_name(modulename)) {
-	error = EEXIST;
-	goto out;
-    }
-
-    if (error = linker_load_file(filename, &lf))
+    if (error = linker_load_file(uap->file, &lf))
 	goto out;
 
     lf->userrefs++;
@@ -684,10 +555,8 @@ kldunload(struct proc* p, struct kldunload_args* uap)
 	    error = EBUSY;
 	    goto out;
 	}
-	error = linker_file_unload(lf);
-	if (error)
-	    goto out;
 	lf->userrefs--;
+	error = linker_file_unload(lf);
     } else
 	error = ENOENT;
 
@@ -698,7 +567,7 @@ out:
 int
 kldfind(struct proc* p, struct kldfind_args* uap)
 {
-    char* filename = NULL, *modulename;
+    char* filename = NULL;
     linker_file_t lf;
     int error = 0;
 
@@ -708,11 +577,7 @@ kldfind(struct proc* p, struct kldfind_args* uap)
     if (error = copyinstr(SCARG(uap, file), filename, MAXPATHLEN, NULL))
 	goto out;
 
-    modulename = rindex(filename, '/');
-    if (modulename == NULL)
-	modulename = filename;
-
-    lf = linker_find_file_by_name(modulename);
+    lf = linker_find_file_by_name(filename);
     if (lf)
 	p->p_retval[0] = lf->id;
     else
@@ -815,59 +680,6 @@ kldfirstmod(struct proc* p, struct kldfirstmod_args* uap)
     return error;
 }
 
-int
-kldsym(struct proc *p, struct kldsym_args *uap)
-{
-    char *symstr = NULL;
-    linker_sym_t sym;
-    linker_symval_t symval;
-    linker_file_t lf;
-    struct kld_sym_lookup lookup;
-    int error = 0;
-
-    if (error = copyin(SCARG(uap, data), &lookup, sizeof(lookup)))
-	goto out;
-    if (lookup.version != sizeof(lookup) || SCARG(uap, cmd) != KLDSYM_LOOKUP) {
-	error = EINVAL;
-	goto out;
-    }
-
-    symstr = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
-    if (error = copyinstr(lookup.symname, symstr, MAXPATHLEN, NULL))
-	goto out;
-
-    if (SCARG(uap, fileid) != 0) {
-	lf = linker_find_file_by_id(SCARG(uap, fileid));
-	if (lf == NULL) {
-	    error = ENOENT;
-	    goto out;
-	}
-	if (lf->ops->lookup_symbol(lf, symstr, &sym) == 0 &&
-	    lf->ops->symbol_values(lf, sym, &symval) == 0) {
-	    lookup.symvalue = (u_long)symval.value;
-	    lookup.symsize = symval.size;
-	    error = copyout(&lookup, SCARG(uap, data), sizeof(lookup));
-	} else
-	    error = ENOENT;
-    } else {
-	for (lf = TAILQ_FIRST(&files); lf; lf = TAILQ_NEXT(lf, link)) {
-	    if (lf->ops->lookup_symbol(lf, symstr, &sym) == 0 &&
-		lf->ops->symbol_values(lf, sym, &symval) == 0) {
-		lookup.symvalue = (u_long)symval.value;
-		lookup.symsize = symval.size;
-		error = copyout(&lookup, SCARG(uap, data), sizeof(lookup));
-		break;
-	    }
-	}
-	if (!lf)
-	    error = ENOENT;
-    }
-out:
-    if (symstr)
-	free(symstr, M_TEMP);
-    return error;
-}
-
 /*
  * Preloaded module support
  */
@@ -890,14 +702,14 @@ linker_preload(void* arg)
 	modname = (char *)preload_search_info(modptr, MODINFO_NAME);
 	modtype = (char *)preload_search_info(modptr, MODINFO_TYPE);
 	if (modname == NULL) {
-	    printf("Preloaded module at %p does not have a name!\n", modptr);
+	    printf("Preloaded module at 0x%p does not have a name!\n", modptr);
 	    continue;
 	}
 	if (modtype == NULL) {
-	    printf("Preloaded module at %p does not have a type!\n", modptr);
+	    printf("Preloaded module at 0x%p does not have a type!\n", modptr);
 	    continue;
 	}
-	printf("Preloaded %s \"%s\" at %p.\n", modtype, modname, modptr);
+	printf("Preloaded %s \"%s\" at 0x%p.\n", modtype, modname, modptr);
 	lf = linker_find_file_by_name(modname);
 	if (lf) {
 	    lf->userrefs++;

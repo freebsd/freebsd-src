@@ -417,8 +417,7 @@ int cxioctl (dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 			case 8: o->iftype = c->board->if8type; break;
 			}
 			if (c->master != c->ifp)
-				snprintf (o->master, sizeof(o->master),
-				    "%s%d", c->master->if_name,
+				sprintf (o->master, "%s%d", c->master->if_name,
 					c->master->if_unit);
 			else
 				*o->master = 0;
@@ -846,7 +845,7 @@ int cxrinta (cx_chan_t *c)
 	}
 
 	/* Discard exception characters. */
-	if ((risr & RISA_SCMASK) && tp && (tp->t_iflag & IXON))
+	if ((risr & RISA_SCMASK) && (tp->t_iflag & IXON))
 		reoir |= REOI_DISCEXC;
 
 	/* Handle received data. */

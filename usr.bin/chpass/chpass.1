@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)chpass.1	8.2 (Berkeley) 12/30/93
-.\"     $Id: chpass.1,v 1.13 1998/12/13 02:48:43 dillon Exp $
+.\"     $Id: chpass.1,v 1.7.2.4 1998/08/14 03:38:01 thepish Exp $
 .\"
 .Dd December 30, 1993
 .Dt CHPASS 1
@@ -88,30 +88,26 @@ user's encrypted password
 user's login
 .It Gid:
 user's login group
-.It Class:
-user's general classification
 .It Change:
 password change time
 .It Expire:
 account expiration time
-.It Full Name:
-user's real name
-.It Location:
-user's normal location (1)
-.It Home Phone:
-user's home phone (1)
-.It Office Phone:
-user's office phone (1)
-.It Other Information:
-any locally defined parameters for user (1)
+.It Class:
+user's general classification
 .It Home Directory:
 user's home directory
 .It Shell:
 user's login shell
-.Pp
-.It NOTE(1) -
-In the actual master.passwd file, these fields are comma-delimited
-fields embedded in the FullName field.
+.It Full Name:
+user's real name
+.It Location:
+user's normal location
+.It Home Phone:
+user's home phone
+.It Office Phone:
+user's office phone
+.It Other Information:
+any locally defined parameters for user
 .El
 .Pp
 The
@@ -145,13 +141,6 @@ This field may be filled in with either a number or a group name (see
 .Xr group 5 ) .
 .Pp
 The
-.Ar class
-field references class descriptions in
-.Ar /etc/login.conf
-and is typically used to initialize the user's system resource limits
-when they login.
-.Pp
-The
 .Ar change
 field is the date by which the password must be changed.
 .Pp
@@ -171,15 +160,12 @@ is the day of the month, and
 .Ar year
 is the year.
 .Pp
-Five fields are available for storing the user's
-.Ar full name , office location ,
-.Ar work
-and
-.Ar home telephone
-numbers and finally
-.Ar other information
-which is a single comma delimited string to represent any additional
-gcos fields (typically used for site specific user information).
+The
+.Ar class
+field is currently unused.  In the near future it will be a key to
+a
+.Xr termcap 5
+style database of user attributes.
 .Pp
 The user's
 .Ar home directory
@@ -199,6 +185,16 @@ may not change from a non-standard shell or to a non-standard
 shell.
 Non-standard is defined as a shell not found in
 .Pa /etc/shells .
+.Pp
+The last five fields are for storing the user's
+.Ar full name , office location ,
+.Ar work
+and
+.Ar home telephone
+numbers and finally
+.Ar other information
+which is a single comma delimited string to represent any additional
+gcos fields (typically used for site specific user information).
 .Pp
 Once the information has been verified,
 .Nm chpass
@@ -402,7 +398,6 @@ The list of approved shells
 .Xr login 1 ,
 .Xr passwd 1 ,
 .Xr getusershell 3 ,
-.Xr login.conf 5,
 .Xr passwd 5 ,
 .Xr pwd_mkdb 8 ,
 .Xr vipw 8

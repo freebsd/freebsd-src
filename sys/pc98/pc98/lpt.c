@@ -46,7 +46,7 @@
  * SUCH DAMAGE.
  *
  *	from: unknown origin, 386BSD 0.1
- *	$Id: lpt.c,v 1.23 1998/10/22 05:58:45 bde Exp $
+ *	$Id: lpt.c,v 1.21 1998/06/17 16:33:14 kato Exp $
  */
 
 /*
@@ -195,12 +195,9 @@
 
 
 #ifndef DEBUG
-#define lprintf(args)
+#define lprintf (void)
 #else
-#define lprintf(args)	do {				\
-				if (lptflag)		\
-					printf args;	\
-			} while (0)
+#define lprintf		if (lptflag) printf
 static int volatile lptflag = 1;
 #endif
 
@@ -272,7 +269,6 @@ static struct lpt_softc {
 static timeout_t lptout;
 static int	lptprobe (struct isa_device *dvp);
 static int	lptattach (struct isa_device *isdp);
-static ointhand2_t	lptintr;
 
 #ifdef INET
 
@@ -328,8 +324,8 @@ lpt_port_test (int port, u_char data, u_char mask)
 		temp = inb(port) & mask;
 	}
 	while (temp != data && --timeout);
-	lprintf(("Port 0x%x\tout=%x\tin=%x\ttout=%d\n",
-		port, data, temp, timeout));
+	lprintf("Port 0x%x\tout=%x\tin=%x\ttout=%d\n",
+		port, data, temp, timeout);
 	return (temp == data);
 }
 
@@ -441,7 +437,6 @@ lptattach(struct isa_device *isdp)
 	struct	lpt_softc	*sc;
 	int	unit;
 
-	isdp->id_ointr = lptintr;
 	unit = isdp->id_unit;
 	sc = lpt_sc + unit;
 	sc->sc_port = isdp->id_iobase;
@@ -457,7 +452,7 @@ lptattach(struct isa_device *isdp)
 #endif
 
 	/* check if we can use interrupt */
-	lprintf(("oldirq %x\n", sc->sc_irq));
+	lprintf("oldirq %x\n", sc->sc_irq);
 	if (isdp->id_irq) {
 		sc->sc_irq = LP_HAS_IRQ | LP_USE_IRQ | LP_ENABLE_IRQ;
 		printf("lpt%d: Interrupt-driven port\n", unit);
@@ -466,9 +461,9 @@ lptattach(struct isa_device *isdp)
 #endif
 	} else {
 		sc->sc_irq = 0;
-		lprintf(("lpt%d: Polled port\n", unit));
+		lprintf("lpt%d: Polled port\n", unit);
 	}
-	lprintf(("irq %x\n", sc->sc_irq));
+	lprintf("irq %x\n", sc->sc_irq);
 
 #ifdef DEVFS
 	/* XXX what to do about the flags in the minor number? */
@@ -506,7 +501,7 @@ lptopen (dev_t dev, int flags, int fmt, struct proc *p)
 #endif
 
 	if (sc->sc_state) {
-		lprintf(("lp: still open %x\n", sc->sc_state));
+		lprintf("lp: still open %x\n", sc->sc_state);
 		return(EBUSY);
 	} else
 		sc->sc_state |= INIT;
@@ -520,7 +515,7 @@ lptopen (dev_t dev, int flags, int fmt, struct proc *p)
 	}
 
 	s = spltty();
-	lprintf(("lp flags 0x%x\n", sc->sc_flags));
+	lprintf("lp flags 0x%x\n", sc->sc_flags);
 	port = sc->sc_port;
 
 	/* set IRQ status according to ENABLE_IRQ flag */
@@ -548,7 +543,7 @@ lptopen (dev_t dev, int flags, int fmt, struct proc *p)
 		if (trys++ >= LPINITRDY*4) {
 			splx(s);
 			sc->sc_state = 0;
-			lprintf(("status %x\n", inb(port+lpt_status)));
+			lprintf ("status %x\n", inb(port+lpt_status) );
 			return (EBUSY);
 		}
 
@@ -581,14 +576,14 @@ lptopen (dev_t dev, int flags, int fmt, struct proc *p)
 	splx(s);
 
 	/* only use timeout if using interrupt */
-	lprintf(("irq %x\n", sc->sc_irq));
+	lprintf("irq %x\n", sc->sc_irq);
 	if (sc->sc_irq & LP_USE_IRQ) {
 		sc->sc_state |= TOUT;
 		timeout (lptout, (caddr_t)sc,
 			 (sc->sc_backoff = hz/LPTOUTINITIAL));
 	}
 
-	lprintf(("opened.\n"));
+	lprintf("opened.\n");
 	return(0);
 }
 
@@ -598,7 +593,7 @@ lptout (void *arg)
 	struct lpt_softc *sc = arg;
 	int pl;
 
-	lprintf(("T %x ", inb(sc->sc_port+lpt_status)));
+	lprintf ("T %x ", inb(sc->sc_port+lpt_status));
 	if (sc->sc_state & OPEN) {
 		sc->sc_backoff++;
 		if (sc->sc_backoff > hz/LPTOUTMAX)
@@ -657,7 +652,7 @@ lptclose(dev_t dev, int flags, int fmt, struct proc *p)
 end_close:
 	sc->sc_state = 0;
 	sc->sc_xfercnt = 0;
-	lprintf(("closed.\n"));
+	lprintf("closed.\n");
 	return(0);
 }
 
@@ -676,7 +671,7 @@ pushbytes(struct lpt_softc * sc)
 	char ch;
 	int port = sc->sc_port;
 
-	lprintf(("p"));
+	lprintf("p");
 	/* loop for every character .. */
 	while (sc->sc_xfercnt > 0) {
 		/* printer data */
@@ -754,16 +749,16 @@ lptwrite(dev_t dev, struct uio * uio, int ioflag)
 		uiomove(sc->sc_cp, n, uio);
 		sc->sc_xfercnt = n ;
 		while ((sc->sc_xfercnt > 0)&&(sc->sc_irq & LP_USE_IRQ)) {
-			lprintf(("i"));
+			lprintf("i");
 			/* if the printer is ready for a char, */
 			/* give it one */
 			if ((sc->sc_state & OBUSY) == 0){
-				lprintf(("\nC %d. ", sc->sc_xfercnt));
+				lprintf("\nC %d. ", sc->sc_xfercnt);
 				pl = spltty();
 				lptintr(sc - lpt_sc);
 				(void) splx(pl);
 			}
-			lprintf(("W "));
+			lprintf("W ");
 			if (sc->sc_state & OBUSY)
 				if ((err = tsleep ((caddr_t)sc,
 					 LPPRI|PCATCH, "lpwrite", 0))) {
@@ -773,7 +768,7 @@ lptwrite(dev_t dev, struct uio * uio, int ioflag)
 		}
 		/* check to see if we must do a polled write */
 		if(!(sc->sc_irq & LP_USE_IRQ) && (sc->sc_xfercnt)) {
-			lprintf(("p"));
+			lprintf("p");
 			if((err = pushbytes(sc)))
 				return(err);
 		}
@@ -788,7 +783,7 @@ lptwrite(dev_t dev, struct uio * uio, int ioflag)
  * do checking for interrupted write call.
  */
 
-static void
+void
 lptintr(int unit)
 {
 	struct lpt_softc *sc = lpt_sc + unit;
@@ -819,7 +814,7 @@ lptintr(int unit)
 
 		if (sc->sc_xfercnt) {
 			/* send char */
-			/*lprintf(("%x ", *sc->sc_cp)); */
+			/*lprintf("%x ", *sc->sc_cp); */
 			outb(port+lpt_data, *sc->sc_cp++) ;
 			outb(port+lpt_control, sc->sc_control|LPC_STB);
 			/* DELAY(X) */
@@ -836,7 +831,7 @@ lptintr(int unit)
 		sc->sc_state &= ~OBUSY;
 		if(!(sc->sc_state & INTERRUPTED))
 			wakeup((caddr_t)sc);
-		lprintf(("w "));
+		lprintf("w ");
 		return;
 	} else	{	/* check for error */
 		if(((sts & (LPS_NERR | LPS_OUT) ) != LPS_NERR) &&
@@ -845,7 +840,7 @@ lptintr(int unit)
 		/* lptout() will jump in and try to restart. */
 	}
 #endif
-	lprintf(("sts %x ", sts));
+	lprintf("sts %x ", sts);
 }
 
 static	int
@@ -1032,7 +1027,7 @@ lpioctl (struct ifnet *ifp, u_long cmd, caddr_t data)
 	break;
 
     default:
-	lprintf(("LP:ioctl(0x%lx)\n", cmd));
+	lprintf("LP:ioctl(0x%lx)\n", cmd);
 	return EINVAL;
     }
     return 0;
@@ -1129,7 +1124,7 @@ lpintr (int unit)
 	    sc->sc_iferrs = 0;
 
 	    if (IF_QFULL(&ipintrq)) {
-	        lprintf(("DROP"));
+	        lprintf("DROP");
 	        IF_DROP(&ipintrq);
 		goto done;
 	    }
@@ -1178,7 +1173,7 @@ lpintr (int unit)
 	    sc->sc_iferrs = 0;
 
 	    if (IF_QFULL(&ipintrq)) {
-		lprintf(("DROP"));
+		lprintf("DROP");
 		IF_DROP(&ipintrq);
 		goto done;
 	    }
@@ -1200,7 +1195,7 @@ lpintr (int unit)
 
     err:
 	outb(lpt_data_port, 0);
-	lprintf(("R"));
+	lprintf("R");
 	sc->sc_if.if_ierrors++;
 	sc->sc_iferrs++;
 
@@ -1266,7 +1261,7 @@ lpoutput (struct ifnet *ifp, struct mbuf *m,
     if (ifp->if_flags & IFF_LINK0) {
 
 	if (!(inb(lpt_stat_port) & CLPIP_SHAKE)) {
-	    lprintf(("&"));
+	    lprintf("&");
 	    lptintr(ifp->if_unit);
 	}
 
@@ -1326,7 +1321,7 @@ lpoutput (struct ifnet *ifp, struct mbuf *m,
 	nend:
 	if (err)  {				/* if we didn't timeout... */
 		ifp->if_oerrors++;
-		lprintf(("X"));
+		lprintf("X");
 	} else {
 		ifp->if_opackets++;
 		ifp->if_obytes += m->m_pkthdr.len;
@@ -1335,7 +1330,7 @@ lpoutput (struct ifnet *ifp, struct mbuf *m,
 	m_freem(m);
 
 	if (!(inb(lpt_stat_port) & CLPIP_SHAKE)) {
-		lprintf(("^"));
+		lprintf("^");
 		lptintr(ifp->if_unit);
 	}
 	(void) splx(s);
@@ -1343,7 +1338,7 @@ lpoutput (struct ifnet *ifp, struct mbuf *m,
     }
 
     if (inb(lpt_stat_port) & LPIP_SHAKE) {
-        lprintf(("&"));
+        lprintf("&");
         lptintr(ifp->if_unit);
     }
 
@@ -1368,7 +1363,7 @@ lpoutput (struct ifnet *ifp, struct mbuf *m,
 
     if (err)  {				/* if we didn't timeout... */
 	ifp->if_oerrors++;
-        lprintf(("X"));
+        lprintf("X");
     } else {
 	ifp->if_opackets++;
 	ifp->if_obytes += m->m_pkthdr.len;
@@ -1396,7 +1391,7 @@ lpoutput (struct ifnet *ifp, struct mbuf *m,
     m_freem(m);
 
     if (inb(lpt_stat_port) & LPIP_SHAKE) {
-	lprintf(("^"));
+	lprintf("^");
 	lptintr(ifp->if_unit);
     }
 

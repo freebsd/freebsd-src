@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: Id: machdep.c,v 1.193 1996/06/18 01:22:04 bde Exp
- *	$Id: identcpu.c,v 1.56 1999/01/09 13:07:18 bde Exp $
+ *	$Id: identcpu.c,v 1.51 1998/07/11 07:45:28 bde Exp $
  */
 
 #include "opt_cpu.h"
@@ -59,17 +59,17 @@
 #define	IDENTBLUE_IBMCPU	1
 #define	IDENTBLUE_CYRIXM2	2
 
-/* XXX - should be in header file: */
-void printcpuinfo(void);
+/* XXX - should be in header file */
+void	i486_bzero __P((void *buf, size_t len));
+
+void printcpuinfo(void);	/* XXX should be in different header file */
 void finishidentcpu(void);
 void earlysetcpuclass(void);
 #if defined(I586_CPU) && defined(CPU_WT_ALLOC)
 void	enable_K5_wt_alloc(void);
 void	enable_K6_wt_alloc(void);
-void	enable_K6_2_wt_alloc(void);
 #endif
 void panicifcpuunsupported(void);
-
 static void identifycyrix(void);
 static void print_AMD_info(void);
 static void print_AMD_assoc(int i);
@@ -106,13 +106,13 @@ do_cpuid(u_int ax, u_int *p)
 {
 	__asm __volatile(
 	".byte	0x0f, 0xa2;"
-	"movl	%%eax, (%2);"
-	"movl	%%ebx, 4(%2);"
-	"movl	%%ecx, 8(%2);"
-	"movl	%%edx, 12(%2);"
-	: "=a" (ax)
-	:  "0" (ax), "S" (p)
-	: "bx", "cx", "dx"
+	"movl	%%eax, (%%esi);"
+	"movl	%%ebx, (4)(%%esi);"
+	"movl	%%ecx, (8)(%%esi);"
+	"movl	%%edx, (12)(%%esi);"
+	:
+	: "a" (ax), "S" (p)
+	: "ax", "bx", "cx", "dx"
 	);
 }
 
@@ -291,13 +291,9 @@ printcpuinfo(void)
 		if ((cpu_id & 0xf00) == 0x500) {
 			if (((cpu_id & 0x0f0) > 0)
 			    && ((cpu_id & 0x0f0) < 0x60)
-			    && ((cpu_id & 0x00f) > 3))
+			    && ((cpu_id & 0x00f) > 3)) {
 				enable_K5_wt_alloc();
-			else if (((cpu_id & 0x0f0) > 0x80)
-				 || (((cpu_id & 0x0f0) == 0x80)
-				     && (cpu_id & 0x00f) > 0x07))
-				enable_K6_2_wt_alloc();
-			else if ((cpu_id & 0x0f0) > 0x50)
+			} else if ((cpu_id & 0x0f0) > 0x50)
 				enable_K6_wt_alloc();
 		}
 #endif
@@ -843,7 +839,6 @@ static void
 print_AMD_info(void)
 {
 	u_int regs[4];
-	quad_t amd_whcr;
 
 	do_cpuid(0x80000000, regs);
 	if (regs[0] >= 0x80000005) {
@@ -860,34 +855,5 @@ print_AMD_info(void)
 		printf(", %d bytes/line", regs[3] & 0xff);
 		printf(", %d lines/tag", (regs[3] >> 8) & 0xff);
 		print_AMD_assoc((regs[3] >> 16) & 0xff);
-	}
-	if (((cpu_id & 0xf00) == 0x500)
-	    && (((cpu_id & 0x0f0) > 0x80)
-		|| (((cpu_id & 0x0f0) == 0x80)
-		    && (cpu_id & 0x00f) > 0x07))) {
-		/* K6-2(new core [Stepping 8-F]), K6-3 or later */
-		amd_whcr = rdmsr(0xc0000082);
-		if (!(amd_whcr & (0x3ff << 22))) {
-			printf("Write Allocate Disable\n");
-		} else {
-			printf("Write Allocate Enable Limit: %dM bytes\n",
-			    (u_int32_t)((amd_whcr & (0x3ff << 22)) >> 22) * 4);
-			printf("Write Allocate 15-16M bytes: %s\n",
-			    (amd_whcr & (1 << 16)) ? "Enable" : "Disable");
-		}
-	} else if (((cpu_id & 0xf00) == 0x500)
-		   && ((cpu_id & 0x0f0) > 0x50)) {
-		/* K6, K6-2(old core) */
-		amd_whcr = rdmsr(0xc0000082);
-		if (!(amd_whcr & (0x7f << 1))) {
-			printf("Write Allocate Disable\n");
-		} else {
-			printf("Write Allocate Enable Limit: %dM bytes\n",
-			    (u_int32_t)((amd_whcr & (0x7f << 1)) >> 1) * 4);
-			printf("Write Allocate 15-16M bytes: %s\n",
-			    (amd_whcr & 0x0001) ? "Enable" : "Disable");
-			printf("Hardware Write Allocate Control: %s\n",
-			    (amd_whcr & 0x0100) ? "Enable" : "Disable");
-		}
 	}
 }

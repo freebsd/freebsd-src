@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_xl.c,v 1.21 1998/12/14 06:32:57 dillon Exp $
+ *	$Id: if_xl.c,v 1.54 1998/09/25 17:43:57 wpaul Exp wpaul $
  */
 
 /*
@@ -145,9 +145,9 @@
 
 #include <pci/if_xlreg.h>
 
-#if !defined(lint)
-static const char rcsid[] =
-	"$Id: if_xl.c,v 1.21 1998/12/14 06:32:57 dillon Exp $";
+#ifndef lint
+static char rcsid[] =
+	"$Id: if_xl.c,v 1.54 1998/09/25 17:43:57 wpaul Exp wpaul $";
 #endif
 
 /*
@@ -194,7 +194,7 @@ static struct xl_type xl_phys[] = {
 };
 
 static unsigned long xl_count = 0;
-static const char *xl_probe	__P((pcici_t, pcidi_t));
+static char *xl_probe		__P((pcici_t, pcidi_t));
 static void xl_attach		__P((pcici_t, int));
 
 static int xl_newbuf		__P((struct xl_softc *,
@@ -224,14 +224,14 @@ static void xl_mii_send		__P((struct xl_softc *, u_int32_t, int));
 static int xl_mii_readreg	__P((struct xl_softc *, struct xl_mii_frame *));
 static int xl_mii_writereg	__P((struct xl_softc *, struct xl_mii_frame *));
 static u_int16_t xl_phy_readreg	__P((struct xl_softc *, int));
-static void xl_phy_writereg	__P((struct xl_softc *, int, int));
+static void xl_phy_writereg	__P((struct xl_softc *, u_int16_t, u_int16_t));
 
 static void xl_autoneg_xmit	__P((struct xl_softc *));
 static void xl_autoneg_mii	__P((struct xl_softc *, int, int));
 static void xl_setmode_mii	__P((struct xl_softc *, int));
 static void xl_getmode_mii	__P((struct xl_softc *));
 static void xl_setmode		__P((struct xl_softc *, int));
-static u_int8_t xl_calchash	__P((caddr_t));
+static u_int8_t xl_calchash	__P((u_int8_t *));
 static void xl_setmulti		__P((struct xl_softc *));
 static void xl_setmulti_hash	__P((struct xl_softc *));
 static void xl_reset		__P((struct xl_softc *));
@@ -502,8 +502,8 @@ static u_int16_t xl_phy_readreg(sc, reg)
 
 static void xl_phy_writereg(sc, reg, data)
 	struct xl_softc		*sc;
-	int			reg;
-	int			data;
+	u_int16_t		reg;
+	u_int16_t		data;
 {
 	struct xl_mii_frame	frame;
 
@@ -592,7 +592,7 @@ static int xl_read_eeprom(sc, dest, off, cnt, swap)
  * On older cards, the upper 2 bits will be ignored. Grrrr....
  */
 static u_int8_t xl_calchash(addr)
-	caddr_t			addr;
+	u_int8_t		*addr;
 {
 	u_int32_t		crc, carry;
 	int			i, j;
@@ -983,7 +983,7 @@ static void xl_getmode_mii(sc)
 		if (bootverbose)
 			printf("xl%d: forcing on autoneg support for BT4\n",
 							 sc->xl_unit);
-		ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_AUTO, 0, NULL);
+		ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_AUTO, 0 NULL):
 		sc->ifmedia.ifm_media = IFM_ETHER|IFM_AUTO;
 #endif
 	}
@@ -1185,7 +1185,7 @@ static void xl_reset(sc)
  * Probe for a 3Com Etherlink XL chip. Check the PCI vendor and device
  * IDs against our list and return a device name if we find a match.
  */
-static const char *
+static char *
 xl_probe(config_id, device_id)
 	pcici_t			config_id;
 	pcidi_t			device_id;
@@ -1444,7 +1444,7 @@ xl_attach(config_id, unit)
 		if (round % 8) {
 			round++;
 			roundptr++;
-		} else
+		}
 			break;
 	}
 	sc->xl_ldata = (struct xl_list_data *)roundptr;
@@ -1932,6 +1932,8 @@ static void xl_txeof(sc)
 
 		cur_tx->xl_next = sc->xl_cdata.xl_tx_free;
 		sc->xl_cdata.xl_tx_free = cur_tx;
+		if (!cur_tx->xl_ptr->xl_next);
+			break;
 	}
 
 	if (sc->xl_cdata.xl_tx_head == NULL) {
@@ -1977,10 +1979,6 @@ static void xl_txeoc(sc)
 			 * first generation 3c90X chips.
 			 */
 			CSR_WRITE_1(sc, XL_TX_FREETHRESH, XL_PACKET_SIZE >> 8);
-			if (sc->xl_type == XL_TYPE_905B) {
-				CSR_WRITE_2(sc, XL_COMMAND,
-				XL_CMD_SET_TX_RECLAIM|(XL_PACKET_SIZE >> 4));
-			}
 			CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_TX_ENABLE);
 			CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_DOWN_UNSTALL);
 		} else {
@@ -2259,12 +2257,6 @@ static void xl_start(ifp)
 	}
 
 	/*
-	 * If there are no packets queued, bail.
-	 */
-	if (cur_tx == NULL)
-		return;
-
-	/*
 	 * Place the request for the upload interrupt
 	 * in the last descriptor in the chain. This way, if
 	 * we're chaining several packets at once, we'll only
@@ -2286,7 +2278,6 @@ static void xl_start(ifp)
 					vtophys(start_tx->xl_ptr);
 		sc->xl_cdata.xl_tx_tail->xl_ptr->xl_status &=
 					~XL_TXSTAT_DL_INTR;
-		sc->xl_cdata.xl_tx_tail = cur_tx;
 	} else {
 		sc->xl_cdata.xl_tx_head = start_tx;
 		sc->xl_cdata.xl_tx_tail = cur_tx;
@@ -2386,20 +2377,6 @@ static void xl_init(xsc)
 	 * cards in order to enable the download engine.
 	 */
 	CSR_WRITE_1(sc, XL_TX_FREETHRESH, XL_PACKET_SIZE >> 8);
-
-	/*
-	 * If this is a 3c905B, also set the tx reclaim threshold.
-	 * This helps cut down on the number of tx reclaim errors
-	 * that could happen on a busy network. The chip multiplies
-	 * the register value by 16 to obtain the actual threshold
-	 * in bytes, so we divide by 16 when setting the value here.
-	 * The existing threshold value can be examined by reading
-	 * the register at offset 9 in window 5.
-	 */
-	if (sc->xl_type == XL_TYPE_905B) {
-		CSR_WRITE_2(sc, XL_COMMAND,
-			XL_CMD_SET_TX_RECLAIM|(XL_PACKET_SIZE >> 4));
-	}
 
 	/* Set RX filter bits. */
 	XL_SEL_WIN(5);

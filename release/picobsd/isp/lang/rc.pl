@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: rc.pl,v 1.3 1998/11/01 20:19:19 abial Exp $
+# $Id: rc.pl,v 1.1.1.1 1998/08/27 17:38:42 abial Exp $
 ############################################
 ### Special setup for one floppy PICOBSD ###
 ### THIS IS NOT THE NORMAL /etc/rc !!!!! ###
@@ -34,6 +34,9 @@ fi
 if [ "X${inetd_enable}" = X"YES" ]; then
 	echo "Uruchamiam inetd."; inetd ${inetd_flags}
 fi
+if [ "X${snmpd_enable}" = X"YES" ]; then
+	echo "Uruchamiam snmpd."; snmpd ${snmpd_flags}
+fi
 
 dev_mkdb
 
@@ -53,7 +56,7 @@ echo '| licencji BSD. Po wiecej szczegolow zajrzyj   |'
 echo '| na http://www.freebsd.org/~picobsd, lub      |'
 echo '| skontaktuj sie z autorem.                    |'
 echo '|                                              |'
-echo '|                     abial@freebsd.org        |'
+echo '|                     abial@nask.pl            |'
 echo '|                                              |'
 echo '+----------------------------------------------+'
 exit 0

@@ -33,7 +33,6 @@
 
 #include <sys/types.h>
 #include <ieeefp.h>
-#include <machine/fpu.h>
 
 fp_rnd
 fpgetround()
@@ -41,8 +40,10 @@ fpgetround()
 	double fpcrval;
 	u_int64_t old;
 
-	GET_FPCR(fpcrval);
+	__asm__("trapb");
+	__asm__("mf_fpcr %0" : "=f" (fpcrval));
+	__asm__("trapb");
 	old = *(u_int64_t *)&fpcrval;
 
-	return ((old & FPCR_DYN_MASK) >> FPCR_DYN_SHIFT);
+	return ((old >> 58) & 0x3);
 }

@@ -1,4 +1,4 @@
-/* $Id: if_wl.c,v 1.19 1998/12/09 03:30:51 eivind Exp $ */
+/* $Id: if_wl.c,v 1.14 1998/08/20 05:49:59 msmith Exp $ */
 /* 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -81,7 +81,7 @@
  *
  * sample config:
  *
- * device wl0 at isa? port 0x300 net irq ?
+ * device wl0 at isa? port 0x300 net irq ? vector wlintr
  *
  * Ifdefs:
  * 1. WLDEBUG. (off) - if turned on enables IFF_DEBUG set via ifconfig debug
@@ -302,7 +302,6 @@ static void	wlstart(struct ifnet *ifp);
 static void	wlinit(void *xsc);
 static int	wlioctl(struct ifnet *ifp, u_long cmd, caddr_t data);
 static timeout_t wlwatchdog;
-static ointhand2_t wlintr;
 static void	wlxmt(int unt, struct mbuf *m);
 static int	wldiag(int unt); 
 static int	wlconfig(int unit); 
@@ -311,6 +310,7 @@ static void	wlmmcstat(int unit);
 static u_short	wlbldru(int unit);
 static u_short	wlmmcread(u_int base, u_short reg);
 static void	wlinitmmc(int unit);
+static void	wlsetirq(int base, int irq);
 static int	wlhwrst(int unit);
 static void	wlrustrt(int unit);
 static void	wlbldcu(int unit);
@@ -331,7 +331,7 @@ static void	wl_cache_store(int, int, struct ether_header *, struct mbuf *);
 static void     wl_cache_zero(int unit);
 #endif
 #ifdef MULTICAST
-# if defined(__FreeBSD__) && __FreeBSD_version < 300000
+# if __FreeBSD < 3
 static int      check_allmulti(int unit);
 # endif
 #endif
@@ -364,6 +364,7 @@ wlprobe(struct isa_device *id)
 {
     struct wl_softc	*sc = &wl_softc[id->id_unit];	
     register short	base = id->id_iobase;
+    int			unit = id->id_unit;
     char		*str = "wl%d: board out of range [0..%d]\n";
     u_char		inbuf[100];
     unsigned long	oldpri;
@@ -442,7 +443,6 @@ wlattach(struct isa_device *id)
 #ifdef WLDEBUG
     printf("wlattach: base %x, unit %d\n", base, unit);
 #endif
-    id->id_ointr = wlintr;
     sc->base = base;
     sc->unit = unit;
     sc->flags = 0;
@@ -494,7 +494,7 @@ wlattach(struct isa_device *id)
 #endif
 #if	MULTICAST
     ifp->if_flags |= IFF_MULTICAST;
-#endif	/* MULTICAST */
+#endif	MULTICAST
     ifp->if_name = "wl";
     ifp->if_unit = unit;
     ifp->if_init = wlinit;
@@ -680,7 +680,7 @@ wlinit(void *xsc)
     if (sc->wl_if.if_flags & IFF_DEBUG)
 	printf("wl%d: entered wlinit()\n",sc->unit);
 #endif
-#if defined(__FreeBSD__) && __FreeBSD_version >= 300000
+#if __FreeBSD__ >= 3
     if (ifp->if_addrhead.tqh_first == (struct ifaddr *)0) {
 #else
     if (ifp->if_addrlist == (struct ifaddr *)0) {
@@ -721,6 +721,8 @@ static int
 wlhwrst(int unit)
 {
     register struct wl_softc	*sc = WLSOFTC(unit);
+    int 	i;
+    short	base = sc->base;
 
 #ifdef WLDEBUG
     if (sc->wl_if.if_flags & IFF_DEBUG)
@@ -736,7 +738,7 @@ wlhwrst(int unit)
 #ifdef	WLDEBUG
     if (sc->wl_if.if_flags & IFF_DEBUG)
 	wlmmcstat(unit);	/* Display MMC registers */
-#endif	/* WLDEBUG */
+#endif	WLDEBUG
     wlbldcu(unit);		/* set up command unit structures */
     
     if (wldiag(unit) == 0)
@@ -1167,6 +1169,7 @@ wlioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
     short		base = sc->base;
     short		mode = 0;
     int			opri, error = 0;
+    u_short		tmp;
     struct proc		*p = curproc;	/* XXX */
     int			irq, irqval, i, isroot, size;
     caddr_t		up;
@@ -1254,7 +1257,7 @@ wlioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
     case SIOCADDMULTI:
     case SIOCDELMULTI:
 
-#if defined(__FreeBSD__) && __FreeBSD_version < 300000
+#if __FreeBSD__ < 3
 	if (cmd == SIOCADDMULTI) {
 	    error = ether_addmulti(ifr, &sc->wl_ac);
 	}
@@ -1284,7 +1287,7 @@ wlioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	}
 #endif
 	break;
-#endif	/* MULTICAST */
+#endif	MULTICAST
 
     /* DEVICE SPECIFIC */
 
@@ -1469,13 +1472,16 @@ wlwatchdog(void *vsc)
  * output	: either a packet is received, or a packet is transfered
  *
  */
-static void
+void
 wlintr(unit)
 int unit;
 {
     register struct wl_softc *sc = &wl_softc[unit];
+    scb_t		scb;
+    ac_t		cb;
     short		base = sc->base;
-    int			ac_status;
+    int			next, x, opri;
+    int			i, ac_status;
     u_short		int_type, int_type1;
 
 #ifdef WLDEBUG
@@ -1563,7 +1569,7 @@ int unit;
 		if (ac_status & TC_CARRIER) {
 		    printf("wl%d: no carrier\n", unit);
 		}
-#endif	/* notdef */
+#endif	notdef
 		if (ac_status & TC_CLS) {
 		    printf("wl%d: no CTS\n", unit);
 		}
@@ -1725,7 +1731,7 @@ wlrequeue(int unit, u_short fd_p)
 
 #ifdef	WLDEBUG
 static int xmt_debug = 0;
-#endif	/* WLDEBUG */
+#endif	WLDEBUG
 
 /*
  * wlxmt:
@@ -1775,7 +1781,7 @@ wlxmt(int unit, struct mbuf *m)
 	    printf("ether type %x\n", eh_p->ether_type);
 	}
     }
-#endif	/* WLDEBUG */
+#endif	WLDEBUG
     outw(PIOR0(base), OFFSET_TBD);
     outw(PIOP0(base), 0);		/* act_count */
     outw(PIOR1(base), OFFSET_TBD + 4);
@@ -1830,13 +1836,13 @@ wlxmt(int unit, struct mbuf *m)
 	if (sc->wl_if.if_flags & IFF_DEBUG)
 	    if (xmt_debug)
 		printf("mbuf+ L%d @%p ", count, (void *)mb_p);
-#endif	/* WLDEBUG */
+#endif	WLDEBUG
     }
 #ifdef	WLDEBUG
     if (sc->wl_if.if_flags & IFF_DEBUG)
 	if (xmt_debug)
 	    printf("CLEN = %d\n", clen);
-#endif	/* WLDEBUG */
+#endif	WLDEBUG
     outw(PIOR0(base), tbd_p);
     if (clen < ETHERMIN) {
 	outw(PIOP0(base), inw(PIOP0(base)) + ETHERMIN - clen);
@@ -1854,7 +1860,7 @@ wlxmt(int unit, struct mbuf *m)
 	    printf("\n");
 	}
     }
-#endif	/* WLDEBUG */
+#endif	WLDEBUG
 
     outw(PIOR0(base), OFFSET_SCB + 2);	/* address of scb_command */
     /* 
@@ -2031,7 +2037,7 @@ wlconfig(int unit)
     short		base = sc->base;
 
 #if	MULTICAST
-#if defined(__FreeBSD__) && __FreeBSD_version >= 300000
+#if __FreeBSD__ >= 3
     struct ifmultiaddr *ifma;
     u_char *addrp;
 #else
@@ -2039,7 +2045,7 @@ wlconfig(int unit)
     struct ether_multistep step;
 #endif
     int cnt = 0;
-#endif	/* MULTICAST */
+#endif	MULTICAST
 
 #ifdef WLDEBUG
     if (sc->wl_if.if_flags & IFF_DEBUG)
@@ -2100,7 +2106,7 @@ wlconfig(int unit)
     outw(PIOP1(base), 0);				/* ac_status */
     outw(PIOP1(base), AC_MCSETUP|AC_CW_EL);		/* ac_command */
     outw(PIOR1(base), OFFSET_CU + 8);
-#if defined(__FreeBSD__) && __FreeBSD_version >= 300000
+#if __FreeBSD__ >= 3
     for (ifma = sc->wl_if.if_multiaddrs.lh_first; ifma;
 	 ifma = ifma->ifma_link.le_next) {
 	if (ifma->ifma_addr->sa_family != AF_LINK)
@@ -2151,7 +2157,7 @@ printf("mcast_addr[%d,%d,%d] %x %x %x %x %x %x\n", lo, hi, cnt,
     outw(PIOP1(base), cnt * WAVELAN_ADDR_SIZE);
     if(wlcmd(unit, "config()-mcaddress") == 0)
 	return 0;
-#endif	/* MULTICAST */
+#endif	MULTICAST
 
     outw(PIOR1(base), OFFSET_CU);
     outw(PIOP1(base), 0);				/* ac_status */
@@ -2320,6 +2326,7 @@ static void
 wlsftwsleaze(u_short *countp, u_char **mb_pp, struct mbuf **tm_pp, int unit)
 {
     struct mbuf	*tm_p = *tm_pp;
+    u_char		*mb_p = *mb_pp;
     u_short		count = 0;
     u_char		*cp = (u_char *) t_packet;
     int			len;
@@ -2378,6 +2385,10 @@ wlmmcread(u_int base, u_short reg)
 static void
 getsnr(int unit)
 {
+    register struct wl_softc *sc = WLSOFTC(unit);
+    short	base = sc->base;
+    register int s;
+
     MMC_WRITE(MMC_FREEZE,1);
     /* 
      * SNR retrieval procedure :
@@ -2549,7 +2560,7 @@ static
 void wl_cache_store (int unit, int base, struct ether_header *eh,
       		     struct mbuf *m)
 {
-	struct ip *ip = NULL;	/* Avoid GCC warning */
+	struct ip *ip; 
 	int i;
 	int signal, silence;
 	int w_insertcache;   /* computed index for cache entry storage */
@@ -2671,7 +2682,7 @@ void wl_cache_store (int unit, int base, struct ether_header *eh,
  */
 #ifdef MULTICAST
 
-#if defined(__FreeBSD__) && __FreeBSD_version < 300000	/* not required */
+#if __FreeBSD__ < 3	/* not required */
 static int
 check_allmulti(int unit)
 {

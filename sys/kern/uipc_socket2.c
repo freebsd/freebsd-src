@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket2.c	8.1 (Berkeley) 6/10/93
- *	$Id: uipc_socket2.c,v 1.42 1998/11/23 00:45:38 truckman Exp $
+ *	$Id: uipc_socket2.c,v 1.38 1998/09/04 13:13:18 ache Exp $
  */
 
 #include <sys/param.h>
@@ -213,6 +213,7 @@ sonewconn(head, connstatus)
 	so->so_state = head->so_state | SS_NOFDREF;
 	so->so_proto = head->so_proto;
 	so->so_timeo = head->so_timeo;
+	so->so_pgid = head->so_pgid;
 	so->so_uid = head->so_uid;
 	(void) soreserve(so, head->so_snd.sb_hiwat, head->so_rcv.sb_hiwat);
 
@@ -312,14 +313,20 @@ sowakeup(so, sb)
 	register struct socket *so;
 	register struct sockbuf *sb;
 {
+	struct proc *p;
+
 	selwakeup(&sb->sb_sel);
 	sb->sb_flags &= ~SB_SEL;
 	if (sb->sb_flags & SB_WAIT) {
 		sb->sb_flags &= ~SB_WAIT;
 		wakeup((caddr_t)&sb->sb_cc);
 	}
-	if ((so->so_state & SS_ASYNC) && so->so_sigio != NULL)
-		pgsigio(so->so_sigio, SIGIO, 0);
+	if (so->so_state & SS_ASYNC) {
+		if (so->so_pgid < 0)
+			gsignal(-so->so_pgid, SIGIO);
+		else if (so->so_pgid > 0 && (p = pfind(so->so_pgid)) != 0)
+			psignal(p, SIGIO);
+	}
 	if (sb->sb_flags & SB_UPCALL)
 		(*so->so_upcall)(so, so->so_upcallarg, M_DONTWAIT);
 }
@@ -470,20 +477,18 @@ sbcheck(sb)
 	register struct sockbuf *sb;
 {
 	register struct mbuf *m;
-	register struct mbuf *n = 0;
-	register u_long len = 0, mbcnt = 0;
+	register int len = 0, mbcnt = 0;
 
-	for (m = sb->sb_mb; m; m = n) {
-	    n = m->m_nextpkt;
-	    for (; m; m = m->m_next) {
+	for (m = sb->sb_mb; m; m = m->m_next) {
 		len += m->m_len;
 		mbcnt += MSIZE;
 		if (m->m_flags & M_EXT) /*XXX*/ /* pretty sure this is bogus */
 			mbcnt += m->m_ext.ext_size;
-	    }
+		if (m->m_nextpkt)
+			panic("sbcheck nextpkt");
 	}
 	if (len != sb->sb_cc || mbcnt != sb->sb_mbcnt) {
-		printf("cc %ld != %ld || mbcnt %ld != %ld\n", len, sb->sb_cc,
+		printf("cc %d != %d || mbcnt %d != %d\n", len, sb->sb_cc,
 		    mbcnt, sb->sb_mbcnt);
 		panic("sbcheck");
 	}
@@ -715,10 +720,10 @@ sbflush(sb)
 
 	if (sb->sb_flags & SB_LOCK)
 		panic("sbflush: locked");
-	while (sb->sb_mbcnt && sb->sb_cc)
+	while (sb->sb_mbcnt)
 		sbdrop(sb, (int)sb->sb_cc);
-	if (sb->sb_cc || sb->sb_mb || sb->sb_mbcnt)
-		panic("sbflush: cc %ld || mb %p || mbcnt %ld", sb->sb_cc, (void *)sb->sb_mb, sb->sb_mbcnt);
+	if (sb->sb_cc || sb->sb_mb)
+		panic("sbflush: cc %ld || mb %p", sb->sb_cc, (void *)sb->sb_mb);
 }
 
 /*
@@ -911,7 +916,7 @@ sotoxsocket(struct socket *so, struct xsocket *xso)
 	xso->so_qlimit = so->so_qlimit;
 	xso->so_timeo = so->so_timeo;
 	xso->so_error = so->so_error;
-	xso->so_pgid = so->so_sigio ? so->so_sigio->sio_pgid : 0;
+	xso->so_pgid = so->so_pgid;
 	xso->so_oobmark = so->so_oobmark;
 	sbtoxsockbuf(&so->so_snd, &xso->so_snd);
 	sbtoxsockbuf(&so->so_rcv, &xso->so_rcv);

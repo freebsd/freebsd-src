@@ -4,8 +4,8 @@ LIB=	txi
 INTERNALLIB= true
 INTERNALSTATICLIB= true
 
-SRCS=	getopt.c getopt1.c xmalloc.c xstrdup.c
+SRCS=	getopt.c getopt1.c
 
 .include <bsd.lib.mk>
 
-.PATH: ${TXIDIR}/lib
+.PATH: ${TXIDIR}/libtxi

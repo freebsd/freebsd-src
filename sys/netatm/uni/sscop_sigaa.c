@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: sscop_sigaa.c,v 1.1 1998/09/15 08:23:07 phk Exp $
+ *	@(#) $Id: sscop_sigaa.c,v 1.1 1998/04/07 23:15:11 mks Exp $
  *
  */
 
@@ -35,6 +35,10 @@
  *
  */
 
+#ifndef lint
+static char *RCSid = "@(#) $Id: sscop_sigaa.c,v 1.1 1998/04/07 23:15:11 mks Exp $";
+#endif
+
 #include <netatm/kern_include.h>
 
 #include <netatm/uni/uni.h>
@@ -42,10 +46,6 @@
 #include <netatm/uni/sscop_misc.h>
 #include <netatm/uni/sscop_pdu.h>
 #include <netatm/uni/sscop_var.h>
-
-#ifndef lint
-__RCSID("@(#) $Id: sscop_sigaa.c,v 1.1 1998/09/15 08:23:07 phk Exp $");
-#endif
 
 
 /*

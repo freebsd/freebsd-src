@@ -131,7 +131,7 @@
 /* #undef NEED_CRYPT_PROTO */
 
 /* define if the system is missing a prototype for strtok_r() */
-/* #undef NEED_STRTOK_R_PROTO */
+#define NEED_STRTOK_R_PROTO 1
 
 /* define if /bin/ls takes -A */
 #define HAVE_LS_A 1
@@ -428,7 +428,7 @@
 /* #undef HAVE_STRNLEN */
 
 /* Define if you have the strtok_r function.  */
-#define HAVE_STRTOK_R 1
+/* #undef HAVE_STRTOK_R */
 
 /* Define if you have the strupr function.  */
 /* #undef HAVE_STRUPR */

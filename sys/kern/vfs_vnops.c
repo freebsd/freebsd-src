@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_vnops.c	8.2 (Berkeley) 1/21/94
- * $Id: vfs_vnops.c,v 1.61 1999/01/05 18:49:56 eivind Exp $
+ * $Id: vfs_vnops.c,v 1.58 1998/06/07 17:11:48 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -78,7 +78,7 @@ vn_open(ndp, fmode, cmode)
 	register struct ucred *cred = p->p_ucred;
 	struct vattr vat;
 	struct vattr *vap = &vat;
-	int mode, error;
+	int error;
 
 	if (fmode & O_CREAT) {
 		ndp->ni_cnd.cn_nameiop = CREATE;
@@ -136,7 +136,11 @@ vn_open(ndp, fmode, cmode)
 		goto bad;
 	}
 	if ((fmode & O_CREAT) == 0) {
-		mode = 0;
+		if (fmode & FREAD) {
+			error = VOP_ACCESS(vp, VREAD, cred, p);
+			if (error)
+				goto bad;
+		}
 		if (fmode & (FWRITE | O_TRUNC)) {
 			if (vp->v_type == VDIR) {
 				error = EISDIR;
@@ -145,12 +149,7 @@ vn_open(ndp, fmode, cmode)
 			error = vn_writechk(vp);
 			if (error)
 				goto bad;
-			mode |= VWRITE;
-		}
-		if (fmode & FREAD)
-			mode |= VREAD;
-		if (mode) {
-		        error = VOP_ACCESS(vp, mode, cred, p);
+		        error = VOP_ACCESS(vp, VWRITE, cred, p);
 			if (error)
 				goto bad;
 		}
@@ -172,7 +171,7 @@ vn_open(ndp, fmode, cmode)
 	 * Make sure that a VM object is created for VMIO support.
 	 */
 	if (vp->v_type == VREG) {
-		if ((error = vfs_object_create(vp, p, cred)) != 0)
+		if ((error = vfs_object_create(vp, p, cred, 1)) != 0)
 			goto bad;
 	}
 
@@ -510,18 +509,10 @@ vn_poll(fp, events, cred, p)
  * acquire requested lock.
  */
 int
-#ifndef	DEBUG_LOCKS
 vn_lock(vp, flags, p)
-#else
-debug_vn_lock(vp, flags, p, filename, line)
-#endif
 	struct vnode *vp;
 	int flags;
 	struct proc *p;
-#ifdef	DEBUG_LOCKS
-	const char *filename;
-	int line;
-#endif
 {
 	int error;
 	
@@ -534,12 +525,7 @@ debug_vn_lock(vp, flags, p, filename, line)
 			tsleep((caddr_t)vp, PINOD, "vn_lock", 0);
 			error = ENOENT;
 		} else {
-#ifdef	DEBUG_LOCKS
-			vp->filename = filename;
-			vp->line = line;
-#endif
-			error = VOP_LOCK(vp,
-				    flags | LK_NOPAUSE | LK_INTERLOCK, p);
+			error = VOP_LOCK(vp, flags | LK_NOPAUSE | LK_INTERLOCK, p);
 			if (error == 0)
 				return (error);
 		}

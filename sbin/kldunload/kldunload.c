@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: kldunload.c,v 1.6 1998/07/06 06:59:52 charnier Exp $";
+	"$Id: kldunload.c,v 1.5 1998/01/05 07:10:42 charnier Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -39,8 +39,7 @@ static const char rcsid[] =
 static void
 usage(void)
 {
-    fprintf(stderr, "usage: kldunload [-v] -i id\n");
-    fprintf(stderr, "       kldunload [-v] -n name\n");
+    fprintf(stderr, "usage: kldunload [-v] [-i id] [-n name]\n");
     exit(1);
 }
 
@@ -69,12 +68,7 @@ main(int argc, char** argv)
     argc -= optind;
     argv += optind;
 
-    if (!fileid && !filename && (argc == 1)) {
-	filename = *argv;
-	argc--;
-    }
-    
-    if (argc != 0 || fileid && filename)
+    if (argc != 0)
 	usage();
 
     if (fileid == 0 && filename == 0)

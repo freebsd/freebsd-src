@@ -1,4 +1,4 @@
-/*	$Id: denode.h,v 1.17 1998/11/21 00:20:24 dt Exp $ */
+/*	$Id: denode.h,v 1.15 1998/02/18 09:28:26 jkh Exp $ */
 /*	$NetBSD: denode.h,v 1.25 1997/11/17 15:36:28 ws Exp $	*/
 
 /*-
@@ -150,7 +150,6 @@ struct denode {
 	struct msdosfsmount *de_pmp;	/* addr of our mount struct */
 	u_char de_Name[12];	/* name, from DOS directory entry */
 	u_char de_Attributes;	/* attributes, from directory entry */
-	u_char de_LowerCase;	/* NT VFAT lower case flags */
 	u_char de_CHun;		/* Hundredth of second of CTime*/
 	u_short de_CTime;	/* creation time */
 	u_short de_CDate;	/* creation date */
@@ -183,7 +182,6 @@ struct denode {
 #define DE_INTERNALIZE(dep, dp)				\
 	(bcopy((dp)->deName, (dep)->de_Name, 11),	\
 	 (dep)->de_Attributes = (dp)->deAttributes,	\
-	 (dep)->de_LowerCase = (dp)->deLowerCase,	\
 	 (dep)->de_CHun = (dp)->deCHundredth,		\
 	 (dep)->de_CTime = getushort((dp)->deCTime),	\
 	 (dep)->de_CDate = getushort((dp)->deCDate),	\
@@ -194,10 +192,12 @@ struct denode {
 	 (dep)->de_FileSize = getulong((dp)->deFileSize), \
 	 (FAT32((dep)->de_pmp) ? DE_INTERNALIZE32((dep), (dp)) : 0))
 
+#define DE_EXTERNALIZE32(dp, dep)			\
+	 putushort((dp)->deHighClust, (dep)->de_StartCluster >> 16)
 #define DE_EXTERNALIZE(dp, dep)				\
 	(bcopy((dep)->de_Name, (dp)->deName, 11),	\
+	 bzero((dp)->deReserved, 10),                   \
 	 (dp)->deAttributes = (dep)->de_Attributes,	\
-	 (dp)->deLowerCase = (dep)->de_LowerCase,	\
 	 (dp)->deCHundredth = (dep)->de_CHun,		\
 	 putushort((dp)->deCTime, (dep)->de_CTime),	\
 	 putushort((dp)->deCDate, (dep)->de_CDate),	\
@@ -207,7 +207,7 @@ struct denode {
 	 putushort((dp)->deStartCluster, (dep)->de_StartCluster), \
 	 putulong((dp)->deFileSize,			\
 	     ((dep)->de_Attributes & ATTR_DIRECTORY) ? 0 : (dep)->de_FileSize), \
-	 putushort((dp)->deHighClust, (dep)->de_StartCluster >> 16))
+	 (FAT32((dep)->de_pmp) ? DE_EXTERNALIZE32((dp), (dep)) : 0))
 
 #define	de_forw		de_chain[0]
 #define	de_back		de_chain[1]
@@ -217,33 +217,21 @@ struct denode {
 #define	VTODE(vp)	((struct denode *)(vp)->v_data)
 #define	DETOV(de)	((de)->de_vnode)
 
-#define	DETIMES(dep, acc, mod, cre) do {				\
-	if ((dep)->de_flag & DE_UPDATE) { 				\
-		(dep)->de_flag |= DE_MODIFIED;				\
-		unix2dostime((mod), &(dep)->de_MDate, &(dep)->de_MTime,	\
-		    NULL);						\
-		(dep)->de_Attributes |= ATTR_ARCHIVE; 			\
-	}								\
-	if ((dep)->de_pmp->pm_flags & MSDOSFSMNT_NOWIN95) {		\
-		(dep)->de_flag &= ~(DE_UPDATE | DE_CREATE | DE_ACCESS);	\
-		break;							\
-	}								\
-	if ((dep)->de_flag & DE_ACCESS) {				\
-	    	u_int16_t adate;					\
-									\
-		unix2dostime((acc), &adate, NULL, NULL);		\
-		if (adate != (dep)->de_ADate) {				\
-			(dep)->de_flag |= DE_MODIFIED;			\
-			(dep)->de_ADate = adate;			\
-		}							\
-	}								\
-	if ((dep)->de_flag & DE_CREATE) {				\
-		unix2dostime((cre), &(dep)->de_CDate, &(dep)->de_CTime,	\
-		    &(dep)->de_CHun);					\
-		    (dep)->de_flag |= DE_MODIFIED;			\
-	}								\
-	(dep)->de_flag &= ~(DE_UPDATE | DE_CREATE | DE_ACCESS);		\
-} while (0);
+#define	DETIMES(dep, acc, mod, cre) \
+	if ((dep)->de_flag & (DE_UPDATE | DE_CREATE | DE_ACCESS)) { \
+		(dep)->de_flag |= DE_MODIFIED; \
+		if ((dep)->de_flag & DE_UPDATE) { \
+			unix2dostime((mod), &(dep)->de_MDate, &(dep)->de_MTime, NULL); \
+			(dep)->de_Attributes |= ATTR_ARCHIVE; \
+		} \
+		if (!((dep)->de_pmp->pm_flags & MSDOSFSMNT_NOWIN95)) { \
+			if ((dep)->de_flag & DE_ACCESS) \
+				unix2dostime((acc), &(dep)->de_ADate, NULL, NULL); \
+			if ((dep)->de_flag & DE_CREATE) \
+				unix2dostime((cre), &(dep)->de_CDate, &(dep)->de_CTime, &(dep)->de_CHun); \
+		} \
+		(dep)->de_flag &= ~(DE_UPDATE | DE_CREATE | DE_ACCESS); \
+	}
 
 /*
  * This overlays the fid structure (see mount.h)

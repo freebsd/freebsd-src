@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: sigpvc_if.c,v 1.3 1998/12/04 22:54:53 archie Exp $
+ *	@(#) $Id: sigpvc_if.c,v 1.13 1998/07/30 22:32:42 mks Exp $
  *
  */
 
@@ -36,6 +36,10 @@
  *
  */
 
+#ifndef lint
+static char *RCSid = "@(#) $Id: sigpvc_if.c,v 1.13 1998/07/30 22:32:42 mks Exp $";
+#endif
+
 #ifndef ATM_SIGPVC_MODULE
 #include "opt_atm.h"
 #endif
@@ -44,10 +48,6 @@
 
 #include <netatm/sigpvc/sigpvc.h>
 #include <netatm/sigpvc/sigpvc_var.h>
-
-#ifndef lint
-__RCSID("@(#) $Id: sigpvc_if.c,v 1.3 1998/12/04 22:54:53 archie Exp $");
-#endif
 
 
 /*
@@ -604,8 +604,7 @@ sigpvc_ioctl(code, data, arg1)
 			/*
 			 * Fill in info to be returned
 			 */
-			(void) snprintf(avr.avp_intf, sizeof(avr.avp_intf),
-				"%s%d",
+			(void) sprintf(avr.avp_intf, "%s%d", 
 				pvp->pv_pif->pif_name, pvp->pv_pif->pif_unit);
 			avr.avp_vpi = vcp->vc_vpi;
 			avr.avp_vci = vcp->vc_vci;
@@ -653,9 +652,8 @@ sigpvc_ioctl(code, data, arg1)
 		break;
 
 	case AIOCS_INF_ARP:
-	case AIOCS_INF_ASV:
 		/*
-		 * Get ARP table/server information
+		 * Get ARP table information
 		 */
 		/* We don't maintain any ARP information */
 		break;

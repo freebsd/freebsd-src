@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mount.h	8.21 (Berkeley) 5/20/95
- *	$Id: mount.h,v 1.72 1998/11/10 09:04:09 peter Exp $
+ *	$Id: mount.h,v 1.68 1998/09/15 11:44:44 phk Exp $
  */
 
 #ifndef _SYS_MOUNT_H_
@@ -73,7 +73,7 @@ struct statfs {
 	long	f_ffree;		/* free file nodes in fs */
 	fsid_t	f_fsid;			/* file system id */
 	uid_t	f_owner;		/* user that mounted the filesystem */
-	int	f_type;			/* type of filesystem */
+	int	f_type;			/* type of filesystem (see below) */
 	int	f_flags;		/* copy of mount exported flags */
 	long    f_syncwrites;		/* count of sync writes since mount */
 	long    f_asyncwrites;		/* count of async writes since mount */
@@ -342,35 +342,56 @@ struct vfsops {
 	}; \
 	extern struct linker_set MODVNOPS; \
 	MOD_VFS(fsname,&MODVNOPS,&_fs_vfsconf); \
-	int \
-	fsname ## _mod(struct lkm_table *lkmtp, int cmd, int ver); \
+	extern int \
+	fsname ## _mod __P((struct lkm_table *, int, int)); \
 	int \
 	fsname ## _mod(struct lkm_table *lkmtp, int cmd, int ver) { \
 		MOD_DISPATCH(fsname, \
-		lkmtp, cmd, ver, lkm_nullcmd, lkm_nullcmd, lkm_nullcmd); } \
-	struct __hack
-
+		lkmtp, cmd, ver, lkm_nullcmd, lkm_nullcmd, lkm_nullcmd); }
 #else
 
 #include <sys/module.h>
-
 #define VFS_SET(vfsops, fsname, flags) \
-	static struct vfsconf fsname ## _vfsconf = {		\
-		&vfsops,					\
-		#fsname,					\
-		-1,						\
-		0,						\
-		flags						\
-	};							\
-	static moduledata_t fsname ## _mod = {			\
-		#fsname,					\
-		vfs_modevent,					\
-		& fsname ## _vfsconf				\
-	};							\
-	DECLARE_MODULE(fsname, fsname ## _mod, SI_SUB_VFS, SI_ORDER_MIDDLE)
+	static struct vfsconf fsname ## _vfsconf = { \
+		&vfsops, \
+		#fsname, \
+		-1, \
+		0, \
+		flags | VFCF_STATIC, \
+	}; \
+	static int fsname ## _modevent(module_t mod, modeventtype_t type, \
+		void *data) \
+	{ \
+		struct vfsconf *vfc = (struct vfsconf *)data; \
+		int error = 0; \
+		switch (type) { \
+		case MOD_LOAD: \
+			/* printf(#fsname " module load\n"); */ \
+			error = vfs_register(vfc); \
+			if (error) \
+				printf(#fsname " register failed\n"); \
+			break; \
+		case MOD_UNLOAD: \
+			/* printf(#fsname " module unload\n"); */ \
+			error = vfs_register(vfc); \
+			if (error) \
+				printf(#fsname " register failed\n"); \
+			break; \
+		} \
+		return error; \
+	} \
+	static moduledata_t fsname ## _mod = { \
+		#fsname, \
+		fsname ## _modevent, \
+		& fsname ## _vfsconf \
+	}; \
+	DECLARE_MODULE(fsname, fsname ## _mod, SI_SUB_VFS, SI_ORDER_MIDDLE);
 
 #endif /* VFS_LKM */
 
+#endif /* KERNEL */
+
+#ifdef KERNEL
 #include <net/radix.h>
 
 #define	AF_MAX		31	/* XXX */
@@ -411,7 +432,6 @@ struct	netcred *vfs_export_lookup	    /* lookup host in fs export list */
 int	vfs_allocate_syncvnode __P((struct mount *));
 void	vfs_getnewfsid __P((struct mount *));
 struct	mount *vfs_getvfs __P((fsid_t *));      /* return vfs given fsid */
-int	vfs_modevent __P((module_t, int, void *));
 int	vfs_mountedon __P((struct vnode *));    /* is a vfs mounted on vp */
 int	vfs_rootmountalloc __P((char *, char *, struct mount **));
 void	vfs_unbusy __P((struct mount *, struct proc *));

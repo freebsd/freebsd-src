@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: advlib.c,v 1.9 1998/10/29 17:41:34 gibbs Exp $
+ *      $Id: advlib.c,v 1.7 1998/10/07 03:32:57 gibbs Exp $
  */
 /*
  * Ported from:
@@ -1031,8 +1031,7 @@ adv_isr_chip_halted(struct adv_softc *adv)
 		ccb = (union ccb *) adv_read_lram_32(adv, halt_q_addr
 						     + ADV_SCSIQ_D_CCBPTR);
 		xpt_freeze_devq(ccb->ccb_h.path, /*count*/1);
-		ccb->ccb_h.status |= CAM_DEV_QFRZN|CAM_SCSI_STATUS_ERROR;
-		ccb->csio.scsi_status = SCSI_STATUS_QUEUE_FULL; 
+		ccb->ccb_h.status |= CAM_DEV_QFRZN;
 		adv_abort_ccb(adv, tid_no, ADV_TIX_TO_LUN(target_ix),
 			      /*ccb*/NULL, CAM_REQUEUE_REQ,
 			      /*queued_only*/TRUE);
@@ -1971,6 +1970,7 @@ adv_abort_ccb(struct adv_softc *adv, int target, int lun, union ccb *ccb,
 			struct adv_ccb_info *cinfo;
 
 			scsiq->q_status |= QS_ABORTED;
+			scsiq->d3.done_stat = QD_ABORTED_BY_HOST;
 			adv_write_lram_8(adv, q_addr + ADV_SCSIQ_B_STATUS,
 					 scsiq->q_status);
 			aborted_ccb = (union ccb *)scsiq->d2.ccb_ptr;
@@ -2009,6 +2009,8 @@ adv_reset_bus(struct adv_softc *adv)
 
 	count = 0;
 	while ((ccb = (union ccb *)LIST_FIRST(&adv->pending_ccbs)) != NULL) {
+		struct	adv_ccb_info *cinfo;
+		
 		if ((ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_INPROG)
 			ccb->ccb_h.status |= CAM_SCSI_BUS_RESET;
 		adv_done(adv, ccb, QD_ABORTED_BY_HOST, 0, 0, 0);

@@ -37,7 +37,7 @@
  *
  *      @(#)bpf_filter.c	8.1 (Berkeley) 6/10/93
  *
- * $Id: bpf_filter.c,v 1.11 1998/12/07 03:26:34 eivind Exp $
+ * $Id: bpf_filter.c,v 1.8 1997/02/22 09:40:57 peter Exp $
  */
 
 #include <sys/param.h>
@@ -46,30 +46,27 @@
 #include <netinet/in.h>
 #endif
 
-#if defined(sparc) || defined(mips) || defined(ibm032) || defined(__alpha__)
+#if defined(sparc) || defined(mips) || defined(ibm032)
 #define BPF_ALIGN
 #endif
 
 #ifndef BPF_ALIGN
-#define EXTRACT_SHORT(p)	((u_int16_t)ntohs(*(u_int16_t *)p))
-#define EXTRACT_LONG(p)		(ntohl(*(u_int32_t *)p))
+#define EXTRACT_SHORT(p)	((u_short)ntohs(*(u_short *)p))
+#define EXTRACT_LONG(p)		(ntohl(*(u_long *)p))
 #else
 #define EXTRACT_SHORT(p)\
-	((u_int16_t)\
-		((u_int16_t)*((u_char *)p+0)<<8|\
-		 (u_int16_t)*((u_char *)p+1)<<0))
+	((u_short)\
+		((u_short)*((u_char *)p+0)<<8|\
+		 (u_short)*((u_char *)p+1)<<0))
 #define EXTRACT_LONG(p)\
-		((u_int32_t)*((u_char *)p+0)<<24|\
-		 (u_int32_t)*((u_char *)p+1)<<16|\
-		 (u_int32_t)*((u_char *)p+2)<<8|\
-		 (u_int32_t)*((u_char *)p+3)<<0)
+		((u_long)*((u_char *)p+0)<<24|\
+		 (u_long)*((u_char *)p+1)<<16|\
+		 (u_long)*((u_char *)p+2)<<8|\
+		 (u_long)*((u_char *)p+3)<<0)
 #endif
 
 #ifdef KERNEL
 #include <sys/mbuf.h>
-#endif
-#include <net/bpf.h>
-#ifdef KERNEL
 #define MINDEX(m, k) \
 { \
 	register int len = m->m_len; \
@@ -83,16 +80,15 @@
 	} \
 }
 
-static u_int16_t	m_xhalf __P((struct mbuf *m, bpf_u_int32 k, int *err));
-static u_int32_t	m_xword __P((struct mbuf *m, bpf_u_int32 k, int *err));
+static int	m_xhalf __P((struct mbuf *m, int k, int *err));
+static int	m_xword __P((struct mbuf *m, int k, int *err));
 
-static u_int32_t
+static int
 m_xword(m, k, err)
 	register struct mbuf *m;
-	register bpf_u_int32 k;
-	register int *err;
+	register int k, *err;
 {
-	register size_t len;
+	register int len;
 	register u_char *cp, *np;
 	register struct mbuf *m0;
 
@@ -117,38 +113,27 @@ m_xword(m, k, err)
 	switch (len - k) {
 
 	case 1:
-		return
-		    ((u_int32_t)cp[0] << 24) |
-		    ((u_int32_t)np[0] << 16) |
-		    ((u_int32_t)np[1] << 8)  |
-		    (u_int32_t)np[2];
+		return (cp[0] << 24) | (np[0] << 16) | (np[1] << 8) | np[2];
 
 	case 2:
-		return
-		    ((u_int32_t)cp[0] << 24) |
-		    ((u_int32_t)cp[1] << 16) |
-		    ((u_int32_t)np[0] << 8) |
-		    (u_int32_t)np[1];
+		return (cp[0] << 24) | (cp[1] << 16) | (np[0] << 8) |
+			np[1];
 
 	default:
-		return
-		    ((u_int32_t)cp[0] << 24) |
-		    ((u_int32_t)cp[1] << 16) |
-		    ((u_int32_t)cp[2] << 8) |
-		    (u_int32_t)np[0];
+		return (cp[0] << 24) | (cp[1] << 16) | (cp[2] << 8) |
+			np[0];
 	}
     bad:
 	*err = 1;
 	return 0;
 }
 
-static u_int16_t
+static int
 m_xhalf(m, k, err)
 	register struct mbuf *m;
-	register bpf_u_int32 k;
-	register int *err;
+	register int k, *err;
 {
-	register size_t len;
+	register int len;
 	register u_char *cp;
 	register struct mbuf *m0;
 
@@ -176,6 +161,7 @@ m_xhalf(m, k, err)
 }
 #endif
 
+#include <net/bpf.h>
 /*
  * Execute the filter program starting at pc on the packet p
  * wirelen is the length of the original packet
@@ -188,9 +174,9 @@ bpf_filter(pc, p, wirelen, buflen)
 	u_int wirelen;
 	register u_int buflen;
 {
-	register u_int32_t A = 0, X = 0;
-	register bpf_u_int32 k;
-	int32_t mem[BPF_MEMWORDS];
+	register u_long A = 0, X = 0;
+	register int k;
+	long mem[BPF_MEMWORDS];
 
 	if (pc == 0)
 		/*
@@ -217,7 +203,7 @@ bpf_filter(pc, p, wirelen, buflen)
 
 		case BPF_LD|BPF_W|BPF_ABS:
 			k = pc->k;
-			if (k > buflen || sizeof(int32_t) > buflen - k) {
+			if (k + sizeof(long) > buflen) {
 #ifdef KERNEL
 				int merr;
 
@@ -232,16 +218,16 @@ bpf_filter(pc, p, wirelen, buflen)
 #endif
 			}
 #ifdef BPF_ALIGN
-			if (((intptr_t)(p + k) & 3) != 0)
+			if (((int)(p + k) & 3) != 0)
 				A = EXTRACT_LONG(&p[k]);
 			else
 #endif
-				A = ntohl(*(int32_t *)(p + k));
+				A = ntohl(*(long *)(p + k));
 			continue;
 
 		case BPF_LD|BPF_H|BPF_ABS:
 			k = pc->k;
-			if (k > buflen || sizeof(int16_t) > buflen - k) {
+			if (k + sizeof(short) > buflen) {
 #ifdef KERNEL
 				int merr;
 
@@ -285,7 +271,7 @@ bpf_filter(pc, p, wirelen, buflen)
 
 		case BPF_LD|BPF_W|BPF_IND:
 			k = X + pc->k;
-			if (pc->k > buflen || X > buflen - pc->k || sizeof(int32_t) > buflen - k) {
+			if (k + sizeof(long) > buflen) {
 #ifdef KERNEL
 				int merr;
 
@@ -300,16 +286,16 @@ bpf_filter(pc, p, wirelen, buflen)
 #endif
 			}
 #ifdef BPF_ALIGN
-			if (((intptr_t)(p + k) & 3) != 0)
+			if (((int)(p + k) & 3) != 0)
 				A = EXTRACT_LONG(&p[k]);
 			else
 #endif
-				A = ntohl(*(int32_t *)(p + k));
+				A = ntohl(*(long *)(p + k));
 			continue;
 
 		case BPF_LD|BPF_H|BPF_IND:
 			k = X + pc->k;
-			if (X > buflen || pc->k > buflen - X || sizeof(int16_t) > buflen - k) {
+			if (k + sizeof(short) > buflen) {
 #ifdef KERNEL
 				int merr;
 
@@ -328,7 +314,7 @@ bpf_filter(pc, p, wirelen, buflen)
 
 		case BPF_LD|BPF_B|BPF_IND:
 			k = X + pc->k;
-			if (pc->k >= buflen || X >= buflen - k) {
+			if (k >= buflen) {
 #ifdef KERNEL
 				register struct mbuf *m;
 
@@ -534,10 +520,10 @@ bpf_validate(f, len)
 			register int from = i + 1;
 
 			if (BPF_OP(p->code) == BPF_JA) {
-				if (from >= len || p->k >= len - from)
+				if (from + p->k >= len)
 					return 0;
 			}
-			else if (from >= len || p->jt >= len - from || p->jf >= len - from)
+			else if (from + p->jt >= len || from + p->jf >= len)
 				return 0;
 		}
 		/*
@@ -546,7 +532,7 @@ bpf_validate(f, len)
 		if ((BPF_CLASS(p->code) == BPF_ST ||
 		     (BPF_CLASS(p->code) == BPF_LD &&
 		      (p->code & 0xe0) == BPF_MEM)) &&
-		    p->k >= BPF_MEMWORDS)
+		    (p->k >= BPF_MEMWORDS || p->k < 0))
 			return 0;
 		/*
 		 * Check for constant division by 0.

@@ -35,7 +35,7 @@
  *
  *	@(#)fdesc_vnops.c	8.9 (Berkeley) 1/21/94
  *
- * $Id: fdesc_vnops.c,v 1.39 1998/12/07 21:58:31 archie Exp $
+ * $Id: fdesc_vnops.c,v 1.37 1998/06/10 21:21:28 dfr Exp $
  */
 
 /*
@@ -84,6 +84,8 @@ static int	fdesc_attr __P((int fd, struct vattr *vap, struct ucred *cred,
 				struct proc *p));
 static int	fdesc_badop __P((void));
 static int	fdesc_getattr __P((struct vop_getattr_args *ap));
+static struct fdcache *
+		fdesc_hash __P((int ix));
 static int	fdesc_inactive __P((struct vop_inactive_args *ap));
 static int	fdesc_ioctl __P((struct vop_ioctl_args *ap));
 static int	fdesc_lookup __P((struct vop_lookup_args *ap));
@@ -193,7 +195,7 @@ fdesc_lookup(ap)
 	char *pname = cnp->cn_nameptr;
 	struct proc *p = cnp->cn_proc;
 	int nfiles = p->p_fd->fd_nfiles;
-	unsigned fd = -1;
+	unsigned fd;
 	int error;
 	struct vnode *fvp;
 	char *ln;

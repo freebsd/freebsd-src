@@ -1,4 +1,4 @@
-#	$Id: BSD.root.dist,v 1.36 1999/01/10 14:30:53 hm Exp $
+#	$Id: BSD.root.dist,v 1.30 1998/09/19 18:50:27 obrien Exp $
 #
 
 /set type=dir uname=root gname=wheel mode=0755
@@ -24,8 +24,6 @@
 	..
         gnats
         ..
-        isdn		mode=0700
-        ..
         kerberosIV
         ..
 	mail
@@ -33,10 +31,6 @@
         mtree
         ..
         namedb
-# leave commented out until buildworld/installworld can
-# handle new user ids
-#		s	uname=bind gname=bind mode=0750
-#		..
         ..
         ppp
         ..
@@ -49,15 +43,13 @@
     ..
     mnt
     ..
-    modules
-    ..
     proc            mode=0555
     ..
     root
     ..
     sbin
     ..
-    tmp             mode=01777
+    tmp             uname=root gname=wheel mode=01777
     ..
     usr
     ..

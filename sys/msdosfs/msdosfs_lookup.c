@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_lookup.c,v 1.27 1998/12/07 21:58:35 archie Exp $ */
+/*	$Id: msdosfs_lookup.c,v 1.25 1998/05/18 10:24:26 dt Exp $ */
 /*	$NetBSD: msdosfs_lookup.c,v 1.37 1997/11/17 15:36:54 ws Exp $	*/
 
 /*-
@@ -61,6 +61,9 @@
 #include <msdosfs/msdosfsmount.h>
 #include <msdosfs/fat.h>
 
+static int	markdeleted __P((struct msdosfsmount *pmp, u_long dirclust,
+				 u_long diroffset));
+
 /*
  * When we search a directory the blocks containing directory entries are
  * read and examined.  The directory entries contain information that would
@@ -106,6 +109,7 @@ msdosfs_lookup(ap)
 	struct msdosfsmount *pmp;
 	struct buf *bp = 0;
 	struct direntry *dep = NULL;
+	struct ucred *cred = cnp->cn_cred;
 	u_char dosfilename[12];
 	int flags = cnp->cn_flags;
 	int nameiop = cnp->cn_nameiop;
@@ -1040,22 +1044,21 @@ findwin95(dep)
 {
 	struct msdosfsmount *pmp = dep->de_pmp;
 	struct direntry *dentp;
-	int blsize, win95;
+	int blsize;
 	u_long cn;
 	daddr_t bn;
 	struct buf *bp;
 
-	win95 = 1;
 	/*
 	 * Read through the directory looking for Win'95 entries
 	 * Note: Error currently handled just as EOF			XXX
 	 */
 	for (cn = 0;; cn++) {
 		if (pcbmap(dep, cn, &bn, 0, &blsize))
-			return (win95);
+			return 0;
 		if (bread(pmp->pm_devvp, bn, blsize, NOCRED, &bp)) {
 			brelse(bp);
-			return (win95);
+			return 0;
 		}
 		for (dentp = (struct direntry *)bp->b_data;
 		     (char *)dentp < bp->b_data + blsize;
@@ -1065,7 +1068,7 @@ findwin95(dep)
 				 * Last used entry and not found
 				 */
 				brelse(bp);
-				return (win95);
+				return 0;
 			}
 			if (dentp->deName[0] == SLOT_DELETED) {
 				/*
@@ -1078,7 +1081,6 @@ findwin95(dep)
 				brelse(bp);
 				return 1;
 			}
-			win95 = 0;
 		}
 		brelse(bp);
 	}

@@ -40,7 +40,7 @@
 static char sccsid[] = "@(#)compile.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: compile.c,v 1.11 1998/12/07 05:35:54 archie Exp $";
+	"$Id: compile.c,v 1.9 1997/08/11 07:20:58 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -160,7 +160,7 @@ compile_stream(link)
 
 	stack = 0;
 	for (;;) {
-		if ((p = cu_fgets(lbuf, sizeof(lbuf), NULL)) == NULL) {
+		if ((p = cu_fgets(lbuf, sizeof(lbuf))) == NULL) {
 			if (stack != 0)
 				errx(1, "%lu: %s: unexpected EOF (pending }'s)",
 							linenum, fname);
@@ -456,7 +456,6 @@ compile_subst(p, s)
 	static char lbuf[_POSIX2_LINE_MAX + 1];
 	int asize, ref, size;
 	char c, *text, *op, *sp;
-	int more = 0;
 
 	c = *p++;			/* Terminator character */
 	if (c == '\0')
@@ -484,10 +483,7 @@ compile_subst(p, s)
 				} else if (*p == '&' || *p == '\\')
 					*sp++ = '\\';
 			} else if (*p == c) {
-				if (*++p == '\0' && more) {
-					if (cu_fgets(lbuf, sizeof(lbuf), &more))
-						p = lbuf;
-				}
+				p++;
 				*sp++ = '\0';
 				size += sp - op;
 				s->new = xrealloc(text, size);
@@ -502,9 +498,9 @@ compile_subst(p, s)
 		size += sp - op;
 		if (asize - size < _POSIX2_LINE_MAX + 1) {
 			asize *= 2;
-			text = xrealloc(text, asize);
+			text = xmalloc(asize);
 		}
-	} while (cu_fgets(p = lbuf, sizeof(lbuf), &more));
+	} while (cu_fgets(p = lbuf, sizeof(lbuf)));
 	errx(1, "%lu: %s: unterminated substitute in regular expression",
 			linenum, fname);
 	/* NOTREACHED */
@@ -637,7 +633,7 @@ compile_text()
 	asize = 2 * _POSIX2_LINE_MAX + 1;
 	text = xmalloc(asize);
 	size = 0;
-	while (cu_fgets(lbuf, sizeof(lbuf), NULL)) {
+	while (cu_fgets(lbuf, sizeof(lbuf))) {
 		op = s = text + size;
 		p = lbuf;
 		EATSPACE();

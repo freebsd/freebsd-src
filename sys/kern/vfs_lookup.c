@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_lookup.c	8.4 (Berkeley) 2/16/94
- * $Id: vfs_lookup.c,v 1.30 1999/01/08 17:31:16 eivind Exp $
+ * $Id: vfs_lookup.c,v 1.27 1998/04/08 18:31:57 wosch Exp $
  */
 
 #include "opt_ktrace.h"
@@ -89,11 +89,14 @@ namei(ndp)
 	struct proc *p = cnp->cn_proc;
 
 	ndp->ni_cnd.cn_cred = ndp->ni_cnd.cn_proc->p_ucred;
-	KASSERT(cnp->cn_cred && cnp->cn_proc, ("namei: bad cred/proc"));
-	KASSERT((cnp->cn_nameiop & (~OPMASK)) == 0,
-	    ("namei: nameiop contaminated with flags"));
-	KASSERT((cnp->cn_flags & OPMASK) == 0,
-	    ("namei: flags contaminated with nameiops"));
+#ifdef DIAGNOSTIC
+	if (!cnp->cn_cred || !cnp->cn_proc)
+		panic ("namei: bad cred/proc");
+	if (cnp->cn_nameiop & (~OPMASK))
+		panic ("namei: nameiop contaminated with flags");
+	if (cnp->cn_flags & OPMASK)
+		panic ("namei: flags contaminated with nameiops");
+#endif
 	fdp = cnp->cn_proc->p_fd;
 
 	/*
@@ -165,11 +168,9 @@ namei(ndp)
 
 			if (ndp->ni_vp && ndp->ni_vp->v_type == VREG &&
 				(cnp->cn_nameiop != DELETE) &&
-				((cnp->cn_flags & (NOOBJ|LOCKLEAF)) ==
-				 LOCKLEAF))
+				((cnp->cn_flags & (NOOBJ|LOCKLEAF)) == LOCKLEAF))
 				vfs_object_create(ndp->ni_vp,
-					ndp->ni_cnd.cn_proc,
-					ndp->ni_cnd.cn_cred);
+					ndp->ni_cnd.cn_proc, ndp->ni_cnd.cn_cred, 1);
 
 			return (0);
 		}
@@ -415,7 +416,10 @@ unionlookup:
 	ndp->ni_vp = NULL;
 	ASSERT_VOP_LOCKED(dp, "lookup");
 	if (error = VOP_LOOKUP(dp, &ndp->ni_vp, cnp)) {
-		KASSERT(ndp->ni_vp == NULL, ("leaf should be empty"));
+#ifdef DIAGNOSTIC
+		if (ndp->ni_vp != NULL)
+			panic("leaf should be empty");
+#endif
 #ifdef NAMEI_DIAGNOSTIC
 		printf("not found\n");
 #endif
@@ -643,7 +647,10 @@ relookup(dvp, vpp, cnp)
 	 * We now have a segment name to search for, and a directory to search.
 	 */
 	if (error = VOP_LOOKUP(dp, vpp, cnp)) {
-		KASSERT(*vpp == NULL, ("leaf should be empty"));
+#ifdef DIAGNOSTIC
+		if (*vpp != NULL)
+			panic("leaf should be empty");
+#endif
 		if (error != EJUSTRETURN)
 			goto bad;
 		/*
@@ -666,11 +673,13 @@ relookup(dvp, vpp, cnp)
 	}
 	dp = *vpp;
 
+#ifdef DIAGNOSTIC
 	/*
 	 * Check for symbolic link
 	 */
-	KASSERT(dp->v_type != VLNK || !(cnp->cn_flags & FOLLOW),
-	    ("relookup: symlink found.\n"));
+	if (dp->v_type == VLNK && (cnp->cn_flags & FOLLOW))
+		panic ("relookup: symlink found.\n");
+#endif
 
 	/*
 	 * Disallow directory write attempts on read-only file systems.
@@ -689,7 +698,7 @@ relookup(dvp, vpp, cnp)
 
 	if (dp->v_type == VREG &&
 		((cnp->cn_flags & (NOOBJ|LOCKLEAF)) == LOCKLEAF))
-		vfs_object_create(dp, cnp->cn_proc, cnp->cn_cred);
+		vfs_object_create(dp, cnp->cn_proc, cnp->cn_cred, 1);
 
 	if ((cnp->cn_flags & LOCKLEAF) == 0)
 		VOP_UNLOCK(dp, 0, p);

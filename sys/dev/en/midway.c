@@ -1278,8 +1278,8 @@ caddr_t data;
 				break;
 		    
 			if ((shadow = pvc_attach(ifp)) != NULL) {
-				snprintf(ifr->ifr_name, sizeof(ifr->ifr_name),
-				    "%s%d", shadow->if_name, shadow->if_unit);
+				sprintf(ifr->ifr_name, "%s%d",
+					shadow->if_name, shadow->if_unit);
 			}
 			else
 				error = ENOBUFS;
@@ -3643,8 +3643,8 @@ static int en_pvctx(sc, pvcreq)
 			       pvcreq->pvc_ifname);
 			return (EINVAL);
 		}
-    		snprintf(pvcreq->pvc_ifname, sizeof(pvcreq->pvc_ifname),
-		    "%s%d", sc->enif.if_name, sc->enif.if_unit);
+    		sprintf(pvcreq->pvc_ifname, "%s%d",
+			sc->enif.if_name, sc->enif.if_unit);
 		
 		ATM_PH_FLAGS(&api.aph) = ATM_PH_PVCSIF |
 			(ATM_PH_FLAGS(pvc_aph) & (ATM_PH_AAL5|ATM_PH_LLCSNAP));

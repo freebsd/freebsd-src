@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: machdep.c,v 1.29 1998/12/30 10:38:58 dfr Exp $
+ *	$Id: machdep.c,v 1.17 1998/10/14 10:08:35 peter Exp $
  */
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -124,7 +124,6 @@
 #include <machine/clock.h>
 #include <machine/md_var.h>
 #include <machine/reg.h>
-#include <machine/fpu.h>
 #include <machine/pal.h>
 #include <machine/cpuconf.h>
 #include <machine/bootinfo.h>
@@ -199,8 +198,6 @@ int	ncpus;			/* number of cpus */
 
 vm_offset_t phys_avail[10];
 
-SYSCTL_INT(_hw, OID_AUTO, availpages, CTLFLAG_RD, &physmem, 0, "");
-
 /* must be 2 less so 0 0 can signal end of chunks */
 #define PHYS_AVAIL_ARRAY_END ((sizeof(phys_avail) / sizeof(vm_offset_t)) - 2)
 
@@ -213,17 +210,6 @@ static vm_offset_t pager_sva, pager_eva;
 extern struct linker_set netisr_set;
 
 #define offsetof(type, member)	((size_t)(&((type *)0)->member))
-
-/*
- * Hooked into the shutdown chain; if the system is to be halted,
- * unconditionally drop back to the SRM console.
- */
-static void
-alpha_srm_shutdown(int howto, void *junk)
-{
-	if (howto & RB_HALT)
-		alpha_pal_halt();
-}
 
 static void
 cpu_startup(dummy)
@@ -366,12 +352,6 @@ again:
 	 */
 	{
 		vm_offset_t mb_map_size;
-		int xclusters;
-
-		/* Allow override of NMBCLUSTERS from the kernel environment */
-		if (getenv_int("kern.ipc.nmbclusters", &xclusters) && 
-		    xclusters > nmbclusters)
-		    nmbclusters = xclusters;
 
 		mb_map_size = nmbufs * MSIZE + nmbclusters * MCLBYTES;
 		mb_map_size = roundup2(mb_map_size, max(MCLBYTES, PAGE_SIZE));
@@ -414,8 +394,7 @@ again:
 	 */
 	bufinit();
 	vm_pager_bufferinit();
-	at_shutdown_pri(alpha_srm_shutdown, 0, SHUTDOWN_FINAL, 
-	    SHUTDOWN_PRI_LAST);
+
 }
 
 int
@@ -490,7 +469,7 @@ alpha_unknown_sysname()
 {
 	static char s[128];		/* safe size */
 
-	snprintf(s, sizeof(s), "%s family, unknown model variation 0x%lx",
+	sprintf(s, "%s family, unknown model variation 0x%lx",
 	    platform.family, hwrpb->rpb_variation & SV_ST_MASK);
 	return ((const char *)s);
 }
@@ -498,21 +477,6 @@ alpha_unknown_sysname()
 static void
 identifycpu(void)
 {
-	u_int64_t type, major, minor;
-	u_int64_t amask;
-	struct pcs *pcsp;
-	char *cpuname[] = {
-		"unknown",		/* 0 */
-		"EV3",			/* 1 */
-		"EV4 (21064)",		/* 2 */
-		"Simulation",		/* 3 */
-		"LCA Family",		/* 4 */
-		"EV5 (21164)",		/* 5 */
-		"EV45 (21064A)",	/* 6 */
-		"EV56 (21164A)",	/* 7 */
-		"EV6 (21264)",		/* 8 */
-		"PCA56 (21164PC)"	/* 9 */
-	};
 
 	/*
 	 * print out CPU identification information.
@@ -530,32 +494,6 @@ identifycpu(void)
 	printf("variation: 0x%lx, revision 0x%lx\n",
 	    hwrpb->rpb_variation, *(long *)hwrpb->rpb_revision);
 #endif
- 	pcsp = LOCATE_PCS(hwrpb, hwrpb->rpb_primary_cpu_id);
-	/* cpu type */
-	type = pcsp->pcs_proc_type;
-	major = (type & PCS_PROC_MAJOR) >> PCS_PROC_MAJORSHIFT;
-	minor = (type & PCS_PROC_MINOR) >> PCS_PROC_MINORSHIFT;
-	if (major < sizeof(cpuname)/sizeof(char *))
-		printf("CPU: %s major=%lu minor=%lu",
-			cpuname[major], major, minor);
-	else
-		printf("CPU: major=%lu minor=%lu\n", major, minor);
-	/* amask */
-	if (major >= PCS_PROC_EV56) {
-		amask = 0xffffffff; /* 32 bit for printf */
-		amask = (~alpha_amask(amask)) & amask;
-		printf(" extensions=0x%b\n", (u_int32_t) amask,
-			"\020"
-			"\001BWX"
-			"\002FIX"
-			"\003CIX"
-			"\011MVI"
-			"\012PRECISE"
-		);
-	} else
-		printf("\n");	
-	/* PAL code */
-	printf("OSF PAL rev: 0x%lx\n", pcsp->pcs_palrevisions[PALvar_OSF1]);
 }
 
 extern char kernel_text[], _end[];
@@ -723,7 +661,7 @@ alpha_init(pfn, ptb, bim, bip, biv)
 		/* NOTREACHED */
 	}
 	cpuinit[cputype].init(cputype);
-	snprintf(cpu_model, sizeof(cpu_model), "%s", platform.model);
+	strcpy(cpu_model, platform.model);
 
 	/*
 	 * Initalize the real console, so the the bootstrap console is
@@ -1091,22 +1029,10 @@ bzero(void *buf, size_t len)
 		*p++ = 0;
 		len--;
 	}
-	while (len >= sizeof(u_long) * 8) {
-		*(u_long*) p = 0;
-		*((u_long*) p + 1) = 0;
-		*((u_long*) p + 2) = 0;
-		*((u_long*) p + 3) = 0;
-		len -= sizeof(u_long) * 8;
-		*((u_long*) p + 4) = 0;
-		*((u_long*) p + 5) = 0;
-		*((u_long*) p + 6) = 0;
-		*((u_long*) p + 7) = 0;
-		p += sizeof(u_long) * 8;
-	}
 	while (len >= sizeof(u_long)) {
 		*(u_long*) p = 0;
-		len -= sizeof(u_long);
 		p += sizeof(u_long);
+		len -= sizeof(u_long);
 	}
 	while (len) {
 		*p++ = 0;
@@ -1329,16 +1255,9 @@ sendsig(sig_t catcher, int sig, int mask, u_long code)
 	ksc.sc_ownedfp = p->p_md.md_flags & MDP_FPUSED;
 	bcopy(&p->p_addr->u_pcb.pcb_fp, (struct fpreg *)ksc.sc_fpregs,
 	    sizeof(struct fpreg));
-	ksc.sc_fp_control = p->p_addr->u_pcb.pcb_fp_control;
+	ksc.sc_fp_control = 0;					/* XXX ? */
 	bzero(ksc.sc_reserved, sizeof ksc.sc_reserved);		/* XXX */
-	ksc.sc_xxx1[0] = 0;					/* XXX */
-	ksc.sc_xxx1[1] = 0;					/* XXX */
-	ksc.sc_traparg_a0 = frame->tf_regs[FRAME_TRAPARG_A0];
-	ksc.sc_traparg_a1 = frame->tf_regs[FRAME_TRAPARG_A1];
-	ksc.sc_traparg_a2 = frame->tf_regs[FRAME_TRAPARG_A2];
-	ksc.sc_xxx2[0] = 0;					/* XXX */
-	ksc.sc_xxx2[1] = 0;					/* XXX */
-	ksc.sc_xxx2[2] = 0;					/* XXX */
+	bzero(ksc.sc_xxx, sizeof ksc.sc_xxx);			/* XXX */
 
 
 #ifdef COMPAT_OSF1
@@ -1360,7 +1279,8 @@ sendsig(sig_t catcher, int sig, int mask, u_long code)
 	/*
 	 * Set up the registers to return to sigcode.
 	 */
-	frame->tf_regs[FRAME_PC] = PS_STRINGS - (esigcode - sigcode);
+	frame->tf_regs[FRAME_PC] =
+	    (u_int64_t)PS_STRINGS - (esigcode - sigcode);
 	frame->tf_regs[FRAME_A0] = sig;
 	frame->tf_regs[FRAME_A1] = code;
 	frame->tf_regs[FRAME_A2] = (u_int64_t)scp;
@@ -1440,7 +1360,7 @@ sigreturn(struct proc *p,
 		fpcurproc = NULL;
 	bcopy((struct fpreg *)ksc.sc_fpregs, &p->p_addr->u_pcb.pcb_fp,
 	    sizeof(struct fpreg));
-	p->p_addr->u_pcb.pcb_fp_control = ksc.sc_fp_control;
+	/* XXX ksc.sc_fp_control ? */
 
 #ifdef DEBUG
 	if (sigdebug & SDB_FOLLOW)
@@ -1466,8 +1386,16 @@ cpu_boot(int howto)
 void
 cpu_halt(void)
 {
-	/*alpha_pal_halt(); */
-	prom_halt(1);
+	alpha_pal_halt();
+}
+
+/*
+ * Turn the power off.
+ */
+void
+cpu_power_down(void)
+{
+	alpha_pal_halt();	/* XXX */
 }
 
 /*
@@ -1480,12 +1408,8 @@ setregs(struct proc *p, u_long entry, u_long stack)
 
 	bzero(tfp->tf_regs, FRAME_SIZE * sizeof tfp->tf_regs[0]);
 	bzero(&p->p_addr->u_pcb.pcb_fp, sizeof p->p_addr->u_pcb.pcb_fp);
-	p->p_addr->u_pcb.pcb_fp_control = 0;
-	p->p_addr->u_pcb.pcb_fp.fpr_cr = (FPCR_DYN_NORMAL
-					  | FPCR_INVD | FPCR_DZED
-					  | FPCR_OVFD | FPCR_INED
-					  | FPCR_UNFD);
-
+#define FP_RN 2 /* XXX */
+	p->p_addr->u_pcb.pcb_fp.fpr_cr = (long)FP_RN << 58;
 	alpha_pal_wrusp(stack);
 	tfp->tf_regs[FRAME_PS] = ALPHA_PSL_USERSET;
 	tfp->tf_regs[FRAME_PC] = entry & ~3;
@@ -1493,7 +1417,7 @@ setregs(struct proc *p, u_long entry, u_long stack)
 	tfp->tf_regs[FRAME_A0] = stack;			/* a0 = sp */
 	tfp->tf_regs[FRAME_A1] = 0;			/* a1 = rtld cleanup */
 	tfp->tf_regs[FRAME_A2] = 0;			/* a2 = rtld object */
-	tfp->tf_regs[FRAME_A3] = PS_STRINGS;		/* a3 = ps_strings */
+	tfp->tf_regs[FRAME_A3] = (u_int64_t)PS_STRINGS;	/* a3 = ps_strings */
 	tfp->tf_regs[FRAME_T12] = tfp->tf_regs[FRAME_PC];	/* a.k.a. PV */
 
 	p->p_md.md_flags &= ~MDP_FPUSED;

@@ -1,6 +1,6 @@
 #ifndef lint
 static const char rcsid[] =
-	"$Id: perform.c,v 1.46 1998/12/05 06:28:58 asami Exp $";
+	"$Id: perform.c,v 1.44 1998/09/08 10:42:24 jkh Exp $";
 #endif
 
 /*
@@ -45,8 +45,6 @@ pkg_perform(char **pkgs)
     FILE *pkg_in, *fp;
     Package plist;
     int len;
-    char *suf;
-    int compress;
 
     /* Preliminary setup */
     sanity_check();
@@ -65,24 +63,10 @@ pkg_perform(char **pkgs)
     }
     plist.head = plist.tail = NULL;
 
-    /* chop suffix off if already specified, remembering if we want to compress  */
+    /* chop suffix off if already specified */
     len = strlen(pkg);
-    if (len > 4)
-	if (!strcmp(&pkg[len - 4], ".tgz")) {
-	    compress = TRUE;
-	    pkg[len - 4] = '\0';
-	}
-	else if (!strcmp(&pkg[len - 4], ".tar")) {
-	    compress = FALSE;
-	    pkg[len - 4] = '\0';
-	}
-	else
-	    /* default is to compress packages */
-	    compress = TRUE;
-    if (compress)
-	suf = "tgz";
-    else
-	suf = "tar";
+    if (len > 4 && !strcmp(&pkg[len - 4], ".tgz"))
+	pkg[len - 4] = '\0';
 
     /* Stick the dependencies, if any, at the top */
     if (Pkgdeps) {
@@ -156,20 +140,10 @@ pkg_perform(char **pkgs)
 	add_plist(&plist, PLIST_IGNORE, NULL);
 	add_plist(&plist, PLIST_FILE, INSTALL_FNAME);
     }
-    if (PostInstall) {
-	copy_file(home, PostInstall, POST_INSTALL_FNAME);
-	add_plist(&plist, PLIST_IGNORE, NULL);
-	add_plist(&plist, PLIST_FILE, POST_INSTALL_FNAME);
-    }
     if (DeInstall) {
 	copy_file(home, DeInstall, DEINSTALL_FNAME);
 	add_plist(&plist, PLIST_IGNORE, NULL);
 	add_plist(&plist, PLIST_FILE, DEINSTALL_FNAME);
-    }
-    if (PostDeInstall) {
-	copy_file(home, PostDeInstall, POST_DEINSTALL_FNAME);
-	add_plist(&plist, PLIST_IGNORE, NULL);
-	add_plist(&plist, PLIST_FILE, POST_DEINSTALL_FNAME);
     }
     if (Require) {
 	copy_file(home, Require, REQUIRE_FNAME);
@@ -202,7 +176,7 @@ pkg_perform(char **pkgs)
     }
 
     /* And stick it into a tar ball */
-    make_dist(home, pkg, suf, &plist);
+    make_dist(home, pkg, "tgz", &plist);
 
     /* Cleanup */
     free(Comment);
@@ -280,12 +254,8 @@ make_dist(char *home, char *pkg, char *suffix, Package *plist)
 
     if (Install)
 	fprintf(totar, "%s\n", INSTALL_FNAME);
-    if (PostInstall)
-	fprintf(totar, "%s\n", POST_INSTALL_FNAME);
     if (DeInstall)
 	fprintf(totar, "%s\n", DEINSTALL_FNAME);
-    if (PostDeInstall)
-	fprintf(totar, "%s\n", POST_DEINSTALL_FNAME);
     if (Require)
 	fprintf(totar, "%s\n", REQUIRE_FNAME);
     if (Display)

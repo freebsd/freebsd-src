@@ -26,7 +26,7 @@
 #
 # updatedb - update locate database for local mounted filesystems
 #
-# $Id: updatedb.sh,v 1.11 1998/06/18 09:26:22 wosch Exp $
+# $Id: updatedb.sh,v 1.10 1998/03/08 16:09:31 wosch Exp $
 
 LOCATE_CONFIG="/etc/locate.rc"
 if [ -f "$LOCATE_CONFIG" -a -r "$LOCATE_CONFIG" ]; then
@@ -35,8 +35,9 @@ fi
 
 # The directory containing locate subprograms
 : ${LIBEXECDIR:=/usr/libexec}; export LIBEXECDIR
-: ${TMPDIR:=/tmp}; export TMPDIR
-if ! TMPDIR=`mktemp -d $TMPDIR/locateXXXXXX`; then
+: ${TMPDIR:=/var/tmp}; export TMPDIR
+if TMPDIR=`mktemp -d $TMPDIR/locateXXXXXX`; then :
+else
 	exit 1
 fi
 
@@ -73,12 +74,12 @@ case X"$PRUNEPATHS" in
 esac
 
 tmp=$TMPDIR/_updatedb$$
-trap 'rm -f $tmp; rmdir $TMPDIR' 0 1 2 3 5 10 15
+trap 'rm -f $tmp' 0 1 2 3 5 10 15
 		
 # search locally
 # echo $find $SEARCHPATHS $excludes -or -print && exit
-if $find -s $SEARCHPATHS $excludes -or -print 2>/dev/null |
-        $mklocatedb -presort > $tmp
+if $find $SEARCHPATHS $excludes -or -print 2>/dev/null | 
+        $mklocatedb > $tmp
 then
 	case X"`$find $tmp -size -257c -print`" in
 		X) cat $tmp > $FCODES;;
@@ -86,4 +87,5 @@ then
 		   exit 1
 	esac
 fi
-echo $?
+rm -f $tmp
+rmdir $TMPDIR

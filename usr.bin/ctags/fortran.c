@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static const char sccsid[] = "@(#)fortran.c	8.3 (Berkeley) 4/2/94";
+static char sccsid[] = "@(#)fortran.c	8.3 (Berkeley) 4/2/94";
 #endif /* not lint */
 
 #include <ctype.h>

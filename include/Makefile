@@ -1,16 +1,18 @@
-#	@(#)Makefile	8.2 (Berkeley) 1/4/94
-#	$Id: Makefile,v 1.91 1999/01/14 19:52:38 jdp Exp $
+#	From: @(#)Makefile	8.2 (Berkeley) 1/4/94
+#	$Id: Makefile,v 1.85 1998/10/02 00:49:43 ache Exp $
 #
 # Doing a make install builds /usr/include
 #
 # The ``rm -rf''s used below are safe because rm doesn't follow symbolic
 # links.
+#
+depend lint tags:
 
 CLEANFILES= osreldate.h version vers.c
 SUBDIR= rpcsvc
 FILES=	a.out.h ar.h assert.h bitstring.h ctype.h db.h dirent.h disktab.h \
 	dlfcn.h elf.h err.h fnmatch.h fstab.h \
-	fts.h glob.h grp.h strhash.h histedit.h ieeefp.h iso646.h \
+	fts.h glob.h grp.h strhash.h histedit.h iso646.h \
 	kvm.h limits.h link.h locale.h malloc.h memory.h mpool.h \
 	ndbm.h netdb.h nl_types.h nlist.h objformat.h \
 	paths.h pthread.h pthread_np.h pwd.h \
@@ -36,10 +38,11 @@ MFILES=	float.h floatingpoint.h stdarg.h varargs.h
 PFILES=	mqueue.h sched.h semaphore.h \
 		# aio.h
 
-LFILES=	aio.h errno.h fcntl.h inttypes.h linker_set.h poll.h syslog.h termios.h
+LFILES=	errno.h fcntl.h poll.h syslog.h termios.h
 
-LDIRS=	cam msdosfs net netatalk netatm netinet netipx netkey netns nfs \
-	pccard posix4 sys vm
+LDIRS=	msdosfs net netns netatalk netatm netinet netipx netkey nfs \
+		pccard posix4 sys vm cam \
+		# netccitt netiso
 
 LNOHEADERDIRS=	isofs ufs
 LSUBDIRS=	isofs/cd9660 ufs/ffs ufs/mfs ufs/ufs cam/scsi
@@ -51,6 +54,8 @@ LSUBDIRS=	isofs/cd9660 ufs/ffs ufs/mfs ufs/ufs cam/scsi
 #SHARED=	symlinks
 SHARED?=	copies
 
+
+.if exists (${.CURDIR}/../sys/conf/newvers.sh)
 all:	osreldate.h
 
 osreldate.h:	${.CURDIR}/../sys/conf/newvers.sh \
@@ -61,6 +66,13 @@ osreldate.h:	${.CURDIR}/../sys/conf/newvers.sh \
 	echo "$$COPYRIGHT" > osreldate.h;			\
 	echo \#'undef __FreeBSD_version' >> osreldate.h;	\
 	echo \#'define __FreeBSD_version' $$RELDATE >> osreldate.h
+.else
+all:
+	@${ECHO} creating osreldate.h from sysctl info
+	echo \#'undef __FreeBSD_version' > osreldate.h
+	echo \#'define __FreeBSD_version '`sysctl -n kern.osreldate` \
+		>> osreldate.h
+.endif
 
 beforeinstall: ${SHARED}
 	cd ${.CURDIR}; \
@@ -87,6 +99,7 @@ beforeinstall: ${SHARED}
 .for i in ${PFILES}
 	ln -sf posix4/$i ${DESTDIR}/usr/include/$i
 .endfor
+
 
 copies:
 .for i in ${LDIRS} ${LNOHEADERDIRS} machine

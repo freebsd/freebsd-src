@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pcivar.h,v 1.24 1999/01/13 04:59:19 bde Exp $
+ * $Id: pcivar.h,v 1.21 1998/09/15 08:21:09 gibbs Exp $
  *
  */
 
@@ -66,7 +66,7 @@ typedef struct {
 #define PCI_MAPPORT	0x04	/* port map */
     u_int8_t	ln2size;
     u_int8_t	ln2range;
-    u_int8_t	reg;		/* offset of map register in config space */
+/*    u_int8_t	dummy;*/
 } pcimap;
 
 /* config header information common to all header types */
@@ -199,7 +199,7 @@ extern int pci_mechanism;
 
 struct pci_device {
     char*    pd_name;
-    const char*  (*pd_probe ) (pcici_t tag, pcidi_t type);
+    char*  (*pd_probe ) (pcici_t tag, pcidi_t type);
     void   (*pd_attach) (pcici_t tag, int     unit);
     u_long  *pd_count;
     int    (*pd_shutdown) (int, int);
@@ -223,10 +223,7 @@ int pci_map_port (pcici_t tag, u_long reg, pci_port_t* pa);
 int pci_map_mem (pcici_t tag, u_long reg, vm_offset_t* va, vm_offset_t* pa);
 int pci_map_dense (pcici_t tag, u_long reg, vm_offset_t* va, vm_offset_t* pa);
 int pci_map_bwx (pcici_t tag, u_long reg, vm_offset_t* va, vm_offset_t* pa);
-int pci_map_int (pcici_t tag, pci_inthand_t *handler, void *arg,
-		 intrmask_t *maskptr);
-int pci_map_int_right(pcici_t cfg, pci_inthand_t *handler, void *arg,
-		      intrmask_t *maskptr, u_int flags);
+int pci_map_int (pcici_t tag, pci_inthand_t *func, void *arg, unsigned *maskptr);
 int pci_unmap_int (pcici_t tag);
 int pci_register_lkm (struct pci_device *dvp, int if_revision);
 

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_malloc.c	8.3 (Berkeley) 1/4/94
- * $Id: kern_malloc.c,v 1.50 1999/01/08 17:31:09 eivind Exp $
+ * $Id: kern_malloc.c,v 1.46 1998/07/29 17:38:14 bde Exp $
  */
 
 #include "opt_vm.h"
@@ -53,18 +53,19 @@
 #include <vm/vm_map.h>
 
 static void kmeminit __P((void *));
+static void malloc_init __P((struct malloc_type *));
 SYSINIT(kmem, SI_SUB_KMEM, SI_ORDER_FIRST, kmeminit, NULL)
 
 static MALLOC_DEFINE(M_FREE, "free", "should be on free list");
 
-static struct malloc_type *kmemstatistics;
+static struct malloc_type *kmemstatistics = M_FREE;
 static struct kmembuckets bucket[MINBUCKET + 16];
 static struct kmemusage *kmemusage;
 static char *kmembase;
 static char *kmemlimit;
 static int vm_kmem_size;
 
-#ifdef INVARIANTS
+#ifdef DIAGNOSTIC
 /*
  * This structure provides a set of masks to catch unaligned frees.
  */
@@ -94,11 +95,11 @@ struct freelist {
 	long	spare1;
 	caddr_t	next;
 };
-#else /* !INVARIANTS */
+#else /* !DIAGNOSTIC */
 struct freelist {
 	caddr_t	next;
 };
-#endif /* INVARIANTS */
+#endif /* DIAGNOSTIC */
 
 /*
  * Allocate a block of memory
@@ -115,7 +116,7 @@ malloc(size, type, flags)
 	long indx, npg, allocsize;
 	int s;
 	caddr_t va, cp, savedlist;
-#ifdef INVARIANTS
+#ifdef DIAGNOSTIC
 	long *end, *lp;
 	int copysize;
 	char *savedtype;
@@ -138,7 +139,7 @@ malloc(size, type, flags)
 		tsleep((caddr_t)ksp, PSWP+2, type->ks_shortdesc, 0);
 	}
 	ksp->ks_size |= 1 << indx;
-#ifdef INVARIANTS
+#ifdef DIAGNOSTIC
 	copysize = 1 << indx < MAX_COPY ? 1 << indx : MAX_COPY;
 #endif
 	if (kbp->kb_next == NULL) {
@@ -174,7 +175,7 @@ malloc(size, type, flags)
 		kbp->kb_next = cp = va + (npg * PAGE_SIZE) - allocsize;
 		for (;;) {
 			freep = (struct freelist *)cp;
-#ifdef INVARIANTS
+#ifdef DIAGNOSTIC
 			/*
 			 * Copy in known text to detect modification
 			 * after freeing.
@@ -183,7 +184,7 @@ malloc(size, type, flags)
 			for (lp = (long *)cp; lp < end; lp++)
 				*lp = WEIRD_ADDR;
 			freep->type = M_FREE;
-#endif /* INVARIANTS */
+#endif /* DIAGNOSTIC */
 			if (cp <= va)
 				break;
 			cp -= allocsize;
@@ -195,7 +196,7 @@ malloc(size, type, flags)
 	}
 	va = kbp->kb_next;
 	kbp->kb_next = ((struct freelist *)va)->next;
-#ifdef INVARIANTS
+#ifdef DIAGNOSTIC
 	freep = (struct freelist *)va;
 	savedtype = (char *) type->ks_shortdesc;
 #if BYTE_ORDER == BIG_ENDIAN
@@ -219,7 +220,7 @@ malloc(size, type, flags)
 		break;
 	}
 	freep->spare0 = 0;
-#endif /* INVARIANTS */
+#endif /* DIAGNOSTIC */
 	kup = btokup(va);
 	if (kup->ku_indx != indx)
 		panic("malloc: wrong bucket");
@@ -251,7 +252,7 @@ free(addr, type)
 	register struct freelist *freep;
 	long size;
 	int s;
-#ifdef INVARIANTS
+#ifdef DIAGNOSTIC
 	struct freelist *fp;
 	long *end, *lp, alloc, copysize;
 #endif
@@ -260,13 +261,16 @@ free(addr, type)
 	if (!type->ks_next)
 		panic("freeing with unknown type (%s)", type->ks_shortdesc);
 
-	KASSERT(kmembase <= (char *)addr && (char *)addr < kmemlimit,
-	    ("free: address %p out of range", (void *)addr));
+#ifdef DIAGNOSTIC
+	if ((char *)addr < kmembase || (char *)addr >= kmemlimit) {
+		panic("free: address %p out of range", (void *)addr);
+	}
+#endif
 	kup = btokup(addr);
 	size = 1 << kup->ku_indx;
 	kbp = &bucket[kup->ku_indx];
 	s = splmem();
-#ifdef INVARIANTS
+#ifdef DIAGNOSTIC
 	/*
 	 * Check for returns of data that do not point to the
 	 * beginning of the allocation.
@@ -278,7 +282,7 @@ free(addr, type)
 	if (((uintptr_t)(void *)addr & alloc) != 0)
 		panic("free: unaligned addr %p, size %ld, type %s, mask %ld",
 		    (void *)addr, size, type->ks_shortdesc, alloc);
-#endif /* INVARIANTS */
+#endif /* DIAGNOSTIC */
 	if (size > MAXALLOCSAVE) {
 		kmem_free(kmem_map, (vm_offset_t)addr, ctob(kup->ku_pagecnt));
 		size = kup->ku_pagecnt << PAGE_SHIFT;
@@ -294,7 +298,7 @@ free(addr, type)
 		return;
 	}
 	freep = (struct freelist *)addr;
-#ifdef INVARIANTS
+#ifdef DIAGNOSTIC
 	/*
 	 * Check for multiple frees. Use a quick check to see if
 	 * it looks free before laboriously searching the freelist.
@@ -302,10 +306,13 @@ free(addr, type)
 	if (freep->spare0 == WEIRD_ADDR) {
 		fp = (struct freelist *)kbp->kb_next;
 		while (fp) {
-			if (fp->spare0 != WEIRD_ADDR)
-				panic("free: free item %p modified", fp);
-			else if (addr == (caddr_t)fp)
-				panic("free: multiple freed item %p", addr);
+			if (fp->spare0 != WEIRD_ADDR) {
+				printf("trashed free item %p\n", fp);
+				panic("free: free item modified");
+			} else if (addr == (caddr_t)fp) {
+				printf("multiple freed item %p\n", addr);
+				panic("free: multiple free");
+			}
 			fp = (struct freelist *)fp->next;
 		}
 	}
@@ -320,7 +327,7 @@ free(addr, type)
 	for (lp = (long *)addr; lp < end; lp++)
 		*lp = WEIRD_ADDR;
 	freep->type = type;
-#endif /* INVARIANTS */
+#endif /* DIAGNOSTIC */
 	kup->ku_freecnt++;
 	if (kup->ku_freecnt >= kbp->kb_elmpercl)
 		if (kup->ku_freecnt > kbp->kb_elmpercl)
@@ -425,17 +432,15 @@ kmeminit(dummy)
 	}
 }
 
-void
-malloc_init(data)
-	void *data;
+static void
+malloc_init(type)
+	struct malloc_type *type;
 {
-	struct malloc_type *type = (struct malloc_type *)data;
+	int npg;
+	int mem_size;
 
 	if (type->ks_magic != M_MAGIC) 
 		panic("malloc type lacks magic");
-
-	if (type->ks_next)
-		return;
 
 	if (cnt.v_page_count == 0)
 		panic("malloc_init not allowed before vm init");
@@ -447,29 +452,4 @@ malloc_init(data)
 	type->ks_limit = vm_kmem_size / 2;
 	type->ks_next = kmemstatistics;	
 	kmemstatistics = type;
-}
-
-void
-malloc_uninit(data)
-	void *data;
-{
-	struct malloc_type *type = (struct malloc_type *)data;
-	struct malloc_type *t;
-
-	if (type->ks_magic != M_MAGIC) 
-		panic("malloc type lacks magic");
-
-	if (cnt.v_page_count == 0)
-		panic("malloc_uninit not allowed before vm init");
-
-	if (type == kmemstatistics)
-		kmemstatistics = type->ks_next;
-	else {
-		for (t = kmemstatistics; t->ks_next != NULL; t = t->ks_next) {
-			if (t->ks_next == type) {
-				t->ks_next = type->ks_next;
-				break;
-			}
-		}
-	}
 }

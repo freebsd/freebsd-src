@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)w.c	8.4 (Berkeley) 4/16/94";
 #endif
 static const char rcsid[] =
-	"$Id: w.c,v 1.31 1998/12/24 23:27:33 dillon Exp $";
+	"$Id: w.c,v 1.27 1998/05/21 08:46:48 jkoshy Exp $";
 #endif /* not lint */
 
 /*
@@ -97,7 +97,7 @@ int		argwidth;	/* width of tty */
 int		header = 1;	/* true if -h flag: don't print heading */
 int		nflag;		/* true if -n flag: don't convert addrs */
 int		dflag;		/* true if -d flag: output debug info */
-int		sortidle;	/* sort by idle time */
+int		sortidle;	/* sort bu idle time */
 char	       *sel_user;	/* login of particular user selected */
 char		domain[MAXHOSTNAMELEN];
 
@@ -114,11 +114,10 @@ struct	entry {
 	struct	kinfo_proc *dkp;	/* debug option proc list */
 } *ep, *ehead = NULL, **nextp = &ehead;
 
-static void	pr_header __P((time_t *, int));
+static void	 pr_header __P((time_t *, int));
 static struct stat
 		*ttystat __P((char *));
-static void	usage __P((int));
-static int	this_is_uptime __P((const char *s));
+static void	 usage __P((int));
 
 char *fmt_argv __P((char **, char *, int));	/* ../../bin/ps/fmt.c */
 
@@ -142,7 +141,10 @@ main(argc, argv)
 	(void) setlocale(LC_ALL, "");
 
 	/* Are we w(1) or uptime(1)? */
-	if (this_is_uptime(argv[0]) == 0) {
+	p = __progname;
+	if (*p == '-')
+		p++;
+	if (*p == 'u') {
 		wcmd = 0;
 		p = "";
 	} else {
@@ -287,7 +289,7 @@ main(argc, argv)
 				 */
 				dkp = ep->dkp;
 				ep->dkp = kp;
-				*((struct kinfo_proc **)(&kp->kp_eproc.e_spare[0])) = dkp;
+				*((struct kinfo_proc **)(&kp->kp_eproc.e_spare[ 0])) = dkp;
 			}
 		}
 	}
@@ -352,8 +354,7 @@ main(argc, argv)
 			}
 			p = hp->h_name;
 		}
-		if (nflag && *p && strcmp(p, "-") &&
-		    inet_addr(p) == INADDR_NONE) {
+		if (nflag && *p && strcmp(p, "-") && inet_addr(p) == INADDR_NONE) {
 			hp = gethostbyname(p);
 
 			if (hp != NULL) {
@@ -368,8 +369,8 @@ main(argc, argv)
 			    ep->utmp.ut_host + UT_HOSTSIZE - x, x);
 			p = buf;
 		}
-		if (dflag) {
-			for (dkp = ep->dkp; dkp != NULL; dkp = *((struct kinfo_proc **)(&dkp->kp_eproc.e_spare[0]))) {
+		if( dflag) {
+			for( dkp = ep->dkp; dkp != NULL; dkp = *((struct kinfo_proc **)(&dkp->kp_eproc.e_spare[ 0]))) {
 				char *p;
 				p = fmt_argv(kvm_getargv(kd, dkp, argwidth),
 					    dkp->kp_proc.p_comm, MAXCOMLEN);
@@ -386,8 +387,10 @@ main(argc, argv)
 		    ep->utmp.ut_line : ep->utmp.ut_line + 3,
 		    UT_HOSTSIZE, UT_HOSTSIZE, *p ? p : "-");
 		pr_attime(&ep->utmp.ut_time, &now);
-		longidle = pr_idle(ep->idle);
-		(void)printf("%.*s\n", argwidth - longidle, ep->args);
+		longidle=pr_idle(ep->idle);
+		if (longidle)
+			argwidth--;
+		(void)printf("%.*s\n", argwidth, ep->args);
 	}
 	exit(0);
 }
@@ -494,19 +497,3 @@ usage(wcmd)
 			"usage: uptime\n");
 	exit (1);
 }
-
-static int 
-this_is_uptime(s)
-	const char *s;
-{
-	const char *u;
-
-	if ((u = strrchr(s, '/')) != NULL)
-		++u;
-	else
-		u = s;
-	if (strcmp(u, "uptime") == 0)
-		return(0);
-	return(-1);
-}
-

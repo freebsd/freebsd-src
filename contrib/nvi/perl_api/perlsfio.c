@@ -14,7 +14,6 @@ static const char sccsid[] = "@(#)perlsfio.c	8.1 (Berkeley) 9/24/96";
 #endif /* not lint */
 
 #include <sys/types.h>
-#include <sys/param.h>
 #include <sys/queue.h>
 #include <sys/time.h>
 
@@ -27,7 +26,6 @@ static const char sccsid[] = "@(#)perlsfio.c	8.1 (Berkeley) 9/24/96";
 #include <string.h>
 #include <termios.h>
 #include <unistd.h>
-#include <errno.h>
 
 #include "../common/common.h"
 

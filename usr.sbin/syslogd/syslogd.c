@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)syslogd.c	8.3 (Berkeley) 4/4/94";
 #endif
 static const char rcsid[] =
-	"$Id: syslogd.c,v 1.45 1998/12/29 20:36:22 cwt Exp $";
+	"$Id: syslogd.c,v 1.40 1998/07/27 13:04:14 phk Exp $";
 #endif /* not lint */
 
 /*
@@ -491,8 +491,7 @@ main(argc, argv)
 				Vogons++;
 				if (!(Vogons & (Vogons - 1))) {
 					(void)snprintf(line, sizeof line,
-"syslogd: discarded %d unwanted packets in secure mode, last from %s", Vogons,
-						inet_ntoa(frominet.sin_addr));
+"syslogd: discarded %d unwanted packets in secure mode", Vogons);
 					logmsg(LOG_SYSLOG|LOG_AUTH, line,
 					    LocalHostName, ADDDATE);
 				}
@@ -741,8 +740,7 @@ logmsg(pri, msg, from, flags)
 			f->f_prevpri = pri;
 			(void)strncpy(f->f_lasttime, timestamp, 15);
 			(void)strncpy(f->f_prevhost, from,
-					sizeof(f->f_prevhost)-1);
-			f->f_prevhost[sizeof(f->f_prevhost)-1] = '\0';
+					sizeof(f->f_prevhost));
 			if (msglen < MAXSVLINE) {
 				f->f_prevlen = msglen;
 				(void)strcpy(f->f_prevline, msg);
@@ -1067,7 +1065,6 @@ cvthname(f)
 	struct sockaddr_in *f;
 {
 	struct hostent *hp;
-	sigset_t omask, nmask;
 	char *p;
 
 	dprintf("cvthname(%s)\n", inet_ntoa(f->sin_addr));
@@ -1076,12 +1073,8 @@ cvthname(f)
 		dprintf("Malformed from address\n");
 		return ("???");
 	}
-	sigemptyset(&nmask);
-	sigaddset(&nmask, SIGHUP);
-	sigprocmask(SIG_BLOCK, &nmask, &omask);
 	hp = gethostbyaddr((char *)&f->sin_addr,
 	    sizeof(struct in_addr), f->sin_family);
-	sigprocmask(SIG_SETMASK, &omask, NULL);
 	if (hp == 0) {
 		dprintf("Host name for your address (%s) unknown\n",
 			inet_ntoa(f->sin_addr));
@@ -1271,7 +1264,7 @@ init(signo)
 		if(*p=='!') {
 			p++;
 			while(isspace(*p)) p++;
-			if((!*p) || (*p == '*')) {
+			if(!*p) {
 				strcpy(prog, "*");
 				continue;
 			}
@@ -1372,12 +1365,12 @@ cfline(line, f, prog)
 	}
 
 	/* scan through the list of selectors */
-	for (p = line; *p && *p != '\t' && *p != ' ';) {
+	for (p = line; *p && *p != '\t';) {
 		int pri_done;
 		int pri_cmp;
 
 		/* find the end of this facility name list */
-		for (q = p; *q && *q != '\t' && *q != ' ' && *q++ != '.'; )
+		for (q = p; *q && *q != '\t' && *q++ != '.'; )
 			continue;
 
 		/* get the priority comparison */
@@ -1409,12 +1402,12 @@ cfline(line, f, prog)
 				  ;
 
 		/* collect priority name */
-		for (bp = buf; *q && !strchr("\t,; ", *q); )
+		for (bp = buf; *q && !strchr("\t,;", *q); )
 			*bp++ = *q++;
 		*bp = '\0';
 
 		/* skip cruft */
-		while (strchr(",;", *q))
+		while (strchr(", ;", *q))
 			q++;
 
 		/* decode priority name */
@@ -1431,8 +1424,8 @@ cfline(line, f, prog)
 		}
 
 		/* scan facilities */
-		while (*p && !strchr("\t.; ", *p)) {
-			for (bp = buf; *p && !strchr("\t,;. ", *p); )
+		while (*p && !strchr("\t.;", *p)) {
+			for (bp = buf; *p && !strchr("\t,;.", *p); )
 				*bp++ = *p++;
 			*bp = '\0';
 
@@ -1461,16 +1454,14 @@ cfline(line, f, prog)
 	}
 
 	/* skip to action part */
-	while (*p == '\t' || *p == ' ')
+	while (*p == '\t')
 		p++;
 
 	switch (*p)
 	{
 	case '@':
-		(void)strncpy(f->f_un.f_forw.f_hname, ++p,
-			sizeof(f->f_un.f_forw.f_hname)-1);
-		f->f_un.f_forw.f_hname[sizeof(f->f_un.f_forw.f_hname)-1] = '\0';	  
-		hp = gethostbyname(f->f_un.f_forw.f_hname);
+		(void)strcpy(f->f_un.f_forw.f_hname, ++p);
+		hp = gethostbyname(p);
 		if (hp == NULL) {
 			extern int h_errno;
 

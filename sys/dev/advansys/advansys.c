@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: advansys.c,v 1.6 1998/12/04 22:54:44 archie Exp $
+ *      $Id: advansys.c,v 1.3 1998/10/07 03:32:56 gibbs Exp $
  */
 /*
  * Ported from:
@@ -134,7 +134,7 @@ adv_name(struct adv_softc *adv)
 {
 	static char name[10];
 
-	snprintf(name, sizeof(name), "adv%d", adv->unit);
+	sprintf(name, "adv%d", adv->unit);
 	return (name);
 }
 
@@ -554,10 +554,8 @@ adv_alloc_ccb_info(struct adv_softc *adv)
 	struct adv_ccb_info *cinfo;
 
 	cinfo = malloc(sizeof(*cinfo), M_DEVBUF, M_NOWAIT);
-	if (cinfo == NULL) {
+	if (cinfo == NULL)
 		printf("%s: Can't malloc CCB info\n", adv_name(adv));
-		return (NULL);
-	}
 	cinfo->state = ACCB_FREE;
 	error = bus_dmamap_create(adv->buffer_dmat, /*flags*/0,
 				  &cinfo->dmamap);
@@ -1050,9 +1048,7 @@ adv_done(struct adv_softc *adv, union ccb *ccb, u_int done_stat,
 			ccb->ccb_h.status = CAM_SEL_TIMEOUT;
 			break;
 		default:
-			xpt_print_path(ccb->ccb_h.path);
-			printf("adv_done - queue done without error, "
-			       "unknown host status %x\n", host_stat);
+			/* QHSTA error occurred */
 			/* XXX Can I get more explicit information here? */
 			ccb->ccb_h.status = CAM_REQ_CMP_ERR;
 			break;
@@ -1088,9 +1084,6 @@ adv_done(struct adv_softc *adv, union ccb *ccb, u_int done_stat,
 			ccb->ccb_h.status = CAM_SEL_TIMEOUT;
 			break;
 		default:
-			xpt_print_path(ccb->ccb_h.path);
-			printf("adv_done - queue done with error, "
-			       "unknown host status %x\n", host_stat);
 			/* XXX Can I get more explicit information here? */
 			ccb->ccb_h.status = CAM_REQ_CMP_ERR;
 			break;
@@ -1104,9 +1097,7 @@ adv_done(struct adv_softc *adv, union ccb *ccb, u_int done_stat,
 		break;
 
 	default:
-		xpt_print_path(ccb->ccb_h.path);
-		printf("adv_done - queue done with unknown status %x:%x\n",
-		       done_stat, host_stat);
+		printf("adv_done: Unknown done status 0x%x\n", done_stat);
 		ccb->ccb_h.status = CAM_REQ_CMP_ERR;
 		break;
 	}

@@ -1,50 +1,53 @@
-#	$Id: Makefile,v 1.10 1998/12/16 10:24:52 des Exp $
+#	$Id$
 
 LIB=		fetch
-CFLAGS+=	-I. -Wall -pedantic
-.if !defined(DEBUG)
-CFLAGS+=	-DNDEBUG
-.endif
-SRCS=		fetch.c common.c ftp.c http.c file.c fetch_err.c \
-		fetch_err.h ftperr.h httperr.h
+CFLAGS+=	-I. -Wall -pedantic -DNDEBUG
+SRCS=		fetch.c ftp.c http.c file.c
+DPSRCS=		ftperr.c httperr.c
 MAN3=		fetch.3
-CLEANFILES=	fetch_err.c fetch_err.h ftperr.h httperr.h
+CLEANFILES=	${DPSRCS}
 
 SHLIB_MAJOR=    1
 SHLIB_MINOR=	0
 
+beforedepend: ${DPSRCS}
+
 beforeinstall:
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/fetch.h \
 		${DESTDIR}/usr/include
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 fetch_err.h \
-		${DESTDIR}/usr/include
 
-ftperr.h: ftp.errors
-	@echo "static struct fetcherr _ftp_errlist[] = {" > ${.TARGET}
+ftperr.c: ftp.errors
+	@echo "struct ftperr {" \ >  ${.TARGET}
+	@echo "    const int num;" \ >>  ${.TARGET}
+	@echo "    const char *string;" \ >>  ${.TARGET}
+	@echo "};" \ >>  ${.TARGET}
+	@echo "static struct ftperr _ftp_errlist[] = {" \ >>  ${.TARGET}
 	@cat ${.ALLSRC} \
 	  | grep -v ^# \
 	  | sort \
-	  | while read NUM CAT STRING; do \
-	    echo "    { $${NUM}, FETCH_$${CAT}, \"$${STRING}\" },"; \
+	  | while read NUM STRING; do \
+	    echo "    { $${NUM}, \"$${STRING}\" },"; \
 	  done >> ${.TARGET}
-	@echo "    { -1, FETCH_UNKNOWN, \"Unknown FTP error\" }" >> ${.TARGET}
+	@echo "    { -1, \"Unknown FTP error\" }" >> ${.TARGET}
 	@echo "};" >> ${.TARGET}
 
-httperr.h: http.errors
-	@echo "static struct fetcherr _http_errlist[] = {" > ${.TARGET}
+httperr.c: http.errors
+	@echo "struct httperr {" \ >  ${.TARGET}
+	@echo "    const int num;" \ >>  ${.TARGET}
+	@echo "    const char *string;" \ >>  ${.TARGET}
+	@echo "};" \ >>  ${.TARGET}
+	@echo "static struct httperr _http_errlist[] = {" \ >>  ${.TARGET}
 	@cat ${.ALLSRC} \
 	  | grep -v ^# \
 	  | sort \
-	  | while read NUM CAT STRING; do \
-	    echo "    { $${NUM}, FETCH_$${CAT}, \"$${STRING}\" },"; \
+	  | while read NUM STRING; do \
+	    echo "    { $${NUM}, \"$${STRING}\" },"; \
 	  done >> ${.TARGET}
-	@echo "    { -1, FETCH_UNKNOWN, \"Unknown HTTP error\" }" >> ${.TARGET}
+	@echo "    { -1, \"Unknown HTTP error\" }" >> ${.TARGET}
 	@echo "};" >> ${.TARGET}
-
-hdrs: fetch_err.h
-
-.ORDER: fetch_err.c fetch_err.h
-fetch_err.c fetch_err.h: fetch_err.et
-	compile_et ${.ALLSRC}
 
 .include <bsd.lib.mk>
+
+.if !exists(${DEPENDFILE})
+${OBJS} ${POBJS} ${SOBJS}: ${DPSRCS}
+.endif

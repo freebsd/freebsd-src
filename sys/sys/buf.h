@@ -36,13 +36,15 @@
  * SUCH DAMAGE.
  *
  *	@(#)buf.h	8.9 (Berkeley) 3/30/95
- * $Id: buf.h,v 1.60 1998/10/31 14:05:11 peter Exp $
+ * $Id: buf.h,v 1.58 1998/09/25 17:34:49 peter Exp $
  */
 
 #ifndef _SYS_BUF_H_
 #define	_SYS_BUF_H_
 
 #include <sys/queue.h>
+
+#define NOLIST ((struct buf *)0x87654321)
 
 struct buf;
 struct mount;
@@ -81,14 +83,13 @@ struct iodone_chain {
  */
 struct buf {
 	LIST_ENTRY(buf) b_hash;		/* Hash chain. */
-	TAILQ_ENTRY(buf) b_vnbufs;	/* Buffer's associated vnode. */
+	LIST_ENTRY(buf) b_vnbufs;	/* Buffer's associated vnode. */
 	TAILQ_ENTRY(buf) b_freelist;	/* Free list position if not active. */
 	TAILQ_ENTRY(buf) b_act;		/* Device driver queue when active. *new* */
 	struct  proc *b_proc;		/* Associated proc; NULL if kernel. */
 	long	b_flags;		/* B_* flags. */
 	unsigned short b_qindex;	/* buffer queue index */
 	unsigned char b_usecount;	/* buffer use count */
-	unsigned char b_xflags;		/* extra flags */
 	int	b_error;		/* Errno value. */
 	long	b_bufsize;		/* Allocated buffer size. */
 	long	b_bcount;		/* Valid bytes in buffer. */
@@ -169,12 +170,6 @@ struct buf {
 	"\17locked\16inval\15avail2\14error\13eintr\12done\11freebuf" \
 	"\10delwri\7call\6cache\5busy\4bad\3async\2needcommit\1age"
 
-/*
- * These flags are kept in b_xflags.
- */
-#define	B_VNDIRTY	0x01		/* On vnode dirty list */
-#define	B_VNCLEAN	0x02		/* On vnode clean list */
-
 #define	NOOFFSET	(-1LL)		/* No buffer offset calculated yet */
 
 struct buf_queue_head {
@@ -182,20 +177,6 @@ struct buf_queue_head {
 	daddr_t	last_pblkno;
 	struct	buf *insert_point;
 	struct	buf *switch_point;
-};
-
-/*
- * This structure describes a clustered I/O.  It is stored in the b_saveaddr
- * field of the buffer on which I/O is done.  At I/O completion, cluster
- * callback uses the structure to parcel I/O's to individual buffers, and
- * then free's this structure.
- */
-struct cluster_save {
-	long	bs_bcount;		/* Saved b_bcount. */
-	long	bs_bufsize;		/* Saved b_bufsize. */
-	void	*bs_saveaddr;		/* Saved b_addr. */
-	int	bs_nchildren;		/* Number of associated buffers. */
-	struct buf **bs_children;	/* List of associated buffers. */
 };
 
 static __inline void bufq_init __P((struct buf_queue_head *head));
@@ -236,8 +217,9 @@ bufq_remove(struct buf_queue_head *head, struct buf *bp)
 		head->insert_point = TAILQ_PREV(bp, buf_queue, b_act);
 		if (head->insert_point == NULL)
 			head->last_pblkno = 0;
-	} else if (bp == TAILQ_FIRST(&head->queue))
+	} else if (bp == TAILQ_FIRST(&head->queue)) {
 		head->last_pblkno = bp->b_pblkno;
+	}
 	TAILQ_REMOVE(&head->queue, bp, b_act);
 	if (TAILQ_FIRST(&head->queue) == head->switch_point)
 		head->switch_point = NULL;

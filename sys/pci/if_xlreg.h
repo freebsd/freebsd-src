@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_xlreg.h,v 1.19 1998/10/22 15:35:06 wpaul Exp $
+ *	$Id: if_xlreg.h,v 1.16 1998/09/25 17:43:57 wpaul Exp wpaul $
  */
 
 #define XL_EE_READ	0x0080	/* read, 5 bit address */
@@ -361,7 +361,6 @@
  */
 #define XL_W5_STAT_ENB		0x0C
 #define XL_W5_INTR_ENB		0x0A
-#define XL_W5_RECLAIM_THRESH	0x09	/* 3c905B only */
 #define XL_W5_RX_FILTER		0x08
 #define XL_W5_RX_EARLYTHRESH	0x06
 #define XL_W5_TX_AVAILTHRESH	0x02

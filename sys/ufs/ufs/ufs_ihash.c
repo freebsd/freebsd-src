@@ -31,12 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_ihash.c	8.7 (Berkeley) 5/17/95
- * $Id: ufs_ihash.c,v 1.17 1998/11/10 09:16:27 peter Exp $
+ * $Id: ufs_ihash.c,v 1.15 1998/02/06 12:14:17 eivind Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/vnode.h>
 #include <sys/malloc.h>
@@ -53,9 +52,7 @@ static MALLOC_DEFINE(M_UFSIHASH, "UFS ihash", "UFS Inode hash tables");
 static LIST_HEAD(ihashhead, inode) *ihashtbl;
 static u_long	ihash;		/* size of hash table - 1 */
 #define	INOHASH(device, inum)	(&ihashtbl[((device) + (inum)) & ihash])
-#ifndef NULL_SIMPLELOCKS
 static struct simplelock ufs_ihash_slock;
-#endif
 
 /*
  * Initialize inode hash table.

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_subs.c  8.8 (Berkeley) 5/22/95
- * $Id: nfs_subs.c,v 1.69 1998/12/14 18:54:03 dt Exp $
+ * $Id: nfs_subs.c,v 1.64 1998/09/05 15:17:33 bde Exp $
  */
 
 /*
@@ -208,8 +208,7 @@ static u_char nfsrv_v2errmap[ELAST] = {
   NFSERR_NOTEMPTY, NFSERR_IO,	NFSERR_IO,	NFSERR_DQUOT,	NFSERR_STALE,
   NFSERR_IO,	NFSERR_IO,	NFSERR_IO,	NFSERR_IO,	NFSERR_IO,
   NFSERR_IO,	NFSERR_IO,	NFSERR_IO,	NFSERR_IO,	NFSERR_IO,
-  NFSERR_IO,	NFSERR_IO,	NFSERR_IO,	NFSERR_IO,	NFSERR_IO,
-  NFSERR_IO /* << Last is 86 */
+  NFSERR_IO,	NFSERR_IO,	NFSERR_IO /* << Last is 83 */
 };
 
 /*
@@ -651,6 +650,7 @@ nfsm_rpchead(cr, nmflag, procid, auth_type, auth_len, auth_str, verf_len,
 	register int i;
 	struct mbuf *mreq, *mb2;
 	int siz, grpsiz, authsiz;
+	static u_int32_t base;
 
 	authsiz = nfsm_rndup(auth_len);
 	MGETHDR(mb, M_WAIT, MT_DATA);
@@ -1377,7 +1377,7 @@ nfs_loadattrcache(vpp, mdp, dposp, vaper)
 					np->n_size = vap->va_size;
 			} else
 				np->n_size = vap->va_size;
-			vnode_pager_setsize(vp, np->n_size);
+			vnode_pager_setsize(vp, (u_long)np->n_size);
 		} else
 			np->n_size = vap->va_size;
 	}
@@ -1463,7 +1463,7 @@ nfs_getattrcache(vp, vaper)
 					np->n_size = vap->va_size;
 			} else
 				np->n_size = vap->va_size;
-			vnode_pager_setsize(vp, np->n_size);
+			vnode_pager_setsize(vp, (u_long)np->n_size);
 		} else
 			np->n_size = vap->va_size;
 	}
@@ -2129,8 +2129,8 @@ loop:
 		if (vp->v_mount != mp)	/* Paranoia */
 			goto loop;
 		nvp = vp->v_mntvnodes.le_next;
-		for (bp = TAILQ_FIRST(&vp->v_dirtyblkhd); bp; bp = nbp) {
-			nbp = TAILQ_NEXT(bp, b_vnbufs);
+		for (bp = vp->v_dirtyblkhd.lh_first; bp; bp = nbp) {
+			nbp = bp->b_vnbufs.le_next;
 			if ((bp->b_flags & (B_BUSY | B_DELWRI | B_NEEDCOMMIT))
 				== (B_DELWRI | B_NEEDCOMMIT))
 				bp->b_flags &= ~B_NEEDCOMMIT;
@@ -2177,7 +2177,7 @@ nfsrv_object_create(vp)
 	if (vp == NULL || vp->v_type != VREG)
 		return (1);
 	return (vfs_object_create(vp, curproc,
-				  curproc ? curproc->p_ucred : NULL));
+				  curproc ? curproc->p_ucred : NULL, 1));
 }
 
 /*

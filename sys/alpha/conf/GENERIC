@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: GENERIC,v 1.13 1998/12/29 03:59:49 gpalmer Exp $
+#	$Id: GENERIC,v 1.9 1998/10/13 21:38:46 jkh Exp $
 
 machine		"alpha"
 cpu		"EV4"
@@ -22,7 +22,6 @@ maxusers	10
 # Platforms supported
 options		"DEC_AXPPCI_33"		# UDB, Multia, AXPpci33, Noname
 options		"DEC_EB164"		# EB164, PC164, PC164LX, PC164SX
-options		"DEC_EB64PLUS"		# EB64+, Aspen Alpine, etc
 options		"DEC_2100_A50"		# AlphaStation 200, 250, 255, 400
 options		"DEC_KN20AA"		# AlphaStation 500, 600
 options		"DEC_ST550"		# Personal Workstation 433, 500, 600
@@ -89,7 +88,6 @@ device		sio1	at isa0 port "IO_COM2" irq 3 flags 0x50
 # Right now it appears that the ie0 must be probed before ep0. See
 # revision 1.20 of this file.
 device de0
-device fxp0
 device le0
 
 pseudo-device	loop

@@ -1,6 +1,6 @@
 .\"  Hey, Emacs, edit this file in -*- nroff-fill -*- mode
 .\"
-.Dd 15 January 1999
+.Dd 11 July 1998
 .Dt vinum 8
 .Os FreeBSD
 .Sh NAME
@@ -30,14 +30,9 @@ Attach a plex to a volume, or a subdisk to a plex.
 .in +1i
 Cause the volume manager to enter the kernel debugger.
 .in
-.Cd debug
-.Ar flags
-.in +1i
-Set debugging flags.
-.in
 .Cd detach
 .Op Ar plex | subdisk
-.in +1i
+.in +1
 Detach a plex or subdisk from the volume or plex to which it is attached.
 .in
 .Cd info
@@ -51,10 +46,14 @@ List information about volume manager state.
 .\" XXX
 Initialize a plex by writing zeroes to all its subdisks.
 .in
-.Cd label
-.Ar volume
+.Cd l
+.Op Fl r
+.Op Fl s
+.Op Fl v
+.Op Fl V
+.Op volume | plex | subdisk
 .in +1i
-Create a volume label
+List information about specified objects
 .in
 .Cd list
 .Op Fl r
@@ -64,17 +63,6 @@ Create a volume label
 .Op volume | plex | subdisk
 .in +1i
 List information about specified objects
-.in
-.Cd l
-.Op Fl r
-.Op Fl s
-.Op Fl v
-.Op Fl V
-.Op volume | plex | subdisk
-.in +1i
-List information about specified objects (alternative to
-.Cd list
-command)
 .in
 .Cd ld
 .Op Fl r
@@ -112,41 +100,29 @@ List information about plexes
 .in +1i
 List information about volumes
 .in
-.Cd makedev
+.Cd label
+.Ar volume
 .in +1i
-Remake the device nodes in 
-.Ar /dev/vinum .
-.in
-.Cd quit
-.in +1i
-Exit the
-.Nm
-program when running in interactive mode.  Normally this would be done by
-entering the
-.Ar EOF
-character.
+Create a volume label
 .in
 .Cd read
-.Ar disk Op disk...
+.Ar disk-partition
 .in +1i
 Read the
 .Nm
-configuration from the specified disks.
+configuration from the specified disk partition.
 .in
 .Cd rename Op Fl r
 .Ar [ drive | subdisk | plex | volume ]
 .Ar newname
 .in +1i
 Change the name of the specified object.
-.ig
-XXX
 .in
 .Cd replace
 .Ar [ subdisk | plex ]
 .Ar newobject
 .in +1i
 Replace the object with an identical other object.  XXX not implemented yet.
-..
 .in
 .Cd resetconfig
 .in +1i
@@ -178,11 +154,6 @@ XXX
 Set the state of the object to \fIstate\fP\|
 .in
 ..
-.Cd setdaemon
-.Op value
-.in +1i
-Set dæmon configuration.
-.in
 .Cd start
 .Op volume | plex | subdisk
 .in +1i
@@ -203,10 +174,7 @@ for more information about the volume manager.
 .Xr vinum 8
 is designed either for interactive use, when started without a command, or to
 execute a single command if the command is supplied as arguments to
-.Nm vinum .
-In interactive mode, 
-.Nm
-maintains a command line history.
+.Nm vinum.
 .Ss OPTIONS
 .Nm
 commands may optionally be followed by an option.  Any of the following options
@@ -267,8 +235,7 @@ commands perform the following functions:
 .Bl -hang
 .It Nm attach Ar plex Ar volume
 .Op Nm rename
-.if n .sp -1v
-.if t .sp -.6v
+.sp -1v
 .It Nm attach Ar subdisk Ar plex Ar [offset]
 .Op Nm rename
 .sp
@@ -289,25 +256,6 @@ renames the object (and in the case of a plex, any subordinate subdisks) to fit
 in with the default
 .Nm 
 naming convention.
-.Pp
-A number of considerations apply to attaching subdisks:
-.Bl -bullet
-.It
-Subdisks can normally only be attached to concatenated plexes.
-.It
-If a striped or RAID-5 plex is missing a subdisk (for example after drive
-failure), it may be replaced by a subdisk of the same size only.  No other
-attachment of subdisks is currently allowed.
-.It
-For concatenated plexes, the
-.Ar offset
-parameter specifies the offset in blocks from the beginning of the plex.  For
-striped and RAID-5 plexes, it specifies the offset of the first block of the
-subdisk: in other words, the offset is the numerical position of the subdisk
-multiplied by the stripe size.  For example, in a plex of block size 256k, the
-first subdisk will have offset 0, the second offset 256k, the third 512k, etc.
-This calculation ignores parity blocks in RAID-5 plexes.
-.El
 .It Nm create Ar description-file
 .sp
 .Nm
@@ -323,49 +271,13 @@ CONFIGURATION FILE below for more information.
 .Ar debug
 is used to enter the remote kernel debugger.  It is only activated if
 .Nm
-is built with the 
-.Ar VINUMDEBUG 
-option.  This option will stop the execution of the operating system until the
-kernel debugger is exited.  If remote debugging is set and there is no remote
+is built with the DEBUG option.  This option will stop the execution of the
+operating system until the kernel debugger is exited.  If there is no remote
 connection for a kernel debugger, it will be necessary to reset the system and
 reboot in order to leave the debugger.
-.It Nm debug
-.Ar flags
-.Pp
-Set a bit mask of internal debugging flags.  These will change without warning
-as the product matures; to be certain, read the header file
-.Pa sys/dev/vinumvar.h .
-The bit mask is composed of the following values:
-.Bl -hang
-.It DEBUG_ADDRESSES (1)
-.br
-Show buffer information during requests
-.It DEBUG_NUMOUTPUT (2)
-.br
-Show the value of 
-.Dv vp->v_numoutput.
-.It DEBUG_RESID (4)
-.br
-Go into debugger in 
-.Fd complete_rqe.
-.It DEBUG_LASTREQS (8)
-.br
-Keep a circular buffer of last requests.
-.It DEBUG_REVIVECONFLICT (16)
-.br
-Print info about revive conflicts.
-.It DEBUG_REMOTEGDB (256)
-.br
-Go into remote
-.Ic gdb
-when the
-.Nm debug
-command is issued.
-.El
 .It Nm detach Op Fl f 
 .Ar plex
-.if n .sp -1v
-.if t .sp -.6v
+.sp -1v
 .It Nm detach Op Fl f 
 .Ar subdisk
 .sp
@@ -379,14 +291,8 @@ option is specified.  If the object is named after the object above it (for
 example, subdisk vol1.p7.s0 attached to plex vol1.p7), the name will be changed
 by prepending the text ``ex-'' (for example, ex-vol1.p7.s0).  If necessary, the
 name will be truncated in the process.
-.Pp
-.Nm detach
-does not reduce the number of subdisks in a striped or RAID-5 plex.  Instead,
-the subdisk is marked absent, and can later be replaced with the
-.Nm attach
-command.
 .It Nm info
-.br
+.Pp
 .Nm
 .Ar info
 displays information about
@@ -394,117 +300,6 @@ displays information about
 memory usage.  This is intended primarily for debugging.  With the 
 .Fl v
 option, it will give detailed information about the memory areas in use.
-.Pp
-With the
-.Fl V
-option,
-.Ar info
-displays information about the last up to 64 I/O requests handled by the
-.Nm
-driver.  This information is only collected if debug flag 8 is set.  The format
-looks like:
-.Pp
-.Bd -literal
-vinum -> info -V
-Flags: 0x200    1 opens
-Total of 38 blocks malloced, total memory: 16460
-Maximum allocs:       56, malloc table at 0xf0f72dbc
-
-Time             Event       Buf        Dev     Offset          Bytes   SD      SDoff   Doffset Goffset
-
-14:40:00.637758 1VS Write 0xf2361f40    0x5b03  0x10            16384
-14:40:00.639280 2LR Write 0xf2361f40    0x5b03  0x10            16384
-14:40:00.639294 3RQ Read  0xf2361f40    0x427   0x104109        8192    19      0       0       0
-14:40:00.639455 3RQ Read  0xf2361f40    0x417   0xd2109         8192    17      0       0       0
-14:40:00.639529 3RQ Read  0xf2361f40    0x40f   0x6e109         8192    16      0       0       0
-14:40:00.652978 4DN Read  0xf2361f40    0x427   0x104109        8192    19      0       0       0
-14:40:00.667040 4DN Read  0xf2361f40    0x40f   0x6e109         8192    16      0       0       0
-14:40:00.668556 4DN Read  0xf2361f40    0x417   0xd2109         8192    17      0       0       0
-14:40:00.669777 6RP Write 0xf2361f40    0x427   0x104109        8192    19      0       0       0
-14:40:00.685547 4DN Write 0xf2361f40    0x427   0x104109        8192    19      0       0       0
-.Ed
-.Pp
-The 
-.Ar Buf
-field always contains the address of the user buffer header.  This can be used
-to identify the requests associated with a user request, though this is not 100%
-reliable: theoretically two requests in sequence could use the same buffer
-header, though this is not common.  The beginning of a request can be identified
-by the event
-.Ar 1VS .
-The example above shows the requests involved in a single user request.
-.Pp
-The
-.Ar Event
-field contains information related to the sequence of events in the request
-chain.  The digit
-.Ar 1
-to 
-.Ar 6
-indicates the approximate sequence of events, and the two-letter abbreviation is
-a mnemonic for the location
-.Bl -hang
-.It 1VS
-(vinumstrategy) shows information about the user request on entry to
-.Fd vinumstrategy .
-The device number is the
-.Nm
-device, and offset and length are the user parameters.  This is always the
-beginning of a request sequence.
-.It 2LR
-(launch_requests) shows the user request just prior to launching the low-level
-.Nm
-requests in the function
-.Fd launch_requests.
-The parameters should be the same as in the
-.Ar 1VS
-information.
-.Pp
-In the following requests,
-.Ar Dev
-is the device number of the associated disk partition,
-.Ar Offset 
-is the offset from the beginning of the partition,
-.Ar SD
-is the subdisk index in 
-.Dv vinum_conf ,
-.Ar SDoff
-is the offset from the beginning of the subdisk,
-.Ar Doffset
-is the offset of the associated data request, and
-.Ar Goffset
-is the offset of the associated group request, where applicable.
-.It 3RQ
-(request) shows one of possibly several low-level
-.Nm
-requests which are launched to satisfy the high-level request.  This information
-is also logged in 
-.Fd launch_requests.
-.It 4DN
-(done) is called from 
-.Fd complete_rqe,
-showing the completion of a request.  This completion should match a request
-launched either at stage
-.Ar 4DN
-from 
-.Fd launch_requests, 
-or from 
-.Fd complete_raid5_write
-at stage
-.Ar 5RD
-or
-.Ar 6RP .
-.It 5RD
-(RAID-5 data) is called from 
-.Fd complete_raid5_write
-and represents the data written to a RAID-5 data stripe after calculating
-parity.
-.It 6RP
-(RAID-5 parity) is called from 
-.Fd complete_raid5_write
-and represents the data written to a RAID-5 parity stripe after calculating
-parity.
-.El
 .\" XXX
 .It Nm init Ar plex
 .Pp
@@ -519,63 +314,37 @@ initializes all subdisks of a plex in parallel.  Since this operation can take a
 long time, it is performed in the background.  
 .Nm
 prints a console message when the initialization is complete.
-.It Nm label
-.Ar volume
-.Pp
-The
-.Nm label
-command writes a
-.Ar ufs
-style volume label on a volume.  It is a simple alternative to an appropriate
-call to
-.Ar disklabel . 
-This is needed because some
-.Ar ufs
-commands still read the disk to find the label instead of using the correct
-.Ar ioctl
-call to access it.
-.Nm
-maintains a volume label separately from the volume data, so this command is not
-needed for
-.Ar newfs .
-This command is deprecated.
-.Pp
 .It Nm list
 .Op Fl r
 .Op Fl V
 .Op volume | plex | subdisk
-.if n .sp -1v
-.if t .sp -.6v
+.sp -1
 .It Nm l
 .Op Fl r
 .Op Fl V
 .Op volume | plex | subdisk
-.if n .sp -1v
-.if t .sp -.6v
+.sp -1
 .It Nm ld
 .Op Fl r
 .Op Fl s
 .Op Fl v
 .Op Fl V
 .Op volume
-.if n .sp -1v
-.if t .sp -.6v
+.sp -1
 .It Nm ls
 .Op Fl r
 .Op Fl s
 .Op Fl v
 .Op Fl V
 .Op subdisk
-.if n .sp -1v
-.if t .sp -.6v
+.sp -1
 .It Nm lp
 .Op Fl r
 .Op Fl s
 .Op Fl v
 .Op Fl V
 .Op plex
-.if n .sp -1v
-.if t .sp -.6v
+.sp -1
 .It Nm lv
 .Op Fl r
 .Op Fl s
@@ -614,42 +383,39 @@ to output device statistics, the
 (verbose) option causes some additional information to be output, and the
 .Op Fl V
 causes considerable additional information to be output.
-.It Nm makedev
-.br
-The
-.Nm makedev
-command removes the directory /dev/vinum and recreates it with device nodes
-which reflect the current configuration.  This command is not intended for
-general use, and is provided for emergency use only.
+.It Nm label
+.Ar volume
 .Pp
-.It Nm quit
-Exit the
+The
+.Nm label
+command writes a
+.Ar ufs
+style volume label on a volume.  It is a simple alternative to an appropriate
+call to
+.Ar disklabel . 
+This is needed because some
+.Ar ufs
+commands still read the disk to find the label instead of using the correct
+.Ar ioctl
+call to access it.
 .Nm
-program when running in interactive mode.  Normally this would be done by
-entering the
-.Ar EOF
-character.
+maintains a volume label separately from the volume data, so this command is not
+needed for
+.Ar newfs .
+This command is deprecated.
+.Pp
 .It Nm read
-.Ar disk Op disk...
+.Ar disk-partition
 .Pp
 The
 .Nm read
-command scans the specified disks for
-.Nm 
-partitions containing previously created configuration information.  It reads
-the configuration in order from the most recently updated to least recently
-updated configuration.  This is the normal method used to start
-.Nm vinum .
+command reads a previously created
 .Nm
-maintains an up-to-date copy of all configuration information on each disk
-partition.  You must specify all of the partitions in a configuration as the
+configuration from the specified disk partition.
+.Nm
+maintains an up-to-date copy of all configuration information on each of the
+disk slices.  You can specify any of the partitions in a configuration as the
 parameter to this command.
-.Nm
-.Nm read
-will accept the names of non-Vinum partitions, so you can specify all partitions
-upon which a
-.Nm
-partition might be resident to this command.
 .It Nm rename
 .Op Fl r
 .Ar [ drive | subdisk | plex | volume ]
@@ -689,9 +455,6 @@ Enter text -> \f(BINO FUTURE\fP
 Vinum configuration obliterated
 .Ed
 .ft R
-.Pp
-As the message suggests, this is a last-ditch command.  Don't use it unless you
-have an existing configuration which you never want to see again.
 .It Nm resetstats
 .Op Fl r
 .Op volume | plex | subdisk
@@ -759,29 +522,22 @@ care: it can result in total loss of data on a volume.
 .\"XXX
 .Nm This command has not yet been implemented.
 ..
-.It Nm setdaemon
-.Op value
-.Pp
-.Nm setdaemon
-sets a variable bitmask for the
-.Nm
-dæmon.  This command is temporary and will be replaced.  Currently, the bit mask
-may contain the bits 1 (log every action to syslog) and 4 (don't update
-configuration).  Option bit 4 can be useful for error recovery.
 .It Nm start
 .Op volume | plex | subdisk
 .Pp
 .Nm start
-starts one or more
+starts the
 .Nm
-objects.  To start a plex in a multi-plex volume, the data must be copied from
-another plex in the volume.  This frequently takes a long time and is done in
-the background.
+subsystem or one of its components.  To start a plex in a multi-plex volume, the
+data must be copied from another plex in the volume.  This frequently takes a
+long time and is done in the background.
 .ig
-XXX When invoked without arguments, it checks all disks connected to the system
-for BSD partitions (type 165) and scans the partitions for a
+XXX
+When invoked without arguments, it checks
+all disks connected to the system for BSD partitions (type 165) and scans the
+slices for a
 .Nm
-partition, which it calls a \fIdrive\fR\|.  The
+slice, which it calls a \fIdrive\fR\|.  The
 .Nm
 drive contains a header with all information about the data stored on the drive,
 including the names of the other drives which are required in order to represent
@@ -843,6 +599,7 @@ Options are:
 tab(#) ;
 l lw50 .
 Option#Meaning
+.TH N
 T{
 .Nm plex
 .Ar plexname
@@ -887,9 +644,7 @@ command to first bring them to a consistent state.  In the case of striped and
 concatenated plexes, however, it does not normally cause problems to leave them
 inconsistent: when using a volume for a file system or a swap partition, the
 previous contents of the disks are not of interest, so they may be ignored.
-If you want to take this risk, use this keyword.  It will only apply to the
-plexes defined immediately after the volume in the configuration file.  If you
-add plexes to a volume at a later time, you must integrate them.
+If you want to take this risk, use this keyword.
 .Pp
 Note that you \fImust\fP\| use the
 .Nm init
@@ -907,6 +662,7 @@ Define a plex.  Unlike a volume, a plex does not need a name.
 tab(#) ;
 l lw50 .
 Option#Meaning
+.TH N
 T{
 .Nm name
 .Ar plexname
@@ -944,12 +700,6 @@ it specifies the size of a group.  A group is a portion of a plex which
 stores the parity bits all in the same subdisk.   It must be a factor of the plex size (in
 other words, the result of dividing the plex size by the stripe size must be an
 integer), and it must be a multiple of a disk sector (512 bytes).
-.sp
-For optimum performance, stripes should be at least 128 kB in size: anything
-smaller will result in a significant increase in I/O activity due to mapping of
-individual requests over multiple disks.  The increase in concurrency due to
-this mapping will not make up for the increase in latency.  A good guideline for
-stripe size is between 256 kB and 512 kB.
 T}
 .Pp
 #T{
@@ -1074,7 +824,7 @@ T}
 .TE
 .El
 .Sh EXAMPLE CONFIGURATION FILE
-.Bd -literal
+.nf
 # Sample vinum configuration file
 #
 # Our drives
@@ -1099,14 +849,14 @@ volume concat
   sd length 100m drive drive2
   sd length 50m drive drive4
  plex org concat
-  sd length 150m drive drive4
+  sd length 100m drive drive4
 # A volume with one striped plex and one concatenated plex
 volume strcon
  plex org striped 32b
   sd length 100m drive drive2
   sd length 100m drive drive4
  plex org concat
-  sd length 150m drive drive2
+  sd length 100m drive drive2
   sd length 50m drive drive4
 # a volume with a  RAID-5 and a striped plex
 # note that the RAID-5 volume is longer by
@@ -1121,7 +871,7 @@ volume vol5
   sd length 500m drive drive3
   sd length 500m drive drive4
   sd length 500m drive drive5
-.Ed
+.fi
 .Ss DRIVE LAYOUT CONSIDERATIONS
 .Nm
 drives are currently BSD disk partitions.  They must be of type
@@ -1130,162 +880,13 @@ in order to avoid overwriting file systems.  In later versions of
 .Nm
 this requirement will change to type
 .Ar vinum .
-Use
-.Nm disklabel
-.Ar -e
-to edit a partition type definition.  The following display shows a typical
-partition layout as shown by
-.Nm disklabel:
-.Bd -literal
-8 partitions:
-#        size   offset    fstype   [fsize bsize bps/cpg]
-  a:    81920   344064    4.2BSD        0     0     0   # (Cyl.  240*- 297*)
-  b:   262144    81920      swap                        # (Cyl.   57*- 240*)
-  c:  4226725        0    unused        0     0         # (Cyl.    0 - 2955*)
-  e:    81920        0    4.2BSD        0     0     0   # (Cyl.    0 - 57*)
-  f:  1900000   425984    4.2BSD        0     0     0   # (Cyl.  297*- 1626*)
-  g:  1900741  2325984    unused        0     0     0   # (Cyl. 1626*- 2955*)
-.Ed
-.sp
-In this example, partition 
-.Nm g
-may be used as a
-.Nm
-partition.  Partitions 
-.Nm a ,
-.Nm e 
-and
-.Nm f
-may be used as
-.Nm UFS
-file systems or
-.Nm ccd
-partitions.  Partition 
-.Nm b
-is a swap partition, and partition
-.Nm c
-represents the whole disk and should not be used for any other purpose.
-.Pp
 .Nm
 uses the first 265 sectors on each partition for configuration information, so
 the maximum size of a subdisk is 265 sectors smaller than the drive.
-.Sh GOTCHAS
-The following points are not bugs, and they have good reasons for existing, but
-they have shown to cause confusion.  Each is discussed in the appropriate
-section above.
-.Bl -enum
-.It
-.Nm
-will not create a device on UFS partitions.  Instead, it will return an error
-message ``wrong partition type''.  The partition type must currently be
-``unused''.
-.It
-When you create a volume with multiple plexes,
-.Nm 
-does not automatically initialize the plexes.  This means that the contents are
-not known, but they are certainly not consistent.  As a result, by default 
-.Nm
-sets the state of all newly-created plexes except the first to
-.Ar stale .
-.Pp
-In practice, people aren't too interested in what was in the plex when it was
-created, and other volume managers cheat by setting them 
-.Ar up
-anyway.
-.Nm
-provides two ways to ensure that newly created plexes are
-.Ar up :
-.Bl -bullet
-.It
-Create the plexes and then initialize them with
-.Nm vinum init .
-.It
-Create the volume (not the plex) with the keyword
-.Ar setupstate ,
-which tells
-.Nm
-to ignore any possible inconsistency and set the plexes to be
-.Ar up .
-.El
-.It
-Some of the commands currently supported by
-.Nm
-are not really needed.  For reasons which I don't understand, however, I find
-that users frequently try the
-.Nm label
-and 
-.Nm resetconfig
-commands, though especially
-.Nm resetconfig
-outputs all sort of dire warnings.  Don't use these commands unless you have a
-good reason to do so.
-.It
-Some state transitions are not very intuitive.  In fact, it's not clear whether
-this is a bug or a feature.  If you find that you can't start an object in some
-strange state, such as a
-.Ar reborn
-subdisk, try first to get it into
-.Ar stopped
-state, with the
-.Nm stop
-or
-.Nm stop Ar -f
-commands.  If that works, you should then be able to start it.  If you find 
-that this is the only way to get out of a position where easier methods fail,
-please report the situation.
-.It
-If you build the kernel module with the
-.Ar -DVINUMDEBUG
-option, you must also build
-.Nm vinum(8)
-with the
-.Ar -DVINUMDEBUG
-option, since the size of some data objects used by both components depends on
-this option.  If you don't do so, commands will fail with the message
-.Ar Invalid argument ,
-and a console message will be logged such as
-.Pp
-.Bd -literal
-vinumioctl: invalid ioctl from process 247 (vinum): c0e44642
-.Ed
-.Pp
-This error may also occur if you use old versions of kld or userland program.
-.El
 .Sh BUGS
-.Bl -enum
-.It
 .Nm
 is currently in beta test.  Many bugs can be expected.  The configuration
-mechanism is not yet fully functional.  If you have difficulties, please look at
-http://www.lemis.com/vinum_beta.html and
-http://www.lemis.com/vinum_debugging.html before reporting problems.
-.It
-It is possible to unload
-.Nm
-with the
-.Nm kldunload
-command.  This is buggy, and the only reason it is present at all is to make it
-easier for people testing the system: the alternative is a reboot.  It works
-about 80% of the time: expect about one panic every five unloads.
-.It
-It is possible to configure
-.Nm
-statically, but it has never been tested in this form.  Don't even bother to
-report the problem if you have trouble with a static
-.Nm
-pseudo-device.
-.It
-This man page tickles a bug in the
-.Ar doc
-man page macros: depending on your screen size, you may get the error message
-.Bd -literal -offset indent
-warning: page 6: table text block will not fit on one page
-.Ed
-.Pp
-This will be fixed in a later rewrite of the page, when the
-.Nm tbl
-macros will be removed.
-.El
+mechanism is not yet fully functional.
 .Sh FILES
 .Ar /dev/vinum
 - directory with device nodes for
@@ -1306,10 +907,7 @@ plexes.
 .Nm
 subdisks.
 .Sh SEE ALSO
-.Xr vinum 4 ,
-.Xr disklabel 8 ,
-.Nm http://www.lemis.com/vinum.html ,
-.Nm http://www.lemis.com/vinum-debugging.html .
+.Xr vinum 4 
 .Sh AUTHOR
 Greg Lehey 
 .Pa <grog@lemis.com> .

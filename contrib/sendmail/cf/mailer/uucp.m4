@@ -22,7 +22,7 @@ POPDIVERT
 ###   UUCP Mailer specification   ###
 #####################################
 
-VERSIONID(`@(#)uucp.m4	8.30 (Berkeley) 5/19/1998')
+VERSIONID(`@(#)uucp.m4	8.30 (Berkeley) 5/19/98')
 
 #
 #  There are innumerable variations on the UUCP mailer.  It really

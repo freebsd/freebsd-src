@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_socket.c	8.5 (Berkeley) 3/30/95
- * $Id: nfs_socket.c,v 1.48 1998/12/07 21:58:44 archie Exp $
+ * $Id: nfs_socket.c,v 1.45 1998/09/07 05:42:15 bde Exp $
  */
 
 /*
@@ -191,6 +191,7 @@ nfs_connect(nmp, rep)
 	int s, error, rcvreserve, sndreserve;
 	struct sockaddr *saddr;
 	struct sockaddr_in *sin;
+	struct mbuf *m;
 	u_int16_t tport;
 	struct proc *p = &proc0; /* only used for socreate and sobind */
 
@@ -403,11 +404,11 @@ nfs_safedisconnect(nmp)
  * For the client side:
  * - return EINTR if the RPC is terminated, 0 otherwise
  * - set R_MUSTRESEND if the send fails for any reason
- * - do any cleanup required by recoverable socket errors (?)
+ * - do any cleanup required by recoverable socket errors (???)
  * For the server side:
  * - return EINTR or ERESTART if interrupted by a signal
  * - return EPIPE if a connection is lost for connection based sockets (TCP...)
- * - do any cleanup required by recoverable socket errors (?)
+ * - do any cleanup required by recoverable socket errors (???)
  */
 int
 nfs_send(so, nam, top, rep)
@@ -469,7 +470,7 @@ nfs_send(so, nam, top, rep)
 			log(LOG_INFO, "nfsd send error %d\n", error);
 
 		/*
-		 * Handle any recoverable (soft) socket errors here. (?)
+		 * Handle any recoverable (soft) socket errors here. (???)
 		 */
 		if (error != EINTR && error != ERESTART &&
 			error != EWOULDBLOCK && error != EPIPE)
@@ -2231,9 +2232,7 @@ nfsrv_dorec(slp, nfsd, ndp)
 	nd->nd_dpos = mtod(m, caddr_t);
 	error = nfs_getreq(nd, nfsd, TRUE);
 	if (error) {
-		if (nam) {
-			FREE(nam, M_SONAME);
-		}
+		FREE(nam, M_SONAME);
 		free((caddr_t)nd, M_NFSRVDESC);
 		return (error);
 	}

@@ -39,10 +39,10 @@ static const char copyright[] =
 
 #ifndef lint
 #if 0
-static char sccsid[] = "@(#)shutdown.c	8.4 (Berkeley) 4/28/95";
+static char sccsid[] = "@(#)shutdown.c	8.2 (Berkeley) 2/16/94";
 #endif
 static const char rcsid[] =
-	"$Id: shutdown.c,v 1.15 1998/12/11 11:04:19 bde Exp $";
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -93,7 +93,7 @@ struct interval {
 #undef S
 
 static time_t offset, shuttime;
-static int dohalt, dopower, doreboot, killflg, mbuflen;
+static int dohalt, doreboot, killflg, mbuflen;
 static char *nosync, *whom, mbuf[BUFSIZ];
 
 void badtime __P((void));
@@ -121,7 +121,7 @@ main(argc, argv)
 #endif
 	nosync = NULL;
 	readstdin = 0;
-	while ((ch = getopt(argc, argv, "-hknpr")) != -1)
+	while ((ch = getopt(argc, argv, "-hknr")) != -1)
 		switch (ch) {
 		case '-':
 			readstdin = 1;
@@ -134,9 +134,6 @@ main(argc, argv)
 			break;
 		case 'n':
 			nosync = "-n";
-			break;
-		case 'p':
-			dopower = 1;
 			break;
 		case 'r':
 			doreboot = 1;
@@ -151,8 +148,8 @@ main(argc, argv)
 	if (argc < 1)
 		usage();
 
-	if (doreboot + dohalt + dopower > 1) {
-		warnx("incompatible switches -h, -p and -r");
+	if (doreboot && dohalt) {
+		warnx("incompatible switches -h and -r");
 		usage();
 	}
 	getoffset(*argv++);
@@ -164,7 +161,7 @@ main(argc, argv)
 				break;
 			if (p != mbuf)
 				*p++ = ' ';
-			memmove(p, *argv, arglen);
+			bcopy(*argv, p, arglen);
 			p += arglen;
 		}
 		*p = '\n';
@@ -329,8 +326,7 @@ die_you_gravy_sucking_pig_dog()
 	char *empty_environ[] = { NULL };
 
 	syslog(LOG_NOTICE, "%s by %s: %s",
-	    doreboot ? "reboot" : dohalt ? "halt" : dopower ? "power-down" : 
-	    "shutdown", whom, mbuf);
+	    doreboot ? "reboot" : dohalt ? "halt" : "shutdown", whom, mbuf);
 	(void)sleep(2);
 
 	(void)printf("\r\nSystem shutdown time has arrived\007\007\r\n");
@@ -343,8 +339,6 @@ die_you_gravy_sucking_pig_dog()
 		(void)printf("reboot");
 	else if (dohalt)
 		(void)printf("halt");
-	else if (dopower)
-		(void)printf("power-down");
 	if (nosync)
 		(void)printf(" no sync");
 	(void)printf("\nkill -HUP 1\n");
@@ -357,12 +351,6 @@ die_you_gravy_sucking_pig_dog()
 	}
 	else if (dohalt) {
 		execle(_PATH_HALT, "halt", "-l", nosync,
-			   (char *)NULL, empty_environ);
-		syslog(LOG_ERR, "shutdown: can't exec %s: %m.", _PATH_HALT);
-		warn(_PATH_HALT);
-	}
-	else if (dopower) {
-		execle(_PATH_HALT, "halt", "-l", "-p", nosync,
 			   (char *)NULL, empty_environ);
 		syslog(LOG_ERR, "shutdown: can't exec %s: %m.", _PATH_HALT);
 		warn(_PATH_HALT);
@@ -480,8 +468,7 @@ void
 finish(signo)
 	int signo;
 {
-	if (!killflg)
-		(void)unlink(_PATH_NOLOGIN);
+	(void)unlink(_PATH_NOLOGIN);
 	exit(0);
 }
 
@@ -494,7 +481,6 @@ badtime()
 void
 usage()
 {
-	fprintf(stderr,
-	    "usage: shutdown [-] [-hknpr] time [warning-message ...]\n");
+	fprintf(stderr, "usage: shutdown [-hknr] shutdowntime [ message ]\n");
 	exit(1);
 }

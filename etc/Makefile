@@ -1,14 +1,13 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.186 1999/01/10 21:08:26 rnordier Exp $
+#	$Id: Makefile,v 1.178 1998/10/06 19:24:14 phk Exp $
 
 SUBDIR=	sendmail
 
 BIN1=   aliases amd.map crontab csh.cshrc csh.login csh.logout dm.conf \
 	fbtab ftpusers gettytab group hosts host.conf hosts.equiv hosts.lpd \
 	inetd.conf auth.conf login.conf login.access motd modems networks \
-	newsyslog.conf pam.conf phones pccard.conf.sample \
-	printcap profile protocols \
-	rc rc.atm rc.conf rc.devfs rc.firewall rc.isdn rc.network rc.pccard \
+	newsyslog.conf phones pccard.conf.sample printcap profile protocols \
+	rc rc.atm rc.conf rc.devfs rc.firewall rc.local rc.network rc.pccard \
 	rc.serial rc.shutdown etc.${MACHINE_ARCH}/rc.${MACHINE_ARCH} \
 	remote security services shells syslog.conf \
 	etc.${MACHINE_ARCH}/ttys etc.${MACHINE_ARCH}/disktab rpc make.conf \
@@ -61,7 +60,7 @@ distribution:
 	( cd ${.CURDIR}/../share/termcap; ${MAKE} etc-termcap ); \
 	( cd ${.CURDIR}/../usr.sbin/rmt; ${MAKE} etc-rmt ); \
 	( cd ${.CURDIR}/sendmail; ${MAKE} etc-sendmail.cf ); \
-	( cd ${.CURDIR}/isdn; ${MAKE} install );\
+	( cd ${.CURDIR}/../sys/i386/boot/biosboot; ${MAKE} install-boothelp ); \
 	pwd_mkdb -p -d ${DESTDIR}/etc ${DESTDIR}/etc/master.passwd; \
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 555 \
 	     MAKEDEV.local etc.${MACHINE_ARCH}/MAKEDEV ${DESTDIR}/dev )

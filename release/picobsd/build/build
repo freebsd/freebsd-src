@@ -1,22 +1,26 @@
 #!/bin/sh -
 
 #
-#	$Id: build,v 1.11 1999/01/14 23:14:45 abial Exp $
+#	$Id: build,v 1.9 1998/09/22 15:40:00 abial Exp $
 #
 
 # You can set the SRC variable which points to your source tree. It's
 # /usr/src by default (most people shouldn't change it).
 SRC=/usr/src
 
+
+# Set this if your crunchgen and kzip don't support ELF.
+#OBJFORMAT=aout; export OBJFORMAT
+
 # Default MFS sizes for different types of the floppy. Again, most people
 # shouldn't change them unless they know what they are doing.
 
 DIAL_DFLT_SIZE=1600
 ROUTER_DFLT_SIZE=820
-NET_DFLT_SIZE=1700
-ISP_DFLT_SIZE=1700
+NET_DFLT_SIZE=2200
+ISP_DFLT_SIZE=2200
 
-# DEVFS is currently broken. Always set this.
+# SET THIS if you're not using DEVFS
 #
 NO_DEVFS=yes
 

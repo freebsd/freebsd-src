@@ -42,7 +42,7 @@ static char const copyright[] =
 static char sccsid[] = "@(#)mkdir.c	8.2 (Berkeley) 1/25/94";
 #endif
 static const char rcsid[] =
-	"$Id: mkdir.c,v 1.15 1998/10/23 06:28:40 msmith Exp $";
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -63,7 +63,7 @@ main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	int ch, exitval, success, omode, pflag;
+	int ch, exitval, omode, pflag;
 	mode_t *set = (mode_t *)NULL;
 	char *mode;
 
@@ -93,28 +93,15 @@ main(argc, argv)
 		if ((set = setmode(mode)) == NULL)
 			errx(1, "invalid file mode: %s", mode);
 		omode = getmode(set, S_IRWXU | S_IRWXG | S_IRWXO);
-		free(set);
 	}
 
 	for (exitval = 0; *argv != NULL; ++argv) {
-		success = 1;
 		if (pflag) {
 			if (build(*argv, omode))
-				success = 0;
-		} else if (mkdir(*argv, omode) < 0) {
-			warn("%s", *argv);
-			success = 0;
+				exitval = 1;
+			continue;
 		}
-		if (!success)
-			exitval = 1;
-		/*
-		 * The mkdir() and umask() calls both honor only the low
-		 * nine bits, so if you try to set a mode including the
-		 * sticky, setuid, setgid bits you lose them.  Don't do
-		 * this unless the user has specifically requested a mode,
-		 * as chmod will (obviously) ignore the umask.
-		 */
-		if (success && mode != NULL && chmod(*argv, omode) == -1) {
+		if (mkdir(*argv, omode) < 0) {
 			warn("%s", *argv);
 			exitval = 1;
 		}
@@ -183,8 +170,7 @@ build(path, omode)
 			retval = 1;
 			break;
 		}
-		if (!last)
-		    *p = '/';
+		*p = '/';
 	}
 	if (!first && !last)
 		(void)umask(oumask);

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.c	8.3 (Berkeley) 1/4/94
- *	$Id: if.c,v 1.63 1998/12/04 22:54:52 archie Exp $
+ *	$Id: if.c,v 1.61 1998/07/20 13:21:56 dfr Exp $
  */
 
 #include "opt_compat.h"
@@ -143,8 +143,7 @@ if_attach(ifp)
 	/*
 	 * create a Link Level name for this device
 	 */
-	namelen = snprintf(workbuf, sizeof(workbuf),
-	    "%s%d", ifp->if_name, ifp->if_unit);
+	namelen = sprintf(workbuf, "%s%d", ifp->if_name, ifp->if_unit);
 #define _offsetof(t, m) ((int)((caddr_t)&((t *)0)->m))
 	masklen = _offsetof(struct sockaddr_dl, sdl_data[0]) + namelen;
 	socksize = masklen + ifp->if_addrlen;
@@ -401,52 +400,18 @@ link_rtrequest(cmd, rt, sa)
  * NOTE: must be called at splnet or eqivalent.
  */
 void
-if_unroute(ifp, flag, fam)
-	register struct ifnet *ifp;
-	int flag, fam;
-{
-	register struct ifaddr *ifa;
-
-	ifp->if_flags &= ~flag;
-	getmicrotime(&ifp->if_lastchange);
-	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
-		if (fam == PF_UNSPEC || (fam == ifa->ifa_addr->sa_family))
-			pfctlinput(PRC_IFDOWN, ifa->ifa_addr);
-	if_qflush(&ifp->if_snd);
-	rt_ifmsg(ifp);
-}
-
-/*
- * Mark an interface up and notify protocols of
- * the transition.
- * NOTE: must be called at splnet or eqivalent.
- */
-void
-if_route(ifp, flag, fam)
-	register struct ifnet *ifp;
-	int flag, fam;
-{
-	register struct ifaddr *ifa;
-
-	ifp->if_flags |= flag;
-	getmicrotime(&ifp->if_lastchange);
-	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
-		if (fam == PF_UNSPEC || (fam == ifa->ifa_addr->sa_family))
-			pfctlinput(PRC_IFUP, ifa->ifa_addr);
-	rt_ifmsg(ifp);
-}
-
-/*
- * Mark an interface down and notify protocols of
- * the transition.
- * NOTE: must be called at splnet or eqivalent.
- */
-void
 if_down(ifp)
 	register struct ifnet *ifp;
 {
+	register struct ifaddr *ifa;
 
-	if_unroute(ifp, IFF_UP, AF_UNSPEC);
+	ifp->if_flags &= ~IFF_UP;
+	getmicrotime(&ifp->if_lastchange);
+	for (ifa = ifp->if_addrhead.tqh_first; ifa; 
+	     ifa = ifa->ifa_link.tqe_next)
+		pfctlinput(PRC_IFDOWN, ifa->ifa_addr);
+	if_qflush(&ifp->if_snd);
+	rt_ifmsg(ifp);
 }
 
 /*
@@ -458,8 +423,14 @@ void
 if_up(ifp)
 	register struct ifnet *ifp;
 {
+	register struct ifaddr *ifa;
 
-	if_route(ifp, IFF_UP, AF_UNSPEC);
+	ifp->if_flags |= IFF_UP;
+	getmicrotime(&ifp->if_lastchange);
+	for (ifa = ifp->if_addrhead.tqh_first; ifa; 
+	     ifa = ifa->ifa_link.tqe_next)
+		pfctlinput(PRC_IFUP, ifa->ifa_addr);
+	rt_ifmsg(ifp);
 }
 
 /*
@@ -821,8 +792,7 @@ ifconf(cmd, data)
 		char workbuf[64];
 		int ifnlen;
 
-		ifnlen = snprintf(workbuf, sizeof(workbuf),
-		    "%s%d", ifp->if_name, ifp->if_unit);
+		ifnlen = sprintf(workbuf, "%s%d", ifp->if_name, ifp->if_unit);
 		if(ifnlen + 1 > sizeof ifr.ifr_name) {
 			error = ENAMETOOLONG;
 		} else {

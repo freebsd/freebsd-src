@@ -17,7 +17,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgment:
+ *    must display the following acknowledgement:
  *      This product includes software developed by the University of
  *      California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: wire-test.c,v 1.3 1998/11/14 03:13:33 obrien Exp $
+ * $Id: wire-test.c,v 1.1.1.1 1998/08/23 22:07:21 obrien Exp $
  *
  */
 
@@ -50,16 +50,10 @@
 #define STRMAX	100
 
 /* dummy variables */
-#if 0
-char *progname;
+char *progname, hostname[MAXHOSTNAMELEN + 1];
+int orig_umask, foreground, debug_flags;
 pid_t mypid;
 serv_state amd_state;
-int foreground, orig_umask;
-int debug_flags;
-#endif
-
-char hostname[MAXHOSTNAMELEN + 1];
-
 
 int
 main(int argc, char **argv)
@@ -71,13 +65,11 @@ main(int argc, char **argv)
   struct sockaddr_in *ip;
   struct hostent *hp = 0;
 
-  am_set_progname(argv[0]);
-#if 0
+  progname = argv[0];
   mypid = getpid();
   orig_umask = umask(0);
-#endif
 
-  if (gethostname(hostname, sizeof(hostname)) < 0) {
+  if (gethostname(hostname, sizeof hostname) < 0) {
     perror(argv[0]);
     exit(1);
   }

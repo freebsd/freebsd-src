@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.276 1998/11/08 12:39:04 dfr Exp $
+ *  $Id: syscons.c,v 1.273 1998/08/06 09:15:53 dfr Exp $
  *  from: i386/isa syscons.c,v 1.278
  */
 
@@ -54,12 +54,10 @@
 #include <sys/tty.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
-#include <sys/rman.h>
 #ifdef	DEVFS
 #include <sys/devfsext.h>
 #endif
 
-#include <machine/resource.h>
 #include <machine/clock.h>
 #include <machine/cons.h>
 #include <machine/console.h>
@@ -454,12 +452,12 @@ scprobe(device_t dev)
     if (!scvidprobe(device_get_unit(dev), isa_get_flags(dev))) {
 	if (bootverbose)
 	    printf("sc%d: no video adapter is found.\n", device_get_unit(dev));
-	return (ENXIO);
+	return (0);
     }
     (*biosvidsw.diag)(bootverbose);
 #if defined(VESA) && defined(VM86)
     if (vesa_load())
-	return ENXIO;
+	return FALSE;
     (*biosvidsw.diag)(bootverbose);
 #endif
 
@@ -696,8 +694,6 @@ scattach(device_t dev)
     int vc;
 #endif
     void *ih;
-    struct resource *res;
-    int zero = 0;
 
     scinit();
     flags = isa_get_flags(dev);
@@ -775,10 +771,13 @@ scattach(device_t dev)
 				UID_ROOT, GID_WHEEL, 0600, "consolectl");
 #endif
 
-    res = bus_alloc_resource(dev, SYS_RES_IRQ, &zero, 0ul, ~0ul, 1,
-			     RF_SHAREABLE | RF_ACTIVE);
-    BUS_SETUP_INTR(device_get_parent(dev), dev, res, scintr, 0,
-		   &ih);
+    ih = BUS_CREATE_INTR(device_get_parent(dev), dev,
+			 isa_get_irq(dev),
+			 scintr, 0);
+    if (!ih)
+	return ENXIO;
+
+    BUS_CONNECT_INTR(device_get_parent(dev), ih);
 
     return 0;
 }
@@ -3937,7 +3936,7 @@ next_code:
 }
 
 int
-scmmap(dev_t dev, vm_offset_t offset, int nprot)
+scmmap(dev_t dev, int offset, int nprot)
 {
     if (offset > 0x20000 - PAGE_SIZE)
 	return -1;

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1994-1998
+ * Copyright (c) 1995, 1996
  *	Paul Richards.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_lnc.c,v 1.50 1998/11/26 00:57:32 paul Exp $
+ * $Id: if_lnc.c,v 1.45 1998/08/24 02:28:15 bde Exp $
  */
 
 /*
@@ -177,15 +177,14 @@ static int pcnet_probe __P((struct lnc_softc *sc));
 static int lnc_attach_sc __P((struct lnc_softc *sc, int unit));
 static int lnc_attach __P((struct isa_device *isa_dev));
 static void lnc_init __P((struct lnc_softc *sc));
-static ointhand2_t lncintr;
 static __inline int mbuf_to_buffer __P((struct mbuf *m, char *buffer));
 static __inline struct mbuf *chain_to_cluster __P((struct mbuf *m));
 static void lnc_start __P((struct ifnet *ifp));
 static int lnc_ioctl __P((struct ifnet *ifp, u_long command, caddr_t data));
 static void lnc_watchdog __P((struct ifnet *ifp));
 #ifdef DEBUG
-void lnc_dump_state __P((struct lnc_softc *sc));
-void mbuf_dump_chain __P((struct mbuf *m));
+static void lnc_dump_state __P((struct lnc_softc *sc));
+static void mbuf_dump_chain __P((struct mbuf *m));
 #endif
 
 #if NPCI > 0
@@ -560,14 +559,13 @@ lnc_rint(struct lnc_softc *sc)
 					log(LOG_ERR, "lnc%d: Receive overflow error \n", unit);
 				}
 			} else if (flags & ENP) {
-			    if ((sc->arpcom.ac_if.if_flags & IFF_PROMISC)==0) {
 				/*
 				 * FRAM and CRC are valid only if ENP
 				 * is set and OFLO is not.
 				 */
 				if (flags & FRAM) {
 					LNCSTATS(fram)
-					log(LOG_ERR, "lnc%d: Framing error\n", unit);
+					log(LOG_ERR, "lnc%d: Framming error\n", unit);
 					/*
 					 * FRAM is only set if there's a CRC
 					 * error so avoid multiple messages
@@ -576,7 +574,6 @@ lnc_rint(struct lnc_softc *sc)
 					LNCSTATS(crc)
 					log(LOG_ERR, "lnc%d: Receive CRC error\n", unit);
 				}
-			    }
 			}
 
 			/* Drop packet */
@@ -1276,10 +1273,8 @@ lnc_attach(struct isa_device * isa_dev)
 {
 	int unit = isa_dev->id_unit;
 	struct lnc_softc *sc = &lnc_softc[unit];
-	int result;
 
-	isa_dev->id_ointr = lncintr;
-	result = lnc_attach_sc (sc, unit);
+	int result = lnc_attach_sc (sc, unit);
 	if (result == 0)
 		return (0);
 
@@ -1311,7 +1306,7 @@ lnc_attach_ne2100_pci(int unit, unsigned iobase)
 		sc->bdp = iobase + PCNET_BDP;
 
 		sc->nic.ic = pcnet_probe(sc);
-		if (sc->nic.ic >= PCnet_32) {
+		if (sc->nic.ic >= PCnet_PCI) {
 			sc->nic.ident = NE2100;
 			sc->nic.mem_mode = DMA_FIXED;
   
@@ -1597,7 +1592,7 @@ lncintr_sc(struct lnc_softc *sc)
 	}
 }
 
-static void
+void
 lncintr(int unit)
 {
 	struct lnc_softc *sc = &lnc_softc[unit];
@@ -1896,7 +1891,7 @@ lnc_watchdog(struct ifnet *ifp)
 }
 
 #ifdef DEBUG
-void
+static void
 lnc_dump_state(struct lnc_softc *sc)
 {
 	int             i;
@@ -1951,7 +1946,7 @@ lnc_dump_state(struct lnc_softc *sc)
 	outw(sc->rap, CSR0);
 }
 
-void
+static void
 mbuf_dump_chain(struct mbuf * m)
 {
 

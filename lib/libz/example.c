@@ -3,7 +3,7 @@
  * For conditions of distribution and use, see copyright notice in zlib.h 
  */
 
-/* @(#) $Id: example.c,v 1.1.1.3 1999/01/10 09:46:54 peter Exp $ */
+/* $FreeBSD$ */
 
 #include <stdio.h>
 #include "zlib.h"
@@ -13,12 +13,6 @@
 #  include <stdlib.h>
 #else
    extern void exit  OF((int));
-#endif
-
-#if defined(VMS) || defined(RISCOS)
-#  define TESTFILE "foo-gz"
-#else
-#  define TESTFILE "foo.gz"
 #endif
 
 #define CHECK_ERR(err, msg) { \
@@ -77,7 +71,7 @@ void test_compress(compr, comprLen, uncompr, uncomprLen)
         fprintf(stderr, "bad uncompress\n");
 	exit(1);
     } else {
-        printf("uncompress(): %s\n", (char *)uncompr);
+        printf("uncompress(): %s\n", uncompr);
     }
 }
 
@@ -85,8 +79,8 @@ void test_compress(compr, comprLen, uncompr, uncomprLen)
  * Test read/write of .gz files
  */
 void test_gzio(out, in, uncompr, uncomprLen)
-    const char *out; /* compressed output file */
-    const char *in;  /* compressed input file */
+    const char *out; /* output file */
+    const char *in;  /* input file */
     Byte *uncompr;
     int  uncomprLen;
 {
@@ -127,13 +121,13 @@ void test_gzio(out, in, uncompr, uncomprLen)
         fprintf(stderr, "bad gzread: %s\n", (char*)uncompr);
 	exit(1);
     } else {
-        printf("gzread(): %s\n", (char *)uncompr);
+        printf("gzread(): %s\n", uncompr);
     }
 
     pos = gzseek(file, -8L, SEEK_CUR);
     if (pos != 6 || gztell(file) != pos) {
 	fprintf(stderr, "gzseek error, pos=%ld, gztell=%ld\n",
-		(long)pos, (long)gztell(file));
+		pos, gztell(file));
 	exit(1);
     }
 
@@ -152,7 +146,7 @@ void test_gzio(out, in, uncompr, uncomprLen)
         fprintf(stderr, "bad gzgets after gzseek\n");
 	exit(1);
     } else {
-        printf("gzgets() after gzseek: %s\n", (char *)uncompr);
+        printf("gzgets() after gzseek: %s\n", uncompr);
     }
 
     gzclose(file);
@@ -233,7 +227,7 @@ void test_inflate(compr, comprLen, uncompr, uncomprLen)
         fprintf(stderr, "bad inflate\n");
 	exit(1);
     } else {
-        printf("inflate(): %s\n", (char *)uncompr);
+        printf("inflate(): %s\n", uncompr);
     }
 }
 
@@ -412,7 +406,7 @@ void test_sync(compr, comprLen, uncompr, uncomprLen)
     err = inflateEnd(&d_stream);
     CHECK_ERR(err, "inflateEnd");
 
-    printf("after inflateSync(): hel%s\n", (char *)uncompr);
+    printf("after inflateSync(): hel%s\n", uncompr);
 }
 
 /* ===========================================================================
@@ -498,7 +492,7 @@ void test_dict_inflate(compr, comprLen, uncompr, uncomprLen)
         fprintf(stderr, "bad inflate with dict\n");
 	exit(1);
     } else {
-        printf("inflate with dictionary: %s\n", (char *)uncompr);
+        printf("inflate with dictionary: %s\n", uncompr);
     }
 }
 
@@ -534,8 +528,8 @@ int main(argc, argv)
     }
     test_compress(compr, comprLen, uncompr, uncomprLen);
 
-    test_gzio((argc > 1 ? argv[1] : TESTFILE),
-              (argc > 2 ? argv[2] : TESTFILE),
+    test_gzio((argc > 1 ? argv[1] : "foo.gz"),
+              (argc > 2 ? argv[2] : "foo.gz"),
 	      uncompr, (int)uncomprLen);
 
     test_deflate(compr, comprLen);

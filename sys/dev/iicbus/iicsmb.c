@@ -23,26 +23,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: iicsmb.c,v 1.1.1.1 1998/09/03 20:51:50 nsouch Exp $
+ *	$Id: iicsmb.c,v 1.1.2.2 1998/08/13 17:10:44 son Exp $
  *
  */
 
 /*
  * I2C to SMB bridge
- *
- * Example:
- *
- *     smb bttv
- *       \ /
- *      smbus
- *       /  \
- *    iicsmb bti2c
- *       |
- *     iicbus
- *     /  |  \
- *  iicbb pcf ...
- *    |
- *  lpbb
  */
 
 #include <sys/param.h>
@@ -86,7 +72,6 @@ static int iicsmb_attach(device_t);
 static void iicsmb_print_child(device_t, device_t);
 
 static void iicsmb_intr(device_t dev, int event, char *buf);
-static int iicsmb_callback(device_t dev, int index, caddr_t data);
 static int iicsmb_quick(device_t dev, u_char slave, int how);
 static int iicsmb_sendb(device_t dev, u_char slave, char byte);
 static int iicsmb_recvb(device_t dev, u_char slave, char *byte);
@@ -112,7 +97,6 @@ static device_method_t iicsmb_methods[] = {
 	DEVMETHOD(iicbus_intr,		iicsmb_intr),
 
 	/* smbus interface */
-	DEVMETHOD(smbus_callback,	iicsmb_callback),
 	DEVMETHOD(smbus_quick,		iicsmb_quick),
 	DEVMETHOD(smbus_sendb,		iicsmb_sendb),
 	DEVMETHOD(smbus_recvb,		iicsmb_recvb),
@@ -239,32 +223,6 @@ end:
 }
 
 static int
-iicsmb_callback(device_t dev, int index, caddr_t data)
-{
-	device_t parent = device_get_parent(dev);
-	int error = 0;
-	int how;
-
-	switch (index) {
-	case SMB_REQUEST_BUS:
-		/* request underlying iicbus */
-		how = *(int *)data;
-		error = iicbus_request_bus(parent, dev, how);
-		break;
-
-	case SMB_RELEASE_BUS:
-		/* release underlying iicbus */
-		error = iicbus_release_bus(parent, dev);
-		break;
-
-	default:
-		error = EINVAL;
-	}
-
-	return (error);
-}
-
-static int
 iicsmb_quick(device_t dev, u_char slave, int how)
 {
 	device_t parent = device_get_parent(dev);
@@ -272,11 +230,11 @@ iicsmb_quick(device_t dev, u_char slave, int how)
 
 	switch (how) {
 	case SMB_QWRITE:
-		error = iicbus_start(parent, slave & ~LSB, 0);
+		error = iicbus_start(parent, slave & ~LSB);
 		break;
 
 	case SMB_QREAD:
-		error = iicbus_start(parent, slave | LSB, 0);
+		error = iicbus_start(parent, slave | LSB);
 		break;
 
 	default:
@@ -296,10 +254,10 @@ iicsmb_sendb(device_t dev, u_char slave, char byte)
 	device_t parent = device_get_parent(dev);
 	int error, sent;
 
-	error = iicbus_start(parent, slave & ~LSB, 0);
+	error = iicbus_start(parent, slave & ~LSB);
 
 	if (!error) {
-		error = iicbus_write(parent, &byte, 1, &sent, 0);
+		error = iicbus_write(parent, &byte, 1, &sent);
 
 		iicbus_stop(parent);
 	}
@@ -313,13 +271,10 @@ iicsmb_recvb(device_t dev, u_char slave, char *byte)
 	device_t parent = device_get_parent(dev);
 	int error, read;
 
-	error = iicbus_start(parent, slave | LSB, 0);
+	error = iicbus_start(parent, slave | LSB);
 
-	if (!error) {
-		error = iicbus_read(parent, byte, 1, &read, IIC_LAST_READ, 0);
-
-		iicbus_stop(parent);
-	}
+	if (!error)
+		error = iicbus_read(parent, byte, 1, &read);
 
 	return (error);
 }
@@ -330,11 +285,11 @@ iicsmb_writeb(device_t dev, u_char slave, char cmd, char byte)
 	device_t parent = device_get_parent(dev);
 	int error, sent;
 
-	error = iicbus_start(parent, slave & ~LSB, 0);
+	error = iicbus_start(parent, slave & ~LSB);
 
 	if (!error) {
-		if (!(error = iicbus_write(parent, &cmd, 1, &sent, 0)))
-			error = iicbus_write(parent, &byte, 1, &sent, 0);
+		if (!(error = iicbus_write(parent, &cmd, 1, &sent)))
+			error = iicbus_write(parent, &byte, 1, &sent);
 
 		iicbus_stop(parent);
 	}
@@ -351,12 +306,12 @@ iicsmb_writew(device_t dev, u_char slave, char cmd, short word)
 	char low = (char)(word & 0xff);
 	char high = (char)((word & 0xff00) >> 8);
 
-	error = iicbus_start(parent, slave & ~LSB, 0);
+	error = iicbus_start(parent, slave & ~LSB);
 
 	if (!error) {
-		if (!(error = iicbus_write(parent, &cmd, 1, &sent, 0)))
-		  if (!(error = iicbus_write(parent, &low, 1, &sent, 0)))
-		    error = iicbus_write(parent, &high, 1, &sent, 0);
+		if (!(error = iicbus_write(parent, &cmd, 1, &sent)))
+		  if (!(error = iicbus_write(parent, &low, 1, &sent)))
+		    error = iicbus_write(parent, &high, 1, &sent);
 
 		iicbus_stop(parent);
 	}
@@ -370,20 +325,19 @@ iicsmb_readb(device_t dev, u_char slave, char cmd, char *byte)
 	device_t parent = device_get_parent(dev);
 	int error, sent, read;
 
-	if ((error = iicbus_start(parent, slave & ~LSB, 0)))
-		return (error);
-
-	if ((error = iicbus_write(parent, &cmd, 1, &sent, 0)))
+	if ((error = iicbus_start(parent, slave & ~LSB)))
 		goto error;
 
-	if ((error = iicbus_repeated_start(parent, slave | LSB, 0)))
+	if ((error = iicbus_write(parent, &cmd, 1, &sent)))
 		goto error;
 
-	if ((error = iicbus_read(parent, byte, 1, &read, IIC_LAST_READ, 0)))
+	if ((error = iicbus_repeated_start(parent, slave | LSB)))
+		goto error;
+
+	if ((error = iicbus_read(parent, byte, 1, &read)))
 		goto error;
 
 error:
-	iicbus_stop(parent);
 	return (error);
 }
 
@@ -397,23 +351,22 @@ iicsmb_readw(device_t dev, u_char slave, char cmd, short *word)
 	int error, sent, read;
 	char buf[2];
 
-	if ((error = iicbus_start(parent, slave & ~LSB, 0)))
-		return (error);
-
-	if ((error = iicbus_write(parent, &cmd, 1, &sent, 0)))
+	if ((error = iicbus_start(parent, slave & ~LSB)))
 		goto error;
 
-	if ((error = iicbus_repeated_start(parent, slave | LSB, 0)))
+	if ((error = iicbus_write(parent, &cmd, 1, &sent)))
 		goto error;
 
-	if ((error = iicbus_read(parent, buf, 2, &read, IIC_LAST_READ, 0)))
+	if ((error = iicbus_repeated_start(parent, slave | LSB)))
+		goto error;
+
+	if ((error = iicbus_read(parent, buf, 2, &read)))
 		goto error;
 
 	/* first, receive low, then high byte */
 	*word = BUF2SHORT(buf[0], buf[1]);
 
 error:
-	iicbus_stop(parent);
 	return (error);
 }
 
@@ -424,30 +377,29 @@ iicsmb_pcall(device_t dev, u_char slave, char cmd, short sdata, short *rdata)
 	int error, sent, read;
 	char buf[2];
 
-	if ((error = iicbus_start(parent, slave & ~LSB, 0)))
-		return (error);
+	if ((error = iicbus_start(parent, slave & ~LSB)))
+		goto error;
 
-	if ((error = iicbus_write(parent, &cmd, 1, &sent, 0)))
+	if ((error = iicbus_write(parent, &cmd, 1, &sent)))
 		goto error;
 
 	/* first, send low, then high byte */
 	buf[0] = (char)(sdata & 0xff);
 	buf[1] = (char)((sdata & 0xff00) >> 8);
 
-	if ((error = iicbus_write(parent, buf, 2, &sent, 0)))
+	if ((error = iicbus_write(parent, buf, 2, &sent)))
 		goto error;
 
-	if ((error = iicbus_repeated_start(parent, slave | LSB, 0)))
+	if ((error = iicbus_repeated_start(parent, slave | LSB)))
 		goto error;
 
-	if ((error = iicbus_read(parent, buf, 2, &read, IIC_LAST_READ, 0)))
+	if ((error = iicbus_read(parent, buf, 2, &read)))
 		goto error;
 
 	/* first, receive low, then high byte */
 	*rdata = BUF2SHORT(buf[0], buf[1]);
 
 error:
-	iicbus_stop(parent);
 	return (error);
 }
 
@@ -457,13 +409,13 @@ iicsmb_bwrite(device_t dev, u_char slave, char cmd, u_char count, char *buf)
 	device_t parent = device_get_parent(dev);
 	int error, sent;
 
-	if ((error = iicbus_start(parent, slave & ~LSB, 0)))
+	if ((error = iicbus_start(parent, slave & ~LSB)))
 		goto error;
 
-	if ((error = iicbus_write(parent, &cmd, 1, &sent, 0)))
+	if ((error = iicbus_write(parent, &cmd, 1, &sent)))
 		goto error;
 
-	if ((error = iicbus_write(parent, buf, (int)count, &sent, 0)))
+	if ((error = iicbus_write(parent, buf, (int)count, &sent)))
 		goto error;
 
 	if ((error = iicbus_stop(parent)))
@@ -479,21 +431,19 @@ iicsmb_bread(device_t dev, u_char slave, char cmd, u_char count, char *buf)
 	device_t parent = device_get_parent(dev);
 	int error, sent, read;
 
-	if ((error = iicbus_start(parent, slave & ~LSB, 0)))
-		return (error);
-
-	if ((error = iicbus_write(parent, &cmd, 1, &sent, 0)))
+	if ((error = iicbus_start(parent, slave & ~LSB)))
 		goto error;
 
-	if ((error = iicbus_repeated_start(parent, slave | LSB, 0)))
+	if ((error = iicbus_write(parent, &cmd, 1, &sent)))
 		goto error;
 
-	if ((error = iicbus_read(parent, buf, (int)count, &read,
-							IIC_LAST_READ, 0)))
+	if ((error = iicbus_repeated_start(parent, slave | LSB)))
+		goto error;
+
+	if ((error = iicbus_read(parent, buf, (int)count, &read)))
 		goto error;
 
 error:
-	iicbus_stop(parent);
 	return (error);
 }
 

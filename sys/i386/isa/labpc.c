@@ -57,9 +57,7 @@
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
 
-#ifdef LOUTB
 #include <machine/clock.h>
-#endif
 
 #include <i386/isa/isa_device.h>
 
@@ -298,7 +296,6 @@ static struct cdevsw labpc_cdevsw =
 	  labpcioctl,	nostop,		nullreset,	nodevtotty,
 	  seltrue,	nommap,		labpcstrategy, "labpc",	NULL,	-1 };
 
-static ointhand2_t labpcintr;
 static void start(struct ctlr *ctlr);
 
 static void
@@ -399,7 +396,7 @@ labpcinit(void)
 	labpcs = malloc(NLABPC * sizeof(struct ctlr *), M_DEVBUF, M_NOWAIT);
 	if (labpcs)
 	{
-		bzero(labpcs, NLABPC * sizeof(struct ctlr *));
+		bzero(labpcs, NLABPC * sizeof(struct cltr *));
 		return 1;
 	}
 	return 0;
@@ -408,7 +405,7 @@ labpcinit(void)
 static int
 labpcprobe(struct isa_device *dev)
 {
-	static int unit;
+	static unit;
 	struct ctlr scratch, *ctlr;
 	u_char status;
 
@@ -476,7 +473,6 @@ labpcattach(struct isa_device *dev)
 {
 	struct ctlr *ctlr = labpcs[dev->id_unit];
 
-	dev->id_ointr = labpcintr;
 	callout_handle_init(&ctlr->ch);
 	ctlr->sample_us = (1000000.0 / (double)LABPC_DEFAULT_HERZ) + .50;
 	reset(ctlr);
@@ -696,7 +692,7 @@ static void ad_intr(struct ctlr *ctlr)
 	}
 }
 
-static void labpcintr(int unit)
+void labpcintr(int unit)
 {
 	struct ctlr *ctlr = labpcs[unit];
 	(*ctlr->intr)(ctlr);
@@ -1098,7 +1094,7 @@ labpcioctl(dev_t dev, u_long cmd, caddr_t arg, int mode, struct proc *p)
 }
 
 
-static int	labpc_devsw_installed = 0;
+static labpc_devsw_installed = 0;
 
 static void 	labpc_drvinit(void *unused)
 {

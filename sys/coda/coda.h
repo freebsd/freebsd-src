@@ -27,10 +27,9 @@
  * Mellon the rights to redistribute these changes without encumbrance.
  * 
  * 	@(#) src/sys/coda/coda.h,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $ 
- *  $Id: coda.h,v 1.5 1998/10/28 19:33:49 rvb Exp $
+ *  $Id: coda.h,v 1.3 1998/09/11 18:50:17 rvb Exp $
  * 
  */
-
 
 /*
  *
@@ -41,51 +40,17 @@
 #ifndef _CODA_HEADER_
 #define _CODA_HEADER_
 
-
-
 /* Catch new _KERNEL defn for NetBSD */
 #ifdef __NetBSD__
 #include <sys/types.h>
 #endif 
 
-#ifndef CODA_MAXSYMLINKS
-#define CODA_MAXSYMLINKS 10
-#endif
-
-#if defined(DJGPP) || defined(__CYGWIN32__)
-#ifdef KERNEL
-typedef unsigned long u_long;
-typedef unsigned int u_int;
-typedef unsigned short u_short;
-typedef u_long ino_t;
-typedef u_long dev_t;
-typedef void * caddr_t;
-#ifdef DOS
-typedef unsigned __int64 u_quad_t;
-#else 
-typedef unsigned long long u_quad_t;
-#endif
-
-#define inline
-
-struct timespec {
-        long       ts_sec;
-        long       ts_nsec;
-};
-#else  /* DJGPP but not KERNEL */
-#include <sys/types.h>
-#include <sys/time.h>
-typedef unsigned long long u_quad_t;
-#endif /* !KERNEL */
-#endif /* !DJGPP */
-
-
-#if defined(__linux__)
+#if defined(__linux__) || defined(__CYGWIN32__)
 #define cdev_t u_quad_t
 #if !defined(_UQUAD_T_) && (!defined(__GLIBC__) || __GLIBC__ < 2)
 #define _UQUAD_T_ 1
 typedef unsigned long long u_quad_t;
-#endif
+#endif 
 #else
 #define cdev_t dev_t
 #endif
@@ -100,7 +65,7 @@ struct timespec {
 
 
 /*
- * Cfs constants
+ * Coda constants
  */
 #define CODA_MAXNAMLEN   255
 #define CODA_MAXPATHLEN  1024
@@ -113,14 +78,12 @@ struct timespec {
 #define	C_O_WRITE       0x002
 #define C_O_TRUNC       0x010
 #define C_O_EXCL	0x100
-#define C_O_CREAT	0x200
 
 /* these are to find mode bits in Venus */ 
 #define C_M_READ  00400
 #define C_M_WRITE 00200
 
 /* for access Venus will use */
-#define C_A_C_OK    8               /* Test for writing upon create.  */
 #define C_A_R_OK    4               /* Test for read permission.  */
 #define C_A_W_OK    2               /* Test for write permission.  */
 #define C_A_X_OK    1               /* Test for execute permission.  */
@@ -145,13 +108,13 @@ struct venus_dirent {
  * File types
  */
 #define	CDT_UNKNOWN	 0
-#define	CDT_FIFO	 1
+#define	CDT_FIFO		 1
 #define	CDT_CHR		 2
 #define	CDT_DIR		 4
 #define	CDT_BLK		 6
 #define	CDT_REG		 8
 #define	CDT_LNK		10
-#define	CDT_SOCK	12
+#define	CDT_SOCK		12
 #define	CDT_WHT		14
 
 /*
@@ -179,40 +142,32 @@ typedef struct ViceFid {
 } ViceFid;
 #endif	/* VICEFID */
 
-
-#ifdef __linux__
-static __inline__ ino_t  coda_f2i(struct ViceFid *fid)
+#ifdef	__linux__
+static inline ino_t coda_f2i(struct ViceFid *fid)
 {
-	if ( ! fid ) 
-		return 0; 
-	if (fid->Vnode == 0xfffffffe || fid->Vnode == 0xffffffff)
-		return ((fid->Volume << 20) | (fid->Unique & 0xfffff));
-	else
-		return (fid->Unique + (fid->Vnode<<10) + (fid->Volume<<20));
+      if ( fid ) {
+              return (fid->Unique + (fid->Vnode << 10) + (fid->Volume << 20));
+      } else { 
+              return 0;
+      }
 }
-	
-#else
-#define coda_f2i(fid)\
-	((fid) ? ((fid)->Unique + ((fid)->Vnode<<10) + ((fid)->Volume<<20)) : 0)
 #endif
-
-
-#ifndef __BIT_TYPES_DEFINED__
-#define u_int32_t unsigned int
-#endif
-
 
 #ifndef _VUID_T_
 #define _VUID_T_
-typedef u_int32_t vuid_t;
-typedef u_int32_t vgid_t;
+typedef u_long vuid_t;
+typedef u_long vgid_t;
 #endif /*_VUID_T_ */
 
 #ifndef _CODACRED_T_
 #define _CODACRED_T_
 struct coda_cred {
     vuid_t cr_uid, cr_euid, cr_suid, cr_fsuid; /* Real, efftve, set, fs uid*/
-    vgid_t cr_groupid,     cr_egid, cr_sgid, cr_fsgid; /* same for groups */
+#if	defined(__NetBSD__) || defined(__FreeBSD__)
+    vgid_t cr_groupid, cr_egid, cr_sgid, cr_fsgid; /* same for groups */
+#else
+    vgid_t cr_gid,     cr_egid, cr_sgid, cr_fsgid; /* same for groups */
+#endif
 };
 #endif 
 
@@ -224,7 +179,7 @@ struct coda_cred {
 enum coda_vtype	{ C_VNON, C_VREG, C_VDIR, C_VBLK, C_VCHR, C_VLNK, C_VSOCK, C_VFIFO, C_VBAD };
 
 struct coda_vattr {
-	int     	va_type;	/* vnode type (for create) */
+	enum coda_vtype	va_type;	/* vnode type (for create) */
 	u_short		va_mode;	/* files access mode and type */
 	short		va_nlink;	/* number of references to file */
 	vuid_t		va_uid;		/* owner user id */
@@ -248,38 +203,36 @@ struct coda_vattr {
  * Kernel <--> Venus communications.
  */
 
-#define CODA_ROOT	2
-#define CODA_SYNC	3
-#define CODA_OPEN	4
-#define CODA_CLOSE	5
-#define CODA_IOCTL	6
-#define CODA_GETATTR	7
-#define CODA_SETATTR	8
-#define CODA_ACCESS	9
-#define CODA_LOOKUP	10
-#define CODA_CREATE	11
-#define CODA_REMOVE	12
-#define CODA_LINK	13
-#define CODA_RENAME	14
-#define CODA_MKDIR	15
-#define CODA_RMDIR	16
-#define CODA_READDIR	17
-#define CODA_SYMLINK	18
-#define CODA_READLINK	19
-#define CODA_FSYNC	20
-#define CODA_INACTIVE	21
-#define CODA_VGET	22
-#define CODA_SIGNAL	23
-#define CODA_REPLACE	24
-#define CODA_FLUSH       25
-#define CODA_PURGEUSER   26
-#define CODA_ZAPFILE     27
-#define CODA_ZAPDIR      28
-#define CODA_PURGEFID    30
-#define CODA_OPEN_BY_PATH 31
-#define CODA_RESOLVE     32
-#define CODA_REINTEGRATE 33
-#define CODA_NCALLS 34
+#define CODA_ROOT	((u_long) 2)
+#define CODA_SYNC	((u_long) 3)
+#define CODA_OPEN	((u_long) 4)
+#define CODA_CLOSE	((u_long) 5)
+#define CODA_IOCTL	((u_long) 6)
+#define CODA_GETATTR	((u_long) 7)
+#define CODA_SETATTR	((u_long) 8)
+#define CODA_ACCESS	((u_long) 9)
+#define CODA_LOOKUP	((u_long) 10)
+#define CODA_CREATE	((u_long) 11)
+#define CODA_REMOVE	((u_long) 12)
+#define CODA_LINK	((u_long) 13)
+#define CODA_RENAME	((u_long) 14)
+#define CODA_MKDIR	((u_long) 15)
+#define CODA_RMDIR	((u_long) 16)
+#define CODA_READDIR	((u_long) 17)
+#define CODA_SYMLINK	((u_long) 18)
+#define CODA_READLINK	((u_long) 19)
+#define CODA_FSYNC	((u_long) 20)
+#define CODA_INACTIVE	((u_long) 21)
+#define CODA_VGET	((u_long) 22)
+#define CODA_SIGNAL	((u_long) 23)
+#define CODA_REPLACE	((u_long) 24)
+#define CODA_FLUSH       ((u_long) 25)
+#define CODA_PURGEUSER   ((u_long) 26)
+#define CODA_ZAPFILE     ((u_long) 27)
+#define CODA_ZAPDIR      ((u_long) 28)
+#define CODA_ZAPVNODE    ((u_long) 29)
+#define CODA_PURGEFID    ((u_long) 30)
+#define CODA_NCALLS 31
 
 #define DOWNCALL(opcode) (opcode >= CODA_REPLACE && opcode <= CODA_PURGEFID)
 
@@ -287,15 +240,7 @@ struct coda_vattr {
 #define VC_MAXMSGSIZE      sizeof(union inputArgs)+sizeof(union outputArgs) +\
                             VC_MAXDATASIZE  
 
-#define CIOC_KERNEL_VERSION _IOWR('c', 10, sizeof (int))
-#if	0
-	/* don't care about kernel version number */
-#define CODA_KERNEL_VERSION 0
-	/* The old venus 4.6 compatible interface */
-#define CODA_KERNEL_VERSION 1
-#endif
-	/* venus_lookup gets an extra parameter to aid windows.*/
-#define CODA_KERNEL_VERSION 2
+
 
 /*
  *        Venus <-> Coda  RPC arguments
@@ -405,17 +350,11 @@ struct coda_access_out {
     struct coda_out_hdr out;
 };
 
-
-/* lookup flags */
-#define CLU_CASE_SENSITIVE     0x01
-#define CLU_CASE_INSENSITIVE   0x02
-
 /* coda_lookup: */
 struct  coda_lookup_in {
     struct coda_in_hdr ih;
     ViceFid	VFid;
     int         name;		/* Place holder for data. */
-    int         flags;	
 };
 
 struct coda_lookup_out {
@@ -641,22 +580,10 @@ struct coda_replace_out { /* coda_replace is a venus->kernel call */
     ViceFid OldFid;
 };
 
-/* coda_open_by_path: */
-struct coda_open_by_path_in {
-    struct coda_in_hdr ih;
-    ViceFid	VFid;
-    int	flags;
-};
-
-struct coda_open_by_path_out {
-    struct coda_out_hdr oh;
-	int path;
-};
-
 /* 
- * Occasionally, we don't cache the fid returned by CODA_LOOKUP. 
- * For instance, if the fid is inconsistent. 
- * This case is handled by setting the top bit of the type result parameter.
+ * Occasionally, don't cache the fid returned by CODA_LOOKUP. For instance, if
+ * the fid is inconsistent. This case is handled by setting the top bit of the
+ * return result parameter.
  */
 #define CODA_NOCACHE          0x80000000
 
@@ -682,7 +609,6 @@ union inputArgs {
     struct coda_inactive_in coda_inactive;
     struct coda_vget_in coda_vget;
     struct coda_rdwr_in coda_rdwr;
-	struct coda_open_by_path_in coda_open_by_path;
 };
 
 union outputArgs {
@@ -704,7 +630,6 @@ union outputArgs {
     struct coda_purgefid_out coda_purgefid;
     struct coda_rdwr_out coda_rdwr;
     struct coda_replace_out coda_replace;
-	struct coda_open_by_path_out coda_open_by_path;
 };    
 
 union coda_downcalls {
@@ -730,20 +655,11 @@ struct ViceIoctl {
         short out_size;         /* Maximum size of output buffer, <= 2K */
 };
 
-#if defined(__CYGWIN32__) || defined(DJGPP)
-struct PioctlData {
-	unsigned long cmd;
-        const char *path;
-        int follow;
-        struct ViceIoctl vi;
-};
-#else
 struct PioctlData {
         const char *path;
         int follow;
         struct ViceIoctl vi;
 };
-#endif
 
 #define	CODA_CONTROL		".CONTROL"
 #define CODA_CONTROLLEN           8

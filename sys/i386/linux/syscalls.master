@@ -1,4 +1,4 @@
-	$Id: syscalls.master,v 1.15 1998/12/22 08:59:19 sos Exp $
+	$Id: syscalls.master,v 1.11 1998/06/09 03:28:14 bde Exp $
 
 ;	@(#)syscalls.master	8.1 (Berkeley) 7/19/93
 ; System call name/number master file (or rather, slave, from LINUX).
@@ -119,10 +119,8 @@
 			    struct timezone *tzp); }
 79	NOPROTO	LINUX	{ int settimeofday(struct timeval *tp, \
 			    struct timezone *tzp); }
-80	STD	LINUX	{ int linux_getgroups(u_int gidsetsize, \
-			    linux_gid_t *gidset); }
-81	STD	LINUX	{ int linux_setgroups(u_int gidsetsize, \
-			    linux_gid_t *gidset); }
+80	NOPROTO	LINUX	{ int getgroups(u_int gidsetsize, gid_t *gidset); }
+81	NOPROTO	LINUX	{ int setgroups(u_int gidsetsize, gid_t *gidset); }
 82	STD	LINUX	{ int linux_select(struct linux_select_argv *ptr); }
 83	STD	LINUX	{ int linux_symlink(char *path, char *to); }
 84	NOPROTO	LINUX	{ int ostat(char *path, struct ostat *up); }
@@ -173,7 +171,7 @@
 			    caddr_t ptr); }
 118	NOPROTO	LINUX	{ int fsync(int fd); }
 119	STD	LINUX	{ int linux_sigreturn(struct linux_sigcontext *scp); }
-120	STD	LINUX	{ int linux_clone(int flags, void *stack); }
+120	STD	LINUX	{ int linux_clone(void); }
 121	NOPROTO	LINUX	{ int setdomainname(char *name, \
 			    int len); }
 122	STD	LINUX	{ int linux_newuname(struct linux_newuname_t *buf); }
@@ -241,8 +239,7 @@
 165	UNIMPL	LINUX	getresuid
 166	UNIMPL	LINUX	new_vm86
 167	UNIMPL	LINUX	query_module
-168	NOPROTO	LINUX	{ int poll(struct pollfd*, unsigned int nfds, \
-				   long timeout); }
+168	UNIMPL	LINUX	poll
 169	UNIMPL	LINUX	nfsservctl
 170	UNIMPL	LINUX	setresgid
 171	UNIMPL	LINUX	getresgid

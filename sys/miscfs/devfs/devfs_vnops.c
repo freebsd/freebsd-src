@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	$Id: devfs_vnops.c,v 1.64 1998/12/15 23:46:59 eivind Exp $
+ *	$Id: devfs_vnops.c,v 1.60 1998/09/04 08:06:56 dfr Exp $
  */
 
 
@@ -639,6 +639,9 @@ devfs_xwrite(struct vop_write_args *ap)
                 struct ucred *a_cred;
         } */
 {
+	dn_p	file_node;
+	int	error;
+
 	switch (ap->a_vp->v_type) {
 	case VREG:
 		return(EINVAL);
@@ -1285,6 +1288,16 @@ devfs_print(struct vop_print_args *ap)
 * pseudo ops *
 \**************************************************************************/
 
+/*
+ * /devfs vnode unsupported operation
+ */
+static int
+devfs_enotsupp(void *junk)
+{
+
+	return (EOPNOTSUPP);
+}
+
 /*proto*/
 void
 devfs_dropvnode(dn_p dnp)
@@ -1324,7 +1337,8 @@ static int
 devfs_open( struct vop_open_args *ap)
 {
 	struct proc *p = ap->a_p;
-	struct vnode *vp = ap->a_vp;
+	struct vnode *bvp, *vp = ap->a_vp;
+	dev_t bdev, dev = (dev_t)vp->v_rdev;
 	int error;
 	dn_p	dnp;
 
@@ -1373,7 +1387,7 @@ devfs_read( struct vop_read_args *ap)
 	daddr_t bn, nextbn;
 	long bsize, bscale;
 	struct partinfo dpart;
-	int n, on;
+	int n, on, majordev;
 	d_ioctl_t *ioctl;
 	int error = 0;
 	dev_t dev;
@@ -1519,11 +1533,11 @@ devfs_write( struct vop_write_args *ap)
 				bp = getblk(vp, bn, bsize, 0, 0);
 			else
 				error = bread(vp, bn, bsize, NOCRED, &bp);
+			n = min(n, bsize - bp->b_resid);
 			if (error) {
 				brelse(bp);
 				return (error);
 			}
-			n = min(n, bsize - bp->b_resid);
 			error = uiomove((char *)bp->b_data + on, n, uio);
 			if (n + on == bsize)
 				bawrite(bp);
@@ -1641,8 +1655,8 @@ devfs_fsync(struct vop_fsync_args *ap)
 	 */
 loop:
 	s = splbio();
-	for (bp = TAILQ_FIRST(&vp->v_dirtyblkhd); bp; bp = nbp) {
-		nbp = TAILQ_NEXT(bp, b_vnbufs);
+	for (bp = vp->v_dirtyblkhd.lh_first; bp; bp = nbp) {
+		nbp = bp->b_vnbufs.le_next;
 		if ((bp->b_flags & B_BUSY))
 			continue;
 		if ((bp->b_flags & B_DELWRI) == 0)
@@ -1664,7 +1678,7 @@ loop:
 			(void) tsleep((caddr_t)&vp->v_numoutput, PRIBIO + 1, "spfsyn", 0);
 		}
 #ifdef DIAGNOSTIC
-		if (!TAILQ_EMPTY(&vp->v_dirtyblkhd)) {
+		if (vp->v_dirtyblkhd.lh_first) {
 			vprint("devfs_fsync: dirty", vp);
 			splx(s);
 			goto loop;
@@ -1763,8 +1777,11 @@ static int
 devfs_close(struct vop_close_args *ap)
 {
 	register struct vnode *vp = ap->a_vp;
-	int error;
-	dn_p dnp;
+	struct proc *p = ap->a_p;
+	dev_t dev = vp->v_rdev;
+	d_close_t *devclose;
+	int mode, error;
+	dn_p	dnp;
 
 	if (error = devfs_vntodn(vp,&dnp))
 		return error;

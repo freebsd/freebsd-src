@@ -53,19 +53,16 @@ function
 a process by creating a bidirectional pipe
 forking,
 and invoking the shell.
-Any streams opened by previous
-.Fn popen
-calls in the parent process are closed in the new child process.
 Historically,
-.Fn popen
+.Nm popen
 was implemented with a unidirectional pipe;
 hence many implementations of
-.Fn popen
+.Nm popen
 only allow the
 .Fa type
 argument to specify reading or writing, not both.
 Since
-.Fn popen
+.Nm popen
 is now implemented using a bidirectional pipe, the
 .Fa type
 argument may request a bidirectional data flow.

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.110 1998/12/08 10:22:07 bde Exp $
+ * $Id: tty.c,v 1.105 1998/07/11 10:41:15 bde Exp $
  */
 
 /*-
@@ -58,8 +58,8 @@
  *	  than TTYDISC.  Cancel their effects before switch disciplines
  *	  and ignore them if they are set while we are in another
  *	  discipline.
- *	o Now that historical speed conversions are handled here, don't
- *	  do them in drivers.
+ *	o Handle c_ispeed = 0 to c_ispeed = c_ospeed conversion here instead
+ *	  of in drivers and fix drivers that write to tp->t_termios.
  *	o Check for TS_CARR_ON being set while everything is closed and not
  *	  waiting for carrier.  TS_CARR_ON isn't cleared if nothing is open,
  *	  so it would live until the next open even if carrier drops.
@@ -90,7 +90,6 @@
 #include <sys/signalvar.h>
 #include <sys/resourcevar.h>
 #include <sys/malloc.h>
-#include <sys/filedesc.h>
 #if NSNP > 0
 #include <sys/snoop.h>
 #endif
@@ -231,7 +230,6 @@ ttyclose(tp)
 {
 	int s;
 
-	funsetown(tp->t_sigio);
 	s = spltty();
 	if (constty == tp)
 		constty = NULL;
@@ -706,27 +704,16 @@ ttioctl(tp, cmd, data, flag)
 
 	/* If the ioctl involves modification, hang if in the background. */
 	switch (cmd) {
-	case  TIOCCBRK:
-	case  TIOCCONS:
-	case  TIOCDRAIN:
-	case  TIOCEXCL:
 	case  TIOCFLUSH:
-#ifdef TIOCHPCL
-	case  TIOCHPCL:
-#endif
-	case  TIOCNXCL:
-	case  TIOCSBRK:
-	case  TIOCSCTTY:
-	case  TIOCSDRAINWAIT:
 	case  TIOCSETA:
+	case  TIOCSETD:
 	case  TIOCSETAF:
 	case  TIOCSETAW:
-	case  TIOCSETD:
+#ifdef notdef
 	case  TIOCSPGRP:
-	case  TIOCSTART:
+#endif
 	case  TIOCSTAT:
 	case  TIOCSTI:
-	case  TIOCSTOP:
 	case  TIOCSWINSZ:
 #if defined(COMPAT_43) || defined(COMPAT_SUNOS)
 	case  TIOCLBIC:
@@ -769,25 +756,6 @@ ttioctl(tp, cmd, data, flag)
 		*(int *)data = ttnread(tp);
 		splx(s);
 		break;
-
-	case FIOSETOWN:
-		/*
-		 * Policy -- Don't allow FIOSETOWN on someone else's 
-		 *           controlling tty
-		 */
-		if (tp->t_session != NULL && !isctty(p, tp))
-			return (ENOTTY);
-
-		error = fsetown(*(int *)data, &tp->t_sigio);
-		if (error)
-			return (error);
-		break;
-	case FIOGETOWN:
-		if (tp->t_session != NULL && !isctty(p, tp))
-			return (ENOTTY);
-		*(int *)data = fgetown(tp->t_sigio);
-		break;
-
 	case TIOCEXCL:			/* set exclusive use of tty */
 		s = spltty();
 		SET(tp->t_state, TS_XCLUDE);
@@ -858,11 +826,7 @@ ttioctl(tp, cmd, data, flag)
 	case TIOCSETAF: {		/* drn out, fls in, set */
 		register struct termios *t = (struct termios *)data;
 
-		if (t->c_ispeed == 0)
-			t->c_ispeed = t->c_ospeed;
-		if (t->c_ispeed == 0)
-			t->c_ispeed = tp->t_ospeed;
-		if (t->c_ispeed == 0)
+		if (t->c_ispeed < 0 || t->c_ospeed < 0)
 			return (EINVAL);
 		s = spltty();
 		if (cmd == TIOCSETAW || cmd == TIOCSETAF) {
@@ -904,8 +868,7 @@ ttioctl(tp, cmd, data, flag)
 				CLR(tp->t_state, TS_CONNECTED);
 			tp->t_cflag = t->c_cflag;
 			tp->t_ispeed = t->c_ispeed;
-			if (t->c_ospeed != 0)
-				tp->t_ospeed = t->c_ospeed;
+			tp->t_ospeed = t->c_ospeed;
 			ttsetwater(tp);
 		}
 		if (ISSET(t->c_lflag, ICANON) != ISSET(tp->t_lflag, ICANON) &&
@@ -1310,8 +1273,10 @@ ttrstrt(tp_arg)
 	struct tty *tp;
 	int s;
 
-	KASSERT(tp_arg != NULL, ("ttrstrt"));
-
+#ifdef DIAGNOSTIC
+	if (tp_arg == NULL)
+		panic("ttrstrt");
+#endif
 	tp = tp_arg;
 	s = spltty();
 
@@ -1449,7 +1414,6 @@ ttread(tp, uio, flag)
 	int s, first, error = 0;
 	int has_stime = 0, last_cc = 0;
 	long slp = 0;		/* XXX this should be renamed `timo'. */
-	struct timeval stime;
 
 loop:
 	s = spltty();
@@ -1506,7 +1470,7 @@ loop:
 	if (!ISSET(lflag, ICANON)) {
 		int m = cc[VMIN];
 		long t = cc[VTIME];
-		struct timeval timecopy;
+		struct timeval stime, timecopy;
 
 		/*
 		 * Check each of the four combinations.
@@ -2118,8 +2082,8 @@ ttwakeup(tp)
 
 	if (tp->t_rsel.si_pid != 0)
 		selwakeup(&tp->t_rsel);
-	if (ISSET(tp->t_state, TS_ASYNC) && tp->t_sigio != NULL)
-		pgsigio(tp->t_sigio, SIGIO, (tp->t_session != NULL));
+	if (ISSET(tp->t_state, TS_ASYNC))
+		pgsignal(tp->t_pgrp, SIGIO, 1);
 	wakeup(TSA_HUP_OR_INPUT(tp));
 }
 

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: support.s,v 1.2 1998/12/20 13:21:55 dfr Exp $
+ *	$Id$
  */
 /*
  * Copyright (c) 1994, 1995, 1996 Carnegie-Mellon University.
@@ -64,7 +64,6 @@
  */
 	
 	LEAF(suword, 1)
-	LDGP(pv)
 
 	ldiq	t0, VM_MAXUSER_ADDRESS /* verify address validity */
 	cmpult	a0, t0, t1
@@ -84,7 +83,6 @@
 	END(suword)
 	
 	LEAF(subyte, 1)
-	LDGP(pv)
 
 	ldiq	t0, VM_MAXUSER_ADDRESS /* verify address validity */
 	cmpult	a0, t0, t1
@@ -109,7 +107,6 @@
 	END(subyte)
 
 	LEAF(fuword, 1)
-	LDGP(pv)
 
 	ldiq	t0, VM_MAXUSER_ADDRESS /* verify address validity */
 	cmpult	a0, t0, t1
@@ -128,7 +125,6 @@
 	END(fuword)
 
 	LEAF(fubyte, 1)
-	LDGP(pv)
 
 	ldiq	t0, VM_MAXUSER_ADDRESS /* verify address validity */
 	cmpult	a0, t0, t1
@@ -144,6 +140,7 @@
 
 	stq	zero, U_PCB_ONFAULT(t2)	/* clean up */
 
+	mov	zero, v0
 	RET
 	END(fubyte)
 	

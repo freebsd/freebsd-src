@@ -38,7 +38,7 @@ CARDS:
   The driver supports most clones of WSS, SB16 and SBPro cards.
   This includes those based on the Crystal CS423x, OPTI931, GUSPnP,
   Yamaha, SB16/32 (both plain ISA, PnP, and the various AWExx).
-  Many PnP cards are directly recognized, for others you might need
+  Many PnP cards are directly recognised, for others you might need
   manual configuration. See the file "CARDS" for more details.
 
 APPLICATIONS:
@@ -69,7 +69,7 @@ APPLICATIONS:
 
       controller pnp0  # this is required for PnP support
 
-      device	 pcm0 at isa ? port? tty irq N drq D flags F
+      device	 pcm0 at isa ? port? tty irq N drq D flags F vector pcmintr
 
     where
 
@@ -83,7 +83,7 @@ APPLICATIONS:
 		    since this is unsupported at the moment...).
 
     The code will probe for common port addresses (0x220, 0x240
-    for SB and clones, 0x530 for WSS and clones), so you don't need
+    for SB and clonse, 0x530 for WSS and clones), so you don't need
     to specify them if your system uses one of them. In case you
     do, note that for WSS cards the code assumes that the board
     occupies 8 IO addresses, the first four used to configure
@@ -95,13 +95,13 @@ APPLICATIONS:
     You can use multiple sound cards, in which case you need more
     lines like
 
-      device	 pcm1 at isa ? port? tty irq N drq D flags F
-      device	 pcm2 at isa ? port? tty irq N drq D flags F
+      device	 pcm1 at isa ? port? tty irq N drq D flags F vector pcmintr
+      device	 pcm2 at isa ? port? tty irq N drq D flags F vector pcmintr
       ...
 
     EXAMPLES: a typical "device" line for the SB16 (full duplex) is
 
-      device pcm0 at isa ? port? tty irq 5 drq 1 flags 0x15
+      device pcm0 at isa ? port? tty irq 5 drq 1 flags 0x15 vector pcmintr
 
     The driver will check at the default addresses (or the one you
     specify) which type of SoundBlaster you have (1.5, 2.0, 3.X
@@ -113,7 +113,7 @@ APPLICATIONS:
     For a WSS-compatible codec (non PnP) working in full duplex using
     dma channels 1 and 3, you can specify:
 
-      device pcm0 at isa ? port 0x530 tty irq 7 drq 1 flags 0x13
+      device pcm0 at isa ? port 0x530 tty irq 7 drq 1 flags 0x13 vector pcmintr
 
     (0x530 is a default if no port address is specified).  The
     "flags 0x13" specifies that you have a dual dma board with
@@ -130,9 +130,10 @@ APPLICATIONS:
 
     For PnP cards, only the line for "pcm0" is needed (the code
     will allocate entries for more cards if found), but IT MUST
-    INCLUDE ALL FIELDS. You can use the following line:
+    INCLUDE ALL FIELDS, including "vector pcmintr". You can use
+    the following line:
 
-      device pcm0 at isa ? port? tty irq 7 drq 1
+      device pcm0 at isa ? port? tty irq 7 drq 1 vector pcmintr
 
     NOTE that:
       - the parameters for the PnP device(s) will be read from the
@@ -199,7 +200,7 @@ Common mistakes:
   expect. The mixer code still does not try to exploit the features of
   each card, and it just provides basic functionalities.
 
---- ACKNOWLEDGMENTS ---
+--- ACKNWOLEDGEMENTS ---
 
 Several people helped, directly or indirectly, in the development of
 this driver. In particular I would like to thank:
@@ -213,12 +214,12 @@ this driver. In particular I would like to thank:
     * Eric J. Schwertfeger for donating an ES1868 card for writing the
       driver (which i haven't done yet...).
     * and many people who had the patience to try the driver
-      on their cards and report success/failure and useful
+      on their cards and report success/fauilure and useful
       information.
 
 It was certainly helpful to have the data sheets for some of the
 devices I support available on the net, especially in the (unfortunately
-rare) cases where the data sheets matched the actual behavior of
+rare) cases where the data sheets matched the actual behaviour of
 the product. Too bad that no one of the chip/card manufacturers I
 have contacted by email regarding missing or inconsistent documentation
 on their products did even care to reply to my messages.

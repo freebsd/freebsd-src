@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cons.c	7.2 (Berkeley) 5/9/91
- *	$Id: cons.c,v 1.59 1998/08/23 08:26:40 bde Exp $
+ *	$Id: cons.c,v 1.58 1998/06/07 17:09:58 dfr Exp $
  */
 
 #include "opt_devfs.h"
@@ -57,6 +57,23 @@
 #include <machine/cpu.h>
 #include <machine/cons.h>
 
+/* XXX this should be config(8)ed. */
+#include "sc.h"
+#include "vt.h"
+#include "sio.h"
+static struct consdev constab[] = {
+#if NSC > 0
+	{ sccnprobe,	sccninit,	sccngetc,	sccncheckc,	sccnputc },
+#endif
+#if NVT > 0
+	{ pccnprobe,	pccninit,	pccngetc,	pccncheckc,	pccnputc },
+#endif
+#if NSIO > 0
+	{ siocnprobe,	siocninit,	siocngetc,	siocncheckc,	siocnputc },
+#endif
+	{ 0 },
+};
+
 static	d_open_t	cnopen;
 static	d_close_t	cnclose;
 static	d_read_t	cnread;
@@ -74,7 +91,7 @@ static	struct cdevsw	cn_cdevsw = {
 };
 
 static dev_t	cn_dev_t; 	/* seems to be never really used */
-SYSCTL_OPAQUE(_machdep, CPU_CONSDEV, consdev, CTLFLAG_RD,
+SYSCTL_OPAQUE(_machdep, CPU_CONSDEV, consdev, CTLTYPE_OPAQUE|CTLFLAG_RD,
 	&cn_dev_t, sizeof cn_dev_t, "T,dev_t", "");
 
 static int cn_mute;
@@ -95,22 +112,16 @@ static struct tty *cn_tp;		/* physical console tty struct */
 static void *cn_devfs_token;		/* represents the devfs entry */
 #endif /* DEVFS */
 
-CONS_DRIVER(cons, NULL, NULL, NULL, NULL, NULL);
-
 void
 cninit()
 {
 	struct consdev *best_cp, *cp;
-	struct consdev **list;
 
 	/*
 	 * Find the first console with the highest priority.
 	 */
 	best_cp = NULL;
-	list = (struct consdev **)cons_set.ls_items;
-	while ((cp = *list++) != NULL) {
-		if (cp->cn_probe == NULL)
-			continue;
+	for (cp = constab; cp->cn_probe; cp++) {
 		(*cp->cn_probe)(cp);
 		if (cp->cn_pri > CN_DEAD &&
 		    (best_cp == NULL || cp->cn_pri > best_cp->cn_pri))

@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)from: inetd.c	8.4 (Berkeley) 4/13/94";
 #endif
 static const char rcsid[] =
-	"$Id: inetd.c,v 1.45 1999/01/02 16:04:19 des Exp $";
+	"$Id: inetd.c,v 1.39 1998/08/17 06:16:59 jb Exp $";
 #endif /* not lint */
 
 /*
@@ -172,7 +172,6 @@ int	maxcpm = MAXCHILD;
 struct	servent *sp;
 struct	rpcent *rpc;
 struct	in_addr bind_address;
-int	signalpipe[2];
 
 struct	servtab {
 	char	*se_service;		/* name of service */
@@ -218,9 +217,7 @@ struct	servtab {
 void		chargen_dg __P((int, struct servtab *));
 void		chargen_stream __P((int, struct servtab *));
 void		close_sep __P((struct servtab *));
-void		flag_signal __P((char));
-void		flag_config __P((int));
-void		config __P((void));
+void		config __P((int));
 void		daytime_dg __P((int, struct servtab *));
 void		daytime_stream __P((int, struct servtab *));
 void		discard_dg __P((int, struct servtab *));
@@ -231,19 +228,16 @@ void		endconfig __P((void));
 struct servtab *enter __P((struct servtab *));
 void		freeconfig __P((struct servtab *));
 struct servtab *getconfigent __P((void));
-void		ident_stream __P((int, struct servtab *));
 void		machtime_dg __P((int, struct servtab *));
 void		machtime_stream __P((int, struct servtab *));
 char	       *newstr __P((char *));
 char	       *nextline __P((FILE *));
 void		print_service __P((char *, struct servtab *));
 void		addchild __P((struct servtab *, int));
-void		flag_reapchild __P((int));
-void		reapchild __P((void));
+void		reapchild __P((int));
 void		enable __P((struct servtab *));
 void		disable __P((struct servtab *));
-void		flag_retry __P((int));
-void		retry __P((void));
+void		retry __P((int));
 int		setconfig __P((void));
 void		setup __P((struct servtab *));
 char	       *sskip __P((char **));
@@ -268,7 +262,7 @@ struct biltin {
 	{ "discard",	SOCK_STREAM,	1, 0,	discard_stream },
 	{ "discard",	SOCK_DGRAM,	0, 0,	discard_dg },
 
-	/* Return 32 bit time since 1900 */
+	/* Return 32 bit time since 1970 */
 	{ "time",	SOCK_STREAM,	0, 0,	machtime_stream },
 	{ "time",	SOCK_DGRAM,	0, 0,	machtime_dg },
 
@@ -281,8 +275,6 @@ struct biltin {
 	{ "chargen",	SOCK_DGRAM,	0, 0,	chargen_dg },
 
 	{ "tcpmux",	SOCK_STREAM,	1, 0,	(void (*)())tcpmux },
-
-	{ "ident",	SOCK_STREAM,	1, 0,	ident_stream },
 
 	{ NULL }
 };
@@ -416,12 +408,12 @@ main(argc, argv, envp)
 	sigaddset(&sa.sa_mask, SIGALRM);
 	sigaddset(&sa.sa_mask, SIGCHLD);
 	sigaddset(&sa.sa_mask, SIGHUP);
-	sa.sa_handler = flag_retry;
+	sa.sa_handler = retry;
 	sigaction(SIGALRM, &sa, (struct sigaction *)0);
-	config();
-	sa.sa_handler = flag_config;
+	config(SIGHUP);
+	sa.sa_handler = config;
 	sigaction(SIGHUP, &sa, (struct sigaction *)0);
-	sa.sa_handler = flag_reapchild;
+	sa.sa_handler = reapchild;
 	sigaction(SIGCHLD, &sa, (struct sigaction *)0);
 	sa.sa_handler = SIG_IGN;
 	sigaction(SIGPIPE, &sa, &sapipe);
@@ -435,13 +427,6 @@ main(argc, argv, envp)
 		dummy[DUMMYSIZE - 1] = '\0';
 		(void)setenv("inetd_dummy", dummy, 1);
 	}
-
-	if (pipe(signalpipe) != 0) {
-		syslog(LOG_ERR, "pipe: %%m");
-		exit(EX_OSERR);
-	}
-	FD_SET(signalpipe[0], &allsock);
-	if (signalpipe[0]>maxsock) maxsock = signalpipe[0];
 
 	for (;;) {
 	    int n, ctrl;
@@ -461,34 +446,6 @@ main(argc, argv, envp)
 			sleep(1);
 		    }
 		    continue;
-	    }
-	    /* handle any queued signal flags */
-	    if (FD_ISSET(signalpipe[0], &readable)) {
-		int n;
-		if (ioctl(signalpipe[0], FIONREAD, &n) != 0) {
-		    syslog(LOG_ERR, "ioctl: %m");
-		    exit(EX_OSERR);
-		}
-		while (--n >= 0) {
-		    char c;
-		    if (read(signalpipe[0], &c, 1) != 1) {
-			syslog(LOG_ERR, "read: %m");
-			exit(EX_OSERR);
-		    }
-		    if (debug)
-			warnx("Handling signal flag %c", c);
-		    switch(c) {
-		    case 'A': /* sigalrm */
-			retry();
-			break;
-		    case 'C': /* sigchld */
-			reapchild();
-			break;
-		    case 'H': /* sighup */
-			config();
-			break;
-		    }
-		}
 	    }
 	    for (sep = servtab; n && sep; sep = sep->se_next)
 	        if (sep->se_fd != -1 && FD_ISSET(sep->se_fd, &readable)) {
@@ -691,19 +648,6 @@ main(argc, argv, envp)
 }
 
 /*
- * Add a signal flag to the signal flag queue for later handling
- */
-
-void flag_signal(c)
-    char c;
-{
-	if (write(signalpipe[1], &c, 1) != 1) {
-		syslog(LOG_ERR, "write: %m");
-		exit(EX_OSERR);
-	}
-}
-
-/*
  * Record a new child pid for this service. If we've reached the
  * limit on children, then stop accepting incoming requests.
  */
@@ -730,14 +674,8 @@ addchild(struct servtab *sep, pid_t pid)
  */
 
 void
-flag_reapchild(signo)
+reapchild(signo)
 	int signo;
-{
-	flag_signal('C');
-}
-
-void
-reapchild()
 {
 	int k, status;
 	pid_t pid;
@@ -768,13 +706,8 @@ reapchild()
 }
 
 void
-flag_config(signo)
+config(signo)
 	int signo;
-{
-	flag_signal('H');
-}
-
-void config()
 {
 	struct servtab *sep, *new, **sepp;
 	long omask;
@@ -952,14 +885,8 @@ unregisterrpc(sep)
 }
 
 void
-flag_retry(signo)
+retry(signo)
 	int signo;
-{
-	flag_signal('A');
-}
-
-void
-retry()
 {
 	struct servtab *sep;
 
@@ -1523,33 +1450,6 @@ inetd_setproctitle(a, s)
  */
 #define	BUFSIZE	8192
 
-#define IDENT_RESPONSE ":ERROR:HIDDEN-USER\r\n"
-
-/* ARGSUSED */
-void
-ident_stream(s, sep)		/* Ident service */
-	int s;
-	struct servtab *sep;
-{
-	char buffer[BUFSIZE];
-	int i, j;
-
-	inetd_setproctitle(sep->se_service, s);
-	j = 0;
-	while ((i = read(s, buffer + j, sizeof(buffer) - j)) > 0) {
-		j += i;
-		buffer[j] = '\0';
-		if (strchr(buffer, '\n'))
-			break;
-		if (strchr(buffer, '\r'))
-			break;
-	}
-	while (j > 0 && (buffer[j-1] == '\n' || buffer[j-1] == '\r'))
-		j--;
-	write(s, buffer, j);
-	write(s, IDENT_RESPONSE, strlen(IDENT_RESPONSE));
-	exit(0);
-}
 /* ARGSUSED */
 void
 echo_stream(s, sep)		/* Echo service -- echo data back */
@@ -1736,7 +1636,7 @@ chargen_dg(s, sep)		/* Character generator */
  * some seventy years Bell Labs was asleep.
  */
 
-unsigned long
+long
 machtime()
 {
 	struct timeval tv;
@@ -1757,7 +1657,7 @@ machtime_stream(s, sep)
 	int s;
 	struct servtab *sep;
 {
-	unsigned long result;
+	long result;
 
 	result = machtime();
 	(void) write(s, (char *) &result, sizeof(result));
@@ -1769,7 +1669,7 @@ machtime_dg(s, sep)
 	int s;
 	struct servtab *sep;
 {
-	unsigned long result;
+	long result;
 	struct sockaddr_in sin;
 	int size;
 

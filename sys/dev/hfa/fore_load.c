@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: fore_load.c,v 1.4 1998/12/04 22:54:45 archie Exp $
+ *	@(#) $Id: fore_load.c,v 1.1 1998/09/15 08:22:55 phk Exp $
  *
  */
 
@@ -35,26 +35,26 @@
  *
  */
 
-#include <dev/hfa/fore_include.h>
-
 #ifndef lint
-__RCSID("@(#) $Id: fore_load.c,v 1.4 1998/12/04 22:54:45 archie Exp $");
+static char *RCSid = "@(#) $Id: fore_load.c,v 1.1 1998/09/15 08:22:55 phk Exp $";
 #endif
+
+#include <dev/hfa/fore_include.h>
 
 
 /*
  * Local functions
  */
 static int	fore_start __P((void));
-#ifdef sun
 static int	fore_stop __P((void));
 static int	fore_doload __P((void));
 static int	fore_dounload __P((void));
+#ifdef sun
 static int	fore_identify __P((char *));
 static int	fore_attach __P((struct devinfo *));
 #endif
 #ifdef __FreeBSD__
-static const char *	fore_pci_probe __P((pcici_t, pcidi_t));
+static char *	fore_pci_probe __P((pcici_t, pcidi_t));
 static void	fore_pci_attach __P((pcici_t, int));
 #if BSD < 199506
 static int	fore_pci_shutdown __P((struct kern_devconf *, int));
@@ -156,8 +156,6 @@ fore_start()
 }
 
 
-#ifdef sun
-
 /*
  * Halt driver processing 
  * 
@@ -242,6 +240,8 @@ fore_stop()
 	return (0);
 }
 
+
+#ifdef sun
 /*
  * Device identify routine
  * 
@@ -726,12 +726,10 @@ fore_attach(devinfo_p)
 		val = getprop ( devinfo_p->devi_nodeid, "hw-version", -1 );
 	}
 	if (val != -1) {
-		snprintf(fcp->ac_hard_vers,
-		    sizeof(fcp->ac_hard_vers), "%d.%d.%d",
+		sprintf(fcp->ac_hard_vers, "%d.%d.%d",
 			(val >> 16) & 0xff, (val >> 8) & 0xff, val & 0xff);
 	} else
-		snprintf(fcp->ac_hard_vers,
-		    sizeof(fcp->ac_hard_vers), "Unknown");
+		sprintf(fcp->ac_hard_vers, "Unknown");
 
 	val = getprop ( devinfo_p->devi_nodeid, "serialnumber", -1 );
 	if ( val != -1 )
@@ -844,7 +842,7 @@ fore_attach(devinfo_p)
  *	NULL	device not claimed by this driver
  *
  */
-static const char *
+static char *
 fore_pci_probe(config_id, device_id)
 	pcici_t	config_id;
 	pcidi_t	device_id;
@@ -1145,8 +1143,8 @@ fore_unattach(fup)
 	struct dev_info		*devinfo_p = fup->fu_devinfo;
 	struct dev_reg		*dev_reg_p;
 	struct dev_intr		*dev_intr_p;
-	int			i;
 #endif
+	int			i;
 
 
 	/*
@@ -1361,7 +1359,6 @@ fore_reset(fup)
  *******************************************************************
  */
 
-#ifdef sun
 /*
  * Generic module load processing
  * 
@@ -1421,6 +1418,7 @@ fore_dounload()
 }
 
 
+#ifdef sun
 /*
  * Loadable driver description
  */

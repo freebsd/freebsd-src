@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pager.c,v 1.39 1998/10/31 15:31:29 peter Exp $
+ * $Id: vm_pager.c,v 1.37 1998/03/16 01:56:01 dyson Exp $
  */
 
 /*
@@ -71,7 +71,6 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
 #include <sys/buf.h>
 #include <sys/ucred.h>
 #include <sys/malloc.h>
@@ -214,7 +213,7 @@ vm_pager_bufferinit()
 	for (i = 0; i < nswbuf; i++, bp++) {
 		TAILQ_INSERT_HEAD(&bswlist, bp, b_freelist);
 		bp->b_rcred = bp->b_wcred = NOCRED;
-		bp->b_xflags = 0;
+		bp->b_vnbufs.le_next = NOLIST;
 	}
 
 	swapbkva = kmem_alloc_pageable(pager_map, nswbuf * MAXPHYS);
@@ -337,7 +336,7 @@ initpbuf(struct buf *bp) {
 	bp->b_data = (caddr_t) (MAXPHYS * (bp - swbuf)) + swapbkva;
 	bp->b_kvabase = bp->b_data;
 	bp->b_kvasize = MAXPHYS;
-	bp->b_xflags = 0;
+	bp->b_vnbufs.le_next = NOLIST;
 }
 
 /*

@@ -11,7 +11,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)savemail.c	8.139 (Berkeley) 8/5/1998";
+static char sccsid[] = "@(#)savemail.c	8.138 (Berkeley) 6/17/98";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -91,7 +91,8 @@ savemail(e, sendbody)
 			      RF_COPYPARSE|RF_SENDERADDR, '\0', NULL, e) == NULL)
 		{
 			syserr("553 Cannot parse Postmaster!");
-			finis(TRUE, EX_SOFTWARE);
+			ExitStat = EX_SOFTWARE;
+			finis();
 		}
 	}
 	e->e_to = NULL;
@@ -550,7 +551,7 @@ returntosender(msg, returnq, flags, e)
 		addheader("MIME-Version", "1.0", &ee->e_header);
 
 		(void) snprintf(buf, sizeof buf, "%s.%ld/%.100s",
-			ee->e_id, (long)curtime(), MyHostName);
+			ee->e_id, curtime(), MyHostName);
 		ee->e_msgboundary = newstr(buf);
 		(void) snprintf(buf, sizeof buf,
 #if DSN
@@ -587,14 +588,14 @@ returntosender(msg, returnq, flags, e)
 	else if (bitset(RTSF_PM_BOUNCE, flags))
 	{
 		snprintf(buf, sizeof buf, "Postmaster notify: %.*s",
-			(int)sizeof buf - 20, msg);
+			sizeof buf - 20, msg);
 		addheader("Subject", buf, &ee->e_header);
 		p = "postmaster-notification";
 	}
 	else
 	{
 		snprintf(buf, sizeof buf, "Returned mail: %.*s",
-			(int)sizeof buf - 20, msg);
+			sizeof buf - 20, msg);
 		addheader("Subject", buf, &ee->e_header);
 		p = "failure";
 	}

@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_fxp.c,v 1.58 1998/10/22 02:00:49 dg Exp $
+ *	$Id: if_fxp.c,v 1.56 1998/10/10 19:26:40 dg Exp $
  */
 
 /*
@@ -485,7 +485,7 @@ fxp_ether_ioctl(ifp, cmd, data)
 #else /* __FreeBSD__ */
 
 static u_long fxp_count;
-static const char *fxp_probe		__P((pcici_t, pcidi_t));
+static char *fxp_probe		__P((pcici_t, pcidi_t));
 static void fxp_attach		__P((pcici_t, int));
 
 static void fxp_shutdown	__P((int, void *));
@@ -502,7 +502,7 @@ DATA_SET(pcidevice_set, fxp_device);
 /*
  * Return identification string if this is device is ours.
  */
-static const char *
+static char *
 fxp_probe(config_id, device_id)
 	pcici_t config_id;
 	pcidi_t device_id;
@@ -1072,7 +1072,6 @@ fxp_stats_update(arg)
 	struct fxp_softc *sc = arg;
 	struct ifnet *ifp = &sc->sc_if;
 	struct fxp_stats *sp = sc->fxp_stats;
-	struct fxp_cb_tx *txp;
 	int s;
 
 	ifp->if_opackets += sp->tx_good;
@@ -1081,9 +1080,6 @@ fxp_stats_update(arg)
 		ifp->if_ipackets += sp->rx_good;
 		sc->rx_idle_secs = 0;
 	} else {
-		/*
-		 * Receiver's been idle for another second.
-		 */
 		sc->rx_idle_secs++;
 	}
 	ifp->if_ierrors +=
@@ -1101,23 +1097,6 @@ fxp_stats_update(arg)
 			tx_threshold += 64;
 	}
 	s = splimp();
-	/*
-	 * Release any xmit buffers that have completed DMA. This isn't
-	 * strictly necessary to do here, but it's advantagous for mbufs
-	 * with external storage to be released in a timely manner rather
-	 * than being defered for a potentially long time. This limits
-	 * the delay to a maximum of one second.
-	 */ 
-	for (txp = sc->cbl_first; sc->tx_queued &&
-	    (txp->cb_status & FXP_CB_STATUS_C) != 0;
-	    txp = txp->next) {
-		if (txp->mb_head != NULL) {
-			m_freem(txp->mb_head);
-			txp->mb_head = NULL;
-		}
-		sc->tx_queued--;
-	}
-	sc->cbl_first = txp;
 	/*
 	 * If we haven't received any packets in FXP_MAC_RX_IDLE seconds,
 	 * then assume the receiver has locked up and attempt to clear

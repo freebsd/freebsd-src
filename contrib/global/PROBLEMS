@@ -1,0 +1,38 @@
+GLOBAL cannot recognize following macros and functions.
+
+1. Macro which doesn't end with ';'.
+
+   GLOBAL cannot recognize func() after M(a), because M(a) seems to be
+   function definition.
+
+	#define M(a)	static char *string = a;
+
+	M(a)
+
+	func() {
+		...
+	}
+
+   It should be follows.
+
+	#define M(a)	static char *string = a
+
+	M(a);
+
+	func() {
+		...
+	}
+
+2. Macro which is a renamed function.
+
+	#define func _func
+
+	_func() {
+		...
+	}
+	main() {
+		func();
+	}
+
+   In fact, main() calls _func() instead of func() but GLOBAL cannot
+   recognize it.

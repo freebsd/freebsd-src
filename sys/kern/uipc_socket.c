@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket.c	8.3 (Berkeley) 4/15/94
- *	$Id: uipc_socket.c,v 1.50 1999/01/20 17:31:54 fenner Exp $
+ *	$Id: uipc_socket.c,v 1.44 1998/08/31 15:34:55 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -218,7 +218,6 @@ soclose(so)
 	int s = splnet();		/* conservative */
 	int error = 0;
 
-	funsetown(so->so_sigio);
 	if (so->so_options & SO_ACCEPTCONN) {
 		struct socket *sp, *sonext;
 
@@ -529,9 +528,7 @@ nopages:
 			((flags & MSG_EOF) &&
 			 (so->so_proto->pr_flags & PR_IMPLOPCL) &&
 			 (resid <= 0)) ?
-				PRUS_EOF :
-			/* If there is more to send set PRUS_MORETOCOME */
-			(resid > 0 && space > 0) ? PRUS_MORETOCOME : 0,
+				PRUS_EOF : 0,
 			top, addr, control, p);
 		    splx(s);
 		    if (dontroute)
@@ -639,7 +636,10 @@ restart:
 	    (so->so_rcv.sb_cc < so->so_rcv.sb_lowat ||
 	    ((flags & MSG_WAITALL) && uio->uio_resid <= so->so_rcv.sb_hiwat)) &&
 	    m->m_nextpkt == 0 && (pr->pr_flags & PR_ATOMIC) == 0)) {
-		KASSERT(m != 0 || !so->so_rcv.sb_cc, ("receive 1"));
+#ifdef DIAGNOSTIC
+		if (m == 0 && so->so_rcv.sb_cc)
+			panic("receive 1");
+#endif
 		if (so->so_error) {
 			if (m)
 				goto dontblock;
@@ -682,7 +682,10 @@ dontblock:
 		uio->uio_procp->p_stats->p_ru.ru_msgrcv++;
 	nextrecord = m->m_nextpkt;
 	if (pr->pr_flags & PR_ADDR) {
-		KASSERT(m->m_type == MT_SONAME, ("receive 1a"));
+#ifdef DIAGNOSTIC
+		if (m->m_type != MT_SONAME)
+			panic("receive 1a");
+#endif
 		orig_resid = 0;
 		if (psa)
 			*psa = dup_sockaddr(mtod(m, struct sockaddr *),
@@ -736,9 +739,10 @@ dontblock:
 				break;
 		} else if (type == MT_OOBDATA)
 			break;
-		else
-		    KASSERT(m->m_type == MT_DATA || m->m_type == MT_HEADER,
-			("receive 3"));
+#ifdef DIAGNOSTIC
+		else if (m->m_type != MT_DATA && m->m_type != MT_HEADER)
+			panic("receive 3");
+#endif
 		so->so_state &= ~SS_RCVATMARK;
 		len = uio->uio_resid;
 		if (so->so_oobmark && len > so->so_oobmark - offset)
@@ -1176,8 +1180,12 @@ void
 sohasoutofband(so)
 	register struct socket *so;
 {
-	if (so->so_sigio != NULL)
-		pgsigio(so->so_sigio, SIGURG, 0);
+	struct proc *p;
+
+	if (so->so_pgid < 0)
+		gsignal(-so->so_pgid, SIGURG);
+	else if (so->so_pgid > 0 && (p = pfind(so->so_pgid)) != 0)
+		psignal(p, SIGURG);
 	selwakeup(&so->so_rcv.sb_sel);
 }
 

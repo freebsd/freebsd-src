@@ -325,7 +325,7 @@ attach_pas_card(struct address_info * hw_config)
 		if ((pas_model = pas_read(CHIP_REV))) {
 			char            temp[100];
 
-			snprintf(temp, sizeof(temp),
+			sprintf(temp,
 			      "%s rev %d", pas_model_names[(int) pas_model],
 				pas_read(BOARD_REV_ID));
 			conf_printf(temp, hw_config);

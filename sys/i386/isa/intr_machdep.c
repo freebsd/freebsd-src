@@ -34,15 +34,12 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: intr_machdep.c,v 1.15 1998/12/04 22:54:46 archie Exp $
+ *	$Id: intr_machdep.c,v 1.13 1998/06/18 16:08:46 bde Exp $
  */
 
 #include "opt_auto_eoi.h"
 
 #include <sys/param.h>
-#ifndef SMP
-#include <machine/lock.h>
-#endif
 #include <sys/systm.h>
 #include <sys/syslog.h>
 #include <machine/ipl.h>
@@ -328,7 +325,7 @@ find_device_id(int irq)
 	char *cp;
 	int free_id, id;
 
-	snprintf(buf, sizeof(buf), "pci irq%d", irq);
+	sprintf(buf, "pci irq%d", irq);
 	cp = intrnames;
 	/* default to 0, which corresponds to clk0 */
 	free_id = 0;

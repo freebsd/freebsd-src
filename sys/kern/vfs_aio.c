@@ -13,7 +13,7 @@
  * bad that happens because of using this software isn't the responsibility
  * of the author.  This software is distributed AS-IS.
  *
- * $Id: vfs_aio.c,v 1.35 1998/11/27 01:14:21 tegge Exp $
+ * $Id: vfs_aio.c,v 1.32 1998/07/15 06:51:14 bde Exp $
  */
 
 /*
@@ -245,7 +245,7 @@ static vm_zone_t kaio_zone=0, aiop_zone=0,
 /*
  * Single AIOD vmspace shared amongst all of them
  */
-struct vmspace *aiovmspace = NULL;
+static struct vmspace *aiovmspace = NULL;
 
 /*
  * Startup initialization
@@ -953,6 +953,7 @@ aio_qphysio(p, aiocbe)
 	struct aiocblist *aiocbe;
 {
 	int error;
+	caddr_t sa;
 	struct aiocb *cb;
 	struct file *fp;
 	struct buf *bp;
@@ -1387,10 +1388,11 @@ int
 aio_return(struct proc *p, struct aio_return_args *uap)
 {
 	int s;
-	int jobref;
+	int jobref, status;
 	struct aiocblist *cb, *ncb;
 	struct aiocb *ujob;
 	struct kaioinfo *ki;
+	struct proc *userp;
 
 	ki = p->p_aioinfo;
 	if (ki == NULL) {
@@ -1478,7 +1480,7 @@ aio_suspend(struct proc *p, struct aio_suspend_args *uap)
 		if (ts.tv_nsec < 0 || ts.tv_nsec >= 1000000000)
 			return (EINVAL);
 
-		TIMESPEC_TO_TIMEVAL(&atv, &ts);
+		TIMESPEC_TO_TIMEVAL(&atv, &ts)
 		if (itimerfix(&atv))
 			return (EINVAL);
 		timo = tvtohz(&atv);
@@ -1581,6 +1583,7 @@ aio_error(struct proc *p, struct aio_error_args *uap)
 	struct aiocblist *cb;
 	struct kaioinfo *ki;
 	int jobref;
+	int error, status;
 
 	ki = p->p_aioinfo;
 	if (ki == NULL)

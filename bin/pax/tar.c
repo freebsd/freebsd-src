@@ -40,7 +40,7 @@
 static char sccsid[] = "@(#)tar.c	8.2 (Berkeley) 4/18/94";
 #endif
 static const char rcsid[] =
-	"$Id: tar.c,v 1.10 1998/05/15 06:27:47 charnier Exp $";
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -977,7 +977,7 @@ ustar_wr(arcn)
 	 * check the length of the linkname
 	 */
 	if (((arcn->type == PAX_SLK) || (arcn->type == PAX_HLK) ||
-	    (arcn->type == PAX_HRG)) && (arcn->ln_nlen >= sizeof(hd->linkname))){
+	    (arcn->type == PAX_HRG)) && (arcn->ln_nlen > sizeof(hd->linkname))){
 		pax_warn(1, "Link name too long for ustar %s", arcn->ln_name);
 		return(1);
 	}
@@ -1156,16 +1156,17 @@ name_split(name, len)
 	 */
 	if (len <= TNMSZ)
 		return(name);
-	if (len > (TPFSZ + TNMSZ))
+	if (len > (TPFSZ + TNMSZ + 1))
 		return(NULL);
 
 	/*
 	 * we start looking at the biggest sized piece that fits in the name
 	 * field. We walk foward looking for a slash to split at. The idea is
 	 * to find the biggest piece to fit in the name field (or the smallest
-	 * prefix we can find)
+	 * prefix we can find) (the -1 is correct the biggest piece would
+	 * include the slash between the two parts that gets thrown away)
 	 */
-	start = name + len - TNMSZ;
+	start = name + len - TNMSZ - 1;
 	while ((*start != '\0') && (*start != '/'))
 		++start;
 
@@ -1183,7 +1184,7 @@ name_split(name, len)
 	 * the file would then expand on extract to //str. The len == 0 below
 	 * makes this special case follow the spec to the letter.
 	 */
-	if ((len >= TPFSZ) || (len == 0))
+	if ((len > TPFSZ) || (len == 0))
 		return(NULL);
 
 	/*

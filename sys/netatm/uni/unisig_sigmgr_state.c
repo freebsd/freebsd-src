@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: unisig_sigmgr_state.c,v 1.3 1998/10/31 20:07:01 phk Exp $
+ *	@(#) $Id: unisig_sigmgr_state.c,v 1.1 1998/09/15 08:23:12 phk Exp $
  *
  */
 
@@ -35,6 +35,10 @@
  *
  */
 
+#ifndef lint
+static char *RCSid = "@(#) $Id: unisig_sigmgr_state.c,v 1.1 1998/09/15 08:23:12 phk Exp $";
+#endif
+
 #include <netatm/kern_include.h>
 
 #include <netatm/uni/uni.h>
@@ -45,10 +49,6 @@
 #include <netatm/uni/unisig_decode.h>
 
 #include <netatm/uni/sscf_uni.h>
-
-#ifndef lint
-__RCSID("@(#) $Id: unisig_sigmgr_state.c,v 1.3 1998/10/31 20:07:01 phk Exp $");
-#endif
 
 
 /*
@@ -817,6 +817,11 @@ unisig_sigmgr_act14(usp, m)
 	}
 
 	/*
+	 * Set the signalling manager state
+	 */
+	usp->us_state = UNISIG_DETACH;
+
+	/*
 	 * Close the signalling channel
 	 */
 	if (usp->us_conn) {
@@ -844,14 +849,12 @@ unisig_sigmgr_act14(usp, m)
 		UNLINK((struct siginst *)usp, struct siginst,
 				smp->sm_prinst, si_next);
 		KM_FREE(usp, sizeof(struct unisig), M_DEVBUF);
-	} else {
-		/*
-		 * Otherwise, set new signalling manager state and
-		 * wait for protocol instance to be freed during 
-		 * unisig_free processing for the last queued VCC
-		 */
-		usp->us_state = UNISIG_DETACH;
 	}
+
+	/*
+	 * Otherwise, wait for protocol instance to be freed
+	 * during unisig_free processing for the last queued VCC
+	 */
 
 	return (0);
 }

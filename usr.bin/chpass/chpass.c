@@ -32,15 +32,15 @@
  */
 
 #ifndef lint
-static const char copyright[] =
+static char copyright[] =
 "@(#) Copyright (c) 1988, 1993, 1994\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
-static const char sccsid[] = "From: @(#)chpass.c	8.4 (Berkeley) 4/2/94";
-static const char rcsid[] =
-	"$Id: chpass.c,v 1.14 1997/03/29 04:28:38 imp Exp $";
+static char sccsid[] = "From: @(#)chpass.c	8.4 (Berkeley) 4/2/94";
+static char rcsid[] =
+	"$Id: chpass.c,v 1.13 1997/02/22 19:54:25 peter Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -83,10 +83,10 @@ main(argc, argv)
 	char **argv;
 {
 	enum { NEWSH, LOADENTRY, EDITENTRY, NEWPW, NEWEXP } op;
-	struct passwd *pw = NULL, lpw;
+	struct passwd *pw, lpw;
 	char *username = NULL;
 	int ch, pfd, tfd;
-	char *arg = NULL;
+	char *arg;
 #ifdef YP
 	int force_local = 0;
 	int force_yp = 0;

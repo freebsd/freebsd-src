@@ -36,10 +36,8 @@
  * SUCH DAMAGE.
  *
  *	@(#)param.c	8.3 (Berkeley) 8/20/94
- * $Id: param.c,v 1.31 1998/11/05 14:28:17 dg Exp $
+ * $Id: param.c,v 1.29 1998/06/30 21:25:35 phk Exp $
  */
-
-#include <stddef.h>
 
 #include "opt_sysvipc.h"
 #include "opt_param.h"
@@ -96,12 +94,6 @@ int	maxsockets = MAXSOCKETS;
 
 /* allocate 1/4th amount of virtual address space for mbufs XXX */
 int	nmbufs = NMBCLUSTERS * 4;
-
-/* maximum # of sf_bufs (sendfile(2) zero-copy virtual buffers) */
-#ifndef NSFBUFS
-#define	NSFBUFS (512 + MAXUSERS * 16)
-#endif
-int	nsfbufs = NSFBUFS;
 
 /*
  * Values in support of System V compatible shared memory.	XXX

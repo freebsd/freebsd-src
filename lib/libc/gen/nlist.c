@@ -29,8 +29,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -199,7 +197,18 @@ __aout_fdnlist(fd, list)
 #endif
 
 #ifdef _NLIST_DO_ELF
-static void elf_sym_to_nlist __P((struct nlist *, Elf_Sym *, Elf_Shdr *, int));
+
+#if ELF_TARG_CLASS == ELFCLASS32
+
+#define Elf(x)		Elf32_##x
+#define ELF(x)		ELF32_##x
+
+#else
+
+#define Elf(x)		Elf64_##x
+#define ELF(x)		ELF64_##x
+
+#endif
 
 /*
  * __elf_is_okay__ - Determine if ehdr really
@@ -210,13 +219,13 @@ static void elf_sym_to_nlist __P((struct nlist *, Elf_Sym *, Elf_Shdr *, int));
  */
 int
 __elf_is_okay__(ehdr)
-	register Elf_Ehdr *ehdr;
+	register Elf(Ehdr) *ehdr;
 {
 	register int retval = 0;
 	/*
 	 * We need to check magic, class size, endianess,
 	 * and version before we look at the rest of the
-	 * Elf_Ehdr structure.  These few elements are
+	 * Elf(Ehdr) structure.  These few elements are
 	 * represented in a machine independant fashion.
 	 */
 	if (IS_ELF(*ehdr) &&
@@ -238,19 +247,15 @@ __elf_fdnlist(fd, list)
 	register struct nlist *list;
 {
 	register struct nlist *p;
+	register caddr_t strtab;
 	register Elf_Off symoff = 0, symstroff = 0;
 	register Elf_Word symsize = 0, symstrsize = 0;
-	register Elf_Sword cc, i;
-	int nent = -1;
-	int errsave;
+	register Elf_Sword nent, cc, i;
 	Elf_Sym sbuf[1024];
 	Elf_Sym *s;
 	Elf_Ehdr ehdr;
-	char *strtab = NULL;
 	Elf_Shdr *shdr = NULL;
-	Elf_Shdr *sh;
 	Elf_Word shdr_size;
-	void *base;
 	struct stat st;
 
 	/* Make sure obj is OK */
@@ -270,11 +275,10 @@ __elf_fdnlist(fd, list)
 	}
 
 	/* mmap section header table */
-	base = mmap(NULL, (size_t)shdr_size, PROT_READ, 0, fd,
-	    (off_t)ehdr.e_shoff);
-	if (base == MAP_FAILED)
+	shdr = (Elf_Shdr *)mmap(NULL, (size_t)shdr_size,
+				  PROT_READ, 0, fd, (off_t) ehdr.e_shoff);
+	if (shdr == (Elf_Shdr *)-1)
 		return (-1);
-	shdr = (Elf_Shdr *)base;
 
 	/*
 	 * Find the symbol table entry and it's corresponding
@@ -292,10 +296,13 @@ __elf_fdnlist(fd, list)
 		}
 	}
 
+	/* Flush the section header table */
+	munmap((caddr_t)shdr, shdr_size);
+
 	/* Check for files too large to mmap. */
 	if (symstrsize > SIZE_T_MAX) {
 		errno = EFBIG;
-		goto done;
+		return (-1);
 	}
 	/*
 	 * Map string table into our address space.  This gives us
@@ -303,11 +310,10 @@ __elf_fdnlist(fd, list)
 	 * making the memory allocation permanent as with malloc/free
 	 * (i.e., munmap will return it to the system).
 	 */
-	base = mmap(NULL, (size_t)symstrsize, PROT_READ, 0, fd,
-	    (off_t)symstroff);
-	if (base == MAP_FAILED)
-		goto done;
-	strtab = (char *)base;
+	strtab = mmap(NULL, (size_t)symstrsize, PROT_READ, 0, fd,
+		      (off_t) symstroff);
+	if (strtab == (char *)-1)
+		return (-1);
 
 	/*
 	 * clean out any left-over information for all valid entries.
@@ -329,6 +335,7 @@ __elf_fdnlist(fd, list)
 	}
 
 	/* Don't process any further if object is stripped. */
+	/* ELFism - dunno if stripped by looking at header */
 	if (symoff == 0)
 		goto done;
 		
@@ -337,24 +344,43 @@ __elf_fdnlist(fd, list)
 		goto done;
 	}
 
-	while (symsize > 0 && nent > 0) {
+	while (symsize > 0) {
 		cc = MIN(symsize, sizeof(sbuf));
 		if (read(fd, sbuf, cc) != cc)
 			break;
 		symsize -= cc;
-		for (s = sbuf; cc > 0 && nent > 0; ++s, cc -= sizeof(*s)) {
-			char *name;
-			struct nlist *p;
+		for (s = sbuf; cc > 0; ++s, cc -= sizeof(*s)) {
+			register int soff = s->st_name;
 
-			name = strtab + s->st_name;
-			if (name[0] == '\0')
+			if (soff == 0)
 				continue;
 			for (p = list; !ISLAST(p); p++) {
 				if ((p->n_un.n_name[0] == '_' &&
-				    strcmp(name, p->n_un.n_name+1) == 0)
-				    || strcmp(name, p->n_un.n_name) == 0) {
-					elf_sym_to_nlist(p, s, shdr,
-					    ehdr.e_shnum);
+				     !strcmp(&strtab[soff], p->n_un.n_name+1))
+				    || !strcmp(&strtab[soff], p->n_un.n_name)) {
+					p->n_value = s->st_value;
+
+					/* XXX - type conversion */
+					/*	 is pretty rude. */
+					switch(ELF(ST_TYPE)(s->st_info)) {
+						case STT_NOTYPE:
+							p->n_type = N_UNDF;
+							break;
+						case STT_OBJECT:
+							p->n_type = N_DATA;
+							break;
+						case STT_FUNC:
+							p->n_type = N_TEXT;
+							break;
+						case STT_FILE:
+							p->n_type = N_FN;
+							break;
+					}
+					if (ELF(ST_BIND)(s->st_info) ==
+					    STB_LOCAL)
+						p->n_type = N_EXT;
+					p->n_desc = 0;
+					p->n_other = 0;
 					if (--nent <= 0)
 						break;
 				}
@@ -362,52 +388,8 @@ __elf_fdnlist(fd, list)
 		}
 	}
   done:
-	errsave = errno;
-	if (strtab != NULL)
-		munmap(strtab, symstrsize);
-	if (shdr != NULL)
-		munmap(shdr, shdr_size);
-	errno = errsave;
+	munmap(strtab, symstrsize);
+
 	return (nent);
-}
-
-/*
- * Convert an Elf_Sym into an nlist structure.  This fills in only the
- * n_value and n_type members.
- */
-static void
-elf_sym_to_nlist(nl, s, shdr, shnum)
-	struct nlist *nl;
-	Elf_Sym *s;
-	Elf_Shdr *shdr;
-	int shnum;
-{
-	nl->n_value = s->st_value;
-
-	switch (s->st_shndx) {
-	case SHN_UNDEF:
-	case SHN_COMMON:
-		nl->n_type = N_UNDF;
-		break;
-	case SHN_ABS:
-		nl->n_type = ELF_ST_TYPE(s->st_info) == STT_FILE ?
-		    N_FN : N_ABS;
-		break;
-	default:
-		if (s->st_shndx >= shnum)
-			nl->n_type = N_UNDF;
-		else {
-			Elf_Shdr *sh = shdr + s->st_shndx;
-
-			nl->n_type = sh->sh_type == SHT_PROGBITS ?
-			    (sh->sh_flags & SHF_WRITE ? N_DATA : N_TEXT) :
-			    (sh->sh_type == SHT_NOBITS ? N_BSS : N_UNDF);
-		}
-		break;
-	}
-
-	if (ELF_ST_BIND(s->st_info) == STB_GLOBAL ||
-	    ELF_ST_BIND(s->st_info) == STB_WEAK)
-		nl->n_type |= N_EXT;
 }
 #endif /* _NLIST_DO_ELF */

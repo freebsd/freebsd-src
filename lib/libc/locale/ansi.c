@@ -127,24 +127,22 @@ wcstombs(s, pwcs, n)
 	size_t n;
 {
 	char *e;
-	int cnt, nb;
+	int cnt = 0;
 
-	if (!pwcs || !s || n > INT_MAX)
+	if (!pwcs || !s)
 		return (-1);
 
-	nb = n;
-	cnt = 0;
-	while (nb > 0) {
+	while (n > 0) {
 		if (*pwcs == 0) {
 			*s = 0;
 			break;
 		}
-		if (!sputrune(*pwcs++, s, nb, &e))
+		if (!sputrune(*pwcs++, s, n, &e))
 			return (-1);		/* encoding error */
 		if (!e)			/* too long */
 			return (cnt);
 		cnt += e - s;
-		nb -= e - s;
+		n -= e - s;
 		s = e;
 	}
 	return (cnt);

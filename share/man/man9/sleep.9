@@ -23,16 +23,14 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id: sleep.9,v 1.12 1998/12/21 10:34:53 dillon Exp $
+.\" $Id: sleep.9,v 1.9 1997/04/11 17:49:56 bde Exp $
 .\" "
-.Dd December 17, 1998
+.Dd April 3, 1996
 .Os
 .Dt SLEEP 9
 .Sh NAME
 .Nm sleep ,
 .Nm tsleep ,
-.Nm asleep ,
-.Nm await ,
 .Nm wakeup
 .Nd wait for events
 .Sh SYNOPSIS
@@ -41,10 +39,6 @@
 .Fd #include <sys/proc.h>
 .Ft int
 .Fn tsleep "void *ident" "int priority" "const char *wmesg" "int timo"
-.Ft int
-.Fn asleep "void *ident" "int priority" "const char *wmesg" "int timo"
-.Ft int
-.Fn await "int priority" "int timo"
 .Ft void
 .Fn wakeup "void *ident"
 .Ft void
@@ -112,107 +106,10 @@ is returned if the system call should be interrupted by the signal
 is the traditional form.  It doesn't let you specify a timeout nor a
 .Ar wmesg ,
 hence its use is deprecated.
-.Pp
-.Nm Asleep
-implements the new asynchronous sleep function.  It takes the same arguments
-as
-.Fn tsleep
-and places the process on the appropriate wait queue, but
-.Fn asleep
-leaves the process runnable and returns immediately.  The caller is then
-expected to, at some point in the future, call
-.Fn await
-to actually wait for the previously queued wait condition.
-If
-.Fn asleep
-is called several times, only the most recent call is effective.
-.Fn asleep
-may be called with an
-.Ar ident
-value of NULL
-to remove any previously queued condition.  
-.Pp
-.Nm Await
-implements the new asynchronous wait function.  When 
-.Fn asleep
-is called on an identifier it associates the process with that
-identifier but does not block.
-.Fn await
-will actually block the process until
-.Fn wakeup
-is called on that identifier any time after the
-.Fn asleep . 
-If 
-.Fn wakeup
-is called after you
-.Fn asleep
-but before you 
-.Fn await
-then the 
-.Fn await
-call is effectively a NOP.
-If
-.Fn await
-is called multiple times without an intervening
-.Fn asleep ,
-the 
-.Fn await
-is effectively a NOP but will also call
-.Fn mswitch
-for safety.  The
-.Fn await
-function allows you to override the priority and timeout values to be used.
-If the value -1 is specified for an argument, the value is taken from the
-previous
-.Fn asleep
-call.  If -1 is passed for the priority you must be prepared to catch signal
-conditions if the prior call to
-.Fn asleep
-specified it in its priority.  If -1 is passed for the timeout you must be
-prepared to catch a timeout condition if the prior call to 
-.Fn asleep
-specified a timeout.  When you use -1, it is usually a good idea to not make
-assumptions as to the arguments used by the prior
-.Fn asleep
-call.
-.Pp
-The
-.Fn asleep
-and
-.Fn await
-functions are mainly used by the kernel to shift the burden of blocking
-away from extremely low level routines and to push it onto their callers.
-This in turn allows more complex interlocking code to
-.Em backout 
-of a temporary resource failure
-(such as lack of memory) in order to release major locks prior to actually
-blocking, and to then retry the operation on wakeup.  This key feature is
-expected to be heavily used in SMP situations in order to allow code to make
-better use of spinlocks.  A spinlock, by its very nature, cannot be used 
-around code that might block.  It is hoped that these capabilities will
-make it easier to migrate the SMP master locks deeper into the kernel.
-.Pp
-These routines may also be used to avoid nasty spl*() calls to get around
-race conditions with simple conditional test/wait interlocks.  You simple
-call
-.Fn asleep
-prior to your test, then conditonally
-.Fn await
-only if the test fails.  It is usually a good idea to cancel an
-.Fn asleep
-if you wind up never calling the related
-.Fn await ,
-but it is not required.  If you do not want to waste cpu calling
-.Fn asleep
-unnecessarily, you can surround the whole thing with a second test.  The
-race condition is still handled by the inside
-.Fn asleep
-call.
 .Sh RETURN VALUES
 See above.
 .Sh SEE ALSO
-.Xr ps 1 ,
-.Xr malloc 9
+.Xr ps 1
 .Sh HISTORY
 The sleep/wakeup process synchronization mechanism is very old.  It
 appeared in a very early version of Unix.
@@ -220,12 +117,7 @@ appeared in a very early version of Unix.
 .Nm Tsleep
 appeared in
 .Bx 4.4 .
-.Pp
-.Nm Asleep/await 
-first appeared in FreeBSD-3.0.1 and is designed to shift the burden of blocking
-away from extremely low level routines and push it up to their callers.
 .Sh AUTHORS
 This man page has been written by
 .ie t J\(:org Wunsch.
-.el Joerg Wunsch. 
-asleep/await designed and written by Matthew Dillon.
+.el Joerg Wunsch.

@@ -114,19 +114,6 @@ static void vgapelinit(void);	/* read initial VGA DAC palette */
 static int pcvt_xmode_set(int on, struct proc *p); /* initialize for X mode */
 #endif /* XSERVER && !PCVT_USL_VT_COMPAT */
 
-#ifdef _DEV_KBD_KBDREG_H_
-static void detect_kbd(void *arg);
-static kbd_callback_func_t pcevent;
-#endif
-
-static cn_probe_t	pccnprobe;
-static cn_init_t	pccninit;
-static cn_getc_t	pccngetc;
-static cn_checkc_t	pccncheckc;
-static cn_putc_t	pccnputc;
-
-CONS_DRIVER(pc, pccnprobe, pccninit, pccngetc, pccncheckc, pccnputc);
-
 static	d_open_t	pcopen;
 static	d_close_t	pcclose;
 static	d_read_t	pcread;
@@ -166,18 +153,17 @@ pcprobe(struct isa_device *dev)
 #endif /* PCVT_NETBSD > 9 */
 #endif /* PCVT_NETBSD > 100 */
 {
-#ifdef _DEV_KBD_KBDREG_H_
-	int i;
+#ifdef _I386_ISA_KBDIO_H_
+	kbdc = kbdc_open(IO_KBD);
 
-	if (kbd == NULL) {
+	if(kbdc == NULL)
+	{
 		reset_keyboard = 0;
-		kbd_configure(KB_CONF_PROBE_ONLY);
-		i = kbd_allocate("*", -1, (void *)&kbd, pcevent, (void *)dev->id_unit);
-		if ((i < 0) || ((kbd = kbd_get_keyboard(i)) == NULL))
-			return (-1);
+		return 1;
 	}
+		
 	reset_keyboard = 1;		/* it's now safe to do kbd reset */
-#endif /* _DEV_KBD_KBDREG_H_ */
+#endif /* _I386_ISA_KBDIO_H_ */
 
 	kbd_code_init();
 
@@ -185,9 +171,7 @@ pcprobe(struct isa_device *dev)
 	((struct isa_attach_args *)aux)->ia_iosize = 16;
 	return 1;
 #else
-#ifdef _DEV_KBD_KBDREG_H_
-	return (-1);
-#elif PCVT_NETBSD || PCVT_FREEBSD
+#if PCVT_NETBSD || PCVT_FREEBSD
 	return (16);
 #else
 	return 1;
@@ -214,11 +198,6 @@ pcattach(struct isa_device *dev)
 	int i;
 
 	vt_coldmalloc();		/* allocate memory for screens */
-
-#ifdef _DEV_KBD_KBDREG_H_
-	if (kbd == NULL)
-		timeout(detect_kbd, (void *)dev->id_unit, hz*2);
-#endif /* _DEV_KBD_KBDREG_H_ */
 
 #if PCVT_NETBSD || PCVT_FREEBSD
 
@@ -404,8 +383,6 @@ pcattach(struct isa_device *dev)
 #endif /* PCVT_NETBSD > 100 */
 
 #else /* PCVT_NETBSD > 9 */
-
-	dev->id_ointr = pcrint;
 
 	return 1;
 
@@ -791,7 +768,7 @@ do_standard:
 }
 
 int
-pcmmap(Dev_t dev, vm_offset_t offset, int nprot)
+pcmmap(Dev_t dev, int offset, int nprot)
 {
 	if (offset > 0x20000 - PAGE_SIZE)
 		return -1;
@@ -862,51 +839,6 @@ pcvt_timeout(void *arg)
 }
 #endif
 
-#ifdef _DEV_KBD_KBDREG_H_
-static void
-detect_kbd(void *arg)
-{
-	int unit = (int)arg;
-	int i;
-
-	if (kbd != NULL)
-		return;
-	i = kbd_allocate("*", -1, (void *)&kbd, pcevent, (void *)unit);
-	if (i >= 0)
-		kbd = kbd_get_keyboard(i);
-	if (kbd != NULL)
-	{
-		reset_keyboard = 1;	/* ok to reset the keyboard */
-		kbd_code_init();
-		return;
-	}
-	reset_keyboard = 0;
-	timeout(detect_kbd, (void *)unit, hz*2);
-}
-
-int
-pcevent(keyboard_t *thiskbd, int event, void *arg)
-{
-	int unit = (int)arg;
-
-	if (thiskbd != kbd)
-		return EINVAL;		/* shouldn't happen */
-
-	switch (event) {
-	case KBDIO_KEYINPUT:
-		pcrint(unit);
-		return 0;
-	case KBDIO_UNLOADING:
-		reset_keyboard = 0;
-		kbd = NULL;
-		kbd_release(thiskbd, (void *)&kbd);
-		timeout(detect_kbd, (void *)unit, hz*4);
-		return 0;
-	default:
-		return EINVAL;
-	}
-}
-#endif /* _DEV_KBD_KBDREG_H_ */
 
 void
 pcrint(int unit)
@@ -920,13 +852,32 @@ pcrint(int unit)
 	int	s;
 # endif
 
-# ifdef _DEV_KBD_KBDREG_H_
+# ifdef _I386_ISA_KBDIO_H_
 	int	c;
 # endif
 
 #else /* !PCVT_KBD_FIFO */
 	u_char	*cp;
 #endif /* PCVT_KBD_FIFO */
+
+	/*
+	 * in case the keyboard was not plugged in while booting, kbdc
+	 * was set to NULL at that time. When a keyboard IRQ occurs and
+	 * kbdc is NULL, the keyboard was probably reconnected to the
+	 * keyboard controller and we have to initialize the keyboard.
+	 */
+	 
+	if(kbdc == NULL)
+	{
+		kbdc = kbdc_open(IO_KBD);
+		if(kbdc == NULL)
+		{
+			reset_keyboard = 0;
+			return;
+		}
+		reset_keyboard = 1;
+		kbd_code_init();
+	}
 
 #if PCVT_SCREENSAVER
 	pcvt_scrnsv_reset();
@@ -939,7 +890,7 @@ pcrint(int unit)
 		return;
 	}
 
-# ifndef _DEV_KBD_KBDREG_H_
+# ifndef _I386_ISA_KBDIO_H_
 	while (inb(CONTROLLER_CTRL) & STATUS_OUTPBF)	/* check 8042 buffer */
 	{
 		ret = 1;				/* got something */
@@ -948,11 +899,11 @@ pcrint(int unit)
 
 		dt = inb(CONTROLLER_DATA);		/* get it 8042 data */
 # else 
-	while ((c = (*kbdsw[kbd->kb_index]->read)(kbd, FALSE)) != -1)
+	while ((c = read_kbd_data_no_wait(kbdc)) != -1)
 	{
 		ret = 1;				/* got something */
 		dt = c;
-# endif /* _DEV_KBD_KBDREG_H_ */
+# endif /* _I386_ISA_KBDIO_H_ */
 
 		if (pcvt_kbd_count >= PCVT_KBD_FIFO_SZ)	/* fifo overflow ? */
 		{
@@ -1163,14 +1114,30 @@ consinit()		/* init for kernel messages during boot */
 #endif /* PCVT_NETBSD */
 
 #if PCVT_FREEBSD > 205
-static void
+void
 #else
 int
 #endif
 pccnprobe(struct consdev *cp)
 {
 	struct isa_device *dvp;
-	int i;
+
+#ifdef _I386_ISA_KBDIO_H_
+	kbdc = kbdc_open(IO_KBD);
+	/*
+	 * Don't reset the keyboard via `kbdio' just yet.
+	 * The system clock has not been calibrated...
+	 */
+	reset_keyboard = 0;
+#if PCVT_SCANSET == 2
+	/*
+	 * Turn off scancode translation early so that UserConfig 
+	 * and DDB can read the keyboard.
+	 */
+	empty_both_buffers(kbdc, 10);
+	set_controller_command_byte(kbdc, KBD_TRANSLATION, 0);
+#endif /* PCVT_SCANSET == 2 */
+#endif /* _I386_ISA_KBDIO_H_ */
 
 	/*
 	 * Take control if we are the highest priority enabled display device.
@@ -1180,30 +1147,6 @@ pccnprobe(struct consdev *cp)
 		cp->cn_pri = CN_DEAD;
 		return;
 	}
-
-#ifdef _DEV_KBD_KBDREG_H_
-	/*
-	 * Don't reset the keyboard via `kbdio' just yet.
-	 * The system clock has not been calibrated...
-	 */
-	reset_keyboard = 0;
-	if (kbd == NULL) {
-		kbd_configure(KB_CONF_PROBE_ONLY);
-		i = kbd_allocate("*", -1, (void *)&kbd, pcevent, (void *)dvp->id_unit);
-		if (i >= 0)
-			kbd = kbd_get_keyboard(i);
-	}
-
-#if PCVT_SCANSET == 2
-	/*
-	 * Turn off scancode translation early so that UserConfig 
-	 * and DDB can read the keyboard.
-	 */
-	empty_both_buffers(*(KBDC *)kbd->kb_data, 10);
-	set_controller_command_byte(*(KBDC *)kbd->kb_data, KBD_TRANSLATION, 0);
-#endif /* PCVT_SCANSET == 2 */
-
-#endif /* _DEV_KBD_KBDREG_H_ */
 
 	/* initialize required fields */
 
@@ -1226,7 +1169,7 @@ pccnprobe(struct consdev *cp)
 }
 
 #if PCVT_FREEBSD > 205
-static void
+void
 #else
 int
 #endif
@@ -1239,7 +1182,7 @@ pccninit(struct consdev *cp)
 }
 
 #if PCVT_FREEBSD > 205
-static void
+void
 #else
 int
 #endif
@@ -1273,7 +1216,7 @@ pccnputc(Dev_t dev, U_char c)
 #endif
 }
 
-static int
+int
 pccngetc(Dev_t dev)
 {
 	register int s;
@@ -1301,13 +1244,7 @@ pccngetc(Dev_t dev)
 
 	s = spltty();		/* block pcrint while we poll */
 	kbd_polling = 1;
-#ifdef _DEV_KBD_KBDREG_H_
-	(*kbdsw[kbd->kb_index]->enable)(kbd);
-#endif	
 	cp = sgetc(0);
-#ifdef _DEV_KBD_KBDREG_H_
-	(*kbdsw[kbd->kb_index]->disable)(kbd);
-#endif	
 	kbd_polling = 0;
 	splx(s);
 	c = *cp++;
@@ -1328,19 +1265,13 @@ pccngetc(Dev_t dev)
 }
 
 #if PCVT_FREEBSD >= 200
-static int
+int
 pccncheckc(Dev_t dev)
 {
 	char *cp;
 	int x = spltty();
 	kbd_polling = 1;
-#ifdef _DEV_KBD_KBDREG_H_
-	(*kbdsw[kbd->kb_index]->enable)(kbd);
-#endif	
 	cp = sgetc(1);
-#ifdef _DEV_KBD_KBDREG_H_
-	(*kbdsw[kbd->kb_index]->disable)(kbd);
-#endif	
 	kbd_polling = 0;
 	splx(x);
 	return (cp == NULL ? -1 : *cp);
@@ -1579,7 +1510,7 @@ pcvt_xmode_set(int on, struct proc *p)
 
 		vsp->Crtat = vsp->Memory;	/* operate in memory now */
 
-#ifndef _DEV_KBD_KBDREG_H_
+#ifndef _I386_ISA_KBDIO_H_
 
 #if PCVT_SCANSET == 2
 		/* put keyboard to return ancient PC scan codes */
@@ -1593,15 +1524,15 @@ pcvt_xmode_set(int on, struct proc *p)
 #endif /* PCVT_USEKBDSEC */
 #endif /* PCVT_SCANSET == 2 */
 
-#else /* _DEV_KBD_KBDREG_H_ */
+#else /* _I386_ISA_KBDIO_H_ */
 
 #if PCVT_SCANSET == 2
 		/* put keyboard to return ancient PC scan codes */
-		set_controller_command_byte(*(KBDC *)kbd->kb_data, 
+		set_controller_command_byte(kbdc, 
 			KBD_TRANSLATION, KBD_TRANSLATION); 
 #endif /* PCVT_SCANSET == 2 */
 
-#endif /* !_DEV_KBD_KBDREG_H_ */
+#endif /* !_I386_ISA_KBDIO_H_ */
 
 #if PCVT_NETBSD > 9
 		fp->tf_eflags |= PSL_IOPL;
@@ -1638,7 +1569,7 @@ pcvt_xmode_set(int on, struct proc *p)
 			pcvt_set_scrnsv_tmo(saved_scrnsv_tmo);
 #endif /* PCVT_SCREENSAVER */
 
-#ifndef _DEV_KBD_KBDREG_H_
+#ifndef _I386_ISA_KBDIO_H_
 
 #if PCVT_SCANSET == 2
 		kbc_8042cmd(CONTR_WRITE);
@@ -1651,14 +1582,13 @@ pcvt_xmode_set(int on, struct proc *p)
 #endif /* PCVT_USEKBDSEC */
 #endif /* PCVT_SCANSET == 2 */
 
-#else /* _DEV_KBD_KBDREG_H_ */
+#else /* _I386_ISA_KBDIO_H_ */
 
 #if PCVT_SCANSET == 2
-		set_controller_command_byte(*(KBDC *)kbd->kb_data,
-			KBD_TRANSLATION, 0);
+		set_controller_command_byte(kbdc, KBD_TRANSLATION, 0);
 #endif /* PCVT_SCANSET == 2 */
 
-#endif /* !_DEV_KBD_KBDREG_H_ */
+#endif /* !_I386_ISA_KBDIO_H_ */
 
 		if(adaptor_type == MDA_ADAPTOR)
 		{

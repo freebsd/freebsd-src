@@ -22,44 +22,15 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: comconsole.c,v 1.5 1998/11/22 07:59:16 rnordier Exp $
+ * 	From Id: probe_keyboard.c,v 1.13 1997/06/09 05:10:55 bde Exp
+ *
+ *	$Id: comconsole.c,v 1.3 1998/10/02 16:32:45 msmith Exp $
  */
 
 #include <stand.h>
 #include <bootstrap.h>
-#include <machine/cpufunc.h>
+#include <btxv86.h>
 #include "libi386.h"
-
-/* selected defines from ns16550.h */
-#define	com_data	0	/* data register (R/W) */
-#define	com_dlbl	0	/* divisor latch low (W) */
-#define	com_dlbh	1	/* divisor latch high (W) */
-#define	com_ier		1	/* interrupt enable (W) */
-#define	com_iir		2	/* interrupt identification (R) */
-#define	com_fifo	2	/* FIFO control (W) */
-#define	com_lctl	3	/* line control register (R/W) */
-#define	com_cfcr	3	/* line control register (R/W) */
-#define	com_mcr		4	/* modem control register (R/W) */
-#define	com_lsr		5	/* line status register (R/W) */
-#define	com_msr		6	/* modem status register (R/W) */
-
-/* selected defines from sioreg.h */
-#define	CFCR_DLAB	0x80
-#define	MCR_RTS		0x02
-#define	MCR_DTR		0x01
-#define	LSR_TXRDY	0x20
-#define	LSR_RXRDY	0x01
-
-#define COMC_FMT	0x3		/* 8N1 */
-#define COMC_TXWAIT	0x40000		/* transmit timeout */
-#define COMC_BPS(x)	(115200 / (x))	/* speed to DLAB divisor */
-
-#ifndef	COMPORT
-#define COMPORT		0x3f8
-#endif
-#ifndef	COMSPEED
-#define COMSPEED	9600
-#endif
 
 static void	comc_probe(struct console *cp);
 static int	comc_init(int arg);
@@ -71,7 +42,7 @@ static int	comc_started;
 
 struct console comconsole = {
     "comconsole",
-    "serial port",
+    "BIOS serial port",
     0,
     comc_probe,
     comc_init,
@@ -79,6 +50,8 @@ struct console comconsole = {
     comc_getchar,
     comc_ischar
 };
+
+#define BIOS_COMPORT	0
 
 static void
 comc_probe(struct console *cp)
@@ -90,19 +63,19 @@ comc_probe(struct console *cp)
 static int
 comc_init(int arg)
 {
+    int		i;
+
     if (comc_started && arg == 0)
 	return 0;
     comc_started = 1;
+    v86.ctl = 0;
+    v86.addr = 0x14;
+    v86.eax = 0xe3;		/* 9600N81 */
+    v86.edx = BIOS_COMPORT;	/* XXX take as arg, or use env var? */
+    v86int();
 
-    outb(COMPORT + com_cfcr, CFCR_DLAB | COMC_FMT);
-    outb(COMPORT + com_dlbl, COMC_BPS(COMSPEED) & 0xff);
-    outb(COMPORT + com_dlbh, COMC_BPS(COMSPEED) >> 8);
-    outb(COMPORT + com_cfcr, COMC_FMT);
-    outb(COMPORT + com_mcr, MCR_RTS | MCR_DTR);
-
-    do
-        inb(COMPORT + com_data);
-    while (inb(COMPORT + com_lsr) & LSR_RXRDY);
+    for(i = 0; i < 10 && comc_ischar(); i++)
+        (void)comc_getchar();
 
     return(0);
 }
@@ -110,23 +83,35 @@ comc_init(int arg)
 static void
 comc_putchar(int c)
 {
-    int wait;
-
-    for (wait = COMC_TXWAIT; wait > 0; wait--)
-        if (inb(COMPORT + com_lsr) & LSR_TXRDY) {
-	    outb(COMPORT + com_data, c);
-	    break;
-	}
+    v86.ctl = 0;
+    v86.addr = 0x14;
+    v86.eax = 0x100 | c;	/* Function 1 = write */
+    v86.edx = BIOS_COMPORT;	/* XXX take as arg, or use env var? */
+    v86int();
 }
 
 static int
 comc_getchar(void)
 {
-    return(comc_ischar() ? inb(COMPORT + com_data) : -1);
+    if (comc_ischar()) {
+	v86.ctl = 0;
+	v86.addr = 0x14;
+	v86.eax = 0x200;	/* Function 2 = read */
+	v86.edx = BIOS_COMPORT;	/* XXX take as arg, or use env var? */
+	v86int();
+	return(v86.eax & 0xff);
+    } else {
+	return(-1);
+    }
 }
 
 static int
 comc_ischar(void)
 {
-    return(inb(COMPORT + com_lsr) & LSR_RXRDY);
+    v86.ctl = 0;
+    v86.addr = 0x14;
+    v86.eax = 0x300;		/* Function 3 = status */
+    v86.edx = BIOS_COMPORT;	/* XXX take as arg, or use env var? */
+    v86int();
+    return(v86.eax & 0x100);	/* AH bit 1 is "receive data ready" */
 }

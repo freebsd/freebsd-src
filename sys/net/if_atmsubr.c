@@ -521,16 +521,14 @@ pvc_ioctl(shadow, cmd, data)
 	 */
 	switch (cmd) {
 	case SIOCGPVCSIF:
-		snprintf(ifr->ifr_name, sizeof(ifr->ifr_name),
-		    "%s%d", ifp->if_name, ifp->if_unit);
+		sprintf(ifr->ifr_name, "%s%d", ifp->if_name, ifp->if_unit);
 		return (0);
 
 	case SIOCGPVCTX:
 		do {
 			struct pvctxreq *pvcreq = (struct pvctxreq *)data;
 
-			snprintf(pvcreq->pvc_ifname,
-			    sizeof(pvcreq->pvc_ifname), "%s%d",
+			sprintf(pvcreq->pvc_ifname, "%s%d",
 				ifp->if_name, ifp->if_unit);
 			pvcreq->pvc_aph = pvcsif->sif_aph;
 		} while (0);

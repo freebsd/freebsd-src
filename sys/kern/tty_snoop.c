@@ -135,8 +135,10 @@ snpread(dev, uio, flag)
 	caddr_t         from;
 	char           *nbuf;
 
-	KASSERT(snp->snp_len + snp->snp_base <= snp->snp_blen,
-	    ("snoop buffer error"));
+#ifdef DIAGNOSTIC
+	if ((snp->snp_len + snp->snp_base) > snp->snp_blen)
+		panic("snoop buffer error");
+#endif
 
 	if (snp->snp_tty == NULL)
 		return (EIO);
@@ -206,12 +208,14 @@ snpin(snp, buf, n)
 	caddr_t         from, to;
 	char           *nbuf;
 
-	KASSERT(n >= 0, ("negative snoop char count"));
 
 	if (n == 0)
 		return 0;
 
 #ifdef DIAGNOSTIC
+	if (n < 0)
+		panic("bad snoop char count");
+
 	if (!(snp->snp_flags & SNOOP_OPEN)) {
 		printf("Snoop: data coming to closed device.\n");
 		return 0;

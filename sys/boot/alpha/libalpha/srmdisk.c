@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: srmdisk.c,v 1.3 1998/11/02 23:28:10 msmith Exp $
+ *	$Id$
  */
 
 /*
@@ -46,7 +46,6 @@
 #include <machine/stdarg.h>
 #include <machine/prom.h>
 
-#include "bootstrap.h"
 #include "libalpha.h"
 
 #define SRMDISK_SECSIZE	512
@@ -62,16 +61,18 @@
 
 static int	bd_init(void);
 static int	bd_strategy(void *devdata, int flag, daddr_t dblk, size_t size, void *buf, size_t *rsize);
-static int	bd_realstrategy(void *devdata, int flag, daddr_t dblk, size_t size, void *buf, size_t *rsize);
 static int	bd_open(struct open_file *f, void *vdev);
 static int	bd_close(struct open_file *f);
-static void	bd_print(int verbose);
 
 struct open_disk {
     int			od_fd;
     int			od_unit;		/* our unit number */
     int			od_boff;		/* block offset from beginning of SRM disk */
     int			od_flags;
+#define	BD_MODEMASK	0x3
+#define BD_MODEINT13	0x0
+#define BD_MODEEDD1	0x1
+#define BD_MODEEDD3	0x2
 #define BD_FLOPPY	(1<<2)
     u_char		od_buf[BUFSIZE];	/* transfer buffer (do we want/need this?) */
 };
@@ -83,8 +84,7 @@ struct devsw srmdisk = {
     bd_strategy, 
     bd_open, 
     bd_close, 
-    noioctl,
-    bd_print
+    noioctl
 };
 
 /*
@@ -117,23 +117,6 @@ bd_init(void)
     nbdinfo++;
 
     return (0);
-}
-
-/*
- * Print information about disks
- */
-static void
-bd_print(int verbose)
-{
-    int		i;
-    char	line[80];
-    
-    for (i = 0; i < nbdinfo; i++) {
-	sprintf(line, "    disk%d:   SRM drive %s", i, bdinfo[i].bd_name);
-	pager_output(line);
-	/* XXX more detail? */
-	pager_output("\n");
-    }
 }
 
 /*
@@ -324,17 +307,7 @@ bd_close(struct open_file *f)
 }
 
 static int 
-bd_strategy(void *devdata, int rw, daddr_t dblk, size_t size, void *buf, size_t *rsize)
-{
-    struct bcache_devdata	bcd;
-    
-    bcd.dv_strategy = bd_realstrategy;
-    bcd.dv_devdata = devdata;
-    return(bcache_strategy(&bcd, rw, dblk, size, buf, rsize));
-}
-
-static int 
-bd_realstrategy(void *devdata, int flag, daddr_t dblk, size_t size, void *buf, size_t *rsize)
+bd_strategy(void *devdata, int flag, daddr_t dblk, size_t size, void *buf, size_t *rsize)
 {
     prom_return_t	ret;
     struct open_disk	*od = (struct open_disk *)devdata;

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pcf.c,v 1.5 1998/11/04 22:09:17 nsouch Exp $
+ *	$Id: pcf.c,v 1.1.1.17 1998/08/29 17:04:23 son Exp $
  *
  */
 #include <sys/param.h>
@@ -41,7 +41,7 @@
 #include <dev/iicbus/iiconf.h>
 #include "iicbus_if.h"
 
-#define TIMEOUT	9999					/* XXX */
+#define TIMEOUT	99999					/* XXX */
 
 /* Status bits of S1 register (read only) */
 #define nBB	0x01		/* busy when low set/reset by STOP/START*/
@@ -67,15 +67,13 @@
 #define SLAVE_TRANSMITTER	0x1
 #define SLAVE_RECEIVER		0x2
 
-#define PCF_DEFAULT_ADDR	0xaa
-
 struct pcf_softc {
 
 	int pcf_base;			/* isa port */
-	u_char pcf_addr;		/* interface I2C address */
 
+	int pcf_count;
+	int pcf_own_address;		/* own address */
 	int pcf_slave_mode;		/* receiver or transmitter */
-	int pcf_started;		/* 1 if start condition sent */
 
 	device_t iicbus;		/* the corresponding iicbus */
 };
@@ -105,13 +103,12 @@ static int pcf_probe(device_t);
 static int pcf_attach(device_t);
 static void pcf_print_child(device_t, device_t);
 
-static int pcf_repeated_start(device_t, u_char, int);
-static int pcf_start(device_t, u_char, int);
+static int pcf_repeated_start(device_t, u_char);
+static int pcf_start(device_t, u_char);
 static int pcf_stop(device_t);
-static int pcf_write(device_t, char *, int, int *, int);
-static int pcf_read(device_t, char *, int, int *, int, int);
-static ointhand2_t pcfintr;
-static int pcf_rst_card(device_t, u_char, u_char, u_char *);
+static int pcf_write(device_t, char *, int, int *);
+static int pcf_read(device_t, char *, int, int *);
+static int pcf_rst_card(device_t, u_char);
 
 static device_method_t pcf_methods[] = {
 	/* device interface */
@@ -122,7 +119,6 @@ static device_method_t pcf_methods[] = {
 	DEVMETHOD(bus_print_child,	pcf_print_child),
 
 	/* iicbus interface */
-	DEVMETHOD(iicbus_callback,	iicbus_null_callback),
 	DEVMETHOD(iicbus_repeated_start, pcf_repeated_start),
 	DEVMETHOD(iicbus_start,		pcf_start),
 	DEVMETHOD(iicbus_stop,		pcf_stop),
@@ -149,6 +145,7 @@ pcfprobe_isa(struct isa_device *dvp)
 {
 	device_t pcfdev;
 	struct pcf_isa_softc *pcf;
+	int error;
 
 	if (npcf >= MAXPCF)
 		return (0);
@@ -171,6 +168,7 @@ pcfprobe_isa(struct isa_device *dvp)
 	if (!pcfdev)
 		goto error;
 
+end_probe:
 	return (1);
 
 error:
@@ -181,12 +179,28 @@ error:
 static int
 pcfattach_isa(struct isa_device *isdp)
 {
-	isdp->id_ointr = pcfintr;
 	return (1);				/* ok */
 }
 
 static int
 pcf_probe(device_t pcfdev)
+{
+	struct pcf_softc *pcf = (struct pcf_softc *)device_get_softc(pcfdev);
+
+	/* XXX try do detect chipset */
+
+	device_set_desc(pcfdev, "PCF8584 I2C bus controller");
+
+	pcf->iicbus = iicbus_alloc_bus(pcfdev);
+
+	if (!pcf->iicbus)
+		return (EINVAL);
+
+	return (0);
+}
+
+static int
+pcf_attach(device_t pcfdev)
 {
 	struct pcf_softc *pcf = (struct pcf_softc *)device_get_softc(pcfdev);
 	int unit = device_get_unit(pcfdev);
@@ -197,23 +211,6 @@ pcf_probe(device_t pcfdev)
 	 */
 	pcf->pcf_base = pcfdata[unit]->pcf_base;
 
-	/* reset the chip */
-	pcf_rst_card(pcfdev, IIC_FASTEST, PCF_DEFAULT_ADDR, NULL);
-
-	/* XXX try do detect chipset */
-
-	device_set_desc(pcfdev, "PCF8584 I2C bus controller");
-
-	return (0);
-}
-
-static int
-pcf_attach(device_t pcfdev)
-{
-	struct pcf_softc *pcf = (struct pcf_softc *)device_get_softc(pcfdev);
-
-	pcf->iicbus = iicbus_alloc_bus(pcfdev);
-
 	/* probe and attach the iicbus */
 	device_probe_and_attach(pcf->iicbus);
 
@@ -223,10 +220,8 @@ pcf_attach(device_t pcfdev)
 static void
 pcf_print_child(device_t bus, device_t dev)
 {
-	struct pcf_softc *pcf = (struct pcf_softc *)device_get_softc(bus);
-
 	printf(" on %s%d addr 0x%x", device_get_name(bus),
-		device_get_unit(bus), (int)pcf->pcf_addr);
+		device_get_unit(bus), iicbus_get_own_address(dev));
 
 	return;
 }
@@ -296,39 +291,13 @@ static int pcf_stop(device_t pcfdev)
 {
 	struct pcf_softc *pcf = DEVTOSOFTC(pcfdev);
 
-	/*
-	 * Send STOP condition iff the START condition was previously sent.
-	 * STOP is sent only once even if a iicbus_stop() is called after
-	 * an iicbus_read()... see pcf_read(): the pcf needs to send the stop
-	 * before the last char is read.
-	 */
-	if (pcf->pcf_started) {
-		/* set stop condition and enable IT */
-		PCF_SET_S1(pcf, PIN|ES0|ENI|STO|ACK);
-
-		pcf->pcf_started = 0;
-	}
+	/* set stop condition and enable IT */
+	PCF_SET_S1(pcf, PIN|ES0|ENI|STO|ACK);
 
 	return (0);
 }
 
-
-static int pcf_noack(struct pcf_softc *pcf, int timeout)
-{
-	int noack;
-	int k = timeout/10;
-
-	do {
-		noack = PCF_GET_S1(pcf) & LRB;
-		if (!noack)
-			break;
-		DELAY(10);				/* XXX wait 10 us */
-	} while (k--);
-
-	return (noack);
-}
-
-static int pcf_repeated_start(device_t pcfdev, u_char slave, int timeout)
+static int pcf_repeated_start(device_t pcfdev, u_char slave)
 {
 	struct pcf_softc *pcf = DEVTOSOFTC(pcfdev);
 	int error = 0;
@@ -344,8 +313,8 @@ static int pcf_repeated_start(device_t pcfdev, u_char slave, int timeout)
 	if ((error = pcf_wait_byte(pcf)))
 		goto error;
 
-	/* check for ack */
-	if (pcf_noack(pcf, timeout)) {
+	/* check ACK */
+	if (PCF_GET_S1(pcf) & LRB) {
 		error = IIC_ENOACK;
 		goto error;
 	}
@@ -357,7 +326,7 @@ error:
 	return (error);
 }
 
-static int pcf_start(device_t pcfdev, u_char slave, int timeout)
+static int pcf_start(device_t pcfdev, u_char slave)
 {
 	struct pcf_softc *pcf = DEVTOSOFTC(pcfdev);
 	int error = 0;
@@ -372,14 +341,12 @@ static int pcf_start(device_t pcfdev, u_char slave, int timeout)
 	/* START only */
 	PCF_SET_S1(pcf, PIN|ES0|STA|ACK);
 
-	pcf->pcf_started = 1;
-
 	/* wait for address sent, polling */
 	if ((error = pcf_wait_byte(pcf)))
 		goto error;
 
-	/* check for ACK */
-	if (pcf_noack(pcf, timeout)) {
+	/* check ACK */
+	if (PCF_GET_S1(pcf) & LRB) {
 		error = IIC_ENOACK;
 		goto error;
 	}
@@ -391,7 +358,7 @@ error:
 	return (error);
 }
 
-static void
+void
 pcfintr(unit)
 {
 	struct pcf_softc *pcf =
@@ -499,23 +466,19 @@ error:
 	return;
 }
 
-static int pcf_rst_card(device_t pcfdev, u_char speed, u_char addr, u_char *oldaddr)
+static int pcf_rst_card(device_t pcfdev, u_char speed)
 {
 	struct pcf_softc *pcf = DEVTOSOFTC(pcfdev);
-
-	if (oldaddr)
-		*oldaddr = pcf->pcf_addr;
+	u_char ownaddr;
 
 	/* retrieve own address from bus level */
-	if (!addr)
-		pcf->pcf_addr = PCF_DEFAULT_ADDR;
-	else
-		pcf->pcf_addr = addr;
+	if ((ownaddr = iicbus_get_own_address(pcf->iicbus)) == 0)
+		ownaddr = 0xaa;
 	
 	PCF_SET_S1(pcf, PIN);				/* initialize S1 */
 
 	/* own address S'O<>0 */
-	PCF_SET_S0(pcf, pcf->pcf_addr >> 1);
+	PCF_SET_S0(pcf, ownaddr >> 1);
 
 	/* select clock register */
 	PCF_SET_S1(pcf, PIN|ES1);
@@ -546,7 +509,7 @@ static int pcf_rst_card(device_t pcfdev, u_char speed, u_char addr, u_char *olda
 }
 
 static int
-pcf_write(device_t pcfdev, char *buf, int len, int *sent, int timeout /* us */)
+pcf_write(device_t pcfdev, char *buf, int len, int *sent)
 {
 	struct pcf_softc *pcf = DEVTOSOFTC(pcfdev);
 	int bytes, error = 0;
@@ -560,12 +523,10 @@ pcf_write(device_t pcfdev, char *buf, int len, int *sent, int timeout /* us */)
 
 		PCF_SET_S0(pcf, *buf++);
 
-		/* wait for the byte to be send */
 		if ((error = pcf_wait_byte(pcf)))
 			goto error;
 
-		/* check if ack received */
-		if (pcf_noack(pcf, timeout)) {
+		if (PCF_GET_S1(pcf) & LRB) {
 			error = IIC_ENOACK;
 			goto error;
 		}
@@ -586,8 +547,7 @@ error:
 }
 
 static int
-pcf_read(device_t pcfdev, char *buf, int len, int *read, int last,
-							int delay /* us */)
+pcf_read(device_t pcfdev, char *buf, int len, int *read)
 {
 	struct pcf_softc *pcf = DEVTOSOFTC(pcfdev);
 	int bytes, error = 0;
@@ -598,7 +558,7 @@ pcf_read(device_t pcfdev, char *buf, int len, int *read, int last,
 
 	/* trig the bus to get the first data byte in S0 */
 	if (len) {
-		if (len == 1 && last)
+		if (len == 1)
 			/* just one byte to read */
 			PCF_SET_S1(pcf, ES0);		/* no ack */
 
@@ -608,25 +568,26 @@ pcf_read(device_t pcfdev, char *buf, int len, int *read, int last,
 	bytes = 0;
 	while (len) {
 
-		/* XXX delay needed here */
-
-		/* wait for trigged byte */
 		if ((error = pcf_wait_byte(pcf))) {
 			pcf_stop(pcfdev);
 			goto error;
 		}
 
-		if (len == 1 && last)
-			/* ok, last data byte already in S0, no I2C activity
-			 * on next PCF_GET_S0() */
+		if (len == 1) {
+
+			/* ok, last data byte already in S0 */
 			pcf_stop(pcfdev);
 
-		else if (len == 2 && last)
-			/* next trigged byte with no ack */
-			PCF_SET_S1(pcf, ES0);
+			*buf = PCF_GET_S0(pcf);
 
-		/* receive byte, trig next byte */
-		*buf++ = PCF_GET_S0(pcf);
+		} else {
+			if (len == 2)
+				/* next trigged byte with no ack */
+				PCF_SET_S1(pcf, ES0);
+
+			/* read last data byte, trig for next data byte */
+			*buf++ = PCF_GET_S0(pcf);
+		}
 
 		len --;
 		bytes ++;

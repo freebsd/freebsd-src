@@ -11,7 +11,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)recipient.c	8.161 (Berkeley) 12/18/1998";
+static char sccsid[] = "@(#)recipient.c	8.154 (Berkeley) 6/24/98";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -331,11 +331,8 @@ recipient(a, sendq, aliaslevel, e)
 	}
 
 	/* add address on list */
-	if (pq != NULL)
-	{
-		*pq = a;
-		a->q_next = NULL;
-	}
+	*pq = a;
+	a->q_next = NULL;
 
 	/*
 	**  Alias the name and handle special mailer types.
@@ -343,10 +340,7 @@ recipient(a, sendq, aliaslevel, e)
 
   trylocaluser:
 	if (tTd(29, 7))
-	{
-		printf("at trylocaluser: ");
-		printaddr(a, FALSE);
-	}
+		printf("at trylocaluser %s\n", a->q_user);
 
 	if (bitset(QDONTSEND|QBADADDR|QVERIFIED, a->q_flags))
 		goto testselfdestruct;
@@ -937,7 +931,7 @@ include(fname, forwarding, ctladdr, sendq, aliaslevel, e)
 		       (int) getuid(), (int) geteuid());
 
 	if (forwarding)
-		sfflags |= SFF_MUSTOWN|SFF_ROOTOK|SFF_NOWLINK;
+		sfflags |= SFF_MUSTOWN|SFF_ROOTOK|SFF_NOSLINK;
 
 	ca = getctladdr(ctladdr);
 	if (ca == NULL)
@@ -1201,7 +1195,7 @@ resetuid:
 	}
 
 	/*
-	**  Check to see if some bad guy can write this file
+	** Check to see if some bad guy can write this file
 	**
 	**	Group write checking could be more clever, e.g.,
 	**	guessing as to which groups are actually safe ("sys"

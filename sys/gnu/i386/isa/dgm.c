@@ -1,5 +1,5 @@
 /*-
- *	$Id: dgm.c,v 1.5 1998/08/23 08:26:40 bde Exp $
+ *	$Id: dgm.c,v 1.4 1998/08/16 01:21:49 bde Exp $
  *
  *  This driver and the associated header files support the ISA PC/Xem
  *  Digiboards.  Its evolutionary roots are described below.
@@ -381,7 +381,9 @@ dgmprobe(dev)
 	struct isa_device	*dev;
 {
 	struct dgm_softc *sc= &dgm_softc[dev->id_unit];
-	int i, v;
+	int i, v, t;
+	u_char *mem;
+	int addr;
 	int unit=dev->id_unit;
 
 	sc->unit=dev->id_unit;
@@ -447,9 +449,14 @@ dgmattach(dev)
 	int addr;
 	struct dgm_p *port;
 	volatile struct board_chan *bc;
+	struct global_data *gd;
 	int shrinkmem;
+	int nfails;
+	ushort *pstat;
 	int lowwater;
 	static int nports=0;
+	char ch;
+	int stuff;
 
 	if(sc->status!=ENABLED) {
 		DPRINT2(DB_EXCEPT,"dbg%d: try to attach a disabled card\n",unit);
@@ -1080,6 +1087,7 @@ dgmpoll(unit_c)
 	int rhead, rtail;
 	int whead, wtail;
 	int size;
+	int c=0;
 	u_char *ptr;
 	int ocount;
 	int ibuf_full,obuf_full;
@@ -1308,6 +1316,7 @@ dgmpoll(unit_c)
 				        setwin(sc,0);
 				        }
 			        }
+			end_of_buffer: ;
 			}
 			bc->idata=1;   /* require event on incoming data */ 
 
@@ -1752,6 +1761,7 @@ dgmparam(tp, t)
 	struct termios	*t;
 {
 	int dev=tp->t_dev;
+	int mynor=minor(dev);
 	int unit=MINOR_TO_UNIT(dev);
 	int pnum=MINOR_TO_PORT(dev);
 	struct dgm_softc *sc=&dgm_softc[unit];
@@ -1762,7 +1772,7 @@ dgmparam(tp, t)
 	int mval;
 	int iflag;
 	int hflow;
-	int cs;
+	int s,cs;
 
 	BoardMemWinState ws=bmws_get();
 
@@ -1965,6 +1975,7 @@ dgmstop(tp, rw)
 	struct dgm_p *port;
 	struct dgm_softc *sc;
 	volatile struct board_chan *bc;
+	int head;
 	int s;
 
 	BoardMemWinState ws=bmws_get();

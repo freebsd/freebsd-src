@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: scsi_all.c,v 1.8 1998/12/06 00:05:47 mjacob Exp $
+ *	$Id: scsi_all.c,v 1.5 1998/10/02 21:00:54 ken Exp $
  */
 
 #include <sys/param.h>
@@ -1563,6 +1563,7 @@ char *
 scsi_cdb_string(u_int8_t *cdb_ptr, char *cdb_string, size_t len)
 {
 	u_int8_t cdb_len;
+	char holdstr[8];
 	int i;
 
 	if (cdb_ptr == NULL)
@@ -1607,9 +1608,17 @@ scsi_cdb_string(u_int8_t *cdb_ptr, char *cdb_string, size_t len)
 			break;
 	}
 	*cdb_string = '\0';
-	for (i = 0; i < cdb_len; i++)
-		snprintf(cdb_string + strlen(cdb_string),
-		    len - strlen(cdb_string), "%x ", cdb_ptr[i]);
+	for (i = 0; i < cdb_len; i++) {
+		sprintf(holdstr, "%x ", cdb_ptr[i]);
+		/*
+		 * If we're about to exceed the length of the string,
+		 * just return what we've already printed.
+		 */
+		if (strlen(holdstr) + strlen(cdb_string) > len)
+			break;
+
+		strcat(cdb_string, holdstr);
+	}
 
 	return(cdb_string);
 }
@@ -2201,8 +2210,8 @@ scsi_interpret_sense(struct cam_device *device, union ccb *ccb,
 			if (((sense_flags & SF_QUIET_IR) != 0)
 			 && ((sense_flags & SF_PRINT_ALWAYS) == 0))
 				print_sense = FALSE;
-			error = EINVAL;
-			break;
+
+			/* FALLTHROUGH */
 		case SSD_KEY_NOT_READY:
 		case SSD_KEY_DATA_PROTECT:
 		case SSD_KEY_VOLUME_OVERFLOW:
@@ -2295,7 +2304,7 @@ scsi_print_inquiry(struct scsi_inquiry_data *inq_data)
 {
 	u_int8_t type;
 	char *dtype, *qtype;
-	char vendor[16], product[48], revision[16], rstr[4];
+	char vendor[16], product[48], revision[16];
 
 	type = SID_TYPE(inq_data);
 
@@ -2375,14 +2384,10 @@ scsi_print_inquiry(struct scsi_inquiry_data *inq_data)
 	cam_strvis(revision, inq_data->revision, sizeof(inq_data->revision),
 		   sizeof(revision));
 
-	if (SID_ANSI_REV(inq_data) == SCSI_REV_CCS)
-		bcopy("CCS", rstr, 4);
-	else
-		snprintf(rstr, sizeof (rstr), "%d", SID_ANSI_REV(inq_data));
-	printf("<%s %s %s> %s %s SCSI-%s device %s\n",
+	printf("<%s %s %s> %s %s SCSI%d device %s\n",
 	       vendor, product, revision,
 	       SID_IS_REMOVABLE(inq_data) ? "Removable" : "Fixed",
-	       dtype, rstr, qtype);
+	       dtype, SID_ANSI_REV(inq_data), qtype);
 }
 
 /*

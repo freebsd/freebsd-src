@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ed.c,v 1.57 1998/12/31 03:23:39 kato Exp $
+ *	$Id: if_ed.c,v 1.53 1998/10/08 17:04:58 kato Exp $
  */
 
 /*
@@ -49,7 +49,6 @@
  *    MELCO LPC-TJ, LPC-TS, LGY-98, LGH-98, IND-SP, IND-SS, EGY-98
  *    PLANET SMART COM CREDITCARD/2000 PCMCIA, EN-2298
  *    Contec C-NET(98), C-NET(98)E, C-NET(98)L, C-NET(98)E-A, C-NET(98)L-A
- *    SMC EtherEZ98
  *
  * Modified for FreeBSD(98) 2.2 by KATO T. of Nagoya University.
  *
@@ -180,7 +179,6 @@ static int ed_attach		__P((struct ed_softc *, int, int));
 static int ed_attach_isa	__P((struct isa_device *));
 
 static void ed_init		__P((void *));
-static ointhand2_t edintr;
 static int ed_ioctl		__P((struct ifnet *, u_long, caddr_t));
 static int ed_probe		__P((struct isa_device *));
 static void ed_start		__P((struct ifnet *));
@@ -241,7 +239,6 @@ static u_long	ds_crc		__P((u_char *ep));
 #endif
 #if NCARD > 0
 #include <sys/select.h>
-#include <sys/module.h>
 #include <pccard/cardinfo.h>
 #include <pccard/slot.h>
 
@@ -252,7 +249,17 @@ static int	edinit		__P((struct pccard_devinfo *));
 static void	edunload	__P((struct pccard_devinfo *));
 static int	card_intr	__P((struct pccard_devinfo *));
 
-PCCARD_MODULE(ed, edinit, edunload, card_intr, 0, net_imask);
+static struct pccard_device ed_info = {
+	"ed",
+	edinit,
+	edunload,
+	card_intr,
+	0,			/* Attributes - presently unused */
+	&net_imask		/* Interrupt mask for device */
+				/* XXX - Should this also include net_imask? */
+};
+
+DATA_SET(pccarddrv_set, ed_info);
 
 /*
  *	Initialize the device - called from Slot manager.
@@ -349,16 +356,6 @@ static unsigned short ed_intr_mask[] = {
  * Interrupt conversion table for 83C790
  */
 static unsigned short ed_790_intr_mask[] = {
-#ifdef PC98
-	0,
-	IRQ3,
-	IRQ5,
-	IRQ6,
-	0,
-	IRQ9,
-	IRQ12,
-	IRQ13
-#else
 	0,
 	IRQ9,
 	IRQ3,
@@ -367,7 +364,6 @@ static unsigned short ed_790_intr_mask[] = {
 	IRQ10,
 	IRQ11,
 	IRQ15
-#endif
 };
 
 /*
@@ -2485,7 +2481,6 @@ ed_attach_isa(isa_dev)
 	struct ed_softc *sc = &ed_softc[unit];
 	int flags = isa_dev->id_flags;
 
-	isa_dev->id_ointr = edintr;
 	return ed_attach(sc, unit, flags);
 }
 
@@ -3322,7 +3317,7 @@ edintr_sc(sc)
 	}
 }
 
-static void 
+void 
 edintr(unit)
 	int unit;
 {
@@ -4283,7 +4278,7 @@ edpnp_attach(u_long csn, u_long vend_id, char *name, struct isa_device *dev)
 
 	dev->id_iobase = d.port[0];
 	dev->id_irq = (1 << d.irq[0]);
-	dev->id_ointr = edintr;
+	dev->id_intr = edintr;
 	dev->id_drq = -1;
 
 	if (dev->id_driver == NULL) {

@@ -1,4 +1,4 @@
-/* $Id: alpha_cpu.h,v 1.4 1998/12/23 11:50:50 dfr Exp $ */
+/* $Id: alpha_cpu.h,v 1.2 1998/06/10 10:54:21 dfr Exp $ */
 /* From: NetBSD: alpha_cpu.h,v 1.15 1997/09/20 19:02:34 mjacob Exp */
 
 /*
@@ -273,10 +273,8 @@ typedef unsigned long alpha_pt_entry_t;
  */
 
 #define	ALPHA_AMASK_BWX		0x0001		/* byte/word extension */
-#define	ALPHA_AMASK_FIX		0x0002		/* sqrt and f <-> i conversion extension */
-#define	ALPHA_AMASK_CIX		0x0004		/* count extension */
-#define	ALPHA_AMASK_MVI		0x0100		/* multimedia extension */
-#define	ALPHA_AMASK_PRECISE	0x0200		/* Precise arithmetic traps */
+#define	ALPHA_AMASK_CIX		0x0002		/* count extension */
+#define	ALPHA_AMASK_MAX		0x0100		/* multimedia extension */
 
 /*
  * Chip family IDs returned by implver instruction
@@ -326,6 +324,5 @@ void		alpha_pal_wrusp __P((unsigned long));
 void		alpha_pal_wrvptptr __P((unsigned long));
 void		alpha_pal_wrmces __P((unsigned long));
 void		alpha_pal_wrval __P((unsigned long));
-unsigned long	alpha_pal_wrperfmon __P((unsigned long, unsigned long));
 
 #endif /* __ALPHA_ALPHA_CPU_H__ */

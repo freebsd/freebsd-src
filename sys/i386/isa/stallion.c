@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: stallion.c,v 1.23 1998/10/22 05:58:40 bde Exp $
+ * $Id: stallion.c,v 1.21 1998/08/23 08:26:41 bde Exp $
  */
 
 /*****************************************************************************/
@@ -467,7 +467,6 @@ static int	stl_brdinit(stlbrd_t *brdp);
 static int	stl_initeio(stlbrd_t *brdp);
 static int	stl_initech(stlbrd_t *brdp);
 static int	stl_initports(stlbrd_t *brdp, stlpanel_t *panelp);
-static ointhand2_t	stlintr;
 static __inline void	stl_txisr(stlpanel_t *panelp, int ioaddr);
 static __inline void	stl_rxisr(stlpanel_t *panelp, int ioaddr);
 static __inline void	stl_mdmisr(stlpanel_t *panelp, int ioaddr);
@@ -491,7 +490,7 @@ static int	stl_clrportstats(stlport_t *portp, caddr_t data);
 static stlport_t *stl_getport(int brdnr, int panelnr, int portnr);
 
 #if NPCI > 0
-static const char *stlpciprobe(pcici_t tag, pcidi_t type);
+static char	*stlpciprobe(pcici_t tag, pcidi_t type);
 static void	stlpciattach(pcici_t tag, int unit);
 static void	stlpciintr(void * arg);
 #endif
@@ -635,8 +634,6 @@ static int stlattach(struct isa_device *idp)
 		idp->id_unit, idp->id_iobase);
 #endif
 
-	idp->id_ointr = stlintr;
-
 	brdp = (stlbrd_t *) malloc(sizeof(stlbrd_t), M_TTYS, M_NOWAIT);
 	if (brdp == (stlbrd_t *) NULL) {
 		printf("STALLION: failed to allocate memory (size=%d)\n",
@@ -673,7 +670,7 @@ static int stlattach(struct isa_device *idp)
  *	carefull here, since it looks sort like a Nat Semi IDE chip...
  */
 
-static const char *stlpciprobe(pcici_t tag, pcidi_t type)
+char *stlpciprobe(pcici_t tag, pcidi_t type)
 {
 	unsigned long	class;
 
@@ -1761,7 +1758,7 @@ static __inline void stl_mdmisr(stlpanel_t *panelp, int ioaddr)
  *	io register.
  */
 
-static void stlintr(int unit)
+void stlintr(int unit)
 {
 	stlbrd_t	*brdp;
 	stlpanel_t	*panelp;

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	$Id: devfs_vfsops.c,v 1.34 1998/10/31 15:31:23 peter Exp $
+ *	$Id: devfs_vfsops.c,v 1.32 1998/09/07 13:17:00 bde Exp $
  *
  */
 
@@ -258,6 +258,7 @@ static int
 devfs_sync(struct mount *mp, int waitfor,struct ucred *cred,struct proc *p)
 {
 	register struct vnode *vp, *nvp;
+	struct timeval tv;
 	int error, allerror = 0;
 
 DBPRINT(("sync "));
@@ -281,7 +282,7 @@ loop:
 		nvp = vp->v_mntvnodes.le_next;
 		if (VOP_ISLOCKED(vp))
 			continue;
-		if (TAILQ_EMPTY(&vp->v_dirtyblkhd))
+		if ( vp->v_dirtyblkhd.lh_first == NULL)
 			continue;
 		if (vp->v_type == VBLK) {
 			if (vget(vp, LK_EXCLUSIVE, p))
@@ -293,8 +294,6 @@ loop:
 		}
 #ifdef NOTYET
 		else {
-			struct timeval tv;
-
 			tv = time;
 			/* VOP_UPDATE(vp, &tv, &tv, waitfor == MNT_WAIT); */
 			VOP_UPDATE(vp, &tv, &tv, 0);

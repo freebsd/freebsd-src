@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.16 (Berkeley) 5/27/95
- * $Id: nfs_vnops.c,v 1.115 1998/12/25 10:34:27 dfr Exp $
+ * $Id: nfs_vnops.c,v 1.108 1998/09/29 23:29:48 mckusick Exp $
  */
 
 
@@ -60,7 +60,6 @@
 #include <sys/fcntl.h>
 #include <sys/lockf.h>
 #include <sys/stat.h>
-#include <sys/sysctl.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
@@ -248,18 +247,6 @@ struct nfsmount *nfs_iodmount[NFS_MAXASYNCDAEMON];
 int nfs_numasync = 0;
 #define	DIRHDSIZ	(sizeof (struct dirent) - (MAXNAMLEN + 1))
 
-static int	nfsaccess_cache_timeout = 2;
-SYSCTL_INT(_vfs_nfs, OID_AUTO, access_cache_timeout, CTLFLAG_RW, 
-	   &nfsaccess_cache_timeout, 0, "NFS ACCESS cache timeout");
-
-static int	nfsaccess_cache_hits;
-SYSCTL_INT(_vfs_nfs, OID_AUTO, access_cache_hits, CTLFLAG_RD, 
-	   &nfsaccess_cache_hits, 0, "NFS ACCESS cache hit count");
-
-static int	nfsaccess_cache_fills;
-SYSCTL_INT(_vfs_nfs, OID_AUTO, access_cache_fills, CTLFLAG_RD, 
-	   &nfsaccess_cache_fills, 0, "NFS ACCESS cache fill count");
-
 /*
  * nfs access vnode op.
  * For nfs version 2, just return ok. File accesses may fail later.
@@ -282,9 +269,8 @@ nfs_access(ap)
 	caddr_t bpos, dpos, cp2;
 	int error = 0, attrflag;
 	struct mbuf *mreq, *mrep, *md, *mb, *mb2;
-	u_int32_t mode, rmode, wmode;
+	u_int32_t mode, rmode;
 	int v3 = NFS_ISV3(vp);
-	struct nfsnode *np = VTONFS(vp);
 
 	/*
 	 * Disallow write attempts on filesystems mounted read-only;
@@ -302,14 +288,18 @@ nfs_access(ap)
 		}
 	}
 	/*
-	 * For nfs v3, check to see if we have done this recently, and if
-	 * so return our cached result instead of making an ACCESS call.
-	 * If not, do an access rpc, otherwise you are stuck emulating
+	 * For nfs v3, do an access rpc, otherwise you are stuck emulating
 	 * ufs_access() locally using the vattr. This may not be correct,
 	 * since the server may apply other access criteria such as
-	 * client uid-->server uid mapping that we do not know about.
+	 * client uid-->server uid mapping that we do not know about, but
+	 * this is better than just returning anything that is lying about
+	 * in the cache.
 	 */
 	if (v3) {
+		nfsstats.rpccnt[NFSPROC_ACCESS]++;
+		nfsm_reqhead(vp, NFSPROC_ACCESS, NFSX_FH(v3) + NFSX_UNSIGNED);
+		nfsm_fhtom(vp, v3);
+		nfsm_build(tl, u_int32_t *, NFSX_UNSIGNED);
 		if (ap->a_mode & VREAD)
 			mode = NFSV3ACCESS_READ;
 		else
@@ -326,54 +316,21 @@ nfs_access(ap)
 			if (ap->a_mode & VEXEC)
 				mode |= NFSV3ACCESS_LOOKUP;
 		}
-		/* XXX safety belt, only make blanket request if caching */
-		if (nfsaccess_cache_timeout > 0) {
-			wmode = NFSV3ACCESS_READ | NFSV3ACCESS_MODIFY | 
-				NFSV3ACCESS_EXTEND | NFSV3ACCESS_EXECUTE | 
-				NFSV3ACCESS_DELETE | NFSV3ACCESS_LOOKUP;
-		} else {
-			wmode = mode;
-		}
-
-		/*
-		 * Does our cached result allow us to give a definite yes to
-		 * this request?
-		 */
-		if ((time_second < (np->n_modestamp + nfsaccess_cache_timeout)) &&
-		    (ap->a_cred->cr_uid == np->n_modeuid) &&
-		    ((np->n_mode & mode) == mode)) {
-			nfsaccess_cache_hits++;
-		} else {
+		*tl = txdr_unsigned(mode);
+		nfsm_request(vp, NFSPROC_ACCESS, ap->a_p, ap->a_cred);
+		nfsm_postop_attr(vp, attrflag);
+		if (!error) {
+			nfsm_dissect(tl, u_int32_t *, NFSX_UNSIGNED);
+			rmode = fxdr_unsigned(u_int32_t, *tl);
 			/*
-			 * Either a no, or a don't know.  Go to the wire.
+			 * The NFS V3 spec does not clarify whether or not
+			 * the returned access bits can be a superset of
+			 * the ones requested, so...
 			 */
-			nfsstats.rpccnt[NFSPROC_ACCESS]++;
-			nfsm_reqhead(vp, NFSPROC_ACCESS, NFSX_FH(v3) + NFSX_UNSIGNED);
-			nfsm_fhtom(vp, v3);
-			nfsm_build(tl, u_int32_t *, NFSX_UNSIGNED);
-			*tl = txdr_unsigned(wmode); 
-			nfsm_request(vp, NFSPROC_ACCESS, ap->a_p, ap->a_cred);
-			nfsm_postop_attr(vp, attrflag);
-			if (!error) {
-				nfsm_dissect(tl, u_int32_t *, NFSX_UNSIGNED);
-				rmode = fxdr_unsigned(u_int32_t, *tl);
-				/*
-				 * The NFS V3 spec does not clarify whether or not
-				 * the returned access bits can be a superset of
-				 * the ones requested, so...
-				 */
-				if ((rmode & mode) != mode) {
-					error = EACCES;
-				} else if (nfsaccess_cache_timeout > 0) {
-					/* cache the result */
-					nfsaccess_cache_fills++;
-					np->n_mode = rmode;
-					np->n_modeuid = ap->a_cred->cr_uid;
-					np->n_modestamp = time_second;
-				}
-			}
-			nfsm_reqdone;
+			if ((rmode & mode) != mode)
+				error = EACCES;
 		}
+		nfsm_reqdone;
 		return (error);
 	} else {
 		if (error = nfsspec_access(ap))
@@ -665,7 +622,7 @@ nfs_setattr(ap)
 			 */
 			if (vp->v_mount->mnt_flag & MNT_RDONLY)
 				return (EROFS);
-			vnode_pager_setsize(vp, vap->va_size);
+			vnode_pager_setsize(vp, (u_long)vap->va_size);
  			if (np->n_flag & NMODIFIED) {
  			    if (vap->va_size == 0)
  				error = nfs_vinvalbuf(vp, 0,
@@ -674,7 +631,7 @@ nfs_setattr(ap)
  				error = nfs_vinvalbuf(vp, V_SAVE,
  					ap->a_cred, ap->a_p, 1);
  			    if (error) {
-				vnode_pager_setsize(vp, np->n_size);
+				vnode_pager_setsize(vp, (u_long)np->n_size);
  				return (error);
 			    }
  			}
@@ -690,7 +647,7 @@ nfs_setattr(ap)
 	error = nfs_setattrrpc(vp, vap, ap->a_cred, ap->a_p);
 	if (error && vap->va_size != VNOVAL) {
 		np->n_size = np->n_vattr.va_size = tsize;
-		vnode_pager_setsize(vp, np->n_size);
+		vnode_pager_setsize(vp, (u_long)np->n_size);
 	}
 	return (error);
 }
@@ -718,7 +675,64 @@ nfs_setattrrpc(vp, vap, cred, procp)
 	nfsm_reqhead(vp, NFSPROC_SETATTR, NFSX_FH(v3) + NFSX_SATTR(v3));
 	nfsm_fhtom(vp, v3);
 	if (v3) {
-		nfsm_v3attrbuild(vap, TRUE);
+		if (vap->va_mode != (mode_t)VNOVAL) {
+			nfsm_build(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
+			*tl++ = nfs_true;
+			*tl = txdr_unsigned(vap->va_mode);
+		} else {
+			nfsm_build(tl, u_int32_t *, NFSX_UNSIGNED);
+			*tl = nfs_false;
+		}
+		if (vap->va_uid != (uid_t)VNOVAL) {
+			nfsm_build(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
+			*tl++ = nfs_true;
+			*tl = txdr_unsigned(vap->va_uid);
+		} else {
+			nfsm_build(tl, u_int32_t *, NFSX_UNSIGNED);
+			*tl = nfs_false;
+		}
+		if (vap->va_gid != (gid_t)VNOVAL) {
+			nfsm_build(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
+			*tl++ = nfs_true;
+			*tl = txdr_unsigned(vap->va_gid);
+		} else {
+			nfsm_build(tl, u_int32_t *, NFSX_UNSIGNED);
+			*tl = nfs_false;
+		}
+		if (vap->va_size != VNOVAL) {
+			nfsm_build(tl, u_int32_t *, 3 * NFSX_UNSIGNED);
+			*tl++ = nfs_true;
+			txdr_hyper(&vap->va_size, tl);
+		} else {
+			nfsm_build(tl, u_int32_t *, NFSX_UNSIGNED);
+			*tl = nfs_false;
+		}
+		if (vap->va_atime.tv_sec != VNOVAL) {
+			if (vap->va_atime.tv_sec != time_second) {
+				nfsm_build(tl, u_int32_t *, 3 * NFSX_UNSIGNED);
+				*tl++ = txdr_unsigned(NFSV3SATTRTIME_TOCLIENT);
+				txdr_nfsv3time(&vap->va_atime, tl);
+			} else {
+				nfsm_build(tl, u_int32_t *, NFSX_UNSIGNED);
+				*tl = txdr_unsigned(NFSV3SATTRTIME_TOSERVER);
+			}
+		} else {
+			nfsm_build(tl, u_int32_t *, NFSX_UNSIGNED);
+			*tl = txdr_unsigned(NFSV3SATTRTIME_DONTCHANGE);
+		}
+		if (vap->va_mtime.tv_sec != VNOVAL) {
+			if (vap->va_mtime.tv_sec != time_second) {
+				nfsm_build(tl, u_int32_t *, 3 * NFSX_UNSIGNED);
+				*tl++ = txdr_unsigned(NFSV3SATTRTIME_TOCLIENT);
+				txdr_nfsv3time(&vap->va_mtime, tl);
+			} else {
+				nfsm_build(tl, u_int32_t *, NFSX_UNSIGNED);
+				*tl = txdr_unsigned(NFSV3SATTRTIME_TOSERVER);
+			}
+		} else {
+			nfsm_build(tl, u_int32_t *, NFSX_UNSIGNED);
+			*tl = txdr_unsigned(NFSV3SATTRTIME_DONTCHANGE);
+		}
 		nfsm_build(tl, u_int32_t *, NFSX_UNSIGNED);
 		*tl = nfs_false;
 	} else {
@@ -1204,6 +1218,7 @@ nfs_mknodrpc(dvp, vpp, cnp, vap)
 	register struct vattr *vap;
 {
 	register struct nfsv2_sattr *sp;
+	register struct nfsv3_sattr *sp3;
 	register u_int32_t *tl;
 	register caddr_t cp;
 	register int32_t t1, t2;
@@ -1235,9 +1250,10 @@ nfs_mknodrpc(dvp, vpp, cnp, vap)
 	nfsm_fhtom(dvp, v3);
 	nfsm_strtom(cnp->cn_nameptr, cnp->cn_namelen, NFS_MAXNAMLEN);
 	if (v3) {
-		nfsm_build(tl, u_int32_t *, NFSX_UNSIGNED);
+		nfsm_build(tl, u_int32_t *, NFSX_UNSIGNED + NFSX_V3SRVSATTR);
 		*tl++ = vtonfsv3_type(vap->va_type);
-		nfsm_v3attrbuild(vap, FALSE);
+		sp3 = (struct nfsv3_sattr *)tl;
+		nfsm_v3sattr(sp3, vap);
 		if (vap->va_type == VCHR || vap->va_type == VBLK) {
 			nfsm_build(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
 			*tl++ = txdr_unsigned(major(vap->va_rdev));
@@ -1324,6 +1340,7 @@ nfs_create(ap)
 	register struct vattr *vap = ap->a_vap;
 	register struct componentname *cnp = ap->a_cnp;
 	register struct nfsv2_sattr *sp;
+	register struct nfsv3_sattr *sp3;
 	register u_int32_t *tl;
 	register caddr_t cp;
 	register int32_t t1, t2;
@@ -1356,18 +1373,20 @@ again:
 	if (v3) {
 		nfsm_build(tl, u_int32_t *, NFSX_UNSIGNED);
 		if (fmode & O_EXCL) {
-			*tl = txdr_unsigned(NFSV3CREATE_EXCLUSIVE);
-			nfsm_build(tl, u_int32_t *, NFSX_V3CREATEVERF);
+		    *tl = txdr_unsigned(NFSV3CREATE_EXCLUSIVE);
+		    nfsm_build(tl, u_int32_t *, NFSX_V3CREATEVERF);
 #ifdef INET
-			if (!TAILQ_EMPTY(&in_ifaddrhead))
-				*tl++ = IA_SIN(in_ifaddrhead.tqh_first)->sin_addr.s_addr;
-			else
+		    if (!TAILQ_EMPTY(&in_ifaddrhead))
+			*tl++ = IA_SIN(in_ifaddrhead.tqh_first)->sin_addr.s_addr;
+		    else
 #endif
-				*tl++ = create_verf;
-			*tl = ++create_verf;
+			*tl++ = create_verf;
+		    *tl = ++create_verf;
 		} else {
-			*tl = txdr_unsigned(NFSV3CREATE_UNCHECKED);
-			nfsm_v3attrbuild(vap, FALSE);
+		    *tl = txdr_unsigned(NFSV3CREATE_UNCHECKED);
+		    nfsm_build(tl, u_int32_t *, NFSX_V3SRVSATTR);
+		    sp3 = (struct nfsv3_sattr *)tl;
+		    nfsm_v3sattr(sp3, vap);
 		}
 	} else {
 		nfsm_build(sp, struct nfsv2_sattr *, NFSX_V2SATTR);
@@ -1586,7 +1605,6 @@ nfs_rename(ap)
 			cache_purge(tdvp);
 		cache_purge(fdvp);
 	}
-
 out:
 	if (tdvp == tvp)
 		vrele(tdvp);
@@ -1741,6 +1759,7 @@ nfs_symlink(ap)
 	register struct vattr *vap = ap->a_vap;
 	register struct componentname *cnp = ap->a_cnp;
 	register struct nfsv2_sattr *sp;
+	register struct nfsv3_sattr *sp3;
 	register u_int32_t *tl;
 	register caddr_t cp;
 	register int32_t t1, t2;
@@ -1757,7 +1776,8 @@ nfs_symlink(ap)
 	nfsm_fhtom(dvp, v3);
 	nfsm_strtom(cnp->cn_nameptr, cnp->cn_namelen, NFS_MAXNAMLEN);
 	if (v3) {
-		nfsm_v3attrbuild(vap, FALSE);
+		nfsm_build(sp3, struct nfsv3_sattr *, NFSX_V3SRVSATTR);
+		nfsm_v3sattr(sp3, vap);
 	}
 	nfsm_strtom(ap->a_target, slen, NFS_MAXPATHLEN);
 	if (!v3) {
@@ -1806,6 +1826,7 @@ nfs_mkdir(ap)
 	register struct vattr *vap = ap->a_vap;
 	register struct componentname *cnp = ap->a_cnp;
 	register struct nfsv2_sattr *sp;
+	register struct nfsv3_sattr *sp3;
 	register u_int32_t *tl;
 	register caddr_t cp;
 	register int32_t t1, t2;
@@ -1830,7 +1851,8 @@ nfs_mkdir(ap)
 	nfsm_fhtom(dvp, v3);
 	nfsm_strtom(cnp->cn_nameptr, len, NFS_MAXNAMLEN);
 	if (v3) {
-		nfsm_v3attrbuild(vap, FALSE);
+		nfsm_build(sp3, struct nfsv3_sattr *, NFSX_V3SRVSATTR);
+		nfsm_v3sattr(sp3, vap);
 	} else {
 		nfsm_build(sp, struct nfsv2_sattr *, NFSX_V2SATTR);
 		sp->sa_mode = vtonfsv2_mode(VDIR, vap->va_mode);
@@ -2733,8 +2755,8 @@ again:
 		 * Count up how many buffers waiting for a commit.
 		 */
 		bveccount = 0;
-		for (bp = TAILQ_FIRST(&vp->v_dirtyblkhd); bp; bp = nbp) {
-			nbp = TAILQ_NEXT(bp, b_vnbufs);
+		for (bp = vp->v_dirtyblkhd.lh_first; bp; bp = nbp) {
+			nbp = bp->b_vnbufs.le_next;
 			if ((bp->b_flags & (B_BUSY | B_DELWRI | B_NEEDCOMMIT))
 			    == (B_DELWRI | B_NEEDCOMMIT))
 				bveccount++;
@@ -2760,8 +2782,8 @@ again:
 			bvec = bvec_on_stack;
 			bvecsize = NFS_COMMITBVECSIZ;
 		}
-		for (bp = TAILQ_FIRST(&vp->v_dirtyblkhd); bp; bp = nbp) {
-			nbp = TAILQ_NEXT(bp, b_vnbufs);
+		for (bp = vp->v_dirtyblkhd.lh_first; bp; bp = nbp) {
+			nbp = bp->b_vnbufs.le_next;
 			if (bvecpos >= bvecsize)
 				break;
 			if ((bp->b_flags & (B_BUSY | B_DELWRI | B_NEEDCOMMIT))
@@ -2858,8 +2880,8 @@ again:
 	 */
 loop:
 	s = splbio();
-	for (bp = TAILQ_FIRST(&vp->v_dirtyblkhd); bp; bp = nbp) {
-		nbp = TAILQ_NEXT(bp, b_vnbufs);
+	for (bp = vp->v_dirtyblkhd.lh_first; bp; bp = nbp) {
+		nbp = bp->b_vnbufs.le_next;
 		if (bp->b_flags & B_BUSY) {
 			if (waitfor != MNT_WAIT || passone)
 				continue;
@@ -2913,7 +2935,7 @@ loop:
 			    }
 			}
 		}
-		if (!TAILQ_EMPTY(&vp->v_dirtyblkhd) && commit) {
+		if (vp->v_dirtyblkhd.lh_first && commit) {
 			goto loop;
 		}
 	}

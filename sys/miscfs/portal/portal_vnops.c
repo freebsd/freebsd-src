@@ -35,7 +35,7 @@
  *
  *	@(#)portal_vnops.c	8.14 (Berkeley) 5/21/95
  *
- * $Id: portal_vnops.c,v 1.34 1998/12/07 21:58:32 archie Exp $
+ * $Id: portal_vnops.c,v 1.32 1998/06/10 06:34:57 peter Exp $
  */
 
 /*
@@ -68,6 +68,7 @@ static int portal_fileid = PORTAL_ROOTFILEID+1;
 static int	portal_badop __P((void));
 static void	portal_closefd __P((struct proc *p, int fd));
 static int	portal_connect __P((struct socket *so, struct socket *so2));
+static int	portal_enotsupp __P((void));
 static int	portal_getattr __P((struct vop_getattr_args *ap));
 static int	portal_inactive __P((struct vop_inactive_args *ap));
 static int	portal_lookup __P((struct vop_lookup_args *ap));
@@ -444,6 +445,7 @@ portal_getattr(ap)
 {
 	struct vnode *vp = ap->a_vp;
 	struct vattr *vap = ap->a_vap;
+	struct timeval tv;
 
 	bzero(vap, sizeof(*vap));
 	vattr_null(vap);
@@ -573,6 +575,16 @@ portal_print(ap)
 	return (0);
 }
 
+
+/*
+ * Portal vnode unsupported operation
+ */
+static int
+portal_enotsupp()
+{
+
+	return (EOPNOTSUPP);
+}
 
 /*
  * Portal "should never get here" operation

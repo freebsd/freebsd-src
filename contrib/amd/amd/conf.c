@@ -17,7 +17,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgment:
+ *    must display the following acknowledgement:
  *      This product includes software developed by the University of
  *      California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: conf.c,v 1.2 1998/12/27 06:24:46 ezk Exp $
+ * $Id: conf.c,v 5.2.2.1 1992/02/09 15:08:23 jsp beta $
  *
  */
 
@@ -373,7 +373,7 @@ gopt_debug_options(const char *val)
   return 0;
 #else /* not DEBUG */
   fprintf(stderr, "%s: not compiled with DEBUG option -- sorry.\n",
-	  am_get_progname());
+	  progname);
   return 1;
 #endif /* not DEBUG */
 }
@@ -534,11 +534,6 @@ gopt_map_options(const char *val)
 static int
 gopt_map_type(const char *val)
 {
-  /* check if map type exist */
-  if (!mapc_type_exists(val)) {
-    fprintf(stderr, "conf: no such map type \"%s\"\n", val);
-    return 1;
-  }
   gopt.map_type = strdup((char *)val);
   return 0;
 }
@@ -851,11 +846,6 @@ ropt_map_options(const char *val, cf_map_t *cfm)
 static int
 ropt_map_type(const char *val, cf_map_t *cfm)
 {
-  /* check if map type exist */
-  if (!mapc_type_exists(val)) {
-    fprintf(stderr, "conf: no such map type \"%s\"\n", val);
-    return 1;
-  }
   cfm->cfm_type = strdup((char *)val);
   return 0;
 }

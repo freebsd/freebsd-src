@@ -28,7 +28,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: vidcontrol.c,v 1.25 1999/01/11 03:20:32 yokota Exp $";
+	"$Id: vidcontrol.c,v 1.23 1998/09/24 01:36:36 gpalmer Exp $";
 #endif /* not lint */
 
 #include <ctype.h>
@@ -289,7 +289,7 @@ video_mode(int argc, char **argv, int *index)
 		{ "VESA_800x600",	SW_VESA_800x600 },
 		{ NULL },
 	};
-	unsigned long mode = 0;
+	unsigned long mode;
 	int size[3];
 	int i;
 
@@ -373,7 +373,7 @@ set_console(char *arg)
 	n = atoi(arg);
 	if (n < 1 || n > 12) {
 		warnx("console number out of range");
-	} else if (ioctl(0, VT_ACTIVATE, (caddr_t) (long) n) == -1)
+	} else if (ioctl(0,VT_ACTIVATE,(char *)n) == -1)
 		warn("ioctl(VT_ACTIVATE)");
 }
 
@@ -431,11 +431,7 @@ static char
 void
 show_adapter_info(void)
 {
-#ifdef __i386__
-	struct video_adapter_info ad;
-#else
 	struct video_adapter ad;
-#endif
 
 	ad.va_index = 0;
 	if (ioctl(0, CONS_ADPINFO, &ad)) {
@@ -443,15 +439,11 @@ show_adapter_info(void)
 		return;
 	}
 
-	printf("fb%d:\n", ad.va_index);
-#ifdef __i386__
-	printf("    %.*s%d, type:%s%s (%d), flags:0x%x\n",
-	       (int)sizeof(ad.va_name), ad.va_name, ad.va_unit,
-#else
-	printf("    type:%s%s (%d), flags:0x%x\n",
-#endif
+	printf("adapter %d:\n", ad.va_index);
+	printf("    type:%s%s (%d), flags:0x%08x, CRTC:0x%x\n", 
 	       (ad.va_flags & V_ADP_VESA) ? "VESA " : "",
-	       adapter_name(ad.va_type), ad.va_type, ad.va_flags);
+	       adapter_name(ad.va_type), ad.va_type, 
+	       ad.va_flags, ad.va_crtc_addr);
 	printf("    initial mode:%d, current mode:%d, BIOS mode:%d\n",
 	       ad.va_initial_mode, ad.va_mode, ad.va_initial_bios_mode);
 }

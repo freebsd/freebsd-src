@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.538 1999/01/20 03:29:51 msmith Exp $
+#	$Id: LINT,v 1.486 1998/10/10 09:25:12 obrien Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -178,10 +178,6 @@ cpu		"I686_CPU"		# aka Pentium Pro(tm)
 # executed.  This should be included for ALL kernels that won't run
 # on a Pentium.
 #
-# NO_MEMORY_HOLE is an optimisation for systems with AMD K6 processors
-# which indicates that the 15-16MB range is *definitely* not being 
-# occupied by an ISA memory hole.
-#
 # NOTE 1: The options, CPU_BTB_EN, CPU_LOOP_EN, CPU_IORT,
 # CPU_LOOP_ENand CPU_RSTK_EN should not be used becasue of CPU bugs.
 # These options may crash your system. 
@@ -230,12 +226,6 @@ options		GPL_MATH_EMULATE	#Support for x87 emulation via
 # still relies on the 4.3 emulation.
 #
 options		"COMPAT_43"
-
-#
-# Statically compile in the i386 a.out LKM compatability support.
-# Also available as an KLD module.
-#
-options 	LKM
 
 #
 # Allow user-mode programs to manipulate their local descriptor tables.
@@ -297,28 +287,11 @@ options		GDB_REMOTE_CHAT
 options		KTRACE			#kernel tracing
 
 #
-# The INVARIANTS option is used in a number of source files to enable
+# The DIAGNOSTIC option is used in a number of source files to enable
 # extra sanity checking of internal structures.  This support is not
 # enabled by default because of the extra time it would take to check
 # for these conditions, which can only occur as a result of
 # programming errors.
-#
-options		INVARIANTS
-
-#
-# The INVARIANT_SUPPORT option makes us compile in support for
-# verifying some of the internal structures.  It is a prerequisite for
-# 'INVARIANTS', as enabling 'INVARIANTS' will make these functions be
-# called.  The intent is that you can set 'INVARIANTS' for single
-# source files (by changing the source file or specifying it on the
-# command line) if you have 'INVARIANT_SUPPORT' enabled.
-#
-options		INVARIANT_SUPPORT
-
-#
-# The DIAGNOSTIC option is used to enable extra debugging information
-# from some parts of the kernel.  As this makes everything more noisy,
-# it is disabled by default.
 #
 options		DIAGNOSTIC
 
@@ -344,7 +317,7 @@ options		UCONSOLE
 
 # XXX - this doesn't belong here either
 options		USERCONFIG		#boot -c editor
-options		INTRO_USERCONFIG	#imply -c and show intro screen
+options		USERCONFIG_BOOT		#imply -c and parse info area
 options		VISUAL_USERCONFIG	#visual boot -c editor
 
 #####################################################################
@@ -408,7 +381,7 @@ pseudo-device	ether			#Generic Ethernet
 pseudo-device	fddi			#Generic FDDI
 pseudo-device	sppp			#Generic Synchronous PPP
 pseudo-device	loop			#Network loopback device
-pseudo-device	bpfilter 4		#Berkeley packet filter
+pseudo-device	bpfilter	4	#Berkeley packet filter
 pseudo-device	disc			#Discard device
 pseudo-device	tun	1		#Tunnel driver (user process ppp(8))
 pseudo-device	sl	2		#Serial Line IP
@@ -460,7 +433,7 @@ options		MROUTING		# Multicast routing
 options         IPFIREWALL              #firewall
 options         IPFIREWALL_VERBOSE      #print information about
 					# dropped packets
-options         IPFIREWALL_FORWARD      #enable transparent proxy support
+options         IPFIREWALL_FORWARD      #enable xparent proxy support
 options		"IPFIREWALL_VERBOSE_LIMIT=100" #limit verbosity
 options		IPFIREWALL_DEFAULT_TO_ACCEPT #allow everything by default
 options		IPDIVERT		#divert sockets
@@ -468,19 +441,6 @@ options		IPFILTER		#kernel ipfilter support
 options		IPFILTER_LOG		#ipfilter logging
 #options	IPFILTER_LKM		#kernel support for ip_fil.o LKM
 options		TCPDEBUG
-
-# ICMP_BANDLIM enables icmp error response bandwidth limiting.   You
-# typically want this option as it will help protect the machine from
-# D.O.S. packet attacks.
-#
-options         "ICMP_BANDLIM"
-
-# DUMMYNET enables the "dummynet" bandwidth limiter. You need
-# IPFIREWALL as well. See the dummynet(4) manpage for more info.
-# BRIDGE enables bridging between ethernet cards -- see bridge(4).
-# You can use IPFIREWALL and dummynet together with bridging.
-options	DUMMYNET
-options	BRIDGE
 
 #
 # ATM (HARP version) options
@@ -554,15 +514,14 @@ options		NFS_ROOT		#NFS usable as root device
 # Also, 'options MFS' is currently incompatible with DEVFS.
 options		DEVFS			#devices filesystem
 
-# Soft updates is technique for improving file system speed and
-# making abrupt shutdown less risky.  It is not enabled by default due
-# to copyright restraints on the code that implement it.
-#
-# Read .../../ufs/ffs/README.softupdates to learn what you need to
-# do to enable this.  ../../../contrib/sys/softupdates/README gives
-# more details on how they actually work.
-#
+# Allow the FFS to use Softupdates technology.
+# To do this you need to copy the two files
+# /sys/ufs/ffs/softdep.h and /sys/ufs/ffs/ffs_softdep.c
+# from /usr/src/contrib/sys/softupdates
+# and understand the licensing restrictions.
+# You should also check on the FreeBSD website for newer versions.
 #options		SOFTUPDATES
+# (we can't actually enable it because the files may not be present)
 
 # Make space in the kernel for a MFS root filesystem.  Define to the number
 # of kilobytes to reserve for the filesystem.
@@ -768,8 +727,6 @@ pseudo-device	gzip		#Exec gzipped a.out's
 pseudo-device	vn		#Vnode driver (turns a file into a device)
 pseudo-device	snp	3	#Snoop device - to look at pty/vty/etc..
 pseudo-device	ccd	4	#Concatenated disk driver
-pseudo-device	vinum		#Vinum concat/mirror/raid driver
-options 	VINUMDEBUG	#enable Vinum debugging hooks
 
 # These are only for watching for bitrot in old tty code.
 # broken
@@ -835,55 +792,22 @@ options 	"TUNE_1542"
 
 options		PPS_SYNC
 
-# If you see the "calcru: negative time of %ld usec for pid %d (%s)\n"
-# message you probably have some broken sw/hw which disables interrupts
-# for too long.  You can make the system more resistant to this by
-# choosing a high value for NTIMECOUNTER.  The default is 5, there
-# is no upper limit but more than a couple of hundred are not productive.
-
-options		"NTIMECOUNTER=20"
-
 # Enable PnP support in the kernel.  This allows you to automaticly
 # attach to PnP cards for drivers that support it and allows you to
 # configure cards from USERCONFIG.  See pnp(4) for more info.
 controller	pnp0
 
-# The keyboard controller; it controlls the keyboard and the PS/2 mouse.
-controller	atkbdc0	at isa? port IO_KBD tty
-
-# The AT keyboard
-device		atkbd0	at isa? tty irq 1
-
-# `flags' for atkbd:
-#       0x01    Force detection of keyboard, else we always assume a keyboard
-#       0x02    Don't reset keyboard, useful for some newer ThinkPads
-#       0x04    Old-style (XT) keyboard support, useful for older ThinkPads
-
-# PS/2 mouse
-device		psm0	at isa? tty irq 12
-
-# Options for psm:
-options		PSM_HOOKAPM		#hook the APM resume event, useful
-					#for some laptops
-options		PSM_RESETAFTERSUSPEND	#reset the device at the resume event
-
-# The video card driver.
-device		vga0	at isa? port ? conflicts
-
-# Splash screen at start up!  Screen savers require this too.
-pseudo-device	splash
-
 # The pcvt console driver (vt220 compatible).
-device		vt0	at isa? tty
+device		vt0	at isa? port "IO_KBD" conflicts tty irq 1 vector pcrint
 options		XSERVER			# support for running an X server.
 options		FAT_CURSOR		# start with block cursor
 # This PCVT option is for keyboards such as those used on IBM ThinkPad laptops
 options		PCVT_SCANSET=2 		# IBM keyboards are non-std
 
 # The syscons console driver (sco color console compatible).
-device		sc0	at isa? tty
+device		sc0	at isa? port "IO_KBD" conflicts tty irq 1 vector scintr
 options		MAXCONS=16		# number of virtual consoles
-options		VGA_SLOW_IOACCESS	# do byte-wide i/o's to TS and GDC regs
+options		SLOW_VGA		# do byte-wide i/o's to TS and GDC regs
 options		"STD8X16FONT"		# Compile font in
 makeoptions	"STD8X16FONT"="cp850"
 options		SC_HISTORY_SIZE=200	# number of history buffer lines
@@ -903,6 +827,9 @@ options		VESA			# needs VM86 defined too!!
 #       0x02    Use a 'blink' cursor
 #       0x04    Use a 'underline' cursor
 #       0x06    Use a 'blinking underline' (destructive) cursor
+#       0x08    Force detection of keyboard, else we always assume a keyboard
+#       0x10    Old-style (XT) keyboard support, useful for older ThinkPads
+#       0x20    Don't reset keyboard, useful for some newer ThinkPads
 #	0x40	Make the bell quiet if it is rung in the backgroud vty.
 
 #
@@ -911,7 +838,7 @@ options		VESA			# needs VM86 defined too!!
 # buggy. If it is not configured then you *must* configure math emulation
 # (see above).  If both npx0 and emulation are configured, then only npx0
 # is used (provided it works).
-device		npx0	at isa? port IO_NPX iosiz 0x0 flags 0x0 irq 13
+device		npx0	at isa? port "IO_NPX" iosiz 0x0 flags 0x0 irq 13 vector npxintr
 
 #
 # `flags' for npx0:
@@ -945,7 +872,7 @@ device		npx0	at isa? port IO_NPX iosiz 0x0 flags 0x0 irq 13
 #
 
 #
-# SCSI host adapters: `aha', `aic', `bt'
+# SCSI host adapters: `aha', `aic', `bt', `nca'
 #
 # adv: All Narrow SCSI bus AdvanSys controllers.
 # adw: Second Generation AdvanSys controllers including the ADV940UW.
@@ -953,6 +880,10 @@ device		npx0	at isa? port IO_NPX iosiz 0x0 flags 0x0 irq 13
 # ahc: Adaptec 274x/284x/294x
 # aic: Adaptec 152x and sound cards using the Adaptec AIC-6360 (slow!)
 # bt: Most Buslogic controllers
+# nca: ProAudioSpectrum cards using the NCR 5380 or Trantor T130
+# uha: UltraStor ULTRA 14F/24F/34F
+# sea: Seagate ST01/02 8 bit controller (slow!)
+# wds: Western Digital WD7000 controller (no scatter/gather!).
 #
 # Note that the order is important in order for Buslogic cards to be
 # probed correctly.
@@ -962,9 +893,17 @@ controller	bt0	at isa? port "IO_BT0" cam irq ?
 controller	adv0	at isa? port ? cam irq ?
 controller	adw0
 controller      aha0    at isa? port ? cam irq ?
+#!CAM# controller	uha0	at isa? port "IO_UHA0" bio irq ? drq 5 vector uhaintr
 
-#!CAM# controller      aic0    at isa? port 0x340 bio irq 11
+#!CAM# controller      aic0    at isa? port 0x340 bio irq 11 vector aicintr
+#!CAM# controller	nca0	at isa? port 0x1f88 bio irq 10 vector ncaintr
+#!CAM# controller	nca1	at isa? port 0x1f84
+#!CAM# controller	nca2	at isa? port 0x1f8c
+#!CAM# controller	nca3	at isa? port 0x1e88
+#!CAM# controller	nca4	at isa? port 0x350 bio irq 5 vector ncaintr
 
+#!CAM# controller	sea0	at isa? bio irq 5 iomem 0xdc000 iosiz 0x2000 vector seaintr
+#!CAM# controller	wds0	at isa? port 0x350 bio irq 15 drq 6 vector wdsintr
 
 #
 # ST-506, ESDI, and IDE hard disks: `wdc' and `wd'
@@ -988,7 +927,7 @@ controller      aha0    at isa? port ? cam irq ?
 # specification with the low 16 bits for drive 0, and the high 16 bits
 # for drive 1.
 # e.g.:
-#controller	wdc0	at isa? port "IO_WD1" bio irq 14 flags 0x00ff8004
+#controller	wdc0	at isa? port "IO_WD1" bio irq 14 flags 0x00ff8004 vector wdintr
 #
 # specifies that drive 0 will be allowed to probe for 32 bit transfers and
 # a maximum multi-sector transfer of 4 sectors, and drive 1 will not be
@@ -999,11 +938,11 @@ controller      aha0    at isa? port ? cam irq ?
 # mode (for example, it is a 2nd IDE PCI interface), then use config line(s)
 # such as:
 #
-#controller	wdc2	at isa? port "0" bio irq ? flags 0xa0ffa0ff
+#controller	wdc2	at isa? port "0" bio irq ? flags 0xa0ffa0ff vector wdintr
 #disk		wd4	at wdc2 drive 0
 #disk		wd5	at wdc2 drive 1
 #
-#controller	wdc3	at isa? port "0" bio irq ? flags 0xa0ffa0ff
+#controller	wdc3	at isa? port "0" bio irq ? flags 0xa0ffa0ff vector wdintr
 #disk		wd6	at wdc3 drive 0
 #disk		wd7	at wdc3 drive 1
 #
@@ -1012,10 +951,10 @@ controller      aha0    at isa? port ? cam irq ?
 # entries.  These are automatically filled in by the IDE/PCI support.
 #
 
-controller	wdc0	at isa? port "IO_WD1" bio irq 14
+controller	wdc0	at isa? port "IO_WD1" bio irq 14 vector wdintr
 disk		wd0	at wdc0 drive 0
 disk		wd1	at wdc0 drive 1
-controller	wdc1	at isa? port "IO_WD2" bio irq 15
+controller	wdc1	at isa? port "IO_WD2" bio irq 15 vector wdintr
 disk		wd2	at wdc1 drive 0
 disk		wd3	at wdc1 drive 1
 
@@ -1033,16 +972,12 @@ options         "CMD640"	#Enable work around for CMD640 h/w bug
 options         ATAPI   #Enable ATAPI support for IDE bus
 options		ATAPI_STATIC	#Don't do it as an LKM
 
-#
-# This option allow you to override the default probe time for IDE
-# devices, to get a faster probe.  Setting this below 10000 violate
-# the IDE specs, but may still work for you (it will work for most
-# people).
-#
-options		IDE_DELAY=8000	# Be optimistic about Joe IDE device
-
+# Use either the acd or the wcd device, not both!
 # IDE CD-ROM & CD-R/RW  driver - requires wdc controller and ATAPI option
 device          acd0
+
+# IDE CD-ROM driver - requires wdc controller and ATAPI option
+device          wcd0
 
 # IDE floppy driver - requires wdc controller and ATAPI option
 device          wfd0
@@ -1054,46 +989,49 @@ device          wst0
 #
 # Standard floppy disk controllers and floppy tapes: `fdc', `fd', and `ft'
 #
-controller	fdc0	at isa? port "IO_FD1" bio irq 6 drq 2
+controller	fdc0	at isa? port "IO_FD1" bio irq 6 drq 2 vector fdintr
 #
 # FDC_DEBUG enables floppy debugging.  Since the debug output is huge, you
 # gotta turn it actually on by setting the variable fd_debug with DDB,
 # however.
 options		FDC_DEBUG
-# FDC_YE enables support for the floppies used on the Libretto.  This is a
-# pcmcia floppy.  You will also need to add
-#card "Y-E DATA" "External FDD"
-#        config 0x4 "fdc0" 10
-# to your pccard.conf file.
-options		FDC_YE
 # This option is undocumented on purpose.
 options		FDC_PRINT_BOGUS_CHIPTYPE
 #
 # Activate this line instead of the fdc0 line above if you happen to
 # have an Insight floppy tape.  Probing them proved to be dangerous
 # for people with floppy disks only, so it's "hidden" behind a flag:
-#controller fdc0 at isa? port "IO_FD1" bio flags 1 irq 6 drq 2
+#controller fdc0 at isa? port "IO_FD1" bio flags 1 irq 6 drq 2 vector fdintr
 
 disk		fd0	at fdc0 drive 0
 disk		fd1	at fdc0 drive 1
+tape		ft0	at fdc0 drive 2
+
 
 #
-# Other standard PC hardware: `lpt', `mse', `sio', etc.
+# Other standard PC hardware: `lpt', `mse', `psm', `sio', etc.
 #
 # lpt: printer port
 #	lpt specials:
-#		The port may be specified as ?.  This will cause the
-#		driver to scan the BIOS port list.
-#		The irq clause may be omitted.  This will force the port
-#		into polling mode.
+#		port can be specified as ?, this will cause the driver to scan
+#		the BIOS port list;
+#		the irq and vector clauses may be omitted, this
+#		will force the port into polling mode.
 # mse: Logitech and ATI InPort bus mouse ports
+# psm: PS/2 mouse port [note: conflicts with sc0/vt0, thus "conflicts" keywd]
 # sio: serial ports (see sio(4))
 
-device		lpt0	at isa? port? tty irq 7
-device		lpt1	at isa? port "IO_LPT3" tty irq 5
-device		mse0	at isa? port 0x23c tty irq 5
+device		lpt0	at isa? port? tty irq 7 vector lptintr
+device		lpt1	at isa? port "IO_LPT3" tty irq 5 vector lptintr
+device		mse0	at isa? port 0x23c tty irq 5 vector mseintr
+device		psm0	at isa? port "IO_KBD" conflicts tty irq 12 vector psmintr
 
-device		sio0	at isa? port "IO_COM1" tty flags 0x10 irq 4
+# Options for psm:
+options		PSM_HOOKAPM		#hook the APM resume event, useful
+					#for some laptops
+options		PSM_RESETAFTERSUSPEND	#reset the device at the resume event
+
+device		sio0	at isa? port "IO_COM1" tty flags 0x10 irq 4 vector siointr
 
 #
 # `flags' for serial drivers that support consoles (only for sio now):
@@ -1107,7 +1045,6 @@ device		sio0	at isa? port "IO_COM1" tty flags 0x10 irq 4
 #	0x20	force this unit to be the console (unless there is another
 #		higher priority console).  This replaces the COMCONSOLE option.
 #	0x40	reserve this unit for low level console operations.  Do not
-#		access the device in any normal way.
 #
 # PnP `flags' (set via userconfig using pnp x flags y)
 #	0x1	disable probing of this device.  Used to prevent your modem
@@ -1122,6 +1059,7 @@ options		CONSPEED=9600		#default speed for serial console (default 9600)
 # Options for sio:
 options		COM_ESP			#code for Hayes ESP
 options		COM_MULTIPORT		#code for some cards with shared IRQs
+options		DSI_SOFT_MODEM		#code for DSI Softmodems
 options		"EXTRA_SIO=2"		#number of extra sio ports to allocate
 
 # Other flags for sio that aren't documented in the man page.
@@ -1137,13 +1075,11 @@ options		"EXTRA_SIO=2"		#number of extra sio ports to allocate
 # ed: Western Digital and SMC 80xx; Novell NE1000 and NE2000; 3Com 3C503
 # el: 3Com 3C501 (slow!)
 # ep: 3Com 3C509 (buggy)
-# ex: Intel EtherExpress Pro/10 and other i82595-based adapters
 # fe: Fujitsu MB86960A/MB86965A Ethernet
 # ie: AT&T StarLAN 10 and EN100; 3Com 3C507; unknown NI5210; Intel EtherExpress
 # le: Digital Equipment EtherWorks 2 and EtherWorks 3 (DEPCA, DE100,
 #     DE101, DE200, DE201, DE202, DE203, DE204, DE205, DE422)
-# lnc: Lance/PCnet cards (Isolan, Novell NE2100, NE32-VL, AMD Am7990 & Am79C960)
-# rdp: RealTek RTL 8002-based pocket ethernet adapters
+# lnc: Lance/PCnet cards (Isolan, Novell NE2100, NE32-VL)
 # sr: RISCom/N2 hdlc sync 1/2 port V.35/X.21 serial driver (requires sppp)
 # wl: Lucent Wavelan (ISA card only).
 # ze: IBM/National Semiconductor PCMCIA ethernet controller.
@@ -1152,27 +1088,27 @@ options		"EXTRA_SIO=2"		#number of extra sio ports to allocate
 #     attribute memory)
 #
 
-device ar0 at isa? port 0x300 net irq 10 iomem 0xd0000
-device cs0 at isa? port 0x300 net irq ?
-device cx0 at isa? port 0x240 net irq 15 drq 7
-device ed0 at isa? port 0x280 net irq 5 iomem 0xd8000
-device el0 at isa? port 0x300 net irq 9
-device ep0 at isa? port 0x300 net irq 10
-device ex0 at isa? port? net irq?
-device fe0 at isa? port 0x300 net irq ?
-device ie0 at isa? port 0x300 net irq 5 iomem 0xd0000
-device ie1 at isa? port 0x360 net irq 7 iomem 0xd0000
-device le0 at isa? port 0x300 net irq 5 iomem 0xd0000
-device lnc0 at isa? port 0x280 net irq 10 drq 0
-device rdp0 at isa? port 0x378 net irq 7 flags 2
-device sr0 at isa? port 0x300 net irq 5 iomem 0xd0000
+device ar0 at isa? port 0x300 net irq 10 iomem 0xd0000 vector arintr
+device cs0 at isa? port 0x300 net irq ? vector csintr
+device cx0 at isa? port 0x240 net irq 15 drq 7 vector cxintr
+device ed0 at isa? port 0x280 net irq 5 iomem 0xd8000 vector edintr
+device eg0 at isa? port 0x310 net irq 5 vector egintr
+device el0 at isa? port 0x300 net irq 9 vector elintr
+device ep0 at isa? port 0x300 net irq 10 vector epintr
+device ex0 at isa? port? net irq? vector exintr
+device fe0 at isa? port 0x300 net irq ? vector feintr
+device ie0 at isa? port 0x300 net irq 5 iomem 0xd0000 vector ieintr
+device ie1 at isa? port 0x360 net irq 7 iomem 0xd0000 vector ieintr
+device le0 at isa? port 0x300 net irq 5 iomem 0xd0000 vector le_intr
+device lnc0 at isa? port 0x300 net irq 10 drq 0 vector lncintr
+device sr0 at isa? port 0x300 net irq 5 iomem 0xd0000 vector srintr
 options		WLCACHE		# enables the signal-strength cache
 options		WLDEBUG		# enables verbose debugging output
-device wl0 at isa? port 0x300 net irq ?
+device wl0 at isa? port 0x300 net irq ? vector wlintr
 # We can (bogusly) include both the dedicated PCCARD drivers and the generic
 # support when COMPILING_LINT.
-device ze0 at isa? port 0x300 net irq 5 iomem 0xd8000
-device zp0 at isa? port 0x300 net irq 10 iomem 0xd8000
+device ze0 at isa? port 0x300 net irq 5 iomem 0xd8000 vector zeintr
+device zp0 at isa? port 0x300 net irq 10 iomem 0xd8000 vector zpintr
 
 #
 # ATM related options
@@ -1218,10 +1154,9 @@ options		NATM			#native ATM
 #
 # pcm: PCM audio through various sound cards.
 #
-# This has support for a large number of new audio cards, based on
-# CS423x, OPTi931, Yamaha OPL-SAx, and also for SB16, GusPnP.
-# For more information about this driver and supported cards,
-# see the  pcm.4 man page  and /sys/i386/isa/snd/CARDS.
+# This is the work in progress from Luigi Rizzo.  This has support for
+# CS423x based cards, OPTi931, SB16 PnP, GusPnP.  For more information
+# about this driver, take a look at sys/i386/isa/snd/README.
 #
 # The flags of the device tells the device a bit more info about the
 # device that normally is obtained through the PnP interface.
@@ -1259,30 +1194,30 @@ options		NATM			#native ATM
 # below for an alternate which may work better for some cards.
 #
 controller	snd0
-device pas0     at isa? port 0x388 irq 10 drq 6
-device sb0      at isa? port 0x220 irq 5 drq 1
+device pas0     at isa? port 0x388 irq 10 drq 6 vector pasintr
+device sb0      at isa? port 0x220 irq 5 drq 1 vector sbintr
 device sbxvi0   at isa? drq 5
 device sbmidi0  at isa? port 0x330
 device awe0     at isa? port 0x620
-device gus0 at isa? port 0x220 irq 12 drq 1
-#device gus0 at isa? port 0x220 irq 12 drq 1 flags 0x3
-device mss0 at isa? port 0x530 irq 10 drq 1
-device css0	at isa? port 0x534 irq 5 drq 1 flags 0x08
-device sscape0  at isa? port 0x330 irq 9 drq 0
-device trix0    at isa? port 0x330 irq 6 drq 0
-device sscape_mss0  at isa? port 0x534 irq 5 drq 1
+device gus0 at isa? port 0x220 irq 12 drq 1 vector gusintr
+#device gus0 at isa? port 0x220 irq 12 drq 1 flags 0x3 vector gusintr
+device mss0 at isa? port 0x530 irq 10 drq 1 vector adintr
+device css0	at isa? port 0x534 irq 5 drq 1 flags 0x08 vector adintr
+device sscape0  at isa? port 0x330 irq 9 drq 0 vector sscapeintr
+device trix0    at isa? port 0x330 irq 6 drq 0 vector sscapeintr
+device sscape_mss0  at isa? port 0x534 irq 5 drq 1 vector sndintr
 device opl0     at isa? port 0x388
 device mpu0     at isa? port 0x330 irq 6 drq 0
-device uart0 at isa? port 0x330 irq 5
+device uart0 at isa? port 0x330 irq 5 vector "m6850intr"
 
 # Luigi's snd code (use INSTEAD of snd0 and all VOXWARE drivers!).
 # You may also wish to enable the pnp controller with this, for pnp
 # sound cards.
 #
-#device pcm0 at isa? port ? tty irq 10 drq 1 flags 0x0
+#device pcm0 at isa? port ? tty irq 10 drq 1 flags 0x0 vector pcmintr
 
 # Not controlled by `snd'
-device pca0 at isa? port "IO_TIMER1" tty
+device pca0 at isa? port IO_TIMER1 tty
 
 #
 # Miscellaneous hardware:
@@ -1296,6 +1231,7 @@ device pca0 at isa? port "IO_TIMER1" tty
 # spigot: The Creative Labs Video Spigot video-acquisition board
 # meteor: Matrox Meteor video capture board
 # bktr: Brooktree bt848/848a/849/878/879 family video capture and TV Tuner board
+# alog: Industrial Computer Source AIO8-P driver
 # cy: Cyclades serial driver
 # dgb: Digiboard PC/Xi and PC/Xe series driver (ALPHA QUALITY!)
 # dgm: Digiboard PC/Xem driver
@@ -1389,33 +1325,34 @@ device pca0 at isa? port "IO_TIMER1" tty
 #	Brumby:                      flags 2          iosiz 0x4000
 #	Stallion:                    flags 1          iosiz 0x10000
 
-device		mcd0	at isa? port 0x300 bio irq 10
+device		mcd0	at isa? port 0x300 bio irq 10 vector mcdintr
 # for the Sony CDU31/33A CDROM
 device		scd0	at isa? port 0x230 bio
 # for the SoundBlaster 16 multicd - up to 4 devices
 controller      matcd0  at isa? port 0x230 bio
-device		wt0	at isa? port 0x300 bio irq 5 drq 1
+device		wt0	at isa? port 0x300 bio irq 5 drq 1 vector wtintr
 device		ctx0	at isa? port 0x230 iomem 0xd0000
-device		spigot0 at isa? port 0xad6 irq 15 iomem 0xee000
+device		spigot0 at isa? port 0xad6 irq 15 iomem 0xee000 vector spigintr
 device		apm0	at isa? 
 device		gp0	at isa? port 0x2c0 tty
 device		gsc0	at isa? port "IO_GSC1" tty drq 3
-device		joy0	at isa? port IO_GAME
-device		cy0	at isa? tty irq 10 iomem 0xd4000 iosiz 0x2000
-options		CY_PCI_FASTINTR		# Use with cy_pci unless irq is shared
+device		joy0	at isa? port "IO_GAME"
+device          alog0   at isa? port 0x260 tty irq 5 vector alogintr
+device		cy0	at isa? tty irq 10 iomem 0xd4000 iosiz 0x2000 vector cyintr
 device		dgb0	at isa? port 0x220 iomem 0xfc0000 iosiz ? tty
 device		dgm0	at isa? port 0x104 iomem 0xd00000 iosiz ? tty
-device		labpc0	at isa? port 0x260 tty irq 5
-device          rc0     at isa? port 0x220 tty irq 12
+device		labpc0	at isa? port 0x260 tty irq 5 vector labpcintr
+device          rc0     at isa? port 0x220 tty irq 12 vector rcintr
 device          rp0     at isa? port 0x280 tty
 # the port and irq for tw0 are fictitious
-device          tw0     at isa? port 0x380 tty irq 11
+device          tw0     at isa? port 0x380 tty irq 11 vector twintr
 device		si0	at isa? iomem 0xd0000 tty irq 12
-device		asc0	at isa? port "IO_ASC1" tty drq 3 irq 10
-device		stl0	at isa? port 0x2a0 tty irq 10
+device		asc0	at isa? port IO_ASC1 tty drq 3 irq 10 vector ascintr
+device		bqu0	at isa? port 0x150
+device		stl0	at isa? port 0x2a0 tty irq 10 vector stlintr
 device		stli0	at isa? port 0x2a0 tty iomem 0xcc000 flags 23 iosiz 0x1000
 # You are unlikely to have the hardware for loran0 <phk@FreeBSD.org>
-device		loran0	at isa? port ? tty irq 5
+device		loran0	at isa? port ? tty irq 5 vector loranintr
 # HOT1 Xilinx 6200 card (www.vcc.com)
 device		xrpu0
 
@@ -1468,31 +1405,17 @@ options	"EISA_SLOTS=12"
 # nd 1040B PCI SCSI host adapters, as well as the Qlogic ISP 2100
 # FC/AL Host Adapter.
 #
-# The `ax' device provides support for PCI fast ethernet adapters
-# based on the ASIX Electronics AX88140A chip, including the Alfa
-# Inc. GFC2204.
+# The `amd' device provides support for the Tekram DC-390 and 390T
+# SCSI host adapters, but is expected to work with any AMD 53c974
+# PCI SCSI chip and the AMD Ethernet+SCSI Combo chip, after some
+# local patches were applied to the sources (that had originally
+# been written by Tekram and limited to work with their SCSI cards).
 #
 # The `de' device provides support for the Digital Equipment DC21040
 # self-contained Ethernet adapter.
 #
 # The `fxp' device provides support for the Intel EtherExpress Pro/100B
 # PCI Fast Ethernet adapters.
-#
-# The `mx' device provides support for various fast ethernet adapters
-# based on the Macronix 98713, 987615 ans 98725 series chips.
-#
-# The `pn' device provides support for various fast ethernet adapters
-# based on the Lite-On 82c168 and 82c169 PNIC chips, including the
-# LinkSys LNE100TX, the NetGear FA310TX rev. D1 and the Matrox
-# FastNIC 10/100.
-#
-# The 'rl' device provides support for PCI fast ethernet adapters based
-# on the RealTek 8129/8139 chipset. Note that the RealTek driver defaults
-# to useing programmed I/O to do register accesses because memory mapped
-# mode seems to cause severe lockups on SMP hardware. This driver also
-# supports the Accton EN1207D `Cheetah' adapter, which uses a chip called
-# the MPX 5030/5038, which is either a RealTek in disguise or a RealTek
-# workalike.
 #
 # The 'tl' device provides support for the Texas Instruments TNETE100
 # series 'ThunderLAN' cards and integrated ethernet controllers. This
@@ -1503,18 +1426,10 @@ options	"EISA_SLOTS=12"
 #
 # The `tx' device provides support for the SMC 9432TX cards.
 #
-# The `vr' device provides support for various fast ethernet adapters
-# based on the VIA Technologies VT3043 `Rhine I' and VT86C100A `Rhine II'
-# chips, including the D-Link DFE530TX.
-#
 # The `vx' device provides support for the 3Com 3C590 and 3C595
 # early support
 #
-# The `wb' device provides support for various fast ethernet adapters
-# based on the Winbond W89C840F chip. Note: this is not the same as
-# the Winbond W89C940F, which is an NE2000 clone.
-#
-# The `xl' device provides support for the 3Com 3c900, 3c905 and
+# The `xl' driver provides support for the 3Com 3c900, 3c905 and
 # 3c905B (Fast) Etherlink XL cards and integrated controllers. This
 # includes the integrated 3c905B-TX chips in certain Dell Optiplex and
 # Dell Precision desktop machines and the integrated 3c905-TX chips
@@ -1559,26 +1474,15 @@ controller	pci0
 controller	ahc1
 controller	ncr0
 controller	isp0
-device		ax0
+#!CAM# controller	amd0
 device		de0
 device		fxp0
-device		mx0
-device		pn0
-device		rl0
 device		tl0
 device		tx0
-device		vr0
 device		vx0
-device		wb0
 device		xl0
 device		fpa0
 device		meteor0
-
-# Brooktree driver has been ported to the new I2C framework. Thus,
-# you'll need at least iicbus, iicbb and smbus. iic/smb are only needed if you
-# want to control other I2C slaves connected to the external connector of
-# some cards.
-#
 device		bktr0
 
 #
@@ -1619,8 +1523,7 @@ options		POWERFAIL_NMI	# make it beep instead of panicing
 # smb	standard io
 #
 # Supported interfaces:
-# iicsmb I2C to SMB bridge with any iicbus interface
-# bktr	brooktree848 I2C hardware interface
+# iicsmb I2C to SMB bridge
 #
 controller smbus0
 
@@ -1638,135 +1541,16 @@ device smb0	at smbus?
 #
 # Supported interfaces:
 # pcf	Philips PCF8584 ISA-bus controller
-# bktr	brooktree848 I2C software interface
-#
-# Other:
-# iicbb	generic I2C bit-banging code (needed by lpbb, bktr)
 #
 controller iicbus0
-controller iicbb0
 
 device ic0	at iicbus?
 device iic0	at iicbus?
 device iicsmb0	at iicbus?
 
-controller pcf0	at isa? port 0x320 net irq 5
+controller pcf0	at isa? port 0x320 net irq 5 vector pcfintr
 
-# ISDN4BSD section
-
-# i4b passive ISDN cards support (isic - I4b Siemens Isdn Chipset driver)
-# note that the ``options'' and ``device'' lines must BOTH be defined !
 #
-# Non-PnP Cards:
-# --------------
-#
-# Teles S0/8 or Niccy 1008
-options "TEL_S0_8"
-#device	isic0 at isa? iomem 0xd0000 net irq 5 flags 1
-#
-# Teles S0/16 or Creatix ISDN-S0 or Niccy 1016
-options "TEL_S0_16"
-#device	isic0 at isa? port 0xd80 iomem 0xd0000 net irq 5 flags 2
-#
-# Teles S0/16.3 
-options "TEL_S0_16_3"
-#device	isic0 at isa? port 0xd80 net irq 5 flags 3
-#
-# AVM A1 or AVM Fritz!Card
-options "AVM_A1"
-#device	isic0 at isa? port 0x340 net irq 5 flags 4
-#
-# USRobotics Sportster ISDN TA intern
-options "USR_STI"
-#device isic0 at isa? port 0x268 net irq 5 flags 7
-#
-# ITK ix1 Micro
-options "ITKIX1"
-#device isic0 at isa? port 0x398 net irq 10 flags 18
-#
-# PnP-Cards:
-# ----------
-#
-# Teles S0/16.3 PnP
-options "TEL_S0_16_3_P"
-#device	isic0 at isa? port ? net irq ?
-#
-# Creatix ISDN-S0 P&P
-options "CRTX_S0_P"
-#device	isic0 at isa? port ? net irq ?
-#
-# Dr. Neuhaus Niccy Go@
-options "DRN_NGO"
-#device	isic0 at isa? port ? net irq ?
-#
-# Sedlbauer Win Speed
-options "SEDLBAUER"
-#device	isic0 at isa? port ? net irq ?
-#
-# Dynalink IS64PH
-options "DYNALINK"
-#device	isic0 at isa? port ? net irq ?
-#
-# ELSA QuickStep 1000pro ISA
-options "ELSA_QS1ISA"
-#device	isic0 at isa? port ? net irq ?
-#
-# PCI-Cards:
-# ----------
-#
-# ELSA QuickStep 1000pro PCI
-options "ELSA_QS1PCI"
-#device  isic0
-#
-# PCMCIA-Cards:
-# -------------
-#
-# AVM PCMCIA Fritz!Card
-options "AVM_A1_PCMCIA"
-device	isic0 at isa? port 0x340 net irq 5 flags 10
-#
-# Active Cards:
-# -------------
-#
-# Stollmann Tina-dd control device
-device tina0 at isa? port 0x260 net irq 10
-#
-# ISDN Protocol Stack
-# -------------------
-# 
-# Q.921 / layer 2 - i4b passive cards D channel handling
-pseudo-device	"i4bq921"
-#
-# Q.931 / layer 3 - i4b passive cards D channel handling
-pseudo-device	"i4bq931"
-#
-# layer 4 - i4b common passive and active card handling
-pseudo-device	"i4b"
-#
-# ISDN devices
-# ------------
-#
-# userland driver to do ISDN tracing (for passive cards only)
-pseudo-device   "i4btrc"	4
-#
-# userland driver to control the whole thing
-pseudo-device   "i4bctl"
-#
-# userland driver for access to raw B channel
-pseudo-device   "i4brbch"       4
-#
-# userland driver for telephony
-pseudo-device   "i4btel"        2
-#
-# network driver for IP over raw HDLC ISDN
-pseudo-device   "i4bipr"	4
-# enable VJ header compression detection for ipr i/f
-options		IPR_VJ
-#
-# network driver for sync PPP over ISDN
-pseudo-device	"i4bisppp"	4
-
-
 # Parallel-Port Bus
 #
 # Parallel port bus support is provided by the `ppbus' device.
@@ -1781,7 +1565,6 @@ pseudo-device	"i4bisppp"	4
 # plip	Parallel network interface
 # ppi	General-purpose I/O ("Geek Port")
 # pps	Pulse per second Timing Interface
-# lpbb	Philips official parallel port I2C bit-banging interface
 #
 # Supported interfaces:
 # ppc	ISA-bus parallel port interfaces.  
@@ -1792,9 +1575,8 @@ device		nlpt0	at ppbus?
 device		plip0	at ppbus?
 device		ppi0	at ppbus?
 device		pps0	at ppbus?
-device		lpbb0	at ppbus?
 
-controller	ppc0	at isa? disable port ? tty irq 7
+controller	ppc0	at isa? disable port ? tty irq 7 vector ppcintr
 
 # Kernel BOOTP support 
 
@@ -1837,21 +1619,6 @@ options         "PMAP_SHPGPERPROC=201"
 #
 #options	NO_SWAPPING
 
-# Set the number of sf_bufs to allocate. sf_bufs are virtual buffers
-# for sendfile(2) that are used to map file VM pages, and normally
-# default to a quantity that is roughly 16*MAXUSERS+512. You would
-# typically want about 4 of these for each simultaneous file send.
-#
-options		"NSFBUFS=1024"
-
-#
-# Enable extra debugging code for locks.  This include storing the
-# filename and line of whatever aquired the lock in the lock itself,
-# and changing a number of function calls to pass around the relevant
-# data.  This is not at all useful unless you are debugging lock code.
-#
-options		DEBUG_LOCKS
-
 # More undocumented options for linting.
 
 options		CLK_CALIBRATION_LOOP
@@ -1861,7 +1628,6 @@ options		CLUSTERDEBUG
 options		COMPAT_LINUX
 options		CPU_UPGRADE_HW_CACHE
 options		DEBUG
-options		DEBUG_VFS_LOCKS
 options		"DEBUG_1284"
 #options	DISABLE_PSE
 options		"EXT2FS"
@@ -1918,7 +1684,6 @@ options		SHMSEG=9
 options		SI_DEBUG
 options		SIMPLELOCK_DEBUG
 options		SPX_HACK
-options		VFS_BIO_DEBUG
 
 # The 'dpt' driver provides support for DPT controllers (http://www.dpt.com/).
 # These have hardware RAID-{0,1,5} support, and do multi-initiator I/O.
@@ -1977,35 +1742,3 @@ options DPT_RESET_HBA
 # Don't EVER set this without having talked to Simon Shapiro on the phone
 # first.
 options DPT_SHUTDOWN_SLEEP=500
-
-# USB support
-# UHCI controller 
-controller    uhci0
-# OHCI controller
-controller    ohci0
-# General USB code (mandatory for USB)
-controller    usb0
-#
-# for the moment we have to specify the priorities of the device
-# drivers explicitly by the ordering in the list below. This will
-# be changed in the future.
-#
-# USB mouse
-device        ums0
-# USB keyboard
-device        ukbd0
-# USB printer
-device        ulpt0
-# USB hub (kind of mandatory, no other driver is available for the root hub)
-device        uhub0
-# USB communications driver
-device        ucom0
-# USB modem driver
-device        umodem0
-# Human Interface Device (anything with buttons and dials)
-device        hid0
-# Generic USB device driver
-device        ugen0
-#
-options       USB_DEBUG
-options       USBVERBOSE

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_module.c,v 1.13 1999/01/09 14:59:50 dfr Exp $
+ *	$Id: kern_module.c,v 1.10 1998/10/10 00:03:07 peter Exp $
  */
 
 #include <sys/param.h>
@@ -48,7 +48,6 @@ struct module {
     char		*name;		/* module name */
     modeventhand_t	handler;	/* event handler */
     void		*arg;		/* argument for handler */
-    modspecific_t	data;		/* module specific data */
 };
 
 #define MOD_EVENT(mod, type) (mod)->handler((mod), (type), (mod)->arg)
@@ -84,7 +83,7 @@ module_register_init(void *arg)
 
     error = module_register(data->name, data->evhand, data->priv, data->_file);
     if (error)
-	printf("module_register_init: module_register(%s, %lx, %p) error %d\n",
+	printf("module_register_init: module_register(%s, %lx, %p) returned %d",
 	       data->name, (u_long)(uintfptr_t)data->evhand, data->priv, error);
 }
 
@@ -108,7 +107,6 @@ module_register(const char* name, modeventhand_t handler, void* arg, void *file)
     strcpy(newmod->name, name);
     newmod->handler = handler;
     newmod->arg = arg;
-    bzero(&newmod->data, sizeof(newmod->data));
     TAILQ_INSERT_TAIL(&modules, newmod, link);
 
     if (container == NULL)
@@ -198,12 +196,6 @@ module_getfnext(module_t mod)
     return TAILQ_NEXT(mod, flink);
 }
 
-void
-module_setspecific(module_t mod, modspecific_t *datap)
-{
-    mod->data = *datap;
-}
-
 /*
  * Syscalls.
  */
@@ -251,13 +243,6 @@ modfnext(struct proc* p, struct modfnext_args* uap)
     return 0;
 }
 
-struct module_stat_v1 {
-    int		version;	/* set to sizeof(struct module_stat) */
-    char	name[MAXMODNAME];
-    int		refs;
-    int		id;
-};
-
 int
 modstat(struct proc* p, struct modstat_args* uap)
 {
@@ -278,8 +263,7 @@ modstat(struct proc* p, struct modstat_args* uap)
      */
     if (error = copyin(&stat->version, &version, sizeof(version)))
 	goto out;
-    if (version != sizeof(struct module_stat_v1)
-	&& version != sizeof(struct module_stat)) {
+    if (version != sizeof(struct module_stat)) {
 	error = EINVAL;
 	goto out;
     }
@@ -294,14 +278,6 @@ modstat(struct proc* p, struct modstat_args* uap)
 	goto out;
     if (error = copyout(&mod->id, &stat->id, sizeof(int)))
 	goto out;
-
-    /*
-     * >v1 stat includes module data.
-     */
-    if (version == sizeof(struct module_stat)) {
-	if (error = copyout(&mod->data, &stat->data, sizeof(mod->data)))
-	    goto out;
-    }
 
     p->p_retval[0] = 0;
 

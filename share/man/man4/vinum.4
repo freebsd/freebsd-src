@@ -35,7 +35,7 @@
 .\" otherwise) arising in any way out of the use of this software, even if
 .\" advised of the possibility of such damage.
 .\"
-.\" $Id: vinum.4,v 1.8 1999/01/15 03:54:40 grog Exp grog $
+.\" $Id: vinum.4,v 1.4 1998/08/20 02:01:16 grog Exp grog $
 .\"
 .Dd 22 July 1998
 .Dt vinum 4
@@ -44,8 +44,8 @@
 .Nm vinum
 .Nd Logical Volume Manager
 .Sh SYNOPSIS
-.Cd "kldload vinum"
-.Cd "kldload Vinum"
+.Cd "modload /lkm/vinum_mod.o"
+.Cd "modload /lkm/vinum_mod.raid5.o"
 .Sh DESCRIPTION
 .Nm
 is a logical volume manager inspired by, but not derived from, the Veritas
@@ -56,8 +56,7 @@ It provides device-independent logical disks, called \fIvolumes\fP.  Volumes are
 not restricted to the size of any disk on the system.
 .It
 The volumes consist of one or more \fIplexes\fP, each of which contain the
-entire address space of a volume.  This represents an implementation of RAID-1
-(mirroring).  Multiple plexes can also be used for
+entire address space of a volume.  Multiple plexes can be used for
 .\" XXX What about sparse plexes?  Do we want them?
 .if t .sp
 .Bl -bullet
@@ -146,70 +145,43 @@ perform this function.
 .El
 .Sh KERNEL CONFIGURATION
 .Nm
-is currently supplied as a kernel loadable module (kld), and does not require
-configuration.  As with other klds, it is absolutely necessary to match the kld
-to the version of the operating system.  Failure to do so will cause
+does not require kernel configuration, since it is supplied \fIonly\fP\| as a
+loadable kernel module (\fILKM\fP\|).  As with other LKMs, it is absolutely
+necessary to match the LKM to the version of the operating system.  Failure to
+do so will cause
 .Nm
 to issue an error message and terminate.
 .Pp
 .Nm
 is currently available in two versions: a freely available version which does
 not contain RAID-5 functionality, and a full version including RAID-5
-functionality, which is available from Cybernet Systems
-Inc. (http://www.cybernet.com\fR).
+functionality, which is available from Cybernet Systems Inc.
 .Sh RUNNING VINUM
-Normally, you start a configured version of
-.Nm
-at boot time.  Set the variable
-.Ar vinum_slices
-in
-.Ar /etc/rc.conf
-to indicate the slices on which 
-.Nm
-drives are located.  For example, if you have 
-.Nm
-drives on
-.Ar /dev/da1h ,
-.Ar /dev/da2h ,
-.Ar /dev/da3h ,
-.Ar /dev/da4h 
-and
-.Ar /dev/da5h ,
-you would set the variable to:
-.Bd -literal
-vinum_slices="/dev/da1h /dev/da2h /dev/da3h /dev/da4h /dev/da5h"
-.Ed
-.Pp
-.Sh VINUM INSTALLATION
 The freely available version of the
 .Nm
-kld is called 
-.Pa /modules/vinum.ko ,
+LKM is called 
+.Pa /lkm/vinum_mod.o ,
 and the RAID-5 version is
-.Pa /modules/Vinum.o .
+.Pa /lkm/vinum_mod.raid5.o .
 To load the module:
-.Pp
 .Bd -unfilled -offset indent
-# kldload vinum
+# modload /lkm/vinum_mod.o
 .Ed
 .Pp
-.Nm vinum(8)
-also automatically loads the kld module if it is not yet loaded.
-.Pp
-After loading
-.Nm vinum ,
-it must be confiugred.  In an existing installation, the following command reads
-the configuration an existing set of disks:
+At this point, 
+.Nm
+is loaded but has not been configured.  In an existing installation, the
+following command reads the configuration from disk
+.Ar /dev/da1h .
 .Bd -unfilled -offset indent
-# vinum read /dev/da1h /dev/da2h /dev/da3h /dev/da4h /dev/da5h /dev/da6h
+# vinum read /dev/da1h
 .Ed
 .sp
-This command must specify all of the devices used by
+The name of the disk device (in this example
+.Ar /dev/da1h )
+can be any of the devices used by
 .Nm vinum .
-.Nm vinum(8) 
-reads the configuration from the device with the newest configuration file, then
-updates it if necessary with additional information from successively older
-configurations.  These commands are normally embedded in the startup file
+These commands are normally embedded in the startup file
 .Pa /etc/rc .
 .Pp
 See
@@ -218,27 +190,26 @@ for information on how to create a
 .Nm
 configuration.
 .Pp
-To unload the kld, first find the
+To unload the LKM, first find the
 .Ar Id
 field in 
-.Pa kldstat:
+.Pa modstat:
 .Bd -unfilled -offset indent
-# kldstat
-Id Refs Address    Size     Name
- 1    2 0xf0100000 1c7de8   kernel
- 2    1 0xf0f5b000 b0000    Vinum.ko
+# modstat
+Type     Id Off Loadaddr Size Info     Rev Module Name
+MISC      0   0 f2b6e000 0061 f2b7b034   1 vinum_mod
 .Ed
 .Pp
-To unload the module, use
-.Pa kldunload:
+Use this value as the parameter for
+.Pa modunload:
 .Bd -unfilled -offset indent
-# kldunload -n Vinum
+# modunload -i 0
 .Ed
 .Pp
-The kld can only be unloaded when idle, in other words when no volumes are
+The LKM can only be unloaded when idle, in other words when no volumes are
 mounted and no other instances of the
 .Nm
-program are active.  Unloading the kld does not harm the data in the volumes.
+program are active.  Unloading the LKM does not harm the data in the volumes.
 .Ss CONFIGURING AND STARTING OBJECTS
 Use the
 .Xr vinum 8
@@ -563,6 +534,7 @@ box,center,tab(#) ;
 lfCWp9 | lw65 .
 State#Meaning
 =
+.TH N
 volume_unallocated#T{
 present but unused.  This will not normally be seen from a user perspective.
 T}
@@ -582,6 +554,7 @@ box,center,tab(#) ;
 lfCWp9 | lw65 .
 State#Meaning
 =
+.TH N
 volume_unallocated#T{
 present but unused.  This will not normally be seen from a user perspective.
 T}
@@ -614,6 +587,7 @@ box,center,tab(#) ;
 lfCWp9 | lw65 .
 State#Meaning
 =
+.TH N
 plex_unallocated#T{
 An empty entry, not a plex at all.
 T}
@@ -701,6 +675,7 @@ box,center,tab(#) ;
 lfCWp9 | lw65 .
 State#Meaning
 =
+.TH N
 sd_unallocated#T{
 An empty entry, not a subdisk at all.
 T}
@@ -795,6 +770,7 @@ box,center,tab(#) ;
 lfCWp9 | lw65 .
 State#Meaning
 =
+.TH N
 drive_unallocated#T{
 Unused entry.
 T}
@@ -833,7 +809,7 @@ should fail.  I don't know any good way to enforce this initialization (or the
 even slower alternative of rebuilding the parity blocks).  If anybody has a good
 idea, I'd be grateful for input.
 .It
-Det	ection of differences between the version of the kernel and the kld is not
+Detection of differences between the version of the kernel and the LKM is not
 yet implemented.
 .El
 .Sh AUTHOR

@@ -42,7 +42,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)login.c	8.4 (Berkeley) 4/2/94";
 #endif
 static const char rcsid[] =
-	"$Id: login.c,v 1.44 1999/01/03 23:39:33 eivind Exp $";
+	"$Id: login.c,v 1.38 1998/08/17 03:25:07 jkoshy Exp $";
 #endif /* not lint */
 
 /*
@@ -64,7 +64,6 @@ static const char rcsid[] =
 #include <errno.h>
 #include <grp.h>
 #include <libutil.h>
-#include <login_cap.h>
 #include <netdb.h>
 #include <pwd.h>
 #include <setjmp.h>
@@ -77,10 +76,28 @@ static const char rcsid[] =
 #include <unistd.h>
 #include <utmp.h>
 
-#ifndef NO_PAM
-#include <security/pam_appl.h>
-#include <security/pam_misc.h>
+#ifdef LOGIN_CAP
+#include <login_cap.h>
+#else /* Undef AUTH as well */
+#undef LOGIN_CAP_AUTH
 #endif
+
+/*
+ * If LOGIN_CAP_AUTH is activated:
+ * kerberose & skey logins are runtime selected via login
+ * login_getstyle() and authentication types for login classes
+ * The actual login itself is handled via /usr/libexec/login_<style>
+ * Valid styles are determined by the auth-type=style,style entries
+ * in the login class.
+ */
+#ifdef LOGIN_CAP_AUTH
+#undef KERBEROS
+#undef SKEY
+#endif /* LOGIN_CAP_AUTH */
+
+#ifdef	SKEY
+#include <skey.h>
+#endif /* SKEY */
 
 #include "pathnames.h"
 
@@ -97,12 +114,12 @@ char	*stypeof __P((char *));
 void	 timedout __P((int));
 int	 login_access __P((char *, char *));
 void     login_fbtab __P((char *, uid_t, gid_t));
-
-#ifndef NO_PAM
-static int auth_pam __P((void));
+#ifdef KERBEROS
+int	 klogin __P((struct passwd *, char *, char *, char *));
 #endif
-static int auth_traditional __P((void));
+
 extern void login __P((struct utmp *));
+extern void trimdomain __P((char *, int));
 static void usage __P((void));
 
 #define	TTYGRPNAME	"tty"		/* name of group to own ttys */
@@ -115,8 +132,13 @@ static void usage __P((void));
  */
 u_int	timeout = 300;
 
-/* Buffer for signal handling of timeout */
-jmp_buf timeout_buf;
+#ifdef KERBEROS
+int	notickets = 1;
+int	noticketsdontcomplain = 1;
+char	*instance;
+char	*krbtkfile_env;
+int	authok;
+#endif
 
 struct	passwd *pwd;
 int	failures;
@@ -138,24 +160,30 @@ main(argc, argv)
 	int changepass;
 	time_t warntime;
 	uid_t uid, euid;
-	char *domain, *p, *ttyn;
-	char tbuf[MAXPATHLEN + 2];
-	char tname[sizeof(_PATH_TTY) + 10];
+	char *domain, *p, *ep, *salt, *ttyn;
+	char tbuf[MAXPATHLEN + 2], tname[sizeof(_PATH_TTY) + 10];
 	char localhost[MAXHOSTNAMELEN];
 	char *shell = NULL;
+#ifdef LOGIN_CAP
 	login_cap_t *lc = NULL;
+#ifdef LOGIN_CAP_AUTH
+	char *style, *authtype;
+	char *auth_method = NULL;
+	char *instance = NULL;
+	int authok;
+#endif /* LOGIN_CAP_AUTH */
+#endif /* LOGIN_CAP */
+#ifdef SKEY
+	int permit_passwd = 0;
+#endif /* SKEY */
+#ifdef KERBEROS
+	char *k;
+#endif
 
-	(void)signal(SIGQUIT, SIG_IGN);
-	(void)signal(SIGINT, SIG_IGN);
-	if (setjmp(timeout_buf)) {
-		if (failures)
-			badlogin(tbuf);
-		(void)fprintf(stderr,
-			      "Login timed out after %d seconds\n", timeout);
-		exit(0);
-	}
 	(void)signal(SIGALRM, timedout);
 	(void)alarm(timeout);
+	(void)signal(SIGQUIT, SIG_IGN);
+	(void)signal(SIGINT, SIG_IGN);
 	(void)setpriority(PRIO_PROCESS, 0, 0);
 
 	openlog("login", LOG_ODELAY, LOG_AUTH);
@@ -237,6 +265,10 @@ main(argc, argv)
 	else
 		tty = ttyn;
 
+#ifdef LOGIN_CAP_AUTH
+	authtype = hostname ? "rlogin" : "login";
+#endif
+#ifdef LOGIN_CAP
 	/*
 	 * Get "login-retries" & "login-backoff" from default class
 	 */
@@ -245,6 +277,10 @@ main(argc, argv)
 	backoff = login_getcapnum(lc, "login-backoff", DEFAULT_BACKOFF, DEFAULT_BACKOFF);
 	login_close(lc);
 	lc = NULL;
+#else
+	retries = DEFAULT_RETRIES;
+	backoff = DEFAULT_BACKOFF;
+#endif
 
 	for (cnt = 0;; ask = 1) {
 		if (ask) {
@@ -253,6 +289,34 @@ main(argc, argv)
 		}
 		rootlogin = 0;
 		rootok = rootterm(tty); /* Default (auth may change) */
+#ifdef LOGIN_CAP_AUTH
+		authok = 0;
+		if (auth_method = strchr(username, ':')) {
+			*auth_method = '\0';
+			auth_method++;
+			if (*auth_method == '\0')
+				auth_method = NULL;
+		}
+		/*
+		 * We need to do this regardless of whether
+		 * kerberos is available.
+		 */
+		if ((instance = strchr(username, '.')) != NULL) {
+			if (strncmp(instance, ".root", 5) == 0)
+				rootlogin = 1;
+			*instance++ = '\0';
+		} else
+			instance = "";
+#else /* !LOGIN_CAP_AUTH */
+#ifdef KERBEROS
+		if ((instance = strchr(username, '.')) != NULL) {
+			if (strncmp(instance, ".root", 5) == 0)
+				rootlogin = 1;
+			*instance++ = '\0';
+		} else
+			instance = "";
+#endif /* KERBEROS */
+#endif /* LOGIN_CAP_AUTH */
 
 		if (strlen(username) > UT_NAMESIZE)
 			username[UT_NAMESIZE] = '\0';
@@ -265,11 +329,27 @@ main(argc, argv)
 		if (failures && strcmp(tbuf, username)) {
 			if (failures > (pwd ? 0 : 1))
 				badlogin(tbuf);
+			failures = 0;
 		}
 		(void)strncpy(tbuf, username, sizeof tbuf-1);
 		tbuf[sizeof tbuf-1] = '\0';
 
-		pwd = getpwnam(username);
+		if ((pwd = getpwnam(username)) != NULL)
+			salt = pwd->pw_passwd;
+		else
+			salt = "xx";
+
+#ifdef LOGIN_CAP
+		/*
+		 * Establish the class now, before we might goto
+		 * within the next block. pwd can be NULL since it
+		 * falls back to the "default" class if it is.
+		 */
+		if (pwd != NULL)
+			(void)seteuid(rootlogin ? 0 : pwd->pw_uid);
+		lc = login_getpwclass(pwd);
+		seteuid(euid);
+#endif /* LOGIN_CAP */
 
 		/*
 		 * if we have a valid account name, and it doesn't have a
@@ -277,6 +357,7 @@ main(argc, argv)
 		 * is root or the caller isn't changing their uid, don't
 		 * authenticate.
 		 */
+		rval = 1;
 		if (pwd != NULL) {
 			if (pwd->pw_uid == 0)
 				rootlogin = 1;
@@ -298,35 +379,139 @@ main(argc, argv)
 
 		(void)setpriority(PRIO_PROCESS, 0, -4);
 
-#ifndef NO_PAM
+#ifdef LOGIN_CAP_AUTH
 		/*
-		 * Try to authenticate using PAM.  If a PAM system error
-		 * occurs, perhaps because of a botched configuration,
-		 * then fall back to using traditional Unix authentication.
+		 * This hands off authorization to an authorization program,
+		 * depending on the styles available for the "auth-login",
+		 * auth-rlogin (or default) authorization styles.
+		 * We do this regardless of whether an account exists so that
+		 * the remote user cannot tell a "real" from an invented
+		 * account name. If we don't have an account we just fall
+		 * back to the first method for the "default" class.
 		 */
-		if ((rval = auth_pam()) == -1)
-#endif /* NO_PAM */
-			rval = auth_traditional();
+		if (!(style = login_getstyle(lc, auth_method, authtype))) {
+
+			/*
+			 * No available authorization method
+			 */
+			rval = 1;
+			(void)printf("No auth method available for %s.\n",
+				     authtype);
+		} else {
+
+			/*
+			 * Put back the kerberos instance, if any was given.
+			 * Don't worry about the non-kerberos case here, since
+			 * if kerberos is not available or not selected and an
+			 * instance is given at the login prompt, su or rlogin -l,
+			 * then anything else should fail as well.
+			 */
+			if (*instance)
+				*(instance - 1) = '.';
+
+			rval = authenticate(username,
+					    lc ? lc->lc_class : "default",
+					    style, authtype);
+			/* Junk it again */
+			if (*instance)
+				*(instance - 1) = '\0';
+		}
+
+		if (!rval) {
+			char * approvep;
+		    
+			/*
+			 * If authentication succeeds, run any approval
+			 * program, if applicable for this class.
+			 */
+			approvep = login_getcapstr(lc, "approve", NULL, NULL);
+			rval = 1; /* Assume bad login again */
+
+			if (approvep==NULL ||
+			    auth_script(approvep, approvep, username,
+					lc->lc_class, 0) == 0) {
+				int     r;
+
+				r = auth_scan(AUTH_OKAY);
+				/*
+				 * See what the authorize program says
+				 */
+				if (r != 0) {
+					rval = 0;
+
+					if (!rootok && (r & AUTH_ROOTOKAY))
+						rootok = 1; /* root approved */
+					else
+						rootlogin = 0;
+
+					if (!authok && (r & AUTH_SECURE))
+						authok = 1; /* secure */
+				}
+			}
+		}
+#else /* !LOGIN_CAP_AUTH */
+#ifdef SKEY
+		permit_passwd = skeyaccess(username, tty,
+					   hostname ? full_hostname : NULL,
+					   NULL);
+		p = skey_getpass("Password:", pwd, permit_passwd);
+		ep = skey_crypt(p, salt, pwd, permit_passwd);
+#else /* !SKEY */
+		p = getpass("Password:");
+		ep = crypt(p, salt);
+#endif/* SKEY */
+
+		if (pwd) {
+			if (!p[0] && pwd->pw_passwd[0])
+				ep = ":";
+#ifdef KERBEROS
+#ifdef SKEY
+			/*
+			 * Do not allow user to type in kerberos password
+			 * over the net (actually, this is ok for encrypted
+			 * links, but we have no way of determining if the
+			 * link is encrypted.
+			 */
+			if (!permit_passwd) {
+				rval = 1;		/* failed */
+			} else
+#endif /* SKEY */
+			rval = 1;
+			k = auth_getval("auth_list");
+			if (k && strstr(k, "kerberos"))
+				rval = klogin(pwd, instance, localhost, p);
+			if (rval != 0 && rootlogin && pwd->pw_uid != 0)
+				rootlogin = 0;
+			if (rval == 0)
+				authok = 1; /* kerberos authenticated ok */
+			else if (rval == 1) /* fallback to unix passwd */
+				rval = strcmp(ep, pwd->pw_passwd);
+#else /* !KERBEROS */
+			rval = strcmp(ep, pwd->pw_passwd);
+#endif /* KERBEROS */
+		}
+
+		/* clear entered password */
+		memset(p, 0, strlen(p));
+#endif /* LOGIN_CAP_AUTH */
 
 		(void)setpriority(PRIO_PROCESS, 0, 0);
 
-#ifndef NO_PAM
-		/*
-		 * PAM authentication may have changed "pwd" to the
-		 * entry for the template user.  Check again to see if
-		 * this is a root login after all.
-		 */
-		if (pwd != NULL && pwd->pw_uid == 0)
-			rootlogin = 1;
-#endif /* NO_PAM */
-
+#ifdef LOGIN_CAP_AUTH
+		if (rval)
+			auth_rmfiles();
+#endif
 	ttycheck:
 		/*
 		 * If trying to log in as root without Kerberos,
 		 * but with insecure terminal, refuse the login attempt.
 		 */
 		if (pwd && !rval) {
+#if defined(KERBEROS) || defined(LOGIN_CAP_AUTH)
+			if (authok == 0 && rootlogin && !rootok)
+#else
 			if (rootlogin && !rootok)
+#endif
 				refused(NULL, "NOROOT", 0);
 			else	/* valid password & authenticated */
 				break;
@@ -353,22 +538,26 @@ main(argc, argv)
 
 	endpwent();
 
-	/*
-	 * Establish the login class.
-	 */
-	(void)seteuid(rootlogin ? 0 : pwd->pw_uid);
-	lc = login_getpwclass(pwd);
-	seteuid(euid);
-
 	/* if user not super-user, check for disabled logins */
+#ifdef LOGIN_CAP
 	if (!rootlogin)
 		auth_checknologin(lc);
+#else
+	if (!rootlogin)
+		checknologin();
+#endif
 
+#ifdef LOGIN_CAP
 	quietlog = login_getcapbool(lc, "hushlogin", 0);
+#else
+	quietlog = 0;
+#endif
 	(void)seteuid(rootlogin ? 0 : pwd->pw_uid);
 	if (!*pwd->pw_dir || chdir(pwd->pw_dir) < 0) {
+#ifdef LOGIN_CAP
 		if (login_getcapbool(lc, "requirehome", 0))
 			refused("Home directory not available", "HOMEDIR", 1);
+#endif
 		if (chdir("/") < 0) 
 			refused("Cannot find root directory", "ROOTDIR", 1);
 		pwd->pw_dir = "/";
@@ -384,8 +573,12 @@ main(argc, argv)
 
 #define DEFAULT_WARN  (2L * 7L * 86400L)  /* Two weeks */
 
+#ifdef LOGIN_CAP
 	warntime = login_getcaptime(lc, "warnpassword",
 				    DEFAULT_WARN, DEFAULT_WARN);
+#else
+	warntime = DEFAULT_WARN;
+#endif
 
 	changepass=0;
 	if (pwd->pw_change) {
@@ -400,8 +593,12 @@ main(argc, argv)
 				 ctime(&pwd->pw_change));
 	}
 
+#ifdef LOGIN_CAP
 	warntime = login_getcaptime(lc, "warnexpire",
 				    DEFAULT_WARN, DEFAULT_WARN);
+#else
+	warntime = DEFAULT_WARN;
+#endif
 
 	if (pwd->pw_expire) {
 		if (tp.tv_sec >= pwd->pw_expire) {
@@ -412,6 +609,7 @@ main(argc, argv)
 				 ctime(&pwd->pw_expire));
 	}
 
+#ifdef LOGIN_CAP
 	if (lc != NULL) {
 		if (hostname) {
 			struct hostent *hp = gethostbyname(full_hostname);
@@ -434,6 +632,9 @@ main(argc, argv)
 			refused("Logins not available right now", "TIME", 1);
 	}
         shell=login_getcapstr(lc, "shell", pwd->pw_shell, pwd->pw_shell);
+#else /* !LOGIN_CAP */
+       shell=pwd->pw_shell;
+#endif /* LOGIN_CAP */
 	if (*pwd->pw_shell == '\0')
 		pwd->pw_shell = _PATH_BSHELL;
 	if (*shell == '\0')   /* Not overridden */
@@ -483,6 +684,11 @@ main(argc, argv)
 	if (hostname==NULL && isdialuptty(tty))
 		syslog(LOG_INFO, "DIALUP %s, %s", tty, pwd->pw_name);
 
+#ifdef KERBEROS
+	if (!quietlog && notickets == 1 && !noticketsdontcomplain)
+		(void)printf("Warning: no Kerberos tickets issued.\n");
+#endif
+
 #ifdef LOGALL
 	/*
 	 * Syslog each successful login, so we don't have to watch hundreds
@@ -521,15 +727,19 @@ main(argc, argv)
 	 * We don't need to be root anymore, so
 	 * set the user and session context
 	 */
-	if (setlogin(username) != 0) {
-                syslog(LOG_ERR, "setlogin(%s): %m - exiting", username);
-		exit(1);
-	}
-	if (setusercontext(lc, pwd, pwd->pw_uid,
-	    LOGIN_SETALL & ~LOGIN_SETLOGIN) != 0) {
+#ifdef LOGIN_CAP
+	if (setusercontext(lc, pwd, pwd->pw_uid, LOGIN_SETALL) != 0) {
                 syslog(LOG_ERR, "setusercontext() failed - exiting");
 		exit(1);
 	}
+#else
+     	if (setlogin(pwd->pw_name) < 0)
+                syslog(LOG_ERR, "setlogin() failure: %m");
+
+	(void)setgid(pwd->pw_gid);
+	initgroups(username, pwd->pw_gid);
+	(void)setuid(rootlogin ? 0 : pwd->pw_uid);
+#endif
 
 	(void)setenv("SHELL", pwd->pw_shell, 1);
 	(void)setenv("HOME", pwd->pw_dir, 1);
@@ -538,10 +748,18 @@ main(argc, argv)
 	else {
 		(void)setenv("TERM", stypeof(tty), 0);	/* Fallback doesn't */
 	}
-	(void)setenv("LOGNAME", username, 1);
-	(void)setenv("USER", username, 1);
+	(void)setenv("LOGNAME", pwd->pw_name, 1);
+	(void)setenv("USER", pwd->pw_name, 1);
 	(void)setenv("PATH", rootlogin ? _PATH_STDPATH : _PATH_DEFPATH, 0);
+#ifdef KERBEROS
+	if (krbtkfile_env)
+		(void)setenv("KRBTKFILE", krbtkfile_env, 1);
+#endif
+#if LOGIN_CAP_AUTH
+	auth_env();
+#endif
 
+#ifdef LOGIN_CAP
 	if (!quietlog) {
 		char	*cw;
 
@@ -568,12 +786,24 @@ main(argc, argv)
 		} else
 			snprintf(tbuf, sizeof(tbuf), "%s/%s",
 				 _PATH_MAILDIR, pwd->pw_name);
+#else
+	if (!quietlog) {
+		    (void)printf("%s\n\t%s %s\n",
+	"Copyright (c) 1980, 1983, 1986, 1988, 1990, 1991, 1993, 1994",
+	"The Regents of the University of California. ",
+	"All rights reserved.");
+		motd(_PATH_MOTDFILE);
+		snprintf(tbuf, sizeof(tbuf), "%s/%s",
+			 _PATH_MAILDIR, pwd->pw_name);
+#endif
 		if (stat(tbuf, &st) == 0 && st.st_size != 0)
 			(void)printf("You have %smail.\n",
 				     (st.st_mtime > st.st_atime) ? "new " : "");
 	}
 
+#ifdef LOGIN_CAP
 	login_close(lc);
+#endif
 
 	(void)signal(SIGALRM, SIG_DFL);
 	(void)signal(SIGQUIT, SIG_DFL);
@@ -594,116 +824,6 @@ main(argc, argv)
 	execlp(shell, tbuf, 0);
 	err(1, "%s", shell);
 }
-
-static int
-auth_traditional()
-{
-	int rval;
-	char *p;
-	char *ep;
-	char *salt;
-
-	rval = 1;
-	salt = pwd != NULL ? pwd->pw_passwd : "xx";
-
-	p = getpass("Password:");
-	ep = crypt(p, salt);
-
-	if (pwd) {
-		if (!p[0] && pwd->pw_passwd[0])
-			ep = ":";
-		if (strcmp(ep, pwd->pw_passwd) == 0)
-			rval = 0;
-	}
-
-	/* clear entered password */
-	memset(p, 0, strlen(p));
-	return rval;
-}
-
-#ifndef NO_PAM
-/*
- * Attempt to authenticate the user using PAM.  Returns 0 if the user is
- * authenticated, or 1 if not authenticated.  If some sort of PAM system
- * error occurs (e.g., the "/etc/pam.conf" file is missing) then this
- * function returns -1.  This can be used as an indication that we should
- * fall back to a different authentication mechanism.
- */
-static int
-auth_pam()
-{
-	pam_handle_t *pamh = NULL;
-	const char *tmpl_user;
-	const void *item;
-	int rval;
-	int e;
-	static struct pam_conv conv = { misc_conv, NULL };
-
-	if ((e = pam_start("login", username, &conv, &pamh)) != PAM_SUCCESS) {
-		syslog(LOG_ERR, "pam_start: %s", pam_strerror(pamh, e));
-		return -1;
-	}
-	if ((e = pam_set_item(pamh, PAM_TTY, tty)) != PAM_SUCCESS) {
-		syslog(LOG_ERR, "pam_set_item(PAM_TTY): %s",
-		    pam_strerror(pamh, e));
-		return -1;
-	}
-	if (hostname != NULL &&
-	    (e = pam_set_item(pamh, PAM_RHOST, full_hostname)) != PAM_SUCCESS) {
-		syslog(LOG_ERR, "pam_set_item(PAM_RHOST): %s",
-		    pam_strerror(pamh, e));
-		return -1;
-	}
-	e = pam_authenticate(pamh, 0);
-	switch (e) {
-
-	case PAM_SUCCESS:
-		/*
-		 * With PAM we support the concept of a "template"
-		 * user.  The user enters a login name which is
-		 * authenticated by PAM, usually via a remote service
-		 * such as RADIUS or TACACS+.  If authentication
-		 * succeeds, a different but related "template" name
-		 * is used for setting the credentials, shell, and
-		 * home directory.  The name the user enters need only
-		 * exist on the remote authentication server, but the
-		 * template name must be present in the local password
-		 * database.
-		 *
-		 * This is supported by two various mechanisms in the
-		 * individual modules.  However, from the application's
-		 * point of view, the template user is always passed
-		 * back as a changed value of the PAM_USER item.
-		 */
-		if ((e = pam_get_item(pamh, PAM_USER, &item)) ==
-		    PAM_SUCCESS) {
-			tmpl_user = (const char *) item;
-			if (strcmp(username, tmpl_user) != 0)
-				pwd = getpwnam(tmpl_user);
-		} else
-			syslog(LOG_ERR, "Couldn't get PAM_USER: %s",
-			    pam_strerror(pamh, e));
-		rval = 0;
-		break;
-
-	case PAM_AUTH_ERR:
-	case PAM_USER_UNKNOWN:
-	case PAM_MAXTRIES:
-		rval = 1;
-		break;
-
-	default:
-		syslog(LOG_ERR, "auth_pam: %s", pam_strerror(pamh, e));
-		rval = -1;
-		break;
-	}
-	if ((e = pam_end(pamh, e)) != PAM_SUCCESS) {
-		syslog(LOG_ERR, "pam_end: %s", pam_strerror(pamh, e));
-		rval = -1;
-	}
-	return rval;
-}
-#endif /* NO_PAM */
 
 static void
 usage()
@@ -789,9 +909,24 @@ void
 timedout(signo)
 	int signo;
 {
-	longjmp(timeout_buf, signo);
+	(void)fprintf(stderr, "Login timed out after %d seconds\n", timeout);
+	exit(0);
 }
 
+#ifndef LOGIN_CAP
+void
+checknologin()
+{
+	int fd, nchars;
+	char tbuf[8192];
+
+	if ((fd = open(_PATH_NOLOGIN, O_RDONLY, 0)) >= 0) {
+		while ((nchars = read(fd, tbuf, sizeof(tbuf))) > 0)
+			(void)write(fileno(stdout), tbuf, nchars);
+		sleepexit(0);
+	}
+}
+#endif
 
 void
 dolastlog(quiet)
@@ -848,7 +983,6 @@ badlogin(name)
 		    "%d LOGIN FAILURE%s ON %s, %s",
 		    failures, failures > 1 ? "S" : "", tty, name);
 	}
-	failures = 0;
 }
 
 #undef	UNKNOWN

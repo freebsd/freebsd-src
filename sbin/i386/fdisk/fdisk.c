@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: fdisk.c,v 1.26 1998/11/06 03:43:21 alex Exp $";
+	"$Id: fdisk.c,v 1.23 1998/07/06 06:44:36 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/disklabel.h>
@@ -67,7 +67,7 @@ int secsize = 0;		/* the sensed sector size */
 const char *disk;
 const char *disks[] =
 {
-  "/dev/rwd0", "/dev/rda0", "/dev/rod0", 0
+  "/dev/rwd0", "/dev/rsd0", "/dev/rod0", 0
 };
 
 struct disklabel disklabel;		/* disk parameters */
@@ -196,11 +196,9 @@ struct part_type
 	,{0x83, "Linux filesystem"}
 	,{0x93, "Amoeba filesystem"}
 	,{0x94, "Amoeba bad block table"}
-	,{0x9F, "BSD/OS"}
 	,{0xA5, "FreeBSD/NetBSD/386BSD"}
 	,{0xA6, "OpenBSD"}
 	,{0xA7, "NEXTSTEP"}
-	,{0xA9, "NetBSD"}
 	,{0xB7, "BSDI BSD/386 filesystem"}
 	,{0xB8, "BSDI BSD/386 swap"}
 	,{0xDB, "Concurrent CPM or C.DOS or CTOS"}

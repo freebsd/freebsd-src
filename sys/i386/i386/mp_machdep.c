@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.87 1999/01/12 00:19:31 eivind Exp $
+ *	$Id: mp_machdep.c,v 1.82 1998/10/10 09:38:02 kato Exp $
  */
 
 #include "opt_smp.h"
@@ -1009,8 +1009,8 @@ fix_mp_table(void)
 {
 	int	x;
 	int	id;
-	int	bus_0 = 0;	/* Stop GCC warning */
-	int	bus_pci = 0;	/* Stop GCC warning */
+	int	bus_0;
+	int	bus_pci;
 	int	num_pci_bus;
 
 	/*
@@ -1197,26 +1197,11 @@ lookup_bus_type(char *name)
 static int
 int_entry(int_entry_ptr entry, int intr)
 {
-	int apic;
-
 	io_apic_ints[intr].int_type = entry->int_type;
 	io_apic_ints[intr].int_flags = entry->int_flags;
 	io_apic_ints[intr].src_bus_id = entry->src_bus_id;
 	io_apic_ints[intr].src_bus_irq = entry->src_bus_irq;
-	if (entry->dst_apic_id == 255) {
-		/* This signal goes to all IO APICS.  Select an IO APIC
-		   with sufficient number of interrupt pins */
-		for (apic = 0; apic < mp_napics; apic++)
-			if (((io_apic_read(apic, IOAPIC_VER) & 
-			      IOART_VER_MAXREDIR) >> MAXREDIRSHIFT) >= 
-			    entry->dst_apic_int)
-				break;
-		if (apic < mp_napics)
-			io_apic_ints[intr].dst_apic_id = IO_TO_ID(apic);
-		else
-			io_apic_ints[intr].dst_apic_id = entry->dst_apic_id;
-	} else
-		io_apic_ints[intr].dst_apic_id = entry->dst_apic_id;
+	io_apic_ints[intr].dst_apic_id = entry->dst_apic_id;
 	io_apic_ints[intr].dst_apic_int = entry->dst_apic_int;
 
 	return 1;
@@ -1388,13 +1373,11 @@ int
 undirect_isa_irq(int rirq)
 {
 #if defined(READY)
-	if (bootverbose)
-	    printf("Freeing redirected ISA irq %d.\n", rirq);
+	printf("Freeing redirected ISA irq %d.\n", rirq);
 	/** FIXME: tickle the MB redirector chip */
 	return ???;
 #else
-	if (bootverbose)
-	    printf("Freeing (NOT implemented) redirected ISA irq %d.\n", rirq);
+	printf("Freeing (NOT implemented) redirected ISA irq %d.\n", rirq);
 	return 0;
 #endif  /* READY */
 }
@@ -2200,12 +2183,12 @@ SYSCTL_INT(_machdep, OID_AUTO, forward_irq_enabled, CTLFLAG_RW,
 	   &forward_irq_enabled, 0, "");
 
 /* Enable forwarding of a signal to a process running on a different CPU */
-static int forward_signal_enabled = 1;
+int forward_signal_enabled = 1;
 SYSCTL_INT(_machdep, OID_AUTO, forward_signal_enabled, CTLFLAG_RW,
 	   &forward_signal_enabled, 0, "");
 
 /* Enable forwarding of roundrobin to all other cpus */
-static int forward_roundrobin_enabled = 1;
+int forward_roundrobin_enabled = 1;
 SYSCTL_INT(_machdep, OID_AUTO, forward_roundrobin_enabled, CTLFLAG_RW,
 	   &forward_roundrobin_enabled, 0, "");
 
@@ -2218,6 +2201,7 @@ void ap_init(void);
 void
 ap_init()
 {
+	u_int   temp;
 	u_int	apic_id;
 
 	smp_cpus++;

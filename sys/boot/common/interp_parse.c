@@ -11,7 +11,7 @@
  * Jordan K. Hubbard
  * 29 August 1998
  *
- *	$Id: interp_parse.c,v 1.5 1999/01/10 05:08:12 msmith Exp $
+ *	$Id: interp_parse.c,v 1.3 1998/09/04 02:43:26 msmith Exp $
  * 
  * The meat of the simple parser.
  */
@@ -100,11 +100,7 @@ parse(int *argc, char ***argv, char *str)
     while (*p) {
 	switch (state) {
 	case STR:
-	    if ((*p == '\\') && p[1]) {
-		p++;
-		PARSE_FAIL(i == (PARSE_BUFSIZE - 1));
-		buf[i++] = *p++;
-	    } else if (isquote(*p)) {
+	    if (isquote(*p)) {
 		quote = quote ? 0 : *p;
 		++p;
 	    }

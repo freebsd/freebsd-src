@@ -13,10 +13,9 @@
 #include <string.h>
 #include <bootstrap.h>
 
-STAILQ_HEAD(,pnpinfo)	pnp_devices;
-static int		pnp_devices_initted = 0;
+static struct pnpinfo	*pnp_devices = NULL;
 
-static void		pnp_discard(void);
+static void		pnp_discard(struct pnpinfo **list);
 static int		pnp_readconf(char *path);
 static int		pnp_scankernel(void);
 
@@ -29,56 +28,15 @@ COMMAND_SET(pnpscan, "pnpscan", "scan for PnP devices", pnp_scan);
 int
 pnp_scan(int argc, char *argv[]) 
 {
-    struct pnpinfo	*pi;
     int			hdlr;
-    int			verbose;
-    int			ch;
-
-    if (pnp_devices_initted == 0) {
-	STAILQ_INIT(&pnp_devices);
-	pnp_devices_initted = 1;
-    }
-
-    verbose = 0;
-    optind = 1;
-    optreset = 1;
-    while ((ch = getopt(argc, argv, "v")) != -1) {
-	switch(ch) {
-	case 'v':
-	    verbose = 1;
-	    break;
-	case '?':
-	default:
-	    /* getopt has already reported an error */
-	    return(CMD_OK);
-	}
-    }
 
     /* forget anything we think we knew */
-    pnp_discard();
-
-    if (verbose)
-	pager_open();
+    pnp_discard(&pnp_devices);
 
     /* iterate over all of the handlers */
     for (hdlr = 0; pnphandlers[hdlr] != NULL; hdlr++) {
-	if (verbose) {
-	    pager_output("Probing ");
-	    pager_output(pnphandlers[hdlr]->pp_name);
-	    pager_output("...\n");
-	}
-	pnphandlers[hdlr]->pp_enumerate();
-    }
-    if (verbose) {
-	for (pi = pnp_devices.stqh_first; pi != NULL; pi = pi->pi_link.stqe_next) {
-	    pager_output(pi->pi_ident.stqh_first->id_ident);	/* first ident should be canonical */
-	    if (pi->pi_desc != NULL) {
-		pager_output(" : ");
-		pager_output(pi->pi_desc);
-	    }
-	    pager_output("\n");
-	}
-	pager_close();
+	printf("Probing bus '%s'...\n", pnphandlers[hdlr]->pp_name);
+	pnphandlers[hdlr]->pp_enumerate(&pnp_devices);
     }
     return(CMD_OK);
 }
@@ -93,7 +51,7 @@ pnp_reload(char *fname)
     char		*modfname;
 	
     /* find anything? */
-    if (pnp_devices.stqh_first != NULL) {
+    if (pnp_devices != NULL) {
 
 	/* check for kernel, assign modules handled by static drivers there */
 	if (pnp_scankernel()) {
@@ -112,13 +70,13 @@ pnp_reload(char *fname)
 	}
 
 	/* try to load any modules that have been nominated */
-	for (pi = pnp_devices.stqh_first; pi != NULL; pi = pi->pi_link.stqe_next) {
+	for (pi = pnp_devices; pi != NULL; pi = pi->pi_next) {
 	    /* Already loaded? */
 	    if ((pi->pi_module != NULL) && (mod_findmodule(pi->pi_module, NULL) == NULL)) {
-		modfname = malloc(strlen(pi->pi_module) + 4);
+		modfname = malloc(strlen(pi->pi_module + 3));
 		sprintf(modfname, "%s.ko", pi->pi_module);	/* XXX implicit knowledge of KLD module filenames */
 		if (mod_load(pi->pi_module, pi->pi_argc, pi->pi_argv))
-		    printf("Could not load module '%s' for device '%s'\n", modfname, pi->pi_ident.stqh_first->id_ident);
+		    printf("Could not load module '%s' for device '%s'\n", modfname, pi->pi_ident->id_ident);
 		free(modfname);
 	    }
 	}
@@ -130,14 +88,24 @@ pnp_reload(char *fname)
  * Throw away anything we think we know about PnP devices on (list)
  */
 static void
-pnp_discard(void)
+pnp_discard(struct pnpinfo **list)
 {
     struct pnpinfo	*pi;
-
-    while (pnp_devices.stqh_first != NULL) {
-	pi = pnp_devices.stqh_first;
-	STAILQ_REMOVE_HEAD(&pnp_devices, pi_link);
-	pnp_freeinfo(pi);
+    struct pnpident	*id;
+    
+    while (*list != NULL) {
+	pi = *list;
+	*list = (*list)->pi_next;
+	while (pi->pi_ident) {
+	    id = pi->pi_ident;
+	    pi->pi_ident = pi->pi_ident->id_next;
+	    free(id);
+	}
+	if (pi->pi_module)
+	    free(pi->pi_module);
+	if (pi->pi_argv)
+	    free(pi->pi_argv);
+	free(pi);
     }
 }
 
@@ -258,14 +226,14 @@ pnp_readconf(char *path)
 	     * assigned.
 	     * XXX no revision parse/test here yet.
 	     */
-	    for (pi = pnp_devices.stqh_first; pi != NULL; pi = pi->pi_link.stqe_next) {
+	    for (pi = pnp_devices; pi != NULL; pi = pi->pi_next) {
 
 		/* no driver assigned, bus matches OK */
 		if ((pi->pi_module == NULL) &&
 		    !strcmp(pi->pi_handler->pp_name, currbus)) {
 
 		    /* scan idents, take first match */
-		    for (id = pi->pi_ident.stqh_first; id != NULL; id = id->id_link.stqe_next)
+		    for (id = pi->pi_ident; id != NULL; id = id->id_next)
 			if (!strcmp(id->id_ident, ident))
 			    break;
 			
@@ -299,82 +267,19 @@ pnp_scankernel(void)
 void
 pnp_addident(struct pnpinfo *pi, char *ident)
 {
-    struct pnpident	*id;
-
-    for (id = pi->pi_ident.stqh_first; id != NULL; id = id->id_link.stqe_next)
-	if (!strcmp(id->id_ident, ident))
-	    return;			/* already have this one */
-
-    id = malloc(sizeof(struct pnpident));
-    id->id_ident = strdup(ident);
-    STAILQ_INSERT_TAIL(&pi->pi_ident, id, id_link);
-}
-
-/*
- * Allocate a new pnpinfo struct
- */
-struct pnpinfo *
-pnp_allocinfo(void)
-{
-    struct pnpinfo	*pi;
+    struct pnpident	*id, **idp;
     
-    pi = malloc(sizeof(struct pnpinfo));
-    bzero(pi, sizeof(struct pnpinfo));
-    STAILQ_INIT(&pi->pi_ident);
-    return(pi);
-}
-
-/*
- * Release storage held by a pnpinfo struct
- */
-void
-pnp_freeinfo(struct pnpinfo *pi)
-{
-    struct pnpident	*id;
-
-    while (pi->pi_ident.stqh_first != NULL) {
-	id = pi->pi_ident.stqh_first;
-	STAILQ_REMOVE_HEAD(&pi->pi_ident, id_link);
-	free(id->id_ident);
-	free(id);
+    if (pi->pi_ident == NULL) {
+	idp = &(pi->pi_ident);
+    } else {
+	for (id = pi->pi_ident; id->id_next != NULL; id = id->id_next)
+	    if (!strcmp(id->id_ident, ident))
+		return;			/* already have this one */
+	    ;
+	idp = &(id->id_next);
     }
-    if (pi->pi_desc)
-	free(pi->pi_desc);
-    if (pi->pi_module)
-	free(pi->pi_module);
-    if (pi->pi_argv)
-	free(pi->pi_argv);
-    free(pi);
-}
-
-/*
- * Add a new pnpinfo struct to the list.
- */
-void
-pnp_addinfo(struct pnpinfo *pi)
-{
-    STAILQ_INSERT_TAIL(&pnp_devices, pi, pi_link);
-}
-
-
-/*
- * Format an EISA id as a string in standard ISA PnP format, AAAIIRR
- * where 'AAA' is the EISA vendor ID, II is the product ID and RR the revision ID.
- */
-char *
-pnp_eisaformat(u_int8_t *data)
-{
-    static char	idbuf[8];
-    const char	hextoascii[] = "0123456789abcdef";
-
-    idbuf[0] = '@' + ((data[0] & 0x7c) >> 2);
-    idbuf[1] = '@' + (((data[0] & 0x3) << 3) + ((data[1] & 0xe0) >> 5));
-    idbuf[2] = '@' + (data[1] & 0x1f);
-    idbuf[3] = hextoascii[(data[2] >> 4)];
-    idbuf[4] = hextoascii[(data[2] & 0xf)];
-    idbuf[5] = hextoascii[(data[3] >> 4)];
-    idbuf[6] = hextoascii[(data[3] & 0xf)];
-    idbuf[7] = 0;
-    return(idbuf);
+    *idp = malloc(sizeof(struct pnpident));
+    (*idp)->id_next = NULL;
+    (*idp)->id_ident = strdup(ident);
 }
 

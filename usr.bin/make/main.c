@@ -47,7 +47,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)main.c	8.3 (Berkeley) 3/19/94";
 #endif
 static const char rcsid[] =
-	"$Id: main.c,v 1.28 1998/11/14 16:15:04 dg Exp $";
+	"$Id: main.c,v 1.25 1998/07/26 17:06:05 imp Exp $";
 #endif /* not lint */
 
 /*-
@@ -133,7 +133,6 @@ Boolean			touchFlag;	/* -t flag */
 Boolean			usePipes;	/* !-P flag */
 Boolean			ignoreErrors;	/* -i flag */
 Boolean			beSilent;	/* -s flag */
-Boolean			beVerbose;	/* -v flag */
 Boolean			oldVars;	/* variable substitution style */
 Boolean			checkEnvFirst;	/* -e flag */
 static Boolean		jobsRunning;	/* TRUE if the jobs might be running */
@@ -172,9 +171,9 @@ MainParseArgs(argc, argv)
 
 	optind = 1;	/* since we're called more than once */
 #ifdef REMOTE
-# define OPTFLAGS "BD:I:L:PSV:d:ef:ij:km:nqrstv"
+# define OPTFLAGS "BD:I:L:PSV:d:ef:ij:km:nqrst"
 #else
-# define OPTFLAGS "BD:I:PSV:d:ef:ij:km:nqrstv"
+# define OPTFLAGS "BD:I:PSV:d:ef:ij:km:nqrst"
 #endif
 rearg:	while((c = getopt(argc, argv, OPTFLAGS)) != -1) {
 		switch(c) {
@@ -321,10 +320,6 @@ rearg:	while((c = getopt(argc, argv, OPTFLAGS)) != -1) {
 			touchFlag = TRUE;
 			Var_Append(MAKEFLAGS, "-t", VAR_GLOBAL);
 			break;
-		case 'v':
-			beVerbose = TRUE;
-			Var_Append(MAKEFLAGS, "-v", VAR_GLOBAL);
-			break;
 		default:
 		case '?':
 			usage();
@@ -439,12 +434,8 @@ main(argc, argv)
 {
 	Lst targs;	/* target nodes to create -- passed to Make_Init */
 	Boolean outOfDate = TRUE; 	/* FALSE if all targets up to date */
-	struct stat sa;
-	char *p, *p1, *path, *pathp;
-#ifdef WANT_ENV_PWD
-	struct stat sb;
-	char *pwd;
-#endif
+	struct stat sb, sa;
+	char *p, *p1, *path, *pathp, *pwd;
 	char mdpath[MAXPATHLEN + 1];
 	char obpath[MAXPATHLEN + 1];
 	char cdpath[MAXPATHLEN + 1];
@@ -479,13 +470,11 @@ main(argc, argv)
 	if (stat(curdir, &sa) == -1)
 	    err(2, "%s", curdir);
 
-#ifdef WANT_ENV_PWD
 	if ((pwd = getenv("PWD")) != NULL) {
 	    if (stat(pwd, &sb) == 0 && sa.st_ino == sb.st_ino &&
 		sa.st_dev == sb.st_dev)
 		(void) strcpy(curdir, pwd);
 	}
-#endif
 
 #if defined(__i386__)
 	/*
@@ -569,9 +558,7 @@ main(argc, argv)
 			objdir = curdir;
 	}
 
-#ifdef WANT_ENV_PWD
 	setenv("PWD", objdir, 1);
-#endif
 
 	create = Lst_Init(FALSE);
 	makefiles = Lst_Init(FALSE);
@@ -1273,7 +1260,7 @@ static void
 usage()
 {
 	(void)fprintf(stderr, "%s\n%s\n%s\n",
-"usage: make [-Beiknqrstv] [-D variable] [-d flags] [-f makefile]",
+"usage: make [-Beiknqrst] [-D variable] [-d flags] [-f makefile ]",
 "            [-I directory] [-j max_jobs] [-m directory] [-V variable]",
 "            [variable=value] [target ...]");
 	exit(2);

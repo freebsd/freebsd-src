@@ -11,7 +11,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)err.c	8.74 (Berkeley) 6/4/1998";
+static char sccsid[] = "@(#)err.c	8.74 (Berkeley) 6/4/98";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -216,7 +216,7 @@ usrerr(fmt, va_alist)
 			char buf[MAXLINE];
 
 			snprintf(buf, sizeof buf, "Postmaster warning: %.*s",
-				(int)sizeof buf - 22, MsgBuf + 4);
+				sizeof buf - 22, MsgBuf + 4);
 			CurEnv->e_message = newstr(buf);
 		}
 		else

@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)display.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: display.c,v 1.2 1997/07/10 06:48:12 charnier Exp $";
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -234,7 +234,6 @@ get()
 	static u_char *curp, *savp;
 	register int n;
 	int need, nread;
-	int valid_save = 0;
 	u_char *tmpp;
 
 	if (!curp) {
@@ -245,7 +244,6 @@ get()
 		curp = savp;
 		savp = tmpp;
 		address += blocksize;
-		valid_save = 1;
 	}
 	for (need = blocksize, nread = 0;;) {
 		/*
@@ -256,9 +254,7 @@ get()
 		if (!length || ateof && !next((char **)NULL)) {
 			if (need == blocksize)
 				return((u_char *)NULL);
-			if (vflag != ALL && 
-			    valid_save && 
-			    bcmp(curp, savp, nread) == 0) {
+			if (vflag != ALL && !bcmp(curp, savp, nread)) {
 				if (vflag != DUP)
 					(void)printf("*\n");
 				return((u_char *)NULL);
@@ -280,8 +276,7 @@ get()
 			length -= n;
 		if (!(need -= n)) {
 			if (vflag == ALL || vflag == FIRST ||
-			    valid_save == 0 ||
-			    bcmp(curp, savp, blocksize) != 0) {
+			    bcmp(curp, savp, blocksize)) {
 				if (vflag == DUP || vflag == FIRST)
 					vflag = WAIT;
 				return(curp);

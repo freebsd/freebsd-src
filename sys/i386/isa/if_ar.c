@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_ar.c,v 1.23 1998/10/22 05:58:38 bde Exp $
+ * $Id: if_ar.c,v 1.21 1998/06/21 14:53:10 bde Exp $
  */
 
 /*
@@ -178,7 +178,6 @@ static int irqtable[16] = {
 
 struct isa_driver ardriver = {arprobe, arattach, "arc"};
 
-static ointhand2_t arintr;
 static void ar_xmit(struct ar_softc *sc);
 static void arstart(struct ifnet *ifp);
 static int arioctl(struct ifnet *ifp, u_long cmd, caddr_t data);
@@ -297,7 +296,6 @@ arattach(struct isa_device *id)
 	int unit;
 	char *iface;
 
-	id->id_ointr = arintr;
 	switch(hc->interface) {
 	default: iface = "UNKNOWN"; break;
 	case AR_IFACE_EIA_232: iface = "EIA-232"; break;
@@ -357,6 +355,13 @@ arattach(struct isa_device *id)
 		sppp_attach((struct ifnet *)&sc->ifsppp);
 		if_attach(ifp);
 
+		/*
+		 * Shortcut the sppp tls/tlf actions to up/down events
+		 * since our lower layer is always ready.
+		 */
+		sc->ifsppp.pp_tls = sc->ifsppp.pp_up;
+		sc->ifsppp.pp_tlf = sc->ifsppp.pp_down;
+
 #if NBPFILTER > 0
 		bpfattach(ifp, DLT_PPP, PPP_HEADER_LEN);
 #endif
@@ -373,7 +378,7 @@ arattach(struct isa_device *id)
  * See if there is other interrupts pending.
  * Repeat until there is no more interrupts.
  */
-static void
+void
 arintr(int unit)
 {
 	struct ar_hardc *hc = &ar_hardc[unit];

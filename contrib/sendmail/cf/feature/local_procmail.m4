@@ -12,7 +12,7 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`@(#)local_procmail.m4	8.11 (Berkeley) 5/19/1998')
+VERSIONID(`@(#)local_procmail.m4	8.11 (Berkeley) 5/19/98')
 divert(-1)
 
 define(`LOCAL_MAILER_PATH',

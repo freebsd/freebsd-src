@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: adwlib.c,v 1.1 1998/10/07 03:20:46 gibbs Exp $
+ *      $Id$
  */
 /*
  * Ported from:
@@ -43,8 +43,7 @@
  * code retain the above copyright notice and this comment without
  * modification.
  */
-
-#include <sys/types.h>
+#include <sys/queue.h>
 #include <sys/systm.h>
 
 #include <machine/bus_pio.h>

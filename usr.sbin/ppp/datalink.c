@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.24 1999/01/12 21:50:20 brian Exp $
+ *	$Id: datalink.c,v 1.18 1998/08/09 15:34:11 brian Exp $
  */
 
 #include <sys/types.h>
@@ -256,9 +256,9 @@ datalink_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
               log_Printf(LogCHAT, "%s: Dial attempt %u of %d\n",
                         dl->name, dl->cfg.dial.max - dl->dial_tries,
                         dl->cfg.dial.max);
+            return datalink_UpdateSet(d, r, w, e, n);
           } else
             datalink_LoginDone(dl);
-          return datalink_UpdateSet(d, r, w, e, n);
         } else {
           if (!(dl->physical->type & (PHYS_DDIAL|PHYS_DEDICATED)) &&
               dl->cfg.dial.max)
@@ -303,9 +303,8 @@ datalink_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
               chat_Init(&dl->chat, dl->physical, dl->cfg.script.login, 0, NULL);
               return datalink_UpdateSet(d, r, w, e, n);
             case DATALINK_LOGIN:
-              dl->phone.alt = NULL;
               datalink_LoginDone(dl);
-              return datalink_UpdateSet(d, r, w, e, n);
+              break;
           }
           break;
         case CHAT_FAILED:
@@ -553,17 +552,13 @@ datalink_CBCPFailed(struct datalink *dl)
 void
 datalink_AuthOk(struct datalink *dl)
 {
-  if ((dl->physical->link.lcp.his_callback.opmask &
-       CALLBACK_BIT(CALLBACK_CBCP) ||
-       dl->physical->link.lcp.want_callback.opmask &
-       CALLBACK_BIT(CALLBACK_CBCP)) &&
-      !(dl->physical->link.lcp.want_callback.opmask &
-        CALLBACK_BIT(CALLBACK_AUTH))) {
-    /* We must have agreed CBCP if AUTH isn't there any more */
+  if (dl->physical->link.lcp.his_callback.opmask ==
+      CALLBACK_BIT(CALLBACK_CBCP) ||
+      dl->physical->link.lcp.want_callback.opmask ==
+      CALLBACK_BIT(CALLBACK_CBCP)) {
     datalink_NewState(dl, DATALINK_CBCP);
     cbcp_Up(&dl->cbcp);
   } else if (dl->physical->link.lcp.want_callback.opmask) {
-    /* It's not CBCP */
     log_Printf(LogPHASE, "%s: Shutdown and await peer callback\n", dl->name);
     datalink_NewState(dl, DATALINK_LCP);
     fsm_Close(&dl->physical->link.lcp.fsm);
@@ -816,7 +811,6 @@ datalink_Destroy(struct datalink *dl)
     }
   }
 
-  timer_Stop(&dl->dial_timer);
   result = dl->next;
   modem_Destroy(dl->physical);
   free(dl->name);
@@ -990,14 +984,8 @@ datalink_Show(struct cmdargs const *arg)
       prompt_Printf(arg->prompt, "%scbcp\n", comma ? ", " : "");
       prompt_Printf(arg->prompt, " CBCP:               delay: %ds\n",
                     arg->cx->cfg.cbcp.delay);
-      prompt_Printf(arg->prompt, "                     phone: ");
-      if (!strcmp(arg->cx->cfg.cbcp.phone, "*")) {
-        if (arg->cx->physical->type & PHYS_DIRECT)
-          prompt_Printf(arg->prompt, "Caller decides\n");
-        else
-          prompt_Printf(arg->prompt, "Dialback server decides\n");
-      } else
-        prompt_Printf(arg->prompt, "%s\n", arg->cx->cfg.cbcp.phone);
+      prompt_Printf(arg->prompt, "                     phone: %s\n",
+                    arg->cx->cfg.cbcp.phone);
       prompt_Printf(arg->prompt, "                     timeout: %lds\n",
                     arg->cx->cfg.cbcp.fsmretry);
     } else

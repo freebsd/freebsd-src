@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.27 (Berkeley) 5/27/95
- * $Id: ufs_vnops.c,v 1.103 1998/12/24 09:45:10 bde Exp $
+ * $Id: ufs_vnops.c,v 1.99 1998/08/12 21:42:54 msmith Exp $
  */
 
 #include "opt_quota.h"
@@ -506,11 +506,12 @@ ufs_setattr(ap)
 		if (vap->va_mtime.tv_sec != VNOVAL)
 			ip->i_flag |= IN_CHANGE | IN_UPDATE;
 		ufs_itimes(vp);
-		if (vap->va_atime.tv_sec != VNOVAL)
-			ip->i_atime = vap->va_atime.tv_sec;
 		if (vap->va_mtime.tv_sec != VNOVAL)
+			ip->i_atime = vap->va_atime.tv_sec;
+		if (vap->va_atime.tv_sec != VNOVAL)
 			ip->i_mtime = vap->va_mtime.tv_sec;
-		error = UFS_UPDATE(vp, 0);
+		error = UFS_UPDATE(vp, (struct timeval *)0,
+		    (struct timeval *)0, 0);
 		if (error)
 			return (error);
 	}
@@ -720,6 +721,7 @@ ufs_link(ap)
 	struct componentname *cnp = ap->a_cnp;
 	struct proc *p = cnp->cn_proc;
 	struct inode *ip;
+	struct timeval tv;
 	struct direct newdir;
 	int error;
 
@@ -752,7 +754,8 @@ ufs_link(ap)
 	ip->i_flag |= IN_CHANGE;
 	if (DOINGSOFTDEP(vp))
 		softdep_increase_linkcnt(ip);
-	error = UFS_UPDATE(vp, !DOINGSOFTDEP(vp));
+	getmicrotime(&tv);
+	error = UFS_UPDATE(vp, &tv, &tv, !DOINGSOFTDEP(vp));
 	if (!error) {
 		ufs_makedirentry(ip, cnp, &newdir);
 		error = ufs_direnter(tdvp, vp, &newdir, cnp, NULL);
@@ -876,6 +879,7 @@ ufs_rename(ap)
 	struct proc *p = fcnp->cn_proc;
 	struct inode *ip, *xp, *dp;
 	struct direct newdir;
+	struct timeval tv;
 	int doingdirectory = 0, oldparent = 0, newparent = 0;
 	int error = 0;
 
@@ -1015,7 +1019,8 @@ abortit:
 	ip->i_flag |= IN_CHANGE;
 	if (DOINGSOFTDEP(fvp))
 		softdep_increase_linkcnt(ip);
-	if (error = UFS_UPDATE(fvp, !DOINGSOFTDEP(fvp))) {
+	getmicrotime(&tv);
+	if (error = UFS_UPDATE(fvp, &tv, &tv, !DOINGSOFTDEP(fvp))) {
 		VOP_UNLOCK(fvp, 0, p);
 		goto bad;
 	}
@@ -1079,7 +1084,7 @@ abortit:
 			dp->i_flag |= IN_CHANGE;
 			if (DOINGSOFTDEP(tdvp))
 				softdep_increase_linkcnt(dp);
-			error = UFS_UPDATE(tdvp, !DOINGSOFTDEP(tdvp));
+			error = UFS_UPDATE(tdvp, &tv, &tv, !DOINGSOFTDEP(tdvp));
 			if (error)
 				goto bad;
 		}
@@ -1090,7 +1095,7 @@ abortit:
 				dp->i_effnlink--;
 				dp->i_nlink--;
 				dp->i_flag |= IN_CHANGE;
-				(void)UFS_UPDATE(tdvp, 1);
+				(void)UFS_UPDATE(tdvp, &tv, &tv, 1);
 			}
 			goto bad;
 		}
@@ -1270,6 +1275,7 @@ ufs_mkdir(ap)
 	struct buf *bp;
 	struct dirtemplate dirtemplate, *dtp;
 	struct direct newdir;
+	struct timeval tv;
 	int error, dmode;
 	long blkoff;
 
@@ -1372,7 +1378,8 @@ ufs_mkdir(ap)
 	dp->i_flag |= IN_CHANGE;
 	if (DOINGSOFTDEP(dvp))
 		softdep_increase_linkcnt(dp);
-	error = UFS_UPDATE(tvp, !DOINGSOFTDEP(dvp));
+	getmicrotime(&tv);
+        error = UFS_UPDATE(tvp, &tv, &tv, !DOINGSOFTDEP(dvp));
 	if (error)
 		goto bad;
 
@@ -1408,7 +1415,7 @@ ufs_mkdir(ap)
 			blkoff += DIRBLKSIZ;
 		}
 	}
-	if ((error = UFS_UPDATE(tvp, !DOINGSOFTDEP(tvp))) != 0) {
+	if ((error = UFS_UPDATE(tvp, &tv, &tv, !DOINGSOFTDEP(tvp))) != 0) {
 		(void)VOP_BWRITE(bp);
 		goto bad;
 	}
@@ -1605,9 +1612,9 @@ ufs_readdir(ap)
 	off = uio->uio_offset;
 	count = uio->uio_resid;
 	/* Make sure we don't return partial entries. */
-	if (count <= ((uio->uio_offset + count) & (DIRBLKSIZ -1)))
-		return (EINVAL);
 	count -= (uio->uio_offset + count) & (DIRBLKSIZ -1);
+	if (count <= 0)
+		return (EINVAL);
 	lost = uio->uio_resid - count;
 	uio->uio_resid = count;
 	uio->uio_iov->iov_len = count;
@@ -1803,19 +1810,13 @@ ufsspec_read(ap)
 	} */ *ap;
 {
 	int error, resid;
-	struct inode *ip;
 	struct uio *uio;
 
 	uio = ap->a_uio;
 	resid = uio->uio_resid;
 	error = VOCALL(spec_vnodeop_p, VOFFSET(vop_read), ap);
-	/*
-	 * The inode may have been revoked during the call, so it must not
-	 * be accessed blindly here or in the other wrapper functions.
-	 */
-	ip = VTOI(ap->a_vp);
-	if (ip != NULL && (uio->uio_resid != resid || error == 0 && resid != 0))
-		ip->i_flag |= IN_ACCESS;
+	if (uio->uio_resid != resid)
+		VTOI(ap->a_vp)->i_flag |= IN_ACCESS;
 	return (error);
 }
 
@@ -1832,14 +1833,12 @@ ufsspec_write(ap)
 	} */ *ap;
 {
 	int error, resid;
-	struct inode *ip;
 	struct uio *uio;
 
 	uio = ap->a_uio;
 	resid = uio->uio_resid;
 	error = VOCALL(spec_vnodeop_p, VOFFSET(vop_write), ap);
-	ip = VTOI(ap->a_vp);
-	if (ip != NULL && (uio->uio_resid != resid || error == 0 && resid != 0))
+	if (uio->uio_resid != resid)
 		VTOI(ap->a_vp)->i_flag |= IN_CHANGE | IN_UPDATE;
 	return (error);
 }
@@ -1880,15 +1879,13 @@ ufsfifo_read(ap)
 	} */ *ap;
 {
 	int error, resid;
-	struct inode *ip;
 	struct uio *uio;
 
 	uio = ap->a_uio;
 	resid = uio->uio_resid;
 	error = VOCALL(fifo_vnodeop_p, VOFFSET(vop_read), ap);
-	ip = VTOI(ap->a_vp);
-	if ((ap->a_vp->v_mount->mnt_flag & MNT_NOATIME) == 0 && ip != NULL &&
-	    (uio->uio_resid != resid || error == 0 && resid != 0))
+	if (uio->uio_resid != resid &&
+	    (ap->a_vp->v_mount->mnt_flag & MNT_NOATIME) == 0)
 		VTOI(ap->a_vp)->i_flag |= IN_ACCESS;
 	return (error);
 }
@@ -1906,14 +1903,12 @@ ufsfifo_write(ap)
 	} */ *ap;
 {
 	int error, resid;
-	struct inode *ip;
 	struct uio *uio;
 
 	uio = ap->a_uio;
 	resid = uio->uio_resid;
 	error = VOCALL(fifo_vnodeop_p, VOFFSET(vop_write), ap);
-	ip = VTOI(ap->a_vp);
-	if (ip != NULL && (uio->uio_resid != resid || error == 0 && resid != 0))
+	if (uio->uio_resid != resid)
 		VTOI(ap->a_vp)->i_flag |= IN_CHANGE | IN_UPDATE;
 	return (error);
 }
@@ -2067,6 +2062,7 @@ ufs_makeinode(mode, dvp, vpp, cnp)
 {
 	register struct inode *ip, *pdir;
 	struct direct newdir;
+	struct timeval tv;
 	struct vnode *tvp;
 	int error;
 
@@ -2160,7 +2156,8 @@ ufs_makeinode(mode, dvp, vpp, cnp)
 	/*
 	 * Make sure inode goes to disk before directory entry.
 	 */
-	error = UFS_UPDATE(tvp, !DOINGSOFTDEP(tvp));
+	getmicrotime(&tv);
+	error = UFS_UPDATE(tvp, &tv, &tv, !DOINGSOFTDEP(tvp));
 	if (error)
 		goto bad;
 	ufs_makedirentry(ip, cnp, &newdir);

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.131 1998/11/27 00:30:10 jkh Exp $
+ * $Id: dist.c,v 1.128 1998/10/14 11:23:48 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -77,7 +77,7 @@ static Distribution DistTable[] = {
 { "compat20",	"/",			&Dists,		DIST_COMPAT20,		NULL		},
 { "compat21",	"/",			&Dists,		DIST_COMPAT21,		NULL		},
 { "ports",	"/usr",			&Dists,		DIST_PORTS,		NULL		},
-{ "XF86333",	"/usr",			&Dists,		DIST_XF86,		XF86DistTable	},
+{ "XF86332",	"/usr",			&Dists,		DIST_XF86,		XF86DistTable	},
 { NULL },
 };
 
@@ -101,6 +101,7 @@ static Distribution SrcDistTable[] = {
 { "sinclude",	"/usr/src",		&SrcDists,	DIST_SRC_INCLUDE,	NULL		},
 { "slib",	"/usr/src",		&SrcDists,	DIST_SRC_LIB,		NULL		},
 { "slibexec",	"/usr/src",		&SrcDists,	DIST_SRC_LIBEXEC,	NULL		},
+{ "slkm",	"/usr/src",		&SrcDists,	DIST_SRC_LKM,		NULL		},
 { "srelease",	"/usr/src",		&SrcDists,	DIST_SRC_RELEASE,	NULL		},
 { "sbin",	"/usr/src",		&SrcDists,	DIST_SRC_BIN,		NULL		},
 { "ssbin",	"/usr/src",		&SrcDists,	DIST_SRC_SBIN,		NULL		},
@@ -114,8 +115,8 @@ static Distribution SrcDistTable[] = {
 
 /* The XFree86 distribution */
 static Distribution XF86DistTable[] = {
-{ "XF86333",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_FONTS,	XF86FontDistTable },
-{ "XF86333",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_SERVER,	XF86ServerDistTable },
+{ "XF86332",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_FONTS,	XF86FontDistTable },
+{ "XF86332",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_SERVER,	XF86ServerDistTable },
 { "Xsrc1",	"/usr/X11R6/src",	&XF86Dists,	DIST_XF86_SRC,		NULL		},
 { "Xsrcctrb",	"/usr/X11R6/src",	&XF86Dists,	DIST_XF86_CSRC,		NULL		},
 { "Xbin",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_BIN,		NULL		},
@@ -763,7 +764,7 @@ printSelected(char *buf, int selected, Distribution *me, int *col)
 int
 distExtractAll(dialogMenuItem *self)
 {
-    int old_dists, retries = 0, status = DITEM_SUCCESS;
+    int retries = 0;
     char buf[512];
 
     /* paranoia */
@@ -775,21 +776,12 @@ distExtractAll(dialogMenuItem *self)
     if (!mediaVerify() || !mediaDevice->init(mediaDevice))
 	return DITEM_FAILURE;
 
-    old_dists = Dists;
     distVerifyFlags();
-
     dialog_clear_norefresh();
     msgNotify("Attempting to install all selected distributions..");
-
     /* Try for 3 times around the loop, then give up. */
     while (Dists && ++retries < 3)
 	distExtract(NULL, DistTable);
-
-    /* Only do bin fixup if bin dist was successfully extracted */
-    if ((old_dists & DIST_BIN) && !(Dists & DIST_BIN))
-	status |= installFixupBin(self);
-    if (old_dists & DIST_XF86)
-	status |= installFixupXFree(self);
 
     if (Dists) {
 	int col = 0;
@@ -800,7 +792,7 @@ distExtractAll(dialogMenuItem *self)
 	msgConfirm("Couldn't extract the following distributions.  This may\n"
 		   "be because they were not available on the installation\n"
 		   "media you've chosen:\n\n\t%s", buf);
-	status |= DITEM_RESTORE;
+	return DITEM_SUCCESS | DITEM_RESTORE;
     }
-    return status;
+    return DITEM_SUCCESS;
 }

@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: write_disk.c,v 1.24 1998/10/27 21:14:03 msmith Exp $
+ * $Id: write_disk.c,v 1.22 1998/09/30 21:40:51 jkh Exp $
  *
  */
 
@@ -64,10 +64,10 @@ Write_FreeBSD(int fd, struct disk *new, struct disk *old, struct chunk *c1)
 	for(c2=c1->part;c2;c2=c2->next) {
 		if (c2->type == unused) continue;
 		if (!strcmp(c2->name,"X")) continue;
-		j = c2->name[strlen(new->name) + 2] - 'a';
+		j = c2->name[5] - 'a';
 		if (j < 0 || j >= MAXPARTITIONS || j == RAW_PART) {
 #ifdef DEBUG
-			warn("Weird parititon letter %c",c2->name[strlen(new->name) + 2]);
+			warn("Weird parititon letter %c",c2->name[5]);
 #endif
 			continue;
 		}
@@ -109,14 +109,6 @@ Write_FreeBSD(int fd, struct disk *new, struct disk *old, struct chunk *c1)
 	dl->d_checksum = dkcksum(dl);
 
 #ifdef __alpha__
-	/*
-	 * Tell SRM where the bootstrap is.
-	 */
-	lp = (u_long *)buf;
-	lp[60] = 15;
-	lp[61] = 1;
-	lp[62] = 0;
-
 	/*
 	 * Generate the bootblock checksum for the SRM console.
 	 */
@@ -181,7 +173,6 @@ Write_Disk(struct disk *d1)
 		if (c1->type == unused) continue;
 		if (!strcmp(c1->name,"X")) continue;
 		j = c1->name[4] - '1';
-		j = c1->name[strlen(d1->name) + 1] - '1';
 		if (j < 0 || j > 3)
 			continue;
 		s[j]++;
@@ -250,7 +241,6 @@ Write_Disk(struct disk *d1)
 			if (dp[i].dp_typ == 0xa5)
 				dp[i].dp_flag = 0x80;
 
-#ifndef __alpha__
 	mbr = read_block(fd,WHERE(0,d1));
 	if (d1->bootmgr)
 		memcpy(mbr,d1->bootmgr,DOSPARTOFF);
@@ -258,7 +248,6 @@ Write_Disk(struct disk *d1)
 	mbr[512-2] = 0x55;
 	mbr[512-1] = 0xaa;
 	write_block(fd,WHERE(0,d1),mbr);
-#endif
 
 	i = 1;
 	i = ioctl(fd,DIOCSYNCSLICEINFO,&i);

@@ -67,25 +67,25 @@
 union u_spcl {
 	char dummy[TP_BSIZE];
 	struct	s_spcl {
-		int32_t	c_type;		    /* record type (see below) */
+		long	c_type;		    /* record type (see below) */
 		time_t	c_date;		    /* date of this dump */
 		time_t	c_ddate;	    /* date of previous dump */
-		int32_t	c_volume;	    /* dump volume number */
+		long	c_volume;	    /* dump volume number */
 		daddr_t	c_tapea;	    /* logical block of this record */
 		ino_t	c_inumber;	    /* number of inode */
-		int32_t	c_magic;	    /* magic number (see above) */
-		int32_t	c_checksum;	    /* record checksum */
+		long	c_magic;	    /* magic number (see above) */
+		long	c_checksum;	    /* record checksum */
 		struct	dinode	c_dinode;   /* ownership and mode of inode */
-		int32_t	c_count;	    /* number of valid c_addr entries */
+		long	c_count;	    /* number of valid c_addr entries */
 		char	c_addr[TP_NINDIR];  /* 1 => data; 0 => hole in inode */
 		char	c_label[LBLSIZE];   /* dump label */
-		int32_t	c_level;	    /* level of this dump */
+		long	c_level;	    /* level of this dump */
 		char	c_filesys[NAMELEN]; /* name of dumpped file system */
 		char	c_dev[NAMELEN];	    /* name of dumpped device */
 		char	c_host[NAMELEN];    /* name of dumpped host */
-		int32_t	c_flags;	    /* additional information */
-		int32_t	c_firstrec;	    /* first record on volume */
-		int32_t	c_spare[32];	    /* reserved for future uses */
+		long	c_flags;	    /* additional information */
+		long	c_firstrec;	    /* first record on volume */
+		long	c_spare[32];	    /* reserved for future uses */
 	} s_spcl;
 } u_spcl;
 #define spcl u_spcl.s_spcl

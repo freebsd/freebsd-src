@@ -27,7 +27,7 @@
  * Mellon the rights to redistribute these changes without encumbrance.
  * 
  * 	@(#) src/sys/coda/coda_psdev.c,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $
- *  $Id: coda_psdev.c,v 1.9 1998/11/11 20:32:20 rvb Exp $
+ *  $Id: coda_psdev.c,v 1.6 1998/09/28 20:52:58 rvb Exp $
  * 
  */
 
@@ -53,25 +53,6 @@
 /*
  * HISTORY
  * $Log: coda_psdev.c,v $
- * Revision 1.9  1998/11/11 20:32:20  rvb
- * coda_lookup now passes up an extra flag.  But old veni will
- * be ok; new veni will check /dev/cfs0 to make sure that a new
- * kernel is running.
- * Also, a bug in vc_nb_close iff CODA_SIGNAL's were seen has been
- * fixed.
- *
- * Revision 1.8  1998/10/28 20:31:13  rvb
- * Change the way unmounting happens to guarantee that the
- * client programs are allowed to finish up (coda_call is
- * forced to complete) and release their locks.  Thus there
- * is a reasonable chance that the vflush implicit in the
- * unmount will not get hung on held locks.
- *
- * Revision 1.7  1998/09/29 20:19:45  rvb
- * Fixes for lkm:
- * 1. use VFS_LKM vs ACTUALLY_LKM_NOT_KERNEL
- * 2. don't pass -DCODA to lkm build
- *
  * Revision 1.6  1998/09/28 20:52:58  rvb
  * Cleanup and fix THE bug
  *
@@ -188,7 +169,11 @@
 
 extern int coda_nc_initialized;    /* Set if cache has been initialized */
 
+#ifdef	VFS_LKM
+#define NVCODA 4
+#else
 #include <vcoda.h>
+#endif
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -210,13 +195,6 @@ extern int coda_nc_initialized;    /* Set if cache has been initialized */
 #define CTL_C
 
 int coda_psdev_print_entry = 0;
-static
-int outstanding_upcalls = 0;
-int coda_call_sleep = PZERO - 1;
-#ifdef	CTL_C
-int coda_pcatch = PCATCH;
-#else
-#endif
 
 #define ENTRY if(coda_psdev_print_entry) myprintf(("Entered %s\n",__FUNCTION__))
 
@@ -284,7 +262,7 @@ vc_nb_close (dev, flag, mode, p)
     struct proc *p;
 {
     register struct vcomm *vcp;
-    register struct vmsg *vmp, *nvmp = NULL;
+    register struct vmsg *vmp;
     struct coda_mntinfo *mi;
     int                 err;
 	
@@ -305,23 +283,21 @@ vc_nb_close (dev, flag, mode, p)
      * Put this before WAKEUPs to avoid queuing new messages between
      * the WAKEUP and the unmount (which can happen if we're unlucky)
      */
-    if (!mi->mi_rootvp) {
-	/* just a simple open/close w no mount */
-	MARK_VC_CLOSED(vcp);
-	return 0;
+    if (mi->mi_rootvp) {
+	/* Let unmount know this is for real */
+	VTOC(mi->mi_rootvp)->c_flags |= C_UNMOUNTING;
+	coda_unmounting(mi->mi_vfsp);
+	err = dounmount(mi->mi_vfsp, flag, p);
+	if (err)
+	    myprintf(("Error %d unmounting vfs in vcclose(%d)\n", 
+		      err, minor(dev)));
     }
-
-    /* Let unmount know this is for real */
-    VTOC(mi->mi_rootvp)->c_flags |= C_UNMOUNTING;
-    coda_unmounting(mi->mi_vfsp);
-
-    outstanding_upcalls = 0;
+    
     /* Wakeup clients so they can return. */
     for (vmp = (struct vmsg *)GETNEXT(vcp->vc_requests);
 	 !EOQ(vmp, vcp->vc_requests);
-	 vmp = nvmp)
-    {
-    	nvmp = (struct vmsg *)GETNEXT(vmp->vm_chain);
+	 vmp = (struct vmsg *)GETNEXT(vmp->vm_chain))
+    {	    
 	/* Free signal request messages and don't wakeup cause
 	   no one is waiting. */
 	if (vmp->vm_opcode == CODA_SIGNAL) {
@@ -329,34 +305,18 @@ vc_nb_close (dev, flag, mode, p)
 	    CODA_FREE((caddr_t)vmp, (u_int)sizeof(struct vmsg));
 	    continue;
 	}
-	outstanding_upcalls++;	
+	
 	wakeup(&vmp->vm_sleep);
     }
-
+    
     for (vmp = (struct vmsg *)GETNEXT(vcp->vc_replys);
 	 !EOQ(vmp, vcp->vc_replys);
 	 vmp = (struct vmsg *)GETNEXT(vmp->vm_chain))
     {
-	outstanding_upcalls++;	
 	wakeup(&vmp->vm_sleep);
     }
-
+    
     MARK_VC_CLOSED(vcp);
-
-    if (outstanding_upcalls) {
-#ifdef	CODA_VERBOSE
-	printf("presleep: outstanding_upcalls = %d\n", outstanding_upcalls);
-    	(void) tsleep(&outstanding_upcalls, coda_call_sleep, "coda_umount", 0);
-	printf("postsleep: outstanding_upcalls = %d\n", outstanding_upcalls);
-#else
-    	(void) tsleep(&outstanding_upcalls, coda_call_sleep, "coda_umount", 0);
-#endif
-    }
-
-    err = dounmount(mi->mi_vfsp, flag, p);
-    if (err)
-	myprintf(("Error %d unmounting vfs in vcclose(%d)\n", 
-	           err, minor(dev)));
     return 0;
 }
 
@@ -546,22 +506,6 @@ vc_nb_ioctl(dev, cmd, addr, flag, p)
 	    return(ENODEV);
 	}
 	break;
-    case CIOC_KERNEL_VERSION:
-	switch (*(u_int *)addr) {
-	case 0:
-		*(u_int *)addr = coda_kernel_version;
-		return 0;
-		break;
-	case 1:
-	case 2:
-		if (coda_kernel_version != *(u_int *)addr)
-		    return ENOENT;
-		else
-		    return 0;
-	default:
-		return ENOENT;
-	}
-    	break;
     default :
 	return(EINVAL);
 	break;
@@ -609,6 +553,12 @@ struct coda_clstat coda_clstat;
  * "uninterruptibly", we don't get told if it returns abnormally
  * (e.g. kill -9).  
  */
+
+int coda_call_sleep = PZERO - 1;
+#ifdef	CTL_C
+int coda_pcatch = PCATCH;
+#else
+#endif
 
 int
 coda_call(mntinfo, inSize, outSize, buffer) 
@@ -687,11 +637,6 @@ coda_call(mntinfo, inSize, outSize, buffer)
 #ifdef	CODA_VERBOSE
 		    printf("coda_call: tsleep returns %d SIGIO, cnt %d\n", error, i);
 #endif
-    	    } else if (p->p_siglist == sigmask(SIGALRM)) {
-		    p->p_sigmask |= p->p_siglist;
-#ifdef	CODA_VERBOSE
-		    printf("coda_call: tsleep returns %d SIGALRM, cnt %d\n", error, i);
-#endif
 	    } else {
 		    printf("coda_call: tsleep returns %d, cnt %d\n", error, i);
 		    printf("coda_call: siglist = %x, sigmask = %x, mask %x\n",
@@ -705,7 +650,7 @@ coda_call(mntinfo, inSize, outSize, buffer)
 			    p->p_siglist & ~p->p_sigmask);
 #endif
 	    }
-	} while (error && i++ < 128 && VC_OPEN(vcp));
+	} while (error && i++ < 128);
 	p->p_sigmask = psig_omask;
 #else
 	(void) tsleep(&vmp->vm_sleep, coda_call_sleep, "coda_call", 0);
@@ -778,9 +723,6 @@ coda_call(mntinfo, inSize, outSize, buffer)
 	}
 
 	CODA_FREE(vmp, sizeof(struct vmsg));
-
-	if (outstanding_upcalls > 0 && (--outstanding_upcalls == 0))
-		wakeup(&outstanding_upcalls);
 
 	if (!error)
 		error = ((struct coda_out_hdr *)buffer)->result;

@@ -16,7 +16,8 @@ SRCS+=		main.c conf.c dev_net.c
 CFLAGS+=	-mno-fp-regs
 CFLAGS+=	-I${.CURDIR}/../../common -I${.CURDIR}
 CFLAGS+=	-I${.OBJDIR}
-CFLAGS+=	-DNETBOOT
+# Verbose ls causes extra heap usage
+CFLAGS+=	-DVERBOSE_LS
 
 CLEANFILES+=	vers.c vers.o gensetdefs.o gensetdefs setdef0.o setdef1.o \
 		setdefs.h start.o
@@ -28,7 +29,6 @@ CFLAGS+=	-I${LIBSTANDDIR}
 CFLAGS+=	-I${.CURDIR}/..
 CRT=		start.o
 STRIP=
-BINDIR?=	/boot
 
 all: ${BASE}
 
@@ -49,7 +49,7 @@ ${BASE}.sym: ${OBJS} ${LIBSTAND} ${LIBALPHA} ${CRT} vers.o setdef0.o setdef1.o
 	vers.o ${LIBSTAND} ${LIBALPHA} ${LIBSTAND} >${.OBJDIR}/${BASE}.list
 
 start.o:	${.CURDIR}/../libalpha/start.S
-	${CC} -c ${CFLAGS} $<
+	${CC} -c -DPRIMARY_BOOTBLOCK $<
 
 setdef0.o: setdefs.h
 

@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)login.1	8.2 (Berkeley) 5/5/94
-.\"	$Id: login.1,v 1.12 1998/12/01 17:05:08 dillon Exp $
+.\"	$Id: login.1,v 1.10 1998/01/07 10:42:57 obrien Exp $
 .\"
 .Dd May 5, 1994
 .Dt LOGIN 1
@@ -81,7 +81,7 @@ option disables this behavior.
 .El
 .Pp
 If the file
-.Pa /var/run/nologin
+.Pa /etc/nologin
 exists,
 .Nm
 displays its contents to the user and exits.
@@ -160,7 +160,7 @@ login access control table
 login class capabilities database
 .It Pa /etc/motd
 message-of-the-day
-.It Pa /var/run/nologin
+.It Pa /etc/nologin
 disallows logins
 .It Pa /etc/skey.access
 skey password control table
@@ -191,8 +191,7 @@ configure authentication services
 .Xr skey.access 5 ,
 .Xr utmp 5 ,
 .Xr environ 7 ,
-.Xr nologin 8 ,
-.Xr pam 8
+.Xr nologin 8
 .Sh HISTORY
 A
 .Nm

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)time.h	8.5 (Berkeley) 5/4/95
- * $Id: time.h,v 1.34 1998/10/23 10:42:42 phk Exp $
+ * $Id: time.h,v 1.32 1998/06/07 20:36:55 phk Exp $
  */
 
 #ifndef _SYS_TIME_H_
@@ -56,16 +56,14 @@ struct timespec {
 };
 #endif
 
-#define	TIMEVAL_TO_TIMESPEC(tv, ts)					\
-	do {								\
-		(ts)->tv_sec = (tv)->tv_sec;				\
-		(ts)->tv_nsec = (tv)->tv_usec * 1000;			\
-	} while (0)
-#define	TIMESPEC_TO_TIMEVAL(tv, ts)					\
-	do {								\
-		(tv)->tv_sec = (ts)->tv_sec;				\
-		(tv)->tv_usec = (ts)->tv_nsec / 1000;			\
-	} while (0)
+#define	TIMEVAL_TO_TIMESPEC(tv, ts) {					\
+	(ts)->tv_sec = (tv)->tv_sec;					\
+	(ts)->tv_nsec = (tv)->tv_usec * 1000;				\
+}
+#define	TIMESPEC_TO_TIMEVAL(tv, ts) {					\
+	(tv)->tv_sec = (ts)->tv_sec;					\
+	(tv)->tv_usec = (ts)->tv_nsec / 1000;				\
+}
 
 struct timezone {
 	int	tz_minuteswest;	/* minutes west of Greenwich */
@@ -141,6 +139,7 @@ struct timecounter {
 	char			*tc_name;
 	void			*tc_priv;
 	/* These fields will be managed by the generic code. */
+	int			tc_cost;
 	int32_t			tc_adjustment;
 	u_int32_t		tc_scale_micro;
 	u_int32_t		tc_scale_nano_i;

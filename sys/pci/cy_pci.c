@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cy_pci.c,v 1.9 1999/01/11 23:43:54 bde Exp $
+ *	$Id: cy_pci.c,v 1.5 1997/02/22 09:44:00 peter Exp $
  */
 
 /*
@@ -34,11 +34,8 @@
 #include "pci.h"
 #if NPCI > 0
 
-#include "opt_cy_pci_fastintr.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/interrupt.h>
 #include <sys/kernel.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -47,7 +44,7 @@
 
 #include <pci/cy_pcireg.h>
 
-static const char *cy_probe		__P((pcici_t, pcidi_t));
+static char *cy_probe		__P((pcici_t, pcidi_t));
 static void cy_attach		__P((pcici_t, int));
 
 extern int cyattach_common(void *, int); /* Not exactly correct */
@@ -64,7 +61,7 @@ static struct pci_device cy_device = {
 };
 DATA_SET(pcidevice_set, cy_device);
 
-static const char *
+static char *
 cy_probe(config_id, device_id)
 	pcici_t config_id;
 	pcidi_t device_id;
@@ -85,7 +82,6 @@ cy_attach(config_id, unit)
 	void *vaddr;
 	u_int32_t ioport;
 	int adapter;
-	u_char plx_ver;
 
 	ioport = (u_int32_t) pci_conf_read(config_id, CY_PCI_BASE_ADDR1) & ~0x3;
 	paddr = pci_conf_read(config_id, CY_PCI_BASE_ADDR2) & ~0xf;
@@ -115,37 +111,16 @@ cy_attach(config_id, unit)
 	 *	since the ISA driver must handle the interrupt anyway, we use
 	 *	the unit number as the token even for PCI.
 	 */
-	if (
-#ifdef CY_PCI_FASTINTR
-	    !pci_map_int_right(config_id, (pci_inthand_t *)cyintr,
-			       (void *)adapter, &tty_imask,
-			       INTR_EXCL | INTR_FAST) &&
-#endif
-	    !pci_map_int_right(config_id, (pci_inthand_t *)cyintr,
-			       (void *)adapter, &tty_imask, 0)) {
+	if (!pci_map_int(config_id, (pci_inthand_t *)cyintr, (void *)adapter, &tty_imask)) {
 		printf("cy%d: couldn't map interrupt\n", unit);
 		goto fail;
 	}
-
 	/*
 	 * Enable the "local" interrupt input to generate a
 	 * PCI interrupt.
 	 */
-	plx_ver = *((u_char *)vaddr + PLX_VER) & 0x0f;
-	switch (plx_ver) {
-	case PLX_9050:
-		outw(ioport + CY_PLX_9050_ICS, 
-		    inw(ioport + CY_PLX_9050_ICS) | CY_PLX_9050_ICS_IENABLE |
-		    CY_PLX_9050_ICS_LOCAL_IENABLE);
-		break;
-	case PLX_9060:
-	case PLX_9080:
-	default:		/* Old board, use PLX_9060 values. */
-		outw(ioport + CY_PLX_9060_ICS,
-		    inw(ioport + CY_PLX_9060_ICS) | CY_PLX_9060_ICS_IENABLE |
-		    CY_PLX_9060_ICS_LOCAL_IENABLE);
-		break;
-	}
+	outw(ioport + CY_PLX_ICS, inw(ioport + CY_PLX_ICS) |
+	    CY_PLX_ICS_IENABLE | CY_PLX_ICS_LOCAL_IENABLE);
 
 	return;
 

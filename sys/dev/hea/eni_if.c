@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: eni_if.c,v 1.2 1998/10/31 20:06:45 phk Exp $
+ *	@(#) $Id: eni_if.c,v 1.6 1998/08/26 23:28:53 mks Exp $
  *
  */
 
@@ -35,16 +35,16 @@
  *
  */
 
+#ifndef lint
+static char *RCSid = "@(#) $Id: eni_if.c,v 1.6 1998/08/26 23:28:53 mks Exp $";
+#endif
+
 #include <netatm/kern_include.h>
 
 #include <dev/hea/eni_stats.h>
 #include <dev/hea/eni.h>
 #include <dev/hea/eni_suni.h>
 #include <dev/hea/eni_var.h>
-
-#ifndef lint
-__RCSID("@(#) $Id: eni_if.c,v 1.2 1998/10/31 20:06:45 phk Exp $");
-#endif
 
 static void	eni_get_stats __P((Eni_unit *));
 
@@ -194,8 +194,7 @@ eni_atm_ioctl ( code, data, arg )
 		 */
 		if ( eup == NULL )
 			return ( ENXIO );
-		snprintf ( ifname, sizeof(ifname),
-		    "%s%d", pip->pif_name, pip->pif_unit );
+		sprintf ( ifname, "%s%d", pip->pif_name, pip->pif_unit );
 
 		/*
 		 * Cast response structure onto user's buffer

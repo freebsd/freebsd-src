@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: fore_command.c,v 1.3 1998/10/31 20:06:52 phk Exp $
+ *	@(#) $Id: fore_command.c,v 1.1 1998/09/15 08:22:54 phk Exp $
  *
  */
 
@@ -35,11 +35,11 @@
  *
  */
 
-#include <dev/hfa/fore_include.h>
-
 #ifndef lint
-__RCSID("@(#) $Id: fore_command.c,v 1.3 1998/10/31 20:06:52 phk Exp $");
+static char *RCSid = "@(#) $Id: fore_command.c,v 1.1 1998/09/15 08:22:54 phk Exp $";
 #endif
+
+#include <dev/hfa/fore_include.h>
 
 /*
  * Local variables
@@ -341,8 +341,7 @@ fore_cmd_drain(fup)
 					sizeof(struct mac_addr));
 				fup->fu_config.ac_macaddr = 
 					fup->fu_pif.pif_macaddr;
-				snprintf(fup->fu_config.ac_hard_vers,
-				    sizeof(fup->fu_config.ac_hard_vers),
+				sprintf(fup->fu_config.ac_hard_vers,
 					"%ld.%ld.%ld",
 					(fp->pr_hwver >> 16) & 0xff,
 					(fp->pr_hwver >> 8) & 0xff,

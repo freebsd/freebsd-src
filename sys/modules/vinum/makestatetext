@@ -1,0 +1,40 @@
+#!/bin/sh
+# Make statetexts.h from vinumstate.h
+# $Id: makestatetext,v 1.4 1998/03/13 05:36:16 grog Exp grog $
+infile=vinumstate.h
+ofile=statetexts.h
+cat <COPYRIGHT > $ofile
+
+echo >>$ofile "/* Created by $0 on" `date`.  "Do not edit */"
+echo >>$ofile
+echo >>$ofile "/* Drive state texts */"
+echo >>$ofile "char *drivestatetext [] = 
+  { "
+egrep  -e 'drive_[A-z0-9]*,'  <$infile | grep -v = | sed 's: *drive_\([^,]*\).*:  \"\1\",:' >>$ofile
+cat <<FOO >> $ofile
+  };
+
+/* Subdisk state texts */
+char *sdstatetext [] =
+  { 
+FOO
+egrep  -e 'sd_[A-z0-9]*,' $infile | grep -v = | sed 's: *sd_\([^,]*\).*:  \"\1\",:' >>$ofile
+cat <<FOO >> $ofile
+  };
+
+/* Plex state texts */
+char *plexstatetext [] =
+  { 
+FOO
+egrep  -e 'plex_[A-z0-9]*,' $infile | grep -v = | sed 's: *plex_\([^,]*\).*:  \"\1\",:' >>$ofile
+cat <<FOO >> $ofile
+  };
+
+/* Volume state texts */
+char *volstatetext [] =
+  { 
+FOO
+egrep  -e 'volume_[A-z0-9]*,' $infile | grep -v = | sed 's: *volume_\([^,]*\).*:  \"\1\",:' >>$ofile
+cat <<FOO >> $ofile
+  };
+FOO

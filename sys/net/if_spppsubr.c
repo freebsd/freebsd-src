@@ -17,12 +17,12 @@
  *
  * From: Version 2.4, Thu Apr 30 17:17:21 MSD 1997
  *
- * $Id: if_spppsubr.c,v 1.51 1998/12/26 13:14:45 phk Exp $
+ * $Id: if_spppsubr.c,v 1.44 1998/10/06 20:47:53 joerg Exp $
  */
 
 #include <sys/param.h>
 
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
+#if defined (__FreeBSD__)
 #include "opt_inet.h"
 #include "opt_ipx.h"
 #endif
@@ -39,9 +39,6 @@
 #include <sys/sockio.h>
 #include <sys/socket.h>
 #include <sys/syslog.h>
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
-#include <machine/random.h>
-#endif
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 
@@ -54,15 +51,13 @@
 #include <net/if.h>
 #include <net/netisr.h>
 #include <net/if_types.h>
-#include <net/route.h>
 
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
+#if defined (__FreeBSD__)
 #include <machine/random.h>
 #endif
 #if defined (__NetBSD__) || defined (__OpenBSD__)
 #include <machine/cpu.h> /* XXX for softnet */
 #endif
-
 #include <machine/stdarg.h>
 
 #ifdef INET
@@ -99,16 +94,13 @@
 
 #include <net/if_sppp.h>
 
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
-# define UNTIMEOUT(fun, arg, handle) untimeout(fun, arg, handle)
-# define TIMEOUT(fun, arg1, arg2, handle) handle = timeout(fun, arg1, arg2)
-# define IOCTL_CMD_T	u_long
+#if defined (__FreeBSD__)
+# define UNTIMEOUT(fun, arg, handle)	\
+	untimeout(fun, arg, handle)
 #else
-# define UNTIMEOUT(fun, arg, handle) untimeout(fun, arg)
-# define TIMEOUT(fun, arg1, arg2, handle) timeout(fun, arg1, arg2)
-# define IOCTL_CMD_T	int
+# define UNTIMEOUT(fun, arg, handle)	\
+	untimeout(fun, arg)
 #endif
-
 #define MAXALIVECNT     3               /* max. alive packets */
 
 /*
@@ -258,11 +250,11 @@ struct cp {
 };
 
 static struct sppp *spppq;
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
+#if defined (__FreeBSD__)
 static struct callout_handle keepalive_ch;
 #endif
 
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
+#if defined (__FreeBSD__)
 #define	SPP_FMT		"%s%d: "
 #define	SPP_ARGS(ifp)	(ifp)->if_name, (ifp)->if_unit
 #else
@@ -299,11 +291,13 @@ static void sppp_cp_input(const struct cp *cp, struct sppp *sp,
 			  struct mbuf *m);
 static void sppp_cp_send(struct sppp *sp, u_short proto, u_char type,
 			 u_char ident, u_short len, void *data);
-/* static void sppp_cp_timeout(void *arg); */
+#ifdef notyet
+static void sppp_cp_timeout(void *arg);
+#endif
 static void sppp_cp_change_state(const struct cp *cp, struct sppp *sp,
 				 int newstate);
 static void sppp_auth_send(const struct cp *cp,
-			   struct sppp *sp, unsigned int type, unsigned int id,
+			   struct sppp *sp, u_char type, u_char id,
 			   ...);
 
 static void sppp_up_event(const struct cp *cp, struct sppp *sp);
@@ -625,7 +619,6 @@ sppp_output(struct ifnet *ifp, struct mbuf *m,
 	struct ppp_header *h;
 	struct ifqueue *ifq;
 	int s, rv = 0;
-	int debug = ifp->if_flags & IFF_DEBUG;
 
 	s = splimp();
 
@@ -649,47 +642,21 @@ sppp_output(struct ifnet *ifp, struct mbuf *m,
 
 	ifq = &ifp->if_snd;
 #ifdef INET
+	/*
+	 * Put low delay, telnet, rlogin and ftp control packets
+	 * in front of the queue.
+	 */
 	if (dst->sa_family == AF_INET) {
 		/* XXX Check mbuf length here? */
 		struct ip *ip = mtod (m, struct ip*);
 		struct tcphdr *tcp = (struct tcphdr*) ((long*)ip + ip->ip_hl);
 
-		/*
-		 * When using dynamic local IP address assignment by using
-		 * 0.0.0.0 as a local address, the first TCP session will
-		 * not connect because the local TCP checksum is computed
-		 * using 0.0.0.0 which will later become our real IP address
-		 * so the TCP checksum computed at the remote end will
-		 * become invalid. So we
-		 * - don't let packets with src ip addr 0 thru
-		 * - we flag TCP packets with src ip 0 as an error
-		 */	
-
-		if(ip->ip_src.s_addr == INADDR_ANY)	/* -hm */
-		{
-			m_freem(m);
-			splx(s);
-			if(ip->ip_p == IPPROTO_TCP)
-				return(EADDRNOTAVAIL);
-			else
-				return(0);
-		}
-		
-		/*
-		 * Put low delay, telnet, rlogin and ftp control packets
-		 * in front of the queue.
-		 */
-		if (IF_QFULL (&sp->pp_fastq))
-			;
-		else if (ip->ip_tos & IPTOS_LOWDELAY)
-			ifq = &sp->pp_fastq;
-		else if (m->m_len < sizeof *ip + sizeof *tcp)
-			;
-		else if (ip->ip_p != IPPROTO_TCP)
-			;
-		else if (INTERACTIVE (ntohs (tcp->th_sport)))
-			ifq = &sp->pp_fastq;
-		else if (INTERACTIVE (ntohs (tcp->th_dport)))
+		if (! IF_QFULL (&sp->pp_fastq) &&
+		    ((ip->ip_tos & IPTOS_LOWDELAY) ||
+	    	    ((ip->ip_p == IPPROTO_TCP &&
+	    	    m->m_len >= sizeof (struct ip) + sizeof (struct tcphdr) &&
+	    	    (INTERACTIVE (ntohs (tcp->th_sport)))) ||
+	    	    INTERACTIVE (ntohs (tcp->th_dport)))))
 			ifq = &sp->pp_fastq;
 	}
 #endif
@@ -699,7 +666,7 @@ sppp_output(struct ifnet *ifp, struct mbuf *m,
 	 */
 	M_PREPEND (m, PPP_HEADER_LEN, M_DONTWAIT);
 	if (! m) {
-		if (debug)
+		if (ifp->if_flags & IFF_DEBUG)
 			log(LOG_DEBUG, SPP_FMT "no memory for transmit header\n",
 				SPP_ARGS(ifp));
 		++ifp->if_oerrors;
@@ -799,19 +766,17 @@ sppp_attach(struct ifnet *ifp)
 
 	/* Initialize keepalive handler. */
 	if (! spppq)
-		TIMEOUT(sppp_keepalive, 0, hz * 10, keepalive_ch);
+#if defined (__FreeBSD__)
+		keepalive_ch = 
+#endif
+		timeout(sppp_keepalive, 0, hz * 10);
 
 	/* Insert new entry into the keepalive list. */
 	sp->pp_next = spppq;
 	spppq = sp;
 
-	sp->pp_if.if_mtu = PP_MTU;
-	sp->pp_if.if_flags = IFF_POINTOPOINT | IFF_MULTICAST;
 	sp->pp_if.if_type = IFT_PPP;
 	sp->pp_if.if_output = sppp_output;
-#if 0
-	sp->pp_flags = PP_KEEPALIVE;
-#endif
 	sp->pp_fastq.ifq_maxlen = 32;
 	sp->pp_cpq.ifq_maxlen = 20;
 	sp->pp_loopcnt = 0;
@@ -933,7 +898,7 @@ sppp_pick(struct ifnet *ifp)
  * Process an ioctl request.  Called on low priority level.
  */
 int
-sppp_ioctl(struct ifnet *ifp, IOCTL_CMD_T cmd, void *data)
+sppp_ioctl(struct ifnet *ifp, u_long cmd, void *data)
 {
 	struct ifreq *ifr = (struct ifreq*) data;
 	struct sppp *sp = (struct sppp*) ifp;
@@ -1076,7 +1041,7 @@ sppp_cisco_input(struct sppp *sp, struct mbuf *m)
 			++sp->pp_loopcnt;
 
 			/* Generate new local sequence number */
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
+#if defined (__FreeBSD__)
 			sp->pp_seq = random();
 #else
 			sp->pp_seq ^= time.tv_sec ^ time.tv_usec;
@@ -1108,13 +1073,13 @@ sppp_cisco_send(struct sppp *sp, int type, long par1, long par2)
 	struct ppp_header *h;
 	struct cisco_packet *ch;
 	struct mbuf *m;
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
+#if defined (__FreeBSD__)
 	struct timeval tv;
 #else
 	u_long t = (time.tv_sec - boottime.tv_sec) * 1000;
 #endif
 
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
+#if defined (__FreeBSD__)
 	getmicrouptime(&tv);
 #endif
 	
@@ -1135,7 +1100,7 @@ sppp_cisco_send(struct sppp *sp, int type, long par1, long par2)
 	ch->par2 = htonl (par2);
 	ch->rel = -1;
 
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
+#if defined (__FreeBSD__)
 	ch->time0 = htons ((u_short) (tv.tv_sec >> 16));
 	ch->time1 = htons ((u_short) tv.tv_sec);
 #else
@@ -1435,12 +1400,12 @@ sppp_cp_input(const struct cp *cp, struct sppp *sp, struct mbuf *m)
 		case STATE_ACK_SENT:
 			break;
 		case STATE_CLOSING:
-			sppp_cp_change_state(cp, sp, STATE_CLOSED);
 			(cp->tlf)(sp);
+			sppp_cp_change_state(cp, sp, STATE_CLOSED);
 			break;
 		case STATE_STOPPING:
-			sppp_cp_change_state(cp, sp, STATE_STOPPED);
 			(cp->tlf)(sp);
+			sppp_cp_change_state(cp, sp, STATE_STOPPED);
 			break;
 		case STATE_ACK_RCVD:
 			sppp_cp_change_state(cp, sp, STATE_REQ_SENT);
@@ -1605,9 +1570,8 @@ sppp_down_event(const struct cp *cp, struct sppp *sp)
 		sppp_cp_change_state(cp, sp, STATE_INITIAL);
 		break;
 	case STATE_STOPPED:
-		sppp_cp_change_state(cp, sp, STATE_STARTING);
 		(cp->tls)(sp);
-		break;
+		/* fall through */
 	case STATE_STOPPING:
 	case STATE_REQ_SENT:
 	case STATE_ACK_RCVD:
@@ -1638,8 +1602,8 @@ sppp_open_event(const struct cp *cp, struct sppp *sp)
 
 	switch (sp->state[cp->protoidx]) {
 	case STATE_INITIAL:
-		sppp_cp_change_state(cp, sp, STATE_STARTING);
 		(cp->tls)(sp);
+		sppp_cp_change_state(cp, sp, STATE_STARTING);
 		break;
 	case STATE_STARTING:
 		break;
@@ -1678,8 +1642,8 @@ sppp_close_event(const struct cp *cp, struct sppp *sp)
 	case STATE_CLOSING:
 		break;
 	case STATE_STARTING:
-		sppp_cp_change_state(cp, sp, STATE_INITIAL);
 		(cp->tlf)(sp);
+		sppp_cp_change_state(cp, sp, STATE_INITIAL);
 		break;
 	case STATE_STOPPED:
 		sppp_cp_change_state(cp, sp, STATE_CLOSED);
@@ -1717,18 +1681,18 @@ sppp_to_event(const struct cp *cp, struct sppp *sp)
 		/* TO- event */
 		switch (sp->state[cp->protoidx]) {
 		case STATE_CLOSING:
-			sppp_cp_change_state(cp, sp, STATE_CLOSED);
 			(cp->tlf)(sp);
+			sppp_cp_change_state(cp, sp, STATE_CLOSED);
 			break;
 		case STATE_STOPPING:
-			sppp_cp_change_state(cp, sp, STATE_STOPPED);
 			(cp->tlf)(sp);
+			sppp_cp_change_state(cp, sp, STATE_STOPPED);
 			break;
 		case STATE_REQ_SENT:
 		case STATE_ACK_RCVD:
 		case STATE_ACK_SENT:
-			sppp_cp_change_state(cp, sp, STATE_STOPPED);
 			(cp->tlf)(sp);
+			sppp_cp_change_state(cp, sp, STATE_STOPPED);
 			break;
 		}
 	else
@@ -1738,8 +1702,10 @@ sppp_to_event(const struct cp *cp, struct sppp *sp)
 		case STATE_STOPPING:
 			sppp_cp_send(sp, cp->proto, TERM_REQ, ++sp->pp_seq,
 				     0, 0);
-			TIMEOUT(cp->TO, (void *)sp, sp->lcp.timeout, 
-			    sp->ch[cp->protoidx]);
+#if defined (__FreeBSD__)
+			sp->ch[cp->protoidx] =
+#endif
+			timeout(cp->TO, (void *)sp, sp->lcp.timeout);
 			break;
 		case STATE_REQ_SENT:
 		case STATE_ACK_RCVD:
@@ -1749,8 +1715,10 @@ sppp_to_event(const struct cp *cp, struct sppp *sp)
 			break;
 		case STATE_ACK_SENT:
 			(cp->scr)(sp);
-			TIMEOUT(cp->TO, (void *)sp, sp->lcp.timeout,
-			    sp->ch[cp->protoidx]);
+#if defined (__FreeBSD__)
+			sp->ch[cp->protoidx] = 
+#endif
+			timeout(cp->TO, (void *)sp, sp->lcp.timeout);
 			break;
 		}
 
@@ -1779,8 +1747,10 @@ sppp_cp_change_state(const struct cp *cp, struct sppp *sp, int newstate)
 	case STATE_REQ_SENT:
 	case STATE_ACK_RCVD:
 	case STATE_ACK_SENT:
-		TIMEOUT(cp->TO, (void *)sp, sp->lcp.timeout, 
-		    sp->ch[cp->protoidx]);
+#if defined (__FreeBSD__)
+		sp->ch[cp->protoidx]  =
+#endif
+		timeout(cp->TO, (void *)sp, sp->lcp.timeout);
 		break;
 	}
 }
@@ -1812,7 +1782,7 @@ sppp_lcp_init(struct sppp *sp)
 	sp->lcp.max_terminate = 2;
 	sp->lcp.max_configure = 10;
 	sp->lcp.max_failure = 10;
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
+#if defined (__FreeBSD__)
 	callout_handle_init(&sp->ch[IDX_LCP]);
 #endif
 }
@@ -1860,7 +1830,7 @@ sppp_lcp_down(struct sppp *sp)
 	 */
 	if ((ifp->if_flags & (IFF_AUTO | IFF_PASSIVE)) == 0) {
 		log(LOG_INFO,
-		    SPP_FMT "Down event, taking interface down.\n",
+		    SPP_FMT "Down event (carrier loss), taking interface down.\n",
 		    SPP_ARGS(ifp));
 		if_down(ifp);
 	} else {
@@ -2222,7 +2192,7 @@ sppp_lcp_RCN_nak(struct sppp *sp, struct lcp_header *h, int len)
 				if (magic == ~sp->lcp.magic) {
 					if (debug)
 						addlog("magic glitch ");
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
+#if defined (__FreeBSD__)
 					sp->lcp.magic = random();
 #else
 					sp->lcp.magic = time.tv_sec + time.tv_usec;
@@ -2270,7 +2240,7 @@ sppp_lcp_RCN_nak(struct sppp *sp, struct lcp_header *h, int len)
 static void
 sppp_lcp_tlu(struct sppp *sp)
 {
-	STDDCL;
+	struct ifnet *ifp = &sp->pp_if;
 	int i;
 	u_long mask;
 
@@ -2292,9 +2262,8 @@ sppp_lcp_tlu(struct sppp *sp)
 	else
 		sp->pp_phase = PHASE_NETWORK;
 
-	if (debug)
-		log(LOG_DEBUG, SPP_FMT "phase %s\n", SPP_ARGS(ifp),
-		    sppp_phase_name(sp->pp_phase));
+	log(LOG_INFO, SPP_FMT "phase %s\n", SPP_ARGS(ifp),
+	    sppp_phase_name(sp->pp_phase));
 
 	/*
 	 * Open all authentication protocols.  This is even required
@@ -2319,10 +2288,6 @@ sppp_lcp_tlu(struct sppp *sp)
 		if (sp->lcp.protos & mask && ((cps[i])->flags & CP_LCP) == 0)
 			(cps[i])->Up(sp);
 
-	/* notify low-level driver of state change */
-	if (sp->pp_chg)
-		sp->pp_chg(sp, (int)sp->pp_phase);
-	
 	if (sp->pp_phase == PHASE_NETWORK)
 		/* if no NCP is starting, close down */
 		sppp_lcp_check_and_close(sp);
@@ -2331,15 +2296,14 @@ sppp_lcp_tlu(struct sppp *sp)
 static void
 sppp_lcp_tld(struct sppp *sp)
 {
-	STDDCL;
+	struct ifnet *ifp = &sp->pp_if;
 	int i;
 	u_long mask;
 
 	sp->pp_phase = PHASE_TERMINATE;
 
-	if (debug)
-		log(LOG_DEBUG, SPP_FMT "phase %s\n", SPP_ARGS(ifp),
-		    sppp_phase_name(sp->pp_phase));
+	log(LOG_INFO, SPP_FMT "phase %s\n", SPP_ARGS(ifp),
+	    sppp_phase_name(sp->pp_phase));
 
 	/*
 	 * Take upper layers down.  We send the Down event first and
@@ -2357,36 +2321,30 @@ sppp_lcp_tld(struct sppp *sp)
 static void
 sppp_lcp_tls(struct sppp *sp)
 {
-	STDDCL;
+	struct ifnet *ifp = &sp->pp_if;
 
 	sp->pp_phase = PHASE_ESTABLISH;
 
-	if (debug)
-		log(LOG_DEBUG, SPP_FMT "phase %s\n", SPP_ARGS(ifp),
-		    sppp_phase_name(sp->pp_phase));
+	log(LOG_INFO, SPP_FMT "phase %s\n", SPP_ARGS(ifp),
+	    sppp_phase_name(sp->pp_phase));
 
 	/* Notify lower layer if desired. */
 	if (sp->pp_tls)
 		(sp->pp_tls)(sp);
-	else
-		(sp->pp_up)(sp);
 }
 
 static void
 sppp_lcp_tlf(struct sppp *sp)
 {
-	STDDCL;
+	struct ifnet *ifp = &sp->pp_if;
 
 	sp->pp_phase = PHASE_DEAD;
-	if (debug)
-		log(LOG_DEBUG, SPP_FMT "phase %s\n", SPP_ARGS(ifp),
-		    sppp_phase_name(sp->pp_phase));
+	log(LOG_INFO, SPP_FMT "phase %s\n", SPP_ARGS(ifp),
+	    sppp_phase_name(sp->pp_phase));
 
 	/* Notify lower layer if desired. */
 	if (sp->pp_tlf)
 		(sp->pp_tlf)(sp);
-	else
-		(sp->pp_down)(sp);
 }
 
 static void
@@ -2398,7 +2356,7 @@ sppp_lcp_scr(struct sppp *sp)
 
 	if (sp->lcp.opts & (1 << LCP_OPT_MAGIC)) {
 		if (! sp->lcp.magic)
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
+#if defined (__FreeBSD__)
 			sp->lcp.magic = random();
 #else
 			sp->lcp.magic = time.tv_sec + time.tv_usec;
@@ -2478,7 +2436,7 @@ sppp_ipcp_init(struct sppp *sp)
 	sp->ipcp.flags = 0;
 	sp->state[IDX_IPCP] = STATE_INITIAL;
 	sp->fail_counter[IDX_IPCP] = 0;
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
+#if defined (__FreeBSD__)
 	callout_handle_init(&sp->ch[IDX_IPCP]);
 #endif
 }
@@ -2500,8 +2458,6 @@ sppp_ipcp_open(struct sppp *sp)
 {
 	STDDCL;
 	u_long myaddr, hisaddr;
-
-	sp->ipcp.flags &= ~(IPCP_HISADDR_SEEN|IPCP_MYADDR_SEEN|IPCP_MYADDR_DYN);
 
 	sppp_get_ip_addrs(sp, &myaddr, &hisaddr, 0);
 	/*
@@ -2525,8 +2481,7 @@ sppp_ipcp_open(struct sppp *sp)
 		 */
 		sp->ipcp.flags |= IPCP_MYADDR_DYN;
 		sp->ipcp.opts |= (1 << IPCP_OPT_ADDRESS);
-	} else
-		sp->ipcp.flags |= IPCP_MYADDR_SEEN;
+	}
 	sppp_open_event(&ipcp, sp);
 }
 
@@ -2560,7 +2515,6 @@ sppp_ipcp_RCR(struct sppp *sp, struct lcp_header *h, int len)
 	struct ifnet *ifp = &sp->pp_if;
 	int rlen, origlen, debug = ifp->if_flags & IFF_DEBUG;
 	u_long hisaddr, desiredaddr;
-	int gotmyaddr = 0;
 
 	len -= 4;
 	origlen = len;
@@ -2634,11 +2588,10 @@ sppp_ipcp_RCR(struct sppp *sp, struct lcp_header *h, int len)
 			continue;
 #endif
 		case IPCP_OPT_ADDRESS:
-			/* This is the address he wants in his end */
 			desiredaddr = p[2] << 24 | p[3] << 16 |
 				p[4] << 8 | p[5];
 			if (desiredaddr == hisaddr ||
-			    (hisaddr == 1 && desiredaddr != 0)) {
+			    hisaddr == 1 && desiredaddr != 0) {
 				/*
 				 * Peer's address is same as our value,
 				 * or we have set it to 0.0.0.1 to 
@@ -2648,7 +2601,7 @@ sppp_ipcp_RCR(struct sppp *sp, struct lcp_header *h, int len)
 				 */
 				if (debug)
 					addlog("%s [ack] ",
-						sppp_dotted_quad(hisaddr));
+					       sppp_dotted_quad(desiredaddr));
 				/* record that we've seen it already */
 				sp->ipcp.flags |= IPCP_HISADDR_SEEN;
 				continue;
@@ -2659,14 +2612,13 @@ sppp_ipcp_RCR(struct sppp *sp, struct lcp_header *h, int len)
 			 * address, or he send us another address not
 			 * matching our value.  Either case, we gonna
 			 * conf-nak it with our value.
-			 * XXX: we should "rej" if hisaddr == 0
 			 */
 			if (debug) {
 				if (desiredaddr == 0)
 					addlog("[addr requested] ");
 				else
 					addlog("%s [not agreed] ",
-						sppp_dotted_quad(desiredaddr));
+					       sppp_dotted_quad(desiredaddr));
 
 				p[2] = hisaddr >> 24;
 				p[3] = hisaddr >> 16;
@@ -2691,7 +2643,7 @@ sppp_ipcp_RCR(struct sppp *sp, struct lcp_header *h, int len)
 	 * doesn't want to send us his address.  Q: What should we do
 	 * about it?  XXX  A: implement the max-failure counter.
 	 */
-	if (rlen == 0 && !(sp->ipcp.flags & IPCP_HISADDR_SEEN) && !gotmyaddr) {
+	if (rlen == 0 && !(sp->ipcp.flags & IPCP_HISADDR_SEEN)) {
 		buf[0] = IPCP_OPT_ADDRESS;
 		buf[1] = 6;
 		buf[2] = hisaddr >> 24;
@@ -2747,7 +2699,6 @@ sppp_ipcp_RCN_rej(struct sppp *sp, struct lcp_header *h, int len)
 			/*
 			 * Peer doesn't grok address option.  This is
 			 * bad.  XXX  Should we better give up here?
-			 * XXX We could try old "addresses" option...
 			 */
 			sp->ipcp.opts &= ~(1 << IPCP_OPT_ADDRESS);
 			break;
@@ -2808,14 +2759,11 @@ sppp_ipcp_RCN_nak(struct sppp *sp, struct lcp_header *h, int len)
 				 * we accept his offer.  Otherwise, we
 				 * ignore it and thus continue to negotiate
 				 * our already existing value.
-			 	 * XXX: Bogus, if he said no once, he'll
-				 * just say no again, might as well die.
 				 */
 				if (sp->ipcp.flags & IPCP_MYADDR_DYN) {
 					sppp_set_ip_addr(sp, wantaddr);
 					if (debug)
 						addlog("[agree] ");
-					sp->ipcp.flags |= IPCP_MYADDR_SEEN;
 				}
 			}
 			break;
@@ -2837,9 +2785,6 @@ sppp_ipcp_RCN_nak(struct sppp *sp, struct lcp_header *h, int len)
 static void
 sppp_ipcp_tlu(struct sppp *sp)
 {
-	/* we are up - notify isdn daemon */
-	if (sp->pp_con)
-		sp->pp_con(sp);
 }
 
 static void
@@ -3213,7 +3158,7 @@ sppp_chap_init(struct sppp *sp)
 	/* Chap doesn't have STATE_INITIAL at all. */
 	sp->state[IDX_CHAP] = STATE_CLOSED;
 	sp->fail_counter[IDX_CHAP] = 0;
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
+#if defined (__FreeBSD__)
 	callout_handle_init(&sp->ch[IDX_CHAP]);
 #endif
 }
@@ -3298,7 +3243,11 @@ sppp_chap_tlu(struct sppp *sp)
 		 * a number between 300 and 810 seconds.
 		 */
 		i = 300 + ((unsigned)(random() & 0xff00) >> 7);
-		TIMEOUT(chap.TO, (void *)sp, i * hz, sp->ch[IDX_CHAP]);
+
+#if defined (__FreeBSD__)
+		sp->ch[IDX_CHAP] =
+#endif
+		timeout(chap.TO, (void *)sp, i * hz);
 	}
 
 	if (debug) {
@@ -3353,17 +3302,17 @@ sppp_chap_scr(struct sppp *sp)
 {
 	u_long *ch, seed;
 	u_char clen;
+#if defined (__NetBSD__) || defined (__OpenBSD__)
+	struct timeval tv;
+#endif
 
 	/* Compute random challenge. */
 	ch = (u_long *)sp->myauth.challenge;
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
+#if defined (__FreeBSD__)
 	read_random(&seed, sizeof seed);
 #else
-	{
-	struct timeval tv;
 	microtime(&tv);
 	seed = tv.tv_sec ^ tv.tv_usec;
-	}
 #endif
 	ch[0] = seed ^ random();
 	ch[1] = seed ^ random();
@@ -3545,7 +3494,7 @@ sppp_pap_init(struct sppp *sp)
 	/* PAP doesn't have STATE_INITIAL at all. */
 	sp->state[IDX_PAP] = STATE_CLOSED;
 	sp->fail_counter[IDX_PAP] = 0;
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
+#if defined (__FreeBSD__)
 	callout_handle_init(&sp->ch[IDX_PAP]);
 	callout_handle_init(&sp->pap_my_to_ch);
 #endif
@@ -3563,8 +3512,10 @@ sppp_pap_open(struct sppp *sp)
 	if (sp->myauth.proto == PPP_PAP) {
 		/* we are peer, send a request, and start a timer */
 		pap.scr(sp);
-		TIMEOUT(sppp_pap_my_TO, (void *)sp, sp->lcp.timeout,
-		    sp->pap_my_to_ch);
+#if defined (__FreeBSD__)
+		sp->pap_my_to_ch =
+#endif
+		timeout(sppp_pap_my_TO, (void *)sp, sp->lcp.timeout);
 	}
 }
 
@@ -3700,14 +3651,10 @@ sppp_pap_scr(struct sppp *sp)
  * Varadic function, each of the elements for the ellipsis is of type
  * ``size_t mlen, const u_char *msg''.  Processing will stop iff
  * mlen == 0.
- * NOTE: never declare variadic functions with types subject to type
- * promotion (i.e. u_char). This is asking for big trouble depending
- * on the architecture you are on...
  */
 
 static void
-sppp_auth_send(const struct cp *cp, struct sppp *sp,
-               unsigned int type, unsigned int id,
+sppp_auth_send(const struct cp *cp, struct sppp *sp, u_char type, u_char id,
 	       ...)
 {
 	STDDCL;
@@ -3716,7 +3663,7 @@ sppp_auth_send(const struct cp *cp, struct sppp *sp,
 	struct mbuf *m;
 	u_char *p;
 	int len;
-	unsigned int mlen;
+	size_t mlen;
 	const char *msg;
 	va_list ap;
 
@@ -3738,7 +3685,7 @@ sppp_auth_send(const struct cp *cp, struct sppp *sp,
 	va_start(ap, id);
 	len = 0;
 
-	while ((mlen = (unsigned int)va_arg(ap, size_t)) != 0) {
+	while ((mlen = va_arg(ap, size_t)) != 0) {
 		msg = va_arg(ap, const char *);
 		len += mlen;
 		if (len > MHLEN - PPP_HEADER_LEN - LCP_HEADER_LEN) {
@@ -3843,7 +3790,10 @@ sppp_keepalive(void *dummy)
 		}
 	}
 	splx(s);
-	TIMEOUT(sppp_keepalive, 0, hz * 10, keepalive_ch);
+#if defined (__FreeBSD__)
+	keepalive_ch =
+#endif
+	timeout(sppp_keepalive, 0, hz * 10);
 }
 
 /*
@@ -3863,17 +3813,14 @@ sppp_get_ip_addrs(struct sppp *sp, u_long *src, u_long *dst, u_long *srcmask)
 	 * Pick the first AF_INET address from the list,
 	 * aliases don't make any sense on a p2p link anyway.
 	 */
-	si = 0;
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
-	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
-#elif defined(__NetBSD__) || defined (__OpenBSD__)
-	for (ifa = ifp->if_addrlist.tqh_first;
+#if defined (__FreeBSD__)
+	for (ifa = ifp->if_addrhead.tqh_first, si = 0;
+	     ifa;
+	     ifa = ifa->ifa_link.tqe_next)
+#else
+	for (ifa = ifp->if_addrlist.tqh_first, si = 0;
 	     ifa;
 	     ifa = ifa->ifa_list.tqe_next)
-#else
-	for (ifa = ifp->if_addrlist;
-	     ifa;
-	     ifa = ifa->ifa_next)
 #endif
 		if (ifa->ifa_addr->sa_family == AF_INET) {
 			si = (struct sockaddr_in *)ifa->ifa_addr;
@@ -3903,7 +3850,7 @@ sppp_get_ip_addrs(struct sppp *sp, u_long *src, u_long *dst, u_long *srcmask)
 static void
 sppp_set_ip_addr(struct sppp *sp, u_long src)
 {
-	STDDCL;
+	struct ifnet *ifp = &sp->pp_if;
 	struct ifaddr *ifa;
 	struct sockaddr_in *si;
 
@@ -3911,17 +3858,15 @@ sppp_set_ip_addr(struct sppp *sp, u_long src)
 	 * Pick the first AF_INET address from the list,
 	 * aliases don't make any sense on a p2p link anyway.
 	 */
-	si = 0;
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
-	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
-#elif defined(__NetBSD__) || defined (__OpenBSD__)
-	for (ifa = ifp->if_addrlist.tqh_first;
+
+#if defined (__FreeBSD__)
+	for (ifa = ifp->if_addrhead.tqh_first, si = 0;
+	     ifa;
+	     ifa = ifa->ifa_link.tqe_next)
+#else
+	for (ifa = ifp->if_addrlist.tqh_first, si = 0;
 	     ifa;
 	     ifa = ifa->ifa_list.tqe_next)
-#else
-	for (ifa = ifp->if_addrlist;
-	     ifa;
-	     ifa = ifa->ifa_next)
 #endif
 	{
 		if (ifa->ifa_addr->sa_family == AF_INET)
@@ -3933,40 +3878,8 @@ sppp_set_ip_addr(struct sppp *sp, u_long src)
 	}
 
 	if (ifa && si)
-	{
-		int error;
-#if __NetBSD_Version__ >= 103080000
-		struct sockaddr_in new_sin = *si;
-
-		new_sin.sin_addr.s_addr = htonl(src);
-		error = in_ifinit(ifp, ifatoia(ifa), &new_sin, 1);
-		if(debug && error)
-		{
-			log(LOG_DEBUG, SPP_FMT "sppp_set_ip_addr: in_ifinit "
-			" failed, error=%d\n", SPP_ARGS(ifp), error);
-		}
-#else
-		/* delete old route */
-		error = rtinit(ifa, (int)RTM_DELETE, RTF_HOST);
-		if(debug && error)
-		{
-			log(LOG_DEBUG, SPP_FMT "sppp_set_ip_addr: rtinit DEL failed, error=%d\n",
-		    		SPP_ARGS(ifp), error);
-		}
-
-		/* set new address */
 		si->sin_addr.s_addr = htonl(src);
-
-		/* add new route */
-		error = rtinit(ifa, (int)RTM_ADD, RTF_HOST);		
-		if (debug && error)
-		{
-			log(LOG_DEBUG, SPP_FMT "sppp_set_ip_addr: rtinit ADD failed, error=%d",
-		    		SPP_ARGS(ifp), error);
-		}
-#endif
-	}
-}			
+}
 
 static int
 sppp_params(struct sppp *sp, u_long cmd, void *data)
@@ -4075,15 +3988,14 @@ sppp_params(struct sppp *sp, u_long cmd, void *data)
 static void
 sppp_phase_network(struct sppp *sp)
 {
-	STDDCL;
+	struct ifnet *ifp = &sp->pp_if;
 	int i;
 	u_long mask;
 
 	sp->pp_phase = PHASE_NETWORK;
 
-	if (debug)
-		log(LOG_DEBUG, SPP_FMT "phase %s\n", SPP_ARGS(ifp),
-		    sppp_phase_name(sp->pp_phase));
+	log(LOG_INFO, SPP_FMT "phase %s\n", SPP_ARGS(ifp),
+	    sppp_phase_name(sp->pp_phase));
 
 	/* Notify NCPs now. */
 	for (i = 0; i < IDX_COUNT; i++)
@@ -4117,7 +4029,7 @@ sppp_cp_type_name(u_char type)
 	case ECHO_REPLY: return "echo-reply";
 	case DISC_REQ:   return "discard-req";
 	}
-	snprintf (buf, sizeof(buf), "0x%x", type);
+	sprintf (buf, "0x%x", type);
 	return buf;
 }
 
@@ -4140,7 +4052,7 @@ sppp_auth_type_name(u_short proto, u_char type)
 		case PAP_NAK:		return "nak";
 		}
 	}
-	snprintf (buf, sizeof(buf), "0x%x", type);
+	sprintf (buf, "0x%x", type);
 	return buf;
 }
 
@@ -4157,7 +4069,7 @@ sppp_lcp_opt_name(u_char opt)
 	case LCP_OPT_PROTO_COMP:	return "proto-comp";
 	case LCP_OPT_ADDR_COMP:		return "addr-comp";
 	}
-	snprintf (buf, sizeof(buf), "0x%x", opt);
+	sprintf (buf, "0x%x", opt);
 	return buf;
 }
 
@@ -4170,7 +4082,7 @@ sppp_ipcp_opt_name(u_char opt)
 	case IPCP_OPT_COMPRESSION:	return "compression";
 	case IPCP_OPT_ADDRESS:		return "address";
 	}
-	snprintf (buf, sizeof(buf), "0x%x", opt);
+	sprintf (buf, "0x%x", opt);
 	return buf;
 }
 
@@ -4215,7 +4127,7 @@ sppp_proto_name(u_short proto)
 	case PPP_PAP:	return "pap";
 	case PPP_CHAP:	return "chap";
 	}
-	snprintf(buf, sizeof(buf), "0x%x", (unsigned)proto);
+	sprintf(buf, "0x%x", (unsigned)proto);
 	return buf;
 }
 
@@ -4272,3 +4184,10 @@ sppp_null(struct sppp *unused)
 {
 	/* do just nothing */
 }
+/*
+ * This file is large.  Tell emacs to highlight it nevertheless.
+ *
+ * Local Variables:
+ * hilit-auto-highlight-maxout: 120000
+ * End:
+ */

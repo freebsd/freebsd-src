@@ -1,8 +1,9 @@
-#	$Id: Makefile,v 1.4 1997/02/22 09:30:28 peter Exp $
+#	$Id$
 #
 
 MPROG=	fbsdboot.exe
 CLEANFILES+=	${MPROG}
+BINDIR=		/usr/mdec
 BINMODE=	444
 NOMAN=
 STRIP=

@@ -20,7 +20,7 @@
  * the original CMU copyright notice.
  *
  * Version 1.3, Thu Nov 11 12:09:13 MSK 1993
- * $Id: wt.c,v 1.46 1998/10/22 05:58:41 bde Exp $
+ * $Id: wt.c,v 1.44 1998/06/07 17:11:07 dfr Exp $
  *
  */
 
@@ -178,7 +178,6 @@ static void wtclock (wtinfo_t *t);
 static int wtreset (wtinfo_t *t);
 static int wtsense (wtinfo_t *t, int verb, int ignor);
 static int wtstatus (wtinfo_t *t);
-static ointhand2_t wtintr;
 static void wtrewind (wtinfo_t *t);
 static int wtreadfm (wtinfo_t *t);
 static int wtwritefm (wtinfo_t *t);
@@ -189,6 +188,8 @@ static	d_read_t	wtread;
 static	d_write_t	wtwrite;
 static	d_close_t	wtclose;
 static	d_ioctl_t	wtioctl;
+static	d_dump_t	wtdump;
+static	d_psize_t	wtsize;
 static	d_strategy_t	wtstrategy;
 
 #define CDEV_MAJOR 10
@@ -255,7 +256,6 @@ wtattach (struct isa_device *id)
 {
 	wtinfo_t *t = wttab + id->id_unit;
 
-	id->id_ointr = wtintr;
 	if (t->type == ARCHIVE) {
 		printf ("wt%d: type <Archive>\n", t->unit);
 		outb (t->RDMAPORT, 0);          /* reset dma */
@@ -275,10 +275,24 @@ wtattach (struct isa_device *id)
 
 struct isa_driver wtdriver = { wtprobe, wtattach, "wt", };
 
+int
+wtdump (dev_t dev)
+{
+	/* Not implemented */
+	return (EINVAL);
+}
+
+int
+wtsize (dev_t dev)
+{
+	/* Not implemented */
+	return (-1);
+}
+
 /*
  * Open routine, called on every device open.
  */
-static int
+int
 wtopen (dev_t dev, int flag, int fmt, struct proc *p)
 {
 	int u = minor (dev) & T_UNIT;
@@ -359,7 +373,7 @@ wtopen (dev_t dev, int flag, int fmt, struct proc *p)
 /*
  * Close routine, called on last device close.
  */
-static int
+int
 wtclose (dev_t dev, int flags, int fmt, struct proc *p)
 {
 	int u = minor (dev) & T_UNIT;
@@ -408,7 +422,7 @@ done:
  * ioctl (int fd, MTIOCGET, struct mtget *buf)  -- get status
  * ioctl (int fd, MTIOCTOP, struct mtop *buf)   -- do BSD-like op
  */
-static int
+int
 wtioctl (dev_t dev, u_long cmd, caddr_t arg, int flags, struct proc *p)
 {
 	int u = minor (dev) & T_UNIT;
@@ -511,7 +525,7 @@ wtwrite(dev_t dev, struct uio *uio, int ioflag)
 /*
  * Strategy routine.
  */
-static void
+void
 wtstrategy (struct buf *bp)
 {
 	int u = minor (bp->b_dev) & T_UNIT;
@@ -589,7 +603,7 @@ xit:    biodone (bp);
 /*
  * Interrupt routine.
  */
-static void
+void
 wtintr (int u)
 {
 	wtinfo_t *t = wttab + u;

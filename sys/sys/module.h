@@ -23,43 +23,32 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: module.h,v 1.5 1998/11/14 21:58:41 wollman Exp $
+ *	$Id: module.h,v 1.3 1998/06/10 10:57:29 dfr Exp $
  */
 
 #ifndef _SYS_MODULE_H_
 #define _SYS_MODULE_H_
 
-typedef enum modeventtype {
+typedef enum {
     MOD_LOAD,
     MOD_UNLOAD,
     MOD_SHUTDOWN
 } modeventtype_t;
 
-typedef	struct module *module_t;
+struct module;
+typedef struct module *module_t;
 
-typedef	int (*modeventhand_t)(module_t mod, int /*modeventtype_t*/ what,
-			      void *arg);
+typedef int (*modeventhand_t)(module_t mod, modeventtype_t what, void *arg);
 
 /*
  * Struct for registering modules statically via SYSINIT.
  */
 typedef struct moduledata {
-	char		*name;	/* module name */
-	modeventhand_t	evhand;	/* event handler */
-	void		*priv;	/* extra data */
-	void		*_file;	/* private; used by linker */
+    char*		name;	/* module name */
+    modeventhand_t	evhand;	/* event handler */
+    void*		priv;	/* extra data */
+    void*		_file;	/* private; used by linker */
 } moduledata_t;
-
-/*
- * A module can use this to report module specific data to
- * the user via kldstat(2).
- */
-typedef union modspecific {
-    int		intval;
-    u_int	uintval;
-    long	longval;
-    u_long	ulongval;
-} modspecific_t;
 
 #ifdef KERNEL
 
@@ -77,7 +66,6 @@ void module_release(module_t mod);
 int module_unload(module_t mod);
 int module_getid(module_t mod);
 module_t module_getfnext(module_t mod);
-void module_setspecific(module_t mod, modspecific_t *datap);
 
 #ifdef MOD_DEBUG
 
@@ -104,7 +92,6 @@ struct module_stat {
     char	name[MAXMODNAME];
     int		refs;
     int		id;
-    modspecific_t data;
 };
 
 #ifndef KERNEL

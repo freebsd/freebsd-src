@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.222 1999/01/20 11:56:39 jkh Exp $
+ * $Id: install.c,v 1.215 1998/10/12 23:47:50 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -35,6 +35,7 @@
  */
 
 #include "sysinstall.h"
+#include "uc_main.h"
 #include <ctype.h>
 #include <sys/disklabel.h>
 #include <sys/errno.h>
@@ -48,11 +49,13 @@
 #include <msdosfs/msdosfsmount.h>
 #undef MSDOSFS
 #include <sys/stat.h>
-#include <sys/sysctl.h>
 #include <unistd.h>
 
 static void	create_termcap(void);
 static void	fixit_common(void);
+#ifdef SAVE_USERCONFIG
+static void	save_userconfig_to_kernel(char *);
+#endif
 
 #define TERMCAP_FILE	"/usr/share/misc/termcap"
 
@@ -194,7 +197,6 @@ static int
 installInitial(void)
 {
     static Boolean alreadyDone = FALSE;
-    int status = DITEM_SUCCESS;
 
     if (alreadyDone)
 	return DITEM_SUCCESS;
@@ -238,18 +240,13 @@ installInitial(void)
 
     chdir("/");
     variable_set2(RUNNING_ON_ROOT, "yes");
-
-    /* Configure various files in /etc */
-    if (DITEM_STATUS(configResolv(NULL)) == DITEM_FAILURE)
-	status = DITEM_FAILURE;
-    if (DITEM_STATUS(configFstab(NULL)) == DITEM_FAILURE)
-	status = DITEM_FAILURE;
+    configResolv();
 
     /* stick a helpful shell over on the 4th VTY */
     systemCreateHoloshell();
 
     alreadyDone = TRUE;
-    return status;
+    return DITEM_SUCCESS;
 }
 
 int
@@ -362,8 +359,6 @@ installFixitFloppy(dialogMenuItem *self)
 			 "or unclean filesystem.  Do you want to try again?"))
 		return DITEM_FAILURE;
 	}
-	else
-	    break;
     }
     if (!directory_exists("/tmp"))
 	(void)symlink("/mnt2/tmp", "/tmp");
@@ -451,10 +446,8 @@ installExpress(dialogMenuItem *self)
     int i;
 
     variable_set2(SYSTEM_STATE, "express");
-#ifndef __alpha__
     if (DITEM_STATUS((i = diskPartitionEditor(self))) == DITEM_FAILURE)
 	return i;
-#endif
     
     if (DITEM_STATUS((i = diskLabelEditor(self))) == DITEM_FAILURE)
 	return i;
@@ -476,7 +469,6 @@ installNovice(dialogMenuItem *self)
     Device **devs;
 
     variable_set2(SYSTEM_STATE, "novice");
-#ifndef __alpha__
     dialog_clear_norefresh();
     msgConfirm("In the next menu, you will need to set up a DOS-style (\"fdisk\") partitioning\n"
 	       "scheme for your hard disk.  If you simply wish to devote all disk space\n"
@@ -495,24 +487,14 @@ nodisks:
 	++tries;
 	goto nodisks;
     }
-#endif
 
     dialog_clear_norefresh();
-#ifdef __alpha__
-    msgConfirm("First, you need to create BSD partitions on the disk which you are\n"
-	       "installing to.  If you have a reasonable amount of disk space (200MB or more)\n"
-	       "and don't have any special requirements, simply use the (A)uto command to\n"
-	       "allocate space automatically.  If you have more specific needs or just don't\n"
-	       "care for the layout chosen by (A)uto, press F1 for more information on\n"
-	       "manual layout.");
-#else
-    msgConfirm("First, you need to create BSD partitions inside of the fdisk partition(s)\n"
+    msgConfirm("Next, you need to create BSD partitions inside of the fdisk partition(s)\n"
 	       "just created.  If you have a reasonable amount of disk space (200MB or more)\n"
 	       "and don't have any special requirements, simply use the (A)uto command to\n"
 	       "allocate space automatically.  If you have more specific needs or just don't\n"
 	       "care for the layout chosen by (A)uto, press F1 for more information on\n"
 	       "manual layout.");
-#endif
 
     if (DITEM_STATUS(diskLabelEditor(self)) == DITEM_FAILURE)
 	return DITEM_FAILURE;
@@ -683,6 +665,7 @@ installCommit(dialogMenuItem *self)
 {
     int i;
     char *str;
+    Boolean need_bin;
 
     if (!Dists)
 	distConfig(NULL);
@@ -698,9 +681,13 @@ installCommit(dialogMenuItem *self)
     if (isDebug())
 	msgDebug("installCommit: System state is `%s'\n", str);
 
-    /* Installation stuff we wouldn't do to a running system */
-    if (RunningAsInit && DITEM_STATUS((i = installInitial())) == DITEM_FAILURE)
-	return i;
+    if (RunningAsInit) {
+	/* Do things we wouldn't do to a multi-user system */
+	if (DITEM_STATUS((i = installInitial())) == DITEM_FAILURE)
+	    return i;
+	if (DITEM_STATUS((i = configFstab())) == DITEM_FAILURE)
+	    return i;
+    }
 
 try_media:
     if (!mediaDevice->init(mediaDevice)) {
@@ -716,9 +703,11 @@ try_media:
 	    return DITEM_FAILURE | DITEM_RESTORE;
     }
 
-    /* Now go get it all */
+    need_bin = Dists & DIST_BIN;
     i = distExtractAll(self);
-
+    /* Only do fixup if bin dist was successfully extracted */
+    if (need_bin && !(Dists & DIST_BIN))
+	i |= installFixup(self);
     /* When running as init, *now* it's safe to grab the rc.foo vars */
     installEnvironment();
 
@@ -744,35 +733,33 @@ installConfigure(void)
 }
 
 int
-installFixupBin(dialogMenuItem *self)
+installFixup(dialogMenuItem *self)
 {
     Device **devs;
     int i;
 
-    /* All of this is done only as init, just to be safe */
-    if (RunningAsInit) {
-	/* Fix up kernel first */
-	if (!file_readable("/kernel")) {
-	    if (file_readable("/kernel.GENERIC")) {
-		if (vsystem("cp -p /kernel.GENERIC /kernel")) {
-		    msgConfirm("Unable to copy /kernel into place!");
-		    return DITEM_FAILURE;
-		}
-                /* Snapshot any boot -c changes back to the new kernel */
-                if (kget("/kernel.config")) {
-		    msgConfirm("Kernel copied OK, but unable to save boot -c changes\n"
-			       "to it.  See the debug screen (ALT-F2) for details.");
-		}
-	    }
-	    else {
-		msgConfirm("Can't find a kernel image to link to on the root file system!\n"
-			   "You're going to have a hard time getting this system to\n"
-			   "boot from the hard disk, I'm afraid!");
+    if (!file_readable("/kernel")) {
+	if (file_readable("/kernel.GENERIC")) {
+	    if (vsystem("cp -p /kernel.GENERIC /kernel")) {
+		msgConfirm("Unable to link /kernel into place!");
 		return DITEM_FAILURE;
 	    }
+#ifdef SAVE_USERCONFIG
+	    /* Snapshot any boot -c changes back to the new kernel */
+	    if (!variable_cmp(VAR_RELNAME, RELEASE_NAME))
+		save_userconfig_to_kernel("/kernel");
+#endif
 	}
-	
-	/* BOGON #1: Resurrect /dev after bin distribution screws it up */
+	else {
+	    msgConfirm("Can't find a kernel image to link to on the root file system!\n"
+		       "You're going to have a hard time getting this system to\n"
+		       "boot from the hard disk, I'm afraid!");
+	    return DITEM_FAILURE;
+	}
+    }
+
+    /* Resurrect /dev after bin distribution screws it up */
+    if (RunningAsInit) {
 	msgNotify("Remaking all devices.. Please wait!");
 	if (vsystem("cd /dev; sh MAKEDEV all")) {
 	    msgConfirm("MAKEDEV returned non-zero status");
@@ -788,7 +775,7 @@ installFixupBin(dialogMenuItem *self)
 	for (i = 0; devs[i]; i++) {
 	    Disk *disk = (Disk *)devs[i]->private;
 	    Chunk *c1;
-	    
+
 	    if (!devs[i]->enabled)
 		continue;
 	    if (!disk->chunks)
@@ -803,18 +790,30 @@ installFixupBin(dialogMenuItem *self)
 		}
 	    }
 	}
-	
+
+	/* Do all the last ugly work-arounds here */
+	msgNotify("Fixing permissions..");
+	/* BOGON #1:  XFree86 requires various specialized fixups */
+	if (directory_exists("/usr/X11R6")) {
+	    vsystem("chmod -R a+r /usr/X11R6");
+	    vsystem("find /usr/X11R6 -type d | xargs chmod a+x");
+
+	    /* Also do bogus minimal package registration so ports don't whine */
+	    if (file_readable("/usr/X11R6/lib/X11/pkgreg.tar.gz"))
+		vsystem("tar xpzf /usr/X11R6/lib/X11/pkgreg.tar.gz -C / && rm /usr/X11R6/lib/X11/pkgreg.tar.gz");
+	}
+
 	/* BOGON #2: We leave /etc in a bad state */
 	chmod("/etc", 0755);
-	
+
 	/* BOGON #3: No /var/db/mountdtab complains */
 	Mkdir("/var/db");
 	creat("/var/db/mountdtab", 0644);
-	
+
 	/* BOGON #4: /compat created by default in root fs */
 	Mkdir("/usr/compat");
 	vsystem("ln -s /usr/compat /compat");
-	
+
 	/* BOGON #5: aliases database not build for bin */
 	vsystem("newaliases");
 
@@ -828,27 +827,6 @@ installFixupBin(dialogMenuItem *self)
         vsystem("mtree -deU -f /etc/mtree/BSD.root.dist -p /");
         vsystem("mtree -deU -f /etc/mtree/BSD.var.dist -p /var");
         vsystem("mtree -deU -f /etc/mtree/BSD.usr.dist -p /usr");
-
-	/* Do all the last ugly work-arounds here */
-    }
-    return DITEM_SUCCESS;
-}
-
-/* Fix side-effects from the the XFree86 installation */
-int
-installFixupXFree(dialogMenuItem *self)
-{
-    /* BOGON #1:  XFree86 requires various specialized fixups */
-    if (directory_exists("/usr/X11R6")) {
-	msgNotify("Fixing permissions in XFree86 tree..");
-	vsystem("chmod -R a+r /usr/X11R6");
-	vsystem("find /usr/X11R6 -type d | xargs chmod a+x");
-
-	/* Also do bogus minimal package registration so ports don't whine */
-	if (file_readable("/usr/X11R6/lib/X11/pkgreg.tar.gz")) {
-	    msgNotify("Installing package metainfo..");
-	    vsystem("tar xpzf /usr/X11R6/lib/X11/pkgreg.tar.gz -C / && rm /usr/X11R6/lib/X11/pkgreg.tar.gz");
-	}
     }
     return DITEM_SUCCESS;
 }
@@ -970,7 +948,7 @@ installFilesystems(dialogMenuItem *self)
 			if (c2 == rootdev)
 			    continue;
 
-			if (tmp->newfs && (!upgrade || !msgYesNo("You are upgrading - are you SURE you want to newfs /dev/%s?", c2->name)))
+			if (tmp->newfs && (!upgrade || !msgYesNo("You are upgradding - are you SURE you want to newfs /dev/%s?", c2->name)))
 			    command_shell_add(tmp->mountpoint, "%s %s/dev/r%s", tmp->newfs_cmd, RunningAsInit ? "/mnt" : "", c2->name);
 			else
 			    command_shell_add(tmp->mountpoint, "fsck -y %s/dev/r%s", RunningAsInit ? "/mnt" : "", c2->name);
@@ -1014,20 +992,6 @@ installFilesystems(dialogMenuItem *self)
     return DITEM_SUCCESS;
 }
 
-static char *
-getRelname(void)
-{
-    static char buf[64];
-    int sz = (sizeof buf) - 1;
-
-    if (sysctlbyname("kern.osrelease", buf, &sz, NULL, 0) != -1) {
-	buf[sz] = '\0';
-	return buf;
-    }
-    else
-	return "<unknown>";
-}
-
 /* Initialize various user-settable values to their defaults */
 int
 installVarDefaults(dialogMenuItem *self)
@@ -1035,7 +999,7 @@ installVarDefaults(dialogMenuItem *self)
     char *cp;
 
     /* Set default startup options */
-    variable_set2(VAR_RELNAME,			getRelname());
+    variable_set2(VAR_RELNAME,			RELEASE_NAME);
     variable_set2(VAR_CPIO_VERBOSITY,		"high");
     variable_set2(VAR_TAPE_BLOCKSIZE,		DEFAULT_TAPE_BLOCKSIZE);
     variable_set2(VAR_INSTALL_ROOT,		"/");
@@ -1045,13 +1009,13 @@ installVarDefaults(dialogMenuItem *self)
 	cp = "/usr/bin/ee";
     variable_set2(VAR_EDITOR,			cp);
     variable_set2(VAR_FTP_USER,			"ftp");
-    variable_set2(VAR_BROWSER_PACKAGE,		"lynx");
+    variable_set2(VAR_BROWSER_PACKAGE,		PACKAGE_LYNX);
     variable_set2(VAR_BROWSER_BINARY,		"/usr/local/bin/lynx");
     variable_set2(VAR_FTP_STATE,		"passive");
     variable_set2(VAR_NFS_SECURE,		"YES");
     variable_set2(VAR_PKG_TMPDIR,		"/usr/tmp");
-    variable_set2(VAR_GATED_PKG,		"gated");
-    variable_set2(VAR_PCNFSD_PKG,		"pcnfsd");
+    variable_set2(VAR_GATED_PKG,		PACKAGE_GATED);
+    variable_set2(VAR_PCNFSD_PKG,		PACKAGE_PCNFSD);
     variable_set2(VAR_MEDIA_TIMEOUT,		itoa(MEDIA_TIMEOUT));
     if (getpid() != 1)
 	variable_set2(SYSTEM_STATE,		"update");
@@ -1117,3 +1081,62 @@ create_termcap(void)
 	fclose(fp);
     }
 }
+
+#ifdef SAVE_USERCONFIG
+static void
+save_userconfig_to_kernel(char *kern)
+{
+    struct kernel *core, *boot;
+    struct list *c_isa, *b_isa, *c_dev, *b_dev;
+    int i, d;
+
+    if ((core = uc_open("-incore")) == NULL) {
+	msgDebug("save_userconf: Can't read in-core information for kernel.\n");
+	return;
+    }
+
+    if ((boot = uc_open(kern)) == NULL) {
+	msgDebug("save_userconf: Can't read device information for kernel image %s\n", kern);
+	return;
+    }
+
+    msgNotify("Saving any boot -c changes to new kernel...");
+    c_isa = uc_getdev(core, "-isa");
+    b_isa = uc_getdev(boot, "-isa");
+    if (isDebug())
+	msgDebug("save_userconf: got %d ISA device entries from core, %d from boot.\n", c_isa->ac, b_isa->ac);
+    for (d = 0; d < c_isa->ac; d++) {
+	if (isDebug())
+	    msgDebug("save_userconf: ISA device loop, c_isa->av[%d] = %s\n", d, c_isa->av[d]);
+	if (strcmp(c_isa->av[d], "npx0")) { /* special case npx0, which mucks with its id_irq member */
+	    c_dev = uc_getdev(core, c_isa->av[d]);
+	    b_dev = uc_getdev(boot, b_isa->av[d]);
+	    if (!c_dev || !b_dev) {
+		msgDebug("save_userconf: c_dev: %x b_dev: %x\n", c_dev, b_dev);
+		continue;
+	    }
+	    if (isDebug())
+		msgDebug("save_userconf: ISA device %s: %d config parameters (core), %d (boot)\n",
+			 c_isa->av[d], c_dev->ac, b_dev->ac);
+	    for (i = 0; i < c_dev->ac; i++) {
+		if (isDebug())
+		    msgDebug("save_userconf: c_dev->av[%d] = %s, b_dev->av[%d] = %s\n", i, c_dev->av[i], i, b_dev->av[i]);
+		if (strcmp(c_dev->av[i], b_dev->av[i])) {
+		    if (isDebug())
+			msgDebug("save_userconf: %s (boot) -> %s (core)\n",
+				 c_dev->av[i], b_dev->av[i]);
+		    isa_setdev(boot, c_dev);
+		}
+	    }
+	}
+	else {
+	    if (isDebug())
+		msgDebug("skipping npx0\n");
+	}
+    }
+    if (isDebug())
+	msgDebug("Closing kernels\n");
+    uc_close(core, 0);
+    uc_close(boot, 1);
+}
+#endif

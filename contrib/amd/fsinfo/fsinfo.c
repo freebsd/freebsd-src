@@ -17,7 +17,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgment:
+ *    must display the following acknowledgement:
  *      This product includes software developed by the University of
  *      California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: fsinfo.c,v 1.2 1998/08/23 22:52:08 obrien Exp $
+ * $Id: fsinfo.c,v 1.1.1.1 1998/08/23 22:07:20 obrien Exp $
  *
  */
 
@@ -58,8 +58,8 @@
 char **g_argv;
 char *autodir = "/a";
 char *progname;
-char hostname[MAXHOSTNAMELEN + 1];
 char *username;
+char hostname[MAXHOSTNAMELEN + 1];
 char idvbuf[1024];
 dict *dict_of_hosts;
 dict *dict_of_volnames;
@@ -80,12 +80,9 @@ char *fstab_pref;
 char *mount_pref;
 
 /* dummy variables */
-#if 0
+int orig_umask, foreground, debug_flags;
 pid_t mypid;
 serv_state amd_state;
-int foreground, orig_umask;
-int debug_flags;
-#endif
 
 
 /*

@@ -1,6 +1,6 @@
 /*
  *  Intel PCIC or compatible Controller driver
- *  May be built to make a loadable module.
+ *  May be built using LKM to make a loadable module.
  *-------------------------------------------------------------------------
  *
  * Copyright (c) 1995 Andrew McRae.  All rights reserved.
@@ -36,7 +36,6 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/module.h>
 #include <sys/select.h>
 #include <sys/interrupt.h>
 
@@ -67,8 +66,9 @@ static void		pcic_mapirq __P((struct slot *, int));
 static timeout_t 	pcictimeout;
 static struct callout_handle pcictimeout_ch
     = CALLOUT_HANDLE_INITIALIZER(&pcictimeout_ch);
-static int		pcic_modevent __P((module_t, int, void *));
-static int		pcic_unload __P((void));
+#ifdef LKM
+static int		pcic_handle __P((struct lkm_table *lkmtp, int cmd));
+#endif
 static int		pcic_memory(struct slot *, int);
 static int		pcic_io(struct slot *, int);
 static u_int		build_freelist(u_int);
@@ -161,6 +161,12 @@ putw(struct pcic_slot *sp, int reg, unsigned short word)
 /*
  *	Loadable kernel module interface.
  */
+#ifdef	LKM
+/*
+ *	This defines the lkm_misc module use by modload
+ *	to define the module name.
+ */
+MOD_MISC(pcic);
 
 /*
  *	Module handler that processes loads and unloads.
@@ -168,56 +174,73 @@ putw(struct pcic_slot *sp, int reg, unsigned short word)
  *	is called to install the slots (if any).
  */
 static int
-pcic_modevent(module_t mod, int what, void *arg)
+pcic_handle(struct lkm_table *lkmtp, int cmd)
 {
 	int err = 0;	/* default = success*/
-	static int pcic_started = 0;
 
-	switch (what) {
-	case MOD_LOAD:
+	switch(cmd) {
+	case LKM_E_LOAD:
 
+		/*
+		 * Don't load twice! (lkmexists() is exported by kern_lkm.c)
+		 */
+		if (lkmexists(lkmtp))
+			return(EEXIST);
 		/*
 		 *	Call the probe routine to find the slots. If
 		 *	no slots exist, then don't bother loading the module.
-		 *	XXX but this is not appropriate as a static module.
 		 */
-		if (pcic_probe())
-			pcic_started = 1;
-		break;
-
-	case MOD_UNLOAD:
-		/*
-		 *	Attempt to unload the slot driver.
-		 */
-		if (pcic_started) {
-			printf("Unloading PCIC driver\n");
-			err = pcic_unload();
-			pcic_started = 0;
-		}
+		if (pcic_probe() == 0)
+			return(ENODEV);
+		break;		/* Success*/
+	/*
+	 *	Attempt to unload the slot driver.
+	 */
+	case LKM_E_UNLOAD:
+		printf("Unloading PCIC driver\n");
+		err = pcic_unload(lkmtp, cmd);
 		break;		/* Success*/
 
-	default:	/* we only care about load/unload; ignore shutdown */
+	default:	/* we only understand load/unload*/
+		err = EINVAL;
 		break;
 	}
 
 	return(err);
 }
 
-static moduledata_t pcic_mod = {
-	"pcic",
-	pcic_modevent,
-	0
-};
-
-/* After configure() has run..  bring on the new bus system! */
-DECLARE_MODULE(pcic, pcic_mod, SI_SUB_CONFIGURE, SI_ORDER_MIDDLE);
+/*
+ * External entry point; should generally match name of .o file.  The
+ * arguments are always the same for all loaded modules.  The "load",
+ * "unload", and "stat" functions in "DISPATCH" will be called under
+ * their respective circumstances unless their value is "lkm_nullcmd".
+ * If called, they are called with the same arguments (cmd is included to
+ * allow the use of a single function, ver is included for version
+ * matching between modules and the kernel loader for the modules).
+ *
+ * Since we expect to link in the kernel and add external symbols to
+ * the kernel symbol name space in a future version, generally all
+ * functions used in the implementation of a particular module should
+ * be static unless they are expected to be seen in other modules or
+ * to resolve unresolved symbols alread existing in the kernel (the
+ * second case is not likely to ever occur).
+ *
+ * The entry point should return 0 unless it is refusing load (in which
+ * case it should return an errno from errno.h).
+ */
+int
+pcic_mod(struct lkm_table *lkmtp, int cmd, int ver)
+{
+	MOD_DISPATCH(pcic, lkmtp, cmd, ver,
+		pcic_handle, pcic_handle, lkm_nullcmd);
+}
 
 /*
  *	pcic_unload - Called when unloading a LKM.
  *	Disables interrupts and resets PCIC.
  */
 static int
-pcic_unload()
+pcic_unload(struct lkm_table *lkmtp, int cmd)
 {
 	int	slot;
 	struct pcic_slot *sp = pcic_slots;
@@ -234,6 +257,7 @@ pcic_unload()
 	return(0);
 }
 
+#endif /* LKM */
 
 #if 0
 static void
@@ -525,7 +549,7 @@ printf("Map I/O 0x%x (size 0x%x) on Window %d\n", ip->start, ip->size, win);
 int
 pcic_probe(void)
 {
-	int slotnum, validslots = 0;
+	int slotnum, i, validslots = 0;
 	u_int free_irqs;
 	struct slot *slt;
 	struct pcic_slot *sp;
@@ -551,6 +575,9 @@ pcic_probe(void)
 	cinfo.irqs = free_irqs;
 	cinfo.imask = &pcic_imask;
 
+#ifdef	LKM
+	bzero(pcic_slots, sizeof(pcic_slots));
+#endif
 	sp = pcic_slots;
 	for (slotnum = 0; slotnum < PCIC_MAX_SLOTS; slotnum++, sp++) {
 		/*

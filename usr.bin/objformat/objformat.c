@@ -26,36 +26,112 @@
  * $FreeBSD$
  */
 
-#include <err.h>
-#include <objformat.h>
+#include <sys/types.h>
+
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <unistd.h>
+#include <string.h>
 
+#ifdef FREEBSD_ELF
+int objformat_aout = 0;
+#else
+int objformat_aout = 1;
+#endif
+
+void
+getobjfmt(void)
+{
+	char *env;
+	int i;
+
+	/* first hint is /etc/objformat */
+	FILE *fp = fopen("/etc/objformat", "r");
+	if (fp) {
+		char buf[1024];
+		buf[1023] = '\0';
+		while (fgets(buf, sizeof(buf) - 1, fp) != NULL) {
+			i = strlen(buf);
+			if (buf[i - 1] == '\n')
+				buf[i - 1] = '\0';
+			if (strcmp(buf, "OBJFORMAT=aout") == 0)
+				objformat_aout = 1;
+			else if (strcmp(buf, "OBJFORMAT=elf") == 0)
+				objformat_aout = 0;
+			else
+				fprintf(stderr, "Unrecognized line in /etc/objformat: %s\n", buf);
+		}
+		fclose(fp);
+	}
+	/* but the user $OBJFORMAT overrides system default */
+	env = getenv("OBJFORMAT");
+	if (env) {
+		if (strcmp(env, "aout") == 0)
+			objformat_aout = 1;
+		else if (strcmp(env, "elf") == 0)
+			objformat_aout = 0;
+		else
+			fprintf(stderr, "Unrecognized value of $OBJFORMAT: %s\n", env);
+	}
+}
+
+void
+scanargv(int *argc, char **argv, int strip)
+{
+	int i, j;
+
+	for (i = 1; i < *argc; i++) {
+		if (strcmp (argv[i], "-aout") == 0) {
+			objformat_aout = 1;
+			continue;
+		} else if (strcmp (argv[i], "-elf") == 0) {
+			objformat_aout = 0;
+			continue;
+		}
+	}
+
+	/* if just looking, return now */
+	if (!strip)
+		return;
+
+	/* otherwise, remove all traces of switches from argv */
+	for (i = 1; i < *argc; i++) {
+		if (strcmp (argv[i], "-aout") == 0 ||
+		    strcmp (argv[i], "-elf") == 0) {
+			/* copy NULL at end of argv as well */
+			for (j = i + 1; j <= *argc; j++) {
+				argv[j - 1] = argv[j];
+			}
+			(*argc)--;
+		}
+	}
+}
+
+
+#ifdef MAIN
 int
 main(int argc, char **argv)
 {
-	char objformat[32];
 	char *path, *chunk;
+	char *postfix;
 	char *cmd, *newcmd = NULL;
 	char *objformat_path;
-
-	if (getobjformat(objformat, sizeof objformat, &argc, argv) == -1)
-		errx(1, "Invalid object format");
+	int i;
 
 	cmd = strrchr(argv[0], '/');
-	if (cmd != NULL)
+	if (cmd)
 		cmd++;
 	else
 		cmd = argv[0];
 
+	getobjfmt();
+	scanargv(&argc, argv, 1);
+
 	if (strcmp(cmd, "objformat") == 0) {
-		if (argc != 1) {
-			fprintf(stderr, "Usage: objformat\n");
-			exit(1);
-		}
-		printf("%s\n", objformat);
+		if (objformat_aout)
+			printf("aout\n");
+		else
+			printf("elf\n");
 		exit(0);
 	}
 
@@ -65,19 +141,35 @@ main(int argc, char **argv)
 		objformat_path = "/usr/libexec";
 	path = strdup(objformat_path);
 
-	setenv("OBJFORMAT", objformat, 1);
+	if (objformat_aout) {
+		putenv("OBJFORMAT=aout");
+		postfix = "aout";
+	} else {
+		putenv("OBJFORMAT=elf");
+		postfix = "elf";
+	}
 
 	while ((chunk = strsep(&path, ":")) != NULL) {
 		if (newcmd != NULL) {
 			free(newcmd);
 			newcmd = NULL;
 		}
-		asprintf(&newcmd, "%s/%s/%s", chunk, objformat, cmd);
+		asprintf(&newcmd, "%s/%s/%s", chunk, postfix, cmd);
 		if (newcmd == NULL)
 			err(1, "cannot allocate memory for new command");
+
+		if (getenv("OBJFORMAT_DEBUG") != NULL) {
+			fprintf(stderr, "objformat: %s -> %s\n", cmd, newcmd);
+#if 0
+			for (i = 1; i < argc; i++) 
+				fprintf(stderr, "argv[%d]: %s\n", i, argv[i]);
+#endif
+		}
 
 		argv[0] = newcmd;
 		execv(newcmd, argv);
 	}
-	err(1, "could not exec %s/%s in %s", objformat, cmd, objformat_path);
+	err(1, "could not exec %s/%s in %s", postfix, cmd, objformat_path);
 }
+
+#endif

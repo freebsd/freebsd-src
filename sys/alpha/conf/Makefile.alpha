@@ -1,7 +1,7 @@
 # Makefile.alpha -- with config changes.
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.alpha	7.1 5/10/91
-#	$Id: Makefile.alpha,v 1.15 1998/12/17 22:36:21 dfr Exp $
+#	$Id: Makefile.alpha,v 1.9 1998/09/16 08:22:09 dfr Exp $
 #
 # Makefile for FreeBSD
 #
@@ -17,7 +17,7 @@
 #
 
 # Which version of config(8) is required.
-%VERSREQ=	300009
+%VERSREQ=	300007
 
 BINFORMAT?=	elf
 
@@ -41,8 +41,8 @@ INCLUDES+= -I$S/../include
 .else
 INCLUDES+= -I/usr/include
 .endif
-COPTS=	${INCLUDES} ${IDENT} -DKERNEL -include opt_global.h
-CFLAGS=	${COPTFLAGS} ${CWARNFLAGS} ${DEBUG} ${COPTS}
+COPTS=	${INCLUDES} ${IDENT} -DKERNEL -include opt_global.h -U__NetBSD__
+CFLAGS=	${COPTFLAGS} ${CWARNFLAGS} ${DEBUG} ${COPTS} -mno-fp-regs -Wa,-mev56
 LOAD_ADDRESS?=	0xfffffc0000300000
 DEFINED_PROF=	${PROF}
 .if defined(PROF)
@@ -78,7 +78,7 @@ SYSTEM_LD_HEAD= @echo loading $@; rm -f $@
 .if ${BINFORMAT} == elf
 SYSTEM_OBJS= locore.o setdef0.o vnode_if.o \
 	${OBJS} ioconf.o param.o config.o \
-	setdef1.o hack.So
+	setdef1.o hack.so
 SYSTEM_LD= @${LD} --export-dynamic -T$S/alpha/conf/kernel.script -e locorestart \
 	-o $@ -X ${SYSTEM_OBJS} vers.o
 SYSTEM_LD_TAIL= @${SIZE} $@; chmod 755 $@
@@ -97,10 +97,6 @@ SYSTEM_LD_TAIL= @${SIZE} $@; chmod 755 $@
 %LOAD
 
 %CLEAN
-
-.if !exists(.depend)
-${SYSTEM_OBJS}: ${BEFORE_DEPEND:M*.h}
-.endif
 
 clean:
 	rm -f *.o *.s eddep errs genassym gensetdefs kernel linterrs \
@@ -124,9 +120,9 @@ symbols.sort: ${ALPHA}/alpha/symbols.raw
 locore.o: ${ALPHA}/alpha/locore.s assym.s
 	${NORMAL_S}
 
-hack.So: Makefile
+hack.so: Makefile
 	echo "void __elf_kld_hack() {}" > hack.c
-	${CC} -shared -nostdlib hack.c -o hack.So
+	${CC} -shared -nostdlib hack.c -o hack.so
 	rm -f hack.c
 
 setdef0.o: ${ALPHA}/alpha/setdef0.c setdefs.h

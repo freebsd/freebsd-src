@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)interactive.c	8.5 (Berkeley) 5/1/95";
 #endif
 static const char rcsid[] =
-	"$Id: interactive.c,v 1.6 1998/09/17 20:18:11 imp Exp $";
+	"$Id: interactive.c,v 1.5 1998/07/28 06:20:08 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -343,8 +343,7 @@ getcmd(curdir, cmd, name, size, ap)
 	 * If no argument, use curdir as the default.
 	 */
 	if (*cp == '\0') {
-		(void) strncpy(name, curdir, size);
-		name[size - 1] = '\0';
+		(void) strcpy(name, curdir);
 		return;
 	}
 	nextarg = cp;
@@ -378,8 +377,7 @@ getnext:
 	ap->argcnt = ap->glob.gl_pathc;
 
 retnext:
-	strncpy(name, ap->glob.gl_pathv[ap->glob.gl_pathc - ap->argcnt], size);
-	name[size - 1] = '\0';
+	strcpy(name, ap->glob.gl_pathv[ap->glob.gl_pathc - ap->argcnt]);
 	if (--ap->argcnt == 0) {
 		ap->freeglob = 0;
 		globfree(&ap->glob);

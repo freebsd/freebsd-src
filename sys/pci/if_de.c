@@ -1,5 +1,5 @@
 /*	$NetBSD: if_de.c,v 1.80 1998/09/25 18:06:53 matt Exp $	*/
-/*	$Id: if_de.c,v 1.92 1998/12/14 05:47:26 dillon Exp $ */
+/*	$Id: if_de.c,v 1.88 1998/10/13 09:05:57 peter Exp $ */
 
 /*-
  * Copyright (c) 1994-1997 Matt Thomas (matt@3am-software.com)
@@ -39,6 +39,11 @@
  */
 #define	TULIP_HDR_DATA
 
+#ifdef __FreeBSD__
+#include "opt_inet.h"
+#include "opt_ipx.h"
+#endif
+
 #ifdef __NetBSD__
 #include "opt_inet.h"
 #include "opt_ns.h"
@@ -55,21 +60,6 @@
 #include <machine/clock.h>
 #elif defined(__bsdi__) || defined(__NetBSD__)
 #include <sys/device.h>
-#endif
-
-#if defined(__FreeBSD__)
-/* In case somebody is trying to run this on an older 2.2 or 3.0 */
-#ifndef __FreeBSD_version	/* defined in sys/param.h on current code */
-#if __FreeBSD__ >= 3
-#define __FreeBSD_version 300000
-#else
-#define __FreeBSD_version 200000
-#endif
-#endif
-#if __FreeBSD_version >= 300000
-#include "opt_inet.h"
-#include "opt_ipx.h"
-#endif
 #endif
 
 #if defined(__NetBSD__)
@@ -122,6 +112,14 @@
 #include <pci/pcivar.h>
 #include <pci/dc21040reg.h>
 #define	DEVAR_INCLUDE	"pci/if_devar.h"
+#endif
+/* In case somebody is trying to run this on an older 2.2 or 3.0 */
+#ifndef __FreeBSD_version	/* defined in sys/param.h on current code */
+#if __FreeBSD__ >= 3
+#define __FreeBSD_version 300000
+#else
+#define __FreeBSD_version 200000
+#endif
 #endif
 #endif /* __FreeBSD__ */
 
@@ -2757,7 +2755,6 @@ static const struct {
     { tulip_identify_znyx_nic,		{ 0x00, 0xC0, 0x95 } },
     { tulip_identify_cogent_nic,	{ 0x00, 0x00, 0x92 } },
     { tulip_identify_asante_nic,	{ 0x00, 0x00, 0x94 } },
-    { tulip_identify_cogent_nic,	{ 0x00, 0x00, 0xD1 } },
     { tulip_identify_accton_nic,	{ 0x00, 0x00, 0xE8 } },
     { NULL }
 };
@@ -2861,7 +2858,7 @@ tulip_read_macaddr(
 	 * Some folks don't use the standard ethernet rom format
 	 * but instead just put the address in the first 6 bytes
 	 * of the rom and let the rest be all 0xffs.  (Can we say
-	 * ZNYX?) (well sometimes they put in a checksum so we'll
+	 * ZNYX???) (well sometimes they put in a checksum so we'll
 	 * start at 8).
 	 */
 	for (idx = 8; idx < 32; idx++) {
@@ -5310,7 +5307,7 @@ tulip_pci_shutdown(
 }
 #endif
 
-static const char*
+static char*
 tulip_pci_probe(
     pcici_t config_id,
     pcidi_t device_id)

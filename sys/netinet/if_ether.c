@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ether.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ether.c,v 1.51 1999/01/18 01:54:36 fenner Exp $
+ * $Id: if_ether.c,v 1.47 1998/06/12 03:48:14 julian Exp $
  */
 
 /*
@@ -41,7 +41,6 @@
  */
 
 #include "opt_inet.h"
-#include "opt_bdg.h"
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -327,7 +326,7 @@ arpresolve(ac, rt, m, dst, desten, rt0)
 	register u_char *desten;
 	struct rtentry *rt0;
 {
-	register struct llinfo_arp *la = 0;
+	register struct llinfo_arp *la;
 	struct sockaddr_dl *sdl;
 
 	if (m->m_flags & M_BCAST) {	/* broadcast */
@@ -340,7 +339,7 @@ arpresolve(ac, rt, m, dst, desten, rt0)
 	}
 	if (rt)
 		la = (struct llinfo_arp *)rt->rt_llinfo;
-	if (la == 0) {
+	else {
 		la = arplookup(SIN(dst)->sin_addr.s_addr, 1, 0);
 		if (la)
 			rt = la->la_rt;
@@ -462,16 +461,7 @@ in_arpinput(m)
 	(void)memcpy(&isaddr, ea->arp_spa, sizeof (isaddr));
 	(void)memcpy(&itaddr, ea->arp_tpa, sizeof (itaddr));
 	for (ia = in_ifaddrhead.tqh_first; ia; ia = ia->ia_link.tqe_next)
-#ifdef BRIDGE
-		/*
-		 * For a bridge, we want to check the address irrespective
-		 * of the receive interface. (This will change slightly
-		 * when we have clusters of interfaces).
-		 */
-		{
-#else
 		if (ia->ia_ifp == &ac->ac_if) {
-#endif
 			maybe_ia = ia;
 			if ((itaddr.s_addr == ia->ia_addr.sin_addr.s_addr) ||
 			     (isaddr.s_addr == ia->ia_addr.sin_addr.s_addr))
@@ -504,7 +494,6 @@ in_arpinput(m)
 	}
 	la = arplookup(isaddr.s_addr, itaddr.s_addr == myaddr.s_addr, 0);
 	if (la && (rt = la->la_rt) && (sdl = SDL(rt->rt_gateway))) {
-#ifndef BRIDGE /* the following is not an error when doing bridging */
 		if (rt->rt_ifp != &ac->ac_if) {
 			log(LOG_ERR, "arp: %s is on %s%d but got reply from %6D on %s%d\n",
 			    inet_ntoa(isaddr),
@@ -513,7 +502,6 @@ in_arpinput(m)
 			    ac->ac_if.if_name, ac->ac_if.if_unit);
 			goto reply;
 		}
-#endif
 		if (sdl->sdl_alen &&
 		    bcmp((caddr_t)ea->arp_sha, LLADDR(sdl), sdl->sdl_alen))
 			if (rt->rt_expire)

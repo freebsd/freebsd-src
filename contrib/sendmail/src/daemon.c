@@ -15,9 +15,9 @@
 
 #ifndef lint
 #ifdef DAEMON
-static char sccsid[] = "@(#)daemon.c	8.234 (Berkeley) 12/17/1998 (with daemon mode)";
+static char sccsid[] = "@(#)daemon.c	8.220 (Berkeley) 6/24/98 (with daemon mode)";
 #else
-static char sccsid[] = "@(#)daemon.c	8.234 (Berkeley) 12/17/1998 (without daemon mode)";
+static char sccsid[] = "@(#)daemon.c	8.220 (Berkeley) 6/24/98 (without daemon mode)";
 #endif
 #endif /* not lint */
 
@@ -103,22 +103,15 @@ getrequests(e)
 	ENVELOPE *e;
 {
 	int t;
-	time_t refuse_connections_until = 0;
-	bool firsttime = TRUE;
+	bool refusingconnections = TRUE;
 	FILE *pidf;
-	int sff;
 	int socksize;
 	u_short port;
 #if XDEBUG
 	bool j_has_dot;
 #endif
-	char status[MAXLINE];
 	extern void reapchild __P((int));
-#ifdef NETUNIX
-	extern int ControlSocket;
-#endif
 	extern int opendaemonsocket __P((bool));
-	extern int opencontrolsocket __P((void));
 
 	/*
 	**  Set up the address for the mailer.
@@ -176,18 +169,11 @@ getrequests(e)
 	/* get a socket for the SMTP connection */
 	socksize = opendaemonsocket(TRUE);
 
-	if (opencontrolsocket() < 0)
-		sm_syslog(LOG_WARNING, NOQID,
-			  "daemon could not open control socket: %s",
-			  errstring(errno));
-
 	(void) setsignal(SIGCHLD, reapchild);
 
 	/* write the pid to the log file for posterity */
-	sff = SFF_NOLINK|SFF_ROOTOK|SFF_REGONLY|SFF_CREAT;
-	if (TrustedUid != 0 && RealUid == TrustedUid)
-		sff |= SFF_OPENASROOT;
-	pidf = safefopen(PidFile, O_WRONLY|O_TRUNC, 0644, sff);
+	pidf = safefopen(PidFile, O_WRONLY|O_TRUNC, 0644,
+			 SFF_NOLINK|SFF_ROOTOK|SFF_REGONLY|SFF_CREAT);
 	if (pidf == NULL)
 	{
 		sm_syslog(LOG_ERR, NOQID, "unable to write %s", PidFile);
@@ -215,9 +201,6 @@ getrequests(e)
 	}
 #endif
 
-	/* Add parent process as first item */
-	proc_list_add(getpid(), "Sendmail daemon");
-
 	if (tTd(15, 1))
 		printf("getrequests: %d\n", DaemonSocket);
 
@@ -225,34 +208,30 @@ getrequests(e)
 	{
 		register pid_t pid;
 		auto SOCKADDR_LEN_T lotherend;
-		bool timedout = FALSE;
-		bool control = FALSE;
 		int savederrno;
 		int pipefd[2];
 		extern bool refuseconnections __P((int));
 
 		/* see if we are rejecting connections */
 		(void) blocksignal(SIGALRM);
-		if (curtime() >= refuse_connections_until)
+		if (refuseconnections(ntohs(port)))
 		{
-			if (refuseconnections(ntohs(port)))
+			if (DaemonSocket >= 0)
 			{
-				if (DaemonSocket >= 0)
-				{
-				       /* close socket so peer fails quickly */
-				       (void) close(DaemonSocket);
-				       DaemonSocket = -1;
-				}
+				/* close socket so peer will fail quickly */
+				(void) close(DaemonSocket);
+				DaemonSocket = -1;
+			}
+			refusingconnections = TRUE;
+			sleep(15);
+			continue;
+		}
 
-				/* refuse connections for next 15 seconds */
-				refuse_connections_until = curtime() + 15;
-			}
-			else if (DaemonSocket < 0 || firsttime)
-			{
-			      /* arrange to (re)open the socket if needed */
-			      (void) opendaemonsocket(FALSE);
-			      firsttime = FALSE;
-			}
+		/* arrange to (re)open the socket if necessary */
+		if (refusingconnections)
+		{
+			(void) opendaemonsocket(FALSE);
+			refusingconnections = FALSE;
 		}
 
 #if XDEBUG
@@ -279,6 +258,9 @@ getrequests(e)
 		}
 #endif
 
+		/* wait for a connection */
+		setproctitle("accepting connections on port %d",
+			     ntohs(port));
 #if 0
 		/*
 		**  Andrew Sun <asun@ieps-sun.ml.com> claims that this will
@@ -286,96 +268,33 @@ getrequests(e)
 		**  so is it worth doing this?
 		*/
 
-		if (DaemonSocket >= 0 &&
-		    SetNonBlocking(DaemonSocket, FALSE) < 0)
+		if (SetNonBlocking(DaemonSocket, FALSE) < 0)
 			log an error here;
 #endif
 		(void) releasesignal(SIGALRM);
 		for (;;)
 		{
-			int highest = -1;
 			fd_set readfds;
 			struct timeval timeout;
 
 			FD_ZERO(&readfds);
-
-			/* wait for a connection */
-			if (DaemonSocket >= 0)
-			{
-				sm_setproctitle(TRUE,
-						"accepting connections on port %d",
-						ntohs(port));
-				if (DaemonSocket > highest)
-					highest = DaemonSocket;
-				FD_SET(DaemonSocket, &readfds);
-			}
-#ifdef NETUNIX
-			if (ControlSocket >= 0)
-			{
-				if (ControlSocket > highest)
-					highest = ControlSocket;
-				FD_SET(ControlSocket, &readfds);
-			}
-#endif
-			if (DaemonSocket >= 0)
-				timeout.tv_sec = 60;
-			else
-				timeout.tv_sec = 5;
+			FD_SET(DaemonSocket, &readfds);
+			timeout.tv_sec = 60;
 			timeout.tv_usec = 0;
 
-			t = select(highest + 1, FDSET_CAST &readfds,
-			   	   NULL, NULL, &timeout);
-
+			t = select(DaemonSocket + 1, FDSET_CAST &readfds,
+				   NULL, NULL, &timeout);
 			if (DoQueueRun)
 				(void) runqueue(TRUE, FALSE);
-			if (t <= 0)
-			{
-				timedout = TRUE;
-				break;
-			}
+			if (t <= 0 || !FD_ISSET(DaemonSocket, &readfds))
+				continue;
 
-			control = FALSE;
 			errno = 0;
-			if (DaemonSocket >= 0 &&
-			    FD_ISSET(DaemonSocket, &readfds))
-			{
-				lotherend = socksize;
-				t = accept(DaemonSocket,
-					   (struct sockaddr *)&RealHostAddr,
-					   &lotherend);
-			}
-#ifdef NETUNIX
-			else if (ControlSocket >= 0 &&
-				 FD_ISSET(ControlSocket, &readfds))
-			{
-				struct sockaddr_un sa_un;
-
-				lotherend = sizeof sa_un;
-				t = accept(ControlSocket,
-					   (struct sockaddr *)&sa_un,
-					   &lotherend);
-				control = TRUE;
-			}
-#endif
+			lotherend = socksize;
+			t = accept(DaemonSocket,
+			    (struct sockaddr *)&RealHostAddr, &lotherend);
 			if (t >= 0 || errno != EINTR)
 				break;
-		}
-		if (timedout)
-		{
-			timedout = FALSE;
-			continue;
-		}
-		if (control)
-		{
-			if (t >= 0)
-			{
-				extern void control_command __P((int, ENVELOPE *));
-
-				control_command(t, e);
-			}
-			else
-				syserr("getrequests: control accept");
-			continue;
 		}
 		savederrno = errno;
 		(void) blocksignal(SIGALRM);
@@ -387,6 +306,8 @@ getrequests(e)
 			/* arrange to re-open the socket next time around */
 			(void) close(DaemonSocket);
 			DaemonSocket = -1;
+			refusingconnections = TRUE;
+			sleep(5);
 			continue;
 		}
 
@@ -439,16 +360,12 @@ getrequests(e)
 			(void) setsignal(SIGCHLD, SIG_DFL);
 			(void) setsignal(SIGHUP, intsig);
 			(void) close(DaemonSocket);
-			clrcontrol();
 			proc_list_clear();
-
-			/* Add parent process as first child item */
-			proc_list_add(getpid(), "daemon child");
 
 			/* don't schedule queue runs if we are told to ETRN */
 			QueueIntvl = 0;
 
-			sm_setproctitle(TRUE, "startup with %s",
+			setproctitle("startup with %s",
 				anynet_ntoa(&RealHostAddr));
 
 			if (pipefd[0] != -1)
@@ -478,34 +395,36 @@ getrequests(e)
 			if (strlen(p) > (SIZE_T) MAXNAME)
 				p[MAXNAME] = '\0';
 			RealHostName = newstr(p);
-			sm_setproctitle(TRUE, "startup with %s", p);
+			setproctitle("startup with %s", p);
 
 			if ((inchannel = fdopen(t, "r")) == NULL ||
 			    (t = dup(t)) < 0 ||
 			    (outchannel = fdopen(t, "w")) == NULL)
 			{
 				syserr("cannot open SMTP server channel, fd=%d", t);
-				finis(FALSE, EX_OK);
+				exit(EX_OK);
 			}
 
 			InChannel = inchannel;
 			OutChannel = outchannel;
 			DisConnected = FALSE;
 
+			/* open maps for check_relay ruleset */
+			initmaps(FALSE, e);
+
 #ifdef XLA
 			if (!xla_host_ok(RealHostName))
 			{
 				message("421 Too many SMTP sessions for this host");
-				finis(FALSE, EX_OK);
+				exit(EX_OK);
 			}
 #endif
+
 			break;
 		}
 
 		/* parent -- keep track of children */
-		snprintf(status, MAXLINE, "SMTP server child for %s",
-			 anynet_ntoa(&RealHostAddr));
-		proc_list_add(pid, status);
+		proc_list_add(pid);
 		(void) releasesignal(SIGCHLD);
 
 		/* close the read end of the synchronization pipe */
@@ -633,7 +552,7 @@ opendaemonsocket(firsttime)
 		return socksize;
 	} while (ntries++ < MAXOPENTRIES && transienterror(saveerrno));
 	syserr("!opendaemonsocket: server SMTP socket wedged: exiting");
-	/*NOTREACHED*/
+	finis();
 	return -1;  /* avoid compiler warning on IRIX */
 }
 /*
@@ -1361,7 +1280,7 @@ getauthinfo(fd, may_be_forged)
 		/* translate that to a host name */
 		RealHostName = newstr(hostnamebyanyaddr(&RealHostAddr));
 		if (strlen(RealHostName) > MAXNAME)
-			RealHostName[MAXNAME] = '\0';
+			RealHostName[MAXNAME - 1] = '\0';
 	}
 
 	/* cross check RealHostName with forward DNS lookup */
@@ -1369,8 +1288,8 @@ getauthinfo(fd, may_be_forged)
 	    RealHostName[0] == '[')
 	{
 		/*
-		**  address is not a socket or have an
-		**  IP address with no forward lookup
+		** address is not a socket or have an
+		** IP address with no forward lookup
 		*/
 		*may_be_forged = FALSE;
 	}

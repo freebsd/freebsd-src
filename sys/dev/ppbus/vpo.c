@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: vpo.c,v 1.10 1999/01/09 18:05:46 nsouch Exp $
+ *	$Id: vpo.c,v 1.4 1997/09/01 00:51:52 bde Exp $
  *
  */
 
@@ -50,8 +50,6 @@
 #ifdef	KERNEL
 #include <sys/kernel.h>
 #endif /*KERNEL */
-
-#include "opt_vpo.h"
 
 #include <dev/ppbus/ppbconf.h>
 #include <dev/ppbus/vpoio.h>
@@ -159,6 +157,7 @@ vpoprobe(struct ppb_data *ppb)
 static int
 vpoattach(struct ppb_device *dev)
 {
+	struct scsibus_data *scbus;
 	struct vpo_data *vpo = vpodata[dev->id_unit];
 	struct cam_devq *devq;
 
@@ -212,11 +211,9 @@ vpoattach(struct ppb_device *dev)
 static void
 vpo_intr(struct vpo_data *vpo, struct ccb_scsiio *csio)
 {
-	int errno;	/* error in errno.h */
+
+	int i, errno;	/* error in errno.h */
 	int s;
-#ifdef VP0_DEBUG
-	int i;
-#endif
 
 	s = splcam();
 
@@ -413,10 +410,6 @@ vpo_action(struct cam_sim *sim, union ccb *ccb)
 		printf("vpo%d: XPT_PATH_INQ request\n", vpo->vpo_unit);
 #endif
 		cpi->version_num = 1; /* XXX??? */
-		cpi->hba_inquiry = 0;
-		cpi->target_sprt = 0;
-		cpi->hba_misc = 0;
-		cpi->hba_eng_cnt = 0;
 		cpi->max_target = 7;
 		cpi->max_lun = 0;
 		cpi->initiator_id = VP0_INITIATOR;

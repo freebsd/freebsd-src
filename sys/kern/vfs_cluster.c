@@ -33,18 +33,16 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cluster.c	8.7 (Berkeley) 2/13/94
- * $Id: vfs_cluster.c,v 1.76 1999/01/08 17:31:15 eivind Exp $
+ * $Id: vfs_cluster.c,v 1.69 1998/08/24 08:39:39 dfr Exp $
  */
 
 #include "opt_debug_cluster.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/buf.h>
 #include <sys/vnode.h>
-#include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/resourcevar.h>
 #include <vm/vm.h>
@@ -54,14 +52,15 @@
 
 #if defined(CLUSTERDEBUG)
 #include <sys/sysctl.h>
+#include <sys/kernel.h>
 static int	rcluster= 0;
 SYSCTL_INT(_debug, OID_AUTO, rcluster, CTLFLAG_RW, &rcluster, 0, "");
 #endif
 
-static MALLOC_DEFINE(M_SEGMENT, "cluster_save buffer", "cluster_save buffer");
-
+#ifdef notyet_block_reallocation_enabled
 static struct cluster_save *
 	cluster_collectbufs __P((struct vnode *vp, struct buf *last_bp));
+#endif
 static struct buf *
 	cluster_rbuild __P((struct vnode *vp, u_quad_t filesize, daddr_t lbn,
 			    daddr_t blkno, long size, int run, struct buf *fbp));
@@ -166,10 +165,12 @@ cluster_read(vp, filesize, lblkno, size, cred, totread, seqcount, bpp)
 		}
 		reqbp = bp = NULL;
 	} else {
-		off_t firstread = bp->b_offset;
-
-		KASSERT(bp->b_offset != NOOFFSET,
-		    ("cluster_read: no buffer offset"));
+		off_t firstread;
+		firstread = bp->b_offset;
+#ifdef DIAGNOSTIC
+		if (bp->b_offset == NOOFFSET)
+			panic("cluster_read: no buffer offset");
+#endif
 		if (firstread + totread > filesize)
 			totread = filesize - firstread;
 		if (totread > size) {
@@ -308,12 +309,13 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run, fbp)
 {
 	struct buf *bp, *tbp;
 	daddr_t bn;
-	int i, inc, j;
+	int i, inc, j, s;
 
-	KASSERT(size == vp->v_mount->mnt_stat.f_iosize,
-	    ("cluster_rbuild: size %ld != filesize %ld\n",
-	    size, vp->v_mount->mnt_stat.f_iosize));
-
+#ifdef DIAGNOSTIC
+	if (size != vp->v_mount->mnt_stat.f_iosize)
+		panic("cluster_rbuild: size %ld != filesize %ld\n",
+		    size, vp->v_mount->mnt_stat.f_iosize);
+#endif
 	/*
 	 * avoid a division
 	 */
@@ -347,7 +349,10 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run, fbp)
 	bp->b_blkno = blkno;
 	bp->b_lblkno = lbn;
 	bp->b_offset = tbp->b_offset;
-	KASSERT(bp->b_offset != NOOFFSET, ("cluster_rbuild: no buffer offset"));
+#ifdef DIAGNOSTIC
+	if (bp->b_offset == NOOFFSET)
+		panic("cluster_rbuild: no buffer offset");
+#endif
 	pbgetvp(vp, bp);
 
 	TAILQ_INIT(&bp->b_cluster.cluster_head);
@@ -510,7 +515,11 @@ cluster_write(bp, filesize)
 		lblocksize = bp->b_bufsize;
 	}
 	lbn = bp->b_lblkno;
-	KASSERT(bp->b_offset != NOOFFSET, ("cluster_write: no buffer offset"));
+
+#ifdef DIAGNOSTIC
+	if (bp->b_offset == NOOFFSET)
+		panic("cluster_write: no buffer offset");
+#endif
 
 	/* Initialize vnode to beginning of file. */
 	if (lbn == 0)
@@ -530,7 +539,16 @@ cluster_write(bp, filesize)
 			 * reallocating to make it sequential.
 			 */
 			cursize = vp->v_lastw - vp->v_cstart + 1;
+#ifndef notyet_block_reallocation_enabled
 			if (((u_quad_t) bp->b_offset + lblocksize) != filesize ||
+				lbn != vp->v_lastw + 1 ||
+				vp->v_clen <= cursize) {
+				if (!async)
+					cluster_wbuild(vp, lblocksize,
+						vp->v_cstart, cursize);
+			}
+#else
+			if ((lbn + 1) * lblocksize != filesize ||
 			    lbn != vp->v_lastw + 1 || vp->v_clen <= cursize) {
 				if (!async)
 					cluster_wbuild(vp, lblocksize,
@@ -565,6 +583,7 @@ cluster_write(bp, filesize)
 					return;
 				}
 			}
+#endif /* notyet_block_reallocation_enabled */
 		}
 		/*
 		 * Consider beginning a cluster. If at end of file, make
@@ -803,6 +822,7 @@ cluster_wbuild(vp, size, start_lbn, len)
 	return totalwritten;
 }
 
+#ifdef notyet_block_reallocation_enabled
 /*
  * Collect together all the buffers in a cluster.
  * Plus add one additional buffer.
@@ -813,7 +833,6 @@ cluster_collectbufs(vp, last_bp)
 	struct buf *last_bp;
 {
 	struct cluster_save *buflist;
-	struct buf *bp;
 	daddr_t lbn;
 	int i, len;
 
@@ -822,17 +841,11 @@ cluster_collectbufs(vp, last_bp)
 	    M_SEGMENT, M_WAITOK);
 	buflist->bs_nchildren = 0;
 	buflist->bs_children = (struct buf **) (buflist + 1);
-	for (lbn = vp->v_cstart, i = 0; i < len; lbn++, i++) {
-		(void) bread(vp, lbn, last_bp->b_bcount, NOCRED, &bp);
-		buflist->bs_children[i] = bp;
-		if (bp->b_blkno == bp->b_lblkno)
-			VOP_BMAP(bp->b_vp, bp->b_lblkno, NULL, &bp->b_blkno,
-				NULL, NULL);
-	}
-	buflist->bs_children[i] = bp = last_bp;
-	if (bp->b_blkno == bp->b_lblkno)
-		VOP_BMAP(bp->b_vp, bp->b_lblkno, NULL, &bp->b_blkno,
-			NULL, NULL);
+	for (lbn = vp->v_cstart, i = 0; i < len; lbn++, i++)
+		(void) bread(vp, lbn, last_bp->b_bcount, NOCRED,
+		    &buflist->bs_children[i]);
+	buflist->bs_children[i] = last_bp;
 	buflist->bs_nchildren = i + 1;
 	return (buflist);
 }
+#endif /* notyet_block_reallocation_enabled */

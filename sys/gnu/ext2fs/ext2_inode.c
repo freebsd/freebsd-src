@@ -80,8 +80,10 @@ ext2_init(struct vfsconf *vfsp)
  * set, then wait for the write to complete.
  */
 int
-ext2_update(vp, waitfor)
+ext2_update(vp, access, modify, waitfor)
 	struct vnode *vp;
+	struct timeval *access;
+	struct timeval *modify;
 	int waitfor;
 {
 	register struct ext2_sb_info *fs;
@@ -140,7 +142,8 @@ ext2_truncate(vp, length, flags, cred, p)
 	register struct ext2_sb_info *fs;
 	struct buf *bp;
 	int offset, size, level;
-	long count, nblocks, blocksreleased = 0;
+	long count, nblocks, vflags, blocksreleased = 0;
+	struct timeval tv;
 	register int i;
 	int aflags, error, allerror;
 	off_t osize;
@@ -154,6 +157,7 @@ printf("ext2_truncate called %d to %d\n", VTOI(ovp)->i_number, length);
 	    return EFBIG;
 
 	oip = VTOI(ovp);
+	getmicrotime(&tv);
 	if (ovp->v_type == VLNK &&
 	    oip->i_size < ovp->v_mount->mnt_maxsymlinklen) {
 #if DIAGNOSTIC
@@ -163,11 +167,11 @@ printf("ext2_truncate called %d to %d\n", VTOI(ovp)->i_number, length);
 		bzero((char *)&oip->i_shortlink, (u_int)oip->i_size);
 		oip->i_size = 0;
 		oip->i_flag |= IN_CHANGE | IN_UPDATE;
-		return (UFS_UPDATE(ovp, 1));
+		return (UFS_UPDATE(ovp, &tv, &tv, 1));
 	}
 	if (oip->i_size == length) {
 		oip->i_flag |= IN_CHANGE | IN_UPDATE;
-		return (UFS_UPDATE(ovp, 0));
+		return (UFS_UPDATE(ovp, &tv, &tv, 0));
 	}
 #if QUOTA
 	if (error = getinoquota(oip))
@@ -197,7 +201,7 @@ printf("ext2_truncate called %d to %d\n", VTOI(ovp)->i_number, length);
 		else
 			bawrite(bp);
 		oip->i_flag |= IN_CHANGE | IN_UPDATE;
-		return (UFS_UPDATE(ovp, 1));
+		return (UFS_UPDATE(ovp, &tv, &tv, 1));
 	}
 	/*
 	 * Shorten the size of the file. If the file is not being
@@ -253,8 +257,8 @@ printf("ext2_truncate called %d to %d\n", VTOI(ovp)->i_number, length);
 	for (i = NDADDR - 1; i > lastblock; i--)
 		oip->i_db[i] = 0;
 	oip->i_flag |= IN_CHANGE | IN_UPDATE;
-	allerror = UFS_UPDATE(ovp, 1);
-
+	if (error = UFS_UPDATE(ovp, &tv, &tv, MNT_WAIT))
+		allerror = error;
 	/*
 	 * Having written the new inode to disk, save its new configuration
 	 * and put back the old block pointers long enough to process them.
@@ -264,9 +268,8 @@ printf("ext2_truncate called %d to %d\n", VTOI(ovp)->i_number, length);
 	bcopy((caddr_t)&oip->i_db[0], (caddr_t)newblks, sizeof newblks);
 	bcopy((caddr_t)oldblks, (caddr_t)&oip->i_db[0], sizeof oldblks);
 	oip->i_size = osize;
-	error = vtruncbuf(ovp, cred, p, length, (int)fs->s_blocksize);
-	if (error && (allerror == 0))
-		allerror = error;
+	vflags = ((length > 0) ? V_SAVE : 0) | V_SAVEMETA;
+	allerror = vinvalbuf(ovp, vflags, cred, p, 0, 0);
 
 	/*
 	 * Indirect blocks first.
@@ -345,8 +348,8 @@ done:
 	for (i = 0; i < NDADDR; i++)
 		if (newblks[i] != oip->i_db[i])
 			panic("itrunc2");
-	if (length == 0 && (!TAILQ_EMPTY(&ovp->v_dirtyblkhd) ||
-			    !TAILQ_EMPTY(&ovp->v_cleanblkhd)))
+	if (length == 0 &&
+	    (ovp->v_dirtyblkhd.lh_first || ovp->v_cleanblkhd.lh_first))
 		panic("itrunc3");
 #endif /* DIAGNOSTIC */
 	/*

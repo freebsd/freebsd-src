@@ -35,6 +35,6 @@
 
 #include <paths.h>
 
-#define	_PATH_BOOTDIR	"/boot"
+#define	_PATH_BOOTDIR	"/usr/mdec"
 #undef _PATH_TMP
 #define	_PATH_TMP	"/tmp/EdDk.aXXXXXX"

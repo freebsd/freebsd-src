@@ -28,7 +28,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: kbdcontrol.c,v 1.20 1999/01/11 03:20:24 yokota Exp $";
+	"$Id: kbdcontrol.c,v 1.18 1998/09/04 10:15:48 yokota Exp $";
 #endif /* not lint */
 
 #include <ctype.h>
@@ -37,7 +37,6 @@ static const char rcsid[] =
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <fcntl.h>
 #include <machine/console.h>
 #include "path.h"
 #include "lex.h"
@@ -417,13 +416,8 @@ print_entry(FILE *fp, int value)
 }
 
 
-#ifdef __i386__
-void
-print_key_definition_line(FILE *fp, int scancode, struct keyent_t *key)
-#else
 void
 print_key_definition_line(FILE *fp, int scancode, struct key_t *key)
-#endif
 {
 	int i;
 
@@ -871,116 +865,14 @@ set_history(char *opt)
 		warn("setting history buffer size");
 }
 
-#ifdef __i386__
-static char
-*get_kbd_type_name(int type)
-{
-	static struct {
-		int type;
-		char *name;
-	} name_table[] = {
-		{ KB_84,	"AT 84" },
-		{ KB_101,	"AT 101/102" },
-		{ KB_OTHER,	"generic" },
-	};
-	int i;
-
-	for (i = 0; i < sizeof(name_table)/sizeof(name_table[0]); ++i) {
-		if (type == name_table[i].type)
-			return name_table[i].name;
-	}
-	return "unknown";
-}
-
-void
-show_kbd_info(void)
-{
-	keyboard_info_t info;
-
-	if (ioctl(0, KDGKBINFO, &info) == -1) {
-		warn("unable to obtain keyboard information");
-		return;
-	}
-	printf("kbd%d:\n", info.kb_index);
-	printf("    %.*s%d, type:%s (%d)\n",
-		sizeof(info.kb_name), info.kb_name, info.kb_unit,
-		get_kbd_type_name(info.kb_type), info.kb_type);
-}
-
-
-void
-set_keyboard(char *device)
-{
-	keyboard_info_t info;
-	int fd;
-
-	fd = open(device, O_RDONLY);
-	if (fd < 0) {
-		warn("cannot open %s", device);
-		return;
-	}
-	if (ioctl(fd, KDGKBINFO, &info) == -1) {
-		warn("unable to obtain keyboard information");
-		close(fd);
-		return;
-	}
-	/*
-	 * The keyboard device driver won't release the keyboard by
-	 * the following ioctl, but it automatically will, when the device 
-	 * is closed.  So, we don't check error here.
-	 */
-	ioctl(fd, CONS_RELKBD, 0);
-	close(fd);
-#if 1
-	printf("kbd%d\n", info.kb_index);
-	printf("    %.*s%d, type:%s (%d)\n",
-		sizeof(info.kb_name), info.kb_name, info.kb_unit,
-		get_kbd_type_name(info.kb_type), info.kb_type);
-#endif
-
-	if (ioctl(0, CONS_SETKBD, info.kb_index) == -1)
-		warn("unable to set keyboard");
-}
-
-
-void
-release_keyboard(void)
-{
-	keyboard_info_t info;
-
-	/*
-	 * If stdin is not associated with a keyboard, the following ioctl
-	 * will fail.
-	 */
-	if (ioctl(0, KDGKBINFO, &info) == -1) {
-		warn("unable to obtain keyboard information");
-		return;
-	}
-#if 1
-	printf("kbd%d\n", info.kb_index);
-	printf("    %.*s%d, type:%s (%d)\n",
-		sizeof(info.kb_name), info.kb_name, info.kb_unit,
-		get_kbd_type_name(info.kb_type), info.kb_type);
-#endif
-	if (ioctl(0, CONS_RELKBD, 0) == -1)
-		warn("unable to release the keyboard");
-}
-#endif /* __i386__ */
-
 
 static void
 usage()
 {
 	fprintf(stderr, "%s\n%s\n%s\n",
-#ifdef __i386__
-"usage: kbdcontrol [-dFKix] [-b  duration.pitch | [quiet.]belltype]",
-"                  [-r delay.repeat | speed] [-l mapfile] [-f # string]",
-"                  [-h size] [-k device] [-L mapfile]");
-#else
 "usage: kbdcontrol [-dFx] [-b  duration.pitch | [quiet.]belltype]",
 "                  [-r delay.repeat | speed] [-l mapfile] [-f # string]",
 "                  [-h size] [-L mapfile]");
-#endif
 	exit(1);
 }
 
@@ -990,11 +882,7 @@ main(int argc, char **argv)
 {
 	int		opt;
 
-#ifdef __i386__
-	while((opt = getopt(argc, argv, "b:df:h:iKk:Fl:L:r:x")) != -1)
-#else
 	while((opt = getopt(argc, argv, "b:df:h:Fl:L:r:x")) != -1)
-#endif
 		switch(opt) {
 			case 'b':
 				set_bell_values(optarg);
@@ -1018,17 +906,6 @@ main(int argc, char **argv)
 			case 'h':
 				set_history(optarg);
 				break;
-#ifdef __i386__
-			case 'i':
-				show_kbd_info();
-				break;
-			case 'K':
-				release_keyboard();
-				break;
-			case 'k':
-				set_keyboard(optarg);
-				break;
-#endif /* __i386__ */
 			case 'r':
 				set_keyrates(optarg);
 				break;

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: devices.c,v 1.87 1998/12/04 18:01:10 wpaul Exp $
+ * $Id: devices.c,v 1.83 1998/09/26 17:05:08 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -73,14 +73,11 @@ static struct _devname {
     { DEVICE_TYPE_DISK, 	"rda%d",	"SCSI disk device",	13, 65538, 8, 16, 'c'			},
     { DEVICE_TYPE_DISK, 	"wd%d",		"IDE/ESDI/MFM/ST506 disk device",	0, 65538, 8, 16, 'b'	},
     { DEVICE_TYPE_DISK, 	"rwd%d",	"IDE/ESDI/MFM/ST506 disk device",	3, 65538, 8, 16, 'c'	},
-    { DEVICE_TYPE_DISK, 	"fla%d",	"DiskOnChip2000 Flash device", 28, 65538, 8, 16, 'b'	},
-    { DEVICE_TYPE_DISK, 	"rfla%d",	"DiskOnChip2000 Flash devicee",	101, 65538, 8, 16, 'c'	},
     { DEVICE_TYPE_DISK, 	"wfd%d",	"ATAPI floppy device",	1, 65538, 8, 4, 'b'		},
     { DEVICE_TYPE_DISK, 	"rwfd%d",	"ATAPI floppy device",	87, 65538, 8, 4, 'c'		},
     { DEVICE_TYPE_FLOPPY,	"fd%d",		"floppy drive unit A",	2, 0, 64, 4, 'b'			},
     { DEVICE_TYPE_FLOPPY,	"wfd%d",	"ATAPI floppy drive unit A",	1, 0, 8, 4, 'b'			},
     { DEVICE_TYPE_FLOPPY,	"worm%d",	"SCSI optical disk / CDR",	23, 0, 1, 4, 'b'		},
-    { DEVICE_TYPE_NETWORK,	"ax",		"ASIX AX88140A PCI ethernet card"				},
     { DEVICE_TYPE_NETWORK,	"fpa",		"DEC DEFPA PCI FDDI card"					},
     { DEVICE_TYPE_NETWORK,	"sr",		"SDL T1/E1 sync serial PCI card"				},
     { DEVICE_TYPE_NETWORK,	"cc3i",		"SDL HSSI sync serial PCI card"					},
@@ -96,14 +93,9 @@ static struct _devname {
     { DEVICE_TYPE_NETWORK,	"ix",		"Intel Etherexpress ethernet card"				},
     { DEVICE_TYPE_NETWORK,	"le",		"DEC EtherWorks 2 or 3 ethernet card"				},
     { DEVICE_TYPE_NETWORK,	"lnc",		"Lance/PCnet (Isolan/Novell NE2100/NE32-VL) ethernet"		},
-    { DEVICE_TYPE_NETWORK,	"mx",		"Macronix 98713/98715/98725 PCI ethernet card"		},
-    { DEVICE_TYPE_NETWORK,	"pn",		"Lite-On 82168/82169 PNIC PCI ethernet card"		},
-    { DEVICE_TYPE_NETWORK,	"rl",		"RealTek 8129/8139 PCI ethernet card"		},
     { DEVICE_TYPE_NETWORK,	"tx",		"SMC 9432TX ethernet card"					},
     { DEVICE_TYPE_NETWORK,	"tl",		"Texas Instruments ThunderLAN PCI ethernet card"		},
-    { DEVICE_TYPE_NETWORK,	"vr",		"VIA VT3043/VT86C100A Rhine PCI ethernet card"				},
     { DEVICE_TYPE_NETWORK,	"vx",		"3COM 3c590 / 3c595 ethernet card"				},
-    { DEVICE_TYPE_NETWORK,	"wb",		"Winbond W89C840F PCI ethernet card"				},
     { DEVICE_TYPE_NETWORK,	"xl",		"3COM 3c90x / 3c90xB PCI ethernet card"				},
     { DEVICE_TYPE_NETWORK,	"ze",		"IBM/National Semiconductor PCMCIA ethernet card"		},
     { DEVICE_TYPE_NETWORK,	"zp",		"3Com Etherlink III PCMCIA ethernet card"			},

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.10 1998/11/08 15:36:34 rnordier Exp $
+#	$Id: Makefile,v 1.6 1998/10/15 20:04:21 rnordier Exp $
 
 PROG=		boot2
 NOMAN=
@@ -10,10 +10,6 @@ CLEANFILES+=	boot1 boot1.out boot1.o \
 		sio.o
 
 M4?=	m4
-
-BOOT_COMCONSOLE_PORT?= 0x3f8
-BOOT_COMCONSOLE_SPEED?= 9600
-B2SIOFMT?=	0x3
 
 .if exists(${.OBJDIR}/../btx)
 BTX=	${.OBJDIR}/../btx
@@ -62,10 +58,7 @@ boot2.out: boot2.o sio.o
 		${BTX}/lib/crt0.o boot2.o sio.o
 
 sio.o: sio.s
-	(cd ${.CURDIR}; ${M4} -DSIOPRT=${BOOT_COMCONSOLE_PORT} \
-		-DSIOFMT=${B2SIOFMT} \
-		-DSIOSPD=${BOOT_COMCONSOLE_SPEED} sio.s) | \
-		${AS} ${AFLAGS} -o ${.TARGET}
+	${AS} ${AFLAGS} -o ${.TARGET} ${.IMPSRC}
 
 install:
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \

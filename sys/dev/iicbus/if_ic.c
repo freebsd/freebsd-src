@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ic.c,v 1.2 1998/10/31 11:31:07 nsouch Exp $
+ *	$Id: if_ic.c,v 1.1.1.11 1998/08/13 17:10:42 son Exp $
  */
 
 /*
@@ -213,7 +213,7 @@ icioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		return ENOBUFS;
 	    }
 
-	    iicbus_reset(parent, IIC_FASTEST, 0, NULL);
+	    iicbus_reset(parent, IIC_FASTEST);
 
 	    ifp->if_flags |= IFF_RUNNING;
 	}
@@ -290,6 +290,7 @@ icintr (device_t dev, int event, char *ptr)
 	int unit = device_get_unit(dev);
 	int s, len;
 	struct mbuf *top;
+	int i;
 	
 	s = splhigh();
 

@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.85 1998/12/23 14:28:37 foxfair Exp $
+**  $Id: pcisupport.c,v 1.71 1998/07/07 05:00:09 bde Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -42,7 +42,6 @@
 */
 
 #include "opt_pci.h"
-#include "opt_smp.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -63,7 +62,7 @@
 **---------------------------------------------------------
 */
 
-static	const char*	chipset_probe (pcici_t tag, pcidi_t type);
+static	char*	chipset_probe (pcici_t tag, pcidi_t type);
 static	void	chipset_attach(pcici_t tag, int unit);
 static	u_long	chipset_count;
 
@@ -103,12 +102,10 @@ generic_pci_bridge (pcici_t tag)
 		case 5:	strcpy(tmpbuf, "PCI to PCMCIA"); break;
 		case 7:	strcpy(tmpbuf, "PCI to CardBus"); break;
 		default: 
-			snprintf(tmpbuf, sizeof(tmpbuf),
-			    "PCI to 0x%x", classreg>>16 & 0xff); 
+			sprintf(tmpbuf, "PCI to 0x%x", classreg>>16 & 0xff); 
 			break;
 	}
-	snprintf(tmpbuf+strlen(tmpbuf), sizeof(tmpbuf)-strlen(tmpbuf),
-	    " bridge (vendor=%04x device=%04x)",
+	sprintf(tmpbuf+strlen(tmpbuf), " bridge (vendor=%04x device=%04x)",
 	    id & 0xffff, (id >> 16) & 0xffff);
 	descr = malloc (strlen(tmpbuf) +1, M_DEVBUF, M_WAITOK);
 	strcpy(descr, tmpbuf);
@@ -121,7 +118,6 @@ generic_pci_bridge (pcici_t tag)
  * XXX Both fixbushigh_orion() and fixbushigh_i1225() are bogus in that way,
  * that they store the highest bus number to scan in this device's config 
  * data, though it is about PCI buses attached to the CPU independently!
- * The same goes for fixbushigh_450nx.
  */
 
 static void
@@ -140,68 +136,6 @@ fixbushigh_i1225(pcici_t tag)
 	if (sublementarybus != 0xff)
 		tag->secondarybus = tag->subordinatebus = sublementarybus +1;
 }
-
-
-/*
- * This reads the PCI config space for the 82451NX MIOC in the 450NX
- * chipset to determine the PCI bus configuration.
- *
- * Assuming the BIOS has set up the MIOC properly, this will correctly
- * report the number of PCI busses in the system.
- *
- * A small problem is that the Host to PCI bridge control is in the MIOC,
- * while the host-pci bridges are separate PCI devices.  So it really
- * isn't easily possible to set up the subordinatebus mappings as the
- * 82454NX PCI expander bridges are probed, although that makes the
- * most sense.
- */
-static void
-fixbushigh_450nx(pcici_t tag)
-{
-	int subordinatebus;
-	unsigned long devmap;
-
-	/*
-	 * Read the DEVMAP field, so we know which fields to check.
-	 * If the Host-PCI bridge isn't marked as present by the BIOS,
-	 * we have to assume it doesn't exist.
-	 * If this doesn't find all the PCI busses, complain to the
-	 * BIOS vendor.  There is nothing more we can do.
-	 */
-	devmap = pci_cfgread(tag, 0xd6, 2) & 0x3c;
-	if (!devmap)
-		panic("450NX MIOC: No host to PCI bridges marked present.\n");
-	/*
-	 * Since the buses are configured in order, we just have to
-	 * find the highest bus, and use those numbers.
-	 */
-	if (devmap & 0x20) {			/* B1 */
-		subordinatebus = pci_cfgread(tag, 0xd5, 1);
-	} else if (devmap & 0x10) {		/* A1 */
-		subordinatebus = pci_cfgread(tag, 0xd4, 1);
-	} else if (devmap & 0x8) {		/* B0 */
-		subordinatebus = pci_cfgread(tag, 0xd2, 1);
-	} else /* if (devmap & 0x4) */ {	/* A0 */
-		subordinatebus = pci_cfgread(tag, 0xd1, 1);
-	}
-	if (subordinatebus == 255) {
-		printf("fixbushigh_450nx: bogus highest PCI bus %d",
-		       subordinatebus);
-#ifdef NBUS
-		subordinatebus = NBUS - 2;
-#else
-		subordinatebus = 10;
-#endif
-		printf(", reduced to %d\n", subordinatebus);
-	}
-		
-	if (bootverbose)
-		printf("fixbushigh_450nx: subordinatebus is %d\n",
-			subordinatebus);
-
-	tag->secondarybus = tag->subordinatebus = subordinatebus;
-}
-
 
 static void
 fixwsc_natoma(pcici_t tag)
@@ -225,7 +159,7 @@ fixwsc_natoma(pcici_t tag)
 }
 		
 
-static const char*
+static char*
 chipset_probe (pcici_t tag, pcidi_t type)
 {
 	unsigned	rev;
@@ -246,6 +180,8 @@ chipset_probe (pcici_t tag, pcidi_t type)
 		return ("Intel 82424ZX (Saturn) cache DRAM controller");
 	case 0x04828086:
 		return ("Intel 82375EB PCI-EISA bridge");
+	case 0x04961039:
+		return ("SiS 85c496");
 	case 0x04a38086:
 		rev = (unsigned) pci_conf_read (tag, PCI_CLASS_REG) & 0xff;
 		if (rev == 16 || rev == 17)
@@ -264,14 +200,24 @@ chipset_probe (pcici_t tag, pcidi_t type)
 		return ("Intel 82437MX mobile PCI cache memory controller");
 	case 0x12508086:
 		return ("Intel 82439");
+	case 0x04061039:
+		return ("SiS 85c501");
+	case 0x00081039:
+		return ("SiS 85c503");
+	case 0x06011039:
+		return ("SiS 85c601");
 	case 0x70008086:
 		return ("Intel 82371SB PCI to ISA bridge");
+	case 0x70208086:
+		return ("Intel 82371SB USB host controller");
 	case 0x70308086:
 		return ("Intel 82437VX PCI cache memory controller");
 	case 0x71008086:
 		return ("Intel 82439TX System Controller (MTXC)");
 	case 0x71108086:
 		return ("Intel 82371AB PCI to ISA bridge");
+	case 0x71128086:
+		return ("Intel 82371AB USB host controller");
 	case 0x71138086:
 		return ("Intel 82371AB Power management controller");
 	case 0x71908086:
@@ -289,7 +235,6 @@ chipset_probe (pcici_t tag, pcidi_t type)
 	case 0x84c58086:
 		return ("Intel 82453KX/GX (Orion) PCI memory controller");
 	case 0x84ca8086:
-		fixbushigh_450nx(tag);
 		return ("Intel 82451NX Memory and I/O Controller");
 	case 0x84cb8086:
 		return ("Intel 82454NX PCI Expander Bridge");
@@ -299,16 +244,6 @@ chipset_probe (pcici_t tag, pcidi_t type)
 		return ("DEC 21050 PCI-PCI bridge");
 	case 0x124b8086:
 		return ("Intel 82380FB mobile PCI to PCI bridge");
-	/* SiS -- vendor 0x1039 */
-	case 0x04961039:
-		return ("SiS 85c496");
-	case 0x04061039:
-		return ("SiS 85c501");
-	case 0x00081039:
-		return ("SiS 85c503");
-	case 0x06011039:
-		return ("SiS 85c601");
-	
 	/* VLSI -- vendor 0x1004 */
 	case 0x00051004:
 		return ("VLSI 82C592 Host to PCI bridge");
@@ -340,29 +275,10 @@ chipset_probe (pcici_t tag, pcidi_t type)
 	case 0x05971106:
 		return("VIA 82C597 (Apollo VP3) system controller");
 	/* XXX need info on the MVP3 -- any takers? */
+	case 0x30381106:
+		return("VIA 82C586B USB host controller");
 	case 0x30401106:
 		return("VIA 82C586B ACPI interface");
-	/* XXX Here is MVP3, I got the datasheet but NO M/B to test it  */
-	/* totally. Please let me know if anything wrong.            -F */
-	case 0x05981106:
-		return("VIA 82C598MVP (Apollo MVP3) host bridge");
-	case 0x85981106:
-		return("VIA 82C598MVP (Apollo MVP3) PCI-PCI bridge");
-
-	/* AcerLabs -- vendor 0x10b9 */
-	/* Funny : The datasheet told me vendor id is "10b8",sub-vendor */
-	/* id is '10b9" but the register always shows "10b9". -Foxfair  */
-	case 0x154110b9:
-		return("AcerLabs M1541 (Aladdin-V) PCI host bridge");
-	case 0x153310b9:
-		return("AcerLabs M1533 portable PCI-ISA bridge");
-	case 0x154310b9:
-		return("AcerLabs M1543 desktop PCI-ISA bridge");
-	case 0x524710b9:
-		return("AcerLabs M5247 PCI-PCI(AGP Supported) bridge");
-	case 0x524310b9:/* 5243 seems like 5247, need more info to divide*/
-		return("AcerLabs M5243 PCI-PCI bridge");
-
 
 	/* NEC -- vendor 0x1033 */
 	case 0x00011033:
@@ -931,7 +847,7 @@ chipset_attach (pcici_t config_id, int unit)
 **---------------------------------------------------------
 */
 
-static	const char*	vga_probe  (pcici_t tag, pcidi_t type);
+static	char*	vga_probe  (pcici_t tag, pcidi_t type);
 static	void	vga_attach (pcici_t tag, int unit);
 static	u_long	vga_count;
 
@@ -945,7 +861,7 @@ static struct pci_device vga_device = {
 
 DATA_SET (pcidevice_set, vga_device);
 
-static const char* vga_probe (pcici_t tag, pcidi_t typea)
+static char* vga_probe (pcici_t tag, pcidi_t typea)
 {
 	int data = pci_conf_read(tag, PCI_CLASS_REG);
 	u_int id = pci_conf_read(tag, PCI_ID_REG);
@@ -958,7 +874,7 @@ static const char* vga_probe (pcici_t tag, pcidi_t typea)
 		vendor = "NeoMagic";
 		switch (id >> 16) {
 		case 0x0004:
-			chip = "NM2160 laptop";	break;
+			chip = "NM3160 laptop";	break;
 		}
 		break;
 	case 0x102b:
@@ -970,7 +886,7 @@ static const char* vga_probe (pcici_t tag, pcidi_t typea)
 		case 0x0519:
 			chip = "MGA 2064W"; break;
 		case 0x051a:
-			chip = "MGA 1024SG/1064SG/1164SG"; break;
+			chip = "MGA 1024SG"; break;
 		case 0x051b:
 			chip = "MGA 2164W"; break;
 		}
@@ -1171,10 +1087,8 @@ static const char* vga_probe (pcici_t tag, pcidi_t typea)
 	if (vendor && chip) {
 		char *buf;
 		int len;
-#if 0
 		int i;
 		int reqmapmem;
-#endif
 
 		if (type == 0) {
 			type = "SVGA controller";
@@ -1204,8 +1118,7 @@ static const char* vga_probe (pcici_t tag, pcidi_t typea)
 		
 		len = strlen(vendor) + strlen(chip) + strlen(type) + 4;
 		MALLOC(buf, char *, len, M_TEMP, M_NOWAIT);
-		if (buf)
-			sprintf(buf, "%s %s %s", vendor, chip, type);
+		sprintf(buf, "%s %s %s", vendor, chip, type);
 		return buf;
 	}
 
@@ -1224,14 +1137,8 @@ static const char* vga_probe (pcici_t tag, pcidi_t typea)
 			if ((data & PCI_SUBCLASS_MASK)
 			    == PCI_SUBCLASS_DISPLAY_VGA)
 				type = "VGA-compatible display device";
-			else {
-				/*
-				 * If it isn't a vga display device,
-				 * don't pretend we found one.
-				 */
+			else
 				type = "Display device";
-				return 0;
-			}
 		}
 		break;
 
@@ -1253,8 +1160,7 @@ static const char* vga_probe (pcici_t tag, pcidi_t typea)
 
 		len = strlen(vendor) + strlen(type) + 2 + 6 + 4 + 1;
 		MALLOC(buf, char *, len, M_TEMP, M_NOWAIT);
-		if (buf)
-			sprintf(buf, "%s model %04x %s", vendor, id >> 16, type);
+		sprintf(buf, "%s model %04x %s", vendor, id >> 16, type);
 		return buf;
 	}
 	return type;
@@ -1282,7 +1188,7 @@ static void vga_attach (pcici_t tag, int unit)
 **---------------------------------------------------------
 */
 
-static	const char*	lkm_probe  (pcici_t tag, pcidi_t type);
+static	char*	lkm_probe  (pcici_t tag, pcidi_t type);
 static	void	lkm_attach (pcici_t tag, int unit);
 static	u_long	lkm_count;
 
@@ -1296,7 +1202,7 @@ static struct pci_device lkm_device = {
 
 DATA_SET (pcidevice_set, lkm_device);
 
-static const char*
+static char*
 lkm_probe (pcici_t tag, pcidi_t type)
 {
 	/*
@@ -1317,7 +1223,7 @@ lkm_attach (pcici_t tag, int unit)
 **---------------------------------------------------------
 */
 
-static	const char*	ign_probe  (pcici_t tag, pcidi_t type);
+static	char*	ign_probe  (pcici_t tag, pcidi_t type);
 static	void	ign_attach (pcici_t tag, int unit);
 static	u_long	ign_count;
 
@@ -1331,7 +1237,7 @@ static struct pci_device ign_device = {
 
 DATA_SET (pcidevice_set, ign_device);
 
-static const char*
+static char*
 ign_probe (pcici_t tag, pcidi_t type)
 {
 	switch (type) {

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: isa.c,v 1.116 1998/10/22 05:58:39 bde Exp $
+ *	$Id: isa.c,v 1.114 1998/10/12 13:12:45 bde Exp $
  */
 
 /*
@@ -513,7 +513,7 @@ config_isadev_c(isdp, mp, reconfig)
 			printf("%s%d", dp->name, isdp->id_unit);
 			if (id_alive != -1) {
 				if (isdp->id_iobase == -1)
-					printf(" at");
+					printf(" at ?");
 				else {
 					printf(" at 0x%x", isdp->id_iobase);
 					if (isdp->id_iobase + id_alive - 1 !=
@@ -557,10 +557,7 @@ config_isadev_c(isdp, mp, reconfig)
 			isdp->id_alive = id_alive;
 		}
 		(*dp->attach)(isdp);
-		if (isdp->id_irq != 0 && isdp->id_intr == NULL)
-			printf("%s%d: irq with no handler\n",
-			    dp->name, isdp->id_unit);
-		if (isdp->id_irq != 0 && isdp->id_intr != NULL) {
+		if (isdp->id_irq) {
 #ifdef APIC_IO
 			/*
 			 * Some motherboards use upper IRQs for traditional
@@ -597,7 +594,7 @@ config_isadev_c(isdp, mp, reconfig)
 		} else {
 #if 0
 			/* This code has not been tested.... */
-			if (isdp->id_irq != 0 && isdp->id_intr != NULL) {
+			if (isdp->id_irq) {
 				icu_unset(ffs(isdp->id_irq) - 1,
 						isdp->id_intr);
 				if (mp)

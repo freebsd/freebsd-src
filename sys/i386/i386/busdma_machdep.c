@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: busdma_machdep.c,v 1.11 1998/10/13 08:24:33 dg Exp $
+ *      $Id: busdma_machdep.c,v 1.10 1998/10/07 03:38:14 gibbs Exp $
  */
 
 #include <sys/param.h>
@@ -435,45 +435,38 @@ bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 	seg = 1;
 	sg->ds_len = 0;
 
-	{
-		/*
-		 * note: nextpaddr not used on first loop
-		 */
-		vm_offset_t	nextpaddr = 0;
+	do {
+		bus_size_t	size;
+		vm_offset_t	nextpaddr;	/* GCC warning expected */
 
-		do {
-			bus_size_t	size;
+		paddr = pmap_kextract(vaddr);
+		size = PAGE_SIZE - (paddr & PAGE_MASK);
+		if (size > buflen)
+			size = buflen;
 
-			paddr = pmap_kextract(vaddr);
-			size = PAGE_SIZE - (paddr & PAGE_MASK);
-			if (size > buflen)
-				size = buflen;
+		if (map->pagesneeded != 0
+		 && run_filter(dmat, paddr)) {
+			paddr = add_bounce_page(dmat, map, vaddr, size);
+		}
 
-			if (map->pagesneeded != 0
-			 && run_filter(dmat, paddr)) {
-				paddr = add_bounce_page(dmat, map, 
-				    vaddr, size);
-			}
-
-			if (sg->ds_len == 0) {
-				sg->ds_addr = paddr;
-				sg->ds_len = size;
-			} else if (paddr == nextpaddr) {
-				sg->ds_len += size;
-			} else {
-				/* Go to the next segment */
-				sg++;
-				seg++;
-				if (seg > dmat->nsegments)
-					break;
-				sg->ds_addr = paddr;
-				sg->ds_len = size;
-			}
-			vaddr += size;
-			nextpaddr = paddr + size;
-			buflen -= size;
-		} while (buflen > 0);
-	}
+		if (sg->ds_len == 0) {
+			sg->ds_addr = paddr;
+			sg->ds_len = size;
+		} else if (paddr == nextpaddr) {
+			sg->ds_len += size;
+		} else {
+			/* Go to the next segment */
+			sg++;
+			seg++;
+			if (seg > dmat->nsegments)
+				break;
+			sg->ds_addr = paddr;
+			sg->ds_len = size;
+		}
+		vaddr += size;
+		nextpaddr = paddr + size;
+		buflen -= size;
+	} while (buflen > 0);
 
 	if (buflen != 0) {
 		printf("bus_dmamap_load: Too many segs! buf_len = 0x%lx\n",

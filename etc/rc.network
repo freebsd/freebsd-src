@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: rc.network,v 1.38 1999/01/13 08:20:55 hm Exp $
+#	$Id: rc.network,v 1.32 1998/09/16 20:38:23 cracauer Exp $
 #	From: @(#)netstart	5.9 (Berkeley) 3/30/91
 
 # Note that almost all the user-configurable behavior is no longer in
@@ -30,25 +30,6 @@ network_pass1() {
 	    . /etc/rc.atm
 	    atm_pass1
     fi
-
-    # ISDN subsystem startup
-    if [ "X${isdn_enable}" = X"YES" -a -f /etc/rc.isdn ]; then
-	    . /etc/rc.isdn
-    fi
-
-    # Special options for sppp(4) interfaces go here.  These need
-    # to go _before_ the general ifconfig section, since in the case
-    # of hardwired (no link1 flag) but required authentication, you
-    # cannot pass auth parameters down to the already running interface.
-    for ifn in ${sppp_interfaces}; do
-	    eval spppcontrol_args=\$spppconfig_${ifn}
-	    if [ -n "${spppcontrol_args}" ] ; then
-		    # The auth secrets might contain spaces; in order
-		    # to retain the quotation, we need to eval them
-		    # here.
-		    eval spppcontrol ${ifn} ${spppcontrol_args}
-	    fi
-    done
 
     # Set up all the network interfaces, calling startup scripts if needed
     for ifn in ${network_interfaces}; do
@@ -90,7 +71,7 @@ network_pass1() {
     fi
 
     if [ $firewall_in_kernel = 0 -a "x$firewall_enable"  = "xYES" ] ; then
-	if kldload ipfw; then
+	if modload /lkm/ipfw_mod.o; then
 		firewall_in_kernel=1		# module loaded successfully
 		echo "Kernel firewall module loaded."
 	else
@@ -277,10 +258,6 @@ network_pass3() {
     
     if [ "X${nfs_client_enable}" = X"YES" ]; then
 	    echo -n ' nfsiod';		nfsiod ${nfs_client_flags}
-	    if [ "X${nfs_access_cache}" != X ]; then
-		sysctl -w vfs.nfs.access_cache_timeout=${nfs_access_cache} \
-			>/dev/null 2>&1
-	    fi
     fi
 
     if [ "X${amd_enable}" = X"YES" ]; then
@@ -292,7 +269,7 @@ network_pass3() {
     fi
 
     if [ "X${rwhod_enable}" = X"YES" ]; then
-	    echo -n ' rwhod';	rwhod ${rwhod_flags}
+	    echo -n ' rwhod';	rwhod
     fi
 
     # Kerberos runs ONLY on the Kerberos server machine

@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: kern_physio.c,v 1.28 1998/08/19 10:50:32 sos Exp $
+ * $Id: kern_physio.c,v 1.27 1998/07/04 22:30:21 julian Exp $
  */
 
 #include <sys/param.h>
@@ -169,6 +169,7 @@ minphys(bp)
 {
 	u_int maxphys = DFLTPHYS;
 	struct cdevsw *bdsw;
+	int offset;
 
 	bdsw = cdevsw[major(bp->b_dev)];
 

@@ -586,7 +586,7 @@ usage (void)
 int
 netscape_remote(int argc, char **argv)
 #else
-int
+void
 main (int argc, char **argv)
 #endif
 {

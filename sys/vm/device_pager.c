@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)device_pager.c	8.1 (Berkeley) 6/11/93
- * $Id: device_pager.c,v 1.36 1998/12/07 21:58:50 archie Exp $
+ * $Id: device_pager.c,v 1.31 1998/07/15 02:32:35 bde Exp $
  */
 
 #include <sys/param.h>
@@ -50,7 +50,6 @@
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
-#include <vm/vm_zone.h>
 
 static void dev_pager_init __P((void));
 static vm_object_t dev_pager_alloc __P((void *, vm_ooffset_t, vm_prot_t,
@@ -65,8 +64,8 @@ static boolean_t dev_pager_haspage __P((vm_object_t, vm_pindex_t, int *,
 /* list of device pager objects */
 static struct pagerlst dev_pager_object_list;
 
-static vm_zone_t fakepg_zone;
-static struct vm_zone fakepg_zone_store;
+/* list of available vm_page_t's */
+static TAILQ_HEAD(, vm_page) dev_pager_fakelist;
 
 static vm_page_t dev_pager_getfake __P((vm_offset_t));
 static void dev_pager_putfake __P((vm_page_t));
@@ -87,8 +86,7 @@ static void
 dev_pager_init()
 {
 	TAILQ_INIT(&dev_pager_object_list);
-	fakepg_zone = &fakepg_zone_store;
-	zinitna(fakepg_zone, NULL, "DP fakepg", sizeof(struct vm_page), 0, 0, 2);
+	TAILQ_INIT(&dev_pager_fakelist);
 }
 
 static vm_object_t
@@ -97,8 +95,7 @@ dev_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot, vm_ooffset_t fo
 	dev_t dev;
 	d_mmap_t *mapfunc;
 	vm_object_t object;
-	unsigned int npages;
-	vm_offset_t off;
+	unsigned int npages, off;
 
 	/*
 	 * Make sure this device can be mapped.
@@ -207,8 +204,11 @@ dev_pager_getpages(object, m, count, reqpage)
 	if (mapfunc == NULL || mapfunc == (d_mmap_t *)nullop)
 		panic("dev_pager_getpage: no map function");
 
-	paddr = pmap_phys_address((*mapfunc) ((dev_t) dev, (vm_offset_t) offset << PAGE_SHIFT, prot));
-	KASSERT(paddr != -1,("dev_pager_getpage: map function returns error"));
+	paddr = pmap_phys_address((*mapfunc) ((dev_t) dev, (int) offset << PAGE_SHIFT, prot));
+#ifdef DIAGNOSTIC
+	if (paddr == -1)
+		panic("dev_pager_getpage: map function returns error");
+#endif
 	/*
 	 * Replace the passed in reqpage page with our own fake page and free up the
 	 * all of the original pages.
@@ -255,15 +255,23 @@ dev_pager_getfake(paddr)
 	vm_offset_t paddr;
 {
 	vm_page_t m;
+	int i;
 
-	m = zalloc(fakepg_zone);
+	if (TAILQ_FIRST(&dev_pager_fakelist) == NULL) {
+		m = (vm_page_t) malloc(PAGE_SIZE * 2, M_VMPGDATA, M_WAITOK);
+		for (i = (PAGE_SIZE * 2) / sizeof(*m); i > 0; i--) {
+			TAILQ_INSERT_TAIL(&dev_pager_fakelist, m, pageq);
+			m++;
+		}
+	}
+	m = TAILQ_FIRST(&dev_pager_fakelist);
+	TAILQ_REMOVE(&dev_pager_fakelist, m, pageq);
 
 	m->flags = PG_BUSY | PG_FICTITIOUS;
 	m->valid = VM_PAGE_BITS_ALL;
 	m->dirty = 0;
 	m->busy = 0;
 	m->queue = PQ_NONE;
-	m->object = NULL;
 
 	m->wire_count = 1;
 	m->hold_count = 0;
@@ -278,5 +286,5 @@ dev_pager_putfake(m)
 {
 	if (!(m->flags & PG_FICTITIOUS))
 		panic("dev_pager_putfake: bad page");
-	zfree(fakepg_zone, m);
+	TAILQ_INSERT_TAIL(&dev_pager_fakelist, m, pageq);
 }

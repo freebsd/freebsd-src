@@ -33,14 +33,10 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ident "$Header: /home/ncvs/src/usr.sbin/pcvt/vgaio/Attic/vgaio.y,v 1.1.1.1 1995/02/05 13:49:24 jkh Exp $"
+#ident "$Header: /b/source/CVS/src/sys/arch/i386/isa/pcvt/Util/vgaio/vgaio.y,v 1.1 1994/03/29 02:47:27 mycroft Exp $"
 
 /*
  * $Log: vgaio.y,v $
- * Revision 1.1.1.1  1995/02/05 13:49:24  jkh
- * PCVT userland utilities.
- * Submitted by:	hm
- *
  * Revision 1.1  1994/03/29  02:47:27  mycroft
  * pcvt 3.0, with some performance enhancements by Joerg Wunsch and me.
  *

@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: spans_print.c,v 1.3 1998/10/31 20:06:56 phk Exp $
+ *	@(#) $Id: spans_print.c,v 1.1 1998/09/15 08:23:03 phk Exp $
  *
  */
 
@@ -35,14 +35,14 @@
  *
  */
 
+#ifndef lint
+static char *RCSid = "@(#) $Id: spans_print.c,v 1.1 1998/09/15 08:23:03 phk Exp $";
+#endif
+
 #include <netatm/kern_include.h>
 
 #include "spans_xdr.h"
 #include <netatm/spans/spans_var.h>
-
-#ifndef lint
-__RCSID("@(#) $Id: spans_print.c,v 1.3 1998/10/31 20:06:56 phk Exp $");
-#endif
 
 /*
  * If LONGPRINT is defined, every field of the SPANS message will be
@@ -54,17 +54,13 @@ __RCSID("@(#) $Id: spans_print.c,v 1.3 1998/10/31 20:06:56 phk Exp $");
 /*
  * Local functions
  */
-static void	spans_msgtype_str __P((spans_msgtype *, char *, int));
-static void	spans_print_msgbody __P((spans_msgbody *));
-static void	spans_result_str __P((spans_result *, char *, int));
-
-#ifdef LONGPRINT
-
 static void	inc_indent __P((void));
 static void	dec_indent __P((void));
-static void	spans_aal_str __P((spans_aal *, char *, int));
-static void	spans_query_type_str __P((spans_query_type *, char *, int));
-static void	spans_state_str __P((spans_query_type *, char *, int));
+static void	spans_aal_str __P((spans_aal *, char *));
+static void	spans_result_str __P((spans_result *, char *));
+static void	spans_msgtype_str __P((spans_msgtype *, char *));
+static void	spans_query_type_str __P((spans_query_type *, char *));
+static void	spans_state_str __P((spans_query_type *, char *));
 static void	spans_print_version __P((spans_version *));
 static void	spans_print_vpvc __P((spans_vpvc *));
 static void	spans_print_vpvc_pref __P((spans_vpvc_pref *));
@@ -105,6 +101,7 @@ static void	spans_print_parm_leave_cnf __P((spans_parm_leave_cnf *));
 static void	spans_print_parm_vcir_ind __P((spans_parm_vcir_ind *));
 static void	spans_print_parm_query_req __P((spans_parm_query_req *));
 static void	spans_print_parm_query_rsp __P((spans_parm_query_rsp *));
+static void	spans_print_msgbody __P((spans_msgbody *));
 
 
 /*
@@ -119,7 +116,7 @@ static void
 inc_indent()
 {
 	if (spans_indent != &indent_str[0]) {
-		spans_indent--;
+		*spans_indent--;
 	}
 }
 
@@ -127,15 +124,14 @@ static void
 dec_indent()
 {
 	if (spans_indent != INIT_INDENT) {
-		spans_indent++;
+		*spans_indent++;
 	}
 }
 
 static void
-spans_aal_str(objp, dest, len)
+spans_aal_str(objp, dest)
 	spans_aal *objp;
 	char *dest;
-	int len;
 {
 	static char	*aal_names[] = {
 		"SPANS_AAL0",
@@ -147,20 +143,17 @@ spans_aal_str(objp, dest, len)
 	};
 
 	if (*objp < SPANS_AAL0 || *objp > SPANS_AAL5) {
-		snprintf(dest, len, "Invalid (%d)", (int)*objp);
+		sprintf(dest, "Invalid (%d)", (int)*objp);
 	} else {
-		snprintf(dest, len, "%s (%d)", aal_names[(int)*objp],
+		sprintf(dest, "%s (%d)", aal_names[(int)*objp],
 				(int)*objp);
 	}
 }
 
-#endif 
-
 static void
-spans_result_str(objp, dest, len)
+spans_result_str(objp, dest)
 	spans_result *objp;
 	char *dest;
-	int len;
 {
 	static char	*result_names[] = {
 		"SPANS_OK",
@@ -171,18 +164,17 @@ spans_result_str(objp, dest, len)
 	};
 
 	if (*objp < SPANS_OK || *objp > SPANS_BADDEST) {
-		snprintf(dest, len, "Invalid (%d)", (int)*objp);
+		sprintf(dest, "Invalid (%d)", (int)*objp);
 	} else {
-		snprintf(dest, len, "%s (%d)",
+		sprintf(dest, "%s (%d)",
 				result_names[(int)*objp], (int)*objp);
 	}
 }
 
 static void
-spans_msgtype_str(objp, dest, len)
+spans_msgtype_str(objp, dest)
 	spans_msgtype *objp;
 	char *dest;
-	int len;
 {
 	int	i;
 
@@ -228,7 +220,7 @@ spans_msgtype_str(objp, dest, len)
 	 */
 	for (i=0; msgtype_names[i].name; i++) {
 		if (*objp == msgtype_names[i].type) {
-			snprintf(dest, len, "%s (%d)",
+			sprintf(dest, "%s (%d)",
 					msgtype_names[i].name,
 					(int)*objp);
 			return;
@@ -238,16 +230,13 @@ spans_msgtype_str(objp, dest, len)
 	/*
 	 * Type was not found--return an error indicator
 	 */
-	snprintf(dest, len, "Invalid (%d)", (int)*objp);
+	sprintf(dest, "Invalid (%d)", (int)*objp);
 }
 
-#ifdef LONGPRINT 
-
 static void
-spans_query_type_str(objp, dest, len)
+spans_query_type_str(objp, dest)
 	spans_query_type *objp;
 	char *dest;
-	int len;
 {
 	static char	*query_names[] = {
 		"SPANS_QUERY_NORMAL",
@@ -257,18 +246,17 @@ spans_query_type_str(objp, dest, len)
 
 	if (*objp < SPANS_QUERY_NORMAL ||
 			*objp > SPANS_QUERY_END_TO_END) {
-		snprintf(dest, len, "Invalid (%d)", (int)*objp);
+		sprintf(dest, "Invalid (%d)", (int)*objp);
 	} else {
-		snprintf(dest, len, "%s (%d)", query_names[(int)*objp],
+		sprintf(dest, "%s (%d)", query_names[(int)*objp],
 				(int)*objp);
 	}
 }
 
 static void
-spans_state_str(objp, dest, len)
+spans_state_str(objp, dest)
 	spans_query_type *objp;
 	char *dest;
-	int len;
 {
 	static char	*state_names[] = {
 		"SPANS_CONN_OPEN",
@@ -278,13 +266,14 @@ spans_state_str(objp, dest, len)
 	};
 
 	if (*objp < SPANS_CONN_OPEN || *objp > SPANS_CONN_CLOSED) {
-		snprintf(dest, len, "Invalid (%d)", (int)*objp);
+		sprintf(dest, "Invalid (%d)", (int)*objp);
 	} else {
-		snprintf(dest, len, "%s (%d)", state_names[(int)*objp],
+		sprintf(dest, "%s (%d)", state_names[(int)*objp],
 				(int)*objp);
 	}
 }
 
+#ifdef LONGPRINT
 
 static void
 spans_print_version(objp)
@@ -362,7 +351,7 @@ spans_print_aal(objp)
 {
 	char		aal_str[80];
 
-	spans_aal_str(objp, aal_str, sizeof(aal_str));
+	spans_aal_str(objp, aal_str);
 	printf("%sspans_aal            %s\n", spans_indent, aal_str);
 }
 
@@ -372,7 +361,7 @@ spans_print_result(objp)
 {
 	char		result_str[80];
 
-	spans_result_str(objp, result_str, sizeof(result_str));
+	spans_result_str(objp, result_str);
 	printf("%sspans_result         %s\n", spans_indent, result_str);
 }
 
@@ -382,7 +371,7 @@ spans_print_msgtype(objp)
 {
 	char		msgtype_str[80];
 
-	spans_msgtype_str(objp, msgtype_str, sizeof(msgtype_str));
+	spans_msgtype_str(objp, msgtype_str);
 	printf("%sspans_msgtype        %s\n", spans_indent, msgtype_str);
 }
 
@@ -722,8 +711,7 @@ spans_print_parm_query_req(objp)
 	printf("%sspans_parm_query_req\n", spans_indent);
 	inc_indent();
 	spans_print_atm_conn(&objp->qyreq_conn);
-	spans_query_type_str(&objp->qyreq_type,
-		query_type_str, sizeof(query_type_str));
+	spans_query_type_str(&objp->qyreq_type, query_type_str);
 	printf("%sqyreq_type           %s\n", spans_indent, query_type_str);
 	dec_indent();
 }
@@ -737,11 +725,9 @@ spans_print_parm_query_rsp(objp)
 	printf("%sspans_parm_query_rsp\n", spans_indent);
 	inc_indent();
 	spans_print_atm_conn(&objp->qyrsp_conn);
-	spans_query_type_str(&objp->qyrsp_type,
-		query_type_str, sizeof(query_type_str));
+	spans_query_type_str(&objp->qyrsp_type, query_type_str);
 	printf("%sqyrsp_type           %s\n", spans_indent, query_type_str);
-	spans_state_str(&objp->qyrsp_state,
-		state_type_str, sizeof(state_type_str));
+	spans_state_str(&objp->qyrsp_state, state_type_str);
 	printf("%sqyrsp_state          %s\n", spans_indent, state_type_str);
 	printf("%sqyrsp_data           0x%x\n", spans_indent,
 			objp->qyrsp_data);
@@ -885,7 +871,7 @@ spans_print_msgbody(objp)
 	spans_parm_rclose_rsp	*rcrsp_p;
 	spans_parm_rclose_cnf	*rccnf_p;
 
-	spans_msgtype_str(&objp->mb_type, msgtype_str, sizeof(msgtype_str));
+	spans_msgtype_str(&objp->mb_type, msgtype_str);
 	printf("%s: ", msgtype_str);
 	switch (objp->mb_type) {
 	case SPANS_STAT_REQ:
@@ -897,7 +883,7 @@ spans_print_msgbody(objp)
 		strncpy(daddr, spans_addr_print(&stind_p->stind_es_addr),
 				sizeof(daddr));
 		strncpy(saddr, spans_addr_print(&stind_p->stind_sw_addr),
-				sizeof(saddr));
+				sizeof(daddr));
 		printf("sw_epoch=0x%lx, es_addr=%s, sw_addr=0x%s",
 				stind_p->stind_sw_epoch,
 				daddr, saddr);
@@ -947,8 +933,7 @@ spans_print_msgbody(objp)
 				sizeof(daddr));
 		strncpy(saddr, spans_addr_print(&oprsp_p->oprsp_conn.con_src),
 				sizeof(saddr));
-		spans_result_str(&oprsp_p->oprsp_result, result_str,
-			sizeof(result_str));
+		spans_result_str(&oprsp_p->oprsp_result, result_str);
 		printf("result=%s, daddr=%s, saddr=%s, dsap=%d, ssap=%d, vp.vc=%d.%d",
 				result_str, daddr, saddr,
 				oprsp_p->oprsp_conn.con_dsap,
@@ -962,8 +947,7 @@ spans_print_msgbody(objp)
 				sizeof(daddr));
 		strncpy(saddr, spans_addr_print(&opcnf_p->opcnf_conn.con_src),
 				sizeof(saddr));
-		spans_result_str(&opcnf_p->opcnf_result, result_str,
-			sizeof(result_str));
+		spans_result_str(&opcnf_p->opcnf_result, result_str);
 		printf("result=%s, daddr=%s, saddr=%s, dsap=%d, ssap=%d, vp.vc=%d.%d",
 				result_str, daddr, saddr,
 				opcnf_p->opcnf_conn.con_dsap,
@@ -999,8 +983,7 @@ spans_print_msgbody(objp)
 				sizeof(daddr));
 		strncpy(saddr, spans_addr_print(&clrsp_p->clrsp_conn.con_src),
 				sizeof(saddr));
-		spans_result_str(&clrsp_p->clrsp_result, result_str,
-			sizeof(result_str));
+		spans_result_str(&clrsp_p->clrsp_result, result_str);
 		printf("result=%s, daddr=%s, saddr=%s, dsap=%d, ssap=%d",
 				result_str, daddr, saddr,
 				clrsp_p->clrsp_conn.con_dsap,
@@ -1012,8 +995,7 @@ spans_print_msgbody(objp)
 				sizeof(daddr));
 		strncpy(saddr, spans_addr_print(&clcnf_p->clcnf_conn.con_src),
 				sizeof(saddr));
-		spans_result_str(&clcnf_p->clcnf_result, result_str,
-			sizeof(result_str));
+		spans_result_str(&clcnf_p->clcnf_result, result_str);
 		printf("result=%s, daddr=%s, saddr=%s, dsap=%d, ssap=%d",
 				result_str, daddr, saddr,
 				clcnf_p->clcnf_conn.con_dsap,
@@ -1047,8 +1029,7 @@ spans_print_msgbody(objp)
 				sizeof(daddr));
 		strncpy(saddr, spans_addr_print(&rcrsp_p->rcrsp_conn.con_src),
 				sizeof(saddr));
-		spans_result_str(&rcrsp_p->rcrsp_result, result_str,
-			sizeof(result_str));
+		spans_result_str(&rcrsp_p->rcrsp_result, result_str);
 		printf("result=%s, daddr=%s, saddr=%s, dsap=%d, ssap=%d",
 				result_str, daddr, saddr,
 				rcrsp_p->rcrsp_conn.con_dsap,
@@ -1060,8 +1041,7 @@ spans_print_msgbody(objp)
 				sizeof(daddr));
 		strncpy(saddr, spans_addr_print(&rccnf_p->rccnf_conn.con_src),
 				sizeof(saddr));
-		spans_result_str(&rccnf_p->rccnf_result, result_str,
-			sizeof(result_str));
+		spans_result_str(&rccnf_p->rccnf_result, result_str);
 		printf("result=%s, daddr=%s, saddr=%s, dsap=%d, ssap=%d",
 				result_str, daddr, saddr,
 				rccnf_p->rccnf_conn.con_dsap,
@@ -1075,9 +1055,7 @@ void
 spans_print_msg(objp)
 	spans_msg *objp;
 {
-#ifdef LONGPRINT
 	spans_indent = INIT_INDENT;
-#endif
 	spans_print_msgbody(&objp->sm_body);
 }
 

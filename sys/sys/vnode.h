@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vnode.h	8.7 (Berkeley) 2/4/94
- * $Id: vnode.h,v 1.79 1999/01/05 18:50:01 eivind Exp $
+ * $Id: vnode.h,v 1.74 1998/09/11 18:50:16 rvb Exp $
  */
 
 #ifndef _SYS_VNODE_H_
@@ -69,7 +69,7 @@ enum vtagtype	{
  * Each underlying filesystem allocates its own private area and hangs
  * it from v_data.  If non-null, this area is freed in getnewvnode().
  */
-TAILQ_HEAD(buflists, buf);
+LIST_HEAD(buflists, buf);
 
 typedef	int 	vop_t __P((void *));
 struct namecache;
@@ -125,10 +125,6 @@ struct vnode {
 		short	vpi_events;		/* what they are looking for */
 		short	vpi_revents;		/* what has happened */
 	} v_pollinfo;
-#ifdef	DEBUG_LOCKS
-	const char *filename;			/* Source file doing locking */
-	int line;				/* Line number doing locking */
-#endif
 };
 #define	v_mountedhere	v_un.vu_mountedhere
 #define	v_socket	v_un.vu_socket
@@ -246,6 +242,7 @@ extern int		vttoif_tab[];
 #define	WRITECLOSE	0x0004		/* vflush: only close writable files */
 #define	DOCLOSE		0x0008		/* vclean: close active files */
 #define	V_SAVE		0x0001		/* vinvalbuf: sync file first */
+#define	V_SAVEMETA	0x0002		/* vinvalbuf: leave indirect blocks */
 #define	REVOKEALL	0x0001		/* vop_revoke: revoke all aliases */
 
 #define	VREF(vp)	vref(vp)
@@ -263,8 +260,7 @@ extern int		vttoif_tab[];
 #define	VNODEOP_SET(f) DATA_SET(MODVNOPS,f)
 #else
 #define	VNODEOP_SET(f) \
-	SYSINIT(f##init, SI_SUB_VFS, SI_ORDER_SECOND, vfs_add_vnodeops, &f); \
-	SYSUNINIT(f##uninit, SI_SUB_VFS, SI_ORDER_SECOND, vfs_rm_vnodeops, &f);
+	SYSINIT(f##init, SI_SUB_VFS, SI_ORDER_SECOND, vfs_mod_opv_init, &f);
 #endif
 
 /*
@@ -492,8 +488,8 @@ void 	vattr_null __P((struct vattr *vap));
 int 	vcount __P((struct vnode *vp));
 void	vdrop __P((struct vnode *));
 int	vfinddev __P((dev_t dev, enum vtype type, struct vnode **vpp));
-void	vfs_add_vnodeops __P((void *));
-void	vfs_rm_vnodeops __P((void *));
+void	vfs_opv_init __P((struct vnodeopv_desc *opv));
+void	vfs_mod_opv_init __P((void *handle));
 int	vflush __P((struct mount *mp, struct vnode *skipvp, int flags));
 int 	vget __P((struct vnode *vp, int lockflag, struct proc *p));
 void 	vgone __P((struct vnode *vp));
@@ -509,11 +505,6 @@ int	vrecycle __P((struct vnode *vp, struct simplelock *inter_lkp,
 int 	vn_close __P((struct vnode *vp,
 	    int flags, struct ucred *cred, struct proc *p));
 int	vn_lock __P((struct vnode *vp, int flags, struct proc *p));
-#ifdef	DEBUG_LOCKS
-int	debug_vn_lock __P((struct vnode *vp, int flags, struct proc *p,
-	    const char *filename, int line));
-#define vn_lock(vp,flags,p) debug_vn_lock(vp,flags,p,__FILE__,__LINE__)
-#endif
 int 	vn_open __P((struct nameidata *ndp, int fmode, int cmode));
 void	vn_pollevent __P((struct vnode *vp, int events));
 void	vn_pollgone __P((struct vnode *vp));
@@ -525,7 +516,7 @@ int	vn_stat __P((struct vnode *vp, struct stat *sb, struct proc *p));
 void	vn_syncer_add_to_worklist __P((struct vnode *vp, int delay));
 int	vfs_cache_lookup __P((struct vop_lookup_args *ap));
 int	vfs_object_create __P((struct vnode *vp, struct proc *p,
-                struct ucred *cred));
+                struct ucred *cred, int waslocked));
 int 	vn_writechk __P((struct vnode *vp));
 int	vop_stdbwrite __P((struct vop_bwrite_args *ap));
 int	vop_stdislocked __P((struct vop_islocked_args *));
@@ -545,7 +536,6 @@ int	vop_einval __P((struct vop_generic_args *ap));
 int	vop_enotty __P((struct vop_generic_args *ap));
 int	vop_defaultop __P((struct vop_generic_args *ap));
 int	vop_null __P((struct vop_generic_args *ap));
-int	vop_panic __P((struct vop_generic_args *ap));
 
 struct vnode *
 	checkalias __P((struct vnode *vp, dev_t nvp_rdev, struct mount *mp));

@@ -73,8 +73,6 @@ static int netdev_opens;
 
 static int net_getparams(int sock);
 
-static void net_print(int verbose);
-
 struct devsw netdev = {
     "net", 
     DEVT_NET, 
@@ -83,18 +81,7 @@ struct devsw netdev = {
     net_open, 
     net_close, 
     noioctl
-    net_print,
 };
-
-/*
- * Print stuff about our net 'device'.
- */
-static void
-net_print(int verbose)
-{
-    pager_output("    net:  network interface");
-    /* XXX much more verbose stuff here */
-}
 
 /*
  * Called by devopen after it sets f->f_dev to our devsw entry.

@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile.inc0,v 1.13 1998/12/20 14:30:08 jhay Exp $
+#	$Id: Makefile.inc0,v 1.9 1998/09/28 20:41:31 jb Exp $
 #
 # This makefile ensures that the object directory is set according to the
 # object format to avoid mixing aout and elf formatted files during the
@@ -18,9 +18,7 @@ MAKEOBJDIRPREFIX?=/usr/obj
 # Variables passed to make work better if they are set as environment
 # variables instead of command line options.
 #
-.if	${MACHINE_ARCH} == "i386" && ${OBJFORMAT} == "aout"
 MK_ENV=	MAKEOBJDIRPREFIX=${MAKEOBJDIRPREFIX}/${OBJFORMAT}
-.endif
 
 #
 # We should always use the current set of mk files, not the installed ones.
@@ -31,29 +29,20 @@ MAKE=	make -m ${.CURDIR}/share/mk -f Makefile.inc1
 #
 # These are the backend targets.
 #
-BKTGTS=	all checkdpadd clean cleandepend cleandir \
-	depend everything hierarchy includes install installmost \
-	lint maninstall mk most obj objlink regress rerelease \
-	tags update
+BKTGTS=	afterdistribute all clean cleandepend cleandir cleanobj depend \
+	distribute everything hierarchy includes installmost install mk \
+	most obj rerelease update
 
 #
 # A generic rule for the backend targets.
 #
 ${BKTGTS} :
-	@cd ${.CURDIR}; ${MAKE} ${.TARGET}
-
-# These targets are used during a make release, which is done after a
-# make world, so they should use the same OBJDIRPREFIX that was used
-# during the make world.
-RELTGTS= afterdistribute distribute
-
-${RELTGTS} :
 	@cd ${.CURDIR}; ${MK_ENV} ${MAKE} ${.TARGET}
 
 #
 # Temporary path and environment for the legacy build.
 #
-ELFTMP=		${MAKEOBJDIRPREFIX}${.CURDIR}/tmp
+ELFTMP=		${MAKEOBJDIRPREFIX}/elf${.CURDIR}/tmp
 ELFTMPPATH=	${ELFTMP}/sbin:${ELFTMP}/bin:${ELFTMP}/usr/sbin:${ELFTMP}/usr/bin:${ELFTMP}/usr/games
 LEGACY_ENV=	PATH=${ELFTMPPATH} OBJFORMAT=aout NOTOOLS=1 TOOLROOT=${ELFTMP} \
 		MAKEOBJDIRPREFIX=${MAKEOBJDIRPREFIX}/aout

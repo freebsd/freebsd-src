@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: console.h,v 1.42 1999/01/01 14:38:28 des Exp $
+ *	$Id: console.h,v 1.40 1998/09/23 09:58:45 yokota Exp $
  */
 
 #ifndef	_MACHINE_CONSOLE_H_
@@ -52,7 +52,6 @@
 #define KDSETLED	_IO('K', 66 /*, int */)
 #define KDSETRAD	_IO('K', 67 /*, int */)
 #define KDRASTER	_IOW('K', 100, scr_size_t)
-#define KDGKBINFO	_IOR('K', 101, keyboard_info_t)
 
 #define GETFKEY		_IOWR('k', 0, fkeyarg_t)
 #define SETFKEY		_IOWR('k', 1, fkeyarg_t)
@@ -62,8 +61,6 @@
 #define PIO_KEYMAP 	_IOW('k', 7, keymap_t)
 #define GIO_DEADKEYMAP 	_IOR('k', 8, accentmap_t)
 #define PIO_DEADKEYMAP 	_IOW('k', 9, accentmap_t)
-#define GIO_KEYMAPENT 	_IOWR('k', 10, keyarg_t)
-#define PIO_KEYMAPENT 	_IOW('k', 11, keyarg_t)
 
 #define GIO_ATTR	_IOR('a', 0, int)
 #define GIO_COLOR	_IOR('c', 0, int)
@@ -89,13 +86,10 @@
 #define CONS_GETINFO    _IOWR('c', 73, vid_info_t)
 #define CONS_GETVERS	_IOR('c', 74, int)
 #define CONS_CURRENTADP	_IOR('c', 100, int)
-#define CONS_ADPINFO	_IOWR('c', 101, video_adapter_info_t)
+#define CONS_ADPINFO	_IOWR('c', 101, video_adapter_t)
 #define CONS_MODEINFO	_IOWR('c', 102, video_info_t)
 #define CONS_FINDMODE	_IOWR('c', 103, video_info_t)
 #define CONS_SETWINORG	_IO('c', 104 /* u_int */) 
-
-#define CONS_SETKBD	_IO('c', 110 /* int */)
-#define CONS_RELKBD	_IO('c', 111)
 
 /* CONS_SAVERMODE */
 #define CONS_LKM_SAVER	0
@@ -195,11 +189,9 @@ struct mouse_info {
 #define NLKED		2		/* Num locked			*/
 #define SLKED		4		/* Scroll locked		*/
 #define ALKED		8		/* AltGr locked			*/
-#define LOCK_MASK	(CLKED | NLKED | SLKED | ALKED)
 #define LED_CAP		1		/* Caps lock LED 		*/
 #define LED_NUM		2		/* Num lock LED 		*/
 #define LED_SCR		4		/* Scroll lock LED 		*/
-#define LED_MASK	(LED_CAP | LED_NUM | LED_SCR)
 
 /* possible flag values */
 #define	FLAG_LOCK_O	0
@@ -212,7 +204,7 @@ struct mouse_info {
 
 #ifndef _KEYMAP_DECLARED
 #define	_KEYMAP_DECLARED
-struct keyent_t {
+struct key_t {
 	u_char map[NUM_STATES];
 	u_char spcl;
 	u_char flgs;
@@ -220,17 +212,10 @@ struct keyent_t {
 
 struct keymap {
 	u_short	n_keys;
-	struct keyent_t key[NUM_KEYS];
+	struct key_t key[NUM_KEYS];
 };
 
 typedef struct keymap keymap_t;
-
-struct keyarg {
-	u_short	keynum;
-	struct keyent_t key;
-};
-
-typedef struct keyarg keyarg_t;
 #endif /* !_KEYMAP_DECLARED */
 
 #define NUM_DEADKEYS	15		/* number of accent keys */
@@ -289,9 +274,6 @@ struct ssaver	{
 struct video_adapter {
     int			va_index;
     int			va_type;
-    char		*va_name;
-    int			va_unit;
-    int			va_minor;
     int			va_flags;
 #define V_ADP_COLOR	(1<<0)
 #define V_ADP_MODECHANGE (1<<1)
@@ -301,14 +283,7 @@ struct video_adapter {
 #define V_ADP_PALETTE	(1<<5)
 #define V_ADP_BORDER	(1<<6)
 #define V_ADP_VESA	(1<<7)
-#define V_ADP_PROBED	(1<<16)
-#define V_ADP_INITIALIZED (1<<17)
-#define V_ADP_REGISTERED (1<<18)
-    int			va_io_base;
-    int			va_io_size;
     int			va_crtc_addr;
-    int			va_mem_base;
-    int			va_mem_size;
     u_int		va_window;	/* virtual address */
     size_t		va_window_size;
     size_t		va_window_gran;
@@ -317,30 +292,6 @@ struct video_adapter {
     int			va_initial_mode;
     int			va_initial_bios_mode;
     int			va_mode;
-    int			va_mode_flags;	/* copy of vi_flags */
-    void		*va_token;
-};
-
-struct video_adapter_info {
-    int			va_index;
-    int			va_type;
-    char		va_name[16];
-    int			va_unit;
-    int			va_flags;
-    int			va_io_base;
-    int			va_io_size;
-    int			va_crtc_addr;
-    int			va_mem_base;
-    int			va_mem_size;
-    u_int		va_window;	/* virtual address */
-    size_t		va_window_size;
-    size_t		va_window_gran;
-    u_int		va_buffer;	/* virtual address */
-    size_t		va_buffer_size;
-    int			va_initial_mode;
-    int			va_initial_bios_mode;
-    int			va_mode;
-    int			va_mode_flags;
 };
 
 #define V_ADP_PRIMARY		0
@@ -352,7 +303,7 @@ struct video_info {
     int			vi_flags;
 #define V_INFO_COLOR	(1<<0)
 #define V_INFO_GRAPHICS	(1<<1)
-#define V_INFO_LINEAR	(1<<2)
+#define V_INFO_LENEAR	(1<<2)
 #define V_INFO_VESA	(1<<3)
     int			vi_width;
     int			vi_height;
@@ -368,15 +319,6 @@ struct video_info {
     /* XXX pixel format, memory model,... */
 };
 
-struct keyboard_info {
-    int			kb_index;	/* kbdio index# */
-    char		kb_name[16];	/* driver name */
-    int			kb_unit;	/* unit# */
-    int			kb_type;	/* KB_84, KB_101, KB_OTHER,... */
-    int			kb_config;	/* device configuration flags */
-    int			kb_flags;	/* internal flags */
-};
-
 typedef struct accentmap accentmap_t;
 typedef struct fkeytab fkeytab_t;
 typedef struct fkeyarg fkeyarg_t;
@@ -388,9 +330,7 @@ typedef struct {char fnt8x14[14*256];} fnt14_t;
 typedef struct {char fnt8x16[16*256];} fnt16_t;
 typedef struct ssaver ssaver_t;
 typedef struct video_adapter video_adapter_t;
-typedef struct video_adapter_info video_adapter_info_t;
 typedef struct video_info video_info_t;
-typedef struct keyboard_info keyboard_info_t;
 typedef struct {int scr_size[3];} scr_size_t;
 
 /* defines for "special" keys (spcl bit set in keymap) */
@@ -447,13 +387,6 @@ typedef struct {int scr_size[3];} scr_size_t;
 #define FKEY		0x200		/* function key marker 		*/
 #define MKEY		0x400		/* meta key marker (prepend ESC)*/
 #define BKEY		0x800		/* backtab (ESC [ Z)		*/
-
-#define SPCLKEY		0x8000		/* special key */
-#define RELKEY		0x4000		/* key released */
-#define ERRKEY		0x2000		/* error */
-
-#define KEYCHAR(c)	((c) & 0x00ff)
-#define KEYFLAGS(c)	((c) & ~0x00ff)
 
 /* video mode definitions */
 #define M_B40x25	0	/* black & white 40 columns */

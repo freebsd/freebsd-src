@@ -26,7 +26,7 @@ static const char copyright[] =
     "Copyright 1987,1988 by MIT Student Information Processing Board";
 
 static const char rcsid_compile_et_c[] =
-    "$Header: /home/ncvs/src/usr.bin/compile_et/compile_et.c,v 1.5 1998/12/15 12:20:27 des Exp $";
+    "$Header: /home/ncvs/src/usr.bin/compile_et/compile_et.c,v 1.3 1996/07/12 19:05:17 jkh Exp $";
 #endif
 
 extern char *gensym();
@@ -73,13 +73,19 @@ static const char *const language_names[] = {
     0,
 };
 
-static const char * const noargs_def[] = {
+static const char * const c_src_prolog[] = {
+    "static const char * const text[] = {\n",
+    0,
+};
+
+static const char * const krc_src_prolog[] = {
     "#ifdef __STDC__\n",
     "#define NOARGS void\n",
     "#else\n",
     "#define NOARGS\n",
     "#define const\n",
     "#endif\n\n",
+    "static const char * const text[] = {\n",
     0,
 };
 
@@ -215,12 +221,14 @@ int main (argc, argv) int argc; char **argv; {
     fprintf (cfile, warning, c_file);
 
     /* prologue */
-    for (cpp = noargs_def; *cpp; cpp++) {
-	fputs (*cpp, cfile);
-	fputs (*cpp, hfile);
-    }
-
-    fputs("static const char * const text[] = {\n", cfile);
+    if (language == lang_C)
+	cpp = c_src_prolog;
+    else if (language == lang_KRC)
+	cpp = krc_src_prolog;
+    else
+	abort ();
+    while (*cpp)
+	fputs (*cpp++, cfile);
 
     /* parse it */
     yyparse();
@@ -234,8 +242,8 @@ int main (argc, argv) int argc; char **argv; {
 	    table_number, current);
     fputs("static struct et_list link = { 0, 0 };\n\n",
 	  cfile);
-    fprintf(cfile, "void initialize_%s_error_table (NOARGS) {\n",
-	    table_name);
+    fprintf(cfile, "void initialize_%s_error_table (%s) {\n",
+	    table_name, (language == lang_C) ? "void" : "NOARGS");
     fputs("    if (!link.table) {\n", cfile);
     fputs("        link.next = _et_list;\n", cfile);
     fputs("        link.table = &et;\n", cfile);
@@ -244,7 +252,7 @@ int main (argc, argv) int argc; char **argv; {
     fputs("}\n", cfile);
     fclose(cfile);
 
-    fprintf (hfile, "extern void initialize_%s_error_table (NOARGS);\n",
+    fprintf (hfile, "extern void initialize_%s_error_table ();\n",
 	     table_name);
     fprintf (hfile, "#define ERROR_TABLE_BASE_%s (%dL)\n",
 	     table_name, table_number);

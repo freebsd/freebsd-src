@@ -1,12 +1,12 @@
 # -*- text -*-
 
-This is the official version of am-utils.
+This is an alpha version of amd.  "Buyers" beware!!!
 
 See the file NEWS for news on this and previous releases.
 
-*** General Notes to alpha/beta testers:
+*** General Notes to alpha testers:
 
-[A] as alpha/beta testers, I expect you to be able to find certain things on
+[A] an an alpha testers, I expect you to be able to find certain things on
 your own (especially look at the sources to figure out how things work).
 
 [B] if you intend to modify any files, first find out if the file you want

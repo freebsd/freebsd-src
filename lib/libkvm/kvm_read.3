@@ -43,6 +43,7 @@
 .Nm kvm_write
 .Nd read or write kernel virtual memory
 .Sh SYNOPSIS
+.Fd #include <sys/types.h>
 .Fd #include <kvm.h>
 .Ft ssize_t
 .Fn kvm_read "kvm_t *kd" "u_long addr" "void *buf" "size_t nbytes"

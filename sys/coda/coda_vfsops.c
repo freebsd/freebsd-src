@@ -27,7 +27,7 @@
  * Mellon the rights to redistribute these changes without encumbrance.
  * 
  *  	@(#) src/sys/cfs/coda_vfsops.c,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $
- *  $Id: coda_vfsops.c,v 1.10 1998/12/04 22:54:43 archie Exp $
+ *  $Id: coda_vfsops.c,v 1.6 1998/09/25 17:38:32 rvb Exp $
  * 
  */
 
@@ -47,37 +47,6 @@
 /*
  * HISTORY
  * $Log: coda_vfsops.c,v $
- * Revision 1.10  1998/12/04 22:54:43  archie
- * Examine all occurrences of sprintf(), strcat(), and str[n]cpy()
- * for possible buffer overflow problems. Replaced most sprintf()'s
- * with snprintf(); for others cases, added terminating NUL bytes where
- * appropriate, replaced constants like "16" with sizeof(), etc.
- *
- * These changes include several bug fixes, but most changes are for
- * maintainability's sake. Any instance where it wasn't "immediately
- * obvious" that a buffer overflow could not occur was made safer.
- *
- * Reviewed by:	Bruce Evans <bde@zeta.org.au>
- * Reviewed by:	Matthew Dillon <dillon@apollo.backplane.com>
- * Reviewed by:	Mike Spengler <mks@networkcs.com>
- *
- * Revision 1.9  1998/11/16 19:48:26  rvb
- * A few bug fixes for Robert Watson
- *
- * Revision 1.8  1998/11/03 08:55:06  peter
- * Support KLD.  We register and unregister two modules. "coda" (the vfs)
- * via VFS_SET(), and "codadev" for the cdevsw entry.  From kldstat -v:
- *  3    1 0xf02c5000 115d8    coda.ko
- *         Contains modules:
- *                 Id Name
- *                  2 codadev
- *                  3 coda
- *
- * Revision 1.7  1998/09/29 20:19:45  rvb
- * Fixes for lkm:
- * 1. use VFS_LKM vs ACTUALLY_LKM_NOT_KERNEL
- * 2. don't pass -DCODA to lkm build
- *
  * Revision 1.6  1998/09/25 17:38:32  rvb
  * Put "stray" printouts under DIAGNOSTIC.  Make everything build
  * with DEBUG on.  Add support for lkm.  (The macro's don't work
@@ -221,7 +190,11 @@
  * 
  */ 
 
+#ifdef	VFS_LKM
+#define NVCODA 4
+#else
 #include <vcoda.h>
+#endif
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -449,7 +422,6 @@ coda_unmount(vfsp, mntflags, p)
 	vrele(mi->mi_rootvp);
 
 	active = coda_kill(vfsp, NOT_DOWNCALL);
-	mi->mi_rootvp->v_flag &= ~VROOT;
 	error = vflush(mi->mi_vfsp, NULLVP, FORCECLOSE);
 	printf("coda_unmount: active = %d, vflush active %d\n", active, error);
 	error = 0;
@@ -529,7 +501,7 @@ coda_root(vfsp, vpp)
 
 	MARK_INT_SAT(CODA_ROOT_STATS);
 	goto exit;
-    } else if (error == ENODEV || error == EINTR) {
+    } else if (error == ENODEV) {
 	/* Gross hack here! */
 	/*
 	 * If Venus fails to respond to the CODA_ROOT call, coda_call returns
@@ -605,8 +577,8 @@ coda_nb_statfs(vfsp, sbp, p)
     sbp->f_files = NB_SFS_SIZ;
     sbp->f_ffree = NB_SFS_SIZ;
     bcopy((caddr_t)&(vfsp->mnt_stat.f_fsid), (caddr_t)&(sbp->f_fsid), sizeof (fsid_t));
-    snprintf(sbp->f_mntonname, sizeof(sbp->f_mntonname), "/coda");
-    snprintf(sbp->f_mntfromname, sizeof(sbp->f_mntfromname), "CODA");
+    strcpy(sbp->f_mntonname, "/coda");
+    strcpy(sbp->f_mntfromname, "CODA");
 /*  MARK_INT_SAT(CODA_STATFS_STATS); */
     return(0);
 }
@@ -767,4 +739,11 @@ struct vfsops coda_vfsops = {
     coda_init,
 };
 
+#ifdef	VFS_LKM
+/*
+ * This case is being handled in coda_fbsd.c
+ * What we want is too hairy for VFS_SET to get right!
+ */
+#else
 VFS_SET(coda_vfsops, coda, VFCF_NETWORK);
+#endif

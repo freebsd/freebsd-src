@@ -23,13 +23,13 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#	$Id: smbus_if.m,v 1.3 1998/11/07 14:56:04 nsouch Exp $
+#	$Id: smbus_if.m,v 1.1.1.2 1998/08/13 15:16:58 son Exp $
 #
 
-INTERFACE smbus;
+INTERFACE smbus
 
 #
-# Interpret interrupt
+# Interprete interrupt
 #
 METHOD void intr {
 	device_t dev;
@@ -37,15 +37,6 @@ METHOD void intr {
 	char low;
 	char high;
 	int error;
-};
-
-#
-# smbus callback
-#
-METHOD int callback {
-	device_t dev;
-	int index;
-	caddr_t data;
 };
 
 #
@@ -129,7 +120,7 @@ METHOD int pcall {
 #
 # Block Write command
 #
-METHOD int bwrite {
+METHODE int bwrite {
 	device_t dev;
 	u_char slave;
 	char cmd;
@@ -140,7 +131,7 @@ METHOD int bwrite {
 #
 # Block Read command
 #
-METHOD int bread {
+METHODE int bread {
 	device_t dev;
 	u_char slave;
 	char cmd;

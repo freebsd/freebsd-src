@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_misc.c,v 1.50 1998/12/30 21:01:33 sos Exp $
+ *  $Id: linux_misc.c,v 1.44 1998/09/24 13:25:43 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -41,9 +41,6 @@
 #include <sys/resourcevar.h>
 #include <sys/stat.h>
 #include <sys/sysctl.h>
-#ifdef COMPAT_LINUX_THREADS
-#include <sys/unistd.h>
-#endif /* COMPAT_LINUX_THREADS */
 #include <sys/vnode.h>
 #include <sys/wait.h>
 #include <sys/time.h>
@@ -563,79 +560,6 @@ linux_fork(struct proc *p, struct linux_fork_args *args)
     return 0;
 }
 
-#ifndef COMPAT_LINUX_THREADS
-int
-linux_clone(struct proc *p, struct linux_clone_args *args)
-{
-    printf("linux_clone(%d): Not enabled\n", p->p_pid);
-    return (EOPNOTSUPP);
-}
-
-#else
-#define CLONE_VM	0x100
-#define CLONE_FS	0x200
-#define CLONE_FILES	0x400
-#define CLONE_SIGHAND	0x800
-#define CLONE_PID	0x1000
-
-int
-linux_clone(struct proc *p, struct linux_clone_args *args)
-{
-    int error, ff = RFPROC;
-    struct proc *p2;
-    int            exit_signal;
-    vm_offset_t    start;
-    struct rfork_args rf_args;
-
-#ifdef SMP
-    printf("linux_clone(%d): does not work with SMP yet\n", p->p_pid);
-    return (EOPNOTSUPP);
-#endif
-#ifdef DEBUG
-    if (args->flags & CLONE_PID)
-	printf("linux_clone(%d): CLONE_PID not yet supported\n", p->p_pid);
-    printf ("linux_clone(%d): invoked with flags %x and stack %x\n", p->p_pid,
-	     (unsigned int)args->flags, (unsigned int)args->stack);
-#endif
-
-    if (!args->stack)
-        return (EINVAL);
-    exit_signal = args->flags & 0x000000ff;
-    if (exit_signal >= LINUX_NSIG)
-	return EINVAL;
-    exit_signal = linux_to_bsd_signal[exit_signal];
-
-    /* RFTHREAD probably not necessary here, but it shouldn't hurt either */
-    ff |= RFTHREAD;
-
-    if (args->flags & CLONE_VM)
-	ff |= RFMEM;
-    if (args->flags & CLONE_SIGHAND)
-	ff |= RFSIGSHARE;
-    if (!(args->flags & CLONE_FILES))
-	ff |= RFFDG;
-
-    error = 0;
-    start = 0;
-
-    rf_args.flags = ff;
-    if (error = rfork(p, &rf_args))
-	return error;
-
-    p2 = pfind(p->p_retval[0]);
-    if (p2 == 0)
- 	return ESRCH;
-
-    p2->p_sigparent = exit_signal;
-    p2->p_md.md_regs->tf_esp = (unsigned int)args->stack;
-
-#ifdef DEBUG
-    printf ("linux_clone(%d): successful rfork to %d\n", p->p_pid, p2->p_pid);
-#endif
-    return 0;
-}
-
-#endif /* COMPAT_LINUX_THREADS */
 /* XXX move */
 struct linux_mmap_argv {
 	linux_caddr_t addr;
@@ -646,11 +570,6 @@ struct linux_mmap_argv {
 	int pos;
 };
 
-#ifdef COMPAT_LINUX_THREADS
-#define STACK_SIZE  (2 * 1024 * 1024)
-#define GUARD_SIZE  (4 * PAGE_SIZE)
-
-#endif /* COMPAT_LINUX_THREADS */
 int
 linux_mmap(struct proc *p, struct linux_mmap_args *args)
 {
@@ -683,69 +602,8 @@ linux_mmap(struct proc *p, struct linux_mmap_args *args)
 	bsd_args.flags |= MAP_FIXED;
     if (linux_args.flags & LINUX_MAP_ANON)
 	bsd_args.flags |= MAP_ANON;
-#ifndef COMPAT_LINUX_THREADS
     bsd_args.addr = linux_args.addr;
     bsd_args.len = linux_args.len;
-#else
-
-#ifndef VM_STACK
-    /* Linux Threads will map into the proc stack space, unless
-     * we prevent it.  This causes problems if we're not using
-     * our VM_STACK options.
-     */
-    if ((unsigned int)linux_args.addr + linux_args.len > (USRSTACK - MAXSSIZ))
-	return (EINVAL);
-#endif
-
-    if (linux_args.flags & LINUX_MAP_GROWSDOWN) {
-
-#ifdef VM_STACK
-	bsd_args.flags |= MAP_STACK;      
-#endif
-
-	/* The linux MAP_GROWSDOWN option does not limit auto
-	 * growth of the region.  Linux mmap with this option
-	 * takes as addr the inital BOS, and as len, the initial
-	 * region size.  It can then grow down from addr without
-	 * limit.  However, linux threads has an implicit internal
-	 * limit to stack size of STACK_SIZE.  Its just not
-	 * enforced explicitly in linux.  But, here we impose
-	 * a limit of (STACK_SIZE - GUARD_SIZE) on the stack
-	 * region, since we can do this with our mmap.
-	 *
-	 * Our mmap with MAP_STACK takes addr as the maximum
-	 * downsize limit on BOS, and as len the max size of
-	 * the region.  It them maps the top SGROWSIZ bytes,
-	 * and autgrows the region down, up to the limit
-	 * in addr.
-	 *
-	 * If we don't use the MAP_STACK option, the effect
-	 * of this code is to allocate a stack region of a
-	 * fixed size of (STACK_SIZE - GUARD_SIZE).
-	 */
-
-	/* This gives us TOS */
-	bsd_args.addr = linux_args.addr + linux_args.len;
-
-	/* This gives us our maximum stack size */
-	if (linux_args.len > STACK_SIZE - GUARD_SIZE)
-	    bsd_args.len = linux_args.len;
-	else
-	    bsd_args.len  = STACK_SIZE - GUARD_SIZE;
-
-	/* This gives us a new BOS.  If we're using VM_STACK, then
-	 * mmap will just map the top SGROWSIZ bytes, and let
-	 * the stack grow down to the limit at BOS.  If we're
-	 * not using VM_STACK we map the full stack, since we
-	 * don't have a way to autogrow it.
-	 */
-	bsd_args.addr -= bsd_args.len;
-
-    } else {
-	bsd_args.addr = linux_args.addr;
-	bsd_args.len  = linux_args.len;
-    }
-#endif /* COMPAT_LINUX_THREADS */
     bsd_args.prot = linux_args.prot | PROT_READ;	/* always required */
     bsd_args.fd = linux_args.fd;
     bsd_args.pos = linux_args.pos;
@@ -801,23 +659,14 @@ int
 linux_pipe(struct proc *p, struct linux_pipe_args *args)
 {
     int error;
-    int reg_edx;
 
 #ifdef DEBUG
     printf("Linux-emul(%d): pipe(*)\n", p->p_pid);
 #endif
-    reg_edx = p->p_retval[1];
-    if (error = pipe(p, 0)) {
-	p->p_retval[1] = reg_edx;
+    if (error = pipe(p, 0))
 	return error;
-    }
-
-    if (error = copyout(p->p_retval, args->pipefds, 2*sizeof(int))) {
-	p->p_retval[1] = reg_edx;
+    if (error = copyout(p->p_retval, args->pipefds, 2*sizeof(int)))
 	return error;
-    }
-     
-    p->p_retval[1] = reg_edx;
     p->p_retval[0] = 0;
     return 0;
 }
@@ -897,18 +746,12 @@ linux_newuname(struct proc *p, struct linux_newuname_args *args)
     printf("Linux-emul(%d): newuname(*)\n", p->p_pid);
 #endif
     bzero(&linux_newuname, sizeof(struct linux_newuname_t));
-    strncpy(linux_newuname.sysname, ostype,
-	sizeof(linux_newuname.sysname) - 1);
-    strncpy(linux_newuname.nodename, hostname,
-	sizeof(linux_newuname.nodename) - 1);
-    strncpy(linux_newuname.release, osrelease,
-	sizeof(linux_newuname.release) - 1);
-    strncpy(linux_newuname.version, version,
-	sizeof(linux_newuname.version) - 1);
-    strncpy(linux_newuname.machine, machine,
-	sizeof(linux_newuname.machine) - 1);
-    strncpy(linux_newuname.domainname, domainname,
-	sizeof(linux_newuname.domainname) - 1);
+    strncpy(linux_newuname.sysname, ostype, 64);
+    strncpy(linux_newuname.nodename, hostname, 64);
+    strncpy(linux_newuname.release, osrelease, 64);
+    strncpy(linux_newuname.version, version, 64);
+    strncpy(linux_newuname.machine, machine, 64);
+    strncpy(linux_newuname.domainname, domainname, 64);
     return (copyout((caddr_t)&linux_newuname, (caddr_t)args->buf,
 	    	    sizeof(struct linux_newuname_t)));
 }
@@ -972,25 +815,11 @@ linux_waitpid(struct proc *p, struct linux_waitpid_args *args)
 #endif
     tmp.pid = args->pid;
     tmp.status = args->status;
-#ifndef COMPAT_LINUX_THREADS
     tmp.options = args->options;
-#else
-    /* This filters out the linux option _WCLONE.  I don't
-     * think we need it, but I could be wrong.  If we need
-     * it, we need to fix wait4, since it will give us an
-     * error return of EINVAL if we pass in _WCLONE, and
-     * of course, it won't do anything with it.
-     */
-    tmp.options = (args->options & (WNOHANG | WUNTRACED));
-#endif /* COMPAT_LINUX_THREADS */
     tmp.rusage = NULL;
 
     if (error = wait4(p, &tmp))
-#ifndef COMPAT_LINUX_THREADS
 	return error;
-#else
-	return error;
-#endif /* COMPAT_LINUX_THREADS */
     if (args->status) {
 	if (error = copyin(args->status, &tmpstat, sizeof(int)))
 	    return error;
@@ -1023,17 +852,7 @@ linux_wait4(struct proc *p, struct linux_wait4_args *args)
 #endif
     tmp.pid = args->pid;
     tmp.status = args->status;
-#ifndef COMPAT_LINUX_THREADS
     tmp.options = args->options;
-#else
-    /* This filters out the linux option _WCLONE.  I don't
-     * think we need it, but I could be wrong.  If we need
-     * it, we need to fix wait4, since it will give us an
-     * error return of EINVAL if we pass in _WCLONE, and
-     * of course, it won't do anything with it.
-     */
-    tmp.options = (args->options & (WNOHANG | WUNTRACED));
-#endif /* COMPAT_LINUX_THREADS */
     tmp.rusage = args->rusage;
 
     if (error = wait4(p, &tmp))
@@ -1170,75 +989,3 @@ linux_nice(struct proc *p, struct linux_nice_args *args)
 	return setpriority(p, &bsd_args);
 }
 
-int
-linux_setgroups(p, uap)
-     struct proc *p;
-     struct linux_setgroups_args *uap;
-{
-  struct pcred *pc = p->p_cred;
-  linux_gid_t linux_gidset[NGROUPS];
-  gid_t *bsd_gidset;
-  int ngrp, error;
-
-  if ((error = suser(pc->pc_ucred, &p->p_acflag)))
-    return error;
-
-  if (uap->gidsetsize > NGROUPS)
-    return EINVAL;
-
-  ngrp = uap->gidsetsize;
-  pc->pc_ucred = crcopy(pc->pc_ucred);
-  if (ngrp >= 1) {
-    if ((error = copyin((caddr_t)uap->gidset,
-                      (caddr_t)linux_gidset,
-                        ngrp * sizeof(linux_gid_t))))
-      return error;
-
-    pc->pc_ucred->cr_ngroups = ngrp;
-
-    bsd_gidset = pc->pc_ucred->cr_groups;
-    ngrp--;
-    while (ngrp >= 0) {
-      bsd_gidset[ngrp] = linux_gidset[ngrp];
-      ngrp--;
-    }
-  }
-  else
-    pc->pc_ucred->cr_ngroups = 1;
-
-  setsugid(p);
-  return 0;
-}
-
-int
-linux_getgroups(p, uap)
-     struct proc *p;
-     struct linux_getgroups_args *uap;
-{
-  struct pcred *pc = p->p_cred;
-  linux_gid_t linux_gidset[NGROUPS];
-  gid_t *bsd_gidset;
-  int ngrp, error;
-
-  if ((ngrp = uap->gidsetsize) == 0) {
-    p->p_retval[0] = pc->pc_ucred->cr_ngroups;
-    return 0;
-  }
-
-  if (ngrp < pc->pc_ucred->cr_ngroups)
-    return EINVAL;
-
-  ngrp = 0;
-  bsd_gidset = pc->pc_ucred->cr_groups;
-  while (ngrp < pc->pc_ucred->cr_ngroups) {
-    linux_gidset[ngrp] = bsd_gidset[ngrp];
-    ngrp++;
-  }
-
-  if ((error = copyout((caddr_t)linux_gidset, (caddr_t)uap->gidset,
-                       ngrp * sizeof(linux_gid_t))))
-    return error;
-
-  p->p_retval[0] = ngrp;
-  return (0);
-}

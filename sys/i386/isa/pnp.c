@@ -23,12 +23,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: pnp.c,v 1.8 1998/11/21 01:54:50 archie Exp $
+ *      $Id: pnp.c,v 1.5 1998/02/09 06:08:38 eivind Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/linker_set.h>
+#include <sys/kernel.h>	/* for DATA_SET	*/
 #include <sys/malloc.h>
 #include <sys/interrupt.h>
 #include <machine/clock.h>
@@ -373,9 +373,9 @@ config_pnp_device(pnp_id *p, int csn)
 
     /* these are for autoconfigure a-la pci */
     struct pnp_device *dvp, **dvpp;
-    char *name = NULL;
+    char *name ;
 
-    printf("CSN %d Vendor ID: %c%c%c%02x%02x [0x%08lx] Serial 0x%08lx Comp ID: %c%c%c%02x%02x [0x%08lx]\n",
+    printf("CSN %d Vendor ID: %c%c%c%02x%02x [0x%08x] Serial 0x%08x Comp ID: %c%c%c%02x%02x [0x%08x]\n",
 	csn,
 	((data[0] & 0x7c) >> 2) + '@',
 	(((data[0] & 0x03) << 3) | ((data[1] & 0xe0) >> 5)) + '@',
@@ -456,7 +456,7 @@ config_pnp_device(pnp_id *p, int csn)
 	    nod->dev.id_driver->name ? nod->dev.id_driver->name : "unknown",
 	    unit, dvp->pd_name, name, p->serial);
 	if (nod->dev.id_alive) {
-	    if (nod->dev.id_irq != 0 && nod->dev.id_intr != NULL) {
+	    if (nod->dev.id_irq) {
 		/* the board uses interrupts. Register it. */
 		if (dvp->imask)
 		    INTRMASK( *(dvp->imask), nod->dev.id_irq );
@@ -533,7 +533,7 @@ pnp_scan_resdata(pnp_id *p, int csn)
 		        bcopy(resinfo, &p->comp_id, 4);
 			retval = TRUE;
 			if (bootverbose)
-			    printf("PnP: CSN %d COMP_DEVICE_ID = 0x%08lx\n", csn, p->comp_id);
+			    printf("PnP: CSN %d COMP_DEVICE_ID = 0x%08x\n", csn, p->comp_id);
 		    }
 		    /*
 		     * We found what we were looking for, or got an error from

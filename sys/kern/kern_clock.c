@@ -1,3 +1,5 @@
+static volatile int print_tci = 1;
+
 /*-
  * Copyright (c) 1997, 1998 Poul-Henning Kamp <phk@FreeBSD.org>
  * Copyright (c) 1982, 1986, 1991, 1993
@@ -37,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_clock.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_clock.c,v 1.85 1998/11/23 09:58:53 phk Exp $
+ * $Id: kern_clock.c,v 1.79 1998/09/15 10:05:18 gibbs Exp $
  */
 
 #include <sys/param.h>
@@ -46,7 +48,6 @@
 #include <sys/callout.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
-#include <sys/malloc.h>
 #include <sys/resourcevar.h>
 #include <sys/signalvar.h>
 #include <sys/timex.h>
@@ -67,23 +68,10 @@
 #include <machine/smp.h>
 #endif
 
-/* This is where the NTIMECOUNTER option hangs out */
-#include "opt_ntp.h"
-
-/*
- * Number of timecounters used to implement stable storage
- */
-#ifndef NTIMECOUNTER
-#define NTIMECOUNTER	5
-#endif
-
-static MALLOC_DEFINE(M_TIMECOUNTER, "timecounter", 
-	"Timecounter stable storage");
-
 static void initclocks __P((void *dummy));
 SYSINIT(clocks, SI_SUB_CLOCKS, SI_ORDER_FIRST, initclocks, NULL)
 
-static void tco_forward __P((int force));
+static void tco_forward __P((void));
 static void tco_setscales __P((struct timecounter *tc));
 static __inline unsigned tco_delta __P((struct timecounter *tc));
 
@@ -99,37 +87,9 @@ long tk_nin;
 long tk_nout;
 long tk_rawcc;
 
+struct timecounter *timecounter;
+
 time_t time_second;
-
-/*
- * Which update policy to use.
- *   0 - every tick, bad hardware may fail with "calcru negative..."
- *   1 - more resistent to the above hardware, but less efficient.
- */
-static int tco_method;
-
-/*
- * Implement a dummy timecounter which we can use until we get a real one
- * in the air.  This allows the console and other early stuff to use
- * timeservices.
- */
-
-static unsigned 
-dummy_get_timecount(struct timecounter *tc)
-{
-	static unsigned now;
-	return (++now);
-}
-
-static struct timecounter dummy_timecounter = {
-	dummy_get_timecount,
-	0,
-	~0u,
-	1000000,
-	"dummy"
-};
-
-struct timecounter *timecounter = &dummy_timecounter;
 
 /*
  * Clock handling routines.
@@ -232,7 +192,7 @@ hardclock(frame)
 	if (stathz == 0)
 		statclock(frame);
 
-	tco_forward(0);
+	tco_forward();
 	ticks++;
 
 	/*
@@ -365,15 +325,15 @@ statclock(frame)
 {
 #ifdef GPROF
 	register struct gmonparam *g;
-	int i;
 #endif
 	register struct proc *p;
+	register int i;
 	struct pstats *pstats;
 	long rss;
 	struct rusage *ru;
 	struct vmspace *vm;
 
-	if (curproc != NULL && CLKF_USERMODE(frame)) {
+	if (CLKF_USERMODE(frame)) {
 		p = curproc;
 		if (p->p_flag & P_PROFIL)
 			addupc_intr(p, CLKF_PC(frame), 1);
@@ -522,12 +482,8 @@ getmicrotime(struct timeval *tvp)
 {
 	struct timecounter *tc;
 
-	if (!tco_method) {
-		tc = timecounter;
-		*tvp = tc->tc_microtime;
-	} else {
-		microtime(tvp);
-	}
+	tc = timecounter;
+	*tvp = tc->tc_microtime;
 }
 
 void
@@ -535,12 +491,8 @@ getnanotime(struct timespec *tsp)
 {
 	struct timecounter *tc;
 
-	if (!tco_method) {
-		tc = timecounter;
-		*tsp = tc->tc_nanotime;
-	} else {
-		nanotime(tsp);
-	}
+	tc = timecounter;
+	*tsp = tc->tc_nanotime;
 }
 
 void
@@ -611,13 +563,9 @@ getmicrouptime(struct timeval *tvp)
 {
 	struct timecounter *tc;
 
-	if (!tco_method) {
-		tc = timecounter;
-		tvp->tv_sec = tc->tc_offset_sec;
-		tvp->tv_usec = tc->tc_offset_micro;
-	} else {
-		microuptime(tvp);
-	}
+	tc = timecounter;
+	tvp->tv_sec = tc->tc_offset_sec;
+	tvp->tv_usec = tc->tc_offset_micro;
 }
 
 void
@@ -625,13 +573,9 @@ getnanouptime(struct timespec *tsp)
 {
 	struct timecounter *tc;
 
-	if (!tco_method) {
-		tc = timecounter;
-		tsp->tv_sec = tc->tc_offset_sec;
-		tsp->tv_nsec = tc->tc_offset_nano >> 32;
-	} else {
-		nanouptime(tsp);
-	}
+	tc = timecounter;
+	tsp->tv_sec = tc->tc_offset_sec;
+	tsp->tv_nsec = tc->tc_offset_nano >> 32;
 }
 
 void
@@ -650,14 +594,14 @@ microuptime(struct timeval *tv)
 }
 
 void
-nanouptime(struct timespec *ts)
+nanouptime(struct timespec *tv)
 {
 	unsigned count;
 	u_int64_t delta;
 	struct timecounter *tc;
 
 	tc = (struct timecounter *)timecounter;
-	ts->tv_sec = tc->tc_offset_sec;
+	tv->tv_sec = tc->tc_offset_sec;
 	count = tco_delta(tc);
 	delta = tc->tc_offset_nano;
 	delta += ((u_int64_t)count * tc->tc_scale_nano_f);
@@ -665,9 +609,9 @@ nanouptime(struct timespec *ts)
 	delta += ((u_int64_t)count * tc->tc_scale_nano_i);
 	if (delta >= 1000000000) {
 		delta -= 1000000000;
-		ts->tv_sec++;
+		tv->tv_sec++;
 	}
-	ts->tv_nsec = delta;
+	tv->tv_nsec = delta;
 }
 
 static void
@@ -689,29 +633,33 @@ tco_setscales(struct timecounter *tc)
 void
 init_timecounter(struct timecounter *tc)
 {
-	struct timespec ts1;
-	struct timecounter *t1, *t2, *t3;
+	struct timespec ts0, ts1;
 	int i;
 
 	tc->tc_adjustment = 0;
 	tco_setscales(tc);
 	tc->tc_offset_count = tc->tc_get_timecount(tc);
-	tc->tc_tweak = tc;
-	MALLOC(t1, struct timecounter *, sizeof *t1, M_TIMECOUNTER, M_WAITOK);
-	*t1 = *tc;
-	t2 = t1;
-	for (i = 1; i < NTIMECOUNTER; i++) {
-		MALLOC(t3, struct timecounter *, sizeof *t3,
-		    M_TIMECOUNTER, M_WAITOK);
-		*t3 = *tc;
-		t3->tc_other = t2;
-		t2 = t3;
-	}
-	t1->tc_other = t3;
-	tc = t1;
+	tc[0].tc_tweak = &tc[0];
+	tc[2] = tc[1] = tc[0];
+	tc[1].tc_other = &tc[2];
+	tc[2].tc_other = &tc[1];
+	if (!timecounter || !strcmp(timecounter->tc_name, "dummy"))
+		timecounter = &tc[2];
+	tc = &tc[1];
 
-	printf("Timecounter \"%s\"  frequency %lu Hz\n", 
-	    tc->tc_name, (u_long)tc->tc_frequency);
+	/* 
+	 * Figure out the cost of calling this timecounter.
+	 */
+	nanotime(&ts0);
+	for (i = 0; i < 256; i ++) 
+		tc->tc_get_timecount(tc);
+	nanotime(&ts1);
+	ts1.tv_sec -= ts0.tv_sec;
+	tc->tc_cost = ts1.tv_sec * 1000000000 + ts1.tv_nsec - ts0.tv_nsec;
+	tc->tc_cost >>= 8;
+	if (print_tci && strcmp(tc->tc_name, "dummy"))
+		printf("Timecounter \"%s\"  frequency %lu Hz  cost %u ns\n", 
+		    tc->tc_name, (u_long)tc->tc_frequency, tc->tc_cost);
 
 	/* XXX: For now always start using the counter. */
 	tc->tc_offset_count = tc->tc_get_timecount(tc);
@@ -735,7 +683,7 @@ set_timecounter(struct timespec *ts)
 		boottime.tv_sec--;
 	}
 	/* fiddle all the little crinkly bits around the fiords... */
-	tco_forward(1);
+	tco_forward();
 }
 
 
@@ -783,7 +731,7 @@ sync_other_counter(void)
 }
 
 static void
-tco_forward(int force)
+tco_forward(void)
 {
 	struct timecounter *tc, *tco;
 
@@ -803,7 +751,6 @@ tco_forward(int force)
 	if (timedelta != 0) {
 		tc->tc_offset_nano += (u_int64_t)(tickdelta * 1000) << 32;
 		timedelta -= tickdelta;
-		force++;
 	}
 
 	while (tc->tc_offset_nano >= 1000000000ULL << 32) {
@@ -813,11 +760,7 @@ tco_forward(int force)
 		tc->tc_adjustment = tc->tc_tweak->tc_adjustment;
 		ntp_update_second(tc);	/* XXX only needed if xntpd runs */
 		tco_setscales(tc);
-		force++;
 	}
-
-	if (tco_method && !force)
-		return;
 
 	tc->tc_offset_micro = (tc->tc_offset_nano / 1000) >> 32;
 
@@ -856,15 +799,39 @@ sysctl_kern_timecounter_adjustment SYSCTL_HANDLER_ARGS
 
 SYSCTL_NODE(_kern, OID_AUTO, timecounter, CTLFLAG_RW, 0, "");
 
-SYSCTL_INT(_kern_timecounter, KERN_ARGMAX, method, CTLFLAG_RW, &tco_method, 0,
-    "This variable determines the method used for updating timecounters. "
-    "If the default algorithm (0) fails with \"calcru negative...\" messages "
-    "try the alternate algorithm (1) which handles bad hardware better."
-
-);
-
 SYSCTL_PROC(_kern_timecounter, OID_AUTO, frequency, CTLTYPE_INT | CTLFLAG_RW,
     0, sizeof(u_int), sysctl_kern_timecounter_frequency, "I", "");
 
 SYSCTL_PROC(_kern_timecounter, OID_AUTO, adjustment, CTLTYPE_INT | CTLFLAG_RW,
     0, sizeof(int), sysctl_kern_timecounter_adjustment, "I", "");
+
+/*
+ * Implement a dummy timecounter which we can use until we get a real one
+ * in the air.  This allows the console and other early stuff to use
+ * timeservices.
+ */
+
+static unsigned 
+dummy_get_timecount(struct timecounter *tc)
+{
+	static unsigned now;
+	return (++now);
+}
+
+static struct timecounter dummy_timecounter[3] = {
+	{
+		dummy_get_timecount,
+		0,
+		~0u,
+		1000000,
+		"dummy"
+	}
+};
+
+static void
+initdummytimecounter(void *dummy)
+{
+	init_timecounter(dummy_timecounter);
+}
+
+SYSINIT(dummytc, SI_SUB_CONSOLE, SI_ORDER_FIRST, initdummytimecounter, NULL)

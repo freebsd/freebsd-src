@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1998 Sendmail, Inc.  All rights reserved.
  * Copyright (c) 1990, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
@@ -16,7 +16,7 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)mail.local.c	8.83 (Berkeley) 12/17/1998";
+static char sccsid[] = "@(#)mail.local.c	8.78 (Berkeley) 5/19/98";
 #endif /* not lint */
 
 /*
@@ -102,7 +102,7 @@ static char sccsid[] = "@(#)mail.local.c	8.83 (Berkeley) 12/17/1998";
 # define USE_VSYSLOG	0
 #endif
 
-#if defined(NeXT) && !defined(__APPLE__)
+#if defined(NeXT)
 # include <libc.h>
 # define _PATH_MAILDIR	"/usr/spool/mail"
 # define __dead		/* empty */
@@ -216,20 +216,18 @@ extern char	*strerror __P((int));
 # define S_ISREG(mode)	(((mode) & _S_IFMT) == S_IFREG)
 #endif
 
-#ifndef MAILER_DAEMON
-# define MAILER_DAEMON	"MAILER-DAEMON"
-#endif
-
 int	eval = EX_OK;			/* sysexits.h error value. */
 int	lmtpmode = 0;
 u_char	tTdvect[100];
 
 void		deliver __P((int, char *, int, int));
 void		e_to_sys __P((int));
+void		err __P((const char *, ...)) __dead2;
 void		notifybiff __P((char *));
 int		store __P((char *, int));
 void		usage __P((void));
 void		vwarn __P((const char *, _BSD_VA_LIST_));
+void		warn __P((const char *, ...));
 void		lockmbox __P((char *));
 void		unlockmbox __P((void));
 void		mailerr __P((const char *, const char *, ...));
@@ -273,7 +271,7 @@ main(argc, argv)
 		case 'f':
 		case 'r':		/* Backward compatible. */
 			if (from != NULL) {
-				mailerr(NULL, "multiple -f options");
+				warn("multiple -f options");
 				usage();
 			}
 			from = optarg;
@@ -346,7 +344,7 @@ parseaddr(s)
 				return NULL;
 		} else {
 			while ((isascii(*p) && isalnum(*p)) ||
-			       strchr(".-_", *p))
+			       *p == '.' || *p == '-')
 				p++;
 		}
 		if (*p == ',' && p[1] == '@')
@@ -356,8 +354,6 @@ parseaddr(s)
 		else
 			return NULL;
 	}
-
-	s = p;
 
 	/* local-part */
 	if (*p == '\"') {
@@ -398,7 +394,7 @@ parseaddr(s)
 				return NULL;
 		} else {
 			while ((isascii(*p) && isalnum(*p)) ||
-			       strchr(".-_", *p))
+			       *p == '.' || *p == '-')
 				p++;
 		}
 	}
@@ -408,11 +404,6 @@ parseaddr(s)
 	if (*p && *p != ' ')
 		return NULL;
 	len = p - s - 1;
-	if (*s == '\0' || len <= 0)
-	{
-		s = MAILER_DAEMON;
-		len = strlen(s);
-	}
 
 	p = malloc(len + 1);
 	if (p == NULL) {
@@ -600,7 +591,7 @@ store(from, lmtprcpts)
 	char *from;
 	int lmtprcpts;
 {
-	FILE *fp = NULL;
+	FILE *fp;
 	time_t tval;
 	int fd, eline;
 	char line[2048];
@@ -612,8 +603,8 @@ store(from, lmtprcpts)
 			printf("451 4.3.0 unable to open temporary file\r\n");
 			return -1;
 		} else {
-			mailerr("451 4.3.0", "unable to open temporary file");
-			exit(eval);
+			e_to_sys(errno);
+			err("unable to open temporary file");
 		}
 	}
 	(void)unlink(tmpbuf);
@@ -628,21 +619,13 @@ store(from, lmtprcpts)
 
 	line[0] = '\0';
 	for (eline = 1; fgets(line, sizeof(line), stdin);) {
-		size_t line_len = strlen(line);
-
-		if (line_len >= 2 &&
-		    line[line_len - 2] == '\r' &&
-		    line[line_len - 1] == '\n') {
-			strcpy(line + line_len - 2, "\n");
+		if (line[strlen(line)-2] == '\r') {
+			strcpy(line+strlen(line)-2, "\n");
 		}
 		if (lmtprcpts && line[0] == '.') {
-			char *src = line + 1, *dest = line;
-
 			if (line[1] == '\n')
 				goto lmtpdot;
-			while (*src != '\0')
-				*dest++ = *src++;
-			*dest = '\0';
+			strcpy(line, line+1);
 		}
 		if (line[0] == '\n')
 			eline = 1;
@@ -661,10 +644,8 @@ store(from, lmtprcpts)
 				fclose(fp);
 				return -1;
 			} else {
-				mailerr("451 4.3.0",
-					"temporary file write error");
-				fclose(fp);
-				exit(eval);
+				e_to_sys(errno);
+				err("temporary file write error");
 			}
 		}
 	}
@@ -691,9 +672,8 @@ store(from, lmtprcpts)
 			fclose(fp);
 			return -1;
 		} else {
-			mailerr("451 4.3.0", "temporary file write error");
-			fclose(fp);
-			exit(eval);
+			e_to_sys(errno);
+			err("temporary file write error");
 		}
 	}
 	return (fd);
@@ -728,13 +708,7 @@ deliver(fd, name, nobiff, nofsync)
 			}
 		}
 		else {
-			char *errcode = NULL;
-
-			if (eval == EX_TEMPFAIL)
-				errcode = "451 4.3.0";
-			else
-				errcode = "550 5.1.1";
-			mailerr(errcode, "unknown name: %s", name);
+			warn("unknown name: %s", name);
 		}
 		return;
 	}
@@ -789,8 +763,7 @@ tryagain:
 		if (lstat(path, &sb) < 0)
 		{
 			eval = EX_CANTCREAT;
-			mailerr("550 5.2.0",
-				"%s: lstat: file changed after open", path);
+			warn("%s: lstat: file changed after open", path);
 			goto err1;
 		}
 		else
@@ -829,8 +802,7 @@ tryagain:
 #endif
 	    sb.st_uid != fsb.st_uid) {
 		eval = EX_TEMPFAIL;
-		mailerr("550 5.2.0", "%s: fstat: file changed after open",
-			path);
+		warn("%s: fstat: file changed after open", path);
 		goto err1;
 	}
 
@@ -883,12 +855,9 @@ tryagain:
 		mailerr("450 4.2.0", "%s: %s", path, strerror(errno));
 err3:
 		if (setreuid(0, 0) < 0) {
-#if 0
-			/* already printed an error above for this recipient */
 			e_to_sys(errno);
 			mailerr("450 4.2.0", "setreuid(0, 0): %s",
 				strerror(errno));
-#endif
 		}
 #ifdef DEBUG
 		printf("reset euid = %d\n", geteuid());
@@ -991,6 +960,7 @@ notifybiff(msg)
 		if ((sp = getservbyname("biff", "udp")) == NULL)
 			return;
 		if ((hp = gethostbyname("localhost")) == NULL) {
+			warn("localhost: %s", strerror(errno));
 			return;
 		}
 		addr.sin_family = hp->h_addrtype;
@@ -998,18 +968,20 @@ notifybiff(msg)
 		addr.sin_port = sp->s_port;
 	}
 	if (f < 0 && (f = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
+		warn("socket: %s", strerror(errno));
 		return;
 	}
 	len = strlen(msg) + 1;
-	(void) sendto(f, msg, len, 0, (struct sockaddr *)&addr, sizeof(addr));
+	if (sendto(f, msg, len, 0, (struct sockaddr *)&addr, sizeof(addr))
+	    != len)
+		warn("sendto biff: %s", strerror(errno));
 }
 
 void
 usage()
 {
 	eval = EX_USAGE;
-	mailerr(NULL, "usage: mail.local [-b] [-l] [-f from] [-s] user ...");
-	exit(eval);
+	err("usage: mail.local [-b] [-l] [-f from] [-s] user ...");
 }
 
 void
@@ -1031,8 +1003,7 @@ mailerr(hdr, fmt, va_alist)
 #endif
 	if (lmtpmode)
 	{
-		if (hdr != NULL)
-			printf("%s ", hdr);
+		printf("%s ", hdr);
 		vprintf(fmt, ap);
 		printf("\r\n");
 	}
@@ -1041,6 +1012,49 @@ mailerr(hdr, fmt, va_alist)
 		e_to_sys(errno);
 		vwarn(fmt, ap);
 	}
+}
+
+#ifdef __STDC__
+void
+err(const char *fmt, ...)
+#else
+void
+err(fmt, va_alist)
+	const char *fmt;
+	va_dcl
+#endif
+{
+	va_list ap;
+
+#ifdef __STDC__
+	va_start(ap, fmt);
+#else
+	va_start(ap);
+#endif
+	vwarn(fmt, ap);
+	va_end(ap);
+
+	exit(eval);
+}
+
+void
+#ifdef __STDC__
+warn(const char *fmt, ...)
+#else
+warn(fmt, va_alist)
+	const char *fmt;
+	va_dcl
+#endif
+{
+	va_list ap;
+
+#ifdef __STDC__
+	va_start(ap, fmt);
+#else
+	va_start(ap);
+#endif
+	vwarn(fmt, ap);
+	va_end(ap);
 }
 
 void

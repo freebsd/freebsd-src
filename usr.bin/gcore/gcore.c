@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)gcore.c	8.2 (Berkeley) 9/23/93";
 #endif
 static const char rcsid[] =
-	"$Id: gcore.c,v 1.12 1998/10/22 04:02:37 jdp Exp $";
+	"$Id: gcore.c,v 1.9 1998/09/14 10:09:30 des Exp $";
 #endif /* not lint */
 
 /*
@@ -79,19 +79,17 @@ static const char rcsid[] =
 
 #include "extern.h"
 
-static void	core __P((int, int, struct kinfo_proc *));
-static void	datadump __P((int, int, struct proc *, u_long, int));
-static void	killed __P((int));
-static void	restart_target __P((void));
-static void	usage __P((void)) __dead2;
-static void	userdump __P((int, struct proc *, u_long, int));
+void	core __P((int, int, struct kinfo_proc *));
+void	datadump __P((int, int, struct proc *, u_long, int));
+void	usage __P((void));
+void	userdump __P((int, struct proc *, u_long, int));
 
 kvm_t *kd;
 /* XXX undocumented routine, should be in kvm.h? */
 ssize_t kvm_uread __P((kvm_t *, const struct proc *, u_long, char *, size_t));
 
+
 static int data_offset;
-static pid_t pid;
 
 int
 main(argc, argv)
@@ -99,12 +97,11 @@ main(argc, argv)
 	char *argv[];
 {
 	register struct proc *p;
-	struct kinfo_proc *ki = NULL;
+	struct kinfo_proc *ki;
 	struct exec exec;
-	int ch, cnt, efd, fd, sflag, uid;
+	int ch, cnt, efd, fd, pid, sflag, uid;
 	char *binfile, *corefile;
 	char errbuf[_POSIX2_LINE_MAX], fname[MAXPATHLEN + 1];
-	int is_aout;
 
 	sflag = 0;
 	corefile = NULL;
@@ -140,53 +137,27 @@ main(argc, argv)
 		usage();
 	}
 
-	efd = open(binfile, O_RDONLY, 0);
-	if (efd < 0)
-		err(1, "%s", binfile);
+	kd = kvm_openfiles(0, 0, 0, O_RDONLY, errbuf);
+	if (kd == NULL)
+		errx(1, "%s", errbuf);
 
-	cnt = read(efd, &exec, sizeof(exec));
-	if (cnt != sizeof(exec))
-		errx(1, "%s exec header: %s",
-		    binfile, cnt > 0 ? strerror(EIO) : strerror(errno));
-	if (!N_BADMAG(exec)) {
-		is_aout = 1;
-		/*
-		 * This legacy a.out support uses the kvm interface instead
-		 * of procfs.
-		 */
-		kd = kvm_openfiles(0, 0, 0, O_RDONLY, errbuf);
-		if (kd == NULL)
-			errx(1, "%s", errbuf);
+	uid = getuid();
 
-		uid = getuid();
+	ki = kvm_getprocs(kd, KERN_PROC_PID, pid, &cnt);
+	if (ki == NULL || cnt != 1)
+		errx(1, "%d: not found", pid);
 
-		ki = kvm_getprocs(kd, KERN_PROC_PID, pid, &cnt);
-		if (ki == NULL || cnt != 1)
-			errx(1, "%d: not found", pid);
+	p = &ki->kp_proc;
+	if (ki->kp_eproc.e_pcred.p_ruid != uid && uid != 0)
+		errx(1, "%d: not owner", pid);
 
-		p = &ki->kp_proc;
-		if (ki->kp_eproc.e_pcred.p_ruid != uid && uid != 0)
-			errx(1, "%d: not owner", pid);
+	if (p->p_stat == SZOMB)
+		errx(1, "%d: zombie", pid);
 
-		if (p->p_stat == SZOMB)
-			errx(1, "%d: zombie", pid);
-
-		if (p->p_flag & P_WEXIT)
-			errx(1, "%d: process exiting", pid);
-		if (p->p_flag & P_SYSTEM)	/* Swapper or pagedaemon. */
-			errx(1, "%d: system process", pid);
-		if (exec.a_text != ptoa(ki->kp_eproc.e_vm.vm_tsize))
-			errx(1, "The executable %s does not belong to"
-			    " process %d!\n"
-			    "Text segment size (in bytes): executable %ld,"
-			    " process %d", binfile, pid, exec.a_text, 
-			     ptoa(ki->kp_eproc.e_vm.vm_tsize));
-		data_offset = N_DATOFF(exec);
-	} else if (IS_ELF(*(Elf_Ehdr *)&exec)) {
-		is_aout = 0;
-		close(efd);
-	} else
-		errx(1, "Invalid executable file");
+	if (p->p_flag & P_WEXIT)
+		errx(1, "%d: process exiting", pid);
+	if (p->p_flag & P_SYSTEM)	/* Swapper or pagedaemon. */
+		errx(1, "%d: system process", pid);
 
 	if (corefile == NULL) {
 		(void)snprintf(fname, sizeof(fname), "core.%d", pid);
@@ -196,21 +167,41 @@ main(argc, argv)
 	if (fd < 0)
 		err(1, "%s", corefile);
 
-	if (sflag) {
-		signal(SIGHUP, killed);
-		signal(SIGINT, killed);
-		signal(SIGTERM, killed);
-		if (kill(pid, SIGSTOP) == -1)
-			err(1, "%d: stop signal", pid);
-		atexit(restart_target);
+	efd = open(binfile, O_RDONLY, 0);
+	if (efd < 0)
+		err(1, "%s", binfile);
+
+	cnt = read(efd, &exec, sizeof(exec));
+	if (cnt != sizeof(exec))
+		errx(1, "%s exec header: %s",
+		    binfile, cnt > 0 ? strerror(EIO) : strerror(errno));
+	if (N_BADMAG(exec)) {
+		const Elf_Ehdr *ehdr = (const Elf_Ehdr *)&exec;
+
+		if (IS_ELF(*ehdr))
+			errx(1, "ELF executables are not supported yet");
+		errx(1, "Invalid executable file");
 	}
 
-	if (is_aout)
-		core(efd, fd, ki);
-	else
-		elf_coredump(fd, pid);
+	/* check the text segment size of the executable and the process */
+	if (exec.a_text != ptoa(ki->kp_eproc.e_vm.vm_tsize))
+		errx(1, 
+		     "The executable %s does not belong to process %d!\n"
+		     "Text segment size (in bytes): executable %d, process %d",
+		     binfile, pid, exec.a_text, 
+		     ptoa(ki->kp_eproc.e_vm.vm_tsize));
 
+	data_offset = N_DATOFF(exec);
+
+	if (sflag && kill(pid, SIGSTOP) < 0)
+		err(1, "%d: stop signal", pid);
+
+	core(efd, fd, ki);
+
+	if (sflag && kill(pid, SIGCONT) < 0)
+		err(1, "%d: continue signal", pid);
 	(void)close(fd);
+
 	exit(0);
 }
 
@@ -293,21 +284,6 @@ datadump(efd, fd, p, addr, npage)
 			    cc > 0 ? strerror(EIO) : strerror(errno));
 		addr += PAGE_SIZE;
 	}
-}
-
-static void
-killed(sig)
-	int sig;
-{
-	restart_target();
-	signal(sig, SIG_DFL);
-	kill(getpid(), sig);
-}
-
-static void
-restart_target()
-{
-	kill(pid, SIGCONT);
 }
 
 void

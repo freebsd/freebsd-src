@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.92 1998/12/30 10:38:59 dfr Exp $
+ *	$Id: kern_exec.c,v 1.86 1998/09/04 08:06:55 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -66,12 +66,11 @@
 
 static long *exec_copyout_strings __P((struct image_params *));
 
-static long ps_strings = PS_STRINGS;
-SYSCTL_LONG(_kern, KERN_PS_STRINGS, ps_strings, CTLFLAG_RD, &ps_strings, "");
+static struct ps_strings *ps_strings = PS_STRINGS;
+SYSCTL_INTPTR(_kern, KERN_PS_STRINGS, ps_strings, 0, &ps_strings, 0, "");
 
-static long usrstack = USRSTACK;
-SYSCTL_LONG(_kern, KERN_USRSTACK, usrstack, CTLFLAG_RD, &usrstack, "");
-
+static caddr_t usrstack = (caddr_t)USRSTACK;
+SYSCTL_INTPTR(_kern, KERN_USRSTACK, usrstack, 0, &usrstack, 0, "");
 /*
  * Each of the items is a pointer to a `const struct execsw', hence the
  * double pointer here.
@@ -149,7 +148,6 @@ interpret:
 	}
 
 	imgp->vp = ndp->ni_vp;
-	imgp->fname = uap->fname;
 
 	/*
 	 * Check file permissions (also 'opens' file)
@@ -324,8 +322,8 @@ exec_fail_dealloc:
 		kmem_free_wakeup(exec_map, (vm_offset_t)imgp->stringbase,
 			ARG_MAX + PAGE_SIZE);
 
-	if (imgp->vp) {
-		vrele(imgp->vp);
+	if (ndp->ni_vp) {
+		vrele(ndp->ni_vp);
 		zfree(namei_zone, ndp->ni_cnd.cn_pnbuf);
 	}
 
@@ -410,7 +408,7 @@ exec_unmap_first_page(imgp)
 {
 	if (imgp->firstpage) {
 		pmap_kremove((vm_offset_t) imgp->image_header);
-		vm_page_unwire(imgp->firstpage, 1);
+		vm_page_unwire(imgp->firstpage);
 		imgp->firstpage = NULL;
 	}
 }
@@ -426,11 +424,7 @@ exec_new_vmspace(imgp)
 {
 	int error;
 	struct vmspace *vmspace = imgp->proc->p_vmspace;
-#ifdef VM_STACK
-	caddr_t	stack_addr = (caddr_t) (USRSTACK - MAXSSIZ);
-#else
 	caddr_t	stack_addr = (caddr_t) (USRSTACK - SGROWSIZ);
-#endif
 	vm_map_t map = &vmspace->vm_map;
 
 	imgp->vmspace_destroyed = 1;
@@ -443,8 +437,8 @@ exec_new_vmspace(imgp)
 	if (vmspace->vm_refcnt == 1) {
 		if (vmspace->vm_shm)
 			shmexit(imgp->proc);
-		pmap_remove_pages(&vmspace->vm_pmap, 0, VM_MAXUSER_ADDRESS);
-		vm_map_remove(map, 0, VM_MAXUSER_ADDRESS);
+		pmap_remove_pages(&vmspace->vm_pmap, 0, USRSTACK);
+		vm_map_remove(map, 0, USRSTACK);
 	} else {
 		vmspace_exec(imgp->proc);
 		vmspace = imgp->proc->p_vmspace;
@@ -452,19 +446,6 @@ exec_new_vmspace(imgp)
 	}
 
 	/* Allocate a new stack */
-#ifdef VM_STACK
-	error = vm_map_stack (&vmspace->vm_map, (vm_offset_t)stack_addr,
-			      (vm_size_t)MAXSSIZ, VM_PROT_ALL, VM_PROT_ALL, 0);
-	if (error)
-		return (error);
-
-	/* vm_ssize and vm_maxsaddr are somewhat antiquated concepts in the
-	 * VM_STACK case, but they are still used to monitor the size of the
-	 * process stack so we can check the stack rlimit.
-	 */
-	vmspace->vm_ssize = SGROWSIZ >> PAGE_SHIFT;
-	vmspace->vm_maxsaddr = (char *)USRSTACK - MAXSSIZ;
-#else
 	error = vm_map_insert(&vmspace->vm_map, NULL, 0,
 		(vm_offset_t) stack_addr, (vm_offset_t) USRSTACK,
 		VM_PROT_ALL, VM_PROT_ALL, 0);
@@ -475,7 +456,6 @@ exec_new_vmspace(imgp)
 
 	/* Initialize maximum stack address */
 	vmspace->vm_maxsaddr = (char *)USRSTACK - MAXSSIZ;
-#endif
 
 	return(0);
 }
@@ -569,7 +549,7 @@ exec_copyout_strings(imgp)
 	 * Calculate string base and vector table pointers.
 	 * Also deal with signal trampoline code for this exec type.
 	 */
-	arginfo = (struct ps_strings *)PS_STRINGS;
+	arginfo = PS_STRINGS;
 	szsigcode = *(imgp->proc->p_sysent->sv_szsigcode);
 	destp =	(caddr_t)arginfo - szsigcode - SPARE_USRSPACE -
 		roundup((ARG_MAX - imgp->stringspace), sizeof(char *));

@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: unisig_msg.c,v 1.3 1998/10/31 20:07:01 phk Exp $
+ *	@(#) $Id: unisig_msg.c,v 1.1 1998/09/15 08:23:11 phk Exp $
  *
  */
 
@@ -35,6 +35,10 @@
  *
  */
 
+#ifndef lint
+static char *RCSid = "@(#) $Id: unisig_msg.c,v 1.1 1998/09/15 08:23:11 phk Exp $";
+#endif
+
 #include <netatm/kern_include.h>
 
 #include <netatm/uni/unisig.h>
@@ -42,10 +46,6 @@
 #include <netatm/uni/unisig_msg.h>
 #include <netatm/uni/unisig_mbuf.h>
 #include <netatm/uni/unisig_print.h>
-
-#ifndef lint
-__RCSID("@(#) $Id: unisig_msg.c,v 1.3 1998/10/31 20:07:01 phk Exp $");
-#endif
 
 
 /*
@@ -68,7 +68,8 @@ static int	unisig_print_msg = 0;
  *
  * Arguments:
  *	iep	pointer to a cause IE
- *	aap	pointer to attribute block
+ *	msg	pointer to message
+ *	cause	cause code for the error
  *
  * Returns:
  *	0	message sent OK

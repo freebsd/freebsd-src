@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pci.c,v 1.92 1999/01/12 01:44:42 eivind Exp $
+ * $Id: pci.c,v 1.88 1998/09/15 22:05:37 gibbs Exp $
  *
  */
 
@@ -148,10 +148,9 @@ pci_maprange(unsigned mapreg)
 static pcimap *
 pci_readmaps(pcicfgregs *cfg, int maxmaps)
 {
-	int i, j = 0;
+	int i;
 	pcimap *map;
 	int map64 = 0;
-	int reg = PCIR_MAPS;
 
 	for (i = 0; i < maxmaps; i++) {
 		int reg = PCIR_MAPS + i*4;
@@ -161,48 +160,40 @@ pci_readmaps(pcicfgregs *cfg, int maxmaps)
 		base = pci_cfgread(cfg, reg, 4);
 		ln2range = pci_maprange(base);
 
-		if (base == 0 || ln2range == 0 || base == 0xffffffff)
-			continue; /* skip invalid entry */
-		else {
-			j++;
-			if (ln2range > 32) {
-				i++;
-				j++;
-			}
-		}
+		if (base == 0 || ln2range == 0)
+			maxmaps = i;
+		else if (ln2range > 32)
+			i++;
 	}
 
-	map = malloc(j * sizeof (pcimap), M_DEVBUF, M_WAITOK);
+	map = malloc(maxmaps * sizeof (pcimap), M_DEVBUF, M_WAITOK);
 	if (map != NULL) {
-		bzero(map, sizeof(pcimap) * j);
-		cfg->nummaps = j;
+		bzero(map, sizeof(pcimap) * maxmaps);
 
-		for (i = 0, j = 0; i < maxmaps; i++, reg += 4) {
+		for (i = 0; i < maxmaps; i++) {
+			int reg = PCIR_MAPS + i*4;
 			u_int32_t base;
 			u_int32_t testval;
 
 			base = pci_cfgread(cfg, reg, 4);
 
 			if (map64 == 0) {
-				if (base == 0 || base == 0xffffffff)
-					continue; /* skip invalid entry */
 				pci_cfgwrite(cfg, reg, 0xffffffff, 4);
 				testval = pci_cfgread(cfg, reg, 4);
 				pci_cfgwrite(cfg, reg, base, 4);
 
-				map[j].reg	= reg;
-				map[j].base     = pci_mapbase(base);
-				map[j].type     = pci_maptype(base);
-				map[j].ln2size  = pci_mapsize(testval);
-				map[j].ln2range = pci_maprange(testval);
-				map64 = map[j].ln2range == 64;
+				map[i].base     = pci_mapbase(base);
+				map[i].type     = pci_maptype(base);
+				map[i].ln2size  = pci_mapsize(testval);
+				map[i].ln2range = pci_maprange(testval);
+				map64 = map[i].ln2range == 64;
 			} else {
 				/* only fill in base, other fields are 0 */
-				map[j].base     = base;
+				map[i].base     = base;
 				map64 = 0;
 			}
-			j++;
 		}
+		cfg->nummaps = maxmaps;
 	}
 	return (map);
 }
@@ -481,6 +472,14 @@ pci_addcfg(struct pci_devinfo *dinfo)
 		}
 	}
 	pci_drvattach(dinfo); /* XXX currently defined in pci_compat.c */
+}
+
+/* return pointer to device that is a bridge to this bus */
+
+static pcicfgregs *
+pci_bridgeto(int bus)
+{
+	return (NULL); /* XXX not yet implemented */
 }
 
 /* scan one PCI bus for devices */
@@ -765,7 +764,7 @@ pci_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 			 */
 			if ((error = useracc((caddr_t)cio->patterns,
 			                     cio->pat_buf_len, B_READ)) != 1){
-				printf("pci_ioctl: pattern buffer %p, "
+				printf("pci_ioctl: pattern buffer %#p, "
 				       "length %u isn't user accessible for"
 				       " READ\n", cio->patterns,
 				       cio->pat_buf_len);
@@ -801,7 +800,7 @@ pci_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 		 */
 		if ((error = useracc((caddr_t)cio->matches, cio->match_buf_len,
 				     B_WRITE)) != 1) {
-			printf("pci_ioctl: match buffer %p, length %u "
+			printf("pci_ioctl: match buffer %#p, length %u "
 			       "isn't user accessible for WRITE\n",
 			       cio->matches, cio->match_buf_len);
 			error = EACCES;

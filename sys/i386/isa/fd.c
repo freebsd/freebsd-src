@@ -5,10 +5,6 @@
  * This code is derived from software contributed to Berkeley by
  * Don Ahn.
  *
- * Libretto PCMCIA floppy support by David Horwitt (dhorwitt@ucsd.edu)
- * aided by the Linux floppy driver modifications from David Bateman
- * (dbateman@eng.uts.edu.au).
- *
  * Copyright (c) 1993, 1994 by
  *  jc@irbs.UUCP (John Capo)
  *  vak@zebub.msk.su (Serge Vakulenko)
@@ -47,10 +43,14 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.131 1999/01/15 09:15:27 bde Exp $
+ *	$Id: fd.c,v 1.122 1998/09/15 08:15:28 gibbs Exp $
  *
  */
 
+#include "ft.h"
+#if NFT < 1
+#undef NFDC
+#endif
 #include "fd.h"
 #include "opt_devfs.h"
 #include "opt_fdc.h"
@@ -76,6 +76,10 @@
 #include <i386/isa/fdc.h>
 #include <i386/isa/rtc.h>
 #include <machine/stdarg.h>
+#if NFT > 0
+#include <sys/ftape.h>
+#include <i386/isa/ftreg.h>
+#endif
 #ifdef	DEVFS
 #include <sys/devfsext.h>
 #endif	/* DEVFS */
@@ -85,10 +89,6 @@
 
 /* configuration flags */
 #define FDC_PRETEND_D0	(1 << 0)	/* pretend drive 0 to be there */
-#ifdef FDC_YE
-#define FDC_IS_PCMCIA  (1 << 1)		/* if successful probe, then it's
-					   a PCMCIA device */
-#endif
 
 /* internally used only, not really from CMOS: */
 #define RTCFDT_144M_PRETENDED	0x1000
@@ -190,9 +190,15 @@ static struct fd_data {
 * fdsu is the floppy drive unit number on that controller. (sub-unit)	*
 \***********************************************************************/
 
-#ifdef FDC_YE
-#include "card.h"
-static int yeattach(struct isa_device *);
+#if NFT > 0
+int ftopen(dev_t, int);
+int ftintr(ftu_t ftu);
+int ftclose(dev_t, int);
+void ftstrategy(struct buf *);
+int ftioctl(dev_t, unsigned long, caddr_t, int, struct proc *);
+int ftdump(dev_t);
+int ftsize(dev_t);
+int ftattach(struct isa_device *, struct isa_device *, int);
 #endif
 
 /* autoconfig functions */
@@ -215,7 +221,6 @@ static int fd_in(fdcu_t, int *);
 static void fdstart(fdcu_t);
 static timeout_t fd_iotimeout;
 static timeout_t fd_pseudointr;
-static ointhand2_t fdintr;
 static int fdstate(fdcu_t, fdc_p);
 static int retrier(fdcu_t);
 static int fdformat(dev_t, struct fd_formb *, struct proc *);
@@ -238,9 +243,6 @@ static int fifo_threshold = 8;	/* XXX: should be accessible via sysctl */
 #define	MOTORWAIT	10
 #define	IOTIMEDOUT	11
 #define	RESETCOMPLETE	12
-#ifdef FDC_YE
-#define PIOREAD		13
-#endif
 
 #ifdef	FDC_DEBUG
 static char const * const fdstates[] =
@@ -258,9 +260,6 @@ static char const * const fdstates[] =
 "MOTORWAIT",
 "IOTIMEDOUT",
 "RESETCOMPLETE",
-#ifdef FDC_YE
-"PIOREAD",
-#endif
 };
 
 /* CAUTION: fd_debug causes huge amounts of logging output */
@@ -271,91 +270,6 @@ static int volatile fd_debug = 0;
 #define TRACE0(arg)
 #define TRACE1(arg1, arg2)
 #endif /* FDC_DEBUG */
-
-#ifdef FDC_YE
-#if NCARD > 0
-#include <sys/select.h>
-#include <sys/module.h>
-#include <pccard/cardinfo.h>
-#include <pccard/driver.h>
-#include <pccard/slot.h>
-
-/*
- *	PC-Card (PCMCIA) specific code.
- */
-static int yeinit(struct pccard_devinfo *);		/* init device */
-static void yeunload(struct pccard_devinfo *); 		/* Disable driver */
-static int yeintr(struct pccard_devinfo *); 		/* Interrupt handler */
-
-PCCARD_MODULE(fdc, yeinit, yeunload, yeintr, 0, bio_imask);
-
-/*
- * this is the secret PIO data port (offset from base)
- */
-#define FDC_YE_DATAPORT 6
-
-/*
- *	Initialize the device - called from Slot manager.
- */
-static int yeinit(struct pccard_devinfo *devi)
-{
-	fdc_p fdc = &fdc_data[devi->isahd.id_unit];
-
-	/* validate unit number. */
-	if (devi->isahd.id_unit >= NFDC)
-		return(ENODEV);
-	fdc->baseport = devi->isahd.id_iobase;
-	/*
-	 * reset controller
-	 */
-	outb(fdc->baseport+FDOUT, 0);
-	DELAY(100);
-	outb(fdc->baseport+FDOUT, FDO_FRST);
-
-	/*
-	 * wire into system
-	 */
-	if (yeattach(&devi->isahd) == 0)
-		return(ENXIO);
-
-	return(0);
-}
-
-/*
- *	yeunload - unload the driver and clear the table.
- *	XXX TODO:
- *	This is usually called when the card is ejected, but
- *	can be caused by a modunload of a controller driver.
- *	The idea is to reset the driver's view of the device
- *	and ensure that any driver entry points such as
- *	read and write do not hang.
- */
-static void yeunload(struct pccard_devinfo *devi)
-{
-	if (fd_data[devi->isahd.id_unit].type == NO_TYPE)
-		return;
-
-	/*
-	 * this prevents Fdopen() and fdstrategy() from attempting
-	 * to access unloaded controller
-	 */
-	fd_data[devi->isahd.id_unit].type = NO_TYPE;
-
-	printf("fdc%d: unload\n", devi->isahd.id_unit);
-}
-
-/*
- *	yeintr - Shared interrupt called from
- *	front end of PC-Card handler.
- */
-static int yeintr(struct pccard_devinfo *devi)
-{
-	fdintr((fdcu_t)devi->isahd.id_unit);
-	return(1);
-}
-#endif /* NCARD > 0 */
-#endif /* FDC_YE */
-
 
 /* autoconfig structure */
 
@@ -395,7 +309,7 @@ fdc_err(fdcu_t fdcu, const char *s)
 			printf("fdc%d: %s", fdcu, s);
 		else if(fdc_data[fdcu].fdc_errs == FDC_ERRMAX)
 			printf("fdc%d: too many errors, not logging any more\n",
-			    fdcu);
+			       fdcu);
 	}
 
 	return FD_FAILED;
@@ -425,7 +339,7 @@ fd_cmd(fdcu_t fdcu, int n_out, ...)
 		if (out_fdc(fdcu, va_arg(ap, int)) < 0)
 		{
 			char msg[50];
-			snprintf(msg, sizeof(msg),
+			sprintf(msg,
 				"cmd %x failed at out byte %d of %d\n",
 				cmd, n + 1, n_out);
 			return fdc_err(fdcu, msg);
@@ -438,7 +352,7 @@ fd_cmd(fdcu_t fdcu, int n_out, ...)
 		if (fd_in(fdcu, ptr) < 0)
 		{
 			char msg[50];
-			snprintf(msg, sizeof(msg),
+			sprintf(msg,
 				"cmd %02x failed at in byte %d of %d\n",
 				cmd, n + 1, n_in);
 			return fdc_err(fdcu, msg);
@@ -600,14 +514,6 @@ fdprobe(struct isa_device *dev)
 	{
 		return(0);
 	}
-#ifdef FDC_YE
-	/*
-	 * don't succeed on probe; wait
-	 * for PCCARD subsystem to do it
-	 */
-	if (dev->id_flags & FDC_IS_PCMCIA)
-		return(0);
-#endif
 	return (IO_FDCSIZE);
 }
 
@@ -623,6 +529,9 @@ fdattach(struct isa_device *dev)
 	fdc_p	fdc = fdc_data + fdcu;
 	fd_p	fd;
 	int	fdsu, st0, st3, i;
+#if NFT > 0
+	int	unithasfd;
+#endif
 	struct isa_device *fdup;
 	int ic_type = 0;
 #ifdef DEVFS
@@ -631,7 +540,6 @@ fdattach(struct isa_device *dev)
 	int	typesize;
 #endif
 
-	dev->id_ointr = fdintr;
 	fdc->fdcu = fdcu;
 	fdc->flags |= FDC_ATTACHED;
 	fdc->dmachan = dev->id_drq;
@@ -649,7 +557,7 @@ fdattach(struct isa_device *dev)
 			continue;
 		fdu = fdup->id_unit;
 		fd = &fd_data[fdu];
-		if (fdu >= (NFD))
+		if (fdu >= (NFD+NFT))
 			continue;
 		fdsu = fdup->id_physid;
 		/* look up what bios thinks we have */
@@ -666,8 +574,26 @@ fdattach(struct isa_device *dev)
 		}
 		/* is there a unit? */
 		if ((fdt == RTCFDT_NONE)
+#if NFT > 0
+		    || (fdsu >= DRVS_PER_CTLR)) {
+#else
 		) {
 			fd->type = NO_TYPE;
+#endif
+#if NFT > 0
+			/* If BIOS says no floppy, or > 2nd device */
+			/* Probe for and attach a floppy tape.     */
+			/* Tell FT if there was already a disk     */
+			/* with this unit number found.            */
+
+			unithasfd = 0;
+			if (fdu < NFD && fd->type != NO_TYPE)
+				unithasfd = 1;
+			if (ftattach(dev, fdup, unithasfd))
+				continue;
+			if (fdsu < DRVS_PER_CTLR)
+				fd->type = NO_TYPE;
+#endif
 			continue;
 		}
 
@@ -713,7 +639,7 @@ fdattach(struct isa_device *dev)
 			    enable_fifo(fdc) == 0) {
 				printf("fdc%d: FIFO enabled", fdcu);
 				printf(", %d bytes threshold\n", 
-				    fifo_threshold);
+				       fifo_threshold);
 			}
 		}
 		if ((fd_cmd(fdcu, 2, NE7CMD_SENSED, fdsu, 1, &st3) == 0) &&
@@ -856,10 +782,10 @@ fdattach(struct isa_device *dev)
 		}
 
 		for (i = 0; i < MAXPARTITIONS; i++) {
-			fd->bdevs[1 + NUMDENS + i] = devfs_makelink(fd->bdevs[0],
+			fd->bdevs[1 + NUMDENS + i] = devfs_link(fd->bdevs[0],
 					   "fd%d%c", fdu, 'a' + i);
 			fd->cdevs[1 + NUMDENS + i] =
-				devfs_makelink(fd->cdevs[0],
+				devfs_link(fd->cdevs[0],
 					   "rfd%d%c", fdu, 'a' + i);
 		}
 #endif /* DEVFS */
@@ -877,138 +803,6 @@ fdattach(struct isa_device *dev)
 }
 
 
-
-#ifdef FDC_YE
-/*
- * this is a subset of fdattach() optimized for the Y-E Data
- * PCMCIA floppy drive.
- */
-static int yeattach(struct isa_device *dev)
-{
-	fdcu_t  fdcu = dev->id_unit;
-	fdc_p   fdc = fdc_data + fdcu;
-	fdsu_t  fdsu = 0;               /* assume 1 drive per YE controller */
-	fdu_t   fdu;
-	fd_p    fd;
-	int     st0, st3, i;
-#ifdef DEVFS
-	int     mynor;
-	int     typemynor;
-	int     typesize;
-#endif
-	fdc->fdcu = fdcu;
-	/*
-	 * the FDC_PCMCIA flag is used to to indicate special PIO is used
-	 * instead of DMA
-	 */
-	fdc->flags = FDC_ATTACHED|FDC_PCMCIA;
-	fdc->state = DEVIDLE;
-	/* reset controller, turn motor off, clear fdout mirror reg */
-	outb(fdc->baseport + FDOUT, ((fdc->fdout = 0)));
-	bufq_init(&fdc->head);
-	/*
-	 * assume 2 drives/ "normal" controller
-	 */
-	fdu = fdcu * 2;
-	if (fdu >= NFD) {
-		printf("fdu %d >= NFD\n",fdu);
-		return(0);
-	};
-	fd = &fd_data[fdu];
-
-	set_motor(fdcu, fdsu, TURNON);
-	DELAY(1000000); /* 1 sec */
-	fdc->fdct = FDC_NE765;
-
-	if ((fd_cmd(fdcu, 2, NE7CMD_SENSED, fdsu, 1, &st3) == 0) &&
-		(st3 & NE7_ST3_T0)) {
-		/* if at track 0, first seek inwards */
-		/* seek some steps: */
-		(void)fd_cmd(fdcu, 3, NE7CMD_SEEK, fdsu, 10, 0);
-		DELAY(300000); /* ...wait a moment... */
-		(void)fd_sense_int(fdc, 0, 0); /* make ctrlr happy */
-	}
-
-	/* If we're at track 0 first seek inwards. */
-	if ((fd_sense_drive_status(fdc, &st3) == 0) && (st3 & NE7_ST3_T0)) {
-		/* Seek some steps... */
-		if (fd_cmd(fdcu, 3, NE7CMD_SEEK, fdsu, 10, 0) == 0) {
-			/* ...wait a moment... */
-			DELAY(300000);
-			/* make ctrlr happy: */
-			(void)fd_sense_int(fdc, 0, 0);
-		}
-	}
-
-	for(i = 0; i < 2; i++) {
-		/*
-		 * we must recalibrate twice, just in case the
-		 * heads have been beyond cylinder 76, since most
-		 * FDCs still barf when attempting to recalibrate
-		 * more than 77 steps
-		 */
-		/* go back to 0: */
-		if (fd_cmd(fdcu, 2, NE7CMD_RECAL, fdsu, 0) == 0) {
-			/* a second being enough for full stroke seek*/
-			DELAY(i == 0? 1000000: 300000);
-
-			/* anything responding? */
-			if (fd_sense_int(fdc, &st0, 0) == 0 &&
-				(st0 & NE7_ST0_EC) == 0)
-				break; /* already probed succesfully */
-		}
-	}
-
-	set_motor(fdcu, fdsu, TURNOFF);
-
-	if (st0 & NE7_ST0_EC) /* no track 0 -> no drive present */
-		return(0);
-
-	fd->track = FD_NO_TRACK;
-	fd->fdc = fdc;
-	fd->fdsu = fdsu;
-	fd->options = 0;
-	printf("fdc%d: 1.44MB 3.5in PCMCIA\n", fdcu);
-	fd->type = FD_1440;
-
-#ifdef DEVFS
-	mynor = fdcu << 6;
-	fd->bdevs[0] = devfs_add_devswf(&fd_cdevsw, mynor, DV_BLK,
-		UID_ROOT, GID_OPERATOR, 0640,
-		"fd%d", fdu);
-	fd->cdevs[0] = devfs_add_devswf(&fd_cdevsw, mynor, DV_CHR,
-		UID_ROOT, GID_OPERATOR, 0640,
-		"rfd%d", fdu);
-	/*
-	 * XXX this and the lookup in Fdopen() should be
-	 * data driven.
-	 */
-	typemynor = mynor | FD_1440;
-	typesize = fd_types[FD_1440 - 1].size / 2;
-	/*
-	 * XXX all these conversions give bloated code and
-	 * confusing names.
-	 */
-	if (typesize == 1476)
-		typesize = 1480;
-	if (typesize == 1722)
-		typesize = 1720;
-	fd->bdevs[FD_1440] = devfs_add_devswf(&fd_cdevsw, typemynor,
-		DV_BLK, UID_ROOT, GID_OPERATOR,
-		0640, "fd%d.%d", fdu, typesize);
-	fd->cdevs[FD_1440] = devfs_add_devswf(&fd_cdevsw, typemynor,
-		DV_CHR, UID_ROOT, GID_OPERATOR,
-		0640,"rfd%d.%d", fdu, typesize);
-	for (i = 0; i < MAXPARTITIONS; i++) {
-		fd->bdevs[1 + NUMDENS + i] = devfs_makelink(fd->bdevs[0],
-			"fd%d%c", fdu, 'a' + i);
-		fd->cdevs[1 + NUMDENS + i] = devfs_makelink(fd->cdevs[0],
-			"rfd%d%c", fdu, 'a' + i);
-	}
-#endif /* DEVFS */
-	return (1);
-}
-#endif
 
 /****************************************************************************/
 /*                            motor control stuff                           */
@@ -1216,6 +1010,11 @@ Fdopen(dev_t dev, int flags, int mode, struct proc *p)
 	int type = FDTYPE(minor(dev));
 	fdc_p	fdc;
 
+#if NFT > 0
+	/* check for a tape open */
+	if (type & F_TAPE_TYPE)
+		return(ftopen(dev, flags));
+#endif
 	/* check bounds */
 	if (fdu >= NFD)
 		return(ENXIO);
@@ -1289,6 +1088,12 @@ fdclose(dev_t dev, int flags, int mode, struct proc *p)
 {
  	fdu_t fdu = FDUNIT(minor(dev));
 
+#if NFT > 0
+	int type = FDTYPE(minor(dev));
+
+	if (type & F_TAPE_TYPE)
+		return ftclose(dev, flags);
+#endif
 	fd_data[fdu].flags &= ~FD_OPEN;
 	fd_data[fdu].options &= ~FDOPT_NORETRY;
 
@@ -1326,18 +1131,21 @@ fdstrategy(struct buf *bp)
 	fd = &fd_data[fdu];
 	fdc = fd->fdc;
 	fdcu = fdc->fdcu;
-#ifdef FDC_YE
-	if (fd->type == NO_TYPE) {
-		bp->b_error = ENXIO;
-		bp->b_flags |= B_ERROR;
-		/*
-		 * I _refuse_ to use a goto
-		 */
-		biodone(bp);
-		return;
-	};
-#endif
 
+#if NFT > 0
+	if (FDTYPE(minor(bp->b_dev)) & F_TAPE_TYPE) {
+		/* ft tapes do not (yet) support strategy i/o */
+		bp->b_error = ENODEV;
+		bp->b_flags |= B_ERROR;
+		goto bad;
+	}
+	/* check for controller already busy with tape */
+	if (fdc->flags & FDC_TAPE_BUSY) {
+		bp->b_error = EBUSY;
+		bp->b_flags |= B_ERROR;
+		goto bad;
+	}
+#endif
 	fdblk = 128 << (fd->ft->secsize);
 	if (!(bp->b_flags & B_FORMAT)) {
 		if ((fdu >= NFD) || (bp->b_blkno < 0)) {
@@ -1467,45 +1275,20 @@ fd_pseudointr(void *arg1)
 * keep calling the state machine until it returns a 0			*
 * ALWAYS called at SPLBIO 						*
 \***********************************************************************/
-static void
+void
 fdintr(fdcu_t fdcu)
 {
 	fdc_p fdc = fdc_data + fdcu;
+#if NFT > 0
+	fdu_t fdu = fdc->fdu;
+
+	if (fdc->flags & FDC_TAPE_BUSY)
+		(ftintr(fdu));
+	else
+#endif
 		while(fdstate(fdcu, fdc))
 			;
 }
-
-#ifdef FDC_YE
-/*
- * magic pseudo-DMA initialization for YE FDC. Sets count and
- * direction
- */
-#define SET_BCDR(wr,cnt,port) outb(port,(((cnt)-1) & 0xff)); \
-	outb(port+1,((wr ? 0x80 : 0) | ((((cnt)-1) >> 8) & 0x7f)))
-
-/*
- * fdcpio(): perform programmed IO read/write for YE PCMCIA floppy
- */
-static int fdcpio(fdcu_t fdcu, long flags, caddr_t addr, u_int count)
-{
-	u_char *cptr = (u_char *)addr;
-	fdc_p fdc = &fdc_data[fdcu];
-	int io = fdc->baseport;
-
-	if (flags & B_READ) {
-		if (fdc->state != PIOREAD) {
-			fdc->state = PIOREAD;
-			return(0);
-		};
-		SET_BCDR(0,count,io);
-		insb(io+FDC_YE_DATAPORT,cptr,count);
-	} else {
-		outsb(io+FDC_YE_DATAPORT,cptr,count);
-		SET_BCDR(0,count,io);
-	};
-	return(1);
-}
-#endif /* FDC_YE */
 
 /***********************************************************************\
 * The controller state machine.						*
@@ -1514,6 +1297,7 @@ static int fdcpio(fdcu_t fdcu, long flags, caddr_t addr, u_int count)
 static int
 fdstate(fdcu_t fdcu, fdc_p fdc)
 {
+	struct subdev *sd;
 	int read, format, head, i, sec = 0, sectrac, st0, cyl, st3;
 	unsigned blknum = 0, b_cylinder = 0;
 	fdu_t fdu = fdc->fdu;
@@ -1522,15 +1306,8 @@ fdstate(fdcu_t fdcu, fdc_p fdc)
 	struct fd_formb *finfo = NULL;
 	size_t fdblk;
 
-	bp = fdc->bp;
-	if (bp == NULL) {
-		bp = bufq_first(&fdc->head);
-		if (bp != NULL) {
-			bufq_remove(&fdc->head, bp);
-			fdc->bp = bp;
-		}
-	}
-	if (bp == NULL) {
+	bp = bufq_first(&fdc->head);
+	if(!bp) {
 		/***********************************************\
 		* nothing left for this controller to do	*
 		* Force into the IDLE state,			*
@@ -1704,11 +1481,8 @@ fdstate(fdcu_t fdcu, fdc_p fdc)
 		}
 
 		fd->track = b_cylinder;
-#ifdef FDC_YE
-		if (!(fdc->flags & FDC_PCMCIA))
-#endif
-			isa_dmastart(bp->b_flags, bp->b_data+fd->skip,
-				format ? bp->b_bcount : fdblk, fdc->dmachan);
+		isa_dmastart(bp->b_flags, bp->b_data+fd->skip,
+			format ? bp->b_bcount : fdblk, fdc->dmachan);
 		sectrac = fd->ft->sectrac;
 		sec = blknum %  (sectrac * fd->ft->heads);
 		head = sec / sectrac;
@@ -1750,12 +1524,6 @@ fdstate(fdcu_t fdcu, fdc_p fdc)
 
 		if(format)
 		{
-#ifdef FDC_YE
-			if (fdc->flags & FDC_PCMCIA)
-				(void)fdcpio(fdcu,bp->b_flags,
-					bp->b_data+fd->skip,
-					bp->b_bcount);
-#endif
 			/* formatting */
 			if(fd_cmd(fdcu, 6,
 				  NE7CMD_FORMAT,
@@ -1776,24 +1544,6 @@ fdstate(fdcu_t fdcu, fdc_p fdc)
 		}
 		else
 		{
-#ifdef FDC_YE
-			if (fdc->flags & FDC_PCMCIA) {
-				/*
-				 * this seems to be necessary even when
-				 * reading data
-				 */
-				SET_BCDR(1,fdblk,fdc->baseport);
-
-				/*
-				 * perform the write pseudo-DMA before
-				 * the WRITE command is sent
-				 */
-				if (!read)
-					(void)fdcpio(fdcu,bp->b_flags,
-					    bp->b_data+fd->skip,
-					    fdblk);
-			}
-#endif
 			if (fd_cmd(fdcu, 9,
 				   (read ? NE7CMD_READ : NE7CMD_WRITE),
 				   head << 2 | fdu,  /* head & unit */
@@ -1814,37 +1564,9 @@ fdstate(fdcu_t fdcu, fdc_p fdc)
 				return(retrier(fdcu));
 			}
 		}
-#ifdef FDC_YE
-		if (fdc->flags & FDC_PCMCIA)
-			/*
-			 * if this is a read, then simply await interrupt
-			 * before performing PIO
-			 */
-			if (read && !fdcpio(fdcu,bp->b_flags,
-			    bp->b_data+fd->skip,fdblk)) {
-				fd->tohandle = timeout(fd_iotimeout, 
-					(caddr_t)fdcu, hz);
-				return(0);      /* will return later */
-			};
-
-		/*
-		 * write (or format) operation will fall through and
-		 * await completion interrupt
-		 */
-#endif
 		fdc->state = IOCOMPLETE;
 		fd->tohandle = timeout(fd_iotimeout, (caddr_t)fdcu, hz);
 		return(0);	/* will return later */
-#ifdef FDC_YE
-	case PIOREAD:
-		/* 
-		 * actually perform the PIO read.  The IOCOMPLETE case
-		 * removes the timeout for us.  
-		 */
-		(void)fdcpio(fdcu,bp->b_flags,bp->b_data+fd->skip,fdblk);
-		fdc->state = IOCOMPLETE;
-		/* FALLTHROUGH */
-#endif
 	case IOCOMPLETE: /* IO DONE, post-analyze */
 		untimeout(fd_iotimeout, (caddr_t)fdcu, fd->tohandle);
 
@@ -1863,11 +1585,8 @@ fdstate(fdcu_t fdcu, fdc_p fdc)
 		/* FALLTHROUGH */
 
 	case IOTIMEDOUT:
-#ifdef FDC_YE
-		if (!(fdc->flags & FDC_PCMCIA))
-#endif
-			isa_dmadone(bp->b_flags, bp->b_data + fd->skip,
-				format ? bp->b_bcount : fdblk, fdc->dmachan);
+		isa_dmadone(bp->b_flags, bp->b_data + fd->skip,
+			    format ? bp->b_bcount : fdblk, fdc->dmachan);
 		if (fdc->status[0] & NE7_ST0_IC)
 		{
                         if ((fdc->status[0] & NE7_ST0_IC) == NE7_ST0_IC_AT
@@ -1902,7 +1621,7 @@ fdstate(fdcu_t fdcu, fdc_p fdc)
 		{
 			/* ALL DONE */
 			fd->skip = 0;
-			fdc->bp = NULL;
+			bufq_remove(&fdc->head, bp);
 			/* Tell devstat we have finished with the transaction */
 			devstat_end_transaction(&fd->device_stats,
 						bp->b_bcount - bp->b_resid,
@@ -2022,10 +1741,12 @@ static int
 retrier(fdcu)
 	fdcu_t fdcu;
 {
+	struct subdev *sd;
 	fdc_p fdc = fdc_data + fdcu;
 	register struct buf *bp;
+	int fdu;
 
-	bp = fdc->bp;
+	bp = bufq_first(&fdc->head);
 
 	if(fd_data[FDUNIT(minor(bp->b_dev))].options & FDOPT_NORETRY)
 		goto fail;
@@ -2069,7 +1790,7 @@ retrier(fdcu)
 		bp->b_flags |= B_ERROR;
 		bp->b_error = EIO;
 		bp->b_resid += bp->b_bcount - fdc->fd->skip;
-		fdc->bp = NULL;
+		bufq_remove(&fdc->head, bp);
 	
 		/* Tell devstat we have finished with the transaction */
 		devstat_end_transaction(&fdc->fd->device_stats,
@@ -2177,6 +1898,14 @@ fdioctl(dev, cmd, addr, flag, p)
 	struct disklabel *dl;
 	char buffer[DEV_BSIZE];
 	int error = 0;
+
+#if NFT > 0
+	int type = FDTYPE(minor(dev));
+
+	/* check for a tape ioctl */
+	if (type & F_TAPE_TYPE)
+		return ftioctl(dev, cmd, addr, flag, p);
+#endif
 
 	fdblk = 128 << fd->ft->secsize;
 

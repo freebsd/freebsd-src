@@ -1,5 +1,5 @@
 <HTML>
-<! $Id: intro.html,v 1.5 1998/11/01 19:52:47 abial Exp $ >
+<! $Id: intro.html,v 1.2 1998/09/26 17:39:21 abial Exp $ >
 <HEAD>
    <TITLE>PicoBSD</TITLE>
 </HEAD>
@@ -9,6 +9,7 @@
 <HR shade align="center" size="8" width="25%"></CENTER>
 
 
+<IMG SRC="../../icons/daemon.gif" ALIGN="right">
 <p><b>Contents:</b></p>
 <ul>
 <li>
@@ -156,7 +157,7 @@ version 0.4 it's a part of official FreeBSD CVS and lives in
 <code>src/release/picobsd</code>. I also create the snapshots of this source
 tree - keep in mind that they are not so up-to-date as the tree
 in FreeBSD CVS. You can get the snapshot I made on 
-Sun Nov  1 11:48:32 PST 1998
+Mon Oct 12 00:53:02 PDT 1998
 <A HREF="http://www.freebsd.org/~picobsd/picobsd/picobsd.tgz">here</a>.</p>
 
 <p> Now, if you don't like the setup of PicoBSD, or you miss
@@ -215,15 +216,14 @@ imagination and coding skills:</p>
 <ul>
 <li>
 To write a command line tool patterned after Cisco IOS, which could configure
-various aspects of router-like version of PicoBSD.
-<p>Well, currently you can read very preliminary draft of proposed
-architecture, called the <A HREF="UCI.html">Unified Configuration Interface.</a></p>
+various aspects of router-like version of PicoBSD. I'm nowhere near with this
+goal - I even don't have any good idea how to do it cleanly (I do have some
+ideas, but I classify them as dirty hacks).
 </li>
 <li>
 To put an XWindow-like GUI on the 'dialup' floppy. (Update: you can look at
 <A HREF="http://www.freebsd.org/~picobsd/preview/preview2.tgz">preview
-version</a> and send me your comments. <b>I need some help in porting newer
-version of W</b>).
+version</a> and send me your comments).
 </li>
 <li>
 To gain some experience with solid state disks, and prepare standard images
@@ -247,23 +247,23 @@ to be able to run truely effortlessly on 4MB machines... This would
 probably include rewriting oinit(8) to run multithreaded.
 </li>
 <li>
-And many others... You can find a complete list
-<A HREF="TODO.html">here</a>.
+And many others, too vague to put them here. <b>You</b> can also suggest me
+some others applications/solutions you're dreaming of...
 </li>
 </ul>
 
 <A NAME="credits"><h3>Credits</h3>
 
 <p>The following people are either responsible for the very existence of this
-project, or significantly eased my pains in gaining necessary knowledge:</p>
+project, or significantly eased my pains of gaining necessary knowledge:</p>
 <ul>
 <li>
 the whole FreeBSD team for this magnificent OS, and their hard work of
 continuous development,
 </li>
 <li>
-Dinesh Nair, for co-development and preparing of the version which compiled
-on 2.2.5-RELEASE,
+Dinesh Nair, for co-development and preparing of the version which compiles
+on -RELEASE,
 </li>
 <li>
 Joe Greco, for his encouraging example of XKERNEL (some parts of the scripts
@@ -292,15 +292,15 @@ guys!
 which allows you to use it in various ways, including commercial
 applications. So grab it and enjoy! And if you feel that you want to help
 with this project, either by donating some time to write code, or by
-some other donation, just <A HREF="mailto:abial@freebsd.org">contact me</a>.</p>
+some other donation, just <A HREF="mailto:abial@nask.pl">contact me</a>.</p>
 
 <h5>Last modified: 
-@DATE@
+Fri Sep  4 01:17:44 PDT 1998
 </h5>
 
 <HR shade align="left" size="2" width="100%">
 <CENTER><h5>Any comments? Send them to
-<A HREF="mailto:abial@freebsd.org">the author</A> </h5></CENTER>
+<A HREF="mailto:abial@nask.pl">the author</A> </h5></CENTER>
 
 </BODY>
 </HTML>

@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: uniarp_input.c,v 1.2 1998/10/31 20:07:00 phk Exp $
+ *	@(#) $Id: uniarp_input.c,v 1.10 1998/07/13 00:04:32 mks Exp $
  *
  */
 
@@ -35,16 +35,16 @@
  *
  */
 
+#ifndef lint
+static char *RCSid = "@(#) $Id: uniarp_input.c,v 1.10 1998/07/13 00:04:32 mks Exp $";
+#endif
+
 #include <netatm/kern_include.h>
 
 #include <netatm/ipatm/ipatm_var.h>
 #include <netatm/ipatm/ipatm_serv.h>
 #include <netatm/uni/unisig_var.h>
 #include <netatm/uni/uniip_var.h>
-
-#ifndef lint
-__RCSID("@(#) $Id: uniarp_input.c,v 1.2 1998/10/31 20:07:00 phk Exp $");
-#endif
 
 
 /*
@@ -735,6 +735,7 @@ proc_inarp_rsp(ivp, m)
 	struct atm_nif	*nip;
 	struct siginst	*sgp;
 	struct uniip	*uip;
+	struct uniarp	*uap;
 	struct in_addr	myip;
 	int		s = splnet();
 
@@ -846,8 +847,7 @@ uniarp_pdu_print(ivp, m, msg)
 	struct vccb	*vcp;
 
 	vcp = ivp->iv_conn->co_connvc->cvc_vcc;
-	snprintf(buf, sizeof(buf),
-	    "uniarp %s: vcc=(%d,%d)\n", msg, vcp->vc_vpi, vcp->vc_vci);
+	sprintf(buf, "uniarp %s: vcc=(%d,%d)\n", msg, vcp->vc_vpi, vcp->vc_vci);
 	atm_pdu_print(m, buf);
 }
 

@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.20 1998/12/16 04:59:53 imp Exp $
+# $Id: Makefile,v 1.18 1998/05/24 21:51:50 eivind Exp $
 #
 
 LIB=	gmp
@@ -22,13 +22,6 @@ MPN_SRC_ASM=	add_n.s addmul_1.s lshift.s mul_1.s rshift.s sub_n.s submul_1.s udi
 CFLAGS+=	-I${GMPDIR}/mpn/x86
 
 MPN_SRC_ASM=	add_n.S addmul_1.S lshift.S mul_1.S rshift.S sub_n.S submul_1.S
-
-.elif ${MACHINE_ARCH} == "mipsel" || ${MACHINE_ARCH} == "mipseb"
-.PATH:		${GMPDIR}/mpn/mips3 ${GMPDIR}/mpn/generic
-
-CFLAGS+=	-I${GMPDIR}/mpn/mips3
-
-MPN_SRC_ASM=	add_n.s addmul_1.s lshift.s mul_1.s rshift.s sub_n.s submul_1.s
 
 .elif ${MACHINE_ARCH} == "m68k"
 .PATH:		${GMPDIR}/mpn/m68k ${GMPDIR}/mpn/generic
@@ -142,6 +135,19 @@ CLEANDIRS+=	${.OBJDIR}/mpz \
 beforeinstall:
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
 		${GMPDIR}/gmp.h ${DESTDIR}/usr/include
+
+.S.o:
+	${CC} ${SFLAGS} ${CFLAGS:M-[ID]*} ${AINC} -c ${.IMPSRC} -o ${.TARGET}
+
+.s.o:
+	${AS} ${SFLAGS} ${CFLAGS:M-[ID]*} ${AINC} -c ${.IMPSRC} -o ${.TARGET}
+
+.S.po:
+	${CC} -DPROF ${SFLAGS} ${CFLAGS:M-[ID]*} ${AINC} -c ${.IMPSRC} -o ${.TARGET}
+
+.S.so:
+	${CC} -fpic -DPIC ${SFLAGS} ${CFLAGS:M-[ID]*} ${AINC} -c ${.IMPSRC} -o ${.TARGET}
+	@${LD} -O ${.TARGET} -x -r ${.TARGET}
 
 .include "Makefile.inc"
 .include <bsd.lib.mk>

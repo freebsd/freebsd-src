@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: link_elf.c,v 1.10 1998/11/06 15:16:07 peter Exp $
+ *	$Id: link_elf.c,v 1.6 1998/10/15 17:16:24 peter Exp $
  */
 
 #include <sys/param.h>
@@ -57,6 +57,13 @@ static int	link_elf_search_symbol(linker_file_t, caddr_t value,
 
 static void	link_elf_unload_file(linker_file_t);
 static void	link_elf_unload_module(linker_file_t);
+
+/*
+ * The file representing the currently running kernel.  This contains
+ * the global symbol table.
+ */
+
+linker_file_t linker_kernel_file;
 
 static struct linker_class_ops link_elf_class_ops = {
     link_elf_load_module,
@@ -393,8 +400,10 @@ link_elf_load_file(const char* filename, linker_file_t* result)
 {
     struct nameidata nd;
     struct proc* p = curproc;	/* XXX */
-    Elf_Ehdr *hdr;
-    caddr_t firstpage;
+    union {
+	Elf_Ehdr hdr;
+	char buf[PAGE_SIZE];
+    } u;
     int nbytes, i;
     Elf_Phdr *phdr;
     Elf_Phdr *phlimit;
@@ -407,6 +416,17 @@ link_elf_load_file(const char* filename, linker_file_t* result)
     Elf_Off base_offset;
     Elf_Addr base_vaddr;
     Elf_Addr base_vlimit;
+    caddr_t base_addr;
+    Elf_Off data_offset;
+    Elf_Addr data_vaddr;
+    Elf_Addr data_vlimit;
+    caddr_t data_addr;
+    Elf_Addr clear_vaddr;
+    caddr_t clear_addr;
+    size_t nclear;
+    Elf_Addr bss_vaddr;
+    Elf_Addr bss_vlimit;
+    caddr_t bss_addr;
     int error = 0;
     int resid;
     elf_file_t ef;
@@ -424,7 +444,6 @@ link_elf_load_file(const char* filename, linker_file_t* result)
     pathname = linker_search_path(filename);
     if (pathname == NULL)
 	return ENOENT;
-
     NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, pathname, p);
     error = vn_open(&nd, FREAD, 0);
     free(pathname, M_LINKER);
@@ -434,41 +453,35 @@ link_elf_load_file(const char* filename, linker_file_t* result)
     /*
      * Read the elf header from the file.
      */
-    firstpage = malloc(PAGE_SIZE, M_LINKER, M_WAITOK);
-    if (firstpage == NULL) {
-	error = ENOMEM;
-	goto out;
-    }
-    hdr = (Elf_Ehdr *)firstpage;
-    error = vn_rdwr(UIO_READ, nd.ni_vp, firstpage, PAGE_SIZE, 0,
+    error = vn_rdwr(UIO_READ, nd.ni_vp, (void*) &u, sizeof u, 0,
 		    UIO_SYSSPACE, IO_NODELOCKED, p->p_ucred, &resid, p);
-    nbytes = PAGE_SIZE - resid;
+    nbytes = sizeof u - resid;
     if (error)
 	goto out;
 
-    if (!IS_ELF(*hdr)) {
+    if (!IS_ELF(u.hdr)) {
 	error = ENOEXEC;
 	goto out;
     }
 
-    if (hdr->e_ident[EI_CLASS] != ELF_TARG_CLASS
-      || hdr->e_ident[EI_DATA] != ELF_TARG_DATA) {
+    if (u.hdr.e_ident[EI_CLASS] != ELF_TARG_CLASS
+      || u.hdr.e_ident[EI_DATA] != ELF_TARG_DATA) {
 	link_elf_error("Unsupported file layout");
 	error = ENOEXEC;
 	goto out;
     }
-    if (hdr->e_ident[EI_VERSION] != EV_CURRENT
-      || hdr->e_version != EV_CURRENT) {
+    if (u.hdr.e_ident[EI_VERSION] != EV_CURRENT
+      || u.hdr.e_version != EV_CURRENT) {
 	link_elf_error("Unsupported file version");
 	error = ENOEXEC;
 	goto out;
     }
-    if (hdr->e_type != ET_EXEC && hdr->e_type != ET_DYN) {
+    if (u.hdr.e_type != ET_EXEC && u.hdr.e_type != ET_DYN) {
 	link_elf_error("Unsupported file type");
 	error = ENOEXEC;
 	goto out;
     }
-    if (hdr->e_machine != ELF_TARG_MACH) {
+    if (u.hdr.e_machine != ELF_TARG_MACH) {
 	link_elf_error("Unsupported machine");
 	error = ENOEXEC;
 	goto out;
@@ -479,9 +492,9 @@ link_elf_load_file(const char* filename, linker_file_t* result)
      * not strictly required by the ABI specification, but it seems to
      * always true in practice.  And, it simplifies things considerably.
      */
-    if (!((hdr->e_phentsize == sizeof(Elf_Phdr)) &&
-	  (hdr->e_phoff + hdr->e_phnum*sizeof(Elf_Phdr) <= PAGE_SIZE) &&
-	  (hdr->e_phoff + hdr->e_phnum*sizeof(Elf_Phdr) <= nbytes)))
+    if (!((u.hdr.e_phentsize == sizeof(Elf_Phdr))
+	  || (u.hdr.e_phoff + u.hdr.e_phnum*sizeof(Elf_Phdr) <= PAGE_SIZE)
+	  || (u.hdr.e_phoff + u.hdr.e_phnum*sizeof(Elf_Phdr) <= nbytes)))
 	link_elf_error("Unreadable program headers");
 
     /*
@@ -490,8 +503,8 @@ link_elf_load_file(const char* filename, linker_file_t* result)
      * We rely on there being exactly two load segments, text and data,
      * in that order.
      */
-    phdr = (Elf_Phdr *) (firstpage + hdr->e_phoff);
-    phlimit = phdr + hdr->e_phnum;
+    phdr = (Elf_Phdr *) (u.buf + u.hdr.e_phoff);
+    phlimit = phdr + u.hdr.e_phnum;
     nsegs = 0;
     phdyn = NULL;
     phphdr = NULL;
@@ -623,8 +636,8 @@ link_elf_load_file(const char* filename, linker_file_t* result)
 	goto out;
 
     /* Try and load the symbol table if it's present.  (you can strip it!) */
-    nbytes = hdr->e_shnum * hdr->e_shentsize;
-    if (nbytes == 0 || hdr->e_shoff == 0)
+    nbytes = u.hdr.e_shnum * u.hdr.e_shentsize;
+    if (nbytes == 0 || u.hdr.e_shoff == 0)
 	goto nosyms;
     shdr = malloc(nbytes, M_LINKER, M_WAITOK);
     if (shdr == NULL) {
@@ -633,13 +646,13 @@ link_elf_load_file(const char* filename, linker_file_t* result)
     }
     bzero(shdr, nbytes);
     error = vn_rdwr(UIO_READ, nd.ni_vp,
-		    (caddr_t)shdr, nbytes, hdr->e_shoff,
+		    (caddr_t)shdr, nbytes, u.hdr.e_shoff,
 		    UIO_SYSSPACE, IO_NODELOCKED, p->p_ucred, &resid, p);
     if (error)
 	goto out;
     symtabindex = -1;
     symstrindex = -1;
-    for (i = 0; i < hdr->e_shnum; i++) {
+    for (i = 0; i < u.hdr.e_shnum; i++) {
 	if (shdr[i].sh_type == SHT_SYMTAB) {
 	    symtabindex = i;
 	    symstrindex = shdr[i].sh_link;
@@ -682,8 +695,6 @@ out:
 	linker_file_unload(lf);
     if (shdr)
 	free(shdr, M_LINKER);
-    if (firstpage)
-	free(firstpage, M_LINKER);
     VOP_UNLOCK(nd.ni_vp, 0, p);
     vn_close(nd.ni_vp, FREAD, p->p_ucred, p);
 
@@ -738,11 +749,10 @@ load_dependancies(linker_file_t lf)
     /*
      * All files are dependant on /kernel.
      */
-    if (linker_kernel_file) {
-	linker_kernel_file->refs++;
-	linker_file_add_dependancy(lf, linker_kernel_file);
-    }
+    linker_kernel_file->refs++;
+    linker_file_add_dependancy(lf, linker_kernel_file);
 
+    
     for (dp = ef->dynamic; dp->d_tag != DT_NULL; dp++) {
 	if (dp->d_tag == DT_NEEDED) {
 	    name = ef->strtab + dp->d_un.d_val;
@@ -788,10 +798,8 @@ relocate_file(linker_file_t lf)
 	rellim = (const Elf_Rel *) ((caddr_t) ef->rel + ef->relsize);
 	while (rel < rellim) {
 	    symname = symbol_name(ef, rel->r_info);
-	    if (elf_reloc(lf, rel, ELF_RELOC_REL, symname)) {
-		printf("link_elf: symbol %s undefined\n", symname);
+	    if (elf_reloc(lf, rel, ELF_RELOC_REL, symname))
 		return ENOENT;
-	    }
 	    rel++;
 	}
     }
@@ -802,10 +810,8 @@ relocate_file(linker_file_t lf)
 	relalim = (const Elf_Rela *) ((caddr_t) ef->rela + ef->relasize);
 	while (rela < relalim) {
 	    symname = symbol_name(ef, rela->r_info);
-	    if (elf_reloc(lf, rela, ELF_RELOC_RELA, symname)) {
-		printf("link_elf: symbol %s undefined\n", symname);
+	    if (elf_reloc(lf, rela, ELF_RELOC_RELA, symname))
 		return ENOENT;
-	    }
 	    rela++;
 	}
     }
@@ -816,10 +822,8 @@ relocate_file(linker_file_t lf)
 	rellim = (const Elf_Rel *) ((caddr_t) ef->pltrel + ef->pltrelsize);
 	while (rel < rellim) {
 	    symname = symbol_name(ef, rel->r_info);
-	    if (elf_reloc(lf, rel, ELF_RELOC_REL, symname)) {
-		printf("link_elf: symbol %s undefined\n", symname);
+	    if (elf_reloc(lf, rel, ELF_RELOC_REL, symname))
 		return ENOENT;
-	    }
 	    rel++;
 	}
     }
@@ -830,10 +834,8 @@ relocate_file(linker_file_t lf)
 	relalim = (const Elf_Rela *) ((caddr_t) ef->pltrela + ef->pltrelasize);
 	while (rela < relalim) {
 	    symname = symbol_name(ef, rela->r_info);
-	    if (elf_reloc(lf, rela, ELF_RELOC_RELA, symname)) {
-		printf("link_elf: symbol %s undefined\n", symname);
+	    if (elf_reloc(lf, rela, ELF_RELOC_RELA, symname))
 		return ENOENT;
-	    }
 	    rela++;
 	}
     }

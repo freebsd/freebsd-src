@@ -50,22 +50,6 @@ static char sccsid[] = "@(#)find.c	8.5 (Berkeley) 8/5/94";
 
 #include "find.h"
 
-static int	find_compare __P((const FTSENT **s1, const FTSENT **s2));
-
-/*
- * find_compare --
- *	tell fts_open() how to order the traversal of the hierarchy. 
- *	This variant gives lexicographical order, i.e., alphabetical
- *	order within each directory.
- */
-static int
-find_compare(s1, s2)
-	const FTSENT **s1, **s2;
-{
-
-	return (strcoll((*s1)->fts_name, (*s2)->fts_name));
-}
-
 /*
  * find_formplan --
  *	process the command line and create a "plan" corresponding to the
@@ -171,8 +155,7 @@ find_execute(plan, paths)
 	PLAN *p;
 	int rval;
 
-	tree = fts_open(paths, ftsoptions, (issort ? find_compare : NULL));
-	if (tree == NULL)
+	if ((tree = fts_open(paths, ftsoptions, (int (*)())NULL)) == NULL)
 		err(1, "ftsopen");
 
 	for (rval = 0; (entry = fts_read(tree)) != NULL;) {
