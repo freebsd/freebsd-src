@@ -451,7 +451,7 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 	 */
 	if ((gid != (gid_t)-1 && gid != to_sb.st_gid) ||
 	    (uid != (uid_t)-1 && uid != to_sb.st_uid) ||
-	    (mode != to_sb.st_mode)) {
+	    (mode != (to_sb.st_mode & ALLPERMS))) {
 		/* Try to turn off the immutable bits. */
 		if (to_sb.st_flags & NOCHANGEBITS)
 			(void)fchflags(to_fd, to_sb.st_flags & ~NOCHANGEBITS);
@@ -466,7 +466,7 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 			err(EX_OSERR,"%s: chown/chgrp", to_name);
 		}
 
-	if (mode != to_sb.st_mode)
+	if (mode != (to_sb.st_mode & ALLPERMS))
 		if (fchmod(to_fd, mode)) {
 			serrno = errno;
 			(void)unlink(to_name);
@@ -481,7 +481,9 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 	 * trying to turn off UF_NODUMP.  If we're trying to set real flags,
 	 * then warn if the the fs doesn't support it, otherwise fail.
 	 */
-	if (!devnull && fchflags(to_fd,
+	if (!devnull && (flags & SETFLAGS ||
+	    (from_sb.st_flags & ~UF_NODUMP) != to_sb.st_flags) &&
+	    fchflags(to_fd,
 	    flags & SETFLAGS ? fset : from_sb.st_flags & ~UF_NODUMP)) {
 		if (flags & SETFLAGS) {
 			if (errno == EOPNOTSUPP)
