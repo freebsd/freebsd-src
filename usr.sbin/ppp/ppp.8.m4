@@ -1729,8 +1729,8 @@ The timeout value adjusts the current idle timeout to at least
 .Ar secs
 seconds.
 If a timeout is given in the alive filter as well as in the in/out
-filter, the in/out value is used.  If no timeout is given, the default
-timeout (set using
+filter, the in/out value is used.
+If no timeout is given, the default timeout (set using
 .Ic set timeout
 and defaulting to 180 seconds) is used.
 .El
@@ -1748,7 +1748,8 @@ It's possible to filter based on the payload of UDP frames where those
 frames contain a
 .Em PROTO_IP
 .Em PPP
-frame header.  See the
+frame header.
+See the
 .Ar filter-decapsulation
 option below for further details.
 .It
@@ -2845,8 +2846,9 @@ When this option is enabled,
 .Nm
 will examine UDP frames to see if they actually contain a
 .Em PPP
-frame as their payload.  If this is the case, all filters will operate
-on the payload rather than the actual packet.
+frame as their payload.
+If this is the case, all filters will operate on the payload rather
+than the actual packet.
 .Pp
 This is useful if you want to send PPPoUDP traffic over a
 .Em PPP
@@ -2855,8 +2857,8 @@ the UDP wrapper.
 .Pp
 The UDP frame payload must not be compressed in any way, otherwise
 .Nm
-will not be able to interpret it.  It's therefore recommended that
-you
+will not be able to interpret it.
+It's therefore recommended that you
 .Ic disable vj pred1 deflate
 and
 .Ic deny vj pred1 deflate
@@ -3835,7 +3837,8 @@ This option is not (yet) implemented.
 .It sendident
 This command tells
 .Nm
-to identify itself to the peer.  The link must be in LCP state or higher.
+to identify itself to the peer.
+The link must be in LCP state or higher.
 If no identity has been set (via the
 .Ic ident
 command),
