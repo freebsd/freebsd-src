@@ -253,7 +253,7 @@ uartsio_attach(device_t dev)
 	midiinit(devinfo, dev);
 
 	/* Now we can handle the interrupts. */
-	bus_setup_intr(dev, scp->irq, INTR_TYPE_TTY, uartsio_intr, scp, &scp->ih);
+	bus_setup_intr(dev, scp->irq, INTR_TYPE_AV, uartsio_intr, scp, &scp->ih);
 
 	DEB(printf("uartsio: attached.\n"));
 

@@ -207,7 +207,7 @@ gusmidi_init(device_t dev)
 
 	midiinit(devinfo, dev);
 
-	bus_setup_intr(dev, scp->irq, INTR_TYPE_TTY, gusmidi_intr, scp,
+	bus_setup_intr(dev, scp->irq, INTR_TYPE_AV, gusmidi_intr, scp,
 	    &scp->ih);
 
 	return (0);

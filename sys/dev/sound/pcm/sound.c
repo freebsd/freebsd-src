@@ -103,9 +103,9 @@ snd_setup_intr(device_t dev, struct resource *res, int flags, driver_intr_t hand
 {
 #ifdef USING_MUTEX
 	flags &= INTR_MPSAFE;
-	flags |= INTR_TYPE_TTY;
+	flags |= INTR_TYPE_AV;
 #else
-	flags = INTR_TYPE_TTY;
+	flags = INTR_TYPE_AV;
 #endif
 	return bus_setup_intr(dev, res, flags, hand, param, cookiep);
 }
