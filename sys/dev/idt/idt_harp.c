@@ -347,7 +347,7 @@ idt_harp_init(nicstar_reg_t *idt)
 	 * points to start of EEPROM and includes all the device registers
 	 * in the lower 2 Megabytes.
 	 */
-	idt->iu_config.ac_ram = NULL;
+	idt->iu_config.ac_ram = 0;
 	idt->iu_config.ac_ramsize = 0;
 
 	for (i = 0; i < 6; i++) {
