@@ -76,6 +76,8 @@ int	ncallout;			/* maximum # of timer events */
 int	mbuf_wait = 32;			/* mbuf sleep time in ticks */
 int	nbuf;
 int	nswbuf;
+int	maxswzone;			/* max swmeta KVA storage */
+int	maxbcache;			/* max buffer cache KVA storage */
 
 /* maximum # of sf_bufs (sendfile(2) zero-copy virtual buffers) */
 int	nsfbufs;
@@ -115,6 +117,14 @@ init_param(void)
 	TUNABLE_INT_FETCH("kern.ipc.nsfbufs", &nsfbufs);
 	nbuf = NBUF;
 	TUNABLE_INT_FETCH("kern.nbuf", &nbuf);
+#ifdef VM_SWZONE_SIZE_MAX
+	maxswzone = VM_SWZONE_SIZE_MAX;
+#endif
+	TUNABLE_INT_FETCH("kern.maxswzone", &maxswzone);
+#ifdef VM_BCACHE_SIZE_MAX
+	maxbcache = VM_BCACHE_SIZE_MAX;
+#endif
+	TUNABLE_INT_FETCH("kern.maxbcache", &maxbcache);
 	ncallout = 16 + maxproc + maxfiles;
 	TUNABLE_INT_FETCH("kern.ncallout", &ncallout);
 }
