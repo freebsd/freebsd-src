@@ -289,15 +289,15 @@ serve_loop(int sfd)
 	for (;;) {
 		int error;
 
+		error = serve(sfd);
+		close(sfd);
+		if (error != EAGAIN)
+			g_gate_xlog("%s.", strerror(error));
 		sfd = handshake();
 		if (sfd < 0) {
 			sleep(2);
 			continue;
 		}
-		error = serve(sfd);
-		close(sfd);
-		if (error != EAGAIN)
-			g_gate_xlog("%s.", strerror(error));
 	}
 }
 
