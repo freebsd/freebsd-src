@@ -56,6 +56,7 @@
 #include <sys/resourcevar.h>
 #include <sys/signalvar.h>
 #include <sys/syscall.h>
+#include <sys/sysctl.h>
 #include <sys/sysent.h>
 #include <sys/uio.h>
 #include <sys/vmmeter.h>
@@ -146,6 +147,15 @@ static __inline int userret __P((struct proc *p, struct trapframe *frame,
 #if defined(I586_CPU) && !defined(NO_F00F_HACK)
 extern int has_f00f_bug;
 #endif
+
+#ifdef DDB
+static int ddb_on_nmi = 1;
+SYSCTL_INT(_machdep, OID_AUTO, ddb_on_nmi, CTLFLAG_RW,
+	&ddb_on_nmi, 0, "Go to DDB on NMI");
+#endif
+static int panic_on_nmi = 1;
+SYSCTL_INT(_machdep, OID_AUTO, panic_on_nmi, CTLFLAG_RW,
+	&panic_on_nmi, 0, "Panic on NMI");
 
 static __inline int
 userret(p, frame, oticks, have_mplock)
@@ -372,13 +382,19 @@ restart:
 			/* machine/parity/power fail/"kitchen sink" faults */
 			if (isa_nmi(code) == 0) {
 #ifdef DDB
-				/* NMI can be hooked up to a pushbutton for debugging */
-				printf ("NMI ... going to debugger\n");
-				kdb_trap (type, 0, &frame);
+				/*
+				 * NMI can be hooked up to a pushbutton
+				 * for debugging.
+				 */
+				if (ddb_on_nmi) {
+					printf ("NMI ... going to debugger\n");
+					kdb_trap (type, 0, &frame);
+				}
 #endif /* DDB */
 				return;
-			}
-			panic("NMI indicates hardware failure");
+			} else if (panic_on_nmi)
+				panic("NMI indicates hardware failure");
+			break;
 #endif /* POWERFAIL_NMI */
 #endif /* NISA > 0 */
 
@@ -577,12 +593,18 @@ kernel_trap:
 			/* machine/parity/power fail/"kitchen sink" faults */
 			if (isa_nmi(code) == 0) {
 #ifdef DDB
-				/* NMI can be hooked up to a pushbutton for debugging */
-				printf ("NMI ... going to debugger\n");
-				kdb_trap (type, 0, &frame);
+				/*
+				 * NMI can be hooked up to a pushbutton
+				 * for debugging.
+				 */
+				if (ddb_on_nmi) {
+					printf ("NMI ... going to debugger\n");
+					kdb_trap (type, 0, &frame);
+				}
 #endif /* DDB */
 				return;
-			}
+			} else if (panic_on_nmi == 0)
+				return;
 			/* FALL THROUGH */
 #endif /* POWERFAIL_NMI */
 #endif /* NISA > 0 */
