@@ -62,7 +62,6 @@
 /* #define SYM_DEBUG_GENERIC_SUPPORT */
 
 #include <pci.h>
-#include <stddef.h>	/* For offsetof */
 #include <sys/param.h>
 
 /*
@@ -393,9 +392,6 @@ static __inline struct sym_quehead *sym_remque_tail(struct sym_quehead *head)
 /*
  *  These ones should have been already defined.
  */
-#ifndef offsetof
-#define offsetof(t, m)	((size_t) (&((t *)0)->m))
-#endif
 #ifndef MIN
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
 #endif

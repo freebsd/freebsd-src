@@ -34,7 +34,6 @@
  * midi messages, and vice versa.
  */
 
-#include <stddef.h>
 #include <dev/sound/midi/midi.h>
 
 #define TYPEDRANGE(type, x, lower, upper) \

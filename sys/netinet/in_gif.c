@@ -81,10 +81,6 @@ int ip_gif_ttl = 0;
 SYSCTL_INT(_net_inet_ip, IPCTL_GIF_TTL, gifttl, CTLFLAG_RW,
 	&ip_gif_ttl,	0, "");
 
-#ifndef offsetof
-#define offsetof(s, e) ((int)&((s *)0)->e)
-#endif
-
 int
 in_gif_output(ifp, family, m, rt)
 	struct ifnet	*ifp;

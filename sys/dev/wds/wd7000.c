@@ -159,10 +159,6 @@
 #include <isa/isavar.h>
 #include <isa/pnpvar.h>
 
-/* somehow offsetof() was lost in FreeBSD 5.0, so declare it */
-#undef offsetof
-#define offsetof(type, field)	( (int)( &((type *)0)->field ) )
-
 #define WDSTOPHYS(wp, a)	( ((u_long)a) - ((u_long)wp->dx) + ((u_long)wp->dx_p) )
 #define WDSTOVIRT(wp, a)	( ((char *)a) - ((char*)wp->dx_p) + ((char *)wp->dx) )
 

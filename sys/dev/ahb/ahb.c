@@ -28,8 +28,6 @@
  * $FreeBSD$
  */
 
-#include <stddef.h>	/* For offsetof() */
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>

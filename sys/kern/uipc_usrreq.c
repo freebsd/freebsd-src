@@ -550,7 +550,6 @@ unp_bind(unp, nam, p)
 
 	if (unp->unp_vnode != NULL)
 		return (EINVAL);
-#define offsetof(s, e) ((char *)&((s *)0)->e - (char *)((s *)0))
 	namelen = soun->sun_len - offsetof(struct sockaddr_un, sun_path);
 	if (namelen <= 0)
 		return EINVAL;
