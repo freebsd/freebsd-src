@@ -62,10 +62,8 @@ open_drive(struct drive *drive, struct proc *p, int verbose)
 	drive->lasterror = error;
 	if (verbose)
 	    log(LOG_WARNING,
-		"vinum open_drive %s failed:  %s (%d)\n",
-		drive->devicename,
-		strerror(error),
-		error);
+		"vinum open_drive %s: failed with error %d\n",
+		drive->devicename, error);		    /* XXX */
 	return error;
     }
     drive->vp = nd.ni_vp;
