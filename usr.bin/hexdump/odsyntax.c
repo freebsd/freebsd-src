@@ -59,8 +59,6 @@ oldsyntax(argc, argvp)
 	int argc;
 	char ***argvp;
 {
-	extern enum _vflag vflag;
-	extern FS *fshead;
 	int ch;
 	char **argv;
 
@@ -159,7 +157,6 @@ odoffset(argc, argvp)
 	int argc;
 	char ***argvp;
 {
-	extern off_t skip;
 	unsigned char *p, *num, *end;
 	int base;
 

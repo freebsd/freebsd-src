@@ -74,7 +74,10 @@ typedef struct _fs {			/* format strings */
 extern FS *fshead;			/* head of format strings list */
 extern int blocksize;			/* data block size */
 extern int odmode;			/* are we acting as od(1)? */
+extern int length;			/* amount of data to read */
+extern off_t skip;			/* amount of data to skip at start */
 enum _vflag { ALL, DUP, FIRST, WAIT };	/* -v values */
+extern enum _vflag vflag;
 
 void	 add(const char *);
 void	 addfile(char *);
