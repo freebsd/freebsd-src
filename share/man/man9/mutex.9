@@ -31,14 +31,14 @@
 .Dd April 20, 1998
 .Dt MUTEX 9
 .Sh NAME
-.Nm mutex,
-.Nm mtx_init,
-.Nm mtx_enter,
-.Nm mtx_try_enter,
-.Nm mtx_exit,
-.Nm mtx_destroy,
-.Nm mtx_owned,
-.Nm mtx_assert,
+.Nm mutex ,
+.Nm mtx_init ,
+.Nm mtx_enter ,
+.Nm mtx_try_enter ,
+.Nm mtx_exit ,
+.Nm mtx_destroy ,
+.Nm mtx_owned ,
+.Nm mtx_assert ,
 .Nm MUTEX_DECLARE
 .Nd kernel synchronization primitives
 .Sh SYNOPSIS
@@ -90,7 +90,8 @@ uncontested spin mutex is more expensive than the same operation
 on a non spin mutex.
 In order to protect an interrupt service routine from blocking
 against itself all interrupts are blocked on a processor while
-holding a spin lock. It is permissible to hold multiple spin mutexes.
+holding a spin lock.
+It is permissible to hold multiple spin mutexes.
 In this case it is a required that they be released in the opposite
 order to that which they were acquired.
 .Pp
@@ -146,7 +147,7 @@ with no ill effects;
 if recursion on a given mutex can be avoided,
 faster and smaller code will usually be generated.
 .Pp
-The 
+The
 .Fn mtx_try_enter
 function is used to acquire exclusive access
 to those objects protected by the mutex
@@ -220,15 +221,17 @@ The
 .Fn MUTEX_DECLARE
 macro is used to declare a mutex that is initialized before
 .Xr malloc 9
-is operating.  Unfortunately, mutex initialization may require
+is operating.
+Unfortunately, mutex initialization may require
 .Xr malloc 9 .
 However, some mutexes are intialized and used before
 .Xr malloc 9
-can be used.  Declaring these mutexes with the
+can be used.
+Declaring these mutexes with the
 .Fn MUTEX_DECLARE
 macro and then using the
 .Dv MTX_COLD
-flag when calling 
+flag when calling
 .Fn mtx_init
 allows these early mutexes to be initialized and used before
 .Xr malloc 9
