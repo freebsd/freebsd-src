@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.19 1997/06/24 06:55:30 fsmp Exp $
+ *	$Id: mp_machdep.c,v 1.20 1997/06/24 07:48:02 fsmp Exp $
  */
 
 #include "opt_smp.h"
@@ -47,6 +47,7 @@
 #include <machine/segments.h>
 #include <machine/smptests.h>	/** TEST_DEFAULT_CONFIG */
 #include <machine/tss.h>
+#include <machine/specialreg.h>
 
 #include <i386/i386/cons.h>	/* cngetc() */
 
@@ -437,6 +438,13 @@ mp_enable(u_int boot_addr)
 
 	/* start each Application Processor */
 	start_all_aps(boot_addr);
+
+	/* 
+	 * The init process might be started on a different CPU now,
+	 * and the boot CPU might not call prepare_usermode to get
+	 * cr0 correctly configured. Thus we initialize cr0 here.
+	 */
+	load_cr0(rcr0() | CR0_WP | CR0_AM);
 }
 
 
