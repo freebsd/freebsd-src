@@ -72,11 +72,9 @@ static MALLOC_DEFINE(M_PROC, "proc", "Proc structures");
 MALLOC_DEFINE(M_SUBPROC, "subproc", "Proc sub-structures");
 
 static void doenterpgrp(struct proc *, struct pgrp *);
-
-static void pgdelete(struct pgrp *);
-
 static void orphanpg(struct pgrp *pg);
-
+static void pgadjustjobc(struct pgrp *pgrp, int entering);
+static void pgdelete(struct pgrp *);
 static void proc_ctor(void *mem, int size, void *arg);
 static void proc_dtor(void *mem, int size, void *arg);
 static void proc_init(void *mem, int size);
@@ -476,6 +474,23 @@ pgdelete(pgrp)
 	FREE(pgrp, M_PGRP);
 }
 
+static void
+pgadjustjobc(pgrp, entering)
+	struct pgrp *pgrp;
+	int entering;
+{
+
+	PGRP_LOCK(pgrp);
+	if (entering)
+		pgrp->pg_jobc++;
+	else {
+		--pgrp->pg_jobc;
+		if (pgrp->pg_jobc == 0)
+			orphanpg(pgrp);
+	}
+	PGRP_UNLOCK(pgrp);
+}
+
 /*
  * Adjust pgrp jobc counters when specified process changes process group.
  * We count the number of processes in each process group that "qualify"
@@ -506,17 +521,8 @@ fixjobc(p, pgrp, entering)
 	 */
 	mysession = pgrp->pg_session;
 	if ((hispgrp = p->p_pptr->p_pgrp) != pgrp &&
-	    hispgrp->pg_session == mysession) {
-		PGRP_LOCK(pgrp);
-		if (entering)
-			pgrp->pg_jobc++;
-		else {
-			--pgrp->pg_jobc;
-			if (pgrp->pg_jobc == 0)
-				orphanpg(pgrp);
-		}
-		PGRP_UNLOCK(pgrp);
-	}
+	    hispgrp->pg_session == mysession)
+		pgadjustjobc(pgrp, entering);
 
 	/*
 	 * Check this process' children to see whether they qualify
@@ -524,19 +530,17 @@ fixjobc(p, pgrp, entering)
 	 * process groups.
 	 */
 	LIST_FOREACH(p, &p->p_children, p_sibling) {
-		if ((hispgrp = p->p_pgrp) != pgrp &&
-		    hispgrp->pg_session == mysession &&
-		    p->p_state != PRS_ZOMBIE) {
-			PGRP_LOCK(hispgrp);
-			if (entering)
-				hispgrp->pg_jobc++;
-			else {
-				--hispgrp->pg_jobc;
-				if (hispgrp->pg_jobc == 0)
-					orphanpg(hispgrp);
-			}
-			PGRP_UNLOCK(hispgrp);
+		hispgrp = p->p_pgrp;
+		if (hispgrp == pgrp ||
+		    hispgrp->pg_session != mysession)
+			continue;
+		PROC_LOCK(p);
+		if (p->p_state == PRS_ZOMBIE) {
+			PROC_UNLOCK(p);
+			continue;
 		}
+		PROC_UNLOCK(p);
+		pgadjustjobc(hispgrp, entering);
 	}
 }
 
@@ -553,10 +557,10 @@ orphanpg(pg)
 
 	PGRP_LOCK_ASSERT(pg, MA_OWNED);
 
-	mtx_lock_spin(&sched_lock);
 	LIST_FOREACH(p, &pg->pg_members, p_pglist) {
+		PROC_LOCK(p);
 		if (P_SHOULDSTOP(p)) {
-			mtx_unlock_spin(&sched_lock);
+			PROC_UNLOCK(p);
 			LIST_FOREACH(p, &pg->pg_members, p_pglist) {
 				PROC_LOCK(p);
 				psignal(p, SIGHUP);
@@ -565,8 +569,8 @@ orphanpg(pg)
 			}
 			return;
 		}
+		PROC_UNLOCK(p);
 	}
-	mtx_unlock_spin(&sched_lock);
 }
 
 #include "opt_ddb.h"
@@ -897,18 +901,20 @@ sysctl_kern_proc(SYSCTL_HANDLER_ARGS)
 		else
 			p = LIST_FIRST(&zombproc);
 		for (; p != 0; p = LIST_NEXT(p, p_list)) {
+			/*
+			 * Skip embryonic processes.
+			 */
+			mtx_lock_spin(&sched_lock);
+			if (p->p_state == PRS_NEW) {
+				mtx_unlock_spin(&sched_lock);
+				continue;
+			}
+			mtx_unlock_spin(&sched_lock);
 			PROC_LOCK(p);
 			/*
 			 * Show a user only appropriate processes.
 			 */
 			if (p_cansee(curthread, p)) {
-				PROC_UNLOCK(p);
-				continue;
-			}
-			/*
-			 * Skip embryonic processes.
-			 */
-			if (p->p_state == PRS_NEW) {
 				PROC_UNLOCK(p);
 				continue;
 			}
