@@ -206,8 +206,12 @@ struct ficl_dict;
 /* 
 ** the Good Stuff starts here...
 */
-#define FICL_VER    "2.02"
-#define FICL_PROMPT "ok> "
+#define FICL_VER   "2.02"
+#ifdef TESTMAIN
+# define FICL_PROMPT "ok> "
+#else
+# define FICL_PROMPT ""
+#endif
 
 /*
 ** ANS Forth requires false to be zero, and true to be the ones
