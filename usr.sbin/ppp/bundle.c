@@ -592,7 +592,7 @@ bundle_DescriptorRead(struct fdescriptor *d, struct bundle *bundle,
        * *not* be UP and we can't receive data
        */
       pri = PacketCheck(bundle, tun.data, n, &bundle->filter.dial, NULL);
-      if (pri > 0)
+      if (pri >= 0)
         bundle_Open(bundle, NULL, PHYS_AUTO, 0);
       else
         /*
