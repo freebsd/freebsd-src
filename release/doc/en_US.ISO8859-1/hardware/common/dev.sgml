@@ -1945,8 +1945,8 @@
 	  <para>Maestro-3/Allegro</para>
 	  <note>
 	    <para>The Maestro-3/Allegro cannot be compiled into the
-	    &os; kernel due to licensing restrictions, it cannot be
-	    compiled into the kernel.  To use this driver, add
+	    &os; kernel due to licensing restrictions.
+	    To use this driver, add
 	    the following line to
 	    <filename>/boot/loader.conf</filename>:</para>
 
