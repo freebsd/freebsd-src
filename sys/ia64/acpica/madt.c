@@ -27,7 +27,6 @@
  */
 
 #include "acpi.h"
-#include <dev/acpica/madt.h>
 
 #include <machine/md_var.h>
 
@@ -40,12 +39,12 @@ print_entry(APIC_HEADER *entry)
 {
 
 	switch (entry->Type) {
-	case APIC_INTERRUPT_SOURCE_OVERRIDE: {
-		INTERRUPT_SOURCE_OVERRIDE *iso =
-		    (INTERRUPT_SOURCE_OVERRIDE *)entry;
+	case APIC_XRUPT_OVERRIDE: {
+		MADT_INTERRUPT_OVERRIDE *iso =
+		    (MADT_INTERRUPT_OVERRIDE *)entry;
 		printf("\tInterrupt source override entry\n");
 		printf("\t\tBus=%d, Source=%d, Irq=0x%x\n", iso->Bus,
-		    iso->Source, iso->GlobalSystemInterrupt);
+		    iso->Source, iso->Interrupt);
 		break;
 	}
 
@@ -54,27 +53,26 @@ print_entry(APIC_HEADER *entry)
 		break;
 
 	case APIC_IO_SAPIC: {
-		IO_SAPIC *sapic = (IO_SAPIC *)entry;
+		MADT_IO_SAPIC *sapic = (MADT_IO_SAPIC *)entry;
 		printf("\tI/O SAPIC entry\n");
-		printf("\t\tId=0x%x, Vector=0x%x, Address=0x%lx\n",
-		    sapic->IoSapicId, sapic->Vector, sapic->IoSapicAddress);
+		printf("\t\tId=0x%x, InterruptBase=0x%x, Address=0x%lx\n",
+		    sapic->IoSapicId, sapic->InterruptBase, sapic->Address);
 		break;
 	}
 
-	case APIC_LOCAL_APIC_NMI:
+	case APIC_LOCAL_NMI:
 		printf("\tLocal APIC NMI entry\n");
 		break;
 
-	case APIC_LOCAL_APIC_OVERRIDE: {
-		LAPIC_OVERRIDE *lapic = (LAPIC_OVERRIDE *)entry;
+	case APIC_ADDRESS_OVERRIDE: {
+		MADT_ADDRESS_OVERRIDE *lapic = (MADT_ADDRESS_OVERRIDE *)entry;
 		printf("\tLocal APIC override entry\n");
-		printf("\t\tLocal APIC address=0x%lx\n",
-		    lapic->LocalApicAddress);
+		printf("\t\tLocal APIC address=0x%jx\n", lapic->Address);
 		break;
 	}
 
 	case APIC_LOCAL_SAPIC: {
-		LOCAL_SAPIC *sapic = (LOCAL_SAPIC *)entry;
+		MADT_LOCAL_SAPIC *sapic = (MADT_LOCAL_SAPIC *)entry;
 		printf("\tLocal SAPIC entry\n");
 		printf("\t\tProcessorId=0x%x, Id=0x%x, Eid=0x%x",
 		    sapic->ProcessorId, sapic->LocalSapicId,
@@ -89,19 +87,17 @@ print_entry(APIC_HEADER *entry)
 		printf("\tNMI entry\n");
 		break;
 
-	case APIC_PLATFORM_INTERRUPT: {
-		PLATFORM_INTERRUPT_SOURCE *pis =
-		    (PLATFORM_INTERRUPT_SOURCE *)entry;
+	case APIC_XRUPT_SOURCE: {
+		MADT_INTERRUPT_SOURCE *pis = (MADT_INTERRUPT_SOURCE *)entry;
 		printf("\tPlatform interrupt entry\n");
 		printf("\t\tPolarity=%d, TriggerMode=%d, Id=0x%x, "
 		    "Eid=0x%x, Vector=0x%x, Irq=%d\n",
 		    pis->Polarity, pis->TriggerMode, pis->ProcessorId,
-		    pis->ProcessorEid, pis->IoSapicVector,
-		    pis->GlobalSystemInterrupt);
+		    pis->ProcessorEid, pis->IoSapicVector, pis->Interrupt);
 		break;
 	}
 
-	case APIC_PROC:
+	case APIC_PROCESSOR:
 		printf("\tLocal APIC entry\n");
 		break;
 
@@ -116,7 +112,7 @@ ia64_probe_sapics(void)
 {
 	ACPI_POINTER rsdp_ptr;
 	APIC_HEADER *entry;
-	APIC_TABLE *table;
+	MULTIPLE_APIC_TABLE *table;
 	RSDP_DESCRIPTOR *rsdp;
 	XSDT_DESCRIPTOR *xsdt;
 	char *end, *p;
@@ -128,21 +124,19 @@ ia64_probe_sapics(void)
 	rsdp = (RSDP_DESCRIPTOR *)IA64_PHYS_TO_RR7(rsdp_ptr.Pointer.Physical);
 	xsdt = (XSDT_DESCRIPTOR *)IA64_PHYS_TO_RR7(rsdp->XsdtPhysicalAddress);
 
-	tables = (UINT64 *)((char *)xsdt + xsdt->Header.Length) -
+	tables = (UINT64 *)((char *)xsdt + xsdt->Length) -
 	    xsdt->TableOffsetEntry;
 
 	for (t = 0; t < tables; t++) {
-		table = (APIC_TABLE *)
+		table = (MULTIPLE_APIC_TABLE *)
 		    IA64_PHYS_TO_RR7(xsdt->TableOffsetEntry[t]);
 
 		if (bootverbose)
 			printf("Table '%c%c%c%c' at %p\n",
-			    table->Header.Signature[0],
-			    table->Header.Signature[1],
-			    table->Header.Signature[2],
-			    table->Header.Signature[3], table);
+			    table->Signature[0], table->Signature[1],
+			    table->Signature[2], table->Signature[3], table);
 
-		if (strncmp(table->Header.Signature, APIC_SIG, 4) != 0)
+		if (strncmp(table->Signature, APIC_SIG, 4) != 0)
 			continue;
 
 		/* Save the address of the processor interrupt block. */
@@ -151,7 +145,7 @@ ia64_probe_sapics(void)
 			    table->LocalApicAddress);
 		ia64_lapic_address = table->LocalApicAddress;
 
-		end = (char *)table + table->Header.Length;
+		end = (char *)table + table->Length;
 		p = (char *)(table + 1);
 		while (p < end) {
 			entry = (APIC_HEADER *)p;
@@ -161,21 +155,23 @@ ia64_probe_sapics(void)
 
 			switch (entry->Type) {
 			case APIC_IO_SAPIC: {
-				IO_SAPIC *sapic = (IO_SAPIC *)entry;
-				sapic_create(sapic->IoSapicId, sapic->Vector,
-				    sapic->IoSapicAddress);
+				MADT_IO_SAPIC *sapic = (MADT_IO_SAPIC *)entry;
+				sapic_create(sapic->IoSapicId,
+				    sapic->InterruptBase, sapic->Address);
 				break;
 			}
 
-			case APIC_LOCAL_APIC_OVERRIDE: {
-				LAPIC_OVERRIDE *lapic = (LAPIC_OVERRIDE*)entry;
-				ia64_lapic_address = lapic->LocalApicAddress;
+			case APIC_ADDRESS_OVERRIDE: {
+				MADT_ADDRESS_OVERRIDE *lapic =
+				    (MADT_ADDRESS_OVERRIDE*)entry;
+				ia64_lapic_address = lapic->Address;
 				break;
 			}
 
 #ifdef SMP
 			case APIC_LOCAL_SAPIC: {
-				LOCAL_SAPIC *sapic = (LOCAL_SAPIC *)entry;
+				MADT_LOCAL_SAPIC *sapic =
+				    (MADT_LOCAL_SAPIC *)entry;
 				if (sapic->ProcessorEnabled)
 					cpu_mp_add(sapic->ProcessorId,
 					    sapic->LocalSapicId,
@@ -201,8 +197,8 @@ int
 ia64_count_cpus(void)
 {
 	ACPI_POINTER rsdp_ptr;
-	APIC_TABLE *table;
-	LOCAL_SAPIC *entry;
+	MULTIPLE_APIC_TABLE *table;
+	MADT_LOCAL_SAPIC *entry;
 	RSDP_DESCRIPTOR *rsdp;
 	XSDT_DESCRIPTOR *xsdt;
 	char *end, *p;
@@ -214,28 +210,28 @@ ia64_count_cpus(void)
 	rsdp = (RSDP_DESCRIPTOR *)IA64_PHYS_TO_RR7(rsdp_ptr.Pointer.Physical);
 	xsdt = (XSDT_DESCRIPTOR *)IA64_PHYS_TO_RR7(rsdp->XsdtPhysicalAddress);
 
-	tables = (UINT64 *)((char *)xsdt + xsdt->Header.Length) -
+	tables = (UINT64 *)((char *)xsdt + xsdt->Length) -
 	    xsdt->TableOffsetEntry;
 
 	cpus = 0;
 
 	for (t = 0; t < tables; t++) {
-		table = (APIC_TABLE *)
+		table = (MULTIPLE_APIC_TABLE *)
 		    IA64_PHYS_TO_RR7(xsdt->TableOffsetEntry[t]);
 
-		if (strncmp(table->Header.Signature, APIC_SIG, 4) != 0)
+		if (strncmp(table->Signature, APIC_SIG, 4) != 0)
 			continue;
 
-		end = (char *)table + table->Header.Length;
+		end = (char *)table + table->Length;
 		p = (char *)(table + 1);
 		while (p < end) {
-			entry = (LOCAL_SAPIC *)p;
+			entry = (MADT_LOCAL_SAPIC *)p;
 
-			if (entry->Header.Type == APIC_LOCAL_SAPIC &&
+			if (entry->Type == APIC_LOCAL_SAPIC &&
 			    entry->ProcessorEnabled)
 				cpus++;
 
-			p += entry->Header.Length;
+			p += entry->Length;
 		}
 	}
 
