@@ -354,8 +354,8 @@ linux_rt_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 #ifdef DEBUG
 	if (ldebug(rt_sendsig))
 		printf(LMSG("rt_sendsig flags: 0x%x, sp: %p, ss: 0x%x, mask: 0x%x"),
-		    frame.sf_sc.uc_stack.ss_flags, p->p_sigstk.ss_sp,
-		    p->p_sigstk.ss_size, frame.sf_sc.uc_mcontext.sc_mask);
+		    frame.sf_sc.uc_stack.ss_flags, td->td_sigstk.ss_sp,
+		    td->td_sigstk.ss_size, frame.sf_sc.uc_mcontext.sc_mask);
 #endif
 
 	if (copyout(&frame, fp, sizeof(frame)) != 0) {
