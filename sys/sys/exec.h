@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)exec.h	8.3 (Berkeley) 1/21/94
- * $Id: exec.h,v 1.22 1999/01/29 06:47:53 dillon Exp $
+ * $Id: exec.h,v 1.23 1999/01/29 08:36:45 dillon Exp $
  */
 
 #ifndef _SYS_EXEC_H_
@@ -81,8 +81,6 @@ void exec_unmap_first_page __P((struct image_params *));
 int exec_register __P((const struct execsw *));
 int exec_unregister __P((const struct execsw *));
 
-#ifndef LKM
-
 /*
  * note: name##_mod cannot be const storage because the
  * linker_file_sysinit() function modifies _file in the
@@ -120,7 +118,6 @@ int exec_unregister __P((const struct execsw *));
 		(void *)& execsw_arg \
 	}; \
 	DECLARE_MODULE(name, name ## _mod, SI_SUB_EXEC, SI_ORDER_ANY)
-#endif
 #endif
 
 #endif

@@ -124,7 +124,7 @@ syscall_not_present(struct proc *p, const char *s, struct nosys_args *uap)
 
 #if !defined(_KPOSIX_PRIORITY_SCHEDULING)
 
-/* Not configured but loadable via an LKM:
+/* Not configured but loadable via a module:
  */
 
 static int sched_attach(void)

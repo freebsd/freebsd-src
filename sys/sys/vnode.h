@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vnode.h	8.7 (Berkeley) 2/4/94
- * $Id: vnode.h,v 1.84 1999/02/03 04:12:36 semenu Exp $
+ * $Id: vnode.h,v 1.85 1999/02/19 17:41:14 dillon Exp $
  */
 
 #ifndef _SYS_VNODE_H_
@@ -259,13 +259,9 @@ extern int		vttoif_tab[];
 
 #define	NULLVP	((struct vnode *)NULL)
 
-#if defined(VFS_LKM) && !defined(KLD_MODULE)
-#define	VNODEOP_SET(f) DATA_SET(MODVNOPS,f)
-#else
 #define	VNODEOP_SET(f) \
 	C_SYSINIT(f##init, SI_SUB_VFS, SI_ORDER_SECOND, vfs_add_vnodeops, &f); \
 	C_SYSUNINIT(f##uninit, SI_SUB_VFS, SI_ORDER_SECOND, vfs_rm_vnodeops, &f);
-#endif
 
 /*
  * Global vnode data.
