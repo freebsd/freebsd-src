@@ -139,6 +139,8 @@ mkfs(struct partition *pp, char *fsys)
 		sblock.fs_flags |= FS_DOSOFTDEP;
 	if (Lflag)
 		strlcpy(sblock.fs_volname, volumelabel, MAXVOLLEN);
+	if (lflag)
+		sblock.fs_flags |= FS_MULTILABEL;
 	/*
 	 * Validate the given file system size.
 	 * Verify that its last block can actually be accessed.

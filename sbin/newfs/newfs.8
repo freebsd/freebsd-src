@@ -40,7 +40,7 @@
 .Nd construct a new UFS1/UFS2 file system
 .Sh SYNOPSIS
 .Nm
-.Op Fl NU
+.Op Fl NUl
 .Op Fl L Ar volname
 .Op Fl O Ar filesystem-type
 .Op Fl S Ar sector-size
@@ -149,6 +149,8 @@ If fewer inodes are desired, a larger number should be used;
 to create more inodes a smaller number should be given.
 One inode is required for each distinct file, so this value effectively
 specifies the average file size on the file system.
+.It Fl l
+Enables multilabel MAC on the new file system.
 .It Fl m Ar free-space
 The percentage of space reserved from normal users; the minimum free
 space threshold.
