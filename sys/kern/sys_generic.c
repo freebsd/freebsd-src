@@ -405,11 +405,15 @@ writev(p, uap)
 
 	if ((fp = getfp(fdp, uap->fd, FWRITE)) == NULL)
 		return (EBADF);
+	fhold(fp);
 	/* note: can't use iovlen until iovcnt is validated */
 	iovlen = uap->iovcnt * sizeof (struct iovec);
 	if (uap->iovcnt > UIO_SMALLIOV) {
-		if (uap->iovcnt > UIO_MAXIOV)
-			return (EINVAL);
+		if (uap->iovcnt > UIO_MAXIOV) {
+			needfree = NULL;
+			error = EINVAL;
+			goto done;
+		}
 		MALLOC(iov, struct iovec *, iovlen, M_IOV, M_WAITOK);
 		needfree = iov;
 	} else {
@@ -461,6 +465,7 @@ writev(p, uap)
 #endif
 	p->p_retval[0] = cnt;
 done:
+	fdrop(fp);
 	if (needfree)
 		FREE(needfree, M_IOV);
 	return (error);
