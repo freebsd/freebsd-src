@@ -408,8 +408,9 @@ main(int argc, char *argv[])
 		ppid = waitdaemon(0, 0, 30);
 		if (ppid < 0)
 			err(1, "could not become daemon");
-	} else
+	} else {
 		setlinebuf(stdout);
+	}
 
 	if (NumAllowed)
 		endservent();
@@ -452,7 +453,7 @@ main(int argc, char *argv[])
 		    bind(funix[i], (struct sockaddr *)&sunx,
 			 SUN_LEN(&sunx)) < 0 ||
 		    chmod(funixn[i], 0666) < 0) {
-			(void) snprintf(line, sizeof line,
+			(void)snprintf(line, sizeof line,
 					"cannot create %s", funixn[i]);
 			logerror(line);
 			dprintf("cannot create %s (%d)\n", funixn[i], errno);
@@ -472,8 +473,9 @@ main(int argc, char *argv[])
 						die(0);
 				}
 			}
-		} else
+		} else {
 			dprintf("listening on inet and/or inet6 socket\n");
+		}
 		dprintf("sending on inet and/or inet6 socket\n");
 	}
 
@@ -487,7 +489,7 @@ main(int argc, char *argv[])
 	fp = fopen(PidFile, "w");
 	if (fp != NULL) {
 		fprintf(fp, "%d\n", getpid());
-		(void) fclose(fp);
+		(void)fclose(fp);
 	}
 
 	dprintf("off & running....\n");
@@ -668,16 +670,17 @@ printline(const char *hname, char *msg)
 			*q++ = '-';
 		}
 		if (isascii(c) && iscntrl(c)) {
-			if (c == '\n')
+			if (c == '\n') {
 				*q++ = ' ';
-			else if (c == '\t')
+			} else if (c == '\t') {
 				*q++ = '\t';
-			else {
+			} else {
 				*q++ = '^';
 				*q++ = c ^ 0100;
 			}
-		} else
+		} else {
 			*q++ = c;
+		}
 	}
 	*q = '\0';
 
@@ -696,14 +699,15 @@ readklog(void)
 	len = 0;
 	for (;;) {
 		i = read(fklog, line + len, MAXLINE - 1 - len);
-		if (i > 0)
+		if (i > 0) {
 			line[i + len] = '\0';
-		else if (i < 0 && errno != EINTR && errno != EAGAIN) {
-			logerror("klog");
-			fklog = -1;
+		} else {
+			if (i < 0 && errno != EINTR && errno != EAGAIN) {
+				logerror("klog");
+				fklog = -1;
+			}
 			break;
-		} else
-			break;
+		}
 
 		for (p = line; (q = strchr(p, '\n')) != NULL; p = q + 1) {
 			*q = '\0';
@@ -777,9 +781,9 @@ logmsg(int pri, const char *msg, const char *from, int flags)
 		flags |= ADDDATE;
 
 	(void)time(&now);
-	if (flags & ADDDATE)
+	if (flags & ADDDATE) {
 		timestamp = ctime(&now) + 4;
-	else {
+	} else {
 		timestamp = msg;
 		msg += 16;
 		msglen -= 16;
@@ -1343,8 +1347,9 @@ init(int signo)
 	if ((p = strchr(LocalHostName, '.')) != NULL) {
 		*p++ = '\0';
 		LocalDomain = p;
-	} else
+	} else {
 		LocalDomain = "";
+	}
 
 	/*
 	 *  Close all open log files.
@@ -1629,9 +1634,9 @@ cfline(const char *line, struct filed *f, const char *prog, const char *host)
 			q++;
 
 		/* decode priority name */
-		if (*buf == '*')
+		if (*buf == '*') {
 			pri = LOG_PRIMASK + 1;
-		else {
+		} else {
 			pri = decode(buf, prioritynames);
 			if (pri < 0) {
 				(void)snprintf(ebuf, sizeof ebuf,
@@ -1647,12 +1652,12 @@ cfline(const char *line, struct filed *f, const char *prog, const char *host)
 				*bp++ = *p++;
 			*bp = '\0';
 
-			if (*buf == '*')
+			if (*buf == '*') {
 				for (i = 0; i < LOG_NFACILITIES; i++) {
 					f->f_pmask[i] = pri;
 					f->f_pcmp[i] = pri_cmp;
 				}
-			else {
+			} else {
 				i = decode(buf, facilitynames);
 				if (i < 0) {
 					(void)snprintf(ebuf, sizeof ebuf,
@@ -1791,7 +1796,7 @@ markit(void)
 	}
 
 	/* Walk the dead queue, and see if we should signal somebody. */
-	for (q = TAILQ_FIRST(&deadq_head); q != NULL; q = TAILQ_NEXT(q, dq_entries))
+	TAILQ_FOREACH(q, &deadq_head, dq_entries) {
 		switch (q->dq_timeout) {
 		case 0:
 			/* Already signalled once, try harder now. */
@@ -1815,6 +1820,7 @@ markit(void)
 		default:
 			q->dq_timeout--;
 		}
+	}
 	MarkSet = 0;
 	(void)alarm(TIMERINTVL);
 }
@@ -1925,9 +1931,9 @@ allowaddr(char *s)
 		if (strlen(cp1) == 1 && *cp1 == '*')
 			/* any port allowed */
 			ap.port = 0;
-		else if ((se = getservbyname(cp1, "udp")))
+		else if ((se = getservbyname(cp1, "udp"))) {
 			ap.port = ntohs(se->s_port);
-		else {
+		} else {
 			ap.port = strtol(cp1, &cp2, 0);
 			if (*cp2 != '\0')
 				return (-1); /* port not numeric */
@@ -1952,10 +1958,12 @@ allowaddr(char *s)
 		if (*cp2 == ']') {
 			++s;
 			*cp2 = '\0';
-		} else
+		} else {
 			cp2 = NULL;
-	} else
+		}
+	} else {
 		cp2 = NULL;
+	}
 #endif
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = PF_UNSPEC;
@@ -2046,8 +2054,9 @@ allowaddr(char *s)
 				    ip, sizeof ip, NULL, 0,
 				    NI_NUMERICHOST | withscopeid);
 			printf("mask = %s; ", ip);
-		} else
+		} else {
 			printf("domainname = %s; ", ap.a_name);
+		}
 		printf("port = %d\n", ap.port);
 	}
 
@@ -2232,9 +2241,9 @@ p_open(const char *prog, pid_t *pid)
 		dup2(nulldesc, STDOUT_FILENO);
 		dup2(nulldesc, STDERR_FILENO);
 		for (i = getdtablesize(); i > 2; i--)
-			(void) close(i);
+			(void)close(i);
 
-		(void) execvp(_PATH_BSHELL, argv);
+		(void)execvp(_PATH_BSHELL, argv);
 		_exit(255);
 	}
 
@@ -2294,12 +2303,13 @@ deadq_remove(pid_t pid)
 {
 	dq_t q;
 
-	for (q = TAILQ_FIRST(&deadq_head); q != NULL; q = TAILQ_NEXT(q, dq_entries))
+	TAILQ_FOREACH(q, &deadq_head, dq_entries) {
 		if (q->dq_pid == pid) {
 			TAILQ_REMOVE(&deadq_head, q, dq_entries);
 				free(q);
 				return (1);
 		}
+	}
 
 	return (0);
 }
