@@ -576,13 +576,14 @@ lnc_rint(struct lnc_softc *sc)
 					log(LOG_ERR, "lnc%d: Receive overflow error \n", unit);
 				}
 			} else if (flags & ENP) {
+			    if ((sc->arpcom.ac_if.if_flags & IFF_PROMISC)==0) {
 				/*
 				 * FRAM and CRC are valid only if ENP
 				 * is set and OFLO is not.
 				 */
 				if (flags & FRAM) {
 					LNCSTATS(fram)
-					log(LOG_ERR, "lnc%d: Framming error\n", unit);
+					log(LOG_ERR, "lnc%d: Framing error\n", unit);
 					/*
 					 * FRAM is only set if there's a CRC
 					 * error so avoid multiple messages
@@ -591,6 +592,7 @@ lnc_rint(struct lnc_softc *sc)
 					LNCSTATS(crc)
 					log(LOG_ERR, "lnc%d: Receive CRC error\n", unit);
 				}
+			    }
 			}
 
 			/* Drop packet */
