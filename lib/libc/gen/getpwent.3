@@ -29,9 +29,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)getpwent.3	8.2 (Berkeley) 12/11/93
+.\"     From: @(#)getpwent.3	8.2 (Berkeley) 12/11/93
 .\"
-.Dd December 11, 1993
+.Dd September 20, 1994
 .Dt GETPWENT 3
 .Os
 .Sh NAME
@@ -133,6 +133,24 @@ If the process which calls them has an effective uid of 0, the encrypted
 password will be returned, otherwise, the password field of the returned
 structure will point to the string
 .Ql * .
+.Sh YP/NIS INTERACTION
+When the
+.Xr yp 4
+password database is enabled, the
+.Fn getpwnam
+and
+.Fn getpwuid
+functions use the YP maps
+.Dq Li passwd.byname
+and
+.Dq Li passwd.byuid ,
+respectively, if the requested password entry is not found in the 
+local database.  The
+.Fn getpwent
+function will step through the YP map
+.Dq Li passwd.byname
+if the entire map is enabled as described in
+.Xr passwd 5 .
 .Sh RETURN VALUES
 The functions
 .Fn getpwent ,
@@ -166,7 +184,8 @@ A Version 7 format password file
 .Xr getgrent 3 ,
 .Xr passwd 5 ,
 .Xr pwd_mkdb 8 ,
-.Xr vipw 8
+.Xr vipw 8 ,
+.Xr yp 4
 .Sh HISTORY
 The
 .Nm getpwent ,
@@ -181,6 +200,11 @@ The
 .Nm setpassent
 function appeared in
 .Bx 4.3 Reno .
+.Sh COMPATIBILITY
+The historic function
+.Xr setpwfile 3 ,
+which allowed the specification of alternate password databases,
+has been deprecated and is no longer available.
 .Sh BUGS
 The functions
 .Fn getpwent ,
@@ -191,17 +215,3 @@ leave their results in an internal static object and return
 a pointer to that object. Subsequent calls to
 the same function
 will modify the same object.
-.Pp
-The routines
-.Fn getpwent ,
-.Fn endpwent ,
-.Fn setpassent ,
-and
-.Fn setpwent
-are fairly useless in a networked environment and should be
-avoided, if possible.
-.Sh COMPATIBILITY
-The historic function
-.Xr setpwfile 3 ,
-which allowed the specification of alternate password databases,
-has been deprecated and is no longer available.
