@@ -80,6 +80,8 @@ stackgap_alloc(sgp, sz)
 #define DPRINTF(a)
 #endif
 
+extern const char linux_emul_path[];
+
 int linux_emul_find __P((struct proc *, caddr_t *, const char *, char *,
 			char **, int));
 
