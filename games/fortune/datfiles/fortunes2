@@ -6472,6 +6472,10 @@ all is gone, and one of the richest jewels of life is lost forever.
 A good plan today is better than a perfect plan tomorrow.
 		-- Patton
 %
+A good programmer is someone who looks both ways before crossing a
+one-way street.
+		-- Doug Linder
+%
 A good reputation is more valuable than money.
 		-- Publilius Syrus
 %
@@ -7937,6 +7941,9 @@ help?"
 %
 A thing is not necessarily true because a man dies for it.
 		-- Oscar Wilde, "The Portrait of Mr. W.H."
+%
+A timely marriage: one made before your children start nagging you about it.
+		-- Diane Duane
 %
 A total abstainer is one who abstains from everything
 but abstention, and especially from inactivity in the affairs of others.
@@ -24543,6 +24550,9 @@ pool cues, who would win?
 	3) The television viewing public
 		-- David Letterman
 %
+If sarcasm were posted on Usenet, would anybody notice?
+		-- James Nicoll
+%
 If scientific reasoning were limited to the logical processes of
 arithmetic, we should not get very far in our understanding of the physical
 world.  One might as well attempt to grasp the game of poker entirely by
@@ -24668,6 +24678,10 @@ If the rich could pay the poor to die for them,
 what a living the poor could make!
 %
 If the shoe fits, it's ugly.
+%
+If the standard says that [things] depend on the phase of the moon,
+the programmer should be prepared to look out the window as necessary.
+		-- Chris Torek
 %
 If the thunder don't get you, then the lightning will.
 %
@@ -25618,6 +25632,10 @@ I'm a lucky guy, and I'm happy to be with the Yankees.  And I want to
 %
 I'm all for computer dating, but I
 wouldn't want one to marry my sister.
+%
+I'm also inclined to believe that if you wait long enough, you will
+eventually have more than 255 of almost *anything*....
+		-- A. Lyman Chapin
 %
 I'm always looking for a new idea that
 will be more productive than its cost.
@@ -31729,6 +31747,10 @@ Yokohama isn't it?"
 %
 MSDOS is not dead, it just smells that way.
 		-- Henry Spencer
+%
+Much as they like to persuade us differently, lawyers are simply hired
+consultants, and at some point you time them out.
+		-- Craig Partridge
 %
 Much of the excitement we get out of our work
 is that we don't really know what we are doing.
@@ -38540,6 +38562,9 @@ Save a little money each month and at the end of the year you'll be
 surprised at how little you have.
 		-- Ernest Haskins
 %
+Save a tree -- kill an ISO working group today.
+		-- Jason Zions
+%
 Save energy:  Drive a smaller shell.
 %
 Save energy: be apathetic.
@@ -41922,6 +41947,10 @@ The covers of this book are too far apart.
 %
 The cow is nothing but a machine which makes grass fit for us people to eat.
 		-- John McNulty
+%
+The Creation of the Universe was made possible by a grant from Texas
+Instruments.
+		-- Credits from the PBS program ``The Creation of the Universe''
 %
 The Crown is full of it!
 		-- Nate Harris, 1775
@@ -50655,6 +50684,11 @@ Now you might think that unlike VAXen I'd know who I abuse,
 I've got the : Segmentation violation -- Core dumped blues.
 		-- Core Dumped Blues
 %
+Well, of course it worked. You made the ritual blood sacrifice. If you
+bleed on a machine while working on it, it will work. Unless it
+doesn't. In which case, you need someone else to bleed on it as well.
+		-- Wayne Pascoe
+%
 We'll pivot at warp 2 and bring all tubes to bear, Mr. Sulu!
 %
 Well, some take delight in the carriages a-rolling,
@@ -51363,6 +51397,10 @@ What we see depends on mainly what we look for.
 %
 What we wish, that we readily believe.
 		-- Demosthenes
+%
+What will happen when the 32-bit Unix date goes negative in mid-January
+2038 does not bear thinking about.
+		-- Henry Spencer
 %
 What will you do if all your problems aren't solved by the time you die?
 %

@@ -6429,6 +6429,12 @@ Give me the Luxuries, and the Hell with the Necessities!
 GLEE CLUB GROUPIE:
 	A girl into choral sex.
 %
+GNU Make will no longer go into an infinite loop when fed the horrid
+trash that passes for makefiles that `imake' produces (so you can
+compile X, despite the extreme stubbornness and irrationality of its
+maintainers).
+		-- GNU Make 3.55 release notes
+%
 Go out with girls Dutch treat -- pay for dinner, drinks,
 and the movie, and the rest of the evening is on her.
 %
