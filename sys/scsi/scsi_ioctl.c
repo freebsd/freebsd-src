@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *End copyright
  *
- * $Id: scsi_ioctl.c,v 1.15 1995/05/09 02:38:15 dyson Exp $
+ * $Id: scsi_ioctl.c,v 1.16 1995/05/30 08:13:42 rgrimes Exp $
  *
  *
  */
@@ -320,7 +320,7 @@ struct proc *p, struct scsi_link *sc_link)
 				/* if no data, no need to translate it.. */
 				bp->b_un.b_addr = 0;
 				bp->b_dev = dev;
-				bp->b_flags = 0;
+				bp->b_flags = B_BUSY;
 
 				scsistrategy(bp);
 				ret =  bp->b_error;
