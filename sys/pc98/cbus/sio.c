@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.4 1996/09/03 10:23:59 asami Exp $
+ *	$Id: sio.c,v 1.5 1996/09/07 02:14:23 asami Exp $
  */
 
 #include "opt_comconsole.h"
@@ -130,7 +130,6 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/syslog.h>
-#include <sys/devconf.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif
@@ -386,7 +385,6 @@ static	void	siointr1	__P((struct com_s *com));
 static	int	commctl		__P((struct com_s *com, int bits, int how));
 static	int	comparam	__P((struct tty *tp, struct termios *t));
 static	int	sioprobe	__P((struct isa_device *dev));
-static	void	sioregisterdev	__P((struct isa_device *id));
 static	void	siosettimeout	__P((void));
 static	void	comstart	__P((struct tty *tp));
 static	timeout_t comwakeup;
@@ -595,17 +593,6 @@ static	struct speedtab comspeedtab[] = {
 	{ -1,		-1 }
 };
 
-static struct kern_devconf kdc_sio[NSIO] = { {
-	0, 0, 0,		/* filled in by dev_attach */
-	driver_name, 0, { MDDT_ISA, 0, "tty" },
-	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
-	&kdc_isa0,		/* parent */
-	0,			/* parentdata */
-	DC_UNCONFIGURED,	/* state */
-	"Serial port",
-	DC_CLS_SERIAL		/* class */
-} };
-
 #ifdef COM_ESP
 /* XXX configure this properly. */
 static	Port_t	likely_com_ports[] = { 0x3f8, 0x2f8, 0x3e8, 0x2e8, };
@@ -700,8 +687,6 @@ siounload(struct pccard_dev *dp)
 		printf("sio%d already unloaded!\n",dp->isahd.id_unit);
 		return;
 	}
-	kdc_sio[com->unit].kdc_state = DC_UNCONFIGURED;
-	kdc_sio[com->unit].kdc_description = "Serial port";
 	if (com->tp && (com->tp->t_state & TS_ISOPEN)) {
 		com->gone = 1;
 		printf("sio%d: unload\n", dp->isahd.id_unit);
@@ -732,27 +717,6 @@ card_intr(struct pccard_dev *dp)
 }
 #endif /* NCRD > 0 */
 
-static void
-sioregisterdev(id)
-	struct isa_device *id;
-{
-	int	unit;
-
-	unit = id->id_unit;
-/*
- *	If already registered, don't try to re-register.
- */
-	if (kdc_sio[unit].kdc_isa)
-		return;
-	if (unit != 0)
-		kdc_sio[unit] = kdc_sio[0];
-	kdc_sio[unit].kdc_state = DC_UNCONFIGURED;
-	kdc_sio[unit].kdc_description = "Serial port";
-	kdc_sio[unit].kdc_unit = unit;
-	kdc_sio[unit].kdc_isa = id;
-	dev_attach(&kdc_sio[unit]);
-}
-
 static int
 sioprobe(dev)
 	struct isa_device	*dev;
@@ -773,8 +737,6 @@ sioprobe(dev)
 #else
 	struct isa_device	*xdev;
 #endif
-
-	sioregisterdev(dev);
 
 	if (!already_init) {
 		/*
@@ -1180,8 +1142,6 @@ sioattach(isdp)
 #ifdef DSI_SOFT_MODEM
 	if((inb(iobase+7) ^ inb(iobase+7)) & 0x80) {
 	    printf(" Digicom Systems, Inc. SoftModem");
-	    kdc_sio[unit].kdc_description =
-	      "Serial port: Digicom Systems SoftModem";
 	goto determined_type;
 	}
 #endif /* DSI_SOFT_MODEM */
@@ -1203,8 +1163,6 @@ sioattach(isdp)
 		outb(iobase + com_scr, scr);
 		if (scr1 != 0xa5 || scr2 != 0x5a) {
 			printf(" 8250");
-			kdc_sio[unit].kdc_description =
-			  "Serial port: National 8250 or compatible";
 			goto determined_type;
 		}
 	}
@@ -1219,28 +1177,20 @@ sioattach(isdp)
 		switch(com->pc98_if_type){
 		case COM_IF_INTERNAL:
 			printf(" 8251 (internal)");
-			kdc_sio[unit].kdc_description =
-			  "Serial port: PC-9801 internal";
 			break;
 #ifdef COM_IF_PC9861K
 		case COM_IF_PC9861K:
 			printf(" 8251 (PC9861K)");
-			kdc_sio[unit].kdc_description =
-			  "Serial port: PC-9861K";
 			break;
 #endif
 #ifdef COM_IF_PIO9032B
 		case COM_IF_PIO9032B:
 			printf(" 8251 (PIO9032B)");
-			kdc_sio[unit].kdc_description =
-			  "Serial port: PIO9032B";
 			break;
 #endif
 #ifdef COM_IF_B98_01
 		case COM_IF_B98_01:
 			printf(" 8251 (B98_01)");
-			kdc_sio[unit].kdc_description =
-			  "Serial port: B98_01";
 			break;
 #endif
 		}
@@ -1251,36 +1201,24 @@ sioattach(isdp)
 	switch (inb(com->int_id_port) & IIR_FIFO_MASK) {
 	case FIFO_RX_LOW:
 		printf(" 16450");
-		kdc_sio[unit].kdc_description =
-		  "Serial port: National 16450 or compatible";
 		break;
 	case FIFO_RX_MEDL:
 		printf(" 16450?");
-		kdc_sio[unit].kdc_description =
-		  "Serial port: maybe National 16450";
 		break;
 	case FIFO_RX_MEDH:
 		printf(" 16550?");
-		kdc_sio[unit].kdc_description =
-		  "Serial port: maybe National 16550";
 		break;
 	case FIFO_RX_HIGH:
 		printf(" 16550A");
 		if (COM_NOFIFO(isdp)) {
 			printf(" fifo disabled");
-			kdc_sio[unit].kdc_description =
-			  "Serial port: National 16550A, FIFO disabled";
 		} else {
 			com->hasfifo = TRUE;
 			com->tx_fifo_size = 16;
-			kdc_sio[unit].kdc_description =
-			  "Serial port: National 16550A or compatible";
 #ifdef COM_ESP
 			for (espp = likely_esp_ports; *espp != 0; espp++)
 				if (espattach(isdp, com, *espp)) {
 					com->tx_fifo_size = 1024;
-					kdc_sio[unit].kdc_description =
-					  "Serial port: Hayes ESP";
 					break;
 				}
 #endif
@@ -1305,8 +1243,6 @@ sioattach(isdp)
 		} else {
 			com->tx_fifo_size = 32;
 			printf(" 16650");
-			kdc_sio[unit].kdc_description =
-			  "Serial port: Startech 16C650 or similar";
 		}
 		if (!com->tx_fifo_size)
 			printf(" fifo disabled");
@@ -1356,8 +1292,6 @@ determined_type: ;
 	}
 #endif
 	printf("\n");
-
-	kdc_sio[unit].kdc_state = (unit == comconsole) ? DC_BUSY : DC_IDLE;
 
 	s = spltty();
 	com_addr(unit) = com;
@@ -1430,7 +1364,6 @@ open_top:
 		if (error != 0 || com->gone)
 			goto out;
 	}
-	kdc_sio[unit].kdc_state = DC_BUSY;
 	if (tp->t_state & TS_ISOPEN) {
 		/*
 		 * The device is open, so everything has been initialized.
@@ -1709,8 +1642,6 @@ comhardclose(com)
 	com->active_out = FALSE;
 	wakeup(&com->active_out);
 	wakeup(TSA_CARR_ON(tp));	/* restart any wopeners */
-	if (!(com->state & CS_DTR_OFF) && unit != comconsole)
-		kdc_sio[unit].kdc_state = DC_IDLE;
 	splx(s);
 }
 
@@ -1771,8 +1702,6 @@ siodtrwakeup(chan)
 
 	com = (struct com_s *)chan;
 	com->state &= ~CS_DTR_OFF;
-	if (com->unit != comconsole)
-		kdc_sio[com->unit].kdc_state = DC_IDLE;
 	wakeup(&com->dtr_wait);
 }
 

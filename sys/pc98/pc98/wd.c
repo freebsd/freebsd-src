@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.5 1996/08/31 15:07:25 asami Exp $
+ *	$Id: wd.c,v 1.6 1996/09/03 10:24:02 asami Exp $
  */
 
 /* TODO:
@@ -61,6 +61,8 @@
 #endif
 
 #include "wdc.h"
+#include "opt_atapi.h"
+
 #if     NWDC > 0
 
 #include <sys/param.h>
@@ -77,7 +79,6 @@
 #include <sys/proc.h>
 #include <sys/uio.h>
 #include <sys/malloc.h>
-#include <sys/devconf.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
@@ -123,91 +124,7 @@ extern void wdstart(int ctrlr);
 #define WDOPT_FORCEHD(x)	(((x)&0x0f00)>>8)
 #define WDOPT_MULTIMASK	0x00ff
 
-
-static int wd_goaway(struct kern_devconf *, int);
-static int wdc_goaway(struct kern_devconf *, int);
-static int wd_externalize(struct kern_devconf *, struct sysctl_req *);
-
-/*
- * Templates for the kern_devconf structures used when we attach.
- */
-static struct kern_devconf kdc_wd[NWD] = { {
-	0, 0, 0,		/* filled in by kern_devconf.c */
-	"wd", 0, { MDDT_DISK, 0 },
-	wd_externalize, 0, wd_goaway, DISK_EXTERNALLEN,
-	0,			/* parent */
-	0,			/* parentdata */
-	DC_UNKNOWN,		/* state */
 #ifdef PC98
-	"IDE disk",
-#else
-	"ST506/ESDI/IDE disk",
-#endif
-	DC_CLS_DISK		/* class */
-} };
-
-static struct kern_devconf kdc_wdc[NWDC] = { {
-	0, 0, 0,		/* filled in by kern_devconf.c */
-	"wdc", 0, { MDDT_ISA, 0 },
-	isa_generic_externalize, 0, wdc_goaway, ISA_EXTERNALLEN,
-	&kdc_isa0,		/* parent */
-	0,			/* parentdata */
-	DC_UNCONFIGURED,	/* state */
-#ifdef PC98
-	"IDE disk controller",
-#else
-	"ST506/ESDI/IDE disk controller",
-#endif
-	DC_CLS_MISC		/* just an ordinary device */
-} };
-
-static inline void
-wd_registerdev(int ctlr, int unit)
-{
-	if(unit != 0) {
-		kdc_wd[unit] = kdc_wd[0];
-		kdc_wd[unit].kdc_state = DC_IDLE;
-	}
-
-	kdc_wd[unit].kdc_unit = unit;
-	kdc_wd[unit].kdc_parent = &kdc_wdc[ctlr];
-	kdc_wdc[ctlr].kdc_state = DC_BUSY;
-	dev_attach(&kdc_wd[unit]);
-}
-
-static inline void
-wdc_registerdev(struct isa_device *dvp)
-{
-	int unit = dvp->id_unit;
-
-	if(unit != 0) {
-		kdc_wdc[unit] = kdc_wdc[0];
-		kdc_wdc[unit].kdc_state = DC_IDLE;
-	}
-
-	kdc_wdc[unit].kdc_unit = unit;
-	kdc_wdc[unit].kdc_parentdata = dvp;
-	dev_attach(&kdc_wdc[unit]);
-}
-
-static int
-wdc_goaway(struct kern_devconf *kdc, int force)
-{
-	if(force) {
-		dev_detach(kdc);
-		return 0;
-	} else {
-		return EBUSY;	/* XXX fix */
-	}
-}
-
-static int
-wd_goaway(struct kern_devconf *kdc, int force)
-{
-	dev_detach(kdc);
-	return 0;
-}
-
 static inline u_char
 epson_errorf(int wdc)
 {
@@ -218,6 +135,7 @@ epson_errorf(int wdc)
 	outb(wdc, inb(0x82) & ~0x40);
 	return ((u_char)wdc_error);
 }
+#endif
 
 /*
  * This biotab field doubles as a field for the physical unit number on
@@ -347,15 +265,6 @@ static struct bdevsw wd_bdevsw =
 	{ wdopen,	wdclose,	wdstrategy,	wdioctl,	/*0*/
 	  wddump,	wdsize,		0,	"wd",	&wd_cdevsw,	-1 };
 
-/*
- * Provide hw.devconf information.
- */
-static int
-wd_externalize(struct kern_devconf *kdc, struct sysctl_req *req)
-{
-	return disk_externalize(wddrives[kdc->kdc_unit]->dk_unit, req);
-}
-
 struct isa_driver wdcdriver = {
 	wdprobe, wdattach, "wdc",
 };
@@ -379,7 +288,6 @@ wdprobe(struct isa_device *dvp)
 	du->dk_ctrlr = dvp->id_unit;
 	du->dk_port = dvp->id_iobase;
 
-	wdc_registerdev(dvp);
 
 	/* check if we have registers that work */
 #ifdef PC98
@@ -520,7 +428,6 @@ wdattach(struct isa_device *dvp)
 	if (dvp->id_unit >= NWDC)
 		return (0);
 
-	kdc_wdc[dvp->id_unit].kdc_state = DC_UNKNOWN; /* XXX */
 	TAILQ_INIT( &wdtab[dvp->id_unit].controller_queue);
 
 	for (wdup = isa_biotab_wdc; wdup->id_driver != 0; wdup++) {
@@ -598,7 +505,6 @@ wdattach(struct isa_device *dvp)
 			 */
 			wdtimeout(du);
 
-			wd_registerdev(dvp->id_unit, lunit);
 #ifdef DEVFS
 			mynor = dkmakeminor(unit, WHOLE_DISK_SLICE, RAW_PART);
 			du->dk_bdev = devfs_add_devswf(&wd_bdevsw, mynor,
@@ -647,8 +553,7 @@ wdattach(struct isa_device *dvp)
 			if (wddrives[lunit]->dk_ctrlr == dvp->id_unit &&
 			    wddrives[lunit]->dk_unit == unit)
 				goto next;
-		atapi_attach (dvp->id_unit, unit, dvp->id_iobase,
-			&kdc_wdc[dvp->id_unit]);
+		atapi_attach (dvp->id_unit, unit, dvp->id_iobase);
 next:   }
 #endif
 	/*
@@ -1320,7 +1225,6 @@ wdopen(dev_t dev, int flags, int fmt, struct proc *p)
 	while (du->dk_flags & DKFL_LABELLING)
 		tsleep((caddr_t)&du->dk_flags, PZERO - 1, "wdopen", 1);
 #if 1
-	kdc_wd[lunit].kdc_state = DC_BUSY;
 	wdsleep(du->dk_ctrlr, "wdopn1");
 	du->dk_flags |= DKFL_LABELLING;
 	du->dk_state = WANTOPEN;
@@ -1932,7 +1836,6 @@ int
 wdclose(dev_t dev, int flags, int fmt, struct proc *p)
 {
 	dsclose(dev, fmt, wddrives[dkunit(dev)]->dk_slices);
-	kdc_wd[wddrives[dkunit(dev)]->dk_lunit].kdc_state = DC_IDLE;
 	return (0);
 }
 

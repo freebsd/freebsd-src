@@ -382,8 +382,8 @@ static void pc98_set_register(struct isa_device *dev, int unit, int type)
 		ED_NOVELL_ASIC_OFFSET = 0x2000;
 		ED_NOVELL_DATA = 0x00;			/* dummy */
 		ED_NOVELL_RESET = 0x00;
-		ED_PC_MISC = 0x18;
-		ED_PC_RESET = 0x1f;
+		ED_PC_MISC = 0x18;				/* dummy */
+		ED_PC_RESET = 0x1f;				/* dummy */
 		break;
 
 	case ED_TYPE98_LPC:

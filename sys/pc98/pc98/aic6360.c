@@ -31,7 +31,7 @@
  */
 
 /*
- * $Id: aic6360.c,v 1.2 1996/08/31 15:06:38 asami Exp $
+ * $Id: aic6360.c,v 1.3 1996/09/03 10:23:23 asami Exp $
  *
  * Acknowledgements: Many of the algorithms used in this driver are
  * inspired by the work of Julian Elischer (julian@tfs.com) and
@@ -128,7 +128,6 @@
 #include <scsi/scsi_all.h>
 #include <scsi/scsiconf.h>
 
-#include <sys/devconf.h>
 #include <machine/clock.h>
 #include <i386/isa/isa_device.h>
 
@@ -734,26 +733,6 @@ static struct scsi_device aic_dev = {
 	0
 };
 
-static struct kern_devconf kdc_aic[NAIC] = { {
-	0, 0, 0,		/* filled in by dev_attach */
-	"aic", 0, { MDDT_ISA, 0, "bio" },
-	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
-	&kdc_isa0,		/* parent */
-	0,			/* parentdata */
-	DC_UNCONFIGURED,	/* start out in unconfig state */
-	"Adaptec AIC-6360 SCSI host adapter chipset",
-	DC_CLS_MISC		/* host adapters aren't special */
-} };
-
-static inline void
-aic_registerdev(struct isa_device *id)
-{
-	if(id->id_unit)
-		kdc_aic[id->id_unit] = kdc_aic[0];
-	kdc_aic[id->id_unit].kdc_unit = id->id_unit;
-	kdc_aic[id->id_unit].kdc_parentdata = id;
-	dev_attach(&kdc_aic[id->id_unit]);
-}
 
 /*
  * INITIALIZATION ROUTINES (probe, attach ++)
@@ -790,9 +769,6 @@ aicprobe(dev)
 	bzero(aic, sizeof(struct aic_data));
 	aicdata[unit] = aic;
 	aic->iobase = dev->id_iobase;
-#ifndef DEV_LKM
-	aic_registerdev(dev);
-#endif /* not DEV_LKM */
 
 	if (aic_find(aic) != 0) {
 		aicdata[unit] = NULL;
@@ -894,7 +870,6 @@ aicattach(dev)
 	/*
 	 * ask the adapter what subunits are present
 	 */
-	kdc_aic[unit].kdc_state = DC_BUSY; /* host adapters are always busy */
 	scsi_attachdevs(scbus);
 
 	return 1;
