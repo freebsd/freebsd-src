@@ -2,7 +2,7 @@
  * Written by grefen@convex.com (probably moved by now)
  * Based on scsi drivers by Julian Elischer (julian@tfs.com)
  *
- *      $Id: ch.c,v 1.30 1996/03/10 07:13:05 gibbs Exp $
+ *      $Id: ch.c,v 1.31 1996/03/10 18:17:53 davidg Exp $
  */
 
 #include	<sys/types.h>
@@ -51,7 +51,8 @@ struct scsi_data {
 	u_int16_t lsterr;			/* details of lasterror */
 	u_char    stor;			/* posible Storage locations */
 #ifdef	DEVFS
-	void	  *devfs_token;
+	void	  *c_devfs_token;
+	void	  *ctl_devfs_token;
 #endif
 };
 
@@ -146,7 +147,6 @@ static errval
 chattach(struct scsi_link *sc_link)
 {
 	u_int32_t unit;
-	char	name[32];
 
 	struct scsi_data *ch = sc_link->sd;
 
@@ -166,9 +166,14 @@ chattach(struct scsi_link *sc_link)
 	ch_registerdev(unit);
 
 #ifdef DEVFS
-	sprintf(name,"ch%ld",unit);
-	ch->devfs_token = devfs_add_devsw( "/", name, &ch_cdevsw, unit << 4,
-					DV_CHR, 0,  0, 0600);
+	ch->c_devfs_token = devfs_add_devswf(&ch_cdevsw, unit << 4, DV_CHR,
+					     UID_ROOT, GID_OPERATOR, 0600,
+					     "ch%d", unit);
+	ch->ctl_devfs_token = devfs_add_devswf(&ch_cdevsw,
+					       (unit << 4) | SCSI_CONTROL_MASK,
+					       DV_CHR,
+					       UID_ROOT, GID_OPERATOR, 0600,
+					       "ch%d.ctl", unit);
 #endif
 	return 0;
 }
