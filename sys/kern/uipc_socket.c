@@ -683,7 +683,7 @@ nopages:
 				error = 0;
 			else
 #endif /* ZERO_COPY_SOCKETS */
-			error = uiomove(mtod(m, caddr_t), (int)len, uio);
+			error = uiomove(mtod(m, void *), (int)len, uio);
 			resid = uio->uio_resid;
 			m->m_len = len;
 			*mp = m;
@@ -809,13 +809,13 @@ soreceive(so, psa, uio, mp0, controlp, flagsp)
 				if (uio->uio_offset == -1)
 					uio->uio_offset =IDX_TO_OFF(pg->pindex);
 
-				error = uiomoveco(mtod(m, caddr_t), 
+				error = uiomoveco(mtod(m, void *),
 						  min(uio->uio_resid, m->m_len),
 						  uio, pg->object,
 						  disposable);
 			} else
 #endif /* ZERO_COPY_SOCKETS */
-			error = uiomove(mtod(m, caddr_t),
+			error = uiomove(mtod(m, void *),
 			    (int) min(uio->uio_resid, m->m_len), uio);
 			m = m_free(m);
 		} while (uio->uio_resid && error == 0 && m);
@@ -987,12 +987,12 @@ dontblock:
 				if (uio->uio_offset == -1)
 					uio->uio_offset =IDX_TO_OFF(pg->pindex);
 
-				error = uiomoveco(mtod(m, caddr_t) + moff,
+				error = uiomoveco(mtod(m, char *) + moff,
 						  (int)len, uio,pg->object,
 						  disposable);
 			} else
 #endif /* ZERO_COPY_SOCKETS */
-			error = uiomove(mtod(m, caddr_t) + moff, (int)len, uio);
+			error = uiomove(mtod(m, char *) + moff, (int)len, uio);
 			s = splnet();
 			if (error)
 				goto release;

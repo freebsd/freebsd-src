@@ -109,7 +109,7 @@ smbfs_readvdir(struct vnode *vp, struct uio *uio, struct ucred *cred)
 		de.d_name[1] = '.';
 		de.d_name[offset + 1] = '\0';
 		de.d_type = DT_DIR;
-		error = uiomove((caddr_t)&de, DE_SIZE, uio);
+		error = uiomove(&de, DE_SIZE, uio);
 		if (error)
 			return error;
 		offset++;
@@ -165,7 +165,7 @@ smbfs_readvdir(struct vnode *vp, struct uio *uio, struct ucred *cred)
 				vput(newvp);
 			}
 		}
-		error = uiomove((caddr_t)&de, DE_SIZE, uio);
+		error = uiomove(&de, DE_SIZE, uio);
 		if (error)
 			break;
 	}

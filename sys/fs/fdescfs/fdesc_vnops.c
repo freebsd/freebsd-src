@@ -476,7 +476,7 @@ fdesc_readdir(ap)
 		 * And ship to userland
 		 */
 		FILEDESC_UNLOCK(fdp);
-		error = uiomove((caddr_t) dp, UIO_MX, uio);
+		error = uiomove(dp, UIO_MX, uio);
 		if (error)
 			goto done;
 		FILEDESC_LOCK(fdp);

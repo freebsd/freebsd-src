@@ -228,11 +228,11 @@ bpf_movein(uio, linktype, mp, sockp, datlen)
 #else
 		m->m_off += hlen;
 #endif
-		error = uiomove((caddr_t)sockp->sa_data, hlen, uio);
+		error = uiomove(sockp->sa_data, hlen, uio);
 		if (error)
 			goto bad;
 	}
-	error = uiomove(mtod(m, caddr_t), len - hlen, uio);
+	error = uiomove(mtod(m, void *), len - hlen, uio);
 	if (!error)
 		return (0);
 bad:

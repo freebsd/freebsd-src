@@ -151,7 +151,7 @@ logread(dev_t dev, struct uio *uio, int flag)
 		l = imin(l, uio->uio_resid);
 		if (l == 0)
 			break;
-		error = uiomove((caddr_t)msgbufp->msg_ptr + mbp->msg_bufr,
+		error = uiomove((char *)msgbufp->msg_ptr + mbp->msg_bufr,
 		    l, uio);
 		if (error)
 			break;
