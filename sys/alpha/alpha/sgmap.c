@@ -36,7 +36,6 @@
 #include <machine/sgmap.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
-#include <vm/vm_map.h>
 
 MALLOC_DEFINE(M_SGMAP, "sgmap", "Scatter Gather mapping");
 
