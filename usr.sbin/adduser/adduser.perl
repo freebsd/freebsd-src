@@ -32,7 +32,7 @@
 #
 #   Email: Wolfram Schneider <wosch@cs.tu-berlin.de>
 #
-# $Id: adduser.perl,v 1.7 1995/05/20 13:05:22 jkh Exp $
+# $Id: adduser.perl,v 1.8 1995/10/19 06:26:49 jkh Exp $
 #
 
 # read variables
@@ -534,7 +534,7 @@ HOME:	  $home/$name
 Shell:	  $sh
 EOF
 
-    return &confirm_yn("Ok?", "yes");
+    return &confirm_yn("OK?", "yes");
 }
 
 # make password database
@@ -612,8 +612,8 @@ sub new_users_sendmessage {
     print "\n";
 
     local(@message_buffer_append) = ();
-    if (!&confirm_yn("Add somethings to message", "no")) {
-	print "Finish with beginning ``.'' or ^D\n";
+    if (!&confirm_yn("Add anything to default message", "no")) {
+	print "Use ``.'' or ^D alone on a line to finish your message.\n";
 	push(@message_buffer_append, "\n");
 	while($read = <STDIN>) {
 	    last if $read eq "\.\n";
@@ -651,7 +651,7 @@ sub new_users_password {
     while(1) {
 	$password = &confirm_list("Enter password", 1, "", "");
 	last if $password ne "";
-	last if &confirm_yn("Use empty password?", "yes");
+	last if &confirm_yn("Use an empty password?", "yes");
     }
 
     return $password;
@@ -662,8 +662,8 @@ sub new_users {
 
     print "\n" if $verbose;
     print "Ok, let's go.\n" .
-	  "Don't worry about mistakes. I ask you later for " .
-	  "correct input.\n" if $verbose;
+	  "Don't worry about mistakes. I will give you the chance later to " .
+	  "correct any input.\n" if $verbose;
 
     # name: Username
     # fullname: Full name
@@ -712,8 +712,8 @@ sub new_users {
 	} else {
 	    $new_users_ok = 0;
 	}
-	if (!&confirm_yn("Continue with next user?", "yes")) {
-	    print "Good bye.\n" if $verbose;
+	if (!&confirm_yn("Add another user?", "yes")) {
+	    print "Goodbye!\n" if $verbose;
 	    last;
 	}
 	print "\n" if !$verbose;
@@ -834,7 +834,7 @@ EOF
 sub hints {
     if ($verbose) {
 	print "Use option ``-silent'' if you don't want see " .
-	      "some warnings & questions.\n\n";
+	      "all warnings & questions.\n\n";
     } else {
 	print "Use option ``-verbose'' if you want see more warnings & " .
 	      "questions \nor try to repair bugs.\n\n";
