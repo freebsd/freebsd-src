@@ -36,7 +36,7 @@
  *	@(#)null_vfsops.c	8.2 (Berkeley) 1/21/94
  *
  * @(#)lofs_vfsops.c	1.2 (Berkeley) 6/18/92
- * $Id: null_vfsops.c,v 1.7 1995/05/30 08:07:01 rgrimes Exp $
+ * $Id: null_vfsops.c,v 1.8 1995/12/03 14:54:23 bde Exp $
  */
 
 /*
@@ -57,29 +57,29 @@
 
 extern int	nullfs_init __P((void));
 
-extern int	nullfs_fhtovp __P((struct mount *mp, struct fid *fidp,
+static int	nullfs_fhtovp __P((struct mount *mp, struct fid *fidp,
 				   struct mbuf *nam, struct vnode **vpp,
 				   int *exflagsp, struct ucred **credanonp));
-extern int	nullfs_mount __P((struct mount *mp, char *path, caddr_t data,
+static int	nullfs_mount __P((struct mount *mp, char *path, caddr_t data,
 				  struct nameidata *ndp, struct proc *p));
-extern int	nullfs_quotactl __P((struct mount *mp, int cmd, uid_t uid,
+static int	nullfs_quotactl __P((struct mount *mp, int cmd, uid_t uid,
 				     caddr_t arg, struct proc *p));
-extern int	nullfs_root __P((struct mount *mp, struct vnode **vpp));
-extern int	nullfs_start __P((struct mount *mp, int flags, struct proc *p));
-extern int	nullfs_statfs __P((struct mount *mp, struct statfs *sbp,
+static int	nullfs_root __P((struct mount *mp, struct vnode **vpp));
+static int	nullfs_start __P((struct mount *mp, int flags, struct proc *p));
+static int	nullfs_statfs __P((struct mount *mp, struct statfs *sbp,
 				   struct proc *p));
-extern int	nullfs_sync __P((struct mount *mp, int waitfor,
+static int	nullfs_sync __P((struct mount *mp, int waitfor,
 				 struct ucred *cred, struct proc *p));
-extern int	nullfs_unmount __P((struct mount *mp, int mntflags,
+static int	nullfs_unmount __P((struct mount *mp, int mntflags,
 				    struct proc *p));
-extern int	nullfs_vget __P((struct mount *mp, ino_t ino,
+static int	nullfs_vget __P((struct mount *mp, ino_t ino,
 				 struct vnode **vpp));
-extern int	nullfs_vptofh __P((struct vnode *vp, struct fid *fhp));
+static int	nullfs_vptofh __P((struct vnode *vp, struct fid *fhp));
 
 /*
  * Mount null layer
  */
-int
+static int
 nullfs_mount(mp, path, data, ndp, p)
 	struct mount *mp;
 	char *path;
@@ -185,7 +185,7 @@ nullfs_mount(mp, path, data, ndp, p)
  * on the underlying filesystem will have been called
  * when that filesystem was mounted.
  */
-int
+static int
 nullfs_start(mp, flags, p)
 	struct mount *mp;
 	int flags;
@@ -198,7 +198,7 @@ nullfs_start(mp, flags, p)
 /*
  * Free reference to null layer
  */
-int
+static int
 nullfs_unmount(mp, mntflags, p)
 	struct mount *mp;
 	int mntflags;
@@ -254,7 +254,7 @@ nullfs_unmount(mp, mntflags, p)
 	return 0;
 }
 
-int
+static int
 nullfs_root(mp, vpp)
 	struct mount *mp;
 	struct vnode **vpp;
@@ -278,7 +278,7 @@ nullfs_root(mp, vpp)
 	return 0;
 }
 
-int
+static int
 nullfs_quotactl(mp, cmd, uid, arg, p)
 	struct mount *mp;
 	int cmd;
@@ -289,7 +289,7 @@ nullfs_quotactl(mp, cmd, uid, arg, p)
 	return VFS_QUOTACTL(MOUNTTONULLMOUNT(mp)->nullm_vfs, cmd, uid, arg, p);
 }
 
-int
+static int
 nullfs_statfs(mp, sbp, p)
 	struct mount *mp;
 	struct statfs *sbp;
@@ -329,7 +329,7 @@ nullfs_statfs(mp, sbp, p)
 	return (0);
 }
 
-int
+static int
 nullfs_sync(mp, waitfor, cred, p)
 	struct mount *mp;
 	int waitfor;
@@ -342,7 +342,7 @@ nullfs_sync(mp, waitfor, cred, p)
 	return (0);
 }
 
-int
+static int
 nullfs_vget(mp, ino, vpp)
 	struct mount *mp;
 	ino_t ino;
@@ -352,7 +352,7 @@ nullfs_vget(mp, ino, vpp)
 	return VFS_VGET(MOUNTTONULLMOUNT(mp)->nullm_vfs, ino, vpp);
 }
 
-int
+static int
 nullfs_fhtovp(mp, fidp, nam, vpp, exflagsp, credanonp)
 	struct mount *mp;
 	struct fid *fidp;
@@ -365,7 +365,7 @@ nullfs_fhtovp(mp, fidp, nam, vpp, exflagsp, credanonp)
 	return VFS_FHTOVP(MOUNTTONULLMOUNT(mp)->nullm_vfs, fidp, nam, vpp, exflagsp,credanonp);
 }
 
-int
+static int
 nullfs_vptofh(vp, fhp)
 	struct vnode *vp;
 	struct fid *fhp;
@@ -373,7 +373,7 @@ nullfs_vptofh(vp, fhp)
 	return VFS_VPTOFH(NULLVPTOLOWERVP(vp), fhp);
 }
 
-struct vfsops null_vfsops = {
+static struct vfsops null_vfsops = {
 	nullfs_mount,
 	nullfs_start,
 	nullfs_unmount,
