@@ -1,7 +1,7 @@
 #!/bin/sh -
 #
 #	@(#)security	5.3 (Berkeley) 5/28/91
-#	$Id: security,v 1.6 1994/01/22 10:54:13 rgrimes Exp $
+#	$Id: security,v 1.7 1995/01/14 13:23:50 ats Exp $
 #
 PATH=/sbin:/bin:/usr/bin
 
@@ -29,7 +29,7 @@ done | xargs -n 20 ls -lgTd > $TMP
 
 if cmp $LOG/setuid.today $TMP >/dev/null; then :; else
 	echo "$host setuid/device diffs:"
-	diff $LOG/setuid.today $TMP
+	diff -b $LOG/setuid.today $TMP
 	mv $LOG/setuid.today $LOG/setuid.yesterday
 	mv $TMP $LOG/setuid.today
 fi
