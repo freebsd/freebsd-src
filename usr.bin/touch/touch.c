@@ -144,7 +144,6 @@ main(argc, argv)
 	for (rval = 0; *argv; ++argv) {
 		/* See if the file exists. */
 		if (stat_f(*argv, &sb) != 0) {
-fprintf(stderr, "not exist\n");
 			if (!cflag) {
 				/* Create the file. */
 				fd = open(*argv,
