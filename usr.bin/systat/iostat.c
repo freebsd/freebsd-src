@@ -348,12 +348,12 @@ devstats(row, col, dn)
 		return(row);
 	}
 	wmove(wnd, row++, col);
-	histogram(mb_per_second, 100, 1.0);
+	histogram(mb_per_second, 50, .5);
 	wmove(wnd, row++, col);
-	histogram(transfers_per_second, 50, 1.0);
+	histogram(transfers_per_second, 50, .5);
 	if (kbpt) {
 		wmove(wnd, row++, col);
-		histogram(kb_per_transfer, 50, 1.0);
+		histogram(kb_per_transfer, 50, .5);
 	}
 
 	return(row);
