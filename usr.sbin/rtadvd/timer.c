@@ -59,9 +59,9 @@ rtadvd_timer_init()
 }
 
 struct rtadvd_timer *
-rtadvd_add_timer(void (*timeout) __P((void *)),
-		void (*update) __P((void *, struct timeval *)),
-		 void *timeodata, void *updatedata)
+rtadvd_add_timer(struct rtadvd_timer *(*timeout) __P((void *)),
+    void (*update) __P((void *, struct timeval *)),
+    void *timeodata, void *updatedata)
 {
 	struct rtadvd_timer *newtimer;
 
@@ -76,11 +76,6 @@ rtadvd_add_timer(void (*timeout) __P((void *)),
 	if (timeout == NULL) {
 		syslog(LOG_ERR,
 		       "<%s> timeout function unspecfied", __FUNCTION__);
-		exit(1);
-	}
-	if (update == NULL) {
-		syslog(LOG_ERR,
-		       "<%s> update function unspecfied", __FUNCTION__);
 		exit(1);
 	}
 	newtimer->expire = timeout;
@@ -121,7 +116,7 @@ rtadvd_set_timer(struct timeval *tm, struct rtadvd_timer *timer)
 }
 
 /*
- * Check expiration for each timer. If a timer is expired,
+ * Check expiration for each timer. If a timer expires,
  * call the expire function for the timer and update the timer.
  * Return the next interval for select() call.
  */
@@ -130,23 +125,25 @@ rtadvd_check_timer()
 {
 	static struct timeval returnval;
 	struct timeval now;
-	struct rtadvd_timer *tm = timer_head.next;
+	struct rtadvd_timer *tm = timer_head.next, *tm_next;
 
 	gettimeofday(&now, NULL);
 
 	timer_head.tm = tm_max;
 
-	while(tm != &timer_head) {
+	for (tm = timer_head.next; tm != &timer_head; tm = tm_next) {
+		tm_next = tm->next;
+
 		if (TIMEVAL_LEQ(tm->tm, now)) {
-			(*tm->expire)(tm->expire_data);
-			(*tm->update)(tm->update_data, &tm->tm);
+			if (((*tm->expire)(tm->expire_data) == NULL))
+				continue; /* the timer was removed */
+			if (tm->update)
+				(*tm->update)(tm->update_data, &tm->tm);
 			TIMEVAL_ADD(&tm->tm, &now, &tm->tm);
 		}
 
 		if (TIMEVAL_LT(tm->tm, timer_head.tm))
 			timer_head.tm = tm->tm;
-
-		tm = tm->next;
 	}
 
 	if (TIMEVAL_EQUAL(&tm_max, &timer_head.tm)) {

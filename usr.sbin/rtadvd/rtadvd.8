@@ -63,19 +63,41 @@ them as on-link prefixes.
 .Pp
 .Nm
 also watches the routing table.
-By default, if an interface direct route is
-added/deleted on an advertising interface and no static prefixes are
+If an interface direct route is
+added on an advertising interface and no static prefixes are
 specified by the configuration file,
 .Nm
-adds/deletes the corresponding prefix to/from its advertising list,
-respectively.
-The
-.Fl s
-option may be used to disable this behavior.
+adds the corresponding prefix to its advertising list.
+.Pp
+Similarly, when an interface direct route is deleted,
+.Nm
+will start advertising the prefixes with zero valid and preferred
+lifetimes to help the receiving hosts switch to a new prefix when
+renumbering.
+Note, however, that the zero valid lifetime cannot invalidate the
+autoconfigured addresses at a receiving host immediately.
+According to the specification, the host will retain the address
+for a certain period, which will typically be two hours.
+The zero lifetimes rather intend to make the address deprecated,
+indicating that a new non-deprecated address should be used as the
+source address of a new connection.
+This behavior will last for two hours.
+Then
+.Nm
+will completely remove the prefix from the advertising list,
+and succeeding advertisements will not contain the prefix information.
+.Pp
 Moreover, if the status of an advertising interface changes,
 .Nm
 will start or stop sending router advertisements according
 to the latest status.
+.Pp
+The
+.Fl s
+option may be used to disable this behavior;
+.Nm
+will not watch the routing table and the whole functionality described
+above will be suppressed.
 .Pp
 Basically, hosts MUST NOT send Router Advertisement messages at any
 time (RFC 2461, Section 6.2.3).
