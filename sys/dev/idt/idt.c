@@ -106,6 +106,14 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/if_arp.h>
 
+/* Gross kludge to make lint compile again.  This sucks, but oh well */
+#ifdef COMPILING_LINT
+#undef MCLBYTES
+#undef MCLSHIFT
+#define MCLBYTES 2048
+#define MCLSHIFT 11
+#endif
+
 #if MCLBYTES != 2048
 #error "This nicstar driver depends on 2048 byte mbuf clusters."
 #endif
