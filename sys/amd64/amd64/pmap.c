@@ -190,10 +190,9 @@ static caddr_t crashdumpmap;
 
 #ifdef SMP
 extern pt_entry_t *SMPpt;
-#else
+#endif
 static pt_entry_t *PMAP1 = 0;
 static unsigned *PADDR1 = 0;
-#endif
 
 static PMAP_INLINE void	free_pv_entry __P((pv_entry_t pv));
 static unsigned * get_ptbase __P((pmap_t pmap));
@@ -284,9 +283,6 @@ pmap_bootstrap(firstaddr, loadaddr)
 {
 	vm_offset_t va;
 	pt_entry_t *pte;
-#ifdef SMP
-	struct globaldata *gd;
-#endif
 
 	avail_start = firstaddr;
 
@@ -357,12 +353,10 @@ pmap_bootstrap(firstaddr, loadaddr)
 	SYSMAP(struct msgbuf *, msgbufmap, msgbufp,
 	       atop(round_page(MSGBUF_SIZE)))
 
-#if !defined(SMP)
 	/*
 	 * ptemap is used for pmap_pte_quick
 	 */
 	SYSMAP(unsigned *, PMAP1, PADDR1, 1);
-#endif
 
 	virtual_avail = va;
 
@@ -428,17 +422,6 @@ pmap_bootstrap(firstaddr, loadaddr)
 	/* local apic is mapped on last page */
 	SMPpt[NPTEPG - 1] = (pt_entry_t)(PG_V | PG_RW | PG_N | pgeflag |
 	    (cpu_apic_address & PG_FRAME));
-
-	/* BSP does this itself, AP's get it pre-set */
-	gd = &SMP_prvspace[0].globaldata;
-	gd->gd_prv_CMAP1 = &SMPpt[1];
-	gd->gd_prv_CMAP2 = &SMPpt[2];
-	gd->gd_prv_CMAP3 = &SMPpt[3];
-	gd->gd_prv_PMAP1 = &SMPpt[4];
-	gd->gd_prv_CADDR1 = SMP_prvspace[0].CPAGE1;
-	gd->gd_prv_CADDR2 = SMP_prvspace[0].CPAGE2;
-	gd->gd_prv_CADDR3 = SMP_prvspace[0].CPAGE3;
-	gd->gd_prv_PADDR1 = (unsigned *)SMP_prvspace[0].PPAGE1;
 #endif
 
 	invltlb();
@@ -648,19 +631,11 @@ pmap_pte_quick(pmap, va)
 			return (unsigned *) PTmap + index;
 		}
 		newpf = pde & PG_FRAME;
-#ifdef SMP
-		if ( ((* (unsigned *) PCPU_GET(prv_PMAP1)) & PG_FRAME) != newpf) {
-			* (unsigned *) PCPU_GET(prv_PMAP1) = newpf | PG_RW | PG_V;
-			cpu_invlpg(PCPU_GET(prv_PADDR1));
-		}
-		return (unsigned *)(PCPU_GET(prv_PADDR1) + (index & (NPTEPG - 1)));
-#else
 		if ( ((* (unsigned *) PMAP1) & PG_FRAME) != newpf) {
 			* (unsigned *) PMAP1 = newpf | PG_RW | PG_V;
 			invltlb_1pg((vm_offset_t) PADDR1);
 		}
 		return PADDR1 + ((unsigned) index & (NPTEPG - 1));
-#endif
 	}
 	return (0);
 }
@@ -2669,22 +2644,7 @@ void
 pmap_zero_page(phys)
 	vm_offset_t phys;
 {
-#ifdef SMP
-	if (*(int *) PCPU_GET(prv_CMAP3))
-		panic("pmap_zero_page: prv_CMAP3 busy");
 
-	*(int *) PCPU_GET(prv_CMAP3) = PG_V | PG_RW | (phys & PG_FRAME) | PG_A | PG_M;
-	cpu_invlpg(PCPU_GET(prv_CADDR3));
-
-#if defined(I686_CPU)
-	if (cpu_class == CPUCLASS_686)
-		i686_pagezero(PCPU_GET(prv_CADDR3));
-	else
-#endif
-		bzero(PCPU_GET(prv_CADDR3), PAGE_SIZE);
-
-	*(int *) PCPU_GET(prv_CMAP3) = 0;
-#else
 	if (*(int *) CMAP2)
 		panic("pmap_zero_page: CMAP2 busy");
 
@@ -2698,7 +2658,6 @@ pmap_zero_page(phys)
 #endif
 		bzero(CADDR2, PAGE_SIZE);
 	*(int *) CMAP2 = 0;
-#endif
 }
 
 /*
@@ -2713,22 +2672,7 @@ pmap_zero_page_area(phys, off, size)
 	int off;
 	int size;
 {
-#ifdef SMP
-	if (*(int *) PCPU_GET(prv_CMAP3))
-		panic("pmap_zero_page: prv_CMAP3 busy");
 
-	*(int *) PCPU_GET(prv_CMAP3) = PG_V | PG_RW | (phys & PG_FRAME) | PG_A | PG_M;
-	cpu_invlpg(PCPU_GET(prv_CADDR3));
-
-#if defined(I686_CPU)
-	if (cpu_class == CPUCLASS_686 && off == 0 && size == PAGE_SIZE)
-		i686_pagezero(PCPU_GET(prv_CADDR3));
-	else
-#endif
-		bzero((char *)PCPU_GET(prv_CADDR3) + off, size);
-
-	*(int *) PCPU_GET(prv_CMAP3) = 0;
-#else
 	if (*(int *) CMAP2)
 		panic("pmap_zero_page: CMAP2 busy");
 
@@ -2742,7 +2686,6 @@ pmap_zero_page_area(phys, off, size)
 #endif
 		bzero((char *)CADDR2 + off, size);
 	*(int *) CMAP2 = 0;
-#endif
 }
 
 /*
@@ -2756,26 +2699,11 @@ pmap_copy_page(src, dst)
 	vm_offset_t src;
 	vm_offset_t dst;
 {
-#ifdef SMP
-	if (*(int *) PCPU_GET(prv_CMAP1))
-		panic("pmap_copy_page: prv_CMAP1 busy");
-	if (*(int *) PCPU_GET(prv_CMAP2))
-		panic("pmap_copy_page: prv_CMAP2 busy");
 
-	*(int *) PCPU_GET(prv_CMAP1) = PG_V | (src & PG_FRAME) | PG_A;
-	*(int *) PCPU_GET(prv_CMAP2) = PG_V | PG_RW | (dst & PG_FRAME) | PG_A | PG_M;
-
-	cpu_invlpg(PCPU_GET(prv_CADDR1));
-	cpu_invlpg(PCPU_GET(prv_CADDR2));
-
-	bcopy(PCPU_GET(prv_CADDR1), PCPU_GET(prv_CADDR2), PAGE_SIZE);
-
-	*(int *) PCPU_GET(prv_CMAP1) = 0;
-	*(int *) PCPU_GET(prv_CMAP2) = 0;
-
-#else
-	if (*(int *) CMAP1 || *(int *) CMAP2)
-		panic("pmap_copy_page: CMAP busy");
+	if (*(int *) CMAP1)
+		panic("pmap_copy_page: CMAP1 busy");
+	if (*(int *) CMAP2)
+		panic("pmap_copy_page: CMAP2 busy");
 
 	*(int *) CMAP1 = PG_V | (src & PG_FRAME) | PG_A;
 	*(int *) CMAP2 = PG_V | PG_RW | (dst & PG_FRAME) | PG_A | PG_M;
@@ -2790,7 +2718,6 @@ pmap_copy_page(src, dst)
 
 	*(int *) CMAP1 = 0;
 	*(int *) CMAP2 = 0;
-#endif
 }
 
 
