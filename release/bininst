@@ -5,14 +5,15 @@
 # is actually something of a misnomer, since this utility will install
 # more than just the bindist set.
 #
-# November 11th, 1994
+# Written:  November 11th, 1994
 # Copyright (C) 1994 by Jordan K. Hubbard
 #
 # Permission to copy or use this software for any purpose is granted
-# provided that this message stay intact, and at this location (no putting
+# provided that this message stay intact, and at this location (e.g. no putting
 # your name on top after doing something trivial like reindenting it, just
 # to make it look like you wrote it!).
 #
+# $Id$
 
 # Some useful constants.
 PATH=/usr/bin:/usr/sbin:/bin:/sbin:/stand
@@ -41,6 +42,8 @@ set_defaults() {
 	ftp_path="ftp://ftp.freebsd.org/pub/FreeBSD/2.0-ALPHA/bindist" ;
 	nfs_path="" ;
 	cdrom_path="" ;
+	serial_interface="/dev/tty00" ;
+	serial_speed="38400" ;
 	installing=1 ;
 	mkdir -p ${TMP}
 	cp /stand/etc/* /etc
@@ -90,14 +93,16 @@ welcome() {
 	dialog --title "Welcome to FreeBSD" --clear \
 --msgbox " We're now ready to install one or more packed distribution
 sets onto your machine.  At the minimum, you need a bindist
-installation though a secrdist is also useful if you want your
+distribution, though a secrdist is also useful if you want your
 system to use the same DES and/or Kerberos security model used
 by other commercial systems (the FreeBSD model is md5 based,
 and not bad in and of itself though).  The secrdist is also a
 bit of a special case since it cannot be legally obtained from
 the U.S. due to export restrictions, but non-U.S. versions are
 also available.  See the release notes for more information on
-obtaining a secrdist for your part of the world." 15 72
+obtaining a secrdist for your part of the world.  If you're
+interested in doing FreeBSD development, a srcdist is also
+highly recommended!" 18 72
 	if ! handle_rval $?; then return 1; fi
 }
 
@@ -106,18 +111,18 @@ obtaining a secrdist for your part of the world." 15 72
 choose_media() {
 	while [ "$media_device" = "" ]; do
 
-	dialog --clear --title "Chose installation media" \
---menu "Before we begin the installation, we need to chose and possibly \n\
-configure your method of installation.  Please pick from one of \n\
-the following options.  If your option isn't listed here, your \n\
-best bet may be to simply hit ESC twice to get a subshell and \n\
-proceed manually on your own.  If you are finished installing, \n\
-select cancel.\n\n\
+	dialog --clear --title "Installation From" \
+--menu "Before installing a distribution, you need to chose \n\
+and/or configure your method of installation.  Please pick from \n\
+one of the following options.  If none of the listed options works \n\
+for you then your best bet may be to simply hit ESC twice to get \n\
+a subshell and proceed manually on your own.  If you are already \n\
+finished with installation, select cancel to go on.\n\n\
 	Please choose one of the following:" 20 72 5 \
-	"Tape" "Load installation from SCSI or QIC tape" \
-	"CDROM" "Load installation from SCSI or Mitsumi CDROM" \
+	"Tape" "Load distribution from SCSI or QIC tape" \
+	"CDROM" "Load distribution from SCSI or Mitsumi CDROM" \
         "DOS" "Load from DOS floppies or a DOS hard disk partition" \
-        "FTP" "Load the distribution over ftp" \
+        "FTP" "Load distribution using FTP" \
         "NFS" "Load the distribution over NFS" 2> ${TMP}/menu.tmp.$$
 
 	retval=$?
@@ -127,7 +132,7 @@ select cancel.\n\n\
 
 	case $choice in
 	Tape)
-		dialog --clear --title "Chose tape type" \
+		dialog --clear --title "Chose Tape Type" \
 --menu "Which type of tape drive do you have attached to your \n\
 system?  FreeBSD supports the following types:\n\n\
 		Choose one of the following:" 20 72 2 \
@@ -149,7 +154,7 @@ system?  FreeBSD supports the following types:\n\n\
 		esac
 	;;
 	CDROM)
-		dialog --clear --title "Chose CDROM type" \
+		dialog --clear --title "Chose CDROM Type" \
 --menu "Which type of CDROM drive do you have attached to your \n\
 system?  FreeBSD supports the following types:\n\n\
 		Choose one of the following:" 15 72 2 \
@@ -178,11 +183,10 @@ system?  FreeBSD supports the following types:\n\n\
 		dialog --title "FTP Installation Information" --clear \
 --inputbox "Please specify the machine and directory location of the
 distribution you wish to load.  This should be either a \"URL style\"
-specification (e.g. something like ftp://ftp.freeBSD.org/pub/...) or
-simply the name of a host to connect to.  If only a host name is
-specified, the installation assumes that you will properly connect
-and \"mget\" the files yourself.\n\n" \
-16 72 "$ftp_path" 2> ${TMP}/inputbox.tmp.$$
+specification (e.g. ftp://ftp.freeBSD.org/pub/FreeBSD/...) or simply
+the name of a host to connect to.  If only a host name is specified,
+the installation assumes that you will properly connect and \"mget\"
+the files yourself.\n\n" \ 16 72 "$ftp_path" 2> ${TMP}/inputbox.tmp.$$
 		if ! handle_rval $?; then continue; fi
 		media_type=ftp
 		media_device=`cat ${TMP}/inputbox.tmp.$$`
@@ -193,10 +197,10 @@ and \"mget\" the files yourself.\n\n" \
 		if ! setup_network; then continue; fi
 		dialog --title "NFS Installation Information" --clear \
 --inputbox "Please specify the machine and directory location of the
-distribution you wish to load.  This should be in machine:dir
-syntax (e.g. zooey:/a/FreeBSD/bindist).  The remote directory
-should also, of course, be exported!\n\n" \
-16 72 "$nfs_path" 2> ${TMP}/inputbox.tmp.$$
+distribution you wish to load.  This must be in machine:dir
+format (e.g. zooey:/a/FreeBSD/bindist).  The remote directory
+must be be exported to your machine (or globally) for this to
+work!\n\n" \ 14 72 "$nfs_path" 2> ${TMP}/inputbox.tmp.$$
 		if ! handle_rval $?; then continue; fi
 		media_type=nfs
 		nfs_path=`cat ${TMP}/inputbox.tmp.$$`
@@ -220,8 +224,10 @@ free space to hold the temporary files for this distribution.
 At minimum, a binary distribution will require around 21MB of
 temporary space.  At maximum, a srcdist may take 40MB or more.
 If the directory you specify does not exist, it will be created
-for you.\n\n" \
-16 72 "/usr/tmp" 2> ${TMP}/inputbox.tmp.$$
+for you.  If you do not have enough free space to hold both the
+packed and unpacked distribution files, consider using the NFS
+or CDROM installation methods as they require no temporary
+storage.\n\n" \ 18 72 "/usr/tmp" 2> ${TMP}/inputbox.tmp.$$
 	if ! handle_rval $?; then return 1; fi
 	tmp_dir=`cat ${TMP}/inputbox.tmp.$$`
 	rm -f ${TMP}/inputbox.tmp.$$
@@ -248,7 +254,7 @@ rm_tmpdir()
 setup_network_ether()
 {
 	dialog --clear --title "Ethernet Interface Name" \
-	--menu "Please select the type of ethernet device you have:\n\n" \
+	--menu "Please select the type of ethernet interface you have:\n\n" \
 	 20 76 6 \
 	"ed0" "WD80x3, SMC, Novell NE[21]000 or 3C503 generic NIC at 0x280/5" \
 	"ed1" "Same as above, but at address 0x300 and IRQ 5" \
@@ -266,18 +272,24 @@ setup_network_ether()
 
 setup_network_slip()
 {
-	not_supported
-}
+	default_value=""
+	if ! network_dialog "What is the IP number for the remote host"; then return 1; fi
+	remote_hostip=$answer
+	interface=sl0
 
-setup_network_ppp()
-{
-	not_supported
+	default_value=$serial_interface
+	if ! network_dialog "What is the name of the serial interface"; then return 1; fi
+	serial_interface=$answer
+
+	default_value=$serial_speed
+	if ! network_dialog "What speed is the serial interface"; then return 1; fi
+	serial_speed=$answer
 }
 
 setup_network_plip()
 {
 	default_value=""
-	if ! network_dialog "What is the ip number for the remote host"; then return 1; fi
+	if ! network_dialog "What is the IP number for the remote host"; then return 1; fi
 	remote_hostip=$answer
 	interface=lp0
 }
@@ -297,10 +309,9 @@ setup_network()
 	while [ "$interface" = "" ]; do
 		dialog --clear --title "Set up network interface" \
 		--menu "Please select the type of network connection you have:\n\n" \
-		20 72 4 \
+		20 72 3 \
 		"ether" "A supported ethernet card" \
 		"SLIP" "A point-to-point SLIP (Serial Line IP) connection" \
-		"PPP" "A point-to-point protocol link" \
 		"PLIP" "A Parallel-Line IP setup (sort of like lap-link)" \
 		2> ${TMP}/menu.tmp.$$
 
@@ -315,10 +326,6 @@ setup_network()
 
 	SLIP)
 		if ! setup_network_slip; then continue; fi
-	;;
-
-	PPP)
-		if ! setup_network_ppp; then continue; fi
 	;;
 
 	PLIP)
@@ -362,6 +369,9 @@ setup_network()
 		ipaddr=""; interface=""
 		continue
 	fi
+	if [ "$interface" = "sl0" ]; then
+		slattach -a -s $serial_speed $serial_interface
+	fi
 	rm -f ${TMP}/inputbox.tmp.$$
 	echo "$ipaddr $remote_hostip netmask $netmask $ifconfig_flags" > /etc/hostname.$interface
 	default_value=""
@@ -386,7 +396,7 @@ setup_network()
 extract_dist()
 {
 	if [ -f extract.sh ]; then
-		message "Extracting distribution\nPlease wait!"
+		message "Extracting distribution..  Please wait!"
 		sh ./extract.sh > /dev/ttyv1 2>&1
 	else    
 		error "Improper distribution.  No installation script found."  
@@ -469,8 +479,8 @@ mail client this host is, etc.  We just ran out of time for ALPHA!
 At the very least, you may wish to check out the 'tzsetup' command;
 it will at least handle the first checklist item for you. \n
 The login name \"root\" has no password.  If you're new to UN*X, log
-in as root when prompted for a user name and run vipw to add a new user
-for yourself.\nAny install-related comments to jkh, phk or paul (@freebsd.org)." 15 72
+in as root when prompted for a user name and run vipw to add a new
+user for yourself.\nAny install-related comments to jkh, phk or paul (@freebsd.org)." 18 72
 }
 
 welcome
