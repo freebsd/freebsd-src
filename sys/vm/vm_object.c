@@ -145,7 +145,16 @@ struct vm_object kmem_object_store;
 
 static long object_collapses;
 static long object_bypasses;
+
+/*
+ * next_index determines the page color that is assigned to the next
+ * allocated object.  Accesses to next_index are not synchronized
+ * because the effects of two or more object allocations using
+ * next_index simultaneously are inconsequential.  At any given time,
+ * numerous objects have the same page color.
+ */
 static int next_index;
+
 static uma_zone_t obj_zone;
 #define VM_OBJECTS_INIT 256
 
@@ -211,10 +220,8 @@ _vm_object_allocate(objtype_t type, vm_pindex_t size, vm_object_t object)
 		incr = PQ_L2_SIZE / 3 + PQ_PRIME1;
 	else
 		incr = size;
-	do
-		object->pg_color = next_index;
-	while (!atomic_cmpset_int(&next_index, object->pg_color,
-				  (object->pg_color + incr) & PQ_L2_MASK));
+	object->pg_color = next_index;
+	next_index = (object->pg_color + incr) & PQ_L2_MASK;
 	object->handle = NULL;
 	object->backing_object = NULL;
 	object->backing_object_offset = (vm_ooffset_t) 0;
@@ -1064,6 +1071,7 @@ vm_object_madvise(vm_object_t object, vm_pindex_t pindex, int count, int advise)
 
 	if (object == NULL)
 		return;
+	VM_OBJECT_LOCK(object);
 	end = pindex + count;
 	/*
 	 * Locate and adjust resident pages
@@ -1072,7 +1080,6 @@ vm_object_madvise(vm_object_t object, vm_pindex_t pindex, int count, int advise)
 relookup:
 		tobject = object;
 		tpindex = pindex;
-		VM_OBJECT_LOCK(tobject);
 shadowlookup:
 		/*
 		 * MADV_FREE only operates on OBJT_DEFAULT or OBJT_SWAP pages
@@ -1100,7 +1107,8 @@ shadowlookup:
 				goto unlock_tobject;
 			VM_OBJECT_LOCK(backing_object);
 			tpindex += OFF_TO_IDX(tobject->backing_object_offset);
-			VM_OBJECT_UNLOCK(tobject);
+			if (tobject != object)
+				VM_OBJECT_UNLOCK(tobject);
 			tobject = backing_object;
 			goto shadowlookup;
 		}
@@ -1118,8 +1126,13 @@ shadowlookup:
 			vm_page_unlock_queues();
 			goto unlock_tobject;
 		}
- 		if (vm_page_sleep_if_busy(m, TRUE, "madvpo")) {
+		if ((m->flags & PG_BUSY) || m->busy) {
+			vm_page_flag_set(m, PG_WANTED | PG_REFERENCED);
+			if (object != tobject)
+				VM_OBJECT_UNLOCK(object);
 			VM_OBJECT_UNLOCK(tobject);
+			msleep(m, &vm_page_queue_mtx, PDROP | PVM, "madvpo", 0);
+			VM_OBJECT_LOCK(object);
   			goto relookup;
 		}
 		if (advise == MADV_WILLNEED) {
@@ -1151,8 +1164,10 @@ shadowlookup:
 		if (advise == MADV_FREE && tobject->type == OBJT_SWAP)
 			swap_pager_freespace(tobject, tpindex, 1);
 unlock_tobject:
-		VM_OBJECT_UNLOCK(tobject);
+		if (tobject != object)
+			VM_OBJECT_UNLOCK(tobject);
 	}	
+	VM_OBJECT_UNLOCK(object);
 }
 
 /*
