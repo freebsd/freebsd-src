@@ -18,32 +18,42 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: pipe.h,v 1.1 1996/01/28 23:38:22 dyson Exp $
+ * $Id: pipe.h,v 1.3 1996/02/04 19:56:14 dyson Exp $
  */
+
+#ifndef _SYS_PIPE_H_
+#define _SYS_PIPE_H_
 
 #ifndef OLD_PIPE
 
-struct vm_object;
+#ifndef KERNEL
+#include <sys/time.h>			/* for struct timeval */
+#include <sys/select.h>			/* for struct selinfo */
+#include <vm/vm.h>			/* for vm_page_t */
+#include <machine/param.h>		/* for PAGE_SIZE */
+#endif
 
 /*
  * Pipe buffer size, keep moderate in value, pipes take kva space.
  */
 #ifndef PIPE_SIZE
-#define PIPE_SIZE (16384)
+#define PIPE_SIZE	16384
 #endif
 
 /*
  * PIPE_MINDIRECT MUST be smaller than PIPE_SIZE and MUST be bigger
- * than PIPE_BUF
+ * than PIPE_BUF.
  */
 #ifndef PIPE_MINDIRECT
-#define PIPE_MINDIRECT (8192)
+#define PIPE_MINDIRECT	8192
 #endif
 
-#define PIPENPAGES (PIPE_SIZE/PAGE_SIZE + 1)
+#define PIPENPAGES	(PIPE_SIZE / PAGE_SIZE + 1)
+
 /*
- * pipe buffer information
- * Seperate in, out, cnt is used to simplify calculations.
+ * Pipe buffer information.
+ * Separate in, out, cnt are used to simplify calculations.
+ * Buffered write is active when the buffer.cnt field is set.
  */
 struct pipebuf {
 	u_int	cnt;		/* number of chars currently in buffer */
@@ -51,11 +61,11 @@ struct pipebuf {
 	u_int	out;		/* out pointer */
 	u_int	size;		/* size of buffer */
 	caddr_t	buffer;		/* kva of buffer */
-	struct	vm_object *object; /* VM object containing buffer */
+	struct	vm_object *object;	/* VM object containing buffer */
 };
 
 /*
- * information to support direct transfers between processes for pipes
+ * Information to support direct transfers between processes for pipes.
  */
 struct pipemapping {
 	vm_offset_t	kva;		/* kernel virtual address */
@@ -66,43 +76,41 @@ struct pipemapping {
 };
 
 /*
- * pipe_state bits
+ * Bits in pipe_state.
  */
-#define PIPE_NBIO 0x1		/* non-blocking I/O */
-#define PIPE_ASYNC 0x4		/* Async? I/O */
-#define PIPE_WANTR 0x8		/* Reader wants some characters */
-#define PIPE_WANTW 0x10		/* Writer wants space to put characters */
-#define PIPE_WANT 0x20		/* Pipe is wanted to be run-down */
-#define PIPE_SEL 0x40		/* Pipe has a select active */
-#define PIPE_EOF 0x80		/* Pipe is in EOF condition */
-#define PIPE_LOCK 0x100		/* Process has exclusive access to pointers/data */
-#define PIPE_LWANT 0x200	/* Process wants exclusive access to pointers/data */
-#define	PIPE_DIRECTW	0x400	/* Pipe direct write active */
-#define PIPE_DIRECTOK	0x800	/* Direct mode ok */
+#define PIPE_NBIO	0x001	/* Non-blocking I/O. */
+#define PIPE_ASYNC	0x004	/* Async? I/O. */
+#define PIPE_WANTR	0x008	/* Reader wants some characters. */
+#define PIPE_WANTW	0x010	/* Writer wants space to put characters. */
+#define PIPE_WANT	0x020	/* Pipe is wanted to be run-down. */
+#define PIPE_SEL	0x040	/* Pipe has a select active. */
+#define PIPE_EOF	0x080	/* Pipe is in EOF condition. */
+#define PIPE_LOCK	0x100	/* Process has exclusive access to pointers/data. */
+#define PIPE_LWANT	0x200	/* Process wants exclusive access to pointers/data. */
+#define PIPE_DIRECTW	0x400	/* Pipe direct write active. */
+#define PIPE_DIRECTOK	0x800	/* Direct mode ok. */
 
 /*
- * Buffered write is active when buffer.cnt
- * field is set.
- */
-
-/*
- * Per-pipe data structure
- * Two of these are linked together to produce bi-directional
- * pipes.
+ * Per-pipe data structure.
+ * Two of these are linked together to produce bi-directional pipes.
  */
 struct pipe {
 	struct	pipebuf pipe_buffer;	/* data storage */
-	struct	pipemapping	pipe_map;	/* pipe mapping for dir I/O */
+	struct	pipemapping pipe_map;	/* pipe mapping for direct I/O */
 	struct	selinfo pipe_sel;	/* for compat with select */
 	struct	timeval pipe_atime;	/* time of last access */
 	struct	timeval pipe_mtime;	/* time of last modify */
 	struct	timeval pipe_ctime;	/* time of status change */
-	int	pipe_pgid;
-	struct	pipe	*pipe_peer;	/* link with other direction */
+	int	pipe_pgid;		/* process/group for async I/O */
+	struct	pipe *pipe_peer;	/* link with other direction */
 	u_int	pipe_state;		/* pipe status info */
 	int	pipe_busy;		/* busy flag, mostly to handle rundown sanely */
 };
 
-int pipe_stat __P((struct pipe *pipe, struct stat *ub));
-
+#ifdef KERNEL
+int	pipe_stat __P((struct pipe *pipe, struct stat *ub));
 #endif
+
+#endif /* !OLD_PIPE */
+
+#endif /* !_SYS_PIPE_H_ */
