@@ -7,7 +7,7 @@ MAINTAINER=	marcel@FreeBSD.org
 KMOD=	linux
 SRCS=	linux_file.c linux_ioctl.c linux_machdep.c linux_misc.c \
 	linux_signal.c linux_socket.c linux_stats.c linux_mib.c \
-	linux_dummy.c linux_sysent.c linux_sysvec.c linux_util.c \
+	linux_dummy.c linux_sysvec.c linux_util.c \
 	opt_compat.h opt_linux.h opt_vmpage.h vnode_if.h
 OBJS=	linux_locore.o
 
@@ -33,6 +33,19 @@ linux_genassym.o:	linux_genassym.c linux.h @ machine
 
 opt_compat.h:
 	echo "#define COMPAT_43 1" > opt_compat.h
+
+GENSYSCALL=	linux_sysent.c linux_syscall.h linux_proto.h
+SRCS+= ${GENSYSCALL}
+CLEANFILES+= ${GENSYSCALL}
+
+${GENSYSCALL}: @/kern/makesyscalls.sh \
+	    @/${MACHINE_ARCH}/linux/syscalls.master \
+		@/${MACHINE_ARCH}/linux/syscalls.conf
+	sh @/kern/makesyscalls.sh @/${MACHINE_ARCH}/linux/syscalls.master \
+		@/${MACHINE_ARCH}/linux/syscalls.conf
+	sed -e 's|${MACHINE_ARCH}/linux/linux_proto\.h|linux_proto.h|g' \
+	    linux_sysent.c > linux_sysent.c.fixup
+	    mv -f linux_sysent.c.fixup linux_sysent.c
 
 .if exists(${DESTDIR}/usr/bin)
 afterinstall:
