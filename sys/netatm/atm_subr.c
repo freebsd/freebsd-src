@@ -180,10 +180,7 @@ atm_timexp(arg)
 	/*
 	 * Stack queue should have been drained
 	 */
-#ifdef DIAGNOSTIC
-	if (atm_stackq_head != NULL)
-		panic("atm_timexp: stack queue not empty");
-#endif
+	KASSERT(atm_stackq_head == NULL, ("atm_timexp: stack queue not empty"));
 
 	/*
 	 * Dispatch expired timers
