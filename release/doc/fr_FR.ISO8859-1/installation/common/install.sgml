@@ -19,8 +19,14 @@ from {alpha,i386}/INSTALL.TXT.
   particulier sur la fa&ccedil;on d'obtenir la distribution &os;
   &release.current; de commencer la proc&eacute;dure d'installation. Le
   chapitre <ulink
-  url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/install.html"><quote>Installation de &os;</quote></ulink> du <ulink url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/">guide de r&eacute;f&eacute;rence de &os;</ulink> vous fournit plus d'informations sur le programme d'installation lui m&ecirc;me, et une explication pas &agrave; pas de l'installation ponctu&eacute;e de copies d'&eacute;crans</para>
-
+  url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/install.html">
+  <quote>Installation de &os;</quote></ulink> du 
+  <ulink
+  url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/">
+  guide de r&eacute;f&eacute;rence de &os;</ulink> vous fournit plus
+  d'informations sur le programme d'installation lui m&ecirc;me, et
+  une explication pas &agrave; pas de l'installation ponctu&eacute;e
+  de copies d'&eacute;crans</para>
 
 
   <para>Si vous effectuez une mise &agrave; jour depuis une version
@@ -41,10 +47,12 @@ from {alpha,i386}/INSTALL.TXT.
     d'installation. </para>
 
     <para>Notez que les versions en ligne de &os; <ulink
-    url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/faq/">FAQ</ulink> et <ulink url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/">Handbook</ulink> sont aussi disponibles sur le 
-    <ulink url="http://www.FreeBSD.org/">site Web du projet
-    FreeBSD</ulink>, si vous disposez d'une connection
-    Internet.</para>
+    url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/faq/">FAQ</ulink> 
+    et <ulink
+    url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/">Handbook</ulink>
+     sont aussi disponibles sur le <ulink
+     url="http://www.FreeBSD.org/">site Web du projet FreeBSD</ulink>,
+     si vous disposez d'une connection Internet.</para>
 
     <para>Cette liste de documents peut vous para&icirc;tre &eacute;norme,
     mais le temps pass&eacute; &agrave; les lire vous fera probablement gagner
@@ -109,56 +117,56 @@ from {alpha,i386}/INSTALL.TXT.
   <sect2 id="floppies">
   <title>Installation depuis une disquette image</title>
 
-  <para>Suivant la façon choisie pour l'installation de &os; vous
-  pourriez avoir à créer un jeu de disquettes
-  (généralement deux) pour commencer l'installation. Cette
-  section décrit brièvement la façon de créer ces
+  <para>Suivant la fa&ccedil;on choisie pour l'installation de &os; vous
+  pourriez avoir &agrave; cr&eacute;er un jeu de disquettes
+  (g&eacute;n&eacute;ralement deux) pour commencer l'installation. Cette
+  section d&eacute;crit bri&egrave;vement la fa&ccedil;on de cr&eacute;er ces
   disquettes que cela soit depuis le CDROM d'installation ou depuis
-  Internet. Notez que la façon la plus courante d'installer &os est
-  par un CDROM, sur une machine supportant le démarrage sur CDROM,
-  et cette procédure ne sert donc à rien dans ce cas.</para>
+  Internet. Notez que la fa&ccedil;on la plus courante d'installer &os est
+  par un CDROM, sur une machine supportant le d&eacute;marrage sur CDROM,
+  et cette proc&eacute;dure ne sert donc &agrave; rien dans ce cas.</para>
 
-  <para>Pour une installation standard depuis le réseau ou un
+  <para>Pour une installation standard depuis le r&eacute;seau ou un
   CDROM, tout ce que vous avez besoin d'effectuer est la copie sur des
   disquettes les fichiers images <filename>kern.flp</filename> et
-  <filename>mfsroot.flp</filename> depuis le répertoire
+  <filename>mfsroot.flp</filename> depuis le r&eacute;pertoire
   <filename>floppies/</filename> (pour des disquettes 1.44Mo).</para>
 
-  <para>Rapatrier ces images depuis le réseau, est très
+  <para>Rapatrier ces images depuis le r&eacute;seau, est tr&egrave;s
   simple. Rapatriez simplement les 
   <replaceable>release</replaceable><filename>/floppies/kern.flp</filename>
   et
   <replaceable>release</replaceable><filename>/floppies/mfsroot.flp</filename>
   fichiers depuis <ulink
   url="&release.url;"></ulink>
-  ou un des sites mirroirs listé à la section  <ulink
+  ou un des sites mirroirs list&eacute; &agrave; la section  <ulink
     url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/mirrors-ftp.html">sites FTP
-    </ulink> du guide de régerence ou depuis les pages Web 
+    </ulink> du guide de r&eacute;gerence ou depuis les pages Web 
     <ulink url="http://www.freebsdmirrors.org/"></ulink>.
   </para>
 
-  <para>Obtenez des disquette vierges formattées et copiez l'
+  <para>Obtenez des disquette vierges formatt&eacute;es et copiez l'
   image <filename>kern.flp</filename> sur une et
   <filename>mfsroot.flp</filename> sur l'autre. Ces images
   <emphasis>ne sont pas</emphasis> des fichiers DOS. Vous ne pouvez
   pas simplement les copier sur une disquette DOS ou UFS comme des
   fichiers standard, vous devez les copier comme une
   <quote>image</quote> en utilisant <filename>fdimage.exe</filename>
-  sous DOS (voyez le répertoire <filename>tools</filename> sur le
+  sous DOS (voyez le r&eacute;pertoire <filename>tools</filename> sur le
   CDROM ou site mirroir FTP de &os;) ou la commande UNIX
   &man.dd.1;.</para>
 
-  <para>Par exemple, pour créer la disquette image du noyau depuis
+  <para>Par exemple, pour cr&eacute;er la disquette image du noyau depuis
   DOS, vous devrez taper quelque chose comme:</para>
 
   <screen><prompt>C></prompt> <userinput>fdimage kern.flp a:</userinput></screen>
 
-  <para>En assumant que vous avez copié
+  <para>En assumant que vous avez copi&eacute;
   <filename>fdimage.exe</filename> et <filename>kern.flp</filename>
-  dans un répertoire.  Vous devrez effectuer la même
-  opération pour <filename>mfsroot.flp</filename>.</para>
+  dans un r&eacute;pertoire.  Vous devrez effectuer la m&ecirc;me
+  op&eacute;ration pour <filename>mfsroot.flp</filename>.</para>
 
-  <para>Si vous créez les disquettes de démarrage depuis une
+  <para>Si vous cr&eacute;ez les disquettes de d&eacute;marrage depuis une
   machine UNIX, quelque chose comme:</para>
 
   <screen>&prompt.root; <userinput>dd if=floppies/kern.flp of=/dev/rfd0</userinput></screen>
@@ -167,19 +175,19 @@ from {alpha,i386}/INSTALL.TXT.
 
   <screen>&prompt.root; <userinput>dd if=floppies/kern.flp of=/dev/floppy</userinput></screen>
 
-  <para>fonctionne parfaitement, suivant votre matériel et
-  système d'exploitation (différentes version d'UNIX ont des
-  noms différents pour le lecteur de disquette).</para>
+  <para>fonctionne parfaitement, suivant votre mat&eacute;riel et
+  syst&egrave;me d'exploitation (diff&eacute;rentes version d'UNIX ont des
+  noms diff&eacute;rents pour le lecteur de disquette).</para>
 
   <para arch="alpha">Si vous disposez d'une machine alpha qui peut
-  démarrer les images depuis le réseau ou si vous disposez d'un
+  d&eacute;marrer les images depuis le r&eacute;seau ou si vous disposez d'un
   lecteur de disquette 2.88Mo ou LS-120 capable depuis une machine x86
-  de créer une image 2.88Mo, vous pouvez utiliser l'image unique
+  de cr&eacute;er une image 2.88Mo, vous pouvez utiliser l'image unique
   (mais deux fois plus grosse)  <filename>boot.flp</filename>. Ce
   fichier contient <filename>kern.flp</filename> et 
   <filename>mfsroot.flp</filename> sur une seule disquette. Ce fichier
-  peut aussi être utilisé comme une image de démarrage pour
-  ceux créeant des images de démarrage pour CD <quote>El
+  peut aussi &ecirc;tre utilis&eacute; comme une image de d&eacute;marrage pour
+  ceux cr&eacute;eant des images de d&eacute;marrage pour CD <quote>El
   Torito</quote> Voyez la commande  &man.mkisofs.8; pour plus
   d'informations.</para>
 
@@ -188,119 +196,119 @@ from {alpha,i386}/INSTALL.TXT.
   <sect2 id="start-installation">
       <title>Installation de &os; depuis un CDROM ou Internet</title>
 
-      <para arch="i386">La façon la plus simple d'effectuer
+      <para arch="i386">La fa&ccedil;on la plus simple d'effectuer
       l'installation est d'utiliser un CDROM. Si vous disposez d'un
-      lecteur de CDROM supporté et du CDROM d'installation de &os;,
-      il y a deux façon de démarrer cette installation:
+      lecteur de CDROM support&eacute; et du CDROM d'installation de &os;,
+      il y a deux fa&ccedil;on de d&eacute;marrer cette installation:
         <itemizedlist>
           <listitem>
-            <para>Si votre système supporte le démarrage depuis
-            un CDROM (souvent il s'agit d'une option qui peut être
-            sélectionnée via le menu d'un controleur ou depuis
-            le BIOS du PC sur certains systèmes) et que vous l'avez
-            activé, &os; supporte le standard de démarrage
-            <quote>El Torito</quote>. Insérez tout simplement le CD
-            dans le lecteur de CDROM et démarrez le système pour
+            <para>Si votre syst&egrave;me supporte le d&eacute;marrage depuis
+            un CDROM (souvent il s'agit d'une option qui peut &ecirc;tre
+            s&eacute;lectionn&eacute;e via le menu d'un controleur ou depuis
+            le BIOS du PC sur certains syst&egrave;mes) et que vous l'avez
+            activ&eacute;, &os; supporte le standard de d&eacute;marrage
+            <quote>El Torito</quote>. Ins&eacute;rez tout simplement le CD
+            dans le lecteur de CDROM et d&eacute;marrez le syst&egrave;me pour
             commencer l'installation.</para>
 	  </listitem>
 	  <listitem>
-	    <para>Créer un jeu de disquette de démarrage de &os;
-            depuis le répertoire <filename>floppies/</filename>. En
+	    <para>Cr&eacute;er un jeu de disquette de d&eacute;marrage de &os;
+            depuis le r&eacute;pertoire <filename>floppies/</filename>. En
             utilisant le script <filename>makeflp.bat</filename>
             depuis DOS ou en lisant la 
             <xref linkend="floppies"> pour plus d'informations sur la
-            création de disquettes de démarrage sous
-            différents systèmes. Vous démarrerez depuis la
-            première disquette et vous vous trouverez rapidement
+            cr&eacute;ation de disquettes de d&eacute;marrage sous
+            diff&eacute;rents syst&egrave;mes. Vous d&eacute;marrerez depuis la
+            premi&egrave;re disquette et vous vous trouverez rapidement
             dans l'installation de &os;.</para>
           </listitem>
         </itemizedlist>
       </para>
 
       <para arch="i386">Si vous ne disposez pas d'un CDROM (ou si
-      votre ordinateur ne supporte par le démarrage depuis un
-      CDROM) ou si vous désirez installer via le réseau en
-      utilisant PPP, SLIP ou une connexion dédié; vous devez
-      commencer par créer un jeu de disquette de démarrage &os;
+      votre ordinateur ne supporte par le d&eacute;marrage depuis un
+      CDROM) ou si vous d&eacute;sirez installer via le r&eacute;seau en
+      utilisant PPP, SLIP ou une connexion d&eacute;di&eacute;; vous devez
+      commencer par cr&eacute;er un jeu de disquette de d&eacute;marrage &os;
       depuis les fichiers <filename>floppies/kern.flp</filename> et
       <filename>floppies/mfsroot.flp</filename> en suivant les
-      instructions que vous trouverez à la  
-      <xref linkend="floppies">. Redémarrez votre ordinateur en utilisant
+      instructions que vous trouverez &agrave; la  
+      <xref linkend="floppies">. Red&eacute;marrez votre ordinateur en utilisant
       la disquette <filename>kern.flp</filename> et lorsqu'on vous le
       demande, inserez alors la disquette
-      <filename>mfsroot.flp</filename>. Allez à la <xref
+      <filename>mfsroot.flp</filename>. Allez &agrave; la <xref
       linkend="ftpnfs"> pour plus d'information sur l'installation
       via FTP ou NFS.</para>
 
-      <para arch="alpha">La façon la plus simple d'effectuer
+      <para arch="alpha">La fa&ccedil;on la plus simple d'effectuer
       l'installation est d'utiliser un CDROM. Si vous disposez d'un
-      lecteur de CDROM supporté et du CDROM d'installation de &os;,
-      vous pouvez démarer &os; directement depuis le
-      CDROM. Insérez le CDROM dans le lecteur et tapez la commande
-      suivante pour démarrer l'installation (en substituant le nom
-      du lecteur de CDROM approprié):</para>
+      lecteur de CDROM support&eacute; et du CDROM d'installation de &os;,
+      vous pouvez d&eacute;marer &os; directement depuis le
+      CDROM. Ins&eacute;rez le CDROM dans le lecteur et tapez la commande
+      suivante pour d&eacute;marrer l'installation (en substituant le nom
+      du lecteur de CDROM appropri&eacute;):</para>
 
       <screen arch="alpha">&gt;&gt;&gt;<userinput>boot dka0</userinput></screen>
 
-      <para arch="alpha">Sinon, vous pouvez démarrer l'installation
+      <para arch="alpha">Sinon, vous pouvez d&eacute;marrer l'installation
       depuis un lecteur de disquette. Vous devez donc commencer
-      l'installation en créeant un jeu de disquette de démarrage
+      l'installation en cr&eacute;eant un jeu de disquette de d&eacute;marrage
       de &os; depuis les fichiers <filename>floppies/kern.flp</filename> et
       <filename>floppies/mfsroot.flp</filename> en suivant les
-      instructions que vous trouverez à la  <xref
+      instructions que vous trouverez &agrave; la  <xref
       linkend="floppies">. Depuis l'invite de console SRM
       (<literal>&gt;&gt;&gt;</literal>), inserez la disquette
       <filename>kern.flp</filename> et tapez la commande suivante pour
-      démarrer l'installation:</para>
+      d&eacute;marrer l'installation:</para>
 
       <screen arch="alpha">&gt;&gt;&gt;<userinput>boot dva0</userinput></screen>
 
-      <para arch="alpha">Insérez alors la disquette
-      <filename>mfsroot.flp</filename> au moment ou le système la
-      demande et vous finirez alors le premier écran
+      <para arch="alpha">Ins&eacute;rez alors la disquette
+      <filename>mfsroot.flp</filename> au moment ou le syst&egrave;me la
+      demande et vous finirez alors le premier &eacute;cran
       d'installation.</para>
 
   </sect2>
   <sect2>
-    <title>Détails de différents types d'installation</title>
+    <title>D&eacute;tails de diff&eacute;rents types d'installation</title>
 
-    <para>Dès que vous arrivez à au premier écran
-    d'installation, vous devez pouvoir suivre les différents
-    menus. Si vous n'avez jamais utilisé l'installeur de &os;
-    précédemment, vous êtes encouragés à lire la
+    <para>D&egrave;s que vous arrivez &agrave; au premier &eacute;cran
+    d'installation, vous devez pouvoir suivre les diff&eacute;rents
+    menus. Si vous n'avez jamais utilis&eacute; l'installeur de &os;
+    pr&eacute;c&eacute;demment, vous &ecirc;tes encourag&eacute;s &agrave; lire la
     documentation dans le menu Documentation tout comme les
-    instructions <quote>d'usage</quote> général du premier
+    instructions <quote>d'usage</quote> g&eacute;n&eacute;ral du premier
     menu.</para>
 
     <note>
-      <para>Si vous êtes perdu sur un écran, pressez la touche
+      <para>Si vous &ecirc;tes perdu sur un &eacute;cran, pressez la touche
       <keycap>F1</keycap> pour la documentation en ligne sur la section
       courante.</para>
     </note>
 
-    <para>Si vous n'avez jamais installé &os; précedemment, le
-    mode d'installation <quote>Standard</quote> est recommandé, car
-    il vérifie que vous visitez toutes les portions importantes
-    nécessaires. Si vous connaissez le processus d'installation de
+    <para>Si vous n'avez jamais install&eacute; &os; pr&eacute;cedemment, le
+    mode d'installation <quote>Standard</quote> est recommand&eacute;, car
+    il v&eacute;rifie que vous visitez toutes les portions importantes
+    n&eacute;cessaires. Si vous connaissez le processus d'installation de
     &os; et que vous savez <emphasis>exactement</emphasis> ce que vous
     faites, utilisez l'option d'installation <quote>Express</quote> ou
-    <quote>Custom</quote>. Si vous mettez à jour depuis un
-    système existant, utilisez l'option <quote>Upgrade</quote>.</para>
+    <quote>Custom</quote>. Si vous mettez &agrave; jour depuis un
+    syst&egrave;me existant, utilisez l'option <quote>Upgrade</quote>.</para>
 
     <para>L'installeur de &os; supporte l'utilisation de lecteur de
     disquette, DOS, CDROM, FTP, lecteur de bande ou partitions NFS et
-    UFS comme média d'installation; plus d'informations sur
-    l'installagion depuis chaque type de média sont listés
+    UFS comme m&eacute;dia d'installation; plus d'informations sur
+    l'installagion depuis chaque type de m&eacute;dia sont list&eacute;s
     ci-dessous.</para>
 
-    <para arch="alpha">Une fois la procédure d'installation finit,
-    vous pourrez démarrer &os;/&arch; en tapant quelque chose comme
-    ceci à l'invite SRM:</para>
+    <para arch="alpha">Une fois la proc&eacute;dure d'installation finit,
+    vous pourrez d&eacute;marrer &os;/&arch; en tapant quelque chose comme
+    ceci &agrave; l'invite SRM:</para>
 
     <screen arch="alpha">&gt;&gt;&gt;<userinput>boot dkc0</userinput></screen>
 
-    <para arch="alpha">Cela demande au micro-code de démarrer
-    depuis le disque spécifié. Pour trouver le nom SRM des
+    <para arch="alpha">Cela demande au micro-code de d&eacute;marrer
+    depuis le disque sp&eacute;cifi&eacute;. Pour trouver le nom SRM des
     disque de votre machine, utilisez la commande <literal>show
     device</literal>:</para>
 
@@ -315,19 +323,19 @@ pqa0.0.0.4.0               PQA0                       PCI EIDE
 pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
 
     <para arch="alpha">Cet exemple est extrait d'une Digital Personal
-    Workstation 433au et montre trois disques attachés à cette
-    machine. Le premier est un CDROM appelé
+    Workstation 433au et montre trois disques attach&eacute;s &agrave; cette
+    machine. Le premier est un CDROM appel&eacute;
     <devicename>dka0</devicename> et les deux autres sont des disques
-    appelés respectivement <devicename>dkc0</devicename> et
+    appel&eacute;s respectivement <devicename>dkc0</devicename> et
     <devicename>dkc100</devicename>.</para>
 
-    <para arch="alpha">Vous pouvez spécifier le noyau à charger
-    et quelles options de démarrage utiliser via les options
+    <para arch="alpha">Vous pouvez sp&eacute;cifier le noyau &agrave; charger
+    et quelles options de d&eacute;marrage utiliser via les options
     <option>-file</option> et <option>-flags</option>:</para>
 
     <screen arch="alpha"><prompt>&gt;&gt;&gt;</prompt> <userinput>boot -file kernel.old -flags s</userinput></screen>
 
-    <para arch="alpha">Pour démarrer automatiquement &os;/&arch;
+    <para arch="alpha">Pour d&eacute;marrer automatiquement &os;/&arch;
     utilisez les commandes:</para>
 
     <screen arch="alpha"><prompt>&gt;&gt;&gt;</prompt> <userinput>set boot_osflags a</userinput>
@@ -335,183 +343,201 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
 <prompt>&gt;&gt;&gt;</prompt> <userinput>set auto_action BOOT</userinput></screen>
 
     <sect3>
-      <title>Installation depuis un CDROM réseau</title>
+      <title>Installation depuis un CDROM r&eacute;seau</title>
 
-      <para>Si vous désirez installer depuis un lecteur de CDROM
+      <para>Si vous d&eacute;sirez installer depuis un lecteur de CDROM
       local voyez la <xref linkend="start-installation">. Si vous ne
-      disposez pas d'un lecteur de CDROM sur votre système et que
-      vous désirez utiliser une distribution CD de &os; dans le
-      lecteur CDROM d'une autre machine que vous pouvez accéder via
-      le réseau, il y a plusieurs façon d'y arriver:</para>
+      disposez pas d'un lecteur de CDROM sur votre syst&egrave;me et que
+      vous d&eacute;sirez utiliser une distribution CD de &os; dans le
+      lecteur CDROM d'une autre machine que vous pouvez acc&eacute;der via
+      le r&eacute;seau, il y a plusieurs fa&ccedil;on d'y arriver:</para>
 
       <itemizedlist>
         <listitem>
           <para>Si vous voulez pouvoir installer via FTP &os;,
           directement depuis le lecteur de CDROM d'une machine &os;,
-          c'est très simple: Vous pouvez tout simplement ajouter la
-          ligne suivante à votre fichier des mots de passe (en
+          c'est tr&egrave;s simple: Vous pouvez tout simplement ajouter la
+          ligne suivante &agrave; votre fichier des mots de passe (en
           utilisant la commande &man.vipw.8;):</para>
 
           <screen>ftp:*:99:99::0:0:FTP:/cdrom:/sbin/nologin</screen>
 
           <para>Sur la machine que vous voulez installer, allez dans
-          le menu Options et mettez le Release Name à
+          le menu Options et mettez le Release Name &agrave;
           <literal>any</literal>. Vous pouvez alors choisir comme type
-          de média  <literal>FTP</literal> et taper
+          de m&eacute;dia  <literal>FTP</literal> et taper
           <filename>ftp://<replaceable>machine</replaceable></filename>
-          après avoir choisi <quote>URL</quote> dans le menu des
+          apr&egrave;s avoir choisi <quote>URL</quote> dans le menu des
           sites ftp.</para>
 
           <warning>
-	    <para>: Cela permet à n'importe qui depuis le réseau
+	    <para>: Cela permet &agrave; n'importe qui depuis le r&eacute;seau
             local (ou Internet) de se connecter via <quote>FTP anonyme
-            </quote> à cette machine, ce qui peut ne pas être
+            </quote> &agrave; cette machine, ce qui peut ne pas &ecirc;tre
             voulu.</para>
 	  </warning>
 	</listitem>
 
 	<listitem>
-	  <para>Si vous préférez utiliser NFS pour exporté le
+	  <para>Si vous pr&eacute;f&eacute;rez utiliser NFS pour export&eacute; le
           CDROM sur la machine que vous installez, vous devez en
           premier ajouter une ligne au fichier
           <filename>/etc/exports</filename> (sur la machine disposant
           du lecteur de CDROM). L'exemple ci-dessous autorise la
-          machine <hostid role="hostname">ziggy.foo.com</hostid> à
+          machine <hostid role="hostname">ziggy.foo.com</hostid> &agrave;
           monter le CDROM via NFS lors de l'installation:</para>
 
 	  <screen>/cdrom          -ro             ziggy.foo.com</screen>
 
-	  <para>La machine contenant le CDROM doit, bien sur, être
-          configurée en serveur NFS, et si vous n'en êtes pas
+	  <para>La machine contenant le CDROM doit, bien sur, &ecirc;tre
+          configur&eacute;e en serveur NFS, et si vous n'en &ecirc;tes pas
           sur, une installation via NFS n'est pas le meilleur des
           choix, sauf si vous voulez lire &man.rc.conf.5; et
           configurer les choses correctement. En assumant que cette
-          partie se passe bien, vous devriez être capable d'entrer:
+          partie se passe bien, vous devriez &ecirc;tre capable d'entrer:
           <filename><replaceable>cdrom-host</replaceable>:/cdrom</filename> 
-          comme répertoire d'installation NFS pour la machine à
+          comme r&eacute;pertoire d'installation NFS pour la machine &agrave;
           installer, e.g. <filename>wiggy:/cdrom</filename>.</para>
 	</listitem>
       </itemizedlist>
     </sect3>
 
     <sect3>
-      <title>Installing from Floppies</title>
+      <title>Installation depuis des disquettes</title>
 
-      <para>If you must install from floppy disks, either due to
-      unsupported hardware or just because you enjoy doing things the
-      hard way, you must first prepare some floppies for the
-      install.</para>
+      <para>Si vous devez installer &os; via des disquettes, car votre
+      mat&eacute;riel n'est pas support&eacute; ou juste parce que vous aimez
+      le faire comme cela, vous devez d&eacute;j&agrave; pr&eacute;par&eacute;
+      quelques disquettes pour l'installation.</para>
 
-      <para>First, make your boot floppies as described in
-      <xref linkend="floppies">.</para>
+      <para>Premi&egrave;rement, cr&eacute;ez vos disquettes de d&eacute;marrage
+      comme indiqu&eacute; &agrave; la <xref linkend="floppies">.</para>
 
-      <para>Second, peruse <xref linkend="layout"> and pay special attention
-      to the <quote>Distribution Format</quote> section since it describes which
-      files you're going to need to put onto floppy and which you can
-      safely skip.</para>
+      <para>Deuxi&egrave;emement, lisez la <xref linkend="layout"> et
+      faites attention &agrave; la section <quote>Format de la
+      distribution</quote> qui d&eacute;crit quels fichiers vous devez
+      copier sur disquette et ceux que vous pouvez ne pas copier.</para>
 
-      <para>Next you will need, at minimum, as many 1.44MB floppies as
-      it takes to hold all files in the <filename>bin</filename>
-      (binary distribution) directory.  If you're preparing these
-      floppies under DOS, then these floppies
-      <emphasis>must</emphasis> be formatted using the MS-DOS
-      <filename>FORMAT</filename> command.  If you're using Windows,
-      use the Windows File Manager format command.</para>
+      <para>Ensuite vous aurez besoin, au minimum, d'autant de
+      disquettes 1.44Mo qu'il en faut pour contenir tous les fichiers
+      du r&eacute;pertoire <filename>bin</filename>. Si vous pr&eacute;parez
+      ces disquettes sous DOS, il faut alors que ces disquettes
+      <emphasis>soient </emphasis> formatt&eacute;es en utilisant la
+      commande DOS <filename>FORMAT</filename>. Si vous utilisez
+      Windows, utilisez la commande de formattage du gestionnaire de
+      fichier.</para>
+
 
       <important>
-        <para>Frequently, floppy disks come <quote>factory
-        preformatted</quote>.  While convenient,
-        many problems reported by users in the past have resulted
-        from the use of improperly formatted media.
-        Re-format them yourself, just to make sure.</para>
+        <para>Fr&eacute;quemment, les disquettes sont
+        pr&eacute;formatt&eacute;s. De nombreux probl&egrave;mes rapport&eacute;s par
+        les utilisateurs &eacute;taient le r&eacute;sultat de mauvais
+        formattage de m&eacute;dia. Re-formatt&eacute;z vos disquettes avant
+        l'utilisation, juste pour en &ecirc;tre sur.</para>
       </important>
 
-      <para>If you're creating the floppies from another &os;
-      machine, a format is still not a bad idea though you don't need
-      to put a DOS filesystem on each floppy.  You can use the
-      &man.disklabel.8; and &man.newfs.8; commands to put a UFS filesystem on a
-      floppy, as the following sequence of commands
-      illustrates:</para>
+      <para>Si vous cr&eacute;ez ces disquettes depuis une autre machine
+      &os;, un formattage n'est pas une mauvaise id&eacute;e, m&ecirc;me s'il
+      n'est pas n&eacute;cessaire de mettre un syst&egrave;me de fichiers DOS
+      sur chaque disquette. Vous pouvez utiliser les commandes
+      &man.disklabel.8; et &man.newfs.8; pour mettre un syst&egrave;me de
+      fichier UFS, sur les disquettes, comme l'illustrent les
+      commandes suivantes:</para>
 
       <screen>&prompt.root; <userinput>fdformat -f 1440 fd0.1440</userinput>
 &prompt.root; <userinput>disklabel -w -r fd0.1440 floppy3</userinput>
 &prompt.root; <userinput>newfs -t 2 -u 18 -l 1 -i 65536 /dev/fd0</userinput></screen>
 
-      <para>After you've formatted the floppies for DOS or UFS, you'll
-      need to copy the files onto them.  The distribution files are
-      split into chunks conveniently sized so that 5 of them will fit
-      on a conventional 1.44MB floppy.  Go through all your floppies,
-      packing as many files as will fit on each one, until you've got
-      all the distributions you want packed up in this fashion.  Each
-      distribution should go into its own subdirectory on the floppy,
-      e.g.: <filename>a:\bin\bin.inf</filename>, <filename>a:\bin\bin.aa</filename>, <filename>a:\bin\bin.ab</filename>, ...</para>
+      <para>Apr&egrave;s avoir formatt&eacute; vos disquettes pour DOS ou UFS,
+      vous devez copier dessus les fichiers. Les fichiers des
+      distributions sont coup&eacute;s en petits fichiers. 5 de ces fichiers
+      tiennent sur une seule disquette 1.44Mo. Copiez tous les
+      fichiers n&eacute;cessaires &agrave; votre distributino sur les
+      disquettes. Chaque distribution doit &ecirc;tre copi&eacute; dans son
+      propre sous-r&eacute;pertoire sur les disquettes, e.g
+      :<filename>a:\bin\bin.inf</filename>,
+      <filename>a:\bin\bin.aa</filename>,
+      <filename>a:\bin\bin.ab</filename>, ...</para>
 
       <important>
-        <para>The <filename>bin.inf</filename> file also needs to go on the first floppy of
-        the <filename>bin</filename> set since it is read by the installation program in
-        order to figure out how many additional pieces to look for
-        when fetching and concatenating the distribution.  When
-        putting distributions onto floppies, the
-        <filename>distname.inf</filename> file <emphasis>must</emphasis> occupy the first
-        floppy of each distribution set.  This is also covered in
-        <filename>README.TXT</filename>.</para>
+        <para>Le fichier <filename>bin.inf</filename> doit aussi
+        &ecirc;tre copi&eacute; et doit se trouver sur la premi&egrave;re
+        disquette du jeu  <filename>bin</filename> car il est lu par
+        le programme d'installation, pour savoir en combien de
+        morceaux est coup&eacute; la distribution pour la
+        recomposer. Lorsque vous mettez les distributions sur les
+        disquettes, le fichier <filename>distname.inf</filename>
+        <emphasis>doit </emphasis> se trouver sur la premi&egrave;re
+        disquette de chaque jeu de distribution.</para>
       </important>
 
-      <para>Once you come to the Media screen of the install, select
-      <quote>Floppy</quote> and you'll be prompted for the rest.</para>
+      <para>Au moment ou vous arriverez a l'&eacute;cran de s&eacute;lection
+      du m&eacute;dia, choisissez <quote>Floppy</quote> et suivez les
+      instructions affich&eacute;es.</para>
     </sect3>
 
     <sect3 arch="i386">
-      <title>Installing from a DOS partition</title>
+      <title>Installation depuis une partition DOS</title>
 
-      <para>To prepare for installation from an MS-DOS partition you
-      should simply copy the files from the distribution into a
-      directory called <filename>FREEBSD</filename> on the Primary DOS partition (<devicename>C:</devicename>).  For example, to do a minimal installation of &os; from
-      DOS using files copied from the CDROM, you might do something
-      like this:</para>
+      <para>Pour pr&eacute;parer une installation depuis une partition
+      MS-DOS, vous devez simplement copier les fichiers de la
+      distribution dans le r&eacute;pertoire <filename>FREEBSD</filename>
+      sur la partition DOS primaire (<devicename>C:</devicename>). Par
+      exemple, pour installation une distribution minimal de &os;
+      sous DOS depuis les fichiers se trouvant sur le CDROM, vous
+      devriez taper les commandes suivantes :</para>
 
       <screen><prompt>C:\></prompt> <userinput>MD C:\FREEBSD</userinput>
 <prompt>C:\></prompt> <userinput>XCOPY /S E:\BIN C:\FREEBSD\BIN</userinput></screen>
 
-      <para>Assuming that <devicename>E:</devicename> was where your CD was mounted.</para>
+      <para>En assumant que <devicename>E:</devicename> est le nom du
+      lecteur CDROM.</para>
 
-      <para>For as many distributions as you wish to install from DOS (and
-      you have free space for), install each one in a directory under
-      <filename>C:\FREEBSD</filename> - the <filename>BIN</filename> dist is only the minimal requirement.</para>
+      <para>Pour toutes les distributions n&eacute;cessaires &agrave;
+      l'installation depuis DOS, vous devez copier chacune dans un
+      sous r&eacute;pertoire de <filename>C:\FREEBSD</filename>. Le
+      r&eacute;pertoire <filename>BIN</filename> etant le minimum
+      obligatoire.</para>
 
-      <para>Once you've copied the directories, you can simply launch
-      the installation from floppies as normal and select <quote>DOS</quote> as
-      your media type when the time comes.</para>
+      <para>Lorsque vous avez copi&eacute; toutes les distributions, vous
+      pouvez lancer l'installation via les disquettes et
+      s&eacute;lectionnez <quote>DOS</quote> comme m&eacute;dia
+      d'installation.</para>
     </sect3>
 
     <sect3>
-      <title>Installing from QIC/SCSI Tape</title>
+      <title>Installation depuis un lecteur de bande QIC/SCSI</title>
 
-      <para>When installing from tape, the installation program
-      expects the files to be simply tar'ed onto it, so after fetching
-      all of the files for the distributions you're interested in,
-      simply use &man.tar.1; to get them onto the tape with a command something like
-      this:</para>
+      <para>Lors de l'installation depuis un lecteur de bande, le
+      programme d'installation n&eacute;cessite que les fichiers soient
+      tout simplement en format tar sur la bande, donc apr&egrave;s avoir
+      r&eacute;cup&eacute;rer l'ensemble des fichiers des distributions
+      n&eacute;cessaires, utilisez simplement la commande &man.tar.1; pour
+      les mettre sur la bande, comme cela :/<para>
 
       <screen>&prompt.root; <userinput>cd <replaceable>/where/you/have/your/dists</replaceable></userinput>
 &prompt.root; <userinput>tar cvf /dev/rsa0 <replaceable>dist1</replaceable> .. <replaceable>dist2</replaceable></userinput></screen>
 
-      <para>When you go to do the installation, you should also make
-      sure that you leave enough room in some temporary directory
-      (which you'll be allowed to choose) to accommodate the <emphasis>full</emphasis>
-      contents of the tape you've created.  Due to the non-random
-      access nature of tapes, this method of installation requires
-      quite a bit of temporary storage.  You should expect to require
-      as much temporary storage as you have stuff written on tape.</para>
+      <para>Lorsque vous d&eacute;butez l'installation, assurez vous
+      d'avoir assez de place dans un r&eacute;pertoire temporaire (que
+      vous pourrez choisir) pour extraire la
+      <emphasis>totalit&eacute;</emphasis> du contenu de la bande. Du &agrave;
+      la m&eacute;thode d'acc&egrave;s des lecteurs de bande, cette m&eacute;thode
+      d'installation n&eacute;cessite plus de place temporaire. Vous
+      devrez juste vous assurez que vous disposez d'autant de place
+      sur disque que de la taille des donn&eacute;es sur la bande.</para>
 
       <note>
-        <para>When going to do the installation, the tape must be in
-        the drive <emphasis>before</emphasis> booting from the boot floppies.  The
-        installation <quote>probe</quote> may otherwise fail to find it.</para>
+        <para>Lors de l'utilisation de ce type d'installation, la
+        bande doit se trouver dans le lecteur de bande
+        <emphasis>avant</emphasis> de d&eacute;marrer sur les
+        disquettes. Sinon le m&eacute;canisme de v&eacute;rification de
+        l'installation ne trouvera pas la bande.</para>
       </note>
 
-      <para>Now create a boot floppy as described in <xref linkend="floppies"> and
-      proceed with the installation.</para>
+      <para>Ensuite cr&eacute;ez une disquette de d&eacute;marrage comme
+      indiqu&eacute; &agrave; la  <xref linkend="floppies"> et proc&eacute;dez
+      &agrave; l'installation.</para>
     </sect3>
 
     <sect3 id="ftpnfs">
