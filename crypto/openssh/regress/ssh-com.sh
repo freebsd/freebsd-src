@@ -1,4 +1,4 @@
-#	$OpenBSD: ssh-com.sh,v 1.3 2002/03/15 13:08:56 markus Exp $
+#	$OpenBSD: ssh-com.sh,v 1.4 2002/07/16 08:58:16 markus Exp $
 #	Placed in the Public Domain.
 
 tid="connect to ssh.com server"
@@ -14,17 +14,19 @@ VERSIONS="
 	2.1.0
 	2.2.0
 	2.3.0
-	2.3.1
 	2.4.0
 	3.0.0
-	3.1.0"
+	3.1.0
+	3.2.0
+	3.3.0"
 # 2.0.10 does not support UserConfigDirectory
+# 2.3.1 requires a config in $HOME/.ssh2
 
 SRC=`dirname ${SCRIPT}`
 
 # ssh.com
 cat << EOF > $OBJ/sshd2_config
-*:
+#*:
 	# Port and ListenAdress are not used.
 	QuietMode			yes
 	Port				4343

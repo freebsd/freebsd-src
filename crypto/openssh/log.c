@@ -34,7 +34,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: log.c,v 1.24 2002/07/19 15:43:33 markus Exp $");
+RCSID("$OpenBSD: log.c,v 1.25 2003/01/11 18:29:43 markus Exp $");
 
 #include "log.h"
 #include "xmalloc.h"
@@ -233,6 +233,7 @@ fatal_remove_all_cleanups(void)
 		next_cu = cu->next;
 		xfree(cu);
 	}
+	fatal_cleanups = NULL;
 }
 
 /* Cleanup and exit */
@@ -386,11 +387,14 @@ do_log(LogLevel level, const char *fmt, va_list args)
 	} else {
 		vsnprintf(msgbuf, sizeof(msgbuf), fmt, args);
 	}
+	/* Escape magic chars in output. */
+	strnvis(fmtbuf, msgbuf, sizeof(fmtbuf), VIS_OCTAL);
+	
 	if (log_on_stderr) {
-		fprintf(stderr, "%s\r\n", msgbuf);
+		fprintf(stderr, "%s\r\n", fmtbuf);
 	} else {
 		openlog(argv0 ? argv0 : __progname, LOG_PID, log_facility);
-		syslog(pri, "%.500s", msgbuf);
+		syslog(pri, "%.500s", fmtbuf);
 		closelog();
 	}
 }

@@ -1,4 +1,4 @@
-.\"	$OpenBSD: ssh-add.1,v 1.35 2002/06/19 00:27:55 deraadt Exp $
+.\"	$OpenBSD: ssh-add.1,v 1.38 2003/03/28 10:11:43 jmc Exp $
 .\"
 .\"  -*- nroff -*-
 .\"
@@ -45,7 +45,7 @@
 .Nd adds RSA or DSA identities to the authentication agent
 .Sh SYNOPSIS
 .Nm ssh-add
-.Op Fl lLdDxX
+.Op Fl lLdDxXc
 .Op Fl t Ar life
 .Op Ar
 .Nm ssh-add
@@ -92,7 +92,16 @@ Unlock the agent.
 Set a maximum lifetime when adding identities to an agent.
 The lifetime may be specified in seconds or in a time format
 specified in
-.Xr sshd 8 .
+.Xr sshd_config 5 .
+.It Fl c
+Indicates that added identities should be subject to confirmation before
+being used for authentication.
+Confirmation is performed by the
+.Ev SSH_ASKPASS
+program mentioned below.
+Successful confirmation is signaled by a zero exit status from the
+.Ev SSH_ASKPASS
+program, rather than text entered into the requester.
 .It Fl s Ar reader
 Add key in smartcard
 .Ar reader .

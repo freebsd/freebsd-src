@@ -35,7 +35,7 @@
 #if !defined(HAVE_GETOPT) || !defined(HAVE_GETOPT_OPTRESET)
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char *rcsid = "$OpenBSD: getopt.c,v 1.2 1996/08/19 08:33:32 tholo Exp $";
+static char *rcsid = "$OpenBSD: getopt.c,v 1.4 2002/12/08 22:57:14 millert Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <stdio.h>
@@ -65,6 +65,9 @@ BSDgetopt(nargc, nargv, ostr)
 	extern char *__progname;
 	static char *place = EMSG;		/* option letter processing */
 	char *oli;				/* option letter list index */
+
+	if (ostr == NULL)
+		return (-1);
 
 	if (BSDoptreset || !*place) {		/* update scanning pointer */
 		BSDoptreset = 0;

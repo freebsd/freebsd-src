@@ -1,4 +1,4 @@
-.\" $OpenBSD: ssh-agent.1,v 1.35 2002/06/24 13:12:23 markus Exp $
+.\" $OpenBSD: ssh-agent.1,v 1.37 2003/03/28 10:11:43 jmc Exp $
 .\"
 .\" Author: Tatu Ylonen <ylo@cs.hut.fi>
 .\" Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -44,6 +44,7 @@
 .Nm ssh-agent
 .Op Fl a Ar bind_address
 .Op Fl c Li | Fl s
+.Op Fl t Ar life
 .Op Fl d
 .Op Ar command Op Ar args ...
 .Nm ssh-agent
@@ -86,8 +87,17 @@ does not look like it's a csh style of shell.
 Kill the current agent (given by the
 .Ev SSH_AGENT_PID
 environment variable).
+.It Fl t Ar life
+Set a default value for the maximum lifetime of identities added to the agent.
+The lifetime may be specified in seconds or in a time format specified in
+.Xr sshd 8 .
+A lifetime specified for an identity with
+.Xr ssh-add 1
+overrides this value.
+Without this option the default maximum lifetime is forever.
 .It Fl d
-Debug mode.  When this option is specified
+Debug mode.
+When this option is specified
 .Nm
 will not fork.
 .El

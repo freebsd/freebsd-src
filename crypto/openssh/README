@@ -15,8 +15,8 @@ and Dug Song. It has a homepage at http://www.openssh.com/
 This port consists of the re-introduction of autoconf support, PAM
 support (for Linux and Solaris), EGD[1]/PRNGD[2] support and replacements 
 for OpenBSD library functions that are (regrettably) absent from other 
-unices. This port has been best tested on Linux, Solaris, HP-UX, NetBSD 
-and Irix. Support for AIX, SCO, NeXT and other Unices is underway. 
+unices. This port has been best tested on Linux, Solaris, HP-UX, NetBSD, 
+Irix and AIX. Support for SCO, NeXT and other Unices is underway. 
 This version actively tracks changes in the OpenBSD CVS repository.
 
 The PAM support is now more functional than the popular packages of
@@ -63,4 +63,4 @@ References -
 [6] http://www.openbsd.org/cgi-bin/man.cgi?query=style&sektion=9
 [7] http://www.openssh.com/faq.html
 
-$Id: README,v 1.50 2001/12/24 03:17:21 djm Exp $
+$Id: README,v 1.51 2003/01/08 12:28:40 djm Exp $

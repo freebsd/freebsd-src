@@ -1,4 +1,4 @@
-.\"	$OpenBSD: ssh-keygen.1,v 1.54 2002/06/19 00:27:55 deraadt Exp $
+.\"	$OpenBSD: ssh-keygen.1,v 1.56 2003/03/28 10:11:43 jmc Exp $
 .\"
 .\"  -*- nroff -*-
 .\"
@@ -45,12 +45,14 @@
 .Nd authentication key generation, management and conversion
 .Sh SYNOPSIS
 .Nm ssh-keygen
+.Bk -words
 .Op Fl q
 .Op Fl b Ar bits
 .Fl t Ar type
 .Op Fl N Ar new_passphrase
 .Op Fl C Ar comment
 .Op Fl f Ar output_keyfile
+.Ek
 .Nm ssh-keygen
 .Fl p
 .Op Fl P Ar old_passphrase
@@ -147,8 +149,7 @@ The options are as follows:
 .It Fl b Ar bits
 Specifies the number of bits in the key to create.
 Minimum is 512 bits.
-Generally 1024 bits is considered sufficient, and key sizes
-above that no longer improve security but make things slower.
+Generally, 1024 bits is considered sufficient.
 The default is 1024 bits.
 .It Fl c
 Requests changing the comment in the private and public key files.
