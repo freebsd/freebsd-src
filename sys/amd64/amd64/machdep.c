@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.262 1997/09/04 15:14:48 davidg Exp $
+ *	$Id: machdep.c,v 1.263 1997/09/04 15:23:33 davidg Exp $
  */
 
 #include "apm.h"
@@ -840,12 +840,15 @@ struct region_descriptor r_gdt, r_idt;
 extern struct i386tss common_tss;	/* One tss per cpu */
 #ifdef VM86
 extern struct segment_descriptor common_tssd;
+extern int private_tss;
+extern u_int my_tr;
 #endif /* VM86 */
 #else
 struct i386tss common_tss;
 #ifdef VM86
 struct segment_descriptor common_tssd;
-u_int private_tss = 0;			/* flag indicating private tss */
+u_int private_tss;			/* flag indicating private tss */
+u_int my_tr;				/* which task register setting */
 #endif /* VM86 */
 #endif
 
@@ -1468,6 +1471,10 @@ init386(first)
 	common_tss.tss_ioopt = (sizeof common_tss) << 16;
 	gsel_tss = GSEL(GPROC0_SEL, SEL_KPL);
 	ltr(gsel_tss);
+#ifdef VM86
+	private_tss = 0;
+	my_tr = GPROC0_SEL;
+#endif
 
 	dblfault_tss.tss_esp = dblfault_tss.tss_esp0 = dblfault_tss.tss_esp1 =
 	    dblfault_tss.tss_esp2 = (int) &dblfault_stack[sizeof(dblfault_stack)];
