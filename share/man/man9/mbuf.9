@@ -36,23 +36,46 @@
 .Fd #include <sys/param.h>
 .Fd #include <sys/mbuf.h>
 .\"
-.Ss Mbuf manipulation macros
-.Fn mtod "struct mbuf *mbuf" "any type"
+.Ss Mbuf allocation macros
 .Fn MGET "struct mbuf *mbuf" "int how" "short type"
 .Fn MGETHDR "struct mbuf *mbuf" "int how" "short type" 
 .Fn MCLGET "struct mbuf *mbuf" "int how"
-.Fn M_PREPEND "struct mbuf *mbuf" "int len" "int how" 
+.Fo MEXTADD
+.Fa "struct mbuf *mbuf"
+.Fa "caddr_t buf"
+.Fa "u_int size"
+.Fa "void (*free)(void *opt_args)"
+.Fa "void *opt_args"
+.Fc
+.Fn MEXTFREE "struct mbuf *mbuf"
+.Fn MEXT_ADD_REF "struct mbuf *mbuf"
+.Fn MEXT_REM_REF "struct mbuf *mbuf"
+.Fn MFREE "struct mbuf *mbuf" "struct mbuf *successor"
 .\"
-.Ss Mbuf manipulation functions
+.Ss Mbuf utility macros
+.Fn mtod "struct mbuf *mbuf" "any type"
+.Fn MEXT_IS_REF "struct mbuf *mbuf" 
+.Fn M_COPY_PKTHDR "struct mbuf *to" "struct mbuf *from"
+.Fn M_ALIGN "struct mbuf *mbuf" "u_int len"
+.Fn MH_ALIGN "struct mbuf *mbuf" "u_int len"
+.Fn M_LEADINGSPACE "struct mbuf *mbuf"
+.Fn M_TRAILINGSPACE "struct mbuf *mbuf"
+.Fn M_PREPEND "struct mbuf *mbuf" "int len" "int how"
+.Fn MCHTYPE "struct mbuf *mbuf" "u_int type"
+.\"
+.Ss Mbuf allocation functions
 .Ft struct mbuf *
 .Fn m_get "int how" "int type"
 .Ft struct mbuf *
 .Fn m_getclr "int how" "int type"
 .Ft struct mbuf *
 .Fn m_gethdr "int how" "int type"
-.Ss Mbuf chain manipulation functions
+.Ft struct mbuf *
+.Fn m_free "struct mbuf *mbuf"
 .Ft void
 .Fn m_freem "struct mbuf *mbuf"
+.\"
+.Ss Mbuf utility functions
 .Ft void
 .Fn m_adj "struct mbuf *mbuf" "int len"
 .Ft struct mbuf *
@@ -83,20 +106,20 @@
 .Fn m_split "struct mbuf *mbuf" "int len" "int how"
 .\"
 .Sh DESCRIPTION
-Mbuf is a basic unit of memory management in the kernel IPC subsystem.
+An mbuf is a basic unit of memory management in the kernel IPC subsystem.
 Network packets and socket buffers are stored in mbufs. A network packet
 may span multiple mbufs arranged into a chain
 .Pq linked list ,
 which allows adding or trimming
-network headers without overhead.
+network headers with little overhead.
 .Pp
-While a developer should not bother mbuf internals without serious
+While a developer should not bother with mbuf internals without serious
 reason in order to avoid incompatibilities with future changes, it
-would be useful to know the mbuf general structure.
+is useful to understand the mbuf's general structure.
 .Pp
-Mbuf consists of a variable-length header and a small internal
-buffer for data. Mbuf total size
-.Dv MSIZE
+An mbuf consists of a variable-sized header and a small internal
+buffer for data. The mbuf's total size,
+.Dv MSIZE ,
 is a machine-dependent constant defined in
 .Pa machine/param.h .
 The mbuf header includes:
@@ -111,7 +134,7 @@ a pointer to the data
 .It Fa m_len
 the length of the data
 .It Fa m_type
-the type of the data
+the type of data
 .It Fa m_flags
 the mbuf flags
 .El
@@ -131,12 +154,12 @@ The mbuf flag bits are defined as follows:
 /* mbuf pkthdr flags, also in m_flags */
 #define	M_BCAST		0x0100	/* send/received as link-level broadcast */
 #define	M_MCAST		0x0200	/* send/received as link-level multicast */
-#define	M_FRAG		0x0400	/* packet is a fragment of a larger packet */
+#define	M_FRAG		0x0400	/* packet is fragment of larger packet */
 #define	M_FIRSTFRAG	0x0800	/* packet is first fragment */
 #define	M_LASTFRAG	0x1000	/* packet is last fragment */
 .Ed
 .Pp
-The possible mbuf types are defined as follows:
+The available mbuf types are defined as follows:
 .Bd -literal
 /* mbuf types */
 #define	MT_FREE		0	/* should be on free list */
@@ -158,9 +181,9 @@ the packet has been received from
 and the total packet length
 .Pq Fa int len .
 .Pp
-Data is placed into the mbuf internal buffer if small enough. If
-it is not, another mbuf may be added to the chain, or external
-storage may be associated with the mbuf.
+If small enough, data is stored in the mbuf's internal data buffer. If
+the data is sufficiently large, another mbuf may be added to the chain, or
+external storage may be associated with the mbuf.
 .Dv MHLEN
 bytes of data can fit into a mbuf with the
 .Dv M_PKTHDR
@@ -168,51 +191,67 @@ flag set,
 .Dv MLEN
 bytes can otherwise.
 .Pp
-If external storage is being associated with a mbuf, yet another
-header is added at the cost of loosing the internal buffer.  It
-includes a pointer to an external buffer, its size, and two pointers
-to storage-specific management routines: one for freeing the buffer,
-and another for accounting references to it. A mbuf using external
+If external storage is being associated with an mbuf, the
+.Dv m_ext 
+header is added at the cost of loosing the internal data buffer.  It
+includes a pointer to external storage, the size of the storage, a pointer
+to a function used for freeing the storage, a pointer to
+an optional argument that can be passed to the function, and a pointer 
+to a reference counter. An mbuf using external
 storage has the
 .Dv M_EXT
 flag set.
 .Pp
-The system supplies a macro for allocating
-the external storage in a system-wide pool of fixed-size
-buffers called
-.Dq mbuf clusters ,
-each
+The system supplies a macro for allocating the desired external storage
+buffer,
+.Dv MEXTADD .
+.Pp
+The allocation and management of the reference counter is handled by the
+subsystem. The developer can check whether the reference count for the
+given mbuf's external storage is greater than 1 with the
+.Dv MEXT_IS_REF
+macro. Similarly, the developer can directly add and remove references, if
+absolutely necessary, with the use of the
+.Dv MEXT_ADD_REF
+and
+.Dv MEXT_REM_REF
+macros.
+.Pp
+The system also supplies a default type of external storage buffer called an
+.Dq mbuf cluster .
+Mbuf clusters can be allocated and configured with the use of the
+.Dv MCLGET
+macro. Each cluster is
 .Dv MCLBYTES
-long.
-.Dv MCLBYTES
-is a
-machine-dependent constant. The system defines an advisory macro
+in size, where MCLBYTES is a machine-dependent constant.
+The system defines an advisory macro
 .Dv MINCLSIZE ,
 which is the smallest amount of data to put into a cluster.
 It's equal to the sum of
 .Dv MLEN
 and
 .Dv MHLEN .
-The idea is that one should rather add a mbuf to the chain than
-allocate a mbuf cluster, if possible.
+It is typically preferable to store data into an mbuf's data region, if size
+permits, as opposed to allocating a separate mbuf cluster to hold the same
+data.
 .\"
 .Ss Macros and Functions
-There is plenty of predefined macros and functions that help a
-developer not to worry about mbuf internals. The macros are:
+There are numerous predefined macros and functions that provide the 
+developer with common utilities.
 .\"
 .Bl -ohang -offset indent
 .It Fn mtod mbuf type
-Convert a mbuf pointer to a data pointer.
-The macro expands to the data pointer cast to the pointer to the specified type.
+Convert an mbuf pointer to a data pointer.
+The macro expands to the data pointer cast to the pointer of the specified type.
 .Sy Note :
-You must usually ensure that there is enough contiguous data in the mbuf.
+It is advisable to ensure that there is enough contiguous data in the mbuf.
 See
 .Fn m_pullup
 for details.
 .It Fn MGET mbuf how type
-Allocate a mbuf and initialize it to contain internal data.
+Allocate an mbuf and initialize it to contain internal data.
 .Fa Mbuf
-will point to the allocated mbuf on success, or be
+will point to the allocated mbuf on success, or be set to
 .Dv NULL
 on failure. The
 .Fa how
@@ -220,27 +259,26 @@ argument is to be set to
 .Dv M_WAIT
 or
 .Dv M_DONTWAIT .
-It specifies if the macro can block. If 
+It specifies if the caller is willing to block if necessary. If 
 .Fa how
-is set to M_WAIT, the macro should never fail, but can block
-forever. A number of other mbuf-related
+is set to M_WAIT, a failed allocation will result in the caller being put
+to sleep for a designated
+.Fa kern.ipc.mbuf_wait
+(sysctl tunable) number of ticks.
+A number of other mbuf-related
 functions and macros have the same argument because they may
-need to allocate new mbufs.
-.Sy Caution :
-Never use
-.Dv M_WAIT
-if running at the interrupt level.
+at some point need to allocate new mbufs.
 .It Fn MGETHDR mbuf how type
-Allocate a mbuf and initialize it to contain a packet header
+Allocate an mbuf and initialize it to contain a packet header
 and internal data. See
 .Fn MGET
 for details.
 .It Fn MCLGET mbuf how
-Attach a mbuf cluster to a mbuf. If the macro fails, the
+Allocate and attach an mbuf cluster to an mbuf. If the macro fails, the
 .Dv M_EXT
 flag won't be set in the mbuf.
 .It Fn M_PREPEND mbuf len how
-This macro operates on a mbuf chain.
+This macro operates on an mbuf chain.
 It is an optimized wrapper for
 .Fn m_prepend
 that can make use of possible empty space before data
@@ -256,15 +294,14 @@ The functions are:
 .Bl -ohang -offset indent 
 .It Fn m_get how type
 A function version of
-.Fn MGET .
+.Fn MGET
+for non-critical paths.
 .It Fn m_gethdr how type
 A function version of
-.Fn MGETHDR .
+.Fn MGETHDR
+for non-critical paths.
 .It Fn m_getclr how type
-.Fn MGET how type
-first,
-.Fn bzero
-the internal data buffer then.
+Allocate an mbuf and zero out the data region.
 .El
 .Pp
 The functions below operate on mbuf chains.
@@ -399,9 +436,9 @@ and attempts to restore the chain to its original state.
 See above.
 .Sh HISTORY
 .\" Please correct me if I'm wrong
-Mbufs appeared in an early version of BSD. They were used
-to keep various dynamic structures, such as routing table
-entries, interface addresses, protocol control blocks etc
-besides network packets.
+Mbufs appeared in an early version of BSD. Besides for being
+used for network packets, they were used
+to store various dynamic structures, such as routing table
+entries, interface addresses, protocol control blocks, etc.
 .Sh AUTHORS
-This man page was written by Yar Tikhiy.
+The original mbuf(9) man page was written by Yar Tikhiy.
