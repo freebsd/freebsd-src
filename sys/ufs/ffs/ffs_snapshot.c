@@ -731,7 +731,7 @@ cgaccount(cg, vp, nbp, passno)
 		nbp->b_flags |= B_VALIDSUSPWRT;
 	numblks = howmany(fs->fs_size, fs->fs_frag);
 	len = howmany(fs->fs_fpg, fs->fs_frag);
-	base = cg * fs->fs_fpg / fs->fs_frag;
+	base = cgbase(fs, cg) / fs->fs_frag;
 	if (base + len >= numblks)
 		len = numblks - base - 1;
 	loc = 0;
