@@ -1663,11 +1663,13 @@ softdep_setup_freeblocks(ip, length)
 	 * still have a bitmap dependency, then the inode has never been
 	 * written to disk, so we can process the freeblks immediately.
 	 */
-	if ((inodedep->id_state & DEPCOMPLETE) == 0)
+	if ((inodedep->id_state & DEPCOMPLETE) == 0) {
+		FREE_LOCK(&lk);
 		handle_workitem_freeblocks(freeblks);
-	else
+	} else {
 		WORKLIST_INSERT(&inodedep->id_bufwait, &freeblks->fb_list);
-	FREE_LOCK(&lk);
+		FREE_LOCK(&lk);
+	}
 	bdwrite(bp);
 	/*
 	 * We must wait for any I/O in progress to finish so that
