@@ -529,13 +529,13 @@ void vop_unlock_post(void *a, int rc);
 
 #else
 
-#define	ASSERT_VOP_LOCKED(vp, str) do { } while(0)
-#define	ASSERT_VOP_UNLOCKED(vp, str) do { } while(0)
-#define	ASSERT_VOP_ELOCKED(vp, str) do { } while(0)
-#define	ASSERT_VOP_ELOCKED_OTHER(vp, str) do { } while(0)
-#define	ASSERT_VOP_SLOCKED(vp, str) do { } while(0)
-#define	ASSERT_VI_UNLOCKED(vp, str) do { } while(0)
-#define	ASSERT_VI_LOCKED(vp, str) do { } while(0)
+#define	ASSERT_VOP_LOCKED(vp, str)
+#define	ASSERT_VOP_UNLOCKED(vp, str)
+#define	ASSERT_VOP_ELOCKED(vp, str)
+#define	ASSERT_VOP_ELOCKED_OTHER(vp, str)
+#define	ASSERT_VOP_SLOCKED(vp, str)
+#define	ASSERT_VI_UNLOCKED(vp, str)
+#define	ASSERT_VI_LOCKED(vp, str)
 
 #endif
 
