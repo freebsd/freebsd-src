@@ -5,8 +5,6 @@ MAINTAINER=	ken@FreeBSD.ORG
 
 PROG=	iostat
 MAN=	iostat.8
-BINGRP=	kmem
-BINMODE= 2555
 
 DPADD=	${LIBKVM} ${LIBDEVSTAT}
 LDADD=	-lkvm -ldevstat
