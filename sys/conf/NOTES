@@ -354,6 +354,19 @@ options 	KTR_VERBOSE
 options 	INVARIANTS
 
 #
+# The INVARIANT_SUPPORT option makes us compile in support for
+# verifying some of the internal structures.  It is a prerequisite for
+# 'INVARIANTS', as enabling 'INVARIANTS' will make these functions be
+# called.  The intent is that you can set 'INVARIANTS' for single
+# source files (by changing the source file or specifying it on the
+# command line) if you have 'INVARIANT_SUPPORT' enabled.  Also, if you
+# wish to build a kernel module with 'INVARIANTS', then adding
+# 'INVARIANT_SUPPORT' to your kernel will provide all the necessary
+# infrastructure without the added overhead.
+#
+options 	INVARIANT_SUPPORT
+
+#
 # The DIAGNOSTIC option is used to enable extra debugging information
 # from some parts of the kernel.  As this makes everything more noisy,
 # it is disabled by default.
