@@ -173,7 +173,7 @@ static void	witness_lock_list_free(struct lock_list_entry *lle);
 static struct	lock_instance *find_instance(struct lock_list_entry *lock_list,
 					     struct lock_object *lock);
 static void	witness_list_lock(struct lock_instance *instance);
-#if defined(DDB)
+#ifdef DDB
 static void	witness_list(struct thread *td);
 static void	witness_display_list(void(*prnt)(const char *fmt, ...),
 				     struct witness_list *list);
@@ -462,7 +462,7 @@ witness_destroy(struct lock_object *lock)
 	mtx_unlock(&all_mtx);
 }
 
-#if defined(DDB)
+#ifdef DDB
 static void
 witness_display_list(void(*prnt)(const char *fmt, ...),
 		     struct witness_list *list)
@@ -520,7 +520,7 @@ witness_display(void(*prnt)(const char *fmt, ...))
 		prnt("%s\n", w->w_name);
 	}
 }
-#endif
+#endif /* DDB */
 
 void
 witness_lock(struct lock_object *lock, int flags, const char *file, int line)
@@ -533,7 +533,7 @@ witness_lock(struct lock_object *lock, int flags, const char *file, int line)
 	int i, j;
 #ifdef DDB
 	int go_into_ddb = 0;
-#endif /* DDB */
+#endif
 
 	if (witness_cold || witness_dead || lock->lo_witness == NULL ||
 	    panicstr != NULL)
@@ -626,7 +626,7 @@ witness_lock(struct lock_object *lock, int flags, const char *file, int line)
 		printf(" 2nd %s @ %s:%d\n", lock->lo_name, file, line);
 #ifdef DDB
 		go_into_ddb = 1;
-#endif /* DDB */
+#endif
 		goto out;
 	}
 	MPASS(!mtx_owned(&w_mtx));
@@ -751,7 +751,7 @@ witness_lock(struct lock_object *lock, int flags, const char *file, int line)
 			}
 #ifdef DDB
 			go_into_ddb = 1;
-#endif /* DDB */
+#endif
 			goto out;
 		}
 	}
@@ -779,7 +779,7 @@ out:
 		if (witness_ddb)
 			Debugger(__func__);
 	}
-#endif /* DDB */
+#endif
 	w->w_file = file;
 	w->w_line = line;
 	
