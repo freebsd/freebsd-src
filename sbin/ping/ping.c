@@ -96,6 +96,7 @@ static const char rcsid[] =
 #include <netinet6/ipsec.h>
 #endif /*IPSEC*/
 
+#define	INADDR_LEN	((int)sizeof(in_addr_t))
 #define	PHDR_LEN	((int)sizeof(struct timeval))
 #define	DEFDATALEN	(64 - PHDR_LEN)	/* default data length */
 #define	FLOOD_BACKOFF	20000		/* usecs to back off if F_FLOOD mode */
@@ -801,10 +802,10 @@ pr_pack(buf, cc, from, tv)
 {
 	struct icmp *icp;
 	struct ip *ip;
+	struct in_addr ina;
 	struct timeval *tp;
 	u_char *cp, *dp;
 	double triptime;
-	u_long l;
 	int dupflag, hlen, i, j, seq;
 	static int old_rrlen;
 	static char old_rr[MAX_IPOPTLEN];
@@ -940,80 +941,70 @@ pr_pack(buf, cc, from, tv)
 			break;
 		case IPOPT_LSRR:
 			(void)printf("\nLSRR: ");
+			j = cp[IPOPT_OLEN] - IPOPT_MINOFF + 1;
 			hlen -= 2;
-			j = *++cp;
-			++cp;
-			if (j > IPOPT_MINOFF)
+			cp += 2;
+			if (j >= INADDR_LEN && j <= hlen - INADDR_LEN) {
 				for (;;) {
-					l = *++cp;
-					l = (l<<8) + *++cp;
-					l = (l<<8) + *++cp;
-					l = (l<<8) + *++cp;
-					if (l == 0) {
+					bcopy(++cp, &ina.s_addr, INADDR_LEN);
+					if (ina.s_addr == 0)
 						(void)printf("\t0.0.0.0");
-					} else {
-						struct in_addr ina;
-						ina.s_addr = ntohl(l);
+					else
 						(void)printf("\t%s",
 						     pr_addr(ina));
-					}
-				hlen -= 4;
-				j -= 4;
-				if (j <= IPOPT_MINOFF)
-					break;
-				(void)putchar('\n');
-			}
+					hlen -= INADDR_LEN;
+					cp += INADDR_LEN - 1;
+					j -= INADDR_LEN;
+					if (j < INADDR_LEN)
+						break;
+					(void)putchar('\n');
+				}
+			} else
+				(void)printf("\t(truncated route)\n");
 			break;
 		case IPOPT_RR:
-			j = *++cp;		/* get length */
-			i = *++cp;		/* and pointer */
+			j = cp[IPOPT_OLEN];		/* get length */
+			i = cp[IPOPT_OFFSET];		/* and pointer */
 			hlen -= 2;
+			cp += 2;
 			if (i > j)
 				i = j;
-			i -= IPOPT_MINOFF;
-			if (i <= 0)
+			i = i - IPOPT_MINOFF + 1;
+			if (i < 0 || i > (hlen - (int)sizeof(struct ip))) {
+				old_rrlen = 0;
 				continue;
+			}
 			if (i == old_rrlen
-			    && cp == (u_char *)buf + sizeof(struct ip) + 2
 			    && !bcmp((char *)cp, old_rr, i)
 			    && !(options & F_FLOOD)) {
 				(void)printf("\t(same route)");
-				i = ((i + 3) / 4) * 4;
 				hlen -= i;
 				cp += i;
 				break;
 			}
-			if (i < MAX_IPOPTLEN) {
-				old_rrlen = i;
-				bcopy((char *)cp, old_rr, i);
-			} else
-				old_rrlen = 0;
+			old_rrlen = i;
+			bcopy((char *)cp, old_rr, i);
 
 			(void)printf("\nRR: ");
-			j = 0;
-			for (;;) {
-				l = *++cp;
-				l = (l<<8) + *++cp;
-				l = (l<<8) + *++cp;
-				l = (l<<8) + *++cp;
-				if (l == 0) {
-					(void)printf("\t0.0.0.0");
-				} else {
-					struct in_addr ina;
-					ina.s_addr = ntohl(l);
-					(void)printf("\t%s", pr_addr(ina));
+
+			if (i >= INADDR_LEN &&
+			    i <= hlen - (int)sizeof(struct ip)) {
+				for (;;) {
+					bcopy(++cp, &ina.s_addr, INADDR_LEN);
+					if (ina.s_addr == 0)
+						(void)printf("\t0.0.0.0");
+					else
+						(void)printf("\t%s",
+						     pr_addr(ina));
+					hlen -= INADDR_LEN;
+					cp += INADDR_LEN - 1;
+					i -= INADDR_LEN;
+					if (i < INADDR_LEN)
+						break;
+					(void)putchar('\n');
 				}
-				hlen -= 4;
-				i -= 4;
-				j += 4;
-				if (i <= 0)
-					break;
-				if (j >= MAX_IPOPTLEN) {
-					(void)printf("\t(truncated route)");
-					break;
-				}
-				(void)putchar('\n');
-			}
+			} else
+				(void)printf("\t(truncated route)");
 			break;
 		case IPOPT_NOP:
 			(void)printf("\nNOP");
