@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.321 1999/01/09 15:41:49 bde Exp $
+ *	$Id: machdep.c,v 1.322 1999/01/15 17:24:05 msmith Exp $
  */
 
 #include "apm.h"
@@ -1069,6 +1069,15 @@ static struct soft_segment_descriptor ldt_segs[] = {
 	0, 0,
 	1,			/* default 32 vs 16 bit size */
 	1  			/* limit granularity (byte/page units)*/ },
+	/* Null Descriptor - overwritten by call gate */
+{	0x0,			/* segment base address  */
+	0x0,			/* length - all address space */
+	0,			/* segment type */
+	0,			/* segment descriptor priority level */
+	0,			/* segment descriptor present */
+	0, 0,
+	0,			/* default 32 vs 16 bit size */
+	0  			/* limit granularity (byte/page units)*/ },
 	/* Data Descriptor for user */
 {	0x0,			/* segment base address  */
 	0xfffff,		/* length - all address space */
@@ -1587,6 +1596,7 @@ init386(first)
 
 	/* XXX does this work? */
 	ldt[LBSDICALLS_SEL] = ldt[LSYS5CALLS_SEL];
+	ldt[LSOL26CALLS_SEL] = ldt[LSYS5CALLS_SEL];
 
 	/* transfer to user mode */
 
