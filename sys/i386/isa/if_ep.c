@@ -38,7 +38,7 @@
  */
 
 /*
- *  $Id: if_ep.c,v 1.53.2.2 1997/10/30 00:38:18 nate Exp $
+ *  $Id: if_ep.c,v 1.53.2.3 1997/11/10 23:53:30 itojun Exp $
  *
  *  Promiscuous mode added and interrupt logic slightly changed
  *  to reduce the number of adapter failures. Transceiver select
@@ -498,11 +498,16 @@ ep_isa_probe(is)
 
     /*
      * The iobase was found and MFG_ID was 0x6d50. PROD_ID should be
-     * 0x9[0-f]50
+     * 0x9[0-f]50	(IBM-PC)
+     * 0x9[0-f]5[0-f]	(PC-98)
      */
     GO_WINDOW(0);
     k = sc->epb->prod_id;
+#ifdef PC98
+    if ((k & 0xf0f0) != (PROD_ID & 0xf0f0)) {
+#else
     if ((k & 0xf0ff) != (PROD_ID & 0xf0ff)) {
+#endif
 	printf("ep_isa_probe: ignoring model %04x\n", k);
 	ep_free(sc);
 	return (0);
