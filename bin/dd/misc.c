@@ -48,6 +48,8 @@ static const char rcsid[] =
 
 #include <errno.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <strings.h>
 #include <unistd.h>
 
 #include "dd.h"
@@ -88,7 +90,7 @@ summary()
 /* ARGSUSED */
 void
 summaryx(notused)
-	int notused;
+	int notused __unused;
 {
 	int save_errno = errno;
 
@@ -102,6 +104,6 @@ terminate(sig)
 	int sig;
 {
 
-	/* XXX exit() shouldn't call exit() from a signal handler. */
-	exit(sig == 0 ? 0 : 1);
+	summary();
+	_exit(sig == 0 ? 0 : 1);
 }
