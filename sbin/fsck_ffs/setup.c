@@ -288,6 +288,10 @@ badsb:
  */
 static int sblock_try[] = SBLOCKSEARCH;
 
+#define BAD_MAGIC_MSG \
+"The previous newfs operation on this volume did not complete.\n" \
+"You must complete newfs before mounting this volume.\n"
+
 /*
  * Read in the super block and its summary info.
  */
@@ -301,6 +305,10 @@ readsb(int listerr)
 		super = bflag;
 		if ((bread(fsreadfd, (char *)&sblock, super, (long)SBLOCKSIZE)))
 			return (0);
+		if (sblock.fs_magic == FS_BAD2_MAGIC) {
+			fprintf(stderr, BAD_MAGIC_MSG);
+			exit(11);
+		}
 		if (sblock.fs_magic != FS_UFS1_MAGIC &&
 		    sblock.fs_magic != FS_UFS2_MAGIC) {
 			fprintf(stderr, "%d is not a file system superblock\n",
@@ -313,6 +321,10 @@ readsb(int listerr)
 			if ((bread(fsreadfd, (char *)&sblock, super,
 			    (long)SBLOCKSIZE)))
 				return (0);
+			if (sblock.fs_magic == FS_BAD2_MAGIC) {
+				fprintf(stderr, BAD_MAGIC_MSG);
+				exit(11);
+			}
 			if ((sblock.fs_magic == FS_UFS1_MAGIC ||
 			     (sblock.fs_magic == FS_UFS2_MAGIC &&
 			      sblock.fs_sblockloc == sblock_try[i])) &&
