@@ -65,9 +65,9 @@ Filesystems with pass number 1 (normally just the root filesystem)
 are checked one at a time.
 When pass 1 completes, all remaining filesystems are checked,
 running one process per disk drive.
-The disk drive containing each filesystem is inferred from the longest prefix
+The disk drive containing each filesystem is inferred from the shortest prefix
 of the device name that ends in a digit; the remaining characters are assumed
-to be the partition designator.
+to be the partition and slice designator.
 .Pp
 The options are as follows:
 .Bl -tag -width indent

@@ -259,12 +259,17 @@ finddisk(name)
 	size_t len = 0;
 	struct diskentry *d;
 
-	for (len = strlen(name), p = name + len - 1; p >= name; --p)
-		if (isdigit(*p)) {
-			len = p - name + 1;
-			break;
-		}
-	if (p < name)
+	p = strrchr(name, '/');
+	if (p == NULL)
+		p = name;
+	else
+		p++;
+	for (; *p && !isdigit(*p); p++)
+		continue;
+	for (; *p && isdigit(*p); p++)
+		continue;
+	len = p - name;
+	if (len == 0)
 		len = strlen(name);
 
 	TAILQ_FOREACH(d, &diskh, d_entries) 
