@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.c	8.3 (Berkeley) 1/4/94
- *	$Id: if.c,v 1.70 1999/04/28 11:37:32 phk Exp $
+ *	$Id: if.c,v 1.71 1999/06/06 09:17:49 phk Exp $
  */
 
 #include "opt_compat.h"
@@ -641,7 +641,7 @@ ifioctl(so, cmd, data, p)
 		ifr->ifr_prevflags = ifp->if_flags;
 		if (ifp->if_flags & IFF_SMART) {
 			/* Smart drivers twiddle their own routes */
-		} else if ((ifp->if_flags & IFF_UP &&
+		} else if (ifp->if_flags & IFF_UP &&
 		    (ifr->ifr_flags & IFF_UP) == 0) {
 			int s = splimp();
 			if_down(ifp);
