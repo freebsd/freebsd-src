@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_extern.h	8.2 (Berkeley) 1/12/94
- * $Id: vm_extern.h,v 1.23 1996/02/04 22:08:57 dyson Exp $
+ * $Id: vm_extern.h,v 1.24 1996/02/23 18:49:23 peter Exp $
  */
 
 #ifndef _VM_EXTERN_H_
@@ -43,11 +43,6 @@ struct vmspace;
 struct vmtotal;
 struct mount;
 struct vnode;
-
-#ifdef KGDB
-void chgkprot __P((caddr_t, int, int));
-
-#endif
 
 #ifdef KERNEL
 extern int indent;

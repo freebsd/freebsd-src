@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_prf.c	8.3 (Berkeley) 1/21/94
- * $Id: subr_prf.c,v 1.33 1996/03/23 21:41:00 jkh Exp $
+ * $Id: subr_prf.c,v 1.34 1996/03/25 17:06:34 jkh Exp $
  */
 
 #include "opt_ddb.h"
@@ -61,7 +61,7 @@
  */
 #include <machine/stdarg.h>
 
-#if defined(DDB) || defined (KGDB)
+#if defined(DDB)
 #ifdef DDB_UNATTENDED
 	static int debugger_on_panic = 0;
 #else
@@ -120,15 +120,9 @@ panic(const char *fmt, ...)
 	va_end(ap);
 	printf("\n");
 
-#if defined(DDB) || defined (KGDB)
-	if (debugger_on_panic) {
-#ifdef KGDB
-		kgdb_panic();
-#endif
-#ifdef DDB
+#if defined(DDB)
+	if (debugger_on_panic)
 		Debugger ("panic");
-#endif
-	}
 #endif
 	boot(bootopt);
 }

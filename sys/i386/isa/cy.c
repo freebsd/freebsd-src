@@ -27,7 +27,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: cy.c,v 1.30 1996/01/25 07:21:29 phk Exp $
+ *	$Id: cy.c,v 1.31 1996/03/27 20:03:23 bde Exp $
  */
 
 #include "cy.h"
@@ -398,14 +398,6 @@ static struct tty	*sio_tty[NSIO];
 static struct tty	sio_tty[NSIO];
 #endif
 static	const int	nsio_tty = NSIO;
-
-#ifdef KGDB
-#include <machine/remote-sl.h>
-
-extern	int	kgdb_dev;
-extern	int	kgdb_rate;
-extern	int	kgdb_debug_init;
-#endif
 
 #ifdef CyDebug
 static	u_int	cd_inbs;
@@ -880,10 +872,6 @@ comhardclose(com)
 	outb(iobase + com_cfcr, com->cfcr_image &= ~CFCR_SBREAK);
 #endif
 
-#ifdef KGDB
-	/* do not disable interrupts or hang up if debugging */
-	if (kgdb_dev != makedev(CDEV_MAJOR, unit))
-#endif
 	{
 #if 0
 		outb(iobase + com_ier, 0);
