@@ -1510,6 +1510,19 @@ ata_dmastart(struct ata_device *atadev, caddr_t data, int32_t count, int dir)
     if (ds->flags & ATA_DS_ACTIVE)
 	    panic("ata_dmasetup: transfer active on this device!");
 
+    switch(ch->chiptype) {
+    case 0x0d38105a:  /* Promise Fasttrak 66 */
+    case 0x4d38105a:  /* Promise Ultra/Fasttrak 66 */
+    case 0x0d30105a:  /* Promise OEM ATA 100 */
+    case 0x4d30105a:  /* Promise Ultra/Fasttrak 100 */
+	ATA_OUTB(ch->r_bmio, 0x11,
+		 ATA_INB(ch->r_bmio, 0x11) | (atadev->unit ? 0x08 : 0x02));
+
+	ATA_OUTL(ch->r_bmio, (atadev->unit ? 0x24 : 0x20), 
+                 (dir ? 0x05000000 : 0x06000000) | (count >> 1));
+        break;
+    }
+
     cba.dmatab = ds->dmatab;
     bus_dmamap_sync(ds->cdmatag, ds->cdmamap, BUS_DMASYNC_PREWRITE);
     if (bus_dmamap_load(ds->ddmatag, ds->ddmamap, data, count,
@@ -1521,33 +1534,40 @@ ata_dmastart(struct ata_device *atadev, caddr_t data, int32_t count, int dir)
 		    BUS_DMASYNC_PREWRITE);
 
     ch->flags |= ATA_DMA_ACTIVE;
-    ds->flags = ATA_DS_ACTIVE;
-    if (dir)
-	    ds->flags |= ATA_DS_READ;
+    ds->flags = dir ? (ATA_DS_ACTIVE | ATA_DS_READ) : ATA_DS_ACTIVE;
 
     ATA_OUTL(ch->r_bmio, ATA_BMDTP_PORT, ds->mdmatab);
     ATA_OUTB(ch->r_bmio, ATA_BMCMD_PORT, dir ? ATA_BMCMD_WRITE_READ : 0);
     ATA_OUTB(ch->r_bmio, ATA_BMSTAT_PORT, 
-	 (ATA_INB(ch->r_bmio, ATA_BMSTAT_PORT) | 
-	  (ATA_BMSTAT_INTERRUPT | ATA_BMSTAT_ERROR)));
+	     (ATA_INB(ch->r_bmio, ATA_BMSTAT_PORT) | 
+	     (ATA_BMSTAT_INTERRUPT | ATA_BMSTAT_ERROR)));
     ATA_OUTB(ch->r_bmio, ATA_BMCMD_PORT, 
-	 ATA_INB(ch->r_bmio, ATA_BMCMD_PORT) | ATA_BMCMD_START_STOP);
+	     ATA_INB(ch->r_bmio, ATA_BMCMD_PORT) | ATA_BMCMD_START_STOP);
     return 0;
 }
 
 int
 ata_dmadone(struct ata_device *atadev)
 {
-    struct ata_channel *ch;
-    struct ata_dmastate *ds;
+    struct ata_channel *ch = atadev->channel;
+    struct ata_dmastate *ds = &atadev->dmastate;
     int error;
 
-    ch = atadev->channel;
-    ds = &atadev->dmastate;
+    switch(ch->chiptype) {
+    case 0x0d38105a:  /* Promise Fasttrak 66 */
+    case 0x4d38105a:  /* Promise Ultra/Fasttrak 66 */
+    case 0x0d30105a:  /* Promise OEM ATA 100 */
+    case 0x4d30105a:  /* Promise Ultra/Fasttrak 100 */
+	ATA_OUTL(ch->r_bmio, (atadev->unit ? 0x24 : 0x20), 0);
+	ATA_OUTB(ch->r_bmio, 0x11,
+		 ATA_INB(ch->r_bmio, 0x11) & ~(atadev->unit ? 0x08 : 0x02));
+        break;
+    }
+
     bus_dmamap_sync(ds->ddmatag, ds->ddmamap, (ds->flags & ATA_DS_READ) != 0 ?
 		    BUS_DMASYNC_POSTREAD : BUS_DMASYNC_POSTWRITE);
     bus_dmamap_unload(ds->ddmatag, ds->ddmamap);
-
+        
     ATA_OUTB(ch->r_bmio, ATA_BMCMD_PORT, 
 		ATA_INB(ch->r_bmio, ATA_BMCMD_PORT) & ~ATA_BMCMD_START_STOP);
     error = ATA_INB(ch->r_bmio, ATA_BMSTAT_PORT);
