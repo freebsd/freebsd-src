@@ -98,11 +98,62 @@ alloc_fptr(Elf_Addr target, Elf_Addr gp)
 	return fptr;
 }
 
+static struct fptr **
+alloc_fptrs(Obj_Entry *obj, bool mapped)
+{
+	struct fptr **fptrs;
+	size_t fbytes;
+
+	fbytes = obj->nchains * sizeof(struct fptr *);
+
+	/*
+	 * Avoid malloc, if requested. Happens when relocating
+	 * rtld itself on startup.
+	 */
+	if (mapped) {
+		fptrs = mmap(NULL, fbytes, PROT_READ|PROT_WRITE,
+	    	    MAP_ANON, -1, 0);
+		if (fptrs == MAP_FAILED)
+			fptrs = NULL;
+	} else {
+		fptrs = malloc(fbytes);
+		if (fptrs != NULL)
+ 			memset(fptrs, 0, fbytes);
+	}
+
+	/*
+	 * This assertion is necessary to guarantee function pointer 
+	 * uniqueness 
+ 	 */
+	assert(fptrs != NULL);
+
+	return (obj->priv = fptrs);
+}
+
+static void
+free_fptrs(Obj_Entry *obj, bool mapped)
+{
+	struct fptr **fptrs;
+	size_t fbytes;
+
+	fptrs  = obj->priv; 
+	if (fptrs == NULL)
+		return;
+
+	fbytes = obj->nchains * sizeof(struct fptr *);
+	if (mapped) 
+		munmap(fptrs, fbytes);
+	else
+		free(fptrs);
+	obj->priv = NULL;
+}
+
 /* Relocate a non-PLT object with addend. */
 static int
 reloc_non_plt_obj(Obj_Entry *obj_rtld, Obj_Entry *obj, const Elf_Rela *rela,
-		  SymCache *cache, struct fptr **fptrs)
+		  SymCache *cache)
 {
+	struct fptr **fptrs;
 	Elf_Addr *where = (Elf_Addr *) (obj->relocbase + rela->r_offset);
 
 	switch (ELF_R_TYPE(rela->r_info)) {
@@ -135,14 +186,13 @@ reloc_non_plt_obj(Obj_Entry *obj_rtld, Obj_Entry *obj, const Elf_Rela *rela,
 		/*
 		 * We have to make sure that all @fptr references to
 		 * the same function are identical so that code can
-		 * compare function pointers. We actually only bother
-		 * to ensure this within a single object. If the
-		 * caller's alloca failed, we don't even ensure that.
+		 * compare function pointers. 
 		 */
 		const Elf_Sym *def;
 		const Obj_Entry *defobj;
 		struct fptr *fptr = 0;
 		Elf_Addr target, gp;
+		int sym_index;
 
 		def = find_symdef(ELF_R_SYM(rela->r_info), obj, &defobj,
 				  false, cache);
@@ -153,15 +203,24 @@ reloc_non_plt_obj(Obj_Entry *obj_rtld, Obj_Entry *obj, const Elf_Rela *rela,
 			target = (Elf_Addr)(defobj->relocbase + def->st_value);
 			gp = (Elf_Addr)defobj->pltgot;
 
+			/* rtld is allowed to reference itself only */
+			assert(!obj->rtld || obj == defobj);
+			fptrs = defobj->priv;
+			if (fptrs == NULL)
+				fptrs = alloc_fptrs((Obj_Entry *) defobj, 
+				    obj->rtld);
+
+			sym_index = def - defobj->symtab;
+
 			/*
 			 * Find the @fptr, using fptrs as a helper.
 			 */
 			if (fptrs)
-				fptr = fptrs[ELF_R_SYM(rela->r_info)];
+				fptr = fptrs[sym_index];
 			if (!fptr) {
 				fptr = alloc_fptr(target, gp);
 				if (fptrs)
-					fptrs[ELF_R_SYM(rela->r_info)] = fptr;
+					fptrs[sym_index] = fptr;
 			}
 		} else
 			fptr = NULL;
@@ -219,9 +278,7 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld)
 	const Elf_Rela *relalim;
 	const Elf_Rela *rela;
 	SymCache *cache;
-	struct fptr **fptrs;
 	int bytes = obj->nchains * sizeof(SymCache);
-	int fbytes = obj->nchains * sizeof(struct fptr *);
 	int r = -1;
 
 	/*
@@ -232,22 +289,6 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld)
 	if (cache == MAP_FAILED)
 		cache = NULL;
 
-	/*
-	 * When relocating rtld itself, we need to avoid using malloc.
-	 */
-        if (obj == obj_rtld) {
-		fptrs = mmap(NULL, fbytes, PROT_READ|PROT_WRITE, 
-			    MAP_ANON, -1, 0);
-		if (fptrs == MAP_FAILED)
-			fptrs = NULL;
-	} else {
-		fptrs = (struct fptr **)
-			malloc(obj->nchains * sizeof(struct fptr *));
-	}
-	if (fptrs == NULL)
-		goto done;
-	memset(fptrs, 0, fbytes);
-
 	/* Perform relocations without addend if there are any: */
 	rellim = (const Elf_Rel *) ((caddr_t) obj->rel + obj->relsize);
 	for (rel = obj->rel;  obj->rel != NULL && rel < rellim;  rel++) {
@@ -256,43 +297,30 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld)
 		locrela.r_info = rel->r_info;
 		locrela.r_offset = rel->r_offset;
 		locrela.r_addend = 0;
-		if (reloc_non_plt_obj(obj_rtld, obj, &locrela, cache, fptrs))
+		if (reloc_non_plt_obj(obj_rtld, obj, &locrela, cache))
 			goto done;
 	}
 
 	/* Perform relocations with addend if there are any: */
 	relalim = (const Elf_Rela *) ((caddr_t) obj->rela + obj->relasize);
 	for (rela = obj->rela;  obj->rela != NULL && rela < relalim;  rela++) {
-		if (reloc_non_plt_obj(obj_rtld, obj, rela, cache, fptrs))
+		if (reloc_non_plt_obj(obj_rtld, obj, rela, cache))
 			goto done;
-	}
-
-	/*
-	 * Remember the fptrs in case of later calls to dlsym(). Don't 
-	 * bother for rtld - we will lazily create a table in
-	 * make_function_pointer().  We still can't risk calling malloc()
-	 * in the rtld case.
-	 *
-	 * When remembering fptrs, NULL out our local fptrs variable so we
-	 * do not free it.
-	 */
-	if (obj == obj_rtld) {
-		obj->priv = NULL;
-	} else {
-		obj->priv = fptrs;
-		fptrs = NULL;
 	}
 
 	r = 0;
 done:
 	if (cache)
 		munmap(cache, bytes);
-	if (fptrs) {
-		if (obj == obj_rtld)
-			munmap(fptrs, fbytes);
-		else
-			free(fptrs);
-	}
+
+	/* 
+	 * Release temporarily mapped fptrs if relocating 
+	 * rtld object itself. A new table will be created
+	 * in make_function_pointer using malloc when needed.
+	 */
+	if (obj->rtld && obj->priv)
+		free_fptrs(obj, true);
+
 	return (r);
 }
 
@@ -447,10 +475,7 @@ make_function_pointer(const Elf_Sym *sym, const Obj_Entry *obj)
 		 * dlsym("dlopen"). Actually, I'm not sure it can ever 
 		 * happen.
 		 */
-		fptrs = (struct fptr **)
-			malloc(obj->nchains * sizeof(struct fptr *));
-		memset(fptrs, 0, obj->nchains * sizeof(struct fptr *));
-		((Obj_Entry*) obj)->priv = fptrs;
+		fptrs = alloc_fptrs((Obj_Entry *) obj, false);
 	}
 	if (!fptrs[index]) {
 		Elf_Addr target, gp;
