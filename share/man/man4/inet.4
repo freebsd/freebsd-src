@@ -32,7 +32,7 @@
 .\"     From: @(#)inet.4	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd July 2, 2004
+.Dd August 15, 2004
 .Dt INET 4
 .Os
 .Sh NAME
@@ -288,6 +288,17 @@ This
 .Xr sysctl 8
 variable affects packets destined for a local host as well as packets
 forwarded to some other host.
+.It Va ip.random_id
+Boolean: control IP IDs generation behaviour.
+Setting this
+.Xr sysctl 8
+to non-zero causes the ID field in IP packets to be randomized instead of
+incremented by 1 with each packet generated.
+This closes a minor information leak which allows remote observers to
+determine the rate of packet generation on the machine by watching the
+counter.
+Default is 0 (sequential IP IDs).
+IPv6 flow IDs and fragment IDs are always random.
 .El
 .Sh SEE ALSO
 .Xr ioctl 2 ,
