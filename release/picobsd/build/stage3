@@ -1,7 +1,7 @@
 #! /bin/sh -
 
 #
-#	$Id: stage3,v 1.4 1998/08/10 19:06:48 abial Exp $
+#	$Id: stage3,v 1.1.1.1 1998/08/27 17:38:42 abial Exp $
 #
 set -e
 
@@ -60,6 +60,7 @@ fi
 echo "-> Populating floppy filesystem..."
 cp ../lang/boot.help.${LANGUAGE} /mnt/boot.help
 cp -pr . /mnt
+rm -rf /mnt/CVS /mnt/etc/CVS /mnt/etc/ppp/CVS
 if [ "${TYPE}" = "dial" ]
 then
 	pwd_mkdb -d etc/ etc/master.passwd
