@@ -68,7 +68,6 @@ options 	WITNESS_SKIPSPIN	#Don't run witness on spinlocks for speed
 options 	SMP			# Symmetric MultiProcessor Kernel
 
 # Standard busses
-device		apb			# Sun APB PCI-PCI bridge
 device		ebus
 device		isa
 device		pci
