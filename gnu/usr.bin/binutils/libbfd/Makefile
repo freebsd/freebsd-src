@@ -19,6 +19,15 @@ INTERNALLIB=	true
 INTERNALSTATICLIB=true
 CLEANFILES+=	targmatch.h
 
+# If set, BINUTILSDISTDIR is the path to a directory containing the full GNU
+# binutils release. FreeBSD only distributes the bits that are required to
+# build native architectures. BINUTILSDISTDIR is needed to build cross tools.
+.if	defined(BINUTILSDISTDIR) && exists(${BINUTILSDISTDIR})
+.PATH:		${BINUTILSDISTDIR}/bfd ${BINUTILSDISTDIR}/opcodes
+CFLAGS+=	-I${BINUTILSDISTDIR}/bfd
+CFLAGS+=	-I${BINUTILSDISTDIR}/include
+.endif
+
 SELARCH=
 .for _a in ${ARCHS}
 .if ${SELARCH} == ""
