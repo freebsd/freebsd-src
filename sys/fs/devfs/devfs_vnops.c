@@ -656,11 +656,13 @@ devfs_setattr(ap)
 {
 	struct devfs_dirent *de;
 	struct vattr *vap;
+	struct vnode *vp;
 	int c, error;
 	uid_t uid;
 	gid_t gid;
 
 	vap = ap->a_vap;
+	vp = ap->a_vp;
 	if ((vap->va_type != VNON) ||
 	    (vap->va_nlink != VNOVAL) ||
 	    (vap->va_fsid != VNOVAL) ||
@@ -673,8 +675,8 @@ devfs_setattr(ap)
 		return (EINVAL);
 	}
 
-	de = ap->a_vp->v_data;
-	if (ap->a_vp->v_type == VDIR)
+	de = vp->v_data;
+	if (vp->v_type == VDIR)
 		de = de->de_dir;
 
 	error = c = 0;
@@ -695,6 +697,13 @@ devfs_setattr(ap)
 		de->de_gid = gid;
 		c = 1;
 	}
+
+	/* see comment in ufs_vnops::ufs_setattr() */
+	if ((error = VOP_ACCESS(vp, VADMIN, ap->a_cred, ap->a_td)) &&
+	    ((vap->va_vaflags & VA_UTIMES_NULL) == 0 ||
+	    (error = VOP_ACCESS(vp, VWRITE, ap->a_cred, ap->a_td))))
+		return (error);
+
 	if (vap->va_mode != (mode_t)VNOVAL) {
 		if ((ap->a_cred->cr_uid != de->de_uid) &&
 		    (error = suser(ap->a_td->td_proc)))
@@ -718,7 +727,7 @@ devfs_setattr(ap)
 	}
 
 	if (c)
-		getnanotime(&de->de_ctime);
+		vfs_timestamp(&de->de_ctime);
 	return (0);
 }
 
