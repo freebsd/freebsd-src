@@ -642,8 +642,8 @@ diskPartition(Device *dev)
 		    getBootMgr(d->name, &mbrContents, &mbrSize);
 		    if (mbrContents != NULL)
 			Set_Boot_Mgr(d, mbrContents, mbrSize);
-		}
 #endif
+		}
 	    }
 	    break;
 
