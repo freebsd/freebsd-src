@@ -10,7 +10,7 @@
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
 .\" 3. All advertising materials mentioning features or use of this software
-.\"    must display the following acknowledgement:
+.\"    must display the following acknowledgment:
 .\"	This product includes software developed by Todd C. Miller.
 .\" 4. The name of the author may not be used to endorse or promote products
 .\"    derived from this software without specific prior written permission.
@@ -27,7 +27,7 @@
 .\" ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
 .\"	$OpenBSD: fsirand.8,v 1.6 1997/02/23 03:58:26 millert Exp $
-.\" $Id: fsirand.8,v 1.6 1997/06/16 06:54:30 max Exp $
+.\" $Id: fsirand.8,v 1.7 1998/03/19 07:45:04 charnier Exp $
 .\"
 .Dd January 25, 1997
 .Dt FSIRAND 8
@@ -44,14 +44,14 @@
 .Op Ar "special ..."
 .Sh DESCRIPTION
 The
-.Nm fsirand
+.Nm
 command installs random generation numbers on all the inodes for
 each filesystem specified on the command line by
 .Ar special .
 This increases the security of NFS-exported filesystems by making
 it difficult to ``guess'' filehandles.
 .Pp
-.Em Note:
+.Em Note Ns :
 .Xr newfs 8
 now does the equivalent of
 .Nm
@@ -93,7 +93,7 @@ of memory for large disks with few cylinder groups.
 .Sh SEE ALSO
 .Xr fs 5 ,
 .Xr fsck 8 ,
-.Xr newfs 8 .
+.Xr newfs 8
 .Sh HISTORY
 The
 .Nm
