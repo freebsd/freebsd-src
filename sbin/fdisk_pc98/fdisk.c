@@ -551,11 +551,11 @@ print_part(int i)
 		partp->dp_flag == ACTIVE ? " (active)" : "");
 #endif
 	printf("\tbeg: cyl %d/ sector %d/ head %d;\n\tend: cyl %d/ sector %d/ head %d\n"
-		,DPCYL(partp->dp_scyl, partp->dp_ssect)
-		,DPSECT(partp->dp_ssect)
+		,partp->dp_scyl
+		,partp->dp_ssect
 		,partp->dp_shd
-		,DPCYL(partp->dp_ecyl, partp->dp_esect)
-		,DPSECT(partp->dp_esect)
+		,partp->dp_ecyl
+		,partp->dp_esect
 		,partp->dp_ehd);
 #ifdef PC98
 	printf ("\tsystem Name %.16s\n",partp->dp_name);
@@ -647,9 +647,9 @@ struct dos_partition *partp = ((struct dos_partition *) &mboot.parts) + i - 1;
 		if (ok("Explicitly specify beg/end address ?"))
 		{
 			int	tsec,tcyl,thd;
-			tcyl = DPCYL(partp->dp_scyl,partp->dp_ssect);
+			tcyl = partp->dp_scyl;
 			thd = partp->dp_shd;
-			tsec = DPSECT(partp->dp_ssect);
+			tsec = partp->dp_ssect;
 			Decimal("beginning cylinder", tcyl, tmp);
 			Decimal("beginning head", thd, tmp);
 			Decimal("beginning sector", tsec, tmp);
@@ -662,9 +662,9 @@ struct dos_partition *partp = ((struct dos_partition *) &mboot.parts) + i - 1;
 			partp->dp_ipl_head = partp->dp_shd;
 #endif
 
-			tcyl = DPCYL(partp->dp_ecyl,partp->dp_esect);
+			tcyl = partp->dp_ecyl;
 			thd = partp->dp_ehd;
-			tsec = DPSECT(partp->dp_esect);
+			tsec = partp->dp_esect;
 			Decimal("ending cylinder", tcyl, tmp);
 			Decimal("ending head", thd, tmp);
 			Decimal("ending sector", tsec, tmp);
