@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: db_ps.c,v 1.5 1995/04/04 01:35:33 davidg Exp $
+ *	$Id: db_ps.c,v 1.6 1995/05/30 07:57:07 rgrimes Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -42,9 +42,14 @@ void
 db_ps() {
 	int np;
 	int nl = 0;
-	volatile struct proc *ap, *p, *pp;
+	volatile struct proc *p, *pp;
+
 	np = nprocs;
-	p = ap = allproc;
+
+	if (allproc != NULL)
+		p = allproc;
+	else
+		p = &proc0;
 
 	db_printf("  pid   proc     addr    uid  ppid  pgrp  flag stat wmesg   wchan   cmd\n");
 	while (--np >= 0) {
@@ -52,27 +57,42 @@ db_ps() {
 		 * XXX just take 20 for now...
 		 */
 		if (nl++ == 20) {
+			int c;
+
 			db_printf("--More--");
-			cngetc();
+			c = cngetc();
 			db_printf("\r");
-			nl = 0;
-		}
-		pp = p->p_pptr;
-		if (pp == 0)
-			pp = p;
-		if (p->p_stat) {
-			db_printf("%5d %06x %06x %4d %5d %5d %06x  %d",
-			    p->p_pid, ap, p->p_addr, p->p_cred->p_ruid, pp->p_pid,
-			    p->p_pgrp->pg_id, p->p_flag, p->p_stat);
-			if (p->p_wchan) {
-				db_printf("  %6s %08x %s\n", p->p_wmesg, p->p_wchan, p->p_comm);
-			} else {
-				db_printf("                  %s\n", p->p_comm);
+			/*
+			 * A whole screenfull or just one line?
+			 */
+			switch (c) {
+			case '\n':		/* just one line */
+				nl = 19;
+				break;
+			case ' ':
+				nl = 0;		/* another screenfull */
+				break;
+			default:		/* exit */
+				db_printf("\n");
+				return;
 			}
 		}
-		ap = p->p_next;
-		if (ap == 0 && np > 0)
-			ap = zombproc;
-		p = ap;
+		pp = p->p_pptr;
+		if (pp == NULL)
+			pp = p;
+
+		db_printf("%5d %06x %06x %4d %5d %5d %06x  %d",
+		    p->p_pid, p, p->p_addr, p->p_cred ? p->p_cred->p_ruid : 0,
+		    pp->p_pid, p->p_pgrp ? p->p_pgrp->pg_id : 0, p->p_flag, p->p_stat);
+		if (p->p_wchan) {
+			db_printf("  %6s %08x", p->p_wmesg, p->p_wchan);
+		} else {
+			db_printf("                 ");
+		}
+		db_printf(" %s\n", p->p_comm ? p->p_comm : "");
+
+		p = p->p_next;
+		if (p == NULL && np > 0)
+			p = zombproc;
     	}
 }
