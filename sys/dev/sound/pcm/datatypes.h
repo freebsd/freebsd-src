@@ -129,7 +129,7 @@ struct _pcm_channel {
 /* descriptor of audio device */
 struct _snddev_info {
 	pcm_channel *play, *rec, **aplay, **arec, fakechan;
-	int *ref;
+	int *ref, *atype;
 	unsigned playcount, reccount, chancount, maxchans;
 	snd_mixer *mixer;
 	u_long magic;
