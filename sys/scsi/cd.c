@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: cd.c,v 1.73 1996/09/06 23:09:06 phk Exp $
+ *      $Id: cd.c,v 1.74 1996/12/13 07:55:14 jkh Exp $
  */
 
 #include "opt_bounce.h"
@@ -274,12 +274,16 @@ cd_open(dev_t dev, int flags, int fmt, struct proc *p,
 	 * forbid re-entry.  (may have changed media)
 	 */
 	if ((!(sc_link->flags & SDEV_MEDIA_LOADED))
-	    && (cd->openparts))
+	    && (cd->openparts)) {
+		SC_DEBUG(sc_link, SDEV_DB2, ("unit attn, but openparts?\n"));
 		return (ENXIO);
+	}
 
 	/*
-	 * This time actually take notice of error returns
+	 * Start the drive, and take notice of error returns.
 	 */
+	scsi_start_unit(sc_link, CD_START);
+	SC_DEBUG(sc_link, SDEV_DB3, ("'start' attempted "));
 	sc_link->flags |= SDEV_OPEN;	/* unit attn errors are now errors */
 	if (scsi_test_unit_ready(sc_link, SCSI_SILENT) != 0) {
 		SC_DEBUG(sc_link, SDEV_DB3, ("not ready\n"));
@@ -287,14 +291,7 @@ cd_open(dev_t dev, int flags, int fmt, struct proc *p,
 		goto bad;
 	}
 	SC_DEBUG(sc_link, SDEV_DB3, ("Device present\n"));
-	/*
-	 * In case it is a funny one, tell it to start
-	 * not needed for some drives
-	 * failure here is ignored.
-	 */
-	scsi_start_unit(sc_link, CD_START);
 	scsi_prevent(sc_link, PR_PREVENT, SCSI_SILENT);
-	SC_DEBUG(sc_link, SDEV_DB3, ("'start' attempted "));
 	/*
 	 * Load the physical device parameters
 	 */
