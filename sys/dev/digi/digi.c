@@ -783,7 +783,7 @@ open_top:
 			}
 			goto open_top;
 		}
-		if (tp->t_state & TS_XCLUDE && td->td_proc->p_ucred->cr_uid != 0) {
+		if (tp->t_state & TS_XCLUDE && suser(td->td_proc) != 0) {
 			error = EBUSY;
 			goto out;
 		}
