@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: shlib.c,v 1.8 1994/02/13 20:41:43 jkh Exp $
+ *	$Id: shlib.c,v 1.9 1994/06/15 22:39:54 rich Exp $
  */
 
 #include <sys/param.h>
@@ -54,7 +54,7 @@ char	*strsep();
  * Standard directories to search for files specified by -l.
  */
 #ifndef STANDARD_SEARCH_DIRS
-#define	STANDARD_SEARCH_DIRS	"/usr/lib", "/usr/X11R6/lib", "/usr/X386/lib", "/usr/local/lib"
+#define	STANDARD_SEARCH_DIRS	"/usr/lib"
 #endif
 
 /*
@@ -64,7 +64,7 @@ char	*strsep();
 char	 **search_dirs;
 int	n_search_dirs;
 
-char *standard_search_dirs[] = {
+char	*standard_search_dirs[] = {
 	STANDARD_SEARCH_DIRS
 };
 
@@ -88,12 +88,12 @@ char	*path;
 	if (path == NULL)
 		return;
 
-		/* Add search directories from `paths' */
+	/* Add search directories from `paths' */
 	while ((cp = strsep(&path, ":")) != NULL) {
-			add_search_dir(cp);
+		add_search_dir(cp);
 		if (path)
 			*(path-1) = ':';
-		}
+	}
 }
 
 void
