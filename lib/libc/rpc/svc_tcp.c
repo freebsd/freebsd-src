@@ -244,12 +244,11 @@ rendezvous_request(xprt)
 	       return (FALSE);
 	}
 	/*
-	 * XXX careful for ftp bounce attacks. If discovered, close the
-	 * socket and look for another connection.
+	 * Guard against FTP bounce attacks.
 	 */
 	if (addr.sin_port == htons(20)) {
 		close(sock);
-		goto again;
+		return (FALSE);
 	}
 	/*
 	 * make a new transporter (re-uses xprt)
