@@ -1153,7 +1153,9 @@ bfe_rxeof(struct bfe_softc *sc)
 
 		ifp->if_ipackets++;
 		m->m_pkthdr.rcvif = ifp;
+		BFE_UNLOCK(sc);
 		(*ifp->if_input)(ifp, m);
+		BFE_LOCK(sc);
 
         BFE_INC(cons, BFE_RX_LIST_CNT);
 	}

@@ -265,6 +265,7 @@ struct wl_softc{
 };
 
 #define WL_LOCK(_sc)	mtx_lock(&(_sc)->wl_mtx)
+#define WL_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->wl_mtx, MA_OWNED)
 #define WL_UNLOCK(_sc)	mtx_unlock(&(_sc)->wl_mtx)
 
 static int	wlprobe(device_t);
@@ -1069,6 +1070,7 @@ wlread(struct wl_softc *sc, u_short fd_p)
     u_short		mlen, len;
     u_short		bytes_in_msg, bytes_in_mbuf, bytes;
 
+    WL_LOCK_ASSERT(sc);
 
 #ifdef WLDEBUG
     if (sc->wl_if.if_flags & IFF_DEBUG)
@@ -1212,7 +1214,9 @@ wlread(struct wl_softc *sc, u_short fd_p)
      * received packet is now in a chain of mbuf's.  next step is
      * to pass the packet upwards.
      */
+    WL_UNLOCK(sc);
     (*ifp->if_input)(ifp, m);
+    WL_LOCK(sc);
     return 1;
 }
 

@@ -2723,6 +2723,8 @@ dc_rxeof(struct dc_softc *sc)
 	int i, total_len = 0;
 	u_int32_t rxstat;
 
+	DC_LOCK_ASSERT(sc);
+
 	ifp = &sc->arpcom.ac_if;
 	i = sc->dc_cdata.dc_rx_prod;
 
@@ -2816,7 +2818,9 @@ dc_rxeof(struct dc_softc *sc)
 		}
 
 		ifp->if_ipackets++;
+		DC_UNLOCK(sc);
 		(*ifp->if_input)(ifp, m);
+		DC_LOCK(sc);
 	}
 
 	sc->dc_cdata.dc_rx_prod = i;
@@ -3069,6 +3073,7 @@ dc_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 		CSR_WRITE_4(sc, DC_IMR, DC_INTRS);
 		return;
 	}
+	DC_LOCK(sc);
 	sc->rxcycles = count;
 	dc_rxeof(sc);
 	dc_txeof(sc);
@@ -3082,8 +3087,10 @@ dc_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 		status &= (DC_ISR_RX_WATDOGTIMEO | DC_ISR_RX_NOBUF |
 			DC_ISR_TX_NOBUF | DC_ISR_TX_IDLE | DC_ISR_TX_UNDERRUN |
 			DC_ISR_BUS_ERR);
-		if (!status)
+		if (!status) {
+			DC_UNLOCK(sc);
 			return;
+		}
 		/* ack what we have */
 		CSR_WRITE_4(sc, DC_ISR, status);
 
@@ -3107,6 +3114,7 @@ dc_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 			dc_init(sc);
 		}
 	}
+	DC_UNLOCK(sc);
 }
 #endif /* DEVICE_POLLING */
 

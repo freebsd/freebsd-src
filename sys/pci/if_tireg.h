@@ -1030,6 +1030,7 @@ struct ti_softc {
 
 #define	TI_LOCK(_sc)		mtx_lock(&(_sc)->ti_mtx)
 #define	TI_UNLOCK(_sc)		mtx_unlock(&(_sc)->ti_mtx)
+#define	TI_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->ti_mtx, MA_OWNED)
 
 /*
  * Microchip Technology 24Cxx EEPROM control bytes

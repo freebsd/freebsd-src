@@ -502,6 +502,7 @@ struct an_softc	{
 
 #define AN_LOCK(_sc)		mtx_lock(&(_sc)->an_mtx)
 #define AN_UNLOCK(_sc)		mtx_unlock(&(_sc)->an_mtx)
+#define AN_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->an_mtx, MA_OWNED)
 
 void	an_release_resources	(device_t);
 int	an_alloc_port		(device_t, int, int);

@@ -171,9 +171,11 @@ struct wi_card_ident {
 #define ifaddr_byindex(idx) ifnet_addrs[(idx) - 1];
 #define	WI_LOCK(_sc, _s)	s = splimp()
 #define	WI_UNLOCK(_sc, _s)	splx(s)
+#define	WI_LOCK_ASSERT(_sc)
 #else
 #define	WI_LOCK(_sc, _s) _s = 1
 #define	WI_UNLOCK(_sc, _s)
+#define	WI_LOCK_ASSERT(_sc)
 #endif
 
 int owi_generic_attach(device_t);

@@ -449,6 +449,8 @@ wi_rxeof(sc)
 	struct mbuf		*m;
 	int			id;
 
+	WI_LOCK_ASSERT(sc);
+
 	ifp = &sc->arpcom.ac_if;
 
 	id = CSR_READ_2(sc, WI_RX_FID);
@@ -650,7 +652,9 @@ wi_rxeof(sc)
 #ifdef WICACHE
 		wi_cache_store(sc, eh, m, rx_frame.wi_q_info);
 #endif  
+		WI_UNLOCK(sc);
 		(*ifp->if_input)(ifp, m);
+		WI_LOCK(sc);
 	}
 }
 

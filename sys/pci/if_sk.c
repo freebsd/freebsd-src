@@ -1839,6 +1839,7 @@ static void
 sk_rxeof(sc_if)
 	struct sk_if_softc	*sc_if;
 {
+	struct sk_softc		*sc;
 	struct mbuf		*m;
 	struct ifnet		*ifp;
 	struct sk_chain		*cur_rx;
@@ -1846,9 +1847,12 @@ sk_rxeof(sc_if)
 	int			i;
 	u_int32_t		rxstat;
 
+	sc = sc_if->sk_softc;
 	ifp = &sc_if->arpcom.ac_if;
 	i = sc_if->sk_cdata.sk_rx_prod;
 	cur_rx = &sc_if->sk_cdata.sk_rx_chain[i];
+
+	SK_LOCK_ASSERT(sc);
 
 	while(!(sc_if->sk_rdata->sk_rx_ring[i].sk_ctl & SK_RXCTL_OWN)) {
 
@@ -1891,7 +1895,9 @@ sk_rxeof(sc_if)
 		}
 
 		ifp->if_ipackets++;
+		SK_UNLOCK(sc);
 		(*ifp->if_input)(ifp, m);
+		SK_LOCK(sc);
 	}
 
 	sc_if->sk_cdata.sk_rx_prod = i;

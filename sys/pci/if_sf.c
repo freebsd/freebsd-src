@@ -955,6 +955,8 @@ sf_rxeof(sc)
 	u_int32_t		rxcons, rxprod;
 	int			cmpprodidx, cmpconsidx, bufprodidx;
 
+	SF_LOCK_ASSERT(sc);
+
 	ifp = &sc->arpcom.ac_if;
 
 	rxcons = csr_read_4(sc, SF_CQ_CONSIDX);
@@ -988,7 +990,9 @@ sf_rxeof(sc)
 		m = m0;
 
 		ifp->if_ipackets++;
+		SF_UNLOCK(sc);
 		(*ifp->if_input)(ifp, m);
+		SF_LOCK(sc);
 	}
 
 	csr_write_4(sc, SF_CQ_CONSIDX,

@@ -383,6 +383,7 @@ struct wb_softc {
 
 #define	WB_LOCK(_sc)		mtx_lock(&(_sc)->wb_mtx)
 #define	WB_UNLOCK(_sc)		mtx_unlock(&(_sc)->wb_mtx)
+#define	WB_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->wb_mtx, MA_OWNED)
 
 /*
  * register space access macros
