@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: autoconf.c,v 1.13 1999/01/20 19:22:24 peter Exp $
+ *	$Id: autoconf.c,v 1.14 1999/03/12 14:44:46 gallatin Exp $
  */
 
 #include "opt_bootp.h"
@@ -120,15 +120,23 @@ bootdev_protocol(void)
 }
 
 static int
-bootdev_bus(void)
-{
-	return atoi(bootdev_field(1));
-}
-
-static int
 bootdev_slot(void)
 {
 	return atoi(bootdev_field(2));
+}
+
+static int
+bootdev_unit(void)
+{
+	return atoi(bootdev_field(5));
+}
+
+#if 0
+
+static int
+bootdev_bus(void)
+{
+	return atoi(bootdev_field(1));
 }
 
 static int
@@ -144,12 +152,6 @@ bootdev_remote_address(void)
 }
 
 static int
-bootdev_unit(void)
-{
-	return atoi(bootdev_field(5));
-}
-
-static int
 bootdev_boot_dev_type(void)
 {
 	return atoi(bootdev_field(6));
@@ -160,6 +162,8 @@ bootdev_ctrl_dev_type(void)
 {
 	return bootdev_field(7);
 }
+
+#endif
 
 void
 alpha_register_pci_scsi(int bus, int slot, struct cam_sim *sim)
