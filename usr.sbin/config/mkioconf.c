@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)mkioconf.c	8.2 (Berkeley) 1/21/94";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: mkioconf.c,v 1.31 1997/09/15 06:37:09 charnier Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -1131,7 +1131,7 @@ news_ioconf()
 		}
 		if (dp->d_flags) {
 			printf(
-			"controllers (e.g. %s%d) don't have flags, only devices do\n",
+		"controllers (e.g. %s%d) don't have flags, only devices do\n",
 			    dp->d_name, dp->d_unit);
 			continue;
 		}
