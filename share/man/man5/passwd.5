@@ -204,16 +204,16 @@ file):
 
 .Ed
 Specific usernames are listed explicitly while netgroups are signfied
-by a preceeding `@'. In the above example, users in the ``staff'' and
+by a preceding `@'. In the above example, users in the ``staff'' and
 ``permitted-users'' netgroups will have their password information
-read from NIS and used unaltered. In other worrds, they will be allowed
+read from NIS and used unaltered. In other words, they will be allowed
 normal access to the machine. Users ``ken'' and ``dennis,'' who have
-beed named explicitly rather than through a netgroup, will also have
+been named explicitly rather than through a netgroup, will also have
 their password data read from NIS, _except_ that user ``ken'' will
 have his shell remapped to
 .Pa /bin/csh .
 This means that value for his shell specified in the NIS password map
-will be overriden by the value specified in the special NIS entry in
+will be overridden by the value specified in the special NIS entry in
 the local
 .Pa master.passwd
 file. User ``ken'' may have been assigned the csh shell because his
@@ -235,7 +235,7 @@ who might otherwise be granted access because he happens to be a
 member of an authorized netgroup. For example, if ``mitnick'' is
 a member of the ``permitted-users'' netgroup and must, for whatever
 the reason, be permitted to remain in that netgroup (possibly to
-retain access to other machines within the domain), the admistrator
+retain access to other machines within the domain), the administrator
 can still deny him access to a particular system with a minus entry.
 Also, it is sometimes easier to explicitly list those users who aren't
 allowed access rather than generate a possibly complicated list of
@@ -275,8 +275,8 @@ any of the other entries.
 .Pa /usr/local/bin/go_away
 can be a short shell script or program
 that prints a message telling the user that he is not allowed access
-to the system. This technique is sometimes userful when it is
-desireable to have the system be able to recognize all users in a
+to the system. This technique is sometimes useful when it is
+desirable to have the system be able to recognize all users in a
 particular NIS domain without necessarily granting them login access.
 .Pp
 The primary use of this
@@ -306,7 +306,7 @@ into the NIS passwd maps totally defeats the security of FreeBSD's
 password shadowing system.
 .Pp
 FreeBSD provides a few special features to help get around this
-problem. It is possible to implement password shawdowing between
+problem. It is possible to implement password shadowing between
 FreeBSD NIS clients and FreeBSD NIS servers. The
 .Xr getpwent 3
 routines will search for a
@@ -357,7 +357,7 @@ entry:
 This entry will cause all users in the `foo-users' netgroup to
 have
 .Pa all
-of their password information overriden, including UIDs,
+of their password information overridden, including UIDs,
 GIDs and passwords. The result is that all `foo-users' will be
 locked out of the system, since their passwords will be remapped
 to invalid values.
@@ -368,7 +368,7 @@ using an NIS wildcard entry that looks like this:
 +:*:0:0:::
 
 .Ed
-This often leads to new FreeBSD admins choosing NIS entries for their
+This often leads to new FreeBSD administrators choosing NIS entries for their
 .Pa master.passwd
 files that look like this:
 .Bd -literal -offset indent
@@ -457,7 +457,7 @@ the password space.
 .Pp
 In %99 of all FreeBSD configurations, NIS client behavior will be
 indistinguishable from that of SunOS or other similar systems. Even
-so, users should be aware of these architctural differences.
+so, users should be aware of these architectural differences.
 .Pp
 .Ss Using groups instead of netgroups for NIS overrides
 FreeBSD offers the capability to do override matching based on
@@ -545,7 +545,7 @@ Unless you're using FreeBSD's
 .Xr ypserv 8 ,
 which supports the use of
 .Pa master.passwd
-stype maps,
+type maps,
 the YP/NIS password database will be in old-style (Sixth Edition) format,
 which means that site-wide values for user login class, password
 expiration date, and other fields present in the current format

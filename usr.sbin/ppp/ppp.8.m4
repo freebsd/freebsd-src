@@ -1,5 +1,5 @@
 .\" manual page [] for ppp 0.94 beta2 + alpha
-.\" $Id: ppp.8,v 1.11 1995/09/24 18:15:14 nate Exp $
+.\" $Id: ppp.8,v 1.12 1995/10/08 14:57:31 amurai Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -321,9 +321,9 @@ When an outgoing packet is detected,
 will perform the dialing action (chat script) and try to connect
 with the peer.
 
-If the connect fails, the default behaviour is to wait 30 seconds
+If the connect fails, the default behavior is to wait 30 seconds
 and then attempt to connect when another outgoing packet is detected.
-This behaviour can be changed with
+This behavior can be changed with
 .Bd -literal -offset indent
 set redial seconds|random [dial_attempts]
 .Ed
@@ -702,7 +702,7 @@ will always try to consult the user's personal setup first.
 
 .Bl -tag -width flag
 .It $HOME/ppp/.ppp.[conf|linkup|secret]
-User dependant configuration files.
+User dependent configuration files.
 
 .It /etc/ppp/ppp.conf
 System default configuration file.

@@ -82,7 +82,7 @@ in
 #endif /* DDB */
 .Ed
 
-And the name of the procedure shoule start with the prefix
+And the name of the procedure should start with the prefix
 .Li DDB_ 
 to clearly identify the procedure as a debugger routine.
 .El
@@ -95,7 +95,7 @@ the opposite.
 
 There are several reasons for this policy,
 the main one is that the kernel is one monolithic name-space,
-and polution is not a good idea here either.
+and pollution is not a good idea here either.
 
 For device drivers and other modules that don't add new internal interfaces
 to the kernel, the entire source should be in one file it possible.
