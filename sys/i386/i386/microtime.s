@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	from: Steve McCanne's microtime code
- *	$Id: microtime.s,v 1.38 1997/12/28 13:36:05 phk Exp $
+ *	$Id: microtime.s,v 1.39 1997/12/28 17:32:59 phk Exp $
  */
 
 #include <machine/asmacros.h>
@@ -56,9 +56,22 @@ ENTRY(microtime)
 	subl	_tsc_bias, %eax
 	mull	_tsc_multiplier
 	movl	%edx, %eax
+	addl	_time+4, %eax	/* usec += time.tv_sec */
+	movl	_time, %edx	/* sec = time.tv_sec */
 	popfl			/* restore interrupt mask */
-	jmp	common_microtime
 
+	cmpl	$1000000, %eax	/* usec valid? */
+	jb	1f
+	subl	$1000000, %eax	/* adjust usec */
+	incl	%edx		/* bump sec */
+1:
+	movl	4(%esp), %ecx	/* load timeval pointer arg */
+	movl	%edx, (%ecx)	/* tvp->tv_sec = sec */
+	movl	%eax, 4(%ecx)	/* tvp->tv_usec = usec */
+
+	ret
+
+	ALIGN_TEXT
 i8254_microtime:
 	movb	$TIMER_SEL0|TIMER_LATCH, %al	/* prepare to latch */
 
@@ -210,12 +223,11 @@ overflow:
 	popl	%edx
 	popl	%eax
 #endif /* USE_CLOCKLOCK */
-	popfl			/* restore interrupt mask */
-
-common_microtime:
 
 	addl	_time+4, %eax	/* usec += time.tv_sec */
 	movl	_time, %edx	/* sec = time.tv_sec */
+
+	popfl			/* restore interrupt mask */
 
 	cmpl	$1000000, %eax	/* usec valid? */
 	jb	1f
