@@ -571,7 +571,7 @@ sloutput(ifp, m, dst, rtp)
 		m_freem(m);
 		return (EHOSTUNREACH);
 	}
-	ifq = &sc->sc_if.if_snd;
+	ifq = (struct ifqueue *)&sc->sc_if.if_snd;
 	ip = mtod(m, struct ip *);
 	if (sc->sc_if.if_flags & SC_NOICMP && ip->ip_p == IPPROTO_ICMP) {
 		m_freem(m);

@@ -382,7 +382,7 @@ i4biproutput(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 	if(ip->ip_tos & IPTOS_LOWDELAY)
 		ifq = &sc->sc_fastq;
 	else
-	        ifq = &sc->sc_if.if_snd;
+	        ifq = (struct ifqueue *)&sc->sc_if.if_snd;
 
 	/* check for space in choosen send queue */
 	

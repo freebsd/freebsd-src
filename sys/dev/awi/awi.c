@@ -235,10 +235,12 @@ ether_sprintf(u_int8_t *enaddr)
 }
 #endif
 
+#if 0 /* ALTQ */
 #define	IFQ_PURGE(ifq)		IF_DRAIN(ifq)
 #define IF_POLL(ifq, m)		((m) = (ifq)->ifq_head)
 #define IFQ_POLL(ifq, m)	IF_POLL((ifq), (m))
 #define IFQ_DEQUEUE(ifq, m)	IF_DEQUEUE((ifq), (m))
+#endif
 
 #endif
 

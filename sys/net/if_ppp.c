@@ -933,7 +933,8 @@ pppoutput(ifp, m0, dst, rtp)
 	sc->sc_npqtail = &m0->m_nextpkt;
     } else {
 	/* fastq and if_snd are emptied at spl[soft]net now */
-	ifq = (m0->m_flags & M_HIGHPRI)? &sc->sc_fastq: &ifp->if_snd;
+	ifq = (m0->m_flags & M_HIGHPRI)? &sc->sc_fastq:
+	    (struct ifqueue *)&ifp->if_snd;
         IF_LOCK(ifq);
 	if (_IF_QFULL(ifq) && dst->sa_family != AF_UNSPEC) {
 	    _IF_DROP(ifq);
@@ -988,7 +989,8 @@ ppp_requeue(sc)
 	     */
 	    *mpp = m->m_nextpkt;
 	    m->m_nextpkt = NULL;
-	    ifq = (m->m_flags & M_HIGHPRI)? &sc->sc_fastq: &sc->sc_if.if_snd;
+	    ifq = (m->m_flags & M_HIGHPRI)? &sc->sc_fastq:
+	        (struct ifqueue *)&sc->sc_if.if_snd;
             if (! IF_HANDOFF(ifq, m, NULL)) {
 		sc->sc_if.if_oerrors++;
 		sc->sc_stats.ppp_oerrors++;

@@ -288,11 +288,6 @@ ieee80211_input(struct ifnet *ifp, struct mbuf *m, struct ieee80211_node *ni,
 				}
 			}
 			if (m1 != NULL) {
-#ifdef ALTQ
-				if (ALTQ_IS_ENABLED(&ifp->if_snd))
-					altq_etherclassify(&ifp->if_snd, m1,
-					    &pktattr);
-#endif
 				len = m1->m_pkthdr.len;
 				IF_ENQUEUE(&ifp->if_snd, m1);
 				if (m != NULL)

@@ -97,8 +97,10 @@ enum _pdq_type_t {
 #define	sc_ifmedia	ifmedia
 #define	sc_if		arpcom.ac_if
 #define	sc_bpf		sc_if.if_bpf
+#if 0 /* ALTQ */
 #define	IFQ_DEQUEUE	IF_DEQUEUE
 #define	IFQ_IS_EMPTY(q)	((q)->ifq_len == 0)
+#endif
 
 typedef struct _pdq_os_ctx_t {
 	struct arpcom		arpcom;
