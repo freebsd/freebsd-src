@@ -252,13 +252,13 @@ not()
 static int
 eqrel()
 {
-	int vl, vr, eqrelval;
+	int vl, vr, op;
 
 	vl = shift();
-	while ((eqrelval = geteqrel()) != -1) {
+	while ((op = geteqrel()) != -1) {
 		vr = shift();
 
-		switch (eqrelval) {
+		switch (op) {
 
 		case EQL:
 			vl = (vl == vr);
