@@ -1,22 +1,22 @@
 Tcl
 
-SCCS: @(#) README 1.32 96/07/31 16:29:01
+SCCS: @(#) README 1.45 97/06/25 11:02:14
 
 1. Introduction
 ---------------
 
 This directory and its descendants contain the sources and documentation
 for Tcl, an embeddable scripting language.  The information here
-corresponds to release 7.5p1, the first patch release for Tcl 7.5.  The
-most important new feature in Tcl 7.5 is support for the PC and Mac
-platforms.  In addition, there are major new facilities for dynamic
-loading, package and version management, multiple interpreters, safe
-execution of untrusted scripts, and a new I/O system that supports
-nonblocking I/O and sockets.  This release also contains many bug fixes.
-Tcl 7.5 should be backwards compatible with Tcl 7.4 scripts (there are
-two small incompatibilities described below, but they are relatively
-insignificant and shouldn't affect most existing Tcl code and
-extensions).
+corresponds to release 8.0b2, the second (and probably final) beta
+release for Tcl 8.0. Tcl 8.0 is a major new release that replaces the
+core of the interpreter with an on-the-fly bytecode compiler to improve
+execution speed.  It also includes several other new features such as
+namespaces and binary I/O, plus many bug fixes.  The compiler introduces
+a few incompatibilities that may affect existing Tcl scripts; the
+incompatibilities are relatively obscure but may require modifications
+to some old scripts before they can run with this version. The compiler
+introduces many new C-level APIs, but the old APIs are still supported.
+See below for more details.
 
 2. Documentation
 ----------------
@@ -50,10 +50,11 @@ using the normal "man" mechanisms, such as
 		man Tcl
 
 There is also an official home for Tcl and Tk on the Web:
-	http://www.sunlabs.com/research/tcl
-These Web pages include release updates, reports on bug fixes and porting
-issues, HTML versions of the manual pages, and pointers to many other
-Tcl/Tk Web pages at other sites.  Check them out!
+	http://sunscript.sun.com
+These Web pages include information about the latest releases, products
+related to Tcl and Tk, reports on bug fixes and porting issues, HTML
+versions of the manual pages, and pointers to many other Tcl/Tk Web
+pages at other sites.  Check them out!
 
 3. Compiling and installing Tcl
 -------------------------------
@@ -66,13 +67,13 @@ Before trying to compile Tcl you should do the following things:
 
     (a) Check for a binary release.  Pre-compiled binary releases are
         available now for PCs, Macintoshes, and several flavors of UNIX.
-	Binary releases are much easier to install than source releases.
-	To find out whether a binary release is available for your platform,
-	check the home page for the Sun Tcl/Tk project
-	(http://www.sunlabs.com/research/tcl) and also check in the FTP
-	directory from which you retrieved the base distribution.  Some
-	of the binary releases are available freely, while others are for
-	sale.
+        Binary releases are much easier to install than source releases.
+        To find out whether a binary release is available for your
+        platform, check the home page for SunScript
+        (http://sunscript.sun.com) under "Tech Corner".  Also, check in
+        the FTP directory from which you retrieved the base
+        distribution.  Some of the binary releases are available freely,
+        while others are for sale.
 
     (b) Make sure you have the most recent patch release.  Look in the
 	FTP directory from which you retrieved this distribution to see
@@ -80,30 +81,30 @@ Before trying to compile Tcl you should do the following things:
 	without changing any features, so you should normally use the
 	latest patch release for the version of Tcl that you want. 
 	Patch releases are available in two forms.  A file like
-	tcl7.5p1.tar.Z is a complete release for patch level 1 of Tcl
-	version 7.5.  If there is a file with a higher patch level than
+	tcl8.0p1.tar.Z is a complete release for patch level 1 of Tcl
+	version 8.0.  If there is a file with a higher patch level than
 	this release, just fetch the file with the highest patch level
 	and use it.
 
 	Patches are also available in the form of patch files that just
 	contain the changes from one patch level to another.  These
-	files have names like tcl7.5p1.patch, tcl7.5p2.patch, etc.  They
+	files will have names like tcl8.0p1.patch, tcl8.0p2.patch, etc.  They
 	may also have .gz or .Z extensions to indicate compression.  To
 	use one of these files, you apply it to an existing release with
 	the "patch" program.  Patches must be applied in order:
-	tcl7.5p1.patch must be applied to an unpatched Tcl 7.5 release
-	to produce a Tcl 7.5p1 release;  tcl7.5p2.patch can then be
-	applied to Tcl7.5 p1 to produce Tcl 7.5 p2, and so on. To apply an
-	uncompressed patch file such as tcl7.5p1.patch, invoke a shell
+	tcl8.0p1.patch must be applied to an unpatched Tcl 8.0 release
+	to produce a Tcl 8.0p1 release;  tcl8.0p2.patch can then be
+	applied to Tcl8.0p1 to produce Tcl 8.0p2, and so on. To apply an
+	uncompressed patch file such as tcl8.0p1.patch, invoke a shell
 	command like the following from the directory containing this
 	file:
-	    patch -p < tcl7.5p1.patch
+	    patch -p < tcl8.0p1.patch
 	If the patch file has a .gz extension, invoke a command like the
 	following:
-	    gunzip -c tcl7.5p1.patch.gz | patch -p
+	    gunzip -c tcl8.0p1.patch.gz | patch -p
 	If the patch file has a .Z extension, it was compressed with
 	compress.  To apply it, invoke a command like the following:
-	    zcat tcl7.5p1.patch.Z | patch -p
+	    zcat tcl8.0p1.patch.Z | patch -p
 	If you're applying a patch to a release that has already been
 	compiled, then before applying the patch you should cd to the
 	"unix" subdirectory and type "make distclean" to restore the
@@ -115,140 +116,132 @@ compiling under UNIX, "win" if you're compiling under Windows, or
 in the README file in that directory for compiling Tcl, installing it,
 and running the test suite.
 
-4. Summary of changes in Tcl 7.5
+4. Summary of changes in Tcl 8.0
 --------------------------------
 
-The most important change for Tcl 7.5 is that Tcl now runs on Macintosh
-and PC platforms as well as UNIX.  The PC port runs under Windows 3.1
-(with Win32s), Windows 95, and Windows NT.  This required a lot of
-reorganization of the sources but it didn't require any changes to
-Tcl's externally visible interfaces.
+Here are the most significant changes in Tcl 8.0.  In addition to these
+changes, there are several smaller changes and bug fixes.  See the file
+"changes" for a complete list of all changes.
 
-In addition to the ports, Tcl 7.5 also has many other new features.
-The following feature changes have occurred since Tcl 7.4:
+    1. Bytecode compiler.  The core of the Tcl interpreter has been
+    replaced with an on-the-fly compiler that translates Tcl scripts to
+    byte codes; a new interpreter then executes the byte codes. In
+    earlier versions of Tcl, strings were used as a universal
+    representation;  in Tcl 8.0 strings are replaced with Tcl_Obj
+    structures ("objects") that can hold both a string value and an
+    internal form such as a binary integer or compiled bytecodes.  The
+    new objects make it possible to store information in efficient
+    internal forms and avoid the constant translations to and from
+    strings that occurred with the old interpreter.  We have not yet
+    converted all of Tcl to take full advantage of the compiler and
+    objects and have not converted any of Tk yet, but even so you
+    should see speedups of 2-3x on many programs and you may see
+    speedups as much as 10-20x in some cases (such as code that
+    manipulates long lists).  Future releases should achieve even
+    greater speedups.  The compiler introduces only a few minor changes
+    at the level of Tcl scripts, but it introduces many new C APIs for
+    managing objects.  See, for example, the manual entries doc/*Obj*.3.
 
-    1. Dynamic loading.  There is a new "load" command for loading binary
-    extensions into Tcl on the fly.  This works now on most of the major
-    UNIX platforms as well as PCs and Macintoshes.  Three new "info"
-    commands, "info loaded", "info sharedlibextension", and
-    "info nameofexecutable", were also added as part of the dynamic loading
-    implementation.  You can also create Tcl and Tk themselves as shared
-    libraries with the --enable-shared switch to the configure script.
+    2. Namespaces.  There is a new namespace mechanism based on the
+    namespace implementation by Michael McLennan of Lucent Technologies.
+    This includes new "namespace" and "variable" commands.  There are
+    many new C APIs associated with namespaces, but they will not be
+    exported until Tcl 8.1.  Note: the syntax of the namespace command
+    has been changed slightly since the b1 release.  See the changes
+    file for details.
 
-    2. Packages and versions.  There is a new "package" command for
-    package and version management.  See the manual entries for "package"
-    and "pkg_mkIndex" for details on how to use it.  There are also
-    C APIs to the package mechanism.  See PkgRequire.3.
-    
-    3. Multiple interpreters and Safe-Tcl.  There is a new "interp" command
-    that allows you to create multiple interpreters within a single application
-    and set up communication between them with "aliases".  The mechanism also
-    supports "safe" interpreters, which provide a generalized version of the
-    security mechanisms in Borenstein and Rose's Safe-Tcl.  There are still
-    a few missing security features, such as resource control.  You can use
-    "load" to add extensions (including Tk) into slave interpreters.
+    3. Binary I/O.  The new object system in Tcl 8.0 supports binary
+    strings (internally, strings are counted in addition to being null
+    terminated).  There is a new "binary" command for inserting and
+    extracting data to/from binary strings.  Commands such as "puts",
+    "gets", and "read" commands now operate correctly on binary data. 
+    There is a new variable tcl_platform(byteOrder) to identify the
+    native byte order for the current host.
 
-    4. The event loop from Tk has been moved to Tcl.  Tcl now has commands
-    "after", "fileevent", "update", and "vwait" (which replaces tkwait).
-    The "tkerror" command has been renamed to "bgerror".  "Tkerror" is
-    still supported for backwards compatibility, but you should switch ASAP
-    to using "bgerror" instead.  Many C procedures that used to be in Tk
-    have been moved to Tcl and renamed, such as Tcl_DoOneEvent, Tcl_DoWhenIdle,
-    Tcl_CreateFileHandler, and Tcl_CreateTimerHandler.
+    4. Random numbers.  The "expr" command now contains a random number
+    generator, which can be accessed via the "rand()" and "srand()" math
+    functions.
 
-    5. Tcl has a whole new I/O system.  All of the Tcl commands like
-    "open" and "puts" should continue to operate as before, but there
-    is a totally new implementation that doesn't use the C stdio library:
-	- The new I/O system is more portable, and it can be extended
-	  with new kinds of I/O channels;  see CrtChannel.3 for details.
-	- Nonblocking I/O is supported on all platforms and there is a
-	  new command "fconfigure" to enable it and other channel options;
-	  see fconfigure.n for details.  There is also a new "fblocked"
-	  command.
-	- The I/O system automatically translates between different
-	  end-of-line representations (such as CR on Macs and CRLF on
-	  PC's) to the newline form used in UNIX and in all Tcl scripts;
-	  the "fconfigure" command can be used to control this feature.
-	- There is a set of C APIs for manipulating Tcl_Channel's, which
-	  are analogous to UNIX FILE's.  The C procedures have roughly the
-	  same functionality as the stdio procedures.  See OpenFileChnl.3,
-	  CrtCloseHdlr.3, and CrtChnlHdlr.3 for details.
-	- There is a new structure Tcl_File that provides platform-
-	  independent access to file handles such as UNIX fd's.  See
-	  GetFile.3 for details.
-	- There are new procedures Tcl_GetErrno and Tcl_SetErrno for
-	  accessing the "errno" variable in a safe and portable fashion.
-	  See SetErrno.3.
+    5. Safe-Tcl enhancements.  There is a new "hidden command"
+    mechanism, implemented with the Tcl commands "interp hide", "interp
+    expose", "interp invokehidden", and "interp hidden" and the C APIs
+    Tcl_HideCommand and Tcl_ExposeCommand.  There is now support for
+    loadable security policies, including new library procedures such as
+    tcl_safeCreateInterp.
 
-    6. There are new commands "file split", "file join", and "file pathtype",
-    which make it possible to handle file names in a way that will work on
-    all platforms.  See the manual entries file.n and filename.n for
-    details.
+    6. There is a new package "registry" available under Windows for
+    accessing the Windows registry.
 
-    7. There is a new "socket" command for network communication via
-    TCP sockets.  It works for both the client and server sides.  There
-    is also C-level support for sockets;  see OpenTcp.3.
+    7. There is a new command "file attributes" for getting and setting
+    things like permissions and owner.  There is also a new command
+    "file nativename" for getting back the platform-specific name for a
+    particular file.
 
-    8. There is a new "clock" command, which contains the functionality
-    of the TclX clock-handling commands.
+    8. There is a new "fcopy" command to copy data between channels. 
+    This replaces and improves upon the not-so-secret unsupported old
+    command "unsupported0".
 
-    9. The "foreach" command has been generalized significantly to support
-    multiple lists and multiple variables iterating over each list.
+    9. There is a new package "http" for doing GET, POST, and HEAD
+    requests via the HTTP/1.0 protocol.  See the manual entry http.n
+    for details.
 
-    10. There is a new "notifier" mechanism, which was added as part of
-    the ports.  This allows the basic mechanisms for reporting events
-    to be implemented in different ways on different platforms.  It
-    may also be useful for other purposes, such as merging the Tk and
-    Xt event loops so that Tk and Xt widgets can coexist in a single
-    application.  See the manual entry Notifier.3 for more information.
+    10. There are new library procedures for finding word breaks in
+    strings.  See the manual entry library.n for details.
 
-    11. There is an "AssocData" mechanism that allows extensions to store
-    their own data in an interpreter and get called back when the interpreter
-    is deleted.  This is visible at C level via the procedures Tcl_SetAssocData
-    and Tcl_GetAssocData.
+    11. There are new C APIs Tcl_Finalize (for cleaning up before
+    unloading the Tcl DLL) and Tcl_Ungets for pushing bytes back into a
+    channel's input buffer.
 
-    12. When manual pages are installed, additional links are created for
-    each of the procedures described in the manual page, so that it's
-    easier to invoke the "man" command.
+    12. Tcl now supports serial I/O devices on Windows and Unix, with a
+    new fconfigure -mode option.  The Windows driver does not yet
+    support event-driven I/O.
 
-    13. There is a new variable "tcl_platform" with platform information.
-    This is an associative array with elements like "os" and "machine"
-    that contain various pieces of information about the platform.
+    13. The lsort command has new options -dictionary and -index.  The
+    -index option allows for very rapid sorting based on an element
+    of a list.
 
-    14. There is a new procedure Tcl_CreateExitHandler that you can use to
-    make sure a C procedure is called before the Tcl application exits.
+    14. The event notifier has been completely rewritten (again).  It
+    should now allow Tcl to use an external event loop (like Motif's)
+    when it is embedded in other applications.  No script-level
+    interfaces have changed, but many of the C APIs have.
 
-    15. There is a new procedure Tcl_UpdateLinkedVar to force the Tcl-level
-    variable to be updated after you've changed the corresponding C-level
-    variable.
+Tcl 8.0 introduces the following incompatibilities that may affect Tcl
+scripts that worked under Tcl 7.6 and earlier releases:
 
-    16. The procedures Tk_Preserve, Tk_Release, and Tk_EventuallyFree
-    have been moved from Tk to Tcl and given names like Tcl_Preserve.
+    1. Variable and command names may not include the character sequence
+    "::" anymore: this sequence is now used as a namespace separator.
 
-Three incompatibilities were introduced by the changes.  All of these
-are at C-level, and only the first one should have much impact.  Existing
-scripts for Tcl 7.4 should run unchanged  under Tcl 7.5.
+    2. The semantics of some Tcl commands have been changed slightly to
+    maximize performance under the compiler.  These incompatibilities
+    are documented on the Web so that we can keep the list up-to-date.
+    See the URL http://www.sunlabs.com/research/tcl/compiler.html.
 
-    1. The procedure Tcl_EnterFile no longer exists.  However, a new
-    procedure Tcl_MakeFileChannel provides similar functionality.
-    Tcl_GetOpenFile still exists but only works under UNIX.
-    Tcl_CreatePipeline also remains, but it too works only under UNIX
-    now;  use Tcl_OpenCommandChannel for better portability.
+    3. 2-digit years are now parsed differently by the "clock" command
+    to handle year 2000 issues better (years 00-38 are treated as
+    2000-2038 instead of 1900-1938).
 
-    2. Tcl doesn't export any global C variables anymore, because this doesn't
-    work with Windows DLLs.  The C variables tcl_AsyncReady and
-    tcl_FileCloseProc have been replaced with procedures Tcl_AsyncReady()
-    and Tcl_SetFileCloseProc().  The C variable tcl_RcFileName has been
-    replaced with a Tcl variable tcl_rcFileName (use Tcl_SetVar to set the
-    Tcl variable, instead of assigning to the old C variable).
-    
-    3. Files are no longer shared between interpreters by default:  if a
-    file is opened in one interpreter, it cannot normally be used in other
-    interpreters.  However, the new procedure Tcl_ShareHandle allows files
-    to be shared between interpreters if requested explicitly.
+    4. The old Macintosh commands "cp", "mkdir", "mv", "rm", and "rmdir"
+    are no longer supported; all of these features are now available on
+    all platforms via the "file" command.
 
-For a complete list of all changes in this release, see the file "changes"
-in this directory.
+    5. Support for the variable tcl_precision is mostly removed; when
+    real values are converted back to strings, the full 17 digits of
+    precision are always used.
+
+    6. The C APIs associated with the notifier have changed substantially.
+
+    7. The procedures Tcl_CreateModalTimeout and Tcl_DeleteModalTimeout
+    have been removed.
+
+    8. Tcl_CreateFileHandler and Tcl_DeleteFileHandler now take Unix
+    fd's and are only supported on the Unix platform
+
+    9. The C APIs for creating channel drivers have changed as part of
+    the new notifier implementation.  The Tcl_File interfaces have been
+    removed.  Tcl_GetChannelFile has been replaced with
+    Tcl_GetChannelHandle.  Tcl_MakeFileChannel now takes a platform-
+    specific file handle.  Tcl_DriverGetOptionProc procedures now take
+    an additional interp argument.
 
 5. Tcl newsgroup
 -----------------
@@ -284,8 +277,8 @@ We're very interested in receiving bug reports and suggestions for
 improvements.  We prefer that you send this information to the
 comp.lang.tcl newsgroup rather than to any of us at Sun.  We'll see
 anything on comp.lang.tcl, and in addition someone else who reads 
-omp.lang.tcl may be able to offer a solution.  The normal turn-around
-time for bugs is 2-4 weeks.  Enhancements may take longer and may not
+comp.lang.tcl may be able to offer a solution.  The normal turn-around
+time for bugs is 3-6 weeks.  Enhancements may take longer and may not
 happen at all unless there is widespread support for them (we're
 trying to slow the rate at which Tcl turns into a kitchen sink).  It's
 very difficult to make incompatible changes to Tcl at this point, due
@@ -346,6 +339,6 @@ be any more incompatibilities until the next release with a new major
 version number.
 
 Patch releases have a suffix such as p1 or p2.  These releases contain
-bug fixes only.  A patch release (e.g Tcl 7.5p2) should be completely
+bug fixes only.  A patch release (e.g Tcl 7.6p2) should be completely
 compatible with the base release from which it is derived (e.g. Tcl
-7.5), and you should normally use the highest available patch release.
+7.6), and you should normally use the highest available patch release.

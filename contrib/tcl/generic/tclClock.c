@@ -11,7 +11,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclClock.c 1.20 96/07/23 16:14:45
+ * SCCS: @(#) tclClock.c 1.36 97/06/02 10:14:17
  */
 
 #include "tcl.h"
@@ -25,13 +25,11 @@
 static int		FormatClock _ANSI_ARGS_((Tcl_Interp *interp,
 			    unsigned long clockVal, int useGMT,
 			    char *format));
-static int		ParseTime _ANSI_ARGS_((Tcl_Interp *interp,
-			    char *string, unsigned long *timePtr));
 
 /*
- *-----------------------------------------------------------------------------
+ *-------------------------------------------------------------------------
  *
- * Tcl_ClockCmd --
+ * Tcl_ClockObjCmd --
  *
  *	This procedure is invoked to process the "clock" Tcl command.
  *	See the user documentation for details on what it does.
@@ -42,211 +40,158 @@ static int		ParseTime _ANSI_ARGS_((Tcl_Interp *interp,
  * Side effects:
  *	See the user documentation.
  *
- *-----------------------------------------------------------------------------
+ *-------------------------------------------------------------------------
  */
 
 int
-Tcl_ClockCmd (dummy, interp, argc, argv)
-    ClientData dummy;			/* Not used. */
+Tcl_ClockObjCmd (client, interp, objc, objv)
+    ClientData client;			/* Not used. */
     Tcl_Interp *interp;			/* Current interpreter. */
-    int argc;				/* Number of arguments. */
-    char **argv;			/* Argument strings. */
+    int objc;				/* Number of arguments. */
+    Tcl_Obj *CONST objv[];		/* Argument values. */
 {
-    int c;
-    size_t length;
-    char **argPtr;
+    Tcl_Obj *resultPtr;
+    int index;
+    Tcl_Obj *CONST *objPtr;
     int useGMT = 0;
-    unsigned long clockVal;
+    char *format = "%a %b %d %X %Z %Y";
+    int dummy;
+    unsigned long baseClock, clockVal;
+    long zone;
+    Tcl_Obj *baseObjPtr = NULL;
+    char *scanStr;
     
-    if (argc < 2) {
-	Tcl_AppendResult(interp, "wrong # args: should be \"",
-		argv[0], " option ?arg ...?\"", (char *) NULL);
+    static char *switches[] =
+	    {"clicks", "format", "scan", "seconds", (char *) NULL};
+    static char *formatSwitches[] = {"-format", "-gmt", (char *) NULL};
+    static char *scanSwitches[] = {"-base", "-gmt", (char *) NULL};
+
+    resultPtr = Tcl_GetObjResult(interp);
+    if (objc < 2) {
+	Tcl_WrongNumArgs(interp, 1, objv, "option ?arg ...?");
 	return TCL_ERROR;
     }
-    c = argv[1][0];
-    length = strlen(argv[1]);
-    if ((c == 'c') && (strncmp(argv[1], "clicks", length) == 0)) {
-	if (argc != 2) {
-	    Tcl_AppendResult(interp, "wrong # arguments: must be \"",
-		    argv[0], " clicks\"", (char *) NULL);
-	    return TCL_ERROR;
-	}
-	sprintf(interp->result, "%lu", TclpGetClicks());
-	return TCL_OK;
-    } else if ((c == 'f') && (strncmp(argv[1], "format", length) == 0)) {
-	char *format = "%a %b %d %X %Z %Y";
-	
-	if ((argc < 3) || (argc > 7)) {
-	    wrongFmtArgs:
-	    Tcl_AppendResult(interp, "wrong # args: ", argv [0], 
-		    " format clockval ?-format string? ?-gmt boolean?",
-		    (char *) NULL);
-	    return TCL_ERROR;
-	}
 
-	if (ParseTime(interp, argv[2], &clockVal) != TCL_OK) {
-	    return TCL_ERROR;
-	}
+    if (Tcl_GetIndexFromObj(interp, objv[1], switches, "option", 0, &index)
+	    != TCL_OK) {
+	return TCL_ERROR;
+    }
+    switch (index) {
+	case 0:			/* clicks */
+	    if (objc != 2) {
+		Tcl_WrongNumArgs(interp, 1, objv, "clicks");
+		return TCL_ERROR;
+	    }
+	    Tcl_SetLongObj(resultPtr, (long) TclpGetClicks());
+	    return TCL_OK;
+	case 1:			/* format */
+	    if ((objc < 3) || (objc > 7)) {
+		wrongFmtArgs:
+		Tcl_WrongNumArgs(interp, 1, objv,
+			"format clockval ?-format string? ?-gmt boolean?");
+		return TCL_ERROR;
+	    }
 
-	argPtr = argv+3;
-	argc -= 3;
-	while ((argc > 1) && (argPtr[0][0] == '-')) {
-	    if (strcmp(argPtr[0], "-format") == 0) {
-	        format = argPtr[1];
-	    } else if (strcmp(argPtr[0], "-gmt") == 0) {
-		if (Tcl_GetBoolean(interp, argPtr[1], &useGMT) != TCL_OK) {
+	    if (Tcl_GetLongFromObj(interp, objv[2], (long*) &clockVal)
+		    != TCL_OK) {
+		return TCL_ERROR;
+	    }
+    
+	    objPtr = objv+3;
+	    objc -= 3;
+	    while (objc > 1) {
+		if (Tcl_GetIndexFromObj(interp, objPtr[0], formatSwitches,
+			"switch", 0, &index) != TCL_OK) {
+		    return TCL_ERROR;
+		}
+		switch (index) {
+		    case 0:		/* -format */
+			format = Tcl_GetStringFromObj(objPtr[1], &dummy);
+			break;
+		    case 1:		/* -gmt */
+			if (Tcl_GetBooleanFromObj(interp, objPtr[1],
+				&useGMT) != TCL_OK) {
+			    return TCL_ERROR;
+			}
+			break;
+		}
+		objPtr += 2;
+		objc -= 2;
+	    }
+	    if (objc != 0) {
+		goto wrongFmtArgs;
+	    }
+	    return FormatClock(interp, (unsigned long) clockVal, useGMT,
+		    format);
+	case 2:			/* scan */
+	    if ((objc < 3) || (objc > 7)) {
+		wrongScanArgs:
+		Tcl_WrongNumArgs(interp, 1, objv,
+			"scan dateString ?-base clockValue? ?-gmt boolean?");
+		return TCL_ERROR;
+	    }
+
+	    objPtr = objv+3;
+	    objc -= 3;
+	    while (objc > 1) {
+		if (Tcl_GetIndexFromObj(interp, objPtr[0], scanSwitches,
+			"switch", 0, &index) != TCL_OK) {
+		    return TCL_ERROR;
+		}
+		switch (index) {
+		    case 0:		/* -base */
+			baseObjPtr = objPtr[1];
+			break;
+		    case 1:		/* -gmt */
+			if (Tcl_GetBooleanFromObj(interp, objPtr[1],
+				&useGMT) != TCL_OK) {
+			    return TCL_ERROR;
+			}
+			break;
+		}
+		objPtr += 2;
+		objc -= 2;
+	    }
+	    if (objc != 0) {
+		goto wrongScanArgs;
+	    }
+
+	    if (baseObjPtr != NULL) {
+		if (Tcl_GetLongFromObj(interp, baseObjPtr,
+			(long*) &baseClock) != TCL_OK) {
 		    return TCL_ERROR;
 		}
 	    } else {
-		Tcl_AppendResult(interp, "bad option \"", argPtr[0],
-			"\": must be -format or -gmt", (char *) NULL);
-		return TCL_ERROR;
+		baseClock = TclpGetSeconds();
 	    }
-	    argPtr += 2;
-	    argc -= 2;
-	}
-	if (argc != 0) {
-	    goto wrongFmtArgs;
-	}
 
-	return FormatClock(interp, clockVal, useGMT, format);
-    } else if ((c == 's') && (strncmp(argv[1], "scan", length) == 0)) {
-	unsigned long baseClock;
-	long zone;
-	char * baseStr = NULL;
-
-	if ((argc < 3) || (argc > 7)) {
-	    wrongScanArgs:
-	    Tcl_AppendResult (interp, "wrong # args: ", argv [0], 
-		    " scan dateString ?-base clockValue? ?-gmt boolean?",
-		    (char *) NULL);
-	    return TCL_ERROR;
-	}
-
-	argPtr = argv+3;
-	argc -= 3;
-	while ((argc > 1) && (argPtr[0][0] == '-')) {
-	    if (strcmp(argPtr[0], "-base") == 0) {
-	        baseStr = argPtr[1];
-	    } else if (strcmp(argPtr[0], "-gmt") == 0) {
-		if (Tcl_GetBoolean(interp, argPtr[1], &useGMT) != TCL_OK) {
-		    return TCL_ERROR;
-		}
+	    if (useGMT) {
+		zone = -50000; /* Force GMT */
 	    } else {
-		Tcl_AppendResult(interp, "bad option \"", argPtr[0],
-			"\": must be -base or -gmt", (char *) NULL);
+		zone = TclpGetTimeZone((unsigned long) baseClock);
+	    }
+
+	    scanStr = Tcl_GetStringFromObj(objv[2], &dummy);
+	    if (TclGetDate(scanStr, (unsigned long) baseClock, zone,
+		    (unsigned long *) &clockVal) < 0) {
+		Tcl_AppendStringsToObj(resultPtr,
+			"unable to convert date-time string \"",
+			scanStr, "\"", (char *) NULL);
 		return TCL_ERROR;
 	    }
-	    argPtr += 2;
-	    argc -= 2;
-	}
-	if (argc != 0) {
-	    goto wrongScanArgs;
-	}
-	
-	if (baseStr != NULL) {
-	    if (ParseTime(interp, baseStr, &baseClock) != TCL_OK)
+
+	    Tcl_SetLongObj(resultPtr, (long) clockVal);
+	    return TCL_OK;
+	case 3:			/* seconds */
+	    if (objc != 2) {
+		Tcl_WrongNumArgs(interp, 1, objv, "seconds");
 		return TCL_ERROR;
-	} else {
-	    baseClock = TclpGetSeconds();
-	}
-
-	if (useGMT) {
-	    zone = -50000; /* Force GMT */
-	} else {
-	    zone = TclpGetTimeZone(baseClock);
-	}
-
-	if (TclGetDate(argv[2], baseClock, zone, &clockVal) < 0) {
-	    Tcl_AppendResult(interp, "unable to convert date-time string \"",
-		    argv[2], "\"", (char *) NULL);
-	    return TCL_ERROR;
-	}
-
-	sprintf(interp->result, "%lu", (long) clockVal);
-	return TCL_OK;
-    } else if ((c == 's') && (strncmp(argv[1], "seconds", length) == 0)) {
-	if (argc != 2) {
-	    Tcl_AppendResult(interp, "wrong # arguments: must be \"",
-		    argv[0], " seconds\"", (char *) NULL);
-	    return TCL_ERROR;
-	}
-	sprintf(interp->result, "%lu", TclpGetSeconds());
-	return TCL_OK;
-    } else {
-	Tcl_AppendResult(interp, "unknown option \"", argv[1],
-		"\": must be clicks, format, scan, or seconds",
-		(char *) NULL);
-	return TCL_ERROR;
+	    }
+	    Tcl_SetLongObj(resultPtr, (long) TclpGetSeconds());
+	    return TCL_OK;
+	default:
+	    return TCL_ERROR;	/* Should never be reached. */
     }
-}
-
-/*
- *-----------------------------------------------------------------------------
- *
- * ParseTime --
- *
- *      Given a string, produce the corresponding time_t value.
- *
- * Results:
- *      The return value is normally TCL_OK;  in this case *timePtr
- *      will be set to the integer value equivalent to string.  If
- *      string is improperly formed then TCL_ERROR is returned and
- *      an error message will be left in interp->result.
- *
- * Side effects:
- *      None.
- *
- *-----------------------------------------------------------------------------
- */
-
-static int
-ParseTime(interp, string, timePtr)
-    Tcl_Interp *interp;
-    char *string;
-    unsigned long *timePtr;
-{
-    char *end, *p;
-    unsigned long  i;
-
-    /*
-     * Since some strtoul functions don't detect negative numbers, check
-     * in advance.
-     */
-    errno = 0;
-    for (p = (char *) string; isspace(UCHAR(*p)); p++) {
-        /* Empty loop body. */
-    }
-    if (*p == '+') {
-        p++;
-    }
-    i = strtoul(p, &end, 0);
-    if (end == p) {
-        goto badTime;
-    }
-    if (errno == ERANGE) {
-	interp->result = "integer value too large to represent";
-	Tcl_SetErrorCode(interp, "ARITH", "IOVERFLOW",
-		interp->result, (char *) NULL);
-	return TCL_ERROR;
-    }
-    while ((*end != '\0') && isspace(UCHAR(*end))) {
-        end++;
-    }
-    if (*end != '\0') {
-        goto badTime;
-    }
-
-    *timePtr = (time_t) i;
-    if (*timePtr != i) {
-        goto badTime;
-    }
-    return TCL_OK;
-
-  badTime:
-    Tcl_AppendResult (interp, "expected unsigned time but got \"", 
-                      string, "\"", (char *) NULL);
-    return TCL_ERROR;
 }
 
 /*
@@ -281,7 +226,9 @@ FormatClock(interp, clockVal, useGMT, format)
     int savedTimeZone;
     char *savedTZEnv;
 #endif
+    Tcl_Obj *resultPtr;
 
+    resultPtr = Tcl_GetObjResult(interp);
 #ifdef HAVE_TZSET
     /*
      * Some systems forgot to call tzset in localtime, make sure its done.
@@ -323,7 +270,7 @@ FormatClock(interp, clockVal, useGMT, format)
      * based on the number of percents in the string.
      */
 
-    for (bufSize = 0, p = format; *p != '\0'; p++) {
+    for (bufSize = 1, p = format; *p != '\0'; p++) {
 	if (*p == '%') {
 	    bufSize += 40;
 	} else {
@@ -333,10 +280,10 @@ FormatClock(interp, clockVal, useGMT, format)
     Tcl_DStringInit(&buffer);
     Tcl_DStringSetLength(&buffer, bufSize);
 
-    if (TclStrftime(buffer.string, (unsigned int) bufSize, format,
-	    timeDataPtr) == 0) {
-	Tcl_DStringFree(&buffer);
-	Tcl_AppendResult(interp, "bad format string", (char *)NULL);
+    if ((TclStrftime(buffer.string, (unsigned int) bufSize, format,
+	    timeDataPtr) == 0) && (*format != '\0')) {
+	Tcl_AppendStringsToObj(resultPtr, "bad format string \"",
+		format, "\"", (char *) NULL);
 	return TCL_ERROR;
     }
 
@@ -353,7 +300,8 @@ FormatClock(interp, clockVal, useGMT, format)
     }
 #endif
 
-    Tcl_DStringResult(interp, &buffer);
+    Tcl_SetStringObj(resultPtr, buffer.string, -1);
+    Tcl_DStringFree(&buffer);
     return TCL_OK;
 }
 

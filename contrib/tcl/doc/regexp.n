@@ -5,7 +5,7 @@
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" SCCS: @(#) regexp.n 1.11 96/03/25 20:21:48
+'\" SCCS: @(#) regexp.n 1.12 96/08/26 13:00:10
 '\" 
 .so man.macros
 .TH regexp n "" Tcl "Tcl Built-In Commands"
@@ -33,7 +33,6 @@ contain the characters that matched the next parenthesized
 subexpression to the right in \fIexp\fR, and so on.
 .LP
 If the initial arguments to \fBregexp\fR start with \fB\-\fR then
-.VS
 they are treated as switches.  The following switches are
 currently supported:
 .TP 10
@@ -52,7 +51,6 @@ range of characters.
 \fB\-\|\-\fR
 Marks the end of switches.  The argument following this one will
 be treated as \fIexp\fR even if it starts with a \fB\-\fR.
-.VE
 .LP
 If there are more \fIsubMatchVar\fR's than parenthesized
 subexpressions within \fIexp\fR, or if a particular subexpression

@@ -10,7 +10,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) lindex.test 1.5 96/02/16 08:56:03
+# SCCS: @(#) lindex.test 1.7 97/02/27 16:53:56
 
 if {[string compare test [info procs test]] == 1} then {source defs}
 
@@ -49,7 +49,7 @@ test lindex-2.2 {error conditions} {
 } {1 {wrong # args: should be "lindex list index"}}
 test lindex-2.3 {error conditions} {
     list [catch {lindex 1 2a2} msg] $msg
-} {1 {expected integer but got "2a2"}}
+} {1 {bad index "2a2": must be integer or "end"}}
 test lindex-2.4 {error conditions} {
     list [catch {lindex "a \{" 2} msg] $msg
 } {1 {unmatched open brace in list}}

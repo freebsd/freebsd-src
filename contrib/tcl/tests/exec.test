@@ -5,12 +5,12 @@
 # generates output for errors.  No output means no errors were found.
 #
 # Copyright (c) 1991-1994 The Regents of the University of California.
-# Copyright (c) 1994 Sun Microsystems, Inc.
+# Copyright (c) 1994-1997 Sun Microsystems, Inc.
 #
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) exec.test 1.53 96/04/12 16:33:37
+# SCCS: @(#) exec.test 1.56 97/06/20 13:27:37
 
 if {[string compare test [info procs test]] == 1} then {source defs}
 
@@ -21,16 +21,11 @@ if {[info commands exec] == ""} {
     return
 }
 
-# This procedure generates a shell command to be passed to exec
-# to mask the differences between Unix and PC shells.
-
-proc shellCmd {string} {
-    global tcl_platform
-    if {$tcl_platform(platform) == "unix"} {
-	return "sh -c \"$string\""
-    } else {
-	return "sh -c {\"$string\"}"
-    }
+proc cat {name} {
+    set f [open $name r]
+    set x [read -nonewline $f]
+    close $f
+    set x
 }
 
 # Basic operations.
@@ -118,12 +113,12 @@ test exec-4.1 {redirecting output and stderr to file} {unixExecs} {
     exec cat gorp.file
 } "test output"
 test exec-4.2 {redirecting output and stderr to file} {unixExecs} {
-    list [eval exec [shellCmd "echo foo bar 1>&2"] >&gorp.file] \
+    list [exec sh -c "echo foo bar 1>&2" >&gorp.file] \
 	    [exec cat gorp.file]
 } {{} {foo bar}}
 test exec-4.3 {redirecting output and stderr to file} {unixExecs} {
     exec echo "first line" > gorp.file
-    list [eval exec [shellCmd "echo foo bar 1>&2"] >>&gorp.file] \
+    list [exec sh -c "echo foo bar 1>&2" >>&gorp.file] \
 	    [exec cat gorp.file]
 } "{} {first line\nfoo bar}"
 test exec-4.4 {redirecting output and stderr to file} {unixExecs} {
@@ -140,8 +135,8 @@ test exec-4.5 {redirecting output and stderr to file} {unixExecs} {
     set f [open gorp.file w]
     puts $f "Line 1"
     flush $f
-    eval exec >&@ $f [shellCmd "echo foo bar 1>&2"]
-    eval exec >&@$f [shellCmd "echo xyzzy 1>&2"]
+    exec >&@ $f sh -c "echo foo bar 1>&2"
+    exec >&@$f sh -c "echo xyzzy 1>&2"
     puts $f "Line 3"
     close $f
     exec cat gorp.file
@@ -181,14 +176,14 @@ test exec-5.7 {redirecting input from file} {unixExecs} {
 # I/O redirection: standard error through a pipeline.
 
 test exec-6.1 {redirecting stderr through a pipeline} {unixExecs} {
-    eval exec [shellCmd "echo foo bar"] |& cat
+    exec sh -c "echo foo bar" |& cat
 } "foo bar"
 test exec-6.2 {redirecting stderr through a pipeline} {unixExecs} {
-    eval exec [shellCmd "echo foo bar 1>&2"] |& cat
+    exec sh -c "echo foo bar 1>&2" |& cat
 } "foo bar"
 test exec-6.3 {redirecting stderr through a pipeline} {unixExecs} {
-    eval exec [shellCmd "echo foo bar 1>&2"] \
-	|& [shellCmd "echo second msg 1>&2; cat"] |& cat
+    exec sh -c "echo foo bar 1>&2" \
+	|& sh -c "echo second msg 1>&2; cat" |& cat
 } "second msg\nfoo bar"
 
 # I/O redirection: combinations.
@@ -223,21 +218,21 @@ test exec-9.2 {commands returning errors} {unixExecs} {
     string tolower [list [catch {exec echo foo | foo123} msg] $msg $errorCode]
 } {1 {couldn't execute "foo123": no such file or directory} {posix enoent {no such file or directory}}}
 test exec-9.3 {commands returning errors} {unixExecs} {
-    list [catch {eval exec sleep 1 | [shellCmd "exit 43"] | sleep 1} msg] $msg
+    list [catch {exec sleep 1 | sh -c "exit 43" | sleep 1} msg] $msg
 } {1 {child process exited abnormally}}
 test exec-9.4 {commands returning errors} {unixExecs} {
-    list [catch {eval exec [shellCmd "exit 43"] | echo "foo bar"} msg] $msg
+    list [catch {exec sh -c "exit 43" | echo "foo bar"} msg] $msg
 } {1 {foo bar
 child process exited abnormally}}
 test exec-9.5 {commands returning errors} {unixExecs} {
     list [catch {exec gorp456 | echo a b c} msg] [string tolower $msg]
 } {1 {couldn't execute "gorp456": no such file or directory}}
 test exec-9.6 {commands returning errors} {unixExecs} {
-    list [catch {eval exec [shellCmd "echo error msg 1>&2"]} msg] $msg
+    list [catch {exec sh -c "echo error msg 1>&2"} msg] $msg
 } {1 {error msg}}
 test exec-9.7 {commands returning errors} {unixExecs} {
-    list [catch {eval exec [shellCmd "echo error msg 1>&2"] \
-		     | [shellCmd "echo error msg 1>&2"]} msg] $msg
+    list [catch {exec sh -c "echo error msg 1>&2" \
+		     | sh -c "echo error msg 1>&2"} msg] $msg
 } {1 {error msg
 error msg}}
 
@@ -408,16 +403,16 @@ test exec-14.4 {-- switch} {
 
 test exec-15.1 {standard error redirection} {unixExecs} {
     exec echo "First line" > gorp.file
-    list [eval exec [shellCmd "echo foo bar 1>&2"] 2> gorp.file] \
+    list [exec sh -c "echo foo bar 1>&2" 2> gorp.file] \
 	    [exec cat gorp.file]
 } {{} {foo bar}}
 test exec-15.2 {standard error redirection} {unixExecs} {
-    list [eval exec [shellCmd "echo foo bar 1>&2"] | echo biz baz >gorp.file \
+    list [exec sh -c "echo foo bar 1>&2" | echo biz baz >gorp.file \
 	    2> gorp.file2] [exec cat gorp.file] \
 	    [exec cat gorp.file2]
 } {{} {biz baz} {foo bar}}
 test exec-15.3 {standard error redirection} {unixExecs} {
-    list [eval exec [shellCmd "echo foo bar 1>&2"] | echo biz baz 2>gorp.file \
+    list [exec sh -c "echo foo bar 1>&2" | echo biz baz 2>gorp.file \
 	    > gorp.file2] [exec cat gorp.file] \
 	    [exec cat gorp.file2]
 } {{} {foo bar} {biz baz}}
@@ -425,7 +420,7 @@ test exec-15.4 {standard error redirection} {unixExecs} {
     set f [open gorp.file w]
     puts $f "Line 1"
     flush $f
-    eval exec [shellCmd "echo foo bar 1>&2"] 2>@ $f
+    exec sh -c "echo foo bar 1>&2" 2>@ $f
     puts $f "Line 3"
     close $f
     exec cat gorp.file
@@ -434,12 +429,12 @@ foo bar
 Line 3}
 test exec-15.5 {standard error redirection} {unixExecs} {
     exec echo "First line" > gorp.file
-    eval exec [shellCmd "echo foo bar 1>&2"] 2>> gorp.file
+    exec sh -c "echo foo bar 1>&2" 2>> gorp.file
     exec cat gorp.file
 } {First line
 foo bar}
 test exec-15.6 {standard error redirection} {unixExecs} {
-    eval exec [shellCmd "echo foo bar 1>&2"] > gorp.file2 2> gorp.file \
+    exec sh -c "echo foo bar 1>&2" > gorp.file2 2> gorp.file \
 	    >& gorp.file 2> gorp.file2 | echo biz baz
     list [exec cat gorp.file] [exec cat gorp.file2]
 } {{biz baz} {foo bar}}
@@ -454,13 +449,13 @@ test exec-16.1 {flush output before exec} {unixExecs} {
 } {First line
 Second line
 Third line}
-test exec-16.2 {flush output before exec} {unixExecs} {
+test exec-16.2 {flush output before exec} {} {
     set f [open gorp.file w]
     puts $f "First line"
-    eval exec [shellCmd "echo Second line 1>&2"] >&@ $f > gorp.file2
+    exec [lindex $tcltest 0] << {puts stderr {Second line}} >&@ $f > gorp.file2
     puts $f "Third line"
     close $f
-    exec cat gorp.file
+    cat gorp.file
 } {First line
 Second line
 Third line}

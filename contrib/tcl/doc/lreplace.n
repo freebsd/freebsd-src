@@ -5,7 +5,7 @@
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" SCCS: @(#) lreplace.n 1.8 96/03/25 20:20:05
+'\" SCCS: @(#) lreplace.n 1.9 96/08/26 13:00:07
 '\" 
 .so man.macros
 .TH lreplace n 7.4 Tcl "Tcl Built-In Commands"
@@ -28,11 +28,9 @@ element of \fIlist\fR;  the element indicated by \fIfirst\fR
 must exist in the list.
 \fILast\fR gives the index in \fIlist\fR of the last element
 to be replaced.
-.VS
 If \fIlast\fR is less than \fIfirst\fR then no elements are deleted;
 the new elements are simply inserted before \fIfirst\fR.
 \fIFirst\fR or \fIlast\fR may be \fBend\fR
-.VE
 (or any abbreviation of it) to refer to the last element of the list.
 The \fIelement\fR arguments specify zero or more new arguments to
 be added to the list in place of those that were deleted.

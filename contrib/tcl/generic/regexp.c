@@ -41,7 +41,7 @@
  * *** 2. This in addition to changes to TclRegError makes the   ***
  * ***    code multi-thread safe.                                ***
  *
- * SCCS: @(#) regexp.c 1.12 96/04/02 13:54:57
+ * SCCS: @(#) regexp.c 1.13 97/04/29 17:49:17
  */
 
 #include "tclInt.h"
@@ -569,13 +569,11 @@ struct regcomp_state *rcstate;
 	case ')':
 		FAIL("internal urp");	/* Supposed to be caught earlier. */
 		/* NOTREACHED */
-		break;
 	case '?':
 	case '+':
 	case '*':
 		FAIL("?+* follows nothing");
 		/* NOTREACHED */
-		break;
 	case '\\':
 		if (*rcstate->regparse == '\0')
 			FAIL("trailing \\");

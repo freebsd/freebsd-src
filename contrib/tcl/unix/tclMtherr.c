@@ -10,7 +10,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclMtherr.c 1.11 96/02/15 11:58:36
+ * SCCS: @(#) tclMtherr.c 1.12 96/06/22 16:36:57
  */
 
 #include "tclInt.h"
@@ -23,7 +23,7 @@
 #endif
 
 #ifdef NO_ERRNO_H
-extern int errno;			/* Use errno from tclExpr.c. */
+extern int errno;			/* Use errno from tclExecute.c. */
 #define EDOM 33
 #define ERANGE 34
 #endif

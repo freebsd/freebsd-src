@@ -59,7 +59,7 @@
 # listening at port 2048. If all fails, a message is printed and the tests
 # using the remote server are not performed.
 #
-# SCCS: @(#) socket.test 1.62 96/08/01 15:57:49
+# SCCS: @(#) socket.test 1.75 97/04/30 15:42:58
 
 if {[string compare test [info procs test]] == 1} then {source defs}
 
@@ -102,7 +102,8 @@ if {($doTestsWithRemoteServer == 1) && (![info exists remoteServerPort])} {
 # platforms that do not support exec, the remote server must be started
 # by the user before running the tests.
 
-set remotePid -1
+set remoteProcChan ""
+set commandSocket ""
 if {$doTestsWithRemoteServer == 1} {
     catch {close $commandSocket}
     if {[catch {set commandSocket [socket $remoteServerIP \
@@ -112,10 +113,12 @@ if {$doTestsWithRemoteServer == 1} {
 	    set doTestsWithRemoteServer 0
 	} else {
 	    set remoteServerIP localhost
-	    if {[catch {set remotePid [exec $tcltest remote.tcl \
-						-serverIsSilent \
-						-port $remoteServerPort \
-						-address $remoteServerIP &]} \
+	    if {[catch {set remoteProcChan \
+				[open "|$tcltest remote.tcl \
+					-serverIsSilent \
+					-port $remoteServerPort \
+					-address $remoteServerIP" \
+					w+]} \
 		   msg] == 0} {
 		after 1000
 		if {[catch {set commandSocket [socket $remoteServerIP \
@@ -233,6 +236,7 @@ test socket-2.1 {tcp connection} {unixOrPc} {
     removeFile script
     set f [open script w]
     puts $f {
+	set timer [after 2000 "set x timed_out"]
 	set f [socket -server accept 2828]
 	proc accept {file addr port} {
 	    global x
@@ -241,8 +245,9 @@ test socket-2.1 {tcp connection} {unixOrPc} {
 	}
 	puts ready
 	vwait x
+	after cancel $timer
 	close $f
-	puts done
+	puts $x
     }
     close $f
     set f [open "|$tcltest script" r]
@@ -267,6 +272,7 @@ test socket-2.2 {tcp connection with client port specified} {unixOrPc} {
     removeFile script
     set f [open script w]
     puts $f {
+	set timer [after 2000 "set x done"]
         set f [socket -server accept 2828]
 	proc accept {file addr port} {
             global x
@@ -276,6 +282,7 @@ test socket-2.2 {tcp connection with client port specified} {unixOrPc} {
 	}
 	puts ready
 	vwait x
+	after cancel $timer
 	close $f
     }
     close $f
@@ -299,6 +306,7 @@ test socket-2.3 {tcp connection with client interface specified} {unixOrPc} {
     removeFile script
     set f [open script w]
     puts $f {
+	set timer [after 2000 "set x done"]
         set f [socket  -server accept 2828]
 	proc accept {file addr port} {
             global x
@@ -308,6 +316,7 @@ test socket-2.3 {tcp connection with client interface specified} {unixOrPc} {
 	}
 	puts ready
 	vwait x
+	after cancel $timer
 	close $f
     }
     close $f
@@ -328,6 +337,7 @@ test socket-2.4 {tcp connection with server interface specified} {unixOrPc} {
     removeFile script
     set f [open script w]
     puts $f {
+	set timer [after 2000 "set x done"]
         set f [socket -server accept -myaddr [info hostname] 2828]
 	proc accept {file addr port} {
             global x
@@ -337,6 +347,7 @@ test socket-2.4 {tcp connection with server interface specified} {unixOrPc} {
 	}
 	puts ready
 	vwait x
+	after cancel $timer
 	close $f
     }
     close $f
@@ -357,6 +368,7 @@ test socket-2.5 {tcp connection with redundant server port} {unixOrPc} {
     removeFile script
     set f [open script w]
     puts $f {
+	set timer [after 2000 "set x done"]
         set f [socket -server accept 2828]
 	proc accept {file addr port} {
             global x
@@ -366,6 +378,7 @@ test socket-2.5 {tcp connection with redundant server port} {unixOrPc} {
 	}
 	puts ready
 	vwait x
+	after cancel $timer
 	close $f
     }
     close $f
@@ -396,13 +409,14 @@ test socket-2.7 {echo server, one line} {unixOrPc} {
     removeFile script
     set f [open script w]
     puts $f {
+	set timer [after 2000 "set x done"]
 	set f [socket -server accept 2828]
 	proc accept {s a p} {
             fileevent $s readable [list echo $s]
 	    fconfigure $s -translation lf -buffering line
         }
 	proc echo {s} {
-             set l [gets $s]
+	     set l [gets $s]
              if {[eof $s]} {
                  global x
                  close $s
@@ -413,6 +427,7 @@ test socket-2.7 {echo server, one line} {unixOrPc} {
 	}
 	puts ready
 	vwait x
+	after cancel $timer
 	close $f
 	puts done
     }
@@ -451,7 +466,9 @@ test socket-2.8 {echo server, loop 50 times, single connection} {unixOrPc} {
 	}
 	set i 0
 	puts ready
+	set timer [after 20000 "set x done"]
 	vwait x
+	after cancel $timer
 	close $f
 	puts "done $i"
     }
@@ -483,13 +500,12 @@ test socket-2.9 {socket conflict} {unixOrPc} {
     set x
 } {1 {couldn't open socket: address already in use
     while executing
-"socket -server accept 2828"
-    invoked from within
-"set f [socket -server accept 2828]..."
+"set f [socket -server accept 2828]"
     (file "script" line 1)}}
 test socket-2.10 {close on accept, accepted socket lives} {
     set done 0
-    set ss [socket -server accept 2828]
+    set timer [after 20000 "set done timed_out"]
+    set ss [socket -server accept 2830]
     proc accept {s a p} {
 	global ss
 	close $ss
@@ -502,10 +518,11 @@ test socket-2.10 {close on accept, accepted socket lives} {
 	close $s
 	set done 1
     }
-    set cs [socket [info hostname] 2828]
+    set cs [socket [info hostname] 2830]
     puts $cs hello
     close $cs
     vwait done
+    after cancel $timer
     set done
 } 1
 
@@ -531,6 +548,9 @@ test socket-3.2 {server with several clients} {unixOrPc} {
     removeFile script
     set f [open script w]
     puts $f {
+	set t1 [after 30000 "set x timed_out"]
+	set t2 [after 31000 "set x timed_out"]
+	set t3 [after 32000 "set x timed_out"]
 	set counter 0
 	set s [socket -server accept 2828]
 	proc accept {s a p} {
@@ -549,10 +569,13 @@ test socket-3.2 {server with several clients} {unixOrPc} {
 	}
 	puts ready
 	vwait x
+	after cancel $t1
 	vwait x
+	after cancel $t2
 	vwait x
+	after cancel $t3
 	close $s
-	puts done
+	puts $x
     }
     close $f
     set f [open "|$tcltest script" r+]
@@ -615,6 +638,9 @@ test socket-4.1 {server with several clients} {unixOrPc} {
             puts $s $l
         }
     }
+    set t1 [after 30000 "set x timed_out"]
+    set t2 [after 31000 "set x timed_out"]
+    set t3 [after 32000 "set x timed_out"]
     set s [socket -server accept 2828]
     puts $p1 open
     puts $p2 open
@@ -622,11 +648,14 @@ test socket-4.1 {server with several clients} {unixOrPc} {
     vwait x
     vwait x
     vwait x
+    after cancel $t1
+    after cancel $t2
+    after cancel $t3
     close $s
     set l ""
-    lappend l [list p1 [gets $p1]]
-    lappend l [list p2 [gets $p2]]
-    lappend l [list p3 [gets $p3]]
+    lappend l [list p1 [gets $p1] $x]
+    lappend l [list p2 [gets $p2] $x]
+    lappend l [list p3 [gets $p3] $x]
     puts $p1 bye
     puts $p2 bye
     puts $p3 bye
@@ -634,7 +663,7 @@ test socket-4.1 {server with several clients} {unixOrPc} {
     close $p2
     close $p3
     set l
-} {{p1 bye} {p2 bye} {p3 bye}}
+} {{p1 bye done} {p2 bye done} {p3 bye done}}
 test socket-4.2 {byte order problems, socket numbers, htons} {
     set x ok
     if {[catch {socket -server dodo 0x3000} msg]} {
@@ -693,7 +722,9 @@ test socket-6.1 {accept callback error} {unixOrPc} {
     set s [socket -server accept 2848]
     puts $f hello
     close $f
+    set timer [after 10000 "set x timed_out"]
     vwait x
+    after cancel $timer
     close $s
     rename bgerror {}
     set x
@@ -703,84 +734,93 @@ test socket-7.1 {testing socket specific options} {unixOrPc} {
     removeFile script
     set f [open script w]
     puts $f {
-	socket -server accept 2828
+	socket -server accept 2820
 	proc accept args {
 	    global x
 	    set x done
 	}
 	puts ready
+	set timer [after 10000 "set x timed_out"]
 	vwait x
+	after cancel $timer
     }
     close $f
     set f [open "|$tcltest script" r]
     gets $f
-    set s [socket localhost 2828]
+    set s [socket localhost 2820]
     set p [fconfigure $s -peername]
     close $s
     close $f
     set l ""
     lappend l [string compare [lindex $p 0] 127.0.0.1]
-    lappend l [string compare [lindex $p 2] 2828]
+    lappend l [string compare [lindex $p 2] 2820]
     lappend l [llength $p]
 } {0 0 3}
 test socket-7.2 {testing socket specific options} {unixOrPc} {
     removeFile script
     set f [open script w]
     puts $f {
-	socket -server accept 2828
+	socket -server accept 2821
 	proc accept args {
 	    global x
 	    set x done
 	}
 	puts ready
+	set timer [after 10000 "set x timed_out"]
 	vwait x
+	after cancel $timer
     }
     close $f
     set f [open "|$tcltest script" r]
     gets $f
-    set s [socket localhost 2828]
+    set s [socket localhost 2821]
     set p [fconfigure $s -sockname]
     close $s
     close $f
     set l ""
     lappend l [llength $p]
     lappend l [lindex $p 0]
-    lappend l [expr [lindex $p 2] == 2828]
+    lappend l [expr [lindex $p 2] == 2821]
 } {3 127.0.0.1 0}
 test socket-7.3 {testing socket specific options} {
-    set s [socket -server accept 2828]
+    set s [socket -server accept 2822]
     set l [fconfigure $s]
     close $s
+    update
     llength $l
 } 10
 test socket-7.4 {testing socket specific options} {
-    set s [socket -server accept 2828]
+    set s [socket -server accept 2823]
     proc accept {s a p} {
 	global x
 	set x [fconfigure $s -sockname]
 	close $s
     }
-    set s1 [socket [info hostname] 2828]
+    set s1 [socket [info hostname] 2823]
+    set timer [after 10000 "set x timed_out"]
     vwait x
+    after cancel $timer
     close $s
     close $s1
     set l ""
     lappend l [lindex $x 2] [llength $x]
-} {2828 3}
+} {2823 3}
 test socket-7.5 {testing socket specific options} {unixOrPc} {
-    set s [socket -server accept 2828]
+    set s [socket -server accept 2829]
     proc accept {s a p} {
 	global x
 	set x [fconfigure $s -sockname]
 	close $s
     }
-    set s1 [socket localhost 2828]
+    set s1 [socket localhost 2829]
+    set timer [after 10000 "set x timed_out"]
     vwait x
+    after cancel $timer
     close $s
     close $s1
     set l ""
     lappend l [lindex $x 0] [lindex $x 2] [llength $x]
-} {127.0.0.1 2828 3}
+} {127.0.0.1 2829 3}
 
 test socket-8.1 {testing -async flag on sockets} {
     # NOTE: This test may fail on some Solaris 2.4 systems. If it does,
@@ -797,14 +837,14 @@ test socket-8.1 {testing -async flag on sockets} {
     # problem, please email jyl@eng.sun.com. We have not observed this
     # failure on Solaris 2.5, so another option (instead of installing
     # these patches) is to upgrade to Solaris 2.5.
-    set s [socket -server accept 2828]
+    set s [socket -server accept 2830]
     proc accept {s a p} {
 	global x
 	puts $s bye
 	close $s
 	set x done
     }
-    set s1 [socket -async [info hostname] 2828]
+    set s1 [socket -async [info hostname] 2830]
     vwait x
     set z [gets $s1]
     close $s
@@ -834,11 +874,13 @@ test socket-9.1 {testing spurious events} {
 	fconfigure $s -buffering none -blocking off
 	fileevent $s readable [list readlittle $s]
     }
-    set s [socket -server accept 2828]
-    set c [socket [info hostname] 2828]
+    set s [socket -server accept 2831]
+    set c [socket [info hostname] 2831]
     puts -nonewline $c 01234567890123456789012345678901234567890123456789
     close $c
+    set timer [after 10000 "set done timed_out"]
     vwait done
+    after cancel $timer
     close $s
     list $spurious $len
 } {0 50}
@@ -849,7 +891,7 @@ test socket-9.2 {testing async write, fileevents, flush on close} {
     for {set i 0} {$i < 16} {incr i} {
 	set secondblock "b$secondblock$secondblock"
     }
-    set l [socket -server accept 8080]
+    set l [socket -server accept 2832]
     proc accept {s a p} {
 	fconfigure $s -blocking 0 -translation lf -buffersize 16384 \
 		-buffering line
@@ -870,7 +912,7 @@ test socket-9.2 {testing async write, fileevents, flush on close} {
 	puts -nonewline $s $secondblock
 	close $s
     }
-    set s [socket [info hostname] 8080]
+    set s [socket [info hostname] 2832]
     fconfigure $s -blocking 0 -trans lf -buffering line
     set count 0
     puts $s hello
@@ -884,10 +926,51 @@ test socket-9.2 {testing async write, fileevents, flush on close} {
 	}
     }
     fileevent $s readable "readit $s"
+    set timer [after 10000 "set done timed_out"]
     vwait done
+    after cancel $timer
     close $l
     set count
 } 65566
+test socket-9.3 {testing EOF stickyness} {
+    proc count_to_eof {s} {
+	global count done timer
+	set l [gets $s]
+	if {[eof $s]} {
+	    incr count
+	    if {$count > 9} {
+		close $s
+		set done true
+		set count {eof is sticky}
+		after cancel $timer
+	    }
+	}
+    }
+    proc timerproc {} {
+	global done count c
+	set done true
+	set count {timer went off, eof is not sticky}
+	close $c
+    }	
+    set count 0
+    set done false
+    proc write_then_close {s} {
+	puts $s bye
+	close $s
+    }
+    proc accept {s a p} {
+	fconfigure $s -buffering line -translation lf
+	fileevent $s writable "write_then_close $s"
+    }
+    set s [socket -server accept 2833]
+    set c [socket [info hostname] 2833]
+    fconfigure $c -blocking off -buffering line -translation lf
+    fileevent $c readable "count_to_eof $c"
+    set timer [after 1000 timerproc]
+    vwait done
+    close $s
+    set count
+} {eof is sticky}
 
 removeFile script
 
@@ -902,13 +985,13 @@ if {$doTestsWithRemoteServer == 0} {
 
 test socket-10.1 {tcp connection} {
     sendCommand {
-	set socket9_1_test_server [socket -server accept 2828]
+	set socket9_1_test_server [socket -server accept 2834]
 	proc accept {s a p} {
 	    puts $s done
 	    close $s
 	}
     }
-    set s [socket $remoteServerIP 2828]
+    set s [socket $remoteServerIP 2834]
     set r [gets $s]
     close $s
     sendCommand {close $socket9_1_test_server}
@@ -921,13 +1004,13 @@ test socket-10.2 {client specifies its port} {
 	set port [expr 2048 + [pid]%1024]
     }
     sendCommand {
-	set socket9_2_test_server [socket -server accept 2828]
+	set socket9_2_test_server [socket -server accept 2835]
 	proc accept {s a p} {
 	    puts $s $p
 	    close $s
 	}
     }
-    set s [socket -myport $port $remoteServerIP 2828]
+    set s [socket -myport $port $remoteServerIP 2835]
     set r [gets $s]
     close $s
     sendCommand {close $socket9_2_test_server}
@@ -943,7 +1026,7 @@ test socket-10.2 {client specifies its port} {
 #
 test socket-10.5 {trying to connect, no server} {
     set status ok
-    if {![catch {set s [socket $remoteServerIp 2828]}]} {
+    if {![catch {set s [socket $remoteServerIp 2836]}]} {
 	if {![catch {gets $s}]} {
 	    set status broken
 	}
@@ -953,7 +1036,7 @@ test socket-10.5 {trying to connect, no server} {
 } ok
 test socket-10.6 {remote echo, one line} {
     sendCommand {
-	set socket10_6_test_server [socket -server accept 2828]
+	set socket10_6_test_server [socket -server accept 2836]
 	proc accept {s a p} {
 	    fileevent $s readable [list echo $s]
 	    fconfigure $s -buffering line -translation crlf
@@ -967,7 +1050,7 @@ test socket-10.6 {remote echo, one line} {
 	    }
 	}
     }
-    set f [socket $remoteServerIP 2828]
+    set f [socket $remoteServerIP 2836]
     fconfigure $f -translation crlf -buffering line
     puts $f hello
     set r [gets $f]
@@ -977,7 +1060,7 @@ test socket-10.6 {remote echo, one line} {
 } hello
 test socket-10.7 {remote echo, 50 lines} {
     sendCommand {
-	set socket10_7_test_server [socket -server accept 2828]
+	set socket10_7_test_server [socket -server accept 2836]
 	proc accept {s a p} {
 	    fileevent $s readable [list echo $s]
 	    fconfigure $s -buffering line -translation crlf
@@ -991,7 +1074,7 @@ test socket-10.7 {remote echo, 50 lines} {
 	    }
 	}
     }
-    set f [socket $remoteServerIP 2828]
+    set f [socket $remoteServerIP 2836]
     fconfigure $f -translation crlf -buffering line
     for {set cnt 0} {$cnt < 50} {incr cnt} {
 	puts $f "hello, $cnt"
@@ -1005,13 +1088,13 @@ test socket-10.7 {remote echo, 50 lines} {
 } 50
 # Macintosh sockets can have more than one server per port
 if {$tcl_platform(platform) == "macintosh"} {
-    set conflictResult {0 2828}
+    set conflictResult {0 2836}
 } else {
     set conflictResult {1 {couldn't open socket: address already in use}}
 }
 test socket-10.8 {socket conflict} {
-    set s1 [socket -server accept 2828]
-    if {[catch {set s2 [socket -server accept 2828]} msg]} {
+    set s1 [socket -server accept 2836]
+    if {[catch {set s2 [socket -server accept 2836]} msg]} {
 	set result [list 1 $msg]
     } else {
 	set result [list 0 [lindex [fconfigure $s2 -sockname] 2]]
@@ -1022,7 +1105,7 @@ test socket-10.8 {socket conflict} {
 } $conflictResult
 test socket-10.9 {server with several clients} {
     sendCommand {
-	set socket10_9_test_server [socket -server accept 2828]
+	set socket10_9_test_server [socket -server accept 2836]
 	proc accept {s a p} {
 	    fconfigure $s -buffering line
 	    fileevent $s readable [list echo $s]
@@ -1036,11 +1119,11 @@ test socket-10.9 {server with several clients} {
 	    }
 	}
     }
-    set s1 [socket $remoteServerIP 2828]
+    set s1 [socket $remoteServerIP 2836]
     fconfigure $s1 -buffering line
-    set s2 [socket $remoteServerIP 2828]
+    set s2 [socket $remoteServerIP 2836]
     fconfigure $s2 -buffering line
-    set s3 [socket $remoteServerIP 2828]
+    set s3 [socket $remoteServerIP 2836]
     fconfigure $s3 -buffering line
     for {set i 0} {$i < 100} {incr i} {
 	puts $s1 hello,s1
@@ -1058,17 +1141,17 @@ test socket-10.9 {server with several clients} {
 } 100    
 test socket-10.10 {client with several servers} {
     sendCommand {
-	set s1 [socket -server "accept 3000" 3000]
-	set s2 [socket -server "accept 3001" 3001]
-	set s3 [socket -server "accept 3002" 3002]
+	set s1 [socket -server "accept 4003" 4003]
+	set s2 [socket -server "accept 4004" 4004]
+	set s3 [socket -server "accept 4005" 4005]
 	proc accept {mp s a p} {
 	    puts $s $mp
 	    close $s
 	}
     }
-    set s1 [socket $remoteServerIP 3000]
-    set s2 [socket $remoteServerIP 3001]
-    set s3 [socket $remoteServerIP 3002]
+    set s1 [socket $remoteServerIP 4003]
+    set s2 [socket $remoteServerIP 4004]
+    set s3 [socket $remoteServerIP 4005]
     set l ""
     lappend l [gets $s1] [gets $s1] [eof $s1] [gets $s2] [gets $s2] [eof $s2] \
 	[gets $s3] [gets $s3] [eof $s3]
@@ -1081,9 +1164,9 @@ test socket-10.10 {client with several servers} {
 	close $s3
     }
     set l
-} {3000 {} 1 3001 {} 1 3002 {} 1}
+} {4003 {} 1 4004 {} 1 4005 {} 1}
 test socket-10.11 {accept callback error} {
-    set s [socket -server accept 2828]
+    set s [socket -server accept 2836]
     proc accept {s a p} {expr 10 / 0}
     proc bgerror args {
 	global x
@@ -1091,23 +1174,25 @@ test socket-10.11 {accept callback error} {
     }
     if {[catch {sendCommand {
 	    set peername [fconfigure $callerSocket -peername]
-	    set s [socket [lindex $peername 0] 2828]
+	    set s [socket [lindex $peername 0] 2836]
 	    close $s
     	 }} msg]} {
 	close $s
 	error $msg
     }
+    set timer [after 10000 "set x timed_out"]
     vwait x
+    after cancel $timer
     close $s
     rename bgerror {}
     set x
 } {{divide by zero}}
 test socket-10.12 {testing socket specific options} {
     sendCommand {
-	set socket10_12_test_server [socket -server accept 2828]
+	set socket10_12_test_server [socket -server accept 2836]
 	proc accept {s a p} {close $s}
     }
-    set s [socket $remoteServerIP 2828]
+    set s [socket $remoteServerIP 2836]
     set p [fconfigure $s -peername]
     set n [fconfigure $s -sockname]
     set l ""
@@ -1115,13 +1200,138 @@ test socket-10.12 {testing socket specific options} {
     close $s
     sendCommand {close $socket10_12_test_server}
     set l
-} {2828 3 3}
+} {2836 3 3}
+test socket-10.13 {testing spurious events} {
+    sendCommand {
+	set socket10_13_test_server [socket -server accept 2836]
+	proc accept {s a p} {
+	    fconfigure $s -translation "auto lf"
+	    after 100 writesome $s
+	}
+	proc writesome {s} {
+	    for {set i 0} {$i < 100} {incr i} {
+		puts $s "line $i from remote server"
+	    }
+	    close $s
+	}
+    }
+    set len 0
+    set spurious 0
+    set done 0
+    proc readlittle {s} {
+	global spurious done len
+	set l [read $s 1]
+	if {[string length $l] == 0} {
+	    if {![eof $s]} {
+		incr spurious
+	    } else {
+		close $s
+		set done 1
+	    }
+	} else {
+	    incr len [string length $l]
+	}
+    }
+    set c [socket $remoteServerIP 2836]
+    fileevent $c readable "readlittle $c"
+    set timer [after 10000 "set done timed_out"]
+    vwait done
+    after cancel $timer
+    sendCommand {close $socket10_13_test_server}
+    list $spurious $len
+} {0 2690}
+test socket-10.14 {testing EOF stickyness} {
+    set counter 0
+    set done 0
+    proc count_up {s} {
+	global counter done after_id
+	set l [gets $s]
+	if {[eof $s]} {
+	    incr counter
+	    if {$counter > 9} {
+		set done {EOF is sticky}
+		after cancel $after_id
+		close $s
+	    }
+	}
+    }
+    proc timed_out {} {
+	global c done
+	set done {timed_out, EOF is not sticky}
+	close $c
+    }
+    sendCommand {
+	set socket10_14_test_server [socket -server accept 2836]
+	proc accept {s a p} {
+	    after 100 close $s
+	}
+    }
+    set c [socket $remoteServerIP 2836]
+    fileevent $c readable "count_up $c"
+    set after_id [after 1000 timed_out]
+    vwait done
+    sendCommand {close $socket10_14_test_server}
+    set done
+} {EOF is sticky}
+test socket-10.15 {testing async write, async flush, async close} {
+    proc readit {s} {
+	global count done
+	set l [read $s]
+	incr count [string length $l]
+	if {[eof $s]} {
+	    close $s
+	    set done 1
+	}
+    }
+    sendCommand {
+	set firstblock ""
+	for {set i 0} {$i < 5} {incr i} {
+		set firstblock "a$firstblock$firstblock"
+	}
+	set secondblock ""
+	for {set i 0} {$i < 16} {incr i} {
+	    set secondblock "b$secondblock$secondblock"
+	}
+	set l [socket -server accept 2845]
+	proc accept {s a p} {
+	    fconfigure $s -blocking 0 -translation lf -buffersize 16384 \
+		-buffering line
+	    fileevent $s readable "readable $s"
+	}
+	proc readable {s} {
+	    set l [gets $s]
+	    fileevent $s readable {}
+	    after 1000 respond $s
+	}
+	proc respond {s} {
+	    global firstblock
+	    puts -nonewline $s $firstblock
+	    after 1000 writedata $s
+	}
+	proc writedata {s} {
+	    global secondblock
+	    puts -nonewline $s $secondblock
+	    close $s
+	}
+    }
+    set s [socket $remoteServerIP 2845]
+    fconfigure $s -blocking 0 -trans lf -buffering line
+    set count 0
+    puts $s hello
+    fileevent $s readable "readit $s"
+    set timer [after 10000 "set done timed_out"]
+    vwait done
+    after cancel $timer
+    sendCommand {close $l}
+    set count
+} 65566
 
-if {$remotePid != -1} {
+if {[string match sock* $commandSocket] == 1} {
    puts $commandSocket exit
    flush $commandSocket
 }
 catch {close $commandSocket}
+catch {close $remoteProcChan}
 
 set x ""
 unset x

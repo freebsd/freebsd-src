@@ -5,7 +5,7 @@
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" SCCS: @(#) RegExp.3 1.8 96/02/15 20:01:42
+'\" SCCS: @(#) RegExp.3 1.9 96/08/26 12:59:48
 '\" 
 .so man.macros
 .TH Tcl_RegExpMatch 3 7.4 Tcl "Tcl Library Procedures"
@@ -19,7 +19,6 @@ Tcl_RegExpMatch, Tcl_RegExpCompile, Tcl_RegExpExec, Tcl_RegExpRange \- Pattern m
 int
 \fBTcl_RegExpMatch\fR(\fIinterp\fR, \fIstring\fR, \fIpattern\fR)
 .sp
-.VS
 Tcl_RegExp
 \fBTcl_RegExpCompile\fR(\fIinterp\fR, \fIpattern\fR)
 .sp
@@ -27,7 +26,6 @@ int
 \fBTcl_RegExpExec\fR(\fIinterp\fR, \fIregexp\fR, \fIstring\fR, \fIstart\fR)
 .sp
 \fBTcl_RegExpRange\fR(\fIregexp\fR, \fIindex\fR, \fIstartPtr\fR, \fIendPtr\fR)
-.VE
 .SH ARGUMENTS
 .AS Tcl_Interp *interp
 .AP Tcl_Interp *interp in
@@ -37,7 +35,6 @@ String to check for a match with a regular expression.
 .AP char *pattern in
 String in the form of a regular expression pattern.
 .AP Tcl_RegExp regexp in
-.VS
 Compiled regular expression.  Must have been returned previously
 by \fBTcl_RegExpCompile\fR.
 .AP char *start in
@@ -55,7 +52,6 @@ NULL if there is no such range.
 .AP char **endPtr out
 The address of the character just after the last one in the range
 is stored here, or NULL if there is no such range.
-.VE
 .BE
 
 .SH DESCRIPTION
@@ -70,7 +66,6 @@ If an error occurs in the matching process (e.g. \fIpattern\fR
 is not a valid regular expression) then \fBTcl_RegExpMatch\fR
 returns \-1 and leaves an error message in \fIinterp->result\fR.
 .PP
-.VS
 \fBTcl_RegExpCompile\fR, \fBTcl_RegExpExec\fR, and \fBTcl_RegExpRange\fR
 provide lower-level access to the regular expression pattern matcher.
 \fBTcl_RegExpCompile\fR compiles a regular expression string into
@@ -80,11 +75,9 @@ used in subsequent calls to \fBTcl_RegExpExec\fR or \fBTcl_RegExpRange\fR.
 If an error occurs while compiling the regular expression then
 \fBTcl_RegExpCompile\fR returns NULL and leaves an error message
 in \fIinterp->result\fR.
-.VS
 Note:  the return value from \fBTcl_RegExpCompile\fR is only valid
 up to the next call to \fBTcl_RegExpCompile\fR;  it is not safe to
 retain these values for long periods of time.
-.VE
 .PP
 \fBTcl_RegExpExec\fR executes the regular expression pattern matcher.
 It returns 1 if \fIstring\fR contains a range of characters that
@@ -118,7 +111,6 @@ information is returned about the range of characters that matched the
 \fIindex\fR'th parenthesized subexpression within the pattern.
 If there is no range corresponding to \fIindex\fR then NULL
 is stored in \fI*firstPtr\fR and \fI*lastPtr\fR.
-.VE
 
 .SH KEYWORDS
 match, pattern, regular expression, string, subexpression

@@ -5,7 +5,7 @@
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" SCCS: @(#) Concat.3 1.11 96/06/05 18:00:12
+'\" SCCS: @(#) Concat.3 1.12 97/06/11 17:54:12
 '\" 
 .so man.macros
 .TH Tcl_Concat 3 7.5 Tcl "Tcl Library Procedures"
@@ -48,6 +48,8 @@ The result string is dynamically allocated
 using \fBTcl_Alloc\fR;  the caller must eventually release the space
 by calling \fBTcl_Free\fR.
 .VE
-
+.VS
+.SH "SEE ALSO"
+Tcl_ConcatObj
 .SH KEYWORDS
 concatenate, strings

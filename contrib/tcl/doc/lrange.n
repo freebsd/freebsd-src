@@ -5,7 +5,7 @@
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" SCCS: @(#) lrange.n 1.8 96/03/25 20:19:51
+'\" SCCS: @(#) lrange.n 1.9 96/08/26 13:00:05
 '\" 
 .so man.macros
 .TH lrange n 7.4 Tcl "Tcl Built-In Commands"
@@ -22,9 +22,7 @@ lrange \- Return one or more adjacent elements from a list
 \fIList\fR must be a valid Tcl list.  This command will
 return a new list consisting of elements
 \fIfirst\fR through \fIlast\fR, inclusive.
-.VS
 \fIFirst\fR or \fIlast\fR
-.VE
 may be \fBend\fR (or any abbreviation of it) to refer to the last
 element of the list.
 If \fIfirst\fR is less than zero, it is treated as if it were zero.

@@ -5,7 +5,7 @@
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" SCCS: @(#) AppInit.3 1.9 96/03/25 19:56:02
+'\" SCCS: @(#) AppInit.3 1.10 96/08/26 12:59:40
 '\" 
 .so man.macros
 .TH Tcl_AppInit 3 7.0 Tcl "Tcl Library Procedures"
@@ -49,7 +49,6 @@ Tcl variables \fBargv\fR and \fBargv0\fR in \fIinterp\fR.
 .IP [3]
 Invoke a startup script to initialize the application.
 .LP
-.VS
 \fBTcl_AppInit\fR returns TCL_OK or TCL_ERROR.
 If it returns TCL_ERROR then it must leave an error message in
 \fIinterp->result\fR;  otherwise the result is ignored.
@@ -69,7 +68,6 @@ The best way to get started is to make a copy of the file
 \fBtclAppInit.c\fR from the Tcl library or source directory.
 It already contains a \fBmain\fR procedure and a template for
 \fBTcl_AppInit\fR that you can modify for your application.
-.VE
 
 .SH KEYWORDS
 application, argument, command, initialization, interpreter

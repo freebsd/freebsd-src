@@ -9,12 +9,13 @@
 #
 # The information in this file is specific to a single platform.
 #
-# SCCS: @(#) tclConfig.sh.in 1.15 96/04/17 10:46:27
+# SCCS: @(#) tclConfig.sh.in 1.19 96/12/17 09:08:29
 
 # Tcl's version number.
 TCL_VERSION='@TCL_VERSION@'
 TCL_MAJOR_VERSION='@TCL_MAJOR_VERSION@'
 TCL_MINOR_VERSION='@TCL_MINOR_VERSION@'
+TCL_PATCH_LEVEL='@TCL_PATCH_LEVEL@'
 
 # C compiler to use for compilation.
 TCL_CC='@CC@'
@@ -61,7 +62,7 @@ TCL_LD_FLAGS='@LD_FLAGS@'
 # Flags to pass to ld, such as "-R /usr/local/tcl/lib", that tell the
 # run-time dynamic linker where to look for shared libraries such as
 # libtcl.so.  Used when linking applications.  Only works if there
-# is a variable "LIB_INSTALL_DIR" defined in the Makefile.
+# is a variable "LIB_RUNTIME_DIR" defined in the Makefile.
 TCL_LD_SEARCH_FLAGS='@TCL_LD_SEARCH_FLAGS@'
 
 # Additional object files linked with Tcl to provide compatibility
@@ -97,3 +98,16 @@ TCL_SHARED_LIB_SUFFIX='@TCL_SHARED_LIB_SUFFIX@'
 # extension, and anything else needed).  May depend on the variable
 # VERSION.  On most UNIX systems this is ${VERSION}.a.
 TCL_UNSHARED_LIB_SUFFIX='@TCL_UNSHARED_LIB_SUFFIX@'
+
+# Location of the top-level source directory from which Tcl was built.
+# This is the directory that contains a README file as well as
+# subdirectories such as generic, unix, etc.  If Tcl was compiled in a
+# different place than the directory containing the source files, this
+# points to the location of the sources, not the location where Tcl was
+# compiled.
+TCL_SRC_DIR='@TCL_SRC_DIR@'
+
+# List of standard directories in which to look for packages during
+# "package require" commands.  Contains the "prefix" directory plus also
+# the "exec_prefix" directory, if it is different.
+TCL_PACKAGE_PATH='@TCL_PACKAGE_PATH@'

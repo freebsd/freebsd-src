@@ -1,0 +1,127 @@
+'\"
+'\" Copyright (c) 1993 The Regents of the University of California.
+'\" Copyright (c) 1994-1997 Sun Microsystems, Inc.
+'\"
+'\" See the file "license.terms" for information on usage and redistribution
+'\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
+'\" 
+'\" SCCS: @(#) fcopy.n 1.4 97/06/19 11:10:07
+'\" 
+.so man.macros
+.TH fcopy n 8.0 Tcl "Tcl Built-In Commands"
+.BS
+'\" Note:  do not modify the .SH NAME line immediately below!
+.SH NAME
+fcopy \- Copy data from one channel to another.
+.SH SYNOPSIS
+\fBfcopy \fIinchan\fR \fIoutchan\fR ?\fB\-size \fIsize\fR? ?\fB\-command \fIcallback\fR?
+.BE
+
+.SH DESCRIPTION
+.PP
+The \fBfcopy\fP command copies data from one I/O channel, \fIinchan\fR to another I/O channel, \fIoutchan\fR.
+The \fBfcopy\fP command leverages the buffering in the Tcl I/O system to
+avoid extra copies and to avoid buffering too much data in
+main memory when copying large files to slow destinations like
+network sockets.
+.PP
+The \fBfcopy\fP 
+command transfers data from \fIinchan\fR until end of file
+or \fIsize\fP bytes have been 
+transferred. If no \fB\-size\fP argument is given,
+then the copy goes until end of file.
+All the data read from \fIinchan\fR is copied to \fIoutchan\fR.
+Without the \fB\-command\fP option, \fBfcopy\fP blocks until the copy is complete
+and returns the number of bytes written to \fIoutchan\fR.
+.PP
+The \fB\-command\fP argument makes \fBfcopy\fP work in the background.
+In this case it returns immediately and the \fIcallback\fP is invoked
+later when the copy completes.
+The \fIcallback\fP is called with
+one or two additional 
+arguments that indicates how many bytes were written to \fIoutchan\fR.
+If an error occurred during the background copy, the second argument is the
+error string associated with the error.
+With a background copy,
+it is not necessary to put \fIinchan\fR or \fIoutchan\fR into
+non-blocking mode; the \fBfcopy\fP command takes care of that automatically.
+However, it is necessary to enter the event loop by using
+the \fBvwait\fP command or by using Tk.
+.PP
+You are not allowed to do other I/O operations with
+\fIinchan\fR or \fIoutchan\fR during a background fcopy.
+If either \fIinchan\fR or \fIoutchan\fR get closed
+while the copy is in progress, the current copy is stopped
+and the command callback is \fInot\fP made.
+If \fIinchan\fR is closed,
+then all data already queued for \fIoutchan\fR is written out.
+.PP
+Note that \fIinchan\fR can become readable during a background copy.
+You should turn off any \fBfileevent\fP handlers during a background
+copy so those handlers do not interfere with the copy.
+Any I/O attempted by a \fBfileevent\fP handler will get a "channel busy" error.
+.PP
+\fBFcopy\fR translates end-of-line sequences in \fIinchan\fR and \fIoutchan\fR
+according to the \fB\-translation\fR option
+for these channels.
+See the manual entry for \fBfconfigure\fR for details on the
+\fB\-translation\fR option.
+The translations mean that the number of bytes read from \fIinchan\fR
+can be different than the number of bytes written to \fIoutchan\fR.
+Only the number of bytes written to \fIoutchan\fR is reported,
+either as the return value of a synchronous \fBfcopy\fP or
+as the argument to the callback for an asynchronous \fBfcopy\fP.
+
+.SH EXAMPLE
+.PP
+This first example shows how the callback gets
+passed the number of bytes transferred.
+It also uses vwait to put the application into the event loop.
+Of course, this simplified example could be done without the command 
+callback.
+.DS
+proc Cleanup {in out bytes {error {}}} {
+    global total
+    set total $bytes
+    close $in
+    close $out
+    if {[string length $error] != 0} {
+	# error occurred during the copy
+    }
+}
+set in [open $file1]
+set out [socket $server $port]
+fcopy $in $out -command [list Cleanup $in $out]
+vwait total
+
+.DE
+.PP
+The second example copies in chunks and tests for end of file
+in the command callback
+.DS
+proc CopyMore {in out chunk bytes {error {}}} {
+    global total done
+    incr total $bytes
+    if {([string length $error] != 0) || [eof $in] {
+	set done $total
+	close $in
+	close $out
+    } else {
+	fcopy $in $out -command [list CopyMore $in $out $chunk] \\
+	    -size $chunk
+    }
+}
+set in [open $file1]
+set out [socket $server $port]
+set chunk 1024
+set total 0
+fcopy $in $out -command [list CopyMore $in $out $chunk] -size $chunk
+vwait done
+
+.DE
+
+.SH "SEE ALSO"
+eof(n), fblocked(n), fconfigure(n)
+
+.SH KEYWORDS
+blocking, channel, end of line, end of file, nonblocking, read, translation

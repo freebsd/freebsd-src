@@ -5,7 +5,7 @@
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" SCCS: @(#) format.n 1.10 96/03/25 20:15:25
+'\" SCCS: @(#) format.n 1.11 96/08/26 12:59:57
 '\" 
 .so man.macros
 .TH format n "" Tcl "Tcl Built-In Commands"
@@ -44,16 +44,13 @@ The \fBformat\fR command must be given enough \fIarg\fRs to meet the needs
 of all of the conversion specifiers in \fIformatString\fR.
 .PP
 Each conversion specifier may contain up to six different parts:
-.VS
 an XPG3 position specifier,
-.VE
 a set of flags, a minimum field width, a precision, a length modifier,
 and a conversion character.
 Any of these fields may be omitted except for the conversion character.
 The fields that are present must appear in the order given above.
 The paragraphs below discuss each of these fields in turn.
 .PP
-.VS
 If the \fB%\fR is followed by a decimal number and a \fB$\fR, as in
 ``\fB%2$d\fR'', then the value to convert is not taken from the
 next sequential argument.
@@ -66,7 +63,6 @@ given by the number.
 This follows the XPG3 conventions for positional specifiers.
 If there are any positional specifiers in \fIformatString\fR
 then all of the specifiers must be positional.
-.VE
 .PP
 The second portion of a conversion specifier may contain any of the
 following flag characters, in any order:
@@ -196,25 +192,21 @@ the conversion specifier.
 
 .SH "DIFFERENCES FROM ANSI SPRINTF"
 .PP
-.VS
 The behavior of the format command is the same as the
 ANSI C \fBsprintf\fR procedure except for the following
 differences:
 .IP [1]
 \fB%p\fR and \fB%n\fR specifiers are not currently supported.
-.VE
 .IP [2]
 For \fB%c\fR conversions the argument must be a decimal string,
 which will then be converted to the corresponding character value.
 .IP [3]
-.VS
 The \fBl\fR modifier is ignored;  integer values are always converted
 as if there were no modifier present and real values are always
 converted as if the \fBl\fR modifier were present (i.e. type
 \fBdouble\fR is used for the internal representation).
 If the \fBh\fR modifier is specified then integer values are truncated
 to \fBshort\fR before conversion.
-.VE
 
 .SH KEYWORDS
 conversion specifier, format, sprintf, string, substitution

@@ -1,0 +1,250 @@
+# This file contains a collection of tests for the procedures in the
+# file tclCmdIL.c.  Sourcing this file into Tcl runs the tests and
+# generates output for errors.  No output means no errors were found.
+#
+# Copyright (c) 1997 Sun Microsystems, Inc.
+#
+# See the file "license.terms" for information on usage and redistribution
+# of this file, and for a DISCLAIMER OF ALL WARRANTIES.
+#
+# SCCS: @(#) cmdIL.test 1.15 97/05/22 16:38:11
+
+if {[string compare test [info procs test]] == 1} then {source defs}
+
+test cmdIL-1.1 {Tcl_LsortObjCmd procedure} {
+    list [catch {lsort} msg] $msg
+} {1 {wrong # args: should be "lsort ?options? list"}}
+test cmdIL-1.2 {Tcl_LsortObjCmd procedure} {
+    list [catch {lsort -foo {1 3 2 5}} msg] $msg
+} {1 {bad option "-foo": must be -ascii, -command, -decreasing, -dictionary, -increasing, -index, -integer, or -real}}
+test cmdIL-1.3 {Tcl_LsortObjCmd procedure, default options} {
+    lsort {d e c b a \{ d35 d300}
+} {a b c d d300 d35 e \{}
+test cmdIL-1.4 {Tcl_LsortObjCmd procedure, -ascii option} {
+    lsort -integer -ascii {d e c b a d35 d300}
+} {a b c d d300 d35 e}
+test cmdIL-1.5 {Tcl_LsortObjCmd procedure, -command option} {
+    list [catch {lsort -command {1 3 2 5}} msg] $msg
+} {1 {"-command" option must be followed by comparison command}}
+test cmdIL-1.6 {Tcl_LsortObjCmd procedure, -command option} {
+    proc cmp {a b} {
+	expr {[string match x* $b] - [string match x* $a]}
+    }
+    lsort -command cmp {x1 abc x2 def x3 x4}
+} {x1 x2 x3 x4 abc def}
+test cmdIL-1.7 {Tcl_LsortObjCmd procedure, -decreasing option} {
+    lsort -decreasing {d e c b a d35 d300}
+} {e d35 d300 d c b a}
+test cmdIL-1.8 {Tcl_LsortObjCmd procedure, -dictionary option} {
+    lsort -dictionary {d e c b a d35 d300}
+} {a b c d d35 d300 e}
+test cmdIL-1.9 {Tcl_LsortObjCmd procedure, -increasing option} {
+    lsort -decreasing -increasing {d e c b a d35 d300}
+} {a b c d d300 d35 e}
+test cmdIL-1.10 {Tcl_LsortObjCmd procedure, -index option} {
+    list [catch {lsort -index {1 3 2 5}} msg] $msg
+} {1 {"-index" option must be followed by list index}}
+test cmdIL-1.11 {Tcl_LsortObjCmd procedure, -index option} {
+    list [catch {lsort -index foo {1 3 2 5}} msg] $msg
+} {1 {expected integer but got "foo"}}
+test cmdIL-1.12 {Tcl_LsortObjCmd procedure, -index option} {
+    lsort -index end -integer {{2 25} {10 20 50 100} {3 16 42} 1}
+} {1 {2 25} {3 16 42} {10 20 50 100}}
+test cmdIL-1.13 {Tcl_LsortObjCmd procedure, -index option} {
+    lsort -index 1 -integer {{1 25 100} {3 16 42} {10 20 50}}
+} {{3 16 42} {10 20 50} {1 25 100}}
+test cmdIL-1.14 {Tcl_LsortObjCmd procedure, -integer option} {
+    lsort -integer {24 6 300 18}
+} {6 18 24 300}
+test cmdIL-1.15 {Tcl_LsortObjCmd procedure, -integer option} {
+    list [catch {lsort -integer {1 3 2.4}} msg] $msg
+} {1 {expected integer but got "2.4"}}
+test cmdIL-1.16 {Tcl_LsortObjCmd procedure, -real option} {
+    lsort -real {24.2 6e3 150e-1}
+} {150e-1 24.2 6e3}
+test cmdIL-1.17 {Tcl_LsortObjCmd procedure, bogus list} {
+    list [catch {lsort "1 2 3 \{ 4"} msg] $msg
+} {1 {unmatched open brace in list}}
+test cmdIL-1.18 {Tcl_LsortObjCmd procedure, empty list} {
+    lsort {}
+} {}
+
+# Can't think of any good tests for the MergeSort and MergeLists
+# procedures, except a bunch of random lists to sort.
+
+test cmdIL-2.1 {MergeSort and MergeLists procedures} {
+    set result {}
+    set r 1435753299
+    proc rand {} {
+	global r
+	set r [expr (16807 * $r) % (0x7fffffff)]
+    }
+    for {set i 0} {$i < 150} {incr i} {
+	set x {}
+	for {set j 0} {$j < $i} {incr j} {
+	    lappend x [expr [rand] & 0xfff]
+	}
+	set y [lsort -integer $x]
+	set old -1
+	foreach el $y {
+	    if {$el < $old} {
+		append result "list {$x} sorted to {$y}, element $el out of order\n"
+		break
+	    }
+	    set old $el
+	}
+    }
+    set result
+} {}
+
+test cmdIL-3.1 {SortCompare procedure, skip comparisons after error} {
+    set x 0
+    proc cmp {a b} {
+	global x
+	incr x
+	error "error #$x"
+    }
+    list [catch {lsort -integer -command cmp {48 6 28 190 16 2 3 6 1}} msg] \
+	    $msg $x
+} {1 {error #1} 1}
+test cmdIL-3.2 {SortCompare procedure, -index option} {
+    list [catch {lsort -integer -index 2 "\\\{ {30 40 50}"} msg] $msg
+} {1 {unmatched open brace in list}}
+test cmdIL-3.3 {SortCompare procedure, -index option} {
+    list [catch {lsort -integer -index 2 {{20 10} {15 30 40}}} msg] $msg
+} {1 {element 2 missing from sublist "20 10"}}
+test cmdIL-3.4 {SortCompare procedure, -index option} {
+    list [catch {lsort -integer -index 2 "{a b c} \\\{"} msg] $msg
+} {1 {unmatched open brace in list}}
+test cmdIL-3.5 {SortCompare procedure, -index option} {
+    list [catch {lsort -integer -index 2 {{20 10 13} {15}}} msg] $msg
+} {1 {element 2 missing from sublist "15"}}
+test cmdIL-3.6 {SortCompare procedure, -index option} {
+    lsort -integer -index 2 {{1 15 30} {2 5 25} {3 25 20}}
+} {{3 25 20} {2 5 25} {1 15 30}}
+test cmdIL-3.7 {SortCompare procedure, -ascii option} {
+    lsort -ascii {d e c b a d35 d300 100 20}
+} {100 20 a b c d d300 d35 e}
+test cmdIL-3.8 {SortCompare procedure, -dictionary option} {
+    lsort -dictionary {d e c b a d35 d300 100 20}
+} {20 100 a b c d d35 d300 e}
+test cmdIL-3.9 {SortCompare procedure, -integer option} {
+    list [catch {lsort -integer {x 3}} msg] $msg
+} {1 {expected integer but got "x"}}
+test cmdIL-3.10 {SortCompare procedure, -integer option} {
+    list [catch {lsort -integer {3 q}} msg] $msg
+} {1 {expected integer but got "q"}}
+test cmdIL-3.11 {SortCompare procedure, -integer option} {
+    lsort -integer {35 21 0x20 30 023 100 8}
+} {8 023 21 30 0x20 35 100}
+test cmdIL-3.12 {SortCompare procedure, -real option} {
+    list [catch {lsort -real {6...4 3}} msg] $msg
+} {1 {expected floating-point number but got "6...4"}}
+test cmdIL-3.13 {SortCompare procedure, -real option} {
+    list [catch {lsort -real {3 1x7}} msg] $msg
+} {1 {expected floating-point number but got "1x7"}}
+test cmdIL-3.14 {SortCompare procedure, -real option} {
+    lsort -real {24 2.5e01 16.7 85e-1 10.004}
+} {85e-1 10.004 16.7 24 2.5e01}
+test cmdIL-3.15 {SortCompare procedure, -command option} {
+    proc cmp {a b} {
+	error "comparison error"
+    }
+    list [catch {lsort -command cmp {48 6}} msg] $msg $errorInfo
+} {1 {comparison error} {comparison error
+    while executing
+"error "comparison error""
+    (procedure "cmp" line 1)
+    invoked from within
+"cmp 48 6"
+    (-compare command)
+    invoked from within
+"lsort -command cmp {48 6}"}}
+test cmdIL-3.16 {SortCompare procedure, -command option, long command} {
+    proc cmp {dummy a b} {
+	string compare $a $b
+    }
+    lsort -command {cmp {this argument is very very long in order to make the dstring overflow its statically allocated space}} {{this first element is also long in order to help expand the dstring} {the second element, last but not least, is quite long also, in order to make absolutely sure that space is allocated dynamically for the dstring}}
+} {{the second element, last but not least, is quite long also, in order to make absolutely sure that space is allocated dynamically for the dstring} {this first element is also long in order to help expand the dstring}}
+test cmdIL-3.17 {SortCompare procedure, -command option, non-integer result} {
+    proc cmp {a b} {
+	return foow
+    }
+    list [catch {lsort -command cmp {48 6}} msg] $msg
+} {1 {-compare command returned non-numeric result}}
+test cmdIL-3.18 {SortCompare procedure, -command option} {
+    proc cmp {a b} {
+	expr $b - $a
+    }
+    lsort -command cmp {48 6 18 22 21 35 36}
+} {48 36 35 22 21 18 6}
+test cmdIL-3.19 {SortCompare procedure, -decreasing option} {
+    lsort -decreasing -integer {35 21 0x20 30 023 100 8}
+} {100 35 0x20 30 21 023 8}
+
+test cmdIL-4.1 {DictionaryCompare procedure, numerics, leading zeros} {
+    lsort -dictionary {a003b a03b}
+} {a03b a003b}
+test cmdIL-4.2 {DictionaryCompare procedure, numerics, leading zeros} {
+    lsort -dictionary {a3b a03b}
+} {a3b a03b}
+test cmdIL-4.3 {DictionaryCompare procedure, numerics, leading zeros} {
+    lsort -dictionary {a3b A03b}
+} {A03b a3b}
+test cmdIL-4.4 {DictionaryCompare procedure, numerics, leading zeros} {
+    lsort -dictionary {a3b a03B}
+} {a3b a03B}
+test cmdIL-4.5 {DictionaryCompare procedure, numerics, different lengths} {
+    lsort -dictionary {a321b a03210b}
+} {a321b a03210b}
+test cmdIL-4.6 {DictionaryCompare procedure, numerics, different lengths} {
+    lsort -dictionary {a03210b a321b}
+} {a321b a03210b}
+test cmdIL-4.7 {DictionaryCompare procedure, numerics} {
+    lsort -dictionary {48 6a 18b 22a 21aa 35 36}
+} {6a 18b 21aa 22a 35 36 48}
+test cmdIL-4.8 {DictionaryCompare procedure, numerics} {
+    lsort -dictionary {a123x a123b}
+} {a123b a123x}
+test cmdIL-4.9 {DictionaryCompare procedure, numerics} {
+    lsort -dictionary {a123b a123x}
+} {a123b a123x}
+test cmdIL-4.10 {DictionaryCompare procedure, numerics} {
+    lsort -dictionary {a1b aab}
+} {a1b aab}
+test cmdIL-4.11 {DictionaryCompare procedure, numerics} {
+    lsort -dictionary {a1b a!b}
+} {a!b a1b}
+test cmdIL-4.12 {DictionaryCompare procedure, numerics} {
+    lsort -dictionary {a1b2c a1b1c}
+} {a1b1c a1b2c}
+test cmdIL-4.13 {DictionaryCompare procedure, numerics} {
+    lsort -dictionary {a1b2c a1b3c}
+} {a1b2c a1b3c}
+test cmdIL-4.14 {DictionaryCompare procedure, long numbers} {
+    lsort -dictionary {a7654884321988762b a7654884321988761b}
+} {a7654884321988761b a7654884321988762b}
+test cmdIL-4.15 {DictionaryCompare procedure, long numbers} {
+    lsort -dictionary {a8765488432198876b a7654884321988761b}
+} {a7654884321988761b a8765488432198876b}
+test cmdIL-4.16 {DictionaryCompare procedure, case} {
+    lsort -dictionary {aBCd abcc}
+} {abcc aBCd}
+test cmdIL-4.17 {DictionaryCompare procedure, case} {
+    lsort -dictionary {aBCd abce}
+} {aBCd abce}
+test cmdIL-4.18 {DictionaryCompare procedure, case} {
+    lsort -dictionary {abcd ABcc}
+} {ABcc abcd}
+test cmdIL-4.19 {DictionaryCompare procedure, case} {
+    lsort -dictionary {abcd ABce}
+} {abcd ABce}
+test cmdIL-4.20 {DictionaryCompare procedure, case} {
+    lsort -dictionary {abCD ABcd}
+} {ABcd abCD}
+test cmdIL-4.21 {DictionaryCompare procedure, case} {
+    lsort -dictionary {ABcd aBCd}
+} {ABcd aBCd}
+test cmdIL-4.22 {DictionaryCompare procedure, case} {
+    lsort -dictionary {ABcd AbCd}
+} {ABcd AbCd}

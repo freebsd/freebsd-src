@@ -9,7 +9,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclUnixTime.c 1.11 96/07/23 16:17:21
+ * SCCS: @(#) tclUnixTime.c 1.12 97/01/08 17:38:15
  */
 
 #include "tclInt.h"
@@ -88,7 +88,8 @@ TclpGetClicks()
  *	this function.
  *
  * Results:
- *	Hours east of GMT.
+ *	The return value is the local time zone, measured in
+ *	minutes away from GMT (-ve for east, +ve for west).
  *
  * Side effects:
  *	None.
@@ -137,6 +138,24 @@ TclpGetTimeZone (currentTime)
     return timeZone;
 #endif
 
+#if defined(USE_DELTA_FOR_TZ)
+#define TCL_GOT_TIMEZONE 1
+    /*
+     * This hack replaces using global var timezone or gettimeofday
+     * in situations where they are buggy such as on AIX when libbsd.a
+     * is linked in.
+     */
+
+    int timeZone;
+    time_t tt;
+    struct tm *stm;
+    tt = 849268800L;      /*    1996-11-29 12:00:00  GMT */
+    stm = localtime(&tt); /* eg 1996-11-29  6:00:00  CST6CDT */
+    /* The calculation below assumes a max of +12 or -12 hours from GMT */
+    timeZone = (12 - stm->tm_hour)*60 + (0 - stm->tm_min);
+    return timeZone;  /* eg +360 for CST6CDT */
+#endif
+
     /*
      * Must prefer timezone variable over gettimeofday, as gettimeofday does
      * not return timezone information on many systems that have moved this
@@ -163,7 +182,7 @@ TclpGetTimeZone (currentTime)
     return timeZone;
 #endif
 
-#if defined(HAVE_GETTIMEOFDAY) && !defined (TCL_GOT_TIMEZONE)
+#if !defined(NO_GETTOD) && !defined (TCL_GOT_TIMEZONE)
 #   define TCL_GOT_TIMEZONE
     struct timeval  tv;
     struct timezone tz;

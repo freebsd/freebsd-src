@@ -1,0 +1,74 @@
+'\"
+'\" Copyright (c) 1997 Sun Microsystems, Inc.
+'\"
+'\" See the file "license.terms" for information on usage and redistribution
+'\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
+'\" 
+'\" SCCS: @(#) @(#) GetIndex.3 1.2 97/02/11 13:25:45
+'\" 
+.so man.macros
+.TH Tcl_GetIndexFromObj 3 8.0 Tcl "Tcl Library Procedures"
+.BS
+.SH NAME
+Tcl_GetIndexFromObj \- lookup string in table of keywords
+.SH SYNOPSIS
+.nf
+\fB#include <tcl.h>\fR
+.sp
+int
+\fBTcl_GetIndexFromObj\fR(\fIinterp, objPtr, tablePtr, msg, flags, indexPtr\fR)
+.SH ARGUMENTS
+.AS Tcl_Interp **tablePtr
+.AP Tcl_Interp *interp in
+Interpreter to use for error reporting; if NULL, then no message is
+provided on errors.
+.AP Tcl_Obj *objPtr in/out
+The string value of this object is used to search through \fItablePtr\fR.
+The internal representation is modified to hold the index of the matching
+table entry.
+.AP char **tablePtr in
+An array of null-terminated strings.  The end of the array is marked
+by a NULL string pointer.
+.AP char *msg in
+Null-terminated string describing what is being looked up, such as
+\fBoption\fR.  This string is included in error messages.
+.AP int flags in
+OR-ed combination of bits providing additional information for
+operation.  The only bit that is currently defined is \fBTCL_EXACT\fR.
+.AP int *indexPtr out
+The index of the string in \fItablePtr\fR that matches the value of
+\fIobjPtr\fR is returned here.
+.BE
+
+.SH DESCRIPTION
+.PP
+This procedure provides an efficient way for looking up keywords,
+switch names, option names, and similar things where the value of
+an object must be one of a predefined set of values.
+\fIObjPtr\fR is compared against each of
+the strings in \fItablePtr\fR to find a match.  A match occurs if
+\fIobjPtr\fR's string value is identical to one of the strings in
+\fItablePtr\fR, or if it is a unique abbreviation
+for exactly one of the strings in \fItablePtr\fR and the
+\fBTCL_EXACT\fR flag was not specified; in either case
+the index of the matching entry is stored at \fI*indexPtr\fR
+and TCL_OK is returned.
+.PP
+If there is no matching entry,
+TCL_ERROR is returned and an error message is left in \fIinterp\fR's
+result if \fIinterp\fR isn't NULL.  \fIMsg\fR is included in the
+error message to indicate what was being looked up.  For example,
+if \fImsg\fR is \fBoption\fR the error message will have a form like
+\fBbad option "firt": must be first, second, or third\fR.
+.PP
+If \fBTcl_GetIndexFromObj\fR completes successfully it modifies the
+internal representation of \fIobjPtr\fR to hold the address of
+the table and the index of the matching entry.  If \fBTcl_GetIndexFromObj\fR
+is invoked again with the same \fIobjPtr\fR and \fItablePtr\fR
+arguments (e.g. during a reinvocation of a Tcl command), it returns
+the matching index immediately without having to redo the lookup
+operation.  Note: \fBTcl_GetIndexFromObj\fR assumes that the entries
+in \fItablePtr\fR are static: they must not change between invocations.
+
+.SH KEYWORDS
+index, object, table lookup

@@ -5,10 +5,10 @@
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" SCCS: @(#) string.n 1.7 96/03/25 20:24:06
+'\" SCCS: @(#) string.n 1.9 96/08/26 13:00:14
 '\" 
 .so man.macros
-.TH string n 7.4 Tcl "Tcl Built-In Commands"
+.TH string n 7.6 Tcl "Tcl Built-In Commands"
 .BS
 '\" Note:  do not modify the .SH NAME line immediately below!
 .SH NAME
@@ -77,9 +77,10 @@ avoiding the special interpretation of the characters
 \fBstring range \fIstring first last\fR
 Returns a range of consecutive characters from \fIstring\fR, starting
 with the character whose index is \fIfirst\fR and ending with the
-character whose index is \fIlast\fR.  An index of 0 refers to the
-first character of the string.  \fILast\fR may be \fBend\fR (or any
-abbreviation of it) to refer to the last character of the string.
+character whose index is \fIlast\fR. An index of 0 refers to the
+first character of the string.  
+An index of \fBend\fR (or any
+abbreviation of it) refers to the last character of the string.
 If \fIfirst\fR is less than zero then it is treated as if it were zero, and
 if \fIlast\fR is greater than or equal to the length of the string then
 it is treated as if it were \fBend\fR.  If \fIfirst\fR is greater than
@@ -115,7 +116,6 @@ If \fIchars\fR is not specified then white space is removed
 (spaces, tabs, newlines, and carriage returns).
 .TP
 \fBstring wordend \fIstring index\fR
-.VS
 Returns the index of the character just after the last one in the
 word containing character \fIindex\fR of \fIstring\fR.
 A word is considered to be any contiguous range of alphanumeric
@@ -126,7 +126,6 @@ Returns the index of the first character in the
 word containing character \fIindex\fR of \fIstring\fR.
 A word is considered to be any contiguous range of alphanumeric
 or underscore characters, or any single character other than these.
-.VE
 
 .SH KEYWORDS
 case conversion, compare, index, match, pattern, string, word

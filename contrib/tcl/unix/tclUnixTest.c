@@ -8,11 +8,20 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclUnixTest.c 1.1 96/03/26 12:44:30
+ * SCCS: @(#) tclUnixTest.c 1.4 97/05/14 13:24:29
  */
 
 #include "tclInt.h"
 #include "tclPort.h"
+
+/*
+ * The following macros convert between TclFile's and fd's.  The conversion
+ * simple involves shifting fd's up by one to ensure that no valid fd is ever
+ * the same as NULL.  Note that this code is duplicated from tclUnixPipe.c
+ */
+
+#define MakeFile(fd) ((TclFile)((fd)+1))
+#define GetFd(file) (((int)file)-1)
 
 /*
  * The stuff below is used to keep track of file handlers created and
@@ -20,9 +29,9 @@
  */
 
 typedef struct Pipe {
-    Tcl_File readFile;		/* File handle for reading from the
+    TclFile readFile;		/* File handle for reading from the
 				 * pipe.  NULL means pipe doesn't exist yet. */
-    Tcl_File writeFile;		/* File handle for writing from the
+    TclFile writeFile;		/* File handle for writing from the
 				 * pipe. */
     int readCount;		/* Number of times the file handler for
 				 * this file has triggered and the file
@@ -42,6 +51,8 @@ static Pipe testPipes[MAX_PIPES];
 static void		TestFileHandlerProc _ANSI_ARGS_((ClientData clientData,
 			    int mask));
 static int		TestfilehandlerCmd _ANSI_ARGS_((ClientData dummy,
+			    Tcl_Interp *interp, int argc, char **argv));
+static int		TestfilewaitCmd _ANSI_ARGS_((ClientData dummy,
 			    Tcl_Interp *interp, int argc, char **argv));
 static int		TestgetopenfileCmd _ANSI_ARGS_((ClientData dummy,
 			    Tcl_Interp *interp, int argc, char **argv));
@@ -69,6 +80,8 @@ TclplatformtestInit(interp)
     Tcl_Interp *interp;		/* Interpreter to add commands to. */
 {
     Tcl_CreateCommand(interp, "testfilehandler", TestfilehandlerCmd,
+            (ClientData) 0, (Tcl_CmdDeleteProc *) NULL);
+    Tcl_CreateCommand(interp, "testfilewait", TestfilewaitCmd,
             (ClientData) 0, (Tcl_CmdDeleteProc *) NULL);
     Tcl_CreateCommand(interp, "testgetopenfile", TestgetopenfileCmd,
             (ClientData) 0, (Tcl_CmdDeleteProc *) NULL);
@@ -104,14 +117,12 @@ TestfilehandlerCmd(clientData, interp, argc, argv)
     int i, mask, timeout;
     static int initialized = 0;
     char buffer[4000];
-    Tcl_File file;
+    TclFile file;
 
     /*
      * NOTE: When we make this code work on Windows also, the following
      * variable needs to be made Unix-only.
      */
-    
-    int fd;
     
     if (!initialized) {
 	for (i = 0; i < MAX_PIPES; i++) {
@@ -140,26 +151,10 @@ TestfilehandlerCmd(clientData, interp, argc, argv)
     if (strcmp(argv[1], "close") == 0) {
 	for (i = 0; i < MAX_PIPES; i++) {
 	    if (testPipes[i].readFile != NULL) {
-		Tcl_DeleteFileHandler(testPipes[i].readFile);
-
-                /*
-                 * NOTE: Unix specific code below.
-                 */
-                
-                fd = (int) Tcl_GetFileInfo(testPipes[i].readFile, NULL);
-                close(fd);
-		Tcl_FreeFile(testPipes[i].readFile);
-
+		TclpCloseFile(testPipes[i].readFile);
 		testPipes[i].readFile = NULL;
-		Tcl_DeleteFileHandler(testPipes[i].writeFile);
-
-                /*
-                 * NOTE: Unix specific code below.
-                 */
-                
-                fd = (int) Tcl_GetFileInfo(testPipes[i].writeFile, NULL);
-		Tcl_FreeFile(testPipes[i].writeFile);
-                close(fd);
+		TclpCloseFile(testPipes[i].writeFile);
+		testPipes[i].writeFile = NULL;
 	    }
 	}
     } else if (strcmp(argv[1], "clear") == 0) {
@@ -170,13 +165,15 @@ TestfilehandlerCmd(clientData, interp, argc, argv)
 	}
 	pipePtr->readCount = pipePtr->writeCount = 0;
     } else if (strcmp(argv[1], "counts") == 0) {
+	char buf[30];
+	
 	if (argc != 3) {
 	    Tcl_AppendResult(interp, "wrong # arguments: should be \"",
                     argv[0], " counts index\"", (char *) NULL);
 	    return TCL_ERROR;
 	}
-	sprintf(interp->result, "%d %d", pipePtr->readCount,
-		pipePtr->writeCount);
+	sprintf(buf, "%d %d", pipePtr->readCount, pipePtr->writeCount);
+	Tcl_SetResult(interp, buf, TCL_VOLATILE);
     } else if (strcmp(argv[1], "create") == 0) {
 	if (argc != 5) {
 	    Tcl_AppendResult(interp, "wrong # arguments: should be \"",
@@ -185,18 +182,17 @@ TestfilehandlerCmd(clientData, interp, argc, argv)
 	    return TCL_ERROR;
 	}
 	if (pipePtr->readFile == NULL) {
-	    if (!TclCreatePipe(&pipePtr->readFile, &pipePtr->writeFile)) {
+	    if (!TclpCreatePipe(&pipePtr->readFile, &pipePtr->writeFile)) {
 		Tcl_AppendResult(interp, "couldn't open pipe: ",
 			Tcl_PosixError(interp), (char *) NULL);
 		return TCL_ERROR;
 	    }
 #ifdef O_NONBLOCK
-	    fcntl((int)Tcl_GetFileInfo(pipePtr->readFile, NULL),
-		    F_SETFL, O_NONBLOCK);
-	    fcntl((int)Tcl_GetFileInfo(pipePtr->writeFile, NULL),
-		    F_SETFL, O_NONBLOCK);
+	    fcntl(GetFd(pipePtr->readFile), F_SETFL, O_NONBLOCK);
+	    fcntl(GetFd(pipePtr->writeFile), F_SETFL, O_NONBLOCK);
 #else
-	    interp->result = "can't make pipes non-blocking";
+	    Tcl_SetResult(interp, "can't make pipes non-blocking",
+		    TCL_STATIC);
 	    return TCL_ERROR;
 #endif
 	}
@@ -204,12 +200,12 @@ TestfilehandlerCmd(clientData, interp, argc, argv)
 	pipePtr->writeCount = 0;
 
 	if (strcmp(argv[3], "readable") == 0) {
-	    Tcl_CreateFileHandler(pipePtr->readFile, TCL_READABLE,
+	    Tcl_CreateFileHandler(GetFd(pipePtr->readFile), TCL_READABLE,
 		    TestFileHandlerProc, (ClientData) pipePtr);
 	} else if (strcmp(argv[3], "off") == 0) {
-	    Tcl_DeleteFileHandler(pipePtr->readFile);
+	    Tcl_DeleteFileHandler(GetFd(pipePtr->readFile));
 	} else if (strcmp(argv[3], "disabled") == 0) {
-	    Tcl_CreateFileHandler(pipePtr->readFile, 0,
+	    Tcl_CreateFileHandler(GetFd(pipePtr->readFile), 0,
 		    TestFileHandlerProc, (ClientData) pipePtr);
 	} else {
 	    Tcl_AppendResult(interp, "bad read mode \"", argv[3], "\"",
@@ -217,12 +213,12 @@ TestfilehandlerCmd(clientData, interp, argc, argv)
 	    return TCL_ERROR;
 	}
 	if (strcmp(argv[4], "writable") == 0) {
-	    Tcl_CreateFileHandler(pipePtr->writeFile, TCL_WRITABLE,
+	    Tcl_CreateFileHandler(GetFd(pipePtr->writeFile), TCL_WRITABLE,
 		    TestFileHandlerProc, (ClientData) pipePtr);
 	} else if (strcmp(argv[4], "off") == 0) {
-	    Tcl_DeleteFileHandler(pipePtr->writeFile);
+	    Tcl_DeleteFileHandler(GetFd(pipePtr->writeFile));
 	} else if (strcmp(argv[4], "disabled") == 0) {
-	    Tcl_CreateFileHandler(pipePtr->writeFile, 0,
+	    Tcl_CreateFileHandler(GetFd(pipePtr->writeFile), 0,
 		    TestFileHandlerProc, (ClientData) pipePtr);
 	} else {
 	    Tcl_AppendResult(interp, "bad read mode \"", argv[4], "\"",
@@ -236,12 +232,7 @@ TestfilehandlerCmd(clientData, interp, argc, argv)
 	    return TCL_ERROR;
 	}
 
-        /*
-         * NOTE: Unix specific code below.
-         */
-
-        fd = (int) Tcl_GetFileInfo(pipePtr->readFile, NULL);
-        while (read(fd, buffer, 4000) > 0) {
+        while (read(GetFd(pipePtr->readFile), buffer, 4000) > 0) {
             /* Empty loop body. */
         }
     } else if (strcmp(argv[1], "fill") == 0) {
@@ -251,29 +242,22 @@ TestfilehandlerCmd(clientData, interp, argc, argv)
 	    return TCL_ERROR;
 	}
 
-        /*
-         * NOTE: Unix specific code below.
-         */
-
-        fd = (int) Tcl_GetFileInfo(pipePtr->writeFile, NULL);
 	memset((VOID *) buffer, 'a', 4000);
-        while (write(fd, buffer, 4000) > 0) {
+        while (write(GetFd(pipePtr->writeFile), buffer, 4000) > 0) {
             /* Empty loop body. */
         }
     } else if (strcmp(argv[1], "fillpartial") == 0) {
+	char buf[30];
+	
 	if (argc != 3) {
 	    Tcl_AppendResult(interp, "wrong # arguments: should be \"",
                     argv[0], " empty index\"", (char *) NULL);
 	    return TCL_ERROR;
 	}
 
-        /*
-         * NOTE: Unix specific code below.
-         */
-
-        fd = (int) Tcl_GetFileInfo(pipePtr->writeFile, NULL);
 	memset((VOID *) buffer, 'b', 10);
-	sprintf(interp->result, "%d", write(fd, buffer, 10));
+	sprintf(buf, "%d", write(GetFd(pipePtr->writeFile), buffer, 10));
+	Tcl_SetResult(interp, buf, TCL_VOLATILE);
     } else if (strcmp(argv[1], "oneevent") == 0) {
 	Tcl_DoOneEvent(TCL_FILE_EVENTS|TCL_DONT_WAIT);
     } else if (strcmp(argv[1], "wait") == 0) {
@@ -298,7 +282,7 @@ TestfilehandlerCmd(clientData, interp, argc, argv)
 	if (Tcl_GetInt(interp, argv[4], &timeout) != TCL_OK) {
 	    return TCL_ERROR;
 	}
-	i = TclWaitForFile(file, mask, timeout);
+	i = TclUnixWaitForFile(GetFd(file), mask, timeout);
 	if (i & TCL_READABLE) {
 	    Tcl_AppendElement(interp, "readable");
 	}
@@ -330,6 +314,73 @@ static void TestFileHandlerProc(clientData, mask)
     if (mask & TCL_WRITABLE) {
 	pipePtr->writeCount++;
     }
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * TestfilewaitCmd --
+ *
+ *	This procedure implements the "testfilewait" command. It is
+ *	used to test TclUnixWaitForFile.
+ *
+ * Results:
+ *	A standard Tcl result.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int
+TestfilewaitCmd(clientData, interp, argc, argv)
+    ClientData clientData;		/* Not used. */
+    Tcl_Interp *interp;			/* Current interpreter. */
+    int argc;				/* Number of arguments. */
+    char **argv;			/* Argument strings. */
+{
+    int mask, result, timeout;
+    Tcl_Channel channel;
+    int fd;
+
+    if (argc != 4) {
+	Tcl_AppendResult(interp, "wrong # arguments: should be \"", argv[0],
+		" file readable|writable|both timeout\"", (char *) NULL);
+	return TCL_ERROR;
+    }
+    channel = Tcl_GetChannel(interp, argv[1], NULL);
+    if (channel == NULL) {
+	return TCL_ERROR;
+    }
+    if (strcmp(argv[2], "readable") == 0) {
+	mask = TCL_READABLE;
+    } else if (strcmp(argv[2], "writable") == 0){
+	mask = TCL_WRITABLE;
+    } else if (strcmp(argv[2], "both") == 0){
+	mask = TCL_WRITABLE|TCL_READABLE;
+    } else {
+	Tcl_AppendResult(interp, "bad argument \"", argv[2],
+		"\": must be readable, writable, or both", (char *) NULL);
+	return TCL_ERROR;
+    }
+    if (Tcl_GetChannelHandle(channel, 
+	    (mask & TCL_READABLE) ? TCL_READABLE : TCL_WRITABLE,
+	    (ClientData*) &fd) != TCL_OK) {
+	Tcl_SetResult(interp, "couldn't get channel file", TCL_STATIC);
+	return TCL_ERROR;
+    }
+    if (Tcl_GetInt(interp, argv[3], &timeout) != TCL_OK) {
+	return TCL_ERROR;
+    }
+    result = TclUnixWaitForFile(fd, mask, timeout);
+    if (result & TCL_READABLE) {
+	Tcl_AppendElement(interp, "readable");
+    }
+    if (result & TCL_WRITABLE) {
+	Tcl_AppendElement(interp, "writable");
+    }
+    return TCL_OK;
 }
 
 /*

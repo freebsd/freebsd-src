@@ -8,7 +8,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclIOSock.c 1.16 96/03/12 07:04:33
+ * SCCS: @(#) tclIOSock.c 1.20 97/04/25 16:36:40
  */
 
 #include "tclInt.h"
@@ -41,10 +41,15 @@ TclSockGetPort(interp, string, proto, portPtr)
     char *proto;		/* "tcp" or "udp", typically */
     int *portPtr;		/* Return port number */
 {
-    struct servent *sp = getservbyname(string, proto);    
-    if (sp != NULL) {
-	*portPtr = ntohs((unsigned short) sp->s_port);
-	return TCL_OK;
+    struct servent *sp;		/* Protocol info for named services */
+    if (Tcl_GetInt(interp, string, portPtr) != TCL_OK) {
+	sp = getservbyname(string, proto);    
+	if (sp != NULL) {
+	    *portPtr = ntohs((unsigned short) sp->s_port);
+	    Tcl_ResetResult(interp);	/* clear error message */
+	    return TCL_OK;
+	}
+	return TCL_ERROR;
     }
     if (Tcl_GetInt(interp, string, portPtr) != TCL_OK) {
 	return TCL_ERROR;
@@ -79,18 +84,19 @@ TclSockMinimumBuffers(sock, size)
     int size;			/* Minimum buffer size */
 {
     int current;
-    int len = sizeof(int);
-
-    getsockopt(sock, SOL_SOCKET, SO_SNDBUF, (char *) &current, &len);
+    int len;
+    
+    len = sizeof(int);
+    getsockopt(sock, SOL_SOCKET, SO_SNDBUF, (char *)&current, &len);
     if (current < size) {
 	len = sizeof(int);
-	setsockopt(sock, SOL_SOCKET, SO_SNDBUF, (char *) &size, len);
+	setsockopt(sock, SOL_SOCKET, SO_SNDBUF, (char *)&size, len);
     }
     len = sizeof(int);
-    getsockopt(sock, SOL_SOCKET, SO_RCVBUF, (char *) &current, &len);
+    getsockopt(sock, SOL_SOCKET, SO_RCVBUF, (char *)&current, &len);
     if (current < size) {
 	len = sizeof(int);
-	setsockopt(sock, SOL_SOCKET, SO_RCVBUF, (char *) &size, len);
+	setsockopt(sock, SOL_SOCKET, SO_RCVBUF, (char *)&size, len);
     }
     return TCL_OK;
 }

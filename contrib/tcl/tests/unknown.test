@@ -10,10 +10,11 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) unknown.test 1.11 96/02/16 08:56:34
+# SCCS: @(#) unknown.test 1.12 96/08/26 11:29:29
 
 if {[string compare test [info procs test]] == 1} then {source defs}
 
+catch {unset x}
 catch {rename unknown unknown.old}
 
 test unknown-1.1 {non-existent "unknown" command} {

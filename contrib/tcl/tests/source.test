@@ -10,7 +10,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) source.test 1.22 96/04/05 15:27:13
+# SCCS: @(#) source.test 1.24 96/10/22 11:34:29
 
 if {[string compare test [info procs test]] == 1} then {source defs}
 
@@ -57,7 +57,7 @@ test source-2.3 {source error conditions} {
 } {1 {error in sourced file} {error in sourced file
     while executing
 "error "error in sourced file""
-    (file "source.file" line 3)
+    (file "source.file" line 1)
     invoked from within
 "source source.file"}}
 test source-2.4 {source error conditions} {
@@ -149,7 +149,7 @@ test source-5.2 {source resource files} {macOnly} {
 test source-5.3 {source resource files} {macOnly} {
     testWriteTextResource -rsrc rsrcName -file rsrc.file {set msg2 ok; return}
     set result [catch {source -rsrc rsrcName rsrc.file} msg]
-    rm rsrc.file
+    removeFile rsrc.file
     list $msg2 $result $msg
 } [list ok 0 {}]
 test source-5.4 {source resource files} {macOnly} {
@@ -157,23 +157,23 @@ test source-5.4 {source resource files} {macOnly} {
     testWriteTextResource -rsrc fileRsrcName -file rsrc.file {set msg2 ok; return}
     source -rsrc fileRsrcName rsrc.file
     set result [catch {source -rsrc fileRsrcName} msg]    
-    rm rsrc.file
+    removeFile rsrc.file
     list $msg2 $result $msg
 } [list ok 1 {The resource "fileRsrcName" could not be loaded from application.}]
 test source-5.5 {source resource files} {macOnly} {
     testWriteTextResource -rsrcid 200 -file rsrc.file {set msg2 hello; set msg3 bye}
     set result [catch {source -rsrcid 200 rsrc.file} msg]
-    rm rsrc.file
+    removeFile rsrc.file
     list $msg2 $result $msg
 } [list hello 0 bye]
 test source-5.6 {source resource files} {macOnly} {
     testWriteTextResource -rsrcid 200 -file rsrc.file {set msg2 hello; error bad; set msg3 bye}
     set result [catch {source -rsrcid 200 rsrc.file} msg]
-    rm rsrc.file
+    removeFile rsrc.file
     list $msg2 $result $msg
 } [list hello 1 bad]
 
-catch {exec rm source.file}
+catch {removeFile source.file}
 
 # Generate null final value
 

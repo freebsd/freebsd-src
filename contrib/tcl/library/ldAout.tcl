@@ -18,7 +18,7 @@
 #	its .o file placed before all others in the command; then
 #	"ld" is executed to bind the objects together.
 #
-# SCCS: @(#) ldAout.tcl 1.10 96/05/18 16:40:42
+# SCCS: @(#) ldAout.tcl 1.12 96/11/30 17:11:02
 #
 # Copyright (c) 1995, by General Electric Company. All rights reserved.
 #
@@ -44,12 +44,10 @@ proc tclLdAout {{cc {}} {shlib_suffix {}} {shlib_cflags none}} {
   # function now accepts both 2 and 3 parameters.
 
   if {$shlib_suffix==""} {
-    set shlib_suffix $env(SHLIB_SUFFIX)
     set shlib_cflags $env(SHLIB_CFLAGS)
   } else {
     if {$shlib_cflags=="none"} {
       set shlib_cflags $shlib_suffix
-      set shlib_suffix [info sharedlibextension]
     }
   }
 
@@ -112,7 +110,6 @@ proc tclLdAout {{cc {}} {shlib_suffix {}} {shlib_cflags none}} {
     }
   }
   lappend libdirs /lib /usr/lib
-  lappend libraries -lm -lc
 
   # MIPS -- If there are corresponding G0 libraries, replace the
   # ordinary ones with the G0 ones.
@@ -140,9 +137,15 @@ proc tclLdAout {{cc {}} {shlib_suffix {}} {shlib_cflags none}} {
     error "-o option must be supplied to link a Tcl load module"
   }
   set m [file tail $outputFile]
-  set l [expr [string length $m] - [string length $shlib_suffix]]
-  if [string compare [string range $m $l end] $shlib_suffix] {
-    error "Output file does not appear to have a $shlib_suffix suffix"
+  if [regexp {\.a$} $outputFile] {
+    set shlib_suffix .a
+  } else {
+    set shlib_suffix ""
+  }
+  if [regexp {\..*$} $outputFile match] {
+    set l [expr [string length $m] - [string length $match]]
+  } else {
+    error "Output file does not appear to have a suffix"
   }
   set modName [string tolower [string range $m 0 [expr $l-1]]]
   if [regexp {^lib} $modName] {
@@ -212,9 +215,14 @@ proc tclLdAout {{cc {}} {shlib_suffix {}} {shlib_cflags none}} {
 
   # Now compose and execute the ld command that packages the module
 
+  if {$shlib_suffix == ".a"} {
+    set ldCommand "ar cr $outputFile"
+    regsub { -o} $tail {} tail
+  } else {
   set ldCommand ld
   foreach item $head {
     lappend ldCommand $item
+  }
   }
   lappend ldCommand tcl$modName.o
   foreach item $tail {
@@ -222,6 +230,9 @@ proc tclLdAout {{cc {}} {shlib_suffix {}} {shlib_cflags none}} {
   }
   puts stderr $ldCommand
   eval exec $ldCommand
+  if {$shlib_suffix == ".a"} {
+    exec ranlib $outputFile
+  }
 
   # Clean up working files
 
