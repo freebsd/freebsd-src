@@ -1074,7 +1074,7 @@ pmap_pinit(pmap)
 	 */
 	VM_OBJECT_LOCK(pmap->pm_pteobj);
 	lev1pg = vm_page_grab(pmap->pm_pteobj, NUSERLEV3MAPS + NUSERLEV2MAPS,
-	    VM_ALLOC_NORMAL | VM_ALLOC_RETRY | VM_ALLOC_WIRED);
+	    VM_ALLOC_NORMAL | VM_ALLOC_RETRY | VM_ALLOC_WIRED | VM_ALLOC_ZERO);
 
 	vm_page_lock_queues();
 	vm_page_flag_clear(lev1pg, PG_BUSY);
@@ -1083,9 +1083,6 @@ pmap_pinit(pmap)
 	VM_OBJECT_UNLOCK(pmap->pm_pteobj);
 
 	pmap->pm_lev1 = (pt_entry_t*) ALPHA_PHYS_TO_K0SEG(VM_PAGE_TO_PHYS(lev1pg));
-	if ((lev1pg->flags & PG_ZERO) == 0)
-		bzero(pmap->pm_lev1, PAGE_SIZE);
-
 
 	/* install self-referential address mapping entry (not PG_ASM) */
 	pmap->pm_lev1[PTLEV1I] = pmap_phys_to_pte(VM_PAGE_TO_PHYS(lev1pg))
