@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_page.h,v 1.42 1998/06/30 08:01:30 jmg Exp $
+ * $Id: vm_page.h,v 1.43 1998/08/22 15:24:09 mckay Exp $
  */
 
 /*
@@ -74,6 +74,8 @@
 #include "opt_vmpage.h"
 
 #include <vm/pmap.h>
+#include <machine/atomic.h>
+
 /*
  *	Management of resident (logical) pages.
  *
@@ -279,24 +281,30 @@ extern vm_offset_t last_phys_addr;	/* physical address for last_page */
  *	Functions implemented as macros
  */
 
+#define PAGE_SET_FLAG(m, bits)	atomic_set_short(&(m)->flags, bits)
+
+#define PAGE_CLEAR_FLAG(m, bits) atomic_clear_short(&(m)->flags, bits)
+
 #define PAGE_ASSERT_WAIT(m, interruptible)	{ \
-	(m)->flags |= PG_WANTED; \
+	PAGE_SET_FLAG(m, PG_WANTED); \
 	assert_wait((int) (m), (interruptible)); \
 }
 
 #define PAGE_WAKEUP(m)	{ \
-	(m)->flags &= ~PG_BUSY; \
+	PAGE_CLEAR_FLAG(m, PG_BUSY); \
 	if (((m)->flags & PG_WANTED) && ((m)->busy == 0)) { \
-		(m)->flags &= ~PG_WANTED; \
+		PAGE_CLEAR_FLAG(m, PG_WANTED); \
 		wakeup((m)); \
 	} \
 }
 
+#define PAGE_BUSY(m)	atomic_add_char(&(m)->busy, 1)
+
 #define PAGE_BWAKEUP(m) { \
-	(m)->busy--; \
+	atomic_subtract_char(&(m)->busy, 1); \
 	if ((((m)->flags & (PG_WANTED | PG_BUSY)) == PG_WANTED) && \
 		((m)->busy == 0)) { \
-		(m)->flags &= ~PG_WANTED; \
+		PAGE_CLEAR_FLAG(m, PG_WANTED); \
 		wakeup((m)); \
 	} \
 }
@@ -373,11 +381,11 @@ vm_page_protect(vm_page_t mem, int prot)
 	if (prot == VM_PROT_NONE) {
 		if (mem->flags & (PG_WRITEABLE|PG_MAPPED)) {
 			pmap_page_protect(VM_PAGE_TO_PHYS(mem), VM_PROT_NONE);
-			mem->flags &= ~(PG_WRITEABLE|PG_MAPPED);
+			PAGE_CLEAR_FLAG(mem, PG_WRITEABLE|PG_MAPPED);
 		}
 	} else if ((prot == VM_PROT_READ) && (mem->flags & PG_WRITEABLE)) {
 		pmap_page_protect(VM_PAGE_TO_PHYS(mem), VM_PROT_READ);
-		mem->flags &= ~PG_WRITEABLE;
+		PAGE_CLEAR_FLAG(mem, PG_WRITEABLE);
 	}
 }
 

@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_kern.c,v 1.47 1998/06/05 21:48:45 dg Exp $
+ * $Id: vm_kern.c,v 1.48 1998/06/21 14:53:41 bde Exp $
  */
 
 /*
@@ -181,7 +181,7 @@ kmem_alloc(map, size)
 				VM_ALLOC_ZERO | VM_ALLOC_RETRY);
 		if ((mem->flags & PG_ZERO) == 0)
 			vm_page_zero_fill(mem);
-		mem->flags &= ~(PG_BUSY | PG_ZERO);
+		PAGE_CLEAR_FLAG(mem, (PG_BUSY | PG_ZERO));
 		mem->valid = VM_PAGE_BITS_ALL;
 	}
 
@@ -332,7 +332,7 @@ retry:
 			vm_map_unlock(map);
 			return (0);
 		}
-		m->flags &= ~PG_ZERO;
+		PAGE_CLEAR_FLAG(m, PG_ZERO);
 		m->valid = VM_PAGE_BITS_ALL;
 	}
 
@@ -361,7 +361,7 @@ retry:
 		PAGE_WAKEUP(m);
 		pmap_enter(kernel_pmap, addr + i, VM_PAGE_TO_PHYS(m),
 			VM_PROT_ALL, 1);
-		m->flags |= PG_MAPPED | PG_WRITEABLE | PG_REFERENCED;
+		PAGE_SET_FLAG(m, PG_MAPPED | PG_WRITEABLE | PG_REFERENCED);
 	}
 	vm_map_unlock(map);
 

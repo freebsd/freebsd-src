@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_mmap.c 1.6 91/10/21$
  *
  *	@(#)vm_mmap.c	8.4 (Berkeley) 1/12/94
- * $Id: vm_mmap.c,v 1.80 1998/07/05 11:56:52 dfr Exp $
+ * $Id: vm_mmap.c,v 1.81 1998/07/15 02:32:35 bde Exp $
  */
 
 /*
@@ -747,7 +747,7 @@ mincore(p, uap)
 						mincoreinfo |= MINCORE_MODIFIED_OTHER;
 					if ((m->flags & PG_REFERENCED) ||
 						pmap_ts_referenced(VM_PAGE_TO_PHYS(m))) {
-						m->flags |= PG_REFERENCED;
+						PAGE_SET_FLAG(m, PG_REFERENCED);
 						mincoreinfo |= MINCORE_REFERENCED_OTHER;
 					}
 				}

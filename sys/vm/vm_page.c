@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.104 1998/07/15 04:17:55 bde Exp $
+ *	$Id: vm_page.c,v 1.105 1998/07/26 18:15:20 dfr Exp $
  */
 
 /*
@@ -403,7 +403,7 @@ vm_page_insert(m, object, pindex)
 	 */
 
 	TAILQ_INSERT_TAIL(&object->memq, m, listq);
-	m->flags |= PG_TABLED;
+	PAGE_SET_FLAG(m, PG_TABLED);
 	m->object->page_hint = m;
 	m->object->generation++;
 
@@ -446,9 +446,9 @@ vm_page_remove(m)
 	}
 #endif
 	
-	m->flags &= ~PG_BUSY;
+	PAGE_CLEAR_FLAG(m, PG_BUSY);
 	if (m->flags & PG_WANTED) {
-		m->flags &= ~PG_WANTED;
+		PAGE_CLEAR_FLAG(m, PG_WANTED);
 		wakeup(m);
 	}
 
@@ -484,7 +484,7 @@ vm_page_remove(m)
 	object->generation++;
 	m->object = NULL;
 
-	m->flags &= ~PG_TABLED;
+	PAGE_CLEAR_FLAG(m, PG_TABLED);
 }
 
 /*
@@ -940,7 +940,7 @@ vm_page_alloc(object, pindex, page_req)
 		m->flags = PG_ZERO | PG_BUSY;
 	} else if (qtype == PQ_CACHE) {
 		oldobject = m->object;
-		m->flags |= PG_BUSY;
+		PAGE_SET_FLAG(m, PG_BUSY);
 		vm_page_remove(m);
 		m->flags = PG_BUSY;
 	} else {
@@ -1011,7 +1011,7 @@ vm_page_sleep(vm_page_t m, char *msg, char *busy) {
 		int s;
 		s = splvm();
 		if ((busy && *busy) || (m->flags & PG_BUSY)) {
-			m->flags |= PG_WANTED;
+			PAGE_SET_FLAG(m, PG_WANTED);
 			tsleep(m, PVM, msg, 0);
 			slept = 1;
 		}
@@ -1247,7 +1247,7 @@ vm_page_wire(m)
 	}
 	(*vm_page_queues[PQ_NONE].lcnt)++;
 	m->wire_count++;
-	m->flags |= PG_MAPPED;
+	PAGE_SET_FLAG(m, PG_MAPPED);
 }
 
 /*
@@ -1384,7 +1384,7 @@ retrylookup:
 			s = splvm();
 			while ((object->generation == generation) &&
 					(m->busy || (m->flags & PG_BUSY))) {
-				m->flags |= PG_WANTED | PG_REFERENCED;
+				PAGE_SET_FLAG(m, PG_WANTED | PG_REFERENCED);
 				tsleep(m, PVM, "pgrbwt", 0);
 				if ((allocflags & VM_ALLOC_RETRY) == 0) {
 					splx(s);
@@ -1394,7 +1394,7 @@ retrylookup:
 			splx(s);
 			goto retrylookup;
 		} else {
-			m->flags |= PG_BUSY;
+			PAGE_SET_FLAG(m, PG_BUSY);
 			return m;
 		}
 	}
@@ -1633,7 +1633,7 @@ again1:
 
 			pqtype = m->queue - m->pc;
 			if (pqtype == PQ_CACHE) {
-				m->flags |= PG_BUSY;
+				PAGE_SET_FLAG(m, PG_BUSY);
 				vm_page_free(m);
 			}
 

@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.132 1998/07/14 12:14:58 bde Exp $
+ * $Id: vm_map.c,v 1.133 1998/08/06 08:33:19 dfr Exp $
  */
 
 /*
@@ -542,9 +542,9 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	new_entry->offset = offset;
 	if (object) {
 		if ((object->ref_count > 1) || (object->shadow_count != 0)) {
-			object->flags &= ~OBJ_ONEMAPPING;
+			vm_object_clear_flag(object, OBJ_ONEMAPPING);
 		} else {
-			object->flags |= OBJ_ONEMAPPING;
+			vm_object_set_flag(object, OBJ_ONEMAPPING);
 		}
 	}
 
@@ -758,7 +758,7 @@ vm_map_simplify_entry(map, entry)
 	if (startaddr > entry->start) \
 		_vm_map_clip_start(map, entry, startaddr); \
 	else if (entry->object.vm_object && (entry->object.vm_object->ref_count == 1)) \
-		entry->object.vm_object->flags |= OBJ_ONEMAPPING; \
+		vm_object_set_flag(entry->object.vm_object, OBJ_ONEMAPPING); \
 }
 
 /*
@@ -808,7 +808,8 @@ _vm_map_clip_start(map, entry, start)
 
 	if ((entry->eflags & (MAP_ENTRY_IS_A_MAP|MAP_ENTRY_IS_SUB_MAP)) == 0) {
 		if (new_entry->object.vm_object->ref_count == 1)
-			new_entry->object.vm_object->flags |= OBJ_ONEMAPPING;
+			vm_object_set_flag(new_entry->object.vm_object,
+					   OBJ_ONEMAPPING);
 		vm_object_reference(new_entry->object.vm_object);
 	}
 }
@@ -826,7 +827,7 @@ _vm_map_clip_start(map, entry, start)
 	if (endaddr < entry->end) \
 		_vm_map_clip_end(map, entry, endaddr); \
 	else if (entry->object.vm_object && (entry->object.vm_object->ref_count == 1)) \
-		entry->object.vm_object->flags |= OBJ_ONEMAPPING; \
+		vm_object_set_flag(entry->object.vm_object, OBJ_ONEMAPPING); \
 }
 
 /*
@@ -871,7 +872,8 @@ _vm_map_clip_end(map, entry, end)
 
 	if ((entry->eflags & (MAP_ENTRY_IS_A_MAP|MAP_ENTRY_IS_SUB_MAP)) == 0) {
 		if (new_entry->object.vm_object->ref_count == 1)
-			new_entry->object.vm_object->flags |= OBJ_ONEMAPPING;
+			vm_object_set_flag(new_entry->object.vm_object,
+					   OBJ_ONEMAPPING);
 		vm_object_reference(new_entry->object.vm_object);
 	}
 }
@@ -1770,7 +1772,7 @@ vm_map_delete(map, start, end)
 		entry = first_entry->next;
 		object = entry->object.vm_object;
 		if (object && (object->ref_count == 1) && (object->shadow_count == 0))
-				object->flags |= OBJ_ONEMAPPING;
+			vm_object_set_flag(object, OBJ_ONEMAPPING);
 	} else {
 		entry = first_entry;
 		vm_map_clip_start(map, entry, start);
@@ -1972,7 +1974,7 @@ vm_map_split(entry)
 		vm_object_reference(source);	/* Referenced by new_object */
 		TAILQ_INSERT_TAIL(&source->shadow_head,
 				  new_object, shadow_list);
-		source->flags &= ~OBJ_ONEMAPPING;
+		vm_object_clear_flag(source, OBJ_ONEMAPPING);
 		new_object->backing_object_offset = 
 			orig_object->backing_object_offset + offidxstart;
 		new_object->backing_object = source;
@@ -1988,16 +1990,16 @@ vm_map_split(entry)
 		if (m == NULL)
 			continue;
 		if (m->flags & PG_BUSY) {
-			m->flags |= PG_WANTED;
+			PAGE_SET_FLAG(m, PG_WANTED);
 			tsleep(m, PVM, "spltwt", 0);
 			goto retry;
 		}
 			
-		m->flags |= PG_BUSY;
+		PAGE_SET_FLAG(m, PG_BUSY);
 		vm_page_protect(m, VM_PROT_NONE);
 		vm_page_rename(m, new_object, idx);
 		m->dirty = VM_PAGE_BITS_ALL;
-		m->flags |= PG_BUSY;
+		PAGE_SET_FLAG(m, PG_BUSY);
 	}
 
 	if (orig_object->type == OBJT_SWAP) {
@@ -2072,7 +2074,7 @@ vm_map_copy_entry(src_map, dst_map, src_entry, dst_entry)
 			}
 
 			vm_object_reference(src_object);
-			src_object->flags &= ~OBJ_ONEMAPPING;
+			vm_object_clear_flag(src_object, OBJ_ONEMAPPING);
 			dst_entry->object.vm_object = src_object;
 			src_entry->eflags |= (MAP_ENTRY_COW|MAP_ENTRY_NEEDS_COPY);
 			dst_entry->eflags |= (MAP_ENTRY_COW|MAP_ENTRY_NEEDS_COPY);
@@ -2151,7 +2153,7 @@ vmspace_fork(vm1)
 				old_entry->eflags &= ~MAP_ENTRY_NEEDS_COPY;
 				object = old_entry->object.vm_object;
 			}
-			object->flags &= ~OBJ_ONEMAPPING;
+			vm_object_clear_flag(object, OBJ_ONEMAPPING);
 
 			/*
 			 * Clone the entry, referencing the sharing map.
@@ -2610,7 +2612,7 @@ vm_uiomove(mapa, srcobject, cp, cnta, uaddra, npages)
 				/*
    				* Set the object optimization hint flag
    				*/
-					srcobject->flags |= OBJ_OPT;
+					vm_object_set_flag(srcobject, OBJ_OPT);
 					vm_object_reference(srcobject);
 					entry->object.vm_object = srcobject;
 
@@ -2668,7 +2670,7 @@ vm_uiomove(mapa, srcobject, cp, cnta, uaddra, npages)
 				/*
    				* Set the object optimization hint flag
    				*/
-					srcobject->flags |= OBJ_OPT;
+					vm_object_set_flag(srcobject, OBJ_OPT);
 					vm_object_reference(srcobject);
 
 					if (oldobject) {
@@ -2694,7 +2696,7 @@ vm_uiomove(mapa, srcobject, cp, cnta, uaddra, npages)
  */
 		} else {
 
-			srcobject->flags |= OBJ_OPT;
+			vm_object_set_flag(srcobject, OBJ_OPT);
 			vm_object_reference(srcobject);
 
 			pmap_remove (map->pmap, uaddr, tend);
@@ -2821,7 +2823,7 @@ m_inretry:
 		vm_object_deallocate(robject);
 	}
 
-	object->flags &= ~OBJ_OPT;
+	vm_object_clear_flag(object, OBJ_OPT);
 }
 
 #include "opt_ddb.h"

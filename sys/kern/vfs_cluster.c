@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cluster.c	8.7 (Berkeley) 2/13/94
- * $Id: vfs_cluster.c,v 1.67 1998/08/06 08:33:18 dfr Exp $
+ * $Id: vfs_cluster.c,v 1.68 1998/08/13 08:09:07 dfr Exp $
  */
 
 #include "opt_debug_cluster.h"
@@ -417,10 +417,8 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run, fbp)
 		for (j = 0; j < tbp->b_npages; j += 1) {
 			vm_page_t m;
 			m = tbp->b_pages[j];
-			s = splvm();
-			++m->busy;
-			++m->object->paging_in_progress;
-			splx(s);
+			PAGE_BUSY(m);
+			vm_object_pip_add(m->object, 1);
 			if ((bp->b_npages == 0) ||
 				(bp->b_pages[bp->b_npages-1] != m)) {
 				bp->b_pages[bp->b_npages] = m;
@@ -784,10 +782,8 @@ cluster_wbuild(vp, size, start_lbn, len)
 					
 				for (j = 0; j < tbp->b_npages; j += 1) {
 					m = tbp->b_pages[j];
-					s = splvm();
-					++m->busy;
-					++m->object->paging_in_progress;
-					splx(s);
+					PAGE_BUSY(m);
+					vm_object_pip_add(m->object, 1);
 					if ((bp->b_npages == 0) ||
 					  (bp->b_pages[bp->b_npages - 1] != m)) {
 						bp->b_pages[bp->b_npages] = m;

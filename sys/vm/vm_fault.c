@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.85 1998/07/22 09:38:04 dg Exp $
+ * $Id: vm_fault.c,v 1.86 1998/08/06 08:33:19 dfr Exp $
  */
 
 /*
@@ -291,7 +291,7 @@ RetryFault:;
 				if ((fs.m->flags & PG_BUSY) ||
 					(fs.m->busy &&
 					 (fs.m->valid & VM_PAGE_BITS_ALL) != VM_PAGE_BITS_ALL)) {
-					fs.m->flags |= PG_WANTED | PG_REFERENCED;
+					PAGE_SET_FLAG(fs.m, PG_WANTED | PG_REFERENCED);
 					cnt.v_intrans++;
 					tsleep(fs.m, PSWP, "vmpfw", 0);
 				}
@@ -314,7 +314,7 @@ RetryFault:;
 				goto RetryFault;
 			}
 
-			fs.m->flags |= PG_BUSY;
+			PAGE_SET_FLAG(fs.m, PG_BUSY);
 			if (((fs.m->valid & VM_PAGE_BITS_ALL) != VM_PAGE_BITS_ALL) &&
 				fs.m->object != kernel_object && fs.m->object != kmem_object) {
 				goto readrest;
@@ -607,7 +607,7 @@ readrest:
 				vm_page_rename(fs.m, fs.first_object, fs.first_pindex);
 				fs.first_m = fs.m;
 				fs.first_m->dirty = VM_PAGE_BITS_ALL;
-				fs.first_m->flags |= PG_BUSY;
+				PAGE_SET_FLAG(fs.first_m, PG_BUSY);
 				fs.m = NULL;
 				cnt.v_cow_optim++;
 			} else {
@@ -705,8 +705,9 @@ readrest:
 	 */
 
 	if (prot & VM_PROT_WRITE) {
-		fs.m->flags |= PG_WRITEABLE;
-		fs.m->object->flags |= OBJ_WRITEABLE|OBJ_MIGHTBEDIRTY;
+		PAGE_SET_FLAG(fs.m, PG_WRITEABLE);
+		vm_object_set_flag(fs.m->object,
+				   OBJ_WRITEABLE|OBJ_MIGHTBEDIRTY);
 		/*
 		 * If the fault is a write, we know that this page is being
 		 * written NOW. This will save on the pmap_is_modified() calls
@@ -719,14 +720,14 @@ readrest:
 
 	unlock_things(&fs);
 	fs.m->valid = VM_PAGE_BITS_ALL;
-	fs.m->flags &= ~PG_ZERO;
+	PAGE_CLEAR_FLAG(fs.m, PG_ZERO);
 
 	pmap_enter(fs.map->pmap, vaddr, VM_PAGE_TO_PHYS(fs.m), prot, wired);
 	if (((fault_flags & VM_FAULT_WIRE_MASK) == 0) && (wired == 0)) {
 		pmap_prefault(fs.map->pmap, vaddr, fs.entry);
 	}
 
-	fs.m->flags |= PG_MAPPED|PG_REFERENCED;
+	PAGE_SET_FLAG(fs.m, PG_MAPPED|PG_REFERENCED);
 	if (fault_flags & VM_FAULT_HOLD)
 		vm_page_hold(fs.m);
 
@@ -966,10 +967,10 @@ vm_fault_copy_entry(dst_map, src_map, dst_entry, src_entry)
 		 * Enter it in the pmap...
 		 */
 
-		dst_m->flags &= ~PG_ZERO;
+		PAGE_CLEAR_FLAG(dst_m, PG_ZERO);
 		pmap_enter(dst_map->pmap, vaddr, VM_PAGE_TO_PHYS(dst_m),
 		    prot, FALSE);
-		dst_m->flags |= PG_WRITEABLE|PG_MAPPED;
+		PAGE_SET_FLAG(dst_m, PG_WRITEABLE|PG_MAPPED);
 
 		/*
 		 * Mark it no longer busy, and put it on the active list.
