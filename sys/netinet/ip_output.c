@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_output.c	8.3 (Berkeley) 1/21/94
- *	$Id: ip_output.c,v 1.63 1998/02/04 22:33:09 eivind Exp $
+ *	$Id: ip_output.c,v 1.64 1998/02/06 12:13:52 eivind Exp $
  */
 
 #define _IP_VHL
@@ -841,7 +841,7 @@ ip_pcbopts(pcbopt, m)
 	struct mbuf **pcbopt;
 	register struct mbuf *m;
 {
-	register cnt, optlen;
+	register int cnt, optlen;
 	register u_char *cp;
 	u_char opt;
 
