@@ -78,6 +78,10 @@ if [ -d /conf/default/etc ]; then
 fi
 
 #
+# XXX make sure to create one dir for each printer as requested by lpd
+#
+
+# If /tmp is a symlink, assume it points to somewhere writable, like
 # /var/tmp, otherwise, use a small memory filesystem for /tmp.
 	mount_md ${tmpsize:=20480} /tmp 2
 # XXX: mtree runs too early to create any directories needed in /tmp,
