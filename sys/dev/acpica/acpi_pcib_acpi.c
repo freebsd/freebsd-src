@@ -115,16 +115,16 @@ MODULE_DEPEND(acpi_pcib, acpi, 1, 1, 1);
 static int
 acpi_pcib_acpi_probe(device_t dev)
 {
+    static char *pcib_ids[] = { "PNP0A03", NULL };
 
-    if (acpi_get_type(dev) == ACPI_TYPE_DEVICE && !acpi_disabled("pci") &&
-	acpi_MatchHid(acpi_get_handle(dev), "PNP0A03")) {
+    if (acpi_disabled("pcib") ||
+	ACPI_ID_PROBE(device_get_parent(dev), dev, pcib_ids) == NULL)
+	return (ENXIO);
 
-	if (pci_cfgregopen() == 0)
-		return (ENXIO);
-	device_set_desc(dev, "ACPI Host-PCI bridge");
-	return (0);
-    }
-    return (ENXIO);
+    if (pci_cfgregopen() == 0)
+	return (ENXIO);
+    device_set_desc(dev, "ACPI Host-PCI bridge");
+    return (0);
 }
 
 static int

@@ -291,13 +291,14 @@ acpi_cmbat_notify_handler(ACPI_HANDLE h, UINT32 notify, void *context)
 static int
 acpi_cmbat_probe(device_t dev)
 {
-    if (acpi_get_type(dev) == ACPI_TYPE_DEVICE && !acpi_disabled("cmbat")
-	&& acpi_MatchHid(acpi_get_handle(dev), "PNP0C0A")) {
+    static char *cmbat_ids[] = { "PNP0C0A", NULL };
 
-	device_set_desc(dev, "Control Method Battery");
-	return (0);
-    }
-    return (ENXIO);
+    if (acpi_disabled("cmbat") ||
+	ACPI_ID_PROBE(device_get_parent(dev), dev, cmbat_ids) == NULL)
+	return (ENXIO);
+
+    device_set_desc(dev, "Control Method Battery");
+    return (0);
 }
 
 static int
