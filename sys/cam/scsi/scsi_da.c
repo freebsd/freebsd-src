@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_da.c,v 1.19.2.6 1999/07/03 21:16:44 mjacob Exp $
+ *      $Id: scsi_da.c,v 1.19.2.7 1999/07/06 01:42:44 mjacob Exp $
  */
 
 #include "opt_hw_wdog.h"
@@ -1326,10 +1326,10 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 			dp = &softc->params;
 			snprintf(announce_buf, sizeof(announce_buf),
 			        "%luMB (%u %u byte sectors: %dH %dS/T %dC)",
-				((unsigned long)dp->secsize * dp->sectors) /
-				((unsigned long)1024 * 1024),
-				dp->sectors, dp->secsize, dp->heads,
-				dp->secs_per_track, dp->cylinders);
+				(unsigned long) (((u_int64_t)dp->secsize *
+				dp->sectors) / (1024*1024)), dp->sectors,
+				dp->secsize, dp->heads, dp->secs_per_track,
+				dp->cylinders);
 		} else {
 			int	error;
 
