@@ -6,7 +6,7 @@
  * are met:
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright 
+ * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
@@ -404,7 +404,7 @@ iface_match(struct ifnet *ifp, ipfw_insn_if *cmd)
 
 /*
  * The 'verrevpath' option checks that the interface that an IP packet
- * arrives on is the same interface that traffic destined for the 
+ * arrives on is the same interface that traffic destined for the
  * packet's source address would be routed out of. This is a measure
  * to block forged packets. This is also commonly known as "anti-spoofing"
  * or Unicast Reverse Path Forwarding (Unicast RFP) in Cisco-ese. The
@@ -439,7 +439,7 @@ verify_rev_path(struct in_addr src, struct ifnet *ifp)
 	if ((ro.ro_rt == NULL) || (ifp == NULL) ||
 	    (ro.ro_rt->rt_ifp->if_index != ifp->if_index))
 		return 0;
-	
+
     	return 1;
 }
 
@@ -1816,7 +1816,7 @@ check_body:
 			case O_VERREVPATH:
 				/* Outgoing packets automatically pass/match */
 				match = ((oif != NULL) ||
-				    (m->m_pkthdr.rcvif == NULL) ||	 
+				    (m->m_pkthdr.rcvif == NULL) ||
 				    verify_rev_path(src_ip, m->m_pkthdr.rcvif));
 				break;
 
