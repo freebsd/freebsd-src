@@ -261,7 +261,7 @@ vop_remove {
 
 #
 #% link		tdvp	L L L
-#% link		vp	U U U
+#% link		vp	L L L
 #
 vop_link {
 	IN struct vnode *tdvp;

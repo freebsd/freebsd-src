@@ -1224,8 +1224,8 @@ union_remove(ap)
 /*
  *	union_link:
  *
- *	tdvp will be locked on entry, vp will not be locked on entry.
- *	tdvp should remain locked on return and vp should remain unlocked
+ *	tdvp and vp will be locked on entry.
+ *	tdvp and vp should remain locked on return.
  *	on return.
  */
 
@@ -1250,7 +1250,6 @@ union_link(ap)
 		struct union_node *tun = VTOUNION(ap->a_vp);
 
 		if (tun->un_uppervp == NULLVP) {
-			vn_lock(ap->a_vp, LK_EXCLUSIVE | LK_RETRY, td);
 #if 0
 			if (dun->un_uppervp == tun->un_dirvp) {
 				if (dun->un_flags & UN_ULOCK) {
@@ -1267,13 +1266,12 @@ union_link(ap)
 				dun->un_flags |= UN_ULOCK;
 			}
 #endif
-			VOP_UNLOCK(ap->a_vp, 0, td);
+			if (error)
+				return (error);
 		}
 		vp = tun->un_uppervp;
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	}
-
-	if (error)
-		return (error);
 
 	/*
 	 * Make sure upper is locked, then unlock the union directory we were 
@@ -1289,11 +1287,20 @@ union_link(ap)
 	error = VOP_LINK(tdvp, vp, cnp);	/* call link on upper */
 
 	/*
-	 * We have to unlock tdvp prior to relocking our calling node in
-	 * order to avoid a deadlock.
+	 * Unlock tun->un_uppervp if we locked it above.
 	 */
+	if (ap->a_tdvp->v_op == ap->a_vp->v_op)
+		VOP_UNLOCK(vp, 0, td);
+	/*
+	 * We have to unlock tdvp prior to relocking our calling node in
+	 * order to avoid a deadlock.  We also have to unlock ap->a_vp
+	 * before relocking the directory, but then we have to relock
+	 * ap->a_vp as our caller expects.
+	 */
+	VOP_UNLOCK(ap->a_vp, 0, td);
 	union_unlock_upper(tdvp, td);
 	vn_lock(ap->a_tdvp, LK_EXCLUSIVE | LK_RETRY, td);
+	vn_lock(ap->a_vp, LK_EXCLUSIVE | LK_RETRY, td);
 	return (error);
 }
 
