@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.32 1995/01/28 02:02:25 davidg Exp $
+ * $Id: vm_pageout.c,v 1.33 1995/02/02 09:09:15 davidg Exp $
  */
 
 /*
@@ -100,15 +100,10 @@ extern int swap_pager_full;
 extern int vm_swap_size;
 extern int swap_pager_ready();
 
-#define MAXREF 32767
-
-#define MAXSCAN 512		/* maximum number of pages to scan in active queue */
+#define MAXSCAN 1024		/* maximum number of pages to scan in queues */
 #define ACT_DECLINE	1
 #define ACT_ADVANCE	3
 #define ACT_MAX		100
-#define MAXISCAN 256
-#define MINTOFREE 6
-#define MINFREE 2
 
 #define MAXLAUNDER (cnt.v_page_count > 1800 ? 32 : 16)
 
@@ -297,16 +292,16 @@ vm_pageout_clean(m, sync)
 		 * collapse.
 		 */
 		if (pageout_status[i] != VM_PAGER_PEND) {
-			PAGE_WAKEUP(ms[i]);
 			if (--object->paging_in_progress == 0)
 				wakeup((caddr_t) object);
-			if ((ms[i]->flags & PG_REFERENCED) ||
+			if ((ms[i]->flags & (PG_REFERENCED|PG_WANTED)) ||
 			    pmap_is_referenced(VM_PAGE_TO_PHYS(ms[i]))) {
 				pmap_clear_reference(VM_PAGE_TO_PHYS(ms[i]));
 				ms[i]->flags &= ~PG_REFERENCED;
 				if (ms[i]->flags & PG_INACTIVE)
 					vm_page_activate(ms[i]);
 			}
+			PAGE_WAKEUP(ms[i]);
 		}
 	}
 	return anyok;
@@ -372,7 +367,7 @@ vm_pageout_object_deactivate_pages(map, object, count, map_remove_only)
 		 */
 		if ((p->flags & (PG_ACTIVE | PG_BUSY)) == PG_ACTIVE) {
 			if (!pmap_is_referenced(VM_PAGE_TO_PHYS(p)) &&
-			    (p->flags & PG_REFERENCED) == 0) {
+			    (p->flags & (PG_REFERENCED|PG_WANTED)) == 0) {
 				p->act_count -= min(p->act_count, ACT_DECLINE);
 				/*
 				 * if the page act_count is zero -- then we
@@ -491,44 +486,6 @@ vm_req_vmdaemon()
 	}
 }
 
-void
-vm_pageout_inactive_stats(int maxiscan)
-{
-	vm_page_t m;
-	int s;
-
-	if (maxiscan > cnt.v_inactive_count)
-		maxiscan = cnt.v_inactive_count;
-	m = vm_page_queue_inactive.tqh_first;
-	while (m && (maxiscan-- > 0)) {
-		vm_page_t next;
-
-		next = m->pageq.tqe_next;
-
-		if (((m->flags & PG_REFERENCED) == 0) &&
-		    pmap_is_referenced(VM_PAGE_TO_PHYS(m))) {
-			m->flags |= PG_REFERENCED;
-		}
-		if (m->object->ref_count == 0) {
-			m->flags &= ~PG_REFERENCED;
-			pmap_clear_reference(VM_PAGE_TO_PHYS(m));
-		}
-		if (m->flags & PG_REFERENCED) {
-			m->flags &= ~PG_REFERENCED;
-			pmap_clear_reference(VM_PAGE_TO_PHYS(m));
-			vm_page_activate(m);
-			/*
-			 * heuristic alert -- if a page is being re-activated,
-			 * it probably will be used one more time...
-			 */
-			if (m->act_count < ACT_MAX)
-				m->act_count += ACT_ADVANCE;
-		}
-		m = next;
-	}
-}
-
-
 /*
  *	vm_pageout_scan does the dirty work for the pageout daemon.
  */
@@ -547,10 +504,6 @@ vm_pageout_scan()
 	int cache_size, orig_cache_size;
 	int minscan;
 	int mintofree;
-
-#ifdef LFS
-	lfs_reclaim_buffers();
-#endif
 
 	/* calculate the total cached size */
 
@@ -576,20 +529,14 @@ vm_pageout_scan()
 	 * them.
 	 */
 
-
-rescan0:
-	vm_pageout_inactive_stats(MAXISCAN);
 	maxlaunder = (cnt.v_inactive_target > MAXLAUNDER) ?
 	    MAXLAUNDER : cnt.v_inactive_target;
 
 rescan1:
-	maxscan = cnt.v_inactive_count;
-	mintofree = MINTOFREE;
+	maxscan = min(cnt.v_inactive_count, MAXSCAN);
 	m = vm_page_queue_inactive.tqh_first;
-	while (m &&
-	    (maxscan-- > 0) &&
-	    (((cnt.v_free_count + cnt.v_cache_count) < desired_free) ||
-		(--mintofree > 0))) {
+	while (m && (maxscan-- > 0) &&
+	    ((cnt.v_free_count + cnt.v_cache_count) < desired_free)) {
 		vm_page_t next;
 
 		cnt.v_pdpages++;
@@ -620,7 +567,7 @@ rescan1:
 			m->flags &= ~PG_REFERENCED;
 			pmap_clear_reference(VM_PAGE_TO_PHYS(m));
 		}
-		if ((m->flags & PG_REFERENCED) != 0) {
+		if ((m->flags & (PG_REFERENCED|PG_WANTED)) != 0) {
 			m->flags &= ~PG_REFERENCED;
 			pmap_clear_reference(VM_PAGE_TO_PHYS(m));
 			vm_page_activate(m);
@@ -689,16 +636,9 @@ rescan1:
 		if( (page_shortage <= 0) && (cnt.v_free_count < cnt.v_free_min))
 			page_shortage = 1;
 	}
-	maxscan = cnt.v_active_count;
-	minscan = cnt.v_active_count;
-	if (minscan > MAXSCAN)
-		minscan = MAXSCAN;
+	maxscan = min(cnt.v_active_count, MAXSCAN);
 	m = vm_page_queue_active.tqh_first;
-	while (m && ((maxscan > 0 && (page_shortage > 0)) || minscan > 0)) {
-		if (maxscan)
-			--maxscan;
-		if (minscan)
-			--minscan;
+	while (m && (maxscan-- > 0) && (page_shortage > 0)) {
 
 		cnt.v_pdpages++;
 		next = m->pageq.tqe_next;
@@ -715,7 +655,7 @@ rescan1:
 			m = next;
 			continue;
 		}
-		if (m->object->ref_count && ((m->flags & PG_REFERENCED) ||
+		if (m->object->ref_count && ((m->flags & (PG_REFERENCED|PG_WANTED)) ||
 			pmap_is_referenced(VM_PAGE_TO_PHYS(m)))) {
 			int s;
 
