@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_sl.c	8.6 (Berkeley) 2/1/94
- * $Id: if_sl.c,v 1.58 1997/08/02 14:32:39 bde Exp $
+ * $Id: if_sl.c,v 1.59 1997/08/13 14:57:14 ache Exp $
  */
 
 /*
@@ -332,11 +332,11 @@ slclose(tp,flag)
 	if (sc != NULL) {
 		if (sc->sc_outfill) {
 			sc->sc_outfill = 0;
-			untimeout(sl_outfill, sc);
+			untimeout(sl_outfill, sc, sc->sc_ofhandle);
 		}
 		if (sc->sc_keepalive) {
 			sc->sc_keepalive = 0;
-			untimeout(sl_keepalive, sc);
+			untimeout(sl_keepalive, sc, sc->sc_kahandle);
 		}
 		if_down(&sc->sc_if);
 		sc->sc_flags &= SC_STATIC;
@@ -408,10 +408,13 @@ sltioctl(tp, cmd, data, flag, p)
 		sc->sc_keepalive = *(u_int *)data * hz;
 		if (sc->sc_keepalive) {
 			sc->sc_flags |= SC_KEEPALIVE;
-			timeout(sl_keepalive, sc, sc->sc_keepalive);
+			sc->sc_kahandle = timeout(sl_keepalive, sc,
+						  sc->sc_keepalive);
 		} else {
-			sc->sc_flags &= ~SC_KEEPALIVE;
-			untimeout(sl_keepalive, sc);
+			if ((sc->sc_flags & SC_KEEPALIVE) != 0) {
+				untimeout(sl_keepalive, sc, sc->sc_kahandle);
+				sc->sc_flags &= ~SC_KEEPALIVE;
+			}
 		}
 		break;
 
@@ -423,10 +426,13 @@ sltioctl(tp, cmd, data, flag, p)
 		sc->sc_outfill = *(u_int *)data * hz;
 		if (sc->sc_outfill) {
 			sc->sc_flags |= SC_OUTWAIT;
-			timeout(sl_outfill, sc, sc->sc_outfill);
+			sc->sc_ofhandle = timeout(sl_outfill, sc,
+						  sc->sc_outfill);
 		} else {
-			sc->sc_flags &= ~SC_OUTWAIT;
-			untimeout(sl_outfill, sc);
+			if ((sc->sc_flags & SC_OUTWAIT) != 0) {
+				untimeout(sl_outfill, sc, sc->sc_ofhandle);
+				sc->sc_flags &= ~SC_OUTWAIT;
+			}
 		}
 		break;
 
@@ -1005,10 +1011,9 @@ sl_keepalive(chan)
 			pgsignal (sc->sc_ttyp->t_pgrp, SIGURG, 1);
 		else
 			sc->sc_flags |= SC_KEEPALIVE;
-		timeout(sl_keepalive, sc, sc->sc_keepalive);
+		sc->sc_kahandle = timeout(sl_keepalive, sc, sc->sc_keepalive);
 	} else {
 		sc->sc_flags &= ~SC_KEEPALIVE;
-		untimeout(sl_keepalive, sc);
 	}
 }
 
@@ -1029,10 +1034,9 @@ sl_outfill(chan)
 			splx (s);
 		} else
 			sc->sc_flags |= SC_OUTWAIT;
-		timeout(sl_outfill, sc, sc->sc_outfill);
+		sc->sc_ofhandle = timeout(sl_outfill, sc, sc->sc_outfill);
 	} else {
 		sc->sc_flags &= ~SC_OUTWAIT;
-		untimeout(sl_outfill, sc);
 	}
 }
 

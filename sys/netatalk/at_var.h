@@ -28,16 +28,17 @@
  * but also the legal networks on the interface.
  */
 struct at_ifaddr {
-    struct ifaddr	aa_ifa;
+    struct ifaddr	  aa_ifa;
 # define aa_ifp			aa_ifa.ifa_ifp
-    struct sockaddr_at	aa_addr;
-    struct sockaddr_at	aa_broadaddr;
+    struct sockaddr_at	  aa_addr;
+    struct sockaddr_at	  aa_broadaddr;
 # define aa_dstaddr		aa_broadaddr;
-    struct sockaddr_at	aa_netmask;
-    int			aa_flags;
-    u_short		aa_firstnet, aa_lastnet;
-    int			aa_probcnt;
-    struct at_ifaddr	*aa_next;
+    struct sockaddr_at	  aa_netmask;
+    int			  aa_flags;
+    u_short		  aa_firstnet, aa_lastnet;
+    int			  aa_probcnt;
+    struct callout_handle aa_ch;
+    struct at_ifaddr	  *aa_next;
 };
 
 struct at_aliasreq {

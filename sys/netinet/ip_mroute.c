@@ -9,7 +9,7 @@
  * Modified by Bill Fenner, PARC, April 1995
  *
  * MROUTING Revision: 3.5
- * $Id: ip_mroute.c,v 1.39 1997/03/24 11:33:28 bde Exp $
+ * $Id: ip_mroute.c,v 1.40 1997/07/19 20:07:07 fenner Exp $
  */
 
 #include "opt_mrouting.h"
@@ -225,6 +225,8 @@ static u_int	mrtdebug = 0;	  /* debug level 	*/
 #define		DEBUG_XMIT	0x10
 static u_int  	tbfdebug = 0;     /* tbf debug level 	*/
 static u_int	rsvpdebug = 0;	  /* rsvp debug level   */
+
+static struct callout_handle expire_upcalls_ch;
 
 #define		EXPIRE_TIMEOUT	(hz / 4)	/* 4x / second		*/
 #define		UPCALL_EXPIRE	6		/* number of timeouts	*/
@@ -540,7 +542,7 @@ ip_mrouter_init(so, m)
 
     pim_assert = 0;
 
-    timeout(expire_upcalls, (caddr_t)NULL, EXPIRE_TIMEOUT);
+    expire_upcalls_ch = timeout(expire_upcalls, (caddr_t)NULL, EXPIRE_TIMEOUT);
 
     if (mrtdebug)
 	log(LOG_DEBUG, "ip_mrouter_init\n");
@@ -584,7 +586,7 @@ X_ip_mrouter_done()
     numvifs = 0;
     pim_assert = 0;
 
-    untimeout(expire_upcalls, (caddr_t)NULL);
+    untimeout(expire_upcalls, (caddr_t)NULL, expire_upcalls_ch);
 
     /*
      * Free all multicast forwarding cache entries.
@@ -1376,7 +1378,7 @@ expire_upcalls(void *unused)
 	}
     }
     splx(s);
-    timeout(expire_upcalls, (caddr_t)NULL, EXPIRE_TIMEOUT);
+    expire_upcalls_ch = timeout(expire_upcalls, (caddr_t)NULL, EXPIRE_TIMEOUT);
 }
 
 /*

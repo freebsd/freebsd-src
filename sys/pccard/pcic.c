@@ -128,6 +128,8 @@ static void		pcic_resume(struct slot *);
 static void		pcic_disable __P((struct slot *));
 static void		pcic_mapirq __P((struct slot *, int));
 static timeout_t 	pcictimeout;
+static struct callout_handle pcictimeout_ch
+    = CALLOUT_HANDLE_INITIALIZER(&pcictimeout_ch);
 #ifdef LKM
 static int		pcic_handle __P((struct lkm_table *lkmtp, int cmd));
 #endif
@@ -307,7 +309,7 @@ pcic_unload(struct lkm_table *lkmtp, int cmd)
 	int	slot;
 	struct pcic_slot *sp = pcic_slots;
 
-	untimeout(pcictimeout,0);
+	untimeout(pcictimeout,0, pcictimeout_ch);
 	if (pcic_irq) {
 		for (slot = 0; slot < PCIC_MAX_SLOTS; slot++, sp++) {
 			if (sp->slotp)
@@ -848,7 +850,7 @@ pcic_probe(void)
 	}
 #endif	/* PC98 */
 	if (validslots)
-		timeout(pcictimeout,0,hz/2);
+		pcictimeout_ch = timeout(pcictimeout,0,hz/2);
 	return(validslots);
 }
 
@@ -1109,7 +1111,7 @@ pcic_disable(struct slot *slotp)
 static void
 pcictimeout(void *chan)
 {
-	timeout(pcictimeout,0,hz/2);
+	pcictimeout_ch = timeout(pcictimeout,0,hz/2);
 	pcicintr(0);
 }
 

@@ -120,6 +120,8 @@ struct slot {
 	 *	flags.
 	 */
 	unsigned int 	insert_seq;	/* Firing up under the card */
+	struct callout_handle insert_ch;/* Insert event timeout handle */
+	struct callout_handle poff_ch;	/* Power Off timeout handle */
 
 	enum cardstate 	state, laststate; /* Current/last card states */
 	struct selinfo	selp;		/* Info for select */
