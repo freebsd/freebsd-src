@@ -32,10 +32,15 @@ CFLAGS+= -DXAUTH_PATH=\"${X11BASE}/bin/xauth\"
 DPADD+=	${LIBCRYPTO} ${LIBCRYPT}
 LDADD+=	-lcrypto -lcrypt
 
-.if defined(OPENSSH_USE_POSIX_THREADS) && !defined(NOLIBC_R)
+.if defined(OPENSSH_USE_POSIX_THREADS)
+.if ((${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386" || \
+    ${MACHINE_ARCH} == "ia64") && !defined(NOLIBPTHREAD)) || \
+    ((${MACHINE_ARCH} == "alpha" || ${MACHINE_ARCH} == "sparc64") && \
+    !defined(NOLIBC_R))
 CFLAGS+=-DUSE_POSIX_THREADS
-DPADD+= ${LIBC_R}
-LDADD+= -lc_r
+DPADD+= ${LIBPTHREAD}
+LDADD+= -lpthread
+.endif
 .endif
 
 .include <bsd.prog.mk>
