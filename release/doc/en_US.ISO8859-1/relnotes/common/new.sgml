@@ -332,6 +332,10 @@
     <para>&man.vidcontrol.1; now supports a <option>-C</option> option to
     clear the history buffer for a given tty.</para>
 
+    <para>&man.last.1; now implements a <option>-d</option> that provides a
+    <quote>snapshot</quote> of who was logged in at a particular date and
+    time. &merged;</para>
+
     <sect3>
       <title>Contributed Software</title>
 
