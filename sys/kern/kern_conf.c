@@ -374,9 +374,9 @@ dev_stdclone(char *name, char **namep, char *stem, int *unit)
 {
 	int u, i;
 
-	if (bcmp(stem, name, strlen(stem)) != 0)
-		return (0);
 	i = strlen(stem);
+	if (bcmp(stem, name, i) != 0)
+		return (0);
 	if (!isdigit(name[i]))
 		return (0);
 	u = 0;
