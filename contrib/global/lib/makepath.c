@@ -31,6 +31,7 @@
  *	makepath.c				20-Oct-97
  *
  */
+#include <string.h>
 #include <sys/param.h>
 #include "makepath.h"
 /*

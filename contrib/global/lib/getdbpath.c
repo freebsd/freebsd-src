@@ -37,6 +37,7 @@
 
 #include <unistd.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "die.h"
 #include "getdbpath.h"
