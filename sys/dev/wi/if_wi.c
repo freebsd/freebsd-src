@@ -214,6 +214,8 @@ static int wi_pccard_detach(dev)
 	}
 
 	wi_stop(sc);
+
+	bpfdetach(ifp);
 	if_detach(ifp);
 	bus_teardown_intr(dev, sc->irq, sc->wi_intrhand);
 	wi_free(dev);
