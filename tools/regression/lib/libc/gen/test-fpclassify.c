@@ -35,7 +35,7 @@ main(void)
 {
 
 	assert(fpclassify((float)0) == FP_ZERO);
-	assert(fpclassify((float)-0) == FP_ZERO);
+	assert(fpclassify((float)-0.0) == FP_ZERO);
 	assert(fpclassify((float)1) == FP_NORMAL);
 	assert(fpclassify((float)1000) == FP_NORMAL);
 #ifndef __alpha__
@@ -59,7 +59,7 @@ main(void)
 	assert(fpclassify((double)NAN) == FP_NAN);
 
 	assert(fpclassify((long double)0) == FP_ZERO);
-	assert(fpclassify((long double)-0) == FP_ZERO);
+	assert(fpclassify((long double)-0.0) == FP_ZERO);
 	assert(fpclassify((long double)1) == FP_NORMAL);
 	assert(fpclassify((long double)1000) == FP_NORMAL);
 #ifndef __alpha__
