@@ -59,25 +59,6 @@
 
 static devclass_t	isavga_devclass;
 
-static int		isavga_probe(device_t dev);
-static int		isavga_attach(device_t dev);
-
-static device_method_t isavga_methods[] = {
-	DEVMETHOD(device_probe,		isavga_probe),
-	DEVMETHOD(device_attach,	isavga_attach),
-
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	{ 0, 0 }
-};
-
-static driver_t isavga_driver = {
-	VGA_DRIVER_NAME,
-	isavga_methods,
-	sizeof(vga_softc_t),
-};
-
-DRIVER_MODULE(vga, isa, isavga_driver, isavga_devclass, 0, 0);
-
 #ifdef FB_INSTALL_CDEV
 
 static d_open_t		isavga_open;
@@ -105,6 +86,12 @@ static struct cdevsw isavga_cdevsw = {
 };
 
 #endif /* FB_INSTALL_CDEV */
+
+static void
+isavga_identify(driver_t *driver, device_t parent)
+{
+	BUS_ADD_CHILD(parent, ISA_ORDER_SPECULATIVE, VGA_DRIVER_NAME, 0);
+}
 
 static int
 isavga_probe(device_t dev)
@@ -216,3 +203,20 @@ isavga_mmap(dev_t dev, vm_offset_t offset, int prot)
 }
 
 #endif /* FB_INSTALL_CDEV */
+
+static device_method_t isavga_methods[] = {
+	DEVMETHOD(device_identify,	isavga_identify),
+	DEVMETHOD(device_probe,		isavga_probe),
+	DEVMETHOD(device_attach,	isavga_attach),
+
+	DEVMETHOD(bus_print_child,	bus_generic_print_child),
+	{ 0, 0 }
+};
+
+static driver_t isavga_driver = {
+	VGA_DRIVER_NAME,
+	isavga_methods,
+	sizeof(vga_softc_t),
+};
+
+DRIVER_MODULE(vga, isa, isavga_driver, isavga_devclass, 0, 0);
