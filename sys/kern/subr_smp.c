@@ -56,12 +56,17 @@ void (*cpustop_restartfunc)(void);
 #endif
 
 int mp_ncpus;
+/* export this for libkvm consumers. */
+int mp_maxcpus = MAXCPU;
 
 volatile int smp_started;
 u_int all_cpus;
 u_int mp_maxid;
 
 SYSCTL_NODE(_kern, OID_AUTO, smp, CTLFLAG_RD, NULL, "Kernel SMP");
+
+SYSCTL_INT(_kern_smp, OID_AUTO, maxcpus, CTLFLAG_RD, &mp_maxcpus, 0,
+    "Max number of CPUs that the system was compiled for.");
 
 int smp_active = 0;	/* are the APs allowed to run? */
 SYSCTL_INT(_kern_smp, OID_AUTO, active, CTLFLAG_RW, &smp_active, 0,
