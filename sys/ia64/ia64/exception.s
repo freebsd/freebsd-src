@@ -1353,6 +1353,11 @@ ENTRY(do_syscall, 0)
 	;;
 	br.call.sptk.many rp=syscall	// do the work
 
+	cmp.eq	p6,p0=59,loc0 		// do a full restore for execve
+	;;
+(p6)	add	sp=-16,loc1
+(p6)	br.dpnt.many exception_restore
+
 	rsm 	psr.dt|psr.ic		// get ready to restore
 	;;
 	srlz.d				// serialise psr.dt and psr.ic
