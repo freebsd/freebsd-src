@@ -19,12 +19,14 @@ PATH=/usr/bin:/usr/sbin:/bin:/sbin:/stand
 export PATH
 TAR=tar
 TAR_FLAGS=xvf
+TMP=/tmp
 
 set_defaults() {
 	media_type="" ;
 	media_device="" ;
 	tmp_dir="/usr/tmp" ;
 	installing=1 ;
+	mkdir -p ${TMP}
 }
 
 handle_rval() {
@@ -60,16 +62,14 @@ some sort of fatal accident.  Please press RETURN to go on." 10 60
 welcome() {
 	dialog --title "Welcome to FreeBSD" --clear \
 --msgbox "Hi!  Nice to see you've made it this far.  We're now ready to
-install one or more packed distribution sets onto your machine.  At
-the minimum, you need a bindist installation. A secrdist is also
-useful if you want your system to have any kind of effective
-security.  The secrdist is a bit of a special case since it cannot
-be legally obtained from the U.S. due to export restrictions, but
-non-U.S. versions are also available.  See the release notes for more
-information on where to obtain a secrdist for your part of the world.
-In the menus and dialogs that follow, you may use your arrow keys to
-move up and down, as well as your PageUp and PageDown keys to scroll.
-If you wish to abort while in a dialog, hit ESC twice." 15 72
+install one or more packed distribution sets onto your machine.
+At the minimum, you need a bindist installation though a
+secrdist is also useful if you want your system to have any kind
+of effective security.  The secrdist is a bit of a special case
+since it cannot be legally obtained from the U.S. due to export
+restrictions, but non-U.S. versions are also available.  See the
+release notes for more information on where to obtain a secrdist
+for your part of the world." 15 72
 	if ! handle_rval $?; then return 1; fi
 }
 
@@ -87,11 +87,11 @@ manually on your own. \n\n\
 	"CDROM" "Load installation from SCSI or Mitsumi CDROM" \
         "DOS" "Load from DOS floppies or a DOS hard disk partition" \
         "FTP" "Load the distribution over ftp" \
-        "NFS" "Load the distribution over NFS" 2> /tmp/menu.tmp.$$
+        "NFS" "Load the distribution over NFS" 2> ${TMP}/menu.tmp.$$
 
 	retval=$?
-	choice=`cat /tmp/menu.tmp.$$`
-	rm -f /tmp/menu.tmp.$$
+	choice=`cat ${TMP}/menu.tmp.$$`
+	rm -f ${TMP}/menu.tmp.$$
 	if ! handle_rval $retval; then return 1; fi
 
 	case $choice in
@@ -102,10 +102,10 @@ system?  FreeBSD supports the following types:\n\n\
 		Choose one of the following:" 20 72 2 \
 		"SCSI" "SCSI tape drive attached to standard SCSI controller" \
 		"QIC" "QIC tape drive (Colorado Jumbo, etc)" \
-			2> /tmp/menu.tmp.$$
+			2> ${TMP}/menu.tmp.$$
 		retval=$?
-		choice=`cat /tmp/menu.tmp.$$`
-		rm -f /tmp/menu.tmp.$$
+		choice=`cat ${TMP}/menu.tmp.$$`
+		rm -f ${TMP}/menu.tmp.$$
 		if ! handle_rval $retval; then continue; fi
 		media_type=tape;
 		case $choice in
@@ -124,10 +124,10 @@ system?  FreeBSD supports the following types:\n\n\
 		Choose one of the following:" 15 72 2 \
 		"SCSI" "SCSI CDROM drive attached to standard SCSI controller" \
 		"Mitsumi" "Mitsumi CDROM drive" \
-			2> /tmp/menu.tmp.$$
+			2> ${TMP}/menu.tmp.$$
 		retval=$?
-		choice=`cat /tmp/menu.tmp.$$`
-		rm -f /tmp/menu.tmp.$$
+		choice=`cat ${TMP}/menu.tmp.$$`
+		rm -f ${TMP}/menu.tmp.$$
 		if ! handle_rval $retval; then continue; fi
 		media_type=cdrom;
 		case $choice in
@@ -150,10 +150,10 @@ specification (e.g. something like ftp://ftp.freeBSD.org/pub/...) or
 simply the name of a host to connect to.  If only a host name is
 specified, the installation assumes that you will properly connect
 and \"mget\" the files yourself.\n\n" \
-16 72 "ftp://ftp.freebsd.org/pub/FreeBSD/2.0-ALPHA/bindist/" 2> /tmp/inputbox.tmp.$$
+16 72 "ftp://ftp.freebsd.org/pub/FreeBSD/2.0-ALPHA/bindist/" 2> ${TMP}/inputbox.tmp.$$
 		if ! handle_rval $?; then continue; fi
 		media_type=ftp
-		media_device=`cat /tmp/inputbox.tmp.$$`
+		media_device=`cat ${TMP}/inputbox.tmp.$$`
 	;;
 	NFS)
 		not_supported
@@ -170,9 +170,9 @@ free space to hold the temporary files for this distribution.
 At minimum, a binary distribution will require around 10MB.
 At maximum, a srcdist may take 60MB or more.  If the directory
 you specify does not exist, it will be created for you.\n\n" \
-16 72 "/usr/tmp" 2> /tmp/inputbox.tmp.$$
+16 72 "/usr${TMP}" 2> ${TMP}/inputbox.tmp.$$
 		if ! handle_rval $?; then continue; fi
-	tmp_dir=`cat /tmp/inputbox.tmp.$$`
+	tmp_dir=`cat ${TMP}/inputbox.tmp.$$`
 	mkdir -p $tmp_dir
 	return 0
 }
