@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_bio.c	8.5 (Berkeley) 1/4/94
- * $Id: nfs_bio.c,v 1.8 1995/01/09 16:05:05 davidg Exp $
+ * $Id: nfs_bio.c,v 1.9 1995/01/10 13:06:51 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -249,7 +249,6 @@ again:
 				vfs_busy_pages(bp, 0);
 				error = nfs_doio(bp, cred, p);
 				if (error) {
-				    vfs_unbusy_pages(bp);
 				    brelse(bp);
 				    return (error);
 				}
@@ -267,7 +266,7 @@ again:
 					return (EINTR);
 				    got_buf = 1;
 				}
-				bp->b_flags |= B_INVAL;
+				bp->b_flags |= B_NOCACHE;
 				if (bp->b_dirtyend > 0) {
 				    if ((bp->b_flags & B_DELWRI) == 0)
 					panic("nfsbioread");
@@ -293,7 +292,6 @@ again:
 			vfs_busy_pages(bp, 0);
 			error = nfs_doio(bp, cred, p);
 			if (error) {
-				vfs_unbusy_pages(bp);
 				bp->b_flags |= B_ERROR;
 				brelse(bp);
 				return (error);
@@ -315,7 +313,6 @@ again:
 			vfs_busy_pages(bp, 0);
 			error = nfs_doio(bp, cred, p);
 			if (error) {
-				vfs_unbusy_pages(bp);
 				bp->b_flags |= B_ERROR;
 				brelse(bp);
 				return (error);
@@ -337,8 +334,8 @@ again:
 				rabp->b_flags |= (B_READ | B_ASYNC);
 				vfs_busy_pages(rabp, 0);
 				if (nfs_asyncio(rabp, cred)) {
-				    vfs_unbusy_pages(rabp);
 				    rabp->b_flags |= B_INVAL|B_ERROR;
+				    vfs_unbusy_pages(rabp);
 				    brelse(rabp);
 				}
 			    } else {
