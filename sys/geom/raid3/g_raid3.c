@@ -2492,7 +2492,6 @@ g_raid3_create(struct g_class *mp, const struct g_raid3_metadata *md)
 	 */
 	gp = g_new_geomf(mp, "%s.sync", md->md_name);
 	gp->softc = sc;
-	gp->spoiled = g_raid3_spoiled;
 	gp->orphan = g_raid3_orphan;
 	sc->sc_sync.ds_geom = gp;
 	sc->sc_zone_64k = uma_zcreate("gr3:64k", 65536, NULL, NULL, NULL, NULL,
