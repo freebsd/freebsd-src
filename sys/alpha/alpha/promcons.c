@@ -66,11 +66,9 @@ static	d_ioctl_t	promioctl;
 static struct cdevsw prom_cdevsw = {
 	.d_open =	promopen,
 	.d_close =	promclose,
-	.d_read =	ttyread,
-	.d_write =	ttywrite,
 	.d_ioctl =	promioctl,
-	.d_poll =	ttypoll,
 	.d_name =	"prom",
+	.d_flags =	D_TTY,
 };
 
 

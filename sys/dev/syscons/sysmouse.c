@@ -51,9 +51,7 @@ static d_ioctl_t	smioctl;
 static struct cdevsw sm_cdevsw = {
 	.d_open =	smopen,
 	.d_close =	smclose,
-	.d_read =	ttyread,
 	.d_ioctl =	smioctl,
-	.d_poll =	ttypoll,
 	.d_name =	"sysmouse",
 	.d_flags =	D_TTY,
 };

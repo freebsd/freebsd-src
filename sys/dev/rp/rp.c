@@ -574,10 +574,8 @@ static	d_ioctl_t	rpioctl;
 struct cdevsw rp_cdevsw = {
 	.d_open =	rpopen,
 	.d_close =	rpclose,
-	.d_read =	ttyread,
 	.d_write =	rpwrite,
 	.d_ioctl =	rpioctl,
-	.d_poll =	ttypoll,
 	.d_name =	"rp",
 	.d_flags =	D_TTY,
 };

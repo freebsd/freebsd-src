@@ -85,11 +85,9 @@ static struct cdevsw pts_cdevsw = {
 	.d_read =	ptsread,
 	.d_write =	ptswrite,
 	.d_ioctl =	ptyioctl,
-	.d_poll =	ttypoll,
 	.d_name =	"pts",
 	.d_maj =	CDEV_MAJOR_S,
 	.d_flags =	D_TTY,
-	.d_kqfilter =	ttykqfilter,
 };
 
 #define	CDEV_MAJOR_C	6
@@ -103,7 +101,6 @@ static struct cdevsw ptc_cdevsw = {
 	.d_name =	"ptc",
 	.d_maj =	CDEV_MAJOR_C,
 	.d_flags =	D_TTY,
-	.d_kqfilter =	ttykqfilter,
 };
 
 #define BUFSIZ 100		/* Chunk size iomoved to/from user */

@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 #include <sys/poll.h>
 #include <sys/ctype.h>
+#include <sys/tty.h>
 #include <machine/stdarg.h>
 
 static MALLOC_DEFINE(M_DEVT, "dev_t", "dev_t storage");
@@ -339,6 +340,13 @@ find_major(struct cdevsw *devsw)
 static void
 prep_cdevsw(struct cdevsw *devsw)
 {
+
+	if (devsw->d_flags & D_TTY) {
+		if (devsw->d_read == NULL)	devsw->d_read = ttyread;
+		if (devsw->d_write == NULL)	devsw->d_write = ttywrite;
+		if (devsw->d_kqfilter == NULL)	devsw->d_kqfilter = ttykqfilter;
+		if (devsw->d_poll == NULL)	devsw->d_poll = ttypoll;
+	}
 
 	if (devsw->d_open == NULL)	devsw->d_open = null_open;
 	if (devsw->d_close == NULL)	devsw->d_close = null_close;

@@ -147,10 +147,8 @@ static struct cdevsw digi_sw = {
 	.d_read =	digiread,
 	.d_write =	digiwrite,
 	.d_ioctl =	digiioctl,
-	.d_poll =	ttypoll,
 	.d_name =	driver_name,
 	.d_flags =	D_TTY,
-	.d_kqfilter =	ttykqfilter
 };
 
 static void

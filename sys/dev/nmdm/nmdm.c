@@ -77,7 +77,6 @@ static struct cdevsw nmdm_cdevsw = {
 	.d_read =	nmdmread,
 	.d_write =	nmdmwrite,
 	.d_ioctl =	nmdmioctl,
-	.d_poll =	ttypoll,
 	.d_name =	"nmdm",
 	.d_flags =	D_TTY | D_PSEUDO,
 };
