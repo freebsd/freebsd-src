@@ -584,7 +584,7 @@ trap(a0, a1, a2, entry, framep)
 	framep->tf_regs[FRAME_TRAPARG_A0] = a0;
 	framep->tf_regs[FRAME_TRAPARG_A1] = a1;
 	framep->tf_regs[FRAME_TRAPARG_A2] = a2;
-	trapsignal(p, i, ucode);
+	trapsignal(td, i, ucode);
 out:
 	if (user) {
 		framep->tf_regs[FRAME_SP] = alpha_pal_rdusp();

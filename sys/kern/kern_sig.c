@@ -1256,19 +1256,19 @@ pgsignal(pgrp, sig, checkctty)
 }
 
 /*
- * Send a signal caused by a trap to the current process.
+ * Send a signal caused by a trap to the current thread.
  * If it will be caught immediately, deliver it with correct code.
  * Otherwise, post it normally.
  *
  * MPSAFE
  */
 void
-trapsignal(p, sig, code)
-	struct proc *p;
-	register int sig;
-	u_long code;
+trapsignal(struct thread *td, int sig, u_long code)
 {
-	register struct sigacts *ps;
+	struct sigacts *ps;
+	struct proc *p;
+
+	p = td->td_proc;
 
 	PROC_LOCK(p);
 	ps = p->p_sigacts;

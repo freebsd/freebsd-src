@@ -209,7 +209,7 @@ ast(struct trapframe *framep)
 		    PCB_NPXTRAP);
 		ucode = npxtrap();
 		if (ucode != -1) {
-			trapsignal(p, SIGFPE, ucode);
+			trapsignal(td, SIGFPE, ucode);
 		}
 	}
 #endif
