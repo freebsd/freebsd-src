@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_syscalls.c	8.4 (Berkeley) 2/21/94
- * $Id: uipc_syscalls.c,v 1.15 1996/02/24 13:38:07 phk Exp $
+ * $Id: uipc_syscalls.c,v 1.16 1996/03/11 15:37:33 davidg Exp $
  */
 
 #include "opt_ktrace.h"
@@ -636,7 +636,8 @@ recvit(p, s, mp, namelenp, retsize)
 	register struct iovec *iov;
 	register int i;
 	int len, error;
-	struct mbuf *from = 0, *control = 0;
+	struct mbuf *m, *from = 0, *control = 0;
+	caddr_t ctlbuf;
 #ifdef KTRACE
 	struct iovec *ktriov = NULL;
 #endif
@@ -735,17 +736,29 @@ recvit(p, s, mp, namelenp, retsize)
 		}
 #endif
 		len = mp->msg_controllen;
-		if (len <= 0 || control == 0)
-			len = 0;
-		else {
-			if (len >= control->m_len)
-				len = control->m_len;
-			else
+		m = control;
+		mp->msg_controllen = 0;
+		ctlbuf = (caddr_t) mp->msg_control;
+
+		while (m && len > 0) {
+			unsigned int tocopy;
+
+			if (len >= m->m_len) 
+				tocopy = m->m_len;
+			else {
 				mp->msg_flags |= MSG_CTRUNC;
-			error = copyout((caddr_t)mtod(control, caddr_t),
-			    (caddr_t)mp->msg_control, (unsigned)len);
+				tocopy = len;
+			}
+		
+			if (error = copyout((caddr_t)mtod(m, caddr_t),
+					ctlbuf, tocopy))
+				goto out;
+
+			ctlbuf += tocopy;
+			len -= tocopy;
+			m = m->m_next;
 		}
-		mp->msg_controllen = len;
+		mp->msg_controllen = ctlbuf - mp->msg_control;
 	}
 out:
 	if (from)
