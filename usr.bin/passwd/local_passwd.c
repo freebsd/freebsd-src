@@ -36,6 +36,7 @@ static char sccsid[] = "@(#)local_passwd.c	8.3 (Berkeley) 4/2/94";
 #endif /* not lint */
 
 #include <sys/types.h>
+#include <sys/time.h>
 
 #include <ctype.h>
 #include <err.h>
@@ -78,6 +79,7 @@ getnewpasswd(pw)
 	int tries;
 	char *p, *t;
 	char buf[_PASSWORD_LEN+1], salt[9];
+	struct timeval tv;
 
 	(void)printf("Changing local password for %s.\n", pw->pw_name);
 
@@ -115,7 +117,12 @@ getnewpasswd(pw)
 	to64(&salt[1], (long)(29 * 25), 4);
 	to64(&salt[5], random(), 4);
 #else
-	to64(&salt[0], random(), 2);
+	/* Make a good size salt for algoritms that can use it. */
+	to64(&salt[0], random(), 3);
+	gettimeofday(&tv,0);
+	to64(&salt[3], tv.tv_usec, 3);
+	to64(&salt[6], tv.tv_sec, 2);
+	salt[8] = '\0';
 #endif
 	return (crypt(buf, salt));
 }
