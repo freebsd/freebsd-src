@@ -285,7 +285,7 @@ cond_wait_common(pthread_cond_t * cond, pthread_mutex_t * mutex,
 			_thread_critical_exit(curthread);
 			COND_UNLOCK(*cond);
 			rval = _thread_suspend(curthread, (struct timespec *)abstime);
-			if (rval == -1) {
+			if (rval != 0 && rval != EAGAIN && rval != EINTR) {
 				printf("foo");
 				fflush(stdout);
 				abort();
