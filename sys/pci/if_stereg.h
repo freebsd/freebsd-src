@@ -454,12 +454,13 @@ struct ste_desc_onefrag {
 #define CSR_READ_1(sc, reg)		\
 	bus_space_read_1(sc->ste_btag, sc->ste_bhandle, reg)
 
-#define STE_TIMEOUT	1000
-#define STE_MIN_FRAMELEN 60
-#define STE_PACKET_SIZE 1536
-#define ETHER_ALIGN 2
-#define STE_RX_LIST_CNT 128
-#define STE_TX_LIST_CNT 256
+#define STE_TIMEOUT		1000
+#define STE_MIN_FRAMELEN	60
+#define STE_PACKET_SIZE		1536
+#define ETHER_ALIGN		2
+#define STE_RX_LIST_CNT		128
+#define STE_TX_LIST_CNT		256
+#define STE_INC(x, y)		(x) = (x + 1) % y
 
 struct ste_type {
 	u_int16_t		ste_vid;
@@ -477,6 +478,8 @@ struct ste_chain {
 	struct ste_desc		*ste_ptr;
 	struct mbuf		*ste_mbuf;
 	struct ste_chain	*ste_next;
+	struct ste_chain	*ste_prev;
+	u_int32_t		ste_phys;
 };
 
 struct ste_chain_onefrag {
@@ -490,9 +493,9 @@ struct ste_chain_data {
 	struct ste_chain	 ste_tx_chain[STE_TX_LIST_CNT];
 	struct ste_chain_onefrag *ste_rx_head;
 
-	struct ste_chain	*ste_tx_head;
-	struct ste_chain	*ste_tx_tail;
-	struct ste_chain	*ste_tx_free;
+	int			ste_tx_prod;
+	int			ste_tx_cons;
+	int			ste_tx_cnt;
 };
 
 struct ste_softc {
@@ -506,6 +509,8 @@ struct ste_softc {
 	device_t		ste_miibus;
 	int			ste_unit;
 	int			ste_tx_thresh;
+	u_int8_t		ste_link;
+	int			ste_if_flags;
 	struct ste_list_data	*ste_ldata;
 	struct ste_chain_data	ste_cdata;
 	struct callout_handle	ste_stat_ch;
