@@ -117,6 +117,6 @@ void	tp_protopr __P((u_long, char *));
 void	tp_inproto __P((u_long));
 void	tp_stats __P((caddr_t, caddr_t));
 
-void	mroutepr __P((u_long, u_long, u_long));
-void	mrt_stats __P((u_long, u_long));
+void	mroutepr __P((u_long, u_long));
+void	mrt_stats __P((u_long));
 
