@@ -10,7 +10,6 @@
 #include <sys/fcntl.h>
 #include <sys/bio.h>
 #include <sys/cdio.h>
-#include <sys/disklabel.h>
 #include <sys/bus.h>
 
 #include <sys/lock.h>

@@ -53,7 +53,6 @@
 #include <sys/buf.h>
 #include <sys/conf.h>
 #include <sys/cons.h>
-#include <sys/disklabel.h>
 #include <sys/eventhandler.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
