@@ -33,20 +33,24 @@
 #ifndef pathnames_h_235b888a
 #define	pathnames_h_235b888a
 
-#ifndef _PATH_OBJDIR
-#define	_PATH_OBJDIR		"obj"
-#endif /* ! _PATH_OBJDIR */
-#ifndef _PATH_OBJDIRPREFIX
-#define	_PATH_OBJDIRPREFIX	"/usr/obj"
-#endif /* ! _PATH_OBJDIRPREFIX */
-#ifndef _PATH_DEFSHELLDIR
-#define	_PATH_DEFSHELLDIR	"/bin"
-#endif /* ! _PATH_DEFSHELLDIR */
-#ifndef _PATH_DEFSYSMK
-#define	_PATH_DEFSYSMK		"sys.mk"
-#endif /* ! _PATH_DEFSYSMK */
-#ifndef _PATH_DEFSYSPATH
-#define	_PATH_DEFSYSPATH	"/usr/share/mk"
-#endif /* ! _PATH_DEFSYSPATH */
+#ifndef PATH_OBJDIR
+#define	PATH_OBJDIR		"obj"
+#endif /* ! PATH_OBJDIR */
+
+#ifndef PATH_OBJDIRPREFIX
+#define	PATH_OBJDIRPREFIX	"/usr/obj"
+#endif /* ! PATH_OBJDIRPREFIX */
+
+#ifndef PATH_DEFSHELLDIR
+#define	PATH_DEFSHELLDIR	"/bin"
+#endif /* ! PATH_DEFSHELLDIR */
+
+#ifndef PATH_DEFSYSMK
+#define	PATH_DEFSYSMK		"sys.mk"
+#endif /* ! PATH_DEFSYSMK */
+
+#ifndef PATH_DEFSYSPATH
+#define	PATH_DEFSYSPATH	"/usr/share/mk"
+#endif /* ! PATH_DEFSYSPATH */
 
 #endif /* pathnames_h_235b888a */
