@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.31 1995/10/06 05:56:58 asami Exp $ -->
+<!-- $Id: contrib.sgml,v 1.32 1995/10/15 02:46:36 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>FreeBSD contributor list<label id="contrib"></heading>
@@ -123,7 +123,7 @@
 	  <item>Dirk Froemberg &lt;dirk@hal.in-berlin.de&gt;
 	  <item>Don Whiteside &lt;dwhite@anshar.shadow.net&gt;
 	  <item>Eric L. Hernes &lt;erich@lodgenet.com&gt;
-	  <item>Frank Bartels &lt;knarf@nasim.cube.net&gt;
+	  <item>Frank Bartels &lt;knarf@camelot.de&gt;
 	  <item>Frank Durda IV	&lt;bsdmail@nemesis.lonestar.org&gt;
 	  <item>Frank Maclachlan &lt;fpm@crash.cts.com&gt;
 	  <item>Frank Nobis &lt;fn@trinity.radio-do.de&gt;
