@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_fxp.c,v 1.8.2.10 1996/09/29 10:21:38 davidg Exp $
+ *	$Id: if_fxp.c,v 1.8.2.11 1997/02/05 12:50:31 davidg Exp $
  */
 
 /*
@@ -89,6 +89,9 @@ struct fxp_softc {
 	struct fxp_stats *fxp_stats;	/* Pointer to interface stats */
 	int tx_queued;			/* # of active TxCB's */
 	int promisc_mode;		/* promiscuous mode enabled */
+	int phy_primary_addr;		/* address of primary PHY */
+	int phy_primary_device;		/* device type of primary PHY */
+	int phy_10Mbps_only;		/* PHY is 10Mbps-only device */
 };
 
 #include "fxp.h"
@@ -139,8 +142,10 @@ static int fxp_ioctl		__P((struct ifnet *, int, caddr_t));
 static void fxp_init		__P((struct ifnet *));
 static void fxp_stop		__P((struct fxp_softc *));
 static void fxp_watchdog	__P((int));
-static void fxp_get_macaddr	__P((struct fxp_softc *));
 static int fxp_add_rfabuf	__P((struct fxp_softc *, struct mbuf *));
+static int fxp_mdi_read		__P((struct fxp_csr *, int, int));
+static void fxp_mdi_write	__P((struct fxp_csr *, int, int, int));
+static void fxp_read_eeprom	__P((struct fxp_csr *, u_short *, int, int));
 
 timeout_t fxp_stats_update;
 
@@ -229,6 +234,7 @@ fxp_attach(config_id, unit)
 	struct ifnet *ifp;
 	vm_offset_t pbase;
 	int s, i;
+	u_short data;
 
 	sc = malloc(sizeof(struct fxp_softc), M_DEVBUF, M_NOWAIT);
 	if (sc == NULL)
@@ -279,6 +285,14 @@ fxp_attach(config_id, unit)
 		}
 	}
 
+	/*
+	 * Get info about the primary PHY
+	 */
+	fxp_read_eeprom(sc->csr, (u_short *)&data, 6, 1);
+	sc->phy_primary_addr = data & 0xff;
+	sc->phy_primary_device = (data >> 8) & 0x3f;
+	sc->phy_10Mbps_only = data >> 15;
+
 	fxp_sc[unit] = sc;
 
 	ifp = &sc->arpcom.ac_if;
@@ -291,9 +305,15 @@ fxp_attach(config_id, unit)
 	ifp->if_watchdog = fxp_watchdog;
 	ifp->if_baudrate = 100000000;
 
-	fxp_get_macaddr(sc);
-	printf("fxp%d: Ethernet address %s\n", unit,
+	/*
+	 * Read MAC address
+	 */
+	fxp_read_eeprom(sc->csr, (u_short *)sc->arpcom.ac_enaddr, 0, 3);
+	printf("fxp%d: Ethernet address %s", unit,
 	    ether_sprintf(sc->arpcom.ac_enaddr));
+	if (sc->phy_10Mbps_only)
+		printf(", 10Mbps");
+	printf("\n");
 
 	/*
 	 * Attach the interface.
@@ -322,25 +342,23 @@ fail:
 }
 
 /*
- * Read station (MAC) address from serial EEPROM. Basically, you
- * manually shift in the read opcode (one bit at a time) and then
- * shift in the address, and then you shift out the data (all of
- * this one bit at a time). The word size is 16 bits, so you have
- * to provide the address for every 16 bits of data. The MAC address
- * is in the first 3 words (6 bytes total).
+ * Read from the serial EEPROM. Basically, you manually shift in
+ * the read opcode (one bit at a time) and then shift in the address,
+ * and then you shift out the data (all of this one bit at a time).
+ * The word size is 16 bits, so you have to provide the address for
+ * every 16 bits of data.
  */
 static void
-fxp_get_macaddr(sc)
-	struct fxp_softc *sc;
-{
+fxp_read_eeprom(csr, data, offset, words)
 	struct fxp_csr *csr;
-	u_short reg, *data;
+	u_short *data;
+	int offset;
+	int words;
+{
+	u_short reg;
 	int i, x;
 
-	csr = sc->csr;
-	data = (u_short *)sc->arpcom.ac_enaddr;
-
-	for (i = 0; i < 3; i++) {
+	for (i = 0; i < words; i++) {
 		csr->eeprom_control = FXP_EEPROM_EECS;
 		/*
 		 * Shift in read opcode.
@@ -361,7 +379,7 @@ fxp_get_macaddr(sc)
 		 * Shift in address.
 		 */
 		for (x = 6; x > 0; x--) {
-			if (i & (1 << (x - 1))) {
+			if ((i + offset) & (1 << (x - 1))) {
 				reg = FXP_EEPROM_EECS | FXP_EEPROM_EEDI;
 			} else {
 				reg = FXP_EEPROM_EECS;
@@ -867,7 +885,7 @@ fxp_init(ifp)
 	cbp->save_bf =		prm;	/* save bad frames */
 	cbp->disc_short_rx =	!prm;	/* discard short packets */
 	cbp->underrun_retry =	1;	/* retry mode (1) on DMA underrun */
-	cbp->mediatype =	1;	/* (MII) interface mode */
+	cbp->mediatype =	!sc->phy_10Mbps_only; /* interface mode */
 	cbp->nsai =		1;	/* (don't) disable source addr insert */
 	cbp->preamble_length =	2;	/* (7 byte) preamble */
 	cbp->loopback =		0;	/* (don't) loopback */
@@ -944,6 +962,17 @@ fxp_init(ifp)
 	csr->scb_general = vtophys(sc->rfa_headm->m_ext.ext_buf);
 	csr->scb_command = FXP_SCB_COMMAND_RU_START;
 
+	/*
+	 * Toggle a few bits in the DP83840 PHY.
+	 */
+	if (sc->phy_primary_device == FXP_PHY_DP83840) {
+		fxp_mdi_write(sc->csr, sc->phy_primary_addr, FXP_DP83840_PCR,
+		    fxp_mdi_read(sc->csr, sc->phy_primary_addr, FXP_DP83840_PCR) |
+		    FXP_DP83840_PCR_LED4_MODE |	/* LED4 always indicates duplex */
+		    FXP_DP83840_PCR_F_CONNECT |	/* force link disconnect bypass */
+		    FXP_DP83840_PCR_BIT10);	/* XXX I have no idea */
+	}
+
 	ifp->if_flags |= IFF_RUNNING;
 	ifp->if_flags &= ~IFF_OACTIVE;
 	splx(s);
@@ -1014,6 +1043,44 @@ fxp_add_rfabuf(sc, oldm)
 	sc->rfa_tailm = m;
 
 	return (m == oldm);
+}
+
+static int
+fxp_mdi_read(csr, phy, reg)
+	struct fxp_csr *csr;
+	int phy;
+	int reg;
+{
+	int count = 10000;
+
+	csr->mdi_control = (FXP_MDI_READ << 26) | (reg << 16) | (phy << 21);
+
+	while ((csr->mdi_control & 0x10000000) == 0 && count--)
+		DELAY(1);
+
+	if (count <= 0)
+		printf("fxp_mdi_read: timed out\n");
+
+	return (csr->mdi_control & 0xffff);
+}
+
+static void
+fxp_mdi_write(csr, phy, reg, value)
+	struct fxp_csr *csr;
+	int phy;
+	int reg;
+	int value;
+{
+	int count = 10000;
+
+	csr->mdi_control = (FXP_MDI_WRITE << 26) | (reg << 16) | (phy << 21)
+	    | (value & 0xffff);
+
+	while ((csr->mdi_control & 10000000) == 0 && count--)
+		DELAY(1);
+
+	if (count <= 0)
+		printf("fxp_mdi_write: timed out\n");
 }
 
 static int

@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_fxpreg.h,v 1.2.2.1 1996/04/08 01:32:00 davidg Exp $
+ *	$Id: if_fxpreg.h,v 1.2.2.2 1997/02/05 12:50:33 davidg Exp $
  */
 
 #define FXP_VENDORID_INTEL	0x8086
@@ -275,3 +275,29 @@ struct fxp_stats {
 #define FXP_EEPROM_OPC_ERASE	0x4
 #define FXP_EEPROM_OPC_WRITE	0x5
 #define FXP_EEPROM_OPC_READ	0x6
+
+/*
+ * Management Data Interface opcodes
+ */
+#define FXP_MDI_WRITE		0x1
+#define FXP_MDI_READ		0x2
+
+/*
+ * PHY device types
+ */
+#define FXP_PHY_NONE		0
+#define FXP_PHY_82553A		1
+#define FXP_PHY_82553C		2
+#define FXP_PHY_82503		3
+#define FXP_PHY_DP83840		4
+#define FXP_PHY_80C240		5
+#define FXP_PHY_80C24		6
+
+/*
+ * DP84830 PHY, PCS Configuration Register
+ */
+#define FXP_DP83840_PCR			0x17
+#define FXP_DP83840_PCR_LED4_MODE	0x0002	/* 1 = LED4 always indicates full duplex */
+#define FXP_DP83840_PCR_F_CONNECT	0x0020	/* 1 = force link disconnect function bypass */
+#define FXP_DP83840_PCR_BIT8		0x0100
+#define FXP_DP83840_PCR_BIT10		0x0400
