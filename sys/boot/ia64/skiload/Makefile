@@ -6,6 +6,7 @@ PROG= 		skiload
 NOMAN=
 NEWVERSWHAT=	"ia64 SKI boot" ${MACHINE_ARCH}
 BINDIR?=	/boot
+STRIP=		# We must not strip skiload at install time.
 
 SRCS+=		conf.c main.c start.S
 
