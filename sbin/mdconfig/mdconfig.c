@@ -54,7 +54,7 @@ main(int argc, char **argv)
 	int cmdline = 0;
 
 	for (;;) {
-		ch = getopt(argc, argv, "ab:df:lo:s:S:t:u:");
+		ch = getopt(argc, argv, "ab:df:lo:s:S:t:u:x:y:");
 		if (ch == -1)
 			break;
 		switch (ch) {
@@ -162,6 +162,16 @@ main(int argc, char **argv)
 			if ((unsigned)mdio.md_unit == ULONG_MAX || *p != '\0')
 				errx(1, "bad unit: %s", optarg);
 			mdio.md_options &= ~MD_AUTOUNIT;
+			break;
+		case 'x':
+			if (cmdline != 2)
+				usage();
+			mdio.md_fwsectors = strtoul(optarg, &p, 0);
+			break;
+		case 'y':
+			if (cmdline != 2)
+				usage();
+			mdio.md_fwheads = strtoul(optarg, &p, 0);
 			break;
 		default:
 			usage();

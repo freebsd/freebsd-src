@@ -147,6 +147,8 @@ struct md_s {
 	unsigned nsect;
 	unsigned opencount;
 	unsigned secsize;
+	unsigned fwheads;
+	unsigned fwsectors;
 	unsigned flags;
 	char name[20];
 	struct proc *procp;
@@ -366,11 +368,6 @@ g_md_start(struct bio *bp)
 
 	sc = bp->bio_to->geom->softc;
 
-	switch(bp->bio_cmd) {
-	case BIO_GETATTR:
-		g_io_deliver(bp, EOPNOTSUPP);
-		return;
-	}
 	bp->bio_blkno = bp->bio_offset >> DEV_BSHIFT;
 	bp->bio_pblkno = bp->bio_offset / sc->secsize;
 	bp->bio_bcount = bp->bio_length;
@@ -586,23 +583,33 @@ md_kthread(void *arg)
 			continue;
 		}
 		mtx_unlock(&sc->queue_mtx);
-
-		switch (sc->type) {
-		case MD_MALLOC:
-			error = mdstart_malloc(sc, bp);
-			break;
-		case MD_PRELOAD:
-			error = mdstart_preload(sc, bp);
-			break;
-		case MD_VNODE:
-			error = mdstart_vnode(sc, bp);
-			break;
-		case MD_SWAP:
-			error = mdstart_swap(sc, bp);
-			break;
-		default:
-			panic("Impossible md(type)");
-			break;
+		if (bp->bio_cmd == BIO_GETATTR) {
+			if (sc->fwsectors && sc->fwheads &&
+			    (g_handleattr_int(bp, "GEOM::fwsectors",
+			    sc->fwsectors) ||
+			    g_handleattr_int(bp, "GEOM::fwheads",
+			    sc->fwheads)))
+				error = -1;
+			else
+				error = EOPNOTSUPP;
+		} else {
+			switch (sc->type) {
+			case MD_MALLOC:
+				error = mdstart_malloc(sc, bp);
+				break;
+			case MD_PRELOAD:
+				error = mdstart_preload(sc, bp);
+				break;
+			case MD_VNODE:
+				error = mdstart_vnode(sc, bp);
+				break;
+			case MD_SWAP:
+				error = mdstart_swap(sc, bp);
+				break;
+			default:
+				panic("Impossible md(type)");
+				break;
+			}
 		}
 
 		if (error != -1) {
@@ -752,6 +759,10 @@ mdcreate_malloc(struct md_ioctl *mdio)
 		sc->secsize = mdio->md_secsize;
 	else
 		sc->secsize = DEV_BSIZE;
+	if (mdio->md_fwsectors != 0)
+		sc->fwsectors = mdio->md_fwsectors;
+	if (mdio->md_fwheads != 0)
+		sc->fwheads = mdio->md_fwheads;
 	sc->nsect = mdio->md_size;
 	sc->nsect /= (sc->secsize / DEV_BSIZE);
 	sc->flags = mdio->md_options & (MD_COMPRESS | MD_FORCE);
