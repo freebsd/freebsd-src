@@ -43,7 +43,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)route.c	8.3 (Berkeley) 3/19/94";
 */
 static const char rcsid[] =
-	"$Id: route.c,v 1.12 1996/08/09 22:52:02 julian Exp $";
+	"$Id: route.c,v 1.13 1996/08/13 22:20:20 julian Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -111,7 +111,6 @@ int	s;
 int	forcehost, forcenet, doflush, nflag, af, qflag, tflag, keyword();
 int	iflag, verbose, aflen = sizeof (struct sockaddr_in);
 int	locking, lockrest, debugonly;
-int	extra_flags;
 struct	rt_metrics rt_metrics;
 u_long  rtm_inits;
 struct	in_addr inet_makeaddr();
@@ -708,7 +707,6 @@ newroute(argc, argv)
 	if (forcenet)
 		ishost = 0;
 	flags |= RTF_UP;
-	flags |= extra_flags;
 	if (ishost)
 		flags |= RTF_HOST;
 	if (iflag == 0)
@@ -871,7 +869,6 @@ getaddr(which, s, hpp)
 			/* If we found it, then use it */
 			if (sdl) {
 				su->sdl = *sdl;
-				extra_flags |= RTF_LLINFO;
 				return(1);
 			}
 		}
