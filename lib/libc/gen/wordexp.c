@@ -210,7 +210,7 @@ we_askshell(const char *words, wordexp_t *we, int flags)
  *	special characters: <newline> |&;<>(){}
  *	or command substitutions when WRDE_NOCMD is set in flags.
  */
-int
+static int
 we_check(const char *words, int flags)
 {
 	char c;
