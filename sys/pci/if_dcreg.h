@@ -755,6 +755,13 @@ struct dc_softc {
 #define DC_DEVICEID_DM9102	0x9102
 
 /*
+ * The DM9102A has the same PCI device ID as the DM9102,
+ * but a higher revision code.
+ */
+#define DC_REVISION_DM9102	0x10
+#define DC_REVISION_DM9102A	0x30
+
+/*
  * ADMtek vendor ID.
  */
 #define DC_VENDORID_ADMTEK	0x1317
