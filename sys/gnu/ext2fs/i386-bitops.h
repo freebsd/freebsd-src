@@ -8,7 +8,7 @@
 #ifndef _SYS_GNU_EXT2FS_I386_BITOPS_H_
 #define	_SYS_GNU_EXT2FS_I386_BITOPS_H_
 
-/*
+/*-
  * Copyright 1992, Linus Torvalds.
  */
 
