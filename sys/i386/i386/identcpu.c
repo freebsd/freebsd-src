@@ -982,7 +982,7 @@ print_AMD_features(u_int *regs)
 		"\024<b19>"
 		"\025<b20>"
 		"\026<b21>"
-		"\027<b22>"
+		"\027AMIE"	/* AMD MMX Instruction Extensions */
 		"\030MMX"
 		"\031<b24>"
 		"\032<b25>"
@@ -990,7 +990,7 @@ print_AMD_features(u_int *regs)
 		"\034<b27>"
 		"\035<b28>"
 		"\036<b29>"
-		"\037<b30>"
+		"\037DSP"	/* AMD 3DNow! Instruction Extensions */
 		"\0403DNow!"
 		);
 }
