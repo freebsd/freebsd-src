@@ -1303,7 +1303,6 @@ int	__sys_poll(struct pollfd *, unsigned, int);
 /* #include <signal.h> */
 #ifdef _SIGNAL_H_
 int	__sys_sigaction(int, const struct sigaction *, struct sigaction *);
-int	__sys_sigaltstack(const struct sigaltstack *, struct sigaltstack *);
 int	__sys_sigprocmask(int, const sigset_t *, sigset_t *);
 int	__sys_sigreturn(ucontext_t *);
 #endif
