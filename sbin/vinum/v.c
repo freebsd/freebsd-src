@@ -36,7 +36,7 @@
  *
  */
 
-/* $Id: v.c,v 1.1.1.1 1998/09/16 05:57:36 grog Exp $ */
+/* $Id: v.c,v 1.2 1998/12/28 16:32:39 peter Exp $ */
 
 #include <ctype.h>
 #include <errno.h>
@@ -68,7 +68,7 @@ int inerror;						    /* set to 1 to exit after end of config file */
 
 /* flags */
 
-#if DEBUG
+#if VINUMDEBUG
 int debug = 0;						    /* debug flag, usage varies */
 #endif
 int force = 0;						    /* set to 1 to force some dangerous ops */
@@ -165,7 +165,7 @@ struct funkey {
 
     FUNKEY(create),
 	FUNKEY(read),
-#ifdef DEBUG
+#ifdef VINUMDEBUG
 	FUNKEY(debug),
 #endif
 	FUNKEY(volume),
@@ -219,7 +219,7 @@ parseline(int args, char *argv[])
     for (i = 1; (i < args) && (argv[i][0] == '-'); i++) {   /* while we have flags */
 	for (j = 1; j < strlen(argv[i]); j++)
 	    switch (argv[i][j]) {
-#if DEBUG
+#if VINUMDEBUG
 	    case 'd':					    /* -d: debug */
 		debug = 1;
 		break;
@@ -524,11 +524,13 @@ continue_revive(int plexno)
     pid_t pid;
     get_plex_info(&plex, plexno);
 
-#if DEBUG
+#if VINUMDEBUG
     if (debug)
 	pid = 0;					    /* wander through into the "child" process */
     else
 	pid = fork();					    /* do this in the background */
+#else
+    pid = fork();					    /* do this in the background */
 #endif
     if (pid == 0) {					    /* we're the child */
 	struct _ioctl_reply reply;
