@@ -56,8 +56,11 @@ struct  sigaction {
 #define	sa_sigaction	__sigaction_u.__sa_sigaction
 .Ed
 .Ft int
-.Fn sigaction "int sig" "const struct sigaction * restrict act" \
-    "struct sigaction * restrict oact"
+.Fo sigaction
+.Fa "int sig"
+.Fa "const struct sigaction * restrict act"
+.Fa "struct sigaction * restrict oact"
+.Fc
 .Sh DESCRIPTION
 The system defines a set of signals that may be delivered to a process.
 Signal delivery resembles the occurrence of a hardware interrupt:

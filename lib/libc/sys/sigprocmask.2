@@ -43,8 +43,11 @@
 .Sh SYNOPSIS
 .In signal.h
 .Ft int
-.Fn sigprocmask "int how" "const sigset_t * restrict set" \
-    "sigset_t * restrict oset"
+.Fo sigprocmask
+.Fa "int how"
+.Fa "const sigset_t * restrict set"
+.Fa "sigset_t * restrict oset"
+.Fc
 .Sh DESCRIPTION
 The
 .Fn sigprocmask

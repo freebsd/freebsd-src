@@ -108,9 +108,12 @@ return
 .Dv PAM_IGNORE
 if the specified group (default group of
 .Dq Li wheel )
-is empty, providing traditional BSD
+is empty, providing traditional
+.Bx
 .Xr su 8
-semantics permitting any user to su if the wheel group is empty.
+semantics permitting any user to
+.Dq su
+if the wheel group is empty.
 .El
 .Sh SEE ALSO
 .Xr getlogin 2 ,
