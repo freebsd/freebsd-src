@@ -648,6 +648,10 @@ main(argc, argv)
 		fd_set rfds;
 
 		check_status();
+		if (s >= FD_SETSIZE) {
+			(void)fprintf(stderr, "descriptor too large");
+			exit(EX_OSERR);
+		}
 		FD_ZERO(&rfds);
 		FD_SET(s, &rfds);
 		(void)gettimeofday(&now, NULL);
