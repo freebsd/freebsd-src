@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.235 1996/09/07 01:05:16 pst Exp $
+#	$Id: Makefile,v 1.236 1996/09/09 21:25:40 pst Exp $
 #
 # How to roll a release:
 #
@@ -572,8 +572,7 @@ doMFSKERN:
 	mv ${RD}/boot.${FSIMAGE}/kernel.kz ${RD}/boot.${FSIMAGE}/kernel
 	ls -l ${RD}/boot.${FSIMAGE}/kernel
 	rm -f ${RD}/floppies/boot${FSIMAGE}.flp
-	sh -e ${.CURDIR}/doFS.sh ${RD} ${MNT} ${FDSIZE} ${RD}/boot.${FSIMAGE} \
-		100000 ${FDLABEL}
-	mv fs-image ${RD}/floppies/boot${FSIMAGE}.flp
+	cat /usr/mdec/rawboot ${RD}/boot${FSIMAGE}/kernel | \
+		dd conv=sync of=${RD}/floppies/boot${FSIMAGE}.flp
 
 .include <bsd.prog.mk>
