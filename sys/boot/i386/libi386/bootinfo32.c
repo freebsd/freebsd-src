@@ -23,13 +23,18 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bootinfo.c,v 1.4 1998/09/17 23:52:09 msmith Exp $
+ *	$Id: bootinfo.c,v 1.5 1998/09/28 21:59:21 peter Exp $
  */
 
-#include <sys/reboot.h>
 #include <stand.h>
+#include <sys/param.h>
+#include <sys/reboot.h>
+#include <machine/bootinfo.h>
 #include "bootstrap.h"
+#include "libi386.h"
+#include "btxv86.h"
 
+static struct bootinfo	bi;
 
 /*
  * Return a 'boothowto' value corresponding to the kernel arguments in
@@ -209,3 +214,102 @@ bi_copymodules(vm_offset_t addr)
     MOD_END(addr);
     return(addr);
 }
+
+/*
+ * Load the information expected by an i386 kernel.
+ *
+ * - The 'boothowto' argument is constructed
+ * - The 'botdev' argument is constructed
+ * - The 'bootinfo' struct is constructed, and copied into the kernel space.
+ * - The kernel environment is copied into kernel space.
+ * - Module metadata are formatted and placed in kernel space.
+ */
+int
+bi_load(char *args, int *howtop, int *bootdevp, vm_offset_t *bip)
+{
+    struct loaded_module	*xp;
+    struct i386_devdesc		*rootdev;
+    vm_offset_t			addr, bootinfo_addr;
+    char			*rootdevname;
+    int				bootdevnr;
+    u_int			pad;
+    char			*kernelname;
+
+    *howtop = bi_getboothowto(args);
+
+    /* 
+     * Allow the environment variable 'rootdev' to override the supplied device 
+     * This should perhaps go to MI code and/or have $rootdev tested/set by
+     * MI code before launching the kernel.
+     */
+    rootdevname = getenv("rootdev");
+    i386_getdev((void **)(&rootdev), rootdevname, NULL);
+    if (rootdev == NULL) {		/* bad $rootdev/$currdev */
+	printf("can't determine root device\n");
+	return(EINVAL);
+    }
+    
+    /* Boot from whatever the current device is */
+    i386_getdev((void **)(&rootdev), NULL, NULL);
+    switch(rootdev->d_type) {
+    case DEVT_DISK:
+	/* pass in the BIOS device number of the current disk */
+	bi.bi_bios_dev = bd_unit2bios(rootdev->d_kind.biosdisk.unit);
+	bootdevnr = bd_getdev(rootdev);
+	break;
+
+    default:
+	printf("aout_exec: WARNING - don't know how to boot from device type %d\n", rootdev->d_type);
+    }
+    free(rootdev);
+    *bootdevp = bootdevnr;
+
+    /* legacy bootinfo structure */
+    bi.bi_version = BOOTINFO_VERSION;
+    bi.bi_kernelname = 0;		/* XXX char * -> kernel name */
+    bi.bi_nfs_diskless = 0;		/* struct nfs_diskless * */
+    bi.bi_n_bios_used = 0;		/* XXX would have to hook biosdisk driver for these */
+    /* bi.bi_bios_geom[] */
+    bi.bi_size = sizeof(bi);
+    bi.bi_memsizes_valid = 1;
+    bi.bi_vesa = 0;			/* XXX correct value? */
+    bi.bi_basemem = getbasemem();
+    bi.bi_extmem = getextmem();
+
+    /* find the last module in the chain */
+    for (xp = mod_findmodule(NULL, NULL); xp->m_next != NULL; xp = xp->m_next)
+	;
+    addr = xp->m_addr + xp->m_size;
+    /* pad to a page boundary */
+    pad = (u_int)addr & PAGE_MASK;
+    if (pad != 0) {
+	pad = PAGE_SIZE - pad;
+	addr += pad;
+    }
+
+    /* copy our environment */
+    bi.bi_envp = addr;
+    addr = bi_copyenv(addr);
+
+    /* pad to a page boundary */
+    pad = (u_int)addr & PAGE_MASK;
+    if (pad != 0) {
+	pad = PAGE_SIZE - pad;
+	addr += pad;
+    }
+    /* copy module list and metadata */
+    bi.bi_modulep = addr;
+    addr = bi_copymodules(addr);
+
+    /* all done copying stuff in, save end of loaded object space */
+    bi.bi_kernend = addr;
+
+    *howtop |= RB_BOOTINFO;		/* it's there now */
+
+    kernelname = getenv("kernelname");
+    bi.bi_kernelname = VTOP(kernelname);
+    *bip = VTOP(&bi);
+
+    return(0);
+}
+    
