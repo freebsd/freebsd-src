@@ -1,4 +1,4 @@
-@c Copyright (C) 2000, 2001, 2002 Free Software Foundation, Inc.
+@c Copyright (C) 2000, 2001, 2002, 2004 Free Software Foundation, Inc.
 @c This is part of the GCC manual.
 @c For copying conditions, see the file gcc.texi.
 
@@ -79,7 +79,7 @@ as @dfn{AMD1}; the amended standard is sometimes known as @dfn{C94} or
 A new edition of the ISO C standard was published in 1999 as ISO/IEC
 9899:1999, and is commonly known as @dfn{C99}.  GCC has incomplete
 support for this standard version; see
-@uref{http://gcc.gnu.org/gcc-3.3/c99status.html} for details.  To select this
+@uref{http://gcc.gnu.org/gcc-3.4/c99status.html} for details.  To select this
 standard, use @option{-std=c99} or @option{-std=iso9899:1999}.  (While in
 development, drafts of this standard version were referred to as
 @dfn{C9X}.)
@@ -145,10 +145,10 @@ GNU C library).  @xref{Standard Libraries,,Standard Libraries}.
 Most of the compiler support routines used by GCC are present in
 @file{libgcc}, but there are a few exceptions.  GCC requires the
 freestanding environment provide @code{memcpy}, @code{memmove},
-@code{memset} and @code{memcmp}.  Some older ports of GCC are 
+@code{memset} and @code{memcmp}.  Some older ports of GCC are
 configured to use the BSD @code{bcopy}, @code{bzero} and @code{bcmp}
 functions instead, but this is deprecated for new ports.
-Finally, if @code{__builtin_trap} is used, and the target does 
+Finally, if @code{__builtin_trap} is used, and the target does
 not implement the @code{trap} pattern, then GCC will emit a call
 to @code{abort}.
 

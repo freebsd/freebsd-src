@@ -1,9 +1,9 @@
-/* Output VMS debug format symbol table information from the GNU C compiler.
+/* Output VMS debug format symbol table information from GCC.
    Copyright (C) 1987, 1988, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
-   1999, 2000, 2001, 2002 Free Software Foundation, Inc.
+   1999, 2000, 2001, 2002, 2003 Free Software Foundation, Inc.
    Contributed by Douglas B. Rupp (rupp@gnat.com).
 
-This file is part of GNU CC.
+This file is part of GCC.
 
 GCC is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free
@@ -21,9 +21,11 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 02111-1307, USA.  */
 
 #include "config.h"
+#include "system.h"
+#include "coretypes.h"
+#include "tm.h"
 
 #ifdef VMS_DEBUGGING_INFO
-#include "system.h"
 #include "tree.h"
 #include "flags.h"
 #include "rtl.h"
@@ -32,6 +34,7 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 #include "debug.h"
 #include "langhooks.h"
 #include "function.h"
+#include "target.h"
 
 /* Difference in seconds between the VMS Epoch and the Unix Epoch */
 static const long long vms_epoch_offset = 3506716800ll;
@@ -125,44 +128,43 @@ static unsigned int line_info_table_in_use;
 #define LINE_INFO_TABLE_INCREMENT 1024
 
 /* Forward declarations for functions defined in this file.  */
-static char *full_name 		PARAMS ((const char *));
-static unsigned int lookup_filename PARAMS ((const char *));
-static void addr_const_to_string PARAMS ((char *, rtx));
-static int write_debug_header	PARAMS ((DST_HEADER *, const char *, int));
-static int write_debug_addr	PARAMS ((char *, const char *, int));
-static int write_debug_data1	PARAMS ((unsigned int, const char *, int));
-static int write_debug_data2	PARAMS ((unsigned int, const char *, int));
-static int write_debug_data4	PARAMS ((unsigned long, const char *, int));
-static int write_debug_data8	PARAMS ((unsigned long long, const char *,
-					 int));
-static int write_debug_delta4	PARAMS ((char *, char *, const char *, int));
-static int write_debug_string	PARAMS ((char *, const char *, int));
-static int write_modbeg		PARAMS ((int));
-static int write_modend		PARAMS ((int));
-static int write_rtnbeg		PARAMS ((int, int));
-static int write_rtnend		PARAMS ((int, int));
-static int write_pclines	PARAMS ((int));
-static int write_srccorr	PARAMS ((int, dst_file_info_entry, int));
-static int write_srccorrs	PARAMS ((int));
+static char *full_name (const char *);
+static unsigned int lookup_filename (const char *);
+static void addr_const_to_string (char *, rtx);
+static int write_debug_header (DST_HEADER *, const char *, int);
+static int write_debug_addr (char *, const char *, int);
+static int write_debug_data1 (unsigned int, const char *, int);
+static int write_debug_data2 (unsigned int, const char *, int);
+static int write_debug_data4 (unsigned long, const char *, int);
+static int write_debug_data8 (unsigned long long, const char *, int);
+static int write_debug_delta4 (char *, char *, const char *, int);
+static int write_debug_string (char *, const char *, int);
+static int write_modbeg (int);
+static int write_modend (int);
+static int write_rtnbeg (int, int);
+static int write_rtnend (int, int);
+static int write_pclines (int);
+static int write_srccorr (int, dst_file_info_entry, int);
+static int write_srccorrs (int);
 
-static void vmsdbgout_init		PARAMS ((const char *));
-static void vmsdbgout_finish		PARAMS ((const char *));
-static void vmsdbgout_define		PARAMS ((unsigned int, const char *));
-static void vmsdbgout_undef		PARAMS ((unsigned int, const char *));
-static void vmsdbgout_start_source_file PARAMS ((unsigned int, const char *));
-static void vmsdbgout_end_source_file	PARAMS ((unsigned int));
-static void vmsdbgout_begin_block	PARAMS ((unsigned int, unsigned int));
-static void vmsdbgout_end_block		PARAMS ((unsigned int, unsigned int));
-static bool vmsdbgout_ignore_block	PARAMS ((tree));
-static void vmsdbgout_source_line	PARAMS ((unsigned int, const char *));
-static void vmsdbgout_begin_prologue	PARAMS ((unsigned int, const char *));
-static void vmsdbgout_end_prologue	PARAMS ((unsigned int, const char *));
-static void vmsdbgout_end_function	PARAMS ((unsigned int));
-static void vmsdbgout_end_epilogue	PARAMS ((unsigned int, const char *));
-static void vmsdbgout_begin_function	PARAMS ((tree));
-static void vmsdbgout_decl		PARAMS ((tree));
-static void vmsdbgout_global_decl	PARAMS ((tree));
-static void vmsdbgout_abstract_function PARAMS ((tree));
+static void vmsdbgout_init (const char *);
+static void vmsdbgout_finish (const char *);
+static void vmsdbgout_define (unsigned int, const char *);
+static void vmsdbgout_undef (unsigned int, const char *);
+static void vmsdbgout_start_source_file (unsigned int, const char *);
+static void vmsdbgout_end_source_file (unsigned int);
+static void vmsdbgout_begin_block (unsigned int, unsigned int);
+static void vmsdbgout_end_block (unsigned int, unsigned int);
+static bool vmsdbgout_ignore_block (tree);
+static void vmsdbgout_source_line (unsigned int, const char *);
+static void vmsdbgout_begin_prologue (unsigned int, const char *);
+static void vmsdbgout_end_prologue (unsigned int, const char *);
+static void vmsdbgout_end_function (unsigned int);
+static void vmsdbgout_end_epilogue (unsigned int, const char *);
+static void vmsdbgout_begin_function (tree);
+static void vmsdbgout_decl (tree);
+static void vmsdbgout_global_decl (tree);
+static void vmsdbgout_abstract_function (tree);
 
 /* The debug hooks structure.  */
 
@@ -186,7 +188,8 @@ const struct gcc_debug_hooks vmsdbg_debug_hooks
    vmsdbgout_global_decl,
    debug_nothing_tree,		/* deferred_inline_function */
    vmsdbgout_abstract_function,
-   debug_nothing_rtx		/* label */
+   debug_nothing_rtx,		/* label */
+   debug_nothing_int		/* handle_pch */
 };
 
 /* Definitions of defaults for assembler-dependent names of various
@@ -349,7 +352,7 @@ static char text_end_label[MAX_ARTIFICIAL_LABEL_BYTES];
 #endif
 
 /* This is similar to the default ASM_OUTPUT_ASCII, except that no trailing
-   newline is produced.  When flag_verbose_asm is asserted, we add commnetary
+   newline is produced.  When flag_verbose_asm is asserted, we add commentary
    at the end of the line, so we must avoid output of a newline here.  */
 #ifndef ASM_OUTPUT_DEBUG_STRING
 #define ASM_OUTPUT_DEBUG_STRING(FILE,P)		\
@@ -378,7 +381,7 @@ static char text_end_label[MAX_ARTIFICIAL_LABEL_BYTES];
    macro has the same effect as ASM_OUTPUT_LABELREF, but copies to
    a string rather than writing to a file.  */
 #ifndef ASM_NAME_TO_STRING
-#define ASM_NAME_TO_STRING(STR, NAME) 		\
+#define ASM_NAME_TO_STRING(STR, NAME)		\
   do						\
     {						\
       if ((NAME)[0] == '*')			\
@@ -399,9 +402,7 @@ static char text_end_label[MAX_ARTIFICIAL_LABEL_BYTES];
    directly, because it writes to a file.  */
 
 static void
-addr_const_to_string (str, x)
-     char *str;
-     rtx x;
+addr_const_to_string (char *str, rtx x)
 {
   char buf1[256];
   char buf2[256];
@@ -529,10 +530,7 @@ restart:
    nonzero.  */
 
 static int
-write_debug_header (header, comment, dosizeonly)
-     DST_HEADER *header;
-     const char *comment;
-     int dosizeonly;
+write_debug_header (DST_HEADER *header, const char *comment, int dosizeonly)
 {
   if (!dosizeonly)
     {
@@ -561,10 +559,7 @@ write_debug_header (header, comment, dosizeonly)
    nonzero.  */
 
 static int
-write_debug_addr (symbol, comment, dosizeonly)
-     char *symbol;
-     const char *comment;
-     int dosizeonly;
+write_debug_addr (char *symbol, const char *comment, int dosizeonly)
 {
   if (!dosizeonly)
     {
@@ -582,10 +577,7 @@ write_debug_addr (symbol, comment, dosizeonly)
    nonzero.  */
 
 static int
-write_debug_data1 (data1, comment, dosizeonly)
-     unsigned int data1;
-     const char *comment;
-     int dosizeonly;
+write_debug_data1 (unsigned int data1, const char *comment, int dosizeonly)
 {
   if (!dosizeonly)
     {
@@ -603,10 +595,7 @@ write_debug_data1 (data1, comment, dosizeonly)
    nonzero.  */
 
 static int
-write_debug_data2 (data2, comment, dosizeonly)
-     unsigned int data2;
-     const char *comment;
-     int dosizeonly;
+write_debug_data2 (unsigned int data2, const char *comment, int dosizeonly)
 {
   if (!dosizeonly)
     {
@@ -623,10 +612,7 @@ write_debug_data2 (data2, comment, dosizeonly)
    Return the data size.  Just return the size if DOSIZEONLY is nonzero.  */
 
 static int
-write_debug_data4 (data4, comment, dosizeonly)
-     unsigned long data4;
-     const char *comment;
-     int dosizeonly;
+write_debug_data4 (unsigned long data4, const char *comment, int dosizeonly)
 {
   if (!dosizeonly)
     {
@@ -643,10 +629,8 @@ write_debug_data4 (data4, comment, dosizeonly)
    Return the data size.  Just return the size if DOSIZEONLY is nonzero.  */
 
 static int
-write_debug_data8 (data8, comment, dosizeonly)
-     unsigned long long data8;
-     const char *comment;
-     int dosizeonly;
+write_debug_data8 (unsigned long long data8, const char *comment,
+		   int dosizeonly)
 {
   if (!dosizeonly)
     {
@@ -664,11 +648,8 @@ write_debug_data8 (data8, comment, dosizeonly)
    DOSIZEONLY is nonzero.  */
 
 static int
-write_debug_delta4 (label1, label2, comment, dosizeonly)
-     char *label1;
-     char *label2;
-     const char *comment;
-     int dosizeonly;
+write_debug_delta4 (char *label1, char *label2, const char *comment,
+		    int dosizeonly)
 {
   if (!dosizeonly)
     {
@@ -686,10 +667,7 @@ write_debug_delta4 (label1, label2, comment, dosizeonly)
    nonzero.  */
 
 static int
-write_debug_string (string, comment, dosizeonly)
-     char *string;
-     const char *comment;
-     int dosizeonly;
+write_debug_string (char *string, const char *comment, int dosizeonly)
 {
   if (!dosizeonly)
     {
@@ -706,8 +684,7 @@ write_debug_string (string, comment, dosizeonly)
    size if DOSIZEONLY is nonzero.  */
 
 static int
-write_modbeg (dosizeonly)
-     int dosizeonly;
+write_modbeg (int dosizeonly)
 {
   DST_MODULE_BEGIN modbeg;
   DST_MB_TRLR mb_trlr;
@@ -770,8 +747,7 @@ write_modbeg (dosizeonly)
    the size if DOSIZEONLY is nonzero.  */
 
 static int
-write_modend (dosizeonly)
-     int dosizeonly;
+write_modend (int dosizeonly)
 {
   DST_MODULE_END modend;
   int totsize = 0;
@@ -790,9 +766,7 @@ write_modend (dosizeonly)
    Just return the size if DOSIZEONLY is nonzero.  */
 
 static int
-write_rtnbeg (rtnnum, dosizeonly)
-     int rtnnum;
-     int dosizeonly;
+write_rtnbeg (int rtnnum, int dosizeonly)
 {
   char *rtnname;
   int rtnnamelen;
@@ -833,7 +807,7 @@ write_rtnbeg (rtnnum, dosizeonly)
       totsize += write_debug_string ((char *) go, "main name", dosizeonly);
     }
 
-  /* The header length never includes the length byte */
+  /* The header length never includes the length byte.  */
   rtnbeg.dst_a_rtnbeg_header.dst__header_length.dst_w_length
    = DST_K_RTNBEG_SIZE + rtnnamelen - 1;
   rtnbeg.dst_a_rtnbeg_header.dst__header_type.dst_w_type = DST_K_RTNBEG;
@@ -885,9 +859,7 @@ write_rtnbeg (rtnnum, dosizeonly)
    Just return the size if DOSIZEONLY is nonzero.  */
 
 static int
-write_rtnend (rtnnum, dosizeonly)
-     int rtnnum;
-     int dosizeonly;
+write_rtnend (int rtnnum, int dosizeonly)
 {
   DST_ROUTINE_END rtnend;
   char label1[MAX_ARTIFICIAL_LABEL_BYTES];
@@ -929,8 +901,7 @@ write_rtnend (rtnnum, dosizeonly)
    the size if DOSIZEONLY is nonzero */
 
 static int
-write_pclines (dosizeonly)
-     int dosizeonly;
+write_pclines (int dosizeonly)
 {
   unsigned i;
   int fn;
@@ -955,7 +926,7 @@ write_pclines (dosizeonly)
       linestart = linestart + ((max_line / 10000) + 1) * 10000;
     }
 
-  /* Set starting address to beginning of text section */
+  /* Set starting address to beginning of text section.  */
   line_num.dst_a_line_num_header.dst__header_length.dst_w_length = 8;
   line_num.dst_a_line_num_header.dst__header_type.dst_w_type = DST_K_LINE_NUM;
   pcline.dst_b_pcline_command = DST_K_SET_ABS_PC;
@@ -1060,10 +1031,8 @@ write_pclines (dosizeonly)
    nonzero.  */
 
 static int
-write_srccorr (fileid, file_info_entry, dosizeonly)
-     int fileid;
-     dst_file_info_entry file_info_entry;
-     int dosizeonly;
+write_srccorr (int fileid, dst_file_info_entry file_info_entry,
+	       int dosizeonly)
 {
   int src_command_size;
   int linesleft = file_info_entry.max_line;
@@ -1255,8 +1224,7 @@ write_srccorr (fileid, file_info_entry, dosizeonly)
    the size if DOSIZEONLY is nonzero.  */
 
 static int
-write_srccorrs (dosizeonly)
-     int dosizeonly;
+write_srccorrs (int dosizeonly)
 {
   unsigned int i;
   int totsize = 0;
@@ -1271,9 +1239,7 @@ write_srccorrs (dosizeonly)
    the prologue.  */
 
 static void
-vmsdbgout_begin_prologue (line, file)
-     unsigned int line;
-     const char *file;
+vmsdbgout_begin_prologue (unsigned int line, const char *file)
 {
   char label[MAX_ARTIFICIAL_LABEL_BYTES];
 
@@ -1292,9 +1258,7 @@ vmsdbgout_begin_prologue (line, file)
    the prologue.  */
 
 static void
-vmsdbgout_end_prologue (line, file)
-     unsigned int line;
-     const char *file;
+vmsdbgout_end_prologue (unsigned int line, const char *file)
 {
   char label[MAX_ARTIFICIAL_LABEL_BYTES];
 
@@ -1307,7 +1271,7 @@ vmsdbgout_end_prologue (line, file)
 				   current_function_funcdef_no);
       ASM_OUTPUT_LABEL (asm_out_file, label);
 
-      /* VMS PCA expects every PC range to correlate to some line and file */
+      /* VMS PCA expects every PC range to correlate to some line and file.  */
       vmsdbgout_source_line (line, file);
     }
 }
@@ -1315,8 +1279,7 @@ vmsdbgout_end_prologue (line, file)
 /* No output for VMS debug, but make obligatory call to Dwarf2 debug */
 
 static void
-vmsdbgout_end_function (line)
-     unsigned int line;
+vmsdbgout_end_function (unsigned int line)
 {
   if (write_symbols == VMS_AND_DWARF2_DEBUG)
     (*dwarf2_debug_hooks.end_function) (line);
@@ -1327,9 +1290,7 @@ vmsdbgout_end_function (line)
    been generated.  */
 
 static void
-vmsdbgout_end_epilogue (line, file)
-     unsigned int line;
-     const char *file;
+vmsdbgout_end_epilogue (unsigned int line, const char *file)
 {
   char label[MAX_ARTIFICIAL_LABEL_BYTES];
 
@@ -1344,7 +1305,7 @@ vmsdbgout_end_epilogue (line, file)
 				   current_function_funcdef_no);
       ASM_OUTPUT_LABEL (asm_out_file, label);
 
-      /* VMS PCA expects every PC range to correlate to some line and file */
+      /* VMS PCA expects every PC range to correlate to some line and file.  */
       vmsdbgout_source_line (line, file);
     }
 }
@@ -1353,37 +1314,32 @@ vmsdbgout_end_epilogue (line, file)
    a lexical block.  */
 
 static void
-vmsdbgout_begin_block (line, blocknum)
-     register unsigned line;
-     register unsigned blocknum;
+vmsdbgout_begin_block (register unsigned line, register unsigned blocknum)
 {
   if (write_symbols == VMS_AND_DWARF2_DEBUG)
     (*dwarf2_debug_hooks.begin_block) (line, blocknum);
 
   if (debug_info_level > DINFO_LEVEL_TERSE)
-    ASM_OUTPUT_INTERNAL_LABEL (asm_out_file, BLOCK_BEGIN_LABEL, blocknum);
+    (*targetm.asm_out.internal_label) (asm_out_file, BLOCK_BEGIN_LABEL, blocknum);
 }
 
 /* Output a marker (i.e. a label) for the end of the generated code for a
    lexical block.  */
 
 static void
-vmsdbgout_end_block (line, blocknum)
-     register unsigned line;
-     register unsigned blocknum;
+vmsdbgout_end_block (register unsigned line, register unsigned blocknum)
 {
   if (write_symbols == VMS_AND_DWARF2_DEBUG)
     (*dwarf2_debug_hooks.end_block) (line, blocknum);
 
   if (debug_info_level > DINFO_LEVEL_TERSE)
-    ASM_OUTPUT_INTERNAL_LABEL (asm_out_file, BLOCK_END_LABEL, blocknum);
+    (*targetm.asm_out.internal_label) (asm_out_file, BLOCK_END_LABEL, blocknum);
 }
 
 /* Not implemented in VMS Debug.  */
 
 static bool
-vmsdbgout_ignore_block (block)
-     tree block;
+vmsdbgout_ignore_block (tree block)
 {
   bool retval = 0;
 
@@ -1396,8 +1352,7 @@ vmsdbgout_ignore_block (block)
 /* Add an entry for function DECL into the func_table.  */
 
 static void
-vmsdbgout_begin_function (decl)
-     tree decl;
+vmsdbgout_begin_function (tree decl)
 {
   const char *name = XSTR (XEXP (DECL_RTL (decl), 0), 0);
 
@@ -1407,8 +1362,8 @@ vmsdbgout_begin_function (decl)
   if (func_table_in_use == func_table_allocated)
     {
       func_table_allocated += FUNC_TABLE_INCREMENT;
-      func_table = (char **) xrealloc (func_table,
-				       func_table_allocated * sizeof (char *));
+      func_table = xrealloc (func_table,
+			     func_table_allocated * sizeof (char *));
     }
 
   /* Add the new entry to the end of the function name table.  */
@@ -1421,8 +1376,7 @@ static char fullname_buff [4096];
    in VMS syntax in order to be processed by VMS Debug.  */
 
 static char *
-full_name (filename)
-     const char *filename;
+full_name (const char *filename)
 {
 #ifdef VMS
   FILE *fp = fopen (filename, "r");
@@ -1453,8 +1407,7 @@ full_name (filename)
    all searches.  */
 
 static unsigned int
-lookup_filename (file_name)
-     const char *file_name;
+lookup_filename (const char *file_name)
 {
   static unsigned int last_file_lookup_index = 0;
   register char *fn;
@@ -1473,17 +1426,17 @@ lookup_filename (file_name)
 #ifdef VMS
       struct tm *ts;
 
-      /* Adjust for GMT */
+      /* Adjust for GMT.  */
       ts = (struct tm *) localtime (&statbuf.st_ctime);
       gmtoff = ts->tm_gmtoff;
 
-      /* VMS has multiple file format types */
+      /* VMS has multiple file format types.  */
       rfo = statbuf.st_fab_rfm;
 #else
       /* Is GMT adjustment an issue with a cross-compiler? */
       gmtoff = 0;
 
-      /* Assume stream LF type file */
+      /* Assume stream LF type file.  */
       rfo = 2;
 #endif
       cdt = 10000000 * (statbuf.st_ctime + gmtoff + vms_epoch_offset);
@@ -1528,10 +1481,9 @@ lookup_filename (file_name)
     {
 
       file_info_table_allocated += FILE_TABLE_INCREMENT;
-      file_info_table
-	= (dst_file_info_ref) xrealloc (file_info_table,
-					(file_info_table_allocated
-					 * sizeof (dst_file_info_entry)));
+      file_info_table = xrealloc (file_info_table,
+				  (file_info_table_allocated
+				   * sizeof (dst_file_info_entry)));
     }
 
   /* Add the new entry to the end of the filename table.  */
@@ -1552,9 +1504,7 @@ lookup_filename (file_name)
    'line_info_table' for later output of the .debug_line section.  */
 
 static void
-vmsdbgout_source_line (line, filename)
-     register unsigned line;
-     register const char *filename;
+vmsdbgout_source_line (register unsigned line, register const char *filename)
 {
   if (write_symbols == VMS_AND_DWARF2_DEBUG)
     (*dwarf2_debug_hooks.source_line) (line, filename);
@@ -1563,17 +1513,16 @@ vmsdbgout_source_line (line, filename)
     {
       dst_line_info_ref line_info;
 
-      ASM_OUTPUT_INTERNAL_LABEL (asm_out_file, LINE_CODE_LABEL,
+      (*targetm.asm_out.internal_label) (asm_out_file, LINE_CODE_LABEL,
 				 line_info_table_in_use);
 
       /* Expand the line info table if necessary.  */
       if (line_info_table_in_use == line_info_table_allocated)
 	{
 	  line_info_table_allocated += LINE_INFO_TABLE_INCREMENT;
-	  line_info_table
-	    = (dst_line_info_ref) xrealloc (line_info_table,
-					    (line_info_table_allocated
-					     * sizeof (dst_line_info_entry)));
+	  line_info_table = xrealloc (line_info_table,
+				      (line_info_table_allocated
+				       * sizeof (dst_line_info_entry)));
 	}
 
       /* Add the new entry at the end of the line_info_table.  */
@@ -1589,9 +1538,7 @@ vmsdbgout_source_line (line, filename)
    At present, unimplemented.  */
 
 static void
-vmsdbgout_start_source_file (lineno, filename)
-     unsigned int lineno;
-     const char *filename;
+vmsdbgout_start_source_file (unsigned int lineno, const char *filename)
 {
   if (write_symbols == VMS_AND_DWARF2_DEBUG)
     (*dwarf2_debug_hooks.start_source_file) (lineno, filename);
@@ -1601,8 +1548,7 @@ vmsdbgout_start_source_file (lineno, filename)
    At present, unimplemented.  */
 
 static void
-vmsdbgout_end_source_file (lineno)
-     unsigned int lineno ATTRIBUTE_UNUSED;
+vmsdbgout_end_source_file (unsigned int lineno ATTRIBUTE_UNUSED)
 {
   if (write_symbols == VMS_AND_DWARF2_DEBUG)
     (*dwarf2_debug_hooks.end_source_file) (lineno);
@@ -1611,8 +1557,7 @@ vmsdbgout_end_source_file (lineno)
 /* Set up for Debug output at the start of compilation.  */
 
 static void
-vmsdbgout_init (main_input_filename)
-     const char *main_input_filename;
+vmsdbgout_init (const char *main_input_filename)
 {
   const char *language_string = lang_hooks.name;
 
@@ -1627,21 +1572,19 @@ vmsdbgout_init (main_input_filename)
 
   /* Allocate the initial hunk of the file_info_table.  */
   file_info_table
-    = (dst_file_info_ref) xcalloc (FILE_TABLE_INCREMENT,
-				   sizeof (dst_file_info_entry));
+    = xcalloc (FILE_TABLE_INCREMENT, sizeof (dst_file_info_entry));
   file_info_table_allocated = FILE_TABLE_INCREMENT;
 
   /* Skip the first entry - file numbers begin at 1 */
   file_info_table_in_use = 1;
 
-  func_table = (char **) xcalloc (FUNC_TABLE_INCREMENT, sizeof (char *));
+  func_table = xcalloc (FUNC_TABLE_INCREMENT, sizeof (char *));
   func_table_allocated = FUNC_TABLE_INCREMENT;
   func_table_in_use = 1;
 
   /* Allocate the initial hunk of the line_info_table.  */
   line_info_table
-    = (dst_line_info_ref) xcalloc (LINE_INFO_TABLE_INCREMENT,
-				   sizeof (dst_line_info_entry));
+    = xcalloc (LINE_INFO_TABLE_INCREMENT, sizeof (dst_line_info_entry));
   line_info_table_allocated = LINE_INFO_TABLE_INCREMENT;
   /* zero-th entry is allocated, but unused */
   line_info_table_in_use = 1;
@@ -1668,9 +1611,7 @@ vmsdbgout_init (main_input_filename)
 /* Not implemented in VMS Debug.  */
 
 static void
-vmsdbgout_define (lineno, buffer)
-     unsigned int lineno;
-     const char *buffer;
+vmsdbgout_define (unsigned int lineno, const char *buffer)
 {
   if (write_symbols == VMS_AND_DWARF2_DEBUG)
     (*dwarf2_debug_hooks.define) (lineno, buffer);
@@ -1679,9 +1620,7 @@ vmsdbgout_define (lineno, buffer)
 /* Not implemented in VMS Debug.  */
 
 static void
-vmsdbgout_undef (lineno, buffer)
-     unsigned int lineno;
-     const char *buffer;
+vmsdbgout_undef (unsigned int lineno, const char *buffer)
 {
   if (write_symbols == VMS_AND_DWARF2_DEBUG)
     (*dwarf2_debug_hooks.undef) (lineno, buffer);
@@ -1690,8 +1629,7 @@ vmsdbgout_undef (lineno, buffer)
 /* Not implemented in VMS Debug.  */
 
 static void
-vmsdbgout_decl (decl)
-     tree decl;
+vmsdbgout_decl (tree decl)
 {
   if (write_symbols == VMS_AND_DWARF2_DEBUG)
     (*dwarf2_debug_hooks.function_decl) (decl);
@@ -1700,8 +1638,7 @@ vmsdbgout_decl (decl)
 /* Not implemented in VMS Debug.  */
 
 static void
-vmsdbgout_global_decl (decl)
-     tree decl;
+vmsdbgout_global_decl (tree decl)
 {
   if (write_symbols == VMS_AND_DWARF2_DEBUG)
     (*dwarf2_debug_hooks.global_decl) (decl);
@@ -1710,8 +1647,7 @@ vmsdbgout_global_decl (decl)
 /* Not implemented in VMS Debug.  */
 
 static void
-vmsdbgout_abstract_function (decl)
-     tree decl;
+vmsdbgout_abstract_function (tree decl)
 {
   if (write_symbols == VMS_AND_DWARF2_DEBUG)
     (*dwarf2_debug_hooks.outlining_inline_function) (decl);
@@ -1721,21 +1657,20 @@ vmsdbgout_abstract_function (decl)
    VMS Debug debugging info.  */
 
 static void
-vmsdbgout_finish (input_filename)
-     const char *input_filename ATTRIBUTE_UNUSED;
+vmsdbgout_finish (const char *main_input_filename ATTRIBUTE_UNUSED)
 {
   unsigned int i;
   int totsize;
 
   if (write_symbols == VMS_AND_DWARF2_DEBUG)
-    (*dwarf2_debug_hooks.finish) (input_filename);
+    (*dwarf2_debug_hooks.finish) (main_input_filename);
 
   if (debug_info_level == DINFO_LEVEL_NONE)
     return;
 
   /* Output a terminator label for the .text section.  */
   text_section ();
-  ASM_OUTPUT_INTERNAL_LABEL (asm_out_file, TEXT_END_LABEL, 0);
+  (*targetm.asm_out.internal_label) (asm_out_file, TEXT_END_LABEL, 0);
 
   /* Output debugging information.
      Warning! Do not change the name of the .vmsdebug section without

@@ -1,22 +1,22 @@
-/* Definitions of target machine for GNU compiler, for SPARC64, ELF.
+/* Definitions of target machine for GCC, for SPARC64, ELF.
    Copyright (C) 1994, 1995, 1996, 1997, 1998, 2000
    Free Software Foundation, Inc.
    Contributed by Doug Evans, dje@cygnus.com.
 
-This file is part of GNU CC.
+This file is part of GCC.
 
-GNU CC is free software; you can redistribute it and/or modify
+GCC is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
-GNU CC is distributed in the hope that it will be useful,
+GCC is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with GNU CC; see the file COPYING.  If not, write to
+along with GCC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
@@ -38,8 +38,14 @@ Boston, MA 02111-1307, USA.  */
 #undef SPARC_DEFAULT_CMODEL
 #define SPARC_DEFAULT_CMODEL CM_EMBMEDANY
 
-#undef CPP_PREDEFINES
-#define CPP_PREDEFINES "-Dsparc -D__ELF__ -Acpu=sparc -Amachine=sparc"
+/* Target OS builtins for config/sol.h.  */
+#undef TARGET_SUB_OS_CPP_BUILTINS
+#define TARGET_SUB_OS_CPP_BUILTINS()		\
+  do						\
+    {						\
+	builtin_define_std ("sparc");		\
+    }						\
+  while (0)
 
 /* __svr4__ is used by the C library (FIXME) */
 #undef CPP_SUBTARGET_SPEC
@@ -50,7 +56,7 @@ Boston, MA 02111-1307, USA.  */
 
 #undef ASM_SPEC
 #define ASM_SPEC "\
-%{v:-V} -s %{fpic:-K PIC} %{fPIC:-K PIC} \
+%{v:-V} -s %{fpic|fPIC|fpie|fPIE:-K PIC} \
 %{mlittle-endian:-EL} \
 %(asm_cpu) %(asm_arch) \
 "

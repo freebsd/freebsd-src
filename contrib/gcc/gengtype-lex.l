@@ -1,6 +1,6 @@
 /* -*- indented-text -*- */
 /* Process source files and output type information.
-   Copyright (C) 2002 Free Software Foundation, Inc.
+   Copyright (C) 2002, 2003 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -20,7 +20,8 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 02111-1307, USA.  */
 
 %{
-#include "hconfig.h"
+#include "bconfig.h"
+#include "coretypes.h"
 #include "system.h"
 
 #define malloc xmalloc
@@ -29,18 +30,13 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 #include "gengtype.h"
 #include "gengtype-yacc.h"
 
-#undef YY_USE_PROTOS
-#define YY_DECL int yylex ()
-
-static void update_lineno PARAMS ((const char *l, size_t len));
+static void update_lineno (const char *l, size_t len);
 
 struct fileloc lexer_line;
 int lexer_toplevel_done;
 
 static void 
-update_lineno (l, len)
-     const char *l;
-     size_t len;
+update_lineno (const char *l, size_t len)
 {
   while (len-- > 0)
     if (*l++ == '\n')
@@ -51,7 +47,7 @@ update_lineno (l, len)
 
 ID	[[:alpha:]_][[:alnum:]_]*
 WS	[[:space:]]+
-IWORD	short|long|(un)?signed|char|int|HOST_WIDE_INT|bool|size_t
+IWORD	short|long|(un)?signed|char|int|HOST_WIDE_INT|bool|size_t|BOOL_BITFIELD
 ITYPE	{IWORD}({WS}{IWORD})*
 
 %x in_struct in_struct_comment in_comment in_yacc_escape
@@ -133,12 +129,45 @@ ITYPE	{IWORD}({WS}{IWORD})*
   do_typedef (xmemdup (namestart, namelen, namelen+1), t, &lexer_line);
   update_lineno (yytext, yyleng);
 }
-[^[:alnum:]_]typedef{WS}{ID}{WS}?"("{WS}?"*"{WS}?{ID}{WS}?")"{WS}?PARAMS {
+
+[^[:alnum:]_]typedef{WS}{ID}{WS}{ID}{WS}"(" {
+  char *namestart;
+  size_t namelen;
+  struct type *t;
+
+  for (namestart = yytext + yyleng - 2; ISSPACE (*namestart); namestart--)
+    ;
+  for (namelen = 1; !ISSPACE (namestart[-namelen]); namelen++)
+    ;
+  namestart -= namelen - 1;
+
+  t = create_scalar_type ("function type", sizeof ("function type")-1);
+  do_typedef (xmemdup (namestart, namelen, namelen+1), t, &lexer_line);
+  update_lineno (yytext, yyleng);
+}
+
+[^[:alnum:]_]typedef{WS}{ID}{WS}?"*"?{WS}?"("{WS}?"*"{WS}?{ID}{WS}?")"{WS}?PARAMS {
   char *namestart;
   size_t namelen;
   struct type *t;
 
   for (namestart = yytext + yyleng - 7; !ISIDNUM (*namestart); namestart--)
+    ;
+  for (namelen = 1; ISIDNUM (namestart[-namelen]); namelen++)
+    ;
+  namestart -= namelen - 1;
+
+  t = create_scalar_type ("function type", sizeof ("function type")-1);
+  do_typedef (xmemdup (namestart, namelen, namelen+1), t, &lexer_line);
+  update_lineno (yytext, yyleng);
+}
+
+[^[:alnum:]_]typedef{WS}{ID}{WS}?"*"?{WS}?"("{WS}?"*"{WS}?{ID}{WS}?")"{WS}?"(" {
+  char *namestart;
+  size_t namelen;
+  struct type *t;
+
+  for (namestart = yytext + yyleng - 2; !ISIDNUM (*namestart); namestart--)
     ;
   for (namelen = 1; ISIDNUM (namestart[-namelen]); namelen++)
     ;
@@ -194,6 +223,8 @@ ITYPE	{IWORD}({WS}{IWORD})*
 "/*"				{ BEGIN(in_struct_comment); }
 
 ^"%{"				{ BEGIN(in_yacc_escape); }
+
+^"@@".*				/* Used for c-parse.in C/ObjC demarcation.  */
 
 {WS}				{ update_lineno (yytext, yyleng); }
 
@@ -304,15 +335,13 @@ ITYPE	{IWORD}({WS}{IWORD})*
 %%
 
 void
-yyerror (s)
-     const char *s;
+yyerror (const char *s)
 {
   error_at_line (&lexer_line, s);
 }
 
 void
-parse_file (fname)
-      const char *fname;
+parse_file (const char *fname)
 {
   yyin = fopen (fname, "r");
   lexer_line.file = fname;

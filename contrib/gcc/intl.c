@@ -1,5 +1,5 @@
 /* Message translation utilities.
-   Copyright (C) 2001 Free Software Foundation, Inc.
+   Copyright (C) 2001, 2003 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -20,6 +20,8 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 
 #include "config.h"
 #include "system.h"
+#include "coretypes.h"
+#include "tm.h"
 #include "intl.h"
 
 #ifdef ENABLE_NLS
@@ -30,7 +32,7 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
    terminal, so it has be set to output messages correctly.  */
 
 void
-gcc_init_libintl ()
+gcc_init_libintl (void)
 {
 #ifdef HAVE_LC_MESSAGES
   setlocale (LC_CTYPE, "");
@@ -43,4 +45,33 @@ gcc_init_libintl ()
   (void) textdomain ("gcc");
 }
 
+#if defined HAVE_WCHAR_H && defined HAVE_WORKING_MBSTOWCS && defined HAVE_WCSWIDTH
+#include <wchar.h>
+
+/* Returns the width in columns of MSGSTR, which came from gettext.
+   This is for indenting subsequent output.  */
+
+size_t
+gcc_gettext_width (const char *msgstr)
+{
+  size_t nwcs = mbstowcs (0, msgstr, 0);
+  wchar_t *wmsgstr = alloca ((nwcs + 1) * sizeof (wchar_t));
+
+  mbstowcs (wmsgstr, msgstr, nwcs + 1);
+  return wcswidth (wmsgstr, nwcs);
+}
+
+#else  /* no wcswidth */
+
+/* We don't have any way of knowing how wide the string is.  Guess
+   the length of the string.  */
+
+size_t
+gcc_gettext_width (const char *msgstr)
+{
+  return strlen (msgstr);
+}
+
 #endif
+
+#endif /* ENABLE_NLS */

@@ -1,5 +1,6 @@
 /* target.h -- Public #include File (module.h template V1.0)
-   Copyright (C) 1995, 1996, 2002 Free Software Foundation, Inc.
+   Copyright (C) 1995, 1996, 2002, 2003
+   Free Software Foundation, Inc.
    Contributed by James Craig Burley.
 
 This file is part of GNU Fortran.
@@ -30,12 +31,8 @@ the Free Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 #ifndef GCC_F_TARGET_H
 #define GCC_F_TARGET_H
 
-#ifdef FFE_STANDALONE
-#define HOST_WIDE_INT long
-#else
 #ifndef TREE_CODE
 #include "tree.h"
-#endif
 #endif
 
 /* Simple definitions and enumerations. */
@@ -269,26 +266,6 @@ typedef short int ffetargetInteger3;
 typedef long long int ffetargetInteger4;
 #define ffetargetInteger4_f "ll"
 #endif
-#if FFETARGET_okINTEGER5
-typedef ? ffetargetInteger5;
-#define ffetargetInteger5_f
-?
-#endif
-#if FFETARGET_okINTEGER6
-typedef ? ffetargetInteger6;
-#define ffetargetInteger6_f
-?
-#endif
-#if FFETARGET_okINTEGER7
-typedef ? ffetargetInteger7;
-#define ffetargetInteger7_f
-?
-#endif
-#if FFETARGET_okINTEGER8
-typedef ? ffetargetInteger8;
-#define ffetargetInteger8_f
-?
-#endif
 #if FFETARGET_okLOGICAL1
 #ifdef FFETARGET_32bit_longs
 typedef long int ffetargetLogical1;
@@ -309,26 +286,6 @@ typedef short int ffetargetLogical3;
 #if FFETARGET_okLOGICAL4
 typedef long long int ffetargetLogical4;
 #define ffetargetLogical4_f "ll"
-#endif
-#if FFETARGET_okLOGICAL5
-typedef ? ffetargetLogical5;
-#define ffetargetLogical5_f
-?
-#endif
-#if FFETARGET_okLOGICAL6
-typedef ? ffetargetLogical6;
-#define ffetargetLogical6_f
-?
-#endif
-#if FFETARGET_okLOGICAL7
-typedef ? ffetargetLogical7;
-#define ffetargetLogical7_f
-?
-#endif
-#if FFETARGET_okLOGICAL8
-typedef ? ffetargetLogical8;
-#define ffetargetLogical8_f
-?
 #endif
 #if FFETARGET_okREAL1
 typedef int ffetargetReal1;
@@ -360,26 +317,6 @@ typedef struct { int v[2]; } ffetargetReal2;
 typedef long ffetargetReal3[?];
 ?
 #endif
-#if FFETARGET_okREAL4
-typedef long ffetargetReal4[?];
-?
-#endif
-#if FFETARGET_okREAL5
-typedef long ffetargetReal5[?];
-?
-#endif
-#if FFETARGET_okREAL6
-typedef long ffetargetReal6[?];
-?
-#endif
-#if FFETARGET_okREAL7
-typedef long ffetargetReal7[?];
-?
-#endif
-#if FFETARGET_okREAL8
-typedef long ffetargetReal8[?];
-?
-#endif
 #if FFETARGET_okCOMPLEX1
 struct _ffetarget_complex_1_
   {
@@ -404,46 +341,6 @@ struct _ffetarget_complex_3_
   };
 typedef struct _ffetarget_complex_3_ ffetargetComplex3;
 #endif
-#if FFETARGET_okCOMPLEX4
-struct _ffetarget_complex_4_
-  {
-    ffetargetReal4 real;
-    ffetargetReal4 imaginary;
-  };
-typedef struct _ffetarget_complex_4_ ffetargetComplex4;
-#endif
-#if FFETARGET_okCOMPLEX5
-struct _ffetarget_complex_5_
-  {
-    ffetargetReal5 real;
-    ffetargetReal5 imaginary;
-  };
-typedef struct _ffetarget_complex_5_ ffetargetComplex5;
-#endif
-#if FFETARGET_okCOMPLEX6
-struct _ffetarget_complex_6_
-  {
-    ffetargetReal6 real;
-    ffetargetReal6 imaginary;
-  };
-typedef struct _ffetarget_complex_6_ ffetargetComplex6;
-#endif
-#if FFETARGET_okCOMPLEX7
-struct _ffetarget_complex_7_
-  {
-    ffetargetReal7 real;
-    ffetargetReal7 imaginary;
-  };
-typedef struct _ffetarget_complex_7_ ffetargetComplex7;
-#endif
-#if FFETARGET_okCOMPLEX8
-struct _ffetarget_complex_8_
-  {
-    ffetargetReal8 real;
-    ffetargetReal8 imaginary;
-  };
-typedef struct _ffetarget_complex_8_ ffetargetComplex8;
-#endif
 #if FFETARGET_okCHARACTER1
 struct _ffetarget_char_1_
   {
@@ -452,34 +349,6 @@ struct _ffetarget_char_1_
   };
 typedef struct _ffetarget_char_1_ ffetargetCharacter1;
 typedef unsigned char ffetargetCharacterUnit1;
-#endif
-#if FFETARGET_okCHARACTER2
-typedef ? ffetargetCharacter2;
-typedef ? ffetargetCharacterUnit2;
-#endif
-#if FFETARGET_okCHARACTER3
-typedef ? ffetargetCharacter3;
-typedef ? ffetargetCharacterUnit3;
-#endif
-#if FFETARGET_okCHARACTER4
-typedef ? ffetargetCharacter4;
-typedef ? ffetargetCharacterUnit4;
-#endif
-#if FFETARGET_okCHARACTER5
-typedef ? ffetargetCharacter5;
-typedef ? ffetargetCharacterUnit5;
-#endif
-#if FFETARGET_okCHARACTER6
-typedef ? ffetargetCharacter6;
-typedef ? ffetargetCharacterUnit6;
-#endif
-#if FFETARGET_okCHARACTER7
-typedef ? ffetargetCharacter7;
-typedef ? ffetargetCharacterUnit7;
-#endif
-#if FFETARGET_okCHARACTER8
-typedef ? ffetargetCharacter8;
-typedef ? ffetargetCharacterUnit8;
 #endif
 
 typedef unsigned long long int ffetargetTypeless;
@@ -608,26 +477,6 @@ ffebad ffetarget_divide_complex2 (ffetargetComplex2 *res, ffetargetComplex2 l,
 ffebad ffetarget_divide_complex3 (ffetargetComplex3 *res, ffetargetComplex3 l,
 				  ffetargetComplex3 r);
 #endif
-#if FFETARGET_okCOMPLEX4
-ffebad ffetarget_divide_complex4 (ffetargetComplex4 *res, ffetargetComplex4 l,
-				  ffetargetComplex4 r);
-#endif
-#if FFETARGET_okCOMPLEX5
-ffebad ffetarget_divide_complex5 (ffetargetComplex5 *res, ffetargetComplex5 l,
-				  ffetargetComplex5 r);
-#endif
-#if FFETARGET_okCOMPLEX6
-ffebad ffetarget_divide_complex6 (ffetargetComplex6 *res, ffetargetComplex6 l,
-				  ffetargetComplex6 r);
-#endif
-#if FFETARGET_okCOMPLEX7
-ffebad ffetarget_divide_complex7 (ffetargetComplex7 *res, ffetargetComplex7 l,
-				  ffetargetComplex7 r);
-#endif
-#if FFETARGET_okCOMPLEX8
-ffebad ffetarget_divide_complex8 (ffetargetComplex8 *res, ffetargetComplex8 l,
-				  ffetargetComplex8 r);
-#endif
 #if FFETARGET_okINTEGER1
 bool ffetarget_integer1 (ffetargetInteger1 *val, ffelexToken integer);
 #endif
@@ -639,18 +488,6 @@ bool ffetarget_integer3 (ffetargetInteger3 *val, ffelexToken integer);
 #endif
 #if FFETARGET_okINTEGER4
 bool ffetarget_integer4 (ffetargetInteger4 *val, ffelexToken integer);
-#endif
-#if FFETARGET_okINTEGER5
-bool ffetarget_integer5 (ffetargetInteger5 *val, ffelexToken integer);
-#endif
-#if FFETARGET_okINTEGER6
-bool ffetarget_integer6 (ffetargetInteger6 *val, ffelexToken integer);
-#endif
-#if FFETARGET_okINTEGER7
-bool ffetarget_integer7 (ffetargetInteger7 *val, ffelexToken integer);
-#endif
-#if FFETARGET_okINTEGER8
-bool ffetarget_integer8 (ffetargetInteger8 *val, ffelexToken integer);
 #endif
 bool ffetarget_integerbinary (ffetargetIntegerDefault *val,
 			     ffelexToken integer);
@@ -689,31 +526,6 @@ ffebad ffetarget_multiply_complex2 (ffetargetComplex2 *res,
 ffebad ffetarget_multiply_complex3 (ffetargetComplex3 *res,
 				    ffetargetComplex3 l,
 				    ffetargetComplex3 r);
-#endif
-#if FFETARGET_okCOMPLEX4
-ffebad ffetarget_multiply_complex4 (ffetargetComplex4 *res,
-				    ffetargetComplex4 l,
-				    ffetargetComplex4 r);
-#endif
-#if FFETARGET_okCOMPLEX5
-ffebad ffetarget_multiply_complex5 (ffetargetComplex5 *res,
-				    ffetargetComplex5 l,
-				    ffetargetComplex5 r);
-#endif
-#if FFETARGET_okCOMPLEX6
-ffebad ffetarget_multiply_complex6 (ffetargetComplex6 *res,
-				    ffetargetComplex6 l,
-				    ffetargetComplex6 r);
-#endif
-#if FFETARGET_okCOMPLEX7
-ffebad ffetarget_multiply_complex7 (ffetargetComplex7 *res,
-				    ffetargetComplex7 l,
-				    ffetargetComplex7 r);
-#endif
-#if FFETARGET_okCOMPLEX8
-ffebad ffetarget_multiply_complex8 (ffetargetComplex8 *res,
-				    ffetargetComplex8 l,
-				    ffetargetComplex8 r);
 #endif
 ffebad ffetarget_power_complexdefault_integerdefault (ffetargetComplexDefault *res,
 						  ffetargetComplexDefault l,
@@ -755,36 +567,6 @@ bool ffetarget_real3 (ffetargetReal3 *value, ffelexToken integer,
 		      ffelexToken exponent, ffelexToken exponent_sign,
 		      ffelexToken exponent_digits);
 #endif
-#if FFETARGET_okREAL4
-bool ffetarget_real4 (ffetargetReal4 *value, ffelexToken integer,
-		      ffelexToken decimal, ffelexToken fraction,
-		      ffelexToken exponent, ffelexToken exponent_sign,
-		      ffelexToken exponent_digits);
-#endif
-#if FFETARGET_okREAL5
-bool ffetarget_real5 (ffetargetReal5 *value, ffelexToken integer,
-		      ffelexToken decimal, ffelexToken fraction,
-		      ffelexToken exponent, ffelexToken exponent_sign,
-		      ffelexToken exponent_digits);
-#endif
-#if FFETARGET_okREAL6
-bool ffetarget_real6 (ffetargetReal6 *value, ffelexToken integer,
-		      ffelexToken decimal, ffelexToken fraction,
-		      ffelexToken exponent, ffelexToken exponent_sign,
-		      ffelexToken exponent_digits);
-#endif
-#if FFETARGET_okREAL7
-bool ffetarget_real7 (ffetargetReal7 *value, ffelexToken integer,
-		      ffelexToken decimal, ffelexToken fraction,
-		      ffelexToken exponent, ffelexToken exponent_sign,
-		      ffelexToken exponent_digits);
-#endif
-#if FFETARGET_okREAL8
-bool ffetarget_real8 (ffetargetReal8 *value, ffelexToken integer,
-		      ffelexToken decimal, ffelexToken fraction,
-		      ffelexToken exponent, ffelexToken exponent_sign,
-		      ffelexToken exponent_digits);
-#endif
 bool ffetarget_typeless_binary (ffetargetTypeless *value, ffelexToken token);
 bool ffetarget_typeless_octal (ffetargetTypeless *value, ffelexToken token);
 bool ffetarget_typeless_hex (ffetargetTypeless *value, ffelexToken token);
@@ -794,9 +576,24 @@ void *ffetarget_memcpy_ (void *dst, void *src, size_t len);
 
 /* Define macros. */
 
-#define FFETARGET_REAL_VALUE_FROM_INT_(resr, lf, kt)			\
-  REAL_VALUE_FROM_INT (resr, (long) lf, (long) ((lf < 0) ? -1 : 0),	\
-		       ((kt == 1) ? SFmode : DFmode))
+#define FFETARGET_REAL_VALUE_FROM_INT_(resr, lf, kt)		\
+  REAL_VALUE_FROM_INT (resr, (HOST_WIDE_INT) lf,		\
+                       (HOST_WIDE_INT) ((lf < 0) ? -1 : 0),	\
+                       mode_for_size (kt == 1 ? 32 : 64, MODE_FLOAT, 0))
+
+#if HOST_BITS_PER_LONGLONG > HOST_BITS_PER_WIDE_INT
+#define FFETARGET_REAL_VALUE_FROM_LONGLONG_(resr, lf, kt)		\
+  REAL_VALUE_FROM_INT (resr, (HOST_WIDE_INT) lf,			\
+		       (HOST_WIDE_INT) (lf >> HOST_BITS_PER_WIDE_INT),	\
+                       mode_for_size (kt == 1 ? 32 : 64, MODE_FLOAT, 0))
+#define FFETARGET_LONGLONG_FROM_INTS_(hi, lo)		\
+  (((long long int) hi << HOST_BITS_PER_WIDE_INT)	\
+   | (long long int) ((unsigned HOST_WIDE_INT) lo))
+#else
+#define FFETARGET_REAL_VALUE_FROM_LONGLONG_(resr, lf, kt)		\
+  FFETARGET_REAL_VALUE_FROM_INT_ (resr, lf, kt)
+#define FFETARGET_LONGLONG_FROM_INTS_(hi, lo)  lo
+#endif
 
 #define ffetarget_add_complex1(res,l,r) \
   ({ REAL_VALUE_TYPE lr, li, rr, ri, resr, resi; \
@@ -899,7 +696,14 @@ void *ffetarget_memcpy_ (void *dst, void *src, size_t len);
 #define ffetarget_convert_complex1_integer1 ffetarget_convert_complex1_integer
 #define ffetarget_convert_complex1_integer2 ffetarget_convert_complex1_integer
 #define ffetarget_convert_complex1_integer3 ffetarget_convert_complex1_integer
-#define ffetarget_convert_complex1_integer4(res,l) FFEBAD_NOCANDO
+#define ffetarget_convert_complex1_integer4(res,l) \
+  ({ REAL_VALUE_TYPE resi, resr; \
+     ffetargetInteger4 lf = (l); \
+     FFETARGET_REAL_VALUE_FROM_LONGLONG_ (resr, lf, 1); \
+     resi = dconst0; \
+     ffetarget_cvt_rv_to_r1_ (resr, (res)->real); \
+     ffetarget_cvt_rv_to_r1_ (resi, (res)->imaginary); \
+     FFEBAD; })
 #define ffetarget_convert_complex1_real1(res,l) \
   ((res)->real = (l), \
    ffetarget_cvt_rv_to_r1_ (dconst0, (res)->imaginary), \
@@ -934,7 +738,14 @@ void *ffetarget_memcpy_ (void *dst, void *src, size_t len);
 #define ffetarget_convert_complex2_integer1 ffetarget_convert_complex2_integer
 #define ffetarget_convert_complex2_integer2 ffetarget_convert_complex2_integer
 #define ffetarget_convert_complex2_integer3 ffetarget_convert_complex2_integer
-#define ffetarget_convert_complex2_integer4(res,l) FFEBAD_NOCANDO
+#define ffetarget_convert_complex2_integer4(res,l) \
+  ({ REAL_VALUE_TYPE resi, resr; \
+     ffetargetInteger4 lf = (l); \
+     FFETARGET_REAL_VALUE_FROM_LONGLONG_ (resr, lf, 2); \
+     resi = dconst0; \
+     ffetarget_cvt_rv_to_r2_ (resr, &((res)->real.v[0])); \
+     ffetarget_cvt_rv_to_r2_ (resi, &((res)->imaginary.v[0])); \
+     FFEBAD; })
 #define ffetarget_convert_complex2_real1(res,l) \
   ({ REAL_VALUE_TYPE lr; \
      lr = ffetarget_cvt_r1_to_rv_ (l); \
@@ -997,8 +808,20 @@ void *ffetarget_memcpy_ (void *dst, void *src, size_t len);
         ffetarget_convert_integer1_typeless(res,l)
 #define ffetarget_convert_integer4_character1(res,l) \
         ffetarget_convert_integer1_character1(res,l)
-#define ffetarget_convert_integer4_complex1(res,l) FFEBAD_NOCANDO
-#define ffetarget_convert_integer4_complex2(res,l) FFEBAD_NOCANDO
+#define ffetarget_convert_integer4_complex1(res,l) \
+  ({ REAL_VALUE_TYPE lr; \
+     lr = ffetarget_cvt_r1_to_rv_ ((l).real); \
+     REAL_VALUE_TO_INT (&ffetarget_long_val_, &ffetarget_long_junk_, lr); \
+     *(res) = FFETARGET_LONGLONG_FROM_INTS_ (ffetarget_long_junk_,  \
+					     ffetarget_long_val_); \
+     FFEBAD; })
+#define ffetarget_convert_integer4_complex2(res,l) \
+  ({ REAL_VALUE_TYPE lr; \
+     lr = ffetarget_cvt_r2_to_rv_ (&((l).real.v[0])); \
+     REAL_VALUE_TO_INT (&ffetarget_long_val_, &ffetarget_long_junk_, lr); \
+     *(res) = FFETARGET_LONGLONG_FROM_INTS_ (ffetarget_long_junk_,  \
+					     ffetarget_long_val_); \
+     FFEBAD; })
 #define ffetarget_convert_integer4_hollerith(res,l) \
         ffetarget_convert_integer1_hollerith(res,l)
 #define ffetarget_convert_integer4_integer1(res,l) (*(res) = (l), FFEBAD)
@@ -1012,8 +835,20 @@ void *ffetarget_memcpy_ (void *dst, void *src, size_t len);
         ffetarget_convert_integer1_logical1(res,l)
 #define ffetarget_convert_integer4_logical4(res,l) \
         ffetarget_convert_integer1_logical1(res,l)
-#define ffetarget_convert_integer4_real1(res,l) FFEBAD_NOCANDO
-#define ffetarget_convert_integer4_real2(res,l) FFEBAD_NOCANDO
+#define ffetarget_convert_integer4_real1(res,l) \
+  ({ REAL_VALUE_TYPE lr; \
+     lr = ffetarget_cvt_r1_to_rv_ (l); \
+     REAL_VALUE_TO_INT (&ffetarget_long_val_, &ffetarget_long_junk_, lr); \
+     *(res) = FFETARGET_LONGLONG_FROM_INTS_ (ffetarget_long_junk_, \
+					     ffetarget_long_val_); \
+     FFEBAD; })
+#define ffetarget_convert_integer4_real2(res,l) \
+  ({ REAL_VALUE_TYPE lr; \
+     lr = ffetarget_cvt_r2_to_rv_ (&((l).v[0])); \
+     REAL_VALUE_TO_INT (&ffetarget_long_val_, &ffetarget_long_junk_, lr); \
+     *(res) = FFETARGET_LONGLONG_FROM_INTS_ (ffetarget_long_junk_, \
+					     ffetarget_long_val_); \
+     FFEBAD; })
 #define ffetarget_convert_integer4_typeless(res,l) \
         ffetarget_convert_integer1_typeless(res,l)
 #define ffetarget_convert_logical1_character1(res,l) \
@@ -1113,7 +948,12 @@ void *ffetarget_memcpy_ (void *dst, void *src, size_t len);
         ffetarget_convert_real1_integer1(res,l)
 #define ffetarget_convert_real1_integer3(res,l) \
         ffetarget_convert_real1_integer1(res,l)
-#define ffetarget_convert_real1_integer4(res,l) FFEBAD_NOCANDO
+#define ffetarget_convert_real1_integer4(res,l) \
+  ({ REAL_VALUE_TYPE resr; \
+     ffetargetInteger4 lf = (l); \
+     FFETARGET_REAL_VALUE_FROM_LONGLONG_ (resr, lf, 1); \
+     ffetarget_cvt_rv_to_r1_ (resr, *(res)); \
+     FFEBAD; })
 #define ffetarget_convert_real1_typeless(res,l) \
   ffetarget_convert_any_typeless_ ((char *) (res), sizeof(*(res)), l)
 #define ffetarget_convert_real1_complex1(res,l) (*(res) = (l).real, FFEBAD)
@@ -1138,7 +978,12 @@ void *ffetarget_memcpy_ (void *dst, void *src, size_t len);
         ffetarget_convert_real2_integer1(res,l)
 #define ffetarget_convert_real2_integer3(res,l) \
         ffetarget_convert_real2_integer1(res,l)
-#define ffetarget_convert_real2_integer4(res,l) FFEBAD_NOCANDO
+#define ffetarget_convert_real2_integer4(res,l) \
+  ({ REAL_VALUE_TYPE resr; \
+     ffetargetInteger4 lf = (l); \
+     FFETARGET_REAL_VALUE_FROM_LONGLONG_ (resr, lf, 2); \
+     ffetarget_cvt_rv_to_r2_ (resr, &((res)->v[0])); \
+     FFEBAD; })
 #define ffetarget_convert_real2_typeless(res,l) \
   ffetarget_convert_any_typeless_ ((char *) (res), sizeof(*(res)), l)
 #define ffetarget_convert_real2_complex1(res,l) \

@@ -1,25 +1,26 @@
-/* Define constants and variables for communication with parse.y.
+/* Define constants and variables for communication with the parser.
    Copyright (C) 1987, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
-   2000 Free Software Foundation, Inc.
+   2000, 2001, 2002, 2003 Free Software Foundation, Inc.
    Hacked by Michael Tiemann (tiemann@cygnus.com)
    and by Brendan Kehoe (brendan@cygnus.com).
 
-This file is part of GNU CC.
+   This file is part of GCC.
 
-GNU CC is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY.  No author or distributor
-accepts responsibility to anyone for the consequences of using it
-or for whether it serves any particular purpose or works at all,
-unless he says so in writing.  Refer to the GNU CC General Public
-License for full details.
+   GCC is free software; you can redistribute it and/or modify it
+   under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2, or (at your option)
+   any later version.
 
-Everyone is granted permission to copy, modify and redistribute
-GNU CC, but only under the conditions described in the
-GNU CC General Public License.   A copy of this license is
-supposed to have been given to you along with GNU CC so you
-can know your rights and responsibilities.  It should be in a
-file named COPYING.  Among other things, the copyright notice
-and this notice must be preserved on all copies.  */
+   GCC is distributed in the hope that it will be useful, but
+   WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+   General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with GCC; see the file COPYING.  If not, write to the Free
+   Software Foundation, 59 Temple Place - Suite 330, Boston, MA
+   02111-1307, USA.  */
+
 
 #ifndef GCC_CP_LEX_H
 #define GCC_CP_LEX_H
@@ -63,25 +64,5 @@ typedef unsigned long RID_BIT_TYPE;	/* assumed at least 32 bits */
 #define RIDBIT_RESET(N, V) do { (V) &= ~RIDBIT_OF (N); } while (0)
 #define RIDBIT_RESET_ALL(V) do { (V) = 0; } while (0)
 #endif
-
-/* the declaration found for the last IDENTIFIER token read in.
-   yylex must look this up to detect typedefs, which get token type TYPENAME,
-   so it is left around in case the identifier is not a typedef but is
-   used in a context which makes it a reference to a variable.  */
-extern GTY(()) tree lastiddecl;
-
-/* Back-door communication channel to the lexer.  */
-extern int looking_for_typename;
-extern int looking_for_template;
-
-/* Tell the lexer where to look for names.  */
-extern GTY(()) tree got_scope;
-extern GTY(()) tree got_object;
-
-/* Pending language change.
-   Positive is push count, negative is pop count.  */
-extern int pending_lang_change;
-
-extern int yylex PARAMS ((void));
 
 #endif /* ! GCC_CP_LEX_H */

@@ -2,28 +2,32 @@
    version (using GAS and COFF (encapsulated is unacceptable) )
    Copyright (C) 1990, 1996, 2000 Free Software Foundation, Inc.
 
-This file is part of GNU CC.
+This file is part of GCC.
 
-GNU CC is free software; you can redistribute it and/or modify
+GCC is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
-GNU CC is distributed in the hope that it will be useful,
+GCC is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with GNU CC; see the file COPYING.  If not, write to
+along with GCC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
-
-/* Names to predefine in the preprocessor for this target machine.  */
-
-#undef CPP_PREDEFINES
-#define CPP_PREDEFINES "-Dsparc -DUnicomPBD -Dunix -D__GCC_NEW_VARARGS__ -Asystem=unix -Acpu=sparc -Amachine=sparc"
+/* Target OS builtins.  */
+#define TARGET_OS_CPP_BUILTINS()		\
+  do						\
+    {						\
+	builtin_define_std ("unix");		\
+	builtin_define_std ("UnicomPBD");	\
+	builtin_assert ("system=unix");		\
+    }						\
+  while (0)
 
 /* We want DBX format for use with gdb under COFF.  */
 
@@ -116,17 +120,8 @@ Boston, MA 02111-1307, USA.  */
    This is suitable for output with `assemble_name'.  */
 
 #undef ASM_GENERATE_INTERNAL_LABEL
-
 #define ASM_GENERATE_INTERNAL_LABEL(LABEL,PREFIX,NUM)                   \
         sprintf (LABEL, "*.%s%ld", PREFIX, (long)(NUM))
-
-
-/* This is how to output an internal numbered label where
-   PREFIX is the class of label and NUM is the number within the class.  */
-
-#undef  ASM_OUTPUT_INTERNAL_LABEL
-#define ASM_OUTPUT_INTERNAL_LABEL(FILE,PREFIX,NUM)                      \
-        fprintf (FILE, ".%s%d:\n", PREFIX, NUM)
 
 /* This is how to output an element of a case-vector that is relative.  */
 
@@ -145,10 +140,8 @@ Boston, MA 02111-1307, USA.  */
 /* This is needed for SunOS 4.0, and should not hurt for 3.2
    versions either.  */
 #undef ASM_OUTPUT_SOURCE_LINE
-#define ASM_OUTPUT_SOURCE_LINE(file, line)		\
-  { static int sym_lineno = 1;				\
-    fprintf (file, ".stabn 68,0,%d,.LM%d\n.LM%d:\n",	\
-	     line, sym_lineno, sym_lineno);		\
-    sym_lineno += 1; }
+#define ASM_OUTPUT_SOURCE_LINE(file, line, counter)	\
+  fprintf (file, ".stabn 68,0,%d,.LM%d\n.LM%d:\n",	\
+	   line, counter, counter)
 
 #define ASM_INT_OP "\t.long "

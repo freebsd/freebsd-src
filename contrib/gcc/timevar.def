@@ -1,6 +1,6 @@
 /* This file contains the definitions for timing variables used to
    measure run-time performance of the compiler.
-   Copyright (C) 2000 Free Software Foundation, Inc.
+   Copyright (C) 2000, 2001, 2002, 2003 Free Software Foundation, Inc.
    Contributed by Alex Samuel <samuel@codesourcery.com>
 
    This file is part of GCC.
@@ -39,6 +39,8 @@ DEFTIMEVAR (TV_GC                    , "garbage collection")
 /* Time spent generating dump files.  */
 DEFTIMEVAR (TV_DUMP                  , "dump files")
 
+DEFTIMEVAR (TV_CGRAPH                , "callgraph construction")
+DEFTIMEVAR (TV_CGRAPHOPT             , "callgraph optimization")
 /* Time spent by constructing CFG.  */
 DEFTIMEVAR (TV_CFG                   , "cfg construction")
 /* Time spent by cleaning up CFG.  */
@@ -47,6 +49,10 @@ DEFTIMEVAR (TV_DELETE_TRIVIALLY_DEAD , "trivially dead code")
 /* Time spent by life analysis.  */
 DEFTIMEVAR (TV_LIFE		     , "life analysis")
 DEFTIMEVAR (TV_LIFE_UPDATE	     , "life info update")
+
+DEFTIMEVAR (TV_ALIAS_ANALYSIS	     , "alias analysis")
+DEFTIMEVAR (TV_REG_SCAN		     , "register scan")
+DEFTIMEVAR (TV_REBUILD_JUMP	     , "rebuild jump labels")
 /* Timing in various stages of the compiler.  */
 DEFTIMEVAR (TV_CPP		     , "preprocessing")
 DEFTIMEVAR (TV_LEX		     , "lexical analysis")
@@ -61,9 +67,12 @@ DEFTIMEVAR (TV_JUMP                  , "jump")
 DEFTIMEVAR (TV_CSE                   , "CSE")
 DEFTIMEVAR (TV_GCSE                  , "global CSE")
 DEFTIMEVAR (TV_LOOP                  , "loop analysis")
+DEFTIMEVAR (TV_BYPASS                , "bypass jumps")
 DEFTIMEVAR (TV_TRACER                , "tracer")
+DEFTIMEVAR (TV_WEB                   , "web")
 DEFTIMEVAR (TV_CSE2                  , "CSE 2")
 DEFTIMEVAR (TV_BRANCH_PROB           , "branch prediction")
+DEFTIMEVAR (TV_VPT                   , "value profile opts")
 DEFTIMEVAR (TV_FLOW                  , "flow analysis")
 DEFTIMEVAR (TV_COMBINE               , "combiner")
 DEFTIMEVAR (TV_IFCVT		     , "if-conversion")
@@ -83,10 +92,6 @@ DEFTIMEVAR (TV_DBR_SCHED             , "delay branch sched")
 DEFTIMEVAR (TV_REORDER_BLOCKS        , "reorder blocks")
 DEFTIMEVAR (TV_SHORTEN_BRANCH        , "shorten branches")
 DEFTIMEVAR (TV_REG_STACK             , "reg stack")
-DEFTIMEVAR (TV_TO_SSA                , "convert to SSA")
-DEFTIMEVAR (TV_SSA_CCP               , "SSA CCP")
-DEFTIMEVAR (TV_SSA_DCE               , "SSA aggressive DCE")
-DEFTIMEVAR (TV_FROM_SSA              , "convert from SSA")
 DEFTIMEVAR (TV_FINAL                 , "final")
 DEFTIMEVAR (TV_SYMOUT                , "symout")
 

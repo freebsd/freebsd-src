@@ -1,5 +1,6 @@
-/* Target definitions for GNU compiler for Intel 80386 running Interix
-   Parts Copyright (C) 1991, 1999, 2000, 2002 Free Software Foundation, Inc.
+/* Target definitions for GCC for Intel 80386 running Interix
+   Parts Copyright (C) 1991, 1999, 2000, 2002, 2003, 2004
+   Free Software Foundation, Inc.
 
    Parts:
      by Douglas B. Rupp (drupp@cs.washington.edu).
@@ -7,20 +8,20 @@
      by Donn Terry (donn@softway.com).
      by Mumit Khan (khan@xraylith.wisc.edu).
 
-This file is part of GNU CC.
+This file is part of GCC.
 
-GNU CC is free software; you can redistribute it and/or modify
+GCC is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
-GNU CC is distributed in the hope that it will be useful,
+GCC is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with GNU CC; see the file COPYING.  If not, write to
+along with GCC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
@@ -35,11 +36,12 @@ Boston, MA 02111-1307, USA.  */
 
 /* By default, target has a 80387, uses IEEE compatible arithmetic,
    and returns float values in the 387 and needs stack probes
-   We also align doubles to 64-bits for MSVC default compatibility */
+   We also align doubles to 64-bits for MSVC default compatibility
+   We do bitfields MSVC-compatibly by default, too.  */
 #undef TARGET_SUBTARGET_DEFAULT
 #define TARGET_SUBTARGET_DEFAULT \
    (MASK_80387 | MASK_IEEE_FP | MASK_FLOAT_RETURNS | MASK_STACK_PROBE | \
-    MASK_ALIGN_DOUBLE)
+    MASK_ALIGN_DOUBLE | MASK_MS_BITFIELD_LAYOUT)
 
 #undef TARGET_CPU_DEFAULT
 #define TARGET_CPU_DEFAULT 2 /* 486 */
@@ -70,9 +72,9 @@ Boston, MA 02111-1307, USA.  */
 	else								\
 	  {								\
 	     builtin_define_std ("LANGUAGE_C");				\
-	     if (c_language == clk_cplusplus)				\
+	     if (c_dialect_cxx ())					\
 	       builtin_define_std ("LANGUAGE_C_PLUS_PLUS");		\
-	     if (flag_objc)						\
+	     if (c_dialect_objc ())					\
 	       builtin_define_std ("LANGUAGE_OBJECTIVE_C");		\
 	  } 								\
     }									\
@@ -91,16 +93,8 @@ Boston, MA 02111-1307, USA.  */
 /* The global __fltused is necessary to cause the printf/scanf routines
    for outputting/inputting floating point numbers to be loaded.  Since this
    is kind of hard to detect, we just do it all the time.  */
-
-#ifdef ASM_FILE_START
-#undef ASM_FILE_START
-#endif
-#define ASM_FILE_START(FILE) \
-  do {  fprintf (FILE, "\t.file\t");                            \
-        output_quoted_string (FILE, dump_base_name);            \
-        fprintf (FILE, "\n");                                   \
-        fprintf (FILE, ".global\t__fltused\n");                 \
-  } while (0)
+#undef X86_FILE_START_FLTUSED
+#define X86_FILE_START_FLTUSED 1
 
 /* A table of bytes codes used by the ASM_OUTPUT_ASCII and
    ASM_OUTPUT_LIMITED_STRING macros.  Each byte in the table
@@ -147,18 +141,18 @@ Boston, MA 02111-1307, USA.  */
    generated assembly code more compact (and thus faster to assemble)
    as well as more readable, especially for targets like the i386
    (where the only alternative is to output character sequences as
-   comma separated lists of numbers).   */
+   comma separated lists of numbers).  */
 
 #define ASM_OUTPUT_LIMITED_STRING(FILE, STR)				\
   do									\
     {									\
-      register const unsigned char *_limited_str =			\
+      const unsigned char *_limited_str =				\
         (const unsigned char *) (STR);					\
-      register unsigned ch;						\
+      unsigned ch;							\
       fprintf ((FILE), "%s\"", STRING_ASM_OP);				\
       for (; (ch = *_limited_str); _limited_str++)			\
         {								\
-	  register int escape = ESCAPES[ch];				\
+	  int escape = ESCAPES[ch];					\
 	  switch (escape)						\
 	    {								\
 	    case 0:							\
@@ -188,13 +182,13 @@ Boston, MA 02111-1307, USA.  */
 #define ASM_OUTPUT_ASCII(FILE, STR, LENGTH)				\
   do									\
     {									\
-      register const unsigned char *_ascii_bytes =			\
+      const unsigned char *_ascii_bytes =				\
         (const unsigned char *) (STR);					\
-      register const unsigned char *limit = _ascii_bytes + (LENGTH);	\
-      register unsigned bytes_in_chunk = 0;				\
+      const unsigned char *limit = _ascii_bytes + (LENGTH);		\
+      unsigned bytes_in_chunk = 0;					\
       for (; _ascii_bytes < limit; _ascii_bytes++)			\
         {								\
-	  register const unsigned char *p;				\
+	  const unsigned char *p;					\
 	  if (bytes_in_chunk >= 64)					\
 	    {								\
 	      fputc ('\n', (FILE));					\
@@ -243,6 +237,28 @@ Boston, MA 02111-1307, USA.  */
 #define TARGET_NOP_FUN_DLLIMPORT 1
 #define drectve_section()  /* nothing */
 
+/* Objective-C has its own packing rules...
+   Objc tries to parallel the code in stor-layout.c at runtime	
+   (see libobjc/encoding.c).  This (compile-time) packing info isn't 
+   available at runtime, so it's hopeless to try.
+
+   And if the user tries to set the flag for objc, give an error
+   so he has some clue.  */
+
+#undef  SUBTARGET_OVERRIDE_OPTIONS
+#define SUBTARGET_OVERRIDE_OPTIONS					\
+do {									\
+  if (strcmp (lang_hooks.name, "GNU Objective-C") == 0)			\
+    {									\
+      if ((target_flags & MASK_MS_BITFIELD_LAYOUT) != 0			\
+	  && (target_flags_explicit & MASK_MS_BITFIELD_LAYOUT) != 0)	\
+	{								\
+	   error ("ms-bitfields not supported for objc");		\
+	}								\
+      target_flags &= ~MASK_MS_BITFIELD_LAYOUT;				\
+    }									\
+} while (0)
+
 #define EH_FRAME_IN_DATA_SECTION
 
 #define READONLY_DATA_SECTION_ASM_OP	"\t.section\t.rdata,\"r\""
@@ -273,8 +289,6 @@ while (0)
 #define HOST_PTR_AS_INT unsigned long
 
 #define PCC_BITFIELD_TYPE_MATTERS 1
-#define PCC_BITFIELD_TYPE_TEST TYPE_NATIVE(rec)
-#define GROUP_BITFIELDS_BY_ALIGN TYPE_NATIVE(rec)
 
 /* The following two flags are usually "off" for i386, because some non-gnu
    tools (for the i386) don't handle them.  However, we don't have that
@@ -328,7 +342,7 @@ while (0)
    symbols must be explicitly imported from shared libraries (DLLs).  */
 #define MULTIPLE_SYMBOL_SPACES
 
-extern void i386_pe_unique_section PARAMS ((tree, int));
+extern void i386_pe_unique_section (tree, int);
 #define TARGET_ASM_UNIQUE_SECTION i386_pe_unique_section
 
 #define SUPPORTS_ONE_ONLY 1
@@ -343,7 +357,7 @@ extern void i386_pe_unique_section PARAMS ((tree, int));
 /* Don't assume anything about the header files.  */
 #define NO_IMPLICIT_EXTERN_C
 
-/* MSVC returns structs of up to 8 bytes via registers. */
+/* MSVC returns structs of up to 8 bytes via registers.  */
 
 #define DEFAULT_PCC_STRUCT_RETURN 0
 

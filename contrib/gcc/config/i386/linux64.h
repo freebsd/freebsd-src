@@ -1,45 +1,34 @@
 /* Definitions for AMD x86-64 running Linux-based GNU systems with ELF format.
-   Copyright (C) 2001, 2002, 2003 Free Software Foundation, Inc.
+   Copyright (C) 2001, 2002 Free Software Foundation, Inc.
    Contributed by Jan Hubicka <jh@suse.cz>, based on linux.h.
 
-This file is part of GNU CC.
+This file is part of GCC.
 
-GNU CC is free software; you can redistribute it and/or modify
+GCC is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
-GNU CC is distributed in the hope that it will be useful,
+GCC is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with GNU CC; see the file COPYING.  If not, write to
+along with GCC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
-
-#define LINUX_DEFAULT_ELF
 
 #define TARGET_VERSION fprintf (stderr, " (x86-64 Linux/ELF)");
 
 #define TARGET_OS_CPP_BUILTINS()				\
   do								\
     {								\
-	builtin_define_std ("linux");				\
-	builtin_define_std ("unix");				\
-	builtin_define ("__gnu_linux__");			\
-	builtin_define ("__ELF__");				\
-	builtin_assert ("system=posix");			\
+	LINUX_TARGET_OS_CPP_BUILTINS();				\
 	if (flag_pic)						\
 	  {							\
 	    builtin_define ("__PIC__");				\
 	    builtin_define ("__pic__");				\
-	  }							\
-	if (TARGET_64BIT)					\
-	  {							\
-	    builtin_define ("__LP64__");			\
-	    builtin_define ("_LP64");				\
 	  }							\
     }								\
   while (0)
@@ -52,6 +41,10 @@ Boston, MA 02111-1307, USA.  */
    override_options, as we never do pcc_struct_return scheme on this target.  */
 #undef DEFAULT_PCC_STRUCT_RETURN
 #define DEFAULT_PCC_STRUCT_RETURN 1
+
+/* We arrange for the whole %fs segment to map the tls area.  */
+#undef TARGET_TLS_DIRECT_SEG_REFS_DEFAULT
+#define TARGET_TLS_DIRECT_SEG_REFS_DEFAULT MASK_TLS_DIRECT_SEG_REFS
 
 /* Provide a LINK_SPEC.  Here we provide support for the special GCC
    options -static and -shared, which allow us to link things in one
@@ -71,18 +64,10 @@ Boston, MA 02111-1307, USA.  */
       %{!m32:%{!dynamic-linker:-dynamic-linker /lib64/ld-linux-x86-64.so.2}}} \
     %{static:-static}}"
 
-#undef  STARTFILE_SPEC
-#define STARTFILE_SPEC \
-  "%{!shared: \
-     %{pg:gcrt1.o%s} %{!pg:%{p:gcrt1.o%s} \
-     %{!p:%{profile:gcrt1.o%s} %{!profile:crt1.o%s}}}} \
-   crti.o%s %{static:crtbeginT.o%s} \
-   %{!static:%{!shared:crtbegin.o%s} %{shared:crtbeginS.o%s}}"
-
-#undef  ENDFILE_SPEC
-#define ENDFILE_SPEC "%{!shared:crtend.o%s} %{shared:crtendS.o%s} crtn.o%s"
-
 #define MULTILIB_DEFAULTS { "m64" }
+
+#undef NEED_INDICATE_EXEC_STACK
+#define NEED_INDICATE_EXEC_STACK 1
 
 /* Do code reading to identify a signal frame, and set the frame
    state data appropriately.  See unwind-dw2.c for the structs.  

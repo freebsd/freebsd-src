@@ -1,5 +1,5 @@
 @c Copyright (C) 1988, 1989, 1992, 1993, 1994, 1996, 1998, 1999, 2000, 2001,
-@c 2002, 2003 Free Software Foundation, Inc.
+@c 2002, 2003, 2004 Free Software Foundation, Inc.
 @c This is part of the GCC manual.
 @c For copying conditions, see the file gcc.texi.
 
@@ -181,7 +181,7 @@ this pattern.  @xref{Insn Attributes}.
 
 Here is an actual example of an instruction pattern, for the 68000/68020.
 
-@example
+@smallexample
 (define_insn "tstsi"
   [(set (cc0)
         (match_operand:SI 0 "general_operand" "rm"))]
@@ -192,12 +192,12 @@ Here is an actual example of an instruction pattern, for the 68000/68020.
     return \"tstl %0\";
   return \"cmpl #0,%0\";
 @}")
-@end example
+@end smallexample
 
 @noindent
 This can also be written using braced strings:
 
-@example
+@smallexample
 (define_insn "tstsi"
   [(set (cc0)
         (match_operand:SI 0 "general_operand" "rm"))]
@@ -207,7 +207,7 @@ This can also be written using braced strings:
     return "tstl %0";
   return "cmpl #0,%0";
 @})
-@end example
+@end smallexample
 
 This is an instruction that sets the condition codes based on the value of
 a general operand.  It has no condition, so any insn whose RTL description
@@ -1256,7 +1256,7 @@ instruction is defined:
   @dots{})
 @end smallexample
 @end ifset
-GCC can only handle one commutative pair in an asm; if you use more, 
+GCC can only handle one commutative pair in an asm; if you use more,
 the compiler may fail.
 
 @cindex @samp{#} in constraint
@@ -1314,15 +1314,15 @@ The constraints are defined through these macros:
 
 @table @code
 @item REG_CLASS_FROM_LETTER
-Register class constraints (usually lower case).
+Register class constraints (usually lowercase).
 
 @item CONST_OK_FOR_LETTER_P
 Immediate constant constraints, for non-floating point constants of
-word size or smaller precision (usually upper case).
+word size or smaller precision (usually uppercase).
 
 @item CONST_DOUBLE_OK_FOR_LETTER_P
 Immediate constant constraints, for all floating point constants and for
-constants of greater than word size precision (usually upper case).
+constants of greater than word size precision (usually uppercase).
 
 @item EXTRA_CONSTRAINT
 Special cases of registers or memory.  This macro is not required, and
@@ -1439,13 +1439,16 @@ Constant integer 1
 A floating point constant 0.0
 @end table
 
-@item IBM RS6000---@file{rs6000.h}
+@item PowerPC and IBM RS6000---@file{rs6000.h}
 @table @code
 @item b
 Address base register
 
 @item f
 Floating point register
+
+@item v
+Vector register
 
 @item h
 @samp{MQ}, @samp{CTR}, or @samp{LINK} register
@@ -1825,11 +1828,11 @@ Non-pointer registers (not @samp{SP}, @samp{DP}, @samp{IP})
 Non-SP registers (everything except @samp{SP})
 
 @item R
-Indirect thru @samp{IP} - Avoid this except for @code{QImode}, since we
+Indirect through @samp{IP} - Avoid this except for @code{QImode}, since we
 can't access extra bytes
 
 @item S
-Indirect thru @samp{SP} or @samp{DP} with short displacement (0..127)
+Indirect through @samp{SP} or @samp{DP} with short displacement (0..127)
 
 @item T
 Data-section immediate value
@@ -1934,12 +1937,6 @@ Data register
 @item f
 68881 floating-point register, if available
 
-@item x
-Sun FPA (floating-point) register, if available
-
-@item y
-First 16 Sun FPA registers, if available
-
 @item I
 Integer in the range 1 to 8
 
@@ -1957,9 +1954,6 @@ Signed number whose magnitude is greater than 0x100
 
 @item G
 Floating point constant that is not a 68881 constant
-
-@item H
-Floating point constant that can be used by Sun FPA
 @end table
 
 @item Motorola 68HC11 & 68HC12 families---@file{m68hc11.h}
@@ -2205,13 +2199,52 @@ Unsigned 12-bit constant (0--4095)
 Signed 16-bit constant (@minus{}32768--32767)
 
 @item L
-Unsigned 16-bit constant (0--65535)
+Value appropriate as displacement.
+@table @code
+       @item (0..4095)
+       for short displacement
+       @item (-524288..524287)
+       for long displacement
+@end table
+
+@item M
+Constant integer with a value of 0x7fffffff.
+
+@item N
+Multiple letter constraint followed by 4 parameter letters.
+@table @code
+         @item 0..9:
+         number of the part counting from most to least significant
+         @item H,Q:
+         mode of the part
+         @item D,S,H:
+         mode of the containing operand
+         @item 0,F:
+         value of the other parts (F - all bits set)
+@end table
+The constraint matches if the specified part of a constant
+has a value different from it's other parts.
 
 @item Q
-Memory reference without index register
+Memory reference without index register and with short displacement.
+
+@item R
+Memory reference with index register and short displacement.
 
 @item S
-Symbolic constant suitable for use with the @code{larl} instruction
+Memory reference without index register but with long displacement.
+
+@item T
+Memory reference with index register and long displacement.
+
+@item U
+Pointer with short displacement.
+
+@item W
+Pointer with long displacement.
+
+@item Y
+Shift count operand.
 
 @end table
 
@@ -2280,6 +2313,9 @@ The register indicated by Rx (not implemented yet).
 @item U
 A constant that is not between 2 and 15 inclusive.
 
+@item Z
+The constant 0.
+
 @end table
 
 @item Xtensa---@file{xtensa.h}
@@ -2324,7 +2360,7 @@ pattern to accomplish a certain task.
 @table @asis
 @cindex @code{mov@var{m}} instruction pattern
 @item @samp{mov@var{m}}
-Here @var{m} stands for a two-letter machine mode name, in lower case.
+Here @var{m} stands for a two-letter machine mode name, in lowercase.
 This instruction pattern moves data with that machine mode from operand
 1 to operand 0.  For example, @samp{movsi} moves full-word data.
 
@@ -2627,6 +2663,72 @@ corresponds to the C data type @code{double} and the @code{logf}
 built-in function uses the mode which corresponds to the C data
 type @code{float}.
 
+@cindex @code{pow@var{m}3} instruction pattern
+@item @samp{pow@var{m}3}
+Store the value of operand 1 raised to the exponent operand 2
+into operand 0.
+
+The @code{pow} built-in function of C always uses the mode which
+corresponds to the C data type @code{double} and the @code{powf}
+built-in function uses the mode which corresponds to the C data
+type @code{float}.
+
+@cindex @code{atan2@var{m}3} instruction pattern
+@item @samp{atan2@var{m}3}
+Store the arc tangent (inverse tangent) of operand 1 divided by
+operand 2 into operand 0, using the signs of both arguments to
+determine the quadrant of the result.
+
+The @code{atan2} built-in function of C always uses the mode which
+corresponds to the C data type @code{double} and the @code{atan2f}
+built-in function uses the mode which corresponds to the C data
+type @code{float}.
+
+@cindex @code{floor@var{m}2} instruction pattern
+@item @samp{floor@var{m}2}
+Store the largest integral value not greater than argument.
+
+The @code{floor} built-in function of C always uses the mode which
+corresponds to the C data type @code{double} and the @code{floorf}
+built-in function uses the mode which corresponds to the C data
+type @code{float}.
+
+@cindex @code{trunc@var{m}2} instruction pattern
+@item @samp{trunc@var{m}2}
+Store the argument rounded to integer towards zero.
+
+The @code{trunc} built-in function of C always uses the mode which
+corresponds to the C data type @code{double} and the @code{truncf}
+built-in function uses the mode which corresponds to the C data
+type @code{float}.
+
+@cindex @code{round@var{m}2} instruction pattern
+@item @samp{round@var{m}2}
+Store the argument rounded to integer away from zero.
+
+The @code{round} built-in function of C always uses the mode which
+corresponds to the C data type @code{double} and the @code{roundf}
+built-in function uses the mode which corresponds to the C data
+type @code{float}.
+
+@cindex @code{ceil@var{m}2} instruction pattern
+@item @samp{ceil@var{m}2}
+Store the argument rounded to integer away from zero.
+
+The @code{ceil} built-in function of C always uses the mode which
+corresponds to the C data type @code{double} and the @code{ceilf}
+built-in function uses the mode which corresponds to the C data
+type @code{float}.
+
+@cindex @code{nearbyint@var{m}2} instruction pattern
+@item @samp{nearbyint@var{m}2}
+Store the argument rounded according to the default rounding mode
+
+The @code{nearbyint} built-in function of C always uses the mode which
+corresponds to the C data type @code{double} and the @code{nearbyintf}
+built-in function uses the mode which corresponds to the C data
+type @code{float}.
+
 @cindex @code{ffs@var{m}2} instruction pattern
 @item @samp{ffs@var{m}2}
 Store into operand 0 one plus the index of the least significant 1-bit
@@ -2637,6 +2739,36 @@ generating the instruction.
 
 The @code{ffs} built-in function of C always uses the mode which
 corresponds to the C data type @code{int}.
+
+@cindex @code{clz@var{m}2} instruction pattern
+@item @samp{clz@var{m}2}
+Store into operand 0 the number of leading 0-bits in @var{x}, starting
+at the most significant bit position.  If @var{x} is 0, the result is
+undefined.  @var{m} is the mode of operand 0; operand 1's mode is
+specified by the instruction pattern, and the compiler will convert the
+operand to that mode before generating the instruction.
+
+@cindex @code{ctz@var{m}2} instruction pattern
+@item @samp{ctz@var{m}2}
+Store into operand 0 the number of trailing 0-bits in @var{x}, starting
+at the least significant bit position.  If @var{x} is 0, the result is
+undefined.  @var{m} is the mode of operand 0; operand 1's mode is
+specified by the instruction pattern, and the compiler will convert the
+operand to that mode before generating the instruction.
+
+@cindex @code{popcount@var{m}2} instruction pattern
+@item @samp{popcount@var{m}2}
+Store into operand 0 the number of 1-bits in @var{x}.  @var{m} is the
+mode of operand 0; operand 1's mode is specified by the instruction
+pattern, and the compiler will convert the operand to that mode before
+generating the instruction.
+
+@cindex @code{parity@var{m}2} instruction pattern
+@item @samp{parity@var{m}2}
+Store into operand 0 the parity of @var{x}, i.@:e. the number of 1-bits
+in @var{x} modulo 2.  @var{m} is the mode of operand 0; operand 1's mode
+is specified by the instruction pattern, and the compiler will convert
+the operand to that mode before generating the instruction.
 
 @cindex @code{one_cmpl@var{m}2} instruction pattern
 @item @samp{one_cmpl@var{m}2}
@@ -2709,10 +2841,23 @@ The use for multiple @code{clrstr@var{m}} is as for @code{movstr@var{m}}.
 
 @cindex @code{cmpstr@var{m}} instruction pattern
 @item @samp{cmpstr@var{m}}
-Block compare instruction, with five operands.  Operand 0 is the output;
+String compare instruction, with five operands.  Operand 0 is the output;
 it has mode @var{m}.  The remaining four operands are like the operands
 of @samp{movstr@var{m}}.  The two memory blocks specified are compared
-byte by byte in lexicographic order.  The effect of the instruction is
+byte by byte in lexicographic order starting at the beginning of each
+string.  The instruction is not allowed to prefetch more than one byte
+at a time since either string may end in the first byte and reading past
+that may access an invalid page or segment and cause a fault.  The
+effect of the instruction is to store a value in operand 0 whose sign
+indicates the result of the comparison.
+
+@cindex @code{cmpmem@var{m}} instruction pattern
+@item @samp{cmpmem@var{m}}
+Block compare instruction, with five operands like the operands
+of @samp{cmpstr@var{m}}.  The two memory blocks specified are compared
+byte by byte in lexicographic order starting at the beginning of each
+block.  Unlike @samp{cmpstr@var{m}} the instruction can prefetch
+any bytes in the two memory blocks.  The effect of the instruction is
 to store a value in operand 0 whose sign indicates the result of the
 comparison.
 
@@ -2828,6 +2973,13 @@ codes and vice versa.
 
 If the machine does not have conditional move instructions, do not
 define these patterns.
+
+@cindex @code{add@var{mode}cc} instruction pattern
+@item @samp{add@var{mode}cc}
+Similar to @samp{mov@var{mode}cc} but for conditional addition.  Conditionally
+move operand 2 or (operands 2 + operand 3) into operand 0 according to the
+comparison in operand 1.  If the comparison is true, operand 2 is moved into
+operand 0, otherwise (operand 2 + operand 3) is moved.
 
 @cindex @code{s@var{cond}} instruction pattern
 @item @samp{s@var{cond}}
@@ -3193,18 +3345,6 @@ Some machines require other operations such as stack probes or
 maintaining the back chain.  Define this pattern to emit those
 operations in addition to updating the stack pointer.
 
-@cindex @code{probe} instruction pattern
-@item @samp{probe}
-Some machines require instructions to be executed after space is
-allocated from the stack, for example to generate a reference at
-the bottom of the stack.
-
-If you need to emit instructions before the stack has been adjusted,
-put them into the @samp{allocate_stack} pattern.  Otherwise, define
-this pattern to emit the required instructions.
-
-No operands are provided.
-
 @cindex @code{check_stack} instruction pattern
 @item @samp{check_stack}
 If stack checking cannot be done on your system by probing the stack with
@@ -3288,17 +3428,17 @@ and thence the call frame exception handling library routines, are
 built.  It is intended to handle non-trivial actions needed along
 the abnormal return path.
 
-The pattern takes two arguments.  The first is an offset to be applied
-to the stack pointer.  It will have been copied to some appropriate
-location (typically @code{EH_RETURN_STACKADJ_RTX}) which will survive
-until after reload to when the normal epilogue is generated.
-The second argument is the address of the exception handler to which
-the function should return.  This will normally need to copied by the
-pattern to some special register or memory location.
+The address of the exception handler to which the function should return
+is passed as operand to this pattern.  It will normally need to copied by
+the pattern to some special register or memory location.
+If the pattern needs to determine the location of the target call
+frame in order to do so, it may use @code{EH_RETURN_STACKADJ_RTX},
+if defined; it will have already been assigned.
 
-This pattern only needs to be defined if call frame exception handling
-is to be used, and simple moves involving @code{EH_RETURN_STACKADJ_RTX}
-and @code{EH_RETURN_HANDLER_RTX} are not sufficient.
+If this pattern is not defined, the default action will be to simply
+copy the return address to @code{EH_RETURN_HANDLER_RTX}.  Either
+that macro or this pattern needs to be defined if call frame exception
+handling is to be used.
 
 @cindex @code{prologue} instruction pattern
 @anchor{prologue instruction pattern}
@@ -3376,6 +3516,12 @@ the values of operands 1 and 2.
 
 @end table
 
+@end ifset
+@c Each of the following nodes are wrapped in separate
+@c "@ifset INTERNALS" to work around memory limits for the default
+@c configuration in older tetex distributions.  Known to not work:
+@c tetex-1.0.7, known to work: tetex-2.0.2.
+@ifset INTERNALS
 @node Pattern Ordering
 @section When the Order of Patterns Matters
 @cindex Pattern Ordering
@@ -3399,6 +3545,8 @@ Instead of using this pattern ordering it would be possible to make the
 pattern for convert-a-byte smart enough to deal properly with any
 constant value.
 
+@end ifset
+@ifset INTERNALS
 @node Dependent Patterns
 @section Interdependence of Patterns
 @cindex Dependent Patterns
@@ -3408,24 +3556,24 @@ Every machine description must have a named pattern for each of the
 conditional branch names @samp{b@var{cond}}.  The recognition template
 must always have the form
 
-@example
+@smallexample
 (set (pc)
      (if_then_else (@var{cond} (cc0) (const_int 0))
                    (label_ref (match_operand 0 "" ""))
                    (pc)))
-@end example
+@end smallexample
 
 @noindent
 In addition, every machine description must have an anonymous pattern
 for each of the possible reverse-conditional branches.  Their templates
 look like
 
-@example
+@smallexample
 (set (pc)
      (if_then_else (@var{cond} (cc0) (const_int 0))
                    (pc)
                    (label_ref (match_operand 0 "" ""))))
-@end example
+@end smallexample
 
 @noindent
 They are necessary because jump optimization can turn direct-conditional
@@ -3435,7 +3583,7 @@ It is often convenient to use the @code{match_operator} construct to
 reduce the number of patterns that must be specified for branches.  For
 example,
 
-@example
+@smallexample
 (define_insn ""
   [(set (pc)
         (if_then_else (match_operator 0 "comparison_operator"
@@ -3444,20 +3592,20 @@ example,
                       (label_ref (match_operand 1 "" ""))))]
   "@var{condition}"
   "@dots{}")
-@end example
+@end smallexample
 
 In some cases machines support instructions identical except for the
 machine mode of one or more operands.  For example, there may be
 ``sign-extend halfword'' and ``sign-extend byte'' instructions whose
 patterns are
 
-@example
+@smallexample
 (set (match_operand:SI 0 @dots{})
      (extend:SI (match_operand:HI 1 @dots{})))
 
 (set (match_operand:SI 0 @dots{})
      (extend:SI (match_operand:QI 1 @dots{})))
-@end example
+@end smallexample
 
 @noindent
 Constant integers do not specify a machine mode, so an instruction to
@@ -3479,6 +3627,8 @@ instructions.  Instead, they should be generated from the same pattern
 that supports register-register add insns by examining the operands and
 generating the appropriate machine instruction.
 
+@end ifset
+@ifset INTERNALS
 @node Jump Patterns
 @section Defining Jump Instruction Patterns
 @cindex jump instruction patterns
@@ -3592,6 +3742,8 @@ discussed above, we have the pattern
 The @code{SELECT_CC_MODE} macro on the SPARC returns @code{CC_NOOVmode}
 for comparisons whose argument is a @code{plus}.
 
+@end ifset
+@ifset INTERNALS
 @node Looping Patterns
 @section Defining Looping Instruction Patterns
 @cindex looping instruction patterns
@@ -3697,6 +3849,8 @@ be derived from it), however, in many cases the loop induction variable
 may become redundant and removed by the flow pass.
 
 
+@end ifset
+@ifset INTERNALS
 @node Insn Canonicalizations
 @section Canonicalization of Instructions
 @cindex canonicalization of instructions
@@ -3731,7 +3885,7 @@ first operand.
 @item
 In combinations of @code{neg}, @code{mult}, @code{plus}, and
 @code{minus}, the @code{neg} operations (if any) will be moved inside
-the operations as far as possible.  For instance, 
+the operations as far as possible.  For instance,
 @code{(neg (mult A B))} is canonicalized as @code{(mult (neg A) B)}, but
 @code{(plus (mult (neg A) B) C)} is canonicalized as
 @code{(minus A (mult B C))}.
@@ -3770,26 +3924,26 @@ A machine that has an instruction that performs a bitwise logical-and of one
 operand with the bitwise negation of the other should specify the pattern
 for that instruction as
 
-@example
+@smallexample
 (define_insn ""
   [(set (match_operand:@var{m} 0 @dots{})
         (and:@var{m} (not:@var{m} (match_operand:@var{m} 1 @dots{}))
                      (match_operand:@var{m} 2 @dots{})))]
   "@dots{}"
   "@dots{}")
-@end example
+@end smallexample
 
 @noindent
 Similarly, a pattern for a ``NAND'' instruction should be written
 
-@example
+@smallexample
 (define_insn ""
   [(set (match_operand:@var{m} 0 @dots{})
         (ior:@var{m} (not:@var{m} (match_operand:@var{m} 1 @dots{}))
                      (not:@var{m} (match_operand:@var{m} 2 @dots{}))))]
   "@dots{}"
   "@dots{}")
-@end example
+@end smallexample
 
 In both cases, it is not necessary to include patterns for the many
 logically equivalent RTL expressions.
@@ -3804,9 +3958,9 @@ and @code{(not:@var{m} (xor:@var{m} @var{x} @var{y}))}.
 The sum of three items, one of which is a constant, will only appear in
 the form
 
-@example
+@smallexample
 (plus:@var{m} (plus:@var{m} @var{x} @var{y}) @var{constant})
-@end example
+@end smallexample
 
 @item
 On machines that do not use @code{cc0},
@@ -3822,6 +3976,8 @@ will be written using @code{zero_extract} rather than the equivalent
 
 @end itemize
 
+@end ifset
+@ifset INTERNALS
 @node Expander Definitions
 @section Defining RTL Sequences for Code Generation
 @cindex expander definitions
@@ -4039,6 +4195,8 @@ at the end, emit an insn to copy the result of the operation into
 itself.  Such an insn will generate no code, but it can avoid problems
 in the compiler.
 
+@end ifset
+@ifset INTERNALS
 @node Insn Splitting
 @section Defining How to Split Instructions
 @cindex insn splitting
@@ -4272,6 +4430,8 @@ functionality as two separate @code{define_insn} and @code{define_split}
 patterns.  It exists for compactness, and as a maintenance tool to prevent
 having to ensure the two patterns' templates match.
 
+@end ifset
+@ifset INTERNALS
 @node Including Patterns
 @section Including Patterns in Machine Descriptions.
 @cindex insn includes
@@ -4346,6 +4506,8 @@ one @option{-I} option, the directories are scanned in left-to-right
 order; the standard default directory come after.
 
 
+@end ifset
+@ifset INTERNALS
 @node Peephole Definitions
 @section Machine-Specific Peephole Optimizers
 @cindex peephole optimizer definitions
@@ -4376,6 +4538,8 @@ targets that do scheduling.
 * define_peephole2::    RTL to RTL Peephole Optimizers
 @end menu
 
+@end ifset
+@ifset INTERNALS
 @node define_peephole
 @subsection RTL to Text Peephole Optimizers
 @findex define_peephole
@@ -4567,6 +4731,8 @@ then the way to mention this insn in a peephole is as follows:
   @dots{})
 @end smallexample
 
+@end ifset
+@ifset INTERNALS
 @node define_peephole2
 @subsection RTL to RTL Peephole Optimizers
 @findex define_peephole2
@@ -4652,6 +4818,8 @@ If we had not added the @code{(match_dup 4)} in the middle of the input
 sequence, it might have been the case that the register we chose at the
 beginning of the sequence is killed by the first or second @code{set}.
 
+@end ifset
+@ifset INTERNALS
 @node Insn Attributes
 @section Instruction Attributes
 @cindex insn attributes
@@ -4675,6 +4843,8 @@ to track the condition codes.
 * Processor pipeline description:: Specifying information for insn scheduling.
 @end menu
 
+@end ifset
+@ifset INTERNALS
 @node Defining Attributes
 @subsection Defining Attributes and their Values
 @cindex defining attributes and their values
@@ -4710,9 +4880,9 @@ specified for an attribute, the following are defined:
 A @samp{#define} is written for the symbol @samp{HAVE_ATTR_@var{name}}.
 
 @item
-An enumeral class is defined for @samp{attr_@var{name}} with
+An enumerated class is defined for @samp{attr_@var{name}} with
 elements of the form @samp{@var{upper-name}_@var{upper-value}} where
-the attribute name and value are first converted to upper case.
+the attribute name and value are first converted to uppercase.
 
 @item
 A function @samp{get_attr_@var{name}} is defined that is passed an insn and
@@ -4739,6 +4909,8 @@ If the attribute takes numeric values, no @code{enum} type will be
 defined and the function to obtain the attribute's value will return
 @code{int}.
 
+@end ifset
+@ifset INTERNALS
 @node Expressions
 @subsection Attribute Expressions
 @cindex attribute expressions
@@ -4948,6 +5120,8 @@ for numeric attributes, as @code{eq_attr} and @code{attr_flag}
 produce more efficient code for non-numeric attributes.
 @end table
 
+@end ifset
+@ifset INTERNALS
 @node Tagging Insns
 @subsection Assigning Attribute Values to Insns
 @cindex tagging insns
@@ -5053,6 +5227,8 @@ string.  Therefore, the value of the @code{length} attribute specified
 in a @code{define_asm_attributes} should be the maximum possible length
 of a single machine instruction.
 
+@end ifset
+@ifset INTERNALS
 @node Attr Example
 @subsection Example of Attribute Specifications
 @cindex attribute specifications example
@@ -5108,6 +5284,8 @@ performed on quantities smaller than a machine word clobber the condition
 code since they will set the condition code to a value corresponding to the
 full-word result.
 
+@end ifset
+@ifset INTERNALS
 @node Insn Lengths
 @subsection Computing the Length of an Insn
 @cindex insn lengths, computing
@@ -5149,12 +5327,6 @@ Lengths are measured in addressable storage units (bytes).
 The following macros can be used to refine the length computation:
 
 @table @code
-@findex FIRST_INSN_ADDRESS
-@item FIRST_INSN_ADDRESS
-When the @code{length} insn attribute is used, this macro specifies the
-value to be assigned to the address of the first insn in a function.  If
-not specified, 0 is used.
-
 @findex ADJUST_INSN_LENGTH
 @item ADJUST_INSN_LENGTH (@var{insn}, @var{length})
 If defined, modifies the length assigned to instruction @var{insn} as a
@@ -5198,6 +5370,8 @@ as follows:
                       (const_int 6)))])
 @end smallexample
 
+@end ifset
+@ifset INTERNALS
 @node Constant Attributes
 @subsection Constant Attributes
 @cindex constant attributes
@@ -5227,6 +5401,8 @@ the value of a constant attribute may use the @code{symbol_ref} form,
 but may not use either the @code{match_operand} form or @code{eq_attr}
 forms involving insn attributes.
 
+@end ifset
+@ifset INTERNALS
 @node Delay Slots
 @subsection Delay Slot Scheduling
 @cindex delay slots, defining
@@ -5302,6 +5478,8 @@ branch is true, we might represent this as follows:
 @end smallexample
 @c the above is *still* too long.  --mew 4feb93
 
+@end ifset
+@ifset INTERNALS
 @node Processor pipeline description
 @subsection Specifying processor pipeline description
 @cindex processor pipeline description
@@ -5348,13 +5526,13 @@ processors.
 The task of exploiting more processor parallelism is solved by an
 instruction scheduler.  For a better solution to this problem, the
 instruction scheduler has to have an adequate description of the
-processor parallelism (or @dfn{pipeline description}).  Currently GCC 
+processor parallelism (or @dfn{pipeline description}).  Currently GCC
 provides two alternative ways to describe processor parallelism,
 both described below.  The first method is outlined in the next section;
 it was once the only method provided by GCC, and thus is used in a number
 of exiting ports.  The second, and preferred method, specifies functional
 unit reservations for groups of instructions with the aid of @dfn{regular
-expressions}.  This is called the @dfn{automaton based description}.	
+expressions}.  This is called the @dfn{automaton based description}.
 
 The GCC instruction scheduler uses a @dfn{pipeline hazard recognizer} to
 figure out the possibility of the instruction issue by the processor
@@ -5367,18 +5545,18 @@ generated from the old description.  Furthermore, its speed is not dependent
 on processor complexity.  The instruction issue is possible if there is
 a transition from one automaton state to another one.
 
-You can use any model to describe processor pipeline characteristics
-or even a mix of them.  You could use the old description for some
-processor submodels and the @acronym{DFA}-based one for the rest
+You can use either model to describe processor pipeline
+characteristics or even mix them.  You could use the old description
+for some processor submodels and the @acronym{DFA}-based one for other
 processor submodels.
 
-In general, the usage of the automaton based description is more
-preferable.  Its model is more rich.  It permits to describe more
-accurately pipeline characteristics of processors which results in
-improving code quality (although sometimes only on several percent
-fractions).  It will be also used as an infrastructure to implement
-sophisticated and practical insn scheduling which will try many
-instruction sequences to choose the best one.
+In general, using the automaton based description is preferred.  Its
+model is richer and makes it possible to more accurately describe
+pipeline characteristics of processors, which results in improved
+code quality (although sometimes only marginally).  It will also be
+used as an infrastructure to implement sophisticated and practical
+instruction scheduling which will try many instruction sequences to
+choose the best one.
 
 
 @menu
@@ -5387,6 +5565,8 @@ instruction sequences to choose the best one.
 * Comparison of the two descriptions:: Drawbacks of the old pipeline description
 @end menu
 
+@end ifset
+@ifset INTERNALS
 @node Old pipeline description
 @subsubsection Specifying Function Units
 @cindex old pipeline description
@@ -5501,14 +5681,17 @@ single or double precision, but not both, the following could be specified:
 
 @strong{Note:} The scheduler attempts to avoid function unit conflicts
 and uses all the specifications in the @code{define_function_unit}
-expression.  It has recently come to our attention that these
+expression.  It has recently been discovered that these
 specifications may not allow modeling of some of the newer
 ``superscalar'' processors that have insns using multiple pipelined
 units.  These insns will cause a potential conflict for the second unit
 used during their execution and there is no way of representing that
-conflict.  We welcome any examples of how function unit conflicts work
-in such processors and suggestions for their representation.
+conflict.  Any examples of how function unit conflicts work
+in such processors and suggestions for their representation would be
+welcomed.
 
+@end ifset
+@ifset INTERNALS
 @node Automaton pipeline description
 @subsubsection Describing instruction pipeline characteristics
 @cindex automaton based pipeline description
@@ -5523,7 +5706,7 @@ The following optional construction describes names of automata
 generated and used for the pipeline hazards recognition.  Sometimes
 the generated finite state automaton used by the pipeline hazard
 recognizer is large.  If we use more than one automaton and bind functional
-units to the automata, the total size of the automata is usually 
+units to the automata, the total size of the automata is usually
 less than the size of the single automaton.  If there is no one such
 construction, only one finite state automaton is generated.
 
@@ -5554,16 +5737,23 @@ which the unit is bound.  The automaton should be described in
 construction @code{define_automaton}.  You should give
 @dfn{automaton-name}, if there is a defined automaton.
 
+The assignment of units to automata are constrained by the uses of the
+units in insn reservations.  The most important constraint is: if a
+unit reservation is present on a particular cycle of an alternative
+for an insn reservation, then some unit from the same automaton must
+be present on the same cycle for the other alternatives of the insn
+reservation.  The rest of the constraints are mentioned in the
+description of the subsequent constructions.
+
 @findex define_query_cpu_unit
 @cindex querying function unit reservations
 The following construction describes CPU functional units analogously
-to @code{define_cpu_unit}.  If we use automata without their
-minimization, the reservation of such units can be queried for an
-automaton state.  The instruction scheduler never queries reservation
-of functional units for given automaton state.  So as a rule, you
-don't need this construction.  This construction could be used for
-future code generation goals (e.g. to generate @acronym{VLIW} insn
-templates).
+to @code{define_cpu_unit}.  The reservation of such units can be
+queried for an automaton state.  The instruction scheduler never
+queries reservation of functional units for given automaton state.  So
+as a rule, you don't need this construction.  This construction could
+be used for future code generation goals (e.g. to generate
+@acronym{VLIW} insn templates).
 
 @smallexample
 (define_query_cpu_unit @var{unit-names} [@var{automaton-name}])
@@ -5630,7 +5820,7 @@ expression according to the following syntax:
 
        allof = allof "+" repeat
              | repeat
- 
+
        repeat = element "*" number
               | element
 
@@ -5712,22 +5902,30 @@ of insn @samp{store} (not a stored value).
 
 @findex exclusion_set
 @findex presence_set
+@findex final_presence_set
 @findex absence_set
+@findex final_absence_set
 @cindex VLIW
 @cindex RISC
-Usually the following three constructions are used to describe
-@acronym{VLIW} processors (more correctly to describe a placement of
-small insns into @acronym{VLIW} insn slots).  Although they can be
-used for @acronym{RISC} processors too.
+The following five constructions are usually used to describe
+@acronym{VLIW} processors, or more precisely, to describe a placement
+of small instructions into @acronym{VLIW} instruction slots.  They
+can be used for @acronym{RISC} processors, too.
 
 @smallexample
 (exclusion_set @var{unit-names} @var{unit-names})
-(presence_set @var{unit-names} @var{unit-names})
-(absence_set @var{unit-names} @var{unit-names})
+(presence_set @var{unit-names} @var{patterns})
+(final_presence_set @var{unit-names} @var{patterns})
+(absence_set @var{unit-names} @var{patterns})
+(final_absence_set @var{unit-names} @var{patterns})
 @end smallexample
 
 @var{unit-names} is a string giving names of functional units
 separated by commas.
+
+@var{patterns} is a string giving patterns of functional units
+separated by comma.  Currently pattern is is one unit or units
+separated by white-spaces.
 
 The first construction (@samp{exclusion_set}) means that each
 functional unit in the first string can not be reserved simultaneously
@@ -5739,21 +5937,74 @@ point insns or only double floating point insns.
 
 The second construction (@samp{presence_set}) means that each
 functional unit in the first string can not be reserved unless at
-least one of units whose names are in the second string is reserved.
-This is an asymmetric relation.  For example, it is useful for
-description that @acronym{VLIW} @samp{slot1} is reserved after
-@samp{slot0} reservation.
+least one of pattern of units whose names are in the second string is
+reserved.  This is an asymmetric relation.  For example, it is useful
+for description that @acronym{VLIW} @samp{slot1} is reserved after
+@samp{slot0} reservation.  We could describe it by the following
+construction
 
-The third construction (@samp{absence_set}) means that each functional
-unit in the first string can be reserved only if each unit whose name
-is in the second string is not reserved.  This is an asymmetric
-relation (actually @samp{exclusion_set} is analogous to this one but
-it is symmetric).  For example, it is useful for description that
-@acronym{VLIW} @samp{slot0} can not be reserved after @samp{slot1} or
-@samp{slot2} reservation.
+@smallexample
+(presence_set "slot1" "slot0")
+@end smallexample
+
+Or @samp{slot1} is reserved only after @samp{slot0} and unit @samp{b0}
+reservation.  In this case we could write
+
+@smallexample
+(presence_set "slot1" "slot0 b0")
+@end smallexample
+
+The third construction (@samp{final_presence_set}) is analogous to
+@samp{presence_set}.  The difference between them is when checking is
+done.  When an instruction is issued in given automaton state
+reflecting all current and planned unit reservations, the automaton
+state is changed.  The first state is a source state, the second one
+is a result state.  Checking for @samp{presence_set} is done on the
+source state reservation, checking for @samp{final_presence_set} is
+done on the result reservation.  This construction is useful to
+describe a reservation which is actually two subsequent reservations.
+For example, if we use
+
+@smallexample
+(presence_set "slot1" "slot0")
+@end smallexample
+
+the following insn will be never issued (because @samp{slot1} requires
+@samp{slot0} which is absent in the source state).
+
+@smallexample
+(define_reservation "insn_and_nop" "slot0 + slot1")
+@end smallexample
+
+but it can be issued if we use analogous @samp{final_presence_set}.
+
+The forth construction (@samp{absence_set}) means that each functional
+unit in the first string can be reserved only if each pattern of units
+whose names are in the second string is not reserved.  This is an
+asymmetric relation (actually @samp{exclusion_set} is analogous to
+this one but it is symmetric).  For example, it is useful for
+description that @acronym{VLIW} @samp{slot0} can not be reserved after
+@samp{slot1} or @samp{slot2} reservation.  We could describe it by the
+following construction
+
+@smallexample
+(absence_set "slot2" "slot0, slot1")
+@end smallexample
+
+Or @samp{slot2} can not be reserved if @samp{slot0} and unit @samp{b0}
+are reserved or @samp{slot1} and unit @samp{b1} are reserved.  In
+this case we could write
+
+@smallexample
+(absence_set "slot2" "slot0 b0, slot1 b1")
+@end smallexample
 
 All functional units mentioned in a set should belong to the same
 automaton.
+
+The last construction (@samp{final_absence_set}) is analogous to
+@samp{absence_set} but checking is done on the result (state)
+reservation.  See comments for @samp{final_presence_set}.
 
 @findex automata_option
 @cindex deterministic finite state automaton
@@ -5797,6 +6048,14 @@ nondeterministic treatment means trying all alternatives, some of them
 may be rejected by reservations in the subsequent insns.  You can not
 query functional unit reservations in nondeterministic automaton
 states.
+
+@item
+@dfn{progress} means output of a progress bar showing how many states
+were generated so far for automaton being processed.  This is useful
+during debugging a @acronym{DFA} description.  If you see too many
+generated states, you could interrupt the generator of the pipeline
+hazard recognizer and try to figure out a reason for generation of the
+huge automaton.
 @end itemize
 
 As an example, consider a superscalar @acronym{RISC} machine which can
@@ -5855,6 +6114,8 @@ construction
 @end smallexample
 
 
+@end ifset
+@ifset INTERNALS
 @node Comparison of the two descriptions
 @subsubsection Drawbacks of the old pipeline description
 @cindex old pipeline description
@@ -5868,7 +6129,7 @@ construction
 The old instruction level parallelism description and the pipeline
 hazards recognizer based on it have the following drawbacks in
 comparison with the @acronym{DFA}-based ones:
-  
+
 @itemize @bullet
 @item
 Each functional unit is believed to be reserved at the instruction
@@ -5908,6 +6169,8 @@ In an automaton based pipeline hazard recognizer, speed is not dependent
 on processor complexity.
 @end itemize
 
+@end ifset
+@ifset INTERNALS
 @node Conditional Execution
 @section Conditional Execution
 @cindex conditional execution
@@ -5988,6 +6251,8 @@ generates a new pattern
   "(%3) add %2,%1,%0")
 @end smallexample
 
+@end ifset
+@ifset INTERNALS
 @node Constant Definitions
 @section Constant Definitions
 @cindex constant definitions

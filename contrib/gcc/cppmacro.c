@@ -1,6 +1,6 @@
 /* Part of CPP library.  (Macro and #define handling.)
    Copyright (C) 1986, 1987, 1989, 1992, 1993, 1994, 1995, 1996, 1998,
-   1999, 2000, 2001, 2002 Free Software Foundation, Inc.
+   1999, 2000, 2001, 2002, 2003 Free Software Foundation, Inc.
    Written by Per Bothner, 1994.
    Based on CCCP program by Paul Rubin, June 1986
    Adapted to ANSI C, Richard Stallman, Jan 1987
@@ -40,57 +40,48 @@ struct macro_arg
 
 /* Macro expansion.  */
 
-static int enter_macro_context PARAMS ((cpp_reader *, cpp_hashnode *));
-static int builtin_macro PARAMS ((cpp_reader *, cpp_hashnode *));
-static void push_token_context
-  PARAMS ((cpp_reader *, cpp_hashnode *, const cpp_token *, unsigned int));
-static void push_ptoken_context
-  PARAMS ((cpp_reader *, cpp_hashnode *, _cpp_buff *,
-	   const cpp_token **, unsigned int));
-static _cpp_buff *collect_args PARAMS ((cpp_reader *, const cpp_hashnode *));
-static cpp_context *next_context PARAMS ((cpp_reader *));
-static const cpp_token *padding_token
-  PARAMS ((cpp_reader *, const cpp_token *));
-static void expand_arg PARAMS ((cpp_reader *, macro_arg *));
-static const cpp_token *new_string_token PARAMS ((cpp_reader *, uchar *,
-						  unsigned int));
-static const cpp_token *stringify_arg PARAMS ((cpp_reader *, macro_arg *));
-static void paste_all_tokens PARAMS ((cpp_reader *, const cpp_token *));
-static bool paste_tokens PARAMS ((cpp_reader *, const cpp_token **,
-				  const cpp_token *));
-static void replace_args PARAMS ((cpp_reader *, cpp_hashnode *, cpp_macro *,
-				  macro_arg *));
-static _cpp_buff *funlike_invocation_p PARAMS ((cpp_reader *, cpp_hashnode *));
-static bool create_iso_definition PARAMS ((cpp_reader *, cpp_macro *));
+static int enter_macro_context (cpp_reader *, cpp_hashnode *);
+static int builtin_macro (cpp_reader *, cpp_hashnode *);
+static void push_token_context (cpp_reader *, cpp_hashnode *,
+				const cpp_token *, unsigned int);
+static void push_ptoken_context (cpp_reader *, cpp_hashnode *, _cpp_buff *,
+				 const cpp_token **, unsigned int);
+static _cpp_buff *collect_args (cpp_reader *, const cpp_hashnode *);
+static cpp_context *next_context (cpp_reader *);
+static const cpp_token *padding_token (cpp_reader *, const cpp_token *);
+static void expand_arg (cpp_reader *, macro_arg *);
+static const cpp_token *new_string_token (cpp_reader *, uchar *, unsigned int);
+static const cpp_token *stringify_arg (cpp_reader *, macro_arg *);
+static void paste_all_tokens (cpp_reader *, const cpp_token *);
+static bool paste_tokens (cpp_reader *, const cpp_token **, const cpp_token *);
+static void replace_args (cpp_reader *, cpp_hashnode *, cpp_macro *,
+			  macro_arg *);
+static _cpp_buff *funlike_invocation_p (cpp_reader *, cpp_hashnode *);
+static bool create_iso_definition (cpp_reader *, cpp_macro *);
 
 /* #define directive parsing and handling.  */
 
-static cpp_token *alloc_expansion_token PARAMS ((cpp_reader *, cpp_macro *));
-static cpp_token *lex_expansion_token PARAMS ((cpp_reader *, cpp_macro *));
-static bool warn_of_redefinition PARAMS ((cpp_reader *, const cpp_hashnode *,
-					  const cpp_macro *));
-static bool parse_params PARAMS ((cpp_reader *, cpp_macro *));
-static void check_trad_stringification PARAMS ((cpp_reader *,
-						const cpp_macro *,
-						const cpp_string *));
+static cpp_token *alloc_expansion_token (cpp_reader *, cpp_macro *);
+static cpp_token *lex_expansion_token (cpp_reader *, cpp_macro *);
+static bool warn_of_redefinition (cpp_reader *, const cpp_hashnode *,
+				  const cpp_macro *);
+static bool parse_params (cpp_reader *, cpp_macro *);
+static void check_trad_stringification (cpp_reader *, const cpp_macro *,
+					const cpp_string *);
 
 /* Emits a warning if NODE is a macro defined in the main file that
    has not been used.  */
 int
-_cpp_warn_if_unused_macro (pfile, node, v)
-     cpp_reader *pfile;
-     cpp_hashnode *node;
-     void *v ATTRIBUTE_UNUSED;
+_cpp_warn_if_unused_macro (cpp_reader *pfile, cpp_hashnode *node,
+			   void *v ATTRIBUTE_UNUSED)
 {
   if (node->type == NT_MACRO && !(node->flags & NODE_BUILTIN))
     {
       cpp_macro *macro = node->value.macro;
 
       if (!macro->used
-	  /* Skip front-end built-ins and command line macros.  */
-	  && macro->line >= pfile->first_unused_line
-	  && MAIN_FILE_P (lookup_line (&pfile->line_maps, macro->line)))
-	cpp_error_with_line (pfile, DL_WARNING, macro->line, 0,
+	  && MAIN_FILE_P (linemap_lookup (&pfile->line_maps, macro->line)))
+	cpp_error_with_line (pfile, CPP_DL_WARNING, macro->line, 0,
 			     "macro \"%s\" is not used", NODE_NAME (node));
     }
 
@@ -100,10 +91,7 @@ _cpp_warn_if_unused_macro (pfile, node, v)
 /* Allocates and returns a CPP_STRING token, containing TEXT of length
    LEN, after null-terminating it.  TEXT must be in permanent storage.  */
 static const cpp_token *
-new_string_token (pfile, text, len)
-     cpp_reader *pfile;
-     unsigned char *text;
-     unsigned int len;
+new_string_token (cpp_reader *pfile, unsigned char *text, unsigned int len)
 {
   cpp_token *token = _cpp_temp_token (pfile);
 
@@ -126,9 +114,7 @@ static const char * const monthnames[] =
    is created.  Returns 1 if it generates a new token context, 0 to
    return the token to the caller.  */
 const uchar *
-_cpp_builtin_macro_text (pfile, node)
-     cpp_reader *pfile;
-     cpp_hashnode *node;
+_cpp_builtin_macro_text (cpp_reader *pfile, cpp_hashnode *node)
 {
   const uchar *result = NULL;
   unsigned int number = 1;
@@ -136,7 +122,7 @@ _cpp_builtin_macro_text (pfile, node)
   switch (node->value.builtin)
     {
     default:
-      cpp_error (pfile, DL_ICE, "invalid built-in macro \"%s\"",
+      cpp_error (pfile, CPP_DL_ICE, "invalid built-in macro \"%s\"",
 		 NODE_NAME (node));
       break;
 
@@ -221,7 +207,8 @@ _cpp_builtin_macro_text (pfile, node)
 	      pfile->date = _cpp_unaligned_alloc (pfile,
 						  sizeof ("\"Oct 11 1347\""));
 	      sprintf ((char *) pfile->date, "\"%s %2d %4d\"",
-		       monthnames[tb->tm_mon], tb->tm_mday, tb->tm_year + 1900);
+		       monthnames[tb->tm_mon], tb->tm_mday,
+		       tb->tm_year + 1900);
 
 	      pfile->time = _cpp_unaligned_alloc (pfile,
 						  sizeof ("\"12:34:56\""));
@@ -230,7 +217,7 @@ _cpp_builtin_macro_text (pfile, node)
 	    }
 	  else
 	    {
-	      cpp_errno (pfile, DL_WARNING,
+	      cpp_errno (pfile, CPP_DL_WARNING,
 			 "could not determine date and time");
 		
 	      pfile->date = U"\"??? ?? ????\"";
@@ -260,11 +247,11 @@ _cpp_builtin_macro_text (pfile, node)
    created.  Returns 1 if it generates a new token context, 0 to
    return the token to the caller.  */
 static int
-builtin_macro (pfile, node)
-     cpp_reader *pfile;
-     cpp_hashnode *node;
+builtin_macro (cpp_reader *pfile, cpp_hashnode *node)
 {
   const uchar *buf;
+  size_t len;
+  char *nbuf;
 
   if (node->value.builtin == BT_PRAGMA)
     {
@@ -278,20 +265,19 @@ builtin_macro (pfile, node)
     }
 
   buf = _cpp_builtin_macro_text (pfile, node);
+  len = ustrlen (buf);
+  nbuf = alloca (len + 1);
+  memcpy (nbuf, buf, len);
+  nbuf[len]='\n';
 
-  cpp_push_buffer (pfile, buf, ustrlen (buf), /* from_stage3 */ true, 1);
-
-  /* Tweak the column number the lexer will report.  */
-  pfile->buffer->col_adjust = pfile->cur_token[-1].col - 1;
-
-  /* We don't want a leading # to be interpreted as a directive.  */
-  pfile->buffer->saved_flags = 0;
+  cpp_push_buffer (pfile, (uchar *) nbuf, len, /* from_stage3 */ true);
+  _cpp_clean_line (pfile);
 
   /* Set pfile->cur_token as required by _cpp_lex_direct.  */
   pfile->cur_token = _cpp_temp_token (pfile);
   push_token_context (pfile, NULL, _cpp_lex_direct (pfile), 1);
   if (pfile->buffer->cur != pfile->buffer->rlimit)
-    cpp_error (pfile, DL_ICE, "invalid built-in macro \"%s\"",
+    cpp_error (pfile, CPP_DL_ICE, "invalid built-in macro \"%s\"",
 	       NODE_NAME (node));
   _cpp_pop_buffer (pfile);
 
@@ -303,10 +289,7 @@ builtin_macro (pfile, node)
    converted to octal.  DEST must be of sufficient size.  Returns
    a pointer to the end of the string.  */
 uchar *
-cpp_quote_string (dest, src, len)
-     uchar *dest;
-     const uchar *src;
-     unsigned int len;
+cpp_quote_string (uchar *dest, const uchar *src, unsigned int len)
 {
   while (len--)
     {
@@ -335,14 +318,17 @@ cpp_quote_string (dest, src, len)
 /* Convert a token sequence ARG to a single string token according to
    the rules of the ISO C #-operator.  */
 static const cpp_token *
-stringify_arg (pfile, arg)
-     cpp_reader *pfile;
-     macro_arg *arg;
+stringify_arg (cpp_reader *pfile, macro_arg *arg)
 {
-  unsigned char *dest = BUFF_FRONT (pfile->u_buff);
+  unsigned char *dest;
   unsigned int i, escape_it, backslash_count = 0;
   const cpp_token *source = NULL;
   size_t len;
+
+  if (BUFF_ROOM (pfile->u_buff) < 3)
+    _cpp_extend_buff (pfile, &pfile->u_buff, 3);
+  dest = BUFF_FRONT (pfile->u_buff);
+  *dest++ = '"';
 
   /* Loop, reading in the argument's tokens.  */
   for (i = 0; i < arg->count; i++)
@@ -360,11 +346,11 @@ stringify_arg (pfile, arg)
 		   || token->type == CPP_CHAR || token->type == CPP_WCHAR);
 
       /* Room for each char being written in octal, initial space and
-	 final NUL.  */
+	 final quote and NUL.  */
       len = cpp_token_len (token);
       if (escape_it)
 	len *= 4;
-      len += 2;
+      len += 3;
 
       if ((size_t) (BUFF_LIMIT (pfile->u_buff) - dest) < len)
 	{
@@ -374,7 +360,7 @@ stringify_arg (pfile, arg)
 	}
 
       /* Leading white space?  */
-      if (dest != BUFF_FRONT (pfile->u_buff))
+      if (dest - 1 != BUFF_FRONT (pfile->u_buff))
 	{
 	  if (source == NULL)
 	    source = token;
@@ -394,7 +380,7 @@ stringify_arg (pfile, arg)
       else
 	dest = cpp_spell_token (pfile, token, dest);
 
-      if (token->type == CPP_OTHER && token->val.c == '\\')
+      if (token->type == CPP_OTHER && token->val.str.text[0] == '\\')
 	backslash_count++;
       else
 	backslash_count = 0;
@@ -403,18 +389,13 @@ stringify_arg (pfile, arg)
   /* Ignore the final \ of invalid string literals.  */
   if (backslash_count & 1)
     {
-      cpp_error (pfile, DL_WARNING,
+      cpp_error (pfile, CPP_DL_WARNING,
 		 "invalid string literal, ignoring final '\\'");
       dest--;
     }
 
   /* Commit the memory, including NUL, and return the token.  */
-  if ((size_t) (BUFF_LIMIT (pfile->u_buff) - dest) < 1)
-    {
-      size_t len_so_far = dest - BUFF_FRONT (pfile->u_buff);
-      _cpp_extend_buff (pfile, &pfile->u_buff, 1);
-      dest = BUFF_FRONT (pfile->u_buff) + len_so_far;
-    }
+  *dest++ = '"';
   len = dest - BUFF_FRONT (pfile->u_buff);
   BUFF_FRONT (pfile->u_buff) = dest + 1;
   return new_string_token (pfile, dest - len, len);
@@ -424,9 +405,7 @@ stringify_arg (pfile, arg)
    case, PLHS is updated to point to the pasted token, which is
    guaranteed to not have the PASTE_LEFT flag set.  */
 static bool
-paste_tokens (pfile, plhs, rhs)
-     cpp_reader *pfile;
-     const cpp_token **plhs, *rhs;
+paste_tokens (cpp_reader *pfile, const cpp_token **plhs, const cpp_token *rhs)
 {
   unsigned char *buf, *end;
   const cpp_token *lhs;
@@ -435,7 +414,7 @@ paste_tokens (pfile, plhs, rhs)
 
   lhs = *plhs;
   len = cpp_token_len (lhs) + cpp_token_len (rhs) + 1;
-  buf = (unsigned char *) alloca (len);
+  buf = alloca (len);
   end = cpp_spell_token (pfile, lhs, buf);
 
   /* Avoid comment headers, since they are still processed in stage 3.
@@ -445,15 +424,10 @@ paste_tokens (pfile, plhs, rhs)
   if (lhs->type == CPP_DIV && rhs->type != CPP_EQ)
     *end++ = ' ';
   end = cpp_spell_token (pfile, rhs, end);
-  *end = '\0';
+  *end = '\n';
 
-  cpp_push_buffer (pfile, buf, end - buf, /* from_stage3 */ true, 1);
-
-  /* Tweak the column number the lexer will report.  */
-  pfile->buffer->col_adjust = pfile->cur_token[-1].col - 1;
-
-  /* We don't want a leading # to be interpreted as a directive.  */
-  pfile->buffer->saved_flags = 0;
+  cpp_push_buffer (pfile, buf, end - buf, /* from_stage3 */ true);
+  _cpp_clean_line (pfile);
 
   /* Set pfile->cur_token as required by _cpp_lex_direct.  */
   pfile->cur_token = _cpp_temp_token (pfile);
@@ -472,9 +446,7 @@ paste_tokens (pfile, plhs, rhs)
    successful pastes, with the effect that the RHS appears in the
    output stream after the pasted LHS normally.  */
 static void
-paste_all_tokens (pfile, lhs)
-     cpp_reader *pfile;
-     const cpp_token *lhs;
+paste_all_tokens (cpp_reader *pfile, const cpp_token *lhs)
 {
   const cpp_token *rhs;
   cpp_context *context = pfile->context;
@@ -500,7 +472,7 @@ paste_all_tokens (pfile, lhs)
 
 	  /* Mandatory error for all apart from assembler.  */
 	  if (CPP_OPTION (pfile, lang) != CLK_ASM)
-	    cpp_error (pfile, DL_ERROR,
+	    cpp_error (pfile, CPP_DL_ERROR,
 	 "pasting \"%s\" and \"%s\" does not give a valid preprocessing token",
 		       cpp_token_as_text (pfile, lhs),
 		       cpp_token_as_text (pfile, rhs));
@@ -520,11 +492,7 @@ paste_all_tokens (pfile, lhs)
    Note that MACRO cannot necessarily be deduced from NODE, in case
    NODE was redefined whilst collecting arguments.  */
 bool
-_cpp_arguments_ok (pfile, macro, node, argc)
-     cpp_reader *pfile;
-     cpp_macro *macro;
-     const cpp_hashnode *node;
-     unsigned int argc;
+_cpp_arguments_ok (cpp_reader *pfile, cpp_macro *macro, const cpp_hashnode *node, unsigned int argc)
 {
   if (argc == macro->paramc)
     return true;
@@ -542,17 +510,17 @@ _cpp_arguments_ok (pfile, macro, node, argc)
       if (argc + 1 == macro->paramc && macro->variadic)
 	{
 	  if (CPP_PEDANTIC (pfile) && ! macro->syshdr)
-	    cpp_error (pfile, DL_PEDWARN,
+	    cpp_error (pfile, CPP_DL_PEDWARN,
 		       "ISO C99 requires rest arguments to be used");
 	  return true;
 	}
 
-      cpp_error (pfile, DL_ERROR,
+      cpp_error (pfile, CPP_DL_ERROR,
 		 "macro \"%s\" requires %u arguments, but only %u given",
 		 NODE_NAME (node), macro->paramc, argc);
     }
   else
-    cpp_error (pfile, DL_ERROR,
+    cpp_error (pfile, CPP_DL_ERROR,
 	       "macro \"%s\" passed %u arguments, but takes just %u",
 	       NODE_NAME (node), argc, macro->paramc);
 
@@ -565,9 +533,7 @@ _cpp_arguments_ok (pfile, macro, node, argc)
    NULL.  Each argument is terminated by a CPP_EOF token, for the
    future benefit of expand_arg().  */
 static _cpp_buff *
-collect_args (pfile, node)
-     cpp_reader *pfile;
-     const cpp_hashnode *node;
+collect_args (cpp_reader *pfile, const cpp_hashnode *node)
 {
   _cpp_buff *buff, *base_buff;
   cpp_macro *macro;
@@ -665,7 +631,7 @@ collect_args (pfile, node)
 	 callers at the end of an -include-d file.  */
       if (pfile->context->prev || pfile->state.in_directive)
 	_cpp_backup_tokens (pfile, 1);
-      cpp_error (pfile, DL_ERROR,
+      cpp_error (pfile, CPP_DL_ERROR,
 		 "unterminated argument list invoking macro \"%s\"",
 		 NODE_NAME (node));
     }
@@ -701,9 +667,7 @@ collect_args (pfile, node)
    intervening padding tokens.  If we find the parenthesis, collect
    the arguments and return the buffer containing them.  */
 static _cpp_buff *
-funlike_invocation_p (pfile, node)
-     cpp_reader *pfile;
-     cpp_hashnode *node;
+funlike_invocation_p (cpp_reader *pfile, cpp_hashnode *node)
 {
   const cpp_token *token, *padding = NULL;
 
@@ -743,9 +707,7 @@ funlike_invocation_p (pfile, node)
    containing its yet-to-be-rescanned replacement list and return one.
    Otherwise, we don't push a context and return zero.  */
 static int
-enter_macro_context (pfile, node)
-     cpp_reader *pfile;
-     cpp_hashnode *node;
+enter_macro_context (cpp_reader *pfile, cpp_hashnode *node)
 {
   /* The presence of a macro invalidates a file's controlling macro.  */
   pfile->mi_valid = false;
@@ -772,7 +734,7 @@ enter_macro_context (pfile, node)
 	  if (buff == NULL)
 	    {
 	      if (CPP_WTRADITIONAL (pfile) && ! node->value.macro->syshdr)
-		cpp_error (pfile, DL_WARNING,
+		cpp_error (pfile, CPP_DL_WARNING,
  "function-like macro \"%s\" must be used with arguments in traditional C",
 			   NODE_NAME (node));
 
@@ -804,11 +766,7 @@ enter_macro_context (pfile, node)
    Expand each argument before replacing, unless it is operated upon
    by the # or ## operators.  */
 static void
-replace_args (pfile, node, macro, args)
-     cpp_reader *pfile;
-     cpp_hashnode *node;
-     cpp_macro *macro;
-     macro_arg *args;
+replace_args (cpp_reader *pfile, cpp_hashnode *node, cpp_macro *macro, macro_arg *args)
 {
   unsigned int i, total;
   const cpp_token *src, *limit;
@@ -940,9 +898,7 @@ replace_args (pfile, node, macro, args)
 
 /* Return a special padding token, with padding inherited from SOURCE.  */
 static const cpp_token *
-padding_token (pfile, source)
-     cpp_reader *pfile;
-     const cpp_token *source;
+padding_token (cpp_reader *pfile, const cpp_token *source)
 {
   cpp_token *result = _cpp_temp_token (pfile);
 
@@ -955,8 +911,7 @@ padding_token (pfile, source)
 /* Get a new uninitialized context.  Create a new one if we cannot
    re-use an old one.  */
 static cpp_context *
-next_context (pfile)
-     cpp_reader *pfile;
+next_context (cpp_reader *pfile)
 {
   cpp_context *result = pfile->context->next;
 
@@ -974,12 +929,8 @@ next_context (pfile)
 
 /* Push a list of pointers to tokens.  */
 static void
-push_ptoken_context (pfile, macro, buff, first, count)
-     cpp_reader *pfile;
-     cpp_hashnode *macro;
-     _cpp_buff *buff;
-     const cpp_token **first;
-     unsigned int count;
+push_ptoken_context (cpp_reader *pfile, cpp_hashnode *macro, _cpp_buff *buff,
+		     const cpp_token **first, unsigned int count)
 {
   cpp_context *context = next_context (pfile);
 
@@ -992,11 +943,8 @@ push_ptoken_context (pfile, macro, buff, first, count)
 
 /* Push a list of tokens.  */
 static void
-push_token_context (pfile, macro, first, count)
-     cpp_reader *pfile;
-     cpp_hashnode *macro;
-     const cpp_token *first;
-     unsigned int count;
+push_token_context (cpp_reader *pfile, cpp_hashnode *macro,
+		    const cpp_token *first, unsigned int count)
 {
   cpp_context *context = next_context (pfile);
 
@@ -1009,11 +957,8 @@ push_token_context (pfile, macro, first, count)
 
 /* Push a traditional macro's replacement text.  */
 void
-_cpp_push_text_context (pfile, macro, start, len)
-     cpp_reader *pfile;
-     cpp_hashnode *macro;
-     const uchar *start;
-     size_t len;
+_cpp_push_text_context (cpp_reader *pfile, cpp_hashnode *macro,
+			const uchar *start, size_t len)
 {
   cpp_context *context = next_context (pfile);
 
@@ -1032,9 +977,7 @@ _cpp_push_text_context (pfile, macro, start, len)
    has terminated the argument's tokens with a CPP_EOF so that we know
    when we have fully expanded the argument.  */
 static void
-expand_arg (pfile, arg)
-     cpp_reader *pfile;
-     macro_arg *arg;
+expand_arg (cpp_reader *pfile, macro_arg *arg)
 {
   unsigned int capacity;
   bool saved_warn_trad;
@@ -1048,8 +991,7 @@ expand_arg (pfile, arg)
 
   /* Loop, reading in the arguments.  */
   capacity = 256;
-  arg->expanded = (const cpp_token **)
-    xmalloc (capacity * sizeof (cpp_token *));
+  arg->expanded = xmalloc (capacity * sizeof (cpp_token *));
 
   push_ptoken_context (pfile, NULL, NULL, arg->first, arg->count + 1);
   for (;;)
@@ -1059,8 +1001,8 @@ expand_arg (pfile, arg)
       if (arg->expanded_count + 1 >= capacity)
 	{
 	  capacity *= 2;
-	  arg->expanded = (const cpp_token **)
-	    xrealloc (arg->expanded, capacity * sizeof (cpp_token *));
+	  arg->expanded = xrealloc (arg->expanded,
+				    capacity * sizeof (cpp_token *));
 	}
 
       token = cpp_get_token (pfile);
@@ -1080,8 +1022,7 @@ expand_arg (pfile, arg)
    context represented a macro's replacement list.  The context
    structure is not freed so that we can re-use it later.  */
 void
-_cpp_pop_context (pfile)
-     cpp_reader *pfile;
+_cpp_pop_context (cpp_reader *pfile)
 {
   cpp_context *context = pfile->context;
 
@@ -1094,9 +1035,9 @@ _cpp_pop_context (pfile)
   pfile->context = context->prev;
 }
 
-/* Eternal routine to get a token.  Also used nearly everywhere
+/* External routine to get a token.  Also used nearly everywhere
    internally, except for places where we know we can safely call
-   the lexer directly, such as lexing a directive name.
+   _cpp_lex_token directly, such as lexing a directive name.
 
    Macro expansions and directives are transparently handled,
    including entering included files.  Thus tokens are post-macro
@@ -1106,8 +1047,7 @@ _cpp_pop_context (pfile)
    state.in_directive is still 1, and at the end of argument
    pre-expansion.  */
 const cpp_token *
-cpp_get_token (pfile)
-     cpp_reader *pfile;
+cpp_get_token (cpp_reader *pfile)
 {
   const cpp_token *result;
 
@@ -1184,8 +1124,7 @@ cpp_get_token (pfile)
    defined in a system header.  Just checks the macro at the top of
    the stack.  Used for diagnostic suppression.  */
 int
-cpp_sys_macro_p (pfile)
-     cpp_reader *pfile;
+cpp_sys_macro_p (cpp_reader *pfile)
 {
   cpp_hashnode *node = pfile->context->macro;
 
@@ -1195,8 +1134,7 @@ cpp_sys_macro_p (pfile)
 /* Read each token in, until end of the current file.  Directives are
    transparently processed.  */
 void
-cpp_scan_nooutput (pfile)
-     cpp_reader *pfile;
+cpp_scan_nooutput (cpp_reader *pfile)
 {
   /* Request a CPP_EOF token at the end of this file, rather than
      transparently continuing with the including file.  */
@@ -1213,9 +1151,7 @@ cpp_scan_nooutput (pfile)
 /* Step back one (or more) tokens.  Can only step mack more than 1 if
    they are from the lexer, and not from macro expansion.  */
 void
-_cpp_backup_tokens (pfile, count)
-     cpp_reader *pfile;
-     unsigned int count;
+_cpp_backup_tokens (cpp_reader *pfile, unsigned int count)
 {
   if (pfile->context->prev == NULL)
     {
@@ -1247,10 +1183,8 @@ _cpp_backup_tokens (pfile, count)
 
 /* Returns nonzero if a macro redefinition warning is required.  */
 static bool
-warn_of_redefinition (pfile, node, macro2)
-     cpp_reader *pfile;
-     const cpp_hashnode *node;
-     const cpp_macro *macro2;
+warn_of_redefinition (cpp_reader *pfile, const cpp_hashnode *node,
+		      const cpp_macro *macro2)
 {
   const cpp_macro *macro1;
   unsigned int i;
@@ -1291,8 +1225,7 @@ warn_of_redefinition (pfile, node, macro2)
 
 /* Free the definition of hashnode H.  */
 void
-_cpp_free_definition (h)
-     cpp_hashnode *h;
+_cpp_free_definition (cpp_hashnode *h)
 {
   /* Macros and assertions no longer have anything to free.  */
   h->type = NT_VOID;
@@ -1303,15 +1236,13 @@ _cpp_free_definition (h)
 /* Save parameter NODE to the parameter list of macro MACRO.  Returns
    zero on success, nonzero if the parameter is a duplicate.  */
 bool
-_cpp_save_parameter (pfile, macro, node)
-     cpp_reader *pfile;
-     cpp_macro *macro;
-     cpp_hashnode *node;
+_cpp_save_parameter (cpp_reader *pfile, cpp_macro *macro, cpp_hashnode *node)
 {
+  unsigned int len;
   /* Constraint 6.10.3.6 - duplicate parameter names.  */
-  if (node->arg_index)
+  if (node->flags & NODE_MACRO_ARG)
     {
-      cpp_error (pfile, DL_ERROR, "duplicate macro parameter \"%s\"",
+      cpp_error (pfile, CPP_DL_ERROR, "duplicate macro parameter \"%s\"",
 		 NODE_NAME (node));
       return true;
     }
@@ -1321,16 +1252,24 @@ _cpp_save_parameter (pfile, macro, node)
     _cpp_extend_buff (pfile, &pfile->a_buff, sizeof (cpp_hashnode *));
 
   ((cpp_hashnode **) BUFF_FRONT (pfile->a_buff))[macro->paramc++] = node;
-  node->arg_index = macro->paramc;
+  node->flags |= NODE_MACRO_ARG;
+  len = macro->paramc * sizeof (union _cpp_hashnode_value);
+  if (len > pfile->macro_buffer_len)
+    {
+      pfile->macro_buffer = xrealloc (pfile->macro_buffer, len);
+      pfile->macro_buffer_len = len;
+    }
+  ((union _cpp_hashnode_value *) pfile->macro_buffer)[macro->paramc - 1]
+    = node->value;
+  
+  node->value.arg_index  = macro->paramc;
   return false;
 }
 
 /* Check the syntax of the parameters in a MACRO definition.  Returns
    false if an error occurs.  */
 static bool
-parse_params (pfile, macro)
-     cpp_reader *pfile;
-     cpp_macro *macro;
+parse_params (cpp_reader *pfile, cpp_macro *macro)
 {
   unsigned int prev_ident = 0;
 
@@ -1347,7 +1286,7 @@ parse_params (pfile, macro)
 	      && ! CPP_OPTION (pfile, discard_comments_in_macro_exp))
 	    continue;
 
-	  cpp_error (pfile, DL_ERROR,
+	  cpp_error (pfile, CPP_DL_ERROR,
 		     "\"%s\" may not appear in macro parameter list",
 		     cpp_token_as_text (pfile, token));
 	  return false;
@@ -1355,7 +1294,7 @@ parse_params (pfile, macro)
 	case CPP_NAME:
 	  if (prev_ident)
 	    {
-	      cpp_error (pfile, DL_ERROR,
+	      cpp_error (pfile, CPP_DL_ERROR,
 			 "macro parameters must be comma-separated");
 	      return false;
 	    }
@@ -1373,7 +1312,7 @@ parse_params (pfile, macro)
 	case CPP_COMMA:
 	  if (!prev_ident)
 	    {
-	      cpp_error (pfile, DL_ERROR, "parameter name missing");
+	      cpp_error (pfile, CPP_DL_ERROR, "parameter name missing");
 	      return false;
 	    }
 	  prev_ident = 0;
@@ -1387,11 +1326,11 @@ parse_params (pfile, macro)
 				   pfile->spec_nodes.n__VA_ARGS__);
 	      pfile->state.va_args_ok = 1;
 	      if (! CPP_OPTION (pfile, c99) && CPP_OPTION (pfile, pedantic))
-		cpp_error (pfile, DL_PEDWARN,
+		cpp_error (pfile, CPP_DL_PEDWARN,
 			   "anonymous variadic macros were introduced in C99");
 	    }
 	  else if (CPP_OPTION (pfile, pedantic))
-	    cpp_error (pfile, DL_PEDWARN,
+	    cpp_error (pfile, CPP_DL_PEDWARN,
 		       "ISO C does not permit named variadic macros");
 
 	  /* We're at the end, and just expect a closing parenthesis.  */
@@ -1401,7 +1340,7 @@ parse_params (pfile, macro)
 	  /* Fall through.  */
 
 	case CPP_EOF:
-	  cpp_error (pfile, DL_ERROR, "missing ')' in macro parameter list");
+	  cpp_error (pfile, CPP_DL_ERROR, "missing ')' in macro parameter list");
 	  return false;
 	}
     }
@@ -1409,9 +1348,7 @@ parse_params (pfile, macro)
 
 /* Allocate room for a token from a macro's replacement list.  */
 static cpp_token *
-alloc_expansion_token (pfile, macro)
-     cpp_reader *pfile;
-     cpp_macro *macro;
+alloc_expansion_token (cpp_reader *pfile, cpp_macro *macro)
 {
   if (BUFF_ROOM (pfile->a_buff) < (macro->count + 1) * sizeof (cpp_token))
     _cpp_extend_buff (pfile, &pfile->a_buff, sizeof (cpp_token));
@@ -1422,9 +1359,7 @@ alloc_expansion_token (pfile, macro)
 /* Lex a token from the expansion of MACRO, but mark parameters as we
    find them and warn of traditional stringification.  */
 static cpp_token *
-lex_expansion_token (pfile, macro)
-     cpp_reader *pfile;
-     cpp_macro *macro;
+lex_expansion_token (cpp_reader *pfile, cpp_macro *macro)
 {
   cpp_token *token;
 
@@ -1432,10 +1367,11 @@ lex_expansion_token (pfile, macro)
   token = _cpp_lex_direct (pfile);
 
   /* Is this a parameter?  */
-  if (token->type == CPP_NAME && token->val.node->arg_index)
+  if (token->type == CPP_NAME
+      && (token->val.node->flags & NODE_MACRO_ARG) != 0)
     {
       token->type = CPP_MACRO_ARG;
-      token->val.arg_no = token->val.node->arg_index;
+      token->val.arg_no = token->val.node->value.arg_index;
     }
   else if (CPP_WTRADITIONAL (pfile) && macro->paramc > 0
 	   && (token->type == CPP_STRING || token->type == CPP_CHAR))
@@ -1445,9 +1381,7 @@ lex_expansion_token (pfile, macro)
 }
 
 static bool
-create_iso_definition (pfile, macro)
-     cpp_reader *pfile;
-     cpp_macro *macro;
+create_iso_definition (cpp_reader *pfile, cpp_macro *macro)
 {
   cpp_token *token;
   const cpp_token *ctoken;
@@ -1468,7 +1402,7 @@ create_iso_definition (pfile, macro)
       macro->fun_like = 1;
     }
   else if (ctoken->type != CPP_EOF && !(ctoken->flags & PREV_WHITE))
-    cpp_error (pfile, DL_PEDWARN,
+    cpp_error (pfile, CPP_DL_PEDWARN,
 	       "ISO C requires whitespace after the macro name");
 
   if (macro->fun_like)
@@ -1496,7 +1430,7 @@ create_iso_definition (pfile, macro)
 	  /* Let assembler get away with murder.  */
 	  else if (CPP_OPTION (pfile, lang) != CLK_ASM)
 	    {
-	      cpp_error (pfile, DL_ERROR,
+	      cpp_error (pfile, CPP_DL_ERROR,
 			 "'#' is not followed by a macro parameter");
 	      return false;
 	    }
@@ -1515,8 +1449,8 @@ create_iso_definition (pfile, macro)
 
 	  if (macro->count == 0 || token->type == CPP_EOF)
 	    {
-	      cpp_error (pfile, DL_ERROR,
-			 "'##' cannot appear at either end of a macro expansion");
+	      cpp_error (pfile, CPP_DL_ERROR,
+		 "'##' cannot appear at either end of a macro expansion");
 	      return false;
 	    }
 
@@ -1543,9 +1477,7 @@ create_iso_definition (pfile, macro)
 
 /* Parse a macro and save its expansion.  Returns nonzero on success.  */
 bool
-_cpp_create_definition (pfile, node)
-     cpp_reader *pfile;
-     cpp_hashnode *node;
+_cpp_create_definition (cpp_reader *pfile, cpp_hashnode *node)
 {
   cpp_macro *macro;
   unsigned int i;
@@ -1556,7 +1488,7 @@ _cpp_create_definition (pfile, node)
   macro->params = 0;
   macro->paramc = 0;
   macro->variadic = 0;
-  macro->used = 0;
+  macro->used = !CPP_OPTION (pfile, warn_unused_macros);
   macro->count = 0;
   macro->fun_like = 0;
   /* To suppress some diagnostics.  */
@@ -1585,7 +1517,11 @@ _cpp_create_definition (pfile, node)
 
   /* Clear the fast argument lookup indices.  */
   for (i = macro->paramc; i-- > 0; )
-    macro->params[i]->arg_index = 0;
+    {
+      struct cpp_hashnode *node = macro->params[i];
+      node->flags &= ~ NODE_MACRO_ARG;
+      node->value = ((union _cpp_hashnode_value *) pfile->macro_buffer)[i];
+    }
 
   if (!ok)
     return ok;
@@ -1597,11 +1533,11 @@ _cpp_create_definition (pfile, node)
 
       if (warn_of_redefinition (pfile, node, macro))
 	{
-	  cpp_error_with_line (pfile, DL_PEDWARN, pfile->directive_line, 0,
+	  cpp_error_with_line (pfile, CPP_DL_PEDWARN, pfile->directive_line, 0,
 			       "\"%s\" redefined", NODE_NAME (node));
 
 	  if (node->type == NT_MACRO && !(node->flags & NODE_BUILTIN))
-	    cpp_error_with_line (pfile, DL_PEDWARN,
+	    cpp_error_with_line (pfile, CPP_DL_PEDWARN,
 				 node->value.macro->line, 0,
 			 "this is the location of the previous definition");
 	}
@@ -1622,16 +1558,15 @@ _cpp_create_definition (pfile, node)
 /* Warn if a token in STRING matches one of a function-like MACRO's
    parameters.  */
 static void
-check_trad_stringification (pfile, macro, string)
-     cpp_reader *pfile;
-     const cpp_macro *macro;
-     const cpp_string *string;
+check_trad_stringification (cpp_reader *pfile, const cpp_macro *macro,
+			    const cpp_string *string)
 {
   unsigned int i, len;
-  const uchar *p, *q, *limit = string->text + string->len;
+  const uchar *p, *q, *limit;
 
   /* Loop over the string.  */
-  for (p = string->text; p < limit; p = q)
+  limit = string->text + string->len - 1;
+  for (p = string->text + 1; p < limit; p = q)
     {
       /* Find the start of an identifier.  */
       while (p < limit && !is_idstart (*p))
@@ -1653,7 +1588,7 @@ check_trad_stringification (pfile, macro, string)
 	  if (NODE_LEN (node) == len
 	      && !memcmp (p, NODE_NAME (node), len))
 	    {
-	      cpp_error (pfile, DL_WARNING,
+	      cpp_error (pfile, CPP_DL_WARNING,
 	   "macro argument \"%s\" would be stringified in traditional C",
 			 NODE_NAME (node));
 	      break;
@@ -1668,9 +1603,7 @@ check_trad_stringification (pfile, macro, string)
    Caller is expected to generate the "#define" bit if needed.  The
    returned text is temporary, and automatically freed later.  */
 const unsigned char *
-cpp_macro_definition (pfile, node)
-     cpp_reader *pfile;
-     const cpp_hashnode *node;
+cpp_macro_definition (cpp_reader *pfile, const cpp_hashnode *node)
 {
   unsigned int i, len;
   const cpp_macro *macro = node->value.macro;
@@ -1678,7 +1611,7 @@ cpp_macro_definition (pfile, node)
 
   if (node->type != NT_MACRO || (node->flags & NODE_BUILTIN))
     {
-      cpp_error (pfile, DL_ICE,
+      cpp_error (pfile, CPP_DL_ICE,
 		 "invalid hash type %d in cpp_macro_definition", node->type);
       return 0;
     }
@@ -1704,7 +1637,7 @@ cpp_macro_definition (pfile, node)
 	  if (token->type == CPP_MACRO_ARG)
 	    len += NODE_LEN (macro->params[token->val.arg_no - 1]);
 	  else
-	    len += cpp_token_len (token); /* Includes room for ' '.  */
+	    len += cpp_token_len (token) + 1; /* Includes room for ' '.  */
 	  if (token->flags & STRINGIFY_ARG)
 	    len++;			/* "#" */
 	  if (token->flags & PASTE_LEFT)
@@ -1714,7 +1647,7 @@ cpp_macro_definition (pfile, node)
 
   if (len > pfile->macro_buffer_len)
     {
-      pfile->macro_buffer = (uchar *) xrealloc (pfile->macro_buffer, len);
+      pfile->macro_buffer = xrealloc (pfile->macro_buffer, len);
       pfile->macro_buffer_len = len;
     }
 
