@@ -946,6 +946,8 @@ static int nge_attach(dev)
 	ifp->if_baudrate = 1000000000;
 	ifp->if_snd.ifq_maxlen = NGE_TX_LIST_CNT - 1;
 	ifp->if_hwassist = NGE_CSUM_FEATURES;
+	ifp->if_capabilities = IFCAP_HWCSUM;
+	ifp->if_capenable = ifp->if_capabilities;
 
 	/*
 	 * Do MII setup.
