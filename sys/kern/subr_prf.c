@@ -254,7 +254,7 @@ log_console(struct uio *uio)
 	iovlen = uio->uio_iovcnt * sizeof (struct iovec);
 	MALLOC(miov, struct iovec *, iovlen, M_TEMP, M_WAITOK);
 	MALLOC(consbuffer, char *, CONSCHUNK, M_TEMP, M_WAITOK);
-	bcopy((caddr_t)muio.uio_iov, (caddr_t)miov, iovlen);
+	bcopy(muio.uio_iov, miov, iovlen);
 	muio.uio_iov = miov;
 	uio = &muio;
 
