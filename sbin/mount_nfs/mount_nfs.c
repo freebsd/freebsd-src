@@ -172,7 +172,7 @@ int retrycnt = DEF_RETRY;
 int opflags = 0;
 int nfsproto = IPPROTO_UDP;
 int mnttcp_ok = 1;
-char *port_no = "nfs";
+u_short port_no = 0;
 enum {
 	ANY,
 	V2,
@@ -199,6 +199,7 @@ int	getnfsargs __P((char *, struct nfs_args *));
 void	usage __P((void)) __dead2;
 int	xdr_dir __P((XDR *, char *));
 int	xdr_fh __P((XDR *, struct nfhret *));
+enum clnt_stat pingnfsport(int, struct netconfig *, struct netbuf *);
 
 /*
  * Used to set mount flags with getmntopts.  Call with dir=TRUE to
@@ -366,11 +367,8 @@ main(argc, argv)
 				nfsargsp->sotype = SOCK_STREAM;
 				nfsproto = IPPROTO_TCP;
 			}
-			if(altflags & ALTF_PORT) {
-				port_no = strdup(strstr(optarg, "port=") + 5);
-				if (port_no == NULL)
-					err(1, NULL);
-			}
+			if(altflags & ALTF_PORT)
+				port_no = atoi(strstr(optarg, "port=") + 5);
 			mountmode = ANY;
 			if(altflags & ALTF_NFSV2)
 				mountmode = V2;
@@ -486,7 +484,7 @@ main(argc, argv)
 			(void) close(STDERR_FILENO);
 			(void) chdir("/");
 		}
-		openlog("mount_nfs:", LOG_PID, LOG_DAEMON);
+		openlog("mount_nfs", LOG_PID, LOG_DAEMON);
 		nfssvc_flag = NFSSVC_MNTD;
 		ncd.ncd_dirp = mntpath;
 		while (nfssvc(nfssvc_flag, (caddr_t)&ncd) < 0) {
@@ -585,7 +583,9 @@ getnfsargs(spec, nfsargsp)
 	CLIENT *clp;
 	struct addrinfo hints, *ai_nfs, *ai;
 	int ecode;
+#ifdef NFSKERB
 	char host[NI_MAXHOST], serv[NI_MAXSERV];
+#endif
 	static struct netbuf nfs_nb;
 	static struct sockaddr_storage nfs_ss;
 	struct netconfig *nconf;
@@ -644,19 +644,21 @@ getnfsargs(spec, nfsargsp)
 	memset(&hints, 0, sizeof hints);
 	hints.ai_flags = AI_NUMERICHOST;
 	hints.ai_socktype = nfsargsp->sotype;
-	if (getaddrinfo(hostp, port_no, &hints, &ai_nfs) == 0) {
+	if (getaddrinfo(hostp, "nfs", &hints, &ai_nfs) == 0) {
+#ifdef NFSKERB
 		if ((nfsargsp->flags & NFSMNT_KERB)) {
 			hints.ai_flags = 0;
-			if (getnameinfo(ai->ai_addr, ai->ai_addrlen, host,
-			    sizeof host, serv, sizeof serv, 0) != 0) {
+			if (getnameinfo(ai_nfs->ai_addr, ai_nfs->ai_addrlen,
+			    host, sizeof host, serv, sizeof serv, 0) != 0) {
 				warnx("can't reverse resolve net address");
 					return (0);
 				}
-		hostp = host;
+			hostp = host;
 		}
+#endif /* NFSKERB */
 	} else {
 		hints.ai_flags = 0;
-		if ((ecode = getaddrinfo(hostp, port_no, &hints, &ai_nfs)) != 0) {
+		if ((ecode = getaddrinfo(hostp, "nfs", &hints, &ai_nfs)) != 0) {
 			warnx("can't get net id for host/nfs: %s",
 			    gai_strerror(ecode));
 			return (0);
@@ -673,15 +675,6 @@ getnfsargs(spec, nfsargsp)
 
 	orgcnt = retrycnt;
 
-	if (mountmode == ANY || mountmode == V3) {
-		nfsvers = 3;
-		mntvers = 3;
-		nfsargsp->flags |= NFSMNT_NFSV3;
-	} else {
-		nfsvers = 2;
-		mntvers = 1;
-		nfsargsp->flags &= ~NFSMNT_NFSV3;
-	}
 	nfhret.stat = EACCES;	/* Mark not yet successful */
 	ai = ai_nfs;
 	while (ai != NULL) {
@@ -706,87 +699,139 @@ getnfsargs(spec, nfsargsp)
 tryagain:
 		retrycnt = orgcnt;
 
+		if (mountmode == ANY || mountmode == V3) {
+			nfsvers = 3;
+			mntvers = 3;
+			nfsargsp->flags |= NFSMNT_NFSV3;
+		} else {
+			nfsvers = 2;
+			mntvers = 1;
+			nfsargsp->flags &= ~NFSMNT_NFSV3;
+		}
 		while (retrycnt > 0) {
+			if (port_no != 0) {
+				if (ai_nfs->ai_family == AF_INET6) {
+					((struct sockaddr_in6 *)ai_nfs->
+					   ai_addr)->sin6_port = htons(port_no);
+					nfs_nb.len =
+					    sizeof(struct sockaddr_in6);
+				} else {
+					((struct sockaddr_in *)ai_nfs->
+					   ai_addr)->sin_port = htons(port_no);
+					nfs_nb.len = sizeof(struct sockaddr_in);
+				}
+				memset(&nfs_ss, 0, sizeof(nfs_ss));
+				memcpy(&nfs_ss, ai_nfs->ai_addr, nfs_nb.len);
+			}
 			nfs_nb.buf = &nfs_ss;
 			nfs_nb.maxlen = sizeof nfs_ss;
-			if (!rpcb_getaddr(RPCPROG_NFS, nfsvers, nconf,
-			    &nfs_nb, hostp)){
-				if (rpc_createerr.cf_stat == RPC_SYSTEMERROR) {
-					nfhret.stat = rpc_createerr.cf_error.re_errno;
+			if (port_no == 0 && !rpcb_getaddr(RPCPROG_NFS,
+			    nfsvers, nconf, &nfs_nb, hostp)) {
+				switch (rpc_createerr.cf_stat) {
+				case RPC_SYSTEMERROR:
+					nfhret.stat =
+					    rpc_createerr.cf_error.re_errno;
 					break;
-				}
-				if (rpc_createerr.cf_stat == RPC_UNKNOWNPROTO) {
+				case RPC_UNKNOWNPROTO:
 					nfhret.stat = EPROTONOSUPPORT;
 					break;
+				case RPC_PROGVERSMISMATCH:
+					if (mountmode == ANY) {
+						mountmode = V2;
+						goto tryagain;
+					} else {
+						errx(1,
+						"can't contact NFS server");
+					}
+				default:
 				}
 				if ((opflags & ISBGRND) == 0)
 					clnt_pcreateerror(
 					    "mount_nfs: rpcbind on server");
-			} else {
-				pertry.tv_sec = 10;
-				pertry.tv_usec = 0;
-				/*
-				 * XXX relies on clnt_tcp_create to bind
-				 * to a reserved socket.
-				 */
-				clp = clnt_tp_create(hostp, RPCPROG_MNT, mntvers,
-				    mnttcp_ok ? nconf : getnetconfigent("udp"));
-				if (clp == NULL) {
-					if ((opflags & ISBGRND) == 0)
-						clnt_pcreateerror("Cannot MNT RPC");
+			}
+			/*
+			 * Check if the nfs server supports this
+			 * version of the protocol we want to use.
+			 */
+			clnt_stat = pingnfsport(nfsvers, nconf, &nfs_nb);  
+				
+			if (clnt_stat == RPC_PROGVERSMISMATCH) {
+				if (mountmode == ANY) {
+					mountmode = V2;
+					goto tryagain;
 				} else {
-					CLNT_CONTROL(clp, CLSET_RETRY_TIMEOUT,
-					    (char *)&pertry);
-					clp->cl_auth = authsys_create_default();
-					try.tv_sec = 10;
-					try.tv_usec = 0;
-					if (nfsargsp->flags & NFSMNT_KERB)
-					    nfhret.auth = RPCAUTH_KERB4;
-					else
-					    nfhret.auth = RPCAUTH_UNIX;
-					nfhret.vers = mntvers;
-					clnt_stat = clnt_call(clp, RPCMNT_MOUNT,
-					    xdr_dir, spec, xdr_fh, &nfhret, try);
-					if (clnt_stat != RPC_SUCCESS) {
-						if (clnt_stat == RPC_PROGVERSMISMATCH) {
-							if (mountmode == ANY) {
-								mountmode = V2;
-								goto tryagain;
-							} else {
-								errx(1, "%s",
-								     clnt_sperror(clp, "MNT RPC"));
-							}
+					errx(1, "can't contact NFS server");
+				}
+			}
+			if (clnt_stat != RPC_SUCCESS)
+				errx(1, "can't contact NFS server");
+
+			pertry.tv_sec = 10;
+			pertry.tv_usec = 0;
+			/*
+			 * XXX relies on clnt_tcp_create to bind
+			 * to a reserved socket.
+			 */
+			clp = clnt_tp_create(hostp, RPCPROG_MNT, mntvers,
+			    mnttcp_ok ? nconf : getnetconfigent("udp"));
+			if (clp == NULL) {
+				if ((opflags & ISBGRND) == 0)
+					clnt_pcreateerror("Cannot MNT RPC");
+			} else {
+				CLNT_CONTROL(clp, CLSET_RETRY_TIMEOUT,
+				    (char *)&pertry);
+				clp->cl_auth = authsys_create_default();
+				try.tv_sec = 10;
+				try.tv_usec = 0;
+				if (nfsargsp->flags & NFSMNT_KERB)
+				    nfhret.auth = RPCAUTH_KERB4;
+				else
+				    nfhret.auth = RPCAUTH_UNIX;
+				nfhret.vers = mntvers;
+				clnt_stat = clnt_call(clp, RPCMNT_MOUNT,
+				    xdr_dir, spec, xdr_fh, &nfhret, try);
+				if (clnt_stat != RPC_SUCCESS) {
+					if (clnt_stat == RPC_PROGVERSMISMATCH) {
+						if (mountmode == ANY) {
+							mountmode = V2;
+							goto tryagain;
+						} else {
+							errx(1, "%s",
+							    clnt_sperror(clp,
+							    "MNT RPC"));
 						}
-						if ((opflags & ISBGRND) == 0)
-							warnx("%s", clnt_sperror(clp,
-							    "bad MNT RPC"));
-					} else {
-						retrycnt = 0;
 					}
-					auth_destroy(clp->cl_auth);
-					clnt_destroy(clp);
-					so = RPC_ANYSOCK;
+					if ((opflags & ISBGRND) == 0)
+						warnx("%s", clnt_sperror(clp,
+						    "bad MNT RPC"));
+				} else {
+					retrycnt = 0;
 				}
+				auth_destroy(clp->cl_auth);
+				clnt_destroy(clp);
+				so = RPC_ANYSOCK;
 			}
-			if (--retrycnt > 0) {
-				if (opflags & BGRND) {
-					warnx("Cannot immediately mount %s:%s, "
-					    "backgrounding", hostp, spec);
-					opflags &= ~BGRND;
-					if ((i = fork())) {
-						if (i == -1)
-							err(1, "nqnfs 2");
+		}
+		if (--retrycnt > 0) {
+			if (opflags & BGRND) {
+				warnx("Cannot immediately mount %s:%s, "
+				    "backgrounding", hostp, spec);
+				opflags &= ~BGRND;
+				if ((i = fork())) {
+					if (i == -1)
+						err(1, "nqnfs 2");
 						exit(0);
-					}
-					(void) setsid();
-					(void) close(STDIN_FILENO);
-					(void) close(STDOUT_FILENO);
-					(void) close(STDERR_FILENO);
-					(void) chdir("/");
-					opflags |= ISBGRND;
 				}
-				sleep(60);
+				(void) setsid();
+				(void) close(STDIN_FILENO);
+				(void) close(STDOUT_FILENO);
+				(void) close(STDERR_FILENO);
+				(void) chdir("/");
+				opflags |= ISBGRND;
+			} else {
+					exit (1);
 			}
+			sleep(60);
 		}
 		if (nfhret.stat == 0)
 			break;
@@ -863,6 +908,39 @@ xdr_fh(xdrsp, np)
 		return (1);
 	};
 	return (0);
+}
+
+/*
+ * Return RPC_SUCCESS if server responds on the port. We have to use
+ * clnt_tli_create and then call the null proc of the nfs-server, to
+ * be sure it works.
+ */
+enum clnt_stat
+pingnfsport(version, nconf, nfs_nb)
+        int version;
+	struct netconfig *nconf;
+	struct netbuf *nfs_nb;
+{
+	CLIENT *clp;
+	enum clnt_stat stat;
+	struct timeval try;
+	int so = RPC_ANYSOCK;
+	
+	clp = clnt_tli_create(so, nconf, nfs_nb, RPCPROG_NFS,
+           version, 0, 0);
+
+	if (clp == NULL)
+		return rpc_createerr.cf_stat;
+
+	try.tv_sec = 10;
+	try.tv_usec = 0;
+
+	stat = clnt_call(clp, NFSPROC_NULL,
+	    xdr_void, NULL, xdr_void, NULL, try);
+
+	clnt_destroy(clp);
+
+	return stat;
 }
 
 void
