@@ -6,18 +6,12 @@
 # Note that the newly added -Wcast-qual is responsible for generating 
 # most of the remaining warnings.  Warnings introduced with -Wall will
 # also pop up, but are easier to fix.
-#
-# XXX FIXME - revert to -fformat-extensions when we've re-added it
 CWARNFLAGS?=	-Wall -Wredundant-decls -Wnested-externs -Wstrict-prototypes \
 		-Wmissing-prototypes -Wpointer-arith -Winline -Wcast-qual \
-		-Wno-format -ansi
+		-fformat-extensions -ansi
 #
 # The following flags are next up for working on:
 #	-W
-#
-# When working on removing warnings from code, the `-Werror' flag should be
-# of material assistance.
-#
 
 #
 # On the i386, do not align the stack to 16-byte boundaries.  Otherwise GCC
