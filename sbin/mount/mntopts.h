@@ -54,7 +54,7 @@ struct mntopt {
 #define	MOPT_GQUOTA		{ "groupquota",	0, 0, 0 }
 
 /* Control flags. */
-#define MOPT_FORCE		{ "force",	1, MNT_FORCE, 0 }
+#define MOPT_FORCE		{ "force",	0, MNT_FORCE, 0 }
 #define MOPT_UPDATE		{ "update",	0, MNT_UPDATE, 0 }
 
 /* Support for old-style "ro", "rw" flags. */
