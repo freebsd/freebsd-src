@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.5 1995/05/30 03:50:30 rgrimes Exp $
+ * $Id: command.c,v 1.6 1995/06/16 07:07:56 phk Exp $
  *
  */
 #include <ctype.h>
@@ -629,6 +629,12 @@ char **argv;
 	&DefHisAddress.ipaddr, &DefHisAddress.mask, &DefHisAddress.width);
       if (--argc > 0) {
         ifnetmask = GetIpAddr(*argv);
+    	if (--argc > 0) {
+      		ParseAddr(argc, argv++,
+		        &DefTriggerAddress.ipaddr,
+			&DefTriggerAddress.mask, 
+			&DefTriggerAddress.width);
+	}
       }
     }
   }
