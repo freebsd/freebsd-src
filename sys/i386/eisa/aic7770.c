@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: aic7770.c,v 1.34.2.5 1997/03/01 06:53:07 gibbs Exp $
  */
 
 #if defined(__FreeBSD__)
@@ -56,7 +56,7 @@
 
 #include <i386/eisa/eisaconf.h>
 #include <i386/scsi/aic7xxx.h>
-#include <dev/aic7xxx/aic7xxx_reg.h>
+#include <aic7xxx_reg.h>
 
 #define EISA_DEVICE_ID_ADAPTEC_AIC7770	0x04907770
 #define EISA_DEVICE_ID_ADAPTEC_274x	0x04907771
