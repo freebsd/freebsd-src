@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile.inc1,v 1.34 1998/10/13 10:01:32 rnordier Exp $
+#	$Id: Makefile.inc1,v 1.35 1998/10/16 14:22:54 bde Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -170,12 +170,12 @@ WORLDTMP=	/usr/obj${.CURDIR}/tmp
 # Default root of the tool tree
 TOOLROOT?=	
 # Choose the PATH relative to the root of the tool tree
-PATH=		${TOOLROOT}/sbin:${TOOLROOT}/bin:${TOOLROOT}/usr/sbin:${TOOLROOT}/usr/bin:${TOOLROOT}/usr/games
+PATH=		${TOOLROOT}/sbin:${TOOLROOT}/bin:${TOOLROOT}/usr/sbin:${TOOLROOT}/usr/bin
 .else
 TOOLROOT=	${WORLDTMP}
 .endif
-STRICTTMPPATH=	${TOOLROOT}/sbin:${TOOLROOT}/usr/sbin:${TOOLROOT}/bin:${TOOLROOT}/usr/bin:${TOOLROOT}/usr/games
-TMPPATH=	${STRICTTMPPATH}:${PATH}:/usr/games
+STRICTTMPPATH=	${TOOLROOT}/sbin:${TOOLROOT}/usr/sbin:${TOOLROOT}/bin:${TOOLROOT}/usr/bin
+TMPPATH=	${STRICTTMPPATH}:${PATH}
 
 # XXX COMPILER_PATH is needed for finding cc1, ld and as
 # XXX GCC_EXEC_PREFIX is for *crt.o.  It is probably unnecessary now
