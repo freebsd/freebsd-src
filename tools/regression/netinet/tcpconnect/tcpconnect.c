@@ -39,7 +39,7 @@
 #include <unistd.h>
 
 static void
-usage(volid)
+usage(void)
 {
 
 	fprintf(stderr, "tcpconnect server port\n");
