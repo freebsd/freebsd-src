@@ -874,7 +874,7 @@ icmp6_input(mp, offp, proto)
 static int
 icmp6_notify_error(m, off, icmp6len, code)
 	struct mbuf *m;
-	int off, icmp6len;
+	int off, icmp6len, code;
 {
 	struct icmp6_hdr *icmp6;
 	struct ip6_hdr *eip6;
