@@ -80,9 +80,6 @@
 
 #include <netinet6/ip6protosw.h>
 
-extern struct ip6protosw inet6sw[];
-extern u_char ip6_protox[IPPROTO_MAX];
-
 struct	route_in6 ip6_forward_rt;
 
 /*
