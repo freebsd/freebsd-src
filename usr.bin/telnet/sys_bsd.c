@@ -704,6 +704,14 @@ TerminalNewMode(f)
 
 }
 
+/*
+ * Try to guess whether speeds are "encoded" (4.2BSD) or just numeric (4.4BSD).
+ */
+#if B4800 != 4800
+#define	DECODE_BAUD
+#endif
+
+#ifdef	DECODE_BAUD
 #ifndef	B19200
 # define B19200 B9600
 #endif
@@ -728,13 +736,16 @@ struct termspeeds {
 	{ 4800,  B4800 },  { 9600,  B9600 }, { 19200, B19200 },
 	{ 38400, B38400 }, { -1,    B38400 }
 };
+#endif	/* DECODE_BAUD */
 
     void
 TerminalSpeeds(ispeed, ospeed)
     long *ispeed;
     long *ospeed;
 {
+#ifdef	DECODE_BAUD
     register struct termspeeds *tp;
+#endif	/* DECODE_BAUD */
     register long in, out;
 
     out = cfgetospeed(&old_tc);
@@ -742,6 +753,7 @@ TerminalSpeeds(ispeed, ospeed)
     if (in == 0)
 	in = out;
 
+#ifdef	DECODE_BAUD
     tp = termspeeds;
     while ((tp->speed != -1) && (tp->value < in))
 	tp++;
@@ -751,6 +763,10 @@ TerminalSpeeds(ispeed, ospeed)
     while ((tp->speed != -1) && (tp->value < out))
 	tp++;
     *ospeed = tp->speed;
+#else	/* DECODE_BAUD */
+	*ispeed = in;
+	*ospeed = out;
+#endif	/* DECODE_BAUD */
 }
 
     int
