@@ -138,7 +138,7 @@ soalloc(int mflags)
 	so = uma_zalloc(socket_zone, mflags | M_ZERO);
 	if (so) {
 #ifdef MAC
-		error = mac_init_socket(so, flag);
+		error = mac_init_socket(so, mflags | M_ZERO);
 		if (error != 0) {
 			uma_zfree(socket_zone, so);
 			so = NULL;
