@@ -1,24 +1,28 @@
-.Dd September 9, 1995
-.Os FreeBSD 2.1
+.Dd May 9, 1997
+.Os FreeBSD 2.2
 .Dt SGMLFMT 1
 .Sh NAME
 .Nm sgmlfmt
-.Nd Formats SGML files tagged according to the linuxdoc DTD.
+.Nd Formats linuxdoc and DocBook SGML documents.
 .Sh SYNOPSIS
 .Nm
+.Op Fl d Ar doctype
 .Fl f Ar format
-.Op Fl links
-.Op Fl ssi
 .Op Fl i Ar name ...
+.Op Fl links
+.Op Fl e Ar encoding
+.Op Fl hdr Ar file
+.Op Fl ftr Ar file
 .Ar file
 .Sh DESCRIPTION
 The
 .Nm
-command reads SGML files tagged according to the linuxdoc DTD,
+command reads SGML files tagged according to the linuxdoc or
+DocBook DTD,
 validates them using the
 .Xr sgmls 1
 parser and then converts them to the specified output format.
-The input file must include the following document type
+Linuxdoc input files must include the following document type
 declaration before any uncommented text:
 .Bd -literal -offset indent
 <!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN">
@@ -28,6 +32,16 @@ Options for
 .Nm
 include the following:
 .Bl -tag -width Ds
+.It Fl d Ar doctype
+Specifies the SGML document type of the source file.  Currently
+supported document types are
+.Ar linuxdoc
+and 
+.Ar docbook .
+If no
+.Fl d
+option is specified, the default is
+.Ar linuxdoc .
 .It Fl f Ar format
 Determines the output format which can be one of the following:
 .Bl -tag -width Ds
@@ -52,13 +66,6 @@ Generates a single output file with the extension
 .Pa .koi8-r
 suitable for viewing on an terminal supporting the KOI8-R
 character encoding. 
-.It Ar latex
-Generates a single output file with the extension
-.Pa .latex
-suitable for processing with LaTeX.  Note that the LaTeX style
-file
-.Pa /usr/share/sgml/FreeBSD/linuxdoc.sty
-must be accessible to LaTeX for correct processing.
 .It Ar latin1
 Generates a single output file with the extension 
 .Pa .latin1
@@ -121,43 +128,30 @@ links becoming invalid when the target document is modified.
 When creating a symbolic link, any occurrence of a slash (/) in label 
 is replaced with percent (%), while any occurrence of a space is replaced
 with an underscore (_).
-.It Fl ssi
+.It Fl e Ar encoding
 When used with the
 .Fl f Ar html
-option, hooks will be placed to have an http server include a
-custom header and footer on the document using the server side
-include mechanism.  This mechanism is supported by the Apache and
-NCSA http servers and possibly others.  Included files are named
-.Pa file.hdr
-and 
-.Pa file.ftr
-for the header and footer of the
-.Pa file.html .
-Other pages include file are named
-.Pa file.ftr1 ,
-.Pa file.ftr2 ...
-.Pa file.ftrn
-where the number corresponds to the depth of the file from
-.Pa file.html .
+option, specifies document encoding to use for the generated
+HTML files.  If this option is not specified, iso-8859-1 is used.
+.It Fl hdr Ar file
+When used with the
+.Fl f Ar html
+option, the specified file will be inserted at the beginning of the
+body element of each generated HTML file.
+.It Fl ftr Ar file
+When used with the
+.Fl f Ar html
+option, the specified file will be inserted at the end of the
+body element of each generated HTML file.
 .El
 .Pp
-If the input file name ends with
-.Pa .sgml ,
-the extension may be omitted on the command line.
 In all cases, the output files are created in the current working
 directory.
 .Sh FILES
-.Pa /usr/share/sgml/FreeBSD/linuxdoc.dtd
-- the linuxdoc DTD.
-.Pp
 .Pa /usr/share/sgml/transpec
 - directory containing translation specification files for
 .Xr instant 1 .
 .Pp
-.Pa /usr/share/sgml/FreeBSD/linuxdoc.sty
-- the LaTeX style used in documents produced with the
-.Fl f Ar latex
-format option.
 .Sh SEE ALSO
 .Xr groff 1 ,
 .Xr instant 1 ,
