@@ -109,7 +109,7 @@ setterm(type)
 #endif
 
 	/* Try TIOCGWINSZ, and, if it fails, the termcap entry. */
-	if (ioctl(STDERR_FILENO, TIOCGWINSZ, &win) != -1 &&
+	if (ioctl(__tty_fileno, TIOCGWINSZ, &win) != -1 &&
 	    win.ws_row != 0 && win.ws_col != 0) {
 		LINES = win.ws_row;
 		COLS = win.ws_col;
