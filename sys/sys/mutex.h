@@ -100,17 +100,19 @@ void	mtx_init(struct mtx *m, const char *name, const char *type, int opts);
 void	mtx_destroy(struct mtx *m);
 void	mtx_sysinit(void *arg);
 void	mutex_init(void);
-void	_mtx_lock_sleep(struct mtx *m, int opts, const char *file, int line);
+void	_mtx_lock_sleep(struct mtx *m, struct thread *td, int opts,
+	    const char *file, int line);
 void	_mtx_unlock_sleep(struct mtx *m, int opts, const char *file, int line);
-void	_mtx_lock_spin(struct mtx *m, int opts, const char *file, int line);
+void	_mtx_lock_spin(struct mtx *m, struct thread *td, int opts,
+	    const char *file, int line);
 void	_mtx_unlock_spin(struct mtx *m, int opts, const char *file, int line);
 int	_mtx_trylock(struct mtx *m, int opts, const char *file, int line);
 void	_mtx_lock_flags(struct mtx *m, int opts, const char *file, int line);
 void	_mtx_unlock_flags(struct mtx *m, int opts, const char *file, int line);
 void	_mtx_lock_spin_flags(struct mtx *m, int opts, const char *file,
-			     int line);
+	     int line);
 void	_mtx_unlock_spin_flags(struct mtx *m, int opts, const char *file,
-			     int line);
+	     int line);
 #ifdef INVARIANT_SUPPORT
 void	_mtx_assert(struct mtx *m, int what, const char *file, int line);
 #endif
@@ -144,8 +146,10 @@ void	_mtx_assert(struct mtx *m, int what, const char *file, int line);
  */
 #ifndef _get_sleep_lock
 #define _get_sleep_lock(mp, tid, opts, file, line) do {			\
-	if (!_obtain_lock((mp), (tid)))					\
-		_mtx_lock_sleep((mp), (opts), (file), (line));		\
+	struct thread *_tid = (tid);					\
+									\
+	if (!_obtain_lock((mp), _tid))					\
+		_mtx_lock_sleep((mp), _tid, (opts), (file), (line));	\
 } while (0)
 #endif
 
@@ -158,12 +162,14 @@ void	_mtx_assert(struct mtx *m, int what, const char *file, int line);
  */
 #ifndef _get_spin_lock
 #define _get_spin_lock(mp, tid, opts, file, line) do {			\
+	struct thread *_tid = (tid);					\
+									\
 	critical_enter();						\
-	if (!_obtain_lock((mp), (tid))) {				\
-		if ((mp)->mtx_lock == (uintptr_t)(tid))			\
+	if (!_obtain_lock((mp), _tid)) {				\
+		if ((mp)->mtx_lock == (uintptr_t)_tid)			\
 			(mp)->mtx_recurse++;				\
 		else							\
-			_mtx_lock_spin((mp), (opts), (file), (line));	\
+			_mtx_lock_spin((mp), _tid, (opts), (file), (line)); \
 	}								\
 } while (0)
 #endif
