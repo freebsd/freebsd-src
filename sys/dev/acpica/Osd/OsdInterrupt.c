@@ -137,10 +137,10 @@ acpi_OverrideInterruptLevel(UINT32 InterruptNumber)
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
-	if (InterruptOverride != 0)
-		return_ACPI_STATUS(AE_ALREADY_EXISTS);
-	InterruptOverride = InterruptNumber;
-	return_ACPI_STATUS(AE_OK);
+    if (InterruptOverride != 0)
+	return_ACPI_STATUS(AE_ALREADY_EXISTS);
+    InterruptOverride = InterruptNumber;
+    return_ACPI_STATUS(AE_OK);
 }
 
 /*
