@@ -31,8 +31,10 @@
 /*
  * Machine-dependent defines for new kernel debugger.
  */
-#ifndef _PPC_DB_MACHDEP_H_
-#define	_PPC_DB_MACHDEP_H_
+#ifndef _POWERPC_DB_MACHDEP_H_
+#define	_POWERPC_DB_MACHDEP_H_
+
+#define	PPC_MPC6XX
 
 #include <vm/vm_param.h>
 
@@ -45,6 +47,13 @@ struct powerpc_saved_state {
 	u_int32_t	r[32];		/* data registers */
 	u_int32_t	iar;
 	u_int32_t	msr;
+	u_int32_t	lr;
+	u_int32_t	ctr;
+	u_int32_t	cr;
+	u_int32_t	xer;
+	u_int32_t	dear;
+	u_int32_t	esr;
+	u_int32_t	pid;
 };
 typedef struct powerpc_saved_state db_regs_t;
 extern db_regs_t	ddb_regs;	/* register state */
@@ -57,7 +66,7 @@ extern db_regs_t	ddb_regs;	/* register state */
 #define	BKPT_SIZE	(4)		/* size of breakpoint inst */
 #define	BKPT_SET(inst)	(BKPT_INST)
 
-#define	FIXUP_PC_AFTER_BREAK(regs)	((regs)->iar -= 4)
+#define	FIXUP_PC_AFTER_BREAK	(DDB_REGS)->iar -= 4;
 
 #define	SR_SINGLESTEP	0x400
 #define	db_clear_single_step(regs)	((regs)->msr &= ~SR_SINGLESTEP)
@@ -89,6 +98,9 @@ extern db_regs_t	ddb_regs;	/* register state */
 #define	inst_load(ins)		0
 #define	inst_store(ins)		0
 
+#define	DB_SMALL_VALUE_MAX	(0x7fffffff)
+#define	DB_SMALL_VALUE_MIN	(-0x40001)
+
 #ifdef _KERNEL
 
 void	kdb_kintr(void *);
@@ -96,4 +108,4 @@ int	kdb_trap(int, void *);
 
 #endif /* _KERNEL */
 
-#endif	/* _PPC_DB_MACHDEP_H_ */
+#endif	/* _POWERPC_DB_MACHDEP_H_ */
