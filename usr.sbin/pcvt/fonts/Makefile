@@ -24,11 +24,11 @@ CLEANFILES= 	${FONTS}
 all: $(FONTS)
 
 install: ${FONTS}
-	@if [ ! -d ${FONTDIR} ]; then mkdir ${FONTDIR};fi
+	@if [ ! -d ${DESTDIR}${FONTDIR} ]; then mkdir ${DESTDIR}${FONTDIR};fi
 	@for i in ${FONTS}; do \
-		echo "installing font $$i into ${FONTDIR}"; \
+		echo "installing font $$i into ${DESTDIR}${FONTDIR}"; \
 		install -c -m ${LIBMODE} -o ${LIBOWN} -g ${LIBGRP} \
-		$$i ${FONTDIR}; \
+		$$i ${DESTDIR}${FONTDIR}; \
 	done
 
 clean:
