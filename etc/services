@@ -9,7 +9,7 @@
 # Kerberos services are for Kerberos v4, and are unofficial.  Sites running
 # v5 should uncomment v5 entries and comment v4 entries.
 #
-#	$Id: services,v 1.27.2.20 1998/07/04 01:58:14 brian Exp $
+#	$Id: services,v 1.27.2.21 1998/07/04 22:13:30 jdp Exp $
 #	From: @(#)services	5.8 (Berkeley) 5/9/91
 #
 # WELL KNOWN PORT NUMBERS
@@ -1533,7 +1533,6 @@ bgpd		2605/tcp   #BGPd vty
 listen		2766/tcp			# System V listener port
 www-dev		2784/tcp   #world wide web - development
 www-dev		2784/udp   #world wide web - development
-ppp		3000/tcp   #User-level ppp daemon
 NSWS		3049/tcp
 NSWS		3049/udp
 sj3		3086/tcp   #SJ3 (kanji input)
