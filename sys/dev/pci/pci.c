@@ -671,7 +671,7 @@ pci_add_map(device_t pcib, int b, int s, int f, int reg,
 	map = PCIB_READ_CONFIG(pcib, b, s, f, reg, 4);
 
 	if (map == 0 || map == 0xffffffff)
-		return 1; /* skip invalid entry */
+		return (1); /* skip invalid entry */
 
 	PCIB_WRITE_CONFIG(pcib, b, s, f, reg, 0xffffffff, 4);
 	testval = PCIB_READ_CONFIG(pcib, b, s, f, reg, 4);
@@ -721,15 +721,15 @@ pci_add_map(device_t pcib, int b, int s, int f, int reg,
 	}
 #else
         if (type == SYS_RES_IOPORT && !pci_porten(pcib, b, s, f))
-                return 1;
+                return (1);
         if (type == SYS_RES_MEMORY && !pci_memen(pcib, b, s, f))
-		return 1;
+		return (1);
 #endif
 
 	resource_list_add(rl, type, reg, base, base + (1 << ln2size) - 1,
 	    (1 << ln2size));
 
-	return (ln2range == 64) ? 2 : 1;
+	return ((ln2range == 64) ? 2 : 1);
 }
 
 static void
@@ -812,7 +812,7 @@ pci_probe(device_t dev)
 	 */
 	busno = pcib_get_bus(dev);
 	if (busno < 0)
-		return ENXIO;
+		return (ENXIO);
 	pci_add_children(dev, busno);
 
 	if (!once) {
@@ -829,7 +829,7 @@ pci_probe(device_t dev)
 		once++;
 	}
 
-	return 0;
+	return (0);
 }
 
 int
@@ -1141,9 +1141,9 @@ pci_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 		*result = cfg->func;
 		break;
 	default:
-		return ENOENT;
+		return (ENOENT);
 	}
-	return 0;
+	return (0);
 }
 
 int
@@ -1170,12 +1170,12 @@ pci_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
 	case PCI_IVAR_BUS:
 	case PCI_IVAR_SLOT:
 	case PCI_IVAR_FUNCTION:
-		return EINVAL;	/* disallow for now */
+		return (EINVAL);	/* disallow for now */
 
 	default:
-		return ENOENT;
+		return (ENOENT);
 	}
-	return 0;
+	return (0);
 }
 
 struct resource *
@@ -1197,7 +1197,7 @@ pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		 * deserving of  an interrupt, try to assign it one.
 		 */
 		if ((type == SYS_RES_IRQ) &&
-		    (cfg->intline == 255 || cfg->intline == 0) && /* 0 bad? */
+		    (cfg->intline == 255 || cfg->intline == 0) &&
 		    (cfg->intpin != 0)) {
 			cfg->intline = PCIB_ROUTE_INTERRUPT(
 				device_get_parent(dev), child, cfg->intpin);
@@ -1210,8 +1210,8 @@ pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		}
 	}
 
-	return resource_list_alloc(rl, dev, child, type, rid,
-	    start, end, count, flags);
+	return (resource_list_alloc(rl, dev, child, type, rid,
+	    start, end, count, flags));
 }
 
 void
@@ -1242,7 +1242,10 @@ pci_delete_resource(device_t dev, device_t child, int type, int rid)
 		}
 		resource_list_delete(rl, type, rid);
 	}
-	/* I don't understand the next line */
+	/* 
+	 * Why do we turn off the PCI configuration BAR when we delete a
+	 * resource? -- imp
+	 */
 	pci_write_config(child, rid, 0, 4);
 	BUS_DELETE_RESOURCE(device_get_parent(dev), child, type, rid);
 }
@@ -1265,13 +1268,13 @@ pci_read_config_method(device_t dev, device_t child, int reg, int width)
 	struct pci_devinfo *dinfo = device_get_ivars(child);
 	pcicfgregs *cfg = &dinfo->cfg;
 
-	return PCIB_READ_CONFIG(device_get_parent(dev),
-	    cfg->bus, cfg->slot, cfg->func, reg, width);
+	return (PCIB_READ_CONFIG(device_get_parent(dev),
+	    cfg->bus, cfg->slot, cfg->func, reg, width));
 }
 
 void
-pci_write_config_method(device_t dev, device_t child, int reg,
-			u_int32_t val, int width)
+pci_write_config_method(device_t dev, device_t child, int reg, 
+    u_int32_t val, int width)
 {
 	struct pci_devinfo *dinfo = device_get_ivars(child);
 	pcicfgregs *cfg = &dinfo->cfg;
@@ -1293,5 +1296,5 @@ pci_modevent(module_t mod, int what, void *arg)
 		break;
 	}
 
-	return 0;
+	return (0);
 }
