@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vnops.c,v 1.59 1998/02/23 09:39:27 ache Exp $ */
+/*	$Id: msdosfs_vnops.c,v 1.60 1998/02/23 16:44:36 ache Exp $ */
 /*	$NetBSD: msdosfs_vnops.c,v 1.68 1998/02/10 14:10:04 mrg Exp $	*/
 
 /*-
@@ -1743,6 +1743,7 @@ msdosfs_readdir(ap)
 			if (chksum != winChksum(dentp->deName))
 				dirbuf.d_namlen = dos2unixfn(dentp->deName,
 				    (u_char *)dirbuf.d_name,
+				    pmp->pm_flags & MSDOSFSMNT_SHORTNAME,
 				    pmp->pm_flags & MSDOSFSMNT_U2WTABLE,
 				    pmp->pm_d2u,
 				    pmp->pm_flags & MSDOSFSMNT_ULTABLE,
