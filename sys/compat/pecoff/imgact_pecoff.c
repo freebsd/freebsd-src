@@ -189,6 +189,7 @@ pecoff_coredump(register struct thread * td, register struct vnode * vp,
 	if (tempuser == NULL)
 		return (ENOMEM);
 	bcopy(p->p_uarea, tempuser, sizeof(struct user));
+	bcopy(td->td_frame,
 	    tempuser + ctob(UAREA_PAGES) +
 	    ((caddr_t) td->td_frame - (caddr_t) td->td_kstack),
 	    sizeof(struct trapframe));
