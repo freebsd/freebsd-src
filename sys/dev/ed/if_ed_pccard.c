@@ -49,11 +49,14 @@
 #include <dev/ed/if_edreg.h>
 #include <dev/ed/if_edvar.h>
 #include <dev/pccard/pccardvar.h>
+#include <dev/pccard/pccarddevs.h>
+
 #include "card_if.h"
 
 /*
  *      PC-Card (PCMCIA) specific code.
  */
+static int	ed_pccard_match(device_t);
 static int	ed_pccard_probe(device_t);
 static int	ed_pccard_attach(device_t);
 static int	ed_pccard_detach(device_t);
@@ -64,10 +67,14 @@ static int	linksys;
 
 static device_method_t ed_pccard_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		ed_pccard_probe),
-	DEVMETHOD(device_attach,	ed_pccard_attach),
+	DEVMETHOD(device_probe,		pccard_compat_probe),
+	DEVMETHOD(device_attach,	pccard_compat_attach),
 	DEVMETHOD(device_detach,	ed_pccard_detach),
 
+	/* Card interface */
+	DEVMETHOD(card_compat_match,	ed_pccard_match),
+	DEVMETHOD(card_compat_probe,	ed_pccard_probe),
+	DEVMETHOD(card_compat_attach,	ed_pccard_attach),
 	{ 0, 0 }
 };
 
@@ -107,6 +114,25 @@ ed_pccard_detach(device_t dev)
 	bus_teardown_intr(dev, sc->irq_res, sc->irq_handle);
 	ed_release_resources(dev);
 	return (0);
+}
+
+const struct pccard_product sn_pccard_products[] = {
+	{ PCCARD_STR_KINGSTON_KNE2,		PCCARD_VENDOR_KINGSTON,
+	  PCCARD_PRODUCT_KINGSTON_KNE2,		0, NULL, NULL },
+	{ NULL }
+};
+
+static int
+ed_pccard_match(device_t dev)
+{
+	const struct pccard_product *pp;
+
+	if ((pp = pccard_product_lookup(dev, sn_pccard_products,
+	    sizeof(sn_pccard_products[0]), NULL)) != NULL) {
+		device_set_desc(dev, pp->pp_name);
+		return 0;
+	}
+	return EIO;
 }
 
 /* 
@@ -269,6 +295,7 @@ ed_pccard_memwrite(device_t dev, off_t offset, u_char byte)
 
 	bus_space_write_1(rman_get_bustag(cis), rman_get_bushandle(cis), offset, byte);
 
+	bus_deactivate_resource(dev, SYS_RES_MEMORY, cis_rid, cis);
 	bus_release_resource(dev, SYS_RES_MEMORY, cis_rid, cis);
 
 	return (0);
