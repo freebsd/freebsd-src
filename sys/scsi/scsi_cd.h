@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id$
+ *	$Id: scsi_cd.h,v 1.10 1997/02/22 09:44:28 peter Exp $
  */
 #ifndef	_SCSI_SCSI_CD_H
 #define _SCSI_SCSI_CD_H 1
@@ -129,7 +129,6 @@ struct scsi_read_toc
 	u_char	data_len[2];
 	u_char	control;
 };
-;
 
 struct scsi_read_cd_capacity
 {
