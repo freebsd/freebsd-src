@@ -1,4 +1,4 @@
-/*  $Id: dist.h,v 1.35 1999/05/14 07:15:04 jkh Exp $  */
+/*  $Id: dist.h,v 1.36 1999/07/02 02:00:23 jkh Exp $  */
 
 #ifndef _DIST_H_INCLUDE
 #define _DIST_H_INCLUDE
@@ -12,11 +12,13 @@
 #define DIST_SRC		0x00020
 #define DIST_DOC		0x00040
 #define DIST_INFO		0x00080
+#ifdef __i386__			/* only applicable on x86 */
 #define DIST_COMPAT1X		0x00100
 #define DIST_COMPAT20		0x00200
 #define DIST_COMPAT21		0x00400
 #define DIST_COMPAT22		0x00800
 #define DIST_COMPAT3X		0x01000
+#endif
 #define DIST_XF86		0x02000
 #define DIST_DES		0x04000
 #define DIST_CATPAGES		0x08000
