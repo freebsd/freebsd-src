@@ -24,6 +24,15 @@ stop_cmd="ipsec_stop"
 reload_cmd="ipsec_reload"
 extra_commands="reload"
 
+case `${CMD_OSTYPE}` in
+FreeBSD)
+	ipsec_program="/usr/sbin/setkey"
+	;;
+NetBSD)
+	ipsec_program="/sbin/setkey"
+	;;
+esac
+
 ipsec_prestart()
 {
 	if [ ! -f "$ipsec_file" ]; then
@@ -45,7 +54,7 @@ ipsec_prestart()
 ipsec_start()
 {
 	echo "Installing ipsec manual keys/policies."
-	/sbin/setkey -f $ipsec_file
+	${ipsec_program} -f $ipsec_file
 }
 
 ipsec_stop()
@@ -56,16 +65,16 @@ ipsec_stop()
 	# it is very questionable to do this during shutdown session, since
 	# it can hang any of remaining IPv4/v6 session.
 	#
-	/sbin/setkey -F
-	/sbin/setkey -FP
+	${ipsec_program} -F
+	${ipsec_program} -FP
 }
 
 ipsec_reload()
 {
 	echo "Reloading ipsec manual keys/policies."
-	/sbin/setkey -F
-	/sbin/setkey -FP
-	/sbin/setkey -f "$ipsec_file"
+	${ipsec_program} -F
+	${ipsec_program} -FP
+	${ipsec_program} -f "$ipsec_file"
 }
 
 load_rc_config $name
