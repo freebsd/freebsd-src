@@ -291,7 +291,8 @@ astclose(dev_t dev, int flags, int fmt, struct thread *td)
 
     stp->flags &= F_CTL_WARN;
 #ifdef AST_DEBUG
-    ata_prtdev(stp->device, "%llu total bytes transferred\n", ast_total);
+    ata_prtdev(stp->device, "%llu total bytes transferred\n",
+	(unsigned long long)ast_total);
 #endif
     return 0;
 }
