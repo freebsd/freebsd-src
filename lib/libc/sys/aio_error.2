@@ -46,7 +46,7 @@ associated with the structure pointed to by
 If the asynchronous I/O request has completed successfully,
 .Fn aio_error
 returns 0.  If the request has not yet completed,
-.Dv EINPROGRESS 
+.Er EINPROGRESS 
 is returned.  If the request has completed unsuccessfully the error
 status is returned as described in
 .Xr read 2 ,

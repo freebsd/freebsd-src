@@ -81,5 +81,7 @@ if called while there are threads blocked on
 .Fa sem ,
 but this implementation is guaranteed to return -1 and set
 .Va errno
-to EBUSY if there are threads blocked on
+to
+.Er EBUSY
+if there are threads blocked on
 .Fa sem .
