@@ -28,7 +28,7 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif
 
-static char Options[] = "acdDe:fhiIkl:LmopqrRst:v";
+static char Options[] = "acdDe:fghiIkl:LmopqrRst:v";
 
 int	Flags		= 0;
 Boolean AllInstalled	= FALSE;
@@ -86,6 +86,10 @@ main(int argc, char **argv)
 
 	case 'f':
 	    Flags |= SHOW_PLIST;
+	    break;
+
+	case 'g':
+	    Flags |= SHOW_CKSUM;
 	    break;
 
 	case 'i':

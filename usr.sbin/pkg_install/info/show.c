@@ -30,6 +30,7 @@ static const char rcsid[] =
 #include <stdlib.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <md5.h>
 
 void
 show_file(char *title, char *fname)
@@ -255,6 +256,35 @@ show_size(char *title, Package *plist)
 	printf("%lu\t(%s)\n", howmany(size, blksize), descr);
     else
 	printf("%lu\n", size);
+}
+
+/* Show files that don't match the recorded checksum */
+void
+show_cksum(char *title, Package *plist)
+{
+    PackingList p;
+    char *dir = ".";
+    char tmp[FILENAME_MAX];
+
+    if (!Quiet)
+	printf("%s%s", InfoPrefix, title);
+
+    for (p = plist->head; p != NULL; p = p->next)
+	if (p->type == PLIST_CWD) 
+	    dir = p->name;
+	else if (p->type == PLIST_FILE) {
+	    snprintf(tmp, FILENAME_MAX, "%s/%s", dir, p->name);
+	    if (!fexists(tmp))
+		warnx("%s doesn't exist\n", tmp);
+	    else if (p->next && p->next->type == PLIST_COMMENT && !strncmp(p->next->name, "MD5:", 4)) {
+		char *cp, buf[33];
+		if ((cp = MD5File(tmp, buf)) != NULL)
+		    if (strcmp(cp, p->next->name + 4))
+			printf("%s fails the original MD5 checksum\n", tmp);
+		    else if (Verbose)
+			printf("%s matched the original MD5 checksum\n", tmp);
+	    }
+	}
 }
 
 /* Show an "origin" path (usually category/portname) */
