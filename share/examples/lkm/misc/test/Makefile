@@ -34,7 +34,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $Id$
+# $Id: Makefile,v 1.2 1995/07/27 09:45:26 joerg Exp $
 #
 PROG=	testmisc
 NOMAN=
@@ -63,7 +63,3 @@ unload:
 	${MODSTAT} -n misc_mod
 
 .include <bsd.prog.mk>
-
-#
-# EOF -- This file has not been truncated.
-#
