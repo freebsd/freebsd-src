@@ -123,6 +123,9 @@ ieee80211_sysctl_attach(struct ieee80211com *ic)
 		"inact_init", CTLTYPE_INT | CTLFLAG_RW, &ic->ic_inact_init, 0,
 		ieee80211_sysctl_inact, "I",
 		"station initial state timeout (sec)");
+	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
+		"driver_caps", CTLFLAG_RW, &ic->ic_caps, 0,
+		"driver capabilities");
 	ic->ic_sysctl = ctx;
 }
 
@@ -258,9 +261,9 @@ ieee80211_notify_replay_failure(struct ieee80211com *ic,
 	struct ifnet *ifp = ic->ic_ifp;
 
 	IEEE80211_DPRINTF(ic, IEEE80211_MSG_CRYPTO,
-		"[%s] %s replay detected <rsc %ju, csc %ju>\n",
+		"[%s] %s replay detected <rsc %ju, csc %ju, keyix %u>\n",
 		ether_sprintf(wh->i_addr2), k->wk_cipher->ic_name,
-		(intmax_t) rsc, (intmax_t) k->wk_keyrsc);
+		(intmax_t) rsc, (intmax_t) k->wk_keyrsc, k->wk_keyix);
 
 	if (ifp != NULL) {		/* NB: for cipher test modules */
 		struct ieee80211_replay_event iev;
@@ -282,7 +285,7 @@ ieee80211_notify_michael_failure(struct ieee80211com *ic,
 	struct ifnet *ifp = ic->ic_ifp;
 
 	IEEE80211_DPRINTF(ic, IEEE80211_MSG_CRYPTO,
-		"[%s] Michael MIC verification failed <keyidx %d>\n",
+		"[%s] michael MIC verification failed <keyix %u>\n",
 	       ether_sprintf(wh->i_addr2), keyix);
 	ic->ic_stats.is_rx_tkipmic++;
 
