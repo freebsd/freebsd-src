@@ -49,7 +49,7 @@
 .Xc
 .Fl S Ar int
 .Fl U Ar int
-.Op Ar cmd [args ...]
+.Op Ar cmd Op Ar args ...
 .Sh DESCRIPTION
 .Nm Doscmd
 can either emulate a subset of DOS and run the
@@ -547,9 +547,9 @@ file names by converting to all upper case and eliminating any invalid
 character.  It does not make any attempt to convert ASCII files into
 the
 .Cm <CR><LF>
-format favored in the DOS world.  Use the program
-.Xr bsd2dos 1
-to convert ASCII files.
+format favored in the DOS world.  Use
+.Xr fconv 1
+(part of the ports collection) or similar tools to convert ASCII files.
 .bp
 .Sh DISK TYPES
 .TS H
@@ -659,7 +659,7 @@ and has the commands fdisk, format and sys on it.  You should also
 copy the file redir.com onto the floppy by either mounting it
 with the msdos file system type or by using mtools
 (e.g.,
-.Li mwrite redir.com a: ).
+.Dq Li mwrite redir.com a: ) .
 .It 3
 run doscmd.
 .It 4

@@ -44,7 +44,7 @@
 .Op Ar
 .Sh DESCRIPTION
 The symbol table (name list) of each object in
-.Ar file(s)
+.Ar file Ns (s)
 is displayed.
 If a library (archive) is given,
 .Nm 
@@ -114,6 +114,33 @@ warn if next symbol is referenced
 .Pp
 If the symbol is local (non-external) the type letter is in lower case.
 The output is sorted alphabetically.
+.Sh KEYWORDS
+The following is a complete list of keywords and their meaning.
+The keyword is uppercase for external, lowercase for internal symbols.
+Only uppercase keywords are shown here.
+.Pp
+.Bl -tag -width sigignore -compact
+.It A
+Absolute Address
+.It B
+BSS Segment
+.It C
+Common Reference
+.It D
+Data Segment
+.It F
+Filename (external only)
+.It w
+Warning refs (internal only)
+.It I
+Alias definition
+.It T
+Text Segment
+.It U
+Undefined
+.It ?
+None of the above
+.El
 .Sh SEE ALSO
 .Xr ar 1 ,
 .Xr a.out 5 ,

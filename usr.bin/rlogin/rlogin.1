@@ -214,16 +214,14 @@ Determines the user's terminal type.
 .Xr hosts.equiv 5 ,
 .Xr hosts 5 ,
 .Xr rlogind 8 ,
-.Xr rshd 8 .
+.Xr rshd 8
 .Sh FILES
 .Bl -tag -width /etc/hosts -compact
 .It Pa /etc/hosts
 .It Pa /etc/hosts.equiv
 .It Pa /etc/auth.conf
-.Sm off
-.It Pa Ev $HOME /.rhosts
-.It Pa Ev $HOME /.klogin
-.Sm on
+.It Ev $HOME Ns Pa /.rhosts
+.It Ev $HOME Ns Pa /.klogin
 .El
 .Sh HISTORY
 The
