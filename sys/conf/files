@@ -272,6 +272,12 @@ smbus_if.h		optional smbus					\
 dev/smbus/smbconf.c	optional smbus
 dev/smbus/smbus.c	optional smbus
 dev/smbus/smb.c		optional smb
+dev/si/si.c		optional si
+dev/si/si2_z280.c	optional si
+dev/si/si3_t225.c	optional si
+dev/si/si_eisa.c	optional si eisa
+dev/si/si_isa.c		optional si isa
+dev/si/si_pci.c		optional si pci
 dev/sn/if_sn.c		optional sn
 dev/sn/if_sn_isa.c	optional sn isa
 dev/sn/if_sn_pccard.c	optional sn card

@@ -253,9 +253,6 @@ i386/isa/random_machdep.c	standard
 i386/isa/rc.c			optional	rc
 i386/isa/rp.c			optional	rp
 i386/isa/scd.c			optional	scd
-i386/isa/si.c			optional	si
-i386/isa/si2_z280.c		optional	si
-i386/isa/si3_t225.c		optional	si
 i386/isa/sound/ad1848.c		optional	css
 i386/isa/sound/ad1848.c		optional	gus
 i386/isa/sound/ad1848.c		optional	gusxvi
