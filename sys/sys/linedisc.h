@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)conf.h	8.5 (Berkeley) 1/9/95
- * $Id: conf.h,v 1.74 1999/08/15 09:32:44 phk Exp $
+ * $Id: conf.h,v 1.75 1999/08/17 20:25:48 billf Exp $
  */
 
 #ifndef _SYS_CONF_H_
@@ -61,6 +61,7 @@ struct specinfo {
 	char		si_name[SPECNAMELEN + 1];
 	void		*si_drv1, *si_drv2;
 	struct cdevsw	*si_devsw;
+	void 		*si_devfs;	/* save cookie for devfs operations */
 	union {
 		struct {
 			struct tty *__sit_tty;
@@ -272,7 +273,7 @@ int	lminor __P((dev_t dev));
 void	setconf __P((void));
 
 /*
- * XXX: This gunk included in case DEVFS resurfaces 
+ * XXX: This included for when DEVFS resurfaces 
  */
 
 #define		UID_ROOT	0

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_pty.c	8.4 (Berkeley) 2/20/95
- * $Id: tty_pty.c,v 1.63 1999/08/08 19:47:32 phk Exp $
+ * $Id: tty_pty.c,v 1.64 1999/08/17 23:08:51 julian Exp $
  */
 
 /*
@@ -56,10 +56,6 @@
 #include <sys/vnode.h>
 #include <sys/signalvar.h>
 #include <sys/malloc.h>
-
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif /*DEVFS*/
 
 MALLOC_DEFINE(M_PTY, "ptys", "pty data structures");
 
@@ -134,10 +130,7 @@ struct	pt_ioctl {
 	u_char	pt_send;
 	u_char	pt_ucntl;
 	struct tty pt_tty;
-#ifdef DEVFS
-	void    *devfs_token_pts;
-	void    *devfs_token_ptc;
-#endif /* DEVFS */
+	dev_t	devs, devc;
 };
 
 #define	PF_PKT		0x08		/* packet mode */
@@ -167,24 +160,16 @@ ptyinit(n)
 	if (n & ~0xff)
 		return;
 
-	devs = make_dev(&pts_cdevsw, n,
-	    0, 0, 0666, "tty%c%r", names[n / 32], n % 32);
-	devc = make_dev(&ptc_cdevsw, n,
-	    0, 0, 0666, "pty%c%r", names[n / 32], n % 32);
-
 	pt = malloc(sizeof(*pt), M_PTY, M_WAITOK);
 	bzero(pt, sizeof(*pt));
+	pt->devs = devs = make_dev(&pts_cdevsw, n,
+	    0, 0, 0666, "tty%c%r", names[n / 32], n % 32);
+	pt->devc = devc = make_dev(&ptc_cdevsw, n,
+	    0, 0, 0666, "pty%c%r", names[n / 32], n % 32);
+
 	devs->si_drv1 = devc->si_drv1 = pt;
 	devs->si_tty_tty = devc->si_tty_tty = &pt->pt_tty;
 	ttyregister(&pt->pt_tty);
-#ifdef DEVFS
-	pt->devfs_token_pts = devfs_add_devswf(&pts_cdevsw,n,
-				DV_CHR,0,0,0666,
-				devs->si_name);
-	pt->devfs_token_ptc = devfs_add_devswf(&ptc_cdevsw,n,
-				DV_CHR,0,0,0666,
-				devc->si_name);
-#endif /* DEVFS */
 }
 
 /*ARGSUSED*/
@@ -196,13 +181,14 @@ ptsopen(dev, flag, devtype, p)
 {
 	register struct tty *tp;
 	int error;
-#ifdef	DEVFS
 	int minr;
 	dev_t nextdev;
 
 	/*
 	 * If we openned this device, ensure we have the
 	 * next ready in the DEVFS (up to 256 of them).
+	 * XXX probably a more efficient way of know if the next one has
+	 * been made already would be to just keep track..
 	 */
 	minr = lminor(dev);
 	if (minr < 255) {
@@ -211,7 +197,6 @@ ptsopen(dev, flag, devtype, p)
 			ptyinit(minr + 1);
 		}
 	}
-#endif /* DEVFS */
 	if (!dev->si_drv1)
 		ptyinit(minor(dev));
 	if (!dev->si_drv1)
@@ -859,9 +844,7 @@ ptc_drvinit(unused)
 		cdevsw_add(&ptc_cdevsw);
 		ptc_devsw_installed = 1;
     	}
-#ifdef	DEVFS
 	ptyinit(0); /* Add the first pty into the system.. prime the pump */
-#endif	/* DEVFS */
 }
 
 SYSINIT(ptcdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR_C,ptc_drvinit,NULL)
