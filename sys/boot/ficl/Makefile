@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.8 1999/02/04 17:13:30 dcs Exp $
+# $Id: Makefile,v 1.9 1999/03/17 23:03:36 dcs Exp $
 #
 LIB=			ficl
 NOPROFILE=		yes
@@ -14,7 +14,7 @@ SOFTWORDS=	softcore.fr jhlocal.fr marker.fr freebsd.fr
 #SOFTWORDS+=	oo.fr classes.fr
 
 .PATH:		${.CURDIR}/softwords
-CFLAGS+=	-I${.CURDIR} # -DFICL_TRACE
+CFLAGS+=	-I${.CURDIR} -DFICL_TRACE
 
 softcore.c:	${SOFTWORDS} softcore.awk
 	(cd ${.CURDIR}/softwords; cat ${SOFTWORDS} | awk -f softcore.awk) > ${.TARGET}
