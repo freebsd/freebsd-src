@@ -65,8 +65,11 @@ open_drive(struct drive *drive, struct thread *td, int verbose)
 	drive->lasterror = ENOENT;
     else if ((dsw->d_flags & D_DISK) == 0)
 	drive->lasterror = ENOTBLK;
-    else
+    else {
+        DROP_GIANT();
 	drive->lasterror = (dsw->d_open) (drive->dev, FWRITE | FREAD, 0, NULL);
+        PICKUP_GIANT();
+    }
 
     if (drive->lasterror != 0) {			    /* failed */
 	drive->state = drive_down;			    /* just force it down */
@@ -139,6 +142,7 @@ init_drive(struct drive *drive, int verbose)
     if (drive->lasterror)
 	return drive->lasterror;
 
+    DROP_GIANT();
     drive->lasterror = (*devsw(drive->dev)->d_ioctl) (drive->dev,
 	DIOCGSECTORSIZE,
 	(caddr_t) & drive->sectorsize,
@@ -150,6 +154,7 @@ init_drive(struct drive *drive, int verbose)
 	    (caddr_t) & drive->mediasize,
 	    FREAD,
 	    curthread);
+    PICKUP_GIANT();
     if (drive->lasterror) {
 	if (verbose)
 	    log(LOG_ERR,
@@ -188,7 +193,9 @@ close_locked_drive(struct drive *drive)
      * the queues, which spec_close() will try to
      * do.  Get rid of them here first.
      */
+    DROP_GIANT();
     error = (*devsw(drive->dev)->d_close) (drive->dev, FWRITE | FREAD, 0, NULL);
+    PICKUP_GIANT();
     drive->flags &= ~VF_OPEN;				    /* no longer open */
     if (drive->lasterror == 0)
 	drive->lasterror = error;
@@ -678,7 +685,7 @@ get_volume_label(char *name, int plexes, u_int64_t size, struct disklabel *lp)
 }
 
 /*
- * Seach disks on system for vinum slices and add
+ * Search disks on system for vinum slices and add
  * them to the configuuration if they're not
  * there already.  devicename is a blank-separate
  * list of device names.  If not provided, use
@@ -775,6 +782,7 @@ vinum_scandisk(char *devicename)
 	np += ep - cp;					    /* and point past */
 
 	partnamelen = MAXPATHLEN + np - partname;	    /* remaining length in partition name */
+#ifdef __i386__
 	/* first try the partition table */
 	for (slice = 1; slice < 5; slice++)
 	    for (part = 'a'; part < 'i'; part++) {
@@ -800,9 +808,10 @@ vinum_scandisk(char *devicename)
 		    }
 		}
 	    }
+#endif
 	/*
-	 * This is a kludge.  Probably none of this
-	 * should be here.
+	 * If the machine doesn't have a BIOS
+	 * partition table, try normal devices.
 	 */
 	if (gooddrives == 0) {				    /* didn't find anything, */
 	    for (part = 'a'; part < 'i'; part++)	    /* try the compatibility partition */
