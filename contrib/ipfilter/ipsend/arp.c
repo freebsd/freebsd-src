@@ -20,6 +20,10 @@ static	char	sccsid[] = "@(#)arp.c	1.4 1/11/96 (C)1995 Darren Reed";
 #include <netinet/in.h>
 #include <net/if.h>
 #include <net/if_arp.h>
+#include <netinet/in.h>
+#include <netinet/ip_var.h>
+#include <netinet/tcp.h>
+#include "ipsend.h"
 
 #if defined(__SVR4) || defined(__svr4__)
 #define	bcopy(a,b,c)	memmove(b,a,c)
@@ -67,7 +71,6 @@ char	*ether;
 	struct	arpreq	ar;
 	struct	sockaddr_in	*sin, san;
 	struct	hostent	*hp;
-	char	*inet_ntoa();
 	int	fd;
 
 	if (!bcmp(ipsave, ip, 4)) {

@@ -40,15 +40,17 @@
 
 #if !defined(lint) && defined(LIBC_SCCS)
 static	char	sccsid[] = "@(#)ipft_tx.c	1.7 6/5/96 (C) 1993 Darren Reed";
-static	char	rcsid[] = "$Id: ipft_tx.c,v 2.0.1.2 1997/01/19 04:52:25 darrenr Exp $";
+static	char	rcsid[] = "$Id: ipft_tx.c,v 2.0.2.3 1997/03/10 08:10:31 darrenr Exp $";
 #endif
 
 extern	int	opts;
-extern	u_long	buildopts();
+extern	u_long	buildopts __P((char *, char *));
 
 static	char	*tx_proto = "";
 
-static	int	text_open(), text_close(), text_readip(), parseline();
+static	int	text_open __P((char *)), text_close __P((void));
+static	int	text_readip __P((char *, int, char **, int *));
+static	int	parseline __P((char *, struct ip *, char **, int *));
 
 static	char	tcp_flagset[] = "FSRPAU";
 static	u_char	tcp_flags[] = { TH_FIN, TH_SYN, TH_RST, TH_PUSH,
@@ -58,8 +60,8 @@ struct	ipread	iptext = { text_open, text_close, text_readip };
 static	FILE	*tfp = NULL;
 static	int	tfd = -1;
 
-static	u_long	tx_hostnum();
-static	u_short	tx_portnum();
+static	u_long	tx_hostnum __P((char *, int *));
+static	u_short	tx_portnum __P((char *));
 
 
 /*
@@ -190,7 +192,7 @@ int	cnt, *dir;
 			printf("input: %s\n", line);
 		*ifn = NULL;
 		*dir = 0;
-		if (!parseline(line, buf, ifn, dir))
+		if (!parseline(line, (struct ip *)buf, ifn, dir))
 #if 0
 			return sizeof(struct tcpiphdr);
 #else
@@ -211,6 +213,8 @@ int	*out;
 	char	*cps[20], **cpp, c, ipopts[68];
 	int	i, r;
 
+	if (*ifn)
+		free(*ifn);
 	bzero((char *)ip, MAX(sizeof(*tcp), sizeof(*ic)) + sizeof(*ip));
 	bzero((char *)tcp, sizeof(*tcp));
 	bzero((char *)ic, sizeof(*ic));
@@ -236,7 +240,7 @@ int	*out;
 		cpp++;
 		if (!*cpp)
 			return 1;
-		*ifn = *cpp++;
+		*ifn = strdup(*cpp++);
 	}
 
 	c = **cpp;
