@@ -20,7 +20,7 @@
 
 #include <sys/cdefs.h>
 #ifndef lint
-static char rcsid[] = 
+static const char rcsid[] = 
   "$FreeBSD$";
 #endif /* not lint */
 
