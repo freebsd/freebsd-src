@@ -671,8 +671,8 @@ int     linenum;
 		return -1;
 
 	while (**cp && (!strncasecmp(**cp, "ipopt", 5) ||
-	       !strncasecmp(**cp, "not", 3) || !strncasecmp(**cp, "opt", 4) ||
-	       !strncasecmp(**cp, "frag", 3) || !strncasecmp(**cp, "no", 2) ||
+	       !strncasecmp(**cp, "not", 3) || !strncasecmp(**cp, "opt", 3) ||
+	       !strncasecmp(**cp, "frag", 4) || !strncasecmp(**cp, "no", 2) ||
 	       !strncasecmp(**cp, "short", 5))) {
 		if (***cp == 'n' || ***cp == 'N') {
 			notopt = 1;

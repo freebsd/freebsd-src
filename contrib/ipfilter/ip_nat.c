@@ -9,7 +9,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "@(#)ip_nat.c	1.11 6/5/96 (C) 1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ip_nat.c,v 2.37.2.26 2000/10/27 14:06:48 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ip_nat.c,v 2.37.2.32 2001/01/10 06:19:11 darrenr Exp $";
 #endif
 
 #if defined(__FreeBSD__) && defined(KERNEL) && !defined(_KERNEL)
@@ -129,7 +129,7 @@ u_long	fr_defnatage = DEF_NAT_AGE,
 natstat_t nat_stats;
 int	fr_nat_lock = 0;
 #if	(SOLARIS || defined(__sgi)) && defined(_KERNEL)
-extern	kmutex_t	ipf_rw, ipf_hostmap;
+extern	kmutex_t	ipf_rw;
 extern	KRWLOCK_T	ipf_nat;
 #endif
 
@@ -143,7 +143,7 @@ static	void	nat_delnat __P((struct ipnat *));
 static	int	fr_natgetent __P((caddr_t));
 static	int	fr_natgetsz __P((caddr_t));
 static	int	fr_natputent __P((caddr_t));
-static	void	nat_tabmove __P((nat_t *));
+static	void	nat_tabmove __P((nat_t *, u_32_t));
 static	int	nat_match __P((fr_info_t *, ipnat_t *, ip_t *));
 static	hostmap_t *nat_hostmap __P((ipnat_t *, struct in_addr,
 				    struct in_addr));
@@ -250,6 +250,8 @@ ipnat_t *n;
 /*
  * check if an ip address has already been allocated for a given mapping that
  * is not doing port based translation.
+ *
+ * Must be called with ipf_nat held as a write lock.
  */
 static struct hostmap *nat_hostmap(np, real, map)
 ipnat_t *np;
@@ -259,13 +261,11 @@ struct in_addr map;
 	hostmap_t *hm;
 	u_int hv;
 
-	MUTEX_ENTER(&ipf_hostmap);
 	hv = real.s_addr % HOSTMAP_SIZE;
 	for (hm = maptable[hv]; hm; hm = hm->hm_next)
 		if ((hm->hm_realip.s_addr == real.s_addr) &&
 		    (np == hm->hm_ipnat)) {
 			hm->hm_ref++;
-			MUTEX_EXIT(&ipf_hostmap);
 			return hm;
 		}
 
@@ -281,15 +281,16 @@ struct in_addr map;
 		hm->hm_mapip = map;
 		hm->hm_ref = 1;
 	}
-	MUTEX_EXIT(&ipf_hostmap);
 	return hm;
 }
 
 
+/*
+ * Must be called with ipf_nat held as a write lock.
+ */
 static void nat_hostmapdel(hm)
 struct hostmap *hm;
 {
-	MUTEX_ENTER(&ipf_hostmap);
 	ATOMIC_DEC32(hm->hm_ref);
 	if (hm->hm_ref == 0) {
 		if (hm->hm_next)
@@ -297,7 +298,6 @@ struct hostmap *hm;
 		*hm->hm_pnext = hm->hm_next;
 		KFREE(hm);
 	}
-	MUTEX_EXIT(&ipf_hostmap);
 }
 
 
@@ -698,9 +698,9 @@ int mode;
 		break;
 	case FIONREAD :
 #ifdef	IPFILTER_LOG
+		arg = (int)iplused[IPL_LOGNAT];
 		MUTEX_DOWNGRADE(&ipf_nat);
-		error = IWCOPY((caddr_t)&iplused[IPL_LOGNAT], (caddr_t)data,
-			       sizeof(iplused[IPL_LOGNAT]));
+		error = IWCOPY((caddr_t)&arg, (caddr_t)data, sizeof(arg));
 		if (error)
 			error = EFAULT;
 #endif
@@ -1068,6 +1068,9 @@ static int nat_flushtable()
 
 	for (natp = &nat_instances; (nat = *natp); ) {
 		*natp = nat->nat_next;
+#ifdef	IPFILTER_LOG
+		nat_log(nat, NL_FLUSH);
+#endif
 		nat_delete(nat);
 		j++;
 	}
@@ -1295,7 +1298,7 @@ int direction;
 			inb.s_addr = htonl(in.s_addr);
 			natl = nat_inlookup(fin->fin_ifp, flags & ~FI_WILDP,
 					    (u_int)ip->ip_p, ip->ip_dst, inb,
-					    (port << 16) | dport);
+					    (port << 16) | dport, 1);
 
 			/*
 			 * Has the search wrapped around and come back to the
@@ -1444,6 +1447,9 @@ int direction;
 			tcp->th_dport = nport;
 	}
 	np->in_use++;
+#ifdef	IPFILTER_LOG
+	nat_log(nat, (u_int)np->in_redir);
+#endif
 	return nat;
 badnat:
 	nat_stats.ns_badnat++;
@@ -1565,18 +1571,18 @@ int dir;
 		if (dir == NAT_INBOUND)
 			return nat_inlookup(fin->fin_ifp, flags,
 				(u_int)oip->ip_p, oip->ip_dst, oip->ip_src,
-				(tcp->th_sport << 16) | tcp->th_dport);
+				(tcp->th_sport << 16) | tcp->th_dport, 0);
 		else
 			return nat_outlookup(fin->fin_ifp, flags,
 				(u_int)oip->ip_p, oip->ip_dst, oip->ip_src,
-				(tcp->th_sport << 16) | tcp->th_dport);
+				(tcp->th_sport << 16) | tcp->th_dport, 0);
 	}
 	if (dir == NAT_INBOUND)
 		return nat_inlookup(fin->fin_ifp, 0, (u_int)oip->ip_p,
-			oip->ip_dst, oip->ip_src, 0);
+			oip->ip_dst, oip->ip_src, 0, 0);
 	else
 		return nat_outlookup(fin->fin_ifp, 0, (u_int)oip->ip_p,
-			oip->ip_dst, oip->ip_src, 0);
+			oip->ip_dst, oip->ip_src, 0, 0);
 }
 
 
@@ -1590,7 +1596,7 @@ fr_info_t *fin;
 u_int *nflags;
 int dir;
 {
-	u_32_t sum1, sum2, sumd;
+	u_32_t sum1, sum2, sumd, sumd2 = 0;
 	struct in_addr in;
 	icmphdr_t *icmp;
 	udphdr_t *udp;
@@ -1639,7 +1645,7 @@ int dir;
 	 * in the first 8 bytes, so it will not be available in most cases.
 	 */
 
-	if (nat->nat_dir == NAT_OUTBOUND) {
+	if (oip->ip_dst.s_addr == nat->nat_oip.s_addr) {
 		sum1 = LONG_SUM(ntohl(oip->ip_src.s_addr));
 		in = nat->nat_inip;
 		oip->ip_src = in;
@@ -1691,7 +1697,7 @@ int dir;
 			 * checksum adjustment.
 			 */
 			CALC_SUMD(sum1, sum2, sumd);
-			fix_outcksum(&icmp->icmp_cksum, sumd);
+			sumd2 = sumd;
 		}
 
 #if 0
@@ -1750,7 +1756,7 @@ int dir;
 			 * checksum adjustment.
 			 */
 			CALC_SUMD(sum1, sum2, sumd);
-			fix_incksum(&icmp->icmp_cksum, sumd);
+			sumd2 = sumd;
 		}
 		
 #if 0
@@ -1796,7 +1802,7 @@ int dir;
 		 * device that returns more than 8 data bytes on icmp error)
 		 */
 
-		if (nat->nat_dir == NAT_OUTBOUND) {
+		if (nat->nat_oport == tcp->th_dport) {
 			if (tcp->th_sport != nat->nat_inport) {
 				/*
 				 * Fix ICMP checksum to compensate port
@@ -1805,8 +1811,8 @@ int dir;
 				sum1 = ntohs(tcp->th_sport);
 				sum2 = ntohs(nat->nat_inport);
 				CALC_SUMD(sum1, sum2, sumd);
+				sumd2 += sumd;
 				tcp->th_sport = nat->nat_inport;
-				fix_outcksum(&icmp->icmp_cksum, sumd);
 
 				/*
 				 * Fix udp checksum to compensate port
@@ -1829,11 +1835,10 @@ int dir;
 					 * adjustment.
 					 */
 					CALC_SUMD(sum1, sum2, sumd);
-					fix_outcksum(&icmp->icmp_cksum, sumd);
+					sumd2 += sumd;
 				}
 			}
 		} else {
-
 			if (tcp->th_dport != nat->nat_outport) {
 				/*
 				 * Fix ICMP checksum to compensate port
@@ -1842,8 +1847,8 @@ int dir;
 				sum1 = ntohs(tcp->th_dport);
 				sum2 = ntohs(nat->nat_outport);
 				CALC_SUMD(sum1, sum2, sumd);
+				sumd2 += sumd;
 				tcp->th_dport = nat->nat_outport;
-				fix_incksum(&icmp->icmp_cksum, sumd);
 
 				/*
 				 * Fix udp checksum to compensate port
@@ -1865,8 +1870,17 @@ int dir;
 					 * UDP checksum adjustment.
 					 */
 					CALC_SUMD(sum1, sum2, sumd);
-					fix_incksum(&icmp->icmp_cksum, sumd);
+					sumd2 += sumd;
 				}
+			}
+		}
+		if (sumd2) {
+			sumd2 = (sumd2 & 0xffff) + (sumd2 >> 16);
+			sumd2 = (sumd2 & 0xffff) + (sumd2 >> 16);
+			if (nat->nat_dir == NAT_OUTBOUND) {
+				fix_outcksum(&icmp->icmp_cksum, sumd2);
+			} else {
+				fix_incksum(&icmp->icmp_cksum, sumd2);
 			}
 		}
 	}
@@ -1885,11 +1899,12 @@ int dir;
  * we're looking for a table entry, based on the destination address.
  * NOTE: THE PACKET BEING CHECKED (IF FOUND) HAS A MAPPING ALREADY.
  */
-nat_t *nat_inlookup(ifp, flags, p, src, mapdst, ports)
+nat_t *nat_inlookup(ifp, flags, p, src, mapdst, ports, rw)
 void *ifp;
 register u_int flags, p;
 struct in_addr src , mapdst;
 u_32_t ports;
+int rw;
 {
 	register u_short sport, dport;
 	register nat_t *nat;
@@ -1917,9 +1932,13 @@ u_32_t ports;
 	}
 	if (!nat_stats.ns_wilds || !(flags & IPN_TCPUDP))
 		return NULL;
-	RWLOCK_EXIT(&ipf_nat);
+	if (!rw) {
+		RWLOCK_EXIT(&ipf_nat);
+	}
 	hv = NAT_HASH_FN(dst, 0, ipf_nattable_sz);
-	WRITE_ENTER(&ipf_nat);
+	if (!rw) {
+		WRITE_ENTER(&ipf_nat);
+	}
 	nat = nat_table[1][hv];
 	for (; nat; nat = nat->nat_hnext[1]) {
 		nflags = nat->nat_flags;
@@ -1934,20 +1953,37 @@ u_32_t ports;
 			continue;
 		if (((nat->nat_oport == sport) || (nflags & FI_W_DPORT)) &&
 		    ((nat->nat_outport == dport) || (nflags & FI_W_SPORT))) {
-			nat_tabmove(nat);
+			nat_tabmove(nat, ports);
 			break;
 		}
 	}
-	MUTEX_DOWNGRADE(&ipf_nat);
+	if (!rw) {
+		MUTEX_DOWNGRADE(&ipf_nat);
+	}
 	return nat;
 }
 
 
-static void nat_tabmove(nat)
+/*
+ * This function is only called for TCP/UDP NAT table entries where the
+ * original was placed in the table without hashing on the ports and we now
+ * want to include hashing on port numbers.
+ */
+static void nat_tabmove(nat, ports)
 nat_t *nat;
+u_32_t ports;
 {
+	register u_short sport, dport;
 	nat_t **natp;
 	u_int hv;
+
+	dport = ports >> 16;
+	sport = ports & 0xffff;
+
+	if (nat->nat_oport == dport) {
+		nat->nat_inport = sport;
+		nat->nat_outport = sport;
+	}
 
 	/*
 	 * Remove the NAT entry from the old location
@@ -1963,8 +1999,7 @@ nat_t *nat;
 	/*
 	 * Add into the NAT table in the new position
 	 */
-	hv = NAT_HASH_FN(nat->nat_inip.s_addr, nat->nat_inport,
-			 ipf_nattable_sz);
+	hv = NAT_HASH_FN(nat->nat_inip.s_addr, sport, ipf_nattable_sz);
 	natp = &nat_table[0][hv];
 	if (*natp)
 		(*natp)->nat_phnext[0] = &nat->nat_hnext[0];
@@ -1972,8 +2007,7 @@ nat_t *nat;
 	nat->nat_hnext[0] = *natp;
 	*natp = nat;
 
-	hv = NAT_HASH_FN(nat->nat_outip.s_addr, nat->nat_outport,
-			 ipf_nattable_sz);
+	hv = NAT_HASH_FN(nat->nat_outip.s_addr, sport, ipf_nattable_sz);
 	natp = &nat_table[1][hv];
 	if (*natp)
 		(*natp)->nat_phnext[1] = &nat->nat_hnext[1];
@@ -1989,11 +2023,12 @@ nat_t *nat;
  * we're looking for a table entry, based on the source address.
  * NOTE: THE PACKET BEING CHECKED (IF FOUND) HAS A MAPPING ALREADY.
  */
-nat_t *nat_outlookup(ifp, flags, p, src, dst, ports)
+nat_t *nat_outlookup(ifp, flags, p, src, dst, ports, rw)
 void *ifp;
 register u_int flags, p;
 struct in_addr src , dst;
 u_32_t ports;
+int rw;
 {
 	register u_short sport, dport;
 	register nat_t *nat;
@@ -2014,7 +2049,7 @@ u_32_t ports;
 		if ((!ifp || ifp == nat->nat_ifp) &&
 		    nat->nat_inip.s_addr == srcip &&
 		    nat->nat_oip.s_addr == dst.s_addr &&
-		    (((p == 0) && (flags == (nat->nat_flags & IPN_TCPUDP)))
+		    (((p == 0) && (flags == (nflags & IPN_TCPUDP)))
 		     || (p == nat->nat_p)) && (!flags ||
 		     ((nat->nat_inport == sport || nflags & FI_W_SPORT) &&
 		      (nat->nat_oport == dport || nflags & FI_W_DPORT))))
@@ -2022,9 +2057,13 @@ u_32_t ports;
 	}
 	if (!nat_stats.ns_wilds || !(flags & IPN_TCPUDP))
 		return NULL;
-	RWLOCK_EXIT(&ipf_nat);
+	if (!rw) {
+		RWLOCK_EXIT(&ipf_nat);
+	}
 	hv = NAT_HASH_FN(srcip, 0, ipf_nattable_sz);
-	WRITE_ENTER(&ipf_nat);
+	if (!rw) {
+		WRITE_ENTER(&ipf_nat);
+	}
 	nat = nat_table[0][hv];
 	for (; nat; nat = nat->nat_hnext[0]) {
 		nflags = nat->nat_flags;
@@ -2037,13 +2076,15 @@ u_32_t ports;
 		if ((nat->nat_inip.s_addr != srcip) ||
 		    (nat->nat_oip.s_addr != dst.s_addr))
 			continue;
-		if (((nat->nat_inport == sport) || (nflags & FI_W_DPORT)) &&
-		    ((nat->nat_oport == dport) || (nflags & FI_W_SPORT))) {
-			nat_tabmove(nat);
+		if (((nat->nat_inport == sport) || (nflags & FI_W_SPORT)) &&
+		    ((nat->nat_oport == dport) || (nflags & FI_W_DPORT))) {
+			nat_tabmove(nat, ports);
 			break;
 		}
 	}
-	MUTEX_DOWNGRADE(&ipf_nat);
+	if (!rw) {
+		MUTEX_DOWNGRADE(&ipf_nat);
+	}
 	return nat;
 }
 
@@ -2063,7 +2104,7 @@ register natlookup_t *np;
 	 * ip address. Else, we use the fake.
 	 */
 	if ((nat = nat_outlookup(NULL, np->nl_flags, 0, np->nl_inip,
-				 np->nl_outip, ports))) {
+				 np->nl_outip, ports, 0))) {
 		np->nl_realip = nat->nat_outip;
 		np->nl_realport = nat->nat_outport;
 	}
@@ -2164,10 +2205,11 @@ fr_info_t *fin;
 	    (nat = nat_icmp(ip, fin, &nflags, NAT_OUTBOUND)))
 		;
 	else if ((ip->ip_off & (IP_OFFMASK|IP_MF)) &&
-			(nat = ipfr_nat_knownfrag(ip, fin)))
+	    (nat = ipfr_nat_knownfrag(ip, fin)))
 		natadd = 0;
-	else if ((nat = nat_outlookup(ifp, nflags, (u_int)ip->ip_p, ip->ip_src,
-				      ip->ip_dst, (dport << 16) | sport))) {
+	else if ((nat = nat_outlookup(ifp, nflags, (u_int)ip->ip_p,
+				      ip->ip_src, ip->ip_dst,
+				      (dport << 16) | sport, 0))) {
 		nflags = nat->nat_flags;
 		if ((nflags & (FI_W_SPORT|FI_W_DPORT)) != 0) {
 			if ((nflags & FI_W_SPORT) &&
@@ -2221,9 +2263,6 @@ maskloop:
 				if ((nat = nat_new(np, ip, fin, (u_int)nflags,
 						    NAT_OUTBOUND))) {
 					np->in_hits++;
-#ifdef	IPFILTER_LOG
-					nat_log(nat, (u_int)np->in_redir);
-#endif
 					break;
 				}
 			}
@@ -2239,6 +2278,9 @@ maskloop:
 		MUTEX_DOWNGRADE(&ipf_nat);
 	}
 
+	/*
+	 * NOTE: ipf_nat must now only be held as a read lock
+	 */
 	if (nat) {
 		np = nat->nat_ptr;
 		if (natadd && fin->fin_fi.fi_fl & FI_FRAG)
@@ -2383,7 +2425,8 @@ fr_info_t *fin;
 		 (nat = ipfr_nat_knownfrag(ip, fin)))
 		natadd = 0;
 	else if ((nat = nat_inlookup(fin->fin_ifp, nflags, (u_int)ip->ip_p,
-				     ip->ip_src, in, (dport << 16) | sport))) {
+				     ip->ip_src, in, (dport << 16) | sport,
+				     0))) {
 		nflags = nat->nat_flags;
 		if ((nflags & (FI_W_SPORT|FI_W_DPORT)) != 0) {
 			if ((nat->nat_oport != sport) && (nflags & FI_W_DPORT))
@@ -2424,9 +2467,6 @@ maskloop:
 				if ((nat = nat_new(np, ip, fin, nflags,
 						    NAT_INBOUND))) {
 					np->in_hits++;
-#ifdef	IPFILTER_LOG
-					nat_log(nat, (u_int)np->in_redir);
-#endif
 					break;
 				}
 		}
@@ -2441,6 +2481,10 @@ maskloop:
 		}
 		MUTEX_DOWNGRADE(&ipf_nat);
 	}
+
+	/*
+	 * NOTE: ipf_nat must now only be held as a read lock
+	 */
 	if (nat) {
 		np = nat->nat_ptr;
 		fin->fin_fr = nat->nat_fr;

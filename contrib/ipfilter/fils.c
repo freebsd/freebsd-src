@@ -65,7 +65,7 @@
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)fils.c	1.21 4/20/96 (C) 1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)$Id: fils.c,v 2.21.2.5 2000/07/20 14:13:30 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: fils.c,v 2.21.2.7 2000/12/02 00:13:56 darrenr Exp $";
 #endif
 
 extern	char	*optarg;
@@ -892,7 +892,7 @@ int topclosed;
 			printw("%-21s %-21s", str1, str2);
 
 			/* print state */
-			sprintf(str1, "%d/%d", tp->st_state[0],
+			sprintf(str1, "%X/%X", tp->st_state[0],
 				tp->st_state[1]);
 			printw(" %3s", str1);
 
@@ -985,6 +985,23 @@ ipfrstat_t *ifsp;
 				    sizeof(ifr)) == -1)
 				break;
 			PRINTF("%s -> ", hostname(4, &ifr.ipfr_src));
+			if (kmemcpy((char *)&fr, (u_long)ifr.ipfr_rule,
+				    sizeof(fr)) == -1)
+				break;
+			PRINTF("%s %d %d %d %#02x = %#x\n",
+				hostname(4, &ifr.ipfr_dst), ifr.ipfr_id,
+				ifr.ipfr_ttl, ifr.ipfr_p, ifr.ipfr_tos,
+				fr.fr_flags);
+			ipfrtab[i] = ifr.ipfr_next;
+		}
+	if (kmemcpy((char *)ipfrtab, (u_long)ifsp->ifs_nattab,sizeof(ipfrtab)))
+		return;
+	for (i = 0; i < IPFT_SIZE; i++)
+		while (ipfrtab[i]) {
+			if (kmemcpy((char *)&ifr, (u_long)ipfrtab[i],
+				    sizeof(ifr)) == -1)
+				break;
+			PRINTF("NAT: %s -> ", hostname(4, &ifr.ipfr_src));
 			if (kmemcpy((char *)&fr, (u_long)ifr.ipfr_rule,
 				    sizeof(fr)) == -1)
 				break;
