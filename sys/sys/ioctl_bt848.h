@@ -11,8 +11,9 @@
 #define CHNLSET_WEUROPE		4
 #define CHNLSET_JPNBCST         5
 #define CHNLSET_JPNCABLE        6
+#define CHNLSET_XUSSR           7
 #define CHNLSET_MIN	        CHNLSET_NABCST
-#define CHNLSET_MAX	        CHNLSET_JPNCABLE
+#define CHNLSET_MAX	        CHNLSET_XUSSR
 
 
 /*
