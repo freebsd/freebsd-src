@@ -95,6 +95,8 @@ fore_initialize(fup)
 	Init_parms	*inp;
 	caddr_t		errmsg;
 	u_long		vers;
+	u_int c, wait;
+#define	MAX_WAIT	100
 
 	/*
 	 * Must wait until firmware has been downloaded and is running
@@ -149,6 +151,11 @@ fore_initialize(fup)
 	    sizeof(fup->fu_config.ac_firm_vers), "%ld.%ld.%ld",
 		(vers >> 16) & 0xff, (vers >> 8) & 0xff, vers & 0xff);
 
+	if (((vers >> 16) & 0xff) == 4)
+		fup->fu_ft4 = 1;
+	else
+		fup->fu_ft4 = 0;
+
 #ifdef notdef
 	/*
 	 * Turn on CP debugging
@@ -193,7 +200,41 @@ fore_initialize(fup)
 	 * the CP to interrupt to signal completion
 	 */
 	inp->init_status = CP_WRITE(QSTAT_PENDING);
-	inp->init_cmd = CP_WRITE(CMD_INIT | CMD_INTR_REQ);
+
+	if (!fup->fu_ft4) {
+		inp->init_cmd = CP_WRITE(CMD_INIT | CMD_INTR_REQ);
+		return;
+	}
+	inp->init_cmd = CP_WRITE(CMD_INIT);
+
+	/*
+	 * With the ForeThought 4.X image it appears that we need to
+	 * busy wait on the initializisation command to complete.
+	 * Otherwise the command queue address (the first word
+	 * of the queue structure) will be mangled.
+	 */
+	c = 0;
+	for (wait = 0; wait < MAX_WAIT; wait++) {
+		c = CP_READ(inp->init_status);
+		if (c & QSTAT_COMPLETED)
+			break;
+		DELAY(1000);
+	}
+	if (c & QSTAT_ERROR) {
+		log(LOG_ERR, "fore initialization failed: intf=%s%d, "
+		    "hbeat=0x%lx\n", fup->fu_pif.pif_name,
+		    fup->fu_pif.pif_unit, (u_long)CP_READ(aap->aali_heartbeat));
+		fore_interface_free(fup);
+		return;
+	}
+	if (!(c & QSTAT_COMPLETED)) {
+		log(LOG_ERR, "fore initialization timed out: intf=%s%d, "
+		    "hbeat=0x%lx\n", fup->fu_pif.pif_name, fup->fu_pif.pif_unit,
+		    (u_long)CP_READ(aap->aali_heartbeat));
+		fore_interface_free(fup);
+		return;
+	}
+	fore_initialize_complete(fup);
 	return;
 
 failed:
@@ -277,6 +318,9 @@ fore_initialize_complete(fup)
  * This will be called after CP initialization has completed.
  * There is (currently) no retry if this fails.
  *
+ * It took me some time to find out that FT3 and FT4 use different
+ * operation codes for GET_PROM.
+ *
  * Called at interrupt level.
  *
  * Arguments:
@@ -302,7 +346,10 @@ fore_get_prom(fup)
 		/*
 		 * Queue entry available, so set our view of things up
 		 */
-		hcp->hcq_code = CMD_GET_PROM;
+		if (fup->fu_ft4)
+			hcp->hcq_code = CMD_GET_PROM4;
+		else
+			hcp->hcq_code = CMD_GET_PROM;
 		hcp->hcq_arg = NULL;
 		fup->fu_cmd_tail = hcp->hcq_next;
 
@@ -319,7 +366,7 @@ fore_get_prom(fup)
 			return;
 		}
 		cqp->cmdq_prom.prom_buffer = (CP_dma) CP_WRITE(fup->fu_promd);
-		cqp->cmdq_prom.prom_cmd = CP_WRITE(CMD_GET_PROM | CMD_INTR_REQ);
+		cqp->cmdq_prom.prom_cmd = CP_WRITE(hcp->hcq_code | CMD_INTR_REQ);
 
 	} else {
 		/*
