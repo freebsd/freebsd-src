@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile.inc1,v 1.4 1998/09/01 06:07:47 jb Exp $
+#	$Id: Makefile.inc1,v 1.5 1998/09/03 21:34:31 jb Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -761,7 +761,7 @@ _scrnmaps=	share/syscons/scrnmaps
 _linux=		lkm/linux
 .endif
 .if ${OBJFORMAT} == "aout"
-_netboot=	sys/i386/boot/netboot
+_netboot=	sys/${MACHINE}/boot/netboot
 .endif
 
 BTMAKEFLAGS=	${MK_FLAGS} -D_BUILD_TOOLS
@@ -907,7 +907,7 @@ legacy-build:
 	@echo "--------------------------------------------------------------"
 	@echo " Building legacy boot"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}/sys/i386/boot; \
+	cd ${.CURDIR}/sys/${MACHINE}/boot; \
 		${XMAKE} -DNOMAN depend; ${XMAKE} -DNOMAN all;
 .endif
 
@@ -937,7 +937,7 @@ legacy-install:
 	@echo "--------------------------------------------------------------"
 	@echo " Installing legacy boot"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}/sys/i386/boot; ${MAKE} -DNOMAN install
+	cd ${.CURDIR}/sys/${MACHINE}/boot; ${MAKE} -DNOMAN install
 .endif
 
 
