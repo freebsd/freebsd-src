@@ -28,7 +28,9 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_bus.h"
+#ifndef PC98
 #include "opt_agp.h"
+#endif
 
 #include <sys/param.h>
 #include <sys/systm.h>
