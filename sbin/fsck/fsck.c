@@ -278,7 +278,7 @@ isok(struct fstab *fs)
 
 
 static int
-checkfs(const char *pvfstype, const char *spec, const char *mntpt,
+checkfs(const char *vfstype, const char *spec, const char *mntpt,
     char *auxopt, pid_t *pidp)
 {
 	/* List of directories containing fsck_xxx subcommands. */
@@ -291,7 +291,6 @@ checkfs(const char *pvfstype, const char *spec, const char *mntpt,
 	pid_t pid;
 	int argc, i, status, maxargc;
 	char *optbuf, execname[MAXPATHLEN + 1], execbase[MAXPATHLEN];
-	char *vfstype = NULL;
 	const char *extra = NULL;
 
 #ifdef __GNUC__
@@ -299,18 +298,6 @@ checkfs(const char *pvfstype, const char *spec, const char *mntpt,
 	(void) &optbuf;
 	(void) &vfstype;
 #endif
-	/*
-	 * We convert the vfstype to lowercase and any spaces to underscores
-	 * to not confuse the issue
-	 */
-	vfstype = strdup(pvfstype);
-	if (vfstype == NULL)
-		perror("strdup(pvfstype)"); 
-	for (i = 0; i < strlen(vfstype); i++) {
-		vfstype[i] = tolower(vfstype[i]);
-		if (vfstype[i] == ' ')
-			vfstype[i] = '_';
-	}
 
 	extra = getoptions(vfstype);
 	optbuf = NULL;
@@ -347,7 +334,6 @@ checkfs(const char *pvfstype, const char *spec, const char *mntpt,
 		warn("vfork");
 		if (optbuf)
 			free(optbuf);
-		free(vfstype);
 		return (1);
 
 	case 0:					/* Child. */
@@ -380,8 +366,6 @@ checkfs(const char *pvfstype, const char *spec, const char *mntpt,
 	default:				/* Parent. */
 		if (optbuf)
 			free(optbuf);
-
-		free(vfstype);
 
 		if (pidp) {
 			*pidp = pid;
