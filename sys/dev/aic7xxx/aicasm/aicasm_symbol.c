@@ -49,7 +49,7 @@
 #else
 #include <db.h>
 #endif
-#include <fcntl.h>
+#include <sys/fcntl.h>
 #include <inttypes.h>
 #include <regex.h>
 #include <stdio.h>
