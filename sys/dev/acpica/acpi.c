@@ -133,6 +133,8 @@ static int	acpi_parse_prw(ACPI_HANDLE h, struct acpi_prw_data *prw);
 static ACPI_STATUS acpi_wake_limit(ACPI_HANDLE h, UINT32 level, void *context,
 		    void **status);
 static int	acpi_wake_limit_walk(int sstate);
+static int	acpi_wake_sysctl_walk(device_t dev);
+static int	acpi_wake_set_sysctl(SYSCTL_HANDLER_ARGS);
 static void	acpi_system_eventhandler_sleep(void *arg, int state);
 static void	acpi_system_eventhandler_wakeup(void *arg, int state);
 static int	acpi_supported_sleep_state_sysctl(SYSCTL_HANDLER_ARGS);
@@ -1068,6 +1070,9 @@ acpi_probe_children(device_t bus)
     ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "second bus_generic_attach\n"));
     bus_generic_attach(bus);
 
+    /* Attach wake sysctls. */
+    acpi_wake_sysctl_walk(dev);
+
     ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "done attaching children\n"));
     return_VOID;
 }
@@ -1894,6 +1899,53 @@ acpi_wake_limit_walk(int sstate)
 	AcpiWalkNamespace(ACPI_TYPE_ANY, sb_handle, 100,
 	    acpi_wake_limit, (void *)(intptr_t)sstate, NULL);
     return (0);
+}
+
+/* Walk the tree rooted at acpi0 to attach per-device wake sysctls. */
+static int
+acpi_wake_sysctl_walk(device_t dev)
+{
+    int error, i, numdevs;
+    device_t *devlist;
+    device_t child;
+
+    error = device_get_children(dev, &devlist, &numdevs);
+    if (error != 0 || numdevs == 0)
+	return (error);
+    for (i = 0; i < numdevs; i++) {
+	child = devlist[i];
+	if (!device_is_attached(child))
+	    continue;
+	if (device_get_flags(child) & ACPI_FLAG_WAKE_CAPABLE) {
+	    SYSCTL_ADD_PROC(device_get_sysctl_ctx(child),
+		SYSCTL_CHILDREN(device_get_sysctl_tree(child)), OID_AUTO,
+		"wake", CTLTYPE_INT | CTLFLAG_RW, child, 0,
+		acpi_wake_set_sysctl, "I", "Device set to wake the system");
+	}
+	acpi_wake_sysctl_walk(child);
+    }
+    free(devlist, M_TEMP);
+
+    return (0);
+}
+
+/* Enable or disable wake from userland. */
+static int
+acpi_wake_set_sysctl(SYSCTL_HANDLER_ARGS)
+{
+    int enable, error;
+    device_t dev;
+
+    dev = (device_t)arg1;
+    enable = (device_get_flags(dev) & ACPI_FLAG_WAKE_ENABLED) ? 1 : 0;
+
+    error = sysctl_handle_int(oidp, &enable, 0, req);
+    if (error != 0 || req->newptr == NULL)
+	return (error);
+    if (enable != 0 && enable != 1)
+	return (EINVAL);
+
+    return (acpi_wake_set_enable(dev, enable));
 }
 
 /* Parse a device's _PRW into a structure. */
