@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: Makefile,v 1.15 1998/03/21 12:12:55 bde Exp $
 
 .include "../Makefile.inc"
 
@@ -15,8 +15,9 @@ LINKS=          ${TMACDIR}/tmac.andoc ${TMACDIR}/tmac.an
 CLEANFILES=	${MAN7} ${MDOCFILES} ${STRIPFILES} tmac.groff_an
 
 FILES=          tmac.andoc tmac.pic tmac.ps tmac.psnew tmac.psold\
-		tmac.pspic tmac.psatk tmac.dvi tmac.tty tmac.tty-char tmac.X\
-		tmac.Xps tmac.latin1 tmac.lj4 eqnrc troffrc
+		tmac.pspic tmac.psatk tmac.dvi tmac.safer tmac.tty \
+		tmac.tty-char tmac.X tmac.Xps tmac.latin1 tmac.lj4 eqnrc \
+		troffrc
 STRIPFILES=     tmac.e tmac.s tmac.doc
 MDOCFILES=	doc-common doc-ditroff doc-nroff doc-syms
 
