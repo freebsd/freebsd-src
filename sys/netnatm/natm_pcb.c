@@ -41,12 +41,15 @@
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/socket.h>
+#include <sys/socketvar.h>
 
 #include <net/if.h>
 
 #include <netinet/in.h>
 
 #include <netnatm/natm.h>
+
+struct npcblist natm_pcbs;
 
 /*
  * npcb_alloc: allocate a npcb [in the free state]
