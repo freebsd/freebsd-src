@@ -77,7 +77,7 @@ ENTRY(_sbrk)
 	str	r1, [r2]
 
 	/* Return old curbrk value */
-	mov	r15, r14
+	RET
 
 	.align	0
 #ifdef PIC

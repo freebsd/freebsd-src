@@ -53,7 +53,7 @@ ENTRY(bcopy)
 #endif
 	/* Do the buffers overlap? */
 	cmp	r0, r1
-	moveq	pc, lr		/* Bail now if src/dst are the same */
+	RETeq		/* Bail now if src/dst are the same */
 	subcc	r3, r0, r1	/* if (dst > src) r3 = dst - src */
 	subcs	r3, r1, r0	/* if (src > dsr) r3 = src - dst */
 	cmp	r3, r2		/* if (r3 < len) we have an overlap */
@@ -64,7 +64,7 @@ ENTRY(bcopy)
 	bcc	.Lmemmove_backwards
 
 	moveq	r0, #0			/* Quick abort for len=0 */
-	moveq	pc, lr
+	RETeq
 
 	stmdb	sp!, {r0, lr}		/* memmove() returns dest addr */
 	subs	r2, r2, #4
@@ -382,7 +382,7 @@ ENTRY(bcopy)
 .Lmemmove_bl4:
 	/* less than 4 bytes to go */
 	adds	r2, r2, #4
-	moveq	pc, lr			/* done */
+	RETeq			/* done */
 
 	/* copy the crud byte at a time */
 	cmp	r2, #2
@@ -392,7 +392,7 @@ ENTRY(bcopy)
 	strgeb	r3, [r0, #-1]!
 	ldrgtb	r3, [r1, #-1]!
 	strgtb	r3, [r0, #-1]!
-	mov	pc, lr
+	RET
 
 	/* erg - unaligned destination */
 .Lmemmove_bdestul:

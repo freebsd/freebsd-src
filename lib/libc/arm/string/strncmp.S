@@ -48,4 +48,4 @@ ENTRY(strncmp)
 	cmpcs	r2, r3
 	beq	1b
 	sub	r0, r2, r3
-	mov	pc, lr
+	RET
