@@ -77,12 +77,30 @@ bsfl(u_int mask)
 	return (result);
 }
 
+static __inline u_long
+bsfq(u_long mask)
+{
+	u_long	result;
+
+	__asm __volatile("bsfq %1,%0" : "=r" (result) : "rm" (mask));
+	return (result);
+}
+
 static __inline u_int
 bsrl(u_int mask)
 {
 	u_int	result;
 
 	__asm __volatile("bsrl %1,%0" : "=r" (result) : "rm" (mask));
+	return (result);
+}
+
+static __inline u_long
+bsrq(u_long mask)
+{
+	u_long	result;
+
+	__asm __volatile("bsrq %1,%0" : "=r" (result) : "rm" (mask));
 	return (result);
 }
 
@@ -111,13 +129,26 @@ enable_intr(void)
 static __inline int
 ffs(int mask)
 {
+#if 0
 	/*
 	 * Note that gcc-2's builtin ffs would be used if we didn't declare
 	 * this inline or turn off the builtin.  The builtin is faster but
 	 * broken in gcc-2.4.5 and slower but working in gcc-2.5 and later
 	 * versions.
 	 */
-	 return (mask == 0 ? mask : (int)bsfl((u_int)mask) + 1);
+	return (mask == 0 ? mask : (int)bsfl((u_int)mask) + 1);
+#else
+	/* Actually, the above is way out of date.  The builtins use cmov etc */
+	return (__builtin_ffs(mask));
+#endif
+}
+
+#define	HAVE_INLINE_FFSL
+
+static __inline int
+ffsl(long mask)
+{
+	return (mask == 0 ? mask : (int)bsfq((u_long)mask) + 1);
 }
 
 #define	HAVE_INLINE_FLS
@@ -126,6 +157,14 @@ static __inline int
 fls(int mask)
 {
 	return (mask == 0 ? mask : (int)bsrl((u_int)mask) + 1);
+}
+
+#define	HAVE_INLINE_FLSL
+
+static __inline int
+flsl(long mask)
+{
+	return (mask == 0 ? mask : (int)bsrq((u_long)mask) + 1);
 }
 
 static __inline void
