@@ -57,7 +57,7 @@ struct fetchconn {
 };
 
 /* Structure used for error message lists */
-struct fetcherr {  
+struct fetcherr {
 	const int	 num;
 	const int	 cat;
 	const char	*string;
@@ -69,7 +69,8 @@ void		 _fetch_info(const char *, ...);
 int		 _fetch_default_port(const char *);
 int		 _fetch_default_proxy_port(const char *);
 conn_t		*_fetch_connect(const char *, int, int, int);
-conn_t		*_fetch_reopen(int sd);
+conn_t		*_fetch_reopen(int);
+int		 _fetch_ssl(conn_t *, int);
 ssize_t		 _fetch_read(conn_t *, char *, size_t);
 int		 _fetch_getln(conn_t *);
 ssize_t		 _fetch_write(conn_t *, const char *, size_t);

@@ -669,7 +669,7 @@ _http_connect(struct url *URL, struct url *purl, const char *flags)
 		af = AF_INET6;
 #endif
 
-	if (purl) {
+	if (purl && strcasecmp(URL->scheme, SCHEME_HTTPS) != 0) {
 		URL = purl;
 	} else if (strcasecmp(URL->scheme, SCHEME_FTP) == 0) {
 		/* can't talk http to an ftp server */
@@ -680,6 +680,11 @@ _http_connect(struct url *URL, struct url *purl, const char *flags)
 	if ((conn = _fetch_connect(URL->host, URL->port, af, verbose)) == NULL)
 		/* _fetch_connect() has already set an error code */
 		return (NULL);
+	if (strcasecmp(URL->scheme, SCHEME_HTTPS) == 0 &&
+	    _fetch_ssl(conn, verbose) == -1) {
+		_fetch_close(conn);
+		return (NULL);
+	}
 	return (conn);
 }
 

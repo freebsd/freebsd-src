@@ -79,14 +79,14 @@ fetchXGet(struct url *URL, struct url_stat *us, const char *flags)
 	direct = CHECK_FLAG('d');
 	if (strcasecmp(URL->scheme, SCHEME_FILE) == 0)
 		return (fetchXGetFile(URL, us, flags));
+	else if (strcasecmp(URL->scheme, SCHEME_FTP) == 0)
+		return (fetchXGetFTP(URL, us, flags));
 	else if (strcasecmp(URL->scheme, SCHEME_HTTP) == 0)
 		return (fetchXGetHTTP(URL, us, flags));
-	else if (strcasecmp(URL->scheme, SCHEME_FTP) == 0) {
-		return (fetchXGetFTP(URL, us, flags));
-	} else {
-		_url_seterr(URL_BAD_SCHEME);
-		return (NULL);
-	}
+	else if (strcasecmp(URL->scheme, SCHEME_HTTPS) == 0)
+		return (fetchXGetHTTP(URL, us, flags));
+	_url_seterr(URL_BAD_SCHEME);
+	return (NULL);
 }
 
 /*
@@ -111,14 +111,14 @@ fetchPut(struct url *URL, const char *flags)
 	direct = CHECK_FLAG('d');
 	if (strcasecmp(URL->scheme, SCHEME_FILE) == 0)
 		return (fetchPutFile(URL, flags));
+	else if (strcasecmp(URL->scheme, SCHEME_FTP) == 0)
+		return (fetchPutFTP(URL, flags));
 	else if (strcasecmp(URL->scheme, SCHEME_HTTP) == 0)
 		return (fetchPutHTTP(URL, flags));
-	else if (strcasecmp(URL->scheme, SCHEME_FTP) == 0) {
-		return (fetchPutFTP(URL, flags));
-	} else {
-		_url_seterr(URL_BAD_SCHEME);
-		return (NULL);
-	}
+	else if (strcasecmp(URL->scheme, SCHEME_HTTPS) == 0)
+		return (fetchPutHTTP(URL, flags));
+	_url_seterr(URL_BAD_SCHEME);
+	return (NULL);
 }
 
 /*
@@ -133,10 +133,12 @@ fetchStat(struct url *URL, struct url_stat *us, const char *flags)
 	direct = CHECK_FLAG('d');
 	if (strcasecmp(URL->scheme, SCHEME_FILE) == 0)
 		return (fetchStatFile(URL, us, flags));
-	else if (strcasecmp(URL->scheme, SCHEME_HTTP) == 0)
-		return (fetchStatHTTP(URL, us, flags));
 	else if (strcasecmp(URL->scheme, SCHEME_FTP) == 0)
 		return (fetchStatFTP(URL, us, flags));
+	else if (strcasecmp(URL->scheme, SCHEME_HTTP) == 0)
+		return (fetchStatHTTP(URL, us, flags));
+	else if (strcasecmp(URL->scheme, SCHEME_HTTPS) == 0)
+		return (fetchStatHTTP(URL, us, flags));
 	_url_seterr(URL_BAD_SCHEME);
 	return (-1);
 }
@@ -153,10 +155,12 @@ fetchList(struct url *URL, const char *flags)
 	direct = CHECK_FLAG('d');
 	if (strcasecmp(URL->scheme, SCHEME_FILE) == 0)
 		return (fetchListFile(URL, flags));
-	else if (strcasecmp(URL->scheme, SCHEME_HTTP) == 0)
-		return (fetchListHTTP(URL, flags));
 	else if (strcasecmp(URL->scheme, SCHEME_FTP) == 0)
 		return (fetchListFTP(URL, flags));
+	else if (strcasecmp(URL->scheme, SCHEME_HTTP) == 0)
+		return (fetchListHTTP(URL, flags));
+	else if (strcasecmp(URL->scheme, SCHEME_HTTPS) == 0)
+		return (fetchListHTTP(URL, flags));
 	_url_seterr(URL_BAD_SCHEME);
 	return (NULL);
 }
