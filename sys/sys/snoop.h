@@ -54,6 +54,7 @@ struct snoop {
 #define SNOOP_OFLOW		0x0010
 #define SNOOP_DOWN		0x0020
 	struct selinfo	snp_sel;	/* Selection info	       */
+	int		snp_olddisc;	/* Old line discipline	       */
 };
 
 /* XXX several wrong storage classes and types here. */
