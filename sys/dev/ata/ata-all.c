@@ -84,7 +84,7 @@ int ata_wc = 1;
 
 /* local vars */
 static int ata_dma = 1;
-static int atapi_dma = 0;
+static int atapi_dma = 1;
 
 /* sysctl vars */
 SYSCTL_NODE(_hw, OID_AUTO, ata, CTLFLAG_RD, 0, "ATA driver parameters");
@@ -682,7 +682,8 @@ ata_identify_devices(struct ata_channel *ch)
     if (ch->device[MASTER].param) {
 	ch->device[MASTER].setmode(&ch->device[MASTER], ATA_PIO_MAX);
 	if ((((ch->devices & ATA_ATAPI_MASTER) && atapi_dma &&
-	      (ch->device[MASTER].param->config&ATA_DRQ_MASK) != ATA_DRQ_INTR)||
+	      (ch->device[MASTER].param->config&ATA_DRQ_MASK) != ATA_DRQ_INTR &&
+	      ata_umode(ch->device[MASTER].param) >= ATA_UDMA2) ||
 	     ((ch->devices & ATA_ATA_MASTER) && ata_dma)) && ch->dma)
 	    ch->device[MASTER].setmode(&ch->device[MASTER], ATA_DMA_MAX);
 
@@ -690,7 +691,8 @@ ata_identify_devices(struct ata_channel *ch)
     if (ch->device[SLAVE].param) {
 	ch->device[SLAVE].setmode(&ch->device[SLAVE], ATA_PIO_MAX);
 	if ((((ch->devices & ATA_ATAPI_SLAVE) && atapi_dma &&
-	      (ch->device[SLAVE].param->config&ATA_DRQ_MASK) != ATA_DRQ_INTR) ||
+	      (ch->device[SLAVE].param->config&ATA_DRQ_MASK) != ATA_DRQ_INTR &&
+	      ata_umode(ch->device[SLAVE].param) >= ATA_UDMA2) ||
 	     ((ch->devices & ATA_ATA_SLAVE) && ata_dma)) && ch->dma)
 	    ch->device[SLAVE].setmode(&ch->device[SLAVE], ATA_DMA_MAX);
     }
