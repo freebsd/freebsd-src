@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_sk.c,v 1.5 1999/07/22 04:04:11 wpaul Exp $
+ *	$Id: if_sk.c,v 1.51 1999/07/14 21:48:19 wpaul Exp $
  */
 
 /*
@@ -102,7 +102,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_sk.c,v 1.5 1999/07/22 04:04:11 wpaul Exp $";
+	"$Id: if_sk.c,v 1.51 1999/07/14 21:48:19 wpaul Exp $";
 #endif
 
 static struct sk_type sk_devs[] = {
@@ -156,6 +156,14 @@ static void sk_phy_writereg	__P((struct sk_if_softc *, int, u_int32_t));
 static u_int32_t sk_calchash	__P((caddr_t));
 static void sk_setfilt		__P((struct sk_if_softc *, caddr_t, int));
 static void sk_setmulti		__P((struct sk_if_softc *));
+
+#ifdef SK_USEIOSPACE
+#define SK_RES		SYS_RES_IOPORT
+#define SK_RID		SK_PCI_LOIO
+#else
+#define SK_RES		SYS_RES_MEMORY
+#define SK_RID		SK_PCI_LOMEM
+#endif
 
 static device_method_t sk_methods[] = {
 	/* Device interface */
@@ -1198,21 +1206,17 @@ static int sk_attach(dev)
 		error = ENXIO;
 		goto fail;
 	}
-
-	rid = SK_PCI_LOIO;
-	sc->sk_res = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
-	    0, ~0, 1, RF_ACTIVE);
 #else
 	if (!(command & PCIM_CMD_MEMEN)) {
 		printf("skc%d: failed to enable memory mapping!\n", unit);
 		error = ENXIO;
 		goto fail;
 	}
-
-	rid = SK_PCI_LOMEM;
-	sc->sk_res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
-	    0, ~0, 1, RF_ACTIVE);
 #endif
+
+	rid = SK_RID;
+	sc->sk_res = bus_alloc_resource(dev, SK_RES, &rid,
+	    0, ~0, 1, RF_ACTIVE);
 
 	if (sc->sk_res == NULL) {
 		printf("sk%d: couldn't map ports/memory\n", unit);
@@ -1230,6 +1234,7 @@ static int sk_attach(dev)
 
 	if (sc->sk_irq == NULL) {
 		printf("skc%d: couldn't map interrupt\n", unit);
+		bus_release_resource(dev, SK_RES, SK_RID, sc->sk_res);
 		error = ENXIO;
 		goto fail;
 	}
@@ -1239,6 +1244,8 @@ static int sk_attach(dev)
 
 	if (error) {
 		printf("skc%d: couldn't set up irq\n", unit);
+		bus_release_resource(dev, SK_RES, SK_RID, sc->sk_res);
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->sk_res);
 		goto fail;
 	}
 
@@ -1271,6 +1278,9 @@ static int sk_attach(dev)
 	default:
 		printf("skc%d: unknown ram size: %d\n",
 		    sc->sk_unit, sk_win_read_1(sc, SK_EPROM0));
+		bus_teardown_intr(dev, sc->sk_irq, sc->sk_intrhand);
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->sk_irq);
+		bus_release_resource(dev, SK_RES, SK_RID, sc->sk_res);
 		error = ENXIO;
 		goto fail;
 		break;
@@ -1293,6 +1303,9 @@ static int sk_attach(dev)
 	default:
 		printf("skc%d: unknown media type: 0x%x\n",
 		    sc->sk_unit, sk_win_read_1(sc, SK_PMDTYPE));
+		bus_teardown_intr(dev, sc->sk_irq, sc->sk_intrhand);
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->sk_irq);
+		bus_release_resource(dev, SK_RES, SK_RID, sc->sk_res);
 		error = ENXIO;
 		goto fail;
 	}
@@ -1340,11 +1353,7 @@ static int sk_detach(dev)
 
 	bus_teardown_intr(dev, sc->sk_irq, sc->sk_intrhand);
 	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->sk_irq);
-#ifdef SK_USEIOSPACE
-	bus_release_resource(dev, SYS_RES_IOPORT, SK_PCI_LOIO, sc->sk_res);
-#else
-	bus_release_resource(dev, SYS_RES_MEMORY, SK_PCI_LOMEM, sc->sk_res);
-#endif
+	bus_release_resource(dev, SK_RES, SK_RID, sc->sk_res);
 
 	splx(s);
 

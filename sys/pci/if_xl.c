@@ -269,6 +269,14 @@ static void xl_mediacheck	__P((struct xl_softc *));
 static void xl_testpacket	__P((struct xl_softc *));
 #endif
 
+#ifdef XL_USEIOSPACE
+#define XL_RES			SYS_RES_IOPORT
+#define XL_RID			XL_PCI_LOIO
+#else
+#define XL_RES			SYS_RES_MEMORY
+#define XL_RID			XL_PCI_LOMEM
+#endif
+
 static device_method_t xl_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		xl_probe),
@@ -1398,8 +1406,7 @@ static void xl_mediacheck(sc)
  * Attach the interface. Allocate softc structures, do ifmedia
  * setup and ethernet/BPF attach.
  */
-static int
-xl_attach(dev)
+static int xl_attach(dev)
 	device_t		dev;
 {
 	int			s, i;
@@ -1477,24 +1484,20 @@ xl_attach(dev)
 		error = ENXIO;
 		goto fail;
 	}
-
-	rid = XL_PCI_LOIO;
-	sc->xl_res = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
-	    0, ~0, 1, RF_ACTIVE);
 #else
 	if (!(command & PCIM_CMD_MEMEN)) {
 		printf("xl%d: failed to enable memory mapping!\n", unit);
 		error = ENXIO;
 		goto fail;
 	}
-
-	rid = XL_PCI_LOMEM;
-	sc->xl_res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
-	    0, ~0, 1, RF_ACTIVE);
 #endif
 
+	rid = XL_RID;
+	sc->xl_res = bus_alloc_resource(dev, XL_RES, &rid,
+	    0, ~0, 1, RF_ACTIVE);
+
 	if (sc->xl_res == NULL) {
-		printf ("xl%d: couldn't map ports\n", unit);
+		printf ("xl%d: couldn't map ports/memory\n", unit);
 		error = ENXIO;
 		goto fail;
 	}
@@ -1508,6 +1511,7 @@ xl_attach(dev)
 
 	if (sc->xl_irq == NULL) {
 		printf("xl%d: couldn't map interrupt\n", unit);
+		bus_release_resource(dev, XL_RES, XL_RID, sc->xl_res);
 		error = ENXIO;
 		goto fail;
 	}
@@ -1516,6 +1520,8 @@ xl_attach(dev)
 	    xl_intr, sc, &sc->xl_intrhand);
 
 	if (error) {
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->xl_irq);
+		bus_release_resource(dev, XL_RES, XL_RID, sc->xl_res);
 		printf("xl%d: couldn't set up irq\n", unit);
 		goto fail;
 	}
@@ -1528,6 +1534,9 @@ xl_attach(dev)
 	 */
 	if (xl_read_eeprom(sc, (caddr_t)&eaddr, XL_EE_OEM_ADR0, 3, 1)) {
 		printf("xl%d: failed to read station address\n", sc->xl_unit);
+		bus_teardown_intr(dev, sc->xl_irq, sc->xl_intrhand);
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->xl_irq);
+		bus_release_resource(dev, XL_RES, XL_RID, sc->xl_res);
 		error = ENXIO;
 		goto fail;
 	}
@@ -1545,6 +1554,9 @@ xl_attach(dev)
 				M_DEVBUF, M_NOWAIT);
 	if (sc->xl_ldata_ptr == NULL) {
 		printf("xl%d: no memory for list buffers!\n", unit);
+		bus_teardown_intr(dev, sc->xl_irq, sc->xl_intrhand);
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->xl_irq);
+		bus_release_resource(dev, XL_RES, XL_RID, sc->xl_res);
 		error = ENXIO;
 		goto fail;
 	}
@@ -1665,6 +1677,11 @@ xl_attach(dev)
 					sc->xl_unit, sc->xl_pinfo->xl_name);
 		} else {
 			printf("xl%d: MII without any phy!\n", sc->xl_unit);
+			bus_teardown_intr(dev, sc->xl_irq, sc->xl_intrhand);
+			bus_release_resource(dev, SYS_RES_IRQ, 0, sc->xl_irq);
+			bus_release_resource(dev, XL_RES, XL_RID, sc->xl_res);
+			error = ENXIO;
+			goto fail;
 		}
 	}
 
@@ -1838,11 +1855,7 @@ static int xl_detach(dev)
 
 	bus_teardown_intr(dev, sc->xl_irq, sc->xl_intrhand);
 	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->xl_irq);
-#ifdef XL_USEIOSPACE
-	bus_release_resource(dev, SYS_RES_IOPORT, XL_PCI_LOIO, sc->xl_res);
-#else
-	bus_release_resource(dev, SYS_RES_MEMORY, XL_PCI_LOMEM, sc->xl_res);
-#endif
+	bus_release_resource(dev, XL_RES, XL_RID, sc->xl_res);
 
 	free(sc->xl_ldata_ptr, M_DEVBUF);
 	ifmedia_removeall(&sc->ifmedia);
