@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_syscalls.c	8.5 (Berkeley) 4/20/94
- * $Id: lfs_syscalls.c,v 1.7 1995/03/28 07:58:06 bde Exp $
+ * $Id: lfs_syscalls.c,v 1.8 1995/04/24 05:13:28 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -174,7 +174,7 @@ lfs_markv(p, uap, retval)
 			    blkp->bi_lbn == LFS_UNUSED_LBN ? 
 			    blkp->bi_bp : NULL)) {
 #ifdef DIAGNOSTIC
-				printf("lfs_markv: VFS_VGET failed (%d)\n",
+				printf("lfs_markv: VFS_VGET failed (%ld)\n",
 				    blkp->bi_inode);
 #endif
 				lastino = LFS_UNUSED_INUM;

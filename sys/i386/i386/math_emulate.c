@@ -6,7 +6,7 @@
  * [expediant "port" of linux 8087 emulator to 386BSD, with apologies -wfj]
  *
  *	from: 386BSD 0.1
- *	$Id: math_emulate.c,v 1.9 1994/05/25 08:54:14 rgrimes Exp $
+ *	$Id: math_emulate.c,v 1.10 1994/09/15 10:58:35 davidg Exp $
  */
 
 /*
@@ -94,7 +94,7 @@ math_emulate(struct trapframe * info)
 	oldeip = info->tf_eip;
 /* 0x001f means user code space */
 	if ((u_short)info->tf_cs != 0x001F) {
-		printf("math_emulate: %04x:%08x\n\r", (u_short)info->tf_cs,
+		printf("math_emulate: %04x:%08lx\n\r", (u_short)info->tf_cs,
 			oldeip);
 		panic("?Math emulation needed in kernel?");
 	}

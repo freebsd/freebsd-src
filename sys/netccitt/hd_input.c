@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)hd_input.c	8.1 (Berkeley) 6/10/93
- * $Id: hd_input.c,v 1.2 1994/08/02 07:47:01 davidg Exp $
+ * $Id: hd_input.c,v 1.3 1995/02/15 06:29:43 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -104,7 +104,7 @@ hdintr ()
 				if (hdp->hd_ifp == ifp)
 					break;
 			if (hdp == 0) {
-				printf ("hdintr: unknown interface %x\n", ifp);
+				printf ("hdintr: unknown interface %p\n", ifp);
 				m_freem (m);
 				continue;
 			}

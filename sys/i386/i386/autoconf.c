@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.27 1995/04/25 03:41:12 phk Exp $
+ *	$Id: autoconf.c,v 1.28 1995/05/11 02:50:11 wpaul Exp $
  */
 
 /*
@@ -118,7 +118,7 @@ find_cdrom_root()
 	for (j = 0 ; j < 2; j++)
 		for (k = 0 ; try_cdrom[k].name ; k++) {
 			rootdev = makedev(try_cdrom[k].major,j*8);
-			printf("trying rootdev=%x (%s%d)\n",
+			printf("trying rootdev=0x%lx (%s%d)\n",
 				rootdev, try_cdrom[k].name,j);
 			i = (*cd9660_mountroot)();
 			if (!i) return i;

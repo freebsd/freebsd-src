@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: soundcard.c,v 1.23 1995/03/05 04:01:29 jkh Exp $
+ * $Id: soundcard.c,v 1.24 1995/03/12 23:34:10 swallace Exp $
  */
 
 #include "sound_config.h"
@@ -400,7 +400,7 @@ sound_mem_init (void)
 
 	      if (tmpbuf == NULL)
 		{
-		  printk ("snd: Unable to allocate %d bytes of buffer\n",
+		  printk ("snd: Unable to allocate %ld bytes of buffer\n",
 			  audio_devs[dev]->buffsize);
 		  return;
 		}
