@@ -552,6 +552,7 @@ struct proc {
 	u_int64_t	p_sticks;	/* (j) Statclock hits in system mode. */
 	u_int64_t	p_iticks;	/* (j) Statclock hits in intr. */
 	int		p_profthreads;	/* (c) Num threads in addupc_task */
+	int		p_maxthrwaits;	/* (c) Max threads num waiters */
 	int		p_traceflag;	/* (o) Kernel trace points. */
 	struct vnode	*p_tracep;	/* (c + o) Trace to vnode. */
 	sigset_t	p_siglist;	/* (c) Sigs arrived, not delivered. */
