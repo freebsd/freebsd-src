@@ -416,7 +416,7 @@ linux_connect(struct thread *td, struct linux_connect_args *args)
 		int namelen;
 	} */ bsd_args;
 	struct socket *so;
-	struct file *fp;
+	u_int fflag;
 	int error;
 
 #ifdef __alpha__
@@ -438,17 +438,15 @@ linux_connect(struct thread *td, struct linux_connect_args *args)
 	 * when on a non-blocking socket. Instead it returns the
 	 * error getsockopt(SOL_SOCKET, SO_ERROR) would return on BSD.
 	 */
-	error = holdsock(td->td_proc->p_fd, linux_args.s, &fp);
-	if (error)
-		return (error);
+	if ((error = fgetsock(td, linux_args.s, &so, &fflag)) != 0)
+		return(error);
 	error = EISCONN;
-	if (fp->f_flag & FNONBLOCK) {
-		so = (struct socket *)fp->f_data;
+	if (fflag & FNONBLOCK) {
 		if (so->so_emuldata == 0)
 			error = so->so_error;
 		so->so_emuldata = (void *)1;
 	}
-	fdrop(fp, td);
+	fputsock(so);
 	return (error);
 }
 
