@@ -119,6 +119,8 @@ sigaction_t act, oact;
 	if (SP->_endwin == TRUE) {
 		T(("coming back from shell mode"));
 		reset_prog_mode();
+		if (enter_ca_mode)
+			putp(enter_ca_mode);
 		/* is this necessary? */
 		if (enter_alt_charset_mode)
 			init_acs();
@@ -143,19 +145,17 @@ sigaction_t act, oact;
 
 	if (curscr->_clear) {		/* force refresh ? */
 		T(("clearing and updating curscr"));
-		ClrUpdate(curscr);		/* yes, clear all & update */
+		ClrUpdate(newscr);              /* yes, clear all & update */
 		curscr->_clear = FALSE;	/* reset flag */
+	} else if (newscr->_clear) {
+		T(("clearing and updating newscr"));
+		ClrUpdate(newscr);
+		newscr->_clear = FALSE;
 	} else {
-		if (newscr->_clear) {
-			T(("clearing and updating newscr"));
-			ClrUpdate(newscr);
-			newscr->_clear = FALSE;
-		} else {
-			T(("Transforming lines"));
-			for (i = 0; i < lines ; i++) {
-				if(newscr->_firstchar[i] != _NOCHANGE)
-					TransformLine(i);
-			}
+		T(("Transforming lines"));
+		for (i = 0; i < lines ; i++) {
+			if(newscr->_firstchar[i] != _NOCHANGE)
+				TransformLine(i);
 		}
 	}
 	T(("marking screen as updated"));
@@ -213,8 +213,8 @@ int	lastNonBlank;
 	}
 
 	T(("updating screen from scratch"));
-	for (i = 0; i < lines; i++) {
-		lastNonBlank = columns - 1;
+	for (i = 0; i < min(lines, scr->_maxy + 1); i++) {
+		lastNonBlank = scr->_maxx;
 
 		while (lastNonBlank >= 0 && scr->_line[i][lastNonBlank] == BLANK)
 			lastNonBlank--;
@@ -229,10 +229,9 @@ int	lastNonBlank;
 			}
 
 		for (j = 0; j <= lastNonBlank; j++) {
-			if (parm_right_cursor) {
-				static int inspace = 0;
+			int inspace = 0;
 
-				T(("trying to use parm_right_cursor"));
+			if (parm_right_cursor) {
 				if ((scr->_line[i][j]) == BLANK) {
 					inspace++;
 					continue;
@@ -241,6 +240,7 @@ int	lastNonBlank;
 						for (; inspace > 0; inspace--)
 							PutChar(scr->_line[i][j-1]);
 					} else {
+						T(("trying to use parm_right_cursor"));
 						putp(tparm(parm_right_cursor, inspace));
 						SP->_curscol += inspace;
 					}
