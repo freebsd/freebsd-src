@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.109 1995/03/30 14:32:29 sos Exp $
+ *  $Id: syscons.c,v 1.107 1995/03/03 08:37:07 sos Exp $
  */
 
 #include "sc.h"
@@ -84,6 +84,7 @@ static  scr_stat    	*new_scp, *old_scp;
 static  term_stat   	kernel_console; 
 static  default_attr    *current_default;
 static  char        	init_done = FALSE;
+static  int     	configuration = 0;
 static  char        	switch_in_progress = FALSE;
 static  char        	blink_in_progress = FALSE;
 static  char        	write_in_progress = FALSE;
@@ -95,17 +96,16 @@ static  char        	*font_8 = NULL, *font_14 = NULL, *font_16 = NULL;
 static  int     	fonts_loaded = 0;
 	char        	palette[3*256];
 static  const u_int     n_fkey_tab = sizeof(fkey_tab) / sizeof(*fkey_tab);
-#if ASYNCH
-static  u_char      	kbd_reply = 0;
-#endif
 static  int     	delayed_next_scr = FALSE;
-static  int     	configuration = 0;  	/* current setup */
 static  long        	scrn_blank_time = 0;    /* screen saver timeout value */
 	int     	scrn_blanked = FALSE;   /* screen saver active flag */
 static  int     	scrn_saver = 0;    	/* screen saver routine */
 static  long       	scrn_time_stamp;
 	u_char      	scr_map[256];
 static  char        	*video_mode_ptr = NULL;
+#if ASYNCH
+static  u_char      	kbd_reply = 0;
+#endif
 
 static  u_short mouse_and_mask[16] = {  
 	0xc000, 0xe000, 0xf000, 0xf800, 0xfc00, 0xfe00, 0xff00, 0xff80,
@@ -136,15 +136,6 @@ u_short         	*Crtat = (u_short *)MONO_BUF;
 #define WRAPHIST(scp, pointer, offset)\
     ((scp->history) + ((((pointer) - (scp->history)) + (scp->history_size)\
     + (offset)) % (scp->history_size)))
-
-#define mark_for_update(scp, x)	{\
-			  	    if ((x) < scp->start) scp->start = (x);\
-				    else if ((x) > scp->end) scp->end = (x);\
-				}
-#define mark_all(scp)		{\
-				    scp->start = 0;\
-				    scp->end = scp->xsize * scp->ysize;\
-				}
 
 struct  isa_driver scdriver = {
     scprobe, scattach, "sc", 1
@@ -245,19 +236,19 @@ scattach(struct isa_device *dev)
 
     scinit();
     configuration = dev->id_flags;
-    printf("sc%d: ", dev->id_unit);
-    if (crtc_vga)
-	if (crtc_addr == MONO_BASE)
-	    printf("VGA mono");
-	else    
-	    printf("VGA color");
-    else
-	if (crtc_addr == MONO_BASE)
-	    printf("MDA/hercules");
-	else    
-	    printf("CGA/EGA");
-    printf(" <%d virtual consoles, flags=0x%x>\n", MAXCONS, configuration);
+
     scp = console[0];
+
+    if (crtc_vga) {
+	font_8 = (char *)malloc(8*256, M_DEVBUF, M_NOWAIT);
+	font_14 = (char *)malloc(14*256, M_DEVBUF, M_NOWAIT);
+	font_16 = (char *)malloc(16*256, M_DEVBUF, M_NOWAIT);
+	copy_font(SAVE, FONT_16, font_16);
+	fonts_loaded = FONT_16;
+	scp->font = FONT_16;
+	save_palette();
+    }
+
     scp->scr_buf = (u_short *)malloc(scp->xsize*scp->ysize*sizeof(u_short),
 				     M_DEVBUF, M_NOWAIT);
     /* copy screen to buffer */
@@ -271,22 +262,30 @@ scattach(struct isa_device *dev)
 			  M_DEVBUF, M_NOWAIT);
     bzero(scp->history_head, scp->history_size*sizeof(u_short));
 
-    if (crtc_vga) {
-	font_8 = (char *)malloc(8*256, M_DEVBUF, M_NOWAIT);
-	font_14 = (char *)malloc(14*256, M_DEVBUF, M_NOWAIT);
-	font_16 = (char *)malloc(16*256, M_DEVBUF, M_NOWAIT);
-	copy_font(SAVE, FONT_16, font_16);
-	fonts_loaded = FONT_16;
-	scp->font = FONT_16;
-	set_destructive_cursor(scp);
-	save_palette();
-    }
+    /* initialize cursor stuff */
+    draw_cursor(scp, TRUE); 
+    if (crtc_vga && (configuration & CHAR_CURSOR))
+	set_destructive_cursor(scp, TRUE);
 
     /* get screen update going */
     scrn_timer();
 
     update_leds(scp->status);
     sc_registerdev(dev);
+
+    printf("sc%d: ", dev->id_unit);
+    if (crtc_vga)
+	if (crtc_addr == MONO_BASE)
+	    printf("VGA mono");
+	else    
+	    printf("VGA color");
+    else
+	if (crtc_addr == MONO_BASE)
+	    printf("MDA/hercules");
+	else    
+	    printf("CGA/EGA");
+    printf(" <%d virtual consoles, flags=0x%x>\n", MAXCONS, configuration);
+
 #if NAPM > 0
     scp->r_hook.ah_fun = scresume;
     scp->r_hook.ah_arg = NULL;
@@ -521,9 +520,10 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	    configuration |= BLINK_CURSOR;
 	else
 	    configuration &= ~BLINK_CURSOR;
-	if ((*(int*)data) & 0x02)
+	if ((*(int*)data) & 0x02) {
 	    configuration |= CHAR_CURSOR;
-	else
+	    set_destructive_cursor(scp, TRUE);
+	} else
 	    configuration &= ~CHAR_CURSOR;
 	return 0;
 
@@ -1010,6 +1010,8 @@ set_mouse_pos:
 	bcopy(data, font_8, 8*256);
 	fonts_loaded |= FONT_8;
 	copy_font(LOAD, FONT_8, font_8);
+	if (configuration & CHAR_CURSOR)
+	    set_destructive_cursor(scp, TRUE);
 	return 0;
 
     case GIO_FONT8x8:   	/* get 8x8 dot font */
@@ -1028,6 +1030,8 @@ set_mouse_pos:
 	bcopy(data, font_14, 14*256);
 	fonts_loaded |= FONT_14;
 	copy_font(LOAD, FONT_14, font_14);
+	if (configuration & CHAR_CURSOR)
+	    set_destructive_cursor(scp, TRUE);
 	return 0;
 
     case GIO_FONT8x14:  	/* get 8x14 dot font */
@@ -1046,6 +1050,8 @@ set_mouse_pos:
 	bcopy(data, font_16, 16*256);
 	fonts_loaded |= FONT_16;
 	copy_font(LOAD, FONT_16, font_16);
+	if (configuration & CHAR_CURSOR)
+	    set_destructive_cursor(scp, TRUE);
 	return 0;
 
     case GIO_FONT8x16:  	/* get 8x16 dot font */
@@ -1528,7 +1534,7 @@ scan_esc(scr_stat *scp, u_char c)
 	    src = dst + count;
 	    fillw(scp->term.cur_attr | scr_map[0x20], src, n);
 	    mark_for_update(scp, scp->cursor_pos - scp->scr_buf);
-	    mark_for_update(scp, scp->cursor_pos - scp->scr_buf + count + n);
+	    mark_for_update(scp, scp->cursor_pos - scp->scr_buf + n + count);
 	    break;
 
 	case '@':   /* Insert n chars */
@@ -1541,7 +1547,7 @@ scan_esc(scr_stat *scp, u_char c)
 	    bcopyw(src, dst, count * sizeof(u_short));
 	    fillw(scp->term.cur_attr | scr_map[0x20], src, n);
 	    mark_for_update(scp, scp->cursor_pos - scp->scr_buf);
-	    mark_for_update(scp, scp->cursor_pos - scp->scr_buf + count + n);
+	    mark_for_update(scp, scp->cursor_pos - scp->scr_buf + n + count);
 	    break;
 
 	case 'S':   /* scroll up n lines */
@@ -1742,15 +1748,17 @@ scan_esc(scr_stat *scp, u_char c)
 		    configuration |= BLINK_CURSOR;
 		else
 		    configuration &= ~BLINK_CURSOR;
-		if (scp->term.param[0] & 0x02)
+		if (scp->term.param[0] & 0x02) {
 		    configuration |= CHAR_CURSOR;
-		else
+		    set_destructive_cursor(scp, TRUE);
+		} else
 		    configuration &= ~CHAR_CURSOR;
 	    }
 	    else if (scp->term.num_param == 2) {
 		scp->cursor_start = scp->term.param[0] & 0x1F; 
 		scp->cursor_end = scp->term.param[1] & 0x1F; 
-		set_destructive_cursor(scp);
+		if (configuration & CHAR_CURSOR)
+			set_destructive_cursor(scp, TRUE);
 	    }
 	    break;
 
@@ -1794,8 +1802,8 @@ draw_cursor(scr_stat *scp, int show)
 
 	scp->cursor_saveunder = cursor_image;
 	if (configuration & CHAR_CURSOR) {
-	    set_destructive_cursor(scp);
-	    cursor_image = (cursor_image & 0xff00) | 0x07;
+	    set_destructive_cursor(scp, FALSE);
+	    cursor_image = (cursor_image & 0xff00) | DEAD_CHAR;
 	}
 	else {
 	    if ((cursor_image & 0x7000) == 0x7000) {
@@ -2711,7 +2719,8 @@ setup_mode:
 	    scp->font = FONT_8;
 	    break;
 	}
-	set_destructive_cursor(scp);
+	if (configuration & CHAR_CURSOR)
+	    set_destructive_cursor(scp, TRUE);
 	break;
 
     case M_BG320:     case M_CG320:     case M_BG640:
@@ -2867,13 +2876,17 @@ copy_font(int operation, int font_type, char* font_image)
 }
 
 static void 
-set_destructive_cursor(scr_stat *scp)
+set_destructive_cursor(scr_stat *scp, int force)
 {
     u_char cursor[32];
     caddr_t address;
     int i, font_size;
     char *font_buffer;
+    static u_char old_saveunder = DEAD_CHAR;
 
+    if (!force && (scp->cursor_saveunder & 0xFF) == old_saveunder)
+	return;
+    old_saveunder = scp->cursor_saveunder & 0xFF;
     switch (scp->font) {
     default:
     case FONT_8:
@@ -2900,7 +2913,7 @@ set_destructive_cursor(scr_stat *scp)
 	    cursor[i] |= 0xff;
     while (!(inb(crtc_addr+6) & 0x08)) /* wait for vertical retrace */ ;
     set_font_mode();
-    bcopy(cursor, (char *)pa_to_va(address) + 0x07 * 32, 32);
+    bcopy(cursor, (char *)pa_to_va(address) + DEAD_CHAR * 32, 32);
     set_normal_mode();
 }
 
