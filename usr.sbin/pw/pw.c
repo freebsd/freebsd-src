@@ -62,7 +62,7 @@ main(int argc, char *argv[])
 		{ /* user */
 			"C:qn:u:c:d:e:p:g:G:mk:s:oL:i:w:h:Db:NPy:Y",
 			"C:qn:u:rY",
-			"C:qn:u:c:d:e:p:g:G:mk:s:w:L:h:FNPY",
+			"C:qn:u:c:d:e:p:g:G:ml:k:s:w:L:h:FNPY",
 			"C:qn:u:FPa",
 			"C:q"
 		},
