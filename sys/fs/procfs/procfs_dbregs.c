@@ -74,6 +74,7 @@ procfs_doprocdbregs(PFS_FILL_ARGS)
 	if (kl > uio->uio_resid)
 		kl = uio->uio_resid;
 
+	PHOLD(p);
 	if (kl < 0)
 		error = EINVAL;
 	else
@@ -86,6 +87,7 @@ procfs_doprocdbregs(PFS_FILL_ARGS)
 		else
 			error = proc_write_dbregs(FIRST_THREAD_IN_PROC(p), &r); /* XXXKSE */
 	}
+	PRELE(p);
 
 	uio->uio_offset = 0;
 	return (error);
