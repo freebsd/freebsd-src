@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfsrvcache.h	8.1 (Berkeley) 6/10/93
- * $Id: nfsrvcache.h,v 1.3 1994/08/21 06:50:13 paul Exp $
+ * $Id: nfsrvcache.h,v 1.4 1994/10/17 17:47:44 phk Exp $
  */
 
 #ifndef _NFS_NFSRVCACHE_H_
@@ -44,7 +44,7 @@
  * Definitions for the server recent request cache
  */
 
-#define	NFSRVCACHESIZ	256
+#define	NFSRVCACHESIZ	64
 
 struct nfsrvcache {
 	TAILQ_ENTRY(nfsrvcache) rc_lru;		/* LRU chain */

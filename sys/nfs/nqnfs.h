@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nqnfs.h	8.1 (Berkeley) 6/10/93
- * $Id: nqnfs.h,v 1.5 1994/10/02 17:27:07 phk Exp $
+ * $Id: nqnfs.h,v 1.6 1994/10/17 17:47:45 phk Exp $
  */
 
 #ifndef _NFS_NQNFS_H_
@@ -58,7 +58,7 @@
 #define	NQLCHSZ		256	/* Server hash table size */
 
 #define	NQNFS_PROG	300105	/* As assigned by Sun */
-#define	NQNFS_VER1	1
+#define	NQNFS_VER3	3
 #define	NQNFS_EVICTSIZ	156	/* Size of eviction request in bytes */
 
 /*
@@ -143,14 +143,6 @@ struct nqm {
 };
 
 /*
- * Flag bits for flags argument to nqsrv_getlease.
- */
-#define	NQL_READ	LEASE_READ	/* Read Request */
-#define	NQL_WRITE	LEASE_WRITE	/* Write Request */
-#define	NQL_CHECK	0x4		/* Check for lease */
-#define	NQL_NOVAL	0xffffffff	/* Invalid */
-
-/*
  * Special value for slp for local server calls.
  */
 #define	NQLOCALSLP	((struct nfssvc_sock *) -1)
@@ -160,9 +152,9 @@ struct nqm {
  */
 #define	nqsrv_getl(v, l) \
 		(void) nqsrv_getlease((v), &nfsd->nd_duration, \
-		 ((nfsd->nd_nqlflag != 0 && nfsd->nd_nqlflag != NQL_NOVAL) ? nfsd->nd_nqlflag : \
-		 ((l) | NQL_CHECK)), \
-		 nfsd, nam, &cache, &frev, cred)
+		 ((nfsd->nd_flag & ND_LEASE) ? (nfsd->nd_flag & ND_LEASE) : \
+		 ((l) | ND_CHECK)), \
+		 slp, procp, nfsd->nd_nam, &cache, &frev, cred)
 
 /*
  * Client side macros that check for a valid lease.
@@ -170,13 +162,13 @@ struct nqm {
 #define	NQNFS_CKINVALID(v, n, f) \
  ((time.tv_sec > (n)->n_expiry && \
  VFSTONFS((v)->v_mount)->nm_timeouts < VFSTONFS((v)->v_mount)->nm_deadthresh) \
-  || ((f) == NQL_WRITE && ((n)->n_flag & NQNFSWRITE) == 0))
+  || ((f) == ND_WRITE && ((n)->n_flag & NQNFSWRITE) == 0))
 
 #define	NQNFS_CKCACHABLE(v, f) \
  ((time.tv_sec <= VTONFS(v)->n_expiry || \
   VFSTONFS((v)->v_mount)->nm_timeouts >= VFSTONFS((v)->v_mount)->nm_deadthresh) \
    && (VTONFS(v)->n_flag & NQNFSNONCACHE) == 0 && \
-   ((f) == NQL_READ || (VTONFS(v)->n_flag & NQNFSWRITE)))
+   ((f) == ND_READ || (VTONFS(v)->n_flag & NQNFSWRITE)))
 
 #define	NQNFS_NEEDLEASE(v, p) \
 		(time.tv_sec > VTONFS(v)->n_expiry ? \
@@ -184,7 +176,7 @@ struct nqm {
 		 (((time.tv_sec + NQ_RENEWAL) > VTONFS(v)->n_expiry && \
 		   nqnfs_piggy[p]) ? \
 		   ((VTONFS(v)->n_flag & NQNFSWRITE) ? \
-		    NQL_WRITE : nqnfs_piggy[p]) : 0))
+		    ND_WRITE : nqnfs_piggy[p]) : 0))
 
 /*
  * List head for timer queue.
@@ -204,13 +196,12 @@ u_long nqfhhash;
  */
 #define	NQNFS_EXPIRED	500
 #define	NQNFS_TRYLATER	501
-#define NQNFS_AUTHERR	502
 
-#ifdef KERNEL
-void	nfs_lease_check __P((struct vnode *, struct proc *, struct ucred *, int));
-void	nfs_lease_updatetime __P((int));
+#if defined(KERNEL) || defined(_KERNEL)
+void	nqnfs_lease_check __P((struct vnode *, struct proc *, struct ucred *, int));
+void	nqnfs_lease_updatetime __P((int));
 int	nqsrv_cmpnam __P((struct nfssvc_sock *,struct mbuf *,struct nqhost *));
-int	nqsrv_getlease __P((struct vnode *,u_long *,int,struct nfsd *,struct mbuf *,int *,u_quad_t *,struct ucred *));
+int	nqsrv_getlease __P((struct vnode *,u_long *,int,struct nfssvc_sock *,struct proc *,struct mbuf *,int *,u_quad_t *,struct ucred *));
 int	nqnfs_getlease __P((struct vnode *,int,struct ucred *,struct proc *));
 int	nqnfs_callback __P((struct nfsmount *,struct mbuf *,struct mbuf *,caddr_t));
 int	nqnfs_clientd __P((struct nfsmount *,struct ucred *,struct nfsd_cargs *,int,caddr_t,struct proc *));

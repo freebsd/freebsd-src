@@ -33,14 +33,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)nfsv2.h	8.1 (Berkeley) 6/10/93
- * $Id: nfsv2.h,v 1.4 1994/08/21 06:50:13 paul Exp $
+ *	@(#)nfsproto.h	8.1 (Berkeley) 6/10/93
+ * $Id: nfsproto.h,v 1.4 1994/08/21 06:50:13 paul Exp $
  */
 
-#include <nfs/nfsproto.h>
-
-#if 0
-
+#ifndef _NFS_NFSPROTO_H_
+#define _NFS_NFSPROTO_H_
 
 /*
  * nfs definitions as per the Version 2 and 3 specs
@@ -57,7 +55,8 @@
 #define	NFS_PROG	100003
 #define NFS_VER2	2
 #define	NFS_VER3	3
-#define	NFS_MAXDGRAMDATA 8192
+#define NFS_V2MAXDATA	8192
+#define	NFS_MAXDGRAMDATA 16384
 #define	NFS_MAXDATA	32768
 #define	NFS_MAXPATHLEN	1024
 #define	NFS_MAXNAMLEN	255
@@ -97,6 +96,12 @@
 #define	NFSERR_SERVERFAULT	10006
 #define	NFSERR_BADTYPE		10007
 #define	NFSERR_JUKEBOX		10008
+#define NFSERR_TRYLATER		NFSERR_JUKEBOX
+#define	NFSERR_STALEWRITEVERF	30001	/* Fake return for nfs_commit() */
+
+#define NFSERR_RETVOID		0x20000000 /* Return void, not error */
+#define NFSERR_AUTHERR		0x40000000 /* Mark an authentication error */
+#define NFSERR_RETERR		0x80000000 /* Mark an error return for V3 */
 
 /* Sizes in bytes of various nfs rpc components */
 #define	NFSX_UNSIGNED	4
@@ -109,25 +114,37 @@
 #define NFSX_V2STATFS	20
 
 /* specific to NFS Version 3 */
-#define NFSX_V3FH	16	/* size this server uses */
-#define	NFSX_V3FHMAX	64	/* max. allowed by protocol */
-#define NFSX_V3FATTR	84
-#define NFSX_V3SATTR	60	/* max. all fields filled in */
-#define NFSX_V3COOKIEVERF 8
+#define NFSX_V3FH		(sizeof (fhandle_t)) /* size this server uses */
+#define	NFSX_V3FHMAX		64	/* max. allowed by protocol */
+#define NFSX_V3FATTR		84
+#define NFSX_V3SATTR		60	/* max. all fields filled in */
+#define NFSX_V3SRVSATTR		(sizeof (struct nfsv3_sattr))
+#define NFSX_V3POSTOPATTR	(NFSX_V3FATTR + NFSX_UNSIGNED)
+#define NFSX_V3WCCDATA		(NFSX_V3POSTOPATTR + 8 * NFSX_UNSIGNED)
+#define NFSX_V3COOKIEVERF 	8
+#define NFSX_V3WRITEVERF 	8
+#define NFSX_V3CREATEVERF	8
+#define NFSX_V3STATFS		52
+#define NFSX_V3FSINFO		48
+#define NFSX_V3PATHCONF		24
 
 /* variants for both versions */
 #define NFSX_FH(v3)		((v3) ? (NFSX_V3FHMAX + NFSX_UNSIGNED) : \
 					NFSX_V2FH)
 #define NFSX_SRVFH(v3)		((v3) ? NFSX_V3FH : NFSX_V2FH)
 #define	NFSX_FATTR(v3)		((v3) ? NFSX_V3FATTR : NFSX_V2FATTR)
+#define NFSX_PREOPATTR(v3)	((v3) ? (7 * NFSX_UNSIGNED) : 0)
 #define NFSX_POSTOPATTR(v3)	((v3) ? (NFSX_V3FATTR + NFSX_UNSIGNED) : 0)
 #define NFSX_POSTOPORFATTR(v3)	((v3) ? (NFSX_V3FATTR + NFSX_UNSIGNED) : \
 					NFSX_V2FATTR)
-#define NFSX_WCCDATA(v3)	((v3) ? (NFSX_V3FATTR + 32) : 0)
-#define NFSX_WCCORFATTR(v3)	((v3) ? (NFSX_V3FATTR + 32) : NFSX_V2FATTR)
+#define NFSX_WCCDATA(v3)	((v3) ? NFSX_V3WCCDATA : 0)
+#define NFSX_WCCORFATTR(v3)	((v3) ? NFSX_V3WCCDATA : NFSX_V2FATTR)
 #define	NFSX_SATTR(v3)		((v3) ? NFSX_V3SATTR : NFSX_V2SATTR)
 #define	NFSX_COOKIEVERF(v3)	((v3) ? NFSX_V3COOKIEVERF : 0)
-#define	NFSX_STATFS(isv3)	((isv3) ? NFSX_NFSV3STATFS : NFSX_NFSSTATFS)
+#define	NFSX_WRITEVERF(v3)	((v3) ? NFSX_V3WRITEVERF : 0)
+#define NFSX_READDIR(v3)	((v3) ? (5 * NFSX_UNSIGNED) : \
+					(2 * NFSX_UNSIGNED))
+#define	NFSX_STATFS(v3)		((v3) ? NFSX_V3STATFS : NFSX_V2STATFS)
 
 /* nfs rpc procedure numbers (before version mapping) */
 #define	NFSPROC_NULL		0
@@ -153,12 +170,13 @@
 #define	NFSPROC_PATHCONF	20
 #define	NFSPROC_COMMIT		21
 
-/* And leasing (nqnfs) procedure numbers */
+/* And leasing (nqnfs) procedure numbers (must be last) */
 #define	NQNFSPROC_GETLEASE	22
 #define	NQNFSPROC_VACATED	23
 #define	NQNFSPROC_EVICTED	24
 
-#define	NFS_NPROCS		25
+#define NFSPROC_NOOP		25
+#define	NFS_NPROCS		26
 
 /* Actual Version 2 procedure numbers */
 #define	NFSV2PROC_NULL		0
@@ -181,8 +199,34 @@
 #define	NFSV2PROC_READDIR	16
 #define	NFSV2PROC_STATFS	17
 
+/*
+ * Constants used by the Version 3 protocol for various RPCs
+ */
+#define NFSV3SATTRTIME_DONTCHANGE	0
+#define NFSV3SATTRTIME_TOSERVER		1
+#define NFSV3SATTRTIME_TOCLIENT		2
+
+#define NFSV3ACCESS_READ		0x01
+#define NFSV3ACCESS_LOOKUP		0x02
+#define NFSV3ACCESS_MODIFY		0x04
+#define NFSV3ACCESS_EXTEND		0x08
+#define NFSV3ACCESS_DELETE		0x10
+#define NFSV3ACCESS_EXECUTE		0x20
+
+#define NFSV3WRITE_UNSTABLE		0
+#define NFSV3WRITE_DATASYNC		1
+#define NFSV3WRITE_FILESYNC		2
+
+#define NFSV3CREATE_UNCHECKED		0
+#define NFSV3CREATE_GUARDED		1
+#define NFSV3CREATE_EXCLUSIVE		2
+
+#define NFSV3FSINFO_LINK		0x01
+#define NFSV3FSINFO_SYMLINK		0x02
+#define NFSV3FSINFO_HOMOGENEOUS		0x08
+#define NFSV3FSINFO_CANSETTIME		0x10
+
 /* Conversion macros */
-extern int		vttoif_tab[];
 #define	vtonfsv2_mode(t,m) \
 		txdr_unsigned(((t) == VFIFO) ? MAKEIMODE(VCHR, (m)) : \
 				MAKEIMODE((t), (m)))
@@ -198,6 +242,22 @@ typedef enum { NFNON=0, NFREG=1, NFDIR=2, NFBLK=3, NFCHR=4, NFLNK=5,
 	NFSOCK=6, NFFIFO=7 } nfstype;
 
 /* Structs for common parts of the rpc's */
+/*
+ * File Handle (32 bytes for version 2), variable up to 64 for version 3.
+ * File Handles of up to NFS_SMALLFH in size are stored directly in the
+ * nfs node, whereas larger ones are malloc'd. (This never happens when
+ * NFS_SMALLFH is set to 64.)
+ * NFS_SMALLFH should be in the range of 32 to 64 and be divisible by 4.
+ */
+#ifndef NFS_SMALLFH
+#define NFS_SMALLFH	64
+#endif
+union nfsfh {
+	fhandle_t	fh_generic;
+	u_char		fh_bytes[NFS_SMALLFH];
+};
+typedef union nfsfh nfsfh_t;
+
 struct nfsv2_time {
 	u_long	nfsv2_sec;
 	u_long	nfsv2_usec;
@@ -218,6 +278,24 @@ struct nfs_uquad {
 	u_long	nfsuquad[2];
 };
 typedef	struct nfs_uquad	nfsuint64;
+
+/*
+ * Used to convert between two u_longs and a u_quad_t.
+ */
+union nfs_quadconvert {
+	u_long		lval[2];
+	u_quad_t	qval;
+};
+typedef union nfs_quadconvert	nfsquad_t;
+
+/*
+ * NFS Version 3 special file number.
+ */
+struct nfsv3_spec {
+	u_long	specdata1;
+	u_long	specdata2;
+};
+typedef	struct nfsv3_spec	nfsv3spec;
 
 /*
  * File attributes and setable attributes. These structures cover both
@@ -249,7 +327,7 @@ struct nfs_fattr {
 		struct {
 			nfsuint64	nfsv3fa_size;
 			nfsuint64	nfsv3fa_used;
-			nfsuint64	nfsv3fa_rdev;
+			nfsv3spec	nfsv3fa_rdev;
 			nfsuint64	nfsv3fa_fsid;
 			nfsuint64	nfsv3fa_fileid;
 			nfstime3	nfsv3fa_atime;
@@ -287,23 +365,56 @@ struct nfsv2_sattr {
 	nfstime2	sa_mtime;
 };
 
-struct nfsv2_statfs {
-	u_long	sf_tsize;
-	u_long	sf_bsize;
-	u_long	sf_blocks;
-	u_long	sf_bfree;
-	u_long	sf_bavail;
+/*
+ * NFS Version 3 sattr structure for the new node creation case.
+ */
+struct nfsv3_sattr {
+	u_long		sa_modetrue;
+	u_long		sa_mode;
+	u_long		sa_uidtrue;
+	u_long		sa_uid;
+	u_long		sa_gidtrue;
+	u_long		sa_gid;
+	u_long		sa_sizefalse;
+	u_long		sa_atimetype;
+	nfstime3	sa_atime;
+	u_long		sa_mtimetype;
+	nfstime3	sa_mtime;
 };
 
-struct nfsv3_fsstat {
-	nfsuint64	sf_tbytes;
-	nfsuint64	sf_fbytes;
-	nfsuint64	sf_abytes;
-	nfsuint64	sf_tfiles;
-	nfsuint64	sf_ffiles;
-	nfsuint64	sf_afiles;
-	u_long		sf_invarsec;
+struct nfs_statfs {
+	union {
+		struct {
+			u_long		nfsv2sf_tsize;
+			u_long		nfsv2sf_bsize;
+			u_long		nfsv2sf_blocks;
+			u_long		nfsv2sf_bfree;
+			u_long		nfsv2sf_bavail;
+		} sf_nfsv2;
+		struct {
+			nfsuint64	nfsv3sf_tbytes;
+			nfsuint64	nfsv3sf_fbytes;
+			nfsuint64	nfsv3sf_abytes;
+			nfsuint64	nfsv3sf_tfiles;
+			nfsuint64	nfsv3sf_ffiles;
+			nfsuint64	nfsv3sf_afiles;
+			u_long		nfsv3sf_invarsec;
+		} sf_nfsv3;
+	} sf_un;
 };
+
+#define sf_tsize	sf_un.sf_nfsv2.nfsv2sf_tsize
+#define sf_bsize	sf_un.sf_nfsv2.nfsv2sf_bsize
+#define sf_blocks	sf_un.sf_nfsv2.nfsv2sf_blocks
+#define sf_bfree	sf_un.sf_nfsv2.nfsv2sf_bfree
+#define sf_bavail	sf_un.sf_nfsv2.nfsv2sf_bavail
+#define sf_tbytes	sf_un.sf_nfsv3.nfsv3sf_tbytes
+#define sf_fbytes	sf_un.sf_nfsv3.nfsv3sf_fbytes
+#define sf_abytes	sf_un.sf_nfsv3.nfsv3sf_abytes
+#define sf_tfiles	sf_un.sf_nfsv3.nfsv3sf_tfiles
+#define sf_ffiles	sf_un.sf_nfsv3.nfsv3sf_ffiles
+#define sf_afiles	sf_un.sf_nfsv3.nfsv3sf_afiles
+#define sf_invarsec	sf_un.sf_nfsv3.nfsv3sf_invarsec
 
 struct nfsv3_fsinfo {
 	u_long		fs_rtmax;
@@ -314,7 +425,17 @@ struct nfsv3_fsinfo {
 	u_long		fs_wtmult;
 	u_long		fs_dtpref;
 	nfsuint64	fs_maxfilesize;
-	nfstime3	fs_time_delta;
+	nfstime3	fs_timedelta;
 	u_long		fs_properties;
 };
+
+struct nfsv3_pathconf {
+	u_long		pc_linkmax;
+	u_long		pc_namemax;
+	u_long		pc_notrunc;
+	u_long		pc_chownrestricted;
+	u_long		pc_caseinsensitive;
+	u_long		pc_casepreserving;
+};
+
 #endif

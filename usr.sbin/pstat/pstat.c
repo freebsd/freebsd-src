@@ -54,6 +54,8 @@ static char sccsid[] = "@(#)pstat.c	8.9 (Berkeley) 2/16/94";
 #undef NFS
 #undef KERNEL
 #include <sys/stat.h>
+#include <nfs/rpcv2.h>
+#include <nfs/nfsproto.h>
 #include <nfs/nfsnode.h>
 #include <sys/ioctl.h>
 #include <sys/ioctl_compat.h>	/* XXX NTTYDISC is too well hidden */
