@@ -479,14 +479,12 @@ struct ste_type {
 struct ste_list_data {
 	struct ste_desc_onefrag	ste_rx_list[STE_RX_LIST_CNT];
 	struct ste_desc		ste_tx_list[STE_TX_LIST_CNT];
-	u_int8_t		ste_pad[STE_MIN_FRAMELEN];
 };
 
 struct ste_chain {
 	struct ste_desc		*ste_ptr;
 	struct mbuf		*ste_mbuf;
 	struct ste_chain	*ste_next;
-	struct ste_chain	*ste_prev;
 	u_int32_t		ste_phys;
 };
 
@@ -503,7 +501,6 @@ struct ste_chain_data {
 
 	int			ste_tx_prod;
 	int			ste_tx_cons;
-	int			ste_tx_cnt;
 };
 
 struct ste_softc {
@@ -520,11 +517,14 @@ struct ste_softc {
 	int			ste_tx_thresh;
 	u_int8_t		ste_link;
 	int			ste_if_flags;
-	int			ste_tx_prev_idx;
+	struct ste_chain	*ste_tx_prev;
 	struct ste_list_data	*ste_ldata;
 	struct ste_chain_data	ste_cdata;
 	struct callout_handle	ste_stat_ch;
 	u_int8_t		ste_one_phy;
+#ifdef DEVICE_POLLING
+	int			rxcycles;
+#endif
 };
 
 struct ste_mii_frame {

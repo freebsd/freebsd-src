@@ -39,6 +39,7 @@
 #include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/socket.h>
+#include <sys/sysctl.h>
 
 #include <net/if.h>
 #include <net/if_arp.h>
@@ -91,6 +92,7 @@ static int ste_attach		__P((device_t));
 static int ste_detach		__P((device_t));
 static void ste_init		__P((void *));
 static void ste_intr		__P((void *));
+static void ste_rxeoc		__P((struct ste_softc *));
 static void ste_rxeof		__P((struct ste_softc *));
 static void ste_txeoc		__P((struct ste_softc *));
 static void ste_txeof		__P((struct ste_softc *));
@@ -165,6 +167,11 @@ static devclass_t ste_devclass;
 
 DRIVER_MODULE(if_ste, pci, ste_driver, ste_devclass, 0, 0);
 DRIVER_MODULE(miibus, ste, miibus_driver, miibus_devclass, 0, 0);
+
+SYSCTL_NODE(_hw, OID_AUTO, ste, CTLFLAG_RD, 0, "if_ste parameters");
+
+static int ste_rxsyncs;
+SYSCTL_INT(_hw_ste, OID_AUTO, rxsyncs, CTLFLAG_RW, &ste_rxsyncs, 0, "");
 
 #define STE_SETBIT4(sc, reg, x)				\
 	CSR_WRITE_4(sc, reg, CSR_READ_4(sc, reg) | x)
@@ -623,6 +630,51 @@ static void ste_setmulti(sc)
 	return;
 }
 
+#ifdef DEVICE_POLLING
+static poll_handler_t ste_poll;
+
+static void
+ste_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
+{
+	struct ste_softc *sc = ifp->if_softc;
+
+	if (cmd == POLL_DEREGISTER) { /* final call, enable interrupts */
+		CSR_WRITE_2(sc, STE_IMR, STE_INTRS);
+		return;
+	}
+
+	sc->rxcycles = count;
+	if (cmd == POLL_AND_CHECK_STATUS)
+		ste_rxeoc(sc);
+	ste_rxeof(sc);
+	ste_txeof(sc);
+	if (ifp->if_snd.ifq_head != NULL)
+		ste_start(ifp);
+
+	if (sc->rxcycles > 0 && cmd == POLL_AND_CHECK_STATUS) {
+		u_int16_t status;
+
+		status = CSR_READ_2(sc, STE_ISR_ACK);
+
+		if (status & STE_ISR_TX_DONE)
+			ste_txeoc(sc);
+
+		if (status & STE_ISR_STATS_OFLOW) {
+			untimeout(ste_stats_update, sc, sc->ste_stat_ch);
+			ste_stats_update(sc);
+		}
+
+		if (status & STE_ISR_LINKEVENT)
+			mii_pollstat(device_get_softc(sc->ste_miibus));
+
+		if (status & STE_ISR_HOSTERR) {
+			ste_reset(sc);
+			ste_init(sc);
+		}
+	}
+}
+#endif /* DEVICE_POLLING */
+
 static void ste_intr(xsc)
 	void			*xsc;
 {
@@ -632,6 +684,16 @@ static void ste_intr(xsc)
 
 	sc = xsc;
 	ifp = &sc->arpcom.ac_if;
+
+#ifdef DEVICE_POLLING
+	if (ifp->if_ipending & IFF_POLLING)
+		return;
+	if (ether_poll_register(ste_poll, ifp)) { /* ok, disable interrupts */
+		CSR_WRITE_2(sc, STE_IMR, 0);
+		ste_poll(ifp, 0, 1);
+		return;
+	}
+#endif /* DEVICE_POLLING */
 
 	/* See if this is really our interrupt. */
 	if (!(CSR_READ_2(sc, STE_ISR) & STE_ISR_INTLATCH))
@@ -643,8 +705,10 @@ static void ste_intr(xsc)
 		if (!(status & STE_INTRS))
 			break;
 
-		if (status & STE_ISR_RX_DMADONE)
+		if (status & STE_ISR_RX_DMADONE) {
+			ste_rxeoc(sc);
 			ste_rxeof(sc);
+		}
 
 		if (status & STE_ISR_TX_DMADONE)
 			ste_txeof(sc);
@@ -675,6 +739,27 @@ static void ste_intr(xsc)
 	return;
 }
 
+static void
+ste_rxeoc(struct ste_softc *sc)
+{
+	struct ste_chain_onefrag *cur_rx;
+
+	if (sc->ste_cdata.ste_rx_head->ste_ptr->ste_status == 0) {
+		cur_rx = sc->ste_cdata.ste_rx_head;
+		do {
+			cur_rx = cur_rx->ste_next;
+			/* If the ring is empty, just return. */
+			if (cur_rx == sc->ste_cdata.ste_rx_head)
+				return;
+		} while (cur_rx->ste_ptr->ste_status == 0);
+		if (sc->ste_cdata.ste_rx_head->ste_ptr->ste_status == 0) {
+			/* We've fallen behind the chip: catch it. */
+			sc->ste_cdata.ste_rx_head = cur_rx;
+			++ste_rxsyncs;
+		}
+	}
+}
+
 /*
  * A frame has been uploaded: pass the resulting mbuf chain up to
  * the higher level protocols.
@@ -693,6 +778,13 @@ static void ste_rxeof(sc)
 
 	while((rxstat = sc->ste_cdata.ste_rx_head->ste_ptr->ste_status)
 	      & STE_RXSTAT_DMADONE) {
+#ifdef DEVICE_POLLING
+		if (ifp->if_ipending & IFF_POLLING) {
+			if (sc->rxcycles <= 0)
+				break;
+			sc->rxcycles--;
+		}
+#endif /* DEVICE_POLLING */
 		if ((STE_RX_LIST_CNT - count) < 3) {
 			break;
 		}
@@ -799,7 +891,7 @@ static void ste_txeoc(sc)
 static void ste_txeof(sc)
 	struct ste_softc	*sc;
 {
-	struct ste_chain	*cur_tx = NULL;
+	struct ste_chain	*cur_tx;
 	struct ifnet		*ifp;
 	int			idx;
 
@@ -812,24 +904,17 @@ static void ste_txeof(sc)
 		if (!(cur_tx->ste_ptr->ste_ctl & STE_TXCTL_DMADONE))
 			break;
 
-		if (cur_tx->ste_mbuf != NULL) {
-			m_freem(cur_tx->ste_mbuf);
-			cur_tx->ste_mbuf = NULL;
-		}
-
+		m_freem(cur_tx->ste_mbuf);
+		cur_tx->ste_mbuf = NULL;
+		ifp->if_flags &= ~IFF_OACTIVE;
 		ifp->if_opackets++;
 
-		sc->ste_cdata.ste_tx_cnt--;
 		STE_INC(idx, STE_TX_LIST_CNT);
-		ifp->if_timer = 0;
 	}
 
 	sc->ste_cdata.ste_tx_cons = idx;
-
-	if (cur_tx != NULL)
-		ifp->if_flags &= ~IFF_OACTIVE;
-
-	return;
+	if (idx == sc->ste_cdata.ste_tx_prod)
+		ifp->if_timer = 0;
 }
 
 static void ste_stats_update(xsc)
@@ -1209,17 +1294,10 @@ static void ste_init_tx_list(sc)
 		else
 			cd->ste_tx_chain[i].ste_next =
 			    &cd->ste_tx_chain[i + 1];
-		if (i == 0)
-			cd->ste_tx_chain[i].ste_prev =
-			     &cd->ste_tx_chain[STE_TX_LIST_CNT - 1];
-		else
-			cd->ste_tx_chain[i].ste_prev =
-			     &cd->ste_tx_chain[i - 1];
 	}
 
 	cd->ste_tx_prod = 0;
 	cd->ste_tx_cons = 0;
-	cd->ste_tx_cnt = 0;
 
 	return;
 }
@@ -1255,7 +1333,7 @@ static void ste_init(xsc)
 	}
 
 	/* Set RX polling interval */
-	CSR_WRITE_1(sc, STE_RX_DMAPOLL_PERIOD, 1);
+	CSR_WRITE_1(sc, STE_RX_DMAPOLL_PERIOD, 64);
 
 	/* Init TX descriptors */
 	ste_init_tx_list(sc);
@@ -1306,7 +1384,7 @@ static void ste_init(xsc)
 	STE_SETBIT4(sc, STE_DMACTL, STE_DMACTL_TXDMA_UNSTALL);
 	STE_SETBIT4(sc, STE_DMACTL, STE_DMACTL_TXDMA_UNSTALL);
 	ste_wait(sc);
-	sc->ste_tx_prev_idx=-1;
+	sc->ste_tx_prev = NULL;
 
 	/* Enable receiver and transmitter */
 	CSR_WRITE_2(sc, STE_MACCTL0, 0);
@@ -1317,8 +1395,14 @@ static void ste_init(xsc)
 	/* Enable stats counters. */
 	STE_SETBIT2(sc, STE_MACCTL1, STE_MACCTL1_STATS_ENABLE);
 
-	/* Enable interrupts. */
 	CSR_WRITE_2(sc, STE_ISR, 0xFFFF);
+#ifdef DEVICE_POLLING
+	/* Disable interrupts if we are polling. */
+	if (ifp->if_ipending & IFF_POLLING)
+		CSR_WRITE_2(sc, STE_IMR, 0);
+	else   
+#endif /* DEVICE_POLLING */
+	/* Enable interrupts. */
 	CSR_WRITE_2(sc, STE_IMR, STE_INTRS);
 
 	/* Accept VLAN length packets */
@@ -1345,6 +1429,10 @@ static void ste_stop(sc)
 	ifp = &sc->arpcom.ac_if;
 
 	untimeout(ste_stats_update, sc, sc->ste_stat_ch);
+	ifp->if_flags &= ~(IFF_RUNNING|IFF_OACTIVE);
+#ifdef DEVICE_POLLING
+	ether_poll_deregister(ifp);
+#endif /* DEVICE_POLLING */
 
 	CSR_WRITE_2(sc, STE_IMR, 0);
 	STE_SETBIT2(sc, STE_MACCTL1, STE_MACCTL1_TX_DISABLE);
@@ -1376,8 +1464,6 @@ static void ste_stop(sc)
 	}
 
 	bzero(sc->ste_ldata, sizeof(struct ste_list_data));
-
-	ifp->if_flags &= ~(IFF_RUNNING|IFF_OACTIVE);
 
 	return;
 }
@@ -1508,25 +1594,13 @@ encap_retry:
 		/*
 		 * We ran out of segments. We have to recopy this
 		 * mbuf chain first. Bail out if we can't get the
-		 * new buffers.  Code borrowed from if_fxp.c.
+		 * new buffers.
 		 */
-		MGETHDR(mn, M_DONTWAIT, MT_DATA);
+		mn = m_defrag(m_head, M_DONTWAIT);
 		if (mn == NULL) {
 			m_freem(m_head);
 			return ENOMEM;
 		}
-		if (m_head->m_pkthdr.len > MHLEN) {
-			MCLGET(mn, M_DONTWAIT);
-			if ((mn->m_flags & M_EXT) == 0) {
-				m_freem(mn);
-				m_freem(m_head);
-				return ENOMEM;
-			}
-		}
-		m_copydata(m_head, 0, m_head->m_pkthdr.len,
-		    mtod(mn, caddr_t));
-		mn->m_pkthdr.len = mn->m_len = m_head->m_pkthdr.len;
-		m_freem(m_head);
 		m_head = mn;
 		goto encap_retry;
 	}
@@ -1543,7 +1617,7 @@ static void ste_start(ifp)
 {
 	struct ste_softc	*sc;
 	struct mbuf		*m_head = NULL;
-	struct ste_chain	*cur_tx = NULL;
+	struct ste_chain	*cur_tx;
 	int			idx;
 
 	sc = ifp->if_softc;
@@ -1557,8 +1631,12 @@ static void ste_start(ifp)
 	idx = sc->ste_cdata.ste_tx_prod;
 
 	while(sc->ste_cdata.ste_tx_chain[idx].ste_mbuf == NULL) {
-
-		if ((STE_TX_LIST_CNT - sc->ste_cdata.ste_tx_cnt) < 3) {
+		/*
+		 * We cannot re-use the last (free) descriptor;
+		 * the chip may not have read its ste_next yet.
+		 */
+		if (STE_NEXT(idx, STE_TX_LIST_CNT) ==
+		    sc->ste_cdata.ste_tx_cons) {
 			ifp->if_flags |= IFF_OACTIVE;
 			break;
 		}
@@ -1574,7 +1652,7 @@ static void ste_start(ifp)
 
 		cur_tx->ste_ptr->ste_next = 0;
 
-		if(sc->ste_tx_prev_idx < 0){
+		if (sc->ste_tx_prev == NULL) {
 			cur_tx->ste_ptr->ste_ctl = STE_TXCTL_DMAINTR | 1;
 			/* Load address of the TX list */
 			STE_SETBIT4(sc, STE_DMACTL, STE_DMACTL_TXDMA_STALL);
@@ -1590,12 +1668,11 @@ static void ste_start(ifp)
 			ste_wait(sc);
 		}else{
 			cur_tx->ste_ptr->ste_ctl = STE_TXCTL_DMAINTR | 1;
-			sc->ste_cdata.ste_tx_chain[
-			    sc->ste_tx_prev_idx].ste_ptr->ste_next
+			sc->ste_tx_prev->ste_ptr->ste_next
 				= cur_tx->ste_phys;
 		}
 
-		sc->ste_tx_prev_idx=idx;
+		sc->ste_tx_prev = cur_tx;
 
 		/*
 		 * If there's a BPF listener, bounce a copy of this frame
@@ -1605,10 +1682,9 @@ static void ste_start(ifp)
 			bpf_mtap(ifp, cur_tx->ste_mbuf);
 
 		STE_INC(idx, STE_TX_LIST_CNT);
-		sc->ste_cdata.ste_tx_cnt++;
 		ifp->if_timer = 5;
-		sc->ste_cdata.ste_tx_prod = idx;
 	}
+	sc->ste_cdata.ste_tx_prod = idx;
 
 	return;
 }
@@ -1625,6 +1701,7 @@ static void ste_watchdog(ifp)
 
 	ste_txeoc(sc);
 	ste_txeof(sc);
+	ste_rxeoc(sc);
 	ste_rxeof(sc);
 	ste_reset(sc);
 	ste_init(sc);
