@@ -3370,7 +3370,9 @@ or a range of ports the same size as the other ranges.
 This option is useful if you wish to run things like Internet phone on
 machines behind your gateway, but is limited in that connections to only
 one interior machine per source machine and target port are possible.
-.It nat proto Ar proto localIP Op Ar publicIP Op Ar remoteIP
+.It nat proto Ar proto localIP Oo
+.Ar publicIP Op Ar remoteIP
+.Oc
 This command tells
 .Nm
 to redirect packets of protocol type
