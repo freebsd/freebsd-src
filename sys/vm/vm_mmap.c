@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_mmap.c 1.6 91/10/21$
  *
  *	@(#)vm_mmap.c	8.4 (Berkeley) 1/12/94
- * $Id: vm_mmap.c,v 1.39 1996/03/12 02:27:20 dyson Exp $
+ * $Id: vm_mmap.c,v 1.40 1996/03/16 15:00:05 davidg Exp $
  */
 
 /*
@@ -767,7 +767,7 @@ vm_mmap(map, addr, size, prot, maxprot, flags, handle, foff)
 		docow = MAP_COPY_ON_WRITE;
 		if (objsize < size) {
 			object2 = vm_object_allocate( OBJT_DEFAULT,
-				OFF_TO_IDX(size - (foff & ~(PAGE_SIZE - 1))));
+				OFF_TO_IDX(size - (foff & ~PAGE_MASK)));
 			object2->backing_object = object;
 			object2->backing_object_offset = foff;
 			TAILQ_INSERT_TAIL(&object->shadow_head,

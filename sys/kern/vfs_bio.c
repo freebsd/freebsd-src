@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.87 1996/03/03 01:04:28 dyson Exp $
+ * $Id: vfs_bio.c,v 1.88 1996/03/09 06:46:51 dyson Exp $
  */
 
 /*
@@ -735,7 +735,6 @@ static struct buf *
 getnewbuf(int slpflag, int slptimeo, int doingvmio)
 {
 	struct buf *bp;
-	int s;
 	int nbyteswritten = 0;
 
 start:
@@ -858,7 +857,6 @@ struct buf *
 incore(struct vnode * vp, daddr_t blkno)
 {
 	struct buf *bp;
-	struct bufhashhdr *bh;
 
 	int s = splbio();
 	bp = gbincore(vp, blkno);
@@ -1255,7 +1253,7 @@ allocbuf(struct buf * bp, int size)
 							bytesinpage = newbsize - toff;
 						if ((bp->b_flags & B_CACHE) &&
 							!vm_page_is_valid(m,
-							(vm_offset_t) ((toff + off) & (PAGE_SIZE - 1)),
+							(vm_offset_t) ((toff + off) & PAGE_MASK),
 							bytesinpage)) {
 							bp->b_flags &= ~B_CACHE;
 						}
@@ -1296,7 +1294,7 @@ allocbuf(struct buf * bp, int size)
 							bytesinpage = newbsize - toff;
 						if ((bp->b_flags & B_CACHE) &&
 							!vm_page_is_valid(m,
-							(vm_offset_t) ((toff + off) & (PAGE_SIZE - 1)),
+							(vm_offset_t) ((toff + off) & PAGE_MASK),
 							bytesinpage)) {
 							bp->b_flags &= ~B_CACHE;
 						}
@@ -1309,7 +1307,7 @@ allocbuf(struct buf * bp, int size)
 				bp->b_npages = curbpnpages;
 				pmap_qenter((vm_offset_t) bp->b_data,
 					bp->b_pages, bp->b_npages);
-				((vm_offset_t) bp->b_data) |= off & (PAGE_SIZE - 1);
+				((vm_offset_t) bp->b_data) |= off & PAGE_MASK;
 			}
 		}
 	}
@@ -1434,7 +1432,7 @@ biodone(register struct buf * bp)
 			 */
 			if ((bp->b_flags & B_READ) && !bogusflag && resid > 0) {
 				vm_page_set_validclean(m,
-					(vm_offset_t) (foff & (PAGE_SIZE-1)), resid);
+					(vm_offset_t) (foff & PAGE_MASK), resid);
 			}
 
 			/*
@@ -1449,7 +1447,7 @@ biodone(register struct buf * bp)
 				    (int) m->pindex, (int)(foff >> 32),
 						(int) foff & 0xffffffff, resid, i);
 				if (vp->v_type != VBLK)
-					printf(" iosize: %d, lblkno: %d, flags: 0x%lx, npages: %d\n",
+					printf(" iosize: %ld, lblkno: %d, flags: 0x%lx, npages: %d\n",
 					    bp->b_vp->v_mount->mnt_stat.f_iosize,
 					    (int) bp->b_lblkno,
 					    bp->b_flags, bp->b_npages);
@@ -1614,7 +1612,7 @@ vfs_busy_pages(struct buf * bp, int clear_modify)
 			if (clear_modify) {
 				vm_page_protect(m, VM_PROT_READ);
 				vm_page_set_validclean(m,
-					(vm_offset_t) (foff & (PAGE_SIZE-1)), resid);
+					(vm_offset_t) (foff & PAGE_MASK), resid);
 			} else if (bp->b_bcount >= PAGE_SIZE) {
 				if (m->valid && (bp->b_flags & B_CACHE) == 0) {
 					bp->b_pages[i] = bogus_page;
@@ -1654,7 +1652,7 @@ vfs_clean_pages(struct buf * bp)
 				resid = iocount;
 			if (resid > 0) {
 				vm_page_set_validclean(m,
-					((vm_offset_t) foff & (PAGE_SIZE-1)), resid);
+					((vm_offset_t) foff & PAGE_MASK), resid);
 			}
 			foff += resid;
 			iocount -= resid;

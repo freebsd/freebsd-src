@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.58 1996/01/19 04:00:31 dyson Exp $
+ *	$Id: vnode_pager.c,v 1.59 1996/03/19 05:13:22 dyson Exp $
  */
 
 /*
@@ -295,10 +295,10 @@ vnode_pager_setsize(vp, nsize)
 	 */
 	if (nsize < object->un_pager.vnp.vnp_size) {
 		vm_ooffset_t nsizerounded;
-		nsizerounded = IDX_TO_OFF(OFF_TO_IDX(nsize + PAGE_SIZE - 1));
+		nsizerounded = IDX_TO_OFF(OFF_TO_IDX(nsize + PAGE_MASK));
 		if (nsizerounded < object->un_pager.vnp.vnp_size) {
 			vm_object_page_remove(object,
-				OFF_TO_IDX(nsize + PAGE_SIZE - 1),
+				OFF_TO_IDX(nsize + PAGE_MASK),
 				OFF_TO_IDX(object->un_pager.vnp.vnp_size),
 				FALSE);
 		}
@@ -320,7 +320,7 @@ vnode_pager_setsize(vp, nsize)
 		}
 	}
 	object->un_pager.vnp.vnp_size = nsize;
-	object->size = OFF_TO_IDX(nsize + PAGE_SIZE - 1);
+	object->size = OFF_TO_IDX(nsize + PAGE_MASK);
 }
 
 void
@@ -518,9 +518,9 @@ vnode_pager_input_smlfs(object, m)
 			if (error)
 				break;
 
-			vm_page_set_validclean(m, (i * bsize) & (PAGE_SIZE-1), bsize);
+			vm_page_set_validclean(m, (i * bsize) & PAGE_MASK, bsize);
 		} else {
-			vm_page_set_validclean(m, (i * bsize) & (PAGE_SIZE-1), bsize);
+			vm_page_set_validclean(m, (i * bsize) & PAGE_MASK, bsize);
 			bzero((caddr_t) kva + i * bsize, bsize);
 		}
 	}
@@ -897,7 +897,7 @@ vnode_pager_leaf_putpages(object, m, count, sync, rtvals)
 			maxsize = object->un_pager.vnp.vnp_size - poffset;
 		else
 			maxsize = 0;
-		ncount = (maxsize + PAGE_SIZE - 1) / PAGE_SIZE;
+		ncount = btoc(maxsize);
 		if (ncount < count) {
 			for (i = ncount; i < count; i++) {
 				rtvals[i] = VM_PAGER_BAD;

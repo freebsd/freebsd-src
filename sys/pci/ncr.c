@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.70 1996/04/07 17:32:33 bde Exp $
+**  $Id: ncr.c,v 1.71 1996/05/02 14:20:47 phk Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -1254,7 +1254,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.70 1996/04/07 17:32:33 bde Exp $\n";
+	"\n$Id: ncr.c,v 1.71 1996/05/02 14:20:47 phk Exp $\n";
 
 static u_long	ncr_version = NCR_VERSION	* 11
 	+ (u_long) sizeof (struct ncb)	*  7
@@ -6425,7 +6425,7 @@ static	int	ncr_scatter
 
 	free = MAX_SCATTER - 1;
 
-	if (vaddr & (PAGE_SIZE-1)) free -= datalen / PAGE_SIZE;
+	if (vaddr & PAGE_MASK) free -= datalen / PAGE_SIZE;
 
 	if (free>1)
 		while ((chunk * free >= 2 * datalen) && (chunk>=1024))
@@ -6454,7 +6454,7 @@ static	int	ncr_scatter
 			/*
 			**	continue this segment
 			*/
-			pnext = (paddr & (~(PAGE_SIZE - 1))) + PAGE_SIZE;
+			pnext = (paddr & (~PAGE_MASK)) + PAGE_SIZE;
 
 			/*
 			**	Compute max size

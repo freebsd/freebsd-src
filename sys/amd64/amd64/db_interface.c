@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_interface.c,v 1.17 1995/12/10 13:36:25 phk Exp $
+ *	$Id: db_interface.c,v 1.18 1996/04/07 18:34:59 bde Exp $
  */
 
 /*
@@ -225,8 +225,8 @@ db_write_bytes(addr, size, data)
 	    oldmap0 = *ptep0;
 	    *(int *)ptep0 |= /* INTEL_PTE_WRITE */ PG_RW;
 
-	    addr1 = i386_trunc_page(addr + size - 1);
-	    if (i386_trunc_page(addr) != addr1) {
+	    addr1 = trunc_page(addr + size - 1);
+	    if (trunc_page(addr) != addr1) {
 		/* data crosses a page boundary */
 
 		ptep1 = pmap_pte(kernel_pmap, addr1);
