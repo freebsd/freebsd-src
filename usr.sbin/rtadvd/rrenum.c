@@ -244,7 +244,7 @@ do_pco(struct icmp6_router_renum *rr, int len, struct rr_pco_match *rpm)
 	int ifindex = 0;
 	struct in6_rrenumreq irr;
 
-	if ((rr_pco_check(len, rpm) != NULL))
+	if ((rr_pco_check(len, rpm) != 0))
 		return 1;
 
 	if (s == -1 && (s = socket(AF_INET6, SOCK_DGRAM, 0)) < 0) {
