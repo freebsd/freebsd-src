@@ -716,16 +716,14 @@ in_losing(inp)
 
 	if ((rt = inp->inp_route.ro_rt)) {
 		bzero((caddr_t)&info, sizeof(info));
-		info.rti_info[RTAX_DST] =
-			(struct sockaddr *)&inp->inp_route.ro_dst;
+		info.rti_flags = rt->rt_flags;
+		info.rti_info[RTAX_DST] = rt_key(rt);
 		info.rti_info[RTAX_GATEWAY] = rt->rt_gateway;
 		info.rti_info[RTAX_NETMASK] = rt_mask(rt);
 		rt_missmsg(RTM_LOSING, &info, rt->rt_flags, 0);
 		if (rt->rt_flags & RTF_DYNAMIC)
-			(void) rtrequest(RTM_DELETE, rt_key(rt),
-				rt->rt_gateway, rt_mask(rt), rt->rt_flags,
-				(struct rtentry **)0);
-		inp->inp_route.ro_rt = 0;
+			(void) rtrequest1(RTM_DELETE, &info, NULL);
+		inp->inp_route.ro_rt = NULL;
 		rtfree(rt);
 		/*
 		 * A new route can be allocated

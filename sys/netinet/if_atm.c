@@ -71,14 +71,14 @@
  * atm_rtrequest: handle ATM rt request (in support of generic code)
  *   inputs: "req" = request code
  *           "rt" = route entry
- *           "sa" = sockaddr
+ *           "info" = rt_addrinfo
  */
 
 void
-atm_rtrequest(req, rt, sa)
+atm_rtrequest(req, rt, info)
 	int req;
 	register struct rtentry *rt;
-	struct sockaddr *sa;
+	struct rt_addrinfo *info;
 {
 	register struct sockaddr *gate = rt->rt_gateway;
 	struct atm_pseudoioctl api;

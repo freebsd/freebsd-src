@@ -248,6 +248,9 @@ struct rt_msghdr {
 struct rt_addrinfo {
 	int	rti_addrs;
 	struct	sockaddr *rti_info[RTAX_MAX];
+	int	rti_flags;
+	struct	ifaddr *rti_ifa;
+	struct	ifnet *rti_ifp;
 };
 
 struct route_cb {
@@ -274,6 +277,7 @@ struct ifmultiaddr;
 struct proc;
 
 void	 route_init __P((void));
+int	 rt_getifa __P((struct rt_addrinfo *));
 void	 rt_ifmsg __P((struct ifnet *));
 void	 rt_missmsg __P((int, struct rt_addrinfo *, int, int));
 void	 rt_newaddrmsg __P((int, struct ifaddr *, int, struct rtentry *));
@@ -291,6 +295,7 @@ void	 rtredirect __P((struct sockaddr *, struct sockaddr *,
 	    struct sockaddr *, int, struct sockaddr *, struct rtentry **));
 int	 rtrequest __P((int, struct sockaddr *,
 	    struct sockaddr *, struct sockaddr *, int, struct rtentry **));
+int	 rtrequest1 __P((int, struct rt_addrinfo *, struct rtentry **));
 #endif
 
 #endif
