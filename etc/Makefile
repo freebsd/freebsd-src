@@ -12,19 +12,13 @@ BIN1=	amd.map apmd.conf auth.conf \
 	inetd.conf login.access login.conf \
 	mac.conf motd netconfig network.subr networks newsyslog.conf \
 	phones printcap profile protocols \
-	rc rc.atm rc.devfs rc.diskless1 rc.diskless2 rc.firewall rc.firewall6 \
-	rc.network rc.network6 rc.pccard rc.sendmail rc.serial rc.shutdown \
-	rc.subr rc.syscons rc.sysctl remote rpc services \
+	rc rc.firewall rc.firewall6 rc.shutdown \
+	rc.subr remote rpc services \
 	shells sysctl.conf syslog.conf usbd.conf \
-	etc.${MACHINE_ARCH}/rc.${MACHINE_ARCH} \
 	etc.${MACHINE_ARCH}/ttys \
 	${.CURDIR}/../gnu/usr.bin/man/manpath/manpath.config \
 	${.CURDIR}/../usr.bin/mail/misc/mail.rc \
 	${.CURDIR}/../usr.bin/locate/locate/locate.rc
-
-.if !defined(NO_I4B)
-BIN1+=	rc.isdn
-.endif
 
 .if exists(${.CURDIR}/../crypto) && !defined(NO_OPENSSL)
 .if !defined(NO_OPENSSH)
