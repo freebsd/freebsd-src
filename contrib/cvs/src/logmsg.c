@@ -136,7 +136,7 @@ fmt_proc (p, closure)
 	{
 	    if (col > 0)
 	        (void) fprintf (fp, "\n");
-	    (void) fprintf (fp, "%s", prefix);
+	    (void) fputs (prefix, fp);
 	    col = strlen (prefix);
 	    while (col < 6)
 	    {
@@ -197,8 +197,11 @@ do_editor (dir, messagep, repository, changes)
     struct stat pre_stbuf, post_stbuf;
     int retcode = 0;
 
-    assert (current_parsed_root->isremote && !repository
-	    || !current_parsed_root->isremote && repository);
+#ifdef CLIENT_SUPPORT
+    assert (!current_parsed_root->isremote != !repository);
+#else
+    assert (repository);
+#endif
 
     if (noexec || reuse_log_message)
 	return;
@@ -218,7 +221,7 @@ do_editor (dir, messagep, repository, changes)
 
     if (*messagep)
     {
-	(void) fprintf (fp, "%s", *messagep);
+	(void) fputs (*messagep, fp);
 
 	if ((*messagep)[0] == '\0' ||
 	    (*messagep)[strlen (*messagep) - 1] != '\n')
@@ -355,16 +358,16 @@ do_editor (dir, messagep, repository, changes)
     if (fclose (fp) < 0)
 	error (0, errno, "warning: cannot close %s", fname);
 
-    if (pre_stbuf.st_mtime == post_stbuf.st_mtime ||
-	*messagep == NULL ||
-	(*messagep)[0] == '\0' ||
-	strcmp (*messagep, "\n") == 0)
+    /* canonicalize emply messages */
+    if (*messagep != NULL &&
+        (**messagep == '\0' || strcmp (*messagep, "\n") == 0))
     {
-	if (*messagep)
-	{
-	    free (*messagep);
-	    *messagep = NULL;
-	}
+	free (*messagep);
+	*messagep = NULL;
+    }
+
+    if (pre_stbuf.st_mtime == post_stbuf.st_mtime || *messagep == NULL)
+    {
 	for (;;)
 	{
 	    (void) printf ("\nLog message unchanged or not specified\n");
@@ -433,13 +436,13 @@ do_verify (messagep, repository)
     if (noexec)
 	return;
 
-    /* If there's no message, then we have nothing to verify.  Can this
-       case happen?  And if so why would we print a message?  */
-    if (*messagep == NULL)
-    {
-	cvs_output ("No message to verify\n", 0);
+    /* Get the name of the verification script to run  */
+
+    if (repository != NULL)
+	(void) Parse_Info (CVSROOTADM_VERIFYMSG, repository, 
+			   verifymsg_proc, 0);
+    if (!verifymsg_script)
 	return;
-    }
 
     /* open a temporary file, write the message to the 
        temp file, and close the file.  */
@@ -447,10 +450,12 @@ do_verify (messagep, repository)
     if ((fp = cvs_temp_file (&fname)) == NULL)
 	error (1, errno, "cannot create temporary file %s", fname);
 
-    fprintf (fp, "%s", *messagep);
-    if ((*messagep)[0] == '\0' ||
+    if (*messagep != NULL)
+	fputs (*messagep, fp);
+    if (*messagep == NULL ||
+	(*messagep)[0] == '\0' ||
 	(*messagep)[strlen (*messagep) - 1] != '\n')
-	(void) fprintf (fp, "%s", "\n");
+	putc ('\n', fp);
     if (fclose (fp) == EOF)
 	error (1, errno, "%s", fname);
 
@@ -467,28 +472,17 @@ do_verify (messagep, repository)
 	sleep_past (pre_stbuf.st_mtime);
     }
 
-    /* Get the name of the verification script to run  */
-
-    if (repository != NULL)
-	(void) Parse_Info (CVSROOTADM_VERIFYMSG, repository, 
-			   verifymsg_proc, 0);
-
-    /* Run the verification script  */
-
-    if (verifymsg_script)
+    run_setup (verifymsg_script);
+    run_arg (fname);
+    if ((retcode = run_exec (RUN_TTY, RUN_TTY, RUN_TTY,
+			     RUN_NORMAL | RUN_SIGIGNORE)) != 0)
     {
-	run_setup (verifymsg_script);
-	run_arg (fname);
-	if ((retcode = run_exec (RUN_TTY, RUN_TTY, RUN_TTY,
-				 RUN_NORMAL | RUN_SIGIGNORE)) != 0)
-	{
-	    /* Since following error() exits, delete the temp file now.  */
-	    if (unlink_file (fname) < 0)
-		error (0, errno, "cannot remove %s", fname);
+	/* Since following error() exits, delete the temp file now.  */
+	if (unlink_file (fname) < 0)
+	    error (0, errno, "cannot remove %s", fname);
 
-	    error (1, retcode == -1 ? errno : 0, 
-		   "Message verification failed");
-	}
+	error (1, retcode == -1 ? errno : 0, 
+	       "Message verification failed");
     }
 
     /* Get the mod time and size of the possibly new log message
@@ -510,8 +504,6 @@ do_verify (messagep, repository)
 	     pre_stbuf.st_size != post_stbuf.st_size)))
     {
 	/* put the entire message back into the *messagep variable */
-	if ( (fp = open_file (fname, "r")) == NULL )
-	    error (1, errno, "cannot open temporary file %s", fname);
 
 	if (*messagep) free (*messagep);
 
@@ -519,18 +511,18 @@ do_verify (messagep, repository)
 	    *messagep = NULL;
 	else
 	{
-	    /* On NT, we might read less than st_size bytes,
-	       but we won't read more.  So this works.  */
-	    *messagep = (char *) xmalloc (post_stbuf.st_size + 1);
-	    *messagep[0] = '\0';
-	}
-
-	if (*messagep)
-	{
 	    char *line = NULL;
 	    int line_length;
 	    size_t line_chars_allocated = 0;
-	    char *p = *messagep;
+	    char *p;
+
+	    if ( (fp = open_file (fname, "r")) == NULL )
+		error (1, errno, "cannot open temporary file %s", fname);
+
+	    /* On NT, we might read less than st_size bytes,
+	       but we won't read more.  So this works.  */
+	    p = *messagep = (char *) xmalloc (post_stbuf.st_size + 1);
+	    *messagep[0] = '\0';
 
 	    while (1)
 	    {
@@ -552,9 +544,9 @@ do_verify (messagep, repository)
 		p += line_length;
 	    }
 	    if (line) free (line);
+	    if (fclose (fp) < 0)
+	        error (0, errno, "warning: cannot close %s", fname);
 	}
-	if (fclose (fp) < 0)
-	    error (0, errno, "warning: cannot close %s", fname);
     }
 
     /* Delete the temp file  */
@@ -716,6 +708,11 @@ title_proc (p, closure)
 		   fields).  This way if future CVS versions add formatting
 		   characters, one can write a loginfo file which at least
 		   won't blow up on an old CVS.  */
+		/* Note that people who have to deal with spaces in file
+		   and directory names are using space to get a known
+		   delimiter for the directory name, so it's probably
+		   not a good idea to ever define that as a formatting
+		   character.  */
 		}
 		if (*(c + 1) != '\0')
 		{

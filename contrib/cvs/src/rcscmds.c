@@ -454,7 +454,7 @@ RCS file: ", 0);
     }
 
     RCS_output_diff_options (opts, rev1, rev2, workfile);
-    status = diff_execv (tmpfile1, use_file2, label1, label2, opts, RUN_TTY);
+    status = diff_exec (tmpfile1, use_file2, label1, label2, opts, RUN_TTY);
     if (status >= 0)
     {
 	retval = status;
@@ -583,55 +583,7 @@ diff_exec (file1, file2, label1, label2, options, out)
 	call_diff_arg (label1);
     if (label2)
 	call_diff_arg (label2);
-    call_diff_arg (file1);
-    call_diff_arg (file2);
-    free (args);
-
-    return call_diff (out);
-}
-
-int
-diff_execv (file1, file2, label1, label2, options, out)
-    char *file1;
-    char *file2;
-    char *label1;
-    char *label2;
-    char *options;
-    char *out;
-{
-    char *args;
-
-#ifdef PRESERVE_PERMISSIONS_SUPPORT
-    /* Pretend that special files are /dev/null for purposes of making
-       diffs.  See comments in diff_exec. */
-
-    if (preserve_perms &&
-	strcmp (file1, DEVNULL) != 0 &&
-	strcmp (file2, DEVNULL) != 0)
-    {
-	struct stat sb1, sb2;
-
-	if (CVS_LSTAT (file1, &sb1) < 0)
-	    error (1, errno, "cannot get file information for %s", file1);
-	if (CVS_LSTAT (file2, &sb2) < 0)
-	    error (1, errno, "cannot get file information for %s", file2);
-
-	if (!S_ISREG (sb1.st_mode) && !S_ISDIR (sb1.st_mode))
-	    file1 = DEVNULL;
-	if (!S_ISREG (sb2.st_mode) && !S_ISDIR (sb2.st_mode))
-	    file2 = DEVNULL;
-    }
-#endif
-
-    args = xmalloc (strlen (options) + 10);
-    /* The first word in this string is used only for error reporting.  */
-    /* I guess we are pretty confident that options starts with a space.  */
-    sprintf (args, "diff%s", options);
-    call_diff_setup (args);
-    if (label1)
-	call_diff_arg (label1);
-    if (label2)
-	call_diff_arg (label2);
+    call_diff_arg ("--");
     call_diff_arg (file1);
     call_diff_arg (file2);
     free (args);
