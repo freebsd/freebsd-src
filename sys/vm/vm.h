@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm.h	8.2 (Berkeley) 12/13/93
- * $Id: vm.h,v 1.7 1995/12/05 20:54:42 bde Exp $
+ * $Id: vm.h,v 1.8 1995/12/07 12:48:07 davidg Exp $
  */
 
 #ifndef VM_H
@@ -53,6 +53,15 @@ struct vm_object;
 typedef struct vm_object *vm_object_t;
 
 #ifndef KERNEL
+/*
+ * This is defined in <sys/types.h> for the kernel so that non-vm kernel
+ * sources (mainly Mach-derived ones such as ddb) don't have to include
+ * vm stuff.  Defining it there for applications might break things.
+ * Define it here for "applications" that include vm headers (e.g.,
+ * genassym).
+ */
+typedef int boolean_t;
+
 /*
  * This is defined in <sys/types.h> for the kernel so that vnode_if.h
  * doesn't have to include <vm/vm.h>.

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)types.h	8.4 (Berkeley) 1/21/94
- * $Id: types.h,v 1.5 1995/06/28 01:39:50 bde Exp $
+ * $Id: types.h,v 1.6 1995/12/05 20:54:35 bde Exp $
  */
 
 #ifndef _SYS_TYPES_H_
@@ -76,6 +76,7 @@ typedef	long		swblk_t;	/* swap offset */
 typedef	unsigned long	uid_t;		/* user id */
 
 #ifdef KERNEL
+typedef int		boolean_t;
 struct vm_page;
 typedef struct vm_page	*vm_page_t;
 #endif
