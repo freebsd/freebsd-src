@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/sockio.h>
 #include <sys/soundcard.h>
+#include <sys/stdint.h>
 #include <sys/tty.h>
 #include <sys/uio.h>
 #include <net/if.h>
@@ -65,6 +66,7 @@ __FBSDID("$FreeBSD$");
 static linux_ioctl_function_t linux_ioctl_cdrom;
 static linux_ioctl_function_t linux_ioctl_vfat;
 static linux_ioctl_function_t linux_ioctl_console;
+static linux_ioctl_function_t linux_ioctl_hdio;
 static linux_ioctl_function_t linux_ioctl_disk;
 static linux_ioctl_function_t linux_ioctl_socket;
 static linux_ioctl_function_t linux_ioctl_sound;
@@ -79,6 +81,8 @@ static struct linux_ioctl_handler vfat_handler =
 { linux_ioctl_vfat, LINUX_IOCTL_VFAT_MIN, LINUX_IOCTL_VFAT_MAX };
 static struct linux_ioctl_handler console_handler =
 { linux_ioctl_console, LINUX_IOCTL_CONSOLE_MIN, LINUX_IOCTL_CONSOLE_MAX };
+static struct linux_ioctl_handler hdio_handler =
+{ linux_ioctl_hdio, LINUX_IOCTL_HDIO_MIN, LINUX_IOCTL_HDIO_MAX };
 static struct linux_ioctl_handler disk_handler =
 { linux_ioctl_disk, LINUX_IOCTL_DISK_MIN, LINUX_IOCTL_DISK_MAX };
 static struct linux_ioctl_handler socket_handler =
@@ -95,6 +99,7 @@ static struct linux_ioctl_handler drm_handler =
 DATA_SET(linux_ioctl_handler_set, cdrom_handler);
 DATA_SET(linux_ioctl_handler_set, vfat_handler);
 DATA_SET(linux_ioctl_handler_set, console_handler);
+DATA_SET(linux_ioctl_handler_set, hdio_handler);
 DATA_SET(linux_ioctl_handler_set, disk_handler);
 DATA_SET(linux_ioctl_handler_set, socket_handler);
 DATA_SET(linux_ioctl_handler_set, sound_handler);
@@ -111,6 +116,105 @@ struct handler_element
 
 static TAILQ_HEAD(, handler_element) handlers =
 	TAILQ_HEAD_INITIALIZER(handlers);
+
+/*
+ * hdio related ioctls for VMWare support
+ */
+
+struct linux_hd_geometry {
+	u_int8_t	heads;
+	u_int8_t	sectors;
+	u_int16_t	cylinders;
+	u_int32_t	start;
+};
+
+struct linux_hd_big_geometry {
+	u_int8_t	heads;
+	u_int8_t	sectors;
+	u_int32_t	cylinders;
+	u_int32_t	start;
+};
+
+static int
+linux_ioctl_hdio(struct thread *td, struct linux_ioctl_args *args)
+{
+	struct file *fp;
+	int error;
+	u_int sectorsize, fwcylinders, fwheads, fwsectors;
+	off_t mediasize, bytespercyl;
+
+	if ((error = fget(td, args->fd, &fp)) != 0)
+		return (error);
+	switch (args->cmd & 0xffff) {
+	case LINUX_HDIO_GET_GEO:
+	case LINUX_HDIO_GET_GEO_BIG:
+		error = fo_ioctl(fp, DIOCGMEDIASIZE,
+			(caddr_t)&mediasize, td->td_ucred, td);
+		if (!error)
+			error = fo_ioctl(fp, DIOCGSECTORSIZE,
+				(caddr_t)&sectorsize, td->td_ucred, td);
+		if (!error)
+			error = fo_ioctl(fp, DIOCGFWHEADS,
+				(caddr_t)&fwheads, td->td_ucred, td);
+		if (!error)
+			error = fo_ioctl(fp, DIOCGFWSECTORS,
+				(caddr_t)&fwsectors, td->td_ucred, td);
+		/*
+		 * XXX: DIOCGFIRSTOFFSET is not yet implemented, so
+		 * so pretend that GEOM always says 0. This is NOT VALID
+		 * for slices or partitions, only the per-disk raw devices.
+		 */
+
+		fdrop(fp, td);
+		if (error)
+			return (error);
+		/*
+		 * 1. Calculate the number of bytes in a cylinder,
+		 *    given the firmware's notion of heads and sectors
+		 *    per cylinder.
+		 * 2. Calculate the number of cylinders, given the total
+		 *    size of the media.
+		 * All internal calculations should have 64-bit precision.
+		 */
+		bytespercyl = (off_t) sectorsize * fwheads * fwsectors;
+		fwcylinders = mediasize / bytespercyl;
+#if defined(DEBUG)
+		linux_msg(td, "HDIO_GET_GEO: mediasize %jd, c/h/s %d/%d/%d, "
+			  "bpc %jd",
+			  (intmax_t)mediasize, fwcylinders, fwheads, fwsectors, 
+			  (intmax_t)bytespercyl);
+#endif
+		if ((args->cmd & 0xffff) == LINUX_HDIO_GET_GEO) {
+			struct linux_hd_geometry hdg;
+
+			hdg.cylinders = fwcylinders;
+			hdg.heads = fwheads;
+			hdg.sectors = fwsectors;
+			hdg.start = 0;
+			error = copyout(&hdg, (void *)args->arg, sizeof(hdg));
+		} else if ((args->cmd & 0xffff) == LINUX_HDIO_GET_GEO_BIG) {
+			struct linux_hd_big_geometry hdbg;
+
+			hdbg.cylinders = fwcylinders;
+			hdbg.heads = fwheads;
+			hdbg.sectors = fwsectors;
+			hdbg.start = 0;
+			error = copyout(&hdbg, (void *)args->arg, sizeof(hdbg));
+		}
+		return (error);
+		break;
+	default:
+		/* XXX */
+		linux_msg(td,
+			"ioctl fd=%d, cmd=0x%x ('%c',%d) is not implemented",
+			args->fd, (int)(args->cmd & 0xffff),
+			(int)(args->cmd & 0xff00) >> 8,
+			(int)(args->cmd & 0xff));
+		break;
+	}
+	fdrop(fp, td);
+	return (ENOIOCTL);
+}
 
 static int
 linux_ioctl_disk(struct thread *td, struct linux_ioctl_args *args)
@@ -138,6 +242,7 @@ linux_ioctl_disk(struct thread *td, struct linux_ioctl_args *args)
 		 */
 		return (copyout(&sectorsize, (void *)args->arg,
 		    sizeof(sectorsize)));
+		break;
 	}
 	fdrop(fp, td);
 	return (ENOIOCTL);
