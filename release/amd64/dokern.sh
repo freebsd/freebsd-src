@@ -46,4 +46,3 @@ echo 'options  "MAXCONS=4"'
 echo "options  SCSI_NO_OP_STRINGS" 
 echo "options  SCSI_NO_SENSE_STRINGS"
 echo "options  NO_LKM"
-echo "options  NO_SWAPPING"
