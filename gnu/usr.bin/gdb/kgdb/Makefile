@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	kgdb
-SRCS=	kthr.c main.c trgt.c trgt_${MACHINE_ARCH}.c
+SRCS=	kthr.c main.c trgt.c trgt_${TARGET_ARCH}.c
 WARNS?=	2
 
 BULIBS= ${OBJ_BU}/libbfd/libbfd.a ${OBJ_BU}/libopcodes/libopcodes.a \
