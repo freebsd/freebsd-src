@@ -56,7 +56,7 @@ newsyntax(argc, argvp)
 	char *p, **argv;
 
 	argv = *argvp;
-	while ((ch = getopt(argc, argv, "bcde:f:n:os:vx")) != EOF)
+	while ((ch = getopt(argc, argv, "bcCde:f:n:os:vx")) != EOF)
 		switch (ch) {
 		case 'b':
 			add("\"%07.7_Ax\n\"");
@@ -65,6 +65,11 @@ newsyntax(argc, argvp)
 		case 'c':
 			add("\"%07.7_Ax\n\"");
 			add("\"%07.7_ax \" 16/1 \"%3_c \" \"\\n\"");
+			break;
+		case 'C':
+			add("\"%08.8_Ax\n\"");
+			add("\"%08.8_ax \" 16/1 \"%02x \" ");
+			add("\" |\" 16/1 \"%_p\" \"|\\n\"");
 			break;
 		case 'd':
 			add("\"%07.7_Ax\n\"");
