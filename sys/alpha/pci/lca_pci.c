@@ -161,19 +161,10 @@ u_int32_t
 lca_pcib_read_config(device_t dev, u_int b, u_int s, u_int f,
 		     u_int reg, int width)
 {
-	pcicfgregs cfg;
 
-	if ((reg == PCIR_INTLINE) && (width == 1) && 
-	     (platform.pci_intr_map != NULL)) {
-		cfg.bus = b;
-		cfg.slot = s;
-		cfg.func = f;
-		cfg.intline = 255;
-		cfg.intpin =
-		    lca_pcib_read_config(dev, b, s, f, PCIR_INTPIN, 1);
-		platform.pci_intr_map((void *)&cfg);
-		if (cfg.intline != 255)
-			return cfg.intline;
+	if ((reg == PCIR_INTLINE) && (width == 1)) {
+		/* SRM left bad value; let intr_route fill them in later */
+		return ~0;
 	}
 
 	switch (width) {
