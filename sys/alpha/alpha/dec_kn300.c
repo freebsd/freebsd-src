@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2000 by Matthew Jacob
  * NASA AMES Research Center.
  * All rights reserved.

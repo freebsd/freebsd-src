@@ -1,6 +1,6 @@
 /* $FreeBSD$ */
 
-/*
+/*-
  * Copyright (c) 1998, 2000 by Matthew Jacob
  * All rights reserved.
  *
