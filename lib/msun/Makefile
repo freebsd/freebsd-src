@@ -83,7 +83,8 @@ COMMON_SRCS =	e_acos.c e_acosf.c e_acosh.c e_acoshf.c e_asin.c e_asinf.c \
 	w_j0f.c w_j1.c w_j1f.c w_jn.c w_jnf.c w_lgamma.c w_lgamma_r.c \
 	w_lgammaf.c w_lgammaf_r.c w_log.c w_log10.c w_log10f.c w_logf.c \
 	w_pow.c w_powf.c w_remainder.c w_remainderf.c w_scalb.c w_scalbf.c \
-	w_sinh.c w_sinhf.c w_sqrt.c w_sqrtf.c
+	w_sinh.c w_sinhf.c w_sqrt.c w_sqrtf.c \
+	w_y0.c w_y0f.c w_y1.c w_y1f.c w_yn.c w_ynf.c
 
 # FreeBSD's C library supplies these functions:
 #COMMON_SRCS+=	s_fabs.c s_frexp.c s_isnan.c s_ldexp.c s_modf.c
