@@ -332,8 +332,8 @@ mfs_mount(mp, path, data, ndp, p)
 	}
 	devvp->v_type = VBLK;
 	dev = make_dev(&mfs_cdevsw, mfs_minor, 0, 0, 0, "MFS%d", mfs_minor);
+	/* It is not clear that these will get initialized otherwise */
 	dev->si_bsize_phys = DEV_BSIZE;
-	dev->si_bsize_best = BLKDEV_IOSIZE;
 	dev->si_bsize_max = MAXBSIZE;
 	addaliasu(devvp, makeudev(253, mfs_minor++));
 	devvp->v_data = mfsp;
@@ -494,8 +494,8 @@ mfs_init(vfsp)
 		mountrootfsname = "mfs";
 		rootdev = make_dev(&mfs_cdevsw, mfs_minor, 
 		    0, 0, 0, "MFS%d", mfs_minor);
+		/* It is not clear that these will get initialized otherwise */
 		rootdev->si_bsize_phys = DEV_BSIZE;
-		rootdev->si_bsize_best = BLKDEV_IOSIZE;
 		rootdev->si_bsize_max = MAXBSIZE;
 		mfs_minor++;
 	} else if (bootverbose)

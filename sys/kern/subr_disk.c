@@ -13,6 +13,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/sysctl.h>
 #include <sys/buf.h>
 #include <sys/conf.h>
 #include <sys/disk.h>
@@ -235,3 +236,14 @@ diskpsize(dev_t dev)
 	}
 	return (dssize(dev, &dp->d_slice));
 }
+
+SYSCTL_DECL(_debug_sizeof);
+
+SYSCTL_INT(_debug_sizeof, OID_AUTO, disklabel, CTLFLAG_RD, 
+    0, sizeof(struct disklabel), "sizeof(struct disklabel)");
+
+SYSCTL_INT(_debug_sizeof, OID_AUTO, diskslices, CTLFLAG_RD, 
+    0, sizeof(struct diskslices), "sizeof(struct diskslices)");
+
+SYSCTL_INT(_debug_sizeof, OID_AUTO, disk, CTLFLAG_RD, 
+    0, sizeof(struct disk), "sizeof(struct disk)");

@@ -258,8 +258,6 @@ scdopen(dev_t dev, int flags, int fmt, struct proc *p)
 
 	XDEBUG(1,("scd%d: DEBUG: status = 0x%x\n", unit, inb(cd->iobase+IREG_STATUS)));
 
-	dev->si_bsize_phys = 2048;
-	dev->si_bsize_max = MAXBSIZE;
 	if ((rc = spin_up(unit)) != 0) {
 		print_error(unit, rc);
 		return EIO;
@@ -280,6 +278,8 @@ scdopen(dev_t dev, int flags, int fmt, struct proc *p)
 			return EIO;
 		}
 	}
+
+	dev->si_bsize_phys = cd->blksize;
 
 	cd->openflag = 1;
 	cd->flags |= SCDVALID;
