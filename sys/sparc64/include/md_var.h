@@ -43,8 +43,8 @@ struct	thread;
 struct	reg;
 
 void	cpu_halt(void);
+void	cpu_identify(u_int clock);
 void	cpu_reset(void);
-int	fill_dbregs(struct thread *td, struct dbreg *dbregs);
 int	fill_fpregs(struct thread *td, struct fpreg *fpregs);
 int	fill_regs(struct thread *td, struct reg *regs);
 void	swi_vm(void *v);
