@@ -90,13 +90,13 @@ struct	namecache {
 static LIST_HEAD(nchashhead, namecache) *nchashtbl;	/* Hash Table */
 static TAILQ_HEAD(, namecache) ncneg;	/* Hash Table */
 static u_long	nchash;			/* size of hash table */
-SYSCTL_INT(_debug, OID_AUTO, nchash, CTLFLAG_RD, &nchash, 0, "");
+SYSCTL_ULONG(_debug, OID_AUTO, nchash, CTLFLAG_RD, &nchash, 0, "");
 static u_long	ncnegfactor = 16;	/* ratio of negative entries */
-SYSCTL_INT(_debug, OID_AUTO, ncnegfactor, CTLFLAG_RW, &ncnegfactor, 0, "");
+SYSCTL_ULONG(_debug, OID_AUTO, ncnegfactor, CTLFLAG_RW, &ncnegfactor, 0, "");
 static u_long	numneg;		/* number of cache entries allocated */
-SYSCTL_INT(_debug, OID_AUTO, numneg, CTLFLAG_RD, &numneg, 0, "");
+SYSCTL_ULONG(_debug, OID_AUTO, numneg, CTLFLAG_RD, &numneg, 0, "");
 static u_long	numcache;		/* number of cache entries allocated */
-SYSCTL_INT(_debug, OID_AUTO, numcache, CTLFLAG_RD, &numcache, 0, "");
+SYSCTL_ULONG(_debug, OID_AUTO, numcache, CTLFLAG_RD, &numcache, 0, "");
 struct	nchstats nchstats;		/* cache effectiveness statistics */
 
 static int	doingcache = 1;		/* 1 => enable the cache */
@@ -109,7 +109,7 @@ SYSCTL_INT(_debug, OID_AUTO, ncsize, CTLFLAG_RD, 0, sizeof(struct namecache), ""
  */
 SYSCTL_NODE(_vfs, OID_AUTO, cache, CTLFLAG_RW, 0, "Name cache statistics");
 #define STATNODE(mode, name, var) \
-	SYSCTL_INT(_vfs_cache, OID_AUTO, name, mode, var, 0, "");
+	SYSCTL_ULONG(_vfs_cache, OID_AUTO, name, mode, var, 0, "");
 STATNODE(CTLFLAG_RD, numneg, &numneg);
 STATNODE(CTLFLAG_RD, numcache, &numcache);
 static u_long numcalls; STATNODE(CTLFLAG_RD, numcalls, &numcalls);
@@ -498,9 +498,6 @@ struct  __getcwd_args {
 };
 #endif
 
-#define STATNODE(mode, name, var) \
-	SYSCTL_INT(_vfs_cache, OID_AUTO, name, mode, var, 0, "");
-
 static int disablecwd;
 SYSCTL_INT(_debug, OID_AUTO, disablecwd, CTLFLAG_RW, &disablecwd, 0, "");
 
@@ -594,7 +591,7 @@ __getcwd(p, uap)
 #undef STATNODE
 #define STATNODE(name)							\
 	static u_int name;						\
-	SYSCTL_INT(_vfs_cache, OID_AUTO, name, CTLFLAG_RD, &name, 0, "")
+	SYSCTL_UINT(_vfs_cache, OID_AUTO, name, CTLFLAG_RD, &name, 0, "")
 
 static int disablefullpath;
 SYSCTL_INT(_debug, OID_AUTO, disablefullpath, CTLFLAG_RW,
