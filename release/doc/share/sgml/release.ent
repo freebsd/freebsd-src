@@ -39,10 +39,10 @@
 
 <!-- The manpaths for man page references -->
 <!ENTITY release.man.url "http://www.FreeBSD.org/cgi/man.cgi">
-<!ENTITY release.manpath.xfree86       "4.2.0">
-<!ENTITY release.manpath.netbsd        "1.5">
+<!ENTITY release.manpath.xfree86       "4.3.0">
+<!ENTITY release.manpath.netbsd        "1.6.1">
 <!ENTITY release.manpath.freebsd-ports "Ports">
-<!ENTITY release.manpath.freebsd       "5.0-current">
+<!ENTITY release.manpath.freebsd       "5.1-current">
 
 <!-- Text constants which probably don't need to be changed.-->
 
