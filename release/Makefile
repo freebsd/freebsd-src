@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.176 1995/05/24 11:17:53 gpalmer Exp $
+#	$Id: Makefile,v 1.177 1995/05/25 01:22:08 jkh Exp $
 #
 # How to roll a release:
 #
@@ -310,7 +310,7 @@ release.8:
 	@cd ${.CURDIR} ; $(MAKE) installCRUNCH CRUNCH=boot \
 		DIR=${RD}/bootfd/stand ZIP=true
 	( cd ${RD}/trees/bin/dev ; \
-		ls console tty ttyv1 null zero \
+		ls console tty ttyv0 ttyv1 ttyv2 ttyv3 null zero \
 		*[sw]d* cuaa[01] fd[01] rfd[01] \
 		cd0a mcd0a scd0a matcd0a rst0 ft0 rwt0 | \
 	cpio -dump ${RD}/bootfd/dev )
@@ -351,7 +351,7 @@ release.10:
 		DIR=${RD}/fixitfd/stand ZIP=true
 	( cd ${RD}/trees/bin/dev && \
 		sh MAKEDEV wd0s5 wd0s6 wd0s7 wd0s8 && \
-		ls console tty ttyv1 null zero \
+		ls console tty ttyv0 ttyv1 null zero \
 		*[sw]d* fd[01] rfd[01] | \
 	cpio -dump ${RD}/fixitfd/dev )
 	ln -f ${RD}/fixitfd/stand/init ${RD}/fixitfd/sbin
