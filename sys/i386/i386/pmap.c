@@ -3040,9 +3040,7 @@ pmap_mapdev(pa, size)
 	offset = pa & PAGE_MASK;
 	size = roundup(offset + size, PAGE_SIZE);
 
-	GIANT_REQUIRED;
-
-	va = kmem_alloc_pageable(kernel_map, size);
+	va = kmem_alloc_nofault(kernel_map, size);
 	if (!va)
 		panic("pmap_mapdev: Couldn't alloc kernel virtual memory");
 
