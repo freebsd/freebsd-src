@@ -4,7 +4,7 @@
 
      $Id$
      $FreeBSD$
-     Original revision: 1.4
+     Original revision: 1.5
 
      This section contains the contents of the old LAYOUT.TXT file.
 
@@ -15,13 +15,13 @@
   <para>Le r&eacute;pertoire d'une distribution typique de &os;
   ressemble &agrave;  ceci :</para>
 
-<screen>ERRATA.HTM      README.TXT      compat1x        dict            manpages
-ERRATA.TXT      RELNOTES.HTM    compat20        doc             packages
-HARDWARE.HTM    RELNOTES.TXT    compat21        docbook.css     ports
-HARDWARE.TXT    XF86336         compat22        floppies        proflibs
-INSTALL.HTM     bin             compat3x        games           src
-INSTALL.TXT     catpages        compat4x        info            tools
-README.HTM      cdrom.inf       crypto          kernel</screen>
+<screen>ERRATA.HTM      README.TXT      compat1x        dict            kernel
+ERRATA.TXT      RELNOTES.HTM    compat20        doc             manpages
+HARDWARE.HTM    RELNOTES.TXT    compat21        docbook.css     packages
+HARDWARE.TXT    bin             compat22        filename.txt    ports
+INSTALL.HTM     boot            compat3x        floppies        proflibs
+INSTALL.TXT     catpages        compat4x        games           src
+README.HTM      cdrom.inf       crypto          info            tools</screen>
 
     <para>Si vous avez besoin d'effectuer une installation par un CDROM,
     FTP ou NFS, depuis ce r&eacute;pertoire, la seule chose
@@ -59,12 +59,6 @@ README.HTM      cdrom.inf       crypto          kernel</screen>
         <para><filename>docbook.css</filename> est un fichier de 
 	style(CSS) utilis&eacute; par certains browsers WWW pour formatter 
 	la documentation HTML.
-      </listitem>
-      <listitem>
-	<para>Le r&eacute;paertoire <filename>XF86336</filename> contient 
-	le projet XFree86 version 3.3.6 et consiste en une s&eacute;rie 
-	de fichiers archives compress&eacute;s comprenant chaque
-        composant de la distribution de XFree86.</para>
       </listitem>
       <listitem>
 	<para>Les r&eacute;pertoire <filename>bin</filename>,
