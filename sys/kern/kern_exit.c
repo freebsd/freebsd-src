@@ -521,10 +521,8 @@ loop:
 			 */
 			PROC_LOCK(p);
 			if (--p->p_cred->p_refcnt == 0) {
-				PROC_UNLOCK(p);
 				crfree(p->p_ucred);
 				uifree(p->p_cred->p_uidinfo);
-				PROC_LOCK(p);
 				FREE(p->p_cred, M_SUBPROC);
 				p->p_cred = NULL;
 			}
