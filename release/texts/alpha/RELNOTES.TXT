@@ -51,7 +51,7 @@ where large memory dumps could take up to an hour to complete.
 
 The twe(4) driver for 3Ware Escalade controllers has been updated.
 
-A bug in the machine-dependent code for AlphaServer 1000 and 1000A 
+A bug in the machine-dependent code for AlphaServer 1000 and 1000A
 has been fixed that caused only EV4-equipped AS1000 and EV5-equipped
 AS1000A to work.
 
@@ -63,7 +63,7 @@ cards, has been committed.  The operation of ray(4) interfaces can be
 modified by raycontrol(8).
 
 The bug that made certain CDROM drives fail to attach when connected
-to a SCSI card driven by 'isp' has been fixed. 
+to a SCSI card driven by 'isp' has been fixed.
 
 A bug in the ed(4) driver that could cause panics with very short
 packets and BPF or bridging active has been fixed.
@@ -280,7 +280,7 @@ AMI MegaRAID Express and Enterprise family RAID controllers:
 Booting from these controllers is supported, but not possible due to
 SRM limitations.
 
-Mylex DAC960 and DAC1100 RAID controllers with 2.x, 3.x, 4.x and 5.x 
+Mylex DAC960 and DAC1100 RAID controllers with 2.x, 3.x, 4.x and 5.x
 firmware:
     DAC960P
     DAC960PD
@@ -292,7 +292,7 @@ firmware:
     AcceleRAID 250
     eXtremeRAID 1100
 This list includes controllers sold by Digital/Compaq in Alpha systems
-in the StorageWorks family, eg. KZPSC, KZPAC.  Booting from these 
+in the StorageWorks family, eg. KZPSC, KZPAC.  Booting from these
 controllers is supported when recognised by SRM (typically Digital/
 Compaq models only, and only in systems where they are supported).
 EISA adapters like the StorageWorks KZESC are not supported.
@@ -350,7 +350,7 @@ chipsets, including the following:
   Silicon Graphics Gigabit Ethernet
 
 AMD PCnet/PCI (79c970 & 53c974 or 79c974)
-AMD PCnet/FAST, PCnet/FAST+, PCnet/FAST III, PCnet/PRO, 
+AMD PCnet/FAST, PCnet/FAST+, PCnet/FAST III, PCnet/PRO,
 PCnet/Home, and HomePNA.
 
 SMC Elite 16 WD8013 Ethernet interface, and most other WD8003E,
@@ -616,7 +616,7 @@ You can ftp FreeBSD and any or all of its optional packages from
 For other locations that mirror the FreeBSD software see the file
 MIRROR.SITES.  Please ftp the distribution from the site closest (in
 networking terms) to you.  Additional mirror sites are always welcome!
-Contact freebsd-admin@FreeBSD.org for more details if you'd like to 
+Contact freebsd-admin@FreeBSD.org for more details if you'd like to
 become an official mirror site.
 
 If you do not have access to the Internet and electronic mail is your
