@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)getsockopt.2	8.4 (Berkeley) 5/2/95
-.\"	$Id: getsockopt.2,v 1.8 1997/02/22 15:03:53 peter Exp $
+.\"	$Id: getsockopt.2,v 1.9 1997/03/11 11:35:50 peter Exp $
 .\"
 .Dd May 2, 1995
 .Dt GETSOCKOPT 2
@@ -233,7 +233,7 @@ The system places an absolute maximum on these values, which is accessible
 through the
 .Xr sysctl 3
 MIB variable
-.Dq Li kern.maxsockbuf .
+.Dq Li kern.ipc.maxsockbuf .
 .Pp
 .Dv SO_SNDLOWAT
 is an option to set the minimum count for output operations.
