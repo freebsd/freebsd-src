@@ -130,6 +130,9 @@ SYSCTL_INT(_vfs, OID_AUTO, dirtybufferflushes, CTLFLAG_RW, &dirtybufferflushes,
 static int altbufferflushes;
 SYSCTL_INT(_vfs, OID_AUTO, altbufferflushes, CTLFLAG_RW, &altbufferflushes,
     0, "Number of fsync flushes to limit dirty buffers");
+static int recursiveflushes;
+SYSCTL_INT(_vfs, OID_AUTO, recursiveflushes, CTLFLAG_RW, &recursiveflushes,
+    0, "Number of flushes skipped due to being recursive");
 static int numdirtybuffers;
 SYSCTL_INT(_vfs, OID_AUTO, numdirtybuffers, CTLFLAG_RD, &numdirtybuffers, 0,
     "Number of buffers that are dirty (has unwritten changes) at the moment");
@@ -1021,11 +1024,14 @@ bdwrite(struct buf * bp)
 	 * If we have too many dirty buffers, don't create any more.
 	 * If we are wildly over our limit, then force a complete
 	 * cleanup. Otherwise, just keep the situation from getting
-	 * out of control.
+	 * out of control. Note that we have to avoid a recursive
+	 * disaster and not try to clean up after our own cleanup!
 	 */
 	vp = bp->b_vp;
 	VI_LOCK(vp);
-	if (vp != NULL && vp->v_dirtybufcnt > dirtybufthresh + 10) {
+	if (td->td_proc->p_flag & P_COWINPROGRESS) {
+		recursiveflushes++;
+	} else if (vp != NULL && vp->v_dirtybufcnt > dirtybufthresh + 10) {
 		VI_UNLOCK(vp);
 		(void) VOP_FSYNC(vp, td->td_ucred, MNT_NOWAIT, td);
 		VI_LOCK(vp);
