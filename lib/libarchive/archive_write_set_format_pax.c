@@ -674,7 +674,7 @@ archive_write_pax_header(struct archive *a,
 
 		oldstate = a->state;
 		a->state = ARCHIVE_STATE_DATA;
-		r = archive_write_data(a, pax->pax_header.s,
+		r = (a->compression_write)(a, pax->pax_header.s,
 		    archive_strlen(&(pax->pax_header)));
 		a->state = oldstate;
 		if (r != ARCHIVE_OK) {
