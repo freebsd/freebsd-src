@@ -210,7 +210,7 @@ lcp_ReportStatus(struct cmdargs const *arg)
                 command_ShowNegval(lcp->cfg.acfcomp));
   prompt_Printf(arg->prompt, "           CHAP =      %s\n",
                 command_ShowNegval(lcp->cfg.chap05));
-#ifdef HAVE_DES
+#ifndef NODES
   prompt_Printf(arg->prompt, "           CHAP80 =    %s\n",
                 command_ShowNegval(lcp->cfg.chap80nt));
   prompt_Printf(arg->prompt, "           LANMan =    %s\n",
@@ -268,7 +268,7 @@ lcp_Init(struct lcp *lcp, struct bundle *bundle, struct link *l,
 
   lcp->cfg.acfcomp = NEG_ENABLED|NEG_ACCEPTED;
   lcp->cfg.chap05 = NEG_ACCEPTED;
-#ifdef HAVE_DES
+#ifndef NODES
   lcp->cfg.chap80nt = NEG_ACCEPTED;
   lcp->cfg.chap80lm = 0;
   lcp->cfg.chap81 = NEG_ACCEPTED;
@@ -315,7 +315,7 @@ lcp_Setup(struct lcp *lcp, int openmode)
     if (IsEnabled(lcp->cfg.chap05)) {
       lcp->want_auth = PROTO_CHAP;
       lcp->want_authtype = 0x05;
-#ifdef HAVE_DES
+#ifndef NODES
     } else if (IsEnabled(lcp->cfg.chap80nt) ||
                IsEnabled(lcp->cfg.chap80lm)) {
       lcp->want_auth = PROTO_CHAP;
@@ -573,7 +573,7 @@ LcpLayerUp(struct fsm *fp)
   struct lcp *lcp = fsm2lcp(fp);
 
   log_Printf(LogLCP, "%s: LayerUp\n", fp->link->name);
-  async_SetLinkParams(&p->async, lcp);
+  physical_SetAsyncParams(p, lcp->want_accmap, lcp->his_accmap);
   lqr_Start(lcp);
   hdlc_StartTimer(&p->hdlc);
   fp->more.reqs = fp->more.naks = fp->more.rejs = lcp->cfg.fsm.maxreq * 3;
@@ -795,7 +795,7 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
 	    *dec->nakend++ = (unsigned char) (PROTO_CHAP >> 8);
 	    *dec->nakend++ = (unsigned char) PROTO_CHAP;
 	    *dec->nakend++ = 0x05;
-#ifdef HAVE_DES
+#ifndef NODES
 	  } else if (IsAccepted(lcp->cfg.chap80nt) ||
 	             IsAccepted(lcp->cfg.chap80lm)) {
 	    *dec->nakend++ = *cp;
@@ -820,7 +820,7 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
 	    goto reqreject;
 	  }
           if ((cp[4] == 0x05 && IsAccepted(lcp->cfg.chap05))
-#ifdef HAVE_DES
+#ifndef NODES
               || (cp[4] == 0x80 && (IsAccepted(lcp->cfg.chap80nt) ||
                                    (IsAccepted(lcp->cfg.chap80lm))))
               || (cp[4] == 0x81 && IsAccepted(lcp->cfg.chap81))
@@ -848,7 +848,7 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
 	      *dec->nakend++ = (unsigned char) (PROTO_CHAP >> 8);
 	      *dec->nakend++ = (unsigned char) PROTO_CHAP;
 	      *dec->nakend++ = 0x05;
-#ifdef HAVE_DES
+#ifndef NODES
             } else if (IsAccepted(lcp->cfg.chap80nt) ||
                        IsAccepted(lcp->cfg.chap80lm)) {
 	      *dec->nakend++ = *cp;
@@ -896,7 +896,7 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
           if (cp[4] == 0x05 && IsEnabled(lcp->cfg.chap05)) {
             lcp->want_auth = PROTO_CHAP;
             lcp->want_authtype = 0x05;
-#ifdef HAVE_DES
+#ifndef NODES
           } else if (cp[4] == 0x80 && (IsEnabled(lcp->cfg.chap80nt) ||
                                        IsEnabled(lcp->cfg.chap80lm))) {
             lcp->want_auth = PROTO_CHAP;
@@ -917,7 +917,7 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
 #endif
             log_Printf(LogLCP, "Peer will only send %s (not %s)\n",
                        Auth2Nam(PROTO_CHAP, cp[4]),
-#ifdef HAVE_DES
+#ifndef NODES
                        (cp[4] == 0x80 || cp[4] == 0x81) ? "configured" :
 #endif
                        "supported");

@@ -1673,7 +1673,7 @@ SetVariable(struct cmdargs const *arg)
     }
     break;
 
-#ifdef HAVE_DES
+#ifndef NODES
   case VAR_MPPE:
     if (arg->argc > arg->argn + 2) {
       res = -1;
@@ -2210,7 +2210,7 @@ static struct cmdtab const SetCommands[] = {
   {"deflate", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX_OPT,
   "deflate window sizes", "set deflate out-winsize in-winsize",
   (const void *) VAR_WINSIZE},
-#ifdef HAVE_DES
+#ifndef NODES
   {"mppe", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX_OPT,
   "MPPE key size and state", "set mppe [40|56|128|* [stateful|stateless|*]]", 
   (const void *) VAR_MPPE},
@@ -2674,7 +2674,7 @@ NegotiateSet(struct cmdargs const *arg)
       cx->physical->link.lcp.cfg.chap05 &= keep;
       cx->physical->link.lcp.cfg.chap05 |= add;
       break;
-#ifdef HAVE_DES
+#ifndef NODES
     case NEG_CHAP80:
       cx->physical->link.lcp.cfg.chap80nt &= keep;
       cx->physical->link.lcp.cfg.chap80nt |= add;
@@ -2799,7 +2799,7 @@ static struct cmdtab const NegotiateCommands[] = {
   {"chap", "chap05", NegotiateSet, LOCAL_AUTH | LOCAL_CX,
   "Challenge Handshake Authentication Protocol", "accept|deny|disable|enable",
   (const void *)NEG_CHAP05},
-#ifdef HAVE_DES
+#ifndef NODES
   {"mschap", "chap80nt", NegotiateSet, LOCAL_AUTH | LOCAL_CX,
   "Microsoft (NT) CHAP", "accept|deny|disable|enable",
   (const void *)NEG_CHAP80},

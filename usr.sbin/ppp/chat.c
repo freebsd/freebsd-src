@@ -516,10 +516,12 @@ chat_Write(struct fdescriptor *d, struct bundle *bundle, const fd_set *fdset)
     }
 
     wrote = physical_Write(c->physical, c->argptr, c->arglen);
-    result = wrote ? 1 : 0;
+    result = wrote > 0 ? 1 : 0;
     if (wrote == -1) {
-      if (errno != EINTR)
-        log_Printf(LogERROR, "chat_Write: %s\n", strerror(errno));
+      if (errno != EINTR) {
+        log_Printf(LogWARN, "chat_Write: %s\n", strerror(errno));
+	result = -1;
+      }
       if (physical_IsSync(c->physical)) {
         c->argptr += 2;
         c->arglen -= 2;

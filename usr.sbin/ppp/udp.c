@@ -162,6 +162,7 @@ static const struct device baseudpdevice = {
   NULL,
   NULL,
   NULL,
+  NULL,
   udp_Free,
   udp_Recvfrom,
   udp_Sendto,
