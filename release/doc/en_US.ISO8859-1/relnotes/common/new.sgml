@@ -324,7 +324,7 @@
       related directory blocks together.  Operations traversing large
       directory hierarchies, such as the &os; Ports tree, have shown
       marked speedups.  This change is transparent and automatic for
-      new directories. &merged;</para>
+      new directories.</para>
 
       <para>The virtual memory subsystem now backs UFS directory
       memory requirements by default (this behavior is controlled via
