@@ -191,8 +191,8 @@ struct ata_request {
 	} ata;
 	struct {
 	    u_int8_t		ccb[16];	/* ATAPI command block */
-	    u_int8_t		sense_key;	/* ATAPI request sense key */
 	    struct atapi_sense	sense_data;	/* ATAPI request sense data */
+	    u_int8_t		sense_key;	/* ATAPI request sense key */
 	} atapi;
     } u;
 
