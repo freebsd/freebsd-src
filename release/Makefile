@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.473 1999/03/10 03:50:38 jkh Exp $
+#	$Id: Makefile,v 1.474 1999/03/14 20:41:12 markm Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -212,6 +212,8 @@ rerelease release:
 .endif
 .if defined(ALLLANG)
 	echo "export ALLLANG=${ALLLANG}"	>> ${CHROOTDIR}/mk
+.else
+	echo "export DOC_LANG=en"		>> ${CHROOTDIR}/mk
 .endif
 .if defined(NOSRC)
 	echo "export NOSRC=${NOSRC}"		>> ${CHROOTDIR}/mk
