@@ -112,7 +112,7 @@ arp_ProxySub(struct bundle *bundle, struct in_addr addr, int add, int s)
 	       inet_ntoa(addr));
     return 0;
   }
-  routes = ID0socket(PF_ROUTE, SOCK_RAW, AF_INET);
+  routes = ID0socket(AF_ROUTE, SOCK_RAW, AF_INET);
   if (routes < 0) {
     log_Printf(LogERROR, "arp_SetProxy: opening routing socket: %s\n",
 	      strerror(errno));
