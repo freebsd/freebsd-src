@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.14 1993/11/14 23:29:01 ache Exp $
+ *	$Id: sio.c,v 1.15 1993/11/17 23:38:23 ache Exp $
  */
 
 #include "sio.h"
@@ -196,13 +196,6 @@ struct com_s {
 	u_char	ibuf2[2 * RS_IBUFSIZE];
 };
 
-/* XXX - these functions ought to be declared in systm.h. */
-#define	nonint	int
-nonint	timeout		__P((timeout_func_t func, caddr_t arg, int t));
-int	tsleep		__P((caddr_t chan, int pri, char *wmesg, int timo));
-int	ttnread		__P((struct tty *tp));
-nonint	wakeup		__P((caddr_t chan));
-
 /*
  * These functions in the com module ought to be declared (with a prototype)
  * in a com-driver system header.  The void ones may need to be int to match
@@ -223,23 +216,12 @@ void	siocnputc	__P((Dev_t dev, int c));
 int	sioopen		__P((Dev_t dev, int oflags, int devtype,
 			     struct proc *p));
 /*
- * sioopen gets compared to the d_open entry in struct cdevsw.  d_open and
- * other functions are declared in <sys/conf.h> with short types like dev_t
- * in the prototype.  Such declarations are broken because they vary with
- * __P (significantly in theory - the compiler is allowed to push a short
- * arg if it has seen the prototype; insignificantly in practice - gcc
- * doesn't push short args and it would be slower on 386's to do so).
- *
  * Also, most of the device switch functions are still declared old-style
  * so they take a Dev_t arg and shorten it to a dev_t.  It would be simpler
  * and faster if dev_t's were always promoted (to ints or whatever) as
  * early as possible.
- *
- * Until <sys/conf.h> is fixed, we cast sioopen to the following `wrong' type
- * when comparing it to the d_open entry just to avoid compiler warnings.
  */
-typedef	int	(*bogus_open_t)	__P((dev_t dev, int oflags, int devtype,
-				     struct proc *p));
+
 int	sioread		__P((Dev_t dev, struct uio *uio, int ioflag));
 int	sioselect	__P((Dev_t dev, int rw, struct proc *p));
 void	siostop		__P((struct tty *tp, int rw));
@@ -257,8 +239,8 @@ static	int	commctl		__P((struct com_s *com, int bits, int how));
 static	int	comparam	__P((struct tty *tp, struct termios *t));
 static	int	sioprobe	__P((struct isa_device *dev));
 static	void	compoll		__P((void));
-static	int	comstart	__P((struct tty *tp));
-static	nonint	comwakeup	__P((caddr_t chan, int ticks));
+static	void	comstart	__P((struct tty *tp));
+static	void	comwakeup	__P((caddr_t chan, int ticks));
 static	int	tiocm_xxx2mcr	__P((int tiocm_xxx));
 
 /* table and macro for fast conversion from a unit number to its com struct */
@@ -724,7 +706,7 @@ bidir_open_top:
 out:
 	splx(s);
 	if (error == 0)
-		error = (*linesw[tp->t_line].l_open)(dev, tp);
+		error = (*linesw[tp->t_line].l_open)(dev, tp, 0);
 
 #ifdef COM_BIDIR
 	/* wakeup sleepers */
@@ -1161,7 +1143,7 @@ compoll()
 	s = spltty();
 repeat:
 	for (unit = 0; unit < NSIO; ++unit) {
-		u_char		*buf;
+		u_char		*buf = 0;
 		u_char		*ibuf;
 		int		incc;
 		struct tty	*tp;
@@ -1447,7 +1429,7 @@ retry:
 	return (0);
 }
 
-static int			/* XXX - should be void */
+static void
 comstart(tp)
 	struct tty	*tp;
 {
@@ -1502,7 +1484,6 @@ comstart(tp)
 	}
 out:
 	splx(s);
-	return (1);
 }
 
 void
@@ -1555,7 +1536,7 @@ commctl(com, bits, how)
 	return (bits);
 }
 
-static nonint
+static void
 comwakeup(chan, ticks)
 	caddr_t chan;
 	int ticks;
@@ -1577,7 +1558,7 @@ comwakeup(chan, ticks)
 			enable_intr();
 		}
 	}
-	return (0);
+	return;
 }
 
 void
@@ -1601,7 +1582,7 @@ siocnprobe(cp)
 
 	/* locate the major number */
 	for (commajor = 0; commajor < nchrdev; commajor++)
-		if (cdevsw[commajor].d_open == (bogus_open_t) sioopen)
+		if (cdevsw[commajor].d_open == sioopen)
 			break;
 
 	/* XXX: ick */

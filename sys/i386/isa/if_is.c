@@ -93,8 +93,13 @@ struct	is_softc {
 int is_debug;
 
 /* Function prototypes */
-int is_probe(),is_attach(),is_watchdog();
-int is_ioctl(),is_init(),is_start();
+static int is_probe(struct isa_device *);
+static int is_attach(struct isa_device *);
+static void is_watchdog(int);
+static int is_ioctl(struct ifnet *, int, caddr_t);
+static void is_init(int);
+static void is_start(struct ifnet *);
+static void istint(int);
 
 static inline void is_rint(int unit);
 static inline void isread(struct is_softc*, unsigned char*, int);
@@ -107,6 +112,7 @@ struct	isa_driver isdriver = {
 	"is"
 };
 
+void
 iswrcsr(unit,port,val)
 	int unit;
 	u_short port;
@@ -130,6 +136,7 @@ u_short isrdcsr(unit,port)
 	return(inw(iobase+RDP));
 } 
 
+int
 is_probe(isa_dev)
 	struct isa_device *isa_dev;
 {
@@ -163,8 +170,8 @@ is_probe(isa_dev)
 /*
  * Reset of interface.
  */
-int
-is_reset(int unit)
+static void
+is_reset(int unit, int uban)
 {
 	int s;
 	struct is_softc *is = &is_softc[unit];
@@ -271,18 +278,20 @@ is_attach(isa_dev)
 #if NBPFILTER > 0
 	bpfattach(&is->bpf, ifp, DLT_EN10MB, sizeof(struct ether_header));
 #endif
+	return 1;
 }
 
-int
+static void
 is_watchdog(unit)
         int unit;
 {
         log(LOG_ERR, "is%d: device timeout\n", unit);
-        is_reset(unit);
+        is_reset(unit, 0);
 }
 
 
 /* Lance initialisation block set up */
+void
 init_mem(unit)
 	int unit;
 {
@@ -353,6 +362,7 @@ init_mem(unit)
  * and transmit/receive descriptor rings.
  */
 
+static void
 is_init(unit)
 	int unit;
 {
@@ -413,6 +423,7 @@ is_init(unit)
  * and map it to the interface before starting the output.
  * called only at splimp or interrupt level.
  */
+static void
 is_start(ifp)
 	struct ifnet *ifp;
 {
@@ -541,14 +552,15 @@ is_start(ifp)
 		if (is_debug)	
 			printf("no_td = %x, last_td = %x\n",is->no_td, is->last_td);
 #endif
-		return(0);	
 }
 
 
 /*
  * Controller interrupt.
  */
+void
 isintr(unit)
+	int unit;
 {
 	register struct is_softc *is = &is_softc[unit];
 	u_short isr;
@@ -574,14 +586,14 @@ isintr(unit)
 		if (!(isr&RXON)) {
 			printf("is%d: !(isr&RXON)\n", unit);
 			is->arpcom.ac_if.if_ierrors++;
-			is_reset(unit);
-			return(1);
+			is_reset(unit, 0);
+			return;
 		}
 		if (!(isr&TXON)) {
 			printf("is%d: !(isr&TXON)\n", unit);
 			is->arpcom.ac_if.if_oerrors++;
-			is_reset(unit);
-			return(1);
+			is_reset(unit, 0);
+			return;
 		}
 
 		if (isr&RINT) {
@@ -598,6 +610,7 @@ isintr(unit)
 	}
 }
 
+static void
 istint(unit) 
 	int unit;
 {
@@ -669,7 +682,7 @@ static inline void is_rint(int unit)
 			is->last_rd = rmd;
 			printf("is%d: Chained buffer\n",unit);
 			if ((cdm->flags & (OWN|ERR|STP|ENP)) != ENP) {
-				is_reset(unit);
+				is_reset(unit, 0);
 				return;
 			}
 		}else
@@ -851,6 +864,7 @@ isget(buf, totlen, off0, ifp)
 /*
  * Process an ioctl request.
  */
+int
 is_ioctl(ifp, cmd, data)
 	register struct ifnet *ifp;
 	int cmd;

@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.17 1993/11/16 09:54:47 davidg Exp $
+ *	$Id: machdep.c,v 1.18 1993/11/17 23:24:56 wollman Exp $
  */
 
 #include "npx.h"
@@ -89,6 +89,8 @@ static unsigned int avail_remaining;
 #include "i386/isa/isa.h"
 #include "i386/isa/rtc.h"
 
+static void identifycpu(void);
+static void initcpu(void);
 
 #define	EXPECT_BASEMEM	640	/* The expected base memory*/
 #define	INFORM_WAIT	1	/* Set to pause berfore crash in weird cases*/
@@ -144,7 +146,7 @@ cpu_startup()
 	int maxbufs, base, residual;
 	extern long Usrptsize;
 	vm_offset_t minaddr, maxaddr;
-	vm_size_t size;
+	vm_size_t size = 0;
 	int firstaddr;
 
 	/*
@@ -315,6 +317,7 @@ struct cpu_nameclass i386_cpus[] = {
 	{ "i586",		CPUCLASS_586 },		/* CPU_586   */
 };
 
+static void
 identifycpu()	/* translated from hp300 -- cgd */
 {
 	printf("CPU: ");
@@ -505,6 +508,7 @@ struct sigreturn_args {
 	struct sigcontext *sigcntxp;
 };
 
+int
 sigreturn(p, uap, retval)
 	struct proc *p;
 	struct sigreturn_args *uap;
@@ -729,6 +733,7 @@ microtime(tvp)
 }
 #endif /* HZ */
 
+void
 physstrat(bp, strat, prio)
 	struct buf *bp;
 	int (*strat)(), prio;
@@ -736,15 +741,6 @@ physstrat(bp, strat, prio)
 	register int s;
 	caddr_t baddr;
 
-	/*
-	 * vmapbuf clobbers b_addr so we must remember it so that it
-	 * can be restored after vunmapbuf.  This is truely rude, we
-	 * should really be storing this in a field in the buf struct
-	 * but none are available and I didn't want to add one at
-	 * this time.  Note that b_addr for dirty page pushes is 
-	 * restored in vunmapbuf. (ugh!)
-	 */
-	baddr = bp->b_un.b_addr;
 	vmapbuf(bp);
 	(*strat)(bp);
 	/* pageout daemon doesn't wait for pushed pages */
@@ -755,9 +751,9 @@ physstrat(bp, strat, prio)
 	  tsleep((caddr_t)bp, prio, "physstr", 0);
 	splx(s);
 	vunmapbuf(bp);
-	bp->b_un.b_addr = baddr;
 }
 
+static void
 initcpu()
 {
 }
@@ -932,7 +928,13 @@ struct soft_segment_descriptor ldt_segs[] = {
 	1,			/* default 32 vs 16 bit size */
 	1  			/* limit granularity (byte/page units)*/ } };
 
-setidt(idx, func, typ, dpl) char *func; {
+void
+setidt(idx, func, typ, dpl)
+	int idx;
+	caddr_t func;
+	int typ;
+	int dpl;
+{
 	struct gate_descriptor *ip = idt + idx;
 
 	ip->gd_looffset = (int)func;
@@ -958,7 +960,9 @@ extern	IDTVEC(div), IDTVEC(dbg), IDTVEC(nmi), IDTVEC(bpt), IDTVEC(ofl),
 int lcr0(), lcr3(), rcr0(), rcr2();
 int _gsel_tss;
 
+void
 init386(first)
+	int first;
 {
 	extern ssdtosd(), lgdt(), lidt(), lldt(), etext; 
 	int x, *pi;
@@ -1170,7 +1174,10 @@ extern caddr_t		CADDR1, CADDR2;
  * zero out physical memory
  * specified in relocation units (NBPG bytes)
  */
-clearseg(n) {
+void
+clearseg(n) 
+	int n;
+{
 
 	*(int *)CMAP2 = PG_V | PG_KW | ctob(n);
 	load_cr3(rcr3());
@@ -1185,7 +1192,10 @@ clearseg(n) {
  * specified in relocation units (NBPG bytes)
  */
 void
-copyseg(frm, n) {
+copyseg(frm, n) 
+	int frm;
+	int n;
+{
 
 	*(int *)CMAP2 = PG_V | PG_KW | ctob(n);
 	load_cr3(rcr3());
@@ -1197,7 +1207,10 @@ copyseg(frm, n) {
  * specified in relocation units (NBPG bytes)
  */
 void
-physcopyseg(frm, to) {
+physcopyseg(frm, to) 
+	int frm;
+	int to;
+{
 
 	*(int *)CMAP1 = PG_V | PG_KW | ctob(frm);
 	*(int *)CMAP2 = PG_V | PG_KW | ctob(to);
@@ -1218,6 +1231,7 @@ setsoftclock() {
  * insert an element into a queue 
  */
 #undef insque
+void				/* XXX replace with inline FIXME! */
 _insque(element, head)
 	register struct prochd *element, *head;
 {
@@ -1231,6 +1245,7 @@ _insque(element, head)
  * remove an element from a queue
  */
 #undef remque
+void				/* XXX replace with inline FIXME! */
 _remque(element)
 	register struct prochd *element;
 {

@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id$
+ *	$Id: db_command.c,v 1.2 1993/10/16 16:47:10 rgrimes Exp $
  */
 
 /*
@@ -35,8 +35,9 @@
  * Command dispatcher.
  */
 #include "param.h"
+#include "systm.h"
 #include "proc.h"
-#include <machine/db_machdep.h>		/* type definitions */
+#include "ddb/ddb.h"
 
 #include <ddb/db_lex.h>
 #include <ddb/db_output.h>
@@ -168,7 +169,7 @@ db_command(last_cmdp, cmd_table)
 	int		t;
 	char		modif[TOK_STRING_SIZE];
 	db_expr_t	addr, count;
-	boolean_t	have_addr;
+	boolean_t	have_addr = FALSE;
 	int		result;
 
 	t = db_read_token();

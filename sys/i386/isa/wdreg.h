@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wdreg.h	7.1 (Berkeley) 5/9/91
- *	$Id$
+ *	$Id: wdreg.h,v 1.4 1993/10/16 13:46:33 rgrimes Exp $
  */
 
 /*
@@ -132,7 +132,7 @@ struct wdparams {
  */
 int wdprobe(struct isa_device *);
 int wdattach(struct isa_device *);
-int wdstrategy(struct buf *);
+void wdstrategy(struct buf *);
 void wdintr(struct intrframe);
 int wdopen(dev_t, int, int, struct proc *);
 int wdclose(dev_t dev, int flags, int fmt);
@@ -141,4 +141,4 @@ int wdioctl(dev_t, int, caddr_t, int);
 int wdsize(dev_t);
 int wddump(dev_t);
 
-#endif KERNEL
+#endif /* KERNEL */

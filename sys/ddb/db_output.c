@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id$
+ *	$Id: db_output.c,v 1.4 1993/10/16 16:47:20 rgrimes Exp $
  */
 
 /*
@@ -38,6 +38,7 @@
 #include "param.h"
 #include "systm.h"
 #include <machine/stdarg.h>
+#include "ddb/ddb.h"
 
 /*
  *	Character output - tracks position in line.
@@ -58,7 +59,8 @@ int	db_tab_stop_width = 8;		/* how wide are tab stops? */
 	((((i) + db_tab_stop_width) / db_tab_stop_width) * db_tab_stop_width)
 int	db_max_width = 80;		/* output line width */
 
-extern void	db_check_interrupt();
+
+static void db_printf_guts(const char *, va_list);
 
 /*
  * Force pending whitespace.
@@ -88,6 +90,7 @@ db_force_whitespace()
 /*
  * Output character.  Buffer whitespace.
  */
+void
 db_putchar(c)
 	int	c;		/* character to output */
 {
@@ -136,10 +139,8 @@ db_print_position()
 /*
  * Printing
  */
-extern int	db_radix;
-
-/*VARARGS1*/
-db_printf(char *fmt, ...)
+void
+db_printf(const char *fmt, ...)
 {
 	va_list	listp;
 	va_start(listp, fmt);
@@ -150,6 +151,7 @@ db_printf(char *fmt, ...)
 /* alternate name */
 
 /*VARARGS1*/
+void
 kdbprintf(char *fmt, ...)
 {
 	va_list	listp;
@@ -190,6 +192,7 @@ db_ksprintn(ul, base, lenp)
 	return (p);
 }
 
+static void
 db_printf_guts(fmt, ap)
 	register const char *fmt;
 	va_list ap;

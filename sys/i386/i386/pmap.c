@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.7 1993/10/15 10:34:25 rgrimes Exp $
+ *	$Id: pmap.c,v 1.8 1993/11/13 02:25:03 davidg Exp $
  */
 
 /*
@@ -79,6 +79,7 @@
  */
 
 #include "param.h"
+#include "systm.h"
 #include "proc.h"
 #include "malloc.h"
 #include "user.h"
@@ -89,6 +90,9 @@
 /*#include "vm/vm_pageout.h"*/
 
 #include "i386/isa/isa.h"
+
+static void i386_protection_init(void);
+static void pmap_changebit(vm_offset_t, int, boolean_t);
 
 /*
  * Allocate various and sundry SYSMAPs used in the days of old VM
@@ -219,7 +223,6 @@ pmap_bootstrap(firstaddr, loadaddr)
 	vm_offset_t va;
 	struct pte *pte;
 #endif
-	extern vm_offset_t maxmem, physmem;
 extern int IdlePTD;
 
 	avail_start = firstaddr + 8 * NBPG;
@@ -1313,6 +1316,7 @@ pmap_kernel()
  *	bzero to clear its contents, one machine dependent page
  *	at a time.
  */
+void
 pmap_zero_page(phys)
 	register vm_offset_t	phys;
 {
@@ -1335,6 +1339,7 @@ pmap_zero_page(phys)
  *	bcopy to copy the page, one machine dependent page at a
  *	time.
  */
+void
 pmap_copy_page(src, dst)
 	register vm_offset_t	src, dst;
 {
@@ -1367,6 +1372,7 @@ pmap_copy_page(src, dst)
  *		will specify that these pages are to be wired
  *		down (or not) as appropriate.
  */
+void
 pmap_pageable(pmap, sva, eva, pageable)
 	pmap_t		pmap;
 	vm_offset_t	sva, eva;
@@ -1509,6 +1515,7 @@ pmap_phys_address(ppn)
  * Miscellaneous support routines follow
  */
 
+static void
 i386_protection_init()
 {
 	register int *kp, prot;
@@ -1575,6 +1582,7 @@ pmap_testbit(pa, bit)
 	return(FALSE);
 }
 
+void
 pmap_changebit(pa, bit, setem)
 	register vm_offset_t pa;
 	int bit;

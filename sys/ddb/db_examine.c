@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id$
+ *	$Id: db_examine.c,v 1.2 1993/10/16 16:47:13 rgrimes Exp $
  */
 
 /*
@@ -31,8 +31,10 @@
  *	Date:	7/90
  */
 #include "param.h"
+#include "systm.h"
 #include "proc.h"
-#include <machine/db_machdep.h>		/* type definitions */
+
+#include "ddb/ddb.h"
 
 #include <ddb/db_lex.h>
 #include <ddb/db_output.h>
@@ -43,6 +45,9 @@ char	db_examine_format[TOK_STRING_SIZE] = "x";
 
 extern	db_addr_t db_disasm(/* db_addr_t, boolean_t */);
 			/* instruction disassembler */
+
+static void db_examine(db_addr_t, char *, int);
+static void db_search(db_addr_t, int, db_expr_t, db_expr_t, u_int);
 
 /*
  * Examine (print) data.
@@ -64,6 +69,7 @@ db_examine_cmd(addr, have_addr, count, modif)
 	db_examine((db_addr_t) addr, db_examine_format, count);
 }
 
+static void
 db_examine(addr, fmt, count)
 	register
 	db_addr_t	addr;
@@ -237,6 +243,7 @@ db_print_cmd(addr, have_addr, count, modif)
 	db_printf("\n");
 }
 
+void
 db_print_loc_and_inst(loc)
 	db_addr_t	loc;
 {
@@ -245,20 +252,12 @@ db_print_loc_and_inst(loc)
 	(void) db_disasm(loc, TRUE);
 }
 
-db_strcpy(dst, src)
-	register char *dst;
-	register char *src;
-{
-	while (*dst++ = *src++)
-	    ;
-}
-
 /*
  * Search for a value in memory.
  * Syntax: search [/bhl] addr value [mask] [,count]
  */
 void
-db_search_cmd()
+db_search_cmd(db_expr_t dummy1, int dummy2, db_expr_t dummy3, char *dummy4)
 {
 	int		t;
 	db_addr_t	addr;
@@ -290,7 +289,7 @@ db_search_cmd()
 	    size = 4;
 	}
 
-	if (!db_expression(&addr)) {
+	if (!db_expression((db_expr_t *)&addr)) {
 	    db_printf("Address missing\n");
 	    db_flush_lex();
 	    return;
@@ -321,6 +320,7 @@ db_search_cmd()
 	db_search(addr, size, value, mask, count);
 }
 
+static void
 db_search(addr, size, value, mask, count)
 	register
 	db_addr_t	addr;

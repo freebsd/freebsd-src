@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.2 1993/10/16 13:45:44 rgrimes Exp $
+ *	$Id: clock.c,v 1.3 1993/11/04 01:56:31 ache Exp $
  */
 
 /*
@@ -56,7 +56,11 @@
 #define	TIMER_FREQ	1193182	/* XXX - should be in isa.h */
 #endif
 
-startrtclock() {
+static void findcpuspeed(void);
+
+void
+startrtclock() 
+{
 	int s;
 
 	findcpuspeed();		/* use the clock (while it's free)
@@ -84,6 +88,7 @@ startrtclock() {
 unsigned int delaycount;	/* calibrated loop variable (1 millisecond) */
 
 #define FIRST_GUESS	0x2000
+static void
 findcpuspeed()
 {
 	unsigned char low;
@@ -107,8 +112,9 @@ findcpuspeed()
 
 
 /* convert 2 digit BCD number */
+int
 bcd(i)
-int i;
+	int i;
 {
 	return ((i/16)*10 + (i%16));
 }
@@ -157,6 +163,7 @@ int m,leap;
  * Initialize the time of day register, based on the time base which is, e.g.
  * from a filesystem.
  */
+void
 inittodr(base)
 	time_t base;
 {
@@ -217,6 +224,7 @@ test_inittodr(base)
 /*
  * Restart the clock.
  */
+void
 resettodr()
 {
 }
@@ -226,7 +234,10 @@ resettodr()
  */
 #define V(s)	__CONCAT(V, s)
 extern V(clk)();
-enablertclock() {
+
+void
+enablertclock() 
+{
 	setidt(ICU_OFFSET+0, &V(clk), SDT_SYS386IGT, SEL_KPL);
 	INTREN(IRQ0);
 }

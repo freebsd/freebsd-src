@@ -39,7 +39,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: if_ie.c,v 1.1 1993/10/12 06:52:31 rgrimes Exp $
  */
 
 /*
@@ -106,7 +106,6 @@ iomem, and to make 16-pointers, we subtract iomem and and with 0xffff.
 #include "param.h"
 #include "systm.h"
 #include "mbuf.h"
-#include "buf.h"
 #include "protosw.h"
 #include "socket.h"
 #include "ioctl.h"
@@ -135,7 +134,6 @@ iomem, and to make 16-pointers, we subtract iomem and and with 0xffff.
 #endif
 
 #include "i386/isa/isa.h"
-/*#include "machine/cpufunc.h"*/
 #include "i386/isa/isa_device.h"
 #include "i386/isa/ic/i82586.h"
 #include "i386/isa/if_iereg.h"
@@ -171,14 +169,14 @@ int ie_debug = IED_RNR;
 /* Forward declaration */
 struct ie_softc;
 
-int ieprobe(struct isa_device *dvp);
-int ieattach(struct isa_device *dvp);
-int ieinit(int unit);
-int ieioctl(struct ifnet *ifp, int command, void *data);
-int iestart(struct ifnet *ifp);
+static int ieprobe(struct isa_device *dvp);
+static int ieattach(struct isa_device *dvp);
+static void ieinit(int unit);
+static int ieioctl(struct ifnet *ifp, int command, caddr_t data);
+static void iestart(struct ifnet *ifp);
 static void sl_reset_586(int unit);
 static void sl_chan_attn(int unit);
-int iereset(int unit, int dummy);
+static void iereset(int unit, int dummy);
 static void ie_readframe(int unit, struct ie_softc *ie, int bufno);
 static void ie_drop_packet_buffer(int unit, struct ie_softc *ie);
 static void sl_read_ether(int unit, unsigned char addr[6]);
@@ -407,7 +405,7 @@ ieattach(dvp)
     while(ifa && ifa->ifa_addr && ifa->ifa_addr->sa_family != AF_LINK)
       ifa = ifa->ifa_next;
 
-    if(!ifa || !ifa->ifa_addr) return;
+    if(!ifa || !ifa->ifa_addr) return 1;
 
     /* Provide our ether address to the higher layers */
     sdl = (struct sockaddr_dl *)ifa->ifa_addr;
@@ -415,6 +413,7 @@ ieattach(dvp)
     sdl->sdl_alen = 6;
     sdl->sdl_slen = 0;
     bcopy(ie->arpcom.ac_enaddr, LLADDR(sdl), 6);
+    return 1;
   }
 }
 
@@ -1075,8 +1074,9 @@ static void ie_drop_packet_buffer(int unit, struct ie_softc *ie) {
 /*
  * Start transmission on an interface.
  */
-int iestart(ifp)
-     struct ifnet *ifp;
+static void
+iestart(ifp)
+	struct ifnet *ifp;
 {
   struct ie_softc *ie = &ie_softc[ifp->if_unit];
   struct mbuf *m0, *m;
@@ -1086,9 +1086,9 @@ int iestart(ifp)
   volatile u_short *bptr = &ie->scb->ie_command_list;
 
   if(!(ifp->if_flags & IFF_RUNNING))
-    return 0;
+    return;
   if(ifp->if_flags & IFF_OACTIVE)
-    return 0;
+    return;
 
   do {
     IF_DEQUEUE(&ie->arpcom.ac_if.if_snd, m);
@@ -1147,7 +1147,7 @@ int iestart(ifp)
     ifp->if_flags |= IFF_OACTIVE;
   }
 
-  return 0;
+  return;
 }
 
 /*
@@ -1281,14 +1281,15 @@ void sl_read_ether(unit, addr)
 }
 
 
-int iereset(unit, dummy)
-     int unit, dummy;
+static void
+iereset(unit, dummy)
+	int unit, dummy;
 {
   int s = splimp();
 
   if(unit >= NIE) {
     splx(s);
-    return -1;
+    return;
   }
 
   printf("ie%d: reset\n", unit);
@@ -1313,17 +1314,18 @@ int iereset(unit, dummy)
   ieioctl(&ie_softc[unit].arpcom.ac_if, SIOCSIFFLAGS, 0);
   
   splx(s);
-  return 0;
+  return;
 }
 
 /*
  * This is called if we time out.
  */
-static int chan_attn_timeout(rock)
-     caddr_t rock;
+static void
+chan_attn_timeout(rock, arg2)
+	caddr_t rock;
+	int arg2;
 {
   *(int *)rock = 1;
-  return 0;
 }
 
 /*
@@ -1545,7 +1547,8 @@ static int mc_setup(int unit, caddr_t ptr,
  *
  * THIS ROUTINE MUST BE CALLED AT splimp() OR HIGHER.
  */
-int ieinit(unit)
+static void
+ieinit(unit)
      int unit;
 {
   struct ie_softc *ie = &ie_softc[unit];
@@ -1570,7 +1573,7 @@ int ieinit(unit)
     if(command_and_wait(unit, IE_CU_START, cmd, IE_STAT_COMPL)
        || !(cmd->com.ie_cmd_status & IE_STAT_OK)) {
       printf("ie%d: configure command failed\n", unit);
-      return 0;
+      return;
     }
   }
   /*
@@ -1590,7 +1593,7 @@ int ieinit(unit)
     if(command_and_wait(unit, IE_CU_START, cmd, IE_STAT_COMPL)
        || !(cmd->com.ie_cmd_status & IE_STAT_OK)) {
       printf("ie%d: individual address setup command failed\n", unit);
-      return 0;
+      return;
     }
   }
 
@@ -1645,7 +1648,7 @@ int ieinit(unit)
 
   ie->arpcom.ac_if.if_flags |= IFF_RUNNING; /* tell higher levels that we are here */
   start_receiver(unit);
-  return 0;
+  return;
 }
 
 static void ie_stop(unit)
@@ -1654,10 +1657,11 @@ static void ie_stop(unit)
   command_and_wait(unit, IE_RU_DISABLE, 0, 0);
 }
 
-int ieioctl(ifp, command, data)
-     struct ifnet *ifp;
-     int command;
-     void *data;
+static int
+ieioctl(ifp, command, data)
+	struct ifnet *ifp;
+	int command;
+	caddr_t data;
 {
   struct ifaddr *ifa = (struct ifaddr *)data;
   struct ie_softc *ie = &ie_softc[ifp->if_unit];

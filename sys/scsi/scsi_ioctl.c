@@ -20,6 +20,7 @@
 #include <scsi/scsiconf.h>
 #include <sys/scsiio.h>
 
+void scsierr(struct buf *, int); /* XXX ??? */
 
 /*
  * We let the user interpret his own sense in the generic scsi world.
@@ -317,9 +318,10 @@ errval	scsi_do_ioctl(struct scsi_link *sc_link, int cmd, caddr_t addr, int f)
 	return ret;
 }
 
+void
 scsierr(bp,err)
-struct buf *bp;
-int	err;
+	struct buf *bp;
+	int	err;
 {
 		bp->b_flags |= B_ERROR;
 		bp->b_error = err;

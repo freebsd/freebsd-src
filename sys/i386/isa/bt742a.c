@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: bt742a.c,v 2.3 93/10/16 02:00:33 julian Exp Locker: julian $
+ *      $Id: bt742a.c,v 1.10 1993/11/18 05:02:17 rgrimes Exp $
  */
 
 /*
@@ -188,7 +188,7 @@ struct bt_mbx {
 
 #if	defined(BIG_DMA)
 WARNING...THIS WON'T WORK(won't fit on 1 page)
-/* #define      BT_NSEG 2048    /* Number of scatter gather segments - to much vm */
+/* #define      BT_NSEG 2048*/    /* Number of scatter gather segments - to much vm */
 #define	BT_NSEG	128
 #else
 #define	BT_NSEG	33
@@ -347,7 +347,7 @@ int     btprobe();
 int     btattach();
 int     btintr();
 int32   bt_scsi_cmd();
-void	bt_timeout();
+void	bt_timeout(caddr_t, int);
 void	bt_inquire_setup_information();
 void    bt_done();
 void    btminphys();
@@ -417,6 +417,10 @@ main()
  */
 int
 bt_cmd(unit, icnt, ocnt, wait, retval, opcode, args)
+	int unit;
+	int icnt;
+	int ocnt;
+	int wait;
 	u_char		*retval;
 	unsigned	opcode;
 	u_char		args;
@@ -655,7 +659,7 @@ btintr(unit)
 			return 1;
 		}
 		outb(BT_CMD_DATA_PORT, 0x00);	/* Disable */
-		wakeup(&bt->bt_mbx);
+		wakeup((caddr_t)&bt->bt_mbx);
 		outb(BT_CTRL_STAT_PORT, BT_IRST);
 		return 1;
 	}
@@ -748,10 +752,12 @@ btintr(unit)
  */
 void
 bt_free_ccb(unit, ccb, flags)
+	int unit;
 	struct bt_ccb *ccb;
+	int flags;
 {
 	struct bt_data *bt = btdata[unit];
-	unsigned int opri;
+	unsigned int opri = 0;
 
 	if (!(flags & SCSI_NOMASK))
 		opri = splbio();
@@ -764,7 +770,7 @@ bt_free_ccb(unit, ccb, flags)
 	 * starting with queued entries.
 	 */
 	if (!ccb->next) {
-		wakeup(&bt->bt_ccb_free);
+		wakeup((caddr_t)&bt->bt_ccb_free);
 	}
 
 	if (!(flags & SCSI_NOMASK))
@@ -779,9 +785,11 @@ bt_free_ccb(unit, ccb, flags)
  */
 struct bt_ccb *
 bt_get_ccb(unit, flags)
+	int unit;
+	int flags;
 {
 	struct bt_data *bt = btdata[unit];
-	unsigned opri;
+	unsigned opri = 0;
 	struct bt_ccb *ccbp;
 	struct bt_mbx *wmbx;	/* Mail Box pointer specified unit */
 	BT_MBO *wmbo;		/* Out Mail Box pointer */
@@ -858,7 +866,7 @@ BT_MBO *
 bt_send_mbo(int unit, int flags, int cmd, struct bt_ccb *ccb)
 {
 	struct	bt_data *bt = btdata[unit];
-	unsigned opri;
+	unsigned opri = 0;
 	BT_MBO	*wmbo;		/* Mail Box Out pointer */
 	struct	bt_mbx *wmbx;	/* Mail Box pointer specified unit */
 	int     i, wait;
@@ -1342,7 +1350,7 @@ bt_scsi_cmd(xs)
 	 */
 	SC_DEBUG(xs->sc_link, SDEV_DB3, ("cmd_sent\n"));
 	if (!(flags & SCSI_NOMASK)) {
-		timeout(bt_timeout, ccb, (xs->timeout * hz) / 1000);
+		timeout(bt_timeout, (caddr_t)ccb, (xs->timeout * hz) / 1000);
 		return (SUCCESSFULLY_QUEUED);
 	}
 	/*
@@ -1387,7 +1395,7 @@ bt_poll(unit, xs, ccb)
 		 * accounting for the fact that the clock is not running yet
 		 * by taking out the clock queue entry it makes.
 		 */
-		bt_timeout(ccb);
+		bt_timeout((caddr_t)ccb, 0);
 
 		/*
 		 * because we are polling, take out the timeout entry
@@ -1414,7 +1422,7 @@ bt_poll(unit, xs, ccb)
 			 * We timed out again...  This is bad.  Notice that
 			 * this time there is no clock queue entry to remove.
 			 */
-			bt_timeout(ccb);
+			bt_timeout((caddr_t)ccb, 0);
 		}
 	}
 	if (xs->error)
@@ -1423,8 +1431,9 @@ bt_poll(unit, xs, ccb)
 }
 
 void
-bt_timeout(struct bt_ccb * ccb)
+bt_timeout(caddr_t arg1, int arg2)
 {
+	struct bt_ccb * ccb = (struct bt_ccb *)arg1;
 	int     unit;
 	struct bt_data *bt;
 	int     s = splbio();
@@ -1467,7 +1476,7 @@ bt_timeout(struct bt_ccb * ccb)
 		bt_send_mbo(unit, ~SCSI_NOMASK,
 		    BT_MBO_ABORT, ccb);
 		/* 2 secs for the abort */
-		timeout(bt_timeout, ccb, 2 * hz);
+		timeout(bt_timeout, (caddr_t)ccb, 2 * hz);
 		ccb->flags = CCB_ABORTED;
 	}
 	splx(s);
