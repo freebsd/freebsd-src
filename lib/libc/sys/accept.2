@@ -115,23 +115,6 @@ request and not implying confirmation.
 Confirmation can be implied by a normal read or write on the new
 file descriptor, and rejection can be implied by closing the
 new socket.
-.Pp
-One can obtain user connection request data without confirming
-the connection by issuing a
-.Xr recvmsg 2
-call with an
-.Fa msg_iovlen
-of 0 and a non-zero
-.Fa msg_controllen ,
-or by issuing a
-.Xr getsockopt 2
-request.
-Similarly, one can provide user connection rejection information
-by issuing a
-.Xr sendmsg 2
-call providing only the control information,
-or by calling
-.Xr setsockopt 2 .
 .Sh RETURN VALUES
 The call returns \-1 on error.  If it succeeds, it returns a non-negative
 integer that is a descriptor for the accepted socket.
