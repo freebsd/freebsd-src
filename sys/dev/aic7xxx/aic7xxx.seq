@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7xxx.seq,v 1.81 1998/12/10 04:14:50 gibbs Exp $
+ *	$Id: aic7xxx.seq,v 1.82 1998/12/15 08:22:42 gibbs Exp $
  */
 
 #include <dev/aic7xxx/aic7xxx.reg>
@@ -1066,6 +1066,19 @@ p_mesgout_done:
 	jmp	ITloop;
 
 /*
+ * Message in phase.  Bytes are read using Automatic PIO mode.
+ */
+p_mesgin:
+	mvi	ACCUM		call inb_first;	/* read the 1st message byte */
+
+	test	A,MSG_IDENTIFYFLAG	jnz mesgin_identify;
+	cmp	A,MSG_DISCONNECT	je mesgin_disconnect;
+	cmp	A,MSG_SAVEDATAPOINTER	je mesgin_sdptrs;
+	cmp	ALLZEROS,A		je mesgin_complete;
+	cmp	A,MSG_RESTOREPOINTERS	je mesgin_rdptrs;
+	cmp	A,MSG_NOOP		je mesgin_done;
+
+/*
  * Pushed message loop to allow the kernel to
  * RUN IT's own message state engine.  To avoid an
  * extra nop instruction after signaling the kernel,
@@ -1079,31 +1092,6 @@ host_message_loop:
 	call	phase_lock;
 	cmp	RETURN_1, EXIT_MSG_LOOP	je ITloop + 1;
 	jmp	host_message_loop;
-
-/*
- * Message in phase.  Bytes are read using Automatic PIO mode.
- */
-p_mesgin:
-	mvi	ACCUM		call inb_first;	/* read the 1st message byte */
-
-	test	A,MSG_IDENTIFYFLAG	jnz mesgin_identify;
-	cmp	A,MSG_DISCONNECT	je mesgin_disconnect;
-	cmp	A,MSG_SAVEDATAPOINTER	je mesgin_sdptrs;
-	cmp	ALLZEROS,A		je mesgin_complete;
-	cmp	A,MSG_RESTOREPOINTERS	je mesgin_rdptrs;
-	cmp	A,MSG_EXTENDED		je host_message_loop;
-	cmp	A,MSG_MESSAGE_REJECT	je mesgin_reject;
-	cmp	A,MSG_NOOP		je mesgin_done;
-
-rej_mesgin:
-/*
- * We have no idea what this message in is, so we issue a message reject
- * and hope for the best.  In any case, rejection should be a rare
- * occurrence - signal the driver when it happens.
- */
-	mvi	INTSTAT,SEND_REJECT;		/* let driver know */
-
-	mvi	MSG_MESSAGE_REJECT	call mk_mesg;
 
 mesgin_done:
 	mov	NONE,SCSIDATL;		/*dummy read from latch to ACK*/
@@ -1311,16 +1299,6 @@ not_found_cleanup_scb:
 not_found:
 	mvi	INTSTAT, NO_MATCH;
 	mvi	MSG_BUS_DEV_RESET	call mk_mesg;
-	jmp	mesgin_done;
-
-/*
- * Message reject?  Let the kernel driver handle this.  If we have an 
- * outstanding WDTR or SDTR negotiation, assume that it's a response from 
- * the target selecting 8bit or asynchronous transfer, otherwise just ignore 
- * it since we have no clue what it pertains to.
- */
-mesgin_reject:
-	mvi	INTSTAT, REJECT_MSG;
 	jmp	mesgin_done;
 
 /*
