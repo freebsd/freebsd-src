@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.184 1999/02/05 09:54:59 jkh Exp $
+ * $Id: menus.c,v 1.185 1999/02/05 22:15:50 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -239,11 +239,11 @@ DMenu MenuIndex = {
       { "Doc, Copyright",	"The distribution copyright notices.",	NULL, dmenuDisplayFile,	NULL, "COPYRIGHT" },
       { "Doc, Release",		"The distribution release notes.",	NULL, dmenuDisplayFile, NULL, "RELNOTES" },
       { "Doc, HTML",		"The HTML documentation menu.",		NULL, docBrowser },
+      { "Dump Vars",		"(debugging) dump out internal variables.", NULL, dump_variables },
       { "Emergency shell",	"Start an Emergency Holographic shell.",	NULL, installFixitHoloShell },
       { "Fdisk",		"The disk Partition Editor",		NULL, diskPartitionEditor },
       { "Fixit",		"Repair mode with CDROM or fixit floppy.",	NULL, dmenuSubmenu, NULL, &MenuFixit },
       { "FTP sites",		"The FTP mirror site listing.",		NULL, dmenuSubmenu, NULL, &MenuMediaFTP },
-      { "Dump Vars",		"(debugging) dump out internal variables.", NULL, dump_variables },
       { "Gateway",		"Set flag to route packets between interfaces.", dmenuVarCheck, dmenuToggleVariable, NULL, "gateway=YES" },
       { "HTML Docs",		"The HTML documentation menu",		NULL, docBrowser },
       { "Install, Novice",	"A novice system installation.",	NULL, installNovice },
