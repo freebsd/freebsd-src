@@ -82,7 +82,7 @@ ENTRY(cpu_switch)
 
 	bl	choosethread		/* Find a new thread to run */
 
-	mr	%r14,$r3		/* Save off the (struct thread *) */
+	mr	%r14,%r3		/* Save off the (struct thread *) */
 
 	bl	pmap_activate		/* Activate the new address space */
 
