@@ -1572,7 +1572,7 @@ readkmem_nl(kvm_t *kd, const char *name, void *buf, size_t nbytes)
 	const char *func_name = "readkmem_nl";
 	struct nlist nl[2];
 
-	(const char *)nl[0].n_name = name;
+	nl[0].n_name = (char *)name;
 	nl[1].n_name = NULL;
 
 	if (kvm_nlist(kd, nl) == -1) {
