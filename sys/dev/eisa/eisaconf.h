@@ -18,7 +18,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id$
+ *	$Id: eisaconf.h,v 1.3 1995/11/05 04:42:50 gibbs Exp $
  */
 
 #ifndef _I386_EISA_EISACONF_H_
@@ -26,12 +26,12 @@
 
 #define EISA_SLOTS 10   /* PCI clashes with higher ones.. fix later */
 
-#define EISA_MFCTR_CHAR0(ID) (((ID>>26) & 0x1F) | '@')  /* Bits 26-30 */
-#define EISA_MFCTR_CHAR1(ID) (((ID>>21) & 0x1F) | '@')  /* Bits 21-25 */
-#define EISA_MFCTR_CHAR2(ID) (((ID>>16) & 0x1F) | '@')  /* Bits 16-20 */
-#define EISA_MFCTR_ID(ID)     ((ID>>16) & 0xFF)		/* Bits 16-31 */
-#define EISA_PRODUCT_ID(ID)   ((ID>>4)  & 0xFFF)        /* Bits  4-15 */
-#define EISA_REVISION_ID(ID)  (ID & 0x0F)               /* Bits  0-3  */
+#define EISA_MFCTR_CHAR0(ID) (char)(((ID>>26) & 0x1F) | '@')  /* Bits 26-30 */
+#define EISA_MFCTR_CHAR1(ID) (char)(((ID>>21) & 0x1F) | '@')  /* Bits 21-25 */
+#define EISA_MFCTR_CHAR2(ID) (char)(((ID>>16) & 0x1F) | '@')  /* Bits 16-20 */
+#define EISA_MFCTR_ID(ID)    (short)((ID>>16) & 0xFF)	      /* Bits 16-31 */
+#define EISA_PRODUCT_ID(ID)  (short)((ID>>4)  & 0xFFF)        /* Bits  4-15 */
+#define EISA_REVISION_ID(ID) (u_char)(ID & 0x0F)              /* Bits  0-3  */
 
 extern struct linker_set eisadriver_set;
 
