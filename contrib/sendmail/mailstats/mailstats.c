@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2002 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -20,7 +20,7 @@ SM_IDSTR(copyright,
      Copyright (c) 1988, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n")
 
-SM_IDSTR(id, "@(#)$Id: mailstats.c,v 1.1.1.8 2002/02/17 21:56:43 gshapiro Exp $")
+SM_IDSTR(id, "@(#)$Id: mailstats.c,v 8.98 2002/05/24 23:10:15 gshapiro Exp $")
 
 /* $FreeBSD$ */
 
@@ -66,7 +66,7 @@ main(argc, argv)
 #endif /* _FFR_QUARANTINE */
 	time_t now;
 	char mtable[MAXMAILERS][MNAMELEN + 1];
-	char sfilebuf[MAXLINE];
+	char sfilebuf[MAXPATHLEN];
 	char buf[MAXLINE];
 	struct statistics stats;
 	extern char *ctime();
@@ -110,7 +110,7 @@ main(argc, argv)
 		  default:
   usage:
 			(void) sm_io_fputs(smioerr, SM_TIME_DEFAULT,
-			    "usage: mailstats [-C cffile] [-P] [-f stfile] [-o] [-p]\n");
+			    "usage: mailstats [-C cffile] [-c] [-P] [-f stfile] [-o] [-p]\n");
 			exit(EX_USAGE);
 		}
 	}
@@ -140,6 +140,15 @@ main(argc, argv)
 		register char *b;
 		char *s;
 		register char *m;
+
+		b = strchr(buf, '#');
+		if (b == NULL)
+			b = strchr(buf, '\n');
+		if (b == NULL)
+			b = &buf[strlen(buf)];
+		while (isascii(*--b) && isspace(*b))
+			continue;
+		*++b = '\0';
 
 		b = buf;
 		switch (*b++)
@@ -173,14 +182,6 @@ main(argc, argv)
 						     b);
 				exit(EX_CONFIG);
 			}
-			b = strchr(sfilebuf, '#');
-			if (b == NULL)
-				b = strchr(sfilebuf, '\n');
-			if (b == NULL)
-				b = &sfilebuf[strlen(sfilebuf)];
-			while (isascii(*--b) && isspace(*b))
-				continue;
-			*++b = '\0';
 			if (sfile == NULL)
 				sfile = sfilebuf;
 
@@ -217,10 +218,10 @@ main(argc, argv)
 	{
 		(void) sm_io_fprintf(smioerr, SM_TIME_DEFAULT,
 				     "mailstats: no statistics file located\n");
-		exit (EX_OSFILE);
+		exit(EX_OSFILE);
 	}
 
-	fd = open(sfile, O_RDONLY);
+	fd = open(sfile, O_RDONLY, 0600);
 	if ((fd < 0) || (i = read(fd, &stats, sizeof stats)) < 0)
 	{
 		save_errno = errno;
@@ -352,7 +353,7 @@ main(argc, argv)
 		(void) close(fd);
 		if (trunc)
 		{
-			fd = open(sfile, O_RDWR | O_TRUNC);
+			fd = open(sfile, O_RDWR | O_TRUNC, 0600);
 			if (fd >= 0)
 				(void) close(fd);
 		}
