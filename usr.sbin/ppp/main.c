@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.22.2.36 1997/09/05 23:07:26 brian Exp $
+ * $Id: main.c,v 1.22.2.37 1997/09/16 23:20:18 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -471,7 +471,7 @@ main(int argc, char **argv)
 		if_filename, strerror(errno));
 
     VarTerm = 0;		/* We know it's currently stdout */
-    close(0);
+    close(1);
     close(2);
 
 #ifdef DOTTYINIT
@@ -482,7 +482,7 @@ main(int argc, char **argv)
       TtyInit(1);
     else {
       setsid();
-      close(1);
+      close(0);
     }
   } else {
     TtyInit(0);
@@ -711,6 +711,7 @@ DoLoop()
     if (OpenModem(mode) < 0)
       return;
     LogPrintf(LogPHASE, "Packet mode enabled\n");
+    close(0);
     PacketMode();
   } else if (mode & MODE_DEDICATED) {
     if (modem < 0)
