@@ -1088,82 +1088,15 @@ smp_masked_invlpg_range(u_int mask, vm_offset_t addr1, vm_offset_t addr2)
 }
 
 
-/*
- * For statclock, we send an IPI to all CPU's to have them call this
- * function.
- */
-
-void
-forward_statclock(void)
-{
-	int map;
-
-	CTR0(KTR_SMP, "forward_statclock");
-
-	if (!smp_started || cold || panicstr)
-		return;
-
-	map = PCPU_GET(other_cpus) & ~(stopped_cpus|hlt_cpus_mask);
-	if (map != 0)
-		ipi_selected(map, IPI_STATCLOCK);
-}
-
-/*
- * For each hardclock(), we send an IPI to all other CPU's to have them
- * execute this function.  It would be nice to reduce contention on
- * sched_lock if we could simply peek at the CPU to determine the user/kernel
- * state and call hardclock_process() on the CPU receiving the clock interrupt
- * and then just use a simple IPI to handle any ast's if needed.
- */
-
-void 
-forward_hardclock(void)
-{
-	u_int map;
-
-	CTR0(KTR_SMP, "forward_hardclock");
-
-	if (!smp_started || cold || panicstr)
-		return;
-
-	map = PCPU_GET(other_cpus) & ~(stopped_cpus|hlt_cpus_mask);
-	if (map != 0)
-		ipi_selected(map, IPI_HARDCLOCK);
-}
-
 void
 ipi_bitmap_handler(struct clockframe frame)
 {
 	int cpu = PCPU_GET(cpuid);
 	u_int ipi_bitmap;
-	struct thread *td;
 
 	ipi_bitmap = atomic_readandclear_int(&cpu_ipi_pending[cpu]);
 
-	critical_enter();
-
 	/* Nothing to do for AST */
-
-	if (ipi_bitmap & (1 << IPI_HARDCLOCK)) {
-		td = curthread;	
-		td->td_intr_nesting_level++;
-		hardclock_process(&frame);
-		td->td_intr_nesting_level--;	
-	}
-
-	if (ipi_bitmap & (1 << IPI_STATCLOCK)) {
-		CTR0(KTR_SMP, "forwarded_statclock");
-
-		td = curthread;
-		td->td_intr_nesting_level++;
-		if (profprocs != 0)
-			profclock(&frame);
-		if (pscnt == psdiv)
-			statclock(&frame);
-		td->td_intr_nesting_level--;
-	}
-
-	critical_exit();
 }
 
 /*

@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/pcpu.h>
+#include <sys/smp.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -65,6 +66,10 @@ CTASSERT(APIC_TIMER_INT < APIC_LOCAL_INTS);
 CTASSERT(APIC_LOCAL_INTS == 240);
 CTASSERT(IPI_STOP < APIC_SPURIOUS_INT);
 
+#define	LAPIC_TIMER_HZ_DIVIDER		3
+#define	LAPIC_TIMER_STATHZ_DIVIDER	23
+#define	LAPIC_TIMER_PROFHZ_DIVIDER	2
+
 /*
  * Support for local APICs.  Local APICs manage interrupts on each
  * individual processor as opposed to I/O APICs which receive interrupts
@@ -89,6 +94,10 @@ struct lapic {
 	u_int la_cluster:4;
 	u_int la_cluster_id:2;
 	u_int la_present:1;
+	u_long *la_timer_count;
+	u_long la_hard_ticks;
+	u_long la_stat_ticks;
+	u_long la_prof_ticks;
 } static lapics[MAX_APICID];
 
 /* XXX: should thermal be an NMI? */
@@ -114,9 +123,21 @@ static inthand_t *ioint_handlers[] = {
 	IDTVEC(apic_isr7),	/* 224 - 255 */
 };
 
+static u_int32_t lapic_timer_divisors[] = { 
+	APIC_TDCR_1, APIC_TDCR_2, APIC_TDCR_4, APIC_TDCR_8, APIC_TDCR_16,
+	APIC_TDCR_32, APIC_TDCR_64, APIC_TDCR_128
+};
+
 volatile lapic_t *lapic;
+static u_long lapic_timer_divisor, lapic_timer_period, lapic_timer_hz;
+static u_long *lapic_virtual_hardclock, *lapic_virtual_statclock,
+	*lapic_virtual_profclock;
 
 static void	lapic_enable(void);
+static void	lapic_timer_enable_intr(void);
+static void	lapic_timer_oneshot(u_int count);
+static void	lapic_timer_periodic(u_int count);
+static void	lapic_timer_set_divisor(u_int divisor);
 static uint32_t	lvt_mode(struct lapic *la, u_int pin, uint32_t value);
 
 static uint32_t
@@ -180,7 +201,11 @@ lapic_init(uintptr_t addr)
 	/* Set BSP's per-CPU local APIC ID. */
 	PCPU_SET(apic_id, lapic_id());
 
-	/* XXX: timer/error/thermal interrupts */
+	/* Local APIC timer interrupt. */
+	setidt(APIC_TIMER_INT, IDTVEC(timerint), SDT_SYS386IGT, SEL_KPL,
+	    GSEL(GCODE_SEL, SEL_KPL));
+
+	/* XXX: error/thermal interrupts */
 }
 
 /*
@@ -252,6 +277,7 @@ lapic_setup(void)
 	struct lapic *la;
 	u_int32_t value, maxlvt;
 	register_t eflags;
+	char buf[MAXCOMLEN + 1];
 
 	la = &lapics[lapic_id()];
 	KASSERT(la->la_present, ("missing APIC structure"));
@@ -281,9 +307,82 @@ lapic_setup(void)
 	lapic->lvt_lint0 = lvt_mode(la, LVT_LINT0, lapic->lvt_lint0);
 	lapic->lvt_lint1 = lvt_mode(la, LVT_LINT1, lapic->lvt_lint1);
 
-	/* XXX: more LVT entries */
+	/* Program timer LVT and setup handler. */
+	lapic->lvt_timer = lvt_mode(la, LVT_TIMER, lapic->lvt_timer);
+	snprintf(buf, sizeof(buf), "lapic%d: timer", lapic_id());
+	intrcnt_add(buf, &la->la_timer_count);
+	if (PCPU_GET(cpuid) != 0) {
+		KASSERT(lapic_timer_period != 0, ("lapic%u: zero divisor",
+		    lapic_id()));
+		lapic_timer_set_divisor(lapic_timer_divisor);
+		lapic_timer_periodic(lapic_timer_period);
+		lapic_timer_enable_intr();
+	}
+
+	/* XXX: Performance counter, error, and thermal LVTs */
 
 	intr_restore(eflags);
+}
+
+/*
+ * Called by cpu_initclocks() on the BSP to setup the local APIC timer so
+ * that it can drive hardclock, statclock, and profclock.  This function
+ * returns true if it is able to use the local APIC timer to drive the
+ * clocks and false if it is not able.
+ */
+int
+lapic_setup_clock(void)
+{
+	u_long value;
+
+	/* Can't drive the timer without a local APIC. */
+	if (lapic == NULL)
+		return (0);
+
+	/* If we've only got one CPU, then use the RTC and ISA timer instead. */
+	if (mp_ncpus == 1)
+		return (0);
+
+	/* Start off with a divisor of 2 (power on reset default). */
+	lapic_timer_divisor = 2;
+
+	/* Try to calibrate the local APIC timer. */
+	do {
+		lapic_timer_set_divisor(lapic_timer_divisor);
+		lapic_timer_oneshot(APIC_TIMER_MAX_COUNT);
+		DELAY(2000000);
+		value = APIC_TIMER_MAX_COUNT - lapic->ccr_timer;
+		if (value != APIC_TIMER_MAX_COUNT)
+			break;
+		lapic_timer_divisor <<= 1;
+	} while (lapic_timer_divisor <= 128);
+	if (lapic_timer_divisor > 128)
+		panic("lapic: Divisor too big");
+	value /= 2;
+	if (bootverbose)
+		printf("lapic: Divisor %lu, Frequency %lu hz\n",
+		    lapic_timer_divisor, value);
+
+	/*
+	 * We will drive the timer at a small multiple of hz and drive
+	 * both of the other timers with similarly small but relatively
+	 * prime divisors.
+	 */
+	lapic_timer_hz = hz * LAPIC_TIMER_HZ_DIVIDER;
+	stathz = lapic_timer_hz / LAPIC_TIMER_STATHZ_DIVIDER;
+	profhz = lapic_timer_hz / LAPIC_TIMER_PROFHZ_DIVIDER;
+	lapic_timer_period = value / lapic_timer_hz;
+	intrcnt_add("lapic: hardclock", &lapic_virtual_hardclock);
+	intrcnt_add("lapic: statclock", &lapic_virtual_statclock);
+	intrcnt_add("lapic: profclock", &lapic_virtual_profclock);
+
+	/*
+	 * Start up the timer on the BSP.  The APs will kick off their
+	 * timer during lapic_setup().
+	 */
+	lapic_timer_periodic(lapic_timer_period);
+	lapic_timer_enable_intr();
+	return (1);
 }
 
 void
@@ -514,6 +613,91 @@ lapic_handle_intr(struct intrframe frame)
 		panic("Couldn't get vector from ISR!");
 	isrc = intr_lookup_source(apic_idt_to_irq(frame.if_vec));
 	intr_execute_handlers(isrc, &frame);
+}
+
+void
+lapic_handle_timer(struct clockframe frame)
+{
+	struct lapic *la;
+
+	la = &lapics[PCPU_GET(apic_id)];
+	(*la->la_timer_count)++;
+	critical_enter();
+
+	/* Fire hardclock at hz. */
+	la->la_hard_ticks += hz;
+	if (la->la_hard_ticks >= lapic_timer_hz) {
+		la->la_hard_ticks -= lapic_timer_hz;
+		if (PCPU_GET(cpuid) == 0) {
+			(*lapic_virtual_hardclock)++;
+			hardclock(&frame);
+		} else
+			hardclock_process(&frame);
+	}
+
+	/* Fire statclock at stathz. */
+	la->la_stat_ticks += stathz;
+	if (la->la_stat_ticks >= lapic_timer_hz) {
+		la->la_stat_ticks -= lapic_timer_hz;
+		if (PCPU_GET(cpuid) == 0)
+			(*lapic_virtual_statclock)++;
+		statclock(&frame);
+	}
+
+	/* Fire profclock at profhz, but only when needed. */
+	la->la_prof_ticks += profhz;
+	if (la->la_prof_ticks >= lapic_timer_hz) {
+		la->la_prof_ticks -= lapic_timer_hz;
+		if (PCPU_GET(cpuid) == 0)
+			(*lapic_virtual_profclock)++;
+		if (profprocs != 0)
+			profclock(&frame);
+	}
+	critical_exit();
+}
+
+static void
+lapic_timer_set_divisor(u_int divisor)
+{
+
+	KASSERT(powerof2(divisor), ("lapic: invalid divisor %u", divisor));
+	KASSERT(ffs(divisor) <= sizeof(lapic_timer_divisors) /
+	    sizeof(u_int32_t), ("lapic: invalid divisor %u", divisor));
+	lapic->dcr_timer = lapic_timer_divisors[ffs(divisor) - 1];
+}
+
+static void
+lapic_timer_oneshot(u_int count)
+{
+	u_int32_t value;
+
+	value = lapic->lvt_timer;
+	value &= ~APIC_LVTT_TM;
+	value |= APIC_LVTT_TM_ONE_SHOT;
+	lapic->lvt_timer = value;
+	lapic->icr_timer = count;
+}
+
+static void
+lapic_timer_periodic(u_int count)
+{
+	u_int32_t value;
+
+	value = lapic->lvt_timer;
+	value &= ~APIC_LVTT_TM;
+	value |= APIC_LVTT_TM_PERIODIC;
+	lapic->lvt_timer = value;
+	lapic->icr_timer = count;
+}
+
+static void
+lapic_timer_enable_intr(void)
+{
+	u_int32_t value;
+
+	value = lapic->lvt_timer;
+	value &= ~APIC_LVT_M;
+	lapic->lvt_timer = value;
 }
 
 /* Translate between IDT vectors and IRQ vectors. */
