@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)if_loop.c	8.1 (Berkeley) 6/10/93
- *	$Id: if_disc.c,v 1.8 1995/10/29 15:31:59 phk Exp $
+ *	$Id: if_disc.c,v 1.9 1995/12/02 17:11:09 bde Exp $
  */
 
 /*
@@ -86,6 +86,7 @@ PSEUDO_SET(discattach, if_disc);
 static struct	ifnet dsif;
 static int dsoutput(struct ifnet *, struct mbuf *, struct sockaddr *,
 		    struct rtentry *);
+static void dsrtrequest(int cmd, struct rtentry *rt, struct sockaddr *sa);
 static int dsioctl(struct ifnet *, int, caddr_t);
 
 /* ARGSUSED */
@@ -175,7 +176,7 @@ dsrtrequest(cmd, rt, sa)
  * Process an ioctl request.
  */
 /* ARGSUSED */
-int
+static int
 dsioctl(ifp, cmd, data)
 	register struct ifnet *ifp;
 	int cmd;
