@@ -97,12 +97,15 @@ and
 The
 .Pa tcplisten
 namespace takes a slash separated hostname and port and creates a TCP/IP
-socket bound to the given hostname-port pair. The hostname may be
-specified as "ANY" to allow any other host to connect to the socket. A
+socket bound to the given hostname-port pair.
+The hostname may be
+specified as "ANY" to allow any other host to connect to the socket.
+A
 port number of 0 will dynamically allocate a port, this can be
 discovered by calling
 .Xr getsockname 2
-with the returned file descriptor. Privileged ports can only be bound to
+with the returned file descriptor.
+Privileged ports can only be bound to
 by the super-user.
 The
 .Pa tcp
