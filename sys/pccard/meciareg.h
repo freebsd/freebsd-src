@@ -1,5 +1,5 @@
 /*
- * pcic98reg.h
+ * meciareg.h
  *
  * PC9801 original PCMCIA controller code for NS/A,Ne,NX/C,NR/L.
  * by Noriyuki Hosobuchi <hoso@ce.mbn.or.jp>
