@@ -268,7 +268,7 @@ kseq_print(struct kseq *kseq)
 static void
 kseq_add(struct kseq *kseq, struct kse *ke)
 {
-	kseq->ksq_loads[ke->ke_ksegrp->kg_pri_class]++;
+	kseq->ksq_loads[PRI_BASE(ke->ke_ksegrp->kg_pri_class)]++;
 	kseq->ksq_load++;
 	if (ke->ke_ksegrp->kg_pri_class == PRI_TIMESHARE)
 	CTR6(KTR_ULE, "Add kse %p to %p (slice: %d, pri: %d, nice: %d(%d))",
@@ -284,7 +284,7 @@ kseq_add(struct kseq *kseq, struct kse *ke)
 static void
 kseq_rem(struct kseq *kseq, struct kse *ke)
 {
-	kseq->ksq_loads[ke->ke_ksegrp->kg_pri_class]--;
+	kseq->ksq_loads[PRI_BASE(ke->ke_ksegrp->kg_pri_class)]--;
 	kseq->ksq_load--;
 	ke->ke_runq = NULL;
 	if (ke->ke_ksegrp->kg_pri_class == PRI_TIMESHARE)
@@ -817,8 +817,8 @@ sched_class(struct ksegrp *kg, int class)
 			continue;
 		kseq = KSEQ_CPU(ke->ke_cpu);
 
-		kseq->ksq_loads[kg->kg_pri_class]--;
-		kseq->ksq_loads[class]++;
+		kseq->ksq_loads[PRI_BASE(kg->kg_pri_class)]--;
+		kseq->ksq_loads[PRI_BASE(class)]++;
 
 		if (kg->kg_pri_class == PRI_TIMESHARE)
 			kseq_nice_rem(kseq, kg->kg_nice);
@@ -1068,7 +1068,7 @@ sched_add(struct kse *ke)
 	if (ke->ke_runq)
 		Debugger("hrm?");
 
-	switch (kg->kg_pri_class) {
+	switch (PRI_BASE(kg->kg_pri_class)) {
 	case PRI_ITHD:
 	case PRI_REALTIME:
 		kseq = KSEQ_SELF();
