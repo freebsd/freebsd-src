@@ -329,6 +329,13 @@ job-creation lock file
 .Xr atrun 8 ,
 .Xr cron 8 ,
 .Xr sendmail 8
+.Sh AUTHORS
+At was mostly written by
+.An Thomas Koenig Aq ig25@rz.uni-karlsruhe.de .
+The time parsing routines are by
+.An David Parsons Aq orc@pell.chi.il.us ,
+with minor enhancements by
+.An Joe Halpin Aq joe.halpin@attbi.com .
 .Sh BUGS
 If the file
 .Pa /var/run/utmp
@@ -352,10 +359,3 @@ If this is the case, another batch system such as
 may be more suitable.
 .Pp
 Specifying a date past 2038 may not work on some systems.
-.Sh AUTHORS
-At was mostly written by
-.An Thomas Koenig Aq ig25@rz.uni-karlsruhe.de .
-The time parsing routines are by
-.An David Parsons Aq orc@pell.chi.il.us ,
-with minor enhancements by
-.An Joe Halpin Aq joe.halpin@attbi.com .

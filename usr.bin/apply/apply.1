@@ -105,6 +105,11 @@ The following environment variable affects the execution of
 Pathname of shell to use.
 If this variable is not defined, the Bourne shell is used.
 .El
+.Sh FILES
+.Bl -tag -width /bin/sh -compact
+.It Pa /bin/sh
+default shell
+.El
 .Sh EXAMPLES
 .Bl -tag -width apply -compact
 .It Li "apply echo a*"
@@ -120,11 +125,11 @@ runs
 links all files in the current directory to the directory
 .Pa /usr/joe .
 .El
-.Sh FILES
-.Bl -tag -width /bin/sh -compact
-.It Pa /bin/sh
-default shell
-.El
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Bx 4.2 .
 .Sh AUTHORS
 .An Rob Pike
 .Sh BUGS
@@ -137,8 +142,3 @@ commands in single quotes
 The
 .Nm
 utility does not recognize multibyte characters.
-.Sh HISTORY
-The
-.Nm
-command appeared in
-.Bx 4.2 .

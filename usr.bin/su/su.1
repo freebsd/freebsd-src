@@ -158,20 +158,6 @@ By default (unless the prompt is reset by a startup file) the super-user
 prompt is set to
 .Dq Sy \&#
 to remind one of its awesome power.
-.Sh FILES
-.Bl -tag -width ".Pa /etc/pam.d/su" -compact
-.It Pa /etc/pam.d/su
-PAM configuration for
-.Nm .
-.El
-.Sh SEE ALSO
-.Xr csh 1 ,
-.Xr sh 1 ,
-.Xr group 5 ,
-.Xr login.conf 5 ,
-.Xr passwd 5 ,
-.Xr environ 7 ,
-.Xr pam 8
 .Sh ENVIRONMENT
 Environment variables used by
 .Nm :
@@ -188,6 +174,12 @@ user ID.
 The user ID is always the effective ID (the target user ID) after an
 .Nm
 unless the user ID is 0 (root).
+.El
+.Sh FILES
+.Bl -tag -width ".Pa /etc/pam.d/su" -compact
+.It Pa /etc/pam.d/su
+PAM configuration for
+.Nm .
 .El
 .Sh EXAMPLES
 .Bl -tag -width 5n -compact
@@ -221,6 +213,14 @@ Same as above.
 .It Li "su -"
 Simulate a login for root.
 .El
+.Sh SEE ALSO
+.Xr csh 1 ,
+.Xr sh 1 ,
+.Xr group 5 ,
+.Xr login.conf 5 ,
+.Xr passwd 5 ,
+.Xr environ 7 ,
+.Xr pam 8
 .Sh HISTORY
 A
 .Nm

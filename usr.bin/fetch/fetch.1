@@ -209,14 +209,6 @@ argument for
 the current transfer rate statistics will be written to the
 standard error output, in the same format as the standard completion
 message.
-.Sh EXIT STATUS
-The
-.Nm
-command returns zero on success, or one on failure.
-If multiple URLs are listed on the command line,
-.Nm
-will attempt to retrieve them each of them in turn, and return zero
-only if they were all successfully retrieved.
 .Sh ENVIRONMENT
 .Bl -tag -width HTTP_TIMEOUT
 .It Ev FTP_TIMEOUT
@@ -233,6 +225,14 @@ A number of these are quite important to the proper operation of
 you are strongly encouraged to read
 .Xr fetch 3
 as well.
+.Sh EXIT STATUS
+The
+.Nm
+command returns zero on success, or one on failure.
+If multiple URLs are listed on the command line,
+.Nm
+will attempt to retrieve them each of them in turn, and return zero
+only if they were all successfully retrieved.
 .Sh SEE ALSO
 .Xr fetch 3
 .Sh HISTORY

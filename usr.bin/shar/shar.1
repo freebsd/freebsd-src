@@ -59,11 +59,34 @@ command is normally used for distributing files by
 .Xr ftp 1
 or
 .Xr mail 1 .
+.Sh EXAMPLES
+To create a shell archive of the program
+.Xr ls 1
+and mail it to Rick:
+.Bd -literal -offset indent
+cd ls
+shar `find . -print` \&| mail -s "ls source" rick
+.Ed
+.Pp
+To recreate the program directory:
+.Bd -literal -offset indent
+mkdir ls
+cd ls
+\&...
+<delete header lines and examine mailed archive>
+\&...
+sh archive
+.Ed
 .Sh SEE ALSO
 .Xr compress 1 ,
 .Xr mail 1 ,
 .Xr tar 1 ,
 .Xr uuencode 1
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Bx 4.4 .
 .Sh BUGS
 The
 .Nm
@@ -86,26 +109,3 @@ may be easily examined with the command:
 .Bd -literal -offset indent
 egrep -v '^[X#]' shar.file
 .Ed
-.Sh EXAMPLES
-To create a shell archive of the program
-.Xr ls 1
-and mail it to Rick:
-.Bd -literal -offset indent
-cd ls
-shar `find . -print` \&| mail -s "ls source" rick
-.Ed
-.Pp
-To recreate the program directory:
-.Bd -literal -offset indent
-mkdir ls
-cd ls
-\&...
-<delete header lines and examine mailed archive>
-\&...
-sh archive
-.Ed
-.Sh HISTORY
-The
-.Nm
-command appeared in
-.Bx 4.4 .
