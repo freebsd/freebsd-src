@@ -157,7 +157,7 @@ exit1(td, rv)
 			q = q->p_peers;
 		}
 		while (p->p_peers) 
-			msleep((caddr_t)p, &p->p_mtx, PWAIT, "exit1", 0);
+			msleep(p, &p->p_mtx, PWAIT, "exit1", 0);
 	}
 	PROC_UNLOCK(p);
 
@@ -212,7 +212,7 @@ exit1(td, rv)
 		while (q->p_peers != p)
 			q = q->p_peers;
 		q->p_peers = p->p_peers;
-		wakeup((caddr_t)p->p_leader);
+		wakeup(p->p_leader);
 	}
 	PROC_UNLOCK(p->p_leader);
 
@@ -348,7 +348,7 @@ exit1(td, rv)
 	sx_xlock(&proctree_lock);
 	q = LIST_FIRST(&p->p_children);
 	if (q != NULL)		/* only need this if any child is S_ZOMB */
-		wakeup((caddr_t) initproc);
+		wakeup(initproc);
 	for (; q != NULL; q = nq) {
 		nq = LIST_NEXT(q, p_sibling);
 		PROC_LOCK(q);
@@ -401,7 +401,7 @@ exit1(td, rv)
 		 * continue.
 		 */
 		if (LIST_EMPTY(&pp->p_children))
-			wakeup((caddr_t)pp);
+			wakeup(pp);
 	}
 
 	if (p->p_sigparent && p->p_pptr != initproc)
@@ -414,7 +414,7 @@ exit1(td, rv)
 	 * If this is a kthread, then wakeup anyone waiting for it to exit.
 	 */
 	if (p->p_flag & P_KTHREAD)
-		wakeup((caddr_t)p);
+		wakeup(p);
 	PROC_UNLOCK(p);
 	
 	/*
@@ -569,8 +569,8 @@ loop:
 			if (uap->status) {
 				status = p->p_xstat;	/* convert to int */
 				PROC_UNLOCK(p);
-				if ((error = copyout((caddr_t)&status,
-				    (caddr_t)uap->status, sizeof(status)))) {
+				if ((error = copyout(&status,
+				    uap->status, sizeof(status)))) {
 					sx_xunlock(&proctree_lock);
 					mtx_unlock(&Giant);
 					return (error);
@@ -580,9 +580,8 @@ loop:
 			if (uap->rusage) {
 				bcopy(p->p_ru, &ru, sizeof(ru));
 				PROC_UNLOCK(p);
-				if ((error = copyout((caddr_t)&ru,
-				    (caddr_t)uap->rusage,
-				    sizeof (struct rusage)))) {
+				if ((error = copyout(&ru,
+				    uap->rusage, sizeof (struct rusage)))) {
 					sx_xunlock(&proctree_lock);
 					mtx_unlock(&Giant);
 					return (error);
@@ -599,7 +598,7 @@ loop:
 				proc_reparent(p, t);
 				PROC_UNLOCK(p);
 				psignal(t, SIGCHLD);
-				wakeup((caddr_t)t);
+				wakeup(t);
 				PROC_UNLOCK(t);
 				sx_xunlock(&proctree_lock);
 				mtx_unlock(&Giant);
@@ -685,8 +684,8 @@ loop:
 			if (uap->status) {
 				status = W_STOPCODE(p->p_xstat);
 				PROC_UNLOCK(p);
-				error = copyout((caddr_t)&status,
-					(caddr_t)uap->status, sizeof(status));
+				error = copyout(&status,
+					uap->status, sizeof(status));
 			} else {
 				PROC_UNLOCK(p);
 				error = 0;
@@ -702,8 +701,8 @@ loop:
 
 			if (uap->status) {
 				status = SIGCONT;
-				error = copyout((caddr_t)&status,
-				    (caddr_t)uap->status, sizeof(status));
+				error = copyout(&status,
+				    uap->status, sizeof(status));
 			} else
 				error = 0;
 
@@ -725,7 +724,7 @@ loop:
 	}
 	PROC_LOCK(q);
 	sx_xunlock(&proctree_lock);
-	error = msleep((caddr_t)q, &q->p_mtx, PWAIT | PCATCH, "wait", 0);
+	error = msleep(q, &q->p_mtx, PWAIT | PCATCH, "wait", 0);
 	PROC_UNLOCK(q);
 	if (error) {
 		mtx_unlock(&Giant);

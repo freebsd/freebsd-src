@@ -96,7 +96,7 @@ int
 soo_ioctl(fp, cmd, data, td)
 	struct file *fp;
 	u_long cmd;
-	register caddr_t data;
+	void *data;
 	struct thread *td;
 {
 	register struct socket *so = (struct socket *)fp->f_data;

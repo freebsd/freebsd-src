@@ -604,14 +604,14 @@ utrace(td, uap)
 
 #ifdef KTRACE
 	struct ktr_request *req;
-	register caddr_t cp;
+	void *cp;
 
 	if (uap->len > KTR_USER_MAXLEN)
 		return (EINVAL);
 	req = ktr_getrequest(KTR_USER);
 	if (req == NULL)
 		return (0);
-	MALLOC(cp, caddr_t, uap->len, M_KTRACE, M_WAITOK);
+	cp = malloc(uap->len, M_KTRACE, M_WAITOK);
 	if (!copyin(uap->addr, cp, uap->len)) {
 		req->ktr_header.ktr_buffer = cp;
 		req->ktr_header.ktr_len = uap->len;
