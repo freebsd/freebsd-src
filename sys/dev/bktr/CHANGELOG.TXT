@@ -510,3 +510,12 @@
                   Fix PHK's commit so we only include machine/clock.h in
                   FreeBSD 2.x, 3.x and 4.x systems
 
+2.18  30 Oct 2000 Roger Hardiman - Add new ioctls to allow userland programs
+                  fuller access to the I2C bus, BT848_MSP_READ BT848_MSP_WRITE
+                  and BT848_MSP_RESET.
+                  Add tuner type 0x2a. Remove 0x2c which was incorrect.
+                  Christian Gusenbauer <Christian.Gusenbauer@netway.at> added
+                  support for audio on Hauppauge cards without the audio mux.
+                  The MSP is used for audio selection. (the 44xxx models)
+
+
