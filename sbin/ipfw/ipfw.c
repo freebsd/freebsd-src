@@ -504,9 +504,9 @@ show_ipfw(struct ip_fw *chain, int pcwidth, int bcwidth)
 	} 
 
 	if (chain->fw_ipflg & IP_FW_IF_TCPSEQ)
-		printf(" tcpseq %lu", ntohl(chain->fw_tcpseq));
+		printf(" tcpseq %lu", (u_long)ntohl(chain->fw_tcpseq));
 	if (chain->fw_ipflg & IP_FW_IF_TCPACK)
-		printf(" tcpack %lu", ntohl(chain->fw_tcpack));
+		printf(" tcpack %lu", (u_long)ntohl(chain->fw_tcpack));
 	if (chain->fw_ipflg & IP_FW_IF_TCPWIN)
 		printf(" tcpwin %hu", ntohs(chain->fw_tcpwin));
 
