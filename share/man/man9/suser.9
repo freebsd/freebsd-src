@@ -38,21 +38,21 @@
 .Os
 .Sh NAME
 .Nm suser ,
-.Nm suser_xxx
-.Nd check if process has superuser privelige
+.Nm suser_cred
+.Nd check if process has superuser privilege
 .Sh SYNOPSIS
 .In sys/param.h
 .In sys/systm.h
 .Ft int
-.Fn suser "struct proc *proc"
+.Fn suser "struct thread *td"
 .Ft int
-.Fn suser_xxx "struct ucred *cred" "struct proc *proc" "int flag"
+.Fn suser_cred "struct ucred *cred" "int flag"
 .Sh DESCRIPTION
 The
 .Nm
 and
-.Nm suser_xxx
-functions checks if the credentials given include superuser powers.
+.Nm suser_cred
+functions check if the credentials given include superuser powers.
 .Pp
 The
 .Nm
@@ -60,9 +60,9 @@ function is the most common, and should be used unless special
 circumstances dictate otherwise.
 .Pp
 The
-.Nm suser_xxx
+.Nm suser_cred
 function should be used when the credentials to be checked are
-not the process' own, when there is no process or when superuser
+not the thread's own, when there is no thread, or when superuser
 powers should be extended to imprisoned roots.
 .Pp
 By default a process does not command superuser powers if it has
@@ -73,7 +73,7 @@ There are cases however where this is appropriate, and this can
 be done by setting the
 .Dv PRISON_ROOT
 bit in the flags argument to the
-.Nm suser_xxx
+.Nm suser_cred
 function.  It is important to review carefully in each case that
 this does not weaken the prison.  Generally only where the action
 is protected by the
@@ -85,7 +85,7 @@ call should such powers be granted.
 The
 .Nm
 and
-.Nm suser_xxx
+.Nm suser_cred
 functions note the fact that superuser powers have been used in the
 process structure of the process specified.
 Because part of their function is to notice
@@ -96,7 +96,7 @@ possibilities have been exhausted.
 The
 .Nm
 and
-.Nm suser_xxx
+.Nm suser_cred
 functions return 0 if the user has superuser powers and
 .Er EPERM
 otherwise.

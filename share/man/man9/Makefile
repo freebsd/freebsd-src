@@ -348,7 +348,7 @@ MLINKS+=resource_int_value.9 resource_string_value.9
 MLINKS+=resource_query_string.9 resource_query_name.9
 MLINKS+=resource_query_string.9 resource_query_unit.9
 
-MLINKS+=suser.9 suser_xxx.9
+MLINKS+=suser.9 suser_cred.9
 
 MLINKS+=sysctl_add_oid.9 sysctl_remove_oid.9
 MLINKS+=sysctl_add_oid.9 SYSCTL_ADD_OID.9
