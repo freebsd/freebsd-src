@@ -15,9 +15,9 @@ SHLIB_MINOR=	1
 CFLAGS+=	-Wall
 
 MAN3=	des_crypt.3
-
-des_crypt.3: des_crypt.man
-	cp ${.OODATE} ${.TARGET}
+MANSRC= .
+CLEANFILES += ${MAN3}
+MANDEPEND = ${MAN3}
 
 MLINKS= des_crypt.3 des_read_password.3 \
 	des_crypt.3 des_read_2password.3 des_crypt.3 des_string_to_key.3 \
@@ -38,3 +38,6 @@ beforeinstall:
 		${DESTDIR}/usr/include; done
 
 .include <bsd.lib.mk>
+
+${MAN3}: des_crypt.man
+	@cp $? $@
