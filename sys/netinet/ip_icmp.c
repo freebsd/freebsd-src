@@ -120,7 +120,7 @@ int	icmpprintfs = 0;
 #endif
 
 static void	icmp_reflect(struct mbuf *);
-static void	icmp_send(struct mbuf *, struct mbuf *, struct route *);
+static void	icmp_send(struct mbuf *, struct mbuf *);
 static int	ip_next_mtu(int, int);
 
 extern	struct protosw inetsw[];
@@ -615,7 +615,6 @@ icmp_reflect(m)
 	struct in_addr t;
 	struct mbuf *opts = 0;
 	int optlen = (ip->ip_hl << 2) - sizeof(struct ip);
-	struct route *ro = NULL, rt;
 
 	if (!in_canforward(ip->ip_src) &&
 	    ((ntohl(ip->ip_src.s_addr) & IN_CLASSA_NET) !=
@@ -626,8 +625,6 @@ icmp_reflect(m)
 	}
 	t = ip->ip_dst;
 	ip->ip_dst = ip->ip_src;
-	ro = &rt;
-	bzero(ro, sizeof(*ro));
 	/*
 	 * If the incoming packet was addressed directly to us,
 	 * use dst as the src for the reply.  Otherwise (broadcast
@@ -648,7 +645,7 @@ icmp_reflect(m)
 				goto match;
 		}
 	}
-	ia = ip_rtaddr(ip->ip_dst, ro);
+	ia = ip_rtaddr(ip->ip_dst);
 	/* We need a route to do anything useful. */
 	if (ia == NULL) {
 		m_freem(m);
@@ -738,12 +735,10 @@ match:
 	}
 	m_tag_delete_nonpersistent(m);
 	m->m_flags &= ~(M_BCAST|M_MCAST);
-	icmp_send(m, opts, ro);
+	icmp_send(m, opts);
 done:
 	if (opts)
 		(void)m_free(opts);
-	if (ro && ro->ro_rt)
-		RTFREE(ro->ro_rt);
 }
 
 /*
@@ -751,10 +746,9 @@ done:
  * after supplying a checksum.
  */
 static void
-icmp_send(m, opts, rt)
+icmp_send(m, opts)
 	register struct mbuf *m;
 	struct mbuf *opts;
-	struct route *rt;
 {
 	register struct ip *ip = mtod(m, struct ip *);
 	register int hlen;
@@ -777,7 +771,7 @@ icmp_send(m, opts, rt)
 		       buf, inet_ntoa(ip->ip_src));
 	}
 #endif
-	(void) ip_output(m, opts, rt, 0, NULL, NULL);
+	(void) ip_output(m, opts, NULL, 0, NULL, NULL);
 }
 
 n_time
