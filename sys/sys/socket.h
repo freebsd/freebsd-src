@@ -351,13 +351,15 @@ struct sockaddr_storage {
 #define NET_RT_DUMP	1		/* dump; may limit to a.f. */
 #define NET_RT_FLAGS	2		/* by flags, e.g. RESOLVING */
 #define NET_RT_IFLIST	3		/* survey interface list */
-#define	NET_RT_MAXID	4
+#define	NET_RT_IFMALIST	4		/* return multicast address list */
+#define	NET_RT_MAXID	5
 
 #define CTL_NET_RT_NAMES { \
 	{ 0, 0 }, \
 	{ "dump", CTLTYPE_STRUCT }, \
 	{ "flags", CTLTYPE_STRUCT }, \
 	{ "iflist", CTLTYPE_STRUCT }, \
+	{ "ifmalist", CTLTYPE_STRUCT }, \
 }
 #endif /* __BSD_VISIBLE */
 
