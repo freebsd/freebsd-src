@@ -52,8 +52,8 @@
 #define	ATH_TIMEOUT		1000
 
 #define	ATH_RXBUF	40		/* number of RX buffers */
-#define	ATH_TXBUF	60		/* number of TX buffers */
-#define	ATH_TXDESC	8		/* number of descriptors per buffer */
+#define	ATH_TXBUF	100		/* number of TX buffers */
+#define	ATH_TXDESC	10		/* number of descriptors per buffer */
 #define	ATH_TXMAXTRY	11		/* max number of transmit attempts */
 #define	ATH_TXINTR_PERIOD 5		/* max number of batched tx descriptors */
 
@@ -89,7 +89,7 @@ struct ath_buf {
 	struct mbuf		*bf_m;		/* mbuf for buf */
 	struct ieee80211_node	*bf_node;	/* pointer to the node */
 	bus_size_t		bf_mapsize;
-#define	ATH_MAX_SCATTER		64
+#define	ATH_MAX_SCATTER		ATH_TXDESC	/* max(tx,rx,beacon) desc's */
 	bus_dma_segment_t	bf_segs[ATH_MAX_SCATTER];
 };
 typedef STAILQ_HEAD(, ath_buf) ath_bufhead;
