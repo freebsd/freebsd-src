@@ -42,6 +42,7 @@
  * Private macros, not to be used outside this header file.
  */
 /* this bit of h0h0magic brought to you by cpp */
+#ifdef __GNUC__
 #define	__GLOBL(sym)	__GLOBL2(sym)
 #define	__GLOBL2(sym)	__asm(".globl " #sym)
 
@@ -50,6 +51,12 @@
 	__GLOBL(__CONCAT(__stop_set_,set));				\
 	static void const * const __set_##set##_sym_##sym 		\
 	__attribute__((__section__("set_" #set),__unused__)) = &sym
+#else /* !__GNUC__ */
+#ifndef lint
+#error "This file needs to be compiled by GCC or lint"
+#endif /* lint */
+#define __MAKE_SET(set, sym)	extern void const * const (__set_##set##_sym_##sym)
+#endif /* __GNUC__ */
 
 /*
  * Public macros.
