@@ -173,11 +173,11 @@ scterm_scan_esc(scr_stat *scp, term_stat *tcp, u_char c)
 {
 	static u_char ansi_col[16] = {
 #ifdef __alpha__
-	/*
-	 * DEC is evil.  They switch the red and blue attributes in the
-	 * palette in the system console.  As a simple work-around, re-map
-	 * the ANSI colors appropriately.
-	 */
+		/*
+		 * DEC is evil.  They switch the red and blue attributes in
+		 * the palette in the system console.  As a simple work-around,
+		 * re-map the ANSI colors appropriately.
+		 */
 		FG_BLACK,     FG_BLUE,         FG_GREEN,      FG_CYAN,
 		FG_RED,       FG_MAGENTA,      FG_BROWN,      FG_LIGHTGREY,
 		FG_DARKGREY,  FG_LIGHTBLUE,    FG_LIGHTGREEN, FG_LIGHTCYAN,
