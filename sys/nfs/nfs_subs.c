@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_subs.c  8.8 (Berkeley) 5/22/95
- * $Id: nfs_subs.c,v 1.69 1998/12/14 18:54:03 dt Exp $
+ * $Id: nfs_subs.c,v 1.70 1999/01/05 18:49:58 eivind Exp $
  */
 
 /*
@@ -1357,7 +1357,7 @@ nfs_loadattrcache(vpp, mdp, dposp, vaper)
 		vap->va_gid = fxdr_unsigned(gid_t, fp->fa_gid);
 		vap->va_size = fxdr_unsigned(u_int32_t, fp->fa2_size);
 		vap->va_blocksize = fxdr_unsigned(int32_t, fp->fa2_blocksize);
-		vap->va_bytes = fxdr_unsigned(int32_t, fp->fa2_blocks)
+		vap->va_bytes = (u_quad_t)fxdr_unsigned(int32_t, fp->fa2_blocks)
 		    * NFS_FABLKSIZE;
 		vap->va_fileid = fxdr_unsigned(int32_t, fp->fa2_fileid);
 		fxdr_nfsv2time(&fp->fa2_atime, &vap->va_atime);
