@@ -148,10 +148,11 @@
 
     <bridgehead renderas="sect3">&man.mly.4;</bridgehead>
 
-    <para>Hangs have been reported during &os; 5.0 snapshot
+    <para>Hangs were reported during &os; 5.0 snapshot
       installations when installing to &man.mly.4;-supported RAID
       arrays, in hardware configurations that appear to work fine
-      under &os; 4.7-RELEASE.</para>
+      under &os; 4.7-RELEASE.  These problems have been corrected
+      in &os; &release.current;.</para>
 
     <bridgehead renderas="sect3">NETNCP/Netware File System
       Support</bridgehead>
