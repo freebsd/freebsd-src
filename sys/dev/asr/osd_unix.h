@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /*
  * Copyright (c) 1996-1999 Distributed Processing Technology Corporation
  * All rights reserved.
@@ -19,6 +18,7 @@
  * arising in any way out of the use of this driver software, even if advised
  * of the possibility of such damage.
  *
+ * $FreeBSD$
  */
 
 #ifndef         __OSD_UNIX_H
@@ -141,11 +141,11 @@ typedef struct {
 #include <sys/ddidmareq.h>
 #include <sys/mutex.h>
 #include <sys/scsi/scsi.h>
-//#define _KERNEL
+/*#define _KERNEL */
 #include <sys/dditypes.h>
 #include <sys/ddi_impldefs.h>
 #include <sys/scsi/impl/transport.h>
-//#undef _KERNEL
+/* #undef _KERNEL */
 
 #undef MSG_DISCONNECT
 #define MSG_DISCONNECT  0x11L
@@ -157,8 +157,8 @@ typedef struct {
 #define DPT_SYSINFO    5
 #define DPT_BLINKLED   6
 #define I2OUSRCMD      7
-//#define I2ORESCANCMD 8	/* Use DPT_IO_ACCESS instead */
-//#define I2ORESETCMD  9	/* Use DPT_IO_ACCESS instead */
+/* #define I2ORESCANCMD 8 */	/* Use DPT_IO_ACCESS instead */
+/* #define I2ORESETCMD  9 */	/* Use DPT_IO_ACCESS instead */
 
 #define	DPT_MAX_DMA_SEGS  32         /* Max used Scatter/Gather seg         */
 

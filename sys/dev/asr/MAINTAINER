@@ -1,2 +1,2 @@
 $FreeBSD$
-MAINTAINER = mark_salyzyn@adaptec.com, scott_long@btc.adaptec.com
+MAINTAINER = obrien@freebsd, scott_long@btc.adaptec.com, mark_salyzyn@adaptec.com
