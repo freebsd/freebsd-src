@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id$
+ *      $Id: scsi_target.c,v 1.1 1998/09/15 06:46:32 gibbs Exp $
  */
 
 #include <sys/types.h>
@@ -147,7 +147,6 @@ pump_events()
 		}
 
 		if ((targpoll.revents & POLLRDNORM) != 0) {
-			printf("Read Poll event came true\n");
 			retval = read(targfd, buf, bufsize);
 
 			if (retval == -1) {
@@ -163,7 +162,6 @@ pump_events()
 		if ((targpoll.revents & POLLWRNORM) != 0) {
 			int amount_read;
 
-			printf("Write Poll event came true\n");
 			retval = read(ifd, buf, bufsize);
 			if (retval == -1) {
 				perror("Read from file failed");
