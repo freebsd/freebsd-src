@@ -312,8 +312,10 @@ after_sack_rexmit:
 			 * sending new data, having retransmitted all the
 			 * data possible in the scoreboard.
 			 */
-			len = so->so_snd.sb_cc - off;
-			cwin = sendwin - (tp->snd_nxt - tp->sack_newdata) -
+			len = ((long)ulmin(so->so_snd.sb_cc, tp->snd_wnd) 
+			       - off);
+			cwin = tp->snd_cwnd - 
+				(tp->snd_nxt - tp->sack_newdata) -
 				sack_bytes_rxmt;
 			if (cwin < 0)
 				cwin = 0;
