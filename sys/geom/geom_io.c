@@ -457,3 +457,37 @@ g_write_data(struct g_consumer *cp, off_t offset, void *ptr, off_t length)
 	g_destroy_bio(bp);
 	return (error);
 }
+
+void
+g_print_bio(struct bio *bp)
+{
+	const char *pname, *cmd = NULL;
+
+	if (bp->bio_to != NULL)
+		pname = bp->bio_to->name;
+	else
+		pname = "[unknown]";
+
+	switch (bp->bio_cmd) {
+	case BIO_GETATTR:
+		cmd = "GETATTR";
+		printf("%s[%s(attr=%s)]", pname, cmd, bp->bio_attribute);
+		return;
+	case BIO_READ:
+		cmd = "READ";
+	case BIO_WRITE:
+		if (cmd == NULL)
+			cmd = "WRITE";
+	case BIO_DELETE:
+		if (cmd == NULL)
+			cmd = "DELETE";
+		printf("%s[%s(offset=%jd, length=%jd)]", pname, cmd,
+		    (intmax_t)bp->bio_offset, (intmax_t)bp->bio_length);
+		return;
+	default:
+		cmd = "UNKNOWN";
+		printf("%s[%s()]", pname, cmd);
+		return;
+	}
+	/* NOTREACHED */
+}
