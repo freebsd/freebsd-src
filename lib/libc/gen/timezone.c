@@ -40,7 +40,7 @@ static char sccsid[] = "@(#)timezone.c	8.1 (Berkeley) 6/4/93";
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <tzfile.h>
+#define TZ_MAX_CHARS 255
 
 char *_tztab();
 
