@@ -66,6 +66,10 @@ static const char rcsid[] =
 #include <arpa/inet.h>
 #include <netdb.h>
 
+#ifdef INET6
+#include <netinet6/nd6.h>	/* Define ND6_INFINITE_LIFETIME */
+#endif
+
 /* IPX */
 #define	IPXIP
 #define IPTUNNEL
@@ -104,7 +108,13 @@ struct	ifreq		ifr, ridreq;
 struct	ifaliasreq	addreq;
 #ifdef INET6
 struct	in6_ifreq	in6_ridreq;
-struct	in6_aliasreq	in6_addreq;
+struct	in6_aliasreq	in6_addreq = 
+  { { 0 }, 
+    { 0 }, 
+    { 0 }, 
+    { 0 }, 
+    0, 
+    { 0, 0, ND6_INFINITE_LIFETIME, ND6_INFINITE_LIFETIME } };
 #endif
 struct	sockaddr_in	netmask;
 struct	netrange	at_nr;		/* AppleTalk net range */
@@ -152,6 +162,8 @@ c_func	setifaddr, setifbroadaddr, setifdstaddr, setifnetmask;
 #ifdef INET6
 c_func	setifprefixlen;
 c_func	setip6flags;
+c_func  setip6vltime;
+c_func  setip6pltime;
 #endif
 c_func	setifipdst;
 c_func	setifflags, setifmetric, setifmtu, setiflladdr;
@@ -187,6 +199,8 @@ struct	cmd {
 	{ "anycast",	IN6_IFF_ANYCAST, setip6flags },
 	{ "tentative",	IN6_IFF_TENTATIVE, setip6flags },
 	{ "-tentative",	-IN6_IFF_TENTATIVE, setip6flags },
+	{ "vltime",     NEXTARG,        setip6vltime },
+	{ "pltime",     NEXTARG,        setip6pltime },
 #endif
 	{ "range",	NEXTARG,	setatrange },
 	{ "phase",	NEXTARG,	setatphase },
@@ -704,6 +718,26 @@ setip6flags(dummyaddr, flag, dummysoc, afp)
 		in6_addreq.ifra_flags &= ~(-flag);
 	else
 		in6_addreq.ifra_flags |= flag;
+}
+
+void
+setip6vltime(seconds, dummy, s, afp)
+    	const char *seconds;
+	int dummy __unused;
+	int s;
+	const struct afswtch *afp;
+{
+	in6_addreq.ifra_lifetime.ia6t_vltime = atoi(seconds);
+}
+
+void
+setip6pltime(seconds, dummy, s, afp)
+    	const char *seconds;
+	int dummy __unused;
+	int s;
+	const struct afswtch *afp;
+{
+	in6_addreq.ifra_lifetime.ia6t_pltime = atoi(seconds);
 }
 #endif
 
