@@ -576,7 +576,7 @@ printcpuinfo(void)
 			"\027<b22>"
 			"\030MMX"	/* MMX instructions */
 			"\031FXSR"	/* FXSAVE/FXRSTOR */
-			"\032XMM"	/* Katami SIMD/MMX2 instructions */
+			"\032XMM"	/* Katmai SIMD/MMX2 instructions */
 			"\033<b26>"
 			"\034<b27>"
 			"\035<b28>"
