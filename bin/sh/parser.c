@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: parser.c,v 1.6.4.2 1995/08/30 05:53:05 davidg Exp $
+ *	$Id: parser.c,v 1.6.4.4 1996/06/05 02:36:22 jkh Exp $
  */
 
 #ifndef lint
@@ -150,29 +150,12 @@ list(nlflag) {
 	for (;;) {
 		switch (readtoken()) {
 		case TBACKGND:
-			if (n1->type == NCMD || n1->type == NPIPE) {
-				n1->ncmd.backgnd = 1;
-			} else if (n1->type == NREDIR) {
-				n1->type = NBACKGND;
-			} else {
-				n3 = (union node *)stalloc(sizeof (struct nredir));
-				n3->type = NBACKGND;
-				n3->nredir.n = n1;
-				n3->nredir.redirect = NULL;
-				n1 = n3;
-			}
-			goto tsemi;
 		case TNL:
-			tokpushback++;
+			parseheredoc();
+			if (nlflag)
+				return n1;
 			/* fall through */
-tsemi:	    case TSEMI:
-			if (readtoken() == TNL) {
-				parseheredoc();
-				if (nlflag)
-					return n1;
-			} else {
-				tokpushback++;
-			}
+		case TSEMI:
 			checkkwd = 2;
 			if (tokendlist[peektoken()])
 				return n1;
@@ -212,6 +195,19 @@ andor() {
 		} else if (t == TOR) {
 			t = NOR;
 		} else {
+			if (t == TBACKGND) {
+				if (n1->type == NCMD || n1->type == NPIPE) {
+					n1->ncmd.backgnd = 1;
+				} else if (n1->type == NREDIR) {
+					n1->type = NBACKGND;
+				} else {
+					n3 = (union node *)stalloc(sizeof (struct nredir));
+					n3->type = NBACKGND;
+					n3->nredir.n = n1;
+					n3->nredir.redirect = NULL;
+					n1 = n3;
+				}
+			}
 			tokpushback++;
 			return n1;
 		}

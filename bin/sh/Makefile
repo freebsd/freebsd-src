@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/8/93
-#	$Id: Makefile,v 1.7.6.1 1995/12/11 23:04:38 joerg Exp $
+#	$Id: Makefile,v 1.7.6.3 1996/06/05 02:36:21 jkh Exp $
 
 PROG=	sh
 SRCS=	alias.c builtins.c cd.c echo.c error.c eval.c exec.c expand.c \
@@ -22,6 +22,9 @@ CLEANFILES+=\
 .depend parser.o: token.def
 token.def: mktokens
 	sh ${.CURDIR}/mktokens
+
+${.CURDIR}/builtins:
+	# just override the default rule
 
 builtins.h builtins.c: ${.CURDIR}/mkbuiltins ${.CURDIR}/builtins
 	cd ${.CURDIR}; sh mkbuiltins
