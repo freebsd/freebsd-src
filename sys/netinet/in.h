@@ -244,6 +244,12 @@ __END_DECLS
 #define	IPPROTO_DIVERT		258		/* divert pseudo-protocol */
 
 /*
+ * Defined to avoid confusion.  The master value is defined by
+ * PROTO_SPACER in sys/protosw.h.
+ */
+#define	IPPROTO_SPACER		32767		/* spacer for loadable protos */
+
+/*
  * Local port number conventions:
  *
  * When a user does a bind(2) or connect(2) with a port number of zero,
