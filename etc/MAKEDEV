@@ -502,6 +502,20 @@ fd*)
 		# ln -f ${name}${unit}.360 ${name}${unit}48ds9
 		# ln -f r${name}${unit}.360 r${name}${unit}48ds9
 
+		mknod ${name}${unit}.640  c $chr `expr $unit '*' 64 + 9`
+		mknod r${name}${unit}.640 c $chr `expr $unit '*' 64 + 9`
+		# ln -f ${name}${unit}.640 ${name}${unit}96ds8
+		# ln -f r${name}${unit}.640 r${name}${unit}96ds8
+		# ln -f ${name}${unit}.640 ${name}${unit}135ds8
+		# ln -f r${name}${unit}.640 r${name}${unit}135ds8
+
+		mknod ${name}${unit}.1232  c $chr `expr $unit '*' 64 + 10`
+		mknod r${name}${unit}.1232 c $chr `expr $unit '*' 64 + 10`
+		# ln -f ${name}${unit}.1232 ${name}${unit}96ds8
+		# ln -f r${name}${unit}.1232 r${name}${unit}96ds8
+		# ln -f ${name}${unit}.1232 ${name}${unit}135ds8
+		# ln -f r${name}${unit}.1232 r${name}${unit}135ds8
+
 		chgrp operator ${name}${unit}* r${name}${unit}*
 		;;
 	*)
