@@ -1,4 +1,4 @@
-/*	$Id$ */
+/*	$Id: msdosfsmount.h,v 1.1 1994/09/19 15:41:48 dfr Exp $ */
 /*	$NetBSD: msdosfsmount.h,v 1.7 1994/08/21 18:44:17 ws Exp $	*/
 
 /*-
@@ -181,3 +181,5 @@ int msdosfs_sync __P((struct mount *, int, struct ucred *, struct proc *));
 int msdosfs_fhtovp __P((struct mount *, struct fid *, struct mbuf *, struct vnode **, int *, struct ucred **));
 int msdosfs_vptofh __P((struct vnode *, struct fid *));
 int msdosfs_init __P(());
+
+int mountmsdosfs __P((struct vnode *devvp, struct mount *mp, struct proc *p));

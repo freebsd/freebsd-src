@@ -1,4 +1,4 @@
-/*	$Id$ */
+/*	$Id: fat.h,v 1.1 1994/09/19 15:41:40 dfr Exp $ */
 /*	$NetBSD: fat.h,v 1.4 1994/08/21 18:43:57 ws Exp $	*/
 
 /*-
@@ -94,4 +94,18 @@ int clusteralloc __P((struct msdosfsmount *pmp, u_long start, u_long count, u_lo
 int fatentry __P((int function, struct msdosfsmount *pmp, u_long cluster, u_long *oldcontents, u_long newcontents));
 int freeclusterchain __P((struct msdosfsmount *pmp, u_long startchain));
 int extendfile __P((struct denode *dep, u_long count, struct buf **bpp, u_long *ncp, int flags));
+void fc_purge __P((struct denode *dep, u_int frcn));
+void fc_lookup __P((struct denode *dep, u_long findcn, u_long *frcnp, u_long *fsrcnp));
+
+int readep __P((struct msdosfsmount *pmp, u_long dirclu, u_long dirofs,  struct buf **bpp, struct direntry **epp));
+int readde __P((struct denode *dep, struct buf **bpp, struct direntry **epp));
+int deextend __P((struct denode *dep, off_t length, struct ucred *cred));
+int fillinusemap __P((struct msdosfsmount *pmp));
+int reinsert __P((struct denode *dep));
+int dosdirempty __P((struct denode *dep));
+int createde __P((struct denode *dep, struct denode *ddep, struct denode **depp));
+int deupdat __P((struct denode *dep, struct timespec *tp, int waitfor));
+int removede __P((struct denode *pdep, struct denode *dep));
+int detrunc __P((struct denode *dep, u_long length, int flags, struct ucred *cred, struct proc *p));
+int doscheckpath __P(( struct denode *source, struct denode *target));
 #endif	/* KERNEL */
