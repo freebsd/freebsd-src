@@ -214,6 +214,7 @@ static void 		fxp_init_body(struct fxp_softc *sc);
 static void 		fxp_tick(void *xsc);
 static void 		fxp_start(struct ifnet *ifp);
 static void 		fxp_start_body(struct ifnet *ifp);
+static int		fxp_encap(struct fxp_softc *sc, struct mbuf *m_head);
 static void		fxp_stop(struct fxp_softc *sc);
 static void 		fxp_release(struct fxp_softc *sc);
 static int		fxp_ioctl(struct ifnet *ifp, u_long command,
@@ -372,7 +373,7 @@ fxp_attach(device_t dev)
 	struct ifnet *ifp;
 	uint32_t val;
 	uint16_t data, myea[ETHER_ADDR_LEN / 2];
-	int i, rid, m1, m2, prefer_iomap, maxtxseg;
+	int i, rid, m1, m2, prefer_iomap;
 	int error, s;
 
 	error = 0;
@@ -591,10 +592,13 @@ fxp_attach(device_t dev)
 	/*
 	 * Allocate DMA tags and DMA safe memory.
 	 */
-	maxtxseg = sc->flags & FXP_FLAG_EXT_RFA ? FXP_NTXSEG - 1 : FXP_NTXSEG;
+	sc->maxtxseg = FXP_NTXSEG;
+	if (sc->flags & FXP_FLAG_EXT_RFA)
+		sc->maxtxseg--;
 	error = bus_dma_tag_create(NULL, 2, 0, BUS_SPACE_MAXADDR_32BIT,
-	    BUS_SPACE_MAXADDR, NULL, NULL, MCLBYTES * maxtxseg,
-	    maxtxseg, MCLBYTES, 0, busdma_lock_mutex, &Giant, &sc->fxp_mtag);
+	    BUS_SPACE_MAXADDR, NULL, NULL, MCLBYTES * sc->maxtxseg,
+	    sc->maxtxseg, MCLBYTES, 0, busdma_lock_mutex, &Giant,
+	    &sc->fxp_mtag);
 	if (error) {
 		device_printf(dev, "could not allocate dma tag\n");
 		goto fail;
@@ -1178,47 +1182,6 @@ fxp_write_eeprom(struct fxp_softc *sc, u_short *data, int offset, int words)
 		fxp_eeprom_putword(sc, offset + i, data[i]);
 }
 
-static void
-fxp_dma_map_txbuf(void *arg, bus_dma_segment_t *segs, int nseg,
-    bus_size_t mapsize, int error)
-{
-	struct fxp_softc *sc;
-	struct fxp_cb_tx *txp;
-	int i;
-
-	if (error)
-		return;
-
-	KASSERT(nseg <= FXP_NTXSEG, ("too many DMA segments"));
-
-	sc = arg;
-	txp = sc->fxp_desc.tx_last->tx_next->tx_cb;
-	for (i = 0; i < nseg; i++) {
-		KASSERT(segs[i].ds_len <= MCLBYTES, ("segment size too large"));
-		/*
-		 * If this is an 82550/82551, then we're using extended
-		 * TxCBs _and_ we're using checksum offload. This means
-		 * that the TxCB is really an IPCB. One major difference
-		 * between the two is that with plain extended TxCBs,
-		 * the bottom half of the TxCB contains two entries from
-		 * the TBD array, whereas IPCBs contain just one entry:
-		 * one entry (8 bytes) has been sacrificed for the TCP/IP
-		 * checksum offload control bits. So to make things work
-		 * right, we have to start filling in the TBD array
-		 * starting from a different place depending on whether
-		 * the chip is an 82550/82551 or not.
-		 */
-		if (sc->flags & FXP_FLAG_EXT_RFA) {
-			txp->tbd[i + 1].tb_addr = htole32(segs[i].ds_addr);
-			txp->tbd[i + 1].tb_size = htole32(segs[i].ds_len);
-		} else {
-			txp->tbd[i].tb_addr = htole32(segs[i].ds_addr);
-			txp->tbd[i].tb_size = htole32(segs[i].ds_len);
-		}
-	}
-	txp->tbd_number = nseg;
-}
-
 /*
  * Grab the softc lock and call the real fxp_start_body() routine
  */
@@ -1241,21 +1204,18 @@ static void
 fxp_start_body(struct ifnet *ifp)
 {
 	struct fxp_softc *sc = ifp->if_softc;
-	struct fxp_tx *txp;
 	struct mbuf *mb_head;
-	int error;
+	int error, txqueued;
 
 	FXP_LOCK_ASSERT(sc, MA_OWNED);
+
 	/*
 	 * See if we need to suspend xmit until the multicast filter
 	 * has been reprogrammed (which can only be done at the head
 	 * of the command chain).
 	 */
-	if (sc->need_mcsetup) {
+	if (sc->need_mcsetup)
 		return;
-	}
-
-	txp = NULL;
 
 	/*
 	 * We're finished if there is nothing more to add to the list or if
@@ -1263,6 +1223,7 @@ fxp_start_body(struct ifnet *ifp)
 	 * NOTE: One TxCB is reserved to guarantee that fxp_mc_setup() can add
 	 *       a NOP command when needed.
 	 */
+	txqueued = 0;
 	while (!IFQ_DRV_IS_EMPTY(&ifp->if_snd) &&
 	    sc->tx_queued < FXP_NTXCB - 1) {
 
@@ -1273,45 +1234,75 @@ fxp_start_body(struct ifnet *ifp)
 		if (mb_head == NULL)
 			break;
 
-		/*
-		 * Get pointer to next available tx desc.
-		 */
-		txp = sc->fxp_desc.tx_last->tx_next;
+		error = fxp_encap(sc, mb_head);
+		if (error)
+			break;
+		txqueued = 1;
+	}
+	bus_dmamap_sync(sc->cbl_tag, sc->cbl_map, BUS_DMASYNC_PREWRITE);
 
-		/*
-		 * A note in Appendix B of the Intel 8255x 10/100 Mbps
-		 * Ethernet Controller Family Open Source Software
-		 * Developer Manual says:
-		 *   Using software parsing is only allowed with legal
-		 *   TCP/IP or UDP/IP packets.
-		 *   ...
-		 *   For all other datagrams, hardware parsing must
-		 *   be used.
-		 * Software parsing appears to truncate ICMP and
-		 * fragmented UDP packets that contain one to three
-		 * bytes in the second (and final) mbuf of the packet.
-		 */
-		if (sc->flags & FXP_FLAG_EXT_RFA)
-			txp->tx_cb->ipcb_ip_activation_high =
-			    FXP_IPCB_HARDWAREPARSING_ENABLE;
+	/*
+	 * We're finished. If we added to the list, issue a RESUME to get DMA
+	 * going again if suspended.
+	 */
+	if (txqueued) {
+		fxp_scb_wait(sc);
+		fxp_scb_cmd(sc, FXP_SCB_COMMAND_CU_RESUME);
+	}
+}
 
-		/*
-		 * Deal with TCP/IP checksum offload. Note that
-		 * in order for TCP checksum offload to work,
-		 * the pseudo header checksum must have already
-		 * been computed and stored in the checksum field
-		 * in the TCP header. The stack should have
-		 * already done this for us.
-		 */
+static int
+fxp_encap(struct fxp_softc *sc, struct mbuf *m_head)
+{
+	struct ifnet *ifp;
+	struct mbuf *m;
+	struct fxp_tx *txp;
+	struct fxp_cb_tx *cbp;
+	bus_dma_segment_t segs[FXP_NTXSEG];
+	int chainlen, error, i, nseg;
 
-		if (mb_head->m_pkthdr.csum_flags) {
-			if (mb_head->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
-				txp->tx_cb->ipcb_ip_schedule =
-				    FXP_IPCB_TCPUDP_CHECKSUM_ENABLE;
-				if (mb_head->m_pkthdr.csum_flags & CSUM_TCP)
-					txp->tx_cb->ipcb_ip_schedule |=
-					    FXP_IPCB_TCP_PACKET;
-			}
+	FXP_LOCK_ASSERT(sc, MA_OWNED);
+	ifp = &sc->sc_if;
+
+	/*
+	 * Get pointer to next available tx desc.
+	 */
+	txp = sc->fxp_desc.tx_last->tx_next;
+
+	/*
+	 * A note in Appendix B of the Intel 8255x 10/100 Mbps
+	 * Ethernet Controller Family Open Source Software
+	 * Developer Manual says:
+	 *   Using software parsing is only allowed with legal
+	 *   TCP/IP or UDP/IP packets.
+	 *   ...
+	 *   For all other datagrams, hardware parsing must
+	 *   be used.
+	 * Software parsing appears to truncate ICMP and
+	 * fragmented UDP packets that contain one to three
+	 * bytes in the second (and final) mbuf of the packet.
+	 */
+	if (sc->flags & FXP_FLAG_EXT_RFA)
+		txp->tx_cb->ipcb_ip_activation_high =
+		    FXP_IPCB_HARDWAREPARSING_ENABLE;
+
+	/*
+	 * Deal with TCP/IP checksum offload. Note that
+	 * in order for TCP checksum offload to work,
+	 * the pseudo header checksum must have already
+	 * been computed and stored in the checksum field
+	 * in the TCP header. The stack should have
+	 * already done this for us.
+	 */
+	if (m_head->m_pkthdr.csum_flags) {
+		if (m_head->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
+			txp->tx_cb->ipcb_ip_schedule =
+			    FXP_IPCB_TCPUDP_CHECKSUM_ENABLE;
+			if (m_head->m_pkthdr.csum_flags & CSUM_TCP)
+				txp->tx_cb->ipcb_ip_schedule |=
+				    FXP_IPCB_TCP_PACKET;
+		}
+
 #ifdef FXP_IP_CSUM_WAR
 		/*
 		 * XXX The 82550 chip appears to have trouble
@@ -1335,132 +1326,139 @@ fxp_start_body(struct ifnet *ifp)
 		 * the header sizes/offsets vary.
 		 */
 
-			if (mb_head->m_pkthdr.csum_flags & CSUM_IP) {
-				if (mb_head->m_pkthdr.len < 38) {
-					struct ip *ip;
-					mb_head->m_data += ETHER_HDR_LEN;
-					ip = mtod(mb_head, struct ip *);
-					ip->ip_sum = in_cksum(mb_head,
-					    ip->ip_hl << 2);
-					mb_head->m_data -= ETHER_HDR_LEN;
-				} else {
-					txp->tx_cb->ipcb_ip_activation_high =
-					    FXP_IPCB_HARDWAREPARSING_ENABLE;
-					txp->tx_cb->ipcb_ip_schedule |=
-					    FXP_IPCB_IP_CHECKSUM_ENABLE;
-				}
-			}
-#endif
-		}
-
-		/*
-		 * Go through each of the mbufs in the chain and initialize
-		 * the transmit buffer descriptors with the physical address
-		 * and size of the mbuf.
-		 */
-		error = bus_dmamap_load_mbuf(sc->fxp_mtag, txp->tx_map,
-		    mb_head, fxp_dma_map_txbuf, sc, 0);
-
-		if (error && error != EFBIG) {
-			device_printf(sc->dev, "can't map mbuf (error %d)\n",
-			    error);
-			m_freem(mb_head);
-			break;
-		}
-
-		if (error) {
-			struct mbuf *mn;
-
-			/*
-			 * We ran out of segments. We have to recopy this
-			 * mbuf chain first. Bail out if we can't get the
-			 * new buffers.
-			 */
-			mn = m_defrag(mb_head, M_DONTWAIT);
-			if (mn == NULL) {
-				m_freem(mb_head);
-				break;
+		if (m_head->m_pkthdr.csum_flags & CSUM_IP) {
+			if (m_head->m_pkthdr.len < 38) {
+				struct ip *ip;
+				m_head->m_data += ETHER_HDR_LEN;
+				ip = mtod(mb_head, struct ip *);
+				ip->ip_sum = in_cksum(mb_head, ip->ip_hl << 2);
+				m_head->m_data -= ETHER_HDR_LEN;
 			} else {
-				mb_head = mn;
-			}
-			error = bus_dmamap_load_mbuf(sc->fxp_mtag, txp->tx_map,
-			    mb_head, fxp_dma_map_txbuf, sc, 0);
-			if (error) {
-				device_printf(sc->dev,
-				    "can't map mbuf (error %d)\n", error);
-				m_freem(mb_head);
-				break;
+				txp->tx_cb->ipcb_ip_activation_high =
+				    FXP_IPCB_HARDWAREPARSING_ENABLE;
+				txp->tx_cb->ipcb_ip_schedule |=
+				    FXP_IPCB_IP_CHECKSUM_ENABLE;
 			}
 		}
-
-		bus_dmamap_sync(sc->fxp_mtag, txp->tx_map,
-		    BUS_DMASYNC_PREWRITE);
-
-		txp->tx_mbuf = mb_head;
-		txp->tx_cb->cb_status = 0;
-		txp->tx_cb->byte_count = 0;
-		if (sc->tx_queued != FXP_CXINT_THRESH - 1) {
-			txp->tx_cb->cb_command =
-			    htole16(sc->tx_cmd | FXP_CB_COMMAND_SF |
-			    FXP_CB_COMMAND_S);
-		} else {
-			txp->tx_cb->cb_command =
-			    htole16(sc->tx_cmd | FXP_CB_COMMAND_SF |
-			    FXP_CB_COMMAND_S | FXP_CB_COMMAND_I);
-			/*
-			 * Set a 5 second timer just in case we don't hear
-			 * from the card again.
-			 */
-			ifp->if_timer = 5;
-		}
-		txp->tx_cb->tx_threshold = tx_threshold;
-
-		/*
-		 * Advance the end of list forward.
-		 */
-
-#ifdef __alpha__
-		/*
-		 * On platforms which can't access memory in 16-bit
-		 * granularities, we must prevent the card from DMA'ing
-		 * up the status while we update the command field.
-		 * This could cause us to overwrite the completion status.
-		 * XXX This is probably bogus and we're _not_ looking
-		 * for atomicity here.
-		 */
-		atomic_clear_16(&sc->fxp_desc.tx_last->tx_cb->cb_command,
-		    htole16(FXP_CB_COMMAND_S));
-#else
-		sc->fxp_desc.tx_last->tx_cb->cb_command &=
-		    htole16(~FXP_CB_COMMAND_S);
-#endif /*__alpha__*/
-		sc->fxp_desc.tx_last = txp;
-
-		/*
-		 * Advance the beginning of the list forward if there are
-		 * no other packets queued (when nothing is queued, tx_first
-		 * sits on the last TxCB that was sent out).
-		 */
-		if (sc->tx_queued == 0)
-			sc->fxp_desc.tx_first = txp;
-
-		sc->tx_queued++;
-
-		/*
-		 * Pass packet to bpf if there is a listener.
-		 */
-		BPF_MTAP(ifp, mb_head);
+#endif
 	}
-	bus_dmamap_sync(sc->cbl_tag, sc->cbl_map, BUS_DMASYNC_PREWRITE);
+
+	chainlen = 0;
+	for (m = m_head; m != NULL && chainlen <= sc->maxtxseg; m = m->m_next)
+		chainlen++;
+	if (chainlen > sc->maxtxseg) {
+		struct mbuf *mn;
+
+		/*
+		 * We ran out of segments. We have to recopy this
+		 * mbuf chain first. Bail out if we can't get the
+		 * new buffers.
+		 */
+		mn = m_defrag(m_head, M_DONTWAIT);
+		if (mn == NULL) {
+			m_freem(m_head);
+			return (-1);
+		} else {
+			m_head = mn;
+		}
+	}
 
 	/*
-	 * We're finished. If we added to the list, issue a RESUME to get DMA
-	 * going again if suspended.
+	 * Go through each of the mbufs in the chain and initialize
+	 * the transmit buffer descriptors with the physical address
+	 * and size of the mbuf.
 	 */
-	if (txp != NULL) {
-		fxp_scb_wait(sc);
-		fxp_scb_cmd(sc, FXP_SCB_COMMAND_CU_RESUME);
+	error = bus_dmamap_load_mbuf_sg(sc->fxp_mtag, txp->tx_map,
+	    m_head, segs, &nseg, 0);
+	if (error) {
+		device_printf(sc->dev, "can't map mbuf (error %d)\n", error);
+		m_freem(m_head);
+		return (-1);
 	}
+
+	KASSERT(nseg <= sc->maxtxseg, ("too many DMA segments"));
+
+	cbp = txp->tx_cb;
+	for (i = 0; i < nseg; i++) {
+		KASSERT(segs[i].ds_len <= MCLBYTES, ("segment size too large"));
+		/*
+		 * If this is an 82550/82551, then we're using extended
+		 * TxCBs _and_ we're using checksum offload. This means
+		 * that the TxCB is really an IPCB. One major difference
+		 * between the two is that with plain extended TxCBs,
+		 * the bottom half of the TxCB contains two entries from
+		 * the TBD array, whereas IPCBs contain just one entry:
+		 * one entry (8 bytes) has been sacrificed for the TCP/IP
+		 * checksum offload control bits. So to make things work
+		 * right, we have to start filling in the TBD array
+		 * starting from a different place depending on whether
+		 * the chip is an 82550/82551 or not.
+		 */
+		if (sc->flags & FXP_FLAG_EXT_RFA) {
+			cbp->tbd[i + 1].tb_addr = htole32(segs[i].ds_addr);
+			cbp->tbd[i + 1].tb_size = htole32(segs[i].ds_len);
+		} else {
+			cbp->tbd[i].tb_addr = htole32(segs[i].ds_addr);
+			cbp->tbd[i].tb_size = htole32(segs[i].ds_len);
+		}
+	}
+	cbp->tbd_number = nseg;
+
+	bus_dmamap_sync(sc->fxp_mtag, txp->tx_map, BUS_DMASYNC_PREWRITE);
+	txp->tx_mbuf = m_head;
+	txp->tx_cb->cb_status = 0;
+	txp->tx_cb->byte_count = 0;
+	if (sc->tx_queued != FXP_CXINT_THRESH - 1) {
+		txp->tx_cb->cb_command =
+		    htole16(sc->tx_cmd | FXP_CB_COMMAND_SF |
+		    FXP_CB_COMMAND_S);
+	} else {
+		txp->tx_cb->cb_command =
+		    htole16(sc->tx_cmd | FXP_CB_COMMAND_SF |
+		    FXP_CB_COMMAND_S | FXP_CB_COMMAND_I);
+		/*
+		 * Set a 5 second timer just in case we don't hear
+		 * from the card again.
+		 */
+		ifp->if_timer = 5;
+	}
+	txp->tx_cb->tx_threshold = tx_threshold;
+
+	/*
+	 * Advance the end of list forward.
+	 */
+
+#ifdef __alpha__
+	/*
+	 * On platforms which can't access memory in 16-bit
+	 * granularities, we must prevent the card from DMA'ing
+	 * up the status while we update the command field.
+	 * This could cause us to overwrite the completion status.
+	 * XXX This is probably bogus and we're _not_ looking
+	 * for atomicity here.
+	 */
+	atomic_clear_16(&sc->fxp_desc.tx_last->tx_cb->cb_command,
+	    htole16(FXP_CB_COMMAND_S));
+#else
+	sc->fxp_desc.tx_last->tx_cb->cb_command &= htole16(~FXP_CB_COMMAND_S);
+#endif /*__alpha__*/
+	sc->fxp_desc.tx_last = txp;
+
+	/*
+	 * Advance the beginning of the list forward if there are
+	 * no other packets queued (when nothing is queued, tx_first
+	 * sits on the last TxCB that was sent out).
+	 */
+	if (sc->tx_queued == 0)
+		sc->fxp_desc.tx_first = txp;
+
+	sc->tx_queued++;
+
+	/*
+	 * Pass packet to bpf if there is a listener.
+	 */
+	BPF_MTAP(ifp, m_head);
+	return (0);
 }
 
 #ifdef DEVICE_POLLING
