@@ -25,24 +25,13 @@ static const char rcsid[] =
 
 #include "lib.h"
 
-/* Return the filename portion of a path */
-char *
-basename_of(char *str)
-{
-    char *basename = str + strlen(str) - 1;
-
-    while (basename != str && basename[-1] != '/')
-	--basename;
-    return basename;
-}
-
 char *
 strconcat(char *s1, char *s2)
 {
     static char tmp[FILENAME_MAX];
 
     tmp[0] = '\0';
-    strncpy(tmp, s1 ? s1 : s2, FILENAME_MAX);
+    strncpy(tmp, s1 ? s1 : s2, FILENAME_MAX);  /* XXX: what if both are NULL? */
     if (s1 && s2)
 	strncat(tmp, s2, FILENAME_MAX - strlen(tmp));
     return tmp;
@@ -61,33 +50,11 @@ get_dash_string(char **str)
     return *str;
 }
 
-/* Do a strlcpy and test for overflow */
-int
-s_strlcpy(char *dst, const char *src, size_t size)
-{
-	return (strlcpy(dst, src, size) >= size);
-}
-
-/* Do a strlcat and test for overflow */
-int
-s_strlcat(char *dst, const char *src, size_t size)
-{
-	return (strlcat(dst, src, size) >= size);
-}
-
 /* Rather Obvious */
 char *
 copy_string(char *str)
 {
-    char *ret;
-
-    if (!str)
-	ret = NULL;
-    else {
-	ret = (char *)malloc(strlen(str) + 1);
-	strcpy(ret, str);
-    }
-    return ret;
+    return (str ? strdup(str) : NULL);
 }
 
 /* Return TRUE if 'str' ends in suffix 'suff' */
@@ -141,4 +108,3 @@ get_string(char *str, int max, FILE *fp)
     }
     return NULL;
 }
-
