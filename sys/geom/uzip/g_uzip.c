@@ -424,7 +424,7 @@ g_uzip_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	for (blk = 1; offsets_read < total_offsets; blk++) {
 		uint32_t nread;
 
-		free(buf, M_GEOM_UZIP);
+		free(buf, M_GEOM);
 		buf = g_read_data(
 		    cp, blk * pp->sectorsize, pp->sectorsize, &error);
 		if (buf == NULL || error != 0)
@@ -470,7 +470,7 @@ err:
 	g_topology_lock();
 	g_access(cp, -1, 0, 0);
 	if (buf != NULL)
-		free(buf, M_GEOM_UZIP);
+		free(buf, M_GEOM);
 	if (gp->softc != NULL) {
 		g_uzip_softc_free(gp->softc, NULL);
 		gp->softc = NULL;
