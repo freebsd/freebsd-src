@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_node.h	8.6 (Berkeley) 5/14/95
- * $Id$
+ * $Id: cd9660_node.h,v 1.10 1997/02/22 09:38:49 peter Exp $
  */
 
 /*
@@ -59,17 +59,6 @@ typedef	struct	{
 	dev_t		iso_rdev;	/* Major/Minor number for special */
 } ISO_RRIP_INODE;
 
-#ifdef ISODEVMAP
-/*
- * FOr device# (major,minor) translation table
- */
-struct iso_dnode {
-	struct iso_dnode *d_next, **d_prev;	/* hash chain */
-	dev_t		i_dev;		/* device where dnode resides */
-	ino_t		i_number;	/* the identity of the inode */
-	dev_t		d_dev;		/* device # for translation */
-};
-#endif
 
 struct iso_node {
 	struct	iso_node *i_next, **i_prev;	/* hash chain */
@@ -123,7 +112,3 @@ void cd9660_ihashins __P((struct iso_node *));
 void cd9660_ihashrem __P((struct iso_node *));
 int cd9660_tstamp_conv7 __P((u_char *, struct timespec *, enum ISO_FTYPE));
 int cd9660_tstamp_conv17 __P((u_char *, struct timespec *));
-#ifdef	ISODEVMAP
-struct iso_dnode *iso_dmap __P((dev_t, ino_t, int));
-void iso_dunmap __P((dev_t));
-#endif
