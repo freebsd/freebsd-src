@@ -648,6 +648,7 @@ osf1_lstat(p, uap)
 	int error;
 	struct nameidata nd;
 	caddr_t sg = stackgap_init();
+
 	CHECKALTEXIST(p, &sg, uap->path);
 
 	NDINIT(&nd, LOOKUP, NOFOLLOW | LOCKLEAF, UIO_USERSPACE,
@@ -1065,26 +1066,35 @@ osf1_setuid(p, uap)
 	register struct pcred *pc;
 
 	uid = SCARG(uap, uid);
+	PROC_LOCK(p);
 	pc = p->p_cred;
 
 	if ((error = suser(p)) != 0 &&
-	    uid != pc->p_ruid && uid != pc->p_svuid)
+	    uid != pc->p_ruid && uid != pc->p_svuid) {
+		PROC_UNLOCK(p);
 		return (error);
+	}
 
 	if (error == 0) {
 		if (uid != pc->p_ruid) {
+			PROC_UNLOCK(p);
 			change_ruid(p, uid);
 			setsugid(p);
+			PROC_LOCK(p);
 		}
 		if (pc->p_svuid != uid) {
+			PROC_UNLOCK(p);
 			pc->p_svuid = uid;
 			setsugid(p);
+			PROC_LOCK(p);
 		}
 	}
 	if (pc->pc_ucred->cr_uid != uid) {
+		PROC_UNLOCK(p);
 		change_euid(p, uid);
 		setsugid(p);
-	}
+	} else
+		PROC_UNLOCK(p);
 	return (0);
 }
 
@@ -1106,11 +1116,14 @@ osf1_setgid(p, uap)
 	register struct pcred *pc;
 
 	gid = SCARG(uap, gid);
+	PROC_LOCK(p);
 	pc = p->p_cred;
 
 	if (((error = suser(p)) != 0 ) &&
-		gid != pc->p_rgid && gid != pc->p_svgid)
+	    gid != pc->p_rgid && gid != pc->p_svgid) {
+		PROC_UNLOCK(p);
 		return (error);
+	}
 
 	pc->pc_ucred = crcopy(pc->pc_ucred);
 	pc->pc_ucred->cr_gid = gid;
@@ -1118,6 +1131,7 @@ osf1_setgid(p, uap)
 		pc->p_rgid = gid;
 		pc->p_svgid = gid;
 	}
+	PROC_UNLOCK(p);
 	setsugid(p);
 	return (0);
 }
@@ -1340,7 +1354,9 @@ osf1_getrusage(p, uap)
 	switch (uap->who) {
 	case RUSAGE_SELF:
 		rup = &p->p_stats->p_ru;
+		mtx_enter(&sched_lock, MTX_SPIN);
 		calcru(p, &rup->ru_utime, &rup->ru_stime, NULL);
+		mtx_exit(&sched_lock, MTX_SPIN);
 		break;
 
 	case RUSAGE_CHILDREN:
