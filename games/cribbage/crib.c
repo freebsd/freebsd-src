@@ -179,7 +179,6 @@ makeboard()
 void
 gamescore()
 {
-	extern int Lastscore[];
 
 	if (pgames || cgames) {
 		mvprintw(SCORE_Y + 1, SCORE_X + 28, "Games: %3d", pgames);
@@ -201,6 +200,7 @@ game()
 	BOOLEAN flag;
 	BOOLEAN compcrib;
 
+	compcrib = FALSE;
 	makedeck(deck);
 	shuffle(deck);
 	if (gamecount == 0) {
@@ -458,7 +458,7 @@ peg(mycrib)
 	}
 	Tcnt = 0;		/* index to table of cards played */
 	sum = 0;		/* sum of cards played */
-	mego = ugo = FALSE;
+	played = mego = ugo = FALSE;
 	myturn = !mycrib;
 	for (;;) {
 		last = TRUE;	/* enable last flag */

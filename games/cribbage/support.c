@@ -188,8 +188,8 @@ chkscr(scr, inc)
 
 	myturn = (scr == &cscore);
 	if (inc != 0) {
-		prpeg(Lastscore[myturn], '.', myturn);
-		Lastscore[myturn] = *scr;
+		prpeg(Lastscore[myturn ? 1 : 0], '.', myturn);
+		Lastscore[myturn ? 1 : 0] = *scr;
 		*scr += inc;
 		prpeg(*scr, PEG, myturn);
 		refresh();
