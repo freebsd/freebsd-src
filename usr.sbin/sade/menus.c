@@ -378,6 +378,25 @@ DMenu MenuMouse = {
       { NULL } },
 };
 
+DMenu MenuXF86Config = {
+    DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
+    "Please select the XFree86 configuration tool you want to use.",
+    "The first tool, XF86Setup, is fully graphical and requires the\n"
+    "VGA16 server in order to work (should have been selected by\n"
+    "default, but if you de-selected it then you won't be able to\n"
+    "use this fancy setup tool).  The second tool, xf86config, is\n"
+    "a more simplistic shell-script based tool and less friendly to\n"
+    "new users, but it may work in situations where the fancier one\n"
+    "does not.",
+    "Press F1 to read the XFree86 release notes for FreeBSD",
+    "XF86",
+    { { "XF86Setup",	"Use the fully graphical XFree86 configuration tool.",
+	NULL, dmenuSetVariable, NULL, VAR_XF86_CONFIG "=XF86Setup" },
+      { "xf86config",	"Use the shell-script based XFree86 configuration tool.",
+	NULL, dmenuSetVariable, NULL, VAR_XF86_CONFIG "=xf86config" },
+      { NULL } },
+};
+
 DMenu MenuMediaCDROM = {
     DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
     "Choose a CDROM type",
