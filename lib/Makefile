@@ -29,7 +29,7 @@ SUBDIR=	${_csu} libcom_err libcrypt libkvm msun libmd \
 	libipx libisc libmenu ${_libmilter} ${_libmp} ${_libncp} \
 	libnetgraph libopie libpam libpanel libpcap ${_libpthread} \
 	${_libsm} ${_libsmb} ${_libsmdb} ${_libsmutil} \
-	libstand libtelnet ${_libthr} libufs libugidfw libusbhid \
+	libstand libtelnet ${_libthr} libufs libugidfw ${_libusbhid} \
 	${_libvgl} libwrap libxpg4 liby libz
 
 .if exists(${.CURDIR}/csu/${MACHINE_ARCH}-elf)
@@ -60,6 +60,10 @@ _libmilter=	libmilter
 _libsm=		libsm
 _libsmdb=	libsmdb
 _libsmutil=	libsmutil
+.endif
+
+.if !defined(NO_USB)
+_libusbhid=	libusbhid
 .endif
 
 .if ${MACHINE_ARCH} == "i386"

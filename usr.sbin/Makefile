@@ -114,8 +114,6 @@ SUBDIR=	IPXrouted \
 	trpt \
 	tzsetup \
 	ugidfw \
-	usbd \
-	usbdevs \
 	vidcontrol \
 	vipw \
 	vnconfig \
@@ -148,6 +146,10 @@ SUBDIR+=ipftest \
 	iptest
 .endif
 
+.if !defined(NO_USB)
+SUBDIR+=usbd \
+	usbdevs
+.endif
 .if !defined(NOLIBC_R) && ${MACHINE_ARCH} != "powerpc"
 SUBDIR+=pppctl
 .endif
@@ -179,8 +181,7 @@ SUBDIR+=elf2exe \
 .endif
 
 .if ${MACHINE_ARCH} == "i386"
-SUBDIR+=acpi \
-	apm \
+SUBDIR+=apm \
 	apmd \
 	asf \
 	btxld \
@@ -199,9 +200,15 @@ SUBDIR+=acpi \
 	stallion \
 	wlconfig \
 	zzz
+
+.if !defined(NO_ACPI)
+SUBDIR+=acpi
+.endif
+
 .if !defined(NO_I4B)
 SUBDIR+=i4b
 .endif
+
 .endif
 
 # kgmon: builds, but no kernel profiling

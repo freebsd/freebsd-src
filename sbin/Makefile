@@ -74,8 +74,7 @@ SUBDIR=	adjkerntz \
 	swapon \
 	sysctl \
 	tunefs \
-	umount \
-	vinum
+	umount
 
 .if !defined(NOATM)
 SUBDIR+=atm
@@ -96,6 +95,10 @@ SUBDIR+=ipf \
 .if !defined(NOINET6)
 SUBDIR+=ip6fw \
 	ping6
+.endif
+
+.if !defined(NO_VINUM)
+SUBDIR+=vinum
 .endif
 
 .if ${MACHINE_ARCH} == "i386"
