@@ -56,6 +56,9 @@
 #ifdef IPFIREWALL
 #include <netinet/ip_fw.h>
 #endif
+#ifdef IPACCT
+#include <netinet/ip_fw.h>
+#endif
 
 struct inpcb rawinpcb;
 
@@ -227,7 +230,21 @@ rip_ctloutput(op, so, level, optname, m)
 			error=EINVAL;
 		return(error);
 #endif
-
+#ifdef IPACCT
+	case IP_ACCT_DEL:
+	case IP_ACCT_ADD:
+	case IP_ACCT_FLUSH:
+	case IP_ACCT_ZERO: 
+	
+		if (op = PRCO_SETOPT) {
+			error=ip_acct_ctl(optname, *m);
+			if (*m)
+				(void)m_free(*m);
+		}
+		else
+			error=EINVAL;
+		return(error);
+#endif
 
 	case IP_RSVP_ON:
 		error = ip_rsvp_init(so);
