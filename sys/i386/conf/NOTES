@@ -186,16 +186,6 @@ options 	CYRIX_CACHE_REALLY_WORKS
 #options 	NO_F00F_HACK
 options 	CPU_DISABLE_CMPXCHG
 
-#
-# A math emulator is mandatory if you wish to run on hardware which
-# does not have a floating-point processor.  Pick either the original,
-# bogus (but freely-distributable) math emulator, or a much more
-# fully-featured but GPL-licensed emulator taken from Linux.
-#
-options 	MATH_EMULATE		#Support for x87 emulation
-# Don't enable both of these in a real config.
-options 	GPL_MATH_EMULATE	#Support for x87 emulation via
-
 # Debug options
 options 	NPX_DEBUG	# enable npx debugging (FPU/math emu)
 					#new math emulator
