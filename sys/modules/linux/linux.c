@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: linux.c,v 1.1 1994/10/14 08:46:12 sos Exp $
+ *	$Id: linux.c,v 1.1 1995/06/25 17:29:48 sos Exp $
  */
 
 #include <sys/param.h>
@@ -52,7 +52,7 @@ linux_unload(struct lkm_table *lkmtp, int cmd)
 	return 0;
 }
 
-linux_init(struct lkm_table *lkmtp, int cmd, int ver)
+linux_mod(struct lkm_table *lkmtp, int cmd, int ver)
 {
 	DISPATCH(lkmtp, cmd, ver, linux_load, linux_unload, nosys);
 }
