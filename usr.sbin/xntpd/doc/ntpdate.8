@@ -46,7 +46,10 @@ ntpdate - set the date and time via NTP
 .SH SYNOPSIS
 .B ntpdate
 [
-.B -bdos
+.B -bds
+] [
+.B -o
+.I version
 ] [
 .B -a
 .I key#
@@ -124,11 +127,12 @@ flag may be used to determine what
 will do without it actually doing it.  Information useful for general
 debugging will also be printed.  By default
 .I ntpdate
-claims to be an NTP version 2 implementation in its outgoing packets.  As
-some older software will decline to respond to version 2 queries, the
+claims to be an NTP version 3 implementation in its outgoing packets.  As
+some older software will decline to respond to version 3 queries, the
 .B -o
-switch can be used to force the program to poll as a version 1 implementation
-instead.
+.I version
+switch can be used to force the program to poll as a version 2 or 1
+implementation instead.
 .PP
 The number of samples
 .I ntpdate
