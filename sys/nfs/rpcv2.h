@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)rpcv2.h	8.1 (Berkeley) 6/10/93
- * $Id: rpcv2.h,v 1.3 1994/08/21 06:50:15 paul Exp $
+ * $Id: rpcv2.h,v 1.4 1995/06/27 11:07:02 dfr Exp $
  */
 
 #ifndef _NFS_RPCV2_H_
@@ -90,6 +90,7 @@
 /* RPC Prog definitions */
 #define	RPCPROG_MNT	100005
 #define	RPCMNT_VER1	1
+#define	RPCMNT_VER3	3
 #define	RPCMNT_MOUNT	1
 #define	RPCMNT_DUMP	2
 #define	RPCMNT_UMOUNT	3
