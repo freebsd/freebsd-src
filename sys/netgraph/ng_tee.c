@@ -57,6 +57,7 @@
 #include <sys/mbuf.h>
 #include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
+#include <netgraph/ng_parse.h>
 #include <netgraph/ng_tee.h>
 
 /* Per hook info */
@@ -83,8 +84,43 @@ static ng_newhook_t	ngt_newhook;
 static ng_rcvdata_t	ngt_rcvdata;
 static ng_disconnect_t	ngt_disconnect;
 
+/* Parse type for struct ng_tee_hookstat */
+static const struct ng_parse_struct_info
+	ng_tee_hookstat_type_info = NG_TEE_HOOKSTAT_INFO;
+static const struct ng_parse_type ng_tee_hookstat_type = {
+	&ng_parse_struct_type,
+	&ng_tee_hookstat_type_info,
+};
+
+/* Parse type for struct ng_tee_stats */
+static const struct ng_parse_struct_info
+	ng_tee_stats_type_info = NG_TEE_STATS_INFO(&ng_tee_hookstat_type);
+static const struct ng_parse_type ng_tee_stats_type = {
+	&ng_parse_struct_type,
+	&ng_tee_stats_type_info,
+};
+
+/* List of commands and how to convert arguments to/from ASCII */
+static const struct ng_cmdlist ng_tee_cmds[] = {
+	{
+	  NGM_TEE_COOKIE,
+	  NGM_TEE_GET_STATS,
+	  "getstats",
+	  NULL,
+	  &ng_tee_stats_type
+	},
+	{
+	  NGM_TEE_COOKIE,
+	  NGM_TEE_CLR_STATS,
+	  "clrstats",
+	  NULL,
+	  NULL
+	},
+	{ 0 }
+};
+
 /* Netgraph type descriptor */
-static struct ng_type typestruct = {
+static struct ng_type ng_tee_typestruct = {
 	NG_VERSION,
 	NG_TEE_NODE_TYPE,
 	NULL,
@@ -97,9 +133,9 @@ static struct ng_type typestruct = {
 	ngt_rcvdata,
 	ngt_rcvdata,
 	ngt_disconnect,
-	NULL
+	ng_tee_cmds
 };
-NETGRAPH_INIT(tee, &typestruct);
+NETGRAPH_INIT(tee, &ng_tee_typestruct);
 
 /*
  * Node constructor
@@ -115,7 +151,7 @@ ngt_constructor(node_p *nodep)
 		return (ENOMEM);
 	bzero(privdata, sizeof(*privdata));
 
-	if ((error = ng_make_node_common(&typestruct, nodep))) {
+	if ((error = ng_make_node_common(&ng_tee_typestruct, nodep))) {
 		FREE(privdata, M_NETGRAPH);
 		return (error);
 	}
