@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: termcap.h,v 1.2 1994/12/04 02:49:24 ache Exp $ */
+/* $Id: termcap.h,v 1.3 1994/12/09 21:55:52 ache Exp $ */
 
 #ifndef _TERMCAP_H_
 #define _TERMCAP_H_
@@ -41,7 +41,7 @@ extern int tgetflag __P((const char *));
 extern int tgetnum __P((const char *));
 extern char *tgetstr __P((const char *, char **));
 
-extern int tputs __P((const char *, int, int (*)(char)));
+extern int tputs __P((const char *, int, int (*)(int)));
 
 extern char *tgoto __P((const char *, int, int));
 extern char *tparm __P((const char *, ...));
