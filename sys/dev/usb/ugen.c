@@ -419,6 +419,13 @@ ugenopen(dev_t dev, int flag, int mode, usb_proc_ptr p)
 		edesc = sce->edesc;
 		switch (edesc->bmAttributes & UE_XFERTYPE) {
 		case UE_INTERRUPT:
+			if (dir == OUT) {
+				err = usbd_open_pipe(sce->iface, 
+				    edesc->bEndpointAddress, 0, &sce->pipeh);
+				if (err)
+					return (EIO);
+				break;
+			}
 			isize = UGETW(edesc->wMaxPacketSize);
 			if (isize == 0)	/* shouldn't happen */
 				return (EINVAL);
@@ -764,6 +771,30 @@ ugen_do_write(struct ugen_softc *sc, int endpt, struct uio *uio, int flag)
 			DPRINTFN(1, ("ugenwrite: transfer %d bytes\n", n));
 			err = usbd_bulk_transfer(xfer, sce->pipeh, 0, 
 				  sce->timeout, buf, &n,"ugenwb");
+			if (err) {
+				if (err == USBD_INTERRUPTED)
+					error = EINTR;
+				else if (err == USBD_TIMEOUT)
+					error = ETIMEDOUT;
+				else
+					error = EIO;
+				break;
+			}
+		}
+		usbd_free_xfer(xfer);
+		break;
+	case UE_INTERRUPT:
+		xfer = usbd_alloc_xfer(sc->sc_udev);
+		if (xfer == 0)
+			return (EIO);
+		while ((n = min(UGETW(sce->edesc->wMaxPacketSize),
+		    uio->uio_resid)) != 0) {
+			error = uiomove(buf, n, uio);
+			if (error)
+				break;
+			DPRINTFN(1, ("ugenwrite: transfer %d bytes\n", n));
+			err = usbd_intr_transfer(xfer, sce->pipeh, 0, 
+				  sce->timeout, buf, &n,"ugenwi");
 			if (err) {
 				if (err == USBD_INTERRUPTED)
 					error = EINTR;

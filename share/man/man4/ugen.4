@@ -104,9 +104,12 @@ and
 should be used.
 All I/O operations on a bulk endpoint are unbuffered.
 .Pp
-The interrupt transfer mode can only be in.
-To perform input from an interrupt endpoint
+The interrupt transfer mode can be in or out depending on the
+endpoint.
+To perform I/O on an interrupt endpoint
 .Xr read 2
+and
+.Xr write 2
 should be used.
 A moderate amount of buffering is done
 by the driver.
