@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_input.c	8.12 (Berkeley) 5/24/95
- *	$Id: tcp_input.c,v 1.41 1996/04/04 10:46:39 phk Exp $
+ *	$Id: tcp_input.c,v 1.42 1996/04/09 07:01:51 pst Exp $
  */
 
 #ifndef TUBA_INCLUDE
@@ -1831,47 +1831,6 @@ tcp_xmit_timer(tp, rtt)
 	register struct tcpcb *tp;
 	short rtt;
 {
-#ifdef notdef
-	register short delta;
-
-	tcpstat.tcps_rttupdated++;
-	tp->t_rttupdated++;
-	if (tp->t_srtt != 0) {
-		/*
-		 * srtt is stored as fixed point with 3 bits after the
-		 * binary point (i.e., scaled by 8).  The following magic
-		 * is equivalent to the smoothing algorithm in rfc793 with
-		 * an alpha of .875 (srtt = rtt/8 + srtt*7/8 in fixed
-		 * point).  Adjust rtt to origin 0.
-		 */
-		delta = rtt - 1 - (tp->t_srtt >> TCP_RTT_SHIFT);
-		if ((tp->t_srtt += delta) <= 0)
-			tp->t_srtt = 1;
-		/*
-		 * We accumulate a smoothed rtt variance (actually, a
-		 * smoothed mean difference), then set the retransmit
-		 * timer to smoothed rtt + 4 times the smoothed variance.
-		 * rttvar is stored as fixed point with 2 bits after the
-		 * binary point (scaled by 4).  The following is
-		 * equivalent to rfc793 smoothing with an alpha of .75
-		 * (rttvar = rttvar*3/4 + |delta| / 4).  This replaces
-		 * rfc793's wired-in beta.
-		 */
-		if (delta < 0)
-			delta = -delta;
-		delta -= (tp->t_rttvar >> TCP_RTTVAR_SHIFT);
-		if ((tp->t_rttvar += delta) <= 0)
-			tp->t_rttvar = 1;
-	} else {
-		/*
-		 * No rtt measurement yet - use the unsmoothed rtt.
-		 * Set the variance to half the rtt (so our first
-		 * retransmit happens at 3*rtt).
-		 */
-		tp->t_srtt = rtt << TCP_RTT_SHIFT;
-		tp->t_rttvar = rtt << (TCP_RTTVAR_SHIFT - 1);
-	}
-#else  /* Peterson paper */
 	register int delta;
 
 	tcpstat.tcps_rttupdated++;
@@ -1914,7 +1873,6 @@ tcp_xmit_timer(tp, rtt)
 		tp->t_srtt = rtt << TCP_RTT_SHIFT;
 		tp->t_rttvar = rtt << (TCP_RTTVAR_SHIFT - 1);
 	}
-#endif
 	tp->t_rtt = 0;
 	tp->t_rxtshift = 0;
 
@@ -1929,13 +1887,8 @@ tcp_xmit_timer(tp, rtt)
 	 * statistical, we have to test that we don't drop below
 	 * the minimum feasible timer (which is 2 ticks).
 	 */
-#ifdef notdef
-	TCPT_RANGESET(tp->t_rxtcur, TCP_REXMTVAL(tp),
-	    tp->t_rttmin, TCPTV_REXMTMAX);
-#else /* Peterson */
 	TCPT_RANGESET(tp->t_rxtcur, TCP_REXMTVAL(tp),
 		      max(tp->t_rttmin, rtt + 2), TCPTV_REXMTMAX);
-#endif
 
 	/*
 	 * We received an ack for a packet that wasn't retransmitted;
