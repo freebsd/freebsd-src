@@ -4,7 +4,7 @@
    $FreeBSD$
    $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/early-adopter/article.sgml,v 1.6 2004/08/12 08:31:34 den Exp $
 
-   Original revision: 1.21.2.2
+   Original revision: 1.21.2.4
 -->
 
 <!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
@@ -106,8 +106,8 @@
       <literal>RELENG_4</literal>.</para>
 
     <para>Последние две стабильные ветви (3-STABLE and 4-STABLE) были
-      созданы практически сразу после соответствующих релизов
-      (3.1 и 4.0 соответственно).
+      созданы на самых ранних стадиях цикла разработки
+      (при выпуске 3.1 и 4.0 соответственно).
       Эта практика не дает достаточно времени для стабилизации
       CURRENT перед созданием новых ветвей.  Это приводит к потере времени
       на усилия по портированию исправлений между ветвями, а также
@@ -413,14 +413,29 @@
           role="package">security/cfs</filename> необходимо
 	  перекомпилировать вследствие изменений в структуре
 	  <literal>statfs</literal>.</para>
-
-<!-- Michel TALON <talon@lpthe.jussieu.fr>:  libmap.conf -->
       </listitem>
 
       <listitem>
         <para>Файл настройки разрешения имен <filename>host.conf</filename>
 	  был замещен на (гораздо более общий) механизм настройки
 	  сервисов имен &man.nsswitch.conf.5;.</para>
+      </listitem>
+ 
+      <listitem>
+	<para><application>BIND</application> был обновлен с версии
+	  8 до версии 9.  Между BIND 8 и 9 существует множество
+	  различий.  Пользователям, для которых наличие &man.named.8;
+	  необходимо, рекомендуется прочесть документацию по мигрированию в
+	  <filename>/usr/share/doc/bind9/misc/migration</filename>.
+	  Доступно также новое руководство в
+	  <filename>/usr/share/doc/bind9/arm</filename>.  На системах,
+	  где работает &man.named.8;, теперь он по умолчанию запускается
+	  в среде &man.chroot.8; в <filename>/var/named</filename>.
+	  Пользователям, у которых конфигурация &man.named.8; уже
+	  расположена <filename>/var/named</filename>, рекомендуется
+	  сделать резервную копию этого каталога перед обновлением,
+	  чтобы избежать ее перезаписи стартовым скриптом
+	  &man.named.8;.</para>
       </listitem>
 
 <!-- Ports -->
@@ -786,6 +801,28 @@
 &prompt.root; <userinput>make installworld</userinput></screen>
         </listitem>
 
+	<listitem>
+	  <para>На системах, где установлен &man.named.8;, его
+	    файлы настройки должны быть перемещены в
+	    &man.chroot.8;, в каталог <filename>/var/named</filename>.
+	    Если какие-либо файлы уже находятся в
+	    <filename>/var/named</filename>, необходимо предварительно
+	    сделать их резервную копию.</para>
+
+	  <screen>&prompt.root; <userinput>cd /etc</userinput>
+&prompt.root; <userinput>mv named named.bak</userinput>
+&prompt.root; <userinput>mkdir -p /var/named/etc/namedb</userinput>
+&prompt.root; <userinput>cp -Rp named.bak/* /var/named/etc/namedb</userinput></screen>
+
+	  <para>Если в конфигурации использованы автоматически
+	    созданные файлы <filename>localhost</filename>, для их
+	    автоматической пересборки потребуется следующее:</para>
+
+	  <screen>&prompt.root; <userinput>cd /var/named/etc/namedb</userinput>
+&prompt.root; <userinput>/bin/sh make-localhost</userinput>
+&prompt.root; <userinput>rm -f localhost-v6.rev localhost.rev</userinput></screen>
+        </listitem>
+
         <listitem>
 	  <para>Обновите конфигурацию системы, запустив:</para>
 
@@ -802,6 +839,16 @@
 	    которые были включены по умолчанию в &release.4x;, теперь отключены
 	    по умолчанию в &release.5x;.</para>
 	</listitem>
+
+	<listitem>
+
+	  <para>Удалите оставшиеся файлы
+	    <application>BIND 8</application>:</para>
+
+	    <screen>&prompt.root; <userinput>rm /usr/bin/dnskeygen /usr/bin/dnsquery</userinput>
+&prompt.root; <userinput>rm /usr/libexec/named-xfer</userinput>
+&prompt.root; <userinput>rm /usr/sbin/named.restart /usr/sbin/ndc</userinput></screen>
+ 	</listitem>
 
         <listitem>
 	  <para>Перезагрузитесь.</para>
