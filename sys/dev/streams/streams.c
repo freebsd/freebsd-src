@@ -151,16 +151,17 @@ struct streams_softc {
 
 typedef	struct streams_softc *sc_p;
 
-static sc_p sca[NSTREAMS];
-
 static	int
 streams_modevent(module_t mod, int type, void *unused)
 {
 	switch (type) {
 	case MOD_LOAD:
+		/* XXX should make sure it isn't already loaded first */
 		cdevsw_add(&streams_cdevsw);
 		return 0;
 	case MOD_UNLOAD:
+	  	/* XXX should check to see if it's busy first */
+		cdevsw_remove(&streams_cdevsw);
 		return 0;
 	default:
 		break;
@@ -380,66 +381,3 @@ svr4_soo_close(struct file *fp, struct proc *p)
 	return soo_close(fp, p);
 	return (0);
 }
-
-/*
- * Now  for some driver initialisation.
- * Occurs ONCE during boot (very early).
- */
-static void             
-streams_drvinit(void *unused)
-{
-	int	unit;
-	sc_p scp  = sca[unit];
-
-	for (unit = 0; unit < NSTREAMS; unit++) {
-		/* 
-		 * Allocate storage for this instance .
-		 */
-		scp = malloc(sizeof(*scp), M_DEVBUF, M_NOWAIT);
-		if( scp == NULL) {
-			printf("streams%d failed to allocate strorage\n", unit);
-			return ;
-		}
-		bzero(scp, sizeof(*scp));
-		sca[unit] = scp;
-#if DEVFS
-		/* XXX - This stuff is all completely bogus -- It's supposed
-		 * to show up in /compat/svr4/dev, but devfs will be mounted
-		 * on /dev, won't it?  Sigh.  CHECKALTEXIST() will mean 
-		 * device opens will still work (and it will mitigate the
-		 * need to run SVR4_MAKEDEV in /compat/svr4/dev, or will
-		 * replace it with a script which creates symlinks to entities
-		 * in /dev, or something equally 'orrible), but it's
-		 * still a botch to put emulator-specific devices in the
-		 * "global" part of the filesystem tree (especially scumsucking
-		 * devices like these).  Good thing hardly anyone uses 
-		 * devfs, right?
-		 */
-    		scp->devfs_ptm = devfs_add_devswf(&streams_cdevsw, dev_ptm, DV_CHR,
-	    		UID_ROOT, GID_KMEM, 0640, "ptmx%d", unit);
-    		scp->devfs_arp = devfs_add_devswf(&streams_cdevsw, dev_arp, DV_CHR,
-	    		UID_ROOT, GID_KMEM, 0666, "arp%d", unit);
-    		scp->devfs_icmp = devfs_add_devswf(&streams_cdevsw, dev_icmp, DV_CHR,
-	    		UID_ROOT, GID_KMEM, 0600, "icmp%d", unit);
-    		scp->devfs_ip = devfs_add_devswf(&streams_cdevsw, dev_ip, DV_CHR,
-	    		UID_ROOT, GID_KMEM, 0600, "ip%d", unit);
-    		scp->devfs_tcp = devfs_add_devswf(&streams_cdevsw, dev_tcp, DV_CHR,
-	    		UID_ROOT, GID_KMEM, 0666, "tcp%d", unit);
-    		scp->devfs_udp = devfs_add_devswf(&streams_cdevsw, dev_udp, DV_CHR,
-	    		UID_ROOT, GID_KMEM, 0666, "udp%d", unit);
-    		scp->devfs_rawip = devfs_add_devswf(&streams_cdevsw, dev_rawip, DV_CHR,
-	    		UID_ROOT, GID_KMEM, 0600, "rawip%d", unit);
-    		scp->devfs_unix_dgram = devfs_add_devswf(&streams_cdevsw, dev_unix_dgram, DV_CHR,
-	    		UID_ROOT, GID_KMEM, 0666, "ticlts%d", unit);
-    		scp->devfs_unix_stream = devfs_add_devswf(&streams_cdevsw, dev_unix_stream, DV_CHR,
-	    		UID_ROOT, GID_KMEM, 0666, "ticots%d", unit);
-    		scp->devfs_unix_ord_stream = devfs_add_devswf(&streams_cdevsw, dev_unix_ord_stream, DV_CHR,
-	    		UID_ROOT, GID_KMEM, 0666, "ticotsord%d", unit);
-#endif
-	}
-}
-
-SYSINIT(streamsdev, SI_SUB_DRIVERS, SI_ORDER_MIDDLE+CDEV_MAJOR,
-		streams_drvinit, NULL)
-
-
