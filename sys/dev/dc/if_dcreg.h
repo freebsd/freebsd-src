@@ -866,6 +866,8 @@ struct dc_softc {
  */
 #define DC_DEVICEID_AL981	0x0981
 #define DC_DEVICEID_AN985	0x0985
+#define DC_DEVICEID_ADM9511	0x9511
+#define DC_DEVICEID_ADM9513	0x9513
 
 /*
  * 3COM PCI vendor ID
