@@ -152,7 +152,7 @@
 .nr Xr 10n
 .
 .
-.\" requests which must be processed after the closing delimiter of `Op'
+.\" macros which must be processed after the closing delimiter of `Op'
 .\" and friends
 .ds doc-after-Ao
 .ds doc-after-Bo
@@ -544,16 +544,16 @@
 .  doc-setup-page-layout
 .  if !\n[cR] \
 '    sp \n[doc-header-space]u
-.  nr doc-reg-dh \w'\*[doc-caption-font]\*[doc-header-string]\f[P]'
-.  nr doc-reg-dh1 \w'\*[doc-caption-font2]\*[doc-volume]\f[P]'
+.  nr doc-reg-dh \w'\*[doc-caption-font]\*[doc-header-string]\f[]'
+.  nr doc-reg-dh1 \w'\*[doc-caption-font2]\*[doc-volume]\f[]'
 .  if (\n[doc-reg-dh] + \n[doc-reg-dh1] + \n[doc-reg-dh] >= \n[.lt]) \{\
 .    while (\n[doc-reg-dh] + \n[doc-reg-dh1] + \n[doc-reg-dh] >= \n[.lt]) \{\
-.      substring doc-header-string 1 -1
-.      nr doc-reg-dh \w'\*[doc-caption-font]\*[doc-header-string]\|.\|.\|.\f[P]'
+.      substring doc-header-string 0 -2
+.      nr doc-reg-dh \w'\*[doc-caption-font]\*[doc-header-string]\|.\|.\|.\f[]'
 .    \}
 .    as doc-header-string "\|.\|.\|.
 .  \}
-.  tl \*[doc-caption-font]\*[doc-header-string]\f[P]\*[doc-caption-font2]\*[doc-volume]\f[P]\*[doc-caption-font]\*[doc-header-string]\f[P]
+.  tl \*[doc-caption-font]\*[doc-header-string]\f[]\*[doc-caption-font2]\*[doc-volume]\f[]\*[doc-caption-font]\*[doc-header-string]\f[]
 '  sp \n[doc-header-space]u
 .  ev
 ..
@@ -571,12 +571,12 @@
 '    sp \n[doc-footer-space]u
 .    ie \n[D] \{\
 .      ie o \
-.        tl %\*[doc-caption-font2]\*[doc-date-string]\f[P]\*[doc-caption-font]\*[doc-operating-system]\f[P]
+.        tl %\*[doc-caption-font2]\*[doc-date-string]\f[]\*[doc-caption-font]\*[doc-operating-system]\f[]
 .      el \
-.        tl \*[doc-caption-font]\*[doc-operating-system]\f[P]\*[doc-caption-font2]\*[doc-date-string]\f[P]%
+.        tl \*[doc-caption-font]\*[doc-operating-system]\f[]\*[doc-caption-font2]\*[doc-date-string]\f[]%
 .    \}
 .    el \
-.      tl \*[doc-caption-font]\*[doc-operating-system]\f[P]\*[doc-caption-font2]\*[doc-date-string]\f[P]%
+.      tl \*[doc-caption-font]\*[doc-operating-system]\f[]\*[doc-caption-font2]\*[doc-date-string]\f[]%
 '    bp
 .    ev
 .  \}
@@ -604,7 +604,7 @@
 .
 .  if \n[cR] \{\
 '    sp
-.    tl \*[doc-caption-font]\*[doc-operating-system]\f[P]\*[doc-caption-font2]\*[doc-date-string]\f[P]\*[doc-caption-font]\*[doc-operating-system]\f[P]
+.    tl \*[doc-caption-font]\*[doc-operating-system]\f[]\*[doc-caption-font2]\*[doc-date-string]\f[]\*[doc-caption-font]\*[doc-operating-system]\f[]
 .    \" suppress empty lines after the footer
 .    pl \n[nl]u
 .  \}
