@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.132 1998/06/15 19:05:46 brian Exp $
+ * $Id: main.c,v 1.133 1998/06/15 19:06:50 brian Exp $
  *
  *	TODO:
  */
@@ -110,7 +110,7 @@ CloseConnection(int signo)
   /* NOTE, these are manual, we've done a setsid() */
   sig_signal(SIGINT, SIG_IGN);
   log_Printf(LogPHASE, "Caught signal %d, abort connection(s)\n", signo);
-  bundle_Down(SignalBundle);
+  bundle_Down(SignalBundle, CLOSE_STAYDOWN);
   sig_signal(SIGINT, CloseConnection);
 }
 
