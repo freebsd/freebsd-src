@@ -53,8 +53,7 @@ int	_MSKanji_mbsinit(const mbstate_t *);
 size_t	_MSKanji_wcrtomb(char * __restrict, wchar_t, mbstate_t * __restrict);
 
 typedef struct {
-	int	count;
-	u_char	bytes[2];
+	wchar_t	ch;
 } _MSKanjiState;
 
 int
@@ -73,7 +72,7 @@ int
 _MSKanji_mbsinit(const mbstate_t *ps)
 {
 
-	return (ps == NULL || ((const _MSKanjiState *)ps)->count == 0);
+	return (ps == NULL || ((const _MSKanjiState *)ps)->ch == 0);
 }
 
 size_t
@@ -82,12 +81,11 @@ _MSKanji_mbrtowc(wchar_t * __restrict pwc, const char * __restrict s, size_t n,
 {
 	_MSKanjiState *ms;
 	wchar_t wc;
-	int len, ocount;
-	size_t ncopy;
 
 	ms = (_MSKanjiState *)ps;
 
-	if (ms->count < 0 || ms->count > sizeof(ms->bytes)) {
+	if ((ms->ch & ~0xFF) != 0) {
+		/* Bad conversion state. */
 		errno = EINVAL;
 		return ((size_t)-1);
 	}
@@ -98,33 +96,41 @@ _MSKanji_mbrtowc(wchar_t * __restrict pwc, const char * __restrict s, size_t n,
 		pwc = NULL;
 	}
 
-	ncopy = MIN(MIN(n, MB_CUR_MAX), sizeof(ms->bytes) - ms->count);
-	memcpy(ms->bytes + ms->count, s, ncopy);
-	ocount = ms->count;
-	ms->count += ncopy;
-	s = (char *)ms->bytes;
-	n = ms->count;
-
 	if (n == 0)
 		/* Incomplete multibyte sequence */
 		return ((size_t)-2);
-	len = 1;
+
+	if (ms->ch != 0) {
+		if (*s == '\0') {
+			errno = EILSEQ;
+			return ((size_t)-1);
+		}
+		wc = (ms->ch << 8) | (*s & 0xFF);
+		if (pwc != NULL)
+			*pwc = wc;
+		ms->ch = 0;
+		return (1);
+	}
 	wc = *s++ & 0xff;
 	if ((wc > 0x80 && wc < 0xa0) || (wc >= 0xe0 && wc < 0xfd)) {
-		if (n < 2)
+		if (n < 2) {
 			/* Incomplete multibyte sequence */
+			ms->ch = wc;
 			return ((size_t)-2);
+		}
 		if (*s == '\0') {
 			errno = EILSEQ;
 			return ((size_t)-1);
 		}
 		wc = (wc << 8) | (*s++ & 0xff);
-		len = 2;
+		if (pwc != NULL)
+			*pwc = wc;
+		return (2);
+	} else {
+		if (pwc != NULL)
+			*pwc = wc;
+		return (wc == L'\0' ? 0 : 1);
 	}
-	if (pwc != NULL)
-		*pwc = wc;
-	ms->count = 0;
-	return (wc == L'\0' ? 0 : len - ocount);
 }
 
 size_t
@@ -135,7 +141,7 @@ _MSKanji_wcrtomb(char * __restrict s, wchar_t wc, mbstate_t * __restrict ps)
 
 	ms = (_MSKanjiState *)ps;
 
-	if (ms->count != 0) {
+	if (ms->ch != 0) {
 		errno = EINVAL;
 		return ((size_t)-1);
 	}
