@@ -28,7 +28,7 @@
 .\" $FreeBSD$
 .\"
 .Dd September 26, 2003
-.Dt disk 9
+.Dt DISK 9
 .Os
 .Sh NAME
 .Nm disk
@@ -36,7 +36,13 @@
 .Sh SYNOPSIS
 .In sys/geom_disk.h
 .Ft void
-.Fn disk_create "int unit" "struct disk *disk" "int flags" "void *unused" "void *unused2"
+.Fo disk_create
+.Fa "int unit"
+.Fa "struct disk *disk"
+.Fa "int flags"
+.Fa "void *unused"
+.Fa "void *unused2"
+.Fc
 .Ft void
 .Fn disk_destroy "struct disk *disk"
 .Sh DESCRIPTION
@@ -154,5 +160,5 @@ Private data pointer.
 .Xr GEOM 4 ,
 .Xr devfs 5
 .Sh AUTHORS
-This man page was written by
+This manual page was written by
 .An Robert Watson .
