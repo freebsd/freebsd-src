@@ -46,7 +46,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/vnode.h>
 #ifdef __NetBSD__
 #include <sys/proc.h>
 #endif
@@ -56,6 +55,9 @@ __FBSDID("$FreeBSD$");
 #include <machine/clock.h>              /* for DELAY */
 #include <pci/pcivar.h>
 #else
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/selinfo.h>
 #include <dev/pci/pcivar.h>
 #endif
 

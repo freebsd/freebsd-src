@@ -72,7 +72,6 @@ __FBSDID("$FreeBSD$");
 #else
 #include <sys/select.h>
 #endif
-#include <sys/vnode.h>
 
 #include <vm/vm.h>
 #include <vm/vm_kern.h>

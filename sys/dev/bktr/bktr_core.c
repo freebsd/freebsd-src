@@ -107,11 +107,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/fcntl.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/signalvar.h>
-#include <sys/vnode.h>
+#include <sys/selinfo.h>
+#include <sys/uio.h>
 
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
@@ -1258,7 +1260,7 @@ vbi_read(bktr_ptr_t bktr, struct uio *uio, int ioflag)
 	LOCK_VBI(bktr);
 
 	while(bktr->vbisize == 0) {
-		if (ioflag & IO_NDELAY) {
+		if (ioflag & FNDELAY) {
 			status = EWOULDBLOCK;
 			goto out;
 		}
