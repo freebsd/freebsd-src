@@ -60,10 +60,10 @@ static int		sn_isa_attach	(device_t);
 static int
 sn_isa_probe (device_t dev)
 {
-#if 0
+	if (isa_get_logicalid(dev))		/* skip PnP probes */
+		return (ENXIO);
 	if (sn_probe(dev, 0) != 0)
 		return (0);
-#endif
 	return (ENXIO);
 }
 
