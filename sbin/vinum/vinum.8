@@ -872,12 +872,16 @@ removes the
 .Nm
 kld and stops
 .Xr vinum 8 .
-This can only be done if no objects are active.  In particular, the
+This can only be done if no objects are active, In particular, the
 .Fl f
 flag does not override this requirement.  This command can only work if
 .Nm
 has been loaded as a kld, since it is not possible to unload a statically
-configured driver.  
+configured driver, 
+.\" XXX why?
+and it must be issued at a command prompt: the command 
+.Nm vinum stop
+will not work.
 .Nm 
 .Nm stop
 will fail if
