@@ -771,6 +771,7 @@ xreadlink (link)
 {
     char *file = NULL;
     int buflen = BUFSIZ;
+    int linklen;
 
     if (!islink (link))
 	return NULL;
@@ -782,13 +783,14 @@ xreadlink (link)
     {
 	file = xrealloc (file, buflen);
 	errno = 0;
-	readlink (link, file, buflen);
+	linklen = readlink (link, file, buflen - 1);
 	buflen *= 2;
     }
-    while (errno == ENAMETOOLONG);
+    while (linklen == -1 && errno == ENAMETOOLONG);
 
-    if (errno)
+    if (linklen == -1)
 	error (1, errno, "cannot readlink %s", link);
+    file[linklen] = '\0';
 
     return file;
 }
