@@ -714,8 +714,8 @@ ieee80211_watchdog(struct ieee80211com *ic)
 				nt->nt_timeout(nt);
 			need_inact_timer += nt->nt_inact_timer;
 		}
-		nt = ic->ic_sta;
-		if (nt != NULL && nt->nt_inact_timer) {
+		nt = &ic->ic_sta;
+		if (nt->nt_inact_timer) {
 			if (--nt->nt_inact_timer == 0)
 				nt->nt_timeout(nt);
 			need_inact_timer += nt->nt_inact_timer;
