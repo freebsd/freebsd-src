@@ -1204,7 +1204,7 @@ pccncheckc(Dev_t dev)
 	cp = sgetc(1);
 	kbd_polling = 0;
 	splx(x);
-	return (cp != 0);	/* did someone press the "Any" key? */
+	return (cp == NULL ? -1 : *cp);
 }
 #endif /* PCVT_FREEBSD >= 200 */
 
