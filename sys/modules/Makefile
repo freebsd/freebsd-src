@@ -55,6 +55,7 @@ SUBDIR=	3dfx \
 	ip6fw \
 	ip_mroute_mod \
 	ipfw \
+	isp \
 	ispfw \
 	joy \
 	kue \
