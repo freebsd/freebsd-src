@@ -43,6 +43,7 @@ struct font_char_metric {
   int pre_math_space;
   int italic_correction;
   int subscript_correction;
+  char *special_device_coding;
 };
 
 struct font_kern_list {
@@ -82,7 +83,7 @@ struct text_file {
 };
 
 text_file::text_file(FILE *p, char *s) 
-: lineno(0), buf(0), size(0), skip_comments(1), fp(p), path(s)
+: fp(p), path(s), lineno(0), size(0), skip_comments(1), buf(0)
 {
 }
 
@@ -149,8 +150,8 @@ void text_file::error(const char *format,
 /* font functions */
 
 font::font(const char *s)
-: special(0), ligatures(0), kern_hash_table(0), space_width(0),
-  ch(0), ch_used(0), ch_size(0), ch_index(0), nindices(0), widths_cache(0)
+: ligatures(0), kern_hash_table(0), space_width(0), ch_index(0), nindices(0),
+  ch(0), ch_used(0), ch_size(0), special(0), widths_cache(0)
 {
   name = new char[strlen(s) + 1];
   strcpy(name, s);
@@ -365,6 +366,12 @@ const char *font::get_internal_name()
   return internalname;
 }
 
+const char *font::get_special_device_encoding(int c)
+{
+  assert(c >= 0 && c < nindices && ch_index[c] >= 0);
+  return( ch[ch_index[c]].special_device_coding );
+}
+
 void font::alloc_ch_index(int index)
 {
   if (nindices == 0) {
@@ -470,7 +477,7 @@ static char *trim_arg(char *p)
   return p;
 }
 
-// If the font can't be found, then if not_found is NULL it will be set
+// If the font can't be found, then if not_found is non-NULL, it will be set
 // to 1 otherwise a message will be printed.
 
 int font::load(int *not_found)
@@ -669,6 +676,20 @@ int font::load(int *not_found)
 	    t.error("bad code `%1' for character `%2'", p, nm);
 	    return 0;
 	  }
+
+	  p = strtok(0, WS);
+	  if ((p == NULL) || (strcmp(p, "--") == 0)) {
+	    metric.special_device_coding = NULL;
+	  } else {
+	    char *name=(char *)malloc(strlen(p)+1);
+
+	    if (name == NULL) {
+	      fatal("malloc failed while reading character encoding");
+	    }
+	    strcpy(name, p);
+	    metric.special_device_coding = name;
+	  }
+
 	  if (strcmp(nm, "---") == 0) {
 	    last_index = number_to_index(metric.code);
 	    add_entry(last_index, metric);
@@ -755,6 +776,12 @@ int font::load_desc()
     }
     else if (strcmp("tcommand", p) == 0) {
       tcommand = 1;
+    }
+    else if (strcmp("pass_filenames", p) == 0) {
+      pass_filenames = 1;
+    }
+    else if (strcmp("use_charnames_in_special", p) == 0) {
+      use_charnames_in_special = 1;
     }
     else if (strcmp("family", p) == 0) {
       p = strtok(0, WS);
