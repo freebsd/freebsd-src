@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.315 1997/07/23 10:44:39 jkh Exp $
+#	$Id: Makefile,v 1.316 1997/07/31 09:52:10 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -462,7 +462,7 @@ release.9:
 		${FIXITINODE} ${FDLABEL}
 	mv fs-image ${RD}/floppies/fixit.flp
 # Do our last minute floppies directory setup in a convenient place.
-	cp ${.CURDIR}/floppies/README.TXT ${RD}/floppies/README.TXT
+	cp ${.CURDIR}/README.TXT ${RD}/floppies/README.TXT
 	@(cd ${RD}/floppies; md5 * > CHECKSUM.MD5)
 	touch release.9
 
