@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.6 (Berkeley) 5/22/91
-#	$Id: Makefile,v 1.12 1994/09/19 02:00:18 ache Exp $
+#	$Id: Makefile,v 1.13 1995/02/07 13:27:28 jkh Exp $
 
 CFLAGS+=	-DLIBC_SCCS -DDYNAMIC
 OBJS=		crt0.o gcrt0.o c++rt0.o
@@ -26,6 +26,8 @@ gcrt0.o: crt0.c
 install:
 	install ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 ${OBJS} \
 	    ${DESTDIR}/usr/lib
+	install ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/dlfcn.h \
+	    ${DESTDIR}/usr/include
 
 depend lint tags:
 
