@@ -26,7 +26,7 @@
  *
  * 	From Id: probe_keyboard.c,v 1.13 1997/06/09 05:10:55 bde Exp
  *
- *	$Id: vidconsole.c,v 1.4 1998/10/07 02:39:06 msmith Exp $
+ *	$Id: vidconsole.c,v 1.5 1998/10/07 07:34:31 msmith Exp $
  */
 
 #include <stand.h>
@@ -45,6 +45,8 @@ static int	vidc_init(int arg);
 static void	vidc_putchar(int c);
 static int	vidc_getchar(void);
 static int	vidc_ischar(void);
+
+static int	vidc_started;
 
 struct console vidconsole = {
     "vidconsole",
@@ -77,9 +79,12 @@ vidc_probe(struct console *cp)
 static int
 vidc_init(int arg)
 {
-    int		i = 0;
+    int		i;
 
-    while((i < 10) && (vidc_ischar()))
+    if (vidc_started && arg == 0)
+	return;
+    vidc_started = 1;
+    for(i = 0; i < 10 && vidc_ischar(); i++)
 	  (void)vidc_getchar();
     return(0);	/* XXX reinit? */
 }
