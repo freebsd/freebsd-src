@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.89.2.50 1997/09/28 18:43:50 jkh Exp $
+ * $Id: menus.c,v 1.89.2.51 1997/09/29 00:15:18 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -659,6 +659,7 @@ DMenu MenuMedia = {
       { "6 File System",	"Install from an existing filesystem",	NULL, mediaSetUFS },
       { "7 Floppy",		"Install from a floppy disk set",	NULL, mediaSetFloppy },
       { "8 Tape",		"Install from SCSI or QIC tape",	NULL, mediaSetTape },
+      { "9 Options",		"Go to the Options screen",		NULL, optionsEditor },
       { NULL } },
 };
 
