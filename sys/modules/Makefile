@@ -284,7 +284,6 @@ _amd=		amd
 _aout=		aout
 _apm=		apm
 _ar=		ar
-_arl=		arl
 _arcnet=	arcnet
 _ath_hal=	ath_hal
 _awi=		awi
@@ -332,6 +331,7 @@ _xe=		xe
 .if ${MACHINE} == "i386"
 _aac=		aac
 _acpi=		acpi
+_arl=		arl
 _asr=		asr
 _bios=		bios
 _cardbus=	cardbus
