@@ -4,7 +4,7 @@
 #
 # Format <file>:<lang>:<description>
 #
-# lang: ar bg cs da de el en es fi fr hr hu hy is it iw ja ko nl no pl
+# lang: ar bg cs da de el en es fi fr hr hu hy is it iw ja kk ko nl no pl
 #       pt ro ru sh sk sl sv tr uk zh
 # lang: lang,lang
 #
@@ -221,6 +221,9 @@ jp.106x.kbd:uk:Японська 106x
 jp.pc98.kbd:en:Japanese PC-98x1
 
 jp.pc98.iso.kbd:en:Japanese PC-98x1 (ISO)
+
+kk.pt154.kst.kbd:en:Kazakh PT154 codepage
+kk.pt154.io.kbd:en:Kazakh PT154 codepage
 
 latinamerican.kbd:en:Latin American
 latinamerican.kbd:de:Latein Amerikanisch

@@ -28,6 +28,7 @@ LOCALES=	am_ET.UTF-8 \
 		ja_JP.eucJP \
 		ja_JP.SJIS \
 		it_IT.ISO8859-1 \
+		kk_KZ.PT154 \
 		ko_KR.eucKR \
 		la_LN.ISO8859-1 \
 		lt_LT.ISO8859-4 \
