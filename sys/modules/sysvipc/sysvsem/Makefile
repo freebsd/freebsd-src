@@ -3,6 +3,6 @@
 .PATH: ${.CURDIR}/../../../kern
 
 KMOD=	sysvsem
-SRCS=	sysv_sem.c opt_sysvipc.h
+SRCS=	sysv_sem.c opt_mac.h opt_sysvipc.h
 
 .include <bsd.kmod.mk>
