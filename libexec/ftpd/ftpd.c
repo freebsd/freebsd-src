@@ -44,7 +44,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)ftpd.c	8.4 (Berkeley) 4/16/94";
 #endif
 static const char rcsid[] =
-	"$Id: ftpd.c,v 1.54 1999/04/07 08:27:40 brian Exp $";
+	"$Id: ftpd.c,v 1.55 1999/04/25 22:23:35 imp Exp $";
 #endif /* not lint */
 
 /*
@@ -103,12 +103,8 @@ static const char rcsid[] =
 #include <varargs.h>
 #endif
 
-#ifdef	INTERNAL_LS
 static char version[] = "Version 6.00LS";
 #undef main
-#else
-static char version[] = "Version 6.00";
-#endif
 
 extern	off_t restart_point;
 extern	char cbuf[];
