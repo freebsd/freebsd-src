@@ -260,20 +260,19 @@ nwfs_writevnode(vp, uiop, cred, ioflag)
  * Do an I/O operation to/from a cache block.
  */
 int
-nwfs_doio(bp, cr, td)
+nwfs_doio(vp, bp, cr, td)
+	struct vnode *vp;
 	struct buf *bp;
 	struct ucred *cr;
 	struct thread *td;
 {
 	struct uio *uiop;
-	struct vnode *vp;
 	struct nwnode *np;
 	struct nwmount *nmp;
 	int error = 0;
 	struct uio uio;
 	struct iovec io;
 
-	vp = bp->b_vp;
 	np = VTONW(vp);
 	nmp = VFSTONWFS(vp->v_mount);
 	uiop = &uio;
