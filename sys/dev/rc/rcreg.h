@@ -32,8 +32,8 @@
 /* Oscillator frequency - 19660.08Mhz / 2 */
 #define RC_OSCFREQ      9830400
 
-#define RC_BRD(s) \
-	((((RC_OSCFREQ + (s) / 2) / (s)) + CD180_CTICKS/2) / CD180_CTICKS)
+#define RC_BRD(s) ((s) == 0 ? 0 : \
+	(((RC_OSCFREQ + (s) / 2) / (s)) + CD180_CTICKS/2) / CD180_CTICKS)
 
 #define RC_VALIDADDR(a) (   (a) == 0x220 || (a) == 0x240 || (a) == 0x250 \
 			 || (a) == 0x260 || (a) == 0x2A0 || (a) == 0x2B0 \
