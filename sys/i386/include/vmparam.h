@@ -34,9 +34,12 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vmparam.h	5.9 (Berkeley) 5/12/91
- *	$Id$
+ *	$Id: vmparam.h,v 1.7 1993/10/15 10:07:45 rgrimes Exp $
  */
 
+
+#ifndef _MACHINE_VMPARAM_H_
+#define _MACHINE_VMPARAM_H_ 1
 
 /*
  * Machine dependent constants for 386.
@@ -259,3 +262,4 @@
 		: "ax"); \
 })
 #endif
+#endif /* _MACHINE_VMPARAM_H_ */

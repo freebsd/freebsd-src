@@ -5,8 +5,11 @@
  * the terms and conditions for use and redistribution.
  *
  *	from: Mach, unknown, 386BSD patch kit
- *	$Id$
+ *	$Id: pio.h,v 1.2 1993/10/16 14:39:23 rgrimes Exp $
  */
+
+#ifndef _MACHINE_PIO_H_
+#define _MACHINE_PIO_H_ 1
 
 #define inl(y) \
 ({ unsigned long _tmp__; \
@@ -42,3 +45,4 @@
 
 #define outb(x, y) \
 { asm volatile("outb %0, %1" : : "a" ((unsigned char)(y)) , "d" ((unsigned short)(x))); }
+#endif /* _MACHINE_PIO_H_ */
