@@ -24,4 +24,4 @@ called "ipf.conf" using touch.  The rc scripts have been written to look
 for the configuration file here, using the installed binaries in /sbin.
 
 Darren Reed
-darrenr@cyber.com.au
+darrenr@pobox.com

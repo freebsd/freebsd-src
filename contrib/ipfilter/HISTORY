@@ -5,6 +5,62 @@
 # Thanks to Craig Bishop of connect.com.au and Sun Microsystems for the
 # loan of a machine to work on a Solaris 2.x port of this software.
 #
+# Thanks to BSDI for providing object files for BSD/OS 3.1 and the means
+# to further support development of IP Filter under BSDI.
+#
+# Thanks also to all those who have contributed patches and other code,
+# and especially those who have found the time to port IP Filter to new
+# platforms.
+
+3.2.7	24/05/98 - Released
+
+u_long -> u_32_t conversions
+
+patches from Bernd Ernesti for NetBSD
+
+fixup ipmon to actually handle HUP's.
+
+Linux fixes from Michael H. Warfield (mhw@wittsend.com)
+
+update for keep state patch (not security related) - Guido
+
+dumphex() uses stdout rather than log
+
+3.2.6	18/05/98 - Released
+
+fix potential security loop hole in keep state code.
+
+update examples.
+
+3.2.5	09/05/98 - Released
+
+BSD/OS 3.1 .o files added for the kernel.
+
+fix sequence # skew vs window size check.
+
+fix minimum ICMP header size check.
+
+remove references to Cybersource.
+
+fix my email address.
+
+remove ntohl in ipnat - Thomas Tornblom
+
+3.2.4	09/04/98 - Released
+
+add script to make devices for /dev on BSD boxes
+
+fixup building into the kernel for FreeBSD 2.2.5
+
+add -D command line option to ipmon to make it a daemon and SIGHUP causes
+it to close and reopen the logfile
+
+fixup make clean and make package for SunOS5 - Marc Boucher
+
+postinstall keeps adding "minor=ipf ipl" - George Ross <gdmr@dcs.ed.ac.uk>
+
+protected by IP Filter gif - Sergey Solyanik <solik@atom.ru>
+
 3.2.3	10/11/97 - Released
 
 fix some iplang bugs

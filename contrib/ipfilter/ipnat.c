@@ -19,6 +19,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <fcntl.h>
+#include <errno.h>
 #include <sys/types.h>
 #if !defined(__SVR4) && !defined(__svr4__)
 #include <strings.h>
@@ -52,9 +53,16 @@
 #include "netinet/ip_nat.h"
 #include "kmem.h"
 
+#if	defined(sun) && !SOLARIS2
+# define	STRERROR(x)	sys_errlist[x]
+extern	char	*sys_errlist[];
+#else
+# define	STRERROR(x)	strerror(x)
+#endif
+
 #if !defined(lint)
 static const char sccsid[] ="@(#)ipnat.c	1.9 6/5/96 (C) 1993 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ipnat.c,v 2.0.2.21.2.1 1997/11/08 04:55:55 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ipnat.c,v 2.0.2.21.2.6 1998/05/23 19:07:02 darrenr Exp $";
 #endif
 
 
@@ -65,14 +73,14 @@ static const char rcsid[] = "@(#)$Id: ipnat.c,v 2.0.2.21.2.1 1997/11/08 04:55:55
 extern	char	*optarg;
 
 ipnat_t	*parse __P((char *));
-u_long	hostnum __P((char *, int *));
-u_long	hostmask __P((char *));
+u_32_t	hostnum __P((char *, int *));
+u_32_t	hostmask __P((char *));
 u_short	portnum __P((char *, char *));
 void	dostats __P((int, int)), flushtable __P((int, int));
 void	printnat __P((ipnat_t *, int, void *));
 void	parsefile __P((int, char *, int));
 void	usage __P((char *));
-int	countbits __P((u_long));
+int	countbits __P((u_32_t));
 char	*getnattype __P((ipnat_t *));
 int	main __P((int, char*[]));
 
@@ -133,7 +141,8 @@ char *argv[];
 
 	if (!(opts & OPT_NODO) && ((fd = open(IPL_NAT, O_RDWR)) == -1) &&
 	    ((fd = open(IPL_NAT, O_RDONLY)) == -1)) {
-		perror("open");
+		(void) fprintf(stderr, "%s: open: %s\n", IPL_NAT,
+			STRERROR(errno));
 		exit(-1);
 	}
 
@@ -153,9 +162,9 @@ char *argv[];
  * of bits.
  */
 int	countbits(ip)
-u_long	ip;
+u_32_t	ip;
 {
-	u_long	ipn;
+	u_32_t	ipn;
 	int	cnt = 0, i, j;
 
 	ip = ipn = ntohl(ip);
@@ -233,7 +242,7 @@ void *ptr;
 		else
 			printf("%s", inet_ntoa(np->in_in[1]));
 		printf(" -> %s/", inet_ntoa(np->in_out[0]));
-		bits = countbits(ntohl(np->in_out[1].s_addr));
+		bits = countbits(np->in_out[1].s_addr);
 		if (bits != -1)
 			printf("%d ", bits);
 		else
@@ -408,18 +417,18 @@ char	*name, *proto;
 }
 
 
-u_long	hostmask(msk)
+u_32_t	hostmask(msk)
 char	*msk;
 {
 	int	bits = -1;
-	u_long	mask;
+	u_32_t	mask;
 
 	if (!isdigit(*msk))
-		return (u_long)-1;
+		return (u_32_t)-1;
 	if (strchr(msk, '.'))
 		return inet_addr(msk);
 	if (strchr(msk, 'x'))
-		return (u_long)strtol(msk, NULL, 0);
+		return (u_32_t)strtol(msk, NULL, 0);
 	/*
 	 * set x most significant bits
 	 */
@@ -436,7 +445,7 @@ char	*msk;
  * returns an ip address as a long var as a result of either a DNS lookup or
  * straight inet_addr() call
  */
-u_long	hostnum(host, resolved)
+u_32_t	hostnum(host, resolved)
 char	*host;
 int	*resolved;
 {
@@ -455,7 +464,7 @@ int	*resolved;
 			fprintf(stderr, "can't resolve hostname: %s\n", host);
 			return 0;
 		}
-		return np->n_net;
+		return htonl(np->n_net);
 	}
 	return *(u_32_t *)hp->h_addr;
 }
@@ -760,7 +769,8 @@ int opts;
 
 	if (strcmp(file, "-")) {
 		if (!(fp = fopen(file, "r"))) {
-			perror(file);
+			(void) fprintf(stderr, "%s: open: %s\n", file,
+				STRERROR(errno));
 			exit(1);
 		}
 	} else

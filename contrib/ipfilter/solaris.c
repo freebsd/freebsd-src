@@ -6,7 +6,7 @@
  * to the original author and the contributors.
  */
 /* #pragma ident   "@(#)solaris.c	1.12 6/5/96 (C) 1995 Darren Reed"*/
-#pragma ident "@(#)$Id: solaris.c,v 2.0.2.22.2.2 1997/11/24 06:15:52 darrenr Exp $";
+#pragma ident "@(#)$Id: solaris.c,v 2.0.2.22.2.4 1998/02/28 02:35:21 darrenr Exp $";
 
 #include <sys/systm.h>
 #include <sys/types.h>
@@ -190,15 +190,16 @@ static int ipf_attach(dip, cmd)
 dev_info_t *dip;
 ddi_attach_cmd_t cmd;
 {
+#ifdef	IPFDEBUG
 	int instance;
 
-#ifdef	IPFDEBUG
 	cmn_err(CE_NOTE, "IP Filter: ipf_attach(%x,%x)", dip, cmd);
 #endif
 	switch (cmd) {
 	case DDI_ATTACH:
-		instance = ddi_get_instance(dip);
 #ifdef	IPFDEBUG
+		instance = ddi_get_instance(dip);
+
 		cmn_err(CE_NOTE, "IP Filter: attach ipf instance %d", instance);
 #endif
 		if (ddi_create_minor_node(dip, "ipf", S_IFCHR, IPL_LOGIPF,
@@ -895,7 +896,7 @@ void solattach()
 		 * Activate any rules directly associated with this interface
 		 */
 		mutex_enter(&ipf_mutex);
-		for (f = ipfilter[0][0]; f; f = f->fr_next) {
+		for (f = ipfilter[0][fr_active]; f; f = f->fr_next) {
 			if ((f->fr_ifa == (struct ifnet *)-1)) {
 				len = strlen(f->fr_ifname)+1; /* includes \0 */
 				if (len && (len == il->ill_name_length) &&
@@ -903,7 +904,7 @@ void solattach()
 					f->fr_ifa = il;
 			}
 		}
-		for (f = ipfilter[1][0]; f; f = f->fr_next) {
+		for (f = ipfilter[1][fr_active]; f; f = f->fr_next) {
 			if ((f->fr_ifa == (struct ifnet *)-1)) {
 				len = strlen(f->fr_ifname)+1; /* includes \0 */
 				if (len && (len == il->ill_name_length) &&
@@ -996,10 +997,10 @@ int ipfsync()
 				np->in_ifp = (struct ifnet *)-1;
 		mutex_exit(&ipf_nat);
 		mutex_enter(&ipf_mutex);
-		for (f = ipfilter[0][0]; f; f = f->fr_next)
+		for (f = ipfilter[0][fr_active]; f; f = f->fr_next)
 			if (f->fr_ifa == (void *)qif->qf_ill)
 				f->fr_ifa = (struct ifnet *)-1;
-		for (f = ipfilter[1][0]; f; f = f->fr_next)
+		for (f = ipfilter[1][fr_active]; f; f = f->fr_next)
 			if (f->fr_ifa == (void *)qif->qf_ill)
 				f->fr_ifa = (struct ifnet *)-1;
 
