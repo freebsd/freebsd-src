@@ -73,6 +73,7 @@ static Distribution DistTable[] = {
 { "info",	"/",			&Dists,		DIST_INFO,		NULL		},
 { "src",	"/",			&Dists,		DIST_SRC,		SrcDistTable	},
 { "des",	"/",			&Dists,		DIST_DES,		DESDistTable	},
+#ifdef __i386__
 { "compat1x",	"/",			&Dists,		DIST_COMPAT1X,		NULL		},
 { "compat20",	"/",			&Dists,		DIST_COMPAT20,		NULL		},
 { "compat21",	"/",			&Dists,		DIST_COMPAT21,		NULL		},
@@ -80,7 +81,9 @@ static Distribution DistTable[] = {
 #if __FreeBSD__ > 3
 { "compat3x",	"/",			&Dists,		DIST_COMPAT3X,		NULL		},
 #endif
+#endif
 { "ports",	"/usr",			&Dists,		DIST_PORTS,		NULL		},
+{ "local",	"/",			&Dists,		DIST_LOCAL,		NULL		},
 { "XF86334",	"/usr",			&Dists,		DIST_XF86,		XF86DistTable	},
 { NULL },
 };
@@ -138,6 +141,7 @@ static Distribution XF86DistTable[] = {
 
 /* The XFree86 server distribution */
 static Distribution XF86ServerDistTable[] = {
+#ifdef __i386__
 { "PC98-Servers/X9480",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_9480,	NULL		},
 { "PC98-Servers/X9EGC",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_9EGC,	NULL		},
 { "PC98-Servers/X9GA9",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_9GA9,	NULL		},
@@ -152,6 +156,7 @@ static Distribution XF86ServerDistTable[] = {
 { "PC98-Servers/X9WEP",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_9WEP,	NULL		},
 { "PC98-Servers/X9WS",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_9WS,	NULL		},
 { "PC98-Servers/X9WSN",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_9WSN,	NULL		},
+#endif
 { "Servers/X3DL",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_3DL,	NULL		},
 { "Servers/X8514",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_8514,	NULL		},
 { "Servers/XAGX",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_AGX,	NULL		},
@@ -166,6 +171,9 @@ static Distribution XF86ServerDistTable[] = {
 { "Servers/XSVGA",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_SVGA,	NULL		},
 { "Servers/XVG16",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_VGA16,	NULL		},
 { "Servers/XW32",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_W32,	NULL		},
+#ifdef __alpha__
+{ "Servers/XTGA",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_TGA,	NULL		},
+#endif
 { NULL },
 };
 
@@ -200,8 +208,12 @@ distVerifyFlags(void)
 	XF86Dists |= DIST_XF86_SERVER;
     if (XF86FontDists)
 	XF86Dists |= DIST_XF86_FONTS;
-    if (XF86Dists || XF86ServerDists || XF86FontDists)
+    if (XF86Dists || XF86ServerDists || XF86FontDists) {
 	Dists |= DIST_XF86;
+#ifdef __i386__
+	Dists |= DIST_COMPAT22;	/* For certain old X applications */
+#endif
+    }
     if (isDebug())
 	msgDebug("Dist Masks: Dists: %0x, DES: %0x, Srcs: %0x\nXServer: %0x, XFonts: %0x, XDists: %0x\n",
 		 Dists, DESDists, SrcDists, XF86ServerDists, XF86FontDists, XF86Dists);

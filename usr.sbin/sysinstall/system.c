@@ -71,7 +71,9 @@ expand(char *fname)
 void
 systemInitialize(int argc, char **argv)
 {
+#ifdef __alpha__
     int i;
+#endif
 
     signal(SIGINT, SIG_IGN);
     globalsInit();
@@ -109,11 +111,15 @@ systemInitialize(int argc, char **argv)
 	close(1); dup(0);
 	close(2); dup(0);
 	printf("%s running as init on %s\n", argv[0], OnVTY ? "vty0" : "serial console");
-	i = ioctl(0, TIOCSCTTY, (char *)NULL);
+	ioctl(0, TIOCSCTTY, (char *)NULL);
 	setlogin("root");
 	setenv("PATH", "/stand:/bin:/sbin:/usr/sbin:/usr/bin:/mnt/bin:/mnt/sbin:/mnt/usr/sbin:/mnt/usr/bin:/usr/X11R6/bin", 1);
 	setbuf(stdin, 0);
 	setbuf(stderr, 0);
+#ifdef __alpha__
+	i = 0;
+	sysctlbyname("machdep.unaligned_print", NULL, 0, &i, sizeof(i));
+#endif
     }
     else {
 	char hname[256];
@@ -347,7 +353,7 @@ systemCreateHoloshell(void)
 	    if (kill(ehs_pid, 0) == 0) {
 
 		if (msgYesNo("There seems to be an emergency holographic shell\n"
-			     "already running on VTY 4.\n"
+			     "already running on VTY 4.\n\n"
 			     "Kill it and start a new one?"))
 		    return;
 
