@@ -96,7 +96,7 @@ boot2.h: boot1.out
 	    REL1=`printf "%d" ${REL1}` > ${.TARGET}
 
 .if ${MACHINE_ARCH} == "amd64"
-boot2.s: machine
+beforedepend boot2.s: machine
 CLEANFILES+=	machine
 machine:
 	ln -sf ${.CURDIR}/../../../i386/include machine

@@ -93,7 +93,7 @@ loader.sym: ${OBJS} ${LIBFICL} ${LIBI386} ${LIBSTAND}
 		${LIBFICL} ${LIBI386} ${LIBSTAND}
 
 .if ${MACHINE_ARCH} == "amd64"
-${OBJS}: machine
+beforedepend ${OBJS}: machine
 CLEANFILES+=	machine
 machine:
 	ln -sf ${.CURDIR}/../../../i386/include machine
