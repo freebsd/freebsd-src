@@ -266,6 +266,7 @@ if_simloop(ifp, m, af, hlen)
 	int isr;
 
 	M_ASSERTPKTHDR(m);
+	m_tag_delete_nonpersistent(m);
 	m->m_pkthdr.rcvif = ifp;
 
 	/* BPF write needs to be handled specially */
