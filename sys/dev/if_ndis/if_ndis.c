@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/socket.h>
 #include <sys/queue.h>
+#include <sys/module.h>
 #if __FreeBSD_version < 502113
 #include <sys/sysctl.h>
 #endif
@@ -90,6 +91,8 @@ int ndis_suspend		(device_t);
 int ndis_resume			(device_t);
 void ndis_shutdown		(device_t);
 
+int ndisdrv_modevent		(module_t, int, void *);
+
 static __stdcall void ndis_txeof	(ndis_handle,
 	ndis_packet *, ndis_status);
 static __stdcall void ndis_rxeof	(ndis_handle,
@@ -97,6 +100,13 @@ static __stdcall void ndis_rxeof	(ndis_handle,
 static __stdcall void ndis_linksts	(ndis_handle,
 	ndis_status, void *, uint32_t);
 static __stdcall void ndis_linksts_done	(ndis_handle);
+
+/* We need to wrap these functions for amd64. */
+
+static funcptr ndis_txeof_wrap;
+static funcptr ndis_rxeof_wrap;
+static funcptr ndis_linksts_wrap;
+static funcptr ndis_linksts_done_wrap;
 
 static void ndis_intr		(void *);
 static void ndis_intrtask	(void *);
@@ -123,7 +133,58 @@ static void ndis_setmulti	(struct ndis_softc *);
 static void ndis_map_sclist	(void *, bus_dma_segment_t *,
 	int, bus_size_t, int);
 
-extern struct mtx_pool *ndis_mtxpool;
+static int ndisdrv_loaded = 0;
+
+/*
+ * This routine should call windrv_load() once for each driver
+ * image. This will do the relocation and dynalinking for the
+ * image, and create a Windows driver object which will be
+ * saved in our driver database.
+ */
+
+int
+ndisdrv_modevent(mod, cmd, arg)
+	module_t		mod;
+	int			cmd;
+	void			*arg;
+{
+	int			error = 0;
+
+	switch (cmd) {
+	case MOD_LOAD:
+		ndisdrv_loaded++;
+                if (ndisdrv_loaded > 1)
+			break;
+		windrv_load(mod, (vm_offset_t)drv_data, 0);
+		windrv_wrap((funcptr)ndis_rxeof, &ndis_rxeof_wrap);
+		windrv_wrap((funcptr)ndis_txeof, &ndis_txeof_wrap);
+		windrv_wrap((funcptr)ndis_linksts, &ndis_linksts_wrap);
+		windrv_wrap((funcptr)ndis_linksts_done,
+		    &ndis_linksts_done_wrap);
+		break;
+	case MOD_UNLOAD:
+		ndisdrv_loaded--;
+		if (ndisdrv_loaded > 0)
+			break;
+		windrv_unload(mod, (vm_offset_t)drv_data, 0);
+		windrv_unwrap(ndis_rxeof_wrap);
+		windrv_unwrap(ndis_txeof_wrap);
+		windrv_unwrap(ndis_linksts_wrap);
+		windrv_unwrap(ndis_linksts_done_wrap);
+		break;
+	case MOD_SHUTDOWN:
+		windrv_unwrap(ndis_rxeof_wrap);
+		windrv_unwrap(ndis_txeof_wrap);
+		windrv_unwrap(ndis_linksts_wrap);
+		windrv_unwrap(ndis_linksts_done_wrap);
+		break;
+	default:
+		error = EINVAL;
+		break;
+	}
+
+	return (error);
+}
 
 /*
  * Program the 64-bit multicast hash filter.
@@ -364,6 +425,8 @@ ndis_attach(dev)
 {
 	u_char			eaddr[ETHER_ADDR_LEN];
 	struct ndis_softc	*sc;
+	driver_object		*drv;
+	device_object		*pdo;
 	struct ifnet		*ifp = NULL;
 	void			*img;
 	int			error = 0, len;
@@ -373,8 +436,6 @@ ndis_attach(dev)
 
 	mtx_init(&sc->ndis_mtx, "ndis softc lock",
 	    MTX_NETWORK_LOCK, MTX_DEF);
-	mtx_init(&sc->ndis_intrmtx,
-	    "ndis irq lock", MTX_NETWORK_LOCK, MTX_DEF);
 
         /*
 	 * Hook interrupt early, since calling the driver's
@@ -407,21 +468,32 @@ ndis_attach(dev)
 	/* Create sysctl registry nodes */
 	ndis_create_sysctls(sc);
 
-	/* Set up driver image in memory. */
+	/*
+	 * Create a new functional device object for this
+	 * device. This is what creates the miniport block
+	 * for this device instance.
+	 */
+
 	img = drv_data;
-	ndis_load_driver((vm_offset_t)img, sc);
+	drv = windrv_lookup((vm_offset_t)img);
+	pdo = windrv_find_pdo(drv, dev);
+	if (NdisAddDevice(drv, pdo) != STATUS_SUCCESS) {
+		device_printf(dev, "failed to create FDO!\n");
+		error = ENXIO;
+		goto fail;
+	}
 
 	/* Tell the user what version of the API the driver is using. */
 	device_printf(dev, "NDIS API version: %d.%d\n",
-	    sc->ndis_chars.nmc_version_major,
-	    sc->ndis_chars.nmc_version_minor);
+	    sc->ndis_chars->nmc_version_major,
+	    sc->ndis_chars->nmc_version_minor);
 
 	/* Do resource conversion. */
 	ndis_convert_res(sc);
 
 	/* Install our RX and TX interrupt handlers. */
-	sc->ndis_block.nmb_senddone_func = ndis_txeof;
-	sc->ndis_block.nmb_pktind_func = ndis_rxeof;
+	sc->ndis_block->nmb_senddone_func = ndis_txeof_wrap;
+	sc->ndis_block->nmb_pktind_func = ndis_rxeof_wrap;
 
 	/* Call driver's init routine. */
 	if (ndis_init_nic(sc)) {
@@ -443,8 +515,8 @@ ndis_attach(dev)
 	 * with this driver, and if so, how many.
 	 */
 
-	if (sc->ndis_chars.nmc_sendsingle_func &&
-	    sc->ndis_chars.nmc_sendmulti_func == NULL) {
+	if (sc->ndis_chars->nmc_sendsingle_func &&
+	    sc->ndis_chars->nmc_sendmulti_func == NULL) {
 		sc->ndis_maxpkts = 1;
 	} else {
 		len = sizeof(sc->ndis_maxpkts);
@@ -454,6 +526,18 @@ ndis_attach(dev)
 
 	sc->ndis_txarray = malloc(sizeof(ndis_packet *) *
 	    sc->ndis_maxpkts, M_DEVBUF, M_NOWAIT|M_ZERO);
+
+	/* Allocate a pool of ndis_packets for TX encapsulation. */
+
+	NdisAllocatePacketPool(&i, &sc->ndis_txpool,
+	   sc->ndis_maxpkts, PROTOCOL_RESERVED_SIZE_IN_PACKET);
+
+	if (i != NDIS_STATUS_SUCCESS) {
+		sc->ndis_txpool = NULL;
+		device_printf(dev, "failed to allocate TX packet pool");
+		error = ENOMEM;
+		goto fail;
+	}
 
 	sc->ndis_txpending = sc->ndis_maxpkts;
 
@@ -691,8 +775,8 @@ nonettypes:
 	}
 
 	/* Override the status handler so we can detect link changes. */
-	sc->ndis_block.nmb_status_func = ndis_linksts;
-	sc->ndis_block.nmb_statusdone_func = ndis_linksts_done;
+	sc->ndis_block->nmb_status_func = ndis_linksts_wrap;
+	sc->ndis_block->nmb_statusdone_func = ndis_linksts_done_wrap;
 fail:
 	if (error)
 		ndis_detach(dev);
@@ -716,12 +800,11 @@ ndis_detach(dev)
 {
 	struct ndis_softc	*sc;
 	struct ifnet		*ifp;
+	driver_object		*drv;
 
 	sc = device_get_softc(dev);
 	KASSERT(mtx_initialized(&sc->ndis_mtx),
 	    ("ndis mutex not initialized"));
-	KASSERT(mtx_initialized(&sc->ndis_intrmtx),
-	    ("ndis interrupt mutex not initialized"));
 	NDIS_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
 	ifp->if_flags &= ~IFF_UP;
@@ -766,6 +849,16 @@ ndis_detach(dev)
 
 	ndis_unload_driver((void *)ifp);
 
+	if (sc->ndis_txpool != NULL)
+		NdisFreePacketPool(sc->ndis_txpool);
+
+	/* Destroy the PDO for this device. */
+	
+	drv = windrv_lookup((vm_offset_t)drv_data);
+	if (drv == NULL)
+		panic("couldn't find driver object");
+	windrv_destroy_pdo(drv, dev);
+
 	if (sc->ndis_iftype == PCIBus)
 		bus_dma_tag_destroy(sc->ndis_parent_tag);
 
@@ -774,7 +867,6 @@ ndis_detach(dev)
 #endif
 
 	mtx_destroy(&sc->ndis_mtx);
-	mtx_destroy(&sc->ndis_intrmtx);
 
 	return(0);
 }
@@ -848,8 +940,8 @@ ndis_rxeof(adapter, packets, pktcnt)
 	int			i;
 
 	block = (ndis_miniport_block *)adapter;
-	sc = (struct ndis_softc *)(block->nmb_ifp);
-	ifp = block->nmb_ifp;
+	sc = device_get_softc(block->nmb_physdeviceobj->do_devext);
+	ifp = &sc->arpcom.ac_if;
 
 	for (i = 0; i < pktcnt; i++) {
 		p = packets[i];
@@ -926,8 +1018,8 @@ ndis_txeof(adapter, packet, status)
 	struct mbuf		*m;
 
 	block = (ndis_miniport_block *)adapter;
-	sc = (struct ndis_softc *)block->nmb_ifp;
-	ifp = block->nmb_ifp;
+	sc = device_get_softc(block->nmb_physdeviceobj->do_devext);
+	ifp = &sc->arpcom.ac_if;
 
 	m = packet->np_m0;
 	idx = packet->np_txidx;
@@ -978,8 +1070,8 @@ ndis_linksts_done(adapter)
 	struct ifnet		*ifp;
 
 	block = adapter;
-	ifp = block->nmb_ifp;
-	sc = ifp->if_softc;
+	sc = device_get_softc(block->nmb_physdeviceobj->do_devext);
+	ifp = &sc->arpcom.ac_if;
 
 	NDIS_LOCK(sc);
 	if (!NDIS_INITIALIZED(sc)) {
@@ -1018,9 +1110,8 @@ ndis_intrtask(arg)
 	irql = KeRaiseIrql(DISPATCH_LEVEL);
 	ndis_intrhand(sc);
 	KeLowerIrql(irql);
-	mtx_lock(&sc->ndis_intrmtx);
+
 	ndis_enable_intr(sc);
-	mtx_unlock(&sc->ndis_intrmtx);
 
 	return;
 }
@@ -1033,21 +1124,24 @@ ndis_intr(arg)
 	struct ifnet		*ifp;
 	int			is_our_intr = 0;
 	int			call_isr = 0;
+	uint8_t			irql;
+	ndis_miniport_interrupt	*intr;
 
 	sc = arg;
 	ifp = &sc->arpcom.ac_if;
+	intr = sc->ndis_block->nmb_interrupt;
 
-	if (sc->ndis_block.nmb_miniportadapterctx == NULL)
+	if (sc->ndis_block->nmb_miniportadapterctx == NULL)
 		return;
 
-	mtx_lock(&sc->ndis_intrmtx);
-	if (sc->ndis_block.nmb_interrupt->ni_isrreq == TRUE)
+	KeAcquireSpinLock(&intr->ni_dpccountlock, &irql);
+	if (sc->ndis_block->nmb_interrupt->ni_isrreq == TRUE)
 		ndis_isr(sc, &is_our_intr, &call_isr);
 	else {
 		ndis_disable_intr(sc);
 		call_isr = 1;
 	}
-	mtx_unlock(&sc->ndis_intrmtx);
+	KeReleaseSpinLock(&intr->ni_dpccountlock, irql);
 
 	if ((is_our_intr || call_isr))
 		ndis_sched(ndis_intrtask, ifp, NDIS_SWI);
@@ -1067,7 +1161,7 @@ ndis_tick(xsc)
 
 	ndis_sched(ndis_ticktask, sc, NDIS_TASKQUEUE);
 	sc->ndis_stat_ch = timeout(ndis_tick, sc, hz *
-	    sc->ndis_block.nmb_checkforhangsecs);
+	    sc->ndis_block->nmb_checkforhangsecs);
 
 	mtx_lock(&Giant);
 
@@ -1086,10 +1180,10 @@ ndis_ticktask(xsc)
 
 	sc = xsc;
 
-	hangfunc = sc->ndis_chars.nmc_checkhang_func;
+	hangfunc = sc->ndis_chars->nmc_checkhang_func;
 
 	if (hangfunc != NULL) {
-		rval = hangfunc(sc->ndis_block.nmb_miniportadapterctx);
+		rval = hangfunc(sc->ndis_block->nmb_miniportadapterctx);
 		if (rval == TRUE) {
 			ndis_reset_nic(sc);
 			return;
@@ -1193,7 +1287,7 @@ ndis_start(ifp)
 	struct mbuf		*m = NULL;
 	ndis_packet		**p0 = NULL, *p = NULL;
 	ndis_tcpip_csum		*csum;
-	int			pcnt = 0;
+	int			pcnt = 0, status;
 
 	sc = ifp->if_softc;
 
@@ -1215,7 +1309,11 @@ ndis_start(ifp)
 		if (m == NULL)
 			break;
 
-		sc->ndis_txarray[sc->ndis_txidx] = NULL;
+		NdisAllocatePacket(&status,
+		    &sc->ndis_txarray[sc->ndis_txidx], sc->ndis_txpool);
+
+		if (status != NDIS_STATUS_SUCCESS)
+			break;
 
 		if (ndis_mtop(m, &sc->ndis_txarray[sc->ndis_txidx])) {
 #if __FreeBSD_version >= 502114
@@ -1390,11 +1488,11 @@ ndis_init(xsc)
 	 * drivers, exactly 2 seconds is too fast.
 	 */
 
-	if (sc->ndis_block.nmb_checkforhangsecs == 0)
-		sc->ndis_block.nmb_checkforhangsecs = 3;
+	if (sc->ndis_block->nmb_checkforhangsecs == 0)
+		sc->ndis_block->nmb_checkforhangsecs = 3;
 
 	sc->ndis_stat_ch = timeout(ndis_tick, sc,
-	    hz * sc->ndis_block.nmb_checkforhangsecs);
+	    hz * sc->ndis_block->nmb_checkforhangsecs);
 
 	return;
 }

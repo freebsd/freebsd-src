@@ -733,15 +733,24 @@ typedef enum ndis_media_state ndis_media_state;
 #define NDIS_DMA_32BITS		0x01
 #define NDIS_DMA_64BITS		0x02
 
+/*
 struct ndis_physaddr {
+#ifdef __i386__
 	uint64_t		np_quad;
+#endif
+#ifdef __amd64__
+	uint32_t		np_low;
+	uint32_t		np_high;
+#define np_quad np_low
+#endif
 #ifdef notdef
 	uint32_t		np_low;
 	uint32_t		np_high;
 #endif
 };
+*/
 
-typedef struct ndis_physaddr ndis_physaddr;
+typedef struct physaddr ndis_physaddr;
 
 struct ndis_ansi_string {
 	uint16_t		nas_len;
@@ -751,6 +760,7 @@ struct ndis_ansi_string {
 
 typedef struct ndis_ansi_string ndis_ansi_string;
 
+#ifdef notdef
 /*
  * nus_buf is really a wchar_t *, but it's inconvenient to include
  * all the necessary header goop needed to define it, and it's a
@@ -761,9 +771,10 @@ struct ndis_unicode_string {
 	uint16_t		nus_maxlen;
 	uint16_t		*nus_buf;
 };
-
 typedef struct ndis_unicode_string ndis_unicode_string;
+#endif
 
+typedef unicode_string ndis_unicode_string;
 
 enum ndis_parm_type {
 	ndis_parm_int,
@@ -1134,6 +1145,7 @@ struct ndis_packet {
 		} np_macrsvd;
 	} u;
 	uint32_t		*np_rsvd[2];
+	uint8_t			nm_protocolreserved[1];
 
 	/*
 	 * This next part is probably wrong, but we need some place
@@ -1152,6 +1164,8 @@ struct ndis_packet {
 };
 
 typedef struct ndis_packet ndis_packet;
+
+#define PROTOCOL_RESERVED_SIZE_IN_PACKET	(4 * sizeof(void *))
 
 /* mbuf ext type for NDIS */
 #define EXT_NDIS		0x999
@@ -1398,11 +1412,11 @@ struct ndis_miniport_block {
 	void			*nmb_resetdone_func;
 	ndis_medium		nmb_medium;
 	uint32_t		nmb_busnum;
-	uint32_t		nmb_bustye;
+	uint32_t		nmb_bustype;
 	uint32_t		nmb_adaptertype;
-	void			*nmb_deviceobj;
-	void			*nmb_physdeviceobj;
-	void			*nmb_nextdeviceobj;
+	device_object		*nmb_deviceobj; /* Functional device */
+	device_object		*nmb_physdeviceobj; /* Physical device */
+	device_object		*nmb_nextdeviceobj; /* Next dev in stack */
 	void			*nmb_mapreg;
 	void			*nmb_callmgraflist;
 	void			*nmb_miniportthread;
@@ -1451,7 +1465,6 @@ struct ndis_miniport_block {
 	ndis_resource_list	*nmb_rlist;
 	ndis_status		nmb_getstat;
 	ndis_status		nmb_setstat;
-	struct nte_head		nmb_timerlist;
 	vm_offset_t		nmb_img;
 	TAILQ_ENTRY(ndis_miniport_block)	link;
 };
@@ -1480,7 +1493,7 @@ typedef void (*ndis_allocdone_handler)(ndis_handle, void *,
 		ndis_physaddr *, uint32_t, void *);
 typedef uint8_t (*ndis_checkforhang_handler)(ndis_handle);
 
-typedef __stdcall ndis_status (*driver_entry)(void *, ndis_unicode_string *);
+typedef __stdcall ndis_status (*driver_entry)(void *, unicode_string *);
 
 extern image_patch_table ndis_functbl[];
 
@@ -1529,6 +1542,18 @@ extern int ndis_thsuspend(struct proc *, int);
 extern void ndis_thresume(struct proc *);
 extern int ndis_strcasecmp(const char *, const char *);
 extern int ndis_strncasecmp(const char *, const char *, size_t);
+
+__stdcall extern uint32_t NdisAddDevice(driver_object *, device_object *);
+__stdcall extern void NdisAllocatePacketPool(ndis_status *,
+        ndis_handle *, uint32_t, uint32_t);
+__stdcall extern void NdisAllocatePacketPoolEx(ndis_status *,
+        ndis_handle *, uint32_t, uint32_t, uint32_t);
+__stdcall extern uint32_t NdisPacketPoolUsage(ndis_handle);
+__stdcall extern void NdisFreePacketPool(ndis_handle);
+__stdcall extern void NdisAllocatePacket(ndis_status *,
+	ndis_packet **, ndis_handle);
+__stdcall extern void NdisFreePacket(ndis_packet *);
+
 __END_DECLS
 
 #endif /* _NDIS_VAR_H_ */

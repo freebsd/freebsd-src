@@ -194,7 +194,7 @@ struct list_entry {
 typedef struct list_entry list_entry;
 
 #define INIT_LIST_HEAD(l)	\
-	l->nle_flink = l->nle_blink = l
+	(l)->nle_flink = (l)->nle_blink = (l)
 
 #define REMOVE_LIST_ENTRY(e)			\
 	do {					\
@@ -236,8 +236,8 @@ typedef struct list_entry list_entry;
 		b = l->nle_blink;		\
 		e->nle_flink = l;		\
 		e->nle_blink = b;		\
-		b->nle_flink = e;		\
-		l->nle_blink = e;		\
+		b->nle_flink = (e);		\
+		l->nle_blink = (e);		\
 	} while (0)
 
 #define INSERT_LIST_HEAD(l, e)			\
@@ -498,9 +498,24 @@ struct driver_extension {
 	void			*dre_adddevicefunc;
 	uint32_t		dre_reinitcnt;
 	unicode_string		dre_srvname;
+
+	/*
+	 * Drivers are allowed to add one or more custom extensions
+	 * to the driver object, but there's no special pointer
+	 * for them. Hang them off here for now.
+	 */
+
+	list_entry		dre_usrext;
 };
 
 typedef struct driver_extension driver_extension;
+
+struct custom_extension {
+	list_entry		ce_list;
+	void			*ce_clid;
+};
+
+typedef struct custom_extension custom_extension;
 
 /*
  * In Windows, there are Physical Device Objects (PDOs) and
@@ -522,7 +537,7 @@ struct device_object {
 	uint16_t		do_type;
 	uint16_t		do_size;
 	uint32_t		do_refcnt;
-	struct device_object	*do_drvobj;
+	struct driver_object	*do_drvobj;
 	struct device_object	*do_nextdev;
 	struct device_object	*do_attacheddev;
 	struct irp		*do_currirp;
@@ -531,6 +546,7 @@ struct device_object {
 	uint32_t		do_characteristics;
 	void			*do_vpb;
 	void			*do_devext;
+	uint32_t		do_devtype;
 	uint8_t			do_stacksize;
 	union {
 		list_entry		do_listent;
@@ -714,6 +730,8 @@ struct io_status_block {
 	} u;
 	register_t		isb_info;
 };
+#define isb_status		u.isb_status
+#define isb_ptr			u.isb_ptr
 
 typedef struct io_status_block io_status_block;
 
@@ -735,6 +753,9 @@ struct kapc {
 };
 
 typedef struct kapc kapc;
+
+typedef __stdcall uint32_t (*completion_func)(device_object *,
+	struct irp *, void *);
 
 struct io_stack_location {
 	uint8_t			isl_major;
@@ -763,7 +784,7 @@ struct io_stack_location {
 
 	void			*isl_devobj;
 	void			*isl_fileobj;
-	void			*isl_completionfunc;
+	completion_func		isl_completionfunc;
 	void			*isl_completionctx;
 };
 
@@ -797,7 +818,7 @@ struct irp {
 	uint8_t			irp_apcenv;
 	uint8_t			irp_allocflags;
 	io_status_block		*irp_usriostat;
-	nt_kevent		irp_userevent;
+	nt_kevent		*irp_usrevent;
 	union {
 		struct {
 			void			*irp_apcfunc;
@@ -839,11 +860,21 @@ struct irp {
 
 typedef struct irp irp;
 
+#define IoSizeOfIrp(ssize)						\
+	((uint16_t) (sizeof(irp) + ((ssize) * (sizeof(io_stack_location)))))
+
+
 #define IoGetCurrentIrpStackLocation(irp)				\
 	(irp)->irp_tail.irp_overlay.irp_csl
 
 #define IoGetNextIrpStackLocation(irp)					\
 	((irp)->irp_tail.irp_overlay.irp_csl - 1)
+
+#define IoSetNextIrpStackLocation(irp)					\
+	do {								\
+		irp->irp_currentstackloc--;				\
+		irp->irp_tail.irp_overlay.irp_csl--;			\
+	} while(0)
 
 #define IoSetCompletionRoutine(irp, func, ctx, ok, err, cancel)		\
 	do {								\
@@ -852,16 +883,13 @@ typedef struct irp irp;
 		s->isl_completionfunc = (func);				\
 		s->isl_completionctx = (ctx);				\
 		s->isl_ctl = 0;						\
-		if (ok) irp->ctl = SL_INVOKE_ON_SUCCESS;		\
-		if (err) irp->ctl |= SL_INVOKE_ON_ERROR;		\
-		if (cancel) irp->ctl |= SL_INVOKE_ON_CANCEL;		\
+		if (ok) s->isl_ctl = SL_INVOKE_ON_SUCCESS;		\
+		if (err) s->isl_ctl |= SL_INVOKE_ON_ERROR;		\
+		if (cancel) s->isl_ctl |= SL_INVOKE_ON_CANCEL;		\
 	} while(0)
 
 #define IoMarkIrpPending(irp)						\
 	IoGetCurrentIrpStackLocation(irp)->isl_ctl |= SL_PENDING_RETURNED
-
-#define IoSizeOfIrp(s)							\
-	((uint16_t) (sizeof(itp) + ((s) * (sizeof(io_stack_location)))))
 
 #define IoCopyCurrentIrpStackLocationToNext(irp)			\
 	do {								\
@@ -878,7 +906,7 @@ typedef struct irp irp;
 		(irp)->irp_tail.irp_overlay.irp_csl++;			\
 	} while(0)
 
-typedef uint32_t (*driver_dispatch)(device_object *, irp *);
+typedef __stdcall uint32_t (*driver_dispatch)(device_object *, irp *);
 
 /*
  * The driver_object is allocated once for each driver that's loaded
@@ -898,14 +926,14 @@ struct driver_object {
 	void			*dro_driverstart;
 	uint32_t		dro_driversize;
 	void			*dro_driversection;
-	driver_extension	dro_driverext;
+	driver_extension	*dro_driverext;
 	unicode_string		dro_drivername;
 	unicode_string		*dro_hwdb;
 	void			*dro_pfastiodispatch;
 	void			*dro_driverinitfunc;
 	void			*dro_driverstartiofunc;
 	void			*dro_driverunloadfunc;
-	void			*dro_dispatch[IRP_MJ_MAXIMUM_FUNCTION + 1];
+	driver_dispatch		dro_dispatch[IRP_MJ_MAXIMUM_FUNCTION + 1];
 };
 
 typedef struct driver_object driver_object;
@@ -931,6 +959,81 @@ typedef struct driver_object driver_object;
 #define DEVPROP_INSTALL_STATE		0x00000012
 #define DEVPROP_REMOVAL_POLICY		0x00000013
 
+/* Various supported device types (used with IoCreateDevice()) */
+
+#define FILE_DEVICE_BEEP		0x00000001
+#define FILE_DEVICE_CD_ROM		0x00000002
+#define FILE_DEVICE_CD_ROM_FILE_SYSTEM	0x00000003
+#define FILE_DEVICE_CONTROLLER		0x00000004
+#define FILE_DEVICE_DATALINK		0x00000005
+#define FILE_DEVICE_DFS			0x00000006
+#define FILE_DEVICE_DISK		0x00000007
+#define FILE_DEVICE_DISK_FILE_SYSTEM	0x00000008
+#define FILE_DEVICE_FILE_SYSTEM		0x00000009
+#define FILE_DEVICE_INPORT_PORT		0x0000000A
+#define FILE_DEVICE_KEYBOARD		0x0000000B
+#define FILE_DEVICE_MAILSLOT		0x0000000C
+#define FILE_DEVICE_MIDI_IN		0x0000000D
+#define FILE_DEVICE_MIDI_OUT		0x0000000E
+#define FILE_DEVICE_MOUSE		0x0000000F
+#define FILE_DEVICE_MULTI_UNC_PROVIDER	0x00000010
+#define FILE_DEVICE_NAMED_PIPE		0x00000011
+#define FILE_DEVICE_NETWORK		0x00000012
+#define FILE_DEVICE_NETWORK_BROWSER	0x00000013
+#define FILE_DEVICE_NETWORK_FILE_SYSTEM	0x00000014
+#define FILE_DEVICE_NULL		0x00000015
+#define FILE_DEVICE_PARALLEL_PORT	0x00000016
+#define FILE_DEVICE_PHYSICAL_NETCARD	0x00000017
+#define FILE_DEVICE_PRINTER		0x00000018
+#define FILE_DEVICE_SCANNER		0x00000019
+#define FILE_DEVICE_SERIAL_MOUSE_PORT	0x0000001A
+#define FILE_DEVICE_SERIAL_PORT		0x0000001B
+#define FILE_DEVICE_SCREEN		0x0000001C
+#define FILE_DEVICE_SOUND		0x0000001D
+#define FILE_DEVICE_STREAMS		0x0000001E
+#define FILE_DEVICE_TAPE		0x0000001F
+#define FILE_DEVICE_TAPE_FILE_SYSTEM	0x00000020
+#define FILE_DEVICE_TRANSPORT		0x00000021
+#define FILE_DEVICE_UNKNOWN		0x00000022
+#define FILE_DEVICE_VIDEO		0x00000023
+#define FILE_DEVICE_VIRTUAL_DISK	0x00000024
+#define FILE_DEVICE_WAVE_IN		0x00000025
+#define FILE_DEVICE_WAVE_OUT		0x00000026
+#define FILE_DEVICE_8042_PORT		0x00000027
+#define FILE_DEVICE_NETWORK_REDIRECTOR	0x00000028
+#define FILE_DEVICE_BATTERY		0x00000029
+#define FILE_DEVICE_BUS_EXTENDER	0x0000002A
+#define FILE_DEVICE_MODEM		0x0000002B
+#define FILE_DEVICE_VDM			0x0000002C
+#define FILE_DEVICE_MASS_STORAGE	0x0000002D
+#define FILE_DEVICE_SMB			0x0000002E
+#define FILE_DEVICE_KS			0x0000002F
+#define FILE_DEVICE_CHANGER		0x00000030
+#define FILE_DEVICE_SMARTCARD		0x00000031
+#define FILE_DEVICE_ACPI		0x00000032
+#define FILE_DEVICE_DVD			0x00000033
+#define FILE_DEVICE_FULLSCREEN_VIDEO	0x00000034
+#define FILE_DEVICE_DFS_FILE_SYSTEM	0x00000035
+#define FILE_DEVICE_DFS_VOLUME		0x00000036
+#define FILE_DEVICE_SERENUM		0x00000037
+#define FILE_DEVICE_TERMSRV		0x00000038
+#define FILE_DEVICE_KSEC		0x00000039
+#define FILE_DEVICE_FIPS		0x0000003A
+
+/* Device characteristics */
+
+#define FILE_REMOVABLE_MEDIA		0x00000001
+#define FILE_READ_ONLY_DEVICE		0x00000002
+#define FILE_FLOPPY_DISKETTE		0x00000004
+#define FILE_WRITE_ONCE_MEDIA		0x00000008
+#define FILE_REMOTE_DEVICE		0x00000010
+#define FILE_DEVICE_IS_MOUNTED		0x00000020
+#define FILE_VIRTUAL_VOLUME		0x00000040
+#define FILE_AUTOGENERATED_DEVICE_NAME	0x00000080
+#define FILE_DEVICE_SECURE_OPEN		0x00000100
+
+/* Status codes */
+
 #define STATUS_SUCCESS			0x00000000
 #define STATUS_USER_APC			0x000000C0
 #define STATUS_KERNEL_APC		0x00000100
@@ -938,11 +1041,24 @@ typedef struct driver_object driver_object;
 #define STATUS_TIMEOUT			0x00000102
 #define STATUS_INVALID_PARAMETER	0xC000000D
 #define STATUS_INVALID_DEVICE_REQUEST	0xC0000010
+#define STATUS_MORE_PROCESSING_REQUIRED	0xC0000016
 #define STATUS_BUFFER_TOO_SMALL		0xC0000023
 #define STATUS_MUTANT_NOT_OWNED		0xC0000046
 #define STATUS_INVALID_PARAMETER_2	0xC00000F0
+#define STATUS_INSUFFICIENT_RESOURCES	0xC000009A
 
 #define STATUS_WAIT_0			0x00000000
+
+/* Memory pool types, for ExAllocatePoolWithTag() */
+
+#define NonPagedPool			0x00000000
+#define PagedPool			0x00000001
+#define NonPagedPoolMustSucceed		0x00000002
+#define DontUseThisType			0x00000003
+#define NonPagedPoolCacheAligned	0x00000004
+#define PagedPoolCacheAligned		0x00000005
+#define NonPagedPoolCacheAlignedMustS	0x00000006
+#define MaxPoolType			0x00000007
 
 /*
  * FreeBSD's kernel stack is 2 pages in size by default. The
@@ -952,8 +1068,21 @@ typedef struct driver_object driver_object;
 #define NDIS_KSTACK_PAGES	8
 
 extern image_patch_table ntoskrnl_functbl[];
+typedef void (*funcptr)(void);
 
 __BEGIN_DECLS
+extern int windrv_libinit(void);
+extern int windrv_libfini(void);
+extern driver_object *windrv_lookup(vm_offset_t);
+extern int windrv_load(module_t, vm_offset_t, int);
+extern int windrv_unload(module_t, vm_offset_t, int);
+extern int windrv_create_pdo(driver_object *, device_t);
+extern void windrv_destroy_pdo(driver_object *, device_t);
+extern device_object *windrv_find_pdo(driver_object *, device_t);
+extern int windrv_bus_attach(driver_object *, char *);
+extern int windrv_wrap(funcptr, funcptr *);
+extern int windrv_unwrap(funcptr);
+
 extern int ntoskrnl_libinit(void);
 extern int ntoskrnl_libfini(void);
 __stdcall extern void KeInitializeDpc(kdpc *, void *, void *);
@@ -962,8 +1091,7 @@ __stdcall extern uint8_t KeRemoveQueueDpc(kdpc *);
 __stdcall extern void KeInitializeTimer(ktimer *);
 __stdcall extern void KeInitializeTimerEx(ktimer *, uint32_t);
 __stdcall extern uint8_t KeSetTimer(ktimer *, int64_t, kdpc *);  
-__stdcall extern uint8_t KeSetTimerEx(ktimer *, int64_t,
-	uint32_t, kdpc *);
+__stdcall extern uint8_t KeSetTimerEx(ktimer *, int64_t, uint32_t, kdpc *);
 __stdcall extern uint8_t KeCancelTimer(ktimer *);
 __stdcall extern uint8_t KeReadStateTimer(ktimer *);
 __stdcall extern uint32_t KeWaitForSingleObject(nt_dispatch_header *, uint32_t,
@@ -976,8 +1104,22 @@ __stdcall extern uint32_t KeResetEvent(nt_kevent *);
 __fastcall extern void KefAcquireSpinLockAtDpcLevel(REGARGS1(kspin_lock *));
 __fastcall extern void KefReleaseSpinLockFromDpcLevel(REGARGS1(kspin_lock *));
 __stdcall extern void KeInitializeSpinLock(kspin_lock *);
+__stdcall extern void *ExAllocatePoolWithTag(uint32_t, size_t, uint32_t);
+__stdcall extern void ExFreePool(void *);
+__stdcall extern uint32_t IoAllocateDriverObjectExtension(driver_object *,
+	void *, uint32_t, void **);
+__stdcall extern void *IoGetDriverObjectExtension(driver_object *, void *);
+__stdcall extern uint32_t IoCreateDevice(driver_object *, uint32_t,
+	unicode_string *, uint32_t, uint32_t, uint8_t, device_object **);
+__stdcall extern void IoDeleteDevice(device_object *);
+__stdcall extern device_object *IoGetAttachedDevice(device_object *);
 __fastcall extern uint32_t IofCallDriver(REGARGS2(device_object *, irp *));
 __fastcall extern void IofCompleteRequest(REGARGS2(irp *, uint8_t));
+__stdcall extern void IoDetachDevice(device_object *);
+__stdcall extern device_object *IoAttachDeviceToDeviceStack(device_object *,
+	device_object *);
+__stdcall mdl *IoAllocateMdl(void *, uint32_t, uint8_t, uint8_t, irp *);
+__stdcall void IoFreeMdl(mdl *);
 
 #define IoCallDriver(a, b)		FASTCALL2(IofCallDriver, a, b)
 #define IoCompleteRequest(a, b)		FASTCALL2(IofCompleteRequest, a, b)
@@ -992,6 +1134,19 @@ __fastcall extern void IofCompleteRequest(REGARGS2(irp *, uint8_t));
 #define KeRaiseIrql(a)		FASTCALL1(KfRaiseIrql, a)
 #define KeLowerIrql(a)		FASTCALL1(KfLowerIrql, a)
 #endif /* __i386__ */
+
+#ifdef __amd64__
+#define KeAcquireSpinLock(a, b)	*(b) = KfAcquireSpinLock(a)
+#define KeReleaseSpinLock(a, b)	KfReleaseSpinLock(a, b)
+
+/*
+ * These may need to be redefined later;
+ * not sure where they live on amd64 yet.
+ */
+#define KeRaiseIrql(a)		KfRaiseIrql(a)
+#define KeLowerIrql(a)		KfLowerIrql(a)
+#endif /* __amd64__ */
+
 __END_DECLS
 
 #endif /* _NTOSKRNL_VAR_H_ */

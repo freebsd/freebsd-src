@@ -383,7 +383,7 @@ _sppp=		sppp
 _agp=		agp
 _drm=		drm
 _io=		io
-#_ndis=		ndis
+_ndis=		ndis
 _sound=		sound
 .endif
 

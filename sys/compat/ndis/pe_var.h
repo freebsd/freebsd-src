@@ -39,11 +39,11 @@
  *  Image Format
  */
 
-#define IMAGE_DOS_SIGNATURE                 0x5A4D      /* MZ */
-#define IMAGE_OS2_SIGNATURE                 0x454E      /* NE */
-#define IMAGE_OS2_SIGNATURE_LE              0x454C      /* LE */
-#define IMAGE_VXD_SIGNATURE                 0x454C      /* LE */
-#define IMAGE_NT_SIGNATURE                  0x00004550  /* PE00 */
+#define IMAGE_DOS_SIGNATURE			0x5A4D      /* MZ */
+#define IMAGE_OS2_SIGNATURE			0x454E      /* NE */
+#define IMAGE_OS2_SIGNATURE_LE			0x454C      /* LE */
+#define IMAGE_VXD_SIGNATURE			0x454C      /* LE */
+#define IMAGE_NT_SIGNATURE			0x00004550  /* PE00 */
 
 /*
  * All PE files have one of these, just so if you attempt to
@@ -174,11 +174,13 @@ struct image_optional_header {
 	uint32_t	ioh_bsssize;
 	uint32_t	ioh_entryaddr;
 	uint32_t	ioh_codebaseaddr;
+#ifndef __amd64__
 	uint32_t	ioh_databaseaddr;
+#endif
 
 	/* NT-specific fields */
 
-	uint32_t	ioh_imagebase;
+	uintptr_t	ioh_imagebase;
 	uint32_t	ioh_sectalign;
 	uint32_t	ioh_filealign;
 	uint16_t	ioh_osver_major;
@@ -193,10 +195,10 @@ struct image_optional_header {
 	uint32_t	ioh_csum;
 	uint16_t	ioh_subsys;
 	uint16_t	ioh_dll_characteristics;
-	uint32_t	ioh_stackreservesize;
-	uint32_t	ioh_stackcommitsize;
-	uint32_t	ioh_heapreservesize;
-	uint32_t	ioh_heapcommitsize;
+	uintptr_t	ioh_stackreservesize;
+	uintptr_t	ioh_stackcommitsize;
+	uintptr_t	ioh_heapreservesize;
+	uintptr_t	ioh_heapcommitsize;
 	uint16_t	ioh_loaderflags;
 	uint32_t	ioh_rva_size_cnt;
 	image_data_directory	ioh_datadir[IMAGE_DIRECTORY_ENTRIES_MAX];
@@ -285,7 +287,7 @@ typedef struct image_section_header image_section_header;
 
 struct image_import_by_name {
 	uint16_t	iibn_hint;
-	u_int8_t	iibn_name[1];
+	uint8_t		iibn_name[1];
 };
 
 #define IMAGE_ORDINAL_FLAG 0x80000000
@@ -404,6 +406,7 @@ typedef struct message_resource_entry message_resource_entry;
 struct image_patch_table {
 	char		*ipt_name;
 	void		(*ipt_func)(void);
+	void		(*ipt_wrap)(void);
 };
 
 typedef struct image_patch_table image_patch_table;
@@ -476,9 +479,78 @@ fastcall3(fcall3 f, uint32_t a, uint32_t b, uint32_t c)
 #define FASTCALL3(f, a, b, c) (f)((a), (b), (c))
 #endif /* __i386__ */
 
+
+/*
+ * AMD64 support. Microsoft uses a different calling convention
+ * than everyone else on the amd64 platform. Sadly, gcc has no
+ * built-in support for it (yet).
+ *
+ * The three major differences we're concerned with are:
+ *
+ * - The first 4 register-sized arguments are passed in the
+ *   %rcx, %rdx, %r8 and %r9 registers, and the rest are pushed
+ *   onto the stack. (The ELF ABI uses 6 registers, not 4).
+ *
+ * - The caller must reserve space on the stack for the 4
+ *   register arguments in case the callee has to spill them.
+ *
+ * - The stack myst be 16-byte aligned by the time the callee
+ *   executes. A call instruction implicitly pushes an 8 byte
+ *   return address onto the stack. We have to make sure that
+ *   the amount of space we consume, plus the return address,
+ *   is a multiple of 16 bytes in size. This means that in
+ *   some cases, we may need to chew up an extra 8 bytes on
+ *   the stack that will be unused.
+ *
+ * On the bright side, Microsoft seems to be using just the one
+ * calling convention for all functions on amd64, unlike x86 where
+ * they use a mix of _stdcall, _fastcall and _cdecl.
+ */
+
+#ifdef __amd64__
+
+extern uint64_t x86_64_call1(void *, uint64_t);
+extern uint64_t x86_64_call2(void *, uint64_t, uint64_t);
+extern uint64_t x86_64_call3(void *, uint64_t, uint64_t, uint64_t);
+extern uint64_t x86_64_call4(void *, uint64_t, uint64_t, uint64_t, uint64_t);
+extern uint64_t x86_64_call5(void *, uint64_t, uint64_t, uint64_t, uint64_t,
+	uint64_t);
+extern uint64_t x86_64_call6(void *, uint64_t, uint64_t, uint64_t, uint64_t,
+	uint64_t, uint64_t);
+
+
+#define MSCALL1(fn, a)						\
+	x86_64_call1((fn), (uint64_t)(a))
+#define MSCALL2(fn, a, b)					\
+	x86_64_call2((fn), (uint64_t)(a), (uint64_t)(b))
+#define MSCALL3(fn, a, b, c)					\
+	x86_64_call3((fn), (uint64_t)(a), (uint64_t)(b),		\
+	(uint64_t)(c))
+#define MSCALL4(fn, a, b, c, d)					\
+	x86_64_call4((fn), (uint64_t)(a), (uint64_t)(b),		\
+	(uint64_t)(c), (uint64_t)(d))
+#define MSCALL5(fn, a, b, c, d, e)				\
+	x86_64_call5((fn), (uint64_t)(a), (uint64_t)(b),		\
+	(uint64_t)(c), (uint64_t)(d), (uint64_t)(e))
+#define MSCALL6(fn, a, b, c, d, e, f)				\
+	x86_64_call6((fn), (uint64_t)(a), (uint64_t)(b),		\
+	(uint64_t)(c), (uint64_t)(d), (uint64_t)(e), (uint64_t)(f))
+
+#else /* __amd64__ */
+
+#define MSCALL1(fn, a)			(fn)((a))
+#define MSCALL2(fn, a, b)		(fn)((a), (b))
+#define MSCALL3(fn, a, b, c)		(fn)((a), (b), (c))
+#define MSCALL4(fn, a, b, c, d)		(fn)((a), (b), (c), (d))
+#define MSCALL5(fn, a, b, c, d, e)	(fn)((a), (b), (c), (d), (e))
+#define MSCALL6(fn, a, b, c, d, e, f)	(fn)((a), (b), (c), (d), (e), (f))
+
+#endif /* __amd64__ */
+
+
 #define FUNC void(*)(void)
-#define IMPORT_FUNC(x)		{ #x, (FUNC)x }
-#define IMPORT_FUNC_MAP(x, y)	{ #x, (FUNC)y }
+#define IMPORT_FUNC(x)		{ #x, (FUNC)x, NULL }
+#define IMPORT_FUNC_MAP(x, y)	{ #x, (FUNC)y, NULL }
 
 __BEGIN_DECLS
 extern int pe_get_dos_header(vm_offset_t, image_dos_header *);
@@ -489,7 +561,7 @@ extern int pe_get_section_header(vm_offset_t, image_section_header *);
 extern int pe_numsections(vm_offset_t);
 extern vm_offset_t pe_imagebase(vm_offset_t);
 extern vm_offset_t pe_directory_offset(vm_offset_t, uint32_t);
-extern vm_offset_t pe_translate_addr (vm_offset_t, uint32_t);
+extern vm_offset_t pe_translate_addr (vm_offset_t, vm_offset_t);
 extern int pe_get_section(vm_offset_t, image_section_header *, const char *);
 extern int pe_relocate(vm_offset_t);
 extern int pe_get_import_descriptor(vm_offset_t, image_import_descriptor *, char *);
