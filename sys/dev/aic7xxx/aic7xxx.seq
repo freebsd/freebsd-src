@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: //depot/src/aic7xxx/aic7xxx.seq#7 $
+ * $Id: //depot/src/aic7xxx/aic7xxx.seq#15 $
  *
  * $FreeBSD$
  */
@@ -80,11 +80,9 @@ test_queue:
 BEGIN_CRITICAL
 	if ((ahc->features & AHC_QUEUE_REGS) != 0) {
 		test	QOFF_CTLSTA, SCB_AVAIL jz poll_for_work_loop;
-		mov	NONE, SNSCB_QOFF;
 	} else {
 		mov	A, QINPOS;
 		cmp	KERNEL_QINPOS, A je poll_for_work_loop;
-		inc	QINPOS;
 	}
 	mov	ARG_1, NEXT_QUEUED_SCB;
 END_CRITICAL
@@ -116,16 +114,17 @@ dma_queued_scb:
 BEGIN_CRITICAL
 	cmp	NEXT_QUEUED_SCB, A jne abort_qinscb;
 	if ((ahc->flags & AHC_SEQUENCER_DEBUG) != 0) {
-		if ((ahc->flags & AHC_PAGESCBS) == 0) {
-			cmp	SCBPTR, A je . + 2;
-			mvi	INTSTAT, SCBPTR_MISMATCH;
-		}
 		cmp	SCB_TAG, A je . + 2;
-		mvi	INTSTAT, SCB_MISMATCH;
+		mvi	SCB_MISMATCH call set_seqint;
 	}
 	mov	NEXT_QUEUED_SCB, SCB_NEXT;
 	mov	SCB_NEXT,WAITING_SCBH;
 	mov	WAITING_SCBH, SCBPTR;
+	if ((ahc->features & AHC_QUEUE_REGS) != 0) {
+		mov	NONE, SNSCB_QOFF;
+	} else {
+		inc	QINPOS;
+	}
 END_CRITICAL
 start_waiting:
 	/*
@@ -136,11 +135,21 @@ start_waiting:
 	jmp	poll_for_work_loop;
 
 abort_qinscb:
-	mvi	INTSTAT, ABORT_QINSCB;
+	mvi	ABORT_QINSCB call set_seqint;
 	call	add_scb_to_free_list;
 	jmp	poll_for_work_loop;
 
 start_selection:
+	/*
+	 * If bus reset interrupts have been disabled (from a previous
+	 * reset), re-enable them now.  Resets are only of interest
+	 * when we have outstanding transactions, so we can safely
+	 * defer re-enabling the interrupt until, as an initiator,
+	 * we start sending out transactions again.
+	 */
+	test	SIMODE1, ENSCSIRST	jnz . + 3;
+	mvi	CLRSINT1, CLRSCSIRSTI;
+	or	SIMODE1, ENSCSIRST;
 	if ((ahc->features & AHC_TWIN) != 0) {
 		and	SINDEX,~SELBUSB,SBLKCTL;/* Clear channel select bit */
 		test	SCB_SCSIID, TWIN_CHNLB jz . + 2;
@@ -194,7 +203,15 @@ selection:
 	mvi	CLRSINT1,CLRBUSFREE;
 	or	SIMODE1, ENBUSFREE;
 
+	/*
+	 * Guard against a bus free after (re)selection
+	 * but prior to enabling the busfree interrupt.  SELDI
+	 * and SELDO will be cleared in that case.
+	 */
 	test	SSTAT0,SELDO	jnz select_out;
+	test	SSTAT0, SELDI	jnz . + 3;
+	and	SIMODE1, ~ENBUSFREE;
+	jmp	poll_for_work;
 	mvi	CLRSINT0, CLRSELDI;
 select_in:
 	if ((ahc->flags & AHC_TARGETROLE) != 0) {
@@ -206,7 +223,16 @@ select_in:
 		 * We've just been selected.  Assert BSY and
 		 * setup the phase for receiving messages
 		 * from the target.
+		 *
+		 * If bus reset interrupts have been disabled (from a
+		 * previous reset), re-enable them now.  Resets are only
+		 * of interest when we have outstanding transactions, so
+		 * we can safely defer re-enabling the interrupt until,
+		 * as a target, we start receiving transactions again.
 		 */
+		test	SIMODE1, ENSCSIRST	jnz . + 3;
+		mvi	CLRSINT1, CLRSCSIRSTI;
+		or	SIMODE1, ENSCSIRST;
 		mvi	SCSISIGO, P_MESGOUT|BSYO;
 
 		/*
@@ -326,8 +352,7 @@ select_in:
 		 * run it's own target mode message state engine.
 		 */
 host_target_message_loop:
-		mvi	INTSTAT, HOST_MSG_LOOP;
-		nop;
+		mvi	HOST_MSG_LOOP call set_seqint;
 		cmp	RETURN_1, EXIT_MSG_LOOP	je target_ITloop;
 		test	SSTAT0, SPIORDY jz .;
 		jmp	host_target_message_loop;
@@ -408,10 +433,6 @@ select_out:
 	and	SCSISEQ, TEMODE|ENSELI|ENRSELI|ENAUTOATNP, SCSISEQ;
 	mvi	CLRSINT0, CLRSELDO;
 	mov	SCBPTR, WAITING_SCBH;
-	if ((ahc->flags & AHC_SEQUENCER_DEBUG) != 0) {
-		cmp	SCB_TAG, SCB_LIST_NULL jne . + 2;
-		mvi	INTSTAT, BOGUS_TAG;
-	}
 	mov	WAITING_SCBH,SCB_NEXT;
 	mov	SAVED_SCSIID, SCB_SCSIID;
 	mov	SAVED_LUN, SCB_LUN;
@@ -612,7 +633,7 @@ ITloop:
 	cmp	A,P_STATUS	je p_status;
 	cmp	A,P_MESGIN	je p_mesgin;
 
-	mvi	INTSTAT,BAD_PHASE;
+	mvi	BAD_PHASE call set_seqint;
 	jmp	ITloop;			/* Try reading the bus again. */
 
 await_busfree:
@@ -624,7 +645,7 @@ await_busfree:
 	and	SXFRCTL0, ~SPIOEN;
 	test	SSTAT1,REQINIT|BUSFREE	jz .;
 	test	SSTAT1, BUSFREE jnz poll_for_work;
-	mvi	INTSTAT, BAD_PHASE;
+	mvi	MISSED_BUSFREE call set_seqint;
 }
 	
 clear_target_state:
@@ -844,7 +865,7 @@ data_phase_loop:
 	or	SXFRCTL1,BITBUCKET;
 	test	SSTAT1,PHASEMIS	jz .;
 	and	SXFRCTL1, ~BITBUCKET;
-	mvi	INTSTAT,DATA_OVERRUN;
+	mvi	DATA_OVERRUN call set_seqint;
 	jmp	ITloop;
 
 data_phase_inbounds:
@@ -863,7 +884,16 @@ ultra2_dma_loop:
 		 * completes or the target changes phase.
 		 */
 		test	SG_CACHE_SHADOW, LAST_SEG_DONE jnz ultra2_dmafinish;
-		test	SSTAT1,PHASEMIS	jz ultra2_dma_loop;
+		if ((ahc->flags & AHC_TARGETROLE) != 0) {
+			 /*
+			  * As a target, we control the phases,
+			  * so ignore PHASEMIS.
+			  */
+			test	SSTAT0, TARGET jnz ultra2_dma_loop;
+		}
+		if ((ahc->flags & AHC_INITIATORROLE) != 0) {
+			test	SSTAT1,PHASEMIS	jz ultra2_dma_loop;
+		}
 
 ultra2_dmafinish:
 		test	DFCNTRL, DIRECTION jnz ultra2_dmafifoempty;
@@ -1163,6 +1193,7 @@ bmov_resid:
 	if ((ahc->features & AHC_ULTRA2) != 0) {
 		/* Clear the channel in case we return to data phase later */
 		or	SXFRCTL0, CLRSTCNT|CLRCHN;
+		or	SXFRCTL0, CLRSTCNT|CLRCHN;
 	}
 
 	if ((ahc->flags & AHC_TARGETROLE) != 0) {
@@ -1387,7 +1418,7 @@ p_mesgin:
  * shouldn't hurt, but why do it twice...
  */
 host_message_loop:
-	mvi	INTSTAT, HOST_MSG_LOOP;
+	mvi	HOST_MSG_LOOP call set_seqint;
 	call	phase_lock;
 	cmp	RETURN_1, EXIT_MSG_LOOP	je ITloop + 1;
 	jmp	host_message_loop;
@@ -1400,7 +1431,7 @@ if ((ahc->features & AHC_WIDE) != 0) {
 	cmp	ARG_1, 0x01 jne mesgin_reject;
 	test	SCB_RESIDUAL_SGPTR[0], SG_LIST_NULL jz . + 2;
 	test	DATA_COUNT_ODD, 0x1	jz mesgin_done;
-	mvi	INTSTAT, IGN_WIDE_RES;
+	mvi	IGN_WIDE_RES call set_seqint;
 	jmp	mesgin_done;
 }
 
@@ -1425,7 +1456,23 @@ mesgin_complete:
  */
 
 /*
- * First check for residuals
+ * If ATN is raised, we still want to give the target a message.
+ * Perhaps there was a parity error on this last message byte.
+ * Either way, the target should take us to message out phase
+ * and then attempt to complete the command again.
+ * XXX - Need a critical section to do this corrctly.  Wait until
+ *       we queue completions.
+	test	SCSISIGI, ATNI jnz mesgin_done;
+ */
+
+/*
+ * See if we attempted to deliver a message but the target ingnored us.
+ */
+	test	SCB_CONTROL, MK_MESSAGE jz . + 2;
+	mvi	MKMSG_FAILED call set_seqint;
+
+/*
+ * Check for residuals
  */
 	test	SCB_SGPTR, SG_LIST_NULL jnz check_status;/* No xfer */
 	test	SCB_SGPTR, SG_FULL_RESID jnz upload_scb;/* Never xfered */
@@ -1437,8 +1484,7 @@ upload_scb:
 	mvi	DMAPARAMS, FIFORESET;
 	mov	SCB_TAG		call dma_scb;
 	test	SCB_SCSI_STATUS, 0xff	jz complete;	/* Just a residual? */
-	mvi	INTSTAT, BAD_STATUS;			/* let driver know */
-	nop;
+	mvi	BAD_STATUS call set_seqint;		/* let driver know */
 	cmp	RETURN_1, SEND_SENSE	jne complete;
 	call	add_scb_to_free_list;
 	jmp	await_busfree;
@@ -1471,6 +1517,16 @@ if ((ahc->flags & AHC_INITIATORROLE) != 0) {
  * a reselction.
  */
 mesgin_disconnect:
+	/*
+	 * If ATN is raised, we still want to give the target a message.
+	 * Perhaps there was a parity error on this last message byte
+	 * or we want to abort this command.  Either way, the target
+	 * should take us to message out phase and then attempt to
+	 * disconnect again.
+	 * XXX - Wait for more testing.
+	test	SCSISIGI, ATNI jnz mesgin_done;
+	 */
+
 	or	SCB_CONTROL,DISCONNECTED;
 	if ((ahc->flags & AHC_PAGESCBS) != 0) {
 		call	add_scb_to_disc_list;
@@ -1560,15 +1616,17 @@ fetch_busy_target:
 			add	A, -BUSY_TARGETS, SINDEX;
 			jc	. + 2;
 			mvi	INTSTAT, OUT_OF_RANGE;
+			nop;
 			add	A, -(BUSY_TARGETS + 16), SINDEX;
 			jnc	. + 2;
 			mvi	INTSTAT, OUT_OF_RANGE;
+			nop;
 		}
 	}
 	mov	ARG_1, SINDIR;
 	cmp	ARG_1, SCB_LIST_NULL	je snoop_tag;
 	if ((ahc->flags & AHC_PAGESCBS) != 0) {
-		mov	RETURN_1 call findSCB;
+		mov	ARG_1 call findSCB;
 	} else {
 		mov	SCBPTR, RETURN_1;
 	}
@@ -1631,13 +1689,13 @@ setup_SCB_id_lun_okay:
 	}
 	test	SCB_CONTROL,DISCONNECTED jz not_found_cleanup_scb;
 	and	SCB_CONTROL,~DISCONNECTED;
-	mvi	SEQ_FLAGS,IDENTIFY_SEEN;	/* make note of IDENTIFY */
 	test	SCB_CONTROL, TAG_ENB	jnz setup_SCB_tagged;
 	mov	A, SCBPTR;
 	mvi	ARG_1, SCB_LIST_NULL;
 	mov	SAVED_SCSIID	call	set_busy_target;
 	mov	SCBPTR, A;
 setup_SCB_tagged:
+	mvi	SEQ_FLAGS,IDENTIFY_SEEN;	/* make note of IDENTIFY */
 	call	set_transfer_settings;
 	/* See if the host wants to send a message upon reconnection */
 	test	SCB_CONTROL, MK_MESSAGE jz mesgin_done;
@@ -1649,7 +1707,7 @@ not_found_cleanup_scb:
 		call	add_scb_to_free_list;
 	}
 not_found:
-	mvi	INTSTAT, NO_MATCH;
+	mvi	NO_MATCH call set_seqint;
 	jmp	mesgin_done;
 
 mk_mesg:
@@ -1672,7 +1730,7 @@ mk_mesg:
  * use the same calling convention as inb.
  */
 inb_next_wait_perr:
-	mvi	INTSTAT, PERR_DETECTED;
+	mvi	PERR_DETECTED call set_seqint;
 	jmp	inb_next_wait;
 inb_next:
 	mov	NONE,SCSIDATL;		/*dummy read from latch to ACK*/
@@ -1742,7 +1800,7 @@ target_outb:
 assert:
 	test	SEQ_FLAGS,IDENTIFY_SEEN	jnz return;	/* seen IDENTIFY? */
 
-	mvi	INTSTAT,NO_IDENT 	ret;	/* no - tell the kernel */
+	mvi	NO_IDENT jmp set_seqint;	/* no - tell the kernel */
 
 /*
  * Locate a disconnected SCB by SCBID.  Upon return, SCBPTR and SINDEX will
@@ -1752,6 +1810,7 @@ assert:
  * removal of the found SCB from the disconnected list.
  */
 if ((ahc->flags & AHC_PAGESCBS) != 0) {
+BEGIN_CRITICAL
 findSCB:
 	mov	A, SINDEX;			/* Tag passed in SINDEX */
 	cmp	DISCONNECTED_SCBH, SCB_LIST_NULL je findSCB_notFound;
@@ -1773,6 +1832,7 @@ rem_scb_from_disc_list:
 	mov	SCBPTR, SINDEX ret;
 rHead:
 	mov	DISCONNECTED_SCBH,SCB_NEXT ret;
+END_CRITICAL
 findSCB_notFound:
 	/*
 	 * We didn't find it.  Page in the SCB.
@@ -1814,7 +1874,7 @@ post_byte:
 	}
 
 phase_lock_perr:
-	mvi	INTSTAT, PERR_DETECTED;
+	mvi	PERR_DETECTED call set_seqint;
 phase_lock:     
 	/*
 	 * If there is a parity error, wait for the kernel to
@@ -2055,21 +2115,23 @@ END_CRITICAL
 
 if ((ahc->flags & AHC_PAGESCBS) != 0) {
 get_free_or_disc_scb:
+BEGIN_CRITICAL
 	cmp	FREE_SCBH, SCB_LIST_NULL jne dequeue_free_scb;
 	cmp	DISCONNECTED_SCBH, SCB_LIST_NULL jne dequeue_disc_scb;
 return_error:
-	mvi	INTSTAT, NO_FREE_SCB;
+	mvi	NO_FREE_SCB call set_seqint;
 	mvi	SINDEX, SCB_LIST_NULL	ret;
 dequeue_disc_scb:
 	mov	SCBPTR, DISCONNECTED_SCBH;
-dma_up_scb:
+	mov	DISCONNECTED_SCBH, SCB_NEXT;
+END_CRITICAL
 	mvi	DMAPARAMS, FIFORESET;
-	mov	SCB_TAG	call dma_scb;
-unlink_disc_scb:
-	mov	DISCONNECTED_SCBH, SCB_NEXT ret;
+	mov	SCB_TAG	jmp dma_scb;
+BEGIN_CRITICAL
 dequeue_free_scb:
 	mov	SCBPTR, FREE_SCBH;
 	mov	FREE_SCBH, SCB_NEXT ret;
+END_CRITICAL
 
 add_scb_to_disc_list:
 /*
@@ -2082,5 +2144,8 @@ BEGIN_CRITICAL
 	mov	DISCONNECTED_SCBH, SCBPTR ret;
 END_CRITICAL
 }
+set_seqint:
+	mov	INTSTAT, SINDEX;
+	nop;
 return:
 	ret;

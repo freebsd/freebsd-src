@@ -194,14 +194,14 @@ static device_method_t ahc_eisa_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		aic7770_probe),
 	DEVMETHOD(device_attach,	aic7770_attach),
-
+	DEVMETHOD(device_detach,	ahc_detach),
 	{ 0, 0 }
 };
 
 static driver_t ahc_eisa_driver = {
 	"ahc",
 	ahc_eisa_methods,
-	1,			/* unused */
+	sizeof(struct ahc_softc)
 };
 
 static devclass_t ahc_devclass;

@@ -45,6 +45,7 @@ static device_method_t ahc_pci_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		ahc_pci_probe),
 	DEVMETHOD(device_attach,	ahc_pci_attach),
+	DEVMETHOD(device_detach,	ahc_detach),
 	{ 0, 0 }
 };
 
@@ -57,6 +58,7 @@ static driver_t ahc_pci_driver = {
 static devclass_t ahc_devclass;
 
 DRIVER_MODULE(ahc, pci, ahc_pci_driver, ahc_devclass, 0, 0);
+DRIVER_MODULE(ahc, cardbus, ahc_pci_driver, ahc_devclass, 0, 0);
 
 static int
 ahc_pci_probe(device_t dev)
@@ -92,7 +94,7 @@ ahc_pci_attach(device_t dev)
 	if (name == NULL)
 		return (ENOMEM);
 	strcpy(name, device_get_nameunit(dev));
-	ahc = ahc_alloc(NULL, name);
+	ahc = ahc_alloc(dev, name);
 	if (ahc == NULL)
 		return (ENOMEM);
 
@@ -139,6 +141,7 @@ ahc_pci_map_registers(struct ahc_softc *ahc)
 	regs_id = 0;
 #ifdef AHC_ALLOW_MEMIO
 	if ((command & PCIM_CMD_MEMEN) != 0) {
+
 		regs_type = SYS_RES_MEMORY;
 		regs_id = AHC_PCI_MEMADDR;
 		regs = bus_alloc_resource(ahc->dev_softc, regs_type,
@@ -161,6 +164,11 @@ ahc_pci_map_registers(struct ahc_softc *ahc)
 				bus_release_resource(ahc->dev_softc, regs_type,
 						     regs_id, regs);
 				regs = NULL;
+			} else {
+				command &= ~PCIM_CMD_PORTEN;
+				ahc_pci_write_config(ahc->dev_softc,
+						     PCIR_COMMAND,
+						     command, /*bytes*/1);
 			}
 		}
 	}
@@ -172,6 +180,10 @@ ahc_pci_map_registers(struct ahc_softc *ahc)
 					  &regs_id, 0, ~0, 1, RF_ACTIVE);
 		ahc->tag = rman_get_bustag(regs);
 		ahc->bsh = rman_get_bushandle(regs);
+		command &= ~PCIM_CMD_MEMEN;
+		ahc_pci_write_config(ahc->dev_softc,
+				     PCIR_COMMAND,
+				     command, /*bytes*/1);
 	}
 	ahc->platform_data->regs_res_type = regs_type;
 	ahc->platform_data->regs_res_id = regs_id;

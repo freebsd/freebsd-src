@@ -40,11 +40,10 @@
 #include <opt_aic7xxx.h>	/* for config options */
 #include <pci.h>		/* for NPCI */
 
-#include <stddef.h>		/* For offsetof */
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>		/* For device_t */
+#include <sys/eventhandler.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/queue.h>
@@ -94,6 +93,9 @@
 	(SCB_GET_CHANNEL(ahc, scb) == 'A' ? (ahc)->platform_data->sim \
 					  : (ahc)->platform_data->sim_b)
 
+#ifndef offsetof
+#define offsetof(type, member)  ((size_t)(&((type *)0)->member))
+#endif
 /************************* Forward Declarations *******************************/
 typedef device_t ahc_dev_softc_t;
 typedef union ccb *ahc_io_ctx_t;
@@ -167,10 +169,30 @@ struct ahc_platform_data {
 	struct resource		*regs;
 	struct resource		*irq;
 	void			*ih;
+	eventhandler_tag	 eh;
 };
 
 struct scb_platform_data {
 };
+
+/********************************* Byte Order *********************************/
+/*
+ * XXX Waiting for FreeBSD byte swapping functions.
+ * For now assume host is Little Endian.
+ */
+#define ahc_htobe16(x) x
+#define ahc_htobe32(x) x
+#define ahc_htobe64(x) x
+#define ahc_htole16(x) x
+#define ahc_htole32(x) x
+#define ahc_htole64(x) x
+
+#define ahc_be16toh(x) x
+#define ahc_be32toh(x) x
+#define ahc_be64toh(x) x
+#define ahc_le16toh(x) x
+#define ahc_le32toh(x) x
+#define ahc_le64toh(x) x
 
 /***************************** Core Includes **********************************/
 #include <dev/aic7xxx/aic7xxx.h>
@@ -453,11 +475,20 @@ void	  ahc_notify_xfer_settings_change(struct ahc_softc *,
 void	  ahc_platform_set_tags(struct ahc_softc *, struct ahc_devinfo *,
 				int /*enable*/);
 
-/***************************** Initialization *********************************/
+/************************* Initialization/Teardown ****************************/
 int	  ahc_platform_alloc(struct ahc_softc *ahc, void *platform_arg);
 void	  ahc_platform_free(struct ahc_softc *ahc);
 int	  ahc_attach(struct ahc_softc *);
 int	  ahc_softc_comp(struct ahc_softc *lahc, struct ahc_softc *rahc);
+int	  ahc_detach(device_t);
+
+/****************************** Interrupts ************************************/
+void			ahc_platform_intr(void *);
+static __inline void	ahc_platform_flushwork(struct ahc_softc *ahc);
+static __inline void
+ahc_platform_flushwork(struct ahc_softc *ahc)
+{
+}
 
 /************************ Misc Function Declarations **************************/
 timeout_t ahc_timeout;
