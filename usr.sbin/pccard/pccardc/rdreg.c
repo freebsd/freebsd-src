@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: rdreg.c,v 1.8 1997/10/06 11:35:56 charnier Exp $";
+	"$Id: rdreg.c,v 1.9 1997/11/18 21:08:07 nate Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -47,7 +47,7 @@ dumpslot(sl)
 	struct pcic_reg r;
 
 	sprintf(name, CARD_DEVICE, sl);
-	fd = open(name, 2);
+	fd = open(name, O_RDWR);
 	if (fd < 0) {
 		warn("%s", name);
 		return;
