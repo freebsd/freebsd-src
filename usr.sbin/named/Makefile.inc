@@ -21,7 +21,8 @@ CFLAGS+=	-I${BIND_DIR}/port/freebsd/include
 # This is mostly for named and named-xfer
 .if defined(USE_LIBBIND)
 # Sadly, mkdep doesn't know about -idirafter, which would be ideal here.
-CFLAGS+=	-I${DESTDIR}/usr/include -I${BIND_DIR}/include
+#CFLAGS+=	-I${.CURDIR}/../../include -I${BIND_DIR}/include
+CFLAGS+=	-I${BIND_DIR}/include
 
 .if exists(${.OBJDIR}/../../lib/libbind)
 LIBBINDDIR:=	${.OBJDIR}/../../lib/libbind
