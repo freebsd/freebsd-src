@@ -48,6 +48,13 @@ specifically marked as [MERGED] features.
 1.1. KERNEL CHANGES
 -------------------
 
+A new event notification facility called kqueue was added to the
+FreeBSD kernel.  This is a new interface which is able to replace
+poll/select, offering improved performance, as well as the ability
+to report many different types of events.  Support for monitoring
+changes in sockets, pipes, fifos, and files are present, as well as
+for signals and processes.
+
 NFS has been immensely improved with bug fixes and performance tuning.
 
 Support for more than 32 signals has been added. 
