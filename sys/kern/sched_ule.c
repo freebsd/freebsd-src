@@ -33,6 +33,7 @@
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/resource.h>
 #include <sys/sched.h>
 #include <sys/smp.h>
 #include <sys/sx.h>
@@ -123,7 +124,8 @@ struct td_sched *thread0_sched = &td_sched;
  *		running vs the total number of ticks.
  */
 #define	SCHED_PRI_RANGE		(PRI_MAX_TIMESHARE - PRI_MIN_TIMESHARE + 1)
-#define	SCHED_PRI_NRESV		40
+#define	SCHED_PRI_NRESV		PRIO_TOTAL
+#define	SCHED_PRI_NHALF		(PRIO_TOTAL >> 2)
 #define	SCHED_PRI_BASE		((SCHED_PRI_NRESV / 2) + PRI_MIN_TIMESHARE)
 #define	SCHED_DYN_RANGE		(SCHED_PRI_RANGE - SCHED_PRI_NRESV)
 #define	SCHED_DYN_HALF		(SCHED_DYN_RANGE / 2)
@@ -153,25 +155,15 @@ struct td_sched *thread0_sched = &td_sched;
  * SLICE_MIN:	Minimum time slice granted, in units of ticks.
  * SLICE_MAX:	Maximum time slice granted.
  * SLICE_RANGE:	Range of available time slices scaled by hz.
- * SLICE_SCALE:	The number slices granted per unit of pri or slp.
- * PRI_TOSLICE:	Compute a slice size that is proportional to the priority.
- * INTERACT_TOSLICE:	Compute a slice size that is inversely proportional to 
- *		the amount of time slept. (smaller slices for interactive ksegs)
- * PRI_COMP:	This determines what fraction of the actual slice comes from 
- *		the slice size computed from the priority.
- * INTERACT_COMP:This determines what component of the actual slice comes from
- *		the slize size computed from the interactivity score.
+ * SLICE_SCALE:	The number slices granted per val in the range of [0, max].
+ * SLICE_NICE:  Determine the amount of slice granted to a scaled nice.
  */
 #define	SCHED_SLICE_MIN			(hz / 100)
 #define	SCHED_SLICE_MAX			(hz / 10)
 #define	SCHED_SLICE_RANGE		(SCHED_SLICE_MAX - SCHED_SLICE_MIN + 1)
 #define	SCHED_SLICE_SCALE(val, max)	(((val) * SCHED_SLICE_RANGE) / (max))
-#define	SCHED_INTERACT_COMP(slice)	((slice) / 2)	/* 50% */
-#define	SCHED_PRI_COMP(slice)		((slice) / 2)	/* 50% */
-#define	SCHED_PRI_TOSLICE(pri)						\
-    (SCHED_SLICE_MAX - SCHED_SLICE_SCALE((pri), SCHED_PRI_RANGE))
-#define	SCHED_INTERACT_TOSLICE(score)					\
-    (SCHED_SLICE_SCALE((score), SCHED_INTERACT_RANGE))
+#define	SCHED_SLICE_NICE(nice)						\
+    (SCHED_SLICE_MAX - SCHED_SLICE_SCALE((nice), SCHED_PRI_NHALF))
 
 /*
  * This macro determines whether or not the kse belongs on the current or
@@ -219,7 +211,7 @@ struct kseq	kseq_cpu;
 #define	KSEQ_CPU(x)	(&kseq_cpu)
 #endif
 
-static int sched_slice(struct ksegrp *kg);
+static void sched_slice(struct kse *ke);
 static int sched_priority(struct ksegrp *kg);
 static int sched_interact_score(struct ksegrp *kg);
 void sched_pctcpu_update(struct kse *ke);
@@ -227,6 +219,7 @@ int sched_pickcpu(void);
 
 /* Operations on per processor queues */
 static struct kse * kseq_choose(struct kseq *kseq);
+static int kseq_nice_min(struct kseq *kseq);
 static void kseq_setup(struct kseq *kseq);
 static __inline void kseq_add(struct kseq *kseq, struct kse *ke);
 static __inline void kseq_rem(struct kseq *kseq, struct kse *ke);
@@ -311,6 +304,26 @@ kseq_choose(struct kseq *kseq)
 	return (ke);
 }
 
+static int
+kseq_nice_min(struct kseq *kseq)
+{
+	struct kse *ke0;
+	struct kse *ke1;
+
+	if (kseq->ksq_load == 0)
+		return (0);
+
+	ke0 = runq_choose(kseq->ksq_curr);
+	ke1 = runq_choose(kseq->ksq_next);
+
+	if (ke0 == NULL)
+		return (ke1->ke_ksegrp->kg_nice);
+
+	if (ke1 == NULL)
+		return (ke0->ke_ksegrp->kg_nice);
+
+	return (min(ke0->ke_ksegrp->kg_nice, ke1->ke_ksegrp->kg_nice));
+}
 
 static void
 kseq_setup(struct kseq *kseq)
@@ -367,26 +380,56 @@ sched_priority(struct ksegrp *kg)
 }
 
 /*
- * Calculate a time slice based on the process priority.
+ * Calculate a time slice based on the properties of the kseg and the runq
+ * that we're on.
  */
-static int
-sched_slice(struct ksegrp *kg)
+static void
+sched_slice(struct kse *ke)
 {
-	int pslice;
-	int islice;
-	int slice;
-	int pri;
+	struct ksegrp *kg;
 
-	pri = kg->kg_user_pri;
-	pri -= PRI_MIN_TIMESHARE;
-	pslice = SCHED_PRI_TOSLICE(pri);
-	islice = SCHED_INTERACT_TOSLICE(sched_interact_score(kg));
-	slice = SCHED_INTERACT_COMP(islice) + SCHED_PRI_COMP(pslice);
+	kg = ke->ke_ksegrp;
 
-	if (slice < SCHED_SLICE_MIN)
-		slice = SCHED_SLICE_MIN;
-	else if (slice > SCHED_SLICE_MAX)
-		slice = SCHED_SLICE_MAX;
+	/*
+	 * Rationale:
+	 * KSEs in interactive ksegs get the minimum slice so that we
+	 * quickly notice if it abuses its advantage.
+	 *
+	 * KSEs in non-interactive ksegs are assigned a slice that is
+	 * based on the ksegs nice value relative to the least nice kseg
+	 * on the run queue for this cpu.
+	 *
+	 * If the KSE is less nice than all others it gets the maximum
+	 * slice and other KSEs will adjust their slice relative to
+	 * this when they first expire.
+	 *
+	 * There is 20 point window that starts relative to the least
+	 * nice kse on the run queue.  Slice size is determined by
+	 * the kse distance from the last nice ksegrp.
+	 *
+	 * If you are outside of the window you will get no slice and
+	 * you will be reevaluated each time you are selected on the
+	 * run queue.
+	 *	
+	 */
+
+	if (!SCHED_CURR(kg)) {
+		struct kseq *kseq;
+		int nice_base;
+		int nice;
+
+		kseq = KSEQ_CPU(ke->ke_cpu);
+		nice_base = kseq_nice_min(kseq);
+		nice = kg->kg_nice + (0 - nice_base);
+
+		if (kseq->ksq_load == 0 || kg->kg_nice < nice_base)
+			ke->ke_slice = SCHED_SLICE_MAX;
+		else if (nice <= SCHED_PRI_NHALF)
+			ke->ke_slice = SCHED_SLICE_NICE(nice);
+		else
+			ke->ke_slice = 0;
+	} else
+		ke->ke_slice = SCHED_SLICE_MIN;
 
 	/*
 	 * Every time we grant a new slice check to see if we need to scale
@@ -398,7 +441,7 @@ sched_slice(struct ksegrp *kg)
 		kg->kg_slptime /= SCHED_SLP_RUN_THROTTLE;
 	}
 
-	return (slice);
+	return;
 }
 
 static int
@@ -723,7 +766,7 @@ sched_clock(struct thread *td)
 	 */
 	if (ke->ke_slice <= 0) {
 		sched_priority(kg);
-		ke->ke_slice = sched_slice(kg);
+		sched_slice(ke);
 		td->td_flags |= TDF_NEEDRESCHED;
 		ke->ke_runq = NULL;
 	}
@@ -784,11 +827,24 @@ sched_choose(void)
 	struct kse *ke;
 
 	kseq = KSEQ_SELF();
+retry:
 	ke = kseq_choose(kseq);
 
 	if (ke) {
 		ke->ke_state = KES_THREAD;
 		kseq_rem(kseq, ke);
+
+		/*
+		 * If we dequeue a kse with a slice of zero it was below the
+		 * nice threshold to acquire a slice.  Recalculate the slice
+		 * to see if the situation has changed and then requeue.
+		 */
+		if (ke->ke_slice == 0) {
+			sched_slice(ke);
+			ke->ke_runq = kseq->ksq_next;
+			kseq_add(kseq, ke);
+			goto retry;
+		}
 	}
 
 #ifdef SMP
