@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acconfig.h - Global configuration constants
- *       $Revision: 68 $
+ *       $Revision: 69 $
  *
  *****************************************************************************/
 
@@ -144,7 +144,7 @@
 
 /* Version string */
 
-#define ACPI_CA_VERSION             0x20010816
+#define ACPI_CA_VERSION             0x20010831
 
 
 /* Maximum objects in the various object caches */
