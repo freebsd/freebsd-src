@@ -138,9 +138,9 @@ intr(signo)
 }
 
 static char *
-lpc_prompt()
+lpc_prompt(void)
 {
-	return("lpc> ");
+	return ("lpc> ");
 }
 
 /*
