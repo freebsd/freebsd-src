@@ -267,13 +267,12 @@ tcp_init()
  * of the tcpcb each time to conserve mbufs.
  */
 void
-tcp_fillheaders(tp, ip_ptr, tcp_ptr)
-	struct tcpcb *tp;
+tcpip_fillheaders(inp, ip_ptr, tcp_ptr)
+	struct inpcb *inp;
 	void *ip_ptr;
 	void *tcp_ptr;
 {
-	struct inpcb *inp = tp->t_inpcb;
-	struct tcphdr *tcp_hdr = (struct tcphdr *)tcp_ptr;
+	struct tcphdr *th = (struct tcphdr *)tcp_ptr;
 
 #ifdef INET6
 	if ((inp->inp_vflag & INP_IPV6) != 0) {
@@ -288,36 +287,34 @@ tcp_fillheaders(tp, ip_ptr, tcp_ptr)
 		ip6->ip6_plen = sizeof(struct tcphdr);
 		ip6->ip6_src = inp->in6p_laddr;
 		ip6->ip6_dst = inp->in6p_faddr;
-		tcp_hdr->th_sum = 0;
 	} else
 #endif
 	{
-	struct ip *ip = (struct ip *) ip_ptr;
+		struct ip *ip;
 
-	ip->ip_v = IPVERSION;
-	ip->ip_hl = 5;
-	ip->ip_tos = 0;
-	ip->ip_len = 0;
-	ip->ip_id = 0;
-	ip->ip_off = 0;
-	ip->ip_ttl = 0;
-	ip->ip_sum = 0;
-	ip->ip_p = IPPROTO_TCP;
-	ip->ip_src = inp->inp_laddr;
-	ip->ip_dst = inp->inp_faddr;
-	tcp_hdr->th_sum = in_pseudo(ip->ip_src.s_addr, ip->ip_dst.s_addr,
-		htons(sizeof(struct tcphdr) + IPPROTO_TCP));
+		ip = (struct ip *)ip_ptr;
+		ip->ip_v = IPVERSION;
+		ip->ip_hl = 5;
+		ip->ip_tos = inp->inp_ip_tos;
+		ip->ip_len = 0;
+		ip->ip_id = 0;
+		ip->ip_off = 0;
+		ip->ip_ttl = inp->inp_ip_ttl;
+		ip->ip_sum = 0;
+		ip->ip_p = IPPROTO_TCP;
+		ip->ip_src = inp->inp_laddr;
+		ip->ip_dst = inp->inp_faddr;
 	}
-
-	tcp_hdr->th_sport = inp->inp_lport;
-	tcp_hdr->th_dport = inp->inp_fport;
-	tcp_hdr->th_seq = 0;
-	tcp_hdr->th_ack = 0;
-	tcp_hdr->th_x2 = 0;
-	tcp_hdr->th_off = 5;
-	tcp_hdr->th_flags = 0;
-	tcp_hdr->th_win = 0;
-	tcp_hdr->th_urp = 0;
+	th->th_sport = inp->inp_lport;
+	th->th_dport = inp->inp_fport;
+	th->th_seq = 0;
+	th->th_ack = 0;
+	th->th_x2 = 0;
+	th->th_off = 5;
+	th->th_flags = 0;
+	th->th_win = 0;
+	th->th_urp = 0;
+	th->th_sum = 0;		/* in_pseudo() is called later for ipv4 */
 }
 
 /*
@@ -326,8 +323,8 @@ tcp_fillheaders(tp, ip_ptr, tcp_ptr)
  * use for this function is in keepalives, which use tcp_respond.
  */
 struct tcptemp *
-tcp_maketemplate(tp)
-	struct tcpcb *tp;
+tcpip_maketemplate(inp)
+	struct inpcb *inp;
 {
 	struct mbuf *m;
 	struct tcptemp *n;
@@ -338,7 +335,7 @@ tcp_maketemplate(tp)
 	m->m_len = sizeof(struct tcptemp);
 	n = mtod(m, struct tcptemp *);
 
-	tcp_fillheaders(tp, (void *)&n->tt_ipgen, (void *)&n->tt_t);
+	tcpip_fillheaders(inp, (void *)&n->tt_ipgen, (void *)&n->tt_t);
 	return (n);
 }
 
@@ -1505,7 +1502,7 @@ ipsec_hdrsiz_tcp(tp)
 		th = (struct tcphdr *)(ip6 + 1);
 		m->m_pkthdr.len = m->m_len =
 			sizeof(struct ip6_hdr) + sizeof(struct tcphdr);
-		tcp_fillheaders(tp, ip6, th);
+		tcpip_fillheaders(inp, ip6, th);
 		hdrsiz = ipsec6_hdrsiz(m, IPSEC_DIR_OUTBOUND, inp);
 	} else
 #endif /* INET6 */
@@ -1513,7 +1510,7 @@ ipsec_hdrsiz_tcp(tp)
 	ip = mtod(m, struct ip *);
 	th = (struct tcphdr *)(ip + 1);
 	m->m_pkthdr.len = m->m_len = sizeof(struct tcpiphdr);
-	tcp_fillheaders(tp, ip, th);
+	tcpip_fillheaders(inp, ip, th);
 	hdrsiz = ipsec4_hdrsiz(m, IPSEC_DIR_OUTBOUND, inp);
       }
 
