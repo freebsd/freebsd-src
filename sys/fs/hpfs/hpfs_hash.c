@@ -113,7 +113,8 @@ loop:
 	mtx_lock(&hpfs_hphash_mtx);
 	LIST_FOREACH(hp, HPNOHASH(dev, ino), h_hash) {
 		if (ino == hp->h_no && dev == hp->h_dev) {
-			LOCKMGR(&hp->h_intlock, LK_EXCLUSIVE | LK_INTERLOCK, &hpfs_hphash_slock, NULL);
+			lockmgr(&hp->h_intlock, LK_EXCLUSIVE | LK_INTERLOCK,
+			    &hpfs_hphash_slock, NULL);
 			return (hp);
 		}
 	}
