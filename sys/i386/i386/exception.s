@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: exception.s,v 1.11 1995/09/07 21:36:17 davidg Exp $
+ *	$Id: exception.s,v 1.12 1995/12/14 14:35:33 peter Exp $
  */
 
 #include "npx.h"				/* NNPX */
@@ -105,8 +105,6 @@ IDTVEC(ill)
 	pushl $0; TRAP(T_PRIVINFLT)
 IDTVEC(dna)
 	pushl $0; TRAP(T_DNA)
-IDTVEC(dble)
-	TRAP(T_DOUBLEFLT)
 IDTVEC(fpusegm)
 	pushl $0; TRAP(T_FPOPFLT)
 IDTVEC(tss)
