@@ -53,21 +53,22 @@ static const char rcsid[] =
 /*      Re-coding of advent in C: main program                          */
 
 #include <sys/file.h>
+#include <sys/types.h>
 #include <signal.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 #include "hdr.h"
 
 
+int
 main(argc,argv)
 int argc;
 char **argv;
 {
-	extern int errno;
 	int i;
 	int rval,ll;
 	struct text *kk;
-	extern trapdel();
 
 	/* revoke */
 	setgid(getgid());
@@ -117,7 +118,7 @@ char **argv;
 			}
 			kk = &rtext[16];
 		}
-	l2001:  if (toting(bear)) rspeak(141);  /* 2001                 */
+		if (toting(bear)) rspeak(141);  /* 2001                 */
 		speak(kk);
 		k=1;
 		if (forced(loc))
@@ -222,11 +223,11 @@ char **argv;
 		if ((strncmp(wd1,"water",5)&&strncmp(wd1,"oil",3))
 		    || (strncmp(wd2,"plant",5)&&strncmp(wd2,"door",4)))
 			goto l2610;
-		if (at(vocab(wd2,1))) strcpy(wd2,"pour");
+		if (at(vocab(wd2,1,0))) strcpy(wd2,"pour");
 
 	l2610:  if (!strncmp(wd1,"west",4))
 			if (++iwest==10) rspeak(17);
-	l2630:  i=vocab(wd1,-1);
+	l2630:  i=vocab(wd1,-1,0);
 		if (i== -1)
 		{       spk=60;                 /* 3000         */
 			if (pct(20)) spk=61;
@@ -263,7 +264,6 @@ char **argv;
 		if (*wd2!=0 && verb!=say) goto l2800;
 		if (verb==say) obj= *wd2;
 		if (obj!=0) goto l4090;
-	l4080:
 		switch(verb)
 		{   case 1:                     /* take = 8010          */
 			if (atloc[loc]==0||linkx[atloc[loc]]!=0) goto l8000;
@@ -329,7 +329,7 @@ char **argv;
 			if (gaveup) done(2);
 			goto l2012;
 		    case 25:                    /* foo: 8250            */
-			k=vocab(wd1,3);
+			k=vocab(wd1,3,0);
 			spk=42;
 			if (foobar==1-k) goto l8252;
 			if (foobar!=0) spk=151;
@@ -394,7 +394,7 @@ char **argv;
 			    case 2012: goto l2012;
 			    default: bug(105);
 			}
-	l9030:      case 3:
+		    case 3:
 			switch(trsay())
 			{   case 2012: goto l2012;
 			    case 2630: goto l2630;
@@ -533,7 +533,7 @@ char **argv;
 				||!closed) goto l2011;
 			hinted[2]=yes(192,193,54);
 			goto l2012;
-	l9280:      case 28:                    /* break                */
+		    case 28:                    /* break                */
 			if (obj==mirror) spk=148;
 			if (obj==vase&&prop[vase]==0)
 			{       spk=198;
@@ -546,7 +546,7 @@ char **argv;
 			rspeak(197);
 			done(3);
 
-	l9290:      case 29:                    /* wake                 */
+		      case 29:                    /* wake                 */
 			if (obj!=dwarf||!closed) goto l2011;
 			rspeak(199);
 			done(3);

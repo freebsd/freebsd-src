@@ -51,11 +51,13 @@ static const char rcsid[] =
 #include <err.h>
 #include "hdr.h"
 
+void
 dstroy(object)
 int object;
 {       move(object,0);
 }
 
+void
 juggle(object)
 int object;
 {       int i,j;
@@ -67,6 +69,7 @@ int object;
 }
 
 
+void
 move(object,where)
 int object,where;
 {       int from;
@@ -80,12 +83,14 @@ int object,where;
 }
 
 
+int
 put(object,where,pval)
 int object,where,pval;
 {       move(object,where);
 	return(-1-pval);
 }
 
+void
 carry(object,where)
 int object,where;
 {       int temp;
@@ -104,6 +109,7 @@ int object,where;
 }
 
 
+void
 drop(object,where)
 int object,where;
 {	if (object>100) fixed[object-100]=where;
@@ -117,6 +123,7 @@ int object,where;
 }
 
 
+int
 vocab(word,type,value)                  /* look up or store a word      */
 const char *word;
 int type;       /* -2 for store, -1 for user word, >=0 for canned lookup*/
@@ -173,27 +180,5 @@ int value;                              /* used for storing only        */
 		if (adr+1==hash || (adr==HTSIZE && hash==0))
 		{       errx(1, "Hash table overflow");
 		}
-	}
-}
-
-prht()                                  /* print hash table             */
-{       int i,j,l;
-	char *c;
-	struct hashtab *h;
-	for (i=0; i<HTSIZE/10+1; i++)
-	{       printf("%4d",i*10);
-		for (j=0; j<10; j++)
-		{       if (i*10+j>=HTSIZE) break;
-			h= &voc[i*10+j];
-			putchar(' ');
-			if (h->val==0)
-			{       printf("-----");
-				continue;
-			}
-			for (l=0, c=h->atab; l<5; l++)
-				if ((*c ^ '=')) putchar(*c++ ^ '=');
-				else putchar(' ');
-		}
-		putchar('\n');
 	}
 }

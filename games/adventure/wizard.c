@@ -53,6 +53,9 @@ static const char rcsid[] =
 #include <time.h>
 # include "hdr.h"
 
+static int wizard (void);
+
+void
 datime(d,t)
 int *d,*t;
 {       struct tm *tptr;
@@ -73,12 +76,14 @@ int *d,*t;
 
 char magic[6];
 
+void
 poof()
 {
 	strcpy(magic, DECR(d,w,a,r,f));
 	latncy = 45;
 }
 
+int
 Start()
 {       int d,t,delay;
 
@@ -104,8 +109,9 @@ Start()
 	return(FALSE);
 }
 
+static int
 wizard()                /* not as complex as advent/10 (for now)        */
-{       int wiz;
+{
 	char *word,*x;
 	if (!yesm(16,0,7)) return(FALSE);
 	mspeak(17);
@@ -118,11 +124,10 @@ wizard()                /* not as complex as advent/10 (for now)        */
 	return(TRUE);
 }
 
+void
 ciao()
 {       char *c;
-	int outfd, size;
-	char fname[80], buf[512];
-	extern unsigned filesize;
+	char fname[80];
 
 	printf("What would you like to call the saved version?\n");
 	/* XXX - should use fgetln to avoid arbitrary limit */
@@ -141,6 +146,7 @@ ciao()
 }
 
 
+int
 ran(range)
 int range;
 {
