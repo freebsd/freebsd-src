@@ -125,7 +125,9 @@ struct camcontrol_opts option_table[] = {
 	{"command", CAM_ARG_SCSI_CMD, scsicmd_opts},
 	{"defects", CAM_ARG_READ_DEFECTS, readdefect_opts},
 	{"defectlist", CAM_ARG_READ_DEFECTS, readdefect_opts},
+#endif /* MINIMALISTIC */
 	{"devlist", CAM_ARG_DEVTREE, NULL},
+#ifndef MINIMALISTIC
 	{"periphlist", CAM_ARG_DEVLIST, NULL},
 	{"modepage", CAM_ARG_MODE_PAGE, "bdelm:P:"},
 	{"tags", CAM_ARG_TAG, "N:q"},
@@ -271,6 +273,7 @@ getdevlist(struct cam_device *device)
 
 	return(error);
 }
+#endif /* MINIMALISTIC */
 
 static int
 getdevtree(void)
@@ -435,6 +438,7 @@ getdevtree(void)
 	return(error);
 }
 
+#ifndef MINIMALISTIC
 static int
 testunitready(struct cam_device *device, int retry_count, int timeout,
 	      int quiet)
@@ -3118,8 +3122,8 @@ usage(int verbose)
 {
 	fprintf(verbose ? stdout : stderr,
 "usage:  camcontrol <command>  [device id][generic args][command args]\n"
-#ifndef MINIMALISTIC
 "        camcontrol devlist    [-v]\n"
+#ifndef MINIMALISTIC
 "        camcontrol periphlist [dev_id][-n dev_name] [-u unit]\n"
 "        camcontrol tur        [dev_id][generic args]\n"
 "        camcontrol inquiry    [dev_id][generic args] [-D] [-S] [-R]\n"
@@ -3442,9 +3446,11 @@ main(int argc, char **argv)
 		case CAM_ARG_DEVLIST:
 			error = getdevlist(cam_dev);
 			break;
+#endif /* MINIMALISTIC */
 		case CAM_ARG_DEVTREE:
 			error = getdevtree();
 			break;
+#ifndef MINIMALISTIC
 		case CAM_ARG_TUR:
 			error = testunitready(cam_dev, retry_count, timeout, 0);
 			break;
