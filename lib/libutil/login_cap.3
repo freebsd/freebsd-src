@@ -17,7 +17,7 @@
 .\" 5. Modifications may be freely made to this file providing the above
 .\"    conditions are met.
 .\"
-.\" $Id$
+.\" $Id: login_cap.3,v 1.5 1997/02/22 15:08:19 peter Exp $
 .\"
 .Dd December 27, 1996
 .Os FreeBSD
@@ -57,7 +57,7 @@
 .Ft rlim_t
 .Fn login_getcapnum "login_cap_t *lc" "const char *cap" "rlim_t def" "rlim_t error"
 .Ft rlim_t
-.Fn login_getcapsize "login_cap_t *lc" const "char *cap" "rlim_t def" "rlim_t error"
+.Fn login_getcapsize "login_cap_t *lc" "const char *cap" "rlim_t def" "rlim_t error"
 .Ft int
 .Fn login_getcapbool "login_cap_t *lc" "const char *cap" "int def"
 .Ft char *
