@@ -56,8 +56,10 @@
  *		nao@tom-yam.or.jp
  */
 
-#include "ep.h"
-#if NEP > 0
+/*
+ * MAINTAINER: Matthew N. Dodd <winter@jurai.net>
+ *                             <mdodd@FreeBSD.org>
+ */
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -66,40 +68,58 @@
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
+
+#include <sys/module.h>
 #include <sys/bus.h>
 
-#include <net/ethernet.h>
+#include <machine/bus.h>
+#include <machine/resource.h>
+#include <sys/rman.h> 
+
 #include <net/if.h>
+#include <net/if_arp.h>
+#include <net/if_media.h> 
+#include <net/ethernet.h>
+#include <net/bpf.h>
+
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
-#include <net/bpf.h>
 
 #include <machine/clock.h>
 
-#include <i386/isa/elink.h>
 #include <dev/ep/if_epreg.h>
 #include <dev/ep/if_epvar.h>
+#include <i386/isa/elink.h>
 
 /* Exported variables */
-struct	ep_softc *	ep_softc[NEP];
-struct	ep_board	ep_board[EP_MAX_BOARDS + 1];
-int	ep_boards;
-u_long	ep_unit;
 devclass_t ep_devclass;
 
-static	char *		ep_conn_type[] = {"UTP", "AUI", "???", "BNC"};
+#if 0
+static char *	ep_conn_type[] = {"UTP", "AUI", "???", "BNC"};
+static int	if_media2ep_media[] = { 0, 0, 0, UTP, BNC, AUI };
+#endif
 
-static	int		eeprom_rdy	__P((struct ep_softc *sc));
-static	int		epioctl		__P((struct ifnet * ifp, u_long, caddr_t));
-static	void		epinit		__P((void *));
-static	void		epread		__P((struct ep_softc *));
-static	void		epstart		__P((struct ifnet *));
-static	void		epstop		__P((struct ep_softc *));
-static	void		epwatchdog	__P((struct ifnet *));
+static int	ep_media2if_media[] =
+	{ IFM_10_T, IFM_10_5, IFM_NONE, IFM_10_2, IFM_NONE };
 
-#define EP_FTST(sc, f)	(sc->stat&(f))
-#define EP_FSET(sc, f)	(sc->stat|=(f))
-#define EP_FRST(sc, f)	(sc->stat&=~(f))
+/* if functions */
+static void	ep_if_init	__P((void *));
+static int	ep_if_ioctl	__P((struct ifnet *, u_long, caddr_t));
+static void	ep_if_start	__P((struct ifnet *));
+static void	ep_if_watchdog	__P((struct ifnet *));
+
+/* if_media functions */
+static int	ep_ifmedia_upd	__P((struct ifnet *));
+static void	ep_ifmedia_sts	__P((struct ifnet *, struct ifmediareq *));
+
+static void	ep_get_macaddr	__P((struct ep_softc *, u_char *));
+static void	epstop		__P((struct ep_softc *));
+static void	epread		__P((struct ep_softc *));
+static int	eeprom_rdy	__P((struct ep_softc *));
+
+#define EP_FTST(sc, f)	(sc->stat &   (f))
+#define EP_FSET(sc, f)	(sc->stat |=  (f))
+#define EP_FRST(sc, f)	(sc->stat &= ~(f))
 
 static int
 eeprom_rdy(sc)
@@ -127,141 +147,203 @@ get_e(sc, offset)
 {
     if (!eeprom_rdy(sc))
 	return (0xffff);
-    outw(BASE + EP_W0_EEPROM_COMMAND, (EEPROM_CMD_RD << sc->epb->cmd_off) | offset);
+    outw(BASE + EP_W0_EEPROM_COMMAND, (EEPROM_CMD_RD << sc->epb.cmd_off) | offset);
     if (!eeprom_rdy(sc))
 	return (0xffff);
     return (inw(BASE + EP_W0_EEPROM_DATA));
 }
 
-struct ep_softc *
-ep_alloc(unit, epb)
-    int unit;
-    struct ep_board *epb;
+static void
+ep_get_macaddr(sc, addr)
+	struct ep_softc	*	sc;
+	u_char *		addr;
 {
-    struct	ep_softc *sc;
+	int			i;
+	u_int16_t * 		macaddr = (u_int16_t *)addr;
 
-    if (unit >= NEP) {
-	printf("ep: unit number (%d) too high\n", unit);
-	return NULL;
-    }
- 
-    /*
-     * Allocate a storage area for us
-     */
-    if (ep_softc[unit]) {
-	printf("ep%d: unit number already allocated to another "
-	       "adaptor\n", unit);
-	return NULL;
-    }
+	GO_WINDOW(0);
+        for(i = EEPROM_NODE_ADDR_0; i <= EEPROM_NODE_ADDR_2; i++) {
+		macaddr[i] = htons(get_e(sc, i));
+        }
 
-    sc = malloc(sizeof(struct ep_softc), M_DEVBUF, M_NOWAIT);
-    if (!sc) {
-	printf("ep%d: cannot malloc!\n", unit);
-	return NULL;
-    }
-    bzero(sc, sizeof(struct ep_softc));
-    ep_softc[unit] = sc;
-    sc->unit = unit;
-    sc->ep_io_addr = epb->epb_addr;
-    sc->epb = epb;
-
-    return(sc);
-}
-
-void
-ep_free(sc)
-    struct ep_softc *sc;
-{
-    ep_softc[sc->unit] = NULL;
-    free(sc, M_DEVBUF);
-    return;
+	return;
 }
 
 int
-ep_attach(sc)
-    struct ep_softc *sc;
+ep_alloc(device_t dev)
 {
-    struct ifnet *ifp = &sc->arpcom.ac_if;
-    u_short *p;
-    int i;
-    int attached;
+	struct ep_softc	*	sc = device_get_softc(dev);
+	int			rid;
+	int			error = 0;
 
-    sc->gone = 0;
-    attached = (ifp->if_softc != 0);
+        rid = 0;
+        sc->iobase = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
+                                        0, ~0, 1, RF_ACTIVE);
+        if (!sc->iobase) {
+                device_printf(dev, "No I/O space?!\n");
+		error = ENXIO;
+                goto bad;
+        }
 
-    printf("ep%d: ", sc->unit);
-    /*
-     * Current media type
-     */
-    if (sc->ep_connectors & AUI) {
-	printf("aui");
-	if (sc->ep_connectors & ~AUI)
-		printf("/");
-    }
-    if (sc->ep_connectors & UTP) {
-	printf("utp");
-	if (sc->ep_connectors & BNC)
-		printf("/");
-    }
-    if (sc->ep_connectors & BNC) {
-	printf("bnc");
-    }
+        rid = 0;
+        sc->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid,
+                                     0, ~0, 1, RF_ACTIVE);
+        if (!sc->irq) {
+                device_printf(dev, "No irq?!\n");
+		error = ENXIO;
+                goto bad;
+        }
 
-    printf("[*%s*]", ep_conn_type[sc->ep_connector]);
+        sc->dev = dev;
+        sc->unit = device_get_unit(dev);
+        sc->stat = 0;   /* 16 bit access */
 
-    /*
-     * Setup the station address
-     */
-    p = (u_short *) & sc->arpcom.ac_enaddr;
-    GO_WINDOW(2);
-    for (i = 0; i < 3; i++) {
-	p[i] = htons(sc->epb->eth_addr[i]);
-	outw(BASE + EP_W2_ADDR_0 + (i * 2), ntohs(p[i]));
-    }
-    printf(" address %6D\n", sc->arpcom.ac_enaddr, ":");
+        sc->ep_io_addr = rman_get_start(sc->iobase);
 
-    ifp->if_softc = sc;
-    ifp->if_unit = sc->unit;
-    ifp->if_name = "ep";
-    ifp->if_mtu = ETHERMTU;
-    ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
-    ifp->if_output = ether_output;
-    ifp->if_start = epstart;
-    ifp->if_ioctl = epioctl;
-    ifp->if_watchdog = epwatchdog;
-    ifp->if_init = epinit;
+        sc->ep_btag = rman_get_bustag(sc->iobase);
+        sc->ep_bhandle = rman_get_bushandle(sc->iobase);
 
-    if (!attached) {
-	if_attach(ifp);
-	ether_ifattach(ifp);
-    }
+	sc->ep_connectors = 0;
+	sc->ep_connector = 0;
 
-#ifdef EP_LOCAL_STATS
-    sc->rx_no_first = sc->rx_no_mbuf =
-	sc->rx_bpf_disc = sc->rx_overrunf = sc->rx_overrunl =
-	sc->tx_underrun = 0;
-#endif
-    EP_FSET(sc, F_RX_FIRST);
-    sc->top = sc->mcur = 0;
+	sc->epb.cmd_off = 0;
+	sc->epb.prod_id = get_e(sc, EEPROM_PROD_ID);
+	sc->epb.res_cfg = get_e(sc, EEPROM_RESOURCE_CFG);
 
-    if (!attached) {
-	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
-    }
-    return 0;
+bad:
+	return (error);
 }
 
+void
+ep_get_media(sc)
+	struct ep_softc	*	sc;
+{
+	u_int16_t		config;
+	
+        GO_WINDOW(0);
+        config = inw(BASE + EP_W0_CONFIG_CTRL);
+        if (config & IS_AUI)
+                sc->ep_connectors |= AUI;
+        if (config & IS_BNC)
+                sc->ep_connectors |= BNC;
+        if (config & IS_UTP)
+                sc->ep_connectors |= UTP;
+
+        if (!(sc->ep_connectors & 7)) {
+		if (bootverbose)
+                	device_printf(sc->dev, "no connectors!\n");
+        }
+
+	/*
+	 * This works for most of the cards so we'll do it here.
+	 * The cards that require something different can override
+	 * this later on.
+	 */
+	sc->ep_connector = inw(BASE + EP_W0_ADDRESS_CFG) >> ACF_CONNECTOR_BITS;
+
+	return;
+}
+
+void
+ep_free(device_t dev)
+{
+	struct ep_softc	*	sc = device_get_softc(dev);
+
+	if (sc->iobase)
+		bus_release_resource(dev, SYS_RES_IOPORT, 0, sc->iobase);
+	if (sc->irq)
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irq);
+
+	return;
+}
+	
+int
+ep_attach(sc)
+	struct ep_softc *	sc;
+{
+	struct ifnet *		ifp = NULL;
+	struct ifmedia *	ifm = NULL;
+	u_short *		p;
+	int			i;
+	int			attached;
+
+	sc->gone = 0;
+
+	ep_get_macaddr(sc, (u_char *)&sc->arpcom.ac_enaddr);
+
+	/*
+	 * Setup the station address
+	 */
+	p = (u_short *)&sc->arpcom.ac_enaddr;
+	GO_WINDOW(2);
+	for (i = 0; i < 3; i++) {
+		outw(BASE + EP_W2_ADDR_0 + (i * 2), ntohs(p[i]));
+	}
+
+	device_printf(sc->dev, "Ethernet address %6D\n",
+			sc->arpcom.ac_enaddr, ":");
+  
+	ifp = &sc->arpcom.ac_if;
+	attached = (ifp->if_softc != 0);
+
+	ifp->if_softc = sc;
+	ifp->if_unit = sc->unit;
+	ifp->if_name = "ep";
+	ifp->if_mtu = ETHERMTU;
+	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
+	ifp->if_output = ether_output;
+	ifp->if_start = ep_if_start;
+	ifp->if_ioctl = ep_if_ioctl;
+	ifp->if_watchdog = ep_if_watchdog;
+	ifp->if_init = ep_if_init;
+	ifp->if_snd.ifq_maxlen = 8;
+
+	if (!sc->epb.mii_trans) {
+		ifmedia_init(&sc->ifmedia, 0, ep_ifmedia_upd, ep_ifmedia_sts);
+
+		if (sc->ep_connectors & AUI)
+			ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_10_5, 0, NULL);
+		if (sc->ep_connectors & UTP)
+			ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_10_T, 0, NULL);
+		if (sc->ep_connectors & BNC)
+			ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_10_2, 0, NULL);
+		if (!sc->ep_connectors)
+			ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_NONE, 0, NULL);
+	
+		ifmedia_set(&sc->ifmedia, IFM_ETHER|ep_media2if_media[sc->ep_connector]);
+	
+		ifm = &sc->ifmedia;
+		ifm->ifm_media = ifm->ifm_cur->ifm_media;
+		ep_ifmedia_upd(ifp);
+	}
+
+	if (!attached) {
+		if_attach(ifp);
+		ether_ifattach(ifp);
+		bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
+	}
+
+#ifdef EP_LOCAL_STATS
+	sc->rx_no_first = sc->rx_no_mbuf = sc->rx_bpf_disc =
+		sc->rx_overrunf = sc->rx_overrunl = sc->tx_underrun = 0;
+#endif
+	EP_FSET(sc, F_RX_FIRST);
+	sc->top = sc->mcur = 0;
+
+	return 0;
+}
 
 /*
  * The order in here seems important. Otherwise we may not receive
  * interrupts. ?!
  */
 static void
-epinit(xsc)
+ep_if_init(xsc)
     void *xsc;
 {
     struct ep_softc *sc = xsc;
     register struct ifnet *ifp = &sc->arpcom.ac_if;
-    int s, i, j;
+    int s, i;
 
     if (sc->gone)
 	return;
@@ -315,59 +397,7 @@ epinit(xsc)
 	outw(BASE + EP_COMMAND, SET_RX_FILTER | FIL_INDIVIDUAL |
 	 FIL_GROUP | FIL_BRDCST);
 
-     /*
-      * S.B.
-      *
-      * Now behavior was slightly changed:
-      *
-      * if any of flags link[0-2] is used and its connector is
-      * physically present the following connectors are used:
-      *
-      *   link0 - AUI * highest precedence
-      *   link1 - BNC
-      *   link2 - UTP * lowest precedence
-      *
-      * If none of them is specified then
-      * connector specified in the EEPROM is used
-      * (if present on card or AUI if not).
-      *
-      */
-
-    /* Set the xcvr. */
-    if (ifp->if_flags & IFF_LINK0 && sc->ep_connectors & AUI) {
-	i = ACF_CONNECTOR_AUI;
-    } else if (ifp->if_flags & IFF_LINK1 && sc->ep_connectors & BNC) {
-	i = ACF_CONNECTOR_BNC;
-    } else if (ifp->if_flags & IFF_LINK2 && sc->ep_connectors & UTP) {
-	i = ACF_CONNECTOR_UTP;
-    } else {
-	i = sc->ep_connector;
-    }
-    GO_WINDOW(0);
-    j = inw(BASE + EP_W0_ADDRESS_CFG) & 0x3fff;
-    outw(BASE + EP_W0_ADDRESS_CFG, j | (i << ACF_CONNECTOR_BITS));
-
-    switch(i) {
-      case ACF_CONNECTOR_UTP:
-	if (sc->ep_connectors & UTP) {
-	    GO_WINDOW(4);
-	    outw(BASE + EP_W4_MEDIA_TYPE, ENABLE_UTP);
-	}
-	break;
-      case ACF_CONNECTOR_BNC:
-	if (sc->ep_connectors & BNC) {
-	    outw(BASE + EP_COMMAND, START_TRANSCEIVER);
-	    DELAY(DELAY_MULTIPLE * 1000);
-	}
-	break;
-      case ACF_CONNECTOR_AUI:
-	/* nothing to do */
-	break;
-      default:
-	printf("ep%d: strange connector type in EEPROM: assuming AUI\n",
-	       sc->unit);
-	break;
-    }
+    ep_ifmedia_upd(ifp);
 
     outw(BASE + EP_COMMAND, RX_ENABLE);
     outw(BASE + EP_COMMAND, TX_ENABLE);
@@ -395,7 +425,7 @@ epinit(xsc)
      */
 
     GO_WINDOW(1);
-    epstart(ifp);
+    ep_if_start(ifp);
 
     splx(s);
 }
@@ -403,7 +433,7 @@ epinit(xsc)
 static const char padmap[] = {0, 3, 2, 1};
 
 static void
-epstart(ifp)
+ep_if_start(ifp)
     struct ifnet *ifp;
 {
     register struct ep_softc *sc = ifp->if_softc;
@@ -543,7 +573,7 @@ rescan:
 	    ifp->if_flags &= ~IFF_OACTIVE;
 	    GO_WINDOW(1);
 	    inw(BASE + EP_W1_FREE_TX);
-	    epstart(ifp);
+	    ep_if_start(ifp);
 	}
 	if (status & S_CARD_FAILURE) {
 	    ifp->if_timer = 0;
@@ -566,7 +596,7 @@ rescan:
 #endif
 
 #endif
-	    epinit(sc);
+	    ep_if_init(sc);
 	    splx(x);
 	    return;
 	}
@@ -606,7 +636,7 @@ rescan:
 	    ifp->if_flags &= ~IFF_OACTIVE;
 	    GO_WINDOW(1);
 	    inw(BASE + EP_W1_FREE_TX);
-	    epstart(ifp);
+	    ep_if_start(ifp);
 	}			/* end TX_COMPLETE */
     }
 
@@ -784,69 +814,125 @@ out:
     outw(BASE + EP_COMMAND, SET_RX_EARLY_THRESH | RX_INIT_EARLY_THRESH);
 }
 
-/*
- * Look familiar?
- */
-static int
-epioctl(ifp, cmd, data)
-    register struct ifnet *ifp;
-    u_long cmd;
-    caddr_t data;
+static int 
+ep_ifmedia_upd(ifp)
+	struct ifnet *		ifp;
 {
-    struct ep_softc *sc = ifp->if_softc;
-    int s, error = 0;
+	struct ep_softc *	sc = ifp->if_softc;
+	int			i = 0, j;
 
-    s = splimp();
+	GO_WINDOW(0);
+	outw(BASE + EP_COMMAND, STOP_TRANSCEIVER);
+	GO_WINDOW(4);
+	outw(BASE + EP_W4_MEDIA_TYPE, DISABLE_UTP);
+	GO_WINDOW(0);
 
-    switch (cmd) {
-      case SIOCSIFADDR:
-      case SIOCGIFADDR:
-      case SIOCSIFMTU:
-        error = ether_ioctl(ifp, cmd, data);
-        break;
-
-      case SIOCSIFFLAGS:
-
-	if ((ifp->if_flags & IFF_UP) == 0 && ifp->if_flags & IFF_RUNNING) {
-	    ifp->if_flags &= ~IFF_RUNNING;
-	    epstop(sc);
-	    break;
-	} else {
-	    /* reinitialize card on any parameter change */
-	    epinit(sc);
-	    break;
+	switch (IFM_SUBTYPE(sc->ifmedia.ifm_media)) {
+		case IFM_10_T:
+			if (sc->ep_connectors & UTP) {
+				i = ACF_CONNECTOR_UTP;
+				GO_WINDOW(4);
+				outw(BASE + EP_W4_MEDIA_TYPE, ENABLE_UTP);
+			}
+			break;
+		case IFM_10_2:
+			if (sc->ep_connectors & BNC) {
+				i = ACF_CONNECTOR_BNC;
+				outw(BASE + EP_COMMAND, START_TRANSCEIVER);
+				DELAY(DELAY_MULTIPLE * 1000);
+			}
+			break;
+		case IFM_10_5:
+			if (sc->ep_connectors & AUI)
+				i = ACF_CONNECTOR_AUI;
+			break;
+		default:
+			i = sc->ep_connector;
+			device_printf(sc->dev,
+				"strange connector type in EEPROM: assuming AUI\n");
 	}
 
-	/* NOTREACHED */
-	break;
-#ifdef notdef
-      case SIOCGHWADDR:
-	bcopy((caddr_t) sc->sc_addr, (caddr_t) & ifr->ifr_data,
-	      sizeof(sc->sc_addr));
-	break;
-#endif
-	case SIOCADDMULTI:
-	case SIOCDELMULTI:
-	    /*
-	     * The Etherlink III has no programmable multicast
-	     * filter.  We always initialize the card to be
-	     * promiscuous to multicast, since we're always a
-	     * member of the ALL-SYSTEMS group, so there's no
-	     * need to process SIOC*MULTI requests.
-	     */
-	    error = 0;
-	    break;
-      default:
-		error = EINVAL;
-    }
+	GO_WINDOW(0);
+	j = inw(BASE + EP_W0_ADDRESS_CFG) & 0x3fff;
+	outw(BASE + EP_W0_ADDRESS_CFG, j | (i << ACF_CONNECTOR_BITS));
 
-    splx(s);
-
-    return (error);
+	return (0);
 }
 
 static void
-epwatchdog(ifp)
+ep_ifmedia_sts(ifp, ifmr)
+	struct ifnet *		ifp;
+	struct ifmediareq *	ifmr;
+{
+	struct ep_softc *	sc = ifp->if_softc;
+
+	ifmr->ifm_active = sc->ifmedia.ifm_media;
+
+	return;
+}
+
+static int
+ep_if_ioctl(ifp, cmd, data)
+	struct ifnet *		ifp;
+	u_long			cmd;
+	caddr_t			data;
+{
+	struct ep_softc *	sc = ifp->if_softc;
+	struct ifreq *		ifr = (struct ifreq *)data;
+	int s, error = 0;
+
+	s = splimp();
+
+	switch (cmd) {
+	case SIOCSIFADDR:
+	case SIOCGIFADDR:
+	case SIOCSIFMTU:
+		error = ether_ioctl(ifp, cmd, data);
+	break;
+
+	case SIOCSIFFLAGS:
+		if (((ifp->if_flags & IFF_UP) == 0) &&
+		    (ifp->if_flags & IFF_RUNNING)) {
+			ifp->if_flags &= ~IFF_RUNNING;
+			epstop(sc);
+		} else {
+			/* reinitialize card on any parameter change */
+			ep_if_init(sc);
+		}
+		break;
+#ifdef notdef
+	case SIOCGHWADDR:
+		bcopy((caddr_t) sc->sc_addr, (caddr_t) & ifr->ifr_data,
+		      sizeof(sc->sc_addr));
+		break;
+#endif
+	case SIOCADDMULTI:
+	case SIOCDELMULTI:
+		/*
+		 * The Etherlink III has no programmable multicast
+		 * filter.  We always initialize the card to be
+		 * promiscuous to multicast, since we're always a
+		 * member of the ALL-SYSTEMS group, so there's no
+		 * need to process SIOC*MULTI requests.
+		 */
+		error = 0;
+		break;
+	case SIOCSIFMEDIA:
+	case SIOCGIFMEDIA:
+		error = ifmedia_ioctl(ifp, ifr, &sc->ifmedia, cmd);
+		break;
+	default:
+		error = EINVAL;
+		break;
+	}
+
+	(void)splx(s);
+
+	return (error);
+}
+
+static void
+ep_if_watchdog(ifp)
     struct ifnet *ifp;
 {
     struct ep_softc *sc = ifp->if_softc;
@@ -863,7 +949,7 @@ epwatchdog(ifp)
     }
 
     ifp->if_flags &= ~IFF_OACTIVE;
-    epstart(ifp);
+    ep_if_start(ifp);
     ep_intr(ifp->if_softc);
 }
 
@@ -888,5 +974,3 @@ epstop(sc)
     outw(BASE + EP_COMMAND, SET_INTR_MASK);
     outw(BASE + EP_COMMAND, SET_RX_FILTER);
 }
-
-#endif				/* NEP > 0 */
