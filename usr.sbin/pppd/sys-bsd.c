@@ -21,7 +21,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: sys-bsd.c,v 1.14 1998/06/20 18:02:16 peter Exp $";
+static char rcsid[] = "$Id: sys-bsd.c,v 1.15 1998/06/21 04:47:21 peter Exp $";
 #endif
 /*	$NetBSD: sys-bsd.c,v 1.1.1.3 1997/09/26 18:53:04 christos Exp $	*/
 
@@ -1378,8 +1378,9 @@ get_ether_addr(ipaddr, hwaddr)
      * address on the same subnet as `ipaddr'.
      */
     ifend = (struct ifreq *) (ifc.ifc_buf + ifc.ifc_len);
-    for (ifr = ifc.ifc_req; ifr < ifend; ifr = (struct ifreq *)
-	 	((char *)&ifr->ifr_addr + ifr->ifr_addr.sa_len)) {
+    for (ifr = ifc.ifc_req; ifr < ifend;
+		ifr = (struct ifreq *) ((char *)&ifr->ifr_addr
+		    + MAX(ifr->ifr_addr.sa_len, sizeof(ifr->ifr_addr)))) {
 	if (ifr->ifr_addr.sa_family == AF_INET) {
 	    ina = ((struct sockaddr_in *) &ifr->ifr_addr)->sin_addr.s_addr;
 	    strncpy(ifreq.ifr_name, ifr->ifr_name, sizeof(ifreq.ifr_name));
@@ -1425,7 +1426,8 @@ get_ether_addr(ipaddr, hwaddr)
 	    BCOPY(dla, hwaddr, dla->sdl_len);
 	    return 1;
 	}
-	ifr = (struct ifreq *) ((char *)&ifr->ifr_addr + ifr->ifr_addr.sa_len);
+	ifr = (struct ifreq *) ((char *)&ifr->ifr_addr
+	    + MAX(ifr->ifr_addr.sa_len, sizeof(ifr->ifr_addr)));
     }
 
     return 0;
@@ -1468,8 +1470,9 @@ GetMask(addr)
 	return mask;
     }
     ifend = (struct ifreq *) (ifc.ifc_buf + ifc.ifc_len);
-    for (ifr = ifc.ifc_req; ifr < ifend; ifr = (struct ifreq *)
-	 	((char *)&ifr->ifr_addr + ifr->ifr_addr.sa_len)) {
+    for (ifr = ifc.ifc_req; ifr < ifend;
+		ifr = (struct ifreq *) ((char *)&ifr->ifr_addr
+		    + MAX(ifr->ifr_addr.sa_len, sizeof(ifr->ifr_addr)))) {
 	/*
 	 * Check the interface's internet address.
 	 */

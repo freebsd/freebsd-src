@@ -45,7 +45,7 @@ static char const copyright[] =
 static char const sccsid[] = "@(#)from: arp.c	8.2 (Berkeley) 1/2/94";
 #endif
 static const char rcsid[] =
-	"$Id: arp.c,v 1.14 1998/01/16 17:38:51 bde Exp $";
+	"$Id: arp.c,v 1.14.2.1 1999/05/27 03:06:59 julian Exp $";
 #endif /* not lint */
 
 /*
@@ -696,8 +696,8 @@ get_ether_addr(u_long ipaddr, u_char *hwaddr)
 			break;
 		}
 nextif:
-		ifr = (struct ifreq *) 
-		    ((char *)&ifr->ifr_addr + ifr->ifr_addr.sa_len);
+		ifr = (struct ifreq *) ((char *)&ifr->ifr_addr
+		    + MAX(ifr->ifr_addr.sa_len, sizeof(ifr->ifr_addr)));
 	}
 
 	if (ifr >= ifend) {
@@ -725,8 +725,8 @@ nextif:
 			printf("\n");
 			return dla->sdl_alen;
 		}
-		ifr = (struct ifreq *) 
-			((char *)&ifr->ifr_addr + ifr->ifr_addr.sa_len);
+		ifr = (struct ifreq *) ((char *)&ifr->ifr_addr
+		    + MAX(ifr->ifr_addr.sa_len, sizeof(ifr->ifr_addr)));
 	}
 	return 0;
 }
