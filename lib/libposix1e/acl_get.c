@@ -29,12 +29,17 @@
  * acl_get_file - syscall wrapper for retrieving ACL by filename
  * acl_get_fd - syscall wrapper for retrieving access ACL by fd
  * acl_get_fd_np - syscall wrapper for retrieving ACL by fd (non-POSIX)
+ * acl_get_permset() returns the permission set in the ACL entry
+ * acl_get_qualifier() retrieves the qualifier of the tag from the ACL entry
+ * acl_get_tag_type() returns the tag type for the ACL entry entry_d
  */
 
 #include <sys/types.h>
 #include <sys/acl.h>
-#include <sys/errno.h>
+
+#include <errno.h>
 #include <stdlib.h>
+#include <string.h>
 
 acl_t
 acl_get_file(const char *path_p, acl_type_t type)
@@ -94,4 +99,56 @@ acl_get_fd_np(int fd, acl_type_t type)
 	}
 
 	return (aclp);
+}
+
+int
+acl_get_permset(acl_entry_t entry_d, acl_permset_t *permset_p)
+{
+
+	if (!entry_d || !permset_p) {
+		errno = EINVAL;
+		return -1;
+	}
+
+	*permset_p = &entry_d->ae_perm;
+
+	return 0;
+}
+
+void *
+acl_get_qualifier(acl_entry_t entry_d)
+{
+	uid_t *retval;
+
+	if (!entry_d) {
+		errno = EINVAL;
+		return NULL;
+	}
+
+	switch(entry_d->ae_tag) {
+	case ACL_USER:
+	case ACL_GROUP:
+		retval = malloc(sizeof(uid_t));
+		if (retval) {
+			*retval = entry_d->ae_id;
+			return retval;
+		}
+	}
+
+	errno = EINVAL;
+	return NULL;
+}
+
+int
+acl_get_tag_type(acl_entry_t entry_d, acl_tag_t *tag_type_p)
+{
+
+	if (!entry_d || !tag_type_p) {
+		errno = EINVAL;
+		return -1;
+	}
+
+	*tag_type_p = entry_d->ae_tag;
+
+	return 0;
 }

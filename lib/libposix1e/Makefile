@@ -5,12 +5,15 @@ LIB=	posix1e
 SHLIB_MAJOR= 2 
 SHLIB_MINOR= 0
 SRCS+=	acl_calc_mask.c			\
+	acl_copy.c			\
 	acl_delete.c			\
 	acl_delete_entry.c		\
+	acl_entry.c			\
 	acl_free.c			\
 	acl_from_text.c			\
 	acl_get.c			\
 	acl_init.c			\
+	acl_perm.c			\
 	acl_set.c			\
 	acl_support.c			\
 	acl_to_text.c			\
@@ -29,17 +32,26 @@ SRCS+=	acl_calc_mask.c			\
 	cap_set_proc.c			\
 	cap_text.c
 
-
 MAN3=	acl.3				\
+	acl_add_perm.3			\
 	acl_calc_mask.3			\
+	acl_clear_perms.3		\
+	acl_copy_entry.3		\
 	acl_delete.3			\
 	acl_delete_entry.3		\
+	acl_delete_perm.3		\
 	acl_dup.3			\
 	acl_free.3			\
 	acl_from_text.3			\
 	acl_get.3			\
+	acl_get_permset.3		\
+	acl_get_qualifier.3		\
+	acl_get_tag_type.3		\
 	acl_init.3			\
 	acl_set.3			\
+	acl_set_permset.3		\
+	acl_set_qualifier.3		\
+	acl_set_tag_type.3		\
 	acl_to_text.3			\
 	acl_valid.3			\
 	cap.3				\
