@@ -46,6 +46,7 @@ static char sccsid[] = "@(#)tmpfile.c	8.1 (Berkeley) 6/4/93";
 #include <unistd.h>
 #include <errno.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <paths.h>
 #include "un-namespace.h"
@@ -57,10 +58,17 @@ tmpfile()
 	FILE *fp;
 	int fd, sverrno;
 #define	TRAILER	"tmp.XXXXXX"
-	char buf[sizeof(_PATH_TMP) + sizeof(TRAILER)];
+	char *buf;
+	const char *tmpdir;
 
-	(void)memcpy(buf, _PATH_TMP, sizeof(_PATH_TMP) - 1);
-	(void)memcpy(buf + sizeof(_PATH_TMP) - 1, TRAILER, sizeof(TRAILER));
+	tmpdir = getenv("TMPDIR");
+	if (tmpdir == NULL)
+		tmpdir = _PATH_TMP;
+
+	(void)asprintf(&buf, "%s%s%s", tmpdir,
+	    (tmpdir[strlen(tmpdir) - 1] == '/') ? "" : "/", TRAILER);
+	if (buf == NULL)
+		return (NULL);
 
 	sigfillset(&set);
 	(void)_sigprocmask(SIG_BLOCK, &set, &oset);
@@ -68,6 +76,8 @@ tmpfile()
 	fd = mkstemp(buf);
 	if (fd != -1)
 		(void)unlink(buf);
+
+	free(buf);
 
 	(void)_sigprocmask(SIG_SETMASK, &oset, NULL);
 
