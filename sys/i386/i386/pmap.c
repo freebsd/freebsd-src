@@ -1071,9 +1071,11 @@ pmap_swapin_thread(td)
 			m->valid = VM_PAGE_BITS_ALL;
 		}
 		ma[i] = m;
+		vm_page_lock_queues();
 		vm_page_wire(m);
 		vm_page_wakeup(m);
 		vm_page_flag_set(m, PG_MAPPED | PG_WRITEABLE);
+		vm_page_unlock_queues();
 	}
 	pmap_qenter(ks, ma, KSTACK_PAGES);
 }
@@ -1521,7 +1523,9 @@ pmap_growkernel(vm_offset_t addr)
 
 		nkpt++;
 
+		vm_page_lock_queues();
 		vm_page_wire(nkpg);
+		vm_page_unlock_queues();
 		pmap_zero_page(nkpg);
 		ptppaddr = VM_PAGE_TO_PHYS(nkpg);
 		newpdir = (pd_entry_t) (ptppaddr | PG_V | PG_RW | PG_A | PG_M);
