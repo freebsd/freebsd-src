@@ -101,6 +101,25 @@ COMMENTS:
 
 --------------------------
 CHIPSET:
+    AD1815/1816
+
+MANUFACTURER:
+    Analog Devices
+
+DOCUMENTATION:
+    http://www.analog.com
+
+COMMENTS:
+    This is a chip for ISA-PnP cards, and so should be configured
+    using the PnP interface. For full function configure port2,
+    irq0, drq0 and drq1 of ldn0.
+    The driver is contributed by German Tischler
+
+FORMATS:
+    ALAW/ULAW/8bit/16bit(le)/16bit(be),8kHz-55.2kHz,full duplex
+
+--------------------------
+CHIPSET:
     OPTi931: PnP id 0x3109143e
     OPTi933: PnP id 0x3109143e (yes, it's the same)
 

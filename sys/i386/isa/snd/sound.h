@@ -313,6 +313,7 @@ struct _snddev_info {
  */
 #define MD_AD1848	0x91
 #define MD_AD1845	0x92
+#define MD_AD1816	0x93
 #define MD_CS4248	0xA1
 #define MD_CS4231	0xA2
 #define MD_CS4231A	0xA3
