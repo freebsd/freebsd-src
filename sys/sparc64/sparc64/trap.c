@@ -138,12 +138,12 @@ const char *trap_msg[] = {
 	"trap instruction 29",
 	"trap instruction 30",
 	"trap instruction 31",
+	"fast instruction access mmu miss",
+	"fast data access mmu miss",
 	"interrupt",
 	"physical address watchpoint",
 	"virtual address watchpoint",
 	"corrected ecc error",
-	"fast instruction access mmu miss",
-	"fast data access mmu miss",
 	"spill",
 	"fill",
 	"fill",
@@ -193,12 +193,12 @@ const int trap_sig[] = {
 	SIGILL,			/* trap instruction 29 */
 	SIGILL,			/* trap instruction 30 */
 	SIGILL,			/* trap instruction 31 */
+	SIGSEGV,		/* fast instruction access mmu miss */
+	SIGSEGV,		/* fast data access mmu miss */
 	-1,			/* interrupt */
 	-1,			/* physical address watchpoint */
 	-1,			/* virtual address watchpoint */
 	-1,			/* corrected ecc error */
-	SIGSEGV,		/* fast instruction access mmu miss */
-	SIGSEGV,		/* fast data access mmu miss */
 	SIGILL,			/* spill */
 	SIGILL,			/* fill */
 	SIGILL,			/* fill */
