@@ -570,17 +570,18 @@ elf_parse_modmetadata(struct preloaded_file *fp, elf_file_t ef)
 {
     struct mod_metadata md;
     Elf_Sym sym;
-    char *s, *v, **p;
-    long entries;
+    char *s, *v, **p, **p_stop;
     int modcnt;
 
-    if (elf_lookup_symbol(fp, ef, "modmetadata_set", &sym) != 0)
+    if (elf_lookup_symbol(fp, ef, "__start_set_modmetadata_set", &sym) != 0)
 	return ENOENT;
-    COPYOUT(sym.st_value + ef->off, &entries, sizeof(entries));
+    p = (char **)(sym.st_value + ef->off);
+    if (elf_lookup_symbol(fp, ef, "__stop_set_modmetadata_set", &sym) != 0)
+	return ENOENT;
+    p_stop = (char **)(sym.st_value + ef->off);
 
     modcnt = 0;
-    p = (char **)(sym.st_value + ef->off + sizeof(entries));
-    while (entries--) {
+    while (p < p_stop) {
 	COPYOUT(p++, &v, sizeof(v));
 	COPYOUT(v + ef->off, &md, sizeof(md));
 	switch(md.md_type) {
