@@ -787,10 +787,12 @@ struct sockaddr_dl;
 #ifdef HAVE_SYS_FS_UFS_MOUNT_H
 # include <sys/fs/ufs_mount.h>
 #endif /* HAVE_SYS_FS_UFS_MOUNT_H */
-#ifdef	HAVE_UFS_UFS_UFSMOUNT_H_off
-# error do not include this file here because on netbsd/openbsd it
-# error causes errors with other header files.  Instead, add it to the
-# error specific conf/nfs_prot_*.h file.
+/* 
+ * HAVE_UFS_UFS_UFSMOUNT_H should NOT be defined on netbsd/openbsd because it
+ * causes errors with other header files.  Instead, add it to the specific
+ * conf/nfs_prot_*.h file.
+ */
+#ifdef	HAVE_UFS_UFS_UFSMOUNT_H
 # include <ufs/ufs/ufsmount.h>
 #endif	/* HAVE_UFS_UFS_UFSMOUNT_H */
 
@@ -1148,9 +1150,6 @@ extern char *nc_sperror(void);
 #ifdef HAVE_UFS_UFS_MOUNT_H
 # include <ufs/ufs_mount.h>
 #endif /* HAVE_UFS_UFS_MOUNT_H */
-#ifdef HAVE_UFS_UFS_UFSMOUNT_H
-# include <ufs/ufs/ufsmount.h>
-#endif /* HAVE_UFS_UFS_UFSMOUNT_H */
 
 /*
  * Are S_ISDIR, S_ISREG, et al broken?  If not, include <sys/stat.h>.
