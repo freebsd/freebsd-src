@@ -28,16 +28,16 @@ beforeinstall:
 
 .for f in fortunes fortunes2 fortunes2-o limerick startrek zippy
 $f.dat: $f
-	PATH={.OBJDIR}/../strfile:$$PATH:/usr/games \
-	    strfile -Crs ${.ALLSRC} ${.TARGET}
+	PATH=$$PATH:/usr/games:${.OBJDIR}/../strfile \
+	    strfile -rs ${.ALLSRC} ${.TARGET}
 .endfor
 
 fortunes-o.dat: fortunes-o
-	PATH=${.OBJDIR}/../strfile:$$PATH:/usr/games \
-	    strfile -Crsx ${.ALLSRC} ${.TARGET}
+	PATH=$$PATH:/usr/games:${.OBJDIR}/../strfile \
+	    strfile -rsx ${.ALLSRC} ${.TARGET}
 
 fortunes-o: fortunes-o.${TYPE}
-	PATH=${.OBJDIR}/../../caesar:$$PATH:/usr/games \
+	PATH=$$PATH:/usr/games:${.OBJDIR}/../../caesar \
 	    caesar 13 < ${.ALLSRC} > ${.TARGET}
 
 .include <bsd.prog.mk>
