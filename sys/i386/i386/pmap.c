@@ -2010,7 +2010,7 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 	register pt_entry_t *ptbase;
 	vm_offset_t pdnxt;
 	pd_entry_t ptpaddr;
-	vm_pindex_t sindex, eindex;
+	vm_offset_t sindex, eindex;
 	int anychanged;
 
 	if (pmap == NULL)
