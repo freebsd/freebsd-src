@@ -74,6 +74,8 @@ extern struct vnode *rootvp;	/* vnode equivalent to above */
 extern int boothowto;		/* reboot flags, from console subsystem */
 extern int bootverbose;		/* nonzero to print verbose messages */
 
+extern int maxusers;		/* system tune hint */
+
 #ifdef	INVARIANTS		/* The option is always available */
 #define	KASSERT(exp,msg)	do { if (!(exp)) panic msg; } while (0)
 #define	SPLASSERT(level, msg)	__CONCAT(__CONCAT(spl,level),assert)(msg)
@@ -110,6 +112,7 @@ void	*phashinit __P((int count, struct malloc_type *type, u_long *nentries));
 
 void	cpu_boot __P((int));
 void	cpu_rootconf __P((void));
+void	init_param __P((void));
 void	tablefull __P((const char *));
 int	addlog __P((const char *, ...)) __printflike(1, 2);
 int	kvprintf __P((char const *, void (*)(int, void*), void *, int,

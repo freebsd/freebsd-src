@@ -86,10 +86,10 @@ GEN_CFILES= $S/$M/$M/genassym.c
 # omitted from SYSTEM_CFILES.  They include setdefs.h, a header which
 # is generated from all of ${OBJS}.  We don't want to have to compile
 # everything just to do a make depend.
-SYSTEM_CFILES= ioconf.c param.c vnode_if.c config.c
+SYSTEM_CFILES= ioconf.c vnode_if.c config.c
 SYSTEM_SFILES= $S/$M/$M/locore.s
 SYSTEM_DEP= Makefile ${SYSTEM_OBJS}
-SYSTEM_OBJS= locore.o setdef0.o vnode_if.o ${OBJS} ioconf.o param.o config.o \
+SYSTEM_OBJS= locore.o setdef0.o vnode_if.o ${OBJS} ioconf.o config.o \
 	setdef1.o hack.So
 SYSTEM_LD= @${LD} ${FMT} -Bdynamic -T $S/conf/ldscript.$M \
 	-export-dynamic -dynamic-linker /red/herring \
@@ -141,13 +141,13 @@ ${SYSTEM_OBJS}: vnode_if.h ${BEFORE_DEPEND:M*.h}
 
 kernel-clean:
 	rm -f *.o *.so *.So *.ko *.s eddep errs \
-	      ${FULLKERNEL} ${KERNEL} linterrs makelinks param.c \
+	      ${FULLKERNEL} ${KERNEL} linterrs makelinks \
 	      setdef[01].c setdefs.h tags \
 	      vers.c vnode_if.c vnode_if.h ${CLEAN}
 
-#lint: /tmp param.c
+#lint: /tmp
 #	@lint -hbxn -DGENERIC -Dvolatile= ${COPTS} \
-#	  $S/$M/$M/Locore.c ${CFILES} ioconf.c param.c | \
+#	  $S/$M/$M/Locore.c ${CFILES} ioconf.c | \
 #	    grep -v 'struct/union .* never defined' | \
 #	    grep -v 'possible pointer alignment problem'
 
@@ -184,7 +184,7 @@ genassym.o: $S/$M/$M/genassym.c
 
 ${SYSTEM_OBJS} genassym.o vers.o: opt_global.h
 
-kernel-depend: assym.s param.c vnode_if.h ${BEFORE_DEPEND} \
+kernel-depend: assym.s vnode_if.h ${BEFORE_DEPEND} \
 	    ${CFILES} ${SYSTEM_CFILES} ${GEN_CFILES} ${SFILES} ${SYSTEM_SFILES}
 	rm -f .newdep
 	mkdep -a -f .newdep ${CFLAGS} ${CFILES} ${SYSTEM_CFILES} ${GEN_CFILES}
@@ -273,13 +273,6 @@ config.o:
 	${NORMAL_C}
 
 ioconf.o:
-	${NORMAL_C}
-
-param.c: $S/conf/param.c
-	-rm -f param.c
-	cp $S/conf/param.c .
-
-param.o:
 	${NORMAL_C}
 
 vers.c: $S/conf/newvers.sh $S/sys/param.h ${SYSTEM_DEP}

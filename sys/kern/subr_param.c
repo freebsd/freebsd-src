@@ -60,6 +60,9 @@
 #ifndef MAXFILES
 #define	MAXFILES (maxproc * 2)
 #endif
+#ifndef NSFBUFS
+#define NSFBUFS (512 + maxusers * 16)
+#endif
 
 int	hz;
 int	tick;
@@ -70,8 +73,12 @@ int	maxprocperuid;			/* max # of procs per user */
 int	maxfiles;			/* sys. wide open files limit */
 int	maxfilesperproc;		/* per-proc open files limit */
 int	ncallout;			/* maximum # of timer events */
+int	mbuf_wait = 32;			/* mbuf sleep time in ticks */
 int	nbuf;
 int	nswbuf;
+
+/* maximum # of sf_bufs (sendfile(2) zero-copy virtual buffers) */
+int	nsfbufs;
 
 /*
  * These have to be allocated somewhere; allocating
@@ -79,14 +86,6 @@ int	nswbuf;
  * (if they've been externed everywhere else; hah!).
  */
 struct	buf *swbuf;
-
-/*
- * Total number of shared mutexes to protect all lockmgr locks.
- */
-#ifndef	LOCKMUTEX
-#define LOCKMUTEX	10
-#endif
-int	lock_nmtx = LOCKMUTEX;
 
 /*
  * Boot time overrides
@@ -112,6 +111,8 @@ init_param(void)
 	maxfilesperproc = maxfiles;
 
 	/* Cannot be changed after boot */
+	nsfbufs = NSFBUFS;
+	TUNABLE_INT_FETCH("kern.ipc.nsfbufs", &nsfbufs);
 	nbuf = NBUF;
 	TUNABLE_INT_FETCH("kern.nbuf", &nbuf);
 	ncallout = 16 + maxproc + maxfiles;
