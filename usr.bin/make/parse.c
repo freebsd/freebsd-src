@@ -772,9 +772,16 @@ ParseDoDependency (line)
 	if (!*cp) {
 	    /*
 	     * Ending a dependency line without an operator is a Bozo
-	     * no-no
+	     * no-no.  As a heuristic, this is also often triggered by
+	     * undetected conflicts from cvs/rcs merges.
 	     */
-	    Parse_Error (PARSE_FATAL, "Need an operator");
+	    if ((strncmp(line, "<<<<<<", 6) == 0) ||
+		(strncmp(line, "======", 6) == 0) ||
+		(strncmp(line, ">>>>>>", 6) == 0))
+		Parse_Error (PARSE_FATAL,
+		    "Makefile appears to contain unresolved cvs/rcs/??? merge conflicts");
+	    else
+	        Parse_Error (PARSE_FATAL, "Need an operator");
 	    return;
 	}
 	*cp = '\0';
