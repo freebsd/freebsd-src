@@ -531,9 +531,7 @@ main(int argc, char *argv[])
 	(void)setenv("SHELL", pwd->pw_shell, 1);
 	(void)setenv("HOME", pwd->pw_dir, 1);
 	/* Overwrite "term" from login.conf(5) for any known TERM */
-	if (term != NULL)
-		(void)setenv("TERM", term, 1);
-	else if ((tp = stypeof(tty)) != NULL)
+	if (term == NULL && (tp = stypeof(tty)) != NULL)
 		(void)setenv("TERM", tp, 1);
 	else
 		(void)setenv("TERM", TERM_UNKNOWN, 0);
