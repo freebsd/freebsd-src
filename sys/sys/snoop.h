@@ -33,12 +33,13 @@
  */
 
 struct snoop {
-	dev_t	snp_target;		/* major/minor number of device*/
-	u_long 	snp_len;		/* buffer data length	       */
-	u_long	snp_base;		/* buffer data base	       */
-	u_long	snp_blen;		/* Overall buffer len	       */
-	caddr_t	snp_buf;		/* Data buffer		       */
-	int 	snp_flags;		/* Flags place		       */
+	dev_t		snp_target;	/* major/minor number of device*/
+	struct tty	*snp_tty;	/* tty device pointer	       */
+	u_long 		snp_len;	/* buffer data length	       */
+	u_long		snp_base;	/* buffer data base	       */
+	u_long		snp_blen;	/* Overall buffer len	       */
+	caddr_t		snp_buf;	/* Data buffer		       */
+	int 		snp_flags;	/* Flags place		       */
 #define SNOOP_NBIO		0x0001
 #define SNOOP_ASYNC		0x0002
 #define SNOOP_OPEN		0x0004
