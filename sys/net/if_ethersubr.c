@@ -362,14 +362,18 @@ ether_output_frame(ifp, m)
 	int error = 0;
 
 #ifdef BRIDGE
-	if (do_bridge) {
-		struct ether_header hdr;
+	if (do_bridge && BDG_USED(ifp) ) {
+		struct ether_header *eh; /* a ptr suffices */
+		struct ifnet *oifp = ifp ;
 
 		m->m_pkthdr.rcvif = NULL;
-		bcopy(mtod(m, struct ether_header *), &hdr, ETHER_HDR_LEN);
+		eh = mtod(m, struct ether_header *);
 		m_adj(m, ETHER_HDR_LEN);
-		ifp = bridge_dst_lookup(&hdr);
-		bdg_forward(&m, &hdr, ifp);
+		ifp = bridge_dst_lookup(eh);
+		if (ifp > BDG_FORWARD && !BDG_SAMECLUSTER(ifp, oifp)) {
+			printf("ether_out_frame: bad output if\n");
+		}
+		m = bdg_forward(m, eh, ifp);
 		if (m != NULL)
 			m_freem(m);
 		return (0);
@@ -408,6 +412,7 @@ ether_input(ifp, eh, m)
 	struct ether_header *eh;
 	struct mbuf *m;
 {
+	struct ether_header save_eh;
 
 	/* Check for a BPF tap */
 	if (ifp->if_bpf != NULL) {
@@ -429,7 +434,7 @@ ether_input(ifp, eh, m)
 
 #ifdef BRIDGE
 	/* Check for bridging mode */
-	if (do_bridge) {
+	if (do_bridge && BDG_USED(ifp) ) {
 		struct ifnet *bif;
 
 		/* Check with bridging code */
@@ -438,14 +443,22 @@ ether_input(ifp, eh, m)
 			return;
 		}
 		if (bif != BDG_LOCAL) {
-			bdg_forward(&m, eh, bif);	/* needs forwarding */
+			struct mbuf *oldm = m ;
+
+			save_eh = *eh ; /* because it might change */
+			m = bdg_forward(&m, eh, bif);	/* needs forwarding */
 			/*
 			 * Do not continue if bdg_forward() processed our
 			 * packet (and cleared the mbuf pointer m) or if
 			 * it dropped (m_free'd) the packet itself.
 			 */
-			if (m == NULL)
-				return;
+			if (m == NULL) {
+			    if (bif == BDG_BCAST || bif == BDG_MCAST)
+				printf("bdg_forward drop MULTICAST PKT\n");
+			    return;
+			}
+			if (m != oldm) /* m changed! */
+			    eh = &save_eh ;
 		}
 		if (bif == BDG_LOCAL
 		    || bif == BDG_BCAST
@@ -454,7 +467,7 @@ ether_input(ifp, eh, m)
 
 		/* If not local and not multicast, just drop it */
 		if (m != NULL)
-			m_freem(m);
+		    m_freem(m);
 		return;
        }
 #endif

@@ -313,8 +313,10 @@ heap_extract(struct dn_heap *h, void *obj)
     }
 }           
 
+#if 0
 /*
  * change object position and update references
+ * XXX this one is never used!
  */
 static void
 heap_move(struct dn_heap *h, dn_key new_key, void *object)
@@ -350,6 +352,7 @@ heap_move(struct dn_heap *h, dn_key new_key, void *object)
     }
     SET_OFFSET(h, i);
 }
+#endif /* heap_move, unused */
 
 /*
  * heapify() will reorganize data inside an array to maintain the
@@ -450,7 +453,7 @@ transmit_event(struct dn_pipe *pipe)
 	     * (originally pkt->dn_m, but could be something else now) if
 	     * it has not consumed it.
 	     */
-	    bdg_forward(&m, eh, pkt->ifp);
+	    m = bdg_forward(&m, eh, pkt->ifp);
 	    if (m)
 		m_freem(m);
 	    }
@@ -577,7 +580,6 @@ ready_event_wfq(struct dn_pipe *p)
 {
     int p_was_empty = (p->head == NULL) ;
     struct dn_heap *sch = &(p->scheduler_heap);
-    struct dn_heap *blh = &(p->backlogged_heap);
     struct dn_heap *neh = &(p->not_eligible_heap) ;
 
     if (p->if_name[0] == 0) /* tx clock is simulated */
@@ -595,7 +597,7 @@ ready_event_wfq(struct dn_pipe *p)
      * While we have backlogged traffic AND credit, we need to do
      * something on the queue.
      */
-    while ( blh->elements>0 && p->numbytes >= 0 ) {
+    while ( p->numbytes >=0 && (sch->elements>0 || neh->elements >0) ) {
 	if (sch->elements > 0) { /* have some eligible pkts to send out */
 	    struct dn_flow_queue *q = sch->p[0].object ;
 	    struct dn_pkt *pkt = q->head;  
@@ -610,7 +612,6 @@ ready_event_wfq(struct dn_pipe *p)
 	    p->V += (len<<MY_M) / p->sum ; /* update V */
 	    q->S = q->F ; /* update start time */
 	    if (q->len == 0) { /* Flow not backlogged any more */
-		heap_extract(blh, q);
 		fs->backlogged-- ;
 		heap_insert(&(p->idle_heap), q->F, q);
 	    } else { /* still backlogged */
@@ -620,13 +621,21 @@ ready_event_wfq(struct dn_pipe *p)
 		 */
 		len = (q->head)->dn_m->m_pkthdr.len;
 		q->F += (len<<MY_M)/(u_int64_t) fs->weight ;
-		heap_move(blh, q->S, q);
-		heap_insert(neh, q->S, q);
+		if (DN_KEY_LEQ(q->S, p->V))
+		    heap_insert(neh, q->S, q);
+		else
+		    heap_insert(sch, q->F, q);
 	    }
 	}
-	if (blh->elements > 0)
-	    p->V = MAX64 ( p->V, blh->p[0].key );
-	/* move from not_eligible_heap to scheduler_heap */
+	/*
+	 * now compute V = max(V, min(S_i)). Remember that all elements in sch
+	 * have by definition S_i <= V so if sch is not empty, V is surely
+	 * the max and we must not update it. Conversely, if sch is empty
+	 * we only need to look at neh.
+	 */
+	if (sch->elements == 0 && neh->elements > 0)
+	    p->V = MAX64 ( p->V, neh->p[0].key );
+	/* move from neh to sch any packets that have become eligible */
 	while (neh->elements > 0 && DN_KEY_LEQ(neh->p[0].key, p->V) ) {
 	    struct dn_flow_queue *q = neh->p[0].object ;
 	    heap_extract(neh, NULL);
@@ -638,7 +647,8 @@ ready_event_wfq(struct dn_pipe *p)
 	    break ;
 	}
     }
-    if (blh->elements == 0 && p->numbytes >= 0 && p->idle_heap.elements > 0) {
+    if (sch->elements == 0 && neh->elements == 0 && p->numbytes >= 0
+	    && p->idle_heap.elements > 0) {
 	/*
 	 * no traffic and no events scheduled. We can get rid of idle-heap.
 	 */
@@ -760,7 +770,7 @@ if_tx_rdy(struct ifnet *ifp)
 	p->numbytes = 0 ; /* mark ready for I/O */
 	ready_event_wfq(p);
     }
-    return 0 ;
+    return 0;
 }
 
 /*
@@ -1064,7 +1074,7 @@ dummynet_io(int pipe_nr, int dir,	/* pipe_nr can also be a fs_nr */
 	goto dropit ;		/* random pkt drop			*/
     if ( fs->flags_fs & DN_QSIZE_IS_BYTES) {
     	if (q->len_bytes > fs->qsize)
-	goto dropit ;		/* queue size overflow			*/
+	    goto dropit ;	/* queue size overflow			*/
     } else {
 	if (q->len >= fs->qsize)
 	    goto dropit ;	/* queue count overflow			*/
@@ -1108,13 +1118,8 @@ dummynet_io(int pipe_nr, int dir,	/* pipe_nr can also be a fs_nr */
     q->len++;
     q->len_bytes += len ;
 
-    if ( q->head != pkt ) {	/* flow was not idle, we are done */
-	static int errors = 0 ;
-	if (q->blh_pos >= 0 ) /* good... */
-	    goto done;
-	printf("+++ hey [%d] flow 0x%8p not idle but not in heap\n",
-	    ++errors, q);
-    }
+    if ( q->head != pkt )	/* flow was not idle, we are done */
+	goto done;
     /*
      * If we reach this point the flow was previously idle, so we need
      * to schedule it. This involves different actions for fixed-rate or
@@ -1134,12 +1139,13 @@ dummynet_io(int pipe_nr, int dir,	/* pipe_nr can also be a fs_nr */
 	    heap_insert(&ready_heap, curr_time + t , q );
     } else {
 	/*
-	 * WF2Q: first compute start time S. If the flow was not in the
-	 * idle_heap (denoted by S=F+1), S is set to the virtual time V
-	 * for that pipe, and we update the sum of weights for the pipe.
-	 * Otherwise, remove flow from idle_heap and set S to max(F,V).
-	 * Then compute finish time F = S + len/weight, and insert into
-	 * backlogged_heap according to S.
+	 * WF2Q. First, compute start time S: if the flow was idle (S=F+1)
+	 * set S to the virtual time V for the controlling pipe, and update
+	 * the sum of weights for the pipe; otherwise, remove flow from
+	 * idle_heap and set S to max(F,V).
+	 * Second, compute finish time F = S + len/weight.
+	 * Third, if pipe was idle, update V=max(S, V).
+	 * Fourth, count one more backlogged flow.
 	 */
 	if (DN_KEY_GT(q->S, q->F)) { /* means timestamps are invalid */
 	    q->S = pipe->V ;
@@ -1150,18 +1156,22 @@ dummynet_io(int pipe_nr, int dir,	/* pipe_nr can also be a fs_nr */
 	}
 	q->F = q->S + ( len<<MY_M )/(u_int64_t) fs->weight;
 
-	heap_insert(&(pipe->backlogged_heap), q->S, q);
-	fs->backlogged++ ;
-	if (pipe->backlogged_heap.elements == 1)
+	if (pipe->not_eligible_heap.elements == 0 &&
+		pipe->scheduler_heap.elements == 0)
 	    pipe->V = MAX64 ( q->S, pipe->V );
+	fs->backlogged++ ;
 	/*
 	 * Look at eligibility. A flow is not eligibile if S>V (when
 	 * this happens, it means that there is some other flow already
 	 * scheduled for the same pipe, so the scheduler_heap cannot be
 	 * empty). If the flow is not eligible we just store it in the
-	 * appropriate heap. Otherwise, we store in the scheduler_heap
+	 * not_eligible_heap. Otherwise, we store in the scheduler_heap
 	 * and possibly invoke ready_event_wfq() right now if there is
 	 * leftover credit.
+	 * Note that for all flows in scheduler_heap (SCH), S_i <= V,
+	 * and for all flows in not_eligible_heap (NEH), S_i > V .
+	 * So when we need to compute max( V, min(S_i) ) forall i in SCH+NEH,
+	 * we only need to look into NEH.
 	 */
 	if (DN_KEY_GT(q->S, pipe->V) ) { /* not eligible */
 	    if (pipe->scheduler_heap.elements == 0)
@@ -1254,7 +1264,6 @@ purge_pipe(struct dn_pipe *pipe)
 
     heap_free( &(pipe->scheduler_heap) );
     heap_free( &(pipe->not_eligible_heap) );
-    heap_free( &(pipe->backlogged_heap) );
     heap_free( &(pipe->idle_heap) );
 }
 
@@ -1478,14 +1487,10 @@ config_pipe(struct dn_pipe *p)
 	    }
 	    x->pipe_nr = p->pipe_nr;
 	    x->fs.pipe = x ;
-	    /* a flowset is backlogged only if it has packets queued.
-	     * Otherwise it becomes idle, so we can use the same variable
-	     * to store the position in either heap.
+	    /* idle_heap is the only one from which we extract from the middle.
 	     */
-	    x->backlogged_heap.size = x->backlogged_heap.elements = 0 ;
-	    x->backlogged_heap.offset=OFFSET_OF(struct dn_flow_queue, blh_pos);
 	    x->idle_heap.size = x->idle_heap.elements = 0 ;
-	    x->idle_heap.offset=OFFSET_OF(struct dn_flow_queue, blh_pos);
+	    x->idle_heap.offset=OFFSET_OF(struct dn_flow_queue, heap_pos);
 	} else
 	    x = b;
 
@@ -1562,7 +1567,7 @@ config_pipe(struct dn_pipe *p)
 /*
  * Helper function to remove from a heap queues which are linked to
  * a flow_set about to be deleted.
-*/
+ */
 static void
 fs_remove_from_heap(struct dn_heap *h, struct dn_flow_set *fs)
 {
@@ -1694,7 +1699,6 @@ delete_pipe(struct dn_pipe *p)
 	if (b->pipe != NULL) {
 	    /* Update total weight on parent pipe and cleanup parent heaps */
 	    b->pipe->sum -= b->weight * b->backlogged ;
-	    fs_remove_from_heap(&(b->pipe->backlogged_heap), b);
 	    fs_remove_from_heap(&(b->pipe->not_eligible_heap), b);
 	    fs_remove_from_heap(&(b->pipe->scheduler_heap), b);
 #if 1	/* XXX should i remove from idle_heap as well ? */
@@ -1856,12 +1860,10 @@ ip_dn_init(void)
     all_pipes = NULL ;
     all_flow_sets = NULL ;
     ready_heap.size = ready_heap.elements = 0 ;
-    /* ready_heap.offset = 0 ; */
-    ready_heap.offset=OFFSET_OF(struct dn_flow_queue, blh_pos);
+    ready_heap.offset = 0 ;
 
     wfq_ready_heap.size = wfq_ready_heap.elements = 0 ;
-    /* wfq_ready_heap.offset = 0 ; */
-    wfq_ready_heap.offset=OFFSET_OF(struct dn_flow_queue, blh_pos);
+    wfq_ready_heap.offset = 0 ;
 
     extract_heap.size = extract_heap.elements = 0 ;
     extract_heap.offset = 0 ;

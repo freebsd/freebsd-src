@@ -37,8 +37,43 @@ typedef struct hash_table {
 
 extern bdg_hash_table *bdg_table ;
 
+/*
+ * We need additional info for the bridge. The bdg_ifp2sc[] array
+ * provides a pointer to this struct using the if_index.   
+ * bdg_softc has a backpointer to the struct ifnet, the bridge
+ * flags, and a cluster (bridging occurs only between port of the
+ * same cluster).
+ */
+struct bdg_softc {
+    struct ifnet *ifp ;
+    /* also ((struct arpcom *)ifp)->ac_enaddr is the eth. addr */
+    int flags ;
+#define IFF_BDG_PROMISC 0x0001  /* set promisc mode on this if.  */
+#define IFF_MUTE        0x0002  /* mute this if for bridging.   */
+#define IFF_USED        0x0004  /* use this if for bridging.    */
+    short cluster_id ; /* in network format */
+    u_long magic;
+} ;
+
+extern struct bdg_softc *ifp2sc;
+
+#define BDG_USED(ifp) (ifp2sc[ifp->if_index].flags & IFF_USED)
+#define BDG_MUTED(ifp) (ifp2sc[ifp->if_index].flags & IFF_MUTE)
+#define BDG_MUTE(ifp) ifp2sc[ifp->if_index].flags |= IFF_MUTE
+#define BDG_UNMUTE(ifp) ifp2sc[ifp->if_index].flags &= ~IFF_MUTE
+#define BDG_CLUSTER(ifp) (ifp2sc[ifp->if_index].cluster_id)
+#define BDG_EH(ifp)	((struct arpcom *)ifp)->ac_enaddr
+
+#define BDG_SAMECLUSTER(ifp,src) \
+	(src == NULL || BDG_CLUSTER(ifp) == BDG_CLUSTER(src) )
+
+
 #define BDG_MAX_PORTS 128
-extern unsigned char bdg_addresses[6*BDG_MAX_PORTS];
+typedef struct _bdg_addr {
+    unsigned char etheraddr[6] ;
+    short cluster_id ;
+} bdg_addr ;
+extern bdg_addr bdg_addresses[BDG_MAX_PORTS];
 extern int bdg_ports ;
 
 extern void bdgtakeifaces(void);
@@ -53,7 +88,7 @@ extern void bdgtakeifaces(void);
 
 struct ifnet *bridge_in(struct ifnet *ifp, struct ether_header *eh);
 /* bdg_forward frees the mbuf if necessary, returning null */
-int bdg_forward(struct mbuf **m0, struct ether_header *eh, struct ifnet *dst);
+struct mbuf *bdg_forward(struct mbuf *m0, struct ether_header *eh, struct ifnet *dst);
 
 #ifdef __i386__
 #define BDG_MATCH(a,b) ( \
@@ -108,6 +143,9 @@ struct bdg_stats {
  *	BDG_LOCAL	is for a local address
  *	BDG_DROP	must be dropped
  *	other		ifp of the dest. interface (incl.self)
+ *
+ * We assume this is only called for interfaces for which bridging
+ * is enabled, i.e. BDG_USED(ifp) is true.
  */
 static __inline
 struct ifnet *
@@ -115,7 +153,7 @@ bridge_dst_lookup(struct ether_header *eh)
 {
     struct ifnet *dst ;
     int index ;
-    u_char *eth_addr = bdg_addresses ;
+    bdg_addr *p ;
 
     if (IS_ETHER_BROADCAST(eh->ether_dhost))
 	return BDG_BCAST ;
@@ -124,9 +162,8 @@ bridge_dst_lookup(struct ether_header *eh)
     /*
      * Lookup local addresses in case one matches.
      */
-    for (index = bdg_ports, eth_addr = bdg_addresses ;
-		 index ; index--, eth_addr += 6 )
-	if (BDG_MATCH(eth_addr, eh->ether_dhost) )
+    for (index = bdg_ports, p = bdg_addresses ; index ; index--, p++ )
+	if (BDG_MATCH(p->etheraddr, eh->ether_dhost) )
 	    return BDG_LOCAL ;
     /*
      * Look for a possible destination in table
