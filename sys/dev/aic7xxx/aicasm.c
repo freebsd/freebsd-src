@@ -26,7 +26,7 @@
  *  A <label> is an <undef-sym> ending in a colon.  Spaces, tabs, and commas
  *  are token separators.
  *	
- *	$Id: aic7xxx.c,v 1.5 1995/01/22 00:46:52 gibbs Exp $
+ *	$Id: aic7xxx.c,v 1.6 1995/03/17 23:54:16 gibbs Exp $
  */
 
 /* #define _POSIX_SOURCE	1 */
@@ -38,7 +38,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-#define MEMORY		512		/* 2^9 29-bit words */
+#define MEMORY		448
 #define MAXLINE		1024
 #define MAXTOKEN	32
 #define ADOTOUT		"a.out"
@@ -479,6 +479,9 @@ int crack(char **a, int n)
 	I_imm	= eval_sdi(a, instr[i].imm);
 	I_dest	= eval_sdi(a, instr[i].dest);
 	I_addr	= eval_addr(a, instr[i].addr);
+
+	if( LC >= MEMORY )
+		error("Memory exhausted!\n");
 
 	switch (instr[i].fmt) {
 	    case 1:
