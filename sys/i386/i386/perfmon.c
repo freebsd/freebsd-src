@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: perfmon.c,v 1.2 1996/03/27 22:02:18 wollman Exp $
+ *	$Id: perfmon.c,v 1.4 1996/03/28 21:00:29 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -240,20 +240,9 @@ writectl5(int pmc)
 			newval |= P5FLAG_E;
 		newval |= ctl_shadow[0] & 0x3f;
 	}
-	/*
-	 * ``...But this is the blackest of sins!''
-	 *
-	 * According to the Harvard code, it is necessary to zero the
-	 * cycle counter before writing to the control MSR.  This must
-	 * be an Intel processor...  Hope we don't lose too many ticks.
-	 */
-	disable_intr();
-	oldtsc = rdtsc();
-	wrmsr(0x10 /* TSC */, 0);
+
 	wrmsr(msr_ctl[0], newval);
-	wrmsr(0x10, oldtsc);
-	enable_intr();
-	return 0;		/* XXX should check for errors */
+	return 0;		/* XXX should check for unimplemented bits */
 }
 
 /*
