@@ -179,7 +179,7 @@ The following example extract a compress'ed tar
 archive from your mailbox
 .Pp
 .Bd -literal -offset indent -compact
-uudecode -p < $MAIL | zcat | tar xfv -
+uudecode -o /dev/stdout < $MAIL | zcat | tar xfv -
 .Ed
 .Sh SEE ALSO
 .Xr basename 1 ,

@@ -96,6 +96,8 @@ main(int argc, char *argv[])
 			oflag = 1; /* output to the specified file */
 			sflag = 1; /* do not strip pathnames for output */
 			outfile = optarg; /* set the output filename */
+			if (strcmp(outfile, "/dev/stdout") == 0)
+				pflag = 1;
 			break;
 		case 'p':
 			if (oflag)
