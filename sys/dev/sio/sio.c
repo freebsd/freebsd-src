@@ -1743,7 +1743,7 @@ siointr1(com)
 			    com->pps_bit) {
 				pps_capture(&com->pps);
 				pps_event(&com->pps,
-				    (modem_status & com->ppsbit) ? 
+				    (modem_status & com->pps_bit) ? 
 				    PPS_CAPTUREASSERT : PPS_CAPTURECLEAR);
 			}
 		}
