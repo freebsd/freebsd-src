@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.222.2.1 1999/01/27 02:24:45 jkh Exp $
+#	$Id: Makefile,v 1.222.2.2 1999/02/17 21:04:44 msmith Exp $
 #
 # The user-driven targets are:
 #
@@ -8,6 +8,7 @@
 # installworld        - Install everything built by "buildworld".
 # world               - buildworld + installworld.
 # update              - Convenient way to update your source tree (cvs).
+# upgrade             - Upgrade a.out (2.2.x/3.0) system to the new ELF way
 # most                - Build user commands, no libraries or include files.
 # installmost         - Install user commands, no libraries or include files.
 # aout-to-elf         - Upgrade an system from a.out to elf format (see below).

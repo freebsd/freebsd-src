@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile.upgrade,v 1.9.2.8 1999/02/13 18:49:14 jkh Exp $
+#	$Id: Makefile.upgrade,v 1.9.2.9 1999/02/17 21:04:44 msmith Exp $
 #
 # This makefile contains rules for preforming upgrades that are outside
 # the scope of the normal build world process.
@@ -101,6 +101,7 @@ ${MAKEOBJDIRPREFIX}/do_elf_buildworld :
 	@cd ${.CURDIR}; MAKEOBJDIRPREFIX=${MAKEOBJDIRPREFIX}/elf \
 		PATH=${AOUTTMPPATH} OBJFORMAT=elf NOTOOLS=1 \
 		TOOLROOT=${MAKEOBJDIRPREFIX}/aout${.CURDIR}/tmp \
+		X11BASE=/nonexistent \
 		${MAKE} -f Makefile.inc1 -m ${.CURDIR}/share/mk buildworld
 	@touch ${MAKEOBJDIRPREFIX}/do_elf_buildworld
 
