@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/pam_vprompt.c#8 $
+ * $P4: //depot/projects/openpam/lib/pam_vprompt.c#9 $
  */
 
 #include <stdarg.h>
@@ -66,7 +66,7 @@ pam_vprompt(pam_handle_t *pamh,
 	r = pam_get_item(pamh, PAM_CONV, (const void **)&conv);
 	if (r != PAM_SUCCESS)
 		RETURNC(r);
-	if (conv == NULL) {
+	if (conv == NULL || conv->conv == NULL) {
 		openpam_log(PAM_LOG_ERROR, "no conversation function");
 		RETURNC(PAM_SYSTEM_ERR);
 	}
