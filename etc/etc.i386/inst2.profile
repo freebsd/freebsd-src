@@ -155,8 +155,8 @@ load_fd()
 			;;
 		esac
 	done
-	verbose=
-	interactive=-v
+	verbose=-v
+	interactive=-i
 	dir=/tmp/floppy
 	umount $dir >/dev/null 2>&1
 	rm -f $dir
@@ -263,7 +263,7 @@ extract()
 		/tmp/gunzip |
 		(cd / ; /tmp/tar --extract --file - --preserve-permissions ${tarverbose} )
 	done
-	rm -f /bin/cat /tmp/gunzip /tmp/tar
+	rm -f /tmp/cat /tmp/gunzip /tmp/tar
 	sync
 }
 configure()
