@@ -543,6 +543,7 @@ if [ -r /etc/rc.devfs ]; then
 	sh /etc/rc.devfs
 fi
 
+echo -n additional ABI support:
 
 # Start the Linux binary compatibility if requested.
 #
@@ -565,6 +566,8 @@ case ${svr4_enable} in
 	echo -n ' svr4';	kldload svr4 > /dev/null 2>&1
 	;;
 esac
+
+echo .
 
 # Do traditional (but rather obsolete) rc.local file if it exists.  If you
 # use this file and want to make it programmatic, source /etc/defaults/rc.conf
