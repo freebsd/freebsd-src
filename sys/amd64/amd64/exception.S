@@ -30,18 +30,15 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: exception.s,v 1.30 1997/06/22 16:03:02 peter Exp $
+ *	$Id: exception.s,v 1.31 1997/07/01 01:02:03 bde Exp $
  */
 
 #include "npx.h"				/* NNPX */
 #include "assym.s"				/* system defines */
-#include <sys/errno.h>				/* error return codes */
 #include <machine/ipl.h>			/* SWI_AST_MASK ... */
 #include <machine/psl.h>			/* PSL_I */
 #include <machine/trap.h>			/* trap codes */
-#include <sys/syscall.h>			/* syscall numbers */
 #include <machine/asmacros.h>			/* miscellaneous macros */
-#include <sys/cdefs.h>				/* CPP macros */
 
 #ifdef SMP
 #include <machine/apic.h>			/* for apic_vector.s */

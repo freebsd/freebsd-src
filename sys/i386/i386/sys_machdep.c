@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)sys_machdep.c	5.5 (Berkeley) 1/19/91
- *	$Id$
+ *	$Id: sys_machdep.c,v 1.21 1997/02/22 09:32:53 peter Exp $
  *
  */
 
@@ -42,8 +42,6 @@
 #include <sys/proc.h>
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
-#include <vm/vm_prot.h>
 #include <sys/lock.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>

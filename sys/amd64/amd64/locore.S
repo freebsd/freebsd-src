@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.91 1997/07/15 11:07:32 kato Exp $
+ *	$Id: locore.s,v 1.92 1997/07/17 19:44:53 dyson Exp $
  *
  *		originally from: locore.s, by William F. Jolitz
  *
@@ -47,9 +47,7 @@
 #include "opt_cpu.h"
 #include "opt_ddb.h"
 #include "opt_userconfig.h"
-#include "opt_smp.h"
 
-#include <sys/errno.h>
 #include <sys/syscall.h>
 #include <sys/reboot.h>
 
@@ -58,10 +56,6 @@
 #include <machine/psl.h>
 #include <machine/pmap.h>
 #include <machine/specialreg.h>
-
-#ifdef SMP
-#include <machine/apic.h>
-#endif /* SMP */
 
 #include "assym.s"
 
