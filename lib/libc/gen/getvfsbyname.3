@@ -38,9 +38,8 @@
 .Nm getvfsbyname
 .Nd get information about a filesystem
 .Sh SYNOPSIS
-.Fd #include <sys/types.h>
+.Fd #include <sys/param.h>
 .Fd #include <sys/mount.h>
-.Fd #include <kvm.h>
 .br
 .Ft int
 .Fn getvfsbyname "const char *name" "struct vfsconf *vfc"
