@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: test.c,v 1.11 1995/05/30 00:07:29 rgrimes Exp $
+ *	$Id: test.c,v 1.12 1995/10/28 11:54:42 ache Exp $
  */
 
 #ifndef lint
@@ -578,12 +578,12 @@ static void
 syntax()
 {
 
-	err(2, "syntax error");
+	errx(2, "syntax error");
 }
 
 static void
 overflow()
 {
 
-	err(2, "expression is too complex");
+	errx(2, "expression is too complex");
 }
