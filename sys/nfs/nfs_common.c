@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_subs.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_subs.c,v 1.42 1997/09/10 19:52:26 phk Exp $
+ * $Id: nfs_subs.c,v 1.43 1997/09/21 04:23:51 dyson Exp $
  */
 
 /*
@@ -54,10 +54,8 @@
 #include <sys/stat.h>
 #include <sys/malloc.h>
 #include <sys/dirent.h>
-#ifdef VFS_LKM
 #include <sys/sysent.h>
 #include <sys/syscall.h>
-#endif
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -552,12 +550,10 @@ extern nfstype nfsv3_type[9];
 extern struct nfsnodehashhead *nfsnodehashtbl;
 extern u_long nfsnodehash;
 
-#ifdef VFS_LKM
 struct getfh_args;
 extern int getfh(struct proc *, struct getfh_args *, int *);
 struct nfssvc_args;
 extern int nfssvc(struct proc *, struct nfssvc_args *, int *);
-#endif
 
 LIST_HEAD(nfsnodehashhead, nfsnode);
 
@@ -1175,17 +1171,15 @@ nfs_init(vfsp)
 	 * of the system can call us, if we are loadable.
 	 */
 #ifndef NFS_NOSERVER
-	lease_check_hook = nqnfs_vop_lease_check;
+	default_vnodeop_p[VOFFSET(vop_lease)] = (vop_t *)nqnfs_vop_lease_check;
 #endif
 	lease_updatetime = nfs_lease_updatetime;
 	vfsp->vfc_refcount++; /* make us non-unloadable */
-#ifdef VFS_LKM
 	sysent[SYS_nfssvc].sy_narg = 2;
-	sysent[SYS_nfssvc].sy_call = nfssvc;
+	sysent[SYS_nfssvc].sy_call = (sy_call_t *)nfssvc;
 #ifndef NFS_NOSERVER
 	sysent[SYS_getfh].sy_narg = 2;
-	sysent[SYS_getfh].sy_call = getfh;
-#endif
+	sysent[SYS_getfh].sy_call = (sy_call_t *)getfh;
 #endif
 
 	return (0);
