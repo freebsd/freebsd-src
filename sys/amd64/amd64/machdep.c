@@ -756,6 +756,8 @@ struct bios_smap {
 	u_int32_t	type;
 } __packed;
 
+u_int basemem;
+
 /*
  * Populate the (physmap) array with base/bound pairs describing the
  * available physical memory in the system, then test this memory and
@@ -773,7 +775,7 @@ static void
 getmemsize(caddr_t kmdp, u_int64_t first)
 {
 	int i, physmap_idx, pa_indx;
-	u_int basemem, extmem;
+	u_int extmem;
 	vm_paddr_t pa, physmap[PHYSMAP_SIZE];
 	pt_entry_t *pte;
 	char *cp;
