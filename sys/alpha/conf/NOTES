@@ -40,6 +40,9 @@ options 	DEC_KN8AE		# AlphaServer 8200/8400 (Turbolaser)
 options 	DEC_KN300		# AlphaServer 4100 (Rawhide),
 					# AlphaServer 1200 (Tincup)
 
+# Allow building a kernel without sio(4).
+options 	NO_SIO
+
 
 #####################################################################
 # HARDWARE BUS CONFIGURATION

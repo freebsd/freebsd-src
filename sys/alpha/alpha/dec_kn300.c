@@ -54,10 +54,17 @@ __FBSDID("$FreeBSD$");
 #include <alpha/mcbus/mcbusreg.h>
 #include <alpha/mcbus/mcbusvar.h>
 
+#ifndef NO_SIO
 #ifndef	CONSPEED
 #define	CONSPEED	TTYDEF_SPEED
 #endif
 static int comcnrate = CONSPEED;
+extern int comconsole;
+extern int siocnattach(int, int);
+extern int siogdbattach(int, int);
+#endif
+
+extern int sccnattach(void);
 
 void dec_kn300_init(void);
 void dec_kn300_cons_init(void);
@@ -69,10 +76,6 @@ const struct alpha_variation_table dec_kn300_variations[] = {
 	{ 0, NULL },
 };
 
-
-extern int siocnattach(int, int);
-extern int siogdbattach(int, int);
-extern int sccnattach(void);
 
 void
 dec_kn300_init()
@@ -92,22 +95,24 @@ dec_kn300_init()
 	platform.cons_init = dec_kn300_cons_init;
 }
 
-extern int comconsole;
-
 void
 dec_kn300_cons_init()
 {
 	struct ctb *ctb;
 
 	mcbus_init();
+
+#ifndef NO_SIO
 #ifdef	DDB
 	siogdbattach(0x2f8, 57600);
+#endif
 #endif
 
 	ctb = (struct ctb *)(((caddr_t)hwrpb) + hwrpb->rpb_ctb_off);
 
 	switch (ctb->ctb_term_type) {
 	case 2:
+#ifndef NO_SIO
 		/* serial console ... */
 		/*
 		 * Delay to allow PROM putchars to complete.
@@ -120,6 +125,7 @@ dec_kn300_cons_init()
 			panic("can't init serial console");
 
 		boothowto |= RB_SERIAL;
+#endif
 		break;
 
 	case 3:
