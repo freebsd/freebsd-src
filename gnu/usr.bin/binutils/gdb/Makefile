@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.26 1997/05/01 13:40:57 peter Exp $
+#	$Id: Makefile,v 1.27 1997/05/01 16:24:37 pst Exp $
 
 PROG = gdb
 
@@ -15,7 +15,7 @@ XSRCS = annotate.c blockframe.c breakpoint.c buildsym.c c-lang.c \
 	elfread.c environ.c eval.c exec.c expprint.c \
 	findvar.c fork-child.c freebsd-nat.c gdbtypes.c \
 	i386-tdep.c infcmd.c inflow.c infptrace.c \
-	infrun.c inftarg.c kcorelow.c language.c \
+	infrun.c inftarg.c language.c \
 	m2-lang.c m2-typeprint.c m2-valprint.c main.c maint.c \
 	mem-break.c minsyms.c objfiles.c parse.c \
 	printcmd.c remote.c remote-utils.c solib.c source.c \
