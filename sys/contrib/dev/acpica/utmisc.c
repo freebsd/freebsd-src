@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: utmisc - common utility procedures
- *              $Revision: 84 $
+ *              $Revision: 86 $
  *
  ******************************************************************************/
 
@@ -123,6 +123,102 @@
 
 #define _COMPONENT          ACPI_UTILITIES
         ACPI_MODULE_NAME    ("utmisc")
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiUtPrintString
+ *
+ * PARAMETERS:  String          - Null terminated ASCII string
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Dump an ASCII string with support for ACPI-defined escape
+ *              sequences.
+ *
+ ******************************************************************************/
+
+void
+AcpiUtPrintString (
+    char                    *String,
+    UINT8                   MaxLength)
+{
+    UINT32                  i;
+
+
+    if (!String)
+    {
+        AcpiOsPrintf ("<\"NULL STRING PTR\">");
+        return;
+    }
+
+    AcpiOsPrintf ("\"");
+    for (i = 0; String[i] && (i < MaxLength); i++)
+    {
+        /* Escape sequences */
+
+        switch (String[i])
+        {
+        case 0x07:
+            AcpiOsPrintf ("\\a");        /* BELL */
+            break;
+
+        case 0x08:
+            AcpiOsPrintf ("\\b");       /* BACKSPACE */
+            break;
+
+        case 0x0C:
+            AcpiOsPrintf ("\\f");       /* FORMFEED */
+            break;
+
+        case 0x0A:
+            AcpiOsPrintf ("\\n");       /* LINEFEED */
+            break;
+
+        case 0x0D:
+            AcpiOsPrintf ("\\r");       /* CARRIAGE RETURN*/
+            break;
+
+        case 0x09:
+            AcpiOsPrintf ("\\t");       /* HORIZONTAL TAB */
+            break;
+
+        case 0x0B:
+            AcpiOsPrintf ("\\v");       /* VERTICAL TAB */
+            break;
+
+        case '\'':                      /* Single Quote */
+        case '\"':                      /* Double Quote */
+        case '\\':                      /* Backslash */
+            AcpiOsPrintf ("\\%c", (int) String[i]);
+            break;
+
+        default:
+
+            /* Check for printable character or hex escape */
+
+            if (ACPI_IS_PRINT (String[i]))
+            {
+                /* This is a normal character */
+
+                AcpiOsPrintf ("%c", (int) String[i]);
+            }
+            else
+            {
+                /* All others will be Hex escapes */
+
+                AcpiOsPrintf ("\\x%2.2X", (INT32) String[i]);
+            }
+            break;
+        }
+    }
+    AcpiOsPrintf ("\"");
+
+    if (i == MaxLength && String[i])
+    {
+        AcpiOsPrintf ("...");
+    }
+}
 
 
 /*******************************************************************************
@@ -723,7 +819,7 @@ AcpiUtAcquireMutex (
                 ThisThreadId, AcpiUtGetMutexName (MutexId)));
 
     Status = AcpiOsWaitSemaphore (AcpiGbl_AcpiMutexInfo[MutexId].Mutex,
-                                    1, WAIT_FOREVER);
+                                    1, ACPI_WAIT_FOREVER);
     if (ACPI_SUCCESS (Status))
     {
         ACPI_DEBUG_PRINT ((ACPI_DB_MUTEX, "Thread %X acquired Mutex [%s]\n",

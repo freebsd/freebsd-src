@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: aclocal.h - Internal data types used across the ACPI subsystem
- *       $Revision: 176 $
+ *       $Revision: 179 $
  *
  *****************************************************************************/
 
@@ -118,7 +118,7 @@
 #define __ACLOCAL_H__
 
 
-#define WAIT_FOREVER                    ((UINT32) -1)
+#define ACPI_WAIT_FOREVER               0xFFFF  /* UINT16, as per ACPI spec */
 
 typedef void*                           ACPI_MUTEX;
 typedef UINT32                          ACPI_MUTEX_HANDLE;
@@ -303,7 +303,6 @@ typedef struct AcpiTableDesc
     struct AcpiTableDesc    *Next;
     struct AcpiTableDesc    *InstalledDesc;
     ACPI_TABLE_HEADER       *Pointer;
-    void                    *BasePointer;
     UINT8                   *AmlStart;
     UINT64                  PhysicalAddress;
     UINT32                  AmlLength;
@@ -746,6 +745,7 @@ typedef struct acpi_parseobj_asl
     char                        *Filename;
     char                        *ExternalName;
     char                        *Namepath;
+    char                        NameSeg[4];
     UINT32                      ExtraValue;
     UINT32                      Column;
     UINT32                      LineNumber;

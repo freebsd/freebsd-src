@@ -146,10 +146,18 @@ FlGenerateFilename (
     char                    *Suffix);
 
 ACPI_STATUS
+FlSplitInputPathname (
+    char                    *InputPath,
+    char                    **OutDirectoryPath,
+    char                    **OutFilename);
+
+ACPI_STATUS
 AdAmlDisassemble (
     BOOLEAN                 OutToFile,
     char                    *Filename,
-    char                    **OutFilename);
+    char                    *Prefix,
+    char                    **OutFilename,
+    BOOLEAN                 GetAllTables);
 
 void
 AdPrintStatistics (void);
@@ -164,7 +172,8 @@ AdDumpTables (void);
 
 ACPI_STATUS
 AdGetTables (
-    char                    *Filename);
+    char                    *Filename,
+    BOOLEAN                 GetAllTables);
 
 ACPI_STATUS
 AdParseTables (void);

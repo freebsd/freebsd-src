@@ -3,7 +3,7 @@
  *
  * Module Name: exstoren - AML Interpreter object store support,
  *                        Store to Node (namespace object)
- *              $Revision: 51 $
+ *              $Revision: 52 $
  *
  *****************************************************************************/
 
@@ -160,9 +160,9 @@ AcpiExResolveObject (
     switch (TargetType)
     {
     case ACPI_TYPE_BUFFER_FIELD:
-    case INTERNAL_TYPE_REGION_FIELD:
-    case INTERNAL_TYPE_BANK_FIELD:
-    case INTERNAL_TYPE_INDEX_FIELD:
+    case ACPI_TYPE_LOCAL_REGION_FIELD:
+    case ACPI_TYPE_LOCAL_BANK_FIELD:
+    case ACPI_TYPE_LOCAL_INDEX_FIELD:
         /*
          * These cases all require only Integers or values that
          * can be converted to Integers (Strings or Buffers)
@@ -177,7 +177,7 @@ AcpiExResolveObject (
          * are all essentially the same.  This case handles the
          * "interchangeable" types Integer, String, and Buffer.
          */
-        if (ACPI_GET_OBJECT_TYPE (SourceDesc) == INTERNAL_TYPE_REFERENCE)
+        if (ACPI_GET_OBJECT_TYPE (SourceDesc) == ACPI_TYPE_LOCAL_REFERENCE)
         {
             /* Resolve a reference object first */
 
@@ -207,7 +207,7 @@ AcpiExResolveObject (
         break;
 
 
-    case INTERNAL_TYPE_ALIAS:
+    case ACPI_TYPE_LOCAL_ALIAS:
 
         /*
          * Aliases are resolved by AcpiExPrepOperands
