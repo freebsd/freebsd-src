@@ -245,7 +245,7 @@ SYMLINKS+=libncurses_p.a ${LIBDIR}/libtinfo_p.a
 .endif
 
 beforeinstall:	${HEADERS}
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 ${HEADERS} \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${HEADERS} \
 	    ${DESTDIR}/usr/include
 	rm -f ${DESTDIR}/usr/include/ncurses.h
 	ln -s curses.h ${DESTDIR}/usr/include/ncurses.h
