@@ -282,40 +282,19 @@ static long long cycles_per_sec = 0;
 void
 calibrate_cyclecounter(void)
 {
-	volatile long edx, eax, lasteax, lastedx;
-
-	__asm __volatile(".byte 0x0f, 0x31" : "=a"(lasteax), "=d"(lastedx) : );
-	DELAY(1000000);
-	__asm __volatile(".byte 0x0f, 0x31" : "=a"(eax), "=d"(edx) : );
-
 	/*
-	 * This assumes that you will never have a clock rate higher
-	 * than 4GHz, probably a good assumption.
+	 * Don't need volatile; should always use unsigned if 2's
+	 * complement arithmetic is desired.
 	 */
-	/* The following C code is correct, but our current gcc 2.6.3
-	 * seems to produce bad assembly code for it , ATS , XXXX */
-#if 0
-	cycles_per_sec = ((long long)edx << 32) + eax;
-	cycles_per_sec -= ((long long)lastedx << 32) + lasteax;
-	pentium_mhz = ((long)cycles_per_sec + 500000) / 1000000; /* round up */
-#else
-	/* produce a workaround for the code above */
-	{
-		union { 
-			long long extralong;
-			long shorty[2];
-		} tmp;
+	unsigned long long count, last_count;
 
-		tmp.shorty[0] = eax;
-		tmp.shorty[1] = edx;
-		cycles_per_sec = tmp.extralong;
-		tmp.shorty[0] = lasteax;
-		tmp.shorty[1] = lastedx;
-		cycles_per_sec -= tmp.extralong;
-		/* round up */
-		pentium_mhz = (long) ((cycles_per_sec + 500000) / 1000000);
-	}
-#endif
+	__asm __volatile(".byte 0xf,0x31" : "=A" (last_count));
+	DELAY(1000000);
+	__asm __volatile(".byte 0xf,0x31" : "=A" (count));
+	/*
+	 * XX lose if the clock rate is not nearly a multiple of 1000000.
+	 */
+	pentium_mhz = ((count - last_count) + 500000) / 1000000;
 }
 #endif
 
