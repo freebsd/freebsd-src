@@ -1,5 +1,5 @@
 /*
- * $Id: lib.c,v 1.14 1995/04/07 05:08:28 nate Exp $	- library routines
+ * $Id: lib.c,v 1.15 1995/05/30 05:01:46 rgrimes Exp $	- library routines
  */
 
 #include <sys/param.h>
@@ -830,7 +830,7 @@ struct file_entry	*p;
 
 	fname = findshlib(p->filename, &major, &minor, 1);
 
-	if (fname && (fd = open(fname, O_RDONLY, 0)) > 0) {
+	if (fname && (fd = open(fname, O_RDONLY, 0)) >= 0) {
 		p->filename = fname;
 		p->lib_major = major;
 		p->lib_minor = minor;
@@ -852,7 +852,7 @@ dot_a:
 		register char *path
 			= concat(search_dirs[i], "/", fname);
 		fd = open(path, O_RDONLY, 0);
-		if (fd > 0) {
+		if (fd >= 0) {
 			p->filename = path;
 			p->flags &= ~E_SEARCH_DIRS;
 			break;
