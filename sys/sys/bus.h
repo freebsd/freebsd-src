@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bus.h,v 1.4 1998/07/12 16:20:48 dfr Exp $
+ *	$Id: bus.h,v 1.5 1998/07/22 08:35:48 dfr Exp $
  */
 
 #ifndef _SYS_BUS_H_
@@ -179,29 +179,30 @@ int driver_module_handler(module_t, modeventtype_t, void*);
 
 #define DRIVER_MODULE(name, busname, driver, devclass, evh, arg)	\
 									\
-static struct driver_module_data name##_driver_mod = {			\
+static struct driver_module_data name##_##busname##_driver_mod = {	\
 	evh, arg,							\
 	#busname,							\
 	&driver,							\
 	&devclass,							\
 };									\
 									\
-static moduledata_t name##_mod = {					\
-	#name,								\
+static moduledata_t name##_##busname##_mod = {				\
+	#busname "/" #name,						\
 	driver_module_handler,						\
-	&name##_driver_mod						\
+	&name##_##busname##_driver_mod					\
 };									\
-DECLARE_MODULE(name, name##_mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE)
+DECLARE_MODULE(name##_##busname, name##_##busname##_mod,		\
+	       SI_SUB_DRIVERS, SI_ORDER_MIDDLE)
 
-#define CDEV_DRIVER_MODULE(name, busname, driver, devclass,	\
-			   major, devsw, evh, arg)		\
-								\
-static struct cdevsw_module_data name##_cdevsw_mod = {		\
-    evh, arg, makedev(major, 0), &devsw				\
-};								\
-								\
-DRIVER_MODULE(name, busname, driver, devclass,			\
-	      cdevsw_module_handler, &name##_cdevsw_mod)
+#define CDEV_DRIVER_MODULE(name, busname, driver, devclass,		\
+			   major, devsw, evh, arg)			\
+									\
+static struct cdevsw_module_data name##_##busname##_cdevsw_mod = {	\
+    evh, arg, makedev(major, 0), &devsw					\
+};									\
+									\
+DRIVER_MODULE(name, busname, driver, devclass,				\
+	      cdevsw_module_handler, &name##_##busname##_cdevsw_mod)
 
 #endif
 
