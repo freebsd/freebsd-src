@@ -201,7 +201,7 @@
 #define HAVE_CEILF 1
 
 /* Define to 1 if you have the `ceill' function. */
-/* #undef HAVE_CEILL */
+#define HAVE_CEILL 1
 
 /* Define to 1 if you have the `copysign' function. */
 #define HAVE_COPYSIGN 1
@@ -858,10 +858,10 @@
 #define HAVE___SIGNBIT 1
 
 /* Define to 1 if you have the `__signbitf' function. */
-/* #undef HAVE___SIGNBITF */
+#define HAVE___SIGNBITF 1
 
 /* Define to 1 if you have the `__signbitl' function. */
-/* #undef HAVE___SIGNBITL */
+#define HAVE___SIGNBITL 1
 
 /* Define to the address where bug reports for this package should be sent. */
 #define PACKAGE_BUGREPORT ""
