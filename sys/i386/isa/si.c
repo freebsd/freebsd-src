@@ -69,6 +69,7 @@ static char si_copyright1[] =  "@(#) (C) Specialix International, 1990,1992",
 
 #include <i386/isa/sireg.h>
 #include <machine/si.h>
+#include <machine/stdarg.h>
 
 #include "si.h"
 
@@ -129,10 +130,13 @@ static struct cdevsw si_cdevsw =
 
 
 #ifdef SI_DEBUG		/* use: ``options "SI_DEBUG"'' in your config file */
-/* XXX: should be varargs, I know.. but where's vprintf()? */
-static	void	si_dprintf __P((/* struct si_port *pp, int flags, char *str, int a1, int a2, int a3, int a4, int a5, int a6 */));
+
+static	void	si_dprintf __P((struct si_port *pp, int flags, const char *fmt,
+				...));
 static	char	*si_mctl2str __P((enum si_mctl cmd));
+
 #define	DPRINT(x)	si_dprintf x
+
 #else
 #define	DPRINT(x)	/* void */
 #endif
@@ -2327,20 +2331,27 @@ si_disc_optim(tp, t, pp)
 
 
 #ifdef	SI_DEBUG
+
 static void
-si_dprintf(pp, flags, str, a1, a2, a3, a4, a5, a6)
+#ifdef __STDC__
+si_dprintf(struct si_port *pp, int flags, const char *fmt, ...)
+#else
+si_dprintf(pp, flags, fmt, va_alist)
 	struct si_port *pp;
 	int flags;
-	char *str;
-	int a1, a2, a3, a4, a5, a6;
+	char *fmt;
+#endif
 {
+	va_list ap;
 	if ((pp == NULL && (si_debug&flags)) ||
 	    (pp != NULL && ((pp->sp_debug&flags) || (si_debug&flags)))) {
+		va_start(ap, fmt);
 	    	if (pp != NULL)
 	    		printf("%ci%d(%d): ", 's',
 	    			(int)SI_CARD(pp->sp_tty->t_dev),
 	    			(int)SI_PORT(pp->sp_tty->t_dev));
-		printf(str, a1, a2, a3, a4, a5, a6);
+		printf("%r", fmt, ap);
+		va_end(ap);
 	}
 }
 
