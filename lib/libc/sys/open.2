@@ -30,6 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)open.2	8.2 (Berkeley) 11/16/93
+.\" $FreeBSD$
 .\"
 .Dd November 16, 1993
 .Dt OPEN 2
@@ -226,6 +227,13 @@ operation was interrupted by a signal.
 or
 .Dv O_EXLOCK
 is specified but the underlying filesystem does not support locking.
+.It Bq Er EWOULDBLOCK
+.Dv O_NONBLOCK
+and one of
+.Dv O_SHLOCK
+or
+.Dv O_EXLOCK
+is specified and the file is locked.
 .It Bq Er ENOSPC
 .Dv O_CREAT
 is specified,
