@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.359 1998/06/26 18:54:06 brian Exp $
+#	$Id: Makefile,v 1.360 1998/07/09 08:26:38 des Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -508,10 +508,15 @@ ftp.1:
 	cd ${RD} && find floppies -print | cpio -dumpl ${FD}
 	cd ${RD}/dists && find . -print | cpio -dumpl ${FD}
 	cp ${.CURDIR}/ABOUT.TXT ${FD}/ABOUT.TXT
+	cp ${.CURDIR}/ERRATA.TXT ${FD}/ERRATA.TXT
+	cp ${.CURDIR}/LAYOUT.TXT ${FD}/LAYOUT.TXT
 	cp ${.CURDIR}/sysinstall/help/readme.hlp ${FD}/README.TXT
 	cp ${.CURDIR}/sysinstall/help/hardware.hlp ${FD}/HARDWARE.TXT
 	cp ${.CURDIR}/sysinstall/help/install.hlp ${FD}/INSTALL.TXT
 	cp ${.CURDIR}/sysinstall/help/relnotes.hlp ${FD}/RELNOTES.TXT
+	cp ${.CURDIR}/sysinstall/help/trouble.hlp ${FD}/TROUBLE.TXT
+	cp ${.CURDIR}/sysinstall/help/upgrade.hlp ${FD}/UPGRADE.TXT
+
 	echo "CD_VERSION = ${BUILDNAME}" > ${FD}/cdrom.inf
 .if !defined(NOPORTS)
 	tar -cBf - -C ${CD_DISC1} ports | tar -xBf - -C ${FD}
