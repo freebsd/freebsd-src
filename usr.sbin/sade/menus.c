@@ -61,18 +61,18 @@ clearSrc(dialogMenuItem *self)
 }
 
 static int
-setDES(dialogMenuItem *self)
+setCRYPTO(dialogMenuItem *self)
 {
-    Dists |= DIST_DES;
-    DESDists = DIST_DES_ALL;
+    Dists |= DIST_CRYPTO;
+    CRYPTODists = DIST_CRYPTO_ALL;
     return DITEM_SUCCESS | DITEM_REDRAW;
 }
 
 static int
-clearDES(dialogMenuItem *self)
+clearCRYPTO(dialogMenuItem *self)
 {
-    Dists &= ~DIST_DES;
-    DESDists = 0;
+    Dists &= ~DIST_CRYPTO;
+    CRYPTODists = 0;
     return DITEM_SUCCESS | DITEM_REDRAW;
 }
 
@@ -128,10 +128,10 @@ clearX11Fonts(dialogMenuItem *self)
 #define _IS_SET(dist, set) (((dist) & (set)) == (set))
 
 #define IS_DEVELOPER(dist, extra) (_IS_SET(dist, _DIST_DEVELOPER | extra) || \
-	_IS_SET(dist, _DIST_DEVELOPER | DIST_DES | extra))
+	_IS_SET(dist, _DIST_DEVELOPER | DIST_CRYPTO | extra))
 
 #define IS_USER(dist, extra) (_IS_SET(dist, _DIST_USER | extra) || \
-	_IS_SET(dist, _DIST_USER | DIST_DES | extra))
+	_IS_SET(dist, _DIST_USER | DIST_CRYPTO | extra))
 
 static int
 checkDistDeveloper(dialogMenuItem *self)
@@ -185,9 +185,9 @@ checkDistEverything(dialogMenuItem *self)
 }
 
 static int
-DESFlagCheck(dialogMenuItem *item)
+CRYPTOFlagCheck(dialogMenuItem *item)
 {
-    return DESDists;
+    return CRYPTODists;
 }
 
 static int
@@ -232,7 +232,7 @@ DMenu MenuIndex = {
       { " Disklabel",		"The disk Label editor",		NULL, diskLabelEditor },
       { " Dists, All",		"Root of the distribution tree.",	NULL, dmenuSubmenu, NULL, &MenuDistributions },
       { " Dists, Basic",		"Basic FreeBSD distribution menu.",	NULL, dmenuSubmenu, NULL, &MenuSubDistributions },
-      { " Dists, DES",		"DES distribution menu.",		NULL, dmenuSubmenu, NULL, &MenuDESDistributions },
+      { " Dists, CRYPTO",	"Encryption distribution menu.",		NULL, dmenuSubmenu, NULL, &MenuCRYPTODistributions },
       { " Dists, Developer",	"Select developer's distribution.",	checkDistDeveloper, distSetDeveloper },
       { " Dists, Src",		"Src distribution menu.",		NULL, dmenuSubmenu, NULL, &MenuSrcDistributions },
       { " Dists, X Developer",	"Select X developer's distribution.",	checkDistXDeveloper, distSetXDeveloper },
@@ -807,7 +807,8 @@ DMenu MenuSubDistributions = {
     "Select the distributions you wish to install.",
     "Please check off the distributions you wish to install.  At the\n"
     "very minimum, this should be \"bin\".  WARNING:  Do not export the\n"
-    "DES distribution out of the U.S.!  It is for U.S. customers only.",
+    "Encryption distribution out of the U.S.!\n"
+    "It is for U.S. customers only.",
     NULL,
     NULL,
     { { "X Exit", "Exit this menu (returning to previous)",
@@ -832,8 +833,8 @@ DMenu MenuSubDistributions = {
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_COMPAT3X },
 #endif
 #endif
-      { " DES",		"DES encryption code - NOT FOR EXPORT!",
-	DESFlagCheck,	distSetDES },
+      { " CRYPTO",	"Encryption code - NOT FOR EXPORT!",
+	CRYPTOFlagCheck,distSetCRYPTO },
       { " dict",	"Spelling checker dictionary files",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_DICT },
       { " doc",		"Miscellaneous FreeBSD online docs",
@@ -848,7 +849,7 @@ DMenu MenuSubDistributions = {
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_CATPAGES },
       { " proflibs",	"Profiled versions of the libraries",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_PROFLIBS },
-      { " src",		"Sources for everything but DES",
+      { " src",		"Sources for everything but encryption",
 	srcFlagCheck,	distSetSrc },
       { " ports",	"The FreeBSD Ports collection",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_PORTS },
@@ -863,10 +864,10 @@ DMenu MenuSubDistributions = {
       { NULL } },
 };
 
-DMenu MenuDESDistributions = {
+DMenu MenuCRYPTODistributions = {
     DMENU_CHECKLIST_TYPE | DMENU_SELECTION_RETURNS,
     "Select the encryption facilities you wish to install.",
-    "Please check off any special DES-based encryption distributions\n"
+    "Please check off any special encryption distributions\n"
     "you would like to install.  Please note that these services are NOT FOR\n"
     "EXPORT from the United States.  For information on non-U.S. FTP\n"
     "distributions of this software, please consult the release notes.",
@@ -875,24 +876,28 @@ DMenu MenuDESDistributions = {
     { { "X Exit", "Exit this menu (returning to previous)",
 	checkTrue, dmenuExit, NULL, NULL, '<', '<', '<' },
       { "All",		"Select all of the below",
-	NULL,		setDES, NULL, NULL, ' ', ' ', ' ' },
+	NULL,		setCRYPTO, NULL, NULL, ' ', ' ', ' ' },
       { "Reset",	"Reset all of the below",
-	NULL,		clearDES, NULL, NULL, ' ', ' ', ' ' },
-      { " des",		"Basic DES encryption services",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &DESDists, '[', 'X', ']', DIST_DES_DES, },
-#if __FreeBSD__ > 3
-      { " krb4",	"KerberosIV authentication services",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &DESDists, '[', 'X', ']', DIST_DES_KERBEROS4 },
-#else
+	NULL,		clearCRYPTO, NULL, NULL, ' ', ' ', ' ' },
+      { " crypto",	"Basic encryption services",
+	dmenuFlagCheck,	dmenuSetFlag, NULL, &CRYPTODists, '[', 'X', ']', DIST_CRYPTO_CRYPTO, },
+#if __FreeBSD__ <= 3
       { " krb",		"KerberosIV authentication services",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &DESDists, '[', 'X', ']', DIST_DES_KERBEROS },
+	dmenuFlagCheck,	dmenuSetFlag, NULL, &CRYPTODists, '[', 'X', ']', DIST_CRYPTO_KERBEROS },
+#else
+      { " krb4",	"KerberosIV authentication services",
+	dmenuFlagCheck,	dmenuSetFlag, NULL, &CRYPTODists, '[', 'X', ']', DIST_CRYPTO_KERBEROS4 },
+      { " krb5",	"Kerberos5 authentication services",
+	dmenuFlagCheck,	dmenuSetFlag, NULL, &CRYPTODists, '[', 'X', ']', DIST_CRYPTO_KERBEROS5 },
 #endif
-      { " skerbero",	"Sources for Kerberos",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &DESDists, '[', 'X', ']', DIST_DES_SKERBEROS },
-      { " ssecure",	"Sources for DES",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &DESDists, '[', 'X', ']', DIST_DES_SSECURE },
-      { " scrypto",	"Export controlled crypto sources",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &DESDists, '[', 'X', ']', DIST_DES_SCRYPTO },
+      { " skrb4",	"Sources for KerberosIV",
+	dmenuFlagCheck,	dmenuSetFlag, NULL, &CRYPTODists, '[', 'X', ']', DIST_CRYPTO_SKERBEROS4 },
+      { " skrb5",	"Sources for Kerberos5",
+	dmenuFlagCheck,	dmenuSetFlag, NULL, &CRYPTODists, '[', 'X', ']', DIST_CRYPTO_SKERBEROS5 },
+      { " ssecure",	"BSD encryption sources",
+	dmenuFlagCheck,	dmenuSetFlag, NULL, &CRYPTODists, '[', 'X', ']', DIST_CRYPTO_SSECURE },
+      { " scrypto",	"Contributed encryption sources",
+	dmenuFlagCheck,	dmenuSetFlag, NULL, &CRYPTODists, '[', 'X', ']', DIST_CRYPTO_SCRYPTO },
       { NULL } },
 };
 

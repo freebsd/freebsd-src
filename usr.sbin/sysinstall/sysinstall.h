@@ -92,7 +92,7 @@
 #define VAR_DISK			"disk"
 #define VAR_DISTS			"dists"
 #define VAR_DIST_MAIN			"distMain"
-#define VAR_DIST_DES			"distDES"
+#define VAR_DIST_CRYPTO			"distCRYPTO"
 #define VAR_DIST_SRC			"distSRC"
 #define VAR_DIST_X11			"distX11"
 #define VAR_DIST_XSERVER		"distXserver"
@@ -344,7 +344,7 @@ Boolean			USAResident;		/* Are we cryptographically challenged? */
 extern Variable		*VarHead;		/* The head of the variable chain		*/
 extern Device		*mediaDevice;		/* Where we're getting our distribution from	*/
 extern unsigned int	Dists;			/* Which distributions we want			*/
-extern unsigned int	DESDists;		/* Which naughty distributions we want		*/
+extern unsigned int	CRYPTODists;		/* Which naughty distributions we want		*/
 extern unsigned int	SrcDists;		/* Which src distributions we want		*/
 extern unsigned int	XF86Dists;		/* Which XFree86 dists we want			*/
 extern unsigned int	XF86ServerDists;	/* The XFree86 servers we want			*/
@@ -381,7 +381,7 @@ extern DMenu		MenuInstallCustom;	/* Custom Installation menu			*/
 extern DMenu		MenuDistributions;	/* Distribution menu				*/
 extern DMenu		MenuDiskDevices;	/* Disk type devices				*/
 extern DMenu		MenuSubDistributions;	/* Custom distribution menu			*/
-extern DMenu		MenuDESDistributions;	/* DES distribution menu			*/
+extern DMenu		MenuCRYPTODistributions;/* Encryption distribution menu			*/
 extern DMenu		MenuSrcDistributions;	/* Source distribution menu			*/
 extern DMenu		MenuXF86;		/* XFree86 main menu				*/
 extern DMenu		MenuXF86Select;		/* XFree86 distribution selection menu		*/
@@ -490,7 +490,7 @@ extern int	distSetUser(dialogMenuItem *self);
 extern int	distSetXUser(dialogMenuItem *self);
 extern int	distSetMinimum(dialogMenuItem *self);
 extern int	distSetEverything(dialogMenuItem *self);
-extern int	distSetDES(dialogMenuItem *self);
+extern int	distSetCRYPTO(dialogMenuItem *self);
 extern int	distSetSrc(dialogMenuItem *self);
 extern int	distSetXF86(dialogMenuItem *self);
 extern int	distExtractAll(dialogMenuItem *self);
