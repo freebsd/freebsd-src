@@ -17,6 +17,31 @@ irq	3 5 10 11 13 15
 # Available memory slots
 memory	0xd4000  96k
 
+
+# Lucent WaveLAN/IEEE
+card "Lucent Technologies" "WaveLAN/IEEE"
+	config	0x1 "wi0" ?
+	insert	echo WaveLAN/IEEE inserted
+	insert	/etc/pccard_ether wi0
+	remove	echo WaveLAN/IEEE removed
+	remove	/sbin/ifconfig wi0 delete
+
+# NCR WaveLAN/IEEE
+card "NCR" "WaveLAN/IEEE"
+	config	0x1 "wi0" ?
+	insert	echo WaveLAN/IEEE inserted
+	insert	/etc/pccard_ether wi0
+	remove	echo WaveLAN/IEEE removed
+	remove	/sbin/ifconfig wi0 delete
+
+# Cabletron RoamAbout, WaveLAN/IEEE clone
+card "Cabletron" "RoamAbout 802.11 DS"
+	config	0x1 "wi0" ?
+	insert	echo WaveLAN/IEEE inserted
+	insert	/etc/pccard_ether wi0
+	remove	echo WaveLAN/IEEE removed
+	remove	/sbin/ifconfig wi0 delete
+
 # IBM PCMCIA Ethernet I/II
 card "IBM Corp." "Ethernet"
 	config	0x1 "ed0" ?
@@ -166,6 +191,14 @@ card "D-Link" "DE-660"
 	config 0x20 "ed0" ? 0x10
 	insert /etc/pccard_ether ed0 link0 -link1
 	remove /sbin/ifconfig ed0 delete
+
+# NDC Ethernet Instant-Link NE2000 clone
+card "NDC" "Ethernet"
+	config 0x22 "ed0" ? 0x10
+	insert	echo NDC Ethernet Instant-Link adapter inserted
+	insert	/etc/pccard_ether ed0
+	remove	echo NDC Ethernet Instant-Link adapter removed
+	remove	/sbin/ifconfig ed0 delete
 
 # CyQ've ELA-010
 card "CyQ've" "ELA-010"
