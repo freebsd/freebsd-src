@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)genassym.c	5.11 (Berkeley) 5/10/91
- *	$Id: genassym.c,v 1.72 1999/07/06 07:13:32 cracauer Exp $
+ *	$Id: genassym.c,v 1.73 1999/07/09 04:15:39 jlemon Exp $
  */
 
 #include "opt_user_ldt.h"
@@ -232,6 +232,8 @@ main()
 #ifdef SMP
 	printf("#define\tKPSEL %#x\n", GSEL(GPRIV_SEL, SEL_KPL));
 #endif
+	printf("#define\tBC32SEL %#x\n", GSEL(GBIOSCODE32_SEL, SEL_KPL));
+	printf("#define\tBSSSEL %#x\n", GSEL(GBIOSSTACK_SEL, SEL_KPL));
 	printf("#define\tGPROC0_SEL %#x\n", GPROC0_SEL);
 	printf("#define\tVM86_FRAMESIZE %#x\n", sizeof(struct vm86frame));
 
