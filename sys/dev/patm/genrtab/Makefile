@@ -4,12 +4,10 @@
 # for the idt77252 driver. It is not installed.
 #
 PROG=genrtab
-WARNS=5
+INTERNALPROG=
+WARNS?=5
 NOMAN=true
 DPADD=${LIBM}
 LDADD=-lm
 
-install:
-
 .include <bsd.prog.mk>
-
