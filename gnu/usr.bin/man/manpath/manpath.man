@@ -82,7 +82,7 @@ System configuration file.
 .El
 .Sh SEE ALSO
 .Xr apropos 1 ,
-.Xr whatis 1 ,
-.Xr man 1
+.Xr man 1 ,
+.Xr whatis 1
 .Sh BUGS
 None known.
