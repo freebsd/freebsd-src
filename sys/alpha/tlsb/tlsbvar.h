@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: tlsbvar.h,v 1.1 1998/06/10 10:55:58 dfr Exp $ */
 /* $NetBSD: tlsbvar.h,v 1.5 1998/05/13 23:23:23 thorpej Exp $ */
 
 /*
@@ -55,7 +55,7 @@ enum tlsb_device_instvars {
 static __inline T tlsb_get_ ## A(device_t dev)				 \
 {									 \
 	u_long v;							 \
-	bus_read_ivar(device_get_parent(dev), dev, TLSB_IVAR_ ## B, &v); \
+	BUS_READ_IVAR(device_get_parent(dev), dev, TLSB_IVAR_ ## B, &v); \
 	return v;							 \
 }
 

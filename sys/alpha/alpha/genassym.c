@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)genassym.c	5.11 (Berkeley) 5/10/91
- *	$Id: genassym.c,v 1.54 1998/04/06 18:59:14 peter Exp $
+ *	$Id: genassym.c,v 1.1 1998/06/10 10:52:39 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -64,8 +64,10 @@
 int	main __P((void));
 int	printf __P((const char *, ...));
 
+#define BIG(val)	((val) > 999LL || (val) < -999LL)
+
 #define P(name, val) \
-	printf(val > 999 ? "#define\t%s 0x%lx\n" : "#define\t%s %ld\n", name, val)
+	printf(BIG(val) ? "#define\t%s 0x%qx\n" : "#define\t%s %qd\n", name, val)
 
 /* XXX Danger Will Robinson */ 
 struct	prochd {
@@ -73,9 +75,9 @@ struct	prochd {
 	struct	proc *ph_rlink;
 };
 
-#define OFF(name, type, elem)	P(#name, (long)&((type*)0)->elem)
-#define CONST2(name, val)	P(#name, val)
-#define CONST1(name)		P(#name, name)
+#define OFF(name, type, elem)	P(#name, (long long) &((type*)0)->elem)
+#define CONST2(name, val)	P(#name, (long long) val)
+#define CONST1(name)		P(#name, (long long) name)
 
 int
 main()

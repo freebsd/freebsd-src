@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: autoconf.c,v 1.1 1998/06/10 10:52:10 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -69,6 +69,8 @@ configure_finish()
 #endif
 }
 
+extern void pci_configure(void);
+
 /*
  * Determine i/o configuration for a machine.
  */
@@ -77,7 +79,7 @@ configure(void *dummy)
 {
 	configure_start();
 
-	bus_add_device(root_bus, platform.iobus, 0, 0);
+	device_add_child(root_bus, platform.iobus, 0, 0);
 	root_bus_configure();
 
 	pci_configure();

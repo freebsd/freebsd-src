@@ -78,7 +78,6 @@ struct intr_mapping {
 };
 
 struct tlsb_softc {
-	struct bus bus;
 	STAILQ_HEAD(, intr_mapping) intr_handlers;
 };
 
@@ -86,88 +85,39 @@ static char	*tlsb_node_type_str(u_int32_t);
 static void	tlsb_intr(void* frame, u_long vector);
 
 /* There can be only one. */
-static int	tlsb_found;
-static struct tlsb_softc* tlsb0_softc;
+static int			tlsb_found;
+static struct tlsb_softc*	tlsb0_softc;
+static devclass_t		tlsb_devclass;
 
 /*
- * Bus handlers.
+ * Device methods
  */
-static bus_print_device_t	tlsb_print_device;
-static bus_read_ivar_t		tlsb_read_ivar;
-static bus_map_intr_t		tlsb_map_intr;
+static int tlsb_probe(device_t dev);
+static void tlsb_print_child(device_t dev, device_t child);
+static int tlsb_read_ivar(device_t dev, device_t child, int which, u_long* result);
+static int tlsb_map_intr(device_t dev, device_t child, driver_intr_t *intr, void *arg);
 
-static bus_ops_t tlsb_bus_ops = {
-	tlsb_print_device,
-	tlsb_read_ivar,
-	null_write_ivar,
-	tlsb_map_intr,
+static device_method_t tlsb_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		tlsb_probe),
+	DEVMETHOD(device_attach,	bus_generic_attach),
+	DEVMETHOD(device_detach,	bus_generic_detach),
+	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
+
+	/* Bus interface */
+	DEVMETHOD(bus_print_child,	tlsb_print_child),
+	DEVMETHOD(bus_read_ivar,	tlsb_read_ivar),
+	DEVMETHOD(bus_write_ivar,	bus_generic_write_ivar),
+	DEVMETHOD(bus_map_intr,		tlsb_map_intr),
+
+	{ 0, 0 }
 };
 
-static void
-tlsb_print_device(bus_t bus, device_t dev)
-{
-	device_t busdev = bus_get_device(bus);
-	struct tlsb_device* tdev = DEVTOTLSB(dev);
-
-	printf(" at %s%d node %d",
-	       device_get_name(busdev),
-	       device_get_unit(busdev),
-	       tdev->td_node);
-}
-
-static int
-tlsb_read_ivar(bus_t bus, device_t dev,
-	       int index, u_long* result)
-{
-	struct tlsb_device* tdev = DEVTOTLSB(dev);
-
-	switch (index) {
-	case TLSB_IVAR_NODE:
-		*result = tdev->td_node;
-		break;
-
-	case TLSB_IVAR_DTYPE:
-		*result = tdev->td_dtype;
-		break;
-
-	case TLSB_IVAR_SWREV:
-		*result = tdev->td_swrev;
-		break;
-
-	case TLSB_IVAR_HWREV:
-		*result = tdev->td_hwrev;
-		break;
-	}
-	return ENOENT;
-}
-
-static int
-tlsb_map_intr(bus_t bus, device_t dev, driver_intr_t *intr, void *arg)
-{
-	struct tlsb_softc* sc = (struct tlsb_softc*) bus;
-	struct intr_mapping* i;
-	i = malloc(sizeof(struct intr_mapping), M_DEVBUF, M_NOWAIT);
-	if (!i)
-		return ENOMEM;
-	i->intr = intr;
-	i->arg = arg;
-	STAILQ_INSERT_TAIL(&sc->intr_handlers, i, queue);
-
-	return 0;
-}
-
-static driver_probe_t tlsb_bus_probe;
-static devclass_t tlsb_devclass;
-
-static driver_t tlsb_bus_driver = {
+static driver_t tlsb_driver = {
 	"tlsb",
-	tlsb_bus_probe,
-	bus_generic_attach,
-	bus_generic_detach,
-	bus_generic_shutdown,
+	tlsb_methods,
 	DRIVER_TYPE_MISC,
 	sizeof(struct tlsb_softc),
-	NULL,
 };
 
 /*
@@ -176,17 +126,17 @@ static driver_t tlsb_bus_driver = {
  * are alive.
  */
 static int
-tlsb_bus_probe(bus_t parent, device_t dev)
+tlsb_probe(device_t dev)
 {
 	struct tlsb_softc* sc = device_get_softc(dev);
 	struct tlsb_device *tdev;
 	u_int32_t tldev;
 	u_int8_t vid;
 	int node;
-	device_t subdev;
+	device_t child;
 
 	device_set_desc(dev, "TurboLaser bus");
-	bus_init(&sc->bus, dev, &tlsb_bus_ops);
+
 	STAILQ_INIT(&sc->intr_handlers);
 	tlsb0_softc = sc;
 
@@ -252,8 +202,8 @@ tlsb_bus_probe(bus_t parent, device_t dev)
 		tdev->td_swrev = TLDEV_SWREV(tldev);
 		tdev->td_hwrev = TLDEV_HWREV(tldev);
 
-		subdev = bus_add_device(&sc->bus, NULL, -1, tdev);
-		device_set_desc(subdev, tlsb_node_type_str(tdev->td_dtype));
+		child = device_add_child(dev, NULL, -1, tdev);
+		device_set_desc(child, tlsb_node_type_str(tdev->td_dtype));
 
 		/*
 		 * Deal with hooking CPU instances to TurboLaser nodes.
@@ -277,6 +227,58 @@ tlsb_bus_probe(bus_t parent, device_t dev)
 }
 
 static void
+tlsb_print_child(device_t dev, device_t child)
+{
+	struct tlsb_device* tdev = DEVTOTLSB(child);
+
+	printf(" at %s%d node %d",
+	       device_get_name(dev),
+	       device_get_unit(dev),
+	       tdev->td_node);
+}
+
+static int
+tlsb_read_ivar(device_t dev, device_t child,
+	       int index, u_long* result)
+{
+	struct tlsb_device* tdev = DEVTOTLSB(child);
+
+	switch (index) {
+	case TLSB_IVAR_NODE:
+		*result = tdev->td_node;
+		break;
+
+	case TLSB_IVAR_DTYPE:
+		*result = tdev->td_dtype;
+		break;
+
+	case TLSB_IVAR_SWREV:
+		*result = tdev->td_swrev;
+		break;
+
+	case TLSB_IVAR_HWREV:
+		*result = tdev->td_hwrev;
+		break;
+	}
+	return ENOENT;
+}
+
+static int
+tlsb_map_intr(device_t dev, device_t child, driver_intr_t *intr, void *arg)
+{
+	struct tlsb_softc* sc = device_get_softc(dev);
+	struct intr_mapping* i;
+	i = malloc(sizeof(struct intr_mapping), M_DEVBUF, M_NOWAIT);
+	if (!i)
+		return ENOMEM;
+	i->intr = intr;
+	i->arg = arg;
+	STAILQ_INSERT_TAIL(&sc->intr_handlers, i, queue);
+
+	return 0;
+}
+
+static void
 tlsb_intr(void* frame, u_long vector)
 {
 	struct tlsb_softc* sc = tlsb0_softc;
@@ -291,7 +293,7 @@ tlsb_intr(void* frame, u_long vector)
 		i->intr(i->arg);
 }
 
-DRIVER_MODULE(tlsb, root, tlsb_bus_driver, tlsb_devclass, 0, 0);
+DRIVER_MODULE(tlsb, root, tlsb_driver, tlsb_devclass, 0, 0);
 
 static char *
 tlsb_node_type_str(u_int32_t dtype)

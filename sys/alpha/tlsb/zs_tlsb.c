@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: zs_tlsb.c,v 1.1 1998/06/10 10:55:59 dfr Exp $
  */
 /*
  * This driver is a hopeless hack to get the SimOS console working.  A real
@@ -47,6 +47,7 @@
 #include <alpha/tlsb/gbusvar.h>
 #include <alpha/tlsb/tlsbreg.h>		/* XXX */
 #include <alpha/tlsb/zsreg.h>
+#include <alpha/tlsb/zsvar.h>
 
 #define	KV(_addr)	((caddr_t)ALPHA_PHYS_TO_K0SEG((_addr)))
 
@@ -96,31 +97,35 @@ struct consdev zs_cons = {
 static caddr_t zs_console_addr;
 static int zs_console;
 
-static int zs_probe(bus_t, device_t);
-static int zs_attach(bus_t, device_t);
+static int zs_probe(device_t);
+static int zs_attach(device_t);
 
 static devclass_t zs_devclass;
 static devclass_t zsc_devclass;
 
-driver_t zs_driver = {
+static device_method_t zs_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		zs_probe),
+	DEVMETHOD(device_attach,	zs_attach),
+
+	{ 0, 0 }
+};
+
+static driver_t zs_driver = {
 	"zs",
-	zs_probe,
-	zs_attach,
-	NULL,
-	NULL,
+	zs_methods,
 	DRIVER_TYPE_MISC,
 	sizeof(struct zs_softc),
-	NULL,
 };
 
 static int
-zs_probe(bus_t bus, device_t dev)
+zs_probe(device_t dev)
 {
 	return 0;
 }
 
 static int
-zs_attach(bus_t bus, device_t dev)
+zs_attach(device_t dev)
 {
 	struct zs_softc *sc = device_get_softc(dev);
 
@@ -355,34 +360,38 @@ CDEV_DRIVER_MODULE(zs, zsc, zs_driver, zs_devclass,
  */
 
 struct zsc_softc {
-	struct bus bus;
 	caddr_t base;
 	struct zs_softc* sc_a;
 	struct zs_softc* sc_b;
 };
 
-static driver_probe_t		zsc_tlsb_probe;
-static driver_attach_t		zsc_tlsb_attach;
-static driver_intr_t		zsc_tlsb_intr;
-static bus_print_device_t	zsc_tlsb_print_device;
+static int zsc_tlsb_probe(device_t dev);
+static int zsc_tlsb_attach(device_t dev);
+static void zsc_tlsb_print_child(device_t dev, device_t child);
+static driver_intr_t zsc_tlsb_intr;
 
-driver_t zsc_tlsb_driver = {
-	"zsc",
-	zsc_tlsb_probe,
-	zsc_tlsb_attach,
-	NULL,
-	NULL,
-	DRIVER_TYPE_MISC,
-	sizeof(struct zsc_softc),
-	NULL,
+
+static device_method_t zsc_tlsb_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		zsc_tlsb_probe),
+	DEVMETHOD(device_attach,	zsc_tlsb_attach),
+	DEVMETHOD(device_detach,	bus_generic_detach),
+	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
+
+	/* Bus interface */
+	DEVMETHOD(bus_print_child,	zsc_tlsb_print_child),
+	DEVMETHOD(bus_read_ivar,	bus_generic_read_ivar),
+	DEVMETHOD(bus_write_ivar,	bus_generic_write_ivar),
+	DEVMETHOD(bus_map_intr,		bus_generic_map_intr),
+
+	{ 0, 0 }
 };
 
-
-static bus_ops_t zsc_tlsb_ops = {
-	zsc_tlsb_print_device,
-	null_read_ivar,
-	null_write_ivar,
-	null_map_intr,
+static driver_t zsc_tlsb_driver = {
+	"zsc",
+	zsc_tlsb_methods,
+	DRIVER_TYPE_MISC,
+	sizeof(struct zsc_softc),
 };
 
 static int
@@ -394,29 +403,17 @@ zsc_get_channel(device_t dev)
 static caddr_t
 zsc_get_base(device_t dev)
 {
-	device_t busdev = bus_get_device(device_get_parent(dev));
-	struct zsc_softc* sc = device_get_softc(busdev);
+	device_t bus = device_get_parent(dev);
+	struct zsc_softc* sc = device_get_softc(bus);
 	return sc->base;
 }
 
-static void
-zsc_tlsb_print_device(bus_t bus, device_t dev)
-{
-	device_t busdev = bus_get_device(bus);
-
-	printf(" at %s%d channel %c",
-	       device_get_name(busdev), device_get_unit(busdev),
-	       'A' + (device_get_unit(dev) & 1));
-}
-
 static int
-zsc_tlsb_probe(bus_t parent, device_t dev)
+zsc_tlsb_probe(device_t dev)
 {
 	struct zsc_softc* sc = device_get_softc(dev);
 
 	device_set_desc(dev, "Z8530 uart");
-
-	bus_init(&sc->bus, dev, &zsc_tlsb_ops);
 
 	sc->base = (caddr_t) ALPHA_PHYS_TO_K0SEG(TLSB_GBUS_BASE
 						 + gbus_get_offset(dev));
@@ -424,26 +421,33 @@ zsc_tlsb_probe(bus_t parent, device_t dev)
 	/*
 	 * Add channel A for now.
 	 */
-	bus_add_device(&sc->bus, "zs", -1, (void*) 0);
+	device_add_child(dev, "zs", -1, (void*) 0);
 
 	return 0;
 }
 
 static int
-zsc_tlsb_attach(bus_t parent, device_t dev)
+zsc_tlsb_attach(device_t dev)
 {
 	struct zsc_softc* sc = device_get_softc(dev);
 
-	bus_generic_attach(parent, dev);
+	bus_generic_attach(dev);
 	
 	/* XXX */
 	sc->sc_a = ZS_SOFTC(0);
 
-	bus_map_intr(parent, dev, zsc_tlsb_intr, sc);
+	BUS_MAP_INTR(device_get_parent(dev), dev, zsc_tlsb_intr, sc);
 
 	return 0;
 }
 
+static void
+zsc_tlsb_print_child(device_t bus, device_t dev)
+{
+	printf(" at %s%d channel %c",
+	       device_get_name(bus), device_get_unit(bus),
+	       'A' + (device_get_unit(dev) & 1));
+}
 
 static void
 zsc_tlsb_intr(void* arg)
