@@ -1,6 +1,6 @@
-#	$Id: Makefile,v 1.52 1996/07/11 00:30:49 mpp Exp $
+#	$Id: Makefile,v 1.53 1996/07/11 00:37:13 mpp Exp $
 
-MAN4=   aha.4 ahb.4 ahc.4 apm.4 ar.4 asc.4 bt.4 cx.4 cy.4 dgb.4 \
+MAN4=   aha.4 ahb.4 ahc.4 aic.4 apm.4 ar.4 asc.4 bt.4 cx.4 cy.4 dgb.4 \
 	ed.4 eg.4 el.4 ep.4 gsc.4 fdc.4 fe.4 ie.4 io.4 \
 	joy.4 keyboard.4 labpc.4 lp.4 lpt.4 matcd.4 mcd.4 mem.4 meteor.4 \
 	mse.4 mtio.4 nca.4 ncr.4 npx.4 pcvt.4 perfmon.4 \
@@ -10,6 +10,7 @@ MAN4=   aha.4 ahb.4 ahc.4 apm.4 ar.4 asc.4 bt.4 cx.4 cy.4 dgb.4 \
 MLINKS=		aha.4 ../aha.4
 MLINKS+=	ahb.4 ../ahb.4
 MLINKS+=	ahc.4 ../ahc.4
+MLINKS+=	aic.4 ../aic.4
 MLINKS+=	apm.4 ../apm.4
 MLINKS+=	ar.4 ../ar.4
 MLINKS+=	asc.4 ../asc.4
