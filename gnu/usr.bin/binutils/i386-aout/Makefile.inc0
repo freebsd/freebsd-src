@@ -1,0 +1,7 @@
+#
+# $Id$
+#
+
+.include "../Makefile.inc0"
+
+RELTOP:=	../${RELTOP}
