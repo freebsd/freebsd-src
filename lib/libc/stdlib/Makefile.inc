@@ -24,7 +24,8 @@ MAN3+=	stdlib/abort.3 stdlib/abs.3 stdlib/alloca.3 stdlib/atexit.3 \
 MLINKS+=getenv.3 setenv.3 getenv.3 unsetenv.3 getenv.3 putenv.3
 MLINKS+=qsort.3 heapsort.3 qsort.3 mergesort.3
 MLINKS+=rand.3 srand.3
-MLINKS+=random.3 initstate.3 random.3 setstate.3 random.3 srandom.3
+MLINKS+=random.3 initstate.3 random.3 setstate.3 random.3 srandom.3 \
+	random.3 srandomdev.3
 MLINKS+=strtol.3 strtoq.3
 MLINKS+=strtoul.3 strtouq.3
 MLINKS+=malloc.3 free.3 malloc.3 realloc.3
