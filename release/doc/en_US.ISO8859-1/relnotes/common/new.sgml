@@ -438,6 +438,12 @@
       <para>The &man.fxp.4; driver now requires a <literal>device
       miibus</literal> entry in the kernel configuration file. &merged;</para>
 
+      <para>The &man.gx.4; driver has been added to support NICs based
+      on the Intel 82542 and 82543 Gigabit Ethernet controller chips.
+      Both fiber and copper variants of the cards are supported.  Both
+      boards support VLAN tagging/insertion, and the 82543 additionally
+      supports TCP/IP checksum offload.</para>
+
       <para>The &man.lge.4; driver has been added to support the Level
       1 LXT1001 NetCellerator Gigabit Ethernet controller chip. This
       device is used on some fiber optic GigE cards from SMC, D-Link

@@ -1544,7 +1544,7 @@
     </para>
 
     <para>Gigabit Ethernet NICs based on the Broadcom BCM570x
-    (&man.bge.4 driver)
+    (&man.bge.4; driver)
       <itemizedlist>
         <listitem>
 	  <para>3Com 3c996-T</para>
@@ -1558,6 +1558,16 @@
         </listitem>
       </itemizedlist>
     </para>
+
+    <para>Gigabit Ethernet NICs based on the Intel 82542 and 82543
+    controller chips (&man.gx.4; driver)
+      <itemizedlist>
+	<listitem>
+	  <para>Intel PRO/1000 Gigabit Ethernet</para>
+	</listitem>
+      </itemizedlist>
+    </para>
+
   </sect2>
 
   <sect2>
