@@ -212,7 +212,6 @@ int
 xe_attach (device_t dev)
 {
   struct xe_softc *scp = device_get_softc(dev);
-  int err;
 
 #ifdef XE_DEBUG
   device_printf(dev, "attach\n");
