@@ -67,7 +67,7 @@ struct fid {
  */
 
 #define MFSNAMELEN	16	/* length of fs type name, including null */
-#define	MNAMELEN	90	/* length of buffer for returned name */
+#define	MNAMELEN	80	/* length of buffer for returned name */
 
 struct statfs {
 	long	f_spare2;		/* placeholder */
@@ -86,7 +86,12 @@ struct statfs {
 	long    f_asyncwrites;		/* count of async writes since mount */
 	char	f_fstypename[MFSNAMELEN]; /* fs type name */
 	char	f_mntonname[MNAMELEN];	/* directory on which mounted */
+	long    f_syncreads;		/* count of sync reads since mount */
+	long    f_asyncreads;		/* count of async reads since mount */
+	short	f_spares1;		/* unused spare */
 	char	f_mntfromname[MNAMELEN];/* mounted filesystem */
+	short	f_spares2;		/* unused spare */
+	long    f_spare[2];		/* unused spare */
 };
 
 /*
