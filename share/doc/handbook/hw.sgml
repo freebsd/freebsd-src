@@ -1,4 +1,4 @@
-<!-- $Id: hw.sgml,v 1.5 1995/08/29 01:42:37 jfieber Exp $ -->
+<!-- $Id: hw.sgml,v 1.6 1995/09/02 11:09:03 ats Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!-- 
@@ -192,7 +192,7 @@ device sio1 at isa? port 0x100 tty flags 0x1005
 device sio2 at isa? port 0x108 tty flags 0x1005
 device sio3 at isa? port 0x110 tty flags 0x1005
 device sio4 at isa? port 0x118 tty flags 0x1005
-...
+[...]
 device sio15 at isa? port 0x170 tty flags 0x1005
 device sio16 at isa? port 0x178 tty flags 0x1005 irq 3 vector siointr
 </verb></tscreen>
@@ -272,12 +272,12 @@ sio16: type 16550A (multiport master)
 		must be made using the <tt>/dev/MAKEDEV</tt>
 		script.  After becoming root:
 <tscreen>
-cd /dev<newline>
-./MAKEDEV tty1<newline>
-./MAKEDEV cua1<newline>
-<em>.. (everything inbetween)</em><newline>
-./MAKEDEV ttyg<newline>
-./MAKEDEV cuag
+# cd /dev<newline>
+# ./MAKEDEV tty1<newline>
+# ./MAKEDEV cua1<newline>
+<em>(everything in between)</em><newline>
+# ./MAKEDEV ttyg<newline>
+# ./MAKEDEV cuag
 </tscreen>
 
 		If you do not want or need callout devices for some
