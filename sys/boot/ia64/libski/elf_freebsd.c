@@ -129,7 +129,7 @@ struct ia64_pte {
 };
 
 void
-enter_kernel(const char* filename, u_int64_t start)
+enter_kernel(const char* filename, u_int64_t start, struct bootinfo *bi)
 {
 	printf("Entering %s at 0x%lx...\n", filename, start);
 
@@ -145,6 +145,7 @@ enter_kernel(const char* filename, u_int64_t start)
 				| IA64_PSR_BN));
 	__asm __volatile("mov cr.iip=%0" :: "r"(start));
 	__asm __volatile("mov cr.ifs=r0;;");
+	__asm __volatile("mov r8=%0" :: "r" (bi));
 	__asm __volatile("rfi;;");
 }
 
@@ -196,8 +197,5 @@ elf_exec(struct preloaded_file *fp)
 			 :: "r"(0), "r"(*(u_int64_t*)&pte));
 	__asm __volatile("srlz.i;;");
 
-	enter_kernel(fp->f_name, hdr->e_entry);
+	enter_kernel(fp->f_name, hdr->e_entry, bi);
 }
-
-
-
