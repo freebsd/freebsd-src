@@ -3105,9 +3105,16 @@ fdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 		return (0);
 
 	case FD_STYPE:                  /* set drive type */
-		if (suser(td) != 0)
-			return (EPERM);
+		/*
+		 * Allow setting drive type temporarily iff
+		 * currently unset.  Used for fdformat so any
+		 * user can set it, and then start formatting.
+		 */
+		if (fd->ft)
+			return (EINVAL); /* already set */
 		fd->fts[0] = *(struct fd_type *)addr;
+		fd->ft = &fd->fts[0];
+		fd->flags |= FD_UA;
 		return (0);
 
 	case FD_GOPTS:			/* get drive options */
