@@ -1,29 +1,23 @@
 /* vi_keymap.c -- the keymap for vi_mode in readline (). */
 
-/* Copyright (C) 1988,1989 Free Software Foundation, Inc.
+/* Copyright (C) 1988, 1989, 1991 Free Software Foundation, Inc.
 
    This file is part of GNU Readline, a library for reading lines
    of text with interactive input and history editing.
 
-   Readline is free software; you can redistribute it and/or modify it
-   under the terms of the GNU General Public License as published by the
-   Free Software Foundation; either version 1, or (at your option) any
-   later version.
+   Readline is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
 
-   Readline is distributed in the hope that it will be useful, but
-   WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   General Public License for more details.
+   Readline is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with Readline; see the file COPYING.  If not, write to the Free
-   Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. */
-
-#ifndef BUFSIZ
-#include <stdio.h>
-#endif /* BUFSIZ */
-
-#include "readline.h"
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 extern KEYMAP_ENTRY_ARRAY vi_escape_keymap;
 
@@ -99,7 +93,7 @@ KEYMAP_ENTRY_ARRAY vi_movement_keymap = {
   { ISFUNC, (Function *)0x0 },		/* : */
   { ISFUNC, rl_vi_char_search },	/* ; */
   { ISFUNC, (Function *)0x0 },		/* < */
-  { ISFUNC, (Function *)0x0 },		/* = */
+  { ISFUNC, rl_vi_complete },		/* = */
   { ISFUNC, (Function *)0x0 },		/* > */
   { ISFUNC, rl_vi_search },		/* ? */
   { ISFUNC, (Function *)0x0 },		/* @ */
@@ -111,7 +105,7 @@ KEYMAP_ENTRY_ARRAY vi_movement_keymap = {
   { ISFUNC, rl_vi_delete_to },		/* D */
   { ISFUNC, rl_vi_end_word },		/* E */
   { ISFUNC, rl_vi_char_search },	/* F */
-  { ISFUNC, (Function *)0x0 },		/* G */
+  { ISFUNC, rl_vi_fetch_history },	/* G */
   { ISFUNC, (Function *)0x0 },		/* H */
   { ISFUNC, rl_vi_insert_beg },		/* I */
   { ISFUNC, (Function *)0x0 },		/* J */
@@ -134,7 +128,7 @@ KEYMAP_ENTRY_ARRAY vi_movement_keymap = {
 
   /* Some more punctuation. */
   { ISFUNC, (Function *)0x0 },		/* [ */
-  { ISFUNC, (Function *)0x0 },		/* \ */
+  { ISFUNC, rl_vi_complete },		/* \ */
   { ISFUNC, (Function *)0x0 },		/* ] */
   { ISFUNC, rl_vi_first_print },	/* ^ */
   { ISFUNC, rl_vi_yank_arg },		/* _ */

@@ -1,5 +1,6 @@
 /* History.h -- the names of functions that you can call in history. */
 
+/* The structure used to store a history entry. */
 typedef struct _hist_entry {
   char *line;
   char *data;

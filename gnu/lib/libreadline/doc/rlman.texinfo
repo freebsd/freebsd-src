@@ -3,12 +3,12 @@
 @setfilename readline.info
 @settitle GNU Readline Library
 @comment %**end of header (This is for running Texinfo on a region.)
-@synindex fn vr
+@synindex vr fn
 @setchapternewpage odd
 
 @ifinfo
-This document describes the GNU Readline Library, a utility for aiding
-in the consitency of user interface across discrete programs that need
+This document describes the GNU Readline Library, a utility which aids
+in the consistency of user interface across discrete programs that need
 to provide a command line interface.
 
 Copyright (C) 1988, 1991 Free Software Foundation, Inc.
@@ -44,7 +44,7 @@ by the Foundation.
 @center April 1991
 
 @page
-This document describes the GNU Readline Library, a utility for aiding
+This document describes the GNU Readline Library, a utility which aids
 in the consistency of user interface across discrete programs that need
 to provide a command line interface.
 
@@ -74,7 +74,7 @@ Copyright @copyright{} 1989, 1991 Free Software Foundation, Inc.
 @node Top
 @top GNU Readline Library
 
-This document describes the GNU Readline Library, a utility for aiding
+This document describes the GNU Readline Library, a utility which aids
 in the consistency of user interface across discrete programs that need
 to provide a command line interface.
 
@@ -91,13 +91,13 @@ to provide a command line interface.
 @include rltech.texinfo
 
 @node Concept Index
-@appendix Concept Index
+@unnumbered Concept Index
 @printindex cp
 
 @node Function and Variable Index
-@appendix Function and Variable Index
-@printindex vr
-@contents
+@unnumbered Function and Variable Index
+@printindex fn
 
+@contents
 @bye
 
