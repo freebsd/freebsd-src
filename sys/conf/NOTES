@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.376 1997/10/26 04:36:09 nate Exp $
+#	$Id: LINT,v 1.377 1997/10/28 07:24:33 joerg Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -606,7 +606,7 @@ pseudo-device	ssc		#super scsi
 # Micro Channel is not supported at all.
 
 #
-# Mandatory ISA devices: isa, sc or vt, npx
+# Mandatory ISA devices: isa, npx
 #
 controller	isa0
 
