@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.107 1997/12/13 02:37:27 brian Exp $
+ * $Id: main.c,v 1.108 1997/12/17 21:21:47 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -746,15 +746,20 @@ StartRedialTimer(int Timeout)
   }
 }
 
+#define IN_SIZE sizeof(struct sockaddr_in)
+#define UN_SIZE sizeof(struct sockaddr_in)
+#define ADDRSZ (IN_SIZE > UN_SIZE ? IN_SIZE : UN_SIZE)
 
 static void
 DoLoop(void)
 {
   fd_set rfds, wfds, efds;
   int pri, i, n, wfd, nfds;
-  struct sockaddr_in hisaddr;
+  char hisaddr[ADDRSZ];
+  struct sockaddr *sa = (struct sockaddr *)hisaddr;
+  struct sockaddr_in *sin = (struct sockaddr_in *)hisaddr;
   struct timeval timeout, *tp;
-  int ssize = sizeof(hisaddr);
+  int ssize = ADDRSZ;
   const u_char *cp;
   int tries;
   int qlen;
@@ -966,18 +971,37 @@ DoLoop(void)
       break;
     }
     if (server >= 0 && FD_ISSET(server, &rfds)) {
-      LogPrintf(LogPHASE, "connected to client.\n");
-      wfd = accept(server, (struct sockaddr *) & hisaddr, &ssize);
+      wfd = accept(server, sa, &ssize);
       if (wfd < 0) {
 	LogPrintf(LogERROR, "DoLoop: accept(): %s\n", strerror(errno));
 	continue;
       }
+      switch (sa->sa_family) {
+        case AF_LOCAL:
+          LogPrintf(LogPHASE, "Connected to local client.\n");
+          break;
+        case AF_INET:
+          if (sin->sin_port < 1024) {
+            LogPrintf(LogALERT, "Rejected client connection from %s:%u"
+                      "(invalid port number) !\n",
+                      inet_ntoa(sin->sin_addr), sin->sin_port);
+	    close(wfd);
+	    continue;
+          }
+          LogPrintf(LogPHASE, "Connected to client from %s:%u\n",
+                    inet_ntoa(sin->sin_addr), sin->sin_port);
+          break;
+        default:
+	  write(wfd, "Unrecognised access !\n", 22);
+	  close(wfd);
+	  continue;
+      }
       if (netfd >= 0) {
-	write(wfd, "already in use.\n", 16);
+	write(wfd, "Connection already in use.\n", 27);
 	close(wfd);
 	continue;
-      } else
-	netfd = wfd;
+      }
+      netfd = wfd;
       VarTerm = fdopen(netfd, "a+");
       LocalAuthInit();
       Greetings();
