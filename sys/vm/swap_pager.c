@@ -148,10 +148,8 @@ struct swblock {
 	daddr_t		swb_pages[SWAP_META_PAGES];
 };
 
-static struct swdevt should_be_malloced[NSWAPDEV];
-static struct swdevt *swdevt = should_be_malloced;
+static struct swdevt swdevt[NSWAPDEV];
 static int nswap;		/* first block after the interleaved devs */
-static int nswdev = NSWAPDEV;
 int vm_swap_size;
 static int swdev_syscall_active = 0; /* serialize swap(on|off) */
 
@@ -179,7 +177,7 @@ static struct sx sw_alloc_sx;
 SYSCTL_INT(_vm, OID_AUTO, swap_async_max,
         CTLFLAG_RW, &swap_async_max, 0, "Maximum running async swap ops");
 
-#define BLK2DEVIDX(blk) (nswdev > 1 ? blk / dmmax % nswdev : 0)
+#define BLK2DEVIDX(blk) (NSWAPDEV > 1 ? blk / dmmax % NSWAPDEV : 0)
 
 /*
  * "named" and "unnamed" anon region objects.  Try to reduce the overhead
@@ -2298,7 +2296,7 @@ swapdev_strategy(ap)
 	 * the block size is left in PAGE_SIZE'd chunks (for the newswap)
 	 * here.
 	 */
-	if (nswdev > 1) {
+	if (NSWAPDEV > 1) {
 		off = bp->b_blkno % dmmax;
 		if (off + sz > dmmax) {
 			bp->b_error = EINVAL;
@@ -2307,8 +2305,8 @@ swapdev_strategy(ap)
 			return 0;
 		}
 		seg = bp->b_blkno / dmmax;
-		index = seg % nswdev;
-		seg /= nswdev;
+		index = seg % NSWAPDEV;
+		seg /= NSWAPDEV;
 		bp->b_blkno = seg * dmmax + off;
 	} else {
 		index = 0;
@@ -2450,7 +2448,7 @@ done2:
 
 /*
  * Swfree(index) frees the index'th portion of the swap map.
- * Each of the nswdev devices provides 1/nswdev'th of the swap
+ * Each of the NSWAPDEV devices provides 1/NSWAPDEV'th of the swap
  * space, which is laid out with blocks of dmmax pages circularly
  * among the devices.
  *
@@ -2482,7 +2480,7 @@ swaponvp(td, vp, dev, nblks)
 	}
 
 	ASSERT_VOP_UNLOCKED(vp, "swaponvp");
-	for (sp = swdevt, index = 0 ; index < nswdev; index++, sp++) {
+	for (sp = swdevt, index = 0 ; index < NSWAPDEV; index++, sp++) {
 		if (sp->sw_vp == vp)
 			return EBUSY;
 		if (!sp->sw_vp)
@@ -2520,9 +2518,9 @@ swaponvp(td, vp, dev, nblks)
 	 * If we go beyond this, we get overflows in the radix
 	 * tree bitmap code.
 	 */
-	mblocks = 0x40000000 / BLIST_META_RADIX / nswdev;
+	mblocks = 0x40000000 / BLIST_META_RADIX / NSWAPDEV;
 	if (nblks > mblocks) {
-		printf("WARNING: reducing size to maximum of %d blocks per swap unit\n",
+		printf("WARNING: reducing size to maximum of %lu blocks per swap unit\n",
 			mblocks);
 		nblks = mblocks;
 	}
@@ -2549,8 +2547,8 @@ swaponvp(td, vp, dev, nblks)
 	 */
 	aligned_nblks = (nblks + (dmmax -1)) & ~(u_long)(dmmax -1);
 
-	if (aligned_nblks * nswdev > nswap)
-		nswap = aligned_nblks * nswdev;
+	if (aligned_nblks * NSWAPDEV > nswap)
+		nswap = aligned_nblks * NSWAPDEV;
 
 	if (swapblist == NULL)
 		swapblist = blist_create(nswap);
@@ -2559,7 +2557,7 @@ swaponvp(td, vp, dev, nblks)
 
 	for (dvbase = dmmax; dvbase < nblks; dvbase += dmmax) {
 		blk = min(nblks - dvbase, dmmax);
-		vsbase = index * dmmax + dvbase * nswdev;
+		vsbase = index * dmmax + dvbase * NSWAPDEV;
 		blist_free(swapblist, vsbase, blk);
 		vm_swap_size += blk;
 	}
@@ -2613,7 +2611,7 @@ swapoff(td, uap)
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vp = nd.ni_vp;
 
-	for (sp = swdevt, index = 0 ; index < nswdev; index++, sp++) {
+	for (sp = swdevt, index = 0 ; index < NSWAPDEV; index++, sp++) {
 		if (sp->sw_vp == vp)
 			goto found;
 	}
@@ -2648,7 +2646,7 @@ found:
 	sp->sw_flags |= SW_CLOSING;
 	for (dvbase = dmmax; dvbase < nblks; dvbase += dmmax) {
 		blk = min(nblks - dvbase, dmmax);
-		vsbase = index * dmmax + dvbase * nswdev;
+		vsbase = index * dmmax + dvbase * NSWAPDEV;
 		vm_swap_size -= blist_fill(swapblist, vsbase, blk);
 	}
 
@@ -2668,14 +2666,14 @@ found:
 	 * Resize the bitmap based on the new largest swap device,
 	 * or free the bitmap if there are no more devices.
 	 */
-	for (sp = swdevt, nblks = 0; sp < swdevt + nswdev; sp++) {
+	for (sp = swdevt, nblks = 0; sp < swdevt + NSWAPDEV; sp++) {
 		if (sp->sw_vp == NULL)
 			continue;
 		nblks = max(nblks, sp->sw_nblks);
 	}
 
 	aligned_nblks = (nblks + (dmmax -1)) & ~(u_long)(dmmax -1);
-	nswap = aligned_nblks * nswdev;
+	nswap = aligned_nblks * NSWAPDEV;
 
 	if (nswap == 0) {
 		blist_destroy(swapblist);
@@ -2701,7 +2699,7 @@ swap_pager_status(int *total, int *used)
 
 	*total = 0;
 	*used = 0;
-	for (sp = swdevt, i = 0; i < nswdev; i++, sp++) {
+	for (sp = swdevt, i = 0; i < NSWAPDEV; i++, sp++) {
 		if (sp->sw_vp == NULL)
 			continue;
 		*total += sp->sw_nblks;
@@ -2720,7 +2718,7 @@ sysctl_vm_swap_info(SYSCTL_HANDLER_ARGS)
 	if (arg2 != 1) /* name length */
 		return (EINVAL);
 
-	for (sp = swdevt, i = 0, n = 0 ; i < nswdev; i++, sp++) {
+	for (sp = swdevt, i = 0, n = 0 ; i < NSWAPDEV; i++, sp++) {
 		if (sp->sw_vp) {
 			if (n == *name) {
 				xs.xsw_version = XSWDEV_VERSION;
@@ -2739,7 +2737,7 @@ sysctl_vm_swap_info(SYSCTL_HANDLER_ARGS)
 	return (ENOENT);
 }
 
-SYSCTL_INT(_vm, OID_AUTO, nswapdev, CTLFLAG_RD, &nswdev, 0,
+SYSCTL_INT(_vm, OID_AUTO, nswapdev, CTLFLAG_RD, 0, NSWAPDEV,
     "Number of swap devices");
 SYSCTL_NODE(_vm, OID_AUTO, swap_info, CTLFLAG_RD, sysctl_vm_swap_info,
     "Swap statistics by device");
