@@ -287,7 +287,7 @@ mmrw(dev, uio, flags)
 			continue;
 
 		default:
-			return (ENXIO);
+			return (ENODEV);
 		}
 		if (error)
 			break;
