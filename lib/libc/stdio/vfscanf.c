@@ -50,6 +50,9 @@ static const char rcsid[] =
 #else
 #include <varargs.h>
 #endif
+#include <string.h>
+
+#include "collate.h"
 #include "local.h"
 
 #define FLOATING_POINT
@@ -665,7 +668,7 @@ __sccl(tab, fmt)
 	register char *tab;
 	register u_char *fmt;
 {
-	register int c, n, v;
+	register int c, n, v, i;
 
 	/* first `clear' the whole table */
 	c = *fmt++;		/* first char hat => negated scanset */
@@ -674,9 +677,7 @@ __sccl(tab, fmt)
 		c = *fmt++;	/* get new first char */
 	} else
 		v = 0;		/* default => reject */
-	/* should probably use memset here */
-	for (n = 0; n < 256; n++)
-		tab[n] = v;
+	(void) memset(tab, v, 256);
 	if (c == 0)
 		return (fmt - 1);/* format ended before closing ] */
 
@@ -717,15 +718,19 @@ doswitch:
 			 * we just stored in the table (c).
 			 */
 			n = *fmt;
-			if (n == ']' || n < c) {
+			if (n == ']' || __collate_range_cmp (n, c) < 0) {
 				c = '-';
 				break;	/* resume the for(;;) */
 			}
 			fmt++;
-			do {		/* fill in the range */
-				tab[++c] = v;
-			} while (c < n);
+			/* fill in the range */
+			for (i = 0; i < 256; i ++)
+				if (   __collate_range_cmp (c, i) < 0
+				    && __collate_range_cmp (i, n) <= 0
+				   )
+				tab[i] = v;
 #if 1	/* XXX another disgusting compatibility hack */
+			c = n;
 			/*
 			 * Alas, the V7 Unix scanf also treats formats
 			 * such as [a-c-e] as `the letters a through e'.
