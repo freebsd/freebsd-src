@@ -12,37 +12,31 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: aha1542.c,v 1.70 1997/07/20 14:09:49 bde Exp $
+ *      $Id: aha1542.c,v 1.71 1997/09/21 21:40:49 gibbs Exp $
  */
 
 /*
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  */
 
-#ifdef	KERNEL			/* don't laugh.. look for main() */
 #include "aha.h"
 
 #include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/malloc.h>
 #include <sys/buf.h>
+#include <sys/kernel.h>
+#include <sys/malloc.h>
+#include <sys/systm.h>
 
 #include <machine/clock.h>
 #include <machine/stdarg.h>
+
+#include <scsi/scsiconf.h>
+#include <scsi/scsi_debug.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
 #include <i386/isa/isa_device.h>
-#endif	/* KERNEL */
-#include <scsi/scsiconf.h>
-#include <scsi/scsi_debug.h>
-
-#ifdef	KERNEL
-#include <sys/kernel.h>
-#else /*KERNEL */
-#define NAHA 1
-#endif /*KERNEL */
 
 #include "ioconf.h"
 
@@ -345,7 +339,6 @@ static char	*board_rev __P((struct aha_data *aha, int type));
 static int	physcontig __P((int kv, int len));
 static void	put_host_stat __P((int host_stat));
 
-#ifdef	KERNEL
 static struct scsi_adapter aha_switch =
 {
     aha_scsi_cmd,
@@ -376,8 +369,6 @@ struct isa_driver ahadriver =
     "aha"
 };
 
-#endif	/* KERNEL */
-
 static int ahaunit = 0;
 
 #define aha_abortmbx(mbx) \
@@ -388,16 +379,6 @@ static int ahaunit = 0;
 	outb(AHA_CMD_DATA_PORT, AHA_START_SCSI);
 
 #define AHA_RESET_TIMEOUT	2000	/* time to wait for reset (mSec) */
-
-#ifndef	KERNEL
-main()
-{
-	printf("size of aha_data is %d\n", sizeof(struct aha_data));
-	printf("size of aha_ccb is %d\n", sizeof(struct aha_ccb));
-	printf("size of aha_mbx is %d\n", sizeof(struct aha_mbx));
-}
-
-#else /*KERNEL */
 
 /*
  * aha_cmd(struct aha_data *aha,icnt, ocnt,wait, retval, opcode, ...)
@@ -855,7 +836,7 @@ put_host_stat(int host_stat)
 		{ AHA_ABORTED, "Software abort" },
 	};
 
-	for (i = 0; i < sizeof(tab) / sizeof(tab[0]); i++) {
+	for (i = 0; i < (int)(sizeof(tab) / sizeof(tab[0])); i++) {
 		if (tab[i].host_stat == host_stat) {
 			printf("%s\n", tab[i].text);
 			return;
@@ -1869,4 +1850,3 @@ aha_timeout(void *arg1)
 		ccb->flags = CCB_ABORTED;
 	} splx(s);
 }
-#endif	/* KERNEL */
