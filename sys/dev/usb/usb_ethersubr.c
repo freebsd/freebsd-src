@@ -73,9 +73,7 @@ Static const char rcsid[] =
 #endif
 
 Static struct ifqueue usbq_rx;
-Static struct mtx usbq_rx_mtx;
 Static struct ifqueue usbq_tx;
-Static struct mtx usbq_tx_mtx;
 Static int mtx_inited = 0;
 
 Static void usbintr		__P((void));
@@ -89,9 +87,7 @@ Static void usbintr()
 
 	/* Check the RX queue */
 	while(1) {
-		mtx_enter(&usbq_rx_mtx, MTX_DEF);
 		IF_DEQUEUE(&usbq_rx, m);
-		mtx_exit(&usbq_rx_mtx, MTX_DEF);
 		if (m == NULL)
 			break;
 		eh = mtod(m, struct ether_header *);
@@ -109,9 +105,7 @@ Static void usbintr()
 
 	/* Check the TX queue */
 	while(1) {
-		mtx_enter(&usbq_tx_mtx, MTX_DEF);
 		IF_DEQUEUE(&usbq_tx, m);
-		mtx_exit(&usbq_tx_mtx, MTX_DEF);
 		if (m == NULL)
 			break;
 		ifp = m->m_pkthdr.rcvif;
@@ -128,8 +122,8 @@ void usb_register_netisr()
 	if (mtx_inited)
 		return;
 	register_netisr(NETISR_USB, usbintr);
-	mtx_init(&usbq_tx_mtx, "usbq_tx_mtx", MTX_DEF);
-	mtx_init(&usbq_rx_mtx, "usbq_rx_mtx", MTX_DEF);
+	mtx_init(&usbq_tx.ifq_mtx, "usbq_tx_mtx", MTX_DEF);
+	mtx_init(&usbq_rx.ifq_mtx, "usbq_rx_mtx", MTX_DEF);
 	mtx_inited++;
 	return;
 }
@@ -141,9 +135,7 @@ void usb_register_netisr()
 void usb_ether_input(m)
 	struct mbuf		*m;
 {
-	mtx_enter(&usbq_rx_mtx, MTX_DEF);
 	IF_ENQUEUE(&usbq_rx, m);
-	mtx_exit(&usbq_rx_mtx, MTX_DEF);
 	schednetisr(NETISR_USB);
 
 	return;
@@ -152,9 +144,7 @@ void usb_ether_input(m)
 void usb_tx_done(m)
 	struct mbuf		*m;
 {
-	mtx_enter(&usbq_tx_mtx, MTX_DEF);
 	IF_ENQUEUE(&usbq_tx, m);
-	mtx_exit(&usbq_tx_mtx, MTX_DEF);
 	schednetisr(NETISR_USB);
 
 	return;

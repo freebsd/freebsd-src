@@ -1161,18 +1161,15 @@ lpintr (int unit)
 
 	    sc->sc_iferrs = 0;
 
-	    if (IF_QFULL(&ipintrq)) {
-	        lprintf(("DROP"));
-	        IF_DROP(&ipintrq);
-		goto done;
-	    }
 	    len -= CLPIPHDRLEN;
 	    sc->sc_if.if_ipackets++;
 	    sc->sc_if.if_ibytes += len;
 	    top = m_devget(sc->sc_ifbuf + CLPIPHDRLEN, len, 0, &sc->sc_if, 0);
 	    if (top) {
-	        IF_ENQUEUE(&ipintrq, top);
-	        schednetisr(NETISR_IP);
+	        if (! IF_HANDOFF(&ipintrq, top, NULL))
+	            lprintf(("DROP"));
+                else
+	            schednetisr(NETISR_IP);
 	    }
 	    goto done;
 	}
@@ -1210,11 +1207,6 @@ lpintr (int unit)
 
 	    sc->sc_iferrs = 0;
 
-	    if (IF_QFULL(&ipintrq)) {
-		lprintf(("DROP"));
-		IF_DROP(&ipintrq);
-		goto done;
-	    }
 	    if (sc->sc_if.if_bpf) {
 		bpf_tap(&sc->sc_if, sc->sc_ifbuf, len);
 	    }
@@ -1223,8 +1215,10 @@ lpintr (int unit)
 	    sc->sc_if.if_ibytes += len;
 	    top = m_devget(sc->sc_ifbuf + LPIPHDRLEN, len, 0, &sc->sc_if, 0);
 	    if (top) {
-		    IF_ENQUEUE(&ipintrq, top);
-		    schednetisr(NETISR_IP);
+	        if (! IF_HANDOFF(&ipintrq, top, NULL))
+	            lprintf(("DROP"));
+                else
+	            schednetisr(NETISR_IP);
 	    }
 	}
 	goto done;

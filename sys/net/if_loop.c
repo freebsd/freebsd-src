@@ -207,8 +207,8 @@ if_simloop(ifp, m, af, hlen)
 	int af;
 	int hlen;
 {
-	int s, isr;
-	register struct ifqueue *ifq = 0;
+	int isr;
+	struct ifqueue *inq = 0;
 
 	KASSERT((m->m_flags & M_PKTHDR) != 0, ("if_simloop: no HDR"));
 	m->m_pkthdr.rcvif = ifp;
@@ -261,32 +261,32 @@ if_simloop(ifp, m, af, hlen)
 	switch (af) {
 #ifdef INET
 	case AF_INET:
-		ifq = &ipintrq;
+		inq = &ipintrq;
 		isr = NETISR_IP;
 		break;
 #endif
 #ifdef INET6
 	case AF_INET6:
 		m->m_flags |= M_LOOP;
-		ifq = &ip6intrq;
+		inq = &ip6intrq;
 		isr = NETISR_IPV6;
 		break;
 #endif
 #ifdef IPX
 	case AF_IPX:
-		ifq = &ipxintrq;
+		inq = &ipxintrq;
 		isr = NETISR_IPX;
 		break;
 #endif
 #ifdef NS
 	case AF_NS:
-		ifq = &nsintrq;
+		inq = &nsintrq;
 		isr = NETISR_NS;
 		break;
 #endif
 #ifdef NETATALK
 	case AF_APPLETALK:
-	        ifq = &atintrq2;
+	        inq = &atintrq2;
 		isr = NETISR_ATALK;
 		break;
 #endif NETATALK
@@ -295,18 +295,10 @@ if_simloop(ifp, m, af, hlen)
 		m_freem(m);
 		return (EAFNOSUPPORT);
 	}
-	s = splimp();
-	if (IF_QFULL(ifq)) {
-		IF_DROP(ifq);
-		m_freem(m);
-		splx(s);
-		return (ENOBUFS);
-	}
-	IF_ENQUEUE(ifq, m);
-	schednetisr(isr);
 	ifp->if_ipackets++;
 	ifp->if_ibytes += m->m_pkthdr.len;
-	splx(s);
+	(void) IF_HANDOFF(inq, m, NULL);
+	schednetisr(isr);
 	return (0);
 }
 

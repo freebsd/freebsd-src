@@ -314,7 +314,7 @@ gif_input(m, af, gifp)
 	int af;
 	struct ifnet *gifp;
 {
-	int s, isr;
+	int isr;
 	register struct ifqueue *ifq = 0;
 
 	if (gifp == NULL) {
@@ -379,19 +379,11 @@ gif_input(m, af, gifp)
 		return;
 	}
 
-	s = splimp();
-	if (IF_QFULL(ifq)) {
-		IF_DROP(ifq);	/* update statistics */
-		m_freem(m);
-		splx(s);
-		return;
-	}
-	IF_ENQUEUE(ifq, m);
-	/* we need schednetisr since the address family may change */
-	schednetisr(isr);
 	gifp->if_ipackets++;
 	gifp->if_ibytes += m->m_pkthdr.len;
-	splx(s);
+	(void) IF_HANDOFF(ifq, m, NULL);
+	/* we need schednetisr since the address family may change */
+	schednetisr(isr);
 
 	return;
 }

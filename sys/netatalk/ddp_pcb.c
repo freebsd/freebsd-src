@@ -548,6 +548,8 @@ ddp_init(void )
 {
     atintrq1.ifq_maxlen = IFQ_MAXLEN;
     atintrq2.ifq_maxlen = IFQ_MAXLEN;
+    mtx_init(&atintrq1.ifq_mtx, "at1_inq", MTX_DEF);
+    mtx_init(&atintrq2.ifq_mtx, "at2_inq", MTX_DEF);
 }
 
 #if 0

@@ -270,14 +270,7 @@ isic_hscx_irq(register struct l1_softc *sc, u_char ista, int h_chan, u_char ex_i
 				if(!(i4b_l1_bchan_tel_silence(chan->in_mbuf->m_data, chan->in_mbuf->m_len)))
 					activity = ACT_RX;
 
-				if(!(IF_QFULL(&chan->rx_queue)))
-				{
-					IF_ENQUEUE(&chan->rx_queue, chan->in_mbuf);
-				}
-				else
-				{
-					i4b_Bfreembuf(chan->in_mbuf);
-				}
+				(void) IF_HANDOFF(&chan->rx_queue, chan->in_mbuf, NULL);
 
 				/* signal upper driver that data is available */
 

@@ -327,6 +327,7 @@ i4brbchattach()
 		rbch_softc[i].sc_unit = i;
 		rbch_softc[i].sc_devstate = ST_IDLE;
 		rbch_softc[i].sc_hdlcq.ifq_maxlen = I4BRBCHMAXQLEN;
+		mtx_init(&rbch_softc[i].sc_hdlcq.ifq_mtx, "i4b_rbch", MTX_DEF);
 		rbch_softc[i].it_in.c_ispeed = rbch_softc[i].it_in.c_ospeed = 64000;
 		termioschars(&rbch_softc[i].it_in);
 		rbch_init_linktab(i);
@@ -510,7 +511,7 @@ i4brbchwrite(dev_t dev, struct uio * uio, int ioflag)
 			CRIT_END;
 			return(EWOULDBLOCK);
 		}
-		if(IF_QFULL(isdn_linktab[unit]->tx_queue) && (sc->sc_devstate & ST_ISOPEN)) {
+		if(_IF_QFULL(isdn_linktab[unit]->tx_queue) && (sc->sc_devstate & ST_ISOPEN)) {
 			CRIT_END;
 			return(EWOULDBLOCK);
 	}
@@ -543,7 +544,7 @@ i4brbchwrite(dev_t dev, struct uio * uio, int ioflag)
 			tsleep((caddr_t) &rbch_softc[unit], TTIPRI | PCATCH, "xrbch", (hz*1));
 		}
 
-		while(IF_QFULL(isdn_linktab[unit]->tx_queue) && (sc->sc_devstate & ST_ISOPEN))
+		while(_IF_QFULL(isdn_linktab[unit]->tx_queue) && (sc->sc_devstate & ST_ISOPEN))
 		{
 			sc->sc_devstate |= ST_WRWAITEMPTY;
 
@@ -589,15 +590,7 @@ i4brbchwrite(dev_t dev, struct uio * uio, int ioflag)
 		
 		error = uiomove(m->m_data, m->m_len, uio);
 
-		if(IF_QFULL(isdn_linktab[unit]->tx_queue))
-		{
-			m_freem(m);			
-		}
-		else
-		{
-			IF_ENQUEUE(isdn_linktab[unit]->tx_queue, m);
-		}
-
+		(void) IF_HANDOFF(isdn_linktab[unit]->tx_queue, m, NULL);
 		(*isdn_linktab[unit]->bch_tx_start)(isdn_linktab[unit]->unit, isdn_linktab[unit]->channel);
 	}
 
@@ -733,7 +726,7 @@ i4brbchpoll(dev_t dev, int events, struct proc *p)
 	 
 	if((events & (POLLOUT|POLLWRNORM)) &&
 	   (sc->sc_devstate & ST_CONNECTED) &&
-	   !IF_QFULL(isdn_linktab[unit]->tx_queue))
+	   !_IF_QFULL(isdn_linktab[unit]->tx_queue))
 	{
 		revents |= (events & (POLLOUT|POLLWRNORM));
 	}
@@ -802,7 +795,7 @@ i4brbchselect(dev_t dev, int rw, struct proc *p)
 				break;
 
 			case FWRITE:
-				if(!IF_QFULL(isdn_linktab[unit]->rx_queue))
+				if(!_IF_QFULL(isdn_linktab[unit]->rx_queue))
 				{
 					splx(s);
 					return(1);
@@ -962,16 +955,11 @@ rbch_rx_data_rdy(int unit)
 
 		m->m_pkthdr.len = m->m_len;
 
-		if(IF_QFULL(&(rbch_softc[unit].sc_hdlcq)))
+		if (! IF_HANDOFF(&(rbch_softc[unit].sc_hdlcq), m, NULL))
 		{
 			NDBGL4(L4_RBCHDBG, "unit %d: hdlc rx queue full!", unit);
-			m_freem(m);
 		}
-		else
-		{
-			IF_ENQUEUE(&(rbch_softc[unit].sc_hdlcq), m);
-		}
-	}				
+	}
 
 	if(rbch_softc[unit].sc_devstate & ST_RDWAITDATA)
 	{
@@ -1025,20 +1013,11 @@ rbch_activity(int unit, int rxtx)
 static void
 rbch_clrq(int unit)
 {
-	struct mbuf *m;
 	CRIT_VAR;
 	
-	for(;;)
-	{
-		CRIT_BEG;
-		IF_DEQUEUE(&rbch_softc[unit].sc_hdlcq, m);
-		CRIT_END;
-		
-		if(m)
-			m_freem(m);
-		else
-			break;
-	}
+	CRIT_BEG;
+	IF_DRAIN(&rbch_softc[unit].sc_hdlcq);
+	CRIT_END;
 }
 				
 /*---------------------------------------------------------------------------*

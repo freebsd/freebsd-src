@@ -426,20 +426,23 @@ i4bisppp_start(struct ifnet *ifp)
 
 		microtime(&ifp->if_lastchange);
 
-		if(IF_QFULL(isdn_linktab[unit]->tx_queue))
+		IF_LOCK(isdn_linktab[unit]->tx_queue);
+		if(_IF_QFULL(isdn_linktab[unit]->tx_queue))
 		{
 			NDBGL4(L4_ISPDBG, "isp%d, tx queue full!", unit);
 			m_freem(m);
 		}
 		else
 		{
-			IF_ENQUEUE(isdn_linktab[unit]->tx_queue, m);
 #if 0
 			sc->sc_if.if_obytes += m->m_pkthdr.len;
 #endif
 			sc->sc_outb += m->m_pkthdr.len;
 			sc->sc_if.if_opackets++;
+
+			_IF_ENQUEUE(isdn_linktab[unit]->tx_queue, m);
 		}
+		IF_UNLOCK(isdn_linktab[unit]->tx_queue);
 	}
 	isdn_linktab[unit]->bch_tx_start(isdn_linktab[unit]->unit,
 					 isdn_linktab[unit]->channel);

@@ -351,12 +351,13 @@ ihfc_init (ihfc_sc_t *sc, u_char chan, int prot, int activate)
 	do
 	{	if (chan < 2)			/* D-Channel */
 		{
+			S_IFQUEUE.ifq_maxlen = IFQ_MAXLEN;
+			mtx_init(&S_IFQUEUE.ifq_mtx, "i4b_ihfc", MTX_DEF);
+
 			i4b_Dfreembuf(S_MBUF);
 			i4b_Dcleanifq(&S_IFQUEUE);
 
 			RESET_SOFT_CHAN(sc, chan);
-
-			S_IFQUEUE.ifq_maxlen = IFQ_MAXLEN;
 
 			if (!activate) continue;
 
@@ -373,13 +374,15 @@ ihfc_init (ihfc_sc_t *sc, u_char chan, int prot, int activate)
 		}
 		else				/* B-Channel */
 		{
+			S_IFQUEUE.ifq_maxlen = IFQ_MAXLEN;
+			mtx_init(&S_IFQUEUE.ifq_mtx, "i4b_ihfc", MTX_DEF);
+
 			i4b_Bfreembuf(S_MBUF);
 			i4b_Bcleanifq(&S_IFQUEUE);
 
 			RESET_SOFT_CHAN(sc, chan);
 
 			S_PROT = prot;
-			S_IFQUEUE.ifq_maxlen = IFQ_MAXLEN;
 
 			if (!activate) continue;
 

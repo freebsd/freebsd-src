@@ -941,6 +941,8 @@ srattach(struct sr_hardc *hc)
 		callout_handle_init(&sc->handle);
 		sc->xmitq.ifq_maxlen = IFQ_MAXLEN;
 		sc->xmitq_hipri.ifq_maxlen = IFQ_MAXLEN;
+		mtx_init(&sc->xmitq.ifq_mtx, "sr_xmitq", MTX_DEF);
+		mtx_init(&sc->xmitq_hipri.ifq_mtx, "sr_xmitq_hipri", MTX_DEF);
 		sprintf(sc->nodename, "%s%d", NG_SR_NODE_TYPE, sc->unit);
 		if (ng_name_node(sc->node, sc->nodename)) {
 			ng_rmnode(sc->node);
@@ -3264,13 +3266,16 @@ ngsr_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
 		xmitq_p = (&sc->xmitq);
 	}
 	s = splimp();
-	if (IF_QFULL(xmitq_p)) {
-		IF_DROP(xmitq_p);
+	IF_LOCK(xmitq_p);
+	if (_IF_QFULL(xmitq_p)) {
+		_IF_DROP(xmitq_p);
+		IF_UNLOCK(xmitq_p);
 		splx(s);
 		error = ENOBUFS;
 		goto bad;
 	}
-	IF_ENQUEUE(xmitq_p, m);
+	_IF_ENQUEUE(xmitq_p, m);
+	IF_UNLOCK(xmitq_p);
 	srstart(sc);
 	splx(s);
 	return (0);

@@ -261,18 +261,10 @@ vlan_start(struct ifnet *ifp)
 		 * Send it, precisely as ether_output() would have.
 		 * We are already running at splimp.
 		 */
-		if (IF_QFULL(&p->if_snd)) {
-			IF_DROP(&p->if_snd);
-				/* XXX stats */
-			ifp->if_oerrors++;
-			m_freem(m);
-			continue;
-		}
-		IF_ENQUEUE(&p->if_snd, m);
-		if ((p->if_flags & IFF_OACTIVE) == 0) {
-			p->if_start(p);
+		if (IF_HANDOFF(&p->if_snd, m, p))
 			ifp->if_opackets++;
-		}
+		else
+			ifp->if_oerrors++;
 	}
 	ifp->if_flags &= ~IFF_OACTIVE;
 

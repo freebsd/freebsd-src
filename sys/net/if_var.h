@@ -75,6 +75,9 @@ struct	ether_header;
 
 #include <sys/queue.h>		/* get TAILQ macros */
 
+#include <sys/mbuf.h>
+#include <machine/mutex.h>
+
 TAILQ_HEAD(ifnethead, ifnet);	/* we use TAILQs so that the order of */
 TAILQ_HEAD(ifaddrhead, ifaddr);	/* instantiation is preserved in the list */
 TAILQ_HEAD(ifprefixhead, ifprefix);
@@ -89,6 +92,7 @@ struct	ifqueue {
 	int	ifq_len;
 	int	ifq_maxlen;
 	int	ifq_drops;
+	struct	mtx ifq_mtx;
 };
 
 /*
@@ -107,6 +111,7 @@ struct ifnet {
 	short	if_unit;		/* sub-unit for lower level driver */
 	short	if_timer;		/* time 'til if_watchdog called */
 	short	if_flags;		/* up/down, broadcast, etc. */
+	int	if_mpsafe;		/* XXX TEMPORARY */
 	int	if_ipending;		/* interrupts pending */
 	void	*if_linkmib;		/* link-type-specific MIB data */
 	size_t	if_linkmiblen;		/* length of above data */
@@ -141,6 +146,7 @@ struct ifnet {
 	struct	ifqueue *if_poll_slowq;	/* input queue for slow devices */
 	struct	ifprefixhead if_prefixhead; /* list of prefixes per if */
 };
+
 typedef void if_init_f_t __P((void *));
 
 #define	if_mtu		if_data.ifi_mtu
@@ -183,61 +189,105 @@ typedef void if_init_f_t __P((void *));
  * (defined above).  Entries are added to and deleted from these structures
  * by these macros, which should be called with ipl raised to splimp().
  */
-#define	IF_QFULL(ifq)		((ifq)->ifq_len >= (ifq)->ifq_maxlen)
-#define	IF_DROP(ifq)		((ifq)->ifq_drops++)
-#define	IF_ENQUEUE(ifq, m) { \
-	(m)->m_nextpkt = 0; \
-	if ((ifq)->ifq_tail == 0) \
-		(ifq)->ifq_head = m; \
-	else \
-		(ifq)->ifq_tail->m_nextpkt = m; \
-	(ifq)->ifq_tail = m; \
-	(ifq)->ifq_len++; \
-}
-#define	IF_PREPEND(ifq, m) { \
-	(m)->m_nextpkt = (ifq)->ifq_head; \
-	if ((ifq)->ifq_tail == 0) \
-		(ifq)->ifq_tail = (m); \
-	(ifq)->ifq_head = (m); \
-	(ifq)->ifq_len++; \
-}
-#define	IF_DEQUEUE(ifq, m) { \
-	(m) = (ifq)->ifq_head; \
-	if (m) { \
-		if (((ifq)->ifq_head = (m)->m_nextpkt) == 0) \
-			(ifq)->ifq_tail = 0; \
-		(m)->m_nextpkt = 0; \
-		(ifq)->ifq_len--; \
-	} \
-}
+#define IF_LOCK(ifq)		mtx_enter(&(ifq)->ifq_mtx, MTX_DEF)
+#define IF_UNLOCK(ifq)		mtx_exit(&(ifq)->ifq_mtx, MTX_DEF)
+#define	_IF_QFULL(ifq)		((ifq)->ifq_len >= (ifq)->ifq_maxlen)
+#define	_IF_DROP(ifq)		((ifq)->ifq_drops++)
+#define	_IF_QLEN(ifq)		((ifq)->ifq_len)
+
+#define	_IF_ENQUEUE(ifq, m) do { 				\
+	(m)->m_nextpkt = NULL;					\
+	if ((ifq)->ifq_tail == NULL) 				\
+		(ifq)->ifq_head = m; 				\
+	else 							\
+		(ifq)->ifq_tail->m_nextpkt = m; 		\
+	(ifq)->ifq_tail = m; 					\
+	(ifq)->ifq_len++; 					\
+} while (0)
+
+#define IF_ENQUEUE(ifq, m) do {					\
+	IF_LOCK(ifq); 						\
+	_IF_ENQUEUE(ifq, m); 					\
+	IF_UNLOCK(ifq); 					\
+} while (0)
+
+#define	_IF_PREPEND(ifq, m) do {				\
+	(m)->m_nextpkt = (ifq)->ifq_head; 			\
+	if ((ifq)->ifq_tail == NULL) 				\
+		(ifq)->ifq_tail = (m); 				\
+	(ifq)->ifq_head = (m); 					\
+	(ifq)->ifq_len++; 					\
+} while (0)
+
+#define IF_PREPEND(ifq, m) do {		 			\
+	IF_LOCK(ifq); 						\
+	_IF_PREPEND(ifq, m); 					\
+	IF_UNLOCK(ifq); 					\
+} while (0)
+
+#define	_IF_DEQUEUE(ifq, m) do { 				\
+	(m) = (ifq)->ifq_head; 					\
+	if (m) { 						\
+		if (((ifq)->ifq_head = (m)->m_nextpkt) == 0) 	\
+			(ifq)->ifq_tail = NULL; 		\
+		(m)->m_nextpkt = NULL; 				\
+		(ifq)->ifq_len--; 				\
+	} 							\
+} while (0)
+
+#define IF_DEQUEUE(ifq, m) do { 				\
+	IF_LOCK(ifq); 						\
+	_IF_DEQUEUE(ifq, m); 					\
+	IF_UNLOCK(ifq); 					\
+} while (0)
+
+#define IF_DRAIN(ifq) do { 					\
+	struct mbuf *m; 					\
+	IF_LOCK(ifq); 						\
+	for (;;) { 						\
+		_IF_DEQUEUE(ifq, m); 				\
+		if (m == NULL) 					\
+			break; 					\
+		m_freem(m); 					\
+	} 							\
+	IF_UNLOCK(ifq); 					\
+} while (0)
 
 #ifdef _KERNEL
-#define	IF_ENQ_DROP(ifq, m)	if_enq_drop(ifq, m)
-
-#if defined(__GNUC__) && defined(MT_HEADER)
-static __inline int
-if_queue_drop(struct ifqueue *ifq, struct mbuf *m)
-{
-	IF_DROP(ifq);
-	return 0;
-}
+#define	IF_HANDOFF(ifq, m, ifp)			if_handoff(ifq, m, ifp, 0)
+#define	IF_HANDOFF_ADJ(ifq, m, ifp, adj)	if_handoff(ifq, m, ifp, adj)
 
 static __inline int
-if_enq_drop(struct ifqueue *ifq, struct mbuf *m)
+if_handoff(struct ifqueue *ifq, struct mbuf *m, struct ifnet *ifp, int adjust)
 {
-	if (IF_QFULL(ifq) &&
-	    !if_queue_drop(ifq, m))
-		return 0;
-	IF_ENQUEUE(ifq, m);
-	return 1;
+	int active = 0;
+
+	IF_LOCK(ifq);
+	if (_IF_QFULL(ifq)) {
+		_IF_DROP(ifq);
+		IF_UNLOCK(ifq);
+		m_freem(m);
+		return (0);
+	}
+	if (ifp != NULL) {
+		ifp->if_obytes += m->m_pkthdr.len + adjust;
+		if (m->m_flags & M_MCAST)
+			ifp->if_omcasts++;
+		active = ifp->if_flags & IFF_OACTIVE;
+	}
+	_IF_ENQUEUE(ifq, m);
+	IF_UNLOCK(ifq);
+	if (ifp != NULL && !active) {
+		if (ifp->if_mpsafe) {
+			DROP_GIANT_NOSWITCH();
+			(*ifp->if_start)(ifp);
+			PICKUP_GIANT();
+		} else {
+			(*ifp->if_start)(ifp);
+		}
+	}
+	return (1);
 }
-#else
-
-#ifdef MT_HEADER
-int	if_enq_drop __P((struct ifqueue *, struct mbuf *));
-#endif
-
-#endif
 
 /*
  * 72 was chosen below because it is the size of a TCP/IP
@@ -370,6 +420,5 @@ struct	ifmultiaddr *ifmaof_ifpforaddr __P((struct sockaddr *,
 int	if_simloop __P((struct ifnet *ifp, struct mbuf *m, int af, int hlen));
 
 #endif /* _KERNEL */
-
 
 #endif /* !_NET_IF_VAR_H_ */

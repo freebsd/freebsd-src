@@ -90,6 +90,7 @@ ns_init()
 	nspcb.nsp_next = nspcb.nsp_prev = &nspcb;
 	nsrawpcb.nsp_next = nsrawpcb.nsp_prev = &nsrawpcb;
 	nsintrq.ifq_maxlen = nsqmaxlen;
+	mtx_init(&nsintrq.ifq_mtx, "ns_inq", MTX_DEF);
 	ns_pexseq = time.tv_usec;
 	ns_netmask.sns_len = 6;
 	ns_netmask.sns_addr.x_net = ns_broadnet;

@@ -196,7 +196,6 @@ tunclose(dev, foo, bar, p)
 	register int	s;
 	struct tun_softc *tp;
 	struct ifnet	*ifp;
-	struct mbuf	*m;
 
 	tp = dev->si_drv1;
 	ifp = &tp->tun_if;
@@ -207,13 +206,7 @@ tunclose(dev, foo, bar, p)
 	/*
 	 * junk all pending output
 	 */
-	do {
-		s = splimp();
-		IF_DEQUEUE(&ifp->if_snd, m);
-		splx(s);
-		if (m)
-			m_freem(m);
-	} while (m);
+	IF_DRAIN(&ifp->if_snd);
 
 	if (ifp->if_flags & IFF_UP) {
 		s = splimp();
@@ -337,7 +330,6 @@ tunoutput(ifp, m0, dst, rt)
 	struct rtentry *rt;
 {
 	struct tun_softc *tp = ifp->if_softc;
-	int		s;
 
 	TUNDEBUG ("%s%d: tunoutput\n", ifp->if_name, ifp->if_unit);
 
@@ -380,10 +372,8 @@ tunoutput(ifp, m0, dst, rt)
 		M_PREPEND(m0, dst->sa_len, M_DONTWAIT);
 
 		/* if allocation failed drop packet */
-		if (m0 == NULL){
-			s = splimp();	/* spl on queue manipulation */
-			IF_DROP(&ifp->if_snd);
-			splx(s);
+		if (m0 == NULL) {
+			ifp->if_iqdrops++;
 			ifp->if_oerrors++;
 			return (ENOBUFS);
 		} else {
@@ -396,10 +386,8 @@ tunoutput(ifp, m0, dst, rt)
 		M_PREPEND(m0, 4, M_DONTWAIT);
 
 		/* if allocation failed drop packet */
-		if (m0 == NULL){
-			s = splimp();	/* spl on queue manipulation */
-			IF_DROP(&ifp->if_snd);
-			splx(s);
+		if (m0 == NULL) {
+			ifp->if_iqdrops++;
 			ifp->if_oerrors++;
 			return ENOBUFS;
 		} else
@@ -414,17 +402,10 @@ tunoutput(ifp, m0, dst, rt)
 		}
 	}
 
-	s = splimp();
-	if (IF_QFULL(&ifp->if_snd)) {
-		IF_DROP(&ifp->if_snd);
-		m_freem(m0);
-		splx(s);
+	if (! IF_HANDOFF(&ifp->if_snd, m0, NULL)) {
 		ifp->if_collisions++;
 		return ENOBUFS;
 	}
-	ifp->if_obytes += m0->m_pkthdr.len;
-	IF_ENQUEUE(&ifp->if_snd, m0);
-	splx(s);
 	ifp->if_opackets++;
 
 	if (tp->tun_flags & TUN_RWAIT) {

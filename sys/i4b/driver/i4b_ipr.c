@@ -324,6 +324,7 @@ i4biprattach()
 
 		sc->sc_if.if_snd.ifq_maxlen = I4BIPRMAXQLEN;
 		sc->sc_fastq.ifq_maxlen = I4BIPRMAXQLEN;
+		mtx_init(&sc->sc_fastq.ifq_mtx, "i4b_ipr_fastq", MTX_DEF);
 		
 		sc->sc_if.if_ipackets = 0;
 		sc->sc_if.if_ierrors = 0;
@@ -509,11 +510,9 @@ i4biproutput(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 
 	/* check for space in choosen send queue */
 	
-	if(IF_QFULL(ifq))
+	if(! IF_HANDOFF(ifq, m, NULL))
 	{
 		NDBGL4(L4_IPRDBG, "ipr%d: send queue full!", unit);
-		IF_DROP(ifq);
-		m_freem(m);
 		splx(s);
 		sc->sc_if.if_oerrors++;
 		return(ENOBUFS);
@@ -521,8 +520,6 @@ i4biproutput(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 	
 	NDBGL4(L4_IPRDBG, "ipr%d: add packet to send queue!", unit);
 	
-	IF_ENQUEUE(ifq, m);
-
 	ipr_tx_queue_empty(unit);
 
 	splx(s);
@@ -648,31 +645,11 @@ static void
 iprclearqueues(struct ipr_softc *sc)
 {
 	int x;
-	struct mbuf *m;
 	
-	for(;;)
-	{
-		x = splimp();
-		IF_DEQUEUE(&sc->sc_fastq, m);
-		splx(x);
-
-		if(m)
-			m_freem(m);
-		else
-			break;
-	}
-
-	for(;;)
-	{
-		x = splimp();
-		IF_DEQUEUE(&sc->sc_if.if_snd, m);
-		splx(x);
-
-		if(m)
-			m_freem(m);
-		else
-			break;
-	}
+	x = splimp();
+	IF_DRAIN(&sc->sc_fastq);
+	IF_DRAIN(&sc->sc_if.if_snd);
+	splx(x);
 }
         
 #if I4BIPRACCT
@@ -1070,18 +1047,14 @@ error:
 	}
 #endif /* NBPFILTER > 0  || NBPF > 0 */
 
-	if(IF_QFULL(&ipintrq))
+	if(! IF_HANDOFF(&ipintrq, m, NULL))
 	{
 		NDBGL4(L4_IPRDBG, "ipr%d: ipintrq full!", unit);
-
-		IF_DROP(&ipintrq);
 		sc->sc_if.if_ierrors++;
 		sc->sc_if.if_iqdrops++;		
-		m_freem(m);
 	}
 	else
 	{
-		IF_ENQUEUE(&ipintrq, m);
 		schednetisr(NETISR_IP);
 	}
 }
@@ -1155,19 +1128,22 @@ ipr_tx_queue_empty(int unit)
 #endif
 		x = 1;
 
-		if(IF_QFULL(isdn_linktab[unit]->tx_queue))
+		IF_LOCK(isdn_linktab[unit]->tx_queue);
+		if(_IF_QFULL(isdn_linktab[unit]->tx_queue))
 		{
 			NDBGL4(L4_IPRDBG, "ipr%d: tx queue full!", unit);
 			m_freem(m);
 		}
 		else
 		{
-			IF_ENQUEUE(isdn_linktab[unit]->tx_queue, m);
-
 			sc->sc_if.if_obytes += m->m_pkthdr.len;
 
 			sc->sc_if.if_opackets++;
+
+			_IF_ENQUEUE(isdn_linktab[unit]->tx_queue, m);
+
 		}
+		IF_UNLOCK(isdn_linktab[unit]->tx_queue);
 	}
 
 	if(x)

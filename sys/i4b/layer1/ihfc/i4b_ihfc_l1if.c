@@ -127,7 +127,7 @@ ihfc_ph_data_req(int unit, struct mbuf *m, int freeflag)
 
 	if (freeflag == MBUF_DONTFREE)	m = m_copypacket(m, M_DONTWAIT);
 
-	if (!IF_QFULL(&S_IFQUEUE) && m)
+	if (!_IF_QFULL(&S_IFQUEUE) && m)
 	{
 		IF_ENQUEUE(&S_IFQUEUE, m);
 
@@ -300,7 +300,7 @@ ihfc_putmbuf (ihfc_sc_t *sc, u_char chan, struct mbuf *m)
 				S_BDRVLINK->bch_activity(S_BDRVLINK->unit, ACT_RX);
 			}
 
-			if (!IF_QFULL(&S_IFQUEUE))
+			if (!_IF_QFULL(&S_IFQUEUE))
 			{
 				S_BYTES += m->m_len;
 				IF_ENQUEUE(&S_IFQUEUE, m);

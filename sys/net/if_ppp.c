@@ -211,6 +211,9 @@ pppattach(dummy)
 	sc->sc_inq.ifq_maxlen = IFQ_MAXLEN;
 	sc->sc_fastq.ifq_maxlen = IFQ_MAXLEN;
 	sc->sc_rawq.ifq_maxlen = IFQ_MAXLEN;
+        mtx_init(&sc->sc_inq.ifq_mtx, "ppp_inq", MTX_DEF);
+        mtx_init(&sc->sc_fastq.ifq_mtx, "ppp_fastq", MTX_DEF);
+        mtx_init(&sc->sc_rawq.ifq_mtx, "ppp_rawq", MTX_DEF);
 	if_attach(&sc->sc_if);
 	bpfattach(&sc->sc_if, DLT_PPP, PPP_HDRLEN);
     }
@@ -280,24 +283,9 @@ pppdealloc(sc)
     getmicrotime(&sc->sc_if.if_lastchange);
     sc->sc_devp = NULL;
     sc->sc_xfer = 0;
-    for (;;) {
-	IF_DEQUEUE(&sc->sc_rawq, m);
-	if (m == NULL)
-	    break;
-	m_freem(m);
-    }
-    for (;;) {
-	IF_DEQUEUE(&sc->sc_inq, m);
-	if (m == NULL)
-	    break;
-	m_freem(m);
-    }
-    for (;;) {
-	IF_DEQUEUE(&sc->sc_fastq, m);
-	if (m == NULL)
-	    break;
-	m_freem(m);
-    }
+    IF_DRAIN(&sc->sc_rawq);
+    IF_DRAIN(&sc->sc_inq);
+    IF_DRAIN(&sc->sc_fastq);
     while ((m = sc->sc_npqueue) != NULL) {
 	sc->sc_npqueue = m->m_nextpkt;
 	m_freem(m);
@@ -338,7 +326,8 @@ pppioctl(sc, cmd, data, flag, p)
     int flag;
     struct proc *p;
 {
-    int s, error, flags, mru, nb, npx;
+    int s, flags, mru, nb, npx;
+    int error = 0;
     struct ppp_option_data *odp;
     struct compressor **cp;
     struct npioctl *npi;
@@ -367,7 +356,7 @@ pppioctl(sc, cmd, data, flag, p)
 
     case PPPIOCSFLAGS:
 	if ((error = suser(p)) != 0)
-	    return (error);
+	    break;
 	flags = *(int *)data & SC_MASK;
 	s = splsoftnet();
 #ifdef PPP_COMPRESS
@@ -394,7 +383,7 @@ pppioctl(sc, cmd, data, flag, p)
 #ifdef VJC
     case PPPIOCSMAXCID:
 	if ((error = suser(p)) != 0)
-	    return (error);
+	    break;
 	if (sc->sc_comp) {
 	    s = splsoftnet();
 	    sl_compress_init(sc->sc_comp, *(int *)data);
@@ -405,22 +394,24 @@ pppioctl(sc, cmd, data, flag, p)
 
     case PPPIOCXFERUNIT:
 	if ((error = suser(p)) != 0)
-	    return (error);
+	    break;
 	sc->sc_xfer = p->p_pid;
 	break;
 
 #ifdef PPP_COMPRESS
     case PPPIOCSCOMPRESS:
 	if ((error = suser(p)) != 0)
-	    return (error);
+	    break;
 	odp = (struct ppp_option_data *) data;
 	nb = odp->length;
 	if (nb > sizeof(ccp_option))
 	    nb = sizeof(ccp_option);
 	if ((error = copyin(odp->ptr, ccp_option, nb)) != 0)
-	    return (error);
-	if (ccp_option[1] < 2)	/* preliminary check on the length byte */
-	    return (EINVAL);
+	    break;
+	if (ccp_option[1] < 2) {  /* preliminary check on the length byte */
+	    error = EINVAL;
+	    break;
+	}
 	for (cp = ppp_compressors; *cp != NULL; ++cp)
 	    if ((*cp)->compress_proto == ccp_option[0]) {
 		/*
@@ -459,13 +450,14 @@ pppioctl(sc, cmd, data, flag, p)
 		    sc->sc_flags &= ~SC_DECOMP_RUN;
 		    splx(s);
 		}
-		return (error);
+		break;
 	    }
 	if (sc->sc_flags & SC_DEBUG)
 	    printf("ppp%d: no compressor for [%x %x %x], %x\n",
 		   sc->sc_if.if_unit, ccp_option[0], ccp_option[1],
 		   ccp_option[2], nb);
-	return (EINVAL);	/* no handler found */
+	error = EINVAL;		/* no handler found */
+        break;
 #endif /* PPP_COMPRESS */
 
     case PPPIOCGNPMODE:
@@ -476,13 +468,15 @@ pppioctl(sc, cmd, data, flag, p)
 	    npx = NP_IP;
 	    break;
 	default:
-	    return EINVAL;
+	    error = EINVAL;
 	}
+	if (error)
+	    break;
 	if (cmd == PPPIOCGNPMODE) {
 	    npi->mode = sc->sc_npmode[npx];
 	} else {
 	    if ((error = suser(p)) != 0)
-		return (error);
+		break;
 	    if (npi->mode != sc->sc_npmode[npx]) {
 		s = splsoftnet();
 		sc->sc_npmode[npx] = npi->mode;
@@ -507,22 +501,26 @@ pppioctl(sc, cmd, data, flag, p)
     case PPPIOCSPASS:
     case PPPIOCSACTIVE:
 	nbp = (struct bpf_program *) data;
-	if ((unsigned) nbp->bf_len > BPF_MAXINSNS)
-	    return EINVAL;
+	if ((unsigned) nbp->bf_len > BPF_MAXINSNS) {
+	    error = EINVAL;
+	    break;
+	}
 	newcodelen = nbp->bf_len * sizeof(struct bpf_insn);
 	if (newcodelen != 0) {
 	    MALLOC(newcode, struct bpf_insn *, newcodelen, M_DEVBUF, M_WAITOK);
 	    if (newcode == 0) {
-		return EINVAL;		/* or sumpin */
+		error = EINVAL;		/* or sumpin */
+		break;
 	    }
 	    if ((error = copyin((caddr_t)nbp->bf_insns, (caddr_t)newcode,
 			       newcodelen)) != 0) {
 		FREE(newcode, M_DEVBUF);
-		return error;
+		break;
 	    }
 	    if (!bpf_validate(newcode, nbp->bf_len)) {
 		FREE(newcode, M_DEVBUF);
-		return EINVAL;
+		error = EINVAL;
+		break;
 	    }
 	} else
 	    newcode = 0;
@@ -538,9 +536,10 @@ pppioctl(sc, cmd, data, flag, p)
 #endif
 
     default:
-	return (ENOIOCTL);
+	error = ENOIOCTL;
+	break;
     }
-    return (0);
+    return (error);
 }
 
 /*
@@ -835,15 +834,17 @@ pppoutput(ifp, m0, dst, rtp)
     } else {
 	/* fastq and if_snd are emptied at spl[soft]net now */
 	ifq = (m0->m_flags & M_HIGHPRI)? &sc->sc_fastq: &ifp->if_snd;
-	if (IF_QFULL(ifq) && dst->sa_family != AF_UNSPEC) {
-	    IF_DROP(ifq);
-	    splx(s);
+        IF_LOCK(ifq);
+	if (_IF_QFULL(ifq) && dst->sa_family != AF_UNSPEC) {
+	    _IF_DROP(ifq);
+	    IF_UNLOCK(ifq);
 	    sc->sc_if.if_oerrors++;
 	    sc->sc_stats.ppp_oerrors++;
 	    error = ENOBUFS;
 	    goto bad;
 	}
-	IF_ENQUEUE(ifq, m0);
+	_IF_ENQUEUE(ifq, m0);
+        IF_UNLOCK(ifq);
 	(*sc->sc_start)(sc);
     }
     getmicrotime(&ifp->if_lastchange);
@@ -888,12 +889,10 @@ ppp_requeue(sc)
 	    *mpp = m->m_nextpkt;
 	    m->m_nextpkt = NULL;
 	    ifq = (m->m_flags & M_HIGHPRI)? &sc->sc_fastq: &sc->sc_if.if_snd;
-	    if (IF_QFULL(ifq)) {
-		IF_DROP(ifq);
+            if (! IF_HANDOFF(ifq, m, NULL)) {
 		sc->sc_if.if_oerrors++;
 		sc->sc_stats.ppp_oerrors++;
-	    } else
-		IF_ENQUEUE(ifq, m);
+	    }
 	    break;
 
 	case NPMODE_DROP:
@@ -1511,17 +1510,12 @@ ppp_inproc(sc, m)
     /*
      * Put the packet on the appropriate input queue.
      */
-    s = splimp();
-    if (IF_QFULL(inq)) {
-	IF_DROP(inq);
-	splx(s);
+    if (! IF_HANDOFF(inq, m, NULL)) {
 	if (sc->sc_flags & SC_DEBUG)
 	    printf("ppp%d: input queue full\n", ifp->if_unit);
 	ifp->if_iqdrops++;
 	goto bad;
     }
-    IF_ENQUEUE(inq, m);
-    splx(s);
     ifp->if_ipackets++;
     ifp->if_ibytes += ilen;
     getmicrotime(&ifp->if_lastchange);
@@ -1532,7 +1526,8 @@ ppp_inproc(sc, m)
     return;
 
  bad:
-    m_freem(m);
+    if (m)
+        m_freem(m);
     sc->sc_if.if_ierrors++;
     sc->sc_stats.ppp_ierrors++;
 }

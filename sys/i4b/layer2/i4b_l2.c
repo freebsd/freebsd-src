@@ -163,7 +163,7 @@ int i4b_dl_data_req(int unit, struct mbuf *m)
 		case ST_MULTIFR:
 		case ST_TIMREC:
 		
-		        if(IF_QFULL(&l2sc->i_queue))
+		        if(_IF_QFULL(&l2sc->i_queue))
 		        {
 		        	NDBGL2(L2_ERROR, "i_queue full!!");
 		        	i4b_Dfreembuf(m);
@@ -277,6 +277,7 @@ i4b_mph_status_ind(int unit, int status, int parm)
 		case STI_ATTACH:
 			l2sc->unit = unit;
 			l2sc->i_queue.ifq_maxlen = IQUEUE_MAXLEN;
+			mtx_init(&l2sc->i_queue.ifq_mtx, "i4b_l2sc", MTX_DEF);
 			l2sc->ua_frame = NULL;
 			bzero(&l2sc->stat, sizeof(lapdstat_t));			
 			i4b_l2_unit_init(unit);

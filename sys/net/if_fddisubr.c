@@ -128,7 +128,7 @@ fddi_output(ifp, m, dst, rt0)
 	struct rtentry *rt0;
 {
 	u_int16_t type;
-	int s, loop_copy = 0, error = 0, hdrcmplt = 0;
+	int loop_copy = 0, error = 0, hdrcmplt = 0;
  	u_char esrc[6], edst[6];
 	register struct rtentry *rt;
 	register struct fddi_header *fh;
@@ -350,23 +350,8 @@ fddi_output(ifp, m, dst, rt0)
 		}
 	}
 
-	s = splimp();
-	/*
-	 * Queue message on interface, and start output if interface
-	 * not yet active.
-	 */
-	if (IF_QFULL(&ifp->if_snd)) {
-		IF_DROP(&ifp->if_snd);
-		splx(s);
+	if (! IF_HANDOFF(&ifp->if_snd, m, ifp))
 		senderr(ENOBUFS);
-	}
-	ifp->if_obytes += m->m_pkthdr.len;
-	if (m->m_flags & M_MCAST)
-		ifp->if_omcasts++;
-	IF_ENQUEUE(&ifp->if_snd, m);
-	if ((ifp->if_flags & IFF_OACTIVE) == 0)
-		(*ifp->if_start)(ifp);
-	splx(s);
 	return (error);
 
 bad:
@@ -388,7 +373,6 @@ fddi_input(ifp, fh, m)
 {
 	register struct ifqueue *inq;
 	register struct llc *l;
-	int s;
 
 	if ((ifp->if_flags & IFF_UP) == 0) {
 		m_freem(m);
@@ -520,13 +504,7 @@ fddi_input(ifp, fh, m)
 		return;
 	}
 
-	s = splimp();
-	if (IF_QFULL(inq)) {
-		IF_DROP(inq);
-		m_freem(m);
-	} else
-		IF_ENQUEUE(inq, m);
-	splx(s);
+	(void) IF_HANDOFF(inq, m, NULL);
 }
 /*
  * Perform common duties while attaching to interface list
