@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.15 1999/04/05 09:01:45 obrien Exp $
+# $Id: Makefile,v 1.16 1999/04/07 07:48:23 obrien Exp $
 #
 
 EGCSDIR=	${.CURDIR}/../../../contrib/egcs
@@ -74,16 +74,14 @@ SRCS+=	cleanup.c filedoalloc.c fileops.c floatconv.c genops.c iofclose.c \
 
 beforeinstall:
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-		${.CURDIR}/_G_config.h \
-		${DESTDIR}/usr/include/g++
+	    ${.CURDIR}/_G_config.h
+	    ${HDRS:S;^;${EGCSDIR}/libstdc++/;} \
+	    ${IHDRS:S;^;${EGCSDIR}/libio/;} \
+	    ${STLHDRS:S;^;${EGCSDIR}/libstdc++/stl/;} \
+	    ${DESTDIR}/usr/include/g++
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-		${HDRS:S;^;${EGCSDIR}/libstdc++/;} \
-		${IHDRS:S;^;${EGCSDIR}/libio/;} \
-		${STLHDRS:S;^;${EGCSDIR}/libstdc++/stl/;} \
-		${DESTDIR}/usr/include/g++
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-		${SHDRS:S;^;${EGCSDIR}/libstdc++/std/;} \
-		${DESTDIR}/usr/include/g++/std
+	    ${SHDRS:S;^;${EGCSDIR}/libstdc++/std/;} \
+	    ${DESTDIR}/usr/include/g++/std
 
 CLEANFILES+=	dummy.h dummy.c dummy.C
 
@@ -98,7 +96,8 @@ ${file}.o: ${file}.cc
 	@mv ${.TARGET}.tmp ${.TARGET}
 
 ${file}.so: ${file}.cc
-	${CXX} ${PICFLAG} -DPIC ${CXXFLAGS} -frtti -c ${DIR}/${file}.cc -o ${.TARGET}
+	${CXX} ${PICFLAG} -DPIC ${CXXFLAGS} -frtti -c ${DIR}/${file}.cc \
+	    -o ${.TARGET}
 	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
 	@mv ${.TARGET}.tmp ${.TARGET}
 
@@ -117,7 +116,8 @@ ${file}.o: ${file}.cc
 	@mv ${.TARGET}.tmp ${.TARGET}
 
 ${file}.so: ${file}.cc
-	${CXX} ${PICFLAG} -DPIC ${CXXFLAGS} -O0 -c ${DIR}/${file}.cc -o ${.TARGET}
+	${CXX} ${PICFLAG} -DPIC ${CXXFLAGS} -O0 -c ${DIR}/${file}.cc \
+	    -o ${.TARGET}
 	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
 	@mv ${.TARGET}.tmp ${.TARGET}
 
@@ -226,8 +226,8 @@ ldcomio.cc: cinst.cc
 # In case you want or need to generate a _G_config.h file.
 make_G_config_h:
 	CC="${CC}" CXX="${CXX}" CONFIG_NM="nm" \
-		CPP="${CC} -E -nostdinc -idirafter ${DESTDIR}/usr/include" \
-		sh ${EGCSDIR}/libio/gen-params \
-		LIB_VERSION=${SHLIB_MAJOR}.${SHLIB_MINOR}.0 >${.TARGET}
+	    CPP="${CC} -E -nostdinc -idirafter ${DESTDIR}/usr/include" \
+	    sh ${EGCSDIR}/libio/gen-params \
+	    LIB_VERSION=${SHLIB_MAJOR}.${SHLIB_MINOR}.0 >${.TARGET}
 
 .include <bsd.lib.mk>
