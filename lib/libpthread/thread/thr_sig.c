@@ -31,6 +31,9 @@
  *
  * $FreeBSD$
  */
+#include <sys/param.h>
+#include <sys/types.h>
+#include <sys/signalvar.h>
 #include <signal.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -62,7 +65,7 @@ _thread_sig_init(void)
 }
 
 void
-_thread_sig_handler(int sig, int code, struct sigcontext * scp)
+_thread_sig_handler(int sig, int code, ucontext_t * scp)
 {
 	char	c;
 	int	i;
@@ -148,7 +151,7 @@ _thread_sig_handler(int sig, int code, struct sigcontext * scp)
 }
 
 void
-_thread_sig_handle(int sig, struct sigcontext * scp)
+_thread_sig_handle(int sig, ucontext_t * scp)
 {
 	int		i;
 	pthread_t	pthread, pthread_next;
@@ -360,13 +363,16 @@ _thread_signal(pthread_t pthread, int sig)
 void
 _dispatch_signals()
 {
+	sigset_t sigset;
 	int i;
 
 	/*
 	 * Check if there are pending signals for the running
 	 * thread that aren't blocked:
 	 */
-	if ((_thread_run->sigpend & ~_thread_run->sigmask) != 0)
+	sigset = _thread_run->sigpend;
+	SIGSETNAND(sigset, _thread_run->sigmask);
+	if (SIGNOTEMPTY(sigset))
 		/* Look for all possible pending signals: */
 		for (i = 1; i < NSIG; i++)
 			/*

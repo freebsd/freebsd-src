@@ -499,7 +499,7 @@ struct pthread {
 	 * Saved signal context used in call to sigreturn by
 	 * _thread_kern_sched if sig_saved is TRUE.
 	 */
-	struct  sigcontext saved_sigcontext;
+	ucontext_t saved_sigcontext;
 
 	/* 
 	 * Saved jump buffer used in call to longjmp by _thread_kern_sched
@@ -954,15 +954,15 @@ void    *_thread_cleanup(pthread_t);
 void    _thread_cleanupspecific(void);
 void    _thread_dump_info(void);
 void    _thread_init(void);
-void    _thread_kern_sched(struct sigcontext *);
+void    _thread_kern_sched(ucontext_t *);
 void    _thread_kern_sched_state(enum pthread_state,char *fname,int lineno);
 void	_thread_kern_sched_state_unlock(enum pthread_state state,
 	    spinlock_t *lock, char *fname, int lineno);
 void    _thread_kern_set_timeout(struct timespec *);
 void    _thread_kern_sig_defer(void);
 void    _thread_kern_sig_undefer(void);
-void    _thread_sig_handler(int, int, struct sigcontext *);
-void    _thread_sig_handle(int, struct sigcontext *);
+void    _thread_sig_handler(int, int, ucontext_t *);
+void    _thread_sig_handle(int, ucontext_t *);
 void	_thread_sig_init(void);
 void    _thread_start(void);
 void    _thread_start_sig_handler(void);
@@ -977,7 +977,7 @@ int     _thread_sys_sigprocmask(int, const sigset_t *, sigset_t *);
 int     _thread_sys_sigsuspend(const sigset_t *);
 int     _thread_sys_siginterrupt(int, int);
 int     _thread_sys_sigpause(int);
-int     _thread_sys_sigreturn(struct sigcontext *);
+int     _thread_sys_sigreturn(ucontext_t *);
 int     _thread_sys_sigstack(const struct sigstack *, struct sigstack *);
 int     _thread_sys_sigvec(int, struct sigvec *, struct sigvec *);
 void    _thread_sys_psignal(unsigned int, const char *);

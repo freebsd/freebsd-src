@@ -31,6 +31,9 @@
  *
  * $FreeBSD$
  */
+#include <sys/param.h>
+#include <sys/types.h>
+#include <sys/signalvar.h>
 #include <errno.h>
 #include <signal.h>
 #ifdef _THREAD_SAFE
@@ -54,13 +57,13 @@ pthread_sigmask(int how, const sigset_t *set, sigset_t *oset)
 		/* Block signals: */
 		case SIG_BLOCK:
 			/* Add signals to the existing mask: */
-			_thread_run->sigmask |= *set;
+			SIGSETOR(_thread_run->sigmask, *set);
 			break;
 
 		/* Unblock signals: */
 		case SIG_UNBLOCK:
 			/* Clear signals from the existing mask: */
-			_thread_run->sigmask &= ~(*set);
+			SIGSETNAND(_thread_run->sigmask, *set);
 			break;
 
 		/* Set the signal process mask: */

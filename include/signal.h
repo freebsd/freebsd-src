@@ -31,6 +31,8 @@
  * SUCH DAMAGE.
  *
  *	@(#)signal.h	8.3 (Berkeley) 3/30/94
+ *
+ * $FreeBSD$
  */
 
 #ifndef _SIGNAL_H_
@@ -40,6 +42,7 @@
 #include <sys/_posix.h>
 #include <machine/ansi.h>
 #include <sys/signal.h>
+#include <sys/time.h>
 
 #if !defined(_ANSI_SOURCE) && !defined(_POSIX_SOURCE)
 extern __const char *__const sys_signame[NSIG];
@@ -67,18 +70,18 @@ int	sigwait __P((const sigset_t *, int *));
 
 __BEGIN_DECLS
 int sigqueue __P((_BSD_PID_T_, int, const union sigval));
-int sigtimedwait __P((const sigset_t *, siginfo_t *));
+int sigtimedwait __P((const sigset_t *, siginfo_t *, const struct timespec *));
 int sigwaitinfo __P((const sigset_t *, siginfo_t *));
 __END_DECLS
 
 #endif
 #ifndef _POSIX_SOURCE
 int	killpg __P((_BSD_PID_T_, int));
-int	sigaltstack __P((const struct sigaltstack *, struct sigaltstack *)); 
+int	sigaltstack __P((const stack_t *, stack_t *)); 
 int	sigblock __P((int));
 int	siginterrupt __P((int, int));
 int	sigpause __P((int));
-int	sigreturn __P((struct sigcontext *));
+int	sigreturn __P((ucontext_t *));
 int	sigsetmask __P((int));
 int	sigstack __P((const struct sigstack *, struct sigstack *));
 int	sigvec __P((int, struct sigvec *, struct sigvec *));
@@ -89,11 +92,55 @@ __END_DECLS
 
 #ifndef _ANSI_SOURCE
 /* List definitions after function declarations, or Reiser cpp gets upset. */
-#define	sigaddset(set, signo)	(*(set) |= 1 << ((signo) - 1), 0)
-#define	sigdelset(set, signo)	(*(set) &= ~(1 << ((signo) - 1)), 0)
-#define	sigemptyset(set)	(*(set) = 0, 0)
-#define	sigfillset(set)		(*(set) = ~(sigset_t)0, 0)
-#define	sigismember(set, signo)	((*(set) & (1 << ((signo) - 1))) != 0)
+extern __inline int sigaddset(sigset_t *set, int signo)
+{
+
+	if (signo <= 0 || signo > _SIG_MAXSIG) {
+		/* errno = EINVAL; */
+		return (-1);
+	}
+	set->__bits[_SIG_WORD(signo)] |= _SIG_BIT(signo);
+	return (0);
+}
+
+extern __inline int sigdelset(sigset_t *set, int signo)
+{
+
+	if (signo <= 0 || signo > _SIG_MAXSIG) {
+		/* errno = EINVAL; */
+		return (-1);
+	}
+	set->__bits[_SIG_WORD(signo)] &= ~_SIG_BIT(signo);
+	return (0);
+}
+
+extern __inline int sigemptyset(sigset_t *set)
+{
+	int i;
+
+	for (i = 0; i < _SIG_WORDS; i++)
+		set->__bits[i] = 0;
+	return (0);
+}
+
+extern __inline int sigfillset(sigset_t *set)
+{
+	int i;
+
+	for (i = 0; i < _SIG_WORDS; i++)
+		set->__bits[i] = ~(unsigned int)0;
+	return (0);
+}
+
+extern __inline int sigismember(__const sigset_t *set, int signo)
+{
+
+	if (signo <= 0 || signo > _SIG_MAXSIG) {
+		/* errno = EINVAL; */
+		return (-1);
+	}
+	return ((set->__bits[_SIG_WORD(signo)] & _SIG_BIT(signo)) ? 1 : 0);
+}
 #endif /* !_ANSI_SOURCE */
 
 #endif /* !_SIGNAL_H_ */
