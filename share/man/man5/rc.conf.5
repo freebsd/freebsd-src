@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     $Id: rc.conf.5,v 1.9 1997/12/27 05:55:54 jkh Exp $
+.\"     $Id: rc.conf.5,v 1.10 1997/12/27 19:50:55 steve Exp $
 .\"
 .Dd April 26, 1997
 .Dt RC.CONF 5
@@ -192,6 +192,11 @@ these are the flags to pass to
 run the
 .Xr named 8
 daemon.
+.It Ar named_program
+(str) path to
+.Xr named 8
+(default
+.Pa /usr/sbin/named ) .
 .It Ar named_flags
 (str) if
 .Ar named_enable
