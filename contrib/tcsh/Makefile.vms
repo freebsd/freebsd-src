@@ -1,4 +1,4 @@
-# $Id: Makefile.vms,v 1.35 2001/09/02 21:16:25 christos Exp $
+# $Id: Makefile.vms,v 1.37 2002/07/23 16:13:21 christos Exp $
 #	Makefile.vms	4.3	6/11/83
 #
 # C Shell with process control; VM/UNIX VAX Makefile
@@ -8,7 +8,7 @@
 # things; Paul Placeway, CIS Dept., Ohio State University
 #
 SHELL=/bin/sh
-VERSION=6.11
+VERSION=6.12
 BUILD=tcsh
 
 ################################################################
@@ -401,7 +401,7 @@ tc.const.h: tc.const.c sh.char.h config.h config_f.h sh.types.h sh.err.h
 	@echo '\#define _h_tc_const' >> $@
 	${CC} -E $(INCLUDES) ${DFLAGS} -D_h_tc_const tc.const.c | \
 	    grep 'Char STR' | \
-	    sed -e 's/Char \([a-zA-Z0-9_]*\)\[\].*/extern Char \1[];/' | \
+	    sed -e 's/Char \([a-zA-Z0-9_]*\) *\[ *\].*/extern Char \1[];/' | \
 	    sort >> $@
 	@echo '\#endif /* _h_tc_const */' >> $@
 

@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/sh.lex.c,v 3.52 2000/11/11 23:03:37 christos Exp $ */
+/* $Header: /src/pub/tcsh/sh.lex.c,v 3.56 2002/07/08 20:57:32 christos Exp $ */
 /*
  * sh.lex.c: Lexical analysis into tokens
  */
@@ -14,11 +14,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -36,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: sh.lex.c,v 3.52 2000/11/11 23:03:37 christos Exp $")
+RCSID("$Id: sh.lex.c,v 3.56 2002/07/08 20:57:32 christos Exp $")
 
 #include "ed.h"
 /* #define DEBUG_INP */
@@ -1500,8 +1496,10 @@ readc(wanteof)
 	    }
 	    numeof = numeof * 10 + *ptr++ - '0';
 	}
+	if (numeof != 0)
+	    numeof++;
     } 
-    if (numeof < 1) numeof = 26;	/* Sanity check */
+    if (numeof < 0) numeof = 26;	/* Sanity check */
 
 top:
     aret = TCSH_F_SEEK;
@@ -1605,12 +1603,11 @@ reread:
 	    if (isatty(SHIN))
 #endif /* !WINNT_NATIVE */
 	    {
-		/* was 'short' for FILEC */
 #ifdef BSDJOBS
 		int     ctpgrp;
 #endif /* BSDJOBS */
 
-		if (++sincereal >= numeof)	/* Too many EOFs?  Bye! */
+		if (numeof != 0 && ++sincereal >= numeof)	/* Too many EOFs?  Bye! */
 		    goto oops;
 #ifdef BSDJOBS
 		if (tpgrp != -1 &&
@@ -1740,8 +1737,17 @@ bgetc()
     }
 
     while (fseekp >= feobp) {
-	if (editing && intty) {		/* then use twenex routine */
+	if ((editing
+#if defined(FILEC) && defined(TIOCSTI)
+	    || filec
+#endif /* FILEC && TIOCSTI */
+	    ) && intty) {		/* then use twenex routine */
 	    fseekp = feobp;		/* where else? */
+#if defined(FILEC) && defined(TIOCSTI)
+	    if (!editing)
+		c = numleft = tenex(InputBuf, BUFSIZE);
+	    else
+#endif /* FILEC && TIOCSTI */
 	    c = numleft = Inputl();	/* PWP: get a line */
 	    while (numleft > 0) {
 		off = (int) feobp % BUFSIZE;
@@ -1750,12 +1756,13 @@ bgetc()
 		roomleft = BUFSIZE - off;
 		if (roomleft > numleft)
 		    roomleft = numleft;
-		(void) memmove((ptr_t) (fbuf[buf] + off), (ptr_t) (InputBuf + c - numleft), (size_t) (roomleft * sizeof(Char)));
+		(void) memmove((ptr_t) (fbuf[buf] + off),
+		    (ptr_t) (InputBuf + c - numleft),
+		    (size_t) (roomleft * sizeof(Char)));
 		numleft -= roomleft;
 		feobp += roomleft;
 	    }
-	}
-	else {
+	} else {
 	    off = (int) feobp % BUFSIZE;
 	    buf = (int) feobp / BUFSIZE;
 	    balloc(buf);

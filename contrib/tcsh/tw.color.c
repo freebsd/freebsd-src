@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/tw.color.c,v 1.8 2001/03/18 19:06:32 christos Exp $ */
+/* $Header: /src/pub/tcsh/tw.color.c,v 1.11 2002/06/25 19:02:11 christos Exp $ */
 /*
  * tw.color.c: builtin color ls-F
  */
@@ -14,11 +14,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -36,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: tw.color.c,v 1.8 2001/03/18 19:06:32 christos Exp $")
+RCSID("$Id: tw.color.c,v 1.11 2002/06/25 19:02:11 christos Exp $")
 
 #include "tw.h"
 #include "ed.h"
@@ -116,15 +112,13 @@ set_color_context()
 {
     struct varent *vp = adrof(STRcolor);
 
-    if (!vp) {
+    if (vp == NULL || vp->vec == NULL) {
 	color_context_ls = FALSE;
 	color_context_lsmF = FALSE;
-    }
-    else if (!vp->vec[0] || vp->vec[0][0] == '\0') {
+    } else if (!vp->vec[0] || vp->vec[0][0] == '\0') {
 	color_context_ls = TRUE;
 	color_context_lsmF = TRUE;
-    }
-    else {
+    } else {
 	size_t i;
 
 	color_context_ls = FALSE;
@@ -183,6 +177,8 @@ parseLS_COLORS(value)
     char   *c;			/* pointer in colors */
     Extension *e;		/* pointer in extensions */
     jmp_buf_t osetexit;
+
+    (void) &e;
 
     /* init */
     if (extensions)
