@@ -2,7 +2,7 @@
   The FreeBSD German Documentation Project
   The FreeBSD Documentation Project
   $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/readme/article.sgml,v 1.2.2.5 2002/05/26 17:29:50 mheinen Exp $
-  basiert auf: 1.1.2.14
+  basiert auf: 1.1.2.14.2.3
 -->
 
 <!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
@@ -57,8 +57,21 @@
     <title>Einf&uuml;hrung</title>
 
     <para>Diese Ausgabe von &os; ist eine &release.type;-Version von
-      &os;  &release.current; und repr&auml;sentiert den aktuellen
-      Zustand im Entwicklungszweig &release.branch;.</para>
+      &os; &release.current;; um genau zu sein, eine <quote>point
+      release</quote>.  Diese Version behebt diverse Probleme in den
+      Bereichen Sicherheit und Stabilit&auml;t, die in &os;
+      &release.current; nach der Ver&ouml;ffentlichung wurden.  Der
+      Funktionsumfang dieser Version entspricht dem von &os;
+      &release.base;.</para>
+
+    <note>
+      <para>Diese Ausgabe sollte eigentlich die Versionsnummer 4.6.1
+	tragen.  Allerdings wurden in letzter Minute noch weitere
+	Sicherheitsprobleme aufgedeckt, die das Erscheinen dieser
+	Version verz&ouml;gerten.  Um Konfusionen zu verhindern,
+	entschieden die f&uuml;r die Release und die Sicherheit
+	zust&auml;ndigen Teams, diese Version 4.6.2 zu nennen.</para>
+    </note>
 
     <sect2>
       <title>&Uuml;ber &os;</title>

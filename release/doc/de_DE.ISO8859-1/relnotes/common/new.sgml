@@ -1,6 +1,6 @@
 <!--
   $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/relnotes/common/new.sgml,v 1.3.2.43 2002/05/31 20:44:33 ue Exp $
-  basiert auf: 1.22.2.249
+  basiert auf: 1.22.2.249.2.13
 -->
 
 <articleinfo>
@@ -49,32 +49,27 @@
     (oder ge&auml;ndert) wurden.  Au&szlig;erdem erhalten Sie Hinweise
     f&uuml;r die Aktualisierung Ihres &os;-Systems.</para>
 
-<![ %release.type.snapshot [
-
-  <para>Die &release.type; Distribution, f&uuml;r die diese Release
-    Notes g&uuml;ltig sind, markiert einen Punkt im Entwicklungszweig
-    &release.branch; zwischen &release.prev; und der zuk&uuml;nftigen
-    Version &release.next;.  Sie k&ouml;nnen einige fertige
-    &release.type; Distributionen, die in diesem Entwicklungszweig
-    entstanden sind, auf <ulink url="&release.url;"></ulink>
-    finden.</para>
-
-]]>
-
-<![ %release.type.release [
-
   <para>Diese Distribution von &os; &release.current; ist eine
-    &release.type; Distribution.  Sie k&ouml;nnen Sie von <ulink
+    <quote>point release</quote> Distribution, die einige Probleme
+    (prim&auml;r im Bereich Sicherheit) behebt, die in &os;
+    &release.base; aufgetreten sind.  Diese Distribution sollte
+    eigentlich die Versionsnummer 4.6.1 tragen.  Allerdings wurden
+    w&auml;hrend der Vorbereitungen f&uuml;r die Ver&ouml;ffentlichung
+    weitere Probleme entdeckt, die zu Verz&ouml;gerungen f&uuml;hrten.
+    Um Verwirrung zu vermeiden, entschieden die f&uuml;r die
+    Ver&ouml;ffentlichung und die Sicherheit zust&auml;ndigen Teams,
+    f&uuml;r diese Distribution die Versionsnummer 4.6.2 zu
+    verwenden.</para>
+
+  <para>Diese Distribution k&ouml;nnen Sie von <ulink
     url="&release.url;"></ulink> und allen seinen Mirrors erhalten.
     Weitere Informationen, wie Sie diese (oder andere) &release.type;
     Distributionen von &os; erhalten k&ouml;nnen, finden Sie im Anhang
     <ulink
-    url="http://www.FreeBSD.org/handbook/mirrors.html"><quote>Obtaining
+    url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/handbook/mirrors.html"><quote>Obtaining
     FreeBSD</quote></ulink> des <ulink
-    url="http://www.FreeBSD.org/handbook/">FreeBSD
+    url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/handbook/">FreeBSD
     Handbuchs</ulink>.</para>
-
-]]>
 </sect1>
 
 <!--
@@ -108,6 +103,9 @@
     Dritt-Software.  Sicherheitshinweise, die nach dem Erscheinen von
     &release.prev; herausgegeben wurden, sind ebenfalls
     aufgef&uuml;hrt.</para>
+
+  <para>Eintr&auml;ge, die nur f&uuml;r diese Version g&uuml;ltig
+    sind, sind mit &new.462; gekennzeichnet.</para>
 
   <sect2 id="kernel">
     <title>&Auml;nderungen im Kernel</title>
@@ -268,24 +266,19 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       <para>Der Treiber &man.ata.4; wurde auf den Stand von &os;
 	-CURRENT vom 18. M&auml;rz 2002 gebracht.</para>
 
-      <important>
-	<para>Einige Anwender haben von Problemen beim Test von ATA
-	  tagged queueing berichtet.  Typischerweise kommt es
-	  w&auml;hrend des Systemstarts zu Timeouts bei Lesezugriffen,
-	  die dazu f&uuml;hren, da&szlig; das Root-Dateisystem nicht
-	  gemountet werden kann.  Diese Probleme traten nur bei
-	  Systmen auf, bei denen Festplatten mit diesem Feature an die
-	  IDE-Kontroller auf dem Mainboard angeschlossen waren.  Da
-	  dieses Feature nur von einigen Festplatten unterst&uuml;tzt
-	  wird und explizit aktiviert werden mu&szlig; (durch die
-	  Angabe von <literal>hw.ata.tags="1"</literal> in
-	  <filename>/boot/loader.conf</filename>), sollte die Mehrheit
-	  der Benutzer nicht von diesem Problem betroffen sein.</para>
-      </important>
+      <para>&new.461;  Im Treiber &man.ata.4; wurde ein Fehler
+	behoben, durch den <quote>tagged queueing</quote> in einigen
+	F&auml;llen nicht korrekt funktionierte.</para>
 
       <para>Der Treiber &man.ata.4; kann jetzt ATA RAIDs erzeugen,
 	l&ouml;schen, abfragen und regenerieren, zur Steuerung dient
 	&man.atacontrol.8;.</para>
+
+      <para>&new.462;  Der Treiber &man.ata.4; berechnet die maximale
+	Transfergr&ouml;&szlig;e jetzt richtig, dadurch werden
+	zahlreiche Probleme beim Zugriff auf diverse ATA-Ger&auml;te
+	behoben, unter anderem die diversen
+	<literal>READ_BIG</literal> Fehler.</para>
     </sect3>
 
     <sect3>
@@ -302,7 +295,17 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
     <sect3>
       <title>Unterst&uuml;tzung f&uuml;r PCCARD</title>
 
-      <para></para>
+      <para>&new.461;  In den f&uuml;r die Spannungsversorgung
+	zust&auml;ndigen Routinen von PCCARD wurde ein Fehler behoben,
+	durch den sich einige Maschinen (speziell Sony VAIO und
+	Laptops von Toshiba) beim Systemstart oder bei der ersten
+	Verwendung einer PCCARD <quote>aufh&auml;ngten</quote>.
+	Dadurch wurden auch einige andere Probleme behoben, zum
+	Beispiel k&ouml;nnen Toshiba-Laptops mit ToPIC Chipsatz jetzt
+	beide Steckpl&auml;tze nutzen.  Weiterhin sind einige der
+	bisher notwendigen <quote>Verrenkungen</quote> bei der
+	Benutzung von PCI-Karten mit PCCARD Steckpl&auml;tzen nicht
+	mehr notwendig.</para>
     </sect3>
 
     <sect3>
@@ -390,6 +393,14 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       Informatione finden Sie in <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:23.stdio.asc">FreeBSD-SA-02:23</ulink>.</para>
 
+    <para>&new.461;  Die Korrektur f&uuml;r den in SA-02:23
+      beschriebenen Fehler (der Nutzung von Datei-Handles durch
+      set-user-id und set-group-id Programme) ist fehlerhaft.  Der
+      Fehler konnte immer noch auf Systemen ausgenutzt werden, die
+      &man.procfs.5; oder &man.linprocfs.5; verwenden.  Die zweite
+      Version des Korrektur finden Sie in <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:23.stdio.asc">FreeBSD-SA-02:23</ulink>.</para>
+
     <para>Bei der Benutzung von &man.k5su.8; konnte es zu unerwarteten
       Seiteneffekten kommen, da ein Benutzer nicht in der Gruppe
       <groupname>wheel</groupname> eingetragen sein mu&szlig;, um mit
@@ -424,6 +435,61 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       einen Neustart des Systems erzwingen konnten.  Dieser Fehler
       wurde beseitigt, weitere Informationen finden Sie in <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:27.rc.asc">FreeBSD-SA-02:27</ulink>).</para>
+
+    <para>&new.461;  Im Resolver existierte ein Buffer-&Uuml;berlauf,
+      der von einem entsprechend programmierten Domain Name Server
+      oder durch passende DNS-Anfragen eines Angreifers ausgenutzt
+      werden konnte, dieser Fehler wurde entfernt.  Weitere
+      Informationen finden Sie in <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:28.resolv.asc">FreeBSD-SA-02:28</ulink>.</para>
+
+    <para>&new.461;  In &man.tcpdump.1; wurde ein Buffer Overflow
+      beseitigt, der durch defekte NFS-Pakete ausgenutzt werden
+      konnte.  Weitere Informationen finden Sie in <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:29.tcpdump.asc">FreeBSD-SA-02:29</ulink>.</para>
+
+    <para>&new.461;  Es ist nicht mehr m&ouml;glich, &man.ktrace.1;
+      zur Verfolgung des Ablaufs von Prozessen zu benutzen, wenn diese
+      vorher priveligiert waren.  Falls ein Prozess sensitive
+      Informationen erhalten hat, bevor er die Privilegien abgegeben
+      hat, k&ouml;nnen diese nicht mehr an die Au&szlig;enwelt
+      gelangen.  Weitere Informationen finden Sie in <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:30.ktrace.asc">FreeBSD-SA-02:30</ulink>.</para>
+
+    <para>&new.462;  In &man.pppd.8;  existierte eine Race Condition,
+      durch die es m&ouml;glich war, die Berechtigungen einer
+      beliebigen Datei zu &auml;ndern, dieser Fehler wurde korrigiert.
+      Weitere Informationen finden Sie in <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:32.pppd.asc">FreeBSD-SA-02:32</ulink>.</para>
+
+    <para>&new.462;  In <application>OpenSSL</application> wurden
+      mehrere Buffer Overflows gefunden, die Fehler wurden durch ein
+      Update der von &os;  verwendeten Version von
+      <application>OpenSSL</application> beseitigt.  Weitere
+      Informationen finden Sie in <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:33.openssl.asc">FreeBSD-SA-02:33</ulink>.</para>
+
+    <para>&new.462;  Ein Buffer Overflow im Heap des XDR Decoders
+      wurde beseitigt.  Weitere Informationen finden Sie in <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:34.rpc.asc">FreeBSD-SA-02:34</ulink>.</para>
+
+    <para>&new.462;  Ein Fehler, durch den ein Benutzer beliebige
+      Bl&ouml;cke auf einem FFS-Dateisystem lesen und schreiben
+      konnte, wurde beseitigt.  Weitere Informationen finden Sie in
+      <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:35.ffs.asc">FreeBSD-SA-02:35</ulink>.</para>
+
+    <para>&new.462;  Im NFS Server wurde ein Fehler beseitigt, durch
+      den es m&ouml;glich war, &uuml;ber das Netzwerk einen
+      Denial-of-Service Angriff durchzuf&uuml;hren.  Weitere
+      Informationen finden Sie in <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:36.nfs.asc">FreeBSD-SA-02:36</ulink>.</para>
+
+    <para>&new.462;  Im &man.kqueue.2; System wurde ein Fehler
+      beseitigt, durch den ein lokaler Benutzer einen Systemabsturz
+      herbeif&uuml;hren konnte.  Weitere Informationen finden Sie in
+      <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:37.kqueue.asc">FreeBSD-SA-02:37</ulink>.</para>
   </sect2>
 
   <sect2 id="userland">
@@ -540,10 +606,25 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       <option>-i</option> verwendet werden, um einen Patch aus einer
       Datei und nicht von der Standardeingabe zu lesen.</para>
 
+    <para>&new.461;  &man.pam.opie.8; gibt keine falschen
+      Aufforderungen mehr aus, wenn die Variable
+      <varname>no_fake_prompts</varname> gesetzt ist.</para>
+
+    <para>&new.461;  Das Modul &man.pam.opieaccess.8; ist jetzt
+      verf&uuml;gbar.</para>
+
+    <para>&new.461;  &man.pam.radius.8;, &man.pam.ssh.8; und
+      &man.pam.tacplus.8;  wurden auf den Stand von &os; -CURRENT vom
+      3. Juli 2002 gebracht.</para>
+
     <para>Das neue PAM-Modul &man.pam.ssh.8; erlaubt die
       Authentifizierung durch SSH Kenns&auml;tze und
       Schl&uuml;sselpaare.  Das Modul erledigt auch die Verwaltung der
       Sitzungen via &man.ssh-agent.1;.</para>
+
+    <para>&new.461;  &man.pam.unix.8; wurde auf den Stand von &os;
+      -CURRENT vom 9. M&auml;rz 2002 gebracht
+      (pre-<application>OpenPAM</application>).</para>
 
     <para>Bei &man.pr.1; k&ouml;nnen jetzt die Optionen
       <option>-f</option> und <option>-p</option> genutzt werden, um
@@ -608,7 +689,7 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       <title>Zus&auml;tzliche Software</title>
 
       <para><application>BIND</application> wurde auf Version
-        8.3.2-T1B aktualisiert.</para>
+        8.3.3 aktualisiert.</para>
 
       <para><application>bzip2</application> wurde auf Version
         1.0.2 aktualisiert.</para>
@@ -618,6 +699,58 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
 
       <para>Der <application>ISC DHCP</application> Client wurde auf
 	Version 3.0.1RC8 aktualisiert.</para>
+
+      <para><application>OpenSSH</application> wurde auf Version 3.4p1
+	aktualisiert.  Die wichtigsten &Auml;nderungen sind:
+	<itemizedlist>
+	  <listitem>
+	    <para>Die <filename>*2</filename> Dateien werden nicht
+	      mehr ben&ouml;tigt (zum Beispiel kann
+	      <filename>~/.ssh/known_hosts</filename> jetzt den Inhalt
+	      von <filename>~/.ssh/known_hosts2</filename>
+	      enthalten).</para>
+	  </listitem>
+
+	  <listitem>
+	    <para>&man.ssh-keygen.1;  kann Schl&uuml;ssel jetzt im
+	      SECSH Public Key File Format importieren und
+	      exportieren, um Schl&uuml;ssel mit diversen
+	      kommerziellen SSH-Version auszutauschen.</para>
+	  </listitem>
+
+	  <listitem>
+	    <para>&man.ssh-add.1;  wertet jetzt alle drei
+	      Standardschl&uuml;ssel aus.</para>
+	  </listitem>
+
+	  <listitem>
+	    <para>&man.ssh-keygen.1;  verwendet keinen Standardardtyp
+	      mehr, der Typ der Schl&uuml;ssels mu&szlig;  mit der
+	      Option <option>-t</option> angegeben werden.</para>
+	  </listitem>
+
+	  <listitem>
+	    <para>Das neue Feature <quote>privilege separation</quote>
+	      nutzt unprivilegierte Prozesse, um die Auswirkungen von
+	      Sicherheitsl&uuml;cken und Programmierfehlern
+	      einzuschr&auml;nken und zu begrenzen.</para>
+	  </listitem>
+
+	  <listitem>
+	    <para>Die Behebung diverser Fehler, dazu geh&ouml;rt eine
+	      Sicherheitsl&uuml;cke, die zu einem
+	      Integer-&Uuml;berlauf und dadurch zu einer nicht
+	      gew&uuml;nschten Vererbung von Privilegien f&uuml;hren
+	      konnte.</para>
+	  </listitem>
+
+	  <listitem>
+	   <para>Standardm&auml;&szlig;ig wird jetzt Version 2 des
+	     SSH Protokolls verwendet, bei Bedarf wird auf Version 1
+	     zur&uuml;ckgeschaltet.</para>
+	  </listitem>
+	</itemizedlist>
+      </para>
 
       <para><application>texinfo</application> wurde auf Version 4.1
 	aktualisiert.</para>
@@ -667,6 +800,18 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
 	  0644 auf 0640 ge&auml;ndert, um einen Denial-of-Service
 	  Angriff mittels File Locking durch lokale Benutzer zu
 	  verhindern.</para>
+
+	<para>&new.461;  Bei der Nutzung der <quote>DNS Map</quote>
+	  konnte es zu einem &Uuml;berlauf des f&uuml;r die Map
+	  genutzten Speichers kommen; diese Konfiguration wird
+	  allerdings standardm&auml;&szlig;ig nicht genutzt.  Dieser
+	  Fehler wurde beseitigt.
+	  <note>
+	    <para>Dieser Fehler wurde in &os; 4.6-STABLE durch den
+	      Import einer neueren Version von
+	      <application>sendmail</application> behoben.</para>
+	  </note>
+	</para>
       </sect4>
     </sect3>
 
@@ -695,6 +840,10 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       ganz normales Paket installiert und kann daher mit den
       &uuml;blichen Programmen wie &man.pkg.info.1; manipuliert
       werden.</para>
+
+    <para>&new.461;  Ein Fehler, durch den bei einer Neuinstallation
+      Dateien in <filename>/usr/share/examples</filename> fehlten,
+      wurde behoben.</para>
   </sect2>
 </sect1>
 
@@ -726,10 +875,15 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
     <listitem>
       <para>Mit dem Sourcecode in <filename>/usr/src</filename>.
         Diese Variante ist flexibler, ben&ouml;tigt aber mehr
-        Plattenplatz, Zeit, und Erfahrung.  Eine Aktualisierung einer
-        sehr alten Version von &os; kann mit Problemen verbunden sein;
-        in diesen F&auml;llen ist es effektiver, eine bin&auml;re
-        Aktualisierung oder eine komplette Neuinstallation
+        Plattenplatz, Zeit, und Erfahrung.  Weitere Informationen zu
+        diesem Thema finden Sie im Kapitel <ulink
+        url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/makeworld.html"><quote>Using
+        <command>make world</command></quote></ulink> des <ulink
+        url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/">FreeBSD
+        Handbuchs</ulink>.  Eine Aktualisierung einer sehr alten
+        Version von &os; kann mit Problemen verbunden sein;  in diesen
+        F&auml;llen ist es effektiver, eine bin&auml;re Aktualisierung
+        oder eine komplette Neuinstallation
         durchzuf&uuml;hren.</para>
     </listitem>
   </itemizedlist>
@@ -744,9 +898,9 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
   <para>Zum guten Schlu&szlig;:  Wenn Sie auf eine der m&ouml;glichen
     Arten die &os;-Entwicklungszweige -STABLE oder -CURRENT nutzen,
     sollten Sie auf jeden Fall das Kapitel <ulink
-    url="http://www.FreeBSD.org/handbook/current-stable.html"><quote>-CURRENT
+    url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/current-stable.html"><quote>-CURRENT
     vs. -STABLE</quote></ulink> im <ulink
-    url="http://www.FreeBSD.org/handbook/">FreeBSD Handbuch</ulink>
+    url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/">FreeBSD Handbuch</ulink>
     lesen.</para>
 
   <important>
