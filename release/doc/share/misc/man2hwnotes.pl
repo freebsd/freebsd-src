@@ -261,12 +261,16 @@ sub parse {
 		my ($txt, $punct_str) = split_punct_chars($1);
 
 		parabuf_addline(\%mdocvars, normalize($txt . $punct_str));
-	    } elsif (/^Xr (.+) (.+)/) {
+	    } elsif (/^Xr ([^ ]+) (.+)$/) {
+		my ($xr_sect, $punct_str) = split_punct_chars($2);
+		my $txt;
+
 		# We need to check if the manual page exist to avoid
 		# breaking the doc build just because of a broken
 		# reference.
-		#parabuf_addline(\%mdocvars, "&man.$1.$2;");
-		parabuf_addline(\%mdocvars, normalize("$1($2)"));
+		#$txt = "&man.$1.$xr_sect;$punct_str";
+		$txt = "$1($xr_sect)$punct_str";
+		parabuf_addline(\%mdocvars, normalize($txt));
 	    } elsif (/^Dq (.+)$/) {
 		my ($txt, $punct_str) = split_punct_chars($1);
 
