@@ -417,7 +417,7 @@ IcmpAliasIn(struct libalias *la, struct ip *pip)
 
 /* Return if proxy-only mode is enabled */
 	if (la->packetAliasMode & PKT_ALIAS_PROXY_ONLY)
-		return PKT_ALIAS_OK;
+		return (PKT_ALIAS_OK);
 
 	ic = (struct icmp *)((char *)pip + (pip->ip_hl << 2));
 
@@ -596,7 +596,7 @@ IcmpAliasOut(struct libalias *la, struct ip *pip, int create)
 
 /* Return if proxy-only mode is enabled */
 	if (la->packetAliasMode & PKT_ALIAS_PROXY_ONLY)
-		return PKT_ALIAS_OK;
+		return (PKT_ALIAS_OK);
 
 	ic = (struct icmp *)((char *)pip + (pip->ip_hl << 2));
 
@@ -636,7 +636,7 @@ ProtoAliasIn(struct libalias *la, struct ip *pip)
 
 /* Return if proxy-only mode is enabled */
 	if (la->packetAliasMode & PKT_ALIAS_PROXY_ONLY)
-		return PKT_ALIAS_OK;
+		return (PKT_ALIAS_OK);
 
 	link = FindProtoIn(la, pip->ip_src, pip->ip_dst, pip->ip_p);
 	if (link != NULL) {
@@ -667,7 +667,7 @@ ProtoAliasOut(struct libalias *la, struct ip *pip, int create)
 
 /* Return if proxy-only mode is enabled */
 	if (la->packetAliasMode & PKT_ALIAS_PROXY_ONLY)
-		return PKT_ALIAS_OK;
+		return (PKT_ALIAS_OK);
 
 	link = FindProtoOut(la, pip->ip_src, pip->ip_dst, pip->ip_p);
 	if (link != NULL) {
@@ -694,7 +694,7 @@ UdpAliasIn(struct libalias *la, struct ip *pip)
 
 /* Return if proxy-only mode is enabled */
 	if (la->packetAliasMode & PKT_ALIAS_PROXY_ONLY)
-		return PKT_ALIAS_OK;
+		return (PKT_ALIAS_OK);
 
 	ud = (struct udphdr *)((char *)pip + (pip->ip_hl << 2));
 
@@ -758,7 +758,7 @@ UdpAliasOut(struct libalias *la, struct ip *pip, int create)
 
 /* Return if proxy-only mode is enabled */
 	if (la->packetAliasMode & PKT_ALIAS_PROXY_ONLY)
-		return PKT_ALIAS_OK;
+		return (PKT_ALIAS_OK);
 
 	ud = (struct udphdr *)((char *)pip + (pip->ip_hl << 2));
 
@@ -920,7 +920,7 @@ TcpAliasOut(struct libalias *la, struct ip *pip, int maxpacketsize, int create)
 	proxy_type = ProxyCheck(la, pip, &proxy_server_address, &proxy_server_port);
 
 	if (proxy_type == 0 && (la->packetAliasMode & PKT_ALIAS_PROXY_ONLY))
-		return PKT_ALIAS_OK;
+		return (PKT_ALIAS_OK);
 
 /* If this is a transparent proxy, save original destination,
    then alter the destination and adjust checksums */
@@ -1160,7 +1160,7 @@ LibAliasIn(struct libalias *la, char *ptr, int maxpacketsize)
 		la->packetAliasMode &= ~PKT_ALIAS_REVERSE;
 		iresult = PacketAliasOut(ptr, maxpacketsize);
 		la->packetAliasMode |= PKT_ALIAS_REVERSE;
-		return iresult;
+		return (iresult);
 	}
 	HouseKeeping(la);
 	ClearCheckNewLink(la);
@@ -1170,7 +1170,7 @@ LibAliasIn(struct libalias *la, char *ptr, int maxpacketsize)
 	/* Defense against mangled packets */
 	if (ntohs(pip->ip_len) > maxpacketsize
 	    || (pip->ip_hl << 2) > maxpacketsize)
-		return PKT_ALIAS_IGNORED;
+		return (PKT_ALIAS_IGNORED);
 
 	iresult = PKT_ALIAS_IGNORED;
 	if ((ntohs(pip->ip_off) & IP_OFFMASK) == 0) {
@@ -1254,7 +1254,7 @@ LibAliasOutTry(struct libalias *la, char *ptr,	/* valid IP packet */
 		la->packetAliasMode &= ~PKT_ALIAS_REVERSE;
 		iresult = PacketAliasIn(ptr, maxpacketsize);
 		la->packetAliasMode |= PKT_ALIAS_REVERSE;
-		return iresult;
+		return (iresult);
 	}
 	HouseKeeping(la);
 	ClearCheckNewLink(la);
@@ -1263,7 +1263,7 @@ LibAliasOutTry(struct libalias *la, char *ptr,	/* valid IP packet */
 	/* Defense against mangled packets */
 	if (ntohs(pip->ip_len) > maxpacketsize
 	    || (pip->ip_hl << 2) > maxpacketsize)
-		return PKT_ALIAS_IGNORED;
+		return (PKT_ALIAS_IGNORED);
 
 	addr_save = GetDefaultAliasAddress(la);
 	if (la->packetAliasMode & PKT_ALIAS_UNREGISTERED_ONLY) {
