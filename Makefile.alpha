@@ -1,4 +1,4 @@
-# $Id: Makefile.alpha,v 1.9 1998/05/05 07:01:40 jb Exp $
+# $Id: Makefile.alpha,v 1.10 1998/05/05 08:40:38 jb Exp $
 #
 # NOTE:
 #
@@ -127,7 +127,7 @@ buildworld:
 	@cd ${.CURDIR}/usr.bin/make && \
 		${IBMAKE} -I${.CURDIR}/share/mk ${CLEANDIR} ${OBJDIR}
 	@cd ${.CURDIR}/usr.bin/make && \
-		${IBMAKE} -I${.CURDIR}/share/mk depend && \
+		${IBMAKE} -I${.CURDIR}/share/mk ${MK_FLAGS} depend && \
 		${IBMAKE} -I${.CURDIR}/share/mk ${MK_FLAGS} all && \
 		${IBMAKE} -I${.CURDIR}/share/mk ${MK_FLAGS} install && \
 		${IBMAKE} -I${.CURDIR}/share/mk ${MK_FLAGS} ${CLEANDIR} ${OBJDIR}
@@ -138,7 +138,7 @@ buildworld:
 	@cd ${.CURDIR}/usr.bin/find && \
 		${IBMAKE} -I${.CURDIR}/share/mk ${CLEANDIR} ${OBJDIR}
 	@cd ${.CURDIR}/usr.bin/find && \
-		${IBMAKE} -I${.CURDIR}/share/mk depend && \
+		${IBMAKE} -I${.CURDIR}/share/mk ${MK_FLAGS} depend && \
 		${IBMAKE} -I${.CURDIR}/share/mk ${MK_FLAGS} all && \
 		${IBMAKE} -I${.CURDIR}/share/mk ${MK_FLAGS} install && \
 		${IBMAKE} -I${.CURDIR}/share/mk ${MK_FLAGS} ${CLEANDIR} ${OBJDIR}
@@ -191,7 +191,7 @@ buildworld:
 	@echo " Rebuilding all tools with the new FreeBSD tools to see"
 	@echo " if they work..."
 	@echo "--------------------------------------------------------------"
-	@cd ${.CURDIR} && ${LMAKE} build-tools
+	@cd ${.CURDIR} && ${XMAKE} build-tools
 .if IHAVELOTSOFDISKSPACE
 	@echo
 	@echo "--------------------------------------------------------------"
@@ -213,7 +213,13 @@ dirs:
 	cd ${.CURDIR}/$d && ${XMAKE} obj && \
 		${XMAKE} depend && \
 		${XMAKE} all && \
-		${XMAKE} install ${CLEANDIR} ${OBJDIR}
+		${XMAKE} install
+.endfor
+
+dirs_clean:
+	@echo DIRS = ${DIRS}
+.for d in ${DIRS}
+	cd ${.CURDIR}/$d && ${XMAKE} ${CLEANDIR} ${OBJDIR}
 .endfor
 
 
@@ -240,14 +246,16 @@ hierarchy:
 # for the dependency information to be gathered from.
 #
 bootstrap:
-	cd ${.CURDIR}/usr.bin/make && ${MAKE} depend && \
+	cd ${.CURDIR}/usr.bin/make && ${MAKE} ${MK_FLAGS} depend && \
 		${MAKE} ${MK_FLAGS} all && \
 		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
-	cd ${.CURDIR}/usr.bin/xinstall && ${MAKE} ${OBJDIR} depend && \
+	cd ${.CURDIR}/usr.bin/xinstall && \
+		${MAKE} ${MK_FLAGS} ${OBJDIR} depend && \
 		${MAKE} ${MK_FLAGS} all && \
 		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
-	cd ${.CURDIR}/usr.bin/lex && ${MAKE} ${OBJDIR} bootstrap && \
-		${MAKE} depend && \
+	cd ${.CURDIR}/usr.bin/lex && \
+		${MAKE} ${MK_FLAGS} ${OBJDIR} bootstrap && \
+		${MAKE} ${MK_FLAGS} depend && \
 		${MAKE} ${MK_FLAGS} -DNOLIB all && \
 		${MAKE} ${MK_FLAGS} -DNOLIB -B install ${CLEANDIR}
 	cd ${.CURDIR}/usr.bin/lex && ${MAKE} obj
@@ -356,6 +364,7 @@ lib-tools:
 		lib/csu/${MACHINE_ARCH}	\
 		usr.bin/compile_et	\
 		usr.bin/lex/lib		\
+		usr.bin/join		\
 		usr.bin/mk_cmds		\
 		usr.bin/uudecode
 	cd ${.CURDIR}/$d && ${MAKE} obj && \
@@ -486,7 +495,6 @@ build-tools:
 	usr.bin/chflags		\
 	usr.bin/cmp		\
 	usr.bin/col		\
-	usr.bin/cpp		\
 	usr.bin/expand		\
 	usr.bin/file2c		\
 	usr.bin/find		\
