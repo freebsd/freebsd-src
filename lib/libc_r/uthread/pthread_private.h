@@ -54,6 +54,7 @@
 #include <sys/queue.h>
 #include <sys/types.h>
 #include <sys/time.h>
+#include <sys/cdefs.h>
 #include <sched.h>
 #include <spinlock.h>
 #include <pthread_np.h>
@@ -575,6 +576,8 @@ struct pthread {
 #define PTHREAD_CANCELLING		0x0008
 #define PTHREAD_CANCEL_NEEDED		0x0010
 	int	cancelflags;
+
+	int	suspended;
 
 	thread_continuation_t	continuation;
 
