@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 02, 2004
+.Dd June 2, 2004
 .Dt PORTS 7
 .Os
 .Sh NAME
@@ -267,14 +267,17 @@ which is used by the
 and
 .Cm search
 targets.
-While the master
-.Pa INDEX
-file in the CVS repository is periodically
-updated, running the
+Running the
 .Cm index
 target will ensure your
 .Pa INDEX
 file is up to date with your ports tree.
+.It Cm fetchindex
+Fetch the
+.Pa INDEX
+file from the
+.Fx
+cluster.
 .El
 .Sh ENVIRONMENT
 You can change all of these.
