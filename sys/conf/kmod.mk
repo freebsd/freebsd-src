@@ -296,7 +296,7 @@ MFILES?= dev/acpica/acpi_if.m dev/eisa/eisa_if.m dev/iicbus/iicbb_if.m \
 	dev/sound/pcm/feeder_if.m dev/sound/pcm/mixer_if.m dev/uart/uart_if.m \
 	dev/usb/usb_if.m isa/isa_if.m kern/bus_if.m kern/device_if.m \
 	libkern/iconv_converter_if.m opencrypto/crypto_if.m \
-	pc98/pc98/canbus_if.m pci/agp_if.m sparc64/pci/ofw_pci_if.m
+	pc98/pc98/canbus_if.m pci/agp_if.m
 
 .for _srcsrc in ${MFILES}
 .for _ext in c h
