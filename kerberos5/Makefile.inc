@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-DISTRIBUTION?=	krb5
+DISTRIBUTION?=	crypto
 NOLINT=		true
 
 .if !defined(INCLUDEOBJDIR)
