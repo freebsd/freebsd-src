@@ -147,7 +147,8 @@ main(argc, argv)
 			++argv;
 		}
 	if (*argv != NULL)			/* File name prefix. */
-		(void)strcpy(fname, *argv++);
+		if (strlcpy(fname, *argv++, sizeof(fname)) >= sizeof(fname))
+			errx(EX_USAGE, "file name prefix is too long");
 	if (*argv != NULL)
 		usage();
 
