@@ -527,7 +527,16 @@ bad_ftp_url:
 			if (portnum != NULL)
 				*portnum++ = '\0';
 		} else {			/* classic style `host:file' */
-			dir = strchr(host, ':');
+			char *end_brace;
+			
+			if (*host == '[' &&
+			    (end_brace = strrchr(host, ']')) != NULL) {
+				/*IPv6 addr in []*/
+				host++;
+				*end_brace = '\0';
+				dir = strchr(end_brace + 1, ':');
+			} else
+				dir = strchr(host, ':');
 		}
 parsed_url:
 		if (EMPTYSTRING(host)) {
@@ -665,9 +674,19 @@ int
 isurl(p)
 	const char *p;
 {
+	char *path, pton_buf[16];
+
 	if (strncasecmp(p, FTP_URL, sizeof(FTP_URL) - 1) == 0
 	 || strncasecmp(p, HTTP_URL, sizeof(HTTP_URL) - 1) == 0) {
 		return 1;
 	}
+	if (*p == '[' && (path = strrchr(p, ']')) != NULL) /*IPv6 addr in []*/
+		return (*(++path) == ':') ? 1 : 0;
+#ifdef INET6
+	if (inet_pton(AF_INET6, p, pton_buf) == 1) /* raw IPv6 addr */
+		return 0;
+#endif
+	if (strchr(p, ':') != NULL) /* else, if ':' exist */
+		return 1;
 	return 0;
 }
