@@ -7,10 +7,10 @@ INTERNALSTATICLIB=yes
 NOPIC=		yes
 
 SRCS=		genget.c getent.c misc.c encrypt.c auth.c \
-		enc_des.c pk.c
+		enc_des.c sra.c pk.c
 
 CFLAGS+=        -DHAS_CGETENT -DENCRYPTION -DDES_ENCRYPTION -DAUTHENTICATION \
-                -I${TELNETDIR}
+                -DSRA -I${TELNETDIR}
 
 INCS=		${TELNETDIR}/arpa/telnet.h
 INCDIR=		/usr/include/arpa
