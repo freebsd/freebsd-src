@@ -704,6 +704,7 @@ but CVS uses %s for its own purposes; skipping %s directory",
 	repository = srepository;
     }
 
+#if 0
     /* Put back update_dir.  I think this is the same as just setting
        update_dir back to saved_update_dir, but there are a few cases I'm
        not sure about (in particular, if DIR is "." and update_dir is
@@ -714,6 +715,14 @@ but CVS uses %s for its own purposes; skipping %s directory",
     else
 	update_dir[0] = '\0';
     free (saved_update_dir);
+#else
+    /* The above code is cactus!!! - it doesn't handle descending
+       multiple directories at once!  ie: it recurses down several
+       dirs and then back up one. This breaks 'diff', 'update',
+       'commit', etc.  */
+    free (update_dir);
+    update_dir = saved_update_dir;
+#endif
 
     return (err);
 }
