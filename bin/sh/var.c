@@ -81,9 +81,6 @@ struct varinit {
 };
 
 
-#if ATTY
-struct var vatty;
-#endif
 #ifndef NO_HISTORY
 struct var vhistsize;
 #endif
@@ -95,16 +92,9 @@ struct var vppid;
 struct var vps1;
 struct var vps2;
 struct var vvers;
-#if ATTY
-struct var vterm;
-#endif
 struct var voptind;
 
 const struct varinit varinit[] = {
-#if ATTY
-	{ &vatty,	VSTRFIXED|VTEXTFIXED|VUNSET,	"ATTY=",
-	  NULL },
-#endif
 #ifndef NO_HISTORY
 	{ &vhistsize,	VSTRFIXED|VTEXTFIXED|VUNSET,	"HISTSIZE=",
 	  sethistsize },
@@ -124,10 +114,6 @@ const struct varinit varinit[] = {
 	 */
 	{ &vps2,	VSTRFIXED|VTEXTFIXED,		"PS2=> ",
 	  NULL },
-#if ATTY
-	{ &vterm,	VSTRFIXED|VTEXTFIXED|VUNSET,	"TERM=",
-	  NULL },
-#endif
 	{ &voptind,	VSTRFIXED|VTEXTFIXED,		"OPTIND=1",
 	  getoptsreset },
 	{ NULL,	0,				NULL,
