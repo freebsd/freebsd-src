@@ -15,9 +15,6 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 3. The name of the author may not be used to endorse or promote
-.\"    products derived from this software without specific prior written
-.\"    permission.
 .\"
 .\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
 .\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -33,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 21, 2001
+.Dd January 14, 2003
 .Dt MAC_SET 3
 .Os
 .Sh NAME
@@ -46,7 +43,9 @@
 .Sh SYNOPSIS
 .In sys/mac.h
 .Ft int
-.Fn mac_set_file "const char *path_p" "mac_t label"
+.Fn mac_set_file "const char *path" "mac_t label"
+.Ft int
+.Fn mac_set_link "const char *path" "mac_t label"
 .Ft int
 .Fn mac_set_fd "int fd" "mac_t label"
 .Ft int
@@ -68,6 +67,11 @@ Note that this function will fail on socket descriptors.
 For information on
 setting MAC labels on socket descriptors see
 .Xr setsockopt 2 .
+The
+.Fn mac_set_link
+function is the same as
+.Fn mac_set_file ,
+except that it does not follow symlinks.
 The
 .Fn mac_set_proc
 function associates the MAC label
