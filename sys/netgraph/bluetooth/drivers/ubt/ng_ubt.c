@@ -193,18 +193,16 @@ Static const struct ng_cmdlist	ng_ubt_cmdlist[] = {
 
 /* Netgraph node type */
 Static struct ng_type	typestruct = {
-	NG_ABI_VERSION,
-	NG_UBT_NODE_TYPE,	/* typename */
-	NULL,			/* modevent */
-	ng_ubt_constructor,	/* constructor */
-	ng_ubt_rcvmsg,		/* control message */
-	ng_ubt_shutdown,	/* destructor */
-	ng_ubt_newhook,		/* new hook */
-	NULL,			/* find hook */
-	ng_ubt_connect,		/* connect hook */
-	ng_ubt_rcvdata,		/* data */
-	ng_ubt_disconnect,	/* disconnect hook */
-	ng_ubt_cmdlist,		/* node command list */
+	.version =	NG_ABI_VERSION,
+	.name =		NG_UBT_NODE_TYPE,
+	.constructor =	ng_ubt_constructor,
+	.rcvmsg =	ng_ubt_rcvmsg,
+	.shutdown =	ng_ubt_shutdown,
+	.newhook =	ng_ubt_newhook,
+	.connect =	ng_ubt_connect,
+	.rcvdata =	ng_ubt_rcvdata,
+	.disconnect =	ng_ubt_disconnect,
+	.cmdlist =	ng_ubt_cmdlist	
 };
 
 /*

@@ -227,18 +227,16 @@ static const struct ng_cmdlist	ng_bt3c_cmdlist[] = {
 };
 
 static struct ng_type	typestruct = {
-	NG_ABI_VERSION,
-	NG_BT3C_NODE_TYPE,	/* typename */
-	NULL,			/* modevent */
-	ng_bt3c_constructor,	/* constructor */
-	ng_bt3c_rcvmsg,		/* control message */
-	ng_bt3c_shutdown,	/* destructor */
-	ng_bt3c_newhook,	/* new hook */
-	NULL,			/* find hook */
-	ng_bt3c_connect,	/* connect hook */
-	ng_bt3c_rcvdata,	/* data */
-	ng_bt3c_disconnect,	/* disconnect hook */
-        ng_bt3c_cmdlist		/* node command list */
+	.version =	NG_ABI_VERSION,
+	.name = 	NG_BT3C_NODE_TYPE,
+	.constructor = 	ng_bt3c_constructor,
+	.rcvmsg =	ng_bt3c_rcvmsg,
+	.shutdown = 	ng_bt3c_shutdown,
+	.newhook =	ng_bt3c_newhook,
+	.connect =	ng_bt3c_connect,
+	.rcvdata =	ng_bt3c_rcvdata,
+	.disconnect =	ng_bt3c_disconnect,
+        .cmdlist =	ng_bt3c_cmdlist	
 };
 
 /*
