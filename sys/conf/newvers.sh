@@ -38,10 +38,6 @@ TYPE="FreeBSD"
 REVISION="5.0"
 BRANCH="CURRENT"
 RELEASE="${REVISION}-${BRANCH}"
-SNAPDATE=""
-if [ "X${SNAPDATE}" != "X" ]; then
-	RELEASE="${RELEASE}-${SNAPDATE}"
-fi
 VERSION="${TYPE} ${RELEASE}"
 
 if [ "X${PARAMFILE}" != "X" ]; then
