@@ -1,10 +1,10 @@
 # $FreeBSD$
 
+.PATH:	${.CURDIR}/../../../dev/syscons/star
+
 KMOD=	star_saver
 SRCS=	star_saver.c
 NOMAN=
-
-CFLAGS+= -I${.CURDIR}/..
 
 .if ${MACHINE} == "pc98"
 CFLAGS+= -DPC98

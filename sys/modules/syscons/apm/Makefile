@@ -1,10 +1,10 @@
 # $FreeBSD$
 
+.PATH:	${.CURDIR}/../../../dev/syscons/apm
+
 KMOD=	apm_saver
 SRCS= 	apm_saver.c
 NOMAN=
-
-CFLAGS+= -I${.CURDIR}/..
 
 .if ${MACHINE} == "pc98"
 CFLAGS+= -DPC98
