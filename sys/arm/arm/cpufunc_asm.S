@@ -122,7 +122,6 @@ ENTRY(cpufunc_control)
 	teq	r2, r3			/* Only write if there is a change */
 	mcrne	p15, 0, r2, c1, c0, 0	/* Write new control register */
 	mov	r0, r3			/* Return old value */
-	#endif
 
 	RET
 .Lglou:
