@@ -253,44 +253,6 @@ done:	argv[argc] = (char *)NULL;
 }
 
 /*
- * Str_FindSubstring -- See if a string contains a particular substring.
- *
- * Results: If string contains substring, the return value is the location of
- * the first matching instance of substring in string.  If string doesn't
- * contain substring, the return value is NULL.  Matching is done on an exact
- * character-for-character basis with no wildcards or special characters.
- *
- * Side effects: None.
- *
- * XXX should be strstr(3).
- */
-char *
-Str_FindSubstring(char *string, char *substring)
-{
-	char *a, *b;
-
-	/*
-	 * First scan quickly through the two strings looking for a single-
-	 * character match.  When it's found, then compare the rest of the
-	 * substring.
-	 */
-
-	for (b = substring; *string != 0; string += 1) {
-		if (*string != *b)
-			continue;
-		a = string;
-		for (;;) {
-			if (*b == 0)
-				return(string);
-			if (*a++ != *b++)
-				break;
-		}
-		b = substring;
-	}
-	return((char *) NULL);
-}
-
-/*
  * Str_Match --
  *
  * See if a particular string matches a particular pattern.
@@ -302,7 +264,7 @@ Str_FindSubstring(char *string, char *substring)
  * Side effects: None.
  */
 int
-Str_Match(char *string, char *pattern)
+Str_Match(const char *string, const char *pattern)
 {
 	char c2;
 
@@ -404,12 +366,13 @@ thisCharOK:	++pattern;
  *
  *-----------------------------------------------------------------------
  */
-char *
-Str_SYSVMatch(char *word, char *pattern, int *len)
+const char *
+Str_SYSVMatch(const char *word, const char *pattern, int *len)
 {
-    char *p = pattern;
-    char *w = word;
-    char *m;
+    const char *m, *p, *w;
+
+    p = pattern;
+    w = word;
 
     if (*w == '\0') {
 	/* Zero-length word cannot be matched against */
@@ -468,9 +431,9 @@ Str_SYSVMatch(char *word, char *pattern, int *len)
  *-----------------------------------------------------------------------
  */
 void
-Str_SYSVSubst(Buffer buf, char *pat, char *src, int len)
+Str_SYSVSubst(Buffer buf, const char *pat, const char *src, int len)
 {
-    char *m;
+    const char *m;
 
     if ((m = strchr(pat, '%')) != NULL) {
 	/* Copy the prefix */
