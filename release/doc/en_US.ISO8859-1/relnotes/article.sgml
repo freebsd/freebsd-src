@@ -265,12 +265,6 @@
 	the MC146818-compatible clock found on some &ultrasparc; II
 	and III models. &merged;</para>
 
-      <para arch="sparc64">The &man.snd.4; sound driver
-	now supports onboard CS4231 audio controller
-	which is found on &ultrasparc; workstations.
-	To enable this driver, the kernel option
-	<literal>device snd_audiocs</literal> is required.</para>
-
       <para arch="sparc64">The &man.uart.4; driver is now enabled in
 	the <filename>GENERIC</filename> kernel, and is now the
 	default driver for serial ports.  The ofw_console,
@@ -279,6 +273,8 @@
 
       <para>The &man.uplcom.4; driver now supports handling of the
 	<literal>CTS</literal> signal.</para>
+
+      <para>The &man.ehci.4; driver has been improved.</para>
 
       <sect4 id="mm">
 	<title>Multimedia Support</title>
@@ -405,7 +401,11 @@
       <para>Several bugs in the TCP SACK implementation have been
 	fixed. &merged;</para>
 
-      <para>RFC 1644 T/TCP support has been removed.</para>
+      <para>RFC 1644 T/TCP support has been removed.  This is because
+	the design is based on an weak security model that can result
+	in the ease of denial-of-service attacks and this TCP
+	extension has been considered as a defective one in
+	the recent Internet Draft.</para>
 
       <para>Random ephemeral port number allocation has led to some
         problems with port reuse at high connection rates.  This
@@ -512,11 +512,6 @@
       indicated the correct full form when one of these abbreviations
       is detected.</para>
 
-    <para>The &man.rm.1; utility now supports an <option>-I</option>
-      option that asks for confirmation once if recursively
-      removing directories or if more than 3 files are listed in the
-      command line.</para>
-
     <para>The <filename>libarchive</filename> library (as well as the
       &man.tar.1; command that uses it) now has support for reading ISO
       images (with optional RockRidge extensions) and ZIP archives
@@ -572,12 +567,28 @@
       failure.  It is now necessary to specify <command>enable
       echo</command> to get this behavior. &merged;</para>
 
+    <para>The &man.rm.1; utility now supports an <option>-I</option>
+      option that asks for confirmation once if recursively
+      removing directories or if more than 3 files are listed in the
+      command line.</para>
+
     <para>An &man.rpmatch.3; library function has been added to check
       a string for being an affirmative or negative response in the
       current locale.</para>
 
     <para>The rune(3) non-standard multibyte and wide character support
       interface has been removed.</para>
+
+    <para>The &man.syslogd.8; utility now opens an additional domain
+      socket <filename>/var/run/logpriv</filename> by default,
+      with <literal>0600</literal> permissions to be used
+      by privileged programs.  This prevents the privileged
+      programs from locking when the domain sockets
+      run out of the buffer space due to
+      local denial-of-service attack.</para>
+
+    <para>The <option>-f</option> option of &man.tail.1; utility
+      now supports more than one file at a time.</para>
 
     <para>The &man.telnet.1; and &man.telnetd.8; programs now support
       the <option>-S</option> option for specifying a numeric TOS
