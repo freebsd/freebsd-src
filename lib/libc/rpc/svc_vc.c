@@ -400,8 +400,6 @@ read_vc(xprtp, buf, len)
 	struct pollfd pollfd;
 	struct sockaddr *sa;
 	struct cmessage *cm;
-	struct cmsghdr *cmp;
-	struct sockcred *sc;
 
 	xprt = (SVCXPRT *)(void *)xprtp;
 	assert(xprt != NULL);
@@ -429,9 +427,7 @@ read_vc(xprtp, buf, len)
 	if (sa->sa_family == AF_LOCAL) {
 		cm = (struct cmessage *)xprt->xp_verf.oa_base;
 		if ((len = __msgread_withcred(sock, buf, len, cm)) > 0) {
-			cmp = &cm->cmsg;
-			sc = (struct sockcred *)(void *)CMSG_DATA(cmp);
-			xprt->xp_p2 = sc;
+			xprt->xp_p2 = &cm->cmcred;
 			return (len);
 		}
 	} else {
@@ -638,8 +634,14 @@ __msgread_withcred(sock, buf, cnt, cmp)
 {
 	struct iovec iov[1];
 	struct msghdr msg;
+	union {
+		struct cmsghdr cmsg;
+		char control[CMSG_SPACE(sizeof(struct cmsgcred))];
+	} cm;
+	int ret;
+
  
-	bzero(cmp, sizeof(*cmp));
+	bzero(&cm, sizeof(cm));
 	iov[0].iov_base = buf;
 	iov[0].iov_len = cnt;
  
@@ -647,11 +649,14 @@ __msgread_withcred(sock, buf, cnt, cmp)
 	msg.msg_iovlen = 1;
 	msg.msg_name = NULL;
 	msg.msg_namelen = 0;
-	msg.msg_control = cmp;
-	msg.msg_controllen = sizeof(struct cmessage);
+	msg.msg_control = &cm;
+	msg.msg_controllen = CMSG_SPACE(sizeof(struct cmsgcred));
 	msg.msg_flags = 0;
  
-	return(_recvmsg(sock, &msg, 0));
+	ret = _recvmsg(sock, &msg, 0);
+	bcopy(&cm.cmsg, &cmp->cmsg, sizeof(cmp->cmsg));
+	bcopy(CMSG_DATA(&cm), &cmp->cmcred, sizeof(cmp->cmcred));
+	return ret;
 }
 
 static int

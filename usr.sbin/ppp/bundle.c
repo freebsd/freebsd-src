@@ -1364,8 +1364,8 @@ bundle_ReceiveDatalink(struct bundle *bundle, int s)
     return;
   }
 
-  fd = (int *)(cmsg + 1);
-  nfd = (cmsg->cmsg_len - sizeof *cmsg) / sizeof(int);
+  fd = (int *)CMSG_DATA(cmsg);
+  nfd = ((caddr_t)cmsg + cmsg->cmsg_len - (caddr_t)fd) / sizeof(int);
 
   if (nfd < 2) {
     log_Printf(LogERROR, "Recvmsg: %d descriptor%s received (too few) !\n",
@@ -1457,7 +1457,7 @@ bundle_ReceiveDatalink(struct bundle *bundle, int s)
 void
 bundle_SendDatalink(struct datalink *dl, int s, struct sockaddr_un *sun)
 {
-  char cmsgbuf[sizeof(struct cmsghdr) + sizeof(int) * SEND_MAXFD];
+  char cmsgbuf[CMSG_SPACE(sizeof(int) * SEND_MAXFD)];
   const char *constlock;
   char *lock;
   struct cmsghdr *cmsg;
@@ -1507,7 +1507,7 @@ bundle_SendDatalink(struct datalink *dl, int s, struct sockaddr_un *sun)
     msg.msg_iovlen = 1;
     msg.msg_iov = iov;
     msg.msg_control = cmsgbuf;
-    msg.msg_controllen = sizeof *cmsg + sizeof(int) * nfd;
+    msg.msg_controllen = CMSG_SPACE(sizeof(int) * nfd);
     msg.msg_flags = 0;
 
     cmsg = (struct cmsghdr *)cmsgbuf;
@@ -1516,7 +1516,7 @@ bundle_SendDatalink(struct datalink *dl, int s, struct sockaddr_un *sun)
     cmsg->cmsg_type = SCM_RIGHTS;
 
     for (f = 0; f < nfd; f++)
-      *((int *)(cmsg + 1) + f) = fd[f];
+      *((int *)CMSG_DATA(cmsg) + f) = fd[f];
 
     for (f = 1, expect = 0; f < niov; f++)
       expect += iov[f].iov_len;

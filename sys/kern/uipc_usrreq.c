@@ -90,7 +90,8 @@ static void    unp_gc __P((void));
 static void    unp_scan __P((struct mbuf *, void (*)(struct file *)));
 static void    unp_mark __P((struct file *));
 static void    unp_discard __P((struct file *));
-static int     unp_internalize __P((struct mbuf *, struct thread *));
+static void    unp_freerights __P((struct file **, int));
+static int     unp_internalize __P((struct mbuf **, struct thread *));
 static int     unp_listen __P((struct unpcb *, struct proc *));
 
 static int
@@ -274,7 +275,7 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 		goto release;
 	}
 
-	if (control && (error = unp_internalize(control, td)))
+	if (control && (error = unp_internalize(&control, td)))
 		goto release;
 
 	switch (so->so_type) {
@@ -952,80 +953,127 @@ unp_drain()
 }
 #endif
 
+static void
+unp_freerights(rp, fdcount)
+	struct file **rp;
+	int fdcount;
+{
+	int i;
+	struct file *fp;
+
+	for (i = 0; i < fdcount; i++) {
+		fp = *rp;
+		/*
+		 * zero the pointer before calling
+		 * unp_discard since it may end up
+		 * in unp_gc()..
+		 */
+		*rp++ = 0;
+		unp_discard(fp);
+	}
+}
+
 int
-unp_externalize(rights)
-	struct mbuf *rights;
+unp_externalize(control, controlp)
+	struct mbuf *control, **controlp;
 {
 	struct thread *td = curthread;		/* XXX */
-	register int i;
-	register struct cmsghdr *cm = mtod(rights, struct cmsghdr *);
-	register int *fdp;
-	register struct file **rp;
-	register struct file *fp;
-	int newfds = (cm->cmsg_len - (CMSG_DATA(cm) - (u_char *)cm))
-		/ sizeof (struct file *);
+	struct cmsghdr *cm = mtod(control, struct cmsghdr *);
+	int i;
+	int *fdp;
+	struct file **rp;
+	struct file *fp;
+	void *data;
+	socklen_t clen = control->m_len, datalen;
+	int error, newfds;
 	int f;
+	u_int newlen;
 
-	/*
-	 * if the new FD's will not fit, then we free them all
-	 */
-	if (!fdavail(td, newfds)) {
-		rp = (struct file **)CMSG_DATA(cm);
-		for (i = 0; i < newfds; i++) {
-			fp = *rp;
+	error = 0;
+	if (controlp != NULL) /* controlp == NULL => free control messages */
+		*controlp = NULL;
+
+	while (cm != NULL) {
+		if (sizeof(*cm) > clen || cm->cmsg_len > clen) {
+			error = EINVAL;
+			break;
+		}
+
+		data = CMSG_DATA(cm);
+		datalen = (caddr_t)cm + cm->cmsg_len - (caddr_t)data;
+
+		if (cm->cmsg_level == SOL_SOCKET
+		    && cm->cmsg_type == SCM_RIGHTS) {
+			newfds = datalen / sizeof(struct file *);
+			rp = data;
+
+			/* If we're not outputting the discriptors free them. */
+			if (error || controlp == NULL) {
+				unp_freerights(rp, newfds);
+				goto next;
+			}
+			/* if the new FD's will not fit free them.  */
+			if (!fdavail(td, newfds)) {
+				error = EMSGSIZE;
+				unp_freerights(rp, newfds);
+				goto next;
+			}
 			/*
-			 * zero the pointer before calling unp_discard,
-			 * since it may end up in unp_gc()..
+			 * now change each pointer to an fd in the global
+			 * table to an integer that is the index to the
+			 * local fd table entry that we set up to point
+			 * to the global one we are transferring.
 			 */
-			*rp++ = 0;
-			unp_discard(fp);
+			newlen = newfds * sizeof(int);
+			*controlp = sbcreatecontrol(NULL, newlen,
+			    SCM_RIGHTS, SOL_SOCKET);
+			if (*controlp == NULL) {
+				error = E2BIG;
+				unp_freerights(rp, newfds);
+				goto next;
+			}
+
+			fdp = (int *)
+			    CMSG_DATA(mtod(*controlp, struct cmsghdr *));
+			for (i = 0; i < newfds; i++) {
+				if (fdalloc(td, 0, &f))
+					panic("unp_externalize fdalloc failed");
+				fp = *rp++;
+				td->td_proc->p_fd->fd_ofiles[f] = fp;
+				fp->f_msgcount--;
+				unp_rights--;
+				*fdp++ = f;
+			}
+		} else { /* We can just copy anything else across */
+			if (error || controlp == NULL)
+				goto next;
+			*controlp = sbcreatecontrol(NULL, datalen,
+			    cm->cmsg_type, cm->cmsg_level);
+			if (*controlp == NULL) {
+				error = ENOBUFS;
+				goto next;
+			}
+			bcopy(data,
+			    CMSG_DATA(mtod(*controlp, struct cmsghdr *)),
+			    datalen);
 		}
-		return (EMSGSIZE);
-	}
-	/*
-	 * now change each pointer to an fd in the global table to 
-	 * an integer that is the index to the local fd table entry
-	 * that we set up to point to the global one we are transferring.
-	 * If sizeof (struct file *) is bigger than or equal to sizeof int,
-	 * then do it in forward order. In that case, an integer will
-	 * always come in the same place or before its corresponding
-	 * struct file pointer.
-	 * If sizeof (struct file *) is smaller than sizeof int, then
-	 * do it in reverse order.
-	 */
-	if (sizeof (struct file *) >= sizeof (int)) {
-		fdp = (int *)(cm + 1);
-		rp = (struct file **)CMSG_DATA(cm);
-		for (i = 0; i < newfds; i++) {
-			if (fdalloc(td, 0, &f))
-				panic("unp_externalize");
-			fp = *rp++;
-			td->td_proc->p_fd->fd_ofiles[f] = fp;
-			fp->f_msgcount--;
-			unp_rights--;
-			*fdp++ = f;
-		}
-	} else {
-		fdp = (int *)(cm + 1) + newfds - 1;
-		rp = (struct file **)CMSG_DATA(cm) + newfds - 1;
-		for (i = 0; i < newfds; i++) {
-			if (fdalloc(td, 0, &f))
-				panic("unp_externalize");
-			fp = *rp--;
-			td->td_proc->p_fd->fd_ofiles[f] = fp;
-			fp->f_msgcount--;
-			unp_rights--;
-			*fdp-- = f;
+
+		controlp = &(*controlp)->m_next;
+
+next:
+		if (CMSG_SPACE(datalen) < clen) {
+			clen -= CMSG_SPACE(datalen);
+			cm = (struct cmsghdr *)
+			    ((caddr_t)cm + CMSG_SPACE(datalen));
+		} else {
+			clen = 0;
+			cm = NULL;
 		}
 	}
 
-	/*
-	 * Adjust length, in case sizeof(struct file *) and sizeof(int)
-	 * differs.
-	 */
-	cm->cmsg_len = CMSG_LEN(newfds * sizeof(int));
-	rights->m_len = cm->cmsg_len;
-	return (0);
+	m_freem(control);
+
+	return (error);
 }
 
 void
@@ -1043,109 +1091,134 @@ unp_init(void)
 #endif
 
 static int
-unp_internalize(control, td)
-	struct mbuf *control;
+unp_internalize(controlp, td)
+	struct mbuf **controlp;
 	struct thread *td;
 {
+	struct mbuf *control = *controlp;
 	struct proc *p = td->td_proc;
 	struct filedesc *fdescp = p->p_fd;
-	register struct cmsghdr *cm = mtod(control, struct cmsghdr *);
-	register struct file **rp;
-	register struct file *fp;
-	register int i, fd, *fdp;
-	register struct cmsgcred *cmcred;
-	int oldfds;
+	struct cmsghdr *cm = mtod(control, struct cmsghdr *);
+	struct cmsgcred *cmcred;
+	struct file **rp;
+	struct file *fp;
+	struct timeval *tv;
+	int i, fd, *fdp;
+	void *data;
+	socklen_t clen = control->m_len, datalen;
+	int error, oldfds;
 	u_int newlen;
 
-	if ((cm->cmsg_type != SCM_RIGHTS && cm->cmsg_type != SCM_CREDS) ||
-	    cm->cmsg_level != SOL_SOCKET || cm->cmsg_len != control->m_len)
-		return (EINVAL);
+	error = 0;
+	*controlp = NULL;
 
-	/*
-	 * Fill in credential information.
-	 */
-	if (cm->cmsg_type == SCM_CREDS) {
-		cmcred = (struct cmsgcred *)(cm + 1);
-		cmcred->cmcred_pid = p->p_pid;
-		cmcred->cmcred_uid = p->p_ucred->cr_ruid;
-		cmcred->cmcred_gid = p->p_ucred->cr_rgid;
-		cmcred->cmcred_euid = p->p_ucred->cr_uid;
-		cmcred->cmcred_ngroups = MIN(p->p_ucred->cr_ngroups,
+	while (cm != NULL) {
+		if (sizeof(*cm) > clen || cm->cmsg_level != SOL_SOCKET
+		    || cm->cmsg_len > clen) {
+			error = EINVAL;
+			goto out;
+		}
+
+		data = CMSG_DATA(cm);
+		datalen = (caddr_t)cm + cm->cmsg_len - (caddr_t)data;
+
+		switch (cm->cmsg_type) {
+		/*
+		 * Fill in credential information.
+		 */
+		case SCM_CREDS:
+			*controlp = sbcreatecontrol(NULL, sizeof(*cmcred),
+			    SCM_CREDS, SOL_SOCKET);
+			if (*controlp == NULL) {
+				error = ENOBUFS;
+				goto out;
+			}
+
+			cmcred = (struct cmsgcred *)
+			    CMSG_DATA(mtod(*controlp, struct cmsghdr *));
+			cmcred->cmcred_pid = p->p_pid;
+			cmcred->cmcred_uid = p->p_ucred->cr_ruid;
+			cmcred->cmcred_gid = p->p_ucred->cr_rgid;
+			cmcred->cmcred_euid = p->p_ucred->cr_uid;
+			cmcred->cmcred_ngroups = MIN(p->p_ucred->cr_ngroups,
 							CMGROUP_MAX);
-		for (i = 0; i < cmcred->cmcred_ngroups; i++)
-			cmcred->cmcred_groups[i] = p->p_ucred->cr_groups[i];
-		return(0);
-	}
+			for (i = 0; i < cmcred->cmcred_ngroups; i++)
+				cmcred->cmcred_groups[i] =
+				    p->p_ucred->cr_groups[i];
+			break;
 
-	oldfds = (cm->cmsg_len - sizeof (*cm)) / sizeof (int);
-	/*
-	 * check that all the FDs passed in refer to legal OPEN files
-	 * If not, reject the entire operation.
-	 */
-	fdp = (int *)(cm + 1);
-	for (i = 0; i < oldfds; i++) {
-		fd = *fdp++;
-		if ((unsigned)fd >= fdescp->fd_nfiles ||
-		    fdescp->fd_ofiles[fd] == NULL)
-			return (EBADF);
-	}
-	/*
-	 * Now replace the integer FDs with pointers to
-	 * the associated global file table entry..
-	 * Allocate a bigger buffer as necessary. But if an cluster is not
-	 * enough, return E2BIG.
-	 */
-	newlen = CMSG_LEN(oldfds * sizeof(struct file *));
-	if (newlen > MCLBYTES)
-		return (E2BIG);
-	if (newlen - control->m_len > M_TRAILINGSPACE(control)) {
-		if (control->m_flags & M_EXT)
-			return (E2BIG);
-		MCLGET(control, M_TRYWAIT);
-		if ((control->m_flags & M_EXT) == 0)
-			return (ENOBUFS);
+		case SCM_RIGHTS:
+			oldfds = datalen / sizeof (int);
+			/*
+			 * check that all the FDs passed in refer to legal files
+			 * If not, reject the entire operation.
+			 */
+			fdp = data;
+			for (i = 0; i < oldfds; i++) {
+				fd = *fdp++;
+				if ((unsigned)fd >= fdescp->fd_nfiles ||
+				    fdescp->fd_ofiles[fd] == NULL) {
+					error = EBADF;
+					goto out;
+				}
+			}
+			/*
+			 * Now replace the integer FDs with pointers to
+			 * the associated global file table entry..
+			 */
+			newlen = oldfds * sizeof(struct file *);
+			*controlp = sbcreatecontrol(NULL, newlen,
+			    SCM_RIGHTS, SOL_SOCKET);
+			if (*controlp == NULL) {
+				error = E2BIG;
+				goto out;
+			}
 
-		/* copy the data to the cluster */
-		memcpy(mtod(control, char *), cm, cm->cmsg_len);
-		cm = mtod(control, struct cmsghdr *);
-	}
+			fdp = data;
+			rp = (struct file **)
+			    CMSG_DATA(mtod(*controlp, struct cmsghdr *));
+			for (i = 0; i < oldfds; i++) {
+				fp = fdescp->fd_ofiles[*fdp++];
+				*rp++ = fp;
+				fp->f_count++;
+				fp->f_msgcount++;
+				unp_rights++;
+			}
+			break;
 
-	/*
-	 * Adjust length, in case sizeof(struct file *) and sizeof(int)
-	 * differs.
-	 */
-	control->m_len = cm->cmsg_len = newlen;
+		case SCM_TIMESTAMP:
+			*controlp = sbcreatecontrol(NULL, sizeof(*tv),
+			    SCM_TIMESTAMP, SOL_SOCKET);
+			if (*controlp == NULL) {
+				error = ENOBUFS;
+				goto out;
+			}
+			tv = (struct timeval *)
+			    CMSG_DATA(mtod(*controlp, struct cmsghdr *));
+			microtime(tv);
+			break;
 
-	/*
-	 * Transform the file descriptors into struct file pointers.
-	 * If sizeof (struct file *) is bigger than or equal to sizeof int,
-	 * then do it in reverse order so that the int won't get until
-	 * we're done.
-	 * If sizeof (struct file *) is smaller than sizeof int, then
-	 * do it in forward order.
-	 */
-	if (sizeof (struct file *) >= sizeof (int)) {
-		fdp = (int *)(cm + 1) + oldfds - 1;
-		rp = (struct file **)CMSG_DATA(cm) + oldfds - 1;
-		for (i = 0; i < oldfds; i++) {
-			fp = fdescp->fd_ofiles[*fdp--];
-			*rp-- = fp;
-			fp->f_count++;
-			fp->f_msgcount++;
-			unp_rights++;
+		default:
+			error = EINVAL;
+			goto out;
 		}
-	} else {
-		fdp = (int *)(cm + 1);
-		rp = (struct file **)CMSG_DATA(cm);
-		for (i = 0; i < oldfds; i++) {
-			fp = fdescp->fd_ofiles[*fdp++];
-			*rp++ = fp;
-			fp->f_count++;
-			fp->f_msgcount++;
-			unp_rights++;
+
+		controlp = &(*controlp)->m_next;
+
+		if (CMSG_SPACE(datalen) < clen) {
+			clen -= CMSG_SPACE(datalen);
+			cm = (struct cmsghdr *)
+			    ((caddr_t)cm + CMSG_SPACE(datalen));
+		} else {
+			clen = 0;
+			cm = NULL;
 		}
 	}
-	return (0);
+
+out:
+	m_freem(control);
+
+	return (error);
 }
 
 static int	unp_defer, unp_gcing;
@@ -1343,28 +1416,48 @@ unp_scan(m0, op)
 	register struct mbuf *m0;
 	void (*op) __P((struct file *));
 {
-	register struct mbuf *m;
-	register struct file **rp;
-	register struct cmsghdr *cm;
-	register int i;
+	struct mbuf *m;
+	struct file **rp;
+	struct cmsghdr *cm;
+	void *data;
+	int i;
+	socklen_t clen, datalen;
 	int qfds;
 
 	while (m0) {
-		for (m = m0; m; m = m->m_next)
-			if (m->m_type == MT_CONTROL &&
-			    m->m_len >= sizeof(*cm)) {
-				cm = mtod(m, struct cmsghdr *);
-				if (cm->cmsg_level != SOL_SOCKET ||
-				    cm->cmsg_type != SCM_RIGHTS)
-					continue;
-				qfds = (cm->cmsg_len -
-					(CMSG_DATA(cm) - (u_char *)cm))
-						/ sizeof (struct file *);
-				rp = (struct file **)CMSG_DATA(cm);
-				for (i = 0; i < qfds; i++)
-					(*op)(*rp++);
-				break;		/* XXX, but saves time */
+		for (m = m0; m; m = m->m_next) {
+			if (m->m_type == MT_CONTROL)
+				continue;
+
+			cm = mtod(m, struct cmsghdr *);
+			clen = m->m_len;
+
+			while (cm != NULL) {
+				if (sizeof(*cm) > clen || cm->cmsg_len > clen)
+					break;
+
+				data = CMSG_DATA(cm);
+				datalen = (caddr_t)cm + cm->cmsg_len
+				    - (caddr_t)data;
+
+				if (cm->cmsg_level == SOL_SOCKET &&
+				    cm->cmsg_type == SCM_RIGHTS) {
+					qfds = datalen / sizeof (struct file *);
+					rp = data;
+					for (i = 0; i < qfds; i++)
+						(*op)(*rp++);
+				}
+
+				if (CMSG_SPACE(datalen) < clen) {
+					clen -= CMSG_SPACE(datalen);
+					cm = (struct cmsghdr *)
+					    ((caddr_t)cm + CMSG_SPACE(datalen));
+				} else {
+					clen = 0;
+					cm = NULL;
+				}
 			}
+		}
 		m0 = m0->m_act;
 	}
 }
