@@ -84,7 +84,7 @@ static void kdebug_secreplay(struct secreplay *);
 #endif
 
 #ifndef _KERNEL
-#define panic(param)	{ printf(param); exit(-1); }
+#define panic(param)	{ printf(param); exit(1); }
 #endif
 
 static const char *
