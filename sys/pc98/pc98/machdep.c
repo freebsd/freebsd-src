@@ -126,7 +126,7 @@
 #include <isa/rtc.h>
 #endif
 #include <machine/vm86.h>
-#include <machine/random.h>
+#include <sys/random.h>
 #include <sys/ptrace.h>
 #include <machine/sigframe.h>
 
