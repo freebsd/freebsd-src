@@ -1138,11 +1138,10 @@ smbfs_lookup(ap)
 		return error;
 	if (error) {		/* name was found */
 		struct vattr vattr;
-		int vpid;
 
+		vhold(*vpp);
 		vp = *vpp;
 		mp_fixme("Unlocked v_id access.");
-		vpid = vp->v_id;
 		if (dvp == vp) {	/* lookup on current */
 			vref(vp);
 			error = 0;
@@ -1165,36 +1164,36 @@ smbfs_lookup(ap)
 		}
 		if (!error) {
 			killit = 0;
-			if (vpid == vp->v_id) {
-			   error = VOP_GETATTR(vp, &vattr, cnp->cn_cred, td);
-			   /*
-			    * If the file type on the server is inconsistent
-			    * with what it was when we created the vnode,
-			    * kill the bogus vnode now and fall through to
-			    * the code below to create a new one with the
-			    * right type.
-			    */
-			   if (error == 0 &&
-			      ((vp->v_type == VDIR &&
-			      (VTOSMB(vp)->n_dosattr & SMB_FA_DIR) == 0) ||
-			      (vp->v_type == VREG &&
-			      (VTOSMB(vp)->n_dosattr & SMB_FA_DIR) != 0)))
-			      killit = 1;
-			   else if (error == 0
-			/*    && vattr.va_ctime.tv_sec == VTOSMB(vp)->n_ctime*/) {
-				if (nameiop != LOOKUP && islastcn)
-					cnp->cn_flags |= SAVENAME;
-				SMBVDEBUG("use cached vnode\n");
-				return (0);
-			   }
-			   cache_purge(vp);
+			error = VOP_GETATTR(vp, &vattr, cnp->cn_cred, td);
+			/*
+			 * If the file type on the server is inconsistent
+			 * with what it was when we created the vnode,
+			 * kill the bogus vnode now and fall through to
+			 * the code below to create a new one with the
+			 * right type.
+			 */
+			if (error == 0 &&
+			   ((vp->v_type == VDIR &&
+			   (VTOSMB(vp)->n_dosattr & SMB_FA_DIR) == 0) ||
+			   (vp->v_type == VREG &&
+			   (VTOSMB(vp)->n_dosattr & SMB_FA_DIR) != 0)))
+			   killit = 1;
+			else if (error == 0
+		     /*    && vattr.va_ctime.tv_sec == VTOSMB(vp)->n_ctime*/) {
+			     if (nameiop != LOOKUP && islastcn)
+				     cnp->cn_flags |= SAVENAME;
+			     SMBVDEBUG("use cached vnode\n");
+			     vdrop(vp);
+			     return (0);
 			}
+			cache_purge(vp);
 			vput(vp);
 			if (killit)
 				vgone(vp);
 			if (lockparent && dvp != vp && islastcn)
 				VOP_UNLOCK(dvp, 0, td);
 		}
+		vdrop(vp);
 		error = vn_lock(dvp, LK_EXCLUSIVE, td);
 		*vpp = NULLVP;
 		if (error) {
