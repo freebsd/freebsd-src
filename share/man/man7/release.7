@@ -40,7 +40,7 @@ All of the tools necessary to build a release are available from the
 CVS repository in
 .Pa src/release .
 A complete release can actually be built with only a single command,
-including the creation of ISO images suitable for burning to CDROM,
+including the creation of ISO images suitable for burning to CD-ROM,
 installation floppies, and an FTP install directory.
 This command is aptly named
 .Dq Li "make release" .
@@ -91,6 +91,16 @@ Assumes that the output of a release build has been manually modified,
 and performs the minimal number of steps to rebuild the release using
 the intermediate output of the previous
 .Dq Li "make release" .
+.It Cm floppies
+Generate a new set of boot floppies.
+This will call the
+.Cm release.4 ,
+.Cm release.8 ,
+and
+.Cm release.9
+targets to re-generate the floppy images of a previous
+.Dq Li "make release" .
+This is most often used to build custom boot floppies.
 .El
 .Pp
 Targets called by
@@ -105,8 +115,8 @@ to build the directory hierarchy for the system.
 .It Cm release.2
 Installs the system into the distribution directories.
 .It Cm release.3
-.\" XXX: This should either be "GENERIC kernel" (singular) or
-.\" XXX: "GENERIC and <some other> kernels".
+.\" XXX: We build more than one kernel.  We build a stripped down
+.\" kernel for the boot media in addition to a full GENERIC kernel.
 Makes and installs the
 .Pa GENERIC
 kernel.
@@ -128,13 +138,15 @@ Creates the boot and MFS root floppies.
 .It Cm release.9
 Creates the fixit floppy.
 .It Cm ftp.1
-Sets up a suitable area for FTP installations.
+Sets up a suitable area for FTP installations in
+.Pa ${CHROOTDIR}/R/ftp .
 .It Cm cdrom.1
-Sets up a suitable area to build CDROM images.
+Sets up a suitable area to build CD-ROM images in
+.Pa ${CHROOTDIR}/R/cdrom .
 .It Cm iso.1
 Builds two ISO images (installation and
 .Dq live
-filesystem) from the CDROM release area
+filesystem) from the CD-ROM release area
 (disabled by default, see
 .Va MAKE_ISOS
 below).
@@ -176,6 +188,11 @@ which affects the output of
 The location of the
 .Fx
 CVS repository.
+This path name is referenced to the real system root,
+.Em not
+the root of the
+.Xr chroot 8
+directory tree.
 .It Va RELEASETAG
 The CVS tag corresponding to the release that is to be built.
 If undefined, the release will be built from the
@@ -199,21 +216,38 @@ Arguments for the
 command used to apply
 .Va LOCAL_PATCHES
 patch file.
+.It Va LOCAL_SCRIPT
+A script that will be run in the
+.Xr chroot 8
+environment immediately after any local patches are applied.
 .It Va MAKE_ISOS
-If defined, bootable ISO CDROM images will be created from the
-contents of the CDROM stage directory.
+If defined, bootable ISO CD-ROM images will be created from the
+contents of the CD-ROM stage directory.
 .It Va NODOC
 If set to
-.Dq Li YES
-then the documentation will not be built.
-Due to the SGML-based
-toolchain and multiple languages supported by the
+.Dq Li YES ,
+the SGML-based documentation from the
 .Fx
-Documentation Project, this may speed up the release build considerably.
+Documentation Project will not be built.
+However, the
+.Dq doc
+distribution will still be created with the minimal documentation set
+provided in
+.Pa src/share/doc .
 .It Va NOPORTS
 If set to
 .Dq Li YES
-then the ports tree will be omitted from the release.
+then the Ports Collection will be omitted from the release.
+.It Va NOPORTREADMES
+It defined, readme files will not be created for each individual port
+in the Ports Collection.
+The default behavior is for
+.Dq Li "make release"
+to run
+.Dq Li "make readmes"
+from
+.Pa ${CHROOTDIR}/usr/ports ,
+which can be a very time consuming operation.
 .It Va RELEASEDISTFILES
 The directory where the distribution files for ports required by the
 release build can be found.
@@ -255,7 +289,7 @@ make release CHROOTDIR=/local3/release BUILDNAME=4.5-RELEASE \\
 .Ed
 .Pp
 After running these commands, a complete system suitable for FTP or
-CDROM distribution is available in the
+CD-ROM distribution is available in the
 .Pa /local3/release/R
 directory.
 .Pp
@@ -268,7 +302,7 @@ cd /usr/src
 cvs diff -u > /path/to/local.patch
 make buildworld
 cd release
-make release CHROOTDIR=/local3/release BUILDNAME=5.0-SNAPSHOT \\
+make release CHROOTDIR=/local3/release BUILDNAME=5.0-CURRENT \\
   CVSROOT=/host/cvs/usr/home/ncvs LOCAL_PATCHES=/path/to/local.patch
 .Ed
 .Sh SEE ALSO
