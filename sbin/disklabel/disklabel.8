@@ -86,7 +86,6 @@
 .Fl b Ar boot
 .Oc
 .Ar disk Ar protofile
-.Oo Ar disktype/auto Oc
 .Sh DESCRIPTION
 The
 .Nm
@@ -370,7 +369,6 @@ disklabel that would have been written will be printed to stdout.
 .Fl b Ar boot
 .Oc
 .Ar disk Ar protofile
-.Oo Ar disktype Oc
 .Pp
 This form corresponds to the
 .Dq restore label
@@ -388,38 +386,13 @@ flag.  If
 is used, no data will be written to the device, and instead the
 disklabel that would have been written will be printed to stdout.
 .Pp
-The bootstrap code is comprised of two boot programs.  Specify the name of the
-boot programs to be installed in one of these ways:
-.Bl -enum
-.It
-Specify the names explicitly with the
+The bootstrap code is comprised of two boot programs, both
+compiled into a single
+.Pa /boot/boot
+image.
+An alternative boot image may be specified with the
 .Fl b
-and
-.Fl s
-flags.
-.Fl b
-indicates the primary boot program and
-.Fl s
-the secondary boot program.  The boot programs are located in
-.Pa /boot .
-.It
-If the
-.Fl b
-and
-.Fl s
-flags are not specified, but
-.Ar disktype
-was specified, the names of the programs are taken from the
-.Dq b0
-and
-.Dq b1
-parameters of the
-.Xr disktab 5
-entry for the disk if the disktab entry exists and includes those parameters.
-.It
-Otherwise, the default boot image name are used:
-.Pa /boot/boot .
-.El
+option.
 .Ss Initializing/Formatting a bootable disk from scratch
 .Pp
 To initialize a disk from scratch the following sequence is recommended.
@@ -478,10 +451,11 @@ auto
 .Fl e
 .Ar da0s1
 .Sh FILES
-.Bl -tag -width Pa -compact
+.Bl -tag -width ".Pa /etc/disktab" -compact
+.It Pa /boot/boot
+Default boot image.
 .It Pa /etc/disktab
-.It Pa /boot/
-.It Pa /boot/boot<n>
+Disk description file.
 .El
 .Sh SAVED FILE FORMAT
 The
