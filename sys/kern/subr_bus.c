@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: subr_bus.c,v 1.37 1999/08/14 13:20:04 n_hibma Exp $
+ *	$Id: subr_bus.c,v 1.38 1999/08/14 13:32:25 n_hibma Exp $
  */
 
 #include <sys/param.h>
@@ -2142,6 +2142,9 @@ driver_module_handler(module_t mod, int what, void *arg)
 
 	switch (what) {
 	case MOD_LOAD:
+		if (dmd->dmd_chainevh)
+			error = dmd->dmd_chainevh(mod,what,dmd->dmd_chainarg);
+
 		for (i = 0; !error && i < dmd->dmd_ndrivers; i++) {
 			PDEBUG(("Loading module: driver %s on bus %s",
 				DRIVERNAME(dmd->dmd_drivers[i]), 
@@ -2169,11 +2172,12 @@ driver_module_handler(module_t mod, int what, void *arg)
 			error = devclass_delete_driver(bus_devclass,
 						       dmd->dmd_drivers[i]);
 		}
+
+		if (!error && dmd->dmd_chainevh)
+			error = dmd->dmd_chainevh(mod,what,dmd->dmd_chainarg);
 		break;
 	}
 
-	if (!error && dmd->dmd_chainevh)
-		error = dmd->dmd_chainevh(mod, what, dmd->dmd_chainarg);
 	return (error);
 }
 
