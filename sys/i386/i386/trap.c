@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.101 1997/07/20 08:37:23 bde Exp $
+ *	$Id: trap.c,v 1.102 1997/08/09 00:02:52 dyson Exp $
  */
 
 /*
@@ -144,6 +144,19 @@ userret(p, frame, oticks)
 
 	while ((sig = CURSIG(p)) != 0)
 		postsig(sig);
+
+#if !defined(NO_SCHEDULE_MODS)
+	if (!want_resched &&
+		(p->p_priority <= p->p_usrpri) &&
+		(p->p_rtprio.type == RTP_PRIO_NORMAL)) {
+		 int newpriority;
+		 p->p_estcpu += 1;
+		 newpriority = PUSER + p->p_estcpu / 4 + 2 * p->p_nice;
+		 newpriority = min(newpriority, MAXPRI);
+		 p->p_usrpri = newpriority;
+	}
+#endif
+		
 	p->p_priority = p->p_usrpri;
 	if (want_resched) {
 		/*

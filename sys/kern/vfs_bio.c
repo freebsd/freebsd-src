@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.120 1997/06/13 08:30:40 bde Exp $
+ * $Id: vfs_bio.c,v 1.121 1997/06/15 17:56:49 dyson Exp $
  */
 
 /*
@@ -1717,7 +1717,11 @@ biowait(register struct buf * bp)
 
 	s = splbio();
 	while ((bp->b_flags & B_DONE) == 0)
+#if defined(NO_SCHEDULE_MODS)
 		tsleep(bp, PRIBIO, "biowait", 0);
+#else
+		tsleep(bp, curproc->p_usrpri, "biowait", 0);
+#endif
 	splx(s);
 	if (bp->b_flags & B_EINTR) {
 		bp->b_flags &= ~B_EINTR;
