@@ -107,7 +107,7 @@ struct _snddev_info {
     d_read_t *read ;
     d_write_t *write ;
     d_ioctl_t *ioctl ;
-    d_select_t *select ;
+    d_poll_t *poll ;
     irq_proc_t  *isr ;
     snd_callback_t *callback;
 
@@ -440,7 +440,7 @@ int dsp_rdabort(snddev_info *d);
 void dsp_wr_dmaupdate(snddev_info *d);
 void dsp_rd_dmaupdate(snddev_info *d);
 
-d_select_t sndselect;
+d_poll_t sndpoll;
 
 /*
  * library functions (in sound.c)
@@ -482,5 +482,10 @@ int sb_getmixer (int io_base, u_int port);
     /* almost all modern cards do not have this set of registers,
      * so it is better to make this the default behaviour
      */
+
+/*
+ * the following flags are for PnP cards only and are undocumented
+ */
+#define DV_PNP_SBCODEC	0x1
 
 #endif

@@ -103,7 +103,7 @@ snddev_info mss_op_desc = {
     NULL /* mss_read */,
     NULL /* mss_write */,
     mss_ioctl,
-    sndselect /* mss_select */,
+    sndpoll /* mss_poll */,
 
     mss_intr,
     mss_callback ,
@@ -138,6 +138,7 @@ mss_probe(struct isa_device *dev)
     u_char   tmp;
     int irq = ffs(dev->id_irq) - 1;
  
+    bzero(&pcm_info[dev->id_unit], sizeof(pcm_info[dev->id_unit]) );
     if (dev->id_iobase == -1) {
         dev->id_iobase = 0x530;
         printf("mss_probe: no address supplied, try default 0x%x\n",
@@ -1320,14 +1321,13 @@ cs4236_attach(u_long csn, u_long vend_id, char *name,
 	return ;
     }
     snddev_last_probed = &tmp_d;
-#if 0
-    /* sb-compatible codec */
+    if (d.flags & DV_PNP_SBCODEC) {
+	printf("CS423x use sb-compatible codec\n");
     dev->id_iobase = d.port[2] ;
     tmp_d = sb_op_desc ;
     tmp_d.alt_base = d.port[0] - 4;
     d.drq[1] = 4 ; /* disable, it is not used ... */
-    d.drq[0] = 0 ; /* remap ... */
-#else
+    } else {
     /* mss-compatible codec */
     dev->id_iobase = d.port[0] -4 ; /* XXX old mss have 4 bytes before... */
     tmp_d = mss_op_desc ;
@@ -1335,7 +1335,7 @@ cs4236_attach(u_long csn, u_long vend_id, char *name,
     tmp_d.alt_base = d.port[2];
     strcpy(tmp_d.name, name);
     tmp_d.audio_fmt |= AFMT_FULLDUPLEX ;
-#endif
+    }
     write_pnp_parms( &d, ldn );
     enable_pnp_card();
 
@@ -1343,9 +1343,6 @@ cs4236_attach(u_long csn, u_long vend_id, char *name,
     dev->id_irq = (1 << d.irq[0] ) ;
     dev->id_intr = pcmintr ;
     dev->id_flags = DV_F_DUAL_DMA | (d.drq[1] ) ;
-
-    pcm_info[dev->id_unit] = tmp_d; /* during the probe... */
-    snddev_last_probed->probe(dev);
 
     pcmattach(dev);
 }
@@ -1384,7 +1381,6 @@ opti931_attach(u_long csn, u_long vend_id, char *name,
     struct pnp_cinfo d ;
     snddev_info tmp_d ; /* patched copy of the basic snddev_info */
     int p;
-    int sb_mode = 0 ; /* XXX still not work in SB mode */
 
     read_pnp_parms ( &d , 3 ); /* free resources taken by LDN 3 */
     d.irq[0]=0; /* free irq... */
@@ -1401,7 +1397,7 @@ opti931_attach(u_long csn, u_long vend_id, char *name,
     enable_pnp_card();
 
     snddev_last_probed = &tmp_d;
-    tmp_d =  sb_mode ? sb_op_desc : mss_op_desc ;
+    tmp_d =  d.flags & DV_PNP_SBCODEC ? sb_op_desc : mss_op_desc ;
 
     strcpy(tmp_d.name, name);
 
@@ -1422,11 +1418,12 @@ opti931_attach(u_long csn, u_long vend_id, char *name,
     opti_write(p, 4, 0x56 /* fifo 1/2, OPL3, audio enable, SB3.2 */ );
     ad_write (&tmp_d, 10, 2); /* enable interrupts */
 
-    if (sb_mode) { /* sb-compatible codec */
+    if (d.flags & DV_PNP_SBCODEC) { /* sb-compatible codec */
 	/*
 	 * the 931 is not a real SB, it has important pieces of
 	 * hardware controlled by both the WSS and the SB port...
 	 */
+	printf("--- opti931 in sb mode ---\n");
 	opti_write(p, 6, 1); /* MCIR6 wss disable, sb enable */
 	/*
 	 * swap the main and alternate iobase address since we want
@@ -1438,13 +1435,8 @@ opti931_attach(u_long csn, u_long vend_id, char *name,
     } else { /* mss-compatible codec */
 	tmp_d.bd_id = MD_OPTI931 ; /* to short-circuit the detect routine */
 	opti_write(p, 6 , 2);  /* MCIR6: wss enable, sb disable */
-#if 0	/* not working yet... */
-	opti_write(p, 5, 0x0 /* codec in single mode */ );
-	dev->id_flags = 0 ;
-#else
 	opti_write(p, 5, 0x28);  /* MCIR5: codec in exp. mode,fifo */
 	dev->id_flags = DV_F_DUAL_DMA | d.drq[1] ;
-#endif
 	tmp_d.audio_fmt |= AFMT_FULLDUPLEX ; /* not really well... */
 	tmp_d.isr = opti931_intr;
     }

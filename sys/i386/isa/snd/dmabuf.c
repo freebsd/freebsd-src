@@ -240,7 +240,7 @@ ferma:
 	 */
 	if ( d->dma1 == d->dma2 && (d->flags & SND_F_READING) )
 	    dsp_rdintr(d);
-	DEB(printf("cannot start wr-dma flags 0x%08x dma_dl %d rl %d\n",
+	DEB(printf("cannot start wr-dma flags 0x%08lx dma_dl %d rl %d\n",
 		d->flags, isa_dmastatus1(d->dma1), b->rl));
     }
 }
@@ -276,7 +276,7 @@ dsp_write_body(snddev_info *d, struct uio *buf)
      * the previous operation.
      */
     bsz =  (d->flags & SND_F_WR_DMA) ? MIN_CHUNK_SIZE : b->bufsize ;
-    while ( n = buf->uio_resid ) {
+    while (( n = buf->uio_resid )) {
         l = min (n, bsz);       /* at most n bytes ... */
         s = spltty();  /* no interrupts here ... */
 	/*
@@ -516,7 +516,7 @@ ferma:
 	 */
 	if ( d->dma1 == d->dma2 && (d->flags & SND_F_WRITING) )
 	    dsp_wrintr(d) ;
-	DEB(printf("cannot start rd-dma flags 0x%08x dma_dl %d fl %d\n",
+	DEB(printf("cannot start rd-dma flags 0x%08lx dma_dl %d fl %d\n",
 		d->flags, isa_dmastatus1(d->dma2), b->fl));
     }
 }
@@ -831,10 +831,10 @@ dsp_rdabort(snddev_info *d)
 int
 snd_flush(snddev_info *d)
 {
-    int ret, res, res1;
+    int ret;
     int count=10;
 
-DEB(printf("snd_flush d->flags 0x%08x\n", d->flags));
+DEB(printf("snd_flush d->flags 0x%08lx\n", d->flags));
     dsp_rdabort(d);
     if ( d->flags & SND_F_WR_DMA ) {
 	/* close write */
@@ -848,7 +848,7 @@ DEB(printf("snd_flush d->flags 0x%08x\n", d->flags));
 		return -1 ;
 	    }
 	    if ( ret && --count == 0) {
-		printf("timeout flushing dma1, cnt 0x%x flags 0x%08x\n",
+		printf("timeout flushing dma1, cnt 0x%x flags 0x%08lx\n",
 			isa_dmastatus1(d->dma1), d->flags);
 		return -1 ;
 	    }

@@ -91,7 +91,7 @@ snddev_info sb_op_desc = {
     NULL /* use generic sndread */,
     NULL /* use generic sndwrite */,
     sb_dsp_ioctl,
-    sndselect,
+    sndpoll,
 
     sbintr,
     sb_callback,
@@ -119,6 +119,7 @@ snddev_info sb_op_desc = {
 static int
 sb_probe(struct isa_device *dev)
 {
+    bzero(&pcm_info[dev->id_unit], sizeof(pcm_info[dev->id_unit]) );
     if (dev->id_iobase == -1) {
 	dev->id_iobase = 0x220;
 	printf("sb_probe: no address supplied, try defaults (0x220,0x240)\n");
@@ -259,7 +260,7 @@ sbintr(int unit)
     snddev_info *d = &pcm_info[unit];
     int reason = 3, c=1, io_base = d->io_base;
 
-    DEB(printf("got sbintr for unit %d, flags 0x%08x\n", unit, d->flags));
+    DEB(printf("got sbintr for unit %d, flags 0x%08lx\n", unit, d->flags));
 
     /*
      * SB < 4.0 is half duplex and has only 1 bit for int source,
@@ -291,7 +292,7 @@ again:
     if (c & 1)
 	inb(DSP_DATA_AVAIL);	/* 8-bit int ack */
 
-DEB(printf("sbintr, flags 0x%08x reason %d\n", d->flags, reason));
+DEB(printf("sbintr, flags 0x%08lx reason %d\n", d->flags, reason));
     if ( (d->flags & SND_F_WR_DMA) && (reason & 1) )
 	dsp_wrintr(d);
     if ( (d->flags & SND_F_RD_DMA) && (reason & 2) )
@@ -318,7 +319,6 @@ DEB(printf("sbintr, flags 0x%08x reason %d\n", d->flags, reason));
 static int
 sb_callback(snddev_info *d, int reason)
 {
-    u_long s ;
     int rd = reason & SND_CB_RD ;
     int l = (rd) ? d->dbuf_in.dl0 : d->dbuf_out.dl0 ;
 
@@ -367,7 +367,7 @@ sb_callback(snddev_info *d, int reason)
 		d->dma2 = d->dma1;
 		d->dma1 = c ;
 	    }
-	    DEB(printf("sb_init: play %d rec %d dma1 %d dma2 %d\n",
+	    DEB(printf("sb_init: play %ld rec %ld dma1 %d dma2 %d\n",
 		    d->play_fmt, d->rec_fmt, d->dma1, d->dma2));
 	}
 	/* fallthrough */
@@ -746,15 +746,14 @@ dsp_speed(snddev_info *d)
 	speed = 22050;
 #endif
 
-    if ((speed > 22050) && d->bd_flags & BD_F_MIDIBUSY)
-	speed = 22050;
-
     if (d->flags & SND_F_STEREO)
 	speed *= 2;
 
     /*
      * Now the speed should be valid. Compute the value to be
      * programmed into the board.
+     *
+     * XXX check this code...
      */
 
     if (speed > 22050) { /* High speed mode on 2.01/3.xx */
@@ -797,7 +796,6 @@ dsp_speed(snddev_info *d)
 static void
 sb_set_recsrc(snddev_info *d, int mask)
 {
-    u_char outmask;
     u_char recdev ;
 
     mask &= d->mix_rec_devs;
