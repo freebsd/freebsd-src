@@ -22,6 +22,8 @@
  * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 /*
@@ -240,10 +242,12 @@ main(int argc, char **argv)
 		errx(2, "bad floppy size: %dK", format);
 	case -1:   suffix = "";      break;
 	case 360:  suffix = ".360";  break;
+	case 640:  suffix = ".640";  break;
 	case 720:  suffix = ".720";  break;
 	case 800:  suffix = ".800";  break;
 	case 820:  suffix = ".820";  break;
 	case 1200: suffix = ".1200"; break;
+	case 1232: suffix = ".1232"; break;
 	case 1440: suffix = ".1440"; break;
 	case 1480: suffix = ".1480"; break;
 	case 1720: suffix = ".1720"; break;
@@ -277,7 +281,9 @@ main(int argc, char **argv)
 	if (intleave >= 0) fdt.f_inter = intleave;
 
 	bytes_per_track = fdt.sectrac * (1<<fdt.secsize) * 128;
-	tracks_per_dot = fdt.tracks * fdt.heads / 40;
+
+	/* XXX  20/40 = 0.5 */
+	tracks_per_dot = (fdt.tracks * fdt.heads + 20) / 40;
 
 	if (verify_only) {
 		if(!quiet)
@@ -299,8 +305,12 @@ main(int argc, char **argv)
 	 * Formatting.
 	 */
 	if(!quiet) {
-		printf("Processing ----------------------------------------\r");
+		int i;
+
 		printf("Processing ");
+		for (i = 0; i < (fdt.tracks * fdt.heads) / tracks_per_dot; i++)
+			putchar('-');
+		printf("\rProcessing ");
 		fflush(stdout);
 	}
 
