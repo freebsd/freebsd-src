@@ -291,6 +291,7 @@ dev/acpica/acpi_pcib.c		optional acpi pci
 dev/acpica/acpi_pcib_acpi.c	optional acpi pci
 dev/acpica/acpi_pcib_pci.c	optional acpi pci
 dev/acpica/acpi_powerres.c	optional acpi
+dev/acpica/acpi_quirk.c		optional acpi
 dev/acpica/acpi_resource.c	optional acpi
 dev/acpica/acpi_thermal.c	optional acpi
 dev/acpica/acpi_timer.c		optional acpi
