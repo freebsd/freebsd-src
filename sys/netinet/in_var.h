@@ -96,15 +96,13 @@ extern	u_char	inetctlerrmap[];
 { \
 	register struct in_ifaddr *ia; \
 \
-	for (ia = in_ifaddrhead.tqh_first; \
+	for (ia = TAILQ_FIRST(&in_ifaddrhead); \
 	    ia != NULL && ((ia->ia_ifp->if_flags & IFF_POINTOPOINT)? \
 		IA_DSTSIN(ia):IA_SIN(ia))->sin_addr.s_addr != (addr).s_addr; \
-	    ia = ia->ia_link.tqe_next) \
+	    ia = TAILQ_NEXT(ia, ia_link)) \
 		 continue; \
 	if (ia == NULL) \
-	    for (ia = in_ifaddrhead.tqh_first; \
-		ia != NULL; \
-		ia = ia->ia_link.tqe_next) \
+	    TAILQ_FOREACH(ia, &in_ifaddrhead, ia_link) \
 		    if (ia->ia_ifp->if_flags & IFF_POINTOPOINT && \
 			IA_SIN(ia)->sin_addr.s_addr == (addr).s_addr) \
 			    break; \
@@ -119,9 +117,9 @@ extern	u_char	inetctlerrmap[];
 	/* struct ifnet *ifp; */ \
 	/* struct in_ifaddr *ia; */ \
 { \
-	for ((ia) = in_ifaddrhead.tqh_first; \
+	for ((ia) = TAILQ_FIRST(&in_ifaddrhead); \
 	    (ia) != NULL && (ia)->ia_ifp != (ifp); \
-	    (ia) = (ia)->ia_link.tqe_next) \
+	    (ia) = TAILQ_NEXT((ia), ia_link)) \
 		continue; \
 }
 #endif
@@ -184,8 +182,7 @@ struct in_multistep {
 do { \
 	register struct ifmultiaddr *ifma; \
 \
-	for (ifma = (ifp)->if_multiaddrs.lh_first; ifma; \
-	     ifma = ifma->ifma_link.le_next) { \
+	LIST_FOREACH(ifma, &((ifp)->if_multiaddrs), ifma_link) { \
 		if (ifma->ifma_addr->sa_family == AF_INET \
 		    && ((struct sockaddr_in *)ifma->ifma_addr)->sin_addr.s_addr == \
 		    (addr).s_addr) \
@@ -206,14 +203,14 @@ do { \
 	/* struct in_multi *inm; */ \
 do { \
 	if (((inm) = (step).i_inm) != NULL) \
-		(step).i_inm = (step).i_inm->inm_link.le_next; \
+		(step).i_inm = LIST_NEXT((step).i_inm, inm_link); \
 } while(0)
 
 #define IN_FIRST_MULTI(step, inm) \
 	/* struct in_multistep step; */ \
 	/* struct in_multi *inm; */ \
 do { \
-	(step).i_inm = in_multihead.lh_first; \
+	(step).i_inm = LIST_FIRST(&in_multihead); \
 	IN_NEXT_MULTI((step), (inm)); \
 } while(0)
 
