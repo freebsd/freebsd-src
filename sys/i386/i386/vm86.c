@@ -143,9 +143,9 @@ vm86_emulate(vmf)
 	 * the extension is not present.  (This check should not be needed,
 	 * as we can't enter vm86 mode until we set up an extension area)
 	 */
-	if (curpcb->pcb_ext == 0)
+	if (PCPU_GET(curpcb)->pcb_ext == 0)
 		return (SIGBUS);
-	vm86 = &curpcb->pcb_ext->ext_vm86;
+	vm86 = &PCPU_GET(curpcb)->pcb_ext->ext_vm86;
 
 	if (vmf->vmf_eflags & PSL_T)
 		retcode = SIGTRAP;
@@ -507,7 +507,7 @@ static void
 vm86_initflags(struct vm86frame *vmf)
 {
 	int eflags = vmf->vmf_eflags;
-	struct vm86_kernel *vm86 = &curpcb->pcb_ext->ext_vm86;
+	struct vm86_kernel *vm86 = &PCPU_GET(curpcb)->pcb_ext->ext_vm86;
 
 	if (vm86->vm86_has_vme) {
 		eflags = (vmf->vmf_eflags & ~VME_USERCHANGE) |

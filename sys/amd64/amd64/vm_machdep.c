@@ -143,7 +143,7 @@ cpu_fork(p1, p2, flags)
 
 #if NNPX > 0
 	/* Ensure that p1's pcb is up to date. */
-	if (npxproc == p1)
+	if (PCPU_GET(npxproc) == p1)
 		npxsave(&p1->p_addr->u_pcb.pcb_savefpu);
 #endif
 
@@ -442,23 +442,23 @@ cpu_reset()
 
 		u_int map;
 		int cnt;
-		printf("cpu_reset called on cpu#%d\n",cpuid);
+		printf("cpu_reset called on cpu#%d\n", PCPU_GET(cpuid));
 
-		map = other_cpus & ~ stopped_cpus;
+		map = PCPU_GET(other_cpus) & ~ stopped_cpus;
 
 		if (map != 0) {
 			printf("cpu_reset: Stopping other CPUs\n");
 			stop_cpus(map);		/* Stop all other CPUs */
 		}
 
-		if (cpuid == 0) {
+		if (PCPU_GET(cpuid) == 0) {
 			DELAY(1000000);
 			cpu_reset_real();
 			/* NOTREACHED */
 		} else {
 			/* We are not BSP (CPU #0) */
 
-			cpu_reset_proxyid = cpuid;
+			cpu_reset_proxyid = PCPU_GET(cpuid);
 			cpustop_restartfunc = cpu_reset_proxy;
 			cpu_reset_proxy_active = 0;
 			printf("cpu_reset: Restarting BSP\n");

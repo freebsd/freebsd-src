@@ -142,11 +142,12 @@ kdb_trap(type, code, regs)
 #ifdef CPUSTOP_ON_DDBBREAK
 
 #if defined(VERBOSE_CPUSTOP_ON_DDBBREAK)
-	db_printf("\nCPU%d stopping CPUs: 0x%08x...", cpuid, other_cpus);
+	db_printf("\nCPU%d stopping CPUs: 0x%08x...", PCPU_GET(cpuid),
+	    PCPU_GET(other_cpus));
 #endif /* VERBOSE_CPUSTOP_ON_DDBBREAK */
 
 	/* We stop all CPUs except ourselves (obviously) */
-	stop_cpus(other_cpus);
+	stop_cpus(PCPU_GET(other_cpus));
 
 #if defined(VERBOSE_CPUSTOP_ON_DDBBREAK)
 	db_printf(" stopped.\n");
@@ -171,13 +172,14 @@ kdb_trap(type, code, regs)
 #ifdef CPUSTOP_ON_DDBBREAK
 
 #if defined(VERBOSE_CPUSTOP_ON_DDBBREAK)
-	db_printf("\nCPU%d restarting CPUs: 0x%08x...", cpuid, stopped_cpus);
+	db_printf("\nCPU%d restarting CPUs: 0x%08x...", PCPU_GET(cpuid),
+	    stopped_cpus);
 #endif /* VERBOSE_CPUSTOP_ON_DDBBREAK */
 
 	/* Restart all the CPUs we previously stopped */
-	if (stopped_cpus != other_cpus && smp_started != 0) {
+	if (stopped_cpus != PCPU_GET(other_cpus) && smp_started != 0) {
 		db_printf("whoa, other_cpus: 0x%08x, stopped_cpus: 0x%08x\n",
-			  other_cpus, stopped_cpus);
+			  PCPU_GET(other_cpus), stopped_cpus);
 		panic("stop_cpus() failed");
 	}
 	restart_cpus(stopped_cpus);

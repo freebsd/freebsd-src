@@ -484,11 +484,11 @@ init_secondary(void)
 
 	gsel_tss = GSEL(GPROC0_SEL, SEL_KPL);
 	gdt[myid * NGDT + GPROC0_SEL].sd.sd_type = SDT_SYS386TSS;
-	common_tss.tss_esp0 = 0;	/* not used until after switch */
-	common_tss.tss_ss0 = GSEL(GDATA_SEL, SEL_KPL);
-	common_tss.tss_ioopt = (sizeof common_tss) << 16;
-	tss_gdt = &gdt[myid * NGDT + GPROC0_SEL].sd;
-	common_tssd = *tss_gdt;
+	PCPU_SET(common_tss.tss_esp0, 0); /* not used until after switch */
+	PCPU_SET(common_tss.tss_ss0, GSEL(GDATA_SEL, SEL_KPL));
+	PCPU_SET(common_tss.tss_ioopt, (sizeof (struct i386tss)) << 16);
+	PCPU_SET(tss_gdt, &gdt[myid * NGDT + GPROC0_SEL].sd);
+	PCPU_SET(common_tssd, *PCPU_GET(tss_gdt));
 	ltr(gsel_tss);
 
 	pmap_set_opt();
@@ -2045,7 +2045,7 @@ start_all_aps(u_int boot_addr)
 	}
 
 	/* build our map of 'other' CPUs */
-	other_cpus = all_cpus & ~(1 << cpuid);
+	PCPU_SET(other_cpus, all_cpus & ~(1 << PCPU_GET(cpuid)));
 
 	/* fill in our (BSP) APIC version */
 	cpu_apic_versions[0] = lapic.version;
@@ -2398,9 +2398,9 @@ ap_init(void)
 #endif
 
 	/* Build our map of 'other' CPUs. */
-	other_cpus = all_cpus & ~(1 << cpuid);
+	PCPU_SET(other_cpus, all_cpus & ~(1 << PCPU_GET(cpuid)));
 
-	printf("SMP: AP CPU #%d Launched!\n", cpuid);
+	printf("SMP: AP CPU #%d Launched!\n", PCPU_GET(cpuid));
 
 	/* set up CPU registers and state */
 	cpu_setregs();
@@ -2410,8 +2410,8 @@ ap_init(void)
 
 	/* A quick check from sanity claus */
 	apic_id = (apic_id_to_logical[(lapic.id & 0x0f000000) >> 24]);
-	if (cpuid != apic_id) {
-		printf("SMP: cpuid = %d\n", cpuid);
+	if (PCPU_GET(cpuid) != apic_id) {
+		printf("SMP: cpuid = %d\n", PCPU_GET(cpuid));
 		printf("SMP: apic_id = %d\n", apic_id);
 		printf("PTD[MPPTDI] = %p\n", (void *)PTD[MPPTDI]);
 		panic("cpuid mismatch! boom!!");
@@ -2445,10 +2445,10 @@ ap_init(void)
 	 * Set curproc to our per-cpu idleproc so that mutexes have
 	 * something unique to lock with.
 	 */
-	PCPU_SET(curproc,idleproc);
+	PCPU_SET(curproc, PCPU_GET(idleproc));
 
-	microuptime(&switchtime);
-	switchticks = ticks;
+	microuptime(PCPU_PTR(switchtime));
+	PCPU_SET(switchticks, ticks);
 
 	/* ok, now grab sched_lock and enter the scheduler */
 	enable_intr();
@@ -2610,7 +2610,7 @@ forward_statclock(int pscnt)
 
 	/* Step 1: Probe state   (user, cpu, interrupt, spinlock, idle ) */
 	
-	map = other_cpus & ~stopped_cpus ;
+	map = PCPU_GET(other_cpus) & ~stopped_cpus ;
 	checkstate_probed_cpus = 0;
 	if (map != 0)
 		selected_apic_ipi(map,
@@ -2636,7 +2636,7 @@ forward_statclock(int pscnt)
 	
 	map = 0;
 	for (id = 0; id < mp_ncpus; id++) {
-		if (id == cpuid)
+		if (id == PCPU_GET(cpuid))
 			continue;
 		if (((1 << id) & checkstate_probed_cpus) == 0)
 			continue;
@@ -2685,7 +2685,7 @@ forward_hardclock(int pscnt)
 
 	/* Step 1: Probe state   (user, cpu, interrupt, spinlock, idle) */
 	
-	map = other_cpus & ~stopped_cpus ;
+	map = PCPU_GET(other_cpus) & ~stopped_cpus ;
 	checkstate_probed_cpus = 0;
 	if (map != 0)
 		selected_apic_ipi(map,
@@ -2712,7 +2712,7 @@ forward_hardclock(int pscnt)
 	
 	map = 0;
 	for (id = 0; id < mp_ncpus; id++) {
-		if (id == cpuid)
+		if (id == PCPU_GET(cpuid))
 			continue;
 		if (((1 << id) & checkstate_probed_cpus) == 0)
 			continue;
@@ -2813,8 +2813,8 @@ forward_roundrobin(void)
 		return;
 	if (!forward_roundrobin_enabled)
 		return;
-	resched_cpus |= other_cpus;
-	map = other_cpus & ~stopped_cpus ;
+	resched_cpus |= PCPU_GET(other_cpus);
+	map = PCPU_GET(other_cpus) & ~stopped_cpus ;
 #if 1
 	selected_apic_ipi(map, XCPUAST_OFFSET, APIC_DELMODE_FIXED);
 #else

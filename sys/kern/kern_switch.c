@@ -232,12 +232,12 @@ chooseproc(void)
 	} else {
 		CTR1(KTR_PROC, "chooseproc: idleproc, schedlock %lx",
 			(long)sched_lock.mtx_lock);
-		return idleproc;
+		return PCPU_GET(idleproc);
 	}
 	p = TAILQ_FIRST(q);
 #ifdef SMP
 	/* wander down the current run queue for this pri level for a match */
-	id = cpuid;
+	id = PCPU_GET(cpuid);
 	while (p->p_lastcpu != id) {
 		p = TAILQ_NEXT(p, p_procq);
 		if (p == NULL) {

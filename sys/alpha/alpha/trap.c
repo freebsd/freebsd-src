@@ -365,7 +365,7 @@ trap(a0, a1, a2, entry, framep)
 			 * on exit from the kernel, if proc == fpcurproc,
 			 * FP is enabled.
 			 */
-			if (fpcurproc == p) {
+			if (PCPU_GET(fpcurproc) == p) {
 				printf("trap: fp disabled for fpcurproc == %p",
 				    p);
 				goto dopanic;

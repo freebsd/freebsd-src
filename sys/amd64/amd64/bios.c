@@ -258,7 +258,7 @@ set_bios_selectors(struct bios_segments *seg, int flags)
     union descriptor *p_gdt;
 
 #ifdef SMP
-    p_gdt = &gdt[cpuid * NGDT];
+    p_gdt = &gdt[PCPU_GET(cpuid) * NGDT];
 #else
     p_gdt = gdt;
 #endif

@@ -92,7 +92,7 @@ uiomove(cp, n, uio)
 
 		case UIO_USERSPACE:
 		case UIO_USERISPACE:
-			if (ticks - switchticks >= hogticks)
+			if (ticks - PCPU_GET(switchticks) >= hogticks)
 				uio_yield();
 			if (uio->uio_rw == UIO_READ)
 				error = copyout(cp, iov->iov_base, cnt);
@@ -154,7 +154,7 @@ uiomoveco(cp, n, uio, obj)
 
 		case UIO_USERSPACE:
 		case UIO_USERISPACE:
-			if (ticks - switchticks >= hogticks)
+			if (ticks - PCPU_GET(switchticks) >= hogticks)
 				uio_yield();
 			if (uio->uio_rw == UIO_READ) {
 #ifdef ENABLE_VFS_IOOPT
@@ -236,7 +236,7 @@ uioread(n, uio, obj, nread)
 
 			cnt &= ~PAGE_MASK;
 
-			if (ticks - switchticks >= hogticks)
+			if (ticks - PCPU_GET(switchticks) >= hogticks)
 				uio_yield();
 			error = vm_uiomove(&curproc->p_vmspace->vm_map, obj,
 						uio->uio_offset, cnt,

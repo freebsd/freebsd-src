@@ -94,7 +94,7 @@ interrupt(a0, a1, a2, framep)
 	 */
 	globalp = (struct globaldata *) alpha_pal_rdval();
 
-	atomic_add_int(&PCPU_GET(intr_nesting_level), 1);
+	atomic_add_int(PCPU_PTR(intr_nesting_level), 1);
 	{
 		struct proc *p = curproc;
 		if (!p) p = &proc0;
@@ -116,7 +116,7 @@ interrupt(a0, a1, a2, framep)
 		CTR0(KTR_INTR, "clock interrupt");
 		if (PCPU_GET(cpuno) != hwrpb->rpb_primary_cpu_id) {
 			CTR0(KTR_INTR, "ignoring clock on secondary");
-			atomic_subtract_int(&PCPU_GET(intr_nesting_level), 1);
+			atomic_subtract_int(PCPU_PTR(intr_nesting_level), 1);
 			return;
 		}
 			
@@ -152,7 +152,7 @@ interrupt(a0, a1, a2, framep)
 		    a0, a1, a2);
 		/* NOTREACHED */
 	}
-	atomic_subtract_int(&PCPU_GET(intr_nesting_level), 1);
+	atomic_subtract_int(PCPU_PTR(intr_nesting_level), 1);
 }
 
 void
