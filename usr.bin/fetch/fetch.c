@@ -305,12 +305,15 @@ fetch(char *URL, char *path)
 	goto success;
     }
 
+    if (us.size == -1)
+	warnx("%s: size of remote file is not known", path);
     if (v_level > 1) {
 	if (sb.st_size != -1)
 	    fprintf(stderr, "local size / mtime: %lld / %ld\n",
 		    sb.st_size, sb.st_mtime);
-	fprintf(stderr, "remote size / mtime: %lld / %ld\n",
-		us.size, us.mtime);
+	if (us.size != -1)
+	    fprintf(stderr, "remote size / mtime: %lld / %ld\n",
+		    us.size, us.mtime);
     }
     
     /* open output file */
@@ -322,6 +325,12 @@ fetch(char *URL, char *path)
 	if (!F_flag && us.mtime && sb.st_mtime != us.mtime) {
 	    /* no match! have to refetch */
 	    fclose(f);
+	    /* if precious, warn the user and give up */
+	    if (R_flag) {
+		warnx("%s: local modification time does not match remote",
+		      path);
+		goto failure_keep;
+	    }
 	    url->offset = 0;
 	    if ((f = fetchXGet(url, &us, flags)) == NULL) {
 		warnx("%s: %s", path, fetchLastErrString);
