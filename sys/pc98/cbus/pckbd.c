@@ -38,6 +38,7 @@
 #include <sys/bus.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
+#include <sys/kbio.h>
 
 #include <machine/resource.h>
 
@@ -221,7 +222,6 @@ pckbd_timeout(void *arg)
 /* LOW-LEVEL */
 
 #include <machine/limits.h>
-#include <machine/console.h>
 
 #define PC98KBD_DEFAULT	0
 
