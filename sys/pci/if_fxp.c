@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_fxp.c,v 1.21.2.10 1997/09/30 12:43:26 davidg Exp $
+ *	$Id: if_fxp.c,v 1.21.2.11 1997/10/17 06:28:31 davidg Exp $
  */
 
 /*
@@ -195,7 +195,16 @@ const struct fxp_supported_media fxp_media[] = {
 	{ FXP_PHY_DP83840A, fxp_media_standard,
 	  sizeof(fxp_media_standard) / sizeof(fxp_media_standard[0]),
 	  FXP_MEDIA_STANDARD_DEFMEDIA },
+	{ FXP_PHY_82553A, fxp_media_standard,
+	  sizeof(fxp_media_standard) / sizeof(fxp_media_standard[0]),
+	  FXP_MEDIA_STANDARD_DEFMEDIA },
+	{ FXP_PHY_82553C, fxp_media_standard,
+	  sizeof(fxp_media_standard) / sizeof(fxp_media_standard[0]),
+	  FXP_MEDIA_STANDARD_DEFMEDIA },
 	{ FXP_PHY_82555, fxp_media_standard,
+	  sizeof(fxp_media_standard) / sizeof(fxp_media_standard[0]),
+	  FXP_MEDIA_STANDARD_DEFMEDIA },
+	{ FXP_PHY_82555B, fxp_media_standard,
 	  sizeof(fxp_media_standard) / sizeof(fxp_media_standard[0]),
 	  FXP_MEDIA_STANDARD_DEFMEDIA },
 	{ FXP_PHY_80C24, fxp_media_default,
@@ -1373,7 +1382,10 @@ fxp_set_media(sc, media)
 		    FXP_DP83840_PCR_F_CONNECT |	/* force link disconnect bypass */
 		    FXP_DP83840_PCR_BIT10);	/* XXX I have no idea */
 		/* fall through */
+	case FXP_PHY_82553A:
+	case FXP_PHY_82553C: /* untested */
 	case FXP_PHY_82555:
+	case FXP_PHY_82555B:
 		if (IFM_SUBTYPE(media) != IFM_AUTO) {
 			int flags;
 
