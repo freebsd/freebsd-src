@@ -79,6 +79,7 @@
 #include <machine/asi.h>
 #include <machine/atomic.h>
 #include <machine/md_var.h>
+#include <machine/metadata.h>
 #include <machine/ofw_machdep.h>
 #include <machine/smp.h>
 #include <machine/tick.h>
@@ -123,8 +124,11 @@ mp_tramp_alloc(void)
 	*(u_long *)(v + mp_tramp_tlb_slots) = kernel_tlb_slots;
 	*(u_long *)(v + mp_tramp_func) = (u_long)mp_startup;
 	tp = (struct tte *)(v + mp_tramp_code_len);
-	for (i = 0; i < kernel_tlb_slots; i++)
-		tp[i] = kernel_ttes[i];
+	for (i = 0; i < kernel_tlb_slots; i++) {
+		tp[i].tte_vpn = TV_VPN(kernel_tlbs[i].te_va);
+		tp[i].tte_data = TD_V | TD_4M | TD_PA(kernel_tlbs[i].te_pa) |
+		    TD_L | TD_CP | TD_CV | TD_P | TD_W;
+	}
 	for (i = 0; i < PAGE_SIZE; i += sizeof(long))
 		flush(v + i);
 	return (vm_offset_t)v;
