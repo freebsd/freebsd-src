@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: machdep.c,v 1.34 1999/03/06 04:46:10 wollman Exp $
+ *	$Id: machdep.c,v 1.35 1999/04/03 22:19:50 jdp Exp $
  */
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -176,10 +176,18 @@ SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD, cpu_model, 0, "");
 void	*ksym_start, *ksym_end;
 #endif
 
-/* for cpu_sysctl() */
-int	alpha_unaligned_print = 1;	/* warn about unaligned accesses */
-int	alpha_unaligned_fix = 1;	/* fix up unaligned accesses */
-int	alpha_unaligned_sigbus = 0;	/* don't SIGBUS on fixed-up accesses */
+int	alpha_unaligned_print;		/* warn about unaligned accesses */
+int	alpha_unaligned_fix;		/* fix up unaligned accesses */
+int	alpha_unaligned_sigbus;		/* SIGBUS on fixed-up accesses */
+
+SYSCTL_INT(_machdep, CPU_UNALIGNED_PRINT, unaligned_print,
+	CTLFLAG_RW, &alpha_unaligned_print, 1, "");
+
+SYSCTL_INT(_machdep, CPU_UNALIGNED_FIX, unaligned_fix,
+	CTLFLAG_RW, &alpha_unaligned_fix, 1, "");
+
+SYSCTL_INT(_machdep, CPU_UNALIGNED_SIGBUS, unaligned_sigbus,
+	CTLFLAG_RW, &alpha_unaligned_sigbus, 0, "");
 
 static void cpu_startup __P((void *));
 SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL)
