@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcibus.c,v 1.5 1994/10/12 02:33:21 se Exp $
+**  $Id: pcibus.c,v 1.1 1995/02/01 23:06:58 se Exp $
 **
 **  pci bus subroutines for i386 architecture.
 **
@@ -393,7 +393,7 @@ static	unsigned int	pci_int_mask [16];
 int pcibus_regint (pcici_t tag, int(*func)(), void* arg, unsigned* maskptr)
 {
 	int irq;
-	unsigned mask;
+	unsigned mask, oldmask;
 
 	irq = PCI_INTERRUPT_LINE_EXTRACT(
 		pci_conf_read (tag, PCI_INTERRUPT_REG));
@@ -402,6 +402,7 @@ int pcibus_regint (pcici_t tag, int(*func)(), void* arg, unsigned* maskptr)
 
 	if (!maskptr)
 		maskptr = &pci_int_mask[irq];
+	oldmask = *maskptr;
 
 	INTRMASK (*maskptr, mask);
 
@@ -425,13 +426,13 @@ int pcibus_regint (pcici_t tag, int(*func)(), void* arg, unsigned* maskptr)
 		**	update the isa interrupt masks.
 		*/
 		for (mp=&intr_mask[0]; mp<&intr_mask[ICU_LEN]; mp++)
-			if (*mp & *maskptr)
+			if ((~*mp & oldmask)==0)
 				*mp |= mask;
 		/*
 		**	update the pci interrupt masks.
 		*/
 		for (mp=&pci_int_mask[0]; mp<&pci_int_mask[16]; mp++)
-			if (*mp & *maskptr)
+			if ((~*mp & oldmask)==0)
 				*mp |= mask;
 	};
 #endif
