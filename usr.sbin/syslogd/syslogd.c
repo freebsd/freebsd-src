@@ -1608,6 +1608,7 @@ cfline(const char *line, struct filed *f, const char *prog, const char *host)
 	for (p = line; *p && *p != '\t' && *p != ' ';) {
 		int pri_done;
 		int pri_cmp;
+		int pri_invert;
 
 		/* find the end of this facility name list */
 		for (q = p; *q && *q != '\t' && *q != ' ' && *q++ != '.'; )
@@ -1616,6 +1617,11 @@ cfline(const char *line, struct filed *f, const char *prog, const char *host)
 		/* get the priority comparison */
 		pri_cmp = 0;
 		pri_done = 0;
+		pri_invert = 0;
+		if (*q == '!') {
+			pri_invert = 1;
+			q++;
+		}
 		while (!pri_done) {
 			switch (*q) {
 			case '<':
@@ -1635,11 +1641,6 @@ cfline(const char *line, struct filed *f, const char *prog, const char *host)
 				break;
 			}
 		}
-		if (!pri_cmp)
-			pri_cmp = (UniquePriority)
-				  ? (PRI_EQ)
-				  : (PRI_EQ | PRI_GT)
-				  ;
 
 		/* collect priority name */
 		for (bp = buf; *q && !strchr("\t,; ", *q); )
@@ -1653,6 +1654,7 @@ cfline(const char *line, struct filed *f, const char *prog, const char *host)
 		/* decode priority name */
 		if (*buf == '*') {
 			pri = LOG_PRIMASK + 1;
+			pri_cmp = PRI_LT | PRI_EQ | PRI_GT;
 		} else {
 			pri = decode(buf, prioritynames);
 			if (pri < 0) {
@@ -1662,6 +1664,13 @@ cfline(const char *line, struct filed *f, const char *prog, const char *host)
 				return;
 			}
 		}
+		if (!pri_cmp)
+			pri_cmp = (UniquePriority)
+				  ? (PRI_EQ)
+				  : (PRI_EQ | PRI_GT)
+				  ;
+		if (pri_invert)
+			pri_cmp ^= PRI_LT | PRI_EQ | PRI_GT;
 
 		/* scan facilities */
 		while (*p && !strchr("\t.; ", *p)) {
