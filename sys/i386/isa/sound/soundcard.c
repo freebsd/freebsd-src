@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: soundcard.c,v 1.24 1995/03/12 23:34:10 swallace Exp $
+ * $Id: soundcard.c,v 1.27 1995/07/28 21:40:26 jkh Exp $
  */
 
 #include "sound_config.h"
@@ -34,6 +34,7 @@
 #ifdef CONFIGURE_SOUNDCARD
 
 #include "dev_table.h"
+#include <i386/isa/isa_device.h>
 
 u_int	snd1_imask;
 u_int	snd2_imask;
@@ -78,11 +79,27 @@ struct isa_driver gusmaxdriver	= {sndprobe, sndattach, "gusmax"};
 struct isa_driver uartdriver	= {sndprobe, sndattach, "uart"};
 struct isa_driver mssdriver	= {sndprobe, sndattach, "mss"};
 
+static unsigned short
+ipri_to_irq (unsigned short ipri);
+
 void
-adintr(INT_HANDLER_PARMS(irq,dummy))
+adintr(INT_HANDLER_PARMS(unit,dummy))
 { 
 #ifndef EXCLUDE_AD1848
-	ad1848_interrupt(INT_HANDLER_CALL(irq));
+	static short unit_to_irq[4] = { -1, -1, -1, -1 };
+        struct isa_device *dev;
+
+        if (unit_to_irq [unit] > 0)
+		ad1848_interrupt(INT_HANDLER_CALL (unit_to_irq [unit]));
+	else {
+                dev = find_isadev (isa_devtab_null, &mssdriver, unit);
+                if (!dev)
+			printk ("ad1848: Couldn't determine unit\n");
+                else {
+			unit_to_irq [unit] = ipri_to_irq (dev->id_irq);
+			ad1848_interrupt(INT_HANDLER_CALL (unit_to_irq [unit]));
+ 		}
+	}
 #endif
 }
 
