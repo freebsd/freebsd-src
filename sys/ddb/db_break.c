@@ -22,45 +22,10 @@
  * 
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
- */
-/*
- * HISTORY
- * $Log: db_break.c,v $
- * Revision 1.1  1992/03/25  21:44:57  pace
- * Initial revision
  *
- * Revision 2.7  91/02/05  17:06:00  mrt
- * 	Changed to new Mach copyright
- * 	[91/01/31  16:17:01  mrt]
- * 
- * Revision 2.6  91/01/08  15:09:03  rpd
- * 	Added db_map_equal, db_map_current, db_map_addr.
- * 	[90/11/10            rpd]
- * 
- * Revision 2.5  90/11/05  14:26:32  rpd
- * 	Initialize db_breakpoints_inserted to TRUE.
- * 	[90/11/04            rpd]
- * 
- * Revision 2.4  90/10/25  14:43:33  rwd
- * 	Added map field to breakpoints.
- * 	Added map argument to db_set_breakpoint, db_delete_breakpoint,
- * 	db_find_breakpoint.  Added db_find_breakpoint_here.
- * 	[90/10/18            rpd]
- * 
- * Revision 2.3  90/09/28  16:57:07  jsb
- * 	Fixed db_breakpoint_free.
- * 	[90/09/18            rpd]
- * 
- * Revision 2.2  90/08/27  21:49:53  dbg
- * 	Reflected changes in db_printsym()'s calling seq.
- * 	[90/08/20            af]
- * 	Clear breakpoints only if inserted.
- * 	Reduce lint.
- * 	[90/08/07            dbg]
- * 	Created.
- * 	[90/07/25            dbg]
- * 
+ *	$Id$
  */
+
 /*
  *	Author: David B. Golub, Carnegie Mellon University
  *	Date:	7/90

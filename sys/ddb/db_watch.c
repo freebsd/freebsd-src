@@ -22,34 +22,10 @@
  * 
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
- */
-/*
- * HISTORY
- * $Log: db_watch.c,v $
- * Revision 1.1  1992/03/25  21:45:37  pace
- * Initial revision
  *
- * Revision 2.5  91/02/05  17:07:27  mrt
- * 	Changed to new Mach copyright
- * 	[91/01/31  16:20:02  mrt]
- * 
- * Revision 2.4  91/01/08  15:09:24  rpd
- * 	Use db_map_equal, db_map_current, db_map_addr.
- * 	[90/11/10            rpd]
- * 
- * Revision 2.3  90/11/05  14:26:39  rpd
- * 	Initialize db_watchpoints_inserted to TRUE.
- * 	[90/11/04            rpd]
- * 
- * Revision 2.2  90/10/25  14:44:16  rwd
- * 	Made db_watchpoint_cmd parse a size argument.
- * 	[90/10/17            rpd]
- * 	Generalized the watchpoint support.
- * 	[90/10/16            rwd]
- * 	Created.
- * 	[90/10/16            rpd]
- * 
+ *	$Id$
  */
+
 /*
  * 	Author: Richard P. Draves, Carnegie Mellon University
  *	Date:	10/90

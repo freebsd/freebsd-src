@@ -22,46 +22,10 @@
  * 
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
- */
-/*
- * HISTORY
- * $Log: db_run.c,v $
- * Revision 1.1  1992/03/25  21:45:24  pace
- * Initial revision
  *
- * Revision 2.5  91/02/05  17:06:58  mrt
- * 	Changed to new Mach copyright
- * 	[91/01/31  16:19:05  mrt]
- * 
- * Revision 2.4  91/01/08  15:09:10  rpd
- * 	Fixed bug in db_restart_at_pc.
- * 	[90/12/07            rpd]
- * 	Added STEP_COUNT and count option to db_continue_cmd.
- * 	Changed db_stop_at_pc to return (modified) is_breakpoint.
- * 	Fixed db_stop_at_pc to print newlines in the right places.
- * 	[90/11/27            rpd]
- * 
- * Revision 2.3  90/10/25  14:43:59  rwd
- * 	Changed db_find_breakpoint to db_find_breakpoint_here.
- * 	[90/10/18            rpd]
- * 
- * 	Fixed db_set_single_step to pass regs to branch_taken.
- * 	Added watchpoint argument to db_restart_at_pc.
- * 	[90/10/17            rpd]
- * 	Generalized the watchpoint support.
- * 	[90/10/16            rwd]
- * 	Added watchpoint support.
- * 	[90/10/16            rpd]
- * 
- * Revision 2.2  90/08/27  21:51:59  dbg
- * 	Fixed names for single-step functions.
- * 	[90/08/20            af]
- * 	Reduce lint.
- * 	[90/08/07            dbg]
- * 	Created.
- * 	[90/07/25            dbg]
- * 
+ *	$Id$
  */
+
 /*
  * 	Author: David B. Golub, Carnegie Mellon University
  *	Date:	7/90
