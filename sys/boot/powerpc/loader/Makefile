@@ -1,7 +1,6 @@
 # $FreeBSD$
 
 PROG=		loader
-NOMAN=
 NEWVERSWHAT=	"bootstrap loader" "Open Firmware/PowerPC"
 BINDIR?=	/boot
 INSTALLFLAGS=	-b
