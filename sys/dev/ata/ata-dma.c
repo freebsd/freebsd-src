@@ -311,6 +311,11 @@ ata_dmainit(struct ata_softc *scp, int device,
 		return;
 	    }
 	}
+
+	/* make sure eventual UDMA mode from the BIOS is disabled */
+	pci_write_config(parent, 0x54, 
+			 pci_read_config(parent, 0x54, 4) & ~0x88880000, 4);
+
 	if (wdmamode >= 2 && apiomode >= 4) {
 	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
 				ATA_WDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
@@ -577,8 +582,6 @@ via_82c586:
 
     case 0x02111166:	/* ServerWorks ROSB4 ATA33 controller */
 	if (udmamode >= 2) {
-	    u_int16_t reg56;
-
 	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
 				ATA_UDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
 	    if (bootverbose)
@@ -586,6 +589,8 @@ via_82c586:
 			   "%s setting UDMA2 on ServerWorks chip\n",
 			   (error) ? "failed" : "success");
 	    if (!error) {
+		u_int16_t reg56;
+
 		pci_write_config(parent, 0x54, 
 				 pci_read_config(parent, 0x54, 1) |
 				 (0x01 << devno), 1);
@@ -897,8 +902,8 @@ cyrix_timing(struct ata_softc *scp, int devno, int mode)
     case ATA_WDMA2:	reg24 = 0x00002020; break;
     case ATA_UDMA2:	reg24 = 0x00911030; break;
     }
-    outl(scp->bmaddr + (devno * 8) + 0x20, reg20);
-    outl(scp->bmaddr + (devno * 8) + 0x24, reg24);
+    outl(scp->bmaddr + (devno << 3) + 0x20, reg20);
+    outl(scp->bmaddr + (devno << 3) + 0x24, reg24);
 }
  
 static void
