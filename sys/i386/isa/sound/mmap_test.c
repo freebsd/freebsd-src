@@ -25,7 +25,7 @@ static const char rcsid[] =
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/mman.h>
-#include <machine/soundcard.h>
+#include <sys/soundcard.h>
 #include <sys/time.h>
 
 int
