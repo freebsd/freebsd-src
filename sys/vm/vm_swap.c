@@ -73,8 +73,8 @@ static	d_strategy_t    swstrategy;
 static struct cdevsw sw_cdevsw = {
 	/* open */	swopen,
 	/* close */	nullclose,
-	/* read */	physread,
-	/* write */	physwrite,
+	/* read */	noread,
+	/* write */	nowrite,
 	/* ioctl */	noioctl,
 	/* poll */	nopoll,
 	/* mmap */	nommap,
@@ -118,7 +118,7 @@ swopen(dev, flag, mode, p)
 	struct proc     *p;
 {
 
-	if (mode == S_IFBLK || minor(dev))
+	if (mode == S_IFBLK || minor(dev) != 0)
 		return (ENXIO);
 	return (0);
 }
@@ -132,6 +132,17 @@ swstrategy(bp)
 	register struct swdevt *sp;
 	struct vnode *vp;
 
+	/*
+	 * XXX: if we allow userland to come through, it will panic
+	 * XXX: so use minor zero for userland and fail it right here
+	 * XXX: and in noread/nowrite.
+	 */
+	if (minor(bp->b_dev) == 0) {
+		bp->b_error = EINVAL;
+		bp->b_flags |= B_ERROR;
+		biodone(bp);
+		return;
+	}
 	sz = howmany(bp->b_bcount, PAGE_SIZE);
 	/*
 	 * Convert interleaved swap into per-device swap.  Note that
@@ -216,7 +227,6 @@ swapon(p, uap)
 	static int once;
 
 	if (!once) {
-		cdevsw_add(&sw_cdevsw);
 		make_dev(&sw_cdevsw, 0, UID_ROOT, GID_KMEM, 0640, "drum");
 		once++;
 	}
@@ -353,6 +363,7 @@ swaponvp(p, vp, dev, nblks)
 	if (!swapdev_vp) {
 		struct vnode *vp1;
 		struct vnode *nvp;
+		dev_t dev;
 
 		error = getnewvnode(VT_NON, (struct mount *) 0,
 		    spec_vnodeop_p, &nvp);
@@ -360,7 +371,8 @@ swaponvp(p, vp, dev, nblks)
 			panic("Cannot get vnode for swapdev");
 		vp1 = nvp;
 		vp1->v_type = VBLK;
-		addaliasu(vp1, makeudev(BDEV_MAJOR, 0));
+		dev = make_dev(&sw_cdevsw, 1, UID_ROOT, GID_KMEM, 0640, "swapdev");
+		addalias(vp1, dev);
 		swapdev_vp = vp1;
 	}
 	return (0);
