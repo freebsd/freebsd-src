@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	$Id: slice_base.c,v 1.2 1998/04/22 01:51:34 julian Exp $
+ *	$Id: slice_base.c,v 1.3 1998/04/22 10:25:10 julian Exp $
  */
 
 #include <sys/param.h>
@@ -524,6 +524,9 @@ sliceopen(struct slice *slice, int flags, int mode,
 		default:
 			panic("slice: bad open type");
 		}
+/* XXX 	only accumulate flags as we don't know about all closes */
+/* XXX */	if ( or_flags )
+/* XXX */		and_flags = ~0;
 		break;
 	default:
 		panic("slice: bad request source");
