@@ -48,7 +48,6 @@ shift
 
 case ${pccard_ifconfig} in
 [Nn][Oo] | '')
-	expr "${removable_interfaces}" : ".*${interface}" > /dev/null || exit 0
 	;;
 *)
 	# Backward compatible
@@ -168,18 +167,8 @@ case ${startstop} in
 		;;
 	esac
 
-	# Remove the network interface and cleaning ARP table
+	# Remove the network interface and clean the ARP table
 	ifconfig ${interface} delete
 	arp -d -a
-
-	# Clean the routing table
-	case ${removable_route_flush} in
-	[Nn][Oo])
-	        ;;
-	*)	
-		# flush beforehand, just in case....
-		route -n flush -inet
-		;;
-	esac
 	;;
 esac
