@@ -24,8 +24,8 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)$Id$";
-static char rcsid[] = "$Id$";
+static char sccsid[] = "@(#)$Id: getnetbynis.c,v 1.1 1994/09/25 02:12:26 pst Exp $";
+static char rcsid[] = "$Id: getnetbynis.c,v 1.1 1994/09/25 02:12:26 pst Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
@@ -51,7 +51,7 @@ _getnetbynis(name, map)
 {
 #ifdef YP
 	register char *cp, **q;
-	char *result;
+	static char *result;
 	int resultlen;
 	static struct netent h;
 	static char *domain = (char *)NULL;
@@ -59,6 +59,11 @@ _getnetbynis(name, map)
 	if (domain == (char *)NULL)
 		if (yp_get_default_domain (&domain))
 			return (NULL);
+
+	if (result) {
+		free(result);
+		result = 0;
+	}
 
 	if (yp_match(domain, map, name, strlen(name), &result, &resultlen))
 		return (NULL);
@@ -68,11 +73,14 @@ _getnetbynis(name, map)
 
 	cp = strpbrk(result, " \t");
 	*cp++ = '\0';
-	h.n_net = inet_addr(result);
-	h.n_addrtype = AF_INET;
+	h.n_name = result;
+
 	while (*cp == ' ' || *cp == '\t')
 		cp++;
-	h.n_name = cp;
+
+	h.n_net = inet_network(cp);
+	h.n_addrtype = AF_INET;
+
 	q = h.n_aliases = host_aliases;
 	cp = strpbrk(cp, " \t");
 	if (cp != NULL)
@@ -108,10 +116,19 @@ _getnetbynisaddr(addr, type)
 	int type;
 {
 	struct in_addr in;
+	char *str, *cp;
+	struct netent *np;
 
 	if (type != AF_INET)
 		return (NULL);
 
 	in.s_addr = addr;	
-	return _getnetbynis(inet_ntoa(in), "networks.byaddr");
+	str = inet_ntoa(in);
+	cp = str + strlen(str) - 2;
+	while(!strcmp(cp, ".0")) {
+		*cp = '\0';
+		cp = str + strlen(str) - 2;
+	}
+	
+	return _getnetbynis(str, "networks.byaddr");
 }
