@@ -85,12 +85,15 @@ vm_pgmoveco(vm_map_t mapa, vm_object_t srcobj, vm_offset_t kaddr,
 	 * First lookup the kernel page.
 	 */
 	kern_pg = PHYS_TO_VM_PAGE(vtophys(kaddr));
-
+	/*
+	 * XXX The vm object containing kern_pg needs locking.
+	 */
 	if ((vm_map_lookup(&map, uaddr,
 			   VM_PROT_WRITE, &entry, &uobject,
 			   &upindex, &prot, &wired)) != KERN_SUCCESS) {
 		return(EFAULT);
 	}
+	VM_OBJECT_LOCK(uobject);
 	if ((user_pg = vm_page_lookup(uobject, upindex)) != NULL) {
 		do
 			vm_page_lock_queues();
@@ -117,7 +120,7 @@ vm_pgmoveco(vm_map_t mapa, vm_object_t srcobj, vm_offset_t kaddr,
 	vm_page_flag_clear(kern_pg, PG_BUSY);
 	kern_pg->valid = VM_PAGE_BITS_ALL;
 	vm_page_unlock_queues();
-
+	VM_OBJECT_UNLOCK(uobject);
 	vm_map_lookup_done(map, entry);
 	return(KERN_SUCCESS);
 }
