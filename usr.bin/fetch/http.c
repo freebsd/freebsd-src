@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: http.c,v 1.20 1998/09/20 00:01:26 jkh Exp $
+ *	$Id: http.c,v 1.21 1998/10/26 02:39:21 fenner Exp $
  */
 
 #include <sys/types.h>
@@ -440,6 +440,7 @@ http_retrieve(struct fetch_state *fs)
 	char *base64ofmd5;
 	int to_stdout, restarting, redirection, retrying, autherror, chunked;
 	char rangebuf[sizeof("Range: bytes=18446744073709551616-\r\n")];
+	int tried_head;
 
 	setup_http_auth();
 
@@ -448,6 +449,7 @@ http_retrieve(struct fetch_state *fs)
 	restarting = fs->fs_restart;
 	redirection = 0;
 	retrying = 0;
+	tried_head = 0;
 
 	/*
 	 * Figure out the timeout.  Prefer the -T command-line value,
@@ -507,7 +509,14 @@ http_retrieve(struct fetch_state *fs)
         } while(0)
 
 retry:
-	addstr(iov, n, "GET ");
+	if (fs->fs_reportsize && !tried_head) {
+		addstr(iov, n, "HEAD ");
+		tried_head = 1;
+	}
+	else {
+		addstr(iov, n, "GET ");
+		tried_head = 0;
+	}
 	addstr(iov, n, https->http_remote_request);
 	addstr(iov, n, " HTTP/1.1\r\n");
 	/*
@@ -738,6 +747,16 @@ got100reply:
 		else
 			autherror = 407;
 		break;
+	case 501:		/* Not Implemented */
+		/* If we tried HEAD, retry with GET */
+		if (tried_head) {
+			n = 0;
+			goto retry;
+		}
+		else {
+			errstr = safe_strdup(line);
+			break;
+		}
 	case 503:		/* Service Unavailable */
 		if (!fs->fs_auto_retry)
 			errstr = safe_strdup(line);
@@ -944,6 +963,23 @@ spewerror:
 	}
 
 	fs->fs_status = "retrieving file from HTTP/1.x server";
+
+	if (fs->fs_reportsize) {
+		if (total_length == -1) {
+			warnx("%s: size not known\n",
+				fs->fs_outputfile);
+			printf("Unknown\n");
+			status = 1;
+		}
+		else {
+			printf("%qd\n", (quad_t)total_length);
+			status = 0;
+		}
+		fclose(remote);
+		unsetup_sigalrm();
+		return status;
+	}
+
 
 	/*
 	 * OK, if we got here, then we have finished parsing the header
