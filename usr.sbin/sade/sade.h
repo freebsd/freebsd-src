@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.151 1998/11/24 00:18:56 jkh Exp $
+ * $Id: sysinstall.h,v 1.152 1998/12/22 12:31:25 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -538,6 +538,9 @@ extern int	installFilesystems(dialogMenuItem *self);
 extern int	installVarDefaults(dialogMenuItem *self);
 extern void	installEnvironment(void);
 extern Boolean	copySelf(void);
+
+/* kget.c */
+extern int	kget(char *out);
 
 /* keymap.c */
 extern int	loadKeymap(const char *lang);
