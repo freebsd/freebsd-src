@@ -138,6 +138,7 @@ off_t		min_free(const char *);
 /* String */
 char 		*get_dash_string(char **);
 char		*copy_string(const char *);
+char		*copy_string_plus_newline(const char *);
 Boolean		suffix(const char *, const char *);
 void		nuke_suffix(char *);
 void		str_lowercase(char *);
