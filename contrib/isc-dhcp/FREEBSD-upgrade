@@ -65,6 +65,8 @@ Local Changes:
 	       - Remove dhcpd from SEE ALSO section.
 	common/dispatch.c
 	  r1.2 - interface polling
+	common/parse.c
+	  r1.2 - 64bit time_t fix
 	includes/dhcpd.h
 	  r1.5 - interface polling
 	  r1.4 - interface polling
