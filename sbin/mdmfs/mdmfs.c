@@ -94,6 +94,7 @@ main(int argc, char **argv)
 	char *p;
 	int ch;
 	void *set;
+	unsigned long ul;
 
 	/* Misc. initialization. */
 	(void)memset(&mi, '\0', sizeof(mi));
@@ -251,9 +252,10 @@ main(int argc, char **argv)
 		autounit = true;
 		unit = -1;
 	} else {
-		unit = strtoul(unitstr, &p, 10);
-		if ((unsigned)unit == (unsigned)ULONG_MAX || *p != '\0')
+		ul = strtoul(unitstr, &p, 10);
+		if (ul == ULONG_MAX || *p != '\0')
 			errx(1, "bad device unit: %s", unitstr);
+		unit = ul;
 	}
 
 	mtpoint = argv[1];
@@ -363,6 +365,7 @@ do_mdconfig_attach_au(const char *args, const enum md_types mdtype)
 	int rv;
 	char *p;
 	size_t linelen;
+	unsigned long ul;
 
 	switch (mdtype) {
 	case MD_SWAP:
@@ -399,9 +402,10 @@ do_mdconfig_attach_au(const char *args, const enum md_types mdtype)
 	/* Can't use strlcpy because linep is not NULL-terminated. */
 	strncpy(linebuf, linep + mdnamelen, linelen);
 	linebuf[linelen] = '\0';
-	unit = strtoul(linebuf, &p, 10);
-	if ((unsigned)unit == (unsigned)ULONG_MAX || *p != '\n')
+	ul = strtoul(linebuf, &p, 10);
+	if (ul == ULONG_MAX || *p != '\n')
 		errx(1, "unexpected output from mdconfig (attach)");
+	unit = ul;
 
 	fclose(sfd);
 	close(fd);
