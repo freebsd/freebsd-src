@@ -1593,7 +1593,7 @@ undirect_isa_irq(int rirq)
 	if (bootverbose)
 	    printf("Freeing redirected ISA irq %d.\n", rirq);
 	/** FIXME: tickle the MB redirector chip */
-	return ???;
+	return -1;
 #else
 	if (bootverbose)
 	    printf("Freeing (NOT implemented) redirected ISA irq %d.\n", rirq);
@@ -1613,7 +1613,7 @@ undirect_pci_irq(int rirq)
 		printf("Freeing redirected PCI irq %d.\n", rirq);
 
 	/** FIXME: tickle the MB redirector chip */
-	return ???;
+	return -1;
 #else
 	if (bootverbose)
 		printf("Freeing (NOT implemented) redirected PCI irq %d.\n",
