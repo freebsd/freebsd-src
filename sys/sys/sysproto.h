@@ -1061,7 +1061,7 @@ struct kse_thr_interrupt_args {
 	char tmbx_l_[PADL_(struct kse_thr_mailbox *)]; struct kse_thr_mailbox * tmbx; char tmbx_r_[PADR_(struct kse_thr_mailbox *)];
 };
 struct kse_release_args {
-	register_t dummy;
+	char timeout_l_[PADL_(struct timespec *)]; struct timespec * timeout; char timeout_r_[PADR_(struct timespec *)];
 };
 struct __mac_get_proc_args {
 	char mac_p_l_[PADL_(struct mac *)]; struct mac * mac_p; char mac_p_r_[PADR_(struct mac *)];
