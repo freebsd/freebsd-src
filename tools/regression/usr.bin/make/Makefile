@@ -14,6 +14,17 @@ all:
 	@echo 1:${DATA1} 2:${DATA2} 3:${DATA3} 4:${DATA4} 5:${DATA5} | \
 		diff -u ${.CURDIR}/regress.variables.out - || ${MAKE} failure
 	@echo "Test variables detected no regression, output matches."
+	@echo "Running test targets"
+	@${MAKE} double || ${MAKE} failure
+	@echo "Test targets detected no regression."
+
+# Doubly-defined targets.  NetBSD make(1) will warn, ours will silently use the
+# ``right'' one.
+double:
+	@true
+
+double:
+	@false
 
 failure:
 	@echo "Test failed: regression detected.  See above."
