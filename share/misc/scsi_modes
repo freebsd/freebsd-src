@@ -27,13 +27,14 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
-
+#
+# $FreeBSD$
+#
 # The ordering is alphabetical by page name, as it appears in the SCSI spec.
 
 # ALL DEVICE TYPES
 
-# Control mode page:
-0x0a {
+0x0a "Control Mode Page" {
 	{Reserved} *t7
 	{RLEC} t1
 	{Queue Algorithm Modifier} t4
@@ -49,8 +50,7 @@
 	{Ready AEN Holdoff Period} i2
 }
 
-# Disconnect-Reconnect Page:
-0x02	{
+0x02 "Disconnect-Reconnect Page" {
 	{Buffer Full Ratio} i1
 	{Buffer Empty Ratio} i1
 	{Bus Inactivity Limit} i2
@@ -64,8 +64,7 @@
 	{Reserved} *i1
 }
 
-# Peripheral Device Page:
-0x09	{
+0x09 "Peripheral Device Page" {
 	{Interface Identifier} i2
 	{Reserved} *i1
 	{Reserved} *i1
@@ -75,8 +74,7 @@
 
 
 # DIRECT ACCESS DEVICES
-# Caching page:
-0x08 {
+0x08 "Caching Page" {
 	{IC} t1
 	{ABPF} t1
 	{CAP} t1
@@ -93,8 +91,7 @@
 	{Maximum Pre-fetch Ceiling} i2
 }
 
-# Flexible disk page:
-0x05 {
+0x05 "Flexible Disk Page" {
 	{Transfer rate} i2
 	{Number of heads} i1
 	{Sectors per track} i1
@@ -125,8 +122,7 @@
 	{Reserved} *i1
 }
 
-# Format device page:
-0x03 {
+0x03 "Format Device Page" {
 	{Tracks per Zone} i2
 	{Alternate Sectors per Zone} i2
 	{Alternate Tracks per Zone} i2
@@ -143,8 +139,7 @@
 	{Reserved} *t4
 }
 
-# Medium types supported page:
-0x0b	{
+0x0b "Medium Types Supported Page" {
 	{Reserved} *i1
 	{Reserved} *i1
 	{Medium type one supported} i1
@@ -154,9 +149,9 @@
 }
 
 # Notch page (0x0c)
+0x0c "Notch and Partition Page";
 
-#  Read-Write Error Recovery Page
-0x01	{
+0x01 "Read-Write Error Recovery Page" {
 	{AWRE (Auto Write Reallocation Enbld)} t1
 	{ARRE (Auto Read Reallocation Enbld)} t1
 	{TB (Transfer Block)} t1
@@ -175,8 +170,7 @@
 	{Recovery Time Limit} i2
 }
 
-# Rigid Disk Drive Geometry Page
-0x04	{
+0x04 "Rigid Disk Drive Geometry Page" {
 	{Number of Cylinders} i3
 	{Number of Heads} i1
 	{Starting Cylinder-Write Precompensation} i3
@@ -192,8 +186,7 @@
 	{Reserved} *i1
 }
 
-# Verify Error Recovery Page
-0x07	{
+0x07 "Verify Error Recovery Page" {
 	{Reserved} *t4
 	{EER} t1
 	{PER} t1
@@ -209,8 +202,7 @@
 	{Verify Recovery Time Limit} i2
 }
 
-# CD-ROM Audio Control Parameters Page
-0x0E	{
+0x0E "CD-ROM Audio Control Parameters Page" {
 	{Reserved} *t5
 	{Immed} t1
 	{SOTC} t1
@@ -246,7 +238,7 @@
 	{Data Buffer Recovery} t1
 	{Block Identifiers Support} t1
 	{Report Setmarks} t1
-	{AAutomatic Velocity Control} t1
+	{Automatic Velocity Control} t1
 	{Stop on Consecutive Filemarks} t2
 	{Recover Buffer Order} t1
 	{Report Early-Warning} t1
@@ -259,3 +251,5 @@
 	{Select Data Compression Algorithm} i1
 	{Reserved} *i1
 }
+
+0x00 "Vendor-Specific";

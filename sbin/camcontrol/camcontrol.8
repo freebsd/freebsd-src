@@ -87,9 +87,9 @@
 .Ic modepage
 .Op device id
 .Op generic args
-.Aq Fl m Ar page
+.Aq Fl m Ar page \*(Ba Fl l
 .Op Fl P Ar pgctl
-.Op Fl e
+.Op Fl b | Fl e
 .Op Fl d
 .Nm camcontrol
 .Ic cmd
@@ -317,11 +317,23 @@ command takes several arguments:
 .Bl -tag -width 012345678901
 .It Fl d
 Disable block descriptors for mode sense.
+.It Fl b
+Displays mode page data in binary format.
 .It Fl e
-This flag allows the user to edit values in the mode page.
+This flag allows the user to edit values in the mode page.  The user may
+either edit mode page values with the text editor pointed to by his
+.Ev EDITOR
+environment variable, or supply mode page values via standard input, using
+the same format that
+.Nm camcontrol
+uses to display mode page values.  The editor will be invoked if
+.Nm camcontrol
+detects that standard input is terminal.
+.It Fl l
+Lists all available mode pages.
 .It Fl m Ar mode_page
 This specifies the number of the mode page the user would like to view
-and/or edit.  This argument is mandatory.
+and/or edit.  This argument is mandatory unless -l is specified.
 .It Fl P Ar pgctl
 This allows the user to specify the page control field.  Possible values are:
 .Bl -tag -width xxx -compact
