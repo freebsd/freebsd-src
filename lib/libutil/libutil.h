@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file providing the above
  *    conditions are met.
  *
- * $Id: libutil.h,v 1.17 1998/10/07 17:32:49 jkh Exp $
+ * $Id: libutil.h,v 1.18 1998/10/08 23:10:41 jkh Exp $
  */
 
 #ifndef _LIBUTIL_H_
@@ -32,9 +32,6 @@ typedef struct _property {
 	char *name;
 	char *value;
 } *properties;
-
-/* for auth.c */
-#define _PATH_AUTHCONF	"/etc/auth.conf"
 
 /* Avoid pulling in all the include files for no need */
 struct termios;
