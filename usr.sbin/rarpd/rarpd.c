@@ -26,14 +26,14 @@ The Regents of the University of California.  All rights reserved.\n";
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /home/ncvs/src/usr.sbin/rarpd/rarpd.c,v 1.10 1996/11/19 23:57:06 wpaul Exp $ (LBL)";
+    "@(#) $Header: /home/ncvs/src/usr.sbin/rarpd/rarpd.c,v 1.7.2.1 1996/11/23 08:34:58 phk Exp $ (LBL)";
 #endif
 
 /*
  * rarpd - Reverse ARP Daemon
  *
- * Usage:	rarpd -a [ -fv ] [ hostname ]
- *		rarpd [ -fv ] interface [ hostname ]
+ * Usage:	rarpd -a [ -fsv ] [ hostname ]
+ *		rarpd [ -fsv ] interface [ hostname ]
  *
  * 'hostname' is optional solely for backwards compatibility with Sun's rarpd.
  * Currently, the argument is ignored.
@@ -170,6 +170,8 @@ void	usage __P((void));
 
 static	u_char zero[6];
 
+int sflag = 0;			/* ignore /tftpboot */
+
 void
 main(argc, argv)
 	int argc;
@@ -194,7 +196,7 @@ main(argc, argv)
 	openlog(name, LOG_PID | LOG_CONS, LOG_DAEMON);
 
 	opterr = 0;
-	while ((op = getopt(argc, argv, "afv")) != EOF) {
+	while ((op = getopt(argc, argv, "afsv")) != EOF) {
 		switch (op) {
 		case 'a':
 			++aflag;
@@ -202,6 +204,10 @@ main(argc, argv)
 
 		case 'f':
 			++fflag;
+			break;
+
+		case 's':
+			++sflag;
 			break;
 
 		case 'v':
@@ -406,7 +412,7 @@ init(target)
 void
 usage()
 {
-	(void)fprintf(stderr, "usage: rarpd [ -afv ] [ interface ]\n");
+	(void)fprintf(stderr, "usage: rarpd [ -afnv ] [ interface ]\n");
 	exit(1);
 }
 
@@ -508,10 +514,8 @@ rarp_check(p, len)
 	struct ether_arp *ap = (struct ether_arp *)(p + sizeof(*ep));
 
 	if (len < sizeof(*ep) + sizeof(*ap)) {
-		syslog(LOG_ERR, "truncated request");
-#ifdef DEBUG
-		printf ("len: %d expected: %d\n", len, sizeof(*ep) + sizeof(*ap));
-#endif
+		syslog(LOG_ERR, "truncated request, got %d, expected %d",
+				len, sizeof(*ep) + sizeof(*ap));
 		return 0;
 	}
 	/*
@@ -624,7 +628,7 @@ rarp_loop()
 				caplen = bhp->bh_caplen;
 				hdrlen = bhp->bh_hdrlen;
 				if (rarp_check(bp + hdrlen, caplen))
-					rarp_process(ii, bp + hdrlen, cc);
+					rarp_process(ii, bp + hdrlen, caplen);
 				bp += BPF_WORDALIGN(hdrlen + caplen);
 			}
 		}
@@ -709,11 +713,17 @@ rarp_process(ii, pkt, len)
 
 	ep = (struct ether_header *)pkt;
 	/* should this be arp_tha? */
-	if (ether_ntohost(ename, &ep->ether_shost) != 0)
+	if (ether_ntohost(ename, &ep->ether_shost) != 0) {
+		syslog(LOG_ERR, "cannot map %s to name",
+			eatoa(ep->ether_shost));
 		return;
+	}
 
-	  if((hp = gethostbyname(ename)) == NULL)
+	if ((hp = gethostbyname(ename)) == NULL) {
+		syslog(LOG_ERR, "cannot map %s to IP address", ename);
 		return;
+	}
+
 	/*
 	 * Choose correct address from list.
 	 */
@@ -730,7 +740,7 @@ rarp_process(ii, pkt, len)
 		       ename, intoa(ntohl(ii->ii_ipaddr & ii->ii_netmask)));
 		return;
 	}
-	if (rarp_bootable(target_ipaddr))
+	if (sflag || rarp_bootable(target_ipaddr))
 		rarp_reply(ii, ep, target_ipaddr, len);
 	else if (verbose > 1)
 		syslog(LOG_INFO, "%s %s at %s DENIED (not bootable)",
@@ -943,7 +953,7 @@ rarp_reply(ii, ep, ipaddr, len)
 		syslog(LOG_ERR, "write: only %d of %d bytes written", n, len);
 	if (verbose)
 		syslog(LOG_INFO, "%s %s at %s REPLIED", ii->ii_ifname,
-		    eatoa(ap->arp_sha),
+		    eatoa(ap->arp_tha),
 		    intoa(ntohl(ipaddr)));
 }
 

@@ -1,4 +1,4 @@
-.\" @(#) $Header: /home/ncvs/src/usr.sbin/rarpd/rarpd.8,v 1.4 1996/11/19 23:57:05 wpaul Exp $ (LBL)
+.\" @(#) $Header: /home/ncvs/src/usr.sbin/rarpd/rarpd.8,v 1.3.2.1 1996/11/23 08:34:55 phk Exp $ (LBL)
 .\"
 .\" Copyright (c) 1990, 1991, 1993 The Regents of the University of
 .\" California. All rights reserved.
@@ -26,7 +26,7 @@ rarpd \- Reverse ARP Daemon
 .na
 .B rarpd 
 [
-.B \-afv
+.B \-afsv
 ]
 [
 .I interface
@@ -39,21 +39,27 @@ rarpd \- Reverse ARP Daemon
 services Reverse ARP requests on the Ethernet connected to
 .I interface.
 Upon receiving a request, 
-.Irarpd
+.I rarpd
 maps the target hardware address to an IP address via its name, which 
 must be present in both the
 .I ethers(5)
 and 
 .I hosts(5)
 databases.
-If a host does not exist in both databses, the translation cannot
+If a host does not exist in both databases, the translation cannot
 proceed and a reply will not be sent.
 
-Additionally, a request is honored only if the server
+By default, a request is honored only if the server
 (i.e., the host that rarpd is running on)
-can "boot" the target; that is, if the directory 
-/tftpboot/\fIipaddr\fP
-exists, where \fIipaddr\fP is the target IP address.
+can "boot" the target; that is, a file or directory matching the glob
+/tftpboot/\fIipaddr\fP*
+exists, where \fIipaddr\fP is the target IP address in hex.
+For example, the IP address 204.216.27.18 will be replied to if any of
+/tftpboot/CCD81B12, /tftpboot/CCD81B12.SUN3, or /tftpboot/CCD81B12-boot
+exist.
+This requirement can be overridden with the
+.B \-s
+flag (see below).
 
 In normal operation, 
 .I rarpd
@@ -70,6 +76,11 @@ If `-a' is omitted, an interface must be specified.
 .TP
 .B \-f
 Run in the foreground.
+.TP
+.B \-s
+Supply a response to any RARP request for which an ethernet to IP address
+mapping exists; do not depend on the existence of
+/tftpboot/\fIipaddr\fP*.
 .TP
 .B \-v
 Enable verbose sysloging.
@@ -90,3 +101,8 @@ Craig Leres (leres@ee.lbl.gov) and
 Steven McCanne (mccanne@ee.lbl.gov).
 Lawrence Berkeley Laboratory, University of California, Berkeley, CA.
 .SH BUGS
+.I rarpd
+can depend on the DNS to resolve the name discovered from /etc/ethers.
+If this name is not in the DNS but is in /etc/hosts, the DNS lookup
+can cause a delayed RARP response, so in this situation it is reccommended to
+configure /etc/host.conf to read /etc/hosts first.

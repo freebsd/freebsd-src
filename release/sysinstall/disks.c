@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.72 1996/11/07 16:40:10 jkh Exp $
+ * $Id: disks.c,v 1.70.2.3 1996/11/09 21:04:00 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -77,20 +77,15 @@ print_chunks(Disk *d)
 
     for (i = Total = 0; chunk_info[i]; i++)
 	Total += chunk_info[i]->size;
-    if (d->bios_hd <= 1 && d->bios_sect <= 1) {
-	All_FreeBSD(d, TRUE);
-	d->bios_hd = d->bios_sect = d->bios_cyl = 1;
-    }
-    else if (d->bios_cyl > 65536 || d->bios_hd > 256 || d->bios_sect >= 64) {
+    if (d->bios_cyl > 65536 || d->bios_hd > 256 || d->bios_sect >= 64) {
 	dialog_clear_norefresh();
 	msgConfirm("WARNING:  A geometry of %d/%d/%d for %s is incorrect.  Using\n"
-		   "a default geometry of 64 heads and 32 sectors.  If this geometry\n"
-		   "is incorrect or you are unsure as to whether or not it's correct,\n"
-		   "please consult the Hardware Guide in the Documentation submenu\n"
-		   "or use the (G)eometry command to change it now.", d->bios_cyl, d->bios_hd, d->bios_sect, d->name);
-	d->bios_hd = 64;
-	d->bios_sect = 32;
-	d->bios_cyl = Total / ONE_MEG;
+		   "a more likely geometry.  If this geometry is incorrect or you\n"
+		   "are unsure as to whether or not it's correct, please consult\n"
+		   "the Hardware Guide in the Documentation submenu or use the\n"
+		   " (G)eometry command to change it now.",
+	  d->bios_cyl, d->bios_hd, d->bios_sect, d->name);
+	Sanitize_Bios_Geom(d);
     }
     attrset(A_NORMAL);
     mvaddstr(0, 0, "Disk name:\t");
@@ -98,8 +93,9 @@ print_chunks(Disk *d)
     attrset(A_REVERSE); addstr(d->name); attrset(A_NORMAL);
     attrset(A_REVERSE); mvaddstr(0, 55, "FDISK Partition Editor"); attrset(A_NORMAL);
     mvprintw(1, 0,
-	     "DISK Geometry:\t%lu cyls/%lu heads/%lu sectors",
-	     d->bios_cyl, d->bios_hd, d->bios_sect);
+	     "DISK Geometry:\t%lu cyls/%lu heads/%lu sectors = %lu sectors",
+	     d->bios_cyl, d->bios_hd, d->bios_sect,
+	     d->bios_cyl * d->bios_hd * d->bios_sect);
     mvprintw(3, 1, "%10s %10s %10s %8s %8s %8s %8s %8s",
 	     "Offset", "Size", "End", "Name", "PType", "Desc",
 	     "Subtype", "Flags");
@@ -263,8 +259,6 @@ diskPartition(Device *dev, Disk *d)
 	    if (rv == -1)
 		rv = 0;
 	    All_FreeBSD(d, rv);
-	    if (rv)
-		d->bios_hd = d->bios_sect = d->bios_cyl = 1;
 	    variable_set2(DISK_PARTITIONED, "yes");
 	    record_chunks(d);
 	    clear();
@@ -341,9 +335,11 @@ diskPartition(Device *dev, Disk *d)
 			      "Don't forget to use the two slash (/) separator characters!\n"
 			      "It's not possible to parse the field without them.");
 	    if (val) {
-		d->bios_cyl = strtol(val, &val, 0);
-		d->bios_hd = strtol(val + 1, &val, 0);
-		d->bios_sect = strtol(val + 1, 0, 0);
+		long nc, nh, ns;
+		nc = strtol(val, &val, 0);
+		nh = strtol(val + 1, &val, 0);
+		ns = strtol(val + 1, 0, 0);
+		Set_Bios_Geom(d, nc, nh, ns);
 	    }
 	    clear();
 	    break;
