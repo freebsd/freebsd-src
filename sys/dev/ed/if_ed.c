@@ -67,6 +67,8 @@
 #include <dev/ed/if_edreg.h>
 #include <dev/ed/if_edvar.h>
 
+devclass_t ed_devclass;
+
 static void	ed_init		__P((void *));
 static int	ed_ioctl	__P((struct ifnet *, u_long, caddr_t));
 static void	ed_start	__P((struct ifnet *));
