@@ -59,7 +59,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_glue.c,v 1.24 1995/08/28 09:19:22 julian Exp $
+ * $Id: vm_glue.c,v 1.25 1995/09/09 18:10:35 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -200,7 +200,7 @@ vm_fork(p1, p2, isvfork)
 {
 	register struct user *up;
 	vm_offset_t addr, ptaddr;
-	int i;
+	int error, i;
 	struct vm_map *vp;
 
 	while ((cnt.v_free_count + cnt.v_cache_count) < cnt.v_free_min) {
@@ -235,10 +235,14 @@ vm_fork(p1, p2, isvfork)
 
 	/* force in the page table encompassing the UPAGES */
 	ptaddr = trunc_page((u_int) vtopte(addr));
-	vm_map_pageable(vp, ptaddr, ptaddr + NBPG, FALSE);
+	error = vm_map_pageable(vp, ptaddr, ptaddr + NBPG, FALSE);
+	if (error)
+		panic("vm_fork: wire of PT failed. error=%d", error);
 
 	/* and force in (demand-zero) the UPAGES */
-	vm_map_pageable(vp, addr, addr + UPAGES * NBPG, FALSE);
+	error = vm_map_pageable(vp, addr, addr + UPAGES * NBPG, FALSE);
+	if (error)
+		panic("vm_fork: wire of UPAGES failed. error=%d", error);
 
 	/* get a kernel virtual address for the UPAGES for this proc */
 	up = (struct user *) kmem_alloc_pageable(u_map, UPAGES * NBPG);
