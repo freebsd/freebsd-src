@@ -29,7 +29,7 @@
 #define UWX_TRACE_COPYIN	64	/* UWX_TRACE=C: copyin callback */
 #define UWX_TRACE_LOOKUPIP	128	/* UWX_TRACE=L: lookupip callback */
 
-#ifdef DISABLE_TRACE
+#ifndef UWX_TRACE_ENABLE
 
 #define TRACE_INIT
 #define TRACE_B_REUSE(id)
@@ -76,7 +76,7 @@
 #define TRACE_SELF_LOOKUP(ip)
 #define TRACE_SELF_LOOKUP_DESC(text_base, unwind_base)
 
-#else /* not TRACE_DISABLED */
+#else /* !UWX_TRACE_ENABLE */
 
 extern void uwx_trace_init(struct uwx_env *env);
 
@@ -344,5 +344,5 @@ extern void uwx_dump_scoreboard(
 			(unsigned int) ((text_base)+(unwind_base)[2])); \
 	}
 
-#endif /* TRACE_DISABLED */
+#endif /* !UWX_TRACE_ENABLE */
 
