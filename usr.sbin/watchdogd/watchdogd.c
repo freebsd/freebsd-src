@@ -28,24 +28,21 @@
  * Software watchdog daemon.
  */
 
-#include <sys/cdefs.h>                                                          
+#include <sys/types.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
-#include <sys/errno.h>
-#include <sys/sysctl.h>
-#include <sys/time.h>
 #include <sys/rtprio.h>
 #include <sys/stat.h>
+#include <sys/sysctl.h>
+#include <sys/time.h>
 
 #include <err.h>
 #include <paths.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <sysexits.h>
 #include <unistd.h>
-#include <signal.h>
 
 static void	parseargs(int, char *[]);
 static void	sighandler(int);
@@ -82,7 +79,7 @@ main(int argc, char *argv[])
 		err(EX_OSERR, "rtprio");
 
 	if (watchdog_init() == -1)
-		exit(EX_SOFTWARE);
+		errx(EX_SOFTWARE, "unable to initialize watchdog");
 
 	if (watchdog_onoff(1) == -1)
 		exit(EX_SOFTWARE);
@@ -133,8 +130,7 @@ watchdog_init()
 	error = sysctlnametomib("debug.watchdog.reset", reset_mib, 
 		&reset_miblen);
 	if (error == -1) {
-		fprintf(stderr, "Could not find reset OID: %s\n",
-			strerror(errno));
+		warn("could not find reset OID");
 		return (error);
 	}
 	return watchdog_tickle();
@@ -189,9 +185,8 @@ watchdog_onoff(int onoff)
 		error = sysctl(mib, len, NULL, NULL, &onoff, sizeof(onoff));
 
 	if (error == -1) {
-		fprintf(stderr, "Could not %s watchdog: %s\n",
-			(onoff > 0) ? "enable" : "disable",
-			strerror(errno));
+		warn("could not %s watchdog",
+			(onoff > 0) ? "enable" : "disable");
 		return (error);
 	}
 	return (0);
