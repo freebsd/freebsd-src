@@ -17,6 +17,18 @@ NOTE TO PEOPLE WHO THINK THAT 5.0-CURRENT IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20030722:
+	FPU-less support has been removed from FreeBSD.  Chances are you won't
+	notice.  386+387 support should still work after this change, but
+	it is now a minimum requirement for the i386 port that you have real
+	FPU hardware.
+
+20030714:
+	Some people are having problems with changes related to /rescue.
+	If you are building -j N, you will need to define NO_RESCUE.  Others
+	will need to define it if /rescue has issues with their environment.
+	People should report those issues to current@.
+
 20030711:
 	gcc was upgraded to 3.3.  You are advised to not build -DNOCLEAN
 	across this point.  Further, it might be a good idea to remove
