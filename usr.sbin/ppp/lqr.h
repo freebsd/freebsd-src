@@ -15,39 +15,28 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lqr.h,v 1.11 1998/01/11 17:50:42 brian Exp $
+ * $Id: lqr.h,v 1.12.2.6 1998/05/08 01:15:09 brian Exp $
  *
  *	TODO:
  */
 
 /*
- *  Structure of LQR packet defined in RFC1333
+ *  Structure of LQR packet defined in RFC1989
  */
 struct lqrdata {
   u_int32_t MagicNumber;
-  u_int32_t LastOutLQRs;
-  u_int32_t LastOutPackets;
-  u_int32_t LastOutOctets;
-  u_int32_t PeerInLQRs;
-  u_int32_t PeerInPackets;
-  u_int32_t PeerInDiscards;
-  u_int32_t PeerInErrors;
-  u_int32_t PeerInOctets;
-  u_int32_t PeerOutLQRs;
-  u_int32_t PeerOutPackets;
-  u_int32_t PeerOutOctets;
+  u_int32_t LastOutLQRs;	/* most recently received PeerOutLQRs */
+  u_int32_t LastOutPackets;	/* most recently received PeerOutPackets */
+  u_int32_t LastOutOctets;	/* most recently received PeerOutOctets */
+  u_int32_t PeerInLQRs;		/* Peers SaveInLQRs */
+  u_int32_t PeerInPackets;	/* Peers SaveInPackets */
+  u_int32_t PeerInDiscards;	/* Peers SaveInDiscards */
+  u_int32_t PeerInErrors;	/* Peers SaveInErrors */
+  u_int32_t PeerInOctets;	/* Peers SaveInOctets */
+  u_int32_t PeerOutLQRs;	/* Peers OutLQRs (hdlc.h) */
+  u_int32_t PeerOutPackets;	/* Peers OutPackets (hdlc.h) */
+  u_int32_t PeerOutOctets;	/* Peers OutOctets (hdlc.h) */
 };
-
-struct lqrsave {
-  u_int32_t SaveInLQRs;
-  u_int32_t SaveInPackets;
-  u_int32_t SaveInDiscards;
-  u_int32_t SaveInErrors;
-  u_int32_t SaveInOctets;
-};
-
-extern struct lqrdata MyLqrData, HisLqrData;
-extern struct lqrsave HisLqrSave;
 
 /*
  *  We support LQR and ECHO as LQM method
@@ -55,10 +44,16 @@ extern struct lqrsave HisLqrSave;
 #define	LQM_LQR	  1
 #define	LQM_ECHO  2
 
-extern void LqrDump(const char *, const struct lqrdata *);
-extern void LqrChangeOrder(struct lqrdata *, struct lqrdata *);
-extern void StartLqm(void);
-extern void StopLqr(int);
-extern void StopLqrTimer(void);
-extern void RecvEchoLqr(struct mbuf *);
-extern void LqrInput(struct mbuf *);
+struct mbuf;
+struct physical;
+struct lcp;
+struct fsm;
+
+extern void lqr_Dump(const char *, const char *, const struct lqrdata *);
+extern void lqr_ChangeOrder(struct lqrdata *, struct lqrdata *);
+extern void lqr_Start(struct lcp *);
+extern void lqr_reStart(struct lcp *);
+extern void lqr_Stop(struct physical *, int);
+extern void lqr_StopTimer(struct physical *);
+extern void lqr_RecvEcho(struct fsm *, struct mbuf *);
+extern void lqr_Input(struct physical *, struct mbuf *);

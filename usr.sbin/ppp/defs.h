@@ -15,56 +15,46 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: defs.h,v 1.28 1997/11/22 03:37:29 brian Exp $
+ * $Id: defs.h,v 1.29.2.18 1998/05/15 23:58:22 brian Exp $
  *
  *	TODO:
  */
 
-/*
- *  Check following definitions for your machine environment
- */
+/* Check the following definitions for your machine environment */
 #ifdef __FreeBSD__
-# define  MODEM_DEV		"/dev/cuaa1"	/* name of tty device */
-# define  BASE_MODEM_DEV	"cuaa1"		/* name of base tty device */
+# define  MODEM_LIST	"/dev/cuaa1, /dev/cuaa0"	/* name of tty device */
 #else
 # ifdef __OpenBSD__
-#  define MODEM_DEV		"/dev/cua01"	/* name of tty device */
-#  define BASE_MODEM_DEV	"cua01"		/* name of base tty device */
+#  define MODEM_LIST	"/dev/cua01, /dev/cua00"	/* name of tty device */
 # else
-#  define MODEM_DEV		"/dev/tty01"	/* name of tty device */
-#  define BASE_MODEM_DEV	"tty01"		/* name of base tty device */
+#  define MODEM_LIST	"/dev/tty01, /dev/tty00"	/* name of tty device */
 # endif
 #endif
+
+#define _PATH_PPP	"/etc/ppp"
+
+#define TUN_PREFIX	"/dev/tun"	/* tunnel device prefix */
+#define CATPROG		"/bin/cat"	/* Multilink pipe program name */
 
 #define MODEM_SPEED	B38400	/* tty speed */
 #define	SERVER_PORT	3000	/* Base server port no. */
 #define	MODEM_CTSRTS	1	/* Default (true): use CTS/RTS signals */
-#define	RECONNECT_TIMER	3	/* Default timer for carrier loss */
-#define	RECONNECT_TRIES	0	/* Default retries on carrier loss */
-#define	REDIAL_PERIOD	30	/* Default Hold time to redial */
-#define	NEXT_REDIAL_PERIOD 3	/* Default Hold time to next number redial */
+#define	RECONNECT_TIMEOUT 3	/* Default timer for carrier loss */
+#define	DIAL_TIMEOUT	30	/* Default and Max random time to redial */
+#define	DIAL_NEXT_TIMEOUT 3	/* Default Hold time to next number redial */
 #define SCRIPT_LEN 512		/* Size of login scripts */
 #define LINE_LEN SCRIPT_LEN 	/* Size of login scripts */
 #define MAXARGS 40		/* How many args per config line */
+#define NCP_IDLE_TIMEOUT 180		/* Drop all links */
+
+#define LINK_MINWEIGHT 20
+#define DEF_LQRPERIOD 30	/* LQR frequency */
+#define DEF_FSMRETRY 3		/* FSM retry frequency */
 
 #define	CONFFILE 	"ppp.conf"
 #define	LINKUPFILE 	"ppp.linkup"
 #define	LINKDOWNFILE 	"ppp.linkdown"
 #define	SECRETFILE	"ppp.secret"
-
-/*
- *  Definition of working mode
- */
-#define MODE_INTER	1	/* Interactive mode */
-#define MODE_AUTO	2	/* Auto calling mode */
-#define	MODE_DIRECT	4	/* Direct connection mode */
-#define	MODE_DEDICATED	8	/* Dedicated line mode */
-#define	MODE_DDIAL	16	/* Dedicated dialing line mode */
-#define	MODE_ALIAS	32	/* Packet aliasing (masquerading) */
-#define MODE_BACKGROUND 64	/* Background mode. */
-
-#define MODE_DAEMON (2|4|8|16|64)
-#define MODE_OUTGOING_DAEMON (2|8|16|64)
 
 #define	EX_SIG		-1
 #define	EX_NORMAL	0
@@ -81,15 +71,17 @@
 #define EX_NODIAL	12
 #define EX_NOLOGIN	13
 
-extern int mode;
-extern int BGFiledes[2];
-extern int modem;
-extern int tun_in;
-extern int tun_out;
-extern int netfd;
+/* physical::type values (OR'd in bundle::phys_type) */
+#define PHYS_NONE	0
+#define PHYS_MANUAL	1	/* Manual link */
+#define PHYS_DEMAND	2	/* Dial-on-demand link (-auto) */
+#define	PHYS_DIRECT	4	/* Incoming link (-direct) */
+#define	PHYS_DEDICATED	8	/* Dedicated link (-dedicated) */
+#define	PHYS_PERM	16	/* Dial immediately, stay connected (-ddial) */
+#define PHYS_1OFF	32	/* Dial immediately, delete when done. (-background) */
+#define PHYS_ALL	63
 
-extern void SetLabel(const char *);
-extern const char *GetLabel(void);
 extern void randinit(void);
-extern int GetShortHost(void);
-extern void DropClient(int);
+extern ssize_t fullread(int, void *, size_t);
+extern const char *mode2Nam(int);
+extern int Nam2mode(const char *);

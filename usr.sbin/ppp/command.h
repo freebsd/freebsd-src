@@ -15,18 +15,25 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.h,v 1.11 1997/11/13 14:43:15 brian Exp $
+ * $Id: command.h,v 1.12.2.13 1998/05/01 19:24:18 brian Exp $
  *
  *	TODO:
  */
 
 struct cmdtab;
+struct bundle;
+struct datalink;
+struct prompt;
 
 struct cmdargs {
-  struct cmdtab const *cmd;
-  int argc;
-  char const *const *argv;
-  const void *data;
+  struct cmdtab const *cmdtab;		/* The entire command table */
+  struct cmdtab const *cmd;		/* This command entry */
+  int argc;				/* Number of arguments (excluding cmd */
+  int argn;				/* Argument to start processing from */
+  char const *const *argv;		/* Arguments */
+  struct bundle *bundle;		/* Our bundle */
+  struct datalink *cx;			/* Our context */
+  struct prompt *prompt;		/* Who executed us */
 };
 
 struct cmdtab {
@@ -39,24 +46,18 @@ struct cmdtab {
   const void *args;
 };
 
-#define	VAR_AUTHKEY	0
-#define	VAR_DIAL	1
-#define	VAR_LOGIN	2
-#define	VAR_AUTHNAME	3
-#define	VAR_DEVICE	4
-#define	VAR_ACCMAP	5
-#define	VAR_PHONE	6
-#define	VAR_HANGUP	7
-#ifdef HAVE_DES
-#define	VAR_ENC		8
-#endif
+#define NEG_ACCEPTED (1)
+#define NEG_ENABLED (2)
+#define IsAccepted(x) ((x) & NEG_ACCEPTED)
+#define IsEnabled(x) ((x) & NEG_ENABLED)
 
-extern struct in_addr ifnetmask;
-extern int aft_cmd;
+extern const char Version[];
+extern const char VersionDate[];
 
-extern int SetVariable(struct cmdargs const *);
-extern void Prompt(void);
-extern int IsInteractive(int);
-extern void InterpretCommand(char *, int, int *, char ***);
-extern void RunCommand(int, char const *const *, const char *label);
-extern void DecodeCommand(char *, int, const char *label);
+extern void command_Interpret(char *, int, int *, char ***);
+extern void command_Run(struct bundle *, int, char const *const *,
+                        struct prompt *, const char *);
+extern void command_Decode(struct bundle *, char *, int, struct prompt *,
+                           const char *);
+extern struct link *command_ChooseLink(struct cmdargs const *);
+extern const char *command_ShowNegval(unsigned);

@@ -17,26 +17,21 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.55 1998/01/21 02:15:18 brian Exp $
+ * $Id: lcp.c,v 1.55.2.54 1998/05/15 23:58:24 brian Exp $
  *
  * TODO:
- *      o Validate magic number received from peer.
  *	o Limit data field length by MRU
  */
-#include <sys/param.h>
-#include <sys/time.h>
-#include <sys/socket.h>
-#include <net/if.h>
-#include <net/if_tun.h>
+
+#include <sys/types.h>
 #include <netinet/in.h>
-#include <arpa/inet.h>
+#include <netinet/in_systm.h>
+#include <netinet/ip.h>
+#include <sys/un.h>
 
 #include <signal.h>
-#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
-#include <sys/time.h>
 #include <termios.h>
 #include <unistd.h>
 
@@ -46,24 +41,27 @@
 #include "defs.h"
 #include "timer.h"
 #include "fsm.h"
+#include "iplist.h"
 #include "lcp.h"
-#include "ipcp.h"
+#include "throughput.h"
 #include "lcpproto.h"
-#include "os.h"
+#include "descriptor.h"
+#include "lqr.h"
 #include "hdlc.h"
 #include "ccp.h"
-#include "lqr.h"
-#include "phase.h"
-#include "loadalias.h"
-#include "vars.h"
-#include "auth.h"
-#include "pap.h"
-#include "chap.h"
 #include "async.h"
-#include "main.h"
-#include "ip.h"
-#include "modem.h"
-#include "tun.h"
+#include "link.h"
+#include "physical.h"
+#include "prompt.h"
+#include "slcompress.h"
+#include "ipcp.h"
+#include "filter.h"
+#include "mp.h"
+#include "chat.h"
+#include "auth.h"
+#include "chap.h"
+#include "datalink.h"
+#include "bundle.h"
 
 /* for received LQRs */
 struct lqrreq {
@@ -73,17 +71,33 @@ struct lqrreq {
   u_long period;		/* Reporting interval */
 };
 
-struct lcpstate LcpInfo;
-
-static void LcpSendConfigReq(struct fsm *);
-static void LcpSendTerminateReq(struct fsm *);
-static void LcpSendTerminateAck(struct fsm *);
-static void LcpDecodeConfig(u_char *, int, int);
-static void LcpInitRestartCounter(struct fsm *);
-static void LcpLayerUp(struct fsm *);
+static int LcpLayerUp(struct fsm *);
 static void LcpLayerDown(struct fsm *);
 static void LcpLayerStart(struct fsm *);
 static void LcpLayerFinish(struct fsm *);
+static void LcpInitRestartCounter(struct fsm *);
+static void LcpSendConfigReq(struct fsm *);
+static void LcpSentTerminateReq(struct fsm *);
+static void LcpSendTerminateAck(struct fsm *, u_char);
+static void LcpDecodeConfig(struct fsm *, u_char *, int, int,
+                            struct fsm_decode *);
+
+static struct fsm_callbacks lcp_Callbacks = {
+  LcpLayerUp,
+  LcpLayerDown,
+  LcpLayerStart,
+  LcpLayerFinish,
+  LcpInitRestartCounter,
+  LcpSendConfigReq,
+  LcpSentTerminateReq,
+  LcpSendTerminateAck,
+  LcpDecodeConfig,
+  fsm_NullRecvResetReq,
+  fsm_NullRecvResetAck
+};
+
+static const char *lcp_TimerNames[] =
+  {"LCP restart", "LCP openmode", "LCP stopped"};
 
 static const char *cftypes[] = {
   /* Check out the latest ``Assigned numbers'' rfc (rfc1700.txt) */
@@ -104,9 +118,9 @@ static const char *cftypes[] = {
   "CONTIME",	/* 14: Connect-Time */
   "COMPFRAME",	/* 15: Compound-Frames */
   "NDE",	/* 16: Nominal-Data-Encapsulation */
-  "MULTIMRRU",	/* 17: Multilink-MRRU */
-  "MULTISSNH",	/* 18: Multilink-Short-Sequence-Number-Header */
-  "MULTIED",	/* 19: Multilink-Endpoint-Descriminator */
+  "MRRU",	/* 17: Multilink-MRRU */
+  "SHORTSEQ",	/* 18: Multilink-Short-Sequence-Number-Header */
+  "ENDDISC",	/* 19: Multilink-Endpoint-Descriminator */
   "PROPRIETRY",	/* 20: Proprietary */
   "DCEID",	/* 21: DCE-Identifier */
   "MULTIPP",	/* 22: Multi-Link-Plus-Procedure */
@@ -115,380 +129,315 @@ static const char *cftypes[] = {
 
 #define NCFTYPES (sizeof cftypes/sizeof cftypes[0])
 
-struct fsm LcpFsm = {
-  "LCP",			/* Name of protocol */
-  PROTO_LCP,			/* Protocol Number */
-  LCP_MAXCODE,
-  1,				/* Open mode delay */
-  ST_INITIAL,			/* State of machine */
-  0, 0, 0,
-  {0, 0, 0, NULL, NULL, NULL},	/* FSM timer */
-  {0, 0, 0, NULL, NULL, NULL},	/* Open timer */
-  {0, 0, 0, NULL, NULL, NULL},	/* Stopped timer */
-  LogLCP,
-
-  LcpLayerUp,
-  LcpLayerDown,
-  LcpLayerStart,
-  LcpLayerFinish,
-  LcpInitRestartCounter,
-  LcpSendConfigReq,
-  LcpSendTerminateReq,
-  LcpSendTerminateAck,
-  LcpDecodeConfig,
-};
-
-static struct pppTimer LcpReportTimer;
-static int LcpFailedMagic;
-
-static void
-LcpReportTime(void *data)
-{
-  if (LogIsKept(LogDEBUG)) {
-    time_t t;
-
-    time(&t);
-    LogPrintf(LogDEBUG, "LcpReportTime: %s\n", ctime(&t));
-  }
-  StopTimer(&LcpReportTimer);
-  LcpReportTimer.state = TIMER_STOPPED;
-  StartTimer(&LcpReportTimer);
-  HdlcErrorCheck();
-}
-
 int
-ReportLcpStatus(struct cmdargs const *arg)
+lcp_ReportStatus(struct cmdargs const *arg)
 {
-  struct lcpstate *lcp = &LcpInfo;
-  struct fsm *fp = &LcpFsm;
+  struct link *l;
+  struct lcp *lcp;
 
-  if (!VarTerm)
-    return 1;
+  if (!(l = command_ChooseLink(arg)))
+    return -1;
+  lcp = &l->lcp;
 
-  fprintf(VarTerm, "%s [%s]\n", fp->name, StateNames[fp->state]);
-  fprintf(VarTerm,
-	  " his side: MRU %d, ACCMAP %08lx, PROTOCOMP %d, ACFCOMP %d,\n"
-	  "           MAGIC %08lx, REJECT %04x\n",
-	  lcp->his_mru, (u_long)lcp->his_accmap, lcp->his_protocomp,
-          lcp->his_acfcomp, (u_long)lcp->his_magic, lcp->his_reject);
-  fprintf(VarTerm,
-	  " my  side: MRU %d, ACCMAP %08lx, PROTOCOMP %d, ACFCOMP %d,\n"
-          "           MAGIC %08lx, REJECT %04x\n",
-          lcp->want_mru, (u_long)lcp->want_accmap, lcp->want_protocomp,
-          lcp->want_acfcomp, (u_long)lcp->want_magic, lcp->my_reject);
-  fprintf(VarTerm, "\nDefaults:   MRU = %d, ACCMAP = %08lx\t",
-          VarMRU, (u_long)VarAccmap);
-  fprintf(VarTerm, "Open Mode: %s",
-          (VarOpenMode == OPEN_PASSIVE) ? "passive" : "active");
-  if (VarOpenMode > 0)
-    fprintf(VarTerm, " (delay %d)", VarOpenMode);
-  fputc('\n', VarTerm);
+  prompt_Printf(arg->prompt, "%s: %s [%s]\n", l->name, lcp->fsm.name,
+                State2Nam(lcp->fsm.state));
+  prompt_Printf(arg->prompt,
+	        " his side: MRU %d, ACCMAP %08lx, PROTOCOMP %s, ACFCOMP %s,\n"
+	        "           MAGIC %08lx, MRRU %u, SHORTSEQ %s, REJECT %04x\n",
+	        lcp->his_mru, (u_long)lcp->his_accmap,
+                lcp->his_protocomp ? "on" : "off",
+                lcp->his_acfcomp ? "on" : "off",
+                (u_long)lcp->his_magic, lcp->his_mrru,
+                lcp->his_shortseq ? "on" : "off", lcp->his_reject);
+  prompt_Printf(arg->prompt,
+	        " my  side: MRU %d, ACCMAP %08lx, PROTOCOMP %s, ACFCOMP %s,\n"
+                "           MAGIC %08lx, MRRU %u, SHORTSEQ %s, REJECT %04x\n",
+                lcp->want_mru, (u_long)lcp->want_accmap,
+                lcp->want_protocomp ? "on" : "off",
+                lcp->want_acfcomp ? "on" : "off",
+                (u_long)lcp->want_magic, lcp->want_mrru,
+                lcp->want_shortseq ? "on" : "off", lcp->my_reject);
+
+  prompt_Printf(arg->prompt, "\n Defaults: MRU = %d, ", lcp->cfg.mru);
+  prompt_Printf(arg->prompt, "ACCMAP = %08lx\n", (u_long)lcp->cfg.accmap);
+  prompt_Printf(arg->prompt, "           LQR period = %us, ",
+                lcp->cfg.lqrperiod);
+  prompt_Printf(arg->prompt, "Open Mode = %s",
+                lcp->cfg.openmode == OPEN_PASSIVE ? "passive" : "active");
+  if (lcp->cfg.openmode > 0)
+    prompt_Printf(arg->prompt, " (delay %ds)", lcp->cfg.openmode);
+  prompt_Printf(arg->prompt, "\n           FSM retry = %us\n",
+                lcp->cfg.fsmretry);
+  prompt_Printf(arg->prompt, "\n Negotiation:\n");
+  prompt_Printf(arg->prompt, "           ACFCOMP =   %s\n",
+                command_ShowNegval(lcp->cfg.acfcomp));
+  prompt_Printf(arg->prompt, "           CHAP =      %s\n",
+                command_ShowNegval(lcp->cfg.chap));
+  prompt_Printf(arg->prompt, "           LQR =       %s\n",
+                command_ShowNegval(lcp->cfg.lqr));
+  prompt_Printf(arg->prompt, "           PAP =       %s\n",
+                command_ShowNegval(lcp->cfg.pap));
+  prompt_Printf(arg->prompt, "           PROTOCOMP = %s\n",
+                command_ShowNegval(lcp->cfg.protocomp));
+
   return 0;
 }
 
-/*
- * Generate random number which will be used as magic number.
- */
 static u_int32_t
 GenerateMagic(void)
 {
+  /* Generate random number which will be used as magic number */
   randinit();
-  return (random());
+  return random();
 }
 
 void
-LcpInit()
+lcp_SetupCallbacks(struct lcp *lcp)
 {
-  struct lcpstate *lcp = &LcpInfo;
+  lcp->fsm.fn = &lcp_Callbacks;
+  lcp->fsm.FsmTimer.name = lcp_TimerNames[0];
+  lcp->fsm.OpenTimer.name = lcp_TimerNames[1];
+  lcp->fsm.StoppedTimer.name = lcp_TimerNames[2];
+}
 
-  FsmInit(&LcpFsm);
-  HdlcInit();
+void
+lcp_Init(struct lcp *lcp, struct bundle *bundle, struct link *l,
+         const struct fsm_parent *parent)
+{
+  /* Initialise ourselves */
+  int mincode = parent ? 1 : LCP_MINMPCODE;
 
-  memset(lcp, '\0', sizeof(struct lcpstate));
-  lcp->want_mru = VarMRU;
+  fsm_Init(&lcp->fsm, "LCP", PROTO_LCP, mincode, LCP_MAXCODE, 10, LogLCP,
+           bundle, l, parent, &lcp_Callbacks, lcp_TimerNames);
+
+  lcp->cfg.mru = DEF_MRU;
+  lcp->cfg.accmap = 0;
+  lcp->cfg.openmode = 1;
+  lcp->cfg.lqrperiod = DEF_LQRPERIOD;
+  lcp->cfg.fsmretry = DEF_FSMRETRY;
+
+  lcp->cfg.acfcomp = NEG_ENABLED|NEG_ACCEPTED;
+  lcp->cfg.chap = NEG_ACCEPTED;
+  lcp->cfg.lqr = NEG_ACCEPTED;
+  lcp->cfg.pap = NEG_ACCEPTED;
+  lcp->cfg.protocomp = NEG_ENABLED|NEG_ACCEPTED;
+
+  lcp_Setup(lcp, lcp->cfg.openmode);
+}
+
+void
+lcp_Setup(struct lcp *lcp, int openmode)
+{
+  lcp->fsm.open_mode = openmode;
+  lcp->fsm.maxconfig = 10;
+
   lcp->his_mru = DEF_MRU;
-  lcp->his_accmap = 0xffffffff;
-  lcp->want_accmap = VarAccmap;
-  lcp->want_magic = GenerateMagic();
-  lcp->want_auth = lcp->his_auth = 0;
-  if (Enabled(ConfChap))
-    lcp->want_auth = PROTO_CHAP;
-  else if (Enabled(ConfPap))
-    lcp->want_auth = PROTO_PAP;
-  if (Enabled(ConfLqr))
-    lcp->want_lqrperiod = VarLqrTimeout * 100;
-  if (Enabled(ConfAcfcomp))
-    lcp->want_acfcomp = 1;
-  if (Enabled(ConfProtocomp))
-    lcp->want_protocomp = 1;
-  LcpFsm.maxconfig = 10;
+  lcp->his_mrru = 0;
+  lcp->his_magic = 0;
+  lcp->his_lqrperiod = 0;
+  lcp->his_acfcomp = 0;
+  lcp->his_auth = 0;
+  lcp->his_shortseq = 0;
+
+  lcp->want_mru = lcp->cfg.mru;
+  lcp->want_mrru = lcp->fsm.bundle->ncp.mp.cfg.mrru;
+  lcp->want_shortseq = IsEnabled(lcp->fsm.bundle->ncp.mp.cfg.shortseq) ? 1 : 0;
+  lcp->want_acfcomp = IsEnabled(lcp->cfg.acfcomp) ? 1 : 0;
+
+  if (lcp->fsm.parent) {
+    lcp->his_accmap = 0xffffffff;
+    lcp->want_accmap = lcp->cfg.accmap;
+    lcp->his_protocomp = 0;
+    lcp->want_protocomp = IsEnabled(lcp->cfg.protocomp) ? 1 : 0;
+    lcp->want_magic = GenerateMagic();
+    lcp->want_auth = IsEnabled(lcp->cfg.chap) ? PROTO_CHAP :
+                     IsEnabled(lcp->cfg.pap) ?  PROTO_PAP : 0;
+    lcp->want_lqrperiod = IsEnabled(lcp->cfg.lqr) ?
+                          lcp->cfg.lqrperiod * 100 : 0;
+  } else {
+    lcp->his_accmap = lcp->want_accmap = 0;
+    lcp->his_protocomp = lcp->want_protocomp = 1;
+    lcp->want_magic = 0;
+    lcp->want_auth = 0;
+    lcp->want_lqrperiod = 0;
+  }
+
+  lcp->his_reject = lcp->my_reject = 0;
+  lcp->auth_iwait = lcp->auth_ineed = 0;
+  lcp->LcpFailedMagic = 0;
 }
 
 static void
 LcpInitRestartCounter(struct fsm * fp)
 {
-  fp->FsmTimer.load = VarRetryTimeout * SECTICKS;
+  /* Set fsm timer load */
+  struct lcp *lcp = fsm2lcp(fp);
+
+  fp->FsmTimer.load = lcp->cfg.fsmretry * SECTICKS;
   fp->restart = 5;
 }
 
-int
-LcpPutConf(int log, u_char *tgt, const struct lcp_opt *o, const char *nm,
-           const char *arg, ...)
-{
-  va_list ap;
-  char buf[30];
-
-  va_start(ap, arg);
-  memcpy(tgt, o, o->len);
-  if (arg == NULL || *arg == '\0')
-    LogPrintf(log, " %s[%d]\n", nm, o->len);
-  else {
-    vsnprintf(buf, sizeof buf, arg, ap);
-    LogPrintf(log, " %s[%d] %s\n", nm, o->len, buf);
-  }
-  va_end(ap);
-
-  return o->len;
-}
-
-#define PUTN(ty)						\
-do {								\
-  o.id = ty;							\
-  o.len = 2;							\
-  cp += LcpPutConf(LogLCP, cp, &o, cftypes[o.id], NULL);	\
-} while (0)
-
-#define PUTHEX32(ty, arg)					\
-do {								\
-  o.id = ty;							\
-  o.len = 6;							\
-  *(u_long *)o.data = htonl(arg);				\
-  cp += LcpPutConf(LogLCP, cp, &o, cftypes[o.id], "0x%08lx", (u_long)arg);\
-} while (0)
-
-#define PUTACCMAP(arg) PUTHEX32(TY_ACCMAP, arg)
-#define PUTMAGIC(arg) PUTHEX32(TY_MAGICNUM, arg)
-
-#define PUTMRU(arg)						\
-do {								\
-  o.id = TY_MRU;						\
-  o.len = 4;							\
-  *(u_short *)o.data = htons(arg);				\
-  cp += LcpPutConf(LogLCP, cp, &o, cftypes[o.id], "%u", arg);	\
-} while (0)
-
-#define PUTLQR(period)						\
-do {								\
-  o.id = TY_QUALPROTO;						\
-  o.len = 8;							\
-  *(u_short *)o.data = htons(PROTO_LQR);			\
-  *(u_long *)(o.data+2) = htonl(period);			\
-  cp += LcpPutConf(LogLCP, cp, &o, cftypes[o.id],		\
-                   "period %ld", (u_long)period);		\
-} while (0)
-
-#define PUTPAP()						\
-do {								\
-  o.id = TY_AUTHPROTO;						\
-  o.len = 4;							\
-  *(u_short *)o.data = htons(PROTO_PAP);			\
-  cp += LcpPutConf(LogLCP, cp, &o, cftypes[o.id],		\
-		   "0x%04x (PAP)", PROTO_PAP);			\
-} while (0)
-  
-#define PUTCHAP(val)						\
-do {								\
-  o.id = TY_AUTHPROTO;						\
-  o.len = 5;							\
-  *(u_short *)o.data = htons(PROTO_CHAP);			\
-  o.data[2] = val;						\
-  cp += LcpPutConf(LogLCP, cp, &o, cftypes[o.id],		\
-		   "0x%04x (CHAP 0x%02x)", PROTO_CHAP, val);	\
-} while (0)
-
-#define PUTMD5CHAP() PUTCHAP(0x05)
-#define PUTMSCHAP()  PUTCHAP(0x80)
-  
 static void
-LcpSendConfigReq(struct fsm * fp)
+LcpSendConfigReq(struct fsm *fp)
 {
-  u_char *cp;
-  struct lcpstate *lcp = &LcpInfo;
-  struct lcp_opt o;
+  /* Send config REQ please */
+  struct physical *p = link2physical(fp->link);
+  struct lcp *lcp = fsm2lcp(fp);
+  u_char buff[200];
+  struct lcp_opt *o;
+  struct mp *mp;
 
-  LogPrintf(LogLCP, "LcpSendConfigReq\n");
-  cp = ReqBuff;
-  if (!DEV_IS_SYNC) {
+  if (!p) {
+    log_Printf(LogERROR, "%s: LcpSendConfigReq: Not a physical link !\n",
+              fp->link->name);
+    return;
+  }
+
+  o = (struct lcp_opt *)buff;
+  if (!physical_IsSync(p)) {
     if (lcp->want_acfcomp && !REJECTED(lcp, TY_ACFCOMP))
-      PUTN(TY_ACFCOMP);
+      INC_LCP_OPT(TY_ACFCOMP, 2, o);
 
     if (lcp->want_protocomp && !REJECTED(lcp, TY_PROTOCOMP))
-      PUTN(TY_PROTOCOMP);
+      INC_LCP_OPT(TY_PROTOCOMP, 2, o);
 
-    if (!REJECTED(lcp, TY_ACCMAP))
-      PUTACCMAP(lcp->want_accmap);
+    if (!REJECTED(lcp, TY_ACCMAP)) {
+      *(u_int32_t *)o->data = htonl(lcp->want_accmap);
+      INC_LCP_OPT(TY_ACCMAP, 6, o);
+    }
   }
 
-  if (!REJECTED(lcp, TY_MRU))
-    PUTMRU(lcp->want_mru);
+  if (!REJECTED(lcp, TY_MRU)) {
+    *(u_short *)o->data = htons(lcp->want_mru);
+    INC_LCP_OPT(TY_MRU, 4, o);
+  }
 
-  if (lcp->want_magic && !REJECTED(lcp, TY_MAGICNUM))
-    PUTMAGIC(lcp->want_magic);
+  if (lcp->want_magic && !REJECTED(lcp, TY_MAGICNUM)) {
+    *(u_int32_t *)o->data = htonl(lcp->want_magic);
+    INC_LCP_OPT(TY_MAGICNUM, 6, o);
+  }
 
-  if (lcp->want_lqrperiod && !REJECTED(lcp, TY_QUALPROTO))
-    PUTLQR(lcp->want_lqrperiod);
+  if (lcp->want_lqrperiod && !REJECTED(lcp, TY_QUALPROTO)) {
+    *(u_short *)o->data = htons(PROTO_LQR);
+    *(u_long *)(o->data + 2) = htonl(lcp->want_lqrperiod);
+    INC_LCP_OPT(TY_QUALPROTO, 8, o);
+  }
 
   switch (lcp->want_auth) {
   case PROTO_PAP:
-    PUTPAP();
+    *(u_short *)o->data = htons(PROTO_PAP);
+    INC_LCP_OPT(TY_AUTHPROTO, 4, o);
     break;
 
   case PROTO_CHAP:
-#ifdef HAVE_DES
-    if (VarMSChap)
-      PUTMSCHAP();			/* Use MSChap */
-    else
-#endif
-      PUTMD5CHAP();			/* Use MD5 */
+    *(u_short *)o->data = htons(PROTO_CHAP);
+    o->data[2] = 0x05;
+    INC_LCP_OPT(TY_AUTHPROTO, 5, o);
     break;
   }
-  FsmOutput(fp, CODE_CONFIGREQ, fp->reqid++, ReqBuff, cp - ReqBuff);
+
+  if (lcp->want_mrru && !REJECTED(lcp, TY_MRRU)) {
+    *(u_short *)o->data = htons(lcp->want_mrru);
+    INC_LCP_OPT(TY_MRRU, 4, o);
+
+    if (lcp->want_shortseq && !REJECTED(lcp, TY_SHORTSEQ))
+      INC_LCP_OPT(TY_SHORTSEQ, 2, o);
+  }
+
+  mp = &lcp->fsm.bundle->ncp.mp;
+  if (mp->cfg.enddisc.class != 0 && !REJECTED(lcp, TY_ENDDISC)) {
+    *o->data = mp->cfg.enddisc.class;
+    memcpy(o->data+1, mp->cfg.enddisc.address, mp->cfg.enddisc.len);
+    INC_LCP_OPT(TY_ENDDISC, mp->cfg.enddisc.len + 3, o);
+  }
+
+  fsm_Output(fp, CODE_CONFIGREQ, fp->reqid, buff, (u_char *)o - buff);
 }
 
 void
-LcpSendProtoRej(u_char * option, int count)
+lcp_SendProtoRej(struct lcp *lcp, u_char *option, int count)
 {
-  struct fsm *fp = &LcpFsm;
-
-  LogPrintf(LogLCP, "LcpSendProtoRej\n");
-  FsmOutput(fp, CODE_PROTOREJ, fp->reqid, option, count);
+  /* Don't understand `option' */
+  fsm_Output(&lcp->fsm, CODE_PROTOREJ, lcp->fsm.reqid, option, count);
 }
 
 static void
-LcpSendTerminateReq(struct fsm * fp)
+LcpSentTerminateReq(struct fsm * fp)
 {
-  /* Most thins are done in fsm layer. Nothing to to. */
+  /* Term REQ just sent by FSM */
 }
 
 static void
-LcpSendTerminateAck(struct fsm * fp)
+LcpSendTerminateAck(struct fsm *fp, u_char id)
 {
-  LogPrintf(LogLCP, "LcpSendTerminateAck.\n");
-  FsmOutput(fp, CODE_TERMACK, fp->reqid++, NULL, 0);
+  /* Send Term ACK please */
+  fsm_Output(fp, CODE_TERMACK, id, NULL, 0);
 }
 
 static void
-LcpLayerStart(struct fsm * fp)
+LcpLayerStart(struct fsm *fp)
 {
-  LogPrintf(LogLCP, "LcpLayerStart\n");
-  NewPhase(PHASE_ESTABLISH);
+  /* We're about to start up ! */
+  struct lcp *lcp = fsm2lcp(fp);
+
+  log_Printf(LogLCP, "%s: LcpLayerStart\n", fp->link->name);
+  lcp->LcpFailedMagic = 0;
 }
 
 static void
-StopAllTimers(void)
+LcpLayerFinish(struct fsm *fp)
 {
-  StopTimer(&LcpReportTimer);
-  StopIdleTimer();
-  StopTimer(&AuthPapInfo.authtimer);
-  StopTimer(&AuthChapInfo.authtimer);
-  StopLqrTimer();
+  /* We're now down */
+  log_Printf(LogLCP, "%s: LcpLayerFinish\n", fp->link->name);
+}
+
+static int
+LcpLayerUp(struct fsm *fp)
+{
+  /* We're now up */
+  struct physical *p = link2physical(fp->link);
+  struct lcp *lcp = fsm2lcp(fp);
+
+  log_Printf(LogLCP, "%s: LcpLayerUp\n", fp->link->name);
+  async_SetLinkParams(&p->async, lcp);
+  lqr_Start(lcp);
+  hdlc_StartTimer(&p->hdlc);
+  return 1;
 }
 
 static void
-LcpLayerFinish(struct fsm * fp)
+LcpLayerDown(struct fsm *fp)
 {
-  LogPrintf(LogLCP, "LcpLayerFinish\n");
-  HangupModem(0);
-  StopAllTimers();
-  /* We're down at last.  Lets tell background and direct mode to get out */
-  NewPhase(PHASE_DEAD);
-  LcpInit();
-  IpcpInit();
-  CcpInit();
-  Prompt();
+  /* About to come down */
+  struct physical *p = link2physical(fp->link);
+
+  log_Printf(LogLCP, "%s: LcpLayerDown\n", fp->link->name);
+  hdlc_StopTimer(&p->hdlc);
+  lqr_StopTimer(p);
 }
 
 static void
-LcpLayerUp(struct fsm * fp)
+LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
+                struct fsm_decode *dec)
 {
-  LogPrintf(LogLCP, "LcpLayerUp\n");
-  tun_configure(LcpInfo.his_mru, ModemSpeed());
-  SetLinkParams(&LcpInfo);
-
-  NewPhase(PHASE_AUTHENTICATE);
-
-  StartLqm();
-  StopTimer(&LcpReportTimer);
-  LcpReportTimer.state = TIMER_STOPPED;
-  LcpReportTimer.load = 60 * SECTICKS;
-  LcpReportTimer.func = LcpReportTime;
-  StartTimer(&LcpReportTimer);
-}
-
-static void
-LcpLayerDown(struct fsm * fp)
-{
-  StopAllTimers();
-  OsLinkdown();
-  LogPrintf(LogLCP, "LcpLayerDown\n");
-  /*
-   * OsLinkdown() brings CCP & IPCP down, then waits 'till we go from
-   * STOPPING to STOPPED.  At this point, the FSM gives us a LayerFinish
-   */
-}
-
-void
-LcpUp()
-{
-  FsmUp(&LcpFsm);
-  LcpFailedMagic = 0;
-}
-
-void
-LcpDown()
-{				/* Sudden death */
-  LcpFailedMagic = 0;
-  FsmDown(&LcpFsm);
-  /* FsmDown() results in a LcpLayerDown() if we're currently open. */
-  LcpLayerFinish(&LcpFsm);
-}
-
-void
-LcpOpen(int open_mode)
-{
-  LcpFsm.open_mode = open_mode;
-  LcpFailedMagic = 0;
-  FsmOpen(&LcpFsm);
-}
-
-void
-LcpClose()
-{
-  NewPhase(PHASE_TERMINATE);
-  OsInterfaceDown(0);
-  FsmClose(&LcpFsm);
-  LcpFailedMagic = 0;
-}
-
-/*
- *	XXX: Should validate option length
- */
-static void
-LcpDecodeConfig(u_char *cp, int plen, int mode_type)
-{
+  /* Deal with incoming PROTO_LCP */
+  struct lcp *lcp = fsm2lcp(fp);
   int type, length, sz, pos;
-  u_int32_t *lp, magic, accmap;
+  u_int32_t magic, accmap;
   u_short mtu, mru, *sp, proto;
   struct lqrreq *req;
   char request[20], desc[22];
-
-  ackp = AckBuff;
-  nakp = NakBuff;
-  rejp = RejBuff;
+  struct mp *mp;
+  struct physical *p = link2physical(fp->link);
 
   while (plen >= sizeof(struct fsmconfig)) {
     type = *cp;
     length = cp[1];
+
+    if (length == 0) {
+      log_Printf(LogLCP, "%s: LCP size zero\n", fp->link->name);
+      break;
+    }
 
     if (type < 0 || type >= NCFTYPES)
       snprintf(request, sizeof request, " <%d>[%d]", type, length);
@@ -496,56 +445,106 @@ LcpDecodeConfig(u_char *cp, int plen, int mode_type)
       snprintf(request, sizeof request, " %s[%d]", cftypes[type], length);
 
     switch (type) {
-    case TY_MRU:
-      sp = (u_short *) (cp + 2);
+    case TY_MRRU:
+      mp = &lcp->fsm.bundle->ncp.mp;
+      sp = (u_short *)(cp + 2);
       mru = htons(*sp);
-      LogPrintf(LogLCP, "%s %d\n", request, mru);
+      log_Printf(LogLCP, "%s %u\n", request, mru);
 
       switch (mode_type) {
       case MODE_REQ:
-        mtu = VarPrefMTU;
-        if (mtu == 0)
-          mtu = MAX_MTU;
-	if (mru > mtu) {
-	  *sp = htons(mtu);
-	  memcpy(nakp, cp, 4);
-	  nakp += 4;
-	} else if (mru < MIN_MRU) {
-	  *sp = htons(MIN_MRU);
-	  memcpy(nakp, cp, 4);
-	  nakp += 4;
-	} else {
-	  LcpInfo.his_mru = mru;
-	  memcpy(ackp, cp, 4);
-	  ackp += 4;
-	}
+        if (mp->cfg.mrru) {
+          if (REJECTED(lcp, TY_MRRU))
+            /* Ignore his previous reject so that we REQ next time */
+	    lcp->his_reject &= ~(1 << type);
+
+          mtu = lcp->fsm.bundle->cfg.mtu;
+          if (mru < MIN_MRU || mru < mtu) {
+            /* Push him up to MTU or MIN_MRU */
+            lcp->his_mrru = mru < mtu ? mtu : MIN_MRU;
+	    *sp = htons((u_short)lcp->his_mrru);
+	    memcpy(dec->nakend, cp, 4);
+	    dec->nakend += 4;
+	  } else {
+            lcp->his_mrru = mtu ? mtu : mru;
+	    memcpy(dec->ackend, cp, 4);
+	    dec->ackend += 4;
+	  }
+	  break;
+        } else
+	  goto reqreject;
+        break;
+      case MODE_NAK:
+        if (mp->cfg.mrru) {
+          if (REJECTED(lcp, TY_MRRU))
+            /* Must have changed his mind ! */
+	    lcp->his_reject &= ~(1 << type);
+
+          if (mru > MAX_MRU)
+            lcp->want_mrru = MAX_MRU;
+          else if (mru < MIN_MRU)
+            lcp->want_mrru = MIN_MRU;
+          else
+            lcp->want_mrru = mru;
+        }
+        /* else we honour our config and don't send the suggested REQ */
+        break;
+      case MODE_REJ:
+	lcp->his_reject |= (1 << type);
+        lcp->want_mrru = 0;		/* Ah well, no multilink :-( */
+	break;
+      }
+      break;
+
+    case TY_MRU:
+      sp = (u_short *) (cp + 2);
+      mru = htons(*sp);
+      log_Printf(LogLCP, "%s %d\n", request, mru);
+
+      switch (mode_type) {
+      case MODE_REQ:
+        mtu = lcp->fsm.bundle->cfg.mtu;
+        if (mru < MIN_MRU || (!lcp->want_mrru && mru < mtu)) {
+          /* Push him up to MTU or MIN_MRU */
+          lcp->his_mru = mru < mtu ? mtu : MIN_MRU;
+          *sp = htons((u_short)lcp->his_mru);
+          memcpy(dec->nakend, cp, 4);
+          dec->nakend += 4;
+        } else {
+          lcp->his_mru = mtu ? mtu : mru;
+          memcpy(dec->ackend, cp, 4);
+          dec->ackend += 4;
+        }
 	break;
       case MODE_NAK:
-	if (mru >= MIN_MRU || mru <= MAX_MRU)
-	  LcpInfo.want_mru = mru;
+        if (mru > MAX_MRU)
+          lcp->want_mru = MAX_MRU;
+        else if (mru < MIN_MRU)
+          lcp->want_mru = MIN_MRU;
+        else
+          lcp->want_mru = mru;
 	break;
       case MODE_REJ:
-	LcpInfo.his_reject |= (1 << type);
+	lcp->his_reject |= (1 << type);
 	break;
       }
       break;
 
     case TY_ACCMAP:
-      lp = (u_int32_t *) (cp + 2);
-      accmap = htonl(*lp);
-      LogPrintf(LogLCP, "%s 0x%08lx\n", request, (u_long)accmap);
+      accmap = htonl(*(u_int32_t *)(cp + 2));
+      log_Printf(LogLCP, "%s 0x%08lx\n", request, (u_long)accmap);
 
       switch (mode_type) {
       case MODE_REQ:
-	LcpInfo.his_accmap = accmap;
-	memcpy(ackp, cp, 6);
-	ackp += 6;
+	lcp->his_accmap = accmap;
+	memcpy(dec->ackend, cp, 6);
+	dec->ackend += 6;
 	break;
       case MODE_NAK:
-	LcpInfo.want_accmap = accmap;
+	lcp->want_accmap = accmap;
 	break;
       case MODE_REJ:
-	LcpInfo.his_reject |= (1 << type);
+	lcp->his_reject |= (1 << type);
 	break;
       }
       break;
@@ -555,13 +554,13 @@ LcpDecodeConfig(u_char *cp, int plen, int mode_type)
       proto = ntohs(*sp);
       switch (proto) {
       case PROTO_PAP:
-        LogPrintf(LogLCP, "%s 0x%04x (PAP)\n", request, proto);
+        log_Printf(LogLCP, "%s 0x%04x (PAP)\n", request, proto);
         break;
       case PROTO_CHAP:
-        LogPrintf(LogLCP, "%s 0x%04x (CHAP 0x%02x)\n", request, proto, cp[4]);
+        log_Printf(LogLCP, "%s 0x%04x (CHAP 0x%02x)\n", request, proto, cp[4]);
         break;
       default:
-        LogPrintf(LogLCP, "%s 0x%04x\n", request, proto);
+        log_Printf(LogLCP, "%s 0x%04x\n", request, proto);
         break;
       }
 
@@ -570,220 +569,209 @@ LcpDecodeConfig(u_char *cp, int plen, int mode_type)
 	switch (proto) {
 	case PROTO_PAP:
 	  if (length != 4) {
-	    LogPrintf(LogLCP, " Bad length!\n");
+	    log_Printf(LogLCP, " Bad length!\n");
 	    goto reqreject;
 	  }
-	  if (Acceptable(ConfPap)) {
-	    LcpInfo.his_auth = proto;
-	    memcpy(ackp, cp, length);
-	    ackp += length;
-	  } else if (Acceptable(ConfChap)) {
-	    *nakp++ = *cp;
-	    *nakp++ = 5;
-	    *nakp++ = (unsigned char) (PROTO_CHAP >> 8);
-	    *nakp++ = (unsigned char) PROTO_CHAP;
-#ifdef HAVE_DES
-            if (VarMSChap)
-              *nakp++ = 0x80;
-            else
-#endif
-	      *nakp++ = 5;
+	  if (IsAccepted(lcp->cfg.pap)) {
+	    lcp->his_auth = proto;
+	    memcpy(dec->ackend, cp, length);
+	    dec->ackend += length;
+	  } else if (IsAccepted(lcp->cfg.chap)) {
+	    *dec->nakend++ = *cp;
+	    *dec->nakend++ = 5;
+	    *dec->nakend++ = (unsigned char) (PROTO_CHAP >> 8);
+	    *dec->nakend++ = (unsigned char) PROTO_CHAP;
+	    *dec->nakend++ = 0x05;
 	  } else
 	    goto reqreject;
 	  break;
 
 	case PROTO_CHAP:
 	  if (length < 5) {
-	    LogPrintf(LogLCP, " Bad length!\n");
+	    log_Printf(LogLCP, " Bad length!\n");
 	    goto reqreject;
 	  }
 #ifdef HAVE_DES
-          if (Acceptable(ConfChap) && (cp[4] == 5 || cp[4] == 0x80))
+          if (IsAccepted(lcp->cfg.chap) && (cp[4] == 0x05 || cp[4] == 0x80))
 #else
-          if (Acceptable(ConfChap) && cp[4] == 5)
+          if (IsAccepted(lcp->cfg.chap) && cp[4] == 0x05)
 #endif
 	  {
-	    LcpInfo.his_auth = proto;
-	    memcpy(ackp, cp, length);
-	    ackp += length;
+	    lcp->his_auth = proto;
+	    memcpy(dec->ackend, cp, length);
+	    dec->ackend += length;
 #ifdef HAVE_DES
-            VarMSChap = cp[4] == 0x80;
+            link2physical(fp->link)->dl->chap.using_MSChap = cp[4] == 0x80;
 #endif
-	  } else if (Acceptable(ConfPap)) {
-	    *nakp++ = *cp;
-	    *nakp++ = 4;
-	    *nakp++ = (unsigned char) (PROTO_PAP >> 8);
-	    *nakp++ = (unsigned char) PROTO_PAP;
+	  } else if (IsAccepted(lcp->cfg.pap)) {
+	    *dec->nakend++ = *cp;
+	    *dec->nakend++ = 4;
+	    *dec->nakend++ = (unsigned char) (PROTO_PAP >> 8);
+	    *dec->nakend++ = (unsigned char) PROTO_PAP;
 	  } else
 	    goto reqreject;
 	  break;
 
 	default:
-          LogPrintf(LogLCP, "%s 0x%04x - not recognised, NAK\n",
+          log_Printf(LogLCP, "%s 0x%04x - not recognised, NAK\n",
                     request, proto);
-	  memcpy(nakp, cp, length);
-	  nakp += length;
+	  memcpy(dec->nakend, cp, length);
+	  dec->nakend += length;
 	  break;
 	}
 	break;
       case MODE_NAK:
 	switch (proto) {
 	case PROTO_PAP:
-          if (Enabled(ConfPap))
-            LcpInfo.want_auth = PROTO_PAP;
+          if (IsEnabled(lcp->cfg.pap))
+            lcp->want_auth = PROTO_PAP;
           else {
-            LogPrintf(LogLCP, "Peer will only send PAP (not enabled)\n");
-	    LcpInfo.his_reject |= (1 << type);
+            log_Printf(LogLCP, "Peer will only send PAP (not enabled)\n");
+	    lcp->his_reject |= (1 << type);
           }
           break;
 	case PROTO_CHAP:
-          if (Enabled(ConfChap))
-            LcpInfo.want_auth = PROTO_CHAP;
+          if (IsEnabled(lcp->cfg.chap))
+            lcp->want_auth = PROTO_CHAP;
           else {
-            LogPrintf(LogLCP, "Peer will only send CHAP (not enabled)\n");
-	    LcpInfo.his_reject |= (1 << type);
+            log_Printf(LogLCP, "Peer will only send CHAP (not enabled)\n");
+	    lcp->his_reject |= (1 << type);
           }
           break;
         default:
           /* We've been NAK'd with something we don't understand :-( */
-	  LcpInfo.his_reject |= (1 << type);
+	  lcp->his_reject |= (1 << type);
           break;
         }
 	break;
       case MODE_REJ:
-	LcpInfo.his_reject |= (1 << type);
+	lcp->his_reject |= (1 << type);
 	break;
       }
       break;
 
     case TY_QUALPROTO:
-      req = (struct lqrreq *) cp;
-      LogPrintf(LogLCP, "%s proto %x, interval %dms\n",
-                request, ntohs(req->proto), ntohl(req->period) * 10);
+      req = (struct lqrreq *)cp;
+      log_Printf(LogLCP, "%s proto %x, interval %ldms\n",
+                request, ntohs(req->proto), (long)ntohl(req->period) * 10);
       switch (mode_type) {
       case MODE_REQ:
-	if (ntohs(req->proto) != PROTO_LQR || !Acceptable(ConfLqr))
+	if (ntohs(req->proto) != PROTO_LQR || !IsAccepted(lcp->cfg.lqr))
 	  goto reqreject;
 	else {
-	  LcpInfo.his_lqrperiod = ntohl(req->period);
-	  if (LcpInfo.his_lqrperiod < 500)
-	    LcpInfo.his_lqrperiod = 500;
-	  req->period = htonl(LcpInfo.his_lqrperiod);
-	  memcpy(ackp, cp, length);
-	  ackp += length;
+	  lcp->his_lqrperiod = ntohl(req->period);
+	  if (lcp->his_lqrperiod < 500)
+	    lcp->his_lqrperiod = 500;
+	  req->period = htonl(lcp->his_lqrperiod);
+	  memcpy(dec->ackend, cp, length);
+	  dec->ackend += length;
 	}
 	break;
       case MODE_NAK:
 	break;
       case MODE_REJ:
-	LcpInfo.his_reject |= (1 << type);
+	lcp->his_reject |= (1 << type);
 	break;
       }
       break;
 
     case TY_MAGICNUM:
-      lp = (u_int32_t *) (cp + 2);
-      magic = ntohl(*lp);
-      LogPrintf(LogLCP, "%s 0x%08lx\n", request, (u_long)magic);
+      magic = ntohl(*(u_int32_t *)(cp + 2));
+      log_Printf(LogLCP, "%s 0x%08lx\n", request, (u_long)magic);
 
       switch (mode_type) {
       case MODE_REQ:
-	if (LcpInfo.want_magic) {
+	if (lcp->want_magic) {
 	  /* Validate magic number */
-	  if (magic == LcpInfo.want_magic) {
-	    LogPrintf(LogLCP, "Magic is same (%08lx) - %d times\n",
-                      (u_long)magic, ++LcpFailedMagic);
-	    LcpInfo.want_magic = GenerateMagic();
-	    memcpy(nakp, cp, 6);
-	    nakp += 6;
-            ualarm(TICKUNIT * (4 + 4 * LcpFailedMagic), 0);
+	  if (magic == lcp->want_magic) {
+	    log_Printf(LogLCP, "Magic is same (%08lx) - %d times\n",
+                      (u_long)magic, ++lcp->LcpFailedMagic);
+	    lcp->want_magic = GenerateMagic();
+	    memcpy(dec->nakend, cp, 6);
+	    dec->nakend += 6;
+            ualarm(TICKUNIT * (4 + 4 * lcp->LcpFailedMagic), 0);
             sigpause(0);
 	  } else {
-	    LcpInfo.his_magic = magic;
-	    memcpy(ackp, cp, length);
-	    ackp += length;
-            LcpFailedMagic = 0;
+	    lcp->his_magic = magic;
+	    memcpy(dec->ackend, cp, length);
+	    dec->ackend += length;
+            lcp->LcpFailedMagic = 0;
 	  }
 	} else {
-	  LcpInfo.my_reject |= (1 << type);
 	  goto reqreject;
 	}
 	break;
       case MODE_NAK:
-	LogPrintf(LogLCP, " Magic 0x%08lx is NAKed!\n", (u_long)magic);
-	LcpInfo.want_magic = GenerateMagic();
+	log_Printf(LogLCP, " Magic 0x%08lx is NAKed!\n", (u_long)magic);
+	lcp->want_magic = GenerateMagic();
 	break;
       case MODE_REJ:
-	LogPrintf(LogLCP, " Magic 0x%08x is REJected!\n", magic);
-	LcpInfo.want_magic = 0;
-	LcpInfo.his_reject |= (1 << type);
+	log_Printf(LogLCP, " Magic 0x%08x is REJected!\n", magic);
+	lcp->want_magic = 0;
+	lcp->his_reject |= (1 << type);
 	break;
       }
       break;
 
     case TY_PROTOCOMP:
-      LogPrintf(LogLCP, "%s\n", request);
+      log_Printf(LogLCP, "%s\n", request);
 
       switch (mode_type) {
       case MODE_REQ:
-	if (Acceptable(ConfProtocomp)) {
-	  LcpInfo.his_protocomp = 1;
-	  memcpy(ackp, cp, 2);
-	  ackp += 2;
+	if (IsAccepted(lcp->cfg.protocomp)) {
+	  lcp->his_protocomp = 1;
+	  memcpy(dec->ackend, cp, 2);
+	  dec->ackend += 2;
 	} else {
 #ifdef OLDMST
 	  /*
 	   * MorningStar before v1.3 needs NAK
 	   */
-	  memcpy(nakp, cp, 2);
-	  nakp += 2;
+	  memcpy(dec->nakend, cp, 2);
+	  dec->nakend += 2;
 #else
-	  memcpy(rejp, cp, 2);
-	  rejp += 2;
-	  LcpInfo.my_reject |= (1 << type);
+	  goto reqreject;
 #endif
 	}
 	break;
       case MODE_NAK:
       case MODE_REJ:
-	LcpInfo.want_protocomp = 0;
-	LcpInfo.his_reject |= (1 << type);
+	lcp->want_protocomp = 0;
+	lcp->his_reject |= (1 << type);
 	break;
       }
       break;
 
     case TY_ACFCOMP:
-      LogPrintf(LogLCP, "%s\n", request);
+      log_Printf(LogLCP, "%s\n", request);
       switch (mode_type) {
       case MODE_REQ:
-	if (Acceptable(ConfAcfcomp)) {
-	  LcpInfo.his_acfcomp = 1;
-	  memcpy(ackp, cp, 2);
-	  ackp += 2;
+	if (IsAccepted(lcp->cfg.acfcomp)) {
+	  lcp->his_acfcomp = 1;
+	  memcpy(dec->ackend, cp, 2);
+	  dec->ackend += 2;
 	} else {
 #ifdef OLDMST
 	  /*
 	   * MorningStar before v1.3 needs NAK
 	   */
-	  memcpy(nakp, cp, 2);
-	  nakp += 2;
+	  memcpy(dec->nakend, cp, 2);
+	  dec->nakend += 2;
 #else
-	  memcpy(rejp, cp, 2);
-	  rejp += 2;
-	  LcpInfo.my_reject |= (1 << type);
+	  goto reqreject;
 #endif
 	}
 	break;
       case MODE_NAK:
       case MODE_REJ:
-	LcpInfo.want_acfcomp = 0;
-	LcpInfo.his_reject |= (1 << type);
+	lcp->want_acfcomp = 0;
+	lcp->his_reject |= (1 << type);
 	break;
       }
       break;
 
     case TY_SDP:
-      LogPrintf(LogLCP, "%s\n", request);
+      log_Printf(LogLCP, "%s\n", request);
       switch (mode_type) {
       case MODE_REQ:
       case MODE_NAK:
@@ -792,6 +780,67 @@ LcpDecodeConfig(u_char *cp, int plen, int mode_type)
       }
       break;
 
+    case TY_SHORTSEQ:
+      mp = &lcp->fsm.bundle->ncp.mp;
+      log_Printf(LogLCP, "%s\n", request);
+
+      switch (mode_type) {
+      case MODE_REQ:
+        if (lcp->want_mrru && IsAccepted(mp->cfg.shortseq)) {
+          lcp->his_shortseq = 1;
+	  memcpy(dec->ackend, cp, length);
+	  dec->ackend += length;
+        } else
+	  goto reqreject;
+        break;
+      case MODE_NAK:
+        /*
+         * He's trying to get us to ask for short sequence numbers.
+         * We ignore the NAK and honour our configuration file instead.
+         */
+        break;
+      case MODE_REJ:
+	lcp->his_reject |= (1 << type);
+        lcp->want_shortseq = 0;		/* For when we hit MP */
+	break;
+      }
+      break;
+
+    case TY_ENDDISC:
+      log_Printf(LogLCP, "%s %s\n", request,
+                mp_Enddisc(cp[2], cp + 3, length - 3));
+      switch (mode_type) {
+      case MODE_REQ:
+        if (!p) {
+          log_Printf(LogLCP, " ENDDISC rejected - not a physical link\n");
+	  goto reqreject;
+        } else if (length-3 < sizeof p->dl->peer.enddisc.address &&
+                   cp[2] <= MAX_ENDDISC_CLASS) {
+          p->dl->peer.enddisc.class = cp[2];
+          p->dl->peer.enddisc.len = length-3;
+          memcpy(p->dl->peer.enddisc.address, cp + 3, length - 3);
+          p->dl->peer.enddisc.address[length - 3] = '\0';
+          /* XXX: If mp->active, compare and NAK with mp->peer ? */
+	  memcpy(dec->ackend, cp, length);
+	  dec->ackend += length;
+        } else {
+          if (cp[2] > MAX_ENDDISC_CLASS)
+            log_Printf(LogLCP, " ENDDISC rejected - unrecognised class %d\n",
+                      cp[2]);
+          else
+            log_Printf(LogLCP, " ENDDISC rejected - local max length is %d\n",
+                      sizeof p->dl->peer.enddisc.address - 1);
+	  goto reqreject;
+        }
+	break;
+
+      case MODE_NAK:	/* Treat this as a REJ, we don't vary or disc */
+      case MODE_REJ:
+	lcp->his_reject |= (1 << type);
+	break;
+      }
+      break;
+      
     default:
       sz = (sizeof desc - 2) / 2;
       if (sz > length - 2)
@@ -801,35 +850,41 @@ LcpDecodeConfig(u_char *cp, int plen, int mode_type)
       for (pos = 0; sz--; pos++)
         sprintf(desc+(pos<<1)+1, "%02x", cp[pos+2]);
 
-      LogPrintf(LogLCP, "%s%s\n", request, desc);
+      log_Printf(LogLCP, "%s%s\n", request, desc);
 
       if (mode_type == MODE_REQ) {
 reqreject:
-        if (length > sizeof RejBuff - (rejp - RejBuff)) {
-          length = sizeof RejBuff - (rejp - RejBuff);
-          LogPrintf(LogLCP, "Can't REJ length %d - trunating to %d\n",
+        if (length > sizeof dec->rej - (dec->rejend - dec->rej)) {
+          length = sizeof dec->rej - (dec->rejend - dec->rej);
+          log_Printf(LogLCP, "Can't REJ length %d - trunating to %d\n",
 		    cp[1], length);
         }
-	memcpy(rejp, cp, length);
-	rejp += length;
-	LcpInfo.my_reject |= (1 << type);
+	memcpy(dec->rejend, cp, length);
+	dec->rejend += length;
+	lcp->my_reject |= (1 << type);
         if (length != cp[1])
-          return;
+          length = 0;		/* force our way out of the loop */
       }
-      break;
-    }
-    /* to avoid inf. loop */
-    if (length == 0) {
-      LogPrintf(LogLCP, "LCP size zero\n");
       break;
     }
     plen -= length;
     cp += length;
   }
+
+  if (mode_type != MODE_NOP) {
+    if (dec->rejend != dec->rej) {
+      /* rejects are preferred */
+      dec->ackend = dec->ack;
+      dec->nakend = dec->nak;
+    } else if (dec->nakend != dec->nak)
+      /* then NAKs */
+      dec->ackend = dec->ack;
+  }
 }
 
 void
-LcpInput(struct mbuf * bp)
+lcp_Input(struct lcp *lcp, struct mbuf * bp)
 {
-  FsmInput(&LcpFsm, bp);
+  /* Got PROTO_LCP from link */
+  fsm_Input(&lcp->fsm, bp);
 }

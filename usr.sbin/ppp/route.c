@@ -17,12 +17,11 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: route.c,v 1.43 1998/03/13 01:36:10 brian Exp $
+ * $Id: route.c,v 1.42.2.25 1998/05/16 21:19:00 brian Exp $
  *
  */
 
-#include <sys/param.h>
-#include <sys/time.h>
+#include <sys/types.h>
 #include <sys/socket.h>
 #include <net/if_types.h>
 #include <net/route.h>
@@ -30,155 +29,42 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <net/if_dl.h>
+#include <netinet/in_systm.h>
+#include <netinet/ip.h>
+#include <sys/un.h>
 
 #include <errno.h>
-#include <machine/endian.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/ioctl.h>
 #include <sys/sysctl.h>
-#include <unistd.h>
+#include <termios.h>
 
 #include "command.h"
 #include "mbuf.h"
 #include "log.h"
-#include "loadalias.h"
 #include "defs.h"
-#include "vars.h"
-#include "id.h"
-#include "os.h"
-#include "ipcp.h"
 #include "iplist.h"
+#include "timer.h"
+#include "throughput.h"
+#include "lqr.h"
+#include "hdlc.h"
+#include "fsm.h"
+#include "lcp.h"
+#include "ccp.h"
+#include "link.h"
+#include "slcompress.h"
+#include "ipcp.h"
+#include "filter.h"
+#include "descriptor.h"
+#include "mp.h"
+#include "bundle.h"
 #include "route.h"
-
-static int IfIndex;
-
-struct rtmsg {
-  struct rt_msghdr m_rtm;
-  char m_space[64];
-};
-
-static int seqno;
-
-void
-OsSetRoute(int cmd,
-	   struct in_addr dst,
-	   struct in_addr gateway,
-	   struct in_addr mask,
-	   int bang)
-{
-  struct rtmsg rtmes;
-  int s, nb, wb;
-  char *cp;
-  const char *cmdstr;
-  struct sockaddr_in rtdata;
-
-  if (bang)
-    cmdstr = (cmd == RTM_ADD ? "Add!" : "Delete!");
-  else
-    cmdstr = (cmd == RTM_ADD ? "Add" : "Delete");
-  s = ID0socket(PF_ROUTE, SOCK_RAW, 0);
-  if (s < 0) {
-    LogPrintf(LogERROR, "OsSetRoute: socket(): %s\n", strerror(errno));
-    return;
-  }
-  memset(&rtmes, '\0', sizeof rtmes);
-  rtmes.m_rtm.rtm_version = RTM_VERSION;
-  rtmes.m_rtm.rtm_type = cmd;
-  rtmes.m_rtm.rtm_addrs = RTA_DST;
-  rtmes.m_rtm.rtm_seq = ++seqno;
-  rtmes.m_rtm.rtm_pid = getpid();
-  rtmes.m_rtm.rtm_flags = RTF_UP | RTF_GATEWAY | RTF_STATIC;
-
-  memset(&rtdata, '\0', sizeof rtdata);
-  rtdata.sin_len = 16;
-  rtdata.sin_family = AF_INET;
-  rtdata.sin_port = 0;
-  rtdata.sin_addr = dst;
-
-  cp = rtmes.m_space;
-  memcpy(cp, &rtdata, 16);
-  cp += 16;
-  if (cmd == RTM_ADD) {
-    if (gateway.s_addr == INADDR_ANY) {
-      /* Add a route through the interface */
-      struct sockaddr_dl dl;
-      const char *iname;
-      int ilen;
-
-      iname = Index2Nam(IfIndex);
-      ilen = strlen(iname);
-      dl.sdl_len = sizeof dl - sizeof dl.sdl_data + ilen;
-      dl.sdl_family = AF_LINK;
-      dl.sdl_index = IfIndex;
-      dl.sdl_type = 0;
-      dl.sdl_nlen = ilen;
-      dl.sdl_alen = 0;
-      dl.sdl_slen = 0;
-      strncpy(dl.sdl_data, iname, sizeof dl.sdl_data);
-
-      memcpy(cp, &dl, dl.sdl_len);
-      cp += dl.sdl_len;
-      rtmes.m_rtm.rtm_addrs |= RTA_GATEWAY;
-    } else {
-      rtdata.sin_addr = gateway;
-      memcpy(cp, &rtdata, 16);
-      cp += 16;
-      rtmes.m_rtm.rtm_addrs |= RTA_GATEWAY;
-    }
-  }
-
-  if (dst.s_addr == INADDR_ANY)
-    mask.s_addr = INADDR_ANY;
-
-  if (cmd == RTM_ADD || dst.s_addr == INADDR_ANY) {
-    rtdata.sin_addr = mask;
-    memcpy(cp, &rtdata, 16);
-    cp += 16;
-    rtmes.m_rtm.rtm_addrs |= RTA_NETMASK;
-  }
-
-  nb = cp - (char *) &rtmes;
-  rtmes.m_rtm.rtm_msglen = nb;
-  wb = ID0write(s, &rtmes, nb);
-  if (wb < 0) {
-    LogPrintf(LogTCPIP, "OsSetRoute failure:\n");
-    LogPrintf(LogTCPIP, "OsSetRoute:  Cmd = %s\n", cmdstr);
-    LogPrintf(LogTCPIP, "OsSetRoute:  Dst = %s\n", inet_ntoa(dst));
-    LogPrintf(LogTCPIP, "OsSetRoute:  Gateway = %s\n", inet_ntoa(gateway));
-    LogPrintf(LogTCPIP, "OsSetRoute:  Mask = %s\n", inet_ntoa(mask));
-failed:
-    if (cmd == RTM_ADD && (rtmes.m_rtm.rtm_errno == EEXIST ||
-                           (rtmes.m_rtm.rtm_errno == 0 && errno == EEXIST))) {
-      if (!bang)
-        LogPrintf(LogWARN, "Add route failed: %s already exists\n",
-                  inet_ntoa(dst));
-      else {
-        rtmes.m_rtm.rtm_type = cmd = RTM_CHANGE;
-        if ((wb = ID0write(s, &rtmes, nb)) < 0)
-          goto failed;
-      }
-    } else if (cmd == RTM_DELETE &&
-             (rtmes.m_rtm.rtm_errno == ESRCH ||
-              (rtmes.m_rtm.rtm_errno == 0 && errno == ESRCH))) {
-      if (!bang)
-        LogPrintf(LogWARN, "Del route failed: %s: Non-existent\n",
-                  inet_ntoa(dst));
-    } else if (rtmes.m_rtm.rtm_errno == 0)
-      LogPrintf(LogWARN, "%s route failed: %s: errno: %s\n", cmdstr,
-                inet_ntoa(dst), strerror(errno));
-    else
-      LogPrintf(LogWARN, "%s route failed: %s: %s\n",
-		cmdstr, inet_ntoa(dst), strerror(rtmes.m_rtm.rtm_errno));
-  }
-  LogPrintf(LogDEBUG, "wrote %d: cmd = %s, dst = %x, gateway = %x\n",
-            wb, cmdstr, dst.s_addr, gateway.s_addr);
-  close(s);
-}
+#include "prompt.h"
 
 static void
-p_sockaddr(struct sockaddr *phost, struct sockaddr *pmask, int width)
+p_sockaddr(struct prompt *prompt, struct sockaddr *phost,
+           struct sockaddr *pmask, int width)
 {
   char buf[29];
   struct sockaddr_in *ihost = (struct sockaddr_in *)phost;
@@ -238,7 +124,7 @@ p_sockaddr(struct sockaddr *phost, struct sockaddr *pmask, int width)
 	  strcpy(buf, "??:??:??:??:??:??");
       } else
         sprintf(buf, "<IFT type %d>", dl->sdl_type);
-    } else if (dl->sdl_slen)
+    }  else if (dl->sdl_slen)
       sprintf(buf, "<slen %d?>", dl->sdl_slen);
     else
       sprintf(buf, "link#%d", dl->sdl_index);
@@ -249,7 +135,7 @@ p_sockaddr(struct sockaddr *phost, struct sockaddr *pmask, int width)
     break;
   }
 
-  fprintf(VarTerm, "%-*s ", width-1, buf);
+  prompt_Printf(prompt, "%-*s ", width-1, buf);
 }
 
 static struct bits {
@@ -290,21 +176,19 @@ static struct bits {
 #endif
 
 static void
-p_flags(u_long f, int max)
+p_flags(struct prompt *prompt, u_long f, int max)
 {
-  if (VarTerm) {
-    char name[33], *flags;
-    register struct bits *p = bits;
+  char name[33], *flags;
+  register struct bits *p = bits;
 
-    if (max > sizeof name - 1)
-      max = sizeof name - 1;
+  if (max > sizeof name - 1)
+    max = sizeof name - 1;
 
-    for (flags = name; p->b_mask && flags - name < max; p++)
-      if (p->b_mask & f)
-	*flags++ = p->b_val;
-    *flags = '\0';
-    fprintf(VarTerm, "%-*.*s", max, max, name);
-  }
+  for (flags = name; p->b_mask && flags - name < max; p++)
+    if (p->b_mask & f)
+      *flags++ = p->b_val;
+  *flags = '\0';
+  prompt_Printf(prompt, "%-*.*s", max, max, name);
 }
 
 const char *
@@ -328,7 +212,7 @@ Index2Nam(int idx)
     mib[5] = 0;
 
     if (sysctl(mib, 6, NULL, &needed, NULL, 0) < 0) {
-      LogPrintf(LogERROR, "Index2Nam: sysctl: estimate: %s\n", strerror(errno));
+      log_Printf(LogERROR, "Index2Nam: sysctl: estimate: %s\n", strerror(errno));
       return "???";
     }
     if ((buf = malloc(needed)) == NULL)
@@ -352,7 +236,7 @@ Index2Nam(int idx)
           else
             ifs = (char **)malloc(sizeof(char *) * have);
           if (!ifs) {
-            LogPrintf(LogDEBUG, "Index2Nam: %s\n", strerror(errno));
+            log_Printf(LogDEBUG, "Index2Nam: %s\n", strerror(errno));
             nifs = 0;
             return "???";
           }
@@ -365,20 +249,20 @@ Index2Nam(int idx)
           if (nifs < ifm->ifm_index)
             nifs = ifm->ifm_index;
         }
-      } else if (LogIsKept(LogDEBUG))
-        LogPrintf(LogDEBUG, "Skipping out-of-range interface %d!\n",
+      } else if (log_IsKept(LogDEBUG))
+        log_Printf(LogDEBUG, "Skipping out-of-range interface %d!\n",
                   ifm->ifm_index);
     }
     free(buf);
   }
 
-  if (LogIsKept(LogDEBUG) && !debug_done) {
+  if (log_IsKept(LogDEBUG) && !debug_done) {
     int f;
 
-    LogPrintf(LogDEBUG, "Found the following interfaces:\n");
+    log_Printf(LogDEBUG, "Found the following interfaces:\n");
     for (f = 0; f < nifs; f++)
       if (ifs[f] != NULL)
-        LogPrintf(LogDEBUG, " Index %d, name \"%s\"\n", f+1, ifs[f]);
+        log_Printf(LogDEBUG, " Index %d, name \"%s\"\n", f+1, ifs[f]);
     debug_done = 1;
   }
 
@@ -389,16 +273,13 @@ Index2Nam(int idx)
 }
 
 int
-ShowRoute(struct cmdargs const *arg)
+route_Show(struct cmdargs const *arg)
 {
   struct rt_msghdr *rtm;
   struct sockaddr *sa_dst, *sa_gw, *sa_mask;
   char *sp, *ep, *cp, *wp;
   size_t needed;
   int mib[6];
-
-  if (!VarTerm)
-    return 1;
 
   mib[0] = CTL_NET;
   mib[1] = PF_ROUTE;
@@ -407,7 +288,7 @@ ShowRoute(struct cmdargs const *arg)
   mib[4] = NET_RT_DUMP;
   mib[5] = 0;
   if (sysctl(mib, 6, NULL, &needed, NULL, 0) < 0) {
-    LogPrintf(LogERROR, "ShowRoute: sysctl: estimate: %s\n", strerror(errno));
+    log_Printf(LogERROR, "route_Show: sysctl: estimate: %s\n", strerror(errno));
     return (1);
   }
   if (needed < 0)
@@ -416,13 +297,14 @@ ShowRoute(struct cmdargs const *arg)
   if (sp == NULL)
     return (1);
   if (sysctl(mib, 6, sp, &needed, NULL, 0) < 0) {
-    LogPrintf(LogERROR, "ShowRoute: sysctl: getroute: %s\n", strerror(errno));
+    log_Printf(LogERROR, "route_Show: sysctl: getroute: %s\n", strerror(errno));
     free(sp);
     return (1);
   }
   ep = sp + needed;
 
-  fprintf(VarTerm, "%-20s%-20sFlags  Netif\n", "Destination", "Gateway");
+  prompt_Printf(arg->prompt, "%-20s%-20sFlags  Netif\n",
+                "Destination", "Gateway");
   for (cp = sp; cp < ep; cp += rtm->rtm_msglen) {
     rtm = (struct rt_msghdr *) cp;
     wp = (char *)(rtm+1);
@@ -445,11 +327,11 @@ ShowRoute(struct cmdargs const *arg)
     } else
       sa_mask = NULL;
 
-    p_sockaddr(sa_dst, sa_mask, 20);
-    p_sockaddr(sa_gw, NULL, 20);
+    p_sockaddr(arg->prompt, sa_dst, sa_mask, 20);
+    p_sockaddr(arg->prompt, sa_gw, NULL, 20);
 
-    p_flags(rtm->rtm_flags, 6);
-    fprintf(VarTerm, " %s\n", Index2Nam(rtm->rtm_index));
+    p_flags(arg->prompt, rtm->rtm_flags, 6);
+    prompt_Printf(arg->prompt, " %s\n", Index2Nam(rtm->rtm_index));
   }
   free(sp);
   return 0;
@@ -459,7 +341,7 @@ ShowRoute(struct cmdargs const *arg)
  *  Delete routes associated with our interface
  */
 void
-DeleteIfRoutes(int all)
+route_IfDelete(struct bundle *bundle, int all)
 {
   struct rt_msghdr *rtm;
   struct sockaddr *sa;
@@ -469,7 +351,7 @@ DeleteIfRoutes(int all)
   char *sp, *cp, *ep;
   int mib[6];
 
-  LogPrintf(LogDEBUG, "DeleteIfRoutes (%d)\n", IfIndex);
+  log_Printf(LogDEBUG, "route_IfDelete (%d)\n", bundle->ifp.Index);
   sa_none.s_addr = INADDR_ANY;
 
   mib[0] = CTL_NET;
@@ -479,7 +361,7 @@ DeleteIfRoutes(int all)
   mib[4] = NET_RT_DUMP;
   mib[5] = 0;
   if (sysctl(mib, 6, NULL, &needed, NULL, 0) < 0) {
-    LogPrintf(LogERROR, "DeleteIfRoutes: sysctl: estimate: %s\n",
+    log_Printf(LogERROR, "route_IfDelete: sysctl: estimate: %s\n",
 	      strerror(errno));
     return;
   }
@@ -491,7 +373,7 @@ DeleteIfRoutes(int all)
     return;
 
   if (sysctl(mib, 6, sp, &needed, NULL, 0) < 0) {
-    LogPrintf(LogERROR, "DeleteIfRoutes: sysctl: getroute: %s\n",
+    log_Printf(LogERROR, "route_IfDelete: sysctl: getroute: %s\n",
 	      strerror(errno));
     free(sp);
     return;
@@ -503,7 +385,8 @@ DeleteIfRoutes(int all)
      * We do 2 passes.  The first deletes all cloned routes.  The second
      * deletes all non-cloned routes.  This is necessary to avoid
      * potential errors from trying to delete route X after route Y where
-     * route X was cloned from route Y (which is no longer there).
+     * route X was cloned from route Y (and is no longer there 'cos it
+     * may have gone with route Y).
      */
     if (RTF_WASCLONED == 0 && pass == 0)
       /* So we can't tell ! */
@@ -511,25 +394,25 @@ DeleteIfRoutes(int all)
     for (cp = sp; cp < ep; cp += rtm->rtm_msglen) {
       rtm = (struct rt_msghdr *) cp;
       sa = (struct sockaddr *) (rtm + 1);
-      LogPrintf(LogDEBUG, "DeleteIfRoutes: addrs: %x, Netif: %d (%s),"
+      log_Printf(LogDEBUG, "route_IfDelete: addrs: %x, Netif: %d (%s),"
                 " flags: %x, dst: %s ?\n", rtm->rtm_addrs, rtm->rtm_index,
                 Index2Nam(rtm->rtm_index), rtm->rtm_flags,
 	        inet_ntoa(((struct sockaddr_in *) sa)->sin_addr));
       if (rtm->rtm_addrs & RTA_DST && rtm->rtm_addrs & RTA_GATEWAY &&
-	  rtm->rtm_index == IfIndex &&
+	  rtm->rtm_index == bundle->ifp.Index &&
 	  (all || (rtm->rtm_flags & RTF_GATEWAY))) {
         sa_dst.s_addr = ((struct sockaddr_in *)sa)->sin_addr.s_addr;
         sa = (struct sockaddr *)((char *)sa + sa->sa_len);
         if (sa->sa_family == AF_INET || sa->sa_family == AF_LINK) {
           if ((pass == 0 && (rtm->rtm_flags & RTF_WASCLONED)) ||
               (pass == 1 && !(rtm->rtm_flags & RTF_WASCLONED))) {
-            LogPrintf(LogDEBUG, "DeleteIfRoutes: Remove it (pass %d)\n", pass);
-            OsSetRoute(RTM_DELETE, sa_dst, sa_none, sa_none, 0);
+            log_Printf(LogDEBUG, "route_IfDelete: Remove it (pass %d)\n", pass);
+            bundle_SetRoute(bundle, RTM_DELETE, sa_dst, sa_none, sa_none, 0);
           } else
-            LogPrintf(LogDEBUG, "DeleteIfRoutes: Skip it (pass %d)\n", pass);
+            log_Printf(LogDEBUG, "route_IfDelete: Skip it (pass %d)\n", pass);
         } else
-          LogPrintf(LogDEBUG,
-                    "DeleteIfRoutes: Can't remove routes of %d family !\n",
+          log_Printf(LogDEBUG,
+                    "route_IfDelete: Can't remove routes of %d family !\n",
                     sa->sa_family);
       }
     }
@@ -546,33 +429,133 @@ GetIfIndex(char *name)
   idx = 1;
   while (strcmp(got = Index2Nam(idx), "???"))
     if (!strcmp(got, name))
-      return IfIndex = idx;
+      return idx;
     else
       idx++;
   return -1;
 }
 
-struct in_addr
-ChooseHisAddr(const struct in_addr gw)
+void
+route_Change(struct bundle *bundle, struct sticky_route *r,
+             struct in_addr me, struct in_addr peer)
 {
-  struct in_addr try;
-  int f;
+  struct in_addr none, del;
 
-  for (f = 0; f < DefHisChoice.nItems; f++) {
-    try = iplist_next(&DefHisChoice);
-    LogPrintf(LogDEBUG, "ChooseHisAddr: Check item %d (%s)\n",
-              f, inet_ntoa(try));
-    if (OsTrySetIpaddress(gw, try) == 0) {
-      LogPrintf(LogIPCP, "ChooseHisAddr: Selected IP address %s\n",
-                inet_ntoa(try));
+  none.s_addr = INADDR_ANY;
+  for (; r; r = r->next) {
+    if ((r->type & ROUTE_DSTMYADDR) && r->dst.s_addr != me.s_addr) {
+      del.s_addr = r->dst.s_addr & r->mask.s_addr;
+      bundle_SetRoute(bundle, RTM_DELETE, del, none, none, 1);
+      r->dst = me;
+      if (r->type & ROUTE_GWHISADDR)
+        r->gw = peer;
+    } else if ((r->type & ROUTE_DSTHISADDR) && r->dst.s_addr != peer.s_addr) {
+      del.s_addr = r->dst.s_addr & r->mask.s_addr;
+      bundle_SetRoute(bundle, RTM_DELETE, del, none, none, 1);
+      r->dst = peer;
+      if (r->type & ROUTE_GWHISADDR)
+        r->gw = peer;
+    } else if ((r->type & ROUTE_GWHISADDR) && r->gw.s_addr != peer.s_addr)
+      r->gw = peer;
+    bundle_SetRoute(bundle, RTM_ADD, r->dst, r->gw, r->mask, 1);
+  }
+}
+
+void
+route_Clean(struct bundle *bundle, struct sticky_route *r)
+{
+  struct in_addr none, del;
+
+  none.s_addr = INADDR_ANY;
+  for (; r; r = r->next) {
+    del.s_addr = r->dst.s_addr & r->mask.s_addr;
+    bundle_SetRoute(bundle, RTM_DELETE, del, none, none, 1);
+  }
+}
+
+void
+route_Add(struct sticky_route **rp, int type, struct in_addr dst,
+          struct in_addr mask, struct in_addr gw)
+{
+  if (type != ROUTE_STATIC) {
+    struct sticky_route *r;
+    int dsttype = type & ROUTE_DSTANY;
+
+    r = NULL;
+    while (*rp) {
+      if ((dsttype && dsttype == ((*rp)->type & ROUTE_DSTANY)) ||
+          (!dsttype && (*rp)->dst.s_addr == dst.s_addr)) {
+        r = *rp;
+        *rp = r->next;
+      } else
+        rp = &(*rp)->next;
+    }
+
+    if (!r)
+      r = (struct sticky_route *)malloc(sizeof(struct sticky_route));
+    r->type = type;
+    r->next = NULL;
+    r->dst = dst;
+    r->mask = mask;
+    r->gw = gw;
+    *rp = r;
+  }
+}
+
+void
+route_Delete(struct sticky_route **rp, int type, struct in_addr dst)
+{
+  struct sticky_route *r;
+  int dsttype = type & ROUTE_DSTANY;
+
+  for (; *rp; rp = &(*rp)->next) {
+    if ((dsttype && dsttype == ((*rp)->type & ROUTE_DSTANY)) ||
+        (!dsttype && dst.s_addr == ((*rp)->dst.s_addr & (*rp)->mask.s_addr))) {
+      r = *rp;
+      *rp = r->next;
+      free(r);
       break;
     }
   }
+}
 
-  if (f == DefHisChoice.nItems) {
-    LogPrintf(LogDEBUG, "ChooseHisAddr: All addresses in use !\n");
-    try.s_addr = INADDR_ANY;
+void
+route_DeleteAll(struct sticky_route **rp)
+{
+  struct sticky_route *r, *rn;
+
+  for (r = *rp; r; r = rn) {
+    rn = r->next;
+    free(r);
   }
+  *rp = NULL;
+}
 
-  return try;
+void
+route_ShowSticky(struct prompt *p, struct sticky_route *r)
+{
+  int def;
+
+  prompt_Printf(p, "Sticky routes:\n");
+  for (; r; r = r->next) {
+    def = r->dst.s_addr == INADDR_ANY && r->mask.s_addr == INADDR_ANY;
+
+    prompt_Printf(p, " add ");
+    if (r->type & ROUTE_DSTMYADDR)
+      prompt_Printf(p, "MYADDR");
+    else if (r->type & ROUTE_DSTHISADDR)
+      prompt_Printf(p, "HISADDR");
+    else if (!def)
+      prompt_Printf(p, "%s", inet_ntoa(r->dst));
+
+    if (def)
+      prompt_Printf(p, "default ");
+    else
+      prompt_Printf(p, " %s ", inet_ntoa(r->mask));
+
+    if (r->type & ROUTE_GWHISADDR)
+      prompt_Printf(p, "HISADDR\n");
+    else
+      prompt_Printf(p, "%s\n", inet_ntoa(r->gw));
+  }
 }
