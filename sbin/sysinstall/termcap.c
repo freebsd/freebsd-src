@@ -33,8 +33,8 @@ cons25-m|ansis-mono|ansi80x25-mono:";
 
 static char common_termcap[] = "\
 :ac=l\\332m\\300k\\277j\\331u\\264t\\303v\\301w\\302q\\304x\\263n\\305`^Da\\260f\\370g\\361~\\371.^Y-^Xh\\261I^U0\\333y\\363z\\362:\
-:al=\\E[L:am:bs:cd=\\E[J:ce=\\E[K:cl=\\E[H\\E[J:cm=\\E[%i%d;%dH:co#80:\
-:dc=\\E[P:dl=\\E[M:do=\\E[B:bt=\\E[Z:ho=\\E[H:ic=\\E[@:li#25:\
+:al=\\E[L:am:bs:NP:cd=\\E[J:ce=\\E[K:cl=\\E[H\\E[J:cm=\\E[%i%d;%dH:co#80:\
+:dc=\\E[P:dl=\\E[M:do=\\E[B:bt=\\E[Z:ho=\\E[H:ic=\\E[@:li#25:cb=\\E[1K:\
 :ms:nd=\\E[C:pt:rs=\\E[x\\E[m\\Ec:so=\\E[7m:se=\\E[m:up=\\E[A:\
 :k1=\\E[M:k2=\\E[N:k3=\\E[O:k4=\\E[P:k5=\\E[Q:k6=\\E[R:k7=\\E[S:k8=\\E[T:\
 :k9=\\E[U:k;=\\E[V:F1=\\E[W:F2=\\E[X:\
