@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile.inc1,v 1.54 1999/01/01 08:45:43 peter Exp $
+#	$Id: Makefile.inc1,v 1.55 1999/01/04 12:05:59 bde Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -468,22 +468,6 @@ hierarchy:
 # for the dependency information to be gathered from.
 #
 bootstrap:
-.if defined(DESTDIR)
-	rm -f ${DESTDIR}/usr/src/sys
-	ln -s ${.CURDIR}/sys ${DESTDIR}/usr/src
-	cd ${.CURDIR}/include; find -dx . | cpio -dump ${DESTDIR}/usr/include
-.for d in net netatm netinet posix4 sys vm machine
-	if [ -h ${DESTDIR}/usr/include/$d ]; then \
-		rm -f ${DESTDIR}/usr/include/$d ; \
-	fi
-.endfor
-	cd ${.CURDIR}/sys; \
-		find -dx net netatm netinet posix4 sys vm -name '*.h' -o -type d | \
-		cpio -dump ${DESTDIR}/usr/include
-	mkdir -p ${DESTDIR}/usr/include/machine
-	cd ${.CURDIR}/sys/${MACHINE_ARCH}/include; find -dx . -name '*.h' -o -type d | \
-		cpio -dump ${DESTDIR}/usr/include/machine
-.endif
 	cd ${.CURDIR}/usr.bin/make; ${MAKE} ${MK_FLAGS} ${_DEPEND}; \
 		${MAKE} ${MK_FLAGS} all; \
 		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
@@ -501,9 +485,6 @@ bootstrap:
 	cd ${.CURDIR}/usr.sbin/mtree; ${MAKE} ${MK_FLAGS} ${_DEPEND}; \
 		${MAKE} ${MK_FLAGS} all; \
 		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
-.if defined(DESTDIR)
-	cd ${.CURDIR}/include && ${MAKE} copies
-.endif
 
 #
 # include-tools - generally the same as 'bootstrap', except that it's for
