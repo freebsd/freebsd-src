@@ -55,8 +55,48 @@ specifies the full pathname for the message catalog, otherwise the value
 of the environment variable
 .Ev NLSPATH 
 is used with 
+the following substitutions:
+.Bl -tag -width XXX
+.It \&%N
+The value of the
 .Fa name
-substituted for %N.
+argument.
+.It \&%L
+The value of the
+.Ev LANG
+environment variable or the
+.Dv LC_MESSAGES
+category (see below).
+.It \&%l
+The language element from the
+.Ev LANG
+environment variable or from the
+.Dv LC_MESSAGES
+category.
+.It \&%t
+The territory element from the
+.Ev LANG
+environment variable or from the
+.Dv LC_MESSAGES
+category.
+.It \&%c
+The codeset element from the
+.Ev LANG
+environment variable or from the
+.Dv LC_MESSAGES
+category.
+.It \&%%
+A single % character. 
+.El
+.Pp
+An empty string is substituted for undefined values.
+.Pp
+Path names templates defined in
+.Ev NLSPATH
+are separated by colons
+.No ( Sq \&: ) .
+A leading or two adjacent colons
+is equivalent to specifying %N.
 .Pp
 If the
 .Fa oflag
