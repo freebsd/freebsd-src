@@ -39,7 +39,7 @@ static const char rcsid[] =
 #include <sys/mount.h>
 #include <sys/stat.h>
 
-#include <msdosfs/msdosfsmount.h>
+#include <fs/msdosfs/msdosfsmount.h>
 
 #include <ctype.h>
 #include <err.h>

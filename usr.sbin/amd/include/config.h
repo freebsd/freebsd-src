@@ -1572,7 +1572,10 @@
 /* #undef HAVE_MOUNT_H */
 
 /* Define if you have the <msdosfs/msdosfsmount.h> header file.  */
-#define HAVE_MSDOSFS_MSDOSFSMOUNT_H 1
+/* #undef HAVE_MSDOSFS_MSDOSFSMOUNT_H */
+
+/* Define if you have the <fs/msdosfs/msdosfsmount.h> header file.  */
+#define HAVE_FS_MSDOSFS_MSDOSFSMOUNT_H 1
 
 /* Define if you have the <ndbm.h> header file.  */
 #define HAVE_NDBM_H 1
