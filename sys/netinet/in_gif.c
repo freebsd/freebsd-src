@@ -380,22 +380,8 @@ int
 in_gif_attach(sc)
 	struct gif_softc *sc;
 {
-#ifndef USE_ENCAPCHECK
-	struct sockaddr_in mask4;
-
-	bzero(&mask4, sizeof(mask4));
-	mask4.sin_len = sizeof(struct sockaddr_in);
-	mask4.sin_addr.s_addr = ~0;
-
-	if (!sc->gif_psrc || !sc->gif_pdst)
-		return EINVAL;
-	sc->encap_cookie4 = encap_attach(AF_INET, -1, sc->gif_psrc,
-	    (struct sockaddr *)&mask4, sc->gif_pdst, (struct sockaddr *)&mask4,
-	    (struct protosw *)&in_gif_protosw, sc);
-#else
 	sc->encap_cookie4 = encap_attach_func(AF_INET, -1, gif_encapcheck,
 	    &in_gif_protosw, sc);
-#endif
 	if (sc->encap_cookie4 == NULL)
 		return EEXIST;
 	return 0;
