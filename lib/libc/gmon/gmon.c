@@ -29,13 +29,13 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #if !defined(lint) && defined(LIBC_SCCS)
 static char sccsid[] = "@(#)gmon.c	8.1 (Berkeley) 6/4/93";
 #endif
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "namespace.h"
 #include <sys/param.h>
@@ -67,15 +67,15 @@ static int	s_scale;
 
 #define ERR(s) _write(2, s, sizeof(s))
 
-void	moncontrol __P((int));
-static int hertz __P((void));
+void	moncontrol(int);
+static int hertz(void);
 
 void
 monstartup(lowpc, highpc)
 	u_long lowpc;
 	u_long highpc;
 {
-	register int o;
+	int o;
 	char *cp;
 	struct gmonparam *p = &_gmonparam;
 
