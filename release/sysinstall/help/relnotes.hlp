@@ -150,6 +150,8 @@ once fully supported.
 EISA Shared interrupts are now supported, working with the framework
 originally for supporting PCI shared interrupts.
 
+Support for the Comtrol Rocketport card.
+
 
 SECURITY CHANGES:
 
@@ -367,6 +369,8 @@ Boca IOAT66 6-Port serial card (Modems supported)
 Boca BB1008 8-Port serial card (Modems NOT supported)
 Boca BB2016 16-Port serial card (Modems supported)
 
+Comtrol Rocketport card.
+
 Cyclades Cyclom-y Serial Board.
 
 STB 4 port card using shared IRQ.
@@ -540,9 +544,6 @@ or, if you've loaded the doc distribution:
 Special mention to:
 
         The donors listed at http://www.freebsd.org/handbook/donors.html
-
-	CalWeb Internet Services for the loan of a P6/200 machine for
-	speedy package building.
 
         Everyone at Montana State University for their initial support.
 
