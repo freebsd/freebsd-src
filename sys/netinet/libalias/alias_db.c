@@ -32,7 +32,7 @@
     Version 1.7: January 9, 1997 (cjm)
         Fragment handling simplified.
         Saves pointers for unresolved fragments.
-        Permits links for unspecied remote ports
+        Permits links for unspecified remote ports
           or unspecified remote addresses.
         Fixed bug which did not properly zero port
           table entries after a link was deleted.
@@ -48,8 +48,8 @@
         machine will will not have their port number aliased unless it
         conflicts with an aliasing port already being used. (cjm)
 
-        All options earlier being #ifdef'ed now are available through
-        a new interface, SetPacketAliasMode().  This allow run time
+        All options earlier being #ifdef'ed are now available through
+        a new interface, SetPacketAliasMode().  This allows run time
         control (which is now available in PPP+pktAlias through the
         'alias' keyword). (ee)
 
@@ -78,7 +78,7 @@
         (192.168.0.2, port 21)  <-> alias port 3604, known dest addr
                                                      unknown dest port
 
-        These permament links allow for incoming connections to
+        These permanent links allow for incoming connections to
         machines on the local network.  They can be given with a
         user-chosen amount of specificity, with increasing specificity
         meaning more security. (cjm)
@@ -147,6 +147,7 @@
 /* Timeouts (in seconds) for different link types */
 #define ICMP_EXPIRE_TIME             60
 #define UDP_EXPIRE_TIME              60
+#define PPTP_EXPIRE_TIME             60
 #define FRAGMENT_ID_EXPIRE_TIME      10
 #define FRAGMENT_PTR_EXPIRE_TIME     30
 
@@ -192,25 +193,25 @@
     The link record is identified by the source address/port
     and the destination address/port. In the case of an ICMP
     echo request, the source port is treated as being equivalent
-    with the 16-bit id number of the ICMP packet.
+    with the 16-bit ID number of the ICMP packet.
 
     The link record also can store some auxiliary data.  For
     TCP connections that have had sequence and acknowledgment
     modifications, data space is available to track these changes.
-    A state field is used to keep track in changes to the tcp
-    connection state.  Id numbers of fragments can also be
+    A state field is used to keep track in changes to the TCP
+    connection state.  ID numbers of fragments can also be
     stored in the auxiliary space.  Pointers to unresolved
-    framgents can also be stored.
+    fragments can also be stored.
 
     The link records support two independent chainings.  Lookup
     tables for input and out tables hold the initial pointers
     the link chains.  On input, the lookup table indexes on alias
     port and link type.  On output, the lookup table indexes on
-    source addreess, destination address, source port, destination
+    source address, destination address, source port, destination
     port and link type.
 */
 
-struct ack_data_record     /* used to save changes to ack/seq numbers */
+struct ack_data_record     /* used to save changes to ACK/sequence numbers */
 {
     u_long ack_old;
     u_long ack_new;
@@ -218,16 +219,16 @@ struct ack_data_record     /* used to save changes to ack/seq numbers */
     int active;
 };
 
-struct tcp_state           /* Information about tcp connection        */
+struct tcp_state           /* Information about TCP connection        */
 {
     int in;                /* State for outside -> inside             */
     int out;               /* State for inside  -> outside            */
-    int index;             /* Index to ack data array                 */
-    int ack_modified;      /* Indicates whether ack and seq numbers   */
+    int index;             /* Index to ACK data array                 */
+    int ack_modified;      /* Indicates whether ACK and sequence numbers */
                            /* been modified                           */
 };
 
-#define N_LINK_TCP_DATA   3 /* Number of distinct ack number changes
+#define N_LINK_TCP_DATA   3 /* Number of distinct ACK number changes
                                saved for a modified TCP stream */
 struct tcp_dat
 {
@@ -247,7 +248,7 @@ struct alias_link                /* Main data structure */
     u_short alias_port;
     u_short proxy_port;
 
-    int link_type;               /* Type of link: tcp, udp, icmp, frag  */
+    int link_type;               /* Type of link: TCP, UDP, ICMP, PPTP, frag */
 
 /* values for link_type */
 #define LINK_ICMP                     1
@@ -256,6 +257,7 @@ struct alias_link                /* Main data structure */
 #define LINK_FRAGMENT_ID              4
 #define LINK_FRAGMENT_PTR             5
 #define LINK_ADDR                     6
+#define LINK_PPTP                     7
 
     int flags;                   /* indicates special characteristics   */
 
@@ -319,6 +321,7 @@ linkTableIn[LINK_TABLE_IN_SIZE];     /*   into input and output lookup  */
 static int icmpLinkCount;            /* Link statistics                 */
 static int udpLinkCount;
 static int tcpLinkCount;
+static int pptpLinkCount;
 static int fragmentIdLinkCount;
 static int fragmentPtrLinkCount;
 static int sockCount;
@@ -352,11 +355,6 @@ static int fireWallFD = -1;          /* File descriptor to be able to   */
                                      /* flag.                           */
 #endif
 
-static int pptpAliasFlag; 	     /* Indicates if PPTP aliasing is   */
-                                     /* on or off                       */
-static struct in_addr pptpAliasAddr; /* Address of source of PPTP 	*/
-                                     /* packets.           		*/
-
 
 
 
@@ -368,7 +366,7 @@ static struct in_addr pptpAliasAddr; /* Address of source of PPTP 	*/
 Lookup table starting points:
     StartPointIn()           -- link table initial search point for
                                 incoming packets
-    StartPointOut()          -- port table initial search point for
+    StartPointOut()          -- link table initial search point for
                                 outgoing packets
     
 Miscellaneous:
@@ -449,16 +447,18 @@ ShowAliasStats(void)
 
    if (monitorFile)
    {
-      fprintf(monitorFile, "icmp=%d, udp=%d, tcp=%d, frag_id=%d frag_ptr=%d",
+      fprintf(monitorFile, "icmp=%d, udp=%d, tcp=%d, pptp=%d, frag_id=%d frag_ptr=%d",
               icmpLinkCount,
               udpLinkCount,
               tcpLinkCount,
+              pptpLinkCount,
               fragmentIdLinkCount,
               fragmentPtrLinkCount);
 
       fprintf(monitorFile, " / tot=%d  (sock=%d)\n",
               icmpLinkCount + udpLinkCount
                             + tcpLinkCount
+                            + pptpLinkCount
                             + fragmentIdLinkCount
                             + fragmentPtrLinkCount,
               sockCount);
@@ -542,7 +542,7 @@ GetNewPort(struct alias_link *link, int alias_port_param)
    the port number.  GetNewPort() will return this number
    without check that it is in use.
 
-   Whis this parameter is -1, it indicates to get a randomly
+   When this parameter is -1, it indicates to get a randomly
    selected port number.
 */
  
@@ -557,7 +557,7 @@ GetNewPort(struct alias_link *link, int alias_port_param)
         if (packetAliasMode & PKT_ALIAS_SAME_PORTS)
         {
             /*
-             * When the ALIAS_SAME_PORTS option is
+             * When the PKT_ALIAS_SAME_PORTS option is
              * chosen, the first try will be the
              * actual source port. If this is already
              * in use, the remainder of the trials
@@ -734,6 +734,7 @@ IncrementalCleanup(void)
             case LINK_UDP:
             case LINK_FRAGMENT_ID:
             case LINK_FRAGMENT_PTR:
+            case LINK_PPTP:
                 if (idelta > link->expire_time)
                 {
                     DeleteLink(link);
@@ -773,7 +774,7 @@ DeleteLink(struct alias_link *link)
         return;
 
 #ifndef NO_FW_PUNCH
-/* Delete associatied firewall hole, if any */
+/* Delete associated firewall hole, if any */
     ClearFWHole(link);
 #endif
 
@@ -821,6 +822,9 @@ DeleteLink(struct alias_link *link)
             tcpLinkCount--;
             if (link->data.tcp != NULL)
                 free(link->data.tcp);
+            break;
+        case LINK_PPTP:
+            pptpLinkCount--;
             break;
         case LINK_FRAGMENT_ID:
             fragmentIdLinkCount--;
@@ -883,6 +887,9 @@ AddLink(struct in_addr  src_addr,
             break;
         case LINK_TCP:
             link->expire_time = TCP_EXPIRE_INITIAL;
+            break;
+        case LINK_PPTP:
+            link->expire_time = PPTP_EXPIRE_TIME;
             break;
         case LINK_FRAGMENT_ID:
             link->expire_time = FRAGMENT_ID_EXPIRE_TIME;
@@ -966,6 +973,9 @@ AddLink(struct in_addr  src_addr,
                     fprintf(stderr, " cannot allocate auxiliary TCP data\n");
 #endif
                 }
+                break;
+            case LINK_PPTP:
+                pptpLinkCount++;
                 break;
             case LINK_FRAGMENT_ID:
                 fragmentIdLinkCount++;
@@ -1272,6 +1282,7 @@ FindLinkIn(struct in_addr dst_addr,
     FindIcmpIn(), FindIcmpOut()
     FindFragmentIn1(), FindFragmentIn2()
     AddFragmentPtrLink(), FindFragmentPtr()
+    FindPptpIn(), FindPptpOut()
     FindUdpTcpIn(), FindUdpTcpOut()
     FindOriginalAddress(), FindAliasAddress()
 
@@ -1364,6 +1375,54 @@ FindFragmentPtr(struct in_addr dst_addr,
     return FindLinkIn(dst_addr, nullAddress,
                       NO_DEST_PORT, ip_id,
                       LINK_FRAGMENT_PTR, 0);
+}
+
+
+struct alias_link *
+FindPptpIn(struct in_addr dst_addr,
+           struct in_addr alias_addr)
+{
+    struct alias_link *link;
+
+    link = FindLinkIn(dst_addr, alias_addr,
+                      NO_DEST_PORT, 0,
+                      LINK_PPTP, 1);
+
+    if (link == NULL && !(packetAliasMode & PKT_ALIAS_DENY_INCOMING))
+    {
+        struct in_addr target_addr;
+
+        target_addr = FindOriginalAddress(alias_addr);
+        link = AddLink(target_addr, dst_addr, alias_addr,
+                       NO_SRC_PORT, NO_DEST_PORT, 0,
+                       LINK_PPTP);
+    }
+
+    return (link);
+}
+
+
+struct alias_link *
+FindPptpOut(struct in_addr src_addr,
+            struct in_addr dst_addr)
+{
+    struct alias_link *link;
+
+    link = FindLinkOut(src_addr, dst_addr,
+                       NO_SRC_PORT, NO_DEST_PORT,
+                       LINK_PPTP, 1);
+
+    if (link == NULL)
+    {
+        struct in_addr alias_addr;
+
+        alias_addr = FindAliasAddress(src_addr);
+        link = AddLink(src_addr, dst_addr, alias_addr,
+                       NO_SRC_PORT, NO_DEST_PORT, 0,
+                       LINK_PPTP);
+    }
+
+    return (link);
 }
 
 
@@ -1663,7 +1722,7 @@ GetDestPort(struct alias_link *link)
 void
 SetAckModified(struct alias_link *link)
 {
-/* Indicate that ack numbers have been modified in a TCP connection */
+/* Indicate that ACK numbers have been modified in a TCP connection */
     link->data.tcp->state.ack_modified = 1;
 }
 
@@ -1699,7 +1758,7 @@ SetProxyPort(struct alias_link *link, u_short port)
 int
 GetAckModified(struct alias_link *link)
 {
-/* See if ack numbers have been modified */
+/* See if ACK numbers have been modified */
     return link->data.tcp->state.ack_modified;
 }
 
@@ -1708,8 +1767,8 @@ int
 GetDeltaAckIn(struct ip *pip, struct alias_link *link)
 {
 /*
-Find out how much the ack number has been altered for an incoming
-TCP packet.  To do this, a circular list is ack numbers where the TCP
+Find out how much the ACK number has been altered for an incoming
+TCP packet.  To do this, a circular list of ACK numbers where the TCP
 packet size was altered is searched. 
 */
 
@@ -1759,8 +1818,8 @@ int
 GetDeltaSeqOut(struct ip *pip, struct alias_link *link)
 {
 /*
-Find out how much the seq number has been altered for an outgoing
-TCP packet.  To do this, a circular list is ack numbers where the TCP
+Find out how much the sequence number has been altered for an outgoing
+TCP packet.  To do this, a circular list of ACK numbers where the TCP
 packet size was altered is searched. 
 */
 
@@ -1976,6 +2035,7 @@ UninitPacketAliasLog(void)
 -- "outside world" means other than alias*.c routines --
 
     PacketAliasRedirectPort()
+    PacketAliasRedirectPptp()
     PacketAliasRedirectAddr()
     PacketAliasRedirectDelete()
     PacketAliasSetAddress()
@@ -1987,7 +2047,7 @@ UninitPacketAliasLog(void)
 */
 
 /* Redirection from a specific public addr:port to a
-   a private addr:port */
+   private addr:port */
 struct alias_link *
 PacketAliasRedirectPort(struct in_addr src_addr,   u_short src_port,
                         struct in_addr dst_addr,   u_short dst_port,
@@ -2033,23 +2093,46 @@ PacketAliasRedirectPort(struct in_addr src_addr,   u_short src_port,
 }
 
 /* Translate PPTP packets to a machine on the inside
+ * XXX This function is made obsolete by PacketAliasRedirectPptp().
  */
 int
 PacketAliasPptp(struct in_addr src_addr)
 {
 
-    pptpAliasAddr = src_addr; 		/* Address of the inside PPTP machine */
-    pptpAliasFlag = src_addr.s_addr != INADDR_NONE;
+    if (src_addr.s_addr == INADDR_NONE)
+	packetAliasMode |= PKT_ALIAS_DENY_PPTP;
+    else
+	(void)PacketAliasRedirectPptp(src_addr, nullAddress, nullAddress);
 
     return 1;
 }
 
-int GetPptpAlias (struct in_addr* alias_addr)
+/* Redirect PPTP packets from a specific
+   public address to a private address */
+struct alias_link *
+PacketAliasRedirectPptp(struct in_addr src_addr,
+                        struct in_addr dst_addr,
+                        struct in_addr alias_addr)
 {
-    if (pptpAliasFlag)
-	*alias_addr = pptpAliasAddr;
+    struct alias_link *link;
 
-    return pptpAliasFlag;
+    link = AddLink(src_addr, dst_addr, alias_addr,
+                   NO_SRC_PORT, NO_DEST_PORT, 0,
+                   LINK_PPTP);
+
+    if (link != NULL)
+    {
+        link->flags |= LINK_PERMANENT;
+    }
+#ifdef DEBUG
+    else
+    {
+        fprintf(stderr, "PacketAliasRedirectPptp(): " 
+                        "call to AddLink() failed\n");
+    }
+#endif
+
+    return link;
 }
 
 /* Static address translation */
@@ -2145,6 +2228,7 @@ PacketAliasInit(void)
     icmpLinkCount = 0;
     udpLinkCount = 0;
     tcpLinkCount = 0;
+    pptpLinkCount = 0;
     fragmentIdLinkCount = 0;
     fragmentPtrLinkCount = 0;
     sockCount = 0;
@@ -2154,8 +2238,6 @@ PacketAliasInit(void)
     packetAliasMode = PKT_ALIAS_SAME_PORTS
                     | PKT_ALIAS_USE_SOCKETS
                     | PKT_ALIAS_RESET_ON_ADDR_CHANGE;
-
-    pptpAliasFlag = 0;
 }
 
 void
