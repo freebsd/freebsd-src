@@ -15,6 +15,9 @@ interface
 [
 .B \-i
 <filename>
+] [
+.B \-s
+<ipaddress>
 ]
 .SH DESCRIPTION
 .PP
@@ -129,6 +132,11 @@ Specify the filename from which to take input.  Default is stdin.
 .TP
 .BR \-r \0<filename>
 Specify the filename from which to read filter rules.
+.TP
+.BR \-s \0<ipaddress>
+Where the input format is incapable of telling \fBipftest\fP whther a packet is
+going in or out, setting this option to an IP address results in the direction
+being set to out if the source matches or in if the destination matches. 
 .SH SEE ALSO
 ipf(5), ipf(8), snoop(1m), tcpdump(8), etherfind(8c)
 .SH BUGS
