@@ -53,51 +53,53 @@ __FBSDID("$FreeBSD$");
 #include "SYS.h"
 
 ENTRY(setjmp)
-	movl	4(%esp),%ecx
-	PIC_PROLOGUE
-	leal	28(%ecx), %eax
-	pushl	%eax			/* (sigset_t*)oset */
-	pushl	$0			/* (sigset_t*)set  */
-	pushl	$1			/* SIG_BLOCK       */
+	pushq	%rdi
+	movq	%rdi,%rcx
+	leaq	72(%rcx),%rdi		/* (sigset_t*)oset */
+	movq	$0,%rsi			/* (sigset_t*)set  */
+	movq	$1,%rdx			/* SIG_BLOCK       */
 	call	PIC_PLT(CNAME(_sigprocmask))
-	addl	$12,%esp
-	PIC_EPILOGUE
-	movl	4(%esp),%ecx
-	movl	0(%esp),%edx
-	movl	%edx, 0(%ecx)
-	movl	%ebx, 4(%ecx)
-	movl	%esp, 8(%ecx)
-	movl	%ebp,12(%ecx)
-	movl	%esi,16(%ecx)
-	movl	%edi,20(%ecx)
-	fnstcw	24(%ecx)
-	xorl	%eax,%eax
+	popq	%rdi
+	movq	%rdi,%rcx
+	movq	0(%rsp),%rdx		/* retval */
+	movq	%rdx, 0(%rcx)		/* retval */
+	movq	%rbx, 8(%rcx)
+	movq	%rsp,16(%rcx)
+	movq	%rbp,24(%rcx)
+	movq	%r12,32(%rcx)
+	movq	%r13,40(%rcx)
+	movq	%r14,48(%rcx)
+	movq	%r15,56(%rcx)
+	fnstcw	64(%rcx)
+	xorq	%rax,%rax
 	ret
 
 	.weak CNAME(longjmp)
 	.set CNAME(longjmp),CNAME(__longjmp)
 ENTRY(__longjmp)
-	movl	4(%esp),%edx
-	PIC_PROLOGUE
-	pushl	$0			/* (sigset_t*)oset */
-	leal	28(%edx), %eax
-	pushl	%eax			/* (sigset_t*)set  */
-	pushl	$3			/* SIG_SETMASK     */
+	pushq	%rdi
+	pushq	%rsi
+	movq	%rdi,%rdx
+	movq	$0,%rdi			/* (sigset_t*)oset */
+	leaq	72(%rdx),%rsi		/* (sigset_t*)set  */
+	movq	$3,%rdx			/* SIG_SETMASK     */
 	call	PIC_PLT(CNAME(_sigprocmask))
-	addl	$12,%esp
-	PIC_EPILOGUE
-	movl	4(%esp),%edx
-	movl	8(%esp),%eax
-	movl	0(%edx),%ecx
-	movl	4(%edx),%ebx
-	movl	8(%edx),%esp
-	movl	12(%edx),%ebp
-	movl	16(%edx),%esi
-	movl	20(%edx),%edi
+	popq	%rsi
+	popq	%rdi			/* jmpbuf */
+	movq	%rdi,%rdx
+	movq	%rsi,%rax		/* retval */
+	movq	0(%rdx),%rcx
+	movq	8(%rdx),%rbx
+	movq	16(%rdx),%rsp
+	movq	24(%rdx),%rbp
+	movq	32(%rdx),%r12
+	movq	40(%rdx),%r13
+	movq	48(%rdx),%r14
+	movq	56(%rdx),%r15
 	fninit
-	fldcw	24(%edx)
-	testl	%eax,%eax
+	fldcw	64(%rdx)
+	testq	%rax,%rax
 	jnz	1f
-	incl	%eax
-1:	movl	%ecx,0(%esp)
+	incq	%rax
+1:	movq	%rcx,0(%rsp)
 	ret
