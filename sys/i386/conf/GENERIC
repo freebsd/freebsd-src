@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: GENERIC,v 1.77.2.27 1998/09/04 19:56:26 msmith Exp $
+#	$Id: GENERIC,v 1.77.2.28 1998/09/26 17:36:14 wpaul Exp $
 
 machine		"i386"
 cpu		"I386_CPU"
@@ -68,6 +68,7 @@ device		wfd0		#IDE floppy (LS-120)
 # sufficient for any number of installed devices.
 
 controller	ncr0
+controller	isp0
 controller	amd0
 controller	ahb0
 controller	ahc0
