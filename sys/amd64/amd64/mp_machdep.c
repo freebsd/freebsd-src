@@ -68,6 +68,7 @@
 #include <machine/mpapic.h>
 #include <machine/psl.h>
 #include <machine/segments.h>
+#include <machine/smp.h>
 #include <machine/smptests.h>	/** TEST_DEFAULT_CONFIG, TEST_TEST1 */
 #include <machine/tss.h>
 #include <machine/specialreg.h>
