@@ -38,6 +38,7 @@ MAN=	aac.4 \
 	carp.4 \
 	ccd.4 \
 	cd.4 \
+	cdce.4 \
 	ch.4 \
 	ciss.4 \
 	cm.4 \
