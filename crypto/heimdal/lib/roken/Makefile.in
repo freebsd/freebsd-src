@@ -1,6 +1,7 @@
-# Makefile.in generated automatically by automake 1.4a from Makefile.am
+# Makefile.in generated automatically by automake 1.4b from Makefile.am
 
-# Copyright (C) 1994, 1995-9, 2000 Free Software Foundation, Inc.
+# Copyright 1994, 1995, 1996, 1997, 1998, 1999, 2000
+# Free Software Foundation, Inc.
 # This Makefile.in is free software; the Free Software Foundation
 # gives unlimited permission to copy and/or distribute it,
 # with or without modifications, as long as this notice is preserved.
@@ -113,7 +114,7 @@ dpagaix_CFLAGS = @dpagaix_CFLAGS@
 dpagaix_LDADD = @dpagaix_LDADD@
 install_sh = @install_sh@
 
-# $Id: Makefile.am,v 1.94 2001/01/30 01:53:30 assar Exp $
+# $Id: Makefile.am,v 1.96 2001/05/16 23:57:10 assar Exp $
 
 
 AUTOMAKE_OPTIONS = foreign no-dependencies
@@ -125,7 +126,7 @@ ACLOCAL_AMFLAGS = -I ../../cf
 CLEANFILES = roken.h make-roken.c $(XHEADERS)
 
 lib_LTLIBRARIES = libroken.la
-libroken_la_LDFLAGS = -version-info 11:1:2
+libroken_la_LDFLAGS = -version-info 12:0:3
 
 noinst_PROGRAMS = make-roken
 
@@ -148,6 +149,7 @@ parse_bytes_test_LDADD = $(common_LDADD)
 
 libroken_la_SOURCES = \
 	base64.c		\
+	bswap.c			\
 	concat.c		\
 	emalloc.c		\
 	environment.c		\
@@ -314,8 +316,8 @@ X_LIBS = @X_LIBS@
 X_EXTRA_LIBS = @X_EXTRA_LIBS@
 X_PRE_LIBS = @X_PRE_LIBS@
 libroken_la_DEPENDENCIES =  @LTLIBOBJS@
-am_libroken_la_OBJECTS =  base64.lo concat.lo emalloc.lo environment.lo \
-eread.lo erealloc.lo esetenv.lo estrdup.lo ewrite.lo \
+am_libroken_la_OBJECTS =  base64.lo bswap.lo concat.lo emalloc.lo \
+environment.lo eread.lo erealloc.lo esetenv.lo estrdup.lo ewrite.lo \
 getaddrinfo_hostspec.lo get_default_username.lo get_window_size.lo \
 getarg.lo getnameinfo_verified.lo issuid.lo k_getpwnam.lo k_getpwuid.lo \
 mini_inetd.lo net_read.lo net_write.lo parse_bytes.lo parse_time.lo \
@@ -358,7 +360,7 @@ HEADERS =  $(include_HEADERS) $(nodist_include_HEADERS)
 
 depcomp = 
 DIST_COMMON =  $(include_HEADERS) ChangeLog Makefile.am Makefile.in \
-acinclude.m4 getcap.c getcwd.c getnameinfo.c glob.c install-sh \
+acinclude.m4 getcap.c getnameinfo.c glob.c install-sh \
 make-print-version.c missing mkinstalldirs
 
 
@@ -370,7 +372,7 @@ OBJECTS = $(am_libroken_la_OBJECTS) getaddrinfo-test.$(OBJEXT) $(nodist_make_rok
 
 all: all-redirect
 .SUFFIXES:
-.SUFFIXES: .c .h .hin .lo .o .obj
+.SUFFIXES: .hin .c .h .lo .o .obj
 $(srcdir)/Makefile.in: Makefile.am $(top_srcdir)/configure.in $(ACLOCAL_M4) 
 	cd $(top_srcdir) && $(AUTOMAKE) --foreign lib/roken/Makefile
 
@@ -529,6 +531,11 @@ TAGS:  $(HEADERS) $(SOURCES)  $(TAGS_DEPENDENCIES) \
 	test -z "$(ETAGS_ARGS)$$unique$(LISP)$$tags" \
 	  || etags $(ETAGS_ARGS) $$tags  $$unique $(LISP)
 
+GTAGS:
+	here=`CDPATH=: && cd $(top_builddir) && pwd` \
+	  && cd $(top_srcdir) \
+	  && gtags -i $$here
+
 mostlyclean-tags:
 
 clean-tags:
@@ -616,6 +623,9 @@ check-am: all-am
 check: check-am
 installcheck-am:
 installcheck: installcheck-am
+all-recursive-am: $(BUILT_SOURCES)
+	$(MAKE) $(AM_MAKEFLAGS) all-recursive
+
 install-exec-am: install-libLTLIBRARIES
 install-exec: install-exec-am
 
@@ -693,9 +703,9 @@ maintainer-clean-noinstPROGRAMS uninstall-includeHEADERS \
 install-includeHEADERS uninstall-nodist_includeHEADERS \
 install-nodist_includeHEADERS tags mostlyclean-tags distclean-tags \
 clean-tags maintainer-clean-tags check-TESTS distdir info-am info \
-dvi-am dvi check check-am installcheck-am installcheck install-exec-am \
-install-exec install-data-am install-data install-am install \
-uninstall-am uninstall all-redirect all-am all install-strip \
+dvi-am dvi check check-am installcheck-am installcheck all-recursive-am \
+install-exec-am install-exec install-data-am install-data install-am \
+install uninstall-am uninstall all-redirect all-am all install-strip \
 installdirs mostlyclean-generic distclean-generic clean-generic \
 maintainer-clean-generic clean mostlyclean distclean maintainer-clean
 

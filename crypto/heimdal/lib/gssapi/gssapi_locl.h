@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -31,10 +31,14 @@
  * SUCH DAMAGE. 
  */
 
-/* $Id: gssapi_locl.h,v 1.14 2000/08/27 04:19:00 assar Exp $ */
+/* $Id: gssapi_locl.h,v 1.16 2001/05/11 09:16:46 assar Exp $ */
 
 #ifndef GSSAPI_LOCL_H
 #define GSSAPI_LOCL_H
+
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
 
 #include <krb5_locl.h>
 #include <gssapi.h>
@@ -102,5 +106,11 @@ gss_address_to_krb5addr(OM_uint32 gss_addr_type,
 #define SC_KEYBLOCK	  0x04
 #define SC_LOCAL_SUBKEY	  0x08
 #define SC_REMOTE_SUBKEY  0x10
+
+void
+gssapi_krb5_set_error_string (void);
+
+char *
+gssapi_krb5_get_error_string (void);
 
 #endif

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999 - 2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1999 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: expand_hostname.c,v 1.9 2000/02/23 03:12:07 assar Exp $");
+RCSID("$Id: expand_hostname.c,v 1.10 2001/05/14 06:14:46 assar Exp $");
 
 static krb5_error_code
 copy_hostname(krb5_context context,
@@ -41,8 +41,10 @@ copy_hostname(krb5_context context,
 	      char **new_hostname)
 {
     *new_hostname = strdup (orig_hostname);
-    if (*new_hostname == NULL)
+    if (*new_hostname == NULL) {
+	krb5_set_error_string(context, "malloc: out of memory");
 	return ENOMEM;
+    }
     strlwr (*new_hostname);
     return 0;
 }
@@ -70,10 +72,12 @@ krb5_expand_hostname (krb5_context context,
 	if (a->ai_canonname != NULL) {
 	    *new_hostname = strdup (a->ai_canonname);
 	    freeaddrinfo (ai);
-	    if (*new_hostname == NULL)
+	    if (*new_hostname == NULL) {
+		krb5_set_error_string(context, "malloc: out of memory");
 		return ENOMEM;
-	    else
+	    } else {
 		return 0;
+	    }
 	}
     }
     freeaddrinfo (ai);

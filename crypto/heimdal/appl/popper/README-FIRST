@@ -1,0 +1,11 @@
+This kerberized popper was based on popper-1.831beta
+which was later announced as "offical" and not beta.
+
+This program is able to talk both the pop3 and the kpop3 protocol.
+
+Please note that the server principal is pop.hostname and not
+rcmd.hostname. I.e an additional entry is needed in your mailhub's
+/etc/srvtab. Use ksrvutil to add the extra prinicpal.
+
+The server is usually started from inetd and there is already an entry
+for that in inetd.conf.changes.

@@ -1,6 +1,7 @@
-# Makefile.in generated automatically by automake 1.4a from Makefile.am
+# Makefile.in generated automatically by automake 1.4b from Makefile.am
 
-# Copyright (C) 1994, 1995-9, 2000 Free Software Foundation, Inc.
+# Copyright 1994, 1995, 1996, 1997, 1998, 1999, 2000
+# Free Software Foundation, Inc.
 # This Makefile.in is free software; the Free Software Foundation
 # gives unlimited permission to copy and/or distribute it,
 # with or without modifications, as long as this notice is preserved.
@@ -113,20 +114,20 @@ dpagaix_CFLAGS = @dpagaix_CFLAGS@
 dpagaix_LDADD = @dpagaix_LDADD@
 install_sh = @install_sh@
 
-# $Id: Makefile.am,v 1.15 2000/11/15 22:51:10 assar Exp $
+# $Id: Makefile.am,v 1.16 2001/02/07 05:09:06 assar Exp $
 
 
 # $Id: Makefile.am.common,v 1.3 1999/04/01 14:58:43 joda Exp $
 
 
-# $Id: Makefile.am.common,v 1.23 2000/12/05 09:11:09 joda Exp $
+# $Id: Makefile.am.common,v 1.26 2001/05/21 13:27:48 joda Exp $
 
 
 AUTOMAKE_OPTIONS = foreign no-dependencies
 
 SUFFIXES = .et .h .1 .3 .5 .8 .cat1 .cat3 .cat5 .cat8 .x
 
-INCLUDES = -I$(top_builddir)/include $(INCLUDES_roken) $(INCLUDE_krb4)
+INCLUDES = -I$(top_builddir)/include $(INCLUDES_roken) $(INCLUDE_krb4) -I$(srcdir)/../login
 
 AM_CFLAGS =  $(WFLAGS)
 
@@ -185,6 +186,8 @@ NROFF_MAN = groff -mandoc -Tascii
 @KRB5_TRUE@	$(top_builddir)/lib/asn1/libasn1.la
 @KRB5_TRUE@LIB_gssapi = @KRB5_TRUE@$(top_builddir)/lib/gssapi/libgssapi.la
 
+@DCE_TRUE@LIB_kdfs = @DCE_TRUE@$(top_builddir)/lib/kdfs/libkdfs.la
+
 CHECK_LOCAL = $(PROGRAMS)
 
 bin_PROGRAMS = rsh
@@ -193,13 +196,14 @@ libexec_PROGRAMS = rshd
 
 rsh_SOURCES = rsh.c common.c rsh_locl.h
 
-rshd_SOURCES = rshd.c common.c rsh_locl.h
+rshd_SOURCES = rshd.c common.c login_access.c rsh_locl.h
 
 LDADD = $(LIB_kafs) \
 	$(LIB_krb5) \
 	$(LIB_krb4) \
 	$(LIB_des) \
-	$(LIB_roken)
+	$(LIB_roken) \
+	$(LIB_kdfs)
 
 subdir = appl/rsh
 mkinstalldirs = $(SHELL) $(top_srcdir)/mkinstalldirs
@@ -220,30 +224,59 @@ X_PRE_LIBS = @X_PRE_LIBS@
 am_rsh_OBJECTS =  rsh.$(OBJEXT) common.$(OBJEXT)
 rsh_OBJECTS =  $(am_rsh_OBJECTS)
 rsh_LDADD = $(LDADD)
-@KRB4_FALSE@@KRB5_FALSE@rsh_DEPENDENCIES = 
-@KRB4_FALSE@@KRB5_TRUE@rsh_DEPENDENCIES =  \
-@KRB4_FALSE@@KRB5_TRUE@$(top_builddir)/lib/krb5/libkrb5.la \
-@KRB4_FALSE@@KRB5_TRUE@$(top_builddir)/lib/asn1/libasn1.la
-@KRB4_TRUE@@KRB5_FALSE@rsh_DEPENDENCIES =  \
-@KRB4_TRUE@@KRB5_FALSE@$(top_builddir)/lib/kafs/libkafs.la
-@KRB4_TRUE@@KRB5_TRUE@rsh_DEPENDENCIES =  \
-@KRB4_TRUE@@KRB5_TRUE@$(top_builddir)/lib/kafs/libkafs.la \
-@KRB4_TRUE@@KRB5_TRUE@$(top_builddir)/lib/krb5/libkrb5.la \
-@KRB4_TRUE@@KRB5_TRUE@$(top_builddir)/lib/asn1/libasn1.la
+@DCE_FALSE@@KRB4_FALSE@@KRB5_FALSE@rsh_DEPENDENCIES = 
+@DCE_FALSE@@KRB4_FALSE@@KRB5_TRUE@rsh_DEPENDENCIES =  \
+@DCE_FALSE@@KRB4_FALSE@@KRB5_TRUE@$(top_builddir)/lib/krb5/libkrb5.la \
+@DCE_FALSE@@KRB4_FALSE@@KRB5_TRUE@$(top_builddir)/lib/asn1/libasn1.la
+@DCE_FALSE@@KRB4_TRUE@@KRB5_FALSE@rsh_DEPENDENCIES =  \
+@DCE_FALSE@@KRB4_TRUE@@KRB5_FALSE@$(top_builddir)/lib/kafs/libkafs.la
+@DCE_FALSE@@KRB4_TRUE@@KRB5_TRUE@rsh_DEPENDENCIES =  \
+@DCE_FALSE@@KRB4_TRUE@@KRB5_TRUE@$(top_builddir)/lib/kafs/libkafs.la \
+@DCE_FALSE@@KRB4_TRUE@@KRB5_TRUE@$(top_builddir)/lib/krb5/libkrb5.la \
+@DCE_FALSE@@KRB4_TRUE@@KRB5_TRUE@$(top_builddir)/lib/asn1/libasn1.la
+@DCE_TRUE@@KRB4_FALSE@@KRB5_FALSE@rsh_DEPENDENCIES =  \
+@DCE_TRUE@@KRB4_FALSE@@KRB5_FALSE@$(top_builddir)/lib/kdfs/libkdfs.la
+@DCE_TRUE@@KRB4_FALSE@@KRB5_TRUE@rsh_DEPENDENCIES =  \
+@DCE_TRUE@@KRB4_FALSE@@KRB5_TRUE@$(top_builddir)/lib/krb5/libkrb5.la \
+@DCE_TRUE@@KRB4_FALSE@@KRB5_TRUE@$(top_builddir)/lib/asn1/libasn1.la \
+@DCE_TRUE@@KRB4_FALSE@@KRB5_TRUE@$(top_builddir)/lib/kdfs/libkdfs.la
+@DCE_TRUE@@KRB4_TRUE@@KRB5_FALSE@rsh_DEPENDENCIES =  \
+@DCE_TRUE@@KRB4_TRUE@@KRB5_FALSE@$(top_builddir)/lib/kafs/libkafs.la \
+@DCE_TRUE@@KRB4_TRUE@@KRB5_FALSE@$(top_builddir)/lib/kdfs/libkdfs.la
+@DCE_TRUE@@KRB4_TRUE@@KRB5_TRUE@rsh_DEPENDENCIES =  \
+@DCE_TRUE@@KRB4_TRUE@@KRB5_TRUE@$(top_builddir)/lib/kafs/libkafs.la \
+@DCE_TRUE@@KRB4_TRUE@@KRB5_TRUE@$(top_builddir)/lib/krb5/libkrb5.la \
+@DCE_TRUE@@KRB4_TRUE@@KRB5_TRUE@$(top_builddir)/lib/asn1/libasn1.la \
+@DCE_TRUE@@KRB4_TRUE@@KRB5_TRUE@$(top_builddir)/lib/kdfs/libkdfs.la
 rsh_LDFLAGS = 
-am_rshd_OBJECTS =  rshd.$(OBJEXT) common.$(OBJEXT)
+am_rshd_OBJECTS =  rshd.$(OBJEXT) common.$(OBJEXT) \
+login_access.$(OBJEXT)
 rshd_OBJECTS =  $(am_rshd_OBJECTS)
 rshd_LDADD = $(LDADD)
-@KRB4_FALSE@@KRB5_FALSE@rshd_DEPENDENCIES = 
-@KRB4_FALSE@@KRB5_TRUE@rshd_DEPENDENCIES =  \
-@KRB4_FALSE@@KRB5_TRUE@$(top_builddir)/lib/krb5/libkrb5.la \
-@KRB4_FALSE@@KRB5_TRUE@$(top_builddir)/lib/asn1/libasn1.la
-@KRB4_TRUE@@KRB5_FALSE@rshd_DEPENDENCIES =  \
-@KRB4_TRUE@@KRB5_FALSE@$(top_builddir)/lib/kafs/libkafs.la
-@KRB4_TRUE@@KRB5_TRUE@rshd_DEPENDENCIES =  \
-@KRB4_TRUE@@KRB5_TRUE@$(top_builddir)/lib/kafs/libkafs.la \
-@KRB4_TRUE@@KRB5_TRUE@$(top_builddir)/lib/krb5/libkrb5.la \
-@KRB4_TRUE@@KRB5_TRUE@$(top_builddir)/lib/asn1/libasn1.la
+@DCE_FALSE@@KRB4_FALSE@@KRB5_FALSE@rshd_DEPENDENCIES = 
+@DCE_FALSE@@KRB4_FALSE@@KRB5_TRUE@rshd_DEPENDENCIES =  \
+@DCE_FALSE@@KRB4_FALSE@@KRB5_TRUE@$(top_builddir)/lib/krb5/libkrb5.la \
+@DCE_FALSE@@KRB4_FALSE@@KRB5_TRUE@$(top_builddir)/lib/asn1/libasn1.la
+@DCE_FALSE@@KRB4_TRUE@@KRB5_FALSE@rshd_DEPENDENCIES =  \
+@DCE_FALSE@@KRB4_TRUE@@KRB5_FALSE@$(top_builddir)/lib/kafs/libkafs.la
+@DCE_FALSE@@KRB4_TRUE@@KRB5_TRUE@rshd_DEPENDENCIES =  \
+@DCE_FALSE@@KRB4_TRUE@@KRB5_TRUE@$(top_builddir)/lib/kafs/libkafs.la \
+@DCE_FALSE@@KRB4_TRUE@@KRB5_TRUE@$(top_builddir)/lib/krb5/libkrb5.la \
+@DCE_FALSE@@KRB4_TRUE@@KRB5_TRUE@$(top_builddir)/lib/asn1/libasn1.la
+@DCE_TRUE@@KRB4_FALSE@@KRB5_FALSE@rshd_DEPENDENCIES =  \
+@DCE_TRUE@@KRB4_FALSE@@KRB5_FALSE@$(top_builddir)/lib/kdfs/libkdfs.la
+@DCE_TRUE@@KRB4_FALSE@@KRB5_TRUE@rshd_DEPENDENCIES =  \
+@DCE_TRUE@@KRB4_FALSE@@KRB5_TRUE@$(top_builddir)/lib/krb5/libkrb5.la \
+@DCE_TRUE@@KRB4_FALSE@@KRB5_TRUE@$(top_builddir)/lib/asn1/libasn1.la \
+@DCE_TRUE@@KRB4_FALSE@@KRB5_TRUE@$(top_builddir)/lib/kdfs/libkdfs.la
+@DCE_TRUE@@KRB4_TRUE@@KRB5_FALSE@rshd_DEPENDENCIES =  \
+@DCE_TRUE@@KRB4_TRUE@@KRB5_FALSE@$(top_builddir)/lib/kafs/libkafs.la \
+@DCE_TRUE@@KRB4_TRUE@@KRB5_FALSE@$(top_builddir)/lib/kdfs/libkdfs.la
+@DCE_TRUE@@KRB4_TRUE@@KRB5_TRUE@rshd_DEPENDENCIES =  \
+@DCE_TRUE@@KRB4_TRUE@@KRB5_TRUE@$(top_builddir)/lib/kafs/libkafs.la \
+@DCE_TRUE@@KRB4_TRUE@@KRB5_TRUE@$(top_builddir)/lib/krb5/libkrb5.la \
+@DCE_TRUE@@KRB4_TRUE@@KRB5_TRUE@$(top_builddir)/lib/asn1/libasn1.la \
+@DCE_TRUE@@KRB4_TRUE@@KRB5_TRUE@$(top_builddir)/lib/kdfs/libkdfs.la
 rshd_LDFLAGS = 
 COMPILE = $(CC) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
 LTCOMPILE = $(LIBTOOL) --mode=compile $(CC) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
@@ -263,7 +296,7 @@ OBJECTS = $(am_rsh_OBJECTS) $(am_rshd_OBJECTS)
 
 all: all-redirect
 .SUFFIXES:
-.SUFFIXES: .1 .3 .5 .8 .c .cat1 .cat3 .cat5 .cat8 .et .h .lo .o .obj .x
+.SUFFIXES: .et .h .1 .3 .5 .8 .cat1 .cat3 .cat5 .cat8 .x .c .lo .o .obj
 $(srcdir)/Makefile.in: Makefile.am $(top_srcdir)/configure.in $(ACLOCAL_M4) $(top_srcdir)/Makefile.am.common $(top_srcdir)/cf/Makefile.am.common
 	cd $(top_srcdir) && $(AUTOMAKE) --foreign appl/rsh/Makefile
 
@@ -386,6 +419,11 @@ TAGS:  $(HEADERS) $(SOURCES)  $(TAGS_DEPENDENCIES) \
 	       END { for (i in files) print i; }'`; \
 	test -z "$(ETAGS_ARGS)$$unique$(LISP)$$tags" \
 	  || etags $(ETAGS_ARGS) $$tags  $$unique $(LISP)
+
+GTAGS:
+	here=`CDPATH=: && cd $(top_builddir) && pwd` \
+	  && cd $(top_srcdir) \
+	  && gtags -i $$here
 
 mostlyclean-tags:
 
@@ -623,6 +661,9 @@ check-local::
 	  echo "$$dashes"; \
 	  test "$$failed" -eq 0; \
 	fi
+
+login_access.c:
+	$(LN_S) $(srcdir)/../login/login_access.c .
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.

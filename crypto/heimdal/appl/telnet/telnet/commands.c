@@ -33,7 +33,7 @@
 
 #include "telnet_locl.h"
 
-RCSID("$Id: commands.c,v 1.64 2000/12/11 01:44:01 assar Exp $");
+RCSID("$Id: commands.c,v 1.65 2001/02/20 03:12:09 assar Exp $");
 
 #if	defined(IPPROTO_IP) && defined(IP_TOS)
 int tos = -1;
@@ -988,7 +988,6 @@ unsetcmd(int argc, char *argv[])
  * 'mode' command.
  */
 #ifdef	KLUDGELINEMODE
-extern int kludgelinemode;
 
 static int
 dokludgemode(void)
@@ -1030,7 +1029,6 @@ static int
 dolmmode(int bit, int on)
 {
     unsigned char c;
-    extern int linemode;
 
     if (my_want_state_is_wont(TELOPT_LINEMODE)) {
 	printf("?Need to have LINEMODE option enabled first.\r\n");
@@ -1328,8 +1326,6 @@ shell(int argc, char **argv)
 static int
 bye(int argc, char **argv)
 {
-    extern int resettermname;
-
     if (connected) {
 	shutdown(net, 2);
 	printf("Connection closed.\r\n");
@@ -1551,7 +1547,6 @@ env_find(unsigned char *var)
 void
 env_init(void)
 {
-	extern char **environ;
 	char **epp, *cp;
 	struct env_lst *ep;
 
@@ -1972,7 +1967,7 @@ status(int argc, char **argv)
 /*
  * Function that gets called when SIGINFO is received.
  */
-void
+RETSIGTYPE
 ayt_status(int ignore)
 {
     call(status, "status", "notmuch", 0);
@@ -2117,6 +2112,7 @@ tn(int argc, char **argv)
 	goto usage;
 
     strlcpy (_hostname, hostp, sizeof(_hostname));
+    hostp = _hostname;
     if (hostp[0] == '@' || hostp[0] == '!') {
 	char *p;
 	hostname = NULL;

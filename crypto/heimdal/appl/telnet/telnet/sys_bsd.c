@@ -33,7 +33,7 @@
 
 #include "telnet_locl.h"
 
-RCSID("$Id: sys_bsd.c,v 1.26 2000/10/19 21:19:57 assar Exp $");
+RCSID("$Id: sys_bsd.c,v 1.27 2001/03/06 20:10:14 assar Exp $");
 
 /*
  * The following routines try to encapsulate what is system dependent
@@ -118,9 +118,6 @@ TerminalAutoFlush(void)
 #endif	/* LNOFLSH */
 }
 
-#ifdef	KLUDGELINEMODE
-extern int kludgelinemode;
-#endif
 /*
  * TerminalSpecialChars()
  *

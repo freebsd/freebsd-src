@@ -1,4 +1,4 @@
-.\" $Id: kdc.8,v 1.11 2001/01/26 22:46:28 assar Exp $
+.\" $Id: kdc.8,v 1.13 2001/06/08 21:35:32 joda Exp $
 .\"
 .Dd July 27, 1997
 .Dt KDC 8
@@ -9,20 +9,23 @@
 .Sh SYNOPSIS
 .Nm
 .Oo Fl c Ar file \*(Ba Xo
-.Fl -config-file= Ns Ar file Oc
+.Fl -config-file= Ns Ar file
 .Xc
+.Oc
 .Op Fl p | Fl -no-require-preauth
 .Op Fl -max-request= Ns Ar size
 .Op Fl H | Fl -enable-http
 .Oo Fl r Ar string \*(Ba Xo
-.Fl -v4-realm= Ns Ar string Oc
+.Fl -v4-realm= Ns Ar string
 .Xc
+.Oc
 .Op Fl K | Fl -no-kaserver
 .Op Fl r Ar realm
 .Op Fl -v4-realm= Ns Ar realm
 .Oo Fl P Ar string \*(Ba Xo
-.Fl -ports= Ns Ar string Oc
+.Fl -ports= Ns Ar string
 .Xc
+.Oc
 .Op Fl -addresses= Ns Ar list of addresses
 .Sh DESCRIPTION
 .Nm

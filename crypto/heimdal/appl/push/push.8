@@ -1,4 +1,4 @@
-.\" $Id: push.8,v 1.8 2001/01/11 16:16:28 assar Exp $
+.\" $Id: push.8,v 1.10 2001/05/15 12:14:24 assar Exp $
 .\"
 .Dd May 31, 1998
 .Dt PUSH 8
@@ -103,7 +103,7 @@ points to the post office, if no other hostname is specified.
 .\".Sh FILES
 .Sh EXAMPLES
 .Bd -literal -offset indent
-$ push cornfield:roosta ~/.gnus-crash-box
+$ push cornfield:roosta ~/.emacs-mail-crash-box
 .Ed
 .Pp
 tries to fetch mail for the user
@@ -111,7 +111,7 @@ tries to fetch mail for the user
 from the post office at
 .Dq cornfield ,
 and stores the mail in
-.Pa ~/.gnus-crash-box  
+.Pa ~/.emacs-mail-crash-box
 (you are using Gnus, aren't you?)
 .Bd -literal -offset indent
 $ push --from -5 havregryn

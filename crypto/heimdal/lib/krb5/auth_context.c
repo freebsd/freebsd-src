@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: auth_context.c,v 1.55 2000/12/10 20:01:05 assar Exp $");
+RCSID("$Id: auth_context.c,v 1.56 2001/05/14 06:14:44 assar Exp $");
 
 krb5_error_code
 krb5_auth_con_init(krb5_context context,
@@ -42,11 +42,14 @@ krb5_auth_con_init(krb5_context context,
     krb5_auth_context p;
 
     ALLOC(p, 1);
-    if(!p)
+    if(!p) {
+	krb5_set_error_string(context, "malloc: out of memory");
 	return ENOMEM;
+    }
     memset(p, 0, sizeof(*p));
     ALLOC(p->authenticator, 1);
     if (!p->authenticator) {
+	krb5_set_error_string(context, "malloc: out of memory");
 	free(p);
 	return ENOMEM;
     }
@@ -146,11 +149,13 @@ krb5_auth_con_genaddrs(krb5_context context,
 	    len = sizeof(ss_local);
 	    if(getsockname(fd, local, &len) < 0) {
 		ret = errno;
+		krb5_set_error_string (context, "getsockname: %s",
+				       strerror(ret));
 		goto out;
 	    }
-	    krb5_sockaddr2address (local, &local_k_address);
+	    krb5_sockaddr2address (context, local, &local_k_address);
 	    if(flags & KRB5_AUTH_CONTEXT_GENERATE_LOCAL_FULL_ADDR) {
-		krb5_sockaddr2port (local, &auth_context->local_port);
+		krb5_sockaddr2port (context, local, &auth_context->local_port);
 	    } else
 		auth_context->local_port = 0;
 	    lptr = &local_k_address;
@@ -160,11 +165,12 @@ krb5_auth_con_genaddrs(krb5_context context,
 	len = sizeof(ss_remote);
 	if(getpeername(fd, remote, &len) < 0) {
 	    ret = errno;
+	    krb5_set_error_string (context, "getpeername: %s", strerror(ret));
 	    goto out;
 	}
-	krb5_sockaddr2address (remote, &remote_k_address);
+	krb5_sockaddr2address (context, remote, &remote_k_address);
 	if(flags & KRB5_AUTH_CONTEXT_GENERATE_REMOTE_FULL_ADDR) {
-	    krb5_sockaddr2port (remote, &auth_context->remote_port);
+	    krb5_sockaddr2port (context, remote, &auth_context->remote_port);
 	} else
 	    auth_context->remote_port = 0;
 	rptr = &remote_k_address;
@@ -205,8 +211,10 @@ krb5_auth_con_getaddrs(krb5_context context,
     if(*local_addr)
 	krb5_free_address (context, *local_addr);
     *local_addr = malloc (sizeof(**local_addr));
-    if (*local_addr == NULL)
+    if (*local_addr == NULL) {
+	krb5_set_error_string(context, "malloc: out of memory");
 	return ENOMEM;
+    }
     krb5_copy_address(context,
 		      auth_context->local_address,
 		      *local_addr);
@@ -214,8 +222,12 @@ krb5_auth_con_getaddrs(krb5_context context,
     if(*remote_addr)
 	krb5_free_address (context, *remote_addr);
     *remote_addr = malloc (sizeof(**remote_addr));
-    if (*remote_addr == NULL)
+    if (*remote_addr == NULL) {
+	krb5_set_error_string(context, "malloc: out of memory");
+	krb5_free_address (context, *local_addr);
+	*local_addr = NULL;
 	return ENOMEM;
+    }
     krb5_copy_address(context,
 		      auth_context->remote_address,
 		      *remote_addr);
@@ -390,8 +402,10 @@ krb5_auth_getauthenticator(krb5_context context,
 			   krb5_authenticator *authenticator)
 {
     *authenticator = malloc(sizeof(**authenticator));
-    if (*authenticator == NULL)
+    if (*authenticator == NULL) {
+	krb5_set_error_string(context, "malloc: out of memory");
 	return ENOMEM;
+    }
 
     copy_Authenticator(auth_context->authenticator,
 		       *authenticator);

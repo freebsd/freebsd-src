@@ -1,4 +1,4 @@
-# $Id: Makefile.am,v 1.8 2001/01/29 22:38:36 assar Exp $
+# $Id: Makefile.am,v 1.9 2001/03/06 16:57:09 assar Exp $
 
 include $(top_srcdir)/Makefile.am.common
 
@@ -81,10 +81,10 @@ OBJS = sia.o posix_getpw.o
 libsia_krb5.so: $(OBJS)
 	@if test -f $(top_builddir)/lib/krb5/.libs/libkrb5.a; then \
 		echo "ld -shared -o $@ $(LDFLAGS) $(OBJS) $(L)"; \
-		ld -shared -o $@ $(LDFLAGS) $(OBJS) $(L); \
+		ld -shared -o $@ $(LDFLAGS) $(OBJS) `echo $(L) | sed 's,-R,-rpath,g'`; \
 	elif test -f $(top_builddir)/lib/krb5/.libs/libkrb5.so; then \
-		echo "ld -shared -o $@ $(LDFLAGS) $(OBJS) $(L_shared)"; \
-		ld -shared -o $@ $(LDFLAGS) $(OBJS) $(L_shared); \
+		echo "ld -shared -o $@ $(LDFLAGS) $(OBJS) `echo $(L_shared) | sed 's,-R,-rpath,g'`"; \
+		ld -shared -o $@ $(LDFLAGS) $(OBJS) `echo $(L_shared) | sed 's,-R,-rpath,g'`; \
 	else \
 		echo "missing libraries"; exit 1; \
 	fi
@@ -92,11 +92,11 @@ libsia_krb5.so: $(OBJS)
 
 libsia_krb4.so: $(OBJS)
 	@if test -f $(top_builddir)/lib/krb/.libs/libkrb.a; then \
-		echo "ld -shared -o $@ $(LDFLAGS) $(OBJS) $(L)"; \
-		ld -shared -o $@ $(LDFLAGS) $(OBJS) $(L); \
+		echo "ld -shared -o $@ $(LDFLAGS) $(OBJS) `echo $(L) | sed 's,-R,-rpath,g'`"; \
+		ld -shared -o $@ $(LDFLAGS) $(OBJS) `echo $(L) | sed 's,-R,-rpath,g'`; \
 	elif test -f $(top_builddir)/lib/krb/.libs/libkrb.so; then \
-		echo "ld -shared -o $@ $(LDFLAGS) $(OBJS) $(L_shared)"; \
-		ld -shared -o $@ $(LDFLAGS) $(OBJS) $(L_shared); \
+		echo "ld -shared -o $@ $(LDFLAGS) $(OBJS) `echo $(L_shared) | sed 's,-R,-rpath,g'`"; \
+		ld -shared -o $@ $(LDFLAGS) $(OBJS) `echo $(L_shared) | sed 's,-R,-rpath,g'`; \
 	else \
 		echo "missing libraries"; exit 1; \
 	fi

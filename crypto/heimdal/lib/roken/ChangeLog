@@ -1,3 +1,77 @@
+2001-05-17  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am: bump version to 12:0:3
+	* roken.h.in: re-add set_progname and get_progname for backwards
+	compatability
+	* warnerr.c: re-add set_progname and get_progname for backwards
+	compatability
+
+2001-05-12  Assar Westerlund  <assar@sics.se>
+
+	* glob.c: add limits.h, from <shadow@dementia.org>
+
+2001-05-11  Johan Danielsson  <joda@pdc.kth.se>
+
+	* Makefile.am: bswap.c
+	
+	* bswap.c: bswap{16,32}
+	
+2001-05-08  Assar Westerlund  <assar@sics.se>
+
+	* freeaddrinfo.c (freeaddrinfo): also free every `struct
+	addrinfo'.  from <tmartin@mirapoint.com>
+
+2001-04-25  Assar Westerlund  <assar@sics.se>
+
+	* getarg.h (free_getarg_strings): add prototype
+	* getarg.c (free_getarg_strings): add function
+
+2001-04-21  Johan Danielsson  <joda@pdc.kth.se>
+
+	* getarg.c: pack short flag options togther, to shorten the usage
+	string
+
+2001-04-17  Johan Danielsson  <joda@pdc.kth.se>
+
+	* getifaddrs.c (getifaddrs2): close socket when done
+
+2001-03-26  Johan Danielsson  <joda@pdc.kth.se>
+
+	* roken.awk: END has to be last with Sun's awk
+
+2001-03-26  Assar Westerlund  <assar@sics.se>
+
+	* parse_units.c (parse_something): do not check the return value
+	from strtod, it might return != 0.0 when the string has no digits.
+	just testing if it consumed any characters is enough and more
+	resilient
+	* glob.c: add GLOB_LIMIT (from NetBSD)
+
+2001-02-20  Assar Westerlund  <assar@sics.se>
+
+	* warnerr.c (warnerr): do not use __progname
+	* roken.h.in (setprogname, getprogname): add prototypes
+	* warnerr.c (setprogname, getprogname): rename to. change all
+	callers
+	
+2001-02-12  Assar Westerlund  <assar@sics.se>
+
+	* getnameinfo_verified.c (getnameinfo_verified): do the first
+	getnameinfo with NI_NUMERICSERV to avoid the error that bind 8.2.3
+	reports on not finding the service
+	(ENI_NOSERVNAME).  reported by Ake Sandgren <ake@cs.umu.se>
+
+2001-02-09  Assar Westerlund  <assar@sics.se>
+
+	* getnameinfo.c (doit): call inet_ntop with correct af, noted by
+	Ake Sandgren <ake@cs.umu.se>
+
+2001-02-08  Assar Westerlund  <assar@sics.se>
+
+	* getnameinfo_verified.c (getnameinfo_verified): always capture
+	the service from getnameinfo so it can be sent back to getaddrinfo
+	and set socktype to avoid getaddrinfo not returning any addresses
+
 2001-01-30  Assar Westerlund  <assar@sics.se>
 
 	* Makefile.am (libroken_la_LDFLAGS): bump version to 11:1:2

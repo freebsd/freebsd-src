@@ -1,11 +1,11 @@
-# $Id: Makefile.am,v 1.24 2000/08/16 11:24:54 assar Exp $
+# $Id: Makefile.am,v 1.25 2001/05/17 00:01:26 assar Exp $
 
 include $(top_srcdir)/Makefile.am.common
 
 YFLAGS = -d
 
 lib_LTLIBRARIES = libcom_err.la
-libcom_err_la_LDFLAGS = -version-info 1:1:0
+libcom_err_la_LDFLAGS = -version-info 2:0:1
 
 bin_PROGRAMS = compile_et
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include <krb5_locl.h>
 
-RCSID("$Id: mk_priv.c,v 1.28 2000/08/18 06:48:07 assar Exp $");
+RCSID("$Id: mk_priv.c,v 1.29 2001/05/14 06:14:49 assar Exp $");
 
 /*
  *
@@ -87,8 +87,10 @@ krb5_mk_priv(krb5_context context,
 
   buf_size = 1024;
   buf = malloc (buf_size);
-  if (buf == NULL)
+  if (buf == NULL) {
+      krb5_set_error_string (context, "malloc: out of memory");
       return ENOMEM;
+  }
 
   krb5_data_zero (&s.enc_part.cipher);
 
@@ -102,6 +104,7 @@ krb5_mk_priv(krb5_context context,
 	      buf_size *= 2;
 	      tmp = realloc (buf, buf_size);
 	      if (tmp == NULL) {
+		  krb5_set_error_string (context, "malloc: out of memory");
 		  ret = ENOMEM;
 		  goto fail;
 	      }
@@ -144,6 +147,7 @@ krb5_mk_priv(krb5_context context,
 	      buf_size *= 2;
 	      tmp = realloc (buf, buf_size);
 	      if (tmp == NULL) {
+		  krb5_set_error_string (context, "malloc: out of memory");
 		  ret = ENOMEM;
 		  goto fail;
 	      }
@@ -158,6 +162,7 @@ krb5_mk_priv(krb5_context context,
   outbuf->length = len;
   outbuf->data   = malloc (len);
   if (outbuf->data == NULL) {
+      krb5_set_error_string (context, "malloc: out of memory");
       free(buf);
       return ENOMEM;
   }

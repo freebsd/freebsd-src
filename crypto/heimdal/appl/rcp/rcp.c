@@ -32,16 +32,16 @@
  */
 
 #include "rcp_locl.h"
+#include <getarg.h>
 
 #define RSH_PROGRAM "rsh"
-#define	OPTIONS "5dfKpP:rtxz"
 
 struct  passwd *pwd;
 uid_t	userid;
 int     errs, remin, remout;
 int     pflag, iamremote, iamrecursive, targetshouldbedirectory;
 int     doencrypt, noencrypt;
-int     usebroken, usekrb5;
+int     usebroken, usekrb5, forwardtkt;
 char    *port;
 
 #define	CMDNEEDS	64
@@ -53,58 +53,57 @@ void	 sink (int, char *[]);
 void	 source (int, char *[]);
 void	 tolocal (int, char *[]);
 void	 toremote (char *, int, char *[]);
-void	 usage (void);
 
 int      do_cmd(char *host, char *remuser, char *cmd, int *fdin, int *fdout);
 
-int
-main(argc, argv)
-	int argc;
-	char *argv[];
-{
-	int ch, fflag, tflag;
-	char *targ;
+static int fflag, tflag;
 
-	fflag = tflag = 0;
-	while ((ch = getopt(argc, argv, OPTIONS)) != -1)
-		switch(ch) {			/* User-visible flags. */
-		case '5':
-			usekrb5 = 1;
-			break;
-		case 'K':
-			usebroken = 1;
-			break;
-		case 'P':
-			port = optarg;
-			break;			
-		case 'p':
-			pflag = 1;
-			break;
-		case 'r':
-			iamrecursive = 1;
-			break;
-		case 'x':
-			doencrypt = 1;
-			break;			
-		case 'z':
-			noencrypt = 1;
-			break;
-						/* Server options. */
-		case 'd':
-			targetshouldbedirectory = 1;
-			break;
-		case 'f':			/* "from" */
-			iamremote = 1;
-			fflag = 1;
-			break;
-		case 't':			/* "to" */
-			iamremote = 1;
-			tflag = 1;
-			break;
-		case '?':
-		default:
-			usage();
-		}
+static int version_flag, help_flag;
+
+struct getargs args[] = {
+    { NULL,	'5', arg_flag,		&usekrb5,	"use Kerberos 5 authentication" },
+    { NULL,	'F', arg_flag,		&forwardtkt,	"forward credentials" },
+    { NULL,	'K', arg_flag,		&usebroken,	"use BSD authentication" },
+    { NULL,	'P', arg_string,	&port,		"non-default port", "port" },
+    { NULL,	'p', arg_flag,		&pflag,	"preserve file permissions" },
+    { NULL,	'r', arg_flag,		&iamrecursive,	"recursive mode" },
+    { NULL,	'x', arg_flag,		&doencrypt,	"use encryption" },
+    { NULL,	'z', arg_flag,		&noencrypt,	"don't encrypt" },
+    { NULL,	'd', arg_flag,		&targetshouldbedirectory },
+    { NULL,	'f', arg_flag,		&fflag },
+    { NULL,	't', arg_flag,		&tflag },
+    { "version", 0,  arg_flag,		&version_flag },
+    { "help",	 0,  arg_flag,		&help_flag }
+};
+
+static void
+usage (int ret)
+{
+    arg_printusage (args,
+		    sizeof(args) / sizeof(args[0]),
+		    NULL,
+		    "file1 file2|file... directory");
+    exit (ret);
+}
+
+int
+main(int argc, char **argv)
+{
+	char *targ;
+	int optind = 0;
+
+	if (getarg (args, sizeof(args) / sizeof(args[0]), argc, argv,
+		    &optind))
+	    usage (1);
+	if(help_flag)
+	    usage(0);
+	if (version_flag) {
+	    print_version (NULL);
+	    return 0;
+	}
+	    
+	iamremote = (fflag || tflag);
+
 	argc -= optind;
 	argv += optind;
 
@@ -115,29 +114,29 @@ main(argc, argv)
 	remout = STDOUT_FILENO;
 
 	if (fflag) {			/* Follow "protocol", send data. */
-		(void)response();
-		(void)setuid(userid);
+		response();
+		setuid(userid);
 		source(argc, argv);
 		exit(errs);
 	}
 
 	if (tflag) {			/* Receive data. */
-		(void)setuid(userid);
+		setuid(userid);
 		sink(argc, argv);
 		exit(errs);
 	}
 
 	if (argc < 2)
-		usage();
+	    usage(1);
 	if (argc > 2)
 		targetshouldbedirectory = 1;
 
 	remin = remout = -1;
 	/* Command to be executed on remote system using "rsh". */
-	(void) sprintf(cmd, "rcp%s%s%s", iamrecursive ? " -r" : "", 
+	 sprintf(cmd, "rcp%s%s%s", iamrecursive ? " -r" : "", 
 		       pflag ? " -p" : "", targetshouldbedirectory ? " -d" : "");
 
-	(void)signal(SIGPIPE, lostconn);
+	signal(SIGPIPE, lostconn);
 
 	if ((targ = colon(argv[argc - 1])))	/* Dest is remote host. */
 		toremote(targ, argc, argv);
@@ -150,9 +149,7 @@ main(argc, argv)
 }
 
 void
-toremote(targ, argc, argv)
-	char *targ, *argv[];
-	int argc;
+toremote(char *targ, int argc, char **argv)
 {
 	int i, len;
 	char *bp, *host, *src, *suser, *thost, *tuser;
@@ -193,25 +190,25 @@ toremote(targ, argc, argv)
 					suser = pwd->pw_name;
 				else if (!okname(suser))
 					continue;
-				(void)snprintf(bp, len,
+				snprintf(bp, len,
 				    "%s %s -l %s -n %s %s '%s%s%s:%s'",
 				    _PATH_RSH, host, suser, cmd, src,
 				    tuser ? tuser : "", tuser ? "@" : "",
 				    thost, targ);
 			} else
-				(void)snprintf(bp, len,
+				snprintf(bp, len,
 				    "exec %s %s -n %s %s '%s%s%s:%s'",
 				    _PATH_RSH, argv[i], cmd, src,
 				    tuser ? tuser : "", tuser ? "@" : "",
 				    thost, targ);
-			(void)susystem(bp, userid);
-			(void)free(bp);
+			susystem(bp, userid);
+			free(bp);
 		} else {			/* local to remote */
 			if (remin == -1) {
 				len = strlen(targ) + CMDNEEDS + 20;
 				if (!(bp = malloc(len)))
 					err(1, "malloc");
-				(void)snprintf(bp, len, "%s -t %s", cmd, targ);
+				snprintf(bp, len, "%s -t %s", cmd, targ);
 				host = thost;
 
 				if (do_cmd(host, tuser, bp, &remin, &remout) < 0)
@@ -219,8 +216,8 @@ toremote(targ, argc, argv)
 
 				if (response() < 0)
 					exit(1);
-				(void)free(bp);
-				(void)setuid(userid);
+				free(bp);
+				setuid(userid);
 			}
 			source(1, argv+i);
 		}
@@ -228,9 +225,7 @@ toremote(targ, argc, argv)
 }
 
 void
-tolocal(argc, argv)
-	int argc;
-	char *argv[];
+tolocal(int argc, char **argv)
 {
 	int i, len;
 	char *bp, *host, *src, *suser;
@@ -241,12 +236,12 @@ tolocal(argc, argv)
 			    strlen(argv[argc - 1]) + 20;
 			if (!(bp = malloc(len)))
 				err(1, "malloc");
-			(void)snprintf(bp, len, "exec %s%s%s %s %s", _PATH_CP,
+			snprintf(bp, len, "exec %s%s%s %s %s", _PATH_CP,
 			    iamrecursive ? " -PR" : "", pflag ? " -p" : "",
 			    argv[i], argv[argc - 1]);
 			if (susystem(bp, userid))
 				++errs;
-			(void)free(bp);
+			free(bp);
 			continue;
 		}
 		*src++ = 0;
@@ -266,24 +261,38 @@ tolocal(argc, argv)
 		len = strlen(src) + CMDNEEDS + 20;
 		if ((bp = malloc(len)) == NULL)
 			err(1, "malloc");
-		(void)snprintf(bp, len, "%s -f %s", cmd, src);
+		snprintf(bp, len, "%s -f %s", cmd, src);
 		if (do_cmd(host, suser, bp, &remin, &remout) < 0) {
-			(void)free(bp);
+			free(bp);
 			++errs;
 			continue;
 		}
-		(void)free(bp);
+		free(bp);
 		sink(1, argv + argc - 1);
-		(void)seteuid(0);
-		(void)close(remin);
+		seteuid(0);
+		close(remin);
 		remin = remout = -1;
 	}
 }
 
+static char *
+sizestr(off_t size)
+{
+    static char ss[32];
+    char *p;
+    ss[sizeof(ss) - 1] = '\0';
+    for(p = ss + sizeof(ss) - 2; p >= ss; p--) {
+	*p = '0' + size % 10;
+	size /= 10;
+	if(size == 0)
+	    break;
+    }
+    return ss;
+}
+		    
+
 void
-source(argc, argv)
-	int argc;
-	char *argv[];
+source(int argc, char **argv)
 {
 	struct stat stb;
 	static BUF buffer;
@@ -322,21 +331,21 @@ syserr:			run_err("%s: %s", name, strerror(errno));
 			 * Make it compatible with possible future
 			 * versions expecting microseconds.
 			 */
-			(void)snprintf(buf, sizeof(buf), "T%ld 0 %ld 0\n",
+			snprintf(buf, sizeof(buf), "T%ld 0 %ld 0\n",
 			    (long)stb.st_mtime,
 			    (long)stb.st_atime);
-			(void)write(remout, buf, strlen(buf));
+			write(remout, buf, strlen(buf));
 			if (response() < 0)
 				goto next;
 		}
 #define	MODEMASK	(S_ISUID|S_ISGID|S_ISVTX|S_IRWXU|S_IRWXG|S_IRWXO)
-		(void)snprintf(buf, sizeof(buf), "C%04o %lu %s\n",
-		    stb.st_mode & MODEMASK, (unsigned long)stb.st_size, last);
-		(void)write(remout, buf, strlen(buf));
+		snprintf(buf, sizeof(buf), "C%04o %s %s\n",
+			 stb.st_mode & MODEMASK, sizestr(stb.st_size), last);
+		write(remout, buf, strlen(buf));
 		if (response() < 0)
 			goto next;
 		if ((bp = allocbuf(&buffer, fd, BUFSIZ)) == NULL) {
-next:			(void)close(fd);
+next:			close(fd);
 			continue;
 		}
 
@@ -351,7 +360,7 @@ next:			(void)close(fd);
 					haderr = result >= 0 ? EIO : errno;
 			}
 			if (haderr)
-				(void)write(remout, bp->buf, amt);
+				write(remout, bp->buf, amt);
 			else {
 				result = write(remout, bp->buf, amt);
 				if (result != amt)
@@ -361,17 +370,15 @@ next:			(void)close(fd);
 		if (close(fd) && !haderr)
 			haderr = errno;
 		if (!haderr)
-			(void)write(remout, "", 1);
+			write(remout, "", 1);
 		else
 			run_err("%s: %s", name, strerror(haderr));
-		(void)response();
+		response();
 	}
 }
 
 void
-rsource(name, statp)
-	char *name;
-	struct stat *statp;
+rsource(char *name, struct stat *statp)
 {
 	DIR *dirp;
 	struct dirent *dp;
@@ -387,18 +394,18 @@ rsource(name, statp)
 	else
 		last++;
 	if (pflag) {
-		(void)snprintf(path, sizeof(path), "T%ld 0 %ld 0\n",
+		snprintf(path, sizeof(path), "T%ld 0 %ld 0\n",
 		    (long)statp->st_mtime,
 		    (long)statp->st_atime);
-		(void)write(remout, path, strlen(path));
+		write(remout, path, strlen(path));
 		if (response() < 0) {
 			closedir(dirp);
 			return;
 		}
 	}
-	(void)snprintf(path, sizeof(path),
+	snprintf(path, sizeof(path),
 	    "D%04o %d %s\n", statp->st_mode & MODEMASK, 0, last);
-	(void)write(remout, path, strlen(path));
+	write(remout, path, strlen(path));
 	if (response() < 0) {
 		closedir(dirp);
 		return;
@@ -412,19 +419,17 @@ rsource(name, statp)
 			run_err("%s/%s: name too long", name, dp->d_name);
 			continue;
 		}
-		(void)snprintf(path, sizeof(path), "%s/%s", name, dp->d_name);
+		snprintf(path, sizeof(path), "%s/%s", name, dp->d_name);
 		vect[0] = path;
 		source(1, vect);
 	}
-	(void)closedir(dirp);
-	(void)write(remout, "E\n", 2);
-	(void)response();
+	closedir(dirp);
+	write(remout, "E\n", 2);
+	response();
 }
 
 void
-sink(argc, argv)
-	int argc;
-	char *argv[];
+sink(int argc, char **argv)
 {
 	static BUF buffer;
 	struct stat stb;
@@ -443,7 +448,7 @@ sink(argc, argv)
 	setimes = targisdir = 0;
 	mask = umask(0);
 	if (!pflag)
-		(void)umask(mask);
+		umask(mask);
 	if (argc != 1) {
 		run_err("ambiguous target");
 		exit(1);
@@ -451,7 +456,7 @@ sink(argc, argv)
 	targ = *argv;
 	if (targetshouldbedirectory)
 		verifydir(targ);
-	(void)write(remout, "", 1);
+	write(remout, "", 1);
 	if (stat(targ, &stb) == 0 && S_ISDIR(stb.st_mode))
 		targisdir = 1;
 	for (first = 1;; first = 0) {
@@ -469,7 +474,7 @@ sink(argc, argv)
 
 		if (buf[0] == '\01' || buf[0] == '\02') {
 			if (iamremote == 0)
-				(void)write(STDERR_FILENO,
+				write(STDERR_FILENO,
 				    buf + 1, strlen(buf + 1));
 			if (buf[0] == '\02')
 				exit(1);
@@ -477,7 +482,7 @@ sink(argc, argv)
 			continue;
 		}
 		if (buf[0] == 'E') {
-			(void)write(remout, "", 1);
+			write(remout, "", 1);
 			return;
 		}
 
@@ -500,7 +505,7 @@ sink(argc, argv)
 			atime.tv_usec = strtol(cp, &cp, 10);
 			if (!cp || *cp++ != '\0')
 				SCREWUP("atime.usec not delimited");
-			(void)write(remout, "", 1);
+			write(remout, "", 1);
 			continue;
 		}
 		if (*cp != 'C' && *cp != 'D') {
@@ -540,7 +545,7 @@ sink(argc, argv)
 				if (!(namebuf = malloc(need)))
 					run_err("%s", strerror(errno));
 			}
-			(void)snprintf(namebuf, need, "%s%s%s", targ,
+			snprintf(namebuf, need, "%s%s%s", targ,
 			    *targ ? "/" : "", cp);
 			np = namebuf;
 		} else
@@ -554,7 +559,7 @@ sink(argc, argv)
 					goto bad;
 				}
 				if (pflag)
-					(void)chmod(np, mode);
+					chmod(np, mode);
 			} else {
 				/* Handle copying from a read-only directory */
 				mod_flag = 1;
@@ -570,7 +575,7 @@ sink(argc, argv)
 					np, strerror(errno));
 			}
 			if (mod_flag)
-				(void)chmod(np, mode);
+				chmod(np, mode);
 			continue;
 		}
 		omode = mode;
@@ -579,9 +584,9 @@ sink(argc, argv)
 bad:			run_err("%s: %s", np, strerror(errno));
 			continue;
 		}
-		(void)write(remout, "", 1);
+		write(remout, "", 1);
 		if ((bp = allocbuf(&buffer, ofd, BUFSIZ)) == NULL) {
-			(void)close(ofd);
+			close(ofd);
 			continue;
 		}
 		cp = bp->buf;
@@ -591,16 +596,13 @@ bad:			run_err("%s: %s", np, strerror(errno));
 			if (i + amt > size)
 				amt = size - i;
 			count += amt;
-			do {
-				j = read(remin, cp, amt);
-				if (j <= 0) {
-					run_err("%s", j ? strerror(errno) :
-					    "dropped connection");
-					exit(1);
-				}
-				amt -= j;
-				cp += j;
-			} while (amt > 0);
+			if((j = net_read(remin, cp, amt)) != amt) {
+			    run_err("%s", j ? strerror(errno) :
+				    "dropped connection");
+			    exit(1);
+			}
+			amt -= j;
+			cp += j;
 			if (count == bp->cnt) {
 				/* Keep reading so we stay sync'd up. */
 				if (wrerr == NO) {
@@ -634,8 +636,8 @@ bad:			run_err("%s: %s", np, strerror(errno));
 					run_err("%s: set mode: %s",
 					    np, strerror(errno));
 		}
-		(void)close(ofd);
-		(void)response();
+		close(ofd);
+		response();
 		if (setimes && wrerr == NO) {
 			setimes = 0;
 			if (utimes(np, tv) < 0) {
@@ -649,7 +651,7 @@ bad:			run_err("%s: %s", np, strerror(errno));
 			run_err("%s: %s", np, strerror(wrerrno));
 			break;
 		case NO:
-			(void)write(remout, "", 1);
+			write(remout, "", 1);
 			break;
 		case DISPLAYED:
 			break;
@@ -661,7 +663,7 @@ screwup:
 }
 
 int
-response()
+response(void)
 {
 	char ch, *cp, resp, rbuf[BUFSIZ];
 
@@ -684,22 +686,13 @@ response()
 		} while (cp < &rbuf[BUFSIZ] && ch != '\n');
 
 		if (!iamremote)
-			(void)write(STDERR_FILENO, rbuf, cp - rbuf);
+			write(STDERR_FILENO, rbuf, cp - rbuf);
 		++errs;
 		if (resp == 1)
 			return (-1);
 		exit(1);
 	}
 	/* NOTREACHED */
-}
-
-void
-usage()
-{
-	(void)fprintf(stderr, "%s\n%s\n",
-		      "usage: rcp [-5FKpx] [-P port] f1 f2",
-		      "       rcp [-5FKprx] [-P port] f1 ... fn directory");
-	exit(1);
 }
 
 #include <stdarg.h>
@@ -714,11 +707,11 @@ run_err(const char *fmt, ...)
 	++errs;
 	if (fp == NULL && !(fp = fdopen(remout, "w")))
 		return;
-	(void)fprintf(fp, "%c", 0x01);
-	(void)fprintf(fp, "rcp: ");
-	(void)vfprintf(fp, fmt, ap);
-	(void)fprintf(fp, "\n");
-	(void)fflush(fp);
+	fprintf(fp, "%c", 0x01);
+	fprintf(fp, "rcp: ");
+	vfprintf(fp, fmt, ap);
+	fprintf(fp, "\n");
+	fflush(fp);
 
 	if (!iamremote)
 		vwarnx(fmt, ap);
@@ -780,6 +773,8 @@ do_cmd(char *host, char *remuser, char *cmd, int *fdin, int *fdout)
 			args[i++] = "-K";
 		if (doencrypt)
 			args[i++] = "-x";
+		if (forwardtkt)
+			args[i++] = "-F";
 		if (noencrypt)
 			args[i++] = "-z";
 		if (port != NULL) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1998 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,9 @@
 
 #include "gssapi_locl.h"
 
-RCSID("$Id: display_status.c,v 1.5 1999/12/02 17:05:03 joda Exp $");
+RCSID("$Id: display_status.c,v 1.6 2001/05/11 09:16:46 assar Exp $");
+
+static char *krb5_error_string;
 
 static char *
 calling_error(OM_uint32 v)
@@ -91,6 +93,20 @@ routine_error(OM_uint32 v)
 	return msgs[v];
 }
 
+void
+gssapi_krb5_set_error_string (void)
+{
+    krb5_error_string = krb5_get_error_string(gssapi_krb5_context);
+}
+
+char *
+gssapi_krb5_get_error_string (void)
+{
+    char *ret = krb5_error_string;
+    krb5_error_string = NULL;
+    return ret;
+}
+
 OM_uint32 gss_display_status
            (OM_uint32		*minor_status,
 	    OM_uint32		 status_value,
@@ -118,7 +134,9 @@ OM_uint32 gss_display_status
 	  return GSS_S_FAILURE;
       }
   } else if (status_type == GSS_C_MECH_CODE) {
-      buf = strdup(krb5_get_err_text (gssapi_krb5_context, status_value));
+      buf = gssapi_krb5_get_error_string ();
+      if (buf == NULL)
+	  buf = strdup(krb5_get_err_text (gssapi_krb5_context, status_value));
       if (buf == NULL) {
 	  *minor_status = ENOMEM;
 	  return GSS_S_FAILURE;

@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: roken.h.in,v 1.148 2001/01/27 05:28:09 assar Exp $ */
+/* $Id: roken.h.in,v 1.157 2001/05/18 18:00:12 assar Exp $ */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -47,8 +47,20 @@ struct sockaddr_dl;
 #ifdef HAVE_SYS_PARAM_H
 #include <sys/param.h>
 #endif
+#ifdef HAVE_INTTYPES_H
+#include <inttypes.h>
+#endif
 #ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
+#endif
+#ifdef HAVE_SYS_BITYPES_H
+#include <sys/bitypes.h>
+#endif
+#ifdef HAVE_BIND_BITYPES_H
+#include <bind/bitypes.h>
+#endif
+#ifdef HAVE_NETINET_IN6_MACHTYPES_H
+#include <netinet/in6_machtypes.h>
 #endif
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
@@ -352,6 +364,14 @@ mkstemp(char *template);
 void pidfile (const char*);
 #endif
 
+#ifndef HAVE_BSWAP32
+unsigned int bswap32(unsigned int);
+#endif
+
+#ifndef HAVE_BSWAP16
+unsigned short bswap16(unsigned short);
+#endif
+
 #ifndef HAVE_FLOCK
 #ifndef LOCK_SH
 #define LOCK_SH   1		/* Shared lock */
@@ -585,6 +605,14 @@ struct hostent* roken_gethostbyaddr(const void*, size_t, int);
 #define roken_getsockname(a,b,c) getsockname(a,b,c)
 #else
 #define roken_getsockname(a,b,c) getsockname(a, b, (void*)c)
+#endif
+
+#ifndef HAVE_SETPROGNAME
+void setprogname(const char *argv0);
+#endif
+
+#ifndef HAVE_GETPROGNAME
+const char *getprogname(void);
 #endif
 
 void set_progname(char *argv0);

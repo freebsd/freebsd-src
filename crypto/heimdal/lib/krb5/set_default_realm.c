@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998, 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: set_default_realm.c,v 1.11 1999/12/02 17:05:12 joda Exp $");
+RCSID("$Id: set_default_realm.c,v 1.12 2001/05/14 06:14:51 assar Exp $");
 
 /*
  * Convert the simple string `s' into a NULL-terminated and freshly allocated 
@@ -41,15 +41,18 @@ RCSID("$Id: set_default_realm.c,v 1.11 1999/12/02 17:05:12 joda Exp $");
  */
 
 static krb5_error_code
-string_to_list (const char *s, krb5_realm **list)
+string_to_list (krb5_context context, const char *s, krb5_realm **list)
 {
 
     *list = malloc (2 * sizeof(**list));
-    if (*list == NULL)
+    if (*list == NULL) {
+	krb5_set_error_string (context, "malloc: out of memory");
 	return ENOMEM;
+    }
     (*list)[0] = strdup (s);
     if ((*list)[0] == NULL) {
 	free (*list);
+	krb5_set_error_string (context, "malloc: out of memory");
 	return ENOMEM;
     }
     (*list)[1] = NULL;
@@ -77,7 +80,7 @@ krb5_set_default_realm(krb5_context context,
 	if (realms == NULL)
 	    ret = krb5_get_host_realm(context, NULL, &realms);
     } else {
-	ret = string_to_list (realm, &realms);
+	ret = string_to_list (context, realm, &realms);
     }
     if (ret)
 	return ret;

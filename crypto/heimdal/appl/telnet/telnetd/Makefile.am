@@ -1,4 +1,4 @@
-# $Id: Makefile.am,v 1.14 2000/11/15 22:51:11 assar Exp $
+# $Id: Makefile.am,v 1.15 2001/02/07 06:12:02 assar Exp $
 
 include $(top_srcdir)/Makefile.am.common
 
@@ -20,4 +20,5 @@ LDADD = \
 	$(LIB_des) \
 	$(LIB_tgetent) \
 	$(LIB_logwtmp) \
+	$(LIB_kdfs) \
 	$(LIB_roken)
