@@ -139,7 +139,7 @@ static int ipsd_attach(device_t dev)
       		dsc->ipsd_disk.d_fwsectors = IPS_COMP_SECTORS;
    	}
 	dsc->ipsd_disk.d_sectorsize = IPS_BLKSIZE;
-	dsc->ipsd_disk.d_mediasize = totalsectors * IPS_BLKSIZE;
+	dsc->ipsd_disk.d_mediasize = (off_t)totalsectors * IPS_BLKSIZE;
 	disk_create(dsc->unit, &dsc->ipsd_disk, 0, NULL, NULL);
 
 	device_printf(dev, "Logical Drive  (%dMB)\n",
