@@ -62,7 +62,6 @@ static dev_t openfirm_dev;
 
 static d_ioctl_t openfirm_ioctl;
 
-#define CDEV_MAJOR	177
 #define	OPENFIRM_MINOR	0
 
 static struct cdevsw openfirm_cdevsw = {
@@ -70,7 +69,6 @@ static struct cdevsw openfirm_cdevsw = {
 	.d_close =	nullclose,
 	.d_ioctl =	openfirm_ioctl,
 	.d_name =	"openfirm",
-	.d_maj =	CDEV_MAJOR,
 };
 
 static phandle_t lastnode;	/* speed hack */
@@ -124,6 +122,9 @@ openfirm_ioctl(dev_t dev, u_long cmd, caddr_t data, int flags,
 	char *name, *value;
 	char newname[32];
 
+	if ((flags & FREAD) == 0)
+		return (EBADF);
+
 	of = (struct ofiocdesc *)data;
 	switch (cmd) {
 	case OFIOCGETOPTNODE:
@@ -135,6 +136,7 @@ openfirm_ioctl(dev_t dev, u_long cmd, caddr_t data, int flags,
 #endif
 	case OFIOCNEXTPROP:
 	case OFIOCFINDDEVICE:
+	case OFIOCGETPROPLEN:
 		node = of->of_nodeid;
 		break;
 	case OFIOCGETNEXT:
@@ -142,7 +144,7 @@ openfirm_ioctl(dev_t dev, u_long cmd, caddr_t data, int flags,
 		node = *(phandle_t *)data;
 		break;
 	default:
-		return (ENOTTY);
+		return (ENOIOCTL);
 	}
 
 	if (node != 0 && node != lastnode) {
@@ -158,14 +160,17 @@ openfirm_ioctl(dev_t dev, u_long cmd, caddr_t data, int flags,
 	switch (cmd) {
 
 	case OFIOCGET:
-		if ((flags & FREAD) == 0)
-			return (EBADF);
+	case OFIOCGETPROPLEN:
 		if (node == 0)
 			return (EINVAL);
 		error = openfirm_getstr(of->of_namelen, of->of_name, &name);
 		if (error)
 			break;
 		len = OF_getproplen(node, name);
+		if (cmd == OFIOCGETPROPLEN) {
+			of->of_buflen = len;
+			break;
+		}
 		if (len > of->of_buflen) {
 			error = ENOMEM;
 			break;
@@ -202,8 +207,6 @@ openfirm_ioctl(dev_t dev, u_long cmd, caddr_t data, int flags,
 #endif
 
 	case OFIOCNEXTPROP:
-		if ((flags & FREAD) == 0)
-			return (EBADF);
 		if (node == 0 || of->of_buflen < 0)
 			return (EINVAL);
 		if (of->of_namelen != 0) {
@@ -230,15 +233,11 @@ openfirm_ioctl(dev_t dev, u_long cmd, caddr_t data, int flags,
 		break;
 
 	case OFIOCGETNEXT:
-		if ((flags & FREAD) == 0)
-			return (EBADF);
 		node = OF_peer(node);
 		*(phandle_t *)data = lastnode = node;
 		break;
 
 	case OFIOCGETCHILD:
-		if ((flags & FREAD) == 0)
-			return (EBADF);
 		if (node == 0)
 			return (EINVAL);
 		node = OF_child(node);
@@ -246,8 +245,6 @@ openfirm_ioctl(dev_t dev, u_long cmd, caddr_t data, int flags,
 		break;
 
 	case OFIOCFINDDEVICE:
-		if ((flags & FREAD) == 0)
-			return (EBADF);
 		error = openfirm_getstr(of->of_namelen, of->of_name, &name);
 		if (error)
 			break;
