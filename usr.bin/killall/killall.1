@@ -58,7 +58,8 @@ The super-user is allowed to kill any process.
 The options are as follows:
 .Bl -tag -width 10n -offset indent
 .It Fl d | v
-Be more verbose about what will be done.  For a single
+Be more verbose about what will be done.
+For a single
 .Fl d
 option, a list of the processes that will be sent the signal will be
 printed, or a message indicating that no matching processes have been
@@ -78,7 +79,8 @@ Match the argument
 .Ar procname
 as a (case sensitive) regular expression against the names
 of processes found.
-CAUTION!  This is dangerous, a single dot will match any process
+CAUTION!
+This is dangerous, a single dot will match any process
 running under the real UID of the caller.
 .It Fl s
 Show only what would be done, but do not send any signal.
@@ -120,15 +122,17 @@ is already supported by
 .Xr kill 1 .
 So use
 .Xr kill 1
-for this job (e.g. $ kill -TERM -1 or
+for this job (e.g.\& $ kill -TERM -1 or
 as root $ echo kill -TERM -1 | su -m <user>)
 .Sh DIAGNOSTICS
 The
 .Nm
 command will respond with a short usage message and exit with a status
-of 2 in case of a command error.  A status of 1 will be returned if
+of 2 in case of a command error.
+A status of 1 will be returned if
 either no matching process has been found or not all processes have
-been signalled successfully.  Otherwise, a status of 0 will be
+been signalled successfully.
+Otherwise, a status of 0 will be
 returned.
 .Pp
 Diagnostic messages will only be printed if requested by

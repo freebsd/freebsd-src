@@ -51,7 +51,8 @@ The
 .Nm
 utility checks the standard binary, manual page, and source
 directories for the specified programs, printing out the paths of any
-it finds.  The supplied program names are first stripped of leading
+it finds.
+The supplied program names are first stripped of leading
 path name components, any single trailing extension added by
 .Xr gzip 1 ,
 .Xr compress 1 ,
@@ -72,7 +73,8 @@ string, with
 .Pa /usr/games
 and the current user's
 .Ev $PATH
-appended.  Manual pages are searched by default along the
+appended.
+Manual pages are searched by default along the
 .Ev $MANPATH .
 Program sources are located in a list of known standard places,
 including all the subdirectories of
@@ -83,15 +85,18 @@ and
 The following options are available:
 .Bl -tag -width indent
 .It Fl B
-Specify directories to search for binaries.  Requires the
+Specify directories to search for binaries.
+Requires the
 .Fl f
 option.
 .It Fl M
-Specify directories to search for manual pages.  Requires the
+Specify directories to search for manual pages.
+Requires the
 .Fl f
 option.
 .It Fl S
-Specify directories to search for program sources.  Requires the
+Specify directories to search for program sources.
+Requires the
 .Fl f
 option.
 .It Fl a
@@ -121,7 +126,8 @@ Search for source directories.
 .It Fl u
 Search for
 .Dq unusual
-entries.  A file is said to be unusual if it does not have at least
+entries.
+A file is said to be unusual if it does not have at least
 one entry of each requested type.
 Only the name of the unusual entry is printed.
 .It Fl x

@@ -74,7 +74,8 @@ The following table names and describes each field.
 .Pp
 Non-comments are required to describe a certain context where a
 sequence that would normally start a comment loses its special
-meaning.  A typical example for this can be found in Perl, where
+meaning.
+A typical example for this can be found in Perl, where
 comments are normally starting with
 .Ql # ,
 while the string
@@ -95,7 +96,8 @@ if ifdef ifndef include undef:
 .Ed
 .Pp
 Note that the first field is just the language name (and any variants
-of it).  Thus the C language could be specified to
+of it).
+Thus the C language could be specified to
 .Xr vgrind 1
 as "c" or "C".
 .Pp
@@ -132,7 +134,8 @@ a delimiter (space, tab, newline, start of line)
 .It \ea
 matches any string of symbols (like .* in lex)
 .It \ep
-matches any alphanumeric name.  In a procedure definition (pb) the string
+matches any alphanumeric name.
+In a procedure definition (pb) the string
 that matches this symbol is used as the procedure name.
 .It ()
 grouping
@@ -148,11 +151,13 @@ string delimiter in a string by escaping it.
 .El
 .Pp
 Unlike other regular expressions in the system,  these match words
-and not characters.  Hence something like "(tramp|steamer)flies?"
+and not characters.
+Hence something like "(tramp|steamer)flies?"
 would match "tramp", "steamer", "trampflies", or "steamerflies".
 .Sh KEYWORD  LIST
 The keyword list is just a list of keywords in the language separated
-by spaces.  If the "oc" boolean is specified, indicating that upper
+by spaces.
+If the "oc" boolean is specified, indicating that upper
 and lower case are equivalent, then all the keywords should be
 specified in lower case.
 .Sh FILES

@@ -47,10 +47,12 @@
 The
 .Nm
 utility is a filter for converting non-printable characters
-into a visual representation.  It differs from
+into a visual representation.
+It differs from
 .Ql cat -v
 in that
-the form is unique and invertible.  By default, all non-graphic
+the form is unique and invertible.
+By default, all non-graphic
 characters except space, tab, and newline are encoded.
 A detailed description of the
 various visual formats is given in
@@ -60,9 +62,11 @@ The options are as follows:
 .Bl -tag -width Ds
 .It Fl b
 Turns off prepending of backslash before up-arrow control sequences
-and meta characters, and disables the doubling of backslashes.  This
+and meta characters, and disables the doubling of backslashes.
+This
 produces output which is neither invertible or precise, but does
-represent a minimum of change to the input.  It is similar to
+represent a minimum of change to the input.
+It is similar to
 .Dq Li cat -v .
 .It Fl c
 Request a format which displays a small subset of the
@@ -94,14 +98,16 @@ still doubled and hidden newline sequences inserted if
 .Fl f
 or
 .Fl F
-is selected.  When combined with the
+is selected.
+When combined with the
 .Fl f
 flag,
 .Nm
 becomes like
 an invertible version of the
 .Xr fold 1
-utility.  That is, the output
+utility.
+That is, the output
 can be unfolded by running the output through
 .Xr unvis 1 .
 .It Fl o
