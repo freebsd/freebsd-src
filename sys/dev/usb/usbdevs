@@ -302,6 +302,7 @@ vendor BILLIONTON	0x08dd	Billionton Systems
 vendor EXTENDED		0x08e9	Extended Systems
 vendor MSYSTEMS		0x08ec	M-Systems
 vendor AUTHENTEC	0x08ff	AuthenTec
+vendor TRUMPION		0x090a	Trumpion Microelectronics
 vendor ALATION		0x0910	Alation Systems
 vendor GOHUBS		0x0921	GoHubs
 vendor BIOMETRIC	0x0929	American Biometric Company
@@ -359,6 +360,7 @@ vendor ASANTE		0x10bd	Asante
 vendor JRC		0x1145	Japan Radio Company
 vendor DELORME		0x1163	Delorme Publishing
 vendor ACERCM		0x1189	Acer Communications & Multimedia Inc.
+vendor TWINMOS		0x126f	TwinMOS
 vendor BELKIN2		0x1293	Belkin Components
 vendor MOBILITY		0x1342	Mobility
 vendor SHARK		0x13d2	Shark
@@ -1303,6 +1305,12 @@ product	TOSHIBA	POCKETPC_E740	0x0706	PocketPC e740
 /* Trek Technology products */
 product TREK THUMBDRIVE		0x1111	ThumbDrive
 product TREK THUMBDRIVE_8MB	0x9988	ThumbDrive_8MB
+
+/* Trumpion products */
+product TRUMPION C3310		0x1100	Comotron C3310 MP3 player
+
+/* TwinMOS */
+product TWINMOS MDIV		0x1325	Memory Disk IV
 
 /* Ultima products */
 product ULTIMA 1200UBPLUS	0x4002	1200 UB Plus scanner
