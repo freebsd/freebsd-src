@@ -49,9 +49,8 @@ __FBSDID("$FreeBSD$");
 #include <rpcsvc/yp_prot.h>
 #include <rpcsvc/ypclnt.h>
 static int serv_stepping_yp = 0;
-extern int _yp_check( char ** );
 #endif
-
+#include "libc_private.h"
 
 #define	MAXALIASES	35
 

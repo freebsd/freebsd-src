@@ -34,6 +34,11 @@
 #include <sys/types.h>
 #include <sys/mac.h>
 
+extern	int	__mac_set_fd(int fd, struct mac *mac_p);
+extern	int	__mac_set_file(const char *path_p, struct mac *mac_p);
+extern	int	__mac_set_link(const char *path_p, struct mac *mac_p);
+extern	int	__mac_set_proc(struct mac *mac_p);
+
 int
 mac_set_fd(int fd, struct mac *label)
 {
