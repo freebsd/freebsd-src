@@ -500,7 +500,7 @@ check_passive(FILE *fp)
 {
     char *cp = getenv("FTP_PASSIVE_MODE");
 
-    ftpPassive(fp, (cp && !strncmp(cp, "YES", 3)));
+    ftpPassive(fp, (cp && strncasecmp(cp, "no", 2)));
 }
 
 static void
