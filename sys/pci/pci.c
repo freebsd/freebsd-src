@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pci.c,v 1.32 1995/10/02 13:43:11 davidg Exp $
+**  $Id: pci.c,v 1.33 1995/11/20 12:42:23 phk Exp $
 **
 **  General subroutines for the PCI bus.
 **  pci_configure ()
@@ -62,6 +62,8 @@
 
 #include <machine/pmap.h>
 #include <sys/devconf.h>
+
+#include <i386/isa/isa_device.h>	/* XXX inthand2_t */
 
 #include <pci/pcivar.h>
 #include <pci/pcireg.h>
