@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.125 1999/02/08 00:37:35 dillon Exp $
+ *	$Id: vm_page.c,v 1.126 1999/02/15 06:52:14 dillon Exp $
  */
 
 /*
@@ -425,6 +425,13 @@ vm_page_insert(m, object, pindex)
 	 */
 
 	object->resident_page_count++;
+
+	/*
+	 * Since we are inserting a new and possibly dirty page,
+	 * update the object's OBJ_WRITEABLE and OBJ_MIGHTBEDIRTY flags.
+	 */
+	if (m->flags & PG_WRITEABLE)
+	    vm_object_set_flag(object, OBJ_WRITEABLE|OBJ_MIGHTBEDIRTY);
 }
 
 /*
