@@ -253,110 +253,24 @@ extern char STR_SIEN[];
 #else	/* !LOCORE */
 
 /*
- * Simple assembly macros to get and release spin locks.
+ * Simple assembly macros to get and release mutexes.
  */
 
-#ifdef WITNESS
-#define	WITNESS_ENTER(lck, reg)						\
-	movl	lck+MTX_DEBUG,reg;					\
-	cmpl	$0,MTXD_WITNESS(reg);					\
-	jz	1f;							\
-	pushl	$0;							\
-	pushl	$0;							\
-	pushl	$MTX_SPIN;						\
-	pushl	$lck;							\
-	call	witness_enter;						\
-	addl	$0x10,%esp;						\
-1:
+#define	MTX_ENTER(lck, type)						\
+	pushl	$0 ;				/* dummy __LINE__ */	\
+	pushl	$0 ;				/* dummy __FILE__ */	\
+	pushl	$type ;							\
+	pushl	$lck ;							\
+	call	_mtx_enter ;						\
+	addl	$16,%esp
 
-#define	WITNESS_EXIT(lck, reg)						\
-	movl	lck+MTX_DEBUG,reg;					\
-	cmpl	$0,MTXD_WITNESS(reg);					\
-	jz	1f;							\
-	pushl	$0;							\
-	pushl	$0;							\
-	pushl	$MTX_SPIN;						\
-	pushl	$lck;							\
-	call	witness_exit;						\
-	addl	$0x10,%esp;						\
-1:
+#define	MTX_EXIT(lck, type)						\
+	pushl	$0 ;				/* dummy __LINE__ */	\
+	pushl	$0 ;				/* dummy __FILE__ */	\
+	pushl	$type ;							\
+	pushl	$lck ;							\
+	call	_mtx_exit ;						\
+	addl	$16,%esp
 
-#else
-#define	WITNESS_ENTER(lck, reg)
-#define	WITNESS_EXIT(lck, reg)
-#endif
-
-#if defined(I386_CPU)
-
-#define	MTX_ENTER(lck, reg)						\
-	movl	_curproc,reg;						\
-	pushfl;								\
-	cli;								\
-	movl	reg,lck+MTX_LOCK;					\
-	popl	lck+MTX_SAVEINTR;					\
-	WITNESS_ENTER(lck, reg)
-
-#define	MTX_EXIT(lck, reg)						\
-	WITNESS_EXIT(lck, reg)						\
-	pushl	lck+MTX_SAVEINTR;					\
-	movl	$ MTX_UNOWNED,lck+MTX_LOCK;				\
-	popfl;
-
-#else	/* I386_CPU */
-
-#define MTX_ENTER(lck, reg)						\
-	movl	_curproc,reg;						\
-	pushfl;								\
-	cli;								\
-9:	movl	$ MTX_UNOWNED,%eax;					\
-	MPLOCKED							\
-	cmpxchgl reg,lck+MTX_LOCK;					\
-	jnz	9b;							\
-	popl	lck+MTX_SAVEINTR;					\
-	WITNESS_ENTER(lck, reg)
-
-/* Must use locked bus op (cmpxchg) when setting to unowned (barrier) */
-#define	MTX_EXIT(lck, reg)						\
-	WITNESS_EXIT(lck, reg)						\
-	pushl	lck+MTX_SAVEINTR;					\
-	movl	lck+MTX_LOCK,%eax;					\
-	movl	$ MTX_UNOWNED,reg;					\
-	MPLOCKED							\
-	cmpxchgl reg,lck+MTX_LOCK;					\
-	popfl;
-
-#define MTX_ENTER_WITH_RECURSION(lck, reg)				\
-	pushf;								\
-	cli;								\
-	movl	lck+MTX_LOCK,%eax;					\
-	cmpl	_curproc,%eax;						\
-	jne	7f;							\
-	incl	lck+MTX_RECURSE;					\
-	jmp	8f;							\
-7:	movl	$ MTX_UNOWNED,%eax;					\
-	MPLOCKED							\
-	cmpxchgl reg,lck+MTX_LOCK;      				\
-	jnz	7b;							\
-	popl	lck+MTX_SAVEINTR;					\
-	jmp	9f;							\
-8:	add	$4,%esp;						\
-9:	WITNESS_ENTER(lck, reg)
-
-#define	MTX_EXIT_WITH_RECURSION(lck, reg)				\
-	WITNESS_EXIT(lck, reg)						\
-	movl	lck+MTX_RECURSE,%eax;					\
-	decl	%eax;							\
-	js	8f;							\
-	movl	%eax,lck+MTX_RECURSE;					\
-	jmp	9f;							\
-8:	pushl	lck+MTX_SAVEINTR;					\
-	movl	lck+MTX_LOCK,%eax;					\
-	movl	$ MTX_UNOWNED,reg;					\
-	MPLOCKED							\
-	cmpxchgl reg,lck+MTX_LOCK;					\
-	popf;								\
-9:
-
-#endif	/* I386_CPU */
 #endif	/* !LOCORE */
 #endif	/* __MACHINE_MUTEX_H */
