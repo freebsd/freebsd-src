@@ -1,4 +1,4 @@
-/*	$OpenBSD: misc.c,v 1.26 2001/11/16 23:50:40 deraadt Exp $	*/
+/*	$OpenBSD: misc.c,v 1.27 2002/04/26 16:15:16 espie Exp $	*/
 /*	$NetBSD: misc.c,v 1.6 1995/09/28 05:37:41 tls Exp $	*/
 
 /*
@@ -41,7 +41,7 @@
 #if 0
 static char sccsid[] = "@(#)misc.c	8.1 (Berkeley) 6/6/93";
 #else
-static char rcsid[] = "$OpenBSD: misc.c,v 1.26 2001/11/16 23:50:40 deraadt Exp $";
+static char rcsid[] = "$OpenBSD: misc.c,v 1.27 2002/04/26 16:15:16 espie Exp $";
 #endif
 #endif /* not lint */
 
@@ -76,9 +76,7 @@ char *endpbb;			/* end of push-back buffer     */
  * find the index of second str in the first str.
  */
 ptrdiff_t
-indx(s1, s2)
-	const char *s1;
-	const char *s2;
+indx(const char *s1, const char *s2)
 {
 	char *t;
 
@@ -92,8 +90,7 @@ indx(s1, s2)
  *  putback - push character back onto input
  */
 void
-putback(c)
-	int c;
+putback(int c)
 {
 	if (c == EOF)
 		return;
@@ -108,8 +105,7 @@ putback(c)
  *          performance.
  */
 void
-pbstr(s)
-	const char *s;
+pbstr(const char *s)
 {
 	size_t n;
 
@@ -124,8 +120,7 @@ pbstr(s)
  *  pbnum - convert number to string, push back on input.
  */
 void
-pbnum(n)
-	int n;
+pbnum(int n)
 {
 	int num;
 
@@ -143,8 +138,7 @@ pbnum(n)
  *  pbunsigned - convert unsigned long to string, push back on input.
  */
 void
-pbunsigned(n)
-	unsigned long n;
+pbunsigned(unsigned long n)
 {
 	do {
 		putback(n % 10 + '0');
@@ -211,8 +205,7 @@ enlarge_bufspace()
  *  chrsave - put single char on string space
  */
 void
-chrsave(c)
-	int c;
+chrsave(int c)
 {
 	if (ep >= endest) 
 		enlarge_strspace();
@@ -223,8 +216,7 @@ chrsave(c)
  * read in a diversion file, and dispose it.
  */
 void
-getdiv(n)
-	int n;
+getdiv(int n)
 {
 	int c;
 
@@ -238,8 +230,7 @@ getdiv(n)
 }
 
 void
-onintr(signo)
-	int signo;
+onintr(int signo)
 {
 #define intrmessage	"m4: interrupted.\n"
 	write(STDERR_FILENO, intrmessage, sizeof(intrmessage)-1);
@@ -263,8 +254,7 @@ killdiv()
 /*
  * resizedivs: allocate more diversion files */
 void
-resizedivs(n)
-	int n;
+resizedivs(int n)
 {
 	int i;
 
@@ -277,8 +267,7 @@ resizedivs(n)
 }
 
 void *
-xalloc(n)
-	size_t n;
+xalloc(size_t n)
 {
 	char *p = malloc(n);
 
@@ -288,8 +277,7 @@ xalloc(n)
 }
 
 char *
-xstrdup(s)
-	const char *s;
+xstrdup(const char *s)
 {
 	char *p = strdup(s);
 	if (p == NULL)
@@ -305,8 +293,7 @@ usage()
 }
 
 int 
-obtain_char(f)
-	struct input_file *f;
+obtain_char(struct input_file *f)
 {
 	if (f->c == EOF)
 		return EOF;
@@ -318,10 +305,7 @@ obtain_char(f)
 }
 
 void 
-set_input(f, real, name)
-	struct input_file *f;
-	FILE *real;
-	const char *name;
+set_input(struct input_file *f, FILE *real, const char *name)
 {
 	f->file = real;
 	f->lineno = 1;
@@ -330,8 +314,7 @@ set_input(f, real, name)
 }
 
 void 
-release_input(f)
-	struct input_file *f;
+release_input(struct input_file *f)
 {
 	if (f->file != stdin)
 	    fclose(f->file);
@@ -343,15 +326,13 @@ release_input(f)
 }
 
 void
-doprintlineno(f)
-	struct input_file *f;
+doprintlineno(struct input_file *f)
 {
 	pbunsigned(f->lineno);
 }
 
 void
-doprintfilename(f)
-	struct input_file *f;
+doprintfilename(struct input_file *f)
 {
 	pbstr(rquote);
 	pbstr(f->name);
@@ -370,9 +351,7 @@ buffer_mark()
 
 
 void
-dump_buffer(f, m)
-	FILE *f;
-	size_t m;
+dump_buffer(FILE *f, size_t m)
 {
 	char *s;
 

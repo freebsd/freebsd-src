@@ -1,4 +1,4 @@
-/*	$OpenBSD: main.c,v 1.52 2002/02/16 21:27:48 millert Exp $	*/
+/*	$OpenBSD: main.c,v 1.53 2002/04/26 16:15:16 espie Exp $	*/
 /*	$NetBSD: main.c,v 1.12 1997/02/08 23:54:49 cgd Exp $	*/
 
 /*-
@@ -47,7 +47,7 @@ static char copyright[] =
 #if 0
 static char sccsid[] = "@(#)main.c	8.1 (Berkeley) 6/6/93";
 #else
-static char rcsid[] = "$OpenBSD: main.c,v 1.52 2002/02/16 21:27:48 millert Exp $";
+static char rcsid[] = "$OpenBSD: main.c,v 1.53 2002/04/26 16:15:16 espie Exp $";
 #endif
 #endif /* not lint */
 
@@ -172,9 +172,7 @@ static void enlarge_stack(void);
 int main(int, char *[]);
 
 int
-main(argc,argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	int c;
 	int n;
@@ -279,9 +277,7 @@ main(argc,argv)
  *         0 if `token' not found; all characters pushed back
  */
 static int
-do_look_ahead(t, token)
-	int	t;
-	const char	*token;
+do_look_ahead(int t, const char *token)
 {
 	int i;
 
@@ -489,8 +485,7 @@ macro()
  * output string directly, without pushing it for reparses. 
  */
 void
-outputstr(s)
-	const char *s;
+outputstr(const char *s)
 {
 	if (sp < 0)
 		while (*s)
@@ -506,9 +501,7 @@ outputstr(s)
  * combo with lookup to speed things up.
  */
 static ndptr
-inspect(c, tp) 
-	int c;
-	char *tp;
+inspect(int c, char *tp) 
 {
 	char *name = tp;
 	char *etp = tp+MAXTOK;
@@ -572,8 +565,7 @@ initkwds()
 
 /* Look up a builtin type, even if overridden by the user */
 int 
-builtin_type(key)
-	const char *key;
+builtin_type(const char *key)
 {
 	int i;
 
@@ -584,8 +576,7 @@ builtin_type(key)
 }
 
 char *
-builtin_realname(n)
-	int n;
+builtin_realname(int n)
 {
 	int i;
 
@@ -596,9 +587,7 @@ builtin_realname(n)
 }
 
 static void
-record(t, lev)
-	struct position *t;
-	int lev;
+record(struct position *t, int lev)
 {
 	if (lev < MAXRECORD) {
 		t[lev].name = CURRENT_NAME;
@@ -607,9 +596,7 @@ record(t, lev)
 }
 
 static void
-dump_stack(t, lev)
-	struct position *t;
-	int lev;
+dump_stack(struct position *t, int lev)
 {
 	int i;
 
