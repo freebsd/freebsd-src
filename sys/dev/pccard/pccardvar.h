@@ -275,6 +275,15 @@ void	pccard_io_unmap(struct pccard_function *, int);
 /* ivar interface */
 enum {
 	PCCARD_IVAR_ETHADDR,	/* read ethernet address from CIS tupple */
+	PCCARD_IVAR_VENDOR,
+	PCCARD_IVAR_PRODUCT,
+	PCCARD_IVAR_PRODEXT,
+	PCCARD_IVAR_FUNCTION_NUMBER,
+	PCCARD_IVAR_VENDOR_STR,	/* CIS string for "Manufacturer" */
+	PCCARD_IVAR_PRODUCT_STR,/* CIS strnig for "Product" */
+	PCCARD_IVAR_CIS3_STR,
+	PCCARD_IVAR_CIS4_STR,
+	PCCARD_IVAR_FUNCTION
 };
 
 /* read ethernet address from CIS tupple */
