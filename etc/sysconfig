@@ -4,7 +4,7 @@
 # This is sysconfig - a file full of useful variables that you can set 
 # to change the default startup behavior of your system.
 #
-#	$Id: sysconfig,v 1.50 1996/09/09 00:17:14 ache Exp $
+#	$Id: sysconfig,v 1.51 1996/10/21 20:09:27 wpaul Exp $
 
 ######################### Start Of Local Configuration Section ###########
 
@@ -107,6 +107,8 @@ weak_mountd_authentication=NO
 #
 # Set to the list of network devices on this host.  You must have an
 # ifconfig_${network_interface} line for each interface listed here.
+# Extra addresses may be specified with sequentual _alias<N> lines.
+#
 # for example:
 #
 #	network_interfaces="ed0 sl0 lo0"
@@ -114,6 +116,11 @@ weak_mountd_authentication=NO
 #	ifconfig_ed0="inet 10.0.0.1 netmask 0xffffff00"
 #	ifconfig_sl0="inet 10.0.1.0 netmask 0xffffff00"
 #	ifconfig_lo0="inet localhost"
+#	ifconfig_ed0_alias0="inet 10.0.2.1 netmask 0xffffff00"
+#	ifconfig_ed0_alias1="inet 10.0.2.2 netmask 0xffffffff"
+#
+# Alternatively, /etc/start_if.${network_interface} is run if it exists.
+# This script can be used as an alternative to the ifconfig_<xxx> lines.
 #
 network_interfaces="lo0"
 

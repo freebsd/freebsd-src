@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: netstart,v 1.43 1996/04/03 17:13:58 phk Exp $
+#	$Id: netstart,v 1.44 1996/04/06 09:24:48 mpp Exp $
 #	From: @(#)netstart	5.9 (Berkeley) 3/30/91
 
 # Note that almost all the user-configurable behavior is no longer in
@@ -43,8 +43,23 @@ for ifn in ${network_interfaces}; do
 	if [ -e /etc/start_if.${ifn} ]; then
 		. /etc/start_if.${ifn} ${ifn}
 	fi
+	# Do the primary ifconfig if specified
 	eval ifconfig_args=\$ifconfig_${ifn}
-	ifconfig ${ifn} ${ifconfig_args}
+	if [ -n "${ifconfig_args}" ] ; then
+		ifconfig ${ifn} ${ifconfig_args}
+	fi
+	# Check to see if aliases need to be added
+	alias=0
+	while :
+	do
+		eval ifconfig_args=\$ifconfig_${ifn}_alias${alias}
+		if [ -n "${ifconfig_args}" ]; then
+			ifconfig ${ifn} ${ifconfig_args} alias
+			alias=`expr ${alias} + 1`
+		else
+			break;
+		fi
+	done
 	ifconfig ${ifn}
 done
 
