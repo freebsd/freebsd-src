@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in.c	8.4 (Berkeley) 1/9/95
- *	$Id: in.c,v 1.17 1995/10/29 15:32:21 phk Exp $
+ *	$Id: in.c,v 1.18 1995/11/14 20:33:56 phk Exp $
  */
 
 #include <sys/param.h>
@@ -65,42 +65,10 @@ struct multi_kludge {
 	struct in_multihead mk_head;
 };
 
-static u_long	in_netof __P((struct in_addr));
 static void	in_socktrim __P((struct sockaddr_in *));
 static int	in_ifinit __P((struct ifnet *,
 	    struct in_ifaddr *, struct sockaddr_in *, int));
 static void	in_ifscrub __P((struct ifnet *, struct in_ifaddr *));
-/*
- * Return the network number from an internet address.
- */
-static u_long
-in_netof(in)
-	struct in_addr in;
-{
-	register u_long i = ntohl(in.s_addr);
-	register u_long net;
-	register struct in_ifaddr *ia;
-
-	if (IN_CLASSA(i))
-		net = i & IN_CLASSA_NET;
-	else if (IN_CLASSB(i))
-		net = i & IN_CLASSB_NET;
-	else if (IN_CLASSC(i))
-		net = i & IN_CLASSC_NET;
-	else if (IN_CLASSD(i))
-		net = i & IN_CLASSD_NET;
-	else
-		return (0);
-
-	/*
-	 * Check whether network is a subnet;
-	 * if so, return subnet number.
-	 */
-	for (ia = in_ifaddr; ia; ia = ia->ia_next)
-		if (net == ia->ia_net)
-			return (i & ia->ia_subnetmask);
-	return (net);
-}
 
 #ifndef SUBNETSARELOCAL
 #define	SUBNETSARELOCAL	1
