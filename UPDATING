@@ -9,6 +9,16 @@ Items affecting the ports and packages system can be found in
 portupgrade.  Important recent entries: 20040724 (default X changes).
 
 20050228:
+	The responsibility of recomputing the file system summary of
+	a SoftUpdates-enabled dirty volume has been transferred to the
+	background fsck.  A rebuild of fsck(8) utility is recommended  
+	if you have updated the kernel.
+
+	To get the old behavior (recompute file system summary at mount
+	time), you can set vfs.ffs.compute_summary_at_mount=1 before
+	mounting the new volume.
+
+20050228:
 	The ifi_epoch member of struct if_data has been changed to
 	contain the uptime at which the interface was created or the
 	statistics zeroed rather then the wall clock time because
