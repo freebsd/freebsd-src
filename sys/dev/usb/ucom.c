@@ -563,21 +563,14 @@ ucomioctl(dev_t dev, u_long cmd, caddr_t data, int flag, usb_proc_ptr p)
 		data = (caddr_t)&term;
 #endif
 
-	error = (*linesw[tp->t_line].l_ioctl)(tp, cmd, data, flag, p);
-	if (error != ENOIOCTL) {
+	error = ttyioctl(dev, cmd, data, flag, p);
+	disc_optim(tp, &tp->t_termios, sc);
+	if (error != ENOTTY) {
 		DPRINTF(("ucomioctl: l_ioctl: error = %d\n", error));
 		return (error);
 	}
 
 	s = spltty();
-
-	error = ttioctl(tp, cmd, data, flag);
-	disc_optim(tp, &tp->t_termios, sc);
-	if (error != ENOIOCTL) {
-		splx(s);
-		DPRINTF(("ucomioctl: ttioctl: error = %d\n", error));
-		return (error);
-	}
 
 	if (sc->sc_callback->ucom_ioctl != NULL) {
 		error = sc->sc_callback->ucom_ioctl(sc->sc_parent,
