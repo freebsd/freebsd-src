@@ -10,7 +10,7 @@ FILES+=	bsd.obj.mk bsd.own.mk
 FILES+=	bsd.port.mk bsd.port.post.mk  bsd.port.pre.mk bsd.port.subdir.mk
 FILES+=	bsd.prog.mk bsd.subdir.mk bsd.sys.mk
 FILES+=	sys.mk
-NOOBJ=	noobj
+NOOBJ=
 FILESDIR=	${BINDIR}/mk
 
 .include <bsd.prog.mk>

@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-NOOBJ=	noobj
+NOOBJ=
 
 FILES=	README
 

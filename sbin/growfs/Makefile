@@ -4,7 +4,7 @@
 # $FreeBSD$
 #
 
-#GFSDBG=YES  
+#GFSDBG=
 
 PROG=   growfs
 SRCS=   growfs.c

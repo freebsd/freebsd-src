@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-NOOBJ=	noobj
+NOOBJ=
 BINDIR=	/usr/share/examples/smbfs/print
 FILES=	lj6l ljspool printcap.sample tolj
 

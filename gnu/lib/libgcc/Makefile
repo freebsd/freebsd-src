@@ -13,7 +13,7 @@ LIB=	gcc
 #SHLIB_MAJOR=	1
 
 # We need to install libgcc_pic.a as well, for use by shared libs.
-INSTALL_PIC_ARCHIVE=    yes     
+INSTALL_PIC_ARCHIVE=
 
 #
 # XXX This is a hack, but it seems to work.

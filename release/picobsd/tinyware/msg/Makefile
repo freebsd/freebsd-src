@@ -2,7 +2,7 @@
 #
 PROG=msg
 SRCS= 	msg.c
-NOMAN=yes
+NOMAN=
 
 .include <bsd.prog.mk>
 

@@ -3,7 +3,7 @@
 #
 
 PROG=	socketpair
-NOMAN=	yes
+NOMAN=
 
 socketpair: socketpair.c
 	gcc -Wall -o socketpair socketpair.c
