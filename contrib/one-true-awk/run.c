@@ -1448,13 +1448,18 @@ Cell *bltin(Node **a, int n)	/* builtin functions. a[0] is type, a[1] is arg lis
 	char *p, *buf;
 	Node *nextarg;
 	FILE *fp;
+	void flush_all(void);
 
 	t = ptoi(a[0]);
 	x = execute(a[1]);
 	nextarg = a[1]->nnext;
 	switch (t) {
 	case FLENGTH:
-		u = strlen(getsval(x)); break;
+		if (isarr(x))
+			u = ((Array *) x->sval)->nelem;	/* GROT.  should be function*/
+		else
+			u = strlen(getsval(x));
+		break;
 	case FLOG:
 		u = errcheck(log(getfval(x)), "log"); break;
 	case FINT:
@@ -1511,7 +1516,10 @@ Cell *bltin(Node **a, int n)	/* builtin functions. a[0] is type, a[1] is arg lis
 		free(buf);
 		return x;
 	case FFLUSH:
-		if ((fp = openfile(FFLUSH, getsval(x))) == NULL)
+		if (isrec(x) || strlen(getsval(x)) == 0) {
+			flush_all();	/* fflush() or fflush("") -> all */
+			u = 0;
+		} else if ((fp = openfile(FFLUSH, getsval(x))) == NULL)
 			u = EOF;
 		else
 			u = fflush(fp);
@@ -1700,6 +1708,15 @@ void closeall(void)
 				WARNING( "i/o error occurred while closing %s", files[i].fname );
 		}
 	}
+}
+
+void flush_all(void)
+{
+	int i;
+
+	for (i = 0; i < FOPEN_MAX; i++)
+		if (files[i].fp)
+			fflush(files[i].fp);
 }
 
 void backsub(char **pb_ptr, char **sptr_ptr);

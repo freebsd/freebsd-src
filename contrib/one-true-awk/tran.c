@@ -170,9 +170,12 @@ void freesymtab(Cell *ap)	/* free a symbol table */
 				xfree(cp->sval);
 			temp = cp->cnext;	/* avoids freeing then using */
 			free(cp); 
+			tp->nelem--;
 		}
 		tp->tab[i] = 0;
 	}
+	if (tp->nelem != 0)
+		WARNING("can't happen: inconsistent element count freeing %s", ap->nval);
 	free(tp->tab);
 	free(tp);
 }
@@ -396,7 +399,7 @@ char *qstring(char *is, int delim)	/* collect string up to next delim */
 	uschar *s = (uschar *) is;
 	uschar *buf, *bp;
 
-	if ((buf = (uschar *) malloc(strlen(s)+3)) == NULL)
+	if ((buf = (uschar *) malloc(strlen(is)+3)) == NULL)
 		FATAL( "out of space in qstring(%s)", s);
 	for (bp = buf; (c = *s) != delim; s++) {
 		if (c == '\n')
