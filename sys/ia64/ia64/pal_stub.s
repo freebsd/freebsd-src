@@ -39,9 +39,9 @@ ENTRY(ski_fake_pal, 0)
 	cmp.eq	p6,p0=PAL_PTCE_INFO,r28
 	;;
 (p6)	mov	r8=0
-(p6)	movl	r9=0
+(p6)	mov	r9=0
 (p6)	movl	r10=0x100000001
-(p6)	movl	r11=0
+(p6)	mov	r11=0
 	;;
 	cmp.eq	p6,p0=PAL_FREQ_RATIOS,r28
 	;;
@@ -49,6 +49,14 @@ ENTRY(ski_fake_pal, 0)
 (p6)	movl	r9=0xb00000002		// proc 11/1
 (p6)	movl	r10=0x100000001		// bus 1/1
 (p6)	movl	r11=0xb00000002		// itc 11/1
+	mov	r14=PAL_VM_SUMMARY
+	;;
+	cmp.eq	p6,p0=r14,r28
+	;; 
+(p6)	mov	r8=0
+(p6)	movl	r9=(8<<40)|(8<<32)
+(p6)	movl	r10=(18<<8)|(41<<0)
+(p6)	mov	r11=0
 	;;
 	tbit.nz	p6,p7=r28,8		// static or stacked?
 	;;
