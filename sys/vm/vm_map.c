@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.139.2.4 1999/01/31 14:12:13 julian Exp $
+ * $Id: vm_map.c,v 1.139.2.5 1999/03/11 05:56:49 alc Exp $
  */
 
 /*
@@ -123,8 +123,6 @@
  *	start or end value.]  Note that these clippings may not
  *	always be necessary (as the two resulting entries are then
  *	not changed); however, the clipping is done for convenience.
- *	No attempt is currently made to "glue back together" two
- *	abutting entries.
  *
  *	As mentioned above, virtual copy operations are performed
  *	by copying VM object references from one sharing map to
@@ -486,8 +484,14 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	 * neighbors.  Or at least extend the object.
 	 */
 
-	if ((object == NULL) &&
-	    (prev_entry != &map->header) &&
+	if (object != NULL) {
+		if ((object->ref_count > 1) || (object->shadow_count != 0)) {
+			vm_object_clear_flag(object, OBJ_ONEMAPPING);
+		} else {
+			vm_object_set_flag(object, OBJ_ONEMAPPING);
+		}
+	}
+	else if ((prev_entry != &map->header) &&
 	    (( prev_entry->eflags & (MAP_ENTRY_IS_A_MAP | MAP_ENTRY_IS_SUB_MAP)) == 0) &&
 		((prev_entry->object.vm_object == NULL) ||
 			(prev_entry->object.vm_object->type == OBJT_DEFAULT)) &&
@@ -540,14 +544,6 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	new_entry->object.vm_object = object;
 	new_entry->offset = offset;
 	new_entry->avail_ssize = 0;
-
-	if (object) {
-		if ((object->ref_count > 1) || (object->shadow_count != 0)) {
-			vm_object_clear_flag(object, OBJ_ONEMAPPING);
-		} else {
-			vm_object_set_flag(object, OBJ_ONEMAPPING);
-		}
-	}
 
 	if (map->is_main_map) {
 		new_entry->inheritance = VM_INHERIT_DEFAULT;
@@ -903,8 +899,6 @@ vm_map_simplify_entry(map, entry)
 		if ( (prev->end == entry->start) &&
 		     (prev->object.vm_object == entry->object.vm_object) &&
 		     (!prev->object.vm_object ||
-				(prev->object.vm_object->behavior == entry->object.vm_object->behavior)) &&
-		     (!prev->object.vm_object ||
 			(prev->offset + prevsize == entry->offset)) &&
 		     (prev->eflags == entry->eflags) &&
 		     (prev->protection == entry->protection) &&
@@ -929,8 +923,6 @@ vm_map_simplify_entry(map, entry)
 		esize = entry->end - entry->start;
 		if ((entry->end == next->start) &&
 		    (next->object.vm_object == entry->object.vm_object) &&
-		    (!next->object.vm_object ||
-				(next->object.vm_object->behavior == entry->object.vm_object->behavior)) &&
 		     (!entry->object.vm_object ||
 			(entry->offset + esize == next->offset)) &&
 		    (next->eflags == entry->eflags) &&
@@ -1972,12 +1964,9 @@ vm_map_delete(map, start, end)
 	 * Find the start of the region, and clip it
 	 */
 
-	if (!vm_map_lookup_entry(map, start, &first_entry)) {
+	if (!vm_map_lookup_entry(map, start, &first_entry))
 		entry = first_entry->next;
-		object = entry->object.vm_object;
-		if (object && (object->ref_count == 1) && (object->shadow_count == 0))
-			vm_object_set_flag(object, OBJ_ONEMAPPING);
-	} else {
+	else {
 		entry = first_entry;
 		vm_map_clip_start(map, entry, start);
 		/*
@@ -2037,9 +2026,10 @@ vm_map_delete(map, start, end)
 			vm_object_pmap_remove(object, offidxstart, offidxend);
 		} else {
 			pmap_remove(map->pmap, s, e);
-			if (object &&
-				((object->flags & (OBJ_NOSPLIT|OBJ_ONEMAPPING)) == OBJ_ONEMAPPING) &&
-				((object->type == OBJT_SWAP) || (object->type == OBJT_DEFAULT))) {
+			if (object != NULL &&
+			    object->ref_count != 1 &&
+			    (object->flags & (OBJ_NOSPLIT|OBJ_ONEMAPPING)) == OBJ_ONEMAPPING &&
+			    (object->type == OBJT_SWAP || object->type == OBJT_DEFAULT)) {
 				vm_object_collapse(object);
 				vm_object_page_remove(object, offidxstart, offidxend, FALSE);
 				if (object->type == OBJT_SWAP) {
@@ -2328,7 +2318,6 @@ vmspace_fork(vm1)
 	vm_map_t new_map;
 	vm_map_entry_t old_entry;
 	vm_map_entry_t new_entry;
-	pmap_t new_pmap;
 	vm_object_t object;
 
 	vm_map_lock(old_map);
@@ -2336,7 +2325,6 @@ vmspace_fork(vm1)
 	vm2 = vmspace_alloc(old_map->min_offset, old_map->max_offset);
 	bcopy(&vm1->vm_startcopy, &vm2->vm_startcopy,
 	    (caddr_t) (vm1 + 1) - (caddr_t) &vm1->vm_startcopy);
-	new_pmap = &vm2->vm_pmap;	/* XXX */
 	new_map = &vm2->vm_map;	/* XXX */
 	new_map->timestamp = 1;
 
