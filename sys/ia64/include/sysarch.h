@@ -1,22 +1,17 @@
-/*-
+/*
+ * Copyright (c) 2003 Marcel Moolenaar
  * Copyright (c) 1993 The Regents of the University of California.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
+ *
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -33,11 +28,17 @@
  * $FreeBSD$
  */
 
-/*
- * Architecture specific syscalls (alpha)
- */
 #ifndef _MACHINE_SYSARCH_H_
-#define _MACHINE_SYSARCH_H_
+#define	_MACHINE_SYSARCH_H_
+
+#define	IA64_IORD	0
+#define	IA64_IOWR	1
+
+struct ia64_iodesc {
+	int port;
+	int width;
+	unsigned long val;
+};
 
 #ifndef _KERNEL
 #include <sys/cdefs.h>
