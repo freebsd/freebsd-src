@@ -236,6 +236,9 @@ pcic_pci_probe(device_t dev)
 	case PCI_DEVICE_ID_PCIC_TI1131:
 		desc = "TI PCI-1131 PCI-CardBus Bridge";
 		break;
+	case PCI_DEVICE_ID_PCIC_TI1211:
+		desc = "TI PCI-1211 PCI-CardBus Bridge";
+		break;
 	case PCI_DEVICE_ID_PCIC_TI1220:
 		desc = "TI PCI-1220 PCI-CardBus Bridge";
 		break;
@@ -334,12 +337,13 @@ pcic_pci_attach(device_t dev)
 	switch (device_id) {
 	case PCI_DEVICE_ID_PCIC_TI1130:
 	case PCI_DEVICE_ID_PCIC_TI1131:
+	case PCI_DEVICE_ID_PCIC_TI1211:
 	case PCI_DEVICE_ID_PCIC_TI1220:
 	case PCI_DEVICE_ID_PCIC_TI1221:
+	case PCI_DEVICE_ID_PCIC_TI1225:
 	case PCI_DEVICE_ID_PCIC_TI1250:
 	case PCI_DEVICE_ID_PCIC_TI1251:
 	case PCI_DEVICE_ID_PCIC_TI1251B:
-	case PCI_DEVICE_ID_PCIC_TI1225:
 	case PCI_DEVICE_ID_PCIC_TI1410:
 	case PCI_DEVICE_ID_PCIC_TI1420:
 	case PCI_DEVICE_ID_PCIC_TI1450:
