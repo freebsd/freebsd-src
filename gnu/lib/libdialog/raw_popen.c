@@ -131,8 +131,7 @@ int
 raw_pclose(FILE *iop)
 {
 	register struct pid *cur, *last;
-	int omask;
-	union wait pstat;
+	int omask, pstat;
 	pid_t pid;
 
 	(void)fclose(iop);
@@ -158,5 +157,5 @@ raw_pclose(FILE *iop)
 		last->next = cur->next;
 	free(cur);
 
-	return (pid == -1 ? -1 : pstat.w_status);
+	return (pid == -1 ? -1 : pstat);
 }

@@ -126,8 +126,8 @@ choke()
 void
 child()
 {
-	union wait status;
-	int pid;
+	pid_t pid;
+	int status;
 
 	(void) signal(SIGCHLD, SIG_IGN);
 	do {
