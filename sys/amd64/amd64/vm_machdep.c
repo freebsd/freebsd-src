@@ -44,7 +44,6 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_isa.h"
-#include "opt_kstack_pages.h"
 #include "opt_cpu.h"
 
 #include <sys/param.h>
