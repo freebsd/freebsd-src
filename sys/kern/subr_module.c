@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: subr_module.c,v 1.1 1998/10/09 00:31:29 msmith Exp $
+ *	$Id: subr_module.c,v 1.2 1998/10/09 23:59:01 peter Exp $
  */
 
 #include <sys/param.h>
@@ -247,10 +247,14 @@ preload_bootstrap_relocate(vm_offset_t offset)
 	    if (hdr[0] == 0 && hdr[1] == 0)
 		break;
 
-	    /* Look for a MODINFO_ADDR field */
-	    if (hdr[0] == MODINFO_ADDR) {
+	    /* Deal with the ones that we know we have to fix */
+	    switch (hdr[0]) {
+	    case MODINFO_ADDR:
+	    case MODINFO_METADATA|MODINFOMD_SSYM:
+	    case MODINFO_METADATA|MODINFOMD_ESYM:
 		ptr = (vm_offset_t *)(curp + (sizeof(u_int32_t) * 2));
 		*ptr += offset;
+		break;
 	    }
 	    /* The rest is beyond us for now */
 
