@@ -38,6 +38,10 @@
 static char sccsid[] = "@(#)ansi.c	8.1 (Berkeley) 6/27/93";
 #endif /* LIBC_SCCS and not lint */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
+#include <errno.h>
 #include <stdlib.h>
 #include <limits.h>
 #include <stddef.h>
@@ -102,21 +106,44 @@ mbstowcs(pwcs, s, n)
 	const char *s;
 	size_t n;
 {
-	char const *e;
-	int cnt = 0;
+	const char *e;
+	int cnt;
+	rune_t r;
 
-	if (!pwcs || !s)
+	if (s == NULL) {
+		errno = EINVAL;
 		return (-1);
+	}
 
+	if (pwcs == NULL) {
+		/* Convert and count only, do not store. */
+		cnt = 0;
+		while ((r = sgetrune(s, MB_LEN_MAX, &e)) != _INVALID_RUNE &&
+		    r != 0) {
+			s = e;
+			cnt++;
+		}
+		if (r == _INVALID_RUNE) {
+			errno = EILSEQ;
+			return (-1);
+		}
+		return (cnt);
+	}
+
+	/* Convert, store and count characters. */
+	cnt = 0;
 	while (n-- > 0) {
 		*pwcs = sgetrune(s, MB_LEN_MAX, &e);
-		if (*pwcs == _INVALID_RUNE)
+		if (*pwcs == _INVALID_RUNE) {
+			errno = EILSEQ;
 			return (-1);
-		if (*pwcs++ == 0)
+		}
+		if (*pwcs++ == L'\0')
 			break;
 		s = e;
 		++cnt;
 	}
+
 	return (cnt);
 }
 
@@ -126,26 +153,46 @@ wcstombs(s, pwcs, n)
 	const wchar_t *pwcs;
 	size_t n;
 {
+	char buf[MB_LEN_MAX];
 	char *e;
 	int cnt, nb;
 
-	if (!pwcs || !s || n > INT_MAX)
+	if (pwcs == NULL || n > INT_MAX) {
+		errno = EINVAL;
 		return (-1);
+	}
 
-	nb = n;
 	cnt = 0;
+
+	if (s == NULL) {
+		/* Convert and count only, do not store. */
+		while (*pwcs != L'\0') {
+			if (sputrune(*pwcs++, buf, MB_LEN_MAX, &e) == 0) {
+				errno = EILSEQ;
+				return (-1);
+			}
+			cnt += e - buf;
+		}
+		return (cnt);
+	}
+
+	/* Convert, store and count characters. */
+	nb = n;
 	while (nb > 0) {
-		if (*pwcs == 0) {
-			*s = 0;
+		if (*pwcs == L'\0') {
+			*s = '\0';
 			break;
 		}
-		if (!sputrune(*pwcs++, s, nb, &e))
-			return (-1);		/* encoding error */
-		if (!e)			/* too long */
+		if (sputrune(*pwcs++, s, nb, &e) == 0) {
+			errno = EILSEQ;
+			return (-1);
+		}
+		if (e == NULL)		/* too long */
 			return (cnt);
 		cnt += e - s;
 		nb -= e - s;
 		s = e;
 	}
+
 	return (cnt);
 }
