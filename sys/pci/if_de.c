@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_de.c,v 1.33 1995/10/07 20:34:30 davidg Exp $
+ * $Id: if_de.c,v 1.34 1995/10/13 19:48:03 wollman Exp $
  *
  */
 
@@ -919,7 +919,8 @@ tulip_reset(
     TULIP_WRITE_CSR(sc, csr_txlist, vtophys(&sc->tulip_txinfo.ri_first[0]));
     TULIP_WRITE_CSR(sc, csr_rxlist, vtophys(&sc->tulip_rxinfo.ri_first[0]));
     TULIP_WRITE_CSR(sc, csr_busmode,
-        ((1 << TULIP_BURSTSIZE(sc->tulip_unit)) << 8)|TULIP_BUSMODE_CACHE_ALIGN8
+        (1 << (TULIP_BURSTSIZE(sc->tulip_unit) + 8))
+	|TULIP_BUSMODE_CACHE_ALIGN8
 	|(BYTE_ORDER != LITTLE_ENDIAN ? TULIP_BUSMODE_BIGENDIAN : 0));
 
     sc->tulip_txq.ifq_maxlen = TULIP_TXDESCS;
