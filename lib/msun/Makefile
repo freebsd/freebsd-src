@@ -86,7 +86,8 @@ COMMON_SRCS= b_exp.c b_log.c b_tgamma.c \
 	s_fminf.c s_fminl.c s_frexp.c s_frexpf.c s_ilogb.c s_ilogbf.c \
 	s_isnanf.c s_ldexpf.c s_lib_version.c s_log1p.c \
 	s_log1pf.c s_logb.c s_logbf.c s_matherr.c s_modff.c \
-	s_nextafter.c s_nextafterf.c s_rint.c s_rintf.c s_round.c s_roundf.c \
+	s_nearbyint.c s_nextafter.c s_nextafterf.c \
+	s_rint.c s_rintf.c s_round.c s_roundf.c \
 	s_scalbln.c s_scalbn.c s_scalbnf.c \
 	s_signgam.c s_significand.c s_significandf.c s_sin.c s_sinf.c s_tan.c \
 	s_tanf.c s_tanh.c s_tanhf.c s_trunc.c s_truncf.c \
@@ -170,7 +171,7 @@ MLINKS+=ieee_test.3 significand.3 ieee_test.3 significandf.3
 MLINKS+=j0.3 j1.3 j0.3 jn.3 j0.3 y0.3 j0.3 y1.3 j0.3 y1f.3 j0.3 yn.3
 MLINKS+=j0.3 j0f.3 j0.3 j1f.3 j0.3 jnf.3 j0.3 y0f.3 j0.3 ynf.3
 MLINKS+=lgamma.3 gamma.3 lgamma.3 gammaf.3 lgamma.3 lgammaf.3 lgamma.3 tgamma.3
-MLINKS+=rint.3 rintf.3
+MLINKS+=rint.3 rintf.3 rint.3 nearbyint.3 rint.3 nearbyintf.3
 MLINKS+=round.3 roundf.3
 MLINKS+=sin.3 sinf.3
 MLINKS+=sinh.3 sinhf.3
