@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumstate.c,v 2.10 1999/01/17 06:19:23 grog Exp grog $
+ * $Id: vinumstate.c,v 1.7.2.3 1999/02/11 05:53:52 grog Exp $
  */
 
 #define REALLYKERNEL
@@ -60,7 +60,9 @@ set_drive_state(int driveno, enum drivestate newstate, enum setstateflags flags)
 	    return 0;					    /* don't do it */
 	drive->state = newstate;			    /* set the state */
 	if (drive->label.name[0] != '\0')		    /* we have a name, */
-	    printf("vinum: drive %s is %s\n", drive->label.name, drive_state(drive->state));
+	    printf("vinum: drive %s is %s\n",
+		   drive->label.name,
+		   drive_state(drive->state));
 	if ((drive->state == drive_up)
 	    && (drive->vp == NULL))			    /* should be open, but we're not */
 	    init_drive(drive, 1);			    /* which changes the state again */
@@ -131,7 +133,10 @@ set_sd_state(int sdno, enum sdstate newstate, enum setstateflags flags)
 		 * Do we even want this any more?
 		 */
 		sd->state = sd_reborn;			    /* here it is again */
-		printf("vinum: subdisk %s is %s, not %s\n", sd->name, sd_state(sd->state), sd_state(newstate));
+		printf("vinum: subdisk %s is %s, not %s\n",
+		       sd->name,
+		       sd_state(sd->state),
+		       sd_state(newstate));
 		status = -1;
 		break;
 
@@ -174,7 +179,8 @@ set_sd_state(int sdno, enum sdstate newstate, enum setstateflags flags)
 		    vol = &VOL[plex->volno];
 		else
 		    vol = NULL;
-		if (((vol == NULL)			    /* no volume */ ||(vol->plexes == 1)) /* or only one plex in volume */
+		if (((vol == NULL)			    /* no volume */
+		     ||(vol->plexes == 1))		    /* or only one plex in volume */
 		&&((plex->organization != plex_raid5)	    /* or it's a RAID-5 plex */
 		||(plex->sddowncount > 1)))		    /* with more than one subdisk down, */
 		    return 0;				    /* can't do it */
@@ -392,39 +398,44 @@ update_plex_state(int plexno)
 	 */
 	plex->state = plex_up;				    /* go for it */
     else if (statemap == sd_emptystate) {		    /* nothing done yet */
-	if (((vps & (volplex_otherup | volplex_onlyus)) == 0) /* nothing is up */ &&(plex->state == plex_init) /* we're brand spanking new */
-	&&(plex->volno >= 0)				    /* and we have a volume */
-	&&(VOL[plex->volno].flags & VF_CONFIG_SETUPSTATE)) { /* and we consider that up */
-	    /*
-	     * Conceptually, an empty plex does not contain valid data,
-	     * but normally we'll see this state when we have just
-	     * created a plex, and it's either consistent from earlier,
-	     * or we don't care about the previous contents (we're going
-	     * to create a file system or use it for swap).
-	     *
-	     * We need to do this in one swell foop: on the next call
-	     * we will no longer be just empty.
-	     *
-	     * This code assumes that all the other plexes are also
-	     * capable of coming up (i.e. all the sds are up), but
-	     * that's OK: we'll come back to this function for the remaining
-	     * plexes in the volume. 
-	     */
-	    struct volume *vol = &VOL[plex->volno];
-	    int plexno;
+	if ((plex->organization == plex_concat)		    /* only change this for concat and struped */
+	||(plex->organization == plex_striped)) {
+	    if (((vps & (volplex_otherup | volplex_onlyus)) == 0) /* nothing is up */
+		&&(plex->state == plex_init)		    /* we're brand spanking new */
+	    &&(plex->volno >= 0)			    /* and we have a volume */
+	    &&(VOL[plex->volno].flags & VF_CONFIG_SETUPSTATE)) { /* and we consider that up */
+		/*
+		 * Conceptually, an empty plex does not contain valid data,
+		 * but normally we'll see this state when we have just
+		 * created a plex, and it's either consistent from earlier,
+		 * or we don't care about the previous contents (we're going
+		 * to create a file system or use it for swap).
+		 *
+		 * We need to do this in one swell foop: on the next call
+		 * we will no longer be just empty.
+		 *
+		 * This code assumes that all the other plexes are also
+		 * capable of coming up (i.e. all the sds are up), but
+		 * that's OK: we'll come back to this function for the remaining
+		 * plexes in the volume. 
+		 */
+		struct volume *vol = &VOL[plex->volno];
+		int plexno;
 
-	    for (plexno = 0; plexno < vol->plexes; plexno++)
-		PLEX[vol->plex[plexno]].state = plex_up;
-	} else if ((vps & volplex_otherup) == 0) {	    /* no other plexes up */
-	    int sdno;
+		for (plexno = 0; plexno < vol->plexes; plexno++)
+		    PLEX[vol->plex[plexno]].state = plex_up;
+	    } else if ((vps & volplex_otherup) == 0) {	    /* no other plexes up */
+		int sdno;
 
-	    plex->state = plex_up;			    /* we can call that up */
-	    for (sdno = 0; sdno < plex->subdisks; sdno++) { /* change the subdisks to up state */
-		SD[plex->sdnos[sdno]].state = sd_up;
-		printf("vinum: %s is up\n", SD[plex->sdnos[sdno]].name); /* tell them about it */
-	    }
-	} else
-	    plex->state = plex_faulty;			    /* no, it's down */
+		plex->state = plex_up;			    /* we can call that up */
+		for (sdno = 0; sdno < plex->subdisks; sdno++) {	/* change the subdisks to up state */
+		    SD[plex->sdnos[sdno]].state = sd_up;
+		    printf("vinum: %s is up\n", SD[plex->sdnos[sdno]].name); /* tell them about it */
+		}
+	    } else
+		plex->state = plex_faulty;		    /* no, it's down */
+	} else						    /* invalid or RAID-5 organization */
+	    plex->state = plex_faulty;			    /* it's down */
     } else if ((statemap & (sd_upstate | sd_rebornstate)) == statemap) /* all up or reborn */
 	plex->state = plex_flaky;
     else if (statemap & (sd_upstate | sd_rebornstate))	    /* some up or reborn */
