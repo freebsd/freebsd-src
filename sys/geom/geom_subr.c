@@ -55,58 +55,138 @@
 
 struct class_list_head g_classes = LIST_HEAD_INITIALIZER(g_classes);
 static struct g_tailq_head geoms = TAILQ_HEAD_INITIALIZER(geoms);
-static int g_nproviders;
 char *g_wait_event, *g_wait_up, *g_wait_down, *g_wait_sim;
 
-static int g_ignition;
 
+struct g_hh00 {
+	struct g_class	*mp;
+	int		error;
+};
 
 /*
  * This event offers a new class a chance to taste all preexisting providers.
  */
 static void
-g_new_class_event(void *arg, int flag)
+g_load_class(void *arg, int flag)
 {
+	struct g_hh00 *hh;
 	struct g_class *mp2, *mp;
 	struct g_geom *gp;
 	struct g_provider *pp;
 
 	g_topology_assert();
-	if (flag == EV_CANCEL)
+	if (flag == EV_CANCEL)	/* XXX: can't happen ? */
 		return;
 	if (g_shutdown)
 		return;
-	mp2 = arg;
-	if (mp2->taste == NULL)
+
+	hh = arg;
+	mp = hh->mp;
+	g_free(hh);
+	g_trace(G_T_TOPOLOGY, "g_load_class(%s)", mp->name);
+
+	if (mp->init != NULL)
+		mp->init(mp);
+	LIST_INIT(&mp->geom);
+	LIST_INSERT_HEAD(&g_classes, mp, class);
+	if (mp->taste == NULL)
 		return;
-	LIST_FOREACH(mp, &g_classes, class) {
-		if (mp2 == mp)
+	LIST_FOREACH(mp2, &g_classes, class) {
+		if (mp == mp2)
 			continue;
-		LIST_FOREACH(gp, &mp->geom, geom) {
+		LIST_FOREACH(gp, &mp2->geom, geom) {
 			LIST_FOREACH(pp, &gp->provider, provider) {
-				mp2->taste(mp2, pp, 0);
+				mp->taste(mp, pp, 0);
 				g_topology_assert();
 			}
 		}
 	}
 }
 
-void
-g_add_class(struct g_class *mp)
+static void
+g_unload_class(void *arg, int flag)
 {
+	struct g_hh00 *hh;
+	struct g_class *mp;
+	struct g_geom *gp;
+	struct g_provider *pp;
+	struct g_consumer *cp;
+	int error;
+
+	g_topology_assert();
+	hh = arg;
+	mp = hh->mp;
+	g_trace(G_T_TOPOLOGY, "g_unload_class(%s)", mp->name);
+	if (mp->destroy_geom == NULL) {
+		hh->error = EOPNOTSUPP;
+		return;
+	}
+
+	/* We refuse to unload if anything is open */
+	LIST_FOREACH(gp, &mp->geom, geom) {
+		LIST_FOREACH(pp, &gp->provider, provider)
+			if (pp->acr || pp->acw || pp->ace) {
+				hh->error = EBUSY;
+				return;
+			}
+		LIST_FOREACH(cp, &gp->consumer, consumer)
+			if (cp->acr || cp->acw || cp->ace) {
+				hh->error = EBUSY;
+				return;
+			}
+	}
+
+	/* Bar new entries */
+	mp->taste = NULL;
+	mp->config = NULL;
+
+	error = 0;
+	LIST_FOREACH(gp, &mp->geom, geom) {
+		error = mp->destroy_geom(NULL, mp, gp);
+		if (error != 0)
+			break;
+	}
+	if (error == 0) {
+		LIST_REMOVE(mp, class);
+		if (mp->fini != NULL)
+			mp->fini(mp);
+	}
+	hh->error = error;
+	return;
+}
+
+int
+g_modevent(module_t mod, int type, void *data)
+{
+	struct g_hh00 *hh;
+	int error;
+	static int g_ignition;
 
 	if (!g_ignition) {
 		g_ignition++;
 		g_init();
 	}
-	mp->protect = 0x020016600;
-	g_topology_lock();
-	g_trace(G_T_TOPOLOGY, "g_add_class(%s)", mp->name);
-	LIST_INIT(&mp->geom);
-	LIST_INSERT_HEAD(&g_classes, mp, class);
-	if (g_nproviders > 0 && mp->taste != NULL)
-		g_post_event(g_new_class_event, mp, M_WAITOK, mp, NULL);
-	g_topology_unlock();
+	hh = g_malloc(sizeof *hh, M_WAITOK | M_ZERO);
+	hh->mp = data;
+	error = EOPNOTSUPP;
+	switch (type) {
+	case MOD_LOAD:
+		g_trace(G_T_TOPOLOGY, "g_modevent(%s, LOAD)", hh->mp->name);
+		g_post_event(g_load_class, hh, M_WAITOK, NULL);
+		error = 0;
+		break;
+	case MOD_UNLOAD:
+		g_trace(G_T_TOPOLOGY, "g_modevent(%s, UNLOAD)", hh->mp->name);
+		error = g_waitfor_event(g_unload_class, hh, M_WAITOK, NULL);
+		if (error == 0)
+			error = hh->error;
+		g_waitidle();
+		KASSERT(LIST_EMPTY(&hh->mp->geom),
+		    ("Unloaded class (%s) still has geom", hh->mp->name));
+		g_free(hh);
+		break;
+	}
+	return (error);
 }
 
 struct g_geom *
@@ -283,7 +363,6 @@ g_new_providerf(struct g_geom *gp, const char *fmt, ...)
 	pp->stat = devstat_new_entry(pp, -1, 0, DEVSTAT_ALL_SUPPORTED,
 	    DEVSTAT_TYPE_DIRECT, DEVSTAT_PRIORITY_MAX);
 	LIST_INSERT_HEAD(&gp->provider, pp, provider);
-	g_nproviders++;
 	g_post_event(g_new_provider_event, pp, M_WAITOK, pp, NULL);
 	return (pp);
 }
@@ -308,7 +387,6 @@ g_destroy_provider(struct g_provider *pp)
 	KASSERT (pp->acw == 0, ("g_destroy_provider with acw"));
 	KASSERT (pp->acw == 0, ("g_destroy_provider with ace"));
 	g_cancel_event(pp);
-	g_nproviders--;
 	LIST_REMOVE(pp, provider);
 	gp = pp->geom;
 	devstat_remove_entry(pp->stat);

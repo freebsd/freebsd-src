@@ -44,6 +44,7 @@
 #include <sys/queue.h>
 #include <sys/ioccom.h>
 #include <sys/sbuf.h>
+#include <sys/module.h>
 
 struct g_class;
 struct g_geom;
@@ -60,6 +61,8 @@ typedef int g_config_t (struct g_configargs *ca);
 typedef int g_ctl_create_geom_t (struct gctl_req *, struct g_class *cp, struct g_provider *pp);
 typedef int g_ctl_destroy_geom_t (struct gctl_req *, struct g_class *cp, struct g_geom *gp);
 typedef int g_ctl_config_geom_t (struct gctl_req *, struct g_geom *gp, const char *verb);
+typedef void g_init_t (struct g_class *mp);
+typedef void g_fini_t (struct g_class *mp);
 typedef struct g_geom * g_taste_t (struct g_class *, struct g_provider *,
     int flags);
 #define G_TF_NORMAL		0
@@ -85,6 +88,8 @@ struct g_class {
 	const char		*name;
 	g_taste_t		*taste;
 	g_config_t		*config;
+	g_init_t		*init;
+	g_fini_t		*fini;
 	g_ctl_create_geom_t	*create_geom;
 	g_ctl_destroy_geom_t	*destroy_geom;
 	g_ctl_config_geom_t	*config_geom;
@@ -193,7 +198,6 @@ void g_waitidle(void);
 /* geom_subr.c */
 int g_access_abs(struct g_consumer *cp, int nread, int nwrite, int nexcl);
 int g_access_rel(struct g_consumer *cp, int nread, int nwrite, int nexcl);
-void g_add_class(struct g_class *mp);
 int g_attach(struct g_consumer *cp, struct g_provider *pp);
 void g_destroy_consumer(struct g_consumer *cp);
 void g_destroy_geom(struct g_geom *pp);
@@ -214,6 +218,8 @@ int g_std_access(struct g_provider *pp, int dr, int dw, int de);
 void g_std_done(struct bio *bp);
 void g_std_spoiled(struct g_consumer *cp);
 void g_wither_geom(struct g_geom *gp, int error);
+
+int g_modevent(module_t, int, void *);
 
 /* geom_io.c */
 struct bio * g_clone_bio(struct bio *);
@@ -289,18 +295,11 @@ extern struct sx topology_lock;
 		sx_assert(&topology_lock, SX_XLOCKED);		\
 	} while (0)
 
-#define DECLARE_GEOM_CLASS_INIT(class, name, init) 	\
-	SYSINIT(name, SI_SUB_DRIVERS, SI_ORDER_FIRST, init, NULL);
-
-#define DECLARE_GEOM_CLASS(class, name) 	\
-	static void				\
-	name##init(void)			\
-	{					\
-		mtx_unlock(&Giant);		\
-		g_add_class(&class);		\
-		mtx_lock(&Giant);		\
-	}					\
-	DECLARE_GEOM_CLASS_INIT(class, name, name##init);
+#define DECLARE_GEOM_CLASS(class, name) 			\
+	static moduledata_t name##_mod = {			\
+		#name, g_modevent, &class			\
+	};							\
+	DECLARE_MODULE(name, name##_mod, SI_SUB_DRIVERS, SI_ORDER_FIRST);
 
 #endif /* _KERNEL */
 
