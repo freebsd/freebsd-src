@@ -1,7 +1,7 @@
 /* makeinfo -- convert Texinfo source into other formats.
-   $Id: makeinfo.c,v 1.17 2003/01/19 18:44:28 karl Exp $
+   $Id: makeinfo.c,v 1.34 2003/06/02 12:32:29 karl Exp $
 
-   Copyright (C) 1987, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 
+   Copyright (C) 1987, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
    2000, 2001, 2002, 2003 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
@@ -31,6 +31,7 @@
 #include "html.h"
 #include "index.h"
 #include "insertion.h"
+#include "lang.h"
 #include "macro.h"
 #include "node.h"
 #include "toc.h"
@@ -167,7 +168,6 @@ char **get_brace_args ();
 int array_len ();
 void free_array ();
 static int end_of_sentence_p ();
-static void isolate_nodename ();
 void reader_loop ();
 void remember_brace (), remember_brace_1 ();
 void pop_and_call_brace (), discard_braces ();
@@ -181,7 +181,6 @@ void inhibit_output_flushing (), uninhibit_output_flushing ();
 int set_paragraph_indent ();
 int self_delimiting (), search_forward ();
 int multitable_item (), number_of_node ();
-extern void add_link (), add_escaped_anchor_name ();
 
 void me_execute_string_keep_state ();
 void maybe_update_execution_strings ();
@@ -189,11 +188,10 @@ void maybe_update_execution_strings ();
 extern char *escape_string ();
 extern void insert_html_tag ();
 extern void sectioning_html ();
-extern void add_link ();
 
 #if defined (VA_FPRINTF) && __STDC__
 /* Unfortunately we must use prototypes if we are to use <stdarg.h>.  */
-void add_word_args (char *, ...);
+void add_word_args (const char *, ...);
 void execute_string (char *, ...);
 #else
 void add_word_args ();
@@ -218,10 +216,10 @@ fs_error (filename)
 /* Print an error message, and return false. */
 void
 #if defined (VA_FPRINTF) && __STDC__
-error (char *format, ...)
+error (const char *format, ...)
 #else
 error (format, va_alist)
-     char *format;
+     const char *format;
      va_dcl
 #endif
 {
@@ -245,12 +243,12 @@ error (format, va_alist)
 /* Just like error (), but print the input file and line number as well. */
 void
 #if defined (VA_FPRINTF) && __STDC__
-file_line_error (char *infile, int lno, char *format, ...)
+file_line_error (char *infile, int lno, const char *format, ...)
 #else
 file_line_error (infile, lno, format, va_alist)
    char *infile;
    int lno;
-   char *format;
+   const char *format;
    va_dcl
 #endif
 {
@@ -276,10 +274,10 @@ file_line_error (infile, lno, format, va_alist)
    number from global variables. */
 void
 #if defined (VA_FPRINTF) && __STDC__
-line_error (char *format, ...)
+line_error (const char *format, ...)
 #else
 line_error (format, va_alist)
-   char *format;
+   const char *format;
    va_dcl
 #endif
 {
@@ -303,10 +301,10 @@ line_error (format, va_alist)
 
 void
 #if defined (VA_FPRINTF) && __STDC__
-warning (char *format, ...)
+warning (const char *format, ...)
 #else
 warning (format, va_alist)
-     char *format;
+     const char *format;
      va_dcl
 #endif
 {
@@ -374,7 +372,7 @@ usage (exit_value)
   else
   {
     printf (_("Usage: %s [OPTION]... TEXINFO-FILE...\n"), progname);
-    puts ("\n");
+    puts ("");
 
     puts (_("\
 Translate Texinfo source documentation to various other formats, by default\n\
@@ -430,16 +428,21 @@ Options for Info and plain text:\n\
       --split-size=NUM        split Info files at size NUM (default %d).\n"),
              fill_column, paragraph_start_indent,
              DEFAULT_SPLIT_SIZE);
-
     puts ("\n");
 
     puts (_("\
+Options for HTML:\n\
+      --css-include=FILE        include FILE in HTML <style> output;\n\
+                                  read stdin if FILE is -.\n\
+"));
+
+    puts (_("\
 Input file options:\n\
-      --commands-in-node-names   allow @ commands in node names.\n\
-  -D VAR                         define the variable VAR, as with @set.\n\
-  -I DIR                         append DIR to the @include search path.\n\
-  -P DIR                         prepend DIR to the @include search path.\n\
-  -U VAR                         undefine the variable VAR, as with @clear.\n\
+      --commands-in-node-names  allow @ commands in node names.\n\
+  -D VAR                        define the variable VAR, as with @set.\n\
+  -I DIR                        append DIR to the @include search path.\n\
+  -P DIR                        prepend DIR to the @include search path.\n\
+  -U VAR                        undefine the variable VAR, as with @clear.\n\
 "));
 
     puts (_("\
@@ -461,6 +464,7 @@ Conditional processing in input:\n\
   if generating HTML, --ifhtml is on and the others are off;\n\
   if generating Info, --ifinfo is on and the others are off;\n\
   if generating plain text, --ifplaintext is on and the others are off;\n\
+  if generating XML, --ifxml is on and the others are off.\n\
 "));
 
     fputs (_("\
@@ -489,6 +493,7 @@ Texinfo home page: http://www.gnu.org/software/texinfo/"));
 struct option long_options[] =
 {
   { "commands-in-node-names", 0, &expensive_validation, 1 },
+  { "css-include", 1, 0, 'C' },
   { "docbook", 0, 0, 'd' },
   { "enable-encoding", 0, &enable_encoding, 1 },
   { "error-limit", 1, 0, 'e' },
@@ -560,6 +565,10 @@ main (argc, argv)
 
       switch (c)
         {
+        case 'C':  /* --css-include */
+          css_include = xstrdup (optarg);
+          break;
+
         case 'D':
         case 'U':
           /* User specified variable to set or clear. */
@@ -713,7 +722,7 @@ For more information about these matters, see the files named COPYING.\n"),
           xml = 1;
           process_xml = 1;
           break;
- 
+
         case '?':
           usage (1);
           break;
@@ -737,11 +746,11 @@ For more information about these matters, see the files named COPYING.\n"),
 
   if (no_headers)
     {
-      if (html && splitting)
+      if (html && splitting && !STREQ (command_output_filename, "-"))
         { /* --no-headers --no-split --html indicates confusion. */
           fprintf (stderr,
-                   "%s: --no-headers conflicts with --no-split for --html.\n",
-                   progname);
+                  "%s: can't split --html output to `%s' with --no-headers.\n",
+                   progname, command_output_filename);
           usage (1);
         }
 
@@ -752,7 +761,7 @@ For more information about these matters, see the files named COPYING.\n"),
       if (!command_output_filename)
         command_output_filename = xstrdup ("-");
     }
-    
+
   if (process_info == -1)
     { /* no explicit --[no-]ifinfo option, so we'll do @ifinfo
          if we're generating info or (for compatibility) plain text.  */
@@ -764,7 +773,7 @@ For more information about these matters, see the files named COPYING.\n"),
          if we're generating plain text.  */
       process_plaintext = no_headers && !html && !xml;
     }
-    
+
   if (verbose_mode)
     print_version_info ();
 
@@ -778,7 +787,8 @@ For more information about these matters, see the files named COPYING.\n"),
   else
     convert_from_stream (stdin, "stdin");
 
-  return errors_printed ? 2 : 0;
+  xexit (errors_printed ? 2 : 0);
+  return 0; /* Avoid bogus warnings.  */
 }
 
 
@@ -836,7 +846,7 @@ self_delimiting (character)
 {
   /* @; and @\ are not Texinfo commands, but they are listed here
      anyway.  I don't know why.  --karl, 10aug96.  */
-  return strchr ("~{|}`^\\@?=;:.-,*\'\" !\n\t", character) != NULL;
+  return strchr ("~{|}`^\\@?=;:./-,*\'\" !\n\t", character) != NULL;
 }
 
 /* Clear whitespace from the front and end of string. */
@@ -1163,6 +1173,8 @@ get_until_in_braces (match, string)
   input_text_offset = i;
   *string = temp;
 }
+
+
 
 /* Converting a file.  */
 
@@ -1317,12 +1329,12 @@ convert_from_file (name)
 
 /* Given OUTPUT_FILENAME == ``/foo/bar/baz.html'', return
    "/foo/bar/baz/baz.html".  This routine is called only if html && splitting.
-   
+
   Split html output goes into the subdirectory of the toplevel
   filename, without extension.  For example:
       @setfilename foo.info
   produces output in files foo/index.html, foo/second-node.html, ...
-  
+
   But if the user said -o foo.whatever on the cmd line, then use
   foo.whatever unchanged.  */
 
@@ -1330,16 +1342,16 @@ static char *
 insert_toplevel_subdirectory (output_filename)
      char *output_filename;
 {
+  static const char index_name[] = "index.html";
   char *dir, *subdir, *base, *basename, *p;
   char buf[PATH_MAX];
   struct stat st;
-  static const char index_name[] = "index.html";
   const int index_len = sizeof (index_name) - 1;
 
   strcpy (buf, output_filename);
-  dir = pathname_part (buf);
-  base = filename_part (buf);
-  basename = xstrdup (base); /* remember real @setfilename name */
+  dir = pathname_part (buf);   /* directory of output_filename */
+  base = filename_part (buf);  /* strips suffix, too */
+  basename = xstrdup (base);   /* remember real @setfilename name */
   p = dir + strlen (dir) - 1;
   if (p > dir && IS_SLASH (*p))
     *p = 0;
@@ -1348,15 +1360,11 @@ insert_toplevel_subdirectory (output_filename)
     *p = 0;
 
   /* Split html output goes into subdirectory of toplevel name. */
-  subdir = "";
-  if (FILENAME_CMP (base, filename_part (dir)) != 0)
-    {
-      if (save_command_output_filename
-          && STREQ (output_filename, save_command_output_filename))
-        subdir = basename;  /* from user, use unchanged */
-      else
-        subdir = base;      /* implicit, omit suffix */
-    }
+  if (save_command_output_filename
+      && STREQ (output_filename, save_command_output_filename))
+    subdir = basename;  /* from user, use unchanged */
+  else
+    subdir = base;      /* implicit, omit suffix */
 
   free (output_filename);
   output_filename = xmalloc (strlen (dir) + 1
@@ -1367,7 +1375,7 @@ insert_toplevel_subdirectory (output_filename)
   if (strlen (dir))
     strcat (output_filename, "/");
   strcat (output_filename, subdir);
-  if (mkdir (output_filename, 0777) == -1 && errno != EEXIST
+  if ((mkdir (output_filename, 0777) == -1 && errno != EEXIST)
       /* output_filename might exist, but be a non-directory.  */
       || (stat (output_filename, &st) == 0 && !S_ISDIR (st.st_mode)))
     { /* that failed, try subdir name with .html */
@@ -1377,7 +1385,7 @@ insert_toplevel_subdirectory (output_filename)
       strcat (output_filename, basename);
       if (mkdir (output_filename, 0777) == -1)
         {
-          char *errmsg = strerror (errno);
+          const char *errmsg = strerror (errno);
 
           if ((errno == EEXIST
 #ifdef __MSDOS__
@@ -1440,7 +1448,7 @@ convert_from_loaded_file (name)
           command_output_filename = output_name_from_input_name (name);
 #endif /* !REQUIRE_SETFILENAME */
         }
- 
+
       {
         int i, end_of_first_line;
 
@@ -1588,7 +1596,7 @@ convert_from_loaded_file (name)
   reader_loop ();
   if (xml)
     xml_end_document ();
-      
+
 
 finished:
   discard_insertions (0);
@@ -1627,7 +1635,18 @@ finished:
           close_paragraph ();
         }
 
+      /* maybe we want local variables in info output.  */
+      {
+        char *trailer = info_trailer ();
+        if (trailer)
+          {
+            insert_string (trailer);
+            free (trailer);
+          }
+      }
+
       flush_output ();          /* in case there was no @bye */
+
       if (output_stream != stdout)
         fclose (output_stream);
 
@@ -1656,6 +1675,29 @@ finished:
   free (real_output_filename);
 }
 
+
+
+/* If enable_encoding and document_encoding are both set, return a Local
+   Variables section (as a malloc-ed string) so that Emacs' locale
+   features can work.  Else return NULL.  */
+
+char *
+info_trailer ()
+{
+  if (!enable_encoding || document_encoding_code <= US_ASCII)
+    return NULL;
+
+  {
+#define LV_FMT "\n\037\nLocal Variables:\ncoding: %s\nEnd:\n"
+    char *enc_name = encoding_table[document_encoding_code].encname;
+    char *lv = xmalloc (sizeof (LV_FMT) + strlen (enc_name));
+    sprintf (lv, LV_FMT, enc_name);
+    return lv;
+  }
+}
+
+
+
 void
 free_and_clear (pointer)
      char **pointer;
@@ -1708,10 +1750,10 @@ static void
 handle_menu_entry ()
 {
   char *tem;
-  
+
   /* Ugh, glean_node_from_menu wants to read the * itself.  */
   input_text_offset--;
-  
+
   /* Find node name in menu entry and save it in references list for
      later validation.  Use followed_reference type for detailmenu
      references since we don't want to use them for default node pointers.  */
@@ -1740,7 +1782,7 @@ handle_menu_entry ()
           add_word ("<p>\n");
           in_paragraph = 1;
         }
-      
+
       if (in_paragraph)
         {
           add_word ("</p>");
@@ -1780,7 +1822,7 @@ handle_menu_entry ()
       add_word (": ");
     }
   else if (xml && tem)
-    { 
+    {
       xml_start_menu_entry (tem);
     }
   else if (tem)
@@ -2002,7 +2044,7 @@ reader_loop ()
               input_text_offset++;
             }
           break;
-        
+
         /* Escapes for HTML unless we're outputting raw HTML.  Do
            this always, even if SGML rules don't require it since
            that's easier and safer for non-conforming browsers. */
@@ -2090,7 +2132,7 @@ remember_brace (proc)
      COMMAND_FUNCTION *proc;
 {
   if (curchar () != '{')
-    line_error (_("%c%s expected `{...}'"), COMMAND_PREFIX, command);
+    line_error (_("%c%s expected braces"), COMMAND_PREFIX, command);
   else
     input_text_offset++;
   remember_brace_1 (proc, output_paragraph_offset);
@@ -2161,7 +2203,7 @@ adjust_braces_following (here, amount)
 /* Return the string which invokes PROC; a pointer to a function.
    Always returns the first function in the command table if more than
    one matches PROC.  */
-static char *
+static const char *
 find_proc_name (proc)
      COMMAND_FUNCTION *proc;
 {
@@ -2187,7 +2229,7 @@ discard_braces ()
     {
       if (brace_stack->proc != misplaced_brace)
         {
-          char *proc_name;
+          const char *proc_name;
 
           proc_name = find_proc_name (brace_stack->proc);
           file_line_error (input_filename, brace_stack->line,
@@ -2241,10 +2283,10 @@ get_char_len (character)
 
 void
 #if defined (VA_FPRINTF) && __STDC__
-add_word_args (char *format, ...)
+add_word_args (const char *format, ...)
 #else
 add_word_args (format, va_alist)
-    char *format;
+    const char *format;
     va_dcl
 #endif
 {
@@ -2284,6 +2326,27 @@ add_html_elt (string)
   in_html_elt--;
 }
 
+/* Here is another awful kludge, used in add_char.  Ordinarily, macro
+   expansions take place in the body of the document, and therefore we
+   should html_output_head when we see one.  But there's an exception: a
+   macro call might take place within @copying, and that does not start
+   the real output, even though we fully expand the copying text.
+
+   So we need to be able to check if we are defining the @copying text.
+   We do this by looking back through the insertion stack.  */
+static int
+defining_copying ()
+{
+  INSERTION_ELT *i;
+  for (i = insertion_stack; i; i = i->next)
+    {
+      if (i->insertion == copying)
+        return 1;
+    }
+  return 0;
+}
+
+
 /* Add the character to the current paragraph.  If filling_enabled is
    nonzero, then do filling as well. */
 void
@@ -2322,10 +2385,10 @@ add_char (character)
     {
       if (html || docbook)
         { /* Seems cleaner to use &nbsp; than an 8-bit char.  */
-	  int saved_escape_html = escape_html;
-	  escape_html = 0;
+          int saved_escape_html = escape_html;
+          escape_html = 0;
           add_word ("&nbsp");
-	  escape_html = saved_escape_html;
+          escape_html = saved_escape_html;
           character = ';';
         }
       else
@@ -2400,7 +2463,7 @@ add_char (character)
            any order and with any omissions, and we'll still output
            the html <head> `just in time'.  */
         if ((executing_macro || !executing_string)
-            && html && !html_output_head_p)
+            && html && !html_output_head_p && !defining_copying ())
           html_output_head ();
 
         if (!paragraph_is_open)
@@ -2997,16 +3060,16 @@ cm_xref (arg)
               char *arg1_id = xml_id (arg1);
               if (*arg2)
                 {
-                  xml_insert_element_with_attribute (XREFNODENAME, START, 
+                  xml_insert_element_with_attribute (XREFNODENAME, START,
                                                      "linkend=\"%s\"", arg1_id);
                   free (arg1_id);
                   if (*arg2)
                     execute_string (arg2);
                   xml_insert_element (XREFNODENAME, END);
-                } 
+                }
               else
                 {
-                  xml_insert_element_with_attribute (XREF, START, 
+                  xml_insert_element_with_attribute (XREF, START,
                                                      "linkend=\"%s\"", arg1_id);
                   free (arg1_id);
                   xml_pop_current_element ();
@@ -3324,7 +3387,7 @@ cm_uref (arg)
               execute_string (replacement);
               xml_insert_element (UREFREPLACEMENT, END);
             }
-          xml_insert_element (UREF, END);         
+          xml_insert_element (UREF, END);
         }
       else if (html)
         { /* never need to show the url */
@@ -3380,7 +3443,7 @@ cm_email (arg)
           xml_insert_element_with_attribute (EMAIL, START, "url=\"mailto:%s\"", addr);
           if (*name)
               execute_string (name);
-          xml_insert_element (EMAIL, END);                
+          xml_insert_element (EMAIL, END);
         }
       else if (xml)
         {
@@ -3394,7 +3457,7 @@ cm_email (arg)
               execute_string (name);
               xml_insert_element (EMAILNAME, END);
             }
-          xml_insert_element (EMAIL, END);                
+          xml_insert_element (EMAIL, END);
         }
       else if (html)
         {
@@ -3441,34 +3504,48 @@ cm_image (arg)
 
   if (*name_arg)
     {
+      struct stat file_info;
+      char *pathname = NULL;
       char *fullname = xmalloc (strlen (name_arg)
                        + (ext_arg && *ext_arg ? strlen (ext_arg) + 1 : 4) + 1);
 
-      if (html)
+      if (ext_arg && *ext_arg)
         {
-          if (ext_arg && *ext_arg)
-            {
-              sprintf (fullname, "%s.%s", name_arg, ext_arg);
-              if (access (fullname, R_OK) != 0)
-                {
-                  line_error(_("@image file `%s' (for HTML) not readable: %s"),
-                             fullname, strerror (errno));
-                  return;
-                }
-            }
-          else
-            {
+          sprintf (fullname, "%s.%s", name_arg, ext_arg);
+          if (access (fullname, R_OK) != 0)
+            pathname = get_file_info_in_path (fullname, include_files_path,
+                                              &file_info);
+        }
+      else
+        {
           sprintf (fullname, "%s.png", name_arg);
           if (access (fullname, R_OK) != 0)
             {
-              sprintf (fullname, "%s.jpg", name_arg);
-              if (access (fullname, R_OK) != 0)
+              pathname = get_file_info_in_path (fullname,
+                                               include_files_path, &file_info);
+              if (pathname == NULL)
                 {
-             line_error (_("No `%s.png' or `.jpg', and no extension supplied"),
-                              name_arg);
-                  return;
+                  sprintf (fullname, "%s.jpg", name_arg);
+                  if (access (fullname, R_OK) != 0)
+                    pathname = get_file_info_in_path (fullname,
+                                               include_files_path, &file_info);
                 }
-          }
+            }
+        }
+
+      if (html)
+        {
+          if (pathname == NULL && access (fullname, R_OK) != 0)
+            {
+              line_error(_("@image file `%s' (for HTML) not readable: %s"),
+                             fullname, strerror (errno));
+              return;
+            }
+          if (pathname != NULL && access (pathname, R_OK) != 0)
+            {
+              line_error (_("No such file `%s'"),
+                          fullname);
+              return;
             }
 
           add_html_elt ("<img src=");
@@ -3480,17 +3557,32 @@ cm_image (arg)
         xml_insert_docbook_image (name_arg);
       else if (xml)
         {
-          xml_insert_element_with_attribute (IMAGE, START, "width=\"%s\" height=\"%s\" alttext=\"%s\" extension=\"%s\"", w_arg, h_arg, alt_arg, ext_arg);
+          xml_insert_element_with_attribute (IMAGE, START, "width=\"%s\" height=\"%s\" alttext=\"%s\" extension=\"%s\"",
+                                             w_arg, h_arg, alt_arg, ext_arg);
           add_word (name_arg);
           xml_insert_element (IMAGE, END);
         }
       else
-        { /* Try to open foo.txt.  */
+        { /* Try to open foo.EXT or foo.txt.  */
           FILE *image_file;
-          strcpy (fullname, name_arg);
-          strcat (fullname, ".txt");
-          image_file = fopen (fullname, "r");
-          if (image_file)
+          char *txtpath = NULL;
+          char *txtname = xmalloc (strlen (name_arg)
+                                   + (ext_arg && *ext_arg
+                                      ? strlen (ext_arg) + 1 : 4) + 1);
+          strcpy (txtname, name_arg);
+          strcat (txtname, ".txt");
+          image_file = fopen (txtname, "r");
+          if (image_file == NULL)
+            {
+              txtpath = get_file_info_in_path (txtname,
+                                               include_files_path, &file_info);
+              if (txtpath != NULL)
+                image_file = fopen (txtpath, "r");
+            }
+
+          if (image_file != NULL
+              || access (fullname, R_OK) == 0
+              || (pathname != NULL && access (pathname, R_OK) == 0))
             {
               int ch;
               int save_inhibit_indentation = inhibit_paragraph_indentation;
@@ -3500,25 +3592,50 @@ cm_image (arg)
               filling_enabled = 0;
               last_char_was_newline = 0;
 
-              /* Maybe we need to remove the final newline if the image
-                 file is only one line to allow in-line images.  On the
-                 other hand, they could just make the file without a
-                 final newline.  */
-              while ((ch = getc (image_file)) != EOF)
-                add_char (ch);
+              /* Write magic ^@^H[image ...^@^H] cookie in the info file.  */
+              add_char ('\0');
+              add_word ("\010[image");
+
+              if (access (fullname, R_OK) == 0
+                  || (pathname != NULL && access (pathname, R_OK) == 0))
+                add_word_args (" src=%s", fullname);
+
+              if (*alt_arg)
+                add_word_args (" alt=\"%s\"", alt_arg);
+
+              if (image_file != NULL)
+                {
+                  add_word (" text=\"");
+                  /* Maybe we need to remove the final newline if the image
+                     file is only one line to allow in-line images.  On the
+                     other hand, they could just make the file without a
+                     final newline.  */
+                  while ((ch = getc (image_file)) != EOF)
+                    {
+                      if (ch == '"' || ch == '\\')
+                        add_char ('\\');
+                      add_char (ch);
+                    }
+                  add_char ('"');
+
+                  if (fclose (image_file) != 0)
+                    perror (txtname);
+                }
 
               inhibit_paragraph_indentation = save_inhibit_indentation;
               filling_enabled = save_filling_enabled;
 
-              if (fclose (image_file) != 0)
-                perror (fullname);
+              add_char ('\0');
+              add_word ("\010]");
             }
           else
             line_error (_("@image file `%s' (for text) unreadable: %s"),
-                        fullname, strerror (errno));
+                        txtname, strerror (errno));
         }
 
       free (fullname);
+      if (pathname)
+        free (pathname);
     }
   else
     line_error (_("@image missing filename argument"));
@@ -3718,7 +3835,10 @@ cm_value (arg, start_pos, end_pos)
       if (value)
         execute_string ("%s", value);
       else
+	{
+	  warning (_("undefined flag: %s"), name);
         add_word_args (_("{No value for `%s'}"), name);
+	}
 
       free (name);
     }
@@ -4051,7 +4171,7 @@ expansion (str, implicit_code)
     int implicit_code;
 {
   char *result;
-  
+
   /* Inhibit indentation and filling, so that extra newlines
      are not added to the expansion.  (This is undesirable if
      we write the expanded text to macro_expansion_output_stream.)  */
@@ -4064,14 +4184,14 @@ expansion (str, implicit_code)
   indented_fill = 0;
   no_indent = 1;
   escape_html = 0;
-  
+
   result = full_expansion (str, implicit_code);
 
   filling_enabled = saved_filling_enabled;
   indented_fill = saved_indented_fill;
   no_indent = saved_no_indent;
-  escape_html = saved_escape_html;  
-  
+  escape_html = saved_escape_html;
+
   return result;
 }
 
@@ -4146,13 +4266,13 @@ text_expansion (str)
   char *ret;
   int save_html = html;
   int save_xml = xml;
-  
+
   html = 0;
   xml = 0;
   ret = expansion (str, 0);
   html = save_html;
   xml = save_xml;
-  
+
   return ret;
 }
 
