@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)cd.c	8.2 (Berkeley) 5/4/95";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: cd.c,v 1.17 1998/05/18 06:43:30 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -106,7 +106,7 @@ cdcmd(argc, argv)
 				/*
 				 * XXX - rethink
 				 */
-				if (p[0] == '.' && p[1] == '/')
+				if (p[0] == '.' && p[1] == '/' && p[2] != '\0')
 					p += 2;
 				print = strcmp(p, dest);
 			}
@@ -130,22 +130,58 @@ docd(dest, print)
 	char *dest;
 	int print;
 {
+	char *p;
+	char *q;
+	char *component;
+	struct stat statb;
+	int first;
+	int badstat;
 
 	TRACE(("docd(\"%s\", %d) called\n", dest, print));
+
+	/*
+	 *  Check each component of the path. If we find a symlink or
+	 *  something we can't stat, clear curdir to force a getcwd()
+	 *  next time we get the value of the current directory.
+	 */
+	badstat = 0;
+	cdcomppath = stalloc(strlen(dest) + 1);
+	scopy(dest, cdcomppath);
+	STARTSTACKSTR(p);
+	if (*dest == '/') {
+		STPUTC('/', p);
+		cdcomppath++;
+	}
+	first = 1;
+	while ((q = getcomponent()) != NULL) {
+		if (q[0] == '\0' || (q[0] == '.' && q[1] == '\0'))
+			continue;
+		if (! first)
+			STPUTC('/', p);
+		first = 0;
+		component = q;
+		while (*q)
+			STPUTC(*q++, p);
+		if (equal(component, ".."))
+			continue;
+		STACKSTRNUL(p);
+		if ((lstat(stackblock(), &statb) < 0)
+		    || (S_ISLNK(statb.st_mode)))  {
+			/* print = 1; */
+			badstat = 1;
+			break;
+		}
+	}
+
 	INTOFF;
-	updatepwd(dest);
-	if (chdir(stackblock()) < 0) {
+	if (chdir(dest) < 0) {
 		INTON;
 		return -1;
 	}
-	hashcd();				/* update command hash table */
-	if (prevdir)
-		ckfree(prevdir);
-	prevdir = curdir;
-	curdir = savestr(stackblock());
+	updatepwd(badstat ? NULL : dest);
 	INTON;
-	if (print && iflag)
-		out1fmt("%s\n", stackblock());
+	if (print && iflag && curdir)
+		out1fmt("%s\n", curdir);
 	return 0;
 }
 
@@ -176,8 +212,9 @@ getcomponent()
 
 
 /*
- * Determine the new working directory, but don't actually enforce
- * any changes.
+ * Update curdir (the name of the current directory) in response to a
+ * cd command.  We also call hashcd to let the routines in exec.c know
+ * that the current directory has changed.
  */
 STATIC void
 updatepwd(dir)
@@ -186,12 +223,30 @@ updatepwd(dir)
 	char *new;
 	char *p;
 
+	hashcd();				/* update command hash table */
+
+	/*
+	 * If our argument is NULL, we don't know the current directory
+	 * any more because we traversed a symbolic link or something
+	 * we couldn't stat().
+	 */
+	if (dir == NULL || curdir == NULL)  {
+		if (prevdir)
+			ckfree(prevdir);
+		INTOFF;
+		prevdir = curdir;
+		curdir = NULL;
+		if (getpwd() == NULL)
+			error("getcwd() failed: %s", strerror(errno));
+		setvar("PWD", curdir, VEXPORT | VTEXTFIXED);
+		setvar("OLDPWD", prevdir, VEXPORT | VTEXTFIXED);
+		INTON;
+		return;
+	}
 	cdcomppath = stalloc(strlen(dir) + 1);
 	scopy(dir, cdcomppath);
 	STARTSTACKSTR(new);
 	if (*dir != '/') {
-		if (curdir == NULL)
-			return;
 		p = curdir;
 		while (*p)
 			STPUTC(*p++, new);
@@ -210,6 +265,14 @@ updatepwd(dir)
 	if (new == stackblock())
 		STPUTC('/', new);
 	STACKSTRNUL(new);
+	INTOFF;
+	if (prevdir)
+		ckfree(prevdir);
+	prevdir = curdir;
+	curdir = savestr(stackblock());
+	setvar("PWD", curdir, VEXPORT | VTEXTFIXED);
+	setvar("OLDPWD", prevdir, VEXPORT | VTEXTFIXED);
+	INTON;
 }
 
 
@@ -226,6 +289,10 @@ pwdcmd(argc, argv)
 }
 
 
+
+
+#define MAXPWD 256
+
 /*
  * Find out what the current directory is. If we already know the current
  * directory, this routine returns immediately.
@@ -233,7 +300,79 @@ pwdcmd(argc, argv)
 char *
 getpwd()
 {
+	char buf[MAXPWD];
+
 	if (curdir)
-		return (curdir);
-	return ((curdir = getcwd(NULL, 0)));
+		return curdir;
+	/*
+	 * Things are a bit complicated here; we could have just used
+	 * getcwd, but traditionally getcwd is implemented using popen
+	 * to /bin/pwd. This creates a problem for us, since we cannot
+	 * keep track of the job if it is being ran behind our backs.
+	 * So we re-implement getcwd(), and we suppress interrupts
+	 * throughout the process. This is not completely safe, since
+	 * the user can still break out of it by killing the pwd program.
+	 * We still try to use getcwd for systems that we know have a
+	 * c implementation of getcwd, that does not open a pipe to
+	 * /bin/pwd.
+	 */
+#if defined(__NetBSD__) || defined(__FreeBSD__) || defined(__SVR4)
+		
+	if (getcwd(buf, sizeof(buf)) == NULL) {
+		char *pwd = getenv("PWD");
+		struct stat stdot, stpwd;
+
+		if (pwd && *pwd == '/' && stat(".", &stdot) != -1 &&
+		    stat(pwd, &stpwd) != -1 &&
+		    stdot.st_dev == stpwd.st_dev &&
+		    stdot.st_ino == stpwd.st_ino) {
+			curdir = savestr(pwd);
+			return curdir;
+		}
+		return NULL;
+	}
+	curdir = savestr(buf);
+#else
+	{
+		char *p;
+		int i;
+		int status;
+		struct job *jp;
+		int pip[2];
+
+		INTOFF;
+		if (pipe(pip) < 0)
+			error("Pipe call failed");
+		jp = makejob((union node *)NULL, 1);
+		if (forkshell(jp, (union node *)NULL, FORK_NOJOB) == 0) {
+			(void) close(pip[0]);
+			if (pip[1] != 1) {
+				close(1);
+				copyfd(pip[1], 1);
+				close(pip[1]);
+			}
+			(void) execl("/bin/pwd", "pwd", (char *)0);
+			error("Cannot exec /bin/pwd");
+		}
+		(void) close(pip[1]);
+		pip[1] = -1;
+		p = buf;
+		while ((i = read(pip[0], p, buf + MAXPWD - p)) > 0
+		     || (i == -1 && errno == EINTR)) {
+			if (i > 0)
+				p += i;
+		}
+		(void) close(pip[0]);
+		pip[0] = -1;
+		status = waitforjob(jp);
+		if (status != 0)
+			error((char *)0);
+		if (i < 0 || p == buf || p[-1] != '\n')
+			error("pwd command failed");
+		p[-1] = '\0';
+	}
+	curdir = savestr(buf);
+	INTON;
+#endif
+	return curdir;
 }
