@@ -23,6 +23,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
+.\"
 .Dd November 11, 2002
 .Dt MBRLEN 3
 .Os
@@ -38,7 +39,7 @@
 .Sh DESCRIPTION
 The
 .Fn mbrlen
-function determines the the number of bytes constituting the
+function determines the number of bytes constituting the
 multibyte character sequence pointed to by
 .Fa s ,
 examining at most
@@ -46,7 +47,7 @@ examining at most
 bytes.
 .Pp
 The
-.Ft mbstate_t
+.Vt mbstate_t
 argument,
 .Fa ps ,
 is used to keep track of the shift state.
@@ -54,7 +55,7 @@ If it is
 .Dv NULL ,
 .Fn mbrlen
 uses an internal, static
-.Ft mbstate_t
+.Vt mbstate_t
 object.
 .Pp
 It is equivalent to:
@@ -63,11 +64,13 @@ It is equivalent to:
 .Pp
 Except that when
 .Fa ps
-is a NULL pointer,
+is a
+.Dv NULL
+pointer,
 .Fn mbrlen
 uses its own static, internal
-.Ft mbstate_t
-object to keep track of shift state.
+.Vt mbstate_t
+object to keep track of the shift state.
 .Sh RETURN VALUES
 The
 .Fn mbrlen
@@ -78,7 +81,8 @@ The first
 .Fa n
 or fewer bytes of
 .Fa s
-represent the null wide character (L'\e0').
+represent the null wide character
+.Pq Li "L'\e0'" .
 .It >0
 The first
 .Fa n
@@ -87,21 +91,13 @@ or fewer bytes of
 represent a valid character,
 .Fn mbrtowc
 returns the length (in bytes) of the multibyte sequence.
-.It Xo
-.No ( Ns
-.Ft size_t Ns
-.No ) Ns \&-2
-.Xc
+.It Po Vt size_t Pc Ns \-2
 The first
 .Fa n
 bytes of
 .Fa s
 are an incomplete multibyte sequence.
-.It Xo
-.No ( Ns
-.Ft size_t Ns
-.No ) Ns \&-1
-.Xc
+.It Po Vt size_t Pc Ns \-1
 The byte sequence pointed to by
 .Fa s
 is an invalid multibyte sequence.

@@ -23,6 +23,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
+.\"
 .Dd August 15, 2002
 .Dt MBRTOWC 3
 .Os
@@ -34,7 +35,10 @@
 .Sh SYNOPSIS
 .In wchar.h
 .Ft size_t
-.Fn mbrtowc "wchar_t * restrict pwc" "const char * restrict s" "size_t n" "mbstate_t * restrict ps"
+.Fo mbrtowc
+.Fa "wchar_t * restrict pwc" "const char * restrict s" "size_t n"
+.Fa "mbstate_t * restrict ps"
+.Fc
 .Sh DESCRIPTION
 The
 .Fn mbrtowc
@@ -52,7 +56,7 @@ is not
 the multibyte character which
 .Fa s
 represents is stored in the
-.Ft wchar_t
+.Vt wchar_t
 it points to.
 .Pp
 If
@@ -65,13 +69,14 @@ behaves as if
 was
 .Dv NULL ,
 .Fa s
-was an empty string ("")
+was an empty string
+.Pq Qq
 and
 .Fa n
 was 1.
 .Pp
 The
-.Ft mbstate_t
+.Vt mbstate_t
 argument,
 .Fa ps ,
 is used to keep track of the shift state.
@@ -79,7 +84,7 @@ If it is
 .Dv NULL ,
 .Fn mbrtowc
 uses an internal, static
-.Ft mbstate_t
+.Vt mbstate_t
 object.
 .Sh RETURN VALUES
 The
@@ -91,7 +96,8 @@ The first
 .Fa n
 or fewer bytes of
 .Fa s
-represent the null wide character (L'\e0').
+represent the null wide character
+.Pq Li "L'\e0'" .
 .It >0
 The first
 .Fa n
@@ -100,21 +106,13 @@ or fewer bytes of
 represent a valid character,
 .Fn mbrtowc
 returns the length (in bytes) of the multibyte sequence.
-.It Xo
-.No ( Ns
-.Ft size_t Ns
-.No ) Ns \&-2
-.Xc
+.It Po Vt size_t Pc Ns \-2
 The first
 .Fa n
 bytes of
 .Fa s
 are an incomplete multibyte sequence.
-.It Xo
-.No ( Ns
-.Ft size_t Ns
-.No ) Ns \&-1
-.Xc
+.It Po Vt size_t Pc Ns \-1
 The byte sequence pointed to by
 .Fa s
 is an invalid multibyte sequence.
