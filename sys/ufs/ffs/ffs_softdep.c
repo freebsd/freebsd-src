@@ -3935,6 +3935,12 @@ softdep_disk_write_complete(bp)
 	struct inodedep *inodedep;
 	struct bmsafemap *bmsafemap;
 
+	/*
+	 * If an error occurred while doing the write, then the data
+	 * has not hit the disk and the dependencies cannot be unrolled.
+	 */
+	if ((bp->b_ioflags & BIO_ERROR) != 0 && (bp->b_flags & B_INVAL) == 0)
+		return;
 #ifdef DEBUG
 	if (lk.lkt_held != NOHOLDER)
 		panic("softdep_disk_write_complete: lock is held");
