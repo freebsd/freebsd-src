@@ -1,4 +1,4 @@
-<!-- $Id: history.sgml,v 1.14 1996/05/16 23:17:59 mpp Exp $ -->
+<!-- $Id: history.sgml,v 1.15 1996/08/21 07:28:45 asami Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>A brief history of FreeBSD<label id="history"></heading>
@@ -78,39 +78,16 @@ easier to install FreeBSD 2.0.5 release in June of 1995.
 
 <em>Where to from here?</em>
 
-We just released FreeBSD 2.1.0 on November 19th, 1995 and, by all
-accounts, people are pretty happy with it.  We will therefore continue
-with the 2.1-STABLE branch of FreeBSD (which actually began with 2.0.5)
-well into Q1 of 1996 with at least one additional release:
-FreeBSD 2.1.1.
+We just released FreeBSD 2.1.5 in August of 1996, and it appears to be
+doing well enough for us that one last release along the -stable
+branch, 2.1.6, is merited.  This is scheduled for release some time in
+November.
 
-A 2.1.2 release may follow 2.1.1, though this will depend heavily on the
-status of FreeBSD 2.2 in Q2 of 1996.  2.2 is our development branch,
-where long term projects for everything from NFS v3 to PCCARD support
-are currently taking place.  Preliminary timelines suggest that development
-in 2.2 will begin slowing down and early release engineering simulations
-(2.2 SNAPshots) started in Q1 of 1996.  Given a favorable prognosis for 2.2's
-general health, a migration to 2.2 will then begin in early Q2 of 1996 and
-a new 2.3 branch created for next-generation development.  Around the
-time that 2.2-RELEASE is produced (late Q2 1996), the 2.1.x lineage will
-also be phased out.
+2.2, our development branch where long term projects for everything
+from NFS v3 to PCCARD support is currently taking place, will continue
+to have snapshot releases made of it right up until initial 2.2 code
+freeze, which is scheduled for January of 1997.
 
-We also intend to focus on any remaining areas of weakness, like documentation
-or missing drivers, and steadily increase the overall quality and feature set
-of the system well into 1996 and beyond.
-
-Now might also be a good time to note that the development of FreeBSD is
-<em>not</em> a closed process, despite some popular misconceptions to the
-contrary, and anyone is free to contribute code or ideas.  Once a contributor
-has established a reasonable track record for reliability, we generally, in
-fact, give them write access to the project's CVS repository, where their
-changes can propagate automatically to other users of FreeBSD.  Our
-centralized development model is designed for the convenience of the
-<em>users</em> of FreeBSD, who are thereby provided with an easy way of
-tracking one central code base, not to keep potential contributors out!
-Individuals who hae shown a consistent and significant dedication to the project
-are even often asked to join the FreeBSD core team to help in setting
-the project's overall directions and goals, so truly no part of the project
-is closed to additional members.  All we ask of those wishing for closer
-ties to this project is some of the same dedication its current members have
-to its continued success!
+We also intend to focus on any remaining areas of weakness, like
+documentation or missing drivers, and steadily increase the overall
+quality and feature set of the system well into 1997 and beyond.

@@ -1,4 +1,4 @@
-<!-- $Id: bibliography.sgml,v 1.10 1996/08/18 12:47:33 wosch Exp $ -->
+<!-- $Id: bibliography.sgml,v 1.11 1996/08/21 07:18:30 asami Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
     <chapt>
@@ -9,7 +9,7 @@
 	they are notorious for not illustrating how to put the
 	pieces together to make the whole operating system run
 	smoothly.  For this, there is no substitute for a good
-	book on Unix system administration and a good users'
+	book on UNIX system administration and a good users'
 	manual.
 
       <sect>
@@ -26,7 +26,7 @@
 	    O'Reilly &amp; Associates, Inc., 1994.
 	    <newline>ISBN 1-56592-076-7</item>
 
-	  <item><sl>Unix in a Nutshell</sl>.
+	  <item><sl>UNIX in a Nutshell</sl>.
 	    O'Reilly &amp; Associates, Inc., 1990.
 	    <newline>ISBN 093717520X</item>
 
@@ -64,7 +64,7 @@
                 O'Reilly &amp; Associates, Inc., 1992.  
 		<newline>ISBN 0-937175-82-X</item>
 
-	    <item>Nemeth, Evi. <em>Unix System Administration
+	    <item>Nemeth, Evi. <em>UNIX System Administration
 		Handbook</em>. 2nd ed. Prentice Hall, 1995. 
 		<newline>ISBN 0131510517</item>
 
@@ -226,7 +226,7 @@
 	  </itemize>
 
       <sect>
-	<heading>Unix history</heading>
+	<heading>UNIX history</heading>
 
 	<p><itemize>
 
@@ -239,6 +239,9 @@
 	      IDG Books Worldwide, Inc., 1994.
 	      <newline>ISBN 1-56884-203-1</item>
 
+	    <item>Don Libes, Sandy Ressler  <em>Life with Unix</em> -
+	      special edition.  Prentice-Hall, Inc., 1989</item>
+
 	  </itemize>
 
       <sect>
@@ -248,6 +251,9 @@
 
 	    <item><em>The C/C++ Users Journal</em>.  R&amp;D Publications
 	      Inc. ISSN 1075-2838</item>
+
+	    <item><em>Sys Admin - The Journal for UNIX System
+	      Administrators</em>.  Miller Freeman, Inc. ISSN 1061-2688</item>
 
 	  </itemize>
 
