@@ -80,6 +80,7 @@ struct diskslices {
 /* Flags for dsopen(). */
 #define	DSO_NOLABELS	1
 #define	DSO_ONESLICE	2
+#define	DSO_COMPATLABEL	4
 
 #define	dsgetlabel(dev, ssp)	(ssp->dss_slices[dkslice(dev)].ds_label)
 
