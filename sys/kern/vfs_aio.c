@@ -1097,7 +1097,6 @@ aio_qphysio(struct proc *p, struct aiocblist *aiocbe)
 	/*
 	 * Get a copy of the kva from the physical buffer.
 	 */
-	bp->b_caller1 = p;
 	bp->b_dev = vp->v_rdev;
 	error = 0;
 
@@ -1120,7 +1119,7 @@ aio_qphysio(struct proc *p, struct aiocblist *aiocbe)
 
 	s = splbio();
 	aiocbe->bp = bp;
-	bp->b_caller2 = (void *)aiocbe;
+	bp->b_caller1 = (void *)aiocbe;
 	TAILQ_INSERT_TAIL(&aio_bufjobs, aiocbe, list);
 	TAILQ_INSERT_TAIL(&ki->kaio_bufqueue, aiocbe, plist);
 	aiocbe->jobstate = JOBST_JOBQBUF;
@@ -2128,9 +2127,9 @@ aio_physwakeup(struct buf *bp)
 
 	wakeup(bp);
 
-	aiocbe = (struct aiocblist *)bp->b_caller2;
+	aiocbe = (struct aiocblist *)bp->b_caller1;
 	if (aiocbe) {
-		p = bp->b_caller1;
+		p = aiocbe->userproc;
 
 		aiocbe->jobstate = JOBST_JOBBFINISHED;
 		aiocbe->uaiocb._aiocb_private.status -= bp->b_resid;
