@@ -1007,7 +1007,16 @@ ccdiodone(cbp)
 			return;
 		}
 		
-	count = cbp->cb_buf.b_bcount;
+	/*
+	 * use b_bufsize to determine how big the original request was rather
+	 * then b_bcount, because b_bcount may have been truncated for EOF.
+	 *
+	 * XXX We check for an error, but we do not test the resid for an
+	 * aligned EOF condition.  This may result in character & block
+	 * device access not recognizing EOF properly when read or written 
+	 * sequentially, but will not effect filesystems.
+	 */
+	count = cbp->cb_buf.b_bufsize;
 	putccdbuf(cbp);
 
 	/*
