@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+MAINTAINER=	rnordier
+
 PROG=		boot0
 NOMAN=
 STRIP=
@@ -8,8 +10,7 @@ BINMODE=	444
 
 M4?=	m4
 
-# update, packet mode, and all slices enabled by default
-B0FLAGS=0x8f
+B0FLAGS=0xf
 B0TICKS=0xb6
 
 ORG=	0x600
