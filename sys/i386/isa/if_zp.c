@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *	From: if_ep.c,v 1.9 1994/01/25 10:46:29 deraadt Exp $
- *	$Id: if_zp.c,v 1.5 1995/04/20 07:22:04 phk Exp $
+ *	$Id: if_zp.c,v 1.6 1995/05/30 08:02:31 rgrimes Exp $
  */
 /*-
  * TODO:
@@ -330,9 +330,9 @@ zp_check_cis(unsigned char *scratch)
 	    card_info[k++] = '\0';
 #ifdef ZP_DEBUG
 	    printf("card info = %s\n", card_info);
-	    printf("result = %d\n", memcmp(card_info, CARD_INFO, sizeof(CARD_INFO) - 1) == 0);
+	    printf("result = %d\n", bcmp(card_info, CARD_INFO, sizeof(CARD_INFO) - 1) == 0);
 #endif
-	    return (memcmp(card_info, CARD_INFO, sizeof(CARD_INFO) - 1) == 0);
+	    return (bcmp(card_info, CARD_INFO, sizeof(CARD_INFO) - 1) == 0);
 	}
 	i += 4 + 2 * link;
     }
