@@ -33,7 +33,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)malloc.c	5.11 (Berkeley) 2/23/91";*/
-static char *rcsid = "$Id: malloc.c,v 1.4 1995/05/30 05:01:48 rgrimes Exp $";
+static char *rcsid = "$Id: malloc.c,v 1.8 1997/06/22 17:48:35 phk Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 /*
@@ -479,4 +479,17 @@ int	n;
 	close(fd);
 #endif
 	return n;
+}
+
+void *
+calloc(num, size)
+	size_t num;
+	register size_t size;
+{
+	register void *p;
+
+	size *= num;
+	if ( (p = malloc(size)) )
+		bzero(p, size);
+	return(p);
 }

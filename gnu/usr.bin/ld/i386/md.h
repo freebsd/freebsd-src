@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: md.h,v 1.12 1995/03/04 17:46:21 nate Exp $
+ *	$Id: md.h,v 1.17 1997/04/30 05:18:08 jdp Exp $
  */
 
 #ifndef __MD_H__
@@ -94,6 +94,8 @@
 #define md_got_reloc(r)			(0)
 
 #define md_get_rt_segment_addend(r,a)	md_get_addend(r,a)
+
+#define RELOC_INIT_SEGMENT_RELOC(r)	((r)->r_length = 2)
 
 /* Width of a Global Offset Table entry */
 #define GOT_ENTRY_SIZE	4
@@ -232,6 +234,7 @@ long	md_get_addend __P((struct relocation_info *, unsigned char *));
 void	md_relocate __P((struct relocation_info *, long, unsigned char *, int));
 void	md_make_jmpslot __P((jmpslot_t *, long, long));
 void	md_fix_jmpslot __P((jmpslot_t *, long, u_long));
+void	md_bind_jmpslot __P((u_long, caddr_t));
 int	md_make_reloc __P((struct relocation_info *, struct relocation_info *, int));
 void	md_make_jmpreloc __P((struct relocation_info *, struct relocation_info *, int));
 void	md_make_gotreloc __P((struct relocation_info *, struct relocation_info *, int));

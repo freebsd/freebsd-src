@@ -27,7 +27,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id: ldconfig.8,v 1.9 1996/10/10 23:14:22 jdp Exp $
+.\"	$Id: ldconfig.8,v 1.13 1997/07/11 14:45:40 jkh Exp $
 .\"
 .Dd October 3, 1993
 .Dt LDCONFIG 8
@@ -39,7 +39,7 @@
 .Nm ldconfig
 .Op Fl mrsv
 .Op Fl f Ar hints_file
-.Op Ar directory Ar ...
+.Op Ar directory | file Ar ...
 .Sh DESCRIPTION
 .Nm
 is used to prepare a set of
@@ -56,6 +56,13 @@ to forestall the overhead that would otherwise result from the
 directory search operations
 .Xr ld.so 1
 would have to perform to load the required shared libraries.
+.Pp
+Files named on the command line are expected to contain directories
+to scan for shared libraries.  Each directory's pathname must start on a new
+line.  Blank lines and lines starting with the comment character
+.Ql \&#
+are ignored.  A standard name for this file is
+.Xr /etc/ld.so.conf.
 .Pp
 The shared libraries so found will be automatically available for loading
 if needed by the program being prepared for execution. This obviates the need
@@ -120,7 +127,13 @@ be safely loaded. It is presumed that the set of directories specified to
 .Nm ldconfig
 are under control of the system's administrator.
 .Sh FILES
-.Pa /var/run/ld.so.hints
+.Bl -tag -width /var/run/ld.so.hintsxxx -compact
+.It Pa /var/run/ld.so.hints
+Default
+.Dq hints
+file.
+.It Pa /etc/ld.so.conf
+Standard configuration file.
 .Sh SEE ALSO
 .Xr ld 1 ,
 .Xr link 5

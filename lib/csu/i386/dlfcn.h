@@ -43,6 +43,13 @@
 #define RTLD_LAZY	1	/* Bind function calls lazily */
 #define RTLD_NOW	2	/* Bind function calls immediately */
 
+/*
+ * Special handle argument for dlsym().  It causes the search for the
+ * symbol to begin in the next shared object after the one containing
+ * the caller.
+ */
+#define RTLD_NEXT	((void *) -1)
+
 __BEGIN_DECLS
 void *dlopen __P((char *, int));
 void *dlsym __P((void *, char *));

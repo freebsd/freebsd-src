@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: rtld.c,v 1.40.2.1 1997/01/20 19:37:13 jdp Exp $
+ *	$Id: rtld.c,v 1.47 1997/08/02 04:56:44 jdp Exp $
  */
 
 #include <sys/param.h>
@@ -41,6 +41,7 @@
 #ifndef MAP_COPY
 #define MAP_COPY	MAP_PRIVATE
 #endif
+#include <dlfcn.h>
 #include <err.h>
 #include <fcntl.h>
 #include <a.out.h>
@@ -186,6 +187,8 @@ static gid_t		gid, egid;
 static int		careful;
 static int		anon_fd = -1;
 
+static char		*ld_bind_now;
+static char		*ld_ignore_missing_objects;
 static char		*ld_library_path;
 static char		*ld_preload;
 static char		*ld_tracing;
@@ -201,9 +204,10 @@ static int		__dlclose __P((void *));
 static void		*__dlsym __P((void *, char *));
 static char		*__dlerror __P((void));
 static void		__dlexit __P((void));
+static void		*__dlsym3 __P((void *, char *, void *));
 
 static struct ld_entry	ld_entry = {
-	__dlopen, __dlclose, __dlsym, __dlerror, __dlexit
+	__dlopen, __dlclose, __dlsym, __dlerror, __dlexit, __dlsym3
 };
 
        void		xprintf __P((char *, ...));
@@ -212,7 +216,7 @@ static struct so_map	*map_object __P((	char *,
 						struct so_map *));
 static int		map_preload __P((void));
 static int		map_sods __P((struct so_map *));
-static int		reloc_and_init __P((struct so_map *));
+static int		reloc_and_init __P((struct so_map *, int));
 static void		unmap_object __P((struct so_map	*, int));
 static struct so_map	*alloc_link_map __P((	char *, struct sod *,
 						struct so_map *, caddr_t,
@@ -221,7 +225,7 @@ static void		free_link_map __P((struct so_map *));
 static inline int	check_text_reloc __P((	struct relocation_info *,
 						struct so_map *,
 						caddr_t));
-static int		reloc_map __P((struct so_map *));
+static int		reloc_map __P((struct so_map *, int));
 static void		reloc_copy __P((struct so_map *));
 static void		init_object __P((struct so_map *));
 static void		init_sods __P((struct so_list *));
@@ -360,7 +364,7 @@ struct _dynamic		*dp;
 
 	/* Map in LD_PRELOADs before the main program's shared objects so we
 	   can intercept those calls */
-	if (ld_preload != NULL && *ld_preload != '\0') {
+	if (ld_preload != NULL) {
 	        if(map_preload() == -1)			/* Failed */
 			die();
 	}
@@ -377,7 +381,7 @@ struct _dynamic		*dp;
 	crtp->crt_dp->d_un.d_sdt->sdt_loaded = link_map_head->som_next;
 
 	/* Relocate and initialize all mapped objects */
-	if(reloc_and_init(main_map) == -1)		/* Failed */
+	if(reloc_and_init(main_map, ld_bind_now != NULL) == -1)	/* Failed */
 		die();
 
 	ddp = crtp->crt_dp->d_debug;
@@ -408,7 +412,7 @@ struct _dynamic		*dp;
 	(void)close(crtp->crt_ldfd);
 	anon_close();
 
-	return LDSO_VERSION_HAS_DLEXIT;
+	return LDSO_VERSION_HAS_DLSYM3;
 }
 
 void
@@ -867,6 +871,15 @@ map_sods(parent)
 			 * "not found" message.
 			 */
 			(void)alloc_link_map(NULL, sodp, parent, 0, 0);
+		} else if (ld_ignore_missing_objects) {
+			char *msg;
+			/*
+			 * Call __dlerror() even it we're not going to use
+			 * the message, in order to clear the saved message.
+			 */
+			msg = __dlerror();  /* Should never be NULL */
+			if (!ld_suppress_warnings)
+				warnx("warning: %s", msg);
 		} else  /* Give up */
 			break;
 
@@ -907,8 +920,9 @@ map_sods(parent)
  * an error message can be retrieved via dlerror().
  */
 	static int
-reloc_and_init(root)
+reloc_and_init(root, bind_now)
 	struct so_map	*root;
+	int		bind_now;
 {
 	struct so_map	*smp;
 
@@ -929,7 +943,7 @@ reloc_and_init(root)
 	 */
 	for(smp = root;  smp != NULL;  smp = smp->som_next) {
 		if(!(LM_PRIVATE(smp)->spd_flags & RTLD_RTLD)) {
-			if(reloc_map(smp) < 0)
+			if(reloc_map(smp, bind_now) < 0)
 				return -1;
 		}
 	}
@@ -1070,8 +1084,9 @@ caddr_t			addr;
 }
 
 static int
-reloc_map(smp)
+reloc_map(smp, bind_now)
 	struct so_map		*smp;
+	int			bind_now;
 {
 	/*
 	 * Caching structure for reducing the number of calls to
@@ -1144,7 +1159,7 @@ reloc_map(smp)
 			struct nzlist	*p, *np;
 			long	relocation;
 
-			if (RELOC_LAZY_P(r))
+			if (RELOC_JMPTAB_P(r) && !bind_now)
 				continue;
 
 			p = (struct nzlist *)
@@ -1163,7 +1178,7 @@ reloc_map(smp)
 			if(np != NULL)	/* Symbol already cached */
 				src_map = symcache[RELOC_SYMBOL(r)].src_map;
 			else {	/* Symbol not cached yet */
-				np = lookup(sym, &src_map, 0/*XXX-jumpslots!*/);
+				np = lookup(sym, &src_map, RELOC_JMPTAB_P(r));
 				/*
 				 * Record the needed information about
 				 * the symbol in the caching vector,
@@ -1188,10 +1203,16 @@ reloc_map(smp)
 			 * Otherwise it's a run-time allocated common
 			 * whose value is already up-to-date.
 			 */
-			relocation = md_get_addend(r, addr);
-			relocation += np->nz_value;
+			relocation = np->nz_value;
 			if (src_map)
 				relocation += (long)src_map->som_addr;
+
+			if (RELOC_JMPTAB_P(r)) {
+				md_bind_jmpslot(relocation, addr);
+				continue;
+			}
+
+			relocation += md_get_addend(r, addr);
 
 			if (RELOC_PCREL_P(r))
 				relocation -= (long)smp->som_addr;
@@ -1204,8 +1225,8 @@ reloc_map(smp)
 					np->nz_size, src_map);
 				continue;
 			}
-			md_relocate(r, relocation, addr, 0);
 
+			md_relocate(r, relocation, addr, 0);
 		} else {
 			md_relocate(r,
 #ifdef SUN_COMPAT
@@ -1825,6 +1846,7 @@ __dlopen(path, mode)
 {
 	struct so_map	*old_tail = link_map_tail;
 	struct so_map	*smp;
+	int		bind_now = mode == RTLD_NOW;
 
 	/*
 	 * path == NULL is handled by map_object()
@@ -1840,7 +1862,7 @@ __dlopen(path, mode)
 
 	/* Relocate and initialize all newly-mapped objects */
 	if(link_map_tail != old_tail) {  /* We have mapped some new objects */
-		if(reloc_and_init(smp) == -1)	/* Failed */
+		if(reloc_and_init(smp, bind_now) == -1)	/* Failed */
 			return NULL;
 	}
 
@@ -1875,26 +1897,77 @@ __dlclose(fd)
 	return 0;
 }
 
+/*
+ * This form of dlsym is obsolete.  Current versions of crt0 don't call
+ * it.  It can still be called by old executables that were linked with
+ * old versions of crt0.
+ */
 	static void *
 __dlsym(fd, sym)
 	void	*fd;
 	char	*sym;
 {
-	struct so_map	*smp = (struct so_map *)fd, *src_map = NULL;
+	if (fd == RTLD_NEXT) {
+		generror("RTLD_NEXT not supported by this version of"
+		    " /usr/lib/crt0.o");
+		return NULL;
+	}
+	return __dlsym3(fd, sym, NULL);
+}
+
+	static void *
+__dlsym3(fd, sym, retaddr)
+	void	*fd;
+	char	*sym;
+	void	*retaddr;
+{
+	struct so_map	*smp;
+	struct so_map	*src_map;
 	struct nzlist	*np;
 	long		addr;
 
-	/*
-	 * Restrict search to passed map if dlopen()ed.
-	 */
-	if (smp != NULL && LM_PRIVATE(smp)->spd_flags & RTLD_DL)
-		src_map = smp;
+	if (fd == RTLD_NEXT) {
+		/* Find the shared object that contains the caller. */
+		for (smp = link_map_head;  smp != NULL;  smp = smp->som_next) {
+			void *textbase = smp->som_addr + LM_TXTADDR(smp);
+			void *textlimit = LM_ETEXT(smp);
 
-	np = lookup(sym, &src_map, 1);
-	if (np == NULL)
+			if (textbase <= retaddr && retaddr < textlimit)
+				break;
+		}
+		if (smp == NULL) {
+			generror("Cannot determine caller's shared object");
+			return NULL;
+		}
+		smp = smp->som_next;
+		if (smp != NULL && LM_PRIVATE(smp)->spd_flags & RTLD_RTLD)
+			smp = smp->som_next;
+		if (smp == NULL) {
+			generror("No next shared object for RTLD_NEXT");
+			return NULL;
+		}
+		do {
+			src_map = smp;
+			np = lookup(sym, &src_map, 1);
+		} while (np == NULL && (smp = smp->som_next) != NULL);
+	} else {
+		smp = (struct so_map *)fd;
+		src_map = NULL;
+
+		/*
+		 * Restrict search to passed map if dlopen()ed.
+		 */
+		if (smp != NULL && LM_PRIVATE(smp)->spd_flags & RTLD_DL)
+			src_map = smp;
+
+		np = lookup(sym, &src_map, 1);
+	}
+
+	if (np == NULL) {
+		generror("Undefined symbol");
 		return NULL;
+	}
 
-	/* Fixup jmpslot so future calls transfer directly to target */
 	addr = np->nz_value;
 	if (src_map)
 		addr += (long)src_map->som_addr;
@@ -1997,6 +2070,9 @@ char	*fmt;
  * except that the environment is scanned once only to pick up all
  * known variables, rather than scanned multiple times for each
  * variable.
+ *
+ * If an environment variable of interest is set to the empty string, we
+ * treat it as if it were unset.
  */
 
 #define L(n, u, v) { n, sizeof(n) - 1, u, v },
@@ -2008,14 +2084,16 @@ struct env_scan_tab {
 } scan_tab[] = {
 	L("LD_LIBRARY_PATH=",		1, &ld_library_path)
 	L("LD_PRELOAD=",		1, &ld_preload)
+	L("LD_IGNORE_MISSING_OBJECTS=",	1, &ld_ignore_missing_objects)
 	L("LD_TRACE_LOADED_OBJECTS=",	0, &ld_tracing)
+	L("LD_BIND_NOW=",		0, &ld_bind_now)
 	L("LD_SUPPRESS_WARNINGS=",	0, &ld_suppress_warnings)
 	L("LD_WARN_NON_PURE_CODE=",	0, &ld_warn_non_pure_code)
 	{ NULL, 0, NULL }
 };
 #undef L
 
-void
+static void
 rt_readenv()
 {
 	char **p = environ;
@@ -2033,7 +2111,8 @@ rt_readenv()
 			if (careful && t->unsafe)
 				continue;	/* skip for set[ug]id */
 			if (strncmp(t->name, v, t->len) == 0) {
-				*t->value = v + t->len;
+				if (*(v + t->len) != '\0')	/* Not empty */
+					*t->value = v + t->len;
 				break;
 			}
 		}

@@ -30,7 +30,7 @@
    Set, indirect, and warning symbol features added by Randy Smith. */
 
 /*
- * $Id: lib.c,v 1.17 1996/07/12 19:08:23 jkh Exp $	- library routines
+ * $Id: lib.c,v 1.21 1997/02/22 15:46:22 peter Exp $	- library routines
  */
 
 #include <sys/param.h>
@@ -544,7 +544,7 @@ subfile_wanted_p(entry)
 				continue;
 			if (write_map) {
 				print_file_name(entry, stdout);
-				fprintf(stdout, " needed due to %s\n", sp->name);
+				fprintf(stdout, " needed due to %s\n", demangle(sp->name));
 			}
 			return 1;
 		} else  if (!sp->defined && sp->sorefs) {
@@ -598,7 +598,7 @@ subfile_wanted_p(entry)
 				print_file_name(entry, stdout);
 				fprintf(stdout,
 					" needed due to shared lib ref %s (%d)\n",
-					sp->name,
+					demangle(sp->name),
 					lsp ? lsp->nzlist.nlist.n_type : -1);
 			}
 			return 1;
@@ -874,4 +874,3 @@ dot_a:
 	(void)free(fname);
 	return fd;
 }
-
