@@ -550,6 +550,11 @@ ep_intr(arg)
 
     if (sc->gone)
 	    return;
+    /*
+     * quick fix: Try to detect an interrupt when the card goes away.
+     */
+    if (inw(BASE + EP_STATUS) == 0xffff)
+	    return;
 
     ifp = &sc->arpcom.ac_if;
 
