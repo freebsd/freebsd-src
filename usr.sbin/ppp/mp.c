@@ -292,6 +292,12 @@ mp_Up(struct mp *mp, struct datalink *dl)
     /* We're adding a link - do a last validation on our parameters */
     if (!peerid_Equal(&dl->peer, &mp->peer)) {
       log_Printf(LogPHASE, "%s: Inappropriate peer !\n", dl->name);
+      log_Printf(LogPHASE, "  Attached to peer %s/%s\n", mp->peer.authname,
+                 mp_Enddisc(mp->peer.enddisc.class, mp->peer.enddisc.address,
+                            mp->peer.enddisc.len));
+      log_Printf(LogPHASE, "  New link is peer %s/%s\n", dl->peer.authname,
+                 mp_Enddisc(dl->peer.enddisc.class, dl->peer.enddisc.address,
+                            dl->peer.enddisc.len));
       return MP_FAILED;
     }
     if (mp->local_mrru != lcp->want_mrru ||
