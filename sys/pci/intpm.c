@@ -150,7 +150,7 @@ static int
 intsmb_probe(device_t dev)
 {
         struct intsmb_softc *sc =(struct intsmb_softc *) device_get_softc(dev);
-        sc->smbus=smbus_alloc_bus(dev);
+        sc->smbus=device_add_child(dev, "smbus", -1);
         if (!sc->smbus)
                 return (EINVAL);    /* XXX don't know what to return else */
         device_set_desc(dev,"Intel PIIX4 SMBUS Interface");
@@ -739,6 +739,8 @@ intpm_probe(device_t dev)
     }
 }
 DRIVER_MODULE(intpm, pci , intpm_pci_driver, intpm_devclass, 0, 0);
+MODULE_DEPEND(intpm, smbus, SMBUS_MINVER, SMBUS_PREFVER, SMBUS_MAXVER);
+MODULE_VERSION(intpm, 1);
 
 static void intpm_intr(void *arg)
 {

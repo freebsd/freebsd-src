@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998 Nicolas Souchu
+ * Copyright (c) 1998, 2001 Nicolas Souchu
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -46,13 +46,8 @@
 
 struct smb_softc {
 
-	int sc_addr;			/* address on smbus */
 	int sc_count;			/* >0 if device opened */
-
-	char *sc_cp;			/* output buffer pointer */
-
-	char sc_buffer[BUFSIZE];	/* output buffer */
-	char sc_inbuf[BUFSIZE];		/* input buffer */
+	dev_t sc_devnode;
 };
 
 #define IIC_SOFTC(unit) \
@@ -63,13 +58,17 @@ struct smb_softc {
 
 static int smb_probe(device_t);
 static int smb_attach(device_t);
+static int smb_detach(device_t);
+static void smb_identify(driver_t *driver, device_t parent);
 
 static devclass_t smb_devclass;
 
 static device_method_t smb_methods[] = {
 	/* device interface */
+	DEVMETHOD(device_identify,	smb_identify),
 	DEVMETHOD(device_probe,		smb_probe),
 	DEVMETHOD(device_attach,	smb_attach),
+	DEVMETHOD(device_detach,	smb_detach),
 
 	/* smbus interface */
 	DEVMETHOD(smbus_intr,		smbus_generic_intr),
@@ -106,30 +105,45 @@ static struct cdevsw smb_cdevsw = {
 	/* flags */	0,
 };
 
-/*
- * smbprobe()
- */
+static void
+smb_identify(driver_t *driver, device_t parent)
+{
+	BUS_ADD_CHILD(parent, 0, "smb", 0);
+}
+
 static int
 smb_probe(device_t dev)
 {
-	struct smb_softc *sc = (struct smb_softc *)device_get_softc(dev);
-
-	sc->sc_addr = smbus_get_addr(dev);
-
-	/* XXX detect chip with start/stop conditions */
+	device_set_desc(dev, "SMBus generic I/O");
 
 	return (0);
 }
 	
-/*
- * smbattach()
- */
 static int
 smb_attach(device_t dev)
 {
-	make_dev(&smb_cdevsw, device_get_unit(dev),	/* XXX cleanup */
+	struct smb_softc *sc = (struct smb_softc *)device_get_softc(dev);
+
+	if (!sc)
+		return (ENOMEM);
+
+	bzero(sc, sizeof(struct smb_softc *));
+
+	sc->sc_devnode = make_dev(&smb_cdevsw, device_get_unit(dev),
 			UID_ROOT, GID_WHEEL,
 			0600, "smb%d", device_get_unit(dev));
+
+	return (0);
+}
+
+static int
+smb_detach(device_t dev)
+{
+	struct smb_softc *sc = (struct smb_softc *)device_get_softc(dev);
+
+	if (sc->sc_devnode)
+		destroy_dev(sc->sc_devnode);
+
 	return (0);
 }
 
@@ -267,3 +281,5 @@ smbioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct thread *td)
 }
 
 DRIVER_MODULE(smb, smbus, smb_driver, smb_devclass, 0, 0);
+MODULE_DEPEND(smb, smbus, SMBUS_MINVER, SMBUS_PREFVER, SMBUS_MAXVER);
+MODULE_VERSION(smb, 1);

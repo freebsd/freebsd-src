@@ -493,6 +493,19 @@ DRIVER_MODULE(pcib, nexus, nexus_pcib_driver, pcib_devclass, 0, 0);
 static int
 pci_hostb_probe(device_t dev)
 {
+	u_int32_t id;
+
+	id = pci_get_devid(dev);
+
+	switch (id) {
+
+	/* VIA VT82C596 Power Managment Function */
+	case 0x30501106:
+		return ENXIO;
+
+	default:
+		break;
+	}
 
 	if (pci_get_class(dev) == PCIC_BRIDGE &&
 	    pci_get_subclass(dev) == PCIS_BRIDGE_HOST) {

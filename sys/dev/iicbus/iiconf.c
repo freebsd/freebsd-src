@@ -50,22 +50,6 @@ iicbus_intr(device_t bus, int event, char *buf)
 	return;
 }
 
-/*
- * iicbus_alloc_bus()
- *
- * Allocate a new bus connected to the given parent device
- */
-device_t
-iicbus_alloc_bus(device_t parent)
-{
-	device_t child;
-
-	/* add the bus to the parent */
-	child = device_add_child(parent, "iicbus", -1);
-
-	return (child);
-}
-
 static int
 iicbus_poll(struct iicbus_softc *sc, int how)
 {
@@ -346,20 +330,3 @@ iicbus_block_read(device_t bus, u_char slave, char *buf, int len, int *read)
 
 	return (error);
 }
-
-/*
- * iicbus_get_addr()
- *
- * Get the I2C 7 bits address of the device
- */
-u_char
-iicbus_get_addr(device_t dev)
-{
-	uintptr_t addr;
-	device_t parent = device_get_parent(dev);
-
-	BUS_READ_IVAR(parent, dev, IICBUS_IVAR_ADDR, &addr);
-
-	return ((u_char)addr);
-}
-

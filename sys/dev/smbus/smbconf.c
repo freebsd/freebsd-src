@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998 Nicolas Souchu
+ * Copyright (c) 1998, 2001 Nicolas Souchu
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -76,22 +76,6 @@ smbus_error(int smb_error)
 	}
 
 	return (error);
-}
-
-/*
- * smbus_alloc_bus()
- *
- * Allocate a new bus connected to the given parent device
- */
-device_t
-smbus_alloc_bus(device_t parent)
-{
-	device_t child;
-
-	/* add the bus to the parent */
-	child = device_add_child(parent, "smbus", -1);
-
-	return (child);
 }
 
 static int
@@ -189,20 +173,4 @@ smbus_release_bus(device_t bus, device_t dev)
 	wakeup(sc);
 
 	return (0);
-}
-
-/*
- * smbus_get_addr()
- *
- * Get the I2C 7 bits address of the device
- */
-u_char
-smbus_get_addr(device_t dev)
-{
-	uintptr_t addr;
-	device_t parent = device_get_parent(dev);
-
-	BUS_READ_IVAR(parent, dev, SMBUS_IVAR_ADDR, &addr);
-
-	return ((u_char)addr);
 }
