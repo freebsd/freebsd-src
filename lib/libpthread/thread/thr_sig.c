@@ -352,7 +352,7 @@ _thr_sig_handler(int sig, siginfo_t *info, ucontext_t *ucp)
 	__sys_sigprocmask(SIG_BLOCK, NULL, &curthread->sigmask);
 	KSE_LOCK_ACQUIRE(curkse, &_thread_signal_lock);
 	sigfunc = _thread_sigact[sig - 1].sa_sigaction;
-	sa_flags = _thread_sigact[sig - 1].sa_flags & SA_SIGINFO;
+	sa_flags = _thread_sigact[sig - 1].sa_flags;
 	if (sa_flags & SA_RESETHAND) {
 		act.sa_handler = SIG_DFL;
 		act.sa_flags = SA_RESTART;
@@ -424,7 +424,7 @@ thr_sig_invoke_handler(struct pthread *curthread, int sig, siginfo_t *info,
 	 * the signal is not blocked:
 	 */
 	sigfunc = _thread_sigact[sig - 1].sa_sigaction;
-	sa_flags = _thread_sigact[sig - 1].sa_flags & SA_SIGINFO;
+	sa_flags = _thread_sigact[sig - 1].sa_flags;
 	sigmask = curthread->sigmask;
 	SIGSETOR(curthread->sigmask, _thread_sigact[sig - 1].sa_mask);
 	if (!(sa_flags & (SA_NODEFER | SA_RESETHAND)))
