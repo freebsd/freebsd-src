@@ -52,6 +52,7 @@ wcsspn(s, set)
 		while (*q) {
 			if (*p == *q)
 				break;
+			q++;
 		}
 		if (!*q)
 			goto done;
