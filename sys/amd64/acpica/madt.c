@@ -190,7 +190,7 @@ madt_probe(void)
 	XSDT_DESCRIPTOR *xsdt;
 	int i, count;
 
-	if (resource_disabled("acpi", 0))
+	if (resource_disabled("acpi", 0) || resource_disabled("apic", 0))
 		return (ENXIO);
 
 	/*
