@@ -147,8 +147,7 @@ struct lock {
 				    * lk_interlock
 				    */
 #define LK_RETRY	0x00020000 /* vn_lock: retry until locked */
-#define	LK_NOOBJ	0x00040000 /* vget: don't create object */
-#define	LK_THISLAYER	0x00080000 /* vn_lock: lock/unlock only current layer */
+#define	LK_THISLAYER	0x00040000 /* vn_lock: lock/unlock only current layer */
 
 /*
  * Internal state flags corresponding to lk_sharecount, and lk_waitcount
