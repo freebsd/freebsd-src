@@ -44,6 +44,7 @@
 #include <sys/bio.h>
 #include <sys/conf.h>
 #include <sys/disk.h>
+#include <sys/fcntl.h>
 #include <sys/malloc.h>
 #include <sys/sysctl.h>
 #include <sys/stdint.h>
@@ -68,15 +69,17 @@ DECLARE_GEOM_CLASS(g_disk_class, g_disk);
 static void __inline
 g_disk_lock_giant(struct disk *dp)
 {
-	if (!(dp->d_devsw->d_flags & D_NOGIANT))
-		mtx_lock(&Giant);
+	if (dp->d_flags & DISKFLAG_NOGIANT)
+		return;
+	mtx_lock(&Giant);
 }
 
 static void __inline
 g_disk_unlock_giant(struct disk *dp)
 {
-	if (!(dp->d_devsw->d_flags & D_NOGIANT))
-		mtx_unlock(&Giant);
+	if (dp->d_flags & DISKFLAG_NOGIANT)
+		return;
+	mtx_unlock(&Giant);
 }
 
 static int
@@ -94,22 +97,29 @@ g_disk_access(struct g_provider *pp, int r, int w, int e)
 	e += pp->ace;
 	dp = pp->geom->softc;
 	dev = dp->d_dev;
+	error = 0;
 	if ((pp->acr + pp->acw + pp->ace) == 0 && (r + w + e) > 0) {
-		g_disk_lock_giant(dp);
-		error = devsw(dev)->d_open(dev, 3, 0, NULL);
-		if (error != 0)
-			printf("Opened disk %s -> %d\n", pp->name, error);
-		g_disk_unlock_giant(dp);
+		if (dp->d_open != NULL) {
+			g_disk_lock_giant(dp);
+			error = dp->d_open(dev, FREAD | FWRITE, 0, NULL);
+			if (error != 0)
+				printf("Opened disk %s -> %d\n",
+				    pp->name, error);
+			g_disk_unlock_giant(dp);
+		}
 		pp->mediasize = dp->d_mediasize;
 		pp->sectorsize = dp->d_sectorsize;
+		dp->d_flags |= DISKFLAG_OPEN;
 	} else if ((pp->acr + pp->acw + pp->ace) > 0 && (r + w + e) == 0) {
-		g_disk_lock_giant(dp);
-		error = devsw(dev)->d_close(dev, 3, 0, NULL);
-		if (error != 0)
-			printf("Closed disk %s -> %d\n", pp->name, error);
-		g_disk_unlock_giant(dp);
-	} else {
-		error = 0;
+		if (dp->d_close != NULL) {
+			g_disk_lock_giant(dp);
+			error = dp->d_close(dev, FREAD | FWRITE, 0, NULL);
+			if (error != 0)
+				printf("Closed disk %s -> %d\n",
+				    pp->name, error);
+			g_disk_unlock_giant(dp);
+		}
+		dp->d_flags &= ~DISKFLAG_OPEN;
 	}
 	return (error);
 }
@@ -126,7 +136,7 @@ g_disk_kerneldump(struct bio *bp, struct disk *dp)
 	gp = bp->bio_to->geom;
 	g_trace(G_T_TOPOLOGY, "g_disk_kernedump(%s, %jd, %jd)",
 		gp->name, (intmax_t)gkd->offset, (intmax_t)gkd->length);
-	di.dumper = (dumper_t *)dp->d_devsw->d_dump;
+	di.dumper = dp->d_dump;
 	di.priv = dp->d_dev;
 	di.blocksize = dp->d_sectorsize;
 	di.mediaoffset = gkd->offset;
@@ -142,7 +152,7 @@ g_disk_done(struct bio *bp)
 
 	dp = bp->bio_caller1;
 	bp->bio_completed = bp->bio_length - bp->bio_resid;
-	if (!(dp->d_devsw->d_flags & D_NOGIANT)) {
+	if (!(dp->d_flags & DISKFLAG_NOGIANT)) {
 		DROP_GIANT();
 		g_std_done(bp);
 		PICKUP_GIANT();
@@ -165,7 +175,7 @@ g_disk_start(struct bio *bp)
 	error = EJUSTRETURN;
 	switch(bp->bio_cmd) {
 	case BIO_DELETE:
-		if (!(devsw(dev)->d_flags & D_CANFREE)) {
+		if (!(dp->d_flags & DISKFLAG_CANDELETE)) {
 			error = 0;
 			break;
 		}
@@ -180,7 +190,7 @@ g_disk_start(struct bio *bp)
 		bp2->bio_dev = dev;
 		bp2->bio_caller1 = dp;
 		g_disk_lock_giant(dp);
-		devsw(dev)->d_strategy(bp2);
+		dp->d_strategy(bp2);
 		g_disk_unlock_giant(dp);
 		break;
 	case BIO_GETATTR:
@@ -192,10 +202,11 @@ g_disk_start(struct bio *bp)
 			break;
 		else if (!strcmp(bp->bio_attribute, "GEOM::kerneldump"))
 			g_disk_kerneldump(bp, dp);
-		else if (!strcmp(bp->bio_attribute, "GEOM::ioctl") &&
+		else if (dp->d_ioctl != NULL &&
+		    !strcmp(bp->bio_attribute, "GEOM::ioctl") &&
 		    bp->bio_length == sizeof *gio) {
 			gio = (struct g_ioctl *)bp->bio_data;
-			gio->func = devsw(dp->d_dev)->d_ioctl;
+			gio->func = dp->d_ioctl;
 			gio->dev =  dp->d_dev;
 			error = EDIRIOCTL;
 		} else 
@@ -265,17 +276,29 @@ g_disk_create(void *arg)
 
 
 dev_t
-disk_create(int unit, struct disk *dp, int flags, struct cdevsw *cdevsw, void *unused)
+disk_create(int unit, struct disk *dp, int flags, struct cdevsw *cdevsw, void * unused __unused)
 {
 	dev_t dev;
 
 	dev = g_malloc(sizeof *dev, M_ZERO);
 	dp->d_dev = dev;
+	dp->d_flags = flags;
 	dp->d_devsw = cdevsw;
 	dev->si_devsw = cdevsw;
+	if (cdevsw != NULL) {
+		dp->d_open = cdevsw->d_open;
+		dp->d_close = cdevsw->d_close;
+		dp->d_strategy = cdevsw->d_strategy;
+		dp->d_ioctl = cdevsw->d_ioctl;
+		dp->d_dump = (dumper_t *)cdevsw->d_dump;
+		dp->d_name = cdevsw->d_name;
+	} 
+	KASSERT(dp->d_strategy != NULL, ("disk_create need d_strategy"));
+	KASSERT(dp->d_name != NULL, ("disk_create need d_name"));
+	KASSERT(*dp->d_name != 0, ("disk_create need d_name"));
 	dev->si_disk = dp;
 	dev->si_udev = 0x10002; /* XXX: Needed ? */
-	sprintf(dev->si_name, "%s%d", cdevsw->d_name, unit);
+	sprintf(dev->si_name, "%s%d", dp->d_name, unit);
 	g_call_me(g_disk_create, dev);
 	return (dev);
 }
@@ -290,6 +313,7 @@ disk_destroy(dev_t dev)
 	gp = dp->d_softc;
 	g_free(dev);
 	gp->flags |= G_GEOM_WITHER;
+	gp->softc = NULL;
 	g_orphan_provider(LIST_FIRST(&gp->provider), ENXIO);
 }
 
