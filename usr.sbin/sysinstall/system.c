@@ -19,13 +19,15 @@
 #include "sysinstall.h"
 #include <signal.h>
 #include <termios.h>
+#include <sys/param.h>
 #include <sys/reboot.h>
 #include <sys/consio.h>
 #include <sys/fcntl.h>
 #include <sys/ioctl.h>
+#include <sys/mount.h>
 #include <sys/stat.h>
-#include <sys/types.h>
 #include <sys/sysctl.h>
+#include <ufs/ufs/ufsmount.h>
 
 
 /* Where we stick our temporary expanded doc file */
@@ -144,6 +146,7 @@ systemInitialize(int argc, char **argv)
 
     /* Are we running as init? */
     if (getpid() == 1) {
+	struct ufs_args ufs_args;
 	int fd;
 
 	RunningAsInit = 1;
@@ -191,6 +194,8 @@ systemInitialize(int argc, char **argv)
 #if 0
 	signal(SIGCHLD, reap_children);
 #endif
+	memset(&ufs_args, 0, sizeof(ufs_args));
+	mount("ufs", "/", MNT_UPDATE, &ufs_args);
     }
     else {
 	char hname[256];
