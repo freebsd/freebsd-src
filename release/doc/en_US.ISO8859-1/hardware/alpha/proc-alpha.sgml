@@ -1360,6 +1360,10 @@ cpu	EV4</programlisting>
       AlphaBIOS and will get you the SRM console you desire. The SRM code 
       can be found on the Compaq Web site.</para>
 
+      <para>164LX can either have the SRM console code or the AlphaBIOS
+      code in it's flash ROM because the flash ROM is too small to hold
+      both at the same time.</para>
+
       <para>PC164 can boot from IDE disks assuming your SRM version is 
       recent enough.</para>
 
