@@ -60,6 +60,7 @@ int	sigprocmask __P((int, const sigset_t *, sigset_t *));
 int	sigsuspend __P((const sigset_t *));
 #ifndef _POSIX_SOURCE
 int	killpg __P((_BSD_PID_T_, int));
+int	sigaltstack __P((const struct sigaltstack *, struct sigaltstack *)); 
 int	sigblock __P((int));
 int	siginterrupt __P((int, int));
 int	sigpause __P((int));
