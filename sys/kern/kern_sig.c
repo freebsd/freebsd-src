@@ -1416,46 +1416,14 @@ psignal(p, sig)
 			SIGDELSET(p->p_siglist, sig);
 			goto out;
 		}
-		/*
-		 * When a sleeping process receives a stop
-		 * signal, process immediately if possible.
-		 * All other (caught or default) signals
-		 * cause the process to run.
-		 */
 		if (prop & SA_STOP) {
-			int should_signal = 1;
-			if (action != SIG_DFL)
-				goto runfast;
-
-			/*
-			 * If a child holding parent blocked,
-			 * stopping could cause deadlock.
-			 */
-			if (p->p_flag & P_PPWAIT)
-				goto out;
-			SIGDELSET(p->p_siglist, sig);
-			p->p_xstat = sig;
-			PROC_LOCK(p->p_pptr); /* XXX un-needed? */
-#if 0
-			FOREACH_THREAD_IN_PROC(p, td) {
-				if (td->td_state == TDS_RUNNING) {
-					/*
-					 * all other states must be in
-					 * the kernel
-					 */
-					should_signal = 0;
-					break;
-				}
-			}
-/* don't enable until the equivalent code is in thread_suspend_check() */
-#endif
-			if (!(p->p_pptr->p_procsig->ps_flag & PS_NOCLDSTOP) &&
-			    should_signal)
-				psignal(p->p_pptr, SIGCHLD);
-			PROC_UNLOCK(p->p_pptr);
-			stop(p);
+			mtx_lock_spin(&sched_lock);
+			FOREACH_THREAD_IN_PROC(p, td)
+				tdsignal(td, sig, action);
+			mtx_unlock_spin(&sched_lock);
 			goto out;
-		} else
+		}
+		else
 			goto runfast;
 		/* NOTREACHED */
 	} else {
@@ -1683,18 +1651,34 @@ issignal(td)
 			 * process group, ignore tty stop signals.
 			 */
 			if (prop & SA_STOP) {
+				WITNESS_SLEEP(1, &p->p_mtx.mtx_object);
 				if (p->p_flag & P_TRACED ||
 		    		    (p->p_pgrp->pg_jobc == 0 &&
 				     prop & SA_TTYSTOP))
 					break;	/* == ignore */
 				p->p_xstat = sig;
-				PROC_LOCK(p->p_pptr);
-				if ((p->p_pptr->p_procsig->ps_flag &
-				    PS_NOCLDSTOP) == 0) {
-					psignal(p->p_pptr, SIGCHLD);
+				mtx_lock_spin(&sched_lock);
+				if (p->p_suspcount+1 == p->p_numthreads) { 
+					mtx_unlock_spin(&sched_lock);
+					PROC_LOCK(p->p_pptr);
+					if ((p->p_pptr->p_procsig->ps_flag &
+				    		PS_NOCLDSTOP) == 0) {
+						psignal(p->p_pptr, SIGCHLD);
+					}
+					PROC_UNLOCK(p->p_pptr);
 				}
-				PROC_UNLOCK(p->p_pptr);
 				stop(p);
+				mtx_lock_spin(&sched_lock);
+				p->p_suspcount++;
+				td->td_state = TDS_SUSPENDED;
+				TAILQ_INSERT_TAIL(&p->p_suspended, td, td_runq);
+				PROC_UNLOCK(p);
+				DROP_GIANT();
+				p->p_stats->p_ru.ru_nivcsw++;
+				mi_switch();
+				mtx_unlock_spin(&sched_lock);
+				PICKUP_GIANT();
+				PROC_LOCK(p);
 				break;
 			} else
 			     if (prop & SA_IGNORE) {
