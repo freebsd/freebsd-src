@@ -92,10 +92,10 @@ extern int ncpus;
 #endif /* __i386__ || __amd64__ */
 
 #include "opt_compat.h"
-#if !COMPAT_LINUX32				/* XXX */
-#include <machine/../linux/linux.h>
-#else
+#ifdef COMPAT_LINUX32				/* XXX */
 #include <machine/../linux32/linux.h>
+#else
+#include <machine/../linux/linux.h>
 #endif
 #include <compat/linux/linux_ioctl.h>
 #include <compat/linux/linux_mib.h>
