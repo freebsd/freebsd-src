@@ -1,6 +1,7 @@
-/*	$NetBSD: lint2.h,v 1.2 1995/07/03 21:24:49 cgd Exp $	*/
+/* $NetBSD: lint2.h,v 1.5 2000/06/14 06:49:23 cgd Exp $ */
 
 /*
+ * Copyright (c) 1996 Christopher G. Demetriou.  All Rights Reserved.
  * Copyright (c) 1994, 1995 Jochen Pohl
  * All Rights Reserved.
  *
@@ -45,6 +46,7 @@ typedef	struct type {
 	u_int	t_proto : 1;	/* this is a prototype */
 	u_int	t_istag : 1;	/* tag with _t_tag valid */
 	u_int	t_istynam : 1;	/* tag with _t_tynam valid */
+	u_int	t_isuniqpos : 1; /* tag with _t_uniqpos valid */
 	union {
 		int	_t_dim;		/* if the type is an ARRAY than this
 					   is the dimension of the array. */
@@ -52,6 +54,13 @@ typedef	struct type {
 					   t_isenum, STRUCT or UNION */
 		struct	hte *_t_tynam;	/* hash table entry of typename if
 					   t_isenum, STRUCT or UNION */
+		struct {
+			int p_line;
+			short p_file;
+			int p_uniq;
+		} _t_uniqpos;		/* unique position, for untagged
+					   untyped STRUCTs, UNIONS, and ENUMs,
+					   if t_isuniqpos */
 		struct	type **_t_args;	/* list of argument types if this
 					   is a prototype */
 	} t_u;
@@ -59,10 +68,11 @@ typedef	struct type {
 				   type, type of return value) */
 } type_t;
 
-#define	t_dim	t_u._t_dim
-#define	t_tag	t_u._t_tag
-#define t_tynam	t_u._t_tynam
-#define	t_args	t_u._t_args
+#define	t_dim		t_u._t_dim
+#define	t_tag		t_u._t_tag
+#define	t_tynam		t_u._t_tynam
+#define	t_uniqpos	t_u._t_uniqpos
+#define	t_args		t_u._t_args
 
 /*
  * argument information
@@ -90,7 +100,7 @@ typedef	struct {
 	u_short	p_line;		/* line number in p_src */
 	u_short	p_isrc;		/* index of (included) file */
 	u_short p_iline;	/* line number in p_iline */
-} pos_t;	
+} pos_t;
 
 /*
  * Used for definitions and declarations
@@ -107,7 +117,7 @@ typedef	struct sym {
 		u_int	s_def : 3;	/* DECL, TDEF or DEF */
 #else
 		def_t	s_def;
-#endif		
+#endif
 		u_int	s_rval : 1;	/* function has return value */
 		u_int	s_osdef : 1;	/* old style function definition */
 		u_int	s_static : 1;	/* symbol is static */
@@ -169,6 +179,7 @@ typedef	struct hte {
 	usym_t	*h_usyms;	/* usage info */
 	usym_t	**h_lusym;	/* points to u_nxt of last usage info */
 	struct	hte *h_link;	/* next hte with same hash function */
+	struct  hte *h_hte;	/* pointer to other htes (for renames */
 } hte_t;
 
 /* maps type indices into pointers to type structs */
