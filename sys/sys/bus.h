@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bus.h,v 1.17 1999/05/22 14:57:13 dfr Exp $
+ *	$Id: bus.h,v 1.18 1999/05/28 09:25:14 dfr Exp $
  */
 
 #ifndef _SYS_BUS_H_
@@ -127,9 +127,9 @@ struct resource_list_entry*
 			   int type, int rid);
 
 /*
- * Remove a resource entry.
+ * Delete a resource entry.
  */
-void	resource_list_remove(struct resource_list *rl,
+void	resource_list_delete(struct resource_list *rl,
 			     int type, int rid);
 
 /*
@@ -254,6 +254,7 @@ void	device_verbose(device_t dev);
  */
 int	devclass_add_driver(devclass_t dc, driver_t *driver);
 int	devclass_delete_driver(devclass_t dc, driver_t *driver);
+devclass_t	devclass_create(const char *classname);
 devclass_t	devclass_find(const char *classname);
 driver_t	*devclass_find_driver(devclass_t dc, const char *classname);
 const char 	*devclass_get_name(devclass_t dc);
