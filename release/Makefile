@@ -562,7 +562,7 @@ cdrom.1:
 	@echo "CD_VERSION = ${BUILDNAME}" > ${CD_DISC1}/cdrom.inf
 	@echo "CD_VERSION = ${BUILDNAME}" > ${CD_DISC2}/cdrom.inf
 	@for i in ${DIST_DOCS}; do \
-	  if [ -f ${.CURDIR}/texts/$${i}; then \
+	  if [ -f ${.CURDIR}/texts/$${i} ]; then \
 	     cp ${.CURDIR}/texts/$${i} ${CD_DISC1}; \
 	  fi; \
 	  if [ -f ${.CURDIR}/texts/${MACHINE_ARCH}/$${i} ]; then \
