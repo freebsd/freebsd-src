@@ -105,6 +105,7 @@ int options;
 #define	F_SO_DEBUG	0x040
 #define	F_SO_DONTROUTE	0x080
 #define	F_VERBOSE	0x100
+#define	F_QUIET2	0x200
 
 /*
  * MAX_DUP_CHK is the number of bits in received table, i.e. the maximum
@@ -182,7 +183,7 @@ main(argc, argv)
 	}
 
 	datap = &outpack[8 + sizeof(struct timeval)];
-	while ((ch = getopt(argc, argv, "Rc:dfh:i:l:np:qrs:v")) != EOF)
+	while ((ch = getopt(argc, argv, "QRc:dfh:i:l:np:qrs:v")) != EOF)
 		switch(ch) {
 		case 'c':
 			npackets = atoi(optarg);
@@ -228,6 +229,9 @@ main(argc, argv)
 			options |= F_PINGFILLED;
 			fill((char *)datap, optarg);
 				break;
+		case 'Q':
+			options |= F_QUIET2;
+			break;
 		case 'q':
 			options |= F_QUIET;
 			break;
@@ -429,7 +433,7 @@ catcher()
  *	Compose and transmit an ICMP ECHO REQUEST packet.  The IP packet
  * will be added on by the kernel.  The ID field is our UNIX process ID,
  * and the sequence number is an ascending integer.  The first 8 bytes
- * of the data portion are used to hold a UNIX "timeval" struct in VAX
+ * of the data portion are used to hold a UNIX "timeval" struct in host
  * byte-order, to compute the round-trip time.
  */
 pinger()
@@ -569,12 +573,31 @@ pr_pack(buf, cc, from)
 			}
 		}
 	} else {
-		/* We've got something other than an ECHOREPLY */
-		if (!(options & F_VERBOSE))
-			return;
-		(void)printf("%d bytes from %s: ", cc,
-		    pr_addr(from->sin_addr.s_addr));
-		pr_icmph(icp);
+		/*
+		 * We've got something other than an ECHOREPLY.
+		 * See if it's a reply to something that we sent.
+		 * We can compare IP destination, protocol,
+		 * and ICMP type and ID.
+		 */
+#ifndef icmp_data
+		struct ip *oip = &icp->icmp_ip;
+#else
+		struct ip *oip = (struct ip *)icp->icmp_data;
+#endif
+		struct icmp *oicmp = (struct icmp *)(oip + 1);
+
+		if ((options & F_VERBOSE) ||
+		    (!(options & F_QUIET2) &&
+		     (oip->ip_dst.s_addr ==
+			 ((struct sockaddr_in *)&whereto)->sin_addr.s_addr) &&
+		     (oip->ip_p == IPPROTO_ICMP) &&
+		     (oicmp->icmp_type == ICMP_ECHO) &&
+		     (oicmp->icmp_id == ident))) {
+		    (void)printf("%d bytes from %s: ", cc,
+			pr_addr(from->sin_addr.s_addr));
+		    pr_icmph(icp);
+		} else
+		    return;
 	}
 
 	/* Display any IP options */
@@ -818,10 +841,14 @@ pr_icmph(icp)
 			(void)printf("Destination Port Unreachable\n");
 			break;
 		case ICMP_UNREACH_NEEDFRAG:
-			(void)printf("frag needed and DF set\n");
+			(void)printf("frag needed and DF set (MTU %d)\n",
+					icp->icmp_nextmtu);
 			break;
 		case ICMP_UNREACH_SRCFAIL:
 			(void)printf("Source Route Failed\n");
+			break;
+		case ICMP_UNREACH_FILTER_PROHIB:
+			(void)printf("Communication prohibited by filter\n");
 			break;
 		default:
 			(void)printf("Dest Unreachable, Bad Code: %d\n",
@@ -916,16 +943,18 @@ pr_icmph(icp)
 		(void)printf("Information Reply\n");
 		/* XXX ID + Seq */
 		break;
-#ifdef ICMP_MASKREQ
 	case ICMP_MASKREQ:
 		(void)printf("Address Mask Request\n");
 		break;
-#endif
-#ifdef ICMP_MASKREPLY
 	case ICMP_MASKREPLY:
 		(void)printf("Address Mask Reply\n");
 		break;
-#endif
+	case ICMP_ROUTERADVERT:
+		(void)printf("Router Advertisement\n");
+		break;
+	case ICMP_ROUTERSOLICIT:
+		(void)printf("Router Solicitation\n");
+		break;
 	default:
 		(void)printf("Bad ICMP type: %d\n", icp->icmp_type);
 	}
@@ -944,15 +973,17 @@ pr_iph(ip)
 	hlen = ip->ip_hl << 2;
 	cp = (u_char *)ip + 20;		/* point to options */
 
-	(void)printf("Vr HL TOS  Len   ID Flg  off TTL Pro  cks      Src      Dst Data\n");
+	(void)printf("Vr HL TOS  Len   ID Flg  off TTL Pro  cks      Src      Dst\n");
 	(void)printf(" %1x  %1x  %02x %04x %04x",
-	    ip->ip_v, ip->ip_hl, ip->ip_tos, ip->ip_len, ip->ip_id);
-	(void)printf("   %1x %04x", ((ip->ip_off) & 0xe000) >> 13,
-	    (ip->ip_off) & 0x1fff);
-	(void)printf("  %02x  %02x %04x", ip->ip_ttl, ip->ip_p, ip->ip_sum);
+	    ip->ip_v, ip->ip_hl, ip->ip_tos, ntohs(ip->ip_len),
+	    ntohs(ip->ip_id));
+	(void)printf("   %1x %04x", (ntohl(ip->ip_off) & 0xe000) >> 13,
+	    ntohl(ip->ip_off) & 0x1fff);
+	(void)printf("  %02x  %02x %04x", ip->ip_ttl, ip->ip_p,
+							    ntohs(ip->ip_sum));
 	(void)printf(" %s ", inet_ntoa(*(struct in_addr *)&ip->ip_src.s_addr));
 	(void)printf(" %s ", inet_ntoa(*(struct in_addr *)&ip->ip_dst.s_addr));
-	/* dump and option bytes */
+	/* dump any option bytes */
 	while (hlen-- > 20) {
 		(void)printf("%02x", *cp++);
 	}
