@@ -28,11 +28,15 @@ system call sets up a jail and locks the current process in it.
 The argument is a pointer to a structure describing the prison:
 .Bd -literal -offset indent
 struct jail {
-        char *path;
-        char *hostname;
-        u_int32_t ip_number;
+	u_int32_t	version;
+        char 		*path;
+        char 		*hostname;
+        u_int32_t	ip_number;
 };
 .Ed
+.Pp
+.Dq Li version
+defines the version of the API in use.  It should be set to zero at this time.
 .Pp
 The
 .Dq Li path
@@ -70,6 +74,13 @@ it will show a field near the end of the line, either as
 a single hyphen for a process at large, or the hostname currently
 set for the prison for jailed processes.
 .Sh ERRORS
+.Fn jail
+will fail if:
+.Bl -tag -width EWOULDBLOCK
+.It Bq Er EINVAL
+The version number of the argument is not correct.
+.El
+Further
 .Fn Jail
 calls
 .Xr chroot 2
