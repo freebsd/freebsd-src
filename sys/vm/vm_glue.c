@@ -59,7 +59,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_glue.c,v 1.49 1996/05/18 03:37:37 dyson Exp $
+ * $Id: vm_glue.c,v 1.50 1996/05/31 00:37:57 dyson Exp $
  */
 
 #include "opt_ddb.h"
@@ -487,7 +487,7 @@ retry:
 			 * event of some kind
 			 */
 			if (((p->p_priority & 0x7f) < PSOCK) ||
-				(p->p_slptime <= 4))
+				(p->p_slptime <= 10))
 				continue;
 
 			++vm->vm_refcnt;
