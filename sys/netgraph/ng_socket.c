@@ -54,7 +54,6 @@
 #include <sys/domain.h>
 #include <sys/errno.h>
 #include <sys/kernel.h>
-#include <sys/file.h>
 #include <sys/filedesc.h>
 #include <sys/malloc.h>
 #include <sys/queue.h>
