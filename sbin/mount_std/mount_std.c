@@ -42,26 +42,29 @@ char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)mount_devfs.c	8.2 (Berkeley) 3/27/94";
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
 #include <sys/mount.h>
 
 #include <err.h>
-#include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sysexits.h>
+#include <unistd.h>
 
 #include "mntopts.h"
 
-struct mntopt mopts[] = {
+static struct mntopt mopts[] = {
 	MOPT_STDOPTS,
 	{ NULL }
 };
 
-void	usage __P((void));
+static __dead void	usage __P((void)) __dead2;
+static const char *fsname;
 
 int
 main(argc, argv)
@@ -70,6 +73,12 @@ main(argc, argv)
 {
 	int ch, mntflags;
 	struct vfsconf *vfc;
+
+	fsname = strrchr(argv[0], '_');
+	if (!fsname || strcmp(fsname, "_std") == 0)
+		errx(EX_USAGE, "argv[0] must end in _fsname");
+
+	fsname++;
 
 	mntflags = 0;
 	while ((ch = getopt(argc, argv, "o:")) != EOF)
@@ -87,17 +96,19 @@ main(argc, argv)
 	if (argc != 2)
 		usage();
 
-	vfc = getvfsbyname("devfs");
-	if(!vfc && vfsisloadable("devfs")) {
-		if(vfsload("devfs")) {
-			err(1, "vfsload(devfs)");
+	vfc = getvfsbyname(fsname);
+	if(!vfc && vfsisloadable(fsname)) {
+		if(vfsload(fsname)) {
+			err(EX_OSERR, "vfsload(%s)", fsname);
 		}
 		endvfsent();
-		vfc = getvfsbyname("devfs");
+		vfc = getvfsbyname(fsname);
 	}
+	if (!vfc)
+		errx(EX_OSERR, "%s filesystem not available", fsname);
 
-	if (mount(vfc ? vfc->vfc_index : MOUNT_DEVFS, argv[1], mntflags, NULL))
-		err(1, NULL);
+	if (mount(vfc->vfc_index, argv[1], mntflags, NULL))
+		err(EX_OSERR, NULL);
 	exit(0);
 }
 
@@ -105,6 +116,7 @@ void
 usage()
 {
 	(void)fprintf(stderr,
-		"usage: mount_devfs [-o options] devfs mount_point\n");
-	exit(1);
+		"usage: mount_%s [-o options] what_to_mount mount_point\n",
+		      fsname);
+	exit(EX_USAGE);
 }

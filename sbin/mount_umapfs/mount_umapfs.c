@@ -41,7 +41,11 @@ char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
+/*
 static char sccsid[] = "@(#)mount_umap.c	8.3 (Berkeley) 3/27/94";
+*/
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -54,6 +58,7 @@ static char sccsid[] = "@(#)mount_umap.c	8.3 (Berkeley) 3/27/94";
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sysexits.h>
 #include <unistd.h>
 
 #include "mntopts.h"
@@ -76,12 +81,12 @@ static char sccsid[] = "@(#)mount_umap.c	8.3 (Berkeley) 3/27/94";
  * will, in turn, call the umap version of mount.
  */
 
-struct mntopt mopts[] = {
+static struct mntopt mopts[] = {
 	MOPT_STDOPTS,
 	{ NULL }
 };
 
-void	usage __P((void));
+static __dead void	usage __P((void)) __dead2;
 
 int
 main(argc, argv)
@@ -125,7 +130,7 @@ main(argc, argv)
 
 	/* Read in uid mapping data. */
 	if ((fp = fopen(mapfile, "r")) == NULL)
-		err(1, "%s%s", mapfile, not);
+		err(EX_NOINPUT, "%s%s", mapfile, not);
 
 #ifdef MAPSECURITY
 	/*
@@ -133,20 +138,20 @@ main(argc, argv)
 	 * this mapfile, and that the mapfile belongs to root.
 	 */
 	if (fstat(fileno(fp), &statbuf))
-		err(1, "%s%s", mapfile, not);
+		err(EX_OSERR, "%s%s", mapfile, not);
 	if (statbuf.st_mode & S_IWGRP || statbuf.st_mode & S_IWOTH) {
 		strmode(statbuf.st_mode, buf);
-		err(1, "%s: improper write permissions (%s)%s",
+		err(EX_NOPERM, "%s: improper write permissions (%s)%s",
 		    mapfile, buf, not);
 	}
 	if (statbuf.st_uid != ROOTUSER)
-		errx(1, "%s does not belong to root%s", mapfile, not);
+		errx(EX_NOPERM, "%s does not belong to root%s", mapfile, not);
 #endif /* MAPSECURITY */
 
 	if ((fscanf(fp, "%d\n", &nentries)) != 1)
-		errx(1, "%s: nentries not found%s", mapfile, not);
+		errx(EX_DATAERR, "%s: nentries not found%s", mapfile, not);
 	if (nentries > MAPFILEENTRIES)
-		errx(1,
+		errx(EX_DATAERR,
 		    "maximum number of entries is %d%s", MAPFILEENTRIES, not);
 #if 0
 	(void)printf("reading %d entries\n", nentries);
@@ -155,11 +160,11 @@ main(argc, argv)
 		if ((fscanf(fp, "%lu %lu\n",
 		    &(mapdata[count][0]), &(mapdata[count][1]))) != 2) {
 			if (ferror(fp))
-				err(1, "%s%s", mapfile, not);
+				err(EX_OSERR, "%s%s", mapfile, not);
 			if (feof(fp))
-				errx(1, "%s: unexpected end-of-file%s",
+				errx(EX_DATAERR, "%s: unexpected end-of-file%s",
 				    mapfile, not);
-			errx(1, "%s: illegal format (line %d)%s",
+			errx(EX_DATAERR, "%s: illegal format (line %d)%s",
 			    mapfile, count + 2, not);
 		}
 #if 0
@@ -172,7 +177,7 @@ main(argc, argv)
 
 	/* Read in gid mapping data. */
 	if ((gfp = fopen(gmapfile, "r")) == NULL)
-		err(1, "%s%s", gmapfile, not);
+		err(EX_NOINPUT, "%s%s", gmapfile, not);
 
 #ifdef MAPSECURITY
 	/*
@@ -180,20 +185,20 @@ main(argc, argv)
 	 * this group mapfile, and that the file belongs to root.
 	 */
 	if (fstat(fileno(gfp), &statbuf))
-		err(1, "%s%s", gmapfile, not);
+		err(EX_OSERR, "%s%s", gmapfile, not);
 	if (statbuf.st_mode & S_IWGRP || statbuf.st_mode & S_IWOTH) {
 		strmode(statbuf.st_mode, buf);
-		err(1, "%s: improper write permissions (%s)%s",
+		err(EX_NOPERM, "%s: improper write permissions (%s)%s",
 		    gmapfile, buf, not);
 	}
 	if (statbuf.st_uid != ROOTUSER)
-		errx(1, "%s does not belong to root%s", gmapfile, not);
+		errx(EX_NOPERM, "%s does not belong to root%s", gmapfile, not);
 #endif /* MAPSECURITY */
 
 	if ((fscanf(gfp, "%d\n", &gnentries)) != 1)
-		errx(1, "nentries not found%s", gmapfile, not);
+		errx(EX_DATAERR, "nentries not found%s", gmapfile, not);
 	if (gnentries > MAPFILEENTRIES)
-		errx(1,
+		errx(EX_DATAERR,
 		    "maximum number of entries is %d%s", GMAPFILEENTRIES, not);
 #if 0
 	(void)printf("reading %d group entries\n", gnentries);
@@ -203,11 +208,11 @@ main(argc, argv)
 		if ((fscanf(gfp, "%lu %lu\n",
 		    &(gmapdata[count][0]), &(gmapdata[count][1]))) != 2) {
 			if (ferror(gfp))
-				err(1, "%s%s", gmapfile, not);
+				err(EX_OSERR, "%s%s", gmapfile, not);
 			if (feof(gfp))
-				errx(1, "%s: unexpected end-of-file%s",
+				errx(EX_DATAERR, "%s: unexpected end-of-file%s",
 				    gmapfile, not);
-			errx(1, "%s: illegal format (line %d)%s",
+			errx(EX_DATAERR, "%s: illegal format (line %d)%s",
 			    gmapfile, count + 2, not);
 		}
 
@@ -240,5 +245,5 @@ usage()
 {
 	(void)fprintf(stderr,
 "usage: mount_umap [-o options] -u usermap -g groupmap target_fs mount_point\n");
-	exit(1);
+	exit(EX_USAGE);
 }

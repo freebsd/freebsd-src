@@ -41,7 +41,11 @@ char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
+/*
 static char sccsid[] = "@(#)mount_null.c	8.5 (Berkeley) 3/27/94";
+*/
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -50,9 +54,10 @@ static char sccsid[] = "@(#)mount_null.c	8.5 (Berkeley) 3/27/94";
 
 #include <err.h>
 #include <stdio.h>
-#include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sysexits.h>
+#include <unistd.h>
 
 #include "mntopts.h"
 
@@ -62,7 +67,7 @@ struct mntopt mopts[] = {
 };
 
 int	subdir __P((const char *, const char *));
-void	usage __P((void));
+static __dead void	usage __P((void)) __dead2;
 
 int
 main(argc, argv)
@@ -91,10 +96,10 @@ main(argc, argv)
 		usage();
 
 	if (realpath(argv[0], target) == 0)
-		err(1, "%s", target);
+		err(EX_OSERR, "%s", target);
 
 	if (subdir(target, argv[1]) || subdir(argv[1], target))
-		errx(1, "%s (%s) and %s are not distinct paths",
+		errx(EX_USAGE, "%s (%s) and %s are not distinct paths",
 		    argv[0], target, argv[1]);
 
 	args.target = target;
@@ -102,13 +107,15 @@ main(argc, argv)
 	vfc = getvfsbyname("null");
 	if(!vfc && vfsisloadable("null")) {
 		if(vfsload("null"))
-			err(1, "vfsload(null)");
+			err(EX_OSERR, "vfsload(null)");
 		endvfsent();	/* flush cache */
 		vfc = getvfsbyname("null");
 	}
+	if (!vfc)
+		errx(EX_OSERR, "null filesystem is not available");
 
-	if (mount(vfc ? vfc->vfc_index : MOUNT_NULL, argv[1], mntflags, &args))
-		err(1, NULL);
+	if (mount(vfc->vfc_index, argv[1], mntflags, &args))
+		err(EX_OSERR, target);
 	exit(0);
 }
 
@@ -129,7 +136,7 @@ subdir(p, dir)
 	return (0);
 }
 
-void
+static void
 usage()
 {
 	(void)fprintf(stderr,

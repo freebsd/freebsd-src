@@ -45,7 +45,11 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
+/*
 static char sccsid[] = "@(#)mount_cd9660.c	8.4 (Berkeley) 3/27/94";
+*/
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -56,6 +60,7 @@ static char sccsid[] = "@(#)mount_cd9660.c	8.4 (Berkeley) 3/27/94";
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <sysexits.h>
 #include <unistd.h>
 
 #include "mntopts.h"
@@ -124,14 +129,16 @@ main(argc, argv)
 	vfc = getvfsbyname("cd9660");
 	if(!vfc && vfsisloadable("cd9660")) {
 		if(vfsload("cd9660")) {
-			err(1, "vfsload(cd9660)");
+			err(EX_OSERR, "vfsload(cd9660)");
 		}
 		endvfsent();	/* flush cache */
 		vfc = getvfsbyname("cd9660");
 	}
+	if (!vfc)
+		errx(EX_OSERR, "cd9660 filesystem not available");
 
-	if (mount(vfc ? vfc->vfc_index : MOUNT_CD9660, dir, mntflags, &args) < 0)
-		err(1, "%s", dev);
+	if (mount(vfc->vfc_index, dir, mntflags, &args) < 0)
+		err(EX_OSERR, "%s", dev);
 	exit(0);
 }
 
@@ -140,5 +147,5 @@ usage()
 {
 	(void)fprintf(stderr,
 		"usage: mount_cd9660 [-egrt] [-o options] special node\n");
-	exit(1);
+	exit(EX_USAGE);
 }
