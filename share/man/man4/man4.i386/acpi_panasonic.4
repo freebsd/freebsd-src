@@ -124,18 +124,22 @@ released. 0x01 corresponds to
 and so on.
 .El
 .Sh SYSCTLS
-The following read-write MIBs are available:
+The following MIBs are available:
 .Bl -tag -width indent
 .It Va hw.acpi.panasonic.lcd_brightness_max
-The max level of brightness.
-The value ranges from 0 to 255.
-CF-R1N and CF-R2A should be 255, CF-R3 is 31.
+The maximum level of brightness.  The value is read only and
+automatically set according to hardware model.
+.It Va hw.acpi.panasonic.lcd_brightness_max
+The minimum level of brightness.  The value is read only and
+automatically set according to hardware model.
 .It Va hw.acpi.panasonic.lcd_brightness
-Current brightness level of the LCD.
-The value ranges from 0 to
+Current brightness level of the LCD (read-write).
+The value ranges from
+.Va hw.acpi.panasonic.lcd_brightness_min
+to
 .Va hw.acpi.panasonic.lcd_brightness_max .
 .It Va hw.acpi.panasonic.sound_mute
-A boolean flag to control whether to mute the speaker.
+A read-write boolean flag to control whether to mute the speaker.
 The value 1 means to mute and 0 not.
 .El
 .Sh SEE ALSO
@@ -143,11 +147,11 @@ The value 1 means to mute and 0 not.
 .Xr sysctl 8 ,
 .Xr devd 8 ,
 .Xr devd.conf 5
-.\" .Sh HISTORY
-.\" The
-.\" .Nm
-.\" driver first appeared in
-.\" .Fx 5.3 .
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 5.3 .
 .Sh AUTHORS
 The
 .Nm
@@ -155,7 +159,3 @@ driver and this manual page were written by
 .An OGAWA Takaya Aq t\-ogawa@triaez.kaisei.org
 and
 .An TAKAHASHI Yoshihiro Aq nyan@FreeBSD.org .
-.Sh BUGS
-The code is written in trial-and-error manner.
-There is no way to confirm the correctness except by
-.Dq it just works here .
