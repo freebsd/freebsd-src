@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_stats.c,v 1.1 1995/06/25 17:32:42 sos Exp $
+ *  $Id: linux_stats.c,v 1.2 1995/08/28 09:18:38 julian Exp $
  */
 
 #include <sys/param.h>
@@ -36,14 +36,12 @@
 #include <sys/proc.h>
 #include <sys/mount.h>
 #include <sys/namei.h>
+#include <sys/socketvar.h>
 #include <sys/stat.h>
 #include <sys/vnode.h>
 
-#include <machine/cpu.h>
-#include <machine/psl.h>
-#include <machine/reg.h>
-
 #include <i386/linux/linux.h>
+#include <i386/linux/sysproto.h>
 
 struct linux_newstat {
     unsigned short stat_dev;
