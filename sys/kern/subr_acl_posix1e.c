@@ -72,16 +72,22 @@ vacl_set_acl(struct proc *p, struct vnode *vp, acl_type_t type,
     struct acl *aclp)
 {
 	struct acl inkernacl;
+	struct ucred *uc;
 	int error;
 
 	error = copyin(aclp, &inkernacl, sizeof(struct acl));
 	if (error)
 		return(error);
-	VOP_LEASE(vp, p, p->p_ucred, LEASE_WRITE);
+	PROC_LOCK(p);
+	uc = p->p_ucred;
+	crhold(uc);
+	PROC_UNLOCK(p);
+	VOP_LEASE(vp, p, uc, LEASE_WRITE);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
-	error = VOP_SETACL(vp, type, &inkernacl, p->p_ucred, p);
+	error = VOP_SETACL(vp, type, &inkernacl, uc, p);
 	VOP_UNLOCK(vp, 0, p);
-	return(error);
+	crfree(uc);
+	return (error);
 }
 
 /*
@@ -92,12 +98,18 @@ vacl_get_acl(struct proc *p, struct vnode *vp, acl_type_t type,
     struct acl *aclp)
 {
 	struct acl inkernelacl;
+	struct ucred *uc;
 	int error;
 
-	VOP_LEASE(vp, p, p->p_ucred, LEASE_WRITE);
+	PROC_LOCK(p);
+	uc = p->p_ucred;
+	crhold(uc);
+	PROC_UNLOCK(p);
+	VOP_LEASE(vp, p, uc, LEASE_WRITE);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
-	error = VOP_GETACL(vp, type, &inkernelacl, p->p_ucred, p);
+	error = VOP_GETACL(vp, type, &inkernelacl, uc, p);
 	VOP_UNLOCK(vp, 0, p);
+	crfree(uc);
 	if (error == 0)
 		error = copyout(&inkernelacl, aclp, sizeof(struct acl));
 	return (error);
@@ -109,12 +121,18 @@ vacl_get_acl(struct proc *p, struct vnode *vp, acl_type_t type,
 static int
 vacl_delete(struct proc *p, struct vnode *vp, acl_type_t type)
 {
+	struct ucred *uc;
 	int error;
 
-	VOP_LEASE(vp, p, p->p_ucred, LEASE_WRITE);
+	PROC_LOCK(p);
+	uc = p->p_ucred;
+	crhold(uc);
+	PROC_UNLOCK(p);
+	VOP_LEASE(vp, p, uc, LEASE_WRITE);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
-	error = VOP_SETACL(vp, ACL_TYPE_DEFAULT, 0, p->p_ucred, p);
+	error = VOP_SETACL(vp, ACL_TYPE_DEFAULT, 0, uc, p);
 	VOP_UNLOCK(vp, 0, p);
+	crfree(uc);
 	return (error);
 }
 
@@ -126,12 +144,18 @@ vacl_aclcheck(struct proc *p, struct vnode *vp, acl_type_t type,
     struct acl *aclp)
 {
 	struct acl inkernelacl;
+	struct ucred *uc;
 	int error;
 
 	error = copyin(aclp, &inkernelacl, sizeof(struct acl));
 	if (error)
 		return(error);
-	error = VOP_ACLCHECK(vp, type, &inkernelacl, p->p_ucred, p);
+	PROC_LOCK(p);
+	uc = p->p_ucred;
+	crhold(uc);
+	PROC_UNLOCK(p);
+	error = VOP_ACLCHECK(vp, type, &inkernelacl, uc, p);
+	crfree(uc);
 	return (error);
 }
 
