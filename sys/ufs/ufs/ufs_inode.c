@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_inode.c	8.9 (Berkeley) 5/14/95
- * $Id: ufs_inode.c,v 1.15 1997/09/02 20:06:57 bde Exp $
+ * $Id: ufs_inode.c,v 1.16 1997/10/10 18:18:12 phk Exp $
  */
 
 #include "opt_quota.h"
@@ -123,11 +123,6 @@ ufs_reclaim(ap)
 
 	if (prtactive && vp->v_usecount != 0)
 		vprint("ufs_reclaim: pushing active", vp);
-	/*
-	 * Remove the inode from its hash chain.
-	 */
-	ip = VTOI(vp);
-	ufs_ihashrem(ip);
 	/*
 	 * Purge old data structures associated with the inode.
 	 */
