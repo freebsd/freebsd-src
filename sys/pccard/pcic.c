@@ -314,7 +314,6 @@ pcic_attach(device_t dev)
 	struct pcic_softc *sc;
 	struct slot	*slt;
 	struct pcic_slot *sp;
-	u_int8_t	stat;
 	
 	sc = (struct pcic_softc *) device_get_softc(dev);
 	callout_handle_init(&sc->timeout_ch);
@@ -350,15 +349,7 @@ pcic_attach(device_t dev)
 
 		/* Check for changes */
 		pcic_setb(sp, PCIC_POWER, PCIC_PCPWRE | PCIC_DISRST);
-		stat = sp->getb(sp, PCIC_STATUS);
-		if (bootverbose)
-			printf("stat is %x\n", stat);
-		if ((stat & PCIC_CD) != PCIC_CD) {
-			sp->slt->laststate = sp->slt->state = empty;
-		} else {
-			sp->slt->laststate = sp->slt->state = filled;
-			pccard_event(sp->slt, card_inserted);
-		}
+		pcic_do_stat_delta(sp);
 	}
 
 	return (bus_generic_attach(dev));
@@ -551,19 +542,19 @@ pcic_reset(void *chan)
 	struct pcic_slot *sp = slt->cdata;
 
 	switch (slt->insert_seq) {
-	    case 0: /* Something funny happended on the way to the pub... */
+	case 0: /* Something funny happended on the way to the pub... */
 		return;
-	    case 1: /* Assert reset */
+	case 1: /* Assert reset */
 		pcic_clrb(sp, PCIC_INT_GEN, PCIC_CARDRESET);
 		slt->insert_seq = 2;
 		timeout(pcic_reset, (void *)slt, hz/4);
 		return;
-	    case 2: /* Deassert it again */
+	case 2: /* Deassert it again */
 		pcic_setb(sp, PCIC_INT_GEN, PCIC_CARDRESET | PCIC_IOCARD);
 		slt->insert_seq = 3;
 		timeout(pcic_reset, (void *)slt, hz/4);
 		return;
-	    case 3: /* Wait if card needs more time */
+	case 3: /* Wait if card needs more time */
 		if (!sp->getb(sp, PCIC_STATUS) & PCIC_READY) {
 			timeout(pcic_reset, (void *)slt, hz/10);
 			return;
@@ -600,16 +591,14 @@ static void
 pcic_resume(struct slot *slt)
 {
 	struct pcic_slot *sp = slt->cdata;
-	u_int8_t stat;
 
 	pcic_do_mgt_irq(sp, slt->irq);
 	if (sp->controller == PCIC_PD672X) {
 		pcic_setb(sp, PCIC_MISC1, PCIC_MISC1_SPEAKER);
 		pcic_setb(sp, PCIC_MISC2, PCIC_LPDM_EN);
 	}
-	stat = sp->getb(sp, PCIC_STATUS);
-	if ((stat & PCIC_CD) != PCIC_CD)
-		sp->slt->laststate = sp->slt->state = empty;
+	if (sp->slt->state != inactive)
+		pcic_do_stat_delta(sp);
 }
 
 int
@@ -848,3 +837,13 @@ pcic_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	return (bus_generic_alloc_resource(dev, child, type, rid, start, end,
 	    count, flags));
 }
+
+void
+pcic_do_stat_delta(struct pcic_slot *sp)
+{
+	if ((sp->getb(sp, PCIC_STATUS) & PCIC_CD) != PCIC_CD)
+		pccard_event(sp->slt, card_removed);
+	else
+		pccard_event(sp->slt, card_inserted);
+}
+
