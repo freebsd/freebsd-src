@@ -30,7 +30,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: savefile.c,v 1.37 97/10/15 21:58:58 leres Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/libpcap/savefile.c,v 1.38 1999/11/21 01:11:58 assar Exp $ (LBL)";
 #endif
 
 #include <sys/types.h>
@@ -194,20 +194,26 @@ pcap_open_offline(const char *fname, char *errbuf)
 static int
 sf_next_packet(pcap_t *p, struct pcap_pkthdr *hdr, u_char *buf, int buflen)
 {
+	struct pcap_sf_pkthdr sf_hdr;
 	FILE *fp = p->sf.rfile;
 
 	/* read the stamp */
-	if (fread((char *)hdr, sizeof(struct pcap_pkthdr), 1, fp) != 1) {
+	if (fread(&sf_hdr, sizeof(struct pcap_sf_pkthdr), 1, fp) != 1) {
 		/* probably an EOF, though could be a truncated packet */
 		return (1);
 	}
 
 	if (p->sf.swapped) {
 		/* these were written in opposite byte order */
-		hdr->caplen = SWAPLONG(hdr->caplen);
-		hdr->len = SWAPLONG(hdr->len);
-		hdr->ts.tv_sec = SWAPLONG(hdr->ts.tv_sec);
-		hdr->ts.tv_usec = SWAPLONG(hdr->ts.tv_usec);
+		hdr->caplen = SWAPLONG(sf_hdr.caplen);
+		hdr->len = SWAPLONG(sf_hdr.len);
+		hdr->ts.tv_sec = SWAPLONG(sf_hdr.ts.tv_sec);
+		hdr->ts.tv_usec = SWAPLONG(sf_hdr.ts.tv_usec);
+	} else {
+		hdr->caplen = sf_hdr.caplen;
+		hdr->len = sf_hdr.len;
+		hdr->ts.tv_sec = sf_hdr.ts.tv_sec;
+		hdr->ts.tv_usec = sf_hdr.ts.tv_usec;
 	}
 	/*
 	 * We interchanged the caplen and len fields at version 2.3,
@@ -311,10 +317,15 @@ void
 pcap_dump(u_char *user, const struct pcap_pkthdr *h, const u_char *sp)
 {
 	register FILE *f;
+	struct pcap_sf_pkthdr sf_hdr;
 
 	f = (FILE *)user;
+	sf_hdr.ts.tv_sec  = h->ts.tv_sec;
+	sf_hdr.ts.tv_usec = h->ts.tv_usec;
+	sf_hdr.caplen     = h->caplen;
+	sf_hdr.len        = h->len;
 	/* XXX we should check the return status */
-	(void)fwrite((char *)h, sizeof(*h), 1, f);
+	(void)fwrite(&sf_hdr, sizeof(sf_hdr), 1, f);
 	(void)fwrite((char *)sp, h->caplen, 1, f);
 }
 

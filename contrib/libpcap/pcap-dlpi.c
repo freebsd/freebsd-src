@@ -38,7 +38,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: pcap-dlpi.c,v 1.52 97/10/03 19:47:47 leres Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/libpcap/pcap-dlpi.c,v 1.52.1.1 1999/10/07 23:46:40 mcr Exp $ (LBL)";
 #endif
 
 #include <sys/types.h>

@@ -40,7 +40,7 @@
 
 #if !(defined(lint) || defined(KERNEL))
 static const char rcsid[] =
-    "@(#) $Header: bpf_filter.c,v 1.33 97/04/26 13:37:18 leres Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/libpcap/bpf/net/bpf_filter.c,v 1.33.1.1 1999/10/07 23:46:41 mcr Exp $ (LBL)";
 #endif
 
 #include <sys/param.h>

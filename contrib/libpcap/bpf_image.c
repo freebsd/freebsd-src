@@ -21,7 +21,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: bpf_image.c,v 1.22 96/09/26 23:27:56 leres Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/libpcap/bpf_image.c,v 1.22.1.1 1999/10/07 23:46:40 mcr Exp $ (LBL)";
 #endif
 
 #include <sys/types.h>

@@ -1,4 +1,4 @@
-dnl @(#) $Header: configure.in,v 1.67 97/07/27 22:16:17 leres Exp $ (LBL)
+dnl @(#) $Header: /tcpdump/master/libpcap/configure.in,v 1.71 1999/11/01 15:56:40 itojun Exp $ (LBL)
 dnl
 dnl Copyright (c) 1994, 1995, 1996, 1997
 dnl	The Regents of the University of California.  All rights reserved.
@@ -23,6 +23,20 @@ AC_CHECK_HEADERS(malloc.h sys/ioccom.h sys/sockio.h)
 AC_LBL_FIXINCLUDES
 
 AC_CHECK_FUNCS(ether_hostton strerror)
+
+dnl to pacify those who hate protochain insn
+AC_MSG_CHECKING(if --disable-protochain option is specified)
+AC_ARG_ENABLE(protochain, [  --disable-protochain    disable \"protochain\" insn])
+case "x$enable_protochain" in
+xyes)	enable_protochain=enabled	;;
+xno)	enable_protochain=disabled	;;
+x)	enable_protochain=enabled	;;
+esac
+
+if test "$enable_protochain" = "disabled"; then
+	AC_DEFINE(NO_PROTOCHAIN)
+fi
+AC_MSG_RESULT(${enable_protochain})
 
 dnl
 dnl Not all versions of test support -c (character special) but it's a
@@ -60,6 +74,13 @@ else
 	V_PCAP=null
 fi
 AC_MSG_RESULT($V_PCAP)
+
+AC_MSG_CHECKING(if --enable-ipv6 option is specified)
+AC_ARG_ENABLE(ipv6, [  --enable-ipv6           build IPv6-capable version])
+if test "$enable_ipv6" = "yes"; then
+	AC_DEFINE(INET6)
+fi
+AC_MSG_RESULT(${enable_ipv6-no})
 
 case "$V_PCAP" in
 
@@ -156,21 +177,13 @@ AC_LBL_SOCKADDR_SA_LEN
 
 AC_LBL_UNALIGNED_ACCESS
 
-if test "${srcdir}" = "." ; then
-	srcdirprefix=""
-else
-	srcdirprefix="./"
-fi
-
-if test -r ${srcdirprefix}lbl/gnuc.h ; then
+if test -r ${srcdir}/lbl/gnuc.h ; then
 	rm -f gnuc.h
-	ln -s ${srcdirprefix}lbl/gnuc.h gnuc.h
+	ln -s ${srcdir}/lbl/gnuc.h gnuc.h
 fi
 
-rm -f bpf_filter.c
-ln -s ${srcdirprefix}bpf/net/bpf_filter.c bpf_filter.c
 rm -f net
-ln -s ${srcdirprefix}bpf/net net
+ln -s ${srcdir}/bpf/net net
 
 AC_SUBST(V_CCOPT)
 AC_SUBST(V_INCLS)
