@@ -54,8 +54,8 @@ These strings are replaced with references to this common area.
 This serves to implement shared constant strings, most useful if they
 are also read-only.
 .Pp
-Available options:
-.Bl -tag -width Ds
+The following options are available:
+.Bl -tag -width indent
 .It Fl
 Read from the standard input.
 .It Fl c
@@ -140,13 +140,13 @@ unless truly necessary.
 .Sh FILES
 .Bl -tag -width /tmp/xsxx* -compact
 .It Pa strings
-Data base of strings
+data base of strings
 .It Pa x.c
-Massaged C source
+massaged C source
 .It Pa xs.c
 C source for definition of array `xstr'
 .It Pa /tmp/xs*
-Temp file when `xstr name' doesn't touch
+temp file when `xstr name' doesn't touch
 .Pa strings
 .El
 .Sh SEE ALSO
