@@ -281,7 +281,7 @@ iface_addr_Zap(const char *name, struct iface_addr *addr, int s)
   return res != -1;
 }
 
-static void
+static int
 iface_addr_Add(const char *name, struct iface_addr *addr, int s)
 {
   struct ifaliasreq ifra;
@@ -361,6 +361,8 @@ iface_addr_Add(const char *name, struct iface_addr *addr, int s)
                  end, ncprange_ntoa(&addr->ifa), dst, strerror(errno));
     }
   }
+
+  return res != -1;
 }
 
 
@@ -425,9 +427,9 @@ int
 iface_Add(struct iface *iface, struct ncp *ncp, const struct ncprange *ifa,
           const struct ncpaddr *peer, int how)
 {
-  int af, n, s, width;
-  struct ncpaddr ifaddr, ncplocal;
-  struct iface_addr *addr;
+  int af, n, removed, s, width;
+  struct ncpaddr ncplocal;
+  struct iface_addr *addr, newaddr;
 
   af = ncprange_family(ifa);
   if ((s = ID0socket(af, SOCK_DGRAM, 0)) == -1) {
@@ -439,6 +441,7 @@ iface_Add(struct iface *iface, struct ncp *ncp, const struct ncprange *ifa,
   for (n = 0; n < iface->addrs; n++) {
     if (ncprange_contains(&iface->addr[n].ifa, &ncplocal) ||
         ncpaddr_equal(&iface->addr[n].peer, peer)) {
+      /* Replace this sockaddr */
       if (!(how & IFACE_FORCE_ADD)) {
         close(s);
         return 0;	/* errno = EEXIST; */
@@ -455,19 +458,24 @@ iface_Add(struct iface *iface, struct ncp *ncp, const struct ncprange *ifa,
         (af == AF_INET6) ? 128 :
 #endif
       32;
-      iface_addr_Zap(iface->name, iface->addr + n, s);
-      ncprange_setwidth(&iface->addr[n].ifa, width);
-      ncprange_getaddr(&iface->addr[n].ifa, &ifaddr);
-      if (ncpaddr_equal(&ifaddr, &ncplocal))
-        ncpaddr_copy(&iface->addr[n].peer, peer);
-      else
-        ncpaddr_init(&iface->addr[n].peer);
-      iface_addr_Add(iface->name, iface->addr + n, s);
-      if (ncpaddr_equal(&ifaddr, &ncplocal)) {
+      removed = iface_addr_Zap(iface->name, iface->addr + n, s);
+      if (removed)
+        ncp_IfaceAddrDeleted(ncp, iface->addr + n);
+      ncprange_copy(&iface->addr[n].ifa, ifa);
+      ncpaddr_copy(&iface->addr[n].peer, peer);
+      if (!iface_addr_Add(iface->name, iface->addr + n, s)) {
+        if (removed) {
+          bcopy(iface->addr + n + 1, iface->addr + n,
+                (iface->addrs - n - 1) * sizeof *iface->addr);
+          iface->addrs--;
+          n--;
+        }
         close(s);
-        ncp_IfaceAddrAdded(ncp, iface->addr + n);
-        return 1;
+        return 0;
       }
+      close(s);
+      ncp_IfaceAddrAdded(ncp, iface->addr + n);
+      return 1;
     }
   }
 
@@ -480,6 +488,14 @@ iface_Add(struct iface *iface, struct ncp *ncp, const struct ncprange *ifa,
   }
   iface->addr = addr;
 
+  ncprange_copy(&newaddr.ifa, ifa);
+  ncpaddr_copy(&newaddr.peer, peer);
+  newaddr.system = !!(how & IFACE_SYSTEM);
+  if (!iface_addr_Add(iface->name, &newaddr, s)) {
+    close(s);
+    return 0;
+  }
+
   if (how & IFACE_ADD_FIRST) {
     /* Stuff it at the start of our list */
     n = 0;
@@ -488,10 +504,7 @@ iface_Add(struct iface *iface, struct ncp *ncp, const struct ncprange *ifa,
     n = iface->addrs;
 
   iface->addrs++;
-  ncprange_copy(&iface->addr[n].ifa, ifa);
-  ncpaddr_copy(&iface->addr[n].peer, peer);
-  iface->addr[n].system = !!(how & IFACE_SYSTEM);
-  iface_addr_Add(iface->name, iface->addr + n, s);
+  memcpy(iface->addr + n, &newaddr, sizeof(*iface->addr));
 
   close(s);
   ncp_IfaceAddrAdded(ncp, iface->addr + n);
@@ -513,12 +526,13 @@ iface_Delete(struct iface *iface, struct ncp *ncp, const struct ncpaddr *del)
   for (n = res = 0; n < iface->addrs; n++) {
     ncprange_getaddr(&iface->addr[n].ifa, &found);
     if (ncpaddr_equal(&found, del)) {
-      iface_addr_Zap(iface->name, iface->addr + n, s);
-      ncp_IfaceAddrDeleted(ncp, iface->addr + n);
-      bcopy(iface->addr + n + 1, iface->addr + n,
-            (iface->addrs - n - 1) * sizeof *iface->addr);
-      iface->addrs--;
-      res = 1;
+      if (iface_addr_Zap(iface->name, iface->addr + n, s)) {
+        ncp_IfaceAddrDeleted(ncp, iface->addr + n);
+        bcopy(iface->addr + n + 1, iface->addr + n,
+              (iface->addrs - n - 1) * sizeof *iface->addr);
+        iface->addrs--;
+        res = 1;
+      }
       break;
     }
   }
