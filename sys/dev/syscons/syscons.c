@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.113 1995/04/23 10:15:42 bde Exp $
+ *  $Id: syscons.c,v 1.114 1995/04/25 10:22:28 sos Exp $
  */
 
 #include "sc.h"
@@ -128,6 +128,7 @@ struct  tty         	*sccons[MAXCONS+1];
 #define VIRTUAL_TTY(x)  &sccons[x]
 #define CONSOLE_TTY 	&sccons[MAXCONS]
 struct  tty         	sccons[MAXCONS+1];
+int			nsccons = MAXCONS+1;
 #endif
 #define MONO_BUF    	pa_to_va(0xB0000)
 #define CGA_BUF     	pa_to_va(0xB8000)
