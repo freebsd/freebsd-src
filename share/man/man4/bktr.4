@@ -63,8 +63,8 @@ probed.
 The default number of pages allocated by the kernel is 216.
 This means that there are (216*4096) bytes available for use.
 .Bd -unfilled
-.Em options BROOKTREE_SYSTEM_DEFAULT=BROOKTREE_PAL
-.Em options BROOKTREE_SYSTEM_DEFAULT=BROOKTREE_NTSC
+.Cd options BROOKTREE_SYSTEM_DEFAULT=BROOKTREE_PAL
+.Cd options BROOKTREE_SYSTEM_DEFAULT=BROOKTREE_NTSC
 .Ed
 One of these options can be used to set the default video format for the driver.
 This fixed random hangs and lockups with the VideoLogic Captivator PCI card.
