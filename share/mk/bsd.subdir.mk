@@ -1,5 +1,5 @@
 #	from: @(#)bsd.subdir.mk	5.9 (Berkeley) 2/1/91
-#	$Id: bsd.subdir.mk,v 1.23 1998/03/29 01:10:09 eivind Exp $
+#	$Id: bsd.subdir.mk,v 1.24 1998/05/06 16:53:53 wosch Exp $
 #
 # The include file <bsd.subdir.mk> contains the default targets
 # for building subdirectories. 
@@ -36,6 +36,12 @@
 #	obj, objlink, realinstall, regress, tags
 #
 
+.if !target(__initialized__)
+__initialized__:
+.if exists(${.CURDIR}/../Makefile.inc)
+.include "${.CURDIR}/../Makefile.inc"
+.endif
+.endif  
 
 .MAIN: all
 
