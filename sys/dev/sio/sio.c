@@ -1066,7 +1066,7 @@ sioattach(dev, xrid, rclk)
 				com->tx_fifo_size = 1024;
 				break;
 			}
-		if (com->esp != NULL)
+		if (com->esp)
 			break;
 #endif
 		com->tx_fifo_size = COM_FIFOSIZE(flags);
@@ -1078,7 +1078,7 @@ sioattach(dev, xrid, rclk)
 		break;
 	}
 #ifdef COM_ESP
-	if (com->esp != NULL) {
+	if (com->esp) {
 		/*
 		 * Set 16550 compatibility mode.
 		 * We don't use the ESP_MODE_SCALE bit to increase the
