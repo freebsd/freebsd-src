@@ -10,7 +10,7 @@ SRCS=	anonFTP.c cdrom.c command.c config.c devices.c dhcp.c \
 	system.c tape.c tcpip.c termcap.c ttys.c ufs.c usb.c user.c \
 	variable.c wizard.c keymap.h
 
-.if ${MACHINE_ARCH} == "i386"
+.if ${MACHINE} == "pc98"
 SRCS+=  pccard.c
 .endif
 
