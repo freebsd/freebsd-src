@@ -1,4 +1,4 @@
-/* $RCSfile: toke.c,v $$Revision: 1.2 $$Date: 1995/05/30 05:03:26 $
+/* $RCSfile: toke.c,v $$Revision: 1.3 $$Date: 1997/08/08 20:53:59 $
  *
  *    Copyright (c) 1991, Larry Wall
  *
@@ -6,6 +6,12 @@
  *    License or the Artistic License, as specified in the README file.
  *
  * $Log: toke.c,v $
+ * Revision 1.3  1997/08/08 20:53:59  joerg
+ * Fix a buffer overflow condition (that causes a security hole in suidperl).
+ *
+ * Closes: CERT Advisory CA-97.17 - Vulnerability in suidperl
+ * Obtained from: (partly) the fix in CA-97.17
+ *
  * Revision 1.2  1995/05/30 05:03:26  rgrimes
  * Remove trailing whitespace.
  *
@@ -1767,17 +1773,17 @@ register char *s;
 	    arg->arg_type = O_ITEM;
 	    arg[1].arg_type = A_DOUBLE;
 	    arg[1].arg_ptr.arg_str = str_smake(str);
-	    d = scanident(d,bufend,buf);
+	    d = scanident(d,bufend,buf,sizeof buf);
 	    (void)stabent(buf,TRUE);		/* make sure it's created */
 	    for (; d < e; d++) {
 		if (*d == '\\')
 		    d++;
 		else if (*d == '$' && d[1] && d[1] != '|' && d[1] != ')') {
-		    d = scanident(d,bufend,buf);
+		    d = scanident(d,bufend,buf,sizeof buf);
 		    (void)stabent(buf,TRUE);
 		}
 		else if (*d == '@') {
-		    d = scanident(d,bufend,buf);
+		    d = scanident(d,bufend,buf,sizeof buf);
 		    if (strEQ(buf,"ARGV") || strEQ(buf,"ENV") ||
 		      strEQ(buf,"SIG") || strEQ(buf,"INC"))
 			(void)stabent(buf,TRUE);
@@ -1851,15 +1857,15 @@ char *start;
 	    arg->arg_type = O_ITEM;
 	    arg[1].arg_type = A_DOUBLE;
 	    arg[1].arg_ptr.arg_str = str_smake(str);
-	    d = scanident(d,e,buf);
+	    d = scanident(d,e,buf,sizeof buf);
 	    (void)stabent(buf,TRUE);		/* make sure it's created */
 	    for (; *d; d++) {
 		if (*d == '$' && d[1] && d[-1] != '\\' && d[1] != '|') {
-		    d = scanident(d,e,buf);
+		    d = scanident(d,e,buf,sizeof buf);
 		    (void)stabent(buf,TRUE);
 		}
 		else if (*d == '@' && d[-1] != '\\') {
-		    d = scanident(d,e,buf);
+		    d = scanident(d,e,buf,sizeof buf);
 		    if (strEQ(buf,"ARGV") || strEQ(buf,"ENV") ||
 		      strEQ(buf,"SIG") || strEQ(buf,"INC"))
 			(void)stabent(buf,TRUE);
@@ -2454,7 +2460,7 @@ int in_what;
 			(*s == '@' && s+1 < send) ) {
 			if (s[1] == '#' && (isALPHA(s[2]) || s[2] == '_'))
 			    *d++ = *s++;
-			len = scanident(s,send,tokenbuf) - s;
+			len = scanident(s,send,tokenbuf,sizeof tokenbuf) - s;
 			if (*s == '$' || strEQ(tokenbuf,"ARGV")
 			  || strEQ(tokenbuf,"ENV")
 			  || strEQ(tokenbuf,"SIG")
@@ -2736,7 +2742,7 @@ load_format()
 		    case '$':
 			str_ncat(str, t, s - t);
 			t = s;
-			s = scanident(s,eol,tokenbuf);
+			s = scanident(s,eol,tokenbuf,sizeof tokenbuf);
 			str_ncat(str, t, s - t);
 			t = s;
 			if (s < eol && *s && index("$'\"",*s))
