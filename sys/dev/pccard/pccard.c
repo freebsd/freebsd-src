@@ -74,9 +74,6 @@ static int	pccard_ccr_read(struct pccard_function *pf, int ccr);
 static void	pccard_ccr_write(struct pccard_function *pf, int ccr, int val);
 static int	pccard_attach_card(device_t dev);
 static int	pccard_detach_card(device_t dev, int flags);
-static const struct pccard_product *pccard_product_lookup(device_t dev,
-		    const struct pccard_product *tab, size_t ent_size,
-		    pccard_product_match_fn matchfn);
 static int	pccard_card_gettype(device_t dev, int *type);
 static void	pccard_function_init(struct pccard_function *pf);
 static void	pccard_function_free(struct pccard_function *pf);
@@ -267,7 +264,7 @@ pccard_detach_card(device_t dev, int flags)
 	return (0);
 }
 
-static const struct pccard_product *
+const struct pccard_product *
 pccard_product_lookup(device_t dev, const struct pccard_product *tab,
     size_t ent_size, pccard_product_match_fn matchfn)
 {
