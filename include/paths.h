@@ -73,6 +73,7 @@
 #define	_PATH_TTY	"/dev/tty"
 #define	_PATH_UNIX	"don't use _PATH_UNIX"
 #define	_PATH_VI	"/usr/bin/vi"
+#define	_PATH_WALL	"/usr/bin/wall"
 
 /* Provide trailing slash, since mostly used for building pathnames. */
 #define	_PATH_DEV	"/dev/"
