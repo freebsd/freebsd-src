@@ -108,12 +108,12 @@ struct vinum_rename_msg {
 /* ioctl requests */
 #define BUFSIZE 1024					    /* size of buffer, including continuations */
 #define VINUM_CREATE		_IOC(IOC_IN | IOC_OUT, L, 64, BUFSIZE) /* configure vinum */
-#define VINUM_GETCONFIG		_IOR(L, 65, struct _vinum_conf)	/* get global config */
-#define VINUM_DRIVECONFIG	_IOWR(L, 66, struct drive)  /* get drive config */
-#define VINUM_SDCONFIG		_IOWR(L, 67, struct sd)	    /* get subdisk config */
-#define VINUM_PLEXCONFIG	_IOWR(L, 68, struct plex)   /* get plex config */
-#define VINUM_VOLCONFIG		_IOWR(L, 69, struct volume) /* get volume config */
-#define VINUM_PLEXSDCONFIG	_IOWR(L, 70, struct sd)	    /* get sd config for plex (plex, sdno) */
+#define VINUM_GETCONFIG		_IOR(L, 65, struct __vinum_conf) /* get global config */
+#define VINUM_DRIVECONFIG	_IOWR(L, 66, struct _drive) /* get drive config */
+#define VINUM_SDCONFIG		_IOWR(L, 67, struct _sd)    /* get subdisk config */
+#define VINUM_PLEXCONFIG	_IOWR(L, 68, struct _plex)  /* get plex config */
+#define VINUM_VOLCONFIG		_IOWR(L, 69, struct _volume) /* get volume config */
+#define VINUM_PLEXSDCONFIG	_IOWR(L, 70, struct _sd)    /* get sd config for plex (plex, sdno) */
 #define VINUM_GETFREELIST	_IOWR(L, 71, struct drive_freelist) /* get freelist element (drive, fe) */
 #define VINUM_SAVECONFIG	_IOW(L, 72, int)	    /* write config to disk */
 #define VINUM_RESETCONFIG	_IOC(0, L, 73, 0)	    /* trash config on disk */
