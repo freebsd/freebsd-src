@@ -383,13 +383,6 @@
       <para></para>
     </sect3>
 
-    <sect3>
-      <title>Contributed Software</title>
-
-      <para><application>IPFilter</application> has been updated to
-	3.4.31. &merged;</para>
-
-    </sect3>
   </sect2>
 
   <sect2 id="userland">
@@ -614,7 +607,9 @@
       Note that <filename>libthr</filename> is not (at this time)
       built by default.</para>
 
-    <sect3>
+  </sect2>
+
+    <sect2>
       <title>Contributed Software</title>
 
       <para><application>awk</application> from Bell Labs has been
@@ -636,6 +631,9 @@
 
       <para><application>GCC</application> has been updated to
 	3.2.2 (release version).</para>
+
+      <para><application>IPFilter</application> has been updated to
+	3.4.31. &merged;</para>
 
       <para>The <application>ISC DHCP</application> client has been
 	updated to 3.0.1RC11. &merged;</para>
@@ -675,9 +673,9 @@
 	<option>-y</option> option to specify the data link type to use while
 	capturing packets.</para>
 
-    </sect3>
+    </sect2>
 
-    <sect3>
+    <sect2>
       <title>Ports/Packages Collection Infrastructure</title>
 
       <para>The one-line <filename>pkg-comment</filename> files have
@@ -686,8 +684,7 @@
         This change reduces the disk space and inodes used by the
         ports tree. &merged;</para>
 
-    </sect3>
-  </sect2>
+    </sect2>
 
   <sect2>
     <title>Release Engineering and Integration</title>
