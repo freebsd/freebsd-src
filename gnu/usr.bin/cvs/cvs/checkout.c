@@ -221,6 +221,10 @@ checkout (argc, argv)
     argc -= optind;
     argv += optind;
 
+#ifdef FREEBSD_DEVELOPER
+    if (!K_flag && freebsd)
+	K_flag = "-KeAuthor,Date,Header,Id,Locker,Log,RCSfile,Revision,Source,State -KiFreeBSD";
+#endif /* FREEBSD_DEVELOPER */
     if (shorten == -1)
 	shorten = 0;
 
