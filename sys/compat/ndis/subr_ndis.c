@@ -64,7 +64,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/timespec.h>
 #include <sys/smp.h>
 #include <sys/queue.h>
-#include <sys/taskqueue.h>
 #include <sys/proc.h>
 #include <sys/namei.h>
 #include <sys/fcntl.h>
@@ -261,7 +260,7 @@ __stdcall static u_int8_t ndis_cpu_cnt(void);
 __stdcall static void ndis_ind_statusdone(ndis_handle);
 __stdcall static void ndis_ind_status(ndis_handle, ndis_status,
         void *, uint32_t);
-static void ndis_workfunc(void *, int);
+static void ndis_workfunc(void *);
 __stdcall static ndis_status ndis_sched_workitem(ndis_work_item *);
 __stdcall static void ndis_pkt_to_pkt(ndis_packet *, uint32_t, uint32_t,
 	ndis_packet *, uint32_t, uint32_t *);
@@ -601,18 +600,18 @@ ndis_decode_parm(block, parm, val)
 	ndis_config_parm	*parm;
 	char			*val;
 {
-	uint16_t		*unicode;
 	ndis_unicode_string	*ustr;
-
-	unicode = (uint16_t *)&block->nmb_dummybuf;
+	char			*astr = NULL;
 
 	switch(parm->ncp_type) {
 	case ndis_parm_string:
 		ustr = &parm->ncp_parmdata.ncp_stringdata;
-		ndis_unicode_to_ascii(ustr->nus_buf, ustr->nus_len, &val);
+		ndis_unicode_to_ascii(ustr->nus_buf, ustr->nus_len, &astr);
+		bcopy(astr, val, 254);
+		free(astr, M_DEVBUF);
 		break;
 	case ndis_parm_int:
-		sprintf(val, "%ul", parm->ncp_parmdata.ncp_intdata);
+		sprintf(val, "%d", parm->ncp_parmdata.ncp_intdata);
 		break;
 	case ndis_parm_hexint:
 		sprintf(val, "%xu", parm->ncp_parmdata.ncp_intdata);
@@ -644,6 +643,7 @@ ndis_write_cfg(status, cfg, key, parm)
 	ndis_unicode_to_ascii(key->nus_buf, key->nus_len, &keystr);
 
 	/* Decode the parameter into a string. */
+	bzero(val, sizeof(val));
 	*status = ndis_decode_parm(block, parm, val);
 	if (*status != NDIS_STATUS_SUCCESS) {
 		free(keystr, M_DEVBUF);
@@ -2484,9 +2484,8 @@ ndis_ind_status(adapter, status, sbuf, slen)
 }
 
 static void
-ndis_workfunc(ctx, pending)
+ndis_workfunc(ctx)
 	void			*ctx;
-	int			pending;
 {
 	ndis_work_item		*work;
 	__stdcall ndis_proc	workfunc;
@@ -2501,11 +2500,7 @@ __stdcall static ndis_status
 ndis_sched_workitem(work)
 	ndis_work_item		*work;
 {
-	struct task		*t;
-
-	t = (struct task *)&work->nwi_wraprsvd;
-	TASK_INIT(t, 0, ndis_workfunc, work);
-	taskqueue_enqueue(taskqueue_swi, t);
+	ndis_sched(ndis_workfunc, work, NDIS_TASKQUEUE);
 	return(NDIS_STATUS_SUCCESS);
 }
 
