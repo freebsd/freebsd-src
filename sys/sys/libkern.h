@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)libkern.h	8.1 (Berkeley) 6/10/93
- * $Id: libkern.h,v 1.10 1996/04/19 17:39:57 bde Exp $
+ * $Id: libkern.h,v 1.11 1996/06/08 06:32:48 nate Exp $
  */
 
 #ifndef _SYS_LIBKERN_H_
@@ -64,6 +64,9 @@ static __inline u_long ulmin(u_long a, u_long b) { return (a < b ? a : b); }
 int	 bcmp __P((const void *, const void *, size_t));
 #ifndef HAVE_INLINE_FFS
 int	 ffs __P((int));
+#endif
+#ifndef	HAVE_INLINE_FLS
+int	 fls __P((int));
 #endif
 int	 locc __P((int, char *, u_int));
 void	 qsort __P((void *base, size_t nmemb, size_t size,
