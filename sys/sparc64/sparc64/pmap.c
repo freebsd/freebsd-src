@@ -675,8 +675,6 @@ pmap_kenter(vm_offset_t va, vm_offset_t pa)
 	tp = tsb_kvtotte(va);
 	CTR4(KTR_PMAP, "pmap_kenter: va=%#lx pa=%#lx tp=%p data=%#lx",
 	    va, pa, tp, tp->tte_data);
-	if ((tp->tte_data & TD_V) != 0)
-		tlb_page_demap(TLB_DTLB, TLB_CTX_KERNEL, va);
 	*tp = tte;
 }
 
@@ -698,8 +696,6 @@ pmap_kenter_flags(vm_offset_t va, vm_offset_t pa, u_long flags)
 	tp = tsb_kvtotte(va);
 	CTR4(KTR_PMAP, "pmap_kenter_flags: va=%#lx pa=%#lx tp=%p data=%#lx",
 	    va, pa, tp, tp->tte_data);
-	if ((tp->tte_data & TD_V) != 0)
-		tlb_page_demap(TLB_DTLB, TLB_CTX_KERNEL, va);
 	*tp = tte;
 }
 
@@ -728,7 +724,6 @@ pmap_kremove(vm_offset_t va)
 	atomic_clear_long(&tp->tte_data, TD_V);
 	tp->tte_vpn = 0;
 	tp->tte_data = 0;
-	tlb_page_demap(TLB_DTLB, TLB_CTX_KERNEL, va);
 }
 
 /*
