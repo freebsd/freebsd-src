@@ -44,6 +44,7 @@
 #include <sys/mount.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysproto.h>
 #include <sys/tty.h>
 #include <sys/vnode.h>
@@ -60,82 +61,68 @@
 int
 linux_creat(struct thread *td, struct linux_creat_args *args)
 {
-    struct open_args /* {
-	char *path;
-	int flags;
-	int mode;
-    } */ bsd_open_args;
-    caddr_t sg;
+    char *path;
+    int error;
 
-    sg = stackgap_init();
-    CHECKALTCREAT(td, &sg, args->path);
+    LCONVPATHEXIST(td, args->path, &path);
 
 #ifdef DEBUG
 	if (ldebug(creat))
-		printf(ARGS(creat, "%s, %d"), args->path, args->mode);
+		printf(ARGS(creat, "%s, %d"), path, args->mode);
 #endif
-    bsd_open_args.path = args->path;
-    bsd_open_args.mode = args->mode;
-    bsd_open_args.flags = O_WRONLY | O_CREAT | O_TRUNC;
-    return open(td, &bsd_open_args);
+    error = kern_open(td, path, UIO_SYSSPACE, O_WRONLY | O_CREAT | O_TRUNC,
+	args->mode);
+    LFREEPATH(path);
+    return (error);
 }
 #endif /*!__alpha__*/
 
 int
 linux_open(struct thread *td, struct linux_open_args *args)
 {
-    struct open_args /* {
-	char *path;
-	int flags;
-	int mode;
-    } */ bsd_open_args;
     struct proc *p = td->td_proc;
-    int error;
-    caddr_t sg;
+    char *path;
+    int bsd_flags, error;
 
-    sg = stackgap_init();
-    
     if (args->flags & LINUX_O_CREAT)
-	CHECKALTCREAT(td, &sg, args->path);
+	LCONVPATHCREAT(td, args->path, &path);
     else
-	CHECKALTEXIST(td, &sg, args->path);
+	LCONVPATHEXIST(td, args->path, &path);
 
 #ifdef DEBUG
 	if (ldebug(open))
 		printf(ARGS(open, "%s, 0x%x, 0x%x"),
-		    args->path, args->flags, args->mode);
+		    path, args->flags, args->mode);
 #endif
-    bsd_open_args.flags = 0;
+    bsd_flags = 0;
     if (args->flags & LINUX_O_RDONLY)
-	bsd_open_args.flags |= O_RDONLY;
+	bsd_flags |= O_RDONLY;
     if (args->flags & LINUX_O_WRONLY) 
-	bsd_open_args.flags |= O_WRONLY;
+	bsd_flags |= O_WRONLY;
     if (args->flags & LINUX_O_RDWR)
-	bsd_open_args.flags |= O_RDWR;
+	bsd_flags |= O_RDWR;
     if (args->flags & LINUX_O_NDELAY)
-	bsd_open_args.flags |= O_NONBLOCK;
+	bsd_flags |= O_NONBLOCK;
     if (args->flags & LINUX_O_APPEND)
-	bsd_open_args.flags |= O_APPEND;
+	bsd_flags |= O_APPEND;
     if (args->flags & LINUX_O_SYNC)
-	bsd_open_args.flags |= O_FSYNC;
+	bsd_flags |= O_FSYNC;
     if (args->flags & LINUX_O_NONBLOCK)
-	bsd_open_args.flags |= O_NONBLOCK;
+	bsd_flags |= O_NONBLOCK;
     if (args->flags & LINUX_FASYNC)
-	bsd_open_args.flags |= O_ASYNC;
+	bsd_flags |= O_ASYNC;
     if (args->flags & LINUX_O_CREAT)
-	bsd_open_args.flags |= O_CREAT;
+	bsd_flags |= O_CREAT;
     if (args->flags & LINUX_O_TRUNC)
-	bsd_open_args.flags |= O_TRUNC;
+	bsd_flags |= O_TRUNC;
     if (args->flags & LINUX_O_EXCL)
-	bsd_open_args.flags |= O_EXCL;
+	bsd_flags |= O_EXCL;
     if (args->flags & LINUX_O_NOCTTY)
-	bsd_open_args.flags |= O_NOCTTY;
-    bsd_open_args.path = args->path;
-    bsd_open_args.mode = args->mode;
+	bsd_flags |= O_NOCTTY;
 
-    error = open(td, &bsd_open_args);
+    error = kern_open(td, path, UIO_SYSSPACE, bsd_flags, args->mode);
     PROC_LOCK(p);
-    if (!error && !(bsd_open_args.flags & O_NOCTTY) && 
+    if (!error && !(bsd_flags & O_NOCTTY) &&
 	SESS_LEADER(p) && !(p->p_flag & P_CONTROLT)) {
 	struct file *fp;
 
@@ -154,6 +141,7 @@ linux_open(struct thread *td, struct linux_open_args *args)
 		printf(LMSG("open returns error %d"), error);
 #endif
     }
+    LFREEPATH(path);
     return error;
 }
 
@@ -493,214 +481,213 @@ linux_getdents64(struct thread *td, struct linux_getdents64_args *args)
 int
 linux_access(struct thread *td, struct linux_access_args *args)
 {
-	struct access_args bsd;
-	caddr_t sg;
+	char *path;
+	int error;
 
-	sg = stackgap_init();
-	CHECKALTEXIST(td, &sg, args->path);
+	LCONVPATHEXIST(td, args->path, &path);
 
 #ifdef DEBUG
 	if (ldebug(access))
-		printf(ARGS(access, "%s, %d"), args->path, args->flags);
+		printf(ARGS(access, "%s, %d"), path, args->flags);
 #endif
-	bsd.path = args->path;
-	bsd.flags = args->flags;
-
-	return access(td, &bsd);
+	error = kern_access(td, path, UIO_SYSSPACE, args->flags);
+	LFREEPATH(path);
+	return (error);
 }
 
 int
 linux_unlink(struct thread *td, struct linux_unlink_args *args)
 {
-	struct unlink_args bsd;
-	caddr_t sg;
+	char *path;
+	int error;
 
-	sg = stackgap_init();
-	CHECKALTEXIST(td, &sg, args->path);
+	LCONVPATHEXIST(td, args->path, &path);
 
 #ifdef DEBUG
 	if (ldebug(unlink))
-		printf(ARGS(unlink, "%s"), args->path);
+		printf(ARGS(unlink, "%s"), path);
 #endif
-	bsd.path = args->path;
 
-	return unlink(td, &bsd);
+	error = kern_unlink(td, path, UIO_SYSSPACE);
+	LFREEPATH(path);
+	return (error);
 }
 
 int
 linux_chdir(struct thread *td, struct linux_chdir_args *args)
 {
-	struct chdir_args bsd;
-	caddr_t sg;
+	char *path;
+	int error;
 
-	sg = stackgap_init();
-	CHECKALTEXIST(td, &sg, args->path);
+	LCONVPATHEXIST(td, args->path, &path);
 
 #ifdef DEBUG
 	if (ldebug(chdir))
-		printf(ARGS(chdir, "%s"), args->path);
+		printf(ARGS(chdir, "%s"), path);
 #endif
-	bsd.path = args->path;
-
-	return chdir(td, &bsd);
+	error = kern_chdir(td, path, UIO_SYSSPACE);
+	LFREEPATH(path);
+	return (error);
 }
 
 int
 linux_chmod(struct thread *td, struct linux_chmod_args *args)
 {
-	struct chmod_args bsd;
-	caddr_t sg;
+	char *path;
+	int error;
 
-	sg = stackgap_init();
-	CHECKALTEXIST(td, &sg, args->path);
+	LCONVPATHEXIST(td, args->path, &path);
 
 #ifdef DEBUG
 	if (ldebug(chmod))
-		printf(ARGS(chmod, "%s, %d"), args->path, args->mode);
+		printf(ARGS(chmod, "%s, %d"), path, args->mode);
 #endif
-	bsd.path = args->path;
-	bsd.mode = args->mode;
-
-	return chmod(td, &bsd);
+	error = kern_chmod(td, path, UIO_SYSSPACE, args->mode);
+	LFREEPATH(path);
+	return (error);
 }
 
 int
 linux_mkdir(struct thread *td, struct linux_mkdir_args *args)
 {
-	struct mkdir_args bsd;
-	caddr_t sg;
+	char *path;
+	int error;
 
-	sg = stackgap_init();
-	CHECKALTCREAT(td, &sg, args->path);
+	LCONVPATHCREAT(td, args->path, &path);
 
 #ifdef DEBUG
 	if (ldebug(mkdir))
-		printf(ARGS(mkdir, "%s, %d"), args->path, args->mode);
+		printf(ARGS(mkdir, "%s, %d"), path, args->mode);
 #endif
-	bsd.path = args->path;
-	bsd.mode = args->mode;
-
-	return mkdir(td, &bsd);
+	error = kern_mkdir(td, path, UIO_SYSSPACE, args->mode);
+	LFREEPATH(path);
+	return (error);
 }
 
 int
 linux_rmdir(struct thread *td, struct linux_rmdir_args *args)
 {
-	struct rmdir_args bsd;
-	caddr_t sg;
+	char *path;
+	int error;
 
-	sg = stackgap_init();
-	CHECKALTEXIST(td, &sg, args->path);
+	LCONVPATHEXIST(td, args->path, &path);
 
 #ifdef DEBUG
 	if (ldebug(rmdir))
-		printf(ARGS(rmdir, "%s"), args->path);
+		printf(ARGS(rmdir, "%s"), path);
 #endif
-	bsd.path = args->path;
-
-	return rmdir(td, &bsd);
+	error = kern_rmdir(td, path, UIO_SYSSPACE);
+	LFREEPATH(path);
+	return (error);
 }
 
 int
 linux_rename(struct thread *td, struct linux_rename_args *args)
 {
-	struct rename_args bsd;
-	caddr_t sg;
+	char *from, *to;
+	int error;
 
-	sg = stackgap_init();
-	CHECKALTEXIST(td, &sg, args->from);
-	CHECKALTCREAT(td, &sg, args->to);
+	LCONVPATHEXIST(td, args->from, &from);
+	/* Expand LCONVPATHCREATE so that `from' can be freed on errors */
+	error = linux_emul_convpath(td, args->to, UIO_USERSPACE, &to, 1);
+	if (to == NULL) {
+		LFREEPATH(from);
+		return (error);
+	}
 
 #ifdef DEBUG
 	if (ldebug(rename))
-		printf(ARGS(rename, "%s, %s"), args->from, args->to);
+		printf(ARGS(rename, "%s, %s"), from, to);
 #endif
-	bsd.from = args->from;
-	bsd.to = args->to;
-
-	return rename(td, &bsd);
+	error = kern_rename(td, from, to, UIO_SYSSPACE);
+	LFREEPATH(from);
+	LFREEPATH(to);
+	return (error);
 }
 
 int
 linux_symlink(struct thread *td, struct linux_symlink_args *args)
 {
-	struct symlink_args bsd;
-	caddr_t sg;
+	char *path, *to;
+	int error;
 
-	sg = stackgap_init();
-	CHECKALTEXIST(td, &sg, args->path);
-	CHECKALTCREAT(td, &sg, args->to);
+	LCONVPATHEXIST(td, args->path, &path);
+	/* Expand LCONVPATHCREATE so that `path' can be freed on errors */
+	error = linux_emul_convpath(td, args->to, UIO_USERSPACE, &to, 1);
+	if (to == NULL) {
+		LFREEPATH(path);
+		return (error);
+	}
 
 #ifdef DEBUG
 	if (ldebug(symlink))
-		printf(ARGS(symlink, "%s, %s"), args->path, args->to);
+		printf(ARGS(symlink, "%s, %s"), path, to);
 #endif
-	bsd.path = args->path;
-	bsd.link = args->to;
-
-	return symlink(td, &bsd);
+	error = kern_symlink(td, path, to, UIO_SYSSPACE);
+	LFREEPATH(path);
+	LFREEPATH(to);
+	return (error);
 }
 
 int
 linux_readlink(struct thread *td, struct linux_readlink_args *args)
 {
-	struct readlink_args bsd;
-	caddr_t sg;
+	char *name;
+	int error;
 
-	sg = stackgap_init();
-	CHECKALTEXIST(td, &sg, args->name);
+	LCONVPATHEXIST(td, args->name, &name);
 
 #ifdef DEBUG
 	if (ldebug(readlink))
-		printf(ARGS(readlink, "%s, %p, %d"),
-		    args->name, (void *)args->buf, args->count);
+		printf(ARGS(readlink, "%s, %p, %d"), name, (void *)args->buf,
+		    args->count);
 #endif
-	bsd.path = args->name;
-	bsd.buf = args->buf;
-	bsd.count = args->count;
-
-	return readlink(td, &bsd);
+	error = kern_readlink(td, name, UIO_SYSSPACE, args->buf, UIO_USERSPACE,
+	    args->count);
+	LFREEPATH(name);
+	return (error);
 }
 
 int
 linux_truncate(struct thread *td, struct linux_truncate_args *args)
 {
-	struct truncate_args bsd;
-	caddr_t sg;
+	char *path;
+	int error;
 
-	sg = stackgap_init();
-	CHECKALTEXIST(td, &sg, args->path);
+	LCONVPATHEXIST(td, args->path, &path);
 
 #ifdef DEBUG
 	if (ldebug(truncate))
-		printf(ARGS(truncate, "%s, %ld"), args->path,
-		    (long)args->length);
+		printf(ARGS(truncate, "%s, %ld"), path, (long)args->length);
 #endif
-	bsd.path = args->path;
-	bsd.length = args->length;
 
-	return truncate(td, &bsd);
+	error = kern_truncate(td, path, UIO_SYSSPACE, args->length);
+	LFREEPATH(path);
+	return (error);
 }
 
 int
 linux_link(struct thread *td, struct linux_link_args *args)
 {
-    struct link_args bsd;
-    caddr_t sg;
+	char *path, *to;
+	int error;
 
-    sg = stackgap_init();
-    CHECKALTEXIST(td, &sg, args->path);
-    CHECKALTCREAT(td, &sg, args->to);
+	LCONVPATHEXIST(td, args->path, &path);
+	/* Expand LCONVPATHCREATE so that `path' can be freed on errors */
+	error = linux_emul_convpath(td, args->to, UIO_USERSPACE, &to, 1);
+	if (to == NULL) {
+		LFREEPATH(path);
+		return (error);
+	}
 
 #ifdef DEBUG
 	if (ldebug(link))
-		printf(ARGS(link, "%s, %s"), args->path, args->to);
+		printf(ARGS(link, "%s, %s"), path, to);
 #endif
-
-    bsd.path = args->path;
-    bsd.link = args->to;
-
-    return link(td, &bsd);
+	error = kern_link(td, path, to, UIO_SYSSPACE);
+	LFREEPATH(path);
+	LFREEPATH(to);
+	return (error);
 }
 
 #ifndef __alpha__
@@ -1158,41 +1145,33 @@ linux_fcntl64(struct thread *td, struct linux_fcntl64_args *args)
 int
 linux_chown(struct thread *td, struct linux_chown_args *args)
 {
-	struct chown_args bsd;
-	caddr_t sg;
+	char *path;
+	int error;
 
-	sg = stackgap_init();
-	CHECKALTEXIST(td, &sg, args->path);
+	LCONVPATHEXIST(td, args->path, &path);
 
 #ifdef DEBUG
 	if (ldebug(chown))
-		printf(ARGS(chown, "%s, %d, %d"), args->path, args->uid,
-		    args->gid);
+		printf(ARGS(chown, "%s, %d, %d"), path, args->uid, args->gid);
 #endif
-
-	bsd.path = args->path;
-	bsd.uid = args->uid;
-	bsd.gid = args->gid;
-	return (chown(td, &bsd));
+	error = kern_chown(td, path, UIO_SYSSPACE, args->uid, args->gid);
+	LFREEPATH(path);
+	return (error);
 }
 
 int
 linux_lchown(struct thread *td, struct linux_lchown_args *args)
 {
-	struct lchown_args bsd;
-	caddr_t sg;
+	char *path;
+	int error;
 
-	sg = stackgap_init();
-	CHECKALTEXIST(td, &sg, args->path);
+	LCONVPATHEXIST(td, args->path, &path);
 
 #ifdef DEBUG
 	if (ldebug(lchown))
-		printf(ARGS(lchown, "%s, %d, %d"), args->path, args->uid,
-		    args->gid);
+		printf(ARGS(lchown, "%s, %d, %d"), path, args->uid, args->gid);
 #endif
-
-	bsd.path = args->path;
-	bsd.uid = args->uid;
-	bsd.gid = args->gid;
-	return (lchown(td, &bsd));
+	error = kern_lchown(td, path, UIO_SYSSPACE, args->uid, args->gid);
+	LFREEPATH(path);
+	return (error);
 }
