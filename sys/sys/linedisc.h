@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)conf.h	8.5 (Berkeley) 1/9/95
- * $Id: conf.h,v 1.54 1999/05/09 13:00:50 phk Exp $
+ * $Id: conf.h,v 1.55 1999/05/11 19:54:54 phk Exp $
  */
 
 #ifndef _SYS_CONF_H_
@@ -150,7 +150,7 @@ bdevsw(dev_t dev)
 
 	c = cdevsw[bmaj2cmaj[major(dev)]];
 	if (!c) {
-		printf("bogus bdev dev_t %x, no cdev\n", dev);
+		printf("bogus bdev dev_t %p, no cdev\n", (void *)dev);
 		Debugger("Bummer");
 		return 0;
 	}
