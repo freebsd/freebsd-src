@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)rshd.8	8.1 (Berkeley) 6/4/93
-.\"	$Id: rshd.8,v 1.7 1997/02/22 14:22:22 peter Exp $
+.\"	$Id: rshd.8,v 1.8 1997/04/23 03:06:47 davidn Exp $
 .\"
 .Dd June 4, 1993
 .Dt RSHD 8
@@ -180,13 +180,12 @@ longer than 16 characters.
 The command line passed exceeds the size of the argument
 list (as configured into the system).
 .It Sy Login incorrect.
-No password file entry for the user name existed.
+No password file entry for the user name existed
+or the authentication procedure described above failed.
 .It Sy Remote directory.
 The 
 .Xr chdir
 command to the home directory failed.
-.It Sy Permission denied.
-The authentication procedure described above failed.
 .It Sy Logins not available right now.
 Rsh was attempted outside the allowed hours defined in
 login.conf for the local user's login class.
