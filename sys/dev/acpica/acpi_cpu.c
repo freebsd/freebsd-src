@@ -464,14 +464,22 @@ acpi_cpu_cx_probe(struct acpi_cpu_softc *sc)
 
     /*
      * Bus mastering arbitration control is needed to keep caches coherent
-     * while sleeping in C3.  If it's not present, we flush the caches before
-     * entering C3 instead.
+     * while sleeping in C3.  If it's not present but a working flush cache
+     * instruction is present, flush the caches before entering C3 instead.
+     * Otherwise, just disable C3 completely.
      */
     if (AcpiGbl_FADT->V1_Pm2CntBlk == 0 || AcpiGbl_FADT->Pm2CntLen == 0) {
-	cpu_quirks |= CPU_QUIRK_NO_BM_CTRL;
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-	    "acpi_cpu%d: no BM control, using flush cache method\n",
-	    device_get_unit(sc->cpu_dev)));
+	if (AcpiGbl_FADT->WbInvd && AcpiGbl_FADT->WbInvdFlush == 0) {
+	    cpu_quirks |= CPU_QUIRK_NO_BM_CTRL;
+	    ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+		"acpi_cpu%d: no BM control, using flush cache method\n",
+		device_get_unit(sc->cpu_dev)));
+	} else {
+	    cpu_quirks |= CPU_QUIRK_NO_C3;
+	    ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+		"acpi_cpu%d: no BM control, C3 not available\n",
+		device_get_unit(sc->cpu_dev)));
+	}
     }
 
     /*
@@ -857,9 +865,7 @@ acpi_cpu_idle()
      * Check for bus master activity.  If there was activity, clear
      * the bit and use the lowest non-C3 state.  Note that the USB
      * driver polling for new devices keeps this bit set all the
-     * time if USB is loaded.  If bus mastering control is not available,
-     * flush caches.  This can be quite slow but may be useful since not
-     * all systems support BM control.
+     * time if USB is loaded.
      */
     if ((cpu_quirks & CPU_QUIRK_NO_BM_CTRL) == 0) {
 	AcpiGetRegister(ACPI_BITREG_BUS_MASTER_STATUS, &bm_active,
@@ -869,8 +875,7 @@ acpi_cpu_idle()
 		ACPI_MTX_DO_NOT_LOCK);
 	    cx_next_idx = min(cx_next_idx, cpu_non_c3);
 	}
-    } else
-	ACPI_FLUSH_CPU_CACHE();
+    }
 
     /* Select the next state and update statistics. */
     cx_next = &sc->cpu_cx_states[cx_next_idx];
@@ -888,10 +893,17 @@ acpi_cpu_idle()
 	return;
     }
 
-    /* For C3, disable bus master arbitration and enable bus master wake. */
+    /*
+     * For C3, disable bus master arbitration and enable bus master wake
+     * if BM control is available, otherwise flush the CPU cache.
+     */
     if (cx_next->type == ACPI_STATE_C3) {
-	AcpiSetRegister(ACPI_BITREG_ARB_DISABLE, 1, ACPI_MTX_DO_NOT_LOCK);
-	AcpiSetRegister(ACPI_BITREG_BUS_MASTER_RLD, 1, ACPI_MTX_DO_NOT_LOCK);
+	if ((cpu_quirks & CPU_QUIRK_NO_BM_CTRL) == 0) {
+	    AcpiSetRegister(ACPI_BITREG_ARB_DISABLE, 1, ACPI_MTX_DO_NOT_LOCK);
+	    AcpiSetRegister(ACPI_BITREG_BUS_MASTER_RLD, 1,
+		ACPI_MTX_DO_NOT_LOCK);
+	} else
+	    ACPI_FLUSH_CPU_CACHE();
     }
 
     /*
@@ -956,8 +968,8 @@ acpi_cpu_quirks(struct acpi_cpu_softc *sc)
 {
 
     /*
-     * C3 is not supported on multiple CPUs since this would require
-     * flushing all caches which is currently too expensive.
+     * C3 on multiple CPUs requires using the expensive flush cache
+     * instruction.
      */
     if (mp_ncpus > 1)
 	cpu_quirks |= CPU_QUIRK_NO_BM_CTRL;
