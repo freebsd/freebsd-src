@@ -183,7 +183,7 @@ fork1(p1, flags, procp)
 	struct proc *p2, *pptr;
 	uid_t uid;
 	struct proc *newproc;
-	int ok;
+	int ok, s;
 	static int curfail = 0, pidchecked = 0;
 	static struct timeval lastfail;
 	struct forklist *ep;
@@ -544,10 +544,10 @@ again:
 	 */
 	microtime(&(p2->p_stats->p_start));
 	p2->p_acflag = AFORK;
-	(void) splhigh();
+	s = splhigh();
 	p2->p_stat = SRUN;
 	setrunqueue(p2);
-	(void) spl0();
+	splx(s);
 
 	/*
 	 * Now can be swapped.
