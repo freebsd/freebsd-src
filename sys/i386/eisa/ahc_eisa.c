@@ -182,7 +182,7 @@ aic7770_attach(struct eisa_device *e_dev)
 	}
 
 	/* XXX Should be a child of the EISA bus dma tag */
-	error = bus_dma_tag_create(/*parent*/NULL, /*alignment*/0,
+	error = bus_dma_tag_create(/*parent*/NULL, /*alignment*/1,
 				   /*boundary*/0,
 				   /*lowaddr*/BUS_SPACE_MAXADDR_32BIT,
 				   /*highaddr*/BUS_SPACE_MAXADDR,

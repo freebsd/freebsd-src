@@ -510,7 +510,7 @@ isp_pci_attach(pcici_t cfid, int unit)
 	pci_cfgwrite(cfid, PCIR_ROMADDR, data, 4);
 	ISP_UNLOCK(isp);
 
-	if (bus_dma_tag_create(NULL, 0, 0, BUS_SPACE_MAXADDR_32BIT,
+	if (bus_dma_tag_create(NULL, 1, 0, BUS_SPACE_MAXADDR_32BIT,
 	    BUS_SPACE_MAXADDR, NULL, NULL, lim + 1,
 	    255, lim, 0, &pcs->parent_dmat) != 0) {
 		printf("%s: could not create master dma tag\n", isp->isp_name);
