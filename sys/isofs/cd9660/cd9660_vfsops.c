@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vfsops.c	8.18 (Berkeley) 5/22/95
- * $Id: cd9660_vfsops.c,v 1.31 1997/10/16 10:47:43 phk Exp $
+ * $Id: cd9660_vfsops.c,v 1.32 1997/11/07 08:52:51 phk Exp $
  */
 
 #include <sys/param.h>
@@ -436,6 +436,7 @@ iso_mountfs(devvp, mp, p, argp)
 
 	return 0;
 out:
+	devvp->v_specflags &= ~SI_MOUNTEDON;
 	if (bp)
 		brelse(bp);
 	if (needclose)
