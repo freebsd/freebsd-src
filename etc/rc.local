@@ -1,12 +1,13 @@
 #
 # site-specific startup actions, daemons
 #
-#	$Id: rc.local,v 1.16 1995/03/16 16:58:01 wollman Exp $
+#	$Id: rc.local,v 1.17 1995/03/30 00:10:31 ache Exp $
 #
 
 T=/tmp/_motd
 rm -f $T
-uname -rs > $T
+uname -v | sed -e 's/199[0-9]/&\
+/' > $T
 echo "" >> $T
 sed '1,/^$/d' < /etc/motd >> $T
 cp $T /etc/motd
@@ -15,5 +16,7 @@ rm -f $T
 _HOST=`hostname`
 
 echo -n 'starting local daemons:'
+
+# put your local stuff here
 
 echo '.'

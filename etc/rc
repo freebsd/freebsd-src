@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.58 1995/03/29 03:42:16 jkh Exp $
+#	$Id: rc,v 1.59 1995/03/30 00:01:08 ache Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -81,27 +81,172 @@ if [ -f /etc/rc.serial ]; then
 	. /etc/rc.serial
 fi
 
-# Do system maintainance functions.
-if [ -f /etc/rc.maint ]; then
-	. /etc/rc.maint
-fi
-
-# Start up the network
+# start up the network
 if [ -f /etc/netstart ]; then
 	. /etc/netstart
+fi
+
+mount -a -t nfs >/dev/null 2>&1 &	# XXX shouldn't need background
+
+# Whack the pty perms back into shape.
+chmod 666 /dev/tty[pqrs]*
+
+# clean up left-over files
+rm -f /etc/nologin
+rm -f /var/spool/lock/*
+rm -f /var/spool/uucp/.Temp/*
+rm -f /dev/log
+(cd /var/run && { rm -rf -- *; cp /dev/null utmp; chmod 644 utmp; })
+
+echo clearing /tmp
+
+# prune quickly with one rm, then use find to clean up /tmp/[lq]*
+# (not needed with mfs /tmp, but doesn't hurt there...)
+(cd /tmp && rm -rf [a-km-pr-zA-Z]* &&
+    find -d . ! -name . ! -name lost+found ! -name quotas -exec rm -rf -- {} \;)
+
+# /var/crash should be a directory or a symbolic link
+# to the crash directory if core dumps are to be saved.
+if [ "X${savecore}" = X"YES" -a -d /var/crash ]; then
+	echo -n checking for core dump...
+	savecore /var/crash
+fi
+
+# snapshot any kernel -c changes back to disk
+echo 'recording kernel -c changes'
+/sbin/dset -q
+
+# Check the quotas
+if [ "X${check_quotas}" = X"YES" ]; then
+	echo 'checking quotas:'
+	quotacheck -a
+	echo ' done.'
+	quotaon -a
+fi
+
+# start system logging and name service (named needs to start before syslogd
+# if you don't have a /etc/resolv.conf)
+#
+echo -n starting system daemons:
+
+echo ' syslogd.';                       syslogd
+
+echo -n starting network daemons:
+
+# $namedflags is imported from /etc/sysconfig
+if [ "X${namedflags}" != "XNO" ]; then
+	echo -n ' named';	named $namedflags
+fi
+
+# $ntpdate and $xntpdflags are imported from /etc/sysconfig.
+# If $ntpdate != NO, run ntpdate $ntpdate to set the date correctly.
+# If $xntpdflags != NO, start xntpd.
+if [ "X${ntpdate}" != X"NO" -o "X${xntpdflags}" != X"NO" ]; then
+	if [ "X${tickadjflags}" != X"NO" ]; then
+		echo -n ' tickadj';	tickadj ${tickadjflags--Aq}
+	fi
+
+	if [ "X${ntpdate}" != X"NO" ]; then
+		echo -n ' ntpdate';	ntpdate ${ntpdate} >/dev/null 2>&1
+	fi
+
+	if [ "X${xntpdflags}" != X"NO" ]; then
+		echo -n ' xntpd';	xntpd ${xntpdflags}
+	fi
+fi
+
+# $timedflags is imported from /etc/sysconfig;
+# if $timedflags == NO, timed isn't run.
+if [ "X${timedflags}" != X"NO" ]; then
+	echo -n ' timed'; timed $timedflags
+fi
+
+# Portmapper should always be run, to provide RPC services for inetd.
+if [ -x /usr/sbin/portmap ]; then
+	echo -n ' portmap';		portmap
+fi
+
+# Start ypserv if we're an NIS server.
+# Run yppasswdd only on the NIS master server
+if [ "X${nis_serverflags}" != X"NO" ]; then
+        echo -n ' ypserv'; ypserv ${nis_serverflags}
+
+	if [ "X${yppasswddflags}" != X"NO" ]; then
+	        echo -n ' yppasswdd'; yppasswdd ${yppasswddflags}
+	fi
+fi
+
+# Start ypbind if we're an NIS client
+if [ "X${nis_clientflags}" != X"NO" ]; then
+        echo -n ' ypbind'; ypbind ${nis_clientflags}
+fi
+
+# $rwhod is imported from /etc/sysconfig;
+# if $rwhod is set to YES, rwhod is run.
+if [ "X${rwhod}" = X"YES" ]; then
+	echo -n ' rwhod';	rwhod
+fi
+
+if [ "X${nfs_server}" = X"YES" -a -r /etc/exports ]; then
+	echo -n ' mountd';		mountd
+	echo -n ' nfsd';		nfsd -u -t 4
+fi
+
+if [ "X${nfs_client}" = X"YES" ]; then
+	echo -n ' nfsiod';		nfsiod -n 4
+fi
+
+if [ "X${amdflags}" != X"NO" ]; then
+	echo -n ' amd';			amd ${amdflags}
+fi
+
+# Kerberos runs ONLY on the Kerberos server machine
+if [ "X${kerberos_server}" = X"YES" ]; then
+	echo -n ' kerberos';	kerberos >> /var/log/kerberos.log &
+	echo -n ' kadmind'; \
+		(sleep 20; /usr/sbin/kadmind -n >/dev/null 2>&1 &) &
+fi
+
+echo -n ' inetd';		inetd
+echo '.'
+
+# build ps databases
+kvm_mkdb 
+dev_mkdb
+
+# check the password temp/lock file
+if [ -f /etc/ptmp ]
+then
+	logger -s -p auth.err \
+	"password file may be incorrect -- /etc/ptmp exists"
+fi
+
+# Recover vi editor files.
+virecovery=/var/tmp/vi.recover/recover.*
+if [ "$virecovery" != "/var/tmp/vi.recover/recover.*" ]; then
+	echo 'Recovering vi editor sessions'
+	for i in $virecovery; do
+		sendmail -t < $i
+	done
+fi
+
+if [ "X${accounting}" = X"YES" -a -d /var/account ]; then
+	echo 'turning on accounting';	accton /var/account/acct
 fi
 
 # Now start up miscellaneous daemons that don't belong anywhere else
 #
 echo -n standard daemons:
 echo -n ' cron';		cron
-if [ "X${xtend}" != X"NO" -a -x /usr/libexec/xtend ]; then
- 	echo -n ' xtend';   /usr/libexec/xtend
-fi
 echo -n ' printer';             lpd
-echo '.'
 
-mount -a -t nfs >/dev/null 2>&1 &	# XXX shouldn't need background
+# $sendmail_flags is imported from /etc/sysconfig;
+# if $sendmail_flags is something other than NO, sendmail is run.
+if [ "X${sendmail_flags}" != X"NO" -a -r /etc/sendmail.cf ]; then
+	echo -n ' sendmail';		sendmail ${sendmail_flags} 
+fi
+
+echo '.'
 
 # Make shared lib searching a little faster.  Leave /usr/lib first if you
 # add your own entries or you may come to grief.
@@ -115,92 +260,10 @@ if [ -x /sbin/ldconfig ]; then
 	ldconfig ${_LDC}
 fi
 
-######################### Start Of Syscons Section #######################
-
-kbdadjust=NO
-[ "X${keymap}" != X"NO" -o "X${keyrate}" != X"NO" \
-	-o "X${keychange}" != X"NO" ] && kbdadjust=YES
-vidadjust=NO
-[ "X${scrnmap}" != X"NO" -o "X${font8x16}" != X"NO" -o \
-	"X${font8x14}" != X"NO" -o "X${font8x8}" != X"NO" -o \
-	"X${blanktime}" != X"NO" ] && vidadjust=YES
-
-[ "X${kbdadjust}" != X"NO" -o "X${vidadjust}" != X"NO" -o \
-	"X${saver}" != X"NO" ] && echo "starting syscons:"
-
-[ "X${kbdadjust}" != X"NO" ] && echo -n " kbdcontrol:"
-
-# keymap
-if [ "X${keymap}" != X"NO" ]; then
-	echo -n " keymap"
-	kbdcontrol -l ${keymap}
-fi
-
-# keyrate
-if [ "X${keyrate}" != X"NO" ]; then
-	echo -n " keyrate"
-	kbdcontrol -r ${keyrate}
-fi
-
-# change function keys
-if [ "X${keychange}" != X"NO" ]; then
-	echo -n " keychange"
-	set - ${keychange}
-	while [ $# -gt 0 ]
-	do
-		kbdcontrol -f "$1" "$2"
-		shift; shift
-	done
-fi
-
-[ "X${kbdadjust}" != X"NO" ] && echo
-[ "X${vidadjust}" != X"NO" ] && echo -n " vidcontrol:"
-
-# screen mapping
-if [ "X${scrnmap}" != X"NO" ]; then
-	echo -n " screen_map"
-	vidcontrol -l ${scrnmap}
-fi
-
-# font 8x16
-if [ "X${font8x16}" != X"NO" ]; then
-	echo -n " font8x16"
-	vidcontrol -f 8x16 ${font8x16}
-fi
-
-# font 8x14
-if [ "X${font8x14}" != X"NO" ]; then
-	echo -n " font8x14"
-	vidcontrol -f 8x14 ${font8x14}
-fi
-
-# font 8x8
-if [ "X${font8x8}" != X"NO" ]; then
-	echo -n " font8x8"
-	vidcontrol -f 8x8 ${font8x8}
-fi
-
-# blank time
-if [ "X${blanktime}" != X"NO" ]; then
-	echo -n " blank_time"
-	vidcontrol -t ${blanktime}
-fi
-
-[ "X${vidadjust}" != X"NO" ] && echo "."
-
-# screen saver
-if [ "X${saver}" != X"NO" ] ; then
-	echo -n "screensaver: "
-	modstat | grep _saver || modload -u -o /tmp/saver_mod -e \
-				 saver_init -q /lkm/${saver}_saver_mod.o
-fi
-
-######################### End Of Syscons Section #######################
-
-# Start the SCO binary emulation if requested.
-if [ "X${ibcs2}" = X"YES" ]; then
-	echo "Enabling ibcs2 emulation."
-	ibcs2
+# configure implementation specific stuff
+arch=`uname -m`
+if [ -f /etc/rc.$arch ]; then
+	. /etc/rc.$arch
 fi
 
 # Do traditional (but rather obsolete) rc.local file if it exists.
