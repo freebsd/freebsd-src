@@ -116,7 +116,7 @@ typedef struct	pthread_once		pthread_once_t;
  * use in header symbols.
  */
 typedef void	*pthread_addr_t;
-typedef void	*(*pthread_startroutine_t) (void *);
+typedef void	*(*pthread_startroutine_t) __P((void *));
 
 /*
  * Once definitions.
