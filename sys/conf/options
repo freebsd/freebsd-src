@@ -1,2 +1,5 @@
 KTRACE
 PROCFS
+SYSVSHM		opt_sysvipc.h
+SYSVSEM		opt_sysvipc.h
+SYSVMSG		opt_sysvipc.h

@@ -1,4 +1,4 @@
-	$Id: syscalls.master,v 1.20 1995/12/15 04:36:01 peter Exp $
+	$Id: syscalls.master,v 1.21 1996/01/03 21:42:20 wollman Exp $
 ;	from: @(#)syscalls.master	8.2 (Berkeley) 1/13/94
 ;
 ; System call name/number master file.
@@ -24,6 +24,7 @@
 
 ; #ifdef's, etc. may be included, and are copied to the output files.
 
+#include "opt_sysvipc.h"
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/mount.h>
