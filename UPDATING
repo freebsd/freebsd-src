@@ -39,6 +39,14 @@ the common items quick how-tos, followed by entries for versions of
 	will find they need significantly more disk space in their
 	slash (/) partition.
 
+20010928:
+	The OpenSSH `ChallengeResponseAuthentication' option now
+	defaults to `yes'.  This enables S/Key authentication, which
+	can result in users receiving an S/Key challenge when logging
+	in interactively.  To disable this behavior, add a line to
+	your /etc/ssh/sshd_config file:
+	`ChallengeResponseAuthentication no'
+
 20010914:
 	4.4 Released.
 
