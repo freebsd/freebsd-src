@@ -63,6 +63,7 @@ int cflag, dflag, uflag;
 int numchars, numfields, repeats;
 
 FILE	*file(const char *, const char *);
+char	*getline(char *, size_t, FILE *);
 void	 show(FILE *, char *);
 char	*skip(char *);
 void	 obsolete(char *[]);
@@ -137,10 +138,10 @@ main (argc, argv)
 	if (prevline == NULL || thisline == NULL)
 		errx(1, "malloc");
 
-	if (fgets(prevline, MAXLINELEN, ifp) == NULL)
+	if (getline(prevline, MAXLINELEN, ifp) == NULL)
 		exit(0);
 
-	while (fgets(thisline, MAXLINELEN, ifp)) {
+	while (getline(thisline, MAXLINELEN, ifp)) {
 		/* If requested get the chosen fields + character offsets. */
 		if (numfields || numchars) {
 			t1 = skip(thisline);
@@ -169,6 +170,23 @@ main (argc, argv)
 	exit(0);
 }
 
+char *
+getline(char *buf, size_t buflen, FILE *fp)
+{
+	size_t bufpos;
+	int ch;
+
+	bufpos = 0;
+	while (bufpos + 2 != buflen && (ch = getc(fp)) != EOF && ch != '\n')
+		buf[bufpos++] = ch;
+	if (bufpos + 1 != buflen)
+		buf[bufpos] = '\0';
+	while (ch != EOF && ch != '\n')
+		ch = getc(fp);
+
+	return (bufpos != 0 || ch == '\n' ? buf : NULL);
+}
+
 /*
  * show --
  *	Output a line depending on the flags and number of repetitions
@@ -181,25 +199,23 @@ show(ofp, str)
 {
 
 	if (cflag && *str)
-		(void)fprintf(ofp, "%4d %s", repeats + 1, str);
+		(void)fprintf(ofp, "%4d %s\n", repeats + 1, str);
 	if ((dflag && repeats) || (uflag && !repeats))
-		(void)fprintf(ofp, "%s", str);
+		(void)fprintf(ofp, "%s\n", str);
 }
 
 char *
 skip(str)
 	register char *str;
 {
-	register int infield, nchars, nfields;
+	register int nchars, nfields;
 
-	for (nfields = numfields, infield = 0; nfields && *str; ++str)
-		if (isblank((unsigned char)*str)) {
-			if (infield) {
-				infield = 0;
-				--nfields;
-			}
-		} else if (!infield)
-			infield = 1;
+	for (nfields = 0; *str != '\0' && nfields++ != numfields; ) {
+		while (isblank((unsigned char)*str))
+			str++;
+		while (*str != '\0' && !isblank((unsigned char)*str))
+			str++;
+	}
 	for (nchars = numchars; nchars-- && *str; ++str);
 	return(str);
 }
