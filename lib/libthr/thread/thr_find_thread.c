@@ -41,18 +41,21 @@ _find_thread(pthread_t pthread)
 {
 	pthread_t pthread1;
 
-	if (pthread == NULL || pthread->magic != PTHREAD_MAGIC)
+	if (pthread == NULL)
 		return(EINVAL);
 
 	THREAD_LIST_LOCK;
 
 	/* Search for the specified thread: */
+	pthread1 = NULL;
 	TAILQ_FOREACH(pthread1, &_thread_list, tle) {
 		if (pthread == pthread1)
 			break;
 	}
 
 	THREAD_LIST_UNLOCK;
+	if (pthread1 != NULL && pthread1->magic != PTHREAD_MAGIC)
+		return (EINVAL);
 
 	/* Return zero if the thread exists: */
 	return ((pthread1 != NULL) ? 0:ESRCH);
