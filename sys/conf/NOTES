@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.548 1999/01/30 06:31:11 newton Exp $
+#	$Id: LINT,v 1.549 1999/02/04 22:34:23 adam Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -908,6 +908,17 @@ options		XSERVER			# support for running an X server.
 options		FAT_CURSOR		# start with block cursor
 # This PCVT option is for keyboards such as those used on IBM ThinkPad laptops
 options		PCVT_SCANSET=2 		# IBM keyboards are non-std
+# Other PCVT options are documented in pcvt(4).
+options		"PCVT_24LINESDEF"
+options		PCVT_CTRL_ALT_DEL
+options		PCVT_EMU_MOUSE
+options		PCVT_FREEBSD=211
+options		PCVT_META_ESC
+options		PCVT_NSCREENS=9
+options		PCVT_PRETTYSCRNS
+options		PCVT_SCREENSAVER
+options		PCVT_USEKBDSEC
+options		"PCVT_VT220KEYB"
 
 # The syscons console driver (sco color console compatible).
 device		sc0	at isa? tty
@@ -1916,16 +1927,6 @@ options		NETATALKDEBUG
 options		NMBCLUSTERS=1024
 options		NPX_DEBUG
 options		PANIC_REBOOT_WAIT_TIME=16
-options		"PCVT_24LINESDEF"
-options		PCVT_CTRL_ALT_DEL
-options		PCVT_EMU_MOUSE
-options		PCVT_FREEBSD=211
-options		PCVT_META_ESC
-options		PCVT_NSCREENS=9
-options		PCVT_PRETTYSCRNS
-options		PCVT_SCREENSAVER
-options		PCVT_USEKBDSEC
-options		"PCVT_VT220KEYB"
 options		PSM_DEBUG=1
 options		SCSI_NCR_DEBUG
 options		SCSI_NCR_DFLT_TAGS=4
