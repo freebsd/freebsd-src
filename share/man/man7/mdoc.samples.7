@@ -874,6 +874,23 @@ It is an error to call
 .Ql \&.An
 without
 any arguments.
+.Pp
+In the
+.Sx AUTHORS
+section, an
+.Ql \&.An
+request causes a line break allowing each new name
+to appear on its own line.
+If this is not desirable, the
+.Bd -literal -offset indent
+\&.An -nosplit
+.Ed
+.Pp
+call will turn this off.
+To turn splitting back on, call the
+.Bd -literal -offset indent
+\&.An -split
+.Ed
 .Ss Argument Macro
 The
 .Ql \&.Ar

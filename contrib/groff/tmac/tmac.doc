@@ -3359,19 +3359,21 @@ File:
 .\" NS aN register
 .nr aN 0
 .de An
+.if \\n(aC==0 \{\
+.	ie \\n(.$==0 .tm Usage: .An author_name ... \\*(Pu (#\\n(.c)
+.	el .ie "\\$1"-nosplit" .nr nY 0
+.	el .ie "\\$1"-split" .nr nY 1
+.	el \{\
+.		ds mN An
+.		aV \\$1 \\$2 \\$3 \\$4 \\$5 \\$6 \\$7 \\$8 \\$9
+.	\}
+.\}
 .if \\n(nY==1 \{\
 .	ie \\n(aN==1 \{\
 .		br
 .	\}
 .	el \{\
 .		nr aN 1
-.	\}
-.\}
-.if \\n(aC==0 \{\
-.       ie \\n(.$==0 .tm Usage: .An author_name ... \\*(Pu (#\\n(.c)
-.	el \{\
-.		ds mN An
-.		aV \\$1 \\$2 \\$3 \\$4 \\$5 \\$6 \\$7 \\$8 \\$9
 .	\}
 .\}
 .if \\n(aC>\\n(aP \{\
