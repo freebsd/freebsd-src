@@ -575,10 +575,7 @@ sioprobe(dev)
 	intrmask_t	irqs;
 	u_char		mcr_image;
 	int		result;
-#ifdef COM_MULTIPORT
-	Port_t		xiobase;
-#endif
-	int		xirq;
+	u_long		xirq;
 	u_int		flags = device_get_flags(dev);
 	int		rid;
 	struct resource *port;
@@ -638,14 +635,17 @@ sioprobe(dev)
 	mcr_image = MCR_IENABLE;
 #ifdef COM_MULTIPORT
 	if (COM_ISMULTIPORT(flags) && !COM_NOTAST4(flags)) {
+		Port_t xiobase;
+		u_long io;
+
 		idev = devclass_get_device(sio_devclass, COM_MPMASTER(flags));
 		if (idev == NULL) {
 			printf("sio%d: master device %d not configured\n",
 			       device_get_unit(dev), COM_MPMASTER(flags));
 			idev = dev;
 		}
-		if (bus_get_resource(idev, SYS_RES_IOPORT, 0, &xiobase,
-				     NULL) == 0) {
+		if (bus_get_resource(idev, SYS_RES_IOPORT, 0, &io, NULL) == 0) {
+			xiobase = io;
 			if (bus_get_resource(idev, SYS_RES_IRQ, 0, NULL, NULL))
 				outb(xiobase + com_scr, 0x80);	/* no irq */
 			else
@@ -809,7 +809,7 @@ sioprobe(dev)
 	if (bus_get_resource(idev, SYS_RES_IRQ, 0, &xirq, NULL) == 0 &&
 	    ((1 << xirq) & irqs) == 0)
 		printf(
-		"sio%d: configured irq %d not in bitmap of probed irqs %#x\n",
+		"sio%d: configured irq %ld not in bitmap of probed irqs %#x\n",
 		    device_get_unit(dev), xirq, irqs);
 	if (bootverbose)
 		printf("sio%d: irq maps: %#x %#x %#x %#x\n",
