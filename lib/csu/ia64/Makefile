@@ -2,12 +2,11 @@
 
 .PATH: ${.CURDIR}/../common
 
-SRCS=		crt1.c crtbegin.c crtend.c
-OBJS=		crt1.o crtbegin.o crtend.o
+SRCS=		crt1.c crti.S crtn.S
+OBJS=		${SRCS:N*.h:R:S/$/.o/g}
 OBJS+=		gcrt1.o
-SOBJS=		crtbegin.So crtend.So
-CFLAGS+=	-Wall -Wno-unused
-CFLAGS+=	-I${.CURDIR}/../common
+CFLAGS+=	-Wall -Wno-unused \
+		-I${.CURDIR}/../common
 NOMAN=		true
 NOPIC=		true
 NOPROFILE=	true
@@ -15,7 +14,7 @@ INTERNALLIB=	true
 
 all: ${OBJS} ${SOBJS}
 
-gcrt1.o:  crt1.c
+gcrt1.o: crt1.c
 	${CC} ${CFLAGS} -DGCRT -c -o gcrt1.o ${.ALLSRC}
 
 realinstall:
