@@ -534,7 +534,7 @@ fxp_attach(device_t dev)
 			int i;
 
 			device_printf(dev,
-		    "*** DISABLING DYNAMIC STANDBY MODE IN EEPROM ***\n");
+			    "Disabling dynamic standby mode in EEPROM\n");
 			data &= ~0x02;
 			fxp_write_eeprom(sc, &data, 10, 1);
 			device_printf(dev, "New EEPROM ID: 0x%x\n", data);
@@ -550,15 +550,6 @@ fxp_attach(device_t dev)
 			device_printf(dev,
 			    "EEPROM checksum @ 0x%x: 0x%x -> 0x%x\n",
 			    i, data, cksum);
-			/*
-			 * We need to do a full PCI reset here.  A software 
-			 * reset to the port doesn't cut it, but let's try
-			 * anyway.
-			 */
-			CSR_WRITE_4(sc, FXP_CSR_PORT, FXP_PORT_SOFTWARE_RESET);
-			DELAY(50);
-			device_printf(dev,
-	    "*** PLEASE REBOOT THE SYSTEM NOW FOR CORRECT OPERATION ***\n");
 #if 1
 			/*
 			 * If the user elects to continue, try the software
