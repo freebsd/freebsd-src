@@ -278,6 +278,8 @@ RetryFault:;
 	 * Bump the paging-in-progress count to prevent size changes (e.g. 
 	 * truncation operations) during I/O.  This must be done after
 	 * obtaining the vnode lock in order to avoid possible deadlocks.
+	 *
+	 * XXX vnode_pager_lock() can block without releasing the map lock.
 	 */
 	vm_object_reference(fs.first_object);
 	fs.vp = vnode_pager_lock(fs.first_object);
@@ -479,6 +481,9 @@ readrest:
 			 * vm_page_t passed to the routine.
 			 *
 			 * fs.m plus the additional pages are PG_BUSY'd.
+			 *
+			 * XXX vm_fault_additional_pages() can block
+			 * without releasing the map lock.
 			 */
 			faultcount = vm_fault_additional_pages(
 			    fs.m, behind, ahead, marray, &reqpage);
@@ -486,6 +491,9 @@ readrest:
 			/*
 			 * update lastr imperfectly (we do not know how much
 			 * getpages will actually read), but good enough.
+			 *
+			 * XXX The following assignment modifies the map
+			 * without holding a write lock on it.
 			 */
 			fs.entry->lastr = fs.pindex + faultcount - behind;
 
