@@ -23,9 +23,10 @@
       recent changes made to the &os; base system on the &release.branch;
       development branch.
 ]]>
-      Both changes for kernel and userland are listed, as well as
-      applicable security advisories that were issued since the last
-      release.  Some brief remarks on upgrading are also presented.</para>
+      This document lists applicable security advisories that were issued since
+      the last release, as well as significant changes to the &os;
+      kernel and userland.
+      Some brief remarks on upgrading are also presented.</para>
   </abstract>
 </articleinfo>
 
@@ -61,6 +62,24 @@
     Handbook</ulink>.</para>
 
 ]]>
+
+  <para>Users who are new to the &release.branch; series of &os;
+    &release.type;s should also read the <quote>Early Adopters Guide
+    to &os; &release.current;</quote>.  This document can generally be
+    found in the same location as the release notes (either as a part of a
+    &os; distribution or on the &os; Web site).  It contains important
+    information regarding the advantages and disadvantages of using
+    &os; &release.current;, as opposed to releases based on the &os;
+    4-STABLE development branch.</para>
+
+  <para>All users are encouraged to consult the release errata before
+    installing &os;.  The errata document is updated with
+    <quote>late-breaking</quote> information discovered late in the
+    release cycle or after the release.  Typically, it contains
+    information on known bugs, security advisories, and corrections to
+    documentation.  An up-to-date copy of the errata for &os;
+    &release.current; can be found on the &os; Web site.</para>
+
 </sect1>
 
 <sect1 id="new">
@@ -78,20 +97,21 @@
       since &release.prev;.  It includes items that are unique to the
       &release.branch; branch, as well as some features that may have been
       recently merged to
-      other branches (after &os; &release.prev.historic;).  The later
+      other branches (after &os; &release.prev.historic;).  The latter
       items are marked as &merged;.
 ]]>
   </para>
 
   <para>Typical release note items
-    document new drivers or hardware support, new commands or options,
-    major bug fixes, or contributed software upgrades.  Applicable security
-    advisories issued after &release.prev.historic; are also listed.</para>
-
-  <para>Many additional changes were made to &os; that are not listed
-    here for lack of space.  For example, documentation was corrected
-    and improved, minor bugs were fixed, insecure coding practices
-    were audited and corrected, and source code was cleaned up.</para>
+    document recent security advisories issued after
+    &release.prev.historic;,
+    new drivers or hardware support, new commands or options,
+    major bug fixes, or contributed software upgrades.  They may also
+    list changes to major ports/packages or release engineering
+    practices.  Clearly the release notes cannot list every single
+    change made to &os; between releases; this document focuses
+    primarily on security advisories, user-visible changes, and major
+    architectural improvements.</para>
 
   <sect2 id="security">
     <title>Security Advisories</title>
@@ -276,7 +296,7 @@
 
 	<note>
 	  <para>Modules designed for use with &os; 4.<replaceable>X</replaceable> are likely to
-	    panic and should be used with extreme caution.</para>
+	    panic when loaded into a &os; &release.current; kernel and should be used with extreme caution.</para>
 	</note>
       </para>
 
@@ -301,7 +321,7 @@
         SHDSL modem has been added. &merged;</para>
 
       <para>A new &man.wlan.4; module provides 802.11 link-layer support.  The
-	&man.wi.4; driver now uses this facility.</para>
+	&man.wi.4; and &man.an.4; drivers now use this facility.</para>
 
       <para arch="i386,alpha,pc98,sparc64">A timing bug in the
 	&man.xl.4; driver, which could cause a kernel panic (or other
@@ -513,7 +533,7 @@
     <para>&man.disklabel.8; is now only built for architectures where
       it is useful (i386, pc98, alpha, and ia64).</para>
 
-    <para>The <option>-s</option> to &man.disklabel.8; has been
+    <para>The <option>-s</option> option to &man.disklabel.8; has been
       removed because the i386 boot loader now resides in a single
       file.</para>
 
@@ -600,7 +620,7 @@
       conjunction with the recently-added
       <varname>net.inet.ip.portrange.reservedhigh</varname> sysctl.</para>
 
-    <para>The MAKEDEV script is now unnecessary, due to the mandatory
+    <para>The <filename>MAKEDEV</filename> script is now unnecessary, due to the mandatory
       presence of &man.devfs.5;, and has been removed.</para>
 
     <para>&man.mergemaster.8; now supports a <option>-P</option>
@@ -634,7 +654,7 @@
 
     <para>&man.newfs.8; will now create UFS2 file systems by default,
       unless UFS1 is specifically requested with the
-      <option>-O1</option>.</para>
+      <option>-O1</option> option.</para>
 
     <para>&man.newsyslog.8; now supports a <literal>W</literal> flag
       to force previously-started compression jobs for an entry (or
@@ -679,9 +699,11 @@
       remains unsuitable for all but trivial uses.)</para>
 
     <para>&man.rtld.1; now has support for the dynamic mapping of
-      shared object dependencies.  More information can be found in
-      &man.libmap.conf.5;.  This is an optional feature, disabled by
-      default.</para>
+      shared object dependencies.  This optional feature is especially
+      useful when experimenting with different threading libraries.
+      It is not, however, built by default.  More information on
+      enabling and using this feature can be found in
+      &man.libmap.conf.5;.</para>
 
     <para>&man.sem.open.3; now correctly handles multiple opens of the
       same semaphore; as a result, &man.sem.close.3; no longer crashes
@@ -958,7 +980,7 @@
 
   <para>Users with existing &os; systems are
     <emphasis>highly</emphasis> encouraged to read the <quote>Early
-    Adopter's Guide to &os; 5.0</quote>.  This document generally has
+    Adopter's Guide to &os; &release.current;</quote>.  This document generally has
     the filename <filename>EARLY.TXT</filename> on the distribution
     media, or any other place that the release notes can be found.  It
     offers some notes on upgrading, but more importantly, also
