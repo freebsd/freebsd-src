@@ -37,9 +37,11 @@ struct ifinfo {
 	struct sockaddr_dl *sdl; /* link-layer address */
 	char ifname[IF_NAMESIZE]; /* interface name */
 	int active;		/* interface status */
-	int probeinterval;	/* interval of probe timer(if necessary) */
+	int probeinterval;	/* interval of probe timer (if necessary) */
 	int probetimer;		/* rest of probe timer */
 	int mediareqok;		/* wheter the IF supports SIOCGIFMEDIA */
+	int otherconfig;	/* need a separate protocol for the "other"
+				 * configuration */
 	int state;
 	int probes;
 	int dadcount;
@@ -63,29 +65,29 @@ struct ifinfo {
 /* rtsold.c */
 extern struct timeval tm_max;
 extern int dflag;
-struct ifinfo *find_ifinfo __P((int ifindex));
-void rtsol_timer_update __P((struct ifinfo *ifinfo));
+extern char *otherconf_script;
+struct ifinfo *find_ifinfo __P((int));
+void rtsol_timer_update __P((struct ifinfo *));
 extern void warnmsg __P((int, const char *, const char *, ...))
      __attribute__((__format__(__printf__, 3, 4)));
 
 /* if.c */
 extern int ifinit __P((void));
-extern int interface_up __P((char *name));
-extern int interface_status __P((struct ifinfo*));
-extern int lladdropt_length __P((struct sockaddr_dl *sdl));
-extern void lladdropt_fill __P((struct sockaddr_dl *sdl,
-				struct nd_opt_hdr *ndopt));
-extern struct sockaddr_dl *if_nametosdl __P((char *name));
-extern int getinet6sysctl __P((int code));
+extern int interface_up __P((char *));
+extern int interface_status __P((struct ifinfo *));
+extern int lladdropt_length __P((struct sockaddr_dl *));
+extern void lladdropt_fill __P((struct sockaddr_dl *, struct nd_opt_hdr *));
+extern struct sockaddr_dl *if_nametosdl __P((char *));
+extern int getinet6sysctl __P((int));
 
 /* rtsol.c */
 extern int sockopen __P((void));
-extern void sendpacket __P((struct ifinfo *ifinfo));
-extern void rtsol_input __P((int s));
+extern void sendpacket __P((struct ifinfo *));
+extern void rtsol_input __P((int));
 
 /* probe.c */
 extern int probe_init __P((void));
-extern void defrouter_probe __P((int ifindex));
+extern void defrouter_probe __P((int));
 
 /* dump.c */
 extern void rtsold_dump_file __P((char *));

@@ -1,4 +1,4 @@
-/*	$KAME: timer.c,v 1.4 2000/05/27 11:30:43 jinmei Exp $	*/
+/*	$KAME: timer.c,v 1.9 2002/06/10 19:59:47 itojun Exp $	*/
 
 /*
  * Copyright (C) 1998 WIDE Project.
@@ -46,7 +46,7 @@ static struct rtadvd_timer timer_head;
 
 #define MILLION 1000000
 #define TIMEVAL_EQUAL(t1,t2) ((t1)->tv_sec == (t2)->tv_sec &&\
- (t1)->tv_usec == (t2)->tv_usec) 
+ (t1)->tv_usec == (t2)->tv_usec)
 
 static struct timeval tm_max = {0x7fffffff, 0x7fffffff};
 
@@ -68,7 +68,7 @@ rtadvd_add_timer(struct rtadvd_timer *(*timeout) __P((void *)),
 
 	if ((newtimer = malloc(sizeof(*newtimer))) == NULL) {
 		syslog(LOG_ERR,
-		       "<%s> can't allocate memory", __FUNCTION__);
+		       "<%s> can't allocate memory", __func__);
 		exit(1);
 	}
 
@@ -76,7 +76,7 @@ rtadvd_add_timer(struct rtadvd_timer *(*timeout) __P((void *)),
 
 	if (timeout == NULL) {
 		syslog(LOG_ERR,
-		       "<%s> timeout function unspecfied", __FUNCTION__);
+		       "<%s> timeout function unspecified", __func__);
 		exit(1);
 	}
 	newtimer->expire = timeout;
@@ -150,12 +150,10 @@ rtadvd_check_timer()
 	if (TIMEVAL_EQUAL(&tm_max, &timer_head.tm)) {
 		/* no need to timeout */
 		return(NULL);
-	}
-	else if (TIMEVAL_LT(timer_head.tm, now)) {
+	} else if (TIMEVAL_LT(timer_head.tm, now)) {
 		/* this may occur when the interval is too small */
 		returnval.tv_sec = returnval.tv_usec = 0;
-	}
-	else
+	} else
 		TIMEVAL_SUB(&timer_head.tm, &now, &returnval);
 	return(&returnval);
 }
@@ -169,7 +167,7 @@ rtadvd_timer_rest(struct rtadvd_timer *timer)
 	if (TIMEVAL_LEQ(timer->tm, now)) {
 		syslog(LOG_DEBUG,
 		       "<%s> a timer must be expired, but not yet",
-		       __FUNCTION__);
+		       __func__);
 		returnval.tv_sec = returnval.tv_usec = 0;
 	}
 	else
