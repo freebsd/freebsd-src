@@ -1843,7 +1843,7 @@ uma_zfree_internal(uma_zone_t zone, void *item, void *udata, int skip)
 
 	/* Do we need to remove from any lists? */
 	if (slab->us_freecount+1 == zone->uz_ipers) {
-		LIST_REMOVE(slab, us_link);
+		LIST_REMOVE(slab,us_link);
 		LIST_INSERT_HEAD(&zone->uz_free_slab, slab, us_link);
 	} else if (slab->us_freecount == 0) {
 		LIST_REMOVE(slab, us_link);
