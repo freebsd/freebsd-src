@@ -160,6 +160,7 @@ main(argc, argv)
 
 	(void)signal(SIGQUIT, SIG_IGN);
 	(void)signal(SIGINT, SIG_IGN);
+	(void)signal(SIGHUP, SIG_IGN);
 	if (setjmp(timeout_buf)) {
 		if (failures)
 			badlogin(tbuf);
@@ -373,6 +374,7 @@ main(argc, argv)
 
 	/* committed to login -- turn off timeout */
 	(void)alarm((u_int)0);
+	(void)signal(SIGHUP, SIG_DFL);
 
 	endpwent();
 
