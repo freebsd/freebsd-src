@@ -18,6 +18,7 @@
 #include <sys/conf.h>
 #include <sys/disk.h>
 #include <sys/disklabel.h>
+#include <geom/geom_disk.h>
 
 /*-
  * Disk error is the preface to plaintive error messages
