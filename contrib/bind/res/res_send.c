@@ -55,7 +55,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)res_send.c	8.1 (Berkeley) 6/4/93";
-static char rcsid[] = "$Id: res_send.c,v 8.12 1996/10/08 04:51:06 vixie Exp $";
+static char rcsid[] = "$Id: res_send.c,v 8.13 1997/06/01 20:34:37 vixie Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 	/* change this to "0"
@@ -601,6 +601,11 @@ read_len:
 			if ((long) timeout.tv_sec <= 0)
 				timeout.tv_sec = 1;
 			timeout.tv_usec = 0;
+			if (s+1 > FD_SETSIZE) {
+				Perror(stderr, "s+1 > FD_SETSIZE", EMFILE);
+				res_close();
+				goto next_ns;
+			}
     wait:
 			FD_ZERO(&dsmask);
 			FD_SET(s, &dsmask);

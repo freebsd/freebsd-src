@@ -41,7 +41,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)getnetbyaddr.c	8.1 (Berkeley) 6/4/93";
 static char sccsid_[] = "from getnetnamadr.c	1.4 (Coimbra) 93/06/03";
-static char rcsid[] = "$Id: getnetnamadr.c,v 8.7 1996/08/05 08:31:35 vixie Exp $";
+static char rcsid[] = "$Id: getnetnamadr.c,v 8.8 1997/06/01 20:34:37 vixie Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/types.h>
@@ -102,7 +102,7 @@ getnetanswer(answer, anslen, net_i)
 	char aux1[30], aux2[30], ans[30], *in, *st, *pauxt, *bp, **ap,
 		*paux1 = &aux1[0], *paux2 = &aux2[0], flag = 0;
 static	struct netent net_entry;
-static	char *net_aliases[MAXALIASES], netbuf[BUFSIZ+1];
+static	char *net_aliases[MAXALIASES], netbuf[PACKETSZ];
 
 	/*
 	 * find first satisfactory answer

@@ -609,7 +609,7 @@ dovalidate(msg, msglen, rrp, zone, flags, qdomain, server, VCode)
 	u_int32_t ttl;
 	char dname[MAXDNAME];
 	u_char *cp1;
-	u_char data[BUFSIZ];
+	u_char data[MAXDNAME*2 + INT32SZ*5];
 	register HEADER *hp = (HEADER *) msg;
 
 	dprintf(2, (ddt, "dovalidate(zone %d, flags %x)\n",

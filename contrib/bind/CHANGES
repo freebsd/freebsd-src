@@ -1,4 +1,69 @@
-$Id: CHANGES,v 8.52 1996/12/18 04:09:41 vixie Exp $
+$Id: CHANGES,v 8.53 1997/06/01 20:34:25 vixie Exp vixie $
+
+	--- 4.9.6 released ---
+
+805. [security]	The server now caches only those response records
+		that are within the current query domain.  (From BIND-8)
+
+804. [security]	another buffer overrun plugged, this time in res_search().
+
+803. [bug]	core leak fixed in ns_resp.c (twice).
+
+802. [proto]	RTT sorting was defeating round robin for nameserver A RRs.
+
+801. [bug]	res_send() now considers FD_SETSIZE usefully.
+
+800. [bug]	formatting errors corrected in precsize_aton().
+
+799. [bug]	now that inet_pton() is safe, we call it a little more often.
+
+798. [bug]	file descriptor leak plugged on systems without SO_LINGER.
+
+797. [bug]	named-xfer signal, exit, and stub bugs fixed.
+
+798. [bug]	tokens with merely _leading_ digits won't be taken as TTL's.
+
+797. [port]	Motorola 88K port integrated.
+
+796. [doc]	some spelling errors, omissions, and misdirections removed.
+
+795. [security]	"dig @0 version.bind chaos" no longer shows user names.
+
+794. [bug]	make d_rcnt larger; reorder databuf for packing efficiency.
+
+793. [bug]	we forgot to reset a pointer after a realloc (named_xfer.c).
+
+792. [bug]	RRset TTL was not being maintained coherently.
+
+791. [doc]	BOG was off by one in its ndots description.
+
+790. [whining]	preserve forwarded RRset order for one last release.
+
+789. [bug]	TCP timeouts were leaking file descriptors.
+
+788. [bug]	AXFR needs 64K to fit in, not PACKETSZ.
+
+787. [bug]	dangling CNAMEs caused erroneous forwarded responses.
+
+786. [protocol]	better checking of incoming additional data.
+
+785. [bug]	forced reload of parents after zone expiry had problems.
+
+784. [bug]	SRV RR's were not decoded properly.
+
+783. [bug]	BUFSIZ is less than PACKETSZ on some systems (overruns).
+
+782. [bug]	named could spin on invalid TCP input formats (ns_main.c).
+
+781. [bug]	short names of all hex digits were being handled incorrectly.
+
+780. [bug]	doupdate was handling BOGUSNS and syslog messages incorrectly.
+
+779. [bug]	named-xfer can now handle RFC1035-compliant zone transfers.
+
+778. [security]	wire protocol names now limited to MAXCDNAME octets.
+
+777. [port]	res_send name redefinition now covered by BIND_RES_POSIX3.
 
 	--- 4.9.5-p1 released ---
 
