@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2004 Tim J. Robbins. All rights reserved.
  * Copyright (c) 2003 David Xu <davidxu@freebsd.org>
  * All rights reserved.
  *
@@ -24,22 +25,29 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
+#include <sys/param.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
 #include <runetype.h>
 #include <stdlib.h>
+#include <string.h>
 #include <wchar.h>
 
 extern size_t (*__mbrtowc)(wchar_t * __restrict, const char * __restrict,
     size_t, mbstate_t * __restrict);
+extern int (*__mbsinit)(const mbstate_t *);
 extern size_t (*__wcrtomb)(char * __restrict, wchar_t, mbstate_t * __restrict);
 
 int	_GB2312_init(_RuneLocale *);
 size_t	_GB2312_mbrtowc(wchar_t * __restrict, const char * __restrict, size_t,
 	    mbstate_t * __restrict);
+int	_GB2312_mbsinit(const mbstate_t *);
 size_t	_GB2312_wcrtomb(char * __restrict, wchar_t, mbstate_t * __restrict);
+
+typedef struct {
+	int	count;
+	u_char	bytes[2];
+} _GB2312State;
 
 int
 _GB2312_init(_RuneLocale *rl)
@@ -48,8 +56,16 @@ _GB2312_init(_RuneLocale *rl)
 	_CurrentRuneLocale = rl;
 	__mbrtowc = _GB2312_mbrtowc;
 	__wcrtomb = _GB2312_wcrtomb;
+	__mbsinit = _GB2312_mbsinit;
 	__mb_cur_max = 2;
 	return (0);
+}
+
+int
+_GB2312_mbsinit(const mbstate_t *ps)
+{
+
+	return (ps == NULL || ((_GB2312State *)ps)->count == 0);
 }
 
 static __inline int
@@ -77,14 +93,28 @@ _GB2312_check(const char *str, size_t n)
 
 size_t
 _GB2312_mbrtowc(wchar_t * __restrict pwc, const char * __restrict s, size_t n,
-    mbstate_t * __restrict ps __unused)
+    mbstate_t * __restrict ps)
 {
+	_GB2312State *gs;
 	wchar_t wc;
-	int i, len;
+	int i, len, ocount;
+	size_t ncopy;
 
-	if (s == NULL)
-		/* Reset to initial shift state (no-op) */
-		return (0);
+	gs = (_GB2312State *)gs;
+
+	if (s == NULL) {
+		s = "";
+		n = 1;
+		pwc = NULL;
+	}
+
+	ncopy = MIN(MIN(n, MB_CUR_MAX), sizeof(gs->bytes) - gs->count);
+	memcpy(gs->bytes + gs->count, s, ncopy);
+	ocount = gs->count;
+	gs->count += ncopy;
+	s = (char *)gs->bytes;
+	n = gs->count;
+
 	if ((len = _GB2312_check(s, n)) < 0)
 		return ((size_t)len);
 	wc = 0;
@@ -93,7 +123,8 @@ _GB2312_mbrtowc(wchar_t * __restrict pwc, const char * __restrict s, size_t n,
 		wc = (wc << 8) | (unsigned char)*s++;
 	if (pwc != NULL)
 		*pwc = wc;
-	return (wc == L'\0' ? 0 : len);
+	gs->count = 0;
+	return (wc == L'\0' ? 0 : len - ocount);
 }
 
 size_t

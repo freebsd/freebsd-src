@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002, 2003 Tim J. Robbins
+ * Copyright (c) 2002-2004 Tim J. Robbins
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,23 +24,29 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
+#include <sys/param.h>
 __FBSDID("$FreeBSD$");
 
 #include <errno.h>
 #include <runetype.h>
-#include <stddef.h>
-#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <wchar.h>
 
 extern size_t (*__mbrtowc)(wchar_t * __restrict, const char * __restrict,
     size_t, mbstate_t * __restrict);
+extern int (*__mbsinit)(const mbstate_t *);
 extern size_t (*__wcrtomb)(char * __restrict, wchar_t, mbstate_t * __restrict);
 
-size_t  _UTF8_mbrtowc(wchar_t * __restrict, const char * __restrict, size_t,
+size_t	_UTF8_mbrtowc(wchar_t * __restrict, const char * __restrict, size_t,
 	    mbstate_t * __restrict);
-size_t  _UTF8_wcrtomb(char * __restrict, wchar_t, mbstate_t * __restrict);
+int	_UTF8_mbsinit(const mbstate_t *);
+size_t	_UTF8_wcrtomb(char * __restrict, wchar_t, mbstate_t * __restrict);
+
+typedef struct {
+	int	count;
+	u_char	bytes[6];
+} _UTF8State;
 
 int
 _UTF8_init(_RuneLocale *rl)
@@ -48,22 +54,44 @@ _UTF8_init(_RuneLocale *rl)
 
 	__mbrtowc = _UTF8_mbrtowc;
 	__wcrtomb = _UTF8_wcrtomb;
+	__mbsinit = _UTF8_mbsinit;
 	_CurrentRuneLocale = rl;
 	__mb_cur_max = 6;
 
 	return (0);
 }
 
+int
+_UTF8_mbsinit(const mbstate_t *ps)
+{
+
+	return (ps == NULL || ((_UTF8State *)ps)->count == 0);
+}
+
 size_t
 _UTF8_mbrtowc(wchar_t * __restrict pwc, const char * __restrict s, size_t n,
-    mbstate_t * __restrict ps __unused)
+    mbstate_t * __restrict ps)
 {
-	int ch, i, len, mask;
+	_UTF8State *us;
+	int ch, i, len, mask, ocount;
 	wchar_t lbound, wch;
+	size_t ncopy;
 
-	if (s == NULL)
-		/* Reset to initial shift state (no-op) */
-		return (0);
+	us = (_UTF8State *)ps;
+
+	if (s == NULL) {
+		s = "";
+		n = 1;
+		pwc = NULL;
+	}
+
+	ncopy = MIN(MIN(n, MB_CUR_MAX), sizeof(us->bytes) - us->count);
+	memcpy(us->bytes + us->count, s, ncopy);
+	ocount = us->count;
+	us->count += ncopy;
+	s = (char *)us->bytes;
+	n = us->count;
+
 	if (n == 0)
 		/* Incomplete multibyte sequence */
 		return ((size_t)-2);
@@ -143,7 +171,8 @@ _UTF8_mbrtowc(wchar_t * __restrict pwc, const char * __restrict s, size_t n,
 	}
 	if (pwc != NULL)
 		*pwc = wch;
-	return (wch == L'\0' ? 0 : len);
+	us->count = 0;
+	return (wch == L'\0' ? 0 : len - ocount);
 }
 
 size_t

@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 2002, 2003 Tim J. Robbins. All rights reserved.
+ * Copyright (c) 2002-2004 Tim J. Robbins. All rights reserved.
+ *
  *    ja_JP.SJIS locale table for BSD4.4/rune
  *    version 1.0
  *    (C) Sin'ichiro MIYATANI / Phase One, Inc
@@ -35,22 +36,29 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)mskanji.c	1.0 (Phase One) 5/5/95";
 #endif /* LIBC_SCCS and not lint */
-#include <sys/cdefs.h>
+#include <sys/param.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
 #include <runetype.h>
 #include <stdlib.h>
+#include <string.h>
 #include <wchar.h>
 
 extern size_t (*__mbrtowc)(wchar_t * __restrict, const char * __restrict,
     size_t, mbstate_t * __restrict);
+extern int (*__mbsinit)(const mbstate_t *);
 extern size_t (*__wcrtomb)(char * __restrict, wchar_t, mbstate_t * __restrict);
 
 int	_MSKanji_init(_RuneLocale *);
-size_t  _MSKanji_mbrtowc(wchar_t * __restrict, const char * __restrict, size_t,
+size_t	_MSKanji_mbrtowc(wchar_t * __restrict, const char * __restrict, size_t,
 	    mbstate_t * __restrict);
-size_t  _MSKanji_wcrtomb(char * __restrict, wchar_t, mbstate_t * __restrict);
+int	_MSKanji_mbsinit(const mbstate_t *);
+size_t	_MSKanji_wcrtomb(char * __restrict, wchar_t, mbstate_t * __restrict);
+
+typedef struct {
+	int	count;
+	u_char	bytes[2];
+} _MSKanjiState;
 
 int
 _MSKanji_init(_RuneLocale *rl)
@@ -58,21 +66,43 @@ _MSKanji_init(_RuneLocale *rl)
 
 	__mbrtowc = _MSKanji_mbrtowc;
 	__wcrtomb = _MSKanji_wcrtomb;
+	__mbsinit = _MSKanji_mbsinit;
 	_CurrentRuneLocale = rl;
 	__mb_cur_max = 2;
 	return (0);
 }
 
+int
+_MSKanji_mbsinit(const mbstate_t *ps)
+{
+
+	return (ps == NULL || ((_MSKanjiState *)ps)->count == 0);
+}
+
 size_t
 _MSKanji_mbrtowc(wchar_t * __restrict pwc, const char * __restrict s, size_t n,
-    mbstate_t * __restrict ps __unused)
+    mbstate_t * __restrict ps)
 {
+	_MSKanjiState *ms;
 	wchar_t wc;
-	int len;
+	int len, ocount;
+	size_t ncopy;
 
-	if (s == NULL)
-		/* Reset to initial shift state (no-op) */
-		return (0);
+	ms = (_MSKanjiState *)ps;
+
+	if (s == NULL) {
+		s = "";
+		n = 1;
+		pwc = NULL;
+	}
+
+	ncopy = MIN(MIN(n, MB_CUR_MAX), sizeof(ms->bytes) - ms->count);
+	memcpy(ms->bytes + ms->count, s, ncopy);
+	ocount = ms->count;
+	ms->count += ncopy;
+	s = (char *)ms->bytes;
+	n = ms->count;
+
 	if (n == 0)
 		/* Incomplete multibyte sequence */
 		return ((size_t)-2);
@@ -87,7 +117,8 @@ _MSKanji_mbrtowc(wchar_t * __restrict pwc, const char * __restrict s, size_t n,
 	}
 	if (pwc != NULL)
 		*pwc = wc;
-	return (wc == L'\0' ? 0 : len);
+	ms->count = 0;
+	return (wc == L'\0' ? 0 : len - ocount);
 }
 
 size_t
@@ -99,7 +130,6 @@ _MSKanji_wcrtomb(char * __restrict s, wchar_t wc,
 	if (s == NULL)
 		/* Reset to initial shift state (no-op) */
 		return (1);
-
 	len = (wc > 0x100) ? 2 : 1;
 	for (i = len; i-- > 0; )
 		*s++ = wc >> (i << 3);

@@ -36,23 +36,29 @@
 /* UTF2 is obsolete and will be removed in FreeBSD 6 -- use UTF-8 instead. */
 #define	OBSOLETE_IN_6
 
-#include <sys/cdefs.h>
+#include <sys/param.h>
 __FBSDID("$FreeBSD$");
 
 #include <errno.h>
 #include <runetype.h>
-#include <stddef.h>
-#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <wchar.h>
 
 extern size_t (*__mbrtowc)(wchar_t * __restrict, const char * __restrict,
     size_t, mbstate_t * __restrict);
+extern int (*__mbsinit)(const mbstate_t *);
 extern size_t (*__wcrtomb)(char * __restrict, wchar_t, mbstate_t * __restrict);
 
-size_t  _UTF2_mbrtowc(wchar_t * __restrict, const char * __restrict, size_t,
+size_t	_UTF2_mbrtowc(wchar_t * __restrict, const char * __restrict, size_t,
 	    mbstate_t * __restrict);
-size_t  _UTF2_wcrtomb(char * __restrict, wchar_t, mbstate_t * __restrict);
+int	_UTF2_mbsinit(const mbstate_t *);
+size_t	_UTF2_wcrtomb(char * __restrict, wchar_t, mbstate_t * __restrict);
+
+typedef struct {
+	int	count;
+	u_char	bytes[3];
+} _UTF2State;
 
 int
 _UTF2_init(_RuneLocale *rl)
@@ -60,21 +66,44 @@ _UTF2_init(_RuneLocale *rl)
 
 	__mbrtowc = _UTF2_mbrtowc;
 	__wcrtomb = _UTF2_wcrtomb;
+	__mbsinit = _UTF2_mbsinit;
 	_CurrentRuneLocale = rl;
 	__mb_cur_max = 3;
 
 	return (0);
 }
 
+int
+_UTF2_mbsinit(const mbstate_t *ps)
+{
+
+	return (ps == NULL || ((_UTF2State *)ps)->count == 0);
+}
+
 size_t
 _UTF2_mbrtowc(wchar_t * __restrict pwc, const char * __restrict s, size_t n,
-    mbstate_t * __restrict ps __unused)
+    mbstate_t * __restrict ps)
 {
-	int ch, i, len, mask;
+	_UTF2State *us;
+	int ch, i, len, mask, ocount;
 	wchar_t wch;
+	size_t ncopy;
 
-	if (s == NULL)
-		return (0);
+	us = (_UTF2State *)ps;
+
+	if (s == NULL) {
+		s = "";
+		n = 1;
+		pwc = NULL;
+	}
+
+	ncopy = MIN(MIN(n, MB_CUR_MAX), sizeof(us->bytes) - us->count);
+	memcpy(us->bytes + us->count, s, ncopy);
+	ocount = us->count;
+	us->count += ncopy;
+	s = (char *)us->bytes;
+	n = us->count;
+
 	if (n == 0)
 		return ((size_t)-2);
 
@@ -108,7 +137,8 @@ _UTF2_mbrtowc(wchar_t * __restrict pwc, const char * __restrict s, size_t n,
 	}
 	if (pwc != NULL)
 		*pwc = wch;
-	return (wch == L'\0' ? 0 : len);
+	us->count = 0;
+	return (wch == L'\0' ? 0 : len - ocount);
 }
 
 size_t
@@ -119,6 +149,7 @@ _UTF2_wcrtomb(char * __restrict s, wchar_t wc,
 	int i, len;
 
 	if (s == NULL)
+		/* Reset to initial conversion state. */
 		return (1);
 
 	if ((wc & ~0x7f) == 0) {
