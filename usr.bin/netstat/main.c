@@ -241,7 +241,6 @@ main(argc, argv)
 			for (cp = interface = optarg; isalpha(*cp); cp++)
 				continue;
 			unit = atoi(cp);
-			*cp = '\0';
 			break;
 		}
 		case 'i':
