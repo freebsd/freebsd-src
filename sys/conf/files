@@ -210,6 +210,20 @@ dev/pdq/pdq.c		optional fea
 dev/pdq/pdq_ifsubr.c	optional fea
 dev/pdq/pdq.c		optional fpa
 dev/pdq/pdq_ifsubr.c	optional fpa
+ppbus_if.o		optional ppbus					\
+	dependency	"ppbus_if.c ppbus_if.h"				\
+	compile-with	"${NORMAL_C}"					\
+	no-implicit-rule local
+ppbus_if.c		optional ppbus					\ 
+	dependency	"$S/kern/makedevops.pl $S/dev/ppbus/ppbus_if.m" \
+	compile-with	"perl5 $S/kern/makedevops.pl -c $S/dev/ppbus/ppbus_if.m" \
+	no-obj no-implicit-rule before-depend local			\
+	clean		"ppbus_if.c"
+ppbus_if.h		optional ppbus					\ 
+	dependency	"$S/kern/makedevops.pl $S/dev/ppbus/ppbus_if.m" \
+	compile-with	"perl5 $S/kern/makedevops.pl -h $S/dev/ppbus/ppbus_if.m" \
+	no-obj no-implicit-rule before-depend				\
+	clean		"ppbus_if.h"
 dev/ppbus/immio.c	optional vpo
 dev/ppbus/if_plip.c	optional plip
 dev/ppbus/lpbb.c	optional lpbb
