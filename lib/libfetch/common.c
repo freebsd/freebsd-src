@@ -35,7 +35,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/uio.h>
 #include <netinet/in.h>
 
-#include <ctype.h> /* XXX */
 #include <errno.h>
 #include <netdb.h>
 #include <stdarg.h>
@@ -263,6 +262,55 @@ _fetch_connect(const char *host, int port, int af, int verbose)
 	return (conn);
 }
 
+
+/*
+ * Enable SSL on a connection.
+ */
+int
+_fetch_ssl(conn_t *conn, int verbose)
+{
+
+	/* Init the SSL library and context */
+	if (!SSL_library_init()){
+		fprintf(stderr, "SSL library init failed\n");
+		return (-1);
+	}
+
+	SSL_load_error_strings();
+
+	conn->ssl_meth = SSLv23_client_method();
+	conn->ssl_ctx = SSL_CTX_new(conn->ssl_meth);
+
+	conn->ssl = SSL_new(conn->ssl_ctx);
+	if (conn->ssl == NULL){
+		fprintf(stderr, "SSL context creation failed\n");
+		return (-1);
+	}
+	SSL_set_fd(conn->ssl, conn->sd);
+	if (SSL_connect(conn->ssl) == -1){
+		ERR_print_errors_fp(stderr);
+		return (-1);
+	}
+
+	if (verbose) {
+		X509_NAME *name;
+		char *str;
+
+		fprintf(stderr, "SSL connection established using %s\n",
+		    SSL_get_cipher(conn->ssl));
+		conn->ssl_cert = SSL_get_peer_certificate(conn->ssl);
+		name = X509_get_subject_name(conn->ssl_cert);
+		str = X509_NAME_oneline(name, 0, 0);
+		printf("Certificate subject: %s\n", str);
+		free(str);
+		name = X509_get_issuer_name(conn->ssl_cert);
+		str = X509_NAME_oneline(name, 0, 0);
+		printf("Certificate issuer: %s\n", str);
+		free(str);
+	}
+
+	return (0);
+}
 
 /*
  * Read a character from a connection w/ timeout
