@@ -253,7 +253,7 @@ SYMLINKS+=libncurses_p.a ${LIBDIR}/libtinfo_p.a
 DOCSDIR= /usr/share/doc/ncurses
 DOCS=	ncurses-intro.html hackguide.html
 
-.if !defined(NOHTML)
+.if !defined(NO_HTML)
 .PATH: ${NCURSES}/doc/html
 FILESGROUPS=	DOCS
 .endif
