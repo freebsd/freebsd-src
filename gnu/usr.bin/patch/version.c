@@ -13,12 +13,12 @@
 #include "patchlevel.h"
 #include "version.h"
 
-void my_exit();
+void	my_exit(int _status);		/* in patch.c */
 
 /* Print out the version number and die. */
 
 void
-version()
+version(void)
 {
     fprintf(stderr, "Patch version %s\n", PATCH_VERSION);
     my_exit(0);

@@ -6,4 +6,4 @@
  *
  */
 
-void version();
+void version(void);
