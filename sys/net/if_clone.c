@@ -94,9 +94,10 @@ LIST_HEAD(, if_clone)	if_cloners = LIST_HEAD_INITIALIZER(if_cloners);
 		if (--(ifc)->ifc_refcnt == 0) {				\
 			IF_CLONE_UNLOCK(ifc);				\
 			if_clone_free(ifc);				\
+		} else {						\
+			/* silently free the lock */			\
+			IF_CLONE_UNLOCK(ifc);				\
 		}							\
-		/* silently free the lock */				\
-		IF_CLONE_UNLOCK(ifc);					\
 	} while (0)
 
 MALLOC_DEFINE(M_CLONE, "clone", "interface cloning framework");
