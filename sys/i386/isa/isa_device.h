@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa_device.h	7.1 (Berkeley) 5/9/91
- *	$Id: isa_device.h,v 1.4 1993/12/19 00:50:42 wollman Exp $
+ *	$Id: isa_device.h,v 1.5 1994/01/04 20:06:30 nate Exp $
  */
 
 #ifndef _I386_ISA_ISA_DEVICE_H_
@@ -41,21 +41,38 @@
  * ISA Bus Autoconfiguration
  */
 
+#define	IDTVEC(name)	__CONCAT(X,name)
+
+/*
+ * Type of the first (asm) part of an interrupt handler.
+ */
+typedef void inthand_t __P((u_int cs, u_int ef, u_int esp, u_int ss));
+
+/*
+ * Usual type of the second (C) part of an interrupt handler.  Some bogus
+ * ones need the arg to be the interrupt frame (and not a copy of it, which
+ * is all that is possible in C).
+ */
+typedef void inthand2_t __P((int unit));
+
 /*
  * Per device structure.
  */
 struct isa_device {
+	int	id_id;		/* device id */
 	struct	isa_driver *id_driver;
 	short	id_iobase;	/* base i/o address */
 	u_short	id_irq;		/* interrupt request */
 	short	id_drq;		/* DMA request */
 	caddr_t id_maddr;	/* physical i/o memory address on bus (if any)*/
 	int	id_msize;	/* size of i/o memory */
-	void	(*id_intr)();	/* interrupt interface routine */
+	inthand2_t *id_intr;	/* interrupt interface routine */
 	int	id_unit;	/* unit number */
 	int	id_flags;	/* flags */
 	int	id_scsiid;	/* scsi id if needed */
 	int	id_alive;	/* device is present */
+#define	RI_FAST		1		/* fast interrupt handler */
+	u_int	id_ri_flags;	/* flags for register_intr() */
 };
 
 /*
@@ -66,17 +83,49 @@ struct isa_device {
  * These are used at boot time by the configuration program.
  */
 struct isa_driver {
-	int	(*probe)();		/* test whether device is present */
-	int	(*attach)();		/* setup driver for a device */
+	int	(*probe) __P((struct isa_device *idp));
+					/* test whether device is present */
+	int	(*attach) __P((struct isa_device *idp));
+					/* setup driver for a device */
 	char	*name;			/* device name */
 };
+
+extern char eintrnames[];	/* end of intrnames[] */
+extern u_long intrcnt[];	/* counts for for each device and stray */
+extern char intrnames[];	/* string table containing device names */
+u_long	*intr_countp[];		/* indirectors into intrcnt[] */
+inthand2_t *intr_handler[];	/* C entry points of intr handlers */
+u_int	intr_mask[];		/* sets of intrs masked during handling of 1 */
+int	intr_unit[];		/* cookies to pass to intr handlers */
 
 extern struct isa_device isa_devtab_bio[], isa_devtab_tty[], isa_devtab_net[],
 		isa_devtab_null[], isa_biotab_wdc[], isa_biotab_fdc[];
 
-extern struct isa_device *find_isadev(/* table, driver, unit*/);
-
-extern void isa_dmastart(int, caddr_t, unsigned, unsigned);
-extern void isa_dmadone(int, caddr_t, int, int);
+inthand_t
+	IDTVEC(fastintr0), IDTVEC(fastintr1),
+	IDTVEC(fastintr2), IDTVEC(fastintr3),
+	IDTVEC(fastintr4), IDTVEC(fastintr5),
+	IDTVEC(fastintr6), IDTVEC(fastintr7),
+	IDTVEC(fastintr8), IDTVEC(fastintr9),
+	IDTVEC(fastintr10), IDTVEC(fastintr11),
+	IDTVEC(fastintr12), IDTVEC(fastintr13),
+	IDTVEC(fastintr14), IDTVEC(fastintr15);
+struct isa_device *find_isadev __P((struct isa_device *table,
+				    struct isa_driver *driverp, int unit));
+inthand_t
+	IDTVEC(intr0), IDTVEC(intr1), IDTVEC(intr2), IDTVEC(intr3),
+	IDTVEC(intr4), IDTVEC(intr5), IDTVEC(intr6), IDTVEC(intr7),
+	IDTVEC(intr8), IDTVEC(intr9), IDTVEC(intr10), IDTVEC(intr11),
+	IDTVEC(intr12), IDTVEC(intr13), IDTVEC(intr14), IDTVEC(intr15);
+void isa_configure __P((void));
+void isa_defaultirq __P((void));
+void isa_dmacascade __P((unsigned chan));
+void isa_dmadone __P((int, caddr_t, int, int));
+void isa_dmastart __P((int, caddr_t, unsigned, unsigned));
+int isa_irq_pending __P((struct isa_device *dvp));
+int isa_nmi __P((int cd));
+int register_intr __P((int intr, int device_id, u_int flags,
+		       inthand2_t *handler, u_int mask, int unit));
+int unregister_intr __P((int intr, inthand2_t *handler));
 
 #endif /* _I386_ISA_ISA_DEVICE_H_ */
