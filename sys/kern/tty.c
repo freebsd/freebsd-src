@@ -2234,6 +2234,8 @@ ttyinfo(tp)
 	register struct proc *p, *pick;
 	struct timeval utime, stime;
 	int tmp;
+	const char *s;
+	long l;
 
 	if (ttycheckoutq(tp,0) == 0)
 		return;
@@ -2255,11 +2257,14 @@ ttyinfo(tp)
 				pick = p;
 
 		mtx_enter(&sched_lock, MTX_SPIN);
+		s = pick->p_stat == SRUN ? "running" :
+		    pick->p_wmesg ? pick->p_wmesg : "iowait";
+		mtx_exit(&sched_lock, MTX_SPIN);
 		ttyprintf(tp, " cmd: %s %d [%s] ", pick->p_comm, pick->p_pid,
-		    pick->p_stat == SRUN ? "running" :
-		    pick->p_wmesg ? pick->p_wmesg : "iowait");
-
+		    s);
+		mtx_enter(&sched_lock, MTX_SPIN);
 		if (pick->p_flag & P_INMEM) {
+			mtx_exit(&sched_lock, MTX_SPIN);
 			calcru(pick, &utime, &stime, NULL);
 
 			/* Print user time. */
@@ -2269,17 +2274,23 @@ ttyinfo(tp)
 			/* Print system time. */
 			ttyprintf(tp, "%ld.%02lds ",
 			    stime.tv_sec, stime.tv_usec / 10000);
-		} else
+		} else {
+			mtx_exit(&sched_lock, MTX_SPIN);
 			ttyprintf(tp, "?.??u ?.??s ");
+		}
 
 		/* Print percentage cpu, resident set size. */
+		mtx_enter(&sched_lock, MTX_SPIN);
 		tmp = (pick->p_pctcpu * 10000 + FSCALE / 2) >> FSHIFT;
-		ttyprintf(tp, "%d%% %ldk\n",
-		    tmp / 100,
-		    pick->p_stat == SIDL || pick->p_stat == SWAIT ||
-		    pick->p_stat == SZOMB ? 0 :
-		    (long)pgtok(vmspace_resident_count(pick->p_vmspace)));
-		mtx_exit(&sched_lock, MTX_SPIN);
+		if (pick->p_stat == SIDL || pick->p_stat == SWAIT ||
+		    pick->p_stat == SZOMB) {
+			mtx_exit(&sched_lock, MTX_SPIN);
+			l = 0;
+		} else {
+			mtx_exit(&sched_lock, MTX_SPIN);
+			l = pgtok(vmspace_resident_count(pick->p_vmspace));
+		}
+		ttyprintf(tp, "%d%% %ldk\n", tmp / 100, l);
 	}
 	tp->t_rocount = 0;	/* so pending input will be retyped if BS */
 }
