@@ -255,9 +255,11 @@ int main(int argc, char **argv)
 void acquire_line()
 {
 	int ttydisc = TTYDISC;
+	int oflags;
 	FILE *pidfile;
 
-	if (ioctl(fd, TIOCSETD, &ttydisc) < 0) { /* reset to tty discipline */
+	/* reset to tty discipline */
+	if (fd >= 0 && ioctl(fd, TIOCSETD, &ttydisc) < 0) {
 		syslog(LOG_ERR, "ioctl(TIOCSETD): %m");
 		exit_handler(1);
 	}
@@ -299,6 +301,15 @@ void acquire_line()
 		syslog(LOG_ERR, "open(%s) %m", dev);
 		exit_handler(1);
 	}
+	/* Turn off O_NONBLOCK for dumb redialers, if any. */
+	if ((oflags = fcntl(fd, F_GETFL)) == -1) {
+		syslog(LOG_ERR, "fcntl(F_GETFL) failed: %m");
+		exit_handler(1);
+	}
+	if (fcntl(fd, F_SETFL, oflags & ~O_NONBLOCK) == -1) {
+		syslog(LOG_ERR, "fcntl(F_SETFL) failed: %m");
+		exit_handler(1);
+	}
 	(void)dup2(fd, STDIN_FILENO);
 	(void)dup2(fd, STDOUT_FILENO);
 	(void)dup2(fd, STDERR_FILENO);
@@ -323,7 +334,8 @@ void setup_line(int cflag)
 {
 	tty.c_lflag = tty.c_iflag = tty.c_oflag = 0;
 	tty.c_cflag = CREAD | CS8 | flow_control | modem_control | cflag;
-	cfsetspeed(&tty, speed);
+	cfsetispeed(&tty, speed);
+	cfsetospeed(&tty, speed);
 	/* set the line speed and flow control */
 	if (tcsetattr(fd, TCSAFLUSH, &tty) < 0) {
 		syslog(LOG_ERR, "tcsetattr(TCSAFLUSH): %m");
@@ -434,7 +446,7 @@ void configure_network()
 	}
 }
 
-/* signup_handler() is invoked when carrier drops, eg. before redial. */
+/* sighup_handler() is invoked when carrier drops, eg. before redial. */
 void sighup_handler()
 {
 	int ttydisc = TTYDISC;
@@ -477,6 +489,14 @@ again:
 		} else
 			setup_line(0);
 	} else {
+#if 0
+		/*
+		 * XXX should do this except we are called from main() via
+		 * kill(getpid(), SIGHUP).  Ick.
+		 */
+		syslog(LOG_NOTICE, "SIGHUP on %s (sl%d); exiting", dev, unit);
+		exit_handler(0);
+#endif
 		if (ioctl(fd, TIOCSETD, &ttydisc) < 0) {
 			syslog(LOG_ERR, "ioctl(TIOCSETD): %m");
 			exit_handler(1);
