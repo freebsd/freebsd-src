@@ -232,6 +232,8 @@ static symtab_t pnpprod[] = {
     { "KYE0005",	MOUSE_PROTO_KIDSPAD,	MOUSE_MODEL_KIDSPAD },
     /* Genius EZScroll */
     { "KYEEZ00",	MOUSE_PROTO_MS,		MOUSE_MODEL_EASYSCROLL },  
+    /* Logitech Cordless MouseMan Wheel */
+    { "LGI8033",	MOUSE_PROTO_INTELLI,	MOUSE_MODEL_MOUSEMANPLUS },
     /* Logitech MouseMan (new 4 button model) */
     { "LGI800C",	MOUSE_PROTO_INTELLI,	MOUSE_MODEL_MOUSEMANPLUS },
     /* Logitech MouseMan+ */
