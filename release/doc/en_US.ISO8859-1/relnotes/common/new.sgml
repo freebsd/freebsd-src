@@ -1331,7 +1331,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	usermode has been added to <filename>/usr/share/examples/scsi_target</filename> that
 	emulates a direct access device.</para>
 
-      <para arch="i386" role="historic">The ciss driver, for devices utilizing the
+      <para arch="i386" role="historic">The &man.ciss.4; driver, for devices utilizing the
 	Common Interface for SCSI-3 Support, has been added.  This
 	driver supports the Compaq SmartRAID 5* family of RAID
 	controllers (5300, 532, 5i). &merged;</para>
@@ -1377,10 +1377,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
 	</para>
 
-      <para role="historic">The ida disk driver now has crashdump
+      <para role="historic">The &man.ida.4; disk driver now has crashdump
 	support. &merged;</para>
 
-      <para arch="i386" role="historic">The iir driver has been added to support the
+      <para arch="i386" role="historic">The &man.iir.4; driver has been added to support the
 	Intel Integrated RAID controllers, as well as prior ICP Vortex
 	controllers.</para>
 
