@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.36 1998/03/28 11:49:06 dufault Exp $
+#	$Id: Makefile,v 1.37 1998/09/03 21:52:04 dfr Exp $
 
 MAN9=	MD5.9 \
 	VFS.9 VFS_FHTOVP.9 VFS_INIT.9 VFS_MOUNT.9 VFS_QUOTACTL.9 \
@@ -12,7 +12,7 @@ MAN9=	MD5.9 \
 	VOP_READLINK.9 VOP_REALLOCBLKS.9 VOP_REMOVE.9 VOP_RENAME.9 \
 	VOP_STRATEGY.9 \
 	at_exit.9 at_fork.9 at_shutdown.9 bios.9 boot.9 cd.9 copy.9 \
-	devfs_add_devswf.9 devfs_link.9 devfs_remove_dev.9 \
+	devfs_add_devswf.9 devfs_link.9 devfs_remove_dev.9 devstat.9 \
 	fetch.9 ifnet.9 inittodr.9 intro.9 kernacc.9 malloc.9 \
 	mi_switch.9 panic.9 physio.9 posix4.9 psignal.9 \
 	resettodr.9 rtalloc.9 rtentry.9 scsiconf.9 sd.9 sleep.9 spl.9 st.9 \
@@ -53,6 +53,7 @@ MLINKS+=at_exit.9 rm_at_exit.9
 MLINKS+=at_fork.9 rm_at_fork.9
 MLINKS+=at_shutdown.9 rm_at_shutdown.9
 MLINKS+=copy.9 copyin.9 copy.9 copyinstr.9 copy.9 copyout.9 copy.9 copystr.9
+MLINKS+=devstat.9 devicestat.9
 MLINKS+=fetch.9 fubyte.9 fetch.9 fuswintr.9 fetch.9 fusword.9 fetch.9 fuword.9
 MLINKS+=ifnet.9 if_data.9 ifnet.9 ifaddr.9 ifnet.9 ifqueue.9
 MLINKS+=kernacc.9 useracc.9
