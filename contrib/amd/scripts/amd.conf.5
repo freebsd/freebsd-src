@@ -38,7 +38,7 @@
 .\"
 .\"	%W% (Berkeley) %G%
 .\"
-.\" $Id: amd.conf.5,v 1.4 1998/09/12 04:04:59 obrien Exp $
+.\" $Id: amd.conf.5,v 1.5 1998/11/20 08:12:05 obrien Exp $
 .\"
 .Dd April 7, 1997
 .Dt AMD.CONF 5
@@ -60,8 +60,8 @@ automounter program.
 .Sh FILE FORMAT
 The file consists of sections and parameters.  A section begins with the
 name of the section in square brackets and continues until the next section
-begins or the end the file is reached.  Sections contain parameters of the
-form 
+begins or the end of the file is reached.  Sections contain parameters of
+the form 
 .Sq name = value .
 .Pp
 The file is line-based - that is, each newline-terminated line represents
@@ -222,7 +222,7 @@ cluster to use.
 Same as the 
 .Fl D
 option to
-.Fl amd .
+.Nm amd .
 Specify any debugging options for
 .Nm amd .
 Works only if am-utils was configured for debugging using the
@@ -577,7 +577,7 @@ follows:
     wire==slip-net;opts:=intr,rsize=1024,wsize=1024 \\
     wire!=slip-net;opts:=intr,rsize=8192,wsize=8192
 .Ed
-.It Nm show_statfs_entries (boolean), default=no)
+.It Nm show_statfs_entries (boolean, default=no)
 If
 .Dq yes ,
 then all maps which are browsable will also show the number of entries
@@ -588,7 +588,7 @@ runs.
 .Po This is accomplished by returning non-zero values to the
 .Xr statfs 2
 .Pc system call .
-.It Nm unmount_on_exist (boolean), default=no)
+.It Nm unmount_on_exist (boolean, default=no)
 If
 .Dq yes ,
 then 
@@ -601,7 +601,7 @@ leaves all
 mounted filesystems intact.  Note that
 .Nm amd
 does not know about file systems mounted before it starts up, unless the
-.AR restart_mounts
+.Ar restart_mounts
 option or
 .Fl r
 flag are used.
