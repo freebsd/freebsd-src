@@ -119,6 +119,8 @@ void	logerr(char *);
 void	reset_slot(struct slot *);
 void	execute(struct cmd *);
 unsigned long alloc_memory(int size);
+int	bit_fns(bitstr_t *nm, int nbits, int count);
+void	readfile(char *name);
 
 #define	IOPORTS	0x400
 #define	MEMUNIT	0x1000

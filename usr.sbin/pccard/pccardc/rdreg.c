@@ -1,21 +1,12 @@
 #include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <fcntl.h>
 #include <sys/types.h>
 #include <sys/ioctl.h>
 
 #include <pccard/card.h>
-int
-rdreg_main(argc, argv)
-int	argc;
-char	*argv[];
-{
-	if (argc != 2)
-		{
-		dumpslot(0);
-		dumpslot(1);
-		}
-	else
-		dumpslot(atoi(argv[1]));
-}
+void
 dumpslot(sl)
 int	sl;
 {
@@ -46,3 +37,18 @@ struct pcic_reg r;
 		}
 	close(fd);
 }
+int
+rdreg_main(argc, argv)
+int	argc;
+char	*argv[];
+{
+	if (argc != 2)
+		{
+		dumpslot(0);
+		dumpslot(1);
+		}
+	else
+		dumpslot(atoi(argv[1]));
+	return 0;
+}
+

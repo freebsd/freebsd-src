@@ -15,41 +15,45 @@
 static int read_attr(int fd, char *bp, int len);
 struct tuple_list *read_one_tuplelist(int, int, off_t);
 int	ck_linktarget(int, off_t, int);
+void	cis_info(struct cis *cp, unsigned char *p, int len);
+void	device_desc(unsigned char *p, int len, struct dev_mem *dp);
+void	config_map(struct cis *cp, unsigned char *p, int len);
+void	cis_config(struct cis *cp, unsigned char *p, int len);
 
 struct tuple_info tuple_info[] =
 {
-	"Null tuple",							0x00, 0,
-	"Common memory descriptor",				0x01, 255,
-	"Checksum",								0x10, 5,
-	"Long link to attribute memory",		0x11, 4,
-	"Long link to common memory",			0x12, 4,
-	"Link target",							0x13, 3,
-	"No link",								0x14, 0,
-	"Version 1 info",						0x15, 255,
-	"Alternate language string",			0x16, 255,
-	"Attribute memory descriptor",			0x17, 255,
-	"JEDEC descr for common memory",		0x18, 255,
-	"JEDEC descr for attribute memory",		0x19, 255,
-	"Configuration map",					0x1A, 255,
-	"Configuration entry",					0x1B, 255,
-	"Other conditions for common memory",	0x1C, 255,
-	"Other conditions for attribute memory", 0x1D, 255,
-	"Geometry info for common memory",		0x1E, 255,
-	"Geometry info for attribute memory",	0x1F, 255,
-	"Manufacturer ID",						0x20, 4,
-	"Functional ID",						0x21, 255,
-	"Functional EXT",						0x22, 255,
-	"Software interleave",					0x23, 2,
-	"Version 2 Info",						0x40, 255,
-	"Data format",							0x41, 255,
-	"Geometry",								0x42, 4,
-	"Byte order",							0x43, 2,
-	"Card init date",						0x44, 4,
-	"Battery replacement",					0x45, 4,
-	"Organisation",							0x46, 255,
-	"Terminator",							0xFF, 255,
-	0, 0, 0
-	};
+    { "Null tuple",				0x00, 0 },
+    { "Common memory descriptor",		0x01, 255 },
+    { "Checksum",				0x10, 5 },
+    { "Long link to attribute memory",		0x11, 4 },
+    { "Long link to common memory",		0x12, 4 },
+    { "Link target",				0x13, 3 },
+    { "No link",				0x14, 0 },
+    { "Version 1 info",				0x15, 255 },
+    { "Alternate language string",		0x16, 255 },
+    { "Attribute memory descriptor",		0x17, 255 },
+    { "JEDEC descr for common memory",		0x18, 255 },
+    { "JEDEC descr for attribute memory",	0x19, 255 },
+    { "Configuration map",			0x1A, 255 },
+    { "Configuration entry",			0x1B, 255 },
+    { "Other conditions for common memory",	0x1C, 255 },
+    { "Other conditions for attribute memory",	0x1D, 255 },
+    { "Geometry info for common memory",	0x1E, 255 },
+    { "Geometry info for attribute memory",	0x1F, 255 },
+    { "Manufacturer ID",			0x20, 4 },
+    { "Functional ID",				0x21, 255 },
+    { "Functional EXT",				0x22, 255 },
+    { "Software interleave",			0x23, 2 },
+    { "Version 2 Info",				0x40, 255 },
+    { "Data format",				0x41, 255 },
+    { "Geometry",				0x42, 4 },
+    { "Byte order",				0x43, 2 },
+    { "Card init date",				0x44, 4 },
+    { "Battery replacement",			0x45, 4 },
+    { "Organisation",				0x46, 255 },
+    { "Terminator",				0xFF, 255 },
+    { 0, 0, 0 }
+    };
 
 /*
  *	After reading the tuples, decode the relevant ones.
@@ -106,10 +110,10 @@ struct cis_config *conf;
 struct tuple *tp;
 struct tuple_list *tl;
 
-	while (tl = cp->tlist)
+	while ((tl = cp->tlist) != 0)
 		{
 		cp->tlist = tl->next;
-		while (tp = tl->tuples)
+		while ((tp = tl->tuples) != 0)
 			{
 			tl->tuples = tp->next;
 			if (tp->data)
@@ -117,15 +121,15 @@ struct tuple_list *tl;
 			}
 		}
 
-	while (conf = cp->conf)
+	while ((conf = cp->conf) != 0)
 		{
 		cp->conf = conf->next;
-		while (io = conf->io)
+		while ((io = conf->io) != 0)
 			{
 			conf->io = io->next;
 			free(io);
 			}
-		while (mem = conf->mem)
+		while ((mem = conf->mem) != 0)
 			{
 			conf->mem = mem->next;
 			free(mem);
@@ -137,6 +141,7 @@ struct tuple_list *tl;
 /*
  *	Fills in CIS version data.
  */
+void
 cis_info(struct cis *cp, unsigned char *p, int len)
 {
 	cp->maj_v = *p++;
@@ -155,10 +160,8 @@ cis_info(struct cis *cp, unsigned char *p, int len)
 /*
  *	device_desc - decode device descriptor.
  */
-device_desc(p, len, dp)
-unsigned char *p;
-int	len;
-struct dev_mem *dp;
+void
+device_desc(unsigned char *p, int len, struct dev_mem *dp)
 {
 	while (len > 0 && *p != 0xFF)
 		{
@@ -179,10 +182,8 @@ struct dev_mem *dp;
 /*
  *	configuration map of card control register.
  */
-config_map(cp, p, len)
-struct cis *cp;
-unsigned char *p;
-int	len;
+void
+config_map(struct cis *cp, unsigned char *p, int len)
 {
 unsigned char *p1;
 int	i;
@@ -202,12 +203,10 @@ union {
 /*
  *	CIS config entry - Decode and build configuration entry.
  */
-cis_config(cp, p, len)
-struct cis *cp;
-unsigned char *p;
-int len;
+void
+cis_config(struct cis *cp, unsigned char *p, int len)
 {
-int	blks, x;
+int	x;
 int	i, j;
 union {
 	unsigned long l;
@@ -216,9 +215,10 @@ union {
 struct cis_config *conf, *last;
 struct cis_memblk *mem;
 unsigned char feat;
+struct cis_memblk *lastmem = 0;
 
 	conf = xmalloc(sizeof(*conf));
-	if (last = cp->conf)
+	if ((last = cp->conf) !=0)
 		{
 		while (last->next)
 			last = last->next;
@@ -351,14 +351,12 @@ unsigned char feat;
 		conf->memwins = CIS_MEM_WINS(x);
 		for (i = 0; i < conf->memwins; i++)
 			{
-			struct cis_memblk *last;
-
 			mem = xmalloc(sizeof(*mem));
 			if (i == 0)
 				conf->mem = mem;
 			else
-				last->next = mem;
-			last = mem;
+				lastmem->next = mem;
+			lastmem = mem;
 			u.l = 0;
 			for (j = 0 ; j < CIS_MEM_LENSZ(x); j++)
 				u.b[j] = *p++;
@@ -465,10 +463,10 @@ off_t	offs;
 struct tuple_list *
 read_one_tuplelist(int fd, int flags, off_t offs)
 {
-struct tuple *tp, *last_tp, *first = 0;
+struct tuple *tp, *last_tp = 0;
 struct tuple_list *tl;
 struct tuple_info *tinfo;
-int	i, total = 0;
+int	total = 0;
 unsigned char code, length;
 
 /*
@@ -567,7 +565,7 @@ struct tuple_list *tl;
 struct tuple *tp;
 
 	for (tl = sp->tlist; tl; tl = tl->next)
-		if (tp = find_tuple_in_list(tl, code))
+		if ((tp = find_tuple_in_list(tl, code)) != 0)
 			return(tp);
 	return(0);
 }

@@ -49,14 +49,17 @@ int	irq_tok(int);
 void setflags(struct flags *, int *);
 struct driver *new_driver(char *);
 
+void addcmd(struct cmd **cp);
+void parse_card();
+
 /*
  * Read a file and parse the pcmcia configuration data.
  * After parsing, verify the links.
  */
+void
 readfile(char *name)
 {
 struct card *cp;
-struct driver *drvp;
 
 	in = fopen(name, "r");
 	if (in == 0)
@@ -76,7 +79,6 @@ void
 parsefile()
 {
 int i;
-char	*s;
 struct allocblk *bp;
 
 	pushc = 0;
@@ -94,7 +96,7 @@ struct allocblk *bp;
  *	reserved I/O blocks
  */
 	case 1:
-		while (bp = ioblk_tok(0))
+		while ((bp = ioblk_tok(0)) != 0)
 			{
 			if (bp->size == 0 || bp->addr == 0)
 				{
@@ -119,7 +121,7 @@ struct allocblk *bp;
  *	reserved memory blocks.
  */
 	case 3:
-		while (bp = memblk_tok(0))
+		while ((bp = memblk_tok(0)) != 0)
 			{
 			if (bp->size == 0 || bp->addr == 0)
 				{
@@ -152,6 +154,7 @@ struct allocblk *bp;
 /*
  *	Parse a card definition.
  */
+void
 parse_card()
 {
 char	*man, *vers;
@@ -626,6 +629,7 @@ int set = 1;
  *	addcmd - Append the command line to the list of
  *	commands.
  */
+void
 addcmd(struct cmd **cp)
 {
 char *s = getline();
@@ -698,7 +702,7 @@ int
 num_tok()
 {
 char *s = next_tok(), c;
-int val=0, base, term=0;
+int val=0, base;
 
 	base = 10;
 	c = *s++;
@@ -752,7 +756,7 @@ int val=0, base, term=0;
 				return(-1);
 			break;
 			}
-		} while (c = *s++);
+		} while ((c = *s++) != 0);
 	return(val);
 }
 char *_next_tok();

@@ -6,8 +6,10 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <fcntl.h>
 #include <sys/ioctl.h>
 #include <sys/types.h>
+#include <sys/time.h>
 #include <syslog.h>
 #include <varargs.h>
 #include "cardd.h"
@@ -24,14 +26,16 @@ void	readslots();
 void	slot_change(struct slot *);
 void	card_removed(struct slot *);
 void	card_inserted(struct slot *);
+int	assign_io(struct slot *sp);
 
 /*
  *	mainline code for cardd
  */
+int
 main(int argc, char *argv[])
 {
 struct slot *sp;
-int mask, count, debug = 0, err = 0;
+int count, debug = 0;
 int	verbose = 0;
 extern char *optarg;
 extern int optind, optopt;
@@ -82,11 +86,13 @@ extern int optind, optopt;
 		die("No PC-CARD slots");
 	for (;;)
 		{
-		mask = 0;
+		fd_set mask;
+		FD_ZERO(&mask);
 		for (sp = slots; sp; sp = sp->next)
-			mask |= sp->mask;
+			FD_SET(sp->fd,&mask);
 printf("Doing select\n");
 		count = select(32, 0, 0, &mask, 0);
+printf("select=%d\n",count);
 		if (count == -1)
 			{
 			perror("Select");
@@ -94,7 +100,7 @@ printf("Doing select\n");
 			}
 		if (count)
 			for (sp = slots; sp; sp = sp->next)
-			if (mask & sp->mask)
+			if (FD_ISSET(sp->fd,&mask))
 				slot_change(sp);
 		}
 }
@@ -104,8 +110,6 @@ printf("Doing select\n");
 void
 dump_config_file()
 {
-struct driver *drvp;
-struct device *devp;
 struct card *cp;
 struct card_config *confp;
 
@@ -172,7 +176,6 @@ struct slot *sp;
 printf("opened %s\n",name);
 		sp = xmalloc(sizeof(*sp));
 		sp->fd = fd;
-		sp->mask = 1 << fd;
 		sp->name = newstr(name);
 		sp->slot = i;
 		sp->state = empty;
@@ -253,7 +256,6 @@ HERE();
 void
 card_removed(struct slot *sp)
 {
-struct driver *drvp;
 struct card *cp;
 
 HERE();
@@ -265,7 +267,7 @@ HERE();
 		sp->config->driver->inuse = 0;
 		}
 HERE();
-	if (cp = sp->card)
+	if ((cp = sp->card) != 0)
 		execute(cp->remove);
 HERE();
 	sp->cis = 0;
@@ -339,7 +341,7 @@ struct card *cp;
 void
 read_ether(struct slot *sp)
 {
-unsigned char net_addr[12], *p;
+unsigned char net_addr[12];
 
 	lseek(sp->fd, (off_t)sp->card->ether, SEEK_SET);
 	if (read(sp->fd, net_addr, sizeof(net_addr)) != sizeof(net_addr))
@@ -582,7 +584,6 @@ setup_slot(struct slot *sp)
 struct mem_desc mem;
 struct io_desc io;
 struct drv_desc drv;
-struct allocblk *ap;
 struct driver *drvp = sp->config->driver;
 char c;
 off_t offs;
