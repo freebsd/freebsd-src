@@ -923,6 +923,13 @@ out:
 			error = bowrite(bp);
 	}
 	dp->i_flag |= IN_CHANGE | IN_UPDATE;
+	/*
+	 * If the last named reference to a snapshot goes away,
+	 * drop its snapshot reference so that it will be reclaimed
+	 * when last open reference goes away.
+	 */
+	if (ip != 0 && (ip->i_flags & SF_SNAPSHOT) != 0 && ip->i_effnlink == 0)
+		vrele(ITOV(ip));
 	return (error);
 }
 
@@ -965,6 +972,13 @@ ufs_dirrewrite(dp, oip, newinum, newtype, isrmdir)
 		}
 	}
 	dp->i_flag |= IN_CHANGE | IN_UPDATE;
+	/*
+	 * If the last named reference to a snapshot goes away,
+	 * drop its snapshot reference so that it will be reclaimed
+	 * when last open reference goes away.
+	 */
+	if ((oip->i_flags & SF_SNAPSHOT) != 0 && oip->i_effnlink == 0)
+		vrele(ITOV(oip));
 	return (error);
 }
 
