@@ -854,7 +854,7 @@ doMFSKERN:
 	@rm -rf ${RD}/image.${FSIMAGE}
 	@mkdir  ${RD}/image.${FSIMAGE}
 	@cd ${RD}/kernels && \
-	  chflags noschg BOOTMFS && \
+	  (chflags noschg BOOTMFS || true) && \
 	  strip BOOTMFS && \
 	  cp BOOTMFS BOOTMFS.${FSIMAGE} && \
 	  [ -r BOOTMFS.hints ] && mv BOOTMFS.hints BOOTMFS.${FSIMAGE}.hints
