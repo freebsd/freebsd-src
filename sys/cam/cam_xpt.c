@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_xpt.c,v 1.42.2.13 1999/05/23 19:00:41 gibbs Exp $
+ *      $Id: cam_xpt.c,v 1.42.2.14 1999/05/25 20:27:27 gibbs Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -392,17 +392,12 @@ static struct xpt_quirk_entry xpt_quirk_table[] =
 	},
 	{
 		/* Really only one LUN */
-		{
-			T_ENCLOSURE, SIP_MEDIA_FIXED, "SUN", "SENA*", "*"
-		},
+		{ T_ENCLOSURE, SIP_MEDIA_FIXED, "SUN", "SENA*", "*" },
 		CAM_QUIRK_NOLUNS, /*mintags*/0, /*maxtags*/0
 	},
 	{
 		/* I can't believe we need a quirk for DPT volumes. */
-		{
-			T_ANY, SIP_MEDIA_FIXED|SIP_MEDIA_REMOVABLE,
-			"DPT", "*", "*"
-		},
+		{ T_ANY, SIP_MEDIA_FIXED|SIP_MEDIA_REMOVABLE, "DPT", "*", "*" },
 		CAM_QUIRK_NOSERIAL|CAM_QUIRK_NOLUNS,
 		/*mintags*/0, /*maxtags*/255
 	},
@@ -410,10 +405,7 @@ static struct xpt_quirk_entry xpt_quirk_table[] =
 		/*
 		 * Many Sony CDROM drives don't like multi-LUN probing.
 		 */
-		{
-			T_CDROM, SIP_MEDIA_REMOVABLE, sony,
-			"CD-ROM CDU*", "*"
-		},
+		{ T_CDROM, SIP_MEDIA_REMOVABLE, sony, "CD-ROM CDU*", "*" },
 		CAM_QUIRK_NOLUNS, /*mintags*/0, /*maxtags*/0
 	},
 	{
@@ -421,10 +413,7 @@ static struct xpt_quirk_entry xpt_quirk_table[] =
 		 * This drive doesn't like multiple LUN probing.
 		 * Submitted by:  Parag Patel <parag@cgt.com>
 		 */
-		{
-			T_WORM, SIP_MEDIA_REMOVABLE, sony,
-			"CD-R   CDU9*", "*"
-		},
+		{ T_WORM, SIP_MEDIA_REMOVABLE, sony, "CD-R   CDU9*", "*" },
 		CAM_QUIRK_NOLUNS, /*mintags*/0, /*maxtags*/0
 	},
 	{
@@ -467,6 +456,16 @@ static struct xpt_quirk_entry xpt_quirk_table[] =
 			T_SEQUENTIAL, SIP_MEDIA_REMOVABLE, "KENNEDY",
 			"96X2*", "*"
 		},
+		CAM_QUIRK_NOLUNS, /*mintags*/0, /*maxtags*/0
+	},
+	{
+		/* Submitted by: Matthew Dodd <winter@jurai.net> */
+		{ T_PROCESSOR, SIP_MEDIA_FIXED, "Cabletrn", "EA41*", "*" },
+		CAM_QUIRK_NOLUNS, /*mintags*/0, /*maxtags*/0
+	},
+	{
+		/* Submitted by: Matthew Dodd <winter@jurai.net> */
+		{ T_PROCESSOR, SIP_MEDIA_FIXED, "CABLETRN", "EA41*", "*" },
 		CAM_QUIRK_NOLUNS, /*mintags*/0, /*maxtags*/0
 	},
 	{
