@@ -33,14 +33,12 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumio.c,v 1.26 1999/10/12 04:31:54 grog Exp grog $
+ * $Id: vinumio.c,v 1.27 1999/12/31 02:49:14 grog Exp grog $
  * $FreeBSD$
  */
 
 #include <dev/vinum/vinumhdr.h>
 #include <dev/vinum/request.h>
-
-#include <vm/vm_zone.h>
 
 static char *sappend(char *txt, char *s);
 static int drivecmp(const void *va, const void *vb);
@@ -78,20 +76,20 @@ open_drive(struct drive *drive, struct proc *p, int verbose)
 		drive->devicename,
 		drive->vp->v_usecount);
     }
-    if (!vn_isdisk(drive->vp)) {			    /* only consider block devices */
-    	NDFREE(&nd, NDF_ONLY_PNBUF);
+    if (!vn_isdisk(drive->vp)) {			    /* only consider disks */
+	NDFREE(&nd, NDF_ONLY_PNBUF);
 	VOP_UNLOCK(drive->vp, 0, drive->p);
 	close_drive(drive);
 	drive->lasterror = ENOTBLK;
 	if (verbose)
 	    log(LOG_WARNING,
-		"vinum open_drive %s: Not a disk device\n",
+		"vinum open_drive %s: Not a block device\n",
 		drive->devicename);
 	return ENOTBLK;
     }
     drive->vp->v_numoutput = 0;
     VOP_UNLOCK(drive->vp, 0, drive->p);
-    NDFREE(&nd, NDF_NO_VP_RELE);
+    NDFREE(&nd, NDF_ONLY_PNBUF);
     return 0;
 }
 
@@ -238,7 +236,7 @@ void
 remove_drive(int driveno)
 {
     struct drive *drive = &vinum_conf.drive[driveno];
-    long long int nomagic = VINUM_NOMAGIC;		    /* no magic number */
+    int64_t nomagic = VINUM_NOMAGIC;			    /* no magic number */
 
     if (drive->state > drive_referenced) {		    /* real drive */
 	if (drive->state == drive_up)
