@@ -167,9 +167,9 @@ struct accept_filter_arg {
  */
 #define	AF_UNSPEC	0		/* unspecified */
 #if __BSD_VISIBLE
-#define	AF_LOCAL	1		/* local to host (pipes, portals) */
+#define	AF_LOCAL	AF_UNIX		/* local to host (pipes, portals) */
 #endif
-#define	AF_UNIX		AF_LOCAL	/* backward compatibility */
+#define	AF_UNIX		1		/* standardized name for AF_LOCAL */
 #define	AF_INET		2		/* internetwork: UDP, TCP, etc. */
 #if __BSD_VISIBLE
 #define	AF_IMPLINK	3		/* arpanet imp addresses */
