@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)llc_subr.c	8.1 (Berkeley) 6/10/93
- * $Id: llc_subr.c,v 1.6 1995/07/29 11:41:22 bde Exp $
+ * $Id: llc_subr.c,v 1.7 1995/12/03 13:45:05 bde Exp $
  */
 
 #include <sys/param.h>
@@ -61,16 +61,9 @@
 #include <netccitt/llc_var.h>
 
 /*
- * Frame names for diagnostic messages
- */
-char *frame_names[] = { "INFO", "RR", "RNR", "REJ", "DM", "SABME", "DISC",
-	"UA", "FRMR", "UI", "XID", "TEST", "ILLEGAL", "TIMER", "N2xT1"};
-
-
-/*
  * Trace level
  */
-int llc_tracelevel = LLCTR_URGENT;
+static int llc_tracelevel = LLCTR_URGENT;
 
 /*
  * Values for accessing various bitfields
@@ -102,21 +95,44 @@ struct llccb_q llccb_q = { &llccb_q, &llccb_q };
 
 int af_link_rts_init_done = 0;
 
+static void sdl_copy __P((struct sockaddr_dl *, struct sockaddr_dl *));
+static int sdl_setaddrif __P((struct ifnet *, u_char *, u_char, u_char,
+		struct sockaddr_dl *));
+static int llc_state_ADM __P((struct llc_linkcb *, struct llc *, int, 
+		int, int));
+static int llc_state_CONN __P((struct llc_linkcb *, struct llc *, int,
+		int, int));
+static int llc_state_RESET_WAIT __P((struct llc_linkcb *, struct llc *,
+		int, int, int));
+static int llc_state_RESET_CHECK __P((struct llc_linkcb *, struct llc *,
+		int, int, int));
+static int llc_state_SETUP __P((struct llc_linkcb *, struct llc *, int,
+		int, int));
+static int llc_state_RESET __P((struct llc_linkcb *, struct llc *, int,
+		int, int));
+static int llc_state_D_CONN __P((struct llc_linkcb *, struct llc *, int,
+		int, int));
+static int llc_state_ERROR __P((struct llc_linkcb *, struct llc *, int,
+		int, int));
+static int llc_state_NBRAcore __P((struct llc_linkcb *, struct llc *,
+		int, int, int));
+static int llc_state_AWAIT __P((struct llc_linkcb *, struct llc *, int,
+		int, int));
+static int llc_state_AWAIT_BUSY __P((struct llc_linkcb *, struct llc *,
+		int, int, int));
+static int llc_state_AWAIT_REJECT __P((struct llc_linkcb *, struct llc *,
+		int, int, int));
+static struct sockaddr_dl * sdl_getaddrif __P((struct ifnet *));
+static void llc_resetwindow __P((struct llc_linkcb *));
+static void llc_link_dump __P((struct llc_linkcb *, const char *));
+static char * llc_getstatename __P((struct llc_linkcb *));
+static void llc_trace __P((struct llc_linkcb *, int, const char *));
 /*
  * Functions dealing with struct sockaddr_dl */
 
-/* Compare sdl_a w/ sdl_b */
-
-sdl_cmp(struct sockaddr_dl *sdl_a, struct sockaddr_dl *sdl_b)
-{
-	if (LLADDRLEN(sdl_a) != LLADDRLEN(sdl_b))
-		return(1);
-	return(bcmp((caddr_t) sdl_a->sdl_data, (caddr_t) sdl_b->sdl_data,
-		    LLADDRLEN(sdl_a)));
-}
-
 /* Copy sdl_f to sdl_t */
 
+void
 sdl_copy(struct sockaddr_dl *sdl_f, struct sockaddr_dl *sdl_t)
 {
 	bcopy((caddr_t) sdl_f, (caddr_t) sdl_t, sdl_f->sdl_len);
@@ -124,6 +140,7 @@ sdl_copy(struct sockaddr_dl *sdl_f, struct sockaddr_dl *sdl_t)
 
 /* Swap sdl_a w/ sdl_b */
 
+void
 sdl_swapaddr(struct sockaddr_dl *sdl_a, struct sockaddr_dl *sdl_b)
 {
 	struct sockaddr_dl sdl_tmp;
@@ -147,22 +164,9 @@ sdl_getaddrif(struct ifnet *ifp)
 	return((struct sockaddr_dl *)0);
 }
 
-/* Check addr of interface with the one given */
-
-sdl_checkaddrif(struct ifnet *ifp, struct sockaddr_dl *sdl_c)
-{
-	register struct ifaddr *ifa;
-
-	for(ifa = ifp->if_addrlist; ifa; ifa = ifa->ifa_next)
-		if ((ifa->ifa_addr->sa_family == AF_LINK ) &&
-		    !sdl_cmp((struct sockaddr_dl *)(ifa->ifa_addr), sdl_c))
-			return(1);
-
-	return(0);
-}
-
 /* Build an sdl from MAC addr, DLSAP addr, and interface */
 
+static int
 sdl_setaddrif(struct ifnet *ifp, u_char *mac_addr, u_char dlsap_addr,
 	      u_char mac_len, struct sockaddr_dl *sdl_to)
 {
@@ -179,6 +183,7 @@ sdl_setaddrif(struct ifnet *ifp, u_char *mac_addr, u_char dlsap_addr,
 
 /* Fill out the sdl header aggregate */
 
+int
 sdl_sethdrif(struct ifnet *ifp, u_char *mac_src, u_char dlsap_src, u_char *mac_dst,
 	     u_char dlsap_dst, u_char mac_len, struct sdl_hdr *sdlhdr_to)
 {
@@ -351,7 +356,7 @@ llc_seq2slot(struct llc_linkcb *linkp, short seqn)
  *         connection. It also responds to a DISC command PDU and to any
  *         command PDU with the P bit set to ``1''.
  */
-int
+static int
 llc_state_ADM(struct llc_linkcb *linkp, struct llc *frame, int frame_kind,
 	      int cmdrsp, int pollfinal)
 {
@@ -393,7 +398,7 @@ llc_state_ADM(struct llc_linkcb *linkp, struct llc *frame, int frame_kind,
  *          remote LLC SSAP, and it is waiting for the local user to accept or
  *          refuse the connection.
  */
-int
+static int
 llc_state_CONN(struct llc_linkcb *linkp, struct llc *frame, int frame_kind,
 	       int cmdrsp, int pollfinal)
 {
@@ -428,7 +433,7 @@ llc_state_CONN(struct llc_linkcb *linkp, struct llc *frame, int frame_kind,
  * RESET_WAIT --- The local connection component is waiting for the local user
  *                 to indicate a RESET_REQUEST or a DISCONNECT_REQUEST.
  */
-int
+static int
 llc_state_RESET_WAIT(struct llc_linkcb *linkp, struct llc *frame, int frame_kind,
 		     int cmdrsp, int pollfinal)
 {
@@ -487,7 +492,7 @@ llc_state_RESET_WAIT(struct llc_linkcb *linkp, struct llc *frame, int frame_kind
  * RESET_CHECK --- The local connection component is waiting for the local user
  *                 to accept or refuse a remote reset request.
  */
-int
+static int
 llc_state_RESET_CHECK(struct llc_linkcb *linkp, struct llc *frame, int frame_kind,
 		      int cmdrsp, int pollfinal)
 {
@@ -525,7 +530,7 @@ llc_state_RESET_CHECK(struct llc_linkcb *linkp, struct llc *frame, int frame_kin
  * SETUP --- The connection component has transmitted an SABME command PDU to a
  *           remote LLC DSAP and is waiting for a reply.
  */
-int
+static int
 llc_state_SETUP(struct llc_linkcb *linkp, struct llc *frame, int frame_kind,
 		int cmdrsp, int pollfinal)
 {
@@ -585,7 +590,7 @@ llc_state_SETUP(struct llc_linkcb *linkp, struct llc *frame, int frame_kind,
  *           SABME command PDU to the remote LLC DSAP to reset the data link
  *           connection and is waiting for a reply.
  */
-int
+static int
 llc_state_RESET(struct llc_linkcb *linkp, struct llc *frame, int frame_kind,
 		int cmdrsp, int pollfinal)
 {
@@ -644,7 +649,7 @@ llc_state_RESET(struct llc_linkcb *linkp, struct llc *frame, int frame_kind,
  *            has sent a DISC command PDU to the remote LLC DSAP and is waiting
  *            for a reply.
  */
-int
+static int
 llc_state_D_CONN(struct llc_linkcb *linkp, struct llc *frame, int frame_kind,
 		 int cmdrsp, int pollfinal)
 {
@@ -687,7 +692,7 @@ llc_state_D_CONN(struct llc_linkcb *linkp, struct llc *frame, int frame_kind,
  *           PDU and has sent a FRMR response PDU. It is waiting for a reply from
  *           the remote connection component.
  */
-int
+static int
 llc_state_ERROR(struct llc_linkcb *linkp, struct llc *frame, int frame_kind,
 		int cmdrsp, int pollfinal)
 {
@@ -743,7 +748,7 @@ llc_state_ERROR(struct llc_linkcb *linkp, struct llc *frame, int frame_kind,
  * NORMAL, BUSY, REJECT, AWAIT, AWAIT_BUSY, and AWAIT_REJECT all share
  * a common core state handler.
  */
-int
+static int
 llc_state_NBRAcore(struct llc_linkcb *linkp, struct llc *frame, int frame_kind,
 		   int cmdrsp, int pollfinal)
 {
@@ -1197,7 +1202,6 @@ llc_state_BUSY(struct llc_linkcb *linkp, struct llc *frame, int frame_kind,
 	case LLCFT_RR + LLC_RSP:
 	case LLCFT_RNR + LLC_CMD:
 	case LLCFT_RNR + LLC_RSP: {
-		register int p = LLC_GETFLAG(linkp, P);
 		register int nr = LLCGBITS(frame->llc_control_ext, s_nr);
 
 		if (cmdrsp == LLC_CMD && pollfinal == 1) {
@@ -1512,7 +1516,7 @@ llc_state_REJECT(struct llc_linkcb *linkp, struct llc *frame, int frame_kind,
  *           from the remote LLC. I PDUs may be received but not sent.
  *           Supervisory PDUs may be both sent and received.
  */
-int
+static int
 llc_state_AWAIT(struct llc_linkcb *linkp, struct llc *frame, int frame_kind,
 		int cmdrsp, int pollfinal)
 {
@@ -1527,7 +1531,6 @@ llc_state_AWAIT(struct llc_linkcb *linkp, struct llc *frame, int frame_kind,
 		break;
 	case LLC_INVALID_NS + LLC_CMD:
 	case LLC_INVALID_NS + LLC_RSP: {
-		register int p = LLC_GETFLAG(linkp, P);
 		register int nr = LLCGBITS(frame->llc_control_ext, s_nr);
 
 		if (cmdrsp == LLC_CMD && pollfinal == 1) {
@@ -1556,7 +1559,6 @@ llc_state_AWAIT(struct llc_linkcb *linkp, struct llc *frame, int frame_kind,
 	}
 	case LLCFT_INFO + LLC_RSP:
 	case LLCFT_INFO + LLC_CMD: {
-		register int p = LLC_GETFLAG(linkp, P);
 		register int nr = LLCGBITS(frame->llc_control_ext, s_nr);
 
 		LLC_INC(linkp->llcl_vr);
@@ -1583,7 +1585,6 @@ llc_state_AWAIT(struct llc_linkcb *linkp, struct llc *frame, int frame_kind,
 	case LLCFT_RR + LLC_RSP:
 	case LLCFT_REJ + LLC_CMD:
 	case LLCFT_REJ + LLC_RSP: {
-		register int p = LLC_GETFLAG(linkp, P);
 		register int nr = LLCGBITS(frame->llc_control_ext, s_nr);
 
 		if (cmdrsp == LLC_CMD && pollfinal == 1) {
@@ -1605,7 +1606,6 @@ llc_state_AWAIT(struct llc_linkcb *linkp, struct llc *frame, int frame_kind,
 	}
 	case LLCFT_RNR + LLC_CMD:
 	case LLCFT_RNR + LLC_RSP: {
-		register int p = LLC_GETFLAG(linkp, P);
 		register int nr = LLCGBITS(frame->llc_control_ext, s_nr);
 
 		if (pollfinal == 1 && cmdrsp == LLC_CMD) {
@@ -1650,7 +1650,7 @@ llc_state_AWAIT(struct llc_linkcb *linkp, struct llc *frame, int frame_kind,
  *                information feld of receoved I PDUs will be ignored.
  *                Supervisory PDUs may be both sent and received.
  */
-int
+static int
 llc_state_AWAIT_BUSY(struct llc_linkcb *linkp, struct llc *frame, int frame_kind,
 		     int cmdrsp, int pollfinal)
 {
@@ -1679,7 +1679,6 @@ llc_state_AWAIT_BUSY(struct llc_linkcb *linkp, struct llc *frame, int frame_kind
 		break;
 	case LLC_INVALID_NS + LLC_CMD:
 	case LLC_INVALID_NS + LLC_RSP: {
-		register int p = LLC_GETFLAG(linkp, P);
 		register int nr = LLCGBITS(frame->llc_control_ext, s_nr);
 
 		if (cmdrsp == LLC_CMD && pollfinal == 1) {
@@ -1707,7 +1706,6 @@ llc_state_AWAIT_BUSY(struct llc_linkcb *linkp, struct llc *frame, int frame_kind
 	}
 	case LLCFT_INFO + LLC_CMD:
 	case LLCFT_INFO + LLC_RSP: {
-		register int p = LLC_GETFLAG(linkp, P);
 		register int nr = LLCGBITS(frame->llc_control_ext, s_nr);
 
 		if (cmdrsp == LLC_CMD && pollfinal == 1) {
@@ -1740,7 +1738,6 @@ llc_state_AWAIT_BUSY(struct llc_linkcb *linkp, struct llc *frame, int frame_kind
 	case LLCFT_REJ + LLC_CMD:
 	case LLCFT_RR + LLC_RSP:
 	case LLCFT_REJ + LLC_RSP: {
-		register int p = LLC_GETFLAG(linkp, P);
 		register int nr = LLCGBITS(frame->llc_control_ext, s_nr);
 
 		if (cmdrsp == LLC_CMD && pollfinal == 1) {
@@ -1765,7 +1762,6 @@ llc_state_AWAIT_BUSY(struct llc_linkcb *linkp, struct llc *frame, int frame_kind
 	}
 	case LLCFT_RNR + LLC_CMD:
 	case LLCFT_RNR + LLC_RSP: {
-		register int p = LLC_GETFLAG(linkp, P);
 		register int nr = LLCGBITS(frame->llc_control_ext, s_nr);
 
 		if (cmdrsp == LLC_CMD && pollfinal == 1) {
@@ -1813,7 +1809,7 @@ llc_state_AWAIT_BUSY(struct llc_linkcb *linkp, struct llc *frame, int frame_kind
  *                  be received but not transmitted. Supervisory PDUs may be
  *                  both transmitted and received.
  */
-int
+static int
 llc_state_AWAIT_REJECT(struct llc_linkcb *linkp, struct llc *frame, int frame_kind,
 		       int cmdrsp, int pollfinal)
 {
@@ -2042,6 +2038,7 @@ once_more_and_again:
  * The INIT call. This routine is called once after the system is booted.
  */
 
+void
 llc_init()
 {
 	llcintrq.ifq_maxlen = IFQ_MAXLEN;
@@ -2053,7 +2050,7 @@ llc_init()
  * LLC2 window.
  */
 
-void
+static void
 llc_resetwindow(struct llc_linkcb *linkp)
 {
 	register struct mbuf *mptr = (struct mbuf *) 0;
@@ -2166,6 +2163,7 @@ llc_newlink(struct sockaddr_dl *dst, struct ifnet *ifp, struct rtentry *nlrt,
 /*
  * llc_dellink() --- farewell to link control block
  */
+void
 llc_dellink(struct llc_linkcb *linkp)
 {
 	register struct mbuf *m;
@@ -2206,6 +2204,7 @@ llc_dellink(struct llc_linkcb *linkp)
 	FREE((caddr_t)linkp, M_PCB);
 }
 
+int
 llc_decode(struct llc* frame, struct llc_linkcb * linkp)
 {
 	register int ft = LLC_BAD_PDU;
@@ -2284,9 +2283,9 @@ llc_anytimersup(struct llc_linkcb * linkp)
 #define SAL(s) ((struct sockaddr_dl *)&(s)->llcl_addr)
 #define CHECK(l, s) if (LLC_STATEEQ(l, s)) return #s
 
-char *timer_names[] = {"ACK", "P", "BUSY", "REJ", "AGE"};
+static char *timer_names[] = {"ACK", "P", "BUSY", "REJ", "AGE"};
 
-char *
+static char *
 llc_getstatename(struct llc_linkcb *linkp)
 {
 	CHECK(linkp, ADM);
@@ -2307,11 +2306,10 @@ llc_getstatename(struct llc_linkcb *linkp)
 	return "UNKNOWN - eh?";
 }
 
-void
+static void
 llc_link_dump(struct llc_linkcb* linkp, const char *message)
 {
 	register int i;
-	register char *state;
 
 	/* print interface */
 	printf("if %s%d\n", linkp->llcl_if->if_name, linkp->llcl_if->if_unit);
@@ -2350,7 +2348,7 @@ llc_link_dump(struct llc_linkcb* linkp, const char *message)
 
 }
 
-void
+static void
 llc_trace(struct llc_linkcb *linkp, int level, const char *message)
 {
 	if (linkp->llcl_sapinfo->si_trace && level > llc_tracelevel)
