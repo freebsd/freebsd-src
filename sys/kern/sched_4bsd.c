@@ -792,6 +792,12 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 	/* 
 	 * The thread we are about to run needs to be counted as if it had been 
 	 * added to the run queue and selected.
+	 * it came from:
+	 * A preemption
+	 * An upcall 
+	 * A followon
+	 * Do this before saving curthread so that the slot count 
+	 * doesn't give an overly optimistic view when that happens.
 	 */
 	if (newtd) {
 		KASSERT((newtd->td_inhibitors == 0),
@@ -1024,6 +1030,7 @@ sched_add(struct thread *td, int flags)
 	}
 	if ((td->td_proc->p_flag & P_NOLOAD) == 0)
 		sched_tdcnt++;
+	td->td_ksegrp->kg_avail_opennings--;
 	runq_add(ke->ke_runq, ke);
 	ke->ke_ksegrp->kg_runq_kses++;
 	ke->ke_state = KES_ONRUNQ;
@@ -1044,12 +1051,17 @@ sched_rem(struct thread *td)
 
 	if ((td->td_proc->p_flag & P_NOLOAD) == 0)
 		sched_tdcnt--;
+	td->td_ksegrp->kg_avail_opennings++;
 	runq_remove(ke->ke_runq, ke);
 
 	ke->ke_state = KES_THREAD;
-	ke->ke_ksegrp->kg_runq_kses--;
+	td->td_ksegrp->kg_runq_kses--;
 }
 
+/*
+ * Select threads to run.
+ * Notice that the running threads still consume a slot.
+ */
 struct kse *
 sched_choose(void)
 {
