@@ -38,17 +38,6 @@
             (make element gi: "p"
                   attributes: (list (list "align" "center"))
               (make element gi: "small"  
-                (literal "All users of FreeBSD ")
-		(literal (entity-text "release.branch"))
-		(literal " should subscribe to the ")
-                (literal "<")
-		(create-link (list (list "HREF" "mailto:stable@FreeBSD.org"))
-                  (literal "stable@FreeBSD.org"))
-                (literal "> mailing list.")))
-
-            (make element gi: "p"
-                  attributes: (list (list "align" "center"))
-              (make element gi: "small"  
 	      (literal "For questions about this documentation, e-mail <")
 	      (create-link (list (list "HREF" "mailto:doc@FreeBSD.org"))
                 (literal "doc@FreeBSD.org"))
