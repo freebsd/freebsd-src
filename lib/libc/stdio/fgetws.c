@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002 Tim J. Robbins.
+ * Copyright (c) 2002-2004 Tim J. Robbins.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,16 +30,20 @@ __FBSDID("$FreeBSD$");
 #include "namespace.h"
 #include <errno.h>
 #include <stdio.h>
+#include <string.h>
 #include <wchar.h>
 #include "un-namespace.h"
 #include "libc_private.h"
 #include "local.h"
+#include "mblocal.h"
 
 wchar_t *
 fgetws(wchar_t * __restrict ws, int n, FILE * __restrict fp)
 {
 	wchar_t *wsp;
-	wint_t wc;
+	size_t nconv;
+	const char *src;
+	unsigned char *nl;
 
 	FLOCKFILE(fp);
 	ORIENT(fp, 1);
@@ -49,21 +53,41 @@ fgetws(wchar_t * __restrict ws, int n, FILE * __restrict fp)
 		goto error;
 	}
 
+	if (fp->_r <= 0 && __srefill(fp))
+		/* EOF */
+		goto error;
 	wsp = ws;
-	while (n-- > 1) {
-		/* XXX Inefficient */
-		if ((wc = __fgetwc(fp)) == WEOF && errno == EILSEQ)
+	do {
+		src = fp->_p;
+		nl = memchr(fp->_p, '\n', fp->_r);
+		nconv = __mbsnrtowcs(wsp, &src,
+		    nl != NULL ? (nl - fp->_p + 1) : fp->_r,
+		    n - 1, &fp->_extra->mbstate);
+		if (nconv == (size_t)-1)
+			/* Conversion error */
 			goto error;
-		if (wc == WEOF) {
-			if (wsp == ws)
-				/* EOF/error, no characters read yet. */
-				goto error;
-			break;
+		if (src == NULL) {
+			/*
+			 * We hit a null byte. Increment the character count,
+			 * since mbsnrtowcs()'s return value doesn't include
+			 * the terminating null, then resume conversion
+			 * after the null.
+			 */
+			nconv++;
+			src = memchr(fp->_p, '\0', fp->_r) + 1;
 		}
-		*wsp++ = (wchar_t)wc;
-		if (wc == L'\n')
-			break;
-	}
+		fp->_r -= (unsigned char *)src - fp->_p;
+		fp->_p = (unsigned char *)src;
+		n -= nconv;
+		wsp += nconv;
+	} while (wsp[-1] != L'\n' && n > 1 && (fp->_r > 0 ||
+	    __srefill(fp) == 0));
+	if (wsp == ws)
+		/* EOF */
+		goto error;
+	if (!__mbsinit(&fp->_extra->mbstate))
+		/* Incomplete character */
+		goto error;
 	*wsp++ = L'\0';
 	FUNLOCKFILE(fp);
 
