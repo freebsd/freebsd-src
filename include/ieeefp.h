@@ -14,12 +14,14 @@
 #ifdef	i386
 #include <machine/floatingpoint.h>
 #else
+__BEGIN_DECLS
 extern fp_rnd    fpgetround __P((void));
 extern fp_rnd    fpsetround __P((fp_rnd));
 extern fp_except fpgetmask __P((void));
 extern fp_except fpsetmask __P((fp_except));
 extern fp_except fpgetsticky __P((void));
 extern fp_except fpsetsticky __P((fp_except));
+__END_DECLS
 #endif /* i386 */
 
 #endif /* _IEEEFP_H_ */
