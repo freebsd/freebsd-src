@@ -38,6 +38,7 @@
 #include <pccard/i82365.h>
 #include <pccard/cardinfo.h>
 #include <pccard/slot.h>
+#include <pccard/pcicvar.h>
 
 /* Get pnp IDs */
 #include <isa/isavar.h>
@@ -63,39 +64,9 @@ static struct callout_handle pcictimeout_ch
 static int		pcic_memory(struct slot *, int);
 static int		pcic_io(struct slot *, int);
 
-/*
- *	Per-slot data table.
- */
-struct pcic_slot {
-	int index;			/* Index register */
-	int data;			/* Data register */
-	int offset;			/* Offset value for index */
-	char controller;		/* Device type */
-	char revision;			/* Device Revision */
-	struct slot *slt;		/* Back ptr to slot */
-	u_char (*getb)(struct pcic_slot *, int);
-	void   (*putb)(struct pcic_slot *, int, u_char);
-	u_char	*regs;			/* Pointer to regs in mem */
-};
-
-struct pcic_softc 
-{
-	int			unit;
-	struct pcic_slot	slots[PCIC_MAX_SLOTS];
-};
+devclass_t	pcic_devclass;
 
 static struct slot_ctrl cinfo;
-
-static struct isa_pnp_id pcic_ids[] = {
-	{PCIC_PNP_ACTIONTEC,            NULL},          /* AEI0218 */
-	{PCIC_PNP_IBM3765,		NULL},		/* IBM3765 */
-	{PCIC_PNP_82365,		NULL},		/* PNP0E00 */
-	{PCIC_PNP_CL_PD6720,		NULL},		/* PNP0E01 */
-	{PCIC_PNP_VLSI_82C146,		NULL},		/* PNP0E02 */
-	{PCIC_PNP_82365_CARDBUS,	NULL},		/* PNP0E03 */
-	{PCIC_PNP_SCM_SWAPBOX,		NULL},		/* SCM0469 */ 
-	{0}
-};
 
 static char *bridges[] =
 {
@@ -291,22 +262,16 @@ pcic_io(struct slot *slt, int win)
  *	Assume it's the only PCIC whose vendor ID is 0x84,
  *	contact Warner Losh <imp@freebsd.org> if correct.
  */
-static int
+int
 pcic_probe(device_t dev)
 {
 	int slotnum, validslots = 0;
 	struct pcic_slot *sp;
 	unsigned char c;
-	int error;
 	struct resource *r;
 	int rid;
 	static int maybe_vlsi = 0;
 	struct pcic_softc *sc;
-
-	/* Check isapnp ids */
-	error = ISA_PNP_PROBE(device_get_parent(dev), dev, pcic_ids);
-	if (error == ENXIO)
-		return (ENXIO);
 
 	/*
 	 *	Initialise controller information structure.
@@ -471,7 +436,7 @@ do_mgt_irq(struct pcic_slot *sp, int irq)
 	sp->putb(sp, PCIC_STAT_INT, (irq << 4) | 0xF);
 }
 
-static int
+int
 pcic_attach(device_t dev)
 {
 	int		error;
@@ -841,7 +806,7 @@ pcic_resume(struct slot *slt)
 	}
 }
 
-static int
+int
 pcic_activate_resource(device_t dev, device_t child, int type, int rid,
     struct resource *r)
 {
@@ -897,7 +862,7 @@ pcic_activate_resource(device_t dev, device_t child, int type, int rid,
 	return (err);
 }
 
-static int
+int
 pcic_deactivate_resource(device_t dev, device_t child, int type, int rid,
     struct resource *r)
 {
@@ -934,7 +899,7 @@ pcic_deactivate_resource(device_t dev, device_t child, int type, int rid,
 	return (err);
 }
 
-static int
+int
 pcic_setup_intr(device_t dev, device_t child, struct resource *irq,
     int flags, driver_intr_t *intr, void *arg, void **cookiep)
 {
@@ -957,7 +922,7 @@ pcic_setup_intr(device_t dev, device_t child, struct resource *irq,
 	return (err);
 }
 
-static int
+int
 pcic_teardown_intr(device_t dev, device_t child, struct resource *irq,
     void *cookie)
 {
@@ -967,7 +932,7 @@ pcic_teardown_intr(device_t dev, device_t child, struct resource *irq,
 	return (bus_generic_teardown_intr(dev, child, irq, cookie));
 }
 
-static int
+int
 pcic_set_res_flags(device_t bus, device_t child, int restype, int rid,
     u_long value)
 {
@@ -1000,7 +965,7 @@ pcic_set_res_flags(device_t bus, device_t child, int restype, int rid,
 	return (err);
 }
 
-static int
+int
 pcic_get_res_flags(device_t bus, device_t child, int restype, int rid,
     u_long *value)
 {
@@ -1027,7 +992,7 @@ pcic_get_res_flags(device_t bus, device_t child, int restype, int rid,
 	return (err);
 }
 
-static int
+int
 pcic_set_memory_offset(device_t bus, device_t child, int rid, u_int32_t offset,
     u_int32_t *deltap)
 {
@@ -1040,7 +1005,7 @@ pcic_set_memory_offset(device_t bus, device_t child, int rid, u_int32_t offset,
 	return (cinfo.mapmem(devi->slt, rid));
 }
 
-static int
+int
 pcic_get_memory_offset(device_t bus, device_t child, int rid, u_int32_t *offset)
 {
 	struct pccard_devinfo *devi = device_get_ivars(child);
@@ -1053,40 +1018,3 @@ pcic_get_memory_offset(device_t bus, device_t child, int rid, u_int32_t *offset)
 
 	return (0);
 }
-
-static device_method_t pcic_methods[] = {
-	/* Device interface */
-	DEVMETHOD(device_probe,		pcic_probe),
-	DEVMETHOD(device_attach,	pcic_attach),
-	DEVMETHOD(device_detach,	bus_generic_detach),
-	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
-	DEVMETHOD(device_suspend,	bus_generic_suspend),
-	DEVMETHOD(device_resume,	bus_generic_resume),
-
-	/* Bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_alloc_resource,	bus_generic_alloc_resource),
-	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
-	DEVMETHOD(bus_activate_resource, pcic_activate_resource),
-	DEVMETHOD(bus_deactivate_resource, pcic_deactivate_resource),
-	DEVMETHOD(bus_setup_intr,	pcic_setup_intr),
-	DEVMETHOD(bus_teardown_intr,	pcic_teardown_intr),
-
-	/* Card interface */
-	DEVMETHOD(card_set_res_flags,	pcic_set_res_flags),
-	DEVMETHOD(card_get_res_flags,	pcic_get_res_flags),
-	DEVMETHOD(card_set_memory_offset, pcic_set_memory_offset),
-	DEVMETHOD(card_get_memory_offset, pcic_get_memory_offset),
-
-	{ 0, 0 }
-};
-
-devclass_t	pcic_devclass;
-
-static driver_t pcic_driver = {
-	"pcic",
-	pcic_methods,
-	sizeof(struct pcic_softc)
-};
-
-DRIVER_MODULE(pcic, isa, pcic_driver, pcic_devclass, 0, 0);
