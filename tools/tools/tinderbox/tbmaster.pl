@@ -125,7 +125,7 @@ sub report($$$$) {
     my $message = shift;
 
     local *PIPE;
-    if (open(PIPE, "|-", "/usr/sbin/sendmail -t -f$sender")) {
+    if (open(PIPE, "|-", "/usr/sbin/sendmail", "-i", "-t", "-f$sender")) {
 	print(PIPE "Sender: $sender\n");
 	print(PIPE "From: $sender\n");
 	print(PIPE "To: $recipient\n");
@@ -195,6 +195,8 @@ sub tinderbox($$$) {
     push(@args, "--branch=$branch");
     push(@args, "--arch=$arch");
     push(@args, "--machine=$machine");
+    push(@args, "--date=$CONFIG{'DATE'}")
+	if (defined($CONFIG{'DATE'}));
     push(@args, "--patch=$CONFIG{'PATCH'}")
 	if (defined($CONFIG{'PATCH'}));
     push(@args, @{$CONFIG{'TARGETS'}});
