@@ -1238,6 +1238,12 @@ are 1Mb x36 bit (4 Mbyte) and 4Mb x36 bit (16 Mbyte). Each memory board
 can house 4 banks of SIMMs. SIMM sizes can not be mixed on a single memory
 board.
 
+Console:
+Both Lynx and Sable are somewhat stubborn when it comes to serial
+consoles. They need >> SET CONSOLE SERIAL before they go for
+a serial console. Pulling the keyboard from the machine is not sufficient,
+like it is on most other Alpha models.
+
 Embedded SCSI:
 Both Sable, DemiSable and Lynx have NCR810 based Fast SCSI onboard.
 
