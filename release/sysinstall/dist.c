@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.35.2.13 1995/06/03 23:44:02 jkh Exp $
+ * $Id: dist.c,v 1.35.2.14 1995/06/04 05:13:27 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -279,7 +279,7 @@ distExtract(char *parent, Distribution *me)
 		close(fd);
 	    goto done;
 	}
-	else if (fd == -2)
+	else if (fd == -2)	/* Hard error, can't continue */
 	    return FALSE;
 
 	/* If we couldn't get it as one file then we need to get multiple pieces; get info file telling us how many */

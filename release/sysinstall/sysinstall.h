@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.41.2.10 1995/06/03 23:44:12 jkh Exp $
+ * $Id: sysinstall.h,v 1.41.2.11 1995/06/04 05:13:37 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -184,10 +184,10 @@ typedef struct _device {
     char *devname;
     DeviceType type;
     Boolean enabled;
-    Boolean (*init)(struct _device *);
-    int (*get)(struct device *dev, char *file);
-    Boolean (*close)(struct _device *, int fd);
-    void (*shutdown)(struct _device *);
+    Boolean (*init)(struct _device *dev);
+    int (*get)(struct _device *dev, char *file);
+    Boolean (*close)(struct _device *dev, int fd);
+    void (*shutdown)(struct _device *dev);
     void *private;
     unsigned int flags;
 } Device;
