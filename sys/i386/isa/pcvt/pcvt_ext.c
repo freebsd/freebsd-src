@@ -35,7 +35,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *
- * @(#)pcvt_ext.c, 3.20, Last Edit-Date: [Thu Jan  5 15:54:10 1995]
+ * @(#)pcvt_ext.c, 3.20, Last Edit-Date: [Sun Feb 26 12:18:02 1995]
  *
  */
 
@@ -45,7 +45,7 @@
  *	------------------------------------------------------
  *
  *	written by Hellmuth Michaelis, hm@hcshh.hcs.de       and
- *	           Joerg Wunsch, joerg_wunsch@uriah.sax.de
+ *	           Joerg Wunsch, joerg_wunsch@uriah.heep.sax.de
  *
  *	-hm	------------ Release 3.00 --------------
  *	-hm	integrating NetBSD-current patches
@@ -57,6 +57,11 @@
  *	-hm	X server patch from John Kohl <jtk@kolvir.blrc.ma.us>
  *	-hm	applying Joerg's patch for FreeBSD 2.0
  *	-hm	enable 132 col support for Trident TVGA8900CL
+ *	-hm	applying patch from Joerg fixing Crtat bug
+ *	-hm	removed PCVT_FAKE_SYSCONS10
+ *	-hm	fastscroll/Crtat bugfix from Lon Willett
+ *	-hm	bell patch from Thomas Eberhardt for NetBSD
+ *	-hm	multiple X server bugfixes from Lon Willett
  *
  *---------------------------------------------------------------------------*/
 
@@ -2096,41 +2101,84 @@ cl_gd542x_col(int cols)
 	return(1);
 }
 
+#if PCVT_USL_VT_COMPAT
 /*---------------------------------------------------------------------------*
  *	switch screen from text mode to X-mode and vice versa
  *---------------------------------------------------------------------------*/
-#if PCVT_USL_VT_COMPAT
-static void
-pcvt_x_hook(int tografx)
+void
+switch_screen(int n, int oldgrafx, int newgrafx)
 {
-	int i;
 
 #if PCVT_SCREENSAVER
 	static unsigned saved_scrnsv_tmo = 0;
-#endif /* PCVT_SCREENSAVER*/
+#endif	/* PCVT_SCREENSAVER */
 
-#if PCVT_NETBSD
-	extern u_short *Crtat;
-#endif /* PCVT_NETBSD */
+#if !PCVT_KBD_FIFO
+	int x;
+#endif	/* !PCVT_KBD_FIFO */
 
-	/* save area for graphics mode switch */
+	int cols = vsp->maxcol;		/* get current col val */
+	
+	if(n < 0 || n >= totalscreens)
+		return;
 
-	if(!tografx)
-	{	
-		/* into standard text mode */
-		/* step 1: restore fonts */
+#if !PCVT_KBD_FIFO
+	x = spltty();			/* protect us */
+#endif	/* !PCVT_KBD_FIFO */
+
+	if(!oldgrafx && newgrafx)
+	{
+		/* switch from text to graphics */
+
+#if PCVT_SCREENSAVER
+		if((saved_scrnsv_tmo = scrnsv_timeout))
+			pcvt_set_scrnsv_tmo(0);	/* screensaver off */
+#endif /* PCVT_SCREENSAVER */
+
+		async_update(UPDATE_STOP);	/* status display off */
+	}
+	
+	if(!oldgrafx)
+	{
+		/* switch from text mode */
+
+		/* video board memory -> kernel memory */
+		bcopy(vsp->Crtat, vsp->Memory,
+		      vsp->screen_rows * vsp->maxcol * CHR);
+
+		vsp->Crtat = vsp->Memory;	/* operate in memory now */
+	}
+	
+	/* update global screen pointers/variables */
+	current_video_screen = n;	/* current screen no */
+
+#if !PCVT_NETBSD && !(PCVT_FREEBSD > 110 && PCVT_FREEBSD < 200)
+	pcconsp = &pccons[n];		/* current tty */
+#elif PCVT_FREEBSD > 110 && PCVT_FREEBSD < 200
+	pcconsp = pccons[n];		/* current tty */
+#else
+	pcconsp = pc_tty[n];		/* current tty */
+#endif
+
+	vsp = &vs[n];			/* current video state ptr */
+
+	if(oldgrafx && !newgrafx)
+	{
+		/* switch from graphics to text mode */
+		unsigned i;
+		
+		/* restore fonts */
 		for(i = 0; i < totalfonts; i++)
 			if(saved_charsets[i])
 				vga_move_charset(i, 0, 0);
-
 		
 #if PCVT_SCREENSAVER
-		/* step 2: activate screen saver */
+		/* activate screen saver */
 		if(saved_scrnsv_tmo)
 			pcvt_set_scrnsv_tmo(saved_scrnsv_tmo);
 #endif /* PCVT_SCREENSAVER */
 
-		/* step 3: re-initialize lost MDA information */
+		/* re-initialize lost MDA information */
 		if(adaptor_type == MDA_ADAPTOR)
 		{
 			/*
@@ -2143,64 +2191,138 @@ pcvt_x_hook(int tografx)
 			 */
 			/* enable display, text mode */
 			outb(GN_DMCNTLM, 0x28);
-
-			/* restore cursor mode and shape */
-			outb(addr_6845, CRTC_CURSORH);
-			outb(addr_6845+1,
-			     ((vsp->Crtat + vsp->cur_offset) - Crtat) >> 8);
-			outb(addr_6845, CRTC_CURSORL);
-			outb(addr_6845+1,
-			     ((vsp->Crtat + vsp->cur_offset) - Crtat));
-			
-			outb(addr_6845, CRTC_CURSTART);
-			outb(addr_6845+1, vsp->cursor_start);
-			outb(addr_6845, CRTC_CUREND);
-			outb(addr_6845+1, vsp->cursor_end);
 		}
 
-		/* step 4: restore screen and re-enable text output */
+		/* make status display happy */
+		async_update(UPDATE_START);
+	}
 
+	if(!newgrafx)
+	{
+		/* to text mode */
+		
 		/* kernel memory -> video board memory */
-		bcopy(vsp->Memory, Crtat,
-		       vsp->screen_rowsize * vsp->maxcol * CHR);
+		bcopy(vsp->Crtat, Crtat,
+		      vsp->screen_rows * vsp->maxcol * CHR);
 
-		vsp->Crtat = Crtat;	/* operate on-screen now */
+		vsp->Crtat = Crtat;		/* operate on screen now */
 
 		outb(addr_6845, CRTC_STARTADRH);
 		outb(addr_6845+1, 0);
 		outb(addr_6845, CRTC_STARTADRL);
 		outb(addr_6845+1, 0);
+	}
 	
-		/* step 5: update leds and if applicable fkey labels */
-		update_led();
-		update_hp(vsp);
+#if !PCVT_KBD_FIFO
+	splx(x);
+#endif	/* !PCVT_KBD_FIFO */
+	
+	select_vga_charset(vsp->vga_charset);
 
-		/* step 6: make status display happy */
-		async_update(UPDATE_START);
+	if(vsp->maxcol != cols)
+		vga_col(vsp, vsp->maxcol);	/* select 80/132 columns */
+	
+ 	outb(addr_6845, CRTC_CURSORH);	/* select high register */
+	outb(addr_6845+1, vsp->cur_offset >> 8);
+	outb(addr_6845, CRTC_CURSORL);	/* select low register */
+	outb(addr_6845+1, vsp->cur_offset);
+
+	if(vsp->cursor_on)
+	{
+		outb(addr_6845, CRTC_CURSTART);	/* select high register */
+		outb(addr_6845+1, vsp->cursor_start);
+		outb(addr_6845, CRTC_CUREND);	/* select low register */
+		outb(addr_6845+1, vsp->cursor_end);
 	}
-	else /* tografx */
-	{	
-		/* switch to graphics mode: save everything we need */
-
-		/* step 1: deactivate screensaver */
-
-#if PCVT_SCREENSAVER
-		if(saved_scrnsv_tmo = scrnsv_timeout)
-			pcvt_set_scrnsv_tmo(0);	/* turn it off */
-#endif /* PCVT_SCREENSAVER */
-
-		/* step 2: handle status display */
-
-		async_update(UPDATE_STOP);	/* turn off */
-
-		/* step 3: disable text output and save screen contents */
-
-		/* video board memory -> kernel memory */
-		bcopy(vsp->Crtat, vsp->Memory,
-		       vsp->screen_rowsize * vsp->maxcol * CHR);
-
-		vsp->Crtat = vsp->Memory;	/* operate in memory now */
+	else
+	{
+		sw_cursor(0);
 	}
+
+	if(adaptor_type == VGA_ADAPTOR)
+	{
+		unsigned i;
+
+		/* switch VGA DAC palette entries */
+		for(i = 0; i < NVGAPEL; i++)
+			vgapaletteio(i, &vsp->palette[i], 1);
+	}
+
+	if(!newgrafx)
+	{
+		update_led();	/* update led's */
+		update_hp(vsp);	/* update fkey labels, if present */
+	}
+}
+
+/*---------------------------------------------------------------------------*
+ *	Change specified vt to VT_AUTO mode
+ *	xxx Maybe this should also reset VT_GRAFX mode; since switching and
+ *	graphics modes are not going to work without VT_PROCESS mode.
+ *---------------------------------------------------------------------------*/
+static void
+set_auto_mode (struct video_state *vsx)
+{
+	unsigned ostatus = vsx->vt_status;
+	vsx->smode.mode = VT_AUTO;
+	vsx->proc = NULL;
+	vsx->pid = 0;
+	vsx->vt_status &= ~(VT_WAIT_REL|VT_WAIT_ACK);
+	if (ostatus & VT_WAIT_ACK) {
+#if 0
+		assert (!(ostatus&VT_WAIT_REL));
+		assert (vsp == vsx &&
+			vt_switch_pending == current_video_screen + 1);
+		vt_switch_pending = 0;
+#else
+		if (vsp == vsx &&
+		    vt_switch_pending == current_video_screen + 1)
+			vt_switch_pending = 0;
+#endif
+	}
+	if (ostatus&VT_WAIT_REL) {
+		int new_screen = vt_switch_pending - 1;
+#if 0
+		assert(vsp == vsx && vt_switch_pending);
+		vt_switch_pending = 0;
+		vgapage (new_screen);
+#else
+		if (vsp == vsx && vt_switch_pending) {
+			vt_switch_pending = 0;
+			vgapage (new_screen);
+		}
+#endif
+	}
+}
+
+/*---------------------------------------------------------------------------*
+ *	Exported function; to be called when a vt is closed down.
+ *
+ *	Ideally, we would like to be able to recover from an X server crash;
+ *	but in reality, if the server crashes hard while in control of the
+ *	vga board, then you're not likely to be able to use pcvt ttys
+ *	without rebooting.
+ *---------------------------------------------------------------------------*/
+void
+reset_usl_modes (struct video_state *vsx)
+{
+	/* Clear graphics mode */
+	if (vsx->vt_status & VT_GRAFX) {
+	    vsx->vt_status &= ~VT_GRAFX;
+	    if (vsp == vsx)
+		switch_screen(current_video_screen, 1, 0);
+	}
+
+	/* Take kbd out of raw mode */
+	if (pcvt_kbd_raw && vsp == vsx) {
+#if PCVT_SCANSET > 1
+		kbd_emulate_pc(0);
+#endif /* PCVT_SCANSET > 1 */
+		pcvt_kbd_raw = 0;
+	}
+
+	/* Clear process controlled mode */
+	set_auto_mode (vsx);
 }
 
 /*---------------------------------------------------------------------------*
@@ -2215,35 +2337,31 @@ vgapage(int new_screen)
 	if(new_screen < 0 || new_screen >= totalscreens)
 		return EINVAL;
 	
-	if(vsp->proc != pfind(vsp->pid))
-		vt_switch_pending = 0;
-		
-	if(vt_switch_pending)
-		return EAGAIN;
-		
-	vt_switch_pending = new_screen + 1;
-	
-	x = spltty();
-	if(vs[new_screen].vt_status & VT_WAIT_ACT)
-	{
-		wakeup((caddr_t)&vs[new_screen].smode);
-		vs[new_screen].vt_status &= ~VT_WAIT_ACT;
-	}
-	splx(x);
-
-	if(new_screen == current_video_screen)
-	{
-		vt_switch_pending = 0;
-		return 0;
-	}
-
 	/* fallback to VT_AUTO if controlling processes died */
-	if(vsp->proc
-	   && vsp->proc != pfind(vsp->pid))
-		vsp->smode.mode = VT_AUTO;
+	if(vsp->proc && vsp->proc != pfind(vsp->pid))
+		set_auto_mode(vsp);
 	if(vs[new_screen].proc
 	   && vs[new_screen].proc != pfind(vs[new_screen].pid))
-		vs[new_screen].smode.mode = VT_AUTO;
+		set_auto_mode(&vs[new_screen]);
+
+	if (!vt_switch_pending && new_screen == current_video_screen)
+		return 0;
+
+	if(vt_switch_pending && vt_switch_pending != new_screen + 1) {
+		/* Try resignaling uncooperative X-window servers */
+		if (vsp->smode.mode == VT_PROCESS) {
+			if (vsp->vt_status & VT_WAIT_REL) {
+				if(vsp->smode.relsig)
+					psignal(vsp->proc, vsp->smode.relsig);
+			} else if (vsp->vt_status & VT_WAIT_ACK) {
+				if(vsp->smode.acqsig)
+					psignal(vsp->proc, vsp->smode.acqsig);
+			}
+		}
+		return EAGAIN;
+	}
+
+	vt_switch_pending = new_screen + 1;
 
 	if(vsp->smode.mode == VT_PROCESS)
 	{
@@ -2254,25 +2372,25 @@ vgapage(int new_screen)
 	}
 	else
 	{
-		int modechange = 0;
-		
-		if((vs[new_screen].vt_status & VT_GRAFX) !=
-		   (vsp->vt_status & VT_GRAFX))
-		{
-			if(vsp->vt_status & VT_GRAFX)
-				modechange = 1;	/* to text */
-			else
-				modechange = 2;	/* to grfx */
-		}
-		
-		if(modechange == 2)
-			pcvt_x_hook(1);
-				
-		switch_screen(new_screen, vsp->vt_status & VT_GRAFX);
+		struct video_state *old_vsp = vsp;
 
-		if(modechange == 1)
-			pcvt_x_hook(0);
+		switch_screen(new_screen,
+			      vsp->vt_status & VT_GRAFX,
+			      vs[new_screen].vt_status & VT_GRAFX);
 				
+		x = spltty();
+		if(old_vsp->vt_status & VT_WAIT_ACT)
+		{
+			old_vsp->vt_status &= ~VT_WAIT_ACT;
+			wakeup((caddr_t)&old_vsp->smode);
+		}
+		if(vsp->vt_status & VT_WAIT_ACT)
+		{
+			vsp->vt_status &= ~VT_WAIT_ACT;
+			wakeup((caddr_t)&vsp->smode);
+		}
+		splx(x);
+
 		if(vsp->smode.mode == VT_PROCESS)
 		{
 			/* if _new_ vt is under process control... */
@@ -2281,7 +2399,7 @@ vgapage(int new_screen)
 				psignal(vsp->proc, vsp->smode.acqsig);
 		}
 		else
-			/* we are comitted */
+			/* we are committed */
 			vt_switch_pending = 0;
 	}
 	return 0;
@@ -2293,49 +2411,66 @@ vgapage(int new_screen)
 int
 usl_vt_ioctl(Dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 {
-	int i, j, error;
-
+	int i, j, error, opri;
+	struct vt_mode newmode;
+	
 	switch(cmd)
 	{
 
-#if PCVT_FAKE_SYSCONS10
-	case CONS_GETVERS:
-		*(int *)data = 0x100; /* fake syscons 1.0 */
-		return 0;
-#endif /* PCVT_FAKE_SYSCONS10 */
-
 	case VT_SETMODE:
+		newmode = *(struct vt_mode *)data;
+		
+		opri = spltty();
 
-/*---------------------------------------------------------------------------
-   from John Kohl <jtk@kolvir.blrc.ma.us>:
-
-   I think I tracked down the problem I had on NetBSD-current/i386 with
-   pcvt and losing keyboard control to a fresh X server trying to grab the
-   graphics mode on the same virtual console as an existing server.  I
-   didn't have problems when I ran 'xinit -- :1' from another virtual
-   console; only when I ran it _from within an xterm_ did I have problems.
-
-   Here's a patch which seems to fix the immediate problem; it makes the
-   VT_SETMODE fail if something tries to set process mode on the same VT as
-   an active process.  However, this doesn't mean that "xinit -- vtY :1"
-   will start an X server on vtY--the context at the time of the VT_PROCESS
-   may still be the current virtual console if the existing X server
-   doesn't yield before the new one tries to set VT_PROCESS mode.  Maybe
-   there's some missing handshake on the console switch completing.
----------------------------------------------------------------------------*/	
-
-		if (vsp->smode.mode == VT_PROCESS &&
-		    ((struct vt_mode *)data)->mode == VT_PROCESS &&
-		    vsp->proc != p)
-			return EBUSY;		/* already in use on this VT */
-
-/* end of patch */
-
-		vsp->smode = *(struct vt_mode *)data;
-		if(vsp->smode.mode == VT_PROCESS) {
-			vsp->proc = p;
-			vsp->pid = p->p_pid;
+		if (newmode.mode != VT_PROCESS) {
+			struct video_state *vsx = &vs[minor(dev)];
+			if (vsx->smode.mode == VT_PROCESS) {
+				if (vsx->proc != p) {
+					splx(opri);
+					return EPERM;
+				}
+				set_auto_mode(vsx);
+			}
+			splx(opri);
+			return 0;
 		}
+
+		/*
+		 * NB: XFree86-3.1.1 does the following:
+		 *		VT_ACTIVATE (vtnum)
+		 *		VT_WAITACTIVE (vtnum)
+		 *		VT_SETMODE (VT_PROCESS)
+		 * So it is possible that the screen was switched
+		 * between the WAITACTIVE and the SETMODE (here).  This
+		 * can actually happen quite frequently, and it was
+		 * leading to dire consequences. Now it is detected by
+		 * requiring that minor(dev) match current_video_screen.
+		 * An alternative would be to operate on vs[minor(dev)]
+		 * instead of *vsp, but that would leave the server
+		 * confused, because it would believe that its vt was
+		 * currently activated.
+		 */
+		if (minor(dev) != current_video_screen) {
+			splx(opri);
+			return EPERM;
+		}
+
+		/* Check for server died */
+		if(vsp->proc && vsp->proc != pfind(vsp->pid))
+			set_auto_mode(vsp);
+
+		/* Check for server already running */
+		if (vsp->smode.mode == VT_PROCESS && vsp->proc != p)
+		{
+			splx(opri);
+			return EBUSY; /* already in use on this VT */
+		}
+
+		vsp->smode = newmode;
+		vsp->proc = p;
+		vsp->pid = p->p_pid;
+
+		splx(opri);
 		return 0;
 
 	case VT_GETMODE:
@@ -2343,11 +2478,16 @@ usl_vt_ioctl(Dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 		return 0;
 
 	case VT_RELDISP:
+		if (minor(dev) != current_video_screen)
+			return EPERM;
+		if (vsp->smode.mode != VT_PROCESS)
+			return EINVAL;
+		if (vsp->proc != p)
+			return EPERM;
 		switch(*(int *)data) {
 		case VT_FALSE:
 			/* process refuses to release screen; abort */
 			if(vt_switch_pending
-			   && vt_switch_pending - 1 == current_video_screen
 			   && (vsp->vt_status & VT_WAIT_REL)) {
 				vsp->vt_status &= ~VT_WAIT_REL;
 				vt_switch_pending = 0;
@@ -2358,31 +2498,30 @@ usl_vt_ioctl(Dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 		case VT_TRUE:
 			/* process releases its VT */
 			if(vt_switch_pending
-			   && minor(dev) == current_video_screen
 			   && (vsp->vt_status & VT_WAIT_REL)) {
 				int new_screen = vt_switch_pending - 1;
-				int modechange = 0;
-				
+				struct video_state *old_vsp = vsp;
+
 				vsp->vt_status &= ~VT_WAIT_REL;
 
-				if((vs[new_screen].vt_status & VT_GRAFX) !=
-				   (vsp->vt_status & VT_GRAFX))
-				{
-					if(vsp->vt_status & VT_GRAFX)
-						modechange = 1;	/* to text */
-					else
-						modechange = 2;	/* to grfx */
-				}
-
-				if(modechange == 2)
-					pcvt_x_hook(1);
-				
 				switch_screen(new_screen,
-					      vsp->vt_status & VT_GRAFX);
-
-				if(modechange == 1)
-					pcvt_x_hook(0);
+					      vsp->vt_status & VT_GRAFX,
+					      vs[new_screen].vt_status
+					      & VT_GRAFX);
 				
+				opri = spltty();
+				if(old_vsp->vt_status & VT_WAIT_ACT)
+				{
+					old_vsp->vt_status &= ~VT_WAIT_ACT;
+					wakeup((caddr_t)&old_vsp->smode);
+				}
+				if(vsp->vt_status & VT_WAIT_ACT)
+				{
+					vsp->vt_status &= ~VT_WAIT_ACT;
+					wakeup((caddr_t)&vsp->smode);
+				}
+				splx(opri);
+
 				if(vsp->smode.mode == VT_PROCESS) {
 					/*
 					 * if the new vt is also in process
@@ -2397,7 +2536,7 @@ usl_vt_ioctl(Dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 							vsp->smode.acqsig);
 				}
 				else
-					/* we are comitted */
+					/* we are committed */
 					vt_switch_pending = 0;
 				return 0;
 			}
@@ -2439,30 +2578,32 @@ usl_vt_ioctl(Dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 		   && (i < 0 || i >= PCVT_NSCREENS))
 			return EINVAL;
 		
-		if(i != -1
-		   && minor(dev) == i)
+		if(i != -1 && current_video_screen == i)
 			return 0;
 
 		if(i == -1)
 		{
+			/* xxx Is this what it is supposed to do? */
 			int x = spltty();
-			vsp->vt_status |= VT_WAIT_ACT;
-			while((error = tsleep((caddr_t)&vsp->smode,
-					      PZERO | PCATCH, "waitvt", 0))
-			      == ERESTART)
-				;
-			vsp->vt_status &= ~VT_WAIT_ACT;
+			i = current_video_screen;
+			error = 0;
+			while (current_video_screen == i && !error) {
+				vs[i].vt_status |= VT_WAIT_ACT;
+				error = tsleep((caddr_t)&vs[i].smode,
+					       PZERO | PCATCH, "waitvt", 0);
+			}
 			splx(x);
 		}
 		else
 		{
 			int x = spltty();
-			vs[i].vt_status |= VT_WAIT_ACT;
-			while((error = tsleep((caddr_t)&vs[i].smode,
-					      PZERO | PCATCH, "waitvt", 0))
-			      == ERESTART)
-				;
-			vs[i].vt_status &= ~VT_WAIT_ACT;
+			error = 0;
+			while (current_video_screen != i && !error)
+			{
+				vs[i].vt_status |= VT_WAIT_ACT;
+				error = tsleep((caddr_t)&vs[i].smode,
+					       PZERO | PCATCH, "waitvt", 0);
+			}
 			splx(x);
 		}
 		return error;
@@ -2470,13 +2611,14 @@ usl_vt_ioctl(Dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	case KDENABIO:
 		/* grant the process IO access; only allowed if euid == 0 */
 	{
+
 #if PCVT_NETBSD > 9 || PCVT_FREEBSD >= 200
 		struct trapframe *fp = (struct trapframe *)p->p_md.md_regs;
 #elif PCVT_NETBSD || (PCVT_FREEBSD && PCVT_FREEBSD > 102)
 		struct trapframe *fp = (struct trapframe *)p->p_regs;
 #else
 		struct syscframe *fp = (struct syscframe *)p->p_regs;
-#endif /* PCVT_NETBSD || PCVT_FREEBSD > 102 */
+#endif
 		
 		if(suser(p->p_ucred, &p->p_acflag) != 0)
 			return (EPERM);
@@ -2485,7 +2627,7 @@ usl_vt_ioctl(Dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 		fp->tf_eflags |= PSL_IOPL;
 #else
 		fp->sf_eflags |= PSL_IOPL;
-#endif /* PCVT_NETBSD || PCVT_FREEBSD > 102 */
+#endif
 	
 		return 0;
 	}
@@ -2493,6 +2635,7 @@ usl_vt_ioctl(Dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	case KDDISABIO:
 		/* abandon IO access permission */
 	{
+
 #if PCVT_NETBSD > 9 || PCVT_FREEBSD >= 200
 		struct trapframe *fp = (struct trapframe *)p->p_md.md_regs;
 		fp->tf_eflags &= ~PSL_IOPL;
@@ -2502,7 +2645,7 @@ usl_vt_ioctl(Dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 #else
 		struct syscframe *fp = (struct syscframe *)p->p_regs;
 		fp->sf_eflags &= ~PSL_IOPL;
-#endif /* PCVT_NETBSD || PCVT_FREEBSD > 102 */
+#endif
 
 		return 0;
 	}
@@ -2524,14 +2667,17 @@ usl_vt_ioctl(Dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 			haschanged = (vsx->vt_status & VT_GRAFX) != 0;
 			vsx->vt_status &= ~VT_GRAFX;
 			if(haschanged && vsx == vsp)
-				pcvt_x_hook(0);
+				switch_screen(current_video_screen, 1, 0);
 			return 0;
 			
 		case KD_GRAPHICS:
+			/* xxx It might be a good idea to require that
+			   the vt be in process controlled mode here,
+			   and that the calling process is the owner */
 			haschanged = (vsx->vt_status & VT_GRAFX) == 0;
 			vsx->vt_status |= VT_GRAFX;
 			if(haschanged && vsx == vsp)
-				pcvt_x_hook(1);
+				switch_screen(current_video_screen, 0, 1);
 			return 0;
 			
 		}
@@ -2557,6 +2703,7 @@ usl_vt_ioctl(Dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 			return 0;
 
 		case K_XLATE:
+
 #if PCVT_SCANSET > 1
 			kbd_emulate_pc(0);
 #endif /* PCVT_SCANSET > 1 */
@@ -2568,14 +2715,22 @@ usl_vt_ioctl(Dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 		
 	case KDMKTONE:
 		/* ring the speaker */
-		if(data) {
+		if(data)
+		{
 			int duration = *(int *)data >> 16;
 			int pitch = *(int *)data & 0xffff;
-			
+
+#if PCVT_NETBSD			
+			sysbeep(PCVT_SYSBEEPF / pitch, duration * hz / 1000);
+#else /* PCVT_NETBSD */
 			sysbeep(pitch, duration * hz / 3000);
+#endif /* PCVT_NETBSD */
+
 		}
 		else
+		{
  			sysbeep(PCVT_SYSBEEPF / 1493, hz / 4);
+ 		}
 		return 0;
 		
 	case KDSETLED:

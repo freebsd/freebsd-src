@@ -41,7 +41,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *
- * @(#)pcvt_drv.c, 3.20, Last Edit-Date: [Thu Jan  5 15:54:02 1995]
+ * @(#)pcvt_drv.c, 3.20, Last Edit-Date: [Sun Feb 26 12:58:03 1995]
  *
  */
 
@@ -67,6 +67,9 @@
  *	-hm	patch from Onno & Martin for NetBSD-current (post 1.0)
  *	-hm	some adjustments for NetBSD 1.0
  *	-hm	NetBSD PR #400: screen size report for new session
+ *	-hm	patch from Rafael Boni/Lon Willett for NetBSD-current
+ *	-hm	bell patch from Thomas Eberhardt for NetBSD
+ *	-hm	multiple X server bugfixes from Lon Willett
  *
  *---------------------------------------------------------------------------*/
 
@@ -92,11 +95,15 @@ static int pcvt_xmode_set(int on, struct proc *p); /* initialize for X mode */
 #endif /* XSERVER && !PCVT_USL_VT_COMPAT */
 
 int
+#if PCVT_NETBSD > 100	/* NetBSD-current Feb 20 1995 */
+pcprobe(struct device *parent, void *match, void *aux)
+#else
 #if PCVT_NETBSD > 9
 pcprobe(struct device *parent, struct device *self, void *aux)
 #else
 pcprobe(struct isa_device *dev)
 #endif /* PCVT_NETBSD > 9 */
+#endif /* PCVT_NETBSD > 100 */
 {
 	kbd_code_init();
 	
@@ -285,13 +292,23 @@ pcattach(struct isa_device *dev)
 	async_update(UPDATE_START);	/* start asynchronous updates */
 
 #if PCVT_NETBSD > 9
+
 	vthand.ih_fun = pcrint;
 	vthand.ih_arg = 0;
 	vthand.ih_level = IPL_TTY;
+
+#if PCVT_NETBSD > 100
+	intr_establish(ia->ia_irq, IST_EDGE, &vthand);
+#else /* PCVT_NETBSD > 100 */
 	intr_establish(ia->ia_irq, &vthand);
-#else
+#endif /* PCVT_NETBSD > 100 */
+
+#else /* PCVT_NETBSD > 9 */
+
 	return 1;
+
 #endif /* PCVT_NETBSD > 9 */
+
 }
 
 /* had a look at the friedl driver */
@@ -472,11 +489,7 @@ pcclose(Dev_t dev, int flag, int mode, struct proc *p)
 
 #endif /* PCVT_EMU_MOUSE */
 
-	if(vsx->vt_status & VT_WAIT_ACT)
-		wakeup((caddr_t)&vsx->smode);
-	vsx->proc = 0;
-	vsx->vt_status = vsx->pid = 0;
-	vsx->smode.mode = VT_AUTO;
+	reset_usl_modes(vsx);
 
 #endif /* PCVT_USL_VT_COMPAT */
 	
@@ -580,16 +593,29 @@ pcioctl(Dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 
 
 	  case CONSOLE_X_BELL:
+
 		/*
-		 * If `data' is non-null, it points to int[2], the first
-		 * value denotes the pitch in Hz, the second a duration
-		 * in ms (??? jw - 333 us). Otherwise, behaves like BEL.
+		 * If `data' is non-null, the first int value denotes
+		 * the pitch, the second a duration. Otherwise, behaves
+		 * like BEL.
 		 */
+
 		if (data)
+		{
+
+#if PCVT_NETBSD
+			sysbeep(((int *)data)[0],
+				((int *)data)[1] * hz / 1000);
+#else /* PCVT_NETBSD */
 			sysbeep(PCVT_SYSBEEPF / ((int *)data)[0],
 				((int *)data)[1] * hz / 3000);
+#endif /* PCVT_NETBSD */
+
+		}
 		else
+		{
 			sysbeep(PCVT_SYSBEEPF / 1493, hz / 4);
+		}
 		return (0);
 
 	  default: /* fall through */ ;
@@ -606,16 +632,29 @@ pcioctl(Dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 		return pcvt_xmode_set(0, p);
 
 	  case CONSOLE_X_BELL:
+
 		/*
-		 * If `data' is non-null, it points to int[2], the first
-		 * value denotes the pitch in Hz, the second a duration
-		 * in ms (??? jw - 333 us). Otherwise, behaves like BEL.
+		 * If `data' is non-null, the first int value denotes
+		 * the pitch, the second a duration. Otherwise, behaves
+		 * like BEL.
 		 */
+
 		if (data)
+		{
+
+#if PCVT_NETBSD		
+			sysbeep(((int *)data)[0],
+				((int *)data)[1] * hz / 1000);
+#else /* PCVT_NETBSD */
 			sysbeep(PCVT_SYSBEEPF / ((int *)data)[0],
 				((int *)data)[1] * hz / 3000);
+#endif /* PCVT_NETBSD */
+
+		}
 		else
+		{
 			sysbeep(PCVT_SYSBEEPF / 1493, hz / 4);
+		}
 		return (0);
 
 	  default: /* fall through */ ;
@@ -659,6 +698,14 @@ pcmmap(Dev_t dev, int offset, int nprot)
 	return i386_btop((0xa0000 + offset));
 }
 
+#if PCVT_FREEBSD > 205
+struct tty *
+pcdevtotty(Dev_t dev)
+{
+	return get_pccons(dev);
+}
+#endif /* PCVT_FREEBSD > 205 */
+
 /*---------------------------------------------------------------------------*
  *
  *	handle a keyboard receive interrupt
@@ -670,11 +717,12 @@ pcmmap(Dev_t dev, int offset, int nprot)
  *---------------------------------------------------------------------------*/
 
 #if PCVT_KBD_FIFO
-	u_char	pcvt_kbd_fifo[PCVT_KBD_FIFO_SZ];
-	int	pcvt_kbd_wptr = 0;
-	int	pcvt_kbd_rptr = 0;
-	short	pcvt_kbd_count= 0;
-static	u_char	pcvt_timeout_scheduled = 0;
+
+u_char pcvt_kbd_fifo[PCVT_KBD_FIFO_SZ];
+int pcvt_kbd_wptr = 0;
+int pcvt_kbd_rptr = 0;
+short pcvt_kbd_count= 0;
+static u_char pcvt_timeout_scheduled = 0;
 
 static	void	pcvt_timeout (void *arg)
 {
@@ -869,6 +917,11 @@ pcstart(register struct tty *tp)
 	}
 out:
 	splx(s);
+}
+
+void
+pcstop(struct tty *tp, int flag)
+{
 }
 
 #else /* PCVT_NETBSD || PCVT_FREEBSD >= 200 */
