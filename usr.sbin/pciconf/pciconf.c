@@ -425,9 +425,17 @@ load_vendors(void)
 static struct pcisel
 getsel(const char *str)
 {
-	char *ep = (char*) str;
+	char *ep = strchr(str, '@');
+	char *epbase;
 	struct pcisel sel;
-	
+
+	if (ep == NULL)
+		ep = (char *)str;
+	else
+		ep++;
+
+	epbase = ep;
+
 	if (strncmp(ep, "pci", 3) == 0) {
 		ep += 3;
 		sel.pc_bus = strtoul(ep, &ep, 0);
@@ -440,10 +448,10 @@ getsel(const char *str)
 			ep++;
 			sel.pc_func = strtoul(ep, &ep, 0);
 		}
+		if (*ep == ':')
+			ep++;
 	}
-	if (*ep == ':')
-		ep++;
-	if (*ep || ep == str)
+	if (*ep != '\x0' || ep == epbase)
 		errx(1, "cannot parse selector %s", str);
 	return sel;
 }
