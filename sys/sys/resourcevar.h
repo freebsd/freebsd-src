@@ -107,9 +107,9 @@ void	 addupc_intr(struct thread *td, uintptr_t pc, u_int ticks);
 void	 addupc_task(struct thread *td, uintptr_t pc, u_int ticks);
 void	 calcru(struct proc *p, struct timeval *up, struct timeval *sp,
 	    struct timeval *ip);
-int	 chgproccnt(struct uidinfo *uip, int diff, int max);
+int	 chgproccnt(struct uidinfo *uip, int diff, int maxval);
 int	 chgsbsize(struct uidinfo *uip, u_int *hiwat, u_int to,
-	    rlim_t max);
+	    rlim_t maxval);
 int	 fuswintr(void *base);
 struct plimit
 	*lim_alloc(void);
