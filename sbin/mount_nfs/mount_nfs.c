@@ -98,6 +98,8 @@ static const char rcsid[] =
 #define ALTF_ACDIRMIN	0x20000
 #define ALTF_ACDIRMAX	0x40000
 #define ALTF_NOLOCKD	0x80000
+#define ALTF_NOINET4	0x100000
+#define ALTF_NOINET6	0x200000
 
 struct mntopt mopts[] = {
 	MOPT_STDOPTS,
@@ -121,6 +123,8 @@ struct mntopt mopts[] = {
 	{ "acdirmin=", 0, ALTF_ACDIRMIN, 1 },
 	{ "acdirmax=", 0, ALTF_ACDIRMAX, 1 },
 	{ "lockd", 1, ALTF_NOLOCKD, 1 },
+	{ "inet4", 1, ALTF_NOINET4, 1 },
+	{ "inet6", 1, ALTF_NOINET6, 1 },
 	{ NULL }
 };
 
@@ -172,6 +176,8 @@ struct nfhret {
 };
 #define	BGRND	1
 #define	ISBGRND	2
+#define	OF_NOINET4	4
+#define	OF_NOINET6	8
 int retrycnt = -1;
 int opflags = 0;
 int nfsproto = IPPROTO_UDP;
@@ -333,6 +339,10 @@ main(argc, argv)
 			 */
 			if (altflags & ALTF_BG)
 				opflags |= BGRND;
+			if (altflags & ALTF_NOINET4)
+				opflags |= OF_NOINET4;
+			if (altflags & ALTF_NOINET6)
+				opflags |= OF_NOINET6;
 			if (altflags & ALTF_MNTUDP)
 				mnttcp_ok = 0;
 			if (altflags & ALTF_TCP) {
@@ -529,6 +539,12 @@ getnfsargs(spec, nfsargsp)
 		 */
 		remoteerr = 0;
 		for (ai = ai_nfs; ai != NULL; ai = ai->ai_next) {
+			if ((ai->ai_family == AF_INET6) &&
+			    (opflags & OF_NOINET6))
+				continue;
+			if ((ai->ai_family == AF_INET) && 
+			    (opflags & OF_NOINET4))
+				continue;
 			ret = nfs_tryproto(nfsargsp, ai, hostp, spec, &errstr);
 			if (ret == TRYRET_SUCCESS)
 				break;
