@@ -15,8 +15,7 @@
 #define DIST_XF86		0x0400
 #define DIST_COMMERCIAL		0x0800
 #define DIST_DES		0x1000
-#define DIST_KRB		0x2000
-#define DIST_EXPERIMENTAL	0x4000
+#define DIST_EXPERIMENTAL	0x2000
 #define DIST_ALL		0x0FFF
 
 /* Canned distribution sets */
@@ -26,6 +25,11 @@
 #define _DIST_USER \
 	(DIST_BIN | DIST_MANPAGES | DIST_DICT | DIST_COMPAT1X | DIST_COMPAT20)
 
+/* Subtypes for DES distribution */
+#define DIST_DES_DES		0x0001
+#define DIST_DES_SEBONES	0x0002
+#define DIST_DES_SSECURE	0x0004
+#define DIST_DES_KERBEROS	0x0008
 
 /* Subtypes for SRC distribution */
 #define DIST_SRC_BASE		0x0001
@@ -42,9 +46,7 @@
 #define DIST_SRC_SYS		0x0800
 #define DIST_SRC_UBIN		0x1000
 #define DIST_SRC_USBIN		0x2000
-#define DIST_SRC_SECURE		0x4000
-#define DIST_SRC_EBONES		0x8000
-#define DIST_SRC_ALL		0x3FFF
+#define DIST_SRC_ALL		0xFFFF
 
 /* Subtypes for XFree86 distribution */
 #define DIST_XF86_BIN		0x0001

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.35.2.31 1995/06/09 12:19:12 jkh Exp $
+ * $Id: dist.c,v 1.35.2.32 1995/06/10 07:54:04 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -44,6 +44,7 @@
 #include "sysinstall.h"
 
 unsigned int Dists;
+unsigned int DESDists;
 unsigned int SrcDists;
 unsigned int XF86Dists;
 unsigned int XF86ServerDists;
@@ -57,6 +58,8 @@ typedef struct _dist {
     struct _dist *my_dist;
 } Distribution;
 
+extern Distribution DistTable[];
+extern Distribution DESDistTable[];
 extern Distribution SrcDistTable[];
 extern Distribution XF86DistTable[];
 extern Distribution XF86FontDistTable[];
@@ -72,13 +75,21 @@ static Distribution DistTable[] = {
 { "dict",	"/",			&Dists,		DIST_DICT,		NULL		},
 { "info",	"/",			&Dists,		DIST_INFO,		NULL		},
 { "src",	"/",			&Dists,		DIST_SRC,		SrcDistTable	},
-{ "des",	"/",			&Dists,		DIST_DES,		NULL		},
-{ "krb",	"/",			&Dists,		DIST_KRB,		NULL		},
+{ "des",	"/",			&Dists,		DIST_DES,		DESDistTable	},
 { "compat1x",	"/",			&Dists,		DIST_COMPAT1X,		NULL		},
 { "compat20",	"/",			&Dists,		DIST_COMPAT20,		NULL		},
-{ "commerce",	"/usr/local",		&Dists,		DIST_COMMERCIAL,		NULL		},
-{ "xperimnt",	"/usr/local",		&Dists,		DIST_EXPERIMENTAL,		NULL		},
+{ "commerce",	"/usr/local",		&Dists,		DIST_COMMERCIAL,	NULL		},
+{ "xperimnt",	"/usr/local",		&Dists,		DIST_EXPERIMENTAL,	NULL		},
 { "XF86311",	"/usr",			&Dists,		DIST_XF86,		XF86DistTable	},
+{ NULL },
+};
+
+/* The DES distribution (not for export!) */
+static Distribution DESTable[] = {
+{ "des",        "/",                    &DESDists,	DIST_DES_DES,		NULL		},
+{ "krb",	"/",			&DESDists,	DIST_DES_KERBEROS,	NULL		},
+{ "ssecure",	"/usr/src",		&DESDists,	DIST_DES_SSECURE,	NULL		},
+{ "sebones",	"/usr/src",		&DESDists,	DIST_DES_SEBONES,	NULL		},
 { NULL },
 };
 
@@ -98,8 +109,6 @@ static Distribution SrcDistTable[] = {
 { "ssys",	"/usr/src",		&SrcDists,	DIST_SRC_SYS,		NULL		},
 { "subin",	"/usr/src",		&SrcDists,	DIST_SRC_UBIN,		NULL		},
 { "susbin",	"/usr/src",		&SrcDists,	DIST_SRC_USBIN,		NULL		},
-{ "ssecure",	"/usr/src",		&SrcDists,	DIST_SRC_SECURE,	NULL		},
-{ "sebones",	"/usr/src",		&SrcDists,	DIST_SRC_EBONES,	NULL		},
 { NULL },
 };
 
@@ -227,6 +236,15 @@ distSetEverything(char *str)
     XF86Dists = DIST_XF86_ALL;
     XF86ServerDists = DIST_XF86_SERVER_ALL;
     XF86FontDists = DIST_XF86_FONTS_ALL;
+    return 0;
+}
+
+int
+distSetDES(char *str)
+{
+    dmenuOpenSimple(&MenuDESDistributions);
+    if (DESDists)
+	Dists |= DIST_DES;
     return 0;
 }
 
