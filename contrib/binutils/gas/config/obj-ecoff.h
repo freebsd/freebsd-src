@@ -1,5 +1,5 @@
 /* ECOFF object file format header file.
-   Copyright 1993, 1994, 1995, 1996, 1997, 1999
+   Copyright 1993, 1994, 1995, 1996, 1997, 1999, 2002
    Free Software Foundation, Inc.
    Contributed by Cygnus Support.
    Written by Ian Lance Taylor <ian@cygnus.com>.
@@ -48,6 +48,10 @@ struct ecoff_sy_obj
 
 /* Modify the ECOFF symbol.  */
 #define obj_frob_symbol(symp, punt) ecoff_frob_symbol (symp)
+
+/* Set section VMAs and GP.  */
+extern void ecoff_frob_file_before_fix PARAMS ((void));
+#define obj_frob_file_before_fix() ecoff_frob_file_before_fix ()
 
 /* This is used to write the symbolic data in the format that BFD
    expects it.  */

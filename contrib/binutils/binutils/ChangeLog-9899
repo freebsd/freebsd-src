@@ -552,7 +552,7 @@ Mon Jun  7 12:14:57 1999  Andreas Schwab  <schwab@issan.cs.uni-dortmund.de>
 
 1999-06-04  Nick Clifton  <nickc@cygnus.com>
 
-	* readelf.c: Use 64bit wide fields in internal strcutures even if
+	* readelf.c: Use 64bit wide fields in internal structures even if
 	targetting a 32bit architecture.
 	(dump_relocations): Take a new parameter - the number of symbols
 	in the symbol table.

@@ -1,5 +1,5 @@
 /* Coff file dumper.
-   Copyright 1994, 1995, 1998, 1999, 2000, 2001, 2002
+   Copyright 1994, 1995, 1998, 1999, 2000, 2001, 2002, 2003
    Free Software Foundation, Inc.
 
    This file is part of GNU Binutils.
@@ -32,23 +32,22 @@
 
 static int atnl;
 
-static void tab PARAMS ((int));
-static void nl PARAMS ((void));
-static void dump_coff_lines PARAMS ((struct coff_line *));
-static void dump_coff_type PARAMS ((struct coff_type *));
-static void dump_coff_where PARAMS ((struct coff_where *));
-static void dump_coff_visible PARAMS ((struct coff_visible *));
-extern void dump_coff_symbol PARAMS ((struct coff_symbol *));
-static void dump_coff_scope PARAMS ((struct coff_scope *));
-static void dump_coff_sfile PARAMS ((struct coff_sfile *));
-static void dump_coff_section PARAMS ((struct coff_section *));
-extern void coff_dump PARAMS ((struct coff_ofile *));
-static void show_usage PARAMS ((FILE *, int));
-extern int main PARAMS ((int, char **));
+static void tab (int);
+static void nl (void);
+static void dump_coff_lines (struct coff_line *);
+static void dump_coff_type (struct coff_type *);
+static void dump_coff_where (struct coff_where *);
+static void dump_coff_visible (struct coff_visible *);
+extern void dump_coff_symbol (struct coff_symbol *);
+static void dump_coff_scope (struct coff_scope *);
+static void dump_coff_sfile (struct coff_sfile *);
+static void dump_coff_section (struct coff_section *);
+extern void coff_dump (struct coff_ofile *);
+static void show_usage (FILE *, int);
+extern int main (int, char **);
 
 static void
-tab (x)
-     int x;
+tab (int x)
 {
   static int indent;
   int i;
@@ -91,14 +90,13 @@ tab (x)
 }
 
 static void
-nl ()
+nl (void)
 {
   atnl = 1;
 }
 
 static void
-dump_coff_lines (p)
-     struct coff_line *p;
+dump_coff_lines (struct coff_line *p)
 {
   int i;
   int online = 0;
@@ -124,8 +122,7 @@ dump_coff_lines (p)
 }
 
 static void
-dump_coff_type (p)
-     struct coff_type *p;
+dump_coff_type (struct coff_type *p)
 {
   tab (1);
   printf ("size %d ", p->size);
@@ -244,8 +241,7 @@ dump_coff_type (p)
 }
 
 static void
-dump_coff_where (p)
-     struct coff_where *p;
+dump_coff_where (struct coff_where *p)
 {
   tab (1);
   switch (p->where)
@@ -284,8 +280,7 @@ dump_coff_where (p)
 }
 
 static void
-dump_coff_visible (p)
-     struct coff_visible *p;
+dump_coff_visible (struct coff_visible *p)
 {
   tab (1);
   switch (p->type)
@@ -331,8 +326,7 @@ dump_coff_visible (p)
 }
 
 void
-dump_coff_symbol (p)
-     struct coff_symbol *p;
+dump_coff_symbol (struct coff_symbol *p)
 {
   tab (1);
   printf ("List of symbols");
@@ -365,8 +359,7 @@ dump_coff_symbol (p)
 }
 
 static void
-dump_coff_scope (p)
-     struct coff_scope *p;
+dump_coff_scope (struct coff_scope *p)
 {
   if (p)
     {
@@ -402,8 +395,7 @@ dump_coff_scope (p)
 }
 
 static void
-dump_coff_sfile (p)
-     struct coff_sfile *p;
+dump_coff_sfile (struct coff_sfile *p)
 {
   tab (1);
   printf ("List of source files");
@@ -421,8 +413,7 @@ dump_coff_sfile (p)
 }
 
 static void
-dump_coff_section(ptr)
-     struct coff_section *ptr;
+dump_coff_section (struct coff_section *ptr)
 {
   int i;
 
@@ -446,8 +437,7 @@ dump_coff_section(ptr)
 }
 
 void
-coff_dump (ptr)
-     struct coff_ofile *ptr;
+coff_dump (struct coff_ofile *ptr)
 {
   int i;
 
@@ -464,9 +454,7 @@ coff_dump (ptr)
 char * program_name;
 
 static void
-show_usage (file, status)
-     FILE *file;
-     int status;
+show_usage (FILE *file, int status)
 {
   fprintf (file, _("Usage: %s [option(s)] in-file\n"), program_name);
   fprintf (file, _(" Print a human readable interpretation of a SYSROFF object file\n"));
@@ -482,9 +470,7 @@ show_usage (file, status)
 }
 
 int
-main (ac, av)
-     int ac;
-     char *av[];
+main (int ac, char **av)
 {
   bfd *abfd;
   struct coff_ofile *tree;

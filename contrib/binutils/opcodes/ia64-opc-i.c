@@ -1,5 +1,5 @@
 /* ia64-opc-i.c -- IA-64 `I' opcode table.
-   Copyright 1998, 1999, 2000 Free Software Foundation, Inc.
+   Copyright 1998, 1999, 2000, 2002 Free Software Foundation, Inc.
    Contributed by David Mosberger-Tang <davidm@hpl.hp.com>
 
    This file is part of GDB, GAS, and the GNU binutils.
@@ -86,6 +86,8 @@
 #define OpX3(a,b)		(bOp (a) | bX3 (b)), (mOp | mX3)
 #define OpX3X6(a,b,c)		(bOp (a) | bX3 (b) | bX6(c)), \
 				(mOp | mX3 | mX6)
+#define OpX3X6Yb(a,b,c,d)	(bOp (a) | bX3 (b) | bX6(c) | bYb(d)), \
+				(mOp | mX3 | mX6 | mYb)
 #define OpX3XbIhWh(a,b,c,d,e) \
   (bOp (a) | bX3 (b) | bXb (c) | bIh (d) | bWh (e)), \
   (mOp | mX3 | mXb | mIh | mWh)
@@ -93,17 +95,22 @@
      (bOp (a) | bX3 (b) | bXb (c) | bIh (d) | bWh (e) | bTag13 (f)), \
      (mOp | mX3 | mXb | mIh | mWh | mTag13)
 
+/* Used to initialise unused fields in ia64_opcode struct,
+   in order to stop gcc from complaining.  */
+#define EMPTY 0,0,NULL
+
 struct ia64_opcode ia64_opcodes_i[] =
   {
-    /* I-type instruction encodings (sorted according to major opcode) */
+    /* I-type instruction encodings (sorted according to major opcode).  */
 
-    {"break.i",	I0, OpX3X6 (0, 0, 0x00), {IMMU21}, X_IN_MLX},
-    {"nop.i",	I0, OpX3X6 (0, 0, 0x01), {IMMU21}, X_IN_MLX},
-    {"chk.s.i",	I0, OpX3 (0, 1), {R2, TGT25b}},
+    {"break.i",	I0, OpX3X6 (0, 0, 0x00), {IMMU21}, X_IN_MLX, 0, NULL},
+    {"nop.i",	I0, OpX3X6Yb (0, 0, 0x01, 0), {IMMU21}, X_IN_MLX, 0, NULL},
+    {"hint.i",	I0, OpX3X6Yb (0, 0, 0x01, 1), {IMMU21}, X_IN_MLX, 0, NULL},
+    {"chk.s.i",	I0, OpX3 (0, 1), {R2, TGT25b}, EMPTY},
 
-    {"mov", I, OpX3XbIhWhTag13 (0, 7, 0, 0, 1, 0), {B1, R2}, PSEUDO},
+    {"mov", I, OpX3XbIhWhTag13 (0, 7, 0, 0, 1, 0), {B1, R2}, PSEUDO, 0, NULL},
 #define MOV(a,b,c,d) \
-    I, OpX3XbIhWh (0, a, b, c, d), {B1, R2, TAG13b}
+    I, OpX3XbIhWh (0, a, b, c, d), {B1, R2, TAG13b}, EMPTY
     {"mov.sptk",		MOV (7, 0, 0, 0)},
     {"mov.sptk.imp",		MOV (7, 0, 1, 0)},
     {"mov",			MOV (7, 0, 0, 1)},
@@ -117,46 +124,46 @@ struct ia64_opcode ia64_opcodes_i[] =
     {"mov.ret.dptk",		MOV (7, 1, 0, 2)},
     {"mov.ret.dptk.imp",	MOV (7, 1, 1, 2)},
 #undef MOV
-    {"mov",	I, OpX3X6 (0, 0, 0x31), {R1, B2}},
-    {"mov",	I, OpX3 (0, 3), {PR, R2, IMM17}},
-    {"mov",	I, OpX3 (0, 2), {PR_ROT, IMM44}},
-    {"mov",	I, OpX3X6 (0, 0, 0x30), {R1, IP}},
-    {"mov",	I, OpX3X6 (0, 0, 0x33), {R1, PR}},
-    {"mov.i",	I, OpX3X6 (0, 0, 0x2a), {AR3, R2}},
-    {"mov.i",	I, OpX3X6 (0, 0, 0x0a), {AR3, IMM8}},
-    {"mov.i",	I, OpX3X6 (0, 0, 0x32), {R1, AR3}},
-    {"zxt1",	I, OpX3X6 (0, 0, 0x10), {R1, R3}},
-    {"zxt2",	I, OpX3X6 (0, 0, 0x11), {R1, R3}},
-    {"zxt4",	I, OpX3X6 (0, 0, 0x12), {R1, R3}},
-    {"sxt1",	I, OpX3X6 (0, 0, 0x14), {R1, R3}},
-    {"sxt2",	I, OpX3X6 (0, 0, 0x15), {R1, R3}},
-    {"sxt4",	I, OpX3X6 (0, 0, 0x16), {R1, R3}},
-    {"czx1.l",	I, OpX3X6 (0, 0, 0x18), {R1, R3}},
-    {"czx2.l",	I, OpX3X6 (0, 0, 0x19), {R1, R3}},
-    {"czx1.r",	I, OpX3X6 (0, 0, 0x1c), {R1, R3}},
-    {"czx2.r",	I, OpX3X6 (0, 0, 0x1d), {R1, R3}},
+    {"mov",	I, OpX3X6 (0, 0, 0x31), {R1, B2}, EMPTY},
+    {"mov",	I, OpX3 (0, 3), {PR, R2, IMM17}, EMPTY},
+    {"mov",	I, OpX3 (0, 2), {PR_ROT, IMM44}, EMPTY},
+    {"mov",	I, OpX3X6 (0, 0, 0x30), {R1, IP}, EMPTY},
+    {"mov",	I, OpX3X6 (0, 0, 0x33), {R1, PR}, EMPTY},
+    {"mov.i",	I, OpX3X6 (0, 0, 0x2a), {AR3, R2}, EMPTY},
+    {"mov.i",	I, OpX3X6 (0, 0, 0x0a), {AR3, IMM8}, EMPTY},
+    {"mov.i",	I, OpX3X6 (0, 0, 0x32), {R1, AR3}, EMPTY},
+    {"zxt1",	I, OpX3X6 (0, 0, 0x10), {R1, R3}, EMPTY},
+    {"zxt2",	I, OpX3X6 (0, 0, 0x11), {R1, R3}, EMPTY},
+    {"zxt4",	I, OpX3X6 (0, 0, 0x12), {R1, R3}, EMPTY},
+    {"sxt1",	I, OpX3X6 (0, 0, 0x14), {R1, R3}, EMPTY},
+    {"sxt2",	I, OpX3X6 (0, 0, 0x15), {R1, R3}, EMPTY},
+    {"sxt4",	I, OpX3X6 (0, 0, 0x16), {R1, R3}, EMPTY},
+    {"czx1.l",	I, OpX3X6 (0, 0, 0x18), {R1, R3}, EMPTY},
+    {"czx2.l",	I, OpX3X6 (0, 0, 0x19), {R1, R3}, EMPTY},
+    {"czx1.r",	I, OpX3X6 (0, 0, 0x1c), {R1, R3}, EMPTY},
+    {"czx2.r",	I, OpX3X6 (0, 0, 0x1d), {R1, R3}, EMPTY},
 
-    {"dep",	I, Op (4), {R1, R2, R3, CPOS6c, LEN4}},
+    {"dep",	I, Op (4), {R1, R2, R3, CPOS6c, LEN4}, EMPTY},
 
-    {"shrp",	I, OpX2X (5, 3, 0), {R1, R2, R3, CNT6}},
+    {"shrp",	I, OpX2X (5, 3, 0), {R1, R2, R3, CNT6}, EMPTY},
 
     {"shr.u",	I, OpX2XYa (5, 1, 0, 0), {R1, R3, POS6},
-     PSEUDO | LEN_EQ_64MCNT},
-    {"extr.u",	I, OpX2XYa (5, 1, 0, 0), {R1, R3, POS6, LEN6}},
+     PSEUDO | LEN_EQ_64MCNT, 0, NULL},
+    {"extr.u",	I, OpX2XYa (5, 1, 0, 0), {R1, R3, POS6, LEN6}, EMPTY},
 
     {"shr",	I, OpX2XYa (5, 1, 0, 1), {R1, R3, POS6},
-     PSEUDO | LEN_EQ_64MCNT},
-    {"extr",	I, OpX2XYa (5, 1, 0, 1), {R1, R3, POS6, LEN6}},
+     PSEUDO | LEN_EQ_64MCNT, 0, NULL},
+    {"extr",	I, OpX2XYa (5, 1, 0, 1), {R1, R3, POS6, LEN6}, EMPTY},
 
     {"shl",	I, OpX2XYb (5, 1, 1, 0), {R1, R2, CPOS6a},
-     PSEUDO | LEN_EQ_64MCNT},
-    {"dep.z",	I, OpX2XYb (5, 1, 1, 0), {R1, R2, CPOS6a, LEN6}},
-    {"dep.z",	I, OpX2XYb (5, 1, 1, 1), {R1, IMM8, CPOS6a, LEN6}},
-    {"dep",	I, OpX2X (5, 3, 1), {R1, IMM1, R3, CPOS6b, LEN6}},
+     PSEUDO | LEN_EQ_64MCNT, 0, NULL},
+    {"dep.z",	I, OpX2XYb (5, 1, 1, 0), {R1, R2, CPOS6a, LEN6}, EMPTY},
+    {"dep.z",	I, OpX2XYb (5, 1, 1, 1), {R1, IMM8, CPOS6a, LEN6}, EMPTY},
+    {"dep",	I, OpX2X (5, 3, 1), {R1, IMM1, R3, CPOS6b, LEN6}, EMPTY},
 #define TBIT(a,b,c,d) \
-        I2, OpX2TaTbYaC (5, 0, a, b, c, d), {P1, P2, R3, POS6}
+        I2, OpX2TaTbYaC (5, 0, a, b, c, d), {P1, P2, R3, POS6}, EMPTY
 #define TBITCM(a,b,c,d)	\
-        I2, OpX2TaTbYaC (5, 0, a, b, c, d), {P2, P1, R3, POS6}, PSEUDO
+        I2, OpX2TaTbYaC (5, 0, a, b, c, d), {P2, P1, R3, POS6}, PSEUDO, 0, NULL
     {"tbit.z",		 TBIT   (0, 0, 0, 0)},
     {"tbit.nz",		 TBITCM (0, 0, 0, 0)},
     {"tbit.z.unc",	 TBIT   (0, 0, 0, 1)},
@@ -175,9 +182,9 @@ struct ia64_opcode ia64_opcodes_i[] =
     {"tbit.z.and.orcm",  TBITCM (1, 1, 0, 1)},
 #undef TBIT
 #define TNAT(a,b,c,d) \
-	I2, OpX2TaTbYaC (5, 0, a, b, c, d), {P1, P2, R3}
+	I2, OpX2TaTbYaC (5, 0, a, b, c, d), {P1, P2, R3}, EMPTY
 #define TNATCM(a,b,c,d) \
-	I2, OpX2TaTbYaC (5, 0, a, b, c, d), {P2, P1, R3}, PSEUDO
+	I2, OpX2TaTbYaC (5, 0, a, b, c, d), {P2, P1, R3}, PSEUDO, 0, NULL
     {"tnat.z",		 TNAT   (0, 0, 1, 0)},
     {"tnat.nz",		 TNATCM (0, 0, 1, 0)},
     {"tnat.z.unc",	 TNAT   (0, 0, 1, 1)},
@@ -196,50 +203,50 @@ struct ia64_opcode ia64_opcodes_i[] =
     {"tnat.z.and.orcm",  TNATCM (1, 1, 1, 1)},
 #undef TNAT
 
-    {"pmpyshr2",   I, OpZaZbVeX2aX2b (7, 0, 1, 0, 0, 3), {R1, R2, R3, CNT2c}},
-    {"pmpyshr2.u", I, OpZaZbVeX2aX2b (7, 0, 1, 0, 0, 1), {R1, R2, R3, CNT2c}},
-    {"pmpy2.r",	   I, OpZaZbVeX2aX2bX2c (7, 0, 1, 0, 2, 1, 3), {R1, R2, R3}},
-    {"pmpy2.l",	   I, OpZaZbVeX2aX2bX2c (7, 0, 1, 0, 2, 3, 3), {R1, R2, R3}},
-    {"mix1.r",	   I, OpZaZbVeX2aX2bX2c (7, 0, 0, 0, 2, 0, 2), {R1, R2, R3}},
-    {"mix2.r",	   I, OpZaZbVeX2aX2bX2c (7, 0, 1, 0, 2, 0, 2), {R1, R2, R3}},
-    {"mix4.r",	   I, OpZaZbVeX2aX2bX2c (7, 1, 0, 0, 2, 0, 2), {R1, R2, R3}},
-    {"mix1.l",	   I, OpZaZbVeX2aX2bX2c (7, 0, 0, 0, 2, 2, 2), {R1, R2, R3}},
-    {"mix2.l",	   I, OpZaZbVeX2aX2bX2c (7, 0, 1, 0, 2, 2, 2), {R1, R2, R3}},
-    {"mix4.l",	   I, OpZaZbVeX2aX2bX2c (7, 1, 0, 0, 2, 2, 2), {R1, R2, R3}},
-    {"pack2.uss",  I, OpZaZbVeX2aX2bX2c (7, 0, 1, 0, 2, 0, 0), {R1, R2, R3}},
-    {"pack2.sss",  I, OpZaZbVeX2aX2bX2c (7, 0, 1, 0, 2, 2, 0), {R1, R2, R3}},
-    {"pack4.sss",  I, OpZaZbVeX2aX2bX2c (7, 1, 0, 0, 2, 2, 0), {R1, R2, R3}},
-    {"unpack1.h",  I, OpZaZbVeX2aX2bX2c (7, 0, 0, 0, 2, 0, 1), {R1, R2, R3}},
-    {"unpack2.h",  I, OpZaZbVeX2aX2bX2c (7, 0, 1, 0, 2, 0, 1), {R1, R2, R3}},
-    {"unpack4.h",  I, OpZaZbVeX2aX2bX2c (7, 1, 0, 0, 2, 0, 1), {R1, R2, R3}},
-    {"unpack1.l",  I, OpZaZbVeX2aX2bX2c (7, 0, 0, 0, 2, 2, 1), {R1, R2, R3}},
-    {"unpack2.l",  I, OpZaZbVeX2aX2bX2c (7, 0, 1, 0, 2, 2, 1), {R1, R2, R3}},
-    {"unpack4.l",  I, OpZaZbVeX2aX2bX2c (7, 1, 0, 0, 2, 2, 1), {R1, R2, R3}},
-    {"pmin1.u",	   I, OpZaZbVeX2aX2bX2c (7, 0, 0, 0, 2, 1, 0), {R1, R2, R3}},
-    {"pmax1.u",	   I, OpZaZbVeX2aX2bX2c (7, 0, 0, 0, 2, 1, 1), {R1, R2, R3}},
-    {"pmin2",	   I, OpZaZbVeX2aX2bX2c (7, 0, 1, 0, 2, 3, 0), {R1, R2, R3}},
-    {"pmax2",	   I, OpZaZbVeX2aX2bX2c (7, 0, 1, 0, 2, 3, 1), {R1, R2, R3}},
-    {"psad1",	   I, OpZaZbVeX2aX2bX2c (7, 0, 0, 0, 2, 3, 2), {R1, R2, R3}},
-    {"mux1", I, OpZaZbVeX2aX2bX2c (7, 0, 0, 0, 3, 2, 2), {R1, R2, MBTYPE4}},
-    {"mux2", I, OpZaZbVeX2aX2bX2c (7, 0, 1, 0, 3, 2, 2), {R1, R2, MHTYPE8}},
-    {"pshr2",	I, OpZaZbVeX2aX2bX2c (7, 0, 1, 0, 0, 2, 0), {R1, R3, R2}},
-    {"pshr4",	I, OpZaZbVeX2aX2bX2c (7, 1, 0, 0, 0, 2, 0), {R1, R3, R2}},
-    {"shr",	I, OpZaZbVeX2aX2bX2c (7, 1, 1, 0, 0, 2, 0), {R1, R3, R2}},
-    {"pshr2.u",	I, OpZaZbVeX2aX2bX2c (7, 0, 1, 0, 0, 0, 0), {R1, R3, R2}},
-    {"pshr4.u",	I, OpZaZbVeX2aX2bX2c (7, 1, 0, 0, 0, 0, 0), {R1, R3, R2}},
-    {"shr.u",	I, OpZaZbVeX2aX2bX2c (7, 1, 1, 0, 0, 0, 0), {R1, R3, R2}},
-    {"pshr2",	I, OpZaZbVeX2aX2bX2c (7, 0, 1, 0, 1, 3, 0), {R1, R3, CNT5}},
-    {"pshr4",	I, OpZaZbVeX2aX2bX2c (7, 1, 0, 0, 1, 3, 0), {R1, R3, CNT5}},
-    {"pshr2.u",	I, OpZaZbVeX2aX2bX2c (7, 0, 1, 0, 1, 1, 0), {R1, R3, CNT5}},
-    {"pshr4.u",	I, OpZaZbVeX2aX2bX2c (7, 1, 0, 0, 1, 1, 0), {R1, R3, CNT5}},
-    {"pshl2",	I, OpZaZbVeX2aX2bX2c (7, 0, 1, 0, 0, 0, 1), {R1, R2, R3}},
-    {"pshl4",	I, OpZaZbVeX2aX2bX2c (7, 1, 0, 0, 0, 0, 1), {R1, R2, R3}},
-    {"shl",	I, OpZaZbVeX2aX2bX2c (7, 1, 1, 0, 0, 0, 1), {R1, R2, R3}},
-    {"pshl2",	I, OpZaZbVeX2aX2bX2c (7, 0, 1, 0, 3, 1, 1), {R1, R2, CCNT5}},
-    {"pshl4",	I, OpZaZbVeX2aX2bX2c (7, 1, 0, 0, 3, 1, 1), {R1, R2, CCNT5}},
-    {"popcnt",	I, OpZaZbVeX2aX2bX2c (7, 0, 1, 0, 1, 1, 2), {R1, R3}},
+    {"pmpyshr2",   I, OpZaZbVeX2aX2b (7, 0, 1, 0, 0, 3), {R1, R2, R3, CNT2c}, EMPTY},
+    {"pmpyshr2.u", I, OpZaZbVeX2aX2b (7, 0, 1, 0, 0, 1), {R1, R2, R3, CNT2c}, EMPTY},
+    {"pmpy2.r",	   I, OpZaZbVeX2aX2bX2c (7, 0, 1, 0, 2, 1, 3), {R1, R2, R3}, EMPTY},
+    {"pmpy2.l",	   I, OpZaZbVeX2aX2bX2c (7, 0, 1, 0, 2, 3, 3), {R1, R2, R3}, EMPTY},
+    {"mix1.r",	   I, OpZaZbVeX2aX2bX2c (7, 0, 0, 0, 2, 0, 2), {R1, R2, R3}, EMPTY},
+    {"mix2.r",	   I, OpZaZbVeX2aX2bX2c (7, 0, 1, 0, 2, 0, 2), {R1, R2, R3}, EMPTY},
+    {"mix4.r",	   I, OpZaZbVeX2aX2bX2c (7, 1, 0, 0, 2, 0, 2), {R1, R2, R3}, EMPTY},
+    {"mix1.l",	   I, OpZaZbVeX2aX2bX2c (7, 0, 0, 0, 2, 2, 2), {R1, R2, R3}, EMPTY},
+    {"mix2.l",	   I, OpZaZbVeX2aX2bX2c (7, 0, 1, 0, 2, 2, 2), {R1, R2, R3}, EMPTY},
+    {"mix4.l",	   I, OpZaZbVeX2aX2bX2c (7, 1, 0, 0, 2, 2, 2), {R1, R2, R3}, EMPTY},
+    {"pack2.uss",  I, OpZaZbVeX2aX2bX2c (7, 0, 1, 0, 2, 0, 0), {R1, R2, R3}, EMPTY},
+    {"pack2.sss",  I, OpZaZbVeX2aX2bX2c (7, 0, 1, 0, 2, 2, 0), {R1, R2, R3}, EMPTY},
+    {"pack4.sss",  I, OpZaZbVeX2aX2bX2c (7, 1, 0, 0, 2, 2, 0), {R1, R2, R3}, EMPTY},
+    {"unpack1.h",  I, OpZaZbVeX2aX2bX2c (7, 0, 0, 0, 2, 0, 1), {R1, R2, R3}, EMPTY},
+    {"unpack2.h",  I, OpZaZbVeX2aX2bX2c (7, 0, 1, 0, 2, 0, 1), {R1, R2, R3}, EMPTY},
+    {"unpack4.h",  I, OpZaZbVeX2aX2bX2c (7, 1, 0, 0, 2, 0, 1), {R1, R2, R3}, EMPTY},
+    {"unpack1.l",  I, OpZaZbVeX2aX2bX2c (7, 0, 0, 0, 2, 2, 1), {R1, R2, R3}, EMPTY},
+    {"unpack2.l",  I, OpZaZbVeX2aX2bX2c (7, 0, 1, 0, 2, 2, 1), {R1, R2, R3}, EMPTY},
+    {"unpack4.l",  I, OpZaZbVeX2aX2bX2c (7, 1, 0, 0, 2, 2, 1), {R1, R2, R3}, EMPTY},
+    {"pmin1.u",	   I, OpZaZbVeX2aX2bX2c (7, 0, 0, 0, 2, 1, 0), {R1, R2, R3}, EMPTY},
+    {"pmax1.u",	   I, OpZaZbVeX2aX2bX2c (7, 0, 0, 0, 2, 1, 1), {R1, R2, R3}, EMPTY},
+    {"pmin2",	   I, OpZaZbVeX2aX2bX2c (7, 0, 1, 0, 2, 3, 0), {R1, R2, R3}, EMPTY},
+    {"pmax2",	   I, OpZaZbVeX2aX2bX2c (7, 0, 1, 0, 2, 3, 1), {R1, R2, R3}, EMPTY},
+    {"psad1",	   I, OpZaZbVeX2aX2bX2c (7, 0, 0, 0, 2, 3, 2), {R1, R2, R3}, EMPTY},
+    {"mux1", I, OpZaZbVeX2aX2bX2c (7, 0, 0, 0, 3, 2, 2), {R1, R2, MBTYPE4}, EMPTY},
+    {"mux2", I, OpZaZbVeX2aX2bX2c (7, 0, 1, 0, 3, 2, 2), {R1, R2, MHTYPE8}, EMPTY},
+    {"pshr2",	I, OpZaZbVeX2aX2bX2c (7, 0, 1, 0, 0, 2, 0), {R1, R3, R2}, EMPTY},
+    {"pshr4",	I, OpZaZbVeX2aX2bX2c (7, 1, 0, 0, 0, 2, 0), {R1, R3, R2}, EMPTY},
+    {"shr",	I, OpZaZbVeX2aX2bX2c (7, 1, 1, 0, 0, 2, 0), {R1, R3, R2}, EMPTY},
+    {"pshr2.u",	I, OpZaZbVeX2aX2bX2c (7, 0, 1, 0, 0, 0, 0), {R1, R3, R2}, EMPTY},
+    {"pshr4.u",	I, OpZaZbVeX2aX2bX2c (7, 1, 0, 0, 0, 0, 0), {R1, R3, R2}, EMPTY},
+    {"shr.u",	I, OpZaZbVeX2aX2bX2c (7, 1, 1, 0, 0, 0, 0), {R1, R3, R2}, EMPTY},
+    {"pshr2",	I, OpZaZbVeX2aX2bX2c (7, 0, 1, 0, 1, 3, 0), {R1, R3, CNT5}, EMPTY},
+    {"pshr4",	I, OpZaZbVeX2aX2bX2c (7, 1, 0, 0, 1, 3, 0), {R1, R3, CNT5}, EMPTY},
+    {"pshr2.u",	I, OpZaZbVeX2aX2bX2c (7, 0, 1, 0, 1, 1, 0), {R1, R3, CNT5}, EMPTY},
+    {"pshr4.u",	I, OpZaZbVeX2aX2bX2c (7, 1, 0, 0, 1, 1, 0), {R1, R3, CNT5}, EMPTY},
+    {"pshl2",	I, OpZaZbVeX2aX2bX2c (7, 0, 1, 0, 0, 0, 1), {R1, R2, R3}, EMPTY},
+    {"pshl4",	I, OpZaZbVeX2aX2bX2c (7, 1, 0, 0, 0, 0, 1), {R1, R2, R3}, EMPTY},
+    {"shl",	I, OpZaZbVeX2aX2bX2c (7, 1, 1, 0, 0, 0, 1), {R1, R2, R3}, EMPTY},
+    {"pshl2",	I, OpZaZbVeX2aX2bX2c (7, 0, 1, 0, 3, 1, 1), {R1, R2, CCNT5}, EMPTY},
+    {"pshl4",	I, OpZaZbVeX2aX2bX2c (7, 1, 0, 0, 3, 1, 1), {R1, R2, CCNT5}, EMPTY},
+    {"popcnt",	I, OpZaZbVeX2aX2bX2c (7, 0, 1, 0, 1, 1, 2), {R1, R3}, EMPTY},
 
-    {0}
+    {NULL, 0, 0, 0, 0, {0}, 0, 0, NULL}
   };
 
 #undef I0
@@ -294,3 +301,4 @@ struct ia64_opcode ia64_opcodes_i[] =
 #undef OpX3X6
 #undef OpX3XbIhWh
 #undef OpX3XbIhWhTag13
+#undef EMPTY

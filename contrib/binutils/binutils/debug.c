@@ -1,5 +1,5 @@
 /* debug.c -- Handle generic debugging information.
-   Copyright 1995, 1996, 1997, 1998, 2000, 2002 Free Software Foundation, Inc.
+   Copyright 1995, 1996, 1997, 1998, 2000, 2002, 2003 Free Software Foundation, Inc.
    Written by Ian Lance Taylor <ian@cygnus.com>.
 
    This file is part of GNU Binutils.
@@ -22,7 +22,7 @@
 /* This file implements a generic debugging format.  We may eventually
    have readers which convert different formats into this generic
    format, and writers which write it out.  The initial impetus for
-   this was writing a convertor from stabs to HP IEEE-695 debugging
+   this was writing a converter from stabs to HP IEEE-695 debugging
    format.  */
 
 #include <stdio.h>
@@ -111,7 +111,7 @@ struct debug_type
       struct debug_indirect_type *kindirect;
       /* DEBUG_KIND_INT.  */
       /* Whether the integer is unsigned.  */
-      boolean kint;
+      bfd_boolean kint;
       /* DEBUG_KIND_STRUCT, DEBUG_KIND_UNION, DEBUG_KIND_CLASS,
          DEBUG_KIND_UNION_CLASS.  */
       struct debug_class_type *kclass;
@@ -194,7 +194,7 @@ struct debug_function_type
   /* NULL terminated array of argument types.  */
   debug_type *arg_types;
   /* Whether the function takes a variable number of arguments.  */
-  boolean varargs;
+  bfd_boolean varargs;
 };
 
 /* Information kept for a range.  */
@@ -222,7 +222,7 @@ struct debug_array_type
   /* Upper bound.  */
   bfd_signed_vma upper;
   /* Whether this array is really a string.  */
-  boolean stringp;
+  bfd_boolean stringp;
 };
 
 /* Information kept for a set.  */
@@ -232,7 +232,7 @@ struct debug_set_type
   /* Base type.  */
   debug_type type;
   /* Whether this set is really a bitstring.  */
-  boolean bitstringp;
+  bfd_boolean bitstringp;
 };
 
 /* Information kept for an offset type (a based pointer).  */
@@ -256,7 +256,7 @@ struct debug_method_type
   /* A NULL terminated array of argument types.  */
   debug_type *arg_types;
   /* Whether the method takes a variable number of arguments.  */
-  boolean varargs;
+  bfd_boolean varargs;
 };
 
 /* Information kept for a named type.  */
@@ -280,7 +280,7 @@ struct debug_field
   /* Visibility of the field.  */
   enum debug_visibility visibility;
   /* Whether this is a static member.  */
-  boolean static_member;
+  bfd_boolean static_member;
   union
     {
       /* If static_member is false.  */
@@ -308,7 +308,7 @@ struct debug_baseclass
   /* Bit position of the base class in the object.  */
   unsigned int bitpos;
   /* Whether the base class is virtual.  */
-  boolean virtual;
+  bfd_boolean virtual;
   /* Visibility of the base class.  */
   enum debug_visibility visibility;
 };
@@ -335,9 +335,9 @@ struct debug_method_variant
   /* The visibility of the function.  */
   enum debug_visibility visibility;
   /* Whether the function is const.  */
-  boolean constp;
+  bfd_boolean constp;
   /* Whether the function is volatile.  */
-  boolean volatilep;
+  bfd_boolean volatilep;
   /* The offset to the function in the virtual function table.  */
   bfd_vma voffset;
   /* If voffset is VOFFSET_STATIC_METHOD, this is a static method.  */
@@ -554,47 +554,45 @@ struct debug_type_real_list
 
 /* Local functions.  */
 
-static void debug_error PARAMS ((const char *));
+static void debug_error (const char *);
 static struct debug_name *debug_add_to_namespace
-  PARAMS ((struct debug_handle *, struct debug_namespace **, const char *,
-	   enum debug_object_kind, enum debug_object_linkage));
+  (struct debug_handle *, struct debug_namespace **, const char *,
+   enum debug_object_kind, enum debug_object_linkage);
 static struct debug_name *debug_add_to_current_namespace
-  PARAMS ((struct debug_handle *, const char *, enum debug_object_kind,
-	   enum debug_object_linkage));
+  (struct debug_handle *, const char *, enum debug_object_kind,
+   enum debug_object_linkage);
 static struct debug_type *debug_make_type
-  PARAMS ((struct debug_handle *, enum debug_type_kind, unsigned int));
+  (struct debug_handle *, enum debug_type_kind, unsigned int);
 static struct debug_type *debug_get_real_type
-  PARAMS ((PTR, debug_type, struct debug_type_real_list *));
-static boolean debug_write_name
-  PARAMS ((struct debug_handle *, const struct debug_write_fns *, PTR,
-	   struct debug_name *));
-static boolean debug_write_type
-  PARAMS ((struct debug_handle *, const struct debug_write_fns *, PTR,
-	   struct debug_type *, struct debug_name *));
-static boolean debug_write_class_type
-  PARAMS ((struct debug_handle *, const struct debug_write_fns *, PTR,
-	   struct debug_type *, const char *));
-static boolean debug_write_function
-  PARAMS ((struct debug_handle *, const struct debug_write_fns *, PTR,
-	   const char *, enum debug_object_linkage, struct debug_function *));
-static boolean debug_write_block
-  PARAMS ((struct debug_handle *, const struct debug_write_fns *, PTR,
-	   struct debug_block *));
-static boolean debug_write_linenos
-  PARAMS ((struct debug_handle *, const struct debug_write_fns *, PTR,
-	   bfd_vma));
-static boolean debug_set_class_id
-  PARAMS ((struct debug_handle *, const char *, struct debug_type *));
-static boolean debug_type_samep
-  PARAMS ((struct debug_handle *, struct debug_type *, struct debug_type *));
-static boolean debug_class_type_samep
-  PARAMS ((struct debug_handle *, struct debug_type *, struct debug_type *));
+  (void *, debug_type, struct debug_type_real_list *);
+static bfd_boolean debug_write_name
+  (struct debug_handle *, const struct debug_write_fns *, void *,
+   struct debug_name *);
+static bfd_boolean debug_write_type
+  (struct debug_handle *, const struct debug_write_fns *, void *,
+   struct debug_type *, struct debug_name *);
+static bfd_boolean debug_write_class_type
+  (struct debug_handle *, const struct debug_write_fns *, void *,
+   struct debug_type *, const char *);
+static bfd_boolean debug_write_function
+  (struct debug_handle *, const struct debug_write_fns *, void *,
+   const char *, enum debug_object_linkage, struct debug_function *);
+static bfd_boolean debug_write_block
+  (struct debug_handle *, const struct debug_write_fns *, void *,
+   struct debug_block *);
+static bfd_boolean debug_write_linenos
+  (struct debug_handle *, const struct debug_write_fns *, void *, bfd_vma);
+static bfd_boolean debug_set_class_id
+  (struct debug_handle *, const char *, struct debug_type *);
+static bfd_boolean debug_type_samep
+  (struct debug_handle *, struct debug_type *, struct debug_type *);
+static bfd_boolean debug_class_type_samep
+  (struct debug_handle *, struct debug_type *, struct debug_type *);
 
 /* Issue an error message.  */
 
 static void
-debug_error (message)
-     const char *message;
+debug_error (const char *message)
 {
   fprintf (stderr, "%s\n", message);
 }
@@ -602,12 +600,10 @@ debug_error (message)
 /* Add an object to a namespace.  */
 
 static struct debug_name *
-debug_add_to_namespace (info, nsp, name, kind, linkage)
-     struct debug_handle *info ATTRIBUTE_UNUSED;
-     struct debug_namespace **nsp;
-     const char *name;
-     enum debug_object_kind kind;
-     enum debug_object_linkage linkage;
+debug_add_to_namespace (struct debug_handle *info ATTRIBUTE_UNUSED,
+			struct debug_namespace **nsp, const char *name,
+			enum debug_object_kind kind,
+			enum debug_object_linkage linkage)
 {
   struct debug_name *n;
   struct debug_namespace *ns;
@@ -639,11 +635,9 @@ debug_add_to_namespace (info, nsp, name, kind, linkage)
 /* Add an object to the current namespace.  */
 
 static struct debug_name *
-debug_add_to_current_namespace (info, name, kind, linkage)
-     struct debug_handle *info;
-     const char *name;
-     enum debug_object_kind kind;
-     enum debug_object_linkage linkage;
+debug_add_to_current_namespace (struct debug_handle *info, const char *name,
+				enum debug_object_kind kind,
+				enum debug_object_linkage linkage)
 {
   struct debug_namespace **nsp;
 
@@ -664,23 +658,21 @@ debug_add_to_current_namespace (info, name, kind, linkage)
 
 /* Return a handle for debugging information.  */
 
-PTR
-debug_init ()
+void *
+debug_init (void)
 {
   struct debug_handle *ret;
 
   ret = (struct debug_handle *) xmalloc (sizeof *ret);
   memset (ret, 0, sizeof *ret);
-  return (PTR) ret;
+  return (void *) ret;
 }
 
 /* Set the source filename.  This implicitly starts a new compilation
    unit.  */
 
-boolean
-debug_set_filename (handle, name)
-     PTR handle;
-     const char *name;
+bfd_boolean
+debug_set_filename (void *handle, const char *name)
 {
   struct debug_handle *info = (struct debug_handle *) handle;
   struct debug_file *nfile;
@@ -714,16 +706,14 @@ debug_set_filename (handle, name)
   info->current_block = NULL;
   info->current_lineno = NULL;
 
-  return true;
+  return TRUE;
 }
 
 /* Change source files to the given file name.  This is used for
    include files in a single compilation unit.  */
 
-boolean
-debug_start_source (handle, name)
-     PTR handle;
-     const char *name;
+bfd_boolean
+debug_start_source (void *handle, const char *name)
 {
   struct debug_handle *info = (struct debug_handle *) handle;
   struct debug_file *f, **pf;
@@ -734,7 +724,7 @@ debug_start_source (handle, name)
   if (info->current_unit == NULL)
     {
       debug_error (_("debug_start_source: no debug_set_filename call"));
-      return false;
+      return FALSE;
     }
 
   for (f = info->current_unit->files; f != NULL; f = f->next)
@@ -744,7 +734,7 @@ debug_start_source (handle, name)
 	  && strcmp (f->filename, name) == 0)
 	{
 	  info->current_file = f;
-	  return true;
+	  return TRUE;
 	}
     }
 
@@ -761,7 +751,7 @@ debug_start_source (handle, name)
 
   info->current_file = f;
 
-  return true;
+  return TRUE;
 }
 
 /* Record a function definition.  This implicitly starts a function
@@ -772,13 +762,10 @@ debug_start_source (handle, name)
    debug_record_parameter.  FIXME: There is no way to specify nested
    functions.  */
 
-boolean
-debug_record_function (handle, name, return_type, global, addr)
-     PTR handle;
-     const char *name;
-     debug_type return_type;
-     boolean global;
-     bfd_vma addr;
+bfd_boolean
+debug_record_function (void *handle, const char *name,
+		       debug_type return_type, bfd_boolean global,
+		       bfd_vma addr)
 {
   struct debug_handle *info = (struct debug_handle *) handle;
   struct debug_function *f;
@@ -788,12 +775,12 @@ debug_record_function (handle, name, return_type, global, addr)
   if (name == NULL)
     name = "";
   if (return_type == NULL)
-    return false;
+    return FALSE;
 
   if (info->current_unit == NULL)
     {
       debug_error (_("debug_record_function: no debug_set_filename call"));
-      return false;
+      return FALSE;
     }
 
   f = (struct debug_function *) xmalloc (sizeof *f);
@@ -822,34 +809,30 @@ debug_record_function (handle, name, return_type, global, addr)
 			       ? DEBUG_LINKAGE_GLOBAL
 			       : DEBUG_LINKAGE_STATIC));
   if (n == NULL)
-    return false;
+    return FALSE;
 
   n->u.function = f;
 
-  return true;
+  return TRUE;
 }
 
 /* Record a parameter for the current function.  */
 
-boolean
-debug_record_parameter (handle, name, type, kind, val)
-     PTR handle;
-     const char *name;
-     debug_type type;
-     enum debug_parm_kind kind;
-     bfd_vma val;
+bfd_boolean
+debug_record_parameter (void *handle, const char *name, debug_type type,
+			enum debug_parm_kind kind, bfd_vma val)
 {
   struct debug_handle *info = (struct debug_handle *) handle;
   struct debug_parameter *p, **pp;
 
   if (name == NULL || type == NULL)
-    return false;
+    return FALSE;
 
   if (info->current_unit == NULL
       || info->current_function == NULL)
     {
       debug_error (_("debug_record_parameter: no current function"));
-      return false;
+      return FALSE;
     }
 
   p = (struct debug_parameter *) xmalloc (sizeof *p);
@@ -866,15 +849,13 @@ debug_record_parameter (handle, name, type, kind, val)
     ;
   *pp = p;
 
-  return true;
+  return TRUE;
 }
 
 /* End a function.  FIXME: This should handle function nesting.  */
 
-boolean
-debug_end_function (handle, addr)
-     PTR handle;
-     bfd_vma addr;
+bfd_boolean
+debug_end_function (void *handle, bfd_vma addr)
 {
   struct debug_handle *info = (struct debug_handle *) handle;
 
@@ -883,13 +864,13 @@ debug_end_function (handle, addr)
       || info->current_function == NULL)
     {
       debug_error (_("debug_end_function: no current function"));
-      return false;
+      return FALSE;
     }
 
   if (info->current_block->parent != NULL)
     {
       debug_error (_("debug_end_function: some blocks were not closed"));
-      return false;
+      return FALSE;
     }
 
   info->current_block->end = addr;
@@ -897,7 +878,7 @@ debug_end_function (handle, addr)
   info->current_function = NULL;
   info->current_block = NULL;
 
-  return true;
+  return TRUE;
 }
 
 /* Start a block in a function.  All local information will be
@@ -905,10 +886,8 @@ debug_end_function (handle, addr)
    debug_start_block and debug_end_block may be nested.  The bfd_vma
    argument is the address at which this block starts.  */
 
-boolean
-debug_start_block (handle, addr)
-     PTR handle;
-     bfd_vma addr;
+bfd_boolean
+debug_start_block (void *handle, bfd_vma addr)
 {
   struct debug_handle *info = (struct debug_handle *) handle;
   struct debug_block *b, **pb;
@@ -919,7 +898,7 @@ debug_start_block (handle, addr)
       || info->current_block == NULL)
     {
       debug_error (_("debug_start_block: no current block"));
-      return false;
+      return FALSE;
     }
 
   b = (struct debug_block *) xmalloc (sizeof *b);
@@ -938,17 +917,15 @@ debug_start_block (handle, addr)
 
   info->current_block = b;
 
-  return true;
+  return TRUE;
 }
 
 /* Finish a block in a function.  This matches the call to
    debug_start_block.  The argument is the address at which this block
    ends.  */
 
-boolean
-debug_end_block (handle, addr)
-     PTR handle;
-     bfd_vma addr;
+bfd_boolean
+debug_end_block (void *handle, bfd_vma addr)
 {
   struct debug_handle *info = (struct debug_handle *) handle;
   struct debug_block *parent;
@@ -957,31 +934,28 @@ debug_end_block (handle, addr)
       || info->current_block == NULL)
     {
       debug_error (_("debug_end_block: no current block"));
-      return false;
+      return FALSE;
     }
 
   parent = info->current_block->parent;
   if (parent == NULL)
     {
       debug_error (_("debug_end_block: attempt to close top level block"));
-      return false;
+      return FALSE;
     }
 
   info->current_block->end = addr;
 
   info->current_block = parent;
 
-  return true;
+  return TRUE;
 }
 
 /* Associate a line number in the current source file and function
    with a given address.  */
 
-boolean
-debug_record_line (handle, lineno, addr)
-     PTR handle;
-     unsigned long lineno;
-     bfd_vma addr;
+bfd_boolean
+debug_record_line (void *handle, unsigned long lineno, bfd_vma addr)
 {
   struct debug_handle *info = (struct debug_handle *) handle;
   struct debug_lineno *l;
@@ -990,7 +964,7 @@ debug_record_line (handle, lineno, addr)
   if (info->current_unit == NULL)
     {
       debug_error (_("debug_record_line: no current unit"));
-      return false;
+      return FALSE;
     }
 
   l = info->current_lineno;
@@ -1002,7 +976,7 @@ debug_record_line (handle, lineno, addr)
 	    {
 	      l->linenos[i] = lineno;
 	      l->addrs[i] = addr;
-	      return true;
+	      return TRUE;
 	    }
 	}
     }
@@ -1031,102 +1005,91 @@ debug_record_line (handle, lineno, addr)
 
   info->current_lineno = l;
 
-  return true;
+  return TRUE;
 }
 
 /* Start a named common block.  This is a block of variables that may
    move in memory.  */
 
-boolean
-debug_start_common_block (handle, name)
-     PTR handle ATTRIBUTE_UNUSED;
-     const char *name ATTRIBUTE_UNUSED;
+bfd_boolean
+debug_start_common_block (void *handle ATTRIBUTE_UNUSED,
+			  const char *name ATTRIBUTE_UNUSED)
 {
   /* FIXME */
   debug_error (_("debug_start_common_block: not implemented"));
-  return false;
+  return FALSE;
 }
 
 /* End a named common block.  */
 
-boolean
-debug_end_common_block (handle, name)
-     PTR handle ATTRIBUTE_UNUSED;
-     const char *name ATTRIBUTE_UNUSED;
+bfd_boolean
+debug_end_common_block (void *handle ATTRIBUTE_UNUSED,
+			const char *name ATTRIBUTE_UNUSED)
 {
   /* FIXME */
   debug_error (_("debug_end_common_block: not implemented"));
-  return false;
+  return FALSE;
 }
 
 /* Record a named integer constant.  */
 
-boolean
-debug_record_int_const (handle, name, val)
-     PTR handle;
-     const char *name;
-     bfd_vma val;
+bfd_boolean
+debug_record_int_const (void *handle, const char *name, bfd_vma val)
 {
   struct debug_handle *info = (struct debug_handle *) handle;
   struct debug_name *n;
 
   if (name == NULL)
-    return false;
+    return FALSE;
 
   n = debug_add_to_current_namespace (info, name, DEBUG_OBJECT_INT_CONSTANT,
 				      DEBUG_LINKAGE_NONE);
   if (n == NULL)
-    return false;
+    return FALSE;
 
   n->u.int_constant = val;
 
-  return true;
+  return TRUE;
 }
 
 /* Record a named floating point constant.  */
 
-boolean
-debug_record_float_const (handle, name, val)
-     PTR handle;
-     const char *name;
-     double val;
+bfd_boolean
+debug_record_float_const (void *handle, const char *name, double val)
 {
   struct debug_handle *info = (struct debug_handle *) handle;
   struct debug_name *n;
 
   if (name == NULL)
-    return false;
+    return FALSE;
 
   n = debug_add_to_current_namespace (info, name, DEBUG_OBJECT_FLOAT_CONSTANT,
 				      DEBUG_LINKAGE_NONE);
   if (n == NULL)
-    return false;
+    return FALSE;
 
   n->u.float_constant = val;
 
-  return true;
+  return TRUE;
 }
 
 /* Record a typed constant with an integral value.  */
 
-boolean
-debug_record_typed_const (handle, name, type, val)
-     PTR handle;
-     const char *name;
-     debug_type type;
-     bfd_vma val;
+bfd_boolean
+debug_record_typed_const (void *handle, const char *name, debug_type type,
+			  bfd_vma val)
 {
   struct debug_handle *info = (struct debug_handle *) handle;
   struct debug_name *n;
   struct debug_typed_constant *tc;
 
   if (name == NULL || type == NULL)
-    return false;
+    return FALSE;
 
   n = debug_add_to_current_namespace (info, name, DEBUG_OBJECT_TYPED_CONSTANT,
 				      DEBUG_LINKAGE_NONE);
   if (n == NULL)
-    return false;
+    return FALSE;
 
   tc = (struct debug_typed_constant *) xmalloc (sizeof *tc);
   memset (tc, 0, sizeof *tc);
@@ -1136,32 +1099,27 @@ debug_record_typed_const (handle, name, type, val)
 
   n->u.typed_constant = tc;
 
-  return true;
+  return TRUE;
 }
 
 /* Record a label.  */
 
-boolean
-debug_record_label (handle, name, type, addr)
-     PTR handle ATTRIBUTE_UNUSED;
-     const char *name ATTRIBUTE_UNUSED;
-     debug_type type ATTRIBUTE_UNUSED;
-     bfd_vma addr ATTRIBUTE_UNUSED;
+bfd_boolean
+debug_record_label (void *handle ATTRIBUTE_UNUSED,
+		    const char *name ATTRIBUTE_UNUSED,
+		    debug_type type ATTRIBUTE_UNUSED,
+		    bfd_vma addr ATTRIBUTE_UNUSED)
 {
   /* FIXME.  */
   debug_error (_("debug_record_label: not implemented"));
-  return false;
+  return FALSE;
 }
 
 /* Record a variable.  */
 
-boolean
-debug_record_variable (handle, name, type, kind, val)
-     PTR handle;
-     const char *name;
-     debug_type type;
-     enum debug_var_kind kind;
-     bfd_vma val;
+bfd_boolean
+debug_record_variable (void *handle, const char *name, debug_type type,
+		       enum debug_var_kind kind, bfd_vma val)
 {
   struct debug_handle *info = (struct debug_handle *) handle;
   struct debug_namespace **nsp;
@@ -1170,13 +1128,13 @@ debug_record_variable (handle, name, type, kind, val)
   struct debug_variable *v;
 
   if (name == NULL || type == NULL)
-    return false;
+    return FALSE;
 
   if (info->current_unit == NULL
       || info->current_file == NULL)
     {
       debug_error (_("debug_record_variable: no current file"));
-      return false;
+      return FALSE;
     }
 
   if (kind == DEBUG_GLOBAL || kind == DEBUG_STATIC)
@@ -1190,17 +1148,15 @@ debug_record_variable (handle, name, type, kind, val)
   else
     {
       if (info->current_block == NULL)
-	{
-	  debug_error (_("debug_record_variable: no current block"));
-	  return false;
-	}
-      nsp = &info->current_block->locals;
+	nsp = &info->current_file->globals;
+      else
+	nsp = &info->current_block->locals;
       linkage = DEBUG_LINKAGE_AUTOMATIC;
     }
 
   n = debug_add_to_namespace (info, nsp, name, DEBUG_OBJECT_VARIABLE, linkage);
   if (n == NULL)
-    return false;
+    return FALSE;
 
   v = (struct debug_variable *) xmalloc (sizeof *v);
   memset (v, 0, sizeof *v);
@@ -1211,16 +1167,14 @@ debug_record_variable (handle, name, type, kind, val)
 
   n->u.variable = v;
 
-  return true;
+  return TRUE;
 }
 
 /* Make a type with a given kind and size.  */
 
 static struct debug_type *
-debug_make_type (info, kind, size)
-     struct debug_handle *info ATTRIBUTE_UNUSED;
-     enum debug_type_kind kind;
-     unsigned int size;
+debug_make_type (struct debug_handle *info ATTRIBUTE_UNUSED,
+		 enum debug_type_kind kind, unsigned int size)
 {
   struct debug_type *t;
 
@@ -1237,10 +1191,7 @@ debug_make_type (info, kind, size)
    which is referenced before it is defined.  */
 
 debug_type
-debug_make_indirect_type (handle, slot, tag)
-     PTR handle;
-     debug_type *slot;
-     const char *tag;
+debug_make_indirect_type (void *handle, debug_type *slot, const char *tag)
 {
   struct debug_handle *info = (struct debug_handle *) handle;
   struct debug_type *t;
@@ -1264,8 +1215,7 @@ debug_make_indirect_type (handle, slot, tag)
 /* Make a void type.  There is only one of these.  */
 
 debug_type
-debug_make_void_type (handle)
-     PTR handle;
+debug_make_void_type (void *handle)
 {
   struct debug_handle *info = (struct debug_handle *) handle;
 
@@ -1276,10 +1226,7 @@ debug_make_void_type (handle)
    if the integer is unsigned.  */
 
 debug_type
-debug_make_int_type (handle, size, unsignedp)
-     PTR handle;
-     unsigned int size;
-     boolean unsignedp;
+debug_make_int_type (void *handle, unsigned int size, bfd_boolean unsignedp)
 {
   struct debug_handle *info = (struct debug_handle *) handle;
   struct debug_type *t;
@@ -1298,9 +1245,7 @@ debug_make_int_type (handle, size, unsignedp)
    the format.  */
 
 debug_type
-debug_make_float_type (handle, size)
-     PTR handle;
-     unsigned int size;
+debug_make_float_type (void *handle, unsigned int size)
 {
   struct debug_handle *info = (struct debug_handle *) handle;
 
@@ -1310,9 +1255,7 @@ debug_make_float_type (handle, size)
 /* Make a boolean type of a given size.  */
 
 debug_type
-debug_make_bool_type (handle, size)
-     PTR handle;
-     unsigned int size;
+debug_make_bool_type (void *handle, unsigned int size)
 {
   struct debug_handle *info = (struct debug_handle *) handle;
 
@@ -1322,9 +1265,7 @@ debug_make_bool_type (handle, size)
 /* Make a complex type of a given size.  */
 
 debug_type
-debug_make_complex_type (handle, size)
-     PTR handle;
-     unsigned int size;
+debug_make_complex_type (void *handle, unsigned int size)
 {
   struct debug_handle *info = (struct debug_handle *) handle;
 
@@ -1336,11 +1277,8 @@ debug_make_complex_type (handle, size)
    The fourth argument is a NULL terminated array of fields.  */
 
 debug_type
-debug_make_struct_type (handle, structp, size, fields)
-     PTR handle;
-     boolean structp;
-     bfd_vma size;
-     debug_field *fields;
+debug_make_struct_type (void *handle, bfd_boolean structp, bfd_vma size,
+			debug_field *fields)
 {
   struct debug_handle *info = (struct debug_handle *) handle;
   struct debug_type *t;
@@ -1370,16 +1308,10 @@ debug_make_struct_type (handle, structp, size, fields)
    object has its own virtual function table.  */
 
 debug_type
-debug_make_object_type (handle, structp, size, fields, baseclasses,
-			methods, vptrbase, ownvptr)
-     PTR handle;
-     boolean structp;
-     bfd_vma size;
-     debug_field *fields;
-     debug_baseclass *baseclasses;
-     debug_method *methods;
-     debug_type vptrbase;
-     boolean ownvptr;
+debug_make_object_type (void *handle, bfd_boolean structp, bfd_vma size,
+			debug_field *fields, debug_baseclass *baseclasses,
+			debug_method *methods, debug_type vptrbase,
+			bfd_boolean ownvptr)
 {
   struct debug_handle *info = (struct debug_handle *) handle;
   struct debug_type *t;
@@ -1411,10 +1343,8 @@ debug_make_object_type (handle, structp, size, fields, baseclasses,
    array of strings, and an array of corresponding values.  */
 
 debug_type
-debug_make_enum_type (handle, names, values)
-     PTR handle;
-     const char **names;
-     bfd_signed_vma *values;
+debug_make_enum_type (void *handle, const char **names,
+		      bfd_signed_vma *values)
 {
   struct debug_handle *info = (struct debug_handle *) handle;
   struct debug_type *t;
@@ -1438,9 +1368,7 @@ debug_make_enum_type (handle, names, values)
 /* Make a pointer to a given type.  */
 
 debug_type
-debug_make_pointer_type (handle, type)
-     PTR handle;
-     debug_type type;
+debug_make_pointer_type (void *handle, debug_type type)
 {
   struct debug_handle *info = (struct debug_handle *) handle;
   struct debug_type *t;
@@ -1466,11 +1394,8 @@ debug_make_pointer_type (handle, type)
    to record the parameter types.  */
 
 debug_type
-debug_make_function_type (handle, type, arg_types, varargs)
-     PTR handle;
-     debug_type type;
-     debug_type *arg_types;
-     boolean varargs;
+debug_make_function_type (void *handle, debug_type type,
+			  debug_type *arg_types, bfd_boolean varargs)
 {
   struct debug_handle *info = (struct debug_handle *) handle;
   struct debug_type *t;
@@ -1498,9 +1423,7 @@ debug_make_function_type (handle, type, arg_types, varargs)
 /* Make a reference to a given type.  */
 
 debug_type
-debug_make_reference_type (handle, type)
-     PTR handle;
-     debug_type type;
+debug_make_reference_type (void *handle, debug_type type)
 {
   struct debug_handle *info = (struct debug_handle *) handle;
   struct debug_type *t;
@@ -1520,11 +1443,8 @@ debug_make_reference_type (handle, type)
 /* Make a range of a given type from a lower to an upper bound.  */
 
 debug_type
-debug_make_range_type (handle, type, lower, upper)
-     PTR handle;
-     debug_type type;
-     bfd_signed_vma lower;
-     bfd_signed_vma upper;
+debug_make_range_type (void *handle, debug_type type, bfd_signed_vma lower,
+		       bfd_signed_vma upper)
 {
   struct debug_handle *info = (struct debug_handle *) handle;
   struct debug_type *t;
@@ -1556,14 +1476,9 @@ debug_make_range_type (handle, type, lower, upper)
    actually a string, as in C.  */
 
 debug_type
-debug_make_array_type (handle, element_type, range_type, lower, upper,
-		       stringp)
-     PTR handle;
-     debug_type element_type;
-     debug_type range_type;
-     bfd_signed_vma lower;
-     bfd_signed_vma upper;
-     boolean stringp;
+debug_make_array_type (void *handle, debug_type element_type,
+		       debug_type range_type, bfd_signed_vma lower,
+		       bfd_signed_vma upper, bfd_boolean stringp)
 {
   struct debug_handle *info = (struct debug_handle *) handle;
   struct debug_type *t;
@@ -1595,10 +1510,7 @@ debug_make_array_type (handle, element_type, range_type, lower, upper,
    CHILL.  */
 
 debug_type
-debug_make_set_type (handle, type, bitstringp)
-     PTR handle;
-     debug_type type;
-     boolean bitstringp;
+debug_make_set_type (void *handle, debug_type type, bfd_boolean bitstringp)
 {
   struct debug_handle *info = (struct debug_handle *) handle;
   struct debug_type *t;
@@ -1628,10 +1540,8 @@ debug_make_set_type (handle, type, bitstringp)
    to.  */
 
 debug_type
-debug_make_offset_type (handle, base_type, target_type)
-     PTR handle;
-     debug_type base_type;
-     debug_type target_type;
+debug_make_offset_type (void *handle, debug_type base_type,
+			debug_type target_type)
 {
   struct debug_handle *info = (struct debug_handle *) handle;
   struct debug_type *t;
@@ -1660,12 +1570,9 @@ debug_make_offset_type (handle, base_type, target_type)
    argument is a NULL terminated array of argument types.  */
 
 debug_type
-debug_make_method_type (handle, return_type, domain_type, arg_types, varargs)
-     PTR handle;
-     debug_type return_type;
-     debug_type domain_type;
-     debug_type *arg_types;
-     boolean varargs;
+debug_make_method_type (void *handle, debug_type return_type,
+			debug_type domain_type, debug_type *arg_types,
+			bfd_boolean varargs)
 {
   struct debug_handle *info = (struct debug_handle *) handle;
   struct debug_type *t;
@@ -1694,9 +1601,7 @@ debug_make_method_type (handle, return_type, domain_type, arg_types, varargs)
 /* Make a const qualified version of a given type.  */
 
 debug_type
-debug_make_const_type (handle, type)
-     PTR handle;
-     debug_type type;
+debug_make_const_type (void *handle, debug_type type)
 {
   struct debug_handle *info = (struct debug_handle *) handle;
   struct debug_type *t;
@@ -1716,9 +1621,7 @@ debug_make_const_type (handle, type)
 /* Make a volatile qualified version of a given type.  */
 
 debug_type
-debug_make_volatile_type (handle, type)
-     PTR handle;
-     debug_type type;
+debug_make_volatile_type (void *handle, debug_type type)
 {
   struct debug_handle *info = (struct debug_handle *) handle;
   struct debug_type *t;
@@ -1739,10 +1642,8 @@ debug_make_volatile_type (handle, type)
    been mentioned, but not defined.  */
 
 debug_type
-debug_make_undefined_tagged_type (handle, name, kind)
-     PTR handle;
-     const char *name;
-     enum debug_type_kind kind;
+debug_make_undefined_tagged_type (void *handle, const char *name,
+				  enum debug_type_kind kind)
 {
   struct debug_handle *info = (struct debug_handle *) handle;
   struct debug_type *t;
@@ -1778,12 +1679,9 @@ debug_make_undefined_tagged_type (handle, name, kind)
    argument is the visibility of the base class.  */
 
 debug_baseclass
-debug_make_baseclass (handle, type, bitpos, virtual, visibility)
-     PTR handle ATTRIBUTE_UNUSED;
-     debug_type type;
-     bfd_vma bitpos;
-     boolean virtual;
-     enum debug_visibility visibility;
+debug_make_baseclass (void *handle ATTRIBUTE_UNUSED, debug_type type,
+		      bfd_vma bitpos, bfd_boolean virtual,
+		      enum debug_visibility visibility)
 {
   struct debug_baseclass *b;
 
@@ -1805,13 +1703,9 @@ debug_make_baseclass (handle, type, bitpos, virtual, visibility)
    of the field.  */
 
 debug_field
-debug_make_field (handle, name, type, bitpos, bitsize, visibility)
-     PTR handle ATTRIBUTE_UNUSED;
-     const char *name;
-     debug_type type;
-     bfd_vma bitpos;
-     bfd_vma bitsize;
-     enum debug_visibility visibility;
+debug_make_field (void *handle ATTRIBUTE_UNUSED, const char *name,
+		  debug_type type, bfd_vma bitpos, bfd_vma bitsize,
+		  enum debug_visibility visibility)
 {
   struct debug_field *f;
 
@@ -1820,7 +1714,7 @@ debug_make_field (handle, name, type, bitpos, bitsize, visibility)
 
   f->name = name;
   f->type = type;
-  f->static_member = false;
+  f->static_member = FALSE;
   f->u.f.bitpos = bitpos;
   f->u.f.bitsize = bitsize;
   f->visibility = visibility;
@@ -1835,12 +1729,9 @@ debug_make_field (handle, name, type, bitpos, bitsize, visibility)
    member.  */
 
 debug_field
-debug_make_static_member (handle, name, type, physname, visibility)
-     PTR handle ATTRIBUTE_UNUSED;
-     const char *name;
-     debug_type type;
-     const char *physname;
-     enum debug_visibility visibility;
+debug_make_static_member (void *handle ATTRIBUTE_UNUSED, const char *name,
+			  debug_type type, const char *physname,
+			  enum debug_visibility visibility)
 {
   struct debug_field *f;
 
@@ -1849,7 +1740,7 @@ debug_make_static_member (handle, name, type, physname, visibility)
 
   f->name = name;
   f->type = type;
-  f->static_member = true;
+  f->static_member = TRUE;
   f->u.s.physname = physname;
   f->visibility = visibility;
 
@@ -1860,10 +1751,8 @@ debug_make_static_member (handle, name, type, physname, visibility)
    argument is a NULL terminated array of method variants.  */
 
 debug_method
-debug_make_method (handle, name, variants)
-     PTR handle ATTRIBUTE_UNUSED;
-     const char *name;
-     debug_method_variant *variants;
+debug_make_method (void *handle ATTRIBUTE_UNUSED, const char *name,
+		   debug_method_variant *variants)
 {
   struct debug_method *m;
 
@@ -1886,16 +1775,11 @@ debug_make_method (handle, name, variants)
    necessary?  Could we just use debug_make_const_type?  */
 
 debug_method_variant
-debug_make_method_variant (handle, physname, type, visibility, constp,
-			   volatilep, voffset, context)
-     PTR handle ATTRIBUTE_UNUSED;
-     const char *physname;
-     debug_type type;
-     enum debug_visibility visibility;
-     boolean constp;
-     boolean volatilep;
-     bfd_vma voffset;
-     debug_type context;
+debug_make_method_variant (void *handle ATTRIBUTE_UNUSED,
+			   const char *physname, debug_type type,
+			   enum debug_visibility visibility,
+			   bfd_boolean constp, bfd_boolean volatilep,
+			   bfd_vma voffset, debug_type context)
 {
   struct debug_method_variant *m;
 
@@ -1918,14 +1802,10 @@ debug_make_method_variant (handle, physname, type, visibility, constp,
    since a static method can not also be virtual.  */
 
 debug_method_variant
-debug_make_static_method_variant (handle, physname, type, visibility,
-				  constp, volatilep)
-     PTR handle ATTRIBUTE_UNUSED;
-     const char *physname;
-     debug_type type;
-     enum debug_visibility visibility;
-     boolean constp;
-     boolean volatilep;
+debug_make_static_method_variant (void *handle ATTRIBUTE_UNUSED,
+				  const char *physname, debug_type type,
+				  enum debug_visibility visibility,
+				  bfd_boolean constp, bfd_boolean volatilep)
 {
   struct debug_method_variant *m;
 
@@ -1945,10 +1825,7 @@ debug_make_static_method_variant (handle, physname, type, visibility,
 /* Name a type.  */
 
 debug_type
-debug_name_type (handle, name, type)
-     PTR handle;
-     const char *name;
-     debug_type type;
+debug_name_type (void *handle, const char *name, debug_type type)
 {
   struct debug_handle *info = (struct debug_handle *) handle;
   struct debug_type *t;
@@ -1994,10 +1871,7 @@ debug_name_type (handle, name, type)
 /* Tag a type.  */
 
 debug_type
-debug_tag_type (handle, name, type)
-     PTR handle;
-     const char *name;
-     debug_type type;
+debug_tag_type (void *handle, const char *name, debug_type type)
 {
   struct debug_handle *info = (struct debug_handle *) handle;
   struct debug_type *t;
@@ -2049,11 +1923,9 @@ debug_tag_type (handle, name, type)
 
 /* Record the size of a given type.  */
 
-boolean
-debug_record_type_size (handle, type, size)
-     PTR handle ATTRIBUTE_UNUSED;
-     debug_type type;
-     unsigned int size;
+bfd_boolean
+debug_record_type_size (void *handle ATTRIBUTE_UNUSED, debug_type type,
+			unsigned int size)
 {
   if (type->size != 0 && type->size != size)
     fprintf (stderr, _("Warning: changing type size from %d to %d\n"),
@@ -2061,15 +1933,13 @@ debug_record_type_size (handle, type, size)
 
   type->size = size;
 
-  return true;
+  return TRUE;
 }
 
 /* Find a named type.  */
 
 debug_type
-debug_find_named_type (handle, name)
-     PTR handle;
-     const char *name;
+debug_find_named_type (void *handle, const char *name)
 {
   struct debug_handle *info = (struct debug_handle *) handle;
   struct debug_block *b;
@@ -2122,10 +1992,8 @@ debug_find_named_type (handle, name)
 /* Find a tagged type.  */
 
 debug_type
-debug_find_tagged_type (handle, name, kind)
-     PTR handle;
-     const char *name;
-     enum debug_type_kind kind;
+debug_find_tagged_type (void *handle, const char *name,
+			enum debug_type_kind kind)
 {
   struct debug_handle *info = (struct debug_handle *) handle;
   struct debug_unit *u;
@@ -2163,10 +2031,8 @@ debug_find_tagged_type (handle, name, kind)
    crashing if the type is defined circularly.  */
 
 static struct debug_type *
-debug_get_real_type (handle, type, list)
-     PTR handle;
-     debug_type type;
-     struct debug_type_real_list *list;
+debug_get_real_type (void *handle, debug_type type,
+		     struct debug_type_real_list *list)
 {
   struct debug_type_real_list *l;
   struct debug_type_real_list rl;
@@ -2184,7 +2050,7 @@ debug_get_real_type (handle, type, list)
 
   for (l = list; l != NULL; l = l->next)
     {
-      if (l->t == type)
+      if (l->t == type || l == l->next)
 	{
 	  fprintf (stderr,
 		   _("debug_get_real_type: circular debug information for %s\n"),
@@ -2214,9 +2080,7 @@ debug_get_real_type (handle, type, list)
 /* Get the kind of a type.  */
 
 enum debug_type_kind
-debug_get_type_kind (handle, type)
-     PTR handle;
-     debug_type type;
+debug_get_type_kind (void *handle, debug_type type)
 {
   if (type == NULL)
     return DEBUG_KIND_ILLEGAL;
@@ -2229,9 +2093,7 @@ debug_get_type_kind (handle, type)
 /* Get the name of a type.  */
 
 const char *
-debug_get_type_name (handle, type)
-     PTR handle;
-     debug_type type;
+debug_get_type_name (void *handle, debug_type type)
 {
   if (type->kind == DEBUG_KIND_INDIRECT)
     {
@@ -2248,9 +2110,7 @@ debug_get_type_name (handle, type)
 /* Get the size of a type.  */
 
 bfd_vma
-debug_get_type_size (handle, type)
-     PTR handle;
-     debug_type type;
+debug_get_type_size (void *handle, debug_type type)
 {
   if (type == NULL)
     return 0;
@@ -2279,15 +2139,15 @@ debug_get_type_size (handle, type)
 /* Get the return type of a function or method type.  */
 
 debug_type
-debug_get_return_type (handle, type)
-     PTR handle;
-     debug_type type;
+debug_get_return_type (void *handle, debug_type type)
 {
   if (type == NULL)
     return DEBUG_TYPE_NULL;
+
   type = debug_get_real_type (handle, type, NULL);
   if (type == NULL)
     return DEBUG_TYPE_NULL;
+
   switch (type->kind)
     {
     default:
@@ -2304,16 +2164,16 @@ debug_get_return_type (handle, type)
    we don't currently store the parameter types of a function).  */
 
 const debug_type *
-debug_get_parameter_types (handle, type, pvarargs)
-     PTR handle;
-     debug_type type;
-     boolean *pvarargs;
+debug_get_parameter_types (void *handle, debug_type type,
+			   bfd_boolean *pvarargs)
 {
   if (type == NULL)
     return NULL;
+
   type = debug_get_real_type (handle, type, NULL);
   if (type == NULL)
     return NULL;
+
   switch (type->kind)
     {
     default:
@@ -2331,15 +2191,15 @@ debug_get_parameter_types (handle, type, pvarargs)
 /* Get the target type of a type.  */
 
 debug_type
-debug_get_target_type (handle, type)
-     PTR handle;
-     debug_type type;
+debug_get_target_type (void *handle, debug_type type)
 {
   if (type == NULL)
     return NULL;
+
   type = debug_get_real_type (handle, type, NULL);
   if (type == NULL)
     return NULL;
+
   switch (type->kind)
     {
     default:
@@ -2360,15 +2220,15 @@ debug_get_target_type (handle, type)
    class.  */
 
 const debug_field *
-debug_get_fields (handle, type)
-     PTR handle;
-     debug_type type;
+debug_get_fields (void *handle, debug_type type)
 {
   if (type == NULL)
     return NULL;
+
   type = debug_get_real_type (handle, type, NULL);
   if (type == NULL)
     return NULL;
+
   switch (type->kind)
     {
     default:
@@ -2385,9 +2245,7 @@ debug_get_fields (handle, type)
 /* Get the type of a field.  */
 
 debug_type
-debug_get_field_type (handle, field)
-     PTR handle ATTRIBUTE_UNUSED;
-     debug_field field;
+debug_get_field_type (void *handle ATTRIBUTE_UNUSED, debug_field field)
 {
   if (field == NULL)
     return NULL;
@@ -2397,9 +2255,7 @@ debug_get_field_type (handle, field)
 /* Get the name of a field.  */
 
 const char *
-debug_get_field_name (handle, field)
-     PTR handle ATTRIBUTE_UNUSED;
-     debug_field field;
+debug_get_field_name (void *handle ATTRIBUTE_UNUSED, debug_field field)
 {
   if (field == NULL)
     return NULL;
@@ -2409,9 +2265,7 @@ debug_get_field_name (handle, field)
 /* Get the bit position of a field.  */
 
 bfd_vma
-debug_get_field_bitpos (handle, field)
-     PTR handle ATTRIBUTE_UNUSED;
-     debug_field field;
+debug_get_field_bitpos (void *handle ATTRIBUTE_UNUSED, debug_field field)
 {
   if (field == NULL || field->static_member)
     return (bfd_vma) -1;
@@ -2421,9 +2275,7 @@ debug_get_field_bitpos (handle, field)
 /* Get the bit size of a field.  */
 
 bfd_vma
-debug_get_field_bitsize (handle, field)
-     PTR handle ATTRIBUTE_UNUSED;
-     debug_field field;
+debug_get_field_bitsize (void *handle ATTRIBUTE_UNUSED, debug_field field)
 {
   if (field == NULL || field->static_member)
     return (bfd_vma) -1;
@@ -2433,9 +2285,7 @@ debug_get_field_bitsize (handle, field)
 /* Get the visibility of a field.  */
 
 enum debug_visibility
-debug_get_field_visibility (handle, field)
-     PTR handle ATTRIBUTE_UNUSED;
-     debug_field field;
+debug_get_field_visibility (void *handle ATTRIBUTE_UNUSED, debug_field field)
 {
   if (field == NULL)
     return DEBUG_VISIBILITY_IGNORE;
@@ -2445,9 +2295,7 @@ debug_get_field_visibility (handle, field)
 /* Get the physical name of a field.  */
 
 const char *
-debug_get_field_physname (handle, field)
-     PTR handle ATTRIBUTE_UNUSED;
-     debug_field field;
+debug_get_field_physname (void *handle ATTRIBUTE_UNUSED, debug_field field)
 {
   if (field == NULL || ! field->static_member)
     return NULL;
@@ -2457,11 +2305,8 @@ debug_get_field_physname (handle, field)
 /* Write out the debugging information.  This is given a handle to
    debugging information, and a set of function pointers to call.  */
 
-boolean
-debug_write (handle, fns, fhandle)
-     PTR handle;
-     const struct debug_write_fns *fns;
-     PTR fhandle;
+bfd_boolean
+debug_write (void *handle, const struct debug_write_fns *fns, void *fhandle)
 {
   struct debug_handle *info = (struct debug_handle *) handle;
   struct debug_unit *u;
@@ -2484,70 +2329,61 @@ debug_write (handle, fns, fhandle)
   for (u = info->units; u != NULL; u = u->next)
     {
       struct debug_file *f;
-      boolean first_file;
+      bfd_boolean first_file;
 
       info->current_write_lineno = u->linenos;
       info->current_write_lineno_index = 0;
 
       if (! (*fns->start_compilation_unit) (fhandle, u->files->filename))
-	return false;
+	return FALSE;
 
-      first_file = true;
+      first_file = TRUE;
       for (f = u->files; f != NULL; f = f->next)
 	{
 	  struct debug_name *n;
 
 	  if (first_file)
-	    first_file = false;
-	  else
-	    {
-	      if (! (*fns->start_source) (fhandle, f->filename))
-		return false;
-	    }
+	    first_file = FALSE;
+	  else if (! (*fns->start_source) (fhandle, f->filename))
+	    return FALSE;
 
 	  if (f->globals != NULL)
-	    {
-	      for (n = f->globals->list; n != NULL; n = n->next)
-		{
-		  if (! debug_write_name (info, fns, fhandle, n))
-		    return false;
-		}
-	    }
+	    for (n = f->globals->list; n != NULL; n = n->next)
+	      if (! debug_write_name (info, fns, fhandle, n))
+		return FALSE;
 	}
 
       /* Output any line number information which hasn't already been
          handled.  */
       if (! debug_write_linenos (info, fns, fhandle, (bfd_vma) -1))
-	return false;
+	return FALSE;
     }
 
-  return true;
+  return TRUE;
 }
 
 /* Write out an element in a namespace.  */
 
-static boolean
-debug_write_name (info, fns, fhandle, n)
-     struct debug_handle *info;
-     const struct debug_write_fns *fns;
-     PTR fhandle;
-     struct debug_name *n;
+static bfd_boolean
+debug_write_name (struct debug_handle *info,
+		  const struct debug_write_fns *fns, void *fhandle,
+		  struct debug_name *n)
 {
   switch (n->kind)
     {
     case DEBUG_OBJECT_TYPE:
       if (! debug_write_type (info, fns, fhandle, n->u.type, n)
 	  || ! (*fns->typdef) (fhandle, n->name))
-	return false;
-      return true;
+	return FALSE;
+      return TRUE;
     case DEBUG_OBJECT_TAG:
       if (! debug_write_type (info, fns, fhandle, n->u.tag, n))
-	return false;
+	return FALSE;
       return (*fns->tag) (fhandle, n->name);
     case DEBUG_OBJECT_VARIABLE:
       if (! debug_write_type (info, fns, fhandle, n->u.variable->type,
 			      (struct debug_name *) NULL))
-	return false;
+	return FALSE;
       return (*fns->variable) (fhandle, n->name, n->u.variable->kind,
 			       n->u.variable->val);
     case DEBUG_OBJECT_FUNCTION:
@@ -2560,12 +2396,12 @@ debug_write_name (info, fns, fhandle, n)
     case DEBUG_OBJECT_TYPED_CONSTANT:
       if (! debug_write_type (info, fns, fhandle, n->u.typed_constant->type,
 			      (struct debug_name *) NULL))
-	return false;
+	return FALSE;
       return (*fns->typed_constant) (fhandle, n->name,
 				     n->u.typed_constant->val);
     default:
       abort ();
-      return false;
+      return FALSE;
     }
   /*NOTREACHED*/
 }
@@ -2576,13 +2412,10 @@ debug_write_name (info, fns, fhandle, n)
    then the name argument is a tag from a DEBUG_KIND_TAGGED type which
    points to this one.  */
 
-static boolean
-debug_write_type (info, fns, fhandle, type, name)
-     struct debug_handle *info;
-     const struct debug_write_fns *fns;
-     PTR fhandle;
-     struct debug_type *type;
-     struct debug_name *name;
+static bfd_boolean
+debug_write_type (struct debug_handle *info,
+		  const struct debug_write_fns *fns, void *fhandle,
+		  struct debug_type *type, struct debug_name *name)
 {
   unsigned int i;
   int is;
@@ -2604,7 +2437,7 @@ debug_write_type (info, fns, fhandle, type, name)
 	  struct debug_type *real;
 	  unsigned int id;
 
-	  real = debug_get_real_type ((PTR) info, type, NULL);
+	  real = debug_get_real_type ((void *) info, type, NULL);
 	  if (real == NULL)
 	    return (*fns->empty_type) (fhandle);
 	  id = 0;
@@ -2619,7 +2452,7 @@ debug_write_type (info, fns, fhandle, type, name)
 		  if (! debug_set_class_id (info,
 					    type->u.knamed->name->name,
 					    real))
-		    return false;
+		    return FALSE;
 		}
 	      id = real->u.kclass->id;
 	    }
@@ -2648,7 +2481,7 @@ debug_write_type (info, fns, fhandle, type, name)
     {
     case DEBUG_KIND_ILLEGAL:
       debug_error (_("debug_write_type: illegal type encountered"));
-      return false;
+      return FALSE;
     case DEBUG_KIND_INDIRECT:
       if (*type->u.kindirect->slot == DEBUG_TYPE_NULL)
 	return (*fns->empty_type) (fhandle);
@@ -2671,7 +2504,7 @@ debug_write_type (info, fns, fhandle, type, name)
 	  if (type->u.kclass->id <= info->base_id)
 	    {
 	      if (! debug_set_class_id (info, tag, type))
-		return false;
+		return FALSE;
 	    }
 
 	  if (info->mark == type->u.kclass->mark)
@@ -2692,7 +2525,7 @@ debug_write_type (info, fns, fhandle, type, name)
 					: 0),
 				       type->kind == DEBUG_KIND_STRUCT,
 				       type->size))
-	return false;
+	return FALSE;
       if (type->u.kclass != NULL
 	  && type->u.kclass->fields != NULL)
 	{
@@ -2705,7 +2538,7 @@ debug_write_type (info, fns, fhandle, type, name)
 				      (struct debug_name *) NULL)
 		  || ! (*fns->struct_field) (fhandle, f->name, f->u.f.bitpos,
 					     f->u.f.bitsize, f->visibility))
-		return false;
+		return FALSE;
 	    }
 	}
       return (*fns->end_struct_type) (fhandle);
@@ -2721,13 +2554,13 @@ debug_write_type (info, fns, fhandle, type, name)
     case DEBUG_KIND_POINTER:
       if (! debug_write_type (info, fns, fhandle, type->u.kpointer,
 			      (struct debug_name *) NULL))
-	return false;
+	return FALSE;
       return (*fns->pointer_type) (fhandle);
     case DEBUG_KIND_FUNCTION:
       if (! debug_write_type (info, fns, fhandle,
 			      type->u.kfunction->return_type,
 			      (struct debug_name *) NULL))
-	return false;
+	return FALSE;
       if (type->u.kfunction->arg_types == NULL)
 	is = -1;
       else
@@ -2736,19 +2569,19 @@ debug_write_type (info, fns, fhandle, type, name)
 	    if (! debug_write_type (info, fns, fhandle,
 				    type->u.kfunction->arg_types[is],
 				    (struct debug_name *) NULL))
-	      return false;
+	      return FALSE;
 	}
       return (*fns->function_type) (fhandle, is,
 				    type->u.kfunction->varargs);
     case DEBUG_KIND_REFERENCE:
       if (! debug_write_type (info, fns, fhandle, type->u.kreference,
 			      (struct debug_name *) NULL))
-	return false;
+	return FALSE;
       return (*fns->reference_type) (fhandle);
     case DEBUG_KIND_RANGE:
       if (! debug_write_type (info, fns, fhandle, type->u.krange->type,
 			      (struct debug_name *) NULL))
-	return false;
+	return FALSE;
       return (*fns->range_type) (fhandle, type->u.krange->lower,
 				 type->u.krange->upper);
     case DEBUG_KIND_ARRAY:
@@ -2757,14 +2590,14 @@ debug_write_type (info, fns, fhandle, type, name)
 	  || ! debug_write_type (info, fns, fhandle,
 				 type->u.karray->range_type,
 				 (struct debug_name *) NULL))
-	return false;
+	return FALSE;
       return (*fns->array_type) (fhandle, type->u.karray->lower,
 				 type->u.karray->upper,
 				 type->u.karray->stringp);
     case DEBUG_KIND_SET:
       if (! debug_write_type (info, fns, fhandle, type->u.kset->type,
 			      (struct debug_name *) NULL))
-	return false;
+	return FALSE;
       return (*fns->set_type) (fhandle, type->u.kset->bitstringp);
     case DEBUG_KIND_OFFSET:
       if (! debug_write_type (info, fns, fhandle, type->u.koffset->base_type,
@@ -2772,13 +2605,13 @@ debug_write_type (info, fns, fhandle, type, name)
 	  || ! debug_write_type (info, fns, fhandle,
 				 type->u.koffset->target_type,
 				 (struct debug_name *) NULL))
-	return false;
+	return FALSE;
       return (*fns->offset_type) (fhandle);
     case DEBUG_KIND_METHOD:
       if (! debug_write_type (info, fns, fhandle,
 			      type->u.kmethod->return_type,
 			      (struct debug_name *) NULL))
-	return false;
+	return FALSE;
       if (type->u.kmethod->arg_types == NULL)
 	is = -1;
       else
@@ -2787,14 +2620,14 @@ debug_write_type (info, fns, fhandle, type, name)
 	    if (! debug_write_type (info, fns, fhandle,
 				    type->u.kmethod->arg_types[is],
 				    (struct debug_name *) NULL))
-	      return false;
+	      return FALSE;
 	}
       if (type->u.kmethod->domain_type != NULL)
 	{
 	  if (! debug_write_type (info, fns, fhandle,
 				  type->u.kmethod->domain_type,
 				  (struct debug_name *) NULL))
-	    return false;
+	    return FALSE;
 	}
       return (*fns->method_type) (fhandle,
 				  type->u.kmethod->domain_type != NULL,
@@ -2803,12 +2636,12 @@ debug_write_type (info, fns, fhandle, type, name)
     case DEBUG_KIND_CONST:
       if (! debug_write_type (info, fns, fhandle, type->u.kconst,
 			      (struct debug_name *) NULL))
-	return false;
+	return FALSE;
       return (*fns->const_type) (fhandle);
     case DEBUG_KIND_VOLATILE:
       if (! debug_write_type (info, fns, fhandle, type->u.kvolatile,
 			      (struct debug_name *) NULL))
-	return false;
+	return FALSE;
       return (*fns->volatile_type) (fhandle);
     case DEBUG_KIND_NAMED:
       return debug_write_type (info, fns, fhandle, type->u.knamed->type,
@@ -2818,19 +2651,16 @@ debug_write_type (info, fns, fhandle, type, name)
 			       type->u.knamed->name);
     default:
       abort ();
-      return false;
+      return FALSE;
     }
 }
 
 /* Write out a class type.  */
 
-static boolean
-debug_write_class_type (info, fns, fhandle, type, tag)
-     struct debug_handle *info;
-     const struct debug_write_fns *fns;
-     PTR fhandle;
-     struct debug_type *type;
-     const char *tag;
+static bfd_boolean
+debug_write_class_type (struct debug_handle *info,
+			const struct debug_write_fns *fns, void *fhandle,
+			struct debug_type *type, const char *tag)
 {
   unsigned int i;
   unsigned int id;
@@ -2846,7 +2676,7 @@ debug_write_class_type (info, fns, fhandle, type, tag)
       if (type->u.kclass->id <= info->base_id)
 	{
 	  if (! debug_set_class_id (info, tag, type))
-	    return false;
+	    return FALSE;
 	}
 
       if (info->mark == type->u.kclass->mark)
@@ -2866,7 +2696,7 @@ debug_write_class_type (info, fns, fhandle, type, tag)
 	{
 	  if (! debug_write_type (info, fns, fhandle, vptrbase,
 				  (struct debug_name *) NULL))
-	    return false;
+	    return FALSE;
 	}
     }
 
@@ -2875,7 +2705,7 @@ debug_write_class_type (info, fns, fhandle, type, tag)
 				  type->size,
 				  vptrbase != NULL,
 				  vptrbase == type))
-    return false;
+    return FALSE;
 
   if (type->u.kclass != NULL)
     {
@@ -2888,19 +2718,19 @@ debug_write_class_type (info, fns, fhandle, type, tag)
 	      f = type->u.kclass->fields[i];
 	      if (! debug_write_type (info, fns, fhandle, f->type,
 				      (struct debug_name *) NULL))
-		return false;
+		return FALSE;
 	      if (f->static_member)
 		{
 		  if (! (*fns->class_static_member) (fhandle, f->name,
 						     f->u.s.physname,
 						     f->visibility))
-		    return false;
+		    return FALSE;
 		}
 	      else
 		{
 		  if (! (*fns->struct_field) (fhandle, f->name, f->u.f.bitpos,
 					      f->u.f.bitsize, f->visibility))
-		    return false;
+		    return FALSE;
 		}
 	    }
 	}
@@ -2914,10 +2744,10 @@ debug_write_class_type (info, fns, fhandle, type, tag)
 	      b = type->u.kclass->baseclasses[i];
 	      if (! debug_write_type (info, fns, fhandle, b->type,
 				      (struct debug_name *) NULL))
-		return false;
+		return FALSE;
 	      if (! (*fns->class_baseclass) (fhandle, b->bitpos, b->virtual,
 					     b->visibility))
-		return false;
+		return FALSE;
 	    }
 	}
 
@@ -2930,7 +2760,7 @@ debug_write_class_type (info, fns, fhandle, type, tag)
 
 	      m = type->u.kclass->methods[i];
 	      if (! (*fns->class_start_method) (fhandle, m->name))
-		return false;
+		return FALSE;
 	      for (j = 0; m->variants[j] != NULL; j++)
 		{
 		  struct debug_method_variant *v;
@@ -2940,11 +2770,11 @@ debug_write_class_type (info, fns, fhandle, type, tag)
 		    {
 		      if (! debug_write_type (info, fns, fhandle, v->context,
 					      (struct debug_name *) NULL))
-			return false;
+			return FALSE;
 		    }
 		  if (! debug_write_type (info, fns, fhandle, v->type,
 					  (struct debug_name *) NULL))
-		    return false;
+		    return FALSE;
 		  if (v->voffset != VOFFSET_STATIC_METHOD)
 		    {
 		      if (! (*fns->class_method_variant) (fhandle, v->physname,
@@ -2953,7 +2783,7 @@ debug_write_class_type (info, fns, fhandle, type, tag)
 							  v->volatilep,
 							  v->voffset,
 							  v->context != NULL))
-			return false;
+			return FALSE;
 		    }
 		  else
 		    {
@@ -2962,11 +2792,11 @@ debug_write_class_type (info, fns, fhandle, type, tag)
 								 v->visibility,
 								 v->constp,
 								 v->volatilep))
-			return false;
+			return FALSE;
 		    }
 		}
 	      if (! (*fns->class_end_method) (fhandle))
-		return false;
+		return FALSE;
 	    }
 	}
     }
@@ -2976,41 +2806,38 @@ debug_write_class_type (info, fns, fhandle, type, tag)
 
 /* Write out information for a function.  */
 
-static boolean
-debug_write_function (info, fns, fhandle, name, linkage, function)
-     struct debug_handle *info;
-     const struct debug_write_fns *fns;
-     PTR fhandle;
-     const char *name;
-     enum debug_object_linkage linkage;
-     struct debug_function *function;
+static bfd_boolean
+debug_write_function (struct debug_handle *info,
+		      const struct debug_write_fns *fns, void *fhandle,
+		      const char *name, enum debug_object_linkage linkage,
+		      struct debug_function *function)
 {
   struct debug_parameter *p;
   struct debug_block *b;
 
   if (! debug_write_linenos (info, fns, fhandle, function->blocks->start))
-    return false;
+    return FALSE;
 
   if (! debug_write_type (info, fns, fhandle, function->return_type,
 			  (struct debug_name *) NULL))
-    return false;
+    return FALSE;
 
   if (! (*fns->start_function) (fhandle, name,
 				linkage == DEBUG_LINKAGE_GLOBAL))
-    return false;
+    return FALSE;
 
   for (p = function->parameters; p != NULL; p = p->next)
     {
       if (! debug_write_type (info, fns, fhandle, p->type,
 			      (struct debug_name *) NULL)
 	  || ! (*fns->function_parameter) (fhandle, p->name, p->kind, p->val))
-	return false;
+	return FALSE;
     }
 
   for (b = function->blocks; b != NULL; b = b->next)
     {
       if (! debug_write_block (info, fns, fhandle, b))
-	return false;
+	return FALSE;
     }
 
   return (*fns->end_function) (fhandle);
@@ -3018,25 +2845,23 @@ debug_write_function (info, fns, fhandle, name, linkage, function)
 
 /* Write out information for a block.  */
 
-static boolean
-debug_write_block (info, fns, fhandle, block)
-     struct debug_handle *info;
-     const struct debug_write_fns *fns;
-     PTR fhandle;
-     struct debug_block *block;
+static bfd_boolean
+debug_write_block (struct debug_handle *info,
+		   const struct debug_write_fns *fns, void *fhandle,
+		   struct debug_block *block)
 {
   struct debug_name *n;
   struct debug_block *b;
 
   if (! debug_write_linenos (info, fns, fhandle, block->start))
-    return false;
+    return FALSE;
 
   /* I can't see any point to writing out a block with no local
      variables, so we don't bother, except for the top level block.  */
   if (block->locals != NULL || block->parent == NULL)
     {
       if (! (*fns->start_block) (fhandle, block->start))
-	return false;
+	return FALSE;
     }
 
   if (block->locals != NULL)
@@ -3044,36 +2869,34 @@ debug_write_block (info, fns, fhandle, block)
       for (n = block->locals->list; n != NULL; n = n->next)
 	{
 	  if (! debug_write_name (info, fns, fhandle, n))
-	    return false;
+	    return FALSE;
 	}
     }
 
   for (b = block->children; b != NULL; b = b->next)
     {
       if (! debug_write_block (info, fns, fhandle, b))
-	return false;
+	return FALSE;
     }
 
   if (! debug_write_linenos (info, fns, fhandle, block->end))
-    return false;
+    return FALSE;
 
   if (block->locals != NULL || block->parent == NULL)
     {
       if (! (*fns->end_block) (fhandle, block->end))
-	return false;
+	return FALSE;
     }
 
-  return true;
+  return TRUE;
 }
 
 /* Write out line number information up to ADDRESS.  */
 
-static boolean
-debug_write_linenos (info, fns, fhandle, address)
-     struct debug_handle *info;
-     const struct debug_write_fns *fns;
-     PTR fhandle;
-     bfd_vma address;
+static bfd_boolean
+debug_write_linenos (struct debug_handle *info,
+		     const struct debug_write_fns *fns, void *fhandle,
+		     bfd_vma address)
 {
   while (info->current_write_lineno != NULL)
     {
@@ -3088,12 +2911,12 @@ debug_write_linenos (info, fns, fhandle, address)
 	    break;
 
 	  if (l->addrs[info->current_write_lineno_index] >= address)
-	    return true;
+	    return TRUE;
 
 	  if (! (*fns->lineno) (fhandle, l->file->filename,
 				l->linenos[info->current_write_lineno_index],
 				l->addrs[info->current_write_lineno_index]))
-	    return false;
+	    return FALSE;
 
 	  ++info->current_write_lineno_index;
 	}
@@ -3102,7 +2925,7 @@ debug_write_linenos (info, fns, fhandle, address)
       info->current_write_lineno_index = 0;
     }
 
-  return true;
+  return TRUE;
 }
 
 /* Get the ID number for a class.  If during the same call to
@@ -3110,11 +2933,9 @@ debug_write_linenos (info, fns, fhandle, address)
    name, we use the same ID.  This type of things happens because the
    same struct will be defined by multiple compilation units.  */
 
-static boolean
-debug_set_class_id (info, tag, type)
-     struct debug_handle *info;
-     const char *tag;
-     struct debug_type *type;
+static bfd_boolean
+debug_set_class_id (struct debug_handle *info, const char *tag,
+		    struct debug_type *type)
 {
   struct debug_class_type *c;
   struct debug_class_id *l;
@@ -3127,7 +2948,7 @@ debug_set_class_id (info, tag, type)
   c = type->u.kclass;
 
   if (c->id > info->base_id)
-    return true;
+    return TRUE;
 
   for (l = info->id_list; l != NULL; l = l->next)
     {
@@ -3150,7 +2971,7 @@ debug_set_class_id (info, tag, type)
       if (debug_type_samep (info, l->type, type))
 	{
 	  c->id = l->type->u.kclass->id;
-	  return true;
+	  return TRUE;
 	}
     }
 
@@ -3168,42 +2989,40 @@ debug_set_class_id (info, tag, type)
   l->next = info->id_list;
   info->id_list = l;
 
-  return true;
+  return TRUE;
 }
 
 /* See if two types are the same.  At this point, we don't care about
    tags and the like.  */
 
-static boolean
-debug_type_samep (info, t1, t2)
-     struct debug_handle *info;
-     struct debug_type *t1;
-     struct debug_type *t2;
+static bfd_boolean
+debug_type_samep (struct debug_handle *info, struct debug_type *t1,
+		  struct debug_type *t2)
 {
   struct debug_type_compare_list *l;
   struct debug_type_compare_list top;
-  boolean ret;
+  bfd_boolean ret;
 
   if (t1 == NULL)
     return t2 == NULL;
   if (t2 == NULL)
-    return false;
+    return FALSE;
 
   while (t1->kind == DEBUG_KIND_INDIRECT)
     {
       t1 = *t1->u.kindirect->slot;
       if (t1 == NULL)
-	return false;
+	return FALSE;
     }
   while (t2->kind == DEBUG_KIND_INDIRECT)
     {
       t2 = *t2->u.kindirect->slot;
       if (t2 == NULL)
-	return false;
+	return FALSE;
     }
 
   if (t1 == t2)
-    return true;
+    return TRUE;
 
   /* As a special case, permit a typedef to match a tag, since C++
      debugging output will sometimes add a typedef where C debugging
@@ -3217,7 +3036,7 @@ debug_type_samep (info, t1, t2)
 
   if (t1->kind != t2->kind
       || t1->size != t2->size)
-    return false;
+    return FALSE;
 
   /* Get rid of the trivial cases first.  */
   switch (t1->kind)
@@ -3228,7 +3047,7 @@ debug_type_samep (info, t1, t2)
     case DEBUG_KIND_FLOAT:
     case DEBUG_KIND_COMPLEX:
     case DEBUG_KIND_BOOL:
-      return true;
+      return TRUE;
     case DEBUG_KIND_INT:
       return t1->u.kint == t2->u.kint;
     }
@@ -3240,7 +3059,7 @@ debug_type_samep (info, t1, t2)
   for (l = info->compare_list; l != NULL; l = l->next)
     {
       if (l->t1 == t1 && l->t2 == t2)
-	return true;
+	return TRUE;
     }
 
   top.t1 = t1;
@@ -3252,7 +3071,7 @@ debug_type_samep (info, t1, t2)
     {
     default:
       abort ();
-      ret = false;
+      ret = FALSE;
       break;
 
     case DEBUG_KIND_STRUCT:
@@ -3262,10 +3081,10 @@ debug_type_samep (info, t1, t2)
       if (t1->u.kclass == NULL)
 	ret = t2->u.kclass == NULL;
       else if (t2->u.kclass == NULL)
-	ret = false;
+	ret = FALSE;
       else if (t1->u.kclass->id > info->base_id
 	       && t1->u.kclass->id == t2->u.kclass->id)
-	ret = true;
+	ret = TRUE;
       else
 	ret = debug_class_type_samep (info, t1, t2);
       break;
@@ -3274,7 +3093,7 @@ debug_type_samep (info, t1, t2)
       if (t1->u.kenum == NULL)
 	ret = t2->u.kenum == NULL;
       else if (t2->u.kenum == NULL)
-	ret = false;
+	ret = FALSE;
       else
 	{
 	  const char **pn1, **pn2;
@@ -3309,9 +3128,9 @@ debug_type_samep (info, t1, t2)
 				 t2->u.kfunction->return_type)
 	  || ((t1->u.kfunction->arg_types == NULL)
 	      != (t2->u.kfunction->arg_types == NULL)))
-	ret = false;
+	ret = FALSE;
       else if (t1->u.kfunction->arg_types == NULL)
-	ret = true;
+	ret = TRUE;
       else
 	{
 	  struct debug_type **a1, **a2;
@@ -3367,9 +3186,9 @@ debug_type_samep (info, t1, t2)
 				 t2->u.kmethod->domain_type)
 	  || ((t1->u.kmethod->arg_types == NULL)
 	      != (t2->u.kmethod->arg_types == NULL)))
-	ret = false;
+	ret = FALSE;
       else if (t1->u.kmethod->arg_types == NULL)
-	ret = true;
+	ret = TRUE;
       else
 	{
 	  struct debug_type **a1, **a2;
@@ -3411,11 +3230,9 @@ debug_type_samep (info, t1, t2)
 /* See if two classes are the same.  This is a subroutine of
    debug_type_samep.  */
 
-static boolean
-debug_class_type_samep (info, t1, t2)
-     struct debug_handle *info;
-     struct debug_type *t1;
-     struct debug_type *t2;
+static bfd_boolean
+debug_class_type_samep (struct debug_handle *info, struct debug_type *t1,
+			struct debug_type *t2)
 {
   struct debug_class_type *c1, *c2;
 
@@ -3426,7 +3243,7 @@ debug_class_type_samep (info, t1, t2)
       || (c1->baseclasses == NULL) != (c2->baseclasses == NULL)
       || (c1->methods == NULL) != (c2->methods == NULL)
       || (c1->vptrbase == NULL) != (c2->vptrbase == NULL))
-    return false;
+    return FALSE;
 
   if (c1->fields != NULL)
     {
@@ -3443,17 +3260,17 @@ debug_class_type_samep (info, t1, t2)
 	  if (f1->name[0] != f2->name[0]
 	      || f1->visibility != f2->visibility
 	      || f1->static_member != f2->static_member)
-	    return false;
+	    return FALSE;
 	  if (f1->static_member)
 	    {
 	      if (strcmp (f1->u.s.physname, f2->u.s.physname) != 0)
-		return false;
+		return FALSE;
 	    }
 	  else
 	    {
 	      if (f1->u.f.bitpos != f2->u.f.bitpos
 		  || f1->u.f.bitsize != f2->u.f.bitsize)
-		return false;
+		return FALSE;
 	    }
 	  /* We do the checks which require function calls last.  We
              don't require that the types of fields have the same
@@ -3461,20 +3278,20 @@ debug_class_type_samep (info, t1, t2)
              typedefs and we really don't care.  */
 	  if (strcmp (f1->name, f2->name) != 0
 	      || ! debug_type_samep (info,
-				     debug_get_real_type ((PTR) info,
+				     debug_get_real_type ((void *) info,
 							  f1->type, NULL),
-				     debug_get_real_type ((PTR) info,
+				     debug_get_real_type ((void *) info,
 							  f2->type, NULL)))
-	    return false;
+	    return FALSE;
 	}
       if (*pf1 != NULL || *pf2 != NULL)
-	return false;
+	return FALSE;
     }
 
   if (c1->vptrbase != NULL)
     {
       if (! debug_type_samep (info, c1->vptrbase, c2->vptrbase))
-	return false;
+	return FALSE;
     }
 
   if (c1->baseclasses != NULL)
@@ -3493,10 +3310,10 @@ debug_class_type_samep (info, t1, t2)
 	      || b1->virtual != b2->virtual
 	      || b1->visibility != b2->visibility
 	      || ! debug_type_samep (info, b1->type, b2->type))
-	    return false;
+	    return FALSE;
 	}
       if (*pb1 != NULL || *pb2 != NULL)
-	return false;
+	return FALSE;
     }
 
   if (c1->methods != NULL)
@@ -3514,7 +3331,7 @@ debug_class_type_samep (info, t1, t2)
 	  if (m1->name[0] != m2->name[0]
 	      || strcmp (m1->name, m2->name) != 0
 	      || (m1->variants == NULL) != (m2->variants == NULL))
-	    return false;
+	    return FALSE;
 	  if (m1->variants == NULL)
 	    {
 	      struct debug_method_variant **pv1, **pv2;
@@ -3535,21 +3352,21 @@ debug_class_type_samep (info, t1, t2)
 		      || (v1->context == NULL) != (v2->context == NULL)
 		      || strcmp (v1->physname, v2->physname) != 0
 		      || ! debug_type_samep (info, v1->type, v2->type))
-		    return false;
+		    return FALSE;
 		  if (v1->context != NULL)
 		    {
 		      if (! debug_type_samep (info, v1->context,
 					      v2->context))
-			return false;
+			return FALSE;
 		    }
 		}
 	      if (*pv1 != NULL || *pv2 != NULL)
-		return false;
+		return FALSE;
 	    }
 	}
       if (*pm1 != NULL || *pm2 != NULL)
-	return false;
+	return FALSE;
     }
 
-  return true;
+  return TRUE;
 }

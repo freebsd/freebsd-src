@@ -41,21 +41,21 @@
 
 #define LISTING_SKIP_COND() ((listing & LISTING_NOCOND) != 0)
 
-void listing_eject PARAMS ((int));
-void listing_error PARAMS ((const char *message));
-void listing_file PARAMS ((const char *name));
-void listing_flags PARAMS ((int));
-void listing_list PARAMS ((int on));
-void listing_newline PARAMS ((char *ps));
-void listing_prev_line PARAMS ((void));
-void listing_print PARAMS ((char *name));
-void listing_psize PARAMS ((int));
-void listing_nopage PARAMS ((int));
-void listing_source_file PARAMS ((const char *));
-void listing_source_line PARAMS ((unsigned int));
-void listing_title PARAMS ((int depth));
-void listing_warning PARAMS ((const char *message));
-void listing_width PARAMS ((unsigned int x));
+void listing_eject (int);
+void listing_error (const char *message);
+void listing_file (const char *name);
+void listing_flags (int);
+void listing_list (int on);
+void listing_newline (char *ps);
+void listing_prev_line (void);
+void listing_print (char *name);
+void listing_psize (int);
+void listing_nopage (int);
+void listing_source_file (const char *);
+void listing_source_line (unsigned int);
+void listing_title (int depth);
+void listing_warning (const char *message);
+void listing_width (unsigned int x);
 
 extern int listing_lhs_width;
 extern int listing_lhs_width_second;

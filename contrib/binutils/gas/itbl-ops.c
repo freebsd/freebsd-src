@@ -154,23 +154,21 @@ static struct itbl_entry *entries[e_nprocs][e_ntypes] = {
 };
 
 /* local prototypes */
-static unsigned long build_opcode PARAMS ((struct itbl_entry *e));
-static e_type get_type PARAMS ((int yytype));
-static e_processor get_processor PARAMS ((int yyproc));
-static struct itbl_entry **get_entries PARAMS ((e_processor processor,
-						e_type type));
-static struct itbl_entry *find_entry_byname PARAMS ((e_processor processor,
-					e_type type, char *name));
-static struct itbl_entry *find_entry_byval PARAMS ((e_processor processor,
-			e_type type, unsigned long val, struct itbl_range *r));
-static struct itbl_entry *alloc_entry PARAMS ((e_processor processor,
-		e_type type, char *name, unsigned long value));
-static unsigned long apply_range PARAMS ((unsigned long value,
-						struct itbl_range r));
-static unsigned long extract_range PARAMS ((unsigned long value,
-						struct itbl_range r));
-static struct itbl_field *alloc_field PARAMS ((e_type type, int sbit,
-					int ebit, unsigned long flags));
+static unsigned long build_opcode (struct itbl_entry *e);
+static e_type get_type (int yytype);
+static e_processor get_processor (int yyproc);
+static struct itbl_entry **get_entries (e_processor processor,
+					e_type type);
+static struct itbl_entry *find_entry_byname (e_processor processor,
+					e_type type, char *name);
+static struct itbl_entry *find_entry_byval (e_processor processor,
+			e_type type, unsigned long val, struct itbl_range *r);
+static struct itbl_entry *alloc_entry (e_processor processor,
+		e_type type, char *name, unsigned long value);
+static unsigned long apply_range (unsigned long value, struct itbl_range r);
+static unsigned long extract_range (unsigned long value, struct itbl_range r);
+static struct itbl_field *alloc_field (e_type type, int sbit,
+					int ebit, unsigned long flags);
 
 /*======================================================================*/
 /* Interfaces to the parser */
@@ -351,7 +349,7 @@ append_insns_as_macros (void)
       printf (_("Unable to allocate memory for new instructions\n"));
       return;
     }
-  if (size)			/* copy prexisting opcodes table */
+  if (size)			/* copy preexisting opcodes table */
     memcpy (new_opcodes, ITBL_OPCODES, size);
 
   /* FIXME! some NUMOPCODES are calculated expressions.
@@ -372,13 +370,13 @@ append_insns_as_macros (void)
 	  o->name = e->name;
 	  o->args = strdup (form_args (e));
 	  o->mask = apply_range (e->value, e->range);
-	  /* FIXME how to catch durring assembly? */
+	  /* FIXME how to catch during assembly? */
 	  /* mask to identify this insn */
 	  o->match = apply_range (e->value, e->range);
 	  o->pinfo = 0;
 
 #ifdef USE_MACROS
-	  o->mask = id++;	/* FIXME how to catch durring assembly? */
+	  o->mask = id++;	/* FIXME how to catch during assembly? */
 	  o->match = 0;		/* for macros, the insn_isa number */
 	  o->pinfo = INSN_MACRO;
 #endif
@@ -616,7 +614,7 @@ itbl_disassemble (char *s, unsigned long insn)
       struct itbl_entry *r;
       unsigned long value;
 
-      if (f == e->fields)	/* First operand is preceeded by tab.  */
+      if (f == e->fields)	/* First operand is preceded by tab.  */
 	strcat (s, "\t");
       else			/* ','s separate following operands.  */
 	strcat (s, ",");

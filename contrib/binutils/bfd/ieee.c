@@ -1,6 +1,6 @@
 /* BFD back-end for ieee-695 objects.
    Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-   2000, 2001, 2002
+   2000, 2001, 2002, 2003
    Free Software Foundation, Inc.
 
    Written by Steve Chamberlain of Cygnus Support.
@@ -40,93 +40,151 @@ struct output_buffer_struct
   int buffer;
 };
 
-static boolean ieee_write_byte PARAMS ((bfd *, int));
-static boolean ieee_write_2bytes PARAMS ((bfd *, int));
-static boolean ieee_write_int PARAMS ((bfd *, bfd_vma));
-static boolean ieee_write_id PARAMS ((bfd *, const char *));
-static unsigned short read_2bytes PARAMS ((common_header_type *));
-static void bfd_get_string PARAMS ((common_header_type *, char *, size_t));
-static char *read_id PARAMS ((common_header_type *));
-static boolean ieee_write_expression
-  PARAMS ((bfd *, bfd_vma, asymbol *, boolean, unsigned int));
-static void ieee_write_int5 PARAMS ((bfd_byte *, bfd_vma));
-static boolean ieee_write_int5_out PARAMS ((bfd *, bfd_vma));
-static boolean parse_int PARAMS ((common_header_type *, bfd_vma *));
-static int parse_i PARAMS ((common_header_type *, boolean *));
-static bfd_vma must_parse_int PARAMS ((common_header_type *));
+static bfd_boolean ieee_write_byte
+  PARAMS ((bfd *, int));
+static bfd_boolean ieee_write_2bytes
+  PARAMS ((bfd *, int));
+static bfd_boolean ieee_write_int
+  PARAMS ((bfd *, bfd_vma));
+static bfd_boolean ieee_write_id
+  PARAMS ((bfd *, const char *));
+static unsigned short read_2bytes
+  PARAMS ((common_header_type *));
+static void bfd_get_string
+  PARAMS ((common_header_type *, char *, size_t));
+static char *read_id
+  PARAMS ((common_header_type *));
+static bfd_boolean ieee_write_expression
+  PARAMS ((bfd *, bfd_vma, asymbol *, bfd_boolean, unsigned int));
+static void ieee_write_int5
+  PARAMS ((bfd_byte *, bfd_vma));
+static bfd_boolean ieee_write_int5_out
+  PARAMS ((bfd *, bfd_vma));
+static bfd_boolean parse_int
+  PARAMS ((common_header_type *, bfd_vma *));
+static int parse_i
+  PARAMS ((common_header_type *, bfd_boolean *));
+static bfd_vma must_parse_int
+  PARAMS ((common_header_type *));
 static void parse_expression
   PARAMS ((ieee_data_type *, bfd_vma *, ieee_symbol_index_type *,
-	   boolean *, unsigned int *, asection **));
-static file_ptr ieee_part_after PARAMS ((ieee_data_type *, file_ptr));
+	   bfd_boolean *, unsigned int *, asection **));
+static file_ptr ieee_part_after
+  PARAMS ((ieee_data_type *, file_ptr));
 static ieee_symbol_type *get_symbol
   PARAMS ((bfd *, ieee_data_type *, ieee_symbol_type *, unsigned int *,
 	   ieee_symbol_type ***, unsigned int *, int));
-static boolean ieee_slurp_external_symbols PARAMS ((bfd *));
-static boolean ieee_slurp_symbol_table PARAMS ((bfd *));
-static long ieee_get_symtab_upper_bound PARAMS ((bfd *));
-static long ieee_get_symtab PARAMS ((bfd *, asymbol **));
+static bfd_boolean ieee_slurp_external_symbols
+  PARAMS ((bfd *));
+static bfd_boolean ieee_slurp_symbol_table
+  PARAMS ((bfd *));
+static long ieee_get_symtab_upper_bound
+  PARAMS ((bfd *));
+static long ieee_canonicalize_symtab
+  PARAMS ((bfd *, asymbol **));
 static asection *get_section_entry
   PARAMS ((bfd *, ieee_data_type *i, unsigned int));
-static void ieee_slurp_sections PARAMS ((bfd *));
-static boolean ieee_slurp_debug PARAMS ((bfd *));
-const bfd_target *ieee_archive_p PARAMS ((bfd *));
-const bfd_target *ieee_object_p PARAMS ((bfd *));
-static void ieee_get_symbol_info PARAMS ((bfd *, asymbol *, symbol_info *));
+static void ieee_slurp_sections
+  PARAMS ((bfd *));
+static bfd_boolean ieee_slurp_debug
+  PARAMS ((bfd *));
+const bfd_target *ieee_archive_p
+  PARAMS ((bfd *));
+const bfd_target *ieee_object_p
+  PARAMS ((bfd *));
+static void ieee_get_symbol_info
+  PARAMS ((bfd *, asymbol *, symbol_info *));
 static void ieee_print_symbol
   PARAMS ((bfd *, PTR, asymbol *, bfd_print_symbol_type));
-static boolean do_one
+static bfd_boolean do_one
   PARAMS ((ieee_data_type *, ieee_per_section_type *, unsigned char *,
 	   asection *, int));
-static boolean ieee_slurp_section_data PARAMS ((bfd *));
-static boolean ieee_new_section_hook PARAMS ((bfd *, asection *));
-static long ieee_get_reloc_upper_bound PARAMS ((bfd *, sec_ptr));
-static boolean ieee_get_section_contents
+static bfd_boolean ieee_slurp_section_data
+  PARAMS ((bfd *));
+static bfd_boolean ieee_new_section_hook
+  PARAMS ((bfd *, asection *));
+static long ieee_get_reloc_upper_bound
+  PARAMS ((bfd *, sec_ptr));
+static bfd_boolean ieee_get_section_contents
   PARAMS ((bfd *, sec_ptr, PTR, file_ptr, bfd_size_type));
 static long ieee_canonicalize_reloc
   PARAMS ((bfd *, sec_ptr, arelent **, asymbol **));
-static int comp PARAMS ((const PTR, const PTR));
-static boolean ieee_write_section_part PARAMS ((bfd *));
-static boolean do_with_relocs PARAMS ((bfd *, asection *));
-static boolean do_as_repeat PARAMS ((bfd *, asection *));
-static boolean do_without_relocs PARAMS ((bfd *, asection *));
-static boolean ieee_mkobject PARAMS ((bfd *));
-static void fill PARAMS ((void));
-static void flush PARAMS ((void));
-static void write_int PARAMS ((int));
-static void copy_id PARAMS ((void));
-static void copy_expression PARAMS ((void));
-static void fill_int PARAMS ((struct output_buffer_struct *));
-static void drop_int PARAMS ((struct output_buffer_struct *));
-static void copy_int PARAMS ((void));
-static void f1_record PARAMS ((void));
-static void f0_record PARAMS ((void));
-static void copy_till_end PARAMS ((void));
-static void f2_record PARAMS ((void));
-static void f8_record PARAMS ((void));
-static void e2_record PARAMS ((void));
-static void block PARAMS ((void));
-static void relocate_debug PARAMS ((bfd *, bfd *));
-static boolean ieee_write_debug_part PARAMS ((bfd *));
-static boolean ieee_write_data_part PARAMS ((bfd *));
-static boolean init_for_output PARAMS ((bfd *));
-static boolean ieee_set_section_contents
-  PARAMS ((bfd *, sec_ptr, PTR, file_ptr, bfd_size_type));
-static boolean ieee_write_external_part PARAMS ((bfd *));
-static boolean ieee_write_me_part PARAMS ((bfd *));
-static boolean ieee_write_processor PARAMS ((bfd *));
-static boolean ieee_write_object_contents PARAMS ((bfd *));
-static asymbol *ieee_make_empty_symbol PARAMS ((bfd *));
-static bfd *ieee_openr_next_archived_file PARAMS ((bfd *, bfd *));
-static boolean ieee_find_nearest_line
+static int comp
+  PARAMS ((const PTR, const PTR));
+static bfd_boolean ieee_write_section_part
+  PARAMS ((bfd *));
+static bfd_boolean do_with_relocs
+  PARAMS ((bfd *, asection *));
+static bfd_boolean do_as_repeat
+  PARAMS ((bfd *, asection *));
+static bfd_boolean do_without_relocs
+  PARAMS ((bfd *, asection *));
+static bfd_boolean ieee_mkobject
+  PARAMS ((bfd *));
+static void fill
+  PARAMS ((void));
+static void flush
+  PARAMS ((void));
+static void write_int
+  PARAMS ((int));
+static void copy_id
+  PARAMS ((void));
+static void copy_expression
+  PARAMS ((void));
+static void fill_int
+  PARAMS ((struct output_buffer_struct *));
+static void drop_int
+  PARAMS ((struct output_buffer_struct *));
+static void copy_int
+  PARAMS ((void));
+static void f1_record
+  PARAMS ((void));
+static void f0_record
+  PARAMS ((void));
+static void copy_till_end
+  PARAMS ((void));
+static void f2_record
+  PARAMS ((void));
+static void f8_record
+  PARAMS ((void));
+static void e2_record
+  PARAMS ((void));
+static void block
+  PARAMS ((void));
+static void relocate_debug
+  PARAMS ((bfd *, bfd *));
+static bfd_boolean ieee_write_debug_part
+  PARAMS ((bfd *));
+static bfd_boolean ieee_write_data_part
+  PARAMS ((bfd *));
+static bfd_boolean init_for_output
+  PARAMS ((bfd *));
+static bfd_boolean ieee_set_section_contents
+  PARAMS ((bfd *, sec_ptr, const PTR, file_ptr, bfd_size_type));
+static bfd_boolean ieee_write_external_part
+  PARAMS ((bfd *));
+static bfd_boolean ieee_write_me_part
+  PARAMS ((bfd *));
+static bfd_boolean ieee_write_processor
+  PARAMS ((bfd *));
+static bfd_boolean ieee_write_object_contents
+  PARAMS ((bfd *));
+static asymbol *ieee_make_empty_symbol
+  PARAMS ((bfd *));
+static bfd *ieee_openr_next_archived_file
+  PARAMS ((bfd *, bfd *));
+static bfd_boolean ieee_find_nearest_line
   PARAMS ((bfd *, asection *, asymbol **, bfd_vma, const char **,
 	   const char **, unsigned int *));
-static int ieee_generic_stat_arch_elt PARAMS ((bfd *, struct stat *));
-static int ieee_sizeof_headers PARAMS ((bfd *, boolean));
+static int ieee_generic_stat_arch_elt
+  PARAMS ((bfd *, struct stat *));
+static int ieee_sizeof_headers
+  PARAMS ((bfd *, bfd_boolean));
 
 /* Functions for writing to ieee files in the strange way that the
    standard requires. */
 
-static boolean
+static bfd_boolean
 ieee_write_byte (abfd, barg)
      bfd *abfd;
      int barg;
@@ -135,11 +193,11 @@ ieee_write_byte (abfd, barg)
 
   byte = barg;
   if (bfd_bwrite ((PTR) &byte, (bfd_size_type) 1, abfd) != 1)
-    return false;
-  return true;
+    return FALSE;
+  return TRUE;
 }
 
-static boolean
+static bfd_boolean
 ieee_write_2bytes (abfd, bytes)
      bfd *abfd;
      int bytes;
@@ -149,11 +207,11 @@ ieee_write_2bytes (abfd, bytes)
   buffer[0] = bytes >> 8;
   buffer[1] = bytes & 0xff;
   if (bfd_bwrite ((PTR) buffer, (bfd_size_type) 2, abfd) != 2)
-    return false;
-  return true;
+    return FALSE;
+  return TRUE;
 }
 
-static boolean
+static bfd_boolean
 ieee_write_int (abfd, value)
      bfd *abfd;
      bfd_vma value;
@@ -161,14 +219,14 @@ ieee_write_int (abfd, value)
   if (value <= 127)
     {
       if (! ieee_write_byte (abfd, (bfd_byte) value))
-	return false;
+	return FALSE;
     }
   else
     {
       unsigned int length;
 
-      /* How many significant bytes ? */
-      /* FIXME FOR LONGER INTS */
+      /* How many significant bytes ?  */
+      /* FIXME FOR LONGER INTS.  */
       if (value & 0xff000000)
 	length = 4;
       else if (value & 0x00ff0000)
@@ -181,31 +239,31 @@ ieee_write_int (abfd, value)
       if (! ieee_write_byte (abfd,
 			     (bfd_byte) ((int) ieee_number_repeat_start_enum
 					 + length)))
-	return false;
+	return FALSE;
       switch (length)
 	{
 	case 4:
 	  if (! ieee_write_byte (abfd, (bfd_byte) (value >> 24)))
-	    return false;
+	    return FALSE;
 	  /* Fall through.  */
 	case 3:
 	  if (! ieee_write_byte (abfd, (bfd_byte) (value >> 16)))
-	    return false;
+	    return FALSE;
 	  /* Fall through.  */
 	case 2:
 	  if (! ieee_write_byte (abfd, (bfd_byte) (value >> 8)))
-	    return false;
+	    return FALSE;
 	  /* Fall through.  */
 	case 1:
 	  if (! ieee_write_byte (abfd, (bfd_byte) (value)))
-	    return false;
+	    return FALSE;
 	}
     }
 
-  return true;
+  return TRUE;
 }
 
-static boolean
+static bfd_boolean
 ieee_write_id (abfd, id)
      bfd *abfd;
      const char *id;
@@ -215,19 +273,19 @@ ieee_write_id (abfd, id)
   if (length <= 127)
     {
       if (! ieee_write_byte (abfd, (bfd_byte) length))
-	return false;
+	return FALSE;
     }
   else if (length < 255)
     {
       if (! ieee_write_byte (abfd, ieee_extension_length_1_enum)
 	  || ! ieee_write_byte (abfd, (bfd_byte) length))
-	return false;
+	return FALSE;
     }
   else if (length < 65535)
     {
       if (! ieee_write_byte (abfd, ieee_extension_length_2_enum)
 	  || ! ieee_write_2bytes (abfd, (int) length))
-	return false;
+	return FALSE;
     }
   else
     {
@@ -235,18 +293,16 @@ ieee_write_id (abfd, id)
 	(_("%s: string too long (%d chars, max 65535)"),
 	 bfd_get_filename (abfd), length);
       bfd_set_error (bfd_error_invalid_operation);
-      return false;
+      return FALSE;
     }
 
   if (bfd_bwrite ((PTR) id, (bfd_size_type) length, abfd) != length)
-    return false;
-  return true;
+    return FALSE;
+  return TRUE;
 }
 
-/***************************************************************************
-Functions for reading from ieee files in the strange way that the
-standard requires:
-*/
+/* Functions for reading from ieee files in the strange way that the
+   standard requires.  */
 
 #define this_byte(ieee) *((ieee)->input_p)
 #define next_byte(ieee) ((ieee)->input_p++)
@@ -258,6 +314,7 @@ read_2bytes (ieee)
 {
   unsigned char c1 = this_byte_and_next (ieee);
   unsigned char c2 = this_byte_and_next (ieee);
+
   return (c1 << 8) | c2;
 }
 
@@ -268,10 +325,9 @@ bfd_get_string (ieee, string, length)
      size_t length;
 {
   size_t i;
+
   for (i = 0; i < length; i++)
-    {
-      string[i] = this_byte_and_next (ieee);
-    }
+    string[i] = this_byte_and_next (ieee);
 }
 
 static char *
@@ -280,23 +336,25 @@ read_id (ieee)
 {
   size_t length;
   char *string;
+
   length = this_byte_and_next (ieee);
   if (length <= 0x7f)
     {
-      /* Simple string of length 0 to 127 */
+      /* Simple string of length 0 to 127.  */
     }
   else if (length == 0xde)
     {
-      /* Length is next byte, allowing 0..255 */
+      /* Length is next byte, allowing 0..255.  */
       length = this_byte_and_next (ieee);
     }
   else if (length == 0xdf)
     {
-      /* Length is next two bytes, allowing 0..65535 */
+      /* Length is next two bytes, allowing 0..65535.  */
       length = this_byte_and_next (ieee);
       length = (length * 256) + this_byte_and_next (ieee);
     }
-  /* Buy memory and read string */
+
+  /* Buy memory and read string.  */
   string = bfd_alloc (ieee->abfd, (bfd_size_type) length + 1);
   if (!string)
     return NULL;
@@ -305,12 +363,12 @@ read_id (ieee)
   return string;
 }
 
-static boolean
+static bfd_boolean
 ieee_write_expression (abfd, value, symbol, pcrel, index)
      bfd *abfd;
      bfd_vma value;
      asymbol *symbol;
-     boolean pcrel;
+     bfd_boolean pcrel;
      unsigned int index;
 {
   unsigned int term_count = 0;
@@ -318,90 +376,91 @@ ieee_write_expression (abfd, value, symbol, pcrel, index)
   if (value != 0)
     {
       if (! ieee_write_int (abfd, value))
-	return false;
+	return FALSE;
       term_count++;
     }
 
-  if (bfd_is_com_section (symbol->section)
-      || bfd_is_und_section (symbol->section))
+  /* Badly formatted binaries can have a missing symbol,
+     so test here to prevent a seg fault.  */
+  if (symbol != NULL)
     {
-      /* Def of a common symbol */
-      if (! ieee_write_byte (abfd, ieee_variable_X_enum)
-	  || ! ieee_write_int (abfd, symbol->value))
-	return false;
-      term_count++;
-    }
-  else if (! bfd_is_abs_section (symbol->section))
-    {
-      /* Ref to defined symbol - */
-
-      if (symbol->flags & BSF_GLOBAL)
+      if (bfd_is_com_section (symbol->section)
+	  || bfd_is_und_section (symbol->section))
 	{
-	  if (! ieee_write_byte (abfd, ieee_variable_I_enum)
+	  /* Def of a common symbol.  */
+	  if (! ieee_write_byte (abfd, ieee_variable_X_enum)
 	      || ! ieee_write_int (abfd, symbol->value))
-	    return false;
-	  term_count++;
+	    return FALSE;
+	  term_count ++;
 	}
-      else if (symbol->flags & (BSF_LOCAL | BSF_SECTION_SYM))
+      else if (! bfd_is_abs_section (symbol->section))
 	{
-	  /* This is a reference to a defined local symbol.  We can
-	     easily do a local as a section+offset.  */
-	  if (! ieee_write_byte (abfd, ieee_variable_R_enum)
-	      || ! ieee_write_byte (abfd,
-				    (bfd_byte) (symbol->section->index
-						+ IEEE_SECTION_NUMBER_BASE)))
-	    return false;
-	  term_count++;
-	  if (symbol->value != 0)
+	  /* Ref to defined symbol -  */
+
+	  if (symbol->flags & BSF_GLOBAL)
 	    {
-	      if (! ieee_write_int (abfd, symbol->value))
-		return false;
+	      if (! ieee_write_byte (abfd, ieee_variable_I_enum)
+		  || ! ieee_write_int (abfd, symbol->value))
+		return FALSE;
 	      term_count++;
 	    }
-	}
-      else
-	{
-	  (*_bfd_error_handler)
-	    (_("%s: unrecognized symbol `%s' flags 0x%x"),
-	     bfd_get_filename (abfd), bfd_asymbol_name (symbol),
-	     symbol->flags);
-	  bfd_set_error (bfd_error_invalid_operation);
-	  return false;
+	  else if (symbol->flags & (BSF_LOCAL | BSF_SECTION_SYM))
+	    {
+	      /* This is a reference to a defined local symbol.  We can
+		 easily do a local as a section+offset.  */
+	      if (! ieee_write_byte (abfd, ieee_variable_R_enum)
+		  || ! ieee_write_byte (abfd,
+					(bfd_byte) (symbol->section->index
+						    + IEEE_SECTION_NUMBER_BASE)))
+		return FALSE;
+
+	      term_count++;
+	      if (symbol->value != 0)
+		{
+		  if (! ieee_write_int (abfd, symbol->value))
+		    return FALSE;
+		  term_count++;
+		}
+	    }
+	  else
+	    {
+	      (*_bfd_error_handler)
+		(_("%s: unrecognized symbol `%s' flags 0x%x"),
+		 bfd_get_filename (abfd), bfd_asymbol_name (symbol),
+		 symbol->flags);
+	      bfd_set_error (bfd_error_invalid_operation);
+	      return FALSE;
+	    }
 	}
     }
 
   if (pcrel)
     {
-      /* subtract the pc from here by asking for PC of this section*/
+      /* Subtract the pc from here by asking for PC of this section.  */
       if (! ieee_write_byte (abfd, ieee_variable_P_enum)
 	  || ! ieee_write_byte (abfd,
 				(bfd_byte) (index + IEEE_SECTION_NUMBER_BASE))
 	  || ! ieee_write_byte (abfd, ieee_function_minus_enum))
-	return false;
+	return FALSE;
     }
 
   /* Handle the degenerate case of a 0 address.  */
   if (term_count == 0)
-    {
-      if (! ieee_write_int (abfd, (bfd_vma) 0))
-	return false;
-    }
+    if (! ieee_write_int (abfd, (bfd_vma) 0))
+      return FALSE;
 
   while (term_count > 1)
     {
       if (! ieee_write_byte (abfd, ieee_function_plus_enum))
-	return false;
+	return FALSE;
       term_count--;
     }
 
-  return true;
+  return TRUE;
 }
 
-/*****************************************************************************/
+/* Writes any integer into the buffer supplied and always takes 5 bytes.  */
 
-/*
-writes any integer into the buffer supplied and always takes 5 bytes
-*/
 static void
 ieee_write_int5 (buffer, value)
      bfd_byte *buffer;
@@ -414,7 +473,7 @@ ieee_write_int5 (buffer, value)
   buffer[4] = (value >> 0) & 0xff;
 }
 
-static boolean
+static bfd_boolean
 ieee_write_int5_out (abfd, value)
      bfd *abfd;
      bfd_vma value;
@@ -423,26 +482,28 @@ ieee_write_int5_out (abfd, value)
 
   ieee_write_int5 (b, value);
   if (bfd_bwrite ((PTR) b, (bfd_size_type) 5, abfd) != 5)
-    return false;
-  return true;
+    return FALSE;
+  return TRUE;
 }
 
-static boolean
+static bfd_boolean
 parse_int (ieee, value_ptr)
      common_header_type *ieee;
      bfd_vma *value_ptr;
 {
   int value = this_byte (ieee);
   int result;
+
   if (value >= 0 && value <= 127)
     {
       *value_ptr = value;
       next_byte (ieee);
-      return true;
+      return TRUE;
     }
   else if (value >= 0x80 && value <= 0x88)
     {
       unsigned int count = value & 0xf;
+
       result = 0;
       next_byte (ieee);
       while (count)
@@ -451,15 +512,15 @@ parse_int (ieee, value_ptr)
 	  count--;
 	}
       *value_ptr = result;
-      return true;
+      return TRUE;
     }
-  return false;
+  return FALSE;
 }
 
 static int
 parse_i (ieee, ok)
      common_header_type *ieee;
-     boolean *ok;
+     bfd_boolean *ok;
 {
   bfd_vma x;
   *ok = parse_int (ieee, &x);
@@ -486,12 +547,12 @@ typedef struct
 #if KEEPMINUSPCININST
 
 #define SRC_MASK(arg) arg
-#define PCREL_OFFSET false
+#define PCREL_OFFSET FALSE
 
 #else
 
 #define SRC_MASK(arg) 0
-#define PCREL_OFFSET true
+#define PCREL_OFFSET TRUE
 
 #endif
 
@@ -500,57 +561,57 @@ static reloc_howto_type abs32_howto =
 	 0,
 	 2,
 	 32,
-	 false,
+	 FALSE,
 	 0,
 	 complain_overflow_bitfield,
 	 0,
 	 "abs32",
-	 true,
+	 TRUE,
 	 0xffffffff,
 	 0xffffffff,
-	 false);
+	 FALSE);
 
 static reloc_howto_type abs16_howto =
   HOWTO (1,
 	 0,
 	 1,
 	 16,
-	 false,
+	 FALSE,
 	 0,
 	 complain_overflow_bitfield,
 	 0,
 	 "abs16",
-	 true,
+	 TRUE,
 	 0x0000ffff,
 	 0x0000ffff,
-	 false);
+	 FALSE);
 
 static reloc_howto_type abs8_howto =
   HOWTO (1,
 	 0,
 	 0,
 	 8,
-	 false,
+	 FALSE,
 	 0,
 	 complain_overflow_bitfield,
 	 0,
 	 "abs8",
-	 true,
+	 TRUE,
 	 0x000000ff,
 	 0x000000ff,
-	 false);
+	 FALSE);
 
 static reloc_howto_type rel32_howto =
   HOWTO (1,
 	 0,
 	 2,
 	 32,
-	 true,
+	 TRUE,
 	 0,
 	 complain_overflow_signed,
 	 0,
 	 "rel32",
-	 true,
+	 TRUE,
 	 SRC_MASK (0xffffffff),
 	 0xffffffff,
 	 PCREL_OFFSET);
@@ -560,12 +621,12 @@ static reloc_howto_type rel16_howto =
 	 0,
 	 1,
 	 16,
-	 true,
+	 TRUE,
 	 0,
 	 complain_overflow_signed,
 	 0,
 	 "rel16",
-	 true,
+	 TRUE,
 	 SRC_MASK (0x0000ffff),
 	 0x0000ffff,
 	 PCREL_OFFSET);
@@ -575,12 +636,12 @@ static reloc_howto_type rel8_howto =
 	 0,
 	 0,
 	 8,
-	 true,
+	 TRUE,
 	 0,
 	 complain_overflow_signed,
 	 0,
 	 "rel8",
-	 true,
+	 TRUE,
 	 SRC_MASK (0x000000ff),
 	 0x000000ff,
 	 PCREL_OFFSET);
@@ -592,7 +653,7 @@ parse_expression (ieee, value, symbol, pcrel, extra, section)
      ieee_data_type *ieee;
      bfd_vma *value;
      ieee_symbol_index_type *symbol;
-     boolean *pcrel;
+     bfd_boolean *pcrel;
      unsigned int *extra;
      asection **section;
 
@@ -603,10 +664,10 @@ parse_expression (ieee, value, symbol, pcrel, extra, section)
 #define INC sp++;
 #define DEC sp--;
 
-  boolean loop = true;
+  bfd_boolean loop = TRUE;
   ieee_value_type stack[10];
 
-  /* The stack pointer always points to the next unused location */
+  /* The stack pointer always points to the next unused location.  */
 #define PUSH(x,y,z) TOS.symbol=x;TOS.section=y;TOS.value=z;INC;
 #define POP(x,y,z) DEC;x=TOS.symbol;y=TOS.section;z=TOS.value;
   ieee_value_type *sp = stack;
@@ -617,35 +678,36 @@ parse_expression (ieee, value, symbol, pcrel, extra, section)
       switch (this_byte (&(ieee->h)))
 	{
 	case ieee_variable_P_enum:
-	  /* P variable, current program counter for section n */
+	  /* P variable, current program counter for section n.  */
 	  {
 	    int section_n;
+
 	    next_byte (&(ieee->h));
-	    *pcrel = true;
+	    *pcrel = TRUE;
 	    section_n = must_parse_int (&(ieee->h));
 	    PUSH (NOSYMBOL, bfd_abs_section_ptr, 0);
 	    break;
 	  }
 	case ieee_variable_L_enum:
-	  /* L variable  address of section N */
+	  /* L variable  address of section N.  */
 	  next_byte (&(ieee->h));
 	  PUSH (NOSYMBOL, ieee->section_table[must_parse_int (&(ieee->h))], 0);
 	  break;
 	case ieee_variable_R_enum:
-	  /* R variable, logical address of section module */
-	  /* FIXME, this should be different to L */
+	  /* R variable, logical address of section module.  */
+	  /* FIXME, this should be different to L.  */
 	  next_byte (&(ieee->h));
 	  PUSH (NOSYMBOL, ieee->section_table[must_parse_int (&(ieee->h))], 0);
 	  break;
 	case ieee_variable_S_enum:
-	  /* S variable, size in MAUS of section module */
+	  /* S variable, size in MAUS of section module.  */
 	  next_byte (&(ieee->h));
 	  PUSH (NOSYMBOL,
 		0,
 		ieee->section_table[must_parse_int (&(ieee->h))]->_raw_size);
 	  break;
 	case ieee_variable_I_enum:
-	  /* Push the address of variable n */
+	  /* Push the address of variable n.  */
 	  {
 	    ieee_symbol_index_type sy;
 	    next_byte (&(ieee->h));
@@ -656,7 +718,7 @@ parse_expression (ieee, value, symbol, pcrel, extra, section)
 	  }
 	  break;
 	case ieee_variable_X_enum:
-	  /* Push the address of external variable n */
+	  /* Push the address of external variable n.  */
 	  {
 	    ieee_symbol_index_type sy;
 	    next_byte (&(ieee->h));
@@ -706,7 +768,7 @@ parse_expression (ieee, value, symbol, pcrel, extra, section)
 	    else
 	      {
 		/* Thats all that we can understand.  */
-		loop = false;
+		loop = FALSE;
 	      }
 	  }
 	}
@@ -718,7 +780,6 @@ parse_expression (ieee, value, symbol, pcrel, extra, section)
      terms.  We can tell if that's the case by ensuring that
      sp == stack here.  If not, then we've pushed something too far,
      so we keep adding.  */
-
   while (sp != stack + 1)
     {
       asection *section1;
@@ -764,7 +825,7 @@ ieee_part_after (ieee, here)
 }
 
 static unsigned int last_index;
-static char last_type;		/* is the index for an X or a D */
+static char last_type;		/* Is the index for an X or a D.  */
 
 static ieee_symbol_type *
 get_symbol (abfd, ieee, last_symbol, symbol_count, pptr, max_index, this_type)
@@ -776,8 +837,9 @@ get_symbol (abfd, ieee, last_symbol, symbol_count, pptr, max_index, this_type)
      unsigned int *max_index;
      int this_type;
 {
-  /* Need a new symbol */
+  /* Need a new symbol.  */
   unsigned int new_index = must_parse_int (&(ieee->h));
+
   if (new_index != last_index || this_type != last_type)
     {
       ieee_symbol_type *new_symbol;
@@ -793,9 +855,8 @@ get_symbol (abfd, ieee, last_symbol, symbol_count, pptr, max_index, this_type)
       **pptr = new_symbol;
       *pptr = &new_symbol->next;
       if (new_index > *max_index)
-	{
-	  *max_index = new_index;
-	}
+	*max_index = new_index;
+
       last_type = this_type;
       new_symbol->symbol.section = bfd_abs_section_ptr;
       return new_symbol;
@@ -803,7 +864,7 @@ get_symbol (abfd, ieee, last_symbol, symbol_count, pptr, max_index, this_type)
   return last_symbol;
 }
 
-static boolean
+static bfd_boolean
 ieee_slurp_external_symbols (abfd)
      bfd *abfd;
 {
@@ -814,9 +875,9 @@ ieee_slurp_external_symbols (abfd)
   ieee_symbol_type **prev_reference_ptr = &ieee->external_reference;
   ieee_symbol_type *symbol = (ieee_symbol_type *) NULL;
   unsigned int symbol_count = 0;
-  boolean loop = true;
+  bfd_boolean loop = TRUE;
   last_index = 0xffffff;
-  ieee->symbol_table_full = true;
+  ieee->symbol_table_full = TRUE;
 
   ieee_seek (ieee, offset);
 
@@ -831,7 +892,7 @@ ieee_slurp_external_symbols (abfd)
 			       &prev_symbols_ptr,
 			       &ieee->external_symbol_max_index, 'I');
 	  if (symbol == NULL)
-	    return false;
+	    return FALSE;
 
 	  symbol->symbol.the_bfd = abfd;
 	  symbol->symbol.name = read_id (&(ieee->h));
@@ -845,7 +906,7 @@ ieee_slurp_external_symbols (abfd)
 			       &prev_symbols_ptr,
 			       &ieee->external_symbol_max_index, 'D');
 	  if (symbol == NULL)
-	    return false;
+	    return FALSE;
 
 	  BFD_ASSERT (symbol->index >= ieee->external_symbol_min_index);
 
@@ -878,12 +939,12 @@ ieee_slurp_external_symbols (abfd)
 		       bfd_archive_filename (abfd), symbol_attribute_def,
 		       symbol_name_index);
 		    bfd_set_error (bfd_error_bad_value);
-		    return false;
+		    return FALSE;
 		    break;
 		  }
 		break;
 	      case ieee_external_reference_info_record_enum:
-		/* Skip over ATX record. */
+		/* Skip over ATX record.  */
 		parse_int (&(ieee->h), &value);
 		parse_int (&(ieee->h), &value);
 		parse_int (&(ieee->h), &value);
@@ -892,7 +953,7 @@ ieee_slurp_external_symbols (abfd)
 	      case ieee_atn_record_enum:
 		/* We may get call optimization information here,
 		   which we just ignore.  The format is
-		   {$F1}${CE}{index}{$00}{$3F}{$3F}{#_of_ASNs} */
+		   {$F1}${CE}{index}{$00}{$3F}{$3F}{#_of_ASNs}.  */
 		parse_int (&ieee->h, &value);
 		parse_int (&ieee->h, &value);
 		parse_int (&ieee->h, &value);
@@ -902,7 +963,7 @@ ieee_slurp_external_symbols (abfd)
 		      (_("%s: unexpected ATN type %d in external part"),
 			 bfd_archive_filename (abfd), (int) value);
 		    bfd_set_error (bfd_error_bad_value);
-		    return false;
+		    return FALSE;
 		  }
 		parse_int (&ieee->h, &value);
 		parse_int (&ieee->h, &value);
@@ -924,7 +985,7 @@ ieee_slurp_external_symbols (abfd)
 			  (_("%s: unexpected type after ATN"),
 			     bfd_archive_filename (abfd));
 			bfd_set_error (bfd_error_bad_value);
-			return false;
+			return FALSE;
 		      }
 		  }
 	      }
@@ -934,7 +995,7 @@ ieee_slurp_external_symbols (abfd)
 	  {
 	    unsigned int symbol_name_index;
 	    ieee_symbol_index_type symbol_ignore;
-	    boolean pcrel_ignore;
+	    bfd_boolean pcrel_ignore;
 	    unsigned int extra;
 	    next_byte (&(ieee->h));
 	    next_byte (&(ieee->h));
@@ -978,16 +1039,16 @@ ieee_slurp_external_symbols (abfd)
 	    bfd_vma size;
 	    bfd_vma value;
 	    next_byte (&(ieee->h));
-	    /* Throw away the external reference index */
+	    /* Throw away the external reference index.  */
 	    (void) must_parse_int (&(ieee->h));
-	    /* Fetch the default size if not resolved */
+	    /* Fetch the default size if not resolved.  */
 	    size = must_parse_int (&(ieee->h));
-	    /* Fetch the defautlt value if available */
+	    /* Fetch the default value if available.  */
 	    if (! parse_int (&(ieee->h), &value))
 	      {
 		value = 0;
 	      }
-	    /* This turns into a common */
+	    /* This turns into a common.  */
 	    symbol->symbol.section = bfd_com_section_ptr;
 	    symbol->symbol.value = size;
 	  }
@@ -1000,7 +1061,7 @@ ieee_slurp_external_symbols (abfd)
 			       &prev_reference_ptr,
 			       &ieee->external_reference_max_index, 'X');
 	  if (symbol == NULL)
-	    return false;
+	    return FALSE;
 
 	  symbol->symbol.the_bfd = abfd;
 	  symbol->symbol.name = read_id (&(ieee->h));
@@ -1013,7 +1074,7 @@ ieee_slurp_external_symbols (abfd)
 	  break;
 
 	default:
-	  loop = false;
+	  loop = FALSE;
 	}
     }
 
@@ -1045,26 +1106,26 @@ ieee_slurp_external_symbols (abfd)
   if (symbol_count != abfd->symcount)
     {
       /* There are gaps in the table -- */
-      ieee->symbol_table_full = false;
+      ieee->symbol_table_full = FALSE;
     }
 
   *prev_symbols_ptr = (ieee_symbol_type *) NULL;
   *prev_reference_ptr = (ieee_symbol_type *) NULL;
 
-  return true;
+  return TRUE;
 }
 
-static boolean
+static bfd_boolean
 ieee_slurp_symbol_table (abfd)
      bfd *abfd;
 {
   if (! IEEE_DATA (abfd)->read_symbols)
     {
       if (! ieee_slurp_external_symbols (abfd))
-	return false;
-      IEEE_DATA (abfd)->read_symbols = true;
+	return FALSE;
+      IEEE_DATA (abfd)->read_symbols = TRUE;
     }
-  return true;
+  return TRUE;
 }
 
 static long
@@ -1078,15 +1139,13 @@ ieee_get_symtab_upper_bound (abfd)
     (abfd->symcount + 1) * (sizeof (ieee_symbol_type *)) : 0;
 }
 
-/*
-Move from our internal lists to the canon table, and insert in
-symbol index order
-*/
+/* Move from our internal lists to the canon table, and insert in
+   symbol index order.  */
 
 extern const bfd_target ieee_vec;
 
 static long
-ieee_get_symtab (abfd, location)
+ieee_canonicalize_symtab (abfd, location)
      bfd *abfd;
      asymbol **location;
 {
@@ -1114,41 +1173,35 @@ ieee_get_symtab (abfd, location)
 
       if (! ieee->symbol_table_full)
 	{
-	  /* Arrgh - there are gaps in the table, run through and fill them */
-	  /* up with pointers to a null place */
+	  /* Arrgh - there are gaps in the table, run through and fill them
+	     up with pointers to a null place.  */
 	  unsigned int i;
+
 	  for (i = 0; i < abfd->symcount; i++)
-	    {
-	      location[i] = &empty_symbol;
-	    }
+	    location[i] = &empty_symbol;
 	}
 
       ieee->external_symbol_base_offset = -ieee->external_symbol_min_index;
       for (symp = IEEE_DATA (abfd)->external_symbols;
 	   symp != (ieee_symbol_type *) NULL;
 	   symp = symp->next)
-	{
-	  /* Place into table at correct index locations */
-	  location[symp->index + ieee->external_symbol_base_offset] = &symp->symbol;
-	}
+	/* Place into table at correct index locations.  */
+	location[symp->index + ieee->external_symbol_base_offset] = &symp->symbol;
 
-      /* The external refs are indexed in a bit */
+      /* The external refs are indexed in a bit.  */
       ieee->external_reference_base_offset =
 	-ieee->external_reference_min_index + ieee->external_symbol_count;
 
       for (symp = IEEE_DATA (abfd)->external_reference;
 	   symp != (ieee_symbol_type *) NULL;
 	   symp = symp->next)
-	{
-	  location[symp->index + ieee->external_reference_base_offset] =
-	    &symp->symbol;
+	location[symp->index + ieee->external_reference_base_offset] =
+	  &symp->symbol;
+    }
 
-	}
-    }
   if (abfd->symcount)
-    {
-      location[abfd->symcount] = (asymbol *) NULL;
-    }
+    location[abfd->symcount] = (asymbol *) NULL;
+
   return abfd->symcount;
 }
 
@@ -1212,7 +1265,7 @@ ieee_slurp_sections (abfd)
     {
       bfd_byte section_type[3];
       ieee_seek (ieee, offset);
-      while (true)
+      while (TRUE)
 	{
 	  switch (this_byte (&(ieee->h)))
 	    {
@@ -1228,34 +1281,33 @@ ieee_slurp_sections (abfd)
 		section_type[0] = this_byte_and_next (&(ieee->h));
 
 		/* Set minimal section attributes. Attributes are
-		   extended later, based on section contents. */
-
+		   extended later, based on section contents.  */
 		switch (section_type[0])
 		  {
 		  case 0xC1:
-		    /* Normal attributes for absolute sections	*/
+		    /* Normal attributes for absolute sections.  */
 		    section_type[1] = this_byte (&(ieee->h));
 		    section->flags = SEC_ALLOC;
 		    switch (section_type[1])
 		      {
-		      case 0xD3:	/* AS Absolute section attributes */
+		      case 0xD3:	/* AS Absolute section attributes.  */
 			next_byte (&(ieee->h));
 			section_type[2] = this_byte (&(ieee->h));
 			switch (section_type[2])
 			  {
 			  case 0xD0:
-			    /* Normal code */
+			    /* Normal code.  */
 			    next_byte (&(ieee->h));
 			    section->flags |= SEC_CODE;
 			    break;
 			  case 0xC4:
-			    /* Normal data */
+			    /* Normal data.  */
 			    next_byte (&(ieee->h));
 			    section->flags |= SEC_DATA;
 			    break;
 			  case 0xD2:
 			    next_byte (&(ieee->h));
-			    /* Normal rom data */
+			    /* Normal rom data.  */
 			    section->flags |= SEC_ROM | SEC_DATA;
 			    break;
 			  default:
@@ -1263,20 +1315,20 @@ ieee_slurp_sections (abfd)
 			  }
 		      }
 		    break;
-		  case 0xC3:	/* Named relocatable sections (type C) */
+		  case 0xC3:	/* Named relocatable sections (type C).  */
 		    section_type[1] = this_byte (&(ieee->h));
 		    section->flags = SEC_ALLOC;
 		    switch (section_type[1])
 		      {
-		      case 0xD0:	/* Normal code (CP) */
+		      case 0xD0:	/* Normal code (CP).  */
 			next_byte (&(ieee->h));
 			section->flags |= SEC_CODE;
 			break;
-		      case 0xC4:	/* Normal data (CD) */
+		      case 0xC4:	/* Normal data (CD).  */
 			next_byte (&(ieee->h));
 			section->flags |= SEC_DATA;
 			break;
-		      case 0xD2:	/* Normal rom data (CR) */
+		      case 0xD2:	/* Normal rom data (CR).  */
 			next_byte (&(ieee->h));
 			section->flags |= SEC_ROM | SEC_DATA;
 			break;
@@ -1285,12 +1337,12 @@ ieee_slurp_sections (abfd)
 		      }
 		  }
 
-		/* Read section name, use it if non empty. */
+		/* Read section name, use it if non empty.  */
 		name = read_id (&ieee->h);
 		if (name[0])
 		  section->name = name;
 
-		/* Skip these fields, which we don't care about */
+		/* Skip these fields, which we don't care about.  */
 		{
 		  bfd_vma parent, brother, context;
 		  parse_int (&(ieee->h), &parent);
@@ -1371,7 +1423,7 @@ ieee_slurp_sections (abfd)
    at the area in the file so that program which understand can dig it
    out.  */
 
-static boolean
+static bfd_boolean
 ieee_slurp_debug (abfd)
      bfd *abfd;
 {
@@ -1380,23 +1432,21 @@ ieee_slurp_debug (abfd)
   file_ptr debug_end;
 
   if (ieee->w.r.debug_information_part == 0)
-    return true;
+    return TRUE;
 
   sec = bfd_make_section (abfd, ".debug");
   if (sec == NULL)
-    return false;
+    return FALSE;
   sec->flags |= SEC_DEBUGGING | SEC_HAS_CONTENTS;
   sec->filepos = ieee->w.r.debug_information_part;
 
   debug_end = ieee_part_after (ieee, ieee->w.r.debug_information_part);
   sec->_raw_size = debug_end - ieee->w.r.debug_information_part;
 
-  return true;
+  return TRUE;
 }
 
-/***********************************************************************
-*  archive stuff
-*/
+/* Archive stuff.  */
 
 const bfd_target *
 ieee_archive_p (abfd)
@@ -1566,8 +1616,8 @@ ieee_object_p (abfd)
   if (this_byte_and_next (&(ieee->h)) != Module_Beginning)
     goto got_wrong_format;
 
-  ieee->read_symbols = false;
-  ieee->read_data = false;
+  ieee->read_symbols = FALSE;
+  ieee->read_data = FALSE;
   ieee->section_count = 0;
   ieee->external_symbol_max_index = 0;
   ieee->external_symbol_min_index = IEEE_PUBLIC_BASE;
@@ -1582,16 +1632,14 @@ ieee_object_p (abfd)
     goto got_wrong_format;
   ieee->mb.module_name = read_id (&(ieee->h));
   if (abfd->filename == (const char *) NULL)
-    {
-      abfd->filename = ieee->mb.module_name;
-    }
-  /* Determine the architecture and machine type of the object file.
-     */
+    abfd->filename = ieee->mb.module_name;
+
+  /* Determine the architecture and machine type of the object file.  */
   {
     const bfd_arch_info_type *arch;
     char family[10];
 
-    /* IEEE does not specify the format of the processor identificaton
+    /* IEEE does not specify the format of the processor identification
        string, so the compiler is free to put in it whatever it wants.
        We try here to recognize different processors belonging to the
        m68k family.  Code for other processors can be added here.  */
@@ -1627,7 +1675,7 @@ ieee_object_p (abfd)
 	  }
 	else if (TOUPPER (processor[3]) == 'F')  /* 68F333 */
 	  strcpy (family, "68332");	           /* CPU32 */
-	else if ((TOUPPER (processor[3]) == 'C') /* Embedded controllers */
+	else if ((TOUPPER (processor[3]) == 'C') /* Embedded controllers.  */
 		 && ((TOUPPER (processor[2]) == 'E')
 		     || (TOUPPER (processor[2]) == 'H')
 		     || (TOUPPER (processor[2]) == 'L')))
@@ -1636,7 +1684,7 @@ ieee_object_p (abfd)
 	    strncat (family, processor + 4, 7);
 	    family[9] = '\0';
 	  }
-	else				 /* "Regular" processors */
+	else				 /* "Regular" processors.  */
 	  {
 	    strncpy (family, processor, 9);
 	    family[9] = '\0';
@@ -1658,43 +1706,34 @@ ieee_object_p (abfd)
   }
 
   if (this_byte (&(ieee->h)) != (int) ieee_address_descriptor_enum)
-    {
-      goto fail;
-    }
+    goto fail;
+
   next_byte (&(ieee->h));
 
   if (! parse_int (&(ieee->h), &ieee->ad.number_of_bits_mau))
-    {
-      goto fail;
-    }
-  if (! parse_int (&(ieee->h), &ieee->ad.number_of_maus_in_address))
-    {
-      goto fail;
-    }
+    goto fail;
 
-  /* If there is a byte order info, take it */
-  if (this_byte (&(ieee->h)) == (int) ieee_variable_L_enum ||
-      this_byte (&(ieee->h)) == (int) ieee_variable_M_enum)
+  if (! parse_int (&(ieee->h), &ieee->ad.number_of_maus_in_address))
+    goto fail;
+
+  /* If there is a byte order info, take it.  */
+  if (this_byte (&(ieee->h)) == (int) ieee_variable_L_enum
+      || this_byte (&(ieee->h)) == (int) ieee_variable_M_enum)
     next_byte (&(ieee->h));
 
   for (part = 0; part < N_W_VARIABLES; part++)
     {
-      boolean ok;
+      bfd_boolean ok;
+
       if (read_2bytes (&(ieee->h)) != (int) ieee_assign_value_to_variable_enum)
-	{
-	  goto fail;
-	}
+	goto fail;
+
       if (this_byte_and_next (&(ieee->h)) != part)
-	{
-	  goto fail;
-	}
+	goto fail;
 
       ieee->w.offset[part] = parse_i (&(ieee->h), &ok);
       if (! ok)
-	{
-	  goto fail;
-	}
-
+	goto fail;
     }
 
   if (ieee->w.r.external_part != 0)
@@ -1703,7 +1742,7 @@ ieee_object_p (abfd)
   /* By now we know that this is a real IEEE file, we're going to read
      the whole thing into memory so that we can run up and down it
      quickly.  We can work out how big the file is from the trailer
-     record */
+     record.  */
 
   amt = ieee->w.r.me_record + 1;
   IEEE_DATA (abfd)->h.first_byte =
@@ -1724,7 +1763,6 @@ ieee_object_p (abfd)
 
   /* Parse section data to activate file and section flags implied by
      section contents. */
-
   if (! ieee_slurp_section_data (abfd))
     goto fail;
 
@@ -1777,6 +1815,7 @@ ieee_print_symbol (abfd, afile, symbol, how)
 	  (symbol->section == (asection *) NULL
 	   ? "*abs"
 	   : symbol->section->name);
+
 	if (symbol->name[0] == ' ')
 	  {
 	    fprintf (file, "* empty table entry ");
@@ -1796,7 +1835,7 @@ ieee_print_symbol (abfd, afile, symbol, how)
     }
 }
 
-static boolean
+static bfd_boolean
 do_one (ieee, current_map, location_ptr, s, iterations)
      ieee_data_type *ieee;
      ieee_per_section_type *current_map;
@@ -1810,6 +1849,7 @@ do_one (ieee, current_map, location_ptr, s, iterations)
       {
 	unsigned int number_of_maus;
 	unsigned int i;
+
 	next_byte (&(ieee->h));
 	number_of_maus = must_parse_int (&(ieee->h));
 
@@ -1823,7 +1863,8 @@ do_one (ieee, current_map, location_ptr, s, iterations)
 
     case ieee_load_with_relocation_enum:
       {
-	boolean loop = true;
+	bfd_boolean loop = TRUE;
+
 	next_byte (&(ieee->h));
 	while (loop)
 	  {
@@ -1836,14 +1877,14 @@ do_one (ieee, current_map, location_ptr, s, iterations)
 	      case ieee_function_either_open_b_enum:
 		{
 		  unsigned int extra = 4;
-		  boolean pcrel = false;
+		  bfd_boolean pcrel = FALSE;
 		  asection *section;
 		  ieee_reloc_type *r;
 		  bfd_size_type amt = sizeof (ieee_reloc_type);
 
 		  r = (ieee_reloc_type *) bfd_alloc (ieee->h.abfd, amt);
 		  if (!r)
-		    return false;
+		    return FALSE;
 
 		  *(current_map->reloc_tail_ptr) = r;
 		  current_map->reloc_tail_ptr = &r->next;
@@ -1865,7 +1906,7 @@ do_one (ieee, current_map, location_ptr, s, iterations)
 		  if (this_byte (&(ieee->h)) == (int) ieee_comma)
 		    {
 		      next_byte (&(ieee->h));
-		      /* Fetch number of bytes to pad */
+		      /* Fetch number of bytes to pad.  */
 		      extra = must_parse_int (&(ieee->h));
 		    };
 
@@ -1883,7 +1924,7 @@ do_one (ieee, current_map, location_ptr, s, iterations)
 		    default:
 		      break;
 		    }
-		  /* Build a relocation entry for this type */
+		  /* Build a relocation entry for this type.  */
 		  /* If pc rel then stick -ve pc into instruction
 		     and take out of reloc ..
 
@@ -1962,7 +2003,7 @@ do_one (ieee, current_map, location_ptr, s, iterations)
 
 		    default:
 		      BFD_FAIL ();
-		      return false;
+		      return FALSE;
 		    }
 		}
 		break;
@@ -1980,7 +2021,7 @@ do_one (ieee, current_map, location_ptr, s, iterations)
 		    }
 		  else
 		    {
-		      loop = false;
+		      loop = FALSE;
 		    }
 		}
 	      }
@@ -1988,15 +2029,16 @@ do_one (ieee, current_map, location_ptr, s, iterations)
 	    /* Prevent more than the first load-item of an LR record
 	       from being repeated (MRI convention). */
 	    if (iterations != 1)
-	      loop = false;
+	      loop = FALSE;
 	  }
       }
     }
-  return true;
+  return TRUE;
 }
 
-/* Read in all the section data and relocation stuff too */
-static boolean
+/* Read in all the section data and relocation stuff too.  */
+
+static bfd_boolean
 ieee_slurp_section_data (abfd)
      bfd *abfd;
 {
@@ -2006,45 +2048,43 @@ ieee_slurp_section_data (abfd)
 
   ieee_per_section_type *current_map = (ieee_per_section_type *) NULL;
   asection *s;
-  /* Seek to the start of the data area */
+  /* Seek to the start of the data area.  */
   if (ieee->read_data)
-    return true;
-  ieee->read_data = true;
+    return TRUE;
+  ieee->read_data = TRUE;
   ieee_seek (ieee, ieee->w.r.data_part);
 
-  /* Allocate enough space for all the section contents */
-
+  /* Allocate enough space for all the section contents.  */
   for (s = abfd->sections; s != (asection *) NULL; s = s->next)
     {
-      ieee_per_section_type *per = (ieee_per_section_type *) s->used_by_bfd;
+      ieee_per_section_type *per = ieee_per_section (s);
       if ((s->flags & SEC_DEBUGGING) != 0)
 	continue;
       per->data = (bfd_byte *) bfd_alloc (ieee->h.abfd, s->_raw_size);
       if (!per->data)
-	return false;
-      /*SUPPRESS 68*/
+	return FALSE;
       per->reloc_tail_ptr =
 	(ieee_reloc_type **) & (s->relocation);
     }
 
-  while (true)
+  while (TRUE)
     {
       switch (this_byte (&(ieee->h)))
 	{
-	  /* IF we see anything strange then quit */
+	  /* IF we see anything strange then quit.  */
 	default:
-	  return true;
+	  return TRUE;
 
 	case ieee_set_current_section_enum:
 	  next_byte (&(ieee->h));
 	  section_number = must_parse_int (&(ieee->h));
 	  s = ieee->section_table[section_number];
 	  s->flags |= SEC_LOAD | SEC_HAS_CONTENTS;
-	  current_map = (ieee_per_section_type *) s->used_by_bfd;
+	  current_map = ieee_per_section (s);
 	  location_ptr = current_map->data - s->vma;
-	  /* The document I have says that Microtec's compilers reset */
-	  /* this after a sec section, even though the standard says not */
-	  /* to. SO .. */
+	  /* The document I have says that Microtec's compilers reset
+	     this after a sec section, even though the standard says not
+	     to, SO...  */
 	  current_map->pc = s->vma;
 	  break;
 
@@ -2057,9 +2097,10 @@ ieee_slurp_section_data (abfd)
 		bfd_vma value;
 		ieee_symbol_index_type symbol;
 		unsigned int extra;
-		boolean pcrel;
+		bfd_boolean pcrel;
+
 		next_byte (&(ieee->h));
-		must_parse_int (&(ieee->h));	/* Throw away section #*/
+		must_parse_int (&(ieee->h));	/* Throw away section #.  */
 		parse_expression (ieee, &value,
 				  &symbol,
 				  &pcrel, &extra,
@@ -2074,28 +2115,27 @@ ieee_slurp_section_data (abfd)
 	      if (this_byte (&(ieee->h)) == ieee_function_either_open_b_enum)
 		next_byte (&(ieee->h));
 	      abfd->start_address = must_parse_int (&(ieee->h));
-	      /* We've got to the end of the data now - */
-	      return true;
+	      /* We've got to the end of the data now -  */
+	      return TRUE;
 	    default:
 	      BFD_FAIL ();
-	      return false;
+	      return FALSE;
 	    }
 	  break;
 	case ieee_repeat_data_enum:
 	  {
 	    /* Repeat the following LD or LR n times - we do this by
-		 remembering the stream pointer before running it and
-		 resetting it and running it n times. We special case
-		 the repetition of a repeat_data/load_constant
-		 */
-
+	       remembering the stream pointer before running it and
+	       resetting it and running it n times. We special case
+	       the repetition of a repeat_data/load_constant.  */
 	    unsigned int iterations;
 	    unsigned char *start;
+
 	    next_byte (&(ieee->h));
 	    iterations = must_parse_int (&(ieee->h));
 	    start = ieee->h.input_p;
-	    if (start[0] == (int) ieee_load_constant_bytes_enum &&
-		start[1] == 1)
+	    if (start[0] == (int) ieee_load_constant_bytes_enum
+		&& start[1] == 1)
 	      {
 		while (iterations != 0)
 		  {
@@ -2113,7 +2153,7 @@ ieee_slurp_section_data (abfd)
 		    ieee->h.input_p = start;
 		    if (!do_one (ieee, current_map, location_ptr, s,
 				 (int) iterations))
-		      return false;
+		      return FALSE;
 		    iterations--;
 		  }
 	      }
@@ -2121,26 +2161,24 @@ ieee_slurp_section_data (abfd)
 	  break;
 	case ieee_load_constant_bytes_enum:
 	case ieee_load_with_relocation_enum:
-	  {
-	    if (!do_one (ieee, current_map, location_ptr, s, 1))
-	      return false;
-	  }
+	  if (!do_one (ieee, current_map, location_ptr, s, 1))
+	    return FALSE;
 	}
     }
 }
 
-static boolean
+static bfd_boolean
 ieee_new_section_hook (abfd, newsect)
      bfd *abfd;
      asection *newsect;
 {
-  newsect->used_by_bfd = (PTR)
-    bfd_alloc (abfd, (bfd_size_type) sizeof (ieee_per_section_type));
+  newsect->used_by_bfd
+    = (PTR) bfd_alloc (abfd, (bfd_size_type) sizeof (ieee_per_section_type));
   if (!newsect->used_by_bfd)
-    return false;
+    return FALSE;
   ieee_per_section (newsect)->data = (bfd_byte *) NULL;
   ieee_per_section (newsect)->section = newsect;
-  return true;
+  return TRUE;
 }
 
 static long
@@ -2155,7 +2193,7 @@ ieee_get_reloc_upper_bound (abfd, asect)
   return (asect->reloc_count + 1) * sizeof (arelent *);
 }
 
-static boolean
+static bfd_boolean
 ieee_get_section_contents (abfd, section, location, offset, count)
      bfd *abfd;
      sec_ptr section;
@@ -2163,13 +2201,13 @@ ieee_get_section_contents (abfd, section, location, offset, count)
      file_ptr offset;
      bfd_size_type count;
 {
-  ieee_per_section_type *p = (ieee_per_section_type *) section->used_by_bfd;
+  ieee_per_section_type *p = ieee_per_section (section);
   if ((section->flags & SEC_DEBUGGING) != 0)
     return _bfd_generic_get_section_contents (abfd, section, location,
 					      offset, count);
   ieee_slurp_section_data (abfd);
   (void) memcpy ((PTR) location, (PTR) (p->data + offset), (unsigned) count);
-  return true;
+  return TRUE;
 }
 
 static long
@@ -2179,7 +2217,6 @@ ieee_canonicalize_reloc (abfd, section, relptr, symbols)
      arelent **relptr;
      asymbol **symbols;
 {
-/*  ieee_per_section_type *p = (ieee_per_section_type *) section->used_by_bfd;*/
   ieee_reloc_type *src = (ieee_reloc_type *) (section->relocation);
   ieee_data_type *ieee = IEEE_DATA (abfd);
 
@@ -2188,7 +2225,7 @@ ieee_canonicalize_reloc (abfd, section, relptr, symbols)
 
   while (src != (ieee_reloc_type *) NULL)
     {
-      /* Work out which symbol to attach it this reloc to */
+      /* Work out which symbol to attach it this reloc to.  */
       switch (src->symbol.letter)
 	{
 	case 'I':
@@ -2227,7 +2264,7 @@ comp (ap, bp)
 
 /* Write the section headers.  */
 
-static boolean
+static bfd_boolean
 ieee_write_section_part (abfd)
      bfd *abfd;
 {
@@ -2243,19 +2280,19 @@ ieee_write_section_part (abfd)
 	      || ! ieee_write_byte (abfd,
 				    (bfd_byte) (s->index
 						+ IEEE_SECTION_NUMBER_BASE)))
-	    return false;
+	    return FALSE;
 
 	  if (abfd->flags & EXEC_P)
 	    {
-	      /* This image is executable, so output absolute sections */
+	      /* This image is executable, so output absolute sections.  */
 	      if (! ieee_write_byte (abfd, ieee_variable_A_enum)
 		  || ! ieee_write_byte (abfd, ieee_variable_S_enum))
-		return false;
+		return FALSE;
 	    }
 	  else
 	    {
 	      if (! ieee_write_byte (abfd, ieee_variable_C_enum))
-		return false;
+		return FALSE;
 	    }
 
 	  switch (s->flags & (SEC_CODE | SEC_DATA | SEC_ROM))
@@ -2263,64 +2300,64 @@ ieee_write_section_part (abfd)
 	    case SEC_CODE | SEC_LOAD:
 	    case SEC_CODE:
 	      if (! ieee_write_byte (abfd, ieee_variable_P_enum))
-		return false;
+		return FALSE;
 	      break;
 	    case SEC_DATA:
 	    default:
 	      if (! ieee_write_byte (abfd, ieee_variable_D_enum))
-		return false;
+		return FALSE;
 	      break;
 	    case SEC_ROM:
 	    case SEC_ROM | SEC_DATA:
 	    case SEC_ROM | SEC_LOAD:
 	    case SEC_ROM | SEC_DATA | SEC_LOAD:
 	      if (! ieee_write_byte (abfd, ieee_variable_R_enum))
-		return false;
+		return FALSE;
 	    }
 
 
 	  if (! ieee_write_id (abfd, s->name))
-	    return false;
+	    return FALSE;
 #if 0
 	  ieee_write_int (abfd, 0);	/* Parent */
 	  ieee_write_int (abfd, 0);	/* Brother */
 	  ieee_write_int (abfd, 0);	/* Context */
 #endif
-	  /* Alignment */
+	  /* Alignment.  */
 	  if (! ieee_write_byte (abfd, ieee_section_alignment_enum)
 	      || ! ieee_write_byte (abfd,
 				    (bfd_byte) (s->index
 						+ IEEE_SECTION_NUMBER_BASE))
 	      || ! ieee_write_int (abfd, (bfd_vma) 1 << s->alignment_power))
-	    return false;
+	    return FALSE;
 
-	  /* Size */
+	  /* Size.  */
 	  if (! ieee_write_2bytes (abfd, ieee_section_size_enum)
 	      || ! ieee_write_byte (abfd,
 				    (bfd_byte) (s->index
 						+ IEEE_SECTION_NUMBER_BASE))
 	      || ! ieee_write_int (abfd, s->_raw_size))
-	    return false;
+	    return FALSE;
 	  if (abfd->flags & EXEC_P)
 	    {
-	      /* Relocateable sections don't have asl records */
-	      /* Vma */
+	      /* Relocateable sections don't have asl records.  */
+	      /* Vma.  */
 	      if (! ieee_write_2bytes (abfd, ieee_section_base_address_enum)
 		  || ! ieee_write_byte (abfd,
 					((bfd_byte)
 					 (s->index
 					  + IEEE_SECTION_NUMBER_BASE)))
 		  || ! ieee_write_int (abfd, s->lma))
-		return false;
+		return FALSE;
 	    }
 	}
     }
 
-  return true;
+  return TRUE;
 }
 
 
-static boolean
+static bfd_boolean
 do_with_relocs (abfd, s)
      bfd *abfd;
      asection *s;
@@ -2337,51 +2374,49 @@ do_with_relocs (abfd, s)
 	 sizeof (arelent **),
 	 comp);
 
-  /* Output the section preheader */
+  /* Output the section preheader.  */
   if (! ieee_write_byte (abfd, ieee_set_current_section_enum)
       || ! ieee_write_byte (abfd,
 			    (bfd_byte) (s->index + IEEE_SECTION_NUMBER_BASE))
       || ! ieee_write_2bytes (abfd, ieee_set_current_pc_enum)
       || ! ieee_write_byte (abfd,
 			    (bfd_byte) (s->index + IEEE_SECTION_NUMBER_BASE)))
-    return false;
+    return FALSE;
 
   if ((abfd->flags & EXEC_P) != 0 && relocs_to_go == 0)
     {
       if (! ieee_write_int (abfd, s->lma))
-	return false;
+	return FALSE;
     }
   else
     {
       if (! ieee_write_expression (abfd, (bfd_vma) 0, s->symbol, 0, 0))
-	return false;
+	return FALSE;
     }
 
   if (relocs_to_go == 0)
     {
       /* If there aren't any relocations then output the load constant
-	 byte opcode rather than the load with relocation opcode */
-
+	 byte opcode rather than the load with relocation opcode.  */
       while (current_byte_index < s->_raw_size)
 	{
 	  bfd_size_type run;
 	  unsigned int MAXRUN = 127;
+
 	  run = MAXRUN;
 	  if (run > s->_raw_size - current_byte_index)
-	    {
-	      run = s->_raw_size - current_byte_index;
-	    }
+	    run = s->_raw_size - current_byte_index;
 
 	  if (run != 0)
 	    {
 	      if (! ieee_write_byte (abfd, ieee_load_constant_bytes_enum))
-		return false;
-	      /* Output a stream of bytes */
+		return FALSE;
+	      /* Output a stream of bytes.  */
 	      if (! ieee_write_int (abfd, run))
-		return false;
+		return FALSE;
 	      if (bfd_bwrite ((PTR) (stream + current_byte_index), run, abfd)
 		  != run)
-		return false;
+		return FALSE;
 	      current_byte_index += run;
 	    }
 	}
@@ -2389,7 +2424,7 @@ do_with_relocs (abfd, s)
   else
     {
       if (! ieee_write_byte (abfd, ieee_load_with_relocation_enum))
-	return false;
+	return FALSE;
 
       /* Output the data stream as the longest sequence of bytes
 	 possible, allowing for the a reasonable packet size and
@@ -2397,15 +2432,16 @@ do_with_relocs (abfd, s)
 
       if ((PTR) stream == (PTR) NULL)
 	{
-	  /* Outputting a section without data, fill it up */
+	  /* Outputting a section without data, fill it up.  */
 	  stream = (unsigned char *) bfd_zalloc (abfd, s->_raw_size);
 	  if (!stream)
-	    return false;
+	    return FALSE;
 	}
       while (current_byte_index < s->_raw_size)
 	{
 	  bfd_size_type run;
 	  unsigned int MAXRUN = 127;
+
 	  if (relocs_to_go)
 	    {
 	      run = (*p)->address - current_byte_index;
@@ -2413,25 +2449,23 @@ do_with_relocs (abfd, s)
 		run = MAXRUN;
 	    }
 	  else
-	    {
-	      run = MAXRUN;
-	    }
+	    run = MAXRUN;
+
 	  if (run > s->_raw_size - current_byte_index)
-	    {
-	      run = s->_raw_size - current_byte_index;
-	    }
+	    run = s->_raw_size - current_byte_index;
 
 	  if (run != 0)
 	    {
-	      /* Output a stream of bytes */
+	      /* Output a stream of bytes.  */
 	      if (! ieee_write_int (abfd, run))
-		return false;
+		return FALSE;
 	      if (bfd_bwrite ((PTR) (stream + current_byte_index), run, abfd)
 		  != run)
-		return false;
+		return FALSE;
 	      current_byte_index += run;
 	    }
-	  /* Output any relocations here */
+
+	  /* Output any relocations here.  */
 	  if (relocs_to_go && (*p) && (*p)->address == current_byte_index)
 	    {
 	      while (relocs_to_go
@@ -2439,14 +2473,10 @@ do_with_relocs (abfd, s)
 		{
 		  arelent *r = *p;
 		  bfd_signed_vma ov;
-
 #if 0
 		  if (r->howto->pc_relative)
-		    {
-		      r->addend += current_byte_index;
-		    }
+		    r->addend += current_byte_index;
 #endif
-
 		  switch (r->howto->size)
 		    {
 		    case 2:
@@ -2468,7 +2498,7 @@ do_with_relocs (abfd, s)
 		    default:
 		      ov = 0;
 		      BFD_FAIL ();
-		      return false;
+		      return FALSE;
 		    }
 
 		  ov &= r->howto->src_mask;
@@ -2479,7 +2509,7 @@ do_with_relocs (abfd, s)
 
 		  if (! ieee_write_byte (abfd,
 					 ieee_function_either_open_b_enum))
-		    return false;
+		    return FALSE;
 
 /*		  abort();*/
 
@@ -2489,7 +2519,7 @@ do_with_relocs (abfd, s)
 						   *(r->sym_ptr_ptr),
 						   r->howto->pc_relative,
 						   (unsigned) s->index))
-			return false;
+			return FALSE;
 		    }
 		  else
 		    {
@@ -2497,7 +2527,7 @@ do_with_relocs (abfd, s)
 						   (asymbol *) NULL,
 						   r->howto->pc_relative,
 						   (unsigned) s->index))
-			return false;
+			return FALSE;
 		    }
 
 		  if (number_of_maus_in_address
@@ -2505,11 +2535,11 @@ do_with_relocs (abfd, s)
 		    {
 		      bfd_vma rsize = bfd_get_reloc_size (r->howto);
 		      if (! ieee_write_int (abfd, rsize))
-			return false;
+			return FALSE;
 		    }
 		  if (! ieee_write_byte (abfd,
 					 ieee_function_either_close_b_enum))
-		    return false;
+		    return FALSE;
 
 		  relocs_to_go--;
 		  p++;
@@ -2519,14 +2549,14 @@ do_with_relocs (abfd, s)
 	}
     }
 
-  return true;
+  return TRUE;
 }
 
 /* If there are no relocations in the output section then we can be
    clever about how we write.  We block items up into a max of 127
    bytes.  */
 
-static boolean
+static bfd_boolean
 do_as_repeat (abfd, s)
      bfd *abfd;
      asection *s;
@@ -2542,17 +2572,17 @@ do_as_repeat (abfd, s)
 	  || ! ieee_write_byte (abfd,
 				(bfd_byte) (s->index
 					    + IEEE_SECTION_NUMBER_BASE)))
-	return false;
+	return FALSE;
 
       if ((abfd->flags & EXEC_P) != 0)
 	{
 	  if (! ieee_write_int (abfd, s->lma))
-	    return false;
+	    return FALSE;
 	}
       else
 	{
 	  if (! ieee_write_expression (abfd, (bfd_vma) 0, s->symbol, 0, 0))
-	    return false;
+	    return FALSE;
 	}
 
       if (! ieee_write_byte (abfd, ieee_repeat_data_enum)
@@ -2560,13 +2590,13 @@ do_as_repeat (abfd, s)
 	  || ! ieee_write_byte (abfd, ieee_load_constant_bytes_enum)
 	  || ! ieee_write_byte (abfd, 1)
 	  || ! ieee_write_byte (abfd, 0))
-	return false;
+	return FALSE;
     }
 
-  return true;
+  return TRUE;
 }
 
-static boolean
+static bfd_boolean
 do_without_relocs (abfd, s)
      bfd *abfd;
      asection *s;
@@ -2576,25 +2606,26 @@ do_without_relocs (abfd, s)
   if (stream == 0 || ((s->flags & SEC_LOAD) == 0))
     {
       if (! do_as_repeat (abfd, s))
-	return false;
+	return FALSE;
     }
   else
     {
       unsigned int i;
+
       for (i = 0; i < s->_raw_size; i++)
 	{
 	  if (stream[i] != 0)
 	    {
 	      if (! do_with_relocs (abfd, s))
-		return false;
-	      return true;
+		return FALSE;
+	      return TRUE;
 	    }
 	}
       if (! do_as_repeat (abfd, s))
-	return false;
+	return FALSE;
     }
 
-  return true;
+  return TRUE;
 }
 
 
@@ -2608,7 +2639,7 @@ static bfd *input_bfd;
 static bfd *output_bfd;
 static int output_buffer;
 
-static boolean
+static bfd_boolean
 ieee_mkobject (abfd)
      bfd *abfd;
 {
@@ -2642,6 +2673,7 @@ static void
 flush ()
 {
   bfd_size_type amt = output_ptr - output_ptr_start;
+
   if (bfd_bwrite ((PTR) (output_ptr_start), amt, output_bfd) != amt)
     abort ();
   output_ptr = output_ptr_start;
@@ -2663,20 +2695,14 @@ write_int (value)
   else
     {
       unsigned int length;
-      /* How many significant bytes ? */
-      /* FIXME FOR LONGER INTS */
+      /* How many significant bytes ?  */
+      /* FIXME FOR LONGER INTS.  */
       if (value & 0xff000000)
-	{
-	  length = 4;
-	}
+	length = 4;
       else if (value & 0x00ff0000)
-	{
-	  length = 3;
-	}
+	length = 3;
       else if (value & 0x0000ff00)
-	{
-	  length = 2;
-	}
+	length = 2;
       else
 	length = 1;
 
@@ -2692,7 +2718,6 @@ write_int (value)
 	case 1:
 	  OUT (value);
 	}
-
     }
 }
 
@@ -2701,6 +2726,7 @@ copy_id ()
 {
   int length = THIS ();
   char ch;
+
   OUT (length);
   NEXT ();
   while (length--)
@@ -2718,6 +2744,7 @@ copy_expression ()
   int stack[10];
   int *tos = stack;
   int value;
+
   while (1)
     {
       switch (THIS ())
@@ -2765,7 +2792,7 @@ copy_expression ()
 	default:
 	  if (THIS () > 0x84)
 	    {
-	      /* Not a number, just bug out with the answer */
+	      /* Not a number, just bug out with the answer.  */
 	      write_int (*(--tos));
 	      return;
 	    }
@@ -2773,7 +2800,7 @@ copy_expression ()
 	  NEXT ();
 	  break;
 	case 0xa5:
-	  /* PLUS anything */
+	  /* PLUS anything.  */
 	  value = *(--tos);
 	  value += *(--tos);
 	  *tos++ = value;
@@ -2784,6 +2811,7 @@ copy_expression ()
 	    int section_number;
 	    ieee_data_type *ieee;
 	    asection *s;
+
 	    NEXT ();
 	    section_number = THIS ();
 
@@ -2817,7 +2845,7 @@ fill_int (buf)
 {
   if (buf->buffer == output_buffer)
     {
-      /* Still a chance to output the size */
+      /* Still a chance to output the size.  */
       int value = output_ptr - buf->ptrp + 3;
       buf->ptrp[0] = value >> 24;
       buf->ptrp[1] = value >> 16;
@@ -2832,6 +2860,7 @@ drop_int (buf)
 {
   int type = THIS ();
   int ch;
+
   if (type <= 0x84)
     {
       NEXT ();
@@ -2905,7 +2934,8 @@ static void
 f1_record ()
 {
   int ch;
-  /* ATN record */
+
+  /* ATN record.  */
   NEXT ();
   ch = THIS ();
   switch (ch)
@@ -2945,7 +2975,7 @@ f1_record ()
 	}
       break;
     case 0xd8:
-      /* EXternal ref */
+      /* EXternal ref.  */
       NEXT ();
       OUT (0xf1);
       OUT (0xd8);
@@ -2999,13 +3029,12 @@ f1_record ()
 	  break;
 	}
     }
-
 }
 
 static void
 f0_record ()
 {
-  /* Attribute record */
+  /* Attribute record.  */
   NEXT ();
   OUT (0xf0);
   INTn (Symbol name);
@@ -3016,6 +3045,7 @@ static void
 copy_till_end ()
 {
   int ch = THIS ();
+
   while (1)
     {
       while (ch <= 0x80)
@@ -3074,11 +3104,12 @@ f8_record ()
     case 0x01:
     case 0x02:
     case 0x03:
-      /* Unique typedefs for module */
-      /* GLobal typedefs  */
-      /* High level module scope beginning */
+      /* Unique typedefs for module.  */
+      /* GLobal typedefs.   */
+      /* High level module scope beginning.  */
       {
 	struct output_buffer_struct ob;
+
 	NEXT ();
 	OUT (0xf8);
 	OUT (ch);
@@ -3093,9 +3124,10 @@ f8_record ()
       }
       break;
     case 0x04:
-      /* Global function */
+      /* Global function.  */
       {
 	struct output_buffer_struct ob;
+
 	NEXT ();
 	OUT (0xf8);
 	OUT (0x04);
@@ -3115,9 +3147,10 @@ f8_record ()
       break;
 
     case 0x05:
-      /* File name for source line numbers */
+      /* File name for source line numbers.  */
       {
 	struct output_buffer_struct ob;
+
 	NEXT ();
 	OUT (0xf8);
 	OUT (0x05);
@@ -3137,9 +3170,10 @@ f8_record ()
       break;
 
     case 0x06:
-      /* Local function */
+      /* Local function.  */
       {
 	struct output_buffer_struct ob;
+
 	NEXT ();
 	OUT (0xf8);
 	OUT (0x06);
@@ -3157,7 +3191,7 @@ f8_record ()
       break;
 
     case 0x0a:
-      /* Assembler module scope beginning -*/
+      /* Assembler module scope beginning -  */
       {
 	struct output_buffer_struct ob;
 
@@ -3186,6 +3220,7 @@ f8_record ()
     case 0x0b:
       {
 	struct output_buffer_struct ob;
+
 	NEXT ();
 	OUT (0xf8);
 	OUT (0x0b);
@@ -3222,6 +3257,7 @@ static void
 block ()
 {
   int ch;
+
   while (1)
     {
       ch = THIS ();
@@ -3253,11 +3289,8 @@ block ()
 }
 
 
-
-/* relocate_debug,
-   moves all the debug information from the source bfd to the output
-   bfd, and relocates any expressions it finds
-*/
+/* Moves all the debug information from the source bfd to the output
+   bfd, and relocates any expressions it finds.  */
 
 static void
 relocate_debug (output, input)
@@ -3280,14 +3313,14 @@ relocate_debug (output, input)
 /* Gather together all the debug information from each input BFD into
    one place, relocating it and emitting it as we go.  */
 
-static boolean
+static bfd_boolean
 ieee_write_debug_part (abfd)
      bfd *abfd;
 {
   ieee_data_type *ieee = IEEE_DATA (abfd);
   bfd_chain_type *chain = ieee->chain_root;
   unsigned char obuff[OBS];
-  boolean some_debug = false;
+  bfd_boolean some_debug = FALSE;
   file_ptr here = bfd_tell (abfd);
 
   output_ptr_start = output_ptr = obuff;
@@ -3305,12 +3338,12 @@ ieee_write_debug_part (abfd)
       if (s == NULL)
 	{
 	  ieee->w.r.debug_information_part = 0;
-	  return true;
+	  return TRUE;
 	}
 
       ieee->w.r.debug_information_part = here;
       if (bfd_bwrite (s->contents, s->_raw_size, abfd) != s->_raw_size)
-	return false;
+	return FALSE;
     }
   else
     {
@@ -3318,40 +3351,40 @@ ieee_write_debug_part (abfd)
 	{
 	  bfd *entry = chain->this;
 	  ieee_data_type *entry_ieee = IEEE_DATA (entry);
+
 	  if (entry_ieee->w.r.debug_information_part)
 	    {
 	      if (bfd_seek (entry, entry_ieee->w.r.debug_information_part,
 			    SEEK_SET) != 0)
-		return false;
+		return FALSE;
 	      relocate_debug (abfd, entry);
 	    }
 
 	  chain = chain->next;
 	}
+
       if (some_debug)
-	{
-	  ieee->w.r.debug_information_part = here;
-	}
+	ieee->w.r.debug_information_part = here;
       else
-	{
-	  ieee->w.r.debug_information_part = 0;
-	}
+	ieee->w.r.debug_information_part = 0;
 
       flush ();
     }
 
-  return true;
+  return TRUE;
 }
 
 /* Write the data in an ieee way.  */
 
-static boolean
+static bfd_boolean
 ieee_write_data_part (abfd)
      bfd *abfd;
 {
   asection *s;
+
   ieee_data_type *ieee = IEEE_DATA (abfd);
   ieee->w.r.data_part = bfd_tell (abfd);
+
   for (s = abfd->sections; s != (asection *) NULL; s = s->next)
     {
       /* Skip sections that have no loadable contents (.bss,
@@ -3364,24 +3397,25 @@ ieee_write_data_part (abfd)
       if (s->reloc_count != 0)
 	{
 	  if (! do_with_relocs (abfd, s))
-	    return false;
+	    return FALSE;
 	}
       else
 	{
 	  if (! do_without_relocs (abfd, s))
-	    return false;
+	    return FALSE;
 	}
     }
 
-  return true;
+  return TRUE;
 }
 
 
-static boolean
+static bfd_boolean
 init_for_output (abfd)
      bfd *abfd;
 {
   asection *s;
+
   for (s = abfd->sections; s != (asection *) NULL; s = s->next)
     {
       if ((s->flags & SEC_DEBUGGING) != 0)
@@ -3391,22 +3425,22 @@ init_for_output (abfd)
 	  bfd_size_type size = s->_raw_size;
 	  ieee_per_section (s)->data = (bfd_byte *) (bfd_alloc (abfd, size));
 	  if (!ieee_per_section (s)->data)
-	    return false;
+	    return FALSE;
 	}
     }
-  return true;
+  return TRUE;
 }
 
-/** exec and core file sections */
+/* Exec and core file sections.  */
 
-/* set section contents is complicated with IEEE since the format is
-* not a byte image, but a record stream.
-*/
-static boolean
+/* Set section contents is complicated with IEEE since the format is
+   not a byte image, but a record stream.  */
+
+static bfd_boolean
 ieee_set_section_contents (abfd, section, location, offset, count)
      bfd *abfd;
      sec_ptr section;
-     PTR location;
+     const PTR location;
      file_ptr offset;
      bfd_size_type count;
 {
@@ -3417,23 +3451,23 @@ ieee_set_section_contents (abfd, section, location, offset, count)
 	  bfd_size_type size = section->_raw_size;
 	  section->contents = (unsigned char *) bfd_alloc (abfd, size);
 	  if (section->contents == NULL)
-	    return false;
+	    return FALSE;
 	}
       /* bfd_set_section_contents has already checked that everything
          is within range.  */
       memcpy (section->contents + offset, location, (size_t) count);
-      return true;
+      return TRUE;
     }
 
   if (ieee_per_section (section)->data == (bfd_byte *) NULL)
     {
       if (!init_for_output (abfd))
-	return false;
+	return FALSE;
     }
   memcpy ((PTR) (ieee_per_section (section)->data + offset),
 	  (PTR) location,
 	  (unsigned int) count);
-  return true;
+  return TRUE;
 }
 
 /* Write the external symbols of a file.  IEEE considers two sorts of
@@ -3441,37 +3475,38 @@ ieee_set_section_contents (abfd, section, location, offset, count)
    forms to index them as well.  When we write them out we turn their
    symbol values into indexes from the right base.  */
 
-static boolean
+static bfd_boolean
 ieee_write_external_part (abfd)
      bfd *abfd;
 {
   asymbol **q;
   ieee_data_type *ieee = IEEE_DATA (abfd);
-
   unsigned int reference_index = IEEE_REFERENCE_BASE;
   unsigned int public_index = IEEE_PUBLIC_BASE + 2;
   file_ptr here = bfd_tell (abfd);
-  boolean hadone = false;
+  bfd_boolean hadone = FALSE;
+
   if (abfd->outsymbols != (asymbol **) NULL)
     {
 
       for (q = abfd->outsymbols; *q != (asymbol *) NULL; q++)
 	{
 	  asymbol *p = *q;
+
 	  if (bfd_is_und_section (p->section))
 	    {
-	      /* This must be a symbol reference .. */
+	      /* This must be a symbol reference.  */
 	      if (! ieee_write_byte (abfd, ieee_external_reference_enum)
 		  || ! ieee_write_int (abfd, (bfd_vma) reference_index)
 		  || ! ieee_write_id (abfd, p->name))
-		return false;
+		return FALSE;
 	      p->value = reference_index;
 	      reference_index++;
-	      hadone = true;
+	      hadone = TRUE;
 	    }
 	  else if (bfd_is_com_section (p->section))
 	    {
-	      /* This is a weak reference */
+	      /* This is a weak reference.  */
 	      if (! ieee_write_byte (abfd, ieee_external_reference_enum)
 		  || ! ieee_write_int (abfd, (bfd_vma) reference_index)
 		  || ! ieee_write_id (abfd, p->name)
@@ -3479,15 +3514,14 @@ ieee_write_external_part (abfd)
 					ieee_weak_external_reference_enum)
 		  || ! ieee_write_int (abfd, (bfd_vma) reference_index)
 		  || ! ieee_write_int (abfd, p->value))
-		return false;
+		return FALSE;
 	      p->value = reference_index;
 	      reference_index++;
-	      hadone = true;
+	      hadone = TRUE;
 	    }
 	  else if (p->flags & BSF_GLOBAL)
 	    {
-	      /* This must be a symbol definition */
-
+	      /* This must be a symbol definition.  */
 	      if (! ieee_write_byte (abfd, ieee_external_symbol_enum)
 		  || ! ieee_write_int (abfd, (bfd_vma) public_index)
 		  || ! ieee_write_id (abfd, p->name)
@@ -3496,24 +3530,24 @@ ieee_write_external_part (abfd)
 		  || ! ieee_write_byte (abfd, 15) /* instruction address */
 		  || ! ieee_write_byte (abfd, 19) /* static symbol */
 		  || ! ieee_write_byte (abfd, 1)) /* one of them */
-		return false;
+		return FALSE;
 
-	      /* Write out the value */
+	      /* Write out the value.  */
 	      if (! ieee_write_2bytes (abfd, ieee_value_record_enum)
 		  || ! ieee_write_int (abfd, (bfd_vma) public_index))
-		return false;
+		return FALSE;
 	      if (! bfd_is_abs_section (p->section))
 		{
 		  if (abfd->flags & EXEC_P)
 		    {
 		      /* If fully linked, then output all symbols
-			 relocated */
+			 relocated.  */
 		      if (! (ieee_write_int
 			     (abfd,
 			      (p->value
 			       + p->section->output_offset
 			       + p->section->output_section->vma))))
-			return false;
+			return FALSE;
 		    }
 		  else
 		    {
@@ -3521,8 +3555,8 @@ ieee_write_external_part (abfd)
 			     (abfd,
 			      p->value + p->section->output_offset,
 			      p->section->output_section->symbol,
-			      false, 0)))
-			return false;
+			      FALSE, 0)))
+			return FALSE;
 		    }
 		}
 	      else
@@ -3530,33 +3564,33 @@ ieee_write_external_part (abfd)
 		  if (! ieee_write_expression (abfd,
 					       p->value,
 					       bfd_abs_section_ptr->symbol,
-					       false, 0))
-		    return false;
+					       FALSE, 0))
+		    return FALSE;
 		}
 	      p->value = public_index;
 	      public_index++;
-	      hadone = true;
+	      hadone = TRUE;
 	    }
 	  else
 	    {
-	      /* This can happen - when there are gaps in the symbols read */
-	      /* from an input ieee file */
+	      /* This can happen - when there are gaps in the symbols read
+	         from an input ieee file.  */
 	    }
 	}
     }
   if (hadone)
     ieee->w.r.external_part = here;
 
-  return true;
+  return TRUE;
 }
 
 
 static const unsigned char exten[] =
 {
   0xf0, 0x20, 0x00,
-  0xf1, 0xce, 0x20, 0x00, 37, 3, 3,	/* Set version 3 rev 3   	*/
-  0xf1, 0xce, 0x20, 0x00, 39, 2,/* keep symbol in  original case */
-  0xf1, 0xce, 0x20, 0x00, 38	/* set object type relocateable to x */
+  0xf1, 0xce, 0x20, 0x00, 37, 3, 3,	/* Set version 3 rev 3.  */
+  0xf1, 0xce, 0x20, 0x00, 39, 2,	/* Keep symbol in  original case.  */
+  0xf1, 0xce, 0x20, 0x00, 38		/* Set object type relocatable to x.  */
 };
 
 static const unsigned char envi[] =
@@ -3572,7 +3606,7 @@ static const unsigned char envi[] =
 /*    0xf1, 0xce, 0x21, 0, 54, 2,1,1	tool & version # */
 };
 
-static boolean
+static bfd_boolean
 ieee_write_me_part (abfd)
      bfd *abfd;
 {
@@ -3584,17 +3618,17 @@ ieee_write_me_part (abfd)
 	  || ! ieee_write_byte (abfd, ieee_function_either_open_b_enum)
 	  || ! ieee_write_int (abfd, abfd->start_address)
 	  || ! ieee_write_byte (abfd, ieee_function_either_close_b_enum))
-	return false;
+	return FALSE;
     }
   ieee->w.r.me_record = bfd_tell (abfd);
   if (! ieee_write_byte (abfd, ieee_module_end_enum))
-    return false;
-  return true;
+    return FALSE;
+  return TRUE;
 }
 
 /* Write out the IEEE processor ID.  */
 
-static boolean
+static bfd_boolean
 ieee_write_processor (abfd)
      bfd *abfd;
 {
@@ -3605,22 +3639,22 @@ ieee_write_processor (abfd)
     {
     default:
       if (! ieee_write_id (abfd, bfd_printable_name (abfd)))
-	return false;
+	return FALSE;
       break;
 
     case bfd_arch_a29k:
       if (! ieee_write_id (abfd, "29000"))
-	return false;
+	return FALSE;
       break;
 
     case bfd_arch_h8300:
       if (! ieee_write_id (abfd, "H8/300"))
-	return false;
+	return FALSE;
       break;
 
     case bfd_arch_h8500:
       if (! ieee_write_id (abfd, "H8/500"))
-	return false;
+	return FALSE;
       break;
 
     case bfd_arch_i960:
@@ -3630,23 +3664,23 @@ ieee_write_processor (abfd)
 	case bfd_mach_i960_core:
 	case bfd_mach_i960_ka_sa:
 	  if (! ieee_write_id (abfd, "80960KA"))
-	    return false;
+	    return FALSE;
 	  break;
 
 	case bfd_mach_i960_kb_sb:
 	  if (! ieee_write_id (abfd, "80960KB"))
-	    return false;
+	    return FALSE;
 	  break;
 
 	case bfd_mach_i960_ca:
 	  if (! ieee_write_id (abfd, "80960CA"))
-	    return false;
+	    return FALSE;
 	  break;
 
 	case bfd_mach_i960_mc:
 	case bfd_mach_i960_xa:
 	  if (! ieee_write_id (abfd, "80960MC"))
-	    return false;
+	    return FALSE;
 	  break;
 	}
       break;
@@ -3670,18 +3704,19 @@ ieee_write_processor (abfd)
 	  case bfd_mach_mcf5206e:id = "5206e"; break;
 	  case bfd_mach_mcf5307:id = "5307";  break;
 	  case bfd_mach_mcf5407:id = "5407";  break;
+	  case bfd_mach_mcf528x:id = "5282";  break;
 	  }
 
 	if (! ieee_write_id (abfd, id))
-	  return false;
+	  return FALSE;
       }
       break;
     }
 
-  return true;
+  return TRUE;
 }
 
-static boolean
+static bfd_boolean
 ieee_write_object_contents (abfd)
      bfd *abfd;
 {
@@ -3689,51 +3724,51 @@ ieee_write_object_contents (abfd)
   unsigned int i;
   file_ptr old;
 
-  /* Fast forward over the header area */
+  /* Fast forward over the header area.  */
   if (bfd_seek (abfd, (file_ptr) 0, SEEK_SET) != 0)
-    return false;
+    return FALSE;
 
   if (! ieee_write_byte (abfd, ieee_module_beginning_enum)
       || ! ieee_write_processor (abfd)
       || ! ieee_write_id (abfd, abfd->filename))
-    return false;
+    return FALSE;
 
-  /* Fast forward over the variable bits */
+  /* Fast forward over the variable bits.  */
   if (! ieee_write_byte (abfd, ieee_address_descriptor_enum))
-    return false;
+    return FALSE;
 
-  /* Bits per MAU */
+  /* Bits per MAU.  */
   if (! ieee_write_byte (abfd, (bfd_byte) (bfd_arch_bits_per_byte (abfd))))
-    return false;
-  /* MAU's per address */
+    return FALSE;
+  /* MAU's per address.  */
   if (! ieee_write_byte (abfd,
 			 (bfd_byte) (bfd_arch_bits_per_address (abfd)
 				     / bfd_arch_bits_per_byte (abfd))))
-    return false;
+    return FALSE;
 
   old = bfd_tell (abfd);
   if (bfd_seek (abfd, (file_ptr) (8 * N_W_VARIABLES), SEEK_CUR) != 0)
-    return false;
+    return FALSE;
 
   ieee->w.r.extension_record = bfd_tell (abfd);
   if (bfd_bwrite ((char *) exten, (bfd_size_type) sizeof (exten), abfd)
       != sizeof (exten))
-    return false;
+    return FALSE;
   if (abfd->flags & EXEC_P)
     {
       if (! ieee_write_byte (abfd, 0x1)) /* Absolute */
-	return false;
+	return FALSE;
     }
   else
     {
       if (! ieee_write_byte (abfd, 0x2)) /* Relocateable */
-	return false;
+	return FALSE;
     }
 
   ieee->w.r.environmental_record = bfd_tell (abfd);
   if (bfd_bwrite ((char *) envi, (bfd_size_type) sizeof (envi), abfd)
       != sizeof (envi))
-    return false;
+    return FALSE;
 
   /* The HP emulator database requires a timestamp in the file.  */
   {
@@ -3752,7 +3787,7 @@ ieee_write_object_contents (abfd)
 	|| ! ieee_write_int (abfd, (bfd_vma) t->tm_hour)
 	|| ! ieee_write_int (abfd, (bfd_vma) t->tm_min)
 	|| ! ieee_write_int (abfd, (bfd_vma) t->tm_sec))
-      return false;
+      return FALSE;
   }
 
   output_bfd = abfd;
@@ -3760,51 +3795,46 @@ ieee_write_object_contents (abfd)
   flush ();
 
   if (! ieee_write_section_part (abfd))
-    return false;
+    return FALSE;
   /* First write the symbols.  This changes their values into table
     indeces so we cant use it after this point.  */
   if (! ieee_write_external_part (abfd))
-    return false;
-
-  /*  ieee_write_byte(abfd, ieee_record_seperator_enum);*/
-
-  /*  ieee_write_byte(abfd, ieee_record_seperator_enum);*/
-
+    return FALSE;
 
   /* Write any debugs we have been told about.  */
   if (! ieee_write_debug_part (abfd))
-    return false;
+    return FALSE;
 
   /* Can only write the data once the symbols have been written, since
      the data contains relocation information which points to the
      symbols.  */
   if (! ieee_write_data_part (abfd))
-    return false;
+    return FALSE;
 
   /* At the end we put the end!  */
   if (! ieee_write_me_part (abfd))
-    return false;
+    return FALSE;
 
-  /* Generate the header */
+  /* Generate the header.  */
   if (bfd_seek (abfd, old, SEEK_SET) != 0)
-    return false;
+    return FALSE;
 
   for (i = 0; i < N_W_VARIABLES; i++)
     {
       if (! ieee_write_2bytes (abfd, ieee_assign_value_to_variable_enum)
 	  || ! ieee_write_byte (abfd, (bfd_byte) i)
 	  || ! ieee_write_int5_out (abfd, (bfd_vma) ieee->w.offset[i]))
-	return false;
+	return FALSE;
     }
 
-  return true;
+  return TRUE;
 }
 
 /* Native-level interface to symbols. */
 
 /* We read the symbols into a buffer, which is discarded when this
    function exits.  We read the strings into a buffer large enough to
-   hold them all plus all the cached symbol entries. */
+   hold them all plus all the cached symbol entries.  */
 
 static asymbol *
 ieee_make_empty_symbol (abfd)
@@ -3812,6 +3842,7 @@ ieee_make_empty_symbol (abfd)
 {
   bfd_size_type amt = sizeof (ieee_symbol_type);
   ieee_symbol_type *new = (ieee_symbol_type *) bfd_zalloc (abfd, amt);
+
   if (!new)
     return NULL;
   new->symbol.the_bfd = abfd;
@@ -3824,15 +3855,16 @@ ieee_openr_next_archived_file (arch, prev)
      bfd *prev;
 {
   ieee_ar_data_type *ar = IEEE_AR_DATA (arch);
-  /* take the next one from the arch state, or reset */
+
+  /* Take the next one from the arch state, or reset.  */
   if (prev == (bfd *) NULL)
-    {
-      /* Reset the index - the first two entries are bogus*/
-      ar->element_index = 2;
-    }
-  while (true)
+    /* Reset the index - the first two entries are bogus.  */
+    ar->element_index = 2;
+
+  while (TRUE)
     {
       ieee_ar_obstack_type *p = ar->elements + ar->element_index;
+
       ar->element_index++;
       if (ar->element_index <= ar->element_count)
 	{
@@ -3851,11 +3883,10 @@ ieee_openr_next_archived_file (arch, prev)
 	  bfd_set_error (bfd_error_no_more_archived_files);
 	  return (bfd *) NULL;
 	}
-
     }
 }
 
-static boolean
+static bfd_boolean
 ieee_find_nearest_line (abfd, section, symbols, offset, filename_ptr,
 			functionname_ptr, line_ptr)
      bfd *abfd ATTRIBUTE_UNUSED;
@@ -3866,7 +3897,7 @@ ieee_find_nearest_line (abfd, section, symbols, offset, filename_ptr,
      const char **functionname_ptr ATTRIBUTE_UNUSED;
      unsigned int *line_ptr ATTRIBUTE_UNUSED;
 {
-  return false;
+  return FALSE;
 }
 
 static int
@@ -3904,7 +3935,7 @@ ieee_generic_stat_arch_elt (abfd, buf)
 static int
 ieee_sizeof_headers (abfd, x)
      bfd *abfd ATTRIBUTE_UNUSED;
-     boolean x ATTRIBUTE_UNUSED;
+     bfd_boolean x ATTRIBUTE_UNUSED;
 {
   return 0;
 }
@@ -3929,8 +3960,7 @@ ieee_bfd_debug_info_end (abfd)
 
 
 /* Add this section to the list of sections we have debug info for, to
-   be ready to output it at close time
-   */
+   be ready to output it at close time.  */
 static void
 ieee_bfd_debug_info_accumulate (abfd, section)
      bfd *abfd;
@@ -3938,37 +3968,34 @@ ieee_bfd_debug_info_accumulate (abfd, section)
 {
   ieee_data_type *ieee = IEEE_DATA (section->owner);
   ieee_data_type *output_ieee = IEEE_DATA (abfd);
-  /* can only accumulate data from other ieee bfds */
+
+  /* Can only accumulate data from other ieee bfds.  */
   if (section->owner->xvec != abfd->xvec)
     return;
-  /* Only bother once per bfd */
+  /* Only bother once per bfd.  */
   if (ieee->done_debug)
     return;
-  ieee->done_debug = true;
+  ieee->done_debug = TRUE;
 
-  /* Don't bother if there is no debug info */
+  /* Don't bother if there is no debug info.  */
   if (ieee->w.r.debug_information_part == 0)
     return;
 
-
-  /* Add to chain */
+  /* Add to chain.  */
   {
     bfd_size_type amt = sizeof (bfd_chain_type);
     bfd_chain_type *n = (bfd_chain_type *) bfd_alloc (abfd, amt);
+
     if (!n)
       abort ();		/* FIXME */
     n->this = section->owner;
     n->next = (bfd_chain_type *) NULL;
 
     if (output_ieee->chain_head)
-      {
-	output_ieee->chain_head->next = n;
-      }
+      output_ieee->chain_head->next = n;
     else
-      {
-	output_ieee->chain_root = n;
+      output_ieee->chain_root = n;
 
-      }
     output_ieee->chain_head = n;
   }
 }
@@ -3981,11 +4008,12 @@ ieee_bfd_debug_info_accumulate (abfd, section)
 #define ieee_slurp_armap bfd_true
 #define ieee_slurp_extended_name_table bfd_true
 #define ieee_construct_extended_name_table \
-  ((boolean (*) PARAMS ((bfd *, char **, bfd_size_type *, const char **))) \
+  ((bfd_boolean (*) \
+    PARAMS ((bfd *, char **, bfd_size_type *, const char **))) \
    bfd_true)
 #define ieee_truncate_arname bfd_dont_truncate_arname
 #define ieee_write_armap \
-  ((boolean (*) \
+  ((bfd_boolean (*) \
     PARAMS ((bfd *, unsigned int, struct orl *, unsigned int, int))) \
    bfd_true)
 #define ieee_read_ar_hdr bfd_nullvoidptr
@@ -4017,7 +4045,6 @@ ieee_bfd_debug_info_accumulate (abfd, section)
 #define ieee_bfd_final_link _bfd_generic_final_link
 #define ieee_bfd_link_split_section  _bfd_generic_link_split_section
 
-/*SUPPRESS 460 */
 const bfd_target ieee_vec =
 {
   "ieee",			/* name */
@@ -4071,10 +4098,11 @@ const bfd_target ieee_vec =
      ieee_update_armap_timestamp  */
   BFD_JUMP_TABLE_ARCHIVE (ieee),
 
-  /* ieee_get_symtab_upper_bound, ieee_get_symtab, ieee_make_empty_symbol,
-     ieee_print_symbol, ieee_get_symbol_info, ieee_bfd_is_local_label_name,
-     ieee_get_lineno, ieee_find_nearest_line, ieee_bfd_make_debug_symbol,
-     ieee_read_minisymbols, ieee_minisymbol_to_symbol  */
+  /* ieee_get_symtab_upper_bound, ieee_canonicalize_symtab,
+     ieee_make_empty_symbol, ieee_print_symbol, ieee_get_symbol_info,
+     ieee_bfd_is_local_label_name, ieee_get_lineno,
+     ieee_find_nearest_line, ieee_bfd_make_debug_symbol,
+     ieee_read_minisymbols, ieee_minisymbol_to_symbol */
   BFD_JUMP_TABLE_SYMBOLS (ieee),
 
   /* ieee_get_reloc_upper_bound, ieee_canonicalize_reloc,

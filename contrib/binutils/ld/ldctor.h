@@ -1,5 +1,5 @@
 /* ldctor.h - linker constructor support
-   Copyright 1991, 1992, 1993, 1994, 1995, 1998, 2000
+   Copyright 1991, 1992, 1993, 1994, 1995, 1998, 2000, 2002, 2003
    Free Software Foundation, Inc.
 
 This file is part of GLD, the Gnu Linker.
@@ -28,7 +28,7 @@ extern lang_statement_list_type constructor_list;
 /* Whether the constructors should be sorted.  Note that this is
    global for the entire link; we assume that there is only a single
    CONSTRUCTORS command in the linker script.  */
-extern boolean constructors_sorted;
+extern bfd_boolean constructors_sorted;
 
 /* We keep a list of these structures for each set we build.  */
 
@@ -51,9 +51,10 @@ struct set_element {
 
 extern struct set_info *sets;
 
-extern void ldctor_add_set_entry PARAMS ((struct bfd_link_hash_entry *,
-					  bfd_reloc_code_real_type,
-					  const char *, asection *, bfd_vma));
-extern void ldctor_build_sets PARAMS ((void));
+extern void ldctor_add_set_entry
+  (struct bfd_link_hash_entry *, bfd_reloc_code_real_type, const char *,
+   asection *, bfd_vma);
+extern void ldctor_build_sets
+  (void);
 
 #endif

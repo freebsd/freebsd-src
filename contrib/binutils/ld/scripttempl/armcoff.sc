@@ -44,7 +44,7 @@ SECTIONS
     ${RELOCATING+ etext  =  .;}
     ${RELOCATING+ _etext =  .;}
   }
-  .data ${RELOCATING+${DATA_ADDR-0x40000 + (. & 0xfffc0fff)}} : {
+  .data ${RELOCATING+${DATA_ADDR-0x40000 + (ALIGN(0x8) & 0xfffc0fff)}} : {
     ${RELOCATING+  __data_start__ = . ;}
     *(.data*)
         
@@ -60,7 +60,7 @@ SECTIONS
   }
   ${CONSTRUCTING+${RELOCATING-$CTOR}}
   ${CONSTRUCTING+${RELOCATING-$DTOR}}
-  .bss ${RELOCATING+ SIZEOF(.data) + ADDR(.data)} :
+  .bss ${RELOCATING+ ALIGN(0x8)} :
   { 					
     ${RELOCATING+ __bss_start__ = . ;}
     *(.bss)

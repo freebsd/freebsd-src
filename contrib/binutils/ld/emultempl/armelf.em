@@ -1,5 +1,5 @@
 # This shell script emits a C file. -*- C -*-
-#   Copyright 1991, 1993, 1996, 1997, 1998, 1999, 2000, 2002
+#   Copyright 1991, 1993, 1996, 1997, 1998, 1999, 2000, 2002, 2003, 2004
 #   Free Software Foundation, Inc.
 #
 # This file is part of GLD, the Gnu Linker.
@@ -28,21 +28,18 @@ static int no_pipeline_knowledge = 0;
 static char *thumb_entry_symbol = NULL;
 static bfd *bfd_for_interwork;
 
-
 static void
-gld${EMULATION_NAME}_before_parse ()
+gld${EMULATION_NAME}_before_parse (void)
 {
 #ifndef TARGET_			/* I.e., if not generic.  */
-  ldfile_set_output_arch ("`echo ${ARCH}`");
+  ldfile_set_output_arch ("`echo ${ARCH}`", bfd_arch_unknown);
 #endif /* not TARGET_ */
-  config.dynamic_link = ${DYNAMIC_LINK-true};
-  config.has_shared = `if test -n "$GENERATE_SHLIB_SCRIPT" ; then echo true ; else echo false ; fi`;
+  config.dynamic_link = ${DYNAMIC_LINK-TRUE};
+  config.has_shared = `if test -n "$GENERATE_SHLIB_SCRIPT" ; then echo TRUE ; else echo FALSE ; fi`;
 }
 
-static void arm_elf_after_open PARAMS ((void));
-
 static void
-arm_elf_after_open ()
+arm_elf_after_open (void)
 {
   if (strstr (bfd_get_target (output_bfd), "arm") == NULL)
     {
@@ -65,15 +62,11 @@ arm_elf_after_open ()
   gld${EMULATION_NAME}_after_open ();
 }
 
-static void arm_elf_set_bfd_for_interworking
-  PARAMS ((lang_statement_union_type *));
-
 static void
-arm_elf_set_bfd_for_interworking (statement)
-     lang_statement_union_type *statement;
+arm_elf_set_bfd_for_interworking (lang_statement_union_type *statement)
 {
   if (statement->header.type == lang_input_section_enum
-      && statement->input_section.ifile->just_syms_flag == false)
+      && !statement->input_section.ifile->just_syms_flag)
     {
       asection *i = statement->input_section.section;
       asection *output_section = i->output_section;
@@ -85,15 +78,13 @@ arm_elf_set_bfd_for_interworking (statement)
 	  && ! i->owner->output_has_begun)
 	{
 	  bfd_for_interwork = i->owner;
-	  bfd_for_interwork->output_has_begun = true;
+	  bfd_for_interwork->output_has_begun = TRUE;
 	}
     }
 }
 
-static void arm_elf_before_allocation PARAMS ((void));
-
 static void
-arm_elf_before_allocation ()
+arm_elf_before_allocation (void)
 {
   bfd *tem;
 
@@ -105,14 +96,18 @@ arm_elf_before_allocation ()
       /* The interworking bfd must be the last one in the link.  */
       bfd_for_interwork = NULL;
       for (tem = link_info.input_bfds; tem != NULL; tem = tem->link_next)
-	tem->output_has_begun = false;
+	tem->output_has_begun = FALSE;
 
       lang_for_each_statement (arm_elf_set_bfd_for_interworking);
-      ASSERT (bfd_for_interwork != NULL);
       for (tem = link_info.input_bfds; tem != NULL; tem = tem->link_next)
-	tem->output_has_begun = false;
+	tem->output_has_begun = FALSE;
 
-      bfd_elf32_arm_get_bfd_for_interworking (bfd_for_interwork, &link_info);
+      /* If bfd_for_interwork is NULL, then there are no loadable sections
+	 with real contents to be linked, so we are not going to have to
+	 create any interworking stubs, so it is OK not to call
+	 bfd_elf32_arm_get_bfd_for_interworking.  */
+      if (bfd_for_interwork != NULL)
+	bfd_elf32_arm_get_bfd_for_interworking (bfd_for_interwork, &link_info);
     }
   /* We should be able to set the size of the interworking stub section.  */
 
@@ -134,10 +129,8 @@ arm_elf_before_allocation ()
   bfd_elf32_arm_allocate_interworking_sections (& link_info);
 }
 
-static void arm_elf_finish PARAMS ((void));
-
 static void
-arm_elf_finish ()
+arm_elf_finish (void)
 {
   struct bfd_link_hash_entry * h;
 
@@ -146,9 +139,9 @@ arm_elf_finish ()
 
   if (thumb_entry_symbol == NULL)
     return;
-  
+
   h = bfd_link_hash_lookup (link_info.hash, thumb_entry_symbol,
-			    false, false, true);
+			    FALSE, FALSE, TRUE);
 
   if (h != (struct bfd_link_hash_entry *) NULL
       && (h->type == bfd_link_hash_defined
@@ -157,21 +150,21 @@ arm_elf_finish ()
     {
       static char buffer[32];
       bfd_vma val;
-      
+
       /* Special procesing is required for a Thumb entry symbol.  The
 	 bottom bit of its address must be set.  */
       val = (h->u.def.value
 	     + bfd_get_section_vma (output_bfd,
 				    h->u.def.section->output_section)
 	     + h->u.def.section->output_offset);
-      
+
       val |= 1;
 
       /* Now convert this value into a string and store it in entry_symbol
-         where the lang_finish() function will pick it up.  */
+	 where the lang_finish() function will pick it up.  */
       buffer[0] = '0';
       buffer[1] = 'x';
-      
+
       sprintf_vma (buffer + 2, val);
 
       if (entry_symbol.name != NULL && entry_from_cmdline)
@@ -193,12 +186,7 @@ PARSE_AND_LIST_PROLOGUE='
 #define OPTION_THUMB_ENTRY		301
 '
 
-# Note we add 'n' to the short option list in order to prevent
-# getopt_long_only from thinking that -n is a unique abbreviation
-# for --no-pipeline-knowledge.  There is no case to handle 'n' here
-# however, so instead it will be passed back to parse_args() in
-# lexsup.c where it will be handled.
-PARSE_AND_LIST_SHORTOPTS=pn
+PARSE_AND_LIST_SHORTOPTS=p
 
 PARSE_AND_LIST_LONGOPTS='
   { "no-pipeline-knowledge", no_argument, NULL, '\'p\''},

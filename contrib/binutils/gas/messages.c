@@ -1,5 +1,5 @@
 /* messages.c - error reporter -
-   Copyright 1987, 1991, 1992, 1993, 1994, 1995, 1996, 1998, 2000, 2001
+   Copyright 1987, 1991, 1992, 1993, 1994, 1995, 1996, 1998, 2000, 2001, 2003
    Free Software Foundation, Inc.
    This file is part of GAS, the GNU Assembler.
 
@@ -42,53 +42,52 @@ typedef int * va_list;
 #define va_end(ARGS)
 #endif
 
-static void identify PARAMS ((char *));
-static void as_show_where PARAMS ((void));
-static void as_warn_internal PARAMS ((char *, unsigned int, char *));
-static void as_bad_internal PARAMS ((char *, unsigned int, char *));
+static void identify (char *);
+static void as_show_where (void);
+static void as_warn_internal (char *, unsigned int, char *);
+static void as_bad_internal (char *, unsigned int, char *);
 
 /* Despite the rest of the comments in this file, (FIXME-SOON),
- * here is the current scheme for error messages etc:
- *
- * as_fatal() is used when gas is quite confused and
- * continuing the assembly is pointless.  In this case we
- * exit immediately with error status.
- *
- * as_bad() is used to mark errors that result in what we
- * presume to be a useless object file.  Say, we ignored
- * something that might have been vital.  If we see any of
- * these, assembly will continue to the end of the source,
- * no object file will be produced, and we will terminate
- * with error status.  The new option, -Z, tells us to
- * produce an object file anyway but we still exit with
- * error status.  The assumption here is that you don't want
- * this object file but we could be wrong.
- *
- * as_warn() is used when we have an error from which we
- * have a plausible error recovery.  eg, masking the top
- * bits of a constant that is longer than will fit in the
- * destination.  In this case we will continue to assemble
- * the source, although we may have made a bad assumption,
- * and we will produce an object file and return normal exit
- * status (ie, no error).  The new option -X tells us to
- * treat all as_warn() errors as as_bad() errors.  That is,
- * no object file will be produced and we will exit with
- * error status.  The idea here is that we don't kill an
- * entire make because of an error that we knew how to
- * correct.  On the other hand, sometimes you might want to
- * stop the make at these points.
- *
- * as_tsktsk() is used when we see a minor error for which
- * our error recovery action is almost certainly correct.
- * In this case, we print a message and then assembly
- * continues as though no error occurred.
- */
+   here is the current scheme for error messages etc:
+
+   as_fatal() is used when gas is quite confused and
+   continuing the assembly is pointless.  In this case we
+   exit immediately with error status.
+
+   as_bad() is used to mark errors that result in what we
+   presume to be a useless object file.  Say, we ignored
+   something that might have been vital.  If we see any of
+   these, assembly will continue to the end of the source,
+   no object file will be produced, and we will terminate
+   with error status.  The new option, -Z, tells us to
+   produce an object file anyway but we still exit with
+   error status.  The assumption here is that you don't want
+   this object file but we could be wrong.
+
+   as_warn() is used when we have an error from which we
+   have a plausible error recovery.  eg, masking the top
+   bits of a constant that is longer than will fit in the
+   destination.  In this case we will continue to assemble
+   the source, although we may have made a bad assumption,
+   and we will produce an object file and return normal exit
+   status (ie, no error).  The new option -X tells us to
+   treat all as_warn() errors as as_bad() errors.  That is,
+   no object file will be produced and we will exit with
+   error status.  The idea here is that we don't kill an
+   entire make because of an error that we knew how to
+   correct.  On the other hand, sometimes you might want to
+   stop the make at these points.
+
+   as_tsktsk() is used when we see a minor error for which
+   our error recovery action is almost certainly correct.
+   In this case, we print a message and then assembly
+   continues as though no error occurred.  */
 
 static void
-identify (file)
-     char *file;
+identify (char *file)
 {
   static int identified;
+
   if (identified)
     return;
   identified++;
@@ -108,9 +107,9 @@ identify (file)
 static int warning_count;
 
 int
-had_warnings ()
+had_warnings (void)
 {
-  return (warning_count);
+  return warning_count;
 }
 
 /* Nonzero if we've hit a 'bad error', and should not write an obj file,
@@ -119,15 +118,15 @@ had_warnings ()
 static int error_count;
 
 int
-had_errors ()
+had_errors (void)
 {
-  return (error_count);
+  return error_count;
 }
 
 /* Print the current location to stderr.  */
 
 static void
-as_show_where ()
+as_show_where (void)
 {
   char *file;
   unsigned int line;
@@ -141,14 +140,15 @@ as_show_where ()
 /* Like perror(3), but with more info.  */
 
 void
-as_perror (gripe, filename)
-     const char *gripe;		/* Unpunctuated error theme.  */
-     const char *filename;
+as_perror (const char *gripe,		/* Unpunctuated error theme.  */
+	   const char *filename)
 {
   const char *errtxt;
+  int saved_errno = errno;
 
   as_show_where ();
   fprintf (stderr, gripe, filename);
+  errno = saved_errno;
 #ifdef BFD_ASSEMBLER
   errtxt = bfd_errmsg (bfd_get_error ());
 #else
@@ -198,10 +198,7 @@ as_tsktsk (format, va_alist)
 /* The common portion of as_warn and as_warn_where.  */
 
 static void
-as_warn_internal (file, line, buffer)
-     char *file;
-     unsigned int line;
-     char *buffer;
+as_warn_internal (char *file, unsigned int line, char *buffer)
 {
   ++warning_count;
 
@@ -302,10 +299,7 @@ as_warn_where (file, line, format, va_alist)
 /* The common portion of as_bad and as_bad_where.  */
 
 static void
-as_bad_internal (file, line, buffer)
-     char *file;
-     unsigned int line;
-     char *buffer;
+as_bad_internal (char *file, unsigned int line, char *buffer)
 {
   ++error_count;
 
@@ -442,9 +436,7 @@ as_fatal (format, va_alist)
    Arguments: Filename, line number, optional function name.  */
 
 void
-as_assert (file, line, fn)
-     const char *file, *fn;
-     int line;
+as_assert (const char *file, int line, const char *fn)
 {
   as_show_where ();
   fprintf (stderr, _("Internal error!\n"));
@@ -461,9 +453,7 @@ as_assert (file, line, fn)
    and exit without producing a core file.  */
 
 void
-as_abort (file, line, fn)
-     const char *file, *fn;
-     int line;
+as_abort (const char *file, int line, const char *fn)
 {
   as_show_where ();
   if (fn)
@@ -479,9 +469,7 @@ as_abort (file, line, fn)
 /* Support routines.  */
 
 void
-fprint_value (file, val)
-     FILE *file;
-     valueT val;
+fprint_value (FILE *file, valueT val)
 {
   if (sizeof (val) <= sizeof (long))
     {
@@ -499,9 +487,7 @@ fprint_value (file, val)
 }
 
 void
-sprint_value (buf, val)
-     char *buf;
-     valueT val;
+sprint_value (char *buf, valueT val)
 {
   if (sizeof (val) <= sizeof (long))
     {

@@ -1,5 +1,5 @@
 /* demangle.h -- A wrapper calling libiberty cplus_demangle
-   Copyright 2002 Free Software Foundation, Inc.
+   Copyright 2002, 2003 Free Software Foundation, Inc.
 
    This file is part of GNU Binutils.
 
@@ -20,6 +20,6 @@
 #ifndef BUDEMANG_H
 #define BUDEMANG_H
 
-char *demangle PARAMS ((bfd *, const char *));
+char *demangle (bfd *, const char *);
 
 #endif

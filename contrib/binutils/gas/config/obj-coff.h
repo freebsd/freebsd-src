@@ -1,6 +1,6 @@
 /* coff object file format
    Copyright 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
-   1999, 2000, 2002
+   1999, 2000, 2002, 2003
    Free Software Foundation, Inc.
 
    This file is part of GAS.
@@ -157,6 +157,11 @@
 #define TARGET_FORMAT "coff-tic30"
 #endif
 
+#ifdef TC_TIC4X
+#include "coff/tic4x.h"
+#define TARGET_FORMAT "coff2-tic4x"
+#endif
+
 #ifdef TC_TIC54X
 #include "coff/tic54x.h"
 #define TARGET_FORMAT "coff1-c54x"
@@ -243,6 +248,12 @@ extern void coff_obj_read_begin_hook PARAMS ((void));
 
 #define OBJ_SYMFIELD_TYPE	unsigned long
 #define sy_obj			sy_flags
+
+/* We can't use the predefined section symbols in bfd/section.c, as
+   COFF symbols have extra fields.  See bfd/libcoff.h:coff_symbol_type.  */
+#ifndef obj_sec_sym_ok_for_reloc
+#define obj_sec_sym_ok_for_reloc(SEC)	((SEC)->owner != 0)
+#endif
 
 #define SYM_AUXENT(S) \
   (&coffsymbol (symbol_get_bfdsym (S))->native[1].u.auxent)
@@ -458,7 +469,7 @@ typedef struct
 #endif
 /* Symbol table macros and constants.  */
 
-/* Possible and usefull section number in symbol table
+/* Possible and useful section number in symbol table
    The values of TEXT, DATA and BSS may not be portable.  */
 
 #define C_ABS_SECTION		N_ABS
@@ -469,12 +480,14 @@ typedef struct
 #define C_REGISTER_SECTION	50
 
 /* Macros to extract information from a symbol table entry.
-   This syntaxic indirection allows independence regarding a.out or coff.
+   This syntactic indirection allows independence regarding a.out or coff.
    The argument (s) of all these macros is a pointer to a symbol table entry.  */
 
 /* Predicates.  */
 /* True if the symbol is external.  */
-#define S_IS_EXTERNAL(s)        ((s)->sy_symbol.ost_entry.n_scnum == C_UNDEF_SECTION)
+#define S_IS_EXTERNAL(s)  \
+  ((s)->sy_symbol.ost_entry.n_scnum == C_UNDEF_SECTION)
+
 /* True if symbol has been defined, ie :
    section > 0 (DATA, TEXT or BSS)
    section == 0 and value > 0 (external bss symbol).  */
@@ -483,8 +496,17 @@ typedef struct
    || ((s)->sy_symbol.ost_entry.n_scnum == C_UNDEF_SECTION \
        && S_GET_VALUE (s) > 0) \
    || ((s)->sy_symbol.ost_entry.n_scnum == C_ABS_SECTION))
+
+/* Return true for symbols that should not be reduced to section
+   symbols or eliminated from expressions, because they may be
+   overridden by the linker.  */
+#define S_FORCE_RELOC(s, strict) \
+  (!SEG_NORMAL (S_GET_SEGMENT (s)) || (strict && S_IS_WEAK (s)))
+
 /* True if a debug special symbol entry.  */
-#define S_IS_DEBUG(s)		((s)->sy_symbol.ost_entry.n_scnum == C_DEBUG_SECTION)
+#define S_IS_DEBUG(s) \
+  ((s)->sy_symbol.ost_entry.n_scnum == C_DEBUG_SECTION)
+
 /* True if a symbol is local symbol name.  */
 /* A symbol name whose name includes ^A is a gas internal pseudo symbol.  */
 #define S_IS_LOCAL(s) \
@@ -495,13 +517,16 @@ typedef struct
    || (flag_strip_local_absolute \
        && !S_IS_EXTERNAL(s) \
        && (s)->sy_symbol.ost_entry.n_scnum == C_ABS_SECTION))
+
 /* True if a symbol is not defined in this file.  */
 #define S_IS_EXTERN(s)		((s)->sy_symbol.ost_entry.n_scnum == 0 \
 				 && S_GET_VALUE (s) == 0)
+
 /* True if a symbol can be multiply defined (bss symbols have this def
    though it is bad practice).  */
 #define S_IS_COMMON(s)		((s)->sy_symbol.ost_entry.n_scnum == 0 \
 				 && S_GET_VALUE (s) != 0)
+
 /* True if a symbol name is in the string table, i.e. its length is > 8.  */
 #define S_IS_STRING(s)		(strlen(S_GET_NAME(s)) > 8 ? 1 : 0)
 
@@ -518,34 +543,51 @@ typedef struct
 /* Accessors.  */
 /* The name of the symbol.  */
 #define S_GET_NAME(s)		((char*) (s)->sy_symbol.ost_entry.n_offset)
+
 /* The pointer to the string table.  */
 #define S_GET_OFFSET(s)         ((s)->sy_symbol.ost_entry.n_offset)
+
 /* The numeric value of the segment.  */
 #define S_GET_SEGMENT(s)   s_get_segment(s)
+
 /* The data type.  */
 #define S_GET_DATA_TYPE(s)	((s)->sy_symbol.ost_entry.n_type)
+
 /* The storage class.  */
 #define S_GET_STORAGE_CLASS(s)	((s)->sy_symbol.ost_entry.n_sclass)
+
 /* The number of auxiliary entries.  */
 #define S_GET_NUMBER_AUXILIARY(s)	((s)->sy_symbol.ost_entry.n_numaux)
 
 /* Modifiers.  */
 /* Set the name of the symbol.  */
-#define S_SET_NAME(s,v)		((s)->sy_symbol.ost_entry.n_offset = (unsigned long) (v))
+#define S_SET_NAME(s,v) \
+  ((s)->sy_symbol.ost_entry.n_offset = (unsigned long) (v))
+
 /* Set the offset of the symbol.  */
-#define S_SET_OFFSET(s,v)	((s)->sy_symbol.ost_entry.n_offset = (v))
+#define S_SET_OFFSET(s,v) \
+  ((s)->sy_symbol.ost_entry.n_offset = (v))
+
 /* The numeric value of the segment.  */
-#define S_SET_SEGMENT(s,v)	((s)->sy_symbol.ost_entry.n_scnum = SEGMENT_TO_SYMBOL_TYPE(v))
+#define S_SET_SEGMENT(s,v) \
+  ((s)->sy_symbol.ost_entry.n_scnum = SEGMENT_TO_SYMBOL_TYPE(v))
+
 /* The data type.  */
-#define S_SET_DATA_TYPE(s,v)	((s)->sy_symbol.ost_entry.n_type = (v))
+#define S_SET_DATA_TYPE(s,v) \
+  ((s)->sy_symbol.ost_entry.n_type = (v))
+
 /* The storage class.  */
-#define S_SET_STORAGE_CLASS(s,v)	((s)->sy_symbol.ost_entry.n_sclass = (v))
+#define S_SET_STORAGE_CLASS(s,v) \
+  ((s)->sy_symbol.ost_entry.n_sclass = (v))
+
 /* The number of auxiliary entries.  */
-#define S_SET_NUMBER_AUXILIARY(s,v)	((s)->sy_symbol.ost_entry.n_numaux = (v))
+#define S_SET_NUMBER_AUXILIARY(s,v) \
+  ((s)->sy_symbol.ost_entry.n_numaux = (v))
 
 /* Additional modifiers.  */
 /* The symbol is external (does not mean undefined).  */
-#define S_SET_EXTERNAL(s)       { S_SET_STORAGE_CLASS(s, C_EXT) ; SF_CLEAR_LOCAL(s); }
+#define S_SET_EXTERNAL(s) \
+  { S_SET_STORAGE_CLASS(s, C_EXT) ; SF_CLEAR_LOCAL(s); }
 
 /* Auxiliary entry macros. SA_ stands for symbol auxiliary.  */
 /* Omit the tv related fields.  */
@@ -753,7 +795,7 @@ typedef struct
 #define H_SET_SYMBOL_TABLE_SIZE(h,v)    ((h)->filehdr.f_nsyms = (v))
 #define H_SET_SIZEOF_OPTIONAL_HEADER(h,v) ((h)->filehdr.f_opthdr = (v))
 #define H_SET_FLAGS(h,v)		((h)->filehdr.f_flags = (v))
-/* Extra fields to achieve bsd a.out compatibility and for convinience.  */
+/* Extra fields to achieve bsd a.out compatibility and for convenience.  */
 #define H_SET_RELOCATION_SIZE(h,t,d) 	((h)->relocation_size = (t)+(d))
 #define H_SET_STRING_SIZE(h,v)          ((h)->string_table_size = (v))
 #define H_SET_LINENO_SIZE(h,v)          ((h)->lineno_size = (v))

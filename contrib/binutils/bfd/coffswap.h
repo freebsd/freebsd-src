@@ -1,24 +1,24 @@
 /* Generic COFF swapping routines, for BFD.
    Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1999, 2000,
-   2001
+   2001, 2002
    Free Software Foundation, Inc.
    Written by Cygnus Support.
 
-This file is part of BFD, the Binary File Descriptor library.
+   This file is part of BFD, the Binary File Descriptor library.
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 /* This file contains routines used to swap COFF data.  It is a header
    file because the details of swapping depend on the details of the
@@ -381,7 +381,12 @@ coff_swap_sym_out (abfd, inp, extp)
 {
   struct internal_syment *in = (struct internal_syment *) inp;
   SYMENT *ext =(SYMENT *) extp;
-  if(in->_n._n_name[0] == 0)
+
+#ifdef COFF_ADJUST_SYM_OUT_PRE
+  COFF_ADJUST_SYM_OUT_PRE (abfd, inp, extp);
+#endif
+
+  if (in->_n._n_name[0] == 0)
     {
       H_PUT_32 (abfd, 0, ext->e.e.e_zeroes);
       H_PUT_32 (abfd, in->_n._n_n._n_offset, ext->e.e.e_offset);
@@ -391,11 +396,13 @@ coff_swap_sym_out (abfd, inp, extp)
 #if SYMNMLEN != E_SYMNMLEN
       -> Error, we need to cope with truncating or extending SYMNMLEN!;
 #else
-      memcpy(ext->e.e_name, in->_n._n_name, SYMNMLEN);
+      memcpy (ext->e.e_name, in->_n._n_name, SYMNMLEN);
 #endif
     }
+
   H_PUT_32 (abfd, in->n_value, ext->e_value);
   H_PUT_16 (abfd, in->n_scnum, ext->e_scnum);
+
   if (sizeof (ext->e_type) == 2)
     {
       H_PUT_16 (abfd, in->n_type, ext->e_type);
@@ -404,11 +411,14 @@ coff_swap_sym_out (abfd, inp, extp)
     {
       H_PUT_32 (abfd, in->n_type, ext->e_type);
     }
+
   H_PUT_8 (abfd, in->n_sclass, ext->e_sclass);
   H_PUT_8 (abfd, in->n_numaux, ext->e_numaux);
+
 #ifdef COFF_ADJUST_SYM_OUT_POST
   COFF_ADJUST_SYM_OUT_POST (abfd, inp, extp);
 #endif
+
   return SYMESZ;
 }
 
@@ -428,6 +438,7 @@ coff_swap_aux_in (abfd, ext1, type, class, indx, numaux, in1)
 #ifdef COFF_ADJUST_AUX_IN_PRE
   COFF_ADJUST_AUX_IN_PRE (abfd, ext1, type, class, indx, numaux, in1);
 #endif
+
   switch (class)
     {
     case C_FILE:
@@ -448,9 +459,7 @@ coff_swap_aux_in (abfd, ext1, type, class, indx, numaux, in1)
 			numaux * sizeof (AUXENT));
 	    }
 	  else
-	    {
-	      memcpy (in->x_file.x_fname, ext->x_file.x_fname, FILNMLEN);
-	    }
+	    memcpy (in->x_file.x_fname, ext->x_file.x_fname, FILNMLEN);
 #endif
 	}
       goto end;
@@ -502,7 +511,7 @@ coff_swap_aux_in (abfd, ext1, type, class, indx, numaux, in1)
 	H_GET_16 (abfd, ext->x_sym.x_fcnary.x_ary.x_dimen[3]);
     }
 
-  if (ISFCN(type))
+  if (ISFCN (type))
     {
       in->x_sym.x_misc.x_fsize = H_GET_32 (abfd, ext->x_sym.x_misc.x_fsize);
     }
@@ -535,7 +544,9 @@ coff_swap_aux_out (abfd, inp, type, class, indx, numaux, extp)
 #ifdef COFF_ADJUST_AUX_OUT_PRE
   COFF_ADJUST_AUX_OUT_PRE (abfd, inp, type, class, indx, numaux, extp);
 #endif
-  memset((PTR)ext, 0, AUXESZ);
+
+  memset ((PTR)ext, 0, AUXESZ);
+
   switch (class)
     {
     case C_FILE:
@@ -681,29 +692,29 @@ coff_swap_aouthdr_in (abfd, aouthdr_ext1, aouthdr_int1)
 #else
   aouthdr_int->o_toc = H_GET_32 (abfd, aouthdr_ext->o_toc);
 #endif
-  aouthdr_int->o_snentry = H_GET_16 (abfd, aouthdr_ext->o_snentry);
-  aouthdr_int->o_sntext = H_GET_16 (abfd, aouthdr_ext->o_sntext);
-  aouthdr_int->o_sndata = H_GET_16 (abfd, aouthdr_ext->o_sndata);
-  aouthdr_int->o_sntoc = H_GET_16 (abfd, aouthdr_ext->o_sntoc);
+  aouthdr_int->o_snentry  = H_GET_16 (abfd, aouthdr_ext->o_snentry);
+  aouthdr_int->o_sntext   = H_GET_16 (abfd, aouthdr_ext->o_sntext);
+  aouthdr_int->o_sndata   = H_GET_16 (abfd, aouthdr_ext->o_sndata);
+  aouthdr_int->o_sntoc    = H_GET_16 (abfd, aouthdr_ext->o_sntoc);
   aouthdr_int->o_snloader = H_GET_16 (abfd, aouthdr_ext->o_snloader);
-  aouthdr_int->o_snbss = H_GET_16 (abfd, aouthdr_ext->o_snbss);
+  aouthdr_int->o_snbss    = H_GET_16 (abfd, aouthdr_ext->o_snbss);
   aouthdr_int->o_algntext = H_GET_16 (abfd, aouthdr_ext->o_algntext);
   aouthdr_int->o_algndata = H_GET_16 (abfd, aouthdr_ext->o_algndata);
-  aouthdr_int->o_modtype = H_GET_16 (abfd, aouthdr_ext->o_modtype);
-  aouthdr_int->o_cputype = H_GET_16 (abfd, aouthdr_ext->o_cputype);
+  aouthdr_int->o_modtype  = H_GET_16 (abfd, aouthdr_ext->o_modtype);
+  aouthdr_int->o_cputype  = H_GET_16 (abfd, aouthdr_ext->o_cputype);
 #ifdef XCOFF64
   aouthdr_int->o_maxstack = H_GET_64 (abfd, aouthdr_ext->o_maxstack);
-  aouthdr_int->o_maxdata = H_GET_64 (abfd, aouthdr_ext->o_maxdata);
+  aouthdr_int->o_maxdata  = H_GET_64 (abfd, aouthdr_ext->o_maxdata);
 #else
   aouthdr_int->o_maxstack = H_GET_32 (abfd, aouthdr_ext->o_maxstack);
-  aouthdr_int->o_maxdata = H_GET_32 (abfd, aouthdr_ext->o_maxdata);
+  aouthdr_int->o_maxdata  = H_GET_32 (abfd, aouthdr_ext->o_maxdata);
 #endif
 #endif
 
 #ifdef MIPSECOFF
-  aouthdr_int->bss_start = H_GET_32 (abfd, aouthdr_ext->bss_start);
-  aouthdr_int->gp_value = H_GET_32 (abfd, aouthdr_ext->gp_value);
-  aouthdr_int->gprmask = H_GET_32 (abfd, aouthdr_ext->gprmask);
+  aouthdr_int->bss_start  = H_GET_32 (abfd, aouthdr_ext->bss_start);
+  aouthdr_int->gp_value   = H_GET_32 (abfd, aouthdr_ext->gp_value);
+  aouthdr_int->gprmask    = H_GET_32 (abfd, aouthdr_ext->gprmask);
   aouthdr_int->cprmask[0] = H_GET_32 (abfd, aouthdr_ext->cprmask[0]);
   aouthdr_int->cprmask[1] = H_GET_32 (abfd, aouthdr_ext->cprmask[1]);
   aouthdr_int->cprmask[2] = H_GET_32 (abfd, aouthdr_ext->cprmask[2]);
@@ -712,9 +723,9 @@ coff_swap_aouthdr_in (abfd, aouthdr_ext1, aouthdr_int1)
 
 #ifdef ALPHAECOFF
   aouthdr_int->bss_start = H_GET_64 (abfd, aouthdr_ext->bss_start);
-  aouthdr_int->gp_value = H_GET_64 (abfd, aouthdr_ext->gp_value);
-  aouthdr_int->gprmask = H_GET_32 (abfd, aouthdr_ext->gprmask);
-  aouthdr_int->fprmask = H_GET_32 (abfd, aouthdr_ext->fprmask);
+  aouthdr_int->gp_value  = H_GET_64 (abfd, aouthdr_ext->gp_value);
+  aouthdr_int->gprmask   = H_GET_32 (abfd, aouthdr_ext->gprmask);
+  aouthdr_int->fprmask   = H_GET_32 (abfd, aouthdr_ext->fprmask);
 #endif
 }
 
@@ -807,7 +818,8 @@ coff_swap_scnhdr_in (abfd, ext, in)
 #ifdef COFF_ADJUST_SCNHDR_IN_PRE
   COFF_ADJUST_SCNHDR_IN_PRE (abfd, ext, in);
 #endif
-  memcpy(scnhdr_int->s_name, scnhdr_ext->s_name, sizeof (scnhdr_int->s_name));
+  memcpy (scnhdr_int->s_name, scnhdr_ext->s_name, sizeof (scnhdr_int->s_name));
+
   scnhdr_int->s_vaddr = GET_SCNHDR_VADDR (abfd, scnhdr_ext->s_vaddr);
   scnhdr_int->s_paddr = GET_SCNHDR_PADDR (abfd, scnhdr_ext->s_paddr);
   scnhdr_int->s_size = GET_SCNHDR_SIZE (abfd, scnhdr_ext->s_size);
@@ -866,6 +878,7 @@ coff_swap_scnhdr_out (abfd, in, out)
 	 buf, scnhdr_int->s_nlnno);
       PUT_SCNHDR_NLNNO (abfd, 0xffff, scnhdr_ext->s_nlnno);
     }
+
   if (scnhdr_int->s_nreloc <= MAX_SCNHDR_NRELOC)
     PUT_SCNHDR_NRELOC (abfd, scnhdr_int->s_nreloc, scnhdr_ext->s_nreloc);
   else

@@ -180,7 +180,7 @@ most of the above hosts, plus
 	decstation-bsd (a.out format, to be used in BSD 4.4)
 	ebmon29k
 	go32 (DOS on i386, with DJGPP -- old a.out version)
-	h8/300, h8/500 (Hitachi)
+	H8/300, H8/500 (Hitachi)
 	i386-aix (ps/2)
 	i960-coff
 	mips ecoff (decstation-ultrix, iris, mips magnum, mips-idt-ecoff)
@@ -232,47 +232,10 @@ REPORTING BUGS IN GAS
 
 Bugs in gas should be reported to:
 
-   bug-gnu-utils@gnu.org.
+   bug-binutils@gnu.org.
 
 They may be cross-posted to gcc-bugs@gnu.org if they affect the use of
 gas with gcc.  They should not be reported just to gcc-bugs, since not
 all of the maintainers read that list.
 
-If you report a bug in GAS, please remember to include:
-
-A description of exactly what went wrong, and exactly what should have
-happened instead.
-
-The type of machine (VAX, 68020, etc) and operating system (BSD, SunOS, DYNIX,
-VMS, etc) GAS was running on.
-
-The configuration name(s) given to the "configure" script.  The
-"config.status" file should have this information.
-
-The options given to GAS at run time.
-
-The actual input file that caused the problem.
-
-It is silly to report a bug in GAS without including an input file for GAS.
-Don't ask us to generate the file just because you made it from files you
-think we have access to.
-
-1. You might be mistaken.
-2. It might take us a lot of time to install things to regenerate that file.
-3. We might get a different file from the one you got, and might not see any
-   bug.
-
-To save us these delays and uncertainties, always send the input file for the
-program that failed.  A smaller test case that demonstrates the problem is of
-course preferable, but be sure it is a complete input file, and that it really
-does demonstrate the problem; but if paring it down would cause large delays
-in filing the bug report, don't bother.
-
-If the input file is very large, and you are on the internet, you may want to
-make it available for anonymous FTP instead of mailing it.  If you do, include
-instructions for FTP'ing it in your bug report.
-
-If you expect to be contributing a large number of test cases, it would be
-helpful if you would look at the test suite included in the release (based on
-the Deja Gnu testing framework, available from the usual ftp sites) and write
-test cases to fit into that framework.  This is certainly not required.
+See ../binutils/README for what we need in a bug report.

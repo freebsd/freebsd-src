@@ -1,5 +1,5 @@
 /* BFD back-end for ARM PECOFF files.
-   Copyright 1995, 1996, 1999, 2000, 2001 Free Software Foundation, Inc.
+   Copyright 1995, 1996, 1999, 2000, 2001, 2002 Free Software Foundation, Inc.
 
 This file is part of BFD, the Binary File Descriptor library.
 
@@ -28,7 +28,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #endif
 
 #define COFF_WITH_PE
-#define PCRELOFFSET          true
+#define PCRELOFFSET          TRUE
 #define COFF_LONG_SECTION_NAMES
 
 #ifndef bfd_arm_allocate_interworking_sections

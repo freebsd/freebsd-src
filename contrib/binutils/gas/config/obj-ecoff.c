@@ -1,5 +1,5 @@
 /* ECOFF object file format.
-   Copyright 1993, 1994, 1995, 1996, 1998, 1999, 2000, 2001
+   Copyright 1993, 1994, 1995, 1996, 1998, 1999, 2000, 2001, 2002
    Free Software Foundation, Inc.
    Contributed by Cygnus Support.
    This file was put together by Ian Lance Taylor <ian@cygnus.com>.
@@ -98,18 +98,13 @@ const pseudo_typeS obj_pseudo_table[] =
   { NULL,	s_ignore,		0 }
 };
 
-/* Swap out the symbols and debugging information for BFD.  */
+/* Set section VMAs and GP values before reloc processing.  */
 
 void
-ecoff_frob_file ()
+ecoff_frob_file_before_fix ()
 {
-  const struct ecoff_debug_swap * const debug_swap
-    = &ecoff_backend (stdoutput)->debug_swap;
   bfd_vma addr;
   asection **sec;
-  HDRR *hdr;
-  char *buf;
-  char *set;
 
   /* Set the section VMA values.  We force the .sdata and .sbss
      sections to the end to ensure that their VMA addresses are close
@@ -177,36 +172,6 @@ ecoff_frob_file ()
     if (secs[i])
       bfd_section_list_insert (stdoutput, &stdoutput->sections, secs[i]);
 
-  /* Build the ECOFF debugging information.  */
-  assert (ecoff_data (stdoutput) != 0);
-  hdr = &ecoff_data (stdoutput)->debug_info.symbolic_header;
-  ecoff_build_debug (hdr, &buf, debug_swap);
-
-  /* Finish up the ecoff_tdata structure.  */
-  set = buf;
-#define SET(ptr, count, type, size) \
-  if (hdr->count == 0) \
-    ecoff_data (stdoutput)->debug_info.ptr = (type) NULL; \
-  else \
-    { \
-      ecoff_data (stdoutput)->debug_info.ptr = (type) set; \
-      set += hdr->count * size; \
-    }
-
-  SET (line, cbLine, unsigned char *, sizeof (unsigned char));
-  SET (external_dnr, idnMax, PTR, debug_swap->external_dnr_size);
-  SET (external_pdr, ipdMax, PTR, debug_swap->external_pdr_size);
-  SET (external_sym, isymMax, PTR, debug_swap->external_sym_size);
-  SET (external_opt, ioptMax, PTR, debug_swap->external_opt_size);
-  SET (external_aux, iauxMax, union aux_ext *, sizeof (union aux_ext));
-  SET (ss, issMax, char *, sizeof (char));
-  SET (ssext, issExtMax, char *, sizeof (char));
-  SET (external_rfd, crfd, PTR, debug_swap->external_rfd_size);
-  SET (external_fdr, ifdMax, PTR, debug_swap->external_fdr_size);
-  SET (external_ext, iextMax, PTR, debug_swap->external_ext_size);
-
-#undef SET
-
   /* Fill in the register masks.  */
   {
     unsigned long gprmask = 0;
@@ -235,6 +200,48 @@ ecoff_frob_file ()
   }
 }
 
+/* Swap out the symbols and debugging information for BFD.  */
+
+void
+ecoff_frob_file ()
+{
+  const struct ecoff_debug_swap * const debug_swap
+    = &ecoff_backend (stdoutput)->debug_swap;
+  bfd_vma addr ATTRIBUTE_UNUSED;
+  HDRR *hdr;
+  char *buf;
+  char *set;
+
+  /* Build the ECOFF debugging information.  */
+  assert (ecoff_data (stdoutput) != 0);
+  hdr = &ecoff_data (stdoutput)->debug_info.symbolic_header;
+  ecoff_build_debug (hdr, &buf, debug_swap);
+
+  /* Finish up the ecoff_tdata structure.  */
+  set = buf;
+#define SET(ptr, count, type, size) \
+  if (hdr->count == 0) \
+    ecoff_data (stdoutput)->debug_info.ptr = (type) NULL; \
+  else \
+    { \
+      ecoff_data (stdoutput)->debug_info.ptr = (type) set; \
+      set += hdr->count * size; \
+    }
+
+  SET (line, cbLine, unsigned char *, sizeof (unsigned char));
+  SET (external_dnr, idnMax, PTR, debug_swap->external_dnr_size);
+  SET (external_pdr, ipdMax, PTR, debug_swap->external_pdr_size);
+  SET (external_sym, isymMax, PTR, debug_swap->external_sym_size);
+  SET (external_opt, ioptMax, PTR, debug_swap->external_opt_size);
+  SET (external_aux, iauxMax, union aux_ext *, sizeof (union aux_ext));
+  SET (ss, issMax, char *, sizeof (char));
+  SET (ssext, issExtMax, char *, sizeof (char));
+  SET (external_rfd, crfd, PTR, debug_swap->external_rfd_size);
+  SET (external_fdr, ifdMax, PTR, debug_swap->external_fdr_size);
+  SET (external_ext, iextMax, PTR, debug_swap->external_ext_size);
+#undef SET
+}
+
 /* This is called by the ECOFF code to set the external information
    for a symbol.  We just pass it on to BFD, which expects the swapped
    information to be stored in the native field of the symbol.  */
@@ -251,7 +258,7 @@ obj_ecoff_set_ext (sym, ext)
   know (bfd_asymbol_flavour (symbol_get_bfdsym (sym))
 	== bfd_target_ecoff_flavour);
   esym = ecoffsymbol (symbol_get_bfdsym (sym));
-  esym->local = false;
+  esym->local = FALSE;
   esym->native = xmalloc (debug_swap->external_ext_size);
   (*debug_swap->swap_ext_out) (stdoutput, ext, esym->native);
 }
@@ -296,6 +303,7 @@ const struct format_ops ecoff_format_ops =
   obj_ecoff_frob_symbol,
   ecoff_frob_file,
   0,	/* frob_file_before_adjust */
+  ecoff_frob_file_before_fix,
   0,	/* frob_file_after_relocs */
   0,	/* s_get_size */
   0,	/* s_set_size */

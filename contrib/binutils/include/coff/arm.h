@@ -124,3 +124,5 @@ struct external_reloc
 #define RELOC struct external_reloc
 #define RELSZ 14
 #endif
+
+#define ARM_NOTE_SECTION ".note"

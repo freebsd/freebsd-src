@@ -1111,6 +1111,18 @@ darwin* | rhapsody*)
   shlibpath_var=DYLD_LIBRARY_PATH
   ;;
 
+freebsd*-gnu*)
+  version_type=linux
+  need_lib_prefix=no
+  need_version=no
+  library_names_spec='${libname}${release}.so$versuffix ${libname}${release}.so${major} ${libname}.so'
+  soname_spec='${libname}${release}.so${major}'
+  shlibpath_var=LD_LIBRARY_PATH
+  shlibpath_overrides_runpath=no
+  hardcode_into_libs=yes
+  dynamic_linker='GNU/FreeBSD ld.so'
+  ;;
+
 freebsd1*)
   dynamic_linker=no
   ;;
@@ -1167,7 +1179,7 @@ hpux9* | hpux10* | hpux11*)
     shlibpath_var=LD_LIBRARY_PATH
     shlibpath_overrides_runpath=yes # Unless +noenvvar is specified.
     if test "X$HPUX_IA64_MODE" = X32; then
-      sys_lib_search_path_spec="/usr/lib/hpux32 /usr/local/lib/hpux32/usr/local/lib"
+      sys_lib_search_path_spec="/usr/lib/hpux32 /usr/local/lib/hpux32 /usr/local/lib"
     else
       sys_lib_search_path_spec="/usr/lib/hpux64 /usr/local/lib/hpux64"
     fi
@@ -1186,6 +1198,11 @@ hpux9* | hpux10* | hpux11*)
   ;;
 
 irix5* | irix6*)
+  if test "$with_gnu_ld" = yes; then
+    version_type=linux
+  else
+    version_type=irix
+  fi
   version_type=irix
   need_lib_prefix=no
   need_version=no
@@ -1197,9 +1214,12 @@ irix5* | irix6*)
     ;;
   *)
     case $LD in # libtool.m4 will add one of these switches to LD
-    *-32|*"-32 ") libsuff= shlibsuff= libmagic=32-bit;;
-    *-n32|*"-n32 ") libsuff=32 shlibsuff=N32 libmagic=N32;;
-    *-64|*"-64 ") libsuff=64 shlibsuff=64 libmagic=64-bit;;
+    *-32|*"-32 "|*-melf32bsmip|*"-melf32bsmip ")
+      libsuff= shlibsuff= libmagic=32-bit;;
+    *-n32|*"-n32 "|*-melf32bmipn32|*"-melf32bmipn32 ")
+      libsuff=32 shlibsuff=N32 libmagic=N32;;
+    *-64|*"-64 "|*-melf64bmip|*"-melf64bmip ")
+      libsuff=64 shlibsuff=64 libmagic=64-bit;;
     *) libsuff= shlibsuff= libmagic=never-match;;
     esac
     ;;

@@ -1,22 +1,22 @@
 /* GAS interface for targets using CGEN: Cpu tools GENerator.
-   Copyright 1996, 1997, 1998, 1999, 2000, 2001
+   Copyright 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003
    Free Software Foundation, Inc.
 
-This file is part of GAS, the GNU Assembler.
+   This file is part of GAS, the GNU Assembler.
 
-GAS is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2, or (at your option)
-any later version.
+   GAS is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2, or (at your option)
+   any later version.
 
-GAS is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   GAS is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with GAS; see the file COPYING.  If not, write to the Free Software
-Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with GAS; see the file COPYING.  If not, write to the Free Software
+   Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #include <setjmp.h>
 #include "ansidecl.h"
@@ -29,7 +29,7 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "cgen.h"
 #include "dwarf2dbg.h"
 
-static void queue_fixup PARAMS ((int, int, expressionS *));
+static void queue_fixup (int, int, expressionS *);
 
 /* Opcode table descriptor, must be set by md_begin.  */
 
@@ -61,7 +61,8 @@ cgen_asm_record_register (name, number)
    OPINDEX is the index in the operand table.
    OPINFO is something the caller chooses to help in reloc determination.  */
 
-struct fixup {
+struct fixup
+{
   int opindex;
   int opinfo;
   expressionS exp;
@@ -112,7 +113,7 @@ queue_fixup (opindex, opinfo, expP)
    gas_cgen_initialize_saved_fixups_array():
       Sets num_fixups_in_chain to 0 for each element. Call this from
       md_begin() if you plan to use these functions and you want the
-      fixup count in each element to be set to 0 intially.  This is
+      fixup count in each element to be set to 0 initially.  This is
       not necessary, but it's included just in case.  It performs
       the same function for each element in the array of fixup chains
       that gas_init_parse() performs for the current fixups.
@@ -130,7 +131,8 @@ queue_fixup (opindex, opinfo, expP)
        element - swap the current fixups with those in this element number.
 */
 
-struct saved_fixups {
+struct saved_fixups
+{
   struct fixup fixup_chain[GAS_CGEN_MAX_FIXUPS];
   int num_fixups_in_chain;
 };
@@ -240,7 +242,6 @@ gas_cgen_record_fixup (frag, where, insn, length, operand, opinfo, symbol, offse
 
   /* It may seem strange to use operand->attrs and not insn->attrs here,
      but it is the operand that has a pc relative relocation.  */
-
   fixP = fix_new (frag, where, length / 8, symbol, offset,
 		  CGEN_OPERAND_ATTR_VALUE (operand, CGEN_OPERAND_PCREL_ADDR),
 		  (bfd_reloc_code_real_type)
@@ -279,7 +280,6 @@ gas_cgen_record_fixup_exp (frag, where, insn, length, operand, opinfo, exp)
 
   /* It may seem strange to use operand->attrs and not insn->attrs here,
      but it is the operand that has a pc relative relocation.  */
-
   fixP = fix_new_exp (frag, where, length / 8, exp,
 		      CGEN_OPERAND_ATTR_VALUE (operand, CGEN_OPERAND_PCREL_ADDR),
 		      (bfd_reloc_code_real_type)
@@ -431,7 +431,7 @@ gas_cgen_finish_insn (insn, buf, length, relax_p, result)
      Relaxable instructions: We need to ensure we allocate enough
      space for the largest insn.  */
 
-  if (CGEN_INSN_ATTR_VALUE (insn, CGEN_INSN_RELAX))
+  if (CGEN_INSN_ATTR_VALUE (insn, CGEN_INSN_RELAXED))
     /* These currently shouldn't get here.  */
     abort ();
 
@@ -531,7 +531,7 @@ gas_cgen_finish_insn (insn, buf, length, relax_p, result)
 	cgen_operand_lookup_by_num (gas_cgen_cpu_desc, fixups[i].opindex);
 
       /* Don't create fixups for these.  That's done during relaxation.
-	 We don't need to test for CGEN_INSN_RELAX as they can't get here
+	 We don't need to test for CGEN_INSN_RELAXED as they can't get here
 	 (see above).  */
       if (relax_p
 	  && CGEN_INSN_ATTR_VALUE (insn, CGEN_INSN_RELAXABLE)
@@ -580,39 +580,12 @@ gas_cgen_md_apply_fix3 (fixP, valP, seg)
   /* Canonical name, since used a lot.  */
   CGEN_CPU_DESC cd = gas_cgen_cpu_desc;
 
-  /* FIXME FIXME FIXME: The value we are passed in *valuep includes
-     the symbol values.  Since we are using BFD_ASSEMBLER, if we are
-     doing this relocation the code in write.c is going to call
-     bfd_install_relocation, which is also going to use the symbol
-     value.  That means that if the reloc is fully resolved we want to
-     use *valuep since bfd_install_relocation is not being used.
-     However, if the reloc is not fully resolved we do not want to use
-     *valuep, and must use fx_offset instead.  However, if the reloc
-     is PC relative, we do want to use *valuep since it includes the
-     result of md_pcrel_from.  This is confusing.  */
-
   if (fixP->fx_addsy == (symbolS *) NULL)
     fixP->fx_done = 1;
 
-  else if (fixP->fx_pcrel)
-    ;
-
-  else
-    {
-      value = fixP->fx_offset;
-
-      if (fixP->fx_subsy != (symbolS *) NULL)
-	{
-	  if (S_GET_SEGMENT (fixP->fx_subsy) == absolute_section)
-	    value -= S_GET_VALUE (fixP->fx_subsy);
-	  else
-	    {
-	      /* We don't actually support subtracting a symbol.  */
-	      as_bad_where (fixP->fx_file, fixP->fx_line,
-			    _("expression too complex"));
-	    }
-	}
-    }
+  /* We don't actually support subtracting a symbol.  */
+  if (fixP->fx_subsy != (symbolS *) NULL)
+    as_bad_where (fixP->fx_file, fixP->fx_line, _("expression too complex"));
 
   if ((int) fixP->fx_r_type >= (int) BFD_RELOC_UNUSED)
     {
@@ -742,4 +715,16 @@ gas_cgen_tc_gen_reloc (section, fixP)
 
   reloc->address = fixP->fx_frag->fr_address + fixP->fx_where;
   return reloc;
+}
+
+/* Perform any cgen specific initialisation.
+   Called after gas_cgen_cpu_desc has been created.  */
+
+void
+gas_cgen_begin ()
+{
+  if (flag_signed_overflow_ok)
+    cgen_set_signed_overflow_ok (gas_cgen_cpu_desc);
+  else
+    cgen_clear_signed_overflow_ok (gas_cgen_cpu_desc);
 }
