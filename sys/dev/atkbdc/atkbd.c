@@ -1225,7 +1225,7 @@ init_keyboard(KBDC kbdc, int *type, int flags)
 		 * the self-test, or the keyboard controller on the
 		 * motherboard and the keyboard somehow fail to shake hands.
 		 * It is just possible, particularly in the last case,
-		 * that the keyoard controller may be left in a hung state.
+		 * that the keyboard controller may be left in a hung state.
 		 * test_controller() and test_kbd_port() appear to bring
 		 * the keyboard controller back (I don't know why and how,
 		 * though.)
