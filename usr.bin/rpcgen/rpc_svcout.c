@@ -5,23 +5,23 @@
  * may copy or modify Sun RPC without charge, but are not authorized
  * to license or distribute it to anyone else except as part of a product or
  * program developed by the user.
- * 
+ *
  * SUN RPC IS PROVIDED AS IS WITH NO WARRANTIES OF ANY KIND INCLUDING THE
  * WARRANTIES OF DESIGN, MERCHANTIBILITY AND FITNESS FOR A PARTICULAR
  * PURPOSE, OR ARISING FROM A COURSE OF DEALING, USAGE OR TRADE PRACTICE.
- * 
+ *
  * Sun RPC is provided with no support and without any obligation on the
  * part of Sun Microsystems, Inc. to assist in its use, correction,
  * modification or enhancement.
- * 
+ *
  * SUN MICROSYSTEMS, INC. SHALL HAVE NO LIABILITY WITH RESPECT TO THE
  * INFRINGEMENT OF COPYRIGHTS, TRADE SECRETS OR ANY PATENTS BY SUN RPC
  * OR ANY PART THEREOF.
- * 
+ *
  * In no event will Sun Microsystems, Inc. be liable for any lost revenue
  * or profits or other special, indirect and consequential damages, even if
  * Sun has been advised of the possibility of such damages.
- * 
+ *
  * Sun Microsystems, Inc.
  * 2550 Garcia Avenue
  * Mountain View, California  94043
@@ -29,13 +29,14 @@
 
 #ident	"@(#)rpc_svcout.c	1.4	90/04/13 SMI"
 
-#ifndef lint
 #if 0
+#ifndef lint
 static char sccsid[] = "@(#)rpc_svcout.c 1.29 89/03/30 (C) 1987 SMI";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * rpc_svcout.c, Server-skeleton outputter for the RPC protocol compiler
@@ -174,7 +175,7 @@ serviced */\n");
 				f_print(fout, "\telse {\n");
 				write_rpc_svc_fg(infile, "\t\t");
 				f_print(fout, "\t}\n");
-			} else 
+			} else
 				write_rpc_svc_fg(infile, "\t\t");
 
 		} else {
@@ -484,7 +485,7 @@ write_program(def, storage)
 			f_print(fout, "\t} %s;\n", RESULT);
 			f_print(fout, "\tbool_t %s;\n", RETVAL);
 			
-		} else 
+		} else
 			f_print(fout, "\tchar *%s;\n", RESULT);
 
 		if (Cflag) {
@@ -583,7 +584,7 @@ write_program(def, storage)
 		print_return("\t\t");
 		f_print(fout, "\t}\n");
 
-		if (!mtflag) 
+		if (!mtflag)
 			if (Cflag)
 				f_print(fout, "\t%s = (*%s)((char *)&%s, %s);\n",
 					RESULT, ROUTINE, ARG, RQSTP);
@@ -772,7 +773,7 @@ write_msg_out(void)
  * in the toplevel RPC server code.
  */
 	f_print(fout, "static\n");
- 
+
 	if (!Cflag) {
 		f_print(fout, "void _msgout(msg)\n");
 		f_print(fout, "\tchar *msg;\n");

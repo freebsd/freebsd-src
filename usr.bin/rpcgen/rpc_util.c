@@ -5,23 +5,23 @@
  * may copy or modify Sun RPC without charge, but are not authorized
  * to license or distribute it to anyone else except as part of a product or
  * program developed by the user.
- * 
+ *
  * SUN RPC IS PROVIDED AS IS WITH NO WARRANTIES OF ANY KIND INCLUDING THE
  * WARRANTIES OF DESIGN, MERCHANTIBILITY AND FITNESS FOR A PARTICULAR
  * PURPOSE, OR ARISING FROM A COURSE OF DEALING, USAGE OR TRADE PRACTICE.
- * 
+ *
  * Sun RPC is provided with no support and without any obligation on the
  * part of Sun Microsystems, Inc. to assist in its use, correction,
  * modification or enhancement.
- * 
+ *
  * SUN MICROSYSTEMS, INC. SHALL HAVE NO LIABILITY WITH RESPECT TO THE
  * INFRINGEMENT OF COPYRIGHTS, TRADE SECRETS OR ANY PATENTS BY SUN RPC
  * OR ANY PART THEREOF.
- * 
+ *
  * In no event will Sun Microsystems, Inc. be liable for any lost revenue
  * or profits or other special, indirect and consequential damages, even if
  * Sun has been advised of the possibility of such damages.
- * 
+ *
  * Sun Microsystems, Inc.
  * 2550 Garcia Avenue
  * Mountain View, California  94043
@@ -29,13 +29,14 @@
 
 #ident	"@(#)rpc_util.c	1.14	93/07/05 SMI"
 
-#ifndef lint
 #if 0
+#ifndef lint
 static char sccsid[] = "@(#)rpc_util.c 1.11 89/02/22 (C) 1987 SMI";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * rpc_util.c, Utility routines for the RPC protocol compiler
@@ -122,7 +123,7 @@ storeval(lstp, val)
 	list *lst;
 
 	for (l = lstp; *l != NULL; l = (list **) & (*l)->next);
-	lst = ALLOC(list);
+	lst = XALLOC(list);
 	lst->val = val;
 	lst->next = NULL;
 	*l = lst;
@@ -462,9 +463,7 @@ make_argname(pname, vname)
 {
 	char *name;
 
-	name = malloc(strlen(pname) + strlen(vname) + strlen(ARGEXT) + 3);
-	if (!name)
-		errx(1, "failed in malloc");
+	name = xmalloc(strlen(pname) + strlen(vname) + strlen(ARGEXT) + 3);
 	sprintf(name, "%s_%s_%s", locase(pname), vname, ARGEXT);
 	return (name);
 }
@@ -479,8 +478,7 @@ char *type;
 {
 	bas_type *ptr;
 
-	if ((ptr = (bas_type *) malloc(sizeof (bas_type))) == (bas_type *)NULL)
-		errx(1, "failed in malloc");
+	ptr = XALLOC(bas_type);
 
 	ptr->name = type;
 	ptr->length = len;
@@ -513,4 +511,40 @@ char *type;
 			ptr = ptr->next;
 	};
 	return (NULL);
+}
+
+void *
+xmalloc(size_t size)
+{
+	void *p;
+
+	if ((p = malloc(size)) == NULL) {
+		warnx("malloc failed");
+		crash();
+	}
+	return (p);
+}
+
+void *
+xrealloc(void *ptr, size_t size)
+{
+	void *p;
+
+	if ((p = realloc(ptr, size)) == NULL) {
+		warnx("realloc failed");
+		crash();
+	}
+	return (p);
+}
+
+char *
+xstrdup(const char *str)
+{
+	char *p;
+
+	if ((p = strdup(str)) == NULL) {
+		warnx("strdup failed");
+		crash();
+	}
+	return (p);
 }

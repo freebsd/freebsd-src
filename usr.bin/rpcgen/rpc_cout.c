@@ -5,43 +5,43 @@
  * may copy or modify Sun RPC without charge, but are not authorized
  * to license or distribute it to anyone else except as part of a product or
  * program developed by the user.
- * 
+ *
  * SUN RPC IS PROVIDED AS IS WITH NO WARRANTIES OF ANY KIND INCLUDING THE
  * WARRANTIES OF DESIGN, MERCHANTIBILITY AND FITNESS FOR A PARTICULAR
  * PURPOSE, OR ARISING FROM A COURSE OF DEALING, USAGE OR TRADE PRACTICE.
- * 
+ *
  * Sun RPC is provided with no support and without any obligation on the
  * part of Sun Microsystems, Inc. to assist in its use, correction,
  * modification or enhancement.
- * 
+ *
  * SUN MICROSYSTEMS, INC. SHALL HAVE NO LIABILITY WITH RESPECT TO THE
  * INFRINGEMENT OF COPYRIGHTS, TRADE SECRETS OR ANY PATENTS BY SUN RPC
  * OR ANY PART THEREOF.
- * 
+ *
  * In no event will Sun Microsystems, Inc. be liable for any lost revenue
  * or profits or other special, indirect and consequential damages, even if
  * Sun has been advised of the possibility of such damages.
- * 
+ *
  * Sun Microsystems, Inc.
  * 2550 Garcia Avenue
  * Mountain View, California  94043
  */
 
-#ident	"@(#)rpc_cout.c	1.14	93/07/05 SMI" 
+#ident	"@(#)rpc_cout.c	1.14	93/07/05 SMI"
 
-#ifndef lint
 #if 0
+#ifndef lint
 static char sccsid[] = "@(#)rpc_cout.c 1.13 89/02/22 (C) 1987 SMI";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * rpc_cout.c, XDR routine outputter for the RPC protocol compiler
  * Copyright (C) 1987, Sun Microsystems, Inc.
  */
-#include <err.h>
 #include <ctype.h>
 #include <stdio.h>
 #include <string.h>
@@ -98,7 +98,7 @@ emit(def)
 		emit_typedef(def);
 		break;
 		/* DEF_CONST and DEF_PROGRAM have already been handled */
-	default: 
+	default:
 		break;
 	}
 	print_trailer();
@@ -358,8 +358,8 @@ emit_union(def)
 			continue;
 		cs = &cl->case_decl;
 		if (!streq(cs->type, "void")) {
-			object = alloc(strlen(def->def_name) + strlen(format) +
-				       strlen(cs->name) + 1);
+			object = xmalloc(strlen(def->def_name) +
+			                 strlen(format) + strlen(cs->name) + 1);
 			if (isvectordef (cs->type, cs->rel)) {
 				s_print(object, vecformat, def->def_name,
 					cs->name);
@@ -377,8 +377,8 @@ emit_union(def)
 	if (dflt != NULL) {
 		if (!streq(dflt->type, "void")) {
 			f_print(fout, "\tdefault:\n");
-			object = alloc(strlen(def->def_name) + strlen(format) +
-strlen(dflt->name) + 1);
+			object = xmalloc(strlen(def->def_name) +
+			                 strlen(format) + strlen(dflt->name) + 1);
 			if (isvectordef (dflt->type, dflt->rel)) {
 				s_print(object, vecformat, def->def_name,
 					dflt->name);
@@ -453,16 +453,13 @@ int flag;
 						dl->decl.array_max);
 
 				/* now concatenate to sizestr !!!! */
-				if (sizestr == NULL)
-					sizestr = strdup(ptemp);
+				if (sizestr == NULL) {
+					sizestr = xstrdup(ptemp);
+				}
 				else{
-					sizestr = realloc(sizestr,
+					sizestr = xrealloc(sizestr,
 							  strlen(sizestr)
 							  +strlen(ptemp)+1);
-					if (sizestr == NULL){
-						warnx("fatal error: no memory");
-						crash();
-					};
 					sizestr = strcat(sizestr, ptemp);
 					/* build up length of array */
 				}
@@ -753,9 +750,7 @@ char *str;
 {
 	char *ptr, *hptr;
 
-	ptr =  (char *)malloc(strlen(str)+1);
-	if (ptr == (char *) NULL)
-		errx(1, "malloc failed");
+	ptr = (char *)xmalloc(strlen(str)+1);
 
 	hptr = ptr;
 	while (*str != '\0')
