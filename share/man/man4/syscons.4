@@ -46,6 +46,7 @@
 .Cd "options SC_NO_FONT_LOADING"
 .Cd "options SC_NO_HISTORY"
 .Cd "options SC_NO_PALETTE_LOADING"
+.Cd "options SC_NO_SUSPEND_VTYSWITCH"
 .Cd "options SC_NO_SYSMOUSE"
 .Cd "options SC_PIXEL_MODE"
 .Cd "options SC_TWOBUTTON_MOUSE"
@@ -344,6 +345,12 @@ unless you explicitly load a software font at startup.
 See
 .Sx EXAMPLES
 below.
+.It SC_NO_SUSPEND_VTYSWITCH
+This option, which is also available as loader tunable and sysctl
+.Va ( hw.syscons.sc_no_suspend_vtswitch ) ,
+disables switching between virtual terminals (graphics <-> text) during
+suspend/resume (ACPI and APM).  Use this option if your system is freezing
+when you are running X and trying to suspend.
 .El
 .Pp
 The following options will remove some features from the
