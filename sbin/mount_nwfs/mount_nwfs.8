@@ -1,7 +1,7 @@
 .\" $FreeBSD$
 .Dd October 14, 1999
 .Dt MOUNT_NWFS 8
-.Os FreeBSD 4.0
+.Os FreeBSD
 .Sh NAME
 .Nm mount_nwfs
 .Nd mount NetWare volume from a NetWare file server
@@ -55,7 +55,8 @@ command line arguments (the
 .Fl U
 and
 .Fl V
-options aren't used in this case). This allows use of
+options aren't used in this case).
+This allows use of
 .Xr fstab 5
 file (see
 .Sx EXAMPLES
@@ -117,7 +118,7 @@ The values must be specified as octal numbers.
 Default value for the file mode
 is taken from mount point, default value for the dir mode adds execute
 permission where the file mode gives read permission.
-
+.Pp
 Note that these permissions can differ from the rights granted by NetWare
 server. 
 .It Fl n Ar namespace
@@ -197,10 +198,13 @@ for nwfs mounts:
 /nwserv:guest/sys       /nw/s1/sys     nwfs  rw,noauto 0   0
 /nwserv:guest/vol1      /nw/s1/vol2    nwfs  rw,noauto 0   0
 .Ed
-
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 4.0 .
 .Sh BUGS
 to number a few
-
 .Sh CREDITS
 In development of NetWare client for
 .Fx ,
@@ -209,7 +213,7 @@ the following sources were used:
 Documentation from NetWare NDK.
 .Pp
 Ncpfs for Linux - written by
-.An Volker Lendecke Aq lendecke@math.uni-goettingen.de .
+.An Volker Lendecke Aq lendecke@math.uni\-goettingen.de .
 He granted me permission to publish parts of his code under BSD-style license,
 .Pp
 "Interrupt List" from
@@ -218,7 +222,6 @@ He granted me permission to publish parts of his code under BSD-style license,
 Many files from
 .Pa /sys
 directory.
-
 .Sh AUTHORS
 .An Boris Popov Aq bp@butya.kz ,
 .Aq rbp@chat.ru
