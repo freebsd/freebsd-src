@@ -1,9 +1,9 @@
 # This file tells what major numbers the various possible swap devices have.
 #
-#	$Id: devices.pc98,v 1.3 1997/02/22 09:43:21 peter Exp $
+#	$Id: devices.pc98,v 1.4 1998/01/18 15:09:05 kato Exp $
 #
 wd	0
-dk	1
+wfd	1
 fd	2
 wt	3
 sd	4
@@ -15,4 +15,4 @@ scd	16
 pcd	17
 wcd	19
 od	20
-wfd	24
+wst	24
