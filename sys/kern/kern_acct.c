@@ -139,8 +139,8 @@ acct(td, uap)
 	 * If accounting is to be started to a file, open that file for
 	 * appending and make sure it's a 'normal'.
 	 */
-	if (uap->path != NULL) {
-		NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_USERSPACE, uap->path,
+	if (SCARG(uap, path) != NULL) {
+		NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_USERSPACE, SCARG(uap, path),
 		       td);
 		flags = FWRITE | O_APPEND;
 		error = vn_open(&nd, &flags, 0);
@@ -187,7 +187,7 @@ acct(td, uap)
 		crfree(acctcred != NOCRED ? acctcred : savacctcred);
 		acctcred = savacctcred = NOCRED;
 	}
-	if (uap->path == NULL) {
+	if (SCARG(uap, path) == NULL) {
 		mtx_unlock(&acct_mtx);
 		goto done2;
 	}

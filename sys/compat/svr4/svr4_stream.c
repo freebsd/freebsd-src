@@ -524,17 +524,17 @@ clean_pipe(td, path)
 	void *tpath;
 
 	tpath = stackgap_alloc(&sg, l);
-	la.ub = stackgap_alloc(&sg, sizeof(struct stat));
+	SCARG(&la, ub) = stackgap_alloc(&sg, sizeof(struct stat));
 
 	if ((error = copyout(path, tpath, l)) != 0)
 		return error;
 
-	la.path = tpath;
+	SCARG(&la, path) = tpath;
 
 	if ((error = lstat(td, &la)) != 0)
 		return 0;
 
-	if ((error = copyin(la.ub, &st, sizeof(st))) != 0)
+	if ((error = copyin(SCARG(&la, ub), &st, sizeof(st))) != 0)
 		return 0;
 
 	/*
@@ -546,7 +546,7 @@ clean_pipe(td, path)
 	if ((st.st_mode & ALLPERMS) != 0)
 		return 0;
 
-	ua.path = la.path;
+	SCARG(&ua, path) = SCARG(&la, path);
 
 	if ((error = unlink(td, &ua)) != 0) {
 		DPRINTF(("clean_pipe: unlink failed %d\n", error));
@@ -773,9 +773,9 @@ si_listen(fp, fd, ioc, td)
 	/*
 	 * We are making assumptions again...
 	 */
-	la.s = fd;
+	SCARG(&la, s) = fd;
 	DPRINTF(("SI_LISTEN: fileno %d backlog = %d\n", fd, 5));
-	la.backlog = 5;
+	SCARG(&la, backlog) = 5;
 
 	if ((error = listen(td, &la)) != 0) {
 		DPRINTF(("SI_LISTEN: listen failed %d\n", error));
@@ -880,16 +880,16 @@ si_shutdown(fp, fd, ioc, td)
 	int error;
 	struct shutdown_args ap;
 
-	if (ioc->len != sizeof(ap.how)) {
+	if (ioc->len != sizeof(SCARG(&ap, how))) {
 		DPRINTF(("SI_SHUTDOWN: Wrong size %d != %d\n",
-			 sizeof(ap.how), ioc->len));
+			 sizeof(SCARG(&ap, how)), ioc->len));
 		return EINVAL;
 	}
 
-	if ((error = copyin(ioc->buf, &ap.how, ioc->len)) != 0)
+	if ((error = copyin(ioc->buf, &SCARG(&ap, how), ioc->len)) != 0)
 		return error;
 
-	ap.s = fd;
+	SCARG(&ap, s) = fd;
 
 	return shutdown(td, &ap);
 }
@@ -1066,10 +1066,10 @@ ti_bind(fp, fd, ioc, td)
 	if ((error = copyout(skp, sup, sasize)) != 0)
 		return error;
 
-	ba.s = fd;
+	SCARG(&ba, s) = fd;
 	DPRINTF(("TI_BIND: fileno %d\n", fd));
-	ba.name = (void *) sup;
-	ba.namelen = sasize;
+	SCARG(&ba, name) = (void *) sup;
+	SCARG(&ba, namelen) = sasize;
 
 	if ((error = bind(td, &ba)) != 0) {
 		DPRINTF(("TI_BIND: bind failed %d\n", error));
@@ -1186,9 +1186,9 @@ svr4_stream_ti_ioctl(fp, td, retval, fd, cmd, dat)
 		DPRINTF(("TI_GETMYNAME\n"));
 		{
 			struct getsockname_args ap;
-			ap.fdes = fd;
-			ap.asa = sup;
-			ap.alen = lenp;
+			SCARG(&ap, fdes) = fd;
+			SCARG(&ap, asa) = sup;
+			SCARG(&ap, alen) = lenp;
 			if ((error = getsockname(td, &ap)) != 0) {
 				DPRINTF(("ti_ioctl: getsockname error\n"));
 				return error;
@@ -1200,9 +1200,9 @@ svr4_stream_ti_ioctl(fp, td, retval, fd, cmd, dat)
 		DPRINTF(("TI_GETPEERNAME\n"));
 		{
 			struct getpeername_args ap;
-			ap.fdes = fd;
-			ap.asa = sup;
-			ap.alen = lenp;
+			SCARG(&ap, fdes) = fd;
+			SCARG(&ap, asa) = sup;
+			SCARG(&ap, alen) = lenp;
 			if ((error = getpeername(td, &ap)) != 0) {
 				DPRINTF(("ti_ioctl: getpeername error\n"));
 				return error;
@@ -1334,8 +1334,8 @@ i_fdinsert(fp, td, retval, fd, cmd, dat)
 		return error;
 	}
 
-	d2p.from = st->s_afd;
-	d2p.to = fdi.fd;
+	SCARG(&d2p, from) = st->s_afd;
+	SCARG(&d2p, to) = fdi.fd;
 
 	if ((error = dup2(td, &d2p)) != 0) {
 		DPRINTF(("fdinsert: dup2(%d, %d) failed %d\n", 
@@ -1343,7 +1343,7 @@ i_fdinsert(fp, td, retval, fd, cmd, dat)
 		return error;
 	}
 
-	clp.fd = st->s_afd;
+	SCARG(&clp, fd) = st->s_afd;
 
 	if ((error = close(td, &clp)) != 0) {
 		DPRINTF(("fdinsert: close(%d) failed %d\n", 
@@ -1376,8 +1376,8 @@ _i_bind_rsvd(fp, td, retval, fd, cmd, dat)
 	 * ``reserve'' it. I don't know how this get reserved inside
 	 * the kernel, but we are going to create it nevertheless.
 	 */
-	ap.path = dat;
-	ap.mode = S_IFIFO;
+	SCARG(&ap, path) = dat;
+	SCARG(&ap, mode) = S_IFIFO;
 
 	return mkfifo(td, &ap);
 }
@@ -1397,7 +1397,7 @@ _i_rele_rsvd(fp, td, retval, fd, cmd, dat)
 	 * This is a supposed to be a kernel and library only ioctl.
 	 * I guess it is supposed to release the socket.
 	 */
-	ap.path = dat;
+	SCARG(&ap, path) = dat;
 
 	return unlink(td, &ap);
 }
@@ -1473,8 +1473,8 @@ i_setsig(fp, td, retval, fd, cmd, dat)
 		return EINVAL;
 	}
 	/* get old status flags */
-	fa.fd = fd;
-	fa.cmd = F_GETFL;
+	SCARG(&fa, fd) = fd;
+	SCARG(&fa, cmd) = F_GETFL;
 	if ((error = fcntl(td, &fa)) != 0)
 		return error;
 
@@ -1502,8 +1502,8 @@ i_setsig(fp, td, retval, fd, cmd, dat)
 
 	/* set the new flags, if changed */
 	if (flags != oflags) {
-		fa.cmd = F_SETFL;
-		fa.arg = (long) flags;
+		SCARG(&fa, cmd) = F_SETFL;
+		SCARG(&fa, arg) = (long) flags;
 		if ((error = fcntl(td, &fa)) != 0)
 			  return error;
 		flags = td->td_retval[0];
@@ -1511,8 +1511,8 @@ i_setsig(fp, td, retval, fd, cmd, dat)
 
 	/* set up SIGIO receiver if needed */
 	if (dat != NULL) {
-		fa.cmd = F_SETOWN;
-		fa.arg = (long) td->td_proc->p_pid;
+		SCARG(&fa, cmd) = F_SETOWN;
+		SCARG(&fa, arg) = (long) td->td_proc->p_pid;
 		return fcntl(td, &fa);
 	}
 	return 0;
@@ -1760,14 +1760,14 @@ svr4_do_putmsg(td, uap, fp)
 	retval = td->td_retval;
 
 #ifdef DEBUG_SVR4
-	show_msg(">putmsg", uap->fd, uap->ctl,
-		 uap->dat, uap->flags);
+	show_msg(">putmsg", SCARG(uap, fd), SCARG(uap, ctl),
+		 SCARG(uap, dat), SCARG(uap, flags));
 #endif /* DEBUG_SVR4 */
 
 	FILE_LOCK_ASSERT(fp, MA_NOTOWNED);
 
-	if (uap->ctl != NULL) {
-	  if ((error = copyin(uap->ctl, &ctl, sizeof(ctl))) != 0) {
+	if (SCARG(uap, ctl) != NULL) {
+	  if ((error = copyin(SCARG(uap, ctl), &ctl, sizeof(ctl))) != 0) {
 #ifdef DEBUG_SVR4
 	    uprintf("putmsg: copyin(): %d\n", error);
 #endif
@@ -1777,8 +1777,8 @@ svr4_do_putmsg(td, uap, fp)
 	else
 		ctl.len = -1;
 
-	if (uap->dat != NULL) {
-	  if ((error = copyin(uap->dat, &dat, sizeof(dat))) != 0) {
+	if (SCARG(uap, dat) != NULL) {
+	  if ((error = copyin(SCARG(uap, dat), &dat, sizeof(dat))) != 0) {
 #ifdef DEBUG_SVR4
 	    uprintf("putmsg: copyin(): %d (2)\n", error);
 #endif
@@ -1820,9 +1820,9 @@ svr4_do_putmsg(td, uap, fp)
 				 * is how it works. newton@atdot.dotat.org XXX
 				 */
 				DPRINTF(("sending expedited data ??\n"));
-				wa.fd = uap->fd;
-				wa.buf = dat.buf;
-				wa.nbyte = dat.len;
+				SCARG(&wa, fd) = SCARG(uap, fd);
+				SCARG(&wa, buf) = dat.buf;
+				SCARG(&wa, nbyte) = dat.len;
 				return write(td, &wa);
 			}
 	                DPRINTF(("putmsg: Invalid inet length %ld\n", sc.len));
@@ -1872,9 +1872,9 @@ svr4_do_putmsg(td, uap, fp)
 		{
 			struct connect_args co;
 
-			co.s = uap->fd;
-			co.name = (void *) sup;
-			co.namelen = (int) sasize;
+			SCARG(&co, s) = SCARG(uap, fd);
+			SCARG(&co, name) = (void *) sup;
+			SCARG(&co, namelen) = (int) sasize;
 			
 			return connect(td, &co);
 		}
@@ -1896,8 +1896,8 @@ svr4_do_putmsg(td, uap, fp)
 			error = so->so_proto->pr_usrreqs->pru_sosend(so, 0, 
 					      uio, 0, 0, 0, uio->uio_td);
 #endif
-			error = svr4_sendit(td, uap->fd, &msg,
-				       uap->flags);
+			error = svr4_sendit(td, SCARG(uap, fd), &msg,
+				       SCARG(uap, flags));
 			DPRINTF(("sendto_request error: %d\n", error));
 			*retval = 0;
 			return error;
@@ -1957,12 +1957,12 @@ svr4_do_getmsg(td, uap, fp)
 	memset(&sc, 0, sizeof(sc));
 
 #ifdef DEBUG_SVR4
-	show_msg(">getmsg", uap->fd, uap->ctl,
-		 uap->dat, 0);
+	show_msg(">getmsg", SCARG(uap, fd), SCARG(uap, ctl),
+		 SCARG(uap, dat), 0);
 #endif /* DEBUG_SVR4 */
 
-	if (uap->ctl != NULL) {
-		if ((error = copyin(uap->ctl, &ctl, sizeof(ctl))) != 0)
+	if (SCARG(uap, ctl) != NULL) {
+		if ((error = copyin(SCARG(uap, ctl), &ctl, sizeof(ctl))) != 0)
 			return error;
 	}
 	else {
@@ -1970,8 +1970,8 @@ svr4_do_getmsg(td, uap, fp)
 		ctl.maxlen = 0;
 	}
 
-	if (uap->dat != NULL) {
-	    	if ((error = copyin(uap->dat, &dat, sizeof(dat))) != 0)
+	if (SCARG(uap, dat) != NULL) {
+	    	if ((error = copyin(SCARG(uap, dat), &dat, sizeof(dat))) != 0)
 			return error;
 	}
 	else {
@@ -2040,9 +2040,9 @@ svr4_do_getmsg(td, uap, fp)
 		 * a connect verification.
 		 */
 
-		ga.fdes = uap->fd;
-		ga.asa = (void *) sup;
-		ga.alen = flen;
+		SCARG(&ga, fdes) = SCARG(uap, fd);
+		SCARG(&ga, asa) = (void *) sup;
+		SCARG(&ga, alen) = flen;
 		
 		if ((error = getpeername(td, &ga)) != 0) {
 			DPRINTF(("getmsg: getpeername failed %d\n", error));
@@ -2099,9 +2099,9 @@ svr4_do_getmsg(td, uap, fp)
 		/*
 		 * We are after a listen, so we try to accept...
 		 */
-		aa.s = uap->fd;
-		aa.name = (void *) sup;
-		aa.anamelen = flen;
+		SCARG(&aa, s) = SCARG(uap, fd);
+		SCARG(&aa, name) = (void *) sup;
+		SCARG(&aa, anamelen) = flen;
 		
 		if ((error = accept(td, &aa)) != 0) {
 			DPRINTF(("getmsg: accept failed %d\n", error));
@@ -2174,7 +2174,7 @@ svr4_do_getmsg(td, uap, fp)
 		aiov.iov_len = dat.maxlen;
 		msg.msg_flags = 0;
 
-		error = svr4_recvit(td, uap->fd, &msg, (caddr_t) flen);
+		error = svr4_recvit(td, SCARG(uap, fd), &msg, (caddr_t) flen);
 
 		if (error) {
 			DPRINTF(("getmsg: recvit failed %d\n", error));
@@ -2222,9 +2222,9 @@ svr4_do_getmsg(td, uap, fp)
 			 * appropriately (or inappropriately :-)
 			 *   -- newton@atdot.dotat.org        XXX
 			 */
-			ra.fd = uap->fd;
-			ra.buf = dat.buf;
-			ra.nbyte = dat.maxlen;
+			SCARG(&ra, fd) = SCARG(uap, fd);
+			SCARG(&ra, buf) = dat.buf;
+			SCARG(&ra, nbyte) = dat.maxlen;
 			if ((error = read(td, &ra)) != 0) {
 			        return error;
 			}
@@ -2237,30 +2237,30 @@ svr4_do_getmsg(td, uap, fp)
 		return EINVAL;
 	}
 
-	if (uap->ctl) {
+	if (SCARG(uap, ctl)) {
 		if (ctl.len != -1)
 			if ((error = copyout(&sc, ctl.buf, ctl.len)) != 0)
 				return error;
 
-		if ((error = copyout(&ctl, uap->ctl, sizeof(ctl))) != 0)
+		if ((error = copyout(&ctl, SCARG(uap, ctl), sizeof(ctl))) != 0)
 			return error;
 	}
 
-	if (uap->dat) {
-		if ((error = copyout(&dat, uap->dat, sizeof(dat))) != 0)
+	if (SCARG(uap, dat)) {
+		if ((error = copyout(&dat, SCARG(uap, dat), sizeof(dat))) != 0)
 			return error;
 	}
 
-	if (uap->flags) { /* XXX: Need translation */
-		if ((error = copyout(&fl, uap->flags, sizeof(fl))) != 0)
+	if (SCARG(uap, flags)) { /* XXX: Need translation */
+		if ((error = copyout(&fl, SCARG(uap, flags), sizeof(fl))) != 0)
 			return error;
 	}
 
 	*retval = 0;
 
 #ifdef DEBUG_SVR4
-	show_msg("<getmsg", uap->fd, uap->ctl,
-		 uap->dat, fl);
+	show_msg("<getmsg", SCARG(uap, fd), SCARG(uap, ctl),
+		 SCARG(uap, dat), fl);
 #endif /* DEBUG_SVR4 */
 	return error;
 }
@@ -2270,10 +2270,10 @@ int svr4_sys_send(td, uap)
 	struct svr4_sys_send_args *uap;
 {
 	struct osend_args osa;
-	osa.s = uap->s;
-	osa.buf = uap->buf;
-	osa.len = uap->len;
-	osa.flags = uap->flags;
+	SCARG(&osa, s) = SCARG(uap, s);
+	SCARG(&osa, buf) = SCARG(uap, buf);
+	SCARG(&osa, len) = SCARG(uap, len);
+	SCARG(&osa, flags) = SCARG(uap, flags);
 	return osend(td, &osa);
 }
 
@@ -2282,10 +2282,10 @@ int svr4_sys_recv(td, uap)
 	struct svr4_sys_recv_args *uap;
 {
 	struct orecv_args ora;
-	ora.s = uap->s;
-	ora.buf = uap->buf;
-	ora.len = uap->len;
-	ora.flags = uap->flags;
+	SCARG(&ora, s) = SCARG(uap, s);
+	SCARG(&ora, buf) = SCARG(uap, buf);
+	SCARG(&ora, len) = SCARG(uap, len);
+	SCARG(&ora, flags) = SCARG(uap, flags);
 	return orecv(td, &ora);
 }
 
@@ -2300,12 +2300,12 @@ svr4_sys_sendto(td, uap)
 {
         struct sendto_args sa;
 
-	sa.s = uap->s;
-	sa.buf = uap->buf;
-	sa.len = uap->len;
-	sa.flags = uap->flags;
-	sa.to = (caddr_t)uap->to;
-	sa.tolen = uap->tolen;
+	SCARG(&sa, s) = SCARG(uap, s);
+	SCARG(&sa, buf) = SCARG(uap, buf);
+	SCARG(&sa, len) = SCARG(uap, len);
+	SCARG(&sa, flags) = SCARG(uap, flags);
+	SCARG(&sa, to) = (caddr_t)SCARG(uap, to);
+	SCARG(&sa, tolen) = SCARG(uap, tolen);
 
 	DPRINTF(("calling sendto()\n"));
 	return sendto(td, &sa);

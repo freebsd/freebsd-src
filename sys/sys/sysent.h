@@ -48,6 +48,9 @@ struct sysent {		/* system call table */
 #define SYF_ARGMASK	0x0000FFFF
 #define SYF_MPSAFE	0x00010000
 
+#define SCARG(p,k)	((p)->k)	/* get arg from args pointer */
+  /* placeholder till we integrate rest of lite2 syscallargs changes XXX */
+
 struct image_params;
 struct __sigset;
 struct trapframe;

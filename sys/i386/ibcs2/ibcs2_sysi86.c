@@ -53,14 +53,14 @@ extern int hw_float;
 int
 ibcs2_sysi86(struct thread *td, struct ibcs2_sysi86_args *args)
 {
-	switch (args->cmd) {
+	switch (SCARG(args, cmd)) {
 	case SI86_FPHW: {	/* Floating Point information */
 		int val, error;
 
 		if (hw_float) val = IBCS2_FP_387;	/* FPU hardware */
 		else val = IBCS2_FP_SW;			/* FPU emulator */
 			
-		if ((error = copyout(&val, args->arg, sizeof(val))) != 0)
+		if ((error = copyout(&val, SCARG(args, arg), sizeof(val))) != 0)
 			return error;
 		return 0;
 		}
@@ -78,7 +78,7 @@ ibcs2_sysi86(struct thread *td, struct ibcs2_sysi86_args *args)
 		name[0] = CTL_KERN;
 		name[1] = KERN_HOSTNAME;
 		return (userland_sysctl(td, name, 2, 0, 0, 0, 
-			args->arg, 7, 0));
+			SCARG(args, arg), 7, 0));
 	}
 
 	case SI86_MEM:	/* size of physical memory */
@@ -88,7 +88,7 @@ ibcs2_sysi86(struct thread *td, struct ibcs2_sysi86_args *args)
 	default:
 #ifdef DIAGNOSTIC
 		printf("IBCS2: 'sysi86' function %d(0x%x) "
-			"not implemented yet\n", args->cmd, args->cmd);
+			"not implemented yet\n", SCARG(args, cmd), args->cmd);
 #endif
 		return EINVAL;
 	}

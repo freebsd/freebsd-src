@@ -63,26 +63,26 @@ svr4_sys_poll(td, uap)
      int idx = 0, cerr;
      u_long siz;
 
-     pa.fds = uap->fds;
-     pa.nfds = uap->nfds;
-     pa.timeout = uap->timeout;
+     SCARG(&pa, fds) = SCARG(uap, fds);
+     SCARG(&pa, nfds) = SCARG(uap, nfds);
+     SCARG(&pa, timeout) = SCARG(uap, timeout);
 
-     siz = uap->nfds * sizeof(struct pollfd);
+     siz = SCARG(uap, nfds) * sizeof(struct pollfd);
      pfd = (struct pollfd *)malloc(siz, M_TEMP, M_WAITOK);
 
      error = poll(td, (struct poll_args *)uap);
 
-     if ((cerr = copyin(uap->fds, pfd, siz)) != 0) {
+     if ((cerr = copyin(SCARG(uap, fds), pfd, siz)) != 0) {
        error = cerr;
        goto done;
      }
 
-     for (idx = 0; idx < uap->nfds; idx++) {
+     for (idx = 0; idx < SCARG(uap, nfds); idx++) {
        /* POLLWRNORM already equals POLLOUT, so we don't worry about that */
        if (pfd[idx].revents & (POLLOUT | POLLWRNORM | POLLWRBAND))
 	    pfd[idx].revents |= (POLLOUT | POLLWRNORM | POLLWRBAND);
      }
-     if ((cerr = copyout(pfd, uap->fds, siz)) != 0) {
+     if ((cerr = copyout(pfd, SCARG(uap, fds), siz)) != 0) {
        error = cerr;
        goto done;   /* yeah, I know it's the next line, but this way I won't
 		       forget to update it if I add more code */
@@ -105,9 +105,9 @@ svr4_sys_read(td, uap)
      sigset_t sigmask;
      int rv;
 
-     ra.fd = uap->fd;
-     ra.buf = uap->buf;
-     ra.nbyte = uap->nbyte;
+     SCARG(&ra, fd) = SCARG(uap, fd);
+     SCARG(&ra, buf) = SCARG(uap, buf);
+     SCARG(&ra, nbyte) = SCARG(uap, nbyte);
 
      if (fget(td, uap->fd, &fp) != 0) {
        DPRINTF(("Something fishy with the user-supplied file descriptor...\n"));
@@ -116,9 +116,9 @@ svr4_sys_read(td, uap)
 
      if (fp->f_type == DTYPE_SOCKET) {
        so = (struct socket *)fp->f_data;
-       DPRINTF(("fd %d is a socket\n", uap->fd));
+       DPRINTF(("fd %d is a socket\n", SCARG(uap, fd)));
        if (so->so_state & SS_ASYNC) {
-	 DPRINTF(("fd %d is an ASYNC socket!\n", uap->fd));
+	 DPRINTF(("fd %d is an ASYNC socket!\n", SCARG(uap, fd)));
        }
        DPRINTF(("Here are its flags: 0x%x\n", so->so_state));
 #if defined(GROTTY_READ_HACK)
@@ -130,7 +130,7 @@ svr4_sys_read(td, uap)
      rv = read(td, &ra);
 
      DPRINTF(("svr4_read(%d, 0x%0x, %d) = %d\n", 
-	     uap->fd, uap->buf, uap->nbyte, rv));
+	     SCARG(uap, fd), SCARG(uap, buf), SCARG(uap, nbyte), rv));
      if (rv == EAGAIN) {
        DPRINTF(("sigmask = 0x%x\n", td->td_proc->p_sigmask));
        DPRINTF(("sigignore = 0x%x\n", td->td_proc->p_sigignore));
@@ -159,14 +159,14 @@ svr4_sys_write(td, uap)
      struct file *fp;
      int rv;
 
-     wa.fd = uap->fd;
-     wa.buf = uap->buf;
-     wa.nbyte = uap->nbyte;
+     SCARG(&wa, fd) = SCARG(uap, fd);
+     SCARG(&wa, buf) = SCARG(uap, buf);
+     SCARG(&wa, nbyte) = SCARG(uap, nbyte);
 
      rv = write(td, &wa);
 
      DPRINTF(("svr4_write(%d, 0x%0x, %d) = %d\n", 
-	     uap->fd, uap->buf, uap->nbyte, rv));
+	     SCARG(uap, fd), SCARG(uap, buf), SCARG(uap, nbyte), rv));
 
      return(rv);
 }

@@ -323,7 +323,7 @@ nmount(td, uap)
 	int error;
 	u_int iovlen, iovcnt;
 
-	iovcnt = uap->iovcnt;
+	iovcnt = SCARG(uap, iovcnt);
 	iovlen = iovcnt * sizeof (struct iovec);
 	/*
 	 * Check that we have an even number of iovec's
@@ -352,7 +352,7 @@ nmount(td, uap)
 		}
 		iov++;
 	}
-	error = vfs_nmount(td, uap->flags, &auio);
+	error = vfs_nmount(td, SCARG(uap, flags), &auio);
 finish:
 	if (needfree != NULL)
 		free(needfree, M_TEMP);
@@ -811,12 +811,12 @@ mount(td, uap)
 	 * vfs_mount() actually takes a kernel string for `type' and
 	 * `path' now, so extract them.
 	 */
-	error = copyinstr(uap->type, fstype, MFSNAMELEN, NULL);
+	error = copyinstr(SCARG(uap, type), fstype, MFSNAMELEN, NULL);
 	if (error == 0)
-		error = copyinstr(uap->path, fspath, MNAMELEN, NULL);
+		error = copyinstr(SCARG(uap, path), fspath, MNAMELEN, NULL);
 	if (error == 0)
-		error = vfs_mount(td, fstype, fspath, uap->flags,
-		    uap->data);
+		error = vfs_mount(td, fstype, fspath, SCARG(uap, flags),
+		    SCARG(uap, data));
 	free(fstype, M_TEMP);
 	free(fspath, M_TEMP);
 	return (error);
@@ -1199,7 +1199,7 @@ unmount(td, uap)
 	struct nameidata nd;
 
 	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_USERSPACE,
-	    uap->path, td);
+	    SCARG(uap, path), td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	vp = nd.ni_vp;
@@ -1234,7 +1234,7 @@ unmount(td, uap)
 		return (EINVAL);
 	}
 	vput(vp);
-	return (dounmount(mp, uap->flags, td));
+	return (dounmount(mp, SCARG(uap, flags), td));
 }
 
 /*
