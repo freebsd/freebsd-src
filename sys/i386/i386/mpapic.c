@@ -638,36 +638,6 @@ selected_apic_ipi(u_int target, int vector, int delivery_mode)
 	return status;
 }
 
-
-#if defined(READY)
-/*
- * Send an IPI INTerrupt containing 'vector' to CPU 'target'
- *   NOTE: target is a LOGICAL APIC ID
- */
-int
-selected_proc_ipi(int target, int vector)
-{
-	u_long	icr_lo;
-	u_long	icr_hi;
-
-	/* write the destination field for the target AP */
-	icr_hi = (lapic.icr_hi & ~APIC_ID_MASK) |
-	    (cpu_num_to_apic_id[target] << 24);
-	lapic.icr_hi = icr_hi;
-
-	/* write command */
-	icr_lo = (lapic.icr_lo & APIC_RESV2_MASK) |
-	    APIC_DEST_DESTFLD | APIC_DELMODE_FIXED | vector;
-	lapic.icr_lo = icr_lo;
-
-	/* wait for pending status end */
-	while (lapic.icr_lo & APIC_DELSTAT_MASK)
-		/* spin */ ;
-
-	return 0;	/** XXX FIXME: return result */
-}
-#endif /* READY */
-
 #endif	/* APIC_IO */
 
 
