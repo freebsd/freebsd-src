@@ -65,7 +65,7 @@ struct iso_node {
 	struct	vnode *i_vnode;	/* vnode associated with this inode */
 	struct	vnode *i_devvp;	/* vnode for block I/O */
 	u_long	i_flag;		/* see below */
-	dev_t	i_dev;		/* device where inode resides */
+	struct cdev *i_dev;	/* device where inode resides */
 	ino_t	i_number;	/* the identity of the inode */
 				/* we use the actual starting block of the file */
 	struct	iso_mnt *i_mnt;	/* filesystem associated with this inode */
