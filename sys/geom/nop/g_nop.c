@@ -85,8 +85,6 @@ g_nop_start(struct bio *bp)
 		g_io_deliver(bp, ENOMEM);
 		return;
 	}
-	pp = LIST_FIRST(&gp->provider);
-	KASSERT(pp != NULL, ("NULL pp"));
 	if (sc->sc_failprob > 0) {
 		u_int rval;
 
@@ -100,7 +98,9 @@ g_nop_start(struct bio *bp)
 	cbp->bio_offset = bp->bio_offset + sc->sc_offset;
 	cbp->bio_data = bp->bio_data;
 	cbp->bio_length = bp->bio_length;
-	cbp->bio_to = LIST_FIRST(&gp->provider);
+	pp = LIST_FIRST(&gp->provider);
+	KASSERT(pp != NULL, ("NULL pp"));
+	cbp->bio_to = pp;
 	G_NOP_LOGREQ(cbp, "Sending request.");
 	g_io_request(cbp, LIST_FIRST(&gp->consumer));
 }
@@ -228,6 +228,8 @@ g_nop_destroy(struct g_geom *gp, boolean_t force)
 	struct g_provider *pp;
 
 	g_topology_assert();
+	if (gp->softc == NULL)
+		return (ENXIO);
 	pp = LIST_FIRST(&gp->provider);
 	if (pp != NULL && (pp->acr != 0 || pp->acw != 0 || pp->ace != 0)) {
 		if (force) {
