@@ -1952,6 +1952,13 @@
     <filename>libutil</filename> to
     <filename>libc</filename>. &merged;</para>
 
+    <para>&man.sh.1; now implements <command>test</command> as a
+    built-in command for improved efficiency.  &man.sh.1; no longer
+    implements <command>printf</command> as a built-in command because
+    it was considered less valuable compared to the other built-in
+    commands (this functionality is, of course, still available
+    through the &man.printf.1; executable).</para>
+
     <para>&man.sockstat.1; now has <option>-c</option> and
     <option>-l</option> flags for listing connected and listening
     sockets, respectively. &merged;</para>
