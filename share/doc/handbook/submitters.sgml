@@ -1,4 +1,4 @@
-<!-- $Id: submitters.sgml,v 1.21 1996/02/27 15:57:50 jfieber Exp $ -->
+<!-- $Id: submitters.sgml,v 1.22 1996/03/27 17:03:51 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>Contributing to FreeBSD<label id="submitters"></heading>
@@ -418,7 +418,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-	$Id: submitters.sgml,v 1.21 1996/02/27 15:57:50 jfieber Exp $
+	$Id: submitters.sgml,v 1.22 1996/03/27 17:03:51 jkh Exp $
 </verb></tscreen>
 For your convenience, a copy of this text can be found in
 <tt>/usr/share/examples/etc/bsd-style-copyright</tt>.
@@ -498,3 +498,28 @@ before we can accept delivery of them.
 If you'd like to be such a mirror, please contact
 <htmlurl url="mailto:admin@freebsd.org" name="the FreeBSD project
 administrators"> for more information.
+
+<sect><heading>Donors Gallery</heading>
+
+<p>The FreeBSD Project is indebted to the following donors and would
+like to publically thank them here!
+
+<itemize>
+	<item><htmlurl url="http://www.cdrom.com" name="Walnut Creek CDROM">
+
+	has donated almost more than we can say (see the
+	<ref id="history" name="history"> document for more details).
+	In particular, we'd like to thank them for the hardware used for
+	<em>freefall.freebsd.org</em>, our primary development machine,
+	and for <em>thud.freebsd.org</em>, our testing and build box.
+	We are also indebted to them for funding various contributors over
+	the years and providing us with unrestricted use of their T1
+	connection to the Internet.
+	</item>
+
+	<item><htmlurl url="mailto:ANDRSN@HOOVER.STANFORD.EDU"
+	name="Annelise Anderson">
+
+	has generously donated funding to the further development of FreeBSD
+	</item>
+</itemize>
