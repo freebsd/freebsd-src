@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.221 1999/01/07 14:14:23 yokota Exp $
+ *	$Id: sio.c,v 1.222 1999/01/08 19:17:49 bde Exp $
  */
 
 #include "opt_comconsole.h"
@@ -2829,7 +2829,7 @@ siopnp_attach(u_long csn, u_long vend_id, char *name, struct isa_device *dev)
 
 	dev->id_iobase = d.port[0];
 	dev->id_irq = (1 << d.irq[0]);
-	dev->id_intr = siointr;
+	dev->id_ointr = siointr;
 	dev->id_ri_flags = RI_FAST;
 	dev->id_drq = -1;
 

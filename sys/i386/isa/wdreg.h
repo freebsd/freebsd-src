@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wdreg.h	7.1 (Berkeley) 5/9/91
- *	$Id: wdreg.h,v 1.22 1998/04/08 20:04:39 sos Exp $
+ *	$Id: wdreg.h,v 1.23 1998/10/22 05:58:41 bde Exp $
  */
 
 /*
@@ -312,6 +312,6 @@ struct wddma {
 
 extern struct wddma wddma[];
 
-void	wdintr __P((int unit));
+void	wdintr __P((void *unit));
 
 #endif /* KERNEL */
