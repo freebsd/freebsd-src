@@ -84,7 +84,7 @@ void
 ipxprotopr(u_long off, const char *name, int af1 __unused)
 {
 	struct ipxpcbhead cb;
-	struct ipxpcb *prev, *ipxp, *next;
+	struct ipxpcb *ipxp;
 	struct ipxpcb ipxpcb;
 	struct spxpcb spxpcb;
 	struct socket sockb;
@@ -96,18 +96,12 @@ ipxprotopr(u_long off, const char *name, int af1 __unused)
 
 	isspx = strcmp(name, "spx") == 0;
 	kread(off, (char *)&cb, sizeof (struct ipxpcbhead));
-	next = LIST_FIRST (&cb);
-	LIST_FOREACH(ipxp, &cb, ipxp_list) {
+	ipxp = LIST_FIRST(&cb);
+	while (ipxp != NULL) {
 		u_long ppcb;
 
-		prev = next;
-		next = ipxp;
-		kread((u_long)next, (char *)&ipxpcb, sizeof (ipxpcb));
-
-		if (*ipxpcb.ipxp_list.le_prev != prev) {
-			printf("???\n");
-			break;
-		}
+		kread((u_long)ipxp, (char *)&ipxpcb, sizeof (ipxpcb));
+		ipxp = LIST_NEXT(&ipxpcb, ipxp_list);
 
 		if (!aflag && ipx_nullhost(ipxpcb.ipxp_faddr) ) {
 			continue;
