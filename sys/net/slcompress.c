@@ -60,11 +60,8 @@
 #define INCR(counter)
 #endif
 
-#define BCMP(p1, p2, n) bcmp((char *)(p1), (char *)(p2), (int)(n))
-#define BCOPY(p1, p2, n) bcopy((char *)(p1), (char *)(p2), (int)(n))
-#ifndef _KERNEL
-#define ovbcopy bcopy
-#endif
+#define BCMP(p1, p2, n) bcmp((void *)(p1), (void *)(p2), (int)(n))
+#define BCOPY(p1, p2, n) bcopy((void *)(p1), (void *)(p2), (int)(n))
 
 void
 sl_compress_init(comp, max_state)
@@ -448,7 +445,7 @@ sl_uncompress_tcp(bufp, len, type, comp)
 	 */
 	if ((intptr_t)cp & 3) {
 		if (len > 0)
-			(void) ovbcopy(cp, (caddr_t)((intptr_t)cp &~ 3), len);
+			BCOPY(cp, ((intptr_t)cp &~ 3), len);
 		cp = (u_char *)((intptr_t)cp &~ 3);
 	}
 	cp -= hlen;
