@@ -164,9 +164,7 @@ if [ x$reason = xEXPIRE ] || [ x$reason = xFAIL ] || [ x$reason = xRELEASE ] \
    || [ x$reason = xSTOP ]; then
   if [ x$alias_ip_address != x ]; then
     ifconfig $interface inet -alias $alias_ip_address > /dev/null 2>&1
-    if [ $if_defaultroute = x ] || [ $if_defaultroute = $interface ]; then
-	    route delete $alias_ip_address 127.0.0.1 > /dev/null 2>&1
-    fi
+    route delete $alias_ip_address 127.0.0.1 > /dev/null 2>&1
   fi
   if [ x$old_ip_address != x ]; then
     eval "ifconfig $interface inet -alias $old_ip_address $medium"
