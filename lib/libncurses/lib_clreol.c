@@ -12,7 +12,7 @@
 
 #include "curses.priv.h"
 
-#define BLANK ' '|A_NORMAL
+#define BLANK (' '|A_NORMAL)
 
 int  wclrtoeol(WINDOW *win)
 {
