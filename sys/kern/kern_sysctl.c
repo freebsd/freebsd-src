@@ -68,7 +68,7 @@ static struct sx sysctllock;
 
 #define	SYSCTL_LOCK()		sx_xlock(&sysctllock)
 #define	SYSCTL_UNLOCK()		sx_xunlock(&sysctllock)
-#define	SYSCTL_INIT()		sx_init(&sysctllock, "sysctl sysctllock")
+#define	SYSCTL_INIT()		sx_init(&sysctllock, "sysctl lock")
 
 static int sysctl_root(SYSCTL_HANDLER_ARGS);
 
