@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mv.c,v 1.14 1997/09/28 10:41:40 wosch Exp $
+ *	$Id: mv.c,v 1.15 1997/10/04 13:02:06 wosch Exp $
  */
 
 #ifndef lint
@@ -331,7 +331,7 @@ void
 usage()
 {
 	(void)fprintf(stderr, "%s\n%s\n",
-		      "usage: mv [-f | -i] src target",
-		      "       mv [-f | -i] src1 ... srcN directory");
+		      "usage: mv [-f | -i] source target",
+		      "       mv [-f | -i] source ... directory");
 	exit(1);
 }
