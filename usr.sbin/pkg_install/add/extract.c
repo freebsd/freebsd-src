@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: extract.c,v 1.7.6.2 1997/02/15 16:36:16 jkh Exp $";
+static const char *rcsid = "$Id: extract.c,v 1.7.6.3 1997/02/25 07:19:32 jkh Exp $";
 #endif
 
 /*
@@ -45,6 +45,33 @@ static const char *rcsid = "$Id: extract.c,v 1.7.6.2 1997/02/15 16:36:16 jkh Exp
 		    perm_count = 0; \
 	}
 
+static void
+rollback(char *name, char *home, PackingList start, PackingList stop)
+{
+    PackingList q;
+    char try[FILENAME_MAX], bup[FILENAME_MAX], *dir;
+
+    dir = home;
+    for (q = start; q != stop; q = q->next) {
+	if (q->type == PLIST_FILE) {
+	    snprintf(try, FILENAME_MAX, "%s/%s", dir, q->name);
+	    snprintf(bup, FILENAME_MAX, "%s.%s", try, name);
+	    if (fexists(bup)) {
+		(void)chflags(try, 0);
+		(void)unlink(try);
+		if (rename(bup, try))
+		    whinge("rollback: unable to rename %s back to %s.", bup, try);
+	    }
+	}
+	else if (q->type == PLIST_CWD) {
+	    if (strcmp(q->name, "."))
+		dir = q->name;
+	    else
+		dir = home;
+	}
+    }
+}
+
 void
 extract_plist(char *home, Package *pkg)
 {
@@ -52,6 +79,7 @@ extract_plist(char *home, Package *pkg)
     char *last_file;
     char *where_args, *perm_args, *last_chdir;
     int maxargs, where_count = 0, perm_count = 0, add_count;
+    Boolean preserve;
 
     maxargs = sysconf(_SC_ARG_MAX) / 2;	/* Just use half the argument space */
     where_args = alloca(maxargs);
@@ -66,6 +94,7 @@ extract_plist(char *home, Package *pkg)
     perm_args[0] = 0;
 
     last_chdir = 0;
+    preserve = find_plist_option(pkg, "preserve") ? TRUE : FALSE;
 
     /* Reset the world */
     Owner = NULL;
@@ -94,6 +123,21 @@ extract_plist(char *home, Package *pkg)
 
 		/* first try to rename it into place */
 		sprintf(try, "%s/%s", Directory, p->name);
+		if (preserve) {
+		    char pf[FILENAME_MAX];
+
+		    if (!PkgName) {
+			whinge("Package set preserve option but has no name - bailing out.");
+			return;
+		    }
+		    snprintf(pf, FILENAME_MAX, "%s.%s", try, PkgName);
+		    (void)chflags(try, 0);	/* XXX hack - if truly immutable, rename fails */
+		    if (rename(try, pf)) {
+			whinge("Unable to back up %s to %s, aborting pkg_add", try, pf);
+			rollback(PkgName, home, pkg->head, p);
+			return;
+		    }
+		}
 		if (rename(p->name, try) == 0) {
 		    /* try to add to list of perms to be changed and run in bulk. */
 		    if (p->name[0] == '/' || TOOBIG(p->name)) {
