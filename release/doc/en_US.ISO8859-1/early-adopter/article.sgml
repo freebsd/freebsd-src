@@ -14,6 +14,9 @@
 <!ENTITY % mailing-lists PUBLIC "-//FreeBSD//ENTITIES DocBook Mailing List Entities//EN">
 %mailing-lists;
 
+<!ENTITY % trademarks PUBLIC "-//FreeBSD//ENTITIES DocBook Trademark Entities//EN">
+%trademarks;
+
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
 %release;
 
@@ -38,6 +41,14 @@
       <holder role="mailto:re@FreeBSD.org">The &os; Release
         Engineering Team</holder>
     </copyright>
+
+    <legalnotice id="trademarks" role="trademarks">
+      &tm-attrib.freebsd;
+      &tm-attrib.intel;
+      &tm-attrib.microsoft;
+      &tm-attrib.sparc;
+      &tm-attrib.general;
+    </legalnotice>
 
     <abstract>
       <para>This article describes the status of &os;
@@ -186,8 +197,8 @@
       </listitem>
 
       <listitem>
-	<para>New architectures:  Support for the sparc64 and ia64
-	  architectures, in addition to the i386, pc98, and
+	<para>New architectures:  Support for the &sparc64; and ia64
+	  architectures, in addition to the &i386;, pc98, and
 	  alpha.</para>
       </listitem>
 
@@ -390,7 +401,7 @@
         &release.4x; but not in &release.5x;.  These obsolete
         files may create some problems.</para>
 
-      <para>On the i386 and pc98 platforms, a UserConfig utility
+      <para>On the &i386; and pc98 platforms, a UserConfig utility
         exists on 4-STABLE to allow boot-time configuration of ISA
         devices when booting from installation media.  Under &os;
         5.0, this functionality has been replaced in part by the
@@ -404,11 +415,11 @@
         the usual <filename>kern.flp</filename> and
         <filename>mfsroot.flp</filename> floppy images.</para>
 
-      <para>CDROM-based installations on the i386 architecture now use
+      <para>CDROM-based installations on the &i386; architecture now use
         a <quote>no-emulation</quote> boot loader.  This allows, among
         other things, the use of a <literal>GENERIC</literal> kernel,
         rather than the stripped-down kernel on the floppy images.  In
-        theory, any system capable of booting the Microsoft Windows NT
+        theory, any system capable of booting the &microsoft; &windowsnt;
         4 installation CDROMs should be able to cope with the &os;
         &release.5x; CDROMs.</para>
 
