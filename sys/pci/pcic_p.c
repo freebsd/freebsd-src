@@ -68,7 +68,7 @@ pd6832_legacy_init(device_t dev)
 	io_port = PCIC_INDEX_0 + num6832 * CLPD6832_NUM_REGS;
 	if (unit == 0)
 		pci_write_config(dev, CLPD6832_LEGACY_16BIT_IOADDR,
-		    io_port & ~PCI_MAP_IO, 4);
+		    io_port & ~CLPD6832_LEGACY_16BIT_IOENABLE, 4);
 
 	/*
 	 * I think this should be a call to pci_map_port, but that
@@ -76,7 +76,7 @@ pd6832_legacy_init(device_t dev)
 	 * need to map is 0x44.
 	 */
 	io_port = pci_read_config(dev, CLPD6832_LEGACY_16BIT_IOADDR, 4) &
-	    ~PCI_MAP_IO;
+	    ~CLPD6832_LEGACY_16BIT_IOENABLE;
 
 	/*
 	 * Configure the first I/O window to contain CLPD6832_NUM_REGS
@@ -94,8 +94,7 @@ pd6832_legacy_init(device_t dev)
 	 * Set default operating mode (I/O port space) and allocate
 	 * this socket to the current unit.
 	 */
-	pci_write_config(dev, PCI_COMMAND_STATUS_REG,
-	    CLPD6832_COMMAND_DEFAULTS, 4);
+	pci_write_config(dev, PCIR_COMMAND, CLPD6832_COMMAND_DEFAULTS, 4);
 	pci_write_config(dev, CLPD6832_SOCKET, unit, 4);
 
 	/*
@@ -201,13 +200,13 @@ generic_cardbus_attach(device_t dev)
 	if (unit != 0)
 		return;
 	
-	iobase = pci_read_config(dev, CB_PCI_LEGACY16_IOADDR, 2) 
-	    & ~PCI_MAP_IO;
+	iobase = pci_read_config(dev, CB_PCI_LEGACY16_IOADDR, 2) &
+	    ~CB_PCI_LEGACY16_IOENABLE;
 	if (!iobase) {
-		iobase = 0x3e0 | PCI_MAP_IO;
+		iobase = 0x3e0 | CB_PCI_LEGACY16_IOENABLE;
 		pci_write_config(dev, CB_PCI_LEGACY16_IOADDR, iobase, 2);
 		iobase = pci_read_config(dev, CB_PCI_LEGACY16_IOADDR, 2)
-		    & ~PCI_MAP_IO;
+		    & ~CB_PCI_LEGACY16_IOENABLE;
 	}
 	PRVERB((dev, "Legacy address set to %#x\n", iobase));
 	return;
@@ -229,13 +228,16 @@ pcic_pci_probe(device_t dev)
 
 	switch (device_id) {
 	case PCI_DEVICE_ID_PCIC_CLPD6832:
-		desc = "Cirrus Logic PD6832 PCI/CardBus Bridge";
+		desc = "Cirrus Logic PD6832 PCI-CardBus Bridge";
 		break;
 	case PCI_DEVICE_ID_PCIC_TI1130:
 		desc = "TI PCI-1130 PCI-CardBus Bridge";
 		break;
 	case PCI_DEVICE_ID_PCIC_TI1131:
 		desc = "TI PCI-1131 PCI-CardBus Bridge";
+		break;
+	case PCI_DEVICE_ID_PCIC_TI1211:
+		desc = "TI PCI-1211 PCI-CardBus Bridge";
 		break;
 	case PCI_DEVICE_ID_PCIC_TI1220:
 		desc = "TI PCI-1220 PCI-CardBus Bridge";
@@ -324,23 +326,24 @@ pcic_pci_attach(device_t dev)
 	/* Place any per "slot" initialization here */
 
 	/*
-	 * In sys/pci/pcireg.h, PCI_COMMAND_STATUS_REG must be separated
+	 * In sys/pci/pcireg.h, PCIR_COMMAND must be separated
 	 * PCI_COMMAND_REG(0x04) and PCI_STATUS_REG(0x06).
 	 * Takeshi Shibagaki(shiba@jp.freebsd.org).
 	 */
-        command = pci_read_config(dev, PCI_COMMAND_STATUS_REG, 4);
-        command |= PCI_COMMAND_IO_ENABLE | PCI_COMMAND_MEM_ENABLE;
-        pci_write_config(dev, PCI_COMMAND_STATUS_REG, command, 4);
+        command = pci_read_config(dev, PCIR_COMMAND, 4);
+        command |= PCIM_CMD_PORTEN | PCIM_CMD_MEMEN;
+        pci_write_config(dev, PCIR_COMMAND, command, 4);
 
 	switch (device_id) {
 	case PCI_DEVICE_ID_PCIC_TI1130:
 	case PCI_DEVICE_ID_PCIC_TI1131:
+	case PCI_DEVICE_ID_PCIC_TI1211:
 	case PCI_DEVICE_ID_PCIC_TI1220:
 	case PCI_DEVICE_ID_PCIC_TI1221:
+	case PCI_DEVICE_ID_PCIC_TI1225:
 	case PCI_DEVICE_ID_PCIC_TI1250:
 	case PCI_DEVICE_ID_PCIC_TI1251:
 	case PCI_DEVICE_ID_PCIC_TI1251B:
-	case PCI_DEVICE_ID_PCIC_TI1225:
 	case PCI_DEVICE_ID_PCIC_TI1410:
 	case PCI_DEVICE_ID_PCIC_TI1420:
 	case PCI_DEVICE_ID_PCIC_TI1450:
