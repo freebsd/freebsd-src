@@ -137,18 +137,6 @@ MODULE_DEPEND(xl, miibus, 1, 1, 1);
 /* "controller miibus0" required.  See GENERIC if you get errors here. */
 #include "miibus_if.h"
 
-/*
- * The following #define causes the code to use PIO to access the
- * chip's registers instead of memory mapped mode. The reason PIO mode
- * is on by default is that the Etherlink XL manual seems to indicate
- * that only the newer revision chips (3c905B) support both PIO and
- * memory mapped access. Since we want to be compatible with the older
- * bus master chips, we use PIO here. If you comment this out, the
- * driver will use memory mapped I/O, which may be faster but which
- * might not work on some devices.
- */
-#define XL_USEIOSPACE
-
 #include <pci/if_xlreg.h>
 
 #define XL905B_CSUM_FEATURES	(CSUM_IP | CSUM_TCP | CSUM_UDP)
@@ -271,14 +259,6 @@ static int xl_miibus_readreg	(device_t, int, int);
 static int xl_miibus_writereg	(device_t, int, int, int);
 static void xl_miibus_statchg	(device_t);
 static void xl_miibus_mediainit	(device_t);
-
-#ifdef XL_USEIOSPACE
-#define XL_RES			SYS_RES_IOPORT
-#define XL_RID			XL_PCI_LOIO
-#else
-#define XL_RES			SYS_RES_MEMORY
-#define XL_RID			XL_PCI_LOMEM
-#endif
 
 static device_method_t xl_methods[] = {
 	/* Device interface */
@@ -1301,7 +1281,7 @@ xl_attach(dev)
 	struct xl_softc		*sc;
 	struct ifnet		*ifp;
 	int			media = IFM_ETHER|IFM_100_TX|IFM_FDX;
-	int			unit, error = 0, rid;
+	int			unit, error = 0, rid, res;
 
 	sc = device_get_softc(dev);
 	unit = device_get_unit(dev);
@@ -1393,25 +1373,32 @@ xl_attach(dev)
 	pci_enable_io(dev, SYS_RES_MEMORY);
 	command = pci_read_config(dev, PCIR_COMMAND, 4);
 
-#ifdef XL_USEIOSPACE
-	if (!(command & PCIM_CMD_PORTEN)) {
-		printf("xl%d: failed to enable I/O ports!\n", unit);
+	if (!(command & PCIM_CMD_PORTEN) && !(command & PCIM_CMD_MEMEN)) {
+		printf("xl%d: failed to enable I/O ports and memory mappings!\n", unit);
 		goto fail;
 	}
-#else
-	if (!(command & PCIM_CMD_MEMEN)) {
-		printf("xl%d: failed to enable memory mapping!\n", unit);
-		goto fail;
-	}
-#endif
 
-	rid = XL_RID;
-	sc->xl_res = bus_alloc_resource(dev, XL_RES, &rid,
+	rid = XL_PCI_LOMEM;
+	res = SYS_RES_MEMORY;
+
+	sc->xl_res = bus_alloc_resource(dev, res, &rid,
 	    0, ~0, 1, RF_ACTIVE);
 
-	if (sc->xl_res == NULL) {
-		printf ("xl%d: couldn't map ports/memory\n", unit);
-		goto fail;
+	if (sc->xl_res != NULL) {
+		sc->xl_flags |= XL_FLAG_USE_MMIO;
+		if (bootverbose)
+			printf("xl%d: using memory mapped I/O\n", unit);
+	} else {
+		rid = XL_PCI_LOIO;
+		res = SYS_RES_IOPORT;
+		sc->xl_res = bus_alloc_resource(dev, res, &rid,
+		    0, ~0, 1, RF_ACTIVE);
+		if (sc->xl_res == NULL) {
+			printf ("xl%d: couldn't map ports/memory\n", unit);
+			goto fail;
+		}
+		if (bootverbose)
+			printf("xl%d: using port I/O\n", unit);
 	}
 
 	sc->xl_btag = rman_get_bustag(sc->xl_res);
@@ -1751,7 +1738,7 @@ fail_fres:
 		bus_release_resource(dev, SYS_RES_MEMORY, XL_PCI_FUNCMEM,
 		    sc->xl_fres);
 fail_res:
-	bus_release_resource(dev, XL_RES, XL_RID, sc->xl_res);
+	bus_release_resource(dev, res, rid, sc->xl_res);
 fail:
 	XL_UNLOCK(sc);
 	mtx_destroy(&sc->xl_mtx);
@@ -1765,10 +1752,19 @@ xl_detach(dev)
 {
 	struct xl_softc		*sc;
 	struct ifnet		*ifp;
+	int			rid, res;
 
 	sc = device_get_softc(dev);
 	XL_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
+
+	if (sc->xl_flags & XL_FLAG_USE_MMIO) {
+		rid = XL_PCI_LOMEM;  
+		res = SYS_RES_MEMORY;
+	} else {
+		rid = XL_PCI_LOIO;   
+		res = SYS_RES_IOPORT;
+	}
 
 	xl_reset(sc);
 	xl_stop(sc);
@@ -1785,7 +1781,7 @@ xl_detach(dev)
 	if (sc->xl_fres != NULL)
 		bus_release_resource(dev, SYS_RES_MEMORY,
 		    XL_PCI_FUNCMEM, sc->xl_fres);
-	bus_release_resource(dev, XL_RES, XL_RID, sc->xl_res);
+	bus_release_resource(dev, res, rid, sc->xl_res);
 	bus_dmamap_destroy(sc->xl_mtag, sc->xl_tmpmap);
 	bus_dmamap_unload(sc->xl_ldata.xl_rx_tag, sc->xl_ldata.xl_rx_dmamap);
 	bus_dmamap_unload(sc->xl_ldata.xl_tx_tag, sc->xl_ldata.xl_tx_dmamap);
