@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)conf.h	8.3 (Berkeley) 1/21/94
- * $Id: conf.h,v 1.9 1995/02/25 20:09:36 pst Exp $
+ * $Id: conf.h,v 1.10 1995/03/16 18:16:13 bde Exp $
  */
 
 #ifndef _SYS_CONF_H_
@@ -121,6 +121,10 @@ struct linesw {
 #ifdef KERNEL
 extern struct linesw linesw[];
 extern int nlinesw;
+
+int ldisc_register __P((int , struct linesw *));
+void ldisc_deregister __P((int));
+#define LDISC_LOAD 	-1		/* Loadable line discipline */
 #endif
 
 struct swdevt {
