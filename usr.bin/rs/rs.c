@@ -105,6 +105,11 @@ void	  prints __P((char *, int));
 void	  putfile __P((void));
 static void usage __P((void));
 
+#define	INCR(ep) do {			\
+	if (++ep >= endelem)		\
+		ep = getptrs(ep);	\
+} while(0)
+
 int
 main(argc, argv)
 	int argc;
@@ -126,7 +131,7 @@ getfile()
 {
 	register char *p;
 	register char *endp;
-	register char **ep = 0;
+	char **ep;
 	int multisep = (flags & ONEISEPONLY ? 0 : 1);
 	int nullpad = flags & NULLPAD;
 	char **padto;
@@ -153,7 +158,8 @@ getfile()
 	p = curline;
 	do {
 		if (flags & ONEPERLINE) {
-			*ep++ = curline;
+			*ep = curline;
+			INCR(ep);		/* prepare for next entry */
 			if (maxlen < curlen)
 				maxlen = curlen;
 			irows++;
@@ -171,16 +177,16 @@ getfile()
 			*p = '\0';		/* mark end of entry */
 			if (maxlen < p - *ep)	/* update maxlen */
 				maxlen = p - *ep;
-			ep++;			/* prepare for next entry */
+			INCR(ep);		/* prepare for next entry */
 		}
 		irows++;			/* update row count */
 		if (nullpad) {			/* pad missing entries */
 			padto = elem + irows * icols;
-			while  (ep < padto)
-				*ep++ = "";
+			while (ep < padto) {
+				*ep = "";
+				INCR(ep);
+			}
 		}
-	if (ep > endelem)			/* if low on pointers */
-		ep = getptrs(ep);		/* get some more */
 	} while (getline() != EOF);
 	*ep = 0;				/* mark end of pointers */
 	nelem = ep - elem;
@@ -244,7 +250,7 @@ prepfile()
 	register int  j;
 	char **lp;
 	int colw;
-	int max = 0;
+	int max;
 	int n;
 
 	if (!nelem)
@@ -257,9 +263,11 @@ prepfile()
 	}
 	else if (orows == 0 && ocols == 0) {	/* decide rows and cols */
 		ocols = owidth / colw;
-		if (ocols == 0)
+		if (ocols == 0) {
 			warnx("display width %d is less than column width %d",
 					owidth, colw);
+			ocols = 1;
+		}
 		if (ocols > nelem)
 			ocols = nelem;
 		orows = nelem / ocols + (nelem % ocols ? 1 : 0);
@@ -281,15 +289,18 @@ prepfile()
 	if (!(colwidths = (short *) malloc(ocols * sizeof(short))))
 		errx(1, "malloc");
 	if (flags & SQUEEZE) {
+		ep = elem;
 		if (flags & TRANSPOSE)
-			for (ep = elem, i = 0; i < ocols; i++) {
-				for (j = 0; j < orows; j++)
+			for (i = 0; i < ocols; i++) {
+				max = 0;
+				for (j = 0; *ep != NULL && j < orows; j++)
 					if ((n = strlen(*ep++)) > max)
 						max = n;
 				colwidths[i] = max + gutter;
 			}
 		else
 			for (i = 0; i < ocols; i++) {
+				max = 0;
 				for (j = i; j < nelem; j += ocols)
 					if ((n = strlen(ep[j])) > max)
 						max = n;
@@ -363,24 +374,16 @@ char **
 getptrs(sp)
 	char **sp;
 {
-	register char **p, **ep;
+	char **p;
 
-	for (;;) {
-		allocsize += allocsize;
-		if (!(p = (char **) malloc(allocsize * sizeof(char *))))
-			errx(1, "malloc");
-		if ((endelem = p + allocsize - icols) <= p) {
-			free(p);
-			continue;
-		}
-		if (elem != 0)
-			free(elem);
-		ep = elem;
-		elem = p;
-		while (ep < sp)
-			*p++ = *ep++;
-		return(p);
-	}
+	allocsize += allocsize;
+	p = (char **)realloc(elem, allocsize * sizeof(char *));
+	if (p == NULL)
+		err(1, "no memory");
+
+	sp += (p - elem);
+	endelem = (elem = p) + allocsize;
+	return(sp);
 }
 
 void
