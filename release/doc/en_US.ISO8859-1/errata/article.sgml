@@ -47,11 +47,14 @@
 <!-- XXX Change release.current to release.prev when there's -->
 <!-- XXX a release on this branch. -->
 
-    <para>This document lists errata that pertain to the most
-    recently-released version of &os; (&release.current;).  It includes
-    both security advisories that pertain this release, as well as
-    items relating to the software or documentation, discovered after
-    the release, that could affect its operation or usability.
+    <para>This document lists errata items for &os; 
+    &release.current;, containing significant information
+    discovered after the release.  This information includes 
+    security advisories, as well as
+    news relating to the software or documentation
+    that could affect its operation or usability.  An up-to-date
+    version of this document should always be consulted before
+    installing this version of &os;.
 
     <note>
       <para>At this time, &release.current; has no errata, because
@@ -69,31 +72,34 @@
   <sect1>
     <title>Introduction</title>
 
-    <para>If you read no other documentation before installing this
-    version of &os;, you should <emphasis>read
-    the errata</emphasis> for this release so that you don't stumble
-    over problems which have already been found and fixed.  Any
-    version of this
-    <filename>ERRATA.TXT</filename> file actually distributed with the
-    release is out of
-    date by definition, but other copies are kept updated on the net and
-    should be consulted as the <quote>current errata</quote> for your
-    release.  These other copies of the errata are located at <ulink
-    url="http://www.freebsd.org/releases/">http://www.freebsd.org/releases/</ulink>,
-    as well as any sites which keep up-to-date mirrors of this
-    location).</para>
+    <para>This errata document contains <quote>late-breaking news</quote>
+    about &os; &release.current;.  Before installing this version,
+    it is important to consult this document to learn about
+    any post-release discoveries or 
+    problems that may already have been found and
+    fixed.</para>
 
-    <para>Source and binary snapshots of &release.current; also
+    <para>Any
+    version of this
+    errata document actually distributed with the
+    release (for example, on a CDROM distribution) will be out of
+    date by definition, but other copies are kept updated on the Internet and
+    should be consulted as the <quote>current errata</quote> for this
+    release.  These other copies of the errata are located at <ulink
+    url="http://www.freebsd.org/releases/"></ulink>,
+    plus any sites which keep up-to-date mirrors of this
+    location.</para>
+
+    <para>Source and binary snapshots of &os; &release.branch; also
     contain up-to-date copies of this document (as of the time of the
     snapshot).</para>
 
-    <para>Any changes to this file are also automatically emailed to the
+    <para>Any changes to this file will also be emailed to the
     &a.current;.</para>
 
     <para>For a list of all &os; CERT security advisories, see <ulink
-    url="http://www.freebsd.org/security"></ulink> or <ulink
+    url="http://www.freebsd.org/security/"></ulink> or <ulink
     url="ftp://ftp.freebsd.org/pub/FreeBSD/CERT/"></ulink>.</para>
-
   </sect1>
 
   <sect1>
