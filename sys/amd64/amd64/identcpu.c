@@ -294,7 +294,7 @@ printcpuinfo(void)
 			 * CPUID, try to look it up in the brand table.
 			 */
 			if (cpu_high > 0 && *cpu_brand == '\0') {
-				brand_index = cpuid_cpuinfo & CPUID_BRAND_INDEX;
+				brand_index = cpu_procinfo & CPUID_BRAND_INDEX;
 				if (brand_index <= MAX_BRAND_INDEX &&
 				    cpu_brandtable[brand_index] != NULL)
 					strcpy(cpu_brand,
@@ -649,9 +649,9 @@ printcpuinfo(void)
 			 * the number of logical CPU's it contains.
 			 */
 			if (cpu_feature & CPUID_HTT &&
-			    (cpuid_cpuinfo & CPUID_HTT_CORES) >> 16 > 1)
+			    (cpu_procinfo & CPUID_HTT_CORES) >> 16 > 1)
 				printf("\n  Hyperthreading: %d logical CPUs",
-				    (cpuid_cpuinfo & CPUID_HTT_CORES) >> 16);
+				    (cpu_procinfo & CPUID_HTT_CORES) >> 16);
 		}
 		if (strcmp(cpu_vendor, "AuthenticAMD") == 0 &&
 		    cpu_exthigh >= 0x80000001)
