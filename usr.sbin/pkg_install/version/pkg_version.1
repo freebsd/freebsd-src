@@ -33,6 +33,7 @@
 .Sh SYNOPSIS
 .Nm pkg_version
 .Op Fl cdhv
+.Op Fl l Ar limchar
 .Op Ar index
 .Sh DESCRIPTION
 The
@@ -59,7 +60,7 @@ index file could not be determined.  A common reason for this message
 is that there are multiple versions of a particular software package
 installed, or that multiple versions are listed in the index file.
 Examples from the
-.Fx 2.2.6
+.Fx
 ports collection are the Tcl toolkit or the
 .Tn EMACS
 editor.
@@ -75,6 +76,15 @@ system.
 Enable debugging output.
 .It Fl h
 Print help message.
+.It Fl l
+Limit the output to those packages whose status flag matches
+.Ar limchar .
+You may specify more than one character to match in
+.Ar limchar .  
+Note that because some of the status flag characters are also special
+to the shell, it is best to quote
+.Ar limchar
+with single quotes.
 .It Fl v
 Enable verbose output.  Verbose output includes some English-text
 interpretations of the version number comparisons, as well as the
@@ -112,7 +122,7 @@ index file:
 The command below generates a report against
 the version numbers in the on-line ports collection:
 .Pp
-.Dl % pkg_version ftp://ftp.freebsd.org/pub/FreeBSD/ports-current/INDEX
+.Dl % pkg_version ftp://ftp.FreeBSD.org/pub/FreeBSD/ports-current/INDEX
 .Pp
 The command below generates a file of commands to run to update the installed
 files. It is
@@ -126,7 +136,8 @@ suggestions, and then cut-and-paste (or retype) the commands you want to run.
 .Sh AUTHOR
 .An Bruce A. Mah Aq bmah@ca.sandia.gov
 .Sh CONTRIBUTORS
-.An Nik Clayton Aq nik@freebsd.org
+.An Nik Clayton Aq nik@FreeBSD.org ,
+.An Dominic Mitchell Aq dom@palmerharvey.co.uk
 .Sh BUGS
 There should be a better way of dealing with packages that
 can have more than one installed version.
