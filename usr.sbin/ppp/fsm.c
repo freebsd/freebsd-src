@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.c,v 1.25 1997/12/24 09:28:58 brian Exp $
+ * $Id: fsm.c,v 1.26 1998/01/10 01:55:09 brian Exp $
  *
  *  TODO:
  *		o Refer loglevel for log output
@@ -68,6 +68,11 @@ StoppedTimeout(void *v)
   struct fsm *fp = (struct fsm *)v;
 
   LogPrintf(fp->LogLevel, "Stopped timer expired\n");
+  if (fp->OpenTimer.state == TIMER_RUNNING) {
+    LogPrintf(LogWARN, "%s: aborting open delay due to stopped timer\n",
+              fp->name);
+    StopTimer(&fp->OpenTimer);
+  }
   if (modem != -1)
     DownConnection();
   else
@@ -122,6 +127,19 @@ FsmOutput(struct fsm * fp, u_int code, u_int id, u_char * ptr, int count)
   HdlcOutput(PRI_LINK, fp->proto, bp);
 }
 
+static void
+FsmOpenNow(void *v)
+{
+  struct fsm *fp = (struct fsm *)v;
+
+  StopTimer(&fp->OpenTimer);
+  if (fp->state <= ST_STOPPED) {
+    FsmInitRestartCounter(fp);
+    FsmSendConfigReq(fp);
+    NewState(fp, ST_REQSENT);
+  }
+}
+
 void
 FsmOpen(struct fsm * fp)
 {
@@ -135,11 +153,18 @@ FsmOpen(struct fsm * fp)
   case ST_CLOSED:
     if (fp->open_mode == OPEN_PASSIVE) {
       NewState(fp, ST_STOPPED);
-    } else {
-      FsmInitRestartCounter(fp);
-      FsmSendConfigReq(fp);
-      NewState(fp, ST_REQSENT);
-    }
+    } else if (fp->open_mode > 0) {
+      if (fp->open_mode > 1)
+        LogPrintf(LogPHASE, "Entering STOPPED state for %d seconds\n",
+                  fp->open_mode);
+      NewState(fp, ST_STOPPED);
+      fp->OpenTimer.state = TIMER_STOPPED;
+      fp->OpenTimer.load = fp->open_mode * SECTICKS;
+      fp->OpenTimer.func = FsmOpenNow;
+      fp->OpenTimer.arg = (void *)fp;
+      StartTimer(&fp->OpenTimer);
+    } else
+      FsmOpenNow(fp);
     break;
   case ST_STOPPED:		/* XXX: restart option */
   case ST_REQSENT:
