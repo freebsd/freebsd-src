@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)pte.h	5.5 (Berkeley) 5/9/91
- *	$Id: pte.h,v 1.2 1993/10/16 14:39:27 rgrimes Exp $
+ *	$Id: pte.h,v 1.3 1993/11/07 17:43:05 wollman Exp $
  */
 
 #ifndef _MACHINE_PTE_H_
@@ -52,47 +52,31 @@
  */
 
 #ifndef LOCORE
-struct pde
-{
+
+struct pde {
 unsigned int	
 		pd_v:1,			/* valid bit */
 		pd_prot:2,		/* access control */
-		pd_mbz1:2,		/* reserved, must be zero */
+		pd_ncpwt:1,		/* page cache write through */
+		pd_ncpcd:1,		/* page cache disable */
 		pd_u:1,			/* hardware maintained 'used' bit */
-		:1,			/* not used */
+		pd_m:1,			/* not used */
 		pd_mbz2:2,		/* reserved, must be zero */
 		:3,			/* reserved for software */
 		pd_pfnum:20;		/* physical page frame number of pte's*/
 };
-struct pte
-{
+
+struct pte {
 unsigned int	
 		pg_v:1,			/* valid bit */
 		pg_prot:2,		/* access control */
-		pg_mbz1:2,		/* reserved, must be zero */
+		pg_ncpwt:1,		/* page cache write through */
+		pg_ncpcd:1,		/* page cache disable */
 		pg_u:1,			/* hardware maintained 'used' bit */
 		pg_m:1,			/* hardware maintained modified bit */
 		pg_mbz2:2,		/* reserved, must be zero */
-		pg_fod:1,		/* is fill on demand (=0) */
-		:1,			/* must write back to swap (unused) */
-		pg_nc:1,		/* 'uncacheable page' bit */
+		:3,			/* (unused) */
 		pg_pfnum:20;		/* physical page frame number */
-};
-struct hpte
-{
-unsigned int	
-		pg_high:12,		/* special for clustering */
-		pg_pfnum:20;
-};
-struct fpte
-{
-unsigned int	
-		pg_v:1,			/* valid bit */
-		pg_prot:2,		/* access control */
-		:5,
-		pg_fileno:1,		/* file mapped from or TEXT or ZERO */
-		pg_fod:1,		/* is fill on demand (=1) */
-		pg_blkno:22;		/* file system block number */
 };
 #endif
 
@@ -101,16 +85,12 @@ unsigned int
 
 #define	PG_V		0x00000001
 #define	PG_PROT		0x00000006 /* all protection bits . */
-#define	PG_FOD		0x00000200
-#define	PG_SWAPM	0x00000400
-#define PG_N		0x00000800 /* Non-cacheable */
-#define	PG_M		0x00000040
-#define PG_U		0x00000020 /* not currently used */
+#define	PG_NC_PWT	0x00000008 /* page cache write through */
+#define	PG_NC_PCD	0x00000010 /* page cache disable */
+#define PG_N		0x00000018 /* Non-cacheable */
+#define PG_U		0x00000020 /* page was accessed */
+#define	PG_M		0x00000040 /* page was modified */
 #define	PG_FRAME	0xfffff000
-
-#define	PG_FZERO	0
-#define	PG_FTEXT	1
-#define	PG_FMAX		(PG_FTEXT)
 
 #define	PG_NOACC	0
 #define	PG_KR		0x00000000
@@ -118,6 +98,10 @@ unsigned int
 #define	PG_URKR		0x00000004
 #define	PG_URKW		0x00000004
 #define	PG_UW		0x00000006
+
+#define	PG_FZERO	0
+#define	PG_FTEXT	1
+#define	PG_FMAX		(PG_FTEXT)
 
 /*
  * Page Protection Exception bits
