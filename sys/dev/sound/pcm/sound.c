@@ -504,7 +504,8 @@ pcm_addchan(device_t dev, int dir, kobj_class_t cls, void *devinfo)
 		return err;
 	}
 
-	if (snd_maxautovchans > 0 && (d->flags & SD_F_AUTOVCHAN)) {
+	if (snd_maxautovchans > 0 && (d->flags & SD_F_AUTOVCHAN) &&
+	    ch->direction == PCMDIR_PLAY && d->vchancount == 0) {
 		ch->flags |= CHN_F_BUSY;
 		err = vchan_create(ch);
 		if (err) {
