@@ -37,7 +37,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumlock.c,v 1.13 2000/05/02 23:25:02 grog Exp grog $
+ * $Id: vinumlock.c,v 1.17 2003/02/02 05:07:51 grog Exp $
  * $FreeBSD$
  */
 
@@ -45,7 +45,7 @@
 #include <dev/vinum/request.h>
 
 /* Lock a drive, wait if it's in use */
-#if VINUMDEBUG
+#ifdef VINUMDEBUG
 int
 lockdrive(struct drive *drive, char *file, int line)
 #else
