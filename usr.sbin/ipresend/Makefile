@@ -12,4 +12,6 @@ CFLAGS+=-DDOSOCKET -DIPL_NAME=\"/dev/ipl\" \
 	-I${.CURDIR}/../../contrib/ipfilter/ipsend \
 	-I${.CURDIR}/../../contrib/ipfilter
 
+MAINTAINER=	guido@freebsd.org
+
 .include <bsd.prog.mk>
