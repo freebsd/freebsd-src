@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_syscalls.c	8.5 (Berkeley) 3/30/95
- * $Id: nfs_syscalls.c,v 1.31 1997/11/06 19:29:42 phk Exp $
+ * $Id: nfs_syscalls.c,v 1.32 1997/11/07 08:53:25 phk Exp $
  */
 
 #include <sys/param.h>
@@ -464,15 +464,18 @@ nfssvc_nfsd(nsd, argp, p)
 	cacherep = RC_DOIT;
 	writes_todo = 0;
 #endif
-	s = splnet();
 	if (nfsd == (struct nfsd *)0) {
-		nsd->nsd_nfsd = nfsd = (struct nfsd *)
+		nfsd = (struct nfsd *)
 			malloc(sizeof (struct nfsd), M_NFSD, M_WAITOK);
 		bzero((caddr_t)nfsd, sizeof (struct nfsd));
+		s = splnet();
+		nsd->nsd_nfsd = nfsd;
 		nfsd->nfsd_procp = p;
 		TAILQ_INSERT_TAIL(&nfsd_head, nfsd, nfsd_chain);
 		nfs_numnfsd++;
-	}
+	} else
+		s = splnet();
+
 	/*
 	 * Loop getting rpc requests until SIGKILL.
 	 */
