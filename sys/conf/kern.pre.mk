@@ -73,7 +73,7 @@ NORMAL_S= ${CC} -c ${ASM_CFLAGS} ${WERROR} ${.IMPSRC}
 PROFILE_C= ${CC} -c ${CFLAGS} ${WERROR} ${.IMPSRC}
 NORMAL_C_NOWERROR= ${CC} -c ${CFLAGS} ${PROF} ${.IMPSRC}
 
-NORMAL_M= perl5 $S/kern/makeobjops.pl -c $<; \
+NORMAL_M= ${AWK} -f $S/tools/makeobjops.awk $< -c ; \
 	  ${CC} -c ${CFLAGS} ${PROF} ${.PREFIX}.c
 
 GEN_CFILES= $S/$M/$M/genassym.c

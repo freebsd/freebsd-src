@@ -312,9 +312,9 @@ CLEANFILES+=	${_src}
 ${_src}: @
 .endif
 .if exists(@)
-${_src}: @/kern/makeobjops.pl @/${_srcsrc}
+${_src}: @/tools/makeobjops.awk @/${_srcsrc}
 .endif
-	perl @/kern/makeobjops.pl -${_ext} @/${_srcsrc}
+	${AWK} -f @/tools/makeobjops.awk @/${_srcsrc} -${_ext}
 .endif
 .endfor # _src
 .endfor # _ext
