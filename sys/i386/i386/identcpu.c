@@ -623,6 +623,8 @@ printcpuinfo(void)
 
 	if (strcmp(cpu_vendor, "GenuineIntel") == 0 ||
 	    strcmp(cpu_vendor, "AuthenticAMD") == 0 ||
+	    strcmp(cpu_vendor, "GenuineTMx86") == 0 ||
+	    strcmp(cpu_vendor, "TransmetaCPU") == 0 ||
 	    strcmp(cpu_vendor, "RiseRiseRise") == 0 ||
 	    strcmp(cpu_vendor, "CentaurHauls") == 0 ||
 		((strcmp(cpu_vendor, "CyrixInstead") == 0) &&
