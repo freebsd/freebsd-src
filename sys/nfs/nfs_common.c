@@ -64,7 +64,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/vm_object.h>
 #include <vm/vm_extern.h>
-#include <vm/vm_zone.h>
 
 #include <nfs/rpcv2.h>
 #include <nfs/nfsproto.h>
