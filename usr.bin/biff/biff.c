@@ -87,11 +87,11 @@ main(argc, argv)
 	switch(argv[0][0]) {
 	case 'n':
 		if (chmod(name, sb.st_mode & ~0100) < 0)
-			err(2, name);
+			err(2, "%s", name);
 		break;
 	case 'y':
 		if (chmod(name, sb.st_mode | 0100) < 0)
-			err(2, name);
+			err(2, "%s", name);
 		break;
 	default:
 		usage();
