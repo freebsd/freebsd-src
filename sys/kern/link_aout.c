@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: link_aout.c,v 1.10 1998/08/16 01:21:51 bde Exp $
+ *	$Id: link_aout.c,v 1.11 1998/08/16 04:19:03 jdp Exp $
  */
 
 #define FREEBSD_AOUT	1
@@ -240,7 +240,13 @@ load_dependancies(linker_file_t lf)
 	 */
 	if (name[0] != '/') {
 	    char* p;
-	    filename = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
+	    if (!filename) {
+		filename = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
+		if (!filename) {
+		    error = ENOMEM;
+		    goto out;
+		}
+	    }
 	    p = lf->filename + strlen(lf->filename) - 1;
 	    while (p >= lf->filename && *p != '/')
 		p--;
