@@ -469,8 +469,16 @@ tcp_respond(tp, ipgen, th, m, ack, seq, flags)
         m->m_pkthdr.csum_data = offsetof(struct tcphdr, th_sum);
       }
 #ifdef TCPDEBUG
-	if (tp == NULL || (tp->t_inpcb->inp_socket->so_options & SO_DEBUG))
+	if (tp == NULL)
 		tcp_trace(TA_OUTPUT, 0, tp, mtod(m, void *), th, 0);
+	else {
+		SOCK_LOCK(tp->t_inpcb->inp_socket);
+		if ((tp->t_inpcb->inp_socket->so_options & SO_DEBUG)) {
+			SOCK_UNLOCK(tp->t_inpcb->inp_socket);
+			tcp_trace(TA_OUTPUT, 0, tp, mtod(m, void *), th, 0);
+		} else
+			SOCK_UNLOCK(tp->t_inpcb->inp_socket);
+	}
 #endif
 #ifdef IPSEC
 	if (ipsec_setsocket(m, tp ? tp->t_inpcb->inp_socket : NULL) != 0) {
@@ -720,7 +728,9 @@ tcp_close(tp)
 		FREE(q, M_TSEGQ);
 	}
 	inp->inp_ppcb = NULL;
+	SOCK_LOCK(so);
 	soisdisconnected(so);
+	SOCK_UNLOCK(so);
 #ifdef INET6
 	if (INP_CHECK_SOCKAF(so, AF_INET6))
 		in6_pcbdetach(inp);
@@ -793,9 +803,11 @@ tcp_notify(inp, error)
 	else
 		tp->t_softerror = error;
 #if 0
+	SOCK_LOCK(so);
 	wakeup((caddr_t) &so->so_timeo);
 	sorwakeup(so);
 	sowwakeup(so);
+	SOCK_UNLOCK(so);
 #endif
 }
 

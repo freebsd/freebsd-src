@@ -410,7 +410,9 @@ ddp_input( m, ifp, elh, phase )
     /*
      * And wake up whatever might be waiting for it
      */
+    SOCK_LOCK(ddp->ddp_socket);
     sorwakeup( ddp->ddp_socket );
+    SOCK_UNLOCK(ddp->ddp_socket);
 }
 
 #if 0

@@ -35,11 +35,13 @@
  */
 
 #include <sys/param.h>
-#include <sys/socket.h>
-#include <sys/protosw.h>
 #include <sys/domain.h>
-#include <sys/mbuf.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/mbuf.h>
+#include <sys/mutex.h>
+#include <sys/protosw.h>
+#include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/systm.h>
 #include <vm/uma.h>

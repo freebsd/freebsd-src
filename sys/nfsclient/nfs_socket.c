@@ -230,6 +230,7 @@ nfs_connect(struct nfsmount *nmp, struct nfsreq *rep)
 		 * that interruptible mounts don't hang here for a long time.
 		 */
 		s = splnet();
+		SOCK_LOCK(so);
 		while ((so->so_state & SS_ISCONNECTING) && so->so_error == 0) {
 			(void) tsleep((caddr_t)&so->so_timeo, PSOCK,
 				"nfscon", 2 * hz);
@@ -238,10 +239,12 @@ nfs_connect(struct nfsmount *nmp, struct nfsreq *rep)
 			    (error = nfs_sigintr(nmp, rep,
 			      (rep->r_td ? rep->r_td->td_proc : NULL))) != 0){
 				so->so_state &= ~SS_ISCONNECTING;
+				SOCK_UNLOCK(so);
 				splx(s);
 				goto bad;
 			}
 		}
+		SOCK_UNLOCK(so);
 		if (so->so_error) {
 			error = so->so_error;
 			so->so_error = 0;
@@ -414,10 +417,14 @@ nfs_send(struct socket *so, struct sockaddr *nam, struct mbuf *top,
 	rep->r_flags &= ~R_MUSTRESEND;
 	soflags = rep->r_nmp->nm_soflags;
 
-	if ((soflags & PR_CONNREQUIRED) || (so->so_state & SS_ISCONNECTED))
+	SOCK_LOCK(so);
+	if ((soflags & PR_CONNREQUIRED) || (so->so_state & SS_ISCONNECTED)) {
+		SOCK_UNLOCK(so);
 		sendnam = (struct sockaddr *)0;
-	else
+	} else {
+		SOCK_UNLOCK(so);
 		sendnam = nam;
+	}
 	if (so->so_type == SOCK_SEQPACKET)
 		flags = MSG_EOR;
 	else
@@ -646,10 +653,14 @@ errout:
 	} else {
 		if ((so = rep->r_nmp->nm_so) == NULL)
 			return (EACCES);
-		if (so->so_state & SS_ISCONNECTED)
+		SOCK_LOCK(so);
+		if (so->so_state & SS_ISCONNECTED) {
+			SOCK_UNLOCK(so);
 			getnam = (struct sockaddr **)0;
-		else
+		} else {
+			SOCK_UNLOCK(so);
 			getnam = aname;
+		}
 		auio.uio_resid = len = 1000000;
 		auio.uio_td = td;
 		do {
