@@ -38,9 +38,6 @@ x86_64/x86_64/bios.c		standard
 x86_64/x86_64/bioscall.s	standard
 x86_64/x86_64/busdma_machdep.c	standard
 x86_64/x86_64/critical.c	standard
-x86_64/x86_64/db_disasm.c	optional	ddb
-x86_64/x86_64/db_interface.c	optional	ddb
-x86_64/x86_64/db_trace.c	optional	ddb
 x86_64/x86_64/dump_machdep.c	standard
 x86_64/x86_64/elf_machdep.c	standard
 x86_64/x86_64/exception.s	standard
