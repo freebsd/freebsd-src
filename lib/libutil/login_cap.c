@@ -190,6 +190,10 @@ login_getclassbyname(char const *name, const struct passwd *pwd)
 
 	static char *login_dbarray[] = { NULL, NULL, NULL };
 
+#ifndef _FILE_LOGIN_CONF_WORKS
+	dir = NULL;
+#endif
+
 	if (dir && snprintf(userpath, MAXPATHLEN, "%s/%s", dir,
 			    _FILE_LOGIN_CONF) < MAXPATHLEN) {
 	    login_dbarray[i] = userpath;
