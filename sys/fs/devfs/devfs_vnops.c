@@ -181,13 +181,24 @@ devfs_access(ap)
 {
 	struct vnode *vp = ap->a_vp;
 	struct devfs_dirent *de;
+	int error;
 
 	de = vp->v_data;
 	if (vp->v_type == VDIR)
 		de = de->de_dir;
 
-	return (vaccess(vp->v_type, de->de_mode, de->de_uid, de->de_gid,
-	    ap->a_mode, ap->a_cred, NULL));
+	error = vaccess(vp->v_type, de->de_mode, de->de_uid, de->de_gid,
+	    ap->a_mode, ap->a_cred, NULL);
+	if (!error)
+		return (error);
+	if (error != EACCES)
+		return (error);
+	/* We do, however, allow access to the controlling terminal */
+	if (!(ap->a_td->td_proc->p_flag & P_CONTROLT))
+		return (error);
+	if (ap->a_td->td_proc->p_session->s_ttyvp == de->de_vnode)
+		return (0);
+	return (error);
 }
 
 static int
