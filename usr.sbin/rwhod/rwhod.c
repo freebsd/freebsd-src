@@ -269,6 +269,7 @@ main(argc, argv)
 	for (;;) {
 		struct whod wd;
 		int cc, whod, len = sizeof(from);
+		time_t t;
 
 		cc = recvfrom(s, (char *)&wd, sizeof(struct whod), 0,
 			(struct sockaddr *)&from, &len);
@@ -325,7 +326,8 @@ main(argc, argv)
 			}
 		}
 #endif
-		(void) time((time_t *)&wd.wd_recvtime);
+		(void) time(&t);
+		wd.wd_recvtime = time_to_int(t);
 		(void) write(whod, (char *)&wd, cc);
 		if (fstat(whod, &st) < 0 || st.st_size > cc)
 			ftruncate(whod, cc);
@@ -462,7 +464,7 @@ onalrm(signo)
 	for (i = 0; i < 3; i++)
 		mywd.wd_loadav[i] = htonl((u_long)(avenrun[i] * 100));
 	cc = (char *)we - (char *)&mywd;
-	mywd.wd_sendtime = htonl(time(0));
+	mywd.wd_sendtime = htonl(time_to_time32(time(NULL)));
 	mywd.wd_vers = WHODVERSION;
 	mywd.wd_type = WHODTYPE_STATUS;
 	if (multicast_mode == SCOPED_MULTICAST) {
@@ -512,7 +514,7 @@ getboottime(signo)
 		syslog(LOG_ERR, "cannot get boottime: %m");
 		exit(1);
 	}
-	mywd.wd_boottime = htonl(tm.tv_sec);
+	mywd.wd_boottime = htonl(time_to_time32(tm.tv_sec));
 }
 
 void
@@ -700,7 +702,7 @@ Sendto(s, buf, cc, flags, to, tolen)
 	    ntohl(w->wd_loadav[2]) / 100.0);
 	cc -= WHDRSIZE;
 	for (we = w->wd_we, cc /= sizeof(struct whoent); cc > 0; cc--, we++) {
-		time_t t = ntohl(we->we_utmp.out_time);
+		time_t t = time32_to_time(ntohl(we->we_utmp.out_time));
 		printf("%-8.8s %s:%s %.12s",
 			we->we_utmp.out_name,
 			w->wd_hostname, we->we_utmp.out_line,
