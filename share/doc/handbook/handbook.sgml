@@ -1,4 +1,4 @@
-<!-- $Id: handbook.sgml,v 1.69 1997/04/08 00:47:59 jfieber Exp $ -->
+<!-- $Id: handbook.sgml,v 1.70 1997/05/01 03:06:31 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN" [
@@ -102,6 +102,9 @@ name="FreeBSD FTP server"> or one of the numerous
          name="The XFree86 Project, Inc">.
 
     &hw;
+
+    <chapt><heading>Localization<label id="l10n"></heading>
+      &russian;
 
 <!-- ************************************************************ -->	      
 

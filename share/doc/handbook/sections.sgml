@@ -1,4 +1,4 @@
-<!-- $Id: sections.sgml,v 1.22 1997/02/22 12:59:19 peter Exp $ -->
+<!-- $Id: sections.sgml,v 1.23 1997/05/01 03:06:32 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!-- Entities containing all the pieces of the handbook are -->
@@ -47,6 +47,7 @@
 <!ENTITY quotas SYSTEM "quotas.sgml">
 <!ENTITY relnotes SYSTEM "relnotes.sgml">
 <!ENTITY routing SYSTEM "routing.sgml">
+<!ENTITY russian SYSTEM "russian.sgml">
 <!ENTITY serial SYSTEM "serial.sgml">
 <!ENTITY scsi SYSTEM "scsi.sgml">
 <!ENTITY sio SYSTEM "sio.sgml">
