@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.16 1998/10/15 18:50:04 markm Exp $
+# $Id: Makefile,v 1.17 1999/05/02 15:29:44 markm Exp $
 #
 
 PROG=	perl
@@ -29,13 +29,15 @@ NONXS_EXT=	Errno/pm_to_blib
 
 ${PROG}: linkfarm Config.pm autosplit lib/auto/DynaLoader/DynaLoader.a
 
-config.h: linkfarm
+config_h.sh config.sh cflags.sh: linkfarm
+
+config.h: linkfarm config_h.sh config.sh
 	sh config_h.sh
 
-cflags: linkfarm
+cflags: linkfarm cflags.sh
 	sh cflags.sh
 
-Config.pm: linkfarm
+Config.pm: linkfarm ${PERL5SRC}/configpm myconfig config.sh
 	miniperl ${PERL5SRC}/configpm \
 		Config.pm Porting/Glossary myconfig config.sh
 	cd lib ; ln -sf ../${.TARGET}
@@ -43,7 +45,7 @@ Config.pm: linkfarm
 perlmain.c: linkfarm writemain config.h
 	sh writemain lib/auto/DynaLoader/DynaLoader.a > ${.TARGET}
 
-writemain: linkfarm
+writemain: linkfarm writemain.sh
 	sh writemain.sh
 
 autosplit: linkfarm Config.pm lib/*.pm lib/*/*.pm
@@ -53,7 +55,7 @@ autosplit: linkfarm Config.pm lib/*.pm lib/*/*.pm
 	touch ${.TARGET}
 
 .for I in ${STATIC_EXT}
-ext/${I:H}/Makefile: linkfarm ext/${I:H}/Makefile.PL cflags Config.pm
+ext/${I:H}/Makefile: linkfarm ext/${I:H}/Makefile.PL cflags Config.pm config.h
 	cd ext/${I:H}; \
 	miniperl -I${.OBJDIR}/lib Makefile.PL \
 		LINKTYPE=static INSTALLDIRS=perl PERL_SRC=${.OBJDIR} \
@@ -70,7 +72,7 @@ STATICS+=	lib/auto/${I}.a
 .endfor
 
 .for I in ${DYNAMIC_EXT}
-ext/${I:H}/Makefile: linkfarm ext/${I:H}/Makefile.PL cflags Config.pm pod2man
+ext/${I:H}/Makefile: linkfarm ext/${I:H}/Makefile.PL cflags Config.pm pod2man config.h
 	cd ext/${I:H}; \
 	miniperl -I${.OBJDIR}/lib Makefile.PL \
 		LINKTYPE=dynamic INSTALLDIRS=perl PERL_SRC=${.OBJDIR} \
