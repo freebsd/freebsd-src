@@ -1339,12 +1339,17 @@ done:;
  * detect the voltage for the card, and set it.  Since the power
  * used is the square of the voltage, lower voltages is a big win
  * and what Windows does (and what Microsoft prefers).  The MS paper
- * also talks about preferring the CIS entry as well.
+ * also talks about preferring the CIS entry as well.  In addition,
+ * we power up with OE disabled.  We'll set it later in the power
+ * up sequence.
  */
 static int
 cbb_do_power(device_t brdev)
 {
 	int voltage;
+
+	/* Don't enable OE */
+	exca_clrb(&sc->exca, EXCA_PWRCTL, EXCA_PWRCTL_OE);
 
 	/* Prefer lowest voltage supported */
 	voltage = cbb_detect_voltage(brdev);
