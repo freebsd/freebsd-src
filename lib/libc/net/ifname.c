@@ -35,6 +35,7 @@
 
 #include <sys/param.h>
 #include <sys/socket.h>
+#include <sys/sockio.h>
 #include <sys/sysctl.h>
 #include <net/if.h>
 #include <net/route.h>
@@ -48,8 +49,8 @@
 	((a) > 0 ? (1 + (((a) - 1) | (sizeof(long) - 1))) : sizeof(long))
 #define ADVANCE(x, n) (x += ROUNDUP((n)->sa_len))
 
-unsigned int
-if_nametoindex(ifname)
+static unsigned int
+if_onametoindex(ifname)
 	const char *ifname;
 {
 	struct if_nameindex *iff = if_nameindex(), *ifx;
@@ -68,6 +69,25 @@ if_nametoindex(ifname)
 	if_freenameindex(iff);
 	errno = ENXIO;
 	return 0;
+}
+ 
+unsigned int
+if_nametoindex(ifname)
+	const char *ifname;
+{
+	int s;
+	struct ifreq ifr;
+
+	s = socket(AF_INET, SOCK_DGRAM, 0);
+	if (s == -1)
+		return (0);
+	strlcpy(ifr.ifr_name, ifname, sizeof(ifr.ifr_name));
+	if (ioctl(s, SIOCGIFINDEX, &ifr) == -1) {
+		close (s);
+		return (if_onametoindex(ifname));
+	}
+	close(s);
+	return (ifr.ifr_index);
 }
 
 char *
