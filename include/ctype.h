@@ -45,10 +45,8 @@
 #ifndef _CTYPE_H_
 #define	_CTYPE_H_
 
-/*
- * XXX <runetype.h> brings namespace pollution (struct member names).
- */
-#include <runetype.h>
+#include <sys/cdefs.h>
+#include <sys/_types.h>
 
 #define	_CTYPE_A	0x00000100L		/* Alpha */
 #define	_CTYPE_C	0x00000200L		/* Control */
@@ -164,10 +162,24 @@ __END_DECLS
 #endif
 
 /*
+ * <runetype.h> brings namespace pollution (struct member names).  This prevents
+ * us from using the inline optimizations in the more strict __POSIX_VISIBLE and
+ * __XSI_VISIBLE namespaces.  To fix this properly would require that we rename
+ * member names of long-standing structs, or something equally evil.
+ */
+#if !__BSD_VISIBLE && !defined(_USE_CTYPE_INLINE_) && \
+    !defined(_DONT_USE_CTYPE_INLINE_)
+#define	_DONT_USE_CTYPE_INLINE_
+#endif
+
+/*
  * Use inline functions if we are allowed to and the compiler supports them.
  */
 #if !defined(_DONT_USE_CTYPE_INLINE_) && \
     (defined(_USE_CTYPE_INLINE_) || defined(__GNUC__) || defined(__cplusplus))
+
+#include <runetype.h>
+
 static __inline int
 __maskrune(__ct_rune_t _c, unsigned long _f)
 {
