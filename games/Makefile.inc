@@ -7,5 +7,3 @@ BINMODE=       4700
 .else
 BINDIR=        /usr/games
 .endif
-
-DISTRIBUTION=	games
