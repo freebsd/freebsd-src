@@ -60,6 +60,7 @@ License Agreement applies to this software.
 #endif /* HAVE_GETUTXLINE && HAVE_UTMPX_H */
 
 /* Adapted from the Autoconf hypertext info pages */
+#include <sys/types.h>
 #if HAVE_DIRENT_H
 #include <dirent.h>
 #else /* HAVE_DIRENT_H */
