@@ -15,10 +15,10 @@ SRCS=	alloc.c char.c const.c csh.c dir.c dol.c err.c exec.c exp.c file.c \
 .PATH:	${.CURDIR}/../../usr.bin/printf
 
 MAN1=	csh.1
-MLINKS=	csh.1 limit.1 csh.1 alias.1 csh.1 bg.1 csh.1 dirs.1 csh.1 fg.1 \
-	csh.1 foreach.1 csh.1 history.1 csh.1 jobs.1 csh.1 popd.1 \
-	csh.1 pushd.1 csh.1 rehash.1 csh.1 repeat.1 csh.1 suspend.1 \
-	csh.1 stop.1 csh.1 source.1
+# MLINKS for Shell built in commands for which there are no userland
+# utilities of the same name are handled with the associated manpage,
+# builtin.1 in share/man/man1/.
+
 CLEANFILES+=const.h errnum.h
 
 const.h: errnum.h
