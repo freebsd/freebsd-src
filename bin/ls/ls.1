@@ -363,9 +363,16 @@ The following is how to do an
 .Nm
 listing sorted by size (and shows why
 .Nm
-does not need this functionality).
+does not need a separate option for this):
 .Pp
-.Dl "% ls -l | sort [-r] -n +4"
+.Dl "ls -l | sort -n +4"
+.Pp
+Additionally, the
+.Fl r
+flag to
+.Xr sort 1
+may be used
+to get the results sorted from largest to smallest (a reverse sort).
 .Sh DIAGNOSTICS
 The
 .Nm
@@ -397,12 +404,12 @@ capabilities.
 The default
 .Dq cons25
 console has the proper capabilities,
-however if you want to display the colors in an
-.Xr xterm 1
+but to display the colors in an
+.Xr xterm 1 ,
 for example,
-you need to set your
+the
 .Ev TERM
-variable to
+variable must be set to
 .Dq xterm-color .
 Other terminal types may require similar adjustments.  Colorization
 is silently disabled if the output isn't directed to a terminal
@@ -475,7 +482,7 @@ Note that the above are standard
 .Tn ANSI
 colors.
 The actual display may differ
-depending on the color capabilities of your terminal.
+depending on the color capabilities of the terminal in use.
 .Pp
 The order of the attributes are as follows:
 .Pp
