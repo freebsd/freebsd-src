@@ -61,20 +61,18 @@ To support ATAPI tape drives:
 .Cd device atapist
 .Pp
 The following tunables are setable from the loader:
-.Cd hw.ata.ata_dma
+.Bl -ohang
+.It Va hw.ata.ata_dma
 set to 1 for DMA access 0 for PIO (default is DMA).
-.Pp
-.Cd hw.ata.atapi_dma
+.It Va hw.ata.atapi_dma
 set to 1 for DMA access 0 for PIO (default is PIO).
-.Pp
-.Cd hw.ata.wc
+.It Va hw.ata.wc
 set to 1 to enable Write Caching (default is disabled)
 (WARNING might cause data loss on power failures)
-.Pp
-.Cd hw.ata.tags
+.It Va hw.ata.tags
 set to 1 to enable Tagged Queuing support (default is disabled)
 (only IBM DPTA and DTLA drives support that)
-.Pp
+.El
 .Sh DESCRIPTION
 This driver provides access to disk drives, ATAPI CD-ROM and DVD drives,
 ZIP drives and tape streamers connected to controllers
@@ -137,19 +135,20 @@ All unknown chipsets can be supported at the maximum speed of 16 MB/sec.
 The
 .Nm
 driver also allows for changes to the transfer mode of the devices
-at a later time when the system is up and running, see atacontrol(8).
+at a later time when the system is up and running, see
+.Xr atacontrol 8 .
 .Pp
 The driver attempts to set the maximum performance transfer mode on your disk
 drives by selecting the highest possible DMA mode.
 ATAPI devices are left in PIO mode because DMA problems are common despite the
 device specifications.
-You can always try to set DMA mode on an ATAPI device using atacontrol(8),
+You can always try to set DMA mode on an ATAPI device using
+.Xr atacontrol 8 ,
 but be aware that your hardware might
 .Em not
 support it and can
 .Em hang
 the system.
-.Pp
 .Sh FILES
 .Bl -tag -width "/sys/i386/conf/GENERIC " -compact
 .It Pa /dev/ad*
@@ -193,6 +192,8 @@ the same ATA channel is not recommended,
 unless they are run at the non-UDMA4 device's lower speed.
 The driver has been designed to handle that kind of setup but lots of
 older devices do not like this.
+.Sh SEE ALSO
+.Xr atacontrol 8
 .Sh HISTORY
 The
 .Nm
