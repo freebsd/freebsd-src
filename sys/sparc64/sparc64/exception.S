@@ -55,6 +55,7 @@
  * $FreeBSD$
  */
 
+#include "opt_compat.h"
 #include "opt_ddb.h"
 
 #include <machine/asi.h>
@@ -1878,7 +1879,7 @@ tl0_fill_1_n:
 	tl0_fill_1_n					! 0xc4
 	tl0_fill_bad	14				! 0xc8-0xff
 tl0_soft:
-	tl0_reserved	1				! 0x100
+	tl0_gen		T_SYSCALL			! 0x100
 	tl0_gen		T_BREAKPOINT			! 0x101
 	tl0_gen		T_DIVISION_BY_ZERO		! 0x102
 	tl0_reserved	1				! 0x103
@@ -1886,8 +1887,12 @@ tl0_soft:
 	tl0_gen		T_RANGE_CHECK			! 0x105
 	tl0_gen		T_FIX_ALIGNMENT			! 0x106
 	tl0_gen		T_INTEGER_OVERFLOW		! 0x107
-	tl0_reserved	1				! 0x108
+	tl0_gen		T_SYSCALL			! 0x108
+#ifdef COMPAT_FREEBSD4
 	tl0_syscall					! 0x109
+#else
+	tl0_gen		T_SYSCALL			! 0x109
+#endif
 	tl0_fp_restore					! 0x10a
 	tl0_reserved	5				! 0x10b-0x10f
 	tl0_gen		T_TRAP_INSTRUCTION_16		! 0x110
@@ -1906,7 +1911,12 @@ tl0_soft:
 	tl0_gen		T_TRAP_INSTRUCTION_29		! 0x11d
 	tl0_gen		T_TRAP_INSTRUCTION_30		! 0x11e
 	tl0_gen		T_TRAP_INSTRUCTION_31		! 0x11f
-	tl0_reserved	224				! 0x120-0x1ff
+	tl0_reserved	32				! 0x120-0x13f
+	tl0_gen		T_SYSCALL			! 0x140
+	tl0_syscall					! 0x141
+	tl0_gen		T_SYSCALL			! 0x142
+	tl0_gen		T_SYSCALL			! 0x143
+	tl0_reserved	188				! 0x144-0x1ff
 
 tl1_base:
 	tl1_reserved	8				! 0x200-0x207
