@@ -1,7 +1,7 @@
 /*
  * random_machdep.c -- A strong random number generator
  *
- * $Id: random_machdep.c,v 1.4 1995/12/29 08:04:32 markm Exp $
+ * $Id: random_machdep.c,v 1.5 1996/04/07 17:38:39 bde Exp $
  *
  * Version 0.95, last modified 18-Oct-95
  * 
@@ -181,11 +181,7 @@ add_timer_randomness(struct random_bucket *r, struct timer_rand_state *state,
 
 #if defined(I586_CPU) || defined(I686_CPU)
 	if (i586_ctr_rate != 0) {
-		u_long low, high;
-
-		/* RDTSC. */
-		__asm __volatile(".byte 0x0f,0x31" :"=a" (low), "=d" (high));
-		num ^= low << 16;
+		num ^= (u_int32_t) rdtsc() << 16;
 		r->entropy_count += 2;
 	} else {
 #endif
