@@ -65,7 +65,7 @@ main(int argc, char *argv[])
 	int ch;
 	char *p;
 
-	physical = 0;
+	physical = 1;
 	while ((ch = getopt(argc, argv, "LP")) != -1)
 		switch (ch) {
 		case 'L':
