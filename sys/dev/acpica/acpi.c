@@ -185,8 +185,10 @@ acpi_modevent(struct module *mod, int event, void *junk)
 {
     switch(event) {
     case MOD_LOAD:
-	if (!cold)
+	if (!cold) {
+	    printf("The ACPI driver cannot be loaded after boot.\n");
 	    return(EPERM);
+	}
 	break;
     case MOD_UNLOAD:
 	if (!cold && power_pm_get_type() == POWER_PM_TYPE_ACPI)
@@ -212,10 +214,8 @@ acpi_identify(driver_t *driver, device_t parent)
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
-    if(!cold){
-	    printf("Don't load this driver from userland!!\n");
-	    return ;
-    }
+    if (!cold)
+	return_VOID;
 
     /*
      * Check that we haven't been disabled with a hint.
@@ -2043,6 +2043,9 @@ acpi_set_debugging(void *junk)
 {
     char	*cp;
 
+    if (!cold)
+	return;
+
     AcpiDbgLayer = 0;
     AcpiDbgLevel = 0;
     if ((cp = getenv("debug.acpi.layer")) != NULL) {
@@ -2110,13 +2113,16 @@ out:
 static void
 acpi_pm_register(void *arg)
 {
-	int	error;
+    int	error;
+
+    if (!cold)
+	return;
 
     if (!resource_int_value("acpi", 0, "disabled", &error) &&
        (error != 0))
 		return;
 
-	power_pm_register(POWER_PM_TYPE_ACPI, acpi_pm_func, NULL);
+    power_pm_register(POWER_PM_TYPE_ACPI, acpi_pm_func, NULL);
 }
 
 SYSINIT(power, SI_SUB_KLD, SI_ORDER_ANY, acpi_pm_register, 0);
