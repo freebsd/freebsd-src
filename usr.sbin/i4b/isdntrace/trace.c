@@ -35,7 +35,7 @@
  *	trace.c - print traces of D (B) channel activity for isdn4bsd
  *	-------------------------------------------------------------
  *
- *	$Id: trace.c,v 1.11 1999/02/14 09:44:58 hm Exp $ 
+ *	$Id: trace.c,v 1.3 1999/05/20 10:14:35 hm Exp $ 
  *
  *      last edit-date: [Sun Feb 14 10:23:28 1999]
  *
@@ -146,7 +146,7 @@ main(int argc, char *argv[])
 
 	b = &buf[sizeof(i4b_trace_hdr_t)];
 	
-	while( (c = getopt(argc, argv, "abdf:hiln:op:ru:BFPR:T:?")) != EOF)
+	while( (c = getopt(argc, argv, "abdf:hiln:op:ru:BFPR:T:?")) != -1)
 	{
 		switch(c)
 		{
