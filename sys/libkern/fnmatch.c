@@ -43,9 +43,11 @@ static char sccsid[] = "@(#)fnmatch.c	8.2 (Berkeley) 4/16/94";
  * Compares a filename or pathname to a pattern.
  */
 
+#include <ctype.h>
 #include <fnmatch.h>
 #include <locale.h>
 #include <string.h>
+#include <stdio.h>
 
 #define	EOS	'\0'
 
@@ -126,8 +128,14 @@ fnmatch(pattern, string, flags)
 			}
 			/* FALLTHROUGH */
 		default:
-			if (c != *string++)
+			if (c == *string)
+				;
+			else if ((flags & FNM_ICASE) && 
+				 (tolower(c) == tolower(*string)))
+				;
+			else
 				return (FNM_NOMATCH);
+			string++;
 			break;
 		}
 	/* NOTREACHED */
@@ -151,11 +159,18 @@ rangematch(pattern, test, flags)
 	if ( (negate = (*pattern == '!' || *pattern == '^')) )
 		++pattern;
 
+	if (flags & FNM_ICASE) 
+		test = tolower(test);
+
 	for (ok = 0; (c = *pattern++) != ']';) {
 		if (c == '\\' && !(flags & FNM_NOESCAPE))
 			c = *pattern++;
 		if (c == EOS)
 			return (NULL);
+
+		if (flags & FNM_ICASE)
+			c = tolower(c);
+
 		if (*pattern == '-'
 		    && (c2 = *(pattern+1)) != EOS && c2 != ']') {
 			pattern += 2;
@@ -163,6 +178,10 @@ rangematch(pattern, test, flags)
 				c2 = *pattern++;
 			if (c2 == EOS)
 				return (NULL);
+
+			if (flags & FNM_ICASE)
+				c2 = tolower(c2);
+
 			if (   collate_range_cmp(c, test) <= 0
 			    && collate_range_cmp(test, c2) <= 0
 			   )
