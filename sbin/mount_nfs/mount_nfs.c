@@ -45,7 +45,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)mount_nfs.c	8.11 (Berkeley) 5/4/95";
 */
 static const char rcsid[] =
-	"$Id: mount_nfs.c,v 1.18 1997/03/29 03:32:39 imp Exp $";
+	"$Id: mount_nfs.c,v 1.19 1997/04/01 17:20:17 guido Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -192,6 +192,45 @@ void	usage __P((void)) __dead2;
 int	xdr_dir __P((XDR *, char *));
 int	xdr_fh __P((XDR *, struct nfhret *));
 
+/*
+ * Used to set mount flags with getmntopts.  Call with dir=TRUE to
+ * initialise altflags from the current mount flags.  Call with
+ * dir=FALSE to update mount flags with the new value of altflags after
+ * the call to getmntopts.
+ */
+static void
+setflags(int* altflags, int* nfsflags, int dir)
+{
+#define F2(af, nf)					\
+	if (dir) {					\
+		if (*nfsflags & NFSMNT_##nf)		\
+			*altflags |= ALTF_##af;		\
+		else					\
+			*altflags &= ~ALTF_##af;	\
+	} else {					\
+		if (*altflags & ALTF_##af)		\
+			*nfsflags |= NFSMNT_##nf;	\
+		else					\
+			*nfsflags &= ~NFSMNT_##nf;	\
+	}
+#define F(f)	F2(f,f)
+
+	F(NOCONN);
+	F(DUMBTIMR);
+	F2(INTR, INT);
+#ifdef NFSKERB
+	F(KERB);
+#endif
+	F(NFSV3);
+	F(RDIRPLUS);
+	F(RESVPORT);
+	F(NQNFS);
+	F(SOFT);
+
+#undef F
+#undef F2
+}
+
 int
 main(argc, argv)
 	int argc;
@@ -293,42 +332,28 @@ main(argc, argv)
 			break;
 #endif
 		case 'o':
+			altflags = 0;
+			setflags(&altflags, &nfsargsp->flags, TRUE);
 			getmntopts(optarg, mopts, &mntflags, &altflags);
+			setflags(&altflags, &nfsargsp->flags, FALSE);
+			/*
+			 * Handle altflags which don't map directly to
+			 * mount flags.
+			 */
 			if(altflags & ALTF_BG)
 				opflags |= BGRND;
-			if(altflags & ALTF_NOCONN)
-				nfsargsp->flags |= NFSMNT_NOCONN;
-			if(altflags & ALTF_DUMBTIMR)
-				nfsargsp->flags |= NFSMNT_DUMBTIMR;
-			if(altflags & ALTF_INTR)
-				nfsargsp->flags |= NFSMNT_INT;
-#ifdef NFSKERB
-			if(altflags & ALTF_KERB)
-				nfsargsp->flags |= NFSMNT_KERB;
-#endif
-			if(altflags & ALTF_NFSV3)
-				nfsargsp->flags |= NFSMNT_NFSV3;
-			if(altflags & ALTF_RDIRPLUS)
-				nfsargsp->flags |= NFSMNT_RDIRPLUS;
 			if(altflags & ALTF_MNTUDP)
 				mnttcp_ok = 0;
-			if(altflags & ALTF_RESVPORT)
-				nfsargsp->flags |= NFSMNT_RESVPORT;
 #ifdef ISO
 			if(altflags & ALTF_SEQPACKET)
 				nfsargsp->sotype = SOCK_SEQPACKET;
 #endif
-			if(altflags & ALTF_NQNFS)
-				nfsargsp->flags |= (NFSMNT_NQNFS|NFSMNT_NFSV3);
-			if(altflags & ALTF_SOFT)
-				nfsargsp->flags |= NFSMNT_SOFT;
 			if(altflags & ALTF_TCP) {
 				nfsargsp->sotype = SOCK_STREAM;
 				nfsproto = IPPROTO_TCP;
 			}
 			if(altflags & ALTF_PORT)
 				port_no = atoi(strstr(optarg, "port=") + 5);
-			altflags = 0;
 			break;
 		case 'P':
 			nfsargsp->flags |= NFSMNT_RESVPORT;
