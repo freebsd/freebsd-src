@@ -1,7 +1,7 @@
 /* opiesu.c: main body of code for the su(1m) program
 
-%%% portions-copyright-cmetz
-Portions of this software are Copyright 1996 by Craig Metz, All Rights
+%%% portions-copyright-cmetz-96
+Portions of this software are Copyright 1996-1997 by Craig Metz, All Rights
 Reserved. The Inner Net License Version 2 applies to these portions of
 the software.
 You should have received a copy of the license with this software. If
@@ -14,6 +14,8 @@ License Agreement applies to this software.
 
 	History:
 
+	Modified by cmetz for OPIE 2.31. Fix sulog(). Replaced Getlogin() with
+		currentuser. Fixed fencepost error in month printed by sulog().
 	Modified by cmetz for OPIE 2.3. Limit the length of TERM on full login.
 		Use HAVE_SULOG instead of DOSULOG.
         Modified by cmetz for OPIE 2.2. Don't try to clear non-blocking I/O.
@@ -103,7 +105,13 @@ static char *cleanenv[] = {userbuf, homebuf, shellbuf, pathbuf, 0, 0};
 static char *user = "root";
 static char *shell = "/bin/sh";
 static int fulllogin;
+#if 0
 static int fastlogin;
+#else /* 0 */
+static int force = 0;
+#endif /* 0 */
+
+static char currentuser[65];
 
 extern char **environ;
 static struct passwd thisuser, nouser;
@@ -209,7 +217,7 @@ static int sulog FUNCTION((status, who), int status AND char *who)
   if (who)
     from = who;
   else
-    from = Getlogin();
+    from = currentuser;
 
   if (!strncmp(ttynam = ttyname(2), "/dev/", 5))
     ttynam += 5;
@@ -223,31 +231,56 @@ static int sulog FUNCTION((status, who), int status AND char *who)
   }
 
   fprintf(f, "SU %02d/%02d %02d:%02d %c %s %s-%s\n",
-	  tm->tm_mon, tm->tm_mday, tm->tm_hour, tm->tm_min,
-	  result ? '+' : '-', ttynam, from, user);
+	  tm->tm_mon + 1, tm->tm_mday, tm->tm_hour, tm->tm_min,
+	  status ? '+' : '-', ttynam, from, user);
   fclose(f);
 }
 #endif /* HAVE_SULOG */
 
 int main FUNCTION((argc, argv),	int argc AND char *argv[])
 {
-  char buf[1000], *p;
+  char *p;
   struct opie opie;
   int i;
   char pbuf[256];
   char opieprompt[80];
   int console = 0;
-
-#define Getlogin()  (((p = getlogin()) && *p) ? p : buf)
+  char *argvbuf;
 
   for (i = sysconf(_SC_OPEN_MAX); i > 2; i--)
     close(i);
 
-  strcat(pathbuf, DEFAULT_PATH);
+  openlog("su", LOG_ODELAY, LOG_AUTH);
+  atexit(catchexit);
+
+  {
+  int argvsize = 0;
+  for (i = 0; i < argc; argvsize += strlen(argv[i++]));
+  argvsize += argc;
+  if (!(argvbuf = malloc(argvsize))) {
+    syslog(LOG_ERR, "can't allocate memory to store command line");
+    exit(1);
+  };
+  for (i = 0, *argvbuf = 0; i < argc;) {
+    strcat(argvbuf, argv[i]);
+    if (++i < argc)
+      strcat(argvbuf, " ");
+  };
+  };
+
+  strcpy(pathbuf, DEFAULT_PATH);
 
 again:
   if (argc > 1 && strcmp(argv[1], "-f") == 0) {
+#if 0
     fastlogin++;
+#else /* 0 */
+#if INSECURE_OVERRIDE
+    force = 1;
+#else /* INSECURE_OVERRIDE */
+    fprintf(stderr, "Sorry, but the -f option is not supported by this build of OPIE.\n");
+#endif /* INSECURE_OVERRIDE */
+#endif /* 0 */
     argc--, argv++;
     goto again;
   }
@@ -268,24 +301,35 @@ again:
     argv++;
   }
 
-  openlog("su", LOG_ODELAY, LOG_AUTH);
-  atexit(catchexit);
-
   {
   struct passwd *pwd;
+  char *p = getlogin();
+  char buf[32];
 
   if ((pwd = getpwuid(getuid())) == NULL) {
-    syslog(LOG_CRIT, "'%s' failed for unknown uid %d on %s", argv[0], getuid(), ttyname(2));
+    syslog(LOG_CRIT, "'%s' failed for unknown uid %d on %s", argvbuf, getuid(), ttyname(2));
 #if HAVE_SULOG
     sulog(0, "unknown");
 #endif /* HAVE_SULOG */
     exit(1);
   }
-  strcpy(buf, pwd->pw_name);
-  }
+  strncpy(buf, pwd->pw_name, sizeof(buf)-1);
+  buf[sizeof(buf)-1] = 0;
+
+  if (!p)
+    p = "unknown";
+
+  strncpy(currentuser, p, 31);
+  currentuser[31] = 0;
+
+  if (p && *p && strcmp(currentuser, buf)) {
+    strcat(currentuser, "(");
+    strcat(currentuser, buf);
+    strcat(currentuser, ")");
+  };
 
   if (lookupuser(user)) {
-    syslog(LOG_CRIT, "'%s' failed for %s on %s", argv[0], Getlogin(), ttyname(2));
+    syslog(LOG_CRIT, "'%s' failed for %s on %s", argvbuf, currentuser, ttyname(2));
 #if HAVE_SULOG
     sulog(0, NULL);
 #endif /* HAVE_SULOG */
@@ -312,6 +356,7 @@ userok:
 #endif /* HAVE_SETPRIORITY && HAVE_SYS_RESOURCE_H */
   }
 #endif	/* DOWHEEL */
+  };
 
   if (!thisuser.pw_passwd[0] || getuid() == 0)
     goto ok;
@@ -327,6 +372,11 @@ userok:
     fprintf(stderr, "Then run su without the -c parameter.\n");
     if (opieinsecure()) {
       fprintf(stderr, "Sorry, but you don't seem to be on the console or a secure terminal.\n");
+#if INSECURE_OVERRIDE
+    if (force)
+      fprintf(stderr, "Warning: Continuing could disclose your secret pass phrase to an attacker!\n");
+    else
+#endif /* INSECURE_OVERRIDE */
       exit(1);
     };
 #if NEW_PROMPTS
@@ -379,16 +429,17 @@ userok:
     };
   };
 error:
-  opieverify(&opie, "");
+  if (!console)
+    opieverify(&opie, "");
   fprintf(stderr, "Sorry\n");
-  syslog(LOG_CRIT, "'%s' failed for %s on %s", argv[0], Getlogin(), ttyname(2));
+  syslog(LOG_CRIT, "'%s' failed for %s on %s", argvbuf, currentuser, ttyname(2));
 #if HAVE_SULOG
   sulog(0, NULL);
 #endif /* HAVE_SULOG */
   exit(2);
 
 ok:
-  syslog(LOG_NOTICE, "'%s' by %s on %s", argv[0], Getlogin(), ttyname(2));
+  syslog(LOG_NOTICE, "'%s' by %s on %s", argvbuf, currentuser, ttyname(2));
 #if HAVE_SULOG
   sulog(1, NULL);
 #endif /* HAVE_SULOG */
@@ -423,10 +474,12 @@ ok:
   setpriority(PRIO_PROCESS, 0, 0);
 #endif /* HAVE_SETPRIORITY && HAVE_SYS_RESOURCE_H */
 
+#if 0
   if (fastlogin) {
     *argv-- = "-f";
     *argv = "su";
   } else
+#endif /* 0 */
     if (fulllogin) {
       if (chdir(thisuser.pw_dir) < 0) {
 	fprintf(stderr, "No directory\n");

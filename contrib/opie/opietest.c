@@ -8,14 +8,17 @@
         It's safe to say that, if tests fail, OPIE isn't going to work right
 on your system. The converse is not such a safe statement.
 
-%%% copyright-cmetz
-This software is Copyright 1996 by Craig Metz, All Rights Reserved.
+%%% copyright-cmetz-96
+This software is Copyright 1996-1997 by Craig Metz, All Rights Reserved.
 The Inner Net License Version 2 applies to this software.
 You should have received a copy of the license with this software. If
 you didn't get a copy, you may request one from <license@inner.net>.
 
         History:
 
+	Modified by cmetz for OPIE 2.31. Added a couple of new checks,
+		removed a few commented-out checks for functions that
+		no longer exist, added test-skip capability.
 	Modified by cmetz for OPIE 2.3. Use new calling conventions for
 		opiebtoa8()/atob8(). opiegenerator() outputs hex now.
 	Modified by cmetz for OPIE 2.22. Test opielock()/opieunlock()
@@ -27,9 +30,6 @@ you didn't get a copy, you may request one from <license@inner.net>.
 #include "opie.h"
 
 char buffer[1024];
-int tests_passed = 0;
-int tests_failed = 0;
-int ntests = 0, testn = 0;
 
 int testatob8()
 {
@@ -140,6 +140,13 @@ int testhashmd5()
   return 0;
 }
 
+int testinsecure()
+{
+  opieinsecure();
+
+  return 0;
+}
+
 int testkeycrunch()
 {
   static char testin1[] = "ke1234";
@@ -158,6 +165,9 @@ int testkeycrunch()
 int testlock()
 {
   int i;
+
+  if (getuid())
+    return -2;
 
   for (i = 0; i < 3; i++)
     if (opielock("__opietest"))
@@ -180,9 +190,24 @@ int testpasscheck()
   return 0;
 }
 
+int testrandomchallenge()
+{
+  char buffer[OPIE_CHALLENGE_MAX+1];
+
+  opierandomchallenge(buffer);
+
+  if (strncmp(buffer, "otp-", 4))
+    return -1;
+
+  return 0;
+}
+
 int testunlock()
 {
   int i;
+
+  if (getuid())
+    return -2;
 
   for (i = 0; i < 3; i++)
     if (opieunlock())
@@ -204,27 +229,33 @@ static struct opietest opietests[] = {
   { testbtoa8, "btoa8" },
   { testbtoe, "btoe" },
   { testetob, "etob" },
-/* { testchallenge, "challenge" }, */
+/*  { testchallenge, "challenge" }, */
   { testgenerator, "generator" },
   { testgetsequence, "getsequence" },
-/* { testgetutmpentry, "getutmpentry" }, */
   { testhashmd4, "hash(MD4)" },
   { testhashmd5, "hash(MD5)" },
-/* { testinsecure, "insecure" }, */
+  { testinsecure, "insecure" },
   { testkeycrunch, "keycrunch" },
   { testlock, "lock" },
-/* { testpututmpentry, "pututmpentry" }, */
-/* { testrandomchallenge, "randomchallenge" }, */
+  { testrandomchallenge, "randomchallenge" },
 /* { testreadpass, "readpass" }, */
   { testunlock, "unlock" },
-/* { testverify, "verify" }, */
-/*  { testversion, "version" }, */
+/*  { testverify, "verify" }, */
   { NULL, NULL }
 };
 
 int main FUNCTION((argc, argv), int argc AND char *argv[])
 {
   struct opietest *opietest;
+  int tests_passed = 0;
+  int tests_failed = 0;
+  int tests_skipped = 0;
+  int ntests = 0, testn = 0;
+
+  if (getuid() != geteuid()) {
+    fprintf(stderr, "opietest: do not make this program setuid!\n");
+    exit(1);
+  };
 
   for (opietest = opietests; opietest->n; opietest++)
     ntests++;
@@ -233,17 +264,25 @@ int main FUNCTION((argc, argv), int argc AND char *argv[])
 
   for (opietest = opietests, testn = 1; opietest->n; opietest++) {
     printf("(%2d/%2d) testing opie%s... ", testn++, ntests, opietest->n);
-    if (opietest->f()) {
-      printf("FAILED!\n");
-      tests_failed++;
-    } else {
-      printf("passed\n");
-      tests_passed++;
-      opietest->f = NULL;
+    switch(opietest->f()) {
+      case -2:
+        printf("skipped\n");
+        tests_skipped++;
+        opietest->f = NULL;
+        break;
+      case -1:
+        printf("FAILED!\n");
+        tests_failed++;
+        break;
+      case 0:
+        printf("passed\n");
+        tests_passed++;
+        opietest->f = NULL;
+        break;
     }
   }
 
-  printf("opietest: completed %d tests. %d tests passed, %d tests failed.\n", ntests, tests_passed, tests_failed);
+  printf("opietest: completed %d tests. %d tests passed, %d tests skipped, %d tests failed.\n", ntests, tests_passed, tests_skipped, tests_failed);
   if (tests_failed) {
     printf("opietest: please correct the following failures before attempting to use OPIE:\n");
     for (opietest = opietests; opietest->n; opietest++)

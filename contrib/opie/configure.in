@@ -1,7 +1,7 @@
 dnl configure.in: Input for Autoconf
 dnl
-dnl %%% portions-copyright-cmetz
-dnl Portions of this software are Copyright 1996 by Craig Metz, All Rights
+dnl %%% portions-copyright-cmetz-96
+dnl Portions of this software are Copyright 1996-1997 by Craig Metz, All Rights
 dnl Reserved. The Inner Net License Version 2 applies to these portions of
 dnl the software.
 dnl You should have received a copy of the license with this software. If
@@ -14,6 +14,14 @@ dnl License Agreement applies to this software.
 dnl
 dnl	History:
 dnl
+dnl	Modified by cmetz for OPIE 2.31. Put back manual utmp[x]/wtmp[x]
+dnl          checks -- too many OSs can't be trusted to tell us where they are.
+dnl	     Check for sys/select.h. Spell endutent right. Replace strtoul()
+dnl	     if needed. Removed duplicate check for sysconf. Added check for
+dnl          SunOS C2 shadow passwords (may need more work). Replace
+dnl          setutent. Added options to disable use of utmp/wtmp. Replace
+dnl          seteuid and setegid. Check for usleep. Moved options.h options
+dnl          here as enable/disable options.
 dnl     Modified by cmetz for OPIE 2.3. Removed redundant memset/memcpy.
 dnl	     Changed ls -g test around. Changed logindevperm/fbtab defines.
 dnl	     Added check for /etc/environment and /etc/src.sh. Check for
@@ -34,8 +42,37 @@ dnl	Created at NRL for OPIE 2.1.
 
 AC_INIT(README)
 AC_CONFIG_HEADER(config.h)
-AC_ARG_ENABLE(access-file, [  --enable-access-file=PATH  Use the OPIE access file PATH as a transition aid], AC_DEFINE_UNQUOTED(PATH_ACCESS_FILE, "$enable_access_file") echo "Using the access file in $enable_access_file -- don't say we didn't warn you!")
+AC_ARG_ENABLE(access-file, [  --enable-access-file=FILENAME
+                          Enable the OPIE access file FILENAME], AC_DEFINE_UNQUOTED(PATH_ACCESS_FILE, "$enable_access_file") echo "Using the access file in $enable_access_file -- don't say we didn't warn you!")
+ACCESS_FILE="$enable_access_file"
+AC_SUBST(ACCESS_FILE)
+AC_ARG_ENABLE(server-md4, [  --enable-server-md4     Use MD4 instead of MD5 for the server], AC_DEFINE(MDX, 4), AC_DEFINE(MDX, 5))
+
+set do_user_locking=1;
+AC_ARG_ENABLE(user-locking, [  --disable-user-locking  Disable user locking
+  --enable-user-locking[=DIR]
+                          Put user lock files in DIR [/etc/opielocks]],, set do_user_locking=0)
+if $do_user_locking;
+then
+  AC_DEFINE(USER_LOCKING)
+  if test -z "$enable_user_locking"
+  then
+    AC_DEFINE(OPIE_LOCK_DIR, "/etc/opielocks")
+  else
+    AC_DEFINE_UNQUOTED(OPIE_LOCK_DIR, "$enable_user_locking")
+  fi
+fi
+LOCK_DIR="$enable_user_locking"
+AC_SUBST(LOCK_DIR)
+
+AC_ARG_ENABLE(retype, [  --enable-retype         Ask users to re-type their secret pass phrases], AC_DEFINE(RETYPE))
+AC_ARG_ENABLE(su-star-check, [  --enable-su-star-check  Refuse to switch to disabled accounts], AC_DEFINE(SU_STAR_CHECK))
+AC_ARG_ENABLE(new-prompts, [  --disable-new-prompts   Use more compatible (but less informative) prompts],, AC_DEFINE(NEW_PROMPTS))
+AC_ARG_ENABLE(insecure-override, [  --enable-insecure-override
+                          Allow users to override insecure checks], AC_DEFINE(INSECURE_OVERRIDE))
 AC_ARG_ENABLE(anonymous-ftp, [  --enable-anonymous-ftp  Enable anonymous FTP support], AC_DEFINE(DOANONYMOUS) echo "Enabling anonymous FTP support in ftp -- don't say we didn't warn you!")
+AC_ARG_ENABLE(utmp, [  --disable-utmp          Disable utmp logging], AC_DEFINE(DISABLE_UTMP) echo "Disabling utmp logging")
+AC_ARG_ENABLE(wtmp, [  --disable-wtmp          Disable wtmp logging], AC_DEFINE(DISABLE_UTMP) echo "Disabling wtmp logging")
 
 dnl Checks for programs.
 AC_PROG_CC
@@ -47,8 +84,6 @@ AC_PROG_YACC
 AC_AIX
 AC_ISC_POSIX
 AC_MINIX
-
-AC_C_CROSS
 
 dnl We'd put PATH in these checks, but it turns out that autoconf doesn't
 dnl work as documented when it comes to the colon separator...
@@ -233,7 +268,17 @@ then
 	result=yes
 	AC_DEFINE(HAVE_ETC_SHADOW)
 else
-	result=no
+	AC_MSG_RESULT(no)
+
+	AC_MSG_CHECKING(for /etc/security/passwd.adjunct)
+	if test $EXISTS /etc/security/passwd.adjunct
+	then
+		result=yes
+		AC_DEFINE(HAVE_SUNOS_C2_SHADOW)
+		LIBOBJS="$LIBOBJS getspnam.o endspent.o"
+	else
+		result=no
+	fi
 fi
 AC_MSG_RESULT($result)
 
@@ -265,41 +310,75 @@ else
 fi
 AC_MSG_RESULT($result)
 
-dnl AC_MSG_CHECKING(where your system puts the utmp file)
-dnl utmp_path=""
-dnl for i in /var/run /var/adm /usr/adm /etc
-dnl do
-dnl	if test $EXISTS $i/utmp
-dnl	then
-dnl		utmp_path="$i"
-dnl	fi
-dnl done
-dnl if test -z "$utmp_path"
-dnl then
-dnl	result="not found"
-dnl else
-dnl	result="$utmp_path"
-dnl	AC_DEFINE_UNQUOTED(PATH_UTMP_AC, "$utmp_path/utmp")
-dnl fi
-dnl AC_MSG_RESULT($result)
+AC_MSG_CHECKING(where your system puts the utmp file)
+utmp_path=""
+for i in /var/run /var/adm /usr/adm /etc
+do
+	if test $EXISTS $i/utmp
+	then
+		utmp_path="$i"
+	fi
+done
+if test -z "$utmp_path"
+then
+	result="not found"
+else
+	result="$utmp_path"
+	AC_DEFINE_UNQUOTED(PATH_UTMP_AC, "$utmp_path/utmp")
+fi
+AC_MSG_RESULT($result)
 
-dnl AC_MSG_CHECKING(where your system puts the wtmp file)
-dnl wtmp_path=""
-dnl for i in /var/run /var/adm /usr/adm /etc
-dnl do
-dnl	if test $EXISTS $i/wtmp
-dnl	then
-dnl		wtmp_path="$i"
-dnl	fi
-dnl done
-dnl if test -z "$wtmp_path"
-dnl then
-dnl	result="not found"
-dnl else
-dnl	result="$wtmp_path"
-dnl	AC_DEFINE_UNQUOTED(PATH_WTMP_AC, "$wtmp_path/wtmp")
-dnl fi
-dnl AC_MSG_RESULT($result)
+AC_MSG_CHECKING(where your system puts the utmpx file)
+utmp_path=""
+for i in /var/run /var/adm /usr/adm /etc
+do
+	if test $EXISTS $i/utmp
+	then
+		utmp_path="$i"
+	fi
+done
+if test -z "$utmp_path"
+then
+	result="not found"
+	AC_DEFINE_UNQUOTED(PATH_UTMP_AC, "$utmp_path/utmpx")
+fi
+AC_MSG_RESULT($result)
+
+AC_MSG_CHECKING(where your system puts the wtmp file)
+wtmp_path=""
+for i in /var/run /var/log /var/adm /usr/adm /etc
+do
+	if test $EXISTS $i/wtmp
+	then
+		wtmp_path="$i"
+	fi
+done
+if test -z "$wtmp_path"
+then
+	result="not found"
+else
+	result="$wtmp_path"
+	AC_DEFINE_UNQUOTED(PATH_WTMP_AC, "$wtmp_path/wtmp")
+fi
+AC_MSG_RESULT($result)
+
+AC_MSG_CHECKING(where your system puts the wtmpx file)
+wtmpx_path=""
+for i in /var/run /var/log /var/adm /usr/adm /etc
+do
+	if test $EXISTS $i/wtmpx
+	then
+		wtmpx_path="$i"
+	fi
+done
+if test -z "$wtmpx_path"
+then
+	result="not found"
+else
+	result="$wtmpx_path"
+	AC_DEFINE_UNQUOTED(PATH_WTMPX_AC, "$wtmpx_path/wtmpx")
+fi
+AC_MSG_RESULT($result)
 
 AC_MSG_CHECKING(whether the system profile displays the motd)
 result=no
@@ -379,7 +458,7 @@ AC_CHECK_LIB(socket, socket)
 dnl Checks for header files.
 AC_HEADER_DIRENT
 AC_HEADER_SYS_WAIT
-AC_CHECK_HEADERS(crypt.h fcntl.h limits.h termios.h sys/file.h sys/ioctl.h sys/time.h syslog.h unistd.h paths.h shadow.h signal.h sys/signal.h lastlog.h sys/utsname.h pwd.h sys/param.h string.h stdlib.h utmpx.h)
+AC_CHECK_HEADERS(crypt.h fcntl.h limits.h termios.h sys/file.h sys/ioctl.h sys/time.h syslog.h unistd.h paths.h shadow.h signal.h sys/signal.h lastlog.h sys/utsname.h pwd.h sys/param.h string.h stdlib.h utmpx.h sys/select.h)
 
 dnl Checks for typedefs, structures, and compiler characteristics.
 dnl AC_TYPE_UID_T
@@ -405,25 +484,29 @@ AC_DEFINE(HAVE_UT_HOST)
 dnl Checks for library functions.
 dnl AC_PROG_GCC_TRADITIONAL
 AC_TYPE_SIGNAL
-AC_CHECK_FUNCS(gettimeofday socket strftime strstr setpriority seteuid setreuid setegid setregid setresuid setresgid getttynam sysconf setvbuf getspent endspent setgroups getgroups fpurge setlogin lstat getutxline pututxline)
+AC_CHECK_FUNCS(gettimeofday socket strftime strstr setpriority getttynam setvbuf getspnam endspent setgroups getgroups fpurge setlogin lstat getutxline pututxline usleep)
 
 dnl Libmissing...
 AC_FUNC_MEMCMP
 AC_FUNC_ALLOCA
 AC_REPLACE_FUNCS(getusershell sigaddset sigemptyset strerror strncasecmp)
-MISSING="$LIBOBJS $ALLOCA "
-AC_CHECK_FUNC(atexit,, MISSING="${MISSING}atexit.o ")
-AC_CHECK_FUNC(entutent,, MISSING="${MISSING}endutent.o ")
+MISSING="$LIBOBJS $ALLOCA " ;
+AC_CHECK_FUNC(atexit,, MISSING="${MISSING}atexit.o "; AC_CHECK_FUNCS(on_exit))
+AC_CHECK_FUNC(endutent,, MISSING="${MISSING}endutent.o ")
 AC_CHECK_FUNC(memcpy,, MISSING="${MISSING}memcpy.o "; AC_CHECK_FUNCS(bcopy))
 AC_CHECK_FUNC(memset,, MISSING="${MISSING}memset.o "; AC_CHECK_FUNCS(bzero))
 AC_CHECK_FUNC(getcwd,, MISSING="${MISSING}getcwd.o "; AC_CHECK_FUNCS(getwd))
 AC_CHECK_FUNC(getenv, AC_DEFINE(HAVE_GETENV), MISSING="${MISSING}env.o ")
-AC_CHECK_FUNC(getutline,, MISSING="${MISSING}getutline.o "; AC_CHECK_FUNCS(ttyslot))
+AC_CHECK_FUNC(getutline, AC_DEFINE(HAVE_GETUTLINE), MISSING="${MISSING}getutline.o "; AC_CHECK_FUNCS(ttyslot))
 AC_CHECK_FUNC(pututline,, MISSING="${MISSING}pututline.o "; AC_CHECK_FUNCS(ttyslot))
 AC_CHECK_FUNC(setenv, AC_DEFINE(HAVE_SETENV), MISSING="${MISSING}env.o ")
+AC_CHECK_FUNC(setegid,, MISSING="${MISSING}setegid.o "; AC_CHECK_FUNCS(setregid setresgid))
+AC_CHECK_FUNC(seteuid,, MISSING="${MISSING}seteuid.o "; AC_CHECK_FUNCS(setreuid setresuid))
+AC_CHECK_FUNC(setutent,, MISSING="${MISSING}setutent.o ")
 AC_CHECK_FUNC(sigprocmask,, MISSING="${MISSING}sigprocmask.o "; AC_CHECK_FUNCS(sigblock sigsetmask))
 AC_CHECK_FUNC(strchr,, MISSING="${MISSING}strchr.o "; AC_CHECK_FUNCS(index))
 AC_CHECK_FUNC(strrchr,, MISSING="${MISSING}strrchr.o "; AC_CHECK_FUNCS(rindex))
+AC_CHECK_FUNC(strtoul,, MISSING="${MISSING}strtoul.o ")
 AC_CHECK_FUNC(sysconf,, MISSING="${MISSING}sysconf.o "; AC_CHECK_FUNCS(getdtablesize))
 AC_CHECK_FUNC(uname,, MISSING="${MISSING}uname.o "; AC_CHECK_FUNCS(gethostname))
 AC_CHECK_FUNC(unsetenv, AC_DEFINE(HAVE_UNSETENV), MISSING="${MISSING}env.o ")

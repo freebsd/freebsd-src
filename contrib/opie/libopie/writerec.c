@@ -1,13 +1,15 @@
 /* writerec.c: The __opiewriterec() library function.
 
-%%% copyright-cmetz
-This software is Copyright 1996 by Craig Metz, All Rights Reserved.
+%%% copyright-cmetz-96
+This software is Copyright 1996-1997 by Craig Metz, All Rights Reserved.
 The Inner Net License Version 2 applies to this software.
 You should have received a copy of the license with this software. If
 you didn't get a copy, you may request one from <license@inner.net>.
 
 	History:
 
+	Modified by cmetz for OPIE 2.31. Removed active attack protection
+		support. Fixed passwd bug.
 	Created by cmetz for OPIE 2.3 from passwd.c.
 */
 #include "opie_cfg.h"
@@ -46,23 +48,19 @@ int __opiewriterec FUNCTION((opie), struct opie *opie)
   if (!(opie->opie_flags & __OPIE_FLAGS_READ)) {
     struct opie opie2;
     i = opielookup(&opie2, opie->opie_principal);
+    opie->opie_flags = opie2.opie_flags;
+    opie->opie_recstart = opie2.opie_recstart;
   }
     
   switch(i) {
   case 0:
-    if (!(f = __opieopen(STD_KEY_FILE, 1, 0644)))
-      return -1;
-    if (!(f2 = __opieopen(EXT_KEY_FILE, 1, 0600)))
+    if (!(f = __opieopen(KEY_FILE, 1, 0644)))
       return -1;
     if (fseek(f, opie->opie_recstart, SEEK_SET))
       return -1;
-    if (fseek(f2, opie->opie_extrecstart, SEEK_SET))
-      return -1;
     break;
   case 1:
-    if (!(f = __opieopen(STD_KEY_FILE, 2, 0644)))
-      return -1;
-    if (!(f2 = __opieopen(EXT_KEY_FILE, 2, 0600)))
+    if (!(f = __opieopen(KEY_FILE, 2, 0644)))
       return -1;
     break;
   default:
@@ -73,13 +71,6 @@ int __opiewriterec FUNCTION((opie), struct opie *opie)
     return -1;
 
   fclose(f);
-
-  if (f2) {
-    if (fprintf(f2, "%-32s %-16s %-77s\n", opie->opie_principal, opie->opie_reinitkey ? opie->opie_reinitkey : __opienone, "") < 1)
-      return -1;
-    
-    fclose(f2);
-  }
 
   return 0;
 }
