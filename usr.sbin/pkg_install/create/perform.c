@@ -47,7 +47,6 @@ pkg_perform(char **pkgs)
     Package plist;
     int len;
     const char *suf;
-    enum zipper Zipper = GZIP;	/* default is to compress packages */
 
     /* Preliminary setup */
     if (InstalledPkg == NULL)
