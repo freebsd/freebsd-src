@@ -73,7 +73,8 @@ static void	twa_command_intr(struct twa_softc *sc);
 
 static int	twa_fetch_aen(struct twa_softc *sc);
 static void	twa_aen_callback(struct twa_request *tr);
-static void	twa_enqueue_aen(struct twa_softc *sc, struct twa_command_header *cmd_hdr);
+static unsigned short	twa_enqueue_aen(struct twa_softc *sc,
+				struct twa_command_header *cmd_hdr);
 static int	twa_drain_aen_queue(struct twa_softc *sc);
 static int	twa_find_aen(struct twa_softc *sc, u_int16_t aen_code);
 
@@ -125,10 +126,7 @@ twa_setup(struct twa_softc *sc)
 	for (i = 0; i < TWA_Q_LENGTH; i++)
 		sc->twa_aen_queue[i] = &(aen_queue[i]);
 
-	/*
-	 * Disable interrupts from the card.
-	 * Interrupts will be enabled back in twa_intrhook.
-	 */
+	/* Disable interrupts. */
 	twa_disable_interrupts(sc);
 
 	/* Initialize the controller. */
@@ -157,10 +155,12 @@ static int
 twa_flash_firmware(struct twa_softc *sc)
 {
 	struct twa_request			*tr;
+	struct twa_command_header		*cmd_hdr;
 	struct twa_command_download_firmware	*cmd;
 	u_int32_t				fw_img_chunk_size;
 	u_int32_t				this_chunk_size = 0;
 	u_int32_t				remaining_img_size = 0;
+	u_int8_t				*error_str;
 	int					error;
 	int					i;
 
@@ -178,13 +178,14 @@ twa_flash_firmware(struct twa_softc *sc)
 		goto out;
 	}
 	remaining_img_size = twa_fw_img_size;
+	cmd_hdr = &(tr->tr_command->cmd_hdr);
 	cmd = &(tr->tr_command->command.cmd_pkt_7k.download_fw);
 
 	for (i = 0; i < NUM_FW_IMAGE_CHUNKS; i++) {
 		/* Build a cmd pkt for downloading firmware. */
 		bzero(tr->tr_command, sizeof(struct twa_command_packet));
 
-		tr->tr_command->cmd_hdr.header_desc.size_header = 128;
+		cmd_hdr->header_desc.size_header = 128;
 	
 		cmd->opcode = TWA_OP_DOWNLOAD_FIRMWARE;
 		cmd->sgl_offset = 2;/* offset in dwords, to the beginning of sg list */
@@ -221,13 +222,18 @@ twa_flash_firmware(struct twa_softc *sc)
 		}
 		error = cmd->status;
 		if (i != (NUM_FW_IMAGE_CHUNKS - 1)) {
-			if ((error = tr->tr_command->cmd_hdr.status_block.error) != TWA_ERROR_MORE_DATA) {
+			if ((error = cmd_hdr->status_block.error) != TWA_ERROR_MORE_DATA) {
+				error_str = 
+				&(cmd_hdr->err_desc[strlen(cmd_hdr->err_desc) + 1]);
+				if (error_str[0] == '\0')
+					error_str = twa_find_msg_string(twa_error_table, error);
+
 				twa_printf(sc, "cmd = 0x%x: ERROR: (0x%02X: 0x%04X): %s: %s\n",
 					cmd->opcode,
 					TWA_MESSAGE_SOURCE_CONTROLLER_ERROR,
 					error,
-					twa_find_msg_string(twa_error_table, error),
-					tr->tr_command->cmd_hdr.err_specific_desc);
+					error_str,
+					cmd_hdr->err_desc);
 				twa_printf(sc, "Firmware flash request failed. Intermediate error = 0x%x, i = %x\n",
 							cmd->status, i);
 				/* Hard reset the controller, so that it doesn't wait for the remaining chunks. */
@@ -236,13 +242,18 @@ twa_flash_firmware(struct twa_softc *sc)
 			}
 		} else	 /* last chunk */
 			if (error) {
+				error_str =
+				&(cmd_hdr->err_desc[strlen(cmd_hdr->err_desc) + 1]);
+				if (error_str[0] == '\0')
+					error_str = twa_find_msg_string(twa_error_table,
+						cmd_hdr->status_block.error);
+
 				twa_printf(sc, "cmd = 0x%x: ERROR: (0x%02X: 0x%04X): %s: %s\n",
 					cmd->opcode,
 					TWA_MESSAGE_SOURCE_CONTROLLER_ERROR,
-					tr->tr_command->cmd_hdr.status_block.error,
-					twa_find_msg_string(twa_error_table,
-						tr->tr_command->cmd_hdr.status_block.error),
-					tr->tr_command->cmd_hdr.err_specific_desc);
+					cmd_hdr->status_block.error,
+					error_str,
+					cmd_hdr->err_desc);
 				twa_printf(sc, "Firmware flash request failed. error = 0x%x\n", error);
 				/* Hard reset the controller, so that it doesn't wait for more chunks. */
 				twa_hard_reset(sc);
@@ -271,6 +282,7 @@ static int
 twa_hard_reset(struct twa_softc *sc)
 {
 	struct twa_request			*tr;
+	struct twa_command_header		*cmd_hdr;
 	struct twa_command_reset_firmware	*cmd;
 	int					error;
 
@@ -278,7 +290,8 @@ twa_hard_reset(struct twa_softc *sc)
 		return(EIO);
 	tr->tr_cmd_pkt_type |= TWA_CMD_PKT_TYPE_INTERNAL;
 	/* Build a cmd pkt for sending down the hard reset command. */
-	tr->tr_command->cmd_hdr.header_desc.size_header = 128;
+	cmd_hdr = &(tr->tr_command->cmd_hdr);
+	cmd_hdr->header_desc.size_header = 128;
 	
 	cmd = &(tr->tr_command->command.cmd_pkt_7k.reset_fw);
 	cmd->opcode = TWA_OP_RESET_FIRMWARE;
@@ -301,13 +314,19 @@ twa_hard_reset(struct twa_softc *sc)
 		goto out;
 	}
 	if ((error = cmd->status)) {
+		u_int8_t *error_str =
+		&(cmd_hdr->err_desc[strlen(cmd_hdr->err_desc) + 1]);
+
+		if (error_str[0] == '\0')
+			error_str = twa_find_msg_string(twa_error_table,
+					cmd_hdr->status_block.error);
+
 		twa_printf(sc, "cmd = 0x%x: ERROR: (0x%02X: 0x%04X): %s: %s\n",
 					cmd->opcode,
 					TWA_MESSAGE_SOURCE_CONTROLLER_ERROR,
-					tr->tr_command->cmd_hdr.status_block.error,
-					twa_find_msg_string(twa_error_table,
-						tr->tr_command->cmd_hdr.status_block.error),
-					tr->tr_command->cmd_hdr.err_specific_desc);
+					cmd_hdr->status_block.error,
+					error_str,
+					cmd_hdr->err_desc);
 		twa_printf(sc, "Hard reset request failed. error = 0x%x\n", error);
 	}
 
@@ -472,6 +491,7 @@ twa_init_ctlr(struct twa_softc *sc)
 	/* Set controller state to initialized. */
 	sc->twa_state &= ~TWA_STATE_SHUTDOWN;
 
+	twa_enable_interrupts(sc);
 	twa_dbg_dprint_exit(3, sc);
 	return(0);
 }
@@ -516,7 +536,9 @@ void
 twa_interrupt(struct twa_softc *sc)
 {
 	u_int32_t	status_reg;
+	int		s;
 
+	s = splcam();
 	twa_dbg_dprint_enter(5, sc);
 
 	/* Collect current interrupt status. */
@@ -533,6 +555,7 @@ twa_interrupt(struct twa_softc *sc)
 		twa_command_intr(sc);
 	if (status_reg & TWA_STATUS_RESPONSE_INTERRUPT)
 		twa_done(sc);
+	splx(s);
 }
 
 
@@ -928,10 +951,11 @@ static void *
 twa_get_param(struct twa_softc *sc, int table_id, int param_id,
 		size_t param_size, void (* callback)(struct twa_request *tr))
 {
-	struct twa_request	*tr;
-	union twa_command_7k	*cmd;
-	struct twa_param_9k	*param = NULL;
-	int			error = ENOMEM;
+	struct twa_request		*tr;
+	struct twa_command_header	*cmd_hdr;
+	union twa_command_7k		*cmd;
+	struct twa_param_9k		*param = NULL;
+	int				error = ENOMEM;
 
 	twa_dbg_dprint_enter(4, sc);
 
@@ -950,10 +974,10 @@ twa_get_param(struct twa_softc *sc, int table_id, int param_id,
 	tr->tr_flags = TWA_CMD_DATA_IN | TWA_CMD_DATA_OUT;
 
 	/* Build the cmd pkt. */
-	cmd = &(tr->tr_command->command.cmd_pkt_7k);
-
-	tr->tr_command->cmd_hdr.header_desc.size_header = 128;
+	cmd_hdr = &(tr->tr_command->cmd_hdr);
+	cmd_hdr->header_desc.size_header = 128;
 	
+	cmd = &(tr->tr_command->command.cmd_pkt_7k);
 	cmd->param.opcode = TWA_OP_GET_PARAM;
 	cmd->param.sgl_offset = 2;
 	cmd->param.size = 2;
@@ -975,13 +999,19 @@ twa_get_param(struct twa_softc *sc, int table_id, int param_id,
 		if (error)
 			goto out;
 		if ((error = cmd->param.status)) {
+			u_int8_t *error_str =
+			&(cmd_hdr->err_desc[strlen(cmd_hdr->err_desc) + 1]);
+
+			if (error_str[0] == '\0')
+				error_str = twa_find_msg_string(twa_error_table,
+						cmd_hdr->status_block.error);
+
 			twa_printf(sc, "cmd = 0x%x: ERROR: (0x%02X: 0x%04X): %s: %s\n",
 					cmd->param.opcode,
 					TWA_MESSAGE_SOURCE_CONTROLLER_ERROR,
-					tr->tr_command->cmd_hdr.status_block.error,
-					twa_find_msg_string(twa_error_table,
-						tr->tr_command->cmd_hdr.status_block.error),
-					tr->tr_command->cmd_hdr.err_specific_desc);
+					cmd_hdr->status_block.error,
+					error_str,
+					cmd_hdr->err_desc);
 			goto out; /* twa_drain_complete_queue will have done the unmapping */
 		}
 		twa_release_request(tr);
@@ -1026,10 +1056,11 @@ twa_set_param(struct twa_softc *sc, int table_id,
 			int param_id, int param_size, void *data,
 			void (* callback)(struct twa_request *tr))
 {
-	struct twa_request	*tr;
-	union twa_command_7k	*cmd;
-	struct twa_param_9k	*param = NULL;
-	int			error = ENOMEM;
+	struct twa_request		*tr;
+	struct twa_command_header	*cmd_hdr;
+	union twa_command_7k		*cmd;
+	struct twa_param_9k		*param = NULL;
+	int				error = ENOMEM;
 
 	twa_dbg_dprint_enter(4, sc);
 
@@ -1048,10 +1079,10 @@ twa_set_param(struct twa_softc *sc, int table_id,
 	tr->tr_flags = TWA_CMD_DATA_IN | TWA_CMD_DATA_OUT;
 
 	/* Build the cmd pkt. */
+	cmd_hdr = &(tr->tr_command->cmd_hdr);
+	cmd_hdr->header_desc.size_header = 128;
+
 	cmd = &(tr->tr_command->command.cmd_pkt_7k);
-
-	tr->tr_command->cmd_hdr.header_desc.size_header = 128;
-
 	cmd->param.opcode = TWA_OP_SET_PARAM;
 	cmd->param.sgl_offset = 2;
 	cmd->param.size = 2;
@@ -1074,13 +1105,18 @@ twa_set_param(struct twa_softc *sc, int table_id,
 		if (error)
 			goto out;
 		if ((error = cmd->param.status)) {
+			u_int8_t *error_str =
+			&(cmd_hdr->err_desc[strlen(cmd_hdr->err_desc) + 1]);
+
+			if (error_str[0] == '\0')
+				error_str = twa_find_msg_string(twa_error_table,
+						cmd_hdr->status_block.error);
 			twa_printf(sc, "cmd = 0x%x: ERROR: (0x%02X: 0x%04X): %s: %s\n",
 					cmd->param.opcode,
 					TWA_MESSAGE_SOURCE_CONTROLLER_ERROR,
-					tr->tr_command->cmd_hdr.status_block.error,
-					twa_find_msg_string(twa_error_table,
-						tr->tr_command->cmd_hdr.status_block.error),
-					tr->tr_command->cmd_hdr.err_specific_desc);
+					cmd_hdr->status_block.error,
+					error_str,
+					cmd_hdr->err_desc);
 			goto out; /* twa_drain_complete_queue will have done the unmapping */
 		}
 		free(param, M_DEVBUF);
@@ -1148,6 +1184,7 @@ twa_init_connection(struct twa_softc *sc, u_int16_t message_credits,
 			u_int16_t *fw_on_ctlr_build, u_int32_t *init_connect_result)
 {
 	struct twa_request		*tr;
+	struct twa_command_header	*cmd_hdr;
 	struct twa_command_init_connect	*init_connect;
 	int				error = 1;
     
@@ -1158,10 +1195,10 @@ twa_init_connection(struct twa_softc *sc, u_int16_t message_credits,
 		goto out;
 	tr->tr_cmd_pkt_type |= TWA_CMD_PKT_TYPE_INTERNAL;
 	/* Build the cmd pkt. */
+	cmd_hdr = &(tr->tr_command->cmd_hdr);
+	cmd_hdr->header_desc.size_header = 128;
+
 	init_connect = &(tr->tr_command->command.cmd_pkt_7k.init_connect);
-
-	tr->tr_command->cmd_hdr.header_desc.size_header = 128;
-
 	init_connect->opcode = TWA_OP_INIT_CONNECTION;
    	init_connect->request_id = tr->tr_request_id;
 	init_connect->message_credits = message_credits;
@@ -1185,13 +1222,18 @@ twa_init_connection(struct twa_softc *sc, u_int16_t message_credits,
 	if (error)
 		goto out;
 	if ((error = init_connect->status)) {
+		u_int8_t *error_str =
+		&(cmd_hdr->err_desc[strlen(cmd_hdr->err_desc) + 1]);
+
+		if (error_str[0] == '\0')
+			error_str = twa_find_msg_string(twa_error_table,
+					cmd_hdr->status_block.error);
 		twa_printf(sc, "cmd = 0x%x: ERROR: (0x%02X: 0x%04X): %s: %s\n",
 					init_connect->opcode,
 					TWA_MESSAGE_SOURCE_CONTROLLER_ERROR,
-					tr->tr_command->cmd_hdr.status_block.error,
-					twa_find_msg_string(twa_error_table,
-						tr->tr_command->cmd_hdr.status_block.error),
-					tr->tr_command->cmd_hdr.err_specific_desc);
+					cmd_hdr->status_block.error,
+					error_str,
+					cmd_hdr->err_desc);
 		goto out; /* twa_drain_complete_queue will have done the unmapping */
 	}
 	if (set_features & TWA_EXTENDED_INIT_CONNECT) {
@@ -1228,6 +1270,7 @@ static int
 twa_wait_request(struct twa_request *tr, u_int32_t timeout)
 {
 	time_t	end_time;
+	int	s;
 	int	error;
 
 	twa_dbg_dprint_enter(4, tr->tr_sc);
@@ -1240,14 +1283,18 @@ twa_wait_request(struct twa_request *tr, u_int32_t timeout)
 		return(error);
 	}
 
+	s = splcam();
 	end_time = time_second + timeout;
 	while (tr->tr_status != TWA_CMD_COMPLETE) {
 		if ((error = tr->tr_error))
-			return(error);
+			goto err;
 		if ((error = tsleep(tr, PRIBIO, "twawait", timeout * hz)) == 0) {
+			if ((error = tr->tr_error)) /* possible reset */
+				goto err;
 			error = (tr->tr_status != TWA_CMD_COMPLETE);
 			break;
 		}
+		tr->tr_flags &= ~TWA_CMD_SLEEP_ON_REQUEST;
 		if (error == EWOULDBLOCK) {
 			/* Time out! */
 			twa_printf(tr->tr_sc, "%s: Request %p timed out.\n",
@@ -1267,10 +1314,11 @@ twa_wait_request(struct twa_request *tr, u_int32_t timeout)
 				/* Request was never submitted.  Clean up. */
 				twa_remove_pending(tr);
 				twa_unmap_request(tr);
-				if (tr->tr_data)
-					free(tr->tr_data, M_DEVBUF);
-				twa_release_request(tr);
 			}
+			if (tr->tr_data)
+				free(tr->tr_data, M_DEVBUF);
+			twa_release_request(tr);
+			splx(s);
 			return(ETIMEDOUT);
 		}
 		/* 
@@ -1280,6 +1328,9 @@ twa_wait_request(struct twa_request *tr, u_int32_t timeout)
 		timeout = (end_time - time_second);
 	}
 	twa_unmap_request(tr);
+
+err:
+	splx(s);
 	return(error);
 }
 
@@ -1396,6 +1447,14 @@ twa_reset(struct twa_softc *sc)
 	twa_disable_interrupts(sc);
 	s = splcam();
 	
+	/*
+	 * Complete all requests in the complete queue; error back all requests
+	 * in the busy queue.  Any internal requests will be simply freed.
+	 * Re-submit any requests in the pending queue.
+	 */
+	twa_drain_complete_queue(sc);
+	twa_drain_busy_queue(sc);
+
 	/* Soft reset the controller. */
 	if ((error = twa_soft_reset(sc))) {
 		twa_printf (sc, "Controller reset failed.\n");
@@ -1411,14 +1470,6 @@ twa_reset(struct twa_softc *sc)
 	}
 
 	twa_printf(sc, "Controller reset done!\n");
-
-	/*
-	 * Complete all requests in the complete queue; error back all requests
-	 * in the busy queue.  Any internal requests will be simply freed.
-	 * Re-submit any requests in the pending queue.
-	 */
-	twa_drain_complete_queue(sc);
-	twa_drain_busy_queue(sc);
 
 out:
 	splx(s);
@@ -1568,13 +1619,13 @@ twa_start(struct twa_request *tr)
 		}
 		error = EBUSY;
 	} else {
-		/* Cmd queue is not full.  Post the command. */
-		TWA_WRITE_COMMAND_QUEUE(sc,
-			tr->tr_cmd_phys + sizeof(struct twa_command_header));
 		/* Mark the request as currently being processed. */
 		tr->tr_status = TWA_CMD_BUSY;
 		/* Move the request into the busy queue. */
 		twa_enqueue_busy(tr);
+		/* Cmd queue is not full.  Post the command. */
+		TWA_WRITE_COMMAND_QUEUE(sc,
+			tr->tr_cmd_phys + sizeof(struct twa_command_header));
 	}
 
 out:
@@ -1662,9 +1713,9 @@ twa_drain_pending_queue(struct twa_softc *sc)
 			} else {
 				twa_printf(sc, "%s: twa_start returned 0x%x\n",
 							__func__, error);
+				tr->tr_error = error;
 				if (tr->tr_flags & TWA_CMD_SLEEP_ON_REQUEST)
 					wakeup_one(tr);/* let the caller know it failed */
-				tr->tr_error = error;
 				error = 0;
 			}
 		}
@@ -1735,7 +1786,7 @@ twa_wait_status(struct twa_softc *sc, u_int32_t status, u_int32_t timeout)
 		status_reg = TWA_READ_STATUS_REGISTER(sc);
 		if ((status_reg & status) == status)/* got the required bit(s)? */
 			return(0);
-		DELAY(100000);
+		DELAY(1000);
 	} while (time_second <= end_time);
 
 	return(1);
@@ -1808,9 +1859,9 @@ twa_attention_intr(struct twa_softc *sc)
 
 	twa_dbg_dprint_enter(6, sc);
 
+	TWA_WRITE_CONTROL_REGISTER(sc, TWA_CONTROL_CLEAR_ATTENTION_INTERRUPT);
 	if ((error = twa_fetch_aen(sc)))
 		twa_printf(sc, "Fetch AEN failed. error = 0x%x\n", error);
-	TWA_WRITE_CONTROL_REGISTER(sc, TWA_CONTROL_CLEAR_ATTENTION_INTERRUPT);
 }
 
 
@@ -1830,10 +1881,13 @@ twa_command_intr(struct twa_softc *sc)
 {
 	twa_dbg_dprint_enter(6, sc);
 
-	/* Start any requests that might be in the pending queue. */
-	if (! twa_drain_pending_queue(sc))
-		TWA_WRITE_CONTROL_REGISTER(sc,
-				TWA_CONTROL_MASK_COMMAND_INTERRUPT);
+	TWA_WRITE_CONTROL_REGISTER(sc, TWA_CONTROL_MASK_COMMAND_INTERRUPT);
+	/*
+	 * Start any requests that might be in the pending queue.
+	 * If all requests could not be started because of a queue_full
+	 * condition, twa_start will have unmasked the command interrupt.
+	 */
+	twa_drain_pending_queue(sc);
 }
 
 
@@ -1881,8 +1935,11 @@ static void
 twa_aen_callback(struct twa_request *tr)
 {
 	struct twa_softc		*sc = tr->tr_sc;
-	struct twa_command_header	*cmd_hdr = (struct twa_command_header *)(tr->tr_data);
+	struct twa_command_header	*cmd_hdr;
 	struct twa_command_9k		*cmd = &(tr->tr_command->command.cmd_pkt_9k);
+	u_int8_t			*error_str;
+	int				fetch_more_aens = 0;
+	int				error;
 	int				i;
 
 	twa_dbg_dprint_enter(4, sc);
@@ -1891,19 +1948,28 @@ twa_aen_callback(struct twa_request *tr)
 				cmd->request_id,
 				cmd->status);
 
+	if (tr->tr_error)
+		goto out;
+
 	if (! cmd->status) {
+		cmd_hdr = (struct twa_command_header *)(tr->tr_data);
 		if ((tr->tr_cmd_pkt_type & TWA_CMD_PKT_TYPE_9K) &&
 			(cmd->cdb[0] == 0x3 /* REQUEST_SENSE */))
-			twa_enqueue_aen(sc, cmd_hdr);
+			if (twa_enqueue_aen(sc, cmd_hdr) != TWA_AEN_QUEUE_EMPTY)
+				fetch_more_aens = 1;
 	} else {
-		cmd_hdr->err_specific_desc[sizeof(cmd_hdr->err_specific_desc) - 1] = '\0';
+		cmd_hdr = &(tr->tr_command->cmd_hdr);
+		error_str = &(cmd_hdr->err_desc[strlen(cmd_hdr->err_desc) + 1]);
+
+		if (error_str[0] == '\0')
+			error_str = twa_find_msg_string(twa_error_table,
+						cmd_hdr->status_block.error);
 		twa_printf(sc, "%s: cmd = 0x%x: ERROR: (0x%02X: 0x%04X): %s: %s\n",
 				__func__, cmd->command.opcode,
 				TWA_MESSAGE_SOURCE_CONTROLLER_ERROR,
 				cmd_hdr->status_block.error,
-				twa_find_msg_string(twa_error_table,
-						cmd_hdr->status_block.error),
-				cmd_hdr->err_specific_desc);
+				error_str,
+				cmd_hdr->err_desc);
 		twa_dbg_print(2, "sense info: ");
 		for (i = 0; i < 18; i++)
 			twa_dbg_print(2, "%x\t", tr->tr_command->cmd_hdr.sense_data[i]);
@@ -1912,9 +1978,14 @@ twa_aen_callback(struct twa_request *tr)
 			twa_dbg_print(7, "%x\t", ((int8_t *)(tr->tr_data))[i]);
 	}
 
+out:
 	if (tr->tr_data)
 		free(tr->tr_data, M_DEVBUF);
 	twa_release_request(tr);
+	if (fetch_more_aens)
+		if ((error = twa_fetch_aen(sc)))
+			twa_printf(sc, "%s: Fetch AEN failed. error = 0x%x\n",
+					__func__, error);
 }
 
 
@@ -1964,10 +2035,8 @@ twa_drain_aen_queue(struct twa_softc *sc)
 			break;
 
 		cmd_hdr = (struct twa_command_header *)(tr->tr_data);
-		if ((cmd_hdr->status_block.error) /* aen_code */
-				== TWA_AEN_QUEUE_EMPTY)
+		if (twa_enqueue_aen(sc, cmd_hdr) == TWA_AEN_QUEUE_EMPTY)
 			break;
-		twa_enqueue_aen(sc, cmd_hdr);
 
 		free(tr->tr_data, M_DEVBUF);
 		twa_release_request(tr);
@@ -1991,15 +2060,16 @@ twa_drain_aen_queue(struct twa_softc *sc)
  *			cmd_hdr	-- ptr to hdr of fw cmd pkt, from where the AEN
  *				   details can be retrieved.
  * Output:		None
- * Return value:	None
+ * Return value:	AEN code
  */
-static void
+static unsigned short
 twa_enqueue_aen(struct twa_softc *sc, struct twa_command_header *cmd_hdr)
 {
 	struct twa_event_packet	*event;
 	unsigned short		aen_code;
 	unsigned long		local_time;
 	unsigned long		sync_time;
+	u_int8_t		*aen_str;
 	int			s;
 
 	twa_dbg_dprint_enter(4, sc);
@@ -2035,12 +2105,18 @@ twa_enqueue_aen(struct twa_softc *sc, struct twa_command_header *cmd_hdr)
 		event->aen_code = aen_code;
 		event->retrieved = TWA_AEN_NOT_RETRIEVED;
 		event->sequence_id = ++(sc->twa_current_sequence_id);
-		cmd_hdr->err_specific_desc[sizeof(cmd_hdr->err_specific_desc) - 1] = '\0';
-		event->parameter_len = strlen(cmd_hdr->err_specific_desc);
-		bcopy(cmd_hdr->err_specific_desc, event->parameter_data,
+
+		aen_str = &(cmd_hdr->err_desc[strlen(cmd_hdr->err_desc) + 1]);
+		if (aen_str[0] == '\0')
+			aen_str = twa_find_msg_string(twa_aen_table, aen_code);
+
+
+		event->parameter_len = strlen(cmd_hdr->err_desc) +
+					strlen(aen_str) + 2;
+		bcopy(cmd_hdr->err_desc, event->parameter_data,
 					event->parameter_len);
 
-		twa_dbg_dprint(4, sc, "event = %x %x %x %x %x %x %x\n %s",
+		twa_dbg_dprint(4, sc, "event = %x %x %x %x %x %x %x\n %s %s",
 				event->sequence_id,
 				event->time_stamp_sec,
 				event->aen_code,
@@ -2048,17 +2124,19 @@ twa_enqueue_aen(struct twa_softc *sc, struct twa_command_header *cmd_hdr)
 				event->retrieved,
 				event->repeat_count,
 				event->parameter_len,
+				&(event->parameter_data[strlen(cmd_hdr->err_desc) + 1]),
 				event->parameter_data);
 
-		twa_dbg_dprint(4, sc, "cmd_hdr = %x %lx %x %x %x %x %zx\n %s",
+		twa_dbg_dprint(4, sc, "cmd_hdr = %x %lx %x %x %x %x %zx\n %s %s",
 				sc->twa_current_sequence_id,
 				local_time,
 				cmd_hdr->status_block.error,
 				cmd_hdr->status_block.substatus_block.severity,
 				TWA_AEN_NOT_RETRIEVED,
 				0,
-				strlen(cmd_hdr->err_specific_desc),
-				cmd_hdr->err_specific_desc);
+				strlen(cmd_hdr->err_desc),
+				&(cmd_hdr->err_desc[strlen(cmd_hdr->err_desc) + 1]),
+				cmd_hdr->err_desc);
 
 		/* Print the event. */
 		if (event->severity < TWA_AEN_SEVERITY_DEBUG)
@@ -2066,7 +2144,7 @@ twa_enqueue_aen(struct twa_softc *sc, struct twa_command_header *cmd_hdr)
 					twa_aen_severity_table[event->severity],
 					TWA_MESSAGE_SOURCE_CONTROLLER_EVENT,
 					aen_code,
-					twa_find_msg_string(twa_aen_table, aen_code),
+					aen_str,
 					event->parameter_data);
 
 		if ((sc->twa_aen_head + 1) == TWA_Q_LENGTH)
@@ -2075,6 +2153,7 @@ twa_enqueue_aen(struct twa_softc *sc, struct twa_command_header *cmd_hdr)
 		break;
 	} /* switch */
 	splx(s);
+	return(aen_code);
 }
 
 
