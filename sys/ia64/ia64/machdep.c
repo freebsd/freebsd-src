@@ -198,6 +198,9 @@ identifycpu(void)
 			else
 				model_name = "Madison";
 			break;
+		case 0x02:
+			model_name = "Madison II";
+			break;
 		}
 		break;
 	}
