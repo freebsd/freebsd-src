@@ -50,9 +50,9 @@ ksiginfo_alloc(struct ksiginfo **ksip, int signo)
 
 	error = 0;
 
-	ksi = malloc(sizeof *ksi, M_KSIGINFO, M_ZERO | M_WAITOK);
-	KASSERT(ksi != NULL, ("ksiginfo_alloc(%d): allocation failed.", signo));
+	ksi = malloc(sizeof *ksi, M_KSIGINFO, M_ZERO | M_NOWAIT);
 	if (ksi == NULL) {
+		panic("Unable to allocate kernel signal info structure.");
 		error = ENOMEM;
 		goto out;
 	}
