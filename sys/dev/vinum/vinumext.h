@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumext.h,v 1.21 1999/10/12 04:34:22 grog Exp grog $
+ * $Id: vinumext.h,v 1.22 1999/12/30 07:03:37 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -60,6 +60,7 @@ struct proc;
 int vinum_inactive(int);
 void free_vinum(int);
 int give_sd_to_plex(int plexno, int sdno);
+void give_sd_to_drive(int sdno);
 int give_plex_to_volume(int volno, int plexno);
 struct drive *check_drive(char *);
 enum drive_label_info read_drive_label(struct drive *, int);
