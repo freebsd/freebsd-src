@@ -68,13 +68,15 @@ If a single
 is given,
 .Nm
 will remove all jobs which a user
-owns.  If the super-user employs this flag, the spool queue will
+owns.
+If the super-user employs this flag, the spool queue will
 be emptied entirely.
 .It Ar user
 Cause
 .Nm
 to attempt to remove any jobs queued belonging to that user
-(or users).  This form of invoking
+(or users).
+This form of invoking
 .Nm
 is useful only to the super-user.
 .It Ar job\ \&#
@@ -106,7 +108,8 @@ there are no jobs in the queue which match the request list.
 The
 .Nm
 utility will kill off an active daemon, if necessary, before removing
-any spooling files.  If a daemon is killed, a new one is
+any spooling files.
+If a daemon is killed, a new one is
 automatically restarted upon completion of file removals.
 .Sh ENVIRONMENT
 If the following environment variable exists, it is utilized by

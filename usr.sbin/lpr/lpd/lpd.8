@@ -49,7 +49,8 @@ utility
 is the line printer daemon (spool area handler) and is normally invoked
 at boot time from the
 .Xr rc 8
-file.  It makes a single pass through the
+file.
+It makes a single pass through the
 .Xr printcap 5
 file to find out about the existing printers and
 prints any files left after a crash.
@@ -59,7 +60,8 @@ and
 .Xr accept 2
 to receive requests to print files in the queue,
 transfer files to the spooling area, display the queue,
-or remove jobs from the queue.  In each case, it forks a child to handle
+or remove jobs from the queue.
+In each case, it forks a child to handle
 the request so the parent can continue to listen for more requests.
 .Pp
 Available options:
@@ -169,33 +171,41 @@ for files beginning with
 Lines in each
 .Em cf
 file specify files to be printed or non-printing actions to be
-performed.  Each such line begins with a key character
+performed.
+Each such line begins with a key character
 to specify what to do with the remainder of the line.
 .Bl -tag -width Ds
 .It J
-Job Name.  String to be used for the job name on the burst page.
+Job Name.
+String to be used for the job name on the burst page.
 .It C
-Classification.  String to be used for the classification line
+Classification.
+String to be used for the classification line
 on the burst page.
 .It L
-Literal.  The line contains identification info from
+Literal.
+The line contains identification info from
 the password file and causes the banner page to be printed.
 .It T
-Title.  String to be used as the title for
+Title.
+String to be used as the title for
 .Xr pr 1 .
 .It H
-Host Name.  Name of the machine where
+Host Name.
+Name of the machine where
 .Xr lpr 1
 was invoked.
 .It P
-Person.  Login name of the person who invoked
+Person.
+Login name of the person who invoked
 .Xr lpr 1 .
 This is used to verify ownership by
 .Xr lprm 1 .
 .It M
 Send mail to the specified user when the current print job completes.
 .It f
-Formatted File.  Name of a file to print which is already formatted.
+Formatted File.
+Name of a file to print which is already formatted.
 .It l
 Like ``f'' but passes control characters and does not make page breaks.
 .It p
@@ -203,19 +213,23 @@ Name of a file to print using
 .Xr pr 1
 as a filter.
 .It t
-Troff File.  The file contains
+Troff File.
+The file contains
 .Xr troff 1
 output (cat phototypesetter commands).
 .It n
-Ditroff File.  The file contains device independent troff
+Ditroff File.
+The file contains device independent troff
 output.
 .It r
-DVI File.  The file contains
+DVI File.
+The file contains
 .Tn Tex l
 output
 DVI format from Stanford.
 .It g
-Graph File.  The file contains data produced by
+Graph File.
+The file contains data produced by
 .Xr plot 3 .
 .It c
 Cifplot File.
@@ -227,29 +241,37 @@ The file contains a raster image.
 The file contains text data with
 FORTRAN carriage control characters.
 .It \&1
-Troff Font R. Name of the font file to use instead of the default.
+Troff Font R.
+Name of the font file to use instead of the default.
 .It \&2
-Troff Font I. Name of the font file to use instead of the default.
+Troff Font I.
+Name of the font file to use instead of the default.
 .It \&3
-Troff Font B. Name of the font file to use instead of the default.
+Troff Font B.
+Name of the font file to use instead of the default.
 .It \&4
-Troff Font S. Name of the font file to use instead of the default.
+Troff Font S.
+Name of the font file to use instead of the default.
 .It W
 Width.
 Changes the page width (in characters) used by
 .Xr pr 1
 and the text filters.
 .It I
-Indent.  The number of characters to indent the output by (in ASCII).
+Indent.
+The number of characters to indent the output by (in ASCII).
 .It U
-Unlink.  Name of file to remove upon completion of printing.
+Unlink.
+Name of file to remove upon completion of printing.
 .It N
-File name.  The name of the file which is being printed, or a blank
+File name.
+The name of the file which is being printed, or a blank
 for the standard input (when
 .Xr lpr 1
 is invoked in a pipeline).
 .It Z
-Locale.  String to be used as the locale for
+Locale.
+String to be used as the locale for
 .Xr pr 1 .
 .El
 .Pp
@@ -269,14 +291,16 @@ The
 utility uses
 .Xr flock 2
 to provide exclusive access to the lock file and to prevent multiple
-daemons from becoming active simultaneously.  If the daemon should be killed
+daemons from becoming active simultaneously.
+If the daemon should be killed
 or die unexpectedly, the lock file need not be removed.
 The lock file is kept in a readable
 .Tn ASCII
 form
 and contains two lines.
 The first is the process id of the daemon and the second is the control
-file name of the current job being printed.  The second line is updated to
+file name of the current job being printed.
+The second line is updated to
 reflect the current status of
 .Nm
 for the programs

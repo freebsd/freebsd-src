@@ -45,7 +45,8 @@ The
 .Nm
 utility is used by the remote dump and restore programs
 in manipulating a magnetic tape drive through an interprocess
-communication connection.  It is normally started up with an
+communication connection.
+It is normally started up with an
 .Xr rexec 3
 or
 .Xr rcmd 3
@@ -55,7 +56,8 @@ The
 .Nm
 utility accepts requests specific to the manipulation of
 magnetic tapes, performs the commands, then responds with
-a status indication.  All responses are in
+a status indication.
+All responses are in
 .Tn ASCII
 and in
 one of two forms.
@@ -118,7 +120,8 @@ closed before a new open is performed.
 .It Xo Sy C Ar device No \en
 .Xc
 .Sm on
-Close the currently open device.  The
+Close the currently open device.
+The
 .Ar device
 specified is ignored.
 .Sm off
@@ -167,7 +170,8 @@ and responds with
 .Sm on
 if the read was
 successful; otherwise an error in the
-standard format is returned.  If the read
+standard format is returned.
+If the read
 was successful, the data read is then sent.
 .Sm off
 .It Xo Sy I Ar operation
@@ -187,7 +191,8 @@ and
 .Ar mt_count
 fields of the structure used in the
 .Xr ioctl 2
-call.  The return value is the
+call.
+The return value is the
 .Ar count
 parameter when the operation is successful.
 .It Sy S
@@ -195,7 +200,8 @@ Return the status of the open device, as
 obtained with a
 .Dv MTIOCGET
 .Xr ioctl 2
-call.  If the operation was successful,
+call.
+If the operation was successful,
 an ``ack'' is sent with the size of the
 status buffer, then the status buffer is
 sent (in binary).

@@ -45,7 +45,8 @@
 .Sh DESCRIPTION
 The
 .Nm
-utility reads floppy disks.  Effective read blocking based on the track
+utility reads floppy disks.
+Effective read blocking based on the track
 size is performed, and floppy-specific error recovery of otherwise
 bad blocks can be enabled.
 .Pp
@@ -53,7 +54,8 @@ The
 .Nm
 utility
 will always read an entire floppy medium, and write its contents to
-the respective output file.  Unlike other tools like
+the respective output file.
+Unlike other tools like
 .Xr dd 1 ,
 .Nm
 automatically uses a read block size that is more efficient than
@@ -70,18 +72,22 @@ The
 utility accepts the following options:
 .Bl -tag -width indent
 .It Fl q
-Turn on quiet mode.  By default, the medium parameters of the device
+Turn on quiet mode.
+By default, the medium parameters of the device
 are being written to standard error output, progress will be indicated
 by the approximate number of kilobytes read so far, and errors will be
 printed out in detail, including the information about the location of
-recovered data in the output.  In quiet mode, none of these messages
+recovered data in the output.
+In quiet mode, none of these messages
 will be generated.
 .It Fl r
-Enable error recovery.  By default,
+Enable error recovery.
+By default,
 .Nm
 stops after the first unrecovered read error, much like
 .Xr dd 1
-does.  In recovery mode, however, one of two recovery actions will be
+does.
+In recovery mode, however, one of two recovery actions will be
 taken:
 .Bl -bullet
 .It
@@ -109,7 +115,8 @@ The parameter
 must be a valid floppy disk device.
 .It Fl f Ar fillbyte
 Value of the fill byte used for dummy blocks in the output file in
-recovery mode.  Defaults to
+recovery mode.
+Defaults to
 .Ql 0xf0 .
 (Mnemonic:
 .Dq foo . )
@@ -174,13 +181,16 @@ and
 as well as the location of the error (physical cylinder, head, and sector
 number, plus the
 .Dq sector shift value ,
-respectively).  See the manual for the NE765 or compatible for details
+respectively).
+See the manual for the NE765 or compatible for details
 about the status register contents.
 .Pp
 The FDC's status is then examined to determine whether the error is
-deemed to be recoverable.  If error recovery was requested, the
+deemed to be recoverable.
+If error recovery was requested, the
 location of the bad block in the output file is indicated by its
-(hexadecimal) bounds.  Also, a summary line indicating the total number
+(hexadecimal) bounds.
+Also, a summary line indicating the total number
 of transfer errors will be printed before exiting.
 .Sh SEE ALSO
 .Xr dd 1 ,
@@ -206,7 +216,8 @@ Program and man page by
 Concurrent traffic on the second floppy drive located at the same FDC
 will make error recovery attempts pointless, since the FDC status
 obtained after a read error occurred cannot be guaranteed to actually
-belong to the erroneous transfer.  Thus using option
+belong to the erroneous transfer.
+Thus using option
 .Fl r
 is only reliable if
 .Ar device

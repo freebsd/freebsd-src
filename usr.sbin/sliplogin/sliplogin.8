@@ -48,7 +48,8 @@ utility is used to turn the terminal line on standard input (or
 .Ar device )
 into a Serial Line IP
 .Pq Tn SLIP
-link to a remote host.  To do this, the program
+link to a remote host.
+To do this, the program
 searches the file
 .Pa /etc/sliphome/slip.hosts
 for an entry matching
@@ -89,7 +90,8 @@ will be executed instead if it exists.
 The script is invoked with the parameters
 .Bl -tag -width slipunit
 .It Em slipunit
-The unit number of the slip interface assigned to this line.  E.g.,
+The unit number of the slip interface assigned to this line.
+E.g.,
 .Sy 0
 for
 .Sy sl0 .
@@ -102,17 +104,21 @@ entry, in order starting with
 .Ar loginname .
 .El
 .Pp
-Only the super-user may attach a network interface.  The interface is
+Only the super-user may attach a network interface.
+The interface is
 automatically detached when the other end hangs up or the
 .Nm
-process dies.  If the kernel slip
+process dies.
+If the kernel slip
 module has been configured for it, all routes through that interface will
-also disappear at the same time.  If there is other processing a site
+also disappear at the same time.
+If there is other processing a site
 would like done on hangup, the file
 .Pa /etc/sliphome/slip.logout
 or
 .Pa /etc/sliphome/slip.logout. Ns Ar loginname
-is executed if it exists.  It is given the same arguments as the login script.
+is executed if it exists.
+It is given the same arguments as the login script.
 .Ss Format of /etc/sliphome/slip.hosts
 Comments (lines starting with a `#') and blank lines (or started
 with space) are ignored.
@@ -138,7 +144,8 @@ and
 are the IP host names or addresses of the local and remote ends of the
 slip line and
 .Em netmask
-is the appropriate IP netmask.  These arguments are passed
+is the appropriate IP netmask.
+These arguments are passed
 directly to
 .Xr ifconfig 8 .
 .Em Opt-args
@@ -190,7 +197,8 @@ is to create a
 .Pa /etc/passwd
 entry for each legal, remote slip site with
 .Nm
-as the shell for that entry.  E.g.,
+as the shell for that entry.
+E.g.,
 .Bd -literal
 Sfoo:ikhuy6:2010:1:slip line to foo:/tmp:/usr/sbin/sliplogin
 .Ed
@@ -219,7 +227,8 @@ Note that
 .Nm
 must be setuid to root and, while not a security hole, moral defectives
 can use it to place terminal lines in an unusable state and/or deny
-access to legitimate users of a remote slip line.  To prevent this,
+access to legitimate users of a remote slip line.
+To prevent this,
 .Nm
 is installed as user
 .Em root ,

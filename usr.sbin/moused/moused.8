@@ -171,7 +171,8 @@ Enable debugging messages.
 Do not become a daemon and instead run as a foreground process.
 Useful for testing and debugging.
 .It Fl i Ar info
-Print specified information and quit.  Available pieces of
+Print specified information and quit.
+Available pieces of
 information are:
 .Pp
 .Bl -tag -compact -width modelxxx
@@ -193,11 +194,13 @@ if the driver supports the
 .Ar sysmouse
 data format standard.
 .It Ar model
-Mouse model.  The
+Mouse model.
+The
 .Nm
 utility may not always be able to identify the model.
 .It Ar all
-All of the above items.  Print port, interface, type and model in this order
+All of the above items.
+Print port, interface, type and model in this order
 in one line.
 .El
 .Pp
@@ -259,7 +262,8 @@ always choose
 .Ar auto
 or
 .Ar ps/2 ,
-regardless of the brand and model of the mouse.  Likewise, if your
+regardless of the brand and model of the mouse.
+Likewise, if your
 mouse is attached to the bus mouse port, choose
 .Ar auto
 or
@@ -276,26 +280,32 @@ listed below.
 For the serial mouse:
 .Bl -tag -compact -width mousesystemsxxx
 .It Ar microsoft
-Microsoft serial mouse protocol.  Most 2-button serial mice use this protocol.
+Microsoft serial mouse protocol.
+Most 2-button serial mice use this protocol.
 .It Ar intellimouse
-Microsoft IntelliMouse protocol.  Genius NetMouse,
+Microsoft IntelliMouse protocol.
+Genius NetMouse,
 .Tn ASCII
 Mie Mouse,
 Logitech MouseMan+ and FirstMouse+ use this protocol too.
 Other mice with a roller/wheel may be compatible with this protocol.
 .It Ar mousesystems
-MouseSystems 5-byte protocol.  3-button mice may use this protocol.
+MouseSystems 5-byte protocol.
+3-button mice may use this protocol.
 .It Ar mmseries
 MM Series mouse protocol.
 .It Ar logitech
-Logitech mouse protocol.  Note that this is for old Logitech models.
+Logitech mouse protocol.
+Note that this is for old Logitech models.
 .Ar mouseman
 or
 .Ar intellimouse
 should be specified for newer models.
 .It Ar mouseman
-Logitech MouseMan and TrackMan protocol.  Some 3-button mice may be compatible
-with this protocol.  Note that MouseMan+ and FirstMouse+ use
+Logitech MouseMan and TrackMan protocol.
+Some 3-button mice may be compatible
+with this protocol.
+Note that MouseMan+ and FirstMouse+ use
 .Ar intellimouse
 protocol rather than this one.
 .It Ar glidepoint
@@ -406,7 +416,8 @@ The bus and InPort mice have either a D-Sub male 9-pin connector
 or a round DIN 9-pin connector.
 The PS/2 mouse is equipped with a small, round DIN 6-pin connector.
 Some mice come with adapters with which the connector can
-be converted to another.  If you are to use such an adapter,
+be converted to another.
+If you are to use such an adapter,
 remember the connector at the very end of the mouse/adapter pair is
 what matters.
 The USB mouse has a flat rectangular connector.
@@ -418,7 +429,8 @@ the bus and InPort mice always use
 and the PS/2 mouse is always at
 .Pa /dev/psm0 .
 There may be more than one serial port to which the serial
-mouse can be attached.  Many people often assign the first, built-in
+mouse can be attached.
+Many people often assign the first, built-in
 serial port
 .Pa /dev/cuaa0
 to the mouse.
@@ -440,7 +452,8 @@ Run the
 .Nm
 utility with the
 .Fl i
-option and see what it says.  If the command can identify
+option and see what it says.
+If the command can identify
 the protocol type, no further investigation is necessary on your part.
 You may start the daemon without explicitly specifying a protocol type
 (see

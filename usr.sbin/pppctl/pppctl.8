@@ -21,24 +21,29 @@
 .Sh DESCRIPTION
 This utility provides command line control of the
 .Xr ppp 8
-daemon.  Its primary use is to facilitate simple scripts that
+daemon.
+Its primary use is to facilitate simple scripts that
 control a running daemon.
 .Pp
 The
 .Nm
 utility is passed at least one argument, specifying the socket on which
 .Nm ppp
-is listening.  Refer to the
+is listening.
+Refer to the
 .Sq set server
 command of
 .Nm ppp
-for details.  If the socket contains a leading '/', it
+for details.
+If the socket contains a leading '/', it
 is taken as an
 .Dv AF_LOCAL
-socket.  If it contains a colon, it is treated as a
+socket.
+If it contains a colon, it is treated as a
 .Ar host : Ns Ar port
 pair, otherwise it is treated as a TCP port specification on the
-local machine (127.0.0.1).  Both the
+local machine (127.0.0.1).
+Both the
 .Ar host
 and
 .Ar port
@@ -50,7 +55,8 @@ All remaining arguments are concatenated to form the
 .Ar command Ns (s)
 that will be sent to the
 .Nm ppp
-daemon.  If any semi-colon characters are found, they are treated as
+daemon.
+If any semi-colon characters are found, they are treated as
 .Ar command
 delimiters, allowing more than one
 .Ar command
@@ -73,7 +79,8 @@ When reading commands, the
 .Xr editline 3
 library is used, allowing command-line editing (with
 .Xr editrc 5
-defining editing behaviour).  The history size
+defining editing behaviour).
+The history size
 defaults to
 .Em 20 lines .
 .Pp
@@ -82,19 +89,23 @@ The following command line options are available:
 .It Fl v
 Display all data sent to and received from the
 .Nm ppp
-daemon.  Normally,
+daemon.
+Normally,
 .Nm
-displays only non-prompt lines received.  This option is ignored in
+displays only non-prompt lines received.
+This option is ignored in
 interactive mode.
 .It Fl t Ar n
 Use a timeout of
 .Ar n
-instead of the default 2 seconds when connecting.  This may be required
+instead of the default 2 seconds when connecting.
+This may be required
 if you wish to control a daemon over a slow (or even a dialup) link.
 .It Fl p Ar passwd
 Specify the password required by the
 .Nm ppp
-daemon.  If this switch is not used,
+daemon.
+If this switch is not used,
 .Nm
 will prompt for a password once it has successfully connected to
 .Nm ppp .
@@ -108,7 +119,8 @@ mode,
 .Nm
 can be used to automate many frequent tasks (you can actually control
 .Nm ppp
-in any mode except interactive mode).  Use of the
+in any mode except interactive mode).
+Use of the
 .Fl p
 option is discouraged (even in scripts that aren't readable by others)
 as a
@@ -133,7 +145,8 @@ Refer to the
 .Xr ppp 8
 man page for further details.
 .Pp
-You can now create some easy-access scripts.  To connect to the internet:
+You can now create some easy-access scripts.
+To connect to the internet:
 .Bd -literal -offset indent
 #! /bin/sh
 test $# -eq 0 && time=300 || time=$1
@@ -165,10 +178,12 @@ exec pppctl /var/run/internet "$@"
 .Pp
 You could also use
 .Nm
-to control when dial-on-demand works.  Suppose you want
+to control when dial-on-demand works.
+Suppose you want
 .Nm ppp
 to run all the time, but you want to prevent dial-out between 8pm and 8am
-each day.  However, any connections active at 8pm should continue to remain
+each day.
+However, any connections active at 8pm should continue to remain
 active until they are closed or naturally time out.
 .Pp
 A
@@ -190,10 +205,14 @@ The following environment variables are understood by
 when in interactive mode:
 .Bl -tag -width XXXXXXXXXX
 .It Dv EL_SIZE
-The number of history lines.  The default is 20.
+The number of history lines.
+The default is 20.
 .It Dv EL_EDITOR
-The edit mode.  Only values of "emacs" and "vi" are accepted.  Other values
-are silently ignored.  This environment variable will override the
+The edit mode.
+Only values of "emacs" and "vi" are accepted.
+Other values
+are silently ignored.
+This environment variable will override the
 .Ar bind -v
 and
 .Ar bind -e

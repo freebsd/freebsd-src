@@ -23,7 +23,8 @@ The
 .Nm
 transfers data in a specific file format, called a CTM delta.
 .Pp
-CTM deltas consist of control lines and data chunks.  Each control
+CTM deltas consist of control lines and data chunks.
+Each control
 line starts with the letters
 .Dq CTM ,
 followed by a CTM statement and control data, and ends with a '\en'
@@ -38,7 +39,8 @@ newline is not part of the chunk and isn't included in the count.
 The CTM statements are as follows.
 .Bl -tag -width indent
 .It _BEGIN Ar version name number timestamp prefix
-This is the overall begin of a CTM delta file.  The
+This is the overall begin of a CTM delta file.
+The
 .Ar version
 field must match the program version
 (currently 2.0).

@@ -100,7 +100,8 @@ it is not recommended.
 The
 .Nm
 utility checks your umask and issues a warning for anything
-other than 022. While it is not mandatory to grant
+other than 022.
+While it is not mandatory to grant
 world read permissions for most configuration files, you
 may run into problems without them.
 If you choose a
@@ -294,7 +295,9 @@ comparison, use:
 .Pp
 The
 .Nm
-utility will . (source) these files if they exist.
+utility will
+.Ic .\&
+(source) these files if they exist.
 Command line options
 will override rc file options.
 .Pa $HOME/.mergemasterrc
@@ -387,7 +390,8 @@ The
 utility was first publicly available on one of my
 web pages in a much simpler form under the name
 .Pa comproot
-on 13 March 1998. The idea for creating the
+on 13 March 1998.
+The idea for creating the
 temporary root environment comes from Nik Clayton's
 make world tutorial which is referenced above.
 .Sh AUTHORS

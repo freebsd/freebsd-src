@@ -259,7 +259,7 @@ will force it to exit.
 can use either the standard LCP callback protocol or the Microsoft
 CallBack Control Protocol (ftp://ftp.microsoft.com/developr/rfc/cbcp.txt).
 .It Supports NAT or packet aliasing.
-Packet aliasing (a.k.a. IP masquerading) allows computers on a
+Packet aliasing (a.k.a.\& IP masquerading) allows computers on a
 private, unregistered network to access the Internet.
 The
 .Em PPP
@@ -1624,7 +1624,7 @@ in your profile).
 .Sh NETWORK ADDRESS TRANSLATION (PACKET ALIASING)
 The
 .Fl nat
-command line option enables network address translation (a.k.a. packet
+command line option enables network address translation (a.k.a.\& packet
 aliasing).
 This allows the
 .Nm
@@ -3473,9 +3473,11 @@ If no arguments are given, firewall punching is disabled.
 .It nat skinny_port Op Ar port
 This command tells
 .Nm
-which TCP port is used by the Skinny Station protocol.  Skinny is used by
+which TCP port is used by the Skinny Station protocol.
+Skinny is used by
 Cisco IP phones to communicate with Cisco Call Managers to setup voice
-over IP calls.  The typical port used by Skinny is 2000.
+over IP calls.
+The typical port used by Skinny is 2000.
 .Pp
 If no argument is given, skinny aliasing is disabled.
 .It nat same_ports yes|no
@@ -5369,7 +5371,8 @@ keywords.
 .Pp
 .It RAD_FRAMED_IPV6_PREFIX
 If this attribute is supplied, the value is substituted for IPV6PREFIX
-in a command.  You may pass it to such as DHCPv6 for delegating an
+in a command.
+You may pass it to such as DHCPv6 for delegating an
 IPv6 prefix to a peer.
 .It RAD_FRAMED_IPV6_ROUTE
 The received string is expected to be in the format
@@ -5410,7 +5413,8 @@ would result in a default route to
 .Dv HISADDR6 .
 .Pp
 All RADIUS IPv6 routes are applied after any sticky routes are
-applied, making RADIUS IPv6 routes override configured routes.  This
+applied, making RADIUS IPv6 routes override configured routes.
+This
 also applies for RADIUS IPv6 routes that don't {include} the
 .Dv MYADDR6
 or
@@ -5459,14 +5463,16 @@ encryption.
 If this
 .Dv RAD_VENDOR_MICROSOFT
 vendor specific attribute is supplied, it's value is used as the master
-key for decryption of incoming data.  When clients are authenticated using
+key for decryption of incoming data.
+When clients are authenticated using
 MSCHAPv2, the RADIUS server MUST provide this attribute if inbound MPPE is
 to function.
 .It RAD_MICROSOFT_MS_MPPE_SEND_KEY
 If this
 .Dv RAD_VENDOR_MICROSOFT
 vendor specific attribute is supplied, it's value is used as the master
-key for encryption of outgoing data.  When clients are authenticated using
+key for encryption of outgoing data.
+When clients are authenticated using
 MSCHAPv2, the RADIUS server MUST provide this attribute if outbound MPPE is
 to function.
 .El
@@ -5758,7 +5764,7 @@ Word replacement is done in the same way as for the
 .Dq !bg
 command as described above.
 .Pp
-Use of the ! character
+Use of the !\& character
 requires a following space as with any of the other commands.
 You should note that this command is executed in the foreground;
 .Nm

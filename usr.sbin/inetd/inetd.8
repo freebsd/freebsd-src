@@ -60,7 +60,8 @@ utility should be run at boot time by
 (see
 .Xr rc 8 ) .
 It then listens for connections on certain
-internet sockets.  When a connection is found on one
+internet sockets.
+When a connection is found on one
 of its sockets, it decides what service the socket
 corresponds to, and invokes a program to service the request.
 The server program is invoked with the service socket
@@ -69,7 +70,8 @@ After the program is
 finished,
 .Nm
 continues to listen on the socket (except in some cases which
-will be described below).  Essentially,
+will be described below).
+Essentially,
 .Nm
 allows running one daemon to invoke several others,
 reducing load on the system.
@@ -152,10 +154,13 @@ file which, by default, is
 .Pa /etc/inetd.conf .
 There must be an entry for each field of the configuration
 file, with entries for each field separated by a tab or
-a space.  Comments are denoted by a
+a space.
+Comments are denoted by a
 .Dq #
 at the beginning
-of a line.  There must be an entry for each field.  The
+of a line.
+There must be an entry for each field.
+The
 fields of the configuration file are as follows:
 .Pp
 .Bd -unfilled -offset indent -compact
@@ -409,13 +414,15 @@ In addition, you can specify the maximum number of simultaneous
 invocations of each service from a single IP address by appending a
 .Dq /
 followed by the number to the maximum number of outstanding child
-processes.  Once the maximum is reached, further connections from this
+processes.
+Once the maximum is reached, further connections from this
 IP address will be dropped.
 .Pp
 The
 .Em user
 entry should contain the user name of the user as whom the server
-should run.  This allows for servers to be given less permission
+should run.
+This allows for servers to be given less permission
 than root.
 Optional
 .Em group
@@ -437,7 +444,8 @@ The
 entry should contain the pathname of the program which is to be
 executed by
 .Nm
-when a request is found on its socket.  If
+when a request is found on its socket.
+If
 .Nm
 provides this service internally, this entry should
 be
@@ -447,7 +455,8 @@ The
 .Em server program arguments
 should be just as arguments
 normally are, starting with argv[0], which is the name of
-the program.  If the service is provided internally, the
+the program.
+If the service is provided internally, the
 .Em service-name
 of the service (and any arguments to it) or the word
 .Dq internal
@@ -544,7 +553,8 @@ The
 utility also provides several other
 .Dq trivial
 services internally by use of
-routines within itself.  These services are
+routines within itself.
+These services are
 .Dq echo ,
 .Dq discard ,
 .Dq chargen
@@ -553,7 +563,8 @@ routines within itself.  These services are
 (human readable time), and
 .Dq time
 (machine readable time, in the form of the number of seconds since
-midnight, January 1, 1900).  All of these services are available in
+midnight, January 1, 1900).
+All of these services are available in
 both TCP and UDP versions; the UDP versions will refuse service if the
 request specifies a reply port corresponding to any internal service.
 (This is done as a defense against looping attacks; the remote IP address
@@ -659,12 +670,16 @@ services.
 .Ss TCPMUX
 .Tn RFC 1078
 describes the TCPMUX protocol:
-``A TCP client connects to a foreign host on TCP port 1.  It sends the
-service name followed by a carriage-return line-feed <CRLF>.  The
-service name is never case sensitive.  The server replies with a
+``A TCP client connects to a foreign host on TCP port 1.
+It sends the
+service name followed by a carriage-return line-feed <CRLF>.
+The
+service name is never case sensitive.
+The server replies with a
 single character indicating positive (+) or negative (\-)
 acknowledgment, immediately followed by an optional message of
-explanation, terminated with a <CRLF>.  If the reply was positive,
+explanation, terminated with a <CRLF>.
+If the reply was positive,
 the selected protocol begins; otherwise the connection is closed.''
 The program is passed the TCP connection as file descriptors 0 and 1.
 .Pp
