@@ -28,8 +28,6 @@
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 /*
@@ -49,6 +47,9 @@
  * mode where multiple packets can be transfered using a single bulk
  * transaction, which helps performance a great deal.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -75,11 +76,6 @@
 #include <dev/usb/usb_ethersubr.h>
 
 #include <dev/usb/if_cuereg.h>
-
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif
 
 /*
  * Various supported device vendors/products.

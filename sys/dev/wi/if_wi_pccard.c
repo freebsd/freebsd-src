@@ -38,6 +38,9 @@
  * Columbia University, New York City
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include "opt_wi.h"
 
 #include <sys/param.h>
@@ -72,11 +75,6 @@
 #endif
 
 #include "card_if.h"
-
-#if !defined(lint)
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif
 
 static int wi_pccard_probe(device_t);
 static int wi_pccard_attach(device_t);

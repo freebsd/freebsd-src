@@ -28,8 +28,6 @@
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 /*
@@ -81,6 +79,9 @@
  * driver handles all of the encapsulation/decapsulation itself.
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include "opt_inet.h"
 
 #ifdef INET
@@ -131,11 +132,6 @@
 
 #include <dev/an/if_aironet_ieee.h>
 #include <dev/an/if_anreg.h>
-
-#if !defined(lint)
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif
 
 /* These are global because we need them in sys/pci/if_an_p.c. */
 static void an_reset		(struct an_softc *);

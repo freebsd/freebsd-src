@@ -68,6 +68,9 @@
  * Driver for Altima AC101 10/100 PHY
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -86,11 +89,6 @@
 #include <dev/mii/acphyreg.h>
 
 #include "miibus_if.h"
-
-#if !defined(lint)
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif
 
 static int acphy_probe(device_t);
 static int acphy_attach(device_t);

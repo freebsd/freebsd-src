@@ -24,8 +24,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 /*
@@ -41,6 +39,9 @@
  * like any other normal phy, except it does auto negotiation in a different
  * way.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -63,9 +64,11 @@
 
 #include "miibus_if.h"
 
+#if 0
 #if !defined(lint)
 static const char rcsid[] =
   "$Id: tdkphy.c,v 1.3 2000/10/14 06:20:56 jon Exp $";
+#endif
 #endif
 
 static int tdkphy_probe(device_t);
