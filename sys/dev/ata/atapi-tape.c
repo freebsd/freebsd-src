@@ -40,6 +40,7 @@
 #include <sys/mtio.h>
 #include <sys/disklabel.h>
 #include <sys/devicestat.h>
+#include <machine/bus.h>
 #include <dev/ata/ata-all.h>
 #include <dev/ata/atapi-all.h>
 #include <dev/ata/atapi-tape.h>

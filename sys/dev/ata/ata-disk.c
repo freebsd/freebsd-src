@@ -171,11 +171,10 @@ ad_attach(struct ata_device *atadev)
 
     /* use DMA if allowed and if drive/controller supports it */
     if (ata_dma)
-	ata_dmainit(atadev->channel, atadev->unit, ata_pmode(atadev->param), 
+	ata_dmainit(atadev, ata_pmode(atadev->param),
 		    ata_wmode(atadev->param), ata_umode(atadev->param));
     else
-	ata_dmainit(atadev->channel, atadev->unit,
-		    ata_pmode(atadev->param), -1, -1);
+	ata_dmainit(atadev, ata_pmode(atadev->param), -1, -1);
 
     /* use tagged queueing if allowed and supported */
     if (ata_tags && ad_tagsupported(adp)) {
@@ -244,6 +243,7 @@ ad_detach(struct ata_device *atadev, int flush) /* get rid of flush XXX SOS */
 	biodone(request->bp);
 	ad_free(request);
     }
+    ata_dmafree(atadev);
     while ((bp = bufq_first(&adp->queue))) {
 	bufq_remove(&adp->queue, bp); 
 	bp->b_error = ENXIO;
@@ -407,7 +407,7 @@ ad_start(struct ata_device *atadev)
     if (bp->b_flags & B_READ) 
 	request->flags |= ADR_F_READ;
     if (adp->device->mode >= ATA_DMA) {
-	if (!(request->dmatab = ata_dmaalloc(atadev->channel, atadev->unit)))
+	if (ata_dmaalloc(atadev))
 	    adp->device->mode = ATA_PIO;
     }
 
@@ -471,8 +471,7 @@ ad_transfer(struct ad_request *request)
 	/* does this drive & transfer work with DMA ? */
 	request->flags &= ~ADR_F_DMA_USED;
 	if (adp->device->mode >= ATA_DMA &&
-	    !ata_dmasetup(adp->device->channel, adp->device->unit,
-			  request->dmatab, request->data, request->bytecount)) {
+	    !ata_dmasetup(adp->device, request->data, request->bytecount)) {
 	    request->flags |= ADR_F_DMA_USED;
 	    request->currentsize = request->bytecount;
 
@@ -521,8 +520,8 @@ ad_transfer(struct ad_request *request)
 	    }
 
 	    /* start transfer, return and wait for interrupt */
-	    ata_dmastart(adp->device->channel, adp->device->unit,
-			 request->dmatab, request->flags & ADR_F_READ);
+	    ata_dmastart(adp->device, request->data, request->bytecount,
+			 request->flags & ADR_F_READ);
 	    return ATA_OP_CONTINUES;
 	}
 
@@ -593,7 +592,7 @@ ad_interrupt(struct ad_request *request)
 
     /* finish DMA transfer */
     if (request->flags & ADR_F_DMA_USED)
-	dma_stat = ata_dmadone(adp->device->channel);
+	dma_stat = ata_dmadone(adp->device);
 
     /* do we have a corrected soft error ? */
     if (adp->device->channel->status & ATA_S_CORR)
@@ -620,8 +619,7 @@ ad_interrupt(struct ad_request *request)
 	    if (request->retries++ < AD_MAX_RETRIES)
 		printf(" retrying\n");
 	    else {
-		ata_dmainit(adp->device->channel, adp->device->unit, 
-			    ata_pmode(adp->device->param), -1, -1);
+		ata_dmainit(adp->device, ata_pmode(adp->device->param), -1, -1);
 		printf(" falling back to PIO mode\n");
 	    }
 	    TAILQ_INSERT_HEAD(&adp->device->channel->ata_queue, request, chain);
@@ -632,8 +630,7 @@ ad_interrupt(struct ad_request *request)
 	if (request->flags & ADR_F_DMA_USED) {
 	    untimeout((timeout_t *)ad_timeout, request,request->timeout_handle);
 	    ad_invalidatequeue(adp, request);
-	    ata_dmainit(adp->device->channel, adp->device->unit,
-			ata_pmode(adp->device->param), -1, -1);
+	    ata_dmainit(adp->device, ata_pmode(adp->device->param), -1, -1);
 	    request->flags |= ADR_F_FORCE_PIO;
 	    printf(" trying PIO mode\n");
 	    TAILQ_INSERT_HEAD(&adp->device->channel->ata_queue, request, chain);
@@ -786,8 +783,8 @@ ad_service(struct ad_softc *adp, int change)
 	    ad_invalidatequeue(adp, NULL);
 	    return ATA_OP_FINISHED;
 	}
-	ata_dmastart(adp->device->channel, adp->device->unit,
-		     request->dmatab, request->flags & ADR_F_READ);
+	ata_dmastart(adp->device, request->data, request->bytecount,
+		     request->flags & ADR_F_READ);
 	return ATA_OP_CONTINUES;
     }
     return ATA_OP_FINISHED;
@@ -796,13 +793,8 @@ ad_service(struct ad_softc *adp, int change)
 static void
 ad_free(struct ad_request *request)
 {
-    int s = splbio();
-
-    if (request->dmatab)
-	free(request->dmatab, M_DEVBUF);
     request->softc->tags[request->tag] = NULL;
     free(request, M_AD);
-    splx(s);
 }
 
 static void
@@ -875,11 +867,10 @@ ad_timeout(struct ad_request *request)
 	       request->tag, request->serv);
 
     if (request->flags & ADR_F_DMA_USED) {
-	ata_dmadone(adp->device->channel);
+	ata_dmadone(adp->device);
 	ad_invalidatequeue(adp, request);
 	if (request->retries == AD_MAX_RETRIES) {
-	    ata_dmainit(adp->device->channel, adp->device->unit,
-			ata_pmode(adp->device->param), -1, -1);
+	    ata_dmainit(adp->device, ata_pmode(adp->device->param), -1, -1);
 	    ata_prtdev(adp->device, "trying fallback to PIO mode\n");
 	    request->retries = 0;
 	}
@@ -910,13 +901,11 @@ ad_reinit(struct ata_device *atadev)
     ata_command(atadev, ATA_C_SET_MULTI, 0,
 		adp->transfersize / DEV_BSIZE, 0, ATA_WAIT_READY);
     if (adp->device->mode >= ATA_DMA)
-	ata_dmainit(atadev->channel, atadev->unit,
-		    ata_pmode(adp->device->param),
+	ata_dmainit(atadev, ata_pmode(adp->device->param),
 		    ata_wmode(adp->device->param),
 		    ata_umode(adp->device->param));
     else
-	ata_dmainit(atadev->channel, atadev->unit,
-		    ata_pmode(adp->device->param), -1, -1);
+	ata_dmainit(atadev, ata_pmode(adp->device->param), -1, -1);
 }
 
 void

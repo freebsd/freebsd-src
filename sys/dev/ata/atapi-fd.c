@@ -39,6 +39,7 @@
 #include <sys/disk.h>
 #include <sys/devicestat.h>
 #include <sys/cdio.h>
+#include <machine/bus.h>
 #include <dev/ata/ata-all.h>
 #include <dev/ata/atapi-all.h>
 #include <dev/ata/atapi-fd.h>

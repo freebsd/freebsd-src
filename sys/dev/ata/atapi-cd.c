@@ -45,6 +45,7 @@
 #include <sys/fcntl.h>
 #include <sys/conf.h>
 #include <sys/ctype.h>
+#include <machine/bus.h>
 #include <dev/ata/ata-all.h>
 #include <dev/ata/atapi-all.h>
 #include <dev/ata/atapi-cd.h>

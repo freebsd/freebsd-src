@@ -166,7 +166,6 @@ struct atapi_request {
 
     caddr_t			data;		/* pointer to data buf */
     atapi_callback_t		*callback;	/* ptr to callback func */
-    struct ata_dmaentry		*dmatab;	/* DMA transfer table */
     void			*driver;	/* driver specific */
     TAILQ_ENTRY(atapi_request)	chain;		/* list management */
 };
