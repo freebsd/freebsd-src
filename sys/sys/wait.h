@@ -46,11 +46,11 @@
  * Macros to test the exit status returned by wait and extract the relevant
  * values.
  */
-#ifdef _POSIX_SOURCE
-#define	_W_INT(i)	(i)
-#else
+#if __BSD_VISIBLE
 #define	_W_INT(w)	(*(int *)&(w))	/* Convert union wait to int. */
 #define	WCOREFLAG	0200
+#else
+#define	_W_INT(i)	(i)
 #endif
 
 #define	_WSTATUS(x)	(_W_INT(x) & 0177)
@@ -62,7 +62,7 @@
 #define	WIFEXITED(x)	(_WSTATUS(x) == 0)
 #define	WEXITSTATUS(x)	(_W_INT(x) >> 8)
 #define	WIFCONTINUED(x)	(x == 0x13)	/* 0x13 == SIGCONT */
-#ifndef _POSIX_SOURCE
+#if __BSD_VISIBLE
 #define	WCOREDUMP(x)	(_W_INT(x) & WCOREFLAG)
 
 #define	W_EXITCODE(ret, sig)	((ret) << 8 | (sig))
@@ -81,9 +81,12 @@
 #define	WNOHANG		1	/* Don't hang in wait. */
 #define	WUNTRACED	2	/* Tell about stopped, untraced children. */
 #define	WCONTINUED	4	/* Report a job control continued process. */
-#define	WLINUXCLONE 0x80000000	/* Wait for kthread spawned from linux_clone. */
 
-#ifndef _POSIX_SOURCE
+#if __BSD_VISIBLE
+#define	WLINUXCLONE 0x80000000	/* Wait for kthread spawned from linux_clone. */
+#endif
+
+#if __BSD_VISIBLE
 /* POSIX extensions and 4.2/4.3 compatibility: */
 
 /*
@@ -143,7 +146,7 @@ union wait {
 #define	w_stopsig	w_S.w_Stopsig
 
 #define	WSTOPPED	_WSTOPPED
-#endif /* _POSIX_SOURCE */
+#endif /* __BSD_VISIBLE */
 
 #ifndef _KERNEL
 #include <sys/types.h>
@@ -154,11 +157,11 @@ struct rusage;	/* forward declaration */
 
 pid_t	wait(int *);
 pid_t	waitpid(pid_t, int *, int);
-#ifndef _POSIX_SOURCE
+#if __BSD_VISIBLE
 pid_t	wait3(int *, int, struct rusage *);
 pid_t	wait4(pid_t, int *, int, struct rusage *);
 #endif
 __END_DECLS
 #endif
 
-#endif
+#endif /* !_SYS_WAIT_H_ */
