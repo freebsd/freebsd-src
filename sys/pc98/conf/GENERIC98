@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: GENERIC98,v 1.8.2.20 1998/04/12 15:04:03 kato Exp $
+#	$Id: GENERIC98,v 1.8.2.21 1998/04/12 15:06:06 kato Exp $
 
 # GENERIC98 -- Generic PC98 machine with WD/SCSI disks
 
@@ -86,6 +86,7 @@ device		wfd0		#IDE floppy (LS-120)
 # options DPTOPT and DPT_MEASURE_PERFORMANCE entries below.
 
 controller	ncr0
+controller	amd0
 controller	ahc0
 #controller	dpt0
 
