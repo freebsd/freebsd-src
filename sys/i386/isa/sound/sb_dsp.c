@@ -81,9 +81,10 @@ int             sb_dsp_command (unsigned char val);
 int
 sb_dsp_command (unsigned char val)
 {
-  int             i, limit;
+  int             i;
+  unsigned long   limit;
 
-  limit = GET_TIME () + 10;	/* The timeout is 0.1 secods */
+  limit = GET_TIME () + HZ/10;     /* The timeout is 0.1 secods */
 
   /*
    * Note! the i<500000 is an emergency exit. The sb_dsp_command() is sometimes
