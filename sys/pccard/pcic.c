@@ -65,7 +65,7 @@
 /*
  *	Prototypes for interrupt handler.
  */
-static ointhand2_t	pcicintr;
+static inthand2_t	pcicintr;
 static int		pcic_ioctl __P((struct slot *, int, caddr_t));
 static int		pcic_power __P((struct slot *));
 static timeout_t 	pcic_reset;
@@ -457,11 +457,16 @@ static int
 pcic_probe(device_t dev)
 {
 	int slotnum, validslots = 0;
-	u_int free_irqs, desired_irq;
+	u_int free_irqs;
 	struct slot *slt;
 	struct pcic_slot *sp;
 	unsigned char c;
+	void		 *ih;
+	char *name;
 	int i;
+	int error;
+	struct resource *res;
+	int rid;
 	static int maybe_vlsi = 0;
 
 	if (device_get_unit(dev) != 0)
@@ -599,43 +604,43 @@ pcic_probe(device_t dev)
 		}
 		switch(sp->controller) {
 		case PCIC_I82365:
-			cinfo.name = "i82365";
+			name = "Intel i82365";
 			break;
 		case PCIC_IBM:
-			cinfo.name = "IBM PCIC";
+			name = "IBM PCIC";
 			break;
 		case PCIC_IBM_KING:
-			cinfo.name = "IBM KING PCMCIA Controller";
+			name = "IBM KING PCMCIA Controller";
 			break;
 		case PCIC_PD672X:
-			cinfo.name = "Cirrus Logic PD672X";
+			name = "Cirrus Logic PD672X";
 			break;
 		case PCIC_PD6710:
-			cinfo.name = "Cirrus Logic PD6710";
+			name = "Cirrus Logic PD6710";
 			break;
 		case PCIC_VG365:
-			cinfo.name = "Vadem 365";
+			name = "Vadem 365";
 			break;
 		case PCIC_VG465:
-			cinfo.name = "Vadem 465";
+			name = "Vadem 465";
 			break;
 		case PCIC_VG468:
-			cinfo.name = "Vadem 468";
+			name = "Vadem 468";
 			break;
 		case PCIC_VG469:
-			cinfo.name = "Vadem 469";
+			name = "Vadem 469";
 			break;
 		case PCIC_RF5C396:
-			cinfo.name = "Ricoh RF5C396";
+			name = "Ricoh RF5C396";
 			break;
 		case PCIC_VLSI:
-			cinfo.name = "VLSI 82C146";
+			name = "VLSI 82C146";
 			break;
 		default:
-			cinfo.name = "Unknown!";
+			name = "Unknown!";
 			break;
 		}
-		device_set_desc(dev, cinfo.name);
+		device_set_desc(dev, name);
 		/*
 		 *	OK it seems we have a PCIC or lookalike.
 		 *	Allocate a slot and initialise the data structures.
@@ -652,26 +657,25 @@ pcic_probe(device_t dev)
 		 *	then attempt to get one.
 		 */
 		if (pcic_irq == 0) {
-			pcic_imask = soft_imask;
-
 			/* See if the user has requested a specific IRQ */
-			if (getenv_int("machdep.pccard.pcic_irq", &desired_irq)) {
-				/* legal IRQ? */
-				if (desired_irq >= 1 &&
-				    desired_irq <= ICU_LEN &&
-				    (1ul << desired_irq) & free_irqs)
-					free_irqs = 1ul << desired_irq;
-				else
-					/* illegal, disable use of IRQ */
-					free_irqs = 0;
+			if (!getenv_int("machdep.pccard.pcic_irq", &pcic_irq))
+				pcic_irq = 0;
+			rid = 0;
+			res = bus_alloc_resource(dev, SYS_RES_IRQ, 
+			    &rid, pcic_irq, ~0, 1, RF_ACTIVE);
+			if (res) {
+				error = bus_setup_intr(dev, res, 
+				    INTR_TYPE_MISC, pcicintr, NULL, &ih);
+				if (error) {
+					bus_release_resource(dev, SYS_RES_IRQ,
+					    rid, res);
+					return error;
+				}
+				pcic_irq = rman_get_start(res);
+			} else {
+				printf("pcic: polling, can't alloc %d\n",
+				    pcic_irq);
 			}
-
-			pcic_irq = pccard_alloc_intr(free_irqs,
-				pcicintr, 0, &pcic_imask, NULL);
-			if (pcic_irq < 0)
-				printf("pcic: failed to allocate IRQ\n");
-			else
-				printf("pcic: controller irq %d\n", pcic_irq);
 		}
 		/*
 		 * Modem cards send the speaker audio (dialing noises)
@@ -707,7 +711,8 @@ pcic_probe(device_t dev)
 	    if (inb(PCIC98_REG0) != 0xff) {
 		sp->controller = PCIC_PC98;
 		sp->revision = 0;
-		cinfo.name = "PC98 Original";
+		name = "PC98 Original";
+		device_set_desc(dev, name);
 		cinfo.maxmem = 1;
 		cinfo.maxio = 1;
 /*		cinfo.irqs = PCIC_INT_MASK_ALLOWED;*/
@@ -1020,7 +1025,7 @@ pcictimeout(void *chan)
  *	on this card, so send an event to the main code.
  */
 static void
-pcicintr(int unit)
+pcicintr(void *arg)
 {
 	int	slot, s;
 	unsigned char chg;
