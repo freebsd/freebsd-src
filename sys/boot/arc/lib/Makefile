@@ -1,8 +1,6 @@
 # $FreeBSD$
 
 LIB=		arc
-NOPIC=		true
-NOPROFILE=	true
 INTERNALLIB=	true
 
 CFLAGS+=	-ffreestanding
@@ -26,8 +24,6 @@ SRCS=	delay.c time.c abort.c setjmperr.c copy.c devicename.c module.c \
 .if ${MACHINE_ARCH} == "alpha"
 SRCS+=	rpb.c
 .endif
-
-all: libarc.a
 
 CLEANFILES+= machine
 

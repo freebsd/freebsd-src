@@ -4,13 +4,6 @@
 
 .include <bsd.init.mk>
 
-.if exists(${.CURDIR}/shlib_version)
-SHLIB_MAJOR != . ${.CURDIR}/shlib_version ; echo $$major
-.if ${OBJFORMAT} == aout
-SHLIB_MINOR != . ${.CURDIR}/shlib_version ; echo $$minor
-.endif
-.endif
-
 # Set up the variables controlling shared libraries.  After this section,
 # SHLIB_NAME will be defined only if we are to create a shared library.
 # SHLIB_LINK will be defined only if we are to create a link to it.
@@ -48,6 +41,14 @@ STRIP?=	-s
 # .So used for PIC object files
 .SUFFIXES:
 .SUFFIXES: .out .o .po .So .S .s .asm .c .cc .cpp .cxx .m .C .f .y .l .ln
+
+.if !defined(PICFLAG)
+.if ${MACHINE_ARCH} == "sparc64"
+PICFLAG=-fPIC
+.else
+PICFLAG=-fpic
+.endif
+.endif
 
 .c.ln:
 	${LINT} ${LINTOBJFLAGS} ${CFLAGS:M-[DIU]*} ${.IMPSRC} || \
@@ -151,106 +152,93 @@ STRIP?=	-s
 	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
 	@mv ${.TARGET}.tmp ${.TARGET}
 
-.if !defined(INTERNALLIB) || defined(INTERNALSTATICLIB)
-.if !defined(NOPROFILE) && !defined(INTERNALLIB)
-_LIBS=lib${LIB}.a lib${LIB}_p.a
-.else
-_LIBS=lib${LIB}.a
-.endif
-.endif
+all: objwarn
 
-.if defined(SHLIB_NAME)
-_LIBS+=${SHLIB_NAME}
-.endif
-.if defined(INSTALL_PIC_ARCHIVE)
-_LIBS+=lib${LIB}_pic.a
-.endif
+.if defined(LIB) && !empty(LIB)
+_LIBS=		lib${LIB}.a
+OBJS+=		${SRCS:N*.h:R:S/$/.o/}
 
-.if !defined(PICFLAG)
-.if ${MACHINE_ARCH} == "sparc64"
-PICFLAG=-fPIC
-.else
-PICFLAG=-fpic
-.endif
-.endif
-
-LINTOBJS+= ${SRCS:M*.c:C/\..+$/.ln/}
-
-.if defined(WANT_LINT) && defined(LIB) && defined(LINTOBJS) && !empty(LINTOBJS)
-LINTLIB=llib-l${LIB}.ln
-_LIBS+=${LINTLIB}
-.endif
-
-all: objwarn ${_LIBS}
-
-.if !defined(NOMAN)
-all: _manpages
-.endif
-
-OBJS+=	${SRCS:N*.h:R:S/$/.o/g}
-
-lib${LIB}.a:: ${OBJS} ${STATICOBJS}
+lib${LIB}.a: ${OBJS} ${STATICOBJS}
 	@${ECHO} building static ${LIB} library
-	@rm -f lib${LIB}.a
-	@${AR} cq lib${LIB}.a `lorder ${OBJS} ${STATICOBJS} | tsort -q` ${ARADD}
-	${RANLIB} lib${LIB}.a
+	@rm -f ${.TARGET}
+	@${AR} cq ${.TARGET} `lorder ${OBJS} ${STATICOBJS} | tsort -q` ${ARADD}
+	${RANLIB} ${.TARGET}
 
-POBJS+=	${OBJS:.o=.po} ${STATICOBJS:.o=.po}
+CLEANFILES+=	a.out ${OBJS} ${OBJS:S/$/.tmp/} ${STATICOBJS}
+
+.if !defined(INTERNALLIB)
+
 .if !defined(NOPROFILE)
-lib${LIB}_p.a:: ${POBJS}
+_LIBS+=		lib${LIB}_p.a
+POBJS+=		${OBJS:.o=.po} ${STATICOBJS:.o=.po}
+
+lib${LIB}_p.a: ${POBJS}
 	@${ECHO} building profiled ${LIB} library
-	@rm -f lib${LIB}_p.a
-	@${AR} cq lib${LIB}_p.a `lorder ${POBJS} | tsort -q` ${ARADD}
-	${RANLIB} lib${LIB}_p.a
+	@rm -f ${.TARGET}
+	@${AR} cq ${.TARGET} `lorder ${POBJS} | tsort -q` ${ARADD}
+	${RANLIB} ${.TARGET}
+
+CLEANFILES+=	${POBJS} ${POBJS:S/$/.tmp/}
 .endif
 
-SOBJS+= ${OBJS:.o=.So}
+SOBJS+=		${OBJS:.o=.So}
+
+CLEANFILES+=	${SOBJS} ${SOBJS:.So=.so} ${SOBJS:S/$/.tmp/}
 
 .if defined(SHLIB_NAME)
+_LIBS+=		${SHLIB_NAME}
+
 ${SHLIB_NAME}: ${SOBJS}
 	@${ECHO} building shared library ${SHLIB_NAME}
-	@rm -f ${SHLIB_NAME} ${SHLIB_LINK}
+	@rm -f ${.TARGET} ${SHLIB_LINK}
 .if defined(SHLIB_LINK)
-	@ln -sf ${SHLIB_NAME} ${SHLIB_LINK}
+	@ln -fs ${.TARGET} ${SHLIB_LINK}
 .endif
 .if ${OBJFORMAT} == aout
 	@${CC} -shared -Wl,-x,-assert,pure-text \
-	    -o ${SHLIB_NAME} \
+	    -o ${.TARGET} \
 	    `lorder ${SOBJS} | tsort -q` ${LDADD}
 .else
 	@${CC} ${LDFLAGS} -shared -Wl,-x \
-	    -o ${SHLIB_NAME} -Wl,-soname,${SONAME} \
+	    -o ${.TARGET} -Wl,-soname,${SONAME} \
 	    `lorder ${SOBJS} | tsort -q` ${LDADD}
 .endif
+
+CLEANFILES+=	${SHLIB_LINK} lib${LIB}.so.* lib${LIB}.so
 .endif
 
 .if defined(INSTALL_PIC_ARCHIVE)
-lib${LIB}_pic.a:: ${SOBJS}
+_LIBS+=		lib${LIB}_pic.a
+
+lib${LIB}_pic.a: ${SOBJS}
 	@${ECHO} building special pic ${LIB} library
-	@rm -f lib${LIB}_pic.a
-	@${AR} cq lib${LIB}_pic.a ${SOBJS} ${ARADD}
-	${RANLIB} lib${LIB}_pic.a
+	@rm -f ${.TARGET}
+	@${AR} cq ${.TARGET} ${SOBJS} ${ARADD}
+	${RANLIB} ${.TARGET}
 .endif
 
-.if defined(WANT_LINT) && defined(LIB) && defined(LINTOBJS) && !empty(LINTOBJS)
+.if defined(WANT_LINT)
+LINTLIB=	llib-l${LIB}.ln
+_LIBS+=		${LINTLIB}
+LINTOBJS+=	${SRCS:M*.c:.c=.ln}
+
 ${LINTLIB}: ${LINTOBJS}
-	@${ECHO} building lint library ${LINTLIB}
-	@rm -f ${LINTLIB}
+	@${ECHO} building lint library ${.TARGET}
+	@rm -f ${.TARGET}
 	${LINT} ${LINTLIBFLAGS} ${CFLAGS:M-[DIU]*} ${.ALLSRC}
+
+CLEANFILES+=	${LINTOBJS}
 .endif
 
-.if !target(clean)
-clean:
-	rm -f a.out ${OBJS} ${STATICOBJS} ${OBJS:S/$/.tmp/} ${CLEANFILES}
-	rm -f lib${LIB}.a
-	rm -f ${POBJS} ${POBJS:S/$/.tmp/} lib${LIB}_p.a
-	rm -f ${SOBJS} ${SOBJS:.So=.so} ${SOBJS:S/$/.tmp/} \
-	    ${SHLIB_NAME} ${SHLIB_LINK} \
-	    lib${LIB}.so.* lib${LIB}.so lib${LIB}_pic.a
-	rm -f ${LINTOBJS} ${LINTLIB}
-.if defined(CLEANDIRS) && !empty(CLEANDIRS)
-	rm -rf ${CLEANDIRS}
-.endif
+.endif !defined(INTERNALLIB)
+
+all: ${_LIBS}
+
+CLEANFILES+=	${_LIBS}
+.endif defined(LIB) && !empty(LIB)
+
+.if !defined(NOMAN)
+all: _manpages
 .endif
 
 _EXTRADEPEND:
@@ -285,32 +273,34 @@ _SHLINSTALLFLAGS:=	${SHLINSTALLFLAGS}
 _SHLINSTALLFLAGS:=	${_SHLINSTALLFLAGS${ie}}
 .endfor
 
+.if defined(LIB) && !empty(LIB) && !defined(INTERNALLIB)
 realinstall: _libinstall
 _libinstall:
-.if !defined(INTERNALLIB)
+.if !defined(NOINSTALLLIB)
 	${INSTALL} -C -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${_INSTALLFLAGS} lib${LIB}.a ${DESTDIR}${LIBDIR}
+.endif
 .if !defined(NOPROFILE)
 	${INSTALL} -C -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${_INSTALLFLAGS} lib${LIB}_p.a ${DESTDIR}${LIBDIR}
-.endif
 .endif
 .if defined(SHLIB_NAME)
 	${INSTALL} ${COPY} ${STRIP} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${_INSTALLFLAGS} ${_SHLINSTALLFLAGS} \
 	    ${SHLIB_NAME} ${DESTDIR}${SHLIBDIR}
 .if defined(SHLIB_LINK)
-	ln -sf ${SHLIB_NAME} ${DESTDIR}${SHLIBDIR}/${SHLIB_LINK}
+	ln -fs ${SHLIB_NAME} ${DESTDIR}${SHLIBDIR}/${SHLIB_LINK}
 .endif
 .endif
 .if defined(INSTALL_PIC_ARCHIVE)
 	${INSTALL} ${COPY} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${_INSTALLFLAGS} lib${LIB}_pic.a ${DESTDIR}${LIBDIR}
 .endif
-.if defined(WANT_LINT) && defined(LIB) && defined(LINTOBJS) && !empty(LINTOBJS)
+.if defined(WANT_LINT)
 	${INSTALL} ${COPY} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${_INSTALLFLAGS} ${LINTLIB} ${DESTDIR}${LINTLIBDIR}
 .endif
+.endif defined(LIB) && !empty(LIB) && !defined(INTERNALLIB)
 
 realinstall:
 .if defined(LINKS) && !empty(LINKS)
@@ -357,8 +347,10 @@ lint: ${SRCS:M*.c}
 
 .include <bsd.dep.mk>
 
+.if defined(LIB) && !empty(LIB)
 .if !exists(${.OBJDIR}/${DEPENDFILE})
 ${OBJS} ${STATICOBJS} ${POBJS} ${SOBJS}: ${SRCS:M*.h}
+.endif
 .endif
 
 .include <bsd.obj.mk>

@@ -1,8 +1,6 @@
 # $FreeBSD$
 
 LIB=		alpha
-NOPIC=		true
-NOPROFILE=	true
 INTERNALLIB=	true
 
 CFLAGS+=	-ffreestanding
@@ -22,8 +20,6 @@ CFLAGS+=	-I${.CURDIR}/../../common -mno-fp-regs \
 SRCS=	OSFpal.c elf_freebsd.c prom.c prom_disp.S prom_swpal.S \
 	pal.S reboot.c delay.c time.c alpha_module.c devicename.c \
 	srmdisk.c srmnet.c getsecs.c alpha_copy.c bootinfo.c
-
-all: libalpha.a
 
 machine:
 	ln -sf ${.CURDIR}/../../../alpha/include machine
