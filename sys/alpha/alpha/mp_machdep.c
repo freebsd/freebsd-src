@@ -536,7 +536,7 @@ release_aps(void *dummy __unused)
 		printf("%s: releasing secondary CPUs\n", __func__);
 	atomic_store_rel_int(&aps_ready, 1);
 
-	while (smp_started == 0)
+	while (mp_ncpus > 1 && smp_started == 0)
 		; /* nothing */
 }
 
