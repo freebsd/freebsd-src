@@ -136,14 +136,13 @@ SUBDIR+=aac \
 	ray \
 	s3 \
 	sbni \
+	smbfs \
 	splash \
 	sr \
 	streams \
 	vesa \
 	wi
 .endif
-#removed while KSE settles in:
-#	smbfs \
 
 .if ${MACHINE} == "pc98"
 SUBDIR+=pmc \
