@@ -88,7 +88,7 @@ isfile(const char *fname)
     return FALSE;
 }
 
-/* 
+/*
  * Check to see if file is a file or symlink pointing to a file and is empty.
  * If nonexistent or not a file, say "it's empty", otherwise return TRUE if
  * zero sized.
@@ -190,7 +190,7 @@ fileGetURL(const char *base, const char *spec)
 	    strcpy(fname, hint);
 	    strcat(fname, spec);
 	    /* XXX: need to handle .tgz also */
-            strcat(fname, ".tbz");
+	    strcat(fname, ".tbz");
 	}
     }
     else
@@ -201,7 +201,7 @@ fileGetURL(const char *base, const char *spec)
 	       fname, fetchLastErrString);
 	return NULL;
     }
-    
+
     if (isatty(0) || Verbose)
 	printf("Fetching %s...", fname), fflush(stdout);
     pen[0] = '\0';
@@ -429,11 +429,11 @@ copy_hierarchy(const char *dir, const char *fname, Boolean to)
 	if (*fname == '/')
 	    dir = "/";
 	snprintf(cmd, FILENAME_MAX * 3, "tar cf - -C %s %s | tar xpf -",
- 		 dir, fname);
+		 dir, fname);
     }
     else
 	snprintf(cmd, FILENAME_MAX * 3, "tar cf - %s | tar xpf - -C %s",
- 		 fname, dir);
+		 fname, dir);
 #ifdef DEBUG
     printf("Using '%s' to copy trees.\n", cmd);
 #endif
