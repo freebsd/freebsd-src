@@ -34,7 +34,7 @@
  *  caveats:   We may need an eisa and an isa files too
  */
 
-#ident "$Id: dpt_pci.c,v 1.5 1998/03/11 00:30:16 julian Exp $"
+#ident "$Id: dpt_pci.c,v 1.6 1998/06/02 00:32:38 eivind Exp $"
 
 #include "opt_devfs.h"
 #include "opt_dpt.h"
@@ -213,21 +213,7 @@ dpt_pci_attach(pcici_t config_id, int unit)
     dpt->commands_processed = 0;
 
 #ifdef DPT_MEASURE_PERFORMANCE
-    /* Zero out all command counters */
-    bzero((void *)&dpt->performance, sizeof(dpt_perf_t));
-    for ( ndx = 0; ndx < 256; ndx ++ )
-	  dpt->performance.min_command_time[ndx] = BIG_ENOUGH;
-    
-    dpt->performance.min_intr_time     = BIG_ENOUGH;
-    dpt->performance.min_waiting_time  = BIG_ENOUGH;
-    dpt->performance.min_submit_time   = BIG_ENOUGH;
-    dpt->performance.min_complete_time = BIG_ENOUGH;
-    dpt->performance.min_eata_tries    = BIG_ENOUGH;
-    
-    for (ndx = 0; ndx < 10; ndx++ ) {
-	    dpt->performance.read_by_size_min_time[ndx] = BIG_ENOUGH;
-	    dpt->performance.write_by_size_min_time[ndx] = BIG_ENOUGH;
-    }
+    dpt_reset_performance(dpt);
 #endif        /* DPT_MEASURE_PERFORMANCE */
 
     dpt->unit = unit;
@@ -481,14 +467,13 @@ dpt_pci_attach(pcici_t config_id, int unit)
 	   * We never get the entries made.
        */
 #ifdef DEVFS
-	  dpt->devfs_data_token = devfs_add_devswf(&dpt_cdevsw, dpt->unit, DV_CHR,
-											   UID_ROOT, GID_WHEEL, 0600,
-											   "dpt%d", dpt->unit);
-	  dpt->devfs_ctl_token = devfs_add_devswf(&dpt_cdevsw,
-											  dpt->unit | SCSI_CONTROL_MASK,
-											  DV_CHR,
-											  UID_ROOT, GID_WHEEL, 0600,
-											  "dpt%d.ctl", dpt->unit);
+	  (void) devfs_add_devswf(&dpt_cdevsw, dpt->unit, DV_CHR,
+				   			  UID_ROOT, GID_WHEEL, 0600,
+				   			  "dpt%d", dpt->unit);
+	  (void) devfs_add_devswf(&dpt_cdevsw, dpt->unit | SCSI_CONTROL_MASK,
+							  DV_CHR,
+							  UID_ROOT, GID_WHEEL, 0600,
+							  "dpt%d.ctl", dpt->unit);
 #endif
     }
 }
