@@ -169,7 +169,7 @@ GEOM class.
 This can be set to a number between 0 and 3 inclusive.
 If set to 0 minimal debug information is printed, and if set to 3 the
 maximum amount of debug information in printed.
-.It Va kern.geom.stripe.fast : No 0
+.It Va kern.geom.stripe.fast : No 1
 If set to a non-zero value enable
 .Dq "fast mode"
 instead of the normal
@@ -182,7 +182,7 @@ If enough memory cannot be allocated,
 .Nm STRIPE
 will fall back to
 .Dq "economic mode" .
-.It Va kern.geom.stripe.maxmem : No 13107200
+.It Va kern.geom.stripe.maxmem : No 6553600
 Maximum amount of memory that can be consumed by
 .Dq "fast mode"
 (in bytes).
