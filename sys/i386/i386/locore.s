@@ -670,7 +670,7 @@ trycyrix:
 
 trycpuid:	/* Use the `cpuid' instruction. */
 	xorl	%eax,%eax
-	.byte	0x0f,0xa2			# cpuid 0
+	cpuid					# cpuid 0
 	movl	%eax,R(_cpu_high)		# highest capability
 	movl	%ebx,R(_cpu_vendor)		# store vendor string
 	movl	%edx,R(_cpu_vendor+4)
@@ -678,7 +678,7 @@ trycpuid:	/* Use the `cpuid' instruction. */
 	movb	$0,R(_cpu_vendor+12)
 
 	movl	$1,%eax
-	.byte	0x0f,0xa2			# cpuid 1
+	cpuid					# cpuid 1
 	movl	%eax,R(_cpu_id)			# store cpu_id
 	movl	%ebx,R(_cpu_procinfo)		# store cpu_procinfo
 	movl	%edx,R(_cpu_feature)		# store cpu_feature
