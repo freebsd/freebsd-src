@@ -539,7 +539,7 @@ enum cp_tree_index
     CPTI_STD,
     CPTI_ABI,
     CPTI_TYPE_INFO_TYPE,
-    CPTI_TINFO_DECL_TYPE,
+    CPTI_TYPE_INFO_PTR_TYPE,
     CPTI_ABORT_FNDECL,
     CPTI_GLOBAL_DELETE_FNDECL,
     CPTI_AGGR_TAG,
@@ -626,7 +626,7 @@ extern tree cp_global_trees[CPTI_MAX];
 #define std_node			cp_global_trees[CPTI_STD]
 #define abi_node                        cp_global_trees[CPTI_ABI]
 #define type_info_type_node		cp_global_trees[CPTI_TYPE_INFO_TYPE]
-#define tinfo_decl_type			cp_global_trees[CPTI_TINFO_DECL_TYPE]
+#define type_info_ptr_type		cp_global_trees[CPTI_TYPE_INFO_PTR_TYPE]
 #define abort_fndecl			cp_global_trees[CPTI_ABORT_FNDECL]
 #define global_delete_fndecl		cp_global_trees[CPTI_GLOBAL_DELETE_FNDECL]
 #define current_aggr			cp_global_trees[CPTI_AGGR_TAG]
@@ -933,6 +933,11 @@ extern int flag_operator_names;
 /* For environments where you can use GNU binutils (as, ld in particular).  */
 
 extern int flag_gnu_binutils;
+
+/* Nonzero means warn about things that will change when compiling
+   with an ABI-compliant compiler.  */
+
+extern int warn_abi;
 
 /* Nonzero means warn about implicit declarations.  */
 
@@ -1245,6 +1250,8 @@ struct lang_type
   unsigned is_partial_instantiation : 1;
   unsigned java_interface : 1;
 
+  unsigned non_zero_init : 1;
+
   /* When adding a flag here, consider whether or not it ought to
      apply to a template instance if it applies to the template.  If
      so, make sure to copy it in instantiate_class_template!  */
@@ -1252,7 +1259,7 @@ struct lang_type
   /* There are some bits left to fill out a 32-bit word.  Keep track
      of this by updating the size of this bitfield whenever you add or
      remove a flag.  */
-  unsigned dummy : 8;
+  unsigned dummy : 7;
 
   int vsize;
 
@@ -1500,8 +1507,13 @@ struct lang_type
 #define CLASSTYPE_HAS_MUTABLE(NODE) (TYPE_LANG_SPECIFIC (NODE)->has_mutable)
 #define TYPE_HAS_MUTABLE_P(NODE) (cp_has_mutable_p (NODE))
 
-/*  Nonzero means that this class type is a non-POD class.  */
+/* Nonzero means that this class type is a non-POD class.  */
 #define CLASSTYPE_NON_POD_P(NODE) (TYPE_LANG_SPECIFIC (NODE)->non_pod_class)
+
+/* Nonzero means that this class contains pod types whose default
+   initialization is not a zero initialization (namely, pointers to
+   data members).  */
+#define CLASSTYPE_NON_ZERO_INIT_P(NODE) (TYPE_LANG_SPECIFIC (NODE)->non_zero_init)
 
 /* Nonzero if this class is "nearly empty", i.e., contains only a
    virtual function table pointer.  */
@@ -3812,6 +3824,7 @@ extern tree coerce_delete_type			PARAMS ((tree));
 extern void comdat_linkage			PARAMS ((tree));
 extern void import_export_vtable		PARAMS ((tree, tree, int));
 extern void import_export_decl			PARAMS ((tree));
+extern void import_export_tinfo			PARAMS ((tree, tree, int));
 extern tree build_cleanup			PARAMS ((tree));
 extern void finish_file				PARAMS ((void));
 extern tree reparse_absdcl_as_expr		PARAMS ((tree, tree));
@@ -3900,6 +3913,7 @@ extern tree build_aggr_init			PARAMS ((tree, tree, int));
 extern int is_aggr_type				PARAMS ((tree, int));
 extern tree get_aggr_from_typedef		PARAMS ((tree, int));
 extern tree get_type_value			PARAMS ((tree));
+extern tree build_forced_zero_init		PARAMS ((tree));
 extern tree build_member_call			PARAMS ((tree, tree, tree));
 extern tree build_offset_ref			PARAMS ((tree, tree));
 extern tree resolve_offset_ref			PARAMS ((tree));
@@ -3953,7 +3967,6 @@ extern int cp_type_qual_from_rid                PARAMS ((tree));
 extern const char *cxx_init			PARAMS ((const char *));
 extern void cxx_finish PARAMS ((void));
 extern void cxx_init_options PARAMS ((void));
-extern void cxx_post_options PARAMS ((void));
 
 /* in method.c */
 extern void init_method				PARAMS ((void));
@@ -4044,7 +4057,7 @@ extern tree get_tinfo_decl                      PARAMS((tree));
 extern tree get_typeid				PARAMS((tree));
 extern tree build_dynamic_cast			PARAMS((tree, tree));
 extern void emit_support_tinfos                 PARAMS((void));
-extern int tinfo_decl_p                         PARAMS((tree, void *));
+extern int unemitted_tinfo_decl_p    	        PARAMS((tree, void *));
 extern int emit_tinfo_decl                      PARAMS((tree *, void *));
 
 /* in search.c */
@@ -4076,6 +4089,7 @@ extern tree lookup_conversions			PARAMS ((tree));
 extern tree binfo_for_vtable			PARAMS ((tree));
 extern tree binfo_from_vbase			PARAMS ((tree));
 extern tree look_for_overrides_here		PARAMS ((tree, tree));
+extern int check_final_overrider		PARAMS ((tree, tree));
 extern tree dfs_walk                            PARAMS ((tree,
 						       tree (*) (tree, void *),
 						       tree (*) (tree, void *),
@@ -4212,6 +4226,7 @@ extern void end_input				PARAMS ((void));
 /* in tree.c */
 extern void init_tree			        PARAMS ((void));
 extern int pod_type_p				PARAMS ((tree));
+extern int zero_init_p				PARAMS ((tree));
 extern tree canonical_type_variant              PARAMS ((tree));
 extern void unshare_base_binfos			PARAMS ((tree));
 extern int member_p				PARAMS ((tree));
@@ -4357,6 +4372,7 @@ extern int abstract_virtuals_error		PARAMS ((tree, tree));
 #define my_friendly_assert(EXP, N) (void) \
  (((EXP) == 0) ? (fancy_abort (__FILE__, __LINE__, __FUNCTION__), 0) : 0)
 
+extern tree force_store_init_value		PARAMS ((tree, tree));
 extern tree store_init_value			PARAMS ((tree, tree));
 extern tree digest_init				PARAMS ((tree, tree, tree *));
 extern tree build_scoped_ref			PARAMS ((tree, tree));

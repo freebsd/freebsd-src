@@ -982,8 +982,17 @@ write_unqualified_name (decl)
     {
       /* Conversion operator. Handle it right here.  
            <operator> ::= cv <type>  */
+      tree type;
+      if (decl_is_template_id (decl, NULL))
+	{
+	  tree fn_type = get_mostly_instantiated_function_type (decl, NULL,
+								NULL);
+	  type = TREE_TYPE (fn_type);
+	}
+      else
+	type = TREE_TYPE (DECL_NAME (decl));
       write_string ("cv");
-      write_type (TREE_TYPE (DECL_NAME (decl)));
+      write_type (type);
     }
   else if (DECL_OVERLOADED_OPERATOR_P (decl))
     {
@@ -1818,6 +1827,12 @@ write_expression (expr)
       write_mangled_name (expr);
       write_char ('E');
     }
+  else if (TREE_CODE (expr) == SIZEOF_EXPR 
+	   && TYPE_P (TREE_OPERAND (expr, 0)))
+    {
+      write_string ("st");
+      write_type (TREE_OPERAND (expr, 0));
+    }
   else
     {
       int i;
@@ -1856,6 +1871,7 @@ write_expression (expr)
 	  write_expression (TREE_OPERAND (expr, 0));
 	  break;
 
+	  
 	/* Handle pointers-to-members specially.  */
 	case SCOPE_REF:
 	  write_type (TREE_OPERAND (expr, 0));

@@ -172,6 +172,11 @@ int flag_implicit_templates = 1;
 
 int flag_implicit_inline_templates = 1;
 
+/* Nonzero means warn about things that will change when compiling
+   with an ABI-compliant compiler.  */
+
+int warn_abi = 0;
+
 /* Nonzero means warn about implicit declarations.  */
 
 int warn_implicit = 1;
@@ -376,7 +381,7 @@ int flag_weak = 1;
 /* Nonzero to use __cxa_atexit, rather than atexit, to register
    destructors for local statics and global objects.  */
 
-int flag_use_cxa_atexit;
+int flag_use_cxa_atexit = DEFAULT_USE_CXA_ATEXIT;
 
 /* Maximum template instantiation depth.  This limit is rather
    arbitrary, but it exists to limit the time it takes to notice
@@ -600,7 +605,9 @@ cxx_decode_option (argc, argv)
       if (p[0] == 'n' && p[1] == 'o' && p[2] == '-')
 	setting = 0, p += 3;
 
-      if (!strcmp (p, "implicit"))
+      if (!strcmp (p, "abi"))
+	warn_abi = setting;
+      else if (!strcmp (p, "implicit"))
 	warn_implicit = setting;
       else if (!strcmp (p, "long-long"))
 	warn_long_long = setting;
@@ -2497,7 +2504,10 @@ import_export_decl (decl)
 	    comdat_linkage (decl);
 	}
       else
-	DECL_NOT_REALLY_EXTERN (decl) = 0;
+	{
+	  DECL_EXTERNAL (decl) = 1;
+	  DECL_NOT_REALLY_EXTERN (decl) = 0;
+	}
     }
   else if (DECL_FUNCTION_MEMBER_P (decl))
     {
@@ -2513,6 +2523,9 @@ import_export_decl (decl)
 			 && ! flag_implement_inlines
 			 && !DECL_VINDEX (decl)));
 
+	      if (!DECL_NOT_REALLY_EXTERN (decl))
+		DECL_EXTERNAL (decl) = 1;
+
 	      /* Always make artificials weak.  */
 	      if (DECL_ARTIFICIAL (decl) && flag_weak)
 		comdat_linkage (decl);
@@ -2523,45 +2536,50 @@ import_export_decl (decl)
       else
 	comdat_linkage (decl);
     }
-  else if (tinfo_decl_p (decl, 0))
-    {
-      tree ctype = TREE_TYPE (DECL_NAME (decl));
-
-      if (IS_AGGR_TYPE (ctype))
-	import_export_class (ctype);
-
-      if (IS_AGGR_TYPE (ctype) && CLASSTYPE_INTERFACE_KNOWN (ctype)
-	  && TYPE_POLYMORPHIC_P (ctype)
-	  /* If -fno-rtti, we're not necessarily emitting this stuff with
-	     the class, so go ahead and emit it now.  This can happen
-	     when a class is used in exception handling.  */
-	  && flag_rtti
-	  /* If the type is a cv-qualified variant of a type, then we
-	     must emit the tinfo function in this translation unit
-	     since it will not be emitted when the vtable for the type
-	     is output (which is when the unqualified version is
-	     generated).  */
-	  && same_type_p (ctype, TYPE_MAIN_VARIANT (ctype)))
-	{
-	  DECL_NOT_REALLY_EXTERN (decl)
-	    = ! (CLASSTYPE_INTERFACE_ONLY (ctype)
-		 || (DECL_DECLARED_INLINE_P (decl) 
-		     && ! flag_implement_inlines
-		     && !DECL_VINDEX (decl)));
-
-	  /* Always make artificials weak.  */
-	  if (flag_weak)
-	    comdat_linkage (decl);
-	}
-      else if (TYPE_BUILT_IN (ctype) 
-	       && same_type_p (ctype, TYPE_MAIN_VARIANT (ctype)))
-	DECL_NOT_REALLY_EXTERN (decl) = 0;
-      else
-	comdat_linkage (decl);
-    } 
   else
     comdat_linkage (decl);
 
+  DECL_INTERFACE_KNOWN (decl) = 1;
+}
+
+/* Here, we only decide whether or not the tinfo node should be
+   emitted with the vtable.  IS_IN_LIBRARY is non-zero iff the
+   typeinfo for TYPE should be in the runtime library.  */
+
+void
+import_export_tinfo (decl, type, is_in_library)
+     tree decl;
+     tree type;
+     int is_in_library;
+{
+  if (DECL_INTERFACE_KNOWN (decl))
+    return;
+  
+  if (IS_AGGR_TYPE (type))
+    import_export_class (type);
+      
+  if (IS_AGGR_TYPE (type) && CLASSTYPE_INTERFACE_KNOWN (type)
+      && TYPE_POLYMORPHIC_P (type)
+      /* If -fno-rtti, we're not necessarily emitting this stuff with
+	 the class, so go ahead and emit it now.  This can happen when
+	 a class is used in exception handling.  */
+      && flag_rtti)
+    {
+      DECL_NOT_REALLY_EXTERN (decl) = !CLASSTYPE_INTERFACE_ONLY (type);
+      DECL_COMDAT (decl) = 0;
+    }
+  else
+    {
+      DECL_NOT_REALLY_EXTERN (decl) = 1;
+      DECL_COMDAT (decl) = 1;
+    }
+
+  /* Now override some cases. */
+  if (flag_weak)
+    DECL_COMDAT (decl) = 1;
+  else if (is_in_library)
+    DECL_COMDAT (decl) = 0;
+  
   DECL_INTERFACE_KNOWN (decl) = 1;
 }
 
@@ -3358,7 +3376,7 @@ finish_file ()
       
       /* Write out needed type info variables. Writing out one variable
          might cause others to be needed.  */
-      if (walk_globals (tinfo_decl_p, emit_tinfo_decl, /*data=*/0))
+      if (walk_globals (unemitted_tinfo_decl_p, emit_tinfo_decl, /*data=*/0))
 	reconsider = 1;
 
       /* The list of objects with static storage duration is built up

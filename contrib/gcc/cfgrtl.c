@@ -953,9 +953,21 @@ force_nonfallthru_and_redirect (e, target)
   if (e->src->succ->succ_next)
     {
       /* Create the new structures.  */
+
+      /* Position the new block correctly relative to loop notes.  */
       note = last_loop_beg_note (e->src->end);
-      jump_block
-	= create_basic_block (e->src->index + 1, NEXT_INSN (note), NULL);
+      note = NEXT_INSN (note);
+
+      /* ... and ADDR_VECs.  */
+      if (note != NULL
+	  && GET_CODE (note) == CODE_LABEL
+	  && NEXT_INSN (note)
+	  && GET_CODE (NEXT_INSN (note)) == JUMP_INSN
+	  && (GET_CODE (PATTERN (NEXT_INSN (note))) == ADDR_DIFF_VEC
+	      || GET_CODE (PATTERN (NEXT_INSN (note))) == ADDR_VEC))
+	note = NEXT_INSN (NEXT_INSN (note));
+
+      jump_block = create_basic_block (e->src->index + 1, note, NULL);
       jump_block->count = e->count;
       jump_block->frequency = EDGE_FREQUENCY (e);
       jump_block->loop_depth = target->loop_depth;
@@ -1954,17 +1966,26 @@ purge_dead_edges (bb)
  
 	  e->flags &= ~EDGE_ABNORMAL;
 
-	  /* Check purposes we can have edge.  */
-	  if ((e->flags & EDGE_FALLTHRU)
-	      && any_condjump_p (insn))
+	  /* See if this edge is one we should keep.  */
+	  if ((e->flags & EDGE_FALLTHRU) && any_condjump_p (insn))
+	    /* A conditional jump can fall through into the next
+	       block, so we should keep the edge.  */
 	    continue;
 	  else if (e->dest != EXIT_BLOCK_PTR
 		   && e->dest->head == JUMP_LABEL (insn))
+	    /* If the destination block is the target of the jump,
+	       keep the edge.  */
 	    continue;
-	  else if (e->dest == EXIT_BLOCK_PTR
-		   && returnjump_p (insn))
+	  else if (e->dest == EXIT_BLOCK_PTR && returnjump_p (insn))
+	    /* If the destination block is the exit block, and this
+	       instruction is a return, then keep the edge.  */
+	    continue;
+	  else if ((e->flags & EDGE_EH) && can_throw_internal (insn))
+	    /* Keep the edges that correspond to exceptions thrown by
+	       this instruction.  */
 	    continue;
 
+	  /* We do not need this edge.  */
 	  purged = true;
 	  remove_edge (e);
 	}
