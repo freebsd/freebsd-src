@@ -63,7 +63,7 @@ _libvgl=	libvgl
 .endif
 
 .if ${MACHINE_ARCH} != "arm" && ${MACHINE_ARCH} != "ia64" && \
-    ${MACHINE_ARCH} != "powerpc" && !defined(NOLIBC_R)
+    ${MACHINE_ARCH} != "powerpc" && !defined(NO_LIBC_R)
 _libc_r=	libc_r
 .endif
 
@@ -91,11 +91,11 @@ _libncp=	libncp
 _libsmb=	libsmb
 .endif
 
-.if !defined(NOLIBPTHREAD)
+.if !defined(NO_LIBPTHREAD)
 _libpthread=	libpthread
 .endif
 
-.if ${MACHINE_ARCH} != "arm" && !defined(NOLIBTHR)
+.if ${MACHINE_ARCH} != "arm" && !defined(NO_LIBTHR)
 _libthr=	libthr
 .endif
 

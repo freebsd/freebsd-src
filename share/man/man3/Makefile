@@ -141,7 +141,7 @@ MLINKS+=	tree.3 RB_EMPTY.3 \
 		tree.3 SPLAY_RIGHT.3 \
 		tree.3 SPLAY_ROOT.3
 
-.if !defined(NOLIBC_R) || !defined(NOLIBPTHREAD) || !defined(NOLIBTHR)
+.if !defined(NO_LIBC_R) || !defined(NO_LIBPTHREAD) || !defined(NO_LIBTHR)
 PTHREAD_MAN=	pthread.3 \
 		pthread_attr.3 \
 		pthread_attr_get_np.3 \
