@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: index.c,v 1.36 1996/06/25 04:28:21 jkh Exp $
+ * $Id: index.c,v 1.37 1996/08/01 12:02:24 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -502,7 +502,7 @@ index_menu(PkgNodePtr top, PkgNodePtr plist, int *pos, int *scroll)
 	nitems = item_add(nitems, NULL, NULL, NULL, NULL, NULL, NULL, 0, &curr, &max);
 
 recycle:
-	dialog_clear();
+	dialog_clear_norefresh();
 	if (hasPackages)
 	    rval = dialog_checklist(top->name, top->desc, -1, -1, n > MAX_MENU ? MAX_MENU : n, -n, nitems, NULL);
 	else	/* It's a categories menu */

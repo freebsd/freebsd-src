@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.50 1996/08/01 12:02:26 jkh Exp $
+ * $Id: media.c,v 1.51 1996/08/01 12:59:54 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -260,7 +260,7 @@ mediaSetFTP(dialogMenuItem *self)
     char *cp, *hostname, *dir;
     extern int FtpPort;
 
-    dialog_clear();
+    dialog_clear_norefresh();
     if (!dmenuOpenSimple(&MenuMediaFTP, FALSE))
 	return DITEM_FAILURE | DITEM_RECREATE;
     else
@@ -271,7 +271,7 @@ mediaSetFTP(dialogMenuItem *self)
     }
     else if (!strcmp(cp, "other")) {
 	variable_set2(VAR_FTP_PATH, "ftp://");
-	dialog_clear();
+	dialog_clear_norefresh();
 	cp = variable_get_value(VAR_FTP_PATH, "Please specify the URL of a FreeBSD distribution on a\n"
 				"remote ftp site.  This site must accept either anonymous\n"
 				"ftp or you should have set an ftp username and password\n"

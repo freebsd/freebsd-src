@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.66 1996/07/12 11:13:58 jkh Exp $
+ * $Id: dist.c,v 1.67 1996/07/13 05:44:51 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -264,7 +264,7 @@ distMaybeSetDES(dialogMenuItem *self)
 {
     int i = DITEM_SUCCESS;
 
-    dialog_clear();
+    dialog_clear_norefresh();
     if (!msgYesNo("Do wish to install DES cryptographic software?\n\n"
 		  "If you choose No, FreeBSD will use an MD5 based password scheme which,\n"
 		  "while perhaps more secure, is not interoperable with the traditional\n"
@@ -338,7 +338,7 @@ distExtract(char *parent, Distribution *me)
     struct timeval start, stop;
 
     status = TRUE;
-    dialog_clear();
+    dialog_clear_norefresh();
     if (isDebug())
 	msgDebug("distExtract: parent: %s, me: %s\n", parent ? parent : "(none)", me->my_name);
 
@@ -464,7 +464,7 @@ distExtract(char *parent, Distribution *me)
 		retval = write(fd2, buf, n);
 		if (retval != n) {
 		    mediaDevice->close(mediaDevice, fd);
-		    dialog_clear();
+		    dialog_clear_norefresh();
 		    msgConfirm("Write failure on transfer! (wrote %d bytes of %d bytes)", retval, n);
 		    goto punt;
 		}
@@ -551,7 +551,7 @@ distExtractAll(dialogMenuItem *self)
 
     if (!mediaDevice->init(mediaDevice))
 	return DITEM_FAILURE;
-    dialog_clear();
+    dialog_clear_norefresh();
     msgNotify("Attempting to install all selected distributions..");
     /* Try for 3 times around the loop, then give up. */
     while (Dists && ++retries < 3)
@@ -562,7 +562,7 @@ distExtractAll(dialogMenuItem *self)
 
 	buf[0] = '\0';
 	printSelected(buf, Dists, DistTable, &col);
-	dialog_clear();
+	dialog_clear_norefresh();
 	msgConfirm("Couldn't extract the following distributions.  This may\n"
 		   "be because they were not available on the installation\n"
 		   "media you've chosen:\n\n\t%s", buf);
