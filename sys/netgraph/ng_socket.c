@@ -583,7 +583,7 @@ ng_internalize(struct mbuf *control, struct thread *td)
 	}
 
 	/* Check there is only one FD. XXX what would more than one signify? */
-	oldfds = (cm->cmsg_len - sizeof(*cm)) / sizeof(int);
+	oldfds = ((caddr_t)cm + cm->cmsg_len - (caddr_t)data) / sizeof (int);
 	if (oldfds != 1) {
 		TRAP_ERROR;
 		return (EINVAL);
@@ -591,7 +591,7 @@ ng_internalize(struct mbuf *control, struct thread *td)
 
 	/* Check that the FD given is legit. and change it to a pointer to a
 	 * struct file. */
-	fd = *(int *) (cm + 1);
+	fd = CMSG_DATA(cm);
 	if ((unsigned) fd >= fdp->fd_nfiles
 	    || (fp = fdp->fd_ofiles[fd]) == NULL) {
 		return (EBADF);

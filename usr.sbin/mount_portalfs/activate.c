@@ -113,9 +113,9 @@ int error;
 	int n;
 	struct iovec iov;
 	struct msghdr msg;
-	struct {
+	union {
 		struct cmsghdr cmsg;
-		int fd;
+		char control[CMSG_SPACE(sizeof(int))];
 	} ctl;
 
 	/*
@@ -137,10 +137,10 @@ int error;
 	 * construct a suitable rights control message.
 	 */
 	if (fd >= 0) {
-		ctl.fd = fd;
-		ctl.cmsg.cmsg_len = sizeof(ctl);
+		ctl.cmsg.cmsg_len = CMSG_LEN(sizeof(int));
 		ctl.cmsg.cmsg_level = SOL_SOCKET;
 		ctl.cmsg.cmsg_type = SCM_RIGHTS;
+		*((int *)CMSG_DATA(&ctl.cmsg)) = fd;
 		msg.msg_control = (caddr_t) &ctl;
 		msg.msg_controllen = ctl.cmsg.cmsg_len;
 	}

@@ -793,7 +793,10 @@ __msgread(sock, buf, cnt)
 {
 	struct iovec iov[1];
 	struct msghdr msg;
-	struct cmessage cm;
+	union {
+		struct cmsghdr cmsg;
+		char control[CMSG_SPACE(sizeof(struct cmsgcred))];
+	} cm;
  
 	bzero((char *)&cm, sizeof(cm));
 	iov[0].iov_base = buf;
@@ -804,7 +807,7 @@ __msgread(sock, buf, cnt)
 	msg.msg_name = NULL;
 	msg.msg_namelen = 0;
 	msg.msg_control = (caddr_t)&cm;
-	msg.msg_controllen = sizeof(struct cmessage);
+	msg.msg_controllen = CMSG_SPACE(sizeof(struct cmsgcred));
 	msg.msg_flags = 0;
  
 	return(_recvmsg(sock, &msg, 0));
@@ -818,7 +821,10 @@ __msgwrite(sock, buf, cnt)
 {
 	struct iovec iov[1];
 	struct msghdr msg;
-	struct cmessage cm;
+	union {
+		struct cmsghdr cmsg;
+		char control[CMSG_SPACE(sizeof(struct cmsgcred))];
+	} cm;
  
 	bzero((char *)&cm, sizeof(cm));
 	iov[0].iov_base = buf;
@@ -826,14 +832,14 @@ __msgwrite(sock, buf, cnt)
  
 	cm.cmsg.cmsg_type = SCM_CREDS;
 	cm.cmsg.cmsg_level = SOL_SOCKET;
-	cm.cmsg.cmsg_len = sizeof(struct cmessage);
+	cm.cmsg.cmsg_len = CMSG_LEN(sizeof(struct cmsgcred));
  
 	msg.msg_iov = iov;
 	msg.msg_iovlen = 1;
 	msg.msg_name = NULL;
 	msg.msg_namelen = 0;
 	msg.msg_control = (caddr_t)&cm;
-	msg.msg_controllen = sizeof(struct cmessage);
+	msg.msg_controllen = CMSG_SPACE(sizeof(struct cmsgcred));
 	msg.msg_flags = 0;
 
 	return(_sendmsg(sock, &msg, 0));
