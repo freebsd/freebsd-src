@@ -84,6 +84,9 @@ struct log_data
     /* Nonzero if the -b option was seen, meaning that only revisions
        on the default branch should be printed.  */
     int default_branch;
+    /* Nonzero if the -S option was seen, meaning that the header/name
+       should be suppressed if no revisions are selected.  */
+    int sup_header;
     /* If not NULL, the value given for the -r option, which lists
        sets of revisions to be printed.  */
     struct option_revlist *revlist;
@@ -150,18 +153,20 @@ static const char *const log_usage[] =
     "\t-h\tOnly print header.\n",
     "\t-t\tOnly print header and descriptive text.\n",
     "\t-N\tDo not list tags.\n",
+    "\t-S\tDo not print name/header if no revisions selected.\n",
     "\t-b\tOnly list revisions on the default branch.\n",
-    "\t-r[revisions]\tSpecify revision(s)s to list.\n",
+    "\t-r[revisions]\tA comma-separated list of revisions to print:\n",
     "\t   rev1:rev2   Between rev1 and rev2, including rev1 and rev2.\n",
-    "\t   rev1::rev2  Between rev1 and rev2, excluding rev1 and rev2.\n",
+    "\t   rev1::rev2  Between rev1 and rev2, excluding rev1.\n",
     "\t   rev:        rev and following revisions on the same branch.\n",
     "\t   rev::       After rev on the same branch.\n",
     "\t   :rev        rev and previous revisions on the same branch.\n",
-    "\t   ::rev       Before rev on the same branch.\n",
+    "\t   ::rev       rev and previous revisions on the same branch.\n",
     "\t   rev         Just rev.\n",
     "\t   branch      All revisions on the branch.\n",
     "\t   branch.     The last revision on the branch.\n",
-    "\t-d dates\tSpecify dates (D1<D2 for range, D for latest before).\n",
+    "\t-d dates\tA semicolon-separated list of dates\n",
+    "\t        \t(D1<D2 for range, D for latest before).\n",
     "\t-s states\tOnly list revisions with specified states.\n",
     "\t-w[logins]\tOnly list revisions checked in by specified logins.\n",
     "(Specify the --help global option for a list of other help options)\n",
@@ -228,7 +233,7 @@ cvslog (argc, argv)
     prl = &log_data.revlist;
 
     optind = 0;
-    while ((c = getopt (argc, argv, "+bd:hlNRr::s:tw::")) != -1)
+    while ((c = getopt (argc, argv, "+bd:hlNSRr::s:tw::")) != -1)
     {
 	switch (c)
 	{
@@ -246,6 +251,9 @@ cvslog (argc, argv)
 		break;
 	    case 'N':
 		log_data.notags = 1;
+		break;
+	    case 'S':
+		log_data.sup_header = 1;
 		break;
 	    case 'R':
 		log_data.nameonly = 1;
@@ -336,6 +344,8 @@ cvslog (argc, argv)
 	    send_arg("-l");
 	if (log_data.notags)
 	    send_arg("-N");
+	if (log_data.sup_header)
+	    send_arg("-S");
 	if (log_data.nameonly)
 	    send_arg("-R");
 	if (log_data.long_header)
@@ -405,14 +415,14 @@ cvslog (argc, argv)
 	for (i = 0; i < argc; i++)
 	{
 	    err += do_module (db, argv[i], MISC, "Logging", rlog_proc,
-			     (char *) NULL, 0, 0, 0, 0, (char *) NULL);
+			     (char *) NULL, 0, local, 0, 0, (char *) NULL);
 	}
 	close_module (db);
     }
     else
     {
 	err = rlog_proc (argc + 1, argv - 1, (char *) NULL,
-			 (char *) NULL, (char *) NULL, 0, 0, (char *) NULL,
+			 (char *) NULL, (char *) NULL, 0, local, (char *) NULL,
 			 (char *) NULL);
     }
 
@@ -782,6 +792,7 @@ log_fileproc (callerdat, finfo)
 {
     struct log_data *log_data = (struct log_data *) callerdat;
     Node *p;
+    int selrev = -1;
     RCSNode *rcsfile;
     char buf[50];
     struct revlist *revlist;
@@ -811,20 +822,44 @@ log_fileproc (callerdat, finfo)
 	return (1);
     }
 
+    if (log_data->sup_header || !log_data->nameonly)
+    {
+
+	/* We will need all the information in the RCS file.  */
+	RCS_fully_parse (rcsfile);
+
+	/* Turn any symbolic revisions in the revision list into numeric
+	   revisions.  */
+	revlist = log_expand_revlist (rcsfile, log_data->revlist,
+				      log_data->default_branch);
+	if (log_data->sup_header || (!log_data->header && !log_data->long_header))
+	{
+	    log_data_and_rcs.log_data = log_data;
+	    log_data_and_rcs.revlist = revlist;
+	    log_data_and_rcs.rcs = rcsfile;
+
+	    /* If any single dates were specified, we need to identify the
+	       revisions they select.  Each one selects the single
+	       revision, which is otherwise selected, of that date or
+	       earlier.  The log_fix_singledate routine will fill in the
+	       start date for each specific revision.  */
+	    if (log_data->singledatelist != NULL)
+		walklist (rcsfile->versions, log_fix_singledate,
+			  (void *) &log_data_and_rcs);
+
+	    selrev = walklist (rcsfile->versions, log_count_print,
+			       (void *) &log_data_and_rcs);
+	    if (log_data->sup_header && selrev == 0) return 0;
+	}
+
+    }
+
     if (log_data->nameonly)
     {
 	cvs_output (rcsfile->path, 0);
 	cvs_output ("\n", 1);
 	return 0;
     }
-
-    /* We will need all the information in the RCS file.  */
-    RCS_fully_parse (rcsfile);
-
-    /* Turn any symbolic revisions in the revision list into numeric
-       revisions.  */
-    revlist = log_expand_revlist (rcsfile, log_data->revlist,
-				  log_data->default_branch);
 
     /* The output here is intended to be exactly compatible with the
        output of rlog.  I'm not sure whether this code should be here
@@ -907,25 +942,10 @@ log_fileproc (callerdat, finfo)
     sprintf (buf, "%d", walklist (rcsfile->versions, log_count, NULL));
     cvs_output (buf, 0);
 
-    if (! log_data->header && ! log_data->long_header)
+    if (selrev >= 0)
     {
 	cvs_output (";\tselected revisions: ", 0);
-
-	log_data_and_rcs.log_data = log_data;
-	log_data_and_rcs.revlist = revlist;
-	log_data_and_rcs.rcs = rcsfile;
-
-	/* If any single dates were specified, we need to identify the
-	   revisions they select.  Each one selects the single
-	   revision, which is otherwise selected, of that date or
-	   earlier.  The log_fix_singledate routine will fill in the
-	   start date for each specific revision.  */
-	if (log_data->singledatelist != NULL)
-	    walklist (rcsfile->versions, log_fix_singledate,
-		      (void *) &log_data_and_rcs);
-
-	sprintf (buf, "%d", walklist (rcsfile->versions, log_count_print,
-				      (void *) &log_data_and_rcs));
+	sprintf (buf, "%d", selrev);
 	cvs_output (buf, 0);
     }
 
@@ -1029,24 +1049,25 @@ log_expand_revlist (rcs, revlist, default_branch)
 	    {
 		branch = RCS_whatbranch (rcs, r->first);
 		if (branch == NULL)
+		    nr->first = NULL;
+		else
 		{
-		    error (0, 0, "warning: `%s' is not a branch in `%s'",
-			   r->first, rcs->path);
-		    free (nr);
-		    continue;
+		    nr->first = RCS_getbranch (rcs, branch, 1);
+		    free (branch);
 		}
-		nr->first = RCS_getbranch (rcs, branch, 1);
-		free (branch);
 	    }
 	    if (nr->first == NULL)
 	    {
-		error (0, 0, "warning: no revision `%s' in `%s'",
+		error (0, 0, "warning: no branch `%s' in `%s'",
 		       r->first, rcs->path);
-		free (nr);
-		continue;
+		nr->last = NULL;
+		nr->fields = 0;
 	    }
-	    nr->last = xstrdup (nr->first);
-	    nr->fields = numdots (nr->first) + 1;
+	    else
+	    {
+		nr->last = xstrdup (nr->first);
+		nr->fields = numdots (nr->first) + 1;
+	    }
 	}
 	else
 	{
@@ -1062,12 +1083,11 @@ log_expand_revlist (rcs, revlist, default_branch)
 		{
 		    error (0, 0, "warning: no revision `%s' in `%s'",
 			   r->first, rcs->path);
-		    free (nr);
-		    continue;
 		}
 	    }
 
-	    if (r->last == r->first)
+	    if (r->last == r->first || (r->last != NULL && r->first != NULL &&
+					strcmp (r->last, r->first) == 0))
 		nr->last = xstrdup (nr->first);
 	    else if (r->last == NULL || isdigit ((unsigned char) r->last[0]))
 		nr->last = xstrdup (r->last);
@@ -1081,10 +1101,6 @@ log_expand_revlist (rcs, revlist, default_branch)
 		{
 		    error (0, 0, "warning: no revision `%s' in `%s'",
 			   r->last, rcs->path);
-		    if (nr->first != NULL)
-			free (nr->first);
-		    free (nr);
-		    continue;
 		}
 	    }
 
@@ -1092,7 +1108,7 @@ log_expand_revlist (rcs, revlist, default_branch)
                does.  This code is a bit cryptic for my tastes, but
                keeping the same implementation as rlog ensures a
                certain degree of compatibility.  */
-	    if (r->first == NULL)
+	    if (r->first == NULL && nr->last != NULL)
 	    {
 		nr->fields = numdots (nr->last) + 1;
 		if (nr->fields < 2)
@@ -1106,7 +1122,7 @@ log_expand_revlist (rcs, revlist, default_branch)
 		    strcpy (cp, ".0");
 		}
 	    }
-	    else if (r->last == NULL)
+	    else if (r->last == NULL && nr->first != NULL)
 	    {
 		nr->fields = numdots (nr->first) + 1;
 		nr->last = xstrdup (nr->first);
@@ -1120,7 +1136,7 @@ log_expand_revlist (rcs, revlist, default_branch)
 		    *cp = '\0';
 		}
 	    }
-	    else
+	    else if (nr->first != NULL && nr->last != NULL)
 	    {
 		nr->fields = numdots (nr->first) + 1;
 		if (nr->fields != numdots (nr->last) + 1
@@ -1132,11 +1148,12 @@ log_expand_revlist (rcs, revlist, default_branch)
 			   "invalid branch or revision pair %s:%s in `%s'",
 			   r->first, r->last, rcs->path);
 		    free (nr->first);
+		    nr->first = NULL;
 		    free (nr->last);
-		    free (nr);
-		    continue;
+		    nr->last = NULL;
+		    nr->fields = 0;
 		}
-		if (version_compare (nr->first, nr->last, nr->fields) > 0)
+		else if (version_compare (nr->first, nr->last, nr->fields) > 0)
 		{
 		    char *tmp;
 
@@ -1145,6 +1162,8 @@ log_expand_revlist (rcs, revlist, default_branch)
 		    nr->last = tmp;
 		}
 	    }
+	    else
+		nr->fields = 0;
 	}
 
 	nr->next = NULL;
@@ -1288,11 +1307,9 @@ log_version_requested (log_data, revlist, rcs, vnode)
 	for (r = revlist; r != NULL; r = r->next)
 	{
 	    if (vfields == r->fields + (r->fields & 1) &&
-		(r->inclusive ?
-		    version_compare (v, r->first, r->fields) >= 0
-		    && version_compare (v, r->last, r->fields) <= 0 :
-		    version_compare (v, r->first, r->fields) > 0
-		    && version_compare (v, r->last, r->fields) < 0))
+		(r->inclusive ? version_compare (v, r->first, r->fields) >= 0 :
+				version_compare (v, r->first, r->fields) > 0)
+		    && version_compare (v, r->last, r->fields) <= 0)
 	    {
 		return 1;
 	    }

@@ -28,7 +28,6 @@ static int patch_proc PROTO((int argc, char **argv, char *xwhere,
 static int force_tag_match = 1;
 static int patch_short = 0;
 static int toptwo_diffs = 0;
-static int local = 0;
 static char *options = NULL;
 static char *rev1 = NULL;
 static int rev1_validated = 0;
@@ -65,6 +64,7 @@ patch (argc, argv)
     char **argv;
 {
     register int i;
+    int local = 0;
     int c;
     int err = 0;
     DBM *db;
@@ -343,19 +343,19 @@ patch_proc (argc, argv, xwhere, mwhere, mfile, shorten, local_specified,
 
     if (rev1 != NULL && !rev1_validated)
     {
-	tag_check_valid (rev1, argc - 1, argv + 1, local, 0, NULL);
+	tag_check_valid (rev1, argc - 1, argv + 1, local_specified, 0, NULL);
 	rev1_validated = 1;
     }
     if (rev2 != NULL && !rev2_validated)
     {
-	tag_check_valid (rev2, argc - 1, argv + 1, local, 0, NULL);
+	tag_check_valid (rev2, argc - 1, argv + 1, local_specified, 0, NULL);
 	rev2_validated = 1;
     }
 
     /* start the recursion processor */
     err = start_recursion (patch_fileproc, (FILESDONEPROC) NULL, patch_dirproc,
 			   (DIRLEAVEPROC) NULL, NULL,
-			   argc - 1, argv + 1, local,
+			   argc - 1, argv + 1, local_specified,
 			   which, 0, 1, where, 1);
     free (where);
 
@@ -432,7 +432,7 @@ patch_fileproc (callerdat, finfo)
 	if (!date1)
 	    date1 = xmalloc (MAXDATELEN);
 	*date1 = '\0';
-	if (RCS_getrevtime (rcsfile, vers_head, date1, 1) == -1)
+	if (RCS_getrevtime (rcsfile, vers_head, date1, 1) == (time_t)-1)
 	{
 	    if (!really_quiet)
 		error (0, 0, "cannot find date in rcs file %s revision %s",

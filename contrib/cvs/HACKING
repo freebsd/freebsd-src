@@ -1,5 +1,11 @@
 How to write code for CVS
 
+* Source
+
+Patches against the development version of CVS are most likely to be accepted:
+
+	$ cvs -d:pserver:anoncvs@cvs.cvshome.org/cvsroot co ccvs
+
 * Compiler options
 
 If you are using GCC, you'll want to configure with -Wall, which can
@@ -141,7 +147,7 @@ process the following should exist:
   - Most of the time, a test case (see TESTS).  It can be quite
     frustrating to fix a bug only to see it reappear later, and adding
     the case to the testsuite, where feasible, solves this and other
-    problems.
+    problems.  See the TESTS file for notes on writing new tests.
 
 If you solve several unrelated problems, it is generally easier to
 consider the desirability of the changes if there is a separate patch
@@ -180,20 +186,20 @@ intentional, to avoid a last minute rush to get new features in.
 
 Anyone can add themselves to the following mailing lists:
 
-    devel-cvs.  Unless you are accepted as a CVS developer as
+    dev.  Unless you are accepted as a CVS developer as
       described in the DEVEL-CVS file, you will only be able to
       read this list, not send to it.  The charter of the list is
       also in DEVEL-CVS.
-    commit-cvs.  The only messages sent to this list are sent
+    cvs.  The only messages sent to this list are sent
       automatically, via the CVS `loginfo' mechanism, when someone
       checks something in to the master CVS repository.
     test-results.  The only messages sent to this list are sent
       automatically, daily, by a script which runs "make check"
       and "make remotecheck" on the master CVS sources.
-To subscribe to devel-cvs, commit-cvs, or test-results, send
-a message to "majordomo@cvshome.org" whose body consists of
-"subscribe <list>", where <list> is devel-cvs, commit-cvs or
-test-results.
+To subscribe to dev, cvs, or test-results, send
+a message to "<list>-subscribe@ccvs.cvshome.org" or visit
+http://ccvs.cvshome.org/servlets/ProjectMailingListList and follow the
+instructions there.
 
 One other list related to CVS development is bug-cvs.  This is the
 list which users are requested to send bug reports to.  Anyone can
