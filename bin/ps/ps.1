@@ -40,7 +40,7 @@
 .Nd process status
 .Sh SYNOPSIS
 .Nm
-.Op Fl aCcefhjlmrSTuvwxZ
+.Op Fl aCcefHhjlmrSTuvwxZ
 .Op Fl M Ar core
 .Op Fl N Ar system
 .Op Fl O Ar fmt
@@ -98,6 +98,12 @@ Display the environment as well.
 .It Fl f
 Show commandline and environment information about swapped out processes.
 This option is honored only if the uid of the user is 0.
+.It Fl H
+Show all of the
+.Em kernel visible
+threads associated with each process.  Depending on the threading package that
+is in use, this may show only the process, only the kernel scheduled entities,
+or all of the process threads.
 .It Fl h
 Repeat the information header as often as necessary to guarantee one
 header per page of information.
