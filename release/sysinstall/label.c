@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.3 1995/05/17 14:39:45 jkh Exp $
+ * $Id: label.c,v 1.4 1995/05/17 15:41:52 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -292,7 +292,7 @@ print_label_chunks(void)
     int i, j, srow, prow, pcol;
     int sz;
 
-    clear();
+    dialog_clear();
     attrset(A_REVERSE);
     mvaddstr(0, 25, "FreeBSD Disklabel Editor");
     attrset(A_NORMAL);
@@ -608,7 +608,7 @@ diskLabelEditor(char *str)
 	}
     }
     variable_set2(DISK_LABELLED, "yes");
-    clear();
+    dialog_clear();
     refresh();
     return 0;
 }
