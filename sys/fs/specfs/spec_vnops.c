@@ -46,6 +46,7 @@
 #include <sys/fcntl.h>
 #include <sys/disklabel.h>
 #include <sys/vmmeter.h>
+#include <sys/sysctl.h>
 #include <sys/tty.h>
 
 #include <vm/vm.h>
@@ -70,8 +71,10 @@ static int	spec_open __P((struct vop_open_args *));
 static int	spec_poll __P((struct vop_poll_args *));
 static int	spec_print __P((struct vop_print_args *));
 static int	spec_read __P((struct vop_read_args *));  
+static int	spec_bufread __P((struct vop_read_args *));  
 static int	spec_strategy __P((struct vop_strategy_args *));
 static int	spec_write __P((struct vop_write_args *));
+static int	spec_bufwrite __P((struct vop_write_args *));
 
 vop_t **spec_vnodeop_p;
 static struct vnodeopv_entry_desc spec_vnodeop_entries[] = {
@@ -114,6 +117,8 @@ static struct vnodeopv_desc spec_vnodeop_opv_desc =
 
 VNODEOP_SET(spec_vnodeop_opv_desc);
 
+static int bdev_buffered = 1;
+SYSCTL_INT(_vfs, OID_AUTO, bdev_buffered, CTLFLAG_RW, &bdev_buffered, 0, "");
 
 int
 spec_vnoperate(ap)
@@ -159,7 +164,7 @@ spec_open(ap)
 	struct proc *p = ap->a_p;
 	struct vnode *bvp, *vp = ap->a_vp;
 	dev_t bdev, dev = vp->v_rdev;
-	int error, maxio;
+	int error;
 	struct cdevsw *dsw;
 
 	/*
@@ -267,8 +272,45 @@ spec_read(ap)
 		struct ucred *a_cred;
 	} */ *ap;
 {
-	register struct vnode *vp = ap->a_vp;
-	register struct uio *uio = ap->a_uio;
+	struct vnode *vp = ap->a_vp;
+	struct uio *uio = ap->a_uio;
+ 	struct proc *p = uio->uio_procp;
+	int error = 0;
+
+#ifdef DIAGNOSTIC
+	if (uio->uio_rw != UIO_READ)
+		panic("spec_read mode");
+	if (uio->uio_segflg == UIO_USERSPACE && uio->uio_procp != curproc)
+		panic("spec_read proc");
+#endif
+	if (uio->uio_resid == 0)
+		return (0);
+
+	if (vp->v_type == VCHR || (bdev_buffered == 0)) {
+		VOP_UNLOCK(vp, 0, p);
+		error = (*devsw(vp->v_rdev)->d_read)
+			(vp->v_rdev, uio, ap->a_ioflag);
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
+		return (error);
+	} else {
+		return (spec_bufread(ap));
+	}
+}
+
+
+/* Vnode op for buffered read */
+/* ARGSUSED */
+static int
+spec_bufread(ap)
+	struct vop_read_args /* {
+		struct vnode *a_vp;
+		struct uio *a_uio;
+		int  a_ioflag;
+		struct ucred *a_cred;
+	} */ *ap;
+{
+	struct vnode *vp = ap->a_vp;
+	struct uio *uio = ap->a_uio;
  	struct proc *p = uio->uio_procp;
 	struct buf *bp;
 	daddr_t bn, nextbn;
@@ -280,92 +322,67 @@ spec_read(ap)
 	int seqcount = ap->a_ioflag >> 16;
 	dev_t dev;
 
-#ifdef DIAGNOSTIC
-	if (uio->uio_rw != UIO_READ)
-		panic("spec_read mode");
-	if (uio->uio_segflg == UIO_USERSPACE && uio->uio_procp != curproc)
-		panic("spec_read proc");
-#endif
-	if (uio->uio_resid == 0)
-		return (0);
+	if (uio->uio_offset < 0)
+		return (EINVAL);
+	dev = vp->v_rdev;
 
-	switch (vp->v_type) {
+	/*
+	 * Calculate block size for block device.  The block size must
+	 * be larger then the physical minimum.
+	 */
 
-	case VCHR:
-		VOP_UNLOCK(vp, 0, p);
-		error = (*devsw(vp->v_rdev)->d_read)
-			(vp->v_rdev, uio, ap->a_ioflag);
-		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
-		return (error);
+	bsize = vp->v_rdev->si_bsize_best;
+	if (bsize < vp->v_rdev->si_bsize_phys)
+		bsize = vp->v_rdev->si_bsize_phys;
+	if (bsize < BLKDEV_IOSIZE)
+		bsize = BLKDEV_IOSIZE;
 
-	case VBLK:
-		if (enable_userblk_io == 0)
-			return (EINVAL);
-		if (uio->uio_offset < 0)
-			return (EINVAL);
-		dev = vp->v_rdev;
+	if ((ioctl = devsw(dev)->d_ioctl) != NULL &&
+	    (*ioctl)(dev, DIOCGPART, (caddr_t)&dpart, FREAD, p) == 0 &&
+	    dpart.part->p_fstype == FS_BSDFFS &&
+	    dpart.part->p_frag != 0 && dpart.part->p_fsize != 0)
+		bsize = dpart.part->p_frag * dpart.part->p_fsize;
+	bscale = btodb(bsize);
+	do {
+		bn = btodb(uio->uio_offset) & ~(bscale - 1);
+		on = uio->uio_offset % bsize;
+		if (seqcount > 1) {
+			nextbn = bn + bscale;
+			error = breadn(vp, bn, (int)bsize, &nextbn,
+				(int *)&bsize, 1, NOCRED, &bp);
+		} else {
+			error = bread(vp, bn, (int)bsize, NOCRED, &bp);
+		}
 
 		/*
-		 * Calculate block size for block device.  The block size must
-		 * be larger then the physical minimum.
+		 * Figure out how much of the buffer is valid relative
+		 * to our offset into the buffer, which may be negative
+		 * if we are beyond the EOF.
+		 *
+		 * The valid size of the buffer is based on 
+		 * bp->b_bcount (which may have been truncated by
+		 * dscheck or the device) minus bp->b_resid, which
+		 * may be indicative of an I/O error if non-zero.
 		 */
-
-		bsize = vp->v_rdev->si_bsize_best;
-		if (bsize < vp->v_rdev->si_bsize_phys)
-			bsize = vp->v_rdev->si_bsize_phys;
-		if (bsize < BLKDEV_IOSIZE)
-			bsize = BLKDEV_IOSIZE;
-
-		if ((ioctl = devsw(dev)->d_ioctl) != NULL &&
-		    (*ioctl)(dev, DIOCGPART, (caddr_t)&dpart, FREAD, p) == 0 &&
-		    dpart.part->p_fstype == FS_BSDFFS &&
-		    dpart.part->p_frag != 0 && dpart.part->p_fsize != 0)
-			bsize = dpart.part->p_frag * dpart.part->p_fsize;
-		bscale = btodb(bsize);
-		do {
-			bn = btodb(uio->uio_offset) & ~(bscale - 1);
-			on = uio->uio_offset % bsize;
-			if (seqcount > 1) {
-				nextbn = bn + bscale;
-				error = breadn(vp, bn, (int)bsize, &nextbn,
-					(int *)&bsize, 1, NOCRED, &bp);
+		if (error == 0) {
+			n = bp->b_bcount - on;
+			if (n < 0) {
+				error = EINVAL;
 			} else {
-				error = bread(vp, bn, (int)bsize, NOCRED, &bp);
+				n = min(n, bp->b_bcount - bp->b_resid - on);
+				if (n < 0)
+					error = EIO;
 			}
-
-			/*
-			 * Figure out how much of the buffer is valid relative
-			 * to our offset into the buffer, which may be negative
-			 * if we are beyond the EOF.
-			 *
-			 * The valid size of the buffer is based on 
-			 * bp->b_bcount (which may have been truncated by
-			 * dscheck or the device) minus bp->b_resid, which
-			 * may be indicative of an I/O error if non-zero.
-			 */
-			if (error == 0) {
-				n = bp->b_bcount - on;
-				if (n < 0) {
-					error = EINVAL;
-				} else {
-					n = min(n, bp->b_bcount - bp->b_resid - on);
-					if (n < 0)
-						error = EIO;
-				}
-			}
-			if (error) {
-				brelse(bp);
-				return (error);
-			}
-			n = min(n, uio->uio_resid);
-			error = uiomove((char *)bp->b_data + on, n, uio);
+		}
+		if (error) {
 			brelse(bp);
-		} while (error == 0 && uio->uio_resid > 0 && n != 0);
-		return (error);
-
-	default:
-		panic("spec_read type");
-	}
+			return (error);
+		}
+		n = min(n, uio->uio_resid);
+		error = uiomove((char *)bp->b_data + on, n, uio);
+		brelse(bp);
+	} while (error == 0 && uio->uio_resid > 0 && n != 0);
+	return (error);
 	/* NOTREACHED */
 }
 
@@ -382,14 +399,9 @@ spec_write(ap)
 		struct ucred *a_cred;
 	} */ *ap;
 {
-	register struct vnode *vp = ap->a_vp;
-	register struct uio *uio = ap->a_uio;
+	struct vnode *vp = ap->a_vp;
+	struct uio *uio = ap->a_uio;
 	struct proc *p = uio->uio_procp;
-	struct buf *bp;
-	daddr_t bn;
-	int bsize, blkmask;
-	struct partinfo dpart;
-	register int n, on;
 	int error = 0;
 
 #ifdef DIAGNOSTIC
@@ -399,98 +411,114 @@ spec_write(ap)
 		panic("spec_write proc");
 #endif
 
-	switch (vp->v_type) {
-
-	case VCHR:
+	if (vp->v_type == VCHR || (bdev_buffered == 0)) {
 		VOP_UNLOCK(vp, 0, p);
 		error = (*devsw(vp->v_rdev)->d_write)
 			(vp->v_rdev, uio, ap->a_ioflag);
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
 		return (error);
+	} else {
+		return (spec_bufwrite(ap));
+	}
+}
 
-	case VBLK:
-		if (enable_userblk_io == 0)
-			return (EINVAL);
-		if (uio->uio_resid == 0)
-			return (0);
-		if (uio->uio_offset < 0)
-			return (EINVAL);
+
+/* Vnode op for buffered write */
+/* ARGSUSED */
+static int
+spec_bufwrite(ap)
+	struct vop_write_args /* {
+		struct vnode *a_vp;
+		struct uio *a_uio;
+		int  a_ioflag;
+		struct ucred *a_cred;
+	} */ *ap;
+{
+	struct vnode *vp = ap->a_vp;
+	struct uio *uio = ap->a_uio;
+	struct proc *p = uio->uio_procp;
+	struct buf *bp;
+	daddr_t bn;
+	int bsize, blkmask;
+	struct partinfo dpart;
+	register int n, on;
+	int error = 0;
+
+	if (uio->uio_resid == 0)
+		return (0);
+	if (uio->uio_offset < 0)
+		return (EINVAL);
+
+	/*
+	 * Calculate block size for block device.  The block size must
+	 * be larger then the physical minimum.
+	 */
+	bsize = vp->v_rdev->si_bsize_best;
+	if (bsize < vp->v_rdev->si_bsize_phys)
+		bsize = vp->v_rdev->si_bsize_phys;
+	if (bsize < BLKDEV_IOSIZE)
+		bsize = BLKDEV_IOSIZE;
+
+	if ((*devsw(vp->v_rdev)->d_ioctl)(vp->v_rdev, DIOCGPART,
+	    (caddr_t)&dpart, FREAD, p) == 0) {
+		if (dpart.part->p_fstype == FS_BSDFFS &&
+		    dpart.part->p_frag != 0 && dpart.part->p_fsize != 0)
+			bsize = dpart.part->p_frag *
+			    dpart.part->p_fsize;
+	}
+	blkmask = btodb(bsize) - 1;
+	do {
+		bn = btodb(uio->uio_offset) & ~blkmask;
+		on = uio->uio_offset % bsize;
 
 		/*
-		 * Calculate block size for block device.  The block size must
-		 * be larger then the physical minimum.
+		 * Calculate potential request size, determine
+		 * if we can avoid a read-before-write.
 		 */
-		bsize = vp->v_rdev->si_bsize_best;
-		if (bsize < vp->v_rdev->si_bsize_phys)
-			bsize = vp->v_rdev->si_bsize_phys;
-		if (bsize < BLKDEV_IOSIZE)
-			bsize = BLKDEV_IOSIZE;
+		n = min((unsigned)(bsize - on), uio->uio_resid);
+		if (n == bsize)
+			bp = getblk(vp, bn, bsize, 0, 0);
+		else
+			error = bread(vp, bn, bsize, NOCRED, &bp);
 
-		if ((*devsw(vp->v_rdev)->d_ioctl)(vp->v_rdev, DIOCGPART,
-		    (caddr_t)&dpart, FREAD, p) == 0) {
-			if (dpart.part->p_fstype == FS_BSDFFS &&
-			    dpart.part->p_frag != 0 && dpart.part->p_fsize != 0)
-				bsize = dpart.part->p_frag *
-				    dpart.part->p_fsize;
+		/*
+		 * n is the amount of effective space in the buffer
+		 * that we wish to write relative to our offset into
+		 * the buffer. We have to truncate it to the valid
+		 * size of the buffer relative to our offset into
+		 * the buffer (which may end up being negative if
+		 * we are beyond the EOF).
+		 *
+		 * The valid size of the buffer is based on 
+		 * bp->b_bcount (which may have been truncated by
+		 * dscheck or the device) minus bp->b_resid, which
+		 * may be indicative of an I/O error if non-zero.
+		 *
+		 * XXX In a newly created buffer, b_bcount == bsize
+		 * and, being asynchronous, we have no idea of the
+		 * EOF.
+		 */
+		if (error == 0) {
+			n = min(n, bp->b_bcount - on);
+			if (n < 0) {
+				error = EINVAL;
+			} else {
+				n = min(n, bp->b_bcount - bp->b_resid - on);
+				if (n < 0)
+					error = EIO;
+			}
 		}
-		blkmask = btodb(bsize) - 1;
-		do {
-			bn = btodb(uio->uio_offset) & ~blkmask;
-			on = uio->uio_offset % bsize;
-
-			/*
-			 * Calculate potential request size, determine
-			 * if we can avoid a read-before-write.
-			 */
-			n = min((unsigned)(bsize - on), uio->uio_resid);
-			if (n == bsize)
-				bp = getblk(vp, bn, bsize, 0, 0);
-			else
-				error = bread(vp, bn, bsize, NOCRED, &bp);
-
-			/*
-			 * n is the amount of effective space in the buffer
-			 * that we wish to write relative to our offset into
-			 * the buffer. We have to truncate it to the valid
-			 * size of the buffer relative to our offset into
-			 * the buffer (which may end up being negative if
-			 * we are beyond the EOF).
-			 *
-			 * The valid size of the buffer is based on 
-			 * bp->b_bcount (which may have been truncated by
-			 * dscheck or the device) minus bp->b_resid, which
-			 * may be indicative of an I/O error if non-zero.
-			 *
-			 * XXX In a newly created buffer, b_bcount == bsize
-			 * and, being asynchronous, we have no idea of the
-			 * EOF.
-			 */
-			if (error == 0) {
-				n = min(n, bp->b_bcount - on);
-				if (n < 0) {
-					error = EINVAL;
-				} else {
-					n = min(n, bp->b_bcount - bp->b_resid - on);
-					if (n < 0)
-						error = EIO;
-				}
-			}
-			if (error) {
-				brelse(bp);
-				return (error);
-			}
-			error = uiomove((char *)bp->b_data + on, n, uio);
-			if (n + on == bsize)
-				bawrite(bp);
-			else
-				bdwrite(bp);
-		} while (error == 0 && uio->uio_resid > 0 && n != 0);
-		return (error);
-
-	default:
-		panic("spec_write type");
-	}
-	/* NOTREACHED */
+		if (error) {
+			brelse(bp);
+			return (error);
+		}
+		error = uiomove((char *)bp->b_data + on, n, uio);
+		if (n + on == bsize)
+			bawrite(bp);
+		else
+			bdwrite(bp);
+	} while (error == 0 && uio->uio_resid > 0 && n != 0);
+	return (error);
 }
 
 /*
@@ -707,7 +735,8 @@ spec_close(ap)
 		struct proc *a_p;
 	} */ *ap;
 {
-	register struct vnode *vp = ap->a_vp;
+	struct vnode *vp = ap->a_vp;
+	struct proc *p = ap->a_p;
 	dev_t dev = vp->v_rdev;
 	int mode, error;
 
@@ -723,27 +752,27 @@ spec_close(ap)
 		 * if the reference count is 2 (this last descriptor
 		 * plus the session), release the reference from the session.
 		 */
-		if (vcount(vp) == 2 && ap->a_p &&
-		    (vp->v_flag & VXLOCK) == 0 &&
-		    vp == ap->a_p->p_session->s_ttyvp) {
+		if (vcount(vp) == 2 && p && (vp->v_flag & VXLOCK) == 0 &&
+		    vp == p->p_session->s_ttyvp) {
 			vrele(vp);
-			ap->a_p->p_session->s_ttyvp = NULL;
+			p->p_session->s_ttyvp = NULL;
 		}
 		mode = S_IFCHR;
 		break;
 
 	case VBLK:
-		/*
-		 * On last close of a block device (that isn't mounted)
-		 * we must invalidate any in core blocks, so that
-		 * we can, for instance, change floppy disks.
-		 */
-		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, ap->a_p);
-		error = vinvalbuf(vp, V_SAVE, ap->a_cred, ap->a_p, 0, 0);
-		VOP_UNLOCK(vp, 0, ap->a_p);
-		if (error)
-			return (error);
-
+		if (bdev_buffered) {
+			/*
+			 * On last close of a block device (that isn't mounted)
+			 * we must invalidate any in core blocks, so that
+			 * we can, for instance, change floppy disks.
+			 */
+			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
+			error = vinvalbuf(vp, V_SAVE, ap->a_cred, p, 0, 0);
+			VOP_UNLOCK(vp, 0, p);
+			if (error)
+				return (error);
+		}
 		mode = S_IFBLK;
 		break;
 
@@ -766,7 +795,7 @@ spec_close(ap)
 	} else if (vcount(vp) > 1) {
 		return (0);
 	}
-	return (devsw(dev)->d_close(dev, ap->a_fflag, mode, ap->a_p));
+	return (devsw(dev)->d_close(dev, ap->a_fflag, mode, p));
 }
 
 /*
