@@ -94,6 +94,10 @@ static int consintr = 1;		/* Ok to handle console interrupts? */
 static int msgbufmapped;		/* Set when safe to use msgbuf */
 int msgbuftrigger;
 
+static int      log_console_output = 1;
+SYSCTL_INT(_kern, OID_AUTO, log_console_output, CTLFLAG_RW,
+    &log_console_output, 0, "");
+
 /*
  * Warn that a system table is full.
  */
@@ -241,6 +245,9 @@ log_console(struct uio *uio)
 	struct iovec *miov = NULL;
 	char *consbuffer;
 	int pri;
+
+	if (!log_console_output)
+		return;
 
 	pri = LOG_INFO | LOG_CONSOLE;
 	muio = *uio;
