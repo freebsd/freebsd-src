@@ -69,7 +69,7 @@ procfs_dostatus(curp, p, pfs, uio)
 	struct session *sess;
 	struct tty *tp;
 	struct ucred *cr;
-	char *ps;
+	char *ps, *pc;
 	char *sep;
 	int pid, ppid, pgid, sid;
 	int i;
@@ -95,10 +95,16 @@ procfs_dostatus(curp, p, pfs, uio)
 			("Too short buffer for new MAXCOMLEN"));
 
 	ps = psbuf;
-	bcopy(p->p_comm, ps, MAXCOMLEN);
-	ps[MAXCOMLEN] = '\0';
-	ps += strlen(ps);
-	DOCHECK();
+	pc = p->p_comm;
+	xlen = strlen(p->p_comm);
+	do {
+		if (*pc < 33 || *pc > 126 || *pc == '\\')
+			ps += snprintf(ps, psbuf + sizeof(psbuf) - ps, "\\%03o",
+			    *pc);
+		else
+			*ps++ = *pc;
+		DOCHECK();
+	} while (++pc < p->p_comm + xlen);
 	ps += snprintf(ps, psbuf + sizeof(psbuf) - ps,
 	    " %d %d %d %d ", pid, ppid, pgid, sid);
 	DOCHECK();
