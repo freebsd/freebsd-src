@@ -572,7 +572,8 @@ devfs_reclaim(ap)
 	vp->v_data = NULL;
 	if (vp->v_rdev != NODEV && vp->v_rdev != NULL) {
 		i = vcount(vp);
-		if ((vp->v_rdev->si_flags & SI_CHEAPCLONE) && i == 0)
+		if ((vp->v_rdev->si_flags & SI_CHEAPCLONE) && i == 0 &&
+		    (vp->v_rdev->si_flags & SI_NAMED))
 			destroy_dev(vp->v_rdev);
 	}
 	return (0);

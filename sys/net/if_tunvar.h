@@ -50,6 +50,7 @@ struct tun_softc {
 	struct	selinfo	tun_wsel;	/* write select (not used) */
 
 	struct	tun_softc *next;	/* Next softc in list */
+	struct	resource *r_unit;	/* resource allocated for this unit */
 };
 
 #endif /* !_NET_IF_TUNVAR_H_ */
