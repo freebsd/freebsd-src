@@ -775,6 +775,7 @@ pseudo-device	pty		#Pseudo ttys
 pseudo-device	speaker		#Play IBM BASIC-style noises out your speaker
 pseudo-device	gzip		#Exec gzipped a.out's
 pseudo-device	vn		#Vnode driver (turns a file into a device)
+pseudo-device	md		#Memory/malloc disk
 pseudo-device	snp	3	#Snoop device - to look at pty/vty/etc..
 pseudo-device	ccd	4	#Concatenated disk driver
 
