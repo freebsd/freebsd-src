@@ -249,7 +249,7 @@ again:
 				    name);
 			} else {
 				sblock.fs_flags &= ~FS_ACLS;
-				warnx("%s clear", name);
+				warnx("%s cleared", name);
 			}
 		}
 	}
@@ -291,7 +291,7 @@ again:
 				    name);
 			} else {
 				sblock.fs_flags &= ~FS_MULTILABEL;
-				warnx("%s clear", name);
+				warnx("%s cleared", name);
 			}
 		}
 	}
