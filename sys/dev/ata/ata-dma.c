@@ -507,7 +507,7 @@ ata_dmainit(struct ata_device *atadev, int apiomode, int wdmamode, int udmamode)
     case 0x74411022:	/* AMD 768 */
     case 0x74111022:	/* AMD 766 */
     case 0x74091022:	/* AMD 756 */
-    case 0x05711106:	/* VIA 82C571, 82C586, 82C596, 82C686 , 8231, 8233 */
+    case 0x05711106:	/* VIA 82C571, 82C586, 82C596, 82C686, 8231,8233,8235 */
 	{
 	    int via_modes[5][7] = {
 		{ 0x00, 0x00, 0xc0, 0x00, 0x00, 0x00, 0x00 },	/* VIA ATA33 */
@@ -518,7 +518,8 @@ ata_dmainit(struct ata_device *atadev, int apiomode, int wdmamode, int udmamode)
 	    int *reg_val = NULL;
 	    char *chip = "VIA";
 
-	    if (ata_find_dev(parent, 0x31471106, 0)) {		/* 8233a */
+	    if (ata_find_dev(parent, 0x31471106, 0) ||		/* 8233a */
+		ata_find_dev(parent, 0x31771106, 0)) {		/* 8235 */
 		udmamode = imin(udmamode, 6);
 		reg_val = via_modes[3];
 	    }
