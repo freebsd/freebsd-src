@@ -52,7 +52,7 @@ int	tty_char(int, int);
 int	tty_eread(REGISTERS, int, int);
 int	tty_estate(void);
 void	tty_flush(void);
-void	tty_index(void);
+void	tty_index(int);
 void	tty_move(int, int);
 int	tty_read(regcontext_t *, int);
 void	tty_report(int *, int *);
