@@ -222,13 +222,16 @@ Finally, to sort a database by the first line of each 4-line field, try
 .Xr sort 1 ,
 .Xr vi 1
 .Sh BUGS
+.Bl -item
+.It
 Handles only two dimensional arrays.
-
+.It
 The algorithm currently reads the whole file into memory,
 so files that do not fit in memory will not be reshaped.
-
+.It
 Fields cannot be defined yet on character positions.
-
+.It
 Re-ordering of columns is not yet possible.
-
+.It
 There are too many options.
+.El

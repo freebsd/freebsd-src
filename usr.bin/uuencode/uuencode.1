@@ -98,6 +98,7 @@ By default
 .Nm uudecode 
 deletes any prefix ending with the last slash '/' for security
 purpose.
+.El
 .Sh EXAMPLES
 The following example packages up a source tree, compresses it,
 uuencodes it and mails it to a user on another system.
@@ -111,14 +112,14 @@ tree.
 tar cf \- src_tree \&| compress \&|
 uuencode src_tree.tar.Z \&| mail sys1!sys2!user
 .Ed
-
+.Pp
 The following example unpack all uuencode'd 
 files from your mailbox into your current working directory.
 .Pp
 .Bd -literal -offset indent -compact
 uudecode -c < $MAIL
 .Ed
-
+.Pp
 The following example extract a compress'ed tar
 archive from your mailbox
 .Pp

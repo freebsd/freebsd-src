@@ -45,7 +45,7 @@
 .Op Fl H | Fl L | Fl P
 .Op Fl Xdsx
 .Op Fl f Ar pathname
-.Op Ar pathname ...
+.Op Ar pathname ...\&
 .Ar expression
 .Sh DESCRIPTION
 .Nm Find
@@ -328,9 +328,13 @@ If the mode is octal, only bits 07777
 .Dv S_IRWXO )
 of the file's mode bits participate
 in the comparison.
-If the mode is preceded by a dash (``\-''), this primary evaluates to true
+If the mode is preceded by a dash
+.Pq Dq - ,
+this primary evaluates to true
 if at least all of the bits in the mode are set in the file's mode bits.
-If the mode is preceded by a plus (``\+''), this primary evaluates to true
+If the mode is preceded by a plus
+.Pq Dq + ,
+this primary evaluates to true
 if any of the bits in the mode are set in the file's mode bits.
 Otherwise, this primary evaluates to true if
 the bits in the mode exactly match the file's mode bits.
@@ -417,7 +421,10 @@ is treated as a user id.
 .El
 .Pp
 All primaries which take a numeric argument allow the number to be
-preceded by a plus sign (``+'') or a minus sign (``\-'').
+preceded by a plus sign
+.Pq Dq +
+or a minus sign
+.Pq Dq - .
 A preceding plus sign means ``more than n'', a preceding minus sign means
 ``less than n'' and neither means ``exactly n'' .
 .Sh OPERATORS

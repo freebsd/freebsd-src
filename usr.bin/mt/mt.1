@@ -45,7 +45,7 @@
 .Ar command
 .Op Ar count
 .Sh DESCRIPTION
-.Nm Mt
+.Nm \&Mt
 is used to give commands to a magnetic tape drive.
 By default
 .Nm
@@ -190,7 +190,7 @@ Forward space to end of data, identical to
 Set compression mode.
 There are currently several possible values for the compression mode:
 .Pp
-.Bl -tag -width 123456789 -compact
+.Bl -tag -width 9n -compact
 .It off
 Turn compression off.
 .It on
@@ -226,7 +226,7 @@ does not exist;
 uses the device
 .Pa /dev/nsa0 .
 .Pp
-.Nm Mt
+.Nm \&Mt
 returns a 0 exit status when the operation(s) were successful,
 1 if the command was unrecognized, and 2 if an operation failed.
 .Pp
@@ -237,8 +237,8 @@ working draft, dated November 11, 1997.
 .Pp
 The different density codes are as follows:
 .Pp
-.Dl 0x0	default for device
-.Dl 0xE	reserved for ECMA
+.Dl "0x0	default for device
+.Dl "0xE	reserved for ECMA
 .Bd -literal -offset 3n
 Value  Width        Tracks    Density         Code Type Reference   Note
         mm    in              bpmm       bpi
@@ -281,7 +281,6 @@ Value  Width        Tracks    Density         Code Type Reference   Note
 0x2A
 0x2B   12.7  (0.5)    3          ?        ?     ?   C   X3.267       5
 .Ed
-
 .Bd -literal -offset 3n
 Code Description                                   Type Description
 ----------------                                   ----------------
@@ -293,7 +292,6 @@ MFM     Modified frequency modulation
 DDS     DAT data storage
 RLL     Run length limited
 .Ed
-
 .Bd -literal -offset 3n
 NOTES
 1. Serial recorded.
@@ -303,19 +301,19 @@ NOTES
 6. This is not an American National Standard.  The reference is based on
    an industry standard definition of the media format.
 .Ed
-
 .Sh ENVIRONMENT
 If the following environment variable exists, it is utilized by
 .Nm .
 .Bl -tag -width Fl
 .It Ev TAPE
-.Nm Mt
+.Nm \&Mt
 checks the
 .Ev TAPE
 environment variable if the
 argument
 .Ar tapename
 is not given.
+.El
 .Sh FILES
 .Bl -tag -width /dev/*rst[0-9]*xx -compact
 .It Pa /dev/*rwt*
