@@ -26,11 +26,11 @@
  *  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * $Id: pbio.c,v 1.12 2003/10/11 13:05:08 dds Exp dds $
- * $FreeBSD$
- *
  */
 
 #include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>		/* SYSINIT stuff */
@@ -51,12 +51,12 @@
 #include <sys/fcntl.h>
 
 /* Function prototypes (these should all be static) */
-static  d_open_t	pbioopen;
-static  d_close_t	pbioclose;
-static  d_read_t	pbioread;
-static  d_write_t	pbiowrite;
-static  d_ioctl_t	pbioioctl;
-static  d_poll_t	pbiopoll;
+static	d_open_t	pbioopen;
+static	d_close_t	pbioclose;
+static	d_read_t	pbioread;
+static	d_write_t	pbiowrite;
+static	d_ioctl_t	pbioioctl;
+static	d_poll_t	pbiopoll;
 static	int		pbioprobe(device_t);
 static	int		pbioattach(device_t);
 
@@ -65,23 +65,23 @@ static	int		pbioattach(device_t);
 #define	PBIO_PORTB	1
 #define	PBIO_PORTC	2
 #define	PBIO_CFG	3
-#define PBIO_IOSIZE	4
+#define	PBIO_IOSIZE	4
 
 /* Per-port buffer size */
-#define PBIO_BUFSIZ 64
+#define	PBIO_BUFSIZ 64
 
 /* Number of /dev entries */
-#define PBIO_NPORTS 4
+#define	PBIO_NPORTS 4
 
 /* I/O port range */
-#define IO_PBIOSIZE 4
+#define	IO_PBIOSIZE 4
 
 static char *port_names[] = {"a", "b", "ch", "cl"};
 
 #define	PBIO_PNAME(n)		(port_names[(n)])
 
-#define UNIT(dev)		(minor(dev) >> 2)
-#define PORT(dev)		(minor(dev) & 0x3)
+#define	UNIT(dev)		(minor(dev) >> 2)
+#define	PORT(dev)		(minor(dev) & 0x3)
 
 #define	PBIOPRI	((PZERO + 5) | PCATCH)
 
@@ -114,7 +114,7 @@ struct portdata {
  */
 struct pbio_softc {
 	int	iobase;			/* I/O base */
-	struct portdata pd[PBIO_NPORTS];	/* Per port data */
+	struct portdata pd[PBIO_NPORTS];/* Per port data */
 	int	iomode;			/* Virtualized I/O mode port value */
 					/* The real port is write-only */
 } ;
@@ -125,13 +125,12 @@ static device_method_t pbio_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		pbioprobe),
 	DEVMETHOD(device_attach,	pbioattach),
-
 	{ 0, 0 }
 };
 
 static	devclass_t	pbio_devclass;
-#define	pbio_addr(unit)	((struct pbio_softc *) \
-			 devclass_get_softc(pbio_devclass, unit))
+#define	pbio_addr(unit) \
+	    ((struct pbio_softc *) devclass_get_softc(pbio_devclass, unit))
 
 static char driver_name[] = "pbio";
 
@@ -147,15 +146,15 @@ static int
 pbioprobe(device_t dev)
 {
 	int iobase;
-	int		rid;
+	int rid;
 	struct resource *port;
 #ifdef GENERIC_PBIO_PROBE
 	unsigned char val;
 #endif
 
 	rid = 0;
-	port = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
-				  0, ~0, IO_PBIOSIZE, RF_ACTIVE);
+	port = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0, 
+	    IO_PBIOSIZE, RF_ACTIVE);
 	if (!port)
 		return (ENXIO);
 
@@ -197,17 +196,14 @@ pbioprobe(device_t dev)
 static int
 pbioattach (device_t dev)
 {
-	int unit = device_get_unit(dev);
-	int flags;
-	int i;
-	int iobase;
-	int		rid;
 	struct resource *port;
 	struct pbio_softc *sc;
+	int flags, i, iobase, rid, unit;
 
+	unit = device_get_unit(dev);
 	rid = 0;
-	port = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
-				  0, ~0, IO_PBIOSIZE, RF_ACTIVE);
+	port = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0,
+	    IO_PBIOSIZE, RF_ACTIVE);
 	if (!port)
 		return (ENXIO);
 
@@ -227,42 +223,43 @@ pbioattach (device_t dev)
 	sc->iomode = 0x9b;		/* All ports to input */
 
 	for (i = 0; i < PBIO_NPORTS; i++)
-		sc->pd[i].port = make_dev(&pbio_cdevsw, (unit << 2) + i, 0, 0, 0600,
-				     "pbio%d%s", unit, PBIO_PNAME(i));
-	return 0;
+		sc->pd[i].port = make_dev(&pbio_cdevsw, (unit << 2) + i, 0, 0,
+		    0600, "pbio%d%s", unit, PBIO_PNAME(i));
+	return (0);
 }
 
 static int
 pbioioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag,
     struct thread *td)
 {
-	int unit = UNIT(dev);
-	int port = PORT(dev);
 	struct pbio_softc *scp;
+	int port, unit;
 	
+	unit = UNIT(dev);
+	port = PORT(dev);
 	scp = pbio_addr(unit);
 	if (scp == NULL)
 		return (ENODEV);
 	switch (cmd) {
-	    case PBIO_SETDIFF:
+	case PBIO_SETDIFF:
 		scp->pd[port].diff = *(int *)data;
 		break;
-	    case PBIO_SETIPACE:
+	case PBIO_SETIPACE:
 		scp->pd[port].ipace = *(int *)data;
 		break;
-	    case PBIO_SETOPACE:
+	case PBIO_SETOPACE:
 		scp->pd[port].opace = *(int *)data;
 		break;
-	    case PBIO_GETDIFF:
+	case PBIO_GETDIFF:
 		*(int *)data = scp->pd[port].diff;
 		break;
-	    case PBIO_GETIPACE:
+	case PBIO_GETIPACE:
 		*(int *)data = scp->pd[port].ipace;
 		break;
-	    case PBIO_GETOPACE:
+	case PBIO_GETOPACE:
 		*(int *)data = scp->pd[port].opace;
 		break;
-	    default:
+	default:
 		return ENXIO;
 	}
 	return (0);
@@ -271,12 +268,12 @@ pbioioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag,
 static  int
 pbioopen(struct cdev *dev, int oflags, int devtype, struct thread *td)
 {
-	int unit = UNIT(dev);
-	int port = PORT(dev);
 	struct pbio_softc *scp;
-	int ocfg;
+	int ocfg, port, unit;
 	int portbit;			/* Port configuration bit */
 	
+	unit = UNIT(dev);
+	port = PORT(dev);
 	scp = pbio_addr(unit);
 	if (scp == NULL)
 		return (ENODEV);
@@ -305,9 +302,10 @@ pbioopen(struct cdev *dev, int oflags, int devtype, struct thread *td)
 static  int
 pbioclose(struct cdev *dev, int fflag, int devtype, struct thread *td)
 {
-	int unit = UNIT(dev);
 	struct pbio_softc *scp;
+	int unit;
 	
+	unit = UNIT(dev);
 	scp = pbio_addr(unit);
 	if (scp == NULL)
 		return (ENODEV);
@@ -359,14 +357,12 @@ portval(int port, struct pbio_softc *scp, char *val)
 static  int
 pbioread(struct cdev *dev, struct uio *uio, int ioflag)
 {
-	int unit = UNIT(dev);
-	int port = PORT(dev);
 	struct pbio_softc *scp;
-	int     toread;
-	int	err;
-	int ret, i;
+	int err, i, port, ret, toread, unit;
 	char val;
 	
+	unit = UNIT(dev);
+	port = PORT(dev);
 	scp = pbio_addr(unit);
 	if (scp == NULL)
 		return (ENODEV);
@@ -387,18 +383,15 @@ pbioread(struct cdev *dev, struct uio *uio, int ioflag)
 	return 0;
 }
 
-static  int
+static int
 pbiowrite(struct cdev *dev, struct uio *uio, int ioflag)
 {
-	int unit = UNIT(dev);
-	int port = PORT(dev);
 	struct pbio_softc *scp;
+	int i, iobase, port, ret, towrite, unit;
 	char val, oval;
-	int	towrite;
-	int	ret;
-	int iobase;
-	int i;
 	
+	unit = UNIT(dev);
+	port = PORT(dev);
 	scp = pbio_addr(unit);
 	if (scp == NULL)
 		return (ENODEV);
@@ -442,9 +435,10 @@ pbiowrite(struct cdev *dev, struct uio *uio, int ioflag)
 static  int
 pbiopoll(struct cdev *dev, int which, struct thread *td)
 {
-	int unit = UNIT(dev);
 	struct pbio_softc *scp;
+	int unit;
 	
+	unit = UNIT(dev);
 	scp = pbio_addr(unit);
 	if (scp == NULL)
 		return (ENODEV);
