@@ -33,39 +33,21 @@
  * by Noriyuki Hosobuchi <yj8n-hsbc@asahi-net.or.jp>
  */
 
-#ifdef	LKM
-#define	NPCIC 1
-#else
-#include "pcic.h"
-#endif
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/errno.h>
-#include <sys/file.h>
-#include <sys/conf.h>
-#include <sys/proc.h>
-#include <sys/ioctl.h>
-#include <sys/mount.h>
-#include <sys/sysent.h>
-#include <sys/exec.h>
-#include <sys/lkm.h>
+#include <sys/select.h>
 
 #include <machine/clock.h>
 
-#ifdef PC98
-#include <pc98/pc98/pc98.h>
-#else
-#include <i386/isa/isa.h>
-#endif
-#include <i386/isa/isa_device.h>
 #include <i386/isa/icu.h>
+#include <i386/isa/isa_device.h>
 
 #include <pccard/i82365.h>
 #ifdef	PC98
 #include <pccard/pcic98reg.h>
 #endif
+
 #include <pccard/card.h>
 #include <pccard/driver.h>
 #include <pccard/slot.h>
@@ -77,6 +59,7 @@ static void		pcicintr	__P((int unit));
 static int		pcic_ioctl __P((struct slot *, int, caddr_t));
 static int		pcic_power __P((struct slot *));
 static timeout_t 	pcic_reset;
+static void		pcic_resume(struct slot *);
 static void		pcic_disable __P((struct slot *));
 static void		pcic_mapirq __P((struct slot *, int));
 static timeout_t 	pcictimeout;
@@ -85,6 +68,7 @@ static int		pcic_handle __P((struct lkm_table *lkmtp, int cmd));
 #endif
 static int		pcic_memory(struct slot *, int);
 static int		pcic_io(struct slot *, int);
+static u_int		build_freelist(u_int);
 
 /*
  *	Per-slot data table.
@@ -126,6 +110,7 @@ putb (struct pcic_slot *sp, int reg, unsigned char val)
 	outb (sp->index, sp->offset + reg);
 	outb (sp->data, val);
 }
+
 /*
  * Clear bit(s) of a register.
  */
@@ -134,6 +119,7 @@ clrb(struct pcic_slot *sp, int reg, unsigned char mask)
 {
 	putb (sp, reg, getb (sp, reg) & ~mask);
 }
+
 /*
  * Set bit(s) of a register
  */
@@ -169,7 +155,6 @@ MOD_MISC(pcic);
  *	Once the module is loaded, the probe routine
  *	is called to install the slots (if any).
  */
-
 static int
 pcic_handle(struct lkm_table *lkmtp, int cmd)
 {
@@ -279,6 +264,38 @@ pcic_dump_attributes (unsigned char *scratch, int maxlen)
 }
 #endif
 
+static u_int
+build_freelist(u_int pcic_mask)
+{ 
+	inthand2_t *nullfunc; 
+	int irq;
+	u_int mask, freemask; 
+ 
+	/* No free IRQs (yet). */ 
+	freemask = 0; 
+ 
+	/* Walk through all of the IRQ's and find any that aren't allocated. */ 
+	for (irq = 0; irq < ICU_LEN; irq++) { 
+		/* 
+		 * If the PCIC controller can't generate it, don't
+		 * bother checking to see if it it's free. 
+		 */ 
+		mask = 1 << irq; 
+		if (!(mask & pcic_mask)) continue; 
+ 
+		/* See if the IRQ is free. */
+		if (register_intr(irq, 0, 0, nullfunc, NULL, irq) == 0) {
+			/* Give it back, but add it to the mask */ 
+			INTRMASK(freemask, mask); 
+			unregister_intr(irq, nullfunc); 
+		}
+	} 
+#ifdef PCIC_DEBUG
+	printf("Freelist of IRQ's <0x%x>\n", freemask);
+#endif
+	return freemask; 
+}
+
 /*
  *	entry point from main code to map/unmap memory context.
  */
@@ -332,8 +349,7 @@ pcic_memory(struct slot *slotp, int win)
 	}
 #endif	/* PC98 */
 
-	if (mp->flags & MDF_ACTIVE)
-		{
+	if (mp->flags & MDF_ACTIVE) {
 		unsigned long sys_addr = (unsigned long)mp->start >> 12;
 		/*
 		 * Write the addresses, card offsets and length.
@@ -379,9 +395,7 @@ pcic_memory(struct slot *slotp, int win)
 		 */
 		setb (sp, PCIC_ADDRWINE, (1<<win) | PCIC_MEMCS16);
 		DELAY(50);
-		}
-	else
-		{
+	} else {
 #if 0
 		printf("Unmapping window %d\n", win);
 #endif
@@ -389,7 +403,7 @@ pcic_memory(struct slot *slotp, int win)
 		putw (sp, reg, 0);
 		putw (sp, reg+2, 0);
 		putw (sp, reg+4, 0);
-		}
+	}
 	return(0);
 }
 
@@ -505,23 +519,22 @@ printf("Map I/O 0x%x (size 0x%x) on Window %d\n", ip->start, ip->size, win);
 
 /*
  *	VLSI 82C146 has incompatibilities about the I/O address 
- *	of slot 1.  If it's the only PCIC whose vendor ID is 0x84, 
- *	I want to remove this #define and corresponding #ifdef's.
- *	HOSOKAWA, Tatsumi <hosokawa@mt.cs.keio.ac.jp>
+ *	of slot 1.  Assume it's the only PCIC whose vendor ID is 0x84,
+ *	contact Nate Williams <nate@FreeBSD.org> if incorrect.
  */
-#define	VLSI_SLOT1	1
-
 int
-pcic_probe ()
+pcic_probe(void)
 {
 	int slot, i, validslots = 0;
+	u_int free_irqs;
 	struct slot *slotp;
 	struct pcic_slot *sp;
 	unsigned char c;
-#ifdef	VLSI_SLOT1
-	static int vs = 0;
-#endif	/* VLSI_SLOT1 */
+	static int maybe_vlsi = 0;
 
+	/* Determine the list of free interrupts */
+	free_irqs = build_freelist(PCIC_INT_MASK_ALLOWED);
+	
 	/*
 	 *	Initialise controller information structure.
 	 */
@@ -532,9 +545,11 @@ pcic_probe ()
 	cinfo.mapirq = pcic_mapirq;
 	cinfo.reset = pcic_reset;
 	cinfo.disable = pcic_disable;
+	cinfo.resume = pcic_resume;
 	cinfo.maxmem = PCIC_MEM_WIN;
 	cinfo.maxio = PCIC_IO_WIN;
-	cinfo.irqs = PCIC_INT_MASK_ALLOWED;
+	cinfo.irqs = free_irqs;
+	cinfo.imask = &pcic_imask;
 
 #ifdef	LKM
 	bzero(pcic_slots, sizeof(pcic_slots));
@@ -545,25 +560,25 @@ pcic_probe ()
 		 *	Initialise the PCIC slot table.
 		 */
 		if (slot < 4) {
-#ifdef	VLSI_SLOT1
-			if (slot == 1 && vs) {
-				sp->index = PCIC_INDEX_0 + 4;
-				sp->data = PCIC_DATA_0 + 4;
-				sp->offset = PCIC_SLOT_SIZE << 1;
-			} else {
-				sp->index = PCIC_INDEX_0;
-				sp->data = PCIC_DATA_0;
-				sp->offset = slot * PCIC_SLOT_SIZE;
-			}
-#else	/* VLSI_SLOT1 */
 			sp->index = PCIC_INDEX_0;
 			sp->data = PCIC_DATA_0;
 			sp->offset = slot * PCIC_SLOT_SIZE;
-#endif	/* VLSI_SLOT1 */
 		} else {
 			sp->index = PCIC_INDEX_1;
 			sp->data = PCIC_DATA_1;
 			sp->offset = (slot - 4) * PCIC_SLOT_SIZE;
+		}
+		/* 
+		 * XXX - Screwed up slot 1 on the VLSI chips.  According to
+		 * the Linux PCMCIA code from David Hinds, working chipsets
+		 * return 0x84 from their (correct) ID ports, while the broken
+		 * ones would need to be probed at the new offset we set after
+		 * we assume it's broken.
+		 */
+		if (slot == 1 && maybe_vlsi && getb(sp, PCIC_ID_REV) != 0x84) {
+			sp->index += 4;
+			sp->data += 4;
+			sp->offset = PCIC_SLOT_SIZE << 1;
 		}
 		/*
 		 * see if there's a PCMCIA controller here
@@ -607,9 +622,7 @@ pcic_probe ()
 		 */
 		case 0x84:
 			sp->controller = PCIC_VLSI;
-#ifdef	VLSI_SLOT1
-			vs = 1;
-#endif	/* VLSI_SLOT1 */
+			maybe_vlsi = 1;
 			break;
 		case 0x88:
 		case 0x89:
@@ -693,8 +706,9 @@ pcic_probe ()
 		 *	then attempt to get one.
 		 */
 		if (pcic_irq == 0) {
-			pcic_irq = pccard_alloc_intr(PCIC_INT_MASK_ALLOWED,
-				pcicintr, 0, &pcic_imask);
+			pcic_imask = SWI_MASK;
+			pcic_irq = pccard_alloc_intr(free_irqs,
+				pcicintr, 0, NULL, &pcic_imask);
 			if (pcic_irq < 0)
 				printf("pcic: failed to allocate IRQ\n");
 			else
@@ -752,7 +766,6 @@ pcic_probe ()
 #endif	/* PC98 */
 	if (validslots)
 		timeout(pcictimeout,0,hz/2);
-/* BUCHI */
 	return(validslots);
 }
 
@@ -929,7 +942,6 @@ pcic_mapirq (struct slot *slotp, int irq)
 /*
  *	pcic_reset - Reset the card and enable initial power.
  */
-
 static void
 pcic_reset(void *chan)
 {
@@ -998,10 +1010,9 @@ pcic_disable(struct slot *slotp)
 }
 
 /*
- *	PCIC timer, it seems that we loose interrupts sometimes
+ *	PCIC timer, it seems that we lose interrupts sometimes
  *	so poll just in case...
  */
-
 static void
 pcictimeout(void *chan)
 {
@@ -1054,4 +1065,14 @@ pcicintr(int unit)
 				}
 			}
 	splx(s);
+}
+
+/*
+ *	pcic_resume - Suspend/resume support for PCIC
+ */
+static void
+pcic_resume(struct slot *slotp)
+{
+	if (pcic_irq > 0)
+		putb(slotp->cdata, PCIC_STAT_INT, (pcic_irq << 4) | 0xF);
 }
