@@ -182,8 +182,8 @@ static void
 usage()
 {
 	(void)fprintf(stderr, "%s\n%s\n",
-		"usage: sed script [-Ean] [file ...]",
-		"       sed [-an] [-e script] ... [-f script_file] ... [file ...]");
+		"usage: sed script [-Ean] [-i extension] [file ...]",
+		"       sed [-an] [-i extension] [-e script] ... [-f script_file] ... [file ...]");
 	exit(1);
 }
 
