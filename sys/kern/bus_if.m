@@ -54,7 +54,7 @@ CODE {
 METHOD int print_child {
 	device_t dev;
 	device_t child;
-};
+} DEFAULT bus_generic_print_child;
 
 # 
 # Called for each child device that 
