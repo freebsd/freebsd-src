@@ -464,17 +464,22 @@ dump table: file systems and frequency
 to find group
 .Em operator
 .El
+.Sh EXIT STATUS
+Dump exits with zero status on success.
+Startup errors are indicated with an exit code of 1;
+abnormal termination is indicated with an exit code of 3.
+.Sh DIAGNOSTICS
+Many, and verbose.
 .Sh SEE ALSO
 .Xr chflags 1 ,
 .Xr fstab 5 ,
 .Xr restore 8 ,
 .Xr rmt 8
-.Sh DIAGNOSTICS
-Many, and verbose.
-.Sh EXIT STATUS
-Dump exits with zero status on success.
-Startup errors are indicated with an exit code of 1;
-abnormal termination is indicated with an exit code of 3.
+.Sh HISTORY
+A
+.Nm
+utility appeared in
+.At v6 .
 .Sh BUGS
 Fewer than 32 read errors on the file system are ignored, though all
 errors will generate a warning message.
@@ -526,8 +531,3 @@ This will be fixed in a later version of
 .Fx .
 Presently, it works if you set it setuid (like it used to be), but this
 might constitute a security risk.
-.Sh HISTORY
-A
-.Nm
-utility appeared in
-.At v6 .

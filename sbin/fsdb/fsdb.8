@@ -225,15 +225,6 @@ Exit the program.
 .Xr fs 5 ,
 .Xr clri 8 ,
 .Xr fsck 8
-.Sh BUGS
-Manipulation of ``short'' symlinks doesn't work (in particular, don't
-try changing a symlink's type).
-.Pp
-You must specify modes as numbers rather than symbolic names.
-.Pp
-There are a bunch of other things that you might want to do which
-.Nm
-doesn't implement.
 .Sh HISTORY
 The
 .Nm
@@ -250,6 +241,15 @@ written by
 .An Peter Wemm
 ported it to
 .Fx .
+.Sh BUGS
+Manipulation of ``short'' symlinks doesn't work (in particular, don't
+try changing a symlink's type).
+.Pp
+You must specify modes as numbers rather than symbolic names.
+.Pp
+There are a bunch of other things that you might want to do which
+.Nm
+doesn't implement.
 .Sh WARNING
 Use this tool with extreme caution--you can damage an FFS file system
 beyond what

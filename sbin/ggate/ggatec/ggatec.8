@@ -150,6 +150,13 @@ Remote host to connect to.
 .It Ar path
 Path to a regular file or device.
 .El
+.Sh EXIT STATUS
+Exit status is 0 on success, or 1 if the command fails.
+To get details about the failure,
+.Nm
+should be called with the
+.Fl v
+option.
 .Sh EXAMPLES
 Made use of CD-ROM device from remote host.
 .Bd -literal -offset indent
@@ -161,13 +168,6 @@ client# ggatec create -o ro server /dev/acd0
 ggate0
 client# mount_cd9660 /dev/ggate0 /cdrom
 .Ed
-.Sh EXIT STATUS
-Exit status is 0 on success, or 1 if the command fails.
-To get details about the failure,
-.Nm
-should be called with the
-.Fl v
-option.
 .Sh SEE ALSO
 .Xr geom 4 ,
 .Xr ggated 8 ,

@@ -353,23 +353,6 @@ as follows:
 .Xr ttys 5
 file
 .El
-.Sh DIAGNOSTICS
-.Bl -diag
-.It "getty repeating too quickly on port %s, sleeping."
-A process being started to service a line is exiting quickly
-each time it is started.
-This is often caused by a ringing or noisy terminal line.
-.Bf -emphasis
-Init will sleep for 30 seconds,
-then continue trying to start the process.
-.Ef
-.It "some processes would not die; ps axl advised."
-A process
-is hung and could not be killed when the system was shutting down.
-This condition is usually caused by a process
-that is stuck in a device driver because of
-a persistent device error condition.
-.El
 .Sh FILES
 .Bl -tag -width /etc/rc.shutdown -compact
 .It Pa /dev/console
@@ -387,6 +370,23 @@ the terminal initialization information file
 system startup commands
 .It Pa /etc/rc.shutdown
 system shutdown commands
+.El
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "getty repeating too quickly on port %s, sleeping."
+A process being started to service a line is exiting quickly
+each time it is started.
+This is often caused by a ringing or noisy terminal line.
+.Bf -emphasis
+Init will sleep for 30 seconds,
+then continue trying to start the process.
+.Ef
+.It "some processes would not die; ps axl advised."
+A process
+is hung and could not be killed when the system was shutting down.
+This condition is usually caused by a process
+that is stuck in a device driver because of
+a persistent device error condition.
 .El
 .Sh SEE ALSO
 .Xr kill 1 ,
