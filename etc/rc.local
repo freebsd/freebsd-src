@@ -13,6 +13,10 @@ cp $T /etc/motd
 chmod 666 /etc/motd
 rm -f $T
 
+# This is a performance win with shared libraries.
+echo 'setting default ldconfig path.'
+ldconfig /usr/lib /usr/X386/lib /usr/local/lib /usr/gnu/lib
+
 echo -n 'starting local daemons:'
 
 # Kerberos runs ONLY on the Kerberos server machine
