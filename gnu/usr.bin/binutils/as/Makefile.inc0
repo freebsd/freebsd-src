@@ -1,5 +1,5 @@
 #
-# $Id: Makefile.inc0,v 1.1 1998/05/05 08:53:27 jb Exp $
+# $Id: Makefile.inc0,v 1.2 1998/05/11 09:26:39 jb Exp $
 #
 
 .include "${.CURDIR}/../../Makefile.inc0"
@@ -21,3 +21,6 @@ CFLAGS+=	-I${SRCDIR}
 LDADD+=		-L${RELTOP}/libbfd -lbfd
 LDADD+=		-L${RELTOP}/libiberty -liberty
 LDADD+=		-L${RELTOP}/libopcodes -lopcodes
+DPADD+=		${RELTOP}/libbfd/libbfd.a
+DPADD+=		${RELTOP}/libiberty/libiberty.a
+DPADD+=		${RELTOP}/libopcodes/libopcodes.a
