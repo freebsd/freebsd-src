@@ -45,10 +45,7 @@ __FBSDID("$FreeBSD$");
 
 #include <errno.h>
 #include <runetype.h>
-#include <stddef.h>
-#include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <wchar.h>
 
 extern size_t (*__mbrtowc)(wchar_t * __restrict, const char * __restrict,
