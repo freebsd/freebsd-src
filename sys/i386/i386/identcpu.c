@@ -48,6 +48,7 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
+#include <sys/power.h>
 
 #include <machine/asmacros.h>
 #include <machine/clock.h>
@@ -1135,8 +1136,39 @@ static u_int			 crusoe_longrun;
 static u_int			 crusoe_frequency;
 static u_int	 		 crusoe_voltage;
 static u_int	 		 crusoe_percentage;
+static u_int	 		 crusoe_performance_longrun = LONGRUN_MODE_PERFORMANCE;
+static u_int	 		 crusoe_economy_longrun = LONGRUN_MODE_ECONOMY;
 static struct sysctl_ctx_list	 crusoe_sysctl_ctx;
 static struct sysctl_oid	*crusoe_sysctl_tree;
+
+static void
+tmx86_longrun_power_profile(void *arg)
+{
+	int	state;
+	u_int	new;
+
+	state = power_profile_get_state();
+	if (state != POWER_PROFILE_PERFORMANCE &&
+	    state != POWER_PROFILE_ECONOMY) {
+		return;
+	}
+
+	switch (state) {
+	case POWER_PROFILE_PERFORMANCE:
+		new =crusoe_performance_longrun;
+		break;
+	case POWER_PROFILE_ECONOMY:
+		new = crusoe_economy_longrun;
+		break;
+	default:
+		new = tmx86_get_longrun_mode();
+		break;
+	}
+
+	if (tmx86_get_longrun_mode() != new) {
+		tmx86_set_longrun_mode(new);
+	}
+}
 
 static int
 tmx86_longrun_sysctl(SYSCTL_HANDLER_ARGS)
@@ -1175,6 +1207,34 @@ tmx86_status_sysctl(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
+static int
+tmx86_longrun_profile_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	u_int32_t *argp;
+	u_int32_t arg;
+	int	error;
+
+	argp = (u_int32_t *)oidp->oid_arg1;
+	arg = *argp;
+	error = sysctl_handle_int(oidp, &arg, 0, req);
+
+	/* error or no new value */
+	if ((error != 0) || (req->newptr == NULL))
+		return (error);
+
+	/* range check */
+	if (arg >= LONGRUN_MODE_UNKNOWN)
+		return (EINVAL);
+
+	/* set new value and possibly switch */
+	*argp = arg;
+
+	tmx86_longrun_power_profile(NULL);
+
+	return (0);
+
+}
+
 static void
 setup_tmx86_longrun(void)
 {
@@ -1205,6 +1265,16 @@ setup_tmx86_longrun(void)
 		OID_AUTO, "percentage", CTLTYPE_INT | CTLFLAG_RD,
 		&crusoe_percentage, 0, tmx86_status_sysctl, "I",
 		"Processing performance (%)");
+	SYSCTL_ADD_PROC(&crusoe_sysctl_ctx, SYSCTL_CHILDREN(crusoe_sysctl_tree),
+		OID_AUTO, "performance_longrun", CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_RW,
+		&crusoe_performance_longrun, 0, tmx86_longrun_profile_sysctl, "I", "");
+	SYSCTL_ADD_PROC(&crusoe_sysctl_ctx, SYSCTL_CHILDREN(crusoe_sysctl_tree),
+		OID_AUTO, "economy_longrun", CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_RW,
+		&crusoe_economy_longrun, 0, tmx86_longrun_profile_sysctl, "I", "");
+
+	/* register performance profile change handler */
+	EVENTHANDLER_REGISTER(power_profile_change, tmx86_longrun_power_profile, NULL, 0);
+
 }
 
 static void

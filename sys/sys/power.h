@@ -29,6 +29,8 @@
 #ifndef _SYS_POWER_H_
 #define _SYS_POWER_H_
 
+#include <sys/eventhandler.h>
+
 /* Power management system type */
 #define POWER_PM_TYPE_APM		0x00
 #define POWER_PM_TYPE_ACPI		0x01
@@ -46,6 +48,18 @@ typedef int (*power_pm_fn_t)(u_long, void*, ...);
 extern int	 power_pm_register(u_int, power_pm_fn_t, void *);
 extern u_int	 power_pm_get_type(void);
 extern void	 power_pm_suspend(int);
+
+/*
+ * System power API.
+ */
+#define POWER_PROFILE_PERFORMANCE        0
+#define POWER_PROFILE_ECONOMY            1
+
+extern int	power_profile_get_state(void);
+extern void	power_profile_set_state(int);
+
+typedef void (*power_profile_change_hook)(void *);
+EVENTHANDLER_DECLARE(power_profile_change, power_profile_change_hook);
 
 #endif	/* !_SYS_POWER_H_ */
 

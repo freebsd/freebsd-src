@@ -906,6 +906,24 @@ apm_record_event(struct apm_softc *sc, u_int event_type)
 	return (sc->sc_flags & SCFLAG_OCTL) ? 0 : 1; /* user may handle */
 }
 
+/* Power profile */
+static void
+apm_power_profile(struct apm_softc *sc)
+{
+	int state;
+	struct apm_info info;
+	static int apm_acline = 0;
+
+	if (apm_get_info(&info))
+		return;
+
+	if (apm_acline != info.ai_acline) {
+		apm_acline = info.ai_acline;
+		state = apm_acline ? POWER_PROFILE_PERFORMANCE : POWER_PROFILE_ECONOMY;
+		power_profile_set_state(state);
+	}
+}
+
 /* Process APM event */
 static void
 apm_processevent(void)
@@ -975,6 +993,7 @@ apm_processevent(void)
 			break;
 		    OPMEV_DEBUGMESSAGE(PMEV_POWERSTATECHANGE);
 			apm_record_event(sc, apm_event);
+			apm_power_profile(sc);
 			break;
 		    OPMEV_DEBUGMESSAGE(PMEV_UPDATETIME);
 			apm_record_event(sc, apm_event);
@@ -982,6 +1001,7 @@ apm_processevent(void)
 			break;
 		    OPMEV_DEBUGMESSAGE(PMEV_CAPABILITIESCHANGE);
 			apm_record_event(sc, apm_event);
+			apm_power_profile(sc);
 			break;
 		    case PMEV_NOEVENT:
 			break;
