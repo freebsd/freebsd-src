@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ata-all.h,v 1.5 1999/03/28 18:57:18 sos Exp $
+ *	$Id: ata-all.h,v 1.6 1999/04/18 20:48:15 sos Exp $
  */
 
 /* ATA register defines */
@@ -142,7 +142,7 @@ struct ata_softc {
 #define		ATA_ACTIVE_ATA		0x3
 #define		ATA_ACTIVE_ATAPI	0x4
 
-    struct buf_queue_head       ata_queue;      /* head of ATA queue */
+    TAILQ_HEAD(, ad_request) 	ata_queue;	/* head of ATA queue */
     TAILQ_HEAD(, atapi_request) atapi_queue;    /* head of ATAPI queue */
 };
 
