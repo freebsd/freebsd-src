@@ -308,6 +308,13 @@ void fldbld(void)	/* create fields from current record */
 		}
 		*fr = 0;
 	} else if (*r != 0) {	/* if 0, it's a null field */
+		/* subtlecase : if length(FS) == 1 && length(RS > 0)
+		 * \n is NOT a field separator (cf awk book 61,84).
+		 * this variable is tested in the inner while loop.
+		 */
+		int rtest = '\n';  /* normal case */
+		if (strlen(*RS) > 0)
+			rtest = '\0';
 		for (;;) {
 			i++;
 			if (i > nfields)
@@ -316,7 +323,7 @@ void fldbld(void)	/* create fields from current record */
 				xfree(fldtab[i]->sval);
 			fldtab[i]->sval = fr;
 			fldtab[i]->tval = FLD | STR | DONTFREE;
-			while (*r != sep && *r != '\n' && *r != '\0')	/* \n is always a separator */
+			while (*r != sep && *r != rtest && *r != '\0')	/* \n is always a separator */
 				*fr++ = *r++;
 			*fr++ = 0;
 			if (*r++ == 0)
