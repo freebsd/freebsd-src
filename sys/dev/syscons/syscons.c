@@ -145,6 +145,7 @@ SYSCTL_INT(_machdep, OID_AUTO, enable_panic_key, CTLFLAG_RW, &enable_panic_key,
 static	int		debugger;
 
 /* prototypes */
+static struct tty *sc_alloc_tty(struct cdev *dev);
 static int scvidprobe(int unit, int flags, int cons);
 static int sckbdprobe(int unit, int flags, int cons);
 static void scmeminit(void *arg);
@@ -288,10 +289,23 @@ static char
     return names[i].name[(adp->va_flags & V_ADP_COLOR) ? 0 : 1];
 }
 
+static struct tty *
+sc_alloc_tty(struct cdev *dev)
+{
+	struct tty *tp;
+
+	tp = dev->si_tty = ttyalloc();
+	ttyinitmode(tp, 1, 0);
+	tp->t_oproc = scstart;
+	tp->t_param = scparam;
+	tp->t_stop = nottystop;
+	tp->t_dev = dev;
+	return (tp);
+}
+
 int
 sc_attach_unit(int unit, int flags)
 {
-    struct tty *tp;
     sc_softc_t *sc;
     scr_stat *scp;
 #ifdef SC_PIXEL_MODE
@@ -383,14 +397,9 @@ sc_attach_unit(int unit, int flags)
 
     for (vc = 0; vc < sc->vtys; vc++) {
 	if (sc->dev[vc] == NULL) {
-		dev = make_dev(&sc_cdevsw, vc + unit * MAXCONS,
+		sc->dev[vc] = make_dev(&sc_cdevsw, vc + unit * MAXCONS,
 		    UID_ROOT, GID_WHEEL, 0600, "ttyv%r", vc + unit * MAXCONS);
-		sc->dev[vc] = dev;
-	    	tp = sc->dev[vc]->si_tty = ttyalloc();
-	        tp->t_oproc = scstart;
-	        tp->t_param = scparam;
-	        tp->t_stop = nottystop;
-	        tp->t_dev = sc->dev[vc];
+	    	sc_alloc_tty(sc->dev[vc]);
 		if (vc == 0 && sc->dev == main_devs)
 			SC_STAT(sc->dev[0]) = &main_console;
 	}
@@ -403,12 +412,8 @@ sc_attach_unit(int unit, int flags)
 
     dev = make_dev(&sc_cdevsw, SC_CONSOLECTL,
 		   UID_ROOT, GID_WHEEL, 0600, "consolectl");
-    tp = dev->si_tty = sc_console_tty = ttyalloc();
-    ttyconsolemode(tp, 0);
-    tp->t_oproc = scstart;
-    tp->t_param = scparam;
-    tp->t_stop = nottystop;
-    tp->t_dev = dev;
+    sc_console_tty = sc_alloc_tty(dev);
+    ttyconsolemode(sc_console_tty, 0);
     SC_STAT(dev) = sc_console;
 
     return 0;
@@ -2581,7 +2586,6 @@ sc_change_cursor_shape(scr_stat *scp, int flags, int base, int height)
 static void
 scinit(int unit, int flags)
 {
-    struct tty *tp;
 
     /*
      * When syscons is being initialized as the kernel console, malloc()
@@ -2692,11 +2696,7 @@ scinit(int unit, int flags)
 	    sc->dev = malloc(sizeof(struct cdev *)*sc->vtys, M_DEVBUF, M_WAITOK|M_ZERO);
 	    sc->dev[0] = make_dev(&sc_cdevsw, unit * MAXCONS,
 	        UID_ROOT, GID_WHEEL, 0600, "ttyv%r", unit * MAXCONS);
-	    tp = sc->dev[0]->si_tty = ttyalloc();
-	    tp->t_oproc = scstart;
-	    tp->t_param = scparam;
-	    tp->t_stop = nottystop;
-	    tp->t_dev = sc->dev[0];
+	    sc_alloc_tty(sc->dev[0]);
 	    scp = alloc_scp(sc, sc->first_vty);
 	    SC_STAT(sc->dev[0]) = scp;
 	}
