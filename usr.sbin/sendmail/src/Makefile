@@ -17,8 +17,11 @@ PROG=	sendmail
 # spiral snail, but it will work.
 DBMDEF=	-DNEWDB
 
-# To building this on a system without setproctitle, uncomment:
-CFLAGS+=-I${.CURDIR} ${DBMDEF} -DNETISO #-DDONT_HAVE_SETPROCTITLE
+# if you don't want NIS support, comment out this line
+# FreeBSD supports NIS
+NIS=	-DNIS
+
+CFLAGS+=-I${.CURDIR} ${DBMDEF} ${NIS} #-DNETISO
 
 SRCS=	alias.c arpadate.c clock.c collect.c conf.c convtime.c daemon.c \
 	deliver.c domain.c envelope.c err.c headers.c macro.c main.c map.c \
@@ -37,8 +40,6 @@ BINOWN=	root
 BINMODE=4555
 
 beforeinstall:
-#	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 /dev/null \
-#	    ${DESTDIR}/etc/sendmail.fc
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 /dev/null \
 	    ${DESTDIR}/var/log/sendmail.st
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/sendmail.hf \

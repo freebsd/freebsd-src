@@ -1,4 +1,4 @@
-# Copyright (c) 1983, 1995 Eric P. Allman
+# Copyright (c) 1983, 1995, 1996 Eric P. Allman
 # Copyright (c) 1988 The Regents of the University of California.
 # All rights reserved.
 #
@@ -30,7 +30,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#	@(#)READ_ME	8.113 (Berkeley) 11/29/95
+#	@(#)READ_ME	8.130 (Berkeley) 11/10/96
 #
 
 This directory contains the source files for sendmail.
@@ -144,52 +144,67 @@ There are several database formats that can be used for the alias files
 and for general maps.  When used for alias files they interact in an
 attempt to be back compatible.
 
-The three options are NEWDB (the new Berkeley DB package), NDBM (the
-older DBM implementation -- the very old V7 implementation is no
-longer supported), and NIS (Network Information Services).  Used alone
-these just include the support they indicate.  [If you are using NEWDB,
-get the latest version from FTP.CS.Berkeley.EDU in /ucb/4bsd/db.tar.Z
-(or db.tar.gz).  DO NOT use the version from the Net2 distribution!
-However, if you are on BSD/386 or 386BSD-based systems, use the one
-that already exists on your system.  You may need to #define OLD_NEWDB
-1 to do this.]
+The options are:
 
-[NOTE WELL: it is CRITICAL that you remove ndbm.o from libdb.a and
-ndbm.h from the appropriate include directories if you want to get
-ndbm support.  These files OVERRIDE calls to ndbm routines -- in
-particular, if you leave ndbm.h in, you can find yourself using
-the new db package even if you don't define NEWDB.]
+NEWDB		The new Berkeley DB package.  Some systems (e.g., BSD/OS and
+		Digital UNIX 4.0) have this package pre-installed.  If your
+		system does not have NEWDB installed, get the latest version
+		from FTP.CS.Berkeley.EDU in /ucb/4bsd/db.tar.gz (or db.tar.Z).
+		DO NOT use the version from the Net2 distribution.  If you are
+		still running BSD/386 1.x, you will also need to define
+		OLD_NEWDB.
+NDBM		The older NDBM implementation -- the very old V7 DBM
+		implementation is no longer supported.
+NIS		Network Information Services.  To use this you must have
+		NIS support on your system.
+NISPLUS		NIS+ (the revised NIS released with Solaris 2).  You must
+		have NIS+ support on your system to use this flag.
+HESIOD		Support for Hesiod (from the DEC/Athena distribution).  You
+		must already have Hesiod support on your system for this to
+		work.  You may be able to get this to work with the MIT/Athena
+		version of Hesiod, but that's likely to be a lot of work.
+LDAPMAP		Lightweight Directory Lookup Protocol support.  You will
+		have to install the UMich ldap and lber libraries to use
+		this flag.
+
+>>>  NOTE WELL for NEWDB support: it is CRITICAL that you remove ndbm.o
+>>>  from libdb.a before you install it and DO NOT install ndbm.h if
+>>>  you want to get ndbm support.  If you don't delete these, there is
+>>>  absolutely no point to including -DNDBM, since it will just get you
+>>>  another (inferior) API to the same format database.  These files
+>>>  OVERRIDE calls to ndbm routines -- in particular, if you leave ndbm.h
+>>>  in, you can find yourself using the new db package even if you don't
+>>>  define NEWDB.
 
 If NEWDB and NDBM are defined (but not NIS), then sendmail will read
 NDBM format alias files, but the next time a newaliases is run the
 format will be converted to NEWDB; that format will be used forever
-more.  This is intended as a transition feature.  [Note however that
-the NEWDB library also catches and maps NDBM calls; you will have to
-back out this feature to get this to work.  See ``Quirks'' section
-below for details.]
+more.  This is intended as a transition feature.
 
-If all three are defined and the name of the file includes the string
-"/yp/", sendmail will rebuild BOTH the NEWDB and NDBM format alias
-files.  However, it will only read the NEWDB file; the NDBM format file
-is used only by the NIS subsystem.
+If NEWDB, NDBM, and NIS are all defined and the name of the file includes
+the string "/yp/", sendmail will rebuild BOTH the NEWDB and NDBM format
+alias files.  However, it will only read the NEWDB file; the NDBM format
+file is used only by the NIS subsystem.  This is needed because the NIS
+maps on an NIS server are built directly from the NDBM files.
 
 If NDBM and NIS are defined (regardless of the definition of NEWDB),
 and the filename includes the string "/yp/", sendmail adds the special
 tokens "YP_LAST_MODIFIED" and "YP_MASTER_NAME", both of which are
 required if the NDBM file is to be used as an NIS map.
 
-There is also preliminary support for NIS+ (-DNISPLUS), Hesiod
-(-DHESIOD), and NetInfo (-DNETINFO).  These have not been well
-tested.
-
-All of -DNEWDB, -DNDBM, -DNIS, -DNISPLUS, -DHESIOD, and -DNETINFO are
-normally defined in the DBMDEF line in the Makefile.
+All of these flags are normally defined in the DBMDEF line in the
+Makefile.
 
 If you define NEWDB or HESIOD you get the User Database (USERDB)
 automatically.  Generally you do want to have NEWDB for it to do
 anything interesting.  See above for getting the Berkeley "db"
 package (i.e., NEWDB).  There is no separate "user database"
 package -- don't bother searching for it on the net.
+
+Hesiod and LDAP require libraries that may not be installed with your
+system.  These are outside of my ability to provide support.  See the
+"Quirks" section for more information.
+
 
 
 +---------------+
@@ -340,11 +355,20 @@ LA_TYPE		The type of load average your kernel supports.  These
 			the dg_sys_info system call.
 		 LA_HPUX (10) is an HP-UX specific version that uses the
 			pstat_getdynamic system call.
+		 LA_IRIX6 (11) is an IRIX 6.x specific version that adapts
+			to 32 or 64 bit kernels; it is otherwise very similar
+			to LA_INT.
+		 LA_KSTAT (12) uses the (Solaris-specific) kstat(3k)
+			implementation.
+		 LA_DEVSHORT (13) reads a short from a system file (default:
+			/dev/table/avenrun) and scales it in the same manner
+			as LA_SHORT.
 		LA_INT, LA_SHORT, LA_FLOAT, and LA_READKSYM have several
 		other parameters that they try to divine: the name of your
 		kernel, the name of the variable in the kernel to examine,
 		the number of bits of precision in a fixed point load average,
-		and so forth.
+		and so forth.  LA_DEVSHORT uses _PATH_AVENRUN to find the
+		device to be read to find the load average.
 		In desperation, use LA_ZERO.  The actual code is in
 		conf.c -- it can be tweaked if you are brave.
 FSHIFT		For LA_INT, LA_SHORT, and LA_READKSYM, this is the number
@@ -462,7 +486,7 @@ IP_SRCROUTE	Define this to 1 to get IP source routing information
 		it won't compile properly (that is, no support for fetching
 		IP_OPTIONs), or it compiles but source-routed TCP connections
 		either refuse to open or open and hang for no apparent reason.
-		Ultrix and AIX are known to fail this way.
+		Ultrix and AIX3 are known to fail this way.
 LOG		Set this to get syslog(3) support.  Defined by default
 		in conf.h.  You want this if at all possible.
 NETINET		Set this to get TCP/IP support.  Defined by default
@@ -500,6 +524,19 @@ HES_GETMAILHOST	Define this to 1 if you are using Hesiod with the
 		Hesiod distribution, but not with the DEC Hesiod distribution.
 XDEBUG		Do additional internal checking.  These don't cost too
 		much; you might as well leave this on.
+TCPWRAPPERS	Turns on support for the TCP wrappers library (-lwrap).
+		This library is available on ftp.win.tue.nl in /pub/security;
+		grab tcp_wrappers_<VER>.tar.gz (where <VER> is the highest
+		numbered version).
+SECUREWARE	Enable calls to the SecureWare luid enabling/changing routines.
+		SecureWare is a C2 security package added to several UNIX's
+		(notably ConvexOS) to get a C2 Secure system.  This
+		option causes mail delivery to be done with the luid of the
+		recipient.
+SHARE_V1	Support for the fair share scheduler, version 1.  Setting to
+		1 causes final delivery to be done using the recipients
+		resource limitations.  So far as I know, this is only
+		supported on ConvexOS.
 
 
 +---------------------+
@@ -515,7 +552,10 @@ dn_skipname.
 
 Some people have had a problem with BIND 4.9; it uses some routines
 that it expects to be externally defined such as strerror().  It may
-help to link with "-l44bsd" to solve this problem.
+help to link with "-l44bsd" to solve this problem.  This has apparently
+been fixed in later versions of BIND, starting around 4.9.3.  In other
+words, if you use 4.9.0 through 4.9.2, you need -l44bsd; for earlier or
+later versions, you do not.
 
 !PLEASE! be sure to link with the same version of the resolver as
 the header files you used -- some people have used the 4.9 headers
@@ -587,6 +627,13 @@ Configuration file location
 	vendor location rather than changing the location in the sendmail
 	binary.
 
+ld: fatal: library -l44bsd: not found
+	Most of the Makefiles include -l44bsd in the LIBS= definition;
+	this is because several versions of BIND (4.9.0, 4.9.1, 4.9.2)
+	require this library.  If you are running one of these versions,
+	install this library.  Otherwise, just delete "-l44bsd" from the
+	LIBS= line in the Makefile.
+
 SunOS 4.x (Solaris 1.x)
 	You may have to use -lresolv on SunOS.  However, beware that
 	this links in a new version of gethostbyname that does not
@@ -631,17 +678,18 @@ SunOS 4.0.2 (Sun 386i)
 	(and change the Makefile to use this library).
 	Note that the sendmail.cf and aliases files are found in /etc.
 
-SunOS 4.1.3_U1
-	Sendmail causes crashes on SunOS 4.1.3_U1.  According to Sun
-	bug number 1077939:
+SunOS 4.1.3, 4.1.3_U1
+	Sendmail causes crashes on SunOS 4.1.3 and 4.1.3_U1.  According
+	to Sun bug number 1077939:
 
 	If an application does a getsockopt() on a SOCK_STREAM (TCP) socket
 	after the other side of the connection has sent a TCP RESET for
 	the stream, the kernel gets a Bus Trap in the tcp_ctloutput() or
 	ip_ctloutput() routine.
 
-	This is fixed in patch 101790-01 (SunOS 4.1.3_U1: TCP socket and
-	reset problems).
+	For 4.1.3, this is fixed in patch 100584-08, available on the
+	Sunsolve 2.7.1 or later CDs.  For 4.1.3_U1, this is fixed in patch
+	101790-01 (SunOS 4.1.3_U1: TCP socket and reset problems).
 
 Solaris 2.x (SunOS 5.x)
 	To compile for Solaris, be sure you use -DSOLARIS.
@@ -751,6 +799,10 @@ OSF/1
 	Also, the enclosed makefile removed /usr/sbin/smtpd; if you need
 	it, just create the link to the sendmail binary.
 
+	On DEC OSF/1 3.2 or earlier, the MatchGECOS option doesn't work
+	properly due to a bug in the getpw* routines.  If you want to use
+	this, use -DDEC_OSF_BROKEN_GETPWENT=1.  The problem is fixed in 3.2C.
+
 IRIX
 	The header files on SGI IRIX are completely prototyped, and as
 	a result you can sometimes get some warning messages during
@@ -765,6 +817,26 @@ IRIX
 	In order to compile sendmail you will have had to install
 	the developers' option in order to get the necessary include
 	files.
+
+	If you compile with -lmalloc (the fast memory allocator), you may
+	get warning messages such as the following:
+
+	   ld32: WARNING 85: definition of _calloc in /usr/lib32/libmalloc.so
+		preempts that definition in /usr/lib32/mips3/libc.so.
+	   ld32: WARNING 85: definition of _malloc in /usr/lib32/libmalloc.so
+		preempts that definition in /usr/lib32/mips3/libc.so.
+	   ld32: WARNING 85: definition of _realloc in /usr/lib32/libmalloc.so
+		preempts that definition in /usr/lib32/mips3/libc.so.
+	   ld32: WARNING 85: definition of _free in /usr/lib32/libmalloc.so
+		preempts that definition in /usr/lib32/mips3/libc.so.
+	   ld32: WARNING 85: definition of _cfree in /usr/lib32/libmalloc.so
+		preempts that definition in /usr/lib32/mips3/libc.so.
+
+	These are unavoidable and innocuous -- just ignore them.
+
+	According to Dave Sill <de5@ornl.gov>, there is a version of the
+	Berkeley db library patched to run on Irix 6.2 available from
+	http://reality.sgi.com/ariel/db-1.85-irix.tar.Z .
 
 NeXT or NEXTSTEP
 	NEXTSTEP 3.3 and earlier ship with the old DBM library.  You will
@@ -931,7 +1003,22 @@ Linux
 	of libc between 4.4.4 and 4.7.0 (snprintf improves security, so
 	you want to use this if at all possible).
 
-AIX
+	NOTE ON LINUX & BIND:  By default, the Makefiles for linux include
+	header files in /usr/local/include and libraries in /usr/local/lib.
+	If you've installed BIND on your system, the header files typically
+	end up in the search path and you need to add "-lresolv" to the
+	LIBS line in your Makefile.  Really old versions may need to include
+	"-l44bsd" as well (particularly if the link phase complains about
+	missing strcasecmp, strncasecmp or strpbrk).  Complaints about an
+	undefined reference to `__dn_skipname' in domain.o are a sure sign
+	that you need to add -lresolv to LIBS.  Newer versions of linux
+	are basically threaded BIND, so you may or may not see complaints
+	if you accidentally mix BIND headers/libraries with virginal libc.
+	If you have BIND headers in /usr/local/include (resolv.h, etc)
+	you *should* be adding -lresolv to LIBS.  Data structures may change
+	and you'd be asking for a core dump.
+
+AIX 3.x
 	This version of sendmail does not support MB, MG, and MR resource
 	records, which are supported by AIX sendmail.
 
@@ -939,6 +1026,56 @@ AIX
 	fairly random results -- the named should be replaced.  It is not
 	necessary to replace the resolver, which will simplify installation.
 	A new BIND resolver can be found at http://www.isc.org/isc/.
+
+AIX 3.1.x
+	The supplied load average code only works correctly for AIX 3.2.x.
+	For 3.1, use -DLA_TYPE=LA_SUBR and get the latest ``monitor''
+	package by Jussi Maki <jmaki@hut.fi> from ftp.funet.fi in the
+	directory pub/unix/AIX/rs6000/monitor-1.12.tar.Z; use the loadavgd
+	daemon, and the getloadavg subroutine supplied with that package.
+	If you don't care about load average throttling, just turn off
+	load average checking using -DLA_TYPE=LA_ZERO.
+
+AIX 2.2.1
+	Date: Mon Dec  4 14:14:56 CST 1995
+	From: Mark Whetzel <markw@antimatr.houston.tx.us>
+	Subject: Porting sendmail 8.7.2 to AIX V2 on the RT.
+	
+	This version of sendmail does not support MB, MG, and MR resource
+	records, which are supported by AIX sendmail.
+
+	AIX V2 on the RT does not have 'paths.h'.  Create a null
+	file in the 'obj' directory to remove this compile error.
+
+	A patch file is needed to get the BSD 'db' library to compile
+	for AIX/RT.  I have sent the necessary updates to the author,
+	but they may not be immediately available.
+
+	The original AIX/RT resolver libraries are very old, and you
+	should get the latest BIND to replace it.  The 4.8.3 version
+	has been tested, but 4.9.x is out and should work.
+
+	To make the load average code work correctly requires an
+	external routine, as the kernel does not maintain system
+	load averages, similar to AIX V3.1.x.  A reverse port of the
+	older 1.05 'monitor' load average daemon code written by
+	Jussi Maki that will work on AIX V2 for the RT is available
+	by E-mail to Mark Whetzel  <markw@antimatr.houston.tx.us>.
+	That code depends on an external daemon to collect system
+	load information, and the external routine 'getloadavg',
+	that will return that information.  The 'LA_SUBR' define
+	will handle this for AIX V2 on the RT.
+
+	Note: You will have to change the Makefile.AIX.2 to correctly
+	point to the locatons of the updated BIND source tree and
+	the location of the 'newdb' tree and library location.
+	You will also have to change the Makefile.AIX.2 to know
+	about the location of the 'getloadavg' routine if you use
+	the LA_SUBR define.
+
+	
+	Manual pages will format correctly if given the mandoc macros
+	and used with nroff.  I have not tried groff.
 
 RISC/os
 	RISC/os from MIPS is a merged AT&T/Berkeley system.  When you
@@ -1081,7 +1218,7 @@ Listproc 6.0c
 	From: alansz@mellers1.psych.berkeley.edu (Alan Schwartz)
 	Subject: Listproc 6.0c + Sendmail 8.7 [Helpful hint]
 
-	Just upgraded to sendmail 8.7, and discovered that listproc 6.0c 
+	Just upgraded to sendmail 8.7, and discovered that listproc 6.0c
 	breaks, because it, by default, sends a blank "HELO" rather than
 	a "HELO hostname" when using the 'system' or 'telnet' mailmethod.
 
@@ -1089,6 +1226,56 @@ Listproc 6.0c
 	cause it to use "HELO hostname" (which Z-mail apparently requires
 	as well. :)
 
+LDAP
+	LDAP was provided by Booker Bense <bbense@networking.stanford.edu> of
+	Stanford University.  From Booker:
+
+	  - The patch attached to this message implements an Ldap map class.
+	    Currently we are using this at stanford to support campus-wide
+	    email addressing. This project is discussed at
+	    http://www-leland.stanford.edu/group/networking/project/sunetid.html
+
+	  - Currently we are using the ldap map as follows:
+
+		Kluser ldapx
+		    -h"localhost borax.stanford.edu borate.stanford.edu boron.stanford.edu"
+		    -k"mailacceptinggeneralid=%s" -v maildrop
+
+	    and in Rule set S5
+
+		# Now attempt to lookup in luser (ldap map)
+		R< $L > $+		$: < $L > $( luser $1 $)
+		R< $*  > $+ @ $+	$: < $3 > $2		Rewrite if forward
+
+	  - The map definition supports most of the standard Map args plus most
+	    of the command line options of ldapsearch. The software is currently
+	    limited to only accepting the first entry returned. It expects that
+	    the map defines an ldap filter that returns at most 1 valid entry.
+	    It requires the ldap and lber libraries from the Umich Ldap3.2
+	    release.
+
+	  - KNOWN BUGS: It does not work under Digital Unix 3.2c, with gcc and
+	    ldap3.2 or ldap3.3. It dumps core after attempting to take strlen
+	    of a garbage string pointer in the lber libraries routine
+	    ber_printf.
+
+	    The string pointer in question is set to 0x50000000, when the
+	    program crashes. If anyone recognizes where this magic number comes
+	    from that would be really helpful.
+
+	    I've tested the software on Solaris.2.4 with gcc and on NeXTStep3.2
+	    and it runs without problems. If you have any questions, please
+	    send them along.
+
+TCP Wrappers
+	If you are using -DTCPWRAPPERS to get TCP Wrappers support, you will
+	also need to install libwrap.a (you can get it from ftp.win.tue.nl)
+	and modify the Makefile to include -lwrap in the LIBS line.
+
+	If you have alternate MX sites for your site, be sure that all of
+	your MX sites reject the same set of hosts.  If not, a bad guy whom
+	you reject will connect to your site, fail, and move on to the next
+	MX site, which will accept the mail for your and forward it on to you.
 
 
 +--------------+
@@ -1190,4 +1377,4 @@ version.c	The version number and information about this
 
 Eric Allman
 
-(Version 8.113, last update 11/29/95 11:05:14)
+(Version 8.130, last update 11/10/96 11:15:30)

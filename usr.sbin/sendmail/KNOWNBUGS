@@ -1,7 +1,7 @@
 
 
 	     K N O W N   B U G S   I N   S E N D M A I L
-			     (for 8.7)
+			     (for 8.8)
 
 
 The following are bugs or deficiencies in sendmail that I am aware of
@@ -74,18 +74,8 @@ This list is not guaranteed to be complete.
   not in the sendmail source code, so I assume it is also a bug
   in the sockets emulation.  (Errno 22 is EINVAL "Invalid Argument"
   on all the systems I have available, including Solaris 2.x.)
-
-* Sending user deletion not done properly in :include: lists.
-
-  If you don't have the "m" (me too) option set, then a person
-  sending to a list that contains themselves should not get a copy
-  of the message.  However, if that list points to a :include: file
-  that has one address per line, this will break, and the sender
-  will always get a copy of their own message, just as though the
-  "m" option were set.
-
-  You can eliminate this by adding commas at the end of each line
-  of the :include: file.
+  Apparently, this problem is due to linking -lc before -lsocket;
+  if you are having this problem, check your Makefile.
 
 * Excessive mailing list nesting can run out of file descriptors.
 
@@ -116,4 +106,4 @@ This list is not guaranteed to be complete.
   allow for 8->7 bit MIME conversions either.
 
 
-(Version 8.21, last updated 8/27/95)
+(Version 8.23, last updated 10/15/96)

@@ -39,10 +39,11 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)praliases.c	8.3 (Berkeley) 3/6/94";
+static char sccsid[] = "@(#)praliases.c	8.4 (Berkeley) 9/25/96";
 #endif /* not lint */
 
 #include <ndbm.h>
+#define NOT_SENDMAIL
 #include <sendmail.h>
 #ifdef NEWDB
 #include <db.h>
@@ -55,8 +56,10 @@ main(argc, argv)
 {
 	extern char *optarg;
 	extern int optind;
+#ifdef NDBM
 	DBM *dbp;
 	datum content, key;
+#endif
 	char *filename;
 	int ch;
 #ifdef NEWDB
@@ -100,8 +103,11 @@ main(argc, argv)
 					newdbkey.data);
 		}
 	}
-	else {
 #endif
+#ifdef NDBM
+#ifdef NEWDB
+	else {
+#endif /* NEWDB */
 		if ((dbp = dbm_open(filename, O_RDONLY, 0)) == NULL) {
 			(void)fprintf(stderr,
 			    "praliases: %s: %s\n", filename, strerror(errno));
@@ -127,6 +133,7 @@ main(argc, argv)
 		}
 #ifdef NEWDB
 	}
-#endif
+#endif /* NEWDB */
+#endif /* NDBM */
 	exit(EX_OK);
 }

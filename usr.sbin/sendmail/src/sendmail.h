@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1983, 1995 Eric P. Allman
+ * Copyright (c) 1983, 1995, 1996 Eric P. Allman
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)sendmail.h	8.159.1.3 (Berkeley) 9/16/96
+ *	@(#)sendmail.h	8.209 (Berkeley) 11/8/96
  */
 
 /*
@@ -41,7 +41,7 @@
 # ifdef _DEFINE
 # define EXTERN
 # ifndef lint
-static char SmailSccsId[] =	"@(#)sendmail.h	8.159.1.3		9/16/96";
+static char SmailSccsId[] =	"@(#)sendmail.h	8.209		11/8/96";
 # endif
 # else /*  _DEFINE */
 # define EXTERN extern
@@ -179,12 +179,15 @@ typedef struct address ADDRESS;
 # define QEXPANDED	0x00020000	/* DSN: undergone list expansion */
 # define QDELIVERED	0x00040000	/* DSN: successful final delivery */
 # define QDELAYED	0x00080000	/* DSN: message delayed */
-# define QTHISPASS	0x80000000	/* temp: address set this pass */
+# define QTHISPASS	0x40000000	/* temp: address set this pass */
+
+# define Q_PINGFLAGS	(QPINGONSUCCESS|QPINGONFAILURE|QPINGONDELAY)
 
 # define NULLADDR	((ADDRESS *) NULL)
 
 /* functions */
 extern ADDRESS	*parseaddr __P((char *, ADDRESS *, int, int, char **, ENVELOPE *));
+extern ADDRESS	*buildaddr __P((char **, ADDRESS *, int, ENVELOPE *));
 extern ADDRESS	*recipient __P((ADDRESS *, ADDRESS **, int, ENVELOPE *));
 extern char	**prescan __P((char *, int, char[], int, char **, u_char *));
 extern int	rewrite __P((char **, int, int, ENVELOPE *));
@@ -250,6 +253,7 @@ struct mailer
 # define M_INTERNAL	'I'	/* SMTP to another sendmail site */
 # define M_UDBRECIPIENT	'j'	/* do udbsender rewriting on recipient lines */
 # define M_NOLOOPCHECK	'k'	/* don't check for loops in HELO command */
+# define M_CHUNKING	'K'	/* CHUNKING: reserved for future use */
 # define M_LOCALMAILER	'l'	/* delivery is to this host */
 # define M_LIMITS	'L'	/* must enforce SMTP line limits */
 # define M_MUSER	'm'	/* can handle multiple users at once */
@@ -259,6 +263,7 @@ struct mailer
 # define M_RUNASRCPT	'o'	/* always run mailer as recipient */
 # define M_FROMPATH	'p'	/* use reverse-path in MAIL FROM: */
 		/*	'P'	   CF: include Return-Path: */
+# define M_VRFY250	'q'	/* VRFY command returns 250 instead of 252 */
 # define M_ROPT		'r'	/* mailer takes picky -r flag */
 # define M_SECURE_PORT	'R'	/* try to send on a reserved TCP port */
 # define M_STRIPQ	's'	/* strip quote chars from user/host */
@@ -270,6 +275,8 @@ struct mailer
 # define M_HASPWENT	'w'	/* check for /etc/passwd entry */
 		/*	'x'	   CF: include Full-Name: */
 # define M_XDOT		'X'	/* use hidden-dot algorithm */
+# define M_LMTP		'z'	/* run Local Mail Transport Protocol */
+# define M_NOMX		'0'	/* turn off MX lookups */
 # define M_EBCDIC	'3'	/* extend Q-P encoding for EBCDIC */
 # define M_TRYRULESET5	'5'	/* use ruleset 5 after local aliasing */
 # define M_7BITS	'7'	/* use 7-bit path */
@@ -279,6 +286,7 @@ struct mailer
 # define M_CHECKPROG	'|'	/* check for |program addresses */
 # define M_CHECKFILE	'/'	/* check for /file addresses */
 # define M_CHECKUDB	'@'	/* user can be user database key */
+# define M_CHECKHDIR	'~'	/* SGI: check for valid home directory */
 
 EXTERN MAILER	*Mailer[MAXMAILERS+1];
 
@@ -286,6 +294,75 @@ EXTERN MAILER	*LocalMailer;		/* ptr to local mailer */
 EXTERN MAILER	*ProgMailer;		/* ptr to program mailer */
 EXTERN MAILER	*FileMailer;		/* ptr to *file* mailer */
 EXTERN MAILER	*InclMailer;		/* ptr to *include* mailer */
+/*
+**  Information about currently open connections to mailers, or to
+**  hosts that we have looked up recently.
+*/
+
+# define MCI		struct mailer_con_info
+
+MCI
+{
+	short		mci_flags;	/* flag bits, see below */
+	short		mci_errno;	/* error number on last connection */
+	short		mci_herrno;	/* h_errno from last DNS lookup */
+	short		mci_exitstat;	/* exit status from last connection */
+	short		mci_state;	/* SMTP state */
+	long		mci_maxsize;	/* max size this server will accept */
+	FILE		*mci_in;	/* input side of connection */
+	FILE		*mci_out;	/* output side of connection */
+	pid_t		mci_pid;	/* process id of subordinate proc */
+	char		*mci_phase;	/* SMTP phase string */
+	struct mailer	*mci_mailer;	/* ptr to the mailer for this conn */
+	char		*mci_host;	/* host name */
+	char		*mci_status;	/* DSN status to be copied to addrs */
+	char		*mci_rstatus;	/* SMTP status to be copied to addrs */
+	time_t		mci_lastuse;	/* last usage time */
+	FILE		*mci_statfile;	/* long term status file */
+};
+
+
+/* flag bits */
+#define MCIF_VALID	0x0001		/* this entry is valid */
+#define MCIF_TEMP	0x0002		/* don't cache this connection */
+#define MCIF_CACHED	0x0004		/* currently in open cache */
+#define MCIF_ESMTP	0x0008		/* this host speaks ESMTP */
+#define MCIF_EXPN	0x0010		/* EXPN command supported */
+#define MCIF_SIZE	0x0020		/* SIZE option supported */
+#define MCIF_8BITMIME	0x0040		/* BODY=8BITMIME supported */
+#define MCIF_7BIT	0x0080		/* strip this message to 7 bits */
+#define MCIF_MULTSTAT	0x0100		/* MAIL11V3: handles MULT status */
+#define MCIF_INHEADER	0x0200		/* currently outputing header */
+#define MCIF_CVT8TO7	0x0400		/* convert from 8 to 7 bits */
+#define MCIF_DSN	0x0800		/* DSN extension supported */
+#define MCIF_8BITOK	0x1000		/* OK to send 8 bit characters */
+#define MCIF_CVT7TO8	0x2000		/* convert from 7 to 8 bits */
+#define MCIF_INMIME	0x4000		/* currently reading MIME header */
+
+/* states */
+#define MCIS_CLOSED	0		/* no traffic on this connection */
+#define MCIS_OPENING	1		/* sending initial protocol */
+#define MCIS_OPEN	2		/* open, initial protocol sent */
+#define MCIS_ACTIVE	3		/* message being sent */
+#define MCIS_QUITING	4		/* running quit protocol */
+#define MCIS_SSD	5		/* service shutting down */
+#define MCIS_ERROR	6		/* I/O error on connection */
+
+/* functions */
+extern MCI	*mci_get __P((char *, MAILER *));
+extern void	mci_cache __P((MCI *));
+extern void	mci_flush __P((bool, MCI *));
+extern void	mci_dump __P((MCI *, bool));
+extern void	mci_dump_all __P((bool));
+extern MCI	**mci_scan __P((MCI *));
+extern int 	mci_traverse_persistent __P((int (), char *));
+extern int	mci_print_persistent __P((char *, char *));
+extern int	mci_purge_persistent __P((char *, char *));
+extern int	mci_lock_host __P((MCI *));
+extern void	mci_unlock_host __P((MCI *));
+extern int	mci_lock_host_statfile __P((MCI *));
+extern void 	mci_store_persistent __P((MCI *));
+extern int 	mci_read_persistent __P((FILE *, MCI *));
 /*
 **  Header structure.
 **	This structure is used internally to store header items.
@@ -332,62 +409,15 @@ extern struct hdrinfo	HdrInfo[];
 # define H_CTE		0x1000	/* this field is a content-transfer-encoding */
 # define H_CTYPE	0x2000	/* this is a content-type field */
 # define H_BCC		0x4000	/* Bcc: header: strip value or delete */
-/*
-**  Information about currently open connections to mailers, or to
-**  hosts that we have looked up recently.
-*/
-
-# define MCI		struct mailer_con_info
-
-MCI
-{
-	short		mci_flags;	/* flag bits, see below */
-	short		mci_errno;	/* error number on last connection */
-	short		mci_herrno;	/* h_errno from last DNS lookup */
-	short		mci_exitstat;	/* exit status from last connection */
-	short		mci_state;	/* SMTP state */
-	long		mci_maxsize;	/* max size this server will accept */
-	FILE		*mci_in;	/* input side of connection */
-	FILE		*mci_out;	/* output side of connection */
-	int		mci_pid;	/* process id of subordinate proc */
-	char		*mci_phase;	/* SMTP phase string */
-	struct mailer	*mci_mailer;	/* ptr to the mailer for this conn */
-	char		*mci_host;	/* host name */
-	char		*mci_status;	/* DSN status to be copied to addrs */
-	time_t		mci_lastuse;	/* last usage time */
-};
-
-
-/* flag bits */
-#define MCIF_VALID	0x0001		/* this entry is valid */
-#define MCIF_TEMP	0x0002		/* don't cache this connection */
-#define MCIF_CACHED	0x0004		/* currently in open cache */
-#define MCIF_ESMTP	0x0008		/* this host speaks ESMTP */
-#define MCIF_EXPN	0x0010		/* EXPN command supported */
-#define MCIF_SIZE	0x0020		/* SIZE option supported */
-#define MCIF_8BITMIME	0x0040		/* BODY=8BITMIME supported */
-#define MCIF_7BIT	0x0080		/* strip this message to 7 bits */
-#define MCIF_MULTSTAT	0x0100		/* MAIL11V3: handles MULT status */
-#define MCIF_INHEADER	0x0200		/* currently outputing header */
-#define MCIF_CVT8TO7	0x0400		/* convert from 8 to 7 bits */
-#define MCIF_DSN	0x0800		/* DSN extension supported */
-#define MCIF_8BITOK	0x1000		/* OK to send 8 bit characters */
-#define MCIF_CVT7TO8	0x2000		/* convert from 7 to 8 bits */
-#define MCIF_INMIME	0x4000		/* currently reading MIME header */
-
-/* states */
-#define MCIS_CLOSED	0		/* no traffic on this connection */
-#define MCIS_OPENING	1		/* sending initial protocol */
-#define MCIS_OPEN	2		/* open, initial protocol sent */
-#define MCIS_ACTIVE	3		/* message being sent */
-#define MCIS_QUITING	4		/* running quit protocol */
-#define MCIS_SSD	5		/* service shutting down */
-#define MCIS_ERROR	6		/* I/O error on connection */
+# define H_ENCODABLE	0x8000	/* field can be RFC 1522 encoded */
 
 /* functions */
-extern MCI	*mci_get __P((char *, MAILER *));
-extern void	mci_cache __P((MCI *));
-extern void	mci_flush __P((bool, MCI *));
+extern void	addheader __P((char *, char *, HDR **));
+extern char	*hvalue __P((char *, HDR *));
+extern void	commaize __P((HDR *, char *, bool, MCI *, ENVELOPE *));
+extern void	put_vanilla_header __P((HDR *, char *, MCI *));
+extern void	eatheader __P((ENVELOPE *e, bool));
+extern int	chompheader __P((char *, bool, HDR **, ENVELOPE *));
 /*
 **  Envelope structure.
 **	This structure defines the message itself.  There is usually
@@ -403,7 +433,6 @@ struct envelope
 	long		e_msgpriority;	/* adjusted priority of this message */
 	time_t		e_ctime;	/* time message appeared in the queue */
 	char		*e_to;		/* the target person */
-	char		*e_receiptto;	/* return receipt address */
 	ADDRESS		e_from;		/* the person it is from */
 	char		*e_sender;	/* e_from.q_paddr w comments stripped */
 	char		**e_fromdomain;	/* the domain part of the sender */
@@ -472,7 +501,7 @@ EXTERN ENVELOPE	*CurEnv;	/* envelope currently being processed */
 
 /* functions */
 extern ENVELOPE	*newenvelope __P((ENVELOPE *, ENVELOPE *));
-extern void	dropenvelope __P((ENVELOPE *));
+extern void	dropenvelope __P((ENVELOPE *, bool));
 extern void	clearenvelope __P((ENVELOPE *, bool));
 
 extern void	putheader __P((MCI *, HDR *, ENVELOPE *));
@@ -636,7 +665,8 @@ MAP
 	char		*map_domain;	/* the (nominal) NIS domain */
 	char		*map_rebuild;	/* program to run to do auto-rebuild */
 	time_t		map_mtime;	/* last database modification time */
-	short		map_specificity;	/* specificity of alaases */
+	int		map_lockfd;	/* auxiliary lock file descriptor */
+	short		map_specificity;	/* specificity of aliases */
 	MAP		*map_stack[MAXMAPSTACK];   /* list for stacked maps */
 	short		map_return[MAXMAPACTIONS]; /* return bitmaps for stacked maps */
 };
@@ -659,6 +689,7 @@ MAP
 # define MF_UNSAFEDB	0x00004000	/* this map is world writable */
 # define MF_APPEND	0x00008000	/* append new entry on rebuiled */
 # define MF_KEEPQUOTES	0x00010000	/* don't dequote key before lookup */
+# define MF_NODEFER	0x00020000	/* don't defer if map lookup fails */
 
 /* indices for map_actions */
 # define MA_NOTFOUND	0		/* member map returned "not found" */
@@ -695,6 +726,7 @@ MAPCLASS
 /* functions */
 extern char	*map_rewrite __P((MAP *, char *, int, char **));
 extern MAP	*makemapentry __P((char *));
+extern void	initmaps __P((bool, ENVELOPE *));
 /*
 **  Symbol table definitions
 */
@@ -702,7 +734,8 @@ extern MAP	*makemapentry __P((char *));
 struct symtab
 {
 	char		*s_name;	/* name to be entered */
-	char		s_type;		/* general type (see below) */
+	short		s_type;		/* general type (see below) */
+	short		s_len;		/* length of this entry */
 	struct symtab	*s_next;	/* pointer to next in chain */
 	union
 	{
@@ -717,6 +750,7 @@ struct symtab
 		NAMECANON	sv_namecanon;	/* canonical name cache */
 		int		sv_macro;	/* macro name => id mapping */
 		int		sv_ruleset;	/* ruleset index */
+		char		*sv_service[MAXMAPSTACK]; /* service switch */
 	}	s_value;
 };
 
@@ -734,6 +768,7 @@ typedef struct symtab	STAB;
 # define ST_NAMECANON	8	/* cached canonical name */
 # define ST_MACRO	9	/* macro name to id mapping */
 # define ST_RULESET	10	/* ruleset index */
+# define ST_SERVICE	11	/* service switch entry */
 # define ST_MCI		16	/* mailer connection info (offset) */
 
 # define s_class	s_value.sv_class
@@ -747,6 +782,7 @@ typedef struct symtab	STAB;
 # define s_namecanon	s_value.sv_namecanon
 # define s_macro	s_value.sv_macro
 # define s_ruleset	s_value.sv_ruleset
+# define s_service	s_value.sv_service
 
 extern STAB		*stab __P((char *, int, int));
 extern void		stabapply __P((void (*)(STAB *, int), int));
@@ -802,12 +838,14 @@ EXTERN char	OpMode;		/* operation mode, see below */
 #define MD_SMTP		's'		/* run SMTP on standard input */
 #define MD_ARPAFTP	'a'		/* obsolete ARPANET mode (Grey Book) */
 #define MD_DAEMON	'd'		/* run as a daemon */
+#define MD_FGDAEMON	'D'		/* run daemon in foreground */
 #define MD_VERIFY	'v'		/* verify: don't collect or deliver */
 #define MD_TEST		't'		/* test mode: resolve addrs only */
 #define MD_INITALIAS	'i'		/* initialize alias database */
 #define MD_PRINT	'p'		/* print the queue */
 #define MD_FREEZE	'z'		/* freeze the configuration file */
-
+#define MD_HOSTSTAT	'h'		/* print persistent host stat info */
+#define MD_PURGESTAT	'H'		/* purge persistent host stat info */
 
 /* values for e_sendmode -- send modes */
 #define SM_DELIVER	'i'		/* interactive delivery */
@@ -841,6 +879,7 @@ EXTERN int	QueueSortOrder;
 
 #define QS_BYPRIORITY	0		/* sort by message priority */
 #define QS_BYHOST	1		/* sort by first host name */
+#define QS_BYTIME	2		/* sort by submission time */
 
 
 /* how to handle messages without any recipient addresses */
@@ -856,7 +895,7 @@ EXTERN int		NoRecipientAction;
 /* flags to putxline */
 #define PXLF_NOTHINGSPECIAL	0	/* no special mapping */
 #define PXLF_MAPFROM		0x0001	/* map From_ to >From_ */
-#define PXLF_STRIP8BIT		0x0002	/* strip 8th bit *e
+#define PXLF_STRIP8BIT		0x0002	/* strip 8th bit */
 /*
 **  Additional definitions
 */
@@ -918,6 +957,9 @@ struct prival
 /* flags that are actually specific to safefopen */
 #define SFF_OPENASROOT		0x1000	/* open as root instead of real user */
 
+/* functions */
+extern int	safefile __P((char *, UID_T, GID_T, char *, int, int, struct stat *));
+
 
 /*
 **  Flags passed to mime8to7.
@@ -926,6 +968,15 @@ struct prival
 #define M87F_OUTER		0	/* outer context */
 #define M87F_NO8BIT		0x0001	/* can't have 8-bit in this section */
 #define M87F_DIGEST		0x0002	/* processing multipart/digest */
+
+
+/*
+**  Flags passed to returntosender.
+*/
+
+#define RTSF_NO_BODY		0	/* send headers only */
+#define RTSF_SEND_BODY		0x0001	/* include body of message in return */
+#define RTSF_PM_BOUNCE		0x0002	/* this is a postmaster bounce */
 
 
 /*
@@ -957,6 +1008,8 @@ union bigsockaddr
 #define SOCKADDR	union bigsockaddr
 
 EXTERN SOCKADDR RealHostAddr;	/* address of host we are talking to */
+
+extern char	*hostnamebyanyaddr __P((SOCKADDR *));
 extern char	*anynet_ntoa __P((SOCKADDR *));
 
 #endif
@@ -983,6 +1036,34 @@ extern char	*anynet_ntoa __P((SOCKADDR *));
 #define VENDOR_IBM	4	/* IBM specific config syntax */
 
 EXTERN int	VendorCode;	/* vendor-specific operation enhancements */
+
+/* prototypes for vendor-specific hook routines */
+extern void	vendor_set_uid __P((UID_T));
+extern void	vendor_daemon_setup __P((ENVELOPE *));
+
+
+/*
+**  Terminal escape codes.
+**
+**	To make debugging output clearer.
+*/
+
+struct termescape
+{
+	char	*te_rv_on;	/* turn reverse-video on */
+	char	*te_rv_off;	/* turn reverse-video off */
+};
+
+EXTERN struct termescape	TermEscape;
+
+
+/*
+**  Error return from inet_addr(3), in case not defined in /usr/include.
+*/
+
+#ifndef INADDR_NONE
+# define INADDR_NONE	0xffffffff
+#endif
 /*
 **  Global variables.
 */
@@ -1005,6 +1086,7 @@ EXTERN bool	UseNameServer;	/* using DNS -- interpret h_errno & MX RRs */
 EXTERN bool	UseHesiod;	/* using Hesiod -- interpret Hesiod errors */
 EXTERN bool	SevenBitInput;	/* force 7-bit data on input */
 EXTERN bool	HasEightBits;	/* has at least one eight bit input byte */
+EXTERN bool	ConfigFileRead;	/* configuration file has been read */
 EXTERN time_t	SafeAlias;	/* interval to wait until @:@ in alias file */
 EXTERN FILE	*InChannel;	/* input connection */
 EXTERN FILE	*OutChannel;	/* output connection */
@@ -1014,7 +1096,7 @@ EXTERN gid_t	RealGid;	/* real gid of caller */
 EXTERN uid_t	DefUid;		/* default uid to run as */
 EXTERN gid_t	DefGid;		/* default gid to run as */
 EXTERN char	*DefUser;	/* default user to run as (from DefUid) */
-EXTERN int	OldUmask;	/* umask when sendmail starts up */
+EXTERN MODE_T	OldUmask;	/* umask when sendmail starts up */
 EXTERN int	Errors;		/* set if errors (local to single pass) */
 EXTERN int	ExitStat;	/* exit status code */
 EXTERN int	LineNumber;	/* line number in current input */
@@ -1061,11 +1143,11 @@ EXTERN char	*ForwardPath;	/* path to search for .forward files */
 EXTERN long	MinBlocksFree;	/* min # of blocks free on queue fs */
 EXTERN char	*FallBackMX;	/* fall back MX host */
 EXTERN long	MaxMessageSize;	/* advertised max size we will accept */
-EXTERN time_t	MaxHostStatAge;	/* max age of cached host status info */
 EXTERN time_t	MinQueueAge;	/* min delivery interval */
 EXTERN time_t	DialDelay;	/* delay between dial-on-demand tries */
 EXTERN char	*SafeFileEnv;	/* chroot location for file delivery */
 EXTERN char	*HostsFile;	/* path to /etc/hosts file */
+EXTERN char	*HostStatDir;	/* location of host status information */
 EXTERN int	MaxQueueRun;	/* maximum number of jobs in one queue run */
 EXTERN int	MaxChildren;	/* maximum number of daemonic children */
 EXTERN int	CurChildren;	/* current number of daemonic children */
@@ -1073,8 +1155,17 @@ EXTERN char	*SmtpGreeting;	/* SMTP greeting message (old $e macro) */
 EXTERN char	*UnixFromLine;	/* UNIX From_ line (old $l macro) */
 EXTERN char	*OperatorChars;	/* operators (old $o macro) */
 EXTERN bool	DontInitGroups;	/* avoid initgroups() because of NIS cost */
+EXTERN int	DefaultNotify;	/* default DSN notification flags */
+EXTERN bool	AllowBogusHELO;	/* allow syntax errors on HELO command */
+EXTERN bool	UserSubmission;	/* initial (user) mail submission */
+EXTERN uid_t	RunAsUid;	/* UID to become for bulk of run */
+EXTERN gid_t	RunAsGid;	/* GID to become for bulk of run */
+EXTERN bool	SingleThreadDelivery;	/* single thread hosts on delivery */
+EXTERN bool	UnsafeGroupWrites;	/* group-writable files are unsafe */
 EXTERN bool	SingleLineFromHeader;	/* force From: header to be one line */
+EXTERN int	ConnRateThrottle;	/* throttle for SMTP connection rate */
 EXTERN int	MaxAliasRecursion;	/* maximum depth of alias recursion */
+EXTERN int	MaxMacroRecursion;	/* maximum depth of macro recursion */
 EXTERN int	MaxRuleRecursion;	/* maximum depth of ruleset recursion */
 EXTERN char	*MustQuoteChars;	/* quote these characters in phrases */
 EXTERN char	*ServiceSwitchFile;	/* backup service switch */
@@ -1085,12 +1176,16 @@ EXTERN int	CheckpointInterval;	/* queue file checkpoint interval */
 EXTERN bool	DontPruneRoutes;	/* don't prune source routes */
 EXTERN bool	DontExpandCnames;	/* do not $[...$] expand CNAMEs */
 EXTERN int	MaxMciCache;		/* maximum entries in MCI cache */
+EXTERN time_t	ServiceCacheTime;	/* time service switch was cached */
+EXTERN time_t	ServiceCacheMaxAge;	/* refresh interval for cache */
 EXTERN time_t	MciCacheTimeout;	/* maximum idle time on connections */
 EXTERN time_t	MciInfoTimeout;		/* how long 'til we retry down hosts */
 EXTERN char	*QueueLimitRecipient;	/* limit queue runs to this recipient */
 EXTERN char	*QueueLimitSender;	/* limit queue runs to this sender */
 EXTERN char	*QueueLimitId;		/* limit queue runs to this id */
 EXTERN FILE	*TrafficLogFile;	/* file in which to log all traffic */
+EXTERN char	*DoubleBounceAddr;	/* where to send double bounces */
+EXTERN char	**ExternalEnviron;	/* input environment */
 EXTERN char	*UserEnviron[MAXUSERENVIRON + 1];
 					/* saved user environment */
 extern int	errno;
@@ -1113,7 +1208,8 @@ EXTERN struct
 	time_t	to_datafinal;	/* DATA completion [10m] */
 	time_t	to_nextcommand;	/* next command [5m] */
 			/* following timeouts are not mentioned in RFC 1123 */
-	time_t	to_connect;	/* initial connection timeout */
+	time_t	to_iconnect;	/* initial connection timeout (first try) */
+	time_t	to_connect;	/* initial connection timeout (later tries) */
 	time_t	to_rset;	/* RSET command */
 	time_t	to_helo;	/* HELO command */
 	time_t	to_quit;	/* QUIT command */
@@ -1161,6 +1257,7 @@ EXTERN u_char	tTdvect[100];
 #define STRUCTCOPY(s, d)	d = s
 
 
+
 /*
 **  Declarations of useful functions
 */
@@ -1181,8 +1278,6 @@ extern void	openxscript __P((ENVELOPE *));
 extern void	closexscript __P((ENVELOPE *));
 extern char	*shortenstring __P((const char *, int));
 extern bool	usershellok __P((char *, char *));
-extern void	commaize __P((HDR *, char *, bool, MCI *, ENVELOPE *));
-extern char	*hvalue __P((char *, HDR *));
 extern char	*defcharset __P((ENVELOPE *));
 extern bool	wordinclass __P((char *, int));
 extern char	*denlstring __P((char *, bool, bool));
@@ -1197,6 +1292,7 @@ extern void	logsender __P((ENVELOPE *, char *));
 extern void	smtprset __P((MAILER *, MCI *, ENVELOPE *));
 extern void	smtpquit __P((MAILER *, MCI *, ENVELOPE *));
 extern void	setuserenv __P((const char *, const char *));
+extern char	*getextenv __P((const char *));
 extern void	disconnect __P((int, ENVELOPE *));
 extern void	putxline __P((char *, MCI *, int));
 extern void	dumpfd __P((int, bool, bool));
@@ -1208,15 +1304,66 @@ extern void	inittimeouts __P((char *));
 extern void	logdelivery __P((MAILER *, MCI *, const char *, ADDRESS *, time_t, ENVELOPE *));
 extern void	giveresponse __P((int, MAILER *, MCI *, ADDRESS *, time_t, ENVELOPE *));
 extern void	buildfname __P((char *, char *, char *, int));
+extern void	mci_setstat __P((MCI *, int, char *, char *));
+extern char	*smtptodsn __P((int));
+extern int	rscheck __P((char *, char *, char *, ENVELOPE *e));
+extern void	mime7to8 __P((MCI *, HDR *, ENVELOPE *));
+extern int	mime8to7 __P((MCI *, HDR *, ENVELOPE *, char **, int));
+extern void	xfclose __P((FILE *, char *, char *));
+extern int	switch_map_find __P((char *, char *[], short []));
+extern void	shorten_hostname __P((char []));
+extern int	waitfor __P((pid_t));
+extern void	proc_list_add __P((pid_t));
+extern void	proc_list_drop __P((pid_t));
+extern void	buffer_errors __P((void));
+extern void	flush_errors __P((bool));
+extern void	putline __P((char *, MCI *));
+extern void	putxline __P((char *, MCI *, int));
+extern bool	xtextok __P((char *));
+extern char	*xtextify __P((char *, char *));
+extern char	*xuntextify __P((char *));
+extern void	cleanstrcpy __P((char *, char *, int));
+extern int	getmxrr __P((char *, char **, bool, int *));
+extern int	strtorwset __P((char *, char **, int));
+extern void	printav __P((char **));
+extern void	printopenfds __P((bool));
+extern int	endmailer __P((MCI *, ENVELOPE *, char **));
+extern void	fixcrlf __P((char *, bool));
+extern int	dofork __P((void));
+extern void	initsys __P((ENVELOPE *));
+extern void	collect __P((FILE *, bool, bool, HDR **, ENVELOPE *));
+extern void	stripquotes __P((char *));
+extern int	include __P((char *, bool, ADDRESS *, ADDRESS **, int, ENVELOPE  *));
+extern void	unlockqueue __P((ENVELOPE *));
+extern void	xunlink __P((char *));
+extern void	runqueue __P((bool));
+extern int	getla __P((void));
+extern void	sendall __P((ENVELOPE *, int));
+extern void	queueup __P((ENVELOPE *, bool));
+extern void	checkfds __P((char *));
+extern int	returntosender __P((char *, ADDRESS *, int, ENVELOPE *));
+extern void	markstats __P((ENVELOPE *, ADDRESS *));
+extern void	poststats __P((char *));
+extern char	*arpadate __P((char *));
+extern int	mailfile __P((char *, ADDRESS *, int, ENVELOPE *));
+extern void	loseqfile __P((ENVELOPE *, char *));
+extern int	prog_open __P((char **, int *, ENVELOPE *));
+extern bool	getcanonname __P((char *, int, bool));
+extern bool	validate_connection __P((SOCKADDR *, char *, ENVELOPE *));
+extern bool	path_is_dir __P((char *, bool));
+extern pid_t	dowork __P((char *, bool, bool, ENVELOPE *));
 
 extern const char	*errstring __P((int));
 extern sigfunc_t	setsignal __P((int, sigfunc_t));
+extern int		releasesignal __P((int));
 extern struct hostent	*sm_gethostbyname __P((char *));
 extern struct hostent	*sm_gethostbyaddr __P((char *, int, int));
 extern struct passwd	*sm_getpwnam __P((char *));
 extern struct passwd	*sm_getpwuid __P((UID_T));
+extern struct passwd	*finduser __P((char *, bool *));
 
 #ifdef XDEBUG
+extern void		checkfdopen __P((int, char *));
 extern void		checkfd012 __P((char *));
 #endif
 
@@ -1227,12 +1374,14 @@ extern void		syserr(const char *, ...);
 extern void		usrerr(const char *, ...);
 extern void		message(const char *, ...);
 extern void		nmessage(const char *, ...);
+extern void		setproctitle(const char *fmt, ...);
 #else
 extern void		auth_warning();
 extern void		syserr();
 extern void		usrerr();
 extern void		message();
 extern void		nmessage();
+extern void		setproctitle();
 #endif
 
 #if !HASSNPRINTF

@@ -41,7 +41,8 @@ divert(-1)
 #  and do the modifications there.
 #
 
-VERSIONID(`@(#)freebsd.mc	$Revision: 1.1 $')
+divert(0)dnl
+VERSIONID(`@(#)freebsd.mc	$Revision: 1.3 $')
 OSTYPE(bsd4.4)dnl
 DOMAIN(generic)dnl
 MAILER(local)dnl
@@ -50,3 +51,4 @@ FEATURE(mailertable, `hash -o /etc/mailertable')dnl
 define(`UUCP_RELAY', ucbvax.Berkeley.EDU)dnl
 define(`BITNET_RELAY', mailhost.Berkeley.EDU)dnl
 define(`CSNET_RELAY', mailhost.Berkeley.EDU)dnl
+define(`confCW_FILE', `-o /etc/sendmail.cw')dnl

@@ -29,6 +29,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $Id: mail.local.c,v 1.4 1996/11/18 02:34:10 peter Exp $
  */
 
 #ifndef lint
@@ -38,7 +40,7 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)mail.local.c	8.22 (Berkeley) 6/21/95";
+static char sccsid[] = "@(#)mail.local.c	8.33 (Berkeley) 11/13/96";
 #endif /* not lint */
 
 /*
@@ -63,16 +65,59 @@ static char sccsid[] = "@(#)mail.local.c	8.22 (Berkeley) 6/21/95";
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sysexits.h>
 #include <syslog.h>
 #include <time.h>
 #include <unistd.h>
+#ifdef EX_OK
+# undef EX_OK		/* unistd.h may have another use for this */
+#endif
+#include <sysexits.h>
 #include <ctype.h>
 
 #if __STDC__
 #include <stdarg.h>
 #else
 #include <varargs.h>
+#endif
+
+#if (defined(sun) && defined(__svr4__)) || defined(__SVR4)
+# define USE_LOCKF	1
+# define USE_SETEUID	1
+# define _PATH_MAILDIR	"/var/mail"
+#endif
+
+#if defined(_AIX)
+# define USE_LOCKF	1
+# define USE_VSYSLOG	0
+#endif
+
+#if defined(ultrix)
+# define USE_VSYSLOG	0
+#endif
+
+#if defined(__osf__)
+# define USE_VSYSLOG	0
+#endif
+
+#if defined(NeXT)
+# include <libc.h>
+# define _PATH_MAILDIR	"/usr/spool/mail"
+# define __dead		/* empty */
+# define S_IRUSR	S_IREAD
+# define S_IWUSR	S_IWRITE
+#endif
+
+/*
+ * If you don't have flock, you could try using lockf instead.
+ */
+
+#ifdef USE_LOCKF
+# define flock(a, b)	lockf(a, b, 0)
+# define LOCK_EX	F_LOCK
+#endif
+
+#ifndef USE_VSYSLOG
+# define USE_VSYSLOG	1
 #endif
 
 #ifndef LOCK_EX
@@ -101,8 +146,12 @@ static char sccsid[] = "@(#)mail.local.c	8.22 (Berkeley) 6/21/95";
 
 #ifndef BSD4_4
 # define _BSD_VA_LIST_	va_list
+#endif
+
+#if !defined(BSD4_4) && !defined(linux)
 extern char	*strerror __P((int));
 extern int	snprintf __P((char *, int, const char *, ...));
+extern FILE	*fdopen __P((int, const char *));
 #endif
 
 /*
@@ -127,14 +176,16 @@ extern int	snprintf __P((char *, int, const char *, ...));
 
 int eval = EX_OK;			/* sysexits.h error value. */
 
-void		deliver __P((int, char *));
+void		deliver __P((int, char *, int, int));
 void		e_to_sys __P((int));
-__dead void	err __P((const char *, ...));
+void		err __P((const char *, ...)) __dead2;
 void		notifybiff __P((char *));
 int		store __P((char *));
 void		usage __P((void));
 void		vwarn __P((const char *, _BSD_VA_LIST_));
 void		warn __P((const char *, ...));
+void		lockmbox __P((char *));
+void		unlockmbox __P((void));
 
 int
 main(argc, argv)
@@ -142,7 +193,7 @@ main(argc, argv)
 	char *argv[];
 {
 	struct passwd *pw;
-	int ch, fd;
+	int ch, fd, nobiff, nofsync;
 	uid_t uid;
 	char *from;
 	extern char *optarg;
@@ -162,8 +213,13 @@ main(argc, argv)
 #endif
 
 	from = NULL;
-	while ((ch = getopt(argc, argv, "df:r:")) != EOF)
+	nobiff = 0;
+	nofsync = 0;
+	while ((ch = getopt(argc, argv, "bdf:r:s")) != EOF)
 		switch(ch) {
+		case 'b':
+			nobiff++;
+			break;
 		case 'd':		/* Backward compatible. */
 			break;
 		case 'f':
@@ -173,6 +229,9 @@ main(argc, argv)
 				usage();
 			}
 			from = optarg;
+			break;
+		case 's':
+			nofsync++;
 			break;
 		case '?':
 		default:
@@ -204,7 +263,7 @@ main(argc, argv)
 	 * at the expense of repeated failures and multiple deliveries.
 	 */
 	for (fd = store(from); *argv; ++argv)
-		deliver(fd, *argv);
+		deliver(fd, *argv, nobiff, nofsync);
 	exit(eval);
 }
 
@@ -259,8 +318,8 @@ store(from)
 }
 
 void
-deliver(fd, name)
-	int fd;
+deliver(fd, name, nobiff, nofsync)
+	int fd, nobiff, nofsync;
 	char *name;
 {
 	struct stat fsb, sb;
@@ -341,15 +400,16 @@ tryagain:
 		warn("%s: irregular file", path);
 		goto err0;
 	} else if (sb.st_uid != pw->pw_uid) {
+		eval = EX_CANTCREAT;
 		warn("%s: wrong ownership (%d)", path, sb.st_uid);
-		unlockmbox();
-		return;
+		goto err0;
 	} else {
 		mbfd = open(path, O_APPEND|O_WRONLY, 0);
 		if (mbfd != -1 &&
 		    (fstat(mbfd, &fsb) || fsb.st_nlink != 1 ||
 		    !S_ISREG(fsb.st_mode) || sb.st_dev != fsb.st_dev ||
 		    sb.st_ino != fsb.st_ino || sb.st_uid != fsb.st_uid)) {
+			eval = EX_CANTCREAT;
 			warn("%s: file changed after open", path);
 			goto err1;
 		}
@@ -368,11 +428,13 @@ tryagain:
 		goto err1;
 	}
 
-	/* Get the starting offset of the new message for biff. */
-	curoff = lseek(mbfd, (off_t)0, SEEK_END);
-	(void)snprintf(biffmsg, sizeof(biffmsg),
-		sizeof curoff > sizeof(long) ? "%s@%qd\n" : "%s@%ld\n", 
-		name, curoff);
+ 	if (!nobiff) {
+		/* Get the starting offset of the new message for biff. */
+		curoff = lseek(mbfd, (off_t)0, SEEK_END);
+		(void)snprintf(biffmsg, sizeof(biffmsg),
+			sizeof curoff > sizeof(long) ? "%s@%qd\n" : "%s@%ld\n", 
+			name, curoff);
+ 	}
 
 	/* Copy the message into the file. */
 	if (lseek(fd, (off_t)0, SEEK_SET) == (off_t)-1) {
@@ -403,7 +465,7 @@ tryagain:
 	}
 
 	/* Flush to disk, don't wait for update. */
-	if (fsync(mbfd)) {
+	if (!nofsync && fsync(mbfd)) {
 		e_to_sys(errno);
 		warn("%s: %s", path, strerror(errno));
 err3:
@@ -436,7 +498,8 @@ err0:		unlockmbox();
 	printf("reset euid = %d\n", geteuid());
 #endif
 	unlockmbox();
-	notifybiff(biffmsg);
+	if (!nobiff)
+		notifybiff(biffmsg);
 }
 
 /*
@@ -449,6 +512,7 @@ err0:		unlockmbox();
 char	lockname[MAXPATHLEN];
 int	locked = 0;
 
+void
 lockmbox(path)
 	char *path;
 {
@@ -481,6 +545,7 @@ lockmbox(path)
 	}
 }
 
+void
 unlockmbox()
 {
 	if (!locked)
@@ -525,7 +590,7 @@ void
 usage()
 {
 	eval = EX_USAGE;
-	err("usage: mail.local [-f from] user ...");
+	err("usage: mail.local [-b] [-f from] [-s] user ...");
 }
 
 #if __STDC__
@@ -587,7 +652,7 @@ vwarn(fmt, ap)
 	(void)vfprintf(stderr, fmt, ap);
 	(void)fprintf(stderr, "\n");
 
-#if !defined(ultrix) && !defined(__osf__)
+#if USE_VSYSLOG
 	/* Log the message to syslog. */
 	vsyslog(LOG_ERR, fmt, ap);
 #else
@@ -693,9 +758,8 @@ e_to_sys(num)
 	}
 }
 
-#ifndef BSD4_4
+#if !defined(BSD4_4) && !defined(__osf__)
 
-# ifndef __osf__
 char *
 strerror(eno)
 	int eno;
@@ -709,7 +773,10 @@ strerror(eno)
 	(void) sprintf(ebuf, "Error %d", eno);
 	return ebuf;
 }
+
 # endif
+
+#if !defined(BSD4_4) && !defined(linux)
 
 # if __STDC__
 snprintf(char *buf, int bufsiz, const char *fmt, ...)

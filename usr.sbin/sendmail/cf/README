@@ -4,7 +4,7 @@
 
 		Eric Allman <eric@CS.Berkeley.EDU>
 
-		@(#)README	8.81 (Berkeley) 12/3/95
+		@(#)README	8.108 (Berkeley) 11/16/96
 
 
 This document describes the sendmail configuration files being used
@@ -13,7 +13,7 @@ not work on other versions.
 
 These configuration files are probably not as general as previous
 versions, and don't handle as many of the weird cases automagically.
-I was able to simplify by them for two reasons.  First, the network
+I was able to simplify them for two reasons.  First, the network
 has become more consistent -- for example, at this point, everyone
 on the internet is supposed to be running a name server, so hacks to
 handle NIC-registered hosts can go away.  Second, I assumed that a
@@ -128,7 +128,7 @@ Let's examine a typical .mc file:
 	divert(0)
 
 The divert(-1) will delete the crud in the resulting output file.
-The copyright notice can be replace by whatever your lawyers require;
+The copyright notice can be replaced by whatever your lawyers require;
 our lawyers require the one that I've included in my files.  A copyleft
 is a copyright by another name.  The divert(0) restores regular output.
 
@@ -158,9 +158,38 @@ definition appropriate for your environment.
 	MAILER(smtp)
 
 These describe the mailers used at the default CS site site.  The
-local mailer is always included automatically.  Beware MAILER
-declarations should always be last in the configuration file, and
-MAILER(smtp) should always precede MAILER(uucp).
+local mailer is always included automatically.  Beware: MAILER
+declarations should always be at the end of the configuration file,
+and MAILER(smtp) should always precede MAILER(uucp).  The general
+rules are that the order should be:
+
+	VERSIONID
+	OSTYPE
+	DOMAIN
+	FEATURE
+	local macro definitions
+	MAILER
+	LOCAL_RULESET_*
+
+
++----------------------------+
+| A BRIEF INTRODUCTION TO M4 |
++----------------------------+
+
+Sendmail uses the M4 macro processor to ``compile'' the configuration
+files.  The most important thing to know is that M4 is stream-based,
+that is, it doesn't understand about lines.  For this reason, in some
+places you may see the word ``dnl'', which standards for ``delete
+through newline''; essentially, it deletes all characters starting
+at the ``dnl'' up to and including the next newline character.  In
+most cases sendmail uses this only to avoid lots of unnecessary
+blank lines in the output.
+
+Other important directives are define(A, B) which defines the macro
+``A'' to have value ``B''.  Macros are expanded as they are read, so
+one normally quotes both values to prevent expansion.  For example,
+
+	define(`SMART_HOST', `smart.foo.com')
 
 One word of warning:  M4 macros are expanded even in lines that appear
 to be comments.  For example, if you have
@@ -251,6 +280,7 @@ SMTP_MAILER_CHARSET	[undefined] If defined, messages containing 8-bit data
 			that ARRIVE from an address that resolves to one of
 			the SMTP mailers and which are converted to MIME will
 			be labelled with this character set.
+UUCP_MAILER_PATH	[/usr/bin/uux] The program used to send UUCP mail.
 UUCP_MAILER_FLAGS	[undefined] Flags added to UUCP mailer.  Default
 			flags are `DFMhuU' (and `m' for uucp-new mailer,
 			minus `U' for uucp-dom mailer).
@@ -264,12 +294,16 @@ UUCP_MAILER_CHARSET	[undefined] If defined, messages containing 8-bit data
 			be labelled with this character set.
 FAX_MAILER_PATH		[/usr/local/lib/fax/mailfax] The program used to
 			submit FAX messages.
+FAX_MAILER_ARGS		[mailfax $u $h $f] The arguments passed to the FAX
+			mailer.
 FAX_MAILER_MAX		[100000] The maximum size message accepted for
 			transmission by FAX.
 POP_MAILER_PATH		[/usr/lib/mh/spop] The pathname of the POP mailer.
 POP_MAILER_FLAGS	[Penu] Flags added to POP mailer.  Flags "lsDFM"
 			are always added.
 POP_MAILER_ARGS		[pop $u] The arguments passed to the POP mailer.
+PROCMAIL_MAILER_PATH	[/usr/local/bin/procmail] The path to the procmail
+			program.  This is also used by FEATURE(local_procmail).
 PROCMAIL_MAILER_FLAGS	[Shu] Flags added to Procmail mailer.  Flags
 			``DFMmn'' are always set.
 PROCMAIL_MAILER_ARGS	[procmail -m $h $f $u] The arguments passed to
@@ -290,6 +324,10 @@ CYRUS_MAILER_PATH	[/usr/cyrus/bin/deliver] The progam used to deliver
 			cyrus mail.
 CYRUS_MAILER_ARGS	[deliver -e -m $h -- $u] The arguments passed
 			to deliver cyrus mail.
+CYRUS_MAILER_MAX	[undefined] If set, the maximum size message that
+			will be accepted by the cyrus mailer.
+CYRUS_MAILER_USER	[cyrus:mail] The user and group to become when
+			running the cyrus mailer.
 CYRUS_BB_MAILER_FLAGS	[undefined] The flags used by the cyrusbb
 			mailer. The flags lsDFMnP are always included.
 CYRUS_BB_MAILER_ARGS	[deliver -e -m $u] The arguments passed
@@ -549,8 +587,10 @@ uucpdomain	Similar feature for UUCP hosts.  The default map definition
 
 always_add_domain
 		Include the local host domain even on locally delivered
-		mail.  Normally it is not added unless it is already
-		present.
+		mail.  Normally it is not added on unqualified names.
+		However, if you use a shared message store but do not use
+		the same user name space everywhere, you may need the host
+		name on local names.
 
 allmasquerade	If masquerading is enabled (using MASQUERADE_AS), this
 		feature will cause recipient addresses to also masquerade
@@ -564,6 +604,73 @@ allmasquerade	If masquerading is enabled (using MASQUERADE_AS), this
 		feature ONLY if you can guarantee that the ENTIRE
 		namespace on your masquerade host supersets all the
 		local entries.
+
+limited_masquerade
+		Normally, any hosts listed in $=w are masqueraded.  If this
+		feature is given, only the hosts listed in $=M are masqueraded.
+		This is useful if you have several domains with disjoint
+		namespaces hosted on the same machine.
+
+masquerade_entire_domain
+		If masquerading is enabled (using MASQUERADE_AS) and 
+		MASQUERADE_DOMAIN (see below) is set, this feature will
+		cause addresses to be rewritten such that the masquerading
+		domains are actually entire domains to be hidden.  All
+		hosts within the masquerading domains will be rewritten
+		to the masquerade name (used in MASQUERADE_AS).  For example,
+		if you have:
+
+			MASQUERADE_AS(masq.com)
+			MASQUERADE_DOMAIN(foo.org)
+			MASQUERADE_DOMAIN(bar.com)
+
+		then *foo.org and *bar.com are converted to masq.com.  Without
+		this feature, only foo.org and bar.com are masqueraded.
+
+		    NOTE: only domains within your jurisdiction and
+		    current hierarchy should be masqueraded using this.
+
+genericstable	This feature will cause certain addresses originating in the
+		local domain or a domain listed in $=G to be looked up in a
+		map and turned into another ("generic") form, which can change
+		both the domain name and the user name.  This is similar to
+		the userdb functionality.  The same types of addresses as for
+		masquerading are looked up, i.e. only header sender addresses
+		unless the allmasquerade and/or masquerade_envelope features
+		are given.  The addresses must be in the list of names given
+		by the macros GENERICS_DOMAIN or GENERICS_DOMAIN_FILE
+		(analogously to MASQUERADE_DOMAIN and MASQUERADE_DOMAIN_FILE,
+		see below).
+
+		The argument of FEATURE(genericstable) may be the map
+		defintion; the default map definition is:
+
+			hash -o /etc/genericstable
+
+		The key for this table is either the full address or the
+		unqualified username (the former is tried first); the
+		value is the new user address.  If the new user address does
+		not include a domain, $j is used.
+
+virtusertable	A domain-specific form of aliasing, allowing multiple
+		virtual domains to be hosted on one machine.  For example,
+		if the virtuser table contained:
+
+			info@foo.com	foo-info
+			info@bar.com	bar-info
+			@baz.org	jane@elsewhere.net
+
+		then mail addressed to info@foo.com will be sent to the
+		address foo-info, mail addressed to info@bar.com will be
+		delivered to bar-info, and mail addressed to anyone at
+		baz.org will be sent to jane@elsewhere.net.  All the host
+		names on the left hand side (foo.com, bar.com, and baz.org)
+		must be in $=w.  The default map definition is:
+
+			hash -o /etc/virtusertable
+
+		A new definition can be specified as the second argument of
+		the FEATURE macro.
 
 nodns		We aren't running DNS at our site (for example,
 		we are UUCP-only connected).  It's hard to consider
@@ -587,7 +694,7 @@ local_procmail	Use procmail as the local mailer.  This mailer can
 		normally the +indicator is just tossed, but by default
 		it is passed as the -a argument to procmail.  The
 		argument to this feature is the pathname of procmail,
-		which defaults to /usr/local/bin/procmail.
+		which defaults to PROCMAIL_MAILER_PATH.
 
 bestmx_is_local	Accept mail as though locally addressed for any host that
 		lists us as the best possible MX record.  This generates
@@ -834,14 +941,17 @@ You can have your host masquerade as another using
 
 	MASQUERADE_AS(host.domain)
 
-This causes outgoing SMTP mail to be labeled as coming from the
-indicated domain, rather than $j.  One normally masquerades as one
-of one's own subdomains (for example, it's unlikely that I would
-choose to masquerade as an MIT site).
+This causes mail being sent to be labeled as coming from the
+indicated host.domain, rather than $j.  One normally masquerades as
+one of one's own subdomains (for example, it's unlikely that I would
+choose to masquerade as an MIT site).  This behaviour is modified by
+a plethora of FEATUREs; in particular, see masquerade_envelope,
+allmasquerade, limited_masquerade, and masquerade_entire_domain.
 
 The masquerade name is not normally canonified, so it is important
 that it be your One True Name, that is, fully qualified and not a
-CNAME.
+CNAME.  However, if you use a CNAME, the receiving side may canonify
+it for you, so don't think you can cheat CNAME mapping this way.
 
 Normally the only addresses that are masqueraded are those that come
 from this host (that is, are either unqualified or in $=w, the list
@@ -883,7 +993,7 @@ to have .forward files or aliases.  You can do this using
 	define(`LOCAL_RELAY', mailer:hostname)
 
 The ``mailer:'' can be omitted, in which case the mailer defaults to
-"smtp".  There are some user names that you don't want relayed, perhaps
+"relay".  There are some user names that you don't want relayed, perhaps
 because of local aliases.  A common example is root, which may be
 locally aliased.  You can add entries to this list using
 
@@ -898,13 +1008,13 @@ shared /var/spool/mail scheme, use
 
 	define(`MAIL_HUB', mailer:hostname)
 
-Again, ``mailer:'' defaults to "smtp".  If you define both LOCAL_RELAY
+Again, ``mailer:'' defaults to "relay".  If you define both LOCAL_RELAY
 and MAIL_HUB _AND_ you have FEATURE(stickyhost), unqualified names will
 be sent to the LOCAL_RELAY and other local names will be sent to MAIL_HUB.
 Names in $=L will be delivered locally, so you MUST have aliases or
 .forward files for them.
 
-For example, if are on machine mastodon.CS.Berkeley.EDU and you have
+For example, if you are on machine mastodon.CS.Berkeley.EDU and you have
 FEATURE(stickyhost), the following combinations of settings will have the
 indicated effects:
 
@@ -935,6 +1045,12 @@ DECNET_RELAY, and FAX_RELAY) take precedence over SMART_HOST, so if you
 really want absolutely everything to go to a single central site you will
 need to unset all the other relays -- or better yet, find or build a
 minimal config file that does this.
+
+For duplicate suppression to work properly, the host name is best
+specified with a terminal dot:
+
+	define(`MAIL_HUB', `host.domain.')
+	      note the trailing dot ---^
 
 
 +-------------------------------+
@@ -1103,6 +1219,11 @@ Plussed users
 	If that is not found, the alias "root+*" will be tried,
 	then "root".
 
+LDAP
+	For notes on use LDAP in sendmail, see
+	http://www-leland.stanford.edu/~bbense/Inst.html
+
+
 
 +----------------+
 | SECURITY NOTES |
@@ -1118,7 +1239,7 @@ for.  In particular:
   version.
 
 * Make sure that other files that sendmail reads, such as the
-  mailertable, is only writable by trusted system personnel.
+  mailertable, are only writable by trusted system personnel.
 
 * The queue directory should not be world writable PARTICULARLY
   if your system allows "file giveaways" (that is, if a non-root
@@ -1148,7 +1269,7 @@ Sam Leffler's FlexFAX software is still in beta test -- but he expects a
 public version out "later this week" [as of 3/1/93].  The following
 blurb is direct from Sam:
 
-	$Header: /pub/FreeBSD/FreeBSD-CVS/src/usr.sbin/sendmail/cf/README,v 1.1.1.1.6.1 1996/03/25 06:52:39 peter Exp $
+	$Header: /home/ncvs/src/usr.sbin/sendmail/cf/README,v 1.1.1.5 1996/11/18 02:25:24 peter Exp $
 
 	How To Obtain This Software (in case all you get is this file)
 	--------------------------------------------------------------
@@ -1319,7 +1440,7 @@ confTRUSTED_USERS	Ct class	[no default] Names of users to add to
 					the list of trusted users.  This list
 					always includes root, uucp, and daemon.
 					See also FEATURE(use_ct_file).
-confSMTP_MAILER		-		[smtp] The mailer name used when
+confSMTP_MAILER		-		[esmtp] The mailer name used when
 					SMTP connectivity is required.
 					One of "smtp", "smtp8", or "esmtp".
 confUUCP_MAILER		-		[uucp-old] The mailer to be used by
@@ -1351,7 +1472,7 @@ confMIN_FREE_BLOCKS	MinFreeBlocks	[100] Minimum number of free blocks on
 					for the second value now.)
 confMAX_MESSAGE_SIZE	MaxMessageSize	[infinite] The maximum size of messages
 					that will be accepted (in bytes).
-confBLANK_SUB		BlankSub	[ ] Blank (space) substitution
+confBLANK_SUB		BlankSub	[.] Blank (space) substitution
 					character.
 confCON_EXPENSIVE	HoldExpensive	[False] Avoid connecting immediately
 					to mailers marked expensive?
@@ -1383,6 +1504,17 @@ confMCI_CACHE_SIZE	ConnectionCacheSize
 					[2] Size of open connection cache.
 confMCI_CACHE_TIMEOUT	ConnectionCacheTimeout
 					[5m] Open connection cache timeout.
+confHOST_STATUS_DIRECTORY HostStatusDirectory
+					[undefined] If set, host status is kept
+					on disk between sendmail runs in the
+					named directory tree.  This need not be
+					a full pathname, in which case it is
+					interpreted relative to the queue
+					directory.  This option also
+					single-threads connections to each
+					host, i.e., prevents multiple
+					connections to a single server from
+					this client.
 confUSE_ERRORS_TO*	UserErrorsTo	[False] Use the Errors-To: header to
 					deliver error messages.  This should
 					not be necessary because of general
@@ -1411,6 +1543,18 @@ confSAFE_QUEUE*		SuperSafe	[True] Commit all messages to disk
 					before forking.
 confTO_INITIAL		Timeout.initial	[5m] The timeout waiting for a response
 					on the initial connect.
+confTO_CONNECT		Timeout.connect	[0] The timeout waiting for an initial
+					connect() to complete.  This can only
+					shorten connection timeouts; the kernel
+					silently enforces an absolute maximum
+					(which varies depending on the system).
+confTO_ICONNECT		Timeout.iconnect
+					[undefined] Like Timeout.connect, but
+					applies only to the very first attempt
+					to connect to a host in a message.
+					This allows a single very fast pass
+					followed by more careful delivery
+					attempts in the future.
 confTO_HELO		Timeout.helo	[5m] The timeout waiting for a response
 					to a HELO or EHLO command.
 confTO_MAIL		Timeout.mail	[10m] The timeout waiting for a
@@ -1469,6 +1613,13 @@ confTO_QUEUEWARN_NONURGENT
 			Timeout.queuewarn.non-urgent
 					[undefined] As above, for non-urgent
 					(low) priority messages.
+confTO_HOSTSTATUS	Timeout.hoststatus
+					[30m] How long information about host
+					statuses will be maintained before it
+					is considered stale and the host should
+					be retried.  This applies both within
+					a single queue run and to persistent
+					information (see below).
 confTIME_ZONE		TimeZoneSpec	[USE_SYSTEM] Time zone info -- can be
 					USE_SYSTEM to use the system's idea,
 					USE_TZ to use the user's TZ envariable,
@@ -1486,6 +1637,19 @@ confQUEUE_LA		QueueLA		[8] Load average at which queue-only
 					function kicks in.
 confREFUSE_LA		RefuseLA	[12] Load average at which incoming
 					SMTP connections are refused.
+confMAX_DAEMON_CHILDREN	MaxDaemonChildren
+					[undefined] The maximum number of
+					children the daemon will permit.  After
+					this number, connections will be
+					rejected.  If not set or <= 0, there is
+					no limit.
+confCONNECTION_RATE_THROTTLE ConnectionRateThrottle
+					[undefined] The maximum number of
+					connections permitted per second.
+					After this many connections are
+					accepted, further connections will be
+					delayed.  If not set or <= 0, there is
+					no limit.
 confWORK_RECIPIENT_FACTOR
 			RecipientFactor	[30000] Cost of each recipient.
 confSEPARATE_PROC	ForkEachJob	[False] Run all deliveries in a separate
@@ -1585,6 +1749,39 @@ confDONT_INIT_GROUPS	DontInitGroups	[False] If set, the initgroups(3)
 					this, agents run on behalf of users
 					will only have their primary
 					(/etc/passwd) group permissions.
+confUNSAFE_GROUP_WRITES	UnsafeGroupWrites
+					[False] If set, group-writable
+					:include: and .forward files are
+					considered "unsafe", that is, programs
+					and files cannot be directly referenced
+					from such files.  World-writable files
+					are always considered unsafe.
+confDOUBLE_BOUNCE_ADDRESS  DoubleBounceAddress
+					[postmaster] If an error occurs when
+					sending an error message, send that
+					"double bounce" error message to this
+					address.
+confRUN_AS_USER		RunAsUser	[undefined] If set, become this user
+					when reading and delivering mail.
+					Causes all file reads (e.g., .forward
+					and :include: files) to be done as
+					this user.  Also, all programs will
+					be run as this user, and all output
+					files will be written as this user.
+					Intended for use only on firewalls
+					where users do not have accounts.
+confSINGLE_THREAD_DELIVERY  SingleThreadDelivery
+					[False] If this option and the
+					HostStatusDirectory option are both
+					set, single thread deliveries to other
+					hosts.  That is, don't allow any two
+					sendmails on this host to connect
+					simultaneously to any other single
+					host.  This can slow down delivery in
+					some cases, in particular since a
+					cached but otherwise idle connection
+					to a host will prevent other sendmails
+					from connecting to the other host.
 
 See also the description of OSTYPE for some parameters that can be
 tweaked (generally pathnames to mailers).
@@ -1710,12 +1907,12 @@ MACROS
 CLASSES
 
    A
-   B
+   B	domains that are candidates for bestmx lookup
    C
    D
    E	addresses that should not seem to come from $M
    F	hosts we forward for
-   G
+   G	domains that should be looked up in genericstable
    H
    I
    J
@@ -1736,6 +1933,7 @@ CLASSES
    Y	locally connected smart UUCP hosts
    Z	locally connected domain-ized UUCP hosts
    .	the class containing only a dot
+   [	the class containing only a left bracket
 
 
 M4 DIVERSIONS

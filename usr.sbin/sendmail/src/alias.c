@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1983, 1995 Eric P. Allman
+ * Copyright (c) 1983, 1995, 1996 Eric P. Allman
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -35,7 +35,7 @@
 # include "sendmail.h"
 
 #ifndef lint
-static char sccsid[] = "@(#)alias.c	8.52.1.3 (Berkeley) 9/16/96";
+static char sccsid[] = "@(#)alias.c	8.66 (Berkeley) 9/20/96";
 #endif /* not lint */
 
 
@@ -152,8 +152,6 @@ alias(a, sendq, aliaslevel, e)
 		(void) strcat(obuf, "owner");
 	else
 		(void) strcat(obuf, a->q_user);
-	if (!bitnset(M_USR_UPPER, a->q_mailer->m_flags))
-		makelower(obuf);
 	owner = aliaslookup(obuf, &stat, e);
 	if (owner == NULL)
 		return;
@@ -207,6 +205,11 @@ aliaslookup(name, pstat, e)
 	}
 	if (!bitset(MF_OPEN, map->map_mflags))
 		return NULL;
+
+	/* special case POstMastER -- always use lower case */
+	if (strcasecmp(name, "postmaster") == 0)
+		name = "postmaster";
+
 	return (*map->map_class->map_lookup)(map, name, NULL, pstat);
 }
 /*
@@ -292,8 +295,7 @@ setalias(spec)
 		s = stab(class, ST_MAPCLASS, ST_FIND);
 		if (s == NULL)
 		{
-			if (tTd(27, 1))
-				printf("Unknown alias class %s\n", class);
+			syserr("setalias: unknown alias class %s", class);
 		}
 		else if (!bitset(MCF_ALIASOK, s->s_mapclass.map_cflags))
 		{
@@ -494,7 +496,7 @@ rebuildaliases(map, automatic)
 	    !lockfile(fileno(af), map->map_file, NULL, LOCK_EX|LOCK_NB))
 	{
 		/* yes, they are -- wait until done */
-		message("Alias file %s is already being rebuilt",
+		message("Alias file %s is locked (maybe being rebuilt)",
 			map->map_file);
 		if (OpMode != MD_INITALIAS)
 		{
@@ -710,10 +712,12 @@ readaliases(map, af, announcestats, logstats)
 		}
 
 		/*
-		**  Insert alias into symbol table or DBM file
+		**  Insert alias into symbol table or database file.
+		**
+		**	Special case pOStmaStER -- always make it lower case.
 		*/
 
-		if (!bitnset(M_USR_UPPER, al.q_mailer->m_flags))
+		if (strcasecmp(al.q_user, "postmaster") == 0)
 			makelower(al.q_user);
 
 		lhssize = strlen(al.q_user);
@@ -776,6 +780,7 @@ forward(user, sendq, aliaslevel, e)
 {
 	char *pp;
 	char *ep;
+	bool got_transient;
 
 	if (tTd(27, 1))
 		printf("forward(%s)\n", user->q_paddr);
@@ -786,7 +791,7 @@ forward(user, sendq, aliaslevel, e)
 	if (user->q_home == NULL)
 	{
 		syserr("554 forward: no home");
-		user->q_home = "/nosuchdirectory";
+		user->q_home = "/no/such/directory";
 	}
 
 	/* good address -- look for .forward file in home */
@@ -796,11 +801,11 @@ forward(user, sendq, aliaslevel, e)
 	if (ForwardPath == NULL)
 		ForwardPath = newstr("\201z/.forward");
 
+	got_transient = FALSE;
 	for (pp = ForwardPath; pp != NULL; pp = ep)
 	{
 		int err;
 		char buf[MAXPATHLEN+1];
-		extern int include();
 
 		ep = strchr(pp, ':');
 		if (ep != NULL)
@@ -808,6 +813,8 @@ forward(user, sendq, aliaslevel, e)
 		expand(pp, buf, sizeof buf, e);
 		if (ep != NULL)
 			*ep++ = ':';
+		if (buf[0] == '\0')
+			continue;
 		if (tTd(27, 3))
 			printf("forward: trying %s\n", buf);
 
@@ -816,7 +823,8 @@ forward(user, sendq, aliaslevel, e)
 			break;
 		else if (transienterror(err))
 		{
-			/* we have to suspend this message */
+			/* we may have to suspend this message */
+			got_transient = TRUE;
 			if (tTd(27, 2))
 				printf("forward: transient error on %s\n", buf);
 #ifdef LOG
@@ -825,9 +833,18 @@ forward(user, sendq, aliaslevel, e)
 					e->e_id == NULL ? "NOQUEUE" : e->e_id,
 					buf, errstring(err));
 #endif
-			message("%s: %s: message queued", buf, errstring(err));
-			user->q_flags |= QQUEUEUP;
-			return;
 		}
+	}
+	if (pp == NULL && got_transient)
+	{
+		/*
+		**  There was no successful .forward open and at least one
+		**  transient open.  We have to defer this address for
+		**  further delivery.
+		*/
+
+		message("transient .forward open error: message queued");
+		user->q_flags |= QQUEUEUP;
+		return;
 	}
 }

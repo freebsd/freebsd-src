@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1983, 1995 Eric P. Allman
+ * Copyright (c) 1983, 1995, 1996 Eric P. Allman
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)envelope.c	8.76.1.2 (Berkeley) 9/16/96";
+static char sccsid[] = "@(#)envelope.c	8.96 (Berkeley) 11/11/96";
 #endif /* not lint */
 
 #include "sendmail.h"
@@ -82,6 +82,7 @@ newenvelope(e, parent)
 **
 **	Parameters:
 **		e -- the envelope to deallocate.
+**		fulldrop -- if set, do return receipts.
 **
 **	Returns:
 **		none.
@@ -92,11 +93,14 @@ newenvelope(e, parent)
 */
 
 void
-dropenvelope(e)
+dropenvelope(e, fulldrop)
 	register ENVELOPE *e;
+	bool fulldrop;
 {
 	bool queueit = FALSE;
+	bool message_timeout = FALSE;
 	bool failure_return = FALSE;
+	bool delay_return = FALSE;
 	bool success_return = FALSE;
 	register ADDRESS *q;
 	char *id = e->e_id;
@@ -143,16 +147,35 @@ dropenvelope(e)
 	**  Extract state information from dregs of send list.
 	*/
 
+	if (curtime() > e->e_ctime + TimeOuts.to_q_return[e->e_timeoutclass])
+		message_timeout = TRUE;
+
 	e->e_flags &= ~EF_QUEUERUN;
 	for (q = e->e_sendqueue; q != NULL; q = q->q_next)
 	{
-		if (!bitset(QBADADDR|QDONTSEND|QSENT, q->q_flags) ||
-		    bitset(QQUEUEUP, q->q_flags))
+		if (bitset(QQUEUEUP, q->q_flags) &&
+		    bitset(QDONTSEND, q->q_flags))
+		{
+			/* I'm not sure how this happens..... */
+			if (tTd(50, 2))
+			{
+				printf("Bogus flags: ");
+				printaddr(q, FALSE);
+			}
+			q->q_flags &= ~QDONTSEND;
+		}
+		if (!bitset(QBADADDR|QDONTSEND|QSENT, q->q_flags))
 			queueit = TRUE;
+#if XDEBUG
+		else if (bitset(QQUEUEUP, q->q_flags))
+			syslog(LOG_DEBUG, "%s: q_flags = %x",
+				e->e_id, q->q_flags);
+#endif
 
 		/* see if a notification is needed */
-		if (bitset(QBADADDR, q->q_flags) &&
-		    bitset(QPINGONFAILURE, q->q_flags))
+		if (bitset(QPINGONFAILURE, q->q_flags) &&
+		    ((message_timeout && bitset(QQUEUEUP, q->q_flags)) ||
+		     bitset(QBADADDR, q->q_flags)))
 		{
 			failure_return = TRUE;
 			if (q->q_owner == NULL && !emptyaddr(&e->e_from))
@@ -177,23 +200,25 @@ dropenvelope(e)
 
 	if (!queueit)
 		/* nothing to do */ ;
-	else if (curtime() > e->e_ctime + TimeOuts.to_q_return[e->e_timeoutclass])
+	else if (message_timeout)
 	{
-		(void) snprintf(buf, sizeof buf, "Cannot send message for %s",
-			pintvl(TimeOuts.to_q_return[e->e_timeoutclass], FALSE));
-		if (e->e_message != NULL)
-			free(e->e_message);
-		e->e_message = newstr(buf);
-		message(buf);
-		e->e_flags |= EF_CLRQUEUE;
-		failure_return = TRUE;
+		if (failure_return)
+		{
+			(void) snprintf(buf, sizeof buf,
+				"Cannot send message within %s",
+				pintvl(TimeOuts.to_q_return[e->e_timeoutclass], FALSE));
+			if (e->e_message != NULL)
+				free(e->e_message);
+			e->e_message = newstr(buf);
+			message(buf);
+			e->e_flags |= EF_CLRQUEUE;
+		}
 		fprintf(e->e_xfp, "Message could not be delivered for %s\n",
 			pintvl(TimeOuts.to_q_return[e->e_timeoutclass], FALSE));
 		fprintf(e->e_xfp, "Message will be deleted from queue\n");
 		for (q = e->e_sendqueue; q != NULL; q = q->q_next)
 		{
-			if (bitset(QQUEUEUP, q->q_flags) ||
-			    !bitset(QBADADDR|QDONTSEND|QSENT, q->q_flags))
+			if (!bitset(QBADADDR|QDONTSEND|QSENT, q->q_flags))
 			{
 				q->q_flags |= QBADADDR;
 				q->q_status = "4.4.7";
@@ -203,25 +228,25 @@ dropenvelope(e)
 	else if (TimeOuts.to_q_warning[e->e_timeoutclass] > 0 &&
 	    curtime() > e->e_ctime + TimeOuts.to_q_warning[e->e_timeoutclass])
 	{
-		bool delay_return = FALSE;
-
-		for (q = e->e_sendqueue; q != NULL; q = q->q_next)
-		{
-			if (bitset(QQUEUEUP, q->q_flags) &&
-			    bitset(QPINGONDELAY, q->q_flags))
-			{
-				q->q_flags |= QDELAYED;
-				delay_return = TRUE;
-			}
-		}
-		if (delay_return &&
-		    !bitset(EF_WARNING|EF_RESPONSE, e->e_flags) &&
+		if (!bitset(EF_WARNING|EF_RESPONSE, e->e_flags) &&
 		    e->e_class >= 0 &&
 		    e->e_from.q_paddr != NULL &&
 		    strcmp(e->e_from.q_paddr, "<>") != 0 &&
 		    strncasecmp(e->e_from.q_paddr, "owner-", 6) != 0 &&
 		    (strlen(e->e_from.q_paddr) <= (SIZE_T) 8 ||
 		     strcasecmp(&e->e_from.q_paddr[strlen(e->e_from.q_paddr) - 8], "-request") != 0))
+		{
+			for (q = e->e_sendqueue; q != NULL; q = q->q_next)
+			{
+				if (bitset(QQUEUEUP, q->q_flags) &&
+				    bitset(QPINGONDELAY, q->q_flags))
+				{
+					q->q_flags |= QDELAYED;
+					delay_return = TRUE;
+				}
+			}
+		}
+		if (delay_return)
 		{
 			(void) snprintf(buf, sizeof buf,
 				"Warning: could not send message for past %s",
@@ -231,7 +256,6 @@ dropenvelope(e)
 			e->e_message = newstr(buf);
 			message(buf);
 			e->e_flags |= EF_WARNING;
-			failure_return = TRUE;
 		}
 		fprintf(e->e_xfp,
 			"Warning: message still undelivered after %s\n",
@@ -241,8 +265,8 @@ dropenvelope(e)
 	}
 
 	if (tTd(50, 2))
-		printf("failure_return=%d success_return=%d queueit=%d\n",
-			failure_return, success_return, queueit);
+		printf("failure_return=%d delay_return=%d success_return=%d queueit=%d\n",
+			failure_return, delay_return, success_return, queueit);
 
 	/*
 	**  If we had some fatal error, but no addresses are marked as
@@ -263,21 +287,15 @@ dropenvelope(e)
 	**  Send back return receipts as requested.
 	*/
 
-/*
-	if (e->e_receiptto != NULL && bitset(EF_SENDRECEIPT, e->e_flags)
-	    && !bitset(PRIV_NORECEIPTS, PrivacyFlags))
-*/
-	if (e->e_receiptto == NULL)
-		e->e_receiptto = e->e_from.q_paddr;
-	if (success_return && !failure_return &&
+	if (success_return && !failure_return && !delay_return && fulldrop &&
 	    !bitset(PRIV_NORECEIPTS, PrivacyFlags) &&
-	    strcmp(e->e_receiptto, "<>") != 0)
+	    strcmp(e->e_from.q_paddr, "<>") != 0)
 	{
 		auto ADDRESS *rlist = NULL;
 
 		e->e_flags |= EF_SENDRECEIPT;
-		(void) sendtolist(e->e_receiptto, NULLADDR, &rlist, 0, e);
-		(void) returntosender("Return receipt", rlist, FALSE, e);
+		(void) sendtolist(e->e_from.q_paddr, NULLADDR, &rlist, 0, e);
+		(void) returntosender("Return receipt", rlist, RTSF_NO_BODY, e);
 	}
 	e->e_flags &= ~EF_SENDRECEIPT;
 
@@ -285,8 +303,12 @@ dropenvelope(e)
 	**  Arrange to send error messages if there are fatal errors.
 	*/
 
-	if (failure_return && e->e_errormode != EM_QUIET)
+	if ((failure_return || delay_return) && e->e_errormode != EM_QUIET)
+	{
+		extern void savemail __P((ENVELOPE *, bool));
+
 		savemail(e, !bitset(EF_NO_BODY_RETN, e->e_flags));
+	}
 
 	/*
 	**  Arrange to send warning messages to postmaster as requested.
@@ -299,7 +321,7 @@ dropenvelope(e)
 		auto ADDRESS *rlist = NULL;
 
 		(void) sendtolist(PostMasterCopy, NULLADDR, &rlist, 0, e);
-		(void) returntosender(e->e_message, rlist, FALSE, e);
+		(void) returntosender(e->e_message, rlist, RTSF_PM_BOUNCE, e);
 	}
 
 	/*
@@ -499,7 +521,6 @@ settime(e)
 	char tbuf[20];				/* holds "current" time */
 	char dbuf[30];				/* holds ctime(tbuf) */
 	register struct tm *tm;
-	extern char *arpadate();
 	extern struct tm *gmtime();
 
 	now = curtime();
@@ -548,7 +569,7 @@ openxscript(e)
 	if (e->e_xfp != NULL)
 		return;
 	p = queuename(e, 'x');
-	fd = open(p, O_WRONLY|O_CREAT|O_APPEND, 0644);
+	fd = open(p, O_WRONLY|O_CREAT|O_APPEND, FileMode);
 	if (fd < 0)
 	{
 		syserr("Can't create transcript file %s", p);
@@ -754,7 +775,8 @@ setsender(from, e, delimptr, internal)
 				FullName = NULL;
 		}
 
-		if ((pw = sm_getpwnam(e->e_from.q_user)) != NULL)
+		if (e->e_from.q_user[0] != '\0' &&
+		    (pw = sm_getpwnam(e->e_from.q_user)) != NULL)
 		{
 			/*
 			**  Process passwd file entry.
@@ -781,6 +803,10 @@ setsender(from, e, delimptr, internal)
 				if (buf[0] != '\0')
 					FullName = newstr(buf);
 			}
+		}
+		else
+		{
+			e->e_from.q_home = "/no/such/directory";
 		}
 		if (FullName != NULL && !internal)
 			define('x', FullName, e);
@@ -874,31 +900,31 @@ struct eflags
 
 struct eflags	EnvelopeFlags[] =
 {
-	"OLDSTYLE",	EF_OLDSTYLE,
-	"INQUEUE",	EF_INQUEUE,
-	"NO_BODY_RETN",	EF_NO_BODY_RETN,
-	"CLRQUEUE",	EF_CLRQUEUE,
-	"SENDRECEIPT",	EF_SENDRECEIPT,
-	"FATALERRS",	EF_FATALERRS,
-	"DELETE_BCC",	EF_DELETE_BCC,
-	"RESPONSE",	EF_RESPONSE,
-	"RESENT",	EF_RESENT,
-	"VRFYONLY",	EF_VRFYONLY,
-	"WARNING",	EF_WARNING,
-	"QUEUERUN",	EF_QUEUERUN,
-	"GLOBALERRS",	EF_GLOBALERRS,
-	"PM_NOTIFY",	EF_PM_NOTIFY,
-	"METOO",	EF_METOO,
-	"LOGSENDER",	EF_LOGSENDER,
-	"NORECEIPT",	EF_NORECEIPT,
-	"HAS8BIT",	EF_HAS8BIT,
-	"NL_NOT_EOL",	EF_NL_NOT_EOL,
-	"CRLF_NOT_EOL",	EF_CRLF_NOT_EOL,
-	"RET_PARAM",	EF_RET_PARAM,
-	"HAS_DF",	EF_HAS_DF,
-	"IS_MIME",	EF_IS_MIME,
-	"DONT_MIME",	EF_DONT_MIME,
-	NULL
+	{ "OLDSTYLE",		EF_OLDSTYLE	},
+	{ "INQUEUE",		EF_INQUEUE	},
+	{ "NO_BODY_RETN",	EF_NO_BODY_RETN	},
+	{ "CLRQUEUE",		EF_CLRQUEUE	},
+	{ "SENDRECEIPT",	EF_SENDRECEIPT	},
+	{ "FATALERRS",		EF_FATALERRS	},
+	{ "DELETE_BCC",		EF_DELETE_BCC	},
+	{ "RESPONSE",		EF_RESPONSE	},
+	{ "RESENT",		EF_RESENT	},
+	{ "VRFYONLY",		EF_VRFYONLY	},
+	{ "WARNING",		EF_WARNING	},
+	{ "QUEUERUN",		EF_QUEUERUN	},
+	{ "GLOBALERRS",		EF_GLOBALERRS	},
+	{ "PM_NOTIFY",		EF_PM_NOTIFY	},
+	{ "METOO",		EF_METOO	},
+	{ "LOGSENDER",		EF_LOGSENDER	},
+	{ "NORECEIPT",		EF_NORECEIPT	},
+	{ "HAS8BIT",		EF_HAS8BIT	},
+	{ "NL_NOT_EOL",		EF_NL_NOT_EOL	},
+	{ "CRLF_NOT_EOL",	EF_CRLF_NOT_EOL	},
+	{ "RET_PARAM",		EF_RET_PARAM	},
+	{ "HAS_DF",		EF_HAS_DF	},
+	{ "IS_MIME",		EF_IS_MIME	},
+	{ "DONT_MIME",		EF_DONT_MIME	},
+	{ NULL }
 };
 
 void
