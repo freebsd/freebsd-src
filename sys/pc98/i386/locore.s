@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.5.2.4 1997/01/11 09:03:39 kato Exp $
+ *	$Id: locore.s,v 1.5.2.5 1997/01/25 10:43:18 kato Exp $
  *
  *		originally from: locore.s, by William F. Jolitz
  *
@@ -969,7 +969,7 @@ map_read_write:
 /* Map ISA hole */
 	movl	$ISA_HOLE_START, %eax
 	movl	$ISA_HOLE_LENGTH>>PAGE_SHIFT, %ecx
-	fillkptphys($PG_RW|PG_N)
+	fillkptphys($PG_RW)
 
 /* Map proc0s UPAGES in the special page table for this purpose ... */
 	movl	R(p0upa), %eax
