@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.346 1999/07/01 18:27:15 peter Exp $
+ *	$Id: machdep.c,v 1.347 1999/07/01 18:33:22 peter Exp $
  */
 
 #include "apm.h"
@@ -248,9 +248,6 @@ vm_offset_t phys_avail[10];
 static vm_offset_t buffer_sva, buffer_eva;
 vm_offset_t clean_sva, clean_eva;
 static vm_offset_t pager_sva, pager_eva;
-#if NNPX > 0
-extern struct isa_driver npxdriver;
-#endif
 
 #define offsetof(type, member)	((size_t)(&((type *)0)->member))
 
@@ -1343,17 +1340,8 @@ physmap_done:
 	speculative_mprobe = FALSE;
 #endif
 
-#if NNPX > 0
-	if (resource_int_value("npx", 0, "msize", &msize) == 0) {
-		if (msize != 0) {
-			Maxmem = msize / 4;
-			speculative_mprobe = FALSE;
-		}
-	}
-#endif
-
 	/* Allow final override from the kernel environment */
-	if (getenv_int("MAXMEM", &msize)) {
+	if (getenv_int("hw.physmem", &msize)) {
 		if (msize != 0) {
 			Maxmem = msize / 4;
 			speculative_mprobe = FALSE;
