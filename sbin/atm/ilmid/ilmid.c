@@ -286,7 +286,7 @@ u_char	Resp_Buf[1024];
  * changing the original...
  */
 #define	COPY_RESP(resp)	\
-        UM_COPY ( (resp), Resp_Buf, (resp)[0] + 1 )
+        bcopy ( (resp), Resp_Buf, (resp)[0] + 1 )
 
 /*
  * TRAP generic trap types
@@ -597,7 +597,7 @@ asn_set_int ( bufp, val )
 	}
 
 	*bp++ = len;
-	UM_COPY ( (caddr_t)&u.c[sizeof(int)-len], bp, len );
+	bcopy ( (caddr_t)&u.c[sizeof(int)-len], bp, len );
 	bp += len;
 	*bufp = bp;
 
@@ -841,7 +841,7 @@ parse_oids ( h, bp )
 		len--;
 
 		/* Create new Variable instance */
-		if ( ( var = (Variable *)UM_ALLOC(sizeof(Variable)) ) == NULL )
+		if ( ( var = malloc(sizeof(Variable)) ) == NULL )
 		{
 			*bp = bufp;
 			return;
@@ -924,13 +924,8 @@ asn_get_header ( bufp )
 	/*
 	 * Allocate memory to hold the SNMP header
 	 */
-	if ( ( h = (Snmp_Header *)UM_ALLOC(sizeof(Snmp_Header)) ) == NULL )
+	if ( ( h = calloc(1, sizeof(Snmp_Header)) ) == NULL )
 		return ( (Snmp_Header *)NULL );
-
-	/*
-	 * Ensure that we wipe the slate clean
-	 */
-	UM_ZERO ( h, sizeof ( Snmp_Header ) );
 
 	/*
 	 * PDU has to start as SEQUENCE OF
@@ -973,28 +968,28 @@ asn_get_header ( bufp )
 
 		/* Request ID */
 		if ( *bp++ != ASN_INTEGER ) {
-			UM_FREE ( h );
+			free( h );
 			return ( (Snmp_Header *)NULL );
 		}
 		h->reqid = asn_get_int ( &bp, NULL );
 
 		/* Error Status */
 		if ( *bp++ != ASN_INTEGER ) {
-			UM_FREE ( h );
+			free ( h );
 			return ( (Snmp_Header *)NULL );
 		}
 		h->error = asn_get_int ( &bp, NULL );
 
 		/* Error Index */
 		if ( *bp++ != ASN_INTEGER ) {
-			UM_FREE ( h );
+			free ( h );
 			return ( (Snmp_Header *)NULL );
 		}
 		h->erridx = asn_get_int ( &bp, NULL );
 
 		/* Sequence of... */
 		if ( *bp++ != ASN_SEQUENCE ) {
-			UM_FREE ( h );
+			free ( h );
 			return ( (Snmp_Header *)NULL );
 		}
 		h->varlen = ( asn_get_pdu_len ( &bp, &len ) - 1 );
@@ -1184,7 +1179,7 @@ build_pdu ( hdr, type )
 	/*
 	 * Clear out the reply
 	 */
-	UM_ZERO ( Resp_Buf, sizeof(Resp_Buf) );
+	bzero ( Resp_Buf, sizeof(Resp_Buf) );
 
 	/* [0] is reserved for overall length */
 	bp++;
@@ -1201,7 +1196,7 @@ build_pdu ( hdr, type )
 	/* Community name */
 	*bp++ = ASN_OCTET;
 	*bp++ = strlen ( hdr->community );
-	UM_COPY ( hdr->community, bp, strlen ( hdr->community ) );
+	bcopy ( hdr->community, bp, strlen ( hdr->community ) );
 	bp += strlen ( hdr->community );
 	/* PDU Type */
 	*bp++ = type;
@@ -1249,7 +1244,7 @@ build_pdu ( hdr, type )
 		/* Fill in IP address */
 		*bp++ = ASN_IPADDR;
 		*bp++ = sizeof ( hdr->ipaddr );
-		UM_COPY ( (caddr_t)&hdr->ipaddr, bp, sizeof(hdr->ipaddr) );
+		bcopy ( (caddr_t)&hdr->ipaddr, bp, sizeof(hdr->ipaddr) );
 		bp += sizeof(hdr->ipaddr);
 
 		/* Fill in generic and specific trap types */
@@ -1316,7 +1311,7 @@ build_pdu ( hdr, type )
 			case ASN_OCTET:
 				*bp++ = var->var.sval[0];
 				len++;
-				UM_COPY ( (caddr_t)&var->var.sval[1],
+				bcopy ( (caddr_t)&var->var.sval[1],
 					bp, var->var.sval[0] );
 				len += var->var.sval[0];
 				bp += var->var.sval[0];
@@ -1333,7 +1328,7 @@ build_pdu ( hdr, type )
 			case ASN_IPADDR:
 				*bp++ = 4;
 				len++;
-				UM_COPY ( (caddr_t)&var->var.aval, bp, 4 );
+				bcopy ( (caddr_t)&var->var.aval, bp, 4 );
 				len += 4;
 				bp += 4;
 				break;
@@ -1391,11 +1386,11 @@ Snmp_Header *hdr;
 
 	while ( hdr->head ) {
 		var = hdr->head->next;		/* Save next link */
-		UM_FREE ( hdr->head );		/* Free current var */
+		free ( hdr->head );		/* Free current var */
 		hdr->head = var;		/* Set head to next link */
 	}
 
-	UM_FREE ( hdr );				/* Free fixed portion */
+	free ( hdr );				/* Free fixed portion */
 }
 
 /*
@@ -1425,7 +1420,7 @@ set_reqid ( resp, reqid )
 	/*
 	 * Replace the current Request ID with the supplied value
 	 */
-	UM_COPY ( (caddr_t)&u.c[4-resp[17]], bp, resp[17] );
+	bcopy ( (caddr_t)&u.c[4-resp[17]], bp, resp[17] );
 
 	return;
 }
@@ -1475,7 +1470,7 @@ build_cold_start()
 	Snmp_Header	*hdr;
 	Variable	*var;
 
-	hdr = (Snmp_Header *)UM_ALLOC (sizeof(Snmp_Header));
+	hdr = malloc(sizeof(Snmp_Header));
 
 	hdr->pdulen = 0;
 	hdr->version = SNMP_VERSION_1 - 1;
@@ -1484,12 +1479,12 @@ build_cold_start()
 	hdr->ipaddr = 0x0;	/* 0.0.0.0 */
 	hdr->generic_trap = TRAP_COLDSTART;
 	hdr->specific_trap = 0;
-	UM_COPY ( (caddr_t)&Objids[ENTERPRISE_OBJID], (caddr_t)&hdr->enterprise,
+	bcopy ( (caddr_t)&Objids[ENTERPRISE_OBJID], (caddr_t)&hdr->enterprise,
 		sizeof(Objid) );
 
-	hdr->head = (Variable *)UM_ALLOC(sizeof(Variable));
+	hdr->head = (Variable *)malloc(sizeof(Variable));
 	var = hdr->head;
-	UM_COPY ( (caddr_t)&Objids[UPTIME_OBJID], (caddr_t)&var->oid,
+	bcopy ( (caddr_t)&Objids[UPTIME_OBJID], (caddr_t)&var->oid,
 		sizeof(Objid) );
 	var->type = ASN_NULL;
 
@@ -1505,7 +1500,7 @@ build_generic_header()
 {
 	Snmp_Header	*hdr;
 
-	hdr = (Snmp_Header *)UM_ALLOC(sizeof(Snmp_Header));
+	hdr = malloc(sizeof(Snmp_Header));
 
 	hdr->pdulen = 0;
 	hdr->version = SNMP_VERSION_1 - 1;
@@ -1543,8 +1538,8 @@ init_ilmi()
 	 * If error occurred, clear out everything
 	 */
 	if ( buf_len <= 0 ) {
-		UM_ZERO ( Cfg, sizeof(Cfg) );
-		UM_ZERO ( Intf, sizeof(Intf) );
+		bzero ( Cfg, sizeof(Cfg) );
+		bzero( Intf, sizeof(Intf) );
 		NUnits = 0;
 		return;
 	}
@@ -1552,13 +1547,13 @@ init_ilmi()
 	/*
 	 * Move to local storage
 	 */
-        UM_COPY ( cfg_info, (caddr_t)Cfg, buf_len );
+        bcopy ( cfg_info, (caddr_t)Cfg, buf_len );
 	/*
 	 * Compute how many units information was returned for
 	 */
         NUnits = buf_len / sizeof(struct air_cfg_rsp);
 	/* Housecleaning */
-        UM_FREE ( cfg_info );
+        free ( cfg_info );
         cfg_info = NULL;
 	/*
 	 * Get the per interface information
@@ -1568,16 +1563,16 @@ init_ilmi()
 	 * If error occurred, clear out Intf info
 	 */
 	if ( buf_len <= 0 ) {
-		UM_ZERO ( Intf, sizeof(Intf) );
+		bzero ( Intf, sizeof(Intf) );
 		return;
 	}
 
 	/*
 	 * Move to local storage
 	 */
-        UM_COPY ( intf_info, (caddr_t)Intf, buf_len );
+        bcopy ( intf_info, (caddr_t)Intf, buf_len );
 	/* Housecleaning */
-        UM_FREE ( intf_info );
+        free ( intf_info );
         intf_info = NULL;
 
 	return;
@@ -1670,7 +1665,7 @@ ilmi_open ()
                 /*
                  * Set up destination SAP
                  */
-                UM_ZERO ( (caddr_t) &satm, sizeof(satm) );
+                bzero ( (caddr_t) &satm, sizeof(satm) );
                 satm.satm_family = AF_ATM;
 #if (defined(BSD) && (BSD >= 199103))
                 satm.satm_len = sizeof(satm);
@@ -1837,9 +1832,9 @@ get_local_ip ( s, aval )
 	/*
 	 * Fill in answer
 	 */
-	UM_COPY ( (caddr_t)&sin->sin_addr.s_addr, aval, 4 );
+	bcopy ( (caddr_t)&sin->sin_addr.s_addr, aval, 4 );
 
-	UM_FREE ( net_info );
+	free ( net_info );
 
 	return;
 
@@ -1938,10 +1933,10 @@ set_address ( hdr, intf )
 	int		i, j;
 
 	PDU_Header = build_generic_header();
-	PDU_Header->head = (Variable *)UM_ALLOC(sizeof(Variable));
+	PDU_Header->head = malloc(sizeof(Variable));
 	var = PDU_Header->head;
 	/* Copy generic addressEntry OBJID */
-	UM_COPY ( (caddr_t)&Objids[ADDRESS_OBJID], (caddr_t)&var->oid,
+	bcopy ( (caddr_t)&Objids[ADDRESS_OBJID], (caddr_t)&var->oid,
 		sizeof(Objid) );
 	/* Set specific instance */
 	i = var->oid.oid[0] + 1;		/* Get length */
@@ -2073,7 +2068,7 @@ process_get ( hdr, intf )
 		switch ( idx ) {
 		case SYS_OBJID:
 			var->type = ASN_OBJID;
-			UM_COPY ( (caddr_t)&Objids[MY_OBJID],
+			bcopy ( (caddr_t)&Objids[MY_OBJID],
 			    (caddr_t)&var->var.oval,
 				sizeof(Objid) );
 			break;
@@ -2128,7 +2123,7 @@ process_get ( hdr, intf )
 		case ATMF_SYSID:
 			var->type = ASN_OCTET;
 			var->var.sval[0] = 6;
-			UM_COPY ( (caddr_t)&Cfg[intf].acp_macaddr,
+			bcopy ( (caddr_t)&Cfg[intf].acp_macaddr,
 			    (caddr_t)&var->var.sval[1], 6 );
 			break;
 		default:
@@ -2197,7 +2192,7 @@ ilmi_do_state ()
 			/*
 	 		 * Clear addressTable
 	 		 */
-			UM_ZERO ( (caddr_t)&addressEntry[intf], sizeof(Objid) );
+			bzero ( (caddr_t)&addressEntry[intf], sizeof(Objid) );
 
 			/*
 			 * Start by sending a COLD_START trap. This should cause the
@@ -2226,9 +2221,9 @@ ilmi_do_state ()
 	 		 * received, return to COLD_START state.
 	 		 */
 			PDU_Header = build_generic_header();
-			PDU_Header->head = (Variable *)UM_ALLOC(sizeof(Variable));
+			PDU_Header->head = malloc(sizeof(Variable));
 			var = PDU_Header->head;
-			UM_COPY ( (caddr_t)&Objids[ADDRESS_OBJID], (caddr_t)&var->oid,
+			bcopy ( (caddr_t)&Objids[ADDRESS_OBJID], (caddr_t)&var->oid,
 	    		    sizeof(Objid) );
 			var->type = ASN_NULL;
 			var->next = NULL;
