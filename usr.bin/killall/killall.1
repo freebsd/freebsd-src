@@ -22,7 +22,7 @@
 .\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id: killall.1,v 1.1.1.1 1995/06/25 18:08:27 joerg Exp $
+.\" $Id: killall.1,v 1.4 1996/02/03 21:50:20 wosch Exp $
 .\"
 .Dd June 25, 1995
 .Os FreeBSD 2.2 
@@ -93,6 +93,17 @@ The signal may be specified either as a name
 or numerically.
 .El
 
+.Sh ALL PROCESSES
+Sending a signal to all processes with uid 
+.Nm XYZ
+is already supported by
+.Xr kill 1 . 
+So use 
+.Xr kill 1
+for this job (e.g. $ kill -TERM -1 or
+as root $ echo kill -TERM -1 | su -m <user>)
+
+
 .Sh DIAGNOSTICS
 The
 .Nm
@@ -107,12 +118,11 @@ Diagnostic messages will only be printed if requested by
 options.
 .Sh SEE ALSO
 .Xr kill 1 ,
-.Xr perl 1 ,
 .Xr procfs 5 .
 .Sh HISTORY
 The
 .Nm
-command appeared in FreeBSD 2.2.  It has been featured after the
+command appeared in FreeBSD 2.1.  It has been featured after the
 .Nm
 command as available on other platforms.
 .Sh AUTHOR
@@ -120,11 +130,15 @@ The program has been contributed by Wolfram Schneider, this manual
 page has been written by
 .if n Joerg Wunsch.
 .if t J\(:org Wunsch.
-.Sh BUGS
-Due to limitations in the current implementation of
-.Xr procfs 5 ,
-it is only possible to figure out the effective UID of a process.
-Hence it is impossible to find processes that run setuid, thus a
-regular user will not be able to use
-.Nm
-to send signals to such processes.
+
+.\" Fixed in FreeBSD-current, Feb 1996
+.\"
+.\" .Sh BUGS
+.\" Due to limitations in the current implementation of
+.\" .Xr procfs 5 ,
+.\" it is only possible to figure out the effective UID of a process.
+.\" Hence it is impossible to find processes that run setuid, thus a
+.\" regular user will not be able to use
+.\" .Nm
+.\" to send signals to such processes.
+
