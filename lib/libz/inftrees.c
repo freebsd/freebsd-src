@@ -26,8 +26,8 @@ local int huft_build OF((
     uIntf *,            /* code lengths in bits */
     uInt,               /* number of codes */
     uInt,               /* number of "simple" codes */
-    uIntf *,            /* list of base values for non-simple codes */
-    uIntf *,            /* list of extra bits for non-simple codes */
+    const uIntf *,      /* list of base values for non-simple codes */
+    const uIntf *,      /* list of extra bits for non-simple codes */
     inflate_huft * FAR*,/* result: starting table */
     uIntf *,            /* maximum lookup bits (returns actual) */
     z_streamp ));       /* for zalloc function */
@@ -38,18 +38,18 @@ local voidpf falloc OF((
     uInt));             /* size of item */
 
 /* Tables for deflate from PKZIP's appnote.txt. */
-local uInt cplens[31] = { /* Copy lengths for literal codes 257..285 */
+local const uInt cplens[31] = { /* Copy lengths for literal codes 257..285 */
         3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 15, 17, 19, 23, 27, 31,
         35, 43, 51, 59, 67, 83, 99, 115, 131, 163, 195, 227, 258, 0, 0};
-        /* actually lengths - 2; also see note #13 above about 258 */
-local uInt cplext[31] = { /* Extra bits for literal codes 257..285 */
+        /* see note #13 above about 258 */
+local const uInt cplext[31] = { /* Extra bits for literal codes 257..285 */
         0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2,
-        3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 0, 192, 192}; /* 192==invalid */
-local uInt cpdist[30] = { /* Copy offsets for distance codes 0..29 */
+        3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 0, 112, 112}; /* 112==invalid */
+local const uInt cpdist[30] = { /* Copy offsets for distance codes 0..29 */
         1, 2, 3, 4, 5, 7, 9, 13, 17, 25, 33, 49, 65, 97, 129, 193,
         257, 385, 513, 769, 1025, 1537, 2049, 3073, 4097, 6145,
         8193, 12289, 16385, 24577};
-local uInt cpdext[30] = { /* Extra bits for distance codes */
+local const uInt cpdext[30] = { /* Extra bits for distance codes */
         0, 0, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6,
         7, 7, 8, 8, 9, 9, 10, 10, 11, 11,
         12, 12, 13, 13};
@@ -99,16 +99,16 @@ local int huft_build(b, n, s, d, e, t, m, zs)
 uIntf *b;               /* code lengths in bits (all assumed <= BMAX) */
 uInt n;                 /* number of codes (assumed <= N_MAX) */
 uInt s;                 /* number of simple-valued codes (0..s-1) */
-uIntf *d;               /* list of base values for non-simple codes */
-uIntf *e;               /* list of extra bits for non-simple codes */  
+const uIntf *d;         /* list of base values for non-simple codes */
+const uIntf *e;         /* list of extra bits for non-simple codes */
 inflate_huft * FAR *t;  /* result: starting table */
 uIntf *m;               /* maximum lookup bits, returns actual */
 z_streamp zs;           /* for zalloc function */
 /* Given a list of code lengths and a maximum table size, make a set of
    tables to decode that set of codes.  Return Z_OK on success, Z_BUF_ERROR
    if the given code set is incomplete (the tables are still built in this
-   case), Z_DATA_ERROR if the input is invalid (all zero length codes or an
-   over-subscribed set of lengths), or Z_MEM_ERROR if not enough memory. */
+   case), Z_DATA_ERROR if the input is invalid (an over-subscribed set of
+   lengths), or Z_MEM_ERROR if not enough memory. */
 {
 
   uInt a;                       /* counter for codes of length k */
@@ -190,6 +190,7 @@ z_streamp zs;           /* for zalloc function */
     if ((j = *p++) != 0)
       v[x[j]++] = i;
   } while (++i < n);
+  n = x[g];                   /* set n to length of v */
 
 
   /* Generate the Huffman codes and for each, make the table entries */
@@ -309,7 +310,7 @@ z_streamp z;            /* for zfree function */
   r = huft_build(c, 19, 19, (uIntf*)Z_NULL, (uIntf*)Z_NULL, tb, bb, z);
   if (r == Z_DATA_ERROR)
     z->msg = (char*)"oversubscribed dynamic bit lengths tree";
-  else if (r == Z_BUF_ERROR)
+  else if (r == Z_BUF_ERROR || *bb == 0)
   {
     inflate_trees_free(*tb, z);
     z->msg = (char*)"incomplete dynamic bit lengths tree";
@@ -332,11 +333,12 @@ z_streamp z;            /* for zfree function */
   int r;
 
   /* build literal/length tree */
-  if ((r = huft_build(c, nl, 257, cplens, cplext, tl, bl, z)) != Z_OK)
+  r = huft_build(c, nl, 257, cplens, cplext, tl, bl, z);
+  if (r != Z_OK || *bl == 0)
   {
     if (r == Z_DATA_ERROR)
       z->msg = (char*)"oversubscribed literal/length tree";
-    else if (r == Z_BUF_ERROR)
+    else if (r != Z_MEM_ERROR)
     {
       inflate_trees_free(*tl, z);
       z->msg = (char*)"incomplete literal/length tree";
@@ -346,17 +348,23 @@ z_streamp z;            /* for zfree function */
   }
 
   /* build distance tree */
-  if ((r = huft_build(c + nl, nd, 0, cpdist, cpdext, td, bd, z)) != Z_OK)
+  r = huft_build(c + nl, nd, 0, cpdist, cpdext, td, bd, z);
+  if (r != Z_OK || (*bd == 0 && nl > 257))
   {
     if (r == Z_DATA_ERROR)
-      z->msg = (char*)"oversubscribed literal/length tree";
+      z->msg = (char*)"oversubscribed distance tree";
     else if (r == Z_BUF_ERROR) {
 #ifdef PKZIP_BUG_WORKAROUND
       r = Z_OK;
     }
 #else
       inflate_trees_free(*td, z);
-      z->msg = (char*)"incomplete literal/length tree";
+      z->msg = (char*)"incomplete distance tree";
+      r = Z_DATA_ERROR;
+    }
+    else if (r != Z_MEM_ERROR)
+    {
+      z->msg = (char*)"empty distance tree with lengths";
       r = Z_DATA_ERROR;
     }
     inflate_trees_free(*tl, z);
