@@ -430,6 +430,14 @@ typedef struct {
 			u_int16_t ct_scsi_status;
 			u_int32_t ct_xfrlen;
 			ispds_t ct_dataseg[ISP_RQDSEG_T2];
+			/*
+			 * For CTIO3, an ispds64_t would go here, padded
+			 * to the end of the request.
+			 */
+			/*
+			 * For CTIO4, an ispdlist_t would go here, padded
+			 * to the end of the request.
+			 */
 		} m0;
 		struct {
 			u_int16_t _reserved;
