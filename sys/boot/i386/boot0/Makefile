@@ -33,6 +33,6 @@ AFLAGS+=--defsym FLAGS=${BOOT_BOOT0_FLAGS} \
 	--defsym TICKS=${BOOT_BOOT0_TICKS} \
 	--defsym COMSPEED=${BOOT_BOOT0_COMCONSOLE_SPEED}
 
-LDFLAGS=-N -e start -Ttext ${BOOT_BOOT0_ORG} -Wl,-S -Wl,--oformat -Wl,binary
+LDFLAGS=-N -e start -Ttext ${BOOT_BOOT0_ORG} -Wl,-S,--oformat,binary
 
 .include <bsd.prog.mk>

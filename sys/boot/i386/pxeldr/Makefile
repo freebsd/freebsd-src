@@ -34,7 +34,7 @@ ${BOOT}: ${LDR} ${LOADER}
 
 CLEANFILES+= ${LDR}
 
-LDFLAGS+= -N -e start -Ttext ${ORG} -Wl,-S -Wl,--oformat -Wl,binary
+LDFLAGS+= -N -e start -Ttext ${ORG} -Wl,-S,--oformat,binary
 
 CLEANFILES+= ${LOADER}
 
