@@ -27,7 +27,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id: ld.1,v 1.8 1994/12/11 21:39:31 ats Exp $
+.\"	$Id: ld.1,v 1.9 1994/12/23 22:30:33 nate Exp $
 .\"
 .Dd October 14, 1993
 .Dt LD 1
@@ -49,6 +49,7 @@
 .Op Fl l Ar library-specifier
 .Op Fl L Ar library-search-path
 .Op Fl nostdlib
+.Op Fl O Ar filename
 .Op Fl o Ar filename
 .Op Fl T Ar address
 .Op Fl u Ar symbol
@@ -154,6 +155,12 @@ usually
 for
 .Ar -l
 specified libraries.
+.It Fl O Ar filename
+Specifies the name of the output file.
+The file is created as
+.Ar filename .tmp
+and when output is complete renamed to
+.Ar filename .
 .It Fl o Ar filename
 Specifies the name of the output file. Defaults to
 .Dq a.out.
