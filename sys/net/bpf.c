@@ -358,8 +358,7 @@ bpfopen(dev, flags, fmt, p)
 	if (d)
 		return (EBUSY);
 	make_dev(&bpf_cdevsw, minor(dev), 0, 0, 0600, "bpf%d", lminor(dev));
-	MALLOC(d, struct bpf_d *, sizeof(*d), M_BPF, M_WAITOK);
-	bzero(d, sizeof(*d));
+	MALLOC(d, struct bpf_d *, sizeof(*d), M_BPF, M_WAITOK | M_ZERO);
 	dev->si_drv1 = d;
 	d->bd_bufsize = bpf_bufsize;
 	d->bd_sig = SIGIO;
@@ -1285,11 +1284,10 @@ bpfattach(ifp, dlt, hdrlen)
 	u_int dlt, hdrlen;
 {
 	struct bpf_if *bp;
-	bp = (struct bpf_if *)malloc(sizeof(*bp), M_BPF, M_DONTWAIT);
+	bp = (struct bpf_if *)malloc(sizeof(*bp), M_BPF, M_DONTWAIT | M_ZERO);
 	if (bp == 0)
 		panic("bpfattach");
 
-	bp->bif_dlist = 0;
 	bp->bif_ifp = ifp;
 	bp->bif_dlt = dlt;
 
