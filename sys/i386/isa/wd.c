@@ -37,7 +37,7 @@ static int wdtest = 0;
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.56 1994/10/23 21:27:40 wollman Exp $
+ *	$Id: wd.c,v 1.57 1994/10/27 05:39:12 phk Exp $
  */
 
 /* TODO:
@@ -270,8 +270,6 @@ wd_externalize(struct proc *p, struct kern_devconf *kdc, void *userp, size_t len
 struct isa_driver wdcdriver = {
 	wdprobe, wdattach, "wdc",
 };
-
-extern char *readdisklabel();
 
 /*
  * Probe for controller.
@@ -993,14 +991,9 @@ wdopen(dev_t dev, int flags, int fmt, struct proc *p)
 		save_label = du->dk_dd;
 		du->dk_dd.d_partitions[WDRAW].p_offset = 0;
 		du->dk_dd.d_partitions[WDRAW].p_size = 0x7fffffff;/* XXX */
-#define WDSTRATEGY	((int (*)(struct buf *)) wdstrategy)	/* XXX */
 		msg = readdisklabel(makewddev(major(dev), lunit, WDRAW),
-				    WDSTRATEGY, &du->dk_dd,
+				    wdstrategy, &du->dk_dd,
 				    du->dk_dospartitions, &du->dk_bad);
-/*
-		msg = readdisklabel(makewddev(major(dev), lunit, WDRAW),
-				WDSTRATEGY, &du->dk_dd);
-*/
 		du->dk_flags &= ~DKFL_LABELLING;
 		if (msg != NULL) {
 			du->dk_dd = save_label;
@@ -1437,8 +1430,7 @@ wdioctl(dev_t dev, int cmd, caddr_t addr, int flag)
 					     du->dk_flags & DKFL_BSDLABEL
 					     ? du->dk_openpart :
 #endif
-					     0,
-					     du->dk_dospartitions);
+					     0);
 		if (error == 0) {
 			du->dk_flags |= DKFL_BSDLABEL;
 			wdwsetctlr(du);	/* XXX - check */
@@ -1463,8 +1455,7 @@ wdioctl(dev_t dev, int cmd, caddr_t addr, int flag)
 					       du->dk_flags & DKFL_BSDLABEL
 					       ? du->dk_openpart :
 #endif
-					       0,
-					       du->dk_dospartitions)) == 0) {
+					       0)) == 0) {
 			int	wlab;
 
 			du->dk_flags |= DKFL_BSDLABEL;
@@ -1474,8 +1465,7 @@ wdioctl(dev_t dev, int cmd, caddr_t addr, int flag)
 			du->dk_openpart |= (1 << 0);	/* XXX */
 			wlab = du->dk_wlabel;
 			du->dk_wlabel = 1;
-			error = writedisklabel(dev, WDSTRATEGY,
-					&du->dk_dd, du->dk_dospartitions);
+			error = writedisklabel(dev, wdstrategy, &du->dk_dd);
 			du->dk_openpart = du->dk_copenpart | du->dk_bopenpart;
 			du->dk_wlabel = wlab;
 		}
@@ -1524,7 +1514,12 @@ wdformat(struct buf *bp)
 {
 
 	bp->b_flags |= B_FORMAT;
-	return (wdstrategy(bp));
+	wdstrategy(bp);
+	/* 
+	 * phk put this here, better that return(wdstrategy(bp));
+	 * XXX
+	 */
+	return -1;
 }
 #endif
 

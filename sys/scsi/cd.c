@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: cd.c,v 1.26 1994/10/19 00:09:42 wollman Exp $
+ *      $Id: cd.c,v 1.27 1994/10/23 21:27:52 wollman Exp $
  */
 
 #define SPLCD splbio
@@ -677,9 +677,7 @@ cdioctl(dev_t dev, int cmd, caddr_t addr, int flag)
 			error = EBADF;
 		else
 			error = setdisklabel(&cd->disklabel,
-			    (struct disklabel *) addr,
-			    0,
-			    0);
+			    (struct disklabel *) addr, 0);
 		if (error == 0)
 			break;
 
