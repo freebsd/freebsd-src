@@ -166,6 +166,11 @@ archive_write_shar_header(struct archive *a, struct archive_entry *entry)
 		/* Only regular files have non-zero size. */
 		break;
 	case S_IFDIR:
+		archive_entry_set_size(entry, 0);
+		/* Don't bother trying to recreate '.' */
+		if (strcmp(name, ".") == 0  ||  strcmp(name, "./") == 0)
+			return (ARCHIVE_OK);
+		break;
 	case S_IFIFO:
 	case S_IFCHR:
 	case S_IFBLK:
@@ -189,23 +194,30 @@ archive_write_shar_header(struct archive *a, struct archive_entry *entry)
 		/* Try to create the dir. */
 		p = strdup(name);
 		pp = strrchr(p, '/');
-		if (pp != NULL)
+		/* If there is a / character, try to create the dir. */
+		if (pp != NULL) {
 			*pp = '\0';
 
-		if (shar->last_dir == NULL) {
-			shar_printf(a, "mkdir -p %s > /dev/null 2>&1\n", p);
-			shar->last_dir = p;
-		} else if (strcmp(p, shar->last_dir) == 0) {
-			/* We've already created this exact dir. */
-			free(p);
-		} else if (strlen(p) < strlen(shar->last_dir) &&
-		    strncmp(p, shar->last_dir, strlen(p)) == 0) {
-			/* We've already created a subdir. */
-			free(p);
-		} else {
-			shar_printf(a, "mkdir -p %s > /dev/null 2>&1\n", p);
-			free(shar->last_dir);
-			shar->last_dir = p;
+			/* Try to avoid a lot of redundant mkdir commands. */
+			if (strcmp(p, ".") == 0) {
+				/* Don't try to "mkdir ." */
+			} else if (shar->last_dir == NULL) {
+				shar_printf(a,
+				    "mkdir -p %s > /dev/null 2>&1\n", p);
+				shar->last_dir = p;
+			} else if (strcmp(p, shar->last_dir) == 0) {
+				/* We've already created this exact dir. */
+				free(p);
+			} else if (strlen(p) < strlen(shar->last_dir) &&
+			    strncmp(p, shar->last_dir, strlen(p)) == 0) {
+				/* We've already created a subdir. */
+				free(p);
+			} else {
+				shar_printf(a,
+				    "mkdir -p %s > /dev/null 2>&1\n", p);
+				free(shar->last_dir);
+				shar->last_dir = p;
+			}
 		}
 	}
 
