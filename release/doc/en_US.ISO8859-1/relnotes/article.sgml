@@ -886,6 +886,13 @@
       utilities have been renamed to
       <literal>k<replaceable>program</replaceable></literal>.</para>
 
+    <para><application>Kerberos 5</application> is now built by
+      default in <literal>buildworld</literal> operations.  Setting
+      <varname>MAKE_KERBEROS5</varname> no longer has any effect.
+      Disabling the base system Kerberos 5 now requires the
+      <varname>NO_KERBEROS</varname> Makefile variable to be
+      set.</para>
+
     <para><application>libpcap</application> now has support for
       selecting among multiple data link types on an interface.</para>
 
@@ -965,6 +972,11 @@
 
     <para>The supported release of <application>KDE</application>
       has been updated to 3.1.1a. &merged;</para>
+
+    <para>There is no longer a separate <filename>krb5</filename>
+      distribution.  The Kerberos 5 libraries and utilities have been
+      incorporated into the <filename>crypto</filename>
+      distribution.</para>
 
     <para>&man.sysinstall.8; once again supports installing individual
       components of <application>XFree86</application>.  Supporting
