@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: $
+ * $Id: kbd.c,v 1.1 1999/01/09 02:44:50 yokota Exp $
  */
 
 #include "kbd.h"
@@ -51,16 +51,19 @@
  * for the kernel console.  The arrays will be increased dynamically
  * when necessary.
  */
-static keyboard_t	*kbd_ini;
-static keyboard_switch_t *kbdsw_ini;
-static struct cdevsw	*kbdcdevsw_ini;
 
-static keyboard_t	**keyboard = &kbd_ini;
 static int		keyboards = 1;
+static keyboard_t	*kbd_ini;
+static keyboard_t	**keyboard = &kbd_ini;
+static keyboard_switch_t *kbdsw_ini;
        keyboard_switch_t **kbdsw = &kbdsw_ini;
-static struct cdevsw	**kbdcdevsw = &kbdcdevsw_ini;
+
+#ifdef KBD_INSTALL_CDEV
 
 #define ARRAY_DELTA	4
+
+static struct cdevsw	*kbdcdevsw_ini;
+static struct cdevsw	**kbdcdevsw = &kbdcdevsw_ini;
 
 static void
 kbd_realloc_array(void)
@@ -96,6 +99,8 @@ kbd_realloc_array(void)
 	if (bootverbose)
 		printf("kbd: new array size %d\n", keyboards);
 }
+
+#endif /* KBD_INSTALL_CDEV */
 
 /*
  * Low-level keyboard driver functions
