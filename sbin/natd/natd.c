@@ -254,16 +254,21 @@ int main (int argc, char** argv)
 			Quit ("Unable to bind outgoing divert socket.");
 	}
 /*
- * Create routing socket if interface name specified.
+ * Create routing socket if interface name specified and in dynamic mode.
  */
-	if (ifName && dynamicMode) {
+	routeSock = -1;
+	if (ifName) {
+		if (dynamicMode) {
 
-		routeSock = socket (PF_ROUTE, SOCK_RAW, 0);
-		if (routeSock == -1)
-			Quit ("Unable to create routing info socket.");
+			routeSock = socket (PF_ROUTE, SOCK_RAW, 0);
+			if (routeSock == -1)
+				Quit ("Unable to create routing info socket.");
+
+			assignAliasAddr = 1;
+		}
+		else
+			SetAliasAddressFromIfName (ifName);
 	}
-	else
-		routeSock = -1;
 /*
  * Create socket for sending ICMP messages.
  */
@@ -707,7 +712,6 @@ static void SetAliasAddressFromIfName (char* ifn)
 {
 	struct ifconf		cf;
 	struct ifreq		buf[32];
-	char			msg[80];
 	struct ifreq*		ifPtr;
 	int			extra;
 	int			helperSock;
@@ -720,22 +724,16 @@ static void SetAliasAddressFromIfName (char* ifn)
  * Create a dummy socket to access interface information.
  */
 	helperSock = socket (AF_INET, SOCK_DGRAM, 0);
-	if (helperSock == -1) {
-
+	if (helperSock == -1)
 		Quit ("Failed to create helper socket.");
-		exit (1);
-	}
 
 	cf.ifc_len = sizeof (buf);
 	cf.ifc_req = buf;
 /*
  * Get interface data.
  */
-	if (ioctl (helperSock, SIOCGIFCONF, &cf) == -1) {
-
+	if (ioctl (helperSock, SIOCGIFCONF, &cf) == -1)
 		Quit ("Ioctl SIOCGIFCONF failed.");
-		exit (1);
-	}
 
 	ifIndex	= 0;
 	ifPtr	= buf;
@@ -775,8 +773,7 @@ static void SetAliasAddressFromIfName (char* ifn)
 	if (!found) {
 
 		close (helperSock);
-		sprintf (msg, "Unknown interface name %s.\n", ifn);
-		Quit (msg);
+		errx (1, "Unknown interface name %s.\n", ifn);
 	}
 /*
  * Get MTU size.
@@ -1209,7 +1206,6 @@ static void ParseOption (const char* option, const char* parms, int cmdLine)
 			free (ifName);
 
 		ifName = strdup (strValue);
-		assignAliasAddr = 1;
 		break;
 
 	case ConfigFile:
