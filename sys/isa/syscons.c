@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.237 1997/11/07 08:52:42 phk Exp $
+ *  $Id: syscons.c,v 1.238 1997/11/07 09:20:32 phk Exp $
  */
 
 #include "sc.h"
@@ -87,6 +87,9 @@
 #define COLD 0
 #define WARM 1
 
+#define MODE_MAP_SIZE		(M_VGA_CG320 + 1)
+#define MODE_PARAM_SIZE		64
+
 /* XXX use sc_bcopy where video memory is concerned */
 #define sc_bcopy generic_bcopy
 extern void generic_bcopy(const void *, void *, size_t);
@@ -145,7 +148,10 @@ extern
 #endif
 	unsigned char	font_16[256*16];
 	char        	palette[256*3];
-static  char		vgaregs[64];
+static  char		*mode_map[MODE_MAP_SIZE];
+static  char		vgaregs[MODE_PARAM_SIZE];
+static  char		vgaregs2[MODE_PARAM_SIZE];
+static  int		rows_offset = 1;
 static	char 		*cut_buffer;
 static  u_short 	mouse_and_mask[16] = {
 				0xc000, 0xe000, 0xf000, 0xf800,
@@ -204,6 +210,9 @@ static int sckbdprobe(int unit, int flags);
 static void scstart(struct tty *tp);
 static void scmousestart(struct tty *tp);
 static void scinit(void);
+static void map_mode_table(char *map[], char *table, int max);
+static u_char map_mode_num(u_char mode);
+static char *get_mode_param(scr_stat *scp, u_char mode);
 static u_int scgetc(u_int flags);
 #define SCGETC_CN	1
 #define SCGETC_NONBLOCK	2
@@ -230,10 +239,14 @@ static void set_keyboard(int command, int data);
 static void update_leds(int which);
 static void set_vgaregs(char *modetable);
 static void read_vgaregs(char *buf);
+#define COMP_IDENTICAL	0
+#define COMP_SIMILAR	1
+#define COMP_DIFFERENT	2
 static int comp_vgaregs(u_char *buf1, u_char *buf2);
 static void dump_vgaregs(u_char *buf);
-static void set_font_mode(void);
-static void set_normal_mode(void);
+#define PARAM_BUFSIZE	6
+static void set_font_mode(u_char *buf);
+static void set_normal_mode(u_char *buf);
 static void set_destructive_cursor(scr_stat *scp);
 static void set_mouse_pos(scr_stat *scp);
 static void mouse_cut_start(scr_stat *scp);
@@ -443,7 +456,7 @@ scvidprobe(int unit, int flags)
 	if (ISMAPPED(pa, sizeof(u_long))) {
 	    segoff = *(u_long *)pa_to_va(pa);
 	    pa = (((segoff & 0xffff0000) >> 12) + (segoff & 0xffff));
-	    if (ISMAPPED(pa, 64))
+	    if (ISMAPPED(pa, MODE_PARAM_SIZE))
 		video_mode_ptr = (char *)pa_to_va(pa);
 	}
     }
@@ -623,6 +636,7 @@ scattach(struct isa_device *dev)
 {
     scr_stat *scp;
     dev_t cdev = makedev(CDEV_MAJOR, 0);
+    char *p;
 #ifdef DEVFS
     int vc;
 #endif
@@ -667,18 +681,26 @@ scattach(struct isa_device *dev)
 
     update_leds(scp->status);
 
-    if (bootverbose) {
+    if ((crtc_type == KD_VGA) && bootverbose) {
         printf("sc%d: BIOS video mode:%d\n", 
 	    dev->id_unit, *(u_char *)pa_to_va(0x449));
         printf("sc%d: VGA registers upon power-up\n", dev->id_unit);
         dump_vgaregs(vgaregs);
         printf("sc%d: video mode:%d\n", dev->id_unit, scp->mode);
-        if (video_mode_ptr != NULL) {
-            printf("sc%d: VGA registers for mode:%d\n", 
+        printf("sc%d: VGA registers in BIOS for mode:%d\n", 
 		dev->id_unit, scp->mode);
-            dump_vgaregs(video_mode_ptr + (64*scp->mode));
+        dump_vgaregs(vgaregs2);
+	p = get_mode_param(scp, scp->mode);
+        if (p != NULL) {
+            printf("sc%d: VGA registers to be used for mode:%d\n", 
+		dev->id_unit, scp->mode);
+            dump_vgaregs(p);
         }
+        printf("sc%d: rows_offset:%d\n", dev->id_unit, rows_offset);
     }
+    if ((crtc_type == KD_VGA) && (video_mode_ptr == NULL))
+        printf("sc%d: WARNING: video mode switching is only partially supported\n",
+	        dev->id_unit); 
 
     printf("sc%d: ", dev->id_unit);
     switch(crtc_type) {
@@ -907,6 +929,7 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
     struct tty *tp;
     scr_stat *scp;
     u_short *usp;
+    char *mp;
 
     tp = scdevtotty(dev);
     if (!tp)
@@ -1178,8 +1201,12 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
     case SW_ENH_B80x43: case SW_ENH_C80x43:
     case SW_EGAMONO80x25:
 
-	if (!crtc_vga || video_mode_ptr == NULL)
-	    return ENXIO;
+	if (!crtc_vga)
+ 	    return ENODEV;
+ 	mp = get_mode_param(scp, cmd & 0xff);
+ 	if (mp == NULL)
+ 	    return ENODEV;
+ 
 	if (scp->history != NULL)
 	    i = imax(scp->history_size / scp->xsize 
 		     - imax(SC_HISTORY_SIZE, scp->ysize), 0);
@@ -1215,9 +1242,8 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	default:
 	    if ((cmd & 0xff) > M_VGA_CG320)
 		return EINVAL;
-	    else
-		scp->xsize = *(video_mode_ptr+((cmd&0xff)*64));
-		scp->ysize = *(video_mode_ptr+((cmd&0xff)*64)+1)+1;
+            scp->xsize = mp[0];
+            scp->ysize = mp[1] + rows_offset;
 	    break;
 	}
 	scp->mode = cmd & 0xff;
@@ -1249,6 +1275,7 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	    set_mode(scp);
 	scp->status &= ~UNKNOWN_MODE;
 	clear_screen(scp);
+
 	if (tp->t_winsize.ws_col != scp->xsize
 	    || tp->t_winsize.ws_row != scp->ysize) {
 	    tp->t_winsize.ws_col = scp->xsize;
@@ -1263,12 +1290,15 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
     case SW_CG640x350: case SW_ENH_CG640:
     case SW_BG640x480: case SW_CG640x480: case SW_VGA_CG320:
 
-	if (!crtc_vga || video_mode_ptr == NULL)
-	    return ENXIO;
+	if (!crtc_vga)
+	    return ENODEV;
+	mp = get_mode_param(scp, cmd & 0xff);
+	if (mp == NULL)
+	    return ENODEV;
+
 	scp->mode = cmd & 0xFF;
-	scp->xpixel = (*(video_mode_ptr + (scp->mode*64))) * 8;
-	scp->ypixel = (*(video_mode_ptr + (scp->mode*64) + 1) + 1) *
-		     (*(video_mode_ptr + (scp->mode*64) + 2));
+	scp->xpixel = mp[0] * 8;
+	scp->ypixel = (mp[1] + rows_offset) * mp[2];
 	if (scp == cur_console)
 	    set_mode(scp);
 	scp->status |= UNKNOWN_MODE;    /* graphics mode */
@@ -1283,8 +1313,12 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	return 0;
 
     case SW_VGA_MODEX:
-	if (!crtc_vga || video_mode_ptr == NULL)
-	    return ENXIO;
+	if (!crtc_vga)
+	    return ENODEV;
+	mp = get_mode_param(scp, cmd & 0xff);
+	if (mp == NULL)
+	    return ENODEV;
+
 	scp->mode = cmd & 0xFF;
 	if (scp == cur_console)
 	    set_mode(scp);
@@ -1420,7 +1454,7 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 
 	case KD_TEXT1:  	/* switch to TEXT (known) mode */
 	    /* no restore fonts & palette */
-	    if (crtc_vga && video_mode_ptr)
+	    if (crtc_vga)
 		set_mode(scp);
 	    scp->status &= ~UNKNOWN_MODE;
 	    clear_screen(scp);
@@ -2051,7 +2085,7 @@ exchange_scr(void)
     move_crsr(old_scp, old_scp->xpos, old_scp->ypos);
     cur_console = new_scp;
     if (old_scp->mode != new_scp->mode || (old_scp->status & UNKNOWN_MODE)){
-	if (crtc_vga && video_mode_ptr)
+	if (crtc_vga)
 	    set_mode(new_scp);
     }
     move_crsr(new_scp, new_scp->xpos, new_scp->ypos);
@@ -2783,8 +2817,36 @@ scinit(void)
 
     /* discard the video mode table if we are not familiar with it... */
     if (video_mode_ptr) {
-        if (comp_vgaregs(vgaregs, video_mode_ptr + 64*console[0]->mode)) 
+        bzero(mode_map, sizeof(mode_map));
+	bcopy(video_mode_ptr + MODE_PARAM_SIZE*console[0]->mode, 
+	      vgaregs2, sizeof(vgaregs2));
+        switch (comp_vgaregs(vgaregs, video_mode_ptr 
+                    + MODE_PARAM_SIZE*console[0]->mode)) {
+        case COMP_IDENTICAL:
+            map_mode_table(mode_map, video_mode_ptr, M_VGA_CG320 + 1);
+            /* 
+             * This is a kludge for Toshiba DynaBook SS433 whose BIOS video
+             * mode table entry has the actual # of rows at the offset 1; 
+	     * BIOSes from other manufacturers store the # of rows - 1 there. 
+	     * XXX
+             */
+	    rows_offset = vgaregs[1] + 1 
+		- video_mode_ptr[MODE_PARAM_SIZE*console[0]->mode + 1];
+            break;
+        case COMP_SIMILAR:
+            map_mode_table(mode_map, video_mode_ptr, M_VGA_CG320 + 1);
+            mode_map[console[0]->mode] = vgaregs;
+	    rows_offset = vgaregs[1] + 1 
+		- video_mode_ptr[MODE_PARAM_SIZE*console[0]->mode + 1];
+            vgaregs[1] -= rows_offset - 1;
+            break;
+        case COMP_DIFFERENT:
+        default:
             video_mode_ptr = NULL;
+            mode_map[console[0]->mode] = vgaregs;
+	    rows_offset = 1;
+            break;
+        }
     }
 
     /* copy screen to temporary buffer */
@@ -2831,6 +2893,54 @@ scinit(void)
 #endif
 }
 
+static void
+map_mode_table(char *map[], char *table, int max)
+{
+    int i;
+
+    for(i = 0; i < max; ++i)
+	map[i] = table + i*MODE_PARAM_SIZE;
+    for(; i < MODE_MAP_SIZE; ++i)
+	map[i] = NULL;
+}
+
+static u_char
+map_mode_num(u_char mode)
+{
+    static struct {
+        u_char from;
+        u_char to;
+    } mode_map[] = {
+        { M_ENH_B80x43, M_ENH_B80x25 },
+        { M_ENH_C80x43, M_ENH_C80x25 },
+        { M_VGA_M80x30, M_VGA_M80x25 },
+        { M_VGA_C80x30, M_VGA_C80x25 },
+        { M_VGA_M80x50, M_VGA_M80x25 },
+        { M_VGA_C80x50, M_VGA_C80x25 },
+        { M_VGA_M80x60, M_VGA_M80x25 },
+        { M_VGA_C80x60, M_VGA_C80x25 },
+        { M_VGA_MODEX,  M_VGA_CG320 },
+    };
+    int i;
+
+    for (i = 0; i < sizeof(mode_map)/sizeof(mode_map[0]); ++i) {
+        if (mode_map[i].from == mode)
+            return mode_map[i].to;
+    }
+    return mode;
+}
+
+static char 
+*get_mode_param(scr_stat *scp, u_char mode)
+{
+    if (mode >= MODE_MAP_SIZE)
+	mode = map_mode_num(mode);
+    if (mode < MODE_MAP_SIZE)
+	return mode_map[mode];
+    else
+	return NULL;
+}
+
 static scr_stat
 *alloc_scp()
 {
@@ -2871,6 +2981,7 @@ init_scp(scr_stat *scp)
 	    scp->mode = M_B80x25;
 	else
 	    scp->mode = M_C80x25;
+    scp->initial_mode = scp->mode;
 
     scp->font_size = 16;
     scp->xsize = COL;
@@ -3517,32 +3628,30 @@ update_leds(int which)
 void
 set_mode(scr_stat *scp)
 {
-    char *modetable;
-    char special_modetable[64];
+    char special_modetable[MODE_PARAM_SIZE];
+    char *mp;
 
     if (scp != cur_console)
 	return;
 
+    /* 
+     * even if mode switching is disabled, we can change back
+     * to the initial mode or the custom mode based on the initial
+     * mode if we have saved register values upon start-up.
+     */
+    mp = get_mode_param(scp, scp->mode);
+    if (mp == NULL)
+	return;
+    bcopy(mp, &special_modetable, sizeof(special_modetable));
+
     /* setup video hardware for the given mode */
     switch (scp->mode) {
-    case M_VGA_M80x60:
-	bcopy(video_mode_ptr+(64*M_VGA_M80x25), &special_modetable, 64);
-	goto special_80x60;
-
-    case M_VGA_C80x60:
-	bcopy(video_mode_ptr+(64*M_VGA_C80x25), &special_modetable, 64);
-special_80x60:
+    case M_VGA_C80x60: case M_VGA_M80x60:
 	special_modetable[2]  = 0x08;
 	special_modetable[19] = 0x47;
 	goto special_480l;
 
-    case M_VGA_M80x30:
-	bcopy(video_mode_ptr+(64*M_VGA_M80x25), &special_modetable, 64);
-	goto special_80x30;
-
-    case M_VGA_C80x30:
-	bcopy(video_mode_ptr+(64*M_VGA_C80x25), &special_modetable, 64);
-special_80x30:
+    case M_VGA_C80x30: case M_VGA_M80x30:
 	special_modetable[19] = 0x4f;
 special_480l:
 	special_modetable[9] |= 0xc0;
@@ -3552,29 +3661,16 @@ special_480l:
 	special_modetable[28] = 0xdf;
 	special_modetable[31] = 0xe7;
 	special_modetable[32] = 0x04;
-	modetable = special_modetable;
 	goto setup_mode;
 
-    case M_ENH_B80x43:
-	bcopy(video_mode_ptr+(64*M_ENH_B80x25), &special_modetable, 64);
-	goto special_80x43;
-
-    case M_ENH_C80x43:
-	bcopy(video_mode_ptr+(64*M_ENH_C80x25), &special_modetable, 64);
-special_80x43:
+    case M_ENH_C80x43: case M_ENH_B80x43:
 	special_modetable[28] = 87;
 	goto special_80x50;
 
-    case M_VGA_M80x50:
-	bcopy(video_mode_ptr+(64*M_VGA_M80x25), &special_modetable, 64);
-	goto special_80x50;
-
-    case M_VGA_C80x50:
-	bcopy(video_mode_ptr+(64*M_VGA_C80x25), &special_modetable, 64);
+    case M_VGA_C80x50: case M_VGA_M80x50:
 special_80x50:
 	special_modetable[2] = 8;
 	special_modetable[19] = 7;
-	modetable = special_modetable;
 	goto setup_mode;
 
     case M_VGA_C40x25: case M_VGA_C80x25:
@@ -3585,10 +3681,9 @@ special_80x50:
     case M_ENH_B80x25: case M_ENH_C80x25:
     case M_EGAMONO80x25:
 
-	modetable = video_mode_ptr + (scp->mode * 64);
 setup_mode:
-	set_vgaregs(modetable);
-	scp->font_size = *(modetable + 2);
+	set_vgaregs(special_modetable);
+	scp->font_size = special_modetable[2];
 
 	/* set font type (size) */
 	if (scp->font_size < 14) {
@@ -3610,8 +3705,6 @@ setup_mode:
 	break;
 
     case M_VGA_MODEX:
-	/* start out with std 320x200x256 mode */
-	bcopy(video_mode_ptr+(64*M_VGA_CG320), &special_modetable, 64);
 	/* "unchain" the VGA mode */
 	special_modetable[5-1+0x04] &= 0xf7;
 	special_modetable[5-1+0x04] |= 0x04;
@@ -3632,17 +3725,15 @@ setup_mode:
 	special_modetable[10+0x16] = 0x06;
 	/* set vertical sync polarity to reflect aspect ratio */
 	special_modetable[9] = 0xe3;
-
-	modetable = special_modetable;
 	goto setup_grmode;
 
     case M_BG320:     case M_CG320:     case M_BG640:
     case M_CG320_D:   case M_CG640_E:
     case M_CG640x350: case M_ENH_CG640:
     case M_BG640x480: case M_CG640x480: case M_VGA_CG320:
-	modetable = video_mode_ptr + (scp->mode * 64);
+
 setup_grmode:
-	set_vgaregs(modetable);
+	set_vgaregs(special_modetable);
 	scp->font_size = FONT_NONE;
 	break;
 
@@ -3717,7 +3808,7 @@ read_vgaregs(char *buf)
     int i, j;
     int s;
 
-    bzero(buf, 64);
+    bzero(buf, MODE_PARAM_SIZE);
 
     s = splhigh();
 
@@ -3758,25 +3849,57 @@ read_vgaregs(char *buf)
 static int 
 comp_vgaregs(u_char *buf1, u_char *buf2)
 {
+    static struct {
+        u_char mask;
+    } params[MODE_PARAM_SIZE] = {
+	0xff, 0x00, 0xff, 		/* COLS, ROWS, POINTS */
+	0xff, 0xff, 			/* page length */
+	0xfe, 0xff, 0xff, 0xff,		/* sequencer registers */
+	0xf3,				/* misc register */
+	0xff, 0xff, 0xff, 0x7f, 0xff,	/* CRTC */
+	0xff, 0xff, 0xff, 0x7f, 0xff,
+	0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0xff, 0x7f, 0xff, 0xff,
+	0x7f, 0xff, 0xff, 0xef, 0xff,
+	0xff, 0xff, 0xff, 0xff, 0xff,	/* attribute controller registers */
+	0xff, 0xff, 0xff, 0xff, 0xff,
+	0xff, 0xff, 0xff, 0xff, 0xff,
+	0xff, 0xff, 0xff, 0xff, 0xf0,
+	0xff, 0xff, 0xff, 0xff, 0xff,	/* GDC register */
+	0xff, 0xff, 0xff, 0xff, 
+    }; 
+    int identical = TRUE;
     int i;
 
+    for (i = 0; i < sizeof(params)/sizeof(params[0]); ++i) {
+	if (params[i].mask == 0)	/* don't care */
+	    continue;
+	if ((buf1[i] & params[i].mask) != (buf2[i] & params[i].mask))
+	    return COMP_DIFFERENT;
+	if (buf1[i] != buf2[i])
+	    identical = FALSE;
+    }
+    return (identical) ? COMP_IDENTICAL : COMP_SIMILAR;
+
+#if 0
     for(i = 0; i < 20; ++i) {
 	if (*buf1++ != *buf2++)
-	    return 1;
+	    return COMP_DIFFERENT;
     }
     buf1 += 2;  /* skip the cursor shape */
     buf2 += 2;
     for(i = 22; i < 24; ++i) {
 	if (*buf1++ != *buf2++)
-	    return 1;
+	    return COMP_DIFFERENT;
     }
     buf1 += 2;  /* skip the cursor position */
     buf2 += 2;
-    for(i = 26; i < 64; ++i) {
+    for(i = 26; i < MODE_PARAM_SIZE; ++i) {
 	if (*buf1++ != *buf2++)
-	    return 1;
+	    return COMP_DIFFERENT;
     }
-    return 0;
+    return COMP_IDENTICAL;
+#endif
 }
 
 static void
@@ -3784,7 +3907,7 @@ dump_vgaregs(u_char *buf)
 {
     int i;
 
-    for(i = 0; i < 64;) {
+    for(i = 0; i < MODE_PARAM_SIZE;) {
 	printf("%02x ", buf[i]);
 	if ((++i % 16) == 0)
 	    printf("\n");
@@ -3792,9 +3915,18 @@ dump_vgaregs(u_char *buf)
 }
 
 static void
-set_font_mode()
+set_font_mode(u_char *buf)
 {
     int s = splhigh();
+
+    /* save register values */
+    outb(TSIDX, 0x02); buf[0] = inb(TSREG);
+    outb(TSIDX, 0x04); buf[1] = inb(TSREG);
+    outb(GDCIDX, 0x04); buf[2] = inb(GDCREG);
+    outb(GDCIDX, 0x05); buf[3] = inb(GDCREG);
+    outb(GDCIDX, 0x06); buf[4] = inb(GDCREG);
+    inb(crtc_addr + 6);
+    outb(ATC, 0x10); buf[5] = inb(ATC + 1);
 
     /* setup vga for loading fonts (graphics plane mode) */
     inb(crtc_addr+6);           		/* reset flip-flop */
@@ -3819,80 +3951,36 @@ set_font_mode()
 }
 
 static void
-set_normal_mode()
+set_normal_mode(u_char *buf)
 {
     char *modetable;
     int s = splhigh();
 
-    switch (cur_console->mode) {
-    case M_VGA_M80x60:
-    case M_VGA_M80x50:
-    case M_VGA_M80x30:
-	modetable = video_mode_ptr + (64*M_VGA_M80x25);
-	break;
-
-    case M_VGA_C80x60:
-    case M_VGA_C80x50:
-    case M_VGA_C80x30:
-	modetable = video_mode_ptr + (64*M_VGA_C80x25);
-	break;
-
-    case M_ENH_B80x43:
-	modetable = video_mode_ptr + (64*M_ENH_B80x25);
-	break;
-
-    case M_ENH_C80x43:
-	modetable = video_mode_ptr + (64*M_ENH_C80x25);
-	break;
-
-    case M_VGA_C40x25: case M_VGA_C80x25:
-    case M_VGA_M80x25:
-    case M_B40x25:     case M_C40x25:
-    case M_B80x25:     case M_C80x25:
-    case M_ENH_B40x25: case M_ENH_C40x25:
-    case M_ENH_B80x25: case M_ENH_C80x25:
-    case M_EGAMONO80x25:
-
-    case M_BG320:     case M_CG320:     case M_BG640:
-    case M_CG320_D:   case M_CG640_E:
-    case M_CG640x350: case M_ENH_CG640:
-    case M_BG640x480: case M_CG640x480: case M_VGA_CG320:
-	modetable = video_mode_ptr + (cur_console->mode * 64);
-	break;
-
-    default:
-	modetable = video_mode_ptr + (64*M_VGA_C80x25);
-    }
-
-    if (video_mode_ptr == NULL)
-	modetable = vgaregs;
-
     /* setup vga for normal operation mode again */
     inb(crtc_addr+6);           		/* reset flip-flop */
-    outb(ATC, 0x10); outb(ATC, modetable[0x10+35]);
+    outb(ATC, 0x10); outb(ATC, buf[5]);
     inb(crtc_addr+6);               		/* reset flip-flop */
     outb(ATC, 0x20);            		/* enable palette */
+
 #if SLOW_VGA
-    outb(TSIDX, 0x02); outb(TSREG, modetable[0x02+4]);
-    outb(TSIDX, 0x04); outb(TSREG, modetable[0x04+4]);
-    outb(GDCIDX, 0x04); outb(GDCREG, modetable[0x04+55]);
-    outb(GDCIDX, 0x05); outb(GDCREG, modetable[0x05+55]);
-    outb(GDCIDX, 0x06); outb(GDCREG, modetable[0x06+55]);
+    outb(TSIDX, 0x02); outb(TSREG, buf[0]);
+    outb(TSIDX, 0x04); outb(TSREG, buf[1]);
+    outb(GDCIDX, 0x04); outb(GDCREG, buf[2]);
+    outb(GDCIDX, 0x05); outb(GDCREG, buf[3]);
     if (crtc_addr == MONO_BASE) {
-	outb(GDCIDX, 0x06); outb(GDCREG,(modetable[0x06+55] & 0x03) | 0x08);
-    }
-    else {
-	outb(GDCIDX, 0x06); outb(GDCREG,(modetable[0x06+55] & 0x03) | 0x0c);
+	outb(GDCIDX, 0x06); outb(GDCREG,(buf[4] & 0x03) | 0x08);
+    } else {
+	outb(GDCIDX, 0x06); outb(GDCREG,(buf[4] & 0x03) | 0x0c);
     }
 #else
-    outw(TSIDX, 0x0002 | (modetable[0x02+4]<<8));
-    outw(TSIDX, 0x0004 | (modetable[0x04+4]<<8));
-    outw(GDCIDX, 0x0004 | (modetable[0x04+55]<<8));
-    outw(GDCIDX, 0x0005 | (modetable[0x05+55]<<8));
+    outw(TSIDX, 0x0002 | (buf[0] << 8));
+    outw(TSIDX, 0x0004 | (buf[1] << 8));
+    outw(GDCIDX, 0x0004 | (buf[2] << 8));
+    outw(GDCIDX, 0x0005 | (buf[3] << 8));
     if (crtc_addr == MONO_BASE)
-        outw(GDCIDX, 0x0006 | (((modetable[0x06+55] & 0x03) | 0x08)<<8));
+        outw(GDCIDX, 0x0006 | (((buf[4] & 0x03) | 0x08)<<8));
     else
-        outw(GDCIDX, 0x0006 | (((modetable[0x06+55] & 0x03) | 0x0c)<<8));
+        outw(GDCIDX, 0x0006 | (((buf[4] & 0x03) | 0x0c)<<8));
 #endif
     splx(s);
 }
@@ -3901,11 +3989,8 @@ void
 copy_font(int operation, int font_type, char* font_image)
 {
     int ch, line, segment, fontsize;
+    u_char buf[PARAM_BUFSIZE];
     u_char val;
-
-    /* dont mess with console we dont know video mode on */
-    if (cur_console->status & UNKNOWN_MODE)
-	return;
 
     switch (font_type) {
     default:
@@ -3924,7 +4009,7 @@ copy_font(int operation, int font_type, char* font_image)
     }
     outb(TSIDX, 0x01); val = inb(TSREG);        /* disable screen */
     outb(TSIDX, 0x01); outb(TSREG, val | 0x20);
-    set_font_mode();
+    set_font_mode(buf);
     for (ch=0; ch < 256; ch++)
 	for (line=0; line < fontsize; line++)
 	if (operation)
@@ -3933,18 +4018,18 @@ copy_font(int operation, int font_type, char* font_image)
 	else
 	    font_image[(ch*fontsize)+line] =
 	    *(char *)pa_to_va(VIDEOMEM+(segment)+(ch*32)+line);
-    set_normal_mode();
+    set_normal_mode(buf);
     outb(TSIDX, 0x01); outb(TSREG, val & 0xDF); /* enable screen */
 }
 
 static void
 set_destructive_cursor(scr_stat *scp)
 {
+    u_char buf[PARAM_BUFSIZE];
     u_char cursor[32];
     caddr_t address;
     int i;
     char *font_buffer;
-
 
     if (scp->font_size < 14) {
 	font_buffer = font_8;
@@ -3982,9 +4067,9 @@ set_destructive_cursor(scr_stat *scp)
 #if 1
     while (!(inb(crtc_addr+6) & 0x08)) /* wait for vertical retrace */ ;
 #endif
-    set_font_mode();
+    set_font_mode(buf);
     sc_bcopy(cursor, (char *)pa_to_va(address) + DEAD_CHAR * 32, 32);
-    set_normal_mode();
+    set_normal_mode(buf);
 }
 
 static void
@@ -4090,6 +4175,7 @@ draw_mouse_image(scr_stat *scp)
     caddr_t address;
     int i;
     char *font_buffer;
+    u_char buf[PARAM_BUFSIZE];
     u_short buffer[32];
     u_short xoffset, yoffset;
     u_short *crt_pos = Crtat + (scp->mouse_pos - scp->scr_buf);
@@ -4139,13 +4225,13 @@ draw_mouse_image(scr_stat *scp)
 
     scp->mouse_oldpos = scp->mouse_pos;
 
-    /* wait for vertical retrace to avoid jitter on some videocards */
 #if 1
+    /* wait for vertical retrace to avoid jitter on some videocards */
     while (!(inb(crtc_addr+6) & 0x08)) /* idle */ ;
 #endif
-    set_font_mode();
+    set_font_mode(buf);
     sc_bcopy(scp->mouse_cursor, (char *)pa_to_va(address) + 0xd0 * 32, 128);
-    set_normal_mode();
+    set_normal_mode(buf);
     *(crt_pos) = (*(scp->mouse_pos)&0xff00)|0xd0;
     *(crt_pos+scp->xsize) = (*(scp->mouse_pos+scp->xsize)&0xff00)|0xd2;
     if (scp->mouse_xpos < (scp->xsize-1)*8) {
