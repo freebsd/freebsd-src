@@ -230,7 +230,7 @@ SRCS+=	v3_akey.c v3_alt.c v3_bcons.c v3_bitst.c v3_conf.c v3_cpols.c \
 	v3_sxnet.c v3_utl.c v3err.c
 
 POD1+=	apps/CA.pl.pod apps/asn1parse.pod apps/ca.pod \
-	apps/ciphers.pod apps/config.pod apps/crl.pod \
+	apps/ciphers.pod apps/crl.pod \
 	apps/crl2pkcs7.pod apps/dgst.pod apps/dhparam.pod apps/dsa.pod \
 	apps/dsaparam.pod apps/enc.pod apps/gendsa.pod apps/genrsa.pod \
 	apps/nseq.pod apps/openssl.pod apps/passwd.pod apps/pkcs12.pod \
@@ -305,6 +305,7 @@ POD3+=	ssl/SSL_CIPHER_get_name.pod \
 	ssl/SSL_CTX_sess_set_cache_size.pod ssl/SSL_CTX_sess_set_get_cb.pod \
 	ssl/SSL_CTX_sessions.pod ssl/SSL_CTX_set_cipher_list.pod \
 	ssl/SSL_CTX_set_client_CA_list.pod \
+	ssl/SSL_CTX_set_client_cert_cb.pod \
 	ssl/SSL_CTX_set_default_passwd_cb.pod ssl/SSL_CTX_set_options.pod\
 	ssl/SSL_CTX_set_session_cache_mode.pod \
 	ssl/SSL_CTX_set_session_id_context.pod \
@@ -314,6 +315,7 @@ POD3+=	ssl/SSL_CIPHER_get_name.pod \
 	ssl/SSL_SESSION_get_ex_new_index.pod \
 	ssl/SSL_SESSION_get_time.pod \
 	ssl/SSL_accept.pod ssl/SSL_clear.pod ssl/SSL_connect.pod \
+	ssl/SSL_do_handshake.pod \
 	ssl/SSL_free.pod ssl/SSL_get_ciphers.pod \
 	ssl/SSL_get_client_CA_list.pod ssl/SSL_get_current_cipher.pod \
 	ssl/SSL_get_error.pod ssl/SSL_get_ex_data_X509_STORE_CTX_idx.pod \
@@ -338,8 +340,10 @@ POD3+=	ssl/SSL_CIPHER_get_name.pod \
 	ssl/SSL_session_reused.pod ssl/SSL_state_string.pod \
 	ssl/SSL_want.pod
 
+POD5+=	apps/config.pod
+
 .if defined(WANT_OPENSSL_MANPAGES)
-.for section in 1 3
+.for section in 1 3 5
 .for pod in ${POD${section}}
 .for target in ${pod:T:S/.pod/.${section}/g}
 MAN+= ${target}
