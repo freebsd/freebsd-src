@@ -35,7 +35,7 @@
 .\"	@(#)multibyte.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd October 6, 2002
 .Dt MULTIBYTE 3
 .Os
 .Sh NAME
@@ -191,10 +191,6 @@ bytes are stored in
 Partial multibyte characters at the end of the string are not stored.
 The multibyte character string is null terminated if there is room.
 .Sh "RETURN VALUES
-If multibyte characters are not supported in the current locale,
-all of these functions will return \-1 if characters can be processed,
-otherwise 0.
-.Pp
 If
 .Fa mbchar
 is
@@ -227,9 +223,14 @@ If any invalid multibyte characters are encountered,
 both functions return \-1.
 .Sh "SEE ALSO
 .Xr btowc 3 ,
+.Xr mbrlen 3 ,
+.Xr mbrtowc 3 ,
 .Xr mbrune 3 ,
+.Xr mbsrtowcs 3 ,
 .Xr rune 3 ,
 .Xr setlocale 3 ,
+.Xr wcrtomb 3 ,
+.Xr wcsrtombs 3 ,
 .Xr euc 4 ,
 .Xr utf2 4
 .Sh STANDARDS
