@@ -90,18 +90,21 @@
 
 #define PCIR_IOBASEL_1	0x1c
 #define PCIR_IOLIMITL_1	0x1d
-#define PCIR_IOBASEH_1	0 /**/
-#define PCIR_IOLIMITH_1	0 /**/
+#define PCIR_IOBASEH_1	0x30
+#define PCIR_IOLIMITH_1	0x32
+#define PCIM_BRIO_16		0x0
+#define PCIM_BRIO_32		0x1
+#define PCIM_BRIO_MASK		0xf
 
 #define PCIR_MEMBASE_1	0x20
 #define PCIR_MEMLIMIT_1	0x22
 
 #define PCIR_PMBASEL_1	0x24
 #define PCIR_PMLIMITL_1	0x26
-#define PCIR_PMBASEH_1	0 /**/
-#define PCIR_PMLIMITH_1	0 /**/
+#define PCIR_PMBASEH_1	0x28
+#define PCIR_PMLIMITH_1	0x2c
 
-#define PCIR_BRIDGECTL_1 0 /**/
+#define PCIR_BRIDGECTL_1 0x3e
 
 #define PCIR_SUBVEND_1	0x34
 #define PCIR_SUBDEV_1	0x36
