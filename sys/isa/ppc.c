@@ -26,9 +26,6 @@
  * $FreeBSD$
  *
  */
-#include "ppc.h"
-
-#if NPPC > 0
 
 #include "opt_ppc.h"
 
@@ -2010,4 +2007,3 @@ ppc_teardown_intr(device_t bus, device_t child, struct resource *r, void *ih)
 }
 
 DRIVER_MODULE(ppc, isa, ppc_driver, ppc_devclass, 0, 0);
-#endif
