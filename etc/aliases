@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: aliases,v 1.4 1997/06/29 23:09:07 wosch Exp $
 #	@(#)aliases	5.3 (Berkeley) 5/24/90
 #
 #  Aliases in this file will NOT be expanded in the header from
@@ -16,6 +16,11 @@
 # Basic system aliases -- these MUST be present
 MAILER-DAEMON: postmaster
 postmaster: root
+
+# Common convention aliases 
+abuse:	root
+webmaster:	root
+hostmaster:	root
 
 # General redirections for pseudo accounts
 bin:	root
