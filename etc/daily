@@ -126,7 +126,7 @@ mailq
 if [ -d /var/spool/uucp ]; then
 	echo ""
 	echo "uucp:"
-	uusnap
+	uustat -a
 fi
 
 echo ""
