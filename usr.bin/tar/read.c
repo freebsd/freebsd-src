@@ -27,6 +27,7 @@
 #include "bsdtar_platform.h"
 __FBSDID("$FreeBSD$");
 
+#include <sys/param.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 
@@ -44,6 +45,7 @@ __FBSDID("$FreeBSD$");
 
 #include "bsdtar.h"
 
+static void	cleanup_security(struct bsdtar *);
 static void	list_item_verbose(struct bsdtar *, struct archive_entry *);
 static void	read_archive(struct bsdtar *bsdtar, char mode);
 static int	security_problem(struct bsdtar *, struct archive_entry *);
@@ -184,6 +186,7 @@ read_archive(struct bsdtar *bsdtar, char mode)
 		}
 	}
 	archive_read_finish(a);
+	cleanup_security(bsdtar);
 }
 
 
@@ -285,6 +288,11 @@ list_item_verbose(struct bsdtar *bsdtar, struct archive_entry *entry)
 		safe_fprintf(out, " -> %s", archive_entry_symlink(entry));
 }
 
+struct security {
+	char	*path;
+	size_t	 path_size;
+};
+
 /*
  * Check for a variety of security issues.  Fix what we can here,
  * generate warnings as appropriate, return non-zero to prevent
@@ -293,30 +301,79 @@ list_item_verbose(struct bsdtar *bsdtar, struct archive_entry *entry)
 int
 security_problem(struct bsdtar *bsdtar, struct archive_entry *entry)
 {
-	const char *name, *p;
+	struct stat st;
+	const char *name, *pn;
+	char *p;
+	int r;
 
-	/* Strip leading '/' unless -P is specified. */
+	/* -P option forces us to just accept all pathnames. */
+	if (bsdtar->option_absolute_paths)
+		return (0);
+
+	/* Strip leading '/'. */
 	name = archive_entry_pathname(entry);
-	if (name[0] == '/'  && !bsdtar->option_absolute_paths) {
+	if (name[0] == '/') {
 		/* XXX gtar generates a warning the first time this happens. */
 		name++;
 		archive_entry_set_pathname(entry, name);
 	}
 
 	/* Reject any archive entry with '..' as a path element. */
-	p = name;
-	while (p != NULL && p[0] != '\0') {
-		if (p[0] == '.' && p[1] == '.' &&
-		    (p[2] == '\0' || p[2] == '/')) {
-			bsdtar_warnc(0,"pathname contains ..; skipping %s",
-			    name);
+	pn = name;
+	while (pn != NULL && pn[0] != '\0') {
+		if (pn[0] == '.' && pn[1] == '.' &&
+		    (pn[2] == '\0' || pn[2] == '/')) {
+			bsdtar_warnc(0,"Skipping pathname containing ..");
 			return (1);
 		}
-		while (*p != '/' && *p != '\0')
-			p++;
-		if (*p != '\0')
-			p++;
+		pn = strchr(pn, '/');
+		if (pn != NULL)
+			pn++;
+	}
+
+	/*
+	 * Gaurd against symlink tricks.  Reject any archive entry whose
+	 * destination would be altered by a symlink.
+	 */
+	/* XXX TODO: Make this faster!!! XXX */
+	pn = name;
+	if (bsdtar->security == NULL) {
+		bsdtar->security = malloc(sizeof(*bsdtar->security));
+		bsdtar->security->path_size = MAXPATHLEN + 1;
+		bsdtar->security->path = malloc(bsdtar->security->path_size);
+	}
+	if (strlen(name) >= bsdtar->security->path_size) {
+		free(bsdtar->security->path);
+		while (strlen(name) >= bsdtar->security->path_size)
+			bsdtar->security->path_size *= 2;
+		bsdtar->security->path = malloc(bsdtar->security->path_size);
+	}
+	p = bsdtar->security->path;
+	while (pn != NULL && pn[0] != '\0') {
+		*p++ = *pn++;
+		while (*pn != '\0' && *pn != '/')
+			*p++ = *pn++;
+		p[0] = '\0';
+		r = lstat(bsdtar->security->path, &st);
+		if (r != 0) {
+			if (errno == ENOENT)
+				break;
+		} else if (S_ISLNK(st.st_mode)) {
+			bsdtar_warnc(0,"Cannot extract %s through symlink %s",
+			    name, bsdtar->security->path);
+			return (1);
+		}
 	}
 
 	return (0);
+}
+
+static void
+cleanup_security(struct bsdtar *bsdtar)
+{
+	if (bsdtar->security != NULL) {
+		if (bsdtar->security->path != NULL)
+			free(bsdtar->security->path);
+		free(bsdtar->security);
+	}
 }
