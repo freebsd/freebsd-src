@@ -37,7 +37,7 @@ my %CONFIGS	= (
     'global' => {
 	'LOGDIR'	=> '/home/des/public_html',
 	'OPTIONS'	=> [ '--update', '--verbose' ],
-	'EMAIL'		=> 'des',
+	'EMAIL'		=> 'des+%%arch%%-%%branch%%@freebsd.org',
     },
     # 5-CURRENT tinderbox
     'cueball' => {
@@ -50,7 +50,8 @@ my %CONFIGS	= (
 	    'ia64'	=> [ 'ia64' ],
 	    'sparc64'	=> [ 'sparc64' ],
 	},
-	'ENV'		=> [ 'BOOT2_UFS=UFS1_ONLY' ],
+	'ENV'		=> [ ],
+#	'EMAIL'		=> 'current@freebsd.org,%%arch%%@freebsd.org',
     },
     # 4-STABLE tinderbox
     'triangle' => {
@@ -61,7 +62,8 @@ my %CONFIGS	= (
 	    'alpha'	=> [ 'alpha' ],
 	    'i386'	=> [ 'i386', 'pc98' ],
 	},
-	'ENV'		=> [ ],
+	'ENV'		=> [ 'MAKE_KERBEROS5=YES' ],
+#	'EMAIL'		=> 'stable@freebsd.org,%%arch%%@freebsd.org',
     },
     # Test setup
     '9ball' => {
@@ -204,7 +206,7 @@ sub tinderbox($$$) {
 	$recipient =~ s/\%\%branch\%\%/$branch/gi;
 	$recipient =~ s/\%\%arch\%\%/$arch/gi;
 	$recipient =~ s/\%\%machine\%\%/$machine/gi;
-	report($recipient,
+	report(lc($recipient),
 	    "$branch tinderbox failure on $arch/$machine",
 	    $summary);
     }
