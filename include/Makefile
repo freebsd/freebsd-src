@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.2 (Berkeley) 1/4/94
-#	$Id: Makefile,v 1.75 1998/03/08 21:35:29 jb Exp $
+#	$Id: Makefile,v 1.76 1998/03/28 11:48:14 dufault Exp $
 #
 # Doing a make install builds /usr/include
 #
@@ -58,8 +58,10 @@ SHARED?=	copies
 .if exists (${.CURDIR}/../sys/conf/newvers.sh)
 all:	osreldate.h
 
-osreldate.h:	${.CURDIR}/../sys/conf/newvers.sh
+osreldate.h:	${.CURDIR}/../sys/conf/newvers.sh \
+		${.CURDIR}/../sys/sys/param.h
 	@${ECHO} creating osreldate.h from newvers.sh
+	setvar PARAMFILE ${.CURDIR}/../sys/sys/param.h; \
 	. ${.CURDIR}/../sys/conf/newvers.sh;			\
 	echo "$$COPYRIGHT" > osreldate.h;			\
 	echo \#'undef __FreeBSD_version' >> osreldate.h;	\
