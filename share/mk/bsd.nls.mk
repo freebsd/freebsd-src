@@ -29,6 +29,8 @@
 #
 # bsd.obj.mk: cleandir and obj
 
+.include <bsd.init.mk>
+
 GENCAT?=	gencat -new
 
 NLSDIR?=        ${SHAREDIR}/nls
@@ -38,8 +40,6 @@ NLSOWN?=        ${SHAREOWN}
 
 NLS?=
 NLSLINKS=
-
-.MAIN:		all
 
 .SUFFIXES: .cat .msg
 
