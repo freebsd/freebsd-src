@@ -32,53 +32,108 @@
  * $FreeBSD$
  */
 
-
 #include <sys/param.h>
-#include <sys/stdint.h>
 #ifndef _KERNEL
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
 #include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <err.h>
 #else
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/conf.h>
-#include <sys/bio.h>
 #include <sys/malloc.h>
+#include <sys/bio.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #endif
-#include <sys/stdint.h>
+
+#include <sys/diskpc98.h>
 #include <geom/geom.h>
 #include <geom/geom_slice.h>
-#include <machine/endian.h>
 
 #define PC98_CLASS_NAME "PC98"
 
+static void
+g_dec_dos_partition(u_char *ptr, struct dos_partition *d)
+{
+	int i;
+
+	d->dp_mid = ptr[0];
+	d->dp_sid = ptr[1];
+	d->dp_dum1 = ptr[2];
+	d->dp_dum2 = ptr[3];
+	d->dp_ipl_sct = ptr[4];
+	d->dp_ipl_head = ptr[5];
+	d->dp_ipl_cyl = g_dec_le2(ptr + 6);
+	d->dp_ssect = ptr[8];
+	d->dp_shd = ptr[9];
+	d->dp_scyl = g_dec_le2(ptr + 10);
+	d->dp_esect = ptr[12];
+	d->dp_ehd = ptr[13];
+	d->dp_ecyl = g_dec_le2(ptr + 14);
+	for (i = 0; i < sizeof(d->dp_name); i++)
+		d->dp_name[i] = ptr[16 + i];
+}
+
 struct g_pc98_softc {
-	int foo;
+	int type [NDOSPART];
+	struct dos_partition dospart[NDOSPART];
 };
 
 static int
 g_pc98_start(struct bio *bp)
 {
+	struct g_provider *pp;
 	struct g_geom *gp;
-	struct g_pc98_softc *ms;
+	struct g_pc98_softc *mp;
 	struct g_slicer *gsp;
+	int index;
 
-	gp = bp->bio_to->geom;
+	pp = bp->bio_to;
+	index = pp->index;
+	gp = pp->geom;
 	gsp = gp->softc;
-	ms = gsp->softc;
+	mp = gsp->softc;
+	if (bp->bio_cmd == BIO_GETATTR) {
+		if (g_handleattr_int(bp, "PC98::type", mp->type[index]))
+			return (1);
+		if (g_handleattr_off_t(bp, "PC98::offset",
+				       gsp->slices[index].offset))
+			return (1);
+	}
 	return (0);
 }
 
 static void
-g_pc98_dumpconf(struct sbuf *sb, char *indent, struct g_geom *gp, struct g_consumer *cp __unused, struct g_provider *pp)
+g_pc98_dumpconf(struct sbuf *sb, char *indent, struct g_geom *gp,
+		struct g_consumer *cp __unused, struct g_provider *pp)
+{
+	struct g_pc98_softc *mp;
+	struct g_slicer *gsp;
+
+	gsp = gp->softc;
+	mp = gsp->softc;
+	g_slice_dumpconf(sb, indent, gp, cp, pp);
+	if (pp != NULL) {
+		if (indent == NULL)
+			sbuf_printf(sb, " ty %d", mp->type[pp->index]);
+		else
+			sbuf_printf(sb, "%s<type>%d</type>\n", indent,
+				    mp->type[pp->index]);
+	}
+}
+
+static void
+g_pc98_print(int i, struct dos_partition *dp)
 {
 
-	g_slice_dumpconf(sb, indent, gp, cp, pp);
+	g_hexdump(dp, sizeof(dp[0]));
+	printf("[%d] mid:%d(0x%x) sid:%d(0x%x)",
+	       i, dp->dp_mid, dp->dp_mid, dp->dp_sid, dp->dp_sid);
+	printf(" s:%d/%d/%d", dp->dp_scyl, dp->dp_shd, dp->dp_ssect);
+	printf(" e:%d/%d/%d", dp->dp_ecyl, dp->dp_ehd, dp->dp_esect);
+	printf(" name:%s\n", dp->dp_name);
 }
 
 static struct g_geom *
@@ -88,19 +143,19 @@ g_pc98_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	struct g_consumer *cp;
 	struct g_provider *pp2;
 	int error, i, npart;
-	u_char *buf, *p;
+	struct dos_partition dp[NDOSPART];
 	struct g_pc98_softc *ms;
-	u_int sectorsize, u, v;
-	u_int fwsect, fwhead;
-	off_t mediasize, start, length;
 	struct g_slicer *gsp;
+	u_int fwsectors, fwheads, sectorsize;
+	u_char *buf;
+	off_t spercyl;
 
 	g_trace(G_T_TOPOLOGY, "g_pc98_taste(%s,%s)", mp->name, pp->name);
 	g_topology_assert();
 	if (flags == G_TF_NORMAL &&
 	    !strcmp(pp->geom->class->name, PC98_CLASS_NAME))
 		return (NULL);
-	gp = g_slice_new(mp, 8, pp, &cp, &ms, sizeof *ms, g_pc98_start);
+	gp = g_slice_new(mp, NDOSPART, pp, &cp, &ms, sizeof *ms, g_pc98_start);
 	if (gp == NULL)
 		return (NULL);
 	gsp = gp->softc;
@@ -110,71 +165,79 @@ g_pc98_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	while (1) {	/* a trick to allow us to use break */
 		if (gp->rank != 2 && flags == G_TF_NORMAL)
 			break;
+		error = g_getattr("GEOM::fwsectors", cp, &fwsectors);
+		if (error || fwsectors == 0) {
+			fwsectors = 17;
+			printf("g_pc98_taste: error %d guessing %d sectors\n",
+			    error, fwsectors);
+		}
+		error = g_getattr("GEOM::fwheads", cp, &fwheads);
+		if (error || fwheads == 0) {
+			fwheads = 8;
+			printf("g_pc98_taste: error %d guessing %d heads\n",
+			    error, fwheads);
+		}
 		sectorsize = cp->provider->sectorsize;
 		if (sectorsize < 512)
 			break;
-		mediasize = cp->provider->mediasize;
-		error = g_getattr("GEOM::fwsectors", cp, &fwsect);
-		if (error || fwsect == 0) {
-			fwsect = 17;
-			printf("g_pc98_taste: error %d guessing %d sectors\n",
-			    error, fwsect);
-		}
-		error = g_getattr("GEOM::fwheads", cp, &fwhead);
-		if (error || fwhead == 0) {
-			fwhead = 8;
-			printf("g_pc98_taste: error %d guessing %d heads\n",
-			    error, fwhead);
-		}
-		gsp->frontstuff = fwsect * sectorsize;
+		gsp->frontstuff = sectorsize * fwsectors;
+		spercyl = (off_t)fwsectors * fwheads * sectorsize;
 		buf = g_read_data(cp, 0,
 		    sectorsize < 1024 ? 1024 : sectorsize, &error);
 		if (buf == NULL || error != 0)
 			break;
-
-		if (buf[0x1fe] != 0x55 || buf[0x1ff] != 0xaa)
+		if (buf[0x1fe] != 0x55 || buf[0x1ff] != 0xaa) {
+			g_free(buf);
 			break;
+		}
 #if 0
 /*
  * XXX: Some sources indicate this is a magic sequence, but appearantly
  * XXX: it is not universal.  Documentation would be wonderfule to have.
  */
 		if (buf[4] != 'I' || buf[5] != 'P' ||
-		    buf[6] != 'L' || buf[7] != '1')
+		    buf[6] != 'L' || buf[7] != '1') {
+			g_free(buf);
 			break;
+		}
 #endif
-
-		for (i = 0; i < 16; i++) {
-			p = buf + 512 + i * 32;
+		for (i = 0; i < NDOSPART; i++)
+			g_dec_dos_partition(
+				buf + 512 + i * sizeof(struct dos_partition),
+				dp + i);
+		g_free(buf);
+		for (i = 0; i < NDOSPART; i++) {
 			/* If start and end are identical it's bogus */
-			if (!bcmp(p + 8, p + 12, 4))
+			if (dp[i].dp_ssect == dp[i].dp_esect &&
+			    dp[i].dp_shd == dp[i].dp_ehd &&
+			    dp[i].dp_scyl == dp[i].dp_ecyl)
 				continue;
-			v = g_dec_le2(p + 10);
-			u = g_dec_le2(p + 14);
-			if (u == 0)
+			if (dp[i].dp_ecyl == 0)
 				continue;
-			g_hexdump(p, 32);
-			start = v * fwsect * fwhead * sectorsize;
-			length = (off_t)(1 + u - v) * fwsect *
-			     fwhead * sectorsize;
-			printf("i %d S %d H %d L %d b %d/%d/%d e %d/%d/%d\n",
-				i, fwsect, fwhead, sectorsize,
-				p[8], p[9], v, p[12], p[13], u);
+                        if (bootverbose) {
+				printf("PC98 Slice %d on %s:\n",
+				       i + 1, gp->name);
+				g_pc98_print(i, dp + i);
+			}
 			npart++;
+			ms->type[i] = (dp[i].dp_sid << 8) | dp[i].dp_mid;
 			g_topology_lock();
 			pp2 = g_slice_addslice(gp, i,
-			    start, length,
+			    dp[i].dp_scyl * spercyl,
+			    (dp[i].dp_ecyl - dp[i].dp_scyl + 1) * spercyl,
 			    sectorsize,
-			    "%ss%d", pp->name, 1 + i);
+			    "%ss%d", gp->name, i + 1);
 			g_topology_unlock();
-			g_error_provider(pp2, 0);
 		}
 		break;
 	}
 	g_topology_lock();
 	error = g_access_rel(cp, -1, 0, 0);
-	if (npart > 0)
+	if (npart > 0) {
+		LIST_FOREACH(pp, &gp->provider, provider)
+			g_error_provider(pp, 0);
 		return (gp);
+	}
 	g_std_spoiled(cp);
 	return (NULL);
 }
