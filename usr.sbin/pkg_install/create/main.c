@@ -36,8 +36,8 @@ char	*Mtree		= NULL;
 char	*Pkgdeps	= NULL;
 char	*Origin		= NULL;
 char	PlayPen[FILENAME_MAX];
-int	Dereference	= 0;
-int	PlistOnly	= 0;
+int	Dereference	= FALSE;
+int	PlistOnly	= FALSE;
 
 static void usage __P((void));
 
@@ -63,7 +63,7 @@ main(int argc, char **argv)
 	    break;
 
 	case 'O':
-	    PlistOnly = YES;
+	    PlistOnly = TRUE;
 	    break;
 
 	case 'p':
@@ -115,7 +115,7 @@ main(int argc, char **argv)
 	    break;
 
 	case 'h':
-	    Dereference = 1;
+	    Dereference = TRUE;
 	    break;
 
 	case 'D':
