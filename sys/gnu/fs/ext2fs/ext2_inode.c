@@ -546,7 +546,6 @@ ext2_reclaim(ap)
 		vrele(ip->i_devvp);
 		ip->i_devvp = 0;
 	}
-	lockdestroy(&vp->v_lock);
 	FREE(vp->v_data, M_EXT2NODE);
 	vp->v_data = 0;
 	return (0);

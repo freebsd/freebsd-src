@@ -714,11 +714,6 @@ cd9660_vget_internal(mp, ino, flags, vpp, relocated, isodir)
 	}
 	MALLOC(ip, struct iso_node *, sizeof(struct iso_node), M_ISOFSNODE,
 	    M_WAITOK | M_ZERO);
-	lockinit(&vp->v_lock, PINOD, "isonode", 0, 0);
-	/*
-	 * ISOFS uses stdlock and can share lock structure
-	 */
-	vp->v_vnlock = &vp->v_lock;
 	vp->v_data = ip;
 	ip->i_vnode = vp;
 	ip->i_dev = dev;

@@ -758,6 +758,7 @@ null_reclaim(ap)
 	}
 
 	vp->v_data = NULL;
+	vp->v_vnlock = &vp->v_lock;
 	FREE(xp, M_NULLFSNODE);
 
 	return (0);
