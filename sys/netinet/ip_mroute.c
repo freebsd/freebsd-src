@@ -9,7 +9,7 @@
  * Modified by Bill Fenner, PARC, April 1995
  *
  * MROUTING Revision: 3.5
- * $Id: ip_mroute.c,v 1.33 1996/07/12 04:11:48 bde Exp $
+ * $Id: ip_mroute.c,v 1.34 1996/07/12 17:22:32 fenner Exp $
  */
 
 #include "opt_mrouting.h"
@@ -1575,10 +1575,10 @@ encap_send(ip, vifp, m)
      * new mbuf so we can modify it.  Try to fill the new
      * mbuf since if we don't the ethernet driver will.
      */
-    MGET(mb_copy, M_DONTWAIT, MT_DATA);
+    MGETHDR(mb_copy, M_DONTWAIT, MT_HEADER);
     if (mb_copy == NULL)
 	return;
-    mb_copy->m_data += 16;
+    mb_copy->m_data += max_linkhdr;
     mb_copy->m_len = sizeof(multicast_encap_iphdr);
 
     if ((mb_copy->m_next = m_copy(m, 0, M_COPYALL)) == NULL) {
