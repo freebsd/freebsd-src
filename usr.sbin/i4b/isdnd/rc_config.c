@@ -454,7 +454,7 @@ cfg_setval(int keyword)
 				FILE *fp;
 				int s, l;
 				int n;
-				DBGL(DL_RCCF, (log(LL_DBG, "entry %d: budget-callbacksfile = %s", yylval.str)));
+				DBGL(DL_RCCF, (log(LL_DBG, "entry %d: budget-callbacksfile = %s", entrycount, yylval.str)));
 				fp = fopen(yylval.str, "r");
 				if(fp != NULL)
 				{
