@@ -1,20 +1,69 @@
- 78. V6.09.01 - 20000114
- 79. Circumvent IRIX4D ESTALE bug by exiting.
- 78. IRIS4D de-linting.
- 77. Finnish nls catalogs (Jukka A. Ukkonen)
- 76. Even more multibyte fixes (Taga Nayuta)
- 75. Patches to statically link tcsh under solaris-2.6 (John Hawkinson)
- 74. Manual page typos (R. Bernstein)
- 73. HP/UX-11 (9000/800) HP/UX-10.20 (9000/820) (Haflidi Sigtryggur Magnusson)
- 72. Color-ls fixes (Luis Francisco Gonzalez)
- 71. Don't re-use time0 to compare to stat's st_mtime, cause it could be
+ 57. V6.10.00 - 20001119
+ 56. Completion fixes (Tom Warzeka)
+ 55. add missing linux kanji define (Tsuyoshi Kawabe)
+ 54. More WINNT_NATIVE fixes (amol)
+ 53. Fix compile error on winnt (Yoshiyuki Sakakibara)
+ 52. nonstopux configure and makefile fixes (Tom Bates)
+ 51. V6.09.04 - 20001111
+ 50. Order of initialization for multibyte display was wrong 
+     (HyunChul Kim)
+ 49. Follow the guideline for linux for japanese locale:
+     http://www.linux.or.jp/JF/JFdocs/Japanese-Locale-Policy.txt
+     (Tomohiro KUBOTA)
+ 48. Ukrainian nls map (Olexander Kunytsa)
+ 47. exit immeditiately if we get an error while we are setting up
+     (Michael Shalayeff)
+ 46. (unset path; unsetenv PATH; rehash) -> crash (Kent Vander Velden)
+ 45. change winnt to winnt_native (Randolph Fritz)
+ 44. Support home/end in the editor (Andrey A. Chernov)
+ 43. Typo s/gycwin/cygwin/ in tc.os.h (Andreas Schott)
+ 42. Alpha ev6 addition (Karen R. McArthur)
+ 41. DSPMBYTE patch from (Issei Suzuki)
+ 40. Security fix for here-doc tmp files (proton@ENERGYMECH.NET)
+ 39. Fix resource limit rounding *again* (Johannes Gross)
+ 38. Fix $ expansion in prompt (Takashi Sumiyoshi)
+ 37. V6.09.03 - 20000715
+ 36. cygwin port fixes (Arihiro Yoshida)
+ 35. Add a new "catalog" variable that specifies which NLS catalog
+     to be used (Issei Suzuki)
+ 34. cleanup and addition of page up/down (amol)
+ 33. fix vfork compile problem.
+ 32. use inet_addr instead of inet_aton for portability.
+ 31. V6.09.02 - 20000704
+ 30. lots more completions (George Cox)
+ 29. change FILSIZ to BUFSIZE [now that BUFSIZE >> MAXPATHLEN] and
+     avoid a potential buffer overflow in sh.dir.c (Volker Schmidt)
+ 28. _MINIX_VMD port (Martijn van Buul)
+ 27. inet6 handling for remotehost and configure (Hajimu UMEMOTO)
+ 26. aix-4 does not need gethostname (Darren Reed)
+ 25. IBM OS/390 Unix Systems Services support (Peter Prymmer)
+ 24. Fix prompt formatting (Andrey A. Chernov)
+ 23. Use HostType from Imakefile correctly (Kjetil Torgrim Homme)
+ 22. Handle long and expanded history lines better (Boleslaw Ciesielski)
+ 21. With symlinks=expand expand valid paths only (Martin Kraemer)
+ 20. Make one-byte charsets work with KANJI (Andrey A. Chernov)
+ 19. NT-specific executable detection moved to NT code (amol)
+ 18. New "complete module" (Dan Nicolaescu)
+ 17. Correctly display scaling string in limit error messages (Nathan Ahlstrom)
+ 16. Don't display "unset watch" message when not appropriate (kim)
+ 15. V6.09.01 - 20000114
+ 14. Circumvent IRIX4D ESTALE bug by exiting.
+ 13. IRIS4D de-linting.
+ 12. Finnish nls catalogs (Jukka A. Ukkonen)
+ 11. Even more multibyte fixes (Taga Nayuta)
+ 10. Patches to statically link tcsh under solaris-2.6 (John Hawkinson)
+  9. Manual page typos (R. Bernstein)
+  8. HP/UX-11 (9000/800) HP/UX-10.20 (9000/820) (Haflidi Sigtryggur Magnusson)
+  7. Color-ls fixes (Luis Francisco Gonzalez)
+  6. Don't re-use time0 to compare to stat's st_mtime, cause it could be
      the value returned from times(2) which is the ticks since system
      startup (Frank van der Linden)
- 70. Time percentage wrap fix (Simon Burge)
- 69. EUCKR support (HyunChul Kim)
- 68. Grammar and typo fixes for tcsh.man (Steve Kelem)
- 67. More multibyte fixes (Rodney Ruddock)
- 66. Change 6.08 -> 6.09 where I missed it; update for utlrix 4.5 (Simon Burge)
+  5. Time percentage wrap fix (Simon Burge)
+  4. EUCKR support (HyunChul Kim)
+  3. Grammar and typo fixes for tcsh.man (Steve Kelem)
+  2. More multibyte fixes (Rodney Ruddock)
+  1. Change 6.08 -> 6.09 where I missed it; update for utlrix 4.5 (Simon Burge)
+
  65. V6.09.00 - 19990816
  64. Add csh emacs mode (Dan Harkless)
  63. Make sure the the glob buffer matches the word buffer size (Brian Biswas)

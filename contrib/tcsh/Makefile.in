@@ -1,4 +1,4 @@
-# $Id: Makefile.in,v 3.13 2000/01/14 22:57:25 christos Exp $
+# $Id: Makefile.in,v 3.15 2000/11/19 20:50:41 christos Exp $
 #	Makefile.in	4.3	6/11/83
 #
 # C Shell with process control; VM/UNIX VAX Makefile
@@ -8,7 +8,7 @@
 # things; Paul Placeway, CIS Dept., Ohio State University
 #
 SHELL=/bin/sh
-VERSION=6.09
+VERSION=6.10
 BUILD=tcsh
 VPATH=@srcdir@
 srcdir=@srcdir@
@@ -247,6 +247,7 @@ CPP = @CPP@ # This is set by autoconf.
 # The -B tells gcc to use /bin/ld. This is to avoid using the gnu ld, which
 # on the suns does not know how to make dynamically linked binaries.
 CC = @CC@ # This is set by autoconf.
+#CC= gcc -Wall -Wmissing-prototypes -Wstrict-prototypes -Wpointer-arith -Werror
 #CC=	gcc -Wall -pipe -B/bin/	# -ansi -pedantic
 #CC=	gcc -m486 -pipe -Wall # Generate code for Intel 486 (linux)
 #CC=	shlicc 	# BSDI2.1 w/ shared libraries
@@ -474,14 +475,14 @@ vgrind:
 install-strip: install
 
 install: tcsh 
-	mkdir -p ${DESTBIN}
+	-mkdir -p ${DESTBIN}
 	-mv -f ${DESTBIN}/tcsh  ${DESTBIN}/tcsh.old
 	cp tcsh ${DESTBIN}/tcsh
 	-strip ${DESTBIN}/tcsh
 	chmod 555 ${DESTBIN}/tcsh
 
 install.man: tcsh.man
-	mkdir -p ${DESTMAN}
+	-mkdir -p ${DESTMAN}
 	-rm -f ${DESTMAN}/tcsh.${MANSECT}
 	cp $(srcdir)/tcsh.man ${DESTMAN}/tcsh.${MANSECT}
 	chmod 444 ${DESTMAN}/tcsh.${MANSECT}
@@ -515,7 +516,7 @@ tags:	/tmp
 tar.Z:
 	rm -f tcsh-${VERSION}.tar.Z
 	rm -rf tcsh-${VERSION} 
-	mkdir tcsh-${VERSION} tcsh-${VERSION}/config
+	-mkdir tcsh-${VERSION} tcsh-${VERSION}/config
 	cp ${ALLSRCS} tcsh-${VERSION}
 	cp ${CONFSRCS} tcsh-${VERSION}/config
 	tar cf - nls/Makefile nls/?*/set?* | (cd tcsh-${VERSION}; tar xpf -)
@@ -525,7 +526,7 @@ tar.Z:
 tar.gz:
 	rm -f tcsh-${VERSION}.tar.gz
 	rm -rf tcsh-${VERSION} 
-	mkdir tcsh-${VERSION} tcsh-${VERSION}/config
+	-mkdir tcsh-${VERSION} tcsh-${VERSION}/config
 	cp ${ALLSRCS} tcsh-${VERSION}
 	cp ${CONFSRCS} tcsh-${VERSION}/config
 	tar cf - nls/Makefile nls/?*/set?* | (cd tcsh-${VERSION}; tar xpf -)
@@ -535,7 +536,7 @@ tar.gz:
 shar:
 	rm -f tcsh-*.shar
 	rm -rf tcsh-${VERSION} 
-	mkdir tcsh-${VERSION} tcsh-${VERSION}/config
+	-mkdir tcsh-${VERSION} tcsh-${VERSION}/config
 	cp ${ALLSRCS} tcsh-${VERSION}
 	cp ${CONFSRCS} tcsh-${VERSION}/config
 	tar cf - nls/Makefile nls/?*/set?* | (cd tcsh-${VERSION}; tar xpf -)
@@ -550,11 +551,11 @@ catalogs:
 tcsh-${VERSION}.tar.Z:
 	rm -rf tcsh-${VERSION} 
 	rm -f tcsh-${VERSION}.tar tcsh-${VERSION}.tar.Z DIFFS.[123]
-	mkdir tcsh-${VERSION}
+	-mkdir tcsh-${VERSION}
 	./MAKEDIFFS bsd
 	mv DIFFS.1 DIFFS.2 DIFFS.3 tcsh-${VERSION}
 	cp ${DISTSRCS} tcsh-${VERSION}
-	mkdir tcsh-${VERSION}/config
+	-mkdir tcsh-${VERSION}/config
 	cp ${CONFSRCS} tcsh-${VERSION}/config
 	cp Makefile tcsh-${VERSION}/Makefile.new
 	tar cf - nls/Makefile nls/?*/set?* | (cd tcsh-${VERSION}; tar xpf -)
@@ -564,11 +565,11 @@ tcsh-${VERSION}.tar.Z:
 tcsh.tahoe-${VERSION}.tar.Z:
 	rm -rf tcsh.tahoe-${VERSION} 
 	rm -f tcsh.tahoe-${VERSION}.tar tcsh.tahoe-${VERSION}.tar.Z DIFFS.[123]
-	mkdir tcsh.tahoe-${VERSION}
+	-mkdir tcsh.tahoe-${VERSION}
 	./MAKEDIFFS tahoe
 	mv DIFFS.1 DIFFS.2 DIFFS.3 tcsh.tahoe-${VERSION}
 	cp ${DISTSRCS} tcsh.tahoe-${VERSION}
-	mkdir tcsh.tahoe-${VERSION}/config
+	-mkdir tcsh.tahoe-${VERSION}/config
 	cp ${CONFSRCS} tcsh.tahoe-${VERSION}/config
 	cp Makefile tcsh.tahoe-${VERSION}/Makefile.new
 	tar cf - nls/Makefile nls/?*/set?* | (cd tcsh-${VERSION}; tar xpf -)
@@ -578,11 +579,11 @@ tcsh.tahoe-${VERSION}.tar.Z:
 tcsh.reno-${VERSION}.tar.Z:
 	rm -rf tcsh.reno-${VERSION} 
 	rm -f tcsh.reno-${VERSION}.tar tcsh.reno-${VERSION}.tar.Z DIFFS.[123]
-	mkdir tcsh.reno-${VERSION}
+	-mkdir tcsh.reno-${VERSION}
 	./MAKEDIFFS reno
 	mv DIFFS.1 DIFFS.2 DIFFS.3 tcsh.reno-${VERSION}
 	cp ${DISTSRCS} tcsh.reno-${VERSION}
-	mkdir tcsh.reno-${VERSION}/config
+	-mkdir tcsh.reno-${VERSION}/config
 	cp ${CONFSRCS} tcsh.reno-${VERSION}/config
 	cp Makefile tcsh.reno-${VERSION}/Makefile.new
 	tar cf - nls/Makefile nls/?*/set?* | (cd tcsh-${VERSION}; tar xpf -)

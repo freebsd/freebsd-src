@@ -194,6 +194,19 @@ NOTES	:	aix 4.1 does not need -lbsd anymore.
 VERSION	:	6.06.00 (rs6000)
 
 VENDOR	:	ibm
+MODELS	:	ibm390
+COMPILER:	c89
+CFLAGS	:	normal
+LIBES	:	-lcurses
+OS	:	os390 R 2.7
+CONFIG	:	os390
+ENVIRON	:	USS (formerly OpenEdition, aka POSIX)
+NOTES	:	Used GNU make for OS/390.
+NOTES	:	Use `CFLAGS="" ./configure` to avoid -g and make binary
+NOTES	:	half as large.
+VERSION	:	6.09.00
+
+VENDOR	:	ibm
 MODELS	:	rt
 COMPILER:	hc, gcc
 CFLAGS	:	-I. -U__STDC__
