@@ -83,6 +83,9 @@ static char sccsid[] = "@(#)locate.c	8.1 (Berkeley) 6/6/93";
 
 FILE *fp;
 
+void fastfind __P((char *pathpart));
+char *patprep __P((char *name));
+
 int
 main(argc, argv)
 	int argc;
@@ -102,13 +105,14 @@ main(argc, argv)
 	exit(0);
 }
 
+void
 fastfind(pathpart)
 	char *pathpart;
 {
 	register char *p, *s;
 	register int c;
 	int count, found, globflag;
-	char *cutoff, *patend, *q, *patprep();
+	char *cutoff, *patend, *q;
 	char bigram1[NBG], bigram2[NBG], path[MAXPATHLEN];
 
 	for (c = 0, p = bigram1, s = bigram2; c < NBG; c++)
