@@ -535,16 +535,20 @@ run_rc_command()
 					# if the precmd failed and force
 					# isn't set, exit
 					#
-			debug "run_rc_command: evaluating ${_precmd}()."
+			[ -n "$_precmd" ] &&
+			    debug "run_rc_command: evaluating ${_precmd}()."
 			if ! eval $_precmd && [ -z "$rc_force" ]; then
 				return 1
 			fi
 
-			debug "run_rc_command: evaluating ${_cmd}()."
+			[ -n "$_cmd" ] &&
+			    debug "run_rc_command: evaluating ${_cmd}()."
 			if ! eval $_cmd && [ -z "$rc_force" ]; then
 				return 1
 			fi
-			debug "run_rc_command: evaluating ${_postcmd}()."
+
+			[ -n "$_postcmd" ] &&
+			    debug "run_rc_command: evaluating ${_postcmd}()."
 			eval $_postcmd
 			return 0
 		fi
@@ -602,7 +606,8 @@ run_rc_command()
 					# if the precmd failed and force
 					# isn't set, exit
 					#
-			debug "run_rc_command: evaluating ${_precmd}()."
+			[ -n "${_precmd}" ] &&
+			    debug "run_rc_command: evaluating ${_precmd}()."
 			if ! eval $_precmd && [ -z "$rc_force" ]; then
 				return 1
 			fi
@@ -635,7 +640,8 @@ $command $rc_flags $command_args"
 
 					# finally, run postcmd
 					#
-			debug "run_rc_command: evaluating ${_postcmd}()."
+			[ -n "${_postcmd}" ] &&
+			    debug "run_rc_command: evaluating ${_postcmd}()."
 			eval $_postcmd
 			;;
 
