@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)reboot.h	8.1 (Berkeley) 6/2/93
- * $Id: reboot.h,v 1.8 1995/01/20 07:28:47 wpaul Exp $
+ * $Id: reboot.h,v 1.9 1995/01/25 20:05:03 bde Exp $
  */
 
 #ifndef _SYS_REBOOT_H_
@@ -57,6 +57,7 @@
 #define RB_CONFIG	0x400	/* invoke user configuration routing */
 #define RB_VERBOSE	0x800	/* print all potentially useful info */
 #define	RB_SERIAL	0x1000	/* user serial port as console */
+#define	RB_CDROM	0x2000	/* use cdrom as root */
 
 #define	RB_BOOTINFO	0x80000000	/* have `struct bootinfo *' arg */
 
