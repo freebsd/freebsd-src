@@ -107,7 +107,8 @@ afdattach(struct atapi_softc *atp)
 	return -1;
     }
 
-    if (!strncmp(atp->atapi_parm->model, "IOMEGA  ZIP", 11))
+    if (!strncmp(ATA_PARAM(fdp->atp->controller, fdp->atp->unit)->model, 
+		 "IOMEGA ZIP", 11))
 	fdp->transfersize = 64;
 
     afd_describe(fdp);
@@ -155,13 +156,9 @@ afd_sense(struct afd_softc *fdp)
 static void 
 afd_describe(struct afd_softc *fdp)
 {
-    int8_t model_buf[40+1];
-    int8_t revision_buf[8+1];
-
-    bpack(fdp->atp->atapi_parm->model, model_buf, sizeof(model_buf));
-    bpack(fdp->atp->atapi_parm->revision, revision_buf, sizeof(revision_buf));
-    printf("afd%d: <%s/%s> rewriteable drive at ata%d as %s\n",
-	   fdp->lun, model_buf, revision_buf,
+    printf("afd%d: <%.40s/%.8s> rewriteable drive at ata%d as %s\n",
+	   fdp->lun, ATA_PARAM(fdp->atp->controller, fdp->atp->unit)->model,
+	   ATA_PARAM(fdp->atp->controller, fdp->atp->unit)->revision,
 	   fdp->atp->controller->lun,
 	   (fdp->atp->unit == ATA_MASTER) ? "master" : "slave ");
     printf("afd%d: %luMB (%u sectors), %u cyls, %u heads, %u S/T, %u B/S\n",
@@ -175,7 +172,7 @@ afd_describe(struct afd_softc *fdp)
     if (fdp->transfersize)
 	printf(" transfer limit %d blks,", fdp->transfersize);
     printf(" %s\n", ata_mode2str(fdp->atp->controller->mode[
-				 (fdp->atp->unit == ATA_MASTER) ? 0 : 1]));
+				 ATA_DEV(fdp->atp->unit)]));
     printf("afd%d: Medium: ", fdp->lun);
     switch (fdp->header.medium_type) {
 	case MFD_2DD:
