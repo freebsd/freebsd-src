@@ -188,16 +188,15 @@ struct snd_wait {
  */
 #define DO_SLEEP(q, f, time_limit)	\
 	{ \
-	  int flag, chn; \
+	  int flag; \
 	  f.mode = WK_SLEEP; \
-	  q = &chn; \
-	  flag=tsleep((caddr_t) &chn, (PRIBIO-5)|PCATCH, "sndint", time_limit); \
+	  flag=tsleep((caddr_t) &q, (PRIBIO-5)|PCATCH, "sndint", time_limit); \
 	  if(flag == ERESTART) f.aborting = 1;\
 	  else f.aborting = 0;\
 	  f.mode &= ~WK_SLEEP; \
 	}
 /* An the following wakes up a process */
-#define WAKE_UP(q, f)	{f.mode = WK_WAKEUP;wakeup((caddr_t) q);}
+#define WAKE_UP(q, f)   {f.mode = WK_WAKEUP;wakeup((caddr_t) &q);}
 
 /*
  * Timing macros. This driver assumes that there is a timer running in the
