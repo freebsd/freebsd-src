@@ -83,10 +83,11 @@
 #	joy	pc joystick
 #	tun	Tunneling IP device
 #	spigot	Video Spigot video aquisition card
+#	meteor*	Matrox Meteor video aquisition card (pci)
 #	isdn*	ISDN devices
 #	labpc*	National Instrument's Lab-PC and LAB-PC+
 #
-#	$Id: MAKEDEV,v 1.98 1995/07/29 05:25:08 bde Exp $
+#	$Id: MAKEDEV,v 1.99 1995/07/30 12:56:26 jkh Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -880,6 +881,13 @@ spigot)
 	rm -f spigot
 	mknod spigot c 11 0
 	chmod 444 spigot
+	;;
+
+meteor?)
+	unit=`expr $i : 'meteor\(.*\)'`
+	rm -f meteor$unit
+	mknod meteor$unit c 67 $unit
+	chmod 444 meteor$unit
 	;;
 
 tun?)
