@@ -56,12 +56,12 @@ BEGIN {
 	print "#include <stdio.h>"
 	print "#include <cam/cam.h>"
 	print ""
-	print "const char *ioctlname(register_t val);"
+	print "const char *ioctlname(u_long val);"
 	print ""
 	print ioctl_includes
 	print ""
 	print "const char *"
-	print "ioctlname(register_t val)"
+	print "ioctlname(u_long val)"
 	print "{"
 	print ""
 	if (use_switch)
@@ -79,7 +79,7 @@ BEGIN {
 	if (use_switch)
 		printf("\tcase %s:\n\t\treturn(\"%s\");\n", $i, $i);
 	else
-		printf("\tif (val ==  (register_t)%s)\n\t\treturn(\"%s\");\n", $i, $i);
+		printf("\tif (val ==  %s)\n\t\treturn(\"%s\");\n", $i, $i);
 
 }
 END {
