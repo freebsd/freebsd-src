@@ -86,7 +86,6 @@ pfs_visible(struct thread *td, struct pfs_node *pn, pid_t pid)
 	if (pid != NO_PID) {
 		if ((proc = pfind(pid)) == NULL)
 			PFS_RETURN (0);
-		/* XXX should lock td->td_proc? */
 		if (p_cansee(td->td_proc, proc) != 0 ||
 		    (pn->pn_vis != NULL && !(pn->pn_vis)(td, proc, pn)))
 			r = 0;
