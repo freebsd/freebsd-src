@@ -210,7 +210,8 @@ in_gif_output(ifp, family, m)
 
 	error = ip_output(m, NULL, &sc->gif_ro, 0, NULL, NULL);
 
-	if ((sc->gif_if.if_flags & IFF_LINK0) == 0) {
+	if (!(sc->gif_if.if_flags & IFF_LINK0) &&
+	    sc->gif_ro.ro_rt != NULL) {
 		RTFREE(sc->gif_ro.ro_rt);
 		sc->gif_ro.ro_rt = NULL;
 	}

@@ -218,7 +218,8 @@ in6_gif_output(ifp, family, m)
 	error = ip6_output(m, 0, &sc->gif_ro6, 0, 0, NULL, NULL);
 #endif
 
-	if ((sc->gif_if.if_flags & IFF_LINK0) == 0) {
+	if (!(sc->gif_if.if_flags & IFF_LINK0) &&
+	    sc->gif_ro6.ro_rt != NULL) {
 		RTFREE(sc->gif_ro6.ro_rt);
 		sc->gif_ro6.ro_rt = NULL;
 	}
