@@ -2274,7 +2274,7 @@ tn(argc, argv)
 	if (doaddrlookup)
 	    gni_err = getnameinfo(res->ai_addr, res->ai_addr->sa_len,
 				  _hostname, sizeof(_hostname) - 1, NULL, 0,
-				  0);
+				  NI_NAMEREQD);
 	if (gni_err != 0)
 	        (void) strncpy(_hostname, hostp, sizeof(_hostname) - 1);
 	_hostname[sizeof(_hostname)-1] = '\0';
