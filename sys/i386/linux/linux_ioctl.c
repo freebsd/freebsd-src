@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_ioctl.c,v 1.16 1997/03/24 11:37:50 bde Exp $
+ *  $Id: linux_ioctl.c,v 1.17 1997/06/02 06:28:04 msmith Exp $
  */
 
 #include <sys/param.h>
@@ -602,15 +602,6 @@ linux_ioctl(struct proc *p, struct linux_ioctl_args *args, int *retval)
 	 * Note that we don't actually respect the name in the ifreq structure, as
 	 * Linux interface names are all different
 	 */
-#ifdef DEBUG
-	{
-	    char	ifname[LINUX_IFNAMSIZ];
-	    
-	    if (!copyin(ifname, (caddr_t)ifr->ifr_name, LINUX_IFNAMSIZ)) {
-		printf("linux_ioctl: get HW address for '%s'\n", ifname);
-	    }
-	}
-#endif
 
 	for (ifn = 0; ifn < if_index; ifn++) {
 
