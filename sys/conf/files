@@ -285,6 +285,7 @@ pci/pdq.c		optional fpa device-driver
 scsi/cd.c		optional cd
 scsi/ch.c		optional ch
 scsi/scsi_base.c	optional scbus
+scsi/scsi_sense.c	optional scbus
 scsi/scsi_ioctl.c	optional scbus
 scsi/scsiconf.c		optional scbus
 scsi/scsi_driver.c		optional scbus
