@@ -61,9 +61,10 @@
  * Authors: Erik Salander <erik@whistle.com>
  *          Junichi SATOH <junichi@astec.co.jp>
  *                        <junichi@junichi.org>
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
    Alias_smedia.c is meant to contain the aliasing code for streaming media
