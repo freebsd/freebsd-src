@@ -3,7 +3,7 @@
 .PATH:			${.CURDIR}/${MACHINE_ARCH}
 BASE_SRCS=		dict.c ficl.c math64.c stack.c vm.c words.c
 SRCS=			${BASE_SRCS} sysdep.c softcore.c
-CLEANFILES=		softcore.c testmain
+CLEANFILES=		softcore.c testmain testmain.o
 .ifmake testmain
 CFLAGS+=			-DTESTMAIN -D_TESTMAIN
 SRCS+=				testmain.c
