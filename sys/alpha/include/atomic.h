@@ -482,7 +482,6 @@ atomic_##NAME##_ptr(volatile void *p, uintptr_t v)	\
 static __inline void					\
 atomic_##NAME##_acq_ptr(volatile void *p, uintptr_t v)	\
 {							\
-	alpha_mb();					\
 	atomic_##NAME##_acq_long((volatile u_long *)p, v);\
 }							\
 							\
@@ -490,7 +489,6 @@ static __inline void					\
 atomic_##NAME##_rel_ptr(volatile void *p, uintptr_t v)	\
 {							\
 	atomic_##NAME##_rel_long((volatile u_long *)p, v);\
-	alpha_wmb();					\
 }
 
 ATOMIC_PTR(set)
