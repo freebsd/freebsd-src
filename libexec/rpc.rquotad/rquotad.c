@@ -28,7 +28,6 @@ static const char rcsid[] =
 #include <unistd.h>
 
 #include <syslog.h>
-#include <varargs.h>
 
 #include <ufs/ufs/quota.h>
 #include <rpc/rpc.h>
