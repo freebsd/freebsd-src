@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)util.c	8.84 (Berkeley) 11/18/95";
+static char sccsid[] = "@(#)util.c	8.84.1.1 (Berkeley) 2/18/96";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -989,7 +989,14 @@ putxline(l, mci, pxflags)
 			(void) putc(*l, mci->mci_out);
 		fputs(mci->mci_mailer->m_eol, mci->mci_out);
 		if (*l == '\n')
-			++l;
+		{
+			if (*++l != ' ' && *l != '\t' && l[1] != '\0')
+			{
+				(void) putc(' ', mci->mci_out);
+				if (TrafficLogFile != NULL)
+					(void) putc(' ', TrafficLogFile);
+			}
+		}
 	} while (l[0] != '\0');
 }
 /*
@@ -1993,7 +2000,6 @@ denlstring(s, strict, logattacks)
 	for (p = bp; (p = strchr(p, '\n')) != NULL; )
 		*p++ = ' ';
 
-/*
 #ifdef LOG
 	if (logattacks)
 	{
@@ -2002,7 +2008,6 @@ denlstring(s, strict, logattacks)
 			shortenstring(bp, 203));
 	}
 #endif
-*/
 
 	return bp;
 }
