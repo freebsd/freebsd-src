@@ -11,7 +11,7 @@ LDFLAGS=-nostdlib -static -r
 .for asm in start crt sio
 OBJS+=	${asm}.o
 ${asm}.o: ${asm}.s
-	as -o ${.TARGET} ${.ALLSRC:M*${asm}*}
+	${AS} ${AFLAGS} -o ${.TARGET} ${.ALLSRC:M*${asm}*}
 .endfor
 
 CLEANFILES=kgzldr.o
