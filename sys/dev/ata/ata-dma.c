@@ -226,7 +226,6 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 	break;
 
     case 0x05711106:	/* VIA Apollo 82c586 / 82c686 */
-	via_status(scp);
 	devno = (scp->unit << 1) + ((device == ATA_MASTER) ? 0 : 1);
 	if (udmamode >= 2 && pci_read_config(scp->dev, 0x0d, 1) >= 0x20) {
 	    int8_t byte = pci_read_config(scp->dev, 0x53 - devno, 1);
@@ -243,7 +242,6 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 			   (error) ? "failed" : "success");
 		if (!error) {
 		    scp->mode[(device == ATA_MASTER) ? 0 : 1] = ATA_MODE_UDMA4;
-		    via_status(scp);
 		    return 0;
 		}
 	    }
@@ -255,7 +253,6 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 		       (error) ? "failed" : "success");
 	    if (!error) {
 		scp->mode[(device == ATA_MASTER) ? 0 : 1] = ATA_MODE_UDMA2;
-		via_status(scp);
 		return 0;
 	    }
 	    pci_write_config(scp->dev, 0x53 - devno, byte, 1);
@@ -272,11 +269,9 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 		       (error) ? "failed" : "success");
 	    if (!error) {
 		scp->mode[(device == ATA_MASTER) ? 0 : 1] = ATA_MODE_WDMA2;
-		via_status(scp);
 		return 0;
 	    }
 	}
-	via_status(scp);
 	/* we could set PIO mode timings, but we assume the BIOS did that */
 	break;
 
@@ -592,4 +587,3 @@ ata_dmastatus(struct ata_softc *scp)
 }
 
 #endif /* NPCI > 0 */
-#include <dev/ata/ata-status.c>
