@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.64 1996/03/27 17:16:29 bde Exp $
+ *	$Id: locore.s,v 1.65 1996/04/26 13:47:37 phk Exp $
  *
  *		originally from: locore.s, by William F. Jolitz
  *
@@ -725,13 +725,13 @@ create_pagetables:
 #define ISA_HOLE_START	  0xa0000
 #define ISA_HOLE_LENGTH (0x100000-ISA_HOLE_START)
 	movl	$ISA_HOLE_LENGTH>>PGSHIFT, %ecx
-	movl	ISA_HOLE_START, %eax
+	movl	$ISA_HOLE_START, %eax
 	movl	%eax, %ebx
 	shrl	$PGSHIFT-2, %ebx
 	addl	R(_KPTphys), %ebx
 	orl	$PG_V|PG_KW|PG_N, %eax
 	fillkpt
-	movl	ISA_HOLE_START, %eax
+	movl	$ISA_HOLE_START, %eax
 	addl	$KERNBASE, %eax
 	movl	%eax, R(_atdevbase)
 
