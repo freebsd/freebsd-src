@@ -71,6 +71,7 @@ enum keyword {
     kw_getdaemon,					    /* set daemon flags */
     kw_help,
     kw_drive,
+    kw_partition,
     kw_sd,
     kw_subdisk = kw_sd,
     kw_plex,
@@ -82,6 +83,7 @@ enum keyword {
     kw_name,
     kw_concat,
     kw_striped,
+    kw_raid4,
     kw_raid5,
     kw_driveoffset,
     kw_plexoffset,
