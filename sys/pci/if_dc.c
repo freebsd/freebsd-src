@@ -44,6 +44,7 @@
  * ADMtek AL981 (www.admtek.com.tw)
  * ADMtek AN985 (www.admtek.com.tw)
  * Davicom DM9100, DM9102, DM9102A (www.davicom8.com)
+ * Accton EN1217 (www.accton.com)
  *
  * Datasheets for the 21143 are available at developer.intel.com.
  * Datasheets for the clone parts can be found at their respective sites.
@@ -190,6 +191,8 @@ static struct dc_type dc_devs[] = {
 		"82c168 PNIC 10/100BaseTX" },
 	{ DC_VENDORID_LO, DC_DEVICEID_82C168,
 		"82c169 PNIC 10/100BaseTX" },
+	{ DC_VENDORID_ACCTON, DC_DEVICEID_EN1217,
+		"Accton EN1217 10/100BaseTX" },
 	{ 0, 0, NULL }
 };
 
@@ -1548,6 +1551,7 @@ static int dc_attach(dev)
 		sc->dc_flags |= DC_TX_POLL|DC_TX_USE_TX_INTR;
 		break;
 	case DC_DEVICEID_987x5:
+	case DC_DEVICEID_EN1217:
 		sc->dc_type = DC_TYPE_987x5;
 		sc->dc_flags |= DC_TX_POLL|DC_TX_USE_TX_INTR;
 		sc->dc_flags |= DC_REDUCED_MII_POLL|DC_21143_NWAY;
