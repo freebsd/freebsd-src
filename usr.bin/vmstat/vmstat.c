@@ -853,7 +853,6 @@ dointr(void)
 		kread(X_INTRNAMES, intrname, inamlen);
 	} else {
 		mysysctl("hw.intrcnt", NULL, &intrcntlen, NULL, 0);
-		fprintf(stderr, "intrcntlen = %lu\n", (unsigned long)intrcntlen);
 		if ((intrcnt = malloc(intrcntlen)) == NULL)
 			err(1, "calloc()");
 		mysysctl("hw.intrcnt", intrcnt, &intrcntlen, NULL, 0);
