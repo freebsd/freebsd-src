@@ -298,22 +298,22 @@ Set to
 .Dq YES
 if you want your daily accounting files to be compressed using
 .Xr gzip 1 .
-.It Ar daily_accounting_save
-.Pq num
+.It Va daily_accounting_save
+.Pq Vt num
 When
-.Ar daily_accounting_enable
+.Va daily_accounting_enable
 is set, this may also be set to the number of daily accounting files that are
 to be saved.
 The default is
 .Dq 3 .
-.It Ar daily_accounting_flags
+.It Va daily_accounting_flags
 .Pq Vt str
 Set to the arguments to pass to the
 .Xr sa 1
 utility (in addition to
 .Fl s )
 when
-.Ar daily_accounting_enable
+.Va daily_accounting_enable
 is set to
 .Dq YES .
 The default is
