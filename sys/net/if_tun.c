@@ -57,7 +57,6 @@
 
 struct tun_softc {
 	TAILQ_ENTRY(tun_softc)	tun_list;
-	int			tun_unit;
 	dev_t			tun_dev;
 	u_short	tun_flags;		/* misc flags */
 #define	TUN_OPEN	0x0001
