@@ -6,7 +6,7 @@ CFLAGS+=-I.
 CLEANFILES+=y.tab.h yacc.c lex.c
 MAN1=	mklocale.1
 
-LOCALES=        ja_JP.EUC ru_SU.KOI8-R
+LOCALES=        ja_JP.EUC ru_SU.KOI8-R iso_8859_1
 LOCALEDIR=	${DESTDIR}/usr/share/locale
 
 afterinstall:
