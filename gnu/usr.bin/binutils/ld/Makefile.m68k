@@ -2,7 +2,7 @@
 # $FreeBSD$
 #
 
-.if	${MACHINE_ARCH} == "m68k"
+.if	${TARGET_ARCH} == "m68k"
 HOST=		m68k-unknown-freebsd
 CFLAGS+=	-DDEFAULT_EMULATION=\"elf_m68k\"
 CFLAGS+=	-DTARGET=\"m68k-unknown-freebsd\"

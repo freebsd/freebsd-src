@@ -5,7 +5,7 @@
 .include "${.CURDIR}/../Makefile.inc0"
 
 PROG=		as
-.if	${MACHINE_ARCH} != "sparc"
+.if	${TARGET_ARCH} != "sparc"
 NOMAN=		1
 BINDIR=		/usr/libexec/cross/sparc-freebsd
 .endif

@@ -9,11 +9,12 @@
 #
 
 VERSION=	2.9.1
+TARGET_ARCH?=	${MACHINE_ARCH}
 
-.if ${MACHINE_ARCH} == "mipsel" || ${MACHINE_ARCH} == "mipseb"
+.if ${TARGET_ARCH} == "mipsel" || ${TARGET_ARCH} == "mipseb"
 BINUTIL_ARCH=mips
 .else
-BINUTIL_ARCH=${MACHINE_ARCH}
+BINUTIL_ARCH=${TARGET_ARCH}
 .endif
 
 # RELTOP is the relative path to this point in the source or object

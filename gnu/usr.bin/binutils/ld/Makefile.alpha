@@ -2,7 +2,7 @@
 # $FreeBSD$
 #
 
-.if	${MACHINE_ARCH} == "alpha"
+.if	${TARGET_ARCH} == "alpha"
 HOST=		alpha-unknown-freebsdelf
 CFLAGS+=	-DDEFAULT_EMULATION=\"elf64alpha\"
 CFLAGS+=	-DTARGET=\"alpha-unknown-freebsdelf\"
