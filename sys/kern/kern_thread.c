@@ -613,7 +613,8 @@ thread_exit(void)
 	KASSERT(ke != NULL, ("thread exiting without a kse"));
 	KASSERT(kg != NULL, ("thread exiting without a kse group"));
 	PROC_LOCK_ASSERT(p, MA_OWNED);
-	CTR1(KTR_PROC, "thread_exit: thread %p", td);
+	CTR3(KTR_PROC, "thread_exit: thread %p (pid %ld, %s)", td,
+	    (long)p->p_pid, p->p_comm);
 	mtx_assert(&Giant, MA_NOTOWNED);
 
 	if (td->td_standin != NULL) {
