@@ -23,7 +23,7 @@
 #             PTD is page-aligned
 #
 7	string	\357\020\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0	i386 a.out core file
->1047	string	>\0	from "%s"
+>1031	string	>\0	from "%s"
 
 # /var/run/ld.so.hints
 # What are you laughing about?
