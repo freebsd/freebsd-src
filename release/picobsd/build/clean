@@ -40,7 +40,7 @@ for j in $list ; do
 	echo "===================== $0 $j started ======================"
 	(cd ${j}/crunch1; \
 	if [ -f crunch1.mk ]; then \
-		make -f crunch1.mk realclean ; \
+		make -f crunch1.mk realclean || true ; \
 	fi ; \
 	make -f ../../build/Makefile.crunch clean)
 	echo "=============== $0 $j completed successfuly =============="
