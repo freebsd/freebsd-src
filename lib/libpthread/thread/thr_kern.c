@@ -2151,7 +2151,7 @@ _thr_free(struct pthread *curthread, struct pthread *thread)
 	else {
 		crit = _kse_critical_enter();
 		KSE_LOCK_ACQUIRE(curthread->kse, &thread_lock);
-		TAILQ_INSERT_HEAD(&free_threadq, thread, tle);
+		TAILQ_INSERT_TAIL(&free_threadq, thread, tle);
 		free_thread_count++;
 		KSE_LOCK_RELEASE(curthread->kse, &thread_lock);
 		_kse_critical_leave(crit);
