@@ -2,6 +2,8 @@
 #
 # $FreeBSD$
 
+.PATH: ${.CURDIR}/../pccardd
+
 PROG=	pccardc
 MAN=	pccardc.8
 SRCS=	beep.c dumpcis.c dumpcisfile.c enabler.c pccardc.c pccardmem.c power.c \
@@ -10,4 +12,3 @@ SRCS=	beep.c dumpcis.c dumpcisfile.c enabler.c pccardc.c pccardmem.c power.c \
 CFLAGS+= -I${.CURDIR}/../pccardd
 
 .include <bsd.prog.mk>
-.PATH:	${.CURDIR}/../pccardd

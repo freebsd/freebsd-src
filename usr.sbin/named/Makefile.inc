@@ -55,5 +55,5 @@ pathnames.h:	${BIND_DIR}/bin/named/pathtemplate.h \
 
 .endif
 
-.include	"Makefile.maninc"
+.include "Makefile.maninc"
 .endif

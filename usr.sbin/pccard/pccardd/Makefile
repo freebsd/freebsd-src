@@ -1,6 +1,8 @@
 #	Makefile for pccardd
 # $FreeBSD$
 
+.PATH: ${.CURDIR}/../pccardc
+
 PROG=	pccardd
 MAN=	pccard.conf.5 pccardd.8
 SRCS=	pccardd.c cardd.c file.c util.c readcis.c printcis.c server.c
@@ -11,4 +13,3 @@ DPADD=	${LIBUTIL}
 LDADD=	-lutil 
 
 .include <bsd.prog.mk>
-.PATH:	${.CURDIR}/../pccardc

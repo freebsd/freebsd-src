@@ -14,6 +14,7 @@ CFLAGS+= -DPC98
 
 .if ${MACHINE_ARCH} == "alpha"
 LDADD+=	-lio
+DPADD=  ${LIBIO}
 .endif
 
 .include <bsd.prog.mk>
