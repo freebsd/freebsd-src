@@ -137,7 +137,7 @@ redirect:
 				if (pd)
 					goto new;
 				if (psl == 0 ||
-				    (p = memchr(ps, '\n', psl - 1)) == NULL) {
+				    (p = memchr(ps, '\n', psl)) == NULL) {
 					pd = 1;
 					goto new;
 				} else {
@@ -176,11 +176,8 @@ redirect:
 			case 'N':
 				flush_appends();
 				cspace(&PS, "\n", 1, 0);
-				if (!mf_fgets(&PS, 0)) {
-					if (!nflag && !pd)
-						OUT(ps)
+				if (!mf_fgets(&PS, 0))
 					exit(0);
-				}
 				break;
 			case 'p':
 				if (pd)
@@ -191,7 +188,7 @@ redirect:
 				if (pd)
 					break;
 				if (psl != 0 &&
-				    (p = memchr(ps, '\n', psl - 1)) != NULL) {
+				    (p = memchr(ps, '\n', psl)) != NULL) {
 					oldpsl = psl;
 					psl = p - ps;
 				}
