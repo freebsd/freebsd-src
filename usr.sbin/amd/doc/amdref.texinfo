@@ -37,7 +37,7 @@
 @c
 @c	@(#)amdref.texinfo	8.1 (Berkeley) 6/6/93
 @c
-@c $FreeBSD$
+@c $Id$
 @c
 @setfilename amdref.info
 @c @setfilename /usr/local/emacs/info/amd

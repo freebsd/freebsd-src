@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $Id$
 
 PROG=	supfilesrv
 SRCS=	supfilesrv.c

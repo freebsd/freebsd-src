@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.8 (Berkeley) 7/28/90
-#	$FreeBSD$
+#	$Id$
 
 PROG=	ypbind
 MAN8=	ypbind.8

@@ -191,4 +191,4 @@ mapping root to nobody.
 If anything interesting happened, eg it didn't work, please report it to me
 -- Jan-Simon Pendry <jsp@doc.ic.ac.uk> -- as detailed in the README file.
 
-$FreeBSD$
+$Id$

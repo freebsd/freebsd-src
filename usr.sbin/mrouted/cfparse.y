@@ -4,7 +4,7 @@
  *
  * Written by Bill Fenner, NRL, 1994
  *
- * $FreeBSD$
+ * $Id$
  */
 #include <stdio.h>
 #ifdef __STDC__

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $Id$
 
 FILES	= 	2681.sys cdk.sys
 

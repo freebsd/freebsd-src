@@ -37,7 +37,7 @@
  *
  *	@(#)mk-amd-map.c	8.1 (Berkeley) 6/28/93
  *
- * $FreeBSD$
+ * $Id$
  */
 
 /*
@@ -53,7 +53,7 @@ char copyright[] = "\
 #endif /* not lint */
 
 #ifndef lint
-static char rcsid[] = "$FreeBSD$";
+static char rcsid[] = "$Id$";
 static char sccsid[] = "@(#)mk-amd-map.c	8.1 (Berkeley) 6/28/93";
 #endif /* not lint */
 

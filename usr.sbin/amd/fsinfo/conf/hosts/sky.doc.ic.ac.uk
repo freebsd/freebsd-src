@@ -1,4 +1,4 @@
-// $FreeBSD$
+// $Id$
 // sky
 
 #define FSTYPE_UFS	4.2

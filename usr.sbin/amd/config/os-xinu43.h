@@ -37,7 +37,7 @@
  *
  *	@(#)os-xinu43.h	8.1 (Berkeley) 6/6/93
  *
- * $FreeBSD$
+ * $Id$
  *
  * mt Xinu 4.3 (MORE/bsd) definitions for Amd (automounter)
  * Should work on both Vax and HP ...

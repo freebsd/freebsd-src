@@ -1,4 +1,4 @@
-// $FreeBSD$
+// $Id$
 // conf for obsidian
 
 #define FSTYPE_UFS	hfs

@@ -37,7 +37,7 @@
  *
  *	@(#)os-convex.h	8.1 (Berkeley) 6/6/93
  *
- * $FreeBSD$
+ * $Id$
  *
  * Convex C220, version 7.1 definitions for Amd (automounter)
  *         from Eitan Mizrotsky <eitan@shum.huji.ac.il>

@@ -37,7 +37,7 @@
  *
  *	@(#)os-riscix.h	8.1 (Berkeley) 6/6/93
  *
- * $FreeBSD$
+ * $Id$
  *
  * Acorn Archimedes RISC iX definitions for Amd (automounter)
  * Contributed by Piete Brooks.

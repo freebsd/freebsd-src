@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $Id$
 #
 # Copyright (c) 1990 Jan-Simon Pendry
 # Copyright (c) 1990 Imperial College of Science, Technology & Medicine

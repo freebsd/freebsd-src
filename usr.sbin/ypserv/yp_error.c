@@ -34,7 +34,7 @@
  * error logging/reporting facilities
  * stolen from /usr/libexec/mail.local via ypserv
  *
- * $FreeBSD$
+ * $Id$
  */
 
 #include <stdio.h>
@@ -42,7 +42,7 @@
 #include <syslog.h>
 
 #ifndef lint
-static const char rcsid[] = "$FreeBSD$";
+static const char rcsid[] = "$Id$";
 #endif
 
 int debug;

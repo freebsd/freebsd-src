@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $Id$
 #
 
 PROG= propdelay

@@ -37,7 +37,7 @@
  *
  *	@(#)os-u4_2.h	8.1 (Berkeley) 6/6/93
  *
- * $FreeBSD$
+ * $Id$
  *
  * Ultrix 4.2 definitions for Amd (automounter)
  *		from Chris Lindblad <cjl@ai.mit.edu>

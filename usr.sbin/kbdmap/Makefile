@@ -1,5 +1,5 @@
 # Makefile for kbdmap / vidfont
-# $FreeBSD$
+# $Id$
 
 SCRIPT=	${.CURDIR}/kbdmap.pl
 LINKS=	${BINDIR}/kbdmap ${BINDIR}/vidfont

@@ -4,7 +4,7 @@
 #
 # rmgroup - delete a Unix group
 #
-# $FreeBSD$
+# $Id$
 
 PATH=/bin:/usr/bin; export PATH
 db=/etc/group
