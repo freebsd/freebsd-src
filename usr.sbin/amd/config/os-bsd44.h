@@ -37,7 +37,7 @@
  *
  *	@(#)os-bsd44.h	8.2 (Berkeley) 5/10/95
  *
- * $Id: os-bsd44.h,v 1.8 1997/03/11 15:51:36 peter Exp $
+ * $Id: os-bsd44.h,v 1.9 1997/03/12 08:29:44 peter Exp $
  *
  * 4.4 BSD definitions for Amd (automounter)
  */
@@ -114,7 +114,6 @@
 		(dst).addrlen = sizeof(*src); \
 		(dst).sotype = SOCK_DGRAM; \
 		(dst).proto = 0; \
-		(dst).fhsize = FHSIZE; \
 		(dst).wsize = NFS_WSIZE; \
 		(dst).rsize =  NFS_RSIZE; \
 		(dst).readdirsize =  NFS_READDIRSIZE; \

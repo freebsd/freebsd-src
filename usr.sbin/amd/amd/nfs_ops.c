@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: nfs_ops.c,v 1.6 1997/02/22 16:01:37 peter Exp $
  */
 
 #ifndef lint
@@ -65,7 +65,10 @@ typedef nfs_fh fhandle_t;
 /*
  * Convert from nfsstat to UN*X error code
  */
-#define unx_error(e)	((int)(e))
+#define unx_error(e)	((e) < 10000 ? (int)(e)			\
+			 : ((e) == MNT3ERR_NOTSUPP ? EOPNOTSUPP	\
+			    : ((e) == MNT3ERR_SERVERFAULT ? EIO	\
+			       : EINVAL)))
 
 /*
  * The NFS layer maintains a cache of file handles.
@@ -90,6 +93,16 @@ typedef nfs_fh fhandle_t;
  * changes.  If it does, then you have other
  * problems...
  */
+typedef struct mountres {
+	int	mr_version;		/* 1 or 3 */
+	union {
+		struct fhstatus mru_fhstatus; /* mount v1 result */
+		struct mountres3 mru_mountres3;	/* mount v3 result */
+	} mr_un;
+} mountres;
+#define mr_fhstatus	mr_un.mru_fhstatus
+#define mr_mountres3	mr_un.mru_mountres3
+
 typedef struct fh_cache fh_cache;
 struct fh_cache {
 	qelem	fh_q;			/* List header */
@@ -97,7 +110,7 @@ struct fh_cache {
 	int	fh_error;		/* Valid data? */
 	int	fh_id;			/* Unique id */
 	int	fh_cid;			/* Callout id */
-	struct fhstatus fh_handle;	/* Handle on filesystem */
+	mountres fh_mountres;		/* Result of mount rpc */
 	struct sockaddr_in fh_sin;	/* Address of mountd */
 	fserver *fh_fs;			/* Server holding filesystem */
 	char	*fh_path;		/* Filesystem on host */
@@ -116,7 +129,7 @@ static int fh_id = 0;
 extern qelem fh_head;
 qelem fh_head = { &fh_head, &fh_head };
 
-static int call_mountd P((fh_cache*, unsigned long, fwd_fun, voidp));
+static int call_mountd P((fh_cache*, unsigned long, unsigned long, fwd_fun, voidp));
 
 AUTH *nfs_auth;
 
@@ -165,10 +178,24 @@ int done;
 {
 	fh_cache *fp = find_nfs_fhandle_cache(idv, done);
 	if (fp) {
-		fp->fh_error = pickup_rpc_reply(pkt, len, (voidp) &fp->fh_handle, xdr_fhstatus);
+		if (fp->fh_mountres.mr_version == MOUNTVERS3) {
+			fp->fh_error = pickup_rpc_reply(pkt, len, (voidp) &fp->fh_mountres.mr_mountres3, xdr_mountres3);
+			if (fp->fh_error) {
+				/*
+				 * Fall back to version 1 protocol.
+				 */
+#ifdef DEBUG
+				dlog("mount version 3 refused, retrying with version 1");
+#endif
+				fp->fh_id = FHID_ALLOC();
+				fp->fh_mountres.mr_version = MOUNTVERS;
+				call_mountd(fp, MOUNTPROC_MNT, MOUNTVERS, got_nfs_fh, fp->fh_wchan);
+			}
+		} else
+			fp->fh_error = pickup_rpc_reply(pkt, len, (voidp) &fp->fh_mountres.mr_fhstatus, xdr_fhstatus);
 		if (!fp->fh_error) {
 #ifdef DEBUG
-			dlog("got filehandle for %s:%s", fp->fh_fs->fs_host, fp->fh_path);
+			dlog("got filehandle for %s:%s, version=%d", fp->fh_fs->fs_host, fp->fh_path, fp->fh_mountres.mr_version);
 #endif /* DEBUG */
 			/*
 			 * Wakeup anything sleeping on this filehandle
@@ -205,6 +232,9 @@ fh_cache *fp;
 	dlog("Discarding filehandle for %s:%s", fp->fh_fs->fs_host, fp->fh_path);
 #endif /* DEBUG */
 	free_srvr(fp->fh_fs);
+	if (fp->fh_mountres.mr_version == MOUNTVERS3
+	    && fp->fh_mountres.mr_mountres3.mountres3_u.mountinfo.fhandle.fhandle3_val)
+		free(fp->fh_mountres.mr_mountres3.mountres3_u.mountinfo.fhandle.fhandle3_val);
 	free((voidp) fp->fh_path);
 	free((voidp) fp);
 }
@@ -212,11 +242,12 @@ fh_cache *fp;
 /*
  * Determine the file handle for a node
  */
-static int prime_nfs_fhandle_cache P((char *path, fserver *fs, struct fhstatus *fhbuf, voidp wchan));
-static int prime_nfs_fhandle_cache(path, fs, fhbuf, wchan)
+static int prime_nfs_fhandle_cache P((char *path, fserver *fs, int forcev2, struct mountres *mrbuf, voidp wchan));
+static int prime_nfs_fhandle_cache(path, fs, forcev2, mrbuf, wchan)
 char *path;
 fserver *fs;
-struct fhstatus *fhbuf;
+int forcev2;
+struct mountres *mrbuf;
 voidp wchan;
 {
 	fh_cache *fp, *fp_save = 0;
@@ -234,11 +265,14 @@ voidp wchan;
 		if (fs == fp->fh_fs && strcmp(path, fp->fh_path) == 0) {
 			switch (fp->fh_error) {
 			case 0:
-				error = fp->fh_error = unx_error(fp->fh_handle.fhs_status);
+				if (fp->fh_mountres.mr_version == MOUNTVERS)
+					error = fp->fh_error = unx_error(fp->fh_mountres.mr_fhstatus.fhs_status);
+				else
+					error = fp->fh_error = unx_error(fp->fh_mountres.mr_mountres3.fhs_status);
 				if (error == 0) {
-					if (fhbuf)
-						bcopy((voidp) &fp->fh_handle, (voidp) fhbuf,
-							sizeof(fp->fh_handle));
+					if (mrbuf)
+						bcopy((voidp) &fp->fh_mountres, (voidp) mrbuf,
+							sizeof(fp->fh_mountres));
 					if (fp->fh_cid)
 						untimeout(fp->fh_cid);
 					fp->fh_cid = timeout(FH_TTL, discard_fh, (voidp) fp);
@@ -308,6 +342,21 @@ voidp wchan;
 	fp->fh_wchan = wchan;
 	fp->fh_error = -1;
 	fp->fh_cid = timeout(FH_TTL, discard_fh, (voidp) fp);
+	if (forcev2) {
+		/*
+		 * Force an NFSv2 mount.
+		 */
+#ifdef DEBUG
+		dlog("forcing v2 mount");
+#endif
+		fp->fh_mountres.mr_version = MOUNTVERS;
+	} else {
+		/*
+		 * Attempt v3 first.
+		 */
+		fp->fh_mountres.mr_version = MOUNTVERS3;
+		fp->fh_mountres.mr_mountres3.mountres3_u.mountinfo.fhandle.fhandle3_val = NULL;
+	}
 
 	/*
 	 * If the address has changed then don't try to re-use the
@@ -320,7 +369,7 @@ voidp wchan;
 	fp->fh_fs = dup_srvr(fs);
 	fp->fh_path = strdup(path);
 
-	error = call_mountd(fp, MOUNTPROC_MNT, got_nfs_fh, wchan);
+	error = call_mountd(fp, MOUNTPROC_MNT, fp->fh_mountres.mr_version, got_nfs_fh, wchan);
 	if (error) {
 		/*
 		 * Local error - cache for a short period
@@ -355,10 +404,11 @@ int make_nfs_auth P((void))
 	return 0;
 }
 
-static int call_mountd P((fh_cache *fp, u_long proc, fwd_fun f, voidp wchan));
-static int call_mountd(fp, proc, f, wchan)
+static int call_mountd P((fh_cache *fp, u_long proc, u_long version, fwd_fun f, voidp wchan));
+static int call_mountd(fp, proc, version, f, wchan)
 fh_cache *fp;
 u_long proc;
+u_long version;
 fwd_fun f;
 voidp wchan;
 {
@@ -381,7 +431,7 @@ voidp wchan;
 		fp->fh_sin.sin_port = port;
 	}
 
-	rpc_msg_init(&mnt_msg, MOUNTPROG, MOUNTVERS, (unsigned long) 0);
+	rpc_msg_init(&mnt_msg, MOUNTPROG, version, (unsigned long) 0);
 	len = make_rpc_packet(iobuf, sizeof(iobuf), proc,
 			&mnt_msg, (voidp) &fp->fh_path, xdr_nfspath,  nfs_auth);
 
@@ -439,6 +489,24 @@ am_opts *fo;
 	return xmtab;
 }
 
+static int forcev2(mf)
+mntfs *mf;
+{
+	struct mntent mnt;
+
+	mnt.mnt_dir = mf->mf_mount;
+	mnt.mnt_fsname = mf->mf_info;
+	mnt.mnt_type = MTAB_TYPE_NFS;
+	mnt.mnt_opts = mf->mf_mopts;
+	mnt.mnt_freq = 0;
+	mnt.mnt_passno = 0;
+
+	if (hasmntopt(&mnt, "nfsv2") != NULL)
+		return TRUE;
+	else
+		return FALSE;
+}
+
 /*
  * Initialise am structure for nfs
  */
@@ -447,17 +515,17 @@ mntfs *mf;
 {
 	if (!mf->mf_private) {
 		int error;
-		struct fhstatus fhs;
+		struct mountres mr;
 
 		char *colon = strchr(mf->mf_info, ':');
 		if (colon == 0)
 			return ENOENT;
 
-		error = prime_nfs_fhandle_cache(colon+1, mf->mf_server, &fhs, (voidp) mf);
+		error = prime_nfs_fhandle_cache(colon+1, mf->mf_server, forcev2(mf), &mr, (voidp) mf);
 		if (!error) {
-			mf->mf_private = (voidp) ALLOC(fhstatus);
+			mf->mf_private = (voidp) ALLOC(mountres);
 			mf->mf_prfree = (void (*)()) free;
-			bcopy((voidp) &fhs, mf->mf_private, sizeof(fhs));
+			bcopy((voidp) &mr, mf->mf_private, sizeof(mr));
 		}
 		return error;
 	}
@@ -465,9 +533,9 @@ mntfs *mf;
 	return 0;
 }
 
-int mount_nfs_fh P((struct fhstatus *fhp, char *dir, char *fs_name, char *opts, mntfs *mf));
-int mount_nfs_fh(fhp, dir, fs_name, opts, mf)
-struct fhstatus *fhp;
+int mount_nfs_fh P((struct mountres *mrp, char *dir, char *fs_name, char *opts, mntfs *mf));
+int mount_nfs_fh(mrp, dir, fs_name, opts, mf)
+struct mountres *mrp;
 char *dir;
 char *fs_name;
 char *opts;
@@ -528,10 +596,14 @@ mntfs *mf;
 	/*
 	 * set mount args
 	 */
-	NFS_FH_DREF(nfs_args.fh, (NFS_FH_TYPE) fhp->fhstatus_u.fhs_fhandle);
-#ifdef NFSv3
-	nfs_args.fhsize = FHSIZE;
-#endif
+	if (mrp->mr_version == MOUNTVERS) {
+	    NFS_FH_DREF(nfs_args.fh, (NFS_FH_TYPE) mrp->mr_fhstatus.fhstatus_u.fhs_fhandle);
+	    nfs_args.fhsize = FHSIZE;
+	} else {
+	    NFS_FH_DREF(nfs_args.fh, (NFS_FH_TYPE) mrp->mr_mountres3.mountres3_u.mountinfo.fhandle.fhandle3_val);
+	    nfs_args.fhsize = mrp->mr_mountres3.mountres3_u.mountinfo.fhandle.fhandle3_len;
+	    nfs_args.flags |= NFSMNT_NFSV3;
+	}
 
 #ifdef ULTRIX_HACK
 	nfs_args.optstr = mnt.mnt_opts;
@@ -682,7 +754,7 @@ mntfs *mf;
 #ifdef DEBUG
 	dlog("locating fhandle for %s", fs_name);
 #endif /* DEBUG */
-	error = prime_nfs_fhandle_cache(colon+1, mf->mf_server, &fhs, (voidp) 0);
+	error = prime_nfs_fhandle_cache(colon+1, mf->mf_server, forcev2(mf), &fhs, (voidp) 0);
 
 	if (error)
 		return error;
@@ -694,7 +766,7 @@ mntfs *mf;
 		return EINVAL;
 	}
 
-	return mount_nfs_fh((struct fhstatus *) mf->mf_private, dir, fs_name, opts, mf);
+	return mount_nfs_fh((struct mountres *) mf->mf_private, dir, fs_name, opts, mf);
 }
 
 static int nfs_fmount(mf)
@@ -767,7 +839,7 @@ am_node *mp;
 		f.fh_id = 0;
 		f.fh_error = 0;
 		(void) prime_nfs_fhandle_cache(colon+1, mf->mf_server, (struct fhstatus *) 0, (voidp) mf);
-		(void) call_mountd(&f, MOUNTPROC_UMNT, (fwd_fun) 0, (voidp) 0);
+		(void) call_mountd(&f, MOUNTPROC_UMNT, MOUNTVERS, (fwd_fun) 0, (voidp) 0);
 		*colon = ':';
 	}
 #endif /* INFORM_MOUNTD */

@@ -37,7 +37,7 @@
 @c
 @c	@(#)amdref.texinfo	8.1 (Berkeley) 6/6/93
 @c
-@c $Id$
+@c $Id: amdref.texinfo,v 1.4 1997/02/22 16:03:12 peter Exp $
 @c
 @setfilename amdref.info
 @c @setfilename /usr/local/emacs/info/amd
@@ -1384,6 +1384,8 @@ Use NFS compression protocol.
 Use BSD directory group-id semantics.
 @item intr
 Allow keyboard interrupts on hard mounts.
+@item nfsv2
+Use the version 2 NFS protocol in preference to version 3.
 @item noconn
 Don't make a connection on datagram transports.
 @item nocto
@@ -3076,11 +3078,11 @@ host @{
 The options that can be given as host attributes are shown below.
 
 @menu
-* netif Option:		FSinfo host netif:
-* config Option:	FSinfo host config:
-* arch Option:		FSinfo host arch:
-* os Option:		FSinfo host os:
-* cluster Option:	FSinfo host cluster:
+* netif Option:		FSinfo host netif
+* config Option:	FSinfo host config
+* arch Option:		FSinfo host arch
+* os Option:		FSinfo host os
+* cluster Option:	FSinfo host cluster
 @end menu
 
 @node FSinfo host netif, FSinfo host config, , FSinfo host attributes
@@ -3275,13 +3277,13 @@ fs /dev/dsk/5s0 @{
 @end example
 
 @menu
-* fstype Option:	FSinfo filesystems fstype:
-* opts Option:		FSinfo filesystems opts:
-* passno Option:	FSinfo filesystems passno:
-* freq Option:		FSinfo filesystems freq:
-* mount Option:		FSinfo filesystems mount:
-* dumpset Option:	FSinfo filesystems dumpset:
-* log Option:		FSinfo filesystems log:
+* fstype Option:	FSinfo filesystems fstype
+* opts Option:		FSinfo filesystems opts
+* passno Option:	FSinfo filesystems passno
+* freq Option:		FSinfo filesystems freq
+* mount Option:		FSinfo filesystems mount
+* dumpset Option:	FSinfo filesystems dumpset
+* log Option:		FSinfo filesystems log
 @end menu
 
 @node FSinfo filesystems fstype, FSinfo filesystems opts, , FSinfo filesystems
