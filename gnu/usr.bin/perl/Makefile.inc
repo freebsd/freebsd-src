@@ -1,4 +1,4 @@
-#	$Id: Makefile.inc,v 1.4 1998/09/12 19:16:32 markm Exp $
+#	$Id: Makefile.inc,v 1.5 1998/09/22 12:00:58 markm Exp $
 
 PERL5SRC?= ${.CURDIR}/../../../../contrib/perl5
 
@@ -25,11 +25,33 @@ CLEANFILES+= ${.OBJDIR}/${I}
 DEPEND_H+= ${.OBJDIR}/${I}
 .endfor
 
-lib ext Porting hints:
-	@rm -rf ${.TARGET}
-	for i in `cd ${PERL5SRC}; find ${.TARGET} -type d` ; do \
-		mkdir -p $${i} ;\
+linkfarm: ${DEPEND_H}
+	@for d in ${CLEANDIRS} ; do \
+		rm -rf $${d} ;\
+		for i in `cd ${PERL5SRC}; find $${d} -type d -a \! -name CVS` ;\
+		do \
+			mkdir -p $${i} ;\
+		done ;\
+		for i in `cd ${PERL5SRC}; find $${d} -type f` ;\
+		do \
+			if [ -d `dirname $${i}` ] ; then \
+				ln -s ${PERL5SRC}/$${i} $${i} ;\
+			fi ;\
+		done ;\
 	done
-	for i in `cd ${PERL5SRC}; find ${.TARGET} -type f` ; do \
-		ln -s ${PERL5SRC}/$${i} $${i} ;\
-	done
+	@mkdir lib/auto
+	@mkdir build
+	@ln -sf ${PERL5SRC}/config_h.SH config_h.sh
+	@ln -sf ${PERL5SRC}/cflags.SH cflags.sh
+	@ln -sf ${PERL5SRC}/ext/re/re.pm lib/re.pm
+	@ln -sf ${PERL5SRC}/myconfig myconfig
+	@ln -sf ${PERL5SRC}/miniperlmain.c miniperlmain.c
+	@ln -sf ${PERL5SRC}/writemain.SH writemain.sh
+	@ln -sf ${PERL5SRC}/regcomp.c regcomp.c
+	@ln -sf ${PERL5SRC}/regexec.c regexec.c
+	@ln -sf ${.CURDIR}/../libperl/config.SH-${OBJFORMAT}.${MACHINE_ARCH} \
+		config.sh
+	@touch ${.TARGET}
+
+CLEANFILES+=	linkfarm
+CLEANDIRS+=	lib ext Porting hints build
