@@ -48,7 +48,6 @@ SUBDIR=	IPXrouted \
 	kernbb \
 	kldxref \
 	lastlogin \
-	makeobjops \
 	mailwrapper \
 	manctl \
 	memcontrol \
