@@ -1076,8 +1076,16 @@ bge_chipinit(sc)
 		BGE_MEMWIN_WRITE(sc, i, 0);
 
 	/* Set up the PCI DMA control register. */
-	pci_write_config(sc->bge_dev, BGE_PCI_DMA_RW_CTL,
-	    BGE_PCI_READ_CMD|BGE_PCI_WRITE_CMD|0x0F, 4);
+	if (pci_read_config(sc->bge_dev, BGE_PCI_PCISTATE, 4) &
+	    BGE_PCISTATE_PCI_BUSMODE) {
+		/* Conventional PCI bus */
+		pci_write_config(sc->bge_dev, BGE_PCI_DMA_RW_CTL,
+		    BGE_PCI_READ_CMD|BGE_PCI_WRITE_CMD|0x3F000F, 4);
+	} else {
+		/* PCI-X bus */
+		pci_write_config(sc->bge_dev, BGE_PCI_DMA_RW_CTL,
+		    BGE_PCI_READ_CMD|BGE_PCI_WRITE_CMD|0x1B000F, 4);
+	}
 
 	/*
 	 * Set up general mode register.
