@@ -157,7 +157,7 @@ void		 slot_change(struct slot *);
 
 /* util.c functions */
 unsigned long	 alloc_memory(int);
-int		 bit_fns(bitstr_t *, int, int);
+int		 bit_fns(bitstr_t *, int, int, int);
 void		 die(char *);
 void		 execute(struct cmd *, struct slot *);
 void		 logmsg(const char *, ...);

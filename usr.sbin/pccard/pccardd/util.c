@@ -150,17 +150,18 @@ newstr(char *p)
  *	least count number.
  */
 int
-bit_fns(bitstr_t *nm, int nbits, int count)
+bit_fns(bitstr_t *nm, int nbits, int count, int step)
 {
-	int     i;
+	int     i, j;
 	int     found = 0;
 
-	for (i = 0; i < nbits; i++)
-		if (bit_test(nm, i)) {
-			if (++found == count)
-				return (i - count + 1);
-		} else
-			found = 0;
+	for (i = 0; i < nbits; i += step)
+		for (j = i, found = 0; j < nbits; j++)
+			if (bit_test(nm, j)) {
+				if (++found == count)
+					return i;
+			} else
+				break;
 	return (-1);
 }
 
@@ -172,10 +173,10 @@ alloc_memory(int size)
 {
 	int     i;
 
-	i = bit_fns(mem_avail, MEMBLKS, size / MEMUNIT);
+	i = bit_fns(mem_avail, MEMBLKS, size / MEMUNIT + (size % MEMUNIT != 0), 1);
 	if (i < 0)
 		return (0);
-	bit_nclear(mem_avail, i, size / MEMUNIT);
+	bit_nclear(mem_avail, i, i + size / MEMUNIT + (size % MEMUNIT != 0) - 1);
 	return (BIT2MEM(i));
 }
 
