@@ -91,7 +91,7 @@ Boston, MA 02111-1307, USA.  */
 
 #define LINK_SPEC \
   "%{!nostdlib:%{!r:%{!e*:-e start}}} -dc -dp %{static:-Bstatic} %{assert*} \
-   %{p:-Bstatic} %{pg:-Bstatic} %{Z}"
+   %{p:-Bstatic} %{pg:-Bstatic} %{Z} %{R*}"
 
 #define LINK_LIBGCC_SPECIAL_1	1
 
@@ -195,15 +195,9 @@ Boston, MA 02111-1307, USA.  */
 #define SET_ASM_OP	".set"
 
 /* This is how we tell the assembler that a symbol is weak.  */
-
-#if 0	/* not ready for this yet - work in progress.
-	 * We should probably update gas in the FreeBSD source to something
-	 * more recent, so that this is recognised. Our LD handles it already.
-	 */
 #define ASM_WEAKEN_LABEL(FILE,NAME) \
   do { fputs ("\t.weak\t", FILE); assemble_name (FILE, NAME); \
        fputc ('\n', FILE); } while (0)
-#endif
 
 /* The following macro defines the format used to output the second
    operand of the .type assembler directive.  Different svr4 assemblers
