@@ -317,7 +317,7 @@ char	**argv;
 void usage()
 {
 	(void) fprintf(stderr,
-	    "strfile [-iorsx] [-c char] sourcefile [datafile]\n");
+	    "strfile [-Ciorsx] [-c char] sourcefile [datafile]\n");
 	exit(1);
 }
 
