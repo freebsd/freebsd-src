@@ -43,7 +43,7 @@
 .Nd list directory contents
 .Sh SYNOPSIS
 .Nm ls
-.Op Fl ABCFGHLPRTWabcdfgiklnoqrstu1
+.Op Fl ABCFHLPRTWabcdfgiklnoqrstu1
 .Op Ar file ...
 .Sh DESCRIPTION
 For each operand that names a
@@ -91,29 +91,8 @@ a percent sign (%) after each whiteout,
 and a vertical bar (|) after each that is a
 .Tn FIFO .
 .It Fl G
-Use
-.Tn ANSI
-color sequences to distinguish file types.
-See
-.Ev LSCOLORS
-below.
-In addition to those mentioned above in
-.Fl F ,
-some extra attributes (setuid bit set, etc.) are also displayed.
-The colorization is dependent on a terminal type with the proper
-.Xr termcap 5
-capabilities.
-The default
-.Dq cons25
-console has the proper capabilities,
-however if you want to display the colors in an
-.Xr xterm 1
-for example,
-you need to set your
-.Ev TERM
-variable to
-.Dq xterm-color .
-Other terminal types may require similar adjustments.
+This flag has been depricated.  Please use the
+.Ev CLICOLOR environment variable instead.
 .It Fl H
 Symbolic links on the command line are followed.  This option is assumed if
 none of the
@@ -393,6 +372,33 @@ is set, the block counts
 (see
 .Fl s )
 will be displayed in units of that size block.
+.It Ev CLICOLOR
+Use
+.Tn ANSI
+color sequences to distinguish file types.
+See
+.Ev LSCOLORS
+below.
+In addition to the file types mentioned in the
+.Fl F
+option some extra attributes (setuid bit set, etc.) are also displayed.
+The colorization is dependent on a terminal type with the proper
+.Xr termcap 5
+capabilities.
+The default
+.Dq cons25
+console has the proper capabilities,
+however if you want to display the colors in an
+.Xr xterm 1
+for example,
+you need to set your
+.Ev TERM
+variable to
+.Dq xterm-color .
+Other terminal types may require similar adjustments.
+.It Ev CLICOLOR_FORCE
+Color sequences are normally disabled if the output isn't directed to
+a color capable terminal.  This can be overridden by setting this flag.
 .It Ev COLUMNS
 If this variable contains a string representing a
 decimal integer, it is used as the
@@ -414,9 +420,8 @@ See
 for more information.
 .It Ev LSCOLORS
 The value of this variable describes what color to use for which
-attribute when the color output
-.Pq Fl G
-is specified.
+attribute when colors are enabled with
+.Ev CLICOLOR.
 This string is a concatenation of pairs of the format
 .Sy fb ,
 where
@@ -494,8 +499,8 @@ in order: inode, block count, number of links, user name,
 group name, flags, file size, file name.
 .It Ev TERM
 The
-.Fl G
-option depends on a terminal type with color capabilities.
+.Ev CLICOLOR
+functionality depends on a terminal type with color capabilities.
 .It Ev TZ
 The timezone to use when displaying dates.
 See
