@@ -167,12 +167,15 @@ MainParseArgs(argc, argv)
 
 	optind = 1;	/* since we're called more than once */
 #ifdef REMOTE
-# define OPTFLAGS "BD:E:I:L:PSV:Xd:ef:ij:km:nqrstv"
+# define OPTFLAGS "BC:D:E:I:L:PSV:Xd:ef:ij:km:nqrstv"
 #else
-# define OPTFLAGS "BD:E:I:PSV:Xd:ef:ij:km:nqrstv"
+# define OPTFLAGS "BC:D:E:I:PSV:Xd:ef:ij:km:nqrstv"
 #endif
 rearg:	while((c = getopt(argc, argv, OPTFLAGS)) != -1) {
 		switch(c) {
+		case 'C':
+			chdir(optarg);
+			break;
 		case 'D':
 			Var_Set(optarg, "1", VAR_GLOBAL);
 			Var_Append(MAKEFLAGS, "-D", VAR_GLOBAL);
