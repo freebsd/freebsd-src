@@ -419,7 +419,7 @@ inplace_edit(filename)
 		err(1, "lstat");
 	if ((orig.st_mode & S_IFREG) == 0) {
 		warnx("cannot inplace edit %s, not a regular file", *filename);
-		return -1;
+		return (-1);
 	}
 
 	if (*inplace == '\0') {
@@ -453,7 +453,7 @@ inplace_edit(filename)
 	*filename = strdup(backup);
 	if (*filename == NULL)
 		err(1, "malloc");
-	return 0;
+	return (0);
 }
 
 int
