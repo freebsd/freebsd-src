@@ -37,7 +37,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aic79xx.c#238 $
+ * $Id: //depot/aic7xxx/aic7xxx/aic79xx.c#246 $
  */
 
 #ifdef __linux__
@@ -225,7 +225,7 @@ static u_int		ahd_resolve_seqaddr(struct ahd_softc *ahd,
 static void		ahd_download_instr(struct ahd_softc *ahd,
 					   u_int instrptr, uint8_t *dconsts);
 static int		ahd_probe_stack_size(struct ahd_softc *ahd);
-static void		ahd_other_scb_timeout(struct ahd_softc *ahd,
+static int		ahd_other_scb_timeout(struct ahd_softc *ahd,
 					      struct scb *scb,
 					      struct scb *other_scb);
 static int		ahd_scb_active_in_fifo(struct ahd_softc *ahd,
@@ -338,6 +338,14 @@ ahd_restart(struct ahd_softc *ahd)
 	ahd_outb(ahd, SCSISEQ1,
 		 ahd_inb(ahd, SCSISEQ_TEMPLATE) & (ENSELI|ENRSELI|ENAUTOATNP));
 	ahd_set_modes(ahd, AHD_MODE_CCHAN, AHD_MODE_CCHAN);
+
+	/*
+	 * Clear any pending sequencer interrupt.  It is no
+	 * longer relevant since we're resetting the Program
+	 * Counter.
+	 */
+	ahd_outb(ahd, CLRINT, CLRSEQINT);
+
 	ahd_outb(ahd, SEQCTL0, FASTMODE|SEQRESET);
 	ahd_unpause(ahd);
 }
@@ -1543,9 +1551,6 @@ ahd_handle_scsiint(struct ahd_softc *ahd, u_int intstat)
 	 && (ahd_inb(ahd, SEQ_FLAGS) & NOT_IDENTIFIED) != 0)
 		scb = NULL;
 
-	/* Make sure the sequencer is in a safe location. */
-	ahd_clear_critical_section(ahd);
-
 	if ((status0 & IOERR) != 0) {
 		u_int now_lvd;
 
@@ -1561,25 +1566,34 @@ ahd_handle_scsiint(struct ahd_softc *ahd, u_int intstat)
 		ahd_setup_iocell_workaround(ahd);
 		ahd_unpause(ahd);
 	} else if ((status0 & OVERRUN) != 0) {
+
 		printf("%s: SCSI offset overrun detected.  Resetting bus.\n",
 		       ahd_name(ahd));
 		ahd_reset_channel(ahd, 'A', /*Initiate Reset*/TRUE);
 	} else if ((status & SCSIRSTI) != 0) {
+
 		printf("%s: Someone reset channel A\n", ahd_name(ahd));
 		ahd_reset_channel(ahd, 'A', /*Initiate Reset*/FALSE);
 	} else if ((status & SCSIPERR) != 0) {
+
+		/* Make sure the sequencer is in a safe location. */
+		ahd_clear_critical_section(ahd);
+
 		ahd_handle_transmission_error(ahd);
 	} else if (lqostat0 != 0) {
+
 		printf("%s: lqostat0 == 0x%x!\n", ahd_name(ahd), lqostat0);
 		ahd_outb(ahd, CLRLQOINT0, lqostat0);
-		if ((ahd->bugs & AHD_CLRLQO_AUTOCLR_BUG) != 0) {
+		if ((ahd->bugs & AHD_CLRLQO_AUTOCLR_BUG) != 0)
 			ahd_outb(ahd, CLRLQOINT1, 0);
-		}
 	} else if ((status & SELTO) != 0) {
 		u_int  scbid;
 
 		/* Stop the selection */
 		ahd_outb(ahd, SCSISEQ0, 0);
+
+		/* Make sure the sequencer is in a safe location. */
+		ahd_clear_critical_section(ahd);
 
 		/* No more pending messages */
 		ahd_clear_msg_state(ahd);
@@ -1613,24 +1627,27 @@ ahd_handle_scsiint(struct ahd_softc *ahd, u_int intstat)
 				       scbid);
 			}
 #endif
-			/*
-			 * Force a renegotiation with this target just in
-			 * case the cable was pulled and will later be
-			 * re-attached.  The target may forget its negotiation
-			 * settings with us should it attempt to reselect
-			 * during the interruption.  The target will not issue
-			 * a unit attention in this case, so we must always
-			 * renegotiate.
-			 */
 			ahd_scb_devinfo(ahd, &devinfo, scb);
-			ahd_force_renegotiation(ahd, &devinfo);
 			aic_set_transaction_status(scb, CAM_SEL_TIMEOUT);
 			ahd_freeze_devq(ahd, scb);
+
+			/*
+			 * Cancel any pending transactions on the device
+			 * now that it seems to be missing.  This will
+			 * also revert us to async/narrow transfers until
+			 * we can renegotiate with the device.
+			 */
+			ahd_handle_devreset(ahd, &devinfo,
+					    CAM_LUN_WILDCARD,
+					    CAM_SEL_TIMEOUT,
+					    "Selection Timeout",
+					    /*verbose_level*/1);
 		}
 		ahd_outb(ahd, CLRINT, CLRSCSIINT);
 		ahd_iocell_first_selection(ahd);
 		ahd_unpause(ahd);
 	} else if ((status0 & (SELDI|SELDO)) != 0) {
+
 		ahd_iocell_first_selection(ahd);
 		ahd_unpause(ahd);
 	} else if (status3 != 0) {
@@ -1638,6 +1655,10 @@ ahd_handle_scsiint(struct ahd_softc *ahd, u_int intstat)
 		       ahd_name(ahd), status3);
 		ahd_outb(ahd, CLRSINT3, status3);
 	} else if ((lqistat1 & (LQIPHASE_LQ|LQIPHASE_NLQ)) != 0) {
+
+		/* Make sure the sequencer is in a safe location. */
+		ahd_clear_critical_section(ahd);
+
 		ahd_handle_lqiphase_error(ahd, lqistat1);
 	} else if ((lqistat1 & LQICRCI_NLQ) != 0) {
 		/*
@@ -1661,6 +1682,9 @@ ahd_handle_scsiint(struct ahd_softc *ahd, u_int intstat)
 		 * go about selecting the target while we handle the event.
 		 */
 		ahd_outb(ahd, SCSISEQ0, 0);
+
+		/* Make sure the sequencer is in a safe location. */
+		ahd_clear_critical_section(ahd);
 
 		/*
 		 * Determine what we were up to at the time of
@@ -1700,6 +1724,7 @@ ahd_handle_scsiint(struct ahd_softc *ahd, u_int intstat)
 			packetized =  (lqostat1 & LQOBUSFREE) != 0;
 			if (!packetized
 			 && ahd_inb(ahd, LASTPHASE) == P_BUSFREE
+			 && (ahd_inb(ahd, SSTAT0) & SELDI) == 0
 			 && ((ahd_inb(ahd, SSTAT0) & SELDO) == 0
 			  || (ahd_inb(ahd, SCSISEQ0) & ENSELO) == 0))
 				/*
@@ -3349,11 +3374,15 @@ ahd_update_pending_scbs(struct ahd_softc *ahd)
 	 * Force the sequencer to reinitialize the selection for
 	 * the command at the head of the execution queue if it
 	 * has already been setup.  The negotiation changes may
-	 * effect whether we select-out with ATN.
+	 * effect whether we select-out with ATN.  It is only
+	 * safe to clear ENSELO when the bus is not free and no
+	 * selection is in progres or completed.
 	 */
 	saved_modes = ahd_save_modes(ahd);
 	ahd_set_modes(ahd, AHD_MODE_SCSI, AHD_MODE_SCSI);
-	ahd_outb(ahd, SCSISEQ0, ahd_inb(ahd, SCSISEQ0) & ~ENSELO);
+	if ((ahd_inb(ahd, SCSISIGI) & BSYI) != 0
+	 && (ahd_inb(ahd, SSTAT0) & (SELDO|SELINGO)) == 0)
+		ahd_outb(ahd, SCSISEQ0, ahd_inb(ahd, SCSISEQ0) & ~ENSELO);
 	saved_scbptr = ahd_get_scbptr(ahd);
 	/* Ensure that the hscbs down on the card match the new information */
 	for (scb_tag = 0; scb_tag < ahd->scb_data.maxhscbs; scb_tag++) {
@@ -5059,10 +5088,12 @@ ahd_handle_devreset(struct ahd_softc *ahd, struct ahd_devinfo *devinfo,
 	ahd_set_width(ahd, devinfo, MSG_EXT_WDTR_BUS_8_BIT,
 		      AHD_TRANS_CUR, /*paused*/TRUE);
 	ahd_set_syncrate(ahd, devinfo, /*period*/0, /*offset*/0,
-			 /*ppr_options*/0, AHD_TRANS_CUR, /*paused*/TRUE);
+			 /*ppr_options*/0, AHD_TRANS_CUR,
+			 /*paused*/TRUE);
 	
-	ahd_send_async(ahd, devinfo->channel, devinfo->target,
-		       lun, AC_SENT_BDR, NULL);
+	if (status != CAM_SEL_TIMEOUT)
+		ahd_send_async(ahd, devinfo->channel, devinfo->target,
+			       lun, AC_SENT_BDR, NULL);
 
 	if (message != NULL
 	 && (verbose_level <= bootverbose))
@@ -6013,22 +6044,6 @@ ahd_alloc_scbs(struct ahd_softc *ahd)
 		hscb = (struct hardware_scb *)hscb_map->vaddr;
 		hscb_busaddr = hscb_map->busaddr;
 		scb_data->scbs_left = PAGE_SIZE / sizeof(*hscb);
-		if (ahd->next_queued_hscb == NULL) {
-			/*
-			 * We need one HSCB to serve as the "next HSCB".  Since
-			 * the tag identifier in this HSCB will never be used,
-			 * there is no point in using a valid SCB from the
-			 * free pool for it.  So, we allocate this "sentinel"
-			 * specially.
-	 		 */
-			ahd->next_queued_hscb = hscb;
-			ahd->next_queued_hscb_map = hscb_map;
-			memset(hscb, 0, sizeof(*hscb));
-			hscb->hscb_busaddr = aic_htole32(hscb_busaddr);
-			hscb++;
-			hscb_busaddr += sizeof(*hscb);
-			scb_data->scbs_left--;
-		}
 	}
 
 	if (scb_data->sgs_left != 0) {
@@ -6288,7 +6303,8 @@ ahd_init(struct ahd_softc *ahd)
 	 * for the target mode role, we must additionally provide space for
 	 * the incoming target command fifo.
 	 */
-	driver_data_size = AHD_SCB_MAX * sizeof(*ahd->qoutfifo);
+	driver_data_size = AHD_SCB_MAX * sizeof(*ahd->qoutfifo)
+			 + sizeof(struct hardware_scb);
 	if ((ahd->features & AHD_TARGETMODE) != 0)
 		driver_data_size += AHD_TMODE_CMDS * sizeof(struct target_cmd);
 	if ((ahd->bugs & AHD_PKT_BITBUCKET_BUG) != 0)
@@ -6337,6 +6353,17 @@ ahd_init(struct ahd_softc *ahd)
 		next_vaddr += PKT_OVERRUN_BUFSIZE;
 		next_baddr += PKT_OVERRUN_BUFSIZE;
 	}
+
+	/*
+	 * We need one SCB to serve as the "next SCB".  Since the
+	 * tag identifier in this SCB will never be used, there is
+	 * no point in using a valid HSCB tag from an SCB pulled from
+	 * the standard free pool.  So, we allocate this "sentinel"
+	 * specially from the DMA safe memory chunk used for the QOUTFIFO.
+	 */
+	ahd->next_queued_hscb = (struct hardware_scb *)next_vaddr;
+	ahd->next_queued_hscb_map = &ahd->shared_data_map;
+	ahd->next_queued_hscb->hscb_busaddr = aic_htole32(next_baddr);
 
 	ahd->init_level++;
 
@@ -7058,35 +7085,21 @@ ahd_pause_and_flushwork(struct ahd_softc *ahd)
 	ahd_outw(ahd, KERNEL_QFREEZE_COUNT, ahd->qfreeze_cnt);
 	ahd_outb(ahd, SEQ_FLAGS2, ahd_inb(ahd, SEQ_FLAGS2) | SELECTOUT_QFROZEN);
 	do {
-		struct scb *waiting_scb;
 
 		ahd_unpause(ahd);
 		/*
 		 * Give the sequencer some time to service
 		 * any active selections.
 		 */
-		aic_delay(200);
+		aic_delay(500);
 
 		ahd_intr(ahd);
 		ahd_pause(ahd);
-		ahd_clear_critical_section(ahd);
 		intstat = ahd_inb(ahd, INTSTAT);
-		ahd_set_modes(ahd, AHD_MODE_SCSI, AHD_MODE_SCSI);
-		if ((ahd_inb(ahd, SSTAT0) & (SELDO|SELINGO)) == 0)
-			ahd_outb(ahd, SCSISEQ0,
-				 ahd_inb(ahd, SCSISEQ0) & ~ENSELO);
-		/*
-		 * In the non-packetized case, the sequencer (for Rev A),
-		 * relies on ENSELO remaining set after SELDO.  The hardware
-		 * auto-clears ENSELO in the packetized case.
-		 */
-		waiting_scb = ahd_lookup_scb(ahd,
-					     ahd_inw(ahd, WAITING_TID_HEAD));
-		if (waiting_scb != NULL
-		 && (waiting_scb->flags & SCB_PACKETIZED) == 0
-		 && (ahd_inb(ahd, SSTAT0) & (SELDO|SELINGO)) != 0)
-			ahd_outb(ahd, SCSISEQ0,
-				 ahd_inb(ahd, SCSISEQ0) | ENSELO);
+		if ((intstat & INT_PEND) == 0) {
+			ahd_clear_critical_section(ahd);
+			intstat = ahd_inb(ahd, INTSTAT);
+		}
 	} while (--maxloops
 	      && (intstat != 0xFF || (ahd->features & AHD_REMOVABLE) == 0)
 	      && ((intstat & INT_PEND) != 0
@@ -8480,13 +8493,14 @@ ahd_loadseq(struct ahd_softc *ahd)
 	u_int	sg_prefetch_cnt_limit;
 	u_int	sg_prefetch_align;
 	u_int	sg_size;
+	u_int	cacheline_mask;
 	uint8_t	download_consts[DOWNLOAD_CONST_COUNT];
 
 	if (bootverbose)
 		printf("%s: Downloading Sequencer Program...",
 		       ahd_name(ahd));
 
-#if DOWNLOAD_CONST_COUNT != 7
+#if DOWNLOAD_CONST_COUNT != 8
 #error "Download Const Mismatch"
 #endif
 	/*
@@ -8522,6 +8536,9 @@ ahd_loadseq(struct ahd_softc *ahd)
 	/* Round down to the nearest power of 2. */
 	while (powerof2(sg_prefetch_align) == 0)
 		sg_prefetch_align--;
+
+	cacheline_mask = sg_prefetch_align - 1;
+
 	/*
 	 * If the cacheline boundary is greater than half our prefetch RAM
 	 * we risk not being able to fetch even a single complete S/G
@@ -8562,6 +8579,7 @@ ahd_loadseq(struct ahd_softc *ahd)
 	download_consts[PKT_OVERRUN_BUFOFFSET] =
 		(ahd->overrun_buf - (uint8_t *)ahd->qoutfifo) / 256;
 	download_consts[SCB_TRANSFER_SIZE] = SCB_TRANSFER_SIZE_1BYTE_LUN;
+	download_consts[CACHELINE_MASK] = cacheline_mask;
 	cur_patch = patches;
 	downloaded = 0;
 	skip_addr = 0;
@@ -9241,13 +9259,18 @@ bus_reset:
 		if (active_scb != NULL) {
 
 			if (active_scb != scb) {
+
 				/*
 				 * If the active SCB is not us, assume that
 				 * the active SCB has a longer timeout than
 				 * the timedout SCB, and wait for the active
-				 * SCB to timeout.
+				 * SCB to timeout.  As a safeguard, only
+				 * allow this deferral to continue if some
+				 * untimed-out command is outstanding.
 				 */ 
-				ahd_other_scb_timeout(ahd, scb, active_scb);
+				if (ahd_other_scb_timeout(ahd, scb,
+							  active_scb) != 0)
+					goto bus_reset;
 				continue;
 			} 
 
@@ -9285,7 +9308,8 @@ bus_reset:
 			 * some other command.  Reset the timer
 			 * and go on.
 			 */
-			ahd_other_scb_timeout(ahd, scb, scb);
+			if (ahd_other_scb_timeout(ahd, scb, NULL) != 0)
+				goto bus_reset;
 		} else {
 			/*
 			 * This SCB is for a disconnected transaction
@@ -9381,20 +9405,55 @@ bus_reset:
 	ahd_unlock(ahd, &s);
 }
 
-static void
+/*
+ * Re-schedule a timeout for the passed in SCB if we determine that some
+ * other SCB is in the process of recovery or an SCB with a longer
+ * timeout is still pending.  Limit our search to just "other_scb"
+ * if it is non-NULL.
+ */
+static int
 ahd_other_scb_timeout(struct ahd_softc *ahd, struct scb *scb,
 		      struct scb *other_scb)
 {
 	u_int	newtimeout;
+	int	found;
 
 	ahd_print_path(ahd, scb);
 	printf("Other SCB Timeout%s",
  	       (scb->flags & SCB_OTHERTCL_TIMEOUT) != 0
 	       ? " again\n" : "\n");
+
+	newtimeout = aic_get_timeout(scb);
 	scb->flags |= SCB_OTHERTCL_TIMEOUT;
-	newtimeout = MAX(aic_get_timeout(other_scb),
-			 aic_get_timeout(scb));
-	aic_scb_timer_reset(scb, newtimeout);
+	found = 0;
+	if (other_scb != NULL) {
+		if ((other_scb->flags
+		   & (SCB_OTHERTCL_TIMEOUT|SCB_TIMEDOUT)) == 0
+		 || (other_scb->flags & SCB_RECOVERY_SCB) != 0) {
+			found++;
+			newtimeout = MAX(aic_get_timeout(other_scb),
+					 newtimeout);
+		}
+	} else {
+		LIST_FOREACH(other_scb, &ahd->pending_scbs, pending_links) {
+			if ((other_scb->flags
+			   & (SCB_OTHERTCL_TIMEOUT|SCB_TIMEDOUT)) == 0
+			 || (other_scb->flags & SCB_RECOVERY_SCB) != 0) {
+				found++;
+				newtimeout = MAX(aic_get_timeout(other_scb),
+						 newtimeout);
+			}
+		}
+	}
+
+	if (found != 0)
+		aic_scb_timer_reset(scb, newtimeout);
+	else {
+		ahd_print_path(ahd, scb);
+		printf("No other SCB worth waiting for...\n");
+	}
+
+	return (found != 0);
 }
 
 /**************************** Flexport Logic **********************************/

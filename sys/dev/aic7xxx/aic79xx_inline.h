@@ -37,7 +37,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aic79xx_inline.h#56 $
+ * $Id: //depot/aic7xxx/aic7xxx/aic79xx_inline.h#57 $
  *
  * $FreeBSD$
  */
@@ -693,7 +693,7 @@ ahd_inb_scbram(struct ahd_softc *ahd, u_int offset)
 	 * Razor #528
 	 */
 	value = ahd_inb(ahd, offset);
-	if ((ahd->flags & AHD_PCIX_SCBRAM_RD_BUG) != 0)
+	if ((ahd->bugs & AHD_PCIX_SCBRAM_RD_BUG) != 0)
 		ahd_inb(ahd, MODE_PTR);
 	return (value);
 }

@@ -37,7 +37,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aic79xx.h#106 $
+ * $Id: //depot/aic7xxx/aic7xxx/aic79xx.h#107 $
  *
  * $FreeBSD$
  */
@@ -1065,7 +1065,6 @@ struct ahd_completion
 {
 	uint16_t	tag;
 	uint8_t		sg_status;
-	uint8_t		pad[4];
 	uint8_t		valid_tag;
 };
 

@@ -40,7 +40,7 @@
  * $FreeBSD$
  */
 
-VERSION = "$Id: //depot/aic7xxx/aic7xxx/aic79xx.seq#118 $"
+VERSION = "$Id: //depot/aic7xxx/aic7xxx/aic79xx.seq#119 $"
 PATCH_ARG_LIST = "struct ahd_softc *ahd"
 PREFIX = "ahd_"
 
@@ -364,11 +364,11 @@ fill_qoutfifo:
 	bmov	COMPLETE_SCB_DMAINPROG_HEAD, COMPLETE_SCB_HEAD, 2;
 	mvi	CCSCBCTL, CCSCBRESET;
 	bmov	SCBHADDR, QOUTFIFO_NEXT_ADDR, 4;
+	mov	A, QOUTFIFO_NEXT_ADDR;
 	bmov	SCBPTR, COMPLETE_SCB_HEAD, 2;
 fill_qoutfifo_loop:
 	bmov	CCSCBRAM, SCBPTR, 2;
 	mov	CCSCBRAM, SCB_SGPTR[0];
-	bmov	CCSCBRAM, ALLZEROS, 4;
 	mov	CCSCBRAM, QOUTFIFO_ENTRY_VALID_TAG;
 	mov	NONE, SDSCB_QOFF;
 	inc	INT_COALESCING_CMDCOUNT;
@@ -377,6 +377,18 @@ fill_qoutfifo_loop:
 	cmp	SCB_NEXT_COMPLETE[1], SCB_LIST_NULL je fill_qoutfifo_done;
 	cmp	CCSCBADDR, CCSCBADDR_MAX je fill_qoutfifo_done;
 	test	QOFF_CTLSTA, SDSCB_ROLLOVR jnz fill_qoutfifo_done;
+	/*
+	 * Don't cross an ADB or Cachline boundary when DMA'ing
+	 * completion entries.  In PCI mode, at least in 32/33
+	 * configurations, the SCB DMA engine may lose its place
+	 * in the data-stream should the target force a retry on
+	 * something other than an 8byte aligned boundary. In
+	 * PCI-X mode, we do this to avoid split transactions since
+	 * many chipsets seem to be unable to format proper split
+	 * completions to continue the data transfer.
+	 */
+	add	SINDEX, A, CCSCBADDR;
+	test	SINDEX, CACHELINE_MASK jz fill_qoutfifo_done;
 	bmov	SCBPTR, SCB_NEXT_COMPLETE, 2;
 	jmp	fill_qoutfifo_loop;
 fill_qoutfifo_done:
