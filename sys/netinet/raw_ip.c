@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)raw_ip.c	8.2 (Berkeley) 1/4/94
- * $Id: raw_ip.c,v 1.5 1994/10/02 17:48:42 phk Exp $
+ * $Id: raw_ip.c,v 1.6 1994/10/28 15:09:49 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -218,8 +218,11 @@ rip_ctloutput(op, so, level, optname, m)
 	case IP_FW_FLUSH:
 	case IP_FW_POLICY:
 
-		if (op == PRCO_SETOPT)
-			error=ip_firewall_ctl(optname, *m); 
+		if (op == PRCO_SETOPT) {
+			error=ip_fw_ctl(optname, *m); 
+			if (*m)
+				(void)m_free(*m);
+		}
 		else
 			error=EINVAL;
 		return(error);
