@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_time.c	8.1 (Berkeley) 6/10/93
- * $Id: kern_time.c,v 1.22 1997/03/22 08:03:32 bde Exp $
+ * $Id: kern_time.c,v 1.23 1997/05/08 14:16:25 peter Exp $
  */
 
 #include <sys/param.h>
@@ -485,8 +485,11 @@ setitimer(p, uap, retval)
 		return (error);
 	if (itvp == 0)
 		return (0);
-	if (itimerfix(&aitv.it_value) || itimerfix(&aitv.it_interval))
+	if (itimerfix(&aitv.it_value))
 		return (EINVAL);
+	if (aitv.it_value.tv_sec || aitv.it_value.tv_usec)
+		if (itimerfix(&aitv.it_interval))
+			return (EINVAL);
 	s = splclock();
 	if (uap->which == ITIMER_REAL) {
 		untimeout(realitexpire, (caddr_t)p);
