@@ -46,8 +46,8 @@ __FBSDID("$FreeBSD$");
 /*This should be removed if force_pci_map_int supported*/
 #include <sys/interrupt.h>
 
-#include <pci/pcireg.h>
-#include <pci/pcivar.h>
+#include <dev/pci/pcireg.h>
+#include <dev/pci/pcivar.h>
 #include <pci/intpmreg.h>
 
 #include "opt_intpm.h"

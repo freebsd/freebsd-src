@@ -42,7 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/interrupt.h>
 #include <sys/malloc.h>
 
-#include <pci/pcivar.h>
+#include <dev/pci/pcivar.h>
 #include <alpha/isa/isavar.h>
 #include <alpha/pci/tsunamireg.h>
 #include <alpha/pci/tsunamivar.h>

@@ -40,7 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/rman.h>
 
-#include <pci/pcivar.h>
+#include <dev/pci/pcivar.h>
 #include <machine/chipset.h>
 #include <machine/cpuconf.h>
 #include <machine/resource.h>

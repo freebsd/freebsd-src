@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: if_mn.c,v 1.1 1999/02/01 13:06:40 phk Exp $
+ * $Id: if_mn.c,v 1.38 2003/06/11 06:24:36 obrien Exp $
  *
  * Driver for Siemens reference design card "Easy321-R1".
  *
@@ -42,8 +42,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/malloc.h>
 
-#include <pci/pcireg.h>
-#include <pci/pcivar.h>
+#include <dev/pci/pcireg.h>
+#include <dev/pci/pcivar.h>
 #include "pci_if.h"
 
 #include <machine/bus.h>
