@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.143 1998/06/15 19:05:40 brian Exp $
+ * $Id: command.c,v 1.144 1998/06/15 19:06:04 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -124,7 +124,7 @@
 #define NEG_DNS		50
 
 const char Version[] = "2.0-beta";
-const char VersionDate[] = "$Date: 1998/06/15 19:05:40 $";
+const char VersionDate[] = "$Date: 1998/06/15 19:06:04 $";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
@@ -902,18 +902,24 @@ CloseCommand(struct cmdargs const *arg)
 static int
 DownCommand(struct cmdargs const *arg)
 {
-  if (arg->argc == arg->argn ||
-      (arg->argc == arg->argn+1 && !strcasecmp(arg->argv[arg->argn], "lcp"))) {
-    if (arg->cx)
-      datalink_Down(arg->cx, CLOSE_STAYDOWN);
-    else
-      bundle_Down(arg->bundle);
-  } else if (arg->argc == arg->argn+1 &&
-           !strcasecmp(arg->argv[arg->argn], "ccp")) {
-    struct fsm *fp = arg->cx ? &arg->cx->physical->link.ccp.fsm :
-                               &arg->bundle->ncp.mp.link.ccp.fsm;
-    fsm_Down(fp);
-    fsm_Close(fp);
+  if (arg->argc == arg->argn) {
+      if (arg->cx)
+        datalink_Down(arg->cx, CLOSE_STAYDOWN);
+      else
+        bundle_Down(arg->bundle, CLOSE_STAYDOWN);
+  } else if (arg->argc == arg->argn + 1) {
+    if (!strcasecmp(arg->argv[arg->argn], "lcp")) {
+      if (arg->cx)
+        datalink_Down(arg->cx, CLOSE_LCP);
+      else
+        bundle_Down(arg->bundle, CLOSE_LCP);
+    } else if (!strcasecmp(arg->argv[arg->argn], "ccp")) {
+      struct fsm *fp = arg->cx ? &arg->cx->physical->link.ccp.fsm :
+                                 &arg->bundle->ncp.mp.link.ccp.fsm;
+      fsm_Down(fp);
+      fsm_Close(fp);
+    } else
+      return -1;
   } else
     return -1;
 

@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.104 1998/06/12 20:12:26 brian Exp $
+.\" $Id: ppp.8,v 1.105 1998/06/15 19:05:27 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -2382,9 +2382,15 @@ the connection, and all closed links are brought up.
 Bring the relevant layer down ungracefully, as if the underlying layer
 had become unavailable.  It's not considered polite to use this command on
 a Finite State Machine that's in the OPEN state.  If no arguments are
-supplied,
+supplied, the entire link is closed (or if no context is given, all links
+are terminated).  If
 .Sq lcp
-is assumed.
+is specified, the
+.Em LCP
+layer is terminated but the modem is not brought offline and the link
+is not closed.  If
+.Sq ccp
+is specified, only the relevant compression layer(s) are terminated.
 .It help|? Op Ar command
 Show a list of available commands.  If
 .Ar command
