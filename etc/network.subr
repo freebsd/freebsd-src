@@ -274,7 +274,6 @@ ifnet_rename()
 #	argument can be any of the following:
 #		nodhcp - all interfaces, excluding DHCP configured interfaces
 #		dhcp   - list only DHCP configured interfaces
-#		all    - all interfaces
 #	If no argument is specified all network interfaces are output.
 #	Note that the list will include cloned interfaces if applicable.
 #	Cloned interfaces must already exist to have a chance to appear
@@ -342,9 +341,6 @@ list_net_interfaces()
 		;;
 	dhcp)
 		echo $_dhcplist
-		;;
-	all)
-		echo $_nodhcplist $_dhcplist
 		;;
 	esac
 	return 0
