@@ -47,6 +47,14 @@ getservbyname(name, proto)
 	register struct servent *p;
 	register char **cp;
 
+#ifdef YP
+	extern char *___getservbyname_yp;
+	extern char *___getservbyproto_yp;
+
+	___getservbyname_yp = (char *)name;
+	___getservbyproto_yp = (char *)proto;
+#endif
+
 	setservent(_serv_stayopen);
 	while (p = getservent()) {
 		if (strcmp(name, p->s_name) == 0)
@@ -61,5 +69,11 @@ gotname:
 	}
 	if (!_serv_stayopen)
 		endservent();
+
+#ifdef YP
+	___getservbyname_yp = NULL;
+	___getservbyproto_yp = NULL;
+#endif
+
 	return (p);
 }
