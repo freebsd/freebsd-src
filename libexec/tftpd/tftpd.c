@@ -90,7 +90,6 @@ int	max_rexmtval = 2*TIMEOUT;
 char	buf[PKTSIZE];
 char	ackbuf[PKTSIZE];
 struct	sockaddr_storage from;
-int	fromlen;
 
 void	tftp(struct tftphdr *, int);
 static void unmappedaddr(struct sockaddr_in6 *);
@@ -124,10 +123,10 @@ int
 main(int argc, char *argv[])
 {
 	struct tftphdr *tp;
+	socklen_t fromlen, len;
 	int n;
 	int ch, on;
 	struct sockaddr_storage me;
-	int len;
 	char *chroot_dir = NULL;
 	struct passwd *nobody;
 	const char *chuser = "nobody";
@@ -216,8 +215,7 @@ main(int argc, char *argv[])
 	 * spawn endless instances, clogging the system.
 	 */
 	{
-		int pid;
-		int i, j;
+		int i, pid;
 
 		for (i = 1; i < 20; i++) {
 		    pid = fork();
@@ -233,12 +231,11 @@ main(int argc, char *argv[])
 				 * than one tftpd being started up to service
 				 * a single request from a single client.
 				 */
-				j = sizeof from;
+				fromlen = sizeof from;
 				i = recvfrom(0, buf, sizeof (buf), 0,
-				    (struct sockaddr *)&from, &j);
+				    (struct sockaddr *)&from, &fromlen);
 				if (i > 0) {
 					n = i;
-					fromlen = j;
 				}
 		    } else {
 				break;
@@ -408,7 +405,7 @@ tftp(struct tftphdr *tp, int size)
 	int i, first = 1, has_options = 0, ecode;
 	struct formats *pf;
 	char *filename, *mode, *option, *ccp;
-	char fnbuf[PATH_MAX], resolved_fnbuf[PATH_MAX];
+	char fnbuf[PATH_MAX];
 
 	cp = tp->th_stuff;
 again:
