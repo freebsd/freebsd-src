@@ -108,7 +108,17 @@
  *	Transmit TX	  4 (Y)		2, 4, 6, 8	Data out
  *	Receive RX	  3 (G)		10, 14		-ACK, -AutoFeed
  *	Common		  2 (R)		25		Common
- *	Zero crossing	  1 (B)		17		-Select Input
+ *	Zero crossing	  1 (B)		17 or 12	-Select or +PaperEnd
+ *
+ * NOTE: In the original cable I have (which I am still using, May, 1997)
+ * the Zero crossing signal goes to pin 17 (-Select) on the parallel port.
+ * In retrospect, this doesn't make a whole lot of sense, given that the
+ * -Select signal propagates the other direction.  Indeed, some people have
+ * reported problems with this, and have had success using pin 12 (+PaperEnd)
+ * instead.  This driver searches for the zero crossing signal on either
+ * pin 17 or pin 12, so it should work with either cable configuration.
+ * My suggestion would be to start by making the cable so that the zero
+ * crossing signal goes to pin 12 on the parallel port.
  *
  * The zero crossing signal is used to synchronize transmission to the
  * zero crossings of the AC line, as detailed in the X-10 documentation.
@@ -150,8 +160,6 @@
 
 #include <i386/isa/isa_device.h>
 
-
-
 /*
  * Transmission is done by calling write() to send three byte packets of data.
  * The first byte contains a four bit house code (0=A to 15=P).
@@ -185,6 +193,7 @@
 
 #define tw_status 1			/* Status of tw523 (R) */
 #define	TWS_RDATA		0x40	/* tw523 receive data */
+#define	TWS_OUT			0x20	/* pin 12, out of paper */
 
 #define tw_control 2			/* Control tw523 (R/W) */
 #define	TWC_SYNC		0x08	/* tw523 sync (pin 17) */
@@ -216,6 +225,7 @@ static struct cdevsw tw_cdevsw =
 	{ twopen,	twclose,	twread,		twwrite,	/*19*/
 	  noioc,	nullstop,	nullreset,	nodevtotty, /* tw */
 	  twselect,	nommap,		nostrat,	"tw",	NULL,	-1 };
+
 /*
  * Software control structure for TW523
  */
@@ -226,6 +236,7 @@ static struct cdevsw tw_cdevsw =
 #define TWS_OPEN	 8	/* Is it currently open? */
 
 #define TW_SIZE		3*60	/* Enough for about 10 sec. of input */
+#define TW_MIN_DELAY	1500	/* Ignore interrupts of lesser latency */
 
 static struct tw_sc {
   u_int sc_port;		/* I/O Port */
@@ -244,22 +255,29 @@ static struct tw_sc {
 #ifdef HIRESTIME
   int sc_xtimes[22];		/* Times for bits in current xmit packet */
   int sc_rtimes[22];		/* Times for bits in current rcv packet */
+  int sc_no_rcv;		/* number of interrupts received */
+#define SC_RCV_TIME_LEN	128
+  int sc_rcv_time[SC_RCV_TIME_LEN]; /* usec time stamp on interrupt */
 #endif /* HIRESTIME */
 #ifdef	DEVFS
   void	*devfs_token;		/* store the devfs handle */
 #endif
 } tw_sc[NTW];
 
+static int tw_zcport;		/* offset of port for zero crossing signal */
+static int tw_zcmask;		/* mask for the zero crossing signal */
+
 static void twdelay25(void);
 static void twdelayn(int n);
 static void twsetuptimes(int *a);
 static int wait_for_zero(struct tw_sc *sc);
+static int twputpkt(struct tw_sc *sc, u_char *p);
 static int twgetbytes(struct tw_sc *sc, u_char *p, int cnt);
 static void twabortrcv(struct tw_sc *sc);
 static int twsend(struct tw_sc *sc, int h, int k, int cnt);
 static int next_zero(struct tw_sc *sc);
-static int twputpkt(struct tw_sc *sc, u_char *p);
 static int twchecktime(int target, int tol);
+static void twdebugtimes(struct tw_sc *sc);
 
 /*
  * Counter value for delay loop.
@@ -280,7 +298,7 @@ static int twdelaycount;
  * fairly forgiving.
  */
 
-static void twdelay25()
+static void twdelay25(void)
 {
   int cnt;
   for(cnt = twdelaycount; cnt; cnt--);	/* Should take about 25us */
@@ -315,8 +333,7 @@ static void twdelayn(int n)
   }
 }
 
-static int
-twprobe(idp)
+static int twprobe(idp)
      struct isa_device *idp;
 {
   struct tw_sc sc;
@@ -324,6 +341,17 @@ twprobe(idp)
   int tries;
 
   sc.sc_port = idp->id_iobase;
+  /* Search for the zero crossing signal at ports, bit combinations. */
+  tw_zcport = tw_control;
+  tw_zcmask = TWC_SYNC;
+  sc.sc_xphase = inb(idp->id_iobase + tw_zcport) & tw_zcmask;
+  if(wait_for_zero(&sc) < 0) {
+    tw_zcport = tw_status;
+    tw_zcmask = TWS_OUT;
+    sc.sc_xphase = inb(idp->id_iobase + tw_zcport) & tw_zcmask;
+  }
+  if(wait_for_zero(&sc) < 0)
+    return(0);
   /*
    * Iteratively check the timing of a few sync transitions, and adjust
    * the loop delay counter, if necessary, to bring the timing reported
@@ -333,7 +361,7 @@ twprobe(idp)
   if(twdelaycount == 0) {  /* Only adjust timing for first unit */
     twdelaycount = TWDELAYCOUNT;
     for(tries = 0; tries < 10; tries++) {
-      sc.sc_xphase = inb(idp->id_iobase + tw_control) & TWC_SYNC;
+      sc.sc_xphase = inb(idp->id_iobase + tw_zcport) & tw_zcmask;
       if(wait_for_zero(&sc) >= 0) {
 	d = wait_for_zero(&sc);
 	if(d <= HALFCYCLE/100 || d >= HALFCYCLE*100) {
@@ -347,16 +375,15 @@ twprobe(idp)
   /*
    * Now do a final check, just to make sure
    */
-  sc.sc_xphase = inb(idp->id_iobase + tw_control) & TWC_SYNC;
+  sc.sc_xphase = inb(idp->id_iobase + tw_zcport) & tw_zcmask;
   if(wait_for_zero(&sc) >= 0) {
     d = wait_for_zero(&sc);
-    if(d <= (HALFCYCLE * 110)/100 && d >= (HALFCYCLE * 90)/100) return(1);
+    if(d <= (HALFCYCLE * 110)/100 && d >= (HALFCYCLE * 90)/100) return(8);
   }
   return(0);
 }
 
-static int
-twattach(idp)
+static int twattach(idp)
 	struct isa_device *idp;
 {
   struct tw_sc *sc;
@@ -365,6 +392,7 @@ twattach(idp)
   sc = &tw_sc[unit = idp->id_unit];
   sc->sc_port = idp->id_iobase;
   sc->sc_state = 0;
+  sc->sc_rcount = 0;
 
 #ifdef DEVFS
 	sc->devfs_token = 
@@ -383,6 +411,7 @@ int twopen(dev, flag, mode, p)
 {
   struct tw_sc *sc = &tw_sc[TWUNIT(dev)];
   int s;
+  int port;
 
   s = spltty();
   if(sc->sc_state == 0) {
@@ -403,6 +432,7 @@ int twclose(dev, flag, mode, p)
 {
   struct tw_sc *sc = &tw_sc[TWUNIT(dev)];
   int s;
+  int port = sc->sc_port;
 
   s = spltty();
   sc->sc_state = 0;
@@ -505,7 +535,8 @@ int twselect(dev, rw, p)
      struct proc *p;
 {
   struct tw_sc *sc;
-  int s;
+  struct proc *pp;
+  int s, i;
 
   sc = &tw_sc[TWUNIT(dev)];
   s = spltty();
@@ -593,27 +624,60 @@ static char X10_KEY[32][10] = {
  */
 
 static short X10_HOUSE_INV[16] = {
-	12,  4,  2, 10, 14,  6,  0,  8,
-	13,  5,  3, 11, 15,  7,  1,  9 
+      12,  4,  2, 10, 14,  6,  0,  8,
+      13,  5,  3, 11, 15,  7,  1,  9
 };
 
-static short X10_KEY_INV[32]   = {
-	12, 16,  4, 17,  2, 18, 10, 19,
-	14, 20,  6, 21,  0, 22,  8, 23,
-	13, 24,  5, 25,  3, 26, 11, 27,
-	15, 28,  7, 29,  1, 30,  9, 31
+static short X10_KEY_INV[32] = { 
+      12, 16,  4, 17,  2, 18, 10, 19,
+      14, 20,  6, 21,  0, 22,  8, 23,
+      13, 24,  5, 25,  3, 26, 11, 27,
+      15, 28,  7, 29,  1, 30,  9, 31
 };
 
+static char *X10_KEY_LABEL[32] = {
+ "1",
+ "2",
+ "3",
+ "4",
+ "5",
+ "6",
+ "7",
+ "8",
+ "9",
+ "10",
+ "11",
+ "12",
+ "13",
+ "14",
+ "15",
+ "16",
+ "All Units Off",
+ "All Units On",
+ "On",
+ "Off",
+ "Dim",
+ "Bright",
+ "All LIGHTS Off",
+ "Extended Code",
+ "Hail Request",
+ "Hail Acknowledge",
+ "Preset Dim 0",
+ "Preset Dim 1",
+ "Extended Data (analog)",
+ "Status = on",
+ "Status = off",
+ "Status request"
+};
 /*
  * Transmit a packet containing house code h and key code k
  */
 
 #define TWRETRY		10		/* Try 10 times to sync with AC line */
 
-static int
-twsend(sc, h, k, cnt)
-	struct tw_sc *sc;
-	int h, k, cnt;
+static int twsend(sc, h, k, cnt)
+struct tw_sc *sc;
+int h, k, cnt;
 {
   int i;
   int port = sc->sc_port;
@@ -701,13 +765,13 @@ static int wait_for_zero(sc)
 struct tw_sc *sc;
 {
   int i, old, new, max;
-  int port = sc->sc_port + tw_control;
+  int port = sc->sc_port + tw_zcport;
 
   old = sc->sc_xphase;
   max = 10000;		/* 10000 * 25us = 0.25 sec */
   i = 0;
   while(max--) {
-    new = inb(port) & TWC_SYNC;
+    new = inb(port) & tw_zcmask;
     if(new != old) {
       sc->sc_xphase = new;
       return(i*25);
@@ -805,22 +869,37 @@ int cnt;
  * Abort reception that has failed to complete in the required time.
  */
 
-static void
-twabortrcv(sc)
-	struct tw_sc *sc;
+static void twabortrcv(sc)
+struct tw_sc *sc;
 {
   int s;
   u_char pkt[3];
 
   s = spltty();
   sc->sc_state &= ~TWS_RCVING;
-  sc->sc_flags |= TW_RCV_ERROR;
-  pkt[0] = sc->sc_flags;
-  pkt[1] = pkt[2] = 0;
-  twputpkt(sc, pkt);
-  log(LOG_ERR, "TWRCV: aborting (%x, %d)\n", sc->sc_bits, sc->sc_rcount);
+  /* simply ignore single isolated interrupts. */
+  if (sc->sc_no_rcv > 1) {
+      sc->sc_flags |= TW_RCV_ERROR;
+      pkt[0] = sc->sc_flags;
+      pkt[1] = pkt[2] = 0;
+      twputpkt(sc, pkt);
+      log(LOG_ERR, "TWRCV: aborting (%x, %d)\n", sc->sc_bits, sc->sc_rcount);
+      twdebugtimes(sc);
+  }
   wakeup((caddr_t)sc);
   splx(s);
+}
+
+static int
+tw_is_within(int value, int expected, int tolerance)
+{
+  int diff;
+  diff = value - expected;
+  if (diff < 0)
+    diff *= -1;
+  if (diff < tolerance)
+    return 1;
+  return 0;
 }
 
 /*
@@ -839,6 +918,8 @@ int unit;
   int port;
   int newphase;
   u_char pkt[3];
+  int delay = 0;
+  struct timeval tv;
 
   port = sc->sc_port;
   /*
@@ -846,6 +927,8 @@ int unit;
    */
   if(sc->sc_state == 0) return;
   newphase = inb(port + tw_control) & TWC_SYNC;
+  microtime(&tv);
+
   /*
    * NEW PACKET:
    * If we aren't currently receiving a packet, set up a new packet
@@ -862,20 +945,40 @@ int unit;
     else sc->sc_flags = 0;
     sc->sc_bits = 0;
     sc->sc_rphase = newphase;
-    timeout((timeout_func_t)twabortrcv, (caddr_t)sc, hz/4);
+    /* 3 cycles of silence = 3/60 = 1/20 = 50 msec */
+    timeout((timeout_func_t)twabortrcv, (caddr_t)sc, hz/20);
+    sc->sc_rcv_time[0] = tv.tv_usec;
+    sc->sc_no_rcv = 1;
     return;
   }
+  untimeout((timeout_func_t)twabortrcv, (caddr_t)sc);
+  timeout((timeout_func_t)twabortrcv, (caddr_t)sc, hz/20);
+  newphase = inb(port + tw_zcport) & tw_zcmask;
+
+  /* enforce a minimum delay since the last interrupt */
+  delay = tv.tv_usec - sc->sc_rcv_time[sc->sc_no_rcv - 1];
+  if (delay < 0)
+    delay += 1000000;
+  if (delay < TW_MIN_DELAY)
+    return;
+
+  sc->sc_rcv_time[sc->sc_no_rcv] = tv.tv_usec;
+  if (sc->sc_rcv_time[sc->sc_no_rcv] < sc->sc_rcv_time[0])
+    sc->sc_rcv_time[sc->sc_no_rcv] += 1000000;
+  sc->sc_no_rcv++;
+
   /*
    * START CODE:
    * The second and third bits are a special case.
    */
-  if(sc->sc_rcount < 3) {
+  if (sc->sc_rcount < 3) {
+    if (
 #ifdef HIRESTIME
-    if(twchecktime(sc->sc_rtimes[sc->sc_rcount], HALFCYCLE/3)
-       && newphase != sc->sc_rphase) {
+	tw_is_within(delay, HALFCYCLE, HALFCYCLE / 6)
 #else
-    if(newphase != sc->sc_rphase) {
+	newphase != sc->sc_rphase
 #endif
+	) {
       sc->sc_rcount++;
     } else {
       /*
@@ -883,14 +986,10 @@ int unit;
        */
       sc->sc_state &= ~TWS_RCVING;
       sc->sc_flags |= TW_RCV_ERROR;
-/*
-      pkt[0] = sc->sc_flags;
-      pkt[1] = pkt[2] = 0;
-      twputpkt(sc, pkt);
-      wakeup((caddr_t)sc);
- */
       untimeout((timeout_func_t)twabortrcv, (caddr_t)sc);
       log(LOG_ERR, "TWRCV: Invalid start code\n");
+      twdebugtimes(sc);
+      sc->sc_no_rcv = 0;
       return;
     }
     if(sc->sc_rcount == 3) {
@@ -936,19 +1035,32 @@ int unit;
    */
   if(sc->sc_rcount <= 20) {
 #ifdef HIRESTIME
-    if((newphase == sc->sc_rphase &&
-	twchecktime(sc->sc_rtimes[sc->sc_rcount+1], HALFCYCLE/3) == 0)
-       || (newphase != sc->sc_rphase &&
-	   twchecktime(sc->sc_rtimes[sc->sc_rcount], HALFCYCLE/3) == 0)) {
+    int bit = 0, last_bit;
+    if (sc->sc_rcount == 4)
+      last_bit = 1;		/* Start (1110) ends in 10, a 'one' code. */
+    else
+      last_bit = sc->sc_bits & 0x1;
+    if (   (   (last_bit == 1)
+	    && (tw_is_within(delay, HALFCYCLE * 2, HALFCYCLE / 6)))
+	|| (   (last_bit == 0)
+	    && (tw_is_within(delay, HALFCYCLE * 1, HALFCYCLE / 6))))
+      bit = 1;
+    else if (   (   (last_bit == 1)
+		 && (tw_is_within(delay, HALFCYCLE * 3, HALFCYCLE / 6)))
+	     || (   (last_bit == 0)
+		 && (tw_is_within(delay, HALFCYCLE * 2, HALFCYCLE / 6))))
+      bit = 0;
+    else {
       sc->sc_flags |= TW_RCV_ERROR;
-    } else {
-#endif /* HIRESTIME */
-      sc->sc_bits = (sc->sc_bits << 1)
-                           | ((newphase == sc->sc_rphase) ? 0x0 : 0x1);
-      sc->sc_rcount += 2;
-#ifdef HIRESTIME
+      log(LOG_ERR, "TWRCV: %d cycle after %d bit, delay %d%%\n",
+	  sc->sc_rcount, last_bit, 100 * delay / HALFCYCLE);
     }
+    sc->sc_bits = (sc->sc_bits << 1) | bit;
+#else
+    sc->sc_bits = (sc->sc_bits << 1)
+      | ((newphase == sc->sc_rphase) ? 0x0 : 0x1);
 #endif /* HIRESTIME */
+    sc->sc_rcount += 2;
   }
   if(sc->sc_rcount >= 22 || sc->sc_flags & TW_RCV_ERROR) {
     if(sc->sc_rcount != 22) {
@@ -963,11 +1075,25 @@ int unit;
     sc->sc_state &= ~TWS_RCVING;
     twputpkt(sc, pkt);
     untimeout((timeout_func_t)twabortrcv, (caddr_t)sc);
-    if(sc->sc_flags & TW_RCV_ERROR)
-      log(LOG_ERR, "TWRCV: invalid packet: (%d, %x)\n",
-	  sc->sc_rcount, sc->sc_bits);
+    if(sc->sc_flags & TW_RCV_ERROR) {
+      log(LOG_ERR, "TWRCV: invalid packet: (%d, %x) %c %d\n",
+	  sc->sc_rcount, sc->sc_bits, 'A' + pkt[1], X10_KEY_LABEL[pkt[2]]);
+      twdebugtimes(sc);
+    } else {
+/*      log(LOG_ERR, "TWRCV: valid packet: (%d, %x) %c %s\n",
+	  sc->sc_rcount, sc->sc_bits, 'A' + pkt[1], X10_KEY_LABEL[pkt[2]]); */
+    }
+    sc->sc_rcount = 0;
     wakeup((caddr_t)sc);
   }
+}
+
+static void twdebugtimes(struct tw_sc *sc)
+{
+    int i;
+    for (i = 0; (i < sc->sc_no_rcv) && (i < SC_RCV_TIME_LEN); i++)
+	log(LOG_ERR, "TWRCV: interrupt %2d: %d\t%d%%\n", i, sc->sc_rcv_time[i],
+	    (sc->sc_rcv_time[i] - sc->sc_rcv_time[(i?i-1:0)])*100/HALFCYCLE);
 }
 
 #ifdef HIRESTIME
@@ -1010,7 +1136,6 @@ static int twchecktime(int target, int tol)
   if(d <= tol && d >= -tol) {
     return(1);
   } else {
-    log(LOG_ERR, "TWCHK: timing off by %dus (>= %dus)\n", d, tol);
     return(0);
   }
 }
