@@ -1627,7 +1627,6 @@ receive:
 					error++;
 					break;
 				}
-			}
 #ifdef DEBUG
 				if (debug >= 3) {
 					(void)fprintf(ddt,"len = %d\n", len);
@@ -1709,12 +1708,6 @@ axfr_response:
 					    ((n + QFIXEDSZ) >= (eom - cp)))
 						goto badrec;
 					cp += n + QFIXEDSZ;
-				} else {
-					if (methode == ISIXFR &&  ixfp)
-					  ixfr_log(buf, len, &delete_soa, ixfp,
-						 &sin, domain, serial_no,
-						 &ixfr_first);
-
 				}
 				nmp = cp;
 				if ((n = dn_skipname(cp, eom)) == -1)
