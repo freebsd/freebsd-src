@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ips/ips.h>
 
 static int ips_pci_free(ips_softc_t *sc);
+static void ips_intrhook(void *arg);
 
 static int ips_pci_probe(device_t dev)
 {
@@ -132,13 +133,28 @@ static int ips_pci_attach(device_t dev)
                 printf("IPS can't alloc dma tag\n");
                 goto error;
         }
-	if(ips_adapter_init(sc))
+	sc->ips_ich.ich_func = ips_intrhook;
+	sc->ips_ich.ich_arg = sc;
+	if (config_intrhook_establish(&sc->ips_ich) != 0) {
+		printf("IPS can't establish configuration hook\n");
 		goto error;
-        sc->configured = 1;
+	}
         return 0;
 error:
 	ips_pci_free(sc);
         return (ENXIO);
+}
+
+static void
+ips_intrhook(void *arg)
+{
+	struct ips_softc *sc = (struct ips_softc *)arg;
+
+	config_intrhook_disestablish(&sc->ips_ich);
+	if (ips_adapter_init(sc))
+		ips_pci_free(sc);
+	else
+		sc->configured = 1;
 }
 
 static int ips_pci_free(ips_softc_t *sc)
