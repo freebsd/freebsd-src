@@ -600,7 +600,7 @@ bootpc_call(struct bootpc_globalcontext *gctx, struct thread *td)
 	 */
 	error = socreate(AF_INET, &so, SOCK_DGRAM, 0, td->td_ucred, td);
 	if (error != 0)
-		goto out;
+		goto out0;
 
 	tv.tv_sec = 1;
 	tv.tv_usec = 0;
@@ -969,6 +969,7 @@ bootpc_call(struct bootpc_globalcontext *gctx, struct thread *td)
 gotreply:
 out:
 	soclose(so);
+out0:
 	return error;
 }
 
