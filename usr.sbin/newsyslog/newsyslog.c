@@ -91,7 +91,7 @@ int needroot = 1;		/* Root privs are necessary */
 int noaction = 0;		/* Don't do anything, just show it */
 int force = 0;			/* Force the trim no matter what */
 char *archdirname;		/* Directory path to old logfiles archive */
-char *conf = _PATH_CONF;	/* Configuration file to use */
+const char *conf = _PATH_CONF;	/* Configuration file to use */
 time_t timenow;
 
 #define MIN_PID         5
@@ -105,14 +105,14 @@ static char *son(char *p);
 static char *missing_field(char *p, char *errline);
 static void do_entry(struct conf_entry * ent);
 static void PRS(int argc, char **argv);
-static void usage();
-static void dotrim(char *log, char *pid_file, int numdays, int falgs, int perm, int owner_uid, int group_gid, int sig);
+static void usage(void);
+static void dotrim(char *log, const char *pid_file, int numdays, int falgs, int perm, int owner_uid, int group_gid, int sig);
 static int log_trim(char *log);
 static void compress_log(char *log);
 static void bzcompress_log(char *log);
 static int sizefile(char *file);
 static int age_old_log(char *file);
-static pid_t get_pid(char *pid_file);
+static pid_t get_pid(const char *pid_file);
 static time_t parse8601(char *s);
 static void movefile(char *from, char *to, int perm, int owner_uid, int group_gid);
 static void createdir(char *dirpart);
@@ -141,7 +141,7 @@ static void
 do_entry(struct conf_entry * ent)
 {
 	int size, modtime;
-	char *pid_file;
+	const char *pid_file;
 
 	if (verbose) {
 		if (ent->flags & CE_COMPACT)
@@ -486,7 +486,7 @@ missing_field(char *p, char *errline)
 }
 
 static void
-dotrim(char *log, char *pid_file, int numdays, int flags, int perm,
+dotrim(char *log, const char *pid_file, int numdays, int flags, int perm,
     int owner_uid, int group_gid, int sig)
 {
 	char dirpart[MAXPATHLEN], namepart[MAXPATHLEN];
@@ -779,7 +779,7 @@ age_old_log(char *file)
 }
 
 static pid_t
-get_pid(char *pid_file)
+get_pid(const char *pid_file)
 {
 	FILE *f;
 	char line[BUFSIZ];
@@ -1006,7 +1006,7 @@ parseDWM(char *s)
 			Dseen++;
 			s++;
 			ul = strtoul(s, &t, 10);
-			if (ul < 0 || ul > 23)
+			if (ul > 23)
 				return -1;
 			tm.tm_hour = ul;
 			break;
@@ -1017,12 +1017,12 @@ parseDWM(char *s)
 			WMseen++;
 			s++;
 			ul = strtoul(s, &t, 10);
-			if (ul < 0 || ul > 6)
+			if (ul > 6)
 				return -1;
-			if (ul != tm.tm_wday) {
+			if (ul != (unsigned)tm.tm_wday) {
 				int save;
 
-				if (ul < tm.tm_wday) {
+				if (ul < (unsigned)tm.tm_wday) {
 					save = 6 - tm.tm_wday;
 					save += (ul + 1);
 				} else {
@@ -1052,7 +1052,7 @@ parseDWM(char *s)
 				if (ul < 1 || ul > 31)
 					return -1;
 
-				if (ul > nd)
+				if (ul > (unsigned)nd)
 					return -1;
 				tm.tm_mday = ul;
 			}
