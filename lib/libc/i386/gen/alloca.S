@@ -37,19 +37,11 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 	.asciz "@(#)alloca.s	5.2 (Berkeley) 5/14/90"
 #endif /* LIBC_SCCS and not lint */
-#if !defined(lint) && !defined(STRIP_FBSDID)
-#ifdef __ELF__
-	.ident "$FreeBSD$"
-#else
-	.data
-	.asciz "$FreeBSD$"
-	.previous
-#endif
-#endif
+#include <machine/asm.h>
+__FBSDID("$FreeBSD$");
+
 
 /* like alloc, but automatic automatic free in return */
-
-#include <machine/asm.h>
 
 ENTRY(alloca)
 	popl	%edx		/*  pop return addr */
