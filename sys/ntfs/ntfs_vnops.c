@@ -645,7 +645,7 @@ ntfs_readdir(ap)
 				continue;
 
 			for(i=0; i<iep->ie_fnamelen; i++) {
-				cde.d_name[i] = ntfs_u28(iep->ie_fname[i]);
+				cde.d_name[i] = NTFS_U28(iep->ie_fname[i]);
 			}
 			cde.d_name[i] = '\0';
 			dprintf(("ntfs_readdir: elem: %d, fname:[%s] type: %d, flag: %d, ",

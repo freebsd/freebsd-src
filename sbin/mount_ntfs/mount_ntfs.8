@@ -43,6 +43,7 @@
 .Op Fl u Ar uid
 .Op Fl g Ar gid
 .Op Fl m Ar mask
+.Op Fl W Ar u2wtable
 .Pa special
 .Pa node
 .Sh DESCRIPTION
@@ -80,6 +81,11 @@ on which the file system is being mounted.
 .It Fl m Ar mask
 Specify the maximum file permissions for files
 in the file system.
+.It Fl W Ar u2wtable
+Specify unix to unicode translation table. This option is
+completly stolen from
+.Xr mount_msdos 8
+so refer its manpage.
 .El
 .Sh FEATURES
 NTFS file attributes are accessed in following way:

@@ -501,6 +501,17 @@ ntfs_mountfs(devvp, mp, argsp, p)
 	ntmp->ntm_gid = argsp->gid;
 	ntmp->ntm_mode = argsp->mode;
 	ntmp->ntm_flag = argsp->flag;
+
+	/* Copy in the 8-bit to Unicode conversion table */
+	if (argsp->flag & NTFSMNT_U2WTABLE) {
+		ntfs_82u_init(ntmp, argsp->u2w);
+	} else {
+		ntfs_82u_init(ntmp, NULL);
+	}
+
+	/* Initialize Unicode to 8-bit table from 8toU table */
+	ntfs_u28_init(ntmp, ntmp->ntm_82u);
+
 	mp->mnt_data = (qaddr_t)ntmp;
 
 	dprintf(("ntfs_mountfs(): case-%s,%s uid: %d, gid: %d, mode: %o\n",
@@ -697,6 +708,8 @@ ntfs_unmount(
 	ntfs_toupper_unuse();
 
 	dprintf(("ntfs_umount: freeing memory...\n"));
+	ntfs_u28_uninit(ntmp);
+	ntfs_82u_uninit(ntmp);
 	mp->mnt_data = (qaddr_t)0;
 	mp->mnt_flag &= ~MNT_LOCAL;
 	FREE(ntmp->ntm_ad, M_NTFSMNT);
