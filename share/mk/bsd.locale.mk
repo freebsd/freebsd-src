@@ -3,6 +3,10 @@
 # location-specific settings
 #
 
+.if !defined(LOCALE)
+LOCALE=			USA
+.endif
+
 .if ${LOCALE} == "Argentina"
 NEAR_SITE_LIST?=	${LOCAL_SITE_LIST} \
 			ftp://ftp.ar.freebsd.org/pub/FreeBSD/
