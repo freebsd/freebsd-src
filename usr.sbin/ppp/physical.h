@@ -16,7 +16,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- *  $Id: physical.h,v 1.1.2.12 1998/02/23 00:38:39 brian Exp $
+ *  $Id: physical.h,v 1.1.2.13 1998/03/06 00:34:46 brian Exp $
  *
  */
 
@@ -33,13 +33,15 @@ struct physical {
                                   (Possibly this should be
                                   dev_is_not_tcp?) XXX-ML */
 
-  struct mbuf *out;
+  struct mbuf *out;            /* mbuf that suffered a short write */
   int connect_count;
 
   struct {
     char full[40];
     char *base;
   } name;
+
+  unsigned Utmp : 1;           /* Are we in utmp ? */
 
   /* XXX-ML Most of the below is device specific, and probably do not
       belong in the generic physical struct. It comes from modem.c. */
@@ -102,3 +104,6 @@ int Physical_UpdateSet(struct descriptor *, fd_set *, fd_set *, fd_set *,
 int Physical_IsSet(struct descriptor *, fd_set *);
 void Physical_DescriptorWrite(struct descriptor *, struct bundle *,
                               const fd_set *);
+
+void Physical_Login(struct physical *, const char *);
+void Physical_Logout(struct physical *);

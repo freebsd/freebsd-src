@@ -16,7 +16,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- *  $Id: physical.c,v 1.1.2.12 1998/02/23 00:38:39 brian Exp $
+ *  $Id: physical.c,v 1.1.2.13 1998/03/06 00:34:46 brian Exp $
  *
  */
 
@@ -27,12 +27,15 @@
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
+#include <utmp.h>
 
 
 /* XXX Name space pollution from vars.h */
 #include <netinet/in.h>
 #include <alias.h>
+
 #include "defs.h"
 #include "command.h"
 #include "loadalias.h"
@@ -55,6 +58,7 @@
 #include "vars.h"
 #include "bundle.h"
 #include "log.h"
+#include "id.h"
 
 /* External calls - should possibly be moved inline */
 extern int IntToSpeed(int);
@@ -224,4 +228,31 @@ Physical_DescriptorWrite(struct descriptor *d, struct bundle *bundle,
 
   LogPrintf(LogDEBUG, "descriptor2physical; %p -> %p\n", d, p);
   link_StartOutput(&p->link, bundle);
+}
+
+void
+Physical_Login(struct physical *phys, const char *name)
+{
+  if ((mode & MODE_DIRECT) && Physical_IsATTY(phys) && Enabled(ConfUtmp))
+    if (phys->Utmp)
+      LogPrintf(LogERROR, "Oops, already logged in on %s\n", phys->name.base);
+    else {
+      struct utmp ut;
+
+      memset(&ut, 0, sizeof ut);
+      time(&ut.ut_time);
+      strncpy(ut.ut_name, name, sizeof ut.ut_name);
+      strncpy(ut.ut_line, phys->name.base, sizeof ut.ut_line - 1);
+      ID0login(&ut);
+      phys->Utmp = 1;
+    }
+}
+
+void
+Physical_Logout(struct physical *phys)
+{
+  if (phys->Utmp) {
+    ID0logout(phys->name.base);
+    phys->Utmp = 0;
+  }
 }

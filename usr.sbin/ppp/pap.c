@@ -18,7 +18,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: pap.c,v 1.20.2.12 1998/03/06 00:34:45 brian Exp $
+ * $Id: pap.c,v 1.20.2.13 1998/03/09 19:25:34 brian Exp $
  *
  *	TODO:
  */
@@ -36,7 +36,6 @@
 #else
 #include <libutil.h>
 #endif
-#include <utmp.h>
 
 #include "command.h"
 #include "mbuf.h"
@@ -57,7 +56,6 @@
 #include "descriptor.h"
 #include "physical.h"
 #include "bundle.h"
-#include "id.h"
 #include "chat.h"
 #include "ccp.h"
 #include "chap.h"
@@ -159,21 +157,7 @@ PapInput(struct bundle *bundle, struct mbuf *bp, struct physical *physical)
 	if (PapValidate(bundle, cp, cp + *cp + 1, physical)) {
 	  SendPapCode(php->id, PAP_ACK, "Greetings!!", physical);
 	  LcpInfo.auth_ineed = 0;
-          if ((mode & MODE_DIRECT) && Physical_IsATTY(physical) &&
-              Enabled(ConfUtmp))
-            if (Utmp)
-              /* XXX: one entry per line please ! */
-              LogPrintf(LogERROR, "Oops, already logged in on %s\n",
-		        physical->name.base);
-            else {
-              struct utmp ut;
-              memset(&ut, 0, sizeof ut);
-              time(&ut.ut_time);
-              strncpy(ut.ut_name, cp+1, sizeof ut.ut_name);
-              strncpy(ut.ut_line, physical->name.base, sizeof ut.ut_line - 1);
-              ID0login(&ut);
-              Utmp = 1;
-            }
+          Physical_Login(physical, cp + 1);
 
           if (LcpInfo.auth_iwait == 0)
             /*

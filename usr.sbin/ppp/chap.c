@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: chap.c,v 1.28.2.11 1998/03/01 01:07:40 brian Exp $
+ * $Id: chap.c,v 1.28.2.12 1998/03/06 00:34:41 brian Exp $
  *
  *	TODO:
  */
@@ -40,7 +40,6 @@
 #else
 #include <libutil.h>
 #endif
-#include <utmp.h>
 
 #include "command.h"
 #include "mbuf.h"
@@ -62,7 +61,6 @@
 #include "descriptor.h"
 #include "physical.h"
 #include "bundle.h"
-#include "id.h"
 #include "ccp.h"
 #include "chat.h"
 #include "datalink.h"
@@ -235,21 +233,7 @@ RecvChapTalk(struct bundle *bundle, struct fsmheader *chp, struct mbuf *bp,
        */
       if (memcmp(cp, cdigest, 16) == 0) {
 	ChapOutput(physical, CHAP_SUCCESS, chp->id, "Welcome!!", 10);
-        if ((mode & MODE_DIRECT) && Physical_IsATTY(physical)
-	    && Enabled(ConfUtmp))
-	  if (Utmp)
-            /* XXX: one entry per line please ! */
-	    LogPrintf(LogERROR, "Oops, already logged in on %s\n",
-		      physical->name.base);
-	  else {
-	    struct utmp ut;
-	    memset(&ut, 0, sizeof ut);
-	    time(&ut.ut_time);
-	    strncpy(ut.ut_name, name, sizeof ut.ut_name);
-	    strncpy(ut.ut_line, physical->name.base, sizeof ut.ut_line - 1);
-	    ID0login(&ut);
-	    Utmp = 1;
-	  }
+        Physical_Login(physical, name);
 
         if (LcpInfo.auth_iwait == 0)
           /*

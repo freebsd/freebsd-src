@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.77.2.28 1998/03/06 00:34:44 brian Exp $
+ * $Id: modem.c,v 1.77.2.29 1998/03/09 19:24:57 brian Exp $
  *
  *  TODO:
  */
@@ -36,7 +36,6 @@
 #include <sys/ioctl.h>
 #include <sys/tty.h>
 #include <unistd.h>
-#include <utmp.h>
 #ifdef __OpenBSD__
 #include <util.h>
 #else
@@ -126,6 +125,8 @@ modem_Create(const char *name)
 
   *p->name.full = '\0';
   p->name.base = p->name.full;
+
+  p->Utmp = 0;
 
   p->cfg.is_direct = 0;		/* not yet used */
   p->cfg.is_dedicated = 0;	/* not yet used */
@@ -847,10 +848,7 @@ modem_LogicalClose(struct physical *modem)
 {
   LogPrintf(LogDEBUG, "modem_LogicalClose\n");
   if (modem->fd >= 0) {
-    if (Utmp) {
-      ID0logout(modem->name.base);
-      Utmp = 0;
-    }
+    Physical_Logout(modem);
     modem_PhysicalClose(modem);
     modem_Unlock(modem);
   }
