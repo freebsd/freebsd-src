@@ -259,13 +259,17 @@ catclose( catd)
 
 /* Note that only malloc failures are allowed to return an error */
 static char* _errowner = "Message Catalog System";;
-#define PROBLEM(err, msg) {			\
-	fprintf(stderr, msg, _errowner);	\
-		free(cat);			\
-		NLRETERR(err);			\
+#define CORRUPT() { 						\
+	fprintf(stderr, "%s: currupt file.", _errowner);	\
+		free(cat);					\
+		NLRETERR(EINVAL);				\
 	}
-#define CORRUPT() PROBLEM(EINVAL, "%s: corrupt file.\n")
-#define NOSPACE() PROBLEM(ENOMEM, "%s: no more memory.\n")
+
+#define NOSPACE() {						\
+	fprintf(stderr, "%s: no more memory.", _errowner);	\
+		free(cat);					\
+		return(NLERR);					\
+	}
 
 static void
 __nls_free_resources(cat, i)
