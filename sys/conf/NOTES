@@ -2353,13 +2353,16 @@ controller	umass0
 device		ums0
 #
 # ADMtek USB ethernet. Supports the LinkSys USB100TX,
-# the Billionton USB100 and the Melco LU-ATX NICs. Also
-# works with the ADMtek AN986 Pegasus eval board.
+# the Billionton USB100, the Melco LU-ATX, the D-Link DSB-650TX
+# and the SMC 2202USB. Also works with the ADMtek AN986 Pegasus
+# eval board.
 device		aue0
 #
 # Kawasaki LSI ethernet. Supports the LinkSys USB10T,
-# Entrega USB-NET-E45, Peracom Ethernet Adapter, and
-# the 3Com 3c19250.
+# Entrega USB-NET-E45, Peracom Ethernet Adapter, the
+# 3Com 3c19250, the ADS Technologies USB-10BT, the ATen UC10T,
+# the Netgear EA101, the D-Link DSB-650, and the SMC 2102USB
+# and 2104USB.
 device		kue0
 
 # debugging options for the USB subsystem
