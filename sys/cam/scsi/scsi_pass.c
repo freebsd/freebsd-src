@@ -237,6 +237,8 @@ passasync(void *callback_arg, u_int32_t code,
 		cam_status status;
  
 		cgd = (struct ccb_getdev *)arg;
+		if (cgd == NULL)
+			break;
 
 		/*
 		 * Allocate a peripheral instance for

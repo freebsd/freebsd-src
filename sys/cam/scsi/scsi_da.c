@@ -894,6 +894,8 @@ daasync(void *callback_arg, u_int32_t code,
 		cam_status status;
  
 		cgd = (struct ccb_getdev *)arg;
+		if (cgd == NULL)
+			break;
 
 		if (SID_TYPE(&cgd->inq_data) != T_DIRECT
 		    && SID_TYPE(&cgd->inq_data) != T_OPTICAL)
@@ -1101,7 +1103,7 @@ dastart(struct cam_periph *periph, union ccb *start_ccb)
 				tag_code = MSG_SIMPLE_Q_TAG;
 			}
 			scsi_read_write(&start_ccb->csio,
-					/*retries*/4,
+					/*retries*/4, /* retry a few times */
 					dadone,
 					tag_code,
 					bp->bio_cmd == BIO_READ,
