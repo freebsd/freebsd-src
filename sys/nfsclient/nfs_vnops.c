@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.16 (Berkeley) 5/27/95
- * $Id: nfs_vnops.c,v 1.122 1999/02/13 09:47:30 dillon Exp $
+ * $Id: nfs_vnops.c,v 1.123 1999/02/16 10:49:54 dfr Exp $
  */
 
 
@@ -2648,6 +2648,9 @@ nfs_strategy(ap)
 	struct proc *p;
 	int error = 0;
 
+	KASSERT(!(bp->b_flags & B_DONE), ("nfs_strategy: buffer %p unexpectedly marked B_DONE", bp));
+	KASSERT((bp->b_flags & B_BUSY), ("nfs_strategy: buffer %p not B_BUSY", bp));
+
 	if (bp->b_flags & B_PHYS)
 		panic("nfs physio");
 
@@ -2797,6 +2800,10 @@ again:
 			/*
 			 * Work out if all buffers are using the same cred
 			 * so we can deal with them all with one commit.
+			 *
+			 * NOTE: we are not clearing B_DONE here, so we have
+			 * to do it later on in this routine if we intend to 
+			 * initiate I/O on the bp.
 			 */
 			if (wcred == NULL)
 				wcred = bp->b_wcred;
@@ -2804,6 +2811,14 @@ again:
 				wcred = NOCRED;
 			bp->b_flags |= (B_BUSY | B_WRITEINPROG);
 			vfs_busy_pages(bp, 1);
+
+			/*
+			 * bp is protected by being B_BUSY, but nbp is not
+			 * and vfs_busy_pages() may sleep.  We have to
+			 * recalculate nbp.
+			 */
+			nbp = TAILQ_NEXT(bp, b_vnbufs);
+
 			/*
 			 * A list of these buffers is kept so that the
 			 * second loop knows which buffers have actually
@@ -2849,6 +2864,7 @@ again:
 
 		if (retv == NFSERR_STALEWRITEVERF)
 			nfs_clearcommit(vp->v_mount);
+
 		/*
 		 * Now, either mark the blocks I/O done or mark the
 		 * blocks dirty, depending on whether the commit
@@ -2858,23 +2874,27 @@ again:
 			bp = bvec[i];
 			bp->b_flags &= ~(B_NEEDCOMMIT | B_WRITEINPROG);
 			if (retv) {
-			    vfs_unbusy_pages(bp);
-			    brelse(bp);
+				/*
+				 * Error, leave B_DELWRI intact
+				 */
+				vfs_unbusy_pages(bp);
+				brelse(bp);
 			} else {
-			    s = splbio();	/* XXX check this positionning */
-			    vp->v_numoutput++;
-			    bp->b_flags |= B_ASYNC;
-			    if (bp->b_flags & B_DELWRI) {
-				--numdirtybuffers;
-			    	if (needsbuffer) {
-					vfs_bio_need_satisfy();
-				}
-			    }
-			    bp->b_flags &= ~(B_READ|B_DONE|B_ERROR|B_DELWRI);
-			    bp->b_dirtyoff = bp->b_dirtyend = 0;
-			    reassignbuf(bp, vp);
-			    splx(s);
-			    biodone(bp);
+				/*
+				 * Success, remove B_DELWRI ( bundirty() ).
+				 *
+				 * b_dirtyoff/b_dirtyend seem to be NFS 
+				 * specific.  We should probably move that
+				 * into bundirty(). XXX
+				 */
+				s = splbio();
+				vp->v_numoutput++;
+				bp->b_flags |= B_ASYNC;
+				bundirty(bp);
+				bp->b_flags &= ~(B_READ|B_DONE|B_ERROR);
+				bp->b_dirtyoff = bp->b_dirtyend = 0;
+				splx(s);
+				biodone(bp);
 			}
 		}
 	}
@@ -2999,6 +3019,8 @@ nfs_print(ap)
 
 /*
  * Just call nfs_writebp() with the force argument set to 1.
+ *
+ * NOTE: B_DONE may or may not be set in a_bp on call.
  */
 static int
 nfs_bwrite(ap)
@@ -3020,26 +3042,24 @@ nfs_writebp(bp, force)
 	int force;
 {
 	int s;
-	register int oldflags = bp->b_flags, retv = 1;
+	int oldflags = bp->b_flags;
+	int retv = 1;
 	off_t off;
 
 	if(!(bp->b_flags & B_BUSY))
 		panic("bwrite: buffer is not busy???");
 
 	if (bp->b_flags & B_INVAL)
-		bp->b_flags |= B_INVAL | B_NOCACHE;
+		bp->b_flags |= B_NOCACHE;
 
-	if (bp->b_flags & B_DELWRI) {
-		--numdirtybuffers;
-		if (needsbuffer)
-			vfs_bio_need_satisfy();
-	}
-	s = splbio(); /* XXX check if needed */
-	bp->b_flags &= ~(B_READ|B_DONE|B_ERROR|B_DELWRI);
+	/*
+	 * XXX we bundirty() the bp here.  Shouldn't we do it later after
+	 * the I/O has completed??
+	 */
 
-	if ((oldflags & (B_ASYNC|B_DELWRI)) == (B_ASYNC|B_DELWRI)) {
-		reassignbuf(bp, bp->b_vp);
-	}
+	s = splbio();
+	bundirty(bp);
+	bp->b_flags &= ~(B_READ|B_DONE|B_ERROR);
 
 	bp->b_vp->v_numoutput++;
 	curproc->p_stats->p_ru.ru_oublock++;
@@ -3061,8 +3081,9 @@ nfs_writebp(bp, force)
 			bp->b_dirtyoff = bp->b_dirtyend = 0;
 			bp->b_flags &= ~B_NEEDCOMMIT;
 			biodone(bp);
-		} else if (retv == NFSERR_STALEWRITEVERF)
+		} else if (retv == NFSERR_STALEWRITEVERF) {
 			nfs_clearcommit(bp->b_vp->v_mount);
+		}
 	}
 	if (retv) {
 		if (force)

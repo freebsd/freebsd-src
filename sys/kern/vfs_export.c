@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.187 1999/02/19 17:36:58 dillon Exp $
+ * $Id: vfs_subr.c,v 1.188 1999/02/25 05:22:29 dillon Exp $
  */
 
 /*
@@ -901,7 +901,7 @@ vn_syncer_add_to_worklist(struct vnode *vp, int delay)
 	splx(s);
 }
 
-static struct  proc *updateproc;
+struct  proc *updateproc;
 static void sched_sync __P((void));
 static const struct kproc_desc up_kp = {
 	"syncer",
@@ -937,11 +937,19 @@ sched_sync(void)
 		splx(s);
 
 		while ((vp = LIST_FIRST(slp)) != NULL) {
-			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
-			(void) VOP_FSYNC(vp, p->p_ucred, MNT_LAZY, p);
-			VOP_UNLOCK(vp, 0, p);
+			if (VOP_ISLOCKED(vp) == 0) {
+				vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
+				(void) VOP_FSYNC(vp, p->p_ucred, MNT_LAZY, p);
+				VOP_UNLOCK(vp, 0, p);
+			}
 			s = splbio();
 			if (LIST_FIRST(slp) == vp) {
+				/*
+				 * Note: v_tag VT_VFS vps can remain on the
+				 * worklist too with no dirty blocks, but 
+				 * since sync_fsync() moves it to a different 
+				 * slot we are safe.
+				 */
 				if (TAILQ_EMPTY(&vp->v_dirtyblkhd) &&
 				    vp->v_type != VBLK)
 					panic("sched_sync: fsync failed vp %p tag %d", vp, vp->v_tag);
@@ -1063,7 +1071,6 @@ reassignbuf(bp, newvp)
 	register struct vnode *newvp;
 {
 	struct buflists *listheadp;
-	struct vnode *oldvp;
 	int delay;
 	int s;
 
@@ -1086,14 +1093,16 @@ reassignbuf(bp, newvp)
 	 * Delete from old vnode list, if on one.
 	 */
 	if (bp->b_xflags & (B_VNDIRTY|B_VNCLEAN)) {
-		oldvp = bp->b_vp;
 		if (bp->b_xflags & B_VNDIRTY)
-			listheadp = &oldvp->v_dirtyblkhd;
+			listheadp = &bp->b_vp->v_dirtyblkhd;
 		else 
-			listheadp = &oldvp->v_cleanblkhd;
+			listheadp = &bp->b_vp->v_cleanblkhd;
 		TAILQ_REMOVE(listheadp, bp, b_vnbufs);
 		bp->b_xflags &= ~(B_VNDIRTY|B_VNCLEAN);
-		vdrop(oldvp);
+		if (bp->b_vp != newvp) {
+			vdrop(bp->b_vp);
+			bp->b_vp = NULL;	/* for clarification */
+		}
 	}
 	/*
 	 * If dirty, put on list of dirty buffers; otherwise insert onto list
@@ -1145,8 +1154,10 @@ reassignbuf(bp, newvp)
 			LIST_REMOVE(newvp, v_synclist);
 		}
 	}
-	bp->b_vp = newvp;
-	vhold(bp->b_vp);
+	if (bp->b_vp != newvp) {
+		bp->b_vp = newvp;
+		vhold(bp->b_vp);
+	}
 	splx(s);
 }
 
