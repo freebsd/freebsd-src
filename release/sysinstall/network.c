@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: network.c,v 1.6.2.6 1995/06/04 22:49:49 jkh Exp $
+ * $Id: network.c,v 1.6.2.7 1995/06/05 21:19:17 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -45,10 +45,11 @@
 
 #include "sysinstall.h"
 #include <sys/fcntl.h>
+#include <sys/signal.h>
 #include <sys/stat.h>
 
-static Boolean networkInitialized;
-static Boolean startPPP(Device *devp);
+static Boolean	networkInitialized;
+static pid_t	startPPP(Device *devp);
 
 Boolean
 mediaInitNetwork(Device *dev)
@@ -62,7 +63,7 @@ mediaInitNetwork(Device *dev)
     configResolv();
     if (!strncmp("cuaa", dev->name, 4)) {
 	if (!msgYesNo("You have selected a serial-line network interface.\nDo you want to use PPP with it?")) {
-	    if (!startPPP(dev)) {
+	    if (!dev->private = startPPP(dev)) {
 		msgConfirm("Unable to start PPP!  This installation method\ncannot be used.");
 		return FALSE;
 	    }
@@ -80,8 +81,10 @@ mediaInitNetwork(Device *dev)
 		return FALSE;
 	    else
 		strcpy(attach, val);
-	    if (!vsystem(attach))
+	    if (!vsystem(attach)) {
+		dev->private = NULL;
 		return TRUE;
+	    }
 	    else {
 		msgConfirm("slattach returned a bad status!  Please verify that\nthe command is correct and try again.");
 		return FALSE;
@@ -118,11 +121,11 @@ void
 mediaShutdownNetwork(Device *dev)
 {
     char *cp;
+    pid_t pid;
 
     if (!networkInitialized || (dev->flags & OPT_LEAVE_NETWORK_UP))
 	return;
 
-    /* If we're running PPP or SLIP, it's too much trouble to shut down so forget it */
     if (strncmp("cuaa", dev->name, 4)) {
 	int i;
 	char ifconfig[64];
@@ -139,6 +142,10 @@ mediaShutdownNetwork(Device *dev)
 	    vsystem("route delete default");
 	networkInitialized = FALSE;
     }
+    else if (pid = dev->private) {
+	kill(pid, SIGTERM);
+	dev->private = NULL;
+    }
 }
 
 int
@@ -153,17 +160,18 @@ configRoutedFlags(char *str)
 }
 
 /* Start PPP on the 3rd screen */
-static Boolean
+static pid_t
 startPPP(Device *devp)
 {
     int fd, fd2;
     FILE *fp;
     char *val;
+    pid_t pid;
     char myaddr[16], provider[16], netmask[16];
 
     fd = open("/dev/ttyv2", O_RDWR);
     if (fd == -1)
-	return FALSE;
+	return 0;
     Mkdir("/var/log", NULL);
     Mkdir("/var/spool/lock", NULL);
     Mkdir("/etc/ppp", NULL);
@@ -180,7 +188,7 @@ startPPP(Device *devp)
     fp = fopen("/etc/ppp/ppp.conf", "w");
     if (!fp) {
 	msgConfirm("Couldn't open /etc/ppp/ppp.conf file!  This isn't going to work");
-	return FALSE;
+	return 0;
     }
     fprintf(fp, "default:\n");
     fprintf(fp, " set device %s\n", devp->devname);
@@ -207,9 +215,9 @@ startPPP(Device *devp)
 	msgDebug("Creating /dev/tun0 device.\n");
     if (!file_readable("/dev/tun0") && mknod("/dev/tun0", 0600 | S_IFCHR, makedev(52, 0))) {
 	msgConfirm("Warning:  No /dev/tun0 device.  PPP will not work!");
-	return FALSE;
+	return 0;
     }
-    if (!fork()) {
+    if (!pid = fork()) {
 	dup2(fd, 0);
 	dup2(fd, 1);
 	dup2(fd, 2);
@@ -217,5 +225,5 @@ startPPP(Device *devp)
 	exit(1);
     }
     msgConfirm("The PPP command is now started on screen 3 (type ALT-F3 to\ninteract with it, ALT-F1 to switch back here). The only command\nyou'll probably want or need to use is the \"term\" command\nwhich starts a terminal emulator you can use to talk to your\nmodem and dial the service provider.  Once you're connected,\ncome back to this screen and press return.  DO NOT PRESS RETURN\nHERE UNTIL THE CONNECTION IS FULLY ESTABLISHED!");
-    return TRUE;
+    return pid;
 }
