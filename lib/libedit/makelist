@@ -38,7 +38,7 @@
 
 # makelist.sh: Automatically generate header files...
 
-AWK=/usr/bin/awk
+AWK=awk
 USAGE="Usage: $0 -h|-e|-fc|-fh|-bc|-bh <filenames>" 
 
 if [ "x$1" = "x" ]
