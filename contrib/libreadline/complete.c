@@ -796,7 +796,9 @@ make_quoted_replacement (match, mtype, qc)
       /* If there is a single match, see if we need to quote it.
          This also checks whether the common prefix of several
 	 matches needs to be quoted. */
-      should_quote = rl_strpbrk (match, rl_filename_quote_characters) != 0;
+      should_quote = rl_filename_quote_characters
+			? (rl_strpbrk (match, rl_filename_quote_characters) != 0)
+			: 0;
 
       do_replace = should_quote ? mtype : NO_MATCH;
       /* Quote the replacement, since we found an embedded

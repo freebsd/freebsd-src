@@ -255,7 +255,7 @@ extern int rl_pending_input;
 /* Non-zero if we called this function from _rl_dispatch().  It's present
    so functions can find out whether they were called from a key binding
    or directly from an application. */
-int rl_dispatching;
+extern int rl_dispatching;
 
 /* The name of the terminal to use. */
 extern char *rl_terminal_name;
