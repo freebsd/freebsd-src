@@ -117,7 +117,6 @@ fddi_output(ifp, m, dst, rt0)
 	u_int16_t type;
 	int loop_copy = 0, error = 0, hdrcmplt = 0;
  	u_char esrc[FDDI_ADDR_LEN], edst[FDDI_ADDR_LEN];
-	struct rtentry *rt;
 	struct fddi_header *fh;
 
 #ifdef MAC
@@ -132,15 +131,12 @@ fddi_output(ifp, m, dst, rt0)
 		senderr(ENETDOWN);
 	getmicrotime(&ifp->if_lastchange);
 
-	error = rt_check(&rt, &rt0, dst);
-	if (error)
-		goto bad;
-
 	switch (dst->sa_family) {
 #ifdef INET
 	case AF_INET: {
-		if (!arpresolve(ifp, rt, m, dst, edst))
-			return (0);	/* if not yet resolved */
+		error = arpresolve(ifp, rt0, m, dst, edst);
+		if (error)
+			return (error == EWOULDBLOCK ? 0 : error);
 		type = htons(ETHERTYPE_IP);
 		break;
 	}
@@ -174,10 +170,9 @@ fddi_output(ifp, m, dst, rt0)
 #endif /* INET */
 #ifdef INET6
 	case AF_INET6:
-		if (!nd6_storelladdr(ifp, rt, m, dst, (u_char *)edst)) {
-			/* Something bad happened */
-			return (0);
-		}
+		error = nd6_storelladdr(ifp, rt0, m, dst, (u_char *)edst);
+		if (error)
+			return (error); /* Something bad happened */
 		type = htons(ETHERTYPE_IPV6);
 		break;
 #endif /* INET6 */
@@ -191,7 +186,7 @@ fddi_output(ifp, m, dst, rt0)
 #ifdef NETATALK
 	case AF_APPLETALK: {
 	    struct at_ifaddr *aa;
-            if (!aarpresolve(IFP2AC(ifp), m, (struct sockaddr_at *)dst, edst))
+            if (!aarpresolve(ifp, m, (struct sockaddr_at *)dst, edst))
                 return (0);
 	    /*
 	     * ifaddr is the first thing in at_ifaddr
