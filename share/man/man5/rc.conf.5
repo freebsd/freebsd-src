@@ -2581,8 +2581,18 @@ If set to
 start the
 .Xr watchdogd 8
 daemon at boot time.
-This requires that the kernel have been compiled with
-.Cd "options WATCHDOG" .
+This requires that the kernel have been compiled with a
+.Xr watchdog 4
+compatible device.
+.It Va watchdogd_flags
+.Pq Vt str
+If
+.Va watchdogd_enable
+is set to
+.Dq Li YES ,
+these are the flags passed to the
+.Xr watchdogd 8
+daemon.
 .It Va jail_enable
 .Pq Vt bool
 If set to
