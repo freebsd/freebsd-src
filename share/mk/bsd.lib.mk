@@ -1,5 +1,5 @@
 #	from: @(#)bsd.lib.mk	5.26 (Berkeley) 5/2/91
-#	$Id: bsd.lib.mk,v 1.25 1995/08/02 22:31:52 davidg Exp $
+#	$Id: bsd.lib.mk,v 1.26 1995/10/02 20:01:46 wollman Exp $
 #
 
 .if exists(${.CURDIR}/../Makefile.inc)
@@ -19,8 +19,6 @@ CXXINCLUDES+= -I${DESTDIR}/usr/include/${CXX}
 .if defined(DEBUG_FLAGS)
 CFLAGS+= ${DEBUG_FLAGS}
 .endif
-
-RANTOUCH?=	${RANLIB} -t
 
 LIBDIR?=	/usr/lib
 LINTLIBDIR?=	/usr/libdata/lint
@@ -251,11 +249,9 @@ realinstall: beforeinstall
 .if !defined(INTERNALLIB)
 	${INSTALL} ${COPY} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${INSTALLFLAGS} lib${LIB}.a ${DESTDIR}${LIBDIR}
-	${RANTOUCH} ${DESTDIR}${LIBDIR}/lib${LIB}.a
 .if !defined(NOPROFILE)
 	${INSTALL} ${COPY} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${INSTALLFLAGS} lib${LIB}_p.a ${DESTDIR}${LIBDIR}
-	${RANTOUCH} ${DESTDIR}${LIBDIR}/lib${LIB}_p.a
 .endif
 .endif
 .if !defined(NOPIC)
@@ -268,7 +264,6 @@ realinstall: beforeinstall
 .if defined(INSTALL_PIC_ARCHIVE)
 	${INSTALL} ${COPY} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${INSTALLFLAGS} lib${LIB}_pic.a ${DESTDIR}${LIBDIR}
-	${RANTOUCH} ${DESTDIR}${LIBDIR}/lib${LIB}_pic.a
 .endif
 .endif
 .if defined(LINKS) && !empty(LINKS)
