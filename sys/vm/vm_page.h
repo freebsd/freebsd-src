@@ -116,7 +116,7 @@ struct vm_page {
 
 	vm_object_t object;		/* which object am I in (O,P)*/
 	vm_pindex_t pindex;		/* offset into object (O,P) */
-	vm_paddr_t phys_addr;	/* physical address of page */
+	vm_paddr_t phys_addr;		/* physical address of page */
 	struct md_page md;		/* machine dependant stuff */
 	u_short	queue;			/* page queue index */
 	u_short	flags,			/* see below */
@@ -128,16 +128,16 @@ struct vm_page {
 	/* NOTE that these must support one bit per DEV_BSIZE in a page!!! */
 	/* so, on normal X86 kernels, they must be at least 8 bits wide */
 #if PAGE_SIZE == 4096
-	u_char	valid;			/* map of valid DEV_BSIZE chunks */
+	u_char	valid;			/* map of valid DEV_BSIZE chunks (O) */
 	u_char	dirty;			/* map of dirty DEV_BSIZE chunks */
 #elif PAGE_SIZE == 8192
-	u_short	valid;			/* map of valid DEV_BSIZE chunks */
+	u_short	valid;			/* map of valid DEV_BSIZE chunks (O) */
 	u_short	dirty;			/* map of dirty DEV_BSIZE chunks */
 #elif PAGE_SIZE == 16384
-	u_int valid;			/* map of valid DEV_BSIZE chunks */
+	u_int valid;			/* map of valid DEV_BSIZE chunks (O) */
 	u_int dirty;			/* map of dirty DEV_BSIZE chunks */
 #elif PAGE_SIZE == 32768
-	u_long valid;			/* map of valid DEV_BSIZE chunks */
+	u_long valid;			/* map of valid DEV_BSIZE chunks (O) */
 	u_long dirty;			/* map of dirty DEV_BSIZE chunks */
 #endif
 	u_int cow;			/* page cow mapping count */
