@@ -47,8 +47,9 @@
 .Sh DESCRIPTION
 .Fa Dirname
 is the address of the pathname of a directory, terminated by an ASCII NUL.
-.Fn Chroot
-causes
+The
+.Fn chroot
+function causes
 .Fa dirname
 to become the root directory,
 that is, the starting point for path searches of pathnames
@@ -99,7 +100,9 @@ a value of -1 is returned and
 .Va errno
 is set to indicate an error.
 .Sh ERRORS
-.Fn Chroot
+The
+.Fn chroot
+function
 will fail and the root directory will be unchanged if:
 .Bl -tag -width Er
 .It Bq Er ENOTDIR

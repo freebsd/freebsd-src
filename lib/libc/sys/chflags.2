@@ -121,8 +121,9 @@ for details.)
 .Sh RETURN VALUES
 .Rv -std
 .Sh ERRORS
-.Fn Chflags
-will fail if:
+The
+.Fn chflags
+function will fail if:
 .Bl -tag -width Er
 .It Bq Er ENOTDIR
 A component of the path prefix is not a directory.
@@ -151,8 +152,9 @@ error occurred while reading from or writing to the file system.
 The underlying file system does not support file flags.
 .El
 .Pp
-.Fn Fchflags
-will fail if:
+The
+.Fn fchflags
+function will fail if:
 .Bl -tag -width Er
 .It Bq Er EBADF
 The descriptor is not valid.
