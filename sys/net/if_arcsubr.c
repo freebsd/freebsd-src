@@ -136,7 +136,7 @@ arc_output(ifp, m, dst, rt0)
 			adst = arcbroadcastaddr; /* ARCnet broadcast address */
 		else if (ifp->if_flags & IFF_NOARP)
 			adst = ntohl(SIN(dst)->sin_addr.s_addr) & 0xFF;
-		else if (!arpresolve(ifp, rt, m, dst, &adst, rt0))
+		else if (!arpresolve(ifp, rt, m, dst, &adst))
 			return 0;	/* not resolved yet */
 
 		atype = (ifp->if_flags & IFF_LINK0) ?
