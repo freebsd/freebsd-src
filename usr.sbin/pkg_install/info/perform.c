@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.16.4.1 1995/08/30 07:49:55 jkh Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.16.4.2 1995/10/09 11:16:27 jkh Exp $";
 #endif
 
 /*
@@ -73,6 +73,8 @@ pkg_perform(char **pkgs)
     return err_cnt;
 }
 
+static char *Home;
+
 static int
 pkg_do(char *pkg)
 {
@@ -120,7 +122,7 @@ pkg_do(char *pkg)
 	    code = 1;
 	    goto bail;
 	}
-	(void)make_playpen(PlayPen, sb.st_size / 2);
+	Home = make_playpen(PlayPen, sb.st_size / 2);
 	if (unpack(fname, "+*")) {
 	    whinge("Error during unpacking, no info for '%s' available.", pkg);
 	    code = 1;
@@ -195,7 +197,7 @@ pkg_do(char *pkg)
     }
     free_plist(&plist);
  bail:
-    leave_playpen();
+    leave_playpen(Home);
     if (isTMP)
 	unlink(fname);
     return code;
@@ -204,5 +206,5 @@ pkg_do(char *pkg)
 void
 cleanup(int sig)
 {
-    leave_playpen();
+    leave_playpen(Home);
 }
