@@ -36,29 +36,31 @@ CLK_USE_I8254_CALIBRATION	opt_clock.h
 CLK_USE_TSC_CALIBRATION		opt_clock.h
 TIMER_FREQ			opt_clock.h
 
-NO_F00F_HACK			opt_cpu.h
-CPU_BLUELIGHTNING_FPU_OP_CACHE	opt_cpu.h
 CPU_BLUELIGHTNING_3X		opt_cpu.h
+CPU_BLUELIGHTNING_FPU_OP_CACHE	opt_cpu.h
 CPU_BTB_EN			opt_cpu.h
 CPU_CYRIX_NO_LOCK		opt_cpu.h
 CPU_DIRECT_MAPPED_CACHE		opt_cpu.h
 CPU_DISABLE_5X86_LSSER		opt_cpu.h
+CPU_DISABLE_CMPXCHG		opt_global.h	# XXX global, unlike other CPU_*
+CPU_DISABLE_SSE			opt_cpu.h
+CPU_ENABLE_SSE			opt_cpu.h
 CPU_FASTER_5X86_FPU		opt_cpu.h
+CPU_GEODE			opt_cpu.h
 CPU_I486_ON_386			opt_cpu.h
 CPU_IORT			opt_cpu.h
 CPU_L2_LATENCY			opt_cpu.h
 CPU_LOOP_EN			opt_cpu.h
 CPU_PPRO2CELERON		opt_cpu.h
 CPU_RSTK_EN			opt_cpu.h
+CPU_SOEKRIS			opt_cpu.h
 CPU_SUSP_HLT			opt_cpu.h
 CPU_UPGRADE_HW_CACHE		opt_cpu.h
 CPU_WT_ALLOC			opt_cpu.h
-CYRIX_CACHE_WORKS		opt_cpu.h
 CYRIX_CACHE_REALLY_WORKS	opt_cpu.h
+CYRIX_CACHE_WORKS		opt_cpu.h
+NO_F00F_HACK			opt_cpu.h
 NO_MEMORY_HOLE			opt_cpu.h
-CPU_ENABLE_SSE			opt_cpu.h
-CPU_DISABLE_SSE			opt_cpu.h
-CPU_DISABLE_CMPXCHG		opt_global.h
 
 # The CPU type affects the endian conversion functions all over the kernel.
 I386_CPU		opt_global.h
