@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vjcomp.c,v 1.8 1997/06/09 03:27:43 brian Exp $
+ * $Id: vjcomp.c,v 1.9 1997/08/25 00:29:32 brian Exp $
  *
  *  TODO:
  */
@@ -34,9 +34,9 @@
 struct slcompress cslc;
 
 void
-VjInit()
+VjInit(int max_state)
 {
-  sl_compress_init(&cslc);
+  sl_compress_init(&cslc, max_state);
 }
 
 void

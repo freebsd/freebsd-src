@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.27 1997/08/31 22:59:29 brian Exp $
+ * $Id: ipcp.c,v 1.28 1997/09/03 02:08:18 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
@@ -40,6 +40,7 @@
 #include "loadalias.h"
 #include "vars.h"
 
+extern void VjInit(int);
 extern void PutConfValue();
 extern void Prompt();
 extern struct in_addr ifnetmask;
@@ -300,6 +301,10 @@ IpcpLayerUp(struct fsm * fp)
   LogPrintf(LogIPCP, "IpcpLayerUp(%d).\n", fp->state);
   snprintf(tbuff, sizeof(tbuff), "myaddr = %s ",
 	   inet_ntoa(IpcpInfo.want_ipaddr));
+
+  if (IpcpInfo.his_compproto >> 16 == PROTO_VJCOMP)
+    VjInit((IpcpInfo.his_compproto >> 8) & 255);
+
   LogPrintf(LogIsKept(LogIPCP) ? LogIPCP : LogLINK, " %s hisaddr = %s\n",
 	    tbuff, inet_ntoa(IpcpInfo.his_ipaddr));
   if (OsSetIpaddress(IpcpInfo.want_ipaddr, IpcpInfo.his_ipaddr, ifnetmask) < 0) {

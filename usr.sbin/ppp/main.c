@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.80 1997/09/21 20:26:46 brian Exp $
+ * $Id: main.c,v 1.81 1997/09/22 00:46:55 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -60,7 +60,7 @@
 #endif
 #endif
 
-extern void VjInit(), AsyncInit();
+extern void VjInit(int), AsyncInit();
 extern void AsyncInput();
 extern int SelectSystem();
 
@@ -501,7 +501,7 @@ PacketMode()
     return;
   }
   AsyncInit();
-  VjInit();
+  VjInit(15);
   LcpInit();
   IpcpInit();
   CcpInit();
