@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/namei.h>
 #include <sys/proc.h>
+#include <sys/syscallsubr.h>
 #include <sys/systm.h>
 #include <sys/vnode.h>
 
@@ -96,105 +97,9 @@ linux_emul_convpath(td, path, pathseg, pbuf, cflag)
 	char		**pbuf;
 	int		  cflag;
 {
-	struct nameidata	 nd;
-	struct nameidata	 ndroot;
-	int			 error;
-	const char		*prefix;
-	char			*ptr, *buf, *cp;
-	size_t			 len, sz;
 
-	GIANT_REQUIRED;
-
-	buf = (char *) malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
-	*pbuf = buf;
-
-	prefix = linux_emul_path;
-	for (ptr = buf; (*ptr = *prefix) != '\0'; ptr++, prefix++)
-		continue;
-	sz = MAXPATHLEN - (ptr - buf);
-
-	if (pathseg == UIO_SYSSPACE)
-		error = copystr(path, ptr, sz, &len);
-	else
-		error = copyinstr(path, ptr, sz, &len);
-
-	if (error) {
-		*pbuf = NULL;
-		free(buf, M_TEMP);
-		return error;
-	}
-
-	if (*ptr != '/') {
-		error = EINVAL;
-		goto keeporig;
-	}
-
-	/*
-	 * We know that there is a / somewhere in this pathname.
-	 * Search backwards for it, to find the file's parent dir
-	 * to see if it exists in the alternate tree. If it does,
-	 * and we want to create a file (cflag is set). We don't
-	 * need to worry about the root comparison in this case.
-	 */
-
-	if (cflag) {
-		for (cp = &ptr[len] - 1; *cp != '/'; cp--);
-		*cp = '\0';
-
-		NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, buf, td);
-		error = namei(&nd);
-		*cp = '/';
-		if (error != 0)
-			goto keeporig;
-	}
-	else {
-		NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, buf, td);
-
-		if ((error = namei(&nd)) != 0)
-			goto keeporig;
-
-		/*
-		 * We now compare the vnode of the linux_root to the one
-		 * vnode asked. If they resolve to be the same, then we
-		 * ignore the match so that the real root gets used.
-		 * This avoids the problem of traversing "../.." to find the
-		 * root directory and never finding it, because "/" resolves
-		 * to the emulation root directory. This is expensive :-(
-		 */
-		NDINIT(&ndroot, LOOKUP, FOLLOW, UIO_SYSSPACE, linux_emul_path,
-		       td);
-
-		if ((error = namei(&ndroot)) != 0) {
-			/* Cannot happen! */
-			NDFREE(&nd, NDF_ONLY_PNBUF);
-			vrele(nd.ni_vp);
-			goto keeporig;
-		}
-
-		if (nd.ni_vp == ndroot.ni_vp) {
-			error = ENOENT;
-			goto bad;
-		}
-
-	}
-
-	NDFREE(&nd, NDF_ONLY_PNBUF);
-	vrele(nd.ni_vp);
-	if (!cflag) {
-		NDFREE(&ndroot, NDF_ONLY_PNBUF);
-		vrele(ndroot.ni_vp);
-	}
-	return error;
-
-bad:
-	NDFREE(&ndroot, NDF_ONLY_PNBUF);
-	vrele(ndroot.ni_vp);
-	NDFREE(&nd, NDF_ONLY_PNBUF);
-	vrele(nd.ni_vp);
-keeporig:
-	/* Keep the original path; copy it back to the start of the buffer. */
-	bcopy(ptr, buf, len);
-	return error;
+	return (kern_alternate_path(td, linux_emul_path, path, pathseg, pbuf,
+		cflag));
 }
 
 void
