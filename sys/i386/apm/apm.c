@@ -15,11 +15,10 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.86 1999/05/11 19:54:03 phk Exp $
+ *	$Id: apm.c,v 1.87 1999/05/30 16:52:01 phk Exp $
  */
 
 #include "opt_devfs.h"
-#include "opt_vm86.h"
 #include "opt_smp.h"
 
 #include <sys/param.h>
@@ -41,10 +40,8 @@
 #include <sys/syslog.h>
 #include <i386/apm/apm_setup.h>
 
-#ifdef VM86
 #include <machine/psl.h>
 #include <machine/vm86.h>
-#endif
 
 #ifdef SMP
 #include <machine/smp.h>
@@ -683,10 +680,8 @@ apm_not_halt_cpu(void)
 static int
 apm_probe(device_t dev)
 {
-#ifdef VM86
 	struct vm86frame	vmf;
 	int			i;
-#endif
 	int			disabled, flags;
 
 	if (resource_int_value("apm", 0, "disabled", &disabled) == 0
@@ -703,7 +698,6 @@ apm_probe(device_t dev)
 	if (resource_int_value("apm", 0, "flags", &flags) != 0)
 		flags = 0;
 
-#ifdef VM86
 	bzero(&vmf, sizeof(struct vm86frame));		/* safety */
 	vmf.vmf_ax = (APM_BIOS << 8) | APM_INSTCHECK;
 	vmf.vmf_bx = 0;
@@ -749,7 +743,6 @@ apm_probe(device_t dev)
 		       i, (vmf.vmf_eflags & PSL_C) ? 1 : 0, vmf.vmf_bx);
 #endif
 	}
-#endif
 
 	bzero(&apm_softc, sizeof(apm_softc));
 
