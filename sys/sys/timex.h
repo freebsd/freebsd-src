@@ -17,6 +17,9 @@
 /*
  * Modification history timex.h
  *
+ * 26 Sep 94	David L. Mills
+ *	Added defines for hybrid phase/frequency-lock loop.
+ *
  * 19 Mar 94	David L. Mills
  *	Moved defines from kernel routines to header file and added new
  *	defines for PPS phase-lock loop.
@@ -81,7 +84,9 @@
  * in order to avoid hardware multiply operations.
  *
  * SHIFT_KG and SHIFT_KF establish the damping of the PLL and are chosen
- * for a slightly underdamped convergence characteristic.
+ * for a slightly underdamped convergence characteristic. SHIFT_KH
+ * establishes the damping of the FLL and is chosen by wisdom and black
+ * art.
  *
  * MAXTC establishes the maximum time constant of the PLL. With the
  * SHIFT_KG and SHIFT_KF values given and a time constant range from
@@ -90,7 +95,8 @@
  */
 #define SHIFT_HZ 7		/* log2(hz) */
 #define SHIFT_KG 6		/* phase factor (shift) */
-#define SHIFT_KF 16		/* frequency factor (shift) */
+#define SHIFT_KF 16		/* PLL frequency factor (shift) */
+#define SHIFT_KH 2		/* FLL frequency factor (shift) */
 #define MAXTC 6			/* maximum time constant (shift) */
 
 /*
@@ -112,7 +118,7 @@
  *
  * FINEUSEC is 1 us in SHIFT_UPDATE units of the time_phase variable.
  */
-#define SHIFT_SCALE 23		/* phase scale (shift) */
+#define SHIFT_SCALE 22		/* phase scale (shift) */
 #define SHIFT_UPDATE (SHIFT_KG + MAXTC) /* time offset scale (shift) */
 #define SHIFT_USEC 16		/* frequency offset scale (shift) */
 #define FINEUSEC (1L << SHIFT_SCALE) /* 1 us in phase units */
@@ -148,12 +154,12 @@
  * MINSEC and MAXSEC define the lower and upper bounds on the interval
  * between protocol updates.
  */
-#define MAXPHASE 128000L	/* max phase error (us) */
+#define MAXPHASE 512000L	/* max phase error (us) */
 #ifdef PPS_SYNC
-#define MAXFREQ (100L << SHIFT_USEC) /* max freq error (100 ppm) */
+#define MAXFREQ (512L << SHIFT_USEC) /* max freq error (100 ppm) */
 #define MAXTIME (200L << PPS_AVG) /* max PPS error (jitter) (200 us) */
 #else
-#define MAXFREQ (200L << SHIFT_USEC) /* max freq error (200 ppm) */
+#define MAXFREQ (512L << SHIFT_USEC) /* max freq error (200 ppm) */
 #endif /* PPS_SYNC */
 #define MINSEC 16L		/* min interval between updates (s) */
 #define MAXSEC 1200L		/* max interval between updates (s) */
@@ -207,10 +213,12 @@
 #define STA_PLL		0x0001	/* enable PLL updates (rw) */
 #define STA_PPSFREQ	0x0002	/* enable PPS freq discipline (rw) */
 #define STA_PPSTIME	0x0004	/* enable PPS time discipline (rw) */
+#define STA_FLL		0x0008	/* select frequency-lock mode (rw) */
 
 #define STA_INS		0x0010	/* insert leap (rw) */
 #define STA_DEL		0x0020	/* delete leap (rw) */
 #define STA_UNSYNC	0x0040	/* clock unsynchronized (rw) */
+#define STA_FREQHOLD	0x0080	/* hold frequency (rw) */
 
 #define STA_PPSSIGNAL	0x0100	/* PPS signal present (ro) */
 #define STA_PPSJITTER	0x0200	/* PPS signal jitter exceeded (ro) */
