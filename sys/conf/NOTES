@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.432 1998/05/19 08:58:43 phk Exp $
+#	$Id: LINT,v 1.433 1998/05/19 23:23:09 julian Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1322,6 +1322,12 @@ options	"EISA_SLOTS=12"
 # The `fxp' device provides support for the Intel EtherExpress Pro/100B
 # PCI Fast Ethernet adapters.
 #
+# The 'tl' device provides support for the Texas Instruments TNETE100
+# series 'ThunderLAN' cards and integrated ethernet controllers. This
+# includes several Compaq Netelligent 10/100 cards and the built-in
+# ethernet controllers in several Compaq Prosignia, Proliant and
+# Deskpro systems.
+#
 # The `tx' device provides support for the SMC 9432TX cards.
 #
 # The `vx' device provides support for the 3Com 3C590 and 3C595
@@ -1354,6 +1360,7 @@ controller	isp0
 controller	amd0
 device		de0
 device		fxp0
+device		tl0
 device		tx0
 device		vx0
 device		fpa0
