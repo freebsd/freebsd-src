@@ -1,4 +1,4 @@
-#	$Id: options,v 1.18.2.12 1998/06/23 21:33:18 peter Exp $
+#	$Id: options,v 1.18.2.13 1998/06/25 00:46:17 jkh Exp $
 
 # Format:
 # Option name	filename
@@ -84,6 +84,18 @@ SCSI_NCR_DFLT_TAGS	opt_ncr.h
 SCSI_NCR_MAX_SYNC	opt_ncr.h
 SCSI_NCR_MAX_WIDE	opt_ncr.h
 SCSI_NCR_MYADDR		opt_ncr.h
+
+# Options used only in pci/isp_pci.c
+SCSI_ISP_NO_FWLOAD_MASK	opt_isp.h
+SCSI_ISP_NO_NVRAM_MASK	opt_isp.h
+SCSI_ISP_PREFER_MEM_MAP	opt_isp.h
+SCSI_ISP_FABRIC		opt_isp.h
+SCSI_ISP_SCCLUN		opt_isp.h
+SCSI_ISP_FCDUPLEX	opt_isp.h
+ISP_DISABLE_1020_SUPPORT	opt_isp.h
+ISP_DISABLE_1080_SUPPORT	opt_isp.h
+ISP_DISABLE_2100_SUPPORT	opt_isp.h
+
 
 # Resource limits.
 CHILD_MAX		opt_rlimit.h
