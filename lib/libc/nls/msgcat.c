@@ -94,8 +94,10 @@ catopen(name, type)
 	    strchr(lang, '/') != NULL)
 		lang = "C";
 
-	if ((plang = cptr1 = strdup(lang)) == NULL)
+	if ((plang = cptr1 = strdup(lang)) == NULL) {
+		errno = ENOMEM;
 		return (NLERR);
+	}
 	if ((cptr = strchr(cptr1, '@')) != NULL)
 		*cptr = '\0';
 	pter = pcode = "";
@@ -116,9 +118,8 @@ catopen(name, type)
 		nlspath = _DEFAULT_NLS_PATH;
 
 	if ((base = cptr = strdup(nlspath)) == NULL) {
-		saverr = errno;
 		free(plang);
-		errno = saverr;
+		errno = ENOMEM;
 		return (NLERR);
 	}
 
@@ -318,16 +319,17 @@ catclose(catd)
 static char     *_errowner = "Message Catalog System";
 
 #define CORRUPT() {                                            \
+	(void)fclose(cat->fp);                                 \
 	(void)fprintf(stderr, "%s: corrupt file.", _errowner); \
 	free(cat);                                             \
 	NLRETERR(EFTYPE);                                      \
 }
 
 #define NOSPACE() {                                              \
-	saverr = errno;                                          \
+	(void)fclose(cat->fp);                                   \
 	(void)fprintf(stderr, "%s: no more memory.", _errowner); \
 	free(cat);                                               \
-	errno = saverr;                                          \
+	errno = ENOMEM;                                          \
 	return (NLERR);                                          \
 }
 
@@ -360,8 +362,10 @@ loadCat(catpath)
 	off_t           nextSet;
 	int             saverr;
 
-	if ((cat = (MCCatT *)malloc(sizeof(MCCatT))) == NULL)
+	if ((cat = (MCCatT *)malloc(sizeof(MCCatT))) == NULL) {
+		errno = ENOMEM;
 		return (NLERR);
+	}
 	cat->loadType = MCLoadBySet;
 
 	if ((cat->fp = fopen(catpath, "r")) == NULL) {
@@ -377,12 +381,14 @@ loadCat(catpath)
 		CORRUPT();
 
 	if (header.majorVer != MCMajorVer) {
+		(void)fclose(cat->fp);
 		free(cat);
 		(void)fprintf(stderr, "%s: %s is version %ld, we need %ld.\n",
 		    _errowner, catpath, header.majorVer, MCMajorVer);
 		NLRETERR(EFTYPE);
 	}
 	if (header.numSets <= 0) {
+		(void)fclose(cat->fp);
 		free(cat);
 		(void)fprintf(stderr, "%s: %s has %ld sets!\n",
 		    _errowner, catpath, header.numSets);
@@ -450,8 +456,10 @@ loadSet(cat, set)
 	/* Get the data */
 	if (fseeko(cat->fp, set->data.off, SEEK_SET) == -1)
 		return (0);
-	if ((set->data.str = malloc(set->dataLen)) == NULL)
+	if ((set->data.str = malloc(set->dataLen)) == NULL) {
+		errno = ENOMEM;
 		return (-1);
+	}
 	if (fread(set->data.str, set->dataLen, 1, cat->fp) != 1) {
 		saverr = errno;
 		free(set->data.str);
@@ -468,9 +476,8 @@ loadSet(cat, set)
 	}
 	if ((set->u.msgs = (MCMsgT *)malloc(sizeof(MCMsgT) * set->numMsgs)) ==
 	    NULL) {
-		saverr = errno;
 		free(set->data.str);
-		errno = saverr;
+		errno = ENOMEM;
 		return (-1);
 	}
 
