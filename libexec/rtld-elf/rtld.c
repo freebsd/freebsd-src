@@ -1831,8 +1831,6 @@ symlook_default(const char *name, unsigned long hash,
 
     if (def != NULL)
 	*defobj_out = defobj;
-    else
-	_rtld_error("%s: Undefined symbol \"%s\"", refobj->path, name);
     return def;
 }
 
