@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.190 1996/02/06 21:25:23 ache Exp $
+# $Id: bsd.port.mk,v 1.191 1996/02/07 09:54:23 asami Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -19,7 +19,7 @@
 # MASTER_SITES	- Primary location(s) for distribution files if not found
 #				  locally (default:
 #				   ftp://ftp.freebsd.org/pub/FreeBSD/distfiles)
-# PATCH_SITES	- Primary location(s) for distributed patch files
+# PATCH_SITES	- Primary location(s) for distribution patch files
 #				  (see PATCHFILES below) if not found locally (default:
 #				   ftp://ftp.freebsd.org/pub/FreeBSD/distfiles)
 #
@@ -50,7 +50,7 @@
 # DISTNAME		- Name of port or distribution.
 # DISTFILES		- Name(s) of archive file(s) containing distribution
 #				  (default: ${DISTDIR}/${DISTNAME}${EXTRACT_SUFX}).
-# PATCHFILES	- Name(s) of additional files that contain distributed
+# PATCHFILES	- Name(s) of additional files that contain distribution
 #				  patches (default: none).  make will look for them at
 #				  PATCH_SITES (see above).  They will automatically be
 #				  uncompressed before patching if the names end with
@@ -541,11 +541,11 @@ do-extract:
 .if !target(do-patch)
 do-patch:
 .if defined(PATCHFILES)
-	@${ECHO_MSG} "===>  Applying distributed patches for ${PKGNAME}"
+	@${ECHO_MSG} "===>  Applying distribution patches for ${PKGNAME}"
 .if defined(PATCH_DEBUG)
 	@(cd ${PATCHDIST}; \
 	  for i in ${PATCHFILES}; do \
-		${ECHO_MSG} "===>   Applying distributed patch $$i" ; \
+		${ECHO_MSG} "===>   Applying distribution patch $$i" ; \
 		case $$i in \
 			*.Z|*.gz) \
 				/usr/bin/gzcat $$i | ${PATCH} ${PATCH_DIST_ARGS}; \
