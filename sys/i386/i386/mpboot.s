@@ -174,7 +174,8 @@ NON_GPROF_ENTRY(bootMP)
 	mov	%ax, %fs
 	mov	%ax, %gs
 	mov	%ax, %ss
-	mov	$(boot_stk-_bootMP), %sp
+	data32
+	mov	$boot_stk-_bootMP, %esp
 
 	/* Now load the global descriptor table */
 	addr32
