@@ -43,7 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
 
-#include <i386/isa/ic/mb86960.h>
+#include <dev/fe/mb86960.h>
 #include <dev/fe/if_fereg.h>
 #include <dev/fe/if_fevar.h>
 
@@ -276,7 +276,7 @@ fe_probe_tdk (device_t dev, const struct fe_pccard_product *pp)
 	struct fe_softc *sc = device_get_softc(dev);
 
         static struct fe_simple_probe_struct probe_table [] = {
-                { FE_DLCR2, 0x50, 0x00 },
+                { FE_DLCR2, 0x10, 0x00 },
                 { FE_DLCR4, 0x08, 0x00 },
             /*  { FE_DLCR5, 0x80, 0x00 },       Does not work well.  */
                 { 0 }
@@ -289,11 +289,16 @@ fe_probe_tdk (device_t dev, const struct fe_pccard_product *pp)
 	/* Fill the softc struct with default values.  */
 	fe_softc_defaults(sc);
 
+	device_printf(dev, "Ident register says card is type 0x%x\n",
+	  fe_inb(sc, FE_DLCR7));
+
         /*
          * See if C-NET(PC)C is on its address.
          */
-        if (!fe_simple_probe(sc, probe_table))
-		return ENXIO;
+        if (!fe_simple_probe(sc, probe_table)) {
+	    printf("simple probe failed\n");
+	    return ENXIO;
+	}
 
         /* Determine the card type.  */
 	sc->type = FE_TYPE_TDK;
@@ -302,8 +307,11 @@ fe_probe_tdk (device_t dev, const struct fe_pccard_product *pp)
 	pccard_get_ether(dev, sc->sc_enaddr);
 
         /* Make sure we got a valid station address.  */
-        if (!fe_valid_Ether_p(sc->sc_enaddr, 0))
-		return ENXIO;
+        if (!fe_valid_Ether_p(sc->sc_enaddr, 0)) 
+	{
+	    printf("Bad ethernet\n");
+	    return ENXIO;
+	}
 
         return 0;
 }
