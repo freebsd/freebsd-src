@@ -80,6 +80,7 @@ COMMON ITEMS: section later in the file.
 	to work.
 		cd src/lib/compat/compat4x.i386
 		make all install
+	You will see __stdoutp undefined until you do this.
 
 20010919:
 	There's a bug in the world build process.  The cross-tools
