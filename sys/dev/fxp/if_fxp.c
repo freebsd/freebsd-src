@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_fxp.c,v 1.34 1997/04/23 01:44:30 davidg Exp $
+ *	$Id: if_fxp.c,v 1.35 1997/06/13 22:34:52 davidg Exp $
  */
 
 /*
@@ -594,15 +594,14 @@ fxp_intr(arg)
 					txp->mb_head = NULL;
 					sc->tx_queued--;
 				}
-				if (txp->cb_command & FXP_CB_COMMAND_S)
+				if (txp == sc->cbl_last)
 					break;
 			}
 			sc->cbl_first = txp;
-			/*
-			 * Clear watchdog timer. It may or may not be set
-			 * again in fxp_start().
-			 */
 			ifp->if_timer = 0;
+			/*
+			 * Try to start more packets transmitting.
+			 */
 			if (ifp->if_snd.ifq_head != NULL)
 				fxp_start(ifp);
 		}
