@@ -161,11 +161,11 @@ AcpiFormatException (
 
 ACPI_STATUS
 AcpiFindRootPointer (
-    void                    **RsdpPhysicalAddress);
+    ACPI_PHYSICAL_ADDRESS   *RsdpPhysicalAddress);
 
 ACPI_STATUS
 AcpiLoadTables (
-    void                    *RsdpPhysicalAddress);
+    ACPI_PHYSICAL_ADDRESS   RsdpPhysicalAddress);
 
 ACPI_STATUS
 AcpiLoadTable (
@@ -200,7 +200,6 @@ AcpiWalkNamespace (
     WALK_CALLBACK           UserFunction,
     void                    *Context,
     void *                  *ReturnValue);
-
 
 ACPI_STATUS
 AcpiGetDevices (
@@ -370,11 +369,11 @@ AcpiGetIrqRoutingTable  (
 
 ACPI_STATUS
 AcpiSetFirmwareWakingVector (
-    void                    *PhysicalAddress);
+    ACPI_PHYSICAL_ADDRESS   PhysicalAddress);
 
 ACPI_STATUS
 AcpiGetFirmwareWakingVector (
-    void                    **PhysicalAddress);
+    ACPI_PHYSICAL_ADDRESS   *PhysicalAddress);
 
 ACPI_STATUS
 AcpiGetProcessorId (
