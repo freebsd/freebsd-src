@@ -102,8 +102,8 @@ we_askshell(const char *words, wordexp_t *we, int flags)
 	if (pipe(pdes) < 0)
 		return (WRDE_NOSPACE);	/* XXX */
 	if ((pid = fork()) < 0) {
-		close(pdes[0]);
-		close(pdes[1]);
+		_close(pdes[0]);
+		_close(pdes[1]);
 		return (WRDE_NOSPACE);	/* XXX */
 	}
 	else if (pid == 0) {
@@ -114,18 +114,18 @@ we_askshell(const char *words, wordexp_t *we, int flags)
 		int devnull;
 		char *cmd;
 
-		close(pdes[0]);
-		if (dup2(pdes[1], STDOUT_FILENO) < 0)
+		_close(pdes[0]);
+		if (_dup2(pdes[1], STDOUT_FILENO) < 0)
 			_exit(1);
-		close(pdes[1]);
+		_close(pdes[1]);
 		if (asprintf(&cmd, "wordexp%c%s\n", *ifs, words) < 0)
 			_exit(1);
 		if ((flags & WRDE_SHOWERR) == 0) {
-			if ((devnull = open(_PATH_DEVNULL, O_RDWR, 0666)) < 0)
+			if ((devnull = _open(_PATH_DEVNULL, O_RDWR, 0666)) < 0)
 				_exit(1);
-			if (dup2(devnull, STDERR_FILENO) < 0)
+			if (_dup2(devnull, STDERR_FILENO) < 0)
 				_exit(1);
-			close(devnull);
+			_close(devnull);
 		}
 		execl(_PATH_BSHELL, "sh", flags & WRDE_UNDEF ? "-u" : "+u",
 		    "-c", cmd, NULL);
@@ -138,10 +138,10 @@ we_askshell(const char *words, wordexp_t *we, int flags)
 	 * byte count (not including terminating null bytes), followed by
 	 * the expanded words separated by nulls.
 	 */
-	close(pdes[1]);
-	if (read(pdes[0], wbuf, 8) != 8 || read(pdes[0], bbuf, 8) != 8) {
-		close(pdes[0]);
-		waitpid(pid, &status, 0);
+	_close(pdes[1]);
+	if (_read(pdes[0], wbuf, 8) != 8 || _read(pdes[0], bbuf, 8) != 8) {
+		_close(pdes[0]);
+		_waitpid(pid, &status, 0);
 		return (flags & WRDE_UNDEF ? WRDE_BADVAL : WRDE_SYNTAX);
 	}
 	wbuf[8] = bbuf[8] = '\0';
@@ -162,14 +162,14 @@ we_askshell(const char *words, wordexp_t *we, int flags)
 	if ((nwv = realloc(we->we_wordv, (we->we_wordc + 1 +
 	    (flags & WRDE_DOOFS ?  we->we_offs : 0)) *
 	    sizeof(char *))) == NULL) {
-		close(pdes[0]);
-		waitpid(pid, &status, 0);
+		_close(pdes[0]);
+		_waitpid(pid, &status, 0);
 		return (WRDE_NOSPACE);
 	}
 	we->we_wordv = nwv;
 	if ((nstrings = realloc(we->we_strings, we->we_nbytes)) == NULL) {
-		close(pdes[0]);
-		waitpid(pid, &status, 0);
+		_close(pdes[0]);
+		_waitpid(pid, &status, 0);
 		return (WRDE_NOSPACE);
 	}
 	for (i = 0; i < vofs; i++)
@@ -177,18 +177,18 @@ we_askshell(const char *words, wordexp_t *we, int flags)
 			we->we_wordv[i] += nstrings - we->we_strings;
 	we->we_strings = nstrings;
 
-	if (read(pdes[0], we->we_strings + sofs, nbytes) != nbytes) {
-		close(pdes[0]);
-		waitpid(pid, &status, 0);
+	if (_read(pdes[0], we->we_strings + sofs, nbytes) != nbytes) {
+		_close(pdes[0]);
+		_waitpid(pid, &status, 0);
 		return (flags & WRDE_UNDEF ? WRDE_BADVAL : WRDE_SYNTAX);
 	}
 
-	if (waitpid(pid, &status, 0) < 0 || !WIFEXITED(status) ||
+	if (_waitpid(pid, &status, 0) < 0 || !WIFEXITED(status) ||
 	    WEXITSTATUS(status) != 0) {
-		close(pdes[0]);
+		_close(pdes[0]);
 		return (flags & WRDE_UNDEF ? WRDE_BADVAL : WRDE_SYNTAX);
 	}
-	close(pdes[0]);
+	_close(pdes[0]);
 
 	/*
 	 * Break the null-terminated expanded word strings out into
