@@ -1,0 +1,214 @@
+.\"
+.\" Copyright (c) 1997-1998 Erez Zadok
+.\" Copyright (c) 1990 Jan-Simon Pendry
+.\" Copyright (c) 1990 Imperial College of Science, Technology & Medicine
+.\" Copyright (c) 1990 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Jan-Simon Pendry at Imperial College, London.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgment:
+.\"      This product includes software developed by the University of
+.\"      California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	%W% (Berkeley) %G%
+.\"
+.\" $Id: amq.8,v 5.2.2.1 1992/02/09 15:11:15 jsp beta $
+.\"
+.TH AMQ 8 "25 April 1989"
+.SH NAME
+amq \- automounter query tool
+.SH SYNOPSIS
+.B amq
+[
+.BI \-fmpsuvTU
+] [
+.BI \-h " hostname"
+] [
+.BI \-l " log_file"
+] [
+.BI \-x " log_options"
+] [
+.BI \-D " debug_options"
+] [
+.BI \-M " mountmap entry"
+] [
+.BI \-P " program_number"
+] [
+.I directory
+] .\|.\|.
+.SH DESCRIPTION
+.B Amq
+provides a simple way of determining the current state of
+.B amd
+program.
+Communication is by
+.SM RPC.
+Three modes of operation are supported by the current protocol.  By default
+a list of mount points and auto-mounted filesystems is output.  An
+alternative host can be specified using the
+.I \-h
+option.
+.LP
+If
+.I directory
+names are given, as output by default, then per-filesystem
+information is displayed.
+.SH OPTIONS
+
+.TP
+.B \-f
+Ask the automounter to flush the internal caches.
+
+.TP
+.BI \-h " hostname"
+Specify an alternate host to query.  By default the local host is used.  In
+an
+.SM HP-UX
+cluster, the root server is queried by default, since that is the system on
+which the automounter is normally run.
+
+.TP
+.BI \-l " log_file"
+Tell amd to use
+.I log_file
+as the log file name.  For security reasons, this must be the same log file
+which amd used when started.  This option is therefore only useful to
+refresh amd's open file handle on the log file, so that it can be rotated
+and compressed via daily cron jobs.
+
+.TP
+.B \-m
+Ask the automounter to provide a list of mounted filesystems, including the
+number of references to each filesystem and any error which occurred while
+mounting.
+
+.TP
+.B \-p
+Return the process ID of the remote or locally running amd.  Useful when you
+need to send a signal to the local amd process, and would rather not have to
+search through the process table.  This option is used in the
+.I ctl-amd
+script.
+
+.TP
+.B \-s
+Ask the automounter to provide system-wide mount statistics.
+
+.TP
+.B \-u
+Ask the automounter to unmount the filesystems named in
+.I directory
+instead of providing
+information about them.  Unmounts are requested, not forced.  They merely
+cause the mounted filesystem to timeout, which will be picked up by
+.BR amd 's
+main scheduler thus causing the normal timeout action to be taken.
+
+.TP
+.B \-v
+Ask the automounter for its version information.  This is a subset of the
+information output by
+.BR amd 's
+.I -v
+option.
+
+.TP
+.BI \-x " log_options"
+Ask the automounter to use the logging options specified in
+.I log_options
+from now on.
+
+.TP
+.BI \-D " log_options"
+Ask the automounter to use the debugging options specified in
+.I debug_options
+from now on.
+
+.TP
+.BI \-M " map_ent"
+Pass a mount map entry to
+.B amd
+and wait for it to be evaluated, possible causing a mount.  This option is
+highly insecure.  By default, amd and amq do not support it.  You have to
+configure am-utils with
+.I \-\-enable\-amq\-mount
+to enable this option.
+
+.TP
+.BI \-P " program_number"
+Contact an alternate running amd that had registered itself on a different
+RPC
+.I program_number
+and apply all other operations to that instance of the automounter.  This is
+useful when you run multiple copies of amd, and need to manage each
+one separately.  If not specified, amq will use the default program number
+for amd, 300019.  For security reasons, the only alternate program numbers
+amd can use range from 300019 to 300029, inclusive.
+
+.TP
+.B \-T
+Contact
+.B amd
+using the TCP transport only.  Normally
+.B amq
+will try TCP, and if that failed, will try UDP.
+
+.TP
+.B \-U
+Contact
+.B amd
+using UDP (connectionless) transport only.  Normally
+.B amq
+will try TCP, and if that failed, will try UDP.
+
+.SH FILES
+.PD 0
+.TP 20
+.B amq.x
+.SM RPC
+protocol description.
+.SH CAVEATS
+.B Amq
+uses a Sun registered
+.SM RPC
+program number (300019 decimal) which may not
+be in the /etc/rpc database.
+.SH "SEE ALSO"
+.BR amd (8),
+.BR ctl-amd (8),
+.BR amd.conf (5).
+.SH AUTHORS
+Jan-Simon Pendry <jsp@doc.ic.ac.uk>, Department of Computing, Imperial College, London, UK.
+.P
+Erez Zadok <ezk@cs.columbia.edu>, Department of Computer Science, Columbia
+University, New York, USA.
+.P
+Other authors and contributors to am-utils are listed in the
+.B AUTHORS
+file distributed with am-utils.
