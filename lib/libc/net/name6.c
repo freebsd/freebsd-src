@@ -1287,7 +1287,7 @@ _res_search_multi(name, rtl, errp)
 		    rtl = SLIST_NEXT(rtl, rtl_entry)) {
 			ret = res_query(cp, C_IN, rtl->rtl_type, buf.buf,
 					     sizeof(buf.buf));
-			if (ret > 0) {
+			if (ret > 0 && ret < sizeof(buf.buf)) {
 				hpbuf.h_addrtype = (rtl->rtl_type == T_AAAA)
 				    ? AF_INET6 : AF_INET;
 				hpbuf.h_length = ADDRLEN(hpbuf.h_addrtype);
@@ -1312,7 +1312,7 @@ _res_search_multi(name, rtl, errp)
 		    rtl = SLIST_NEXT(rtl, rtl_entry)) {
 			ret = res_querydomain(name, NULL, C_IN, rtl->rtl_type,
 					      buf.buf, sizeof(buf.buf));
-			if (ret > 0) {
+			if (ret > 0 && ret < sizeof(buf.buf)) {
 				hpbuf.h_addrtype = (rtl->rtl_type == T_AAAA)
 				    ? AF_INET6 : AF_INET;
 				hpbuf.h_length = ADDRLEN(hpbuf.h_addrtype);
@@ -1349,7 +1349,7 @@ _res_search_multi(name, rtl, errp)
 				ret = res_querydomain(name, *domain, C_IN,
 						      rtl->rtl_type,
 						      buf.buf, sizeof(buf.buf));
-				if (ret > 0) {
+				if (ret > 0 && ret < sizeof(buf.buf)) {
 					hpbuf.h_addrtype = (rtl->rtl_type == T_AAAA)
 					    ? AF_INET6 : AF_INET;
 					hpbuf.h_length = ADDRLEN(hpbuf.h_addrtype);
@@ -1419,7 +1419,7 @@ _res_search_multi(name, rtl, errp)
 		    rtl = SLIST_NEXT(rtl, rtl_entry)) {
 			ret = res_querydomain(name, NULL, C_IN, rtl->rtl_type,
 					      buf.buf, sizeof(buf.buf));
-			if (ret > 0) {
+			if (ret > 0 && ret < sizeof(buf.buf)) {
 				hpbuf.h_addrtype = (rtl->rtl_type == T_AAAA)
 				    ? AF_INET6 : AF_INET;
 				hpbuf.h_length = ADDRLEN(hpbuf.h_addrtype);
@@ -1569,6 +1569,12 @@ _dns_ghbyaddr(void *rval, void *cb_data, va_list ap)
 	n = res_query(qbuf, C_IN, T_PTR, buf.buf, sizeof buf.buf);
 	if (n < 0) {
 		*errp = h_errno;
+		return NS_UNAVAIL;
+	} else if (n > sizeof(buf.buf)) {
+#if 0
+		errno = ERANGE; /* XXX is it OK to set errno here? */
+#endif
+		*errp = NETDB_INTERNAL;
 		return NS_UNAVAIL;
 	}
 	hp = getanswer(&buf, n, qbuf, T_PTR, &hbuf, errp);
