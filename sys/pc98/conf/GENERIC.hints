@@ -276,32 +276,9 @@ hint.snc.0.port="0x888"
 hint.snc.0.irq="6"
 hint.snc.0.maddr="0xc0000"
 
-# The VoxWare sound drivers
-#hint.sb.0.at="isa"
-#hint.sb.0.port="0x20d2"
-#hint.sb.0.irq="10"
-#hint.sb.0.drq="3"
-#hint.sbxvi.0.at="isa"
-#hint.sbxvi.0.drq="3"
-#hint.sbmidi.0.at="isa"
-#hint.sbmidi.0.port="0x80d2"
-#hint.opl.0.at="isa"
-#hint.opl.0.port="0x28d2"
-#hint.nss.0.at="isa"
-#hint.nss.0.port="0xa460"
-#hint.nss.0.irq="12"
-#hint.mss.0.at="isa"
-#hint.mss.0.port="0xf40"
-#hint.mss.0.irq="12"
-#hint.mss.0.drq="1"
-#hint.mpu.0.at="isa"
-#hint.mpu.0.port="0xe0d0"
-#hint.mpu.0.irq="6"
-
 #hint.joy.0.at="isa"
 #hint.joy.0.port="0x04d2"
 
-# The newpcm driver (use INSTEAD of snd and all VOXWARE drivers!)
 # Windows Sound System
 #hint.pcm.0.at="isa"
 #hint.pcm.0.port="0xf40"
