@@ -126,16 +126,6 @@ enum constants {
 
 #define OBJTYPE(x)	((minor(x) >> VINUM_TYPE_SHIFT) & 3)
 
-    /* Create device minor numbers */
-#define VINUMDEV(o, t)		makedev (VINUM_CDEV_MAJOR, VINUMMINOR (o, t))
-
-#define VINUM_VOL(v)		makedev (VINUM_CDEV_MAJOR, \
-					 VINUMMINOR (v, VINUM_VOLUME_TYPE))
-#define VINUM_PLEX(p)		makedev (VINUM_CDEV_MAJOR, \
-					 VINUMMINOR (p, VINUM_PLEX_TYPE))
-#define VINUM_SD(s)		makedev (VINUM_CDEV_MAJOR, \
-					 VINUMMINOR (s, VINUM_SD_TYPE))
-
     /* extract device type */
 #define DEVTYPE(x) ((minor (x) >> VINUM_TYPE_SHIFT) & 3)
 
