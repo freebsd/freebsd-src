@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)ftpd.8	8.2 (Berkeley) 4/19/94
-.\"	$Id: ftpd.8,v 1.13 1997/02/22 14:21:27 peter Exp $
+.\"	$Id: ftpd.8,v 1.14 1997/03/25 03:45:52 mpp Exp $
 .\"
 .Dd April 19, 1994
 .Dt FTPD 8
@@ -272,7 +272,11 @@ as for an
 .Dq anonymous
 or
 .Dq ftp
-account (see next item).  However, the user must still supply a password.
+account (see next item).
+This facility may also be used by using the boolean "ftp-chroot"
+capability in
+.Xr login.conf 5 .
+However, the user must still supply a password.
 This feature is intended as a compromise between a fully anonymous account
 and a fully privileged account.  The account should also be set up as for an
 anonymous account.
@@ -362,6 +366,7 @@ Log file for anonymous transfers.
 .Xr ftp 1 ,
 .Xr key 1 ,
 .Xr getusershell 3 ,
+.Xr login.conf 5 ,
 .Xr inetd 8 ,
 .Xr syslogd 8
 .Sh BUGS
