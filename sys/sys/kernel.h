@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernel.h	8.3 (Berkeley) 1/21/94
- * $Id: kernel.h,v 1.43 1998/10/16 03:55:01 peter Exp $
+ * $Id: kernel.h,v 1.44 1998/11/10 08:41:41 peter Exp $
  */
 
 #ifndef _SYS_KERNEL_H_
@@ -258,7 +258,7 @@ struct sysinit {
 		ident,						\
 		SI_TYPE_DEFAULT					\
 	};							\
-	DATA_SET(sysuninit_set,uniquifier ## _sys_uninit);
+	DATA_SET(sysuninit_set,uniquifier ## _sys_uninit)
 
 /*
  * Call 'fork()' before calling '(*func)(ident)';
@@ -326,8 +326,7 @@ void	sysinit_add __P((struct sysinit **set));
  */
 #include <sys/module.h>
 #define	PSEUDO_SET(sym, name) \
-	static int name ## _modevent(module_t mod, modeventtype_t type, \
-		void *data) \
+	static int name ## _modevent(module_t mod, int type, void *data) \
 	{ \
 		void (*initfunc)(void *) = (void (*)(void *))data; \
 		switch (type) { \
