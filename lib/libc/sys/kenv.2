@@ -48,7 +48,7 @@ the kernel environment.
 .Pp
 The
 .Fa action
-parameter can be one of the following:
+argument can be one of the following:
 .Bl -tag -width ".Dv KENV_UNSET"
 .It Dv KENV_GET
 Returns the value associated with the named kernel environment variable.
@@ -85,14 +85,14 @@ will return the number of bytes required to copy out the entire environment.
 .Pp
 The
 .Fa name
-parameter is the name of the environment variable to be affected.
+argument is the name of the environment variable to be affected.
 In the case of
 .Dv KENV_DUMP
 it is ignored.
 .Pp
 The
 .Fa value
-parameter contains either the value to set the environment variable
+argument contains either the value to set the environment variable
 .Fa name
 to in the case of
 .Dv KENV_SET ,
@@ -113,7 +113,7 @@ will return the number of bytes required to copy out the entire environment.
 .Pp
 The
 .Fa len
-parameter indicates how many bytes of storage
+argument indicates how many bytes of storage
 .Fa value
 points to.
 .Sh RETURN VALUES
@@ -140,7 +140,9 @@ system call
 will fail if:
 .Bl -tag -width Er
 .It Bq Er EINVAL
+The
 .Fa action
+argument
 is not a valid option, or the length of the
 .Fa value
 is less than 1 for a

@@ -94,7 +94,9 @@ or deallocating the inode.
 .It Bq Er EROFS
 The directory entry to be removed resides on a read-only file system.
 .It Bq Er EFAULT
-.Fa Path
+The
+.Fa path
+argument
 points outside the process's allocated address space.
 .El
 .Sh SEE ALSO

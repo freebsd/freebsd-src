@@ -288,7 +288,9 @@ executed and the
 .Fn open
 system call requests write access.
 .It Bq Er EFAULT
-.Fa Path
+The
+.Fa path
+argument
 points outside the process's allocated address space.
 .It Bq Er EEXIST
 .Dv O_CREAT

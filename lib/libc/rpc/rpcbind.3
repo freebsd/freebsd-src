@@ -64,7 +64,9 @@ and speaks the transport protocol associated with
 .Fa netconf .
 The address found is returned in
 .Fa svcaddr .
+The
 .Fa svcaddr
+argument
 should be preallocated.
 This routine returns
 .Dv TRUE
@@ -111,8 +113,9 @@ call on your behalf to a procedure on that host.
 The
 .Fn netconfig
 structure should correspond to a connectionless transport.
-The parameter
+The
 .Fa svcaddr
+argument
 will be modified to the server's address if the procedure succeeds
 (see
 .Fn rpc_call
@@ -120,7 +123,7 @@ and
 .Fn clnt_call
 in
 .Xr rpc_clnt_calls 3
-for the definitions of other parameters).
+for the definitions of other arguments).
 .Pp
 This procedure should normally be used for a
 .Dq ping

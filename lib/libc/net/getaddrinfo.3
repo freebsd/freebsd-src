@@ -342,9 +342,10 @@ To return this information to the system the function
 .Fn freeaddrinfo
 is called.
 The
-.Fa addrinfo
+.Vt addrinfo
 structure pointed to by the
-.Fa ai argument
+.Fa ai
+argument
 is freed, along with any dynamic storage pointed to by the structure.
 This operation is repeated until a
 .Dv NULL
@@ -531,7 +532,9 @@ Invalid value for
 .It Dv EAI_FAIL
 Non-recoverable failure in name resolution.
 .It Dv EAI_FAMILY
+The
 .Fa ai_family
+address family is
 not supported.
 .It Dv EAI_MEMORY
 Memory allocation failure.
@@ -539,16 +542,21 @@ Memory allocation failure.
 No address associated with
 .Fa nodename .
 .It Dv EAI_NONAME
+Neither
 .Fa nodename
 nor
 .Fa servname
 provided, or not known.
 .It Dv EAI_SERVICE
+The
 .Fa servname
+service name is
 not supported for
 .Fa ai_socktype .
 .It Dv EAI_SOCKTYPE
+The
 .Fa ai_socktype
+socket type is
 not supported.
 .It Dv EAI_SYSTEM
 System error returned in

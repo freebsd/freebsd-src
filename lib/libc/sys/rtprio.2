@@ -48,14 +48,20 @@ The
 system call
 is used to lookup or change the realtime or idle priority of a process.
 .Pp
+The
 .Fa function
+argument
 specifies the operation to be performed.
 RTP_LOOKUP to lookup the current priority,
 and RTP_SET to set the priority.
+The
 .Fa pid
+argument
 specifies the process to be used, 0 for the current process.
 .Pp
+The
 .Fa *rtp
+argument
 is a pointer to a struct rtprio which is used to specify the priority and priority type.
 This structure has the following form:
 .Bd -literal

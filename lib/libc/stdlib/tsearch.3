@@ -97,7 +97,9 @@ walks the binary search tree rooted in
 and calls the function
 .Fa action
 on each node.
-.Fa Action
+The
+.Fa action
+function
 is called with three arguments: a pointer to the current node,
 a value from the enum
 .Sy "typedef enum { preorder, postorder, endorder, leaf } VISIT;"

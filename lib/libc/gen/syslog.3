@@ -130,8 +130,9 @@ by
 .Fn syslog
 and
 .Fn vsyslog .
-The parameter
+The
 .Fa ident
+argument
 is a string that will be prepended to every message.
 The
 .Fa logopt
@@ -163,7 +164,7 @@ instantiations of daemons.
 .Pp
 The
 .Fa facility
-parameter encodes a default facility to be assigned to all messages
+argument encodes a default facility to be assigned to all messages
 that do not have an explicit facility encoded:
 .Bl -tag -width LOG_AUTHPRIV
 .It Dv LOG_AUTH

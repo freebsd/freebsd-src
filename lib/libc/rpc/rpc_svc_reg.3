@@ -65,11 +65,11 @@ version
 and procedure
 .Fa procnum ,
 .Fa procname
-is called with a pointer to its parameter(s);
+is called with a pointer to its argument(s);
 .Fa procname
 should return a pointer to its static result(s);
 .Fa inproc
-is the XDR function used to decode the parameters while
+is the XDR function used to decode the arguments while
 .Fa outproc
 is the XDR function used to encode the results.
 Procedures are registered on all available transports of the class
@@ -135,7 +135,7 @@ When needed to process an RPC credential of type
 .Fa cred_flavor ,
 the
 .Fa handler
-procedure will be called with two parameters,
+procedure will be called with two arguments,
 .Fa "struct svc_req *rqst"
 and
 .Fa "struct rpc_msg *msg" ,

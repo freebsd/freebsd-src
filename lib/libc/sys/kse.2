@@ -290,6 +290,7 @@ If the KSE has already woken up for another reason, this system call has no
 effect.
 The
 .Fa mbx
+argument
 may be
 .Dv NULL
 to specify
@@ -542,12 +543,16 @@ MIB variable
 .Dv KERN_MAXPROCPERUID .
 .It Bq Er EAGAIN
 The user is not the super user, and the soft resource limit corresponding
-to the resource parameter
+to the
+.Fa resource
+argument
 .Dv RLIMIT_NPROC
 would be exceeded (see
 .Xr getrlimit 2 ) .
 .It Bq Er EFAULT
+The
 .Fa mbx
+argument
 points to an address which is not a valid part of the process address space.
 .El
 .Pp
@@ -582,14 +587,18 @@ system call
 will fail if:
 .Bl -tag -width Er
 .It Bq Er ESRCH
+The
 .Fa mbx
+argument
 is not
 .Dv NULL
 and the mailbox pointed to by
 .Fa mbx
 is not associated with any KSE in the process.
 .It Bq Er ESRCH
+The
 .Fa mbx
+argument
 is
 .Dv NULL
 and the current KSE has no associated mailbox, i.e., the process is operating

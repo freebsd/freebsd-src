@@ -54,7 +54,9 @@ to
 .Fa pid ,
 a
 process or a group of processes.
-.Fa Sig
+The
+.Fa sig
+argument
 may be one of the signals specified in
 .Xr sigaction 2
 or it may be 0, in which case
@@ -73,11 +75,15 @@ A single exception is the signal SIGCONT, which may always be sent
 to any descendant of the current process.
 .Bl -tag -width Ds
 .It \&If Fa pid No \&is greater than zero :
-.Fa Sig
+The
+.Fa sig
+signal
 is sent to the process whose ID is equal to
 .Fa pid .
 .It \&If Fa pid No \&is zero :
-.Fa Sig
+The
+.Fa sig
+signal
 is sent to all processes whose group ID is equal
 to the process group ID of the sender, and for which the
 process has permission;
@@ -114,7 +120,9 @@ system call
 will fail and no signal will be sent if:
 .Bl -tag -width Er
 .It Bq Er EINVAL
-.Fa Sig
+The
+.Fa sig
+argument
 is not a valid signal number.
 .It Bq Er ESRCH
 No process can be found corresponding to that specified by

@@ -94,7 +94,7 @@ function
 may be used to alter the buffering behavior of a stream.
 The
 .Fa mode
-parameter must be one of the following three macros:
+argument must be one of the following three macros:
 .Bl -tag -width _IOFBF -offset indent
 .It Dv _IONBF
 unbuffered
@@ -106,7 +106,7 @@ fully buffered
 .Pp
 The
 .Fa size
-parameter may be given as zero
+argument may be given as zero
 to obtain deferred optimal-size buffer allocation as usual.
 If it is not zero,
 then except for unbuffered files, the

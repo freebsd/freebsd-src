@@ -43,13 +43,17 @@ The
 .Fn i386_vm86
 system call
 is used to call various vm86 related functions.
+The
 .Fa function
+argument
 can be one of the following values:
 .Bl -tag -offset indent -width VM86_SET_VME
 .It Dv VM86_INIT
 This will initialize the kernel's vm86 parameter area for the
 process, and permit the process to make vm86 calls.
+The
 .Fa data
+argument
 points to the following structure:
 .Bd -literal
 struct vm86_init_args {
@@ -59,11 +63,17 @@ struct vm86_init_args {
 };
 .Ed
 .Pp
+The
 .Fa debug
+argument
 is used to turn on debugging code.
+The
 .Fa cpu_type
+argument
 controls the type of CPU being emulated, and is currently unimplemented.
+The
 .Fa int_map
+argument
 is a bitmap which determines whether vm86 interrupts should be handled
 in vm86 mode, or reflected back to the process.  If the
 .Em Nth

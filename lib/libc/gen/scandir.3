@@ -64,7 +64,7 @@ referenced by
 .Pp
 The
 .Fa select
-parameter is a pointer to a user supplied subroutine which is called by
+argument is a pointer to a user supplied subroutine which is called by
 .Fn scandir
 to select which entries are to be included in the array.
 The select routine is passed a
@@ -76,7 +76,7 @@ is null, then all the directory entries will be included.
 .Pp
 The
 .Fa compar
-parameter is a pointer to a user supplied subroutine which is passed to
+argument is a pointer to a user supplied subroutine which is passed to
 .Xr qsort 3
 to sort the completed array.
 If this pointer is null, the array is not sorted.
@@ -86,7 +86,7 @@ The
 function
 is a routine which can be used for the
 .Fa compar
-parameter to sort the array alphabetically.
+argument to sort the array alphabetically.
 .Pp
 The memory allocated for the array can be deallocated with
 .Xr free 3 ,

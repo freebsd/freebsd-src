@@ -152,17 +152,17 @@ The following errors may be returned by these calls:
 .It Bq Er EFAULT
 The
 .Fa name
-parameter gave an
+argument gave an
 invalid address.
 .It Bq Er EINVAL
 The
 .Fa name
-parameter
+argument
 pointed to a string that was too long.
 Login names are limited to
 .Dv MAXLOGNAME
 (from
-.Ao Pa sys/param.h Ac )
+.Aq Pa sys/param.h )
 characters, currently 17 including null.
 .It Bq Er EPERM
 The caller tried to set the login name and was not the super-user.

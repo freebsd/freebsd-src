@@ -178,13 +178,16 @@ Additionally, the file system implementing the call may return any
 other errors it desires.
 .Bl -tag -width Er
 .It Bq Er EFAULT
-.Fa attrnamespace ,
-.Fa attrname ,
+The
+.Fa attrnamespace
+and
+.Fa attrname
+arguments,
 or the memory range defined by
 .Fa data
 and
 .Fa nbytes
-points outside the process's allocated address space.
+point outside the process's allocated address space.
 .It Bq Er ENAMETOOLONG
 The attribute name was longer than
 .Dv EXTATTR_MAXNAMELEN .

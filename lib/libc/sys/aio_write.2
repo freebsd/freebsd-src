@@ -139,7 +139,9 @@ returned in
 .Pp
 .Bl -tag -width Er
 .It Bq Er EBADF
+The
 .Fa iocb->aio_fildes
+argument
 is invalid, or is not opened for writing.
 .It Bq Er EINVAL
 The offset
@@ -163,7 +165,9 @@ system call is either one of the error returns from the
 system call, or one of:
 .Bl -tag -width Er
 .It Bq Er EBADF
+The
 .Fa iocb->aio_fildes
+argument
 is invalid for writing.
 .It Bq Er ECANCELED
 The request was explicitly canceled via a call to

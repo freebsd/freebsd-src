@@ -69,7 +69,9 @@ opens
 .Fa file
 for reading and/or writing.
 Files never intended to be preserved on disk may be created by setting
-the file parameter to
+the
+.Fa file
+argument to
 .Dv NULL .
 .Pp
 The
@@ -180,15 +182,16 @@ with a
 or
 .Va sync
 function may result in inconsistent or lost information.
-.Va Close
+.Va close
 routines return -1 on error (setting
 .Va errno )
 and 0 on success.
 .It Va del
 A pointer to a routine to remove key/data pairs from the database.
 .Pp
-The parameter
+The
 .Fa flags
+argument
 may be set to the following value:
 .Bl -tag -width indent
 .It Dv R_CURSOR
@@ -196,7 +199,7 @@ Delete the record referenced by the cursor.
 The cursor must have previously been initialized.
 .El
 .Pp
-.Va Delete
+.Va delete
 routines return -1 on error (setting
 .Va errno ) ,
 0 on success, and 1 if the specified
@@ -230,7 +233,7 @@ The address and length of the data associated with the specified
 .Fa key
 are returned in the structure referenced by
 .Fa data .
-.Va Get
+.Va get
 routines return -1 on error (setting
 .Va errno ) ,
 0 on success, and 1 if the
@@ -239,8 +242,9 @@ was not in the file.
 .It Va put
 A pointer to a routine to store key/data pairs in the database.
 .Pp
-The parameter
+The
 .Fa flags
+argument
 may be set to one of the following values:
 .Bl -tag -width indent
 .It Dv R_CURSOR
@@ -302,7 +306,7 @@ The default behavior of the
 routines is to enter the new key/data pair, replacing any previously
 existing key.
 .Pp
-.Va Put
+.Va put
 routines return -1 on error (setting
 .Va errno ) ,
 0 on success, and 1 if the
@@ -336,7 +340,7 @@ while records inserted in front of the cursor will be returned.
 .Pp
 The
 .Fa flags
-value
+argument
 .Em must
 be set to one of the following values:
 .Bl -tag -width indent
@@ -390,7 +394,7 @@ and
 access methods because they each imply that the keys have an inherent
 order which does not change.
 .Pp
-.Va Seq
+.Va seq
 routines return -1 on error (setting
 .Va errno ) ,
 0 on success and 1 if there are no key/data pairs less than or greater
@@ -410,7 +414,7 @@ routine has no effect and will always succeed.
 .Pp
 The
 .Fa flags
-value may be set to the following value:
+argument may be set to the following value:
 .Bl -tag -width indent
 .It Dv R_RECNOSYNC
 If the
@@ -427,7 +431,7 @@ field of the
 manual page for more information.)
 .El
 .Pp
-.Va Sync
+.Va sync
 routines return -1 on error (setting
 .Va errno )
 and 0 on success.
@@ -471,7 +475,7 @@ or the following:
 .It Bq Er EFTYPE
 A file is incorrectly formatted.
 .It Bq Er EINVAL
-A parameter has been specified (hash function, pad byte etc.) that is
+An argument has been specified (hash function, pad byte etc.) that is
 incompatible with the current file specification or which is not
 meaningful for the function (for example, use of the cursor without
 prior initialization) or there is a mismatch between the version

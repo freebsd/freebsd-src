@@ -106,7 +106,6 @@ otherwise 0.
 Returns 1 if synchronised I/O is supported for this file, otherwise 0.
 .It Li _PC_ALLOC_SIZE_MIN
 Minimum number of bytes of storage allocated for any portion of a file.
-.Fa path .
 .It Li _PC_FILESIZEBITS
 Number of bits needed to represented the maximum file size.
 .It Li _PC_REC_INCR_XFER_SIZE
@@ -194,7 +193,9 @@ The
 system call
 will fail if:
 .It Bq Er EBADF
+The
 .Fa fd
+argument
 is not a valid open file descriptor.
 .It Bq Er EIO
 An I/O error occurred while reading from or writing to the file system.

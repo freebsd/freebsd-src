@@ -163,7 +163,7 @@ is not defined, the time-related fields are defined as:
 .Ed
 .Pp
 The size-related fields of the
-.Fa struct stat
+.Vt "struct stat"
 are as follows:
 .Bl -tag -width XXXst_blksize
 .It st_blksize
@@ -223,9 +223,11 @@ system calls will fail if:
 .It Bq Er EACCES
 Search permission is denied for a component of the path prefix.
 .It Bq Er EFAULT
+The
 .Fa sb
 or
 .Fa path
+argument
 points to an invalid address.
 .It Bq Er EIO
 An I/O error occurred while reading from or writing to the file system.
@@ -249,10 +251,14 @@ The
 .Fn fstat
 system call will fail if:
 .It Bq Er EBADF
+The
 .Fa fd
+argument
 is not a valid open file descriptor.
 .It Bq Er EFAULT
+The
 .Fa sb
+argument
 points to an invalid address.
 .It Bq Er EIO
 An I/O error occurred while reading from or writing to the file system.

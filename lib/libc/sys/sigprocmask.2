@@ -59,8 +59,9 @@ If
 .Fa set
 is not null, the action of
 .Fn sigprocmask
-depends on the value of the parameter
-.Fa how .
+depends on the value of the
+.Fa how
+argument.
 The signal mask is changed as a function of the specified
 .Fa set
 and the current mask.
@@ -108,7 +109,9 @@ system call will fail and the signal mask will be unchanged if one
 of the following occurs:
 .Bl -tag -width Er
 .It Bq Er EINVAL
+The
 .Fa how
+argument
 has a value other than those listed here.
 .El
 .Sh SEE ALSO

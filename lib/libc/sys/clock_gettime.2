@@ -60,7 +60,9 @@ allow the calling process to retrieve or set the value used by a clock
 which is specifed by
 .Fa clock_id .
 .Pp
+The
 .Fa clock_id
+argument
 can be one of three values: CLOCK_REALTIME for time that increments as
 a wall clock should, CLOCK_VIRTUAL for time that increments only when
 the CPU is running in user mode on behalf of the calling process, or
@@ -103,6 +105,7 @@ The following error codes may be set in
 .It Bq Er EINVAL
 The
 .Fa clock_id
+argument
 was not a valid value.
 .It Bq Er EFAULT
 The

@@ -78,15 +78,16 @@ A filter primitive that translates between variable-length
 arrays
 and their corresponding external representations.
 The
-parameter
 .Fa arrp
+argument
 is the address of the pointer to the array, while
 .Fa sizep
 is the address of the element count of the array;
 this element count cannot exceed
 .Fa maxsize .
-The parameter
+The
 .Fa elsize
+argument
 is the
 .Ic sizeof
 each of the array's elements, and
@@ -121,8 +122,9 @@ This routine returns one if it succeeds, zero otherwise.
 .Pp
 A filter primitive that translates between counted byte
 strings and their external representations.
-The parameter
+The
 .Fa sp
+argument
 is the address of the string pointer.
 The length of the
 string is located at address
@@ -339,6 +341,7 @@ whose length is no more than
 bytes long.
 The
 .Fa op
+argument
 determines the direction of the
 .Tn XDR
 stream
@@ -358,8 +361,9 @@ or
 A filter primitive that translates between fixed size opaque
 data
 and its external representation.
-The parameter
+The
 .Fa cp
+argument
 is the address of the opaque object, and
 .Fa cnt
 is its size in bytes.
@@ -425,7 +429,7 @@ and
 .Xr write 2 ,
 except that
 .Fa handle
-is passed to the former routines as the first parameter.
+is passed to the former routines as the first argument.
 Note: the
 .Tn XDR
 stream's
@@ -494,8 +498,9 @@ This routine returns one if it succeeds, zero otherwise.
 .Xc
 .Pp
 A primitive that provides pointer chasing within structures.
-The parameter
+The
 .Fa pp
+argument
 is the address of the pointer;
 .Fa size
 is the
@@ -529,8 +534,9 @@ the
 .Tn XDR
 stream
 .Fa xdrs .
-The parameter
+The
 .Fa pos
+argument
 is a position value obtained from
 .Fn xdr_getpos .
 This routine returns one if the
@@ -575,8 +581,9 @@ stream data is written to, or read from, the Standard
 .Tn I/O
 stream
 .Fa file .
-The parameter
+The
 .Fa op
+argument
 determines the direction of the
 .Tn XDR
 stream (either
@@ -709,8 +716,9 @@ This discriminant is always an
 Next the union located at
 .Fa unp
 is translated.
-The parameter
+The
 .Fa choices
+argument
 is a pointer to an array of
 .Vt xdr_discrim
 structures.
@@ -750,13 +758,14 @@ A filter primitive that translates between fixed-length
 arrays
 and their corresponding external representations.
 The
-parameter
 .Fa arrp
+argument
 is the address of the pointer to the array, while
 .Fa size
 is the element count of the array.
-The parameter
+The
 .Fa elsize
+argument
 is the
 .Ic sizeof
 each of the array's elements, and
@@ -778,7 +787,7 @@ This routine returns one if it succeeds, zero otherwise.
 This routine always returns one.
 It may be passed to
 .Tn RPC
-routines that require a function parameter,
+routines that require a function argument,
 where nothing is to be done.
 .Pp
 .It Xo
@@ -800,7 +809,7 @@ is handy because the
 .Tn RPC
 package passes a maximum of two
 .Tn XDR
-routines as parameters, and
+routines as arguments, and
 .Fn xdr_string ,
 one of the most frequently used primitives, requires three.
 Returns one if it succeeds, zero otherwise.

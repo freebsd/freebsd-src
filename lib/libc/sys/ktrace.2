@@ -56,6 +56,7 @@ Only the super-user can trace setuid or setgid programs.
 .Pp
 The
 .Fa tracefile
+argument
 gives the pathname of the file to be used for tracing.
 The file must exist and be a regular file writable by the calling process.
 All trace records are always appended to the file,
@@ -67,7 +68,7 @@ may be NULL.
 .Pp
 The
 .Fa ops
-parameter specifies the requested ktrace operation.
+argument specifies the requested ktrace operation.
 The defined operations are:
 .Bl -column KTRFLAG_DESCENDXXX -offset indent
 .It "KTROP_SET	Enable trace points specified in"
@@ -81,7 +82,7 @@ specified process and all its current children.
 .Pp
 The
 .Fa trpoints
-parameter specifies the trace points of interest.
+argument specifies the trace points of interest.
 The defined trace points are:
 .Bl -column KTRFAC_SYSCALLXXX -offset indent
 .It "KTRFAC_SYSCALL	Trace system calls."

@@ -73,7 +73,9 @@ to perform the requested service, and then sends a reply.
 .It Fn clnt_control
 A function macro to change or retrieve various information
 about a client object.
+The
 .Fa req
+argument
 indicates the type of operation, and
 .Fa info
 is a pointer to the information.
@@ -98,7 +100,7 @@ If you set the timeout value to 0,
 .Fn clnt_control
 immediately returns an error
 .Pq Dv RPC_TIMEDOUT .
-Set the timeout parameter to 0 for batching calls.
+Set the timeout argument to 0 for batching calls.
 .Bl -column CLSET_FD_NCLOSE "struct timeval *" "do not close fd on destroy"
 .It Dv CLGET_SVC_ADDR Ta "struct netbuf *" Ta "get servers address"
 .It Dv CLGET_FD Ta "int *" Ta "get fd from handle"
@@ -132,10 +134,14 @@ Generic client creation routine for program
 .Fa prognum
 and version
 .Fa versnum .
+The
 .Fa host
+argument
 identifies the name of the remote host where the server
 is located.
+The
 .Fa nettype
+argument
 indicates the class of transport protocol to use.
 The transports are tried in left to right order in
 .Ev NETPATH
@@ -174,7 +180,7 @@ later (see
 .It Fn clnt_create_timed
 Generic client creation routine which is similar to
 .Fn clnt_create
-but which also has the additional parameter
+but which also has the additional argument
 .Fa timeout
 that specifies the maximum amount of time allowed for
 each transport class tried.
@@ -188,10 +194,14 @@ Generic client creation routine which is similar to
 .Fn clnt_create
 but which also checks for the
 version availability.
+The
 .Fa host
+argument
 identifies the name of the remote host where the server
 is located.
+The
 .Fa nettype
+argument
 indicates the class transport protocols to be used.
 If the routine is successful it returns a client handle created for
 the highest version between
@@ -199,7 +209,9 @@ the highest version between
 and
 .Fa vers_high
 that is supported by the server.
+The
 .Fa vers_outp
+argument
 is set to this value.
 That is, after a successful return
 .Fa vers_low
@@ -241,7 +253,7 @@ the range supplied is supported by the server.
 .It Fn clnt_create_vers_timed
 Generic client creation routine which is similar to
 .Fn clnt_create_vers
-but which also has the additional parameter
+but which also has the additional argument
 .Fa timeout
 that specifies the maximum amount of time allowed for
 each transport class tried.
@@ -281,8 +293,9 @@ and version
 the client uses a connectionless transport.
 The remote program is located at address
 .Fa svcaddr .
-The parameter
+The
 .Fa fildes
+argument
 is an open and bound file descriptor.
 This routine will resend the call message in intervals of
 15 seconds until a response is received or until the
@@ -297,10 +310,11 @@ The retry time out and the total time out periods can
 be changed using
 .Fn clnt_control .
 The user may set the size of the send and receive
-buffers with the parameters
+buffers with the
 .Fa sendsz
 and
-.Fa recvsz ;
+.Fa recvsz
+arguments;
 values of 0 choose suitable defaults.
 This routine returns
 .Dv NULL
@@ -365,7 +379,9 @@ is
 .Dv NULL ,
 .Dv RPC_UNKNOWNADDR
 error is set.
+The
 .Fa fildes
+argument
 is a file descriptor which may be open, bound and connected.
 If it is
 .Dv RPC_ANYFD ,
@@ -385,10 +401,11 @@ error is set.
 If
 .Fa fildes
 is unbound, then it will attempt to bind the descriptor.
-The user may specify the size of the buffers with the parameters
+The user may specify the size of the buffers with the
 .Fa sendsz
 and
-.Fa recvsz ;
+.Fa recvsz
+arguments;
 values of 0 choose suitable defaults.
 Depending upon the type of the transport (connection-oriented
 or connectionless),
@@ -439,7 +456,7 @@ Like
 .Fn clnt_tp_create
 except
 .Fn clnt_tp_create_timed
-has the extra parameter
+has the extra argument
 .Fa timeout
 which specifies the maximum time allowed for
 for the creation attempt to succeed.
@@ -457,14 +474,16 @@ and version
 the client uses a connection-oriented transport.
 The remote program is located at address
 .Fa svcaddr .
-The parameter
+The
 .Fa fildes
+argument
 is an open and bound file descriptor.
 The user may specify the size of the send and receive buffers
-with the parameters
+with the
 .Fa sendsz
 and
-.Fa recvsz ;
+.Fa recvsz
+arguments;
 values of 0 choose suitable defaults.
 This routine returns
 .Dv NULL

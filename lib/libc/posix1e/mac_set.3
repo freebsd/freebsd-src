@@ -87,10 +87,14 @@ or has appropriate privileges.
 .It Bq Er EACCES
 MAC write access to the file is denied.
 .It Bq Er EBADF
+The
 .Fa fd
+argument
 is not a valid file descriptor.
 .It Bq Er EINVAL
+The
 .Fa label
+argument
 is not a valid MAC label.
 .It Bq Er EOPNOTSUPP
 Setting MAC labels is not supported

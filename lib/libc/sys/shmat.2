@@ -100,7 +100,9 @@ will fail if:
 No shared memory segment was found corresponding to
 .Fa shmid .
 .It Bq Er EINVAL
+The
 .Fa addr
+argument
 was not an acceptable address.
 .El
 .Pp
@@ -110,7 +112,9 @@ system call
 will fail if:
 .Bl -tag -width Er
 .It Bq Er EINVAL
+The
 .Fa addr
+argument
 does not point to a shared memory segment.
 .El
 .Sh "SEE ALSO"

@@ -65,14 +65,18 @@ and had a stack allocated for it.
 The context is modified so that it will continue execution by invoking
 .Fn func
 with the arguments provided.
+The
 .Fa argc
+argument
 must be equal to the number of additional arguments provided to
 .Fn makecontext
-and also equal to the number of parameters to
+and also equal to the number of arguments to
 .Fn func ,
 or else the behavior is undefined.
 .Pp
+The
 .Fa "ucp->uc_link"
+argument
 must be initialized before calling
 .Fn makecontext
 and determines the action to take when
