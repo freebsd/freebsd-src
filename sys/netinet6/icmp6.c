@@ -499,6 +499,8 @@ icmp6_input(mp, offp, proto)
 		if (code != 0)
 			goto badcode;
 
+		/* validation is made in icmp6_mtudisc_update */
+
 		code = PRC_MSGSIZE;
 
 		/*
@@ -1131,6 +1133,13 @@ icmp6_mtudisc_update(ip6cp, validated)
 	struct rtentry *rt = NULL;
 	struct sockaddr_in6 sin6;
 
+	/*
+	 * we reject ICMPv6 too big with abnormally small value.
+	 * XXX what is the good definition of "abnormally small"?
+	 */
+	if (mtu < sizeof(struct ip6_hdr) + sizeof(struct ip6_frag) + 8)
+		return;
+
 	if (!validated)
 		return;
 
@@ -1147,13 +1156,10 @@ icmp6_mtudisc_update(ip6cp, validated)
 	rt = rtalloc1((struct sockaddr *)&sin6, 0,
 		      RTF_CLONING | RTF_PRCLONING);
 
-	if (rt && (rt->rt_flags & RTF_HOST)
-	    && !(rt->rt_rmx.rmx_locks & RTV_MTU)) {
-		if (mtu < IPV6_MMTU) {
-				/* xxx */
-			rt->rt_rmx.rmx_locks |= RTV_MTU;
-		} else if (mtu < rt->rt_ifp->if_mtu &&
-			   rt->rt_rmx.rmx_mtu > mtu) {
+	if (rt && (rt->rt_flags & RTF_HOST) &&
+	    !(rt->rt_rmx.rmx_locks & RTV_MTU) &&
+	    (rt->rt_rmx.rmx_mtu > mtu || rt->rt_rmx.rmx_mtu == 0)) {
+		if (mtu < rt->rt_ifp->if_mtu) {
 			icmp6stat.icp6s_pmtuchg++;
 			rt->rt_rmx.rmx_mtu = mtu;
 		}
