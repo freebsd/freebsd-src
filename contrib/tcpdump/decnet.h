@@ -18,21 +18,21 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * @(#) $Header: /tcpdump/master/tcpdump/decnet.h,v 1.6.1.1 1999/10/07 23:47:10 mcr Exp $ (LBL)
+ * @(#) $Header: /tcpdump/master/tcpdump/decnet.h,v 1.7 2000/10/03 02:54:55 itojun Exp $ (LBL)
  */
 
-typedef unsigned char byte[1];		/* single byte field */
-typedef unsigned char word[2];		/* 2 byte field */
-typedef unsigned char longword[4];	/* 4 bytes field */
+typedef u_int8_t byte[1];		/* single byte field */
+typedef u_int8_t word[2];		/* 2 byte field */
+typedef u_int8_t longword[4];		/* 4 bytes field */
 
 /*
  * Definitions for DECNET Phase IV protocol headers
  */
 union etheraddress {
-	unsigned char   dne_addr[6];		/* full ethernet address */
+	u_int8_t   dne_addr[6];		/* full ethernet address */
 	struct {
-		unsigned char dne_hiord[4];	/* DECnet HIORD prefix */
-		unsigned char dne_nodeaddr[2];	/* DECnet node address */
+		u_int8_t dne_hiord[4];	/* DECnet HIORD prefix */
+		u_int8_t dne_nodeaddr[2]; /* DECnet node address */
 	} dne_remote;
 };
 
@@ -46,8 +46,8 @@ typedef union etheraddress etheraddr;	/* Ethernet address */
 
 #define DN_MAXADDL	20		/* max size of DECnet address */
 struct dn_naddr {
-	unsigned short	a_len;		/* length of address */
-	unsigned char a_addr[DN_MAXADDL]; /* address as bytes */
+	u_int16_t	a_len;		/* length of address */
+	u_int8_t a_addr[DN_MAXADDL]; /* address as bytes */
 };
 
 /*
