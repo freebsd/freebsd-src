@@ -83,9 +83,7 @@ struct	ether_header;
 
 #define	IF_DUNIT_NONE	-1
 
-#if 1 /* ALTQ */
 #include <altq/if_altq.h>
-#endif
 
 TAILQ_HEAD(ifnethead, ifnet);	/* we use TAILQs so that the order of */
 TAILQ_HEAD(ifaddrhead, ifaddr);	/* instantiation is preserved in the list */
@@ -182,11 +180,7 @@ struct ifnet {
 	void	*if_spare3;		/* spare pointer 3 */
 	u_int	if_spare_flags1;	/* spare flags 1 */
 	u_int	if_spare_flags2;	/* spare flags 2 */
-#if 1 /* ALTQ */
 	struct  ifaltq if_snd;		/* output queue (includes altq) */
-#else
-	struct	ifqueue if_snd;		/* output queue */
-#endif
 	const u_int8_t *if_broadcastaddr; /* linklevel broadcast bytestring */
 
 	struct	lltable *lltables;	/* list of L3-L2 resolution tables */
@@ -351,7 +345,6 @@ int	if_handoff(struct ifqueue *ifq, struct mbuf *m, struct ifnet *ifp,
 
 void	if_start(struct ifnet *);
 
-#if 1 /* ALTQ */
 #define	IFQ_ENQUEUE(ifq, m, err)					\
 do {									\
 	IF_LOCK(ifq);							\
@@ -422,33 +415,6 @@ do {									\
 
 #define	IFQ_SET_READY(ifq)						\
 	do { ((ifq)->altq_flags |= ALTQF_READY); } while (0)
-
-#else /* !ALTQ */
-#define	IFQ_ENQUEUE(ifq, m, err)					\
-do {									\
-	IF_LOCK(ifq);							\
-	if (_IF_QFULL(ifq)) {						\
-		m_freem(m);						\
-		(err) = ENOBUFS;					\
-	} else {							\
-		_IF_ENQUEUE(ifq, m);					\
-		(err) = 0;						\
-	}								\
-	if (err)							\
-		(ifq)->ifq_drops++;					\
-	IF_UNLOCK(ifq);							\
-} while (0)
-
-#define	IFQ_DEQUEUE_NOLOCK(ifq, m)	_IF_DEQUEUE(ifq, m)
-#define	IFQ_DEQUEUE(ifq, m)		IF_DEQUEUE(ifq, m)
-#define	IFQ_POLL_NOLOCK(ifq, m)		_IF_POLL(ifq, m)
-#define	IFQ_POLL(ifq, m)		IF_POLL(ifq, m)
-#define	IFQ_PURGE_NOLOCK(ifq)		_IF_DRAIN(ifq)
-#define	IFQ_PURGE(ifq)			IF_DRAIN(ifq)
-
-#define	IFQ_SET_READY(ifq)		/* nothing */
-
-#endif /* !ALTQ */
 
 #define	IFQ_LOCK(ifq)			IF_LOCK(ifq)
 #define	IFQ_UNLOCK(ifq)			IF_UNLOCK(ifq)
