@@ -484,7 +484,7 @@ tcp_respond(tp, ipgen, th, m, ack, seq, flags)
 	m->m_pkthdr.len = tlen;
 	m->m_pkthdr.rcvif = (struct ifnet *) 0;
 #ifdef MAC
-	if (tp != NULL) {
+	if (tp != NULL && tp->t_inpcb != NULL) {
 		/*
 		 * Packet is associated with a socket, so allow the
 		 * label of the response to reflect the socket label.
