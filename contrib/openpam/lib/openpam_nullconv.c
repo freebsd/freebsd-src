@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2001 Networks Associates Technology, Inc.
+ * Copyright (c) 2002 Networks Associates Technology, Inc.
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -31,90 +31,38 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/openpam_impl.h#14 $
+ * $P4: //depot/projects/openpam/lib/openpam_nullconv.c#1 $
  */
 
-#ifndef _OPENPAM_IMPL_H_INCLUDED
-#define _OPENPAM_IMPL_H_INCLUDED
+#include <sys/types.h>
 
+#include <security/pam_appl.h>
 #include <security/openpam.h>
 
-extern const char *_pam_sm_func_name[PAM_NUM_PRIMITIVES];
+/*
+ * OpenPAM extension
+ *
+ * Null conversation function
+ */
+
+int
+openpam_nullconv(int n,
+	 const struct pam_message **msg,
+	 struct pam_response **resp,
+	 void *data)
+{
+
+	(void)n;
+	(void)msg;
+	(void)resp;
+	(void)data;
+	return (PAM_CONV_ERR);
+}
 
 /*
- * Control flags
+ * NOLIST
+ *
+ * Error codes:
+ *
+ *	PAM_CONV_ERR
  */
-#define PAM_REQUIRED		1
-#define PAM_REQUISITE		2
-#define PAM_SUFFICIENT		3
-#define PAM_OPTIONAL		4
-#define PAM_NUM_CONTROLFLAGS	5
-
-/*
- * Chains
- */
-#define PAM_AUTH		0
-#define PAM_ACCOUNT		1
-#define PAM_SESSION		2
-#define PAM_PASSWORD		3
-#define PAM_NUM_CHAINS		4
-
-typedef struct pam_chain pam_chain_t;
-struct pam_chain {
-	pam_module_t	*module;
-	int		 flag;
-	int		 optc;
-	char	       **optv;
-	pam_chain_t	*next;
-};
-
-typedef struct pam_data pam_data_t;
-struct pam_data {
-	char		*name;
-	void		*data;
-	void		(*cleanup)(pam_handle_t *, void *, int);
-	pam_data_t	*next;
-};
-
-struct pam_handle {
-	char		*service;
-
-	/* chains */
-	pam_chain_t	*chains[PAM_NUM_CHAINS];
-	pam_chain_t	*current;
-
-	/* items and data */
-	void		*item[PAM_NUM_ITEMS];
-	pam_data_t	*module_data;
-
-	/* environment list */
-	char	       **env;
-	int		 env_count;
-	int		 env_size;
-};
-
-#ifdef NGROUPS_MAX
-#define PAM_SAVED_CRED "pam_saved_cred"
-struct pam_saved_cred {
-	uid_t	 euid;
-	gid_t	 egid;
-	gid_t	 groups[NGROUPS_MAX];
-	int	 ngroups;
-};
-#endif
-
-#define PAM_OTHER	"other"
-
-int		openpam_configure(pam_handle_t *, const char *);
-int		openpam_dispatch(pam_handle_t *, int, int);
-int		openpam_findenv(pam_handle_t *, const char *, size_t);
-int		openpam_add_module(pam_chain_t **, int, int,
-				   const char *, int, const char **);
-void		openpam_clear_chains(pam_chain_t **);
-
-#ifdef OPENPAM_STATIC_MODULES
-pam_module_t   *openpam_static(const char *);
-#endif
-pam_module_t   *openpam_dynamic(const char *);
-
-#endif

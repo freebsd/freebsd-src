@@ -1,12 +1,12 @@
 
-		 Release notes for OpenPAM Cineraria
-		 ===================================
+		  Release notes for OpenPAM Cinnamon
+		  ==================================
 
 The library itself is complete.  Documentation exists in the form of
 man pages for the library functions, though a few pages are still
 incomplete.
 
-This release is incorporated into FreeBSD-CURRENT as of 2002-04-14.
+This release is incorporated into FreeBSD-CURRENT as of 2002-05-02.
 It has also been successfully built on NetBSD, and should build with
 minimal or no changes on OpenBSD.  It has not been tested on any other
 OS.
@@ -15,4 +15,4 @@ Known issues:
 
   - The documentation is still incomplete.
 
-$P4: //depot/projects/openpam/RELNOTES#9 $
+$P4: //depot/projects/openpam/RELNOTES#10 $
