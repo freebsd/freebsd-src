@@ -30,7 +30,7 @@
 .Os
 .Sh NAME
 .Nm acl_calc_mask
-.Nd Calculate and set ACL mask permissions
+.Nd calculate and set ACL mask permissions
 .Sh LIBRARY
 .Lb libposix1e
 .Sh SYNOPSIS
@@ -41,40 +41,38 @@
 .Sh DESCRIPTION
 .Fn acl_calc_mask
 is a POSIX.1e call that calculates and set the permissions
-associated with the ACL_MASK ACL entry of the ACL referred to by
-.Ar acl_p .
+associated with the
+.Dv ACL_MASK
+ACL entry of the ACL referred to by
+.Fa acl_p .
 .Pp
 The value of new permissions are the union of the permissions
-granted by the ACL_GROUP, ACL_GROUP_OBJ, ACL_USER tag types which
+granted by the
+.Dv ACL_GROUP , ACL_GROUP_OBJ , ACL_USER
+tag types which
 match processes in the file group class contained in the ACL
 referred to by
-.Ar acl_p .
+.Fa acl_p .
 .Pp
 If the ACL referred to by
-.Ar acl_p
-already contains an ACL_MASK entry, its permissions shall be
-overwritten; if it does not contain an ACL_MASK entry, one shall
+.Fa acl_p
+already contains an
+.Dv ACL_MASK
+entry, its permissions shall be
+overwritten; if it does not contain an
+.Dv ACL_MASK
+entry, one shall
 be added.
 .Sh RETURN VALUES
-Upon successful completion, the function shall return a value of
-.Va 0 .
-Otherwise, a value of
-.Va -1
-shall be returned, and
-.Va errno
-shall be set to indicate the error.
+.Rv -std acl_calc_mask
 .Sh ERRORS
-If the following condition occurs, the
+The
 .Fn acl_calc_mask
-function shall return a value of
-.Va -1
-and set
-.Va errno
-to the corresponding value:
+function fails if:
 .Bl -tag -width Er
 .It Bq Er EINVAL
 Argument
-.Ar acl_p
+.Fa acl_p
 does not point to a pointer to a valid ACL.
 .El
 .Sh SEE ALSO
