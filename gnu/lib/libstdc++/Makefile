@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.6 1997/05/06 00:49:35 jdp Exp $
+# $Id: Makefile,v 1.7 1997/05/23 08:33:59 asami Exp $
 #
 
 GPPDIR=	${.CURDIR}/../../../contrib/libg++
@@ -60,7 +60,7 @@ SRCS+=	PlotFile.cc SFile.cc builtinbuf.cc editbuf.cc filebuf.cc fstream.cc \
 	isgetline.cc isgetsb.cc isscan.cc osform.cc parsestream.cc \
 	pfstream.cc procbuf.cc sbform.cc sbgetline.cc sbscan.cc \
 	stdiostream.cc stdstrbufs.cc stdstreams.cc stream.cc streambuf.cc \
-	streambuf.cc strstream.cc
+	strstream.cc
 
 # C parts of iostream
 SRCS+=	cleanup.c filedoalloc.c fileops.c floatconv.c genops.c iofclose.c \
