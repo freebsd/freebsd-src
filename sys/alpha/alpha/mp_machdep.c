@@ -58,7 +58,12 @@ volatile u_int	stopped_cpus;
 volatile u_int	started_cpus;
 volatile u_int	checkstate_probed_cpus;
 volatile u_int	checkstate_need_ast;
-volatile u_int	checkstate_pending_ast;
+
+/* Set to 1 once we're ready to let the APs out of the pen. */
+static volatile int aps_ready = 0;
+
+static struct mtx ap_boot_mtx;
+
 struct proc*	checkstate_curproc[MAXCPU];
 int		checkstate_cpustate[MAXCPU];
 u_long		checkstate_pc[MAXCPU];
@@ -66,7 +71,7 @@ volatile u_int	resched_cpus;
 void (*cpustop_restartfunc) __P((void));
 int		mp_ncpus;
 
-int		smp_started;
+volatile int	smp_started;
 int		boot_cpu_id;
 u_int32_t	all_cpus;
 
@@ -74,6 +79,9 @@ static struct globaldata	*cpuid_to_globaldata[MAXCPU];
 
 int smp_active = 0;	/* are the APs allowed to run? */
 SYSCTL_INT(_machdep, OID_AUTO, smp_active, CTLFLAG_RW, &smp_active, 0, "");
+
+static int smp_cpus = 1;	/* how many cpu's running */
+SYSCTL_INT(_machdep, OID_AUTO, smp_cpus, CTLFLAG_RD, &smp_cpus, 0, "");
 
 /* Enable forwarding of a signal to a process running on a different CPU */
 static int forward_signal_enabled = 1;
@@ -146,6 +154,12 @@ smp_send_secondary_command(const char *command, int cpuid)
 void
 smp_init_secondary(void)
 {
+	struct pcs *cpu;
+
+	/* spin until all the AP's are ready */
+	while (!aps_ready)
+		/*spin*/ ;
+ 
 	/*
 	 * Record the globaldata pointer in the per-cpu system value.
 	 */
@@ -161,21 +175,73 @@ smp_init_secondary(void)
 	alpha_pal_wrent(XentUna, ALPHA_KENTRY_UNA);
 	alpha_pal_wrent(XentSys, ALPHA_KENTRY_SYS);
 
-	mtx_lock(&Giant);
 
-	printf("smp_init_secondary: called\n");
-	CTR0(KTR_SMP, "smp_init_secondary");
+	/* lower the ipl and take any pending machine check */
+	mc_expected = 1;
+	alpha_mb(); alpha_mb();
+	alpha_pal_wrmces(7);
+	(void)alpha_pal_swpipl(ALPHA_PSL_IPL_HIGH);
+	mc_expected = 0;
+
+        /*
+         * Set curproc to our per-cpu idleproc so that mutexes have
+         * something unique to lock with.
+         */
+        PCPU_SET(curproc, PCPU_GET(idleproc));
+        PCPU_SET(spinlocks, NULL);
 
 	/*
-	 * Add to mask.
+	 * Set flags in our per-CPU slot in the HWRPB.
 	 */
-	smp_started = 1;
-	if (PCPU_GET(cpuid) + 1 > mp_ncpus)
-		mp_ncpus = PCPU_GET(cpuid) + 1;
-	spl0();
-	ipi_all(0);
+	cpu = LOCATE_PCS(hwrpb, PCPU_GET(cpuid));
+	cpu->pcs_flags &= ~PCS_BIP;
+	cpu->pcs_flags |= PCS_RC;
+	alpha_mb();
 
-	mtx_unlock(&Giant);
+	/*
+	 * XXX: doesn't idleproc already have a pcb from when it was
+	 * kthread_create'd?
+	 *
+	 * cache idleproc's physical address.
+	 */
+	curproc->p_md.md_pcbpaddr = (struct pcb *)PCPU_GET(idlepcbphys);
+	/*
+	 * and make idleproc's trapframe pointer point to its
+	 * stack pointer for sanity.
+	 */
+	curproc->p_md.md_tf =
+	    (struct trapframe *)globalp->gd_idlepcb.apcb_ksp;
+
+	mtx_lock_spin(&ap_boot_mtx);
+
+	smp_cpus++;
+
+	CTR0(KTR_SMP, "smp_init_secondary");
+
+	PCPU_SET(other_cpus, all_cpus & ~(1 << PCPU_GET(cpuid)));
+
+	printf("SMP: AP CPU #%d Launched!\n", PCPU_GET(cpuid));
+
+	if (smp_cpus == mp_ncpus) {
+		smp_started = 1;
+		smp_active = 1;
+		ipi_all(0);
+	}
+
+	mtx_unlock_spin(&ap_boot_mtx);
+
+	while (smp_started == 0)
+		alpha_mb(); /* nothing */
+
+	microuptime(PCPU_PTR(switchtime));
+	PCPU_SET(switchticks, ticks);
+
+	/* ok, now grab sched_lock and enter the scheduler */
+	(void)alpha_pal_swpipl(ALPHA_PSL_IPL_0);
+	mtx_lock_spin(&sched_lock);
+	cpu_throw();	/* doesn't return */
+
+	panic("scheduler returned us to " __func__);
 }
 
 extern void smp_init_secondary_glue(void);
@@ -195,7 +261,8 @@ smp_start_secondary(int cpuid)
 		return 0;
 	}
 
-	printf("smp_start_secondary: starting cpu %d\n", cpuid);
+	if (bootverbose)
+		printf("smp_start_secondary: starting cpu %d\n", cpuid);
 
 	sz = round_page(UPAGES * PAGE_SIZE);
 	globaldata = malloc(sz, M_TEMP, M_NOWAIT);
@@ -205,6 +272,7 @@ smp_start_secondary(int cpuid)
 	}
 	
 	globaldata_init(globaldata, cpuid, sz);
+	SLIST_INSERT_HEAD(&cpuhead, globaldata, gd_allcpu);
 
 	/*
 	 * Copy the idle pcb and setup the address to start executing.
@@ -212,8 +280,9 @@ smp_start_secondary(int cpuid)
 	 * structure.
 	 */
 	*pcb = globaldata->gd_idlepcb;
+	pcb->apcb_unique = (u_int64_t)globaldata;
 	hwrpb->rpb_restart = (u_int64_t) smp_init_secondary_glue;
-	hwrpb->rpb_restart_val = (u_int64_t) globaldata;
+	hwrpb->rpb_restart_val = (u_int64_t) smp_init_secondary_glue;
 	hwrpb->rpb_checksum = hwrpb_checksum();
 
 	/*
@@ -234,7 +303,7 @@ smp_start_secondary(int cpuid)
 	 * Fire it up and hope for the best.
 	 */
 	if (!smp_send_secondary_command("START\r\n", cpuid)) {
-		printf("smp_init_secondary: can't send START command\n");
+		printf("smp_start_secondary: can't send START command\n");
 		free(globaldata, M_TEMP);
 		return 0;
 	}
@@ -248,16 +317,15 @@ smp_start_secondary(int cpuid)
 		DELAY(10);
 	}
 	if (!(cpu->pcs_flags & PCS_BIP)) {
-		printf("smp_init_secondary: secondary did not respond\n");
+		printf("smp_start_secondary: secondary did not respond\n");
 		free(globaldata, M_TEMP);
 	}
-
+	
 	/*
 	 * It worked (I think).
 	 */
-	/* if (bootverbose) */
-		printf("smp_init_secondary: cpu %d started\n", cpuid);
-
+	if (bootverbose)
+		printf("smp_start_secondary: cpu %d started\n", cpuid);
 	return 1;
 }
 
@@ -281,11 +349,11 @@ globaldata_find(int cpuid)
 /* lock around the MP rendezvous */
 static struct mtx smp_rv_mtx;
 
-
 static void
 init_locks(void)
 {
 	mtx_init(&smp_rv_mtx, "smp rendezvous", MTX_SPIN);
+	mtx_init(&ap_boot_mtx, "ap boot", MTX_SPIN);
 }
 
 void
@@ -296,10 +364,9 @@ mp_start()
 
 	init_locks();
 
-	if (cpuid + 1 > mp_ncpus)
-		mp_ncpus = cpuid + 1;
+	mp_ncpus = 1;
 
-	all_cpus = 1<<cpuid;
+	all_cpus = 1 << cpuid;
 	for (i = 0; i < hwrpb->rpb_pcs_cnt; i++) {
 		struct pcs *pcsp;
 
@@ -307,31 +374,44 @@ mp_start()
 			continue;
 		pcsp = (struct pcs *)((char *)hwrpb + hwrpb->rpb_pcs_off +
 		    (i * hwrpb->rpb_pcs_size));
-		if ((pcsp->pcs_flags & PCS_PP) != 0) {
-			all_cpus |= 1<<i;
-			break;	/* only one for now */
+		if ((pcsp->pcs_flags & PCS_PP) == 0)
+			continue;
+		if ((pcsp->pcs_flags & PCS_PA) == 0) {
+			if (bootverbose)
+				printf("CPU %d not available.\n", i);
+			continue;
 		}
+		if ((pcsp->pcs_flags & PCS_PV) == 0) {
+			if (bootverbose)
+				printf("CPU %d does not have valid PALcode.\n",
+				    i);
+			continue;
+		}
+		if (i > MAXCPU) {
+			if (bootverbose) {
+				printf("CPU %d not supported.", i);
+				printf("  Only %d CPUs supported.\n", MAXCPU);
+			}
+			continue;
+		}
+		all_cpus |= 1 << i;
+		mp_ncpus++;
 	}
 	PCPU_SET(other_cpus, all_cpus & ~(1<<cpuid));
 
 	for (i = 0; i < hwrpb->rpb_pcs_cnt; i++) {
-		struct pcs *pcsp;
-
 		if (i == cpuid)
 			continue;
-		pcsp = (struct pcs *)((char *)hwrpb + hwrpb->rpb_pcs_off +
-		    (i * hwrpb->rpb_pcs_size));
-		if ((pcsp->pcs_flags & PCS_PP) != 0) {
-			smp_active = 1;
+		if (all_cpus & 1 << i)
 			smp_start_secondary(i);
-			break;	/* only one for now */
-		}
 	}
 }
 
 void
 mp_announce()
 {
+
+	printf("SMP System Detected: %d usable CPUs\n", mp_ncpus);
 }
 
 void
@@ -339,6 +419,7 @@ smp_invltlb()
 {
 }
 
+#if 0
 #define GD_TO_INDEX(pc, prof)				\
         ((int)(((u_quad_t)((pc) - (prof)->pr_off) *	\
             (u_quad_t)((prof)->pr_scale)) >> 16) & ~1)
@@ -458,8 +539,6 @@ forwarded_statclock(int id, int pscnt, int *astmap)
        	}
 }
 
-#define BETTER_CLOCK_DIAGNOSTIC
-
 void
 forward_statclock(int pscnt)
 {
@@ -485,6 +564,7 @@ forward_statclock(int pscnt)
 
 	/* Step 1: Probe state   (user, cpu, interrupt, spinlock, idle ) */
 	
+	mtx_lock_spin(&smp_rv_mtx);
 	map = PCPU_GET(other_cpus) & ~stopped_cpus ;
 	checkstate_probed_cpus = 0;
 	if (map != 0)
@@ -492,16 +572,18 @@ forward_statclock(int pscnt)
 
 	i = 0;
 	while (checkstate_probed_cpus != map) {
+		alpha_mb();
 		/* spin */
 		i++;
 		if (i == 100000) {
-#ifdef BETTER_CLOCK_DIAGNOSTIC
+#ifdef DIAGNOSTIC
 			printf("forward_statclock: checkstate %x\n",
 			       checkstate_probed_cpus);
 #endif
 			break;
 		}
 	}
+	mtx_unlock_spin(&smp_rv_mtx);
 
 	/*
 	 * Step 2: walk through other processors processes, update ticks and 
@@ -509,6 +591,7 @@ forward_statclock(int pscnt)
 	 */
 	
 	map = 0;
+	/* XXX: wrong, should walk bits in all_cpus */
 	for (id = 0; id < mp_ncpus; id++) {
 		if (id == PCPU_GET(cpuid))
 			continue;
@@ -517,20 +600,23 @@ forward_statclock(int pscnt)
 		forwarded_statclock(id, pscnt, &map);
 	}
 	if (map != 0) {
+		mtx_lock_spin(&smp_rv_mtx);
 		checkstate_need_ast |= map;
 		ipi_selected(map, IPI_AST);
 		i = 0;
 		while ((checkstate_need_ast & map) != 0) {
+			alpha_mb();
 			/* spin */
 			i++;
 			if (i > 100000) { 
-#ifdef BETTER_CLOCK_DIAGNOSTIC
+#ifdef DIAGNOSTIC
 				printf("forward_statclock: dropped ast 0x%x\n",
 				       checkstate_need_ast & map);
 #endif
 				break;
 			}
 		}
+		mtx_unlock_spin(&smp_rv_mtx);
 	}
 }
 
@@ -561,6 +647,7 @@ forward_hardclock(int pscnt)
 
 	/* Step 1: Probe state   (user, cpu, interrupt, spinlock, idle) */
 	
+	mtx_lock_spin(&smp_rv_mtx);
 	map = PCPU_GET(other_cpus) & ~stopped_cpus ;
 	checkstate_probed_cpus = 0;
 	if (map != 0)
@@ -568,10 +655,11 @@ forward_hardclock(int pscnt)
 	
 	i = 0;
 	while (checkstate_probed_cpus != map) {
+		alpha_mb();
 		/* spin */
 		i++;
 		if (i == 100000) {
-#ifdef BETTER_CLOCK_DIAGNOSTIC
+#ifdef DIAGNOSTIC
 			printf("forward_hardclock: checkstate %x\n",
 			       checkstate_probed_cpus);
 #endif
@@ -579,6 +667,7 @@ forward_hardclock(int pscnt)
 			break;
 		}
 	}
+	mtx_unlock_spin(&smp_rv_mtx);
 
 	/*
 	 * Step 2: walk through other processors processes, update virtual 
@@ -587,6 +676,7 @@ forward_hardclock(int pscnt)
 	 */
 	
 	map = 0;
+	/* XXX: wrong, should walk bits in all_cpus */
 	for (id = 0; id < mp_ncpus; id++) {
 		if (id == PCPU_GET(cpuid))
 			continue;
@@ -612,22 +702,26 @@ forward_hardclock(int pscnt)
 		}
 	}
 	if (map != 0) {
+		mtx_lock_spin(&smp_rv_mtx);
 		checkstate_need_ast |= map;
 		ipi_selected(map, IPI_AST);
 		i = 0;
 		while ((checkstate_need_ast & map) != 0) {
+			alpha_mb();
 			/* spin */
 			i++;
 			if (i > 100000) { 
-#ifdef BETTER_CLOCK_DIAGNOSTIC
+#ifdef DIAGNOSTIC
 				printf("forward_hardclock: dropped ast 0x%x\n",
 				       checkstate_need_ast & map);
 #endif
 				break;
 			}
 		}
+		mtx_unlock_spin(&smp_rv_mtx);
 	}
 }
+#endif  /* 0 */
 
 void
 forward_signal(struct proc *p)
@@ -668,10 +762,11 @@ forward_signal(struct proc *p)
 		ipi_selected(map, IPI_AST);
 		i = 0;
 		while ((checkstate_need_ast & map) != 0) {
+			alpha_mb();
 			/* spin */
 			i++;
 			if (i > 100000) { 
-#if 0
+#if DIAGNOSTIC
 				printf("forward_signal: dropped ast 0x%x\n",
 				       checkstate_need_ast & map);
 #endif
@@ -703,10 +798,11 @@ forward_roundrobin(void)
 	ipi_selected(map, IPI_AST);
 	i = 0;
 	while ((checkstate_need_ast & map) != 0) {
+		alpha_mb();
 		/* spin */
 		i++;
 		if (i > 100000) {
-#if 0
+#if DIAGNOSTIC
 			printf("forward_roundrobin: dropped ast 0x%x\n",
 			       checkstate_need_ast & map);
 #endif
@@ -749,14 +845,14 @@ stop_cpus(u_int map)
 	while ((stopped_cpus & map) != map) {
 		/* spin */
 		i++;
+#ifdef DIAGNOSTIC
 		if (i == 100000) {
 			printf("timeout stopping cpus\n");
 			break;
 		}
+#endif
 		alpha_mb();
 	}
-
-	printf("stopped_cpus=%x\n", stopped_cpus);
 
 	return 1;
 }
@@ -816,14 +912,14 @@ smp_rendezvous_action(void)
 	/* spin on entry rendezvous */
 	atomic_add_int(&smp_rv_waiters[0], 1);
 	while (smp_rv_waiters[0] < mp_ncpus)
-		;
+		alpha_mb();
 	/* action function */
 	if (smp_rv_action_func != NULL)
 		smp_rv_action_func(smp_rv_func_arg);
 	/* spin on exit rendezvous */
 	atomic_add_int(&smp_rv_waiters[1], 1);
 	while (smp_rv_waiters[1] < mp_ncpus)
-		;
+		alpha_mb();
 	/* teardown function */
 	if (smp_rv_teardown_func != NULL)
 		smp_rv_teardown_func(smp_rv_func_arg);
@@ -836,6 +932,16 @@ smp_rendezvous(void (* setup_func)(void *),
 	       void *arg)
 {
 
+	if (!smp_started) {
+		if (setup_func != NULL)
+			setup_func(arg);
+		if (action_func != NULL)
+			action_func(arg);
+		if (teardown_func != NULL)
+			teardown_func(arg);
+		return;
+	}
+		
 	/* obtain rendezvous lock */
 	mtx_lock_spin(&smp_rv_mtx);
 
@@ -851,6 +957,8 @@ smp_rendezvous(void (* setup_func)(void *),
 	ipi_all_but_self(IPI_RENDEZVOUS);
 
 	/* call executor function */
+	CTR2(KTR_SMP, "smp_rv: calling action = %p, arg = %p\n", action_func,
+	    arg);
 	smp_rendezvous_action();
 
 	/* release lock */
@@ -929,6 +1037,8 @@ smp_handle_ipi(struct trapframe *frame)
 		ipis &= ~ipi;
 		switch (ipi) {
 		case IPI_INVLTLB:
+			CTR0(KTR_SMP, "IPI_NVLTLB");
+			ALPHA_TBIA();
 			break;
 
 		case IPI_RENDEZVOUS:
@@ -939,9 +1049,9 @@ smp_handle_ipi(struct trapframe *frame)
 		case IPI_AST:
 			CTR0(KTR_SMP, "IPI_AST");
 			atomic_clear_int(&checkstate_need_ast, cpumask);
-			atomic_set_int(&checkstate_pending_ast, cpumask);
-			if (frame->tf_regs[FRAME_PS] & ALPHA_PSL_USERMODE)
-				ast(frame); /* XXX */
+			mtx_lock_spin(&sched_lock);
+			curproc->p_sflag |= PS_ASTPENDING;
+			mtx_unlock_spin(&sched_lock);
 			break;
 
 		case IPI_CHECKSTATE:
@@ -971,11 +1081,40 @@ smp_handle_ipi(struct trapframe *frame)
 	}
 
 	/*
-	 * Drop console messages on the floor.
+	 * Dump console messages to the console.  XXX - we need to handle
+	 * requests to provide PALcode to secondaries and to start up new
+	 * secondaries that are added to the system on the fly.
 	 */
-	if (PCPU_GET(cpuid) == hwrpb->rpb_primary_cpu_id
-	    && hwrpb->rpb_txrdy != 0) {
-		hwrpb->rpb_txrdy = 0;
+	if (PCPU_GET(cpuid) == hwrpb->rpb_primary_cpu_id) {
+		struct pcs *cpu;
+		u_int cpuid;
+		u_int64_t txrdy;
+		char buf[81];
+
 		alpha_mb();
+		while (hwrpb->rpb_txrdy != 0) {
+			cpuid = ffs(hwrpb->rpb_txrdy) - 1;
+			cpu = LOCATE_PCS(hwrpb, cpuid);
+			bcopy(&cpu->pcs_buffer.txbuf, buf,
+			    cpu->pcs_buffer.txlen);
+			buf[cpu->pcs_buffer.txlen] = '\0';
+			printf("SMP From CPU%d: %s\n", cpuid, buf);
+
+			do {
+				txrdy = hwrpb->rpb_txrdy;
+			} while (atomic_cmpset_64(&hwrpb->rpb_txrdy, txrdy,
+			    txrdy & ~(1 << cpuid)) == 0);
+		}
 	}
 }
+
+static void
+release_aps(void *dummy __unused)
+{
+ 	ktr_mask = (KTR_SMP|KTR_INTR|KTR_PROC|KTR_LOCK);
+	if (bootverbose)
+		printf(__func__ ": releasing secondary CPUs\n");
+	atomic_store_rel_int(&aps_ready, 1);
+}
+
+SYSINIT(start_aps, SI_SUB_SMP, SI_ORDER_FIRST, release_aps, NULL);
