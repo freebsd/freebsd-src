@@ -48,7 +48,8 @@ divert(-1)
 #  Other than these, it should never contain any other lines.
 #
 
-VERSIONID(`@(#)clientproto.mc	8.6 (Berkeley) 8/16/95')
+divert(0)dnl
+VERSIONID(`@(#)clientproto.mc	8.7 (Berkeley) 3/23/96')
 
 OSTYPE(unknown)
 FEATURE(nullclient, mailhost.$m)

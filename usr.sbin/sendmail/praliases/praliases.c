@@ -39,10 +39,11 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)praliases.c	8.3 (Berkeley) 3/6/94";
+static char sccsid[] = "@(#)praliases.c	8.4 (Berkeley) 9/25/96";
 #endif /* not lint */
 
 #include <ndbm.h>
+#define NOT_SENDMAIL
 #include <sendmail.h>
 #ifdef NEWDB
 #include <db.h>
