@@ -89,6 +89,7 @@ static struct m3_card_type {
 #define M3_BUFSIZE 4096
 #define M3_PCHANS 4 /* create /dev/dsp0.[0-N] to use more than one */
 #define M3_RCHANS 1
+#define M3_MAXADDR ((1 << 27) - 1)
 
 struct sc_info;
 
@@ -1140,7 +1141,7 @@ m3_pci_attach(device_t dev)
 	}
 
 	if (bus_dma_tag_create(/*parent*/NULL, /*alignment*/2, /*boundary*/0,
-			       /*lowaddr*/0x08000000,
+			       /*lowaddr*/M3_MAXADDR,
 			       /*highaddr*/BUS_SPACE_MAXADDR,
 			       /*filter*/NULL, /*filterarg*/NULL,
 			       /*maxsize*/M3_BUFSIZE, /*nsegments*/1,
