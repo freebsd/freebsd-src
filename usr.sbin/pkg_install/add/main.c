@@ -62,7 +62,6 @@ main(int argc, char **argv)
     char *cp;
 
     char *remotepkg = NULL, *ptr;
-    static const char packageroot[MAXPATHLEN] = "ftp://ftp.FreeBSD.org/pub/FreeBSD/ports/";
     static char temppackageroot[MAXPATHLEN];
 
     start = argv;
@@ -130,11 +129,7 @@ main(int argc, char **argv)
 	/* Get all the remaining package names, if any */
 	for (ch = 0; *argv; ch++, argv++) {
     	    if (Remote) {
-		strcpy(temppackageroot, packageroot);
-		if (getenv("PACKAGESITE") == NULL)
-		   strcat(temppackageroot, getpackagesite());
-		else
-	    	   strcpy(temppackageroot, (getenv("PACKAGESITE")));
+		strcpy(temppackageroot, getpackagesite());
 		remotepkg = strcat(temppackageroot, *argv);
 		if (!((ptr = strrchr(remotepkg, '.')) && ptr[1] == 't' && 
 			ptr[2] == 'g' && ptr[3] == 'z' && !ptr[4]))
@@ -189,13 +184,30 @@ getpackagesite(void)
     static char sitepath[MAXPATHLEN];
     struct utsname u;
 
-    reldate = getosreldate();
+    if (getenv("PACKAGESITE")) {
+	strcpy(sitepath, getenv("PACKAGESITE"));
+	return sitepath;
+    }
+
+    if (getenv("PACKAGEROOT"))
+	strcpy(sitepath, getenv("PACKAGEROOT"));
+    else
+	strcpy(sitepath, "ftp://ftp.FreeBSD.org");
+
+    strcat(sitepath, "/pub/FreeBSD/ports/");
 
     uname(&u);
-    strcpy(sitepath, u.machine);
+    strcat(sitepath, u.machine);
 
-    if (reldate >= 500000)
-	strcat(sitepath, "/packages-current/Latest/");
+    reldate = getosreldate();
+    if (reldate == 500998)
+	strcat(sitepath, "/packages-5.0-release");
+    else if (reldate >= 500999)
+	strcat(sitepath, "/packages-5-stable");
+    else if (reldate >= 500000)
+	strcat(sitepath, "/packages-current");
+
+    strcat(sitepath, "/Latest/");
 
     return sitepath;
 
