@@ -248,7 +248,6 @@ mfs_mount(mp, path, data, ndp, p)
 	dev->si_iosize_max = DFLTPHYS;
 	addaliasu(devvp, makeudev(253, mfs_minor++));
 	devvp->v_data = mfsp;
-	lockinit(&mfsp->mfs_lock, PVFS, "mfslck", 0, LK_NOPAUSE);
 	mfsp->mfs_baseoff = args.base;
 	mfsp->mfs_size = args.size;
 	mfsp->mfs_vnode = devvp;
