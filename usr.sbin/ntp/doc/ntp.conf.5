@@ -1437,13 +1437,13 @@ if the ppsapi standard PPS interface is available.
 Specify the device name associated with the PPS signal.
 The name must match exactly the link name specified
 in the driver documentation page.
-.Ic assert
-.Ic clear
+.It assert
+.It clear
 Using assert or clear specifies
 if the high going or low going edge
 of the signal must be used.
 The default is assert.
-.Ic hardpps
+.It hardpps
 This flag is used to tell the kernel that the signal
 from this device must be used to drive hardpps().
 The assert, clear and hardpps options are only available
