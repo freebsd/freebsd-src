@@ -221,6 +221,7 @@ main(argc, argv, envp)
 		case '?':
 			usage();
 		};
+	if(argc) udpflag = 1;
 	argv += optind;
 	argc -= optind;
 
