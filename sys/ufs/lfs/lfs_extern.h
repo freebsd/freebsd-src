@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_extern.h	8.2 (Berkeley) 4/16/94
- * $Id: lfs_extern.h,v 1.5 1995/03/28 07:58:04 bde Exp $
+ * $Id: lfs_extern.h,v 1.6 1995/07/29 11:43:06 bde Exp $
  */
 
 #ifndef _UFS_LFS_LFS_EXTERN_H_
@@ -108,6 +108,7 @@ void	lfs_dump_super __P((struct lfs *));
 __END_DECLS
 
 extern int lfs_allclean_wakeup;
+extern int locked_queue_count;
 extern int (**lfs_vnodeop_p)();
 extern int (**lfs_specop_p)();
 extern int (**lfs_fifoop_p)();

@@ -47,7 +47,7 @@
  */
 
 /*
- * $Id: if_ze.c,v 1.17 1995/05/30 08:02:27 rgrimes Exp $
+ * $Id: if_ze.c,v 1.18 1995/07/25 22:18:55 bde Exp $
  */
 
 #include "ze.h"
@@ -147,6 +147,8 @@ int	ze_attach(), ze_ioctl(), ze_probe();
 void	ze_init(), ze_start(), ze_stop(), ze_intr();
 void	ze_reset(), ze_watchdog(), ze_get_packet();
 
+struct mbuf *ze_ring_to_mbuf __P((struct ze_softc *sc, char *src,
+				  struct mbuf *dst, int total_len));
 void 	ze_setup __P((struct ze_softc *sc));
 static inline void ze_rint();
 static inline void ze_xmit();
@@ -1465,7 +1467,7 @@ ze_get_packet(sc, buf, len)
 	u_short len;
 {
 	struct ether_header *eh;
-    	struct mbuf *m, *head = NULL, *ze_ring_to_mbuf();
+    	struct mbuf *m, *head = NULL;
 	u_short off;
 	int resid;
 	u_short etype;

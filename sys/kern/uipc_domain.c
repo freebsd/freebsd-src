@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_domain.c	8.2 (Berkeley) 10/18/93
- * $Id: uipc_domain.c,v 1.5 1995/05/11 00:13:04 wollman Exp $
+ * $Id: uipc_domain.c,v 1.6 1995/05/11 00:16:44 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -52,7 +52,6 @@ void	pfslowtimo __P((void *));
 struct domain *domains;
 
 #define	ADDDOMAIN(x)	{ \
-	extern struct domain __CONCAT(x,domain); \
 	__CONCAT(x,domain.dom_next) = domains; \
 	domains = &__CONCAT(x,domain); \
 }

@@ -1047,9 +1047,6 @@ loop:
 				}
 				move;
 				struct timeval now;
-				/* from sys/kern/kern_time.c */
-				extern void timevalsub
-					(struct timeval *, struct timeval *);
 				dev_t dummy = makedev(0, mouse.minor);
 				struct tty *mousetty = get_pccons(dummy);
 				/*

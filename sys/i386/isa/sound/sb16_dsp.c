@@ -41,6 +41,8 @@
 #if defined(CONFIGURE_SOUNDCARD) && !defined(EXCLUDE_SB16) && !defined(EXCLUDE_SB) && !defined(EXCLUDE_AUDIO) && !defined(EXCLUDE_SBPRO)
 
 extern int      sbc_base;
+extern int      sbc_major;
+extern int      sbc_minor;
 
 static int      sb16_dsp_ok = 0;	/*
 
@@ -467,8 +469,6 @@ set_irq_hw (int level)
 long
 sb16_dsp_init (long mem_start, struct address_info *hw_config)
 {
-  extern int      sbc_major, sbc_minor;
-
   if (sbc_major < 4)
     return mem_start;		/* Not a SB16 */
 
@@ -497,7 +497,6 @@ int
 sb16_dsp_detect (struct address_info *hw_config)
 {
   struct address_info *sb_config;
-  extern int      sbc_major;
 
   if (sb16_dsp_ok)
     return 1;			/* Can't drive two cards */
