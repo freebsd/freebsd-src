@@ -328,6 +328,12 @@ over Ethernet to
 using the
 .Ar iface
 network interface.
+.Pp
+On systems that do not support
+.Xr netgraph 4 ,
+an external program such as
+.Xr pppoe 8
+may be used.
 .It "Supports IETF draft Predictor-1 (rfc 1978) and DEFLATE (rfc 1979) compression."
 .Nm
 supports not only VJ-compression but also Predictor-1 and DEFLATE compression.
@@ -1148,7 +1154,7 @@ to enable a
 on the port where the modem is attached.
 For example:
 .Pp
-.Dl ttyd1 "/usr/libexec/getty std.38400" dialup on secure
+.Dl ttyd1 Qo /usr/libexec/getty std.38400 Qc dialup on secure
 .Pp
 Don't forget to send a
 .Dv HUP
@@ -1158,6 +1164,27 @@ process to start the
 .Xr getty 8 :
 .Pp
 .Dl # kill -HUP 1
+.Pp
+It is usually also necessary to train your modem to the same DTR speed
+as the getty:
+.Bd -literal -offset indent
+# ppp
+ppp ON awfulhak> set device /dev/cuaa1
+ppp ON awfulhak> set speed 38400
+ppp ON awfulhak> term
+deflink: Entering terminal mode on /dev/cuaa1
+Type `~?' for help
+at
+OK
+at
+OK
+atz
+OK
+at
+OK
+~.
+ppp ON awfulhak> quit
+.Ed
 .It
 Create a
 .Pa /usr/local/bin/ppplogin
@@ -1696,6 +1723,7 @@ command below.
 must be one of
 .Sq icmp ,
 .Sq igmp ,
+.Sq ipip ,
 .Sq ospf ,
 .Sq udp
 or
@@ -2349,11 +2377,18 @@ mode.
 These signals tell
 .Nm
 to exit.
+.It USR1
+This signal, tells
+.Nm
+to re-open any existing server socket, dropping all existing diagnostic
+connections.  Sockets that couldn't previously be opened will be retried.
 .It USR2
 This signal, tells
 .Nm
 to close any existing server socket, dropping all existing diagnostic
 connections.
+.Dv SIGUSR1
+can still be used to re-open the socket.
 .El
 .Pp
 .Sh MULTI-LINK PPP
@@ -2454,13 +2489,13 @@ mp:
  set dial "ABORT BUSY ABORT NO\\sCARRIER TIMEOUT 5 \\"\\" ATZ \e
            OK-AT-OK \\\\dATDT\\\\T TIMEOUT 45 CONNECT"
  set login
- set ifaddr 10.0.0.1/0 10.0.0.2/0
+ set ifaddr 10.0.0.1/0 10.0.0.2/0 0.0.0.0 0.0.0.0
  set authname ppp
  set authkey ppppassword
 
  set mrru 1500
- clone 1,2,3
- link deflink remove
+ clone 1,2,3		# Create 3 new links - duplicates of the default
+ link deflink remove	# Delete the default link (called ``deflink'')
 .Ed
 .Pp
 Note how all cloning is done at the end of the configuration.
@@ -4293,7 +4328,9 @@ be of the format
 .No PPPoE: Ns Ar iface Ns Xo
 .Op \&: Ns Ar provider Ns
 .Xc
-or be of the format
+(on
+.Xr netgraph 4
+enabled systems), or be of the format
 .Sm off
 .Ar host : port Op /tcp|udp .
 .Sm on
@@ -4321,7 +4358,7 @@ If
 .Xr netgraph 4
 is not available,
 .Nm
-will attempt to loaded it using
+will attempt to load it using
 .Xr kldload 2 .
 If this fails, an external program must be used such as the
 .Xr pppoe 8
@@ -4572,7 +4609,7 @@ as they travel across the link.
 .Oo Op host
 .Ar src_addr Ns Op / Ns Ar width
 .Op Ar dst_addr Ns Op / Ns Ar width
-.Oc [ tcp|udp|ospf|igmp|icmp Op src lt|eq|gt Ar port
+.Oc [ tcp|udp|ospf|ipip|igmp|icmp Op src lt|eq|gt Ar port
 .Op dst lt|eq|gt Ar port
 .Op estab
 .Op syn
@@ -5135,7 +5172,7 @@ If
 .Ar value
 is unspecified or zero, the default kernel controlled value is used.
 .It "set server|socket" Ar TcpPort Ns No \&| Ns Xo
-.Ar LocalName Ns No |none
+.Ar LocalName Ns No |none|open|closed
 .Op password Op Ar mask
 .Xc
 This command tells
@@ -5149,6 +5186,16 @@ The word
 instructs
 .Nm
 to close any existing socket and clear the socket configuration.
+The word
+.Dq open
+instructs
+.Nm
+to attempt to re-open the port.
+The word
+.Dq closed
+instructs
+.Nm
+to close the open port.
 .Pp
 If you wish to specify a local domain socket,
 .Ar LocalName
@@ -5193,8 +5240,10 @@ can also be used, but link encryption may be implemented in the future, so
 should be avoided.
 .Pp
 Note;
+.Dv SIGUSR1
+and
 .Dv SIGUSR2
-also interacts with the diagnostic socket.
+interact with the diagnostic socket.
 .It set speed Ar value
 This sets the speed of the serial device.
 If speed is specified as

@@ -423,8 +423,8 @@ ether_Create(struct physical *p)
     p->fd--;				/* We own the device - change fd */
 
 #if defined(__FreeBSD__) && !defined(NOKLDLOAD)
-    if (modfind("netgraph") == -1) {
-      log_Printf(LogWARN, "Netgraph is not built into the kernel\n");
+    if (modfind("netgraph") == -1 && ID0kldload("netgraph") == -1) {
+      log_Printf(LogWARN, "kldload: netgraph: %s\n", strerror(errno));
       return NULL;
     }
 
@@ -434,6 +434,11 @@ ether_Create(struct physical *p)
        * built in as part of the netgraph node itself.
        */
       log_Printf(LogWARN, "kldload: ng_ether: %s\n", strerror(errno));
+
+    if (modfind("ng_pppoe") == -1 && ID0kldload("ng_pppoe") == -1) {
+      log_Printf(LogWARN, "kldload: ng_pppoe: %s\n", strerror(errno));
+      return NULL;
+    }
 
     if (modfind("ng_socket") == -1 && ID0kldload("ng_socket") == -1) {
       log_Printf(LogWARN, "kldload: ng_socket: %s\n", strerror(errno));

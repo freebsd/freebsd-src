@@ -693,45 +693,91 @@ mp_FillQueues(struct bundle *bundle)
       continue;
 
     add = link_QueueLen(&dl->physical->link);
-    total += add;
-    if (add)
+    if (add) {
       /* this link has got stuff already queued.  Let it continue */
+      total += add;
       continue;
+    }
 
-    if (!link_QueueLen(&mp->link) && !ip_PushPacket(&mp->link, bundle))
-      /* Nothing else to send */
-      break;
+    if (!link_QueueLen(&mp->link)) {
+      struct datalink *other;
+      int mrutoosmall;
 
-    m = link_Dequeue(&mp->link);
-    len = m_length(m);
-    begin = 1;
-    end = 0;
+      /*
+       * If there's only a single open link in our bundle and we haven't got
+       * MP level link compression, queue outbound traffic directly via that
+       * link's protocol stack rather than using the MP link.  This results
+       * in the outbound traffic going out as PROTO_IP rather than PROTO_MP.
+       */
+      for (other = dl->next; other; other = other->next)
+        if (other->state == DATALINK_OPEN)
+          break;
 
-    while (!end) {
-      if (dl->state == DATALINK_OPEN) {
-        /* Write at most his_mru bytes to the physical link */
-        if (len <= dl->physical->link.lcp.his_mru) {
-          mo = m;
-          end = 1;
-          m_settype(mo, MB_MPOUT);
-        } else {
-          /* It's > his_mru, chop the packet (`m') into bits */
-          mo = m_get(dl->physical->link.lcp.his_mru, MB_MPOUT);
-          len -= mo->m_len;
-          m = mbuf_Read(m, MBUF_CTOP(mo), mo->m_len);
+      mrutoosmall = 0;
+      if (!other) {
+        if (dl->physical->link.lcp.his_mru < mp->peer_mrru) {
+          /*
+           * Actually, forget it.  This test is done against the MRRU rather
+           * than the packet size so that we don't end up sending some data
+           * in MP fragments and some data in PROTO_IP packets.  That's just
+           * too likely to upset some ppp implementations.
+           */
+          mrutoosmall = 1;
+          other = dl;
         }
-        mp_Output(mp, bundle, &dl->physical->link, mo, begin, end);
-        begin = 0;
       }
 
-      if (!end) {
-        nlinks--;
-        dl = dl->next;
-        if (!dl) {
-          dl = bundle->links;
-          thislink = 0;
-        } else
-          thislink++;
+      if (!ip_PushPacket(other ? &mp->link : &dl->physical->link, bundle))
+        /* Nothing else to send */
+        break;
+
+      if (mrutoosmall)
+        log_Printf(LogDEBUG, "Don't send data as PROTO_IP, MRU < MRRU\n");
+      else if (!other)
+        log_Printf(LogDEBUG, "Sending data as PROTO_IP, not PROTO_MP\n");
+
+      if (!other) {
+        add = link_QueueLen(&dl->physical->link);
+        if (add) {
+          /* this link has got stuff already queued.  Let it continue */
+          total += add;
+          continue;
+        }
+      }
+    }
+
+    m = link_Dequeue(&mp->link);
+    if (m) {
+      len = m_length(m);
+      begin = 1;
+      end = 0;
+
+      while (!end) {
+        if (dl->state == DATALINK_OPEN) {
+          /* Write at most his_mru bytes to the physical link */
+          if (len <= dl->physical->link.lcp.his_mru) {
+            mo = m;
+            end = 1;
+            m_settype(mo, MB_MPOUT);
+          } else {
+            /* It's > his_mru, chop the packet (`m') into bits */
+            mo = m_get(dl->physical->link.lcp.his_mru, MB_MPOUT);
+            len -= mo->m_len;
+            m = mbuf_Read(m, MBUF_CTOP(mo), mo->m_len);
+          }
+          mp_Output(mp, bundle, &dl->physical->link, mo, begin, end);
+          begin = 0;
+        }
+
+        if (!end) {
+          nlinks--;
+          dl = dl->next;
+          if (!dl) {
+            dl = bundle->links;
+            thislink = 0;
+          } else
+            thislink++;
+        }
       }
     }
   }

@@ -31,7 +31,6 @@
 #include <netinet/in.h>
 #include <net/if.h>
 #include <net/if_tun.h>		/* For TUNS* ioctls */
-#include <arpa/inet.h>
 #include <net/route.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
@@ -97,7 +96,9 @@
 #include "ip.h"
 #include "iface.h"
 #include "server.h"
+#ifdef HAVE_DES
 #include "mppe.h"
+#endif
 
 #define SCATTER_SEGMENTS 7  /* version, datalink, name, physical,
                                throughput, throughput, device       */
@@ -645,7 +646,7 @@ void
 bundle_LockTun(struct bundle *bundle)
 {
   FILE *lockfile;
-  char pidfile[MAXPATHLEN];
+  char pidfile[PATH_MAX];
 
   snprintf(pidfile, sizeof pidfile, "%stun%d.pid", _PATH_VARRUN, bundle->unit);
   lockfile = ID0fopen(pidfile, "w");
@@ -663,7 +664,7 @@ bundle_LockTun(struct bundle *bundle)
 static void
 bundle_UnlockTun(struct bundle *bundle)
 {
-  char pidfile[MAXPATHLEN];
+  char pidfile[PATH_MAX];
 
   snprintf(pidfile, sizeof pidfile, "%stun%d.pid", _PATH_VARRUN, bundle->unit);
   ID0unlink(pidfile);
@@ -705,7 +706,7 @@ bundle_Create(const char *prefix, int type, int unit)
     bundle.dev.fd = ID0open(bundle.dev.Name, O_RDWR);
     if (bundle.dev.fd >= 0)
       break;
-    else if (errno == ENXIO) {
+    else if (errno == ENXIO || errno == ENOENT) {
 #if defined(__FreeBSD__) && !defined(NOKLDLOAD)
       if (bundle.unit == minunit && !kldtried++) {
         /*
@@ -721,11 +722,10 @@ bundle_Create(const char *prefix, int type, int unit)
         }
       }
 #endif
-      err = errno;
-      break;
-    } else if (errno == ENOENT) {
-      if (++enoentcount > 2)
+      if (errno != ENOENT || ++enoentcount > 2) {
+        err = errno;
 	break;
+      }
     } else
       err = errno;
   }
@@ -929,127 +929,6 @@ bundle_Destroy(struct bundle *bundle)
   bundle->iface = NULL;
 }
 
-struct rtmsg {
-  struct rt_msghdr m_rtm;
-  char m_space[64];
-};
-
-int
-bundle_SetRoute(struct bundle *bundle, int cmd, struct in_addr dst,
-                struct in_addr gateway, struct in_addr mask, int bang, int ssh)
-{
-  struct rtmsg rtmes;
-  int s, nb, wb;
-  char *cp;
-  const char *cmdstr;
-  struct sockaddr_in rtdata;
-  int result = 1;
-
-  if (bang)
-    cmdstr = (cmd == RTM_ADD ? "Add!" : "Delete!");
-  else
-    cmdstr = (cmd == RTM_ADD ? "Add" : "Delete");
-  s = ID0socket(PF_ROUTE, SOCK_RAW, 0);
-  if (s < 0) {
-    log_Printf(LogERROR, "bundle_SetRoute: socket(): %s\n", strerror(errno));
-    return result;
-  }
-  memset(&rtmes, '\0', sizeof rtmes);
-  rtmes.m_rtm.rtm_version = RTM_VERSION;
-  rtmes.m_rtm.rtm_type = cmd;
-  rtmes.m_rtm.rtm_addrs = RTA_DST;
-  rtmes.m_rtm.rtm_seq = ++bundle->routing_seq;
-  rtmes.m_rtm.rtm_pid = getpid();
-  rtmes.m_rtm.rtm_flags = RTF_UP | RTF_GATEWAY | RTF_STATIC;
-
-  if (cmd == RTM_ADD || cmd == RTM_CHANGE) {
-    if (bundle->ncp.ipcp.cfg.sendpipe > 0) {
-      rtmes.m_rtm.rtm_rmx.rmx_sendpipe = bundle->ncp.ipcp.cfg.sendpipe;
-      rtmes.m_rtm.rtm_inits |= RTV_SPIPE;
-    }
-    if (bundle->ncp.ipcp.cfg.recvpipe > 0) {
-      rtmes.m_rtm.rtm_rmx.rmx_recvpipe = bundle->ncp.ipcp.cfg.recvpipe;
-      rtmes.m_rtm.rtm_inits |= RTV_RPIPE;
-    }
-  }
-
-  memset(&rtdata, '\0', sizeof rtdata);
-  rtdata.sin_len = sizeof rtdata;
-  rtdata.sin_family = AF_INET;
-  rtdata.sin_port = 0;
-  rtdata.sin_addr = dst;
-
-  cp = rtmes.m_space;
-  memcpy(cp, &rtdata, rtdata.sin_len);
-  cp += rtdata.sin_len;
-  if (cmd == RTM_ADD) {
-    if (gateway.s_addr == INADDR_ANY) {
-      if (!ssh)
-        log_Printf(LogERROR, "bundle_SetRoute: Cannot add a route with"
-                   " destination 0.0.0.0\n");
-      close(s);
-      return result;
-    } else {
-      rtdata.sin_addr = gateway;
-      memcpy(cp, &rtdata, rtdata.sin_len);
-      cp += rtdata.sin_len;
-      rtmes.m_rtm.rtm_addrs |= RTA_GATEWAY;
-    }
-  }
-
-  if (dst.s_addr == INADDR_ANY)
-    mask.s_addr = INADDR_ANY;
-
-  if (cmd == RTM_ADD || dst.s_addr == INADDR_ANY) {
-    rtdata.sin_addr = mask;
-    memcpy(cp, &rtdata, rtdata.sin_len);
-    cp += rtdata.sin_len;
-    rtmes.m_rtm.rtm_addrs |= RTA_NETMASK;
-  }
-
-  nb = cp - (char *) &rtmes;
-  rtmes.m_rtm.rtm_msglen = nb;
-  wb = ID0write(s, &rtmes, nb);
-  if (wb < 0) {
-    log_Printf(LogTCPIP, "bundle_SetRoute failure:\n");
-    log_Printf(LogTCPIP, "bundle_SetRoute:  Cmd = %s\n", cmdstr);
-    log_Printf(LogTCPIP, "bundle_SetRoute:  Dst = %s\n", inet_ntoa(dst));
-    log_Printf(LogTCPIP, "bundle_SetRoute:  Gateway = %s\n",
-               inet_ntoa(gateway));
-    log_Printf(LogTCPIP, "bundle_SetRoute:  Mask = %s\n", inet_ntoa(mask));
-failed:
-    if (cmd == RTM_ADD && (rtmes.m_rtm.rtm_errno == EEXIST ||
-                           (rtmes.m_rtm.rtm_errno == 0 && errno == EEXIST))) {
-      if (!bang) {
-        log_Printf(LogWARN, "Add route failed: %s already exists\n",
-		  dst.s_addr == 0 ? "default" : inet_ntoa(dst));
-        result = 0;	/* Don't add to our dynamic list */
-      } else {
-        rtmes.m_rtm.rtm_type = cmd = RTM_CHANGE;
-        if ((wb = ID0write(s, &rtmes, nb)) < 0)
-          goto failed;
-      }
-    } else if (cmd == RTM_DELETE &&
-             (rtmes.m_rtm.rtm_errno == ESRCH ||
-              (rtmes.m_rtm.rtm_errno == 0 && errno == ESRCH))) {
-      if (!bang)
-        log_Printf(LogWARN, "Del route failed: %s: Non-existent\n",
-                  inet_ntoa(dst));
-    } else if (rtmes.m_rtm.rtm_errno == 0) {
-      if (!ssh || errno != ENETUNREACH)
-        log_Printf(LogWARN, "%s route failed: %s: errno: %s\n", cmdstr,
-                   inet_ntoa(dst), strerror(errno));
-    } else
-      log_Printf(LogWARN, "%s route failed: %s: %s\n",
-		 cmdstr, inet_ntoa(dst), strerror(rtmes.m_rtm.rtm_errno));
-  }
-  log_Printf(LogDEBUG, "wrote %d: cmd = %s, dst = %x, gateway = %x\n",
-            wb, cmdstr, (unsigned)dst.s_addr, (unsigned)gateway.s_addr);
-  close(s);
-
-  return result;
-}
-
 void
 bundle_LinkClosed(struct bundle *bundle, struct datalink *dl)
 {
@@ -1182,18 +1061,30 @@ bundle_ShowStatus(struct cmdargs const *arg)
                 arg->bundle->cfg.ifqueue);
 
   prompt_Printf(arg->prompt, "\nDefaults:\n");
-  prompt_Printf(arg->prompt, " Label:         %s\n", arg->bundle->cfg.label);
-  prompt_Printf(arg->prompt, " Auth name:     %s\n",
+  prompt_Printf(arg->prompt, " Label:             %s\n",
+                arg->bundle->cfg.label);
+  prompt_Printf(arg->prompt, " Auth name:         %s\n",
                 arg->bundle->cfg.auth.name);
+  prompt_Printf(arg->prompt, " Diagnostic socket: ");
+  if (*server.cfg.sockname != '\0') {
+    prompt_Printf(arg->prompt, "%s", server.cfg.sockname);
+    if (server.cfg.mask != (mode_t)-1)
+      prompt_Printf(arg->prompt, ", mask 0%03o", (int)server.cfg.mask);
+    prompt_Printf(arg->prompt, "%s\n", server.fd == -1 ? " (not open)" : "");
+  } else if (server.cfg.port != 0)
+    prompt_Printf(arg->prompt, "TCP port %d%s\n", server.cfg.port,
+                  server.fd == -1 ? " (not open)" : "");
+  else
+    prompt_Printf(arg->prompt, "none\n");
 
-  prompt_Printf(arg->prompt, " Choked Timer:  %ds\n",
+  prompt_Printf(arg->prompt, " Choked Timer:      %ds\n",
                 arg->bundle->cfg.choked.timeout);
 
 #ifndef NORADIUS
   radius_Show(&arg->bundle->radius, arg->prompt);
 #endif
 
-  prompt_Printf(arg->prompt, " Idle Timer:    ");
+  prompt_Printf(arg->prompt, " Idle Timer:        ");
   if (arg->bundle->cfg.idle.timeout) {
     prompt_Printf(arg->prompt, "%ds", arg->bundle->cfg.idle.timeout);
     if (arg->bundle->cfg.idle.min_timeout)
@@ -1205,13 +1096,13 @@ bundle_ShowStatus(struct cmdargs const *arg)
     prompt_Printf(arg->prompt, "\n");
   } else
     prompt_Printf(arg->prompt, "disabled\n");
-  prompt_Printf(arg->prompt, " MTU:           ");
+  prompt_Printf(arg->prompt, " MTU:               ");
   if (arg->bundle->cfg.mtu)
     prompt_Printf(arg->prompt, "%d\n", arg->bundle->cfg.mtu);
   else
     prompt_Printf(arg->prompt, "unspecified\n");
 
-  prompt_Printf(arg->prompt, " sendpipe:      ");
+  prompt_Printf(arg->prompt, " sendpipe:          ");
   if (arg->bundle->ncp.ipcp.cfg.sendpipe > 0)
     prompt_Printf(arg->prompt, "%-20ld", arg->bundle->ncp.ipcp.cfg.sendpipe);
   else
@@ -1222,29 +1113,29 @@ bundle_ShowStatus(struct cmdargs const *arg)
   else
     prompt_Printf(arg->prompt, "unspecified\n");
 
-  prompt_Printf(arg->prompt, " Sticky Routes: %-20.20s",
+  prompt_Printf(arg->prompt, " Sticky Routes:     %-20.20s",
                 optval(arg->bundle, OPT_SROUTES));
-  prompt_Printf(arg->prompt, " Filter Decap:  %s\n",
+  prompt_Printf(arg->prompt, " Filter Decap:      %s\n",
                 optval(arg->bundle, OPT_FILTERDECAP));
-  prompt_Printf(arg->prompt, " ID check:      %-20.20s",
+  prompt_Printf(arg->prompt, " ID check:          %-20.20s",
                 optval(arg->bundle, OPT_IDCHECK));
-  prompt_Printf(arg->prompt, " Keep-Session:  %s\n",
+  prompt_Printf(arg->prompt, " Keep-Session:      %s\n",
                 optval(arg->bundle, OPT_KEEPSESSION));
-  prompt_Printf(arg->prompt, " Loopback:      %-20.20s",
+  prompt_Printf(arg->prompt, " Loopback:          %-20.20s",
                 optval(arg->bundle, OPT_LOOPBACK));
-  prompt_Printf(arg->prompt, " PasswdAuth:    %s\n",
+  prompt_Printf(arg->prompt, " PasswdAuth:        %s\n",
                 optval(arg->bundle, OPT_PASSWDAUTH));
-  prompt_Printf(arg->prompt, " Proxy:         %-20.20s",
+  prompt_Printf(arg->prompt, " Proxy:             %-20.20s",
                 optval(arg->bundle, OPT_PROXY));
-  prompt_Printf(arg->prompt, " Proxyall:      %s\n",
+  prompt_Printf(arg->prompt, " Proxyall:          %s\n",
                 optval(arg->bundle, OPT_PROXYALL));
-  prompt_Printf(arg->prompt, " TCPMSS Fixup:  %-20.20s",
+  prompt_Printf(arg->prompt, " TCPMSS Fixup:      %-20.20s",
                 optval(arg->bundle, OPT_TCPMSSFIXUP));
-  prompt_Printf(arg->prompt, " Throughput:    %s\n",
+  prompt_Printf(arg->prompt, " Throughput:        %s\n",
                 optval(arg->bundle, OPT_THROUGHPUT));
-  prompt_Printf(arg->prompt, " Utmp Logging:  %-20.20s",
+  prompt_Printf(arg->prompt, " Utmp Logging:      %-20.20s",
                 optval(arg->bundle, OPT_UTMP));
-  prompt_Printf(arg->prompt, " Iface-Alias:   %s\n",
+  prompt_Printf(arg->prompt, " Iface-Alias:       %s\n",
                 optval(arg->bundle, OPT_IFACEALIAS));
 
   return 0;
@@ -1968,6 +1859,8 @@ bundle_CalculateBandwidth(struct bundle *bundle)
 #endif
 
   tun_configure(bundle);
+
+  route_UpdateMTU(bundle);
 }
 
 void

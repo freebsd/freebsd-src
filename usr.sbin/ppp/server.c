@@ -26,7 +26,8 @@
  * $FreeBSD$
  */
 
-#include <sys/types.h>
+#include <sys/param.h>
+
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -142,7 +143,7 @@ server_Read(struct fdescriptor *d, struct bundle *bundle, const fd_set *fdset)
       switch (sa->sa_family) {
         case AF_LOCAL:
           p->src.type = "local";
-          strncpy(p->src.from, s->rm, sizeof p->src.from - 1);
+          strncpy(p->src.from, s->cfg.sockname, sizeof p->src.from - 1);
           p->src.from[sizeof p->src.from - 1] = '\0';
           break;
         case AF_INET:
@@ -184,70 +185,116 @@ struct server server = {
   -1
 };
 
-int
+enum server_stat
+server_Reopen(struct bundle *bundle)
+{
+  char name[sizeof server.cfg.sockname];
+  struct stat st;
+  u_short port;
+  mode_t mask;
+  enum server_stat ret;
+
+  if (server.cfg.sockname[0] != '\0') {
+    strcpy(name, server.cfg.sockname);
+    mask = server.cfg.mask;
+    server_Close(bundle);
+    if (server.cfg.sockname[0] != '\0' && stat(server.cfg.sockname, &st) == 0)
+      if (!(st.st_mode & S_IFSOCK) || unlink(server.cfg.sockname) != 0)
+        return SERVER_FAILED;
+    ret = server_LocalOpen(bundle, name, mask);
+  } else if (server.cfg.port != 0) {
+    port = server.cfg.port;
+    server_Close(bundle);
+    ret = server_TcpOpen(bundle, port);
+  } else
+    ret = SERVER_UNSET;
+
+  return ret;
+}
+
+enum server_stat
 server_LocalOpen(struct bundle *bundle, const char *name, mode_t mask)
 {
+  struct sockaddr_un ifsun;
+  mode_t oldmask;
   int s;
 
-  if (server.rm && !strcmp(server.rm, name)) {
-    if (chmod(server.rm, 0777 & ~mask))
-      log_Printf(LogERROR, "Local: chmod: %s\n", strerror(errno));
-    return 0;
-  }
+  oldmask = (mode_t)-1;		/* Silence compiler */
 
-  memset(&server.ifsun, '\0', sizeof server.ifsun);
-  server.ifsun.sun_len = strlen(name);
-  if (server.ifsun.sun_len > sizeof server.ifsun.sun_path - 1) {
+  if (server.cfg.sockname && !strcmp(server.cfg.sockname, name))
+    server_Close(bundle);
+
+  memset(&ifsun, '\0', sizeof ifsun);
+  ifsun.sun_len = strlen(name);
+  if (ifsun.sun_len > sizeof ifsun.sun_path - 1) {
     log_Printf(LogERROR, "Local: %s: Path too long\n", name);
-    return 2;
+    return SERVER_INVALID;
   }
-  server.ifsun.sun_family = AF_LOCAL;
-  strcpy(server.ifsun.sun_path, name);
+  ifsun.sun_family = AF_LOCAL;
+  strcpy(ifsun.sun_path, name);
 
-  s = ID0socket(PF_LOCAL, SOCK_STREAM, 0);
+  s = socket(PF_LOCAL, SOCK_STREAM, 0);
   if (s < 0) {
     log_Printf(LogERROR, "Local: socket: %s\n", strerror(errno));
-    return 3;
+    goto failed;
   }
   setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &s, sizeof s);
   if (mask != (mode_t)-1)
-    mask = umask(mask);
-  if (bind(s, (struct sockaddr *)&server.ifsun, sizeof server.ifsun) < 0) {
+    oldmask = umask(mask);
+  if (bind(s, (struct sockaddr *)&ifsun, sizeof ifsun) < 0) {
     if (mask != (mode_t)-1)
-      umask(mask);
+      umask(oldmask);
     log_Printf(LogWARN, "Local: bind: %s\n", strerror(errno));
     close(s);
-    return 4;
+    goto failed;
   }
   if (mask != (mode_t)-1)
-    umask(mask);
+    umask(oldmask);
   if (listen(s, 5) != 0) {
     log_Printf(LogERROR, "Local: Unable to listen to socket -"
                " BUNDLE overload?\n");
     close(s);
-    ID0unlink(name);
-    return 5;
+    unlink(name);
+    goto failed;
   }
   server_Close(bundle);
   server.fd = s;
-  server.rm = server.ifsun.sun_path;
+  server.cfg.port = 0;
+  strncpy(server.cfg.sockname, ifsun.sun_path, sizeof server.cfg.sockname - 1);
+  server.cfg.sockname[sizeof server.cfg.sockname - 1] = '\0';
+  server.cfg.mask = mask;
   log_Printf(LogPHASE, "Listening at local socket %s.\n", name);
-  return 0;
+
+  return SERVER_OK;
+
+failed:
+  if (server.fd == -1) {
+    server.fd = -1;
+    server.cfg.port = 0;
+    strncpy(server.cfg.sockname, ifsun.sun_path,
+            sizeof server.cfg.sockname - 1);
+    server.cfg.sockname[sizeof server.cfg.sockname - 1] = '\0';
+    server.cfg.mask = mask;
+  }
+  return SERVER_FAILED;
 }
 
-int
-server_TcpOpen(struct bundle *bundle, int port)
+enum server_stat
+server_TcpOpen(struct bundle *bundle, u_short port)
 {
   struct sockaddr_in ifsin;
   int s;
 
-  if (server.port == port)
-    return 0;
+  if (server.cfg.port == port)
+    server_Close(bundle);
 
-  s = ID0socket(PF_INET, SOCK_STREAM, 0);
+  if (port == 0)
+    return SERVER_INVALID;
+
+  s = socket(PF_INET, SOCK_STREAM, 0);
   if (s < 0) {
     log_Printf(LogERROR, "Tcp: socket: %s\n", strerror(errno));
-    return 7;
+    goto failed;
   }
   memset(&ifsin, '\0', sizeof ifsin);
   ifsin.sin_family = AF_INET;
@@ -257,40 +304,66 @@ server_TcpOpen(struct bundle *bundle, int port)
   if (bind(s, (struct sockaddr *)&ifsin, sizeof ifsin) < 0) {
     log_Printf(LogWARN, "Tcp: bind: %s\n", strerror(errno));
     close(s);
-    return 8;
+    goto failed;
   }
   if (listen(s, 5) != 0) {
     log_Printf(LogERROR, "Tcp: Unable to listen to socket: %s\n",
                strerror(errno));
     close(s);
-    return 9;
+    goto failed;
   }
   server_Close(bundle);
   server.fd = s;
-  server.port = port;
+  server.cfg.port = port;
+  *server.cfg.sockname = '\0';
+  server.cfg.mask = 0;
   log_Printf(LogPHASE, "Listening at port %d.\n", port);
-  return 0;
+  return SERVER_OK;
+
+failed:
+  if (server.fd == -1) {
+    server.fd = -1;
+    server.cfg.port = port;
+    *server.cfg.sockname = '\0';
+    server.cfg.mask = 0;
+  }
+  return SERVER_FAILED;
 }
 
 int
 server_Close(struct bundle *bundle)
 {
   if (server.fd >= 0) {
-    if (server.rm) {
+    if (*server.cfg.sockname != '\0') {
       struct sockaddr_un un;
       int sz = sizeof un;
 
       if (getsockname(server.fd, (struct sockaddr *)&un, &sz) == 0 &&
           un.sun_family == AF_LOCAL && sz == sizeof un)
-        ID0unlink(un.sun_path);
-      server.rm = NULL;
+        unlink(un.sun_path);
     }
     close(server.fd);
     server.fd = -1;
-    server.port = 0;
     /* Drop associated prompts */
     log_DestroyPrompts(&server);
+
     return 1;
   }
+
   return 0;
+}
+
+int
+server_Clear(struct bundle *bundle)
+{
+  int ret;
+
+  ret = server_Close(bundle);
+
+  server.fd = -1;
+  server.cfg.port = 0;
+  *server.cfg.sockname = '\0';
+  server.cfg.mask = 0;
+
+  return ret;
 }

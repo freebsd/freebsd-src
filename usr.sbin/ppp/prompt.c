@@ -109,7 +109,7 @@ prompt_Display(struct prompt *p)
   if (*shostname == '\0') {
     char *dot;
 
-    if (gethostname(shostname, sizeof shostname))
+    if (gethostname(shostname, sizeof shostname) || *shostname == '\0')
       strcpy(shostname, "localhost");
     else if ((dot = strchr(shostname, '.')))
       *dot = '\0';
@@ -330,7 +330,7 @@ prompt_Create(struct server *s, struct bundle *bundle, int fd)
       p->fd_in = p->fd_out = fd;
       p->Term = fdopen(fd, "a+");
       p->owner = s;
-      p->auth = *s->passwd ? LOCAL_NO_AUTH : LOCAL_AUTH;
+      p->auth = *s->cfg.passwd ? LOCAL_NO_AUTH : LOCAL_AUTH;
       p->src.type = "unknown";
       *p->src.from = '\0';
     }
@@ -518,7 +518,7 @@ PasswdCommand(struct cmdargs const *arg)
   else
     pass = arg->argv[arg->argn];
 
-  if (!strcmp(arg->prompt->owner->passwd, pass))
+  if (!strcmp(arg->prompt->owner->cfg.passwd, pass))
     arg->prompt->auth = LOCAL_AUTH;
   else
     arg->prompt->auth = LOCAL_NO_AUTH;

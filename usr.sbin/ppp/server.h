@@ -31,12 +31,22 @@ struct bundle;
 struct server {
   struct fdescriptor desc;
   int fd;
-  char passwd[50];
 
-  struct sockaddr_un ifsun;	/* local socket */
-  char *rm;			/* Points to local socket path */
+  struct {
+    char passwd[50];
 
-  u_short port;			/* tcp socket */
+    char sockname[PATH_MAX];		/* Points to local socket path */
+    mode_t mask;
+
+    u_short port;			/* tcp socket */
+  } cfg;
+};
+
+enum server_stat {
+  SERVER_OK,				/* Diagnostic socket available */
+  SERVER_INVALID,			/* Bad args, can't be set up */
+  SERVER_FAILED,			/* Failed - lack of resources */
+  SERVER_UNSET				/* Not already set up */
 };
 
 #define descriptor2server(d) \
@@ -44,6 +54,8 @@ struct server {
 
 extern struct server server;
 
-extern int server_LocalOpen(struct bundle *, const char *, mode_t);
-extern int server_TcpOpen(struct bundle *, int);
+extern enum server_stat server_LocalOpen(struct bundle *, const char *, mode_t);
+extern enum server_stat server_TcpOpen(struct bundle *, u_short);
+extern enum server_stat server_Reopen(struct bundle *);
 extern int server_Close(struct bundle *);
+extern int server_Clear(struct bundle *);

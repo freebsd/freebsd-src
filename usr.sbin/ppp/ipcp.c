@@ -29,6 +29,7 @@
 #include <netinet/ip.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
+#include <net/if.h>
 #include <net/route.h>
 #include <netdb.h>
 #include <sys/un.h>
@@ -744,7 +745,7 @@ static int
 ipcp_SetIPaddress(struct bundle *bundle, struct in_addr myaddr,
                   struct in_addr hisaddr, int silent)
 {
-  struct in_addr mask, oaddr, none = { INADDR_ANY };
+  struct in_addr mask, oaddr;
 
   mask = addr2mask(myaddr);
 
@@ -764,7 +765,7 @@ ipcp_SetIPaddress(struct bundle *bundle, struct in_addr myaddr,
     iface_inDelete(bundle->iface, oaddr);
 
   if (bundle->ncp.ipcp.cfg.sendpipe > 0 || bundle->ncp.ipcp.cfg.recvpipe > 0)
-    bundle_SetRoute(bundle, RTM_CHANGE, hisaddr, myaddr, none, 0, 0);
+    rt_Update(bundle, hisaddr, myaddr);
 
   if (Enabled(bundle, OPT_SROUTES))
     route_Change(bundle, bundle->ncp.ipcp.route, myaddr, hisaddr,
@@ -989,6 +990,12 @@ ipcp_InterfaceUp(struct ipcp *ipcp)
 {
   if (ipcp_SetIPaddress(ipcp->fsm.bundle, ipcp->my_ip, ipcp->peer_ip, 0) < 0) {
     log_Printf(LogERROR, "ipcp_InterfaceUp: unable to set ip address\n");
+    return 0;
+  }
+
+  if (!iface_SetFlags(ipcp->fsm.bundle->iface->name, IFF_UP)) {
+    log_Printf(LogERROR, "ipcp_InterfaceUp: Can't set the IFF_UP flag on %s\n",
+               ipcp->fsm.bundle->iface->name);
     return 0;
   }
 
