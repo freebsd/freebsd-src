@@ -317,7 +317,7 @@ display_srvtab(char *file)
 	printf("%-15s %-15s %-15s %d\n",serv,inst,rlm,vno);
     }
     if (count < 0)
-	warn(file);
+	warn("%s", file);
     close(stab);
 }
 
