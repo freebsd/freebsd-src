@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.183 1995/05/26 21:55:25 jkh Exp $
+#	$Id: Makefile,v 1.184 1995/05/26 23:08:33 jkh Exp $
 #
 # How to roll a release:
 #
@@ -22,7 +22,7 @@ EXPORT_DISTS=	games manpages proflibs dict info
 EXTRA_DISTS=	des ${EXPORT_DISTS}
 ALL_DISTS=	bin ${EXTRA_DISTS}
 
-ROOT1=	etc/services etc/protocols etc/sysconfig
+BOOT1=	etc/services etc/protocols etc/sysconfig
 
 FAQS=	README MIRROR.SITES
 
@@ -327,6 +327,7 @@ release.8: write_mfs_in_kernel
 		*[sw]d* cuaa[01] fd[01] rfd[01] \
 		cd0a mcd0a scd0a matcd0a rst0 ft0 rwt0 | \
 	cpio -dump ${RD}/mfsfd/dev )
+	cd ${RD}/trees/bin ; ls ${BOOT1} | cpio -dump ${RD}/mfsfd/stand
 	tar --exclude CVS -cf - -C ${.CURDIR}/sysinstall help | \
 		tar xvf - -C ${RD}/mfsfd/stand
 	install -c ${.CURDIR}/../COPYRIGHT ${RD}/mfsfd/stand/help/en_US.ISO8859-1/COPYRIGHT
@@ -365,7 +366,6 @@ release.9:
 	ln -f ${RD}/kernels/GENERIC ${RD}/rootfd/kernel
 	@cd ${.CURDIR} ; $(MAKE) installCRUNCH CRUNCH=root \
 		DIR=${RD}/rootfd/stand ZIP=false
-	cd ${RD}/trees/bin ; ls ${ROOT1} | cpio -dump ${RD}/rootfd/stand
 	tar --exclude CVS -cf - -C ${RD} info | tar xvf - -C ${RD}/rootfd/stand
 	cd ${RD}/rootfd ; ( rm -f OK ; find . -print ; touch OK ; echo OK ) | cpio -H tar -oa | gzip -9 -c | dd conv=osync > ${RD}/floppies/root.tmp
 	mv ${RD}/floppies/root.tmp ${RD}/floppies/root.flp
