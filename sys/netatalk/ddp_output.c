@@ -199,7 +199,7 @@ ddp_route( struct mbuf *m, struct route *ro)
      */
     if ( !(aa->aa_flags & AFA_PHASE2) ) {
 	MGET( m0, M_TRYWAIT, MT_HEADER );
-	if ( m0 == 0 ) {
+	if ( m0 == NULL ) {
 	    m_freem( m );
 	    printf("ddp_route: no buffers\n");
 	    return( ENOBUFS );

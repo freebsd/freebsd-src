@@ -50,7 +50,7 @@ at_control(struct socket *so, u_long cmd, caddr_t data,
     struct netrange	*nr;
     struct at_aliasreq	*ifra = (struct at_aliasreq *)data;
     struct at_ifaddr	*aa0;
-    struct at_ifaddr	*aa = 0;
+    struct at_ifaddr	*aa = NULL;
     struct ifaddr	*ifa, *ifa0;
 
     /*
@@ -90,7 +90,7 @@ at_control(struct socket *so, u_long cmd, caddr_t data,
 	 * If we a retrying to delete an addres but didn't find such,
 	 * then rewurn with an error
 	 */
-	if ( cmd == SIOCDIFADDR && aa == 0 ) {
+	if ( cmd == SIOCDIFADDR && aa == NULL ) {
 	    return( EADDRNOTAVAIL );
 	}
 	/*FALLTHROUGH*/
@@ -130,14 +130,14 @@ at_control(struct socket *so, u_long cmd, caddr_t data,
 	    }
 	}
 
-	if ( ifp == 0 )
+	if ( ifp == NULL )
 	    panic( "at_control" );
 
 	/*
 	 * If we failed to find an existing at_ifaddr entry, then we 
 	 * allocate a fresh one. 
 	 */
-	if ( aa == (struct at_ifaddr *) 0 ) {
+	if ( aa == NULL ) {
 	    aa0 = malloc(sizeof(struct at_ifaddr), M_IFADDR, M_WAITOK | M_ZERO);
 	    if (( aa = at_ifaddr ) != NULL ) {
 		/*
@@ -224,7 +224,7 @@ at_control(struct socket *so, u_long cmd, caddr_t data,
 	    }
 	}
 
-	if ( aa == (struct at_ifaddr *) 0 )
+	if ( aa == NULL )
 	    return( EADDRNOTAVAIL );
 	break;
     }
@@ -301,7 +301,7 @@ at_control(struct socket *so, u_long cmd, caddr_t data,
 	break;
 
     default:
-	if ( ifp == 0 || ifp->if_ioctl == 0 )
+	if ( ifp == NULL || ifp->if_ioctl == NULL )
 	    return( EOPNOTSUPP );
 	return( (*ifp->if_ioctl)( ifp, cmd, data ));
     }
