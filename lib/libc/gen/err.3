@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	From: @(#)err.3	8.1 (Berkeley) 6/9/93
-.\"	$Id$
+.\"	$Id: err.3,v 1.6 1997/02/22 14:58:02 peter Exp $
 .\"
 .Dd April 13, 1995
 .Dt ERR 3
@@ -52,23 +52,24 @@
 .Ft void
 .Fn err "int eval" "const char *fmt" "..."
 .Ft void
-.Fn verr "int eval" "const char *fmt" "va_list args"
-.Ft void
 .Fn errx "int eval" "const char *fmt" "..."
-.Ft void
-.Fn verrx "int eval" "const char *fmt" "va_list args"
 .Ft void
 .Fn warn "const char *fmt" "..."
 .Ft void
-.Fn vwarn "const char *fmt" "va_list args"
-.Ft void
 .Fn warnx "const char *fmt" "..."
-.Ft void
-.Fn vwarnx "const char *fmt" "va_list args"
 .Ft void
 .Fn err_set_file "void *fp"
 .Ft void
 .Fn err_set_exit "void (*exitf)(int)"
+.Fd #include <stdarg.h>
+.Ft void
+.Fn verr "int eval" "const char *fmt" "va_list args"
+.Ft void
+.Fn verrx "int eval" "const char *fmt" "va_list args"
+.Ft void
+.Fn vwarn "const char *fmt" "va_list args"
+.Ft void
+.Fn vwarnx "const char *fmt" "va_list args"
 .Sh DESCRIPTION
 The
 .Fn err
