@@ -594,7 +594,7 @@ _ftp_connect(char *host, int port, char *user, char *pwd, char *flags)
 	af = AF_INET6;
 
     /* check for proxy */
-    if (!direct && (p = getenv("FTP_PROXY")) != NULL) {
+    if (!direct && (p = getenv("FTP_PROXY")) != NULL && *p) {
 	char c = 0;
 
 #ifdef INET6
@@ -651,8 +651,12 @@ _ftp_connect(char *host, int port, char *user, char *pwd, char *flags)
     /* send user name and password */
     if (!user || !*user)
 	user = FTP_ANONYMOUS_USER;
-    e = p ? _ftp_cmd(cd, "USER %s@%s@%d", user, host, port)
-	  : _ftp_cmd(cd, "USER %s", user);
+    if (p && port == FTP_DEFAULT_PORT)
+	e = _ftp_cmd(cd, "USER %s@%s", user, host);
+    else if (p)
+	e = _ftp_cmd(cd, "USER %s@%s@%d", user, host, port);
+    else
+	e = _ftp_cmd(cd, "USER %s", user);
     
     /* did the server request a password? */
     if (e == FTP_NEED_PASSWORD) {
@@ -759,12 +763,26 @@ _ftp_cached_connect(struct url *url, char *flags)
 }
 
 /*
+ * Check to see if we should use an HTTP proxy instead
+ */
+static int
+_ftp_use_http_proxy(void)
+{
+    char *p;
+
+    return ((p = getenv("HTTP_PROXY")) && *p && !getenv("FTP_PROXY"));
+}
+
+/*
  * Get and stat file
  */
 FILE *
 fetchXGetFTP(struct url *url, struct url_stat *us, char *flags)
 {
     int cd;
+
+    if (_ftp_use_http_proxy())
+	return fetchXGetHTTP(url, us, flags);
     
     /* connect to server */
     if ((cd = _ftp_cached_connect(url, flags)) == NULL)
@@ -800,6 +818,9 @@ fetchPutFTP(struct url *url, char *flags)
 {
     int cd;
 
+    if (_ftp_use_http_proxy())
+	return fetchPutHTTP(url, flags);
+    
     /* connect to server */
     if ((cd = _ftp_cached_connect(url, flags)) == NULL)
 	return NULL;
@@ -821,6 +842,9 @@ fetchStatFTP(struct url *url, struct url_stat *us, char *flags)
 {
     int cd;
 
+    if (_ftp_use_http_proxy())
+	return fetchStatHTTP(url, us, flags);
+    
     us->size = -1;
     us->atime = us->mtime = 0;
     
@@ -843,6 +867,9 @@ extern void warnx(char *, ...);
 struct url_ent *
 fetchListFTP(struct url *url, char *flags)
 {
+    if (_ftp_use_http_proxy())
+	return fetchListHTTP(url, flags);
+    
     warnx("fetchListFTP(): not implemented");
     return NULL;
 }

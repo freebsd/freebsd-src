@@ -80,9 +80,6 @@ fetchXGet(struct url *URL, struct url_stat *us, char *flags)
     else if (strcasecmp(URL->scheme, "http") == 0)
 	return fetchXGetHTTP(URL, us, flags);
     else if (strcasecmp(URL->scheme, "ftp") == 0) {
-	if (!direct &&
-	    getenv("FTP_PROXY") == NULL && getenv("HTTP_PROXY") != NULL)
-	    return fetchXGetHTTP(URL, us, flags);
 	return fetchXGetFTP(URL, us, flags);
     } else {
 	_url_seterr(URL_BAD_SCHEME);
@@ -115,9 +112,6 @@ fetchPut(struct url *URL, char *flags)
     else if (strcasecmp(URL->scheme, "http") == 0)
 	return fetchPutHTTP(URL, flags);
     else if (strcasecmp(URL->scheme, "ftp") == 0) {
-	if (!direct &&
-	    getenv("FTP_PROXY") == NULL && getenv("HTTP_PROXY") != NULL)
-	    return fetchPutHTTP(URL, flags);
 	return fetchPutFTP(URL, flags);
     } else {
 	_url_seterr(URL_BAD_SCHEME);
@@ -140,9 +134,6 @@ fetchStat(struct url *URL, struct url_stat *us, char *flags)
     else if (strcasecmp(URL->scheme, "http") == 0)
 	return fetchStatHTTP(URL, us, flags);
     else if (strcasecmp(URL->scheme, "ftp") == 0) {
-	if (!direct &&
-	    getenv("FTP_PROXY") == NULL && getenv("HTTP_PROXY") != NULL)
-	    return fetchStatHTTP(URL, us, flags);
 	return fetchStatFTP(URL, us, flags);
     } else {
 	_url_seterr(URL_BAD_SCHEME);
@@ -165,9 +156,6 @@ fetchList(struct url *URL, char *flags)
     else if (strcasecmp(URL->scheme, "http") == 0)
 	return fetchListHTTP(URL, flags);
     else if (strcasecmp(URL->scheme, "ftp") == 0) {
-	if (!direct &&
-	    getenv("FTP_PROXY") == NULL && getenv("HTTP_PROXY") != NULL)
-	    return fetchListHTTP(URL, flags);
 	return fetchListFTP(URL, flags);
     } else {
 	_url_seterr(URL_BAD_SCHEME);

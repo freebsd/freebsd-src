@@ -145,9 +145,6 @@ Try this flag if
 seems to hang when retrieving FTP URLs.
 .It Fl q
 Quiet mode.
-This works by setting the verbosity level to zero; see the
-.Fl v
-option.
 .It Fl R
 The output files are precious, and should not be deleted under any
 circumstances, even if the transfer failed or was incomplete.
@@ -175,13 +172,7 @@ for FTP transfers or
 .Ev HTTP_TIMEOUT 
 for HTTP transfers if set.
 .It Fl v
-Each instance of this flag increases the verbosity level by one.
-Level one (the default) only gives a summary after each file; level
-two show a running count during the transfer, provided that the
-standard output goes to a terminal; level three enables messages from
-the
-.Xr fetch 3
-library.
+Increase verbosity level.
 .It Fl w Ar seconds
 When the
 .Fl a
