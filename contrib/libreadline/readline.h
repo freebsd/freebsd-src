@@ -143,12 +143,6 @@ extern char *readline ();
    If KEY is not -1, then bind it. */
 extern int rl_add_defun ();
 
-extern Keymap rl_make_bare_keymap ();
-extern Keymap rl_copy_keymap ();
-extern Keymap rl_make_keymap ();
-extern void rl_discard_keymap ();
-extern Keymap rl_get_keymap (), rl_get_keymap_by_name ();
-extern void rl_set_keymap ();
 extern char *rl_get_keymap_name ();
 
 extern int rl_bind_key (), rl_bind_key_in_map ();
