@@ -201,6 +201,9 @@ long	unusedmem;		/* amount of memory for OS that we don't use */
 long	unknownmem;		/* amount of memory with an unknown use */
 int	ncpus;			/* number of cpus */
 
+int	promcons_dly_mkdev = 1;	/* need to delay call to make_dev() */
+void	promcons_delayed_makedev(void);
+
 vm_offset_t phys_avail[10];
 
 /* must be 2 less so 0 0 can signal end of chunks */
@@ -887,6 +890,14 @@ alpha_init(pfn, ptb, bim, bip, biv)
 		thread0.td_md.md_kernnest = 1;
 #endif
 	}
+
+	/*
+	 * Check to see if promcons needs to make_dev() now,
+	 * doing it before now crashes with kernel stack issues.
+	 */
+	if (promcons_dly_mkdev > 1)
+		promcons_delayed_makedev();
+	promcons_dly_mkdev = 0;
 
 	/*
 	 * Initialize the virtual memory system, and set the
