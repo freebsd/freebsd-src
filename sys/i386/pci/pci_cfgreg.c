@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcibus.c,v 1.8 1995/03/22 21:35:39 se Exp $
+**  $Id: pcibus.c,v 1.9 1995/06/28 15:54:57 se Exp $
 **
 **  pci bus subroutines for i386 architecture.
 **
@@ -164,7 +164,7 @@ pcibus_setup (void)
 	result = inl (CONF1_ADDR_PORT);
 	outl (CONF1_ADDR_PORT, oldval);
 
-	if (result == CONF1_ENABLE) {
+	if (result & CONF1_ENABLE) {
 		pci_mechanism = 1;
 		pci_maxdevice = 32;
 		return;
