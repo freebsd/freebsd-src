@@ -35,8 +35,7 @@
 .Os FreeBSD
 .Sh NAME
 .Nm npx
-.Nd
-Numeric Processing Extension coprocessor and emulator
+.Nd Numeric Processing Extension coprocessor and emulator
 .Sh SYNOPSIS
 .Cd "options MATH_EMULATE"
 .\" XXX this is awful hackery to get it to work right... -- cgd
@@ -48,11 +47,11 @@ driver enables the use of the system's Numeric Processing Extension
 coprocessor,
 if one is present.  Numeric processing extensions are present in
 systems with
-.Nm 486DX
+.Sy 486DX
 CPUs and in systems with
-.Nm 387
+.Sy 387
 or
-.Nm 487SX
+.Sy 487SX
 coprocessors.  The
 .Nm npx
 driver is required for proper system functioning regardless

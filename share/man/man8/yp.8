@@ -79,7 +79,7 @@ specified in
 .Pp
 NIS is an RPC-based client/server system that allows a group of
 machines within an NIS
-.Nm domain
+.Em domain
 to share a common set of configuration files. This permits a system
 administrator to set up NIS client systems with only minimal configuration
 data and add, remove or modify configuration data from a single location.
@@ -107,9 +107,9 @@ their NIS implementation on ndbm, and other vendors have simply licensed
 Sun's code rather than design their own implementation with a different
 database format). On these systems, the databases are generally split
 into
-.Nm .dir
+.Em .dir
 and
-.Nm .pag
+.Em .pag
 files which the ndbm code uses to hold separate parts of the hash
 database. The Berkeley DB hash method instead uses a single file for
 both pieces of information. This means that while you may have
@@ -227,7 +227,7 @@ command. The NIS Makefile (
 .Pa /var/yp/Makefile )
 will do this automatically if the administrator comments out the
 line which says
-.Nm NOPUSH=true
+.Em NOPUSH=true
 (NOPUSH is set to true by default because the default configuration is
 for a small network with only one NIS server). The
 .Xr yppush 8
@@ -347,7 +347,7 @@ and flags.)
 .Sh BUGS
 While FreeBSD now has both NIS client and server capabilities,
 it does not yet have support for
-.Nm ypupdated
+.Xr ypupdated 8
 or the
 .Fn yp_update
 function. Both of these require secure RPC, which FreeBSD doesn't

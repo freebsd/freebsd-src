@@ -54,10 +54,9 @@ bandwidth is usable with 486DX processors.
 The standard FreeBSD sppp code is used for the link level layer. The
 default protocol used is PPP. The Cisco HDLC protocol can be used by
 adding
-.Nm link2
+.Ar link2
 to
-.Nm ifconfig.
-.Pp
+.Xr ifconfig 8 .
 .Sh NUMBERING
 Only one line for each card is needed in the kernel configuration file.
 The first card's ports will be installed from ar0. The numbering of the

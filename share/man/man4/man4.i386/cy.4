@@ -42,8 +42,7 @@
 .Os FreeBSD
 .Sh NAME
 .Nm cy
-.Nd
-Cyclades Cyclom-8Y and Cyclom-16Y serial driver
+.Nd Cyclades Cyclom-8Y and Cyclom-16Y serial driver
 .Sh SYNOPSIS
 .Cd "device cy0 at isa? tty irq 10 iomem 0xd4000 iosiz 0x2000 vector cyintr
 .Cd "device cy1 at isa? tty irq 11 iomem 0xd6000 iosiz 0x2000 vector cyintr
@@ -122,7 +121,7 @@ initial termios states suitable for your setup.
 The lock termios state acts as flags to disable changing
 the termios state.  E.g., to lock a flag variable such as
 CRTSCTS, use
-.Nm stty crtscts
+.Em "stty crtscts"
 on the lock-state device.  Speeds and special characters
 may be locked by setting the corresponding value in the lock-state
 device to any nonzero value.
