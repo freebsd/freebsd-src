@@ -106,6 +106,8 @@ struct pcap {
 	struct bpf_program fcode;
 
 	char errbuf[PCAP_ERRBUF_SIZE];
+	int dlt_count;
+	int *dlt_list;
 };
 
 /*

@@ -84,6 +84,8 @@ u_char *pcap_next(pcap_t *p, struct pcap_pkthdr *h)
 .LP
 .ft B
 int pcap_datalink(pcap_t *p)
+int pcap_list_datalinks(pcap_t *p, int **dlt_buf);
+int pcap_set_datalink(pcap_t *p, int dlt);
 int pcap_snapshot(pcap_t *p)
 int pcap_is_swapped(pcap_t *p)
 int pcap_major_version(pcap_t *p)
@@ -664,6 +666,34 @@ header or 4 for frames beginning with an 802.2 LLC header.
 .B DLT_LTALK
 Apple LocalTalk; the packet begins with an AppleTalk LLAP header
 .RE
+.PP
+.B pcap_list_datalinks()
+is used to get a list of the supported data link types of the interface
+associated with the pcap descriptor.
+.B pcap_list_datalinks()
+allocates an array to hold the list and sets
+.IR *dlt_buf .
+The caller is responsible for freeing the array.
+.B \-1
+is returned on failure;
+otherwise, the number of data link types in the array is returned.
+.PP
+.B pcap_set_datalink()
+is used to set the current data link type of the pcap descriptor
+to the type specified by
+.IR dlt .
+.B \-1
+is returned on failure.
+.PP
+.B pcap_datalink_name_to_val()
+translates a data link type name, which is a
+.B DLT_
+name with the
+.B DLT_
+removed, to the corresponding data link type value.  The translation
+is case-insensitive.  
+is used to set the current data link type of the pcap descriptor
+NULL is returned on failure.
 .PP
 .B pcap_snapshot()
 returns the snapshot length specified when
