@@ -17,7 +17,7 @@
 .\" 5. Modifications may be freely made to this file providing the above
 .\"    conditions are met.
 .\"
-.\" $Id: setproctitle.3,v 1.2 1996/01/01 08:27:41 peter Exp $
+.\" $Id: setproctitle.3,v 1.3 1996/01/30 18:13:11 mpp Exp $
 .\"
 .\" The following requests are required for all man pages.
 .Dd December 16, 1995
@@ -28,8 +28,7 @@
 .Nd set the process title for
 .Xr ps 1
 .Sh SYNOPSIS
-#include <libutil.h>
-.Pp
+.Fd #include <libutil.h>
 .Ft void
 .Fn setproctitle "const char *fmt" "..."
 .Pp
@@ -95,17 +94,19 @@ the predominant convention.
 .Pp
 It is thought that the implementation is compatible with other systems,
 including
-.Nm NetBSD
+.Tn NetBSD
 and
-.Nm BSD/OS .
+.Tn BSD/OS .
 .Sh HISTORY
 .Nm setproctitle
-first appeared in FreeBSD at version 2.2.  Other operating systems have
+first appeared in
+.Fx 2.2 .
+Other operating systems have
 similar functions.
 .Sh AUTHORS
-.Nm Peter Wemm <peter@FreeBSD.org>
+.Sy "Peter Wemm <peter@FreeBSD.org>"
 stole the idea from the
-.Nm Sendmail 8.7.3
+.Sy "Sendmail 8.7.3"
 source code by
-.Nm Eric Allman <eric@sendmail.org> .
+.Sy "Eric Allman <eric@sendmail.org>" .
 .\" .Sh BUGS
