@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.138 1995/04/19 01:19:57 phk Exp $
+#	$Id: Makefile,v 1.139 1995/04/19 17:42:32 phk Exp $
 #
 # How to roll a release:
 #
@@ -137,7 +137,7 @@ release.3:
 	@cd ${.CURDIR} && $(MAKE) ckRELEASEDIR
 	cd ${.CURDIR}/../sys/i386/conf && \
 		sed 's/GENERIC/BOOTCDROM/g' GENERIC > BOOTCDROM
-	for i in GENERIC BOOTFLP BOOTCDROM ; do \
+	for i in GENERIC BOOTCDROM ; do \
 		cd ${.CURDIR}/../sys/i386/conf && \
 			config $$i && \
 		cd ${.CURDIR}/../sys/compile/$$i && \
@@ -147,11 +147,11 @@ release.3:
 		rm -rf ${.CURDIR}/../sys/compile/$$i ; \
 	done
 	rm -f ${.CURDIR}/../sys/i386/conf/BOOTCDROM
-	cd ${RD}/kernels && kzip BOOTFLP
+	cd ${RD}/kernels && kzip GENERIC
 	ln -f ${RD}/kernels/GENERIC ${RD}/trees/bin/kernel.GENERIC
 	ln -f ${RD}/kernels/GENERIC ${RD}/cpiofd/kernel
-	ln -f ${RD}/kernels/BOOTFLP.kz ${RD}/bootfd/kernel
-	ln -f ${RD}/kernels/BOOTFLP.kz ${RD}/fixitfd/kernel
+	ln -f ${RD}/kernels/GENERIC.kz ${RD}/bootfd/kernel
+	ln -f ${RD}/kernels/GENERIC.kz ${RD}/fixitfd/kernel
 	touch release.3
 
 # Make and install the three crunched binaries which live on the floppies.
