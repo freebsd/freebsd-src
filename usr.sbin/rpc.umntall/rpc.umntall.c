@@ -54,8 +54,6 @@ static int is_mounted (char *, char *);
 static void usage (void);
 int	xdr_dir (XDR *, char *);
 
-struct mtablist *mtabhead;
-
 int
 main(int argc, char **argv) {
 	int ch, keep, success, pathlen;
@@ -100,7 +98,7 @@ main(int argc, char **argv) {
 	time(&now);
 
 	/* Read PATH_MOUNTTAB. */
-	if (!read_mtab(NULL)) {
+	if (!read_mtab()) {
 		if (verbose)
 			warnx("no mounttab entries (%s does not exist)",
 			    PATH_MOUNTTAB);
@@ -133,7 +131,8 @@ main(int argc, char **argv) {
 					warnx("umount RPC for %s:%s succeeded",
 					    mtab->mtab_host, mtab->mtab_dirp);
 				/* Remove all entries for this host + path. */
-				clean_mtab(mtab->mtab_host, mtab->mtab_dirp);
+				clean_mtab(mtab->mtab_host, mtab->mtab_dirp,
+				    verbose);
 			}
 		}
 		success = 1;
@@ -158,11 +157,11 @@ main(int argc, char **argv) {
 		}
 		/* If successful, remove any corresponding mounttab entries. */
 		if (success)
-			clean_mtab(host, path);
+			clean_mtab(host, path, verbose);
 	}
 	/* Write and unlink PATH_MOUNTTAB if necessary */
 	if (success)
-		success = write_mtab();
+		success = write_mtab(verbose);
 	free_mtab();
 	exit (success ? 0 : 1);
 }
