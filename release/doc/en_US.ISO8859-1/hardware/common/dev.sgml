@@ -536,37 +536,15 @@
 
     <para arch="i386">Promise SuperTrak ATA RAID controllers (&man.pst.4;
     driver)
-      <itemizedlist>
-	<listitem>
-	  <para>Promise SuperTrak SX6000 ATA RAID controller</para>
-	</listitem>
-      </itemizedlist>
     </para>
 
     <para arch="i386">IBM / Adaptec ServeRAID series (ips driver)</para>
 
     <para arch="i386,alpha,pc98,sparc64,ia64">LSI Logic Fusion/MP
-	architecture Fiber Channel controllers (mpt driver)
-      <itemizedlist>
-	<listitem arch="i386,alpha,pc98,sparc64">
-	  <para>LSI FC909, FC929</para>
-	</listitem>
-	<listitem>
-	  <para>LSI 53c1020, 53c1030</para>
-	</listitem>
-      </itemizedlist>
-    </para>
+	architecture Fiber Channel controllers (&man.mpt.4; driver)</para>
 
     <para arch="i386">PCI SCSI host adapters using the Tekram
 	TRM-S1040 SCSI chipset (&man.trm.4; driver)
-      <itemizedlist>
-	<listitem>
-	  <para>Tekram DC395U/UW/U2W/F</para>
-	</listitem>
-	<listitem>
-	  <para>Tekram DC315U</para>
-	</listitem>
-      </itemizedlist>
     </para>
 
     <para>With all supported SCSI controllers, full support is
@@ -2285,7 +2263,7 @@
 	  <para>Diamond Rio 500, 600, and 800 MP3 players (&man.urio.4; driver)</para>
 	</listitem>
 	<listitem>
-	  <para>D-Link DSB-R100 USB Radio (ufm driver)</para>
+	  <para>D-Link DSB-R100 USB Radio (&man.ufm.4; driver)</para>
 	</listitem>
         <listitem>
 	  <para>Mirunet AlphaCam Plus</para>
