@@ -30,11 +30,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: modes.c,v 1.2 1994/09/24 02:58:59 davidg Exp $
+ *	$Id: modes.c,v 1.3 1995/04/29 15:17:17 bde Exp $
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)modes.c	8.3 (Berkeley) 4/2/94";
+static char const sccsid[] = "@(#)modes.c	8.3 (Berkeley) 4/2/94";
 #endif /* not lint */
 
 #include <sys/types.h>
