@@ -3737,8 +3737,6 @@ tulip_tx_intr(
 		    TULIP_TXMAP_POSTSYNC(sc, map);
 		    sc->tulip_txmaps[sc->tulip_txmaps_free++] = map;
 #endif /* TULIP_BUS_DMA */
-		    if (sc->tulip_if.if_bpf != NULL)
-			bpf_mtap(&sc->tulip_if, m);
 		    m_freem(m);
 #if defined(TULIP_DEBUG)
 		} else {
@@ -4362,6 +4360,12 @@ tulip_txput(
 	}
     } while ((m0 = m0->m_next) != NULL);
 #endif /* TULIP_BUS_DMA */
+
+    /*
+     * bounce a copy to the bpf listener, if any.
+     */
+    if (sc->tulip_if.if_bpf != NULL)
+	bpf_mtap(&sc->tulip_if, m);
 
     /*
      * The descriptors have been filled in.  Now get ready
