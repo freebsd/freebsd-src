@@ -469,8 +469,24 @@ object_headers *headers;
 	/* JF deal with forward references first... */
 	for (symbolP = symbol_rootP; symbolP; symbolP = symbol_next(symbolP)) {
 		if (symbolP->sy_forward && symbolP->sy_forward != symbolP) {
-			S_SET_SEGMENT(symbolP,
-				      S_GET_SEGMENT(symbolP->sy_forward));
+			switch (S_GET_TYPE(symbolP)) {
+
+			case N_SETA:
+			case N_SETT:
+			case N_SETD:
+			case N_SETB:
+				/*
+				 * Don't change the segments of SET symbols,
+				 * because that would turn them into regular
+				 * symbols.
+				 */
+				break;
+
+			default:
+				S_SET_SEGMENT(symbolP,
+				    S_GET_SEGMENT(symbolP->sy_forward));
+				break;
+			}
 			S_SET_VALUE(symbolP, S_GET_VALUE(symbolP)
 				    + S_GET_VALUE(symbolP->sy_forward)
 				    + symbolP->sy_forward->sy_frag->fr_address);
