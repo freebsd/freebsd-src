@@ -1,4 +1,4 @@
-static const char rcsid[] = "$Header: /proj/cvs/isc/bind8/src/lib/dst/support.c,v 1.9 2001/04/05 22:00:06 bwelling Exp $";
+static const char rcsid[] = "$Header: /proj/cvs/isc/bind8/src/lib/dst/support.c,v 1.9.2.1 2001/06/06 21:45:17 marka Exp $";
 
 
 /*
@@ -243,6 +243,9 @@ dst_s_dns_key_id(const u_char *dns_key_rdata, const int rdata_len)
 	if (dns_key_rdata[3] == KEY_RSA)	/* Algorithm RSA */
 		return dst_s_get_int16((u_char *)
 				       &dns_key_rdata[rdata_len - 3]);
+	else if (dns_key_rdata[3] == KEY_HMAC_MD5)
+		/* compatibility */
+		return 0;
 	else
 		/* compute a checksum on the key part of the key rr */
 		return dst_s_id_calc(dns_key_rdata, rdata_len);
