@@ -89,7 +89,7 @@
 
 #if !defined(lint)
 static const char rcsid[] =
-  "$FreeBSD$";
+	"$Id: exphy.c,v 1.1 1999/08/21 17:40:41 wpaul Exp $";
 #endif
 
 static int exphy_probe		__P((device_t));
@@ -130,8 +130,10 @@ static int exphy_probe(dev)
 	/*
 	 * Argh, 3Com PHY reports oui == 0 model == 0!
 	 */
-	if (MII_OUI(ma->mii_id1, ma->mii_id2) != 0 ||
-	    MII_MODEL(ma->mii_id2) != 0)
+	if ((MII_OUI(ma->mii_id1, ma->mii_id2) != 0 ||
+	    MII_MODEL(ma->mii_id2) != 0) &&
+	    (MII_OUI(ma->mii_id1, ma->mii_id2) != MII_OUI_BROADCOM ||
+	    MII_MODEL(ma->mii_id2) != MII_MODEL_BROADCOM_3c905Cphy))
 		return (ENXIO);
 
 	/*
@@ -140,7 +142,10 @@ static int exphy_probe(dev)
 	if (strcmp(device_get_name(parent), "xl") != 0)
 		return (ENXIO);
 
-	device_set_desc(dev, "3Com internal media interface");
+	if (MII_OUI(ma->mii_id1, ma->mii_id2) == 0)
+		device_set_desc(dev, "3Com internal media interface");
+	else
+		device_set_desc(dev, MII_STR_BROADCOM_3c905Cphy);
 
 	return (0);
 }
