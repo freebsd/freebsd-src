@@ -1138,7 +1138,7 @@ tcp_ctlinput(cmd, sa, vip)
 		notify = in_rtchange;
 	} else if (cmd == PRC_HOSTDEAD)
 		ip = 0;
-	else if ((unsigned)cmd > PRC_NCMDS || inetctlerrmap[cmd] == 0)
+	else if ((unsigned)cmd >= PRC_NCMDS || inetctlerrmap[cmd] == 0)
 		return;
 	if (ip) {
 		s = splnet();
@@ -1204,7 +1204,7 @@ tcp6_ctlinput(cmd, sa, d)
 	else if (cmd == PRC_MSGSIZE)
 		notify = tcp_mtudisc;
 	else if (!PRC_IS_REDIRECT(cmd) &&
-		 ((unsigned)cmd > PRC_NCMDS || inet6ctlerrmap[cmd] == 0))
+		 ((unsigned)cmd >= PRC_NCMDS || inet6ctlerrmap[cmd] == 0))
 		return;
 
 	/* if the parameter is from icmp6, decode it. */

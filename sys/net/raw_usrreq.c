@@ -129,7 +129,7 @@ raw_ctlinput(cmd, arg, dummy)
 	void *dummy;
 {
 
-	if (cmd < 0 || cmd > PRC_NCMDS)
+	if (cmd < 0 || cmd >= PRC_NCMDS)
 		return;
 	/* INCOMPLETE */
 }
