@@ -20,7 +20,7 @@ LDADD+=	${LIBCC_INT}
 
 .ORDER: parse.c parse.h
 parse.c parse.h: parse.y
-	${YACC} -d -o parse.c ${GCCDIR}/cp/parse.y
+	${YACC} -d -o parse.c ${.ALLSRC}
 	grep '^#define[   ]*YYEMPTY' parse.c >>parse.h
 
 CLEANFILES+=	parse.c parse.h
