@@ -84,7 +84,7 @@ bf_command(FICL_VM *vm)
 	panic("callout for unknown command '%s'", name);
    
     /* Check whether we have been compiled or are being interpreted */
-    if (stackPopINT32(vm->pStack)) {
+    if (stackPopINT(vm->pStack)) {
 	/*
 	 * Get parameters from stack, in the format:
 	 * an un ... a2 u2 a1 u1 n --
@@ -92,7 +92,7 @@ bf_command(FICL_VM *vm)
 	 * address/size for strings, and they will be concatenated
 	 * in LIFO order.
 	 */
-	nstrings = stackPopINT32(vm->pStack);
+	nstrings = stackPopINT(vm->pStack);
 	for (i = 0, len = 0; i < nstrings; i++)
 	    len += stackFetch(vm->pStack, i * 2).i + 1;
 	line = malloc(strlen(name) + len + 1);
@@ -100,7 +100,7 @@ bf_command(FICL_VM *vm)
 
 	if (nstrings)
 	    for (i = 0; i < nstrings; i++) {
-		len = stackPopINT32(vm->pStack);
+		len = stackPopINT(vm->pStack);
 		cp = stackPopPtr(vm->pStack);
 		strcat(line, " ");
 		strncat(line, cp, len);
@@ -131,7 +131,7 @@ bf_command(FICL_VM *vm)
     }
     free(line);
     /* This is going to be thrown!!! */
-    stackPushINT32(vm->pStack,result);
+    stackPushINT(vm->pStack,result);
 }
 
 /*
@@ -232,17 +232,17 @@ bf_init(void)
     char create_buf[41];	/* 31 characters-long builtins */
     int fd;
    
-    ficlInitSystem(8000);	/* Default dictionary ~4000 cells */
+    ficlInitSystem(10000);	/* Default dictionary ~4000 cells */
     bf_vm = ficlNewVM();
 
     /* Builtin constructor word  */
-    ficlExec(bf_vm, BUILTIN_CONSTRUCTOR, -1);
+    ficlExec(bf_vm, BUILTIN_CONSTRUCTOR);
 
     /* make all commands appear as Forth words */
     SET_FOREACH(cmdp, Xcommand_set) {
 	ficlBuild((*cmdp)->c_name, bf_command, FW_DEFAULT);
 	sprintf(create_buf, "builtin: %s", (*cmdp)->c_name);
-	ficlExec(bf_vm, create_buf, -1);
+	ficlExec(bf_vm, create_buf);
     }
 
     /* Export some version numbers so that code can detect the loader/host version */
@@ -271,9 +271,7 @@ bf_run(char *line)
 
     id = bf_vm->sourceID;
     bf_vm->sourceID.i = -1;
-    vmPushIP(bf_vm, &pInterp);
-    result = ficlExec(bf_vm, line, -1);
-    vmPopIP(bf_vm);
+    result = ficlExec(bf_vm, line);
     bf_vm->sourceID = id;
 
     DEBUG("ficlExec '%s' = %d", line, result);

@@ -7,6 +7,8 @@
 **
 *******************************************************************/
 
+/* $FreeBSD$ */
+
 #ifdef TESTMAIN
 #include <stdio.h>
 #include <stdlib.h>
@@ -22,9 +24,10 @@
 *******************  FreeBSD  P O R T   B E G I N S   H E R E ******************** Michael Smith
 */
 
-UNS64 ficlLongMul(UNS32 x, UNS32 y)
+#if PORTABLE_LONGMULDIV == 0
+DPUNS ficlLongMul(FICL_UNS x, FICL_UNS y)
 {
-    UNS64 q;
+    DPUNS q;
     u_int64_t qx;
 
     qx = (u_int64_t)x * (u_int64_t) y;
@@ -35,7 +38,7 @@ UNS64 ficlLongMul(UNS32 x, UNS32 y)
     return q;
 }
 
-UNSQR ficlLongDiv(UNS64 q, UNS32 y)
+UNSQR ficlLongDiv(DPUNS q, FICL_UNS y)
 {
     UNSQR result;
     u_int64_t qx, qh;
@@ -48,6 +51,7 @@ UNSQR ficlLongDiv(UNS64 q, UNS32 y)
 
     return result;
 }
+#endif
 
 void  ficlTextOut(FICL_VM *pVM, char *msg, int fNewline)
 {
@@ -88,8 +92,8 @@ ficlOutb(FICL_VM *pVM)
 	u_char c;
 	u_int32_t port;
 
-	port=stackPopUNS32(pVM->pStack);
-	c=(u_char)stackPopINT32(pVM->pStack);
+	port=stackPopUNS(pVM->pStack);
+	c=(u_char)stackPopINT(pVM->pStack);
 	outb(port,c);
 }
 
@@ -103,9 +107,9 @@ ficlInb(FICL_VM *pVM)
 	u_char c;
 	u_int32_t port;
 
-	port=stackPopUNS32(pVM->pStack);
+	port=stackPopUNS(pVM->pStack);
 	c=inb(port);
-	stackPushINT32(pVM->pStack,c);
+	stackPushINT(pVM->pStack,c);
 }
 #endif
 #endif

@@ -21,6 +21,8 @@
 ** Code is written in ANSI C for portability. 
 */
 
+/* $FreeBSD$ */
+
 #ifdef TESTMAIN
 #include <stdlib.h>
 #else
@@ -174,19 +176,29 @@ int ficlBuild(char *name, FICL_CODE code, char flags)
 **      time to delete the vm, etc -- or you can ignore this
 **      signal.
 **************************************************************************/
-int ficlExec(FICL_VM *pVM, char *pText, INT32 size)
+int ficlExec(FICL_VM *pVM, char *pText)
 {
-#ifdef FICL_TRACE
-    extern int isAFiclWord(FICL_WORD *pFW);
-#endif
+    return ficlExecC(pVM, pText, -1);
+}
+
+int ficlExecC(FICL_VM *pVM, char *pText, FICL_INT size)
+{
+    static FICL_WORD *pInterp = NULL;
+
     int        except;
-    FICL_WORD *tempFW;
     jmp_buf    vmState;
     TIB        saveTib;
     FICL_VM         VM;
     FICL_STACK      rStack;
 
+    if (!pInterp)
+        pInterp = ficlLookup("interpret");
+    
+    assert(pInterp);
     assert(pVM);
+
+    if (size < 0)
+        size = strlen(pText);
 
     vmPushTib(pVM, pText, size, &saveTib);
 
@@ -207,106 +219,12 @@ int ficlExec(FICL_VM *pVM, char *pText, INT32 size)
             pVM->fRestart = 0;
             pVM->runningWord->code(pVM);
         }
-
-        /*
-        ** the mysterious inner interpreter...
-        ** vmThrow gets you out of this loop with a longjmp()
-        */
-        for (;;)
-        {
-#ifdef FICL_TRACE
-	    CELL c;
-            char buffer[40];
-#endif
-            tempFW = *pVM->ip++;
-#ifdef FICL_TRACE
-            if (ficl_trace && isAFiclWord(tempFW))
-            {
-	        extern void literalParen(FICL_VM*);
-	        extern void stringLit(FICL_VM*);
-	        extern void ifParen(FICL_VM*);
-	        extern void branchParen(FICL_VM*);
-	        extern void qDoParen(FICL_VM*);
-	        extern void doParen(FICL_VM*);
-	        extern void loopParen(FICL_VM*);
-	        extern void plusLoopParen(FICL_VM*);
-    
-                if      (tempFW->code == literalParen)
-                {
-               	    c = *PTRtoCELL(pVM->ip);
-               	    if (isAFiclWord(c.p))
-               	    {
-                   	    FICL_WORD *pLit = (FICL_WORD *)c.p;
-                   	    sprintf(buffer, "    literal %.*s (%#lx)",
-                       	    pLit->nName, pLit->name, c.u);
-               	    }
-               	    else
-                   	    sprintf(buffer, "    literal %ld (%#lx)", c.i, c.u);
-                }
-                else if (tempFW->code == stringLit)
-                {
-               	    FICL_STRING *sp = PTRtoSTRING(pVM->ip);
-               	    sprintf(buffer, "    s\" %.*s\"", sp->count, sp->text);
-                }
-                else if (tempFW->code == ifParen)
-                {
-               	    c = *PTRtoCELL(pVM->ip);
-               	    if (c.i > 0)
-                   	    sprintf(buffer, "    if / while (branch rel %ld)", c.i);
-               	    else
-                   	    sprintf(buffer, "    until (branch rel %ld)", c.i);
-                }
-                else if (tempFW->code == branchParen)
-                {
-               	    c = *PTRtoCELL(pVM->ip);
-               	    if (c.i > 0)
-                   	    sprintf(buffer, "    else (branch rel %ld)", c.i);
-               	    else
-                   	    sprintf(buffer, "    repeat (branch rel %ld)", c.i);
-                }
-                else if (tempFW->code == qDoParen)
-                {
-               	    c = *PTRtoCELL(pVM->ip);
-               	    sprintf(buffer, "    ?do (leave abs %#lx)", c.u);
-                }
-                else if (tempFW->code == doParen)
-                {
-               	    c = *PTRtoCELL(pVM->ip);
-               	    sprintf(buffer, "    do (leave abs %#lx)", c.u);
-                }
-                else if (tempFW->code == loopParen)
-                {
-               	    c = *PTRtoCELL(pVM->ip);
-               	    sprintf(buffer, "    loop (branch rel %ld)", c.i);
-                }
-                else if (tempFW->code == plusLoopParen)
-                {
-               	    c = *PTRtoCELL(pVM->ip);
-               	    sprintf(buffer, "    +loop (branch rel %ld)", c.i);
-                }
-                else /* default: print word's name */
-                {
-               	    sprintf(buffer, "    %.*s", tempFW->nName, tempFW->name);
-                }
-    
-                vmTextOut(pVM, buffer, 1);
-            }
-            else if (ficl_trace) /* probably not a word 
-				  * - punt and print value
-				  */
-            {
-           	    sprintf(buffer, "    %ld (%#lx)", (PTRtoCELL(pVM->ip))->i, (PTRtoCELL(pVM->ip))->u);
-           	    vmTextOut(pVM, buffer, 1);
-            }
-#endif FICL_TRACE
-            /*
-            ** inline code for
-            ** vmExecute(pVM, tempFW);
-            */
-            pVM->runningWord = tempFW;
-            tempFW->code(pVM);
+        else
+        {   /* set VM up to interpret text */
+            vmPushIP(pVM, &pInterp);
         }
 
+        vmInnerLoop(pVM);
         break;
 
     case VM_RESTART:
@@ -315,6 +233,7 @@ int ficlExec(FICL_VM *pVM, char *pText, INT32 size)
         break;
 
     case VM_OUTOFTEXT:
+        vmPopIP(pVM);
 #ifdef TESTMAIN
         if ((pVM->state != COMPILE) && (pVM->sourceID.i == 0))
             ficlTextOut(pVM, FICL_PROMPT, 0);
@@ -322,14 +241,18 @@ int ficlExec(FICL_VM *pVM, char *pText, INT32 size)
         break;
 
     case VM_USEREXIT:
+    case VM_INNEREXIT:
         break;
 
     case VM_QUIT:
         if (pVM->state == COMPILE)
+        {
             dictAbortDefinition(dp);
-
-        memcpy((void*)pVM, (void*)&VM, sizeof(FICL_VM));
-        memcpy((void*)pVM->rStack, (void*)&rStack, sizeof(FICL_STACK));
+#if FICL_WANT_LOCALS
+            dictEmpty(localp, localp->pForthWords->size);
+#endif
+        }
+        vmQuit(pVM);
         break;
 
     case VM_ERREXIT:
@@ -386,7 +309,7 @@ int ficlExecFD(FICL_VM *pVM, int fd)
 		break;
 	    continue;
 	}
-        rval = ficlExec(pVM, cp, i);
+        rval = ficlExecC(pVM, cp, i);
 	if(rval != VM_QUIT && rval != VM_USEREXIT && rval != VM_OUTOFTEXT)
         {
             pVM->sourceID = id;
@@ -398,11 +321,84 @@ int ficlExecFD(FICL_VM *pVM, int fd)
     ** any pending REFILLs (as required by FILE wordset)
     */
     pVM->sourceID.i = -1;
-    ficlExec(pVM, "", 0);
+    ficlExec(pVM, "");
 
     pVM->sourceID = id;
     return rval;
 }
+
+/**************************************************************************
+                        f i c l E x e c X T
+** Given a pointer to a FICL_WORD, push an inner interpreter and
+** execute the word to completion. This is in contrast with vmExecute,
+** which does not guarantee that the word will have completed when
+** the function returns (ie in the case of colon definitions, which
+** need an inner interpreter to finish)
+**
+** Returns one of the VM_XXXX exception codes listed in ficl.h. Normal
+** exit condition is VM_INNEREXIT, ficl's private signal to exit the
+** inner loop under normal circumstances. If another code is thrown to
+** exit the loop, this function will re-throw it if it's nested under
+** itself or ficlExec.
+**
+** NOTE: this function is intended so that C code can execute ficlWords
+** given their address in the dictionary (xt).
+**************************************************************************/
+int ficlExecXT(FICL_VM *pVM, FICL_WORD *pWord)
+{
+    static FICL_WORD *pQuit = NULL;
+    int        except;
+    jmp_buf    vmState;
+    jmp_buf   *oldState;
+
+    if (!pQuit)
+        pQuit = ficlLookup("exit-inner");
+
+    assert(pVM);
+    assert(pQuit);
+    
+    /*
+    ** Save and restore VM's jmp_buf to enable nested calls
+    */
+    oldState = pVM->pState;
+    pVM->pState = &vmState; /* This has to come before the setjmp! */
+    except = setjmp(vmState);
+
+    if (except)
+        vmPopIP(pVM);
+    else
+        vmPushIP(pVM, &pQuit);
+
+    switch (except)
+    {
+    case 0:
+        vmExecute(pVM, pWord);
+        vmInnerLoop(pVM);
+        break;
+
+    case VM_INNEREXIT:
+        break;
+
+    case VM_RESTART:
+    case VM_OUTOFTEXT:
+    case VM_USEREXIT:
+    case VM_QUIT:
+    case VM_ERREXIT:
+    case VM_ABORT:
+    case VM_ABORTQ:
+    default:    /* user defined exit code?? */
+        if (oldState)
+        {
+            pVM->pState = oldState;
+            vmThrow(pVM, except);
+        }
+        break;
+   }
+
+    pVM->pState    = oldState;
+    return (except);
+}
+
 
 /**************************************************************************
                         f i c l L o o k u p
@@ -443,7 +439,7 @@ FICL_DICT *ficlGetEnv(void)
 ** Create an environment variable with a one-CELL payload. ficlSetEnvD
 ** makes one with a two-CELL payload.
 **************************************************************************/
-void ficlSetEnv(char *name, UNS32 value)
+void ficlSetEnv(char *name, FICL_UNS value)
 {
     STRINGINFO si;
     FICL_WORD *pFW;
@@ -464,7 +460,7 @@ void ficlSetEnv(char *name, UNS32 value)
     return;
 }
 
-void ficlSetEnvD(char *name, UNS32 hi, UNS32 lo)
+void ficlSetEnvD(char *name, FICL_UNS hi, FICL_UNS lo)
 {
     FICL_WORD *pFW;
     STRINGINFO si;
@@ -498,6 +494,23 @@ FICL_DICT *ficlGetLoc(void)
     return localp;
 }
 #endif
+
+
+
+/**************************************************************************
+                        f i c l S e t S t a c k S i z e
+** Set the stack sizes (return and parameter) to be used for all
+** subsequently created VMs. Returns actual stack size to be used.
+**************************************************************************/
+int ficlSetStackSize(int nStackCells)
+{
+    if (nStackCells >= FICL_DEFAULT_STACK)
+        defaultStack = nStackCells;
+    else
+        defaultStack = FICL_DEFAULT_STACK;
+
+    return defaultStack;
+}
 
 
 /**************************************************************************

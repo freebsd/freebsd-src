@@ -7,6 +7,8 @@
 ** 
 *******************************************************************/
 
+/* $FreeBSD$ */
+
 #ifdef TESTMAIN
 #include <stdlib.h>
 #include <stdio.h>
@@ -29,11 +31,11 @@ static void interpWord(FICL_VM *pVM, STRINGINFO si);
 ** check for structure completion.
 */
 static char doTag[]    = "do";
-static char ifTag[]    = "if";
 static char colonTag[] = "colon";
 static char leaveTag[] = "leave";
-static char beginTag[] = "begin";
-static char whileTag[] = "while";
+
+static char destTag[]  = "target";
+static char origTag[]  = "origin";
 
 /*
 ** Pointers to various words in the dictionary
@@ -95,8 +97,7 @@ static void matchControlTag(FICL_VM *pVM, char *tag)
     char *cp = (char *)stackPopPtr(pVM->pStack);
     if ( strcmp(cp, tag) )
     {
-        vmTextOut(pVM, "Warning -- unmatched control word: ", 0);
-        vmTextOut(pVM, tag, 1);
+        vmThrowErr(pVM, "Error -- unmatched control structure \"%s\"", tag);
     }
 
     return;
@@ -174,7 +175,7 @@ static void resolveAbsBranch(FICL_DICT *dp, FICL_VM *pVM, char *tag)
 
 static int isNumber(FICL_VM *pVM, STRINGINFO si)
 {
-    INT32 accum     = 0;
+    FICL_INT accum     = 0;
     char isNeg      = FALSE;
     unsigned base   = pVM->base;
     char *cp        = SI_PTR(si);
@@ -200,17 +201,14 @@ static int isNumber(FICL_VM *pVM, STRINGINFO si)
 
     while (count-- && ((ch = *cp++) != '\0'))
     {
-        if (ch < '0')
+        if (!(isdigit(ch)||isalpha(ch)))
             return FALSE;
 
         digit = ch - '0';
 
         if (digit > 9)
             digit = tolower(ch) - 'a' + 10;
-        /* 
-        ** Note: following test also catches chars between 9 and a
-        ** because 'digit' is unsigned!
-        */
+
         if (digit >= base)
             return FALSE;
 
@@ -218,9 +216,9 @@ static int isNumber(FICL_VM *pVM, STRINGINFO si)
     }
 
     if (isNeg)
-		accum = -accum;
+        accum = -accum;
 
-    stackPushINT32(pVM->pStack, accum);
+    stackPushINT(pVM->pStack, accum);
 
     return TRUE;
 }
@@ -233,11 +231,11 @@ static int isNumber(FICL_VM *pVM, STRINGINFO si)
 
 static void add(FICL_VM *pVM)
 {
-    INT32 i;
+    FICL_INT i;
 #if FICL_ROBUST > 1
     vmCheckStack(pVM, 2, 1);
 #endif
-    i = stackPopINT32(pVM->pStack);
+    i = stackPopINT(pVM->pStack);
     i += stackGetTop(pVM->pStack).i;
     stackSetTop(pVM->pStack, LVALUEtoCELL(i));
     return;
@@ -245,11 +243,11 @@ static void add(FICL_VM *pVM)
 
 static void sub(FICL_VM *pVM)
 {
-    INT32 i;
+    FICL_INT i;
 #if FICL_ROBUST > 1
     vmCheckStack(pVM, 2, 1);
 #endif
-    i = stackPopINT32(pVM->pStack);
+    i = stackPopINT(pVM->pStack);
     i = stackGetTop(pVM->pStack).i - i;
     stackSetTop(pVM->pStack, LVALUEtoCELL(i));
     return;
@@ -257,11 +255,11 @@ static void sub(FICL_VM *pVM)
 
 static void mul(FICL_VM *pVM)
 {
-    INT32 i;
+    FICL_INT i;
 #if FICL_ROBUST > 1
     vmCheckStack(pVM, 2, 1);
 #endif
-    i = stackPopINT32(pVM->pStack);
+    i = stackPopINT(pVM->pStack);
     i *= stackGetTop(pVM->pStack).i;
     stackSetTop(pVM->pStack, LVALUEtoCELL(i));
     return;
@@ -269,22 +267,22 @@ static void mul(FICL_VM *pVM)
 
 static void negate(FICL_VM *pVM)
 {
-    INT32 i;
+    FICL_INT i;
 #if FICL_ROBUST > 1
     vmCheckStack(pVM, 1, 1);
 #endif
-    i = -stackPopINT32(pVM->pStack);
-    stackPushINT32(pVM->pStack, i);
+    i = -stackPopINT(pVM->pStack);
+    stackPushINT(pVM->pStack, i);
     return;
 }
 
 static void ficlDiv(FICL_VM *pVM)
 {
-    INT32 i;
+    FICL_INT i;
 #if FICL_ROBUST > 1
     vmCheckStack(pVM, 2, 1);
 #endif
-    i = stackPopINT32(pVM->pStack);
+    i = stackPopINT(pVM->pStack);
     i = stackGetTop(pVM->pStack).i / i;
     stackSetTop(pVM->pStack, LVALUEtoCELL(i));
     return;
@@ -301,26 +299,26 @@ static void ficlDiv(FICL_VM *pVM)
 */
 static void slashMod(FICL_VM *pVM)
 {
-    INT64 n1;
-    INT32 n2;
+    DPINT n1;
+    FICL_INT n2;
     INTQR qr;
 
 #if FICL_ROBUST > 1
     vmCheckStack(pVM, 2, 2);
 #endif
-    n2    = stackPopINT32(pVM->pStack);
-    n1.lo = stackPopINT32(pVM->pStack);
+    n2    = stackPopINT(pVM->pStack);
+    n1.lo = stackPopINT(pVM->pStack);
     i64Extend(n1);
 
     qr = m64SymmetricDivI(n1, n2);
-    stackPushINT32(pVM->pStack, qr.rem);
-    stackPushINT32(pVM->pStack, qr.quot);
+    stackPushINT(pVM->pStack, qr.rem);
+    stackPushINT(pVM->pStack, qr.quot);
     return;
 }
 
 static void onePlus(FICL_VM *pVM)
 {
-    INT32 i;
+    FICL_INT i;
 #if FICL_ROBUST > 1
     vmCheckStack(pVM, 1, 1);
 #endif
@@ -332,7 +330,7 @@ static void onePlus(FICL_VM *pVM)
 
 static void oneMinus(FICL_VM *pVM)
 {
-    INT32 i;
+    FICL_INT i;
 #if FICL_ROBUST > 1
     vmCheckStack(pVM, 1, 1);
 #endif
@@ -344,7 +342,7 @@ static void oneMinus(FICL_VM *pVM)
 
 static void twoMul(FICL_VM *pVM)
 {
-    INT32 i;
+    FICL_INT i;
 #if FICL_ROBUST > 1
     vmCheckStack(pVM, 1, 1);
 #endif
@@ -356,7 +354,7 @@ static void twoMul(FICL_VM *pVM)
 
 static void twoDiv(FICL_VM *pVM)
 {
-    INT32 i;
+    FICL_INT i;
 #if FICL_ROBUST > 1
     vmCheckStack(pVM, 1, 1);
 #endif
@@ -368,40 +366,40 @@ static void twoDiv(FICL_VM *pVM)
 
 static void mulDiv(FICL_VM *pVM)
 {
-    INT32 x, y, z;
-    INT64 prod;
+    FICL_INT x, y, z;
+    DPINT prod;
 #if FICL_ROBUST > 1
     vmCheckStack(pVM, 3, 1);
 #endif
-    z = stackPopINT32(pVM->pStack);
-    y = stackPopINT32(pVM->pStack);
-    x = stackPopINT32(pVM->pStack);
+    z = stackPopINT(pVM->pStack);
+    y = stackPopINT(pVM->pStack);
+    x = stackPopINT(pVM->pStack);
 
     prod = m64MulI(x,y);
     x    = m64SymmetricDivI(prod, z).quot;
 
-    stackPushINT32(pVM->pStack, x);
+    stackPushINT(pVM->pStack, x);
     return;
 }
 
 
 static void mulDivRem(FICL_VM *pVM)
 {
-    INT32 x, y, z;
-    INT64 prod;
+    FICL_INT x, y, z;
+    DPINT prod;
     INTQR qr;
 #if FICL_ROBUST > 1
     vmCheckStack(pVM, 3, 2);
 #endif
-    z = stackPopINT32(pVM->pStack);
-    y = stackPopINT32(pVM->pStack);
-    x = stackPopINT32(pVM->pStack);
+    z = stackPopINT(pVM->pStack);
+    y = stackPopINT(pVM->pStack);
+    x = stackPopINT(pVM->pStack);
 
     prod = m64MulI(x,y);
     qr   = m64SymmetricDivI(prod, z);
 
-    stackPushINT32(pVM->pStack, qr.rem);
-    stackPushINT32(pVM->pStack, qr.quot);
+    stackPushINT(pVM->pStack, qr.rem);
+    stackPushINT(pVM->pStack, qr.quot);
     return;
 }
 
@@ -636,11 +634,11 @@ static void displayCellNoPad(FICL_VM *pVM)
 
 static void uDot(FICL_VM *pVM)
 {
-    UNS32 u;
+    FICL_UNS u;
 #if FICL_ROBUST > 1
     vmCheckStack(pVM, 1, 0);
 #endif
-    u = stackPopUNS32(pVM->pStack);
+    u = stackPopUNS(pVM->pStack);
     ultoa(u, pVM->pad, pVM->base);
     strcat(pVM->pad, " ");
     vmTextOut(pVM, pVM->pad, 0);
@@ -650,11 +648,11 @@ static void uDot(FICL_VM *pVM)
 
 static void hexDot(FICL_VM *pVM)
 {
-    UNS32 u;
+    FICL_UNS u;
 #if FICL_ROBUST > 1
     vmCheckStack(pVM, 1, 0);
 #endif
-    u = stackPopUNS32(pVM->pStack);
+    u = stackPopUNS(pVM->pStack);
     ultoa(u, pVM->pad, 16);
     strcat(pVM->pad, " ");
     vmTextOut(pVM, pVM->pad, 0);
@@ -700,7 +698,7 @@ static void depth(FICL_VM *pVM)
     vmCheckStack(pVM, 0, 1);
 #endif
     i = stackDepth(pVM->pStack);
-    stackPushINT32(pVM->pStack, i);
+    stackPushINT(pVM->pStack, i);
     return;
 }
 
@@ -860,7 +858,7 @@ static void emit(FICL_VM *pVM)
 #if FICL_ROBUST > 1
     vmCheckStack(pVM, 1, 0);
 #endif
-    i = stackPopINT32(pVM->pStack);
+    i = stackPopINT(pVM->pStack);
     cp[0] = (char)i;
     cp[1] = '\0';
     vmTextOut(pVM, cp, 0);
@@ -877,10 +875,11 @@ static void cr(FICL_VM *pVM)
 
 static void commentLine(FICL_VM *pVM)
 {
-    char *cp = vmGetInBuf(pVM);
+    char *cp        = vmGetInBuf(pVM);
+    char *pEnd      = vmGetInBufEnd(pVM);
     char ch = *cp;
 
-    while ((pVM->tib.end != cp) && (ch != '\0') && (ch != '\r') && (ch != '\n'))
+    while ((cp != pEnd) && (ch != '\r') && (ch != '\n'))
     {
         ch = *++cp;
     }
@@ -890,11 +889,11 @@ static void commentLine(FICL_VM *pVM)
     ** Check for /r, /n, /r/n, or /n/r end-of-line sequences,
     ** and point cp to next char. If EOL is \0, we're done.
     */
-    if ((pVM->tib.end != cp) && (ch != '\0'))
+    if (cp != pEnd)
     {
         cp++;
 
-        if ( (pVM->tib.end != cp) && (ch != *cp) 
+        if ( (cp != pEnd) && (ch != *cp) 
              && ((*cp == '\r') || (*cp == '\n')) )
             cp++;
     }
@@ -1004,7 +1003,7 @@ static void wFetch(FICL_VM *pVM)
     vmCheckStack(pVM, 1, 1);
 #endif
     pw = (UNS16 *)stackPopPtr(pVM->pStack);
-    stackPushUNS32(pVM->pStack, (UNS32)*pw);
+    stackPushUNS(pVM->pStack, (FICL_UNS)*pw);
     return;
 }
 
@@ -1025,7 +1024,7 @@ static void cFetch(FICL_VM *pVM)
     vmCheckStack(pVM, 1, 1);
 #endif
     pc = (UNS8 *)stackPopPtr(pVM->pStack);
-    stackPushUNS32(pVM->pStack, (UNS32)*pc);
+    stackPushUNS(pVM->pStack, (FICL_UNS)*pc);
     return;
 }
 
@@ -1055,8 +1054,8 @@ static void ifCoIm(FICL_VM *pVM)
     assert(pIfParen);
 
     dictAppendCell(dp, LVALUEtoCELL(pIfParen));
-    markBranch(dp, pVM, ifTag);
-    dictAppendUNS32(dp, 1);
+    markBranch(dp, pVM, origTag);
+    dictAppendUNS(dp, 1);
     return;
 }
 
@@ -1074,12 +1073,12 @@ void ifParen(FICL_VM *pVM)
 static void ifParen(FICL_VM *pVM)
 #endif
 {
-    UNS32 flag;
+    FICL_UNS flag;
     
 #if FICL_ROBUST > 1
     vmCheckStack(pVM, 1, 0);
 #endif
-    flag = stackPopUNS32(pVM->pStack);
+    flag = stackPopUNS(pVM->pStack);
 
     if (flag) 
     {                           /* fall through */
@@ -1115,11 +1114,11 @@ static void elseCoIm(FICL_VM *pVM)
     assert(pBranchParen);
                                             /* (1) compile branch runtime */
     dictAppendCell(dp, LVALUEtoCELL(pBranchParen));
-    matchControlTag(pVM, ifTag);
+    matchControlTag(pVM, origTag);
     patchAddr = 
         (CELL *)stackPopPtr(pVM->pStack);   /* (2) pop "if" patch addr */
-    markBranch(dp, pVM, ifTag);             /* (4) push "else" patch addr */
-    dictAppendUNS32(dp, 1);                 /* (1) compile patch placeholder */
+    markBranch(dp, pVM, origTag);           /* (4) push "else" patch addr */
+    dictAppendUNS(dp, 1);                 /* (1) compile patch placeholder */
     offset = dp->here - patchAddr;
     *patchAddr = LVALUEtoCELL(offset);      /* (3) Patch "if" */
 
@@ -1153,7 +1152,7 @@ static void branchParen(FICL_VM *pVM)
 static void endifCoIm(FICL_VM *pVM)
 {
     FICL_DICT *dp = ficlGetDict();
-    resolveForwardBranch(dp, pVM, ifTag);
+    resolveForwardBranch(dp, pVM, origTag);
     return;
 }
 
@@ -1185,7 +1184,7 @@ static void interpret(FICL_VM *pVM)
     vmBranchRelative(pVM, -1);
 
     /*
-    // Get next word...if out of text, we're done.
+    ** Get next word...if out of text, we're done.
     */
     if (si.count == 0)
         vmThrow(pVM, VM_OUTOFTEXT);
@@ -1294,7 +1293,7 @@ static void literalParen(FICL_VM *pVM)
 #if FICL_ROBUST > 1
     vmCheckStack(pVM, 0, 1);
 #endif
-    stackPushINT32(pVM->pStack, *(INT32 *)(pVM->ip));
+    stackPushINT(pVM->pStack, *(FICL_INT *)(pVM->ip));
     vmBranchRelative(pVM, 1);
     return;
 }
@@ -1432,7 +1431,7 @@ static void zeroEquals(FICL_VM *pVM)
 #if FICL_ROBUST > 1
     vmCheckStack(pVM, 1, 1);
 #endif
-    c.i = FICL_BOOL(stackPopINT32(pVM->pStack) == 0);
+    c.i = FICL_BOOL(stackPopINT(pVM->pStack) == 0);
     stackPush(pVM->pStack, c);
     return;
 }
@@ -1443,7 +1442,7 @@ static void zeroLess(FICL_VM *pVM)
 #if FICL_ROBUST > 1
     vmCheckStack(pVM, 1, 1);
 #endif
-    c.i = FICL_BOOL(stackPopINT32(pVM->pStack) < 0);
+    c.i = FICL_BOOL(stackPopINT(pVM->pStack) < 0);
     stackPush(pVM->pStack, c);
     return;
 }
@@ -1454,7 +1453,7 @@ static void zeroGreater(FICL_VM *pVM)
 #if FICL_ROBUST > 1
     vmCheckStack(pVM, 1, 1);
 #endif
-    c.i = FICL_BOOL(stackPopINT32(pVM->pStack) > 0);
+    c.i = FICL_BOOL(stackPopINT(pVM->pStack) > 0);
     stackPush(pVM->pStack, c);
     return;
 }
@@ -1468,7 +1467,7 @@ static void isEqual(FICL_VM *pVM)
 #endif
     x = stackPop(pVM->pStack);
     y = stackPop(pVM->pStack);
-    stackPushINT32(pVM->pStack, FICL_BOOL(x.i == y.i));
+    stackPushINT(pVM->pStack, FICL_BOOL(x.i == y.i));
     return;
 }
 
@@ -1480,19 +1479,19 @@ static void isLess(FICL_VM *pVM)
 #endif
     y = stackPop(pVM->pStack);
     x = stackPop(pVM->pStack);
-    stackPushINT32(pVM->pStack, FICL_BOOL(x.i < y.i));
+    stackPushINT(pVM->pStack, FICL_BOOL(x.i < y.i));
     return;
 }
 
 static void uIsLess(FICL_VM *pVM)
 {
-    UNS32 u1, u2;
+    FICL_UNS u1, u2;
 #if FICL_ROBUST > 1
     vmCheckStack(pVM, 2, 1);
 #endif
-    u2 = stackPopUNS32(pVM->pStack);
-    u1 = stackPopUNS32(pVM->pStack);
-    stackPushINT32(pVM->pStack, FICL_BOOL(u1 < u2));
+    u2 = stackPopUNS(pVM->pStack);
+    u1 = stackPopUNS(pVM->pStack);
+    stackPushINT(pVM->pStack, FICL_BOOL(u1 < u2));
     return;
 }
 
@@ -1504,7 +1503,7 @@ static void isGreater(FICL_VM *pVM)
 #endif
     y = stackPop(pVM->pStack);
     x = stackPop(pVM->pStack);
-    stackPushINT32(pVM->pStack, FICL_BOOL(x.i > y.i));
+    stackPushINT(pVM->pStack, FICL_BOOL(x.i > y.i));
     return;
 }
 
@@ -1516,7 +1515,7 @@ static void bitwiseAnd(FICL_VM *pVM)
 #endif
     x = stackPop(pVM->pStack);
     y = stackPop(pVM->pStack);
-    stackPushINT32(pVM->pStack, x.i & y.i);
+    stackPushINT(pVM->pStack, x.i & y.i);
     return;
 }
 
@@ -1528,7 +1527,7 @@ static void bitwiseOr(FICL_VM *pVM)
 #endif
     x = stackPop(pVM->pStack);
     y = stackPop(pVM->pStack);
-    stackPushINT32(pVM->pStack, x.i | y.i);
+    stackPushINT(pVM->pStack, x.i | y.i);
     return;
 }
 
@@ -1540,7 +1539,7 @@ static void bitwiseXor(FICL_VM *pVM)
 #endif
     x = stackPop(pVM->pStack);
     y = stackPop(pVM->pStack);
-    stackPushINT32(pVM->pStack, x.i ^ y.i);
+    stackPushINT(pVM->pStack, x.i ^ y.i);
     return;
 }
 
@@ -1551,7 +1550,7 @@ static void bitwiseNot(FICL_VM *pVM)
     vmCheckStack(pVM, 1, 1);
 #endif
     x = stackPop(pVM->pStack);
-    stackPushINT32(pVM->pStack, ~x.i);
+    stackPushINT(pVM->pStack, ~x.i);
     return;
 }
 
@@ -1593,7 +1592,7 @@ static void doCoIm(FICL_VM *pVM)
     ** of the loop - "leave" uses this...
     */
     markBranch(dp, pVM, leaveTag);
-    dictAppendUNS32(dp, 0);
+    dictAppendUNS(dp, 0);
     /*
     ** Mark location of head of loop...
     */
@@ -1636,7 +1635,7 @@ static void qDoCoIm(FICL_VM *pVM)
     ** of the loop - "leave" uses this...
     */
     markBranch(dp, pVM, leaveTag);
-    dictAppendUNS32(dp, 0);
+    dictAppendUNS(dp, 0);
     /*
     ** Mark location of head of loop...
     */
@@ -1728,8 +1727,8 @@ void loopParen(FICL_VM *pVM)
 static void loopParen(FICL_VM *pVM)
 #endif
 {
-    INT32 index = stackGetTop(pVM->rStack).i;
-    INT32 limit = stackFetch(pVM->rStack, 1).i;
+    FICL_INT index = stackGetTop(pVM->rStack).i;
+    FICL_INT limit = stackFetch(pVM->rStack, 1).i;
 
     index++;
 
@@ -1753,9 +1752,9 @@ void plusLoopParen(FICL_VM *pVM)
 static void plusLoopParen(FICL_VM *pVM)
 #endif
 {
-    INT32 index = stackGetTop(pVM->rStack).i;
-    INT32 limit = stackFetch(pVM->rStack, 1).i;
-    INT32 increment = stackPop(pVM->pStack).i;
+    FICL_INT index = stackGetTop(pVM->rStack).i;
+    FICL_INT limit = stackFetch(pVM->rStack, 1).i;
+    FICL_INT increment = stackPop(pVM->pStack).i;
     int flag;
 
     index += increment;
@@ -1891,7 +1890,7 @@ static void hex(FICL_VM *pVM)
 static void allot(FICL_VM *pVM)
 {
     FICL_DICT *dp = ficlGetDict();
-    INT32 i = stackPopINT32(pVM->pStack);
+    FICL_INT i = stackPopINT(pVM->pStack);
 #if FICL_ROBUST
     dictCheck(dp, pVM, i);
 #endif
@@ -1920,7 +1919,7 @@ static void comma(FICL_VM *pVM)
 static void cComma(FICL_VM *pVM)
 {
     FICL_DICT *dp = ficlGetDict();
-    char c = (char)stackPopINT32(pVM->pStack);
+    char c = (char)stackPopINT(pVM->pStack);
     dictAppendChar(dp, c);
     return;
 }
@@ -1928,8 +1927,8 @@ static void cComma(FICL_VM *pVM)
 
 static void cells(FICL_VM *pVM)
 {
-    INT32 i = stackPopINT32(pVM->pStack);
-    stackPushINT32(pVM->pStack, i * (INT32)sizeof (CELL));
+    FICL_INT i = stackPopINT(pVM->pStack);
+    stackPushINT(pVM->pStack, i * (FICL_INT)sizeof (CELL));
     return;
 }
 
@@ -2067,7 +2066,7 @@ static void stringLit(FICL_VM *pVM)
     FICL_COUNT count = sp->count;
     char *cp = sp->text;
     stackPushPtr(pVM->pStack, cp);
-    stackPushUNS32(pVM->pStack, count);
+    stackPushUNS(pVM->pStack, count);
     cp += count + 1;
     cp = alignPtr(cp);
     pVM->ip = (IPTYPE)(void *)cp;
@@ -2087,17 +2086,18 @@ static void dotQuoteCoIm(FICL_VM *pVM)
 
 static void dotParen(FICL_VM *pVM)
 {
-    char *pSrc  = vmGetInBuf(pVM);
-    char *pDest = pVM->pad;
+    char *pSrc      = vmGetInBuf(pVM);
+    char *pEnd      = vmGetInBufEnd(pVM);
+    char *pDest     = pVM->pad;
     char ch;
 
-    pSrc = skipSpace(pSrc,pVM->tib.end);
+    pSrc = skipSpace(pSrc, pEnd);
 
-    for (ch = *pSrc; (pVM->tib.end != pSrc) && (ch != '\0') && (ch != ')'); ch = *++pSrc)
+    for (ch = *pSrc; (pEnd != pSrc) && (ch != ')'); ch = *++pSrc)
         *pDest++ = ch;
 
     *pDest = '\0';
-    if ((pVM->tib.end != pSrc) && (ch == ')'))
+    if ((pEnd != pSrc) && (ch == ')'))
         pSrc++;
 
     vmTextOut(pVM, pVM->pad, 0);
@@ -2122,8 +2122,8 @@ static void sLiteralCoIm(FICL_VM *pVM)
 {
     FICL_DICT *dp = ficlGetDict();
     char *cp, *cpDest;
-    UNS32 u;
-    u  = stackPopUNS32(pVM->pStack);
+    FICL_UNS u;
+    u  = stackPopUNS(pVM->pStack);
     cp = stackPopPtr(pVM->pStack);
 
     dictAppendCell(dp, LVALUEtoCELL(pStringLit));
@@ -2255,7 +2255,7 @@ static void toName(FICL_VM *pVM)
 {
     FICL_WORD *pFW = stackPopPtr(pVM->pStack);
     stackPushPtr(pVM->pStack, pFW->name);
-    stackPushUNS32(pVM->pStack, pFW->nName);
+    stackPushUNS(pVM->pStack, pFW->nName);
     return;
 }
 
@@ -2304,7 +2304,7 @@ static void lessNumberSign(FICL_VM *pVM)
 static void numberSign(FICL_VM *pVM)
 {
     FICL_STRING *sp = PTRtoSTRING pVM->pad;
-    UNS64 u;
+    DPUNS u;
     UNS16 rem;
     
     u   = u64Pop(pVM->pStack);
@@ -2327,7 +2327,7 @@ static void numberSignGreater(FICL_VM *pVM)
     strrev(sp->text);
     stackDrop(pVM->pStack, 2);
     stackPushPtr(pVM->pStack, sp->text);
-    stackPushUNS32(pVM->pStack, sp->count);
+    stackPushUNS(pVM->pStack, sp->count);
     return;
 }
 
@@ -2341,7 +2341,7 @@ static void numberSignGreater(FICL_VM *pVM)
 static void numberSignS(FICL_VM *pVM)
 {
     FICL_STRING *sp = PTRtoSTRING pVM->pad;
-    UNS64 u;
+    DPUNS u;
     UNS16 rem;
 
     u = u64Pop(pVM->pStack);
@@ -2365,7 +2365,7 @@ static void numberSignS(FICL_VM *pVM)
 static void hold(FICL_VM *pVM)
 {
     FICL_STRING *sp = PTRtoSTRING pVM->pad;
-    int i = stackPopINT32(pVM->pStack);
+    int i = stackPopINT(pVM->pStack);
     sp->text[sp->count++] = (char) i;
     return;
 }
@@ -2379,7 +2379,7 @@ static void hold(FICL_VM *pVM)
 static void sign(FICL_VM *pVM)
 {
     FICL_STRING *sp = PTRtoSTRING pVM->pad;
-    int i = stackPopINT32(pVM->pStack);
+    int i = stackPopINT(pVM->pStack);
     if (i < 0)
         sp->text[sp->count++] = '-';
     return;
@@ -2399,16 +2399,15 @@ static void sign(FICL_VM *pVM)
 ** was entirely converted. u2 is the number of unconverted characters in the
 ** string. An ambiguous condition exists if ud2 overflows during the
 ** conversion. 
-** TO DO: presently does not use ud1 hi cell - use it!
 **************************************************************************/
 static void toNumber(FICL_VM *pVM)
 {
-    UNS32 count     = stackPopUNS32(pVM->pStack);
+    FICL_UNS count  = stackPopUNS(pVM->pStack);
     char *cp        = (char *)stackPopPtr(pVM->pStack);
-    UNS64 accum;
-    UNS32 base      = pVM->base;
-    UNS32 ch;
-    UNS32 digit;
+    DPUNS accum;
+    FICL_UNS base   = pVM->base;
+    FICL_UNS ch;
+    FICL_UNS digit;
 
     accum = u64Pop(pVM->pStack);
 
@@ -2433,7 +2432,7 @@ static void toNumber(FICL_VM *pVM)
 
     u64Push(pVM->pStack, accum);
     stackPushPtr  (pVM->pStack, cp);
-    stackPushUNS32(pVM->pStack, count);
+    stackPushUNS(pVM->pStack, count);
 
     return;
 }
@@ -2484,29 +2483,32 @@ static void ficlAbort(FICL_VM *pVM)
 ** Implementation: if there's more text in the TIB, use it. Otherwise
 ** throw out for more text. Copy characters up to the max count into the
 ** address given, and return the number of actual characters copied.
-**
-** This may not strictly violate the standard, but I'm sure any programs
-** asking for user input at load time will *not* be expecting this
-** behavior. (sobral)
+** 
+** Note (sobral) this may not be the behavior you'd expect if you're
+** trying to get user input at load time!
 **************************************************************************/
 static void accept(FICL_VM *pVM)
 {
-    UNS32 count, len;
+    FICL_INT count;
     char *cp;
-    char *pBuf = vmGetInBuf(pVM);
+    char *pBuf      = vmGetInBuf(pVM);
+    char *pEnd      = vmGetInBufEnd(pVM);
+    FICL_INT len       = pEnd - pBuf;
 
-    for (len = 0; pVM->tib.end != &pBuf[len] && pBuf[len]; len++);
     if (len == 0)
         vmThrow(pVM, VM_RESTART);
-    /* OK - now we have something in the text buffer - use it */
-    count = stackPopUNS32(pVM->pStack);
+
+    /*
+    ** Now we have something in the text buffer - use it 
+    */
+    count = stackPopINT(pVM->pStack);
     cp    = stackPopPtr(pVM->pStack);
 
-    strncpy(cp, vmGetInBuf(pVM), count);
     len = (count < len) ? count : len;
+    strncpy(cp, vmGetInBuf(pVM), len);
     pBuf += len;
     vmUpdateTib(pVM, pBuf);
-    stackPushUNS32(pVM->pStack, len);
+    stackPushINT(pVM->pStack, len);
 
     return;
 }
@@ -2551,7 +2553,7 @@ static void aligned(FICL_VM *pVM)
 static void beginCoIm(FICL_VM *pVM)
 {
     FICL_DICT *dp = ficlGetDict();
-    markBranch(dp, pVM, beginTag);
+    markBranch(dp, pVM, destTag);
     return;
 }
 
@@ -2562,7 +2564,7 @@ static void untilCoIm(FICL_VM *pVM)
     assert(pIfParen);
 
     dictAppendCell(dp, LVALUEtoCELL(pIfParen));
-    resolveBackBranch(dp, pVM, beginTag);
+    resolveBackBranch(dp, pVM, destTag);
     return;
 }
 
@@ -2573,9 +2575,9 @@ static void whileCoIm(FICL_VM *pVM)
     assert(pIfParen);
 
     dictAppendCell(dp, LVALUEtoCELL(pIfParen));
-    markBranch(dp, pVM, whileTag);
+    markBranch(dp, pVM, origTag);
     twoSwap(pVM);
-    dictAppendUNS32(dp, 1);
+    dictAppendUNS(dp, 1);
     return;
 }
 
@@ -2587,9 +2589,9 @@ static void repeatCoIm(FICL_VM *pVM)
     dictAppendCell(dp, LVALUEtoCELL(pBranchParen));
 
     /* expect "begin" branch marker */
-    resolveBackBranch(dp, pVM, beginTag);
+    resolveBackBranch(dp, pVM, destTag);
     /* expect "while" branch marker */
-    resolveForwardBranch(dp, pVM, whileTag);
+    resolveForwardBranch(dp, pVM, origTag);
     return;
 }
 
@@ -2611,7 +2613,7 @@ static void repeatCoIm(FICL_VM *pVM)
 static void ficlChar(FICL_VM *pVM)
 {
     STRINGINFO si = vmGetWord(pVM);
-    stackPushUNS32(pVM->pStack, (UNS32)(si.cp[0]));
+    stackPushUNS(pVM->pStack, (FICL_UNS)(si.cp[0]));
 
     return;
 }
@@ -2649,8 +2651,8 @@ static void ficlChars(FICL_VM *pVM)
 {
     if (sizeof (char) > 1)
     {
-        INT32 i = stackPopINT32(pVM->pStack);
-        stackPushINT32(pVM->pStack, i * sizeof (char));
+        FICL_INT i = stackPopINT(pVM->pStack);
+        stackPushINT(pVM->pStack, i * sizeof (char));
     }
     /* otherwise no-op! */
     return;
@@ -2672,7 +2674,7 @@ static void count(FICL_VM *pVM)
 {
     FICL_STRING *sp = stackPopPtr(pVM->pStack);
     stackPushPtr(pVM->pStack, sp->text);
-    stackPushUNS32(pVM->pStack, sp->count);
+    stackPushUNS(pVM->pStack, sp->count);
     return;
 }
 
@@ -2692,22 +2694,24 @@ static void count(FICL_VM *pVM)
 static void environmentQ(FICL_VM *pVM)
 {
     FICL_DICT *envp = ficlGetEnv();
-    FICL_COUNT  len = (FICL_COUNT)stackPopUNS32(pVM->pStack);
+    FICL_COUNT  len = (FICL_COUNT)stackPopUNS(pVM->pStack);
     char        *cp =  stackPopPtr(pVM->pStack);
     FICL_WORD  *pFW;
     STRINGINFO si;
 
+
+    &len;       /* silence compiler warning... */
     SI_PSZ(si, cp);
     pFW = dictLookup(envp, si);
 
     if (pFW != NULL)
     {
         vmExecute(pVM, pFW);
-        stackPushINT32(pVM->pStack, FICL_TRUE);
+        stackPushINT(pVM->pStack, FICL_TRUE);
     }
     else
     {
-        stackPushINT32(pVM->pStack, FICL_FALSE);
+        stackPushINT(pVM->pStack, FICL_FALSE);
     }
 
     return;
@@ -2722,24 +2726,21 @@ static void environmentQ(FICL_VM *pVM)
 ** When the parse area is empty, restore the prior input source
 ** specification. Other stack effects are due to the words EVALUATEd. 
 **
-** DEFICIENCY: this version does not handle restarts. Also, exceptions
-** are just passed ahead. Is this the Right Thing? I don't know...
 **************************************************************************/
 static void evaluate(FICL_VM *pVM)
 {
-    INT32 count = stackPopINT32(pVM->pStack);
+    FICL_INT count = stackPopINT(pVM->pStack);
     char *cp    = stackPopPtr(pVM->pStack);
     CELL id;
     int result;
 
     id = pVM->sourceID;
     pVM->sourceID.i = -1;
-    vmPushIP(pVM, &pInterpret);
-    result = ficlExec(pVM, cp, count);
-    vmPopIP(pVM);
+    result = ficlExecC(pVM, cp, count);
     pVM->sourceID = id;
     if (result != VM_OUTOFTEXT)
-	vmThrow(pVM, result);
+        vmThrow(pVM, result);
+
     return;
 }
 
@@ -2761,7 +2762,7 @@ static void stringQuoteIm(FICL_VM *pVM)
         FICL_STRING *sp = (FICL_STRING *) dp->here;
         vmGetString(pVM, sp, '\"');
         stackPushPtr(pVM->pStack, sp->text);
-        stackPushUNS32(pVM->pStack, sp->count);
+        stackPushUNS(pVM->pStack, sp->count);
     }
     else    /* COMPILE state */
     {
@@ -2779,7 +2780,7 @@ static void stringQuoteIm(FICL_VM *pVM)
 **************************************************************************/
 static void type(FICL_VM *pVM)
 {
-    UNS32 count = stackPopUNS32(pVM->pStack);
+    FICL_UNS count = stackPopUNS(pVM->pStack);
     char *cp    = stackPopPtr(pVM->pStack);
     char *pDest = (char *)ficlMalloc(count + 1);
 
@@ -2817,7 +2818,7 @@ static void type(FICL_VM *pVM)
 static void ficlWord(FICL_VM *pVM)
 {
     FICL_STRING *sp = (FICL_STRING *)pVM->pad;
-    char      delim = (char)stackPopINT32(pVM->pStack);
+    char      delim = (char)stackPopINT(pVM->pStack);
     STRINGINFO   si;
     
     si = vmParseString(pVM, delim);
@@ -2845,7 +2846,7 @@ static void parseNoCopy(FICL_VM *pVM)
 {
     STRINGINFO si = vmGetWord0(pVM);
     stackPushPtr(pVM->pStack, SI_PTR(si));
-    stackPushUNS32(pVM->pStack, SI_COUNT(si));
+    stackPushUNS(pVM->pStack, SI_COUNT(si));
     return;
 }
 
@@ -2862,23 +2863,26 @@ static void parseNoCopy(FICL_VM *pVM)
 static void parse(FICL_VM *pVM)
 {
     char *pSrc      = vmGetInBuf(pVM);
+    char *pEnd      = vmGetInBufEnd(pVM);
     char *cp;
-    UNS32 count;
-    char delim      = (char)stackPopINT32(pVM->pStack);
+    FICL_UNS count;
+    char delim      = (char)stackPopINT(pVM->pStack);
 
     cp = pSrc;              /* mark start of text */
 
-    while ((pVM->tib.end != pSrc) && (*pSrc != delim) && (*pSrc != '\0'))
+    while ((pSrc != pEnd) && (*pSrc != delim))
+    {
         pSrc++;             /* find next delimiter or end */
+    }
 
     count = pSrc - cp;      /* set length of result */
 
-    if ((pVM->tib.end != pSrc) && (*pSrc == delim))     /* gobble trailing delimiter */
+    if ((pSrc != pEnd) && (*pSrc == delim)) /* gobble trailing delimiter */
         pSrc++;
 
     vmUpdateTib(pVM, pSrc);
     stackPushPtr(pVM->pStack, cp);
-    stackPushUNS32(pVM->pStack, count);
+    stackPushUNS(pVM->pStack, count);
     return;
 }
 
@@ -2891,8 +2895,8 @@ static void parse(FICL_VM *pVM)
 **************************************************************************/
 static void fill(FICL_VM *pVM)
 {
-    char ch  = (char)stackPopINT32(pVM->pStack);
-    UNS32  u = stackPopUNS32(pVM->pStack);
+    char ch  = (char)stackPopINT(pVM->pStack);
+    FICL_UNS  u = stackPopUNS(pVM->pStack);
     char *cp = (char *)stackPopPtr(pVM->pStack);
 
     while (u > 0)
@@ -2926,12 +2930,12 @@ static void find(FICL_VM *pVM)
     if (pFW)
     {
         stackPushPtr(pVM->pStack, pFW);
-        stackPushINT32(pVM->pStack, (wordIsImmediate(pFW) ? 1 : -1));
+        stackPushINT(pVM->pStack, (wordIsImmediate(pFW) ? 1 : -1));
     }
     else
     {
         stackPushPtr(pVM->pStack, sp);
-        stackPushUNS32(pVM->pStack, 0);
+        stackPushUNS(pVM->pStack, 0);
     }
     return;
 }
@@ -2947,15 +2951,15 @@ static void find(FICL_VM *pVM)
 **************************************************************************/
 static void fmSlashMod(FICL_VM *pVM)
 {
-    INT64 d1;
-    INT32 n1;
+    DPINT d1;
+    FICL_INT n1;
     INTQR qr;
 
-    n1    = stackPopINT32(pVM->pStack);
+    n1    = stackPopINT(pVM->pStack);
     d1 = i64Pop(pVM->pStack);
     qr = m64FlooredDivI(d1, n1);
-    stackPushINT32(pVM->pStack, qr.rem);
-    stackPushINT32(pVM->pStack, qr.quot);
+    stackPushINT(pVM->pStack, qr.rem);
+    stackPushINT(pVM->pStack, qr.quot);
     return;
 }
 
@@ -2970,30 +2974,30 @@ static void fmSlashMod(FICL_VM *pVM)
 **************************************************************************/
 static void smSlashRem(FICL_VM *pVM)
 {
-    INT64 d1;
-    INT32 n1;
+    DPINT d1;
+    FICL_INT n1;
     INTQR qr;
 
-    n1    = stackPopINT32(pVM->pStack);
+    n1    = stackPopINT(pVM->pStack);
     d1 = i64Pop(pVM->pStack);
     qr = m64SymmetricDivI(d1, n1);
-    stackPushINT32(pVM->pStack, qr.rem);
-    stackPushINT32(pVM->pStack, qr.quot);
+    stackPushINT(pVM->pStack, qr.rem);
+    stackPushINT(pVM->pStack, qr.quot);
     return;
 }
 
 
 static void ficlMod(FICL_VM *pVM)
 {
-    INT64 d1;
-    INT32 n1;
+    DPINT d1;
+    FICL_INT n1;
     INTQR qr;
 
-    n1    = stackPopINT32(pVM->pStack);
-    d1.lo = stackPopINT32(pVM->pStack);
+    n1    = stackPopINT(pVM->pStack);
+    d1.lo = stackPopINT(pVM->pStack);
     i64Extend(d1);
     qr = m64SymmetricDivI(d1, n1);
-    stackPushINT32(pVM->pStack, qr.rem);
+    stackPushINT(pVM->pStack, qr.rem);
     return;
 }
 
@@ -3008,15 +3012,15 @@ static void ficlMod(FICL_VM *pVM)
 *************************************************************************/
 static void umSlashMod(FICL_VM *pVM)
 {
-    UNS64 ud;
-    UNS32 u1;
+    DPUNS ud;
+    FICL_UNS u1;
     UNSQR qr;
 
-    u1    = stackPopUNS32(pVM->pStack);
+    u1    = stackPopUNS(pVM->pStack);
     ud    = u64Pop(pVM->pStack);
     qr    = ficlLongDiv(ud, u1);
-    stackPushUNS32(pVM->pStack, qr.rem);
-    stackPushUNS32(pVM->pStack, qr.quot);
+    stackPushUNS(pVM->pStack, qr.rem);
+    stackPushUNS(pVM->pStack, qr.quot);
     return;
 }
 
@@ -3037,20 +3041,20 @@ static void umSlashMod(FICL_VM *pVM)
 **************************************************************************/
 static void lshift(FICL_VM *pVM)
 {
-    UNS32 nBits = stackPopUNS32(pVM->pStack);
-    UNS32 x1    = stackPopUNS32(pVM->pStack);
+    FICL_UNS nBits = stackPopUNS(pVM->pStack);
+    FICL_UNS x1    = stackPopUNS(pVM->pStack);
 
-    stackPushUNS32(pVM->pStack, x1 << nBits);
+    stackPushUNS(pVM->pStack, x1 << nBits);
     return;
 }
 
 
 static void rshift(FICL_VM *pVM)
 {
-    UNS32 nBits = stackPopUNS32(pVM->pStack);
-    UNS32 x1    = stackPopUNS32(pVM->pStack);
+    FICL_UNS nBits = stackPopUNS(pVM->pStack);
+    FICL_UNS x1    = stackPopUNS(pVM->pStack);
 
-    stackPushUNS32(pVM->pStack, x1 >> nBits);
+    stackPushUNS(pVM->pStack, x1 >> nBits);
     return;
 }
 
@@ -3062,9 +3066,9 @@ static void rshift(FICL_VM *pVM)
 **************************************************************************/
 static void mStar(FICL_VM *pVM)
 {
-    INT32 n2 = stackPopINT32(pVM->pStack);
-    INT32 n1 = stackPopINT32(pVM->pStack);
-    INT64 d;
+    FICL_INT n2 = stackPopINT(pVM->pStack);
+    FICL_INT n1 = stackPopINT(pVM->pStack);
+    DPINT d;
     
     d = m64MulI(n1, n2);
     i64Push(pVM->pStack, d);
@@ -3074,9 +3078,9 @@ static void mStar(FICL_VM *pVM)
 
 static void umStar(FICL_VM *pVM)
 {
-    UNS32 u2 = stackPopUNS32(pVM->pStack);
-    UNS32 u1 = stackPopUNS32(pVM->pStack);
-    UNS64 ud;
+    FICL_UNS u2 = stackPopUNS(pVM->pStack);
+    FICL_UNS u1 = stackPopUNS(pVM->pStack);
+    DPUNS ud;
     
     ud = ficlLongMul(u1, u2);
     u64Push(pVM->pStack, ud);
@@ -3090,19 +3094,19 @@ static void umStar(FICL_VM *pVM)
 **************************************************************************/
 static void ficlMax(FICL_VM *pVM)
 {
-    INT32 n2 = stackPopINT32(pVM->pStack);
-    INT32 n1 = stackPopINT32(pVM->pStack);
+    FICL_INT n2 = stackPopINT(pVM->pStack);
+    FICL_INT n1 = stackPopINT(pVM->pStack);
 
-    stackPushINT32(pVM->pStack, (n1 > n2) ? n1 : n2);
+    stackPushINT(pVM->pStack, (n1 > n2) ? n1 : n2);
     return;
 }
 
 static void ficlMin(FICL_VM *pVM)
 {
-    INT32 n2 = stackPopINT32(pVM->pStack);
-    INT32 n1 = stackPopINT32(pVM->pStack);
+    FICL_INT n2 = stackPopINT(pVM->pStack);
+    FICL_INT n1 = stackPopINT(pVM->pStack);
 
-    stackPushINT32(pVM->pStack, (n1 < n2) ? n1 : n2);
+    stackPushINT(pVM->pStack, (n1 < n2) ? n1 : n2);
     return;
 }
 
@@ -3119,7 +3123,7 @@ static void ficlMin(FICL_VM *pVM)
 **************************************************************************/
 static void move(FICL_VM *pVM)
 {
-    UNS32 u     = stackPopUNS32(pVM->pStack);
+    FICL_UNS u     = stackPopUNS(pVM->pStack);
     char *addr2 = stackPopPtr(pVM->pStack);
     char *addr1 = stackPopPtr(pVM->pStack);
 
@@ -3168,11 +3172,11 @@ static void recurseCoIm(FICL_VM *pVM)
 **************************************************************************/
 static void sToD(FICL_VM *pVM)
 {
-    INT32 s = stackPopINT32(pVM->pStack);
+    FICL_INT s = stackPopINT(pVM->pStack);
 
     /* sign extend to 64 bits.. */
-    stackPushINT32(pVM->pStack, s);
-    stackPushINT32(pVM->pStack, (s < 0) ? -1 : 0);
+    stackPushINT(pVM->pStack, s);
+    stackPushINT(pVM->pStack, (s < 0) ? -1 : 0);
     return;
 }
 
@@ -3187,8 +3191,7 @@ static void source(FICL_VM *pVM)
 {   int i;
 
     stackPushPtr(pVM->pStack, pVM->tib.cp);
-    for (i = 0; (pVM->tib.end != &pVM->tib.cp[i]) && pVM->tib.cp[i]; i++);
-    stackPushINT32(pVM->pStack, i);
+    stackPushINT(pVM->pStack, vmGetInBufLen(pVM));
     return;
 }
 
@@ -3287,7 +3290,7 @@ static void getOrder(FICL_VM *pVM)
         stackPushPtr(pVM->pStack, pDict->pSearch[i]);
     }
 
-    stackPushUNS32(pVM->pStack, nLists);
+    stackPushUNS(pVM->pStack, nLists);
     ficlLockDictionary(FALSE);
     return;
 }
@@ -3308,7 +3311,7 @@ static void searchWordlist(FICL_VM *pVM)
     FICL_WORD *pFW;
     FICL_HASH *pHash = stackPopPtr(pVM->pStack);
 
-    si.count         = (FICL_COUNT)stackPopUNS32(pVM->pStack);
+    si.count         = (FICL_COUNT)stackPopUNS(pVM->pStack);
     si.cp            = stackPopPtr(pVM->pStack);
     hashCode         = hashHashCode(si);
 
@@ -3319,11 +3322,11 @@ static void searchWordlist(FICL_VM *pVM)
     if (pFW)
     {
         stackPushPtr(pVM->pStack, pFW);
-        stackPushINT32(pVM->pStack, (wordIsImmediate(pFW) ? 1 : -1));
+        stackPushINT(pVM->pStack, (wordIsImmediate(pFW) ? 1 : -1));
     }
     else
     {
-        stackPushUNS32(pVM->pStack, 0);
+        stackPushUNS(pVM->pStack, 0);
     }
 
     return;
@@ -3360,7 +3363,7 @@ static void setCurrent(FICL_VM *pVM)
 static void setOrder(FICL_VM *pVM)
 {
     int i;
-    int nLists = stackPopINT32(pVM->pStack);
+    int nLists = stackPopINT(pVM->pStack);
     FICL_DICT *dp = ficlGetDict();
 
     if (nLists > FICL_DEFAULT_VOCS)
@@ -3407,12 +3410,12 @@ static void wordlist(FICL_VM *pVM)
 {
     FICL_DICT *dp = ficlGetDict();
     FICL_HASH *pHash;
-    UNS32 nBuckets;
+    FICL_UNS nBuckets;
     
 #if FICL_ROBUST > 1
     vmCheckStack(pVM, 1, 1);
 #endif
-    nBuckets = stackPopUNS32(pVM->pStack);
+    nBuckets = stackPopUNS(pVM->pStack);
 
     dictAlign(dp);
     pHash    = (FICL_HASH *)dp->here;
@@ -3511,7 +3514,7 @@ static void colonNoName(FICL_VM *pVM)
 #if FICL_WANT_USER
 static void userParen(FICL_VM *pVM)
 {
-    INT32 i = pVM->runningWord->param[0].i;
+    FICL_INT i = pVM->runningWord->param[0].i;
     stackPushPtr(pVM->pStack, &pVM->user[i]);
     return;
 }
@@ -3595,7 +3598,7 @@ static void toValue(FICL_VM *pVM)
 **************************************************************************/
 static void linkParen(FICL_VM *pVM)
 {
-    INT32 nLink = *(INT32 *)(pVM->ip);
+    FICL_INT nLink = *(FICL_INT *)(pVM->ip);
     vmBranchRelative(pVM, 1);
     stackLink(pVM->rStack, nLink);
     return;
@@ -3617,7 +3620,7 @@ static void unlinkParen(FICL_VM *pVM)
 **************************************************************************/
 static void getLocalParen(FICL_VM *pVM)
 {
-    INT32 nLocal = *(INT32 *)(pVM->ip++);
+    FICL_INT nLocal = *(FICL_INT *)(pVM->ip++);
     stackPush(pVM->pStack, pVM->rStack->pFrame[nLocal]);
     return;
 }
@@ -3625,7 +3628,7 @@ static void getLocalParen(FICL_VM *pVM)
 
 static void toLocalParen(FICL_VM *pVM)
 {
-    INT32 nLocal = *(INT32 *)(pVM->ip++);
+    FICL_INT nLocal = *(FICL_INT *)(pVM->ip++);
     pVM->rStack->pFrame[nLocal] = stackPop(pVM->pStack);
     return;
 }
@@ -3725,7 +3728,7 @@ static void localParen(FICL_VM *pVM)
     static CELL *pMark = NULL;
     FICL_DICT *pDict = ficlGetDict();
     STRINGINFO si;
-    SI_SETLEN(si, stackPopUNS32(pVM->pStack));
+    SI_SETLEN(si, stackPopUNS(pVM->pStack));
     SI_SETPTR(si, (char *)stackPopPtr(pVM->pStack));
 
     if (SI_COUNT(si) > 0)
@@ -3762,7 +3765,7 @@ static void localParen(FICL_VM *pVM)
     }
     else if (nLocals > 0)
     {       /* write nLocals to (link) param area in dictionary */
-        *(INT32 *)pMark = nLocals;
+        *(FICL_INT *)pMark = nLocals;
     }
 
     return;
@@ -3815,7 +3818,6 @@ int isAFiclWord(FICL_WORD *pFW)
 static int isAFiclWord(FICL_WORD *pFW)
 #endif
 {
-    void *pv = (void *)pFW;
     FICL_DICT *pd  = ficlGetDict();
 
     if (!dictIncludes(pd, pFW))
@@ -3921,7 +3923,6 @@ static void seeColon(FICL_VM *pVM, CELL *pc)
 */
 static void see(FICL_VM *pVM)
 {
-    FICL_DICT *pd  = ficlGetDict();
     FICL_WORD *pFW;
 
     tick(pVM);
@@ -3991,13 +3992,13 @@ static void see(FICL_VM *pVM)
 static void compareString(FICL_VM *pVM)
 {
     char *cp1, *cp2;
-    UNS32 u1, u2, uMin;
+    FICL_UNS u1, u2, uMin;
     int n = 0;
 
     vmCheckStack(pVM, 4, 1);
-    u2  = stackPopUNS32(pVM->pStack);
+    u2  = stackPopUNS(pVM->pStack);
     cp2 = (char *)stackPopPtr(pVM->pStack);
-    u1  = stackPopUNS32(pVM->pStack);
+    u1  = stackPopUNS(pVM->pStack);
     cp1 = (char *)stackPopPtr(pVM->pStack);
 
     uMin = (u1 < u2)? u1 : u2;
@@ -4014,7 +4015,7 @@ static void compareString(FICL_VM *pVM)
     else if (n > 0)
         n = 1;
 
-    stackPushINT32(pVM->pStack, n);
+    stackPushINT(pVM->pStack, n);
     return;
 }
 
@@ -4034,8 +4035,8 @@ static void compareString(FICL_VM *pVM)
 **************************************************************************/
 static void refill(FICL_VM *pVM)
 {
-    INT32 ret = (pVM->sourceID.i == -1) ? FICL_FALSE : FICL_TRUE;
-    stackPushINT32(pVM->pStack, ret);
+    FICL_INT ret = (pVM->sourceID.i == -1) ? FICL_FALSE : FICL_TRUE;
+    stackPushINT(pVM->pStack, ret);
     if (ret)
         vmThrow(pVM, VM_OUTOFTEXT);
     return;
@@ -4080,194 +4081,6 @@ static void forget(FICL_VM *pVM)
     return;
 }
 
-/*************** freebsd added memory-alloc handling words ******************/
-
-static void allocate(FICL_VM *pVM)
-{
-    size_t size;
-    void *p;
-
-    size = stackPopINT32(pVM->pStack);
-    p = ficlMalloc(size);
-    stackPushPtr(pVM->pStack, p);
-    if (p)
-	stackPushINT32(pVM->pStack, 0);
-    else
-	stackPushINT32(pVM->pStack, 1);
-}
-
-static void free4th(FICL_VM *pVM)
-{
-    void *p;
-
-    p = stackPopPtr(pVM->pStack);
-    ficlFree(p);
-    stackPushINT32(pVM->pStack, 0);
-}
-
-static void resize(FICL_VM *pVM)
-{
-    size_t size;
-    void *new, *old;
-
-    size = stackPopINT32(pVM->pStack);
-    old = stackPopPtr(pVM->pStack);
-    new = ficlRealloc(old, size);
-    if (new) {
-	stackPushPtr(pVM->pStack, new);
-	stackPushINT32(pVM->pStack, 0);
-     } else {
-	stackPushPtr(pVM->pStack, old);
-	stackPushINT32(pVM->pStack, 1);
-    }
-}
-
-/***************** freebsd added exception handling words *******************/
-
-/*
- * Catch, from ANS Forth standard. Installs a safety net, then EXECUTE
- * the word in ToS. If an exception happens, restore the state to what
- * it was before, and pushes the exception value on the stack. If not,
- * push zero.
- *
- * Notice that Catch implements an inner interpreter. This is ugly,
- * but given how ficl works, it cannot be helped. The problem is that
- * colon definitions will be executed *after* the function returns,
- * while "code" definitions will be executed immediately. I considered
- * other solutions to this problem, but all of them shared the same
- * basic problem (with added disadvantages): if ficl ever changes it's
- * inner thread modus operandi, one would have to fix this word.
- *
- * More comments can be found throughout catch's code.
- *
- * BUGS: do not handle locals unnesting correctly... I think...
- *
- * Daniel C. Sobral	Jan 09/1999
- */
-
-static void catch(FICL_VM *pVM)
-{
-	int		except;
-	jmp_buf		vmState;
-	FICL_VM		VM;
-	FICL_STACK	pStack;
-	FICL_STACK	rStack;
-	FICL_WORD	*pFW;
-	IPTYPE		exitIP;
-
-	/*
-         * Get xt.
-	 * We need this *before* we save the stack pointer, or
-         * we'll have to pop one element out of the stack after
-         * an exception. I prefer to get done with it up front. :-)
-         */
-#if FICL_ROBUST > 1
-	vmCheckStack(pVM, 1, 0);
-#endif
-	pFW = stackPopPtr(pVM->pStack);
-
-	/* 
-	 * Save vm's state -- a catch will not back out environmental
-         * changes.
-	 *
-	 * We are *not* saving dictionary state, since it is
-	 * global instead of per vm, and we are not saving
-	 * stack contents, since we are not required to (and,
-	 * thus, it would be useless). We save pVM, and pVM
-	 * "stacks" (a structure containing general information
-	 * about it, including the current stack pointer).
-         */
-	memcpy((void*)&VM, (void*)pVM, sizeof(FICL_VM));
-	memcpy((void*)&pStack, (void*)pVM->pStack, sizeof(FICL_STACK));
-	memcpy((void*)&rStack, (void*)pVM->rStack, sizeof(FICL_STACK));
-
-	/*
-	 * Give pVM a jmp_buf
-	 */
-	pVM->pState = &vmState;
-
-	/*
-	 * Safety net
-	 */
-	except = setjmp(vmState);
-
-	/*
-	 * And now, choose what to do depending on except.
-	 */
-
-		/* Things having gone wrong... */
-	if(except) {
-		/* Restore vm's state */
-		memcpy((void*)pVM, (void*)&VM, sizeof(FICL_VM));
-		memcpy((void*)pVM->pStack, (void*)&pStack, sizeof(FICL_STACK));
-		memcpy((void*)pVM->rStack, (void*)&rStack, sizeof(FICL_STACK));
-
-		/* Push error */
-		stackPushINT32(pVM->pStack, except);
-
-		/* Things being ok... */
-	} else {
-		/*
-		 * We need to know when to exit the inner loop
-		 * Colonp, the "code" for colon words, just pushes
-		 * the word's IP onto the RP, and expect the inner
-		 * interpreter to do the rest. Well, I'd rather have
-		 * it done *before* I return from this function,
-		 * losing the automatic variables I'm using to save
-		 * state. Sure, I could save this on dynamic memory
-		 * and save state on RP, or I could even implement
-		 * the poor man's version of this word in Forth with
-		 * sp@, sp!, rp@ and rp!, but we have a lot of state
-		 * neatly tucked away in pVM, so why not save it?
-		 */
-		exitIP = pVM->ip;
-
-		/* Execute the xt -- inline code for vmExecute */
-
-		pVM->runningWord = pFW;
-		pFW->code(pVM);
-
-		/*
-		 * Run the inner loop until we get back to exitIP
-		 */
-		for (; pVM->ip != exitIP;) {
-			pFW = *pVM->ip++;
-
-			/* Inline code for vmExecute */
-			pVM->runningWord = pFW;
-			pFW->code(pVM);
-		}
-
-
-		/* Restore just the setjmp vector */
-		pVM->pState = VM.pState;
-
-		/* Push 0 -- everything is ok */
-		stackPushINT32(pVM->pStack, 0);
-	}
-}
-
-/*
- * Throw -- maybe vmThow already do what's required, but I don't really
- * know what happens when you longjmp(buf, 0). From ANS Forth standard.
- *
- * Anyway, throw takes the ToS and, if that's different from zero,
- * returns to the last executed catch context. Further throws will
- * unstack previously executed "catches", in LIFO mode.
- *
- * Daniel C. Sobral	Jan 09/1999
- */
-
-static void throw(FICL_VM *pVM)
-{
-	int except;
-	
-	except = stackPopINT32(pVM->pStack);
-
-	if (except)
-		vmThrow(pVM, except);
-}
-
 /************************* freebsd added I/O words **************************/
 
 /*          fopen - open a file and return new fd on stack.
@@ -4282,10 +4095,10 @@ static void pfopen(FICL_VM *pVM)
 #if FICL_ROBUST > 1
     vmCheckStack(pVM, 2, 1);
 #endif
-    (void)stackPopINT32(pVM->pStack); /* don't need count value */
+    (void)stackPopINT(pVM->pStack); /* don't need count value */
     p = stackPopPtr(pVM->pStack);
     fd = open(p, O_RDONLY);
-    stackPushINT32(pVM->pStack, fd);
+    stackPushINT(pVM->pStack, fd);
     return;
 }
 
@@ -4300,7 +4113,7 @@ static void pfclose(FICL_VM *pVM)
 #if FICL_ROBUST > 1
     vmCheckStack(pVM, 1, 0);
 #endif
-    fd = stackPopINT32(pVM->pStack); /* get fd */
+    fd = stackPopINT(pVM->pStack); /* get fd */
     if (fd != -1)
 	close(fd);
     return;
@@ -4318,13 +4131,13 @@ static void pfread(FICL_VM *pVM)
 #if FICL_ROBUST > 1
     vmCheckStack(pVM, 3, 1);
 #endif
-    len = stackPopINT32(pVM->pStack); /* get number of bytes to read */
+    len = stackPopINT(pVM->pStack); /* get number of bytes to read */
     buf = stackPopPtr(pVM->pStack); /* get buffer */
-    fd = stackPopINT32(pVM->pStack); /* get fd */
+    fd = stackPopINT(pVM->pStack); /* get fd */
     if (len > 0 && buf && fd != -1)
-	stackPushINT32(pVM->pStack, read(fd, buf, len));
+	stackPushINT(pVM->pStack, read(fd, buf, len));
     else
-	stackPushINT32(pVM->pStack, -1);
+	stackPushINT(pVM->pStack, -1);
     return;
 }
 
@@ -4339,7 +4152,7 @@ static void pfload(FICL_VM *pVM)
 #if FICL_ROBUST > 1
     vmCheckStack(pVM, 1, 0);
 #endif
-    fd = stackPopINT32(pVM->pStack); /* get fd */
+    fd = stackPopINT(pVM->pStack); /* get fd */
     if (fd != -1)
 	ficlExecFD(pVM, fd);
     return;
@@ -4354,7 +4167,7 @@ static void key(FICL_VM *pVM)
 #if FICL_ROBUST > 1
     vmCheckStack(pVM, 0, 1);
 #endif
-    stackPushINT32(pVM->pStack, getchar());
+    stackPushINT(pVM->pStack, getchar());
     return;
 }
 
@@ -4369,10 +4182,10 @@ static void keyQuestion(FICL_VM *pVM)
 #endif
 #ifdef TESTMAIN
     /* XXX Since we don't fiddle with termios, let it always succeed... */
-    stackPushINT32(pVM->pStack, FICL_TRUE);
+    stackPushINT(pVM->pStack, FICL_TRUE);
 #else
     /* But here do the right thing. */
-    stackPushINT32(pVM->pStack, ischar()? FICL_TRUE : FICL_FALSE);
+    stackPushINT(pVM->pStack, ischar()? FICL_TRUE : FICL_FALSE);
 #endif
     return;
 }
@@ -4391,7 +4204,7 @@ static void pseconds(FICL_VM *pVM)
 #if FICL_ROBUST > 1
     vmCheckStack(pVM,0,1);
 #endif
-    stackPushUNS32(pVM->pStack, (u_int32_t) time(NULL));
+    stackPushUNS(pVM->pStack, (FICL_UNS) time(NULL));
     return;
 }
 
@@ -4406,9 +4219,9 @@ static void ms(FICL_VM *pVM)
     vmCheckStack(pVM,1,0);
 #endif
 #ifdef TESTMAIN
-    usleep(stackPopUNS32(pVM->pStack)*1000);
+    usleep(stackPopUNS(pVM->pStack)*1000);
 #else
-    delay(stackPopUNS32(pVM->pStack)*1000);
+    delay(stackPopUNS(pVM->pStack)*1000);
 #endif
     return;
 }
@@ -4425,9 +4238,229 @@ static void fkey(FICL_VM *pVM)
 #if FICL_ROBUST > 1
     vmCheckStack(pVM, 1, 1);
 #endif
-    fd = stackPopINT32(pVM->pStack);
+    fd = stackPopINT(pVM->pStack);
     i = read(fd, &ch, 1);
-    stackPushINT32(pVM->pStack, i > 0 ? ch : -1);
+    stackPushINT(pVM->pStack, i > 0 ? ch : -1);
+    return;
+}
+
+/**************************************************************************
+                        freebsd exception handling words
+** Catch, from ANS Forth standard. Installs a safety net, then EXECUTE
+** the word in ToS. If an exception happens, restore the state to what
+** it was before, and pushes the exception value on the stack. If not,
+** push zero.
+**
+** Notice that Catch implements an inner interpreter. This is ugly,
+** but given how ficl works, it cannot be helped. The problem is that
+** colon definitions will be executed *after* the function returns,
+** while "code" definitions will be executed immediately. I considered
+** other solutions to this problem, but all of them shared the same
+** basic problem (with added disadvantages): if ficl ever changes it's
+** inner thread modus operandi, one would have to fix this word.
+**
+** More comments can be found throughout catch's code.
+**
+** BUGS: do not handle locals unnesting correctly... I think...
+**
+** Daniel C. Sobral Jan 09/1999
+**************************************************************************/
+
+static void ficlCatch(FICL_VM *pVM)
+{
+    int     except;
+    jmp_buf     vmState;
+    FICL_VM     VM;
+    FICL_STACK  pStack;
+    FICL_STACK  rStack;
+    FICL_WORD   *pFW;
+    IPTYPE      exitIP;
+
+    /*
+    ** Get xt.
+    ** We need this *before* we save the stack pointer, or
+    ** we'll have to pop one element out of the stack after
+    ** an exception. I prefer to get done with it up front. :-)
+    */
+#if FICL_ROBUST > 1
+    vmCheckStack(pVM, 1, 0);
+#endif
+    pFW = stackPopPtr(pVM->pStack);
+
+    /* 
+    ** Save vm's state -- a catch will not back out environmental
+    ** changes.
+    **
+    ** We are *not* saving dictionary state, since it is
+    ** global instead of per vm, and we are not saving
+    ** stack contents, since we are not required to (and,
+    ** thus, it would be useless). We save pVM, and pVM
+    ** "stacks" (a structure containing general information
+    ** about it, including the current stack pointer).
+    */
+    memcpy((void*)&VM, (void*)pVM, sizeof(FICL_VM));
+    memcpy((void*)&pStack, (void*)pVM->pStack, sizeof(FICL_STACK));
+    memcpy((void*)&rStack, (void*)pVM->rStack, sizeof(FICL_STACK));
+
+    /*
+    ** Give pVM a jmp_buf
+    */
+    pVM->pState = &vmState;
+
+    /*
+    ** Safety net
+    */
+    except = setjmp(vmState);
+
+    /*
+    ** And now, choose what to do depending on except.
+    */
+
+    /* Things having gone wrong... */
+    if(except) 
+    {
+        /* Restore vm's state */
+        memcpy((void*)pVM, (void*)&VM, sizeof(FICL_VM));
+        memcpy((void*)pVM->pStack, (void*)&pStack, sizeof(FICL_STACK));
+        memcpy((void*)pVM->rStack, (void*)&rStack, sizeof(FICL_STACK));
+
+        /* Push error */
+        stackPushINT(pVM->pStack, except);
+
+    } 
+    else /* Things being ok... */
+    {   
+        /*
+         * We need to know when to exit the inner loop
+         * Colonp, the "code" for colon words, just pushes
+         * the word's IP onto the RP, and expect the inner
+         * interpreter to do the rest. Well, I'd rather have
+         * it done *before* I return from this function,
+         * losing the automatic variables I'm using to save
+         * state. Sure, I could save this on dynamic memory
+         * and save state on RP, or I could even implement
+         * the poor man's version of this word in Forth with
+         * sp@, sp!, rp@ and rp!, but we have a lot of state
+         * neatly tucked away in pVM, so why not save it?
+         */
+        exitIP = pVM->ip;
+
+        /* Execute the xt -- inline code for vmExecute */
+
+        pVM->runningWord = pFW;
+        pFW->code(pVM);
+
+        /*
+        ** Run the inner loop until we get back to exitIP
+        */
+        for (; pVM->ip != exitIP;) 
+        {
+            pFW = *pVM->ip++;
+
+            /* Inline code for vmExecute */
+            pVM->runningWord = pFW;
+            pFW->code(pVM);
+        }
+
+
+        /* Restore just the setjmp vector */
+        pVM->pState = VM.pState;
+
+        /* Push 0 -- everything is ok */
+        stackPushINT(pVM->pStack, 0);
+    }
+}
+
+/*
+ * Throw --  From ANS Forth standard.
+ *
+ * Throw takes the ToS and, if that's different from zero,
+ * returns to the last executed catch context. Further throws will
+ * unstack previously executed "catches", in LIFO mode.
+ *
+ * Daniel C. Sobral Jan 09/1999
+ */
+
+static void ficlThrow(FICL_VM *pVM)
+{
+    int except;
+    
+    except = stackPopINT(pVM->pStack);
+
+    if (except)
+        vmThrow(pVM, except);
+}
+
+
+/*************** freebsd added memory-alloc handling words ******************/
+
+static void ansAllocate(FICL_VM *pVM)
+{
+    size_t size;
+    void *p;
+
+    size = stackPopINT(pVM->pStack);
+    p = ficlMalloc(size);
+    stackPushPtr(pVM->pStack, p);
+    if (p)
+        stackPushINT(pVM->pStack, 0);
+    else
+        stackPushINT(pVM->pStack, 1);
+}
+
+
+static void ansFree(FICL_VM *pVM)
+{
+    void *p;
+
+    p = stackPopPtr(pVM->pStack);
+    ficlFree(p);
+    stackPushINT(pVM->pStack, 0);
+}
+
+
+static void ansResize(FICL_VM *pVM)
+{
+    size_t size;
+    void *new, *old;
+
+    size = stackPopINT(pVM->pStack);
+    old = stackPopPtr(pVM->pStack);
+    new = ficlRealloc(old, size);
+    if (new) 
+    {
+        stackPushPtr(pVM->pStack, new);
+        stackPushINT(pVM->pStack, 0);
+    } 
+    else 
+    {
+        stackPushPtr(pVM->pStack, old);
+        stackPushINT(pVM->pStack, 1);
+    }
+}
+
+
+/*
+** exit-inner 
+** Signals execXT that an inner loop has completed
+*/
+static void ficlExitInner(FICL_VM *pVM)
+{
+    vmThrow(pVM, VM_INNEREXIT);
+}
+
+
+/**************************************************************************
+                        d n e g a t e
+** DOUBLE   ( d1 -- d2 )
+** d2 is the negation of d1. 
+**************************************************************************/
+static void dnegate(FICL_VM *pVM)
+{
+    DPINT i = i64Pop(pVM->pStack);
+    i = m64Negate(i);
+    i64Push(pVM->pStack, i);
+
     return;
 }
 
@@ -4440,7 +4473,7 @@ static void ficlTrace(FICL_VM *pVM)
     vmCheckStack(pVM, 1, 1);
 #endif
 
-    ficl_trace = stackPopINT32(pVM->pStack);
+    ficl_trace = stackPopINT(pVM->pStack);
 }
 #endif
 
@@ -4619,23 +4652,6 @@ void ficlCompileCore(FICL_DICT *dp)
 #ifdef FICL_TRACE
     dictAppendWord(dp, "trace!",    ficlTrace,      FW_DEFAULT);
 #endif
-    /*
-    ** EXCEPTION word set
-    */
-    dictAppendWord(dp, "catch",     catch,          FW_DEFAULT);
-    dictAppendWord(dp, "throw",     throw,          FW_DEFAULT);
-    
-    ficlSetEnv("exception",         FICL_TRUE);
-    ficlSetEnv("exception-ext",     FICL_TRUE);
-
-    /*
-    ** MEMORY-ALLOC word set
-    */
-    dictAppendWord(dp, "allocate",  allocate,       FW_DEFAULT);
-    dictAppendWord(dp, "free",      free4th,        FW_DEFAULT);
-    dictAppendWord(dp, "resize",    resize,         FW_DEFAULT);
- 
-    ficlSetEnv("memory-alloc",         FICL_TRUE);
 
 #ifndef TESTMAIN
 #ifdef __i386__
@@ -4671,6 +4687,15 @@ void ficlCompileCore(FICL_DICT *dp)
     ficlSetEnv("stack-cells",       FICL_DEFAULT_STACK);
 
     /*
+    ** EXCEPTION word set
+    */
+    dictAppendWord(dp, "catch",     ficlCatch,      FW_DEFAULT);
+    dictAppendWord(dp, "throw",     ficlThrow,      FW_DEFAULT);
+
+    ficlSetEnv("exception",         FICL_TRUE);
+    ficlSetEnv("exception-ext",     FICL_TRUE);
+
+    /*
     ** LOCAL and LOCAL EXT
     ** see softcore.c for implementation of locals|
     */
@@ -4698,6 +4723,17 @@ void ficlCompileCore(FICL_DICT *dp)
     ficlSetEnv("locals-ext",        FICL_TRUE);
     ficlSetEnv("#locals",           FICL_MAX_LOCALS);
 #endif
+
+    /*
+    ** Optional MEMORY-ALLOC word set
+    */
+
+    dictAppendWord(dp, "allocate",  ansAllocate,    FW_DEFAULT);
+    dictAppendWord(dp, "free",      ansFree,        FW_DEFAULT);
+    dictAppendWord(dp, "resize",    ansResize,      FW_DEFAULT);
+    
+    ficlSetEnv("memory-alloc",      FICL_TRUE);
+    ficlSetEnv("memory-alloc-ext",  FICL_FALSE);
 
     /*
     ** optional SEARCH-ORDER word set 
@@ -4752,6 +4788,7 @@ void ficlCompileCore(FICL_DICT *dp)
     dictAppendWord(dp, "compare",   compareString,  FW_DEFAULT);   /* STRING */
     dictAppendWord(dp, "compile-only",
                                     compileOnly,    FW_DEFAULT);
+    dictAppendWord(dp, "dnegate",   dnegate,        FW_DEFAULT); /* DOUBLE */
     dictAppendWord(dp, "endif",     endifCoIm,      FW_COMPIMMED);
     dictAppendWord(dp, "forget-wid",forgetWid,      FW_DEFAULT);
     dictAppendWord(dp, "parse-word",parseNoCopy,    FW_DEFAULT);
@@ -4794,7 +4831,9 @@ void ficlCompileCore(FICL_DICT *dp)
     dictAppendWord(dp, "interpret", interpret,      FW_DEFAULT);
     dictAppendWord(dp, "(variable)",variableParen,  FW_COMPILE);
     dictAppendWord(dp, "(constant)",constantParen,  FW_COMPILE);
+    dictAppendWord(dp, "exit-inner",ficlExitInner,  FW_DEFAULT);
 
+    assert(dictCellsAvail(dp) > 0);
     return;
 }
 

@@ -3,6 +3,8 @@
 \ ** John Sadler (john_sadler@alum.mit.edu)
 \ ** September, 1998
 
+\ $FreeBSD$
+
 \ ** Ficl USER variables
 \ ** See words.c for primitive def'n of USER
 \ #if FICL_WANT_USER
@@ -49,6 +51,8 @@ decimal 32 constant bl
 : erase   ( addr u -- )    0 fill ; 
 : nip     ( y x -- x )     swap drop ; 
 : tuck    ( y x -- x y x)  swap over ; 
+: within  ( test low high -- flag )   over - >r - r>  u<  ;
+
 
 \ ** LOCAL EXT word set
 \ #if FICL_WANT_LOCALS
@@ -78,38 +82,6 @@ decimal 32 constant bl
     loop drop
 ;
 
-\ ** Some TOOLS EXT words, straight from the standard
-: [else]  ( -- )
-    1 begin                               \ level
-      begin
-        bl word count  dup  while         \ level adr len
-        2dup  s" [IF]"  compare 0= >r
-	2dup  s" [if]"  compare 0= r> or
-        if                                \ level adr len
-          2drop 1+                        \ level'
-        else                              \ level adr len
-          2dup  s" [ELSE]" compare 0= >r
-	  2dup  s" [else]" compare 0= r> or
-	  if				  \ level adr len
-             2drop 1- dup if 1+ then      \ level'
-          else                            \ level adr len
-	    2dup
-            s" [THEN]"  compare 0= >r	  \ level adr len
-	    s" [then]"  compare 0= r> or
-	    if				  \ level
-              1-                          \ level'
-            then
-          then
-        then ?dup 0=  if exit then        \ level'
-      repeat  2drop                       \ level
-    refill 0= until                       \ level
-    drop
-;  immediate
-
-: [if]  ( flag -- )
-0= if postpone [else] then ;  immediate
-
-: [then]  ( -- )  ;  immediate
 \ ** SEARCH+EXT words and ficl helpers
 \ 
 : wordlist   ( -- )  
