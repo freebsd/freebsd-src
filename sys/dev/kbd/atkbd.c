@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: atkbd.c,v 1.6 1999/04/16 21:21:55 peter Exp $
+ * $Id: atkbd.c,v 1.7 1999/05/09 04:59:24 yokota Exp $
  */
 
 #include "atkbd.h"
@@ -826,23 +826,23 @@ next_code:
 
 	/* compose a character code */
 	if (state->ks_flags & COMPOSE) {
-		switch (scancode) {
+		switch (keycode) {
 		/* key pressed, process it */
 		case 0x47: case 0x48: case 0x49:	/* keypad 7,8,9 */
 			state->ks_composed_char *= 10;
-			state->ks_composed_char += scancode - 0x40;
+			state->ks_composed_char += keycode - 0x40;
 			if (state->ks_composed_char > UCHAR_MAX)
 				return ERRKEY;
 			goto next_code;
 		case 0x4B: case 0x4C: case 0x4D:	/* keypad 4,5,6 */
 			state->ks_composed_char *= 10;
-			state->ks_composed_char += scancode - 0x47;
+			state->ks_composed_char += keycode - 0x47;
 			if (state->ks_composed_char > UCHAR_MAX)
 				return ERRKEY;
 			goto next_code;
 		case 0x4F: case 0x50: case 0x51:	/* keypad 1,2,3 */
 			state->ks_composed_char *= 10;
-			state->ks_composed_char += scancode - 0x4E;
+			state->ks_composed_char += keycode - 0x4E;
 			if (state->ks_composed_char > UCHAR_MAX)
 				return ERRKEY;
 			goto next_code;
