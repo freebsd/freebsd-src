@@ -1891,7 +1891,8 @@ rl_stop(sc)
 			    sc->rl_cdata.rl_tx_dmamap[i]);
 			m_freem(sc->rl_cdata.rl_tx_chain[i]);
 			sc->rl_cdata.rl_tx_chain[i] = NULL;
-			CSR_WRITE_4(sc, RL_TXADDR0 + i, 0x0000000);
+			CSR_WRITE_4(sc, RL_TXADDR0 + (i * sizeof(u_int32_t)),
+			    0x0000000);
 		}
 	}
 
