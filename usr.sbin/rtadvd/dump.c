@@ -221,6 +221,15 @@ if_dump()
 				pfx->routeraddr ? "R" :
 #endif
 				"");
+			if (pfx->timer) {
+				struct timeval *rest;
+
+				rest = rtadvd_timer_rest(pfx->timer);
+				if (rest) { /* XXX: what if not? */
+					fprintf(fp, ", expire in: %ld",
+					    (long)rest->tv_sec);
+				}
+			}
 			fprintf(fp, ")\n");
 		}
 	}
