@@ -1,7 +1,7 @@
 #
 # GENERIC -- Generic machine with WD/AHx/NCR/BTx family disks
 #
-#	$Id: GENERIC,v 1.72 1996/06/30 09:39:29 joerg Exp $
+#	$Id: GENERIC,v 1.73 1996/07/10 03:35:59 jkh Exp $
 #
 
 machine		"i386"
@@ -104,6 +104,8 @@ options		APM_BROKEN_STATCLOCK	# Workaround some buggy APM BIOS
 
 device		sio0	at isa? port "IO_COM1" tty irq 4 vector siointr
 device		sio1	at isa? port "IO_COM2" tty irq 3 vector siointr
+device		sio2	at isa? disable port "IO_COM3" tty irq 5 vector siointr
+device		sio3	at isa? disable port "IO_COM4" tty irq 9 vector siointr
 
 device		lpt0	at isa? port? tty irq 7 vector lptintr
 device		lpt1	at isa? port? tty
