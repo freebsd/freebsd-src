@@ -46,9 +46,13 @@ maxusers	10
 # KERNEL can be overridden so that you can change the default name of your
 # kernel.
 #
+# MODULES_OVERRIDE can be used to limit modules built to a specific list.
+#
 makeoptions	CONF_CFLAGS=-fno-builtin  #Don't allow use of memcmp, etc.
 #makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
 #makeoptions	KERNEL=foo		#Build kernel "foo" and install "/foo"
+# Only build Linux API modules and plus those parts of the sound system I need.
+#makeoptions	MODULES_OVERRIDE="linux sound/snd sound/pcm sound/drivers/maestro3"
 
 #
 # Certain applications can grow to be larger than the 128M limit
