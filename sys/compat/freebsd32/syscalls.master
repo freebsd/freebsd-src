@@ -119,7 +119,7 @@
 63	OBSOL	ogetkerninfo
 64	OBSOL	ogetpagesize
 ; XXX implement (not OBSOL at all)
-65	OBSOL	omsync
+65	MNOPROTO { int msync(void *addr, size_t len, int flags); }
 66	MNOPROTO { int vfork(void); }
 67	OBSOL	vread
 68	OBSOL	vwrite
