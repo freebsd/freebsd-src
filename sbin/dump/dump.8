@@ -121,7 +121,9 @@ The number of kilobytes per dump record.
 Change the defaults for use with a cartridge tape drive, with a density
 of 8000 bpi, and a length of 1700 feet.
 .It Fl D Ar dumpdates
-Specify an alternate path to the dumpdates file.
+Specify an alternate path to the
+.Pa dumpdates
+file.
 The default is
 .Pa /etc/dumpdates .
 .It Fl d Ar density
@@ -134,7 +136,7 @@ Write the backup to
 .Ar file
 may be a special device file
 like
-.Pa /dev/rsa0
+.Pa /dev/sa0
 (a tape drive),
 .Pa /dev/fd1
 (a floppy disk drive),
@@ -195,7 +197,9 @@ The default tape length is 2300 feet.
 .It Fl T Ar date
 Use the specified date as the starting time for the dump
 instead of the time determined from looking in
-the dumpdates file.
+the
+.Pa dumpdates
+file.
 The format of date is the same as that of
 .Xr ctime 3 .
 This option is useful for automated dump scripts that wish to
@@ -206,10 +210,14 @@ option is mutually exclusive from the
 .Fl u
 option.
 .It Fl u
-Update the dumpdates file
+Update the
+.Pa dumpdates
+file
 after a successful dump.
 The format of
-the dumpdates file
+the
+.Pa dumpdates
+file
 is readable by people, consisting of one
 free format record per line:
 filesystem name,
@@ -218,11 +226,14 @@ and
 .Xr ctime 3
 format dump date.
 There may be only one entry per filesystem at each level.
-The file
-dumpdates file
+The
+.Pa dumpdates
+file
 may be edited to change any of the fields,
 if necessary.
-The default path for the dumpdates file is
+The default path for the
+.Pa dumpdates
+file is
 .Pa /etc/dumpdates ,
 but the
 .Fl D
@@ -231,7 +242,7 @@ option may be used to change it.
 .Nm Dump
 tells the operator what file systems need to be dumped.
 This information is gleaned from the files
-dumpdates file
+.Pa dumpdates
 and
 .Pa /etc/fstab .
 The
@@ -239,7 +250,9 @@ The
 option causes
 .Nm
 to print out, for each file system in
-the dumpdates file
+the
+.Pa dumpdates
+file
 the most recent dump date and level,
 and highlights those file systems that should be dumped.
 If the
@@ -326,7 +339,7 @@ to minimize the number of tapes follows:
 .It
 Always start with a level 0 backup, for example:
 .Bd -literal -offset indent
-/sbin/dump -0u -f /dev/nrsa0 /usr/src
+/sbin/dump -0u -f /dev/nsa0 /usr/src
 .Ed
 .Pp
 This should be done at set intervals, say once a month or once every two months,
@@ -358,7 +371,7 @@ will be used to determine the pathname of the remote
 program.
 .Sh FILES
 .Bl -tag -width /etc/dumpdates -compact
-.It Pa /dev/rsa0
+.It Pa /dev/sa0
 default tape unit to dump to
 .It Pa /etc/dumpdates
 dump date records
@@ -402,8 +415,9 @@ with the
 or
 .Fl w
 options does not report filesystems that have never been recorded
-in
-the dumpdates file,
+in the
+.Pa dumpdates
+file,
 even if listed in
 .Pa /etc/fstab .
 .Pp
