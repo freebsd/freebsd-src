@@ -170,7 +170,7 @@ MALLOC_DECLARE(M_IOV);
 void	contigfree __P((void *addr, unsigned long size,
 			struct malloc_type *type));
 void	*contigmalloc __P((unsigned long size, struct malloc_type *type,
-			   int flags, unsigned long low, unsigned long high,
+			   int flags, vm_paddr_t low, vm_paddr_t high,
 			   unsigned long alignment, unsigned long boundary));
 void	free __P((void *addr, struct malloc_type *type));
 void	*malloc __P((unsigned long size, struct malloc_type *type, int flags));

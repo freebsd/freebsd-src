@@ -49,6 +49,11 @@ typedef struct label_t {
 
 typedef	unsigned int	vm_offset_t;
 typedef	__int64_t	vm_ooffset_t;
+#ifdef PAE
+typedef	__uint64_t	vm_paddr_t;
+#else
+typedef	unsigned int	vm_paddr_t;
+#endif
 typedef	unsigned int	vm_pindex_t;
 typedef	unsigned int	vm_size_t;
 

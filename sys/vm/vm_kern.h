@@ -80,7 +80,7 @@ extern u_int vm_kmem_size;
 extern vm_offset_t kernel_vm_end;
 /* XXX - elsewhere? */
 struct malloc_type;
-extern void *contigmalloc1(u_long, struct malloc_type *, int, u_long, u_long,
-			   u_long, u_long, vm_map_t);
+extern void *contigmalloc1(u_long, struct malloc_type *, int,
+			   vm_paddr_t, vm_paddr_t, u_long, u_long, vm_map_t);
 
 #endif				/* _VM_VM_KERN_H_ */

@@ -135,6 +135,7 @@
 #ifdef _KERNEL
 extern char	btext[];
 extern char	etext[];
+extern char	KERNend[];
 extern u_char	intr_nesting_level;
 
 void	fork_trampoline __P((void));

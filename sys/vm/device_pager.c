@@ -66,7 +66,7 @@ static struct pagerlst dev_pager_object_list;
 static vm_zone_t fakepg_zone;
 static struct vm_zone fakepg_zone_store;
 
-static vm_page_t dev_pager_getfake __P((vm_offset_t));
+static vm_page_t dev_pager_getfake __P((vm_paddr_t));
 static void dev_pager_putfake __P((vm_page_t));
 
 static int dev_pager_alloc_lock, dev_pager_alloc_lock_want;
@@ -190,7 +190,7 @@ dev_pager_getpages(object, m, count, reqpage)
 	int reqpage;
 {
 	vm_offset_t offset;
-	vm_offset_t paddr;
+	vm_paddr_t paddr;
 	vm_page_t page;
 	dev_t dev;
 	int i, s;
@@ -250,7 +250,7 @@ dev_pager_haspage(object, pindex, before, after)
 
 static vm_page_t
 dev_pager_getfake(paddr)
-	vm_offset_t paddr;
+	vm_paddr_t paddr;
 {
 	vm_page_t m;
 

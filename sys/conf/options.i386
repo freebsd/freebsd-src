@@ -36,6 +36,7 @@ HTT
 
 # Change KVM size.  Changes things all over the kernel.
 KVA_PAGES		opt_global.h
+PAE			opt_global.h
 
 CLK_CALIBRATION_LOOP		opt_clock.h
 CLK_USE_I8254_CALIBRATION	opt_clock.h

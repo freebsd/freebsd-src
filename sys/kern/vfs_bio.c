@@ -3208,7 +3208,7 @@ int
 vmapbuf(struct buf *bp)
 {
 	caddr_t addr, v, kva;
-	vm_offset_t pa;
+	vm_paddr_t pa;
 	int pidx;
 	int i;
 	struct vm_page *m;

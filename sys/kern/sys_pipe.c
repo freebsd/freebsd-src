@@ -545,7 +545,8 @@ pipe_build_write_buffer(wpipe, uio)
 {
 	u_int size;
 	int i;
-	vm_offset_t addr, endaddr, paddr;
+	vm_offset_t addr, endaddr;
+	vm_paddr_t paddr;
 
 	size = (u_int) uio->uio_iov->iov_len;
 	if (size > wpipe->pipe_buffer.size)

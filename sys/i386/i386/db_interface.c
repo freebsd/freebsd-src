@@ -251,7 +251,7 @@ db_write_bytes(addr, size, data)
 	if (addr > trunc_page((vm_offset_t)btext) - size &&
 	    addr < round_page((vm_offset_t)etext)) {
 
-	    ptep0 = pmap_pte(kernel_pmap, addr);
+	    ptep0 = vtopte(addr);
 	    oldmap0 = *ptep0;
 	    *ptep0 |= PG_RW;
 
@@ -259,14 +259,14 @@ db_write_bytes(addr, size, data)
 	    if ((*ptep0 & PG_PS) == 0) {
 	    	addr1 = trunc_page(addr + size - 1);
 	    	if (trunc_page(addr) != addr1) {
-		    ptep1 = pmap_pte(kernel_pmap, addr1);
+		    ptep1 = vtopte(addr1);
 		    oldmap1 = *ptep1;
 		    *ptep1 |= PG_RW;
 	    	}
 	    } else {
 		addr1 = trunc_4mpage(addr + size - 1);
 		if (trunc_4mpage(addr) != addr1) {
-		    ptep1 = pmap_pte(kernel_pmap, addr1);
+		    ptep1 = vtopte(addr1);
 		    oldmap1 = *ptep1;
 		    *ptep1 |= PG_RW;
 		}

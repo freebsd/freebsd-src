@@ -99,18 +99,17 @@ void		 pmap_clear_reference __P((vm_page_t m));
 void		 pmap_collect __P((void));
 void		 pmap_copy __P((pmap_t, pmap_t, vm_offset_t, vm_size_t,
 		    vm_offset_t));
-void		 pmap_copy_page __P((vm_offset_t, vm_offset_t));
-void		 pmap_destroy __P((pmap_t));
+void		 pmap_copy_page __P((vm_paddr_t, vm_paddr_t));
 void		 pmap_enter __P((pmap_t, vm_offset_t, vm_page_t, vm_prot_t,
 		    boolean_t));
-vm_offset_t	 pmap_extract __P((pmap_t pmap, vm_offset_t va));
+vm_paddr_t	 pmap_extract __P((pmap_t pmap, vm_offset_t va));
 void		 pmap_growkernel __P((vm_offset_t));
-void		 pmap_init __P((vm_offset_t, vm_offset_t));
+void		 pmap_init __P((vm_paddr_t, vm_paddr_t));
 boolean_t	 pmap_is_modified __P((vm_page_t m));
 boolean_t	 pmap_ts_referenced __P((vm_page_t m));
-void		 pmap_kenter __P((vm_offset_t va, vm_offset_t pa));
+void		 pmap_kenter __P((vm_offset_t, vm_paddr_t));
 void		 pmap_kremove __P((vm_offset_t));
-vm_offset_t	 pmap_map __P((vm_offset_t, vm_offset_t, vm_offset_t, int));
+vm_offset_t	 pmap_map __P((vm_offset_t, vm_paddr_t, vm_paddr_t, int));
 void		 pmap_object_init_pt __P((pmap_t pmap, vm_offset_t addr,
 		    vm_object_t object, vm_pindex_t pindex, vm_offset_t size,
 		    int pagelimit));
@@ -118,7 +117,7 @@ boolean_t	 pmap_page_exists_quick __P((pmap_t pmap, vm_page_t m));
 void		 pmap_page_protect __P((vm_page_t m, vm_prot_t prot));
 void		 pmap_pageable __P((pmap_t, vm_offset_t, vm_offset_t,
 		    boolean_t));
-vm_offset_t	 pmap_phys_address __P((int));
+vm_paddr_t	 pmap_phys_address __P((int));
 void		 pmap_pinit __P((pmap_t));
 void		 pmap_pinit0 __P((pmap_t));
 void		 pmap_pinit2 __P((pmap_t));
@@ -126,12 +125,11 @@ void		 pmap_protect __P((pmap_t, vm_offset_t, vm_offset_t,
 		    vm_prot_t));
 void		 pmap_qenter __P((vm_offset_t, vm_page_t *, int));
 void		 pmap_qremove __P((vm_offset_t, int));
-void		 pmap_reference __P((pmap_t));
 void		 pmap_release __P((pmap_t));
 void		 pmap_remove __P((pmap_t, vm_offset_t, vm_offset_t));
 void		 pmap_remove_pages __P((pmap_t, vm_offset_t, vm_offset_t));
-void		 pmap_zero_page __P((vm_offset_t));
-void		 pmap_zero_page_area __P((vm_offset_t, int off, int size));
+void		 pmap_zero_page __P((vm_paddr_t));
+void		 pmap_zero_page_area __P((vm_paddr_t, int off, int size));
 void		 pmap_prefault __P((pmap_t, vm_offset_t, vm_map_entry_t));
 int		 pmap_mincore __P((pmap_t pmap, vm_offset_t addr));
 void		 pmap_new_proc __P((struct proc *p));
@@ -140,7 +138,7 @@ void		 pmap_swapout_proc __P((struct proc *p));
 void		 pmap_swapin_proc __P((struct proc *p));
 void		 pmap_activate __P((struct proc *p));
 vm_offset_t	 pmap_addr_hint __P((vm_object_t obj, vm_offset_t addr, vm_size_t size));
-void		*pmap_kenter_temporary __P((vm_offset_t pa, int i));
+void		*pmap_kenter_temporary __P((vm_paddr_t pa, int i));
 void		 pmap_init2 __P((void));
 
 #endif /* _KERNEL */

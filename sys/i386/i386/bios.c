@@ -312,7 +312,8 @@ bios16(struct bios_args *args, char *fmt, ...)
     va_list 	ap;
     int 	flags = BIOSCODE_FLAG | BIOSDATA_FLAG;
     u_int 	i, arg_start, arg_end;
-    u_int 	*pte, *ptd;
+    pt_entry_t 	*pte;
+    pd_entry_t	*ptd;
 
     arg_start = 0xffffffff;
     arg_end = 0;
@@ -371,19 +372,22 @@ bios16(struct bios_args *args, char *fmt, ...)
     args->seg.code32.base = (u_int)&bios16_jmp & PG_FRAME;
     args->seg.code32.limit = 0xffff;	
 
-    ptd = (u_int *)rcr3();
+    ptd = (pd_entry_t *)rcr3();
+#ifdef PAE
+    ptd = (pd_entry_t *)(*ptd & PG_FRAME);
+#endif
     if (ptd == IdlePTD) {
 	/*
 	 * no page table, so create one and install it.
 	 */
-	pte = (u_int *)malloc(PAGE_SIZE, M_TEMP, M_WAITOK);
-	ptd = (u_int *)((u_int)ptd + KERNBASE);
+	pte = (pt_entry_t *)malloc(PAGE_SIZE, M_TEMP, M_WAITOK);
+	ptd = (pd_entry_t *)(KERNBASE + IdlePTD);
 	*ptd = vtophys(pte) | PG_RW | PG_V;
     } else {
 	/*
 	 * this is a user-level page table 
 	 */
-	pte = (u_int *)&PTmap;
+	pte = PTmap;
     }
     /*
      * install pointer to page 0.  we don't need to flush the tlb,
@@ -440,7 +444,7 @@ bios16(struct bios_args *args, char *fmt, ...)
 
     i = bios16_call(&args->r, stack_top);
     
-    if (pte == (u_int *)&PTmap) {
+    if (pte == PTmap) {
 	*pte = 0;			/* remove entry */
     } else {
 	*ptd = 0;			/* remove page table */

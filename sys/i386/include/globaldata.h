@@ -60,11 +60,11 @@ struct globaldata {
 	pt_entry_t	*gd_prv_CMAP1;
 	pt_entry_t	*gd_prv_CMAP2;
 	pt_entry_t	*gd_prv_CMAP3;
-	pt_entry_t	*gd_prv_PMAP1;
+	pd_entry_t	*gd_prv_PMAP1;
 	caddr_t		gd_prv_CADDR1;
 	caddr_t		gd_prv_CADDR2;
 	caddr_t		gd_prv_CADDR3;
-	unsigned	*gd_prv_PADDR1;
+	pt_entry_t	*gd_prv_PADDR1;
 #endif
 	u_int		gd_astpending;
 };

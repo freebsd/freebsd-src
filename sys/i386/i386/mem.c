@@ -159,7 +159,7 @@ mmrw(dev, uio, flags)
 	int flags;
 {
 	register int o;
-	register u_int c, v;
+	register u_int c;
 	u_int poolsize;
 	register struct iovec *iov;
 	int error = 0;
@@ -178,9 +178,8 @@ mmrw(dev, uio, flags)
 
 /* minor device 0 is physical memory */
 		case 0:
-			v = uio->uio_offset;
-			v &= ~PAGE_MASK;
-			pmap_kenter((vm_offset_t)ptvmmap, v);
+			pmap_kenter((vm_offset_t)ptvmmap, 
+			    uio->uio_offset & ~PAGE_MASK);
 			o = (int)uio->uio_offset & PAGE_MASK;
 			c = (u_int)(PAGE_SIZE - ((int)iov->iov_base & PAGE_MASK));
 			c = min(c, (u_int)(PAGE_SIZE - o));
@@ -202,8 +201,6 @@ mmrw(dev, uio, flags)
 			eaddr = round_page(uio->uio_offset + c);
 
 			if (addr < (vm_offset_t)VADDR(PTDPTDI, 0))
-				return EFAULT;
-			if (eaddr >= (vm_offset_t)VADDR(APTDPTDI, 0))
 				return EFAULT;
 			for (; addr < eaddr; addr += PAGE_SIZE) 
 				if (pmap_extract(kernel_pmap, addr) == 0)

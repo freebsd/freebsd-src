@@ -125,6 +125,9 @@ ENTRY(vm86_bioscall)
 	movl	SCR_NEWPTD(%edx),%eax	/* mapping for vm86 page table */
 	movl	%eax,0(%ebx)		/* ... install as PTD entry 0 */
 
+#ifdef PAE
+	movl	$_IdlePDPT-KERNBASE,%ecx
+#endif
 	movl	%ecx,%cr3		/* new page tables */
 	movl	SCR_VMFRAME(%edx),%esp	/* switch to new stack */
 	

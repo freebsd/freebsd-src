@@ -52,11 +52,10 @@
 
 #ifdef __ELF__
 
-#define _APTD				APTD
-#define _APTDpde			APTDpde
-#define _APTmap				APTmap
 #define _CONST_QNaN			CONST_QNaN
+#define _IdlePDPT			IdlePDPT
 #define _IdlePTD			IdlePTD
+#define _KERNend			KERNend
 #define _KPTphys			KPTphys
 #define _MP_GDT				MP_GDT
 #define _MPgetlock			MPgetlock

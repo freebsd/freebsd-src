@@ -87,7 +87,11 @@ _idle:
 
 	/* when called, we have the mplock, intr disabled */
 	/* use our idleproc's "context" */
+#ifdef PAE
+	movl	$_IdlePDPT-KERNBASE, %ecx
+#else
 	movl	_IdlePTD, %ecx
+#endif
 	movl	%cr3, %eax
 	cmpl	%ecx, %eax
 	je		2f
@@ -203,7 +207,11 @@ idle_loop:
 #if defined(SWTCH_OPTIM_STATS)
 	incl	_swtch_optim_stats
 #endif
+#ifdef PAE
+	movl	$_IdlePDPT-KERNBASE, %ecx
+#else
 	movl	_IdlePTD, %ecx
+#endif
 	movl	%cr3, %eax
 	cmpl	%ecx, %eax
 	je		2f

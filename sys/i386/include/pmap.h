@@ -70,7 +70,7 @@
 /* Our various interpretations of the above */
 #define PG_W		PG_AVAIL1	/* "Wired" pseudoflag */
 #define	PG_MANAGED	PG_AVAIL2
-#define	PG_FRAME	(~PAGE_MASK)
+#define	PG_FRAME	(~((vm_paddr_t)PAGE_MASK))
 #define	PG_PROT		(PG_RW|PG_U)	/* all protection bits . */
 #define PG_N		(PG_NC_PWT|PG_NC_PCD)	/* Non-cacheable */
 
@@ -88,7 +88,7 @@
  * This **MUST** be a multiple of 4 (eg: 252, 256, 260, etc).
  */
 #ifndef KVA_PAGES
-#define KVA_PAGES	256
+#define KVA_PAGES	(1 << (30 - PDRSHIFT))
 #endif
 
 /*
@@ -97,13 +97,17 @@
 #define VADDR(pdi, pti) ((vm_offset_t)(((pdi)<<PDRSHIFT)|((pti)<<PAGE_SHIFT)))
 
 #ifndef NKPT
-#define	NKPT		30	/* actual number of kernel page tables */
+#ifdef PAE
+#define	NKPT	120		/* actual number of kernel page tables */
+#else
+#define	NKPT	30		/* actual number of kernel page tables */
+#endif
 #endif
 #ifndef NKPDE
 #ifdef SMP
-#define NKPDE	(KVA_PAGES - 2)	/* addressable number of page tables/pde's */
-#else
 #define NKPDE	(KVA_PAGES - 1)	/* addressable number of page tables/pde's */
+#else
+#define NKPDE	(KVA_PAGES)	/* addressable number of page tables/pde's */
 #endif
 #endif
 
@@ -115,16 +119,13 @@
  *
  * SMP_PRIVPAGES: The per-cpu address space is 0xff80000 -> 0xffbfffff
  */
-#define	APTDPTDI	(NPDEPG-1)	/* alt ptd entry that points to APTD */
 #ifdef SMP
-#define MPPTDI		(APTDPTDI-1)	/* per cpu ptd entry */
+#define MPPTDI		(NPDEPTD-1)	/* per cpu ptd entry */
 #define	KPTDI		(MPPTDI-NKPDE)	/* start of kernel virtual pde's */
 #else
-#define	KPTDI		(APTDPTDI-NKPDE)/* start of kernel virtual pde's */
+#define	KPTDI		(NPDEPTD-NKPDE)	/* start of kernel virtual pde's */
 #endif	/* SMP */
-#define	PTDPTDI		(KPTDI-1)	/* ptd entry that points to ptd! */
-#define	UMAXPTDI	(PTDPTDI-1)	/* ptd entry for user space end */
-#define	UMAXPTEOFF	(NPTEPG)	/* pte entry for user space end */
+#define	PTDPTDI		(KPTDI-NPGPTD)	/* ptd entry that points to ptd! */
 
 /*
  * XXX doesn't really belong here I guess...
@@ -136,8 +137,18 @@
 
 #include <sys/queue.h>
 
-typedef unsigned int *pd_entry_t;
-typedef unsigned int *pt_entry_t;
+#ifdef PAE
+typedef u_int64_t	pdpt_entry_t;
+typedef u_int64_t	pd_entry_t;
+typedef u_int64_t	pt_entry_t;
+#define PTESHIFT	3
+#define PDESHIFT	3
+#else
+typedef u_int32_t	pd_entry_t;
+typedef u_int32_t	pt_entry_t;
+#define PTESHIFT	2
+#define PDESHIFT	2
+#endif
 
 #define PDESIZE		sizeof(pd_entry_t) /* for assembly files */
 #define PTESIZE		sizeof(pt_entry_t) /* for assembly files */
@@ -147,10 +158,13 @@ typedef unsigned int *pt_entry_t;
  * and directories.
  */
 #ifdef _KERNEL
-extern pt_entry_t PTmap[], APTmap[], Upte;
-extern pd_entry_t PTD[], APTD[], PTDpde, APTDpde, Upde;
+extern pt_entry_t PTmap[];
+extern pd_entry_t PTD[], PTDpde[];
 
-extern pd_entry_t IdlePTD;	/* physical address of "Idle" state directory */
+extern u_int32_t IdlePTD;	/* physical address of "Idle" state directory */
+#ifdef PAE
+extern pdpt_entry_t IdlePDPT[];
+#endif
 #endif
 
 #ifdef _KERNEL
@@ -162,34 +176,27 @@ extern pd_entry_t IdlePTD;	/* physical address of "Idle" state directory */
  */
 #define	vtopte(va)	(PTmap + i386_btop(va))
 
-#define	avtopte(va)	(APTmap + i386_btop(va))
-
 /*
  *	Routine:	pmap_kextract
  *	Function:
  *		Extract the physical page address associated
  *		kernel virtual address.
  */
-static __inline vm_offset_t
+static __inline vm_paddr_t
 pmap_kextract(vm_offset_t va)
 {
-	vm_offset_t pa;
-	if ((pa = (vm_offset_t) PTD[va >> PDRSHIFT]) & PG_PS) {
+	vm_paddr_t pa;
+
+	if ((pa = PTD[va >> PDRSHIFT]) & PG_PS) {
 		pa = (pa & ~(NBPDR - 1)) | (va & (NBPDR - 1));
 	} else {
-		pa = *(vm_offset_t *)vtopte(va);
+		pa = *vtopte(va);
 		pa = (pa & PG_FRAME) | (va & PAGE_MASK);
 	}
 	return pa;
 }
 
-#if 0
-#define	vtophys(va)	(((vm_offset_t) (*vtopte(va))&PG_FRAME) | ((vm_offset_t)(va) & PAGE_MASK))
-#else
-#define	vtophys(va)	pmap_kextract(((vm_offset_t) (va)))
-#endif
-
-#define	avtophys(va)	(((vm_offset_t) (*avtopte(va))&PG_FRAME) | ((vm_offset_t)(va) & PAGE_MASK))
+#define	vtophys(va)	pmap_kextract((vm_offset_t) (va))
 
 #endif
 
@@ -207,10 +214,14 @@ struct pmap {
 	pd_entry_t		*pm_pdir;	/* KVA of page directory */
 	vm_object_t		pm_pteobj;	/* Container for pte's */
 	TAILQ_HEAD(,pv_entry)	pm_pvlist;	/* list of mappings in pmap */
-	int			pm_count;	/* reference count */
 	int			pm_active;	/* active on cpus */
 	struct pmap_statistics	pm_stats;	/* pmap statistics */
 	struct	vm_page		*pm_ptphint;	/* pmap ptp hint */
+#ifdef PAE
+	pdpt_entry_t		*pm_pdpt;	/* KVA of page dir ptr table */
+#else
+	void			*pm_pdpt_dontuse;
+#endif
 };
 
 #define pmap_resident_count(pmap) (pmap)->pm_stats.resident_count
@@ -233,11 +244,6 @@ typedef struct pv_entry {
 	vm_page_t	pv_ptem;	/* VM page for pte */
 } *pv_entry_t;
 
-#define	PV_ENTRY_NULL	((pv_entry_t) 0)
-
-#define	PV_CI		0x01	/* all entries must be cache inhibited */
-#define	PV_PTPAGE	0x02	/* entry maps a page table page */
-
 #ifdef	_KERNEL
 
 #define NPPROVMTRR		8
@@ -248,23 +254,20 @@ struct ppro_vmtrr {
 };
 extern struct ppro_vmtrr PPro_vmtrr[NPPROVMTRR];
 
-extern caddr_t	CADDR1;
-extern pt_entry_t *CMAP1;
-extern vm_offset_t avail_end;
-extern vm_offset_t avail_start;
+extern vm_paddr_t avail_end;
+extern vm_paddr_t avail_start;
 extern vm_offset_t clean_eva;
 extern vm_offset_t clean_sva;
-extern vm_offset_t phys_avail[];
+extern vm_paddr_t phys_avail[];
 extern char *ptvmmap;		/* poor name! */
 extern vm_offset_t virtual_avail;
 extern vm_offset_t virtual_end;
 
-void	pmap_bootstrap __P(( vm_offset_t, vm_offset_t));
+void	pmap_bootstrap __P((vm_paddr_t, vm_paddr_t));
 pmap_t	pmap_kernel __P((void));
-void	*pmap_mapdev __P((vm_offset_t, vm_size_t));
+void	*pmap_mapdev __P((vm_paddr_t, vm_size_t));
 void	pmap_unmapdev __P((vm_offset_t, vm_size_t));
-unsigned *pmap_pte __P((pmap_t, vm_offset_t)) __pure2;
-vm_page_t pmap_use_pt __P((pmap_t, vm_offset_t));
+pt_entry_t *pmap_pte __P((pmap_t, vm_offset_t));
 #ifdef SMP
 void	pmap_set_opt __P((void));
 #endif

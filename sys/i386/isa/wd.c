@@ -1927,12 +1927,14 @@ wddump(dev_t dev)
 			return (EIO);
 		}
 		while (blkcnt != 0) {
+			caddr_t va;
+
 			if (is_physical_memory((vm_offset_t)addr))
-				pmap_kenter((vm_offset_t)CADDR1,
-					   trunc_page((vm_offset_t)addr));
+				va = pmap_kenter_temporary(
+					trunc_page((vm_offset_t)addr), 0);
 			else
-				pmap_kenter((vm_offset_t)CADDR1,
-					   trunc_page(0));
+				va = pmap_kenter_temporary(
+					trunc_page(0), 0);
 
 			/* Ready to send data? */
 			DELAY(5);	/* ATA spec */
@@ -1944,11 +1946,11 @@ wddump(dev_t dev)
 			}
 			if (du->dk_flags & DKFL_32BIT)
 				outsl(du->dk_port + wd_data,
-				      CADDR1 + ((int)addr & PAGE_MASK),
+				      va + ((int)addr & PAGE_MASK),
 				      DEV_BSIZE / sizeof(long));
 			else
 				outsw(du->dk_port + wd_data,
-				      CADDR1 + ((int)addr & PAGE_MASK),
+				      va + ((int)addr & PAGE_MASK),
 				      DEV_BSIZE / sizeof(short));
 			addr += DEV_BSIZE;
 			/*

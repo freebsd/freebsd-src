@@ -2147,11 +2147,11 @@ start_all_aps(u_int boot_addr)
 		gd->gd_prv_CMAP1 = &SMPpt[pg + 1];
 		gd->gd_prv_CMAP2 = &SMPpt[pg + 2];
 		gd->gd_prv_CMAP3 = &SMPpt[pg + 3];
-		gd->gd_prv_PMAP1 = &SMPpt[pg + 4];
+		gd->gd_prv_PMAP1 = (pd_entry_t *)&SMPpt[pg + 4];
 		gd->gd_prv_CADDR1 = SMP_prvspace[x].CPAGE1;
 		gd->gd_prv_CADDR2 = SMP_prvspace[x].CPAGE2;
 		gd->gd_prv_CADDR3 = SMP_prvspace[x].CPAGE3;
-		gd->gd_prv_PADDR1 = (unsigned *)SMP_prvspace[x].PPAGE1;
+		gd->gd_prv_PADDR1 = (pt_entry_t *)SMP_prvspace[x].PPAGE1;
 
 		/* setup a vector to our boot code */
 		*((volatile u_short *) WARMBOOT_OFF) = WARMBOOT_TARGET;
@@ -2536,7 +2536,7 @@ ap_init()
 	if (cpuid != apic_id) {
 		printf("SMP: cpuid = %d\n", cpuid);
 		printf("SMP: apic_id = %d\n", apic_id);
-		printf("PTD[MPPTDI] = %p\n", (void *)PTD[MPPTDI]);
+		printf("PTD[MPPTDI] = %llx\n", (u_int64_t)PTD[MPPTDI]);
 		panic("cpuid mismatch! boom!!");
 	}
 

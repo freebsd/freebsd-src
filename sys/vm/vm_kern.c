@@ -265,7 +265,6 @@ kmem_suballoc(parent, min, max, size)
 		panic("kmem_suballoc");
 	}
 	*max = *min + size;
-	pmap_reference(vm_map_pmap(parent));
 	result = vm_map_create(vm_map_pmap(parent), *min, *max);
 	if (result == NULL)
 		panic("kmem_suballoc: cannot create submap");

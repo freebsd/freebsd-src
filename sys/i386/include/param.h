@@ -94,10 +94,18 @@
 #define PAGE_MASK	(PAGE_SIZE-1)
 #define NPTEPG		(PAGE_SIZE/(sizeof (pt_entry_t)))
 
-#define NPDEPG		(PAGE_SIZE/(sizeof (pd_entry_t)))
+#ifdef PAE
+#define NPGPTD		4
+#define PDRSHIFT	21		/* LOG2(NBPDR) */
+#else
+#define NPGPTD		1
 #define PDRSHIFT	22		/* LOG2(NBPDR) */
+#endif
+
 #define NBPDR		(1<<PDRSHIFT)	/* bytes/page dir */
 #define PDRMASK		(NBPDR-1)
+#define NPDEPG		(PAGE_SIZE/(sizeof (pd_entry_t)))
+#define NPDEPTD		(NPDEPG*NPGPTD)
 
 #define DEV_BSHIFT	9		/* log2(DEV_BSIZE) */
 #define DEV_BSIZE	(1<<DEV_BSHIFT)
@@ -176,14 +184,14 @@
  */
 #define trunc_page(x)		((x) & ~PAGE_MASK)
 #define round_page(x)		(((x) + PAGE_MASK) & ~PAGE_MASK)
-#define trunc_4mpage(x)		((unsigned)(x) & ~PDRMASK)
-#define round_4mpage(x)		((((unsigned)(x)) + PDRMASK) & ~PDRMASK)
+#define trunc_4mpage(x)		((x) & ~PDRMASK)
+#define round_4mpage(x)		((((x)) + PDRMASK) & ~PDRMASK)
 
-#define atop(x)			((unsigned)(x) >> PAGE_SHIFT)
-#define ptoa(x)			((unsigned)(x) << PAGE_SHIFT)
+#define atop(x)			((x) >> PAGE_SHIFT)
+#define ptoa(x)			((x) << PAGE_SHIFT)
 
-#define i386_btop(x)		((unsigned)(x) >> PAGE_SHIFT)
-#define i386_ptob(x)		((unsigned)(x) << PAGE_SHIFT)
+#define i386_btop(x)		((x) >> PAGE_SHIFT)
+#define i386_ptob(x)		((x) << PAGE_SHIFT)
 
 #define	pgtok(x)		((x) * (PAGE_SIZE / 1024))
 

@@ -237,7 +237,7 @@ SYSCTL_PROC(_machdep, OID_AUTO, msgbuf_clear, CTLTYPE_INT|CTLFLAG_RW,
 int bootverbose = 0, Maxmem = 0;
 long dumplo;
 
-vm_offset_t phys_avail[10];
+vm_paddr_t phys_avail[10];
 
 /* must be 2 less so 0 0 can signal end of chunks */
 #define PHYS_AVAIL_ARRAY_END ((sizeof(phys_avail) / sizeof(vm_offset_t)) - 2)
@@ -271,7 +271,8 @@ cpu_startup(dummy)
 #ifdef PERFMON
 	perfmon_init();
 #endif
-	printf("real memory  = %u (%uK bytes)\n", ptoa(Maxmem), ptoa(Maxmem) / 1024);
+	printf("real memory  = %llu (%lluK bytes)\n",
+	    ptoa((u_int64_t)Maxmem), ptoa((u_int64_t)Maxmem) / 1024);
 	/*
 	 * Display any holes after the first chunk of extended memory.
 	 */
@@ -280,11 +281,14 @@ cpu_startup(dummy)
 
 		printf("Physical memory chunk(s):\n");
 		for (indx = 0; phys_avail[indx + 1] != 0; indx += 2) {
-			unsigned int size1 = phys_avail[indx + 1] - phys_avail[indx];
+			vm_paddr_t size1;
 
-			printf("0x%08x - 0x%08x, %u bytes (%u pages)\n",
-			    phys_avail[indx], phys_avail[indx + 1] - 1, size1,
-			    size1 / PAGE_SIZE);
+			size1 = phys_avail[indx + 1] - phys_avail[indx];
+			printf("0x%09llx - 0x%09llx, %llu bytes (%llu pages)\n",
+			    (u_int64_t)phys_avail[indx],
+			    (u_int64_t)phys_avail[indx + 1] - 1,
+			    (u_int64_t)size1,
+			    (u_int64_t)size1 / PAGE_SIZE);
 		}
 	}
 
@@ -434,8 +438,9 @@ again:
 	cninit();		/* the preferred console may have changed */
 #endif
 
-	printf("avail memory = %u (%uK bytes)\n", ptoa(cnt.v_free_count),
-	    ptoa(cnt.v_free_count) / 1024);
+	printf("avail memory = %llu (%lluK bytes)\n",
+	    ptoa((u_int64_t)cnt.v_free_count),
+	    ptoa((u_int64_t)cnt.v_free_count) / 1024);
 
 	/*
 	 * Set up buffers, so they can be used to read disk labels.
@@ -1416,6 +1421,8 @@ sdtossd(sd, ssd)
  *
  * Total memory size may be set by the kernel environment variable
  * hw.physmem or the compile-time define MAXMEM.
+ *
+ * XXX first should be vm_paddr_t.
  */
 static void
 getmemsize(int first)
@@ -1425,8 +1432,8 @@ getmemsize(int first)
 	u_int basemem, extmem;
 	struct vm86frame vmf;
 	struct vm86context vmc;
-	vm_offset_t pa, physmap[PHYSMAP_SIZE];
-	pt_entry_t pte;
+	vm_paddr_t pa, physmap[PHYSMAP_SIZE];
+	pt_entry_t *pte;
 	const char *cp;
 	struct {
 		u_int64_t base;
@@ -1482,7 +1489,7 @@ getmemsize(int first)
 	 */
 	for (pa = trunc_page(basemem * 1024);
 	     pa < ISA_HOLE_START; pa += PAGE_SIZE) {
-		pte = (pt_entry_t)vtopte(pa + KERNBASE);
+		pte = vtopte(pa + KERNBASE);
 		*pte = pa | PG_RW | PG_V;
 	}
 
@@ -1490,7 +1497,7 @@ getmemsize(int first)
 	 * if basemem != 640, map pages r/w into vm86 page table so 
 	 * that the bios can scribble on it.
 	 */
-	pte = (pt_entry_t)vm86paddr;
+	pte = (pt_entry_t *)vm86paddr;
 	for (i = basemem / 4; i < 160; i++)
 		pte[i] = (i << PAGE_SHIFT) | PG_V | PG_RW | PG_U;
 
@@ -1499,7 +1506,7 @@ int15e820:
 	 * map page 1 R/W into the kernel page table so we can use it
 	 * as a buffer.  The kernel will unmap this page later.
 	 */
-	pte = (pt_entry_t)vtopte(KERNBASE + (1 << PAGE_SHIFT));
+	pte = vtopte(KERNBASE + (1 << PAGE_SHIFT));
 	*pte = (1 << PAGE_SHIFT) | PG_RW | PG_V;
 
 	/*
@@ -1522,12 +1529,8 @@ int15e820:
 		if (i || vmf.vmf_eax != SMAP_SIG)
 			break;
 		if (boothowto & RB_VERBOSE)
-			printf("SMAP type=%02x base=%08x %08x len=%08x %08x\n",
-				smap->type,
-				*(u_int32_t *)((char *)&smap->base + 4),
-				(u_int32_t)smap->base,
-				*(u_int32_t *)((char *)&smap->length + 4),
-				(u_int32_t)smap->length);
+			printf("SMAP type=%02x base=%016llx len=%016llx\n",
+			    smap->type, smap->base, smap->length);
 
 		if (smap->type != 0x01)
 			goto next_run;
@@ -1535,11 +1538,13 @@ int15e820:
 		if (smap->length == 0)
 			goto next_run;
 
+#ifndef PAE
 		if (smap->base >= 0xffffffff) {
 			printf("%uK of memory above 4GB ignored\n",
 			    (u_int)(smap->length / 1024));
 			goto next_run;
 		}
+#endif
 
 		for (i = 0; i <= physmap_idx; i += 2) {
 			if (smap->base < physmap[i + 1]) {
@@ -1589,11 +1594,11 @@ next_run:
 
 		for (pa = trunc_page(basemem * 1024);
 		     pa < ISA_HOLE_START; pa += PAGE_SIZE) {
-			pte = (pt_entry_t)vtopte(pa + KERNBASE);
+			pte = vtopte(pa + KERNBASE);
 			*pte = pa | PG_RW | PG_V;
 		}
 
-		pte = (pt_entry_t)vm86paddr;
+		pte = (pt_entry_t *)vm86paddr;
 		for (i = basemem / 4; i < 160; i++)
 			pte[i] = (i << PAGE_SHIFT) | PG_V | PG_RW | PG_U;
 	}
@@ -1706,10 +1711,7 @@ physmap_done:
 	 * extend the last memory segment to the new limit.
 	 */ 
 	if (atop(physmap[physmap_idx + 1]) < Maxmem)
-		physmap[physmap_idx + 1] = ptoa(Maxmem);
-
-	/* call pmap initialization to make new kernel address space */
-	pmap_bootstrap(first, 0);
+		physmap[physmap_idx + 1] = ptoa((vm_paddr_t)Maxmem);
 
 	/*
 	 * Size up each available chunk of physical memory.
@@ -1718,29 +1720,21 @@ physmap_done:
 	pa_indx = 0;
 	phys_avail[pa_indx++] = physmap[0];
 	phys_avail[pa_indx] = physmap[0];
-#if 0
-	pte = (pt_entry_t)vtopte(KERNBASE);
-#else
-	pte = (pt_entry_t)CMAP1;
-#endif
+	pte = vtopte(KERNBASE + PAGE_SIZE);
 
 	/*
 	 * physmap is in bytes, so when converting to page boundaries,
 	 * round up the start address and round down the end address.
 	 */
 	for (i = 0; i <= physmap_idx; i += 2) {
-		vm_offset_t end;
+		vm_paddr_t end;
 
-		end = ptoa(Maxmem);
+		end = ptoa((vm_paddr_t)Maxmem);
 		if (physmap[i + 1] < end)
 			end = trunc_page(physmap[i + 1]);
 		for (pa = round_page(physmap[i]); pa < end; pa += PAGE_SIZE) {
 			int tmp, page_bad;
-#if 0
-			int *ptr = 0;
-#else
-			int *ptr = (int *)CADDR1;
-#endif
+			volatile int *ptr = (int *)(KERNBASE + PAGE_SIZE);
 
 			/*
 			 * block out kernel memory as not available.
@@ -1756,39 +1750,39 @@ physmap_done:
 			*pte = pa | PG_V | PG_RW | PG_N;
 			invltlb();
 
-			tmp = *(int *)ptr;
+			tmp = *ptr;
 			/*
 			 * Test for alternating 1's and 0's
 			 */
-			*(volatile int *)ptr = 0xaaaaaaaa;
-			if (*(volatile int *)ptr != 0xaaaaaaaa) {
+			*ptr = 0xaaaaaaaa;
+			if (*ptr != 0xaaaaaaaa) {
 				page_bad = TRUE;
 			}
 			/*
 			 * Test for alternating 0's and 1's
 			 */
-			*(volatile int *)ptr = 0x55555555;
-			if (*(volatile int *)ptr != 0x55555555) {
-			page_bad = TRUE;
+			*ptr = 0x55555555;
+			if (*ptr != 0x55555555) {
+				page_bad = TRUE;
 			}
 			/*
 			 * Test for all 1's
 			 */
-			*(volatile int *)ptr = 0xffffffff;
-			if (*(volatile int *)ptr != 0xffffffff) {
+			*ptr = 0xffffffff;
+			if (*ptr != 0xffffffff) {
 				page_bad = TRUE;
 			}
 			/*
 			 * Test for all 0's
 			 */
-			*(volatile int *)ptr = 0x0;
-			if (*(volatile int *)ptr != 0x0) {
+			*ptr = 0x0;
+			if (*ptr != 0x0) {
 				page_bad = TRUE;
 			}
 			/*
 			 * Restore original value.
 			 */
-			*(int *)ptr = tmp;
+			*ptr = tmp;
 
 			/*
 			 * Adjust array of valid/good pages.
@@ -2000,7 +1994,11 @@ init386(first)
 	    dblfault_tss.tss_esp2 = (int) &dblfault_stack[sizeof(dblfault_stack)];
 	dblfault_tss.tss_ss = dblfault_tss.tss_ss0 = dblfault_tss.tss_ss1 =
 	    dblfault_tss.tss_ss2 = GSEL(GDATA_SEL, SEL_KPL);
+#ifdef PAE
+	dblfault_tss.tss_cr3 = (int)IdlePDPT - KERNBASE;
+#else
 	dblfault_tss.tss_cr3 = (int)IdlePTD;
+#endif
 	dblfault_tss.tss_eip = (int) dblfault_handler;
 	dblfault_tss.tss_eflags = PSL_KERNEL;
 	dblfault_tss.tss_ds = dblfault_tss.tss_es =
@@ -2011,6 +2009,7 @@ init386(first)
 
 	vm86_initialize();
 	getmemsize(first);
+	pmap_bootstrap(first, 0);
 	init_param2(physmem);
 
 	/* now running on new page tables, configured,and u/iom is accessible */
@@ -2044,7 +2043,11 @@ init386(first)
 
 	/* setup proc 0's pcb */
 	proc0.p_addr->u_pcb.pcb_flags = 0;
-	proc0.p_addr->u_pcb.pcb_cr3 = (int)IdlePTD;
+#ifdef PAE
+        proc0.p_addr->u_pcb.pcb_cr3 = (int)IdlePDPT - KERNBASE;
+#else
+        proc0.p_addr->u_pcb.pcb_cr3 = (int)IdlePTD;
+#endif
 #ifdef SMP
 	proc0.p_addr->u_pcb.pcb_mpnest = 1;
 #endif

@@ -98,7 +98,7 @@ static struct bus_dmamap nobounce_dmamap;
 
 static int alloc_bounce_pages(bus_dma_tag_t dmat, u_int numpages);
 static int reserve_bounce_pages(bus_dma_tag_t dmat, bus_dmamap_t map);
-static vm_offset_t add_bounce_page(bus_dma_tag_t dmat, bus_dmamap_t map,
+static bus_addr_t add_bounce_page(bus_dma_tag_t dmat, bus_dmamap_t map,
 				   vm_offset_t vaddr, bus_size_t size);
 static void free_bounce_page(bus_dma_tag_t dmat, struct bounce_page *bpage);
 static __inline int run_filter(bus_dma_tag_t dmat, bus_addr_t paddr);
@@ -145,8 +145,8 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 	newtag->parent = parent;
 	newtag->alignment = alignment;
 	newtag->boundary = boundary;
-	newtag->lowaddr = trunc_page((vm_offset_t)lowaddr) + (PAGE_SIZE - 1);
-	newtag->highaddr = trunc_page((vm_offset_t)highaddr) + (PAGE_SIZE - 1);
+	newtag->lowaddr = trunc_page((vm_paddr_t)lowaddr) + (PAGE_SIZE - 1);
+	newtag->highaddr = trunc_page((vm_paddr_t)highaddr) + (PAGE_SIZE - 1);
 	newtag->filter = filter;
 	newtag->filterarg = filterarg;
 	newtag->maxsize = maxsize;
@@ -179,7 +179,8 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 		}
 	}
 	
-	if (newtag->lowaddr < ptoa(Maxmem) && (flags & BUS_DMA_ALLOCNOW) != 0) {
+	if (newtag->lowaddr < ptoa((vm_paddr_t)Maxmem) &&
+	    (flags & BUS_DMA_ALLOCNOW) != 0) {
 		/* Must bounce */
 
 		if (lowaddr > bounce_lowaddr) {
@@ -250,7 +251,7 @@ bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 
 	error = 0;
 
-	if (dmat->lowaddr < ptoa(Maxmem)) {
+	if (dmat->lowaddr < ptoa((vm_paddr_t)Maxmem)) {
 		/* Must bounce */
 		int maxpages;
 
@@ -329,7 +330,8 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 	/* If we succeed, no mapping/bouncing will be required */
 	*mapp = NULL;
 
-	if ((dmat->maxsize <= PAGE_SIZE) && dmat->lowaddr >= ptoa(Maxmem)) {
+	if ((dmat->maxsize <= PAGE_SIZE) &&
+	    dmat->lowaddr >= ptoa((vm_paddr_t)Maxmem)) {
 		*vaddr = malloc(dmat->maxsize, M_DEVBUF,
 				(flags & BUS_DMA_NOWAIT) ? M_NOWAIT : M_WAITOK);
 	} else {
@@ -361,7 +363,8 @@ bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map)
 	 */
 	if (map != NULL)
 		panic("bus_dmamem_free: Invalid map freed\n");
-	if ((dmat->maxsize <= PAGE_SIZE) && dmat->lowaddr >= ptoa(Maxmem))
+	if ((dmat->maxsize <= PAGE_SIZE) &&
+	    dmat->lowaddr >= ptoa((vm_paddr_t)Maxmem))
 		free(vaddr, M_DEVBUF);
 	else
 		contigfree(vaddr, dmat->maxsize, M_DEVBUF);
@@ -378,7 +381,7 @@ bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 		void *callback_arg, int flags)
 {
 	vm_offset_t		vaddr;
-	vm_offset_t		paddr;
+	vm_paddr_t		paddr;
 #ifdef __GNUC__
 	bus_dma_segment_t	dm_segments[dmat->nsegments];
 #else
@@ -387,7 +390,7 @@ bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 	bus_dma_segment_t      *sg;
 	int			seg;
 	int			error;
-	vm_offset_t		nextpaddr;
+	vm_paddr_t		nextpaddr;
 
 	if (map == NULL)
 		map = &nobounce_dmamap;
@@ -397,7 +400,8 @@ bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 	 * If we are being called during a callback, pagesneeded will
 	 * be non-zero, so we can avoid doing the work twice.
 	 */
-	if (dmat->lowaddr < ptoa(Maxmem) && map->pagesneeded == 0) {
+	if (dmat->lowaddr < ptoa((vm_paddr_t)Maxmem) &&
+	    map->pagesneeded == 0) {
 		vm_offset_t	vendaddr;
 
 		/*
@@ -595,7 +599,7 @@ bus_dmamap_load_mbuf(bus_dma_tag_t dmat, bus_dmamap_t map,
 #endif
 	int nsegs, error;
 
-	KASSERT(dmat->lowaddr >= ptoa(Maxmem) || map != NULL,
+	KASSERT(dmat->lowaddr >= ptoa((vm_paddr_t)Maxmem) || map != NULL,
 		("bus_dmamap_load_mbuf: No support for bounce pages!"));
 	KASSERT(m0->m_flags & M_PKTHDR,
 		("bus_dmamap_load_mbuf: no packet header"));
@@ -648,7 +652,7 @@ bus_dmamap_load_uio(bus_dma_tag_t dmat, bus_dmamap_t map,
 	struct iovec *iov;
 	struct proc *p = NULL;
 
-	KASSERT(dmat->lowaddr >= ptoa(Maxmem) || map != NULL,
+	KASSERT(dmat->lowaddr >= ptoa((vm_paddr_t)Maxmem) || map != NULL,
 		("bus_dmamap_load_uio: No support for bounce pages!"));
 
 	resid = uio->uio_resid;
@@ -800,7 +804,7 @@ reserve_bounce_pages(bus_dma_tag_t dmat, bus_dmamap_t map)
 	return (pages);
 }
 
-static vm_offset_t
+static bus_addr_t
 add_bounce_page(bus_dma_tag_t dmat, bus_dmamap_t map, vm_offset_t vaddr,
 		bus_size_t size)
 {

@@ -162,7 +162,11 @@ cpu_fork(p1, p2, flags)
 	 * Set registers for trampoline to user mode.  Leave space for the
 	 * return address on stack.  These are the kernel mode register values.
 	 */
+#ifdef PAE
+	pcb2->pcb_cr3 = vtophys(vmspace_pmap(p2->p_vmspace)->pm_pdpt);
+#else
 	pcb2->pcb_cr3 = vtophys(vmspace_pmap(p2->p_vmspace)->pm_pdir);
+#endif
 	pcb2->pcb_edi = 0;
 	pcb2->pcb_esi = (int)fork_return;	/* fork_trampoline argument */
 	pcb2->pcb_ebp = 0;
@@ -318,15 +322,15 @@ setredzone(pte, vaddr)
 /*
  * Convert kernel VA to physical address
  */
-u_long
+vm_paddr_t
 kvtop(void *addr)
 {
-	vm_offset_t va;
+	vm_paddr_t pa;
 
-	va = pmap_kextract((vm_offset_t)addr);
-	if (va == 0)
+	pa = pmap_kextract((vm_offset_t)addr);
+	if (pa == 0)
 		panic("kvtop: zero page frame");
-	return((int)va);
+	return (pa);
 }
 
 /*

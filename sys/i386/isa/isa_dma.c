@@ -207,7 +207,7 @@ isa_dmacascade(chan)
 void
 isa_dmastart(int flags, caddr_t addr, u_int nbytes, int chan)
 {
-	vm_offset_t phys;
+	vm_paddr_t phys;
 	int waport;
 	caddr_t newaddr;
 
@@ -365,7 +365,8 @@ isa_dmadone(int flags, caddr_t addr, int nbytes, int chan)
 static int
 isa_dmarangecheck(caddr_t va, u_int length, int chan)
 {
-	vm_offset_t phys, priorpage = 0, endva;
+	vm_paddr_t phys, priorpage = 0;
+	vm_offset_t endva;
 	u_int dma_pgmsk = (chan & 4) ?  ~(128*1024-1) : ~(64*1024-1);
 
 	endva = (vm_offset_t)round_page((vm_offset_t)va + length);

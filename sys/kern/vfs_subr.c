@@ -72,6 +72,7 @@
 #include <vm/vm.h>
 #include <vm/vm_object.h>
 #include <vm/vm_extern.h>
+#include <vm/vm_kern.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 #include <vm/vm_page.h>
@@ -176,7 +177,15 @@ void
 vntblinit()
 {
 
-	desiredvnodes = maxproc + cnt.v_page_count / 4;
+	/*
+	 * Desiredvnodes is a function of the physical memory size and
+	 * the kernel's heap size.  Specifically, desiredvnodes scales
+	 * in proportion to the physical memory size until two fifths
+	 * of the kernel's heap size is consumed by vnodes and vm
+	 * objects.  
+	 */
+	desiredvnodes = min(maxproc + cnt.v_page_count / 4, 2 * vm_kmem_size /
+	    (5 * (sizeof(struct vm_object) + sizeof(struct vnode))));
 	minvnodes = desiredvnodes / 4;
 	simple_lock_init(&mntvnode_slock);
 	simple_lock_init(&mntid_slock);

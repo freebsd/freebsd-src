@@ -83,7 +83,7 @@ int vm_fault_user_wire __P((vm_map_t, vm_offset_t, vm_offset_t));
 void vm_fork __P((struct proc *, struct proc *, int));
 void vm_waitproc __P((struct proc *));
 int vm_mmap __P((vm_map_t, vm_offset_t *, vm_size_t, vm_prot_t, vm_prot_t, int, void *, vm_ooffset_t));
-vm_offset_t vm_page_alloc_contig __P((vm_offset_t, vm_offset_t, vm_offset_t, vm_offset_t));
+vm_offset_t vm_page_alloc_contig __P((vm_offset_t, vm_paddr_t, vm_paddr_t, vm_offset_t));
 void vm_set_page_size __P((void));
 struct vmspace *vmspace_alloc __P((vm_offset_t, vm_offset_t));
 struct vmspace *vmspace_fork __P((struct vmspace *));

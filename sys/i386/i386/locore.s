@@ -75,15 +75,6 @@
 	.set	_PTDpde,_PTD + (PTDPTDI * PDESIZE)
 
 /*
- * APTmap, APTD is the alternate recursive pagemap.
- * It's used when modifying another process's page tables.
- */
-	.globl	_APTmap,_APTD,_APTDpde
-	.set	_APTmap,APTDPTDI << PDRSHIFT
-	.set	_APTD,_APTmap + (APTDPTDI * PAGE_SIZE)
-	.set	_APTDpde,_PTD + (APTDPTDI * PDESIZE)
-
-/*
  * Compiled KERNBASE location
  */
 	.globl	_kernbase
@@ -112,21 +103,28 @@ _cpu_procinfo:	.long	0			/* brand index / HTT info */
 _cpu_vendor:	.space	20			/* CPU origin code */
 _bootinfo:	.space	BOOTINFO_SIZE		/* bootinfo that we can handle */
 
+	    .globl	_KERNend
 _KERNend:	.long	0			/* phys addr end of kernel (just after bss) */
 physfree:	.long	0			/* phys addr of next free page */
 
 #ifdef SMP
-		.globl	_cpu0prvpage
+	    .globl	_cpu0prvpage
 cpu0pp:		.long	0			/* phys addr cpu0 private pg */
 _cpu0prvpage:	.long	0			/* relocated version */
 
-		.globl	_SMPpt
+	    .globl	_SMPpt
 SMPptpa:	.long	0			/* phys addr SMP page table */
 _SMPpt:		.long	0			/* relocated version */
 #endif /* SMP */
 
 	.globl	_IdlePTD
 _IdlePTD:	.long	0			/* phys addr of kernel PTD */
+
+#ifdef PAE
+	.globl	_IdlePDPT
+	.p2align 5
+_IdlePDPT:	.space	32
+#endif
 
 #ifdef SMP
 	.globl	_KPTphys
@@ -183,13 +181,13 @@ _pc98_system_parameter:
  *	prot = protection bits
  */
 #define	fillkpt(base, prot)		  \
-	shll	$2,%ebx			; \
+	shll	$PTESHIFT,%ebx		; \
 	addl	base,%ebx		; \
 	orl	$PG_V,%eax		; \
 	orl	prot,%eax		; \
 1:	movl	%eax,(%ebx)		; \
 	addl	$PAGE_SIZE,%eax		; /* increment physical address */ \
-	addl	$4,%ebx			; /* next pte */ \
+	addl	$PTESIZE,%ebx		; /* next pte */ \
 	loop	1b
 
 /*
@@ -330,7 +328,14 @@ NON_GPROF_ENTRY(btext)
 #endif
 
 /* Now enable paging */
-	movl	R(_IdlePTD), %eax
+#ifdef PAE
+	movl	%cr4,%eax
+	orl	$CR4_PAE,%eax
+	movl	%eax,%cr4
+	movl	$R(_IdlePDPT),%eax
+#else
+	movl	R(_IdlePTD),%eax
+#endif
 	movl	%eax,%cr3			/* load ptd addr into mmu */
 	movl	%cr0,%eax			/* get control word */
 	orl	$CR0_PE|CR0_PG,%eax		/* enable paging */
@@ -353,10 +358,10 @@ begin:
 	/* set up bootstrap stack */
 	movl	_proc0paddr,%esp	/* location of in-kernel pages */
 	addl	$UPAGES*PAGE_SIZE,%esp	/* bootstrap stack end location */
-	xorl	%eax,%eax			/* mark end of frames */
+	xorl	%eax,%eax		/* mark end of frames */
 	movl	%eax,%ebp
 	movl	_proc0paddr,%eax
-	movl	_IdlePTD, %esi
+	movl	%cr3,%esi
 	movl	%esi,PCB_CR3(%eax)
 
 	testl	$CPUID_PGE, R(_cpu_feature)
@@ -367,11 +372,11 @@ begin:
 1:
 
 	movl	physfree, %esi
-	pushl	%esi				/* value of first for init386(first) */
-	call	_init386			/* wire 386 chip for unix operation */
+	pushl	%esi			/* value of first for init386(first) */
+	call	_init386		/* wire 386 chip for unix operation */
 	popl	%esi
 
-	call	_mi_startup			/* autoconfiguration, mountroot etc */
+	call	_mi_startup		/* autoconfiguration, mountroot etc */
 
 	hlt		/* never returns to here */
 
@@ -737,7 +742,7 @@ no_kernend:
 	movl	%esi,R(_KPTphys)
 
 /* Allocate Page Table Directory */
-	ALLOCPAGES(1)
+	ALLOCPAGES(NPGPTD)
 	movl	%esi,R(_IdlePTD)
 
 /* Allocate UPAGES */
@@ -807,7 +812,7 @@ map_read_write:
 
 /* Map page directory. */
 	movl	R(_IdlePTD), %eax
-	movl	$1, %ecx
+	movl	$NPGPTD, %ecx
 	fillkptphys($PG_RW)
 
 /* Map proc0's UPAGES in the physical way ... */
@@ -886,9 +891,15 @@ map_read_write:
 /* install a pde recursively mapping page directory as a page table */
 	movl	R(_IdlePTD), %eax
 	movl	$PTDPTDI, %ebx
-	movl	$1,%ecx
+	movl	$NPGPTD, %ecx
 	fillkpt(R(_IdlePTD), $PG_RW)
 
+#ifdef PAE
+	movl	R(_IdlePTD),%eax
+	xorl	%ebx,%ebx
+	movl	$NPGPTD,%ecx
+	fillkpt($R(_IdlePDPT), $0)
+#endif
 	ret
 
 #ifdef BDE_DEBUGGER

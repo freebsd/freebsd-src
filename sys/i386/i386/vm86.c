@@ -584,8 +584,8 @@ vm86_datacall(intnum, vmf, vmc)
 	struct vm86frame *vmf;
 	struct vm86context *vmc;
 {
-	pt_entry_t pte = (pt_entry_t)vm86paddr;
-	u_int page;
+	pt_entry_t *pte = (pt_entry_t *)vm86paddr;
+	vm_paddr_t page;
 	int i, entry, retval;
 
 	for (i = 0; i < vmc->npages; i++) {
