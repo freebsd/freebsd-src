@@ -1,7 +1,6 @@
-#       $Id: Makefile,v 1.3 1998/10/16 04:30:51 peter Exp $ 
+#       $Id: Makefile,v 1.4 1998/10/23 11:56:44 peter Exp $ 
 
-# XXX this should be ../../dev/vinum
-SOURCE=	${.CURDIR}/../../../lkm/vinum
+SOURCE=	${.CURDIR}/../../dev/vinum
 
 .PATH:  ${SOURCE}
 KMOD=   vinum
