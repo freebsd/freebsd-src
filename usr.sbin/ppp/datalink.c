@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.18 1998/08/09 15:34:11 brian Exp $
+ *	$Id: datalink.c,v 1.19 1998/08/18 00:53:48 brian Exp $
  */
 
 #include <sys/types.h>
@@ -984,8 +984,14 @@ datalink_Show(struct cmdargs const *arg)
       prompt_Printf(arg->prompt, "%scbcp\n", comma ? ", " : "");
       prompt_Printf(arg->prompt, " CBCP:               delay: %ds\n",
                     arg->cx->cfg.cbcp.delay);
-      prompt_Printf(arg->prompt, "                     phone: %s\n",
-                    arg->cx->cfg.cbcp.phone);
+      prompt_Printf(arg->prompt, "                     phone: ");
+      if (!strcmp(arg->cx->cfg.cbcp.phone, "*")) {
+        if (arg->cx->physical->type & PHYS_DIRECT)
+          prompt_Printf(arg->prompt, "Caller decides\n");
+        else
+          prompt_Printf(arg->prompt, "Dialback server decides\n");
+      } else
+        prompt_Printf(arg->prompt, "%s\n", arg->cx->cfg.cbcp.phone);
       prompt_Printf(arg->prompt, "                     timeout: %lds\n",
                     arg->cx->cfg.cbcp.fsmretry);
     } else
