@@ -9,7 +9,7 @@
 # Kerberos services are for Kerberos v4, and are unofficial.  Sites running
 # v5 should uncomment v5 entries and comment v4 entries.
 #
-#	$Id: services,v 1.23 1996/04/09 01:53:58 asami Exp $
+#	$Id: services,v 1.24 1996/07/11 21:24:03 pst Exp $
 #	From: @(#)services	5.8 (Berkeley) 5/9/91
 #
 # WELL KNOWN PORT NUMBERS
@@ -901,6 +901,7 @@ supfiledbg	1127/tcp		# for SUP
 nfa		1155/tcp   #Network File Access		       
 nfa		1155/udp   #Network File Access		       
 phone		1167/udp   #conference calling
+skkserv		1178/tcp   #SKK (kanji input)
 lupa		1212/tcp
 lupa		1212/udp
 nerv		1222/tcp   #SNI R&D network		     
@@ -1513,6 +1514,7 @@ www-dev		2784/udp   #world wide web - development
 ppp		3000/tcp   #User-level ppp daemon
 NSWS		3049/tcp
 NSWS		3049/udp
+sj3		3086/tcp   #SJ3 (kanji input)
 vmodem		3141/tcp
 vmodem		3141/udp
 ccmail		3264/tcp   #cc:mail/lotus
