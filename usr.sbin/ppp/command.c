@@ -558,7 +558,7 @@ ShellCommand(struct cmdargs const *arg, int bg)
       if (arg->prompt)
         printf("ppp: Pausing until %s finishes\n", shell);
       prompt_TtyOldMode(arg->prompt);
-      execl(shell, shell, NULL);
+      execl(shell, shell, (char *)NULL);
     }
 
     log_Printf(LogWARN, "exec() of %s failed: %s\n",
