@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: check.c,v 1.37.6.28 2004/07/29 00:08:08 marka Exp $ */
+/* $Id: check.c,v 1.37.6.29 2004/11/22 05:02:41 marka Exp $ */
 
 #include <config.h>
 
@@ -732,7 +732,7 @@ check_zoneconf(cfg_obj_t *zconfig, cfg_obj_t *config, isc_symtab_t *symtab,
 	{ "zone-statistics", MASTERZONE | SLAVEZONE | STUBZONE },
 	{ "allow-update", MASTERZONE },
 	{ "allow-update-forwarding", SLAVEZONE },
-	{ "file", MASTERZONE | SLAVEZONE | STUBZONE | HINTZONE},
+	{ "file", MASTERZONE | SLAVEZONE | STUBZONE | HINTZONE },
 	{ "ixfr-base", MASTERZONE | SLAVEZONE },
 	{ "ixfr-tmp-file", MASTERZONE | SLAVEZONE },
 	{ "masters", SLAVEZONE | STUBZONE },
@@ -943,6 +943,27 @@ check_zoneconf(cfg_obj_t *zconfig, cfg_obj_t *config, isc_symtab_t *symtab,
 	if (tresult != ISC_R_SUCCESS)
 		result = tresult;
 
+	/*
+	 * If the zone type is rbt/rbt64 then master/hint zones
+	 * require file clauses.
+	 */
+	obj = NULL;
+	tresult = cfg_map_get(zoptions, "database", &obj);
+	if (tresult == ISC_R_NOTFOUND ||
+	    (tresult == ISC_R_SUCCESS &&
+	     (strcmp("rbt", cfg_obj_asstring(obj)) == 0 ||
+	      strcmp("rbt64", cfg_obj_asstring(obj)) == 0))) {
+		obj = NULL;
+		tresult = cfg_map_get(zoptions, "file", &obj);
+		if (tresult != ISC_R_SUCCESS &&
+		    (ztype == MASTERZONE || ztype == HINTZONE)) {
+			cfg_obj_log(zconfig, logctx, ISC_LOG_ERROR,
+				    "zone '%s': missing 'file' entry",
+				    zname);
+			result = tresult;
+		}
+	}
+	
 	return (result);
 }
 

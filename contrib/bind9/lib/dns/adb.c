@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: adb.c,v 1.181.2.11.2.19 2004/09/01 05:19:57 marka Exp $ */
+/* $Id: adb.c,v 1.181.2.11.2.20 2004/11/10 22:32:40 marka Exp $ */
 
 /*
  * Implementation notes
@@ -278,7 +278,7 @@ static inline dns_adbname_t *find_name_and_lock(dns_adb_t *, dns_name_t *,
 						unsigned int, int *);
 static inline dns_adbentry_t *find_entry_and_lock(dns_adb_t *,
 						  isc_sockaddr_t *, int *);
-static void dump_adb(dns_adb_t *, FILE *, isc_boolean_t debug);
+static void dump_adb(dns_adb_t *, FILE *, isc_boolean_t debug, isc_stdtime_t);
 static void print_dns_name(FILE *, dns_name_t *);
 static void print_namehook_list(FILE *, const char *legend,
 				dns_adbnamehooklist_t *list,
@@ -315,7 +315,8 @@ static inline isc_boolean_t unlink_name(dns_adb_t *, dns_adbname_t *);
 static inline void link_entry(dns_adb_t *, int, dns_adbentry_t *);
 static inline isc_boolean_t unlink_entry(dns_adb_t *, dns_adbentry_t *);
 static isc_boolean_t kill_name(dns_adbname_t **, isc_eventtype_t);
-static void water(void *arg, int mark);
+static void water(void *, int);
+static void dump_entry(FILE *, dns_adbentry_t *, isc_boolean_t, isc_stdtime_t);
 
 /*
  * MUST NOT overlap DNS_ADBFIND_* flags!
@@ -1937,7 +1938,7 @@ timer_cleanup(isc_task_t *task, isc_event_t *ev) {
 		if (adb->next_cleanbucket >= NBUCKETS) {
 			adb->next_cleanbucket = 0;
 #ifdef DUMP_ADB_AFTER_CLEANING
-			dump_adb(adb, stdout, ISC_TRUE);
+			dump_adb(adb, stdout, ISC_TRUE, now);
 #endif
 		}
 	}
@@ -2707,6 +2708,9 @@ dns_adb_cancelfind(dns_adbfind_t *find) {
 
 void
 dns_adb_dump(dns_adb_t *adb, FILE *f) {
+	int i;
+	isc_stdtime_t now;
+
 	REQUIRE(DNS_ADB_VALID(adb));
 	REQUIRE(f != NULL);
 
@@ -2718,7 +2722,14 @@ dns_adb_dump(dns_adb_t *adb, FILE *f) {
 	 */
 
 	LOCK(&adb->lock);
-	dump_adb(adb, f, ISC_FALSE);
+	isc_stdtime_get(&now);
+
+	for (i = 0; i < NBUCKETS; i++)
+		RUNTIME_CHECK(cleanup_names(adb, i, now) == ISC_FALSE);
+	for (i = 0; i < NBUCKETS; i++)
+		RUNTIME_CHECK(cleanup_entries(adb, i, now) == ISC_FALSE);
+
+	dump_adb(adb, f, ISC_FALSE, now);
 	UNLOCK(&adb->lock);
 }
 
@@ -2730,12 +2741,10 @@ dump_ttl(FILE *f, const char *legend, isc_stdtime_t value, isc_stdtime_t now) {
 }
 
 static void
-dump_adb(dns_adb_t *adb, FILE *f, isc_boolean_t debug) {
+dump_adb(dns_adb_t *adb, FILE *f, isc_boolean_t debug, isc_stdtime_t now) {
 	int i;
 	dns_adbname_t *name;
-	isc_stdtime_t now;
-
-	isc_stdtime_get(&now);
+	dns_adbentry_t *entry;
 
 	fprintf(f, ";\n; Address database dump\n;\n");
 	if (debug)
@@ -2793,6 +2802,17 @@ dump_adb(dns_adb_t *adb, FILE *f, isc_boolean_t debug) {
 		}
 	}
 
+	fprintf(f, ";\n; Unassociated entries\n;\n");
+
+	for (i = 0; i < NBUCKETS; i++) {
+		entry = ISC_LIST_HEAD(adb->entries[i]);
+		while (entry != NULL) {
+			if (entry->refcnt == 0)
+				dump_entry(f, entry, debug, now);
+			entry = ISC_LIST_NEXT(entry, plink);
+		}
+	}
+
 	/*
 	 * Unlock everything
 	 */
@@ -2818,6 +2838,8 @@ dump_entry(FILE *f, dns_adbentry_t *entry, isc_boolean_t debug,
 
 	fprintf(f, ";\t%s [srtt %u] [flags %08x]",
 		addrbuf, entry->srtt, entry->flags);
+	if (entry->expires != 0)
+		fprintf(f, " [ttl %d]", entry->expires - now);
 	fprintf(f, "\n");
 	for (zi = ISC_LIST_HEAD(entry->zoneinfo);
 	     zi != NULL;
@@ -3495,16 +3517,16 @@ dns_adb_flush(dns_adb_t *adb) {
 
 	LOCK(&adb->lock);
 
-	for (i = 0; i < NBUCKETS; i++) {
-		/*
-		 * Call our cleanup routines.
-		 */
+	/*
+	 * Call our cleanup routines.
+	 */
+	for (i = 0; i < NBUCKETS; i++)
 		RUNTIME_CHECK(cleanup_names(adb, i, INT_MAX) == ISC_FALSE);
+	for (i = 0; i < NBUCKETS; i++)
 		RUNTIME_CHECK(cleanup_entries(adb, i, INT_MAX) == ISC_FALSE);
-	}
 
 #ifdef DUMP_ADB_AFTER_CLEANING
-	dump_adb(adb, stdout, ISC_TRUE);
+	dump_adb(adb, stdout, ISC_TRUE, INT_MAX);
 #endif
 
 	UNLOCK(&adb->lock);

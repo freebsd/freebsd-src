@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: nsupdate.c,v 1.103.2.15.2.16 2004/06/17 01:00:38 sra Exp $ */
+/* $Id: nsupdate.c,v 1.103.2.15.2.18 2004/09/16 02:12:18 marka Exp $ */
 
 #include <config.h>
 
@@ -627,7 +627,7 @@ parse_args(int argc, char **argv) {
 				exit(1);
 			}
 			if (timeout == 0)
-				timeout = ULONG_MAX;
+				timeout = UINT_MAX;
 			break;
 		case 'u':
 			result = isc_parse_uint32(&udp_timeout,
@@ -637,7 +637,7 @@ parse_args(int argc, char **argv) {
 				exit(1);
 			}
 			if (udp_timeout == 0)
-				udp_timeout = ULONG_MAX;
+				udp_timeout = UINT_MAX;
 			break;
 		case 'r':
 			result = isc_parse_uint32(&udp_retries,
@@ -1595,6 +1595,8 @@ recvsoa(isc_task_t *task, isc_event_t *event) {
 	dns_message_t *soaquery = NULL;
 	isc_sockaddr_t *addr;
 	isc_boolean_t seencname = ISC_FALSE;
+	dns_name_t tname;
+	unsigned int nlabels;
 
 	UNUSED(task);
 
@@ -1703,9 +1705,8 @@ recvsoa(isc_task_t *task, isc_event_t *event) {
 		section = DNS_SECTION_ANSWER;
 	else if (pass == 1)
 		section = DNS_SECTION_AUTHORITY;
-	else
-		fatal("response to SOA query didn't contain an SOA");
-
+	else 
+		goto droplabel;
 
 	result = dns_message_firstname(rcvmsg, section);
 	if (result != ISC_R_SUCCESS) {
@@ -1742,29 +1743,8 @@ recvsoa(isc_task_t *task, isc_event_t *event) {
 		goto lookforsoa;
 	}
 
-	if (seencname) {
-		dns_name_t tname;
-		unsigned int nlabels;
-
-		result = dns_message_firstname(soaquery, DNS_SECTION_QUESTION);
-		INSIST(result == ISC_R_SUCCESS);
-		name = NULL;
-		dns_message_currentname(soaquery, DNS_SECTION_QUESTION, &name);
-		nlabels = dns_name_countlabels(name);
-		if (nlabels == 1)
-			fatal("could not find enclosing zone");
-		dns_name_init(&tname, NULL);
-		dns_name_getlabelsequence(name, 1, nlabels - 1, &tname);
-		dns_name_clone(&tname, name);
-		dns_request_destroy(&request);
-		dns_message_renderreset(soaquery);
-		if (userserver != NULL)
-			sendrequest(localaddr, userserver, soaquery, &request);
-		else
-			sendrequest(localaddr, &servers[ns_inuse], soaquery,
-				    &request);
-		goto out;
-	}
+	if (seencname)
+		goto droplabel;
 
 	if (debugging) {
 		char namestr[DNS_NAME_FORMATSIZE];
@@ -1807,17 +1787,38 @@ recvsoa(isc_task_t *task, isc_event_t *event) {
 		get_address(serverstr, DNSDEFAULTPORT, &tempaddr);
 		serveraddr = &tempaddr;
 	}
+	dns_rdata_freestruct(&soa);
 
 	send_update(zonename, serveraddr, localaddr);
+	setzoneclass(dns_rdataclass_none);
 
 	dns_message_destroy(&soaquery);
 	dns_request_destroy(&request);
 
  out:
-	setzoneclass(dns_rdataclass_none);
-	dns_rdata_freestruct(&soa);
 	dns_message_destroy(&rcvmsg);
 	ddebug("Out of recvsoa");
+	return;
+ 
+ droplabel:
+	result = dns_message_firstname(soaquery, DNS_SECTION_QUESTION);
+	INSIST(result == ISC_R_SUCCESS);
+	name = NULL;
+	dns_message_currentname(soaquery, DNS_SECTION_QUESTION, &name);
+	nlabels = dns_name_countlabels(name);
+	if (nlabels == 1)
+		fatal("could not find enclosing zone");
+	dns_name_init(&tname, NULL);
+	dns_name_getlabelsequence(name, 1, nlabels - 1, &tname);
+	dns_name_clone(&tname, name);
+	dns_request_destroy(&request);
+	dns_message_renderreset(soaquery);
+	if (userserver != NULL)
+		sendrequest(localaddr, userserver, soaquery, &request);
+	else
+		sendrequest(localaddr, &servers[ns_inuse], soaquery,
+			    &request);
+	goto out;
 }
 
 static void

@@ -2,7 +2,7 @@
 <!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.0//EN"
                "http://www.oasis-open.org/docbook/xml/4.0/docbookx.dtd">
 
-<!-- File: $Id: Bv9ARM-book.xml,v 1.155.2.27.2.49 2004/08/16 00:55:29 marka Exp $ -->
+<!-- File: $Id: Bv9ARM-book.xml,v 1.155.2.27.2.52 2005/02/09 03:48:57 marka Exp $ -->
 
 <book>
 <title>BIND 9 Administrator Reference Manual</title>
@@ -679,8 +679,13 @@ of a server.</para>
               syntax and consistency.</para>
               <cmdsynopsis label="Usage">
                 <command>named-checkzone</command>
-                <arg>-dq</arg>
+                <arg>-djqvD</arg>
                 <arg>-c <replaceable>class</replaceable></arg>
+                <arg>-o <replaceable>output</replaceable></arg>
+                <arg>-t <replaceable>directory</replaceable></arg>
+                <arg>-w <replaceable>directory</replaceable></arg>
+                <arg>-k <replaceable>(ignore|warn|fail)</replaceable></arg>
+                <arg>-n <replaceable>(ignore|warn|fail)</replaceable></arg>
                 <arg choice="plain"><replaceable>zone</replaceable></arg>
                 <arg><replaceable>filename</replaceable></arg>
               </cmdsynopsis>
@@ -2707,6 +2712,7 @@ statement in the <filename>named.conf</filename> file:</para>
     <optional> flush-zones-on-shutdown <replaceable>yes_or_no</replaceable>; </optional>
     <optional> has-old-clients <replaceable>yes_or_no</replaceable>; </optional>
     <optional> host-statistics <replaceable>yes_or_no</replaceable>; </optional>
+    <optional> host-statistics-max <replaceable>number</replaceable>; </optional>
     <optional> minimal-responses <replaceable>yes_or_no</replaceable>; </optional>
     <optional> multiple-cnames <replaceable>yes_or_no</replaceable>; </optional>
     <optional> notify <replaceable>yes_or_no</replaceable> | <replaceable>explicit</replaceable>; </optional>
@@ -2720,7 +2726,7 @@ statement in the <filename>named.conf</filename> file:</para>
     <optional> forward ( <replaceable>only</replaceable> | <replaceable>first</replaceable> ); </optional>
     <optional> forwarders { <replaceable>ip_addr</replaceable> <optional>port <replaceable>ip_port</replaceable></optional> ; <optional> <replaceable>ip_addr</replaceable> <optional>port <replaceable>ip_port</replaceable></optional> ; ... </optional> }; </optional>
     <optional> dual-stack-servers <optional>port <replaceable>ip_port</replaceable></optional> { ( <replaceable>domain_name</replaceable> <optional>port <replaceable>ip_port</replaceable></optional> | <replaceable>ip_addr</replaceable> <optional>port <replaceable>ip_port</replaceable></optional> ) ; ... }; </optional>
-    <optional> check-names ( <replaceable>master</replaceable> | <replaceable>slave</replaceable> | <replaceable> response</replaceable> )( <replaceable>warn</replaceable> | <replaceable>fail</replaceable> | <replaceable>ignore</replaceable> ); </optional>
+    <optional> check-names ( <replaceable>master</replaceable> | <replaceable>slave</replaceable> | <replaceable>response</replaceable> )( <replaceable>warn</replaceable> | <replaceable>fail</replaceable> | <replaceable>ignore</replaceable> ); </optional>
     <optional> allow-notify { <replaceable>address_match_list</replaceable> }; </optional>
     <optional> allow-query { <replaceable>address_match_list</replaceable> }; </optional>
     <optional> allow-transfer { <replaceable>address_match_list</replaceable> }; </optional>
@@ -2791,8 +2797,8 @@ statement in the <filename>named.conf</filename> file:</para>
     <optional> edns-udp-size <replaceable>number</replaceable>; </optional>
     <optional> root-delegation-only <optional> exclude { <replaceable>namelist</replaceable> } </optional> ; </optional>
     <optional> querylog <replaceable>yes_or_no</replaceable> ; </optional>
-};
     <optional> disable-algorithms <replaceable>domain</replaceable> { <replaceable>algorithm</replaceable>; <optional> <replaceable>algorithm</replaceable>; </optional> }; </optional>
+};
 </programlisting>
 </sect2>
 
@@ -3338,6 +3344,28 @@ If <command>querylog</command> is not specified then the query logging
 is determined by the presence of the logging category <command>queries</command>.
 </para></listitem></varlistentry>
 
+<varlistentry><term><command>check-names</command></term>
+<listitem>
+<para>
+This option is used to restrict the character set and syntax of
+certain domain names in master files and/or DNS responses received
+from the network.  The default varies according to usage area.  For
+<command>master</command> zones the default is <command>fail</command>.
+For <command>slave</command> zones the default is <command>warn</command>.
+For answer received from the network (<command>response</command>)
+the default is <command>ignore</command>.
+</para>
+<para>The rules for legal hostnames / mail domains are derived from RFC 952
+and RFC 821 as modified by RFC 1123.
+</para>
+<para><command>check-names</command> applies to the owner names of A, AAA and
+MX records.  It also applies to the domain names in the RDATA of NS, SOA and MX
+records.  It also applies to the RDATA of PTR records where the owner name
+indicated that it is a reverse lookup of a hostname (the owner name ends in
+IN-ADDR.ARPA, IP6.ARPA, IP6.INT).
+</para>
+</listitem></varlistentry>
+
 </variablelist>
 
 </sect3>
@@ -3819,6 +3847,12 @@ the specified size, some of the oldest transactions in the journal
 will be automatically removed.  The default is
 <literal>unlimited</literal>.</para>
 </listitem></varlistentry>
+
+<varlistentry><term><command>host-statistics-max</command></term>
+<listitem><para>In BIND 8, specifies the maximum number of host statistic
+entries to be kept.
+Not implemented in BIND 9.
+</para></listitem></varlistentry>
 
 <varlistentry><term><command>recursive-clients</command></term>
 <listitem><para>The maximum number of simultaneous recursive lookups
@@ -4728,7 +4762,8 @@ The default is the empty list.</para>
 <listitem><para>
 This option is used to restrict the character set and syntax of
 certain domain names in master files and/or DNS responses received from the
-network.
+network.  The default varies according to zone type.  For <command>master</command> zones the default is <command>fail</command>.  For <command>slave</command>
+zones the default is <command>warn</command>.
 </para>
 </listitem></varlistentry>
 

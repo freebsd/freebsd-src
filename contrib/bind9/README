@@ -43,6 +43,13 @@ BIND 9
 		Nominum, Inc.
 
 
+BIND 9.3.1
+
+        BIND 9.3.1 is a maintenance release, containing fixes for
+        a number of bugs in 9.3.0.
+
+        libbind: corresponds to that from BIND 8.4.6-REL.
+
 BIND 9.3.0
 
 	BIND 9.3.0 has a number of new features over 9.2,
@@ -295,6 +302,7 @@ Building
 	
 	* gcc-3.2.1 and gcc-3.1.1 is known to cause problems with solaris-x86.
 	* gcc prior to gcc-3.2.3 ultrasparc generates incorrect code at -02.
+	* gcc-3.3.5 powerpc generates incorrect code at -02.
 
 	A limited test suite can be run with "make test".  Many of
 	the tests require you to configure a set of virtual IP addresses
