@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: ctm_pass1.c,v 1.5 1994/11/26 08:57:40 phk Exp $
+ * $Id: ctm_pass1.c,v 1.6 1995/02/04 19:20:47 phk Exp $
  *
  */
 
@@ -96,6 +96,16 @@ Pass1(FILE *fd)
 		    if (p[0] == '/') {
 			Fatal("Absolute paths are illegal.");
 			return Exit_Mess;
+		    }
+		    for (;;) {
+			if (p[0] == '.' && p[1] == '.')
+			    if (p[2] == '/' || p[2] == '\0') {
+				Fatal("Paths containing '..' are illegal.");
+				return Exit_Mess;
+			    }
+			if ((p = strchr(p, '/')) == NULL)
+			    break;
+			p++;
 		    }
 		    break;
 		case CTM_F_Uid:
