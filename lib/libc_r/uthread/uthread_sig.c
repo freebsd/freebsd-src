@@ -1066,7 +1066,7 @@ thread_sigframe_add(pthread_t thread, int sig, int has_args)
 	/*
 	 * Set up the context:
 	 */
-	stackp += sizeof(double);
+	stackp -= sizeof(double);
 	_setjmp(thread->ctx.jb);
 	SET_STACK_JB(thread->ctx.jb, stackp);
 	SET_RETURN_ADDR_JB(thread->ctx.jb, _thread_sig_wrapper);
