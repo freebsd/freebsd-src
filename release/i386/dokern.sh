@@ -21,6 +21,7 @@ sed	\
 	-e '/UFS_DIRHASH/d' \
 	-e '/WITNESS/d' \
 	-e '/_KPOSIX_PRIORITY_SCHEDULING/d' \
+	-e '/	acpi/d' \
 	-e '/	atapist	/d' \
 	-e '/	faith	/d' \
 	-e '/	gif	/d' \
