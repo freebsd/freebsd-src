@@ -107,7 +107,7 @@ static int synth_leavesysex(mididev_info *md);
 static int
 synth_killnote(mididev_info *md, int chn, int note, int vel)
 {
-	int unit, msg, chp;
+	int unit;
 	synthdev_info *sd;
 	u_char c[3];
 
@@ -120,40 +120,20 @@ synth_killnote(mididev_info *md, int chn, int note, int vel)
 	if (synth_leavesysex(md) == EAGAIN)
 		return (EAGAIN);
 
-	msg = sd->prev_out_status & 0xf0;
-	chp = sd->prev_out_status & 0x0f;
-
-	if (chp == chn && ((msg == 0x90 && vel == 64) || msg == 0x80)) {
-		/* Use running status. */
-		c[0] = (u_char)note;
-		if (msg == 0x90)
-			/* The note was on. */
-			c[1] = 0;
-		else
-			c[1] = (u_char)vel;
-
-		if (synth_prefixcmd(md, c[0]))
-			return (0);
-		if (md->synth.writeraw(md, c, 2, 1) == EAGAIN)
-			return (EAGAIN);
+	if (vel == 64) {
+		c[0] = 0x90 | (chn & 0x0f); /* Note on. */
+		c[1] = (u_char)note;
+		c[2] = 0;
 	} else {
-		if (vel == 64) {
-			c[0] = 0x90 | (chn & 0x0f); /* Note on. */
-			c[1] = (u_char)note;
-			c[2] = 0;
-		} else {
-			c[0] = 0x80 | (chn & 0x0f); /* Note off. */
-			c[1] = (u_char)note;
-			c[2] = (u_char)vel;
-		}
-
-		if (synth_prefixcmd(md, c[0]))
-			return (0);
-		if (md->synth.writeraw(md, c, 3, 1) == EAGAIN)
-			return EAGAIN;
-		/* Update the status. */
-		sd->prev_out_status = c[0];
+		c[0] = 0x80 | (chn & 0x0f); /* Note off. */
+		c[1] = (u_char)note;
+		c[2] = (u_char)vel;
 	}
+
+	if (synth_prefixcmd(md, c[0]))
+		return (0);
+	if (md->synth.writeraw(md, c, 3, 1) == EAGAIN)
+		return EAGAIN;
 
 	return (0);
 }
@@ -178,8 +158,6 @@ synth_setinstr(mididev_info *md, int chn, int instr)
 	c[1] = (u_char)instr;
 	if (md->synth.writeraw(md, c, 3, 1) == EAGAIN)
 		return (EAGAIN);
-	/* Update the status. */
-	sd->prev_out_status = c[0];
 
 	return (0);
 }
@@ -187,7 +165,7 @@ synth_setinstr(mididev_info *md, int chn, int instr)
 static int
 synth_startnote(mididev_info *md, int chn, int note, int vel)
 {
-	int unit, msg, chp;
+	int unit;
 	synthdev_info *sd;
 	u_char c[3];
 
@@ -200,28 +178,13 @@ synth_startnote(mididev_info *md, int chn, int note, int vel)
 	if (synth_leavesysex(md) == EAGAIN)
 		return (EAGAIN);
 
-	msg = sd->prev_out_status & 0xf0;
-	chp = sd->prev_out_status & 0x0f;
-
-	if (chp == chn && msg == 0x90) {
-		/* Use running status. */
-		c[0] = (u_char)note;
-		c[1] = (u_char)vel;
-		if (synth_prefixcmd(md, c[0]))
-			return (0);
-		if (md->synth.writeraw(md, c, 2, 1) == EAGAIN)
-			return (EAGAIN);
-	} else {
-		c[0] = 0x90 | (chn & 0x0f); /* Note on. */
-		c[1] = (u_char)note;
-		c[2] = (u_char)vel;
-		if (synth_prefixcmd(md, c[0]))
-			return (0);
-		if (md->synth.writeraw(md, c, 3, 1) == EAGAIN)
-			return (EAGAIN);
-		/* Update the status. */
-		sd->prev_out_status = c[0];
-	}
+	c[0] = 0x90 | (chn & 0x0f); /* Note on. */
+	c[1] = (u_char)note;
+	c[2] = (u_char)vel;
+	if (synth_prefixcmd(md, c[0]))
+		return (0);
+	if (md->synth.writeraw(md, c, 3, 1) == EAGAIN)
+		return (EAGAIN);
 
 	return (0);
 }
@@ -292,8 +255,6 @@ synth_loadpatch(mididev_info *md, int format, struct uio *buf, int offs, int cou
 		}
 		if (!first_byte && (c[i] & 0x80) != 0) {
 			md->synth.writeraw(md, c, i + 1, 0);
-			/* Update the status. */
-			sd->prev_out_status = c[i];
 			return (0);
 		}
 		first_byte = 0;
@@ -302,7 +263,6 @@ synth_loadpatch(mididev_info *md, int format, struct uio *buf, int offs, int cou
 	if (!eox_seen) {
 		c[0] = 0xf7;
 		md->synth.writeraw(md, c, 1, 0);
-		sd->prev_out_status = c[0];
 	}
 
 	return (0);
@@ -318,7 +278,7 @@ synth_panning(mididev_info *md, int chn, int pan)
 static int
 synth_aftertouch(mididev_info *md, int chn, int press)
 {
-	int unit, msg, chp;
+	int unit;
 	synthdev_info *sd;
 	u_char c[2];
 
@@ -330,26 +290,12 @@ synth_aftertouch(mididev_info *md, int chn, int press)
 	if (synth_leavesysex(md) == EAGAIN)
 		return (EAGAIN);
 
-	msg = sd->prev_out_status & 0xf0;
-	chp = sd->prev_out_status & 0x0f;
-
-	if (chp == chn && msg == 0xd0) {
-		/* Use running status. */
-		c[0] = (u_char)press;
-		if (synth_prefixcmd(md, c[0]))
-			return (0);
-		if (md->synth.writeraw(md, c, 1, 1) == EAGAIN)
-			return (EAGAIN);
-	} else {
-		c[0] = 0xd0 | (chn & 0x0f); /* Channel Pressure. */
-		c[1] = (u_char)press;
-		if (synth_prefixcmd(md, c[0]))
-			return (0);
-		if (md->synth.writeraw(md, c, 2, 1) == EAGAIN)
-			return (EAGAIN);
-		/* Update the status. */
-		sd->prev_out_status = c[0];
-	}
+	c[0] = 0xd0 | (chn & 0x0f); /* Channel Pressure. */
+	c[1] = (u_char)press;
+	if (synth_prefixcmd(md, c[0]))
+		return (0);
+	if (md->synth.writeraw(md, c, 2, 1) == EAGAIN)
+		return (EAGAIN);
 
 	return (0);
 }
@@ -357,7 +303,7 @@ synth_aftertouch(mididev_info *md, int chn, int press)
 static int
 synth_controller(mididev_info *md, int chn, int ctrlnum, int val)
 {
-	int unit, msg, chp;
+	int unit;
 	synthdev_info *sd;
 	u_char c[3];
 
@@ -369,27 +315,12 @@ synth_controller(mididev_info *md, int chn, int ctrlnum, int val)
 	if (synth_leavesysex(md) == EAGAIN)
 		return (EAGAIN);
 
-	msg = sd->prev_out_status & 0xf0;
-	chp = sd->prev_out_status & 0x0f;
-
-	if (chp == chn && msg == 0xb0) {
-		/* Use running status. */
-		c[0] = (u_char)ctrlnum;
-		c[1] = (u_char)val & 0x7f;
-		if (synth_prefixcmd(md, c[0]))
-			return (0);
-		if (md->synth.writeraw(md, c, 2, 1) == EAGAIN)
-			return (EAGAIN);
-	} else {
-		c[0] = 0xb0 | (chn & 0x0f); /* Control Message. */
-		c[1] = (u_char)ctrlnum;
-		if (synth_prefixcmd(md, c[0]))
-			return (0);
-		if (md->synth.writeraw(md, c, 3, 1) == EAGAIN)
-			return (EAGAIN);
-		/* Update the status. */
-		sd->prev_out_status = c[0];
-	}
+	c[0] = 0xb0 | (chn & 0x0f); /* Control Message. */
+	c[1] = (u_char)ctrlnum;
+	if (synth_prefixcmd(md, c[0]))
+		return (0);
+	if (md->synth.writeraw(md, c, 3, 1) == EAGAIN)
+		return (EAGAIN);
 
 	return (0);
 }
@@ -403,7 +334,7 @@ synth_patchmgr(mididev_info *md, struct patmgr_info *rec)
 static int
 synth_bender(mididev_info *md, int chn, int val)
 {
-	int unit, msg, chp;
+	int unit;
 	synthdev_info *sd;
 	u_char c[3];
 
@@ -415,28 +346,13 @@ synth_bender(mididev_info *md, int chn, int val)
 	if (synth_leavesysex(md) == EAGAIN)
 		return (EAGAIN);
 
-	msg = sd->prev_out_status & 0xf0;
-	chp = sd->prev_out_status & 0x0f;
-
-	if (chp == chn && msg == 0xe0) {
-		/* Use running status. */
-		c[0] = (u_char)val & 0x7f;
-		c[1] = (u_char)(val >> 7) & 0x7f;
-		if (synth_prefixcmd(md, c[0]))
-			return (0);
-		if (md->synth.writeraw(md, c, 2, 1) == EAGAIN)
-			return (EAGAIN);
-	} else {
-		c[0] = 0xe0 | (chn & 0x0f); /* Pitch bend. */
-		c[1] = (u_char)val & 0x7f;
-		c[2] = (u_char)(val >> 7) & 0x7f;
-		if (synth_prefixcmd(md, c[0]))
-			return (0);
-		if (md->synth.writeraw(md, c, 3, 1) == EAGAIN)
-			return (EAGAIN);
-		/* Update the status. */
-		sd->prev_out_status = c[0];
-	}
+	c[0] = 0xe0 | (chn & 0x0f); /* Pitch bend. */
+	c[1] = (u_char)val & 0x7f;
+	c[2] = (u_char)(val >> 7) & 0x7f;
+	if (synth_prefixcmd(md, c[0]))
+		return (0);
+	if (md->synth.writeraw(md, c, 3, 1) == EAGAIN)
+		return (EAGAIN);
 
 	return (0);
 }
@@ -458,30 +374,37 @@ synth_setupvoice(mididev_info *md, int voice, int chn)
 static int
 synth_sendsysex(mididev_info *md, u_char *sysex, int len)
 {
-	int unit, i, j;
+	int unit, i;
 	synthdev_info *sd;
 	u_char c[len];
 
 	unit = md->unit;
 	sd = &md->synth;
 
+	mtx_lock(&sd->status_mtx);
 	for (i = 0 ; i < len ; i++) {
 		switch (sysex[i]) {
 		case 0xf0:
 			/* Sysex begins. */
-			if (synth_prefixcmd(md, 0xf0))
+			if (synth_prefixcmd(md, 0xf0)) {
+				mtx_unlock(&sd->status_mtx);
 				return (0);
+			}
 			sd->sysex_state = 1;
 			break;
 		case 0xf7:
 			/* Sysex ends. */
-			if (!sd->sysex_state)
+			if (!sd->sysex_state) {
+				mtx_unlock(&sd->status_mtx);
 				return (0);
+			}
 			sd->sysex_state = 0;
 			break;
 		default:
-			if (!sd->sysex_state)
+			if (!sd->sysex_state) {
+				mtx_unlock(&sd->status_mtx);
 				return (0);
+			}
 			if ((sysex[i] & 0x80) != 0) {
 				/* A status in a sysex? */
 				sysex[i] = 0xf7;
@@ -493,15 +416,9 @@ synth_sendsysex(mididev_info *md, u_char *sysex, int len)
 		if (!sd->sysex_state)
 			break;
 	}
+	mtx_unlock(&sd->status_mtx);
 	if (md->synth.writeraw(md, c, i, 1) == EAGAIN)
 		return (EAGAIN);
-
-	/* Update the status. */
-	for (j = i - 1 ; j >= 0 ; j--)
-		if ((c[j] & 0x80) != 0) {
-			sd->prev_out_status = c[j];
-			break;
-		}
 
 	return (0);
 }
@@ -523,7 +440,7 @@ synth_volumemethod(mididev_info *md, int mode)
 static int
 synth_readraw(mididev_info *md, u_char *buf, int len, int nonblock)
 {
-	int unit, ret, s;
+	int unit, ret;
 
 	if (md == NULL)
 		return (ENXIO);
@@ -534,20 +451,23 @@ synth_readraw(mididev_info *md, u_char *buf, int len, int nonblock)
 		return (EIO);
 	}
 
-	s = splmidi();
+	mtx_lock(&md->flagqueue_mtx);
 
 	/* Begin recording. */
-	md->callback(md, MIDI_CB_START | MIDI_CB_RD);
+	if ((md->flags & MIDI_F_READING) == 0)
+		md->callback(md, MIDI_CB_START | MIDI_CB_RD);
 
 	if (nonblock) {
 		/* Have we got enough data to read? */
-		if (md->midi_dbuf_in.rl < len)
+		if (md->midi_dbuf_in.rl < len) {
+			mtx_unlock(&md->flagqueue_mtx);
 			return (EAGAIN);
+		}
 	}
 
-	ret = midibuf_seqread(&md->midi_dbuf_in, buf, len);
+	ret = midibuf_seqread(&md->midi_dbuf_in, buf, len, &md->flagqueue_mtx);
 
-	splx(s);
+	mtx_unlock(&md->flagqueue_mtx);
 
 	if (ret < 0)
 		ret = -ret;
@@ -560,7 +480,7 @@ synth_readraw(mididev_info *md, u_char *buf, int len, int nonblock)
 static int
 synth_writeraw(mididev_info *md, u_char *buf, int len, int nonblock)
 {
-	int unit, ret, s;
+	int unit, ret;
 
 	if (md == NULL)
 		return (ENXIO);
@@ -573,21 +493,25 @@ synth_writeraw(mididev_info *md, u_char *buf, int len, int nonblock)
 	}
 
 	/* For nonblocking, have we got enough space to write? */
-	if (nonblock && md->midi_dbuf_out.fl < len)
+	mtx_lock(&md->flagqueue_mtx);
+	if (nonblock && md->midi_dbuf_out.fl < len) {
+		/* Begin playing. */
+		md->callback(md, MIDI_CB_START | MIDI_CB_WR);
+		mtx_unlock(&md->flagqueue_mtx);
 		return (EAGAIN);
+	}
 
-	s = splmidi();
+	ret = midibuf_seqwrite(&md->midi_dbuf_out, buf, len, &md->flagqueue_mtx);
 
-	ret = midibuf_seqwrite(&md->midi_dbuf_out, buf, len);
 	if (ret < 0)
 		ret = -ret;
-	else
+	else {
+		/* Begin playing. */
+		md->callback(md, MIDI_CB_START | MIDI_CB_WR);
 		ret = 0;
+	}
 
-	/* Begin playing. */
-	md->callback(md, MIDI_CB_START | MIDI_CB_WR);
-
-	splx(s);
+	mtx_unlock(&md->flagqueue_mtx);
 
 	return (ret);
 }
@@ -606,16 +530,17 @@ synth_leavesysex(mididev_info *md)
 	unit = md->unit;
 	sd = &md->synth;
 
-	if (!sd->sysex_state)
+	mtx_lock(&sd->status_mtx);
+	if (!sd->sysex_state) {
+		mtx_unlock(&sd->status_mtx);
 		return (0);
+	}
 
 	sd->sysex_state = 0;
+	mtx_unlock(&sd->status_mtx);
 	c = 0xf7;
 	if (md->synth.writeraw(md, &c, sizeof(c), 1) == EAGAIN)
 		return (EAGAIN);
-	sd->sysex_state = 0;
-	/* Update the status. */
-	sd->prev_out_status = c;
 
 	return (0);
 }

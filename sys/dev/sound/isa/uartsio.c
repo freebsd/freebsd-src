@@ -101,6 +101,8 @@ struct uartsio_softc {
 	device_t dev; /* device information */
 	mididev_info *devinfo; /* midi device information */
 
+	struct mtx mtx; /* Mutex to protect the device. */
+
 	struct resource *io; /* Base of io port */
 	int io_rid; /* Io resource ID */
 	struct resource *irq; /* Irq */
@@ -134,10 +136,7 @@ static mididev_info uartsio_op_desc = {
 
 	NULL,
 	NULL,
-	NULL,
-	NULL,
 	uartsio_ioctl,
-	NULL,
 
 	uartsio_callback,
 
@@ -201,12 +200,10 @@ uartsio_attach(device_t dev)
 {
 	sc_p scp;
 	mididev_info *devinfo;
-	int unit;
 
 	scp = device_get_softc(dev);
-	unit = device_get_unit(dev);
 
-	DEB(printf("uartsio%d: attaching.\n", unit));
+	DEB(printf("uartsio: attaching.\n"));
 
 	/* Allocate resources. */
 	if (uartsio_allocres(scp, dev)) {
@@ -219,30 +216,12 @@ uartsio_attach(device_t dev)
 	if ((uartsio_readport(scp, com_iir) & IIR_FIFO_MASK) == FIFO_RX_HIGH) {
 		scp->has_fifo = 1;
 		scp->tx_size = TX_FIFO_SIZE;
-		DEB(printf("uartsio%d: uart is 16550A, tx size is %d bytes.\n", unit, scp->tx_size));
+		DEB(printf("uartsio: uart is 16550A, tx size is %d bytes.\n", scp->tx_size));
 	} else {
 		scp->has_fifo = 0;
 		scp->tx_size = 1;
-		DEB(printf("uartsio%d: uart is not 16550A.\n", unit));
+		DEB(printf("uartsio: uart is not 16550A.\n"));
 	}
-
-	/* Fill the softc. */
-	scp->dev = dev;
-	scp->devinfo = devinfo = create_mididev_info_unit(&unit, MDT_MIDI);
-
-	/* Fill the midi info. */
-	bcopy(&uartsio_op_desc, devinfo, sizeof(uartsio_op_desc));
-	midiinit(devinfo, dev);
-	devinfo->flags = 0;
-	bcopy(&midisynth_op_desc, &devinfo->synth, sizeof(midisynth_op_desc));
-	snprintf(devinfo->midistat, sizeof(devinfo->midistat), "at 0x%x irq %d",
-		 (u_int)rman_get_start(scp->io), (int)rman_get_start(scp->irq));
-
-	/* Init the queue. */
-	devinfo->midi_dbuf_in.unit_size = devinfo->midi_dbuf_out.unit_size = 1;
-	midibuf_init(&devinfo->midi_dbuf_in);
-	midibuf_init(&devinfo->midi_dbuf_out);
-	midibuf_init(&devinfo->midi_dbuf_passthru);
 
 	/* Configure the uart. */
 	uartsio_writeport(scp, com_cfcr, CFCR_DLAB); /* Latch the divisor. */
@@ -262,10 +241,21 @@ uartsio_attach(device_t dev)
 	uartsio_readport(scp, com_iir);
 	uartsio_readport(scp, com_data);
 
+	/* Fill the softc. */
+	scp->dev = dev;
+	mtx_init(&scp->mtx, "siomid", MTX_DEF);
+	scp->devinfo = devinfo = create_mididev_info_unit(MDT_MIDI, &uartsio_op_desc, &midisynth_op_desc);
+
+	/* Fill the midi info. */
+	snprintf(devinfo->midistat, sizeof(devinfo->midistat), "at 0x%x irq %d",
+		 (u_int)rman_get_start(scp->io), (int)rman_get_start(scp->irq));
+
+	midiinit(devinfo, dev);
+
 	/* Now we can handle the interrupts. */
 	bus_setup_intr(dev, scp->irq, INTR_TYPE_TTY, uartsio_intr, scp, &scp->ih);
 
-	DEB(printf("uartsio%d: attached.\n", unit));
+	DEB(printf("uartsio: attached.\n"));
 
 	return (0);
 }
@@ -321,10 +311,16 @@ uartsio_intr(void *arg)
 	scp = (sc_p)arg;
 	devinfo = scp->devinfo;
 
+	MIDI_DROP_GIANT_NOSWITCH();
+
+	mtx_lock(&devinfo->flagqueue_mtx);
 	uartsio_xmit(scp);
+	mtx_unlock(&devinfo->flagqueue_mtx);
 
 	/* Invoke the upper layer. */
 	midi_intr(devinfo);
+
+	MIDI_PICKUP_GIANT();
 }
 
 static int
@@ -332,6 +328,8 @@ uartsio_callback(mididev_info *d, int reason)
 {
 	int unit;
 	sc_p scp;
+
+	mtx_assert(&d->flagqueue_mtx, MA_OWNED);
 
 	if (d == NULL) {
 		DEB(printf("uartsio_callback: device not configured.\n"));
@@ -347,7 +345,6 @@ uartsio_callback(mididev_info *d, int reason)
 			/* Begin recording. */
 			d->flags |= MIDI_F_READING;
 		if ((reason & MIDI_CB_WR) != 0 && (d->flags & MIDI_F_WRITING) == 0)
-			/* Start playing. */
 			uartsio_startplay(scp);
 		break;
 	case MIDI_CB_STOP:
@@ -370,7 +367,6 @@ uartsio_callback(mididev_info *d, int reason)
 
 /*
  * Starts to play the data in the output queue.
- * Call this at >=splmidi.
  */
 static void
 uartsio_startplay(sc_p scp)
@@ -378,6 +374,8 @@ uartsio_startplay(sc_p scp)
 	mididev_info *devinfo;
 
 	devinfo = scp->devinfo;
+
+	mtx_assert(&devinfo->flagqueue_mtx, MA_OWNED);
 
 	/* Can we play now? */
 	if (devinfo->midi_dbuf_out.rl == 0)
@@ -397,7 +395,10 @@ uartsio_xmit(sc_p scp)
 
 	devinfo = scp->devinfo;
 
-	do {
+	mtx_assert(&devinfo->flagqueue_mtx, MA_OWNED);
+
+	mtx_lock(&scp->mtx);
+	for (;;) {
 		/* Read the received data. */
 		while (((lsr = uartsio_readport(scp, com_lsr)) & LSR_RCV_MASK) != 0) {
 			/* Is this a data or an error/break? */
@@ -406,6 +407,7 @@ uartsio_xmit(sc_p scp)
 			else {
 				/* Receive the data. */
 				c[0] = uartsio_readport(scp, com_data);
+				mtx_unlock(&scp->mtx);
 				/* Queue into the passthru buffer and start transmitting if we can. */
 				if ((devinfo->flags & MIDI_F_PASSTHRU) != 0 && ((devinfo->flags & MIDI_F_BUSY) == 0 || (devinfo->fflags & FWRITE) == 0)) {
 					midibuf_input_intr(&devinfo->midi_dbuf_passthru, &c[0], sizeof(c[0]));
@@ -414,11 +416,10 @@ uartsio_xmit(sc_p scp)
 				/* Queue if we are reading. Discard an active sensing. */
 				if ((devinfo->flags & MIDI_F_READING) != 0 && c[0] != 0xfe)
 					midibuf_input_intr(&devinfo->midi_dbuf_in, &c[0], sizeof(c[0]));
+				mtx_lock(&scp->mtx);
 			}
 		}
-
-		/* Read MSR. */
-		msr = uartsio_readport(scp, com_msr);
+		mtx_unlock(&scp->mtx);
 
 		/* See which source to use. */
 		if ((devinfo->flags & MIDI_F_PASSTHRU) == 0 || ((devinfo->flags & MIDI_F_BUSY) != 0 && (devinfo->fflags & FWRITE) != 0))
@@ -427,30 +428,41 @@ uartsio_xmit(sc_p scp)
 			dbuf = &devinfo->midi_dbuf_passthru;
 
 		/* Transmit the data in the queue. */
-		if ((devinfo->flags & MIDI_F_WRITING) != 0 && (lsr & LSR_TXRDY) != 0 && (msr & MSR_CTS) != 0) {
-
+		if ((devinfo->flags & MIDI_F_WRITING) != 0) {
 			/* Do we have the data to transmit? */
 			if (dbuf->rl == 0) {
 				/* Stop playing. */
 				devinfo->flags &= ~MIDI_F_WRITING;
 			} else {
-				/* send the data. */
-				txsize = scp->tx_size;
-				if (dbuf->rl < txsize)
-					txsize = dbuf->rl;
-				midibuf_output_intr(dbuf, c, txsize);
-				for (i = 0 ; i < txsize ; i++)
-					uartsio_writeport(scp, com_data, c[i]);
-				/* We are playing now. */
-				devinfo->flags |= MIDI_F_WRITING;
+				mtx_lock(&scp->mtx);
+				/* Read LSR and MSR. */
+				lsr = uartsio_readport(scp, com_lsr);
+				msr = uartsio_readport(scp, com_msr);
+				/* Is the device ready?. */
+				if ((lsr & LSR_TXRDY) != 0 && (msr & MSR_CTS) != 0) {
+					/* send the data. */
+					txsize = scp->tx_size;
+					if (dbuf->rl < txsize)
+						txsize = dbuf->rl;
+					midibuf_output_intr(dbuf, c, txsize);
+					for (i = 0 ; i < txsize ; i++)
+						uartsio_writeport(scp, com_data, c[i]);
+					/* We are playing now. */
+					devinfo->flags |= MIDI_F_WRITING;
+				} else {
+					/* Do we have the data to transmit? */
+					if (dbuf->rl > 0)
+					/* Wait for the next interrupt. */
+						devinfo->flags |= MIDI_F_WRITING;
+				}
+				mtx_unlock(&scp->mtx);
 			}
-		} else {
-			/* Do we have the data to transmit? */
-			if (dbuf->rl > 0)
-				/* Wait for the next interrupt. */
-				devinfo->flags |= MIDI_F_WRITING;
 		}
-	} while (((iir = uartsio_readport(scp, com_iir)) & IIR_IMASK) != IIR_NOPEND);
+		mtx_lock(&scp->mtx);
+		if (((iir = uartsio_readport(scp, com_iir)) & IIR_IMASK) == IIR_NOPEND)
+			break;
+	}
+	mtx_unlock(&scp->mtx);
 
 	return (0);
 }

@@ -55,10 +55,13 @@ typedef struct _midi_dbuf {
  * These are the midi buffer methods, used in midi interface devices.
  */
 int midibuf_init(midi_dbuf *dbuf);
-int midibuf_seqwrite(midi_dbuf *dbuf, u_char* data, int len);
-int midibuf_uiowrite(midi_dbuf *dbuf, struct uio *buf, int len);
+int midibuf_destroy(midi_dbuf *dbuf);
+int midibuf_clear(midi_dbuf *dbuf);
+int midibuf_seqwrite(midi_dbuf *dbuf, u_char* data, int len, struct mtx *m);
+int midibuf_uiowrite(midi_dbuf *dbuf, struct uio *buf, int len, struct mtx *m);
 int midibuf_output_intr(midi_dbuf *dbuf, u_char *data, int len);
 int midibuf_input_intr(midi_dbuf *dbuf, u_char *data, int len);
-int midibuf_seqread(midi_dbuf *dbuf, u_char* data, int len);
-int midibuf_seqcopy(midi_dbuf *dbuf, u_char* data, int len);
-int midibuf_uioread(midi_dbuf *dbuf, struct uio *buf, int len);
+int midibuf_seqread(midi_dbuf *dbuf, u_char* data, int len, struct mtx *m);
+int midibuf_sequnread(midi_dbuf *dbuf, u_char* data, int len, struct mtx *m);
+int midibuf_seqcopy(midi_dbuf *dbuf, u_char* data, int len, struct mtx *m);
+int midibuf_uioread(midi_dbuf *dbuf, struct uio *buf, int len, struct mtx *m);
