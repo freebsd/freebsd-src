@@ -51,21 +51,21 @@ variable rebootkey
 : print-beastie ( x y -- )
 	2dup at-xy ."              ,        ," 1+
 	2dup at-xy ."             /(        )`" 1+
-	2dup at-xy ."             \\ \\___ / |" 1+
+	2dup at-xy ."             \ \___   / |" 1+
 	2dup at-xy ."             /- _  `-/  '" 1+
-	2dup at-xy ."            (/\\/ \\ \\ /\\" 1+
-	2dup at-xy ."            / /   | `    \\" 1+
+	2dup at-xy ."            (/\/ \ \   /\" 1+
+	2dup at-xy ."            / /   | `    \" 1+
 	2dup at-xy ."            O O   ) /    |" 1+
 	2dup at-xy ."            `-^--'`<     '" 1+
 	2dup at-xy ."           (_.)  _  )   /" 1+
 	2dup at-xy ."            `.___/`    /" 1+
 	2dup at-xy ."              `-----' /" 1+
-	2dup at-xy ." <----.     __ / __   \\" 1+
-	2dup at-xy ." <----|====O)))==) \\) /====" 1+
-	2dup at-xy ." <----'    `--' `.__,' \\" 1+
+	2dup at-xy ." <----.     __ / __   \" 1+
+	2dup at-xy ." <----|====O)))==) \) /====" 1+
+	2dup at-xy ." <----'    `--' `.__,' \" 1+
 	2dup at-xy ."              |        |" 1+
-	2dup at-xy ."               \\       /       /\\" 1+
-	2dup at-xy ."          ______( (_  / \\______/" 1+
+	2dup at-xy ."               \       /       /\" 1+
+	2dup at-xy ."          ______( (_  / \______/" 1+
 	2dup at-xy ."        ,'  ,-----'   |" 1+
 	     at-xy ."        `--{__________)"
 ;
