@@ -28,7 +28,6 @@
 LIB=		pam_opie
 SHLIB_NAME=	pam_opie.so
 SRCS=		pam_opie.c
-NO_WERROR=	yes
 DPADD=		${LIBOPIE}
 LDADD=		-lopie
 MAN=		pam_opie.8

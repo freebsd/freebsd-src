@@ -27,7 +27,6 @@
 LIB=		pam_radius
 SHLIB_NAME=	pam_radius.so
 SRCS=		pam_radius.c
-NO_WERROR=	yes
 DPADD=		${LIBRADIUS}
 LDADD=		-lradius
 
