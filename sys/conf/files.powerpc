@@ -17,6 +17,7 @@ powerpc/powerpc/clock.c		standard
 powerpc/powerpc/copyinstr.c	standard
 powerpc/powerpc/copystr.c	standard
 powerpc/powerpc/elf_machdep.c	standard
+powerpc/powerpc/extintr.c	standard
 powerpc/powerpc/fubyte.c	standard
 powerpc/powerpc/fuswintr.c	standard
 powerpc/powerpc/fuword.c	standard
@@ -33,6 +34,11 @@ powerpc/powerpc/sys_machdep.c	standard
 powerpc/powerpc/swtch.s		standard
 powerpc/powerpc/trap.c		standard
 powerpc/powerpc/vm_machdep.c	standard
+
+powerpc/powerpc/db_disasm.c	optional	ddb
+powerpc/powerpc/db_interface.c	optional	ddb
+powerpc/powerpc/db_memrw.c	optional	ddb
+powerpc/powerpc/db_trace.c	optional	ddb
 
 dev/ofw/openfirm.c		standard
 dev/ofw/ofw_console.c		standard
