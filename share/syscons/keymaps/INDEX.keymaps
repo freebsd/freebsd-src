@@ -1,4 +1,4 @@
-# $Id: INDEX.keymaps,v 1.19 1998/07/29 18:49:45 sos Exp $
+# $Id: INDEX.keymaps,v 1.20 1998/08/07 17:04:42 ache Exp $
 #
 # database for kbdmap(8) 
 #
@@ -189,9 +189,14 @@ us.dvorakl.kbd:pt:Estados Unidos da América dvorakl
 us.dvorakx.kbd:en:United States of America dvorakx
 us.dvorakx.kbd:de:US-amerikanisch dvorakx
 us.dvorakx.kbd:fr:États Unis  d'Amérique dvorakx
-us.dvorakx.kbd:pt:Estados Unidos da América dvorakx
+
+us.emacs.kbd:en:United States of America Emacs optimized layout
+us.emacs.kbd:de:US-amerikanisch emacs
+us.emacs.kbd:fr:États Unis  d'Amérique emacs
+us.emacs.kbd:pt:Estados Unidos da América emacs
 
 us.unix.kbd:en:United States of America Traditional Unix Workstation
 us.unix.kbd:de:US-amerikanisch unix
 us.unix.kbd:fr:États Unis  d'Amérique unix
 us.unix.kbd:pt:Estados Unidos da América unix
+us.dvorakx.kbd:pt:Estados Unidos da América dvorakx
