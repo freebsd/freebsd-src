@@ -158,7 +158,7 @@ pass5(void)
 			got_siginfo = 0;
 		}
 		if (got_sigalarm) {
-			setproctitle("%s p5 %d%%\n", cdevname,
+			setproctitle("%s p5 %d%%", cdevname,
 			    c * 100 / sblock.fs_ncg);
 			got_sigalarm = 0;
 		}
