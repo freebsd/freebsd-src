@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, Boris Popov
+ * Copyright (c) 2000-2001, Boris Popov
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,10 +29,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: nb_name.c,v 1.1 2000/07/16 01:52:07 bp Exp $
+ * $Id: nb_name.c,v 1.2 2001/08/22 03:31:36 bp Exp $
  */
 #include <sys/param.h>
 #include <sys/socket.h>
+#include <sys/mchain.h>		/* for endiand macros */
 
 #include <ctype.h>
 #include <err.h>
@@ -138,8 +139,8 @@ nb_encname_len(const char *str)
 	return len;
 }
 
-#define	NBENCODE(c)	((u_short)(((u_char)(c) >> 4) | \
-			 (((u_char)(c) & 0xf) << 8)) + 0x4141)
+#define	NBENCODE(c)	(htoles((u_short)(((u_char)(c) >> 4) | \
+			 (((u_char)(c) & 0xf) << 8)) + 0x4141))
 
 static void
 memsetw(char *dst, int n, u_short word)

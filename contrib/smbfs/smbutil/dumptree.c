@@ -4,6 +4,10 @@
 #include <string.h>
 #include <unistd.h>
 #include <stdlib.h>
+#ifdef APPLE
+#include <err.h>
+#include <sysexits.h>
+#endif
 
 #include <netsmb/smb_lib.h>
 #include <netsmb/smb_conn.h>
@@ -102,6 +106,10 @@ cmd_dumptree(int argc, char *argv[])
 	int *itype;
 
 	printf("SMB connections:\n");
+#ifdef APPLE
+	if (loadsmbvfs())
+		errx(EX_OSERR, "SMB filesystem is not available");
+#endif
 	p = smb_dumptree();
 	if (p == NULL) {
 		printf("None\n");

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: login.c,v 1.5 2001/01/28 07:35:00 bp Exp $
+ * $Id: login.c,v 1.6 2001/08/22 03:33:38 bp Exp $
  */
 #include <sys/param.h>
 #include <sys/errno.h>
@@ -78,6 +78,10 @@ cmd_login(int argc, char *argv[])
 			/*NOTREACHED*/
 		}
 	}
+#ifdef APPLE
+	if (loadsmbvfs())
+		errx(EX_OSERR, "SMB filesystem is not available");
+#endif
 	if (smb_ctx_resolve(ctx) != 0)
 		exit(1);
 	level = ctx->ct_parsedlevel;
@@ -139,6 +143,11 @@ cmd_logout(int argc, char *argv[])
 			/*NOTREACHED*/
 		}
 	}
+#ifdef APPLE
+	error = loadsmbvfs();
+	if (error)
+		errx(EX_OSERR, "SMB filesystem is not available");
+#endif
 	ctx->ct_ssn.ioc_opt &= ~SMBVOPT_CREATE;
 	ctx->ct_sh.ioc_opt &= ~SMBSOPT_CREATE;
 	if (smb_ctx_resolve(ctx) != 0)
