@@ -32,10 +32,9 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)rdisc.c	8.1 (Berkeley) x/y/95";
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
-
-#ident "$Revision: 1.1 $"
 
 #include "defs.h"
 #include <netinet/in_systm.h>
@@ -788,7 +787,7 @@ rdisc_sol(void)
 			u.so.icmp_cksum = in_cksum((u_short*)&u.so,
 						   sizeof(u.so));
 			send_rdisc(&u, sizeof(u.so), ifp,
-				   INADDR_ALLROUTERS_GROUP,
+				   htonl(INADDR_ALLROUTERS_GROUP),
 				   ((ifp->int_if_flags & IS_BCAST_RDISC)
 				    ? 1 : 2));
 
