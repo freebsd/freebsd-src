@@ -16,9 +16,12 @@ static char rcsid[] = "$FreeBSD$";
 
 /* ilogb(double x)
  * return the binary exponent of non-zero x
- * ilogb(0) = 0x80000001
- * ilogb(inf/NaN) = 0x7fffffff (no signal is raised)
+ * ilogb(0) = FP_ILOGB0
+ * ilogb(NaN) = FP_ILOGBNAN (no signal is raised)
+ * ilogb(inf) = INT_MAX (no signal is raised)
  */
+
+#include <limits.h>
 
 #include "math.h"
 #include "math_private.h"
@@ -31,7 +34,7 @@ static char rcsid[] = "$FreeBSD$";
 	hx &= 0x7fffffff;
 	if(hx<0x00100000) {
 	    if((hx|lx)==0)
-		return 0x80000001;	/* ilogb(0) = 0x80000001 */
+		return FP_ILOGB0;
 	    else			/* subnormal x */
 		if(hx==0) {
 		    for (ix = -1043; lx>0; lx<<=1) ix -=1;
@@ -41,5 +44,6 @@ static char rcsid[] = "$FreeBSD$";
 	    return ix;
 	}
 	else if (hx<0x7ff00000) return (hx>>20)-1023;
-	else return 0x7fffffff;
+	else if (hx>0x7ff00000 || lx!=0) return FP_ILOGBNAN;
+	else return INT_MAX;
 }
