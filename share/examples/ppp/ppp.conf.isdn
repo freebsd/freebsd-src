@@ -41,8 +41,8 @@ isdn:
  set reconnect 3 5
  set redial 3 10
  set lqrperiod 45
- disable pred1 deflate
- deny pred1 deflate
+ disable pred1 deflate mppe
+ deny pred1 deflate mppe
 
  set timeout 60 300	# The minimum charge period is 5 minutes, so don't
 			# hangup before then
@@ -50,6 +50,7 @@ isdn:
  # We have no chat scripts in the ISDN world (yet)
  set dial
  set login
+ set logout
  set hangup
 
  set device /dev/i4brbch0 /dev/i4brbch1		# Raw B-channel devices
@@ -68,6 +69,26 @@ isdn:
  link deflink rm			# And get rid of the original one
 
  link * set mode auto			# Automatically manage the second link
- set autoload 10 80 30			# Down @10% usage, up at 80%
+ set autoload 10 80 30			# Down @10% usage, up at 80%, 30s sample
 
- set server /tmp/pavilion "" 0177	# Listen on a diagnostic port
+ set server /tmp/ppp-isdn "" 0177	# The diagnostic port (-rw-------)
+
+#
+# When phone calls become free (say 0:00 Saturday morning), we may want
+# this in crontab (``crontab -l'', not /etc/crontab):
+#
+#     1 0 0 0 6 /usr/sbin/pppctl /tmp/ppp-isdn link \* set mode ddial
+#
+# and when we have to pay again (say 23:59 Sunday night), we may want
+# this:
+#
+#     54 23 0 0 0 /usr/sbin/pppctl /tmp/ppp-isdn link \* set mode auto
+#
+# And of course just in case of a weekend reboot, add
+# /usr/local/etc/rc.d/ppp.sh:
+#
+#   #! /bin/sh
+#   [ ."$1" != .start ] && exit 0
+#   case `date +%w` in
+#   6|0) /usr/sbin/pppctl /tmp/ppp-isdn link \* set mode ddial;;
+#   esac
