@@ -312,6 +312,7 @@ int	 ttstart(struct tty *tp);
 void	 ttwakeup(struct tty *tp);
 int	 ttwrite(struct tty *tp, struct uio *uio, int flag);
 void	 ttwwakeup(struct tty *tp);
+struct tty *ttyalloc(void);
 void	 ttyblock(struct tty *tp);
 void	 ttychars(struct tty *tp);
 int	 ttycheckoutq(struct tty *tp, int wait);
