@@ -1938,8 +1938,6 @@ ufs_strategy(ap)
 	int error;
 
 	ip = VTOI(vp);
-	if (vp->v_type == VBLK || vp->v_type == VCHR)
-		panic("ufs_strategy: spec");
 	if (bp->b_blkno == bp->b_lblkno) {
 		error = ufs_bmaparray(vp, bp->b_lblkno, &blkno, bp, NULL, NULL);
 		bp->b_blkno = blkno;
