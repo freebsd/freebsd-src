@@ -45,7 +45,7 @@ extern long blocksize;		/* block size units */
 extern int f_accesstime;	/* use time of last access */
 extern int f_flags;		/* show flags associated with a file */
 extern int f_humanval;		/* show human-readable file sizes */
-extern int f_lomac;		/* show LOMAC attributes */
+extern int f_label;		/* show MAC label */
 extern int f_inode;		/* print inode */
 extern int f_longform;		/* long listing format */
 extern int f_octal;		/* print unprintables in octal */
@@ -70,7 +70,7 @@ typedef struct {
 	int maxlen;
 	u_int s_block;
 	u_int s_flags;
-	u_int s_lattr;
+	u_int s_label;
 	u_int s_group;
 	u_int s_inode;
 	u_int s_nlink;
@@ -82,6 +82,6 @@ typedef struct {
 	char *user;
 	char *group;
 	char *flags;
-	char *lattr;
+	char *label;
 	char data[1];
 } NAMES;

@@ -182,8 +182,8 @@ printlong(DISPLAY *dp)
 		    np->group);
 		if (f_flags)
 			(void)printf("%-*s ", dp->s_flags, np->flags);
-		if (f_lomac)
-			(void)printf("%-*s ", dp->s_lattr, np->lattr);
+		if (f_label)
+			(void)printf("%-*s ", dp->s_label, np->label);
 		if (S_ISCHR(sp->st_mode) || S_ISBLK(sp->st_mode))
 			if (minor(sp->st_rdev) > 255 || minor(sp->st_rdev) < 0)
 				(void)printf("%3d, 0x%08x ",
