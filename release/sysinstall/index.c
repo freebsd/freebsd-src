@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: index.c,v 1.7 1995/10/15 17:22:24 jkh Exp $
+ * $Id: index.c,v 1.8 1995/10/16 07:31:00 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -41,6 +41,7 @@
  *
  */
 
+#include <fcntl.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -216,23 +217,30 @@ copy_to_sep(char *to, char *from, int sep)
     return tok + 1 - from;
 }
 
+static int
+readline(int fd, char *buf, int max)
+{
+    int rv, i = 0;
+    char ch;
+
+    while ((rv = read(fd, &ch, 1)) == 1 && ch != '\n' && i < max)
+	buf[i++] = ch;
+    if (i < max)
+	buf[i] = '\0';
+    return rv;
+}
+
 int
-index_parse(FILE *fp, char *name, char *pathto, char *prefix, char *comment, char *descr, char *maint,
+index_parse(int fd, char *name, char *pathto, char *prefix, char *comment, char *descr, char *maint,
 	    char *cats, char *keys)
 {
     char line[1024];
     char *cp;
-    int len;
+    int i;
 
-    if (!fgets(line, 1024, fp)) {
-	if (feof(fp))
-	    return EOF;
-	else
-	    return -2;
-    }
-    len = strlen(line);
-    if (line[len - 1] == '\n')
-	line[len - 1] = '\0';
+    i = readline(fd, line, 1024);
+    if (i <= 0)
+	return EOF;
     cp = line;
     cp += copy_to_sep(name, cp, '|');
     cp += copy_to_sep(pathto, cp, '|');
@@ -246,29 +254,27 @@ index_parse(FILE *fp, char *name, char *pathto, char *prefix, char *comment, cha
 }
 
 int
-index_read(char *fname, PkgNodePtr papa)
+index_get(char *fname, PkgNodePtr papa)
 {
-    FILE *fp;
-    int i;
+    int i, fd;
 
-    fp = fopen(fname, "r");
-    if (!fp) {
+    fd = open(fname, O_RDONLY);
+    if (fd < 0) {
 	fprintf(stderr, "Unable to open index file `%s' for reading.\n", fname);
 	i = -1;
     }
-    else {
-	i = index_fread(fp, papa);
-	fclose(fp);
-    }
+    else
+	i = index_read(fd, papa);
+    close(fd);
     return i;
 }
 
 int
-index_fread(FILE *fp, PkgNodePtr papa)
+index_read(int fd, PkgNodePtr papa)
 {
     char name[127], pathto[255], prefix[255], comment[255], descr[127], maint[127], cats[511], keys[511];
 
-    while (!index_parse(fp, name, pathto, prefix, comment, descr, maint, cats, keys)) {
+    while (!index_parse(fd, name, pathto, prefix, comment, descr, maint, cats, keys)) {
 	char *cp, *cp2, tmp[511];
 	IndexEntryPtr idx;
 
@@ -285,7 +291,6 @@ index_fread(FILE *fp, PkgNodePtr papa)
 	/* Add to special "All" category */
 	index_register(papa, "All", idx);
     }
-    fclose(fp);
     return 0;
 }
 
