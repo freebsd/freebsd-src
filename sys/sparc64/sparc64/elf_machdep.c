@@ -177,7 +177,7 @@ elf_reloc(linker_file_t lf, const void *data, int type)
 	Elf_Word rtype, symidx;
 	Elf_Addr value;
 	Elf_Addr mask;
-	caddr_t addr;
+	Elf_Addr addr;
 
 	if (type != ELF_RELOC_RELA)
 		return (-1);
@@ -205,14 +205,14 @@ elf_reloc(linker_file_t lf, const void *data, int type)
 		addr = elf_lookup(lf, symidx, 1);
 		if (addr == 0)
 			return (-1);
-		value += (Elf_Addr)addr;
+		value += addr;
 	}
 
 	if (RELOC_PC_RELATIVE(rtype))
 		value -= (Elf_Addr)where;
 
 	if (RELOC_BASE_RELATIVE(rtype))
-		value += (Elf_Addr)(relocbase);
+		value += relocbase;
 
 	mask = RELOC_VALUE_BITMASK(rtype);
 	value >>= RELOC_VALUE_RIGHTSHIFT(rtype);
