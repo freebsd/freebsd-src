@@ -104,7 +104,6 @@ static int	union_getwritemount(struct vop_getwritemount_args *ap);
 static int	union_reclaim(struct vop_reclaim_args *ap);
 static int	union_remove(struct vop_remove_args *ap);
 static int	union_rename(struct vop_rename_args *ap);
-static int	union_revoke(struct vop_revoke_args *ap);
 static int	union_rmdir(struct vop_rmdir_args *ap);
 static int	union_poll(struct vop_poll_args *ap);
 static int	union_setacl(struct vop_setacl_args *ap);
@@ -1156,24 +1155,6 @@ union_poll(ap)
 }
 
 static int
-union_revoke(ap)
-	struct vop_revoke_args /* {
-		struct vnode *a_vp;
-		int a_flags;
-		struct thread *a_td;
-	} */ *ap;
-{
-	struct vnode *vp = ap->a_vp;
-
-	if (UPPERVP(vp))
-		VOP_REVOKE(UPPERVP(vp), ap->a_flags);
-	if (LOWERVP(vp))
-		VOP_REVOKE(LOWERVP(vp), ap->a_flags);
-	vgone(vp);
-	return (0);
-}
-
-static int
 union_fsync(ap)
 	struct vop_fsync_args /* {
 		struct vnode *a_vp;
@@ -2109,7 +2090,6 @@ static struct vnodeopv_entry_desc union_vnodeop_entries[] = {
 	{ &vop_reclaim_desc,		(vop_t *) union_reclaim },
 	{ &vop_remove_desc,		(vop_t *) union_remove },
 	{ &vop_rename_desc,		(vop_t *) union_rename },
-	{ &vop_revoke_desc,		(vop_t *) union_revoke },
 	{ &vop_rmdir_desc,		(vop_t *) union_rmdir },
 	{ &vop_setacl_desc,		(vop_t *) union_setacl },
 	{ &vop_setattr_desc,		(vop_t *) union_setattr },
