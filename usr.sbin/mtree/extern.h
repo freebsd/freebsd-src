@@ -31,11 +31,15 @@
  * SUCH DAMAGE.
  *
  *	@(#)extern.h	8.1 (Berkeley) 6/6/93
+ * $FreeBSD$
  */
 
 int	 compare __P((char *, NODE *, FTSENT *));
 int	 crc __P((int, u_long *, u_long *));
 void	 cwalk __P((void));
+char	*flags_to_string __P((u_long, char *));
+int	string_to_flags __P((char **, u_long *, u_long *));
+
 char	*inotype __P((u_int));
 u_int	 parsekey __P((char *, int *));
 char	*rlink __P((char *));
