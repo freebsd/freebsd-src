@@ -29,6 +29,8 @@
 #ifndef _MACHINE_ATOMIC_H_
 #define _MACHINE_ATOMIC_H_
 
+#include <machine/alpha_cpu.h>
+
 /*
  * Various simple arithmetic on memory which is atomic in the presence
  * of interrupts and SMP safe.
@@ -250,6 +252,92 @@ static __inline u_int64_t atomic_readandclear_64(volatile u_int64_t *addr)
 #define atomic_subtract_long	atomic_subtract_64
 #define atomic_readandclear_long	atomic_readandclear_64
 
+#define ATOMIC_ACQ_REL(NAME, WIDTH, TYPE)				\
+static __inline void							\
+atomic_##NAME##_acq_##WIDTH(volatile u_int##WIDTH##_t *p, u_int##WIDTH##_t v)\
+{									\
+	alpha_mb();							\
+	atomic_##NAME##_##WIDTH(p, v);					\
+}									\
+									\
+static __inline void							\
+atomic_##NAME##_rel_##WIDTH(volatile u_int##WIDTH##_t *p, u_int##WIDTH##_t v)\
+{									\
+	atomic_##NAME##_##WIDTH(p, v);					\
+	alpha_wmb();							\
+}									\
+									\
+static __inline void							\
+atomic_##NAME##_acq_##TYPE(volatile u_int##WIDTH##_t *p, u_int##WIDTH##_t v)\
+{									\
+	alpha_mb();							\
+	atomic_##NAME##_##WIDTH(p, v);					\
+}									\
+									\
+static __inline void							\
+atomic_##NAME##_rel_##TYPE(volatile u_int##WIDTH##_t *p, u_int##WIDTH##_t v)\
+{									\
+	atomic_##NAME##_##WIDTH(p, v);					\
+	alpha_wmb();							\
+}
+
+ATOMIC_ACQ_REL(set, 8, char)
+ATOMIC_ACQ_REL(clear, 8, char)
+ATOMIC_ACQ_REL(add, 8, char)
+ATOMIC_ACQ_REL(subtract, 8, char)
+ATOMIC_ACQ_REL(set, 16, short)
+ATOMIC_ACQ_REL(clear, 16, short)
+ATOMIC_ACQ_REL(add, 16, short)
+ATOMIC_ACQ_REL(subtract, 16, short)
+ATOMIC_ACQ_REL(set, 32, int)
+ATOMIC_ACQ_REL(clear, 32, int)
+ATOMIC_ACQ_REL(add, 32, int)
+ATOMIC_ACQ_REL(subtract, 32, int)
+ATOMIC_ACQ_REL(set, 64, long)
+ATOMIC_ACQ_REL(clear, 64, long)
+ATOMIC_ACQ_REL(add, 64, long)
+ATOMIC_ACQ_REL(subtract, 64, long)
+
+#undef ATOMIC_ACQ_REL
+
+/*
+ * We assume that a = b will do atomic loads and stores.
+ */
+#define ATOMIC_STORE_LOAD(TYPE, WIDTH)			\
+static __inline u_##TYPE				\
+atomic_load_acq_##WIDTH(volatile u_##TYPE *p)		\
+{							\
+	alpha_mb();					\
+	return (*p);					\
+}							\
+							\
+static __inline void					\
+atomic_store_rel_##WIDTH(volatile u_##TYPE *p, u_##TYPE v)\
+{							\
+	*p = v;						\
+	alpha_wmb();					\
+}							\
+static __inline u_##TYPE				\
+atomic_load_acq_##TYPE(volatile u_##TYPE *p)		\
+{							\
+	alpha_mb();					\
+	return (*p);					\
+}							\
+							\
+static __inline void					\
+atomic_store_rel_##TYPE(volatile u_##TYPE *p, u_##TYPE v)\
+{							\
+	*p = v;						\
+	alpha_wmb();					\
+}
+
+ATOMIC_STORE_LOAD(char,		8)
+ATOMIC_STORE_LOAD(short,	16)
+ATOMIC_STORE_LOAD(int,		32)
+ATOMIC_STORE_LOAD(long,		64)
+
+#undef ATOMIC_STORE_LOAD
+
 /*
  * Atomically compare the value stored at *p with cmpval and if the
  * two values are equal, update the value of *p with newval. Returns
@@ -316,5 +404,86 @@ atomic_cmpset_ptr(volatile void *dst, void *exp, void *src)
         return (
             atomic_cmpset_long((volatile u_long *)dst, (u_long)exp, (u_long)src));
 }
+
+static __inline u_int32_t
+atomic_cmpset_acq_32(volatile u_int32_t *p, u_int32_t cmpval, u_int32_t newval)
+{
+	alpha_mb();
+	return (atomic_cmpset_32(p, cmpval, newval));
+}
+
+static __inline u_int32_t
+atomic_cmpset_rel_32(volatile u_int32_t *p, u_int32_t cmpval, u_int32_t newval)
+{
+	int retval;
+
+	retval = atomic_cmpset_32(p, cmpval, newval);
+	alpha_wmb();
+	return (retval);
+}
+
+static __inline u_int64_t
+atomic_cmpset_acq_64(volatile u_int64_t *p, u_int64_t cmpval, u_int64_t newval)
+{
+	alpha_mb();
+	return (atomic_cmpset_64(p, cmpval, newval));
+}
+
+static __inline u_int64_t
+atomic_cmpset_rel_64(volatile u_int64_t *p, u_int64_t cmpval, u_int64_t newval)
+{
+	int retval;
+
+	retval = atomic_cmpset_64(p, cmpval, newval);
+	alpha_wmb();
+	return (retval);
+}
+
+#define	atomic_cmpset_acq_int	atomic_cmpset_acq_32
+#define	atomic_cmpset_rel_int	atomic_cmpset_rel_32
+#define	atomic_cmpset_acq_long	atomic_cmpset_acq_64
+#define	atomic_cmpset_rel_long	atomic_cmpset_rel_64
+#define	atomic_cmpset_acq_ptr	atomic_cmpset_acq_long
+#define	atomic_cmpset_rel_ptr	atomic_cmpset_rel_long
+
+static __inline void *
+atomic_load_acq_ptr(volatile void *p)
+{
+	return (void *)atomic_load_acq_long((volatile u_long *)p);
+}
+
+static __inline void
+atomic_store_rel_ptr(volatile void *p, void *v)
+{
+	atomic_store_rel_long((volatile u_long *)p, (u_long)v);
+}
+
+#define ATOMIC_PTR(NAME)				\
+static __inline void					\
+atomic_##NAME##_ptr(volatile void *p, uintptr_t v)	\
+{							\
+	atomic_##NAME##_long((volatile u_long *)p, v);	\
+}							\
+							\
+static __inline void					\
+atomic_##NAME##_acq_ptr(volatile void *p, uintptr_t v)	\
+{							\
+	alpha_mb();					\
+	atomic_##NAME##_acq_long((volatile u_long *)p, v);\
+}							\
+							\
+static __inline void					\
+atomic_##NAME##_rel_ptr(volatile void *p, uintptr_t v)	\
+{							\
+	atomic_##NAME##_rel_long((volatile u_long *)p, v);\
+	alpha_wmb();					\
+}
+
+ATOMIC_PTR(set)
+ATOMIC_PTR(clear)
+ATOMIC_PTR(add)
+ATOMIC_PTR(subtract)
+
+#undef ATOMIC_PTR
 
 #endif /* ! _MACHINE_ATOMIC_H_ */
