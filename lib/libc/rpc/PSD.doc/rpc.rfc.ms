@@ -2,6 +2,9 @@
 .\" Must use  --  tbl  --  with this one
 .\"
 .\" @(#)rpc.rfc.ms	2.2 88/08/05 4.0 RPCSRC
+.\" $FreeBSD$
+.\"
+.so stubs
 .de BT
 .if \\n%=1 .tl ''- % -''
 ..
@@ -10,7 +13,7 @@
 .if n .fp 2 R
 .OH 'Remote Procedure Calls: Protocol Specification''Page %'
 .EH 'Page %''Remote Procedure Calls: Protocol Specification'
-.if \\n%=1 .bp
+.if \n%=1 .bp
 .SH
 \&Remote Procedure Calls: Protocol Specification
 .LP

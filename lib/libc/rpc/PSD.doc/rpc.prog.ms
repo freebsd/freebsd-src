@@ -2,10 +2,12 @@
 .\" Must use -- tbl and pic -- with this one
 .\"
 .\" @(#)rpc.prog.ms	2.3 88/08/11 4.0 RPCSRC
+.\" $FreeBSD$
+.\"
+.so stubs
 .de BT
 .if \\n%=1 .tl ''- % -''
 ..
-.IX "Network Programming" "" "" "" PAGE MAJOR
 .nr OF 0
 .ND
 .\" prevent excess underlining in nroff
@@ -15,6 +17,7 @@
 .SH
 \&Remote Procedure Call Programming Guide
 .nr OF 1
+.IX "Network Programming" "" "" "" PAGE MAJOR
 .IX "RPC Programming Guide"
 .LP
 This document assumes a working knowledge of network theory.  It is
@@ -223,14 +226,14 @@ for these services and their RPC protocols.
 Here are some of the RPC service library routines available to the 
 C programmer:
 .LP
-\fBTable 3-3\fI RPC Service Library Routines\RP
+\fBTable 3-3\fI RPC Service Library Routines\fR
 .TS
 box tab (&) ;
 cfI cfI
 lfL l .
 Routine&Description
 _
-.sp.5
+.sp .5
 rnusers&Return number of users on remote machine
 rusers&Return information about users on remote machine
 havedisk&Determine if remote machine has disk
@@ -523,7 +526,7 @@ lfL lfL lfI .
 RPC Number&Program&Description
 _
 .TH
-.sp.5
+.sp .5
 100000&PMAPPROG&portmapper
 100001&RSTATPROG&remote stats            
 100002&RUSERSPROG&remote users            
@@ -1939,7 +1942,7 @@ or can be done manually using
 The
 .I "Network Services"
 chapter
-./" XXX
+.\" XXX
 explains more how to setup secure networking.
 .sp
 .IP "\fIClient Side\fP"
@@ -2061,7 +2064,7 @@ nuser(rqstp, transp)
 		if (! netname2user(des_cred->adc_fullname.name,
 			&uid, &gid, &gidlen, gidlist))
 		{
-			fprintf(stderr, "unknown user: %s\n",
+			fprintf(stderr, "unknown user: %s\en",
 				des_cred->adc_fullname.name);
 			svcerr_systemerr(transp);
 			return;
