@@ -31,7 +31,7 @@
 .\"     @(#)date.1	8.3 (Berkeley) 4/28/95
 .\" $FreeBSD$
 .\"
-.Dd November 17, 1993
+.Dd August 9, 2004
 .Dt DATE 1
 .Os
 .Sh NAME
@@ -218,6 +218,22 @@ When the date is adjusted to a specific value that occurs twice
 the resulting timezone will be set so that the date matches the earlier of
 the two times.
 .Pp
+Adjusting the date by months is inherently ambiguous because
+a month is a unit of variable length depending on the current date.
+This kind of date adjustment is applied in the most intuitive way.
+First of all,
+.Nm
+tries to preserve the day of the month.
+If it is impossible because the target month is shorter than the present one,
+the last day of the target month will be the result.
+For example, using
+.Fl v No +1m
+on May 31 will adjust the date to June 30, while using the same option
+on January 30 will result in the date adjusted to the last day of February.
+This approach is also believed to make the most sense for shell scripting.
+Nevertheless, be aware that going forth and back by the same number of
+months may take you to a different date.
+.Pp
 Refer to the examples below for further details.
 .El
 .Pp
@@ -294,6 +310,12 @@ The command:
 will display the last day of February in the year 2000:
 .Pp
 .Dl "Tue Feb 29 03:18:00 GMT 2000"
+.Pp
+So will do the command:
+.Pp
+.Dl "date -v30d -v3m -v0y -v-1m"
+.Pp
+because there is no such date as the 30th of February.
 .Pp
 The command:
 .Pp
