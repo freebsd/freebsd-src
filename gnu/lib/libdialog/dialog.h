@@ -83,6 +83,7 @@ int line_edit(WINDOW* dialog, int box_y, int box_x, int box_width, chtype attrs,
 
 void dialog_create_rc(unsigned char *filename);
 int dialog_yesno(unsigned char *title, unsigned char *prompt, int height, int width);
+int dialog_prgbox(unsigned char *title, const char *line, int height, int width, int pause, int use_shell);
 int dialog_msgbox(unsigned char *title, unsigned char *prompt, int height, int width, int pause);
 int dialog_textbox(unsigned char *title, unsigned char *file, int height, int width);
 int dialog_menu(unsigned char *title, unsigned char *prompt, int height, int width, int menu_height, int item_no, unsigned char **items, unsigned char *result);
