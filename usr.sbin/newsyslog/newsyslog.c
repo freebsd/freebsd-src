@@ -29,7 +29,7 @@ provided "as is" without express or implied warranty.
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: newsyslog.c,v 1.11 1997/05/04 01:53:53 ache Exp $";
+static char rcsid[] = "$Id: newsyslog.c,v 1.12 1997/05/05 15:00:15 ache Exp $";
 #endif /* not lint */
 
 #ifndef CONF
@@ -245,6 +245,7 @@ static struct conf_entry *parse_file()
         struct conf_entry *working = NULL;
         struct passwd *pass;
         struct group *grp;
+	int eol;
 
         if (strcmp(conf,"-"))
                 f = fopen(conf,"r");
@@ -265,11 +266,17 @@ static struct conf_entry *parse_file()
                 }
 
                 q = parse = missing_field(sob(line),errline);
-                *(parse = son(line)) = '\0';
+                parse = son(line);
+		if (!*parse)
+                  errx(1, "Malformed line (missing fields):\n%s", errline);
+                *parse = '\0';
                 working->log = strdup(q);
 
                 q = parse = missing_field(sob(++parse),errline);
-                *(parse = son(parse)) = '\0';
+                parse = son(parse);
+		if (!*parse)
+                  errx(1, "Malformed line (missing fields):\n%s", errline);
+                *parse = '\0';
                 if ((group = strchr(q, '.')) != NULL) {
                     *group++ = '\0';
                     if (*q) {
@@ -298,7 +305,10 @@ static struct conf_entry *parse_file()
                         working->gid = NONE;
                     
                     q = parse = missing_field(sob(++parse),errline);
-                    *(parse = son(parse)) = '\0';
+                    parse = son(parse);
+		    if (!*parse)
+                      errx(1, "Malformed line (missing fields):\n%s", errline);
+                    *parse = '\0';
                 }
                 else 
                     working->uid = working->gid = NONE;
@@ -308,27 +318,42 @@ static struct conf_entry *parse_file()
                           errline);
 
                 q = parse = missing_field(sob(++parse),errline);
-                *(parse = son(parse)) = '\0';
+                parse = son(parse);
+		if (!*parse)
+                  errx(1, "Malformed line (missing fields):\n%s", errline);
+                *parse = '\0';
                 if (!sscanf(q,"%d",&working->numlogs))
                         errx(1, "Error in config file; bad number:\n%s",
                           errline);
 
                 q = parse = missing_field(sob(++parse),errline);
-                *(parse = son(parse)) = '\0';
+                parse = son(parse);
+		if (!*parse)
+                  errx(1, "Malformed line (missing fields):\n%s", errline);
+                *parse = '\0';
                 if (isdigit(*q))
                         working->size = atoi(q);
                 else
                         working->size = -1;
                 
                 q = parse = missing_field(sob(++parse),errline);
-                *(parse = son(parse)) = '\0';
+                parse = son(parse);
+		eol = !*parse;
+                *parse = '\0';
                 if (isdigit(*q))
                         working->hours = atoi(q);
                 else
                         working->hours = -1;
 
-                q = parse = sob(++parse); /* Optional field */
-                *(parse = son(parse)) = '\0';
+		if (eol)
+		  q = NULL;
+		else {
+                  q = parse = sob(++parse); /* Optional field */
+                  parse = son(parse);
+		  if (!*parse)
+                    eol = 1;
+                  *parse = '\0';
+		}
 
                 working->flags = 0;
                 while (q && *q && !isspace(*q)) {
@@ -336,13 +361,17 @@ static struct conf_entry *parse_file()
                                 working->flags |= CE_COMPACT;
                         else if ((*q == 'B') || (*q == 'b'))
                                 working->flags |= CE_BINARY;
-                        else
+                        else if (*q != '-')
                            errx(1, "Illegal flag in config file -- %c", *q);
                         q++;
                 }
                 
-		q = parse = sob(++parse); /* Optional field */
-		*(parse = son(parse)) = '\0';
+		if (eol)
+		  q = NULL;
+		else {
+		  q = parse = sob(++parse); /* Optional field */
+		  *(parse = son(parse)) = '\0';
+		}
 
 		working->pid_file = NULL;
 		if (q && *q) {
