@@ -71,6 +71,7 @@ struct cdr_cue_entry {
 struct cdr_cuesheet {
     	int32_t len;
 	struct cdr_cue_entry *entries;
+	int test_write;
 };
 
 #define CDRIOCBLANK		_IOW('c', 100, int)
