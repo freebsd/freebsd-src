@@ -629,6 +629,7 @@ int	if_delmulti(struct ifnet *, struct sockaddr *);
 void	if_detach(struct ifnet *);
 void	if_down(struct ifnet *);
 void	if_initname(struct ifnet *, const char *, int);
+void	if_link_state_change(struct ifnet *, int);
 int	if_printf(struct ifnet *, const char *, ...) __printflike(2, 3);
 int	if_setlladdr(struct ifnet *, const u_char *, int);
 void	if_up(struct ifnet *);
