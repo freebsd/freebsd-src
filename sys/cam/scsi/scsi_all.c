@@ -1395,7 +1395,7 @@ static struct asc_table_entry asc_table[] = {
 			"End of user area encountered on this track") },
 /*      R       */{SST(0x63, 0x01, SS_FATAL|ENOSPC,
 			"Packet does not fit in available space") },
-/*      R       */{SST(0x64, 0x00, SS_RDEF,
+/*      R       */{SST(0x64, 0x00, SS_FATAL|ENXIO,
 			"Illegal mode for this track") },
 /*      R       */{SST(0x64, 0x01, SS_RDEF,
 			"Invalid packet size") },
