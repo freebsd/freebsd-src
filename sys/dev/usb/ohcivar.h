@@ -107,7 +107,7 @@ typedef struct ohci_softc {
 	char sc_vendor[16];
 	int sc_id_vendor;
 
-#if defined(__NetBSD__) || defined(__OpenBSD__)
+#if defined(__NetBSD__)
 	void *sc_powerhook;
 	void *sc_shutdownhook;		/* cookie from shutdown hook */
 #endif

@@ -427,7 +427,7 @@ uhci_init(sc)
 	sc->sc_bus.pipe_size = sizeof(struct uhci_pipe);
 
 	sc->sc_suspend = PWR_RESUME;
-#if defined(__NetBSD__) || defined(__OpenBSD__)
+#if defined(__NetBSD__)
 	sc->sc_powerhook = powerhook_establish(uhci_power, sc);
 	sc->sc_shutdownhook = shutdownhook_establish(uhci_shutdown, sc);
 #endif
@@ -476,7 +476,7 @@ uhci_detach(sc, flags)
 	if (rv != 0)
 		return (rv);
 
-#if defined(__NetBSD__) || defined(__OpenBSD__)
+#if defined(__NetBSD__)
 	powerhook_disestablish(sc->sc_powerhook);
 	shutdownhook_disestablish(sc->sc_shutdownhook);
 #endif
