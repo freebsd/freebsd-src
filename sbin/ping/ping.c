@@ -250,7 +250,7 @@ main(argc, argv)
 
 	outpack = outpackhdr + sizeof(struct ip);
 	while ((ch = getopt(argc, argv,
-		"ADI:LQRS:T:c:adfi:l:m:Mnop:qrs:t:vz:"
+		"Aac:DdfI:i:Ll:Mm:nop:QqRrS:s:T:t:vz:"
 #ifdef IPSEC
 #ifdef IPSEC_POLICY_IPSEC
 		"P:"
@@ -288,6 +288,13 @@ main(argc, argv)
 			options |= F_FLOOD;
 			setbuf(stdout, (char *)NULL);
 			break;
+		case 'I':		/* multicast interface */
+			if (inet_aton(optarg, &ifaddr) == 0)
+				errx(EX_USAGE,
+				    "invalid multicast interface: `%s'",
+				    optarg);
+			options |= F_MIF;
+			break;
 		case 'i':		/* wait between sending packets */
 			t = strtod(optarg, &ep) * 1000.0;
 			if (*ep || ep == optarg || t > (double)INT_MAX)
@@ -300,12 +307,9 @@ main(argc, argv)
 				err(EX_NOPERM, "-i interval too short");
 			}
 			break;
-		case 'I':		/* multicast interface */
-			if (inet_aton(optarg, &ifaddr) == 0)
-				errx(EX_USAGE,
-				    "invalid multicast interface: `%s'",
-				    optarg);
-			options |= F_MIF;
+		case 'L':
+			options |= F_NOLOOP;
+			loop = 0;
 			break;
 		case 'l':
 			ultmp = strtoul(optarg, &ep, 0);
@@ -318,9 +322,8 @@ main(argc, argv)
 			}
 			preload = ultmp;
 			break;
-		case 'L':
-			options |= F_NOLOOP;
-			loop = 0;
+		case 'M':
+			options |= F_MASK;
 			break;
 		case 'm':		/* TTL */
 			ultmp = strtoul(optarg, &ep, 0);
@@ -329,15 +332,25 @@ main(argc, argv)
 			ttl = ultmp;
 			options |= F_TTL;
 			break;
-		case 'M':
-			options |= F_MASK;
-			break;
 		case 'n':
 			options |= F_NUMERIC;
 			break;
 		case 'o':
 			options |= F_ONCE;
 			break;
+#ifdef IPSEC
+#ifdef IPSEC_POLICY_IPSEC
+		case 'P':
+			options |= F_POLICY;
+			if (!strncmp("in", optarg, 2))
+				policy_in = strdup(optarg);
+			else if (!strncmp("out", optarg, 3))
+				policy_out = strdup(optarg);
+			else
+				errx(1, "invalid security policy");
+			break;
+#endif /*IPSEC_POLICY_IPSEC*/
+#endif /*IPSEC*/
 		case 'p':		/* fill buffer with user pattern */
 			options |= F_PINGFILLED;
 			payload = optarg;
@@ -354,6 +367,9 @@ main(argc, argv)
 		case 'r':
 			options |= F_SO_DONTROUTE;
 			break;
+		case 'S':
+			source = optarg;
+			break;
 		case 's':		/* size of packet to send */
 			ultmp = strtoul(optarg, &ep, 0);
 			if (*ep || ep == optarg)
@@ -367,8 +383,13 @@ main(argc, argv)
 			}
 			datalen = ultmp;
 			break;
-		case 'S':
-			source = optarg;
+		case 'T':		/* multicast TTL */
+			ultmp = strtoul(optarg, &ep, 0);
+			if (*ep || ep == optarg || ultmp > MAXTTL)
+				errx(EX_USAGE, "invalid multicast TTL: `%s'",
+				    optarg);
+			mttl = ultmp;
+			options |= F_MTTL;
 			break;
 		case 't':
 			alarmtimeout = strtoul(optarg, &ep, 0);
@@ -380,27 +401,8 @@ main(argc, argv)
 				    optarg, MAXALARM);
 			alarm((int)alarmtimeout);
 			break;
-		case 'T':		/* multicast TTL */
-			ultmp = strtoul(optarg, &ep, 0);
-			if (*ep || ep == optarg || ultmp > MAXTTL)
-				errx(EX_USAGE, "invalid multicast TTL: `%s'",
-				    optarg);
-			mttl = ultmp;
-			options |= F_MTTL;
-			break;
 		case 'v':
 			options |= F_VERBOSE;
-			break;
-#ifdef IPSEC
-#ifdef IPSEC_POLICY_IPSEC
-		case 'P':
-			options |= F_POLICY;
-			if (!strncmp("in", optarg, 2))
-				policy_in = strdup(optarg);
-			else if (!strncmp("out", optarg, 3))
-				policy_out = strdup(optarg);
-			else
-				errx(1, "invalid security policy");
 			break;
 		case 'z':
 			options |= F_HDRINCL;
@@ -409,8 +411,6 @@ main(argc, argv)
 				errx(EX_USAGE, "invalid TOS: `%s'", optarg);
 			tos = ultmp;
 			break;
-#endif /*IPSEC_POLICY_IPSEC*/
-#endif /*IPSEC*/
 		default:
 			usage();
 		}
@@ -1515,14 +1515,14 @@ static void
 usage()
 {
 	(void)fprintf(stderr, "%s\n%s\n%s\n",
-"usage: ping [-ADQRadfnoqrv] [-c count] [-i wait] [-l preload] [-m ttl]",
-"            [-p pattern] "
+"usage: ping [-AaDdfMnoQqRrv] [-c count] [-i wait] [-l preload] [-m ttl]",
+"            "
 #ifdef IPSEC
 #ifdef IPSEC_POLICY_IPSEC
 "[-P policy] "
 #endif
 #endif
-"[-s packetsize] [-S src_addr] [-t timeout]",
-"            [-z tos ] [host | [-L] [-I iface] [-T ttl] mcast-group]");
+"[-p pattern] [-S src_addr] [-s packetsize] [-t timeout]",
+"            [-z tos ] host | [-L] [-I iface] [-T ttl] mcast-group");
 	exit(EX_USAGE);
 }
