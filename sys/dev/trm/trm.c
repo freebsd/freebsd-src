@@ -2999,6 +2999,7 @@ trm_initSRB(PACB pACB)
 {
     	u_int16_t    i;
 	PSRB    pSRB;
+	int error;
 
 	for (i = 0; i < TRM_MAX_SRB_CNT; i++) {
 	       	pSRB = (PSRB)&pACB->pFreeSRB[i];
@@ -3040,6 +3041,17 @@ trm_initSRB(PACB pACB)
 			pSRB->pNextSRB = NULL;
 		}
 		pSRB->TagNumber = i;
+
+		/*
+		 * Create the dmamap.  This is no longer optional!
+		 *
+		 * XXX This is not freed on unload!  None of the other
+		 * allocations in this function are either!
+		 */
+		if ((error = bus_dmamap_create(pACB->buffer_dmat, 0,
+					       &pSRB->dmamap)) != 0)
+			return (error);
+
 	}
 	return (0);
 }
