@@ -282,6 +282,16 @@ ifconfig_ed0_alias4="inet 127.0.0.254 netmask 0xffffffff"
 .Ed
 Then note that alias4 would \fBnot\fR be added since the search would
 stop with the missing alias3 entry.
+.Pp
+You can bring up an interface with DHCP by setting the
+.No ifconfig_ Ns Em interface
+variable to
+.Dq DHCP .
+For instance, to initialize your ed0 device via DHCP,
+you might have something like:
+.Bd -literal
+ifconfig_ed0="DHCP"
+.Ed
 .It Ar ppp_enable
 (bool) If set to
 .Ar YES ,
