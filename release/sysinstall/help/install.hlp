@@ -53,7 +53,7 @@ you can reboot and install FreeBSD on the new partition.  Also note
 that FIPS will create the second partition as a "clone" of the first,
 so you'll actually see that you now have two DOS Primary partitions
 where you formerly had one.  Don't be alarmed!  You can simply delete
-the extra DOS Primary parititon (making sure it's the right one by
+the extra DOS Primary partition (making sure it's the right one by
 examining its size! :)
 
 See the Distributions menu for an estimation of how much free space
@@ -206,7 +206,7 @@ this:
         C> MD C:\FREEBSD
         C> XCOPY /S E:\BIN C:\FREEBSD\BIN
 
-Asssuming that `C:' was where you had free space and `E:' was where
+Assuming that `C:' was where you had free space and `E:' was where
 your CD was mounted. 
 
 For as many `DISTS' as you wish to install from DOS (and you have free
@@ -244,7 +244,7 @@ You can do network installations over 3 types of connections:
 
         Serial port:    SLIP / PPP
         Parallel port:  PLIP (using ``laplink'' style cable)
-        Ethernet:       A standard ethernet controller (includes some PCMCIA).
+        Ethernet:       A standard Ethernet controller (includes some PCMCIA).
 
 SLIP support is rather primitive, and is limited primarily to
 hard-wired links, such as a serial cable running between two
@@ -270,12 +270,12 @@ style parallel port cable.  The data rate over the parallel port is
 much higher than what is typically possible over a serial line (up to
 50k/sec), thus resulting in a quicker installation.
 
-Finally, for the fastest possible network installation, an ethernet
+Finally, for the fastest possible network installation, an Ethernet
 adaptor is always a good choice!  FreeBSD supports most common PC
-ethernet cards, a table of supported cards (and their required
+Ethernet cards, a table of supported cards (and their required
 settings) being provided as part of the FreeBSD Hardware Guide (see
 the Documentation menu on the boot floppy or the top level directory
-of the CDROM).  If you are using one of the supported PCMCIA ethernet
+of the CDROM).  If you are using one of the supported PCMCIA Ethernet
 cards, also be sure that it's plugged in _before_ the laptop is
 powered on!  FreeBSD does not, unfortunately, currently support "hot
 insertion" of PCMCIA cards.
@@ -307,12 +307,12 @@ installation can continue over NFS or FTP.
         will need to set this option in the Options menu before
         installation can proceed.
 
-        If you have a poor quality ethernet card which suffers from very
+        If you have a poor quality Ethernet card which suffers from very
         slow transfer rates, you may also wish to toggle the appropriate
         Options flag.
 
         In order for NFS installation to work, the server must also support
-        "subdir mounts", e.g. if your FreeBSD 2.1 distribution directory
+        "subdir mounts", e.g. if your FreeBSD 2.2 distribution directory
         lives on:  ziggy:/usr/archive/stuff/FreeBSD
         Then ziggy will have to allow the direct mounting of
         /usr/archive/stuff/FreeBSD, not just /usr or /usr/archive/stuff.
@@ -327,7 +327,7 @@ installation can continue over NFS or FTP.
 2.5.2   Preparing for FTP Installation
 
         FTP installation may be done from any mirror site containing a
-        reasonably up-to-date version of FreeBSD 2.1.  A full menu of
+        reasonably up-to-date version of FreeBSD 2.2.  A full menu of
         reasonable choices for almost any location in the world is
         provided in the FTP site menu.
 
@@ -338,7 +338,7 @@ installation can continue over NFS or FTP.
         contain a hostname or an IP address, so the following would
         work in the absence of a name server:
 
-                ftp://192.216.191.11/pub/FreeBSD/2.1.0-RELEASE
+                ftp://192.216.191.11/pub/FreeBSD/2.2-RELEASE
         
         There are two FTP installation modes you can use:
 
@@ -421,7 +421,7 @@ o Custom installation:
 You can do anything you like in this menu without altering your system
 _except_ for "Commit", which will perform any pending actions you may
 have selected.  Some of the menu options will also have direct `Write'
-commands available for commiting an operation immediately, but they
+commands available for committing an operation immediately, but they
 should only be used if you're *absolutely sure* it's necessary.  It's
 generally safer to stack up your changes and then commit them all at
 once so that you're left with the option of changing your mind up to
@@ -487,7 +487,7 @@ follows:
 
           All new or changed partition information will be written
           out, file systems will be created and/or non-destructively
-          labelled (depending on how you set their newfs flags in the
+          labeled (depending on how you set their newfs flags in the
           Label Editor) and all selected distributions will be
           extracted.
 
@@ -517,7 +517,7 @@ mailing list - questions@FreeBSD.org.  We'll do our best to help you!
 3.1     Repairing an existing FreeBSD installation.
 ---     -------------------------------------------
 
-FreeBSD 2.1 now features a "Fixit" option in the top menu of the boot
+FreeBSD 2.2 now features a "Fixit" option in the top menu of the boot
 floppy.  To use it, you will also need a fixit.flp image floppy,
 generated in the same fashion as the boot floppy.
 
@@ -529,7 +529,7 @@ systems and their contents.  Some UNIX administration experience *is*
 required to use the fixit option!
 
 
-3.2     Upgrading from FreeBSD 2.1
+3.2     Upgrading from FreeBSD 2.1.X
 ---     ----------------------------
 
 It must first be said that this upgrade DOES NOT take a particularly

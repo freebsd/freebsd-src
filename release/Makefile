@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.246.2.19 1996/12/23 05:56:51 peter Exp $
+#	$Id: Makefile,v 1.246.2.20 1996/12/23 23:27:50 jkh Exp $
 #
 # How to roll a release:
 #
@@ -22,7 +22,7 @@ RELEASETAG=RELENG_2_2
 # Things which without too much trouble can be considered variables
 
 COMPAT_DISTS=	compat1x compat20 compat21
-EXPORT_DISTS=	games manpages proflibs dict info doc ${COMPAT_DISTS}
+EXPORT_DISTS=	games manpages catpages proflibs dict info doc ${COMPAT_DISTS}
 EXTRA_DISTS=	krb des ${EXPORT_DISTS}
 ALL_DISTS=	bin ${EXTRA_DISTS}
 KERNELS?=	GENERIC
@@ -132,11 +132,11 @@ rerelease release:
 .if make(rerelease)
 	echo "make all install"			>> ${CHROOTDIR}/mk
 .endif
+	echo "cd /usr/src/release/sysinstall"	>> ${CHROOTDIR}/mk
+	echo "make obj"				>> ${CHROOTDIR}/mk
 	echo "cd /usr/src/release"		>> ${CHROOTDIR}/mk
-	echo "make obj OBJLINK=yes"		>> ${CHROOTDIR}/mk
-	echo "cd obj"                           >> ${CHROOTDIR}/mk
-	echo "rm -f ${REDOREDO}"                >> ${CHROOTDIR}/mk
-	echo "cd /usr/src/release"              >> ${CHROOTDIR}/mk
+	echo "make objlink"			>> ${CHROOTDIR}/mk
+	echo "(cd obj; rm -f ${REDOREDO})"	>> ${CHROOTDIR}/mk
 	echo "make doRELEASE"			>> ${CHROOTDIR}/mk
 	echo "echo make ${.TARGET} Finished"	>> ${CHROOTDIR}/mk
 	chmod 755 ${CHROOTDIR}/mk
@@ -237,9 +237,16 @@ release.5:
 
 	# Move all the manpages out to their own dist
 	if [ -d ${RD}/trees/bin/usr/share/man ] ; then \
-		tar -cf - -C ${RD}/trees/bin/usr/share/man . | \
-			tar xf - -C ${RD}/trees/manpages/usr/share/man && \
+		( cd ${RD}/trees/bin/usr/share/man; \
+		find . | cpio -dumpl ${RD}/trees/manpages/usr/share/man ) && \
 		rm -rf ${RD}/trees/bin/usr/share/man; \
+	fi
+	# Create the catpages
+	if [ -d ${RD}/trees/manpages/usr/share/man ] ; then \
+		su -m man -c 'catman ${RD}/trees/manpages/usr/share/man'; \
+		( cd ${RD}/trees/manpages/usr/share/man; \
+		find cat* | cpio -dumpl ${RD}/trees/catpages/usr/share/man ) && \
+		rm -rf ${RD}/trees/manpages/usr/share/man/cat*; \
 	fi
 	# Move all the games out to their own dist
 	if [ -d ${RD}/trees/bin/usr/games ] ; then \
@@ -454,10 +461,13 @@ cdrom.1:
 	for i in ${DISTRIBUTIONS} ; \
 	do \
 		if [ -d ${RD}/trees/$${i} ] ; then \
+			chflags -R noschg ${RD}/trees/$${i} ; \
 			( cd ${RD}/trees/$${i} && \
 			find . -depth -print | cpio -dumpl ${CD}/filesys ) ; \
 		fi \
 	done
+	rm -f ${CD}/filesys/.profile
+	cp ${.CURDIR}/fixit.profile ${CD}/filesys/.profile
 	echo "CD_VERSION = ${BUILDNAME}" > ${CD}/cdrom.inf
 	cp ${.CURDIR}/sysinstall/help/readme.hlp ${CD}/README.TXT
 	cp ${.CURDIR}/sysinstall/help/hardware.hlp ${CD}/HARDWARE.TXT
@@ -488,10 +498,17 @@ doTARBALL:
 		if [ -f ${.CURDIR}/scripts/$${TD}-install.sh ]; then \
 		  cp -p ${.CURDIR}/scripts/$${TD}-install.sh ${RD}/dists/${TD}/install.sh; \
 		fi && \
-		  if [ "${SD}" != "/usr/src" ]; then \
+		if [ "${SD}" != "/usr/src" ]; then \
 			mtree -c -i -p ${SD}/${ARG} \
 			  -k gname,md5digest,mode,nlink,uname,size,link,type \
-			  > ${RD}/dists/${TD}/$$tn.mtree ; else true; fi )
+			  > ${RD}/dists/${TD}/$$tn.mtree ; \
+		else \
+			true; \
+		fi; \
+		(cd ${RD}/dists/${TD}; \
+		   rm -f CHECKSUM.MD5; \
+		   md5 * > CHECKSUM.MD5) \
+	)
 
 doRELEASE:  release.1 release.2 release.3 release.4 release.5 release.6 \
 		release.7 release.8 release.9
@@ -601,7 +618,7 @@ doMFSKERN:
 	@echo 'USERCONFIG' > startup_foo
 	@echo 'intro' >> startup_foo
 	dd if=startup_foo of=${RD}/floppies/boot${FSIMAGE}.flp \
-	  seek=1 bs=512 count=1 conv=sync
+	  seek=1 bs=512 count=1 conv=notrunc
 	@rm -f startup_foo
 
 .include <bsd.prog.mk>

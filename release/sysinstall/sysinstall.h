@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.82.2.8 1996/12/12 11:18:26 jkh Exp $
+ * $Id: sysinstall.h,v 1.82.2.9 1996/12/14 22:23:24 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -144,7 +144,7 @@
 #define ATTR_TITLE	button_active_attr
 
 /* Handy strncpy() macro */
-#define SAFE_STRCPY(to, from)	sstrncpy((to), (from), sizeof (to))
+#define SAFE_STRCPY(to, from)	sstrncpy((to), (from), sizeof (to) - 1)
 
 /*** Types ***/
 typedef unsigned int Boolean;
@@ -340,6 +340,7 @@ extern DMenu		MenuXF86SelectFonts;	/* XFree86 font selection menu			*/
 extern DMenu		MenuDiskDevices;	/* Disk devices menu				*/
 extern DMenu		MenuHTMLDoc;		/* HTML Documentation menu			*/
 extern DMenu		MenuUsermgmt;		/* User management menu				*/
+extern DMenu		MenuFixit;		/* Fixit floppy/CDROM/shell menu		*/
 
 
 /*** Prototypes ***/
@@ -486,6 +487,7 @@ extern int	installCommit(dialogMenuItem *self);
 extern int	installCustomCommit(dialogMenuItem *self);
 extern int	installExpress(dialogMenuItem *self);
 extern int	installNovice(dialogMenuItem *self);
+extern int	installFixitHoloShell(dialogMenuItem *self);
 extern int	installFixitCDROM(dialogMenuItem *self);
 extern int	installFixitFloppy(dialogMenuItem *self);
 extern int	installFixup(dialogMenuItem *self);

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.145 1996/12/12 23:12:44 jkh Exp $
+ * $Id: install.c,v 1.134.2.15 1996/12/26 03:33:18 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -48,9 +48,9 @@
 #undef MSDOSFS
 #include <sys/stat.h>
 #include <unistd.h>
-#include <sys/mount.h>
 
 static void	create_termcap(void);
+static void	fixit_common(void);
 #ifdef SAVE_USERCONFIG
 static void	save_userconfig_to_kernel(char *);
 #endif
@@ -243,11 +243,75 @@ installInitial(void)
 }
 
 int
+installFixitHoloShell(dialogMenuItem *self)
+{
+    systemCreateHoloshell();
+    return DITEM_SUCCESS;
+}
+
+
+int
 installFixitCDROM(dialogMenuItem *self)
 {
-    msgConfirm("Sorry, this feature is currently unimplemented but will,\n"
-	       "at some point in the future, support the use of the live\n"
-	       "filesystem CD (CD 2) in fixing your system.");
+    struct stat sb;
+
+    variable_set2(SYSTEM_STATE, "fixit");
+    (void)unlink("/mnt2");
+    (void)rmdir("/mnt2");
+
+    while (1) {
+	msgConfirm("Please insert the second CD-ROM and press return");
+	if (DITEM_STATUS(mediaSetCDROM(NULL)) != DITEM_SUCCESS || !mediaDevice->init(mediaDevice)) {
+	    /* If we can't initialize it, it's probably not a FreeBSD CDROM so punt on it */
+	    mediaDevice = NULL;
+	    if (msgYesNo("Unable to mount the CD-ROM - do you want to try again?") != 0)
+		return DITEM_FAILURE;
+	}
+    }
+
+    /* Since the fixit code expects everything to be in /mnt2, and the CDROM mounting stuff /cdrom, do
+     * a little kludge dance here..
+     */
+    if (symlink("/cdrom", "/mnt2")) {
+	msgConfirm("Unable to symlink /mnt2 to the CDROM mount point.  Please report this\n"
+		   "unexpected failure to bugs@freebsd.org.");
+	return DITEM_FAILURE;
+    }
+
+    /*
+     * If /tmp points to /mnt2/tmp from a previous fixit floppy session, it's
+     * not very good for us if we point it to the CD-ROM now.  Rather make it
+     * a directory in the root MFS then.  Experienced admins will still be
+     * able to mount their disk's /tmp over this if they need.
+     */
+    if (lstat("/tmp", &sb) == 0 && (sb.st_mode & S_IFMT) == S_IFLNK)
+	(void)unlink("/tmp");
+    Mkdir("/tmp");
+
+    /*
+     * Since setuid binaries ignore LD_LIBRARY_PATH, we indeed need the
+     * ld.so.hints file.  Fortunately, it's fairly small (~ 3 KB).
+     */
+    if (!file_readable("/var/run/ld.so.hints")) {
+	Mkdir("/var/run");
+	if (vsystem("/mnt2/sbin/ldconfig -s /mnt2/usr/lib")) {
+	    msgConfirm("Warning: ldconfig could not create the ld.so hints file.\n"
+		       "Dynamic executables from the CD-ROM likely won't work.");
+	}
+    }
+
+    /* Yet another iggly hardcoded pathname. */
+    if (!file_readable("/usr/libexec/ld.so")) {
+	Mkdir("/usr/libexec");
+	if (symlink("/mnt2/usr/libexec/ld.so", "/usr/libexec/ld.so")) {
+	    msgConfirm("Warning: could not create the symlink for ld.so.\n"
+		       "Dynamic executables from the CD-ROM likely won't work.");
+	}
+    }
+
+    fixit_common();
+
+    msgConfirm("Please remove the CD-ROM now.");
     return DITEM_SUCCESS;
 }
 
@@ -255,8 +319,6 @@ int
 installFixitFloppy(dialogMenuItem *self)
 {
     struct ufs_args args;
-    pid_t child;
-    int waitstatus;
 
     variable_set2(SYSTEM_STATE, "fixit");
     memset(&args, 0, sizeof(args));
@@ -277,6 +339,22 @@ installFixitFloppy(dialogMenuItem *self)
 
     if (!directory_exists("/tmp"))
 	(void)symlink("/mnt2/tmp", "/tmp");
+
+    fixit_common();
+
+    msgConfirm("Please remove the fixit floppy now.");
+    return DITEM_SUCCESS;
+}
+
+/*
+ * The common code for both fixit variants.
+ */
+static void
+fixit_common(void)
+{
+    pid_t child;
+    int waitstatus;
+
     if (!directory_exists("/var/tmp/vi.recover")) {
 	if (DITEM_STATUS(Mkdir("/var/tmp/vi.recover")) != DITEM_SUCCESS) {
 	    msgConfirm("Warning:  Was unable to create a /var/tmp/vi.recover directory.\n"
@@ -320,13 +398,14 @@ installFixitFloppy(dialogMenuItem *self)
 	}
 	else
 	    msgDebug("fixit shell: Unable to get terminal attributes!\n");
-	setenv("PATH", "/bin:/sbin:/usr/bin:/usr/sbin:/stand:/mnt2/stand", 1);
-	/* use the .profile from the fixit floppy */
+	setenv("PATH", "/bin:/sbin:/usr/bin:/usr/sbin:/stand:"
+	       "/mnt2/stand:/mnt2/bin:/mnt2/sbin:/mnt2/usr/bin:/mnt2/usr/sbin", 1);
+	/* use the .profile from the fixit medium */
 	setenv("HOME", "/mnt2", 1);
 	chdir("/mnt2");
 	execlp("sh", "-sh", 0);
 	msgDebug("fixit shell: Failed to execute shell!\n");
-	return -1;
+	_exit(1);;
     }
     else {
 	msgNotify("Waiting for fixit shell to exit.  Go to VTY4 now by\n"
@@ -336,10 +415,9 @@ installFixitFloppy(dialogMenuItem *self)
     }
     unmount("/mnt2", MNT_FORCE);
     dialog_clear();
-    msgConfirm("Please remove the fixit floppy now.");
-    return DITEM_SUCCESS;
 }
-  
+
+
 int
 installExpress(dialogMenuItem *self)
 {

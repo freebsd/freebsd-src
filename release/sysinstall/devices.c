@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: devices.c,v 1.49.2.6 1996/12/13 07:55:08 jkh Exp $
+ * $Id: devices.c,v 1.49.2.7 1996/12/14 16:23:41 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -287,7 +287,7 @@ skipif:
 	case DEVICE_TYPE_TAPE:
 	    fd = deviceTry(device_names[i].name, try);
 	    if (fd >= 0) {
-		if (fd) close(fd);
+		close(fd);
 		deviceRegister(device_names[i].name, device_names[i].description, strdup(try),
 			       DEVICE_TYPE_TAPE, TRUE, mediaInitTape, mediaGetTape, mediaShutdownTape, NULL);
 		msgDebug("Found a TAPE device named %s\n", device_names[i].name);
@@ -297,7 +297,7 @@ skipif:
 	case DEVICE_TYPE_FLOPPY:
 	    fd = deviceTry(device_names[i].name, try);
 	    if (fd >= 0) {
-		if (fd) close(fd);
+		close(fd);
 		deviceRegister(device_names[i].name, device_names[i].description, strdup(try),
 			       DEVICE_TYPE_FLOPPY, TRUE, mediaInitFloppy, mediaGetFloppy,
 			       mediaShutdownFloppy, NULL);
@@ -311,9 +311,7 @@ skipif:
 	    if (fd >= 0) {
 		char *newdesc, *cp;
 
-		if (fd)
-		    close(fd);
-
+		close(fd);
 		/* Serial devices get a slip and ppp device each */
 		cp = device_names[i].description;
 		newdesc = safe_malloc(strlen(cp) + 40);

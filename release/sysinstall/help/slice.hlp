@@ -37,7 +37,7 @@ extend to the very last sector of the disk medium.  Needless to say,
 such a disk cannot have any sort of a boot manager, `disk manager',
 or anything else that has to interact with the BIOS.  This option is
 therefore only considered safe for SCSI disks and most IDE disks and
-is primarily intented for people who are going to set up a dedicated
+is primarily intended for people who are going to set up a dedicated
 FreeBSD server or workstation, not a typical `home PC'.
 
 The flags field has the following legend:
