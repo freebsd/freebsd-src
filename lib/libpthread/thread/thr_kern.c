@@ -248,6 +248,8 @@ _thread_kern_scheduler(struct kse_mailbox *km)
 	pthread_t	td, pthread, pthread_h;
 	unsigned int	current_tick;
 	struct kse_thr_mailbox	*tm, *p;
+	sigset_t	sigset;
+	int		i;
 
 	DBG_MSG("entering\n");
 	while (!TAILQ_EMPTY(&_thread_list)) {
@@ -280,8 +282,13 @@ _thread_kern_scheduler(struct kse_mailbox *km)
 		}
 
 		/* Deliver posted signals. */
-		/* XXX: Not yet. */
 		DBG_MSG("Picking up signals\n");
+		bcopy(&km->km_sigscaught, &sigset, sizeof(sigset_t));
+		sigemptyset(&km->km_sigscaught); /* XXX */
+		if (SIGNOTEMPTY(sigset))
+			for (i = 1; i < NSIG; i++)
+				if (sigismember(&sigset, i) != 0)
+					_thread_sig_dispatch(i);
 
 		if (_spinblock_count != 0) {
 			/*

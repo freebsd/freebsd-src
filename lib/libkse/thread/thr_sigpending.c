@@ -54,7 +54,7 @@ _sigpending(sigset_t *set)
 	}
 	else {
 		*set = curthread->sigpend;
-		SIGSETOR(*set, _process_sigpending);
+		SIGSETOR(*set, _thread_sigpending);
 	}
 	/* Return the completion status: */
 	return (ret);

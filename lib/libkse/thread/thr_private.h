@@ -426,6 +426,8 @@ enum pthread_state {
 	PS_COND_WAIT,
 	PS_SLEEP_WAIT,
 	PS_WAIT_WAIT,
+	PS_SIGSUSPEND,
+	PS_SIGWAIT,
 	PS_SPINBLOCK,
 	PS_JOIN,
 	PS_SUSPENDED,
@@ -445,6 +447,7 @@ enum pthread_state {
 union pthread_wait_data {
 	pthread_mutex_t	mutex;
 	pthread_cond_t	cond;
+	const sigset_t	*sigwait;	/* Waiting on a signal in sigwait */
 	spinlock_t	*spinlock;
 	struct pthread	*thread;
 };
@@ -459,6 +462,15 @@ struct join_status {
 	struct pthread	*thread;
 	void		*ret;
 	int		error;
+};
+
+struct pthread_state_data {
+	struct timespec		psd_wakeup_time;
+	union pthread_wait_data psd_wait_data;
+	enum pthread_state	psd_state;
+	int			psd_flags;
+	int			psd_interrupted;
+	int			psd_sig_defer_count;
 };
 
 struct pthread_specific_elem {
@@ -514,6 +526,9 @@ struct pthread {
 	int	cancelflags;
 
 	thread_continuation_t	continuation;
+
+	/* Currently pending signals. */
+	sigset_t	sigpend;
 
 	/* Thread state: */
 	enum pthread_state	state;
@@ -589,6 +604,9 @@ struct pthread {
 	 * interrupted by a signal:
 	 */
 	int		interrupted;
+
+	/* Signal number when in state PS_SIGWAIT: */
+	int		signo;
 
 	/*
 	 * Set to non-zero when this thread has deferred signals.
@@ -774,6 +792,11 @@ SCLASS	pthread_cond_t  _gc_cond
 ;
 
 /*
+ * Array of signal actions for this process.
+ */
+SCLASS struct  sigaction _thread_sigact[NSIG];
+
+/*
  * Scheduling queues:
  */
 SCLASS pq_queue_t		_readyq;
@@ -797,6 +820,12 @@ SCLASS pthread_switch_routine_t _sched_switch_hook
 = NULL
 #endif
 ;
+
+/*
+ * Signals pending and masked.
+ */
+SCLASS sigset_t		_thread_sigpending;
+SCLASS sigset_t		_thread_sigmask;
 
 /*
  * Declare the kernel scheduler jump buffer and stack:
@@ -893,6 +922,7 @@ void	_thread_kern_sched_state_unlock(enum pthread_state state,
 void    _thread_kern_set_timeout(const struct timespec *);
 void    _thread_kern_sig_defer(void);
 void    _thread_kern_sig_undefer(void);
+void	_thread_sig_handler(int, siginfo_t *, ucontext_t *);
 void	_thread_printf(int fd, const char *, ...);
 void    _thread_start(void);
 void	_thread_seterrno(pthread_t, int);

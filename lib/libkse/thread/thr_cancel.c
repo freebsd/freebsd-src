@@ -51,6 +51,8 @@ _pthread_cancel(pthread_t pthread)
 				/* Fall through: */
 			case PS_SLEEP_WAIT:
 			case PS_WAIT_WAIT:
+			case PS_SIGSUSPEND:
+			case PS_SIGWAIT:
 				/* Interrupt and resume: */
 				pthread->interrupted = 1;
 				pthread->cancelflags |= PTHREAD_CANCELLING;
