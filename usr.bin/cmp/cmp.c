@@ -120,8 +120,8 @@ endargs:
 			exit(1);
 	}
 
-	skip1 = argc > 2 ? strtol(argv[2], NULL, 10) : 0;
-	skip2 = argc == 4 ? strtol(argv[3], NULL, 10) : 0;
+	skip1 = argc > 2 ? strtol(argv[2], NULL, 0) : 0;
+	skip2 = argc == 4 ? strtol(argv[3], NULL, 0) : 0;
 
 	if (!special) {
 		if (fstat(fd1, &sb1)) {
