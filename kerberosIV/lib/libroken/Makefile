@@ -20,6 +20,8 @@ install:
 
 .PATH:		${KRB4DIR}/lib/roken
 
+build-tools:	make-print-version
+
 print_version.h: make-print-version
 	./make-print-version print_version.h
 
