@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.104 1995/02/22 13:40:19 sos Exp $
+ *  $Id: syscons.c,v 1.105 1995/02/25 20:09:16 pst Exp $
  */
 
 #include "sc.h"
@@ -297,17 +297,6 @@ struct tty
     if (unit == MAXCONS)
 	return CONSOLE_TTY;
     return VIRTUAL_TTY(unit);
-}
-
-int
-scselect(dev_t dev, int rw, struct proc *p)
-{
-	struct tty *tp = scdevtotty(dev);
-
-	if (tp == NULL)
-		return(ENXIO);
-
-	return (ttyselect(tp, rw, p));
 }
 
 static scr_stat 

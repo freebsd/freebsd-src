@@ -27,7 +27,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: cy.c,v 1.2 1995/02/15 18:41:41 bde Exp $
+ *	$Id: cy.c,v 1.3 1995/02/25 20:09:12 pst Exp $
  */
 
 /*
@@ -1509,16 +1509,6 @@ cydevtotty(dev_t dev)
 		return NULL;
 
 	return info[unit]->tty;
-}
-
-int
-cyselect(dev_t dev, int rw, struct proc *p)
-{
-	u_char unit = UNIT(dev);
-	if (unit >= /* NCY * ? */ PORTS_PER_CYCLOM)
-		return (ENXIO);
-
-	return (ttyselect(info[unit]->tty, rw, p));
 }
 
 int
