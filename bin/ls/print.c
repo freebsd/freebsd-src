@@ -59,7 +59,6 @@ static const char rcsid[] =
 #ifdef COLORLS
 #include <ctype.h>
 #include <termcap.h>
-#include <term.h>       /* for tparm */
 #include <signal.h>
 #endif
 
@@ -371,14 +370,14 @@ printcolor(c)
 	char *ansiseq;
 
 	if (colors[c][0] != -1) {
-		ansiseq = tparm(ansi_fgcol, colors[c][0]);
-		if (ansiseq)
+		ansiseq = tgoto(ansi_fgcol, 0, colors[c][0]);
+		if (ansiseq && *ansiseq != 'O') /* "OOPS" */
 			tputs(ansiseq, 1, putch);
 	}
 
 	if (colors[c][1] != -1) {
-		ansiseq = tparm(ansi_bgcol, colors[c][1]);
-		if (ansiseq)
+		ansiseq = tgoto(ansi_bgcol, 0, colors[c][1]);
+		if (ansiseq && *ansiseq != 'O') /* "OOPS" */
 			tputs(ansiseq, 1, putch);
 	}
 }
