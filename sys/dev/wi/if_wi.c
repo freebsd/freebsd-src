@@ -1174,9 +1174,7 @@ static void wi_start(ifp)
 	 * Use RFC1042 encoding for IP and ARP datagrams,
 	 * 802.3 for anything else.
 	 */
-	if (ntohs(eh->ether_type) == ETHERTYPE_IP ||
-	    ntohs(eh->ether_type) == ETHERTYPE_ARP ||
-	    ntohs(eh->ether_type) == ETHERTYPE_REVARP) {
+	if (ntohs(eh->ether_type) > 1518) {
 		bcopy((char *)&eh->ether_dhost,
 		    (char *)&tx_frame.wi_addr1, ETHER_ADDR_LEN);
 		bcopy((char *)&eh->ether_shost,
@@ -1204,6 +1202,7 @@ static void wi_start(ifp)
 	} else {
 		tx_frame.wi_dat_len = m0->m_pkthdr.len;
 
+		eh->ether_type = htons(m0->m_pkthdr.len - WI_SNAPHDR_LEN);
 		m_copydata(m0, 0, m0->m_pkthdr.len, (caddr_t)&sc->wi_txbuf);
 
 		wi_write_data(sc, id, 0, (caddr_t)&tx_frame,
