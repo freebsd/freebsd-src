@@ -36,11 +36,10 @@ typedef struct __mcontext {
 	long	mc_global[8];
 	long	mc_out[8];
 	long	mc_onstack;
-	long	mc_sp;
 	long	mc_tpc;
 	long	mc_tnpc;
 	long	mc_tstate;
-	long	mc_spare[11];
+	long	mc_spare[2];
 } mcontext_t;
 
 #endif /* !_MACHINE_UCONTEXT_H_ */
