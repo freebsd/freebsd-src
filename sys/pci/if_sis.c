@@ -1374,8 +1374,6 @@ sis_attach(dev)
 		goto fail;
 	}
 
-	callout_handle_init(&sc->sis_stat_ch);
-
 	/*
 	 * Call MI attach routine.
 	 */
@@ -1747,8 +1745,6 @@ sis_tick(xsc)
 		if (ifp->if_snd.ifq_head != NULL)
 			sis_start(ifp);
 	}
-
-	sc->sis_stat_ch = timeout(sis_tick, sc, hz);
 
 	SIS_UNLOCK(sc);
 
