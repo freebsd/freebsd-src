@@ -192,3 +192,8 @@ and the
 .Fl c
 option was introduced in
 .Fx 5.0 .
+.Sh BUGS
+Files larger than 33488896 octets (65535 blocks) cannot be transferred
+without client and server supporting blocksize negotiation (RFC1783).
+.Pp
+Many tftp clients will not transfer files over 16744448 octets (32767 blocks).
