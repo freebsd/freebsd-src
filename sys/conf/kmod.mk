@@ -237,6 +237,9 @@ realinstall: _SUBDIR
 		ln -fs $$l $$t; \
 	done; true
 .endif
+.if !defined(NO_XREF)
+	kldxref ${DESTDIR}${KMODDIR}
+.endif
 
 install: afterinstall _SUBDIR
 .if !defined(NOMAN)

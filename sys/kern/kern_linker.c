@@ -52,8 +52,11 @@
 int kld_debug = 0;
 #endif
 
-static char *linker_search_path(const char *name);
+/*static char *linker_search_path(const char *name, struct mod_depend *verinfo);*/
 static const char *linker_basename(const char* path);
+static int linker_load_module(const char *kldname, const char *modname,
+	struct linker_file *parent, struct mod_depend *verinfo,
+	struct linker_file **lfpp);
 
 /* Metadata from the static kernel */
 SET_DECLARE(modmetadata_set, struct mod_metadata);
@@ -332,29 +335,12 @@ out:
     return error;
 }
 
+/* XXX: function parameters are incomplete */
 int
 linker_reference_module(const char *modname, linker_file_t *result)
 {
-    char *pathname;
-    int res;
 
-    /*
-     * There will be a system to look up or guess a file name from
-     * a module name.
-     * For now we just try to load a file with the same name.
-     */
-    if ((pathname = linker_search_path(modname)) == NULL)
-	return (ENOENT);
-
-    /*
-     * If the module is already loaded or built into the kernel,
-     * linker_load_file() simply bumps it's refcount.
-     */
-    res = linker_load_file(pathname, result);
-
-    free(pathname, M_LINKER);
-
-    return (res);
+    return linker_load_module(NULL, modname, NULL, NULL, result);
 }
 
 linker_file_t
@@ -699,9 +685,8 @@ linker_ddb_symbol_values(c_linker_sym_t sym, linker_symval_t *symval)
 int
 kldload(struct proc* p, struct kldload_args* uap)
 {
+    char *kldname, *modname;
     char *pathname = NULL;
-    char *realpath = NULL;
-    const char *filename;
     linker_file_t lf;
     int error = 0;
 
@@ -719,19 +704,19 @@ kldload(struct proc* p, struct kldload_args* uap)
     if ((error = copyinstr(SCARG(uap, file), pathname, MAXPATHLEN, NULL)) != 0)
 	goto out;
 
-    realpath = linker_search_path(pathname);
-    if (realpath == NULL) {
-	error = ENOENT;
-	goto out;
+    /*
+     * If path do not contain qualified name or any dot in it (kldname.ko, or
+     * kldname.ver.ko) treat it as interface name.
+     */
+    if (index(pathname, '/') || index(pathname, '.')) {
+	kldname = pathname;
+	modname = NULL;
+    } else {
+	kldname = NULL;
+	modname = pathname;
     }
-    /* Can't load more than one file with the same name */
-    filename = linker_basename(realpath);
-    if (linker_find_file_by_name(filename)) {
-	error = EEXIST;
-	goto out;
-    }
-
-    if ((error = linker_load_file(realpath, &lf)) != 0)
+    error = linker_load_module(kldname, modname, NULL, NULL, &lf);
+    if (error)
 	goto out;
 
     lf->userrefs++;
@@ -740,8 +725,6 @@ kldload(struct proc* p, struct kldload_args* uap)
 out:
     if (pathname)
 	free(pathname, M_TEMP);
-    if (realpath)
-	free(realpath, M_LINKER);
     mtx_unlock(&Giant);
     return (error);
 }
@@ -1002,6 +985,29 @@ modlist_lookup(const char *name, int ver)
 }
 
 static modlist_t
+modlist_lookup2(const char *name, struct mod_depend *verinfo)
+{
+    modlist_t mod, bestmod;
+    int ver;
+
+    if (verinfo == NULL)
+	return modlist_lookup(name, 0);
+    bestmod = NULL;
+    for (mod = TAILQ_FIRST(&found_modules); mod; mod = TAILQ_NEXT(mod, link)) {
+	if (strcmp(mod->name, name) != 0)
+	    continue;
+	ver = mod->version;
+	if (ver == verinfo->md_ver_preferred)
+	    return mod;
+	if (ver >= verinfo->md_ver_minimum && 
+	    ver <= verinfo->md_ver_maximum &&
+	    ver > bestmod->version)
+	    bestmod = mod;
+    }
+    return bestmod;
+}
+
+static modlist_t
 modlist_newmodule(const char *modname, int version, linker_file_t container)
 {
     modlist_t mod;
@@ -1170,7 +1176,7 @@ restart:
 		}
 		if (nmdp < stop)		/* it's a self reference */
 		    continue;
-		if (modlist_lookup(modname, 0) == NULL) {
+		if (modlist_lookup2(modname, verinfo) == NULL) {
 		    /* ok, the module isn't here yet, we are not finished */
 		    resolves = 0;
 		}
@@ -1234,7 +1240,7 @@ restart:
 		if (mp->md_type != MDT_DEPEND)
 		    continue;
 		linker_mdt_depend(lf, mp, &modname, &verinfo);
-		mod = modlist_lookup(modname, 0);
+		mod = modlist_lookup2(modname, verinfo);
 		mod->container->refs++;
 		error = linker_file_add_dependancy(lf, mod->container);
 		if (error)
@@ -1279,6 +1285,7 @@ SYSINIT(preload, SI_SUB_KLD, SI_ORDER_MIDDLE, linker_preload, 0);
  * character as a separator to be consistent with the bootloader.
  */
 
+static char linker_hintfile[] = "linker.hints";
 static char linker_path[MAXPATHLEN] = "/boot/kernel;/boot/modules/;/modules/";
 
 SYSCTL_STRING(_kern, OID_AUTO, module_path, CTLFLAG_RW, linker_path,
@@ -1287,19 +1294,225 @@ SYSCTL_STRING(_kern, OID_AUTO, module_path, CTLFLAG_RW, linker_path,
 TUNABLE_STR("module_path", linker_path, sizeof(linker_path));
 
 static char *linker_ext_list[] = {
-	".ko",
 	"",
+	".ko",
 	NULL
 };
 
+/*
+ * Check if file actually exists either with or without extension listed
+ * in the linker_ext_list.
+ * (probably should be generic for the rest of the kernel)
+ */
 static char *
-linker_search_path(const char *name)
+linker_lookup_file(const char *path, int pathlen,
+	const char *name, int namelen, struct vattr *vap)
 {
     struct nameidata	nd;
     struct proc		*p = curproc;	/* XXX */
-    char		*cp, *ep, *result, **cpp;
-    int			error, extlen, len, flags;
+    char		*result, **cpp;
+    int			error, len, extlen, flags;
     enum vtype		type;
+
+    extlen = 0;
+    for (cpp = linker_ext_list; *cpp; cpp++) {
+	len = strlen(*cpp);
+	if (len > extlen)
+	    extlen = len;
+    }
+    extlen++;	/* trailing '\0' */
+
+    result = malloc((pathlen + namelen + extlen), M_LINKER, M_WAITOK);
+    for (cpp = linker_ext_list; *cpp; cpp++) {
+	bcopy(path, result, pathlen);
+	bcopy(name, result + pathlen, namelen);
+	strcpy(result + namelen + pathlen, *cpp);
+	/*
+	 * Attempt to open the file, and return the path if we succeed
+	 * and it's a regular file.
+	 */
+	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, result, p);
+	flags = FREAD;
+	error = vn_open(&nd, &flags, 0);
+	if (error == 0) {
+	    NDFREE(&nd, NDF_ONLY_PNBUF);
+	    type = nd.ni_vp->v_type;
+	    if (vap)
+		VOP_GETATTR(nd.ni_vp, vap, p->p_ucred, p);
+	    VOP_UNLOCK(nd.ni_vp, 0, p);
+	    vn_close(nd.ni_vp, FREAD, p->p_ucred, p);
+	    if (type == VREG)
+	        return(result);
+	}
+    }
+    free(result, M_LINKER);
+    return(NULL);
+}
+
+#define	INT_ALIGN(base, ptr)	ptr = \
+	(base) + (((ptr) - (base) + sizeof(int) - 1) & ~(sizeof(int) - 1))
+
+/*
+ * Lookup KLD which contains requested module in the "linker.hints" file.
+ * If version specification is available, then try to find the best KLD.
+ * Otherwise just find the latest one.
+ */
+static char *
+linker_hints_lookup(const char *path, int pathlen,
+	const char *modname, int modnamelen,
+	struct mod_depend *verinfo)
+{
+    struct proc *p = curproc;
+    struct ucred *cred = p ? p->p_ucred : NULL;
+    struct nameidata nd;
+    struct vattr vattr, mattr;
+    u_char *hints = NULL;
+    u_char *cp, *recptr, *bufend, *result, *best, *pathbuf;
+    int error, ival, bestver, *intp, reclen, found, flags, clen, blen;
+
+    result = NULL;
+    bestver = found = 0;
+
+    reclen = imax(modnamelen, strlen(linker_hintfile)) + pathlen;
+    pathbuf = malloc(reclen, M_LINKER, M_WAITOK);
+    bcopy(path, pathbuf, pathlen);
+    strcpy(pathbuf + pathlen, linker_hintfile);
+
+    NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_SYSSPACE, pathbuf, p);
+    flags = FREAD;
+    error = vn_open(&nd, &flags, 0);
+    if (error)
+	goto bad;
+    NDFREE(&nd, NDF_ONLY_PNBUF);
+    VOP_UNLOCK(nd.ni_vp, 0, p);
+    if (nd.ni_vp->v_type != VREG)
+	goto bad;
+    best = cp = NULL;
+    error = VOP_GETATTR(nd.ni_vp, &vattr, cred, p);
+    if (error)
+	goto bad;
+    /* 
+     * XXX: we need to limit this number to some reasonable value
+     */
+    if (vattr.va_size > 100 * 1024) {
+	printf("hints file too large %ld\n", (long)vattr.va_size);
+	goto bad;
+    }
+    hints = malloc(vattr.va_size, M_TEMP, M_WAITOK);
+    if (hints == NULL)
+	goto bad;
+    error = vn_rdwr(UIO_READ, nd.ni_vp, (caddr_t)hints, vattr.va_size, 0,
+		    UIO_SYSSPACE, IO_NODELOCKED, cred, &reclen, p);
+    if (error)
+	goto bad;
+    vn_close(nd.ni_vp, FREAD, cred, p);
+    nd.ni_vp = NULL;
+    if (reclen != 0) {
+	printf("can't read %d\n", reclen);
+	goto bad;
+    }
+    intp = (int*)hints;
+    ival = *intp++;
+    if (ival != LINKER_HINTS_VERSION) {
+	printf("hints file version mismatch %d\n", ival);
+	goto bad;
+    }
+    bufend = hints + vattr.va_size;
+    recptr = (u_char*)intp;
+    clen = blen = 0;
+    while (recptr < bufend && !found) {
+	intp = (int*)recptr;
+	reclen = *intp++;
+	ival = *intp++;
+	cp = (char*)intp;
+	switch (ival) {
+	case MDT_VERSION:
+	    clen = *cp++;
+	    if (clen != modnamelen || bcmp(cp, modname, clen) != 0)
+		break;
+	    cp += clen;
+	    INT_ALIGN(hints, cp);
+	    ival = *(int*)cp;
+	    cp += sizeof(int);
+	    clen = *cp++;
+	    if (verinfo == NULL || ival == verinfo->md_ver_preferred) {
+		found = 1;
+		break;
+	    }
+	    if (ival >= verinfo->md_ver_minimum && 
+		ival <= verinfo->md_ver_maximum &&
+		ival > bestver) {
+		bestver = ival;
+		best = cp;
+		blen = clen;
+	    }
+	    break;
+	default:
+	    break;
+	}
+	recptr += reclen + sizeof(int);
+    }
+    /*
+     * Finally check if KLD is in the place
+     */
+    if (found)
+	result = linker_lookup_file(path, pathlen, cp, clen, &mattr);
+    else if (best)
+	result = linker_lookup_file(path, pathlen, best, blen, &mattr);
+    if (result && timespeccmp(&mattr.va_mtime, &vattr.va_mtime, >)) {
+	/*
+	 * KLD is newer than hints file. What we should do now ?
+	 */
+	 printf("warning: KLD '%s' is newer than the linker.hints file\n", result);
+    }
+bad:
+    if (hints)
+	free(hints, M_TEMP);
+    if (nd.ni_vp != NULL)
+	vn_close(nd.ni_vp, FREAD, cred, p);
+    /*
+     * If nothing found or hints is absent - fallback to the old way
+     * by using "kldname[.ko]" as module name.
+     */
+    if (!found && !bestver && result == NULL)
+	result = linker_lookup_file(path, pathlen, modname, modnamelen, NULL);
+    return result;
+}
+
+/*
+ * Lookup KLD which contains requested module in the all directories.
+ */
+static char *
+linker_search_module(const char *modname, int modnamelen,
+	struct mod_depend *verinfo)
+{
+    char *cp, *ep, *result;
+
+    /*
+     * traverse the linker path
+     */
+    for (cp = linker_path; *cp; cp = ep + 1) {
+
+	/* find the end of this component */
+	for (ep = cp; (*ep != 0) && (*ep != ';'); ep++)
+	    ;
+	result = linker_hints_lookup(cp, ep - cp, modname, modnamelen, verinfo);
+	if (result != NULL)
+	    return(result);
+	if (*ep == 0)
+	    break;
+    }
+    return (NULL);
+}
+
+/*
+ * Search for module in all directories listed in the linker_path.
+ */
+static char *
+linker_search_kld(const char *name)
+{
+    char		*cp, *ep, *result, **cpp;
+    int			extlen, len;
 
     /* qualified at all? */
     if (index(name, '/'))
@@ -1314,42 +1527,15 @@ linker_search_path(const char *name)
     extlen++;	/* trailing '\0' */
 
     /* traverse the linker path */
-    cp = linker_path;
     len = strlen(name);
-    for (;;) {
-
+    for (ep = linker_path; *ep; ep++) {
+	cp = ep;
 	/* find the end of this component */
-	for (ep = cp; (*ep != 0) && (*ep != ';'); ep++)
+	for (; *ep != 0 && *ep != ';'; ep++)
 	    ;
-	result = malloc((len + (ep - cp) + extlen + 1), M_LINKER, M_WAITOK);
-	if (result == NULL)	/* actually ENOMEM */
-	    return(NULL);
-	for (cpp = linker_ext_list; *cpp; cpp++) {
-	    strncpy(result, cp, ep - cp);
-	    strcpy(result + (ep - cp), "/");
-	    strcat(result, name);
-	    strcat(result, *cpp);
-	    /*
-	     * Attempt to open the file, and return the path if we succeed
-	     * and it's a regular file.
-	     */
-	    NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, result, p);
-	    flags = FREAD;
-	    error = vn_open(&nd, &flags, 0);
-	    if (error == 0) {
-		NDFREE(&nd, NDF_ONLY_PNBUF);
-		type = nd.ni_vp->v_type;
-		VOP_UNLOCK(nd.ni_vp, 0, p);
-		vn_close(nd.ni_vp, FREAD, p->p_ucred, p);
-		if (type == VREG)
-		    return(result);
-	    }
-	}
-	free(result, M_LINKER);
-
-	if (*ep == 0)
-	    break;
-	cp = ep + 1;
+	result = linker_lookup_file(cp, ep - cp, name, len, NULL);
+	if (result != NULL)
+	    return(result);
     }
     return(NULL);
 }
@@ -1372,23 +1558,41 @@ linker_basename(const char* path)
  * if "parent" is not NULL, register a reference to it.
  */
 static int
-linker_load_module(const char *modname, struct linker_file *parent)
+linker_load_module(const char *kldname, const char *modname,
+	struct linker_file *parent, struct mod_depend *verinfo,
+	struct linker_file **lfpp)
 {
     linker_file_t lfdep;
     const char *filename;
     char *pathname;
     int error;
 
-    /*
-     * There will be a system to look up or guess a file name from
-     * a module name.
-     * For now we just try to load a file with the same name.
-     */
-    pathname = linker_search_path(modname);
+    if (modname == NULL) {
+	/*
+	 * We have to load KLD
+	 */
+	KASSERT(verinfo == NULL, ("linker_load_module: verinfo is not NULL"));
+	pathname = linker_search_kld(kldname);
+    } else {
+	if (modlist_lookup2(modname, verinfo) != NULL)
+	    return (EEXIST);
+	if (kldname == NULL) {
+	    /*
+	     * Need to find a KLD with required module
+	     */
+	    pathname = linker_search_module(modname, strlen(modname), verinfo);
+	} else
+	    pathname = linker_strdup(kldname);
+    }
     if (pathname == NULL)
-	return ENOENT;
+	return (ENOENT);
 
-    /* Can't load more than one file with the same basename */
+    /*
+     * Can't load more than one file with the same basename
+     * XXX: Actually it should be possible to have multiple KLDs
+     * with the same basename but different path because they can provide
+     * different versions of the same modules.
+     */
     filename = linker_basename(pathname);
     if (linker_find_file_by_name(filename)) {
 	error = EEXIST;
@@ -1399,11 +1603,18 @@ linker_load_module(const char *modname, struct linker_file *parent)
 	error = linker_load_file(pathname, &lfdep);
 	if (error)
 	    break;
+	if (modname && verinfo && modlist_lookup2(modname, verinfo) == NULL) {
+	    linker_file_unload(lfdep);
+	    error = ENOENT;
+	    break;
+	}
 	if (parent) {
 	    error = linker_file_add_dependancy(parent, lfdep);
 	    if (error)
 		break;
 	}
+	if (lfpp)
+	    *lfpp = lfdep;
     } while(0);
 out:
     if (pathname)
@@ -1421,6 +1632,7 @@ linker_load_dependancies(linker_file_t lf)
     linker_file_t lfdep;
     struct mod_metadata **start, **stop, **mdp, **nmdp;
     struct mod_metadata *mp, *nmp;
+    struct mod_depend *verinfo;
     modlist_t mod;
     const char *modname, *nmodname;
     int ver, error = 0, count;
@@ -1454,7 +1666,7 @@ linker_load_dependancies(linker_file_t lf)
 	mp = linker_reloc_ptr(lf, *mdp);
 	if (mp->md_type != MDT_DEPEND)
 	    continue;
-	modname = linker_reloc_ptr(lf, mp->md_cval);
+	linker_mdt_depend(lf, mp, &modname, &verinfo);
 	nmodname = NULL;
 	for (nmdp = start; nmdp < stop; nmdp++) {
 	    nmp = linker_reloc_ptr(lf, *nmdp);
@@ -1466,7 +1678,7 @@ linker_load_dependancies(linker_file_t lf)
 	}
 	if (nmdp < stop)	/* early exit, it's a self reference */
 	    continue;
-	mod = modlist_lookup(modname, 0);
+	mod = modlist_lookup2(modname, verinfo);
 	if (mod) {		/* woohoo, it's loaded already */
 	    lfdep = mod->container;
 	    lfdep->refs++;
@@ -1475,7 +1687,7 @@ linker_load_dependancies(linker_file_t lf)
 		break;
 	    continue;
 	}
-	error = linker_load_module(modname, lf);
+	error = linker_load_module(NULL, modname, lf, verinfo, NULL);
 	if (error) {
 	    printf("KLD %s: depends on %s - not available\n",
 		lf->filename, modname);

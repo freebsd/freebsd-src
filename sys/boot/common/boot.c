@@ -65,7 +65,7 @@ command_boot(int argc, char *argv[])
 	}
 	
 	/* find/load the kernel module */
-	if (mod_load(argv[1], argc - 2, argv + 2) != 0)
+	if (mod_loadkld(argv[1], argc - 2, argv + 2) != 0)
 	    return(CMD_ERROR);
 	/* we have consumed all arguments */
 	argc = 1;
@@ -343,11 +343,10 @@ loadakernel(int try, int argc, char* argv[])
     char *cp;
 
 	for (try = 0; (cp = getbootfile(try)) != NULL; try++)
-	    if (mod_load(cp, argc - 1, argv + 1) != 0)
+	    if (mod_loadkld(cp, argc - 1, argv + 1) != 0)
 		printf("can't load '%s'\n", cp);
 	    else
 		return 1;
-
 	return 0;
 }
 

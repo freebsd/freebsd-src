@@ -34,24 +34,49 @@
 #include <string.h>
 #include <sys/param.h>
 #include <sys/linker.h>
+#include <sys/module.h>
+#include <sys/queue.h>
 
 #include "bootstrap.h"
+
+#define	MDIR_REMOVED	0x0001
+#define	MDIR_NOHINTS	0x0002
+
+struct moduledir {
+	char	*d_path;	/* path of modules directory */
+	u_char	*d_hints;	/* content of linker.hints file */
+	int	d_hintsz;	/* size of hints data */
+	int	d_flags;
+	STAILQ_ENTRY(moduledir) d_link;
+};
 
 static int			file_load(char *filename, vm_offset_t dest, struct preloaded_file **result);
 static int			file_loadraw(char *type, char *name);
 static int			file_load_dependancies(struct preloaded_file *base_mod);
-static char *			file_search(char *name);
-struct kernel_module *		file_findmodule(struct preloaded_file *fp, char *modname);
-static char			*mod_searchmodule(char *name);
+static char *			file_search(const char *name, char **extlist);
+static struct kernel_module *	file_findmodule(struct preloaded_file *fp, char *modname, struct mod_depend *verinfo);
+static int			file_havepath(const char *name);
+static char			*mod_searchmodule(char *name, struct mod_depend *verinfo);
 static void			file_insert_tail(struct preloaded_file *mp);
 struct file_metadata*		metadata_next(struct file_metadata *base_mp, int type);
+static void			moduledir_readhints(struct moduledir *mdp);
+static void			moduledir_rebuild(void);
 
 /* load address should be tweaked by first module loaded (kernel) */
 static vm_offset_t	loadaddr = 0;
 
 static const char	*default_searchpath ="/boot/kernel;/boot/modules;/modules";
 
+static STAILQ_HEAD(, moduledir) moduledir_list = STAILQ_HEAD_INITIALIZER(moduledir_list);
+
 struct preloaded_file *preloaded_files = NULL;
+
+static char *kld_ext_list[] = {
+    ".ko",
+    "",
+    NULL
+};
+
 
 /*
  * load an object, either a disk file or code module.
@@ -71,9 +96,9 @@ static int
 command_load(int argc, char *argv[])
 {
     char	*typestr;
-    int		dofile, ch, error;
+    int		dofile, dokld, ch, error;
     
-    dofile = 0;
+    dokld = dofile = 0;
     optind = 1;
     optreset = 1;
     typestr = NULL;
@@ -81,8 +106,11 @@ command_load(int argc, char *argv[])
 	command_errmsg = "no filename specified";
 	return(CMD_ERROR);
     }
-    while ((ch = getopt(argc, argv, "t:")) != -1) {
+    while ((ch = getopt(argc, argv, "kt:")) != -1) {
 	switch(ch) {
+	case 'k':
+	    dokld = 1;
+	    break;
 	case 't':
 	    typestr = optarg;
 	    dofile = 1;
@@ -106,11 +134,19 @@ command_load(int argc, char *argv[])
 	}
 	return(file_loadraw(typestr, argv[1]));
     }
-    
+    /*
+     * Do we have explicit KLD load ?
+     */
+    if (dokld || file_havepath(argv[1])) {
+	error = mod_loadkld(argv[1], argc - 2, argv + 2);
+	if (error == EEXIST)
+	    sprintf(command_errbuf, "warning: KLD '%s' already loaded", argv[1]);
+	return (error == 0 ? CMD_OK : CMD_ERROR);
+    }
     /*
      * Looks like a request for a module.
      */
-    error = mod_load(argv[1], argc - 2, argv + 2);
+    error = mod_load(argv[1], NULL, argc - 2, argv + 2);
     if (error == EEXIST)
 	sprintf(command_errbuf, "warning: module '%s' already loaded", argv[1]);
     return (error == 0 ? CMD_OK : CMD_ERROR);
@@ -172,7 +208,7 @@ command_lsmod(int argc, char *argv[])
 	if (fp->f_modules) {
 	    pager_output("  modules: ");
 	    for (mp = fp->f_modules; mp; mp = mp->m_next) {
-		sprintf(lbuf, "%s ", mp->m_name);
+		sprintf(lbuf, "%s.%d ", mp->m_name, mp->m_version);
 		pager_output(lbuf);
 	    }
 	    pager_output("\n");
@@ -222,6 +258,8 @@ static int
 file_load_dependancies(struct preloaded_file *base_file) {
     struct file_metadata *md;
     struct preloaded_file *fp;
+    struct mod_depend *verinfo;
+    struct kernel_module *mp;
     char *dmodname;
     int error;
 
@@ -230,12 +268,25 @@ file_load_dependancies(struct preloaded_file *base_file) {
 	return (0);
     error = 0;
     do {
-	dmodname = (char *)md->md_data;
-	if (file_findmodule(NULL, dmodname) == NULL) {
+	verinfo = (struct mod_depend*)md->md_data;
+	dmodname = (char *)(verinfo + 1);
+	if (file_findmodule(NULL, dmodname, verinfo) == NULL) {
 	    printf("loading required module '%s'\n", dmodname);
-	    error = mod_load(dmodname, 0, NULL);
+	    error = mod_load(dmodname, verinfo, 0, NULL);
 	    if (error)
 		break;
+	    /*
+	     * If module loaded via kld name which isn't listed
+	     * in the linker.hints file, we should check if it have
+	     * required version.
+	     */
+	    mp = file_findmodule(NULL, dmodname, verinfo);
+	    if (mp == NULL) {
+		sprintf(command_errbuf, "module '%s' exists but with wrong version",
+		    dmodname);
+		error = ENOENT;
+		break;
+	    }
 	}
 	md = metadata_next(md, MODINFOMD_DEPLIST);
     } while (md);
@@ -268,7 +319,7 @@ file_loadraw(char *type, char *name)
     }
 
     /* locate the file on the load path */
-    cp = file_search(name);
+    cp = file_search(name, NULL);
     if (cp == NULL) {
 	sprintf(command_errbuf, "can't find '%s'", name);
 	return(CMD_ERROR);
@@ -321,15 +372,18 @@ file_loadraw(char *type, char *name)
  * If module is already loaded just assign new argc/argv.
  */
 int
-mod_load(char *modname, int argc, char *argv[])
+mod_load(char *modname, struct mod_depend *verinfo, int argc, char *argv[])
 {
-    struct preloaded_file	*fp, *last_file;
     struct kernel_module	*mp;
     int				err;
     char			*filename;
 
+    if (file_havepath(modname)) {
+	printf("Warning: mod_load() called instead of mod_loadkld() for module '%s'\n", modname);
+	return (mod_loadkld(modname, argc, argv));
+    }
     /* see if module is already loaded */
-    mp = file_findmodule(NULL, modname);
+    mp = file_findmodule(NULL, modname, verinfo);
     if (mp) {
 #ifdef moduleargs
 	if (mp->m_args)
@@ -340,33 +394,53 @@ mod_load(char *modname, int argc, char *argv[])
 	return (0);
     }
     /* locate file with the module on the search path */
-    filename = mod_searchmodule(modname);
+    filename = mod_searchmodule(modname, verinfo);
     if (filename == NULL) {
 	sprintf(command_errbuf, "can't find '%s'", modname);
 	return (ENOENT);
+    }
+    err = mod_loadkld(filename, argc, argv);
+    return (err);
+}
+
+/*
+ * Load specified KLD. If path is omitted, then try to locate it via
+ * search path.
+ */
+int
+mod_loadkld(const char *kldname, int argc, char *argv[])
+{
+    struct preloaded_file	*fp, *last_file;
+    int				err;
+    char			*filename;
+
+    /*
+     * Get fully qualified KLD name
+     */
+    filename = file_search(kldname, kld_ext_list);
+    if (filename == NULL) {
+	sprintf(command_errbuf, "can't find '%s'", kldname);
+	return (ENOENT);
+    }
+    /* 
+     * Check if KLD already loaded
+     */
+    fp = file_findfile(filename, NULL);
+    if (fp) {
+	sprintf(command_errbuf, "warning: KLD '%s' already loaded", filename);
+	free(filename);
+	return (0);
     }
     for (last_file = preloaded_files; 
 	 last_file != NULL && last_file->f_next != NULL;
 	 last_file = last_file->f_next)
 	;
 
-    fp = NULL;
     do {
 	err = file_load(filename, loadaddr, &fp);
 	if (err)
 	    break;
-#ifdef moduleargs
-	mp = file_findmodule(fp, modname);
-	if (mp == NULL) {
-	    sprintf(command_errbuf, "module '%s' not found in the file '%s': %s",
-		modname, filename, strerror(err));
-	    err = ENOENT;
-	    break;
-	}
-	mp->m_args = unargv(argc, argv);
-#else
 	fp->f_args = unargv(argc, argv);
-#endif
 	loadaddr = fp->f_addr + fp->f_size;
 	file_insert_tail(fp);		/* Add to the list of loaded files */
 	if (file_load_dependancies(fp) != 0) {
@@ -407,24 +481,38 @@ file_findfile(char *name, char *type)
  * NULL may be passed as a wildcard.
  */
 struct kernel_module *
-file_findmodule(struct preloaded_file *fp, char *modname)
+file_findmodule(struct preloaded_file *fp, char *modname,
+	struct mod_depend *verinfo)
 {
-    struct kernel_module *mp;
+    struct kernel_module *mp, *best;
+    int bestver, mver;
 
     if (fp == NULL) {
 	for (fp = preloaded_files; fp; fp = fp->f_next) {
-	    for (mp = fp->f_modules; mp; mp = mp->m_next) {
-    		if (strcmp(modname, mp->m_name) == 0)
-		    return (mp);
-	    }
+	    mp = file_findmodule(fp, modname, verinfo);
+    	    if (mp)
+		return (mp);
 	}
 	return (NULL);
     }
+    best = NULL;
+    bestver = 0;
     for (mp = fp->f_modules; mp; mp = mp->m_next) {
-        if (strcmp(modname, mp->m_name) == 0)
-	    return (mp);
+        if (strcmp(modname, mp->m_name) == 0) {
+	    if (verinfo == NULL)
+		return (mp);
+	    mver = mp->m_version;
+	    if (mver == verinfo->md_ver_preferred)
+		return (mp);
+	    if (mver >= verinfo->md_ver_minimum && 
+		mver <= verinfo->md_ver_maximum &&
+		mver > bestver) {
+		best = mp;
+		bestver = mver;
+	    }
+	}
     }
-    return (NULL);
+    return (best);
 }
 /*
  * Make a copy of (size) bytes of data from (p), and associate them as
@@ -468,6 +556,57 @@ metadata_next(struct file_metadata *md, int type)
     return (md);
 }
 
+static char *emptyextlist[] = { "", NULL };
+
+/*
+ * Check if the given file is in place and return full path to it.
+ */
+static char *
+file_lookup(const char *path, const char *name, int namelen, char **extlist)
+{
+    struct stat	st;
+    char	*result, *cp, **cpp;
+    int		pathlen, extlen, len;
+
+    pathlen = strlen(path);
+    extlen = 0;
+    if (extlist == NULL)
+	extlist = emptyextlist;
+    for (cpp = extlist; *cpp; cpp++) {
+	len = strlen(*cpp);
+	if (len > extlen)
+	    extlen = len;
+    }
+    result = malloc(pathlen + namelen + extlen + 2);
+    if (result == NULL)
+	return (NULL);
+    bcopy(path, result, pathlen);
+    if (pathlen > 0 && result[pathlen - 1] != '/')
+	result[pathlen++] = '/';
+    cp = result + pathlen;
+    bcopy(name, cp, namelen);
+    cp += namelen;
+    for (cpp = extlist; *cpp; cpp++) {
+	strcpy(cp, *cpp);
+	if (stat(result, &st) == 0 && S_ISREG(st.st_mode))
+	    return result;
+    }
+    free(result);
+    return NULL;
+}
+
+/*
+ * Check if file name have any qualifiers
+ */
+static int
+file_havepath(const char *name)
+{
+    const char		*cp;
+
+    archsw.arch_getdev(NULL, name, &cp);
+    return (cp != name || strchr(name, '/') != NULL);
+}
+
 /*
  * Attempt to find the file (name) on the module searchpath.
  * If (name) is qualified in any way, we simply check it and
@@ -479,86 +618,141 @@ metadata_next(struct file_metadata *md, int type)
  * it internally.
  */
 static char *
-file_search(char *name)
+file_search(const char *name, char **extlist)
 {
-    char		*result;
-    char		*path, *sp;
-    const char		*cp;
+    struct moduledir	*mdp;
     struct stat		sb;
+    char		*result;
+    int			namelen;
 
     /* Don't look for nothing */
     if (name == NULL)
-	return(name);
+	return(NULL);
 
     if (*name == 0)
 	return(strdup(name));
 
-    /*
-     * See if there's a device on the front, or a directory name.
-     */
-    archsw.arch_getdev(NULL, name, &cp);
-    if ((cp != name) || (strchr(name, '/') != NULL)) {
+    if (file_havepath(name)) {
 	/* Qualified, so just see if it exists */
 	if (stat(name, &sb) == 0)
 	    return(strdup(name));
 	return(NULL);
     }
-    
-    /*
-     * Get the module path
-     */
-    if ((cp = getenv("module_path")) == NULL)
-	cp = default_searchpath;
-    sp = path = strdup(cp);
-    
-    /*
-     * Traverse the path, splitting off ';'-delimited components.
-     */
+    moduledir_rebuild();
     result = NULL;
-    while((cp = strsep(&path, ";")) != NULL) {
-	result = malloc(strlen(cp) + strlen(name) + 5);
-	strcpy(result, cp);
-	if (cp[strlen(cp) - 1] != '/')
-	    strcat(result, "/");
-	strcat(result, name);
-	if ((stat(result, &sb) == 0) && 
-	    S_ISREG(sb.st_mode))
+    namelen = strlen(name);
+    STAILQ_FOREACH(mdp, &moduledir_list, d_link) {
+	result = file_lookup(mdp->d_path, name, namelen, extlist);
+	if (result)
 	    break;
-	free(result);
-	result = NULL;
     }
-    free(sp);
     return(result);
+}
+
+#define	INT_ALIGN(base, ptr)	ptr = \
+	(base) + (((ptr) - (base) + sizeof(int) - 1) & ~(sizeof(int) - 1))
+
+static char *
+mod_search_hints(struct moduledir *mdp, const char *modname,
+	struct mod_depend *verinfo)
+{
+    u_char	*cp, *recptr, *bufend, *best;
+    char	*result;
+    int		*intp, bestver, blen, clen, found, ival, modnamelen, reclen;
+
+    moduledir_readhints(mdp);
+    modnamelen = strlen(modname);
+    found = 0;
+    result = NULL;
+    bestver = 0;
+    if (mdp->d_hints == NULL)
+	goto bad;
+    recptr = mdp->d_hints;
+    bufend = recptr + mdp->d_hintsz;
+    clen = blen = 0;
+    best = cp = NULL;
+    while (recptr < bufend && !found) {
+	intp = (int*)recptr;
+	reclen = *intp++;
+	ival = *intp++;
+	cp = (char*)intp;
+	switch (ival) {
+	case MDT_VERSION:
+	    clen = *cp++;
+	    if (clen != modnamelen || bcmp(cp, modname, clen) != 0)
+		break;
+	    cp += clen;
+	    INT_ALIGN(mdp->d_hints, cp);
+	    ival = *(int*)cp;
+	    cp += sizeof(int);
+	    clen = *cp++;
+	    if (verinfo == NULL || ival == verinfo->md_ver_preferred) {
+		found = 1;
+		break;
+	    }
+	    if (ival >= verinfo->md_ver_minimum && 
+		ival <= verinfo->md_ver_maximum &&
+		ival > bestver) {
+		bestver = ival;
+		best = cp;
+		blen = clen;
+	    }
+	    break;
+	default:
+	    break;
+	}
+	recptr += reclen + sizeof(int);
+    }
+    /*
+     * Finally check if KLD is in the place
+     */
+    if (found)
+	result = file_lookup(mdp->d_path, cp, clen, NULL);
+    else if (best)
+	result = file_lookup(mdp->d_path, best, blen, NULL);
+bad:
+    /*
+     * If nothing found or hints is absent - fallback to the old way
+     * by using "kldname[.ko]" as module name.
+     */
+    if (!found && !bestver && result == NULL)
+	result = file_lookup(mdp->d_path, modname, modnamelen, kld_ext_list);
+    return result;
 }
 
 /*
  * Attempt to locate the file containing the module (name)
  */
 static char *
-mod_searchmodule(char *name)
+mod_searchmodule(char *name, struct mod_depend *verinfo)
 {
-    char	*tn, *result;
-    
-    /* Look for (name).ko */
-    tn = malloc(strlen(name) + 3 + 1);
-    strcpy(tn, name);
-    strcat(tn, ".ko");
-    result = file_search(tn);
-    free(tn);
-    /* Look for just (name) (useful for finding kernels) */
-    if (result == NULL)
-	result = file_search(name);
+    struct	moduledir *mdp;
+    char	*result;
+
+    moduledir_rebuild();
+    /*
+     * Now we ready to lookup module in the given directories
+     */
+    result = NULL;
+    STAILQ_FOREACH(mdp, &moduledir_list, d_link) {
+	result = mod_search_hints(mdp, name, verinfo);
+	if (result)
+	    break;
+    }
 
     return(result);
 }
 
 int
-file_addmodule(struct preloaded_file *fp, char *modname,
+file_addmodule(struct preloaded_file *fp, char *modname, int version,
 	struct kernel_module **newmp)
 {
     struct kernel_module *mp;
+    struct mod_depend mdepend;
 
-    mp = file_findmodule(fp, modname);
+    bzero(&mdepend, sizeof(mdepend));
+    mdepend.md_ver_preferred = version;
+    mp = file_findmodule(fp, modname, &mdepend);
     if (mp)
 	return (EEXIST);
     mp = malloc(sizeof(struct kernel_module));
@@ -566,6 +760,7 @@ file_addmodule(struct preloaded_file *fp, char *modname,
 	return (ENOMEM);
     bzero(mp, sizeof(struct kernel_module));
     mp->m_name = strdup(modname);
+    mp->m_version = version;
     mp->m_fp = fp;
     mp->m_next = fp->f_modules;
     fp->f_modules = mp;
@@ -641,3 +836,123 @@ file_insert_tail(struct preloaded_file *fp)
     }
 }
 
+static char *
+moduledir_fullpath(struct moduledir *mdp, const char *fname)
+{
+    char *cp;
+
+    cp = malloc(strlen(mdp->d_path) + strlen(fname) + 2);
+    if (cp == NULL)
+	return NULL;
+    strcpy(cp, mdp->d_path);
+    strcat(cp, "/");
+    strcat(cp, fname);
+    return (cp);
+}
+
+/*
+ * Read linker.hints file into memory performing some sanity checks.
+ */
+static void
+moduledir_readhints(struct moduledir *mdp)
+{
+    struct stat	st;
+    char	*path;
+    int		fd, size, version;
+
+    if (mdp->d_hints != NULL || (mdp->d_flags & MDIR_NOHINTS))
+	return;
+    path = moduledir_fullpath(mdp, "linker.hints");
+    if (stat(path, &st) != 0 || st.st_size < (sizeof(version) + sizeof(int)) ||
+	st.st_size > 100 * 1024 || (fd = open(path, O_RDONLY)) < 0) {
+	free(path);
+	mdp->d_flags |= MDIR_NOHINTS;
+	return;
+    }
+    free(path);
+    size = read(fd, &version, sizeof(version));
+    if (size != sizeof(version) || version != LINKER_HINTS_VERSION)
+	goto bad;
+    size = st.st_size - size;
+    mdp->d_hints = malloc(size);
+    if (mdp->d_hints == NULL)
+	goto bad;
+    if (read(fd, mdp->d_hints, size) != size)
+	goto bad;
+    mdp->d_hintsz = size;
+    close(fd);
+    return;
+bad:
+    close(fd);
+    if (mdp->d_hints) {
+	free(mdp->d_hints);
+	mdp->d_hints = NULL;
+    }
+    mdp->d_flags |= MDIR_NOHINTS;
+    return;
+}
+
+/*
+ * Extract directories from the ';' separated list, remove duplicates.
+ */
+static void
+moduledir_rebuild(void)
+{
+    struct	moduledir *mdp, *mtmp;
+    const char	*path, *cp, *ep;
+    int		cplen;
+
+    path = getenv("module_path");
+    if (path == NULL)
+	path = default_searchpath;
+    /*
+     * Rebuild list of module directories if it changed
+     */
+    STAILQ_FOREACH(mdp, &moduledir_list, d_link)
+	mdp->d_flags |= MDIR_REMOVED;
+
+    for (ep = path; *ep != 0;  ep++) {
+	cp = ep;
+	for (; *ep != 0 && *ep != ';'; ep++)
+	    ;
+	/*
+	 * Ignore trailing slashes
+	 */
+	for (cplen = ep - cp; cplen > 1 && cp[cplen - 1] == '/'; cplen--)
+	    ;
+	STAILQ_FOREACH(mdp, &moduledir_list, d_link) {
+	    if (strlen(mdp->d_path) != cplen ||	bcmp(cp, mdp->d_path, cplen) != 0)
+		continue;
+	    mdp->d_flags &= ~MDIR_REMOVED;
+	    break;
+	}
+	if (mdp == NULL) {
+	    mdp = malloc(sizeof(*mdp) + cplen + 1);
+	    if (mdp == NULL)
+		return;
+	    mdp->d_path = (char*)(mdp + 1);
+	    bcopy(cp, mdp->d_path, cplen);
+	    mdp->d_path[cplen] = 0;
+	    mdp->d_hints = NULL;
+	    mdp->d_flags = 0;
+	    STAILQ_INSERT_TAIL(&moduledir_list, mdp, d_link);
+	}
+    }
+    /*
+     * Delete unused directories if any
+     */
+    mdp = STAILQ_FIRST(&moduledir_list);
+    while (mdp) {
+	if ((mdp->d_flags & MDIR_REMOVED) == 0) {
+	    mdp = STAILQ_NEXT(mdp, d_link);
+	} else {
+	    if (mdp->d_hints)
+		free(mdp->d_hints);
+	    mtmp = mdp;
+	    mdp = STAILQ_NEXT(mdp, d_link);
+	    STAILQ_REMOVE(&moduledir_list, mtmp, moduledir, d_link);
+	    free(mtmp);
+	}
+    }
+    return;
+}
