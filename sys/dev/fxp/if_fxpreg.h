@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2001 Jonathan Lemon <jlemon@freebsd.org>
  * Copyright (c) 1995, David Greenman
  * All rights reserved.
  *
@@ -28,10 +29,6 @@
  */
 
 #define FXP_VENDORID_INTEL	0x8086
-#define FXP_DEVICEID_i82557	0x1229	/* 82557 - 82559 "classic" */
-#define FXP_DEVICEID_i82559	0x1030	/* New 82559 device id.. */
-#define FXP_DEVICEID_i82559ER	0x1209	/* 82559 for embedded applications */
-#define FXP_DEVICEID_i82562	0x2449	/* 82562 PLC devices */
 
 #define FXP_PCI_MMBA	0x10
 #define FXP_PCI_IOBA	0x14
@@ -125,48 +122,74 @@ struct fxp_cb_config {
 				tx_fifo_limit:3,
 				:1;
 	volatile u_int8_t	adaptive_ifs;
-	volatile u_int		:8;
+	volatile u_int		mwi_enable:1,			/* 8,9 */
+				type_enable:1,			/* 8,9 */
+				read_align_en:1,		/* 8,9 */
+				end_wr_on_cl:1,			/* 8,9 */
+				:4;
 	volatile u_int		rx_dma_bytecount:7,
 				:1;
 	volatile u_int		tx_dma_bytecount:7,
-				dma_bce:1;
-	volatile u_int		late_scb:1,
-				:1,
-				tno_int:1,
+				dma_mbce:1;
+	volatile u_int		late_scb:1,			/* 7 */
+				direct_dma_dis:1,		/* 8,9 */
+				tno_int_or_tco_en:1,		/* 7,9 */
 				ci_int:1,
-				:3,
+				ext_txcb_dis:1,			/* 8,9 */
+				ext_stats_dis:1,		/* 8,9 */
+				keep_overrun_rx:1,
 				save_bf:1;
 	volatile u_int		disc_short_rx:1,
 				underrun_retry:2,
-				:5;
-	volatile u_int		mediatype:1,
-				:7;
-	volatile u_int		:8;
+				:3,
+				two_frames:1,			/* 8,9 */
+				dyn_tbd:1;			/* 8,9 */
+	volatile u_int		mediatype:1,			/* 7 */
+				:6,
+				csma_dis:1;			/* 8,9 */
+	volatile u_int		tcp_udp_cksum:1,		/* 9 */
+				:3,
+				vlan_tco:1,			/* 8,9 */
+				link_wake_en:1,			/* 8,9 */
+				arp_wake_en:1,			/* 8 */
+				mc_wake_en:1;			/* 8 */
 	volatile u_int		:3,
 				nsai:1,
 				preamble_length:2,
 				loopback:2;
-	volatile u_int		linear_priority:3,
+	volatile u_int		linear_priority:3,		/* 7 */
 				:5;
-	volatile u_int		linear_pri_mode:1,
+	volatile u_int		linear_pri_mode:1,		/* 7 */
 				:3,
 				interfrm_spacing:4;
 	volatile u_int		:8;
 	volatile u_int		:8;
 	volatile u_int		promiscuous:1,
 				bcast_disable:1,
-				:5,
+				wait_after_win:1,		/* 8,9 */
+				:1,
+				ignore_ul:1,			/* 8,9 */
+				crc16_en:1,			/* 9 */
+				:1,
 				crscdt:1;
-	volatile u_int		:8;
-	volatile u_int		:8;
+	volatile u_int		fc_delay_lsb:8;			/* 8,9 */
+	volatile u_int		fc_delay_msb:8;			/* 8,9 */
 	volatile u_int		stripping:1,
 				padding:1,
 				rcv_crc_xfer:1,
-				:5;
-	volatile u_int		:6,
+				long_rx_en:1,			/* 8,9 */
+				pri_fc_thresh:3,		/* 8,9 */
+				:1;
+	volatile u_int		ia_wake_en:1,			/* 8 */
+				magic_pkt_dis:1,		/* 8,9,!9ER */
+				tx_fc_dis:1,			/* 8,9 */
+				rx_fc_restop:1,			/* 8,9 */
+				rx_fc_restart:1,		/* 8,9 */
+				fc_filter:1,			/* 8,9 */
 				force_fdx:1,
 				fdx_pin_en:1;
-	volatile u_int		:6,
+	volatile u_int		:5,
+				pri_fc_loc:1,			/* 8,9 */
 				multi_ia:1,
 				:1;
 	volatile u_int		:3,
@@ -296,14 +319,10 @@ struct fxp_stats {
 /*
  * Serial EEPROM control register bits
  */
-/* shift clock */
-#define FXP_EEPROM_EESK		0x01
-/* chip select */
-#define FXP_EEPROM_EECS		0x02
-/* data in */
-#define FXP_EEPROM_EEDI		0x04
-/* data out */
-#define FXP_EEPROM_EEDO		0x08
+#define FXP_EEPROM_EESK		0x01 		/* shift clock */
+#define FXP_EEPROM_EECS		0x02 		/* chip select */
+#define FXP_EEPROM_EEDI		0x04 		/* data in */
+#define FXP_EEPROM_EEDO		0x08 		/* data out */
 
 /*
  * Serial EEPROM opcodes, including start bit
@@ -321,6 +340,8 @@ struct fxp_stats {
 /*
  * PHY device types
  */
+#define FXP_PHY_DEVICE_MASK	0x03f0
+#define FXP_PHY_SERIAL_ONLY	0x8000
 #define FXP_PHY_NONE		0
 #define FXP_PHY_82553A		1
 #define FXP_PHY_82553C		2
@@ -331,95 +352,3 @@ struct fxp_stats {
 #define FXP_PHY_82555		7
 #define FXP_PHY_DP83840A	10
 #define FXP_PHY_82555B		11
-
-/*
- * PHY BMCR Basic Mode Control Register
- * Should probably be in i82555.h or dp83840.h (Intel/National names).
- * (Called "Management Data Interface Control Reg" in some Intel data books).
- * (*) indicates bit ignored in auto negotiation mode.
- */
-#define FXP_PHY_BMCR			0x0 
-#define FXP_PHY_BMCR_COLTEST		0x0080 /* not on Intel parts */
-#define FXP_PHY_BMCR_FULLDUPLEX		0x0100 /* 1 = Fullduplex (*) */
-#define FXP_PHY_BMCR_RESTART_NEG	0x0200 /* ==> 1 to restart autoneg */
-#define FXP_PHY_BMCR_ISOLATE		0x0400 /* not on Intel parts */
-#define FXP_PHY_BMCR_POWERDOWN		0x0800 /* 1 = low power mode */
-#define FXP_PHY_BMCR_AUTOEN		0x1000 /* 1 = for auto mode */
-#define FXP_PHY_BMCR_SPEED_100M		0x2000 /* 1 = for 100Mb/sec (*) */
-#define FXP_PHY_BMCR_LOOPBACK		0x4000 /* 1 = loopback at the PHY */
-#define FXP_PHY_BMCR_RESET		0x8000 /* ==> 1 sets to defaults */
-
-/*
- * Basic Mode Status Register (National name)
- * Management Data Interface Status reg. (Intel name)
- * in both Intel and National parts.
- */
-#define FXP_PHY_STS			0x1
-#define FXP_PHY_STS_EXND		0x0001 /* Extended regs enabled */
-#define FXP_PHY_STS_JABR		0x0002 /* Jabber detected */
-#define FXP_PHY_STS_LINK_STS		0x0004 /* Link valid */
-#define FXP_PHY_STS_CAN_AUTO		0x0008 /* Auto detection available */
-#define FXP_PHY_STS_REMT_FAULT		0x0010 /* remote fault detected */
-#define FXP_PHY_STS_AUTO_DONE		0x0020 /* auto negotiation completed */
-#define FXP_PHY_STS_MGMT_PREAMBLE	0x0040 /* real complicated */
-#define FXP_PHY_STS_10HDX_OK		0x0800 /* can do 10Mb HDX */
-#define FXP_PHY_STS_10FDX_OK		0x1000 /* can do 10Mb FDX */
-#define FXP_PHY_STS_100HDX_OK		0x2000 /* can do 100Mb HDX */
-#define FXP_PHY_STS_100FDX_OK		0x4000 /* can do 100Mb FDX */
-#define FXP_PHY_STS_100T4_OK		0x8000 /* can do 100bT4 -not Intel */
-
-/*
- * More Phy regs
- */
-#define FXP_PHY_ID1			0x2
-#define FXP_PHY_ID2			0x3
-
-/*
- * MDI Auto negotiation advertisement register.
- * What we advertise we can do..
- * The same bits are used to indicate the response too.
- */
-#define FXP_PHY_ADVRT			0x4
-#define FXP_PHY_RMT_ADVRT		0x5 /* what the other end said */
-#define FXP_PHY_ADVRT_SELECT		0x001F /* real complicated */
-#define FXP_PHY_ADVRT_TECH_AVAIL	0x1FE0 /* can do 10Mb HDX */
-#define FXP_PHY_ADVRT_RMT_FAULT		0x2000 /* can do 10Mb FDX */
-#define FXP_PHY_ADVRT_ACK		0x4000 /* Acked */
-#define FXP_PHY_ADVRT_NXT_PAGE		0x8000 /* can do 100Mb FDX */
-
-/*
- * Phy Unit Status and Control Register (another one)
- * This is not in the National part!
- */
-#define FXP_PHY_USC			0x10
-#define FXP_PHY_USC_DUPLEX		0x0001 /* in FDX mode */
-#define FXP_PHY_USC_SPEED		0x0002 /* 1 = in 100Mb mode */
-#define FXP_PHY_USC_POLARITY		0x0100 /* 1 = reverse polarity */
-#define FXP_PHY_USC_10_PWRDOWN		0x0200 /* 10Mb PHY powered down */
-#define FXP_PHY_USC_100_PWRDOWN		0x0400 /* 100Mb PHY powered down */
-#define FXP_PHY_USC_INSYNC		0x0800 /* 100Mb PHY is in sync */
-#define FXP_PHY_USC_TX_FLOWCNTRL	0x1000 /* TX FC mode in use */
-#define FXP_PHY_USC_PHY_FLOWCNTRL	0x8000 /* PHY FC mode in use */
-
-
-/*
- * DP83830 PHY, PCS Configuration Register
- * NOT compatible with Intel parts,
- * (where it is the 100BTX premature eof counter).
- */
-#define FXP_DP83840_PCR			0x17
-#define FXP_DP83840_PCR_LED4_MODE	0x0002	/* 1 = LED4 always = FDX */
-#define FXP_DP83840_PCR_F_CONNECT	0x0020	/* 1 = link disconnect bypass */
-#define FXP_DP83840_PCR_BIT8		0x0100
-#define FXP_DP83840_PCR_BIT10		0x0400
-
-/*
- * DP83830 PHY, Address/status Register
- * NOT compatible with Intel parts,
- * (where it is the 10BT jabber detect counter).
- */
-#define FXP_DP83840_PAR			0x19
-#define FXP_DP83840_PAR_PHYADDR		0x1F
-#define FXP_DP83840_PAR_CON_STATUS	0x20	
-#define FXP_DP83840_PAR_SPEED_10	0x40	/* 1 == running at 10 Mb/Sec */
-

@@ -31,6 +31,58 @@
  * Misc. defintions for the Intel EtherExpress Pro/100B PCI Fast
  * Ethernet driver
  */
+
+/*
+ * Number of transmit control blocks. This determines the number
+ * of transmit buffers that can be chained in the CB list.
+ * This must be a power of two.
+ */
+#define FXP_NTXCB       128
+
+/*
+ * Number of completed TX commands at which point an interrupt
+ * will be generated to garbage collect the attached buffers.
+ * Must be at least one less than FXP_NTXCB, and should be
+ * enough less so that the transmitter doesn't becomes idle
+ * during the buffer rundown (which would reduce performance).
+ */
+#define FXP_CXINT_THRESH 120
+
+/*
+ * TxCB list index mask. This is used to do list wrap-around.
+ */
+#define FXP_TXCB_MASK   (FXP_NTXCB - 1)
+
+/*
+ * Number of receive frame area buffers. These are large so chose
+ * wisely.
+ */
+#define FXP_NRFABUFS    64
+
+/*
+ * Maximum number of seconds that the receiver can be idle before we
+ * assume it's dead and attempt to reset it by reprogramming the
+ * multicast filter. This is part of a work-around for a bug in the
+ * NIC. See fxp_stats_update().
+ */
+#define FXP_MAX_RX_IDLE 15
+
+#if __FreeBSD_version < 500000
+#define	FXP_LOCK(_sc)
+#define	FXP_UNLOCK(_sc)
+#define mtx_init(a, b, c)
+#define mtx_destroy(a)
+struct mtx { int dummy; };
+#else
+#define	FXP_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
+#define	FXP_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_mtx)
+#endif
+
+#ifdef __alpha__
+#undef vtophys
+#define vtophys(va)	alpha_XXX_dmamap((vm_offset_t)(va))
+#endif /* __alpha__ */
+
 /*
  * NOTE: Elements are ordered for optimal cacheline behavior, and NOT
  *	 for functional grouping.
@@ -56,19 +108,26 @@ struct fxp_softc {
 	struct callout_handle stat_ch;	/* Handle for canceling our stat timeout */
 	struct fxp_cb_tx *cbl_base;	/* base of TxCB list */
 	struct fxp_cb_mcs *mcsp;	/* Pointer to mcast setup descriptor */
-	int all_mcasts;			/* receive all multicasts */
 	struct ifmedia sc_media;	/* media information */
-	int phy_primary_addr;		/* address of primary PHY */
-	int phy_primary_device;		/* device type of primary PHY */
-	int phy_10Mbps_only;		/* PHY is 10Mbps-only device */
+	device_t miibus;
+	device_t dev;
 	int eeprom_size;		/* size of serial EEPROM */
 	int suspended;			/* 0 = normal  1 = suspended (APM) */
+	int flags;
 	u_int32_t saved_maps[5];	/* pci data */
 	u_int32_t saved_biosaddr;
 	u_int8_t saved_intline;
 	u_int8_t saved_cachelnsz;
 	u_int8_t saved_lattimer;
 };
+
+#define FXP_FLAG_MWI_ENABLE	0x0001	/* MWI enable */
+#define FXP_FLAG_READ_ALIGN	0x0002	/* align read access with cacheline */
+#define FXP_FLAG_WRITE_ALIGN	0x0004	/* end write on cacheline */
+#define FXP_FLAG_EXT_TXCB	0x0008	/* enable use of extended TXCB */
+#define FXP_FLAG_SERIAL_MEDIA	0x0010	/* 10Mbps serial interface */
+#define FXP_FLAG_LONG_PKT_EN	0x0020	/* enable long packet reception */
+#define FXP_FLAG_ALL_MCAST	0x0040	/* accept all multicast frames */
 
 /* Macros to ease CSR access. */
 #define	CSR_READ_1(sc, reg)						\
@@ -85,6 +144,5 @@ struct fxp_softc {
 	bus_space_write_4((sc)->sc_st, (sc)->sc_sh, (reg), (val))
 
 #define	sc_if			arpcom.ac_if
+
 #define	FXP_UNIT(_sc)		(_sc)->arpcom.ac_if.if_unit
-#define	FXP_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
-#define	FXP_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_mtx)
