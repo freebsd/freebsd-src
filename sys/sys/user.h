@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)user.h	8.2 (Berkeley) 9/23/93
- * $Id: user.h,v 1.14 1997/03/03 09:51:15 ache Exp $
+ * $Id: user.h,v 1.15 1998/03/28 10:33:24 bde Exp $
  */
 
 #ifndef _SYS_USER_H_
@@ -118,7 +118,12 @@ struct	user {
  * brought to you by coredump() and trace_req().  These fields are *only*
  * valid at those times!
  */
+#ifdef __i386__
 #define	U_ar0	u_kproc.kp_proc.p_md.md_regs /* copy of curproc->p_md.md_regs */
+#endif
+#ifdef __alpha__
+#define	U_ar0	u_kproc.kp_proc.p_md.md_tf /* copy of curproc->p_md.md_tf */
+#endif
 #define	U_tsize	u_kproc.kp_eproc.e_vm.vm_tsize
 #define	U_dsize	u_kproc.kp_eproc.e_vm.vm_dsize
 #define	U_ssize	u_kproc.kp_eproc.e_vm.vm_ssize
