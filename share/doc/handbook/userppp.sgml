@@ -1,4 +1,4 @@
-<!-- $Id: userppp.sgml,v 1.6 1996/01/31 14:26:20 mpp Exp $ -->
+<!-- $Id: userppp.sgml,v 1.7 1996/05/16 23:18:28 mpp Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect>Setting up user PPP<label id="userppp">
@@ -95,7 +95,10 @@ pseudo-device	  tun		1
   have not installed a custom kernel you do not have to change anything.
   If your kernel configuration file does not have this line in it then you
   should add the line, re-compile and then re-install the kernel. Boot from
-  this new kernel.
+  this new kernel.  Please refer to the 
+  <ref id="kernelconfig" name="Configuring the FreeBSD Kernel">
+  section for more information on kernel configuration.
+
 
 <sect1><heading>Check the tun device</heading>
 
