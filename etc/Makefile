@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.144 1996/12/13 10:24:42 jkh Exp $
+#	$Id: Makefile,v 1.145 1996/12/13 17:01:51 bde Exp $
 
 # -rw-r--r--
 BINOWN= root
@@ -34,9 +34,6 @@ COPYRIGHT=	COPYRIGHT
 FREEBSD=
 FREEBSD+=	${COPYRIGHT}
 
-# Sendmail configuration file for release
-SENDMAILCF?=	freebsd.cf
-
 # Compatibility stuff, remove those links
 LATIN1LINKS = \
 	da_DK de_AT de_CH de_DE en_AU en_CA en_GB en_US es_ES fi_FI \
@@ -62,6 +59,7 @@ distribution:
 	( cd ${.CURDIR}/../gnu/libexec/uucp/sample; ${MAKE} install ); \
 	( cd ${.CURDIR}/../share/termcap; ${MAKE} etc-termcap ); \
 	( cd ${.CURDIR}/../usr.sbin/rmt; ${MAKE} etc-rmt ); \
+	( cd ${.CURDIR}/../usr.sbin/sendmail/cf/cf; ${MAKE} etc-sendmail.cf ); \
 	pwd_mkdb -p -d ${DESTDIR}/etc ${DESTDIR}/etc/master.passwd; \
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 555 \
 	     MAKEDEV.local etc.${MACHINE}/MAKEDEV ${DESTDIR}/dev )
@@ -106,15 +104,6 @@ distribution:
 	    ${DESTDIR}/var/run/utmp
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 664 ${.CURDIR}/minfree \
 	    ${DESTDIR}/var/crash
-	(cd ${.CURDIR}/../usr.sbin/sendmail/src; \
-	    ${MAKE} obj; \
-	    ${MAKE} all; \
-	    ${MAKE} install; \
-	 cd ../cf/cf; \
-	    ${MAKE} objlink; \
-	    ${MAKE} ${SENDMAILCF}; \
-	    ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 obj/${SENDMAILCF} \
-		${DESTDIR}/etc/sendmail.cf)
 	(cd ${.CURDIR}/..; \
 	    ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${FREEBSD} \
 		${DESTDIR}/)
