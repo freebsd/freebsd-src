@@ -43,7 +43,7 @@
  *	from: wd.c,v 1.55 1994/10/22 01:57:12 phk Exp $
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	$Id$
+ *	$Id: subr_diskslice.c,v 1.3 1995/01/31 04:33:41 phk Exp $
  */
 
 #include <sys/param.h>
@@ -70,6 +70,12 @@ static void partition_info __P((char *dname, int unit, int slice,
 				int part, struct partition *pp));
 static void slice_info __P((char *dname, int unit, int slice,
 			    struct diskslice *sp));
+static void set_ds_bad __P((struct diskslices *ssp, int slice,
+			    struct dkbad_intern *btp));
+static void set_ds_label __P((struct diskslices *ssp, int slice,
+			      struct disklabel *lp));
+static void set_ds_wlabel __P((struct diskslices *ssp, int slice,
+			       int wlabel));
 
 /*
  * Determine the size of the transfer, and make sure it is
@@ -104,7 +110,7 @@ dscheck(bp, ssp)
 		maxsz = sp->ds_size;
 	} else {
 		labelsect = lp->d_partitions[LABEL_PART].p_offset;
-if (labelsect != 0) Debugger("");
+if (labelsect != 0) Debugger("labelsect != 0 in dscheck()");
 		pp = &lp->d_partitions[dkpart(bp->b_dev)];
 		blkno = pp->p_offset + bp->b_blkno;
 		maxsz = pp->p_size;
@@ -113,7 +119,7 @@ if (labelsect != 0) Debugger("");
 
 			newblkno = transbad144(sp->ds_bad, blkno);
 			if (newblkno != blkno)
-				printf("bad block %lu -> %lu\n",
+				printf("should map bad block %lu -> %lu\n",
 				       blkno, newblkno);
 		}
 	}
@@ -202,13 +208,14 @@ dsgone(sspp)
 		sp = &ssp->dss_slices[slice];
 		if (sp->ds_bad != NULL) {
 			free(sp->ds_bad, M_DEVBUF);
-			sp->ds_bad = NULL;
+			set_ds_bad(ssp, slice, (struct dkbad_intern *)NULL);
 		}
 		if (sp->ds_label != NULL) {
 			free(sp->ds_label, M_DEVBUF);
-			sp->ds_label = NULL;
+			set_ds_label(ssp, slice, (struct disklabel *)NULL);
 		}
 	}
+	free(ssp, M_DEVBUF);
 	*sspp = NULL;
 }
 
@@ -229,9 +236,11 @@ dsioctl(dev, cmd, data, flags, ssp, strat, setgeom)
 	int	error;
 	struct disklabel *lp;
 	int	old_wlabel;
+	int	slice;
 	struct diskslice *sp;
 
-	sp = &ssp->dss_slices[dkslice(dev)];
+	slice = dkslice(dev);
+	sp = &ssp->dss_slices[slice];
 	lp = sp->ds_label;
 	switch (cmd) {
 
@@ -258,16 +267,20 @@ dsioctl(dev, cmd, data, flags, ssp, strat, setgeom)
 		return (0);
 
 	case DIOCSBAD:
+		if (slice == WHOLE_DISK_SLICE)
+			return (ENODEV);
 		if (!(flags & FWRITE))
 			return (EBADF);
 		if (lp == NULL)
 			return (EINVAL);
 		if (sp->ds_bad != NULL)
 			free(sp->ds_bad, M_DEVBUF);
-		sp->ds_bad = internbad144((struct dkbad *)data, lp);
+		set_ds_bad(ssp, slice, internbad144((struct dkbad *)data, lp));
 		return (0);
 
 	case DIOCSDINFO:
+		if (slice == WHOLE_DISK_SLICE)
+			return (ENODEV);
 		if (!(flags & FWRITE))
 			return (EBADF);
 		lp = malloc(sizeof *lp, M_DEVBUF, M_WAITOK);
@@ -284,7 +297,7 @@ dsioctl(dev, cmd, data, flags, ssp, strat, setgeom)
 		}
 		if (sp->ds_label != NULL)
 			free(sp->ds_label, M_DEVBUF);
-		sp->ds_label = lp;
+		set_ds_label(ssp, slice, lp);
 		return (0);
 
 	case DIOCWDINFO:
@@ -297,20 +310,37 @@ dsioctl(dev, cmd, data, flags, ssp, strat, setgeom)
 		 * partition 0 in case that is used instead of dkpart(dev).
 		 */
 		old_wlabel = sp->ds_wlabel;
-		sp->ds_wlabel = TRUE;
+		set_ds_wlabel(ssp, slice, TRUE);
 		error = correct_writedisklabel(dev, strat, sp->ds_label);
-		sp->ds_wlabel = old_wlabel;
+		set_ds_wlabel(ssp, slice, old_wlabel);
 		return (error);
 
 	case DIOCWLABEL:
+		if (slice == WHOLE_DISK_SLICE)
+			return (ENODEV);
 		if (!(flags & FWRITE))
 			return (EBADF);
-		sp->ds_wlabel = (*(int *)data != 0);
+		set_ds_wlabel(ssp, slice, *(int *)data != 0);
 		return (0);
 
 	default:
 		return (-1);
 	}
+}
+
+int
+dsisopen(ssp)
+	struct diskslices *ssp;
+{
+	int	slice;
+	struct diskslice *sp;
+
+	if (ssp == NULL)
+		return (0);
+	for (slice = 0; slice < ssp->dss_nslices; slice++)
+		if (ssp->dss_slices[slice].ds_openmask)
+			return (1);
+	return (0);
 }
 
 /*
@@ -338,26 +368,20 @@ dsopen(dname, dev, mode, sspp, lp, strat, setgeom)
 	struct diskslices *ssp;
 	int	unit;
 
-	need_init = TRUE;
-	if (*sspp != NULL) {
-		/*
-		 * XXX reinitialize the slice table unless there is an open
-		 * device on the unit.  This should only be done if the media
-		 * has changed.
-		 */
-		for (slice = 0, ssp = *sspp; slice < ssp->dss_nslices; slice++)
-			if (ssp->dss_slices[slice].ds_openmask) {
-				need_init = FALSE;
-				break;
-			}
-			if (need_init)
-				dsgone(sspp);
-	}
+	/*
+	 * XXX reinitialize the slice table unless there is an open device
+	 * on the unit.  This should only be done if the media has changed.
+	 */
+	need_init = !dsisopen(*sspp);
+	if (*sspp != NULL && need_init)
+		dsgone(sspp);
 	if (need_init) {
 		printf("dsinit\n");
 		error = dsinit(dname, dev, strat, lp, sspp);
 		if (error != 0)
 			return (error);
+		lp->d_npartitions = RAW_PART + 1;
+		lp->d_partitions[RAW_PART].p_size = lp->d_secperunit;
 		if (setgeom != NULL) {
 			error = setgeom(lp);
 			if (error != 0)
@@ -365,6 +389,7 @@ dsopen(dname, dev, mode, sspp, lp, strat, setgeom)
 				return (error);
 		}
 	}
+
 	ssp = *sspp;
 	slice = dkslice(dev);
 	if (slice >= ssp->dss_nslices)
@@ -372,12 +397,14 @@ dsopen(dname, dev, mode, sspp, lp, strat, setgeom)
 	sp = &ssp->dss_slices[slice];
 	part = dkpart(dev);
 	unit = dkunit(dev);
-	if (slice != WHOLE_DISK_SLICE && sp->ds_label == NULL) {
+	if (sp->ds_label == NULL) {
 		struct disklabel *lp1;
 
 		lp1 = malloc(sizeof *lp1, M_DEVBUF, M_WAITOK);
 		*lp1 = *lp;
 		lp = lp1;	
+		if (slice == WHOLE_DISK_SLICE)
+			goto set;
 		printf("readdisklabel\n");
 		msg = correct_readdisklabel(dkmodpart(dev, RAW_PART), strat, lp);
 #if 0 /* XXX */
@@ -410,7 +437,7 @@ dsopen(dname, dev, mode, sspp, lp, strat, setgeom)
 					goto out;
 				return (EINVAL);  /* XXX needs translation */
 			}
-			sp->ds_bad = internbad144(btp, lp);
+			set_ds_bad(ssp, slice, internbad144(btp, lp));
 			free(btp, M_DEVBUF);
 			if (sp->ds_bad == NULL) {
 				free(lp, M_DEVBUF);
@@ -419,8 +446,9 @@ dsopen(dname, dev, mode, sspp, lp, strat, setgeom)
 				return (EINVAL);  /* XXX needs translation */
 			}
 		}
-		sp->ds_label = lp;
-		sp->ds_wlabel = TRUE;
+set:
+		set_ds_label(ssp, slice, lp);
+		set_ds_wlabel(ssp, slice, FALSE);
 	}
 	if (part != RAW_PART
 	    && (sp->ds_label == NULL || part >= sp->ds_label->d_npartitions))
@@ -520,6 +548,13 @@ partition_info(dname, unit, slice, part, pp)
 	       pp->p_offset, pp->p_offset + pp->p_size - 1, pp->p_size);
 }
 
+/*
+ * Most changes to ds_bad, ds_label and ds_wlabel are made using the
+ * following functions to ensure coherency of the compatibility slice
+ * with the first BSD slice.  The openmask fields are _not_ shared and
+ * the other fields (ds_offset and ds_size) aren't changed after they
+ * are initialized.
+ */
 static void
 slice_info(dname, unit, slice, sp)
 	char	*dname;
@@ -530,4 +565,43 @@ slice_info(dname, unit, slice, sp)
 	printf("%s%ds%d: start %lu, end %lu, size %lu\n",
 	       dname, unit, slice,
 	       sp->ds_offset, sp->ds_offset + sp->ds_size - 1, sp->ds_size);
+}
+
+static void
+set_ds_bad(ssp, slice, btp)
+	struct diskslices *ssp;
+	int	slice;
+	struct dkbad_intern *btp;
+{
+	ssp->dss_slices[slice].ds_bad = btp;
+	if (slice == COMPATIBILITY_SLICE)
+		ssp->dss_slices[ssp->dss_first_bsd_slice].ds_bad = btp;
+	else if (slice == ssp->dss_first_bsd_slice)
+		ssp->dss_slices[COMPATIBILITY_SLICE].ds_bad = btp;
+}
+
+static void
+set_ds_label(ssp, slice, lp)
+	struct diskslices *ssp;
+	int	slice;
+	struct disklabel *lp;
+{
+	ssp->dss_slices[slice].ds_label = lp;
+	if (slice == COMPATIBILITY_SLICE)
+		ssp->dss_slices[ssp->dss_first_bsd_slice].ds_label = lp;
+	else if (slice == ssp->dss_first_bsd_slice)
+		ssp->dss_slices[COMPATIBILITY_SLICE].ds_label = lp;
+}
+
+static void
+set_ds_wlabel(ssp, slice, wlabel)
+	struct diskslices *ssp;
+	int	slice;
+	int	wlabel;
+{
+	ssp->dss_slices[slice].ds_wlabel = wlabel;
+	if (slice == COMPATIBILITY_SLICE)
+		ssp->dss_slices[ssp->dss_first_bsd_slice].ds_wlabel = wlabel;
+	else if (slice == ssp->dss_first_bsd_slice)
+		ssp->dss_slices[COMPATIBILITY_SLICE].ds_wlabel = wlabel;
 }
