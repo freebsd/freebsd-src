@@ -384,7 +384,7 @@ tsleep(ident, priority, wmesg, timo)
 	struct callout_handle thandle;
 
 #ifdef KTRACE
-	if (KTRPOINT(p, KTR_CSW))
+	if (p && KTRPOINT(p, KTR_CSW))
 		ktrcsw(p->p_tracep, 1, 0);
 #endif
 	s = splhigh();
