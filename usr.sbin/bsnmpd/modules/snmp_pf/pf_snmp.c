@@ -1143,17 +1143,17 @@ pf_dump(void)
 	pfq_refresh();
 	pft_refresh();
 
-	syslog(LOG_ERR, "Dump: pfi_table_age = %u",
+	syslog(LOG_ERR, "Dump: pfi_table_age = %zu",
 	    pfi_table_age);
 	syslog(LOG_ERR, "Dump: pfi_table_count = %d",
 	    pfi_table_count);
 	
-	syslog(LOG_ERR, "Dump: pfq_table_age = %u",
+	syslog(LOG_ERR, "Dump: pfq_table_age = %zu",
 	    pfq_table_age);
 	syslog(LOG_ERR, "Dump: pfq_table_count = %d",
 	    pfq_table_count);
 
-	syslog(LOG_ERR, "Dump: pft_table_age = %u",
+	syslog(LOG_ERR, "Dump: pft_table_age = %zu",
 	    pft_table_age);
 
 	syslog(LOG_ERR, "Dump: pft_table_count = %d",
