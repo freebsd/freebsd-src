@@ -23,7 +23,7 @@ SOFTWARE.
 /*
  * Bootstrap Protocol (BOOTP).  RFC951 and RFC1395.
  *
- * $FreeBSD$
+ * $Id$
  *
  *
  * This file specifies the "implementation-independent" BOOTP protocol

@@ -1,4 +1,4 @@
-#	$FreeBSD$
+#	$Id$
 
 MAINSRC= ${.CURDIR}/../../usr.bin/at
 

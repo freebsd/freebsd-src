@@ -22,7 +22,7 @@
  * Modem chat module - send/expect style functions for getty
  * For semi-intelligent modem handling.
  *
- *	$FreeBSD$
+ *	$Id$
  */
 
 #include <sys/param.h>

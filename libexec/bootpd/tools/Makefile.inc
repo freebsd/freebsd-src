@@ -1,4 +1,4 @@
 # Makefile.inc
-# $FreeBSD$
+# $Id$
 
 BINDIR=/usr/sbin

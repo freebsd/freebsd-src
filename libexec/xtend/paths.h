@@ -1,7 +1,7 @@
 /*
  * Pathnames for files used by xtend
  *
- *	$FreeBSD$
+ *	$Id$
  */
 
 #define X10DIR		"/var/spool/xten"
