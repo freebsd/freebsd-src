@@ -297,7 +297,11 @@ usage:
 #endif
 
 	mypid = getpid();
+#ifdef __FreeBSD__
+	srandomdev();
+#else
 	srandom((int)(clk.tv_sec ^ clk.tv_usec ^ mypid));
+#endif
 
 	/* prepare socket connected to the kernel.
 	 */
