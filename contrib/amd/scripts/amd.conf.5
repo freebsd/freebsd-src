@@ -48,7 +48,7 @@
 .Nm amd.conf
 .Nd amd configuration file
 .Sh SYNOPSIS
-.Nm amd.conf
+.Nm
 .Sh DESCRIPTION
 The
 .Nm
@@ -56,7 +56,7 @@ file is the configuration file for amd, as part of the am-utils suite.
 .Pp
 .Nm
 contains runtime configuration information for the
-.Nm amd
+.Xr amd 8
 automounter program.
 .Sh FILE FORMAT
 The file consists of sections and parameters.  A section begins with the
@@ -77,9 +77,7 @@ internal whitespace in section and parameter names is irrelevant.  Leading
 and trailing whitespace in a parameter value is discarded.  Internal
 whitespace within a parameter value is not allowed, unless the whole
 parameter value is quoted with double quotes as in 
-.So name = 
-.Qq some value 
-.Sc .
+.Sq name = Qq some\ value .
 .Pp
 Any line beginning with a pound sign (#) is ignored, as are lines containing
 only whitespace.
@@ -89,34 +87,33 @@ The values following the equals sign in parameters are all either a string
 be given as yes/no.  Case is significant in all values.  Some items such as
 cache timeouts are numeric.
 .Sh SECTIONS
-.Bl -tag -width 4n
-.It Nm The [global] section
+.Ss "The [global] section"
 Parameters in this section either apply to 
-.Nm amd 
+.Nm amd
 as a whole, or to all other regular map sections which follow.  There 
 should be only one global section defined in one configuration file.
 .Pp
 It is highly recommended that this section be specified first in the
 configuration file.  If it is not, then regular map sections which precede
 it will not use global values defined later.
-.It Nm Regular [/map] sections
+.Ss "Regular [/map] sections"
 Parameters in regular (non-global) sections apply to a single map entry.
 For example, if the map section
 .Bq Pa /homes
 is defined, then all parameters following it will be applied to the
 .Pa /homes
 amd-managed mount point.
-.El
 .Sh PARAMETERS
-.Bl -tag -width F1
-.It Sy Parameters common to all sections
+.Ss "Parameters common to all sections"
 These parameters can be specified either in the global or a map specific
 section.  Entries specified in a map-specific section override the default
 value or one defined in the global section.   If such a common parameter is
 specified only in the global section, it is applicable to all regular map
 sections that follow.
-.Bl -tag -width F1
-.It Nm browsable_dirs (string, default=no)
+.Bl -tag -width 4n
+.It Ic browsable_dirs Xo
+.Pq "string, default=no"
+.Xc
 If 
 .Qq yes , 
 then amd's top-level mount points will be browsable to
@@ -140,41 +137,47 @@ the entries, such as often done by
 .Qq ls -l
 or
 .Qq ls -F ,
-.Nm amd 
+.Nm amd
 will attempt to mount 
 .Em every
 entry in that map.  This is often called a 
 .Em mount storm .
-.It Nm map_options (string, default no options)
+.It Ic map_options Xo
+.Pq "string, default no options"
+.Xc
 This option is the same as specifying map options on the command line to 
 .Nm amd ,
 such as
 .Ql cache\&:\&=all .
-.It Nm map_type (string, default search all map types)
+.It Ic map_type Xo
+.Pq "string, default search all map types"
+.Xc
 If specified, amd will initialize the map only for the type given.   
 This is useful to avoid the default map search type used by amd which 
 takes longer and can have undesired side-effects such as initializing 
 NIS even if not used.  Possible values are:
 .Pp
-.Bl -tag -width 10n -compact
-.It Nm file
+.Bl -tag -width "nisplus" -compact
+.It Ic file
 plain files
-.It Nm hesiod
+.It Ic hesiod
 Hesiod name service from MIT
-.It Nm ldap
+.It Ic ldap
 Lightweight Directory Access Protocol
-.It Nm ndbm
+.It Ic ndbm
 (New) dbm style hash files
-.It Nm nis
+.It Ic nis
 Network Information Services (version 2)
-.It Nm nisplus
+.It Ic nisplus
 Network Information Services Plus (version 3)
-.It Nm passwd
+.It Ic passwd
 local password files
-.It Nm union 
+.It Ic union 
 union maps
 .El
-.It Nm mount_type (string, default=nfs)
+.It Ic mount_type Xo
+.Pq "string, default=nfs"
+.Xc
 All amd mount types default to
 .Tn NFS .
 That is,
@@ -184,42 +187,54 @@ is an
 server on the map mount points, for the local host it is running on.  If 
 .Qq autofs 
 is specified, amd will be an autofs server for those mount points.
-.It Nm search_path (string, default no search path)
+.It Ic search_path Xo
+.Pq "string, default no search path"
+.Xc
 This provides a 
 .Pq colon-delimited
 search path for file maps.  Using a search path, sites can allow for 
 local map customizations and overrides, and can distributed maps in 
 several locations as needed.
 .El
-.It Nm Parameters applicable to the global section only
-.Bl -tag -width F1
-.It Nm arch (string, default to compiled in value)
+.Ss "Parameters applicable to the global section only"
+.Bl -tag -width 4n
+.It Ic arch Xo
+.Pq "string, default to compiled in value"
+.Xc
 Allows you to override the value of the
 .Va arch
 .Nm amd
 variable.
-.It Nm auto_dir (string, default=/a)
+.It Ic auto_dir Xo
+.Pq "string, default=/a"
+.Xc
 Same as the 
 .Fl a
 option to
 .Nm amd .
 This sets the private directory where amd will create sub-directories for its
 real mount points.
-.It Nm cache_duration (numeric, default=300)
+.It Ic cache_duration Xo
+.Pq "numeric, default=300"
+.Xc
 Same as the
 .Fl c
 option to
 .Nm amd .
 Sets the duration in seconds that looked up map entries remain in the cache.
-.It Nm cluster (string, default no cluster)
+.It Ic cluster Xo
+.Pq "string, default no cluster"
+.Xc
 Same as the
 .Fl C
 option to
 .Nm amd .
 Specifies the alternate
-.Tm HP-UX
+.Tn HP-UX
 cluster to use.
-.It Nm debug_options (string, default no debug options)
+.It Ic debug_options Xo
+.Pq "string, default no debug options"
+.Xc
 Same as the 
 .Fl D
 option to
@@ -227,11 +242,12 @@ option to
 Specify any debugging options for
 .Nm amd .
 Works only if am-utils was configured for debugging using the
-.Ic --enable-debug option .
+.Fl -enable-debug
+option.
 The
 .Qq mem
 option alone can be turned on via
-.Ic --enable-debug=mem .
+.Fl -enable-debug Ns = Ns Ic mem .
 Otherwise debugging options are ignored.  Options are comma delimited, and can
 be preceded by the string
 .Qq no
@@ -240,42 +256,46 @@ by running
 .Nm amd Fl v .
 Possible values are:
 .Pp
-.Bl -tag -width 10n -compact
-.It Nm all 
+.Bl -tag -width "daemon" -compact
+.It Ic all 
 all options
-.It Nm amq
+.It Ic amq
 register for 
-.Nm amq
-.It Nm daemon
+.Xr amq 8
+.It Ic daemon
 enter daemon mode
-.It Nm fork
+.It Ic fork
 fork server
-.It Nm full
+.It Ic full
 program trace
-.It Nm info
+.It Ic info
 info service specific debugging
 .Pq hesiod, nis, etc.
 .It mem
 trace memory allocations
-.It Nm mtab
+.It Ic mtab
 use local
 .Pa ./mtab
 file
-.It Nm str
+.It Ic str
 debug string munging
-.It Nm test
+.It Ic test
 full debug but no daemon
-.It Nm trace
+.It Ic trace
 protocol trace
 .El
-.It Nm dismount_interval (numeric, default=120)
+.It Ic dismount_interval Xo
+.Pq "numeric, default=120"
+.Xc
 Same as the
 .Fl w
 option to
 .Nm amd .
 Specify, in seconds, the time between attempts to dismount file systems that
 have exceeded their cached times. 
-.It Nm fully_qualified_hosts (string, default=no)
+.It Ic fully_qualified_hosts Xo
+.Pq "string, default=no"
+.Xc
 If
 .Qq yes ,
 .Nm Amd
@@ -288,9 +308,13 @@ variable
 is used, requiring that
 .Va ${domain}
 not be null.
-.It Nm hesiod_base (string, default=automount)
+.It Ic hesiod_base Xo
+.Pq "string, default=automount"
+.Xc
 Specify the base name for hesiod maps.
-.It Nm karch (string, default to karch of the system)
+.It Ic karch Xo
+.Pq "string, default to karch of the system"
+.Xc
 Same as the
 .Fl k
 option to
@@ -311,15 +335,25 @@ specified,
 will use
 .Xr uname 3
 to figure out the kernel architecture of the machine.
-.It Nm ldap_base (string, default not set)
+.It Ic ldap_base Xo
+.Pq "string, default not set"
+.Xc
 Specify the base name for LDAP.
-.It Nm ldap_cache_maxmem (numeric, default=131072)
+.It Ic ldap_cache_maxmem Xo
+.Pq "numeric, default=131072"
+.Xc
 Specify the maximum memory amd should use to cache LDAP entries.
-.It Nm ldap_cache_seconds (numeric, default=0)
+.It Ic ldap_cache_seconds Xo
+.Pq "numeric, default=0"
+.Xc
 Specify the number of seconds to keep entries in the cache.
-.It Nm ldap_hostports (string, default not set)
+.It Ic ldap_hostports Xo
+.Pq "string, default not set"
+.Xc
 Specify LDAP-specific values such as country and organization.
-.It Nm local_domain (string, default no sub-domain)
+.It Ic local_domain Xo
+.Pq "string, default no sub-domain"
+.Xc
 Same as the
 .Fl d
 option to
@@ -327,7 +361,9 @@ option to
 Specify the local domain name.  If this option is not given the domain name is
 determined from the hostname by removing the first component of the
 fully-qualified host name.
-.It Nm log_file (string, default=/dev/stderr)
+.It Ic log_file Xo
+.Pq "string, default=/dev/stderr"
+.Xc
 Same as the
 .Fl l
 option to
@@ -359,7 +395,9 @@ using the
 .Ev LOG_LOCAL7
 facility
 .Pq if it exists on the system .
-.It Nm log_options (string, default no logging options)
+.It Ic log_options Xo
+.Pq "string, default no logging options"
+.Xc
 Same as the
 .Fl x
 option to
@@ -370,37 +408,37 @@ Options are comma delimited, and can be preceded by the string
 .Dq no
 to negate their meaning.  The
 .Dq debug
-logging option is only available if
-.Nm am-utils
-was configured with
+logging option is only available if am-utils was configured with
 .Fl -enable-debug .
 You can get the list of supported debugging options by running
 .Nm amd Fl v .
 Possible values are:
 .Pp
-.Bl -tag -width 10n -compact
-.It Nm all 
+.Bl -tag -width "warning" -compact
+.It Ic all 
 all messages
-.It Nm debug
+.It Ic debug
 debug messages
-.It Nm error
+.It Ic error
 non-fatal system errors
-.It Nm fatal
+.It Ic fatal
 fatal errors
-.It Nm info
+.It Ic info
 information
-.It Nm map
+.It Ic map
 map errors
-.It Nm stats
+.It Ic stats
 additional statistical information
-.It Nm user
+.It Ic user
 non-fatal user errors
-.It Nm warn
+.It Ic warn
 warnings
-.It Nm warning
+.It Ic warning
 warnings
 .El
-.It Nm nfs_retransmit_counter (numeric, default=110)
+.It Ic nfs_retransmit_counter Xo
+.Pq "numeric, default=110"
+.Xc
 Same as the
 .Ic counter
 part of the
@@ -408,7 +446,9 @@ part of the
 option to
 .Nm amd .
 Specifies the retransmit counter's value in tenths of seconds.
-.It Nm nfs_retry_interval (numeric, default=8)
+.It Ic nfs_retry_interval Xo
+.Pq "numeric, default=8"
+.Xc
 Same as the
 .Ic interval
 part of the 
@@ -416,10 +456,9 @@ part of the
 option to
 .Nm amd .
 Specifies the interval in tenths of seconds, between NFS/RPC/UDP retries.
-.It Nm nis_domain
-.Po string, default to local
-.Tn NIS
-.Pc domain name
+.It Ic nis_domain Xo
+.Pq "string, default to local NIS domain name"
+.Xc
 Same as the
 .Fl y
 option to
@@ -431,7 +470,9 @@ domain from which to fetch the
 maps.  The default is the system domain name.  This option is ignored if
 .Tn NIS
 support is not available.
-.It Nm normalize_hostnames (boolean, default=no)
+.It Ic normalize_hostnames Xo
+.Pq "boolean, default=no"
+.Xc
 Same as the
 .Fl n
 option to
@@ -444,7 +485,9 @@ is normalized relative to the host database before being used.  The effect is
 to translate aliases into
 .Qq official
 names.
-.It Nm os (string, default to compiled in value)
+.It Ic os Xo
+.Pq "string, default to compiled in value"
+.Xc
 Same as the
 .Fl O
 option to
@@ -456,7 +499,9 @@ compatibility reasons.  For example, if the build in name is
 you can override it to
 .Dq sos5 ,
 and use older maps which were written with the latter in mind.
-.It Nm osver (string, default to compiled in value)
+.It Ic osver Xo
+.Pq "string, default to compiled in value"
+.Xc
 Same as the
 .Fl o
 option to
@@ -468,7 +513,9 @@ compatibility reasons.  For example, if the build in version is
 you can override it to
 .Dq 5.5.1 ,
 and use older maps that were written with the latter in mind.
-.It Nm pid_file (string, default=/dev/stdout)
+.It Ic pid_file Xo
+.Pq "string, default=/dev/stdout"
+.Xc
 Specify a file to store the process ID of the running daemon into.  If not
 specified,
 .Nm amd
@@ -481,7 +528,9 @@ can also be retrieved via
 This file is used only if the
 .Ar print_pid
 option is on.
-.It Nm plock (boolean, default=yes)
+.It Ic plock Xo
+.Pq "boolean, default=yes"
+.Xc
 Same as the
 .Fl S
 option to
@@ -491,7 +540,7 @@ If
 lock the running executable pages of
 .Nm amd
 into memory.  To improve
-.Nm amd's
+.Nm amd Ns 's
 performance, systems that support the
 .Xr plock 3
 call can lock the
@@ -500,12 +549,14 @@ process into memory.  This way there is less chance it that the operating
 system will schedule, page out, and swap the
 .Nm amd
 process as needed.  This improves
-.Nm amd's
+.Nm amd Ns 's
 performance, at the cost of reserving the memory used by the
 .Nm amd
 process
 .Pq making it unavailable for other processes .
-.It Nm portmap_program (numeric, default=300019)
+.It Ic portmap_program Xo
+.Pq "numeric, default=300019"
+.Xc
 Specify an alternate Port-mapper RPC program number, other than the official
 number.  This is useful when running multiple
 .Nm amd
@@ -527,7 +578,9 @@ to contact.  In this way,
 can fully control any number of
 .Nm amd
 processes running on the same host.
-.It Nm print_pid (boolean, default=no)
+.It Ic print_pid Xo
+.Pq "boolean, default=no"
+.Xc
 Same as the
 .Fl p
 option to
@@ -536,7 +589,9 @@ If
 .Dq yes ,
 .Nm amd
 will print its process ID upon starting.
-.It Nm print_version (boolean, default=no)
+.It Ic print_version Xo
+.Pq "boolean, default=no"
+.Xc
 Same as the
 .Fl v
 option to
@@ -548,7 +603,9 @@ continues to run.  If
 .Nm amd
 will print its version information string, which includes some configuration
 and compilation values.
-.It Nm restart_mounts (boolean, default=no)
+.It Ic restart_mounts Xo
+.Pq "boolean, default=no"
+.Xc
 Same as the
 .Fl r
 option to
@@ -560,7 +617,9 @@ will scan the mount table to determine which file systems are currently
 mounted.  Whenever one of these would have been auto-mounted,
 .Nm amd
 inherits it.
-.It Nm selectors_on_default (boolean, default=no)
+.It Ic selectors_on_default Xo
+.Pq "boolean, default=no"
+.Xc
 If
 .Dq yes ,
 then the
@@ -578,7 +637,9 @@ follows:
     wire==slip-net;opts:=intr,rsize=1024,wsize=1024 \\
     wire!=slip-net;opts:=intr,rsize=8192,wsize=8192
 .Ed
-.It Nm show_statfs_entries (boolean, default=no)
+.It Ic show_statfs_entries Xo
+.Pq "boolean, default=no"
+.Xc
 If
 .Dq yes ,
 then all maps which are browsable will also show the number of entries
@@ -586,10 +647,12 @@ then all maps which are browsable will also show the number of entries
 they have when
 .Qq df
 runs.
-.Po This is accomplished by returning non-zero values to the
+(This is accomplished by returning non-zero values to the
 .Xr statfs 2
-.Pc system call .
-.It Nm unmount_on_exit (boolean, default=no)
+system call.)
+.It Ic unmount_on_exit Xo
+.Pq "boolean, default=no"
+.Xc
 If
 .Dq yes ,
 then 
@@ -597,7 +660,7 @@ then
 will attempt to unmount all file systems which it knows about.  Normally
 .Nm amd
 leaves all 
-.Pq esp.
+.Pq esp.\&
 .Tn NFS
 mounted filesystems intact.  Note that
 .Nm amd
@@ -607,11 +670,15 @@ option or
 .Fl r
 flag are used.
 .El
-.It Sy Parameters applicable to regular map sections
-.Bl -tag -width F1
-.It Nm map_name (string, must be specified)
+.Ss "Parameters applicable to regular map sections"
+.Bl -tag -width 4n
+.It Ic map_name Xo
+.Pq "string, must be specified"
+.Xc
 Name of the map where the keys are located.
-.It Nm tag (string, default no tag)
+.It Ic tag Xo
+.Pq "string, default no tag"
+.Xc
 Each map entry in the configuration file can be tagged.  If no tag is
 specified, that map section will always be processed by
 .Nm amd .
@@ -684,4 +751,5 @@ file distributed with am-utils.
 .Sh HISTORY
 The
 .Nm amd
-utility first appeared in 4.4BSD.
+utility first appeared in
+.Bx 4.4 .
