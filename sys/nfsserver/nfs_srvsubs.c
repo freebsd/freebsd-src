@@ -931,10 +931,10 @@ nfsm_srvwcc(struct nfsrv_descript *nfsd, int before_ret,
 	u_int32_t *tl;
 
 	if (before_ret) {
-		nfsm_build(tl, u_int32_t *, NFSX_UNSIGNED);
+		tl = nfsm_build(u_int32_t *, NFSX_UNSIGNED);
 		*tl = nfs_false;
 	} else {
-		nfsm_build(tl, u_int32_t *, 7 * NFSX_UNSIGNED);
+		tl = nfsm_build(u_int32_t *, 7 * NFSX_UNSIGNED);
 		*tl++ = nfs_true;
 		txdr_hyper(before_vap->va_size, tl);
 		tl += 2;
@@ -957,10 +957,10 @@ nfsm_srvpostopattr(struct nfsrv_descript *nfsd, int after_ret,
 	struct nfs_fattr *fp;
 
 	if (after_ret) {
-		nfsm_build(tl, u_int32_t *, NFSX_UNSIGNED);
+		tl = nfsm_build(u_int32_t *, NFSX_UNSIGNED);
 		*tl = nfs_false;
 	} else {
-		nfsm_build(tl, u_int32_t *, NFSX_UNSIGNED + NFSX_V3FATTR);
+		tl = nfsm_build(u_int32_t *, NFSX_UNSIGNED + NFSX_V3FATTR);
 		*tl++ = nfs_true;
 		fp = (struct nfs_fattr *)tl;
 		nfsm_srvfattr(nfsd, after_vap, fp);
@@ -1208,12 +1208,11 @@ nfsm_srvfhtom_xx(fhandle_t *f, int v3,
 	u_int32_t *cp;
 
 	if (v3) {
-		nfsm_build_xx((void **)tl, NFSX_UNSIGNED + NFSX_V3FH, mb,
-				bpos);
+		*tl = nfsm_build_xx(NFSX_UNSIGNED + NFSX_V3FH, mb, bpos);
 		*(*tl)++ = txdr_unsigned(NFSX_V3FH);
 		bcopy(f, (*tl), NFSX_V3FH);
 	} else {
-		nfsm_build_xx((void **)&cp, NFSX_V2FH, mb, bpos);
+		cp = nfsm_build_xx(NFSX_V2FH, mb, bpos);
 		bcopy(f, cp, NFSX_V2FH);
 	}
 }
@@ -1222,7 +1221,8 @@ void
 nfsm_srvpostop_fh_xx(fhandle_t *f,
     u_int32_t **tl, struct mbuf **mb, caddr_t *bpos)
 {
-	nfsm_build_xx((void **)tl, 2 * NFSX_UNSIGNED + NFSX_V3FH, mb, bpos);
+
+	*tl = nfsm_build_xx(2 * NFSX_UNSIGNED + NFSX_V3FH, mb, bpos);
 	*(*tl)++ = nfs_true;
 	*(*tl)++ = txdr_unsigned(NFSX_V3FH);
 	bcopy(f, (*tl), NFSX_V3FH);

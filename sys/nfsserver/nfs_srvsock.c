@@ -191,7 +191,7 @@ nfs_rephead(int siz, struct nfsrv_descript *nd, struct nfssvc_sock *slp,
 			break;
 		case EPROGMISMATCH:
 			*tl = txdr_unsigned(RPC_PROGMISMATCH);
-			nfsm_build(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
+			tl = nfsm_build(u_int32_t *, 2 * NFSX_UNSIGNED);
 			*tl++ = txdr_unsigned(2);
 			*tl = txdr_unsigned(3);
 			break;
@@ -204,7 +204,7 @@ nfs_rephead(int siz, struct nfsrv_descript *nd, struct nfssvc_sock *slp,
 		default:
 			*tl = 0;
 			if (err != NFSERR_RETVOID) {
-				nfsm_build(tl, u_int32_t *, NFSX_UNSIGNED);
+				tl = nfsm_build(u_int32_t *, NFSX_UNSIGNED);
 				if (err)
 				    *tl = txdr_unsigned(nfsrv_errmap(nd, err));
 				else
