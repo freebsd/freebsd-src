@@ -247,9 +247,6 @@ ia32_syscall(struct trapframe frame)
 	 */
 	STOPEVENT(p, S_SCX, code);
 
-#ifdef DIAGNOSTIC
-	cred_free_thread(td);
-#endif
 	WITNESS_WARN(WARN_PANIC, NULL, "System call %s returning",
 	    (code >= 0 && code < SYS_MAXSYSCALL) ? freebsd32_syscallnames[code] : "???");
 	mtx_assert(&sched_lock, MA_NOTOWNED);
