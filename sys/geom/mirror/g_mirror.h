@@ -84,8 +84,6 @@ extern u_int g_mirror_debug;
 	}								\
 } while (0)
 
-#define	G_MIRROR_SYNC_BLOCK_SIZE	131072
-
 #define	G_MIRROR_BIO_FLAG_REGULAR	0x01
 #define	G_MIRROR_BIO_FLAG_SYNC		0x02
 

@@ -1229,8 +1229,7 @@ g_raid3_sync_one(struct g_raid3_softc *sc)
 	bp->bio_parent = NULL;
 	bp->bio_cmd = BIO_READ;
 	bp->bio_offset = disk->d_sync.ds_offset * (sc->sc_ndisks - 1);
-	bp->bio_length = MIN(G_RAID3_MAX_IO_SIZE,
-	    sc->sc_mediasize - bp->bio_offset);
+	bp->bio_length = MIN(MAXPHYS, sc->sc_mediasize - bp->bio_offset);
 	bp->bio_cflags = 0;
 	bp->bio_done = g_raid3_sync_done;
 	bp->bio_data = disk->d_sync.ds_data;
@@ -1347,8 +1346,7 @@ g_raid3_sync_request(struct bio *bp)
 			g_raid3_event_send(disk, G_RAID3_DISK_STATE_ACTIVE,
 			    G_RAID3_EVENT_DONTWAIT);
 			return;
-		} else if (sync->ds_offset_done %
-		    (G_RAID3_MAX_IO_SIZE * 100) == 0) {
+		} else if (sync->ds_offset_done % (MAXPHYS * 100) == 0) {
 			/*
 			 * Update offset_done on every 100 blocks.
 			 * XXX: This should be configurable.
@@ -1425,7 +1423,7 @@ g_raid3_register_request(struct bio *pbp)
 			break;
 		if (offset >= sync->ds_resync && sync->ds_resync != -1)
 			break;
-		sync->ds_resync = offset - (offset % G_RAID3_MAX_IO_SIZE);
+		sync->ds_resync = offset - (offset % MAXPHYS);
 		break;
 	    }
 	}
@@ -1830,7 +1828,7 @@ g_raid3_sync_start(struct g_raid3_softc *sc)
 	error = g_access(disk->d_sync.ds_consumer, 1, 0, 0);
 	KASSERT(error == 0, ("Cannot open %s (error=%d).",
 	    disk->d_softc->sc_name, error));
-	disk->d_sync.ds_data = malloc(G_RAID3_MAX_IO_SIZE, M_RAID3, M_WAITOK);
+	disk->d_sync.ds_data = malloc(MAXPHYS, M_RAID3, M_WAITOK);
 	sc->sc_syncdisk = disk;
 }
 
