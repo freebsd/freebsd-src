@@ -1612,7 +1612,7 @@ aio_suspend(struct thread *td, struct aio_suspend_args *uap)
 	long *ijoblist;
 	struct aiocb **ujoblist;
 	
-	if (uap->nent > AIO_LISTIO_MAX)
+	if (uap->nent < 0 || uap->nent > AIO_LISTIO_MAX)
 		return EINVAL;
 
 	timo = 0;
@@ -1946,7 +1946,7 @@ lio_listio(struct thread *td, struct lio_listio_args *uap)
 		return EINVAL;
 
 	nent = uap->nent;
-	if (nent > AIO_LISTIO_MAX)
+	if (nent < 0 || nent > AIO_LISTIO_MAX)
 		return EINVAL;
 
 	if (p->p_aioinfo == NULL)
