@@ -60,11 +60,6 @@
 #define EP_IOSIZE	16	/* 16 bytes of I/O space used. */
 
 /*
- * some macros to acces long named fields
- */
-#define BASE 	(sc->ep_io_addr)
-
-/*
  * Commands to read/write EEPROM trough EEPROM command register (Window 0,
  * Offset 0xa)
  */
@@ -79,8 +74,8 @@
 /*
  * Some short functions, worth to let them be a macro
  */
-#define is_eeprom_busy(b) (inw((b)+EP_W0_EEPROM_COMMAND)&EEPROM_BUSY)
-#define GO_WINDOW(x)      outw(BASE+EP_COMMAND, WINDOW_SELECT|(x))
+#define is_eeprom_busy(sc) (EP_READ_2(sc, EP_W0_EEPROM_COMMAND)&EEPROM_BUSY)
+#define GO_WINDOW(x)      EP_WRITE_2(sc, EP_COMMAND, WINDOW_SELECT|(x))
 
 /**************************************************************************
  *									  *
@@ -343,8 +338,8 @@
  *
  */
 
-#define SET_IRQ(base,irq)     outw((base) + EP_W0_RESOURCE_CFG, \
-                              ((inw((base) + EP_W0_RESOURCE_CFG) & 0x0fff) | \
+#define SET_IRQ(sc, irq)     EP_WRITE_2((sc), EP_W0_RESOURCE_CFG, \
+                              ((EP_READ_2((sc), EP_W0_RESOURCE_CFG) & 0x0fff) | \
                               ((u_short)(irq)<<12))  )	/* set IRQ i */
 
 /*
