@@ -4,6 +4,7 @@
  *	$NetBSD: ugen.c,v 1.61 2002/09/23 05:51:20 simonb Exp $
  *	$NetBSD: ugen.c,v 1.64 2003/06/28 14:21:46 darrenr Exp $
  *	$NetBSD: ugen.c,v 1.65 2003/06/29 22:30:56 fvdl Exp $
+ *	$NetBSD: ugen.c,v 1.68 2004/06/23 02:30:52 mycroft Exp $
  */
 
 #include <sys/cdefs.h>
@@ -1311,13 +1312,15 @@ ugen_do_ioctl(struct ugen_softc *sc, int endpt, u_long cmd,
 		free(cdesc, M_TEMP);
 		return (error);
 	}
-	case USB_GET_STRING_DESC:
+	case USB_GET_STRING_DESC: {
+		int len;
 		si = (struct usb_string_desc *)addr;
 		err = usbd_get_string_desc(sc->sc_udev, si->usd_string_index,
-			  si->usd_language_id, &si->usd_desc);
+			  si->usd_language_id, &si->usd_desc, &len);
 		if (err)
 			return (EINVAL);
 		break;
+	}
 	case USB_DO_REQUEST:
 	{
 		struct usb_ctl_request *ur = (void *)addr;
