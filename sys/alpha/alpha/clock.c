@@ -1,4 +1,4 @@
-/* $Id: clock.c,v 1.2 1998/06/14 13:44:38 dfr Exp $ */
+/* $Id: clock.c,v 1.3 1998/07/22 08:16:34 dfr Exp $ */
 /* $NetBSD: clock.c,v 1.20 1998/01/31 10:32:47 ross Exp $ */
 
 /*
@@ -67,6 +67,8 @@ device_t clockdev;
 int clockinitted;
 int tickfix;
 int tickfixinterval;
+int	adjkerntz;		/* local offset	from GMT in seconds */
+int	disable_rtc_set;	/* disable resettodr() if != 0 */
 int	wall_cmos_clock;	/* wall	CMOS clock assumed if != 0 */
 static	int	beeping = 0;
 
@@ -280,6 +282,8 @@ inittodr(base)
 	s = splclock();
 	ts.tv_sec = 
 	    days * SECDAY + ct.hour * SECHOUR + ct.min * SECMIN + ct.sec;
+	if (wall_cmos_clock)
+	    ts.tv_sec += adjkerntz;
 	ts.tv_nsec = 0;
 	set_timecounter(&ts);
 	splx(s);
@@ -315,12 +319,18 @@ resettodr()
 	struct clocktime ct;
 	unsigned long	tm;
 
+	if (disable_rtc_set)
+		return;
+
 	s = splclock();
 	tm = time_second;
 	splx(s);
 
 	if (!clockinitted)
 		return;
+
+	/* Calculate local time	to put in RTC */
+	tm -= (wall_cmos_clock ? adjkerntz : 0);
 
 	/* compute the day of week. */
 	t2 = tm / SECDAY;
