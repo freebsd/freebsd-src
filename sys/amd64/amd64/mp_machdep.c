@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.83 1998/10/10 13:37:16 kato Exp $
+ *	$Id: mp_machdep.c,v 1.84 1998/11/26 18:50:22 eivind Exp $
  */
 
 #include "opt_smp.h"
@@ -1197,11 +1197,26 @@ lookup_bus_type(char *name)
 static int
 int_entry(int_entry_ptr entry, int intr)
 {
+	int apic;
+
 	io_apic_ints[intr].int_type = entry->int_type;
 	io_apic_ints[intr].int_flags = entry->int_flags;
 	io_apic_ints[intr].src_bus_id = entry->src_bus_id;
 	io_apic_ints[intr].src_bus_irq = entry->src_bus_irq;
-	io_apic_ints[intr].dst_apic_id = entry->dst_apic_id;
+	if (entry->dst_apic_id == 255) {
+		/* This signal goes to all IO APICS.  Select an IO APIC
+		   with sufficient number of interrupt pins */
+		for (apic = 0; apic < mp_napics; apic++)
+			if (((io_apic_read(apic, IOAPIC_VER) & 
+			      IOART_VER_MAXREDIR) >> MAXREDIRSHIFT) >= 
+			    entry->dst_apic_int)
+				break;
+		if (apic < mp_napics)
+			io_apic_ints[intr].dst_apic_id = IO_TO_ID(apic);
+		else
+			io_apic_ints[intr].dst_apic_id = entry->dst_apic_id;
+	} else
+		io_apic_ints[intr].dst_apic_id = entry->dst_apic_id;
 	io_apic_ints[intr].dst_apic_int = entry->dst_apic_int;
 
 	return 1;
