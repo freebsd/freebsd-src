@@ -456,6 +456,7 @@ do_verify (messagep, repository)
 
 		error (1, retcode == -1 ? errno : 0, 
 		       "Message verification failed");
+	    }
 	}
 
 	/* put the entire message back into the *messagep variable */
@@ -511,7 +512,6 @@ do_verify (messagep, repository)
 
 	unlink_file (fname);
 	free (fname);
-      }
     }
 }
 
