@@ -25,12 +25,13 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: wst.c,v 1.2 1998/03/17 10:45:18 sos Exp $
+ *	$Id: wst.c,v 1.3 1998/04/08 20:00:03 sos Exp $
  */
 
 #include "wdc.h"
 #include "wst.h"
 #include "opt_atapi.h"
+#include "opt_devfs.h"
 
 #if NWST > 0 && NWDC > 0 && defined(ATAPI)
 
