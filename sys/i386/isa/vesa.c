@@ -937,10 +937,10 @@ vesa_query_mode(video_adapter_t *adp, video_info_t *info)
 {
 	int i;
 
-	if ((i = (*prevvidsw->query_mode)(adp, info)) != -1)
-		return i;
+	if ((*prevvidsw->query_mode)(adp, info) == 0)
+		return 0;
 	if (adp != vesa_adp)
-		return -1;
+		return ENODEV;
 
 	for (i = 0; vesa_vmode[i].vi_mode != EOT; ++i) {
 		if ((info->vi_width != 0)
@@ -965,9 +965,10 @@ vesa_query_mode(video_adapter_t *adp, video_info_t *info)
 		if ((info->vi_flags != 0)
 		    && (info->vi_flags != vesa_vmode[i].vi_flags))
 			continue;
-		return vesa_vmode[i].vi_mode;
+		*info = vesa_vmode[i];
+		return 0;
 	}
-	return -1;
+	return ENODEV;
 }
 
 static int
