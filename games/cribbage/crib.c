@@ -46,6 +46,7 @@ static char sccsid[] = "@(#)crib.c	8.1 (Berkeley) 5/31/93";
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <stdio.h>
 
 #include "deck.h"
 #include "cribbage.h"
@@ -60,10 +61,11 @@ main(argc, argv)
 	BOOLEAN playing;
 	FILE *f;
 	int ch;
-	gid_t egid;
 
-	egid = getegid();
-	setegid(getgid());
+	f = fopen(_PATH_LOG, "a");
+
+	/* revoke */
+	setgid(getgid());
 
 	while ((ch = getopt(argc, argv, "eqr")) != EOF)
 		switch (ch) {
@@ -124,13 +126,11 @@ main(argc, argv)
 		playing = (getuchar() == 'Y');
 	} while (playing);
 
-	setegid(egid);
-	if (f = fopen(_PATH_LOG, "a")) {
+	if (f != NULL) {
 		(void)fprintf(f, "%s: won %5.5d, lost %5.5d\n",
 		    getlogin(), cgames, pgames);
 		(void) fclose(f);
 	}
-	setegid(getgid());
 	bye();
 	if (!f) {
 		(void) fprintf(stderr, "\ncribbage: can't open %s.\n",
