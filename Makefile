@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.28 1994/11/01 19:52:38 pst Exp $
+#	$Id: Makefile,v 1.29 1994/11/08 00:55:08 ache Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include and MOST of /usr/lib 
@@ -23,15 +23,16 @@
 # Put initial settings here.
 SUBDIR=
 
+# Must be first for "distribute" to work
+.if exists(release)
+SUBDIR+= release
+.endif
+
 .if exists(bin)
 SUBDIR+= bin
 .endif
 .if exists(contrib)
 SUBDIR+= contrib
-.endif
-.if exists(etc)
-# XXX until etc vs release conversion is done
-# SUBDIR+= etc
 .endif
 .if exists(games)
 SUBDIR+= games
@@ -74,6 +75,11 @@ SUBDIR+= secure
 .endif
 .if exists(lkm) && !defined(NOLKM)
 SUBDIR+= lkm
+.endif
+
+# etc must be last for "distribute" to work
+.if exists(etc) && make(distribute)
+SUBDIR+= etc
 .endif
 
 # These are last, since it is nice to at least get the base system
