@@ -56,23 +56,23 @@ METHOD int set_powerstate {
 	int		state;
 };
 
-METHOD void enable_busmaster {
+METHOD int enable_busmaster {
 	device_t	dev;
 	device_t	child;
 };
 
-METHOD void disable_busmaster {
+METHOD int disable_busmaster {
 	device_t	dev;
 	device_t	child;
 };
 
-METHOD void enable_io {
+METHOD int enable_io {
 	device_t	dev;
 	device_t	child;
 	int		space;
 };
 
-METHOD void disable_io {
+METHOD int disable_io {
 	device_t	dev;
 	device_t	child;
 	int		space;
