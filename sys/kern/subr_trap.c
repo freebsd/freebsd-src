@@ -76,6 +76,7 @@ userret(td, frame, oticks)
 #ifdef INVARIANTS
 	struct kse *ke; 
 #endif
+	u_int64_t eticks;
 
 	CTR3(KTR_SYSC, "userret: thread %p (pid %d, %s)", td, p->p_pid,
             p->p_comm);
@@ -109,8 +110,8 @@ userret(td, frame, oticks)
 	 */
 
 	if (p->p_sflag & PS_PROFIL) {
-		ticks = td->td_sticks - oticks;
-		addupc_task(td, TRAPF_PC(frame), (u_int)ticks * psratio);
+		eticks = td->td_sticks - oticks;
+		addupc_task(td, TRAPF_PC(frame), (u_int)eticks * psratio);
 	}
 
 	/*
