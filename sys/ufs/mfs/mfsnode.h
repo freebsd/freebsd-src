@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfsnode.h	8.2 (Berkeley) 8/11/93
- * $Id: mfsnode.h,v 1.2 1994/08/02 07:54:46 davidg Exp $
+ * $Id: mfsnode.h,v 1.3 1994/08/21 07:16:12 paul Exp $
  */
 
 #ifndef _UFS_MFS_MFSNODE_H_
@@ -46,7 +46,8 @@ struct mfsnode {
 	caddr_t	mfs_baseoff;		/* base of file system in memory */
 	long	mfs_size;		/* size of memory file system */
 	pid_t	mfs_pid;		/* supporting process pid */
-	struct	buf *mfs_buflist;	/* list of I/O requests */
+	struct buf_queue_head buf_queue;	/* list of I/O requests */
+	int	mfs_active;
 	long	mfs_spare[4];
 };
 
