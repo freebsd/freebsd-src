@@ -953,15 +953,27 @@ knote_fdclose(struct thread *td, int fd)
 static void
 knote_attach(struct knote *kn, struct filedesc *fdp)
 {
-	struct klist *list, *oldlist;
+	struct klist *list, *oldlist, *tmp_knhash;
+	u_long tmp_knhashmask;
 	int size, newsize;
 
 	FILEDESC_LOCK(fdp);
 
 	if (! kn->kn_fop->f_isfd) {
-		if (fdp->fd_knhashmask == 0)
-			fdp->fd_knhash = hashinit(KN_HASHSIZE, M_KQUEUE,
-			    &fdp->fd_knhashmask);
+		if (fdp->fd_knhashmask == 0) {
+			FILEDESC_UNLOCK(fdp);
+			tmp_knhash = hashinit(KN_HASHSIZE, M_KQUEUE,
+			    &tmp_knhashmask);
+			FILEDESC_LOCK(fdp);
+			if (fdp->fd_knhashmask == 0) {
+				fdp->fd_knhash = tmp_knhash;
+				fdp->fd_knhashmask = tmp_knhashmask;
+			} else {
+				FILEDESC_UNLOCK(fdp);
+				free(tmp_knhash, M_KQUEUE);
+				FILEDESC_LOCK(fdp);
+			}
+		}
 		list = &fdp->fd_knhash[KN_HASH(kn->kn_id, fdp->fd_knhashmask)];
 		goto done;
 	}
