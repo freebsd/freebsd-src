@@ -670,16 +670,13 @@ wdustart(register struct softc *du)
 		return;
 
 
-	bp = bioq_first(&drive_queue[du->dk_lunit]);
-	if (bp == NULL) {	/* yes, an assign */
+	bp = bioq_takefirst(&drive_queue[du->dk_lunit]);
+	if (bp == NULL)
 		return;
-	}
 	/*
 	 * store away which device we came from.
 	 */
 	bp->bio_driver1 = du;
-
-	bioq_remove(&drive_queue[du->dk_lunit], bp);
 
 	/* link onto controller queue */
 	bioq_insert_tail(&wdtab[ctrlr].controller_queue, bp);
