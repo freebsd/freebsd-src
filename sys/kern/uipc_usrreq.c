@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_usrreq.c	8.3 (Berkeley) 1/4/94
- * $Id$
+ * $Id: uipc_usrreq.c,v 1.3 1994/08/02 07:43:12 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -783,7 +783,7 @@ unp_gc()
 	for (i = nunref, fpp = extra_ref; --i >= 0; ++fpp)
 		sorflush((struct socket *)(*fpp)->f_data);
 	for (i = nunref, fpp = extra_ref; --i >= 0; ++fpp)
-		closef(*fpp);
+		closef(*fpp,(struct proc*) NULL);
 	free((caddr_t)extra_ref, M_FILE);
 	unp_gcing = 0;
 }
