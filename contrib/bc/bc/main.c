@@ -129,6 +129,10 @@ parse_args (argc, argv)
 	  warn_not_std = TRUE;
 	  break;
 
+	case 0:
+	  /* long options */
+	  break;
+
 	default:
 	  usage(argv[0]);
 	  exit (1);
