@@ -14,10 +14,6 @@ SRCS+=	sio_cbus.c
 .else
 SRCS+=	sio_isa.c
 .endif
-.if ${MACHINE} == "sparc64"
-### untested
-SRCS+=	sio_ebus.c
-.endif
 
 opt_compat.h:
 	echo "#define COMPAT_43 1" > ${.TARGET}
