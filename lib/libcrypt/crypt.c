@@ -39,11 +39,13 @@ static const struct {
 	char *(*const func)(const char *, const char *);
 	const char *const magic;
 } crypt_types[] = {
+#ifdef NONEXPORTABLE_CRYPT
 	{
 		"des",
 		crypt_des,
 		NULL
 	},
+#endif
 	{
 		"md5",
 		crypt_md5,
