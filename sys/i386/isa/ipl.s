@@ -34,12 +34,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)icu.s	7.2 (Berkeley) 5/21/91
+ *	@(#)ipl.s
  *
- *	$Id: icu.s,v 1.31 1997/04/28 01:08:41 fsmp Exp $
+ *	$Id: ipl.s,v 1.1 1997/05/24 17:02:30 smp Exp smp $
  */
-
-#include "opt_smp.h"
 
 
 /*
@@ -47,17 +45,17 @@
  * Vector interrupt control section
  */
 
-/*
- * XXX this file should be named ipl.s.  All spls are now soft and the
- * only thing related to the hardware icu is that the h/w interrupt
- * numbers are used without translation in the masks.
- */
-
 	.data
+	ALIGN_DATA
+
+/* current priority (all off) */
 	.globl	_cpl
-_cpl:	.long	HWI_MASK | SWI_MASK	/* current priority (all off) */
+_cpl:	.long	HWI_MASK | SWI_MASK
+
+/* interrupt mask enable (all h/w off) */
 	.globl	_imen
-_imen:	.long	HWI_MASK		/* interrupt mask enable (all h/w off) */
+_imen:	.long	HWI_MASK
+
 	.globl	_tty_imask
 _tty_imask:	.long	0
 	.globl	_bio_imask
@@ -65,9 +63,14 @@ _bio_imask:	.long	0
 	.globl	_net_imask
 _net_imask:	.long	0
 	.globl	_ipending
+
+/* pending interrupts blocked by splxxx() */
 _ipending:	.long	0
+
+/* set with bits for which queue to service */
 	.globl	_netisr
-_netisr:	.long	0		/* set with bits for which queue to service */
+_netisr:	.long	0
+
 	.globl _netisrs
 _netisrs:
 	.long	dummynetisr, dummynetisr, dummynetisr, dummynetisr
@@ -78,36 +81,6 @@ _netisrs:
 	.long	dummynetisr, dummynetisr, dummynetisr, dummynetisr
 	.long	dummynetisr, dummynetisr, dummynetisr, dummynetisr
 	.long	dummynetisr, dummynetisr, dummynetisr, dummynetisr
-
-#if defined(APIC_IO)
-	/* this allows us to change the 8254 APIC pin# assignment */
-	.globl _Xintr8254
-_Xintr8254:
-	.long	_Xintr7
-
-	/* this allows us to change the RTC clock APIC pin# assignment */
-	.globl _XintrRTC
-_XintrRTC:
-	.long	_Xintr7
-
-	/* used by this file, microtime.s and clock.c */
-	.globl _mask8254
-_mask8254:
-	.long	0
-
-	/* used by this file and clock.c */
-	.globl _maskRTC
-_maskRTC:
-	.long	0
-
-#endif /* APIC_IO */
-	.globl _vec
-_vec:
-	.long	vec0, vec1, vec2, vec3, vec4, vec5, vec6, vec7
-	.long	vec8, vec9, vec10, vec11, vec12, vec13, vec14, vec15
-#if defined(APIC_IO)
-	.long	vec16, vec17, vec18, vec19, vec20, vec21, vec22, vec23
-#endif /* APIC_IO */
 
 	.text
 
@@ -138,9 +111,7 @@ doreti_exit:
 	movl	%eax,_cpl
 	decb	_intr_nesting_level
 	MEXITCOUNT
-#ifdef SMP 
-	call	_rel_mplock
-#endif	/* SMP */
+	REL_MPLOCK
 	.globl	doreti_popl_es
 doreti_popl_es:
 	popl	%es
@@ -178,9 +149,7 @@ doreti_unpend:
 	 */
 	sti
 	bsfl	%ecx,%ecx		/* slow, but not worth optimizing */
-#ifdef SMP
-	lock
-#endif
+	MP_INSTR_LOCK
 	btrl	%ecx,_ipending
 	jnc	doreti_next		/* some intr cleared memory copy */
 	movl	ihandlers(,%ecx,4),%edx
@@ -233,9 +202,7 @@ swi_ast_phantom:
 	 * using by using cli, but they are unavoidable for lcall entries.
 	 */
 	cli
-#ifdef SMP
-	lock
-#endif
+	MP_INSTR_LOCK
 	orl	$SWI_AST_PENDING,_ipending
 	subl	%eax,%eax
 	jmp	doreti_exit	/* SWI_AST is highest so we must be done */
@@ -274,9 +241,7 @@ splz_next:
 	ALIGN_TEXT
 splz_unpend:
 	bsfl	%ecx,%ecx
-#ifdef SMP
-	lock
-#endif
+	MP_INSTR_LOCK
 	btrl	%ecx,_ipending
 	jnc	splz_next
 	movl	ihandlers(,%ecx,4),%edx
@@ -305,120 +270,6 @@ splz_swi:
 	movl	%eax,_cpl
 	jmp	splz_next
 
-/*
- * Fake clock interrupt(s) so that they appear to come from our caller instead
- * of from here, so that system profiling works.
- * XXX do this more generally (for all vectors; look up the C entry point).
- * XXX frame bogusness stops us from just jumping to the C entry point.
- */
-	ALIGN_TEXT
-#if defined(APIC_IO)
-	/* generic vector function for 8254 clock */
-	.globl	_vec8254
-_vec8254:
-	popl	%eax			/* return address */
-	pushfl
-#define	KCSEL	8
-	pushl	$KCSEL
-	pushl	%eax
-	cli
-	movl	_mask8254,%eax		/* lazy masking */
-	notl	%eax
-	andl	%eax,iactive
-	MEXITCOUNT
-	movl	_Xintr8254, %eax
-	jmp	%eax			/* XXX might need _Xfastintr# */
-#else /* APIC_IO */
-vec0:
-	popl	%eax			/* return address */
-	pushfl
-#define	KCSEL	8
-	pushl	$KCSEL
-	pushl	%eax
-	cli
-	MEXITCOUNT
-	jmp	_Xintr0			/* XXX might need _Xfastintr0 */
-#endif /* APIC_IO */
-
-#ifndef PC98
-	ALIGN_TEXT
-#if defined(APIC_IO)
-	/* generic vector function for RTC clock */
-	.globl	_vecRTC
-_vecRTC:
-	popl	%eax	
-	pushfl
-	pushl	$KCSEL
-	pushl	%eax
-	cli
-	movl	_maskRTC,%eax		/* lazy masking */
-	notl	%eax
-	andl	%eax,iactive
-	MEXITCOUNT
-	movl	_XintrRTC, %eax
-	jmp	%eax			/* XXX might need _Xfastintr# */
-#else
-vec8:
-	popl	%eax	
-	pushfl
-	pushl	$KCSEL
-	pushl	%eax
-	cli
-	MEXITCOUNT
-	jmp	_Xintr8			/* XXX might need _Xfastintr8 */
-#endif /* APIC_IO */
-#endif /* PC98 */
-
-# if defined(APIC_IO)
-#define BUILD_VEC(irq_num) \
-	ALIGN_TEXT ; \
-__CONCAT(vec,irq_num): ; \
-	popl	%eax ; \
-	pushfl ; \
-	pushl	$KCSEL ; \
-	pushl	%eax ; \
-	cli ; \
-	andl	$~IRQ_BIT(irq_num),iactive ;	/* lazy masking */ \
-	MEXITCOUNT ; \
-	jmp	__CONCAT(_Xintr,irq_num)
-# else
-#define BUILD_VEC(irq_num) \
-	ALIGN_TEXT ; \
-__CONCAT(vec,irq_num): ; \
-	int	$ICU_OFFSET + (irq_num) ; \
-	ret
-# endif /* APIC_IO */
-
-	BUILD_VEC(1)
-	BUILD_VEC(2)
-	BUILD_VEC(3)
-	BUILD_VEC(4)
-	BUILD_VEC(5)
-	BUILD_VEC(6)
-	BUILD_VEC(7)
-#ifdef PC98
-	BUILD_VEC(8)
-#endif
-	BUILD_VEC(9)
-	BUILD_VEC(10)
-	BUILD_VEC(11)
-	BUILD_VEC(12)
-	BUILD_VEC(13)
-	BUILD_VEC(14)
-	BUILD_VEC(15)
-#if defined(APIC_IO)
-	BUILD_VEC(0)			/* NOT specific in IO APIC hardware */
-	BUILD_VEC(8)			/* NOT specific in IO APIC hardware */
-
-	BUILD_VEC(16)			/* 8 additional INTs in IO APIC */
-	BUILD_VEC(17)
-	BUILD_VEC(18)
-	BUILD_VEC(19)
-	BUILD_VEC(20)
-	BUILD_VEC(21)
-	BUILD_VEC(22)
-	BUILD_VEC(23)
-#endif /* APIC_IO */
 
 	ALIGN_TEXT
 swi_net:
@@ -461,3 +312,9 @@ swi_tty:
 #else
 	ret
 #endif
+
+#ifdef APIC_IO
+#include "i386/isa/apic_ipl.s"
+#else
+#include "i386/isa/icu_ipl.s"
+#endif  /* APIC_IO */
