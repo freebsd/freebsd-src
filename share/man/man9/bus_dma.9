@@ -83,7 +83,8 @@
 .Fn bus_dma_tag_create "bus_dma_tag_t parent" "bus_size_t alignment" \
 "bus_size_t boundary" "bus_addr_t lowaddr" "bus_addr_t highaddr" \
 "bus_dma_filter_t *filtfunc" "void *filtfuncarg" "bus_size_t maxsize" \
-"int nsegments" "bus_size_t maxsegsz" "int flags" "bus_dma_tag_t *dmat"
+"int nsegments" "bus_size_t maxsegsz" "int flags" "bus_dma_lock_t *lockfunc" \
+"void *lockfuncarg" "bus_dma_tag_t *dmat"
 .Ft int
 .Fn bus_dma_tag_destroy "bus_dma_tag_t dmat"
 .Ft int
@@ -260,7 +261,40 @@ to CPU access of the memory.
 Perform any synchronization required after a combination of DMA read
 and write operations.
 .El
+.It Vt bus_dma_lock_t
+Client specified lock/mutex manipulation method.  This will be called from
+within busdma whenever a client lock needs to be manipulated.
+This method is of the format:
+.Bl -tag -width compact
+.It Ft void
+.Fn "lockfunc" "void *lockfunc_arg" "bus_dma_lock_op_t op"
 .El
+.sp
+Two
+.Vt lockfunc
+implementations are provided for convenience.
+.Fn busdma_lock_mutex
+performs standard mutex operations on the sleep mutex provided via the
+.Fa lockfuncarg .
+passed into
+.Fn bus_dma_tag_create .
+.Fn dflt_lock
+will generate a system panic if it is called.  It is substituted into
+the tag when
+.Fa lockfunc
+is passed as NULL to
+.Fn bus_dma_tag_create .
+.It Vt bus_dma_lock_op_t
+Operations to be performed by the client-specified
+.Fn lockfunc .
+.Bl -tag -width BUS_DMA_UNLOCK
+.It Dv BUS_DMA_LOCK
+Aquires and/or locks the client locking primitive.
+.It Dv BUS_DMA_UNLOCK
+Releases and/or unlocks the client locking primitive.
+.El
+.El
+.sp
 .Sh FUNCTIONS
 .Bl -tag -width compact
 .It Fn bus_dma_tag_create "parent" "alignment" "boundary" "lowaddr" \
