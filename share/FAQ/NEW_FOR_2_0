@@ -1,8 +1,0 @@
-; This file describes new features, conventions or newly introduced "gotchas"
-; that a user coming from a 1.x environment should know about.
-;
-; This actual file can be a simple dumping ground for this information
-; until such time as we want to fold it into the release notes, or we
-; can try to tart it up around release time and simply refer to it in
-; various places.  I personally prefer the former option, though it's
-; not a religious issue.  -jkh

@@ -1,1 +1,0 @@
-COMPILER=cc +O1
