@@ -42,7 +42,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: sshd.c,v 1.260 2002/09/27 10:42:09 mickey Exp $");
+RCSID("$OpenBSD: sshd.c,v 1.263 2003/02/16 17:09:57 markus Exp $");
 RCSID("$FreeBSD$");
 
 #include <openssl/dh.h>
@@ -207,8 +207,8 @@ int *startup_pipes = NULL;
 int startup_pipe;		/* in child */
 
 /* variables used for privilege separation */
-extern struct monitor *pmonitor;
-extern int use_privsep;
+int use_privsep;
+struct monitor *pmonitor;
 
 /* Prototypes for various functions defined later in this file. */
 void destroy_sensitive_data(void);
@@ -832,9 +832,17 @@ main(int ac, char **av)
 	__progname = get_progname(av[0]);
 	init_rng();
 
-	/* Save argv. */
+	/* Save argv. Duplicate so setproctitle emulation doesn't clobber it */
 	saved_argc = ac;
 	saved_argv = av;
+	saved_argv = xmalloc(sizeof(*saved_argv) * ac);
+	for (i = 0; i < ac; i++)
+		saved_argv[i] = xstrdup(av[i]);
+
+#ifndef HAVE_SETPROCTITLE
+	/* Prepare for later setproctitle emulation */
+	compat_init_setproctitle(ac, av);
+#endif
 
 	/* Initialize configuration options to their default values. */
 	initialize_server_options(&options);
@@ -949,7 +957,7 @@ main(int ac, char **av)
 	    SYSLOG_LEVEL_INFO : options.log_level,
 	    options.log_facility == SYSLOG_FACILITY_NOT_SET ?
 	    SYSLOG_FACILITY_AUTH : options.log_facility,
-	    !inetd_flag);
+	    log_stderr || !inetd_flag);
 
 #ifdef _UNICOS
 	/* Cray can define user privs drop all prives now!
@@ -1063,8 +1071,8 @@ main(int ac, char **av)
 #else
 		if (st.st_uid != 0 || (st.st_mode & (S_IWGRP|S_IWOTH)) != 0)
 #endif
-			fatal("Bad owner or mode for %s",
-			    _PATH_PRIVSEP_CHROOT_DIR);
+			fatal("%s must be owned by root and not group or "
+			    "world-writable.", _PATH_PRIVSEP_CHROOT_DIR);
 	}
 
 	/* Configuration looks good, so exit if in test mode. */
@@ -1397,8 +1405,12 @@ main(int ac, char **av)
 	 * setlogin() affects the entire process group.  We don't
 	 * want the child to be able to affect the parent.
 	 */
-#if 0
-	/* XXX: this breaks Solaris */
+#if !defined(STREAMS_PUSH_ACQUIRES_CTTY)
+	/*
+	 * If setsid is called on Solaris, sshd will acquire the controlling
+	 * terminal while pushing STREAMS modules. This will prevent the
+	 * shell from acquiring it later.
+	 */
 	if (!debug_flag && !inetd_flag && setsid() < 0)
 		error("setsid: %.100s", strerror(errno));
 #endif
@@ -1822,6 +1834,8 @@ do_ssh2_kex(void)
 
 	/* start key exchange */
 	kex = kex_setup(myproposal);
+	kex->kex[KEX_DH_GRP1_SHA1] = kexdh_server;
+	kex->kex[KEX_DH_GEX_SHA1] = kexgex_server;
 	kex->server = 1;
 	kex->client_version_string=client_version_string;
 	kex->server_version_string=server_version_string;

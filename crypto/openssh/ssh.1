@@ -34,7 +34,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh.1,v 1.167 2002/09/27 15:46:21 stevesk Exp $
+.\" $OpenBSD: ssh.1,v 1.168 2003/03/28 10:11:43 jmc Exp $
 .\" $FreeBSD$
 .Dd September 25, 1999
 .Dt SSH 1
@@ -49,6 +49,7 @@
 .Op Ar command
 .Pp
 .Nm ssh
+.Bk -words
 .Op Fl afgknqstvxACNTX1246
 .Op Fl b Ar bind_address
 .Op Fl c Ar cipher_spec
@@ -67,6 +68,8 @@
 .Sm on
 .Xc
 .Oc
+.Ek
+.Bk -words
 .Oo Fl R Xo
 .Sm off
 .Ar port :
@@ -78,6 +81,7 @@
 .Op Fl D Ar port
 .Ar hostname | user@hostname
 .Op Ar command
+.Ek
 .Sh DESCRIPTION
 .Nm
 (SSH client) is a program for logging into a remote machine and for
@@ -363,7 +367,7 @@ variable is set to
 .Fl A
 and
 .Fl a
-options described later) and 
+options described later) and
 the user is using an authentication agent, the connection to the agent
 is automatically forwarded to the remote side.
 .Pp
@@ -405,10 +409,11 @@ Disables forwarding of the authentication agent connection.
 Enables forwarding of the authentication agent connection.
 This can also be specified on a per-host basis in a configuration file.
 .Pp
-Agent forwarding should be enabled with caution.  Users with the
-ability to bypass file permissions on the remote host (for the agent's
-Unix-domain socket) can access the local agent through the forwarded
-connection.  An attacker cannot obtain key material from the agent,
+Agent forwarding should be enabled with caution.
+Users with the ability to bypass file permissions on the remote host
+(for the agent's Unix-domain socket)
+can access the local agent through the forwarded connection.
+An attacker cannot obtain key material from the agent,
 however they can perform operations on the keys that enable them to
 authenticate using the identities loaded into the agent.
 .It Fl b Ar bind_address
@@ -430,8 +435,8 @@ is only supported in the
 client for interoperability with legacy protocol 1 implementations
 that do not support the
 .Ar 3des
-cipher.  Its use is strongly discouraged due to cryptographic
-weaknesses.
+cipher.
+Its use is strongly discouraged due to cryptographic weaknesses.
 .It Fl c Ar cipher_spec
 Additionally, for protocol version 2 a comma-separated list of ciphers can
 be specified in order of preference.
@@ -568,11 +573,11 @@ Disables X11 forwarding.
 Enables X11 forwarding.
 This can also be specified on a per-host basis in a configuration file.
 .Pp
-X11 forwarding should be enabled with caution.  Users with the ability
-to bypass file permissions on the remote host (for the user's X
-authorization database) can access the local X11 display through the
-forwarded connection.  An attacker may then be able to perform
-activities such as keystroke monitoring.
+X11 forwarding should be enabled with caution.
+Users with the ability to bypass file permissions on the remote host
+(for the user's X authorization database)
+can access the local X11 display through the forwarded connection.
+An attacker may then be able to perform activities such as keystroke monitoring.
 .It Fl C
 Requests compression of all data (including stdin, stdout, stderr, and
 data for forwarded X11 and TCP/IP connections).
@@ -639,7 +644,8 @@ This works by allocating a socket to listen to
 on the local side, and whenever a connection is made to this port, the
 connection is forwarded over the secure channel, and the application
 protocol is then used to determine where to connect to from the
-remote machine.  Currently the SOCKS4 protocol is supported, and
+remote machine.
+Currently the SOCKS4 protocol is supported, and
 .Nm
 will act as a SOCKS4 server.
 Only root can forward privileged ports.

@@ -10,7 +10,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: servconf.c,v 1.115 2002/09/04 18:52:42 stevesk Exp $");
+RCSID("$OpenBSD: servconf.c,v 1.116 2003/02/21 09:05:53 markus Exp $");
 RCSID("$FreeBSD$");
 
 #if defined(KRB4)
@@ -957,6 +957,7 @@ read_server_config(ServerOptions *options, const char *filename)
 	char line[1024];
 	FILE *f;
 
+	debug2("read_server_config: filename %s", filename);
 	f = fopen(filename, "r");
 	if (!f) {
 		perror(filename);

@@ -12,7 +12,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: sshpty.c,v 1.7 2002/06/24 17:57:20 deraadt Exp $");
+RCSID("$OpenBSD: sshpty.c,v 1.8 2003/02/03 08:56:16 markus Exp $");
 RCSID("$FreeBSD$");
 
 #ifdef HAVE_UTIL_H
@@ -395,7 +395,7 @@ pty_setowner(struct passwd *pw, const char *ttyname)
 		if (chown(ttyname, pw->pw_uid, gid) < 0) {
 			if (errno == EROFS &&
 			    (st.st_uid == pw->pw_uid || st.st_uid == 0))
-				error("chown(%.100s, %u, %u) failed: %.100s",
+				debug("chown(%.100s, %u, %u) failed: %.100s",
 				    ttyname, (u_int)pw->pw_uid, (u_int)gid,
 				    strerror(errno));
 			else
@@ -409,7 +409,7 @@ pty_setowner(struct passwd *pw, const char *ttyname)
 		if (chmod(ttyname, mode) < 0) {
 			if (errno == EROFS &&
 			    (st.st_mode & (S_IRGRP | S_IROTH)) == 0)
-				error("chmod(%.100s, 0%o) failed: %.100s",
+				debug("chmod(%.100s, 0%o) failed: %.100s",
 				    ttyname, mode, strerror(errno));
 			else
 				fatal("chmod(%.100s, 0%o) failed: %.100s",
