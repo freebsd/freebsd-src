@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)systm.h	8.7 (Berkeley) 3/29/95
- * $Id: systm.h,v 1.75 1998/09/06 06:25:18 ache Exp $
+ * $Id: systm.h,v 1.76 1998/09/15 10:07:26 gibbs Exp $
  */
 
 #ifndef _SYS_SYSTM_H_
@@ -149,6 +149,9 @@ void	stopprofclock __P((struct proc *));
 void	setstatclockrate __P((int hzrate));
 
 void	hardpps __P((struct timeval *tvp, long usec));
+
+char	*getenv __P((char *name));
+extern char *kern_envp;
 
 #ifdef APM_FIXUP_CALLTODO 
 void	adjust_timeout_calltodo __P((struct timeval *time_change)); 
