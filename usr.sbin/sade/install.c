@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.85 1996/04/25 17:31:18 jkh Exp $
+ * $Id: install.c,v 1.86 1996/04/25 18:00:28 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -289,7 +289,7 @@ installExpress(dialogMenuItem *self)
 	return DITEM_FAILURE;
 
     if (!Dists) {
-	if (!dmenuOpenSimple(&MenuDistributions))
+	if (!dmenuOpenSimple(&MenuDistributions) && !Dists)
 	    return DITEM_FAILURE | DITEM_RESTORE | DITEM_RECREATE;
     }
 
@@ -337,7 +337,7 @@ installNovice(dialogMenuItem *self)
 	       "X11 developer oriented configurations.  You can also select a custom set\n"
 	       "of distributions if none of the provided ones are suitable.");
     while (1) {
-	if (!dmenuOpenSimple(&MenuDistributions))
+	if (!dmenuOpenSimple(&MenuDistributions) && !Dists)
 	    return DITEM_FAILURE | DITEM_RESTORE | DITEM_RECREATE;
 	
 	if (Dists || !msgYesNo("No distributions selected.  Are you sure you wish to continue?"))

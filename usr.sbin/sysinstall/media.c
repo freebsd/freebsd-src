@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.34 1996/04/25 17:31:22 jkh Exp $
+ * $Id: media.c,v 1.35 1996/04/26 18:19:34 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -87,7 +87,7 @@ mediaSetCDROM(dialogMenuItem *self)
 		   "configuration is correct and that the CDROM drive is of a supported\n"
 		   "type.  For more information, consult the hardware guide\n"
 		   "in the Doc menu.");
-	return DITEM_FAILURE;
+	return DITEM_FAILURE | DITEM_CONTINUE;
     }
     else if (cnt > 1) {
 	DMenu *menu;
@@ -128,7 +128,7 @@ mediaSetFloppy(dialogMenuItem *self)
 	msgConfirm("No floppy devices found!  Please check that your system's configuration\n"
 		   "is correct.  For more information, consult the hardware guide in the Doc\n"
 		   "menu.");
-	return DITEM_FAILURE;
+	return DITEM_FAILURE | DITEM_CONTINUE;
     }
     else if (cnt > 1) {
 	DMenu *menu;
@@ -167,7 +167,7 @@ mediaSetDOS(dialogMenuItem *self)
     cnt = deviceCount(devs);
     if (!cnt) {
 	msgConfirm("No DOS primary partitions found!  This installation method is unavailable");
-	return DITEM_FAILURE;
+	return DITEM_FAILURE | DITEM_CONTINUE;
     }
     else if (cnt > 1) {
 	DMenu *menu;
@@ -208,7 +208,7 @@ mediaSetTape(dialogMenuItem *self)
 	msgConfirm("No tape drive devices found!  Please check that your system's configuration\n"
 		   "is correct.  For more information, consult the hardware guide in the Doc\n"
 		   "menu.");
-	return DITEM_FAILURE;
+	return DITEM_FAILURE | DITEM_CONTINUE;
     }
     else if (cnt > 1) {
 	DMenu *menu;

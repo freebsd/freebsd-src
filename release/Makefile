@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.208 1996/02/27 03:40:40 jkh Exp $
+#	$Id: Makefile,v 1.209 1996/03/19 03:26:33 jkh Exp $
 #
 # How to roll a release:
 #
@@ -11,8 +11,8 @@
 # that on a 14.4 line just yet...
 #
 # SET THIS !!!
-BUILDNAME=2.2-current
-# CHROOTDIR=/a/r1
+BUILDNAME=2.2-960428-SNAP
+CHROOTDIR=/junk/release
 # If this is a RELEASE, then set
 #RELEASETAG=RELENG_2_1_0
 
