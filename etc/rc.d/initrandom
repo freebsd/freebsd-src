@@ -4,7 +4,7 @@
 #
 
 # PROVIDE: initrandom
-# REQUIRE: initdiskless
+# REQUIRE: rcconf
 # BEFORE: disks
 # KEYWORD: nojail
 
