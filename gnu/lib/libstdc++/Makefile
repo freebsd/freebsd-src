@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.18 1999/04/08 09:13:39 obrien Exp $
+# $Id: Makefile,v 1.19 1999/04/15 08:08:56 obrien Exp $
 #
 
 EGCSDIR=	${.CURDIR}/../../../contrib/egcs
@@ -19,8 +19,6 @@ CXXFLAGS+=	-nostdinc++ -fno-implicit-templates
 
 LDADD+=		-lm
 DPADD+=		${LIBM}
-
-DIR=		${EGCSDIR}/libstdc++
 
 HDRS=	cassert cctype cerrno cfloat ciso646 climits clocale cmath complex \
 	csetjmp csignal cstdarg cstddef cstdio cstdlib cstring ctime \
@@ -86,46 +84,6 @@ beforeinstall:
 CLEANFILES+=	dummy.h dummy.c dummy.C
 
 # Lots of special cases
-
-# ======== typeinfoi.o, stdexcepti.o ========
-.for file in typeinfoi stdexcepti
-CLEANFILES+=	${file}.o.tmp ${file}.po.tmp ${file}.so.tmp
-${file}.o: ${file}.cc
-	${CXX} -nostdinc++ ${CXXFLAGS} -frtti -c ${DIR}/${file}.cc -o ${.TARGET}
-	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
-	@mv ${.TARGET}.tmp ${.TARGET}
-
-${file}.So: ${file}.cc
-	${CXX} ${PICFLAG} -DPIC ${CXXFLAGS} -frtti -c ${DIR}/${file}.cc \
-	    -o ${.TARGET}
-	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
-	@mv ${.TARGET}.tmp ${.TARGET}
-
-${file}.po: ${file}.cc
-	${CXX} -p ${CXXFLAGS} -frtti -c ${DIR}/${file}.cc -o ${.TARGET}
-	@${LD} -o ${.TARGET}.tmp -X -r ${.TARGET}
-	@mv ${.TARGET}.tmp ${.TARGET}
-.endfor
-
-# ======== exceptioni.o ========
-.for file in exceptioni
-CLEANFILES+=	${file}.o.tmp ${file}.po.tmp ${file}.so.tmp
-${file}.o: ${file}.cc
-	${CXX} ${CXXFLAGS} -O0 -c ${DIR}/${file}.cc -o ${.TARGET}
-	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
-	@mv ${.TARGET}.tmp ${.TARGET}
-
-${file}.So: ${file}.cc
-	${CXX} ${PICFLAG} -DPIC ${CXXFLAGS} -O0 -c ${DIR}/${file}.cc \
-	    -o ${.TARGET}
-	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
-	@mv ${.TARGET}.tmp ${.TARGET}
-
-${file}.po: ${file}.cc
-	${CXX} -p ${CXXFLAGS} -O0 -c ${DIR}/${file}.cc -o ${.TARGET}
-	@${LD} -o ${.TARGET}.tmp -X -r ${.TARGET}
-	@mv ${.TARGET}.tmp ${.TARGET}
-.endfor
 
 # ======== cstrmain.o ========
 SRCS+=	cstrmain.cc
