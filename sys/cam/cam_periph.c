@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_periph.c,v 1.9.2.1 1999/04/19 21:36:28 gibbs Exp $
+ *      $Id: cam_periph.c,v 1.9.2.2 1999/05/09 01:27:21 ken Exp $
  */
 
 #include <sys/param.h>
@@ -519,6 +519,7 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 		}
 		break;
 	case XPT_SCSI_IO:
+	case XPT_CONT_TARGET_IO:
 		if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_NONE)
 			return(0);
 
@@ -834,6 +835,17 @@ cam_periph_runccb(union ccb *ccb,
 	return(error);
 }
 
+void
+cam_freeze_devq(struct cam_path *path)
+{
+	struct ccb_hdr ccb_h;
+
+	xpt_setup_ccb(&ccb_h, path, /*priority*/1);
+	ccb_h.func_code = XPT_NOOP;
+	ccb_h.flags = CAM_DEV_QFREEZE;
+	xpt_action((union ccb *)&ccb_h);
+}
+
 u_int32_t
 cam_release_devq(struct cam_path *path, u_int32_t relsim_flags,
 		 u_int32_t openings, u_int32_t timeout,
@@ -1012,6 +1024,70 @@ camperiphdone(struct cam_periph *periph, union ccb *done_ccb)
 				      /*openings*/0,
 				      /*timeout*/timeout,
 				      /*getcount_only*/0);
+}
+
+/*
+ * Generic Async Event handler.  Peripheral drivers usually
+ * filter out the events that require personal attention,
+ * and leave the rest to this function.
+ */
+void
+cam_periph_async(struct cam_periph *periph, u_int32_t code,
+		 struct cam_path *path, void *arg)
+{
+	switch (code) {
+	case AC_LOST_DEVICE:
+		cam_periph_invalidate(periph);
+		break; 
+	case AC_SENT_BDR:
+	case AC_BUS_RESET:
+	{
+		cam_periph_bus_settle(periph, SCSI_DELAY);
+		break;
+	}
+	default:
+		break;
+	}
+}
+
+void
+cam_periph_bus_settle(struct cam_periph *periph, u_int bus_settle)
+{
+	struct ccb_getdevstats cgds;
+
+	xpt_setup_ccb(&cgds.ccb_h, periph->path, /*priority*/1);
+	cgds.ccb_h.func_code = XPT_GDEV_STATS;
+	xpt_action((union ccb *)&cgds);
+	cam_periph_freeze_after_event(periph, &cgds.last_reset, bus_settle);
+}
+
+void
+cam_periph_freeze_after_event(struct cam_periph *periph,
+			      struct timeval* event_time, u_int duration_ms)
+{
+	struct timeval delta;
+	struct timeval duration_tv;
+	int s;
+
+	s = splclock();
+	microtime(&delta);
+	splx(s);
+	timevalsub(&delta, event_time);
+	duration_tv.tv_sec = duration_ms / 1000;
+	duration_tv.tv_usec = (duration_ms % 1000) * 1000;
+	if (timevalcmp(&delta, &duration_tv, <)) {
+		timevalsub(&duration_tv, &delta);
+
+		duration_ms = duration_tv.tv_sec * 1000;
+		duration_ms += duration_tv.tv_usec / 1000;
+		cam_freeze_devq(periph->path); 
+		cam_release_devq(periph->path,
+				RELSIM_RELEASE_AFTER_TIMEOUT,
+				/*reduction*/0,
+				/*timeout*/duration_ms,
+				/*getcount_only*/0);
+	}
+
 }
 
 /*
