@@ -1,8 +1,6 @@
 # $FreeBSD$
 # Options specific to the i386 platform kernels
 
-MATH_EMULATE		opt_math_emulate.h
-GPL_MATH_EMULATE	opt_math_emulate.h
 DISABLE_PSE		opt_pmap.h
 PMAP_SHPGPERPROC	opt_pmap.h
 DISABLE_PG_G		opt_pmap.h

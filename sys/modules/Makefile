@@ -187,8 +187,6 @@ SUBDIR+=3dfx \
 	em \
 	ep \
 	fe \
-	fpu \
-	gnufpu \
 	hea \
 	hfa \
 	i2c \
@@ -251,7 +249,7 @@ SUBDIR+=canbepm \
 
 .if ${MACHINE_ARCH} == "ia64"
 # Modules not enabled on ia64 (as compared to i386) include:
-#	aac acpi aout apm atspeaker drm fpu gnufpu ibcs2 linprocfs linux ncv
+#	aac acpi aout apm atspeaker drm ibcs2 linprocfs linux ncv
 #	nsp oltr pecoff s3 sbni stg vesa
 SUBDIR+=aic \
 	ar \
