@@ -2767,7 +2767,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       easier to manipulate the kernel module search
       path. &merged;</para>
 
-    <para>ktrdump, a utility to dump the ktr trace buffer from
+    <para>&man.ktrdump.8;, a utility to dump the ktr trace buffer from
       userland, has been added.</para>
 
     <para role="historic">&man.last.1; now implements a <option>-d</option> that
