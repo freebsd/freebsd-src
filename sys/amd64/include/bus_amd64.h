@@ -1147,9 +1147,9 @@ bus_space_barrier(bus_space_tag_t tag, bus_space_handle_t bsh,
 		  bus_size_t offset, bus_size_t len, int flags)
 {
 	if (flags & BUS_SPACE_BARRIER_READ)
-		__asm __volatile ("lock; addl $0,0(%esp)" : : : "memory");
+		__asm __volatile("lock; addl $0,0(%%esp)" : : : "memory");
 	else
-		__asm __volatile ("" : : : "memory");
+		__asm __volatile("" : : : "memory");
 }
 	
 
