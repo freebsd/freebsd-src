@@ -33,7 +33,7 @@
 
 #ifndef lint
 /*static char sccsid[] = "from: @(#)subr.c	8.1 (Berkeley) 6/4/93";*/
-static char rcsid[] = "$Id: subr.c,v 1.1.1.2 1996/04/13 15:33:14 joerg Exp $";
+static char rcsid[] = "$Id: subr.c,v 1.6 1996/05/05 19:01:11 joerg Exp $";
 #endif /* not lint */
 
 /*
@@ -75,13 +75,13 @@ gettable(name, buf)
 	dba[0] = _PATH_GETTYTAB;
 	dba[1] = 0;
 
-	if (cgetent(&buf, dba, name) != 0)
+	if (cgetent(&buf, (char**)dba, (char*)name) != 0)
 		return;
 
 	for (sp = gettystrs; sp->field; sp++)
-		cgetstr(buf, sp->field, &sp->value);
+		cgetstr(buf, (char*)sp->field, &sp->value);
 	for (np = gettynums; np->field; np++) {
-		if (cgetnum(buf, np->field, &n) == -1)
+		if (cgetnum(buf, (char*)np->field, &n) == -1)
 			np->set = 0;
 		else {
 			np->set = 1;
@@ -89,7 +89,7 @@ gettable(name, buf)
 		}
 	}
 	for (fp = gettyflags; fp->field; fp++) {
-		if (cgetcap(buf, fp->field, ':') == NULL)
+		if (cgetcap(buf, (char*)fp->field, ':') == NULL)
 			fp->set = 0;
 		else {
 			fp->set = 1;
@@ -283,6 +283,11 @@ setflags(n)
 		SET(cflag, MDMBUF);
 	else
 		CLR(cflag, MDMBUF);
+
+	if (HW)
+		SET(cflag, CRTSCTS);
+	else
+		CLR(cflag, CRTSCTS);
 
 	if (NL) {
 		SET(iflag, ICRNL);

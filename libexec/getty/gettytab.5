@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     from: @(#)gettytab.5	8.4 (Berkeley) 4/19/94
-.\"	$Id: gettytab.5,v 1.7.2.2 1996/12/22 23:05:11 mpp Exp $
+.\"	$Id: gettytab.5,v 1.7.2.3 1996/12/31 05:50:26 msmith Exp $
 .\" "
 .Dd April 19, 1994
 .Dt GETTYTAB 5
@@ -76,6 +76,7 @@ no entry in the table obtained, nor one in the special
 table.
 .Bl -column Namexx /usr/bin/login Default
 .It Sy Name	Type	Default	Description
+.It "ac	str	unused	expect-send chat script for modem answer"
 .It "ap	bool	false	terminal uses any parity"
 .It "bk	str	0377	alternate end of line character (input break)"
 .It "c0	num	unused	tty control flags to write messages"
@@ -88,7 +89,9 @@ table.
 .It "co	bool	false	console - add"
 .Ql \en
 after login prompt
-.It "de	num	0	delay secs before writing first prompt"
+.It "ct	num	10	chat timeout for ac/ic scripts"
+.It "dc	num	0	chat debug bitmask"
+.It "de	num	0	delay secs and flush input before writing first prompt"
 .It "ds	str" Ta So Li ^Y Sc Ta
 .No "delayed suspend character"
 .It "dx	bool	false	set"
@@ -116,9 +119,12 @@ hangup line on last close
 .No "hostname editing string"
 .It "hn	str	hostname	hostname"
 .It "ht	bool	false	terminal has real tabs"
+.It "hw	bool	false	do cts/rts hardware flow control"
 .It "i0	num	unused	tty input flags to write messages"
 .It "i1	num	unused	tty input flags to read login name"
 .It "i2	num	unused	tty input flags to leave terminal as"
+.It "ic	str	unused	expect-send chat script for modem initialization"
+.It "if	str	unused	display named file before prompt"
 .It "ig	bool	false	ignore garbage characters in login name"
 .It "im	str" Ta Dv NULL Ta
 .No "initial (banner) message"
@@ -157,6 +163,7 @@ port selector
 .No "quit character"
 .It "rp	str" Ta So Li ^R Sc Ta
 .No "line retype character"
+.It "rt	num	unused	ring timeout when using ac"
 .It "rw	bool	false	do"
 .Tn NOT
 use raw for input, use cbreak
@@ -269,7 +276,7 @@ information about the environment in which
 .Xr getty 8
 is running.
 .Pp
-.Bl -tag -width \&%xxx -compact
+.Bl -tag -offset indent -width \&%xxxxxxxxxxxxxx
 .It \&%d
 The current date and time in the locale's representation as of the
 .Em \&Lo
@@ -364,12 +371,122 @@ If
 string is specified and a PPP link bringup sequence is recognized,
 getty will invoke the program referenced by the pp option.  This
 can be used to handle incoming PPP calls.
+.Pp
+.Nm getty
+provides some basic intelligent modem handling by providing a chat
+script feature available via two capabilities:
+.Pp
+.Bl -tag -offset indent -width \&xxxxxxxx -compact
+.It ic
+Chat script to initialize modem.
+.It ac
+Chat script to answer a call.
+.El
+.Pp
+A chat script is a set of expect/send string pairs.
+When a chat string starts,
+.Nm Getty
+will wait for the first string, and if it finds it, will send the
+second, and so on.
+Strings specified are separated by one or more tabs or spaces.
+Strings may contain standard ascii characters and special 'escapes',
+which consist of a backslash character followed by one or more
+characters which are interpreted as follows:
+.Pp
+.Bl -tag -offset indent -width \&xxxxxxxx -compact
+.It \ea
+bell character.
+.It \eb
+backspace.
+.It \en
+newline.
+.It \ee
+escape.
+.It \ef
+formfeed.
+.It \ep
+half-second pause.
+.It \er
+carriage return.
+.It \eS, \es
+space character.
+.It \et
+tab.
+.It \exNN
+hexadecimal byte value.
+.It \e0NNN
+octal byte value.
+.El
+.Pp
+Note that the
+.Ql \ep
+sequence is only valid for send strings and causes a half-second
+pause between sending the previous and next characters.
+Hexidecimal values are, at most, 2 hex digits long, and octal
+values are a maximum of 3 octal digits.
+.Pp
+The
+.Em \&ic
+chat sequence is used to initialize a modem or similar device.
+A typical example of an init chat script for a modem with a
+hayes compatible command set might look like this:
+.Pp
+.Dl :ic="" ATE0Q0V1\er OK\er ATS0=0\er OK\er:
+.Pp
+This script waits for nothing (which always succeeds), sends
+a sequence to ensure that the modem is in the correct mode
+(suppress command echo, send responses in verbose mode),
+and then disables auto-answer.
+It waits for an "OK" response before it terminates.
+The init sequence is used to check modem responses to ensure that
+the modem is functioning correctly.
+If the init script fails to complete,
+.Nm getty
+considers this to be fatal, and results in an error logged via
+.Xr syslogd 8 ,
+and exiting.
+.Pp
+Similarly, an answer chat script is used to manually answer the
+phone in response to (usually) a "RING".
+When run with an answer script,
+.Nm getty
+opens the port in non-blocking mode, clears any extraneous input
+and waits for data on the port.
+As soon as any data is available, the answer chat script is
+started and scanned for a string, and responds according to
+the answer chat script.
+With a hayes compatible modem, this would normally look something
+like:
+.Pp
+.Dl :ac=RING\er ATA\er CONNECT:
+.Pp
+This causes the modem to answer the call via the "ATA" command,
+then scans input for a "CONNECT" string.
+If this is received before a
+.Em \&ct timeout, then a normal login sequence commences.
+.Pp
+The
+.Em \&ct
+capability specifies a timeout for all send and expect strings.
+This timeout is set individually for each expect wait and send
+string and must be at least as long as the time it takes for
+a connection to be established between a remote and local
+modem (usually around 10 seconds).
+.Pp
+In most situations, you will want to flush any additional
+input after the connection has been detected, and the
+.Em \&de
+capability may be used to do that, as well as delay for a
+short time after the connection has been established during
+which all of the connection data has been sent by the modem.
+.Pp
 .Sh SEE ALSO
 .Xr login 1 ,
 .Xr gethostname 3 ,
 .Xr uname 3 ,
 .Xr termcap 5 ,
-.Xr getty 8 .
+.Xr getty 8 ,
+.Xr telnetd 8 .
 .Sh BUGS
 The special characters (erase, kill, etc.) are reset to system defaults
 by

@@ -39,7 +39,7 @@ static char copyright[] =
 
 #ifndef lint
 /*static char sccsid[] = "from: @(#)main.c	8.1 (Berkeley) 6/20/93";*/
-static char rcsid[] = "$Id: main.c,v 1.10.2.1 1996/11/16 21:07:03 phk Exp $";
+static char rcsid[] = "$Id: main.c,v 1.10.2.2 1996/12/31 05:50:28 msmith Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -93,8 +93,7 @@ struct termios tmode, omode;
 int crmod, digit, lower, upper;
 
 char	hostname[MAXHOSTNAMELEN];
-struct utsname kerninfo;
-char	name[16];
+char	name[MAXLOGNAME*3];
 char	dev[] = _PATH_DEV;
 char	ttyn[32];
 
@@ -129,8 +128,6 @@ char partab[] = {
 #define	KILL	tmode.c_cc[VKILL]
 #define	EOT	tmode.c_cc[VEOF]
 
-jmp_buf timeout;
-
 static void	dingdong __P((int));
 static int	getname __P((void));
 static void	interrupt __P((int));
@@ -141,8 +138,14 @@ static void	putf __P((const char *));
 static void	putpad __P((const char *));
 static void	puts __P((const char *));
 static void	timeoverrun __P((int));
+static char	*getline __P((int));
+static void	setttymode __P((const char *, int));
+static void	setdefttymode __P((const char *));
+static int	opentty __P((const char *, int));
 
 int		main __P((int, char **));
+
+jmp_buf timeout;
 
 static void
 dingdong(signo)
@@ -181,6 +184,7 @@ main(argc, argv)
 	extern	char **environ;
 	const char *tname;
 	int repcnt = 0, failopenlogged = 0;
+	int first_sleep = 1, first_time = 1;
 	struct rlimit limit;
 	int rval;
 
@@ -200,6 +204,12 @@ main(argc, argv)
 	limit.rlim_cur = GETTY_TIMEOUT;
 	(void)setrlimit(RLIMIT_CPU, &limit);
 
+	gettable("default", defent);
+	gendefaults();
+	tname = "default";
+	if (argc > 1)
+		tname = argv[1];
+
 	/*
 	 * The following is a work around for vhangup interactions
 	 * which cause great problems getting window systems started.
@@ -208,7 +218,7 @@ main(argc, argv)
 	 * J. Gettys - MIT Project Athena.
 	 */
 	if (argc <= 2 || strcmp(argv[2], "-") == 0)
-	    strcpy(ttyn, ttyname(0));
+	    strcpy(ttyn, ttyname(STDIN_FILENO));
 	else {
 	    int i;
 
@@ -218,23 +228,57 @@ main(argc, argv)
 		chown(ttyn, 0, 0);
 		chmod(ttyn, 0600);
 		revoke(ttyn);
-		while ((i = open(ttyn, O_RDWR)) == -1) {
-			if ((repcnt % 10 == 0) &&
-			    (errno != ENXIO || !failopenlogged)) {
-				syslog(LOG_ERR, "%s: %m", ttyn);
-				closelog();
-				failopenlogged = 1;
+
+		gettable(tname, tabent);
+
+		/* Init modem sequence has been specified
+		 */
+		if (IC) {
+			if (!opentty(ttyn, O_RDWR|O_NONBLOCK))
+				exit(1);
+			setdefttymode(tname);
+			if (getty_chat(IC, CT, DC) > 0) {
+				syslog(LOG_ERR, "modem init problem on %s", ttyn);
+				(void)tcsetattr(STDIN_FILENO, TCSANOW, &tmode);
+				exit(1);
 			}
-			repcnt++;
-			sleep(60);
 		}
-		login_tty(i);
+
+		if (AC) {
+			int i, rfds;
+			struct timeval timeout;
+
+			if (!opentty(ttyn, O_RDWR|O_NONBLOCK))
+				exit(1);
+        		setdefttymode(tname);
+        		rfds = 1 << 0;	/* FD_SET */
+        		timeout.tv_sec = RT;
+        		timeout.tv_usec = 0;
+        		i = select(32, (fd_set*)&rfds, (fd_set*)NULL,
+        			       (fd_set*)NULL, RT ? &timeout : NULL);
+        		if (i < 0) {
+				syslog(LOG_ERR, "select %s: %m", ttyn);
+			} else if (i == 0) {
+				syslog(LOG_NOTICE, "recycle tty %s", ttyn);
+				(void)tcsetattr(STDIN_FILENO, TCSANOW, &tmode);
+				exit(0);  /* recycle for init */
+			}
+			i = getty_chat(AC, CT, DC);
+			if (i > 0) {
+				syslog(LOG_ERR, "modem answer problem on %s", ttyn);
+				(void)tcsetattr(STDIN_FILENO, TCSANOW, &tmode);
+				exit(1);
+			}
+		} else { /* blocking open */
+			if (!opentty(ttyn, O_RDWR))
+				exit(1);
+		}
 	    }
 	}
 
 	/* Start with default tty settings */
-	if (tcgetattr(0, &tmode) < 0) {
-		syslog(LOG_ERR, "%s: %m", ttyn);
+	if (tcgetattr(STDIN_FILENO, &tmode) < 0) {
+		syslog(LOG_ERR, "tcgetattr %s: %m", ttyn);
 		exit(1);
 	}
 	/*
@@ -250,37 +294,20 @@ main(argc, argv)
 	tmode.c_cflag = TTYDEF_CFLAG;
 	omode = tmode;
 
-	gettable("default", defent);
-	gendefaults();
-	tname = "default";
-	if (argc > 1)
-		tname = argv[1];
 	for (;;) {
-		int off = 0;
 
-		gettable(tname, tabent);
-		if (OPset || EPset || APset)
-			APset++, OPset++, EPset++;
-		setdefaults();
-		off = 0;
-		(void)tcflush(0, TCIOFLUSH);	/* clear out the crap */
-		ioctl(0, FIONBIO, &off);	/* turn off non-blocking mode */
-		ioctl(0, FIOASYNC, &off);	/* ditto for async mode */
-
-		if (IS)
-			cfsetispeed(&tmode, speed(IS));
-		else if (SP)
-			cfsetispeed(&tmode, speed(SP));
-		if (OS)
-			cfsetospeed(&tmode, speed(OS));
-		else if (SP)
-			cfsetospeed(&tmode, speed(SP));
-		setflags(0);
-		setchars();
-		if (tcsetattr(0, TCSANOW, &tmode) < 0) {
-			syslog(LOG_ERR, "%s: %m", ttyn);
-			exit(1);
+		/*
+		 * if a delay was specified then sleep for that 
+		 * number of seconds before writing the initial prompt
+		 */
+		if (first_sleep && DE) {
+		    sleep(DE);
+		    /* remove any noise */
+		    (void)tcflush(STDIN_FILENO, TCIOFLUSH);
 		}
+		first_sleep = 0;
+
+		setttymode(tname, 0);
 		if (AB) {
 			tname = autobaud();
 			continue;
@@ -293,17 +320,28 @@ main(argc, argv)
 			putpad(CL);
 		edithost(HE);
 
-		/* if a delay was specified then sleep for that 
-		   number of seconds before writing the initial prompt */
-		if(DE)
-		    sleep(DE);
+		/* if this is the first time through this, and an
+		   issue file has been given, then send it */
+		if (first_time && IF) {
+			int fd;
+
+			if ((fd = open(IF, O_RDONLY)) != -1) {
+				char * cp;
+
+				while ((cp = getline(fd)) != NULL) {
+					  putf(cp);
+				}
+				close(fd);
+			}
+		}
+		first_time = 0;
 
 		if (IM && *IM)
 			putf(IM);
 		if (setjmp(timeout)) {
 			cfsetispeed(&tmode, B0);
 			cfsetospeed(&tmode, B0);
-			(void)tcsetattr(0, TCSANOW, &tmode);
+			(void)tcsetattr(STDIN_FILENO, TCSANOW, &tmode);
 			exit(1);
 		}
 		if (TO) {
@@ -337,8 +375,8 @@ main(argc, argv)
 			if (lower || LC)
 				tmode.sg_flags &= ~LCASE;
 #endif
-			if (tcsetattr(0, TCSANOW, &tmode) < 0) {
-				syslog(LOG_ERR, "%s: %m", ttyn);
+			if (tcsetattr(STDIN_FILENO, TCSANOW, &tmode) < 0) {
+				syslog(LOG_ERR, "tcsetattr %s: %m", ttyn);
 				exit(1);
 			}
 			signal(SIGINT, SIG_DFL);
@@ -362,12 +400,87 @@ main(argc, argv)
 }
 
 static int
+opentty(const char *ttyn, int flags)
+{
+	int i, j = 0;
+	int failopenlogged = 0;
+
+	while (j < 10 && (i = open(ttyn, flags)) == -1)
+	{
+		if (((j % 10) == 0) && (errno != ENXIO || !failopenlogged)) {
+			syslog(LOG_ERR, "open %s: %m", ttyn);
+			failopenlogged = 1;
+		}
+		j++;
+		sleep(60);
+	}
+	if (i == -1) {
+		syslog(LOG_ERR, "open %s: %m", ttyn);
+		return 0;
+	}
+	else {
+		login_tty(i);
+		return 1;
+	}
+}
+
+static void
+setdefttymode(tname)
+	const char * tname;
+{
+	if (tcgetattr(STDIN_FILENO, &tmode) < 0) {
+		syslog(LOG_ERR, "tcgetattr %s: %m", ttyn);
+		exit(1);
+	}
+	tmode.c_iflag = TTYDEF_IFLAG;
+        tmode.c_oflag = TTYDEF_OFLAG;
+        tmode.c_lflag = TTYDEF_LFLAG;
+        tmode.c_cflag = TTYDEF_CFLAG;
+        omode = tmode;
+	setttymode(tname, 1);
+}
+
+static void
+setttymode(tname, raw)
+	const char * tname;
+	int raw;
+{
+	int off = 0;
+
+	gettable(tname, tabent);
+	if (OPset || EPset || APset)
+		APset++, OPset++, EPset++;
+	setdefaults();
+	(void)tcflush(STDIN_FILENO, TCIOFLUSH);	/* clear out the crap */
+	ioctl(STDIN_FILENO, FIONBIO, &off);	/* turn off non-blocking mode */
+	ioctl(STDIN_FILENO, FIOASYNC, &off);	/* ditto for async mode */
+
+	if (IS)
+		cfsetispeed(&tmode, speed(IS));
+	else if (SP)
+		cfsetispeed(&tmode, speed(SP));
+	if (OS)
+		cfsetospeed(&tmode, speed(OS));
+	else if (SP)
+		cfsetospeed(&tmode, speed(SP));
+	setflags(0);
+	setchars();
+	if (raw)
+		cfmakeraw(&tmode);
+	if (tcsetattr(STDIN_FILENO, TCSANOW, &tmode) < 0) {
+		syslog(LOG_ERR, "tcsetattr %s: %m", ttyn);
+		exit(1);
+	}
+}
+
+
+static int
 getname()
 {
 	register int c;
 	register char *np;
 	unsigned char cs;
-	int ppp_state;
+	int ppp_state = 0;
 	int ppp_connection = 0;
 
 	/*
@@ -385,7 +498,7 @@ getname()
 		sleep(PF);
 		PF = 0;
 	}
-	if (tcsetattr(0, TCSANOW, &tmode) < 0) {
+	if (tcsetattr(STDIN_FILENO, TCSANOW, &tmode) < 0) {
 		syslog(LOG_ERR, "%s: %m", ttyn);
 		exit(1);
 	}
@@ -427,7 +540,7 @@ getname()
 
 		if (c == EOT || c == CTRL('d'))
 			exit(1);
-		if (c == '\r' || c == '\n' || np >= &name[sizeof name]) {
+		if (c == '\r' || c == '\n' || np >= &name[sizeof name-1]) {
 			putf("\r\n");
 			break;
 		}
@@ -558,6 +671,32 @@ prompt()
 		putchr('\n');
 }
 
+
+static char *
+getline(fd)
+	int fd;
+{
+	int i = 0;
+	static char linebuf[512];
+
+	/*
+	 * This is certainly slow, but it avoids having to include
+	 * stdio.h unnecessarily. Issue files should be small anyway.
+	 */
+	while (i < (sizeof linebuf - 3) && read(fd, linebuf+i, 1)==1) {
+		if (linebuf[i] == '\n') {
+			/* Don't rely on newline mode, assume raw */
+			linebuf[i++] = '\r';
+			linebuf[i++] = '\n';
+			linebuf[i] = '\0';
+			return linebuf;
+		}
+		++i;
+	}
+	linebuf[i] = '\0';
+	return i ? linebuf : 0;
+}
+
 static void
 putf(cp)
 	register const char *cp;
@@ -565,6 +704,11 @@ putf(cp)
 	extern char editedhost[];
 	time_t t;
 	char *slash, db[100];
+
+	static struct utsname kerninfo;
+
+	if (!*kerninfo.sysname)
+		uname(&kerninfo);
 
 	while (*cp) {
 		if (*cp != '%') {

@@ -30,9 +30,9 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     from: @(#)ttys.5	8.1 (Berkeley) 6/4/93
-.\"	$Id: ttys.5,v 1.1.1.2 1996/04/13 15:33:16 joerg Exp $
+.\"	$Id: ttys.5,v 1.3 1996/05/05 19:01:13 joerg Exp $
 .\" "
-.Dd June 4, 1993
+.Dd November 17, 1996
 .Dt TTYS 5
 .Os
 .Sh NAME
@@ -86,10 +86,17 @@ or
 The remaining fields set flags in the
 .Fa ty_status
 entry (see
-.Xr getttyent 3 )
-or specify a window system process that
+.Xr getttyent 3 ),
+specify a window system process that
 .Xr init 8
-will maintain for the terminal line.
+will maintain for the terminal line, optionally determine the
+type of tty (whether dialin, network or otherwise),
+or specify a tty group
+name that allows the login class database (see
+.Xr login.conf 5 )
+to refer to many ttys as a group, to selectively allow or
+deny access or enable or disable accounting facilities for
+ttys as a group.
 .Pp
 As flag values, the strings ``on'' and ``off'' specify that
 .Xr init
@@ -97,41 +104,42 @@ should (should not) execute the command given in the second field,
 while ``secure'' (if ``on'' is also specified) allows users with a
 uid of 0 to login on
 this line.
-The flags ``local'', ``rtscts'', ``mdmbuf'', and ``softcar''
-modify the default behaviour of the terminal line, and their actions
-are driver dependent.
-The ``local'' flag causes the driver to
-treat the line as if it locally connected.
-The ``rtscts'' flag
-instructs the driver to use RTS/CTS hardware flow control, if
-possible.
-The ``mdmbuf'' flag instructs the driver to use
-DTR/DCD flow control, if possible.
-The ``softcar'' flag causes the driver to ignore
-hardware carrier on the line.
-These flag fields should not be quoted.
-.Pp
+The flag ``dialin'' indicates that a tty entry describes a dialin
+line, and ``network'' indicates that a tty entry provides a
+network connection.
+Either of these strings may also be specified in the terminal type
+field.
 The string ``window='' may be followed by a quoted command
 string which
 .Xr init
 will execute
 .Em before
 starting the command specified by the second field.
+.Pp
+The string ``group='' may be followed by a group name comprised of
+alphanumeric characters that can be used by
+.Xr login.group 5
+to refer to many tty lines as a group to enable or disable access
+and accounting facilities.
+If no group is specified, then the tty becomes a member of the group
+"none".
+For backwards compatibility, the ``group='' should appear last on the
+line, immediately before the optional comment.
 .Sh EXAMPLES
 .Bd -literal
 # root login on console at 1200 baud
 console	"/usr/libexec/getty std.1200"	vt100	on secure
 # dialup at 1200 baud, no root logins
-ttyd0	"/usr/libexec/getty d1200"	dialup	on	# 555-1234
+ttyd0	"/usr/libexec/getty d1200"	dialup	on group=dialup	# 555-1234
 # Mike's terminal: hp2621
-ttyh0	"/usr/libexec/getty std.9600"	hp2621-nl	on	# 457 Evans
+ttyh0	"/usr/libexec/getty std.9600"	hp2621-nl	on group=dialup	# 457 Evans
 # John's terminal: vt100
-ttyh1	"/usr/libexec/getty std.9600"	vt100	on		# 459 Evans
+ttyh1	"/usr/libexec/getty std.9600"	vt100	on group=dialup		# 459 Evans
 # terminal emulate/window system
 ttyv0	"/usr/new/xterm -L :0"		vs100	on window="/usr/new/Xvs100 0"
 # Network pseudo ttys -- don't enable getty
-ttyp0	none	network
-ttyp1	none	network	off
+ttyp0	none	network 	group=pty
+ttyp1	none	network	off	group=pty
 .Ed
 .Sh FILES
 .Bl -tag -width /etc/ttys -compact
@@ -142,6 +150,7 @@ ttyp1	none	network	off
 .Xr getttyent 3 ,
 .Xr ttyslot 3 ,
 .Xr gettytab 5 ,
+.Xr login.conf 5 ,
 .Xr termcap 5 ,
 .Xr getty 8 ,
 .Xr init 8
