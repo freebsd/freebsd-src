@@ -96,5 +96,7 @@ void vm_object_print(/* db_expr_t */ long, boolean_t, /* db_expr_t */ long,
 int vm_fault_quick(caddr_t v, int prot);
 void vm_proc_new(struct proc *p);
 void vm_proc_dispose(struct proc *p);
+void vm_thread_new_altkstack(struct thread *td, int pages);
+void vm_thread_dispose_altkstack(struct thread *td);
 #endif				/* _KERNEL */
 #endif				/* !_VM_EXTERN_H_ */

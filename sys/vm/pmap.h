@@ -131,8 +131,6 @@ void		 pmap_prefault(pmap_t, vm_offset_t, vm_map_entry_t);
 int		 pmap_mincore(pmap_t pmap, vm_offset_t addr);
 void		 pmap_new_thread(struct thread *td, int pages);
 void		 pmap_dispose_thread(struct thread *td);
-void		 pmap_new_altkstack(struct thread *td, int pages);
-void		 pmap_dispose_altkstack(struct thread *td);
 void		 pmap_swapout_thread(struct thread *td);
 void		 pmap_swapin_thread(struct thread *td);
 void		 pmap_activate(struct thread *td);

@@ -388,6 +388,37 @@ retry:
 #endif
 
 /*
+ * Set up a variable-sized alternate kstack.
+ */
+void
+vm_thread_new_altkstack(struct thread *td, int pages)
+{
+
+	td->td_altkstack = td->td_kstack;
+	td->td_altkstack_obj = td->td_kstack_obj;
+	td->td_altkstack_pages = td->td_kstack_pages;
+
+	pmap_new_thread(td, pages);
+}
+
+/*
+ * Restore the original kstack.
+ */
+void
+vm_thread_dispose_altkstack(struct thread *td)
+{
+
+	pmap_dispose_thread(td);
+
+	td->td_kstack = td->td_altkstack;
+	td->td_kstack_obj = td->td_altkstack_obj;
+	td->td_kstack_pages = td->td_altkstack_pages;
+	td->td_altkstack = 0;
+	td->td_altkstack_obj = NULL;
+	td->td_altkstack_pages = 0;
+}
+
+/*
  * Implement fork's actions on an address space.
  * Here we arrange for the address space to be copied or referenced,
  * allocate a user struct (pcb and kernel stack), then call the
