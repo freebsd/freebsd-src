@@ -1,4 +1,4 @@
-<!-- $Id: ports.sgml,v 1.18 1996/12/21 11:51:33 max Exp $ -->
+<!-- $Id: ports.sgml,v 1.19 1996/12/31 21:54:19 mpp Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>The Ports collection<label id="ports"></heading>
@@ -46,7 +46,7 @@ the worse for it).
 
 <item>Too specialised to put in the base system (CAD, databases).
 
-<item>Programs which fall into the ``I wouldn not mind having a look at
+<item>Programs which fall into the ``I would not mind having a look at
 that when I get a spare minute'' category, rather than system-critical
 ones (some languages, perhaps).
 
@@ -139,7 +139,7 @@ this yourself, you may well have got something like this at the start:-
 
 <label id="ports:fetch">
 <verb>
- >> bash-1.14.5.tar.gz does not seem to exist on this system.
+ >> bash-1.14.5.tar.gz doesn't seem to exist on this system.
  >> Attempting to fetch from ftp://slc2.ins.cwru.edu/pub/dist/.
 </verb>
 
@@ -791,12 +791,12 @@ computer this morning, it had only done three and a half ports. Did
 something go wrong?
 <p>
 A. No, the problem is that some of the ports need to ask you questions
-that we can not for you (eg ``Do you want to print on A4 or US
+that we can not answer for you (eg ``Do you want to print on A4 or US
 letter sized paper?'') and they need to have someone on hand to answer
 them.
 
 <item>
-Q. I really do nott want to spend all day staring at the monitor. Any
+Q. I really do not want to spend all day staring at the monitor. Any
 better ideas?
 <p>
 A. OK, do this before you go to bed/work/the local park:-
