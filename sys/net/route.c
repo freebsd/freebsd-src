@@ -213,7 +213,6 @@ rtfree(rt)
 	 */
 	register struct radix_node_head *rnh =
 		rt_tables[rt_key(rt)->sa_family];
-	register struct ifaddr *ifa;
 
 	if (rt == 0 || rnh == 0)
 		panic("rtfree");
@@ -252,11 +251,10 @@ rtfree(rt)
 		 * release references on items we hold them on..
 		 * e.g other routes and ifaddrs.
 		 */
-		if((ifa = rt->rt_ifa))
-			IFAFREE(ifa);
-		if (rt->rt_parent) {
+		if (rt->rt_ifa)
+			IFAFREE(rt->rt_ifa);
+		if (rt->rt_parent)
 			RTFREE(rt->rt_parent);
-		}
 
 		/*
 		 * The key is separatly alloc'd so free it (see rt_setgate()).
@@ -272,17 +270,7 @@ rtfree(rt)
 	}
 }
 
-void
-ifafree(ifa)
-	register struct ifaddr *ifa;
-{
-	if (ifa == NULL)
-		panic("ifafree");
-	if (ifa->ifa_refcnt == 0)
-		free(ifa, M_IFADDR);
-	else
-		ifa->ifa_refcnt--;
-}
+#define	equal(a1, a2) (bcmp((caddr_t)(a1), (caddr_t)(a2), (a1)->sa_len) == 0)
 
 /*
  * Force a routing table entry to the specified
@@ -317,7 +305,6 @@ rtredirect(dst, gateway, netmask, flags, src, rtp)
 	 * we have a routing loop, perhaps as a result of an interface
 	 * going down recently.
 	 */
-#define	equal(a1, a2) (bcmp((caddr_t)(a1), (caddr_t)(a2), (a1)->sa_len) == 0)
 	if (!(flags & RTF_DONE) && rt &&
 	     (!equal(src, rt->rt_gateway) || rt->rt_ifa != ifa))
 		error = EINVAL;
@@ -394,8 +381,8 @@ out:
 }
 
 /*
-* Routing table ioctl interface.
-*/
+ * Routing table ioctl interface.
+ */
 int
 rtioctl(req, data)
 	u_long req;
@@ -443,7 +430,7 @@ ifa_ifwithroute(flags, dst, gateway)
 		struct rtentry *rt = rtalloc1(gateway, 0, 0UL);
 		if (rt == 0)
 			return (0);
-		rt->rt_refcnt--;
+		--rt->rt_refcnt;
 		if ((ifa = rt->rt_ifa) == 0)
 			return (0);
 	}
@@ -679,7 +666,7 @@ rtrequest1(req, info, ret_nrt)
 		 * This moved from below so that rnh->rnh_addaddr() can
 		 * examine the ifa and  ifa->ifa_ifp if it so desires.
 		 */
-		ifa->ifa_refcnt++;
+		IFAREF(ifa);
 		rt->rt_ifa = ifa;
 		rt->rt_ifp = ifa->ifa_ifp;
 		/* XXX mtu manipulation will be done in rnh_addaddr -- itojun */

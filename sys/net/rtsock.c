@@ -428,12 +428,14 @@ route_output(m, so)
 			if ((ifa = info.rti_ifa) != NULL) {
 				register struct ifaddr *oifa = rt->rt_ifa;
 				if (oifa != ifa) {
-				    if (oifa && oifa->ifa_rtrequest)
-					oifa->ifa_rtrequest(RTM_DELETE, rt,
-					    &info);
-				    IFAFREE(rt->rt_ifa);
+				    if (oifa) {
+				        IFAFREE(oifa);
+					if (oifa->ifa_rtrequest)
+					    oifa->ifa_rtrequest(RTM_DELETE, rt,
+						&info);
+				    }
+				    IFAREF(ifa);
 				    rt->rt_ifa = ifa;
-				    ifa->ifa_refcnt++;
 				    rt->rt_ifp = info.rti_ifp;
 				}
 			}
