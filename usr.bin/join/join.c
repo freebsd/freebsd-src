@@ -661,9 +661,10 @@ jbad:				errx(1, "illegal option -- %s", ap);
 void
 usage(void)
 {
-	(void)fprintf(stderr, "%s %s\n%s\n",
-	    "usage: join [-a fileno | -v fileno ] [-e string] [-1 field]",
-	    "[-2 field]",
-		"            [-o list] [-t char] file1 file2");
+	(void)fprintf(stderr, "%s %s\n%s %s\n",
+	    "usage: join [-a fileno | -v fileno ]",
+	    "[-e string] [-j fileno field]",
+	    "            [-1 field] [-2 field]",
+	    "[-o list] [-t char] file1 file2");
 	exit(1);
 }
