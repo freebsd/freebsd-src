@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.337 1998/01/27 01:06:49 jkh Exp $
+#	$Id: Makefile,v 1.338 1998/01/27 21:28:32 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -71,6 +71,9 @@ FD=			/R/ftp
 CD=			/R/cdrom
 CD_DISC1=		${CD}/disc1
 CD_DISC2=		${CD}/disc2
+
+# Where the bootstrap ports (see DOCPORTS) get installed.
+LOCALDIR=		/usr/local/bin
 
 # ${BOOTSTRAPDIR} is for those utilities that refer to the hosting
 # environment, rather than the target environment.  This is specifically
@@ -201,7 +204,7 @@ rerelease release:
 .endif
 	# Don't remove this, or the build will fall over!
 	echo "export RELEASEDIR=/R"		>> ${CHROOTDIR}/mk
-	echo "export PATH=${BOOTSTRAPDIR}:$${PATH}" >> ${CHROOTDIR}/mk
+	echo "export PATH=${BOOTSTRAPDIR}:$${PATH}:${LOCALDIR}" >> ${CHROOTDIR}/mk
 	echo "cd /usr/src"			>> ${CHROOTDIR}/mk
 .if make(release)
 	# This eases bootstrapping from a more recent hosting environment:
@@ -532,8 +535,7 @@ cdrom.1:
 
 doc.1:
 	for i in ${DOCPORTS}; do \
-	  cd /usr/ports/$$i && make all install clean \
-	    FORCE_PKG_REGISTER=yes PATH=$PATH:/usr/local/bin; \
+	  cd /usr/ports/$$i && make all install clean FORCE_PKG_REGISTER=yes; \
 	done
 	cd /usr/doc && make all distribute DISTDIR=${RD}/trees
 
