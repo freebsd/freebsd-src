@@ -1,4 +1,4 @@
-<!-- $Id: stable.sgml,v 1.1 1996/02/11 00:16:17 jkh Exp $ -->
+<!-- $Id: stable.sgml,v 1.2 1996/05/16 23:18:19 mpp Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 
@@ -10,7 +10,7 @@
 
                         THE FREEBSD STABLE POLICY 
 
-Last updated: $Date: 1996/02/11 00:16:17 $
+Last updated: $Date: 1996/05/16 23:18:19 $
 
 This document attempts to explain the rationale behind
 FreeBSD-stable, what you should expect should you decide to run it,
@@ -45,7 +45,7 @@ next section).
 
 <sect><heading>Using FreeBSD-stable</heading>
 
-    <p><enum><item> Join the freebsd-stable mailing list.  This will
+    <p><enum><item> Join the &a.stable .  This will
     keep you informed of build-dependencies that may appear in
     <em>stable</em> or any other issues requring special attention.
     Developers will also make announcements in this mailing list when
@@ -65,12 +65,12 @@ next section).
         three ways:
 
     <enum>
-	<item> Using the CTM facility described below.  Unless you 
+	<item> Use the <ref id="ctm" name="CTM"> facility.  Unless you 
             have a good TCP/IP connection at a flat rate, this is 
             the way to do it.
 
-        <item>  Use the CMU `sup' program (Software Update
-	     Protocol), also described below.
+        <item>  Use the CMU <ref id="sup"> program (Software Update
+	     Protocol).
             This is the second most recommended method, since it allows 
 	    you to grab the entire collection once and then only what has
             changed from then on.  Many people run sup from cron
@@ -102,7 +102,7 @@ next section).
     <item>  Before compiling stable, read the Makefile in /usr/src
 	carefully.  You should at least run a `make world' the first time
         through as part of the upgrading process.
-        Reading freebsd-stable will keep you up-to-date on other bootstrapping
+        Reading the &a.stable will keep you up-to-date on other bootstrapping
         procedures that sometimes become necessary as we move towards the next
         release.
 </enum>
