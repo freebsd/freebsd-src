@@ -35,7 +35,7 @@
  */
 
 /* Header files used by all modules */
-/* $Id: vinumhdr.h,v 1.11 1998/12/30 05:11:15 grog Exp grog $ */
+/* $Id: vinumhdr.h,v 1.12 1999/01/28 08:58:33 grog Exp grog $ */
 
 #ifdef KERNEL
 #define REALLYKERNEL
@@ -92,9 +92,11 @@
 #define Free(x)	   FFree ((x), __FILE__, __LINE__)	    /* show where we came from */
 caddr_t MMalloc (int size, char *, int);
 void FFree (void *mem, char *, int);
+#define LOCKDRIVE(d) lockdrive (d, __FILE__, __LINE__)
 #else
 #define Malloc(x)  malloc((x), M_DEVBUF, M_WAITOK)
 #define Free(x)    free((x), M_DEVBUF)
+#define LOCKDRIVE(d) lockdrive (d)
 #endif
 #else
 #define Malloc(x)  malloc ((x))				    /* just the size */
