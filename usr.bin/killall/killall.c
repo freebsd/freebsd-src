@@ -27,6 +27,7 @@
  * $FreeBSD$
  */
 
+#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <sys/user.h>
@@ -46,7 +47,7 @@
 
 static char	*prog;
 
-static void
+static void __dead2
 usage(void)
 {
 
@@ -138,6 +139,8 @@ main(int ac, char **av)
 			printsig(stdout);
 			exit(0);
 		}
+		if (strcmp(*av, "-help") == 0)
+			usage();
 		if (**av == '-') {
 			++*av;
 			switch (**av) {
