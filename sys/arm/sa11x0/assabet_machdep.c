@@ -134,7 +134,7 @@ struct pcpu __pcpu;
 struct pcpu *pcpup = &__pcpu;
 
 #ifndef MD_ROOT_SIZE
-#error SIMICS needs MD_ROOT and MD_ROOT_SIZE
+#define MD_ROOT_SIZE 65535
 #endif
 /* Physical and virtual addresses for some global pages */
 
@@ -400,14 +400,14 @@ initarm(void *arg, void *arg2)
 
 	pmap_curmaxkvaddr = freemempos + KERNEL_PT_VMDATA_NUM * 0x400000;
 
-	pmap_bootstrap(KERNEL_VM_BASE, 
+	pmap_bootstrap(freemempos, 
 	    0xd0000000, &kernel_l1pt);
 
 	
 	mutex_init();
 	
 	
-	phys_avail[0] = round_page(freemempos);
+	phys_avail[0] = round_page(virtual_avail);
 	phys_avail[1] = 0xc0000000 + 0x02000000 - 1;
 	phys_avail[2] = 0;
 	phys_avail[3] = 0;
