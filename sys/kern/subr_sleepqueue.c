@@ -267,7 +267,7 @@ sleepq_add(struct sleepqueue *sq, void *wchan, struct mtx *lock,
  * sleep queue after timo ticks if the thread has not already been awakened.
  */
 void
-sleepq_set_timeout(struct sleepqueue *sq, void *wchan, int timo)
+sleepq_set_timeout(void *wchan, int timo)
 {
 	struct sleepqueue_chain *sc;
 	struct thread *td;

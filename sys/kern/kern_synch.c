@@ -99,23 +99,11 @@ SYSCTL_INT(_kern, OID_AUTO, fscale, CTLFLAG_RD, 0, FSCALE, "");
 static void	loadav(void *arg);
 static void	lboltcb(void *arg);
 
-/*
- * We're only looking at 7 bits of the address; everything is
- * aligned to 4, lots of things are aligned to greater powers
- * of 2.  Shift right by 8, i.e. drop the bottom 256 worth.
- */
-#define TABLESIZE	128
-static TAILQ_HEAD(slpquehead, thread) slpque[TABLESIZE];
-#define LOOKUP(x)	(((intptr_t)(x) >> 8) & (TABLESIZE - 1))
-
 void
 sleepinit(void)
 {
-	int i;
 
 	hogticks = (hz / 10) * 2;	/* Default only. */
-	for (i = 0; i < TABLESIZE; i++)
-		TAILQ_INIT(&slpque[i]);
 	init_sleepqueues();
 }
 
@@ -236,7 +224,7 @@ msleep(ident, mtx, priority, wmesg, timo)
 	 */
 	sleepq_add(sq, ident, mtx, wmesg, 0);
 	if (timo)
-		sleepq_set_timeout(sq, ident, timo);
+		sleepq_set_timeout(ident, timo);
 	if (catch) {
 		sig = sleepq_catch_signals(ident);
 		if (sig == 0 && !TD_ON_SLEEPQ(td)) {
