@@ -1,13 +1,11 @@
-.\"	$Id: getvfsent.3,v 1.12 1998/05/25 21:42:51 steve Exp $
+.\"	$Id: getvfsent.3,v 1.13 1998/05/26 02:53:06 steve Exp $
 .\"	Written by Garrett A. Wollman, September 1994.
 .\"	This manual page is in the public domain.
 .\"
 .Dd September 24, 1994
-.Dt GETVFSBYNAME 3
+.Dt GETVFSENT 3
 .Os
 .Sh NAME
-.Nm getvfsbyname ,
-.Nm getvfsbytype ,
 .Nm getvfsent ,
 .Nm setvfsent ,
 .Nm endvfsent ,
@@ -17,11 +15,6 @@
 .Sh SYNOPSIS
 .Fd #include <sys/param.h>
 .Fd #include <sys/mount.h>
-.Fd #undef getvfsbyname
-.Ft struct ovfsconf *
-.Fn getvfsbyname "const char *name"
-.Ft struct ovfsconf *
-.Fn getvfsbytype "int type"
 .Ft struct ovfsconf *
 .Fn getvfsent "void"
 .Ft void
@@ -34,20 +27,11 @@
 .Fn vfsload "const char *name"
 .Sh DESCRIPTION
 The
-.Fn getvfsbyname ,
-.Fn getvfsbytype ,
-and
 .Fn getvfsent
-functions provide convenient access to a list of installed virtual
-filesystem modules managed by the kernel.
-.Fn getvfsbyname
-and
-.Fn getvfsbytype
-provide direct access to a single filesystem's information;
-.Fn getvfsent
-steps through the list of filesystems one at a time.  All three
-functions return a null pointer when no data is available.  The fields
-in a
+function provides convenient access to a list of installed virtual
+filesystem modules managed by the kernel.  It steps through the
+list of filesystems one at a time.  A null pointer is returned when
+no more data is available.  The fields in a
 .Dq Li struct ovfsconf
 are as follows:
 .Pp
@@ -116,10 +100,10 @@ loaded, or non-zero otherwise.  It should only be called in the
 following circumstances:
 .Bl -enum
 .It
-.Fn getvfsbyname name
-has been called and returned a null pointer.
+.Fn getvfsbyname
+has been called and returned a non-zero value.
 .It
-.Fn vfsisloadable name
+.Fn vfsisloadable
 has been called and returned a non-zero value.
 .It
 sufficient temporary file space is available 
@@ -135,7 +119,7 @@ Here is an example, taken from the source to
 .Xr mount_cd9660 8 :
 .Bd -literal -offset indent
 
-struct ovfsconf *vfc;
+struct vfsconf *vfc;
 int error;
 
 /* setup code here */
@@ -156,12 +140,9 @@ if (mount(vfc.vfc_name, dir, mntflags, &args) < 0)
 .Ed
 .Sh RETURN VALUES
 The
-.Fn getvfsbyname ,
-.Fn getvfsbytype ,
-and
 .Fn getvfsent
-routines all return a pointer to the same static data structure when
-they succeed, and return a null pointer when they fail.  On failure,
+routine returns a pointer to a static data structure when
+it succeeds, and returns a null pointer when it fails.  On failure,
 .Va errno
 may be set to one of the values documented for
 .Xr sysctl 3
@@ -224,6 +205,6 @@ based on generic loadable kernel module support by
 .An Terry Lambert .
 .Sh HISTORY
 The
-.Fn getvfsbyname
+.Fn getvfsent
 family of functions first appeared in
 .Fx 2.0 .
