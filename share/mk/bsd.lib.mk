@@ -1,5 +1,5 @@
 #	from: @(#)bsd.lib.mk	5.26 (Berkeley) 5/2/91
-#	$Id: bsd.lib.mk,v 1.66 1998/01/13 06:00:56 jb Exp $
+#	$Id: bsd.lib.mk,v 1.67 1998/02/20 15:58:59 bde Exp $
 #
 
 .if exists(${.CURDIR}/../Makefile.inc)
@@ -315,4 +315,9 @@ all-man:
 .endif
 
 .include <bsd.dep.mk>
+
+.if !exists(${DEPENDFILE})
+${OBJS} ${POBJS} ${SOBJS}: ${SRCS:M*.h}
+.endif
+
 .include <bsd.obj.mk>
