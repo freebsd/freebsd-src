@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)vipw.c	8.3 (Berkeley) 4/2/94";
 #endif
 static const char rcsid[] =
-	"$Id: vipw.c,v 1.7 1999/06/26 10:45:06 sheldonh Exp $";
+	"$Id: vipw.c,v 1.8 1999/06/26 12:15:39 pb Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -100,8 +100,6 @@ main(argc, argv)
 		usage();
 
 	pw_init();
-	/* Create with exact permissions. */
-	(void)umask(0);
 	pfd = pw_lock();
 	tfd = pw_tmp();
 	copyfile(pfd, tfd);
