@@ -100,16 +100,17 @@ struct device *
 exec_Create(struct physical *p)
 {
   if (p->fd < 0 && *p->name.full == '!') {
-    int fids[2];
+    int fids[2], type;
 
     p->fd--;	/* We own the device but maybe can't use it - change fd */
+    type = physical_IsSync(p) ? SOCK_DGRAM : SOCK_STREAM;
 
-    if (socketpair(AF_UNIX, SOCK_STREAM, PF_UNSPEC, fids) < 0)
+    if (socketpair(AF_UNIX, type, PF_UNSPEC, fids) < 0)
       log_Printf(LogPHASE, "Unable to create pipe for line exec: %s\n",
-	         strerror(errno));
+                 strerror(errno));
     else {
-      static int child_status;
-      int stat, argc, i, ret, wret;
+      static int child_status, child_pid;	/* These variables are abused */
+      int stat, argc, i, ret, wret, pidpipe[2];
       pid_t pid, realpid;
       char *argv[MAXARGS];
 
@@ -119,31 +120,41 @@ exec_Create(struct physical *p)
         fcntl(fids[0], F_SETFL, stat);
       }
       realpid = getpid();
-      switch ((pid = fork())) {
+      if (pipe(pidpipe) == -1) {
+        log_Printf(LogPHASE, "Unable to pipe for line exec: %s\n",
+                   strerror(errno));
+        close(fids[1]);
+      } else switch ((pid = fork())) {
         case -1:
-          log_Printf(LogPHASE, "Unable to create pipe for line exec: %s\n",
-	             strerror(errno));
+          log_Printf(LogPHASE, "Unable to fork for line exec: %s\n",
+                     strerror(errno));
+          close(pidpipe[0]);
+          close(pidpipe[1]);
           close(fids[1]);
           break;
 
         case  0:
+          close(pidpipe[0]);
           close(fids[0]);
           timer_TermService();
           setuid(ID0realuid());
 
           child_status = 0;
-          switch (vfork()) {
+          switch ((pid = vfork())) {
             case 0:
+              close(pidpipe[1]);
               break;
 
             case -1:
               ret = errno;
-              log_Printf(LogPHASE, "Unable to fork to drop parent: %s\n",
-	                 strerror(errno));
+              log_Printf(LogPHASE, "Unable to vfork to drop parent: %s\n",
+                         strerror(errno));
+              close(pidpipe[1]);
               _exit(ret);
-              break;
 
             default:
+              write(pidpipe[1], &pid, sizeof pid);
+              close(pidpipe[1]);
               _exit(child_status);	/* The error from exec() ! */
           }
 
@@ -171,18 +182,25 @@ exec_Create(struct physical *p)
           break;
 
         default:
+          close(pidpipe[1]);
           close(fids[1]);
+          if (read(pidpipe[0], &p->session_owner, sizeof p->session_owner) !=
+              sizeof p->session_owner)
+            p->session_owner = (pid_t)-1;
+          close(pidpipe[0]);
           while ((wret = waitpid(pid, &stat, 0)) == -1 && errno == EINTR)
             ;
           if (wret == -1) {
             log_Printf(LogWARN, "Waiting for child process: %s\n",
                        strerror(errno));
             close(fids[0]);
+            p->session_owner = (pid_t)-1;
             break;
           } else if (WIFSIGNALED(stat)) {
             log_Printf(LogWARN, "Child process received sig %d !\n",
                        WTERMSIG(stat));
             close(fids[0]);
+            p->session_owner = (pid_t)-1;
             break;
           } else if (WIFSTOPPED(stat)) {
             log_Printf(LogWARN, "Child process received stop sig %d !\n",
@@ -192,11 +210,12 @@ exec_Create(struct physical *p)
             log_Printf(LogWARN, "Cannot exec \"%s\": %s\n", p->name.base,
                        strerror(ret));
             close(fids[0]);
+            p->session_owner = (pid_t)-1;
             break;
           }
           p->fd = fids[0];
           log_Printf(LogDEBUG, "Using descriptor %d for child\n", p->fd);
-          physical_SetupStack(p, execdevice.name, PHYSICAL_FORCE_ASYNC);
+          physical_SetupStack(p, execdevice.name, PHYSICAL_NOFORCE);
           if (p->cfg.cd.necessity != CD_DEFAULT)
             log_Printf(LogWARN, "Carrier settings ignored\n");
           return &execdevice;
