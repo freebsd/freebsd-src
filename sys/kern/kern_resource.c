@@ -98,17 +98,21 @@ getpriority(td, uap)
 
 	switch (uap->which) {
 	case PRIO_PROCESS:
-		if (uap->who == 0)
+		if (uap->who == 0) {
+			mtx_lock_spin(&sched_lock);
 			low = td->td_ksegrp->kg_nice;
-		else {
+			mtx_unlock_spin(&sched_lock);
+		} else {
 			p = pfind(uap->who);
 			if (p == NULL)
 				break;
 			if (p_cansee(td, p) == 0) {
+				mtx_lock_spin(&sched_lock);
 				FOREACH_KSEGRP_IN_PROC(p, kg) {
 					if (kg->kg_nice < low)
 						low = kg->kg_nice;
 				}
+				mtx_unlock_spin(&sched_lock);
 			}
 			PROC_UNLOCK(p);
 		}
@@ -132,10 +136,12 @@ getpriority(td, uap)
 		LIST_FOREACH(p, &pg->pg_members, p_pglist) {
 			PROC_LOCK(p);
 			if (!p_cansee(td, p)) {
+				mtx_lock_spin(&sched_lock);
 				FOREACH_KSEGRP_IN_PROC(p, kg) {
 					if (kg->kg_nice < low)
 						low = kg->kg_nice;
 				}
+				mtx_unlock_spin(&sched_lock);
 			}
 			PROC_UNLOCK(p);
 		}
@@ -151,10 +157,12 @@ getpriority(td, uap)
 			PROC_LOCK(p);
 			if (!p_cansee(td, p) &&
 			    p->p_ucred->cr_uid == uap->who) {
+				mtx_lock_spin(&sched_lock);
 				FOREACH_KSEGRP_IN_PROC(p, kg) {
 					if (kg->kg_nice < low)
 						low = kg->kg_nice;
 				}
+				mtx_unlock_spin(&sched_lock);
 			}
 			PROC_UNLOCK(p);
 		}
@@ -289,15 +297,19 @@ donice(struct thread *td, struct proc *p, int n)
 	 * Only allow nicing if to more than the lowest nice.
 	 * e.g.  nices of 4,3,2  allow nice to 3 but not 1
 	 */
+	mtx_lock_spin(&sched_lock);
 	FOREACH_KSEGRP_IN_PROC(p, kg) {
 		if (kg->kg_nice < low)
 			low = kg->kg_nice;
 	}
- 	if (n < low && suser(td))
+ 	if (n < low && suser(td)) {
+		mtx_unlock_spin(&sched_lock);
 		return (EACCES);
+	}
 	FOREACH_KSEGRP_IN_PROC(p, kg) {
 		sched_nice(kg, n);
 	}
+	mtx_unlock_spin(&sched_lock);
 	return (0);
 }
 
