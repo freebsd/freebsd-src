@@ -74,10 +74,13 @@ struct rad_handle {
 	char		 pass[PASSSIZE];	/* Cleartext password */
 	int		 pass_len;	/* Length of cleartext password */
 	int		 pass_pos;	/* Position of scrambled password */
-	unsigned	 chap_pass : 1; /* Have we got a CHAP_PASSWORD ? */
+	char	 	 chap_pass;	/* Have we got a CHAP_PASSWORD ? */
 	unsigned char	 response[MSGSIZE];	/* Response received */
 	int		 resp_len;	/* Length of response */
 	int		 resp_pos;	/* Current position scanning attrs */
+	int		 total_tries;	/* How many requests we'll send */
+	int		 try;		/* How many requests we've sent */
+	int		 srv;		/* Server number we did last */
 };
 
 #endif
