@@ -6,7 +6,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.231 1996/11/14 11:45:42 asami Exp $
+# $Id: bsd.port.mk,v 1.232 1996/11/30 10:31:50 asami Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -388,7 +388,7 @@ INSTALL_MAN= \
 
 PKG_CMD?=		/usr/sbin/pkg_create
 .if !defined(PKG_ARGS)
-PKG_ARGS=		-v -c ${PKGDIR}/COMMENT -d ${PKGDIR}/DESCR -f ${PKGDIR}/PLIST -p ${PREFIX} -P "`${MAKE} package-depends|sort|uniq`"
+PKG_ARGS=		-v -c ${PKGDIR}/COMMENT -d ${PKGDIR}/DESCR -f ${PKGDIR}/PLIST -p ${PREFIX} -P "`${MAKE} package-depends|sort -u`"
 .if exists(${PKGDIR}/INSTALL)
 PKG_ARGS+=		-i ${PKGDIR}/INSTALL
 .endif
@@ -1416,9 +1416,9 @@ describe:
 		${ECHO} -n "|/dev/null"; \
 	fi
 	@${ECHO} -n "|${MAINTAINER}|${CATEGORIES}|"
-	@cd ${.CURDIR} && ${ECHO} -n `make depends-list|sort|uniq`
+	@cd ${.CURDIR} && ${ECHO} -n `make depends-list|sort -u`
 	@${ECHO} -n "|"
-	@cd ${.CURDIR} && ${ECHO} -n `make package-depends|sort|uniq`
+	@cd ${.CURDIR} && ${ECHO} -n `make package-depends|sort -u`
 	@${ECHO} ""
 .endif
 
@@ -1448,7 +1448,7 @@ print-depends-list:
 .if defined(FETCH_DEPENDS) || defined(BUILD_DEPENDS) || \
 	defined(LIB_DEPENDS) || defined(DEPENDS)
 	@${ECHO} -n 'This port requires package(s) "'
-	@${ECHO} -n `make depends-list | sort | uniq`
+	@${ECHO} -n `make depends-list | sort -u`
 	@${ECHO} '" to build.'
 .endif
 .endif
@@ -1457,7 +1457,7 @@ print-depends-list:
 print-package-depends:
 .if defined(RUN_DEPENDS) || defined(LIB_DEPENDS) || defined(DEPENDS)
 	@${ECHO} -n 'This port requires package(s) "'
-	@${ECHO} -n `make package-depends | sort | uniq`
+	@${ECHO} -n `make package-depends | sort -u`
 	@${ECHO} '" to run.'
 .endif
 .endif
