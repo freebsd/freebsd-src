@@ -1,10 +1,10 @@
-# $Id: Makefile,v 1.10 1999/04/06 12:51:43 peter Exp $
+# $Id: Makefile,v 1.1 1999/04/20 11:32:09 obrien Exp $
 
 DISTRIBUTION=	compat3x
 
 LIBCOMPATDIR=	${LIBDIR}/compat
 
-LIBS=	libg++.so.4 libstdc++.so.2
+LIBS=	libf2c.so.2 libg++.so.4 libstdc++.so.2
 
 CLEANFILES+=	${LIBS}
 
