@@ -6,14 +6,14 @@ CCDIR=	${.CURDIR}/../../usr.bin/cc
 
 .PATH: ${GCCDIR}/config/${GCC_CPU} ${GCCDIR}
 
-SRCS=		crtstuff.c tconfig.h
+SRCS=		crtstuff.c tconfig.h tm.h
 OBJS=		crtbegin.o crtend.o
 SOBJS=		crtbegin.So crtend.So
 CSTD?=		gnu89
 CFLAGS+=	-DIN_GCC -DHAVE_LD_EH_FRAME_HDR
 CFLAGS+=	-finhibit-size-directive -fno-inline-functions \
 		-fno-exceptions -fno-zero-initialized-in-bss \
-		-fno-omit-frame-pointer
+		-fno-omit-frame-pointer -fno-unit-at-a-time
 CFLAGS+=	-I${GCCDIR}/config -I${GCCDIR} -I. \
 		-I${CCDIR}/cc_tools
 CRTS_CFLAGS=	-DCRTSTUFFS_O -DSHARED ${PICFLAG}
@@ -38,7 +38,7 @@ BEGINSRC?=	crtstuff.c
 ENDSRC?=	crtstuff.c
 
 all: ${OBJS} ${SOBJS} ${TGTOBJS}
-${OBJS} ${SOBJS}: tconfig.h
+${OBJS} ${SOBJS}: tm.h
 
 CLEANFILES=	${OBJS} ${SOBJS} ${TGTOBJS}
 
@@ -58,8 +58,8 @@ crtend.So:	${ENDSRC}
 	${CC} ${CFLAGS} -g0 -DCRT_END ${CRTS_CFLAGS} \
 		-c -o ${.TARGET} ${.ALLSRC:N*.h}
 
-CLEANFILES+=	tconfig.h
-tconfig.h: ${CCDIR}/cc_tools/Makefile
+CLEANFILES+=	tm.h tconfig.h
+tm.h tconfig.h: ${CCDIR}/cc_tools/Makefile
 	${MAKE} -f ${.ALLSRC} MFILE=${.ALLSRC} GCCDIR=${GCCDIR} ${.TARGET}
 
 realinstall:

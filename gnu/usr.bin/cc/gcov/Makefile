@@ -2,7 +2,7 @@
 
 .include "../Makefile.inc"
 
-.PATH: ${GCCDIR} ${GCCDIR}/doc		${GCCDIR}/../libiberty
+.PATH: ${GCCDIR} ${GCCDIR}/doc
 
 PROG=	gcov
 SRCS=	gcov.c version.c

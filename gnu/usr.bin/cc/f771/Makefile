@@ -14,22 +14,16 @@ NOMAN=
 
 CFLAGS+= -I${GCCDIR}/f -I.
 
-DPADD=	${LIBCC_INT} 
+DPADD=	${LIBCC_INT}
 LDADD=	${LIBCC_INT}
-
-build-tools: fini
-fini: fini.o
-	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC}
-
-CLEANFILES=	fini fini.o
 
 #-----------------------------------------------------------------------
 # str-* gunk
 
 .for i in 1t 2t fo io nq op ot
 .ORDER: str-$i.h str-$i.j
-str-$i.j str-$i.h: str-$i.fin fini
-	./fini ${GCCDIR}/f/str-$i.fin str-$i.j str-$i.h
+str-$i.j str-$i.h: str-$i.fin
+	${.OBJDIR}/../cc_tools/fini ${GCCDIR}/f/str-$i.fin str-$i.j str-$i.h
 
 FINIHDRS+=	str-$i.j str-$i.h
 .endfor

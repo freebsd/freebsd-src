@@ -23,12 +23,12 @@ INCSDIR=${INCLUDEDIR}/objc
 CFLAGS+= -fpic
 .endif
 
-CFLAGS+= -fgnu-runtime -DHAVE_GTHR_DEFAULT -DIN_TARGET_LIBS
+CFLAGS+= -fgnu-runtime -DHAVE_GTHR_DEFAULT -DIN_GCC -DIN_TARGET_LIBS
 CFLAGS+= -I. -I${.CURDIR}/../../usr.bin/cc/cc_tools
 CFLAGS+= -I${OBJCDIR}/objc -I${OBJCDIR} 
 CFLAGS+= -I${GCCDIR}/config -I${GCCDIR}
 
-GENHDRS=	runtime-info.h tconfig.h
+GENHDRS=	runtime-info.h tconfig.h tm.h
 CLEANFILES+=	${GENHDRS}
 SRCS+=		${GENHDRS}
 
@@ -38,7 +38,7 @@ runtime-info.h:
 	`${CC} --print-prog-name=cc1obj` -print-objc-runtime-info \
 	    < /dev/null > ${.TARGET}
 
-tconfig.h: ${.CURDIR}/../../usr.bin/cc/cc_tools/Makefile
+tconfig.h tm.h : ${.CURDIR}/../../usr.bin/cc/cc_tools/Makefile
 	${MAKE} -f ${.ALLSRC} MFILE=${.ALLSRC} GCCDIR=${GCCDIR} ${.TARGET}
 
 .include <bsd.lib.mk>
