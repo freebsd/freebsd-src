@@ -363,7 +363,7 @@ sw1a:
 	movl	%eax,%ecx
 
 	xorl	%eax,%eax
-	andl	$~WANT_RESCHED,_astpending
+	andl	$~AST_RESCHED,_astpending
 
 #ifdef	DIAGNOSTIC
 	cmpl	%eax,P_WCHAN(%ecx)

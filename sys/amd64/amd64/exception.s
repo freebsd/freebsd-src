@@ -238,7 +238,7 @@ calltrap:
 	 */
 	pushl	%ebx			/* cpl to restore */
 	subl	$4,%esp			/* dummy unit to finish intr frame */
-	MPLOCKED incb _intr_nesting_level
+	incb	_intr_nesting_level
 	MEXITCOUNT
 	jmp	_doreti
 
