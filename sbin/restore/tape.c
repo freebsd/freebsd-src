@@ -529,6 +529,8 @@ extractfile(name)
 	char *name;
 {
 	int flags;
+	uid_t uid;
+	gid_t gid;
 	mode_t mode;
 	struct timeval timep[2];
 	struct entry *ep;
@@ -539,6 +541,8 @@ extractfile(name)
 	timep[0].tv_usec = curfile.dip->di_atimensec / 1000;
 	timep[1].tv_sec = curfile.dip->di_mtime;
 	timep[1].tv_usec = curfile.dip->di_mtimensec / 1000;
+	uid = curfile.dip->di_uid;
+	gid = curfile.dip->di_gid;
 	mode = curfile.dip->di_mode;
 	flags = curfile.dip->di_flags;
 	switch (mode & IFMT) {
@@ -573,7 +577,13 @@ extractfile(name)
 			    "%s: zero length symbolic link (ignored)\n", name);
 			return (GOOD);
 		}
-		return (linkit(lnkbuf, name, SYMLINK));
+		if (linkit(lnkbuf, name, SYMLINK) == GOOD) {
+			(void) lchown(name, uid, gid);
+			(void) lchmod(name, mode);
+			(void) lutimes(name, timep);
+			return (GOOD);
+		}
+		return (FAIL);
 
 	case IFIFO:
 		vprintf(stdout, "extract fifo %s\n", name);
@@ -589,9 +599,9 @@ extractfile(name)
 			skipfile();
 			return (FAIL);
 		}
-		(void) chown(name, curfile.dip->di_uid, curfile.dip->di_gid);
+		(void) chown(name, uid, gid);
 		(void) chmod(name, mode);
-		utimes(name, timep);
+		(void) utimes(name, timep);
 		(void) chflags(name, flags);
 		skipfile();
 		return (GOOD);
@@ -611,9 +621,9 @@ extractfile(name)
 			skipfile();
 			return (FAIL);
 		}
-		(void) chown(name, curfile.dip->di_uid, curfile.dip->di_gid);
+		(void) chown(name, uid, gid);
 		(void) chmod(name, mode);
-		utimes(name, timep);
+		(void) utimes(name, timep);
 		(void) chflags(name, flags);
 		skipfile();
 		return (GOOD);
@@ -633,7 +643,7 @@ extractfile(name)
 			skipfile();
 			return (FAIL);
 		}
-		(void) fchown(ofile, curfile.dip->di_uid, curfile.dip->di_gid);
+		(void) fchown(ofile, uid, gid);
 		(void) fchmod(ofile, mode);
 		getfile(xtrfile, xtrskip);
 		(void) close(ofile);
