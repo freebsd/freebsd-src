@@ -33,8 +33,8 @@
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
-time_t parse_date __P((time_t dt, char const * str));
-void print_date __P((char *buf, time_t t, int dotime));
+time_t parse_date(time_t dt, char const * str);
+void print_date(char *buf, time_t t, int dotime);
 __END_DECLS
 
 #endif				/* !_PSDATE_H_ */
