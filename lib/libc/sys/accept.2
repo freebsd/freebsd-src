@@ -44,7 +44,7 @@
 .In sys/types.h
 .In sys/socket.h
 .Ft int
-.Fn accept "int s" "struct sockaddr *addr" "socklen_t *addrlen"
+.Fn accept "int s" "struct sockaddr * restrict addr" "socklen_t * restrict addrlen"
 .Sh DESCRIPTION
 The argument
 .Fa s
