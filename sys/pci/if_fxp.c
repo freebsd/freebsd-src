@@ -219,6 +219,7 @@ static int fxp_mediachange	__P((struct ifnet *));
 static void fxp_mediastatus	__P((struct ifnet *, struct ifmediareq *));
 static void fxp_set_media	__P((struct fxp_softc *, int));
 static __inline void fxp_scb_wait __P((struct fxp_softc *));
+static __inline void fxp_dma_wait __P((volatile u_int16_t *, struct fxp_softc *sc));
 static FXP_INTR_TYPE fxp_intr	__P((void *));
 static void fxp_start		__P((struct ifnet *));
 static int fxp_ioctl		__P((struct ifnet *,
@@ -288,7 +289,23 @@ fxp_scb_wait(sc)
 {
 	int i = 10000;
 
-	while (CSR_READ_1(sc, FXP_CSR_SCB_COMMAND) && --i);
+	while (CSR_READ_1(sc, FXP_CSR_SCB_COMMAND) && --i)
+		DELAY(2);
+	if (i == 0)
+		printf(FXP_FORMAT ": SCB timeout\n", FXP_ARGS(sc));
+}
+
+static __inline void
+fxp_dma_wait(status, sc)
+	volatile u_int16_t *status;
+	struct fxp_softc *sc;
+{
+	int i = 10000;
+
+	while (!(*status & FXP_CB_STATUS_C) && --i)
+		DELAY(2);
+	if (i == 0)
+		printf(FXP_FORMAT ": DMA timeout\n", FXP_ARGS(sc));
 }
 
 /*************************************************************
@@ -684,12 +701,85 @@ fxp_shutdown(device_t dev)
 	return 0;
 }
 
+/*
+ * Device suspend routine.  Stop the interface and save some PCI
+ * settings in case the BIOS doesn't restore them properly on
+ * resume.
+ */
+static int
+fxp_suspend(device_t dev)
+{
+	struct fxp_softc *sc = device_get_softc(dev);
+	int i, s;
+
+	s = splimp();
+
+	fxp_stop(sc);
+	
+	for (i=0; i<5; i++)
+		sc->saved_maps[i] = pci_read_config(dev, PCIR_MAPS + i*4, 4);
+	sc->saved_biosaddr = pci_read_config(dev, PCIR_BIOS, 4);
+	sc->saved_intline = pci_read_config(dev, PCIR_INTLINE, 1);
+	sc->saved_cachelnsz = pci_read_config(dev, PCIR_CACHELNSZ, 1);
+	sc->saved_lattimer = pci_read_config(dev, PCIR_LATTIMER, 1);
+
+	sc->suspended = 1;
+
+	splx(s);
+
+	return 0;
+}
+
+/*
+ * Device resume routine.  Restore some PCI settings in case the BIOS
+ * doesn't, re-enable busmastering, and restart the interface if
+ * appropriate.
+ */
+static int
+fxp_resume(device_t dev)
+{
+	struct fxp_softc *sc = device_get_softc(dev);
+	struct ifnet *ifp = &sc->sc_if;
+	u_int16_t pci_command;
+	int i, s;
+
+	s = splimp();
+
+	/* better way to do this? */
+	for (i=0; i<5; i++)
+		pci_write_config(dev, PCIR_MAPS + i*4, sc->saved_maps[i], 4);
+	pci_write_config(dev, PCIR_BIOS, sc->saved_biosaddr, 4);
+	pci_write_config(dev, PCIR_INTLINE, sc->saved_intline, 1);
+	pci_write_config(dev, PCIR_CACHELNSZ, sc->saved_cachelnsz, 1);
+	pci_write_config(dev, PCIR_LATTIMER, sc->saved_lattimer, 1);
+
+	/* reenable busmastering */
+	pci_command = pci_read_config(dev, PCIR_COMMAND, 2);
+	pci_command |= (PCIM_CMD_MEMEN|PCIM_CMD_BUSMASTEREN);
+	pci_write_config(dev, PCIR_COMMAND, pci_command, 2);
+
+	CSR_WRITE_4(sc, FXP_CSR_PORT, FXP_PORT_SELECTIVE_RESET);
+	DELAY(10);
+
+	/* reinitialize interface if necessary */
+	if (ifp->if_flags & IFF_UP)
+		fxp_init(sc);
+
+	sc->suspended = 0;
+
+	splx(s);
+
+	return 0;
+}
+
 static device_method_t fxp_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		fxp_probe),
 	DEVMETHOD(device_attach,	fxp_attach),
 	DEVMETHOD(device_detach,	fxp_detach),
 	DEVMETHOD(device_shutdown,	fxp_shutdown),
+	DEVMETHOD(device_suspend,	fxp_suspend),
+	DEVMETHOD(device_resume,	fxp_resume),
 
 	{ 0, 0 }
 };
@@ -1112,6 +1202,10 @@ fxp_intr(arg)
 	int claimed = 0;
 #endif
 
+	if (sc->suspended) {
+		return;
+	}
+
 	while ((statack = CSR_READ_1(sc, FXP_CSR_SCB_STATACK)) != 0) {
 #if defined(__NetBSD__)
 		claimed = 1;
@@ -1334,6 +1428,9 @@ fxp_stop(sc)
 	struct fxp_cb_tx *txp;
 	int i;
 
+	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
+	ifp->if_timer = 0;
+
 	/*
 	 * Cancel stats updater.
 	 */
@@ -1376,9 +1473,6 @@ fxp_stop(sc)
 			panic("fxp_stop: no buffers!");
 		}
 	}
-
-	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
-	ifp->if_timer = 0;
 }
 
 /*
@@ -1492,7 +1586,7 @@ fxp_init(xsc)
 	CSR_WRITE_4(sc, FXP_CSR_SCB_GENERAL, vtophys(&cbp->cb_status));
 	CSR_WRITE_1(sc, FXP_CSR_SCB_COMMAND, FXP_SCB_COMMAND_CU_START);
 	/* ...and wait for it to complete. */
-	while (!(cbp->cb_status & FXP_CB_STATUS_C));
+	fxp_dma_wait(&cbp->cb_status, sc);
 
 	/*
 	 * Now initialize the station address. Temporarily use the TxCB
@@ -1516,7 +1610,7 @@ fxp_init(xsc)
 	fxp_scb_wait(sc);
 	CSR_WRITE_1(sc, FXP_CSR_SCB_COMMAND, FXP_SCB_COMMAND_CU_START);
 	/* ...and wait for it to complete. */
-	while (!(cb_ias->cb_status & FXP_CB_STATUS_C));
+	fxp_dma_wait(&cb_ias->cb_status, sc);
 
 	/*
 	 * Initialize transmit control block (TxCB) list.
@@ -1955,6 +2049,7 @@ fxp_mc_setup(sc)
 	struct ifnet *ifp = &sc->sc_if;
 	struct ifmultiaddr *ifma;
 	int nmcasts;
+	int count;
 
 	/*
 	 * If there are queued commands, we must wait until they are all
@@ -2037,8 +2132,14 @@ fxp_mc_setup(sc)
 	 * Wait until command unit is not active. This should never
 	 * be the case when nothing is queued, but make sure anyway.
 	 */
+	count = 100;
 	while ((CSR_READ_1(sc, FXP_CSR_SCB_RUSCUS) >> 6) ==
-	    FXP_SCB_CUS_ACTIVE) ;
+	    FXP_SCB_CUS_ACTIVE && --count)
+		DELAY(10);
+	if (count == 0) {
+		printf(FXP_FORMAT ": command queue timeout\n", FXP_ARGS(sc));
+		return;
+	}
 
 	/*
 	 * Start the multicast setup command.
