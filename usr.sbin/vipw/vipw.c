@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)vipw.c	8.3 (Berkeley) 4/2/94";
 #endif
 static const char rcsid[] =
-	"$Id: vipw.c,v 1.5 1997/10/27 07:53:22 charnier Exp $";
+	"$Id: vipw.c,v 1.6 1999/06/26 07:16:42 sheldonh Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -134,7 +134,7 @@ copyfile(from, to)
 			if ((nw = write(to, buf + off, nr)) < 0)
 				pw_error(tempname, 1, 1);
 	if (nr < 0)
-		pw_error(_PATH_MASTERPASSWD, 1, 1);
+		pw_error(masterpasswd, 1, 1);
 }
 
 static void
