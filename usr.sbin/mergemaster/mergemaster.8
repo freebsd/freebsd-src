@@ -54,15 +54,18 @@ The script uses
 to build a temporary root environment from
 .Pa /
 down, populating that environment with the various
-files. You can specify a different source directory
+files.
+You can specify a different source directory
 with the
 .Op Fl m
 command line option.
 It then compares each file in that environment
-to its installed counterpart. When the script finds a
+to its installed counterpart.
+When the script finds a
 change in the new file, or there is no installed
 version of the new file it gives you four options to
-deal with it. You can install the new file as is,
+deal with it.
+You can install the new file as is,
 delete the new file, merge the old and new
 files (as appropriate) using
 .Xr sdiff 1
@@ -74,9 +77,11 @@ By default it creates the temporary root in
 and compares the
 .Xr cvs 1
 version $Id/$FreeBSD strings for files that have them, deleting
-the temporary file if the strings match. If there is
+the temporary file if the strings match.
+If there is
 no $Id string, or if the strings are different it
-compares the files themselves. You can
+compares the files themselves.
+You can
 also specify that the script ignore the $Id strings and
 compare every file.
 .Pp
@@ -84,13 +89,16 @@ compare every file.
 checks your umask and issues a warning for anything
 other than 022. While it is not mandatory to grant
 world read permissions for most configuration files, you
-may run into problems without them. If you choose a
+may run into problems without them.
+If you choose a
 umask other than 022 and experience trouble later this
 could be the cause.
 .Pa /etc/master.passwd
-is treated as a special case. If you choose to install
+is treated as a special case.
+If you choose to install
 this file or a merged version of it the file permissions
-are always 600 (rw-------) for security reasons. After
+are always 600 (rw-------) for security reasons.
+After
 installing an updated version of this file you should
 probably run
 .Xr pwd_mkdb 8
@@ -115,23 +123,29 @@ Use context diffs instead of unified diffs.
 Re-run
 .Nm
 on a previously cleaned directory, skipping the creation of
-the temporary root environment. This option is compatible
+the temporary root environment.
+This option is compatible
 with all other options.
 .It Fl v
-Be more verbose about the process. You should probably use
+Be more verbose about the process.
+You should probably use
 this option the first time you run
 .Nm mergemaster .
 This option also gives you a list of files that exist
 only in the installed version of
 .Pa /etc .
 .It Fl a
-Run automatically. This option will leave all the files that
+Run automatically.
+This option will leave all the files that
 differ from the installed versions in the temporary directory
-to be dealt with by hand. If the
+to be dealt with by hand.
+If the
 .Pa temproot
 directory exists, it creates a new one in a previously
-non-existent directory. This option unsets the verbose flag,
-but is compatible with all other options. Setting -a makes
+non-existent directory.
+This option unsets the verbose flag,
+but is compatible with all other options.
+Setting -a makes
 -w superfluous.
 .It Fl h
 Display usage and help information.
@@ -147,21 +161,25 @@ instead of the default
 .Pa /var/tmp/temproot .
 .It Fl d
 Add the date and time to the name of the temporary
-root directory. If -t is specified, this option must
+root directory.
+If -t is specified, this option must
 follow it if you want the date added too.
 .It Fl u Ar N
-Specify a numeric umask. The default is 022.
+Specify a numeric umask.
+The default is 022.
 .It Fl w Ar N
 Supply an alternate screen width to the
 .Xr sdiff 1
-command in numbers of columns. The default is 80.
+command in numbers of columns.
+The default is 80.
 .El
 .Sh ENVIRONMENT
 The
 .Nm
 script uses the
 .Ev PAGER
-environment variable if set. Otherwise it uses
+environment variable if set.
+Otherwise it uses
 .Xr more 1 .
 If
 .Ev PAGER
@@ -200,8 +218,10 @@ comparison, use:
 .Pa $HOME/.mergemasterrc
 .Pp
 .Nm
-will . (source) this file if it exists. Command line options
-will override rc file options. Here is an example
+will . (source) this file if it exists.
+Command line options
+will override rc file options.
+Here is an example
 with all values commented out:
 .Pp
 .Bd -literal
@@ -273,7 +293,10 @@ make world tutorial which is referenced above.
 This manual page and the script itself were written by
 .An Douglas Barton Aq Doug@gorean.org .
 .Sh BUGS
-There are no known bugs. Please report any problems,
-comments or suggestions to the author. Several of the
+There are no known bugs.
+Please report any problems,
+comments or suggestions to the author.
+Several of the
 improvements to this program have come from user
-suggestions. Thank you.
+suggestions.
+Thank you.

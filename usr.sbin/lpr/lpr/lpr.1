@@ -58,7 +58,8 @@ uses a spooling daemon to print the named files when facilities
 become available.  If no names appear, the standard input is assumed.
 .Pp
 The following single letter options are used to notify the line printer
-spooler that the files are not standard text files. The spooling daemon will
+spooler that the files are not standard text files.
+The spooling daemon will
 use the appropriate filters to print the data accordingly.
 .Bl -tag -width indent
 .It Fl c
@@ -144,7 +145,8 @@ of the file bar.c, etc.  On the other hand,
 cat foo.c bar.c more.c \&| lpr \-#3
 .Ed
 .Pp
-will give three copies of the concatenation of the files. Often
+will give three copies of the concatenation of the files.
+Often
 a site will disable this feature to encourage use of a photocopier
 instead.
 .It Xo
@@ -255,5 +257,6 @@ Fonts for
 .Xr troff 1
 and
 .Xr tex
-reside on the host with the printer. It is currently not possible to
+reside on the host with the printer.
+It is currently not possible to
 use local font libraries.

@@ -76,7 +76,8 @@ user for a confirmation whether to format the floppy disk at
 .It Fl f Ar capacity
 The normal way to specify the desired formatting parameters.
 .Ar Capacity
-is the number of kilobytes to format. Valid choices are 360, 720, 800, 820,
+is the number of kilobytes to format.
+Valid choices are 360, 720, 800, 820,
 1200, 1440, 1480 or 1720.
 .It Fl n
 Don't verify floppy after formatting.
@@ -106,7 +107,8 @@ An alternate method to specify the geometry data to write to the floppy disk.
 If the
 .Fl q
 flag has not been specified, the user is asked for a confirmation
-of the intended formatting process. In order to continue, an answer
+of the intended formatting process.
+In order to continue, an answer
 of
 .Dq y
 must be given.
@@ -136,7 +138,8 @@ while it's being verified, and if an error has been detected, it
 will finally change to
 .Sq Em E .
 .Pp
-An exit status of 0 is returned upon successful operation. Exit status
+An exit status of 0 is returned upon successful operation.
+Exit status
 1 is returned on any errors during floppy formatting, and an exit status
 of 2 reflects invalid arguments given to the program (along with an
 appropriate information written to diagnostic output).
@@ -149,7 +152,8 @@ appropriate information written to diagnostic output).
 has been developed for 386BSD 0.1
 and upgraded to the new
 .Xr fdc 4
-floppy disk driver. It later became part of the
+floppy disk driver.
+It later became part of the
 .Fx 1.1
 system.
 .Sh AUTHORS

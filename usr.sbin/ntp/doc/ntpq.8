@@ -54,7 +54,8 @@ topology.
 makes one attempt to retransmit requests, and will time requests out if
 the remote host is not heard from within a suitable timeout time.
 .Pp
-Command line options are described following. Specifying a command line
+Command line options are described following.
+Specifying a command line
 option other than
 .Fl i
 or
@@ -151,7 +152,8 @@ messages can be assembled, and sent using the
 .Ic readlist
 and
 .Ic writelist
-commands described below. The
+commands described below.
+The
 .Ic addvars
 command allows variables and their optional values to be added to the
 list.
@@ -249,7 +251,8 @@ The only formatting and intepretation done on the data is to
 transform non-ASCII data into a printable (but barely understandable)
 form.
 .It Ic timeout Ar milliseconds
-Specify a timeout period for responses to server queries. The default
+Specify a timeout period for responses to server queries.
+The default
 is about 5000 milliseconds.
 Note that since
 .Nm
@@ -382,7 +385,8 @@ command.
 Like the
 .Ic readvar
 command except the query is done for each of a range of (nonzero)
-association IDs. This range is determined from the association list
+association IDs.
+This range is determined from the association list
 cached by the most recent
 .Ic associations
 command.

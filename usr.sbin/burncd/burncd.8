@@ -69,9 +69,11 @@ may be one of:
 .Pp
 .Bl -tag -width XXXXXXXXXXXX
 .It Ar blank
-Blank a CD-RW medium. This uses the fast blanking method, so data are not physically overwritten, only those areas that make the media appear blank for further usage.
+Blank a CD-RW medium.
+This uses the fast blanking method, so data are not physically overwritten, only those areas that make the media appear blank for further usage.
 .It Ar fixate
-Fixate the medium so that the TOC is generated and the media can be used in an ordinary CD drive. The driver defaults to creating multisession media. Should be the last command to 
+Fixate the medium so that the TOC is generated and the media can be used in an ordinary CD drive. The driver defaults to creating multisession media.
+Should be the last command to 
 .Nm
 as the program exits when this has been done.
 .It Ar raw | audio
@@ -108,7 +110,8 @@ The typical usage for burning a mixed mode CD-R:
 Probably, please report when found.
 .Sh HISTORY
 .Nm burncd
-is currently under development. The
+is currently under development.
+The
 .Nm
 command appeared in
 .Fx 4.0 .
