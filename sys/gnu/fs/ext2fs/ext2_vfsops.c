@@ -1116,7 +1116,7 @@ ext2_fhtovp(mp, fhp, vpp)
 	ufhp = (struct ufid *)fhp;
 	fs = VFSTOEXT2(mp)->um_e2fs;
 	if (ufhp->ufid_ino < ROOTINO ||
-	    ufhp->ufid_ino >= fs->s_groups_count * fs->s_es->s_inodes_per_group)
+	    ufhp->ufid_ino > fs->s_groups_count * fs->s_es->s_inodes_per_group)
 		return (ESTALE);
 
 	error = VFS_VGET(mp, ufhp->ufid_ino, LK_EXCLUSIVE, &nvp);
