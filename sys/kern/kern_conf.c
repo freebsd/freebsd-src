@@ -30,23 +30,26 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_lkm.c,v 1.15 1995/09/08 11:08:34 bde Exp $
+ * $Id: kern_conf.c,v 1.1 1995/10/02 09:24:44 julian Exp $
  */
 
 #include <sys/param.h>
+#include <sys/types.h>
+#include <sys/systm.h>
 #include <sys/conf.h>
 extern d_open_t lkmenodev;
 
 /*
  * (re)place an entry in the bdevsw or cdevsw table
- * return the slot used in MAJOR(*descrip)
+ * return the slot used in major(*descrip)
  */
 #define ADDENTRY(TTYPE,NXXXDEV) \
 int TTYPE##_add(dev_t *descrip,						\
 		struct TTYPE *cdeventry,				\
-		cdevsw_t *oldentry)					\
+		struct TTYPE *oldentry)					\
 {									\
-	if ( (int)*decsrip == -1) {	/* auto (0 is valid) */		\
+	int i ;								\
+	if ( (int)*descrip == -1) {	/* auto (0 is valid) */		\
 		/*							\
 		 * Search the table looking for a slot...		\
 		 */							\
@@ -58,6 +61,7 @@ int TTYPE##_add(dev_t *descrip,						\
 			return ENFILE;					\
 		}							\
 	} else {				/* assign */		\
+		i = major(descrip);					\
 		if (i < 0 || i >= NXXXDEV) {				\
 			return EINVAL;					\
 		}							\
@@ -72,7 +76,7 @@ int TTYPE##_add(dev_t *descrip,						\
 									\
 	/* done! */							\
 	*descrip = makedev(i,0);					\
-	return 0							\
+	return 0;							\
 } \
 
 ADDENTRY(cdevsw, nblkdev)
