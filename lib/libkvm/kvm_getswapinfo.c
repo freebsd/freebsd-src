@@ -38,35 +38,11 @@ __FBSDID("$FreeBSD$");
 #define NL_DMMAX	3
 
 static int kvm_swap_nl_cached = 0;
-static int nswdev;
 static int unswdev;  /* number of found swap dev's */
 static int dmmax;
 
-static int kvm_getswapinfo2(kvm_t *kd, struct kvm_swap *swap_ary,
-			    int swap_max, int flags);
-static int  kvm_getswapinfo_kvm(kvm_t *, struct kvm_swap *, int, int);
 static int  kvm_getswapinfo_sysctl(kvm_t *, struct kvm_swap *, int, int);
 static int  getsysctl(kvm_t *, char *, void *, size_t);
-
-#define	SVAR(var) __STRING(var)	/* to force expansion */
-#define	KGET(idx, var)							\
-	KGET1(idx, &var, sizeof(var), SVAR(var))
-#define	KGET1(idx, p, s, msg)						\
-	KGET2(kvm_swap_nl[idx].n_value, p, s, msg)
-#define	KGET2(addr, p, s, msg)						\
-	if (kvm_read(kd, (u_long)(addr), p, s) != s)			\
-		warnx("cannot read %s: %s", msg, kvm_geterr(kd))
-#define	KGETN(idx, var)							\
-	KGET1N(idx, &var, sizeof(var), SVAR(var))
-#define	KGET1N(idx, p, s, msg)						\
-	KGET2N(kvm_swap_nl[idx].n_value, p, s, msg)
-#define	KGET2N(addr, p, s, msg)						\
-	((kvm_read(kd, (u_long)(addr), p, s) == s) ? 1 : 0)
-#define	KGETRET(addr, p, s, msg)					\
-	if (kvm_read(kd, (u_long)(addr), p, s) != s) {			\
-		warnx("cannot read %s: %s", msg, kvm_geterr(kd));	\
-		return (0);						\
-	}
 
 #define GETSWDEVNAME(dev, str, flags)					\
 	if (dev == NODEV) {						\
@@ -86,7 +62,6 @@ kvm_getswapinfo(
 	int swap_max, 
 	int flags
 ) {
-	int rv;
 
 	/*
 	 * clear cache
