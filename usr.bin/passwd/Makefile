@@ -1,8 +1,8 @@
 # From:	@(#)Makefile	8.3 (Berkeley) 4/2/94
-# $Id: Makefile,v 1.14.2.1 1995/08/26 09:53:02 davidg Exp $
+# $Id: Makefile,v 1.18 1995/09/14 21:02:16 gibbs Exp $
 
 PROG=	passwd
-SRCS=	local_passwd.c yp_passwd.c passwd.c pw_copy.c pw_util.c
+SRCS=	local_passwd.c yp_passwd.c passwd.c pw_copy.c pw_util.c pw_yp.c
 DPADD=	${LIBCRYPT} ${LIBRPCSVC}
 LDADD=	-lcrypt -lrpcsvc
 .PATH:  ${.CURDIR}/../../usr.bin/chpass ${.CURDIR}/../../usr.sbin/vipw \

@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 1992/3 Theo de Raadt <deraadt@fsa.ca>
  * Copyright (c) 1994 Olaf Kirch <okir@monad.swb.de>
+ * Copyright (c) 1995 Bill Paul <wpaul@ctr.columbia.edu>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,6 +29,7 @@
  * SUCH DAMAGE.
  */
 
+#ifdef YP
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -42,6 +44,7 @@
 #include <rpcsvc/yp_prot.h>
 #include <rpcsvc/ypclnt.h>
 #include <rpcsvc/yppasswd.h>
+#include <pw_yp.h>
 
 extern char *prog_name;
 uid_t	uid;
@@ -116,6 +119,9 @@ yp_passwd(char *user)
       }
   }
 
+  /* Use the correct password */
+  pw = (struct passwd *)&yp_password;
+
   /* Initialize password information */
   yppasswd.newpw.pw_passwd = pw->pw_passwd;
   yppasswd.newpw.pw_name = pw->pw_name;
@@ -172,3 +178,4 @@ yp_passwd(char *user)
   clnt_destroy( clnt );
   exit ((err || status) != 0);
 }
+#endif /* YP */
