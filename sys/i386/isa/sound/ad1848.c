@@ -57,7 +57,9 @@
 #include <i386/isa/sound/ad1848_mixer.h>
 #include <i386/isa/sound/iwdefs.h>
 
+#if !defined(CONFIG_CS4232) 
 extern struct isa_driver mssdriver;
+#endif
 
 extern void     IwaveStopDma(BYTE path);
 
@@ -83,8 +85,9 @@ typedef struct {
 #define MD_1848		1
 #define MD_4231		2
 #define MD_4231A	3
-#define MD_1845		4
-#define MD_MAXMODE	5
+#define MD_4236		4
+#define MD_1845		5
+#define MD_MAXMODE	6
 
 	/* Mixer parameters */
 	int      recmask;
@@ -124,7 +127,8 @@ static int      ad_format_mask[MD_MAXMODE /* devc->mode */ ] =
      */
 
     /* 3 - CS4231A */	AFMT_U8 | AFMT_S16_LE | AFMT_MU_LAW | AFMT_A_LAW,
-    /* 4 - AD1845 */	AFMT_U8 | AFMT_S16_LE | AFMT_MU_LAW | AFMT_A_LAW
+    /* 4 - AD1845 */	AFMT_U8 | AFMT_S16_LE | AFMT_MU_LAW | AFMT_A_LAW,
+    /* 5 - CS4236 */	AFMT_U8 | AFMT_S16_LE | AFMT_MU_LAW | AFMT_A_LAW,
 };
 
 static ad1848_info dev_info[MAX_AUDIO_DEV];
@@ -147,7 +151,6 @@ static void     ad1848_halt_output(int dev);
 static void     ad1848_trigger(int dev, int bits);
 static int      ad1848_tmr_install(int dev);
 static void     ad1848_tmr_reprogram(int dev);
-void adintr(int);
 
 /*
  * AD_WAIT_INIT waits if we are initializing the board and we cannot modify
@@ -166,7 +169,11 @@ adintr(unit)
     if (unit_to_irq[unit] > 0)
 	ad1848_interrupt(unit_to_irq[unit]);
     else {
+#if defined(CONFIG_CS4232)
+	dev = find_isadev(isa_devtab_null, &cssdriver, unit);
+#else
 	dev = find_isadev(isa_devtab_null, &mssdriver, unit);
+#endif
 	if (!dev)
 	    printf("ad1848: Couldn't determine unit\n");
 	else {
@@ -555,7 +562,7 @@ static struct audio_operations ad1848_pcm_operations[MAX_AUDIO_DEV] =
 
 static struct mixer_operations ad1848_mixer_operations =
 {
-	"AD1848/CS4248/CS4231",
+	"AD1848/CS4248/CS4231/CS4236",
 	ad1848_mixer_ioctl
 };
 
@@ -1311,6 +1318,11 @@ ad1848_detect(int io_base, int *ad_flags, sound_os_info * osp)
 		    break;
 
 		case 0x83:	/* CS4236 */
+		case 0x03:	/* Mutant CS4236 on Intel PR440fx board */
+		    devc->chip_name = "CS4236";
+		    devc->mode = MD_4236;
+		    break;
+
 		default:	/* Assume CS4231 */
 		    printf("unknown id 0x%02x, assuming CS4231\n", id);
 		    devc->mode = MD_4231;
