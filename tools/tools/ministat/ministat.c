@@ -328,6 +328,8 @@ PlotSet(struct dataset *ds, int val)
 	int i, j, m, x;
 
 	pl = &plot;
+	if (pl->span == 0)
+		return;
 	m = 1;
 	i = -1;
 	j = 0;
@@ -380,6 +382,10 @@ DumpPlot(void)
 	int i, j, k;
 
 	pl = &plot;
+	if (pl->span == 0) {
+		printf("[no plot, span is zero width]\n");
+		return;
+	}
 
 	putchar('+');
 	for (i = 0; i < pl->width; i++)
