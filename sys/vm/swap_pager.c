@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.14 1994/10/15 13:33:06 davidg Exp $
+ * $Id: swap_pager.c,v 1.15 1994/10/22 02:17:59 davidg Exp $
  */
 
 /*
@@ -1101,7 +1101,14 @@ swap_pager_input(swp, m, count, reqpage)
 	while ((bp->b_flags & B_DONE) == 0) {
 		tsleep((caddr_t)bp, PVM, "swread", 0);
 	}
-	rv = (bp->b_flags & B_ERROR) ? VM_PAGER_FAIL : VM_PAGER_OK;
+	
+	if (bp->b_flags & B_ERROR) {
+		printf("swap_pager: I/O error - pagein failed; blkno %d, size %d, error %d\n",
+		    bp->b_blkno, bp->b_bcount, bp->b_error);
+		rv = VM_PAGER_FAIL;
+	} else {
+		rv = VM_PAGER_OK;
+	}
 	bp->b_flags &= ~(B_BUSY|B_WANTED|B_PHYS|B_DIRTY|B_CALL|B_DONE);
 
 	--swp->sw_piip;
@@ -1496,7 +1503,13 @@ retrygetspace:
 	while ((bp->b_flags & B_DONE) == 0) {
 		tsleep((caddr_t)bp, PVM, "swwrt", 0);
 	}
-	rv = (bp->b_flags & B_ERROR) ? VM_PAGER_FAIL : VM_PAGER_OK;
+	if (bp->b_flags & B_ERROR) {
+		printf("swap_pager: I/O error - pageout failed; blkno %d, size %d, error %d\n",
+		    bp->b_blkno, bp->b_bcount, bp->b_error);
+		rv = VM_PAGER_FAIL;
+	} else {
+		rv = VM_PAGER_OK;
+	}
 	bp->b_flags &= ~(B_BUSY|B_WANTED|B_PHYS|B_DIRTY|B_CALL|B_DONE);
 
 	--swp->sw_poip;
@@ -1659,8 +1672,9 @@ swap_pager_iodone(bp)
 	TAILQ_INSERT_TAIL(&swap_pager_done, spc, spc_list);
 	if (bp->b_flags & B_ERROR) {
 		spc->spc_flags |= SPC_ERROR;
-		printf("error %d blkno %lu sz %ld ",
-			bp->b_error, (u_long)bp->b_blkno, bp->b_bcount);
+		printf("swap_pager: I/O error - async %s failed; blkno %lu, size %ld, error %d",
+		    (bp->b_flags & B_READ) ? "pagein" : "pageout",
+		    bp->b_error, (u_long)bp->b_blkno, bp->b_bcount);
 	}
 
 /*
