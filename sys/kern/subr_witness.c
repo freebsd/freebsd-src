@@ -703,6 +703,7 @@ static char *spin_order_list[] = {
 #ifdef __i386__
 	"clk",
 #endif
+	"callout",
 	/*
 	 * leaf locks
 	 */
