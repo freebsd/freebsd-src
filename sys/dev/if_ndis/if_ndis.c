@@ -508,6 +508,7 @@ ndis_attach(dev)
 		uint32_t		arg;
 		int			r;
 
+		ic->ic_ifp = ifp;
 	        ic->ic_phytype = IEEE80211_T_DS;
 		ic->ic_opmode = IEEE80211_M_STA;
 		ic->ic_caps = IEEE80211_C_IBSS;
@@ -672,8 +673,8 @@ nonettypes:
 		if (r == 0)
 			ic->ic_caps |= IEEE80211_C_PMGT;
 		bcopy(eaddr, &ic->ic_myaddr, sizeof(eaddr));
-		ieee80211_ifattach(ifp);
-		ieee80211_media_init(ifp, ieee80211_media_change,
+		ieee80211_ifattach(ic);
+		ieee80211_media_init(ic, ieee80211_media_change,
 		    ndis_media_status);
 		ic->ic_ibss_chan = IEEE80211_CHAN_ANYC;
 		ic->ic_bss->ni_chan = ic->ic_ibss_chan;
@@ -730,7 +731,7 @@ ndis_detach(dev)
 		NDIS_UNLOCK(sc);
 		ndis_stop(sc);
 		if (sc->ndis_80211)
-			ieee80211_ifdetach(ifp);
+			ieee80211_ifdetach(&sc->ic);
 		else
 			ether_ifdetach(ifp);
 	} else
@@ -1478,7 +1479,7 @@ ndis_setstate_80211(sc)
 	struct ifnet		*ifp;
 
 	ic = &sc->ic;
-	ifp = &sc->ic.ic_ac.ac_if;
+	ifp = &sc->arpcom.ac_if;
 
 	if (!NDIS_INITIALIZED(sc))
 		return;
@@ -1498,27 +1499,27 @@ ndis_setstate_80211(sc)
 
 	/* Set WEP */
 
-#ifdef IEEE80211_F_WEPON
-	if (ic->ic_flags & IEEE80211_F_WEPON) {
+#ifdef IEEE80211_F_PRIVACY
+	if (ic->ic_flags & IEEE80211_F_PRIVACY) {
 #else
 	if (ic->ic_wep_mode >= IEEE80211_WEP_ON) {
 #endif
 		for (i = 0; i < IEEE80211_WEP_NKID; i++) {
-			if (ic->ic_nw_keys[i].wk_len) {
+			if (ic->ic_nw_keys[i].wk_keylen) {
 				bzero((char *)&wep, sizeof(wep));
-				wep.nw_keylen = ic->ic_nw_keys[i].wk_len;
+				wep.nw_keylen = ic->ic_nw_keys[i].wk_keylen;
 #ifdef notdef
 				/* 5 and 13 are the only valid key lengths */
-				if (ic->ic_nw_keys[i].wk_len < 5)
+				if (ic->ic_nw_keys[i].wk_keylen < 5)
 					wep.nw_keylen = 5;
-				else if (ic->ic_nw_keys[i].wk_len > 5 &&
-				     ic->ic_nw_keys[i].wk_len < 13)
+				else if (ic->ic_nw_keys[i].wk_keylen > 5 &&
+				     ic->ic_nw_keys[i].wk_keylen < 13)
 					wep.nw_keylen = 13;
 #endif
 				wep.nw_keyidx = i;
 				wep.nw_length = (sizeof(uint32_t) * 3)
 				    + wep.nw_keylen;
-				if (i == ic->ic_wep_txkey)
+				if (i == ic->ic_def_txkey)
 					wep.nw_keyidx |= NDIS_80211_WEPKEY_TX;
 				bcopy(ic->ic_nw_keys[i].wk_key,
 				    wep.nw_keydata, wep.nw_length);
@@ -1777,7 +1778,7 @@ ndis_getstate_80211(sc)
 	struct ifnet		*ifp;
 
 	ic = &sc->ic;
-	ifp = &sc->ic.ic_ac.ac_if;
+	ifp = &sc->arpcom.ac_if;
 
 	if (!NDIS_INITIALIZED(sc))
 		return;
@@ -1952,7 +1953,7 @@ ndis_ioctl(ifp, command, data)
 	case SIOCGIFMEDIA:
 	case SIOCSIFMEDIA:
 		if (sc->ndis_80211) {
-			error = ieee80211_ioctl(ifp, command, data);
+			error = ieee80211_ioctl(&sc->ic, command, data);
 			if (error == ENETRESET) {
 				ndis_setstate_80211(sc);
 				/*ndis_init(sc);*/
@@ -1983,7 +1984,7 @@ ndis_ioctl(ifp, command, data)
 	default:
 		sc->ndis_skip = 1;
 		if (sc->ndis_80211) {
-			error = ieee80211_ioctl(ifp, command, data);
+			error = ieee80211_ioctl(&sc->ic, command, data);
 			if (error == ENETRESET) {
 				ndis_setstate_80211(sc);
 				error = 0;
