@@ -24,6 +24,7 @@ const char *const watch_usage[] =
     "-R (on/off/add/remove): Process directories recursively\n",
     "-a (add/remove): Specify what actions, one of\n",
     "    edit,unedit,commit,all,none\n",
+    "(Specify the --help global option for a list of other help options)\n",
     NULL
 };
 
@@ -417,6 +418,7 @@ static const char *const watchers_usage[] =
     "Usage: %s %s [-lR] [files...]\n",
     "\t-l\tProcess this directory only (not recursive).\n",
     "\t-R\tProcess directories recursively.\n",
+    "(Specify the --help global option for a list of other help options)\n",
     NULL
 };
 

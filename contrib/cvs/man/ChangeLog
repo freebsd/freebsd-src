@@ -1,3 +1,18 @@
+Mon Jan 12 11:10:21 1998  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.1: Refer to Cederqvist as Cederqvist not as cvs.texinfo.
+	Describe it in a way which hopefully makes more sense for people
+	who aren't getting the CVS source distribution itself.  In "SEE
+	ALSO" section, also mention web pages.  Use a period not a comma
+	at the end of the references to other manpages.
+
+	* cvs.1: Remove $Id; we decided to get rid of these some time ago.
+
+Sun Jan 11 13:46:54 1998  Peter Wemm  <peter@netplex.com.au>
+
+	* cvs.1: Fix "the the" typo.  From Wolfram Schneider
+ 	<wosch@freebsd.org> via FreeBSD sources.
+
 Wed Feb 12 14:20:43 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
 
 	* Makefile.in (install): Depend on installdirs.

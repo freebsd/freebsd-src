@@ -1167,8 +1167,8 @@ static int stdio_buffer_flush PROTO((void *));
 
 /* Initialize a buffer built on a stdio FILE.  */
 
-struct buffer
-*stdio_buffer_initialize (fp, input, memory)
+struct buffer *
+stdio_buffer_initialize (fp, input, memory)
      FILE *fp;
      int input;
      void (*memory) PROTO((struct buffer *));
@@ -1289,6 +1289,440 @@ stdio_buffer_flush (closure)
     }
 
     return 0;
+}
+
+/* Certain types of communication input and output data in packets,
+   where each packet is translated in some fashion.  The packetizing
+   buffer type supports that, given a buffer which handles lower level
+   I/O and a routine to translate the data in a packet.
+
+   This code uses two bytes for the size of a packet, so packets are
+   restricted to 65536 bytes in total.
+
+   The translation functions should just translate; they may not
+   significantly increase or decrease the amount of data.  The actual
+   size of the initial data is part of the translated data.  The
+   output translation routine may add up to PACKET_SLOP additional
+   bytes, and the input translation routine should shrink the data
+   correspondingly.  */
+
+#define PACKET_SLOP (100)
+
+/* This structure is the closure field of a packetizing buffer.  */
+
+struct packetizing_buffer
+{
+    /* The underlying buffer.  */
+    struct buffer *buf;
+    /* The input translation function.  Exactly one of inpfn and outfn
+       will be NULL.  The input translation function should
+       untranslate the data in INPUT, storing the result in OUTPUT.
+       SIZE is the amount of data in INPUT, and is also the size of
+       OUTPUT.  This should return 0 on success, or an errno code.  */
+    int (*inpfn) PROTO((void *fnclosure, const char *input, char *output,
+			int size));
+    /* The output translation function.  This should translate the
+       data in INPUT, storing the result in OUTPUT.  The first two
+       bytes in INPUT will be the size of the data, and so will SIZE.
+       This should set *TRANSLATED to the amount of translated data in
+       OUTPUT.  OUTPUT is large enough to hold SIZE + PACKET_SLOP
+       bytes.  This should return 0 on success, or an errno code.  */
+    int (*outfn) PROTO((void *fnclosure, const char *input, char *output,
+			int size, int *translated));
+    /* A closure for the translation function.  */
+    void *fnclosure;
+    /* For an input buffer, we may have to buffer up data here.  */
+    /* This is non-zero if the buffered data has been translated.
+       Otherwise, the buffered data has not been translated, and starts
+       with the two byte packet size.  */
+    int translated;
+    /* The amount of buffered data.  */
+    int holdsize;
+    /* The buffer allocated to hold the data.  */
+    char *holdbuf;
+    /* The size of holdbuf.  */
+    int holdbufsize;
+    /* If translated is set, we need another data pointer to track
+       where we are in holdbuf.  If translated is clear, then this
+       pointer is not used.  */
+    char *holddata;
+};
+
+static int packetizing_buffer_input PROTO((void *, char *, int, int, int *));
+static int packetizing_buffer_output PROTO((void *, const char *, int, int *));
+static int packetizing_buffer_flush PROTO((void *));
+static int packetizing_buffer_block PROTO((void *, int));
+static int packetizing_buffer_shutdown PROTO((void *));
+
+/* Create a packetizing buffer.  */
+
+struct buffer *
+packetizing_buffer_initialize (buf, inpfn, outfn, fnclosure, memory)
+     struct buffer *buf;
+     int (*inpfn) PROTO ((void *, const char *, char *, int));
+     int (*outfn) PROTO ((void *, const char *, char *, int, int *));
+     void *fnclosure;
+     void (*memory) PROTO((struct buffer *));
+{
+    struct packetizing_buffer *pb;
+
+    pb = (struct packetizing_buffer *) xmalloc (sizeof *pb);
+    memset (pb, 0, sizeof *pb);
+
+    pb->buf = buf;
+    pb->inpfn = inpfn;
+    pb->outfn = outfn;
+    pb->fnclosure = fnclosure;
+
+    if (inpfn != NULL)
+    {
+	/* Add PACKET_SLOP to handle larger translated packets, and
+           add 2 for the count.  This buffer is increased if
+           necessary.  */
+	pb->holdbufsize = BUFFER_DATA_SIZE + PACKET_SLOP + 2;
+	pb->holdbuf = xmalloc (pb->holdbufsize);
+    }
+
+    return buf_initialize (inpfn != NULL ? packetizing_buffer_input : NULL,
+			   inpfn != NULL ? NULL : packetizing_buffer_output,
+			   inpfn != NULL ? NULL : packetizing_buffer_flush,
+			   packetizing_buffer_block,
+			   packetizing_buffer_shutdown,
+			   memory,
+			   pb);
+}
+
+/* Input data from a packetizing buffer.  */
+
+static int
+packetizing_buffer_input (closure, data, need, size, got)
+     void *closure;
+     char *data;
+     int need;
+     int size;
+     int *got;
+{
+    struct packetizing_buffer *pb = (struct packetizing_buffer *) closure;
+
+    *got = 0;
+
+    if (pb->holdsize > 0 && pb->translated)
+    {
+	int copy;
+
+	copy = pb->holdsize;
+
+	if (copy > size)
+	{
+	    memcpy (data, pb->holddata, size);
+	    pb->holdsize -= size;
+	    pb->holddata += size;
+	    *got = size;
+	    return 0;
+	}
+
+	memcpy (data, pb->holddata, copy);
+	pb->holdsize = 0;
+	pb->translated = 0;
+
+	data += copy;
+	need -= copy;
+	size -= copy;
+	*got = copy;
+    }
+
+    while (need > 0 || *got == 0)
+    {
+	int get, status, nread, count, tcount;
+	char *bytes;
+	char stackoutbuf[BUFFER_DATA_SIZE + PACKET_SLOP];
+	char *inbuf, *outbuf;
+
+	/* If we don't already have the two byte count, get it.  */
+	if (pb->holdsize < 2)
+	{
+	    get = 2 - pb->holdsize;
+	    status = buf_read_data (pb->buf, get, &bytes, &nread);
+	    if (status != 0)
+	    {
+		/* buf_read_data can return -2, but a buffer input
+                   function is only supposed to return -1, 0, or an
+                   error code.  */
+		if (status == -2)
+		    status = ENOMEM;
+		return status;
+	    }
+
+	    if (nread == 0)
+	    {
+		/* The buffer is in nonblocking mode, and we didn't
+                   manage to read anything.  */
+		return 0;
+	    }
+
+	    if (get == 1)
+		pb->holdbuf[1] = bytes[0];
+	    else
+	    {
+		pb->holdbuf[0] = bytes[0];
+		if (nread < 2)
+		{
+		    /* We only got one byte, but we needed two.  Stash
+                       the byte we got, and try again.  */
+		    pb->holdsize = 1;
+		    continue;
+		}
+		pb->holdbuf[1] = bytes[1];
+	    }
+	    pb->holdsize = 2;
+	}
+
+	/* Read the packet.  */
+
+	count = (((pb->holdbuf[0] & 0xff) << 8)
+		 + (pb->holdbuf[1] & 0xff));
+
+	if (count + 2 > pb->holdbufsize)
+	{
+	    char *n;
+
+	    /* We didn't allocate enough space in the initialize
+               function.  */
+
+	    n = realloc (pb->holdbuf, count + 2);
+	    if (n == NULL)
+	    {
+		(*pb->buf->memory_error) (pb->buf);
+		return ENOMEM;
+	    }
+	    pb->holdbuf = n;
+	    pb->holdbufsize = count + 2;
+	}
+
+	get = count - (pb->holdsize - 2);
+
+	status = buf_read_data (pb->buf, get, &bytes, &nread);
+	if (status != 0)
+	{
+	    /* buf_read_data can return -2, but a buffer input
+               function is only supposed to return -1, 0, or an error
+               code.  */
+	    if (status == -2)
+		status = ENOMEM;
+	    return status;
+	}
+
+	if (nread == 0)
+	{
+	    /* We did not get any data.  Presumably the buffer is in
+               nonblocking mode.  */
+	    return 0;
+	}
+
+	if (nread < get)
+	{
+	    /* We did not get all the data we need to fill the packet.
+               buf_read_data does not promise to return all the bytes
+               requested, so we must try again.  */
+	    memcpy (pb->holdbuf + pb->holdsize, bytes, nread);
+	    pb->holdsize += nread;
+	    continue;
+	}
+
+	/* We have a complete untranslated packet of COUNT bytes.  */
+
+	if (pb->holdsize == 2)
+	{
+	    /* We just read the entire packet (the 2 bytes in
+               PB->HOLDBUF are the size).  Save a memcpy by
+               translating directly from BYTES.  */
+	    inbuf = bytes;
+	}
+	else
+	{
+	    /* We already had a partial packet in PB->HOLDBUF.  We
+               need to copy the new data over to make the input
+               contiguous.  */
+	    memcpy (pb->holdbuf + pb->holdsize, bytes, nread);
+	    inbuf = pb->holdbuf + 2;
+	}
+
+	if (count <= sizeof stackoutbuf)
+	    outbuf = stackoutbuf;
+	else
+	{
+	    outbuf = malloc (count);
+	    if (outbuf == NULL)
+	    {
+		(*pb->buf->memory_error) (pb->buf);
+		return ENOMEM;
+	    }
+	}
+
+	status = (*pb->inpfn) (pb->fnclosure, inbuf, outbuf, count);
+	if (status != 0)
+	    return status;
+
+	/* The first two bytes in the translated buffer are the real
+           length of the translated data.  */
+	tcount = ((outbuf[0] & 0xff) << 8) + (outbuf[1] & 0xff);
+
+	if (tcount > count)
+	    error (1, 0, "Input translation failure");
+
+	if (tcount > size)
+	{
+	    /* We have more data than the caller has provided space
+               for.  We need to save some of it for the next call.  */
+
+	    memcpy (data, outbuf + 2, size);
+	    *got += size;
+
+	    pb->holdsize = tcount - size;
+	    memcpy (pb->holdbuf, outbuf + 2 + size, tcount - size);
+	    pb->holddata = pb->holdbuf;
+	    pb->translated = 1;
+
+	    if (outbuf != stackoutbuf)
+		free (outbuf);
+
+	    return 0;
+	}
+
+	memcpy (data, outbuf + 2, tcount);
+
+	if (outbuf != stackoutbuf)
+	    free (outbuf);
+
+	pb->holdsize = 0;
+
+	data += tcount;
+	need -= tcount;
+	size -= tcount;
+	*got += tcount;
+    }
+
+    return 0;
+}
+
+/* Output data to a packetizing buffer.  */
+
+static int
+packetizing_buffer_output (closure, data, have, wrote)
+     void *closure;
+     const char *data;
+     int have;
+     int *wrote;
+{
+    struct packetizing_buffer *pb = (struct packetizing_buffer *) closure;
+    char inbuf[BUFFER_DATA_SIZE + 2];
+    char stack_outbuf[BUFFER_DATA_SIZE + PACKET_SLOP + 4];
+    struct buffer_data *outdata;
+    char *outbuf;
+    int size, status, translated;
+
+    if (have > BUFFER_DATA_SIZE)
+    {
+	/* It would be easy to malloc a buffer, but I don't think this
+           case can ever arise.  */
+	abort ();
+    }
+
+    inbuf[0] = (have >> 8) & 0xff;
+    inbuf[1] = have & 0xff;
+    memcpy (inbuf + 2, data, have);
+
+    size = have + 2;
+
+    /* The output function is permitted to add up to PACKET_SLOP
+       bytes, and we need 2 bytes for the size of the translated data.
+       If we can guarantee that the result will fit in a buffer_data,
+       we translate directly into one to avoid a memcpy in buf_output.  */
+    if (size + PACKET_SLOP + 2 > BUFFER_DATA_SIZE)
+	outbuf = stack_outbuf;
+    else
+    {
+	outdata = get_buffer_data ();
+	if (outdata == NULL)
+	{
+	    (*pb->buf->memory_error) (pb->buf);
+	    return ENOMEM;
+	}
+
+	outdata->next = NULL;
+	outdata->bufp = outdata->text;
+
+	outbuf = outdata->text;
+    }
+
+    status = (*pb->outfn) (pb->fnclosure, inbuf, outbuf + 2, size,
+			   &translated);
+    if (status != 0)
+	return status;
+
+    /* The output function is permitted to add up to PACKET_SLOP
+       bytes.  */
+    if (translated > size + PACKET_SLOP)
+	abort ();
+
+    outbuf[0] = (translated >> 8) & 0xff;
+    outbuf[1] = translated & 0xff;
+
+    if (outbuf == stack_outbuf)
+	buf_output (pb->buf, outbuf, translated + 2);
+    else
+    {
+	outdata->size = translated + 2;
+	buf_append_data (pb->buf, outdata, outdata);
+    }
+
+    *wrote = have;
+
+    /* We will only be here because buf_send_output was called on the
+       packetizing buffer.  That means that we should now call
+       buf_send_output on the underlying buffer.  */
+    return buf_send_output (pb->buf);
+}
+
+/* Flush data to a packetizing buffer.  */
+
+static int
+packetizing_buffer_flush (closure)
+     void *closure;
+{
+    struct packetizing_buffer *pb = (struct packetizing_buffer *) closure;
+
+    /* Flush the underlying buffer.  Note that if the original call to
+       buf_flush passed 1 for the BLOCK argument, then the buffer will
+       already have been set into blocking mode, so we should always
+       pass 0 here.  */
+    return buf_flush (pb->buf, 0);
+}
+
+/* The block routine for a packetizing buffer.  */
+
+static int
+packetizing_buffer_block (closure, block)
+     void *closure;
+     int block;
+{
+    struct packetizing_buffer *pb = (struct packetizing_buffer *) closure;
+
+    if (block)
+	return set_block (pb->buf);
+    else
+	return set_nonblock (pb->buf);
+}
+
+/* Shut down a packetizing buffer.  */
+
+static int
+packetizing_buffer_shutdown (closure)
+     void *closure;
+{
+    struct packetizing_buffer *pb = (struct packetizing_buffer *) closure;
+
+    return buf_shutdown (pb->buf);
 }
 
 #endif /* defined (SERVER_SUPPORT) || defined (CLIENT_SUPPORT) */

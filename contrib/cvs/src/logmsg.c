@@ -3,7 +3,7 @@
  * Copyright (c) 1989-1992, Brian Berliner
  * 
  * You may distribute under the terms of the GNU General Public License as
- * specified in the README file that comes with the CVS 1.4 kit.
+ * specified in the README file that comes with the CVS source distribution.
  */
 
 #include "cvs.h"
@@ -282,7 +282,7 @@ do_editor (dir, messagep, repository, changes)
 	(void) Parse_Info (CVSROOTADM_EDITINFO, repository, editinfo_proc, 0);
 
     /* run the editor */
-    run_setup ("%s", editinfo_editor ? editinfo_editor : Editor);
+    run_setup (editinfo_editor ? editinfo_editor : Editor);
     run_arg (fname);
     if ((retcode = run_exec (RUN_TTY, RUN_TTY, RUN_TTY,
 			     RUN_NORMAL | RUN_SIGIGNORE)) != 0)
@@ -345,8 +345,16 @@ do_editor (dir, messagep, repository, changes)
 	    (void) printf ("Action: (continue) ");
 	    (void) fflush (stdout);
 	    line_length = getline (&line, &line_chars_allocated, stdin);
-	    if (line_length <= 0
-		    || *line == '\n' || *line == 'c' || *line == 'C')
+	    if (line_length < 0)
+	    {
+		error (0, errno, "cannot read from stdin");
+		if (unlink_file (fname) < 0)
+		    error (0, errno,
+			   "warning: cannot remove temp file %s", fname);
+		error (1, 0, "aborting");
+	    }
+	    else if (line_length == 0
+		     || *line == '\n' || *line == 'c' || *line == 'C')
 		break;
 	    if (*line == 'a' || *line == 'A')
 		{
@@ -411,10 +419,7 @@ do_verify (message, repository)
 
     fp = fopen (fname, "w");
     if (fp == NULL)
-    {
 	error (1, errno, "cannot create temporary file %s", fname);
-	return;
-    }
     else
     {
 	fprintf (fp, "%s", message);
@@ -434,15 +439,21 @@ do_verify (message, repository)
 
 	if (verifymsg_script)
 	{
-	    run_setup ("%s", verifymsg_script);
+	    run_setup (verifymsg_script);
 	    run_arg (fname);
 	    if ((retcode = run_exec (RUN_TTY, RUN_TTY, RUN_TTY,
 				     RUN_NORMAL | RUN_SIGIGNORE)) != 0)
+	    {
+		/* Since following error() exits, delete the temp file
+		   now.  */
+		unlink_file (fname);
+
 		error (1, retcode == -1 ? errno : 0, 
 		       "Message verification failed");
+	    }
 	}
 
-	/* Close and delete the temp file  */
+	/* Delete the temp file  */
 
 	unlink_file (fname);
 	free (fname);

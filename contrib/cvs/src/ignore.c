@@ -304,49 +304,54 @@ ign_name (name)
     }
 }
 
-/* FIXME: This list of dirs to ignore stuff seems not to be used.  */
+/* FIXME: This list of dirs to ignore stuff seems not to be used.
+   Really?  send_dirent_proc and update_dirent_proc both call
+   ignore_directory and do_module calls ign_dir_add.  No doubt could
+   use some documentation/testsuite work.  */
 
 static char **dir_ign_list = NULL;
 static int dir_ign_max = 0;
 static int dir_ign_current = 0;
 
-/* add a directory to list of dirs to ignore */
-void ign_dir_add (name)
-     char *name;
+/* Add a directory to list of dirs to ignore.  */
+void
+ign_dir_add (name)
+    char *name;
 {
-  /* make sure we've got the space for the entry */
-  if (dir_ign_current <= dir_ign_max)
+    /* Make sure we've got the space for the entry.  */
+    if (dir_ign_current <= dir_ign_max)
     {
-      dir_ign_max += IGN_GROW;
-      dir_ign_list = (char **) xrealloc ((char *) dir_ign_list, (dir_ign_max+1) * sizeof(char*));
+	dir_ign_max += IGN_GROW;
+	dir_ign_list =
+	    (char **) xrealloc (dir_ign_list,
+				(dir_ign_max + 1) * sizeof (char *));
     }
 
-  dir_ign_list[dir_ign_current] = name;
+    dir_ign_list[dir_ign_current] = name;
 
-  dir_ign_current += 1 ;
+    dir_ign_current += 1 ;
 }
 
 
-/* this function returns 1 (true) if the given directory name is part of
- * the list of directories to ignore
- */
+/* Return nonzero if NAME is part of the list of directories to ignore.  */
 
-int ignore_directory (name)
-     char *name;
+int
+ignore_directory (name)
+    char *name;
 {
-  int i;
+    int i;
 
-  if (!dir_ign_list)
-    return 0;
+    if (!dir_ign_list)
+	return 0;
 
-  i = dir_ign_current;
-  while (i--)
+    i = dir_ign_current;
+    while (i--)
     {
-      if (strncmp(name, dir_ign_list[i], strlen(dir_ign_list[i])) == 0)
-	return 1;
+	if (strncmp (name, dir_ign_list[i], strlen (dir_ign_list[i])) == 0)
+	    return 1;
     }
 
-  return 0;
+    return 0;
 }
 
 /*

@@ -110,6 +110,10 @@ extern struct buffer *stdio_buffer_initialize
   PROTO((FILE *, int, void (*) (struct buffer *)));
 extern struct buffer *compress_buffer_initialize
   PROTO((struct buffer *, int, int, void (*) (struct buffer *)));
+extern struct buffer *packetizing_buffer_initialize
+  PROTO((struct buffer *, int (*) (void *, const char *, char *, int),
+	 int (*) (void *, const char *, char *, int, int *), void *,
+	 void (*) (struct buffer *)));
 extern int buf_empty_p PROTO((struct buffer *));
 extern void buf_output PROTO((struct buffer *, const char *, int));
 extern void buf_output0 PROTO((struct buffer *, const char *));

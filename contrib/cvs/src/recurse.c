@@ -2,7 +2,7 @@
  * Copyright (c) 1992, Brian Berliner and Jeff Polk
  * 
  * You may distribute under the terms of the GNU General Public License as
- * specified in the README file that comes with the CVS 1.4 kit.
+ * specified in the README file that comes with the CVS source distribution.
  * 
  * General recursion handler
  * 
@@ -157,7 +157,25 @@ start_recursion (fileproc, filesdoneproc, direntproc, dirleaveproc, callerdat,
 	 * called with the list of sub-dirs of the current dir as args
 	 */
 	if ((which & W_LOCAL) && !isdir (CVSADM))
+	{
 	    dirlist = Find_Directories ((char *) NULL, W_LOCAL, (List *) NULL);
+	    /* If there are no sub-directories, there is a certain logic in
+	       favor of doing nothing, but in fact probably the user is just
+	       confused about what directory they are in, or whether they
+	       cvs add'd a new directory.  In the case of at least one
+	       sub-directory, at least when we recurse into them we
+	       notice (hopefully) whether they are under CVS control.  */
+	    if (list_isempty (dirlist))
+	    {
+		if (update_dir[0] == '\0')
+		    error (0, 0, "in directory .:");
+		else
+		    error (0, 0, "in directory %s:", update_dir);
+		error (1, 0,
+		       "there is no version here; run '%s checkout' first",
+		       program_name);
+	    }
+	}
 	else
 	    addlist (&dirlist, ".");
 
@@ -637,7 +655,7 @@ but CVS uses %s for its own purposes; skipping %s directory",
 	else
 	{
 	    newrepos = xmalloc (strlen (repository) + strlen (dir) + 5);
-	    (void) sprintf (newrepos, "%s/%s", repository, dir);
+	    sprintf (newrepos, "%s/%s", repository, dir);
 	}
     }
     else
@@ -651,10 +669,78 @@ but CVS uses %s for its own purposes; skipping %s directory",
 	    newrepos = xstrdup (repository);
     }
 
+    /* Check to see that the CVSADM directory, if it exists, seems to be
+       well-formed.  It can be missing files if the user hit ^C in the
+       middle of a previous run.  We want to (a) make this a nonfatal
+       error, and (b) make sure we print which directory has the
+       problem.
+
+       Do this before the direntproc, so that (1) the direntproc
+       doesn't have to guess/deduce whether we will skip the directory
+       (e.g. send_dirent_proc and whether to send the directory), and
+       (2) so that the warm fuzzy doesn't get printed if we skip the
+       directory.  */
+    if (frame->which & W_LOCAL)
+    {
+	char *cvsadmdir;
+
+	cvsadmdir = xmalloc (strlen (dir)
+			     + sizeof (CVSADM_REP)
+			     + sizeof (CVSADM_ENT)
+			     + 80);
+
+	strcpy (cvsadmdir, dir);
+	strcat (cvsadmdir, "/");
+	strcat (cvsadmdir, CVSADM);
+	if (isdir (cvsadmdir))
+	{
+	    strcpy (cvsadmdir, dir);
+	    strcat (cvsadmdir, "/");
+	    strcat (cvsadmdir, CVSADM_REP);
+	    if (!isfile (cvsadmdir))
+	    {
+		/* Some commands like update may have printed "? foo" but
+		   if we were planning to recurse, and don't on account of
+		   CVS/Repository, we want to say why.  */
+		error (0, 0, "ignoring %s (%s missing)", update_dir,
+		       CVSADM_REP);
+		dir_return = R_SKIP_ALL;
+	    }
+
+	    /* Likewise for CVS/Entries.  */
+	    if (dir_return != R_SKIP_ALL)
+	    {
+		strcpy (cvsadmdir, dir);
+		strcat (cvsadmdir, "/");
+		strcat (cvsadmdir, CVSADM_ENT);
+		if (!isfile (cvsadmdir))
+		{
+		    /* Some commands like update may have printed "? foo" but
+		       if we were planning to recurse, and don't on account of
+		       CVS/Repository, we want to say why.  */
+		    error (0, 0, "ignoring %s (%s missing)", update_dir,
+			   CVSADM_ENT);
+		    dir_return = R_SKIP_ALL;
+		}
+	    }
+	}
+	free (cvsadmdir);
+    }
+
     /* call-back dir entry proc (if any) */
-    if (frame->direntproc != NULL)
+    if (dir_return == R_SKIP_ALL)
+	;
+    else if (frame->direntproc != NULL)
 	dir_return = frame->direntproc (frame->callerdat, dir, newrepos,
 					update_dir, frent->entries);
+    else
+    {
+	/* Generic behavior.  I don't see a reason to make the caller specify
+	   a direntproc just to get this.  */
+	if ((frame->which & W_LOCAL) && !isdir (dir))
+	    dir_return = R_SKIP_ALL;
+    }
+
     free (newrepos);
 
     /* only process the dir if the return code was 0 */
