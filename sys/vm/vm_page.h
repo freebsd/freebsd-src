@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_page.h,v 1.27 1996/06/05 03:31:49 dyson Exp $
+ * $Id: vm_page.h,v 1.28 1996/06/08 06:48:35 dyson Exp $
  */
 
 /*
@@ -147,7 +147,8 @@ struct vm_page {
 
 #define ACT_DECLINE		1
 #define ACT_ADVANCE		3
-#define ACT_MAX			100
+#define ACT_INIT		5
+#define ACT_MAX			32
 #define PFCLUSTER_BEHIND	3
 #define PFCLUSTER_AHEAD		3
 
