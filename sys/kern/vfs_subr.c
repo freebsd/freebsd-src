@@ -158,7 +158,7 @@ int desiredvnodes;
 SYSCTL_INT(_kern, KERN_MAXVNODES, maxvnodes, CTLFLAG_RW, 
     &desiredvnodes, 0, "Maximum number of vnodes");
 static int minvnodes;
-SYSCTL_INT(_kern, KERN_MAXVNODES, minvnodes, CTLFLAG_RW, 
+SYSCTL_INT(_kern, OID_AUTO, minvnodes, CTLFLAG_RW, 
     &minvnodes, 0, "Minimum number of vnodes");
 
 static void	vfs_free_addrlist __P((struct netexport *nep));
