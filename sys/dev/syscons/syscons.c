@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/cons.h>
 #include <sys/consio.h>
+#include <sys/kdb.h>
 #include <sys/eventhandler.h>
 #include <sys/fbio.h>
 #include <sys/kbio.h>
@@ -154,9 +155,7 @@ static int scparam(struct tty *tp, struct termios *t);
 static void scstart(struct tty *tp);
 static void scinit(int unit, int flags);
 static scr_stat *sc_get_stat(struct cdev *devptr);
-#if !__alpha__
 static void scterm(int unit, int flags);
-#endif
 static void scshutdown(void *arg, int howto);
 static u_int scgetc(sc_softc_t *sc, u_int flags);
 #define SCGETC_CN	1
@@ -204,10 +203,6 @@ static cn_checkc_t	sccncheckc;
 static cn_putc_t	sccnputc;
 static cn_dbctl_t	sccndbctl;
 static cn_term_t	sccnterm;
-
-#if __alpha__
-void sccnattach(void);
-#endif
 
 CONS_DRIVER(sc, sccnprobe, sccninit, sccnterm, sccngetc, sccncheckc, sccnputc,
 	    sccndbctl);
@@ -1377,7 +1372,6 @@ scstart(struct tty *tp)
 static void
 sccnprobe(struct consdev *cp)
 {
-#if !__alpha__
     int unit;
     int flags;
 
@@ -1395,22 +1389,11 @@ sccnprobe(struct consdev *cp)
 
     /* initialize required fields */
     sprintf(cp->cn_name, "consolectl");
-#endif /* !__alpha__ */
-
-#if __alpha__
-    /*
-     * alpha use sccnattach() rather than cnprobe()/cninit()/cnterm()
-     * interface to install the console.  Always return CN_DEAD from
-     * here.
-     */
-    cp->cn_pri = CN_DEAD;
-#endif /* __alpha__ */
 }
 
 static void
 sccninit(struct consdev *cp)
 {
-#if !__alpha__
     int unit;
     int flags;
 
@@ -1419,11 +1402,6 @@ sccninit(struct consdev *cp)
     sc_console_unit = unit;
     sc_console = sc_get_stat(sc_get_softc(unit, SC_KERNEL_CONSOLE)->dev[0]);
     sc_consptr = cp;
-#endif /* !__alpha__ */
-
-#if __alpha__
-    /* SHOULDN'T REACH HERE */
-#endif /* __alpha__ */
 }
 
 static void
@@ -1434,53 +1412,15 @@ sccnterm(struct consdev *cp)
     if (sc_console_unit < 0)
 	return;			/* shouldn't happen */
 
-#if !__alpha__
 #if 0 /* XXX */
     sc_clear_screen(sc_console);
     sccnupdate(sc_console);
 #endif
+
     scterm(sc_console_unit, SC_KERNEL_CONSOLE);
     sc_console_unit = -1;
     sc_console = NULL;
-#endif /* !__alpha__ */
-
-#if __alpha__
-    /* do nothing XXX */
-#endif /* __alpha__ */
 }
-
-#ifdef __alpha__
-
-void
-sccnattach(void)
-{
-    static struct consdev consdev;
-    int unit;
-    int flags;
-
-    bcopy(&sc_consdev, &consdev, sizeof(sc_consdev));
-    consdev.cn_pri = sc_get_cons_priority(&unit, &flags);
-
-    /* a video card is always required */
-    if (!scvidprobe(unit, flags, TRUE))
-	consdev.cn_pri = CN_DEAD;
-
-    /* alpha doesn't allow the console being without a keyboard... Why? */
-    if (!sckbdprobe(unit, flags, TRUE))
-	consdev.cn_pri = CN_DEAD;
-
-    if (consdev.cn_pri == CN_DEAD)
-	return;
-
-    scinit(unit, flags | SC_KERNEL_CONSOLE);
-    sc_console_unit = unit;
-    sc_consptr = &consdev;
-    sc_console = sc_get_stat(sc_get_softc(unit, SC_KERNEL_CONSOLE)->dev[0]);
-    sprintf(consdev.cn_name, "ttyv%r", 0);
-    cnadd(&consdev);
-}
-
-#endif /* __alpha__ */
 
 static void
 sccnputc(struct consdev *cd, int c)
@@ -2846,7 +2786,6 @@ scinit(int unit, int flags)
     sc->flags |= SC_INIT_DONE;
 }
 
-#if !__alpha__
 static void
 scterm(int unit, int flags)
 {
@@ -2902,7 +2841,6 @@ scterm(int unit, int flags)
     sc->keyboard = -1;
     sc->adapter = -1;
 }
-#endif /* !__alpha__ */
 
 static void
 scshutdown(void *arg, int howto)
@@ -3342,15 +3280,9 @@ next_code:
 		break;
 
 	    case DBG:
-#ifndef SC_DISABLE_DDBKEY
-#ifdef DDB
-		Debugger("manual escape to debugger");
-#else
-		printf("No debugger in kernel\n");
+#ifndef SC_DISABLE_KDBKEY
+		kdb_enter("manual escape to debugger");
 #endif
-#else /* SC_DISABLE_DDBKEY */
-		/* do nothing */
-#endif /* SC_DISABLE_DDBKEY */
 		break;
 
 	    case PNC:
