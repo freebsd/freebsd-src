@@ -124,7 +124,7 @@ So use
 .Xr kill 1
 for this job (e.g.\& $ kill -TERM -1 or
 as root $ echo kill -TERM -1 | su -m <user>)
-.Sh DIAGNOSTICS
+.Sh EXIT STATUS
 The
 .Nm
 command will respond with a short usage message and exit with a status
@@ -134,7 +134,7 @@ either no matching process has been found or not all processes have
 been signalled successfully.
 Otherwise, a status of 0 will be
 returned.
-.Pp
+.Sh DIAGNOSTICS
 Diagnostic messages will only be printed if requested by
 .Fl d
 options.
