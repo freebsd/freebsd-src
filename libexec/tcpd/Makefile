@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-MAINTAINER=	markm@FreeBSD.org
-
 PROG=	tcpd
 MAN=	tcpd.8
 CSTD?=	c89
