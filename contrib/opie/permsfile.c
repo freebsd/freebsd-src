@@ -48,7 +48,7 @@ char **ftpglob __P((char *));
 
 VOIDRET opiefatal FUNCTION((x), char *x)
 {
-  fprintf(stderr, x);
+  fprintf(stderr, "%s", x);
   exit(1);
 }
 
