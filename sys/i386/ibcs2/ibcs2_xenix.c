@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ibcs2_xenix.c,v 1.16 1998/08/16 01:21:49 bde Exp $
+ *	$Id: ibcs2_xenix.c,v 1.17 1998/12/04 22:54:46 archie Exp $
  */
 
 #include <sys/param.h>
@@ -80,7 +80,7 @@ xenix_rdchk(p, uap)
 	SCARG(&sa, fd) = SCARG(uap, fd);
 	SCARG(&sa, com) = FIONREAD;
 	SCARG(&sa, data) = stackgap_alloc(&sg, sizeof(int));
-	if (error = ioctl(p, &sa))
+	if ((error = ioctl(p, &sa)) != 0)
 		return error;
 	p->p_retval[0] = (*((int*)SCARG(&sa, data))) ? 1 : 0;
 	return 0;
@@ -202,7 +202,7 @@ xenix_eaccess(struct proc *p, struct xenix_eaccess_args *uap)
 
         NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_USERSPACE,
             SCARG(uap, path), p);
-        if (error = namei(&nd))
+        if ((error = namei(&nd)) != 0)
                 return error;
         vp = nd.ni_vp;
 

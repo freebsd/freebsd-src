@@ -22,7 +22,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: elf_machdep.c,v 1.3 1998/10/16 03:54:59 peter Exp $
+ *      $Id: elf_machdep.c,v 1.4 1998/12/07 21:58:18 archie Exp $
  */
 
 #include <sys/param.h>
@@ -50,13 +50,13 @@ elf_reloc(linker_file_t lf, const void *data, int type, const char *sym)
 
 	switch (type) {
 	case ELF_RELOC_REL:
-		rel = (Elf_Rel *)data;
+		rel = (const Elf_Rel *)data;
 		where = (Elf_Addr *) (relocbase + rel->r_offset);
 		addend = *where;
 		rtype = ELF_R_TYPE(rel->r_info);
 		break;
 	case ELF_RELOC_RELA:
-		rela = (Elf_Rela *)data;
+		rela = (const Elf_Rela *)data;
 		where = (Elf_Addr *) (relocbase + rela->r_offset);
 		addend = rela->r_addend;
 		rtype = ELF_R_TYPE(rela->r_info);

@@ -27,7 +27,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: cy.c,v 1.82 1998/12/24 14:17:57 bde Exp $
+ *	$Id: cy.c,v 1.83 1999/01/08 19:17:46 bde Exp $
  */
 
 #include "opt_compat.h"
@@ -924,7 +924,7 @@ comhardclose(com)
 		enable_intr();
 #endif
 		tp = com->tp;
-		if (tp->t_cflag & HUPCL
+		if ((tp->t_cflag & HUPCL)
 		    /*
 		     * XXX we will miss any carrier drop between here and the
 		     * next open.  Perhaps we should watch DCD even when the
@@ -932,9 +932,9 @@ comhardclose(com)
 		     * the next open because it might go up and down while
 		     * we're not watching.
 		     */
-		    || !com->active_out
+		    || (!com->active_out
 		       && !(com->prev_modem_status & MSR_DCD)
-		       && !(com->it_in.c_cflag & CLOCAL)
+		       && !(com->it_in.c_cflag & CLOCAL))
 		    || !(tp->t_state & TS_ISOPEN)) {
 			(void)commctl(com, TIOCM_DTR, DMBIC);
 
@@ -1107,16 +1107,16 @@ siointr(unit)
 				*/
 				if (   com->tp == NULL
 				    || !(com->tp->t_state & TS_ISOPEN)
-				    || (line_status & (LSR_PE|LSR_FE))
-				    &&  (com->tp->t_iflag & IGNPAR)
-				    || (line_status & LSR_BI)
-				    &&  (com->tp->t_iflag & IGNBRK))
+				    || ((line_status & (LSR_PE|LSR_FE))
+				    &&  (com->tp->t_iflag & IGNPAR))
+				    || ((line_status & LSR_BI)
+				    &&  (com->tp->t_iflag & IGNBRK)))
 					goto cont;
 				if (   (line_status & (LSR_PE|LSR_FE))
 				    && (com->tp->t_state & TS_CAN_BYPASS_L_RINT)
 				    && ((line_status & LSR_FE)
-				    ||  (line_status & LSR_PE)
-				    &&  (com->tp->t_iflag & INPCK)))
+				    ||  ((line_status & LSR_PE)
+				    &&  (com->tp->t_iflag & INPCK))))
 					recv_data = 0;
 			}
 #endif /* 1 */
@@ -1357,8 +1357,8 @@ cont:
 					 */
 					cd_outb(iobase, CD1400_SRER, cy_align,
 						com->intr_enable
-						= com->intr_enable
-						  & ~CD1400_SRER_TXRDY
+						= (com->intr_enable
+						  & ~CD1400_SRER_TXRDY)
 						  | CD1400_SRER_TXMPTY);
 					goto terminate_tx_service;
 				}
@@ -1472,8 +1472,8 @@ cont:
 
 					cd_outb(iobase, CD1400_SRER, cy_align,
 						com->intr_enable
-						= com->intr_enable
-						  & ~CD1400_SRER_TXRDY
+						= (com->intr_enable
+						  & ~CD1400_SRER_TXRDY)
 						  | CD1400_SRER_TXMPTY);
 				}
 				if (!(com->state & CS_ODONE)) {
@@ -2190,13 +2190,13 @@ comparam(tp, t)
 		if (!(com->intr_enable & CD1400_SRER_TXRDY))
 			cd_setreg(com, CD1400_SRER,
 				  com->intr_enable
-				  = com->intr_enable & ~CD1400_SRER_TXMPTY
+				  = (com->intr_enable & ~CD1400_SRER_TXMPTY)
 				    | CD1400_SRER_TXRDY);
 	} else {
 		if (com->intr_enable & CD1400_SRER_TXRDY)
 			cd_setreg(com, CD1400_SRER,
 				  com->intr_enable
-				  = com->intr_enable & ~CD1400_SRER_TXRDY
+				  = (com->intr_enable & ~CD1400_SRER_TXRDY)
 				    | CD1400_SRER_TXMPTY);
 	}
 
@@ -2232,7 +2232,7 @@ comstart(tp)
 		if (com->intr_enable & CD1400_SRER_TXRDY)
 			cd_setreg(com, CD1400_SRER,
 				  com->intr_enable
-				  = com->intr_enable & ~CD1400_SRER_TXRDY
+				  = (com->intr_enable & ~CD1400_SRER_TXRDY)
 				    | CD1400_SRER_TXMPTY);
 	} else {
 		com->state |= CS_TTGO;
@@ -2240,7 +2240,7 @@ comstart(tp)
 		    && !(com->intr_enable & CD1400_SRER_TXRDY))
 			cd_setreg(com, CD1400_SRER,
 				  com->intr_enable
-				  = com->intr_enable & ~CD1400_SRER_TXMPTY
+				  = (com->intr_enable & ~CD1400_SRER_TXMPTY)
 				    | CD1400_SRER_TXRDY);
 	}
 	if (tp->t_state & TS_TBLOCK) {
@@ -2296,8 +2296,8 @@ comstart(tp)
 						   | CS_ODEVREADY))
 					cd_setreg(com, CD1400_SRER,
 						  com->intr_enable
-						  = com->intr_enable
-						    & ~CD1400_SRER_TXMPTY
+						  = (com->intr_enable
+						    & ~CD1400_SRER_TXMPTY)
 						    | CD1400_SRER_TXRDY);
 			}
 			enable_intr();
@@ -2326,8 +2326,8 @@ comstart(tp)
 						   | CS_ODEVREADY))
 					cd_setreg(com, CD1400_SRER,
 						  com->intr_enable
-						  = com->intr_enable
-						    & ~CD1400_SRER_TXMPTY
+						  = (com->intr_enable
+						    & ~CD1400_SRER_TXMPTY)
 						    | CD1400_SRER_TXRDY);
 			}
 			enable_intr();
@@ -2724,19 +2724,19 @@ cd_etc(com, etc)
 		enable_intr();
 		goto wait;
 	}
-	if (etc == CD1400_ETC_SENDBREAK
+	if ((etc == CD1400_ETC_SENDBREAK
 	    && (com->etc == ETC_BREAK_STARTING
-		|| com->etc == ETC_BREAK_STARTED)
-	    || etc == CD1400_ETC_STOPBREAK
+		|| com->etc == ETC_BREAK_STARTED))
+	    || (etc == CD1400_ETC_STOPBREAK
 	       && (com->etc == ETC_BREAK_ENDING || com->etc == ETC_BREAK_ENDED
-		   || com->etc == ETC_NONE)) {
+		   || com->etc == ETC_NONE))) {
 		enable_intr();
 		return;
 	}
 	com->etc = etc;
 	cd_setreg(com, CD1400_SRER,
 		  com->intr_enable
-		  = com->intr_enable & ~CD1400_SRER_TXRDY | CD1400_SRER_TXMPTY);
+		  = (com->intr_enable & ~CD1400_SRER_TXRDY) | CD1400_SRER_TXMPTY);
 	enable_intr();
 wait:
 	while (com->etc == etc

@@ -60,7 +60,7 @@ ibcs2_sysi86(struct proc *p, struct ibcs2_sysi86_args *args)
 		if (hw_float) val = IBCS2_FP_387;	/* FPU hardware */
 		else val = IBCS2_FP_SW;			/* FPU emulator */
 			
-		if (error = copyout(&val, SCARG(args, arg), sizeof(val)))
+		if ((error = copyout(&val, SCARG(args, arg), sizeof(val))) != 0)
 			return error;
 		return 0;
 		}

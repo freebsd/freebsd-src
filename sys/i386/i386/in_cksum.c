@@ -32,7 +32,7 @@
  *
  *	from tahoe:	in_cksum.c	1.2	86/01/05
  *	from:		@(#)in_cksum.c	1.3 (Berkeley) 1/19/91
- *	$Id: in_cksum.c,v 1.12 1997/09/02 20:05:27 bde Exp $
+ *	$Id: in_cksum.c,v 1.13 1998/04/15 17:26:15 bde Exp $
  */
 
 #include <sys/param.h>
@@ -277,8 +277,8 @@ in_cksum_partial(psum, w, len)
 		REDUCE;
 		if ((1 & (int) w) && (len > 0)) {
 			sum <<= 8;
-			su.c[0] = *(char *)w;
-			w = (u_short *)((char *)w + 1);
+			su.c[0] = *(const char *)w;
+			w = (u_short *)((const char *)w + 1);
 			len--;
 			byte_swapped = 1;
 		}
@@ -382,7 +382,7 @@ in_cksum_partial(psum, w, len)
 		sum <<= 8;
 		byte_swapped = 0;
 		if (len == -1) {
-			su.c[1] = *(char *)w;
+			su.c[1] = *(const char *)w;
 			sum += su.s;
 			len = 0;
 		} else
@@ -393,7 +393,7 @@ in_cksum_partial(psum, w, len)
 		 * There could be a word split betwen
 		 * this buffer and the next.
 		 */
-		su.c[0] = *(char *)w;
+		su.c[0] = *(const char *)w;
 	}
 out:
 	if (len == -1) {

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)sys_machdep.c	5.5 (Berkeley) 1/19/91
- *	$Id: sys_machdep.c,v 1.37 1998/08/24 02:28:15 bde Exp $
+ *	$Id: sys_machdep.c,v 1.38 1998/12/07 21:58:19 archie Exp $
  *
  */
 
@@ -182,10 +182,10 @@ i386_set_ioperm(p, args)
 	struct i386_ioperm_args ua;
 	char *iomap;
 
-	if (error = copyin(args, &ua, sizeof(struct i386_ioperm_args)))
+	if ((error = copyin(args, &ua, sizeof(struct i386_ioperm_args))) != 0)
 		return (error);
 
-        if (error = suser(p->p_ucred, &p->p_acflag))
+        if ((error = suser(p->p_ucred, &p->p_acflag)) != 0)
                 return (error);
 	if (securelevel > 0)
 		return (EPERM);
@@ -197,7 +197,7 @@ i386_set_ioperm(p, args)
 	 */
 
 	if (p->p_addr->u_pcb.pcb_ext == 0)
-		if (error = i386_extend_pcb(p))
+		if ((error = i386_extend_pcb(p)) != 0)
 			return (error);
 	iomap = (char *)p->p_addr->u_pcb.pcb_ext->ext_iomap;
 
@@ -222,7 +222,7 @@ i386_get_ioperm(p, args)
 	struct i386_ioperm_args ua;
 	char *iomap;
 
-	if (error = copyin(args, &ua, sizeof(struct i386_ioperm_args)))
+	if ((error = copyin(args, &ua, sizeof(struct i386_ioperm_args))) != 0)
 		return (error);
 	if (ua.start >= IOPAGES * PAGE_SIZE * NBBY)
 		return (EINVAL);
