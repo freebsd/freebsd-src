@@ -100,7 +100,14 @@ vmtotal(SYSCTL_HANDLER_ARGS)
 	GIANT_REQUIRED;
 	mtx_lock(&vm_object_list_mtx);
 	TAILQ_FOREACH(object, &vm_object_list, object_list) {
-		VM_OBJECT_LOCK(object);
+		if (!VM_OBJECT_TRYLOCK(object)) {
+			/*
+			 * Avoid a lock-order reversal.  Consequently,
+			 * the reported number of active pages may be
+			 * greater than the actual number.
+			 */
+			continue;
+		}
 		vm_object_clear_flag(object, OBJ_ACTIVE);
 		VM_OBJECT_UNLOCK(object);
 	}
@@ -176,12 +183,16 @@ vmtotal(SYSCTL_HANDLER_ARGS)
 	 */
 	mtx_lock(&vm_object_list_mtx);
 	TAILQ_FOREACH(object, &vm_object_list, object_list) {
-		VM_OBJECT_LOCK(object);
 		/*
-		 * devices, like /dev/mem, will badly skew our totals
+		 * Perform unsynchronized reads on the object to avoid
+		 * a lock-order reversal.  In this case, the lack of
+		 * synchronization should not impair the accuracy of
+		 * the reported statistics. 
 		 */
 		if (object->type == OBJT_DEVICE) {
-			VM_OBJECT_UNLOCK(object);
+			/*
+			 * Devices, like /dev/mem, will badly skew our totals.
+			 */
 			continue;
 		}
 		totalp->t_vm += object->size;
@@ -199,7 +210,6 @@ vmtotal(SYSCTL_HANDLER_ARGS)
 				totalp->t_armshr += object->resident_page_count;
 			}
 		}
-		VM_OBJECT_UNLOCK(object);
 	}
 	mtx_unlock(&vm_object_list_mtx);
 	totalp->t_free = cnt.v_free_count + cnt.v_cache_count;
