@@ -276,9 +276,7 @@ CRUNCH_TARGETS= boot
 FIXIT_TARGET=
 .endif
 
-.if !defined(CRUNCH_TARGETS)
-CRUNCH_TARGETS=	boot fixit
-.endif
+CRUNCH_TARGETS?=boot fixit
 
 .if !defined(FIXIT_TARGET)
 FIXIT_TARGET= release.10
