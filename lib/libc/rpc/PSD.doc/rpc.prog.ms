@@ -532,7 +532,7 @@ _
 100002&RUSERSPROG&remote users            
 100003&NFSPROG&nfs                     
 100004&YPPROG&Yellow Pages            
-100005&MOUNTPROG&mount demon             
+100005&MOUNTPROG&mount daemon             
 100006&DBXPROG&remote dbx              
 100007&YPBINDPROG&yp binder               
 100008&WALLPROG&shutdown msg            
