@@ -3756,7 +3756,7 @@ extattr_get_fd(td, uap)
 	if (error)
 		return (error);
 
-	if ((error = getvnode(td->td_proc->p_fd, SCARG(uap, fd), &fp)) != 0)
+	if ((error = getvnode(td->td_proc->p_fd, uap->fd, &fp)) != 0)
 		return (error);
 
 	error = extattr_get_vp((struct vnode *)fp->f_data, uap->attrnamespace,
@@ -3846,8 +3846,7 @@ extattr_delete_fd(td, uap)
 		return (error);
 	vp = (struct vnode *)fp->f_data;
 
-	error = extattr_delete_vp((struct vnode *)fp->f_data,
-	    uap->attrnamespace, attrname, td);
+	error = extattr_delete_vp(vp, uap->attrnamespace, attrname, td);
 
 	fdrop(fp, td);
 	return (error);
