@@ -188,6 +188,7 @@ g_gpt_taste(struct g_class *mp, struct g_provider *pp, int insist)
 			ent = (void*)(buf + i * hdr->hdr_entsz);
 			if (!memcmp(&ent->ent_type, &unused, sizeof(unused)))
 				continue;
+			/* XXX: This memory leaks */
 			gs->part[i] = g_malloc(hdr->hdr_entsz, M_WAITOK);
 			if (gs->part[i] == NULL)
 				break;
@@ -214,7 +215,7 @@ g_gpt_taste(struct g_class *mp, struct g_provider *pp, int insist)
 	g_topology_lock();
 	g_access_rel(cp, -1, 0, 0);
 	if (LIST_EMPTY(&gp->provider)) {
-		g_std_spoiled(cp);
+		g_slice_spoiled(cp);
 		return (NULL);
 	}
 	return (gp);
