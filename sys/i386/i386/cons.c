@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cons.c	7.2 (Berkeley) 5/9/91
- *	$Id: cons.c,v 1.22 1995/02/25 20:09:04 pst Exp $
+ *	$Id: cons.c,v 1.23 1995/02/26 03:15:36 bde Exp $
  */
 
 #include <sys/param.h>
@@ -79,6 +79,7 @@ static u_char cn_phys_is_open;	/* nonzero if physical console is open */
 static d_close_t *cn_phys_close;	/* physical device close function */
 static d_open_t *cn_phys_open;	/* physical device open function */
 static struct consdev *cn_tab;	/* physical console device info */
+static struct tty *cn_tp;	/* physical console tty struct */
 
 void
 cninit()
@@ -109,6 +110,7 @@ cninit()
 	cdp->d_close = cnclose;
 	cn_phys_open = cdp->d_open;
 	cdp->d_open = cnopen;
+	cn_tp = (*cdp->d_devtotty)(cn_tab->cn_dev);
 	/*
 	 * Turn on console
 	 */
@@ -151,10 +153,19 @@ cnclose(dev, flag, mode, p)
 		return (0);
 	cndev = cn_tab->cn_dev;
 	if (dev == cndev) {
+		/* the physical device is about to be closed */
 		cn_phys_is_open = 0;
-		if (cn_is_open)
+		if (cn_is_open) {
+			if (cn_tp) {
+				/* perform a ttyhalfclose() */
+				/* reset session and proc group */
+				cn_tp->t_pgrp = NULL;
+				cn_tp->t_session = NULL;
+			}
 			return (0);
+		}
 	} else if (major(dev) != major(cndev)) {
+		/* the logical console is about to be closed */
 		cn_is_open = 0;
 		if (cn_phys_is_open)
 			return (0);
