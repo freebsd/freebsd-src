@@ -118,12 +118,10 @@ elf_exec(struct preloaded_file *fp)
 	return(err);
 
     /*
-     * Fill in the bootinfo for the kernel.
+     * Fill in rest of bootinfo for the kernel.
      */
-    strncpy(bootinfo_v1.booted_kernel, fp->f_name,
-	    sizeof(bootinfo_v1.booted_kernel));
     flen = prom_getenv(PROM_E_BOOTED_OSFLAGS, bootinfo_v1.boot_flags,
-		sizeof(bootinfo_v1.boot_flags));
+	sizeof(bootinfo_v1.boot_flags));
     bootinfo_v1.hwrpb = (void *)HWRPB_ADDR;
     bootinfo_v1.hwrpbsize = ((struct rpb *)HWRPB_ADDR)->rpb_size;
     bootinfo_v1.cngetc = NULL;
