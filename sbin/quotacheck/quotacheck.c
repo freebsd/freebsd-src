@@ -311,6 +311,7 @@ update(fsname, quotafile, type)
 	register struct fileusage *fup;
 	register FILE *qfi, *qfo;
 	register u_long id, lastid;
+	register off_t offset;
 	struct dqblk dqbuf;
 	static int warned = 0;
 	static struct dqblk zerodqbuf;
@@ -343,7 +344,8 @@ update(fsname, quotafile, type)
 		(void)printf("*** Warning: %s\n",
 		    "Quotas are not compiled into this kernel");
 	}
-	for (lastid = highid[type], id = 0; id <= lastid; id++) {
+	for (lastid = highid[type], id = 0, offset = 0; id <= lastid; 
+	    id++, offset += sizeof(struct dqblk)) {
 		if (fread((char *)&dqbuf, sizeof(struct dqblk), 1, qfi) == 0)
 			dqbuf = zerodqbuf;
 		if ((fup = lookup(id, type)) == 0)
@@ -352,7 +354,6 @@ update(fsname, quotafile, type)
 		    dqbuf.dqb_curblocks == fup->fu_curblocks) {
 			fup->fu_curinodes = 0;
 			fup->fu_curblocks = 0;
-			fseek(qfo, (long)sizeof(struct dqblk), 1);
 			continue;
 		}
 		if (vflag) {
@@ -381,6 +382,12 @@ update(fsname, quotafile, type)
 			dqbuf.dqb_itime = 0;
 		dqbuf.dqb_curinodes = fup->fu_curinodes;
 		dqbuf.dqb_curblocks = fup->fu_curblocks;
+		if (fseek(qfo, offset, SEEK_SET) < 0) {
+			(void) fprintf(stderr,
+		    	    "quotacheck: %s: seek failed: %s\n",
+			    quotafile, strerror(errno));
+			    return(1);
+		}
 		fwrite((char *)&dqbuf, sizeof(struct dqblk), 1, qfo);
 		(void) quotactl(fsname, QCMD(Q_SETUSE, type), id,
 		    (caddr_t)&dqbuf);
