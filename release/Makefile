@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.380 1998/09/09 14:20:22 jkh Exp $
+#	$Id: Makefile,v 1.381 1998/09/12 20:04:44 jhay Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -37,7 +37,8 @@ OBJFORMAT?=		elf
 
 # Uncomment this to disable the doc.1 target.  It is also an ERROR
 # to set NOPORTS and not set NODOC since docs depend on ports.
-#NODOC=  YES
+NODOC=  YES
+NOPORTS=  YES
 # Comment the following if you want the release documentation to be
 # in English only.
 ALLLANG= yes
@@ -147,10 +148,10 @@ rerelease release:
 	done
 .if !defined(RELEASETAG)
 	cd ${CHROOTDIR}/usr && rm -rf src && \
-		cvs -d ${CVSROOT} co -P ${RELEASESRCMODULE}
+		cvs -R -d ${CVSROOT} co -P ${RELEASESRCMODULE}
 .else
 	cd ${CHROOTDIR}/usr && rm -rf src && \
-		cvs -d ${CVSROOT} co -P -r ${RELEASETAG} ${RELEASESRCMODULE}
+		cvs -R -d ${CVSROOT} co -P -r ${RELEASETAG} ${RELEASESRCMODULE}
 .endif
 .if defined(LOCAL_PATCHES) && exists(${LOCAL_PATCHES})
 	cd ${CHROOTDIR}/usr/src && patch --silent < ${LOCAL_PATCHES}
@@ -159,10 +160,10 @@ rerelease release:
 	cd ${CHROOTDIR} && env CHROOTDIR=${CHROOTDIR} BUILDNAME=${BUILDNAME} RELEASETAG=${RELEASETAG} ${LOCAL_SCRIPT}
 .endif
 .if !defined(NOPORTS)
-	cd ${CHROOTDIR}/usr && rm -rf ports && cvs -d ${CVSROOT} co -P ${RELEASEPORTSMODULE} && cd ports && make readmes PORTSDIR=${CHROOTDIR}/usr/ports
+	cd ${CHROOTDIR}/usr && rm -rf ports && cvs -R -d ${CVSROOT} co -P ${RELEASEPORTSMODULE} && cd ports && make readmes PORTSDIR=${CHROOTDIR}/usr/ports
 .endif
 .if !defined(NODOC)
-	cd ${CHROOTDIR}/usr && rm -rf doc && cvs -d ${CVSROOT} co -P ${RELEASEDOCMODULE}
+	cd ${CHROOTDIR}/usr && rm -rf doc && cvs -R -d ${CVSROOT} co -P ${RELEASEDOCMODULE}
 	cd ${CHROOTDIR}/usr/ports && for i in ${DOCPORTS}; do \
 	  (cd $$i; make fetch MASTER_SITE_OVERRIDE=file:/usr/ports/distfiles/ \
 	    DISTDIR=${CHROOTDIR}/usr/ports/distfiles ); \
@@ -172,15 +173,15 @@ rerelease release:
 .if make(rerelease)
 .if !defined(RELEASENOUPDATE)
 .if !defined(RELEASETAG)
-	cd ${CHROOTDIR}/usr/src && cvs -q update -P -d
+	cd ${CHROOTDIR}/usr/src && cvs -R -q update -P -d
 .else
-	cd ${CHROOTDIR}/usr/src && cvs -q update -P -d -r ${RELEASETAG}
+	cd ${CHROOTDIR}/usr/src && cvs -R -q update -P -d -r ${RELEASETAG}
 .endif
 .if !defined(NOPORTS)
-	cd ${CHROOTDIR}/usr/ports && cvs -q update -P -d
+	cd ${CHROOTDIR}/usr/ports && cvs -R -q update -P -d
 .endif
 .if !defined(NODOC)
-	cd ${CHROOTDIR}/usr/doc && cvs -q update -P -d
+	cd ${CHROOTDIR}/usr/doc && cvs -R -q update -P -d
 .endif
 .endif
 .endif
