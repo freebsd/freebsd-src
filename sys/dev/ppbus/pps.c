@@ -21,7 +21,6 @@
 #include <sys/module.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
-#include <sys/timetc.h>
 #include <sys/timepps.h>
 #include <machine/bus.h>
 #include <machine/resource.h>
@@ -258,8 +257,6 @@ ppshcpoll(void *arg)
 {
 	struct pps_data *sc = arg;
 	int i, j, k, l;
-	struct timecounter *tc;
-	unsigned count;
 
 	if (!(sc->busy & ~1))
 		return;
@@ -267,16 +264,14 @@ ppshcpoll(void *arg)
 	i = ppb_rdtr(sc->ppbus);
 	if (i == sc->lastdata) 
 		return;
-	tc = timecounter;
-	count = timecounter->tc_get_timecount(tc);
 	l = sc->lastdata ^ i;
 	k = 1;
 	for (j = 1; j < 9; j ++) {
-		if (l & k) 
-			pps_event(&sc->pps[j], tc, count, 
-			    i & k ?
-			    PPS_CAPTUREASSERT : PPS_CAPTURECLEAR
-			);
+		if (l & k) {
+			pps_capture(&sc->pps[j]);
+			pps_event(&sc->pps[j],
+			    i & k ? PPS_CAPTUREASSERT : PPS_CAPTURECLEAR);
+		}
 		k += k;
 	}
 	sc->lastdata = i;
@@ -288,16 +283,13 @@ ppsintr(void *arg)
 	device_t ppsdev = (device_t)arg;
 	struct pps_data *sc = DEVTOSOFTC(ppsdev);
 	device_t ppbus = sc->ppbus;
-	struct timecounter *tc;
-	unsigned count;
 
-	tc = timecounter;
-	count = timecounter->tc_get_timecount(tc);
+	pps_capture(&sc->pps[0]);
 	if (!(ppb_rstr(ppbus) & nACK))
 		return;
 	if (sc->pps[0].ppsparam.mode & PPS_ECHOASSERT) 
 		ppb_wctr(ppbus, IRQENABLE | AUTOFEED);
-	pps_event(&sc->pps[0], tc, count, PPS_CAPTUREASSERT);
+	pps_event(&sc->pps[0], PPS_CAPTUREASSERT);
 	if (sc->pps[0].ppsparam.mode & PPS_ECHOASSERT) 
 		ppb_wctr(ppbus, IRQENABLE);
 }
