@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)chown.c	8.8 (Berkeley) 4/4/94";
 #else
 static const char rcsid[] =
-	"$Id: chown.c,v 1.9 1997/09/21 09:13:57 wosch Exp $";
+	"$Id: chown.c,v 1.10 1998/03/09 08:54:31 jkh Exp $";
 #endif
 #endif /* not lint */
 
@@ -165,7 +165,6 @@ main(argc, argv)
 			warnx("%s: %s", p->fts_path, strerror(p->fts_errno));
 			rval = 1;
 			continue;
-		case FTS_SL:			/* Ignore. */
 		case FTS_SLNONE:
 			/*
 			 * The only symlinks that end up here are ones that
