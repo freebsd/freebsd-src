@@ -36,9 +36,9 @@
 
 #ifndef lint
 #if SMTP
-static char sccsid[] = "@(#)srvrsmtp.c	8.146 (Berkeley) 6/11/97 (with SMTP)";
+static char sccsid[] = "@(#)srvrsmtp.c	8.154 (Berkeley) 8/2/97 (with SMTP)";
 #else
-static char sccsid[] = "@(#)srvrsmtp.c	8.146 (Berkeley) 6/11/97 (without SMTP)";
+static char sccsid[] = "@(#)srvrsmtp.c	8.154 (Berkeley) 8/2/97 (without SMTP)";
 #endif
 #endif /* not lint */
 
@@ -154,6 +154,7 @@ smtp(nullserver, e)
 	volatile int n_helo = 0;	/* count of HELO/EHLO commands */
 	bool ok;
 	int lognullconnection = TRUE;
+	register char *q;
 	char inp[MAXLINE];
 	char cmdbuf[MAXLINE];
 	extern ENVELOPE BlankEnvelope;
@@ -221,16 +222,7 @@ smtp(nullserver, e)
 	for (;;)
 	{
 		/* arrange for backout */
-		if (setjmp(TopFrame) > 0)
-		{
-			/* if() nesting is necessary for Cray UNICOS */
-			if (InChild)
-			{
-				QuickAbort = FALSE;
-				SuprErrs = TRUE;
-				finis();
-			}
-		}
+		(void) setjmp(TopFrame);
 		QuickAbort = FALSE;
 		HoldErrs = FALSE;
 		SuprErrs = FALSE;
@@ -375,51 +367,50 @@ smtp(nullserver, e)
 					cmdbuf);
 				break;
 			}
-			else
-			{
-				register char *q;
 
-				for (q = p; *q != '\0'; q++)
+			for (q = p; *q != '\0'; q++)
+			{
+				if (!isascii(*q))
+					break;
+				if (isalnum(*q))
+					continue;
+				if (isspace(*q))
 				{
-					if (!isascii(*q))
-						break;
-					if (isalnum(*q))
-						continue;
-					if (isspace(*q))
-					{
-						*q = '\0';
-						break;
-					}
-					if (strchr("[].-_#", *q) == NULL)
-						break;
-				}
-				if (*q != '\0')
-				{
-					if (!AllowBogusHELO)
-						usrerr("501 Invalid domain name");
-					else
-					{
-						message("250 %s Invalid domain name, accepting anyway",
-							MyHostName);
-						gothello = TRUE;
-					}
+					*q = '\0';
 					break;
 				}
+				if (strchr("[].-_#", *q) == NULL)
+					break;
+			}
+			if (*q == '\0')
+			{
+				q = "pleased to meet you";
+				sendinghost = newstr(p);
+			}
+			else if (!AllowBogusHELO)
+			{
+				usrerr("501 Invalid domain name");
+				break;
+			}
+			else
+			{
+				q = "accepting invalid domain name";
 			}
 
-			sendinghost = newstr(p);
 			gothello = TRUE;
+			
+			/* print HELO response message */
 			if (c->cmdcode != CMDEHLO)
 			{
-				/* print old message and be done with it */
-				message("250 %s Hello %s, pleased to meet you",
-					MyHostName, CurSmtpClient);
+				message("250 %s Hello %s, %s",
+					MyHostName, CurSmtpClient, q);
 				break;
 			}
 
-			/* print extended message and brag */
-			message("250-%s Hello %s, pleased to meet you",
-				MyHostName, CurSmtpClient);
+			message("250-%s Hello %s, %s",
+				MyHostName, CurSmtpClient, q);
+
+			/* print EHLO features list */
 			if (!bitset(PRIV_NOEXPN, PrivacyFlags))
 			{
 				message("250-EXPN");
@@ -446,23 +437,14 @@ smtp(nullserver, e)
 			SmtpPhase = "server MAIL";
 
 			/* check for validity of this command */
-			if (!gothello)
+			if (!gothello && bitset(PRIV_NEEDMAILHELO, PrivacyFlags))
 			{
-				/* set sending host to our known value */
-				if (sendinghost == NULL)
-					sendinghost = peerhostname;
-
-				if (bitset(PRIV_NEEDMAILHELO, PrivacyFlags))
-				{
-					usrerr("503 Polite people say HELO first");
-					break;
-				}
+				usrerr("503 Polite people say HELO first");
+				break;
 			}
 			if (gotmail)
 			{
 				usrerr("503 Sender already specified");
-				if (InChild)
-					finis();
 				break;
 			}
 			if (InChild)
@@ -472,6 +454,10 @@ smtp(nullserver, e)
 				finis();
 			}
 
+			/* make sure we know who the sending host is */
+			if (sendinghost == NULL)
+				sendinghost = peerhostname;
+
 			p = skipword(p, "from");
 			if (p == NULL)
 				break;
@@ -479,6 +465,8 @@ smtp(nullserver, e)
 			/* fork a subprocess to process this command */
 			if (runinchild("SMTP-MAIL", e) > 0)
 				break;
+			if (Errors > 0)
+				goto undo_subproc_no_pm;
 			if (!gothello)
 			{
 				auth_warning(e,
@@ -500,6 +488,8 @@ smtp(nullserver, e)
 			define('r', protocol, e);
 			define('s', sendinghost, e);
 			initsys(e);
+			if (Errors > 0)
+				goto undo_subproc_no_pm;
 			nrcpts = 0;
 			e->e_flags |= EF_LOGSENDER|EF_CLRQUEUE;
 			setproctitle("%s %s: %.80s", e->e_id, CurSmtpClient, inp);
@@ -508,6 +498,8 @@ smtp(nullserver, e)
 			if (setjmp(TopFrame) > 0)
 			{
 				/* this failed -- undo work */
+ undo_subproc_no_pm:
+				e->e_flags &= ~EF_PM_NOTIFY;
  undo_subproc:
 				if (InChild)
 				{
@@ -525,10 +517,13 @@ smtp(nullserver, e)
 			setsender(p, e, &delimptr, ' ', FALSE);
 			if (delimptr != NULL && *delimptr != '\0')
 				*delimptr++ = '\0';
+			if (Errors > 0)
+				goto undo_subproc_no_pm;
 
 			/* do config file checking of the sender */
-			if (rscheck("check_mail", p, NULL, e) != EX_OK)
-				goto undo_subproc;
+			if (rscheck("check_mail", p, NULL, e) != EX_OK ||
+			    Errors > 0)
+				goto undo_subproc_no_pm;
 
 			/* check for possible spoofing */
 			if (RealUid != 0 && OpMode == MD_SMTP &&
@@ -579,20 +574,26 @@ smtp(nullserver, e)
 						vp == NULL ? "<null>" : vp);
 
 				mail_esmtp_args(kp, vp, e);
+				if (Errors > 0)
+					goto undo_subproc_no_pm;
 			}
+			if (Errors > 0)
+				goto undo_subproc_no_pm;
 
 			if (MaxMessageSize > 0 && e->e_msgsize > MaxMessageSize)
 			{
 				usrerr("552 Message size exceeds fixed maximum message size (%ld)",
 					MaxMessageSize);
-				/* NOTREACHED */
+				goto undo_subproc_no_pm;
 			}
 				
 			if (!enoughdiskspace(e->e_msgsize))
 			{
 				usrerr("452 Insufficient disk space; try again later");
-				break;
+				goto undo_subproc_no_pm;
 			}
+			if (Errors > 0)
+				goto undo_subproc_no_pm;
 			message("250 Sender ok");
 			gotmail = TRUE;
 			break;
@@ -615,7 +616,7 @@ smtp(nullserver, e)
 			/* limit flooding of our machine */
 			if (MaxRcptPerMsg > 0 && nrcpts >= MaxRcptPerMsg)
 			{
-				usrerr("450 Too many recipients");
+				usrerr("452 Too many recipients");
 				break;
 			}
 
@@ -626,13 +627,14 @@ smtp(nullserver, e)
 			if (p == NULL)
 				break;
 			a = parseaddr(p, NULLADDR, RF_COPYALL, ' ', &delimptr, e);
-			if (a == NULL)
+			if (a == NULL || Errors > 0)
 				break;
 			if (delimptr != NULL && *delimptr != '\0')
 				*delimptr++ = '\0';
 
 			/* do config file checking of the recipient */
-			if (rscheck("check_rcpt", p, NULL, e) != EX_OK)
+			if (rscheck("check_rcpt", p, NULL, e) != EX_OK ||
+			    Errors > 0)
 				break;
 
 			/* now parse ESMTP arguments */
@@ -673,12 +675,15 @@ smtp(nullserver, e)
 						vp == NULL ? "<null>" : vp);
 
 				rcpt_esmtp_args(a, kp, vp, e);
+				if (Errors > 0)
+					break;
 			}
+			if (Errors > 0)
+				break;
 
 			/* save in recipient list after ESMTP mods */
 			a = recipient(a, &e->e_sendqueue, 0, e);
-
-			if (Errors != 0)
+			if (Errors > 0)
 				break;
 
 			/* no errors during parsing, but might be a duplicate */
@@ -732,9 +737,12 @@ smtp(nullserver, e)
 			SmtpPhase = "collect";
 			buffer_errors();
 			collect(InChannel, TRUE, NULL, e);
-			flush_errors(TRUE);
-			if (Errors != 0)
+			if (Errors > 0)
+			{
+				flush_errors(TRUE);
+				buffer_errors();
 				goto abortmessage;
+			}
 
 			/* make sure we actually do delivery */
 			e->e_flags &= ~EF_CLRQUEUE;
@@ -781,13 +789,19 @@ smtp(nullserver, e)
 			message("250 %s Message accepted for delivery", id);
 
 			/* if we just queued, poke it */
-			if (doublequeue && e->e_sendmode != SM_QUEUE &&
+			if (doublequeue &&
+			    e->e_sendmode != SM_QUEUE &&
 			    e->e_sendmode != SM_DEFER)
 			{
-				extern pid_t dowork();
+				CurrentLA = getla();
 
-				unlockqueue(e);
-				(void) dowork(id, TRUE, TRUE, e);
+				if (!shouldqueue(e->e_msgpriority, e->e_ctime))
+				{
+					extern pid_t dowork();
+
+					unlockqueue(e);
+					(void) dowork(id, TRUE, TRUE, e);
+				}
 			}
 
   abortmessage:
@@ -849,11 +863,15 @@ smtp(nullserver, e)
 			}
 			if (runinchild(vrfy ? "SMTP-VRFY" : "SMTP-EXPN", e) > 0)
 				break;
+			if (Errors > 0)
+				goto undo_subproc;
 			if (LogLevel > 5)
 				sm_syslog(LOG_INFO, e->e_id,
 					"%.100s: %s",
 					CurSmtpClient,
 					shortenstring(inp, 203));
+			if (setjmp(TopFrame) > 0)
+				goto undo_subproc;
 			vrfyqueue = NULL;
 			if (vrfy)
 				e->e_flags |= EF_VRFYONLY;
@@ -867,12 +885,8 @@ smtp(nullserver, e)
 			{
 				(void) sendtolist(p, NULLADDR, &vrfyqueue, 0, e);
 			}
-			if (Errors != 0)
-			{
-				if (InChild)
-					finis();
-				break;
-			}
+			if (Errors > 0)
+				goto undo_subproc;
 			if (vrfyqueue == NULL)
 			{
 				usrerr("554 Nothing to %s", vrfy ? "VRFY" : "EXPN");
@@ -916,7 +930,7 @@ smtp(nullserver, e)
 			QueueLimitRecipient = id;
 			ok = runqueue(TRUE, TRUE);
 			QueueLimitRecipient = NULL;
-			if (ok)
+			if (ok && Errors == 0)
 				message("250 Queuing for node %s started", p);
 			break;
 
@@ -1427,12 +1441,15 @@ help(topic)
 	register FILE *hf;
 	int len;
 	bool noinfo;
+	int sff = SFF_OPENASROOT|SFF_REGONLY;
 	char buf[MAXLINE];
 	extern char Version[];
 
+	if (DontLockReadFiles)
+		sff |= SFF_NOLOCK;
 
 	if (HelpFile == NULL ||
-	    (hf = safefopen(HelpFile, O_RDONLY, 0444, SFF_OPENASROOT|SFF_REGONLY|SFF_NOLOCK)) == NULL)
+	    (hf = safefopen(HelpFile, O_RDONLY, 0444, sff)) == NULL)
 	{
 		/* no help */
 		errno = 0;

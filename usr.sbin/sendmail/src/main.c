@@ -39,7 +39,7 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)main.c	8.246 (Berkeley) 6/11/97";
+static char sccsid[] = "@(#)main.c	8.249 (Berkeley) 7/25/97";
 #endif /* not lint */
 
 #define	_DEFINE
@@ -93,6 +93,7 @@ ADDRESS		NullAddress =	/* a null address */
 char		*CommandLineArgs;	/* command line args for pid file */
 bool		Warn_Q_option = FALSE;	/* warn about Q option use */
 char		**SaveArgv;	/* argument vector for re-execing */
+int		MissingFds = 0;	/* bit map of fds missing on startup */
 
 #ifdef NGROUPS_MAX
 GIDSET_T	InitialGidSet[NGROUPS_MAX];
@@ -164,7 +165,6 @@ main(argc, argv, envp)
 	extern void printqueue __P((void));
 	extern void sendtoargv __P((char **, ENVELOPE *));
 	extern void resetlimits __P((void));
-	extern void drop_privileges __P((void));
 
 	/*
 	**  Check to see if we reentered.
@@ -185,11 +185,6 @@ main(argc, argv, envp)
 	/* do machine-dependent initializations */
 	init_md(argc, argv);
 
-#ifdef SIGUSR1
-	/* arrange to dump state on user-1 signal */
-	setsignal(SIGUSR1, sigusr1);
-#endif
-
 	/* in 4.4BSD, the table can be huge; impose a reasonable limit */
 	DtableSize = getdtsize();
 	if (DtableSize > 256)
@@ -200,15 +195,9 @@ main(argc, argv, envp)
 	**	But also be sure that 0, 1, & 2 are open.
 	*/
 
-	i = open("/dev/null", O_RDWR, 0);
-	if (fstat(STDIN_FILENO, &stb) < 0 && errno != EOPNOTSUPP)
-		(void) dup2(i, STDIN_FILENO);
-	if (fstat(STDOUT_FILENO, &stb) < 0 && errno != EOPNOTSUPP)
-		(void) dup2(i, STDOUT_FILENO);
-	if (fstat(STDERR_FILENO, &stb) < 0 && errno != EOPNOTSUPP)
-		(void) dup2(i, STDERR_FILENO);
-	if (i != STDIN_FILENO && i != STDOUT_FILENO && i != STDERR_FILENO)
-		(void) close(i);
+	fill_fd(STDIN_FILENO, NULL);
+	fill_fd(STDOUT_FILENO, NULL);
+	fill_fd(STDERR_FILENO, NULL);
 
 	i = DtableSize;
 	while (--i > 0)
@@ -226,6 +215,28 @@ main(argc, argv, envp)
 # endif
 #endif 
 
+	if (MissingFds != 0)
+	{
+		char mbuf[MAXLINE];
+
+		mbuf[0] = '\0';
+		if (bitset(1 << STDIN_FILENO, MissingFds))
+			strcat(mbuf, ", stdin");
+		if (bitset(1 << STDOUT_FILENO, MissingFds))
+			strcat(mbuf, ", stdout");
+		if (bitset(1 << STDERR_FILENO, MissingFds))
+			strcat(mbuf, ", stderr");
+		syserr("File descriptors missing on startup: %s", &mbuf[2]);
+	}
+
+	/* reset status from syserr() calls for missing file descriptors */
+	Errors = 0;
+	ExitStat = EX_OK;
+
+#if XDEBUG
+	checkfd012("after openlog");
+#endif
+
 	tTsetup(tTdvect, sizeof tTdvect, "0-99.1");
 
 #ifdef NGROUPS_MAX
@@ -238,7 +249,12 @@ main(argc, argv, envp)
 #endif
 
 	/* drop group id privileges (RunAsUser not yet set) */
-	drop_privileges();
+	(void) drop_privileges(FALSE);
+
+#ifdef SIGUSR1
+	/* arrange to dump state on user-1 signal */
+	setsignal(SIGUSR1, sigusr1);
+#endif
 
 	/* Handle any non-getoptable constructions. */
 	obsolete(argv);
@@ -300,6 +316,17 @@ main(argc, argv, envp)
 	else
 		(void) snprintf(rnamebuf, sizeof rnamebuf, "Unknown UID %d", RealUid);
 	RealUserName = rnamebuf;
+
+	/* if running non-setuid binary, pretend we are the RunAsUid */
+	if (geteuid() == RealUid)
+	{
+		if (tTd(47, 1))
+			printf("Non-setuid binary: RunAsUid = RealUid = %d\n",
+				RealUid);
+		RunAsUid = RealUid;
+	}
+	if (getegid() == RealGid)
+		RunAsGid = RealGid;
 
 	/* save command line arguments */
 	i = 0;
@@ -572,9 +599,7 @@ main(argc, argv, envp)
 			if (RealUid != 0)
 				warn_C_flag = TRUE;
 			ConfFile = optarg;
-			endpwent();
-			(void) setgid(RealGid);
-			(void) setuid(RealUid);
+			(void) drop_privileges(TRUE);
 			safecf = FALSE;
 			break;
 
@@ -726,9 +751,7 @@ main(argc, argv, envp)
 			break;
 
 		  case 'X':	/* traffic log file */
-			endpwent();
-			setgid(RealGid);
-			setuid(RealUid);
+			(void) drop_privileges(TRUE);
 			TrafficLogFile = fopen(optarg, "a");
 			if (TrafficLogFile == NULL)
 			{
@@ -815,7 +838,7 @@ main(argc, argv, envp)
 	if (OpMode != MD_DAEMON && OpMode != MD_FGDAEMON)
 	{
 		/* drop privileges -- daemon mode done after socket/bind */
-		drop_privileges();
+		(void) drop_privileges(FALSE);
 	}
 
 	/*
@@ -1351,7 +1374,7 @@ main(argc, argv, envp)
 		nullserver = getrequests(CurEnv);
 
 		/* drop privileges */
-		drop_privileges();
+		(void) drop_privileges(FALSE);
 
 		/* at this point we are in a child: reset state */
 		(void) newenvelope(CurEnv, CurEnv);
@@ -2017,11 +2040,11 @@ sighup(sig)
 		sm_syslog(LOG_INFO, NOQID, "restarting %s on signal", SaveArgv[0]);
 	alarm(0);
 	releasesignal(SIGHUP);
-	if (setgid(RealGid) < 0 || setuid(RealUid) < 0)
+	if (drop_privileges(TRUE) != EX_OK)
 	{
 		if (LogLevel > 0)
 			sm_syslog(LOG_ALERT, NOQID, "could not set[ug]id(%d, %d): %m",
-				RealUid, RealGid);
+				RunAsUid, RunAsGid);
 		exit(EX_OSERR);
 	}
 	execv(SaveArgv[0], (ARGV_T) SaveArgv);
@@ -2033,26 +2056,91 @@ sighup(sig)
 **  DROP_PRIVILEGES -- reduce privileges to those of the RunAsUser option
 **
 **	Parameters:
-**		none.
+**		to_real_uid -- if set, drop to the real uid instead
+**			of the RunAsUser.
 **
 **	Returns:
-**		none.
+**		EX_OSERR if the setuid failed.
+**		EX_OK otherwise.
 */
 
-void
-drop_privileges()
+int
+drop_privileges(to_real_uid)
+	bool to_real_uid;
 {
+	int rval = EX_OK;
+#ifdef NGROUPS_MAX
+	GIDSET_T emptygidset[NGROUPS_MAX];
+#endif
+
+	if (tTd(47, 1))
+		printf("drop_privileges(%d): Real[UG]id=%d:%d, RunAs[UG]id=%d:%d\n",
+			to_real_uid, RealUid, RealGid, RunAsUid, RunAsGid);
+
+	if (to_real_uid)
+	{
+		RunAsUserName = RealUserName;
+		RunAsUid = RealUid;
+		RunAsGid = RealGid;
+	}
+
+	/* make sure no one can grab open descriptors for secret files */
+	endpwent();
+
 #ifdef NGROUPS_MAX
 	/* reset group permissions; these can be set later */
-	GIDSET_T emptygidset[NGROUPS_MAX];
-
 	emptygidset[0] = RunAsGid == 0 ? getegid() : RunAsGid;
 	(void) setgroups(1, emptygidset);
 #endif
-	if (RunAsGid != 0)
-		(void) setgid(RunAsGid);
-	if (RunAsUid != 0)
-		(void) setuid(RunAsUid);
+
+	/* reset primary group and user id */
+	if (RunAsGid != 0 && setgid(RunAsGid) < 0)
+		rval = EX_OSERR;
+	if (RunAsUid != 0 && setuid(RunAsUid) < 0)
+		rval = EX_OSERR;
+	return rval;
+}
+/*
+**  FILL_FD -- make sure a file descriptor has been properly allocated
+**
+**	Used to make sure that stdin/out/err are allocated on startup
+**
+**	Parameters:
+**		fd -- the file descriptor to be filled.
+**		where -- a string used for logging.  If NULL, this is
+**			being called on startup, and logging should
+**			not be done.
+**
+**	Returns:
+**		none
+*/
+
+void
+fill_fd(fd, where)
+	int fd;
+	char *where;
+{
+	int i;
+	struct stat stbuf;
+
+	if (fstat(fd, &stbuf) >= 0 || errno != EBADF)
+		return;
+
+	if (where != NULL)
+		syserr("fill_fd: %s: fd %d not open", where, fd);
+	else
+		MissingFds |= 1 << fd;
+	i = open("/dev/null", fd == 0 ? O_RDONLY : O_WRONLY, 0666);
+	if (i < 0)
+	{
+		syserr("!fill_fd: %s: cannot open /dev/null",
+			where == NULL ? "startup" : where);
+	}
+	if (fd != i)
+	{
+		(void) dup2(i, fd);
+		(void) close(i);
+	}
 }
 /*
 **  TESTMODELINE -- process a test mode input line
