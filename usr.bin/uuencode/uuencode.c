@@ -83,6 +83,9 @@ main(int argc, char *argv[])
 	base64 = 0;
 	outfile = NULL;
 
+	if (strcmp(argv[0], "b64encode") == 0)
+		base64 = 1;
+
 	while ((ch = getopt(argc, argv, "mo:")) != -1) {
 		switch (ch) {
 		case 'm':
