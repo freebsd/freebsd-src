@@ -58,7 +58,7 @@
  *
  */
 #ifndef _ALIGNBYTES
-#define	_ALIGNBYTES		7
+#define	_ALIGNBYTES		15
 #endif
 #ifndef _ALIGN
 #define	_ALIGN(p)		(((u_long)(p) + _ALIGNBYTES) &~ _ALIGNBYTES)
