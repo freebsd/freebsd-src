@@ -300,7 +300,7 @@ Three other methods are also supported by all nodes:
 An mbuf chain is passed to the node.
 The node is notified on which hook the data arrived,
 and can use this information in its processing decision.
-The node must must always 
+The node must always 
 .Fn m_freem
 the mbuf chain on completion or error, or pass it on to another node
 (or kernel module) which will then be responsible for freeing it.
