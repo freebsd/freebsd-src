@@ -302,12 +302,12 @@ below.)
 .Dv MAP_FIXED
 was specified and the
 .Fa addr
-parameter wasn't available, or the system has reached the per-process mmap
-limit specified in the
-.Va vm.max_proc_mmap
-sysctl.
+parameter wasn't available. 
 .Dv MAP_ANON
 was specified and insufficient memory was available.
+The system has reached the per-process mmap limit specified in the
+.Va vm.max_proc_mmap
+sysctl.
 .El
 .Sh SEE ALSO
 .Xr madvise 2 ,
