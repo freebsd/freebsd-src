@@ -1,4 +1,4 @@
-This is the source portion of BIND version 8.1.2-T3B.  Its companions are
+This is the source portion of BIND version 8.1.2.  Its companions are
 "doc" and "contrib" so you are probably not missing anything.
 
 See the CHANGES file for a detailed listing of all changes.  See the INSTALL
@@ -26,7 +26,7 @@ BIND 8.1.2 Highlights
 	Updates to a number of ports.  New ports for QNX, LynxOS, HP-UX 9.x,
 	and HP MPE.
 
-	"limit files unlimited" now works as expected on systems where setting
+	"files unlimited" now works as expected on systems where setting
 	an infinite rlim_max for RLIMIT_NOFILE works.
 
 	Adding and deleting the same record in the same dynamic update no

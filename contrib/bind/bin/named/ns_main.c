@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static char sccsid[] = "@(#)ns_main.c	4.55 (Berkeley) 7/1/91";
-static char rcsid[] = "$Id: ns_main.c,v 8.65 1998/04/06 23:45:32 halley Exp $";
+static char rcsid[] = "$Id: ns_main.c,v 8.67 1998/04/28 19:17:46 halley Exp $";
 #endif /* not lint */
 
 /*
@@ -140,10 +140,10 @@ char copyright[] =
 static	LIST(struct _interface)	iflist;
 static	int 			iflist_initialized = 0;
 
-				/* UDP receive, TCP send buffer size */
-static	const int		rbufsize = 8 * 1024,
-				/* TCP send window size */
-				sbufsize = 16 * 1024;
+				
+static	const int		drbufsize = 8 * 1024,	/* UDP rcv buf size */
+				dsbufsize = 16 * 1024,	/* UDP snd buf size */
+				sbufsize = 16 * 1024;	/* TCP snd buf size */ 
 
 static	u_int16_t		nsid_state;
 static	int			needs;
@@ -1040,7 +1040,16 @@ getnetconf(int periodic_scan) {
 		if (ifreq.ifr_addr.sa_len == 0)
 			ifreq.ifr_addr.sa_len = 16;
 #endif
+#ifdef HAVE_MINIMUM_IFREQ
+		ns_debug(ns_log_default, 2, "%s sa_len = %d",
+			 ifreq.ifr_name, (int)ifreq.ifr_addr.sa_len);
+		cpsize = sizeof ifreq;
+		if (ifreq.ifr_addr.sa_len > sizeof (struct sockaddr))
+			cpsize += (int)ifreq.ifr_addr.sa_len -
+				(int)(sizeof (struct sockaddr));
+#else
 		cpsize = sizeof ifreq.ifr_name + ifreq.ifr_addr.sa_len;
+#endif /* HAVE_MINIMUM_IFREQ */
 #elif defined SIOCGIFCONF_ADDR
 		cpsize = sizeof ifreq;
 #else
@@ -1052,14 +1061,14 @@ getnetconf(int periodic_scan) {
 			continue;
 		}
 #endif
-		ina = ina_get((u_char *)&((struct sockaddr_in *)
-					   &ifreq.ifr_addr)->sin_addr);
 		if (ifreq.ifr_addr.sa_family != AF_INET) {
 			ns_debug(ns_log_default, 2, 
-				 "getnetconf: af %d != INET",
-				 ifreq.ifr_addr.sa_family);
+				 "getnetconf: %s AF %d != INET",
+				 ifreq.ifr_name, ifreq.ifr_addr.sa_family);
 			continue;
 		}
+		ina = ina_get((u_char *)&((struct sockaddr_in *)
+					   &ifreq.ifr_addr)->sin_addr);
 		ns_debug(ns_log_default, 1,
 			 "getnetconf: considering %s [%s]",
 			 ifreq.ifr_name, inet_ntoa(ina));
@@ -1284,11 +1293,20 @@ opensocket_d(interface *ifp) {
 	m = sizeof n;
 	if ((getsockopt(ifp->dfd, SOL_SOCKET, SO_RCVBUF, (char*)&n, &m) >= 0)
 	    && (m == sizeof n)
-	    && (n < rbufsize)) {
+	    && (n < drbufsize)) {
 		(void) setsockopt(ifp->dfd, SOL_SOCKET, SO_RCVBUF,
-				  (char *)&rbufsize, sizeof(rbufsize));
+				  (char *)&drbufsize, sizeof drbufsize);
 	}
 #endif /* SO_RCVBUF */
+#ifndef CANNOT_SET_SNDBUF
+	if (setsockopt(ifp->dfd, SOL_SOCKET, SO_SNDBUF,
+		      (char*)&dsbufsize, sizeof dsbufsize) < 0) {
+		ns_info(ns_log_default,
+			"setsockopt(dfd=%d, SO_SNDBUF, %d): %s",
+			ifp->dfd, dsbufsize, strerror(errno));
+		/* XXX press on regardless, this is not too serious. */
+	}
+#endif
 	if (bind(ifp->dfd, (struct sockaddr *)&nsa, sizeof nsa)) {
 		ns_error(ns_log_default, "bind(dfd=%d, %s): %s",
 			 ifp->dfd, sin_ntoa(nsa), strerror(errno));

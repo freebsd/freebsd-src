@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(SABER)
-static char rcsid[] = "$Id: ns_update.c,v 8.24 1998/03/20 00:49:16 halley Exp $";
+static char rcsid[] = "$Id: ns_update.c,v 8.26 1998/05/05 19:45:10 halley Exp $";
 #endif /* not lint */
 
 /*
@@ -770,7 +770,8 @@ class=%s, type=%s, ttl=%d, dp=0x%0x",
  	        cancel_soa_update(zp);
 		schedmaint = 1;
 #ifdef BIND_NOTIFY
-		sysnotify(zp->z_origin, zp->z_class, T_SOA);
+		if (!loading)
+			sysnotify(zp->z_origin, zp->z_class, T_SOA);
 #endif
 	} else {
 		if (schedule_soa_update(zp, numupdated))
@@ -837,7 +838,6 @@ req_update_private(HEADER *hp, u_char *cp, u_char *eom, u_char *msg,
 	if (matches == 1) {
 		zonenum = zonelist[0];
 		zp = &zones[zonenum];
-		old_serial = get_serial(zp);
 		if (zp->z_class != (int)class ||
 		    (zp->z_type != z_master && zp->z_type != z_slave))
 			matches = 0;
@@ -916,6 +916,7 @@ req_update_private(HEADER *hp, u_char *cp, u_char *eom, u_char *msg,
 			 dname);
 		return (Refuse);
 	}
+	old_serial = get_serial(zp);
 	ns_debug(ns_log_update, 3,
 		 "req_update: update request for zone %s, class %s",
 		 zp->z_origin, p_class(class));
@@ -2330,7 +2331,8 @@ set_serial(struct zoneinfo *zp, u_int32_t serial) {
 	zp->z_soaincrtime = 0;
 	zp->z_updatecnt = 0;
 #ifdef BIND_NOTIFY
-	sysnotify(zp->z_origin, zp->z_class, T_SOA);
+	if (!loading)
+		sysnotify(zp->z_origin, zp->z_class, T_SOA);
 #endif
 	/*
 	 * Note: caller is responsible for scheduling a dump

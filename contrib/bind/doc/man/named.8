@@ -69,6 +69,9 @@
 .Ar config_file
 .Oc
 .Op Fl f q r
+.Op Fl u Ar user_name
+.Op Fl g Ar group_name
+.Op Fl t Ar directory
 .Op Fl w Ar directory
 .Op Ar config_file
 .Sh DESCRIPTION
@@ -186,6 +189,22 @@ This option can be overridden by and is deprecated in favor of the
 clause of the configuration file's
 .Dq Li options
 statement.
+.It Fl u Ar user_name
+Specifies the user the server should run as after it initializes.  The value
+specified may be either a username or a numeric user id.  If the
+.Dq Fl g
+flag is not specified, then the group id used will be the primary group of
+the user specified (initgroups() is called, so all of the user's groups will
+be available to the server).
+.Pp
+.It Fl g Ar group_name
+Specifies the group the server should run as after it initializes.  The value
+specified may be either a groupname or a numeric group id.
+.Pp
+.It Fl t Ar directory
+Specifies the directory the server should chroot() into as soon as it is
+finshed processing command line arguments.
+.Pp
 .It Fl w Ar directory
 Sets the working directory of the server.  The
 .Dq Li directory 
