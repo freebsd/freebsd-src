@@ -198,6 +198,7 @@ dev/vinum/vinumioctl.c		optional vinum
 dev/vinum/vinumlock.c		optional vinum
 dev/vinum/vinummemory.c		optional vinum
 dev/vinum/vinumparser.c		optional vinum
+dev/vinum/vinumraid5.c		optional vinum
 dev/vinum/vinumrequest.c	optional vinum
 dev/vinum/vinumrevive.c		optional vinum
 dev/vinum/vinumstate.c		optional vinum
