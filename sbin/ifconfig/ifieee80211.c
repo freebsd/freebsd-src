@@ -1382,9 +1382,10 @@ ieee80211_status(int s, const struct rt_addrinfo *info __unused)
 	ireq.i_type = IEEE80211_IOC_WEP;
 	if (ioctl(s, SIOCG80211, &ireq) != -1 &&
 	    ireq.i_val != IEEE80211_WEP_NOSUP) {
-		int firstkey;
+		int firstkey, wepmode;
 
-		switch (ireq.i_val) {
+		wepmode = ireq.i_val;
+		switch (wepmode) {
 			case IEEE80211_WEP_OFF:
 				LINE_CHECK("%cprivacy OFF", spacer);
 				break;
@@ -1396,7 +1397,7 @@ ieee80211_status(int s, const struct rt_addrinfo *info __unused)
 				break;
 			default:
 				LINE_CHECK("%cprivacy UNKNOWN (0x%x)",
-					spacer, ireq.i_val);
+					spacer, wepmode);
 				break;
 		}
 
@@ -1412,7 +1413,7 @@ ieee80211_status(int s, const struct rt_addrinfo *info __unused)
 		}
 		if (ireq.i_val != -1)
 			LINE_CHECK("%cdeftxkey %d", spacer, ireq.i_val+1);
-		else if (verbose)
+		else if (wepmode != IEEE80211_WEP_OFF || verbose)
 			LINE_CHECK("%cdeftxkey UNDEF", spacer);
 
 		ireq.i_type = IEEE80211_IOC_NUMWEPKEYS;
