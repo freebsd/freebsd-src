@@ -34,7 +34,7 @@
 
 static struct lc_time_T _time_locale;
 static int _time_using_locale;
-static char * time_locale_buf;
+static char *time_locale_buf;
 
 #define LCTIME_SIZE (sizeof(struct lc_time_T) / sizeof(char *))
 
@@ -57,17 +57,17 @@ static const struct lc_time_T	_C_time_locale = {
 	"%H:%M:%S",
 
 	/*
-	** x_fmt
-	** Since the C language standard calls for
-	** "date, using locale's date format," anything goes.
-	** Using just numbers (as here) makes Quakers happier;
-	** it's also compatible with SVR4.
-	*/
+	 * x_fmt
+	 * Since the C language standard calls for
+	 * "date, using locale's date format," anything goes.
+	 * Using just numbers (as here) makes Quakers happier;
+	 * it's also compatible with SVR4.
+	 */
 	"%m/%d/%y",
 
 	/*
-	** c_fmt
-	*/
+	 * c_fmt
+	 */
 	"%a %b %e %H:%M:%S %Y",
 
 	/* am */
@@ -80,21 +80,21 @@ static const struct lc_time_T	_C_time_locale = {
 	"%a %b %e %H:%M:%S %Z %Y",
 	
 	/* alt_month
-	** Standalone months forms for %OB
-	*/
+	 * Standalone months forms for %OB
+	 */
 	{
 		"January", "February", "March", "April", "May", "June",
 		"July", "August", "September", "October", "November", "December"
 	},
 
 	/* md_order
-	** Month / day order in dates
-	*/
+	 * Month / day order in dates
+	 */
 	"md",
 
 	/* ampm_fmt
-	** To determine 12-hour clock format time (empty, if N/A)
-	*/
+	 * To determine 12-hour clock format time (empty, if N/A)
+	 */
 	"%I:%M:%S %p"
 };
 
