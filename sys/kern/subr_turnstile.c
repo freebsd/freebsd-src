@@ -561,6 +561,7 @@ turnstile_signal(struct turnstile *ts)
 		MPASS(LIST_EMPTY(&ts->ts_free));
 	else
 		ts = LIST_FIRST(&ts->ts_free);
+	MPASS(ts != NULL);
 	LIST_REMOVE(ts, ts_hash);
 	td->td_turnstile = ts;
 
@@ -601,6 +602,7 @@ turnstile_wakeup(struct turnstile *ts)
 			ts1 = ts;
 		} else
 			ts1 = LIST_FIRST(&ts->ts_free);
+		MPASS(ts1 != NULL);
 		LIST_REMOVE(ts1, ts_hash);
 		td->td_turnstile = ts1;
 	}
