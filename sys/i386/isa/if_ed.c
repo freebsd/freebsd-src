@@ -1,19 +1,45 @@
 /*
+ * Copyright (c) 1995, David Greenman
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice unmodified, this list of conditions, and the following
+ *    disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by David Greenman.
+ * 4. The name of the author may not be used to endorse or promote products
+ *    derived from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ *	$Id: if_ed.c,v 1.88 1995/12/05 02:00:43 davidg Exp $
+ */
+
+/*
  * Device driver for National Semiconductor DS8390/WD83C690 based ethernet
  *   adapters. By David Greenman, 29-April-1993
- *
- * Copyright (C) 1993, David Greenman. This software may be used, modified,
- *   copied, distributed, and sold, in both source and binary form provided
- *   that the above copyright and these terms are retained. Under no
- *   circumstances is the author responsible for the proper functioning
- *   of this software, nor does the author assume any responsibility
- *   for damages incurred with its use.
  *
  * Currently supports the Western Digital/SMC 8003 and 8013 series,
  *   the SMC Elite Ultra (8216), the 3Com 3c503, the NE1000 and NE2000,
  *   and a variety of similar clones.
  *
- * $Id: if_ed.c,v 1.87 1995/11/18 08:29:04 bde Exp $
  */
 
 #include "ed.h"
@@ -513,7 +539,7 @@ ed_probe_WD80x3(isa_dev)
 		break;
 	case ED_TYPE_SMC8216C: /* 8216 has 16K shared mem -- 8416 has 8K */
 	case ED_TYPE_SMC8216T:
-		if (sc->type = ED_TYPE_SMC8216C) {
+		if (sc->type == ED_TYPE_SMC8216C) {
 			sc->type_str = "SMC8216/SMC8216C";
 			sc->kdc.kdc_description =
 				"Ethernet adapter: SMC 8216 or 8216C";
@@ -537,7 +563,7 @@ ed_probe_WD80x3(isa_dev)
 			break;
 		case ED_WD790_RAR_SZ8:
 			/* 8216 has 16K shared mem -- 8416 has 8K */
-			if (sc->type = ED_TYPE_SMC8216C) {
+			if (sc->type == ED_TYPE_SMC8216C) {
 				sc->type_str = "SMC8416C/SMC8416BT";
 				sc->kdc.kdc_description =
 					"Ethernet adapter: SMC 8416C or 8416BT";
@@ -2321,21 +2347,17 @@ ed_ioctl(ifp, command, data)
 	case SIOCSIFFLAGS:
 
 		/*
-		 * If interface is marked down and it is running, then stop it
+		 * If the interface is marked up and stopped, then start it.
+		 * If it is marked down and running, then stop it.
 		 */
-		if (((ifp->if_flags & IFF_UP) == 0) &&
-		    (ifp->if_flags & IFF_RUNNING)) {
-			ed_stop(sc);
-			ifp->if_flags &= ~IFF_RUNNING;
-		} else {
-
-			/*
-			 * If interface is marked up and it is stopped, then
-			 * start it
-			 */
-			if ((ifp->if_flags & IFF_UP) &&
-			    ((ifp->if_flags & IFF_RUNNING) == 0))
+		if (ifp->if_flags & IFF_UP) {
+			if ((ifp->if_flags & IFF_RUNNING) == 0)
 				ed_init(ifp);
+		} else {
+			if (ifp->if_flags & IFF_RUNNING) {
+				ed_stop(sc);
+				ifp->if_flags &= ~IFF_RUNNING;
+			}
 		}
 		/* UP controls BUSY/IDLE */
 		sc->kdc.kdc_state = ((ifp->if_flags & IFF_UP)
@@ -2403,6 +2425,42 @@ ed_ioctl(ifp, command, data)
 }
 
 /*
+ * Given a source and destination address, copy 'amount' of a packet from
+ *	the ring buffer into a linear destination buffer. Takes into account
+ *	ring-wrap.
+ */
+static inline char *
+ed_ring_copy(sc, src, dst, amount)
+	struct ed_softc *sc;
+	char   *src;
+	char   *dst;
+	u_short amount;
+{
+	u_short tmp_amount;
+
+	/* does copy wrap to lower addr in ring buffer? */
+	if (src + amount > sc->mem_end) {
+		tmp_amount = sc->mem_end - src;
+
+		/* copy amount up to end of NIC memory */
+		if (sc->mem_shared)
+			bcopy(src, dst, tmp_amount);
+		else
+			ed_pio_readmem(sc, src, dst, tmp_amount);
+
+		amount -= tmp_amount;
+		src = sc->mem_ring;
+		dst += tmp_amount;
+	}
+	if (sc->mem_shared)
+		bcopy(src, dst, amount);
+	else
+		ed_pio_readmem(sc, src, dst, amount);
+
+	return (src + amount);
+}
+
+/*
  * Retreive packet from shared memory and send to the next level up via
  *	ether_input(). If there is a BPF listener, give a copy to BPF, too.
  */
@@ -2423,13 +2481,21 @@ ed_get_packet(sc, buf, len, multicast)
 	m->m_pkthdr.rcvif = &sc->arpcom.ac_if;
 	m->m_pkthdr.len = m->m_len = len;
 
-	/* Attach an mbuf cluster */
-	MCLGET(m, M_DONTWAIT);
+	/*
+	 * We always put the received packet in a single buffer -
+	 * either with just an mbuf header or in a cluster attached
+	 * to the header. The +2 is to compensate for the alignment
+	 * fixup below.
+	 */
+	if ((len + 2) > MHLEN) {
+		/* Attach an mbuf cluster */
+		MCLGET(m, M_DONTWAIT);
 
-	/* Insist on getting a cluster */
-	if ((m->m_flags & M_EXT) == 0) {
-		m_freem(m);
-		return;
+		/* Insist on getting a cluster */
+		if ((m->m_flags & M_EXT) == 0) {
+			m_freem(m);
+			return;
+		}
 	}
 
 	/*
@@ -2677,42 +2743,6 @@ ed_pio_write_mbufs(sc, m, dst)
 		return(0);
 	}
 	return (total_len);
-}
-
-/*
- * Given a source and destination address, copy 'amount' of a packet from
- *	the ring buffer into a linear destination buffer. Takes into account
- *	ring-wrap.
- */
-static inline char *
-ed_ring_copy(sc, src, dst, amount)
-	struct ed_softc *sc;
-	char   *src;
-	char   *dst;
-	u_short amount;
-{
-	u_short tmp_amount;
-
-	/* does copy wrap to lower addr in ring buffer? */
-	if (src + amount > sc->mem_end) {
-		tmp_amount = sc->mem_end - src;
-
-		/* copy amount up to end of NIC memory */
-		if (sc->mem_shared)
-			bcopy(src, dst, tmp_amount);
-		else
-			ed_pio_readmem(sc, src, dst, tmp_amount);
-
-		amount -= tmp_amount;
-		src = sc->mem_ring;
-		dst += tmp_amount;
-	}
-	if (sc->mem_shared)
-		bcopy(src, dst, amount);
-	else
-		ed_pio_readmem(sc, src, dst, amount);
-
-	return (src + amount);
 }
 
 static void
