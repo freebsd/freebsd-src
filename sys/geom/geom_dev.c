@@ -215,7 +215,7 @@ g_dev_close(dev_t dev, int flags, int fmt, struct thread *td)
 {
 	struct g_geom *gp;
 	struct g_consumer *cp;
-	int error, r, w, e;
+	int error, r, w, e, i;
 
 	gp = dev->si_drv1;
 	cp = dev->si_drv2;
@@ -236,8 +236,20 @@ g_dev_close(dev_t dev, int flags, int fmt, struct thread *td)
 		error = ENXIO;		/* We were orphaned */
 	else
 		error = g_access_rel(cp, r, w, e);
-	KASSERT((cp->acr || cp->acw) || (cp->nstart == cp->nend),
-	    ("final g_dev_close() with outstanding bios"));
+	for (i = 0; i < 10 * hz;) {
+		if (cp->acr != 0 || cp->acw != 0)
+			break;
+ 		if (cp->nstart == cp->nend)
+			break;
+		tsleep(&i, PRIBIO, "gdevwclose", hz / 10);
+		i += hz / 10;
+	}
+	if (cp->acr == 0 && cp->acw == 0 && cp->nstart != cp->nend) {
+		printf("WARNING: Final close of geom_dev(%s) %s %s",
+		    gp->name,
+		    "still has outstanding I/O after 10 seconds.",
+		    "Completing close anyway, panic may happen later.");
+	}
 	g_topology_unlock();
 	PICKUP_GIANT();
 	g_waitidle();
