@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)tty.1	8.1 (Berkeley) 6/6/93
-.\"	$Id$
+.\"	$Id: tty.1,v 1.2 1996/08/29 18:06:15 wosch Exp $
 .\"
 .Dd June 6, 1993
 .Dt TTY 1
@@ -42,11 +42,11 @@
 .Nm tty
 .Nd return user's terminal name
 .Sh SYNOPSIS
-.Nm tty
+.Nm
 .Op Fl s
 .Sh DESCRIPTION
 The
-.Nm tty
+.Nm
 utility writes the name of the terminal attached to standard input
 to standard output.
 The name that is written is the string returned by
@@ -73,8 +73,8 @@ not a terminal, and >1 if an error occurs.
 .Xr ttyname 3
 .Sh STANDARDS
 The
-.Nm tty
-function is expected to be
+.Nm
+utility is expected to be
 .St -p1003.2
 compatible.
 .Sh HISTORY
