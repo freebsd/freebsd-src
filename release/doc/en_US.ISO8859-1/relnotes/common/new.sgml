@@ -1669,7 +1669,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       syntax. &merged;</para>
 
     <para>&man.arp.8; now prints the applicable interface name for
-      each ARP entry. &merged</para>
+      each ARP entry. &merged;</para>
 
     <para>&man.arp.8; now prints <literal>[fddi]</literal> or
       <literal>[atm]</literal> tags for addresses on interfaces of
