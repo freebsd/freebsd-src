@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.46 1996/05/19 07:36:46 dyson Exp $
+ * $Id: vm_map.c,v 1.47 1996/05/23 00:45:54 dyson Exp $
  */
 
 /*
@@ -606,6 +606,7 @@ vm_map_insert(map, object, offset, start, end, prot, max, cow)
 	register vm_map_entry_t new_entry;
 	register vm_map_entry_t prev_entry;
 	vm_map_entry_t temp_entry;
+	vm_object_t prev_object;
 
 	/*
 	 * Check that the start and end points are not bogus.
@@ -642,17 +643,19 @@ vm_map_insert(map, object, offset, start, end, prot, max, cow)
 		(prev_entry->protection == prot) &&
 		(prev_entry->max_protection == max) &&
 		(prev_entry->wired_count == 0)) {
+
+			
 	/*
 	 * See if we can avoid creating a new entry by extending one of our
 	 * neighbors.
 	 */
-
 		if (object == NULL) {
 			if (vm_object_coalesce(prev_entry->object.vm_object,
 				OFF_TO_IDX(prev_entry->offset),
 				(vm_size_t) (prev_entry->end
 				    - prev_entry->start),
 				(vm_size_t) (end - prev_entry->end))) {
+
 				/*
 				 * Coalesced the two objects - can extend the
 				 * previous map entry to include the new
@@ -660,6 +663,12 @@ vm_map_insert(map, object, offset, start, end, prot, max, cow)
 				 */
 				map->size += (end - prev_entry->end);
 				prev_entry->end = end;
+				prev_object = prev_entry->object.vm_object;
+				if (prev_object &&
+					(prev_object->type == OBJT_DEFAULT) &&
+					(prev_object->size >= ((cnt.v_page_count - cnt.v_wire_count) / 4))) {
+					default_pager_convert_to_swap(prev_object);
+				}
 				return (KERN_SUCCESS);
 			}
 		}
@@ -707,6 +716,13 @@ vm_map_insert(map, object, offset, start, end, prot, max, cow)
 		(prev_entry->end >= new_entry->start))
 		map->first_free = new_entry;
 
+	if (object &&
+		(object != kernel_object) &&
+		(object != kmem_object) &&
+		(object->type == OBJT_DEFAULT) &&
+		(object->size >= ((cnt.v_page_count - cnt.v_wire_count) / 4))) {
+			default_pager_convert_to_swap(object);
+		}
 	return (KERN_SUCCESS);
 }
 
