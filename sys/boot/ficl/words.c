@@ -4021,68 +4021,55 @@ static void forget(FICL_VM *pVM)
 
 /************************* freebsd added I/O words **************************/
 
-/*              fload - load a file and interpret it
+/*          fopen - open a file and return new fd on stack.
  *
- * grabbed out of testmain.c example and frobbed to fit.
- *
- * fload  ( addr count -- )
+ * fopen ( count ptr  -- fd )
  */
-#define nLINEBUF 256
-static void fload(FICL_VM *pVM)
+static void pfopen(FICL_VM *pVM)
 {
-    char    cp[nLINEBUF], *p;
-    int     i, fd, nLine = 0;
-    char    ch;
-    CELL    id;
+    int     fd;
+    char    *p;
 
     (void)stackPopINT32(pVM->pStack); /* don't need count value */
     p = stackPopPtr(pVM->pStack);
     fd = open(p, O_RDONLY);
-    if (fd == -1)
-    {
-        vmTextOut(pVM, "fload: Unable to open file: ", 0);
-        vmTextOut(pVM, p, 1);
-        vmThrow(pVM, VM_QUIT);
-    }
-
-    id = pVM->sourceID;
-    pVM->sourceID.i = fd;
-
-    /* feed each line to ficlExec */
-    while (1) {
-	int status, i;
-
-	i = 0;
-	while ((status = read(fd, &ch, 1)) > 0 && ch != '\n')
-	    cp[i++] = ch;
-        nLine++;
-	if (!i) {
-	    if (status < 1)
-		break;
-	    continue;
-	}
-	cp[i] = '\0';
-        if (ficlExec(pVM, cp) >= VM_ERREXIT)
-        {
-            pVM->sourceID = id;
-            close(fd);
-            vmThrowErr(pVM, "fload: Error in file %s, line %d", p, nLine);
-            break; 
-        }
-    }
-    /*
-    ** Pass an empty line with SOURCE-ID == 0 to flush
-    ** any pending REFILLs (as required by FILE wordset)
-    */
-    pVM->sourceID.i = -1;
-    ficlExec(pVM, "");
-
-    pVM->sourceID = id;
-    close(fd);
+    stackPushINT32(pVM->pStack, fd);
     return;
 }
 
-static void fexists(FICL_VM *pVM)
+/*          fclose - close a file who's fd is on stack.
+ *
+ * fclose ( fd -- )
+ */
+static void pfclose(FICL_VM *pVM)
+{
+    int fd;
+
+    fd = stackPopINT32(pVM->pStack); /* get fd */
+    if (fd != -1)
+	close(fd);
+    return;
+}
+
+/*          fload - interpret file contents
+ *
+ * fload  ( fd -- )
+ */
+static void pfload(FICL_VM *pVM)
+{
+    int     fd;
+
+    fd = stackPopINT32(pVM->pStack); /* get fd */
+    if (fd != -1)
+	ficlExecFD(pVM, fd);
+    return;
+}
+
+/*          fexists - check to see if file exists, returning TRUE or FALSE
+ *
+ * fexists  ( count ptr -- bool )
+ */
+static void pfexists(FICL_VM *pVM)
 {
     char    *p;
     int     fd;
@@ -4099,7 +4086,10 @@ static void fexists(FICL_VM *pVM)
     return;
 }
 
-/* Get a character from stdin */
+/*           key - get a character from stdin
+ *
+ * key ( -- char )
+ */
 static void key(FICL_VM *pVM)
 {
     stackPushINT32(pVM->pStack, getchar());
@@ -4281,8 +4271,10 @@ void ficlCompileCore(FICL_DICT *dp)
     dictAppendWord(dp, "\\",        commentLine,    FW_IMMEDIATE);
 
     /* FreeBSD extention words */
-    dictAppendWord(dp, "fload",	    fload,	    FW_DEFAULT);
-    dictAppendWord(dp, "fexists",   fexists,	    FW_DEFAULT);
+    dictAppendWord(dp, "fexists",   pfexists,	    FW_DEFAULT);
+    dictAppendWord(dp, "fopen",	    pfopen,	    FW_DEFAULT);
+    dictAppendWord(dp, "fclose",    pfclose,	    FW_DEFAULT);
+    dictAppendWord(dp, "fload",	    pfload,	    FW_DEFAULT);
     dictAppendWord(dp, "key",	    key,	    FW_DEFAULT);
 
     /*
