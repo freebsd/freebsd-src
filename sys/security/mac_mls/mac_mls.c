@@ -54,6 +54,7 @@
 #include <sys/systm.h>
 #include <sys/sysproto.h>
 #include <sys/sysent.h>
+#include <sys/systm.h>
 #include <sys/vnode.h>
 #include <sys/file.h>
 #include <sys/socket.h>
@@ -489,8 +490,126 @@ mac_mls_destroy_label(struct label *label)
 	SLOT(label) = NULL;
 }
 
+/*
+ * mac_mls_element_to_string() is basically an snprintf wrapper with
+ * the same properties as snprintf().  It returns the length it would
+ * have added to the string in the event the string is too short.
+ */
+static size_t
+mac_mls_element_to_string(char *string, size_t size,
+    struct mac_mls_element *element)
+{
+	int pos, bit = 1;
+
+	switch (element->mme_type) {
+	case MAC_MLS_TYPE_HIGH:
+		return (snprintf(string, size, "high"));
+
+	case MAC_MLS_TYPE_LOW:
+		return (snprintf(string, size, "low"));
+
+	case MAC_MLS_TYPE_EQUAL:
+		return (snprintf(string, size, "equal"));
+
+	case MAC_MLS_TYPE_LEVEL:
+		pos = snprintf(string, size, "%d:", element->mme_level);
+		for (bit = 1; bit <= MAC_MLS_MAX_COMPARTMENTS; bit++) {
+			if (MAC_MLS_BIT_TEST(bit, element->mme_compartments))
+				pos += snprintf(string + pos, size - pos,
+				    "%d+", bit);
+		}
+		if (string[pos - 1] == '+' || string[pos - 1] == ':')
+			string[--pos] = NULL;
+		return (pos);
+
+	default:
+		panic("mac_mls_element_to_string: invalid type (%d)",
+		    element->mme_type);
+	}
+}
+
+static size_t
+mac_mls_to_string(char *string, size_t size, size_t *caller_len,
+    struct mac_mls *mac_mls)
+{
+	size_t left, len;
+	char *curptr;
+
+	bzero(string, size);
+	curptr = string;
+	left = size;
+
+	if (mac_mls->mm_flags & MAC_MLS_FLAG_SINGLE) {
+		len = mac_mls_element_to_string(curptr, left,
+		    &mac_mls->mm_single);
+		if (len >= left)
+			return (EINVAL);
+		left -= len;
+		curptr += len;
+	}
+
+	if (mac_mls->mm_flags & MAC_MLS_FLAG_RANGE) {
+		len = snprintf(curptr, left, "(");
+		if (len >= left)
+			return (EINVAL);
+		left -= len;
+		curptr += len;
+
+		len = mac_mls_element_to_string(curptr, left,
+		    &mac_mls->mm_rangelow);
+		if (len >= left)
+			return (EINVAL);
+		left -= len;
+		curptr += len;
+
+		len = snprintf(curptr, left, "-");
+		if (len >= left)
+			return (EINVAL);
+		left -= len;
+		curptr += len;
+
+		len = mac_mls_element_to_string(curptr, left,
+		    &mac_mls->mm_rangehigh);
+		if (len >= left)
+			return (EINVAL);
+		left -= len;
+		curptr += len;
+
+		len = snprintf(curptr, left, ")");
+		if (len >= left)
+			return (EINVAL);
+		left -= len;
+		curptr += len;
+	}
+
+	*caller_len = strlen(string);
+	return (0);
+}
+
 static int
-mac_mls_externalize(struct label *label, struct mac *extmac)
+mac_mls_externalize_label(struct label *label, char *element_name,
+    char *element_data, size_t size, size_t *len, int *claimed)
+{
+	struct mac_mls *mac_mls;
+	int error;
+
+	if (strcmp(MAC_MLS_LABEL_NAME, element_name) != 0)
+		return (0);
+
+	(*claimed)++;
+
+	mac_mls = SLOT(label);
+
+	error = mac_mls_to_string(element_data, size, len, mac_mls);
+	if (error)
+		return (error);
+
+	*len = strlen(element_data);
+	return (0);
+}
+
+static int
+mac_mls_externalize_vnode_oldmac(struct label *label, struct oldmac *extmac)
 {
 	struct mac_mls *mac_mls;
 
@@ -507,20 +626,154 @@ mac_mls_externalize(struct label *label, struct mac *extmac)
 }
 
 static int
-mac_mls_internalize(struct label *label, struct mac *extmac)
+mac_mls_parse_element(struct mac_mls_element *element, char *string)
 {
-	struct mac_mls *mac_mls;
+
+	if (strcmp(string, "high") == 0 ||
+	    strcmp(string, "hi") == 0) {
+		element->mme_type = MAC_MLS_TYPE_HIGH;
+		element->mme_level = MAC_MLS_TYPE_UNDEF;
+	} else if (strcmp(string, "low") == 0 ||
+	    strcmp(string, "lo") == 0) {
+		element->mme_type = MAC_MLS_TYPE_LOW;
+		element->mme_level = MAC_MLS_TYPE_UNDEF;
+	} else if (strcmp(string, "equal") == 0 ||
+	    strcmp(string, "eq") == 0) {
+		element->mme_type = MAC_MLS_TYPE_EQUAL;
+		element->mme_level = MAC_MLS_TYPE_UNDEF;
+	} else {
+		char *p0, *p1;
+		int d;
+
+		p0 = string;
+		d = strtol(p0, &p1, 10);
+
+		if (d < 0 || d > 65535)
+			return (EINVAL);
+		element->mme_type = MAC_MLS_TYPE_LEVEL;
+		element->mme_level = d;
+
+		if (*p1 != ':')  {
+			if (p1 == p0 || *p1 != '\0')
+				return (EINVAL);
+			else
+				return (0);
+		}
+		else
+			if (*(p1 + 1) == '\0')
+				return (0);
+
+		while ((p0 = ++p1)) {
+			d = strtol(p0, &p1, 10);
+			if (d < 1 || d > MAC_MLS_MAX_COMPARTMENTS)
+				return (EINVAL);
+
+			MAC_MLS_BIT_SET(d, element->mme_compartments);
+
+			if (*p1 == '\0')
+				break;
+			if (p1 == p0 || *p1 != '+')
+				return (EINVAL);
+		}
+	}
+
+	return (0);
+}
+
+/*
+ * Note: destructively consumes the string, make a local copy before
+ * calling if that's a problem.
+ */
+static int
+mac_mls_parse(struct mac_mls *mac_mls, char *string)
+{
+	char *range, *rangeend, *rangehigh, *rangelow, *single;
 	int error;
 
-	mac_mls = SLOT(label);
+	/* Do we have a range? */
+	single = string;
+	range = index(string, '(');
+	if (range == single)
+		single = NULL;
+	rangelow = rangehigh = NULL;
+	if (range != NULL) {
+		/* Nul terminate the end of the single string. */
+		*range = '\0';
+		range++;
+		rangelow = range;
+		rangehigh = index(rangelow, '-');
+		if (rangehigh == NULL)
+			return (EINVAL);
+		rangehigh++;
+		if (*rangelow == '\0' || *rangehigh == '\0')
+			return (EINVAL);
+		rangeend = index(rangehigh, ')');
+		if (rangeend == NULL)
+			return (EINVAL);
+		if (*(rangeend + 1) != '\0')
+			return (EINVAL);
+		/* Nul terminate the ends of the ranges. */
+		*(rangehigh - 1) = '\0';
+		*rangeend = '\0';
+	}
+	KASSERT((rangelow != NULL && rangehigh != NULL) ||
+	    (rangelow == NULL && rangehigh == NULL),
+	    ("mac_biba_internalize_label: range mismatch"));
+
+	bzero(mac_mls, sizeof(*mac_mls));
+	if (single != NULL) {
+		error = mac_mls_parse_element(&mac_mls->mm_single, single);
+		if (error)
+			return (error);
+		mac_mls->mm_flags |= MAC_MLS_FLAG_SINGLE;
+	}
+
+	if (rangelow != NULL) {
+		error = mac_mls_parse_element(&mac_mls->mm_rangelow,
+		    rangelow);
+		if (error)
+			return (error);
+		error = mac_mls_parse_element(&mac_mls->mm_rangehigh,
+		    rangehigh);
+		if (error)
+			return (error);
+		mac_mls->mm_flags |= MAC_MLS_FLAG_RANGE;
+	}
 
 	error = mac_mls_valid(mac_mls);
 	if (error)
 		return (error);
 
-	*mac_mls = extmac->m_mls;
+	return (0);
+}
+
+static int
+mac_mls_internalize_label(struct label *label, char *element_name,
+    char *element_data, int *claimed)
+{
+	struct mac_mls *mac_mls, mac_mls_temp;
+	int error;
+
+	if (strcmp(MAC_MLS_LABEL_NAME, element_name) != 0)
+		return (0);
+
+	(*claimed)++;
+
+	error = mac_mls_parse(&mac_mls_temp, element_data);
+	if (error)
+		return (error);
+
+	mac_mls = SLOT(label);
+	*mac_mls = mac_mls_temp;
 
 	return (0);
+}
+
+static void
+mac_mls_copy_label(struct label *src, struct label *dest)
+{
+
+	*SLOT(dest) = *SLOT(src);
 }
 
 /*
@@ -665,7 +918,7 @@ mac_mls_update_procfsvnode(struct vnode *vp, struct label *vnodelabel,
 
 static int
 mac_mls_update_vnode_from_externalized(struct vnode *vp,
-    struct label *vnodelabel, struct mac *extmac)
+    struct label *vnodelabel, struct oldmac *extmac)
 {
 	struct mac_mls *source, *dest;
 	int error;
@@ -997,7 +1250,7 @@ mac_mls_create_cred(struct ucred *cred_parent, struct ucred *cred_child)
 
 static void
 mac_mls_execve_transition(struct ucred *old, struct ucred *new,
-    struct vnode *vp, struct mac *vnodelabel)
+    struct vnode *vp, struct label *vnodelabel)
 {
 	struct mac_mls *source, *dest;
 
@@ -1010,7 +1263,7 @@ mac_mls_execve_transition(struct ucred *old, struct ucred *new,
 
 static int
 mac_mls_execve_will_transition(struct ucred *old, struct vnode *vp,
-    struct mac *vnodelabel)
+    struct label *vnodelabel)
 {
 
 	return (0);
@@ -2110,8 +2363,6 @@ static struct mac_policy_op_entry mac_mls_ops[] =
 	    (macop_t)mac_mls_init_label_waitcheck },
 	{ MAC_INIT_SOCKET_PEER_LABEL,
 	    (macop_t)mac_mls_init_label_waitcheck },
-	{ MAC_INIT_TEMP_LABEL,
-	    (macop_t)mac_mls_init_label },
 	{ MAC_INIT_VNODE_LABEL,
 	    (macop_t)mac_mls_init_label },
 	{ MAC_DESTROY_BPFDESC_LABEL,
@@ -2136,14 +2387,36 @@ static struct mac_policy_op_entry mac_mls_ops[] =
 	    (macop_t)mac_mls_destroy_label },
 	{ MAC_DESTROY_SOCKET_PEER_LABEL,
 	    (macop_t)mac_mls_destroy_label },
-	{ MAC_DESTROY_TEMP_LABEL,
-	    (macop_t)mac_mls_destroy_label },
 	{ MAC_DESTROY_VNODE_LABEL,
 	    (macop_t)mac_mls_destroy_label },
-	{ MAC_EXTERNALIZE,
-	    (macop_t)mac_mls_externalize },
-	{ MAC_INTERNALIZE,
-	    (macop_t)mac_mls_internalize },
+	{ MAC_COPY_PIPE_LABEL,
+	    (macop_t)mac_mls_copy_label },
+	{ MAC_COPY_VNODE_LABEL,
+	    (macop_t)mac_mls_copy_label },
+	{ MAC_EXTERNALIZE_CRED_LABEL,
+	    (macop_t)mac_mls_externalize_label },
+	{ MAC_EXTERNALIZE_IFNET_LABEL,
+	    (macop_t)mac_mls_externalize_label },
+	{ MAC_EXTERNALIZE_PIPE_LABEL,
+	    (macop_t)mac_mls_externalize_label },
+	{ MAC_EXTERNALIZE_SOCKET_LABEL,
+	    (macop_t)mac_mls_externalize_label },
+	{ MAC_EXTERNALIZE_SOCKET_PEER_LABEL,
+	    (macop_t)mac_mls_externalize_label },
+	{ MAC_EXTERNALIZE_VNODE_LABEL,
+	    (macop_t)mac_mls_externalize_label },
+	{ MAC_EXTERNALIZE_VNODE_OLDMAC,
+	    (macop_t)mac_mls_externalize_vnode_oldmac },
+	{ MAC_INTERNALIZE_CRED_LABEL,
+	    (macop_t)mac_mls_internalize_label },
+	{ MAC_INTERNALIZE_IFNET_LABEL,
+	    (macop_t)mac_mls_internalize_label },
+	{ MAC_INTERNALIZE_PIPE_LABEL,
+	    (macop_t)mac_mls_internalize_label },
+	{ MAC_INTERNALIZE_SOCKET_LABEL,
+	    (macop_t)mac_mls_internalize_label },
+	{ MAC_INTERNALIZE_VNODE_LABEL,
+	    (macop_t)mac_mls_internalize_label },
 	{ MAC_CREATE_DEVFS_DEVICE,
 	    (macop_t)mac_mls_create_devfs_device },
 	{ MAC_CREATE_DEVFS_DIRECTORY,

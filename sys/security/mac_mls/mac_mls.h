@@ -43,7 +43,9 @@
 #define	_SYS_SECURITY_MAC_MLS_H
 
 #define	MAC_MLS_EXTATTR_NAMESPACE	EXTATTR_NAMESPACE_SYSTEM
-#define	MAC_MLS_EXTATTR_NAME		"mac_biba"
+#define	MAC_MLS_EXTATTR_NAME		"mac_mls"
+
+#define	MAC_MLS_LABEL_NAME		"mls"
 
 #define	MAC_MLS_FLAG_SINGLE	0x00000001	/* mm_single initialized */
 #define	MAC_MLS_FLAG_RANGE	0x00000002	/* mm_range* initialized */
