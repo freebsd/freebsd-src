@@ -979,6 +979,7 @@ _bfd_elf_link_hash_table_init (table, abfd, newfunc)
   table->needed = NULL;
   table->hgot = NULL;
   table->stab_info = NULL;
+  table->dynlocal = NULL;
   return _bfd_link_hash_table_init (&table->root, abfd, newfunc);
 }
 
