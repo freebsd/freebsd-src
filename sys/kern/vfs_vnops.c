@@ -73,7 +73,7 @@ static fo_close_t	vn_closefile;
 
 struct 	fileops vnops = {
 	vn_read, vn_write, vn_ioctl, vn_poll, vn_kqfilter,
-	vn_statfile, vn_closefile
+	vn_statfile, vn_closefile, DFLAG_PASSABLE
 };
 
 int
