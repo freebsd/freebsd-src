@@ -248,11 +248,11 @@ kmem_free(map, addr, size)
  */
 vm_map_t
 kmem_suballoc(parent, min, max, size)
-	register vm_map_t parent;
+	vm_map_t parent;
 	vm_offset_t *min, *max;
-	register vm_size_t size;
+	vm_size_t size;
 {
-	register int ret;
+	int ret;
 	vm_map_t result;
 
 	size = round_page(size);
@@ -269,7 +269,7 @@ kmem_suballoc(parent, min, max, size)
 	result = vm_map_create(vm_map_pmap(parent), *min, *max);
 	if (result == NULL)
 		panic("kmem_suballoc: cannot create submap");
-	if ((ret = vm_map_submap(parent, *min, *max, result)) != KERN_SUCCESS)
+	if (vm_map_submap(parent, *min, *max, result) != KERN_SUCCESS)
 		panic("kmem_suballoc: unable to change range to submap");
 	return (result);
 }
