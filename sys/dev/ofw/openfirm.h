@@ -57,6 +57,9 @@
  * $FreeBSD$
  */
 
+#ifndef _OPENFIRM_H_
+#define _OPENFIRM_H_
+
 /*
  * Prototypes for Openfirmware Interface Routines
  */
@@ -126,3 +129,5 @@ void		OF_set_symbol_lookup(void *, void *);
 
 /* Time function */
 int		OF_milliseconds(void);
+
+#endif /* _OPENFIRM_H_ */
