@@ -1495,14 +1495,18 @@ sosetopt(so, sopt)
 			 * the high-water.
 			 */
 			case SO_SNDLOWAT:
+				SOCKBUF_LOCK(&so->so_snd);
 				so->so_snd.sb_lowat =
 				    (optval > so->so_snd.sb_hiwat) ?
 				    so->so_snd.sb_hiwat : optval;
+				SOCKBUF_UNLOCK(&so->so_snd);
 				break;
 			case SO_RCVLOWAT:
+				SOCKBUF_LOCK(&so->so_rcv);
 				so->so_rcv.sb_lowat =
 				    (optval > so->so_rcv.sb_hiwat) ?
 				    so->so_rcv.sb_hiwat : optval;
+				SOCKBUF_UNLOCK(&so->so_rcv);
 				break;
 			}
 			break;
