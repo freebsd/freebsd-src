@@ -42,6 +42,21 @@
 #include <fs/devfs/devfs.h>
 
 struct devfs_dirent *
+devfs_find(struct devfs_dirent *dd, const char *name, int namelen)
+{
+	struct devfs_dirent *de;
+
+	TAILQ_FOREACH(de, &dd->de_dlist, de_list) {
+		if (namelen != de->de_dirent->d_namlen)
+			continue;
+		if (bcmp(name, de->de_dirent->d_name, namelen) != 0)
+			continue;
+		break;
+	}
+	return (de);
+}
+
+struct devfs_dirent *
 devfs_newdirent(char *name, int namelen)
 {
 	int i;
@@ -161,25 +176,20 @@ devfs_populate(struct devfs_mount *dm)
 				continue;
 			dd = dm->dm_basedir;
 			s = dev->si_name;
-		nextdir:
-			for (q = s; *q != '/' && *q != '\0'; q++)
-				continue;
-			if (*q == '/') {
-				TAILQ_FOREACH(de, &dd->de_dlist, de_list) {
-					if (de->de_dirent->d_namlen != q - s)
-						continue;
-					if (bcmp(de->de_dirent->d_name, s, q - s))
-						continue;
-					goto fdir;
+			for (;;) {
+				for (q = s; *q != '/' && *q != '\0'; q++)
+					continue;
+				if (*q != '/') 
+					break;
+				de = devfs_find(dd, s, q - s);
+				if (de == NULL) {
+					de = devfs_vmkdir(s, q - s, dd);
+					de->de_inode = dm->dm_inode++;
+					TAILQ_INSERT_TAIL(&dd->de_dlist, de, de_list);
+					dd->de_links++;
 				}
-				de = devfs_vmkdir(s, q - s, dd);
-				de->de_inode = dm->dm_inode++;
-				TAILQ_INSERT_TAIL(&dd->de_dlist, de, de_list);
-				dd->de_links++;
-			fdir:
 				s = q + 1;
 				dd = de;
-				goto nextdir;
 			}
 			de = devfs_newdirent(s, q - s);
 			if (dev->si_flags & SI_ALIAS) {
@@ -200,6 +210,7 @@ devfs_populate(struct devfs_mount *dm)
 				de->de_dirent->d_type = DT_CHR;
 			}
 			dm->dm_dirent[i] = de;
+			de->de_dir = dd;
 			TAILQ_INSERT_TAIL(&dd->de_dlist, de, de_list);
 #if 0
 			printf("Add ino%d %s\n", i, dev->si_name);
