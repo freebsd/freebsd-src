@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pci.c,v 1.20 1995/03/21 23:01:01 se Exp $
+**  $Id: pci.c,v 1.21 1995/03/23 06:14:44 davidg Exp $
 **
 **  General subroutines for the PCI bus.
 **  pci_configure ()
@@ -544,6 +544,7 @@ pci_bus_config (void)
 
 		pdcp = (struct pci_devconf *)
 			malloc (sizeof (struct pci_devconf),M_DEVBUF,M_WAITOK);
+		bzero(pdcp, sizeof(struct pci_devconf));
 
 		pdcp -> pdc_pi.pi_bus    = pcicb->pcicb_bus;
 		pdcp -> pdc_pi.pi_device = device;
