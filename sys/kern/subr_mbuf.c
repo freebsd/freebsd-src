@@ -611,9 +611,7 @@ mb_alloc(struct mb_lstmngr *mb_list, int how, short type)
 			MB_UNLOCK_CONT(gen_list);
 			bucket = mb_pop_cont(mb_list, how, cnt_lst);
 			if (bucket != NULL) {
-				bucket->mb_numfree--;
-				m = bucket->mb_free[(bucket->mb_numfree)];
-				(*(cnt_lst->mb_cont.mc_objcount))--;
+				MB_GET_OBJECT(m, bucket, cnt_lst);
 				MB_MBTYPES_INC(cnt_lst, type, 1);
 				MB_UNLOCK_CONT(cnt_lst);
 			} else {
