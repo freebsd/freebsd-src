@@ -1900,11 +1900,7 @@ tl0_soft:
 	tl0_gen		T_FIX_ALIGNMENT			! 0x106
 	tl0_gen		T_INTEGER_OVERFLOW		! 0x107
 	tl0_gen		T_SYSCALL			! 0x108
-#ifdef COMPAT_FREEBSD4
-	tl0_syscall					! 0x109
-#else
 	tl0_gen		T_SYSCALL			! 0x109
-#endif
 	tl0_fp_restore					! 0x10a
 	tl0_reserved	5				! 0x10b-0x10f
 	tl0_gen		T_TRAP_INSTRUCTION_16		! 0x110
