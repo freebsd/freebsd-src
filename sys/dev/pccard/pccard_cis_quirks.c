@@ -266,13 +266,27 @@ void pccard_check_cis_quirks(device_t dev)
 
 		if (pf_last == q->pf) {
 			cfe = malloc(sizeof(*cfe), M_DEVBUF, M_NOWAIT);
+			if (cfe == NULL) {
+				device_printf(dev, "no memory for quirk (1)\n");
+				continue;
+			}
 			*cfe = *q->cfe;
 			STAILQ_INSERT_TAIL(&pf->cfe_head, cfe, cfe_list);
 		} else {
 			pf = malloc(sizeof(*pf), M_DEVBUF, M_NOWAIT);
+			if (pf == NULL) {
+				device_printf(dev,
+					"no memory for pccard function\n");
+				continue;
+			}
 			*pf = *q->pf;
 			STAILQ_INIT(&pf->cfe_head);
 			cfe = malloc(sizeof(*cfe), M_DEVBUF, M_NOWAIT);
+			if (cfe == NULL) {
+				free(pf, M_DEVBUF);
+				device_printf(dev, "no memory for quirk (2)\n");
+				continue;
+			}
 			*cfe = *q->cfe;
 			STAILQ_INSERT_TAIL(&pf->cfe_head, cfe, cfe_list);
 			STAILQ_INSERT_TAIL(&sc->card.pf_head, pf, pf_list);
