@@ -56,7 +56,9 @@ static const char rcsid[] =
 #include <ufs/ffs/fs.h>
 
 #include <err.h>
+#include <errno.h>
 #include <fstab.h>
+#include <paths.h>
 
 #include "fsck.h"
 
@@ -202,8 +204,8 @@ checkfilesys(filesys, mntpt, auxdata, child)
 {
 	ufs_daddr_t n_ffree, n_bfree;
 	struct dups *dp;
-	struct zlncnt *zlnp;
 	struct statfs *mntbuf;
+	struct zlncnt *zlnp;
 	int cylno;
 
 	if (preen && child)
@@ -226,7 +228,7 @@ checkfilesys(filesys, mntpt, auxdata, child)
 	}
 
 	/*
-	 * get the mount point information of the filesystem, if
+	 * Get the mount point information of the filesystem, if
 	 * it is available.
 	 */
 	mntbuf = getmntpt(filesys);
@@ -336,7 +338,9 @@ checkfilesys(filesys, mntpt, auxdata, child)
 	if (rerun)
 		resolved = 0;
 
-	/* Check to see if the filesystem if mounted read-write */
+	/*
+	 * Check to see if the filesystem if mounted read-write.
+	 */
 	if (mntbuf != NULL && (mntbuf->f_flags & MNT_RDONLY) == 0)
 		resolved = 0;
 	ckfini(resolved);
@@ -350,24 +354,25 @@ checkfilesys(filesys, mntpt, auxdata, child)
 		printf("\n***** FILE SYSTEM WAS MODIFIED *****\n");
 	if (rerun)
 		printf("\n***** PLEASE RERUN FSCK *****\n");
-
-	/*
-	 * Always do a mount update if the current filesystem
-	 * is mounted read-only.
-	 */
-	if (mntbuf != NULL && mntbuf->f_flags & MNT_RDONLY) {
+	if (mntbuf != NULL) {
 		struct ufs_args args;
 		int ret;
-
-		args.fspec = 0;
-		args.export.ex_flags = 0;
-		args.export.ex_root = 0;
-		mntbuf->f_flags |= MNT_UPDATE | MNT_RELOAD;
-		ret = mount("ufs", mntbuf->f_mntonname , mntbuf->f_flags, &args);
-		if (ret < 0)
-			perror("mount");
-		if (ret == 0)
-			return 0;
+		/*
+		 * We modified a mounted filesystem.  Do a mount update on
+		 * it unless it is read-write, so we can continue using it
+		 * as safely as possible.
+		 */
+		if (mntbuf->f_flags & MNT_RDONLY) {
+			args.fspec = 0;
+			args.export.ex_flags = 0;
+			args.export.ex_root = 0;
+			ret = mount("ufs", mntbuf->f_mntonname,
+			    mntbuf->f_flags | MNT_UPDATE | MNT_RELOAD, &args);
+			if (ret == 0)
+				return (0);
+			pwarn("mount reload of '%s' failed: %s\n\n",
+			    mntbuf->f_mntonname, strerror(errno));
+		}
 		if (!fsmodified)
 			return (0);
 		if (!preen)
@@ -379,32 +384,33 @@ checkfilesys(filesys, mntpt, auxdata, child)
 }
 
 /*
- * get the directory the device is mounted on.
+ * Get the directory that the device is mounted on.
  */
 static struct statfs *
 getmntpt(name)
 	const char *name;
 {
-	struct statfs *mntbuf;
 	struct stat devstat, mntdevstat;
-	char device[MAXPATHLEN];
+	char device[sizeof(_PATH_DEV) - 1 + MNAMELEN];
+	char *devname;
+	struct statfs *mntbuf;
 	int i, mntsize;
 
-	if (realpath(name, device) == NULL)
-		return (NULL);
-
-	if (stat(device, &devstat) != 0 ||
+	if (stat(name, &devstat) != 0 ||
 	    !(S_ISCHR(devstat.st_mode) || S_ISBLK(devstat.st_mode)))
 		return (NULL);
-
 	mntsize = getmntinfo(&mntbuf, MNT_NOWAIT);
 	for (i = 0; i < mntsize; i++) {
-		if (realpath(mntbuf[i].f_mntfromname, device) == NULL ||
-		    stat(device, &mntdevstat) != 0 ||
-		    !(S_ISCHR(mntdevstat.st_mode) ||
-		      S_ISBLK(mntdevstat.st_mode)))
+		if (strcmp(mntbuf[i].f_fstypename, "ufs") != 0)
 			continue;
-		if (mntdevstat.st_rdev == devstat.st_rdev)
+		devname = mntbuf[i].f_mntfromname;
+		if (*devname != '/') {
+			strcpy(device, _PATH_DEV);
+			strcat(device, devname);
+			devname = device;
+		}
+		if (stat(device, &mntdevstat) == 0 &&
+		    mntdevstat.st_rdev == devstat.st_rdev)
 			return (&mntbuf[i]);
 	}
 	return (NULL);
