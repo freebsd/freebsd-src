@@ -191,15 +191,6 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386">Adaptec 21x0S/32x0S/34x0S SCSI RAID
-    controllers (&man.asr.4; driver)</para>
-
-    <para arch="i386">Adaptec 2000S/2005S Zero-Channel RAID controllers
-    (&man.asr.4; driver)</para>
-
-    <para arch="i386">Adaptec 2400A ATA-100 RAID controller
-    (&man.asr.4; driver)</para>
-
     <para arch="i386">Adaptec FSA family RAID controllers (&man.aac.4; driver)</para>
 
     <para arch="pc98">NEC PC-9801-55, 92 and their compatible C-Bus SCSI interfaces (ct driver)
@@ -425,6 +416,15 @@
 
     <para arch="i386">DPT SmartCACHE Plus, SmartCACHE III, SmartRAID III, SmartCACHE IV and
     SmartRAID IV SCSI/RAID controllers (&man.dpt.4; driver)</para>
+
+    <para arch="i386">Adaptec 21x0S/32x0S/34x0S SCSI RAID
+    controllers (&man.asr.4; driver)</para>
+
+    <para arch="i386">Adaptec 2000S/2005S Zero-Channel RAID controllers
+    (&man.asr.4; driver)</para>
+
+    <para arch="i386">Adaptec 2400A ATA-100 RAID controller
+    (&man.asr.4; driver)</para>
 
     <para arch="i386">DPT SmartRAID V and VI SCSI RAID controllers
     (&man.asr.4; driver)</para>
