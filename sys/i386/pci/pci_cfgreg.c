@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcibus.c,v 1.5 1995/03/21 23:06:07 se Exp $
+**  $Id: pcibus.c,v 1.6 1995/03/22 10:52:05 se Exp $
 **
 **  pci bus subroutines for i386 architecture.
 **
@@ -48,72 +48,6 @@
 #include <pci/pcivar.h>
 #include <pci/pcireg.h>
 #include <pci/pcibus.h>
-
-#ifdef DENTARO
-
-#define SFAKE (32)
-
-static void
-dec21050 (u_int*reg) {
-	reg[0] = 0x00011011;
-	reg[1]&= 0x000001e7;
-	reg[2] = 0x06040001;
-	reg[3]&= 0x0000f8ff;
-	reg[3]|= 0x000100ff;
-	reg[4] = 0x00000000;
-	reg[5] = 0x00000000;
-	reg[6]&= 0xf8ffffff;
-	reg[7]&= 0x0000f0f0; /* io-limit                       */
-	reg[8]&= 0xfff0fff0; /* mem-limit, non prefatchable    */
-	reg[9]&= 0xfff0fff0; /* mem-limit, prefetchable memory */
-	reg[10] = 0x00000000;
-	reg[11] = 0x00000000;
-	reg[12] = 0x00000000;
-	reg[13] = 0x00000000;
-	reg[14] = 0x00000000;
-	reg[15]&= 0x00ef0000;
-}
-
-static void
-dec21140 (u_int*reg) {
-	reg[0] = 0x00091011u;
-	reg[4]&= 0xfffffffdu;
-	reg[4]|= 0x00000001u;
-	reg[5]&= 0xffffff00u;
-}
-
-struct fake {
-	u_int	tag;
-	void	(*proc)(u_int*);
-};
-
-struct fake faketable [] = {
-{ 0xc70000f1, dec21050 },
-{ 0xc00001f1, dec21140 },
-{ 0xc40001f1, dec21140 },
-{ 0xc80001f1, dec21140 },
-{ 0xcc0001f1, dec21140 },
-};
-
-#define NFAKE (sizeof faketable / sizeof (struct fake))
-
-static u_int fakedata[NFAKE * SFAKE];
-
-u_int* findfake (pcici_t tag)
-{
-	u_int *p;
-	int i;
-	for (i=0; i<NFAKE; i++)
-		if (faketable[i].tag == tag.tag)
-			break;
-
-	if (i>=NFAKE)
-		return (0);
-	p = &fakedata[i*SFAKE];
-	(*faketable[i].proc)(p);
-	return (p);
-}
-#endif /*DENTARO*/
 
 /*-----------------------------------------------------------------
 **
@@ -313,17 +247,6 @@ pcibus_read (pcici_t tag, u_long reg)
 {
 	u_long addr, data = 0;
 
-#ifdef DENTARO
-	u_int*p = findfake(tag);
-	if (p) {
-#if 0
-		printf ("fake conf_read (tag=%x reg=%d val=%08x).\n",
-			tag.tag, (unsigned) reg, (unsigned) p[reg/4]);
-#endif
-		return (p[reg/4]);
-	}
-#endif
-
 	if (!tag.cfg1) return (0xfffffffful);
 
 	switch (pci_mechanism) {
@@ -371,18 +294,6 @@ static void
 pcibus_write (pcici_t tag, u_long reg, u_long data)
 {
 	u_long addr;
-
-#ifdef DENTARO
-	u_int*p = findfake(tag);
-	if (p) {
-#if 0
-		printf ("fake conf_write (tag=%x reg=%d val=%08x).\n",
-			tag.tag, (unsigned) reg, (unsigned) data);
-#endif
-		p[reg/4]=data;
-		return;
-	}
-#endif
 
 	if (!tag.cfg1) return;
 
