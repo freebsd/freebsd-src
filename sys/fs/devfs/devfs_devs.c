@@ -30,6 +30,7 @@
  */
 
 #include "opt_devfs.h"
+#include "opt_mac.h"
 #ifndef NODEVFS
 
 #include <sys/param.h>
@@ -38,6 +39,7 @@
 #include <sys/dirent.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/mac.h>
 #include <sys/malloc.h>
 #include <sys/proc.h>
 #include <sys/sysctl.h>
@@ -207,6 +209,9 @@ devfs_newdirent(char *name, int namelen)
 	vfs_timestamp(&de->de_ctime);
 	de->de_mtime = de->de_atime = de->de_ctime;
 	de->de_links = 1;
+#ifdef MAC
+	mac_init_devfsdirent(de);
+#endif
 	return (de);
 }
 
@@ -254,6 +259,9 @@ devfs_delete(struct devfs_dirent *dd, struct devfs_dirent *de)
 	if (de->de_vnode)
 		de->de_vnode->v_data = NULL;
 	TAILQ_REMOVE(&dd->de_dlist, de, de_list);
+#ifdef MAC
+	mac_destroy_devfsdirent(de);
+#endif
 	FREE(de, M_DEVFS);
 }
 
@@ -325,6 +333,10 @@ devfs_populate(struct devfs_mount *dm)
 				de = devfs_find(dd, s, q - s);
 				if (de == NULL) {
 					de = devfs_vmkdir(s, q - s, dd);
+#ifdef MAC
+					mac_create_devfs_directory(s, q - s,
+					    de);
+#endif
 					de->de_inode = dm->dm_inode++;
 					TAILQ_INSERT_TAIL(&dd->de_dlist, de, de_list);
 					dd->de_links++;
@@ -350,6 +362,9 @@ devfs_populate(struct devfs_mount *dm)
 				de->de_mode = dev->si_mode;
 				de->de_dirent->d_type = DT_CHR;
 			}
+#ifdef MAC
+			mac_create_devfs_device(dev, de);
+#endif
 			*dep = de;
 			de->de_dir = dd;
 			devfs_rules_apply(dm, de);

@@ -35,12 +35,14 @@
  */
 
 #include "opt_devfs.h"
+#include "opt_mac.h"
 #ifndef NODEVFS
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/mac.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/proc.h>
@@ -83,6 +85,9 @@ devfs_mount(mp, ndp, td)
 	lockinit(&fmp->dm_lock, PVFS, "devfs", 0, LK_NOPAUSE);
 
 	mp->mnt_flag |= MNT_LOCAL;
+#ifdef MAC
+	mp->mnt_flag |= MNT_MULTILABEL;
+#endif
 	mp->mnt_data = (qaddr_t) fmp;
 	vfs_getnewfsid(mp);
 
@@ -90,6 +95,9 @@ devfs_mount(mp, ndp, td)
 
 	fmp->dm_rootdir = devfs_vmkdir("(root)", 6, NULL);
 	fmp->dm_rootdir->de_inode = 2;
+#ifdef MAC
+	mac_create_devfs_directory("", 0, fmp->dm_rootdir);
+#endif
 	fmp->dm_basedir = fmp->dm_rootdir;
 	devfs_rules_newmount(fmp, td);
 
