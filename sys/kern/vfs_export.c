@@ -350,9 +350,11 @@ vfs_getnewfsid(mp)
 	simple_lock(&mntid_slock);
 	mtype = mp->mnt_vfc->vfc_typenum;
 	tfsid.val[1] = mtype;
-	mtype = (mtype & 0xFF) << 16;
+	mtype = (mtype & 0xFF) << 24;
 	for (;;) {
-		tfsid.val[0] = makeudev(255, mtype | mntid_base++);
+		tfsid.val[0] = makeudev(255,
+		    mtype | ((mntid_base & 0xFF00) << 8) | (mntid_base & 0xFF));
+		mntid_base++;
 		if (vfs_getvfs(&tfsid) == NULL)
 			break;
 	}
