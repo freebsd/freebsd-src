@@ -1,4 +1,0 @@
-#!/bin/sh
-# $Id$
-
-modload -q -u -A `sysctl -n kern.bootfile` /lkm/qcam_mod.o

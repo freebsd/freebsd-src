@@ -1,3 +1,0 @@
-# $Id$
-
-LIBCOMPATDIR?=	${LIBDIR}/compat
