@@ -246,8 +246,8 @@ void	witness_assert(struct lock_object *, int, const char *, int);
 	witness_restore((lock), __CONCAT(n, __wf), __CONCAT(n, __wl))
 
 #else	/* WITNESS */
-#define	WITNESS_INIT(lock)	(lock)->lo_flags |= LO_INITIALIZED
-#define	WITNESS_DESTROY(lock)	(lock)->lo_flags &= ~LO_INITIALIZED
+#define	WITNESS_INIT(lock)	((lock)->lo_flags |= LO_INITIALIZED)
+#define	WITNESS_DESTROY(lock)	((lock)->lo_flags &= ~LO_INITIALIZED)
 #define	WITNESS_LOCK(lock, flags, file, line)
 #define	WITNESS_UPGRADE(lock, flags, file, line)
 #define	WITNESS_DOWNGRADE(lock, flags, file, line)
