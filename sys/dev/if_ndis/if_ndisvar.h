@@ -90,8 +90,8 @@ struct ndis_softc {
 	struct resource		*ndis_res_am;	/* attribute mem (pccard) */
 	struct resource		*ndis_res_cm;	/* common mem (pccard) */
 	int			ndis_rescnt;
-	struct mtx		ndis_mtx;
-	struct mtx		ndis_intrmtx;
+	struct mtx		*ndis_mtx;
+	struct mtx		*ndis_intrmtx;
 	struct task		ndis_intrtask;
 	struct task		ndis_ticktask;
 	struct task		ndis_starttask;
@@ -129,6 +129,6 @@ struct ndis_softc {
 	int			ndis_mmapcnt;
 };
 
-#define NDIS_LOCK(_sc)		mtx_lock(&(_sc)->ndis_mtx)
-#define NDIS_UNLOCK(_sc)	mtx_unlock(&(_sc)->ndis_mtx)
+#define NDIS_LOCK(_sc)		mtx_pool_lock(ndis_mtxpool, (_sc)->ndis_mtx)
+#define NDIS_UNLOCK(_sc)	mtx_pool_unlock(ndis_mtxpool, (_sc)->ndis_mtx)
 
