@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_subr.c	8.1 (Berkeley) 6/10/93
- * $Id: tcp_subr.c,v 1.4 1994/10/02 17:48:44 phk Exp $
+ * $Id: tcp_subr.c,v 1.5 1994/10/08 22:39:58 phk Exp $
  */
 
 #include <sys/param.h>
@@ -54,16 +54,24 @@
 #include <netinet/ip_var.h>
 #include <netinet/ip_icmp.h>
 #include <netinet/tcp.h>
+#define	TCPOUTFLAGS
 #include <netinet/tcp_fsm.h>
 #include <netinet/tcp_seq.h>
 #include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
 #include <netinet/tcpip.h>
+#ifdef TCPDEBUG
+#include <netinet/tcp_debug.h>
+#endif
 
 /* patchable/settable parameters for tcp */
 int 	tcp_mssdflt = TCP_MSS;
 int 	tcp_rttdflt = TCPTV_SRTTDFLT / PR_SLOWHZ;
 int	tcp_do_rfc1323 = 1;
+#ifdef TTCP
+int	tcp_do_rfc1644 = 1;
+static	void tcp_cleartaocache(void);
+#endif
 
 extern	struct inpcb *tcp_last_inpcb;
 
@@ -75,6 +83,10 @@ tcp_init()
 {
 
 	tcp_iss = 1;		/* wrong */
+#ifdef TTCP
+	tcp_ccgen = 1;
+	tcp_cleartaocache();
+#endif
 	tcb.inp_next = tcb.inp_prev = &tcb;
 	if (max_protohdr < sizeof(struct tcpiphdr))
 		max_protohdr = sizeof(struct tcpiphdr);
@@ -196,6 +208,10 @@ tcp_respond(tp, ti, m, ack, seq, flags)
 	ti->ti_sum = in_cksum(m, tlen);
 	((struct ip *)ti)->ip_len = tlen;
 	((struct ip *)ti)->ip_ttl = ip_defttl;
+#ifdef TCPDEBUG
+	if (tp == NULL || (tp->t_inpcb->inp_socket->so_options & SO_DEBUG))
+		tcp_trace(TA_OUTPUT, 0, tp, ti, 0);
+#endif
 	(void) ip_output(m, NULL, ro, 0, NULL);
 }
 
@@ -215,9 +231,14 @@ tcp_newtcpcb(inp)
 		return ((struct tcpcb *)0);
 	bzero((char *) tp, sizeof(struct tcpcb));
 	tp->seg_next = tp->seg_prev = (struct tcpiphdr *)tp;
-	tp->t_maxseg = tcp_mssdflt;
+	tp->t_maxseg = tp->t_maxopd = tcp_mssdflt;
 
-	tp->t_flags = tcp_do_rfc1323 ? (TF_REQ_SCALE|TF_REQ_TSTMP) : 0;
+	if (tcp_do_rfc1323)
+		tp->t_flags = (TF_REQ_SCALE|TF_REQ_TSTMP);
+#ifdef TTCP
+	if (tcp_do_rfc1644)
+		tp->t_flags |= TF_REQ_CC;
+#endif
 	tp->t_inpcb = inp;
 	/*
 	 * Init srtt to TCPTV_SRTTBASE (0), so we can tell that we have no
@@ -444,3 +465,65 @@ tcp_quench(inp, errno)
 	if (tp)
 		tp->snd_cwnd = tp->t_maxseg;
 }
+
+/*
+ * Look-up the routing entry to the peer of this inpcb.  If no route
+ * is found and it cannot be allocated the return NULL.  This routine
+ * is called by TCP routines that access the rmx structure and by tcp_mss
+ * to get the interface MTU.
+ */
+struct rtentry *
+tcp_rtlookup(inp)
+	struct inpcb *inp;
+{
+	struct route *ro;
+	struct rtentry *rt;
+
+	ro = &inp->inp_route;
+	rt = ro->ro_rt;
+	if (rt == NULL || !(rt->rt_flags & RTF_UP)) {
+		/* No route yet, so try to acquire one */
+		if (inp->inp_faddr.s_addr != INADDR_ANY) {
+			ro->ro_dst.sa_family = AF_INET;
+			ro->ro_dst.sa_len = sizeof(ro->ro_dst);
+			((struct sockaddr_in *) &ro->ro_dst)->sin_addr =
+				inp->inp_faddr;
+			rtalloc(ro);
+			rt = ro->ro_rt;
+		}
+	}
+	return rt;
+}
+
+#ifdef TTCP
+/*
+ * Return a pointer to the cached information about the remote host.
+ * The cached information is stored in the protocol specific part of
+ * the route metrics.
+ */
+struct rmxp_tao *
+tcp_gettaocache(inp)
+	struct inpcb *inp;
+{
+	struct rtentry *rt = tcp_rtlookup(inp);
+
+	/* Make sure this is a host route and is up. */
+	if (rt == NULL ||
+	    (rt->rt_flags & (RTF_UP|RTF_HOST)) != (RTF_UP|RTF_HOST))
+		return NULL;
+
+	return rmx_taop(rt->rt_rmx);
+}
+
+/*
+ * Clear all the TAO cache entries, called from tcp_init.
+ *
+ * XXX
+ * This routine is just an empty one, because we assume that the routing
+ * routing tables are initialized at the same time when TCP, so there is
+ * nothing in the cache left over.
+ */
+static void
+tcp_cleartaocache(void)
+{ }
+#endif /* TTCP */
