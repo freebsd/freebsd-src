@@ -57,69 +57,16 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include <utmp.h>
 
-#define PAM_SM_AUTH
-#define PAM_SM_ACCOUNT
 #define PAM_SM_SESSION
-#define PAM_SM_PASSWORD
 
 #include <security/pam_appl.h>
 #include <security/pam_modules.h>
 #include <security/pam_mod_misc.h>
 
-extern int login_access(const char *, const char *);
-
 PAM_EXTERN int
-pam_sm_authenticate(pam_handle_t *pamh __unused, int flags __unused, int argc, const char **argv)
+pam_sm_open_session(pam_handle_t *pamh, int flags,
+    int argc __unused, const char *argv[] __unused)
 {
-	struct options options;
-
-	pam_std_option(&options, NULL, argc, argv);
-
-	PAM_LOG("Options processed");
-
-	PAM_RETURN(PAM_IGNORE);
-}
-
-PAM_EXTERN int
-pam_sm_setcred(pam_handle_t *pamh __unused, int flags __unused, int argc, const char **argv)
-{
-	struct options options;
-
-	pam_std_option(&options, NULL, argc, argv);
-
-	PAM_LOG("Options processed");
-
-	PAM_RETURN(PAM_IGNORE);
-}
-
-PAM_EXTERN int
-pam_sm_acct_mgmt(pam_handle_t *pamh __unused, int flags __unused, int argc ,const char **argv)
-{
-	struct options options;
-
-	pam_std_option(&options, NULL, argc, argv);
-
-	PAM_LOG("Options processed");
-
-	PAM_RETURN(PAM_IGNORE);
-}
-
-PAM_EXTERN int
-pam_sm_chauthtok(pam_handle_t *pamh __unused, int flags __unused, int argc, const char **argv)
-{
-	struct options options;
-
-	pam_std_option(&options, NULL, argc, argv);
-
-	PAM_LOG("Options processed");
-
-	PAM_RETURN(PAM_IGNORE);
-}
-
-PAM_EXTERN int
-pam_sm_open_session(pam_handle_t *pamh, int flags, int argc, const char **argv)
-{
-	struct options options;
 	struct passwd *pwd;
 	struct utmp utmp;
 	struct lastlog ll;
@@ -127,31 +74,27 @@ pam_sm_open_session(pam_handle_t *pamh, int flags, int argc, const char **argv)
 	off_t llpos;
 	int fd, pam_err;
 
-	pam_std_option(&options, NULL, argc, argv);
-
-	PAM_LOG("Options processed");
-
-	pam_err = pam_get_item(pamh, PAM_USER, (const void **)&user);
+	pam_err = pam_get_user(pamh, &user, NULL);
 	if (pam_err != PAM_SUCCESS)
-		PAM_RETURN(pam_err);
+		return (pam_err);
 	if (user == NULL || (pwd = getpwnam(user)) == NULL)
-		PAM_RETURN(PAM_SERVICE_ERR);
+		return (PAM_SERVICE_ERR);
 	PAM_LOG("Got user: %s", user);
 
 	pam_err = pam_get_item(pamh, PAM_RHOST, (const void **)&rhost);
 	if (pam_err != PAM_SUCCESS)
-		PAM_RETURN(pam_err);
-	
+		return (pam_err);
+
 	pam_err = pam_get_item(pamh, PAM_TTY, (const void **)&tty);
 	if (pam_err != PAM_SUCCESS)
-		PAM_RETURN(pam_err);
+		return (pam_err);
 	if (tty == NULL)
-		PAM_RETURN(PAM_SERVICE_ERR);
-	
+		return (PAM_SERVICE_ERR);
+
 	fd = open(_PATH_LASTLOG, O_RDWR|O_CREAT, 0644);
 	if (fd == -1) {
 		syslog(LOG_ERR, "cannot open %s: %m", _PATH_LASTLOG);
-		PAM_RETURN(PAM_SERVICE_ERR);
+		return (PAM_SERVICE_ERR);
 	}
 
 	/*
@@ -175,21 +118,21 @@ pam_sm_open_session(pam_handle_t *pamh, int flags, int argc, const char **argv)
 		if (lseek(fd, llpos, L_SET) != llpos)
 			goto file_err;
 	}
-	
+
 	bzero(&ll, sizeof(ll));
 	time(&ll.ll_time);
-	
+
 	/* note: does not need to be NUL-terminated */
 	strncpy(ll.ll_line, tty, sizeof(ll.ll_line));
 	if (rhost != NULL)
 		/* note: does not need to be NUL-terminated */
 		strncpy(ll.ll_host, rhost, sizeof(ll.ll_host));
-	
+
 	if (write(fd, (char *)&ll, sizeof(ll)) != sizeof(ll) || close(fd) != 0)
 		goto file_err;
 
 	PAM_LOG("Login recorded in %s", _PATH_LASTLOG);
-	
+
 	/*
 	 * Record session in utmp(5) and wtmp(5).
 	 */
@@ -201,25 +144,21 @@ pam_sm_open_session(pam_handle_t *pamh, int flags, int argc, const char **argv)
 		strncpy(utmp.ut_host, rhost, sizeof(utmp.ut_host));
 	(void)strncpy(utmp.ut_line, tty, sizeof(utmp.ut_line));
 	login(&utmp);
-	
-	PAM_RETURN(PAM_IGNORE);
-	
+
+	return (PAM_IGNORE);
+
  file_err:
 	syslog(LOG_ERR, "%s: %m", _PATH_LASTLOG);
 	close(fd);
-	PAM_RETURN(PAM_SERVICE_ERR);
+	return (PAM_SERVICE_ERR);
 }
 
 PAM_EXTERN int
-pam_sm_close_session(pam_handle_t *pamh __unused, int flags __unused, int argc, const char **argv)
+pam_sm_close_session(pam_handle_t *pamh __unused, int flags __unused,
+    int argc __unused, const char *argv[] __unused)
 {
-	struct options options;
 
-	pam_std_option(&options, NULL, argc, argv);
-
-	PAM_LOG("Options processed");
-
-	PAM_RETURN(PAM_SUCCESS);
+	return (PAM_SUCCESS);
 }
 
 PAM_MODULE_ENTRY("pam_lastlog");

@@ -1,6 +1,13 @@
 /*-
  * Copyright 1998 Juniper Networks, Inc.
  * All rights reserved.
+ * Copyright (c) 2002 Networks Associates Technology, Inc.
+ * All rights reserved.
+ *
+ * Portions of this software were developed for the FreeBSD Project by
+ * ThinkSec AS and NAI Labs, the Security Research Division of Network
+ * Associates, Inc.  under DARPA/SPAWAR contract N66001-01-C-8035
+ * ("CBOSS"), as part of the DARPA CHATS research program.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -10,6 +17,9 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ * 3. The name of the author may not be used to endorse or promote
+ *    products derived from this software without specific prior written
+ *    permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -38,9 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <security/pam_modules.h>
 #include <security/pam_mod_misc.h>
 
-#define PASSWORD_PROMPT	"Password:"
-
-extern int klogin(struct passwd *, char *, char *, char *);
+#include "klogin.h"
 
 /* Globals used by klogin.c */
 int	notickets = 1;
@@ -48,9 +56,9 @@ int	noticketsdontcomplain = 1;
 char	*krbtkfile_env;
 
 PAM_EXTERN int
-pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv)
+pam_sm_authenticate(pam_handle_t *pamh, int flags,
+    int argc __unused, const char *argv[] __unused)
 {
-	struct options options;
 	int retval;
 	const char *user;
 	char *principal;
@@ -59,47 +67,41 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv)
 	char localhost[MAXHOSTNAMELEN + 1];
 	struct passwd *pwd;
 
-	pam_std_option(&options, NULL, argc, argv);
-
-	PAM_LOG("Options processed");
-
 	retval = pam_get_user(pamh, &user, NULL);
 	if (retval != PAM_SUCCESS)
-		PAM_RETURN(retval);
+		return (retval);
 
 	PAM_LOG("Got user: %s", user);
 
-	retval = pam_get_pass(pamh, &password, PASSWORD_PROMPT, &options);
+	retval = pam_get_authtok(pamh, PAM_AUTHTOK, &password, NULL);
 	if (retval != PAM_SUCCESS)
-		PAM_RETURN(retval);
+		return (retval);
 
 	PAM_LOG("Got password");
 
 	if (gethostname(localhost, sizeof localhost - 1) == -1)
-		PAM_RETURN(PAM_SYSTEM_ERR);
+		return (PAM_SYSTEM_ERR);
 
 	PAM_LOG("Got localhost: %s", localhost);
 
 	principal = strdup(user);
 	if (principal == NULL)
-		PAM_RETURN(PAM_BUF_ERR);
+		return (PAM_BUF_ERR);
 
 	instance = strchr(principal, '.');
 	if (instance != NULL)
 		*instance++ = '\0';
 	else
-		instance = "";
+		instance = strchr(principal, '\0');
 
 	PAM_LOG("Got principal.instance: %s.%s", principal, instance);
 
 	retval = PAM_AUTH_ERR;
 	pwd = getpwnam(user);
 	if (pwd != NULL) {
-		if (klogin(pwd, instance, localhost, (char *)password) == 0) {
-			if (!(flags & PAM_SILENT) && notickets && !noticketsdontcomplain)
-				pam_prompt(pamh, PAM_ERROR_MSG,
-				    "Warning: no Kerberos tickets issued",
-				    NULL);
+		if (klogin(pwd, instance, localhost, password) == 0) {
+			if (notickets && !noticketsdontcomplain)
+				PAM_VERBOSE_ERROR("Warning: no Kerberos tickets issued");
 			/*
 			 * XXX - I think the ticket file isn't supposed to
 			 * be created until pam_sm_setcred() is called.
@@ -121,19 +123,15 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv)
 	if (retval != PAM_SUCCESS)
 		PAM_VERBOSE_ERROR("Kerberos IV refuses you");
 
-	PAM_RETURN(retval);
+	return (retval);
 }
 
 PAM_EXTERN int
-pam_sm_setcred(pam_handle_t *pamh, int flags, int argc, const char **argv)
+pam_sm_setcred(pam_handle_t *pamh __unused, int flags __unused,
+    int argc __unused, const char *argv[] __unused)
 {
-	struct options options;
 
-	pam_std_option(&options, NULL, argc, argv);
-
-	PAM_LOG("Options processed");
-
-	PAM_RETURN(PAM_SUCCESS);
+	return (PAM_SUCCESS);
 }
 
 PAM_MODULE_ENTRY("pam_kerberosIV");

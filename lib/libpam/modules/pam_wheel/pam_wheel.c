@@ -49,16 +49,18 @@ __FBSDID("$FreeBSD$");
 #include <grp.h>
 
 #define PAM_SM_AUTH
-#define PAM_SM_ACCOUNT
-#define	PAM_SM_SESSION
-#define	PAM_SM_PASSWORD
 
 #include <security/pam_appl.h>
 #include <security/pam_modules.h>
 #include <security/pam_mod_misc.h>
 
-enum { PAM_OPT_DENY=PAM_OPT_STD_MAX, PAM_OPT_GROUP, PAM_OPT_TRUST,
-	PAM_OPT_AUTH_AS_SELF, PAM_OPT_NOROOT_OK };
+enum {
+	PAM_OPT_DENY = PAM_OPT_STD_MAX,
+	PAM_OPT_GROUP,
+	PAM_OPT_TRUST,
+	PAM_OPT_AUTH_AS_SELF,
+	PAM_OPT_NOROOT_OK
+};
 
 static struct opttab other_options[] = {
 	{ "deny",		PAM_OPT_DENY },
@@ -80,7 +82,8 @@ in_list(char *const *list, const char *member)
 }
 
 PAM_EXTERN int
-pam_sm_authenticate(pam_handle_t * pamh, int flags __unused, int argc, const char **argv)
+pam_sm_authenticate(pam_handle_t * pamh, int flags __unused,
+    int argc, const char *argv[])
 {
 	struct options options;
 	struct passwd *pwd;
@@ -96,12 +99,12 @@ pam_sm_authenticate(pam_handle_t * pamh, int flags __unused, int argc, const cha
 
 	retval = pam_get_user(pamh, &targetuser, NULL);
 	if (retval != PAM_SUCCESS)
-		PAM_RETURN(retval);
+		return (retval);
 	pwd = getpwnam(targetuser);
 	if (pwd != NULL)
 		tuid = pwd->pw_uid;
 	else
-		PAM_RETURN(PAM_AUTH_ERR);
+		return (PAM_AUTH_ERR);
 
 	PAM_LOG("Got target user: %s   uid: %d", targetuser, tuid);
 
@@ -114,21 +117,21 @@ pam_sm_authenticate(pam_handle_t * pamh, int flags __unused, int argc, const cha
 		pwd = getpwnam(user);
 	}
 	if (pwd == NULL)
-		PAM_RETURN(PAM_AUTH_ERR);
+		return (PAM_AUTH_ERR);
 
 	PAM_LOG("Got user: %s", user);
 	PAM_LOG("User's primary uid, gid: %d, %d", pwd->pw_uid, pwd->pw_gid);
 
 	/* Ignore if already uid 0 */
 	if (pwd->pw_uid == 0)
-		PAM_RETURN(PAM_IGNORE);
+		return (PAM_IGNORE);
 
 	PAM_LOG("Not superuser");
 
 	/* If authenticating as something non-superuser, return OK */
 	if (pam_test_option(&options, PAM_OPT_NOROOT_OK, NULL))
 		if (tuid != 0)
-			PAM_RETURN(PAM_SUCCESS);
+			return (PAM_SUCCESS);
 
 	PAM_LOG("Checking group");
 
@@ -141,10 +144,10 @@ pam_sm_authenticate(pam_handle_t * pamh, int flags __unused, int argc, const cha
 
 	if (grp == NULL || grp->gr_mem == NULL) {
 		if (pam_test_option(&options, PAM_OPT_DENY, NULL))
-			PAM_RETURN(PAM_IGNORE);
+			return (PAM_IGNORE);
 		else {
 			PAM_VERBOSE_ERROR("Permission denied");
-			PAM_RETURN(PAM_AUTH_ERR);
+			return (PAM_AUTH_ERR);
 		}
 	}
 
@@ -154,79 +157,27 @@ pam_sm_authenticate(pam_handle_t * pamh, int flags __unused, int argc, const cha
 		if (pam_test_option(&options, PAM_OPT_DENY, NULL)) {
 			PAM_VERBOSE_ERROR("Member of group %s; denied",
 			    grp->gr_name);
-			PAM_RETURN(PAM_PERM_DENIED);
+			return (PAM_PERM_DENIED);
 		}
 		if (pam_test_option(&options, PAM_OPT_TRUST, NULL))
-			PAM_RETURN(PAM_SUCCESS);
-		PAM_RETURN(PAM_IGNORE);
+			return (PAM_SUCCESS);
+		return (PAM_IGNORE);
 	}
 
 	if (pam_test_option(&options, PAM_OPT_DENY, NULL))
-		PAM_RETURN(PAM_SUCCESS);
+		return (PAM_SUCCESS);
 
 	PAM_VERBOSE_ERROR("Not member of group %s; denied", grp->gr_name);
 
-	PAM_RETURN(PAM_PERM_DENIED);
-}
-
-PAM_EXTERN int 
-pam_sm_setcred(pam_handle_t * pamh __unused, int flags __unused, int argc, const char **argv)
-{
-	struct options options;
-
-	pam_std_option(&options, other_options, argc, argv);
-
-	PAM_LOG("Options processed");
-
-	PAM_RETURN(PAM_SUCCESS);
+	return (PAM_PERM_DENIED);
 }
 
 PAM_EXTERN int
-pam_sm_acct_mgmt(pam_handle_t *pamh __unused, int flags __unused, int argc ,const char **argv)
+pam_sm_setcred(pam_handle_t * pamh __unused, int flags __unused,
+    int argc __unused, const char *argv[] __unused)
 {
-	struct options options;
 
-	pam_std_option(&options, NULL, argc, argv);
-
-	PAM_LOG("Options processed");
-
-	PAM_RETURN(PAM_IGNORE);
-}
-
-PAM_EXTERN int
-pam_sm_chauthtok(pam_handle_t *pamh __unused, int flags __unused, int argc, const char **argv)
-{
-	struct options options;
-
-	pam_std_option(&options, NULL, argc, argv);
-
-	PAM_LOG("Options processed");
-
-	PAM_RETURN(PAM_IGNORE);
-}
-
-PAM_EXTERN int
-pam_sm_open_session(pam_handle_t *pamh __unused, int flags __unused, int argc, const char **argv)
-{
-	struct options options;
-
-	pam_std_option(&options, NULL, argc, argv);
-
-	PAM_LOG("Options processed");
-
-	PAM_RETURN(PAM_IGNORE);
-}
-
-PAM_EXTERN int
-pam_sm_close_session(pam_handle_t *pamh __unused, int flags __unused, int argc, const char **argv)
-{
-	struct options options;
-
-	pam_std_option(&options, NULL, argc, argv);
-
-	PAM_LOG("Options processed");
-
-	PAM_RETURN(PAM_IGNORE);
+	return (PAM_SUCCESS);
 }
 
 PAM_MODULE_ENTRY("pam_wheel");

@@ -46,15 +46,15 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 
 #define PAM_SM_AUTH
-#define PAM_SM_ACCOUNT
-#define PAM_SM_SESSION
-#define PAM_SM_PASSWORD
 
 #include <security/pam_appl.h>
 #include <security/pam_modules.h>
 #include <security/pam_mod_misc.h>
 
-enum { PAM_OPT_CONF=PAM_OPT_STD_MAX, PAM_OPT_TEMPLATE_USER };
+enum {
+	PAM_OPT_CONF = PAM_OPT_STD_MAX,
+	PAM_OPT_TEMPLATE_USER
+};
 
 static struct opttab other_options[] = {
 	{ "conf",		PAM_OPT_CONF },
@@ -83,7 +83,7 @@ build_access_request(struct rad_handle *radh, const char *user,
 
 	if (rad_create_request(radh, RAD_ACCESS_REQUEST) == -1) {
 		syslog(LOG_CRIT, "rad_create_request: %s", rad_strerror(radh));
-		return -1;
+		return (-1);
 	}
 	if ((user != NULL &&
 	    rad_put_string(radh, RAD_USER_NAME, user) == -1) ||
@@ -92,18 +92,18 @@ build_access_request(struct rad_handle *radh, const char *user,
 	    (gethostname(host, sizeof host) != -1 &&
 	    rad_put_string(radh, RAD_NAS_IDENTIFIER, host) == -1)) {
 		syslog(LOG_CRIT, "rad_put_string: %s", rad_strerror(radh));
-		return -1;
+		return (-1);
 	}
 	if (state != NULL && rad_put_attr(radh, RAD_STATE, state,
 	    state_len) == -1) {
 		syslog(LOG_CRIT, "rad_put_attr: %s", rad_strerror(radh));
-		return -1;
+		return (-1);
 	}
 	if (rad_put_int(radh, RAD_SERVICE_TYPE, RAD_AUTHENTICATE_ONLY) == -1) {
 		syslog(LOG_CRIT, "rad_put_int: %s", rad_strerror(radh));
-		return -1;
+		return (-1);
 	}
-	return 0;
+	return (0);
 }
 
 static int
@@ -120,7 +120,7 @@ do_accept(pam_handle_t *pamh, struct rad_handle *radh)
 			if (s == NULL) {
 				syslog(LOG_CRIT,
 				    "rad_cvt_string: out of memory");
-				return -1;
+				return (-1);
 			}
 			pam_set_item(pamh, PAM_USER, s);
 			free(s);
@@ -128,9 +128,9 @@ do_accept(pam_handle_t *pamh, struct rad_handle *radh)
 	}
 	if (attrtype == -1) {
 		syslog(LOG_CRIT, "rad_get_attr: %s", rad_strerror(radh));
-		return -1;
+		return (-1);
 	}
-	return 0;
+	return (0);
 }
 
 static int
@@ -164,13 +164,13 @@ do_challenge(pam_handle_t *pamh, struct rad_handle *radh, const char *user)
 			if (num_msgs >= MAX_CHALLENGE_MSGS) {
 				syslog(LOG_CRIT,
 				    "Too many RADIUS challenge messages");
-				return PAM_SERVICE_ERR;
+				return (PAM_SERVICE_ERR);
 			}
 			msgs[num_msgs].msg = rad_cvt_string(attrval, attrlen);
 			if (msgs[num_msgs].msg == NULL) {
 				syslog(LOG_CRIT,
 				    "rad_cvt_string: out of memory");
-				return PAM_SERVICE_ERR;
+				return (PAM_SERVICE_ERR);
 			}
 			msgs[num_msgs].msg_style = PAM_TEXT_INFO;
 			msg_ptrs[num_msgs] = &msgs[num_msgs];
@@ -180,13 +180,13 @@ do_challenge(pam_handle_t *pamh, struct rad_handle *radh, const char *user)
 	}
 	if (attrtype == -1) {
 		syslog(LOG_CRIT, "rad_get_attr: %s", rad_strerror(radh));
-		return PAM_SERVICE_ERR;
+		return (PAM_SERVICE_ERR);
 	}
 	if (num_msgs == 0) {
 		msgs[num_msgs].msg = strdup("(null RADIUS challenge): ");
 		if (msgs[num_msgs].msg == NULL) {
 			syslog(LOG_CRIT, "Out of memory");
-			return PAM_SERVICE_ERR;
+			return (PAM_SERVICE_ERR);
 		}
 		msgs[num_msgs].msg_style = PAM_TEXT_INFO;
 		msg_ptrs[num_msgs] = &msgs[num_msgs];
@@ -195,25 +195,26 @@ do_challenge(pam_handle_t *pamh, struct rad_handle *radh, const char *user)
 	msgs[num_msgs-1].msg_style = PAM_PROMPT_ECHO_ON;
 	if ((retval = pam_get_item(pamh, PAM_CONV, &item)) != PAM_SUCCESS) {
 		syslog(LOG_CRIT, "do_challenge: cannot get PAM_CONV");
-		return retval;
+		return (retval);
 	}
 	conv = (const struct pam_conv *)item;
 	if ((retval = conv->conv(num_msgs, msg_ptrs, &resp,
 	    conv->appdata_ptr)) != PAM_SUCCESS)
-		return retval;
+		return (retval);
 	if (build_access_request(radh, user, resp[num_msgs-1].resp, state,
 	    statelen) == -1)
-		return PAM_SERVICE_ERR;
+		return (PAM_SERVICE_ERR);
 	memset(resp[num_msgs-1].resp, 0, strlen(resp[num_msgs-1].resp));
 	free(resp[num_msgs-1].resp);
 	free(resp);
 	while (num_msgs > 0)
 		free(msgs[--num_msgs].msg);
-	return PAM_SUCCESS;
+	return (PAM_SUCCESS);
 }
 
 PAM_EXTERN int
-pam_sm_authenticate(pam_handle_t *pamh, int flags __unused, int argc, const char **argv)
+pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
+    int argc, const char *argv[])
 {
 	struct options options;
 	struct rad_handle *radh;
@@ -233,20 +234,20 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused, int argc, const char
 
 	retval = pam_get_user(pamh, &user, NULL);
 	if (retval != PAM_SUCCESS)
-		PAM_RETURN(retval);
+		return (retval);
 
 	PAM_LOG("Got user: %s", user);
 
 	retval = pam_get_authtok(pamh, PAM_AUTHTOK, &pass, PASSWORD_PROMPT);
 	if (retval != PAM_SUCCESS)
-		PAM_RETURN(retval);
+		return (retval);
 
 	PAM_LOG("Got password");
 
 	radh = rad_open();
 	if (radh == NULL) {
 		syslog(LOG_CRIT, "rad_open failed");
-		PAM_RETURN(PAM_SERVICE_ERR);
+		return (PAM_SERVICE_ERR);
 	}
 
 	PAM_LOG("Radius opened");
@@ -254,14 +255,14 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused, int argc, const char
 	if (rad_config(radh, conf_file) == -1) {
 		syslog(LOG_ALERT, "rad_config: %s", rad_strerror(radh));
 		rad_close(radh);
-		PAM_RETURN(PAM_SERVICE_ERR);
+		return (PAM_SERVICE_ERR);
 	}
 
 	PAM_LOG("Radius config file read");
 
 	if (build_access_request(radh, user, pass, NULL, 0) == -1) {
 		rad_close(radh);
-		PAM_RETURN(PAM_SERVICE_ERR);
+		return (PAM_SERVICE_ERR);
 	}
 
 	PAM_LOG("Radius build access done");
@@ -273,7 +274,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused, int argc, const char
 			e = do_accept(pamh, radh);
 			rad_close(radh);
 			if (e == -1)
-				PAM_RETURN(PAM_SERVICE_ERR);
+				return (PAM_SERVICE_ERR);
 			if (template_user != NULL) {
 
 				PAM_LOG("Trying template user: %s",
@@ -288,7 +289,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused, int argc, const char
 				retval = pam_get_item(pamh, PAM_USER,
 				    (const void **)&tmpuser);
 				if (retval != PAM_SUCCESS)
-					PAM_RETURN(retval);
+					return (retval);
 				if (getpwnam(tmpuser) == NULL) {
 					pam_set_item(pamh, PAM_USER,
 					    template_user);
@@ -296,18 +297,18 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused, int argc, const char
 				}
 
 			}
-			PAM_RETURN(PAM_SUCCESS);
+			return (PAM_SUCCESS);
 
 		case RAD_ACCESS_REJECT:
 			rad_close(radh);
 			PAM_VERBOSE_ERROR("Radius rejection");
-			PAM_RETURN(PAM_AUTH_ERR);
+			return (PAM_AUTH_ERR);
 
 		case RAD_ACCESS_CHALLENGE:
 			retval = do_challenge(pamh, radh, user);
 			if (retval != PAM_SUCCESS) {
 				rad_close(radh);
-				PAM_RETURN(retval);
+				return (retval);
 			}
 			break;
 
@@ -316,76 +317,24 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused, int argc, const char
 			    rad_strerror(radh));
 			rad_close(radh);
 			PAM_VERBOSE_ERROR("Radius failure");
-			PAM_RETURN(PAM_AUTHINFO_UNAVAIL);
+			return (PAM_AUTHINFO_UNAVAIL);
 
 		default:
 			syslog(LOG_CRIT,
 			    "rad_send_request: unexpected return value");
 			rad_close(radh);
 			PAM_VERBOSE_ERROR("Radius error");
-			PAM_RETURN(PAM_SERVICE_ERR);
+			return (PAM_SERVICE_ERR);
 		}
 	}
 }
 
 PAM_EXTERN int
-pam_sm_setcred(pam_handle_t *pamh __unused, int flags __unused, int argc, const char **argv)
+pam_sm_setcred(pam_handle_t *pamh __unused, int flags __unused,
+    int argc __unused, const char *argv[] __unused)
 {
-	struct options options;
 
-	pam_std_option(&options, NULL, argc, argv);
-
-	PAM_LOG("Options processed");
-
-	PAM_RETURN(PAM_SUCCESS);
-}
-
-PAM_EXTERN int
-pam_sm_acct_mgmt(pam_handle_t *pamh __unused, int flags __unused, int argc ,const char **argv)
-{
-	struct options options;
-
-	pam_std_option(&options, NULL, argc, argv);
-
-	PAM_LOG("Options processed");
-
-	PAM_RETURN(PAM_IGNORE);
-}
-
-PAM_EXTERN int
-pam_sm_chauthtok(pam_handle_t *pamh __unused, int flags __unused, int argc, const char **argv)
-{
-	struct options options;
-
-	pam_std_option(&options, NULL, argc, argv);
-
-	PAM_LOG("Options processed");
-
-	PAM_RETURN(PAM_IGNORE);
-}
-
-PAM_EXTERN int
-pam_sm_open_session(pam_handle_t *pamh __unused, int flags __unused, int argc, const char **argv)
-{
-	struct options options;
-
-	pam_std_option(&options, NULL, argc, argv);
-
-	PAM_LOG("Options processed");
-
-	PAM_RETURN(PAM_IGNORE);
-}
-
-PAM_EXTERN int
-pam_sm_close_session(pam_handle_t *pamh __unused, int flags __unused, int argc, const char **argv)
-{
-	struct options options;
-
-	pam_std_option(&options, NULL, argc, argv);
-
-	PAM_LOG("Options processed");
-
-	PAM_RETURN(PAM_IGNORE);
+	return (PAM_SUCCESS);
 }
 
 PAM_MODULE_ENTRY("pam_radius");
