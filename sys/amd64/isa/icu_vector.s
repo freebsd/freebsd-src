@@ -1,6 +1,6 @@
 /*
  *	from: vector.s, 386BSD 0.1 unknown origin
- *	$Id: icu_vector.s,v 1.10 1999/04/14 14:26:36 bde Exp $
+ *	$Id: icu_vector.s,v 1.11 1999/04/28 01:04:13 luoqi Exp $
  */
 
 /*
@@ -106,7 +106,7 @@ IDTVEC(vec_name) ; \
 	MEXITCOUNT ; \
 	jmp	_doreti
 
-#define	INTR(irq_num, vec_name, icu, enable_icus, reg) \
+#define	INTR(irq_num, vec_name, icu, enable_icus, reg, maybe_extra_ipending) \
 	.text ; \
 	SUPERALIGN_TEXT ; \
 IDTVEC(vec_name) ; \
@@ -120,6 +120,7 @@ IDTVEC(vec_name) ; \
 	movl	%ax,%ds ;	/* ... early for obsolete reasons */ \
 	movl	%ax,%es ; \
 	movl	%ax,%fs ; \
+	maybe_extra_ipending ; \
 	movb	_imen + IRQ_BYTE(irq_num),%al ; \
 	orb	$IRQ_BIT(irq_num),%al ; \
 	movb	%al,_imen + IRQ_BYTE(irq_num) ; \
@@ -180,22 +181,23 @@ MCOUNT_LABEL(bintr)
 	FAST_INTR(13,fastintr13, ENABLE_ICU1_AND_2)
 	FAST_INTR(14,fastintr14, ENABLE_ICU1_AND_2)
 	FAST_INTR(15,fastintr15, ENABLE_ICU1_AND_2)
-	INTR(0,intr0, IO_ICU1, ENABLE_ICU1, al)
-	INTR(1,intr1, IO_ICU1, ENABLE_ICU1, al)
-	INTR(2,intr2, IO_ICU1, ENABLE_ICU1, al)
-	INTR(3,intr3, IO_ICU1, ENABLE_ICU1, al)
-	INTR(4,intr4, IO_ICU1, ENABLE_ICU1, al)
-	INTR(5,intr5, IO_ICU1, ENABLE_ICU1, al)
-	INTR(6,intr6, IO_ICU1, ENABLE_ICU1, al)
-	INTR(7,intr7, IO_ICU1, ENABLE_ICU1, al)
-	INTR(8,intr8, IO_ICU2, ENABLE_ICU1_AND_2, ah)
-	INTR(9,intr9, IO_ICU2, ENABLE_ICU1_AND_2, ah)
-	INTR(10,intr10, IO_ICU2, ENABLE_ICU1_AND_2, ah)
-	INTR(11,intr11, IO_ICU2, ENABLE_ICU1_AND_2, ah)
-	INTR(12,intr12, IO_ICU2, ENABLE_ICU1_AND_2, ah)
-	INTR(13,intr13, IO_ICU2, ENABLE_ICU1_AND_2, ah)
-	INTR(14,intr14, IO_ICU2, ENABLE_ICU1_AND_2, ah)
-	INTR(15,intr15, IO_ICU2, ENABLE_ICU1_AND_2, ah)
+#define	CLKINTR_PENDING	movl $1,CNAME(clkintr_pending)
+	INTR(0,intr0, IO_ICU1, ENABLE_ICU1, al, CLKINTR_PENDING)
+	INTR(1,intr1, IO_ICU1, ENABLE_ICU1, al,)
+	INTR(2,intr2, IO_ICU1, ENABLE_ICU1, al,)
+	INTR(3,intr3, IO_ICU1, ENABLE_ICU1, al,)
+	INTR(4,intr4, IO_ICU1, ENABLE_ICU1, al,)
+	INTR(5,intr5, IO_ICU1, ENABLE_ICU1, al,)
+	INTR(6,intr6, IO_ICU1, ENABLE_ICU1, al,)
+	INTR(7,intr7, IO_ICU1, ENABLE_ICU1, al,)
+	INTR(8,intr8, IO_ICU2, ENABLE_ICU1_AND_2, ah,)
+	INTR(9,intr9, IO_ICU2, ENABLE_ICU1_AND_2, ah,)
+	INTR(10,intr10, IO_ICU2, ENABLE_ICU1_AND_2, ah,)
+	INTR(11,intr11, IO_ICU2, ENABLE_ICU1_AND_2, ah,)
+	INTR(12,intr12, IO_ICU2, ENABLE_ICU1_AND_2, ah,)
+	INTR(13,intr13, IO_ICU2, ENABLE_ICU1_AND_2, ah,)
+	INTR(14,intr14, IO_ICU2, ENABLE_ICU1_AND_2, ah,)
+	INTR(15,intr15, IO_ICU2, ENABLE_ICU1_AND_2, ah,)
 MCOUNT_LABEL(eintr)
 
 	.data
