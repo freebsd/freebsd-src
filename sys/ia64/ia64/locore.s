@@ -424,67 +424,68 @@ STATIC_ENTRY(_reloc, 1)
 	cmp.eq	p6,p0=R_IA64_NONE,r23
 (p6)	br.cond.dpnt.few 3f
 	;;
-	cmp.eq	p6,p0=R_IA64_DIR64LSB,r23
-	;;
-(p6)	br.cond.dptk.few 4f
-	;;
-	cmp.eq	p6,p0=R_IA64_FPTR64LSB,r23
-	;;
-(p6)	br.cond.dptk.few 5f
-	;;
 	cmp.eq	p6,p0=R_IA64_REL64LSB,r23
-	;;
 (p6)	br.cond.dptk.few 4f
 	;;
 
-3:	cmp.ltu	p6,p0=0,r19		// more?
-(p6)	br.cond.dptk.few 2b		// loop
-	
-	mov	r8=0			// success return value
-	;;
-	br.cond.sptk.few 9f		// done
-
-4:
-	ld8	r16=[r15]		// read value
-	;;
-	add	r16=r16,in0		// relocate it
-	;;
-	st8	[r15]=r16		// and store it back
-	br.cond.sptk.few 3b
-	
-5:
-	extr.u	r23=r16,32,32		// ELF64_R_SYM(r16)
+	extr.u	r16=r16,32,32		// ELF64_R_SYM(r16)
 	;; 
-	setf.sig f10=r23		// so we can multiply
+	setf.sig f10=r16		// so we can multiply
 	;;
 	xma.lu	f10=f10,f9,f8		// f10=symtab + r_sym*syment
 	;;
 	getf.sig r16=f10
-	;; 
+	;;
 	add	r16=8,r16		// address of st_value
 	;;
 	ld8	r16=[r16]		// read symbol value
 	;;
 	add	r16=r16,in0		// relocate symbol value
 	;;
+
+	cmp.eq	p6,p0=R_IA64_DIR64LSB,r23
+(p6)	br.cond.dptk.few 5f
+	;;
+	cmp.eq	p6,p0=R_IA64_FPTR64LSB,r23
+(p6)	br.cond.dptk.few 6f
+	;;
+
+3:
+	cmp.ltu	p6,p0=0,r19		// more?
+(p6)	br.cond.dptk.few 2b		// loop
+	mov	r8=0			// success return value
+	br.cond.sptk.few 9f		// done
+
+4:
+	add	r16=in0,r17		// BD + A
+	;;
+	st8	[r15]=r16		// word64 (LSB)
+	br.cond.sptk.few 3b
+
+5:
+	add	r16=r16,r17		// S + A
+	;;
+	st8	[r15]=r16		// word64 (LSB)
+	br.cond.sptk.few 3b
+
+6:
 	movl	r17=@gprel(fptr_storage)
 	;;
 	add	r17=r17,gp		// start of fptrs
 	;;
-6:	cmp.geu	p6,p0=r17,r2		// end of fptrs?
-(p6)	br.cond.dpnt.few 7f		// can't find existing fptr
+7:	cmp.geu	p6,p0=r17,r2		// end of fptrs?
+(p6)	br.cond.dpnt.few 8f		// can't find existing fptr
 	ld8	r20=[r17]		// read function from fptr
 	;;
 	cmp.eq	p6,p0=r16,r20		// same function?
-	;; 
+	;;
 (p6)	st8	[r15]=r17		// reuse fptr
 (p6)	br.cond.sptk.few 3b		// done
 	add	r17=16,r17		// next fptr
-	br.cond.sptk.few 6b
-	
-7:					// allocate new fptr
+	br.cond.sptk.few 7b
+
+8:					// allocate new fptr
 	mov	r8=1			// failure return value
-	;;
 	cmp.geu	p6,p0=r2,r3		// space left?
 (p6)	br.cond.dpnt.few 9f		// bail out
 
@@ -501,10 +502,10 @@ STATIC_ENTRY(_reloc, 1)
 	br.ret.sptk.few rp
 
 END(_reloc)
-	
+
 	.data
 	.align	16
-	
-fptr_storage:	
+	.global fptr_storage
+fptr_storage:
 	.space	4096*16			// XXX
-fptr_storage_end:	
+fptr_storage_end:
