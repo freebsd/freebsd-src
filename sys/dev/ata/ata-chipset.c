@@ -512,7 +512,7 @@ ata_cyrix_chipinit(device_t dev)
     if (ata_setup_interrupt(dev))
 	return ENXIO;
 
-    if (ctlr->r_io1)
+    if (ctlr->r_res1)
 	ctlr->setmode = ata_cyrix_setmode;
     else
 	ctlr->setmode = ata_generic_setmode;
@@ -1145,14 +1145,14 @@ ata_promise_chipinit(device_t dev)
     switch  (ctlr->chip->cfg1) {
     case PRNEW:
 	/* setup clocks */
-	ATA_OUTB(ctlr->r_io1, 0x11, ATA_INB(ctlr->r_io1, 0x11) | 0x0a);
+	ATA_OUTB(ctlr->r_res1, 0x11, ATA_INB(ctlr->r_res1, 0x11) | 0x0a);
 
 	ctlr->dmainit = ata_promise_new_dmainit;
 	/* FALLTHROUGH */
 
     case PROLD:
 	/* enable burst mode */
-	ATA_OUTB(ctlr->r_io1, 0x1f, ATA_INB(ctlr->r_io1, 0x1f) | 0x01);
+	ATA_OUTB(ctlr->r_res1, 0x1f, ATA_INB(ctlr->r_res1, 0x1f) | 0x01);
 
 	if ((bus_setup_intr(dev, ctlr->r_irq, ATA_INTR_FLAGS,
 			    ata_promise_old_intr, ctlr, &ctlr->handle))) {
@@ -1170,21 +1170,23 @@ ata_promise_chipinit(device_t dev)
 	break;
 
     case PRMIO:
-	rid = 0x1c;
-	if (!(ctlr->r_io2 = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
-					       0, ~0, 1, RF_ACTIVE)))
+	ctlr->r_type2 = SYS_RES_MEMORY;
+	ctlr->r_rid2 = 0x1c;
+	if (!(ctlr->r_res2 =
+	      bus_alloc_resource(dev, ctlr->r_type2, &ctlr->r_rid2,
+				 0, ~0, 1, RF_ACTIVE)))
 	    return ENXIO;
 
 	ctlr->dmainit = ata_promise_mio_dmainit;
 	ctlr->allocate = ata_promise_mio_allocate;
 
 	if (ctlr->chip->cfg2 & PRDUAL) {
-	    ctlr->channels = ((ATA_INL(ctlr->r_io2, 0x48) & 0x01) > 0) +
-			     ((ATA_INL(ctlr->r_io2, 0x48) & 0x02) > 0) + 2;
+	    ctlr->channels = ((ATA_INL(ctlr->r_res2, 0x48) & 0x01) > 0) +
+			     ((ATA_INL(ctlr->r_res2, 0x48) & 0x02) > 0) + 2;
 	}
 	else if (ctlr->chip->cfg2 & PRSATA) {
-	    ATA_OUTL(ctlr->r_io2, 0x06c, 0x00ff0033);
-	    ctlr->channels = ((ATA_INL(ctlr->r_io2, 0x48) & 0x02) > 0) + 3;
+	    ATA_OUTL(ctlr->r_res2, 0x06c, 0x00ff0033);
+	    ctlr->channels = ((ATA_INL(ctlr->r_res2, 0x48) & 0x02) > 0) + 3;
 	}
 	else
 	    ctlr->channels = 4;
@@ -1208,18 +1210,18 @@ ata_promise_mio_allocate(device_t dev, struct ata_channel *ch)
     int i;
 
     for (i = ATA_DATA; i <= ATA_STATUS; i++) {
-	ch->r_io[i].res = ctlr->r_io2;
+	ch->r_io[i].res = ctlr->r_res2;
 	ch->r_io[i].offset = 0x200 + (i << 2) + (ch->unit << 7);
     }
-    ch->r_io[ATA_ALTSTAT].res = ctlr->r_io2;
+    ch->r_io[ATA_ALTSTAT].res = ctlr->r_res2;
     ch->r_io[ATA_ALTSTAT].offset = 0x238 + (ch->unit << 7);
-    ch->r_io[ATA_BMCMD_PORT].res = ctlr->r_io2;
+    ch->r_io[ATA_BMCMD_PORT].res = ctlr->r_res2;
     ch->r_io[ATA_BMCMD_PORT].offset = 0x260 + (ch->unit << 7);
-    ch->r_io[ATA_BMDTP_PORT].res = ctlr->r_io2;
+    ch->r_io[ATA_BMDTP_PORT].res = ctlr->r_res2;
     ch->r_io[ATA_BMDTP_PORT].offset = 0x244 + (ch->unit << 7);
-    ch->r_io[ATA_BMDEVSPEC_0].res = ctlr->r_io2;
+    ch->r_io[ATA_BMDEVSPEC_0].res = ctlr->r_res2;
     ch->r_io[ATA_BMDEVSPEC_0].offset = ((ch->unit + 1) << 2);
-    ch->r_io[ATA_IDX_ADDR].res = ctlr->r_io2;
+    ch->r_io[ATA_IDX_ADDR].res = ctlr->r_res2;
 
     ATA_IDX_OUTL(ch, ATA_BMCMD_PORT,
 		 (ATA_IDX_INL(ch, ATA_BMCMD_PORT) & ~0x00003f9f) |
@@ -1242,7 +1244,7 @@ ata_promise_old_intr(void *data)
     for (unit = 0; unit < 2; unit++) {
 	if (!(ch = ctlr->interrupt[unit].argument))
 	    continue;
-	if (ATA_INL(ctlr->r_io1, 0x1c) & (ch->unit ? 0x00004000 : 0x00000400)) {
+	if (ATA_INL(ctlr->r_res1, 0x1c) & (ch->unit ? 0x00004000 : 0x00000400)) {
 	    if (ch->dma && (ch->dma->flags & ATA_DMA_ACTIVE)) {
 		int bmstat = ATA_IDX_INB(ch, ATA_BMSTAT_PORT) & ATA_BMSTAT_MASK;
 
@@ -1292,7 +1294,7 @@ ata_promise_mio_intr(void *data)
     u_int32_t irq_vector;
     int unit;
 
-    irq_vector = ATA_INL(ctlr->r_io2, 0x0040);
+    irq_vector = ATA_INL(ctlr->r_res2, 0x0040);
     for (unit = 0; unit < ctlr->channels; unit++) {
 	if (irq_vector & (1 << (unit + 1))) {
 	    if ((ch = ctlr->interrupt[unit].argument)) {
@@ -1398,9 +1400,9 @@ ata_promise_new_dmastart(struct ata_channel *ch)
 	device_get_softc(device_get_parent(ch->dev));
 
     if (ch->flags & ATA_48BIT_ACTIVE) {
-	ATA_OUTB(ctlr->r_io1, 0x11,
-		 ATA_INB(ctlr->r_io1, 0x11) | (ch->unit ? 0x08 : 0x02));
-	ATA_OUTL(ctlr->r_io1, 0x20,
+	ATA_OUTB(ctlr->r_res1, 0x11,
+		 ATA_INB(ctlr->r_res1, 0x11) | (ch->unit ? 0x08 : 0x02));
+	ATA_OUTL(ctlr->r_res1, 0x20,
 		 ((ch->dma->flags & ATA_DMA_READ) ? 0x05000000 : 0x06000000) |
 		 (ch->dma->cur_iosize >> 1));
     }
@@ -1421,9 +1423,9 @@ ata_promise_new_dmastop(struct ata_channel *ch)
     int error;
 
     if (ch->flags & ATA_48BIT_ACTIVE) {
-	ATA_OUTB(ctlr->r_io1, 0x11,
-		 ATA_INB(ctlr->r_io1, 0x11) & ~(ch->unit ? 0x08 : 0x02));
-	ATA_OUTL(ctlr->r_io1, 0x20, 0);
+	ATA_OUTB(ctlr->r_res1, 0x11,
+		 ATA_INB(ctlr->r_res1, 0x11) & ~(ch->unit ? 0x08 : 0x02));
+	ATA_OUTL(ctlr->r_res1, 0x20, 0);
     }
     error = ATA_IDX_INB(ch, ATA_BMSTAT_PORT);
     ATA_IDX_OUTB(ch, ATA_BMCMD_PORT,
@@ -1630,9 +1632,11 @@ ata_sii_chipinit(device_t dev)
 	    return ENXIO;
 	}
 
-	rid = 0x24;
-	if (!(ctlr->r_io2 = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
-					       0, ~0, 1, RF_ACTIVE)))
+	ctlr->r_type2 = SYS_RES_MEMORY;
+	ctlr->r_rid2 = 0x24;
+	if (!(ctlr->r_res2 =
+	      bus_alloc_resource(dev, ctlr->r_type2, &ctlr->r_rid2,
+				 0, ~0, 1, RF_ACTIVE)))
 	    return ENXIO;
 
 	if (ctlr->chip->cfg2 & SIISETCLK) {
@@ -1644,23 +1648,12 @@ ata_sii_chipinit(device_t dev)
 			      ctlr->chip->text);
 	}
 
-	if (ctlr->chip->cfg2 & SII4CH)
-	    ctlr->channels = 4;
-
 	/* enable interrupt as BIOS might not */
 	pci_write_config(dev, 0x8a, (pci_read_config(dev, 0x8a, 1) & 0x3f), 1);
 
-	/* setup chipset defaults as BIOS might not */
-#if 0
-	pci_write_config(dev, 0xa2, 0x328a, 2);
-	pci_write_config(dev, 0xa4, 0x328a328a, 4);
-	pci_write_config(dev, 0xa8, 0x22082208, 4);
-	pci_write_config(dev, 0xac, 0x40094009, 4);
-	pci_write_config(dev, 0xe2, 0x328a, 2);
-	pci_write_config(dev, 0xe4, 0x328a328a, 4);
-	pci_write_config(dev, 0xe8, 0x22082208, 4);
-	pci_write_config(dev, 0xec, 0x40094009, 4);
-#endif
+	if (ctlr->chip->cfg2 & SII4CH)
+	    ctlr->channels = 4;
+
 	ctlr->allocate = ata_sii_mio_allocate;
 	if (ctlr->chip->max_dma >= ATA_SA150)
 	    ctlr->setmode = ata_sata_setmode;
@@ -1697,22 +1690,22 @@ ata_sii_mio_allocate(device_t dev, struct ata_channel *ch)
     int i;
 
     for (i = ATA_DATA; i <= ATA_STATUS; i++) {
-	ch->r_io[i].res = ctlr->r_io2;
+	ch->r_io[i].res = ctlr->r_res2;
 	ch->r_io[i].offset = 0x80 + i + (unit01 << 6) + (unit10 << 9);
     }
-    ch->r_io[ATA_ALTSTAT].res = ctlr->r_io2;
+    ch->r_io[ATA_ALTSTAT].res = ctlr->r_res2;
     ch->r_io[ATA_ALTSTAT].offset = 0x8a + (unit01 << 6) + (unit10 << 9);
-    ch->r_io[ATA_BMCMD_PORT].res = ctlr->r_io2;
+    ch->r_io[ATA_BMCMD_PORT].res = ctlr->r_res2;
     ch->r_io[ATA_BMCMD_PORT].offset = 0x00 + (unit01 << 3) + (unit10 << 9);
-    ch->r_io[ATA_BMSTAT_PORT].res = ctlr->r_io2;
+    ch->r_io[ATA_BMSTAT_PORT].res = ctlr->r_res2;
     ch->r_io[ATA_BMSTAT_PORT].offset = 0x02 + (unit01 << 3) + (unit10 << 9);
-    ch->r_io[ATA_BMDTP_PORT].res = ctlr->r_io2;
+    ch->r_io[ATA_BMDTP_PORT].res = ctlr->r_res2;
     ch->r_io[ATA_BMDTP_PORT].offset = 0x04 + (unit01 << 3) + (unit10 << 9);
-    ch->r_io[ATA_BMDEVSPEC_0].res = ctlr->r_io2;
+    ch->r_io[ATA_BMDEVSPEC_0].res = ctlr->r_res2;
     ch->r_io[ATA_BMDEVSPEC_0].offset = 0xa1 + (unit01 << 6) + (unit10 << 9);
-    ch->r_io[ATA_BMDEVSPEC_1].res = ctlr->r_io2;
+    ch->r_io[ATA_BMDEVSPEC_1].res = ctlr->r_res2;
     ch->r_io[ATA_BMDEVSPEC_1].offset = 0x100 + (unit01 << 7) + (unit10 << 9);
-    ch->r_io[ATA_IDX_ADDR].res = ctlr->r_io2;
+    ch->r_io[ATA_IDX_ADDR].res = ctlr->r_res2;
 
     if (ctlr->chip->max_dma >= ATA_SA150) {
 	ch->flags |= ATA_NO_SLAVE;
@@ -1722,7 +1715,6 @@ ata_sii_mio_allocate(device_t dev, struct ata_channel *ch)
     ctlr->dmainit(ch);
     if (ctlr->chip->cfg2 & SIIBUG)
 	ch->dma->boundary = 8 * 1024;
-
 
     return 0;
 }

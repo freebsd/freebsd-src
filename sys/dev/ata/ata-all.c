@@ -69,7 +69,6 @@ static struct cdevsw ata_cdevsw = {
 static void ata_shutdown(void *, int);
 static int ata_getparam(struct ata_device *, u_int8_t);
 static void ata_identify_devices(struct ata_channel *);
-static void ata_fail_requests(struct ata_channel *ch,struct ata_device *device);
 static void ata_boot_attach(void);
 static void bswap(int8_t *, int);
 static void btrim(int8_t *, int);
@@ -708,24 +707,6 @@ ata_identify_devices(struct ata_channel *ch)
 	     ((ch->devices & ATA_ATA_SLAVE) && ata_dma)) && ch->dma) 
 	    ch->device[SLAVE].setmode(&ch->device[SLAVE], ATA_DMA_MAX);
     }
-}
-
-static void
-ata_fail_requests(struct ata_channel *ch, struct ata_device *device)
-{
-    struct ata_request *request;
-
-    mtx_lock(&ch->queue_mtx);
-    while ((request = TAILQ_FIRST(&ch->ata_queue))) {
-	if (device == NULL || request->device == device) {
-	    TAILQ_REMOVE(&ch->ata_queue, request, chain);
-	    request->result = ENXIO;
-	    mtx_unlock(&ch->queue_mtx);
-	    ata_finish(request);
-	    mtx_lock(&ch->queue_mtx);
-	}
-    }
-    mtx_unlock(&ch->queue_mtx);
 }
 
 static void 

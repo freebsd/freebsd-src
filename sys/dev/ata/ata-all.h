@@ -332,6 +332,7 @@ struct ata_channel {
 #define		ATA_ATAPI_DMA_RO	0x08
 #define		ATA_48BIT_ACTIVE	0x10
 #define		ATA_IMMEDIATE_MODE	0x20
+#define		ATA_HWGONE		0x40
 
     struct ata_device		device[2];	/* devices on this channel */
 #define		MASTER			0x00
@@ -396,6 +397,7 @@ int ata_controlcmd(struct ata_device *atadev, u_int8_t command, u_int16_t featur
 int ata_atapicmd(struct ata_device *atadev, u_int8_t *ccb, caddr_t data, int count, int flags, int timeout);
 void ata_queue_request(struct ata_request *request);
 void ata_finish(struct ata_request *request);
+void ata_fail_requests(struct ata_channel *ch, struct ata_device *device);
 char *ata_cmd2str(struct ata_request *request);
 
 /* ata-lowlevel.c: */
