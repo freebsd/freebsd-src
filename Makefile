@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.62 1995/09/17 03:38:54 jkh Exp $
+#	$Id: Makefile,v 1.63 1995/10/24 08:37:28 phk Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include and MOST of /usr/lib
@@ -265,15 +265,15 @@ libraries:
 .endif
 .if exists(lib/libcompat)
 	cd ${.CURDIR}/lib/libcompat && \
-		${MAKE} depend all install
+		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
 .endif
 .if exists(lib/libncurses)
 	cd ${.CURDIR}/lib/libncurses && \
-		${MAKE} depend all install
+		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
 .endif
 .if exists(lib/libtermcap)
 	cd ${.CURDIR}/lib/libtermcap && \
-		${MAKE} depend all install
+		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
 .endif
 .if exists(gnu)
 	cd ${.CURDIR}/gnu/lib && \
@@ -291,8 +291,10 @@ libraries:
 	cd ${.CURDIR}/lib && \
 		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
 .endif
+.if exists(usr.sbin/lex/lib)
 	cd ${.CURDIR}/usr.bin/lex/lib && \
 		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
+.endif
 .if exists(eBones) && !defined(NOCRYPT) && defined(MAKE_EBONES)
 	cd ${.CURDIR}/eBones/des && \
 		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
@@ -301,7 +303,7 @@ libraries:
 .endif
 .if exists(usr.sbin/pcvt/keycap)
 	cd ${.CURDIR}/usr.sbin/pcvt/keycap && \
-		 ${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
+		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
 .endif
 
 tools:
