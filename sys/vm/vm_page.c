@@ -161,7 +161,7 @@ vm_add_new_page(pa)
 	m->flags = 0;
 	m->pc = (pa >> PAGE_SHIFT) & PQ_L2_MASK;
 	m->queue = m->pc + PQ_FREE;
-	TAILQ_INSERT_HEAD(&vm_page_queues[m->queue].pl, m, pageq);
+	TAILQ_INSERT_TAIL(&vm_page_queues[m->queue].pl, m, pageq);
 	vm_page_queues[m->queue].lcnt++;
 	return (m);
 }
