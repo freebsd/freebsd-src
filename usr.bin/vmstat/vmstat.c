@@ -479,10 +479,10 @@ dovmstat(interval, reps)
 		}
 		(void)printf("%2d%2d%2d",
 		    total.t_rq - 1, total.t_dw + total.t_pw, total.t_sw);
-#define pgtok(a) ((a) * sum.v_page_size >> 10)
+#define vmstat_pgtok(a) ((a) * sum.v_page_size >> 10)
 #define	rate(x)	(((x) + halfuptime) / uptime)	/* round */
 		(void)printf("%8ld%6ld ",
-		    (long)pgtok(total.t_avm), (long)pgtok(total.t_free));
+		    (long)vmstat_pgtok(total.t_avm), (long)vmstat_pgtok(total.t_free));
 		(void)printf("%4lu ",
 		    (u_long)rate(sum.v_vm_faults - osum.v_vm_faults));
 		(void)printf("%3lu ",
@@ -920,7 +920,8 @@ kread(nlx, addr, size)
 void
 usage()
 {
-	(void)fprintf(stderr,
-"usage: vmstat [-imsz] [-c count] [-M core] [-N system] [-w wait] [disks]\n");
+	(void)fprintf(stderr, "%s%s",
+		"usage: vmstat [-imsz] [-c count] [-M core] [-N system] [-w wait]\n",
+		"              [-n devs] [disks]\n");
 	exit(1);
 }
