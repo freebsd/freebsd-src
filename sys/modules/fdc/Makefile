@@ -7,7 +7,7 @@
 .endif
 KMOD=	fdc
 .if ${MACHINE} == "pc98"
-SRCS=	fd.c
+SRCS=	fd.c fdc_cbus.c
 .else
 SRCS=	fdc.c fdc_isa.c fdc_pccard.c
 .endif
