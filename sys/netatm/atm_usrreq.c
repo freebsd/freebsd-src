@@ -36,12 +36,8 @@
  */
 
 #include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/types.h>
-#include <sys/errno.h>
 #include <sys/proc.h>
 #include <sys/sockio.h>
-#include <sys/time.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
 #include <net/if.h>
