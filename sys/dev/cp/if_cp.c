@@ -1060,7 +1060,7 @@ static int cp_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, struct threa
 	                d->pp.pp_flags &= ~(PP_FR);
 	                d->pp.pp_flags |= PP_KEEPALIVE;
 	                d->pp.pp_if.if_flags |= PP_CISCO;
-	        } else if (! strcmp ("fr", (char*)data) && !PP_FR) {
+		} else if (! strcmp ("fr", (char*)data) && PP_FR) {
 	                d->pp.pp_if.if_flags &= ~(PP_CISCO);
 	                d->pp.pp_flags |= PP_FR | PP_KEEPALIVE;
 	        } else if (! strcmp ("ppp", (char*)data)) {
