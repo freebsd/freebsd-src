@@ -8,5 +8,5 @@
 # REQUIRE: mountcritremote
 # KEYWORD: FreeBSD NetBSD
 
-#	This is a dummy dependancy, for early-start servers relying on
+#	This is a dummy dependency, for early-start servers relying on
 #	some basic configuration.
