@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.31 1999/04/22 20:12:21 obrien Exp $
+# $Id: Makefile,v 1.32 1999/04/28 18:48:08 obrien Exp $
 #
 
 #
@@ -102,7 +102,7 @@ c-parse.c c-parse.h: c-parse.in
 	sed -e "/^ifobjc$$/,/^end ifobjc$$/d" \
 	    -e "/^ifc$$/d" -e "/^end ifc$$/d" \
 	    ${GCCDIR}/c-parse.in > c-parse.y
-	${BISON} -d c-parse.y -o c-parse.c 
+	${BISON} -d -o c-parse.c c-parse.y
 	rm -f c-parse.y
 
 GENSRCS+=	c-parse.c c-parse.h
@@ -115,7 +115,7 @@ objc-parse.c objc-parse.h: c-parse.in
 	sed -e "/^ifc$$/,/^end ifc$$/d" \
 	    -e "/^ifobjc$$/d" -e "/^end ifobjc$$/d" \
 	    ${GCCDIR}/c-parse.in > objc-parse.y
-	${BISON} -d objc-parse.y -o objc-parse.c 
+	${BISON} -d -o objc-parse.c objc-parse.y
 	rm -f objc-parse.y
 
 GENSRCS+=	objc-parse.c objc-parse.h
