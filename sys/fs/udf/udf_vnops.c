@@ -36,6 +36,7 @@
 #include <sys/malloc.h>
 #include <sys/stat.h>
 #include <sys/bio.h>
+#include <sys/conf.h>
 #include <sys/buf.h>
 #include <sys/iconv.h>
 #include <sys/mount.h>
@@ -91,77 +92,6 @@ MALLOC_DEFINE(M_UDFFID, "UDF FID", "UDF FileId structure");
 MALLOC_DEFINE(M_UDFDS, "UDF DS", "UDF Dirstream structure");
 
 #define UDF_INVALID_BMAP	-1
-
-/* Look up a udf_node based on the ino_t passed in and return it's vnode */
-int
-udf_hashlookup(struct udf_mnt *udfmp, ino_t id, int flags, struct vnode **vpp)
-{
-	struct udf_node *node;
-	struct udf_hash_lh *lh;
-	int error;
-
-	*vpp = NULL;
-
-loop:
-	mtx_lock(&udfmp->hash_mtx);
-	lh = &udfmp->hashtbl[id % udfmp->hashsz];
-	if (lh == NULL)
-		return (ENOENT);
-	LIST_FOREACH(node, lh, le) {
-		if (node->hash_id == id) {
-			VI_LOCK(node->i_vnode);
-			mtx_unlock(&udfmp->hash_mtx);
-			error = vget(node->i_vnode, flags | LK_INTERLOCK,
-			    curthread);
-			if (error == ENOENT)
-				goto loop;
-			if (error)
-				return (error);
-			*vpp = node->i_vnode;
-			return (0);
-		}
-	}
-
-	mtx_unlock(&udfmp->hash_mtx);
-	return (0);
-}
-
-int
-udf_hashins(struct udf_node *node)
-{
-	struct udf_mnt *udfmp;
-	struct udf_hash_lh *lh;
-
-	udfmp = node->udfmp;
-
-	vn_lock(node->i_vnode, LK_EXCLUSIVE | LK_RETRY, curthread);
-	mtx_lock(&udfmp->hash_mtx);
-	lh = &udfmp->hashtbl[node->hash_id % udfmp->hashsz];
-	if (lh == NULL)
-		LIST_INIT(lh);
-	LIST_INSERT_HEAD(lh, node, le);
-	mtx_unlock(&udfmp->hash_mtx);
-
-	return (0);
-}
-
-int
-udf_hashrem(struct udf_node *node)
-{
-	struct udf_mnt *udfmp;
-	struct udf_hash_lh *lh;
-
-	udfmp = node->udfmp;
-
-	mtx_lock(&udfmp->hash_mtx);
-	lh = &udfmp->hashtbl[node->hash_id % udfmp->hashsz];
-	if (lh == NULL)
-		panic("hash entry is NULL, node->hash_id= %d\n", node->hash_id);
-	LIST_REMOVE(node, le);
-	mtx_unlock(&udfmp->hash_mtx);
-
-	return (0);
-}
 
 int
 udf_allocv(struct mount *mp, struct vnode **vpp, struct thread *td)
@@ -1037,7 +967,7 @@ udf_reclaim(struct vop_reclaim_args *a)
 	unode = VTON(vp);
 
 	if (unode != NULL) {
-		udf_hashrem(unode);
+		vfs_hash_remove(vp);
 		if (unode->i_devvp) {
 			vrele(unode->i_devvp);
 			unode->i_devvp = 0;
