@@ -184,7 +184,7 @@ ar_attach_raid(struct ar_softc *rdp, int update)
     rdp->disk.d_fwheads = rdp->heads;
     rdp->disk.d_maxsize = 128 * DEV_BSIZE;
     rdp->disk.d_drv1 = rdp;
-    disk_create(rdp->lun, &rdp->disk, 0, NULL, NULL);
+    disk_create(rdp->lun, &rdp->disk, DISKFLAG_NOGIANT, NULL, NULL);
 
     printf("ar%d: %lluMB <ATA ", rdp->lun, (unsigned long long)
 	   (rdp->total_sectors / ((1024L * 1024L) / DEV_BSIZE)));
@@ -715,7 +715,7 @@ arstrategy(struct bio *bp)
 	buf1->bp.bio_pblkno = lba;
 	if ((buf1->drive = drv) > 0)
 	    buf1->bp.bio_pblkno += rdp->offset;
-	buf1->bp.bio_caller1 = (void *)rdp;
+	buf1->bp.bio_driver1 = (void *)rdp;
 	buf1->bp.bio_bcount = chunk * DEV_BSIZE;
 	buf1->bp.bio_data = data;
 	buf1->bp.bio_cmd = bp->bio_cmd;
@@ -841,7 +841,7 @@ arstrategy(struct bio *bp)
 static void
 ar_done(struct bio *bp)
 {
-    struct ar_softc *rdp = (struct ar_softc *)bp->bio_caller1;
+    struct ar_softc *rdp = (struct ar_softc *)bp->bio_driver1;
     struct ar_buf *buf = (struct ar_buf *)bp;
 
     switch (rdp->flags & (AR_F_RAID0 | AR_F_RAID1 | AR_F_SPAN)) {
