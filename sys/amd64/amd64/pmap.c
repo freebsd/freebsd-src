@@ -1241,14 +1241,8 @@ pmap_allocpte(pmap_t pmap, vm_offset_t va)
 void
 pmap_release(pmap_t pmap)
 {
-	vm_object_t object;
 	vm_page_t m;
 
-	object = pmap->pm_pteobj;
-
-	KASSERT(object->ref_count == 1,
-	    ("pmap_release: pteobj reference count %d != 1",
-	    object->ref_count));
 	KASSERT(pmap->pm_stats.resident_count == 0,
 	    ("pmap_release: pmap resident count %ld != 0",
 	    pmap->pm_stats.resident_count));
@@ -1258,15 +1252,14 @@ pmap_release(pmap_t pmap)
 	mtx_unlock_spin(&allpmaps_lock);
 
 	vm_page_lock_queues();
-	while ((m = TAILQ_FIRST(&object->memq)) != NULL) {
-		m->wire_count--;
-		atomic_subtract_int(&cnt.v_wire_count, 1);
-		vm_page_busy(m);
-		vm_page_free(m);
-	}
-	KASSERT(TAILQ_EMPTY(&object->memq),
-	    ("pmap_release: leaking page table pages"));
+	m = PHYS_TO_VM_PAGE(pmap->pm_pml4[PML4PML4I]);
+	m->wire_count--;
+	atomic_subtract_int(&cnt.v_wire_count, 1);
+	vm_page_busy(m);
+	vm_page_free(m);
 	vm_page_unlock_queues();
+	KASSERT(TAILQ_EMPTY(&pmap->pm_pteobj->memq),
+	    ("pmap_release: leaking page table pages"));
 }
 
 static int
