@@ -284,7 +284,7 @@ list_net_interfaces()
 	# Separate out dhcp and non-dhcp intefraces
 	#
 	_aprefix=
-	_brefix=
+	_bprefix=
 	for _if in ${_tmplist} ; do
 		eval _ifarg="\$ifconfig_${_if}"
 		case "$_ifarg" in
