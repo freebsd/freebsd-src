@@ -114,6 +114,7 @@ acct(a1, uap)
 	} */ *uap;
 {
 	struct proc *p = curproc;	/* XXX */
+	struct ucred *uc;
 	struct nameidata nd;
 	int error, flags;
 
@@ -136,7 +137,12 @@ acct(a1, uap)
 		NDFREE(&nd, NDF_ONLY_PNBUF);
 		VOP_UNLOCK(nd.ni_vp, 0, p);
 		if (nd.ni_vp->v_type != VREG) {
-			vn_close(nd.ni_vp, FWRITE, p->p_ucred, p);
+			PROC_LOCK(p);
+			uc = p->p_ucred;
+			crhold(uc);
+			PROC_UNLOCK(p);
+			vn_close(nd.ni_vp, FWRITE, uc, p);
+			crfree(uc);
 			return (EACCES);
 		}
 	}
@@ -147,8 +153,13 @@ acct(a1, uap)
 	 */
 	if (acctp != NULLVP || savacctp != NULLVP) {
 		callout_stop(&acctwatch_callout);
+		PROC_LOCK(p);
+		uc = p->p_ucred;
+		crhold(uc);
+		PROC_UNLOCK(p);
 		error = vn_close((acctp != NULLVP ? acctp : savacctp), FWRITE,
-		    p->p_ucred, p);
+		    uc, p);
+		crfree(uc);
 		acctp = savacctp = NULLVP;
 	}
 	if (SCARG(uap, path) == NULL)
@@ -176,9 +187,10 @@ acct_process(p)
 	struct proc *p;
 {
 	struct acct acct;
+	struct ucred *uc;
 	struct rusage *r;
 	struct timeval ut, st, tmp;
-	int t;
+	int t, error;
 	struct vnode *vp;
 
 	/* If accounting isn't enabled, don't bother */
@@ -194,7 +206,9 @@ acct_process(p)
 	bcopy(p->p_comm, acct.ac_comm, sizeof acct.ac_comm);
 
 	/* (2) The amount of user and system time that was used */
+	mtx_enter(&sched_lock, MTX_SPIN);
 	calcru(p, &ut, &st, NULL);
+	mtx_exit(&sched_lock, MTX_SPIN);
 	acct.ac_utime = encode_comp_t(ut.tv_sec, ut.tv_usec);
 	acct.ac_stime = encode_comp_t(st.tv_sec, st.tv_usec);
 
@@ -217,6 +231,7 @@ acct_process(p)
 	/* (5) The number of disk I/O operations done */
 	acct.ac_io = encode_comp_t(r->ru_inblock + r->ru_oublock, 0);
 
+	PROC_LOCK(p);
 	/* (6) The UID and GID of the process */
 	acct.ac_uid = p->p_cred->p_ruid;
 	acct.ac_gid = p->p_cred->p_rgid;
@@ -233,6 +248,7 @@ acct_process(p)
 	/*
 	 * Eliminate any file size rlimit.
 	 */
+	mtx_assert(&Giant, MA_OWNED);
 	if (p->p_limit->p_refcnt > 1 &&
 	    (p->p_limit->p_lflags & PL_SHAREMOD) == 0) {
 		p->p_limit->p_refcnt--;
@@ -243,10 +259,14 @@ acct_process(p)
 	/*
 	 * Write the accounting information to the file.
 	 */
-	VOP_LEASE(vp, p, p->p_ucred, LEASE_WRITE);
-	return (vn_rdwr(UIO_WRITE, vp, (caddr_t)&acct, sizeof (acct),
-	    (off_t)0, UIO_SYSSPACE, IO_APPEND|IO_UNIT, p->p_ucred,
-	    (int *)0, p));
+	uc = p->p_ucred;
+	crhold(uc);
+	PROC_UNLOCK(p);
+	VOP_LEASE(vp, p, uc, LEASE_WRITE);
+	error = vn_rdwr(UIO_WRITE, vp, (caddr_t)&acct, sizeof (acct),
+	    (off_t)0, UIO_SYSSPACE, IO_APPEND|IO_UNIT, uc, (int *)0, p);
+	crfree(uc);
+	return (error);
 }
 
 /*
