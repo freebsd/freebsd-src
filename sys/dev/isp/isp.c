@@ -2337,6 +2337,7 @@ isp_control(isp, ctl, arg)
 
 	case ISPCTL_ABORT_CMD:
 		xs = (ISP_SCSI_XFER_T *) arg;
+		tgt = XS_TGT(xs);
 		handle = isp_find_handle(isp, xs);
 		if (handle == 0) {
 			PRINTF("%s: isp_control- cannot find command to abort "
@@ -2347,12 +2348,12 @@ isp_control(isp, ctl, arg)
 		mbs.param[0] = MBOX_ABORT;
 		if (IS_FC(isp)) {
 			if (isp->isp_maxluns > 16) {
-				mbs.param[1] = XS_TGT(xs) << 8;
+				mbs.param[1] = tgt << 8;
 				mbs.param[4] = 0;
 				mbs.param[5] = 0;
 				mbs.param[6] = XS_LUN(xs);
 			} else {
-				mbs.param[1] = XS_TGT(xs) << 8 | XS_LUN(xs);
+				mbs.param[1] = tgt << 8 | XS_LUN(xs);
 			}
 		} else {
 			mbs.param[1] =
@@ -2361,13 +2362,19 @@ isp_control(isp, ctl, arg)
 		mbs.param[3] = handle >> 16;
 		mbs.param[2] = handle & 0xffff;
 		isp_mboxcmd(isp, &mbs);
-		if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
-			PRINTF("%s: isp_control MBOX_ABORT failure (code %x)\n",
-			    isp->isp_name, mbs.param[0]);
+		switch (mbs.param[0]) {
+		case MBOX_COMMAND_COMPLETE:
+			IDPRINTF(1,
+			    ("%s: command (handle 0x%x) for %d.%d.%d aborted\n",
+			    isp->isp_name, handle, bus, tgt, XS_LUN(xs)));
+			/* FALLTHROUGH */
+		case MBOX_COMMAND_PARAM_ERROR:
+			break;
+		default:
+			PRINTF("%s: command (handle 0x%x) abort failed (%x)\n",
+			    isp->isp_name, handle, mbs.param[0]);
 			break;
 		}
-		PRINTF("%s: command for target %d lun %d was aborted\n",
-		    isp->isp_name, XS_TGT(xs), XS_LUN(xs));
 		return (0);
 
 	case ISPCTL_UPDATE_PARAMS:
