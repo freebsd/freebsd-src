@@ -342,12 +342,46 @@ dsioctl(dev, cmd, data, flags, sspp)
 	int	slice;
 	struct diskslice *sp;
 	struct diskslices *ssp;
+	struct partition *pp;
 
 	slice = dkslice(dev);
 	ssp = *sspp;
 	sp = &ssp->dss_slices[slice];
 	lp = sp->ds_label;
 	switch (cmd) {
+
+	case DIOCGDVIRGIN:
+		lp = (struct disklabel *)data;
+		if (ssp->dss_slices[WHOLE_DISK_SLICE].ds_label) {
+			*lp = *ssp->dss_slices[WHOLE_DISK_SLICE].ds_label;
+		} else {
+			bzero(lp, sizeof(struct disklabel));
+		}
+
+		lp->d_magic = DISKMAGIC;
+		lp->d_magic2 = DISKMAGIC;
+		pp = &lp->d_partitions[RAW_PART];
+		pp->p_offset = 0;
+		pp->p_size = sp->ds_size;
+
+		lp->d_npartitions = MAXPARTITIONS;
+		if (lp->d_interleave == 0)
+			lp->d_interleave = 1;
+		if (lp->d_rpm == 0)
+			lp->d_rpm = 3600;
+		if (lp->d_nsectors == 0)
+			lp->d_nsectors = 32;
+		if (lp->d_ntracks == 0)
+			lp->d_ntracks = 64;
+
+		lp->d_bbsize = BBSIZE;
+		lp->d_sbsize = SBSIZE;
+		lp->d_secpercyl = lp->d_nsectors * lp->d_ntracks;
+		lp->d_ncylinders = sp->ds_size / lp->d_secpercyl;
+		lp->d_secperunit = sp->ds_size;
+		lp->d_checksum = 0;
+		lp->d_checksum = dkcksum(lp);
+		return (0);
 
 	case DIOCGDINFO:
 		if (lp == NULL)
