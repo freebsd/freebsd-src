@@ -11,7 +11,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.h,v 1.34 1998/08/23 03:07:14 wollman Exp $
+ *	$Id: ip_fw.h,v 1.35 1998/09/02 19:14:01 phk Exp $
  */
 
 #ifndef _IP_FW_H
@@ -35,7 +35,7 @@
 union ip_fw_if {
     struct in_addr fu_via_ip;	/* Specified by IP address */
     struct {			/* Specified by interface name */
-#define FW_IFNLEN     IFNAMSIZ
+#define FW_IFNLEN     10 /* need room ! was IFNAMSIZ */
 	    char  name[FW_IFNLEN];
 	    short unit;		/* -1 means match any unit */
     } fu_via_if;
@@ -69,6 +69,7 @@ struct ip_fw {
     union ip_fw_if fw_in_if, fw_out_if;	/* Incoming and outgoing interfaces */
     union {
 	u_short fu_divert_port;		/* Divert/tee port (options IPDIVERT) */
+	u_short fu_pipe_nr;		/* pipe number (option DUMMYNET) */
 	u_short fu_skipto_rule;		/* SKIPTO command rule number */
 	u_short fu_reject_code;		/* REJECT response code */
 	struct sockaddr_in fu_fwd_ip;
@@ -78,6 +79,8 @@ struct ip_fw {
 					/* in ports array (dst ports follow */
 					/* src ports; max of 10 ports in all; */
 					/* count of 0 means match all ports) */
+    void *pipe_ptr;                    /* Pipe ptr in case of dummynet pipe */
+    void *next_rule_ptr ;              /* next rule in case of match */
 };
 
 #define IP_FW_GETNSRCP(rule)		((rule)->fw_nports & 0x0f)
@@ -94,6 +97,7 @@ struct ip_fw {
 #define fw_divert_port	fw_un.fu_divert_port
 #define fw_skipto_rule	fw_un.fu_skipto_rule
 #define fw_reject_code	fw_un.fu_reject_code
+#define fw_pipe_nr	fw_un.fu_pipe_nr
 #define fw_fwd_ip	fw_un.fu_fwd_ip
 
 struct ip_fw_chain {
@@ -113,6 +117,7 @@ struct ip_fw_chain {
 #define IP_FW_F_TEE	0x00000005	/* This is a tee rule			*/
 #define IP_FW_F_SKIPTO	0x00000006	/* This is a skipto rule		*/
 #define IP_FW_F_FWD	0x00000007	/* This is a "change forwarding address" rule */
+#define IP_FW_F_PIPE	0x00000008	/* This is a dummynet rule */
 
 #define IP_FW_F_IN	0x00000100	/* Check inbound packets		*/
 #define IP_FW_F_OUT	0x00000200	/* Check outbound packets		*/
@@ -188,7 +193,7 @@ void ip_fw_init __P((void));
 struct ip;
 struct sockopt;
 typedef	int ip_fw_chk_t __P((struct ip **, int, struct ifnet *, u_int16_t *,
-			     struct mbuf **, struct sockaddr_in **));
+	     struct mbuf **, struct ip_fw_chain **, struct sockaddr_in **));
 typedef	int ip_fw_ctl_t __P((struct sockopt *));
 extern	ip_fw_chk_t *ip_fw_chk_ptr;
 extern	ip_fw_ctl_t *ip_fw_ctl_ptr;

@@ -37,12 +37,12 @@
 #define _IP_VHL
 
 #include "opt_ipfw.h"
+#include "opt_ipdn.h"
 #include "opt_ipdivert.h"
 #include "opt_ipfilter.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/protosw.h>
@@ -75,6 +75,10 @@ static MALLOC_DEFINE(M_IPMOPTS, "ip_moptions", "internet multicast options");
 
 #ifdef COMPAT_IPFW
 #include <netinet/ip_fw.h>
+#endif
+
+#ifdef DUMMYNET
+#include <netinet/ip_dummynet.h>
 #endif
 
 #ifdef IPFIREWALL_FORWARD_DEBUG
@@ -129,6 +133,41 @@ ip_output(m0, opt, ro, flags, imo)
 	int isbroadcast;
 #ifdef IPFIREWALL_FORWARD
 	int fwd_rewrite_src = 0;
+#endif
+
+#ifndef IPDIVERT /* dummy variable for the firewall code to play with */
+        u_short ip_divert_cookie = 0 ;
+#endif
+#ifdef COMPAT_IPFW
+	struct ip_fw_chain *rule = NULL ;
+#endif
+
+#if defined(IPFIREWALL) && defined(DUMMYNET)
+        /*  
+         * dummynet packet are prepended a vestigial mbuf with
+         * m_type = MT_DUMMYNET and m_data pointing to the matching
+         * rule.
+         */ 
+        if (m->m_type == MT_DUMMYNET) {
+            struct mbuf *tmp_m = m ;
+            /*
+             * the packet was already tagged, so part of the
+             * processing was already done, and we need to go down.
+             * opt, flags and imo have already been used, and now
+             * they are used to hold ifp and hlen and NULL, respectively.
+             */
+            rule = (struct ip_fw_chain *)(m->m_data) ;
+            m = m->m_next ;
+            free(tmp_m, M_IPFW);
+            ip = mtod(m, struct ip *);
+            dst = (struct sockaddr_in *)&ro->ro_dst;
+            ifp = (struct ifnet *)opt;
+            hlen = IP_VHL_HL(ip->ip_vhl) << 2 ;
+            opt = NULL ;
+            flags = 0 ; /* XXX is this correct ? */
+            goto sendit;
+        } else
+            rule = NULL ;
 #endif
 
 #ifdef	DIAGNOSTIC
@@ -394,28 +433,52 @@ sendit:
 	 * Check with the firewall...
 	 */
 	if (ip_fw_chk_ptr) {
-#ifdef IPFIREWALL_FORWARD
 		struct sockaddr_in *old = dst;
-#endif
-#ifdef IPDIVERT
-		ip_divert_port = (*ip_fw_chk_ptr)(&ip,
-		    hlen, ifp, &ip_divert_cookie, &m, &dst);
-		if (ip_divert_port) {		/* Divert packet */
-			(*inetsw[ip_protox[IPPROTO_DIVERT]].pr_input)(m, 0);
-			goto done;
-		}
-#else	/* !IPDIVERT */
-		u_int16_t 	dummy = 0;
-		/* If ipfw says divert, we have to just drop packet */
-		if ((*ip_fw_chk_ptr)(&ip, hlen, ifp, &dummy, &m, &dst)) {
-			m_freem(m);
-			goto done;
-		}
-#endif	/* !IPDIVERT */
-		if (!m) {
+
+		off = (*ip_fw_chk_ptr)(&ip,
+		    hlen, ifp, &ip_divert_cookie, &m, &rule, &dst);
+                /*
+                 * On return we must do the following:
+                 * m == NULL         -> drop the pkt
+                 * 1<=off<= 0xffff   -> DIVERT
+                 * (off & 0x10000)   -> send to a DUMMYNET pipe
+                 * dst != old        -> IPFIREWALL_FORWARD
+                 * off==0, dst==old  -> accept
+                 * If some of the above modules is not compiled in, then
+                 * we should't have to check the corresponding condition
+                 * (because the ipfw control socket should not accept
+                 * unsupported rules), but better play safe and drop
+                 * packets in case of doubt.
+                 */
+		if (!m) { /* firewall said to reject */
 			error = EACCES;
 			goto done;
 		}
+		if (off == 0 && dst == old) /* common case */
+			goto pass ;
+#ifdef DUMMYNET
+                if (off & 0x10000) {  
+                    /*
+                     * pass the pkt to dummynet. Need to include
+                     * pipe number, m, ifp, ro, hlen because these are
+                     * not recomputed in the next pass.
+                     * All other parameters have been already used and
+                     * so they are not needed anymore. 
+                     * XXX note: if the ifp or ro entry are deleted
+                     * while a pkt is in dummynet, we are in trouble!
+                     */ 
+                    dummynet_io(off & 0xffff, DN_TO_IP_OUT, m,ifp,ro,hlen,rule);
+			goto done;
+		}
+#endif   
+#ifdef IPDIVERT
+                if (off > 0 && off < 0x10000) {         /* Divert packet */
+                       ip_divert_port = off & 0xffff ;
+                       (*inetsw[ip_protox[IPPROTO_DIVERT]].pr_input)(m, 0);
+			goto done;
+		}
+#endif
+
 #ifdef IPFIREWALL_FORWARD
 		/* Here we check dst to make sure it's directly reachable on the
 		 * interface we previously thought it was.
@@ -426,7 +489,7 @@ sendit:
 		 * such control is nigh impossible. So we do it here.
 		 * And I'm babbling.
 		 */
-		if (old != dst) {
+		if (off == 0 && old != dst) {
 			struct in_ifaddr *ia;
 
 			/* It's changed... */
@@ -515,12 +578,20 @@ sendit:
 			 */
 			if (fwd_rewrite_src)
 				ip->ip_src = IA_SIN(ia)->sin_addr;
+			goto pass ;
 		}
 #endif /* IPFIREWALL_FORWARD */
+                /*
+                 * if we get here, none of the above matches, and 
+                 * we have to drop the pkt
+                 */
+		m_freem(m);
+                error = EACCES; /* not sure this is the right error msg */
+                goto done;
 	}
 #endif /* COMPAT_IPFW */
 
-
+pass:
 	/*
 	 * If small enough for interface, can just send directly.
 	 */
