@@ -1702,6 +1702,7 @@ command below.
 must be one of
 .Sq icmp ,
 .Sq igmp ,
+.Sq ipip ,
 .Sq ospf ,
 .Sq udp
 or
@@ -4587,7 +4588,7 @@ as they travel across the link.
 .Oo Op host
 .Ar src_addr Ns Op / Ns Ar width
 .Op Ar dst_addr Ns Op / Ns Ar width
-.Oc [ tcp|udp|ospf|igmp|icmp Op src lt|eq|gt Ar port
+.Oc [ tcp|udp|ospf|ipip|igmp|icmp Op src lt|eq|gt Ar port
 .Op dst lt|eq|gt Ar port
 .Op estab
 .Op syn
