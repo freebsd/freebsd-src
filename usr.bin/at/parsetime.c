@@ -417,27 +417,29 @@ tod(struct tm *tm)
 static void
 assign_date(struct tm *tm, long mday, long mon, long year)
 {
-    if (year > 99) {
-	if (year > 1899)
-	    year -= 1900;
-	else
-	    panic("garbled time");
-    } else if (year != -1) {
-	struct tm *lt;
-	time_t now;
 
-	time(&now);
-	lt = localtime(&now);
+   /*
+    * Convert year into tm_year format (year - 1900).
+    * We may be given the year in 2 digit, 4 digit, or tm_year format.
+    */
+    if (year != -1) {
+	if (year >= 1900)
+		year -= 1900;   /* convert from 4 digit year */
+	else if (year < 100) {
+		/* convert from 2 digit year */
+		struct tm *lt;
+		time_t now;
 
-	/*
-	 * check if the specified year is in the next century.
-	 * allow for one year of user error as many people will
-	 * enter n - 1 at the start of year n.
-	 */
-	if (year < (lt->tm_year % 100) - 1)
-	    year += 100;
-	/* adjust for the year 2000 and beyond */
-	year += lt->tm_year - (lt->tm_year % 100);
+		time(&now);
+		lt = localtime(&now);
+
+		/* Convert to tm_year assuming current century */
+		year += (lt->tm_year / 100) * 100;
+
+		if (year == lt->tm_year - 1) year++;
+		else if (year < lt->tm_year)
+			year += 100;    /* must be in next century */
+	}
     }
 
     if (year < 0 &&
