@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.413 1998/10/10 08:15:38 jkh Exp $
+#	$Id: Makefile,v 1.414 1998/10/13 02:32:43 jdp Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -83,7 +83,7 @@ BOOTSIZE=		1440
 BOOTMFSSIZE=		2880
 FIXITSIZE=		2880
 BOOTINODE=		1000000
-MFSINODE=		8000
+MFSINODE=		40000
 FIXITINODE=		2000
 BOOTLABEL=		fd1440
 BOOTMFSLABEL=		minimum2
@@ -446,7 +446,9 @@ release.8: write_mfs_in_kernel dumpnlist
 	mkdir ${RD}/mfsfd
 	cd ${RD}/mfsfd && \
 		mkdir -p etc dev mnt stand/help
+.if ${MACHINE_ARCH} == "i386"
 	@cp ${.CURDIR}/../sys/i386/boot/biosboot/boot.help ${RD}/mfsfd/stand
+.endif
 	@cd ${.CURDIR} && $(MAKE) installCRUNCH CRUNCH=boot \
 		DIR=${RD}/mfsfd/stand ZIP=false
 	( cd ${RD}/trees/bin/dev && \
@@ -687,7 +689,7 @@ doKERNEL:
 doMFSKERN:
 	@rm -f ${RD}/kernels/BOOTMFS.${FSIMAGE}
 	@rm -f /sys/compile/BOOTMFS/mfs_vfsops.o
-	@cd ${.CURDIR}/../sys/i386/conf && \
+	@cd ${.CURDIR}/../sys/${MACHINE_ARCH}/conf && \
 	  sed	-e '/pty/d' \
 		-e '/pass0/d' \
 		-e '/apm0/d' \
@@ -703,8 +705,10 @@ doMFSKERN:
 	  echo "options  NFS_NOSERVER" >> BOOTMFS && \
 	  echo 'options  "MAXCONS=4"' >> BOOTMFS && \
 	  echo "options  SCSI_NO_OP_STRINGS" >> BOOTMFS && \
-	  echo "options  SCSI_NO_SENSE_STRINGS" >> BOOTMFS && \
-	  echo "options  USERCONFIG_BOOT" >> BOOTMFS
+	  echo "options  SCSI_NO_SENSE_STRINGS" >> BOOTMFS
+.if ${MACHINE_ARCH} == "i386"
+	@echo "options  USERCONFIG_BOOT" >> ${.CURDIR}/../sys/i386/conf/BOOTMFS
+.endif
 .if defined(_MFSKERN)
 	@echo "options \"MFS_ROOT_SIZE=`cat fs-image.${FSIMAGE}.size`\"" >> \
 	  ${.CURDIR}/../sys/i386/conf/BOOTMFS
@@ -743,7 +747,9 @@ doMFSKERN:
 	kzip -v ${RD}/boot.${FSIMAGE}/kernel
 	@mv ${RD}/boot.${FSIMAGE}/kernel ${RD}/kernels/MFSKERNEL.${FSIMAGE}
 	@mv ${RD}/boot.${FSIMAGE}/kernel.kz ${RD}/boot.${FSIMAGE}/kernel
+.if ${MACHINE_ARCH} == "i386"
 	@cp ${.CURDIR}/../sys/i386/boot/biosboot/boot.help ${RD}/boot.${FSIMAGE}
+.endif
 	@printf \\a\\a\\a >> ${RD}/boot.${FSIMAGE}/boot.help
 	@touch ${RD}/boot.${FSIMAGE}/boot.config
 	@touch ${RD}/boot.${FSIMAGE}/kernel.config
