@@ -229,10 +229,10 @@
 #define BFD_ASSEMBLER 1
 
 /* Target alias. */
-#define TARGET_ALIAS "ia64-obrien-freebsd5.0"
+#define TARGET_ALIAS "ia64-obrien-freebsd5"
 
 /* Canonical target. */
-#define TARGET_CANONICAL "ia64-obrien-freebsd5.0"
+#define TARGET_CANONICAL "ia64-obrien-freebsd5"
 
 /* Target CPU. */
 #define TARGET_CPU "ia64"
@@ -241,7 +241,7 @@
 #define TARGET_VENDOR "obrien"
 
 /* Target OS. */
-#define TARGET_OS "freebsd5.0"
+#define TARGET_OS "freebsd5"
 
 /* Define if you have the stpcpy function */
 #define HAVE_STPCPY 1
