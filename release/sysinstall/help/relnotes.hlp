@@ -9,17 +9,25 @@
 Kernel features:
 ----------------
 o Add support for >8G IDE drives.
+
 o Add support for 3Com 3c905B ethernet adapters
+
 o Add support for PCI ThunderLAN-based ethernet adapters (Compaq/Olicom)
+
 o Significantly improve Linux emulator again.  Things like QuakeII should
   just run out-of-the-box now (given the rest of their requirements).
+
+o Major changes from -current's pthread implementation merged: This includes
+  file locking based on FILE *, signal fixes, read/write-locks, better POSIX
+  compliance and better performance.
+
 
 Userland features:
 ------------------
 
-/bin/sh signal and trap handling reworked. Among other things, this
-makes tty-mode emacs work when called from system(2), i.e. by a mail
-agent.
+o /bin/sh signal and trap handling reworked. Among other things, this
+  makes tty-mode emacs work when called from system(2), i.e. by a mail
+  agent.
 
 
 Security issues:
