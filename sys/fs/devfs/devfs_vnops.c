@@ -76,7 +76,7 @@ static fo_kqfilter_t	devfs_kqfilter_f;
 static fo_stat_t	devfs_stat_f;
 static fo_close_t	devfs_close_f;
 
-struct fileops devfs_ops_f = {
+static struct fileops devfs_ops_f = {
 	.fo_read =	devfs_read_f,
 	.fo_write =	devfs_write_f,
 	.fo_ioctl =	devfs_ioctl_f,
