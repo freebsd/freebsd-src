@@ -43,7 +43,7 @@
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
  *	from:	i386 Id: pmap.c,v 1.193 1998/04/19 15:22:48 bde Exp
  *		with some ideas from NetBSD's alpha pmap
- *	$Id$
+ *	$Id: pmap.c,v 1.1 1998/06/10 10:52:59 dfr Exp $
  */
 
 /*
@@ -1027,7 +1027,7 @@ _pmap_unwire_pte_hold(pmap_t pmap, vm_offset_t va, vm_page_t m)
 			lev2pg = pmap_page_lookup(pmap->pm_pteobj,
 						  NUSERLEV3MAPS + pmap_lev1_index(va));
 			vm_page_unhold(lev2pg);
-			if (m->hold_count == 0)
+			if (lev2pg->hold_count == 0)
 				_pmap_unwire_pte_hold(pmap, va, lev2pg);
 		}
 
@@ -1265,6 +1265,13 @@ _pmap_allocpte(pmap, ptepindex)
 		pt_entry_t* l2map;
 		if (!pmap_pte_v(l1pte))
 			_pmap_allocpte(pmap, NUSERLEV3MAPS + l1index);
+		else {
+			int l2ptepindex = NUSERLEV3MAPS + l1index;
+			vm_page_t l2page =
+				pmap_page_lookup(pmap->pm_pteobj,
+						 NUSERLEV3MAPS + l1index);
+			l2page->hold_count++;
+		}
 		l2map = (pt_entry_t*) ALPHA_PHYS_TO_K0SEG(pmap_pte_pa(l1pte));
 		pte = &l2map[ptepindex & ((1 << ALPHA_PTSHIFT) - 1)];
 	}
@@ -2857,28 +2864,7 @@ pmap_mapdev(pa, size)
 	vm_offset_t pa;
 	vm_size_t size;
 {
-	vm_offset_t va, tmpva;
-	pt_entry_t *pte;
-
-	size = roundup(size, PAGE_SIZE);
-
-	va = kmem_alloc_pageable(kernel_map, size);
-#if !defined(MAX_PERF)
-	if (!va)
-		panic("pmap_mapdev: Couldn't alloc kernel virtual memory");
-#endif
-
-	pa = pa & ~PAGE_MASK;
-	for (tmpva = va; size > 0;) {
-		pte = vtopte(tmpva);
-		*pte = pmap_phys_to_pte(pa) | PG_KRE | PG_KWE | PG_V;
-		size -= PAGE_SIZE;
-		tmpva += PAGE_SIZE;
-		pa += PAGE_SIZE;
-	}
-	ALPHA_TBIA();
-
-	return ((void *) va);
+	return (void*) ALPHA_PHYS_TO_K0SEG(pa);
 }
 
 /*
