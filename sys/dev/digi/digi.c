@@ -46,6 +46,7 @@
 #include <sys/kernel.h>
 #include <sys/mbuf.h>
 #include <sys/malloc.h>
+#include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/tty.h>
 #include <sys/syslog.h>
