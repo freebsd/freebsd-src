@@ -46,7 +46,7 @@
 #define	FNM_PERIOD	0x04	/* Period must be matched by period. */
 
 #if __XSI_VISIBLE
-#define	FNM_NOSYS	-1	/* Reserved. */
+#define	FNM_NOSYS	(-1)	/* Reserved. */
 #endif
 
 #if __BSD_VISIBLE
