@@ -1157,10 +1157,21 @@ thread_switchout(struct thread *td, int flags, struct thread *nextthread)
 void
 thread_user_enter(struct thread *td)
 {
+	struct proc *p = td->td_proc;
 	struct ksegrp *kg;
 	struct kse_upcall *ku;
 	struct kse_thr_mailbox *tmbx;
 	uint32_t flags;
+
+	/*
+	 * First check that we shouldn't just abort. we
+	 * can suspend it here or just exit.
+	 */
+	if (__predict_false(P_SHOULDSTOP(p))) {
+		PROC_LOCK(p);
+		thread_suspend_check(0);
+		PROC_UNLOCK(p);
+	}
 
 	if (!(td->td_pflags & TDP_SA))
 		return;
@@ -1198,7 +1209,7 @@ thread_user_enter(struct thread *td)
 		} else {
 			td->td_mailbox = tmbx;
 			td->td_pflags |= TDP_CAN_UNBIND;
-			if (__predict_false(td->td_proc->p_flag & P_TRACED)) {
+			if (__predict_false(p->p_flag & P_TRACED)) {
 				flags = fuword32(&tmbx->tm_dflags);
 				if (flags & TMDF_SUSPEND) {
 					mtx_lock_spin(&sched_lock);
@@ -1379,9 +1390,17 @@ out:
 		 * the process.
 		 * how do we do that?
 		 */
-		PROC_LOCK(td->td_proc);
-		psignal(td->td_proc, SIGSEGV);
-		PROC_UNLOCK(td->td_proc);
+		PROC_LOCK(p);
+		psignal(p, SIGSEGV);
+		PROC_UNLOCK(p);
+	} else {
+		/*
+		 * Optimisation:
+		 * Ensure that we have a spare thread available,
+		 * for when we re-enter the kernel.
+		 */
+		if (td->td_standin == NULL)
+			thread_alloc_spare(td);
 	}
 
 	ku->ku_mflags = 0;
