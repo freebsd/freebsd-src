@@ -37,7 +37,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aic7xxx.h#77 $
+ * $Id: //depot/aic7xxx/aic7xxx/aic7xxx.h#78 $
  *
  * $FreeBSD$
  */
@@ -1143,17 +1143,17 @@ struct ahc_pci_identity {
 	char			*name;
 	ahc_device_setup_t	*setup;
 };
-extern struct ahc_pci_identity ahc_pci_ident_table [];
+extern struct ahc_pci_identity ahc_pci_ident_table[];
 extern const u_int ahc_num_pci_devs;
 
 /***************************** VL/EISA Declarations ***************************/
 struct aic7770_identity {
 	uint32_t		 full_id;
 	uint32_t		 id_mask;
-	char			*name;
+	const char		*name;
 	ahc_device_setup_t	*setup;
 };
-extern struct aic7770_identity aic7770_ident_table [];
+extern struct aic7770_identity aic7770_ident_table[];
 extern const int ahc_num_aic7770_devs;
 
 #define AHC_EISA_SLOT_OFFSET	0xc00
