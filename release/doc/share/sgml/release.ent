@@ -6,15 +6,15 @@
 
 <!-- Version of the OS we're describing.  This needs to be updated
      with each new release. -->
-<!ENTITY release.current "4.7-RC">
+<!ENTITY release.current "4.7-STABLE">
 
 <!-- The previous version used for comparison in the "What's New"
      section.  For -CURRENT, we might point back to the last
      branchpoint. -->
-<!ENTITY release.prev "4.6-RELEASE">
+<!ENTITY release.prev "4.7-RELEASE">
 
 <!-- The next version to be released, usually used for snapshots. -->
-<!ENTITY release.next "4.7-RELEASE">
+<!ENTITY release.next "4.8-RELEASE">
 
 <!-- The name of this branch. -->
 <!ENTITY release.branch "4-STABLE">
