@@ -581,8 +581,6 @@ static driver_t via_driver = {
 	sizeof(struct snddev_info),
 };
 
-static devclass_t pcm_devclass;
-
 DRIVER_MODULE(via, pci, via_driver, pcm_devclass, 0, 0);
 MODULE_DEPEND(via, snd_pcm, PCM_MINVER, PCM_PREFVER, PCM_MAXVER);
 MODULE_VERSION(via, 1);

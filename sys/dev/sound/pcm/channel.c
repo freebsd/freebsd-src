@@ -510,7 +510,7 @@ chn_poll(struct pcm_channel *c, int ev, struct proc *p)
 int
 chn_abort(struct pcm_channel *c)
 {
-    	int missing = 0, cnt = 0;
+    	int missing = 0;
     	struct snd_dbuf *b = c->bufhard;
     	struct snd_dbuf *bs = c->bufsoft;
 
@@ -518,15 +518,6 @@ chn_abort(struct pcm_channel *c)
 	if (!(c->flags & CHN_F_TRIGGERED))
 		return 0;
 	c->flags |= CHN_F_ABORTING;
-
-	/*
-	 * wait up to 200ms for the secondary buffer to empty-
-	 * a vchan will never have data in the secondary buffer so we won't sleep
-	 */
-	cnt = 10;
-	while ((sndbuf_getready(bs) > 0) && (cnt-- > 0)) {
-		chn_sleep(c, "pcmabr", hz / 50);
-	}
 
 	c->flags &= ~CHN_F_TRIGGERED;
 	/* kill the channel */

@@ -780,7 +780,7 @@ cs4281_pci_attach(device_t dev)
     if (data & CS4281PCI_PMCS_PS_MASK) {
 	    /* Reset the power state. */
 	    device_printf(dev, "chip is in D%d power mode "
-			  "-- setting to D0\n", 
+			  "-- setting to D0\n",
 			  data & CS4281PCI_PMCS_PS_MASK);
 	    pci_write_config(dev, CS4281PCI_PMCS_OFFSET,
 			     data & ~CS4281PCI_PMCS_PS_MASK, 4);
@@ -973,8 +973,6 @@ static driver_t cs4281_driver = {
     cs4281_methods,
     sizeof(struct snddev_info),
 };
-
-static devclass_t pcm_devclass;
 
 DRIVER_MODULE(snd_cs4281, pci, cs4281_driver, pcm_devclass, 0, 0);
 MODULE_DEPEND(snd_cs4281, snd_pcm, PCM_MINVER, PCM_PREFVER, PCM_MAXVER);

@@ -29,9 +29,7 @@
 int mixer_init(device_t dev, kobj_class_t cls, void *devinfo);
 int mixer_uninit(device_t dev);
 int mixer_reinit(device_t dev);
-int mixer_ioctl(struct snddev_info *d, u_long cmd, caddr_t arg);
-int mixer_busy(struct snd_mixer *m, int busy);
-int mixer_isbusy(struct snd_mixer *m);
+int mixer_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc *p);
 
 int mixer_hwvol_init(device_t dev);
 void mixer_hwvol_mute(device_t dev);

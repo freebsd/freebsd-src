@@ -117,8 +117,6 @@ static int ess_setupch(struct ess_info *sc, int ch, int dir, int spd, u_int32_t 
 static int ess_start(struct ess_chinfo *ch);
 static int ess_stop(struct ess_chinfo *ch);
 
-static devclass_t pcm_devclass;
-
 /*
  * Common code for the midi and pcm functions
  *

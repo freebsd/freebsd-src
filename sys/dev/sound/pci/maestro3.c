@@ -1495,8 +1495,6 @@ static driver_t m3_driver = {
 	sizeof(struct snddev_info),
 };
 
-static devclass_t pcm_devclass;
-
 DRIVER_MODULE(snd_maestro3, pci, m3_driver, pcm_devclass, 0, 0);
 MODULE_DEPEND(snd_maestro3, snd_pcm, PCM_MINVER, PCM_PREFVER, PCM_MAXVER);
 MODULE_VERSION(snd_maestro3, 1);

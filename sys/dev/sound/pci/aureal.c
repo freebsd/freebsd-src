@@ -681,8 +681,6 @@ static driver_t au_driver = {
 	sizeof(struct snddev_info),
 };
 
-static devclass_t pcm_devclass;
-
 DRIVER_MODULE(snd_aureal, pci, au_driver, pcm_devclass, 0, 0);
 MODULE_DEPEND(snd_aureal, snd_pcm, PCM_MINVER, PCM_PREFVER, PCM_MAXVER);
 MODULE_VERSION(snd_aureal, 1);

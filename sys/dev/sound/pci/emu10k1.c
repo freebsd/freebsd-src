@@ -1547,8 +1547,6 @@ static driver_t emu_driver = {
 	sizeof(struct snddev_info),
 };
 
-static devclass_t pcm_devclass;
-
 DRIVER_MODULE(snd_emu10k1, pci, emu_driver, pcm_devclass, 0, 0);
 MODULE_DEPEND(snd_emu10k1, snd_pcm, PCM_MINVER, PCM_PREFVER, PCM_MAXVER);
 MODULE_VERSION(snd_emu10k1, 1);
