@@ -41,22 +41,9 @@ typedef struct node {
 #endif
 
 __BEGIN_DECLS
-/* stdlib.h
-void	*bsearch __P((const void *, const void *, size_t, size_t,
-		      int (*)(const void *, const void *)));
- */
 int	 hcreate __P((size_t));
 void	 hdestroy __P((void));
 ENTRY	*hsearch __P((ENTRY, ACTION));
-/* depricated interfaces (in libcompat)
-void	*lfind __P((const void *, const void *, size_t *, size_t,
-		      int (*)(const void *, const void *)));
-void	*lsearch __P((const void *, const void *, size_t *, size_t,
-		      int (*)(const void *, const void *)));
-void	 insque __P((void *, void *));
-void	 remque __P((void *));
- */
-
 void	*tdelete __P((const void *, void **,
 		      int (*)(const void *, const void *)));
 void	*tfind __P((const void *, void **,
