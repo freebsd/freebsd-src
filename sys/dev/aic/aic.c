@@ -49,6 +49,9 @@
 #include <dev/aic/aic6360reg.h>
 #include <dev/aic/aicvar.h>
 
+struct aic_softc aic_softcs[NAIC];
+int aic_unit = 0;
+
 static void aic_action __P((struct cam_sim *sim, union ccb *ccb));
 static void aic_execute_scb __P((void *arg, bus_dma_segment_t *dm_segs,
 				int nseg, int error));

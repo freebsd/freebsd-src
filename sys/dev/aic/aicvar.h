@@ -149,3 +149,6 @@ extern int aic_probe __P((struct aic_softc *));
 extern int aic_attach __P((struct aic_softc *));
 extern int aic_detach __P((struct aic_softc *));
 extern void aic_intr __P((void *));
+
+extern struct aic_softc aic_softcs[];
+extern int aic_unit;
