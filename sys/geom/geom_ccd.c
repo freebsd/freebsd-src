@@ -1263,6 +1263,9 @@ ccdioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 		if ((error = ccdlock(cs)) != 0)
 			return (error);
 
+		if (ccio->ccio_ndisks > CCD_MAXNDISKS)
+			return (EINVAL);
+ 
 		/* Fill in some important bits. */
 		cs->sc_ileave = ccio->ccio_ileave;
 		if (cs->sc_ileave == 0 &&
