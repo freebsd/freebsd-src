@@ -2394,11 +2394,9 @@ thr_link(struct pthread *thread)
 {
 	kse_critical_t crit;
 	struct kse *curkse;
-	struct pthread *curthread;
 
 	crit = _kse_critical_enter();
 	curkse = _get_curkse();
-	curthread = _get_curthread();
 	KSE_LOCK_ACQUIRE(curkse, &_thread_list_lock);
 	/*
 	 * Initialize the unique id (which GDB uses to track
