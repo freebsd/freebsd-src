@@ -1,3 +1,4 @@
+# $Id$
 # @(#)Makefile	8.3 (Berkeley) 4/2/94
 
 PROG=	yppasswdd
@@ -12,5 +13,11 @@ CFLAGS+=-DVERSION=\"0.5\" -DYPLIBDIR=\"/usr/libexec\" -D_GNU_SOURCE
 
 BINOWN=	bin
 BINMODE=555
+BINDIR= /usr/sbin
+
+afterinstall: /usr/libexec/yppwupdate
+
+/usr/libexec/yppwupdate: yppwupdate
+	install -c -o bin -g bin -m 555 yppwupdate /usr/libexec/yppwupdate
 
 .include <bsd.prog.mk>
