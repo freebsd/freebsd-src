@@ -18,7 +18,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: main.c,v 1.13 1994/05/27 01:02:14 paulus Exp $";
+static char rcsid[] = "$Id: main.c,v 1.2 1994/09/25 02:32:07 wollman Exp $";
 #endif
 
 #define SETSID
@@ -26,6 +26,7 @@ static char rcsid[] = "$Id: main.c,v 1.13 1994/05/27 01:02:14 paulus Exp $";
 #include <stdio.h>
 #include <string.h>
 #include <signal.h>
+#include <unistd.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <syslog.h>
@@ -91,6 +92,7 @@ char ifname[IFNAMSIZ];		/* Interface name */
 int ifunit;			/* Interface unit number */
 
 char *progname;			/* Name of this program */
+char *username;
 char hostname[MAXNAMELEN];	/* Our hostname */
 char our_name[MAXNAMELEN];
 char remote_name[MAXNAMELEN];
@@ -99,6 +101,7 @@ static char pidfilename[MAXPATHLEN];
 static pid_t	pid;		/* Our pid */
 static pid_t	pgrpid;		/* Process Group ID */
 uid_t uid;			/* Our real user-id */
+gid_t gid;
 
 char devname[MAXPATHLEN] = "/dev/tty";	/* Device name */
 int default_device = TRUE;	/* use default device (stdin/out) */
@@ -168,9 +171,6 @@ void format_packet __ARGS((u_char *, int,
 			   void (*) (void *, char *, ...), void *));
 void pr_log __ARGS((void *, char *, ...));
 
-extern	char	*ttyname __ARGS((int));
-extern	char	*getlogin __ARGS((void));
-
 /*
  * PPP Data Link Layer "protocol" table.
  * One entry per supported protocol.
@@ -214,6 +214,7 @@ main(argc, argv)
 
     pid = getpid();
     uid = getuid();
+    gid = getgid();
 
     if (!ppp_available()) {
 	fprintf(stderr, "Sorry - PPP is not available on this system\n");
@@ -254,16 +255,16 @@ main(argc, argv)
 
     magic_init();
 
-    p = getlogin();
-    if (p == NULL) {
+    username = getlogin();
+    if (username == NULL) {
 	pw = getpwuid(uid);
 	if (pw != NULL && pw->pw_name != NULL)
-	    p = pw->pw_name;
+	    username = pw->pw_name;
 	else
-	    p = "(unknown)";
+	    username = "(unknown)";
     }
     syslog(LOG_NOTICE, "pppd %s.%d started by %s, uid %d",
-	   VERSION, PATCHLEVEL, p, uid);
+	   VERSION, PATCHLEVEL, username, uid);
 
 #ifdef SETSID
     /*
@@ -274,8 +275,8 @@ main(argc, argv)
 	 * No device name was specified:
 	 * we are in the device's session already.
 	 */
-	if ((pgrpid = getpgrp(0)) < 0) {
-	    syslog(LOG_ERR, "getpgrp(0): %m");
+	if ((pgrpid = getpgrp()) < 0) {
+	    syslog(LOG_ERR, "getpgrp(): %m");
 	    die(1);
 	}
 
@@ -1220,8 +1221,9 @@ device_script(program, in, out)
     }
 
     if (pid == 0) {
-	setreuid(getuid(), getuid());
-	setregid(getgid(), getgid());
+	initgroups(username, gid);
+	setgid(gid);
+	setuid(uid);
 	sigprocmask(SIG_SETMASK, &mask, NULL);
 	dup2(in, 0);
 	dup2(out, 1);
