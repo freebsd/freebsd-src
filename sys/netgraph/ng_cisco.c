@@ -103,7 +103,7 @@ struct cisco_priv {
 	u_long  seqRetries;	/* how many times we've been here throwing out
 				 * the same sequence number without ack */
 	node_p  node;
-	struct callout_handle handle;
+	struct callout handle;
 	struct protoent downstream;
 	struct protoent inet;		/* IP information */
 	struct in_addr localip;
@@ -124,8 +124,9 @@ static ng_disconnect_t		cisco_disconnect;
 
 /* Other functions */
 static int	cisco_input(sc_p sc, item_p item);
-static void	cisco_keepalive(void *arg);
+static void	cisco_keepalive(node_p node, hook_p hook, void *arg1, int arg2);
 static int	cisco_send(sc_p sc, int type, long par1, long par2);
+static void	cisco_notify(sc_p sc, uint32_t cmd);
 
 /* Parse type for struct ng_cisco_ipaddr */
 static const struct ng_parse_struct_field ng_cisco_ipaddr_type_fields[]
@@ -195,7 +196,7 @@ cisco_constructor(node_p node)
 	if (sc == NULL)
 		return (ENOMEM);
 
-	callout_handle_init(&sc->handle);
+	ng_callout_init(&sc->handle);
 	NG_NODE_SET_PRIVATE(node, sc);
 	sc->node = node;
 
@@ -221,7 +222,8 @@ cisco_newhook(node_p node, hook_p hook, const char *name)
 		NG_HOOK_SET_PRIVATE(hook, &sc->downstream);
 
 		/* Start keepalives */
-		sc->handle = timeout(cisco_keepalive, sc, hz * KEEPALIVE_SECS);
+		ng_timeout(&sc->handle, node, NULL, (hz * KEEPALIVE_SECS),
+		    &cisco_keepalive, (void *)sc, 0);
 	} else if (strcmp(name, NG_CISCO_HOOK_INET) == 0) {
 		sc->inet.hook = hook;
 		NG_HOOK_SET_PRIVATE(hook, &sc->inet);
@@ -421,10 +423,9 @@ cisco_disconnect(hook_p hook)
 	/* Check it's not the debug hook */
 	if ((pep = NG_HOOK_PRIVATE(hook))) {
 		pep->hook = NULL;
-		if (pep->af == 0xffff) {
+		if (pep->af == 0xffff)
 			/* If it is the downstream hook, stop the timers */
-			untimeout(cisco_keepalive, sc, sc->handle);
-		}
+			ng_untimeout(&sc->handle, NG_HOOK_NODE(hook));
 	}
 
 	/* If no more hooks, remove the node */
@@ -507,6 +508,8 @@ cisco_input(sc_p sc, item_p item)
 				sc->remote_seq = ntohl(p->par1);
 				if (sc->local_seq == ntohl(p->par2)) {
 					sc->local_seq++;
+					if (sc->seqRetries > 1)
+						cisco_notify(sc, NGM_LINK_IS_UP);
 					sc->seqRetries = 0;
 				}
 				break;
@@ -577,13 +580,15 @@ drop:
  * Send keepalive packets, every 10 seconds.
  */
 static void
-cisco_keepalive(void *arg)
+cisco_keepalive(node_p node, hook_p hook, void *arg1, int arg2)
 {
-	const sc_p sc = arg;
+	const sc_p sc = arg1;
 
 	cisco_send(sc, CISCO_KEEPALIVE_REQ, sc->local_seq, sc->remote_seq);
-	sc->seqRetries++;
-	sc->handle = timeout(cisco_keepalive, sc, hz * KEEPALIVE_SECS);
+	if (sc->seqRetries++ > 1)
+		cisco_notify(sc, NGM_LINK_IS_DOWN);
+	ng_timeout(&sc->handle, node, NULL, (hz * KEEPALIVE_SECS),
+	    &cisco_keepalive, (void *)sc, 0);
 }
 
 /*
@@ -624,4 +629,21 @@ cisco_send(sc_p sc, int type, long par1, long par2)
 
 	NG_SEND_DATA_ONLY(error, sc->downstream.hook, m);
 	return (error);
+}
+
+/*
+ * Send linkstate to upstream node.
+ */
+static void
+cisco_notify(sc_p sc, uint32_t cmd)
+{
+	struct ng_mesg *msg;
+	int dummy_error = 0;
+
+	if (sc->inet.hook == NULL) /* nothing to notify */
+		return;
+                
+	NG_MKMESSAGE(msg, NGM_FLOW_COOKIE, cmd, 0, M_NOWAIT);
+	if (msg != NULL)
+		NG_SEND_MSG_HOOK(dummy_error, sc->node, msg, sc->inet.hook, 0);
 }
