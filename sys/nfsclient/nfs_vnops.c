@@ -1521,6 +1521,14 @@ nfs_rename(struct vop_rename_args *ap)
 		goto out;
 	}
 
+	if (fvp == tvp) {
+		printf("nfs_rename: fvp == tvp (can't happen)\n");
+		error = 0;
+		goto out;
+	}
+	if ((error = vn_lock(fvp, LK_EXCLUSIVE, fcnp->cn_thread)) != 0)
+		goto out;
+
 	/*
 	 * We have to flush B_DELWRI data prior to renaming
 	 * the file.  If we don't, the delayed-write buffers
@@ -1529,8 +1537,8 @@ nfs_rename(struct vop_rename_args *ap)
 	 * ( as far as I can tell ) it flushes dirty buffers more
 	 * often.
 	 */
-
 	VOP_FSYNC(fvp, fcnp->cn_cred, MNT_WAIT, fcnp->cn_thread);
+	VOP_UNLOCK(fvp, 0, fcnp->cn_thread);
 	if (tvp)
 	    VOP_FSYNC(tvp, tcnp->cn_cred, MNT_WAIT, tcnp->cn_thread);
 
