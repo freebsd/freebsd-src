@@ -28,7 +28,7 @@
  */
 
 static const char rcsid[] =
-	"$Id: main.c,v 1.3.2.3 1996/03/31 09:59:42 joerg Exp $";
+	"$Id: main.c,v 1.8 1996/07/03 01:17:34 jkh Exp $";
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -232,10 +232,7 @@ setzone(const char *zone)
 	systime += time_adjust;
 	tm = localtime(&systime);
 
-	snprintf(msg, sizeof msg,
-		 "Does %02d:%02d:%02d %d.%d.%04d %s look reasonable?",
-		 tm->tm_hour, tm->tm_min, tm->tm_sec, tm->tm_mday,
-		 tm->tm_mon + 1, tm->tm_year + 1900, tm->tm_zone);
+	snprintf(msg, sizeof msg, "Does %s look reasonable?", tm->tm_zone);
 
 	rv = dialog_yesno("Verifying timezone selection",
 			  msg, -1, -1);
