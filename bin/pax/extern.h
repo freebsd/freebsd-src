@@ -223,7 +223,6 @@ extern int pids;
 extern int exit_val;
 extern int docrc;
 extern char *dirptr;
-extern char *ltmfrmt;
 extern char *argv0;
 int main __P((int, char **));
 void sig_cleanup __P((int));
