@@ -575,21 +575,25 @@ fwe_as_input(struct fw_xferq *xferq)
 #endif
 	while ((sxfer = STAILQ_FIRST(&xferq->stvalid)) != NULL) {
 		STAILQ_REMOVE_HEAD(&xferq->stvalid, link);
-		if (sxfer->resp != 0)
-			ifp->if_ierrors ++;
 		fp = mtod(sxfer->mbuf, struct fw_pkt *);
-		/* XXX */
 		if (fwe->fd.fc->irx_post != NULL)
 			fwe->fd.fc->irx_post(fwe->fd.fc, fp->mode.ld);
 		m = sxfer->mbuf;
 
-		/* insert rbuf */
+		/* insert new rbuf */
 		sxfer->mbuf = m0 = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
 		if (m0 != NULL) {
 			m0->m_len = m0->m_pkthdr.len = m0->m_ext.ext_size;
 			STAILQ_INSERT_TAIL(&xferq->stfree, sxfer, link);
 		} else
 			printf("fwe_as_input: m_getcl failed\n");
+
+		if (sxfer->resp != 0 || fp->mode.stream.len <
+		    ETHER_ALIGN + sizeof(struct ether_header)) {
+			m_freem(m);
+			ifp->if_ierrors ++;
+			continue;
+		}
 
 		m->m_data += HDR_LEN + ETHER_ALIGN;
 		c = mtod(m, char *);
