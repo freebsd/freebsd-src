@@ -178,13 +178,11 @@ patm_open_vcc(struct patm_softc *sc, struct atmio_openvcc *arg, u_int async)
 	if (!(vcc->vcc.flags & ATMIO_FLAG_NORX))
 		patm_rx_vcc_open(sc, vcc);
 
-#ifdef notyet
 	/* inform management about non-NG and NG-PVCs */
 	if (!(vcc->vcc.flags & ATMIO_FLAG_NG) ||
 	     (vcc->vcc.flags & ATMIO_FLAG_PVC))
-		atm_message(&sc->ifatm.ifnet, ATM_MSG_VCC_CHANGED,
-		   (1 << 24) | (vcc->vcc.vpi << 16) | vcc->vcc.vci);
-#endif
+		ATMEV_SEND_VCC_CHANGED(&sc->ifatm, vcc->vcc.vpi,
+		    vcc->vcc.vci, 1);
 
 	patm_debug(sc, VCC, "Open VCC: now open");
 
@@ -302,13 +300,11 @@ void
 patm_vcc_closed(struct patm_softc *sc, struct patm_vcc *vcc)
 {
 
-#ifdef notyet
 	/* inform management about non-NG and NG-PVCs */
 	if (!(vcc->vcc.flags & ATMIO_FLAG_NG) ||
 	    (vcc->vcc.flags & ATMIO_FLAG_PVC))
-		atm_message(&sc->ifatm.ifnet, ATM_MSG_VCC_CHANGED,
-		   (0 << 24) | (vcc->vcc.vpi << 16) | vcc->vcc.vci);
-#endif
+		ATMEV_SEND_VCC_CHANGED(&sc->ifatm, vcc->vcc.vpi,
+		    vcc->vcc.vci, 0);
 
 	sc->vccs_open--;
 	sc->vccs[vcc->cid] = NULL;
