@@ -522,6 +522,7 @@ static device_method_t ata_pcisub_methods[] = {
     DEVMETHOD(device_probe,	ata_pcisub_probe),
     DEVMETHOD(device_attach,	ata_attach),
     DEVMETHOD(device_detach,	ata_detach),
+    DEVMETHOD(device_suspend,	ata_suspend),
     DEVMETHOD(device_resume,	ata_resume),
     { 0, 0 }
 };
