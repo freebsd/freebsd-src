@@ -293,7 +293,7 @@ bktr_attach( device_t dev )
 	/*
 	 * Map control/status registers.
 	 */
-	rid = PCI_MAP_REG_START;
+	rid = PCIR_MAPS;
 	bktr->res_mem = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
                                   0, ~0, 1, RF_ACTIVE);
 
@@ -428,7 +428,7 @@ bktr_detach( device_t dev )
 	 */
 	bus_teardown_intr(dev, bktr->res_irq, bktr->res_ih);
 	bus_release_resource(dev, SYS_RES_IRQ, 0, bktr->res_irq);
-	bus_release_resource(dev, SYS_RES_MEMORY, PCI_MAP_REG_START, bktr->res_mem);
+	bus_release_resource(dev, SYS_RES_MEMORY, PCIR_MAPS, bktr->res_mem);
 
 	return 0;
 }
