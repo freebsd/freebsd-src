@@ -2,7 +2,7 @@
  * Implementation of Utility functions for all SCSI device types.
  *
  * Copyright (c) 1997, 1998, 1999 Justin T. Gibbs.
- * Copyright (c) 1997, 1998 Kenneth D. Merry.
+ * Copyright (c) 1997, 1998, 2003 Kenneth D. Merry.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -507,9 +507,11 @@ static struct op_table_entry scsi_op_codes[] = {
 /* 85 */
 /* 86 */
 /* 87 */
-/* 88 */
+/* 88  MM  OO O    O   READ(16) */
+{0x88, D|T|W|R|O,     "READ(16)"},
 /* 89 */
-/* 8A */
+/* 8A  OM  O  O    O   WRITE(16) */
+{0x8A, D|T|W|R|O,     "WRITE(16)"},
 /* 8B */
 /* 8C */
 /* 8D */
@@ -529,8 +531,11 @@ static struct op_table_entry scsi_op_codes[] = {
 /* 9B */
 /* 9C */
 /* 9D */
-/* 9E */
-/* 9F */
+/* XXX KDM ALL for these?  op-num.txt defines them for none.. */
+/* 9E                  SERVICE ACTION IN(16) */
+{0x9E, ALL,           "SERVICE ACTION IN(16)"},
+/* 9F                  SERVICE ACTION OUT(16) */
+{0x9F, ALL,           "SERVICE ACTION OUT(16)"},
 
 /* A0  OOOOOOOOOOO   REPORT LUNS */
 {0xA0, ALL & ~(E),  "REPORT LUNS"},
@@ -560,16 +565,16 @@ static struct op_table_entry scsi_op_codes[] = {
 /* A7  OO  OO OO     MOVE MEDIUM ATTACHED */
 {0xA7, D|T|W|R|O|M, "MOVE MEDIUM ATTACHED"},
 
-/* A8      OM O      READ(12) */
-{0xA8, W|R|O,       "READ(12)"},
+/* A8  O   OM O      READ(12) */
+{0xA8,D|W|R|O,      "READ(12)"},
 /* A8           O    GET MESSAGE(12) */
 {0xA8, C,           "GET MESSAGE(12)"},
 
 /* A9       O        PLAY TRACK RELATIVE(12) */
 {0xA9, R,           "PLAY TRACK RELATIVE(12)"},
 
-/* AA      O  O      WRITE(12) */
-{0xAA, W|O,         "WRITE(12)"},
+/* AA  O   O  O      WRITE(12) */
+{0xAA,D|W|O,        "WRITE(12)"},
 /* AA       O        WRITE CD(12) {MMC Proposed} */
 {0xAA, R,           "WRITE CD(12) {MMC Proposed}"},
 /* AA           O    SEND MESSAGE(12) */
@@ -2699,6 +2704,38 @@ scsi_read_capacity(struct ccb_scsiio *csio, u_int32_t retries,
 }
 
 void
+scsi_read_capacity_16(struct ccb_scsiio *csio, uint32_t retries,
+		      void (*cbfcnp)(struct cam_periph *, union ccb *),
+		      uint8_t tag_action, uint64_t lba, int reladr, int pmi,
+		      struct scsi_read_capacity_data_long *rcap_buf,
+		      uint8_t sense_len, uint32_t timeout)
+{
+	struct scsi_read_capacity_16 *scsi_cmd;
+
+	
+	cam_fill_csio(csio,
+		      retries,
+		      cbfcnp,
+		      /*flags*/CAM_DIR_IN,
+		      tag_action,
+		      /*data_ptr*/(u_int8_t *)rcap_buf,
+		      /*dxfer_len*/sizeof(*rcap_buf),
+		      sense_len,
+		      sizeof(*scsi_cmd),
+		      timeout);
+	scsi_cmd = (struct scsi_read_capacity_16 *)&csio->cdb_io.cdb_bytes;
+	bzero(scsi_cmd, sizeof(*scsi_cmd));
+	scsi_cmd->opcode = SERVICE_ACTION_IN;
+	scsi_cmd->service_action = SRC16_SERVICE_ACTION;
+	scsi_u64to8b(lba, scsi_cmd->addr);
+	scsi_ulto4b(sizeof(*rcap_buf), scsi_cmd->alloc_len);
+	if (pmi)
+		reladr |= SRC16_PMI;
+	if (reladr)
+		reladr |= SRC16_RELADR;
+}
+
+void
 scsi_report_luns(struct ccb_scsiio *csio, u_int32_t retries,
 		 void (*cbfcnp)(struct cam_periph *, union ccb *),
 		 u_int8_t tag_action, struct scsi_report_luns_data *rpl_buf,
@@ -2758,7 +2795,7 @@ void
 scsi_read_write(struct ccb_scsiio *csio, u_int32_t retries,
 		void (*cbfcnp)(struct cam_periph *, union ccb *),
 		u_int8_t tag_action, int readop, u_int8_t byte2,
-		int minimum_cmd_size, u_int32_t lba, u_int32_t block_count,
+		int minimum_cmd_size, u_int64_t lba, u_int32_t block_count,
 		u_int8_t *data_ptr, u_int32_t dxfer_len, u_int8_t sense_len,
 		u_int32_t timeout)
 {
@@ -2790,7 +2827,8 @@ scsi_read_write(struct ccb_scsiio *csio, u_int32_t retries,
 			   scsi_cmd->addr[1], scsi_cmd->addr[2],
 			   scsi_cmd->length, dxfer_len));
 	} else if ((minimum_cmd_size < 12)
-		&& ((block_count & 0xffff) == block_count)) {
+		&& ((block_count & 0xffff) == block_count)
+		&& ((lba & 0xffffffff) == lba)) {
 		/*
 		 * Need a 10 byte cdb.
 		 */
@@ -2810,11 +2848,12 @@ scsi_read_write(struct ccb_scsiio *csio, u_int32_t retries,
 			   scsi_cmd->addr[1], scsi_cmd->addr[2],
 			   scsi_cmd->addr[3], scsi_cmd->length[0],
 			   scsi_cmd->length[1], dxfer_len));
-	} else {
+	} else if ((minimum_cmd_size < 16)
+		&& ((block_count & 0xffffffff) == block_count)
+		&& ((lba & 0xffffffff) == lba)) {
 		/* 
 		 * The block count is too big for a 10 byte CDB, use a 12
-		 * byte CDB.  READ/WRITE(12) are currently only defined for
-		 * optical devices.
+		 * byte CDB.
 		 */
 		struct scsi_rw_12 *scsi_cmd;
 
@@ -2833,6 +2872,21 @@ scsi_read_write(struct ccb_scsiio *csio, u_int32_t retries,
 			   scsi_cmd->addr[3], scsi_cmd->length[0],
 			   scsi_cmd->length[1], scsi_cmd->length[2],
 			   scsi_cmd->length[3], dxfer_len));
+	} else {
+		/*
+		 * 16 byte CDB.  We'll only get here if the LBA is larger
+		 * than 2^32, or if the user asks for a 16 byte command.
+		 */
+		struct scsi_rw_16 *scsi_cmd;
+
+		scsi_cmd = (struct scsi_rw_16 *)&csio->cdb_io.cdb_bytes;
+		scsi_cmd->opcode = readop ? READ_16 : WRITE_16;
+		scsi_cmd->byte2 = byte2;
+		scsi_u64to8b(lba, scsi_cmd->addr);
+		scsi_cmd->reserved = 0;
+		scsi_ulto4b(block_count, scsi_cmd->length);
+		scsi_cmd->control = 0;
+		cdb_len = sizeof(*scsi_cmd);
 	}
 	cam_fill_csio(csio,
 		      retries,
