@@ -311,6 +311,22 @@ SYSCTL_UINT(_vm_stats_vm, OID_AUTO,
 	v_interrupt_free_min, CTLFLAG_RD, &cnt.v_interrupt_free_min, 0, "");
 SYSCTL_INT(_vm_stats_misc, OID_AUTO,
 	zero_page_count, CTLFLAG_RD, &vm_page_zero_count, 0, "");
+SYSCTL_UINT(_vm_stats_vm, OID_AUTO,
+	v_forks, CTLFLAG_RD, &cnt.v_forks, 0, "Number of fork() calls");
+SYSCTL_UINT(_vm_stats_vm, OID_AUTO,
+	v_vforks, CTLFLAG_RD, &cnt.v_vforks, 0, "Number of vfork() calls");
+SYSCTL_UINT(_vm_stats_vm, OID_AUTO,
+	v_rforks, CTLFLAG_RD, &cnt.v_rforks, 0, "Number of rfork() calls");
+SYSCTL_UINT(_vm_stats_vm, OID_AUTO,
+	v_kthreads, CTLFLAG_RD, &cnt.v_kthreads, 0, "Number of fork() calls by kernel");
+SYSCTL_UINT(_vm_stats_vm, OID_AUTO,
+	v_forkpages, CTLFLAG_RD, &cnt.v_forkpages, 0, "VM pages affected by fork()");
+SYSCTL_UINT(_vm_stats_vm, OID_AUTO,
+	v_vforkpages, CTLFLAG_RD, &cnt.v_vforkpages, 0, "VM pages affected by vfork()");
+SYSCTL_UINT(_vm_stats_vm, OID_AUTO,
+	v_rforkpages, CTLFLAG_RD, &cnt.v_rforkpages, 0, "VM pages affected by rfork()");
+SYSCTL_UINT(_vm_stats_vm, OID_AUTO,
+	v_kthreadpages, CTLFLAG_RD, &cnt.v_kthreadpages, 0, "VM pages affected by fork() by kernel");
 #if 0
 SYSCTL_INT(_vm_stats_misc, OID_AUTO,
 	page_mask, CTLFLAG_RD, &page_mask, 0, "");
