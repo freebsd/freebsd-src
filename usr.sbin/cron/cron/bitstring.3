@@ -1,0 +1,168 @@
+.\" Copyright (c) 1989 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Paul Vixie.
+.\"
+.\" Redistribution and use in source and binary forms are permitted
+.\" provided that the above copyright notice and this paragraph are
+.\" duplicated in all such forms and that any documentation,
+.\" advertising materials, and other materials related to such
+.\" distribution and use acknowledge that the software was developed
+.\" by the University of California, Berkeley.  The name of the
+.\" University may not be used to endorse or promote products derived
+.\" from this software without specific prior written permission.
+.\" THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+.\"
+.\"	@(#)bitstring.3	5.1 (Berkeley) 12/13/89
+.\"
+.TH BITSTRING 3  "December 13, 1989"
+.UC 4
+.SH NAME
+bit_alloc, bit_clear, bit_decl, bit_ffs, bit_nclear, bit_nset,
+bit_set, bitstr_size, bit_test \- bit-string manipulation macros
+.SH SYNOPSIS
+.ft B
+.nf
+#include <bitstring.h>
+
+name = bit_alloc(nbits)
+bitstr_t *name;
+int nbits;
+
+bit_decl(name, nbits)
+bitstr_t name;
+int nbits;
+
+bit_clear(name, bit)
+bitstr_t name;
+int bit;
+
+bit_ffc(name, nbits, value)
+bitstr_t name;
+int nbits, *value;
+
+bit_ffs(name, nbits, value)
+bitstr_t name;
+int nbits, *value;
+
+bit_nclear(name, start, stop)
+bitstr_t name;
+int start, stop;
+
+bit_nset(name, start, stop)
+bitstr_t name;
+int start, stop;
+
+bit_set(name, bit)
+bitstr_t name;
+int bit;
+
+bitstr_size(nbits)
+int nbits;
+
+bit_test(name, bit)
+bitstr_t name;
+int bit;
+.fi
+.ft R
+.SH DESCRIPTION
+These macros operate on strings of bits.
+.PP
+.I Bit_alloc
+returns a pointer of type
+.I bitstr_t\ *
+to sufficient space to store
+.I nbits
+bits, or NULL if no space is available.
+.PP
+.I Bit_decl
+is a macro for allocating sufficient space to store
+.I nbits
+bits on the stack.
+.PP
+.I Bitstr_size
+returns the number of elements of type
+.I bitstr_t
+necessary to store
+.I nbits
+bits.
+This is useful for copying bit strings.
+.PP
+.I Bit_clear
+and
+.I bit_set
+clear or set the zero-based numbered bit
+.IR bit ,
+in the bit string
+.IR name .
+.PP
+.I Bit_nset
+and
+.I bit_nclear
+set or clear the zero-based numbered bits from
+.I start
+to
+.I stop
+in the bit string
+.IR name .
+.PP
+.I Bit_test
+evaluates to zero if the zero-based numbered bit
+.I bit
+of bit string
+.I name
+is set, and non-zero otherwise.
+.PP
+.I Bit_ffs
+sets
+.I *value
+to the zero-based number of the first bit set in the array of
+.I nbits
+bits referenced by
+.IR name .
+If no bits are set,
+.I *value
+is set to -1.
+.PP
+.I Bit_ffc
+sets
+.I *value
+to the zero-based number of the first bit not set in the array of
+.I nbits
+bits referenced by
+.IR name .
+If all bits are set,
+.I value
+is set to -1.
+.SH EXAMPLE
+.nf
+.in +5
+#include <limits.h>
+#include <bitstring.h>
+
+...
+#define	LPR_BUSY_BIT		0
+#define	LPR_FORMAT_BIT		1
+#define	LPR_DOWNLOAD_BIT	2
+...
+#define	LPR_AVAILABLE_BIT	9
+#define	LPR_MAX_BITS		10
+
+make_lpr_available()
+{
+	bitstr_t bit_decl(bitlist, LPR_MAX_BITS);
+	...
+	bit_nclear(bitlist, 0, LPR_MAX_BITS - 1);
+	...
+	if (!bit_test(bitlist, LPR_BUSY_BIT)) {
+		bit_clear(bitlist, LPR_FORMAT_BIT);
+		bit_clear(bitlist, LPR_DOWNLOAD_BIT);
+		bit_set(bitlist, LPR_AVAILABLE_BIT);
+	}
+}
+.fi
+.SH "SEE ALSO"
+malloc(3)
