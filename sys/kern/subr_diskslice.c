@@ -43,7 +43,7 @@
  *	from: wd.c,v 1.55 1994/10/22 01:57:12 phk Exp $
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	$Id: subr_diskslice.c,v 1.58 1998/08/23 20:16:34 phk Exp $
+ *	$Id: subr_diskslice.c,v 1.59 1998/10/17 09:46:42 bde Exp $
  */
 
 #include "opt_devfs.h"
@@ -680,13 +680,14 @@ dsname(dname, unit, slice, part, partname)
 
 	if (strlen(dname) > 16)
 		dname = "nametoolong";
-	sprintf(name, "%s%d", dname, unit);
+	snprintf(name, sizeof(name), "%s%d", dname, unit);
 	partname[0] = '\0';
 	if (slice != WHOLE_DISK_SLICE || part != RAW_PART) {
 		partname[0] = 'a' + part;
 		partname[1] = '\0';
 		if (slice != COMPATIBILITY_SLICE)
-			sprintf(name + strlen(name), "s%d", slice - 1);
+			snprintf(name + strlen(name),
+			    sizeof(name) - strlen(name), "s%d", slice - 1);
 	}
 	return (name);
 }

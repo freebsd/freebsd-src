@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vfsops.c	8.12 (Berkeley) 5/20/95
- * $Id: nfs_vfsops.c,v 1.77 1998/09/29 23:15:53 mckusick Exp $
+ * $Id: nfs_vfsops.c,v 1.78 1998/10/31 15:31:26 peter Exp $
  */
 
 #include <sys/param.h>
@@ -486,7 +486,7 @@ nfs_mountroot(mp)
 	nd->root_args.fh = nd->root_fh;
 	nd->root_args.fhsize = nd->root_fhsize;
 	l = ntohl(nd->root_saddr.sin_addr.s_addr);
-	sprintf(buf,"%ld.%ld.%ld.%ld:%s",
+	snprintf(buf, sizeof(buf), "%ld.%ld.%ld.%ld:%s",
 		(l >> 24) & 0xff, (l >> 16) & 0xff,
 		(l >>  8) & 0xff, (l >>  0) & 0xff,nd->root_hostnam);
 	printf("NFS ROOT: %s\n",buf);
@@ -512,7 +512,7 @@ nfs_mountroot(mp)
 		nd->swap_args.fh = nd->swap_fh;
 		nd->swap_args.fhsize = nd->swap_fhsize;
 		l = ntohl(nd->swap_saddr.sin_addr.s_addr);
-		sprintf(buf,"%ld.%ld.%ld.%ld:%s",
+		snprintf(buf, sizeof(buf), "%ld.%ld.%ld.%ld:%s",
 			(l >> 24) & 0xff, (l >> 16) & 0xff,
 			(l >>  8) & 0xff, (l >>  0) & 0xff,nd->swap_hostnam);
 		printf("NFS SWAP: %s\n",buf);

@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: eni.c,v 1.2 1998/09/17 09:34:58 phk Exp $
+ *	@(#) $Id: eni.c,v 1.3 1998/10/31 20:06:45 phk Exp $
  *
  */
 
@@ -42,7 +42,7 @@
 #include <dev/hea/eni_var.h>
 
 #ifndef	lint
-__RCSID("@(#) $Id: eni.c,v 1.2 1998/09/17 09:34:58 phk Exp $");
+__RCSID("@(#) $Id: eni.c,v 1.3 1998/10/31 20:06:45 phk Exp $");
 #endif
 
 /*
@@ -496,10 +496,12 @@ eni_pci_attach ( pcici_t config_id, int unit )
 	 * Make a hw version number from the ID register values.
 	 * Format: {Midway ID}.{Mother board ID}.{Daughter board ID}
 	 */
-	sprintf ( eup->eu_config.ac_hard_vers, "%ld/%ld/%ld",
-	    (val >> ID_SHIFT) & ID_MASK,
+	snprintf ( eup->eu_config.ac_hard_vers,
+	    sizeof ( eup->eu_config.ac_hard_vers ),
+		"%ld/%ld/%ld",
+		(val >> ID_SHIFT) & ID_MASK,
 		(val >> MID_SHIFT) & MID_MASK,
-			(val >> DID_SHIFT) & DID_MASK );
+		(val >> DID_SHIFT) & DID_MASK );
 
 	/*
 	 * There is no software version number

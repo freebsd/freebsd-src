@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: atm_device.c,v 1.2 1998/09/17 09:34:59 phk Exp $
+ *	@(#) $Id: atm_device.c,v 1.3 1998/10/31 20:06:54 phk Exp $
  *
  */
 
@@ -38,7 +38,7 @@
 #include <netatm/kern_include.h>
 
 #ifndef lint
-__RCSID("@(#) $Id: atm_device.c,v 1.2 1998/09/17 09:34:59 phk Exp $");
+__RCSID("@(#) $Id: atm_device.c,v 1.3 1998/10/31 20:06:54 phk Exp $");
 #endif
 
 
@@ -874,7 +874,7 @@ atm_dev_pdu_print(cup, cvp, m, msg)
 {
 	char		buf[128];
 
-	sprintf(buf, "%s vcc=(%d,%d)", msg, 
+	snprintf(buf, sizeof(buf), "%s vcc=(%d,%d)", msg, 
 		cvp->cv_connvc->cvc_vcc->vc_vpi, 
 		cvp->cv_connvc->cvc_vcc->vc_vci);
 

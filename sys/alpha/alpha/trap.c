@@ -1,4 +1,4 @@
-/* $Id: trap.c,v 1.6 1998/11/18 23:51:40 dfr Exp $ */
+/* $Id: trap.c,v 1.7 1998/12/04 10:52:47 dfr Exp $ */
 /* $NetBSD: trap.c,v 1.31 1998/03/26 02:21:46 thorpej Exp $ */
 
 /*
@@ -154,7 +154,7 @@ printtrap(a0, a1, a2, entry, framep, isfatal, user)
 		entryname = "system call";
 		break;
 	default:
-		sprintf(ubuf, "type %lx", entry);
+		snprintf(ubuf, sizeof(ubuf), "type %lx", entry);
 		entryname = (const char *) ubuf;
 		break;
 	}

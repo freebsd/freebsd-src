@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: atm_if.c,v 1.1 1998/09/15 08:22:57 phk Exp $
+ *	@(#) $Id: atm_if.c,v 1.2 1998/10/31 20:06:54 phk Exp $
  *
  */
 
@@ -38,7 +38,7 @@
 #include <netatm/kern_include.h>
 
 #ifndef lint
-__RCSID("@(#) $Id: atm_if.c,v 1.1 1998/09/15 08:22:57 phk Exp $");
+__RCSID("@(#) $Id: atm_if.c,v 1.2 1998/10/31 20:06:54 phk Exp $");
 #endif
 
 
@@ -326,8 +326,8 @@ atm_physif_ioctl(code, data, arg)
 		KM_ZERO((caddr_t)&apr, sizeof(apr));
 		smp = pip->pif_sigmgr;
 		sip = pip->pif_siginst;
-		(void) sprintf(apr.anp_intf, "%s%d", pip->pif_name,
-				pip->pif_unit );
+		(void) snprintf(apr.anp_intf, sizeof(apr.anp_intf),
+			"%s%d", pip->pif_name, pip->pif_unit );
 		if ( pip->pif_nif )
 		{
 			strcpy(apr.anp_nif_pref, pip->pif_nif->nif_if.if_name);
@@ -380,14 +380,14 @@ atm_physif_ioctl(code, data, arg)
 		 * Fill in info to be returned
 		 */
 		KM_ZERO((caddr_t)&anr, sizeof(anr));
-		(void) sprintf(anr.anp_intf, "%s%d", ifp->if_name,
-				ifp->if_unit);
+		(void) snprintf(anr.anp_intf, sizeof(anr.anp_intf),
+		    "%s%d", ifp->if_name, ifp->if_unit);
 		IFP_TO_IA(ifp, ia);
 		if (ia) {
 			anr.anp_proto_addr = *ia->ia_ifa.ifa_addr;
 		}
-		(void) sprintf(anr.anp_phy_intf, "%s%d", pip->pif_name,
-				pip->pif_unit);
+		(void) snprintf(anr.anp_phy_intf, sizeof(anr.anp_phy_intf),
+		    "%s%d", pip->pif_name, pip->pif_unit);
 
 		/*
 		 * Copy data to user buffer
@@ -410,7 +410,8 @@ atm_physif_ioctl(code, data, arg)
 		pip = (struct atm_pif *)arg;
 		if ( pip == NULL )
 			return ( ENXIO );
-		sprintf ( ifname, "%s%d", pip->pif_name, pip->pif_unit );
+		snprintf ( ifname, sizeof(ifname),
+		    "%s%d", pip->pif_name, pip->pif_unit );
 
 		/*
 		 * Cast response into users buffer
@@ -572,8 +573,8 @@ atm_physif_ioctl(code, data, arg)
 		 * Fill in info to be returned
 		 */
 		KM_ZERO((caddr_t)&acr, sizeof(acr));
-		(void) sprintf(acr.acp_intf, "%s%d", pip->pif_name,
-				pip->pif_unit);
+		(void) snprintf(acr.acp_intf, sizeof(acr.acp_intf),
+		    "%s%d", pip->pif_name, pip->pif_unit);
 		KM_COPY((caddr_t)acp, (caddr_t)&acr.acp_cfg,
 				sizeof(Atm_config));
 

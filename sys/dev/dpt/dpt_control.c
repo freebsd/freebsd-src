@@ -36,7 +36,7 @@
  * future.
  */
 
-#ident "$Id: dpt_control.c,v 1.8 1998/08/05 00:54:36 eivind Exp $"
+#ident "$Id: dpt_control.c,v 1.9 1998/09/15 08:33:31 gibbs Exp $"
 
 #include "opt_dpt.h"
 
@@ -782,7 +782,8 @@ dpt_ioctl(dev_t dev, u_long cmd, caddr_t cmdarg, int flags, struct proc * p)
 				compat_softc.ha_npend = dpt->submitted_ccbs_count;
 				compat_softc.ha_active_jobs = dpt->waiting_ccbs_count;
 				strncpy(compat_softc.ha_fw_version,
-					dpt->board_data.firmware, 4);
+				    dpt->board_data.firmware,
+				    sizeof(compat_softc.ha_fw_version));
 				compat_softc.ha_ccb = NULL;
 				compat_softc.ha_cblist = NULL;
 				compat_softc.ha_dev = NULL;

@@ -1081,7 +1081,8 @@ sb_dsp_init(struct address_info * hw_config)
 	fmt = "SoundBlaster %d.%d" ;
     }
 
-    sprintf(sb_dsp_operations.name, fmt, sbc_major, sbc_minor);
+    snprintf(sb_dsp_operations.name, sizeof(sb_dsp_operations.name),
+	fmt, sbc_major, sbc_minor);
     conf_printf(sb_dsp_operations.name, hw_config);
 
 #if defined(CONFIG_SB16) && defined(CONFIG_SBPRO)

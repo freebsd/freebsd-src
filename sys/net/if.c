@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.c	8.3 (Berkeley) 1/4/94
- *	$Id: if.c,v 1.61 1998/07/20 13:21:56 dfr Exp $
+ *	$Id: if.c,v 1.62 1998/08/12 22:51:59 wpaul Exp $
  */
 
 #include "opt_compat.h"
@@ -143,7 +143,8 @@ if_attach(ifp)
 	/*
 	 * create a Link Level name for this device
 	 */
-	namelen = sprintf(workbuf, "%s%d", ifp->if_name, ifp->if_unit);
+	namelen = snprintf(workbuf, sizeof(workbuf),
+	    "%s%d", ifp->if_name, ifp->if_unit);
 #define _offsetof(t, m) ((int)((caddr_t)&((t *)0)->m))
 	masklen = _offsetof(struct sockaddr_dl, sdl_data[0]) + namelen;
 	socksize = masklen + ifp->if_addrlen;
@@ -792,7 +793,8 @@ ifconf(cmd, data)
 		char workbuf[64];
 		int ifnlen;
 
-		ifnlen = sprintf(workbuf, "%s%d", ifp->if_name, ifp->if_unit);
+		ifnlen = snprintf(workbuf, sizeof(workbuf),
+		    "%s%d", ifp->if_name, ifp->if_unit);
 		if(ifnlen + 1 > sizeof ifr.ifr_name) {
 			error = ENAMETOOLONG;
 		} else {

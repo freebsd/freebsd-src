@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: advansys.c,v 1.4 1998/10/15 23:47:14 gibbs Exp $
+ *      $Id: advansys.c,v 1.5 1998/10/29 17:41:34 gibbs Exp $
  */
 /*
  * Ported from:
@@ -134,7 +134,7 @@ adv_name(struct adv_softc *adv)
 {
 	static char name[10];
 
-	sprintf(name, "adv%d", adv->unit);
+	snprintf(name, sizeof(name), "adv%d", adv->unit);
 	return (name);
 }
 

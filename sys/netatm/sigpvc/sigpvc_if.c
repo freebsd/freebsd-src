@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: sigpvc_if.c,v 1.1 1998/09/15 08:23:02 phk Exp $
+ *	@(#) $Id: sigpvc_if.c,v 1.2 1998/10/31 20:06:56 phk Exp $
  *
  */
 
@@ -46,7 +46,7 @@
 #include <netatm/sigpvc/sigpvc_var.h>
 
 #ifndef lint
-__RCSID("@(#) $Id: sigpvc_if.c,v 1.1 1998/09/15 08:23:02 phk Exp $");
+__RCSID("@(#) $Id: sigpvc_if.c,v 1.2 1998/10/31 20:06:56 phk Exp $");
 #endif
 
 
@@ -604,7 +604,8 @@ sigpvc_ioctl(code, data, arg1)
 			/*
 			 * Fill in info to be returned
 			 */
-			(void) sprintf(avr.avp_intf, "%s%d", 
+			(void) snprintf(avr.avp_intf, sizeof(avr.avp_intf),
+				"%s%d",
 				pvp->pv_pif->pif_name, pvp->pv_pif->pif_unit);
 			avr.avp_vpi = vcp->vc_vpi;
 			avr.avp_vci = vcp->vc_vci;

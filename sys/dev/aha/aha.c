@@ -55,7 +55,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aha.c,v 1.12 1998/11/10 06:47:09 gibbs Exp $
+ *      $Id: aha.c,v 1.13 1998/11/25 19:12:56 imp Exp $
  */
 
 #include <sys/param.h>
@@ -388,31 +388,31 @@ aha_fetch_adapter_info(struct aha_softc *aha)
 	
 	switch (aha->boardid) {
 	case BOARD_1540_16HEAD_BIOS:
-		strcpy(aha->model, "1540 16 head BIOS");
+		snprintf(aha->model, sizeof(aha->model), "1540 16 head BIOS");
 		break;
 	case BOARD_1540_64HEAD_BIOS:
-		strcpy(aha->model, "1540 64 head BIOS");
+		snprintf(aha->model, sizeof(aha->model), "1540 64 head BIOS");
 		break;
 	case BOARD_1542:
-		strcpy(aha->model, "1540/1542 64 head BIOS");
+		snprintf(aha->model, sizeof(aha->model), "1540/1542 64 head BIOS");
 		break;
 	case BOARD_1640:
-		strcpy(aha->model, "1640");
+		snprintf(aha->model, sizeof(aha->model), "1640");
 		break;
 	case BOARD_1740:
-		strcpy(aha->model, "1740A/1742A/1744");
+		snprintf(aha->model, sizeof(aha->model), "1740A/1742A/1744");
 		break;
 	case BOARD_1542C:
-		strcpy(aha->model, "1542C");
+		snprintf(aha->model, sizeof(aha->model), "1542C");
 		break;
 	case BOARD_1542CF:
-		strcpy(aha->model, "1542CF");
+		snprintf(aha->model, sizeof(aha->model), "1542CF");
 		break;
 	case BOARD_1542CP:
-		strcpy(aha->model, "1542CP");
+		snprintf(aha->model, sizeof(aha->model), "1542CP");
 		break;
 	default:
-		strcpy(aha->model, "Unknown");
+		snprintf(aha->model, sizeof(aha->model), "Unknown");
 		break;
 	}
 	/*
@@ -663,7 +663,7 @@ aha_name(struct aha_softc *aha)
 {
 	static char name[10];
 
-	sprintf(name, "aha%d", aha->unit);
+	snprintf(name, sizeof(name), "aha%d", aha->unit);
 	return (name);
 }
 

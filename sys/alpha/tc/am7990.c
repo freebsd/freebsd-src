@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: am7990.c,v 1.1 1998/08/20 08:27:10 dfr Exp $ */
 /*	$NetBSD: am7990.c,v 1.43 1998/03/29 22:36:42 mycroft Exp $	*/
 
 /*-
@@ -194,7 +194,8 @@ am7990_config(sc)
 	/* Make sure the chip is stopped. */
 	am7990_stop(sc);
 	/* Initialize ifnet structure. */
-	sprintf(sc->sc_dev.dv_xname, "le%d", sc->unit); 
+	snprintf(sc->sc_dev.dv_xname,
+		sizeof(sc->sc_dev.dv_xname), "le%d", sc->unit); 
 	ifp->if_unit = sc->unit;
 	ifp->if_name = "le";
 	ifp->if_softc = sc;

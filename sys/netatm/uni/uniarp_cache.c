@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: uniarp_cache.c,v 1.1 1998/09/15 08:23:09 phk Exp $
+ *	@(#) $Id: uniarp_cache.c,v 1.2 1998/10/31 20:07:00 phk Exp $
  *
  */
 
@@ -43,7 +43,7 @@
 #include <netatm/uni/uniip_var.h>
 
 #ifndef lint
-__RCSID("@(#) $Id: uniarp_cache.c,v 1.1 1998/09/15 08:23:09 phk Exp $");
+__RCSID("@(#) $Id: uniarp_cache.c,v 1.2 1998/10/31 20:07:00 phk Exp $");
 #endif
 
 
@@ -79,6 +79,7 @@ uniarp_cache_svc(uip, ip, atm, atmsub, origin)
 
 #ifdef DIAGNOSTIC
 	strncpy(abuf, unisig_addr_print(atmsub), sizeof(abuf));
+	abuf[sizeof(abuf) - 1] = 0;
 	ATM_DEBUG4("cache_svc: ip=%s, atm=(%s,%s), origin=%d\n",
 		inet_ntoa(*ip), unisig_addr_print(atm), abuf, origin);
 #endif
@@ -156,6 +157,7 @@ uniarp_cache_svc(uip, ip, atm, atmsub, origin)
 			if (ipuap->ua_ivp != NULL) {
 				strncpy(abuf, unisig_addr_print(atmsub),
 					sizeof(abuf));
+				abuf[sizeof(abuf) - 1] = 0;
 				log(LOG_WARNING, 
 					"uniarp: duplicate IP address %s from %s,%s\n",
 					inet_ntoa(*ip), unisig_addr_print(atm),
@@ -185,6 +187,7 @@ uniarp_cache_svc(uip, ip, atm, atmsub, origin)
 		}
 
 		strncpy(abuf, unisig_addr_print(atmsub), sizeof(abuf));
+		abuf[sizeof(abuf) - 1] = 0;
 		log(LOG_WARNING, 
 			"uniarp: ATM address for %s changed to %s,%s\n",
 			inet_ntoa(*ip), unisig_addr_print(atm), abuf);
@@ -328,6 +331,7 @@ uniarp_cache_pvc(ivp, ip, atm, atmsub)
 		vci = ivp->iv_conn->co_connvc->cvc_vcc->vc_vci;
 	}
 	strncpy(buf, unisig_addr_print(atmsub), sizeof(buf));
+	buf[sizeof(buf) - 1] = 0;
 	ATM_DEBUG5("cache_pvc: vcc=(%d,%d), ip=%s, atm=(%s,%s)\n",
 		vpi, vci, inet_ntoa(*ip), unisig_addr_print(atm), buf);
 #endif

@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_vnops.c	8.18 (Berkeley) 5/21/95
  *
- *	$Id: procfs_vnops.c,v 1.60 1998/06/25 16:54:41 dt Exp $
+ *	$Id: procfs_vnops.c,v 1.61 1998/07/11 07:45:46 bde Exp $
  */
 
 /*
@@ -528,7 +528,7 @@ procfs_getattr(ap)
 		vap->va_uid = 0;
 		vap->va_gid = 0;
 		vap->va_size = vap->va_bytes =
-		    sprintf(buf, "%ld", (long)curproc->p_pid);
+		    snprintf(buf, sizeof(buf), "%ld", (long)curproc->p_pid);
 		break;
 	}
 
@@ -944,7 +944,7 @@ procfs_readlink(ap)
 	if (VTOPFS(ap->a_vp)->pfs_fileno != PROCFS_FILENO(0, Pcurproc))
 		return (EINVAL);
 
-	len = sprintf(buf, "%ld", (long)curproc->p_pid);
+	len = snprintf(buf, sizeof(buf), "%ld", (long)curproc->p_pid);
 
 	return (uiomove((caddr_t)buf, len, ap->a_uio));
 }

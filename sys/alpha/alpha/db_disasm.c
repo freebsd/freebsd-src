@@ -201,7 +201,7 @@ pal_opname(op)
 			return (pal_op_tbl[i].name);
 	}
 
-	sprintf(unk, "0x%x", op);
+	snprintf(unk, sizeof(unk), "0x%x", op);
 	return (unk);
 }
 
@@ -257,7 +257,7 @@ arit_name(op)
 	if (name != NULL)
 		return (name);
 
-	sprintf(unk, "?arit 0x%x?", op);
+	snprintf(unk, sizeof(unk), "?arit 0x%x?", op);
 	return (unk);
 }
 
@@ -307,7 +307,7 @@ logical_name(op)
 	if (name != NULL)
 		return (name);
 
-	sprintf(unk, "?logical 0x%x?", op);
+	snprintf(unk, sizeof(unk), "?logical 0x%x?", op);
 	return (unk);
 }
 
@@ -352,7 +352,7 @@ bitop_name(op)
 	if (name != NULL)
 		return (name);
 
-	sprintf(unk, "?bit 0x%x?", op);
+	snprintf(unk, sizeof(unk), "?bit 0x%x?", op);
 	return (unk);
 }
 
@@ -376,7 +376,7 @@ mul_name(op)
 	if (name != NULL)
 		return (name);
 
-	sprintf(unk, "?mul 0x%x?", op);
+	snprintf(unk, sizeof(unk), "?mul 0x%x?", op);
 	return (unk);
 }
 
@@ -401,7 +401,7 @@ special_name(op)
 	if (name != NULL)
 		return (name);
 
-	sprintf(unk, "?special 0x%x?", op);
+	snprintf(unk, sizeof(unk), "?special 0x%x?", op);
 	return (unk);
 }
 
@@ -440,7 +440,7 @@ intmisc_name(op)
 	case op_ftois: return ("ftois");
 	}
 
-	sprintf(unk, "?intmisc 0x%x?", op);
+	snprintf(unk, sizeof(unk), "?intmisc 0x%x?", op);
 	return (unk);
 }
 
@@ -460,7 +460,7 @@ float_name(tbl, op, type)
 			return (tbl[i].name);
 	}
 
-	sprintf(unk, "?%s 0x%x?", type, op);
+	snprintf(unk, sizeof(unk), "?%s 0x%x?", type, op);
 	return (unk);
 }
 

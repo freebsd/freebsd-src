@@ -165,7 +165,7 @@ nat_t *nat;
 	a4 = a1 & 0xff;
 	a1 >>= 24;
 	olen = s - portbuf + 1;
-	(void) sprintf(newbuf, "PORT %d,%d,%d,%d,%d,%d\r\n",
+	(void) snprintf(newbuf, sizeof(newbuf), "PORT %d,%d,%d,%d,%d,%d\r\n",
 		a1, a2, a3, a4, a5, a6);
 	nlen = strlen(newbuf);
 	inc = nlen - olen;

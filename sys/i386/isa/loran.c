@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: loran.c,v 1.10 1998/10/23 10:45:10 phk Exp $
+ * $Id: loran.c,v 1.11 1998/10/24 19:55:09 phk Exp $
  *
  * This device-driver helps the userland controlprogram for a LORAN-C
  * receiver avoid monopolizing the CPU.
@@ -577,7 +577,8 @@ loranintr(int unit)
 	outb(PAR, par);
 
 	if (status) {
-		sprintf(lorantext, "Missed: %02x %d %d this:%p next:%p (dummy=%p)\n", 
+		snprintf(lorantext, sizeof(lorantext),
+		    "Missed: %02x %d %d this:%p next:%p (dummy=%p)\n", 
 		    status, count, delay, this, next, &dummy);
 		loranerror = 1;
 	}

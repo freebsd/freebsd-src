@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: fore_load.c,v 1.2 1998/09/17 09:34:59 phk Exp $
+ *	@(#) $Id: fore_load.c,v 1.3 1998/10/31 20:06:53 phk Exp $
  *
  */
 
@@ -38,7 +38,7 @@
 #include <dev/hfa/fore_include.h>
 
 #ifndef lint
-__RCSID("@(#) $Id: fore_load.c,v 1.2 1998/09/17 09:34:59 phk Exp $");
+__RCSID("@(#) $Id: fore_load.c,v 1.3 1998/10/31 20:06:53 phk Exp $");
 #endif
 
 
@@ -726,10 +726,12 @@ fore_attach(devinfo_p)
 		val = getprop ( devinfo_p->devi_nodeid, "hw-version", -1 );
 	}
 	if (val != -1) {
-		sprintf(fcp->ac_hard_vers, "%d.%d.%d",
+		snprintf(fcp->ac_hard_vers,
+		    sizeof(fcp->ac_hard_vers), "%d.%d.%d",
 			(val >> 16) & 0xff, (val >> 8) & 0xff, val & 0xff);
 	} else
-		sprintf(fcp->ac_hard_vers, "Unknown");
+		snprintf(fcp->ac_hard_vers,
+		    sizeof(fcp->ac_hard_vers), "Unknown");
 
 	val = getprop ( devinfo_p->devi_nodeid, "serialnumber", -1 );
 	if ( val != -1 )

@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_cd.c,v 1.8 1998/10/22 22:16:56 ken Exp $
+ *      $Id: scsi_cd.c,v 1.9 1998/11/22 23:44:46 ken Exp $
  */
 /*
  * Portions of this driver taken from the original FreeBSD cd driver.
@@ -1691,7 +1691,7 @@ cddone(struct cam_periph *periph, union ccb *done_ccb)
 
 		if ((csio->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP) {
 
-			sprintf(announce_buf,
+			snprintf(announce_buf, sizeof(announce_buf),
 				"cd present [%lu x %lu byte records]",
 				cdp->disksize, (u_long)cdp->blksize);
 
@@ -1759,7 +1759,8 @@ cddone(struct cam_periph *periph, union ccb *done_ccb)
 				if ((have_sense)
 				 && ((asc == 0x3a) || (asc == 0x04))
 				 && (error_code == SSD_CURRENT_ERROR))
-					sprintf(announce_buf, 
+					snprintf(announce_buf,
+					    sizeof(announce_buf),
 						"Attempt to query device "
 						"size failed: %s, %s",
 						scsi_sense_key_text[sense_key],

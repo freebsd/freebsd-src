@@ -146,7 +146,7 @@ ibcs2_getipdomainname(p, uap)
 	int len;
 
 	/* Get the domain name */
-	strcpy(hname, hostname);
+	snprintf(hname, sizeof(hname), "%s", hostname);
 	dptr = index(hname, '.');
 	if ( dptr )
 		dptr++;
@@ -177,7 +177,7 @@ ibcs2_setipdomainname(p, uap)
 		return EINVAL;
 
 	/* Get the host's unqualified name (strip off the domain) */
-	strcpy(hname, hostname);
+	snprintf(hname, sizeof(hname), "%s", hostname);
 	ptr = index(hname, '.');
 	if ( ptr != NULL ) {
 		ptr++;

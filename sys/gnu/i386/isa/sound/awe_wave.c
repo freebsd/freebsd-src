@@ -578,7 +578,7 @@ int attach_awe(void)
 	/* intialize AWE32 hardware */
 	awe_initialize();
 
-	sprintf(awe_info.name, "AWE32-%s (RAM%dk)",
+	snprintf(awe_info.name, sizeof(awe_info.name), "AWE32-%s (RAM%dk)",
 		AWEDRV_VERSION, awe_mem_size/1024);
 #ifdef __FreeBSD__
 	printk("awe0: <SoundBlaster EMU8000 MIDI (RAM%dk)>", awe_mem_size/1024);

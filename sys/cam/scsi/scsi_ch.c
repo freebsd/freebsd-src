@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_ch.c,v 1.5 1998/10/22 22:16:56 ken Exp $
+ *      $Id: scsi_ch.c,v 1.6 1998/11/22 23:44:47 ken Exp $
  */
 /*
  * Derived from the NetBSD SCSI changer driver.
@@ -618,7 +618,8 @@ chdone(struct cam_periph *periph, union ccb *done_ccb)
 			softc->sc_picker = softc->sc_firsts[CHET_MT];
 
 #define PLURAL(c)	(c) == 1 ? "" : "s"
-			sprintf(announce_buf, "%d slot%s, %d drive%s, "
+			snprintf(announce_buf, sizeof(announce_buf),
+				"%d slot%s, %d drive%s, "
 				"%d picker%s, %d portal%s",
 		    		softc->sc_counts[CHET_ST],
 				PLURAL(softc->sc_counts[CHET_ST]),

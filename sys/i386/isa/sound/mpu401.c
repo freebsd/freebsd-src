@@ -1002,7 +1002,8 @@ attach_mpu401(struct address_info * hw_config)
 			MPU_CAP_CLS | MPU_CAP_2PORT;
 
 	revision_char = (devc->revision == 0x7f) ? 'M' : ' ';
-	sprintf(mpu_synth_info[num_midis].name,
+	snprintf(mpu_synth_info[num_midis].name,
+	    sizeof(mpu_synth_info[num_midis].name),
 		"MQX-%d%c MIDI Interface #%d",
 		ports,
 		revision_char,
@@ -1015,7 +1016,8 @@ attach_mpu401(struct address_info * hw_config)
 
 	devc->capabilities |= MPU_CAP_SYNC | MPU_CAP_FSK;
 
-	sprintf(mpu_synth_info[num_midis].name,
+	snprintf(mpu_synth_info[num_midis].name,
+	    sizeof(mpu_synth_info[num_midis].name),
 	    "MPU-401 %d.%d%c Midi interface #%d",
 	    (int) (devc->version & 0xf0) >> 4,
 	    devc->version & 0x0f,

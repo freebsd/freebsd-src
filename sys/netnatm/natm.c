@@ -333,8 +333,8 @@ natm_usr_peeraddr(struct socket *so, struct sockaddr **nam)
     bzero(snatm, sizeof(*snatm));
     snatm->snatm_len = sizeof(*snatm);
     snatm->snatm_family = AF_NATM;
-    sprintf(snatm->snatm_if, "%s%d", npcb->npcb_ifp->if_name,
-	    npcb->npcb_ifp->if_unit);
+    snprintf(snatm->snatm_if, sizeof(snatm->snatm_if),
+	"%s%d", npcb->npcb_ifp->if_name, npcb->npcb_ifp->if_unit);
     snatm->snatm_vci = npcb->npcb_vci;
     snatm->snatm_vpi = npcb->npcb_vpi;
     *nam = dup_sockaddr((struct sockaddr *)snatm, 0);
@@ -623,8 +623,8 @@ struct proc *p;
 #if defined(__NetBSD__) || defined(__OpenBSD__)
       bcopy(npcb->npcb_ifp->if_xname, snatm->snatm_if, sizeof(snatm->snatm_if));
 #elif defined(__FreeBSD__)
-      sprintf(snatm->snatm_if, "%s%d", npcb->npcb_ifp->if_name,
-	npcb->npcb_ifp->if_unit);
+      snprintf(snatm->snatm_if, sizeof(snatm->snatm_if),
+	"%s%d", npcb->npcb_ifp->if_name, npcb->npcb_ifp->if_unit);
 #endif
       snatm->snatm_vci = npcb->npcb_vci;
       snatm->snatm_vpi = npcb->npcb_vpi;
