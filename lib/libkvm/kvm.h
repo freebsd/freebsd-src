@@ -69,7 +69,6 @@ struct kvm_swap {
 	int	ksw_reserved2;
 };
 
-#define SWIF_DUMP_TREE	0x0001
 #define SWIF_DEV_PREFIX	0x0002
 
 __BEGIN_DECLS
