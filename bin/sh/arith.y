@@ -41,6 +41,8 @@ static char sccsid[] = "@(#)arith.y	8.3 (Berkeley) 5/4/95";
 __FBSDID("$FreeBSD$");
 
 #include <limits.h>
+#include <stdio.h>
+
 #include "shell.h"
 #include "var.h"
 %}
