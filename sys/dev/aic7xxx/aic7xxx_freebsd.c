@@ -424,6 +424,13 @@ ahc_action(struct cam_sim *sim, union ccb *ccb)
 		struct	scb *scb;
 		struct	hardware_scb *hscb;	
 
+		if ((ahc->flags & AHC_INITIATORROLE) == 0
+		 && (ccb->ccb_h.func_code == XPT_SCSI_IO
+		  || ccb->ccb_h.func_code == XPT_RESET_DEV)) {
+			ccb->ccb_h.status = CAM_PROVIDE_FAIL;
+			xpt_done(ccb);
+		}
+
 		/*
 		 * get an scb to use.
 		 */
@@ -583,7 +590,8 @@ ahc_action(struct cam_sim *sim, union ccb *ccb)
 		}	
 
 		if ((spi->valid & CTS_SPI_VALID_BUS_WIDTH) != 0) {
-			ahc_validate_width(ahc, &spi->bus_width);
+			ahc_validate_width(ahc, /*tinfo limit*/NULL,
+					   &spi->bus_width, ROLE_UNKNOWN);
 			ahc_set_width(ahc, &devinfo, spi->bus_width,
 				      update_type, /*paused*/FALSE);
 		}
@@ -624,8 +632,9 @@ ahc_action(struct cam_sim *sim, union ccb *ccb)
 			syncrate = ahc_find_syncrate(ahc, &spi->sync_period,
 						     &spi->ppr_options,
 						     maxsync);
-			ahc_validate_offset(ahc, syncrate, &spi->sync_offset,
-					    spi->bus_width);
+			ahc_validate_offset(ahc, /*tinfo limit*/NULL,
+					    syncrate, &spi->sync_offset,
+					    spi->bus_width, ROLE_UNKNOWN);
 
 			/* We use a period of 0 to represent async */
 			if (spi->sync_offset == 0) {
@@ -692,7 +701,8 @@ ahc_action(struct cam_sim *sim, union ccb *ccb)
 		}	
 
 		if ((cts->valid & CCB_TRANS_BUS_WIDTH_VALID) != 0) {
-			ahc_validate_width(ahc, &cts->bus_width);
+			ahc_validate_width(ahc, /*tinfo limit*/NULL,
+					   &cts->bus_width, ROLE_UNKNOWN);
 			ahc_set_width(ahc, &devinfo, cts->bus_width,
 				      update_type, /*paused*/FALSE);
 		}
@@ -731,8 +741,10 @@ ahc_action(struct cam_sim *sim, union ccb *ccb)
 			syncrate = ahc_find_syncrate(ahc, &cts->sync_period,
 						     &ppr_options,
 						     maxsync);
-			ahc_validate_offset(ahc, syncrate, &cts->sync_offset,
-					    MSG_EXT_WDTR_BUS_8_BIT);
+			ahc_validate_offset(ahc, /*tinfo limit*/NULL,
+					    syncrate, &cts->sync_offset,
+					    MSG_EXT_WDTR_BUS_8_BIT,
+					    ROLE_UNKNOWN);
 
 			/* We use a period of 0 to represent async */
 			if (cts->sync_offset == 0) {
@@ -827,15 +839,14 @@ ahc_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->hba_inquiry = PI_SDTR_ABLE|PI_TAG_ABLE;
 		if ((ahc->features & AHC_WIDE) != 0)
 			cpi->hba_inquiry |= PI_WIDE_16;
-		if ((ahc->flags & AHC_TARGETMODE) != 0) {
+		if ((ahc->features & AHC_TARGETMODE) != 0) {
 			cpi->target_sprt = PIT_PROCESSOR
 					 | PIT_DISCONNECT
 					 | PIT_TERM_IO;
 		} else {
 			cpi->target_sprt = 0;
 		}
-		cpi->hba_misc = (ahc->flags & AHC_INITIATORMODE)
-			      ? 0 : PIM_NOINITIATOR;
+		cpi->hba_misc = 0;
 		cpi->hba_eng_cnt = 0;
 		cpi->max_target = (ahc->features & AHC_WIDE) ? 15 : 7;
 		cpi->max_lun = 64;
@@ -871,7 +882,7 @@ ahc_action(struct cam_sim *sim, union ccb *ccb)
 		break;
 	}
 	default:
-		ccb->ccb_h.status = CAM_REQ_INVALID;
+		ccb->ccb_h.status = CAM_PROVIDE_FAIL;
 		xpt_done(ccb);
 		break;
 	}
@@ -1169,7 +1180,8 @@ ahc_execute_scb(void *arg, bus_dma_segment_t *dm_segs, int nsegments,
 
 	tinfo = ahc_fetch_transinfo(ahc, SCSIID_CHANNEL(ahc, scb->hscb->scsiid),
 				    SCSIID_OUR_ID(scb->hscb->scsiid),
-				    ccb->ccb_h.target_id, &tstate);
+				    SCSIID_TARGET(ahc, scb->hscb->scsiid),
+				    &tstate);
 
 	mask = SCB_GET_TARGET_MASK(ahc, scb);
 	scb->hscb->scsirate = tinfo->scsirate;
@@ -1269,7 +1281,7 @@ ahc_setup_data(struct ahc_softc *ahc, struct cam_sim *sim,
 				memcpy(hscb->cdb32, 
 				       csio->cdb_io.cdb_ptr,
 				       hscb->cdb_len);
-				hscb->shared_data.cdb_ptr = scb->cdb32_busaddr;
+				scb->flags |= SCB_CDB32_PTR;
 			} else {
 				memcpy(hscb->shared_data.cdb, 
 				       csio->cdb_io.cdb_ptr,
@@ -1279,7 +1291,7 @@ ahc_setup_data(struct ahc_softc *ahc, struct cam_sim *sim,
 			if (hscb->cdb_len > 12) {
 				memcpy(hscb->cdb32, csio->cdb_io.cdb_bytes,
 				       hscb->cdb_len);
-				hscb->shared_data.cdb_ptr = scb->cdb32_busaddr;
+				scb->flags |= SCB_CDB32_PTR;
 			} else {
 				memcpy(hscb->shared_data.cdb,
 				       csio->cdb_io.cdb_bytes,
@@ -1405,7 +1417,7 @@ ahc_timeout(void *arg)
 	 * affect this timeout.
 	 */
 	do {
-		ahc_intr(ahc);
+		ahc_freebsd_intr(ahc);
 		pause_sequencer(ahc);
 	} while (ahc_inb(ahc, INTSTAT) & INT_PEND);
 
@@ -1425,6 +1437,7 @@ ahc_timeout(void *arg)
 	channel = SCB_GET_CHANNEL(ahc, scb);
 	lun = SCB_GET_LUN(scb);
 
+	ahc_print_path(ahc, scb);
 	printf("SCB 0x%x - timed out ", scb->hscb->tag);
 	/*
 	 * Take a snapshot of the bus state and print out
@@ -1441,6 +1454,15 @@ ahc_timeout(void *arg)
 	printf(", SEQADDR == 0x%x\n",
 	       ahc_inb(ahc, SEQADDR0) | (ahc_inb(ahc, SEQADDR1) << 8));
 
+	printf("STACK == 0x%x, 0x%x, 0x%x, 0x%x\n",
+		ahc_inb(ahc, STACK) | (ahc_inb(ahc, STACK) << 8),
+		ahc_inb(ahc, STACK) | (ahc_inb(ahc, STACK) << 8),
+		ahc_inb(ahc, STACK) | (ahc_inb(ahc, STACK) << 8),
+		ahc_inb(ahc, STACK) | (ahc_inb(ahc, STACK) << 8));
+
+	printf("SXFRCTL0 == 0x%x\n", ahc_inb(ahc, SXFRCTL0));
+
+	ahc_dump_card_state(ahc);
 	if (scb->sg_count > 0) {
 		for (i = 0; i < scb->sg_count; i++) {
 			printf("sg[%d] - Addr 0x%x : Length %d\n",
@@ -1483,7 +1505,9 @@ bus_reset:
 		 *	It's good to be the target!
 		 */
 		u_int active_scb_index;
+		u_int saved_scbptr;
 
+		saved_scbptr = ahc_inb(ahc, SCBPTR);
 		active_scb_index = ahc_inb(ahc, SCB_TAG);
 
 		if (last_phase != P_BUSFREE 
@@ -1491,14 +1515,13 @@ bus_reset:
 			struct scb *active_scb;
 
 			/*
-			 * If the active SCB is not from our device,
-			 * assume that another device is hogging the bus
-			 * and wait for it's timeout to expire before
-			 * taking additional action.
+			 * If the active SCB is not us, assume that
+			 * the active SCB has a longer timeout than
+			 * the timedout SCB, and wait for the active
+			 * SCB to timeout.
 			 */ 
 			active_scb = ahc_lookup_scb(ahc, active_scb_index);
-			if (active_scb->hscb->scsiid != scb->hscb->scsiid
-			 || active_scb->hscb->lun != scb->hscb->lun) {
+			if (active_scb != scb) {
 				struct	ccb_hdr *ccbh;
 				u_int	newtimeout;
 
@@ -1542,7 +1565,7 @@ bus_reset:
 			ahc_outb(ahc, SCSISIGO, last_phase|ATNO);
 			ahc_print_path(ahc, active_scb);
 			printf("BDR message in message buffer\n");
-			active_scb->flags |=  SCB_DEVICE_RESET;
+			active_scb->flags |= SCB_DEVICE_RESET;
 			active_scb->io_ctx->ccb_h.timeout_ch =
 			    timeout(ahc_timeout, (caddr_t)active_scb, 2 * hz);
 			unpause_sequencer(ahc);
@@ -1573,7 +1596,6 @@ bus_reset:
 			}
 
 			if (disconnected) {
-				struct scb *prev_scb;
 
 				ahc_set_recoveryscb(ahc, scb);
 				/*
@@ -1636,17 +1658,8 @@ bus_reset:
 						   SEARCH_COMPLETE);
 				ahc_print_path(ahc, scb);
 				printf("Queuing a BDR SCB\n");
-				prev_scb = NULL;
-				if (ahc_qinfifo_count(ahc) != 0) {
-					u_int prev_tag;
-
-					prev_tag =
-					    ahc->qinfifo[ahc->qinfifonext - 1];
-					prev_scb = ahc_lookup_scb(ahc,
-								  prev_tag);
-				}
-				ahc_qinfifo_requeue(ahc, prev_scb, scb);
-				ahc_outb(ahc, SCBPTR, active_scb_index);
+				ahc_qinfifo_requeue_tail(ahc, scb);
+				ahc_outb(ahc, SCBPTR, saved_scbptr);
 				scb->io_ctx->ccb_h.timeout_ch =
 				    timeout(ahc_timeout, (caddr_t)scb, 2 * hz);
 				unpause_sequencer(ahc);
@@ -1729,6 +1742,7 @@ ahc_abort_ccb(struct ahc_softc *ahc, struct cam_sim *sim, union ccb *ccb)
 				xpt_done(abort_ccb);
 				ccb->ccb_h.status = CAM_REQ_CMP;
 			} else {
+				xpt_print_path(abort_ccb->ccb_h.path);
 				printf("Not found\n");
 				ccb->ccb_h.status = CAM_PATH_INVALID;
 			}
