@@ -183,7 +183,7 @@ struct part_type
 	,{0xE3, "Speed"}
 	,{0xE4, "Speed"}
 	,{0xEE, "EFI GPT"}
-	,{0xEF, "EFI System Parition"}
+	,{0xEF, "EFI System Partition"}
 	,{0xF1, "Speed"}
 	,{0xF2, "DOS 3.3+ Secondary"}
 	,{0xF4, "Speed"}
