@@ -463,12 +463,24 @@ rdr0(void)
 	return (data);
 }
 
+static __inline void
+load_dr0(u_int sel)
+{
+	__asm __volatile("movl %0,%%dr0" : : "r" (sel));
+}
+
 static __inline u_int
 rdr1(void)
 {
 	u_int	data;
 	__asm __volatile("movl %%dr1,%0" : "=r" (data));
 	return (data);
+}
+
+static __inline void
+load_dr1(u_int sel)
+{
+	__asm __volatile("movl %0,%%dr1" : : "r" (sel));
 }
 
 static __inline u_int
@@ -479,12 +491,52 @@ rdr2(void)
 	return (data);
 }
 
+static __inline void
+load_dr2(u_int sel)
+{
+	__asm __volatile("movl %0,%%dr2" : : "r" (sel));
+}
+
 static __inline u_int
 rdr3(void)
 {
 	u_int	data;
 	__asm __volatile("movl %%dr3,%0" : "=r" (data));
 	return (data);
+}
+
+static __inline void
+load_dr3(u_int sel)
+{
+	__asm __volatile("movl %0,%%dr3" : : "r" (sel));
+}
+
+static __inline u_int
+rdr4(void)
+{
+	u_int	data;
+	__asm __volatile("movl %%dr4,%0" : "=r" (data));
+	return (data);
+}
+
+static __inline void
+load_dr4(u_int sel)
+{
+	__asm __volatile("movl %0,%%dr4" : : "r" (sel));
+}
+
+static __inline u_int
+rdr5(void)
+{
+	u_int	data;
+	__asm __volatile("movl %%dr5,%0" : "=r" (data));
+	return (data);
+}
+
+static __inline void
+load_dr5(u_int sel)
+{
+	__asm __volatile("movl %0,%%dr5" : : "r" (sel));
 }
 
 static __inline u_int
@@ -495,12 +547,24 @@ rdr6(void)
 	return (data);
 }
 
+static __inline void
+load_dr6(u_int sel)
+{
+	__asm __volatile("movl %0,%%dr6" : : "r" (sel));
+}
+
 static __inline u_int
 rdr7(void)
 {
 	u_int	data;
 	__asm __volatile("movl %%dr7,%0" : "=r" (data));
 	return (data);
+}
+
+static __inline void
+load_dr7(u_int sel)
+{
+	__asm __volatile("movl %0,%%dr7" : : "r" (sel));
 }
 
 #else /* !__GNUC__ */
@@ -548,7 +612,6 @@ void	ltr		__P((u_short sel));
 u_int	rcr0		__P((void));
 u_int	rcr3		__P((void));
 u_int	rcr4		__P((void));
-void    load_dr6        __P((u_int dr6));
 void    reset_dbregs    __P((void));
 __END_DECLS
 
