@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)pass1.c	8.1 (Berkeley) 6/5/93";
+static const char sccsid[] = "@(#)pass1.c	8.1 (Berkeley) 6/5/93";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -40,15 +40,17 @@ static char sccsid[] = "@(#)pass1.c	8.1 (Berkeley) 6/5/93";
 #include <ufs/ufs/dinode.h>
 #include <ufs/ufs/dir.h>
 #include <ufs/ffs/fs.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "fsck.h"
 
 static daddr_t badblk;
 static daddr_t dupblk;
-int pass1check();
-struct dinode *getnextinode();
 
+static void	checkinode __P((ino_t inumber, struct inodesc *idesc));
+
+void
 pass1()
 {
 	ino_t inumber;
@@ -87,6 +89,7 @@ pass1()
 	freeinodebuf();
 }
 
+void
 checkinode(inumber, idesc)
 	ino_t inumber;
 	register struct inodesc *idesc;
@@ -148,7 +151,7 @@ checkinode(inumber, idesc)
 				errexit("cannot read symlink");
 			if (debug) {
 				symbuf[dp->di_size] = 0;
-				printf("convert symlink %d(%s) of size %d\n",
+				printf("convert symlink %ld(%s) of size %ld\n",
 					inumber, symbuf, (long)dp->di_size);
 			}
 			dp = ginode(inumber);
@@ -247,6 +250,7 @@ unknown:
 	}
 }
 
+int
 pass1check(idesc)
 	register struct inodesc *idesc;
 {

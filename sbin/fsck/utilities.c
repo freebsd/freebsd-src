@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)utilities.c	8.1 (Berkeley) 6/5/93";
+static const char sccsid[] = "@(#)utilities.c	8.1 (Berkeley) 6/5/93";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -42,12 +42,17 @@ static char sccsid[] = "@(#)utilities.c	8.1 (Berkeley) 6/5/93";
 #include <ufs/ffs/fs.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
+#include <stdarg.h>
 #include <string.h>
 #include <ctype.h>
 #include "fsck.h"
 
 long	diskreads, totalreads;	/* Disk cache statistics */
 
+static void	rwerror __P((char *mesg, daddr_t blk));
+
+int
 ftypeok(dp)
 	struct dinode *dp;
 {
@@ -69,6 +74,7 @@ ftypeok(dp)
 	}
 }
 
+int
 reply(question)
 	char *question;
 {
@@ -104,6 +110,7 @@ reply(question)
 /*
  * Malloc buffers and set up cache.
  */
+void
 bufinit()
 {
 	register struct bufarea *bp;
@@ -188,6 +195,7 @@ getblk(bp, blk, size)
 	}
 }
 
+void
 flush(fd, bp)
 	int fd;
 	register struct bufarea *bp;
@@ -213,6 +221,7 @@ flush(fd, bp)
 	}
 }
 
+void
 rwerror(mesg, blk)
 	char *mesg;
 	daddr_t blk;
@@ -225,6 +234,7 @@ rwerror(mesg, blk)
 		errexit("Program terminated\n");
 }
 
+void
 ckfini()
 {
 	register struct bufarea *bp, *nbp;
@@ -260,6 +270,7 @@ ckfini()
 	(void)close(fswritefd);
 }
 
+int
 bread(fd, buf, blk, size)
 	int fd;
 	char *buf;
@@ -298,6 +309,7 @@ bread(fd, buf, blk, size)
 	return (errs);
 }
 
+void
 bwrite(fd, buf, blk, size)
 	int fd;
 	char *buf;
@@ -334,6 +346,7 @@ bwrite(fd, buf, blk, size)
 /*
  * allocate a data block with the specified number of fragments
  */
+int
 allocblk(frags)
 	long frags;
 {
@@ -364,6 +377,7 @@ allocblk(frags)
 /*
  * Free a previously allocated block
  */
+void
 freeblk(blkno, frags)
 	daddr_t blkno;
 	long frags;
@@ -378,6 +392,7 @@ freeblk(blkno, frags)
 /*
  * Find a pathname
  */
+void
 getpathname(namebuf, curdir, ino)
 	char *namebuf;
 	ino_t curdir, ino;
@@ -386,7 +401,6 @@ getpathname(namebuf, curdir, ino)
 	register char *cp;
 	struct inodesc idesc;
 	static int busy = 0;
-	extern int findname();
 
 	if (curdir == ino && ino == ROOTINO) {
 		(void)strcpy(namebuf, "/");
@@ -435,7 +449,8 @@ getpathname(namebuf, curdir, ino)
 }
 
 void
-catch()
+catch(x)
+	int x;
 {
 	if (!doinglevel2)
 		ckfini();
@@ -448,10 +463,9 @@ catch()
  * so that reboot sequence may be interrupted.
  */
 void
-catchquit()
+catchquit(x)
+	int x;
 {
-	extern returntosingle;
-
 	printf("returning to single-user after filesystem check\n");
 	returntosingle = 1;
 	(void)signal(SIGQUIT, SIG_DFL);
@@ -462,7 +476,8 @@ catchquit()
  * Used by child processes in preen.
  */
 void
-voidquit()
+voidquit(x)
+	int x;
 {
 
 	sleep(1);
@@ -473,6 +488,7 @@ voidquit()
 /*
  * determine whether an inode should be fixed.
  */
+int
 dofix(idesc, msg)
 	register struct inodesc *idesc;
 	char *msg;
@@ -506,15 +522,19 @@ dofix(idesc, msg)
 
 	default:
 		errexit("UNKNOWN INODESC FIX MODE %d\n", idesc->id_fix);
+		return (0);
 	}
 	/* NOTREACHED */
 }
 
 /* VARARGS1 */
-errexit(s1, s2, s3, s4)
-	char *s1;
+__dead void
+errexit(const char *s1, ...)
 {
-	printf(s1, s2, s3, s4);
+	va_list ap;
+	va_start(ap,s1);
+	vfprintf(stdout, s1, ap);
+	va_end(ap);
 	exit(8);
 }
 
@@ -523,19 +543,22 @@ errexit(s1, s2, s3, s4)
  * Die if preening, otherwise just print message and continue.
  */
 /* VARARGS1 */
-pfatal(s, a1, a2, a3)
-	char *s;
+void
+pfatal(const char *s, ...)
 {
 
+	va_list ap;
+	va_start(ap,s);
 	if (preen) {
 		printf("%s: ", cdevname);
-		printf(s, a1, a2, a3);
+		vfprintf(stdout, s, ap);
 		printf("\n");
 		printf("%s: UNEXPECTED INCONSISTENCY; RUN fsck MANUALLY.\n",
 			cdevname);
 		exit(8);
 	}
-	printf(s, a1, a2, a3);
+	vfprintf(stdout, s, ap);
+	va_end(ap);
 }
 
 /*
@@ -543,24 +566,31 @@ pfatal(s, a1, a2, a3)
  * or a warning (preceded by filename) when preening.
  */
 /* VARARGS1 */
-pwarn(s, a1, a2, a3, a4, a5, a6)
-	char *s;
+void
+pwarn(const char *s, ...)
 {
-
+	va_list ap;
+	va_start(ap,s);
 	if (preen)
 		printf("%s: ", cdevname);
-	printf(s, a1, a2, a3, a4, a5, a6);
+	vfprintf(stdout, s, ap);
+	va_end(ap);
 }
 
 #ifndef lint
 /*
  * Stub for routines from kernel.
  */
-panic(s)
-	char *s;
+__dead void
+#ifdef __STDC__
+panic(const char *fmt, ...)
+#else
+panic(fmt, va_alist)
+	char *fmt;
+#endif
 {
 
 	pfatal("INTERNAL INCONSISTENCY:");
-	errexit(s);
+	errexit(fmt);
 }
 #endif

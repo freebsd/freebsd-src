@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)pass4.c	8.1 (Berkeley) 6/5/93";
+static const char sccsid[] = "@(#)pass4.c	8.1 (Berkeley) 6/5/93";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -45,6 +45,7 @@ static char sccsid[] = "@(#)pass4.c	8.1 (Berkeley) 6/5/93";
 
 int	pass4check();
 
+void
 pass4()
 {
 	register ino_t inumber;
@@ -103,6 +104,7 @@ pass4()
 	}
 }
 
+int
 pass4check(idesc)
 	register struct inodesc *idesc;
 {

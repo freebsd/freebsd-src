@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)pass2.c	8.2 (Berkeley) 2/27/94";
+static const char sccsid[] = "@(#)pass2.c	8.2 (Berkeley) 2/27/94";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -40,6 +40,7 @@ static char sccsid[] = "@(#)pass2.c	8.2 (Berkeley) 2/27/94";
 #include <ufs/ufs/dinode.h>
 #include <ufs/ufs/dir.h>
 #include <ufs/ffs/fs.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "fsck.h"
@@ -48,6 +49,7 @@ static char sccsid[] = "@(#)pass2.c	8.2 (Berkeley) 2/27/94";
 
 int	pass2check(), blksort();
 
+void
 pass2()
 {
 	register struct dinode *dp;
@@ -189,6 +191,7 @@ pass2()
 	propagate();
 }
 
+int
 pass2check(idesc)
 	struct inodesc *idesc;
 {
@@ -422,6 +425,7 @@ again:
 /*
  * Routine to sort disk blocks.
  */
+int
 blksort(inpp1, inpp2)
 	struct inoinfo **inpp1, **inpp2;
 {
