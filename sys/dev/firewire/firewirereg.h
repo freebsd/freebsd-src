@@ -71,6 +71,7 @@ struct fw_device{
 	LIST_HEAD(, fw_xfer) rxqueue;
 #endif
 };
+
 struct firewire_softc {
 #if __FreeBSD_version >= 500000
 	dev_t dev;
@@ -79,9 +80,11 @@ struct firewire_softc {
 #endif
 	struct firewire_comm *fc;
 };
+
 #define FW_MAX_DMACH 0x20
 #define FW_MAX_DEVCH FW_MAX_DMACH
 #define FW_XFERTIMEOUT 1
+
 struct firewire_dev_comm {
 	device_t dev;
 	struct firewire_comm *fc;
@@ -121,11 +124,6 @@ struct firewire_comm{
 #define	FWMAXCSRDIR     16
 	SLIST_HEAD(, csrdir) ongocsr;
 	SLIST_HEAD(, csrdir) csrfree;
-	struct csrdir{
-		u_int32_t ongoaddr;
-		u_int32_t off;
-		SLIST_ENTRY(csrdir) link;
-	};
 	u_int32_t status;
 #define	FWBUSRESET	0
 #define	FWBUSINIT	1
@@ -139,81 +137,9 @@ struct firewire_comm{
 	int nisodma;
 	u_int8_t eui[8];
 	STAILQ_HEAD(fw_queue, fw_xfer);
-	struct fw_xferq {
-		int flag;
-#define FWXFERQ_CHTAGMASK 0xff
-#define FWXFERQ_RUNNING (1 << 8)
-#define FWXFERQ_STREAM (1 << 9)
-
-#define FWXFERQ_PACKET (1 << 10)
-#define FWXFERQ_BULK (1 << 11)
-#define FWXFERQ_DV (1 << 12)
-#define FWXFERQ_MODEMASK (7 << 10)
-
-#define FWXFERQ_EXTBUF (1 << 13)
-#define FWXFERQ_OPEN (1 << 14)
-
-#define FWXFERQ_HANDLER (1 << 16)
-#define FWXFERQ_WAKEUP (1 << 17)
-
-		void (*start) __P((struct firewire_comm*));
-		void (*drain) __P((struct firewire_comm*, struct fw_xfer*));
-		struct fw_queue q;
-		u_int queued;
-		u_int maxq;
-		u_int psize;
-		u_int packets;
-		u_int error;
-		STAILQ_HEAD(, fw_bind) binds;
-		caddr_t buf;
-		u_int bnchunk;
-		u_int bnpacket;
-		u_int btpacket;
-		struct fw_bulkxfer *bulkxfer;
-		STAILQ_HEAD(, fw_bulkxfer) stvalid;
-		STAILQ_HEAD(, fw_bulkxfer) stfree;
-		struct fw_bulkxfer *stdma;
-		struct fw_bulkxfer *stdma2;
-		struct fw_bulkxfer *stproc;
-		u_int procptr;
-		int dvdbc, dvdiff, dvsync, dvoffset;
-		struct fw_dvbuf *dvbuf;
-		STAILQ_HEAD(, fw_dvbuf) dvvalid;
-		STAILQ_HEAD(, fw_dvbuf) dvfree;
-		struct fw_dvbuf *dvdma;
-		struct fw_dvbuf *dvproc;
-		u_int dvptr;
-		u_int dvpacket;
-		u_int need_wakeup;
-		struct selinfo rsel;
-		caddr_t sc;
-		void (*hand) __P((struct fw_xferq *));
-	};
 	struct fw_xferq
 		*arq, *atq, *ars, *ats, *it[FW_MAX_DMACH],*ir[FW_MAX_DMACH];
-	struct fw_bulkxfer{
-		u_int32_t flag;
-		caddr_t buf;
-		STAILQ_ENTRY(fw_bulkxfer) link;
-		caddr_t start;
-		caddr_t end;
-		u_int npacket;
-	};
-	struct fw_dvbuf{
-		caddr_t buf;
-		STAILQ_ENTRY(fw_dvbuf) link;
-	};
-	struct tlabel{
-		struct fw_xfer  *xfer;
-		STAILQ_ENTRY(tlabel) link;
-	};
 	STAILQ_HEAD(, tlabel) tlabels[0x40];
-	struct fw_bind{
-		u_int32_t start_hi, start_lo, addrlen;
-		struct fw_xfer* xfer;
-		STAILQ_ENTRY(fw_bind) fclist;
-		STAILQ_ENTRY(fw_bind) chlist;
-	};
 	STAILQ_HEAD(, fw_bind) binds;
 	TAILQ_HEAD(, fw_device) devices;
 	STAILQ_HEAD(, fw_xfer)	pending;
@@ -246,6 +172,88 @@ struct firewire_comm{
 };
 #define CSRARC(sc, offset) ((sc)->csr_arc[(offset)/4])
 
+struct csrdir{
+	u_int32_t ongoaddr;
+	u_int32_t off;
+	SLIST_ENTRY(csrdir) link;
+};
+
+struct fw_xferq {
+	int flag;
+#define FWXFERQ_CHTAGMASK 0xff
+#define FWXFERQ_RUNNING (1 << 8)
+#define FWXFERQ_STREAM (1 << 9)
+
+#define FWXFERQ_PACKET (1 << 10)
+#define FWXFERQ_BULK (1 << 11)
+#define FWXFERQ_DV (1 << 12)
+#define FWXFERQ_MODEMASK (7 << 10)
+
+#define FWXFERQ_EXTBUF (1 << 13)
+#define FWXFERQ_OPEN (1 << 14)
+
+#define FWXFERQ_HANDLER (1 << 16)
+#define FWXFERQ_WAKEUP (1 << 17)
+
+	void (*start) __P((struct firewire_comm*));
+	void (*drain) __P((struct firewire_comm*, struct fw_xfer*));
+	struct fw_queue q;
+	u_int queued;
+	u_int maxq;
+	u_int psize;
+	u_int packets;
+	u_int error;
+	STAILQ_HEAD(, fw_bind) binds;
+	caddr_t buf;
+	u_int bnchunk;
+	u_int bnpacket;
+	u_int btpacket;
+	struct fw_bulkxfer *bulkxfer;
+	STAILQ_HEAD(, fw_bulkxfer) stvalid;
+	STAILQ_HEAD(, fw_bulkxfer) stfree;
+	struct fw_bulkxfer *stdma;
+	struct fw_bulkxfer *stdma2;
+	struct fw_bulkxfer *stproc;
+	u_int procptr;
+	int dvdbc, dvdiff, dvsync, dvoffset;
+	struct fw_dvbuf *dvbuf;
+	STAILQ_HEAD(, fw_dvbuf) dvvalid;
+	STAILQ_HEAD(, fw_dvbuf) dvfree;
+	struct fw_dvbuf *dvdma;
+	struct fw_dvbuf *dvproc;
+	u_int dvptr;
+	u_int dvpacket;
+	u_int need_wakeup;
+	struct selinfo rsel;
+	caddr_t sc;
+	void (*hand) __P((struct fw_xferq *));
+};
+
+struct fw_bulkxfer{
+	u_int32_t flag;
+	caddr_t buf;
+	STAILQ_ENTRY(fw_bulkxfer) link;
+	caddr_t start;
+	caddr_t end;
+	u_int npacket;
+};
+
+struct fw_dvbuf{
+	caddr_t buf;
+	STAILQ_ENTRY(fw_dvbuf) link;
+};
+
+struct tlabel{
+	struct fw_xfer  *xfer;
+	STAILQ_ENTRY(tlabel) link;
+};
+
+struct fw_bind{
+	u_int32_t start_hi, start_lo, addrlen;
+	struct fw_xfer* xfer;
+	STAILQ_ENTRY(fw_bind) fclist;
+	STAILQ_ENTRY(fw_bind) chlist;
+};
 
 struct fw_xfer{
 	caddr_t sc;
