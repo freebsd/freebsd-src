@@ -36,6 +36,7 @@
 #include <limits.h>
 #include <db.h>
 #include <paths.h>
+#include <pw_util.h>
 #include <rpc/rpc.h>
 #include <pwd.h>
 #include <err.h>
@@ -63,10 +64,6 @@ extern void     master_yppasswdprog_1 __P(( struct svc_req *,
 extern void	reaper __P(( int ));
 extern void	install_reaper __P(( int ));
 extern int	pw_copy __P(( int, int, struct passwd * ));
-extern int	pw_lock __P(( void ));
-extern int	pw_mkdb __P((const char * ));
-extern int	pw_tmp __P(( void ));
-extern void	pw_init __P(( void ));
 extern char	*ok_shell __P (( char * ));
 extern char	*passfile;
 extern char	*passfile_default;
