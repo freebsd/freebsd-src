@@ -27,8 +27,12 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
  */
+
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
 
 /*
  * FreeBSD/386-specific system call handling.  This is probably the most
@@ -37,17 +41,13 @@
  * automatically, thanks to /usr/src/sys/kern/syscalls.master.  The
  * names used for the various structures are confusing, I sadly admit.
  */
-/*
- * $Id: i386-fbsd.c,v 1.1 1997/12/06 05:22:50 sef Exp $
- */
 
+#include <errno.h>
+#include <fcntl.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
-#include <err.h>
-#include <signal.h>
-#include <fcntl.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
 #include <sys/pioctl.h>
@@ -113,7 +113,6 @@ i386_syscall_entry(int pid, int nargs) {
   struct reg regs = { 0 };
   int syscall;
   int i;
-  int memfd;
   unsigned int parm_offset;
   struct syscall *sc;
 
@@ -190,7 +189,6 @@ i386_syscall_entry(int pid, int nargs) {
    */
 
   if (fsc.name) {
-    char *tmp;
 
 #if DEBUG
     fprintf(stderr, "syscall %s(", fsc.name);

@@ -2,35 +2,41 @@
 .Dt TRUSS 1
 .Os FreeBSD
 .Sh NAME
-.Nm \&truss
+.Nm truss
 .Nd trace system calls
-.Sh Synopsis
-.Nm \&truss
+.Sh SYNOPSIS
+.Nm truss
 .Op Fl S
-.Op Fl p Ar pid
+.Op Fl o Ar file
+.Fl p Ar pid
+.Nm truss
+.Op Fl S
 .Op Fl o Ar file
 command
+.Op args
 .Sh DESCRIPTION
-.Nm \&truss
+.Nm Truss
 traces the system calls called by the specified process or program.
 Output is to the specified output file, or standard error by default.
 It does this by stopping and restarting the process being monitored via
 .Xr procfs 5 .
 .Pp
 The options are as follows:
-.Bl -tag -width command
+.Bl -tag -width indent
 .It Fl S
 Do not display information about signals received by the process.
 (Normally,
-.Nm \&truss
+.Nm
 displays signal as well as system call events.)
-.It Fl p
+.It Fl o Ar file
+Print the output to the specified
+.Ar file
+instead of standard error.
+.It Fl p Ar pid
 Follow the process specified by 
 .Ar pid
 instead of a new command.
-.It Fl o
-Print the output to the specified file instead of standard error.
-.It Ar command
+.It Ar command Op args
 Execute
 .Ar command
 and trace the system calls of it.
@@ -47,11 +53,15 @@ options are mutually exclusive.)
 # Follow an already-running process
 .Dl $ truss -p 1
 .Sh SEE ALSO
-.Xr procfs 5 ,
+.Xr kdump 1 ,
 .Xr ktrace 1 ,
-.Xr kdump 1
+.Xr procfs 5
 .Sh HISTORY
 The
-.Nm truss
-command was written by Sean Eric Fagan for FreeBSD; it was modeled after
+.Nm
+command was written by
+.An Sean Eric Fagan
+for
+.Bx Free Ns ;
+it was modeled after
 similar commands available for System V Release 4 and SunOS.
