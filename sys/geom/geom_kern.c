@@ -245,5 +245,3 @@ SYSCTL_INT(_debug_sizeof, OID_AUTO, g_consumer, CTLFLAG_RD,
 	0, sizeof(struct g_consumer), "");
 SYSCTL_INT(_debug_sizeof, OID_AUTO, g_bioq, CTLFLAG_RD,
 	0, sizeof(struct g_bioq), "");
-SYSCTL_INT(_debug_sizeof, OID_AUTO, g_event, CTLFLAG_RD,
-	0, sizeof(struct g_event), "");

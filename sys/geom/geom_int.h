@@ -37,9 +37,7 @@
 
 LIST_HEAD(class_list_head, g_class);
 TAILQ_HEAD(g_tailq_head, g_geom);
-TAILQ_HEAD(event_tailq_head, g_event);
 
-extern struct event_tailq_head events;
 extern int g_collectstats;
 extern int g_debugflags;
 /*
@@ -52,15 +50,6 @@ extern int g_debugflags;
  */
 #define G_F_DISKIOCTL	64
 #define G_F_CTLDUMP	128
-
-#define G_N_EVENTREFS		20
-
-struct g_event {
-	TAILQ_ENTRY(g_event)	events;
-	void			*arg;
-	g_event_t		*func;
-	void			*ref[G_N_EVENTREFS];
-};
 
 /*
  * We actually have a number of drivers sharing the same major number
