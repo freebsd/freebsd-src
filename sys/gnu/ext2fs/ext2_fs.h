@@ -38,7 +38,7 @@
 /* the Linux implementation of EXT2 stores some information about
  * an inode in a ext2_inode_info structure which is part of the incore
  * inode in Linux
- * I decided to use the i_spare[11] fields instead - we'll see how this
+ * I decided to use the "spare" fields instead - we'll see how this
  * works out
  */
 
@@ -46,7 +46,7 @@
 #define i_next_alloc_block	i_spare[1]
 #define i_next_alloc_goal	i_spare[2]
 #define i_prealloc_block	i_spare[3]
-#define i_prealloc_count	i_spare[4]
+#define i_prealloc_count	i_din.di_spare[0]
 
 /*
  * The second extended filesystem constants/structures
