@@ -199,8 +199,8 @@
 141	NOPROTO	{ int ogetpeername(int fdes, caddr_t asa, int *alen); }
 142	MNOPROTO { int32_t ogethostid(void); }
 143	MNOPROTO { int osethostid(int32_t hostid); }
-144	STD	{ int osf1_getrlimit(u_int which, struct rlimit *rlp); }
-145	STD	{ int osf1_setrlimit(u_int which, struct rlimit *rlp); }
+144	MSTD	{ int osf1_getrlimit(u_int which, struct rlimit *rlp); }
+145	MSTD	{ int osf1_setrlimit(u_int which, struct rlimit *rlp); }
 146	UNIMPL	old killpg
 147	MNOPROTO { int setsid(void); }
 148	UNIMPL	quotactl

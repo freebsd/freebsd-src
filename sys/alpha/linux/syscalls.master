@@ -194,9 +194,9 @@
 141	NOPROTO	{ int ogetpeername(int fdes, caddr_t asa, int *alen); }
 142	UNIMPL
 143	UNIMPL
-144	STD	{ int linux_getrlimit(l_uint resource, \
+144	MSTD	{ int linux_getrlimit(l_uint resource, \
 				struct l_rlimit *rlim); }
-145	STD	{ int linux_setrlimit(l_uint resource, \
+145	MSTD	{ int linux_setrlimit(l_uint resource, \
 				struct l_rlimit *rlim); }
 146	UNIMPL
 147	MNOPROTO { int setsid(void); }
