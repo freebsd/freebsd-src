@@ -156,6 +156,13 @@ net/rtsock.c		standard
 net/slcompress.c	optional ppp
 net/slcompress.c	optional sl
 net/if_tun.c		optional tun
+netatalk/aarp.c		optional netatalk
+netatalk/at_control.c	optional netatalk
+netatalk/at_proto.c	optional netatalk
+netatalk/at_rmx.c	optional netatalkdebug
+netatalk/ddp_input.c	optional netatalk
+netatalk/ddp_output.c	optional netatalk
+netatalk/ddp_usrreq.c	optional netatalk
 #netccitt/ccitt_proto.c	optional ccitt
 #netccitt/hd_debug.c	optional hdlc
 #netccitt/hd_input.c	optional hdlc
