@@ -71,7 +71,9 @@
 
 /* machine dependent clock related includes */
 #ifdef __FreeBSD__
+#if __FreeBSD__ < 3
 #include "opt_cpu.h"	/* for FreeBSD-2.2.8 to get i586_ctr_freq */
+#endif
 #include <machine/clock.h>
 #endif
 #if defined(__i386__)
