@@ -66,6 +66,7 @@ __FBSDID("$FreeBSD$");
 
 #include <compat/freebsd32/freebsd32_util.h>
 #include <compat/freebsd32/freebsd32_proto.h>
+#include <compat/freebsd32/freebsd32_syscall.h>
 #include <compat/ia32/ia32_signal.h>
 #include <machine/psl.h>
 #include <machine/segments.h>
@@ -93,7 +94,7 @@ extern struct sysent freebsd32_sysent[];
 SYSCTL_NODE(_compat, OID_AUTO, ia32, CTLFLAG_RW, 0, "ia32 mode");
 
 struct sysentvec ia32_freebsd_sysvec = {
-	SYS_MAXSYSCALL,
+	FREEBSD32_SYS_MAXSYSCALL,
 	freebsd32_sysent,
 	0,
 	0,
