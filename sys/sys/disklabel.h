@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)disklabel.h	8.2 (Berkeley) 7/10/94
- * $Id: disklabel.h,v 1.24 1996/09/21 14:59:25 bde Exp $
+ * $Id: disklabel.h,v 1.24.2.1 1997/01/31 05:40:46 davidg Exp $
  */
 
 #ifndef	_SYS_DISKLABEL_H_
@@ -412,7 +412,8 @@ struct dos_partition {
     -----------------------------------------------------------------
 */
 #define	dkmakeminor(unit, slice, part) \
-				(((slice) << 16) | ((unit) << 3) | (part))
+				(((slice) << 16) | (((unit) & 0x1e0) << 16) | \
+				(((unit) & 0x1f) << 3) | (part))
 #define	dkmodpart(dev, part)	(((dev) & ~(dev_t)7) | (part))
 #define	dkmodslice(dev, slice)	(((dev) & ~(dev_t)0x1f0000) | ((slice) << 16))
 #define	dkpart(dev)		(minor(dev) & 7)
