@@ -42,10 +42,10 @@ static char copyright[] =
 
 #ifndef lint
 /*
-static char sccsid[] = "@(#)mount_nfs.c	8.3 (Berkeley) 3/27/94";
+static char sccsid[] = "@(#)mount_nfs.c	8.11 (Berkeley) 5/4/95";
 */
 static const char rcsid[] =
-	"$Id$";
+	"$Id: mount_nfs.c,v 1.16 1997/02/22 14:32:48 peter Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -64,15 +64,15 @@ static const char rcsid[] =
 #endif
 
 #ifdef NFSKERB
-#include <des.h>
+#include <kerberosIV/des.h>
 #include <kerberosIV/krb.h>
 #endif
 
 #include <nfs/rpcv2.h>
 #include <nfs/nfsproto.h>
-#define _KERNEL
+#define KERNEL
 #include <nfs/nfs.h>
-#undef _KERNEL
+#undef KERNEL
 #include <nfs/nqnfs.h>
 
 #include <arpa/inet.h>
@@ -91,7 +91,6 @@ static const char rcsid[] =
 
 #include "mntopts.h"
 
-#ifdef __FreeBSD__
 #define	ALTF_BG		0x1
 #define ALTF_NOCONN	0x2
 #define ALTF_DUMBTIMR	0x4
@@ -131,16 +130,9 @@ struct mntopt mopts[] = {
 	{ "port=", 0, ALTF_PORT, 1 },
 	{ NULL }
 };
-#else
-struct mntopt mopts[] = {
-	MOPT_STDOPTS,
-	MOPT_FORCE,
-	MOPT_UPDATE,
-	{ NULL }
-};
-#endif
 
 struct nfs_args nfsdefargs = {
+	NFS_ARGSVERSION,
 	(struct sockaddr *)0,
 	sizeof (struct sockaddr_in),
 	SOCK_DGRAM,
@@ -211,7 +203,8 @@ main(argc, argv)
 	struct nfsd_cargs ncd;
 	int mntflags, altflags, i, nfssvc_flag, num;
 	char *name, *p, *spec;
-	struct vfsconf *vfc;
+	struct vfsconf vfc;
+	int error = 0;
 #ifdef NFSKERB
 	uid_t last_ruid;
 
@@ -300,7 +293,6 @@ main(argc, argv)
 			break;
 #endif
 		case 'o':
-#ifdef __FreeBSD__
 			getmntopts(optarg, mopts, &mntflags, &altflags);
 			if(altflags & ALTF_BG)
 				opflags |= BGRND;
@@ -337,9 +329,6 @@ main(argc, argv)
 			if(altflags & ALTF_PORT)
 				port_no = atoi(strstr(optarg, "port=") + 5);
 			altflags = 0;
-#else
-			getmntopts(optarg, mopts, &mntflags);
-#endif
 			break;
 		case 'P':
 			nfsargsp->flags |= NFSMNT_RESVPORT;
@@ -403,8 +392,10 @@ main(argc, argv)
 	argc -= optind;
 	argv += optind;
 
-	if (argc != 2)
+	if (argc != 2) {
 		usage();
+		/* NOTREACHED */
+	}
 
 	spec = *argv++;
 	name = *argv;
@@ -413,21 +404,22 @@ main(argc, argv)
 		exit(1);
 
 #ifdef __FreeBSD__
-	vfc = getvfsbyname("nfs");
-	if(!vfc && vfsisloadable("nfs")) {
+	error = getvfsbyname("nfs", &vfc);
+	if (error && vfsisloadable("nfs")) {
 		if(vfsload("nfs"))
 			err(EX_OSERR, "vfsload(nfs)");
-		endvfsent();	/* flush cache */
-		vfc = getvfsbyname("nfs");
+		endvfsent();	/* clear cache */
+		error = getvfsbyname("nfs", &vfc);
 	}
-	if (!vfc)
-		errx(EX_OSERR, "nfs filesystem is not loadable");
+	if (error)
+		errx(EX_OSERR, "nfs filesystem is not available");
 
-	if (mount(vfc->vfc_index, name, mntflags, nfsargsp))
-#else
-	if (mount(MOUNT_NFS, name, mntflags, nfsargsp))
-#endif
+	if (mount(vfc.vfc_name, name, mntflags, nfsargsp))
 		err(1, "%s", name);
+#else
+	if (mount("nfs", name, mntflags, nfsargsp))
+		err(1, "%s", name);
+#endif
 	if (nfsargsp->flags & (NFSMNT_NQNFS | NFSMNT_KERB)) {
 		if ((opflags & ISBGRND) == 0) {
 			if (i = fork()) {
@@ -498,7 +490,7 @@ main(argc, argv)
 				3 * NFSX_UNSIGNED;
 			    ncd.ncd_verfstr = (u_char *)&kverf;
 			    ncd.ncd_verflen = sizeof (kverf);
-			    bcopy((caddr_t)kcr.session, (caddr_t)ncd.ncd_key,
+			    memmove(ncd.ncd_key, kcr.session,
 				sizeof (kcr.session));
 			    kin.t1 = htonl(ktv.tv_sec);
 			    kin.t2 = htonl(ktv.tv_usec);
@@ -587,14 +579,13 @@ getnfsargs(spec, nfsargsp)
 			warnx("bad ISO address");
 			return (0);
 		}
-		bzero((caddr_t)&isoaddr, sizeof (isoaddr));
-		bcopy((caddr_t)isop, (caddr_t)&isoaddr.siso_addr,
-			sizeof (struct iso_addr));
+		memset(&isoaddr, 0, sizeof (isoaddr));
+		memmove(&isoaddr.siso_addr, isop, sizeof (struct iso_addr));
 		isoaddr.siso_len = sizeof (isoaddr);
 		isoaddr.siso_family = AF_ISO;
 		isoaddr.siso_tlen = 2;
 		isoport = htons(NFS_PORT);
-		bcopy((caddr_t)&isoport, TSEL(&isoaddr), isoaddr.siso_tlen);
+		memmove(TSEL(&isoaddr), &isoport, isoaddr.siso_tlen);
 		hostp = delimp + 1;
 	}
 #endif /* ISO */
@@ -608,9 +599,9 @@ getnfsargs(spec, nfsargsp)
 			warnx("bad net address %s", hostp);
 			return (0);
 		}
-	} else if ((hp = gethostbyname(hostp)) != NULL) {
-		bcopy(hp->h_addr, (caddr_t)&saddr.sin_addr, hp->h_length);
-	} else {
+	} else if ((hp = gethostbyname(hostp)) != NULL)
+		memmove(&saddr.sin_addr, hp->h_addr, hp->h_length);
+	else {
 		warnx("can't get net id for host");
 		return (0);
         }
@@ -621,7 +612,7 @@ getnfsargs(spec, nfsargsp)
 			warnx("can't reverse resolve net address");
 			return (0);
 		}
-		bcopy(hp->h_addr, (caddr_t)&saddr.sin_addr, hp->h_length);
+		memmove(&saddr.sin_addr, hp->h_addr, hp->h_length);
 		strncpy(inst, hp->h_name, INST_SZ);
 		inst[INST_SZ - 1] = '\0';
 		if (cp = strchr(inst, '.'))
@@ -701,8 +692,7 @@ getnfsargs(spec, nfsargsp)
 	if (nfhret.stat) {
 		if (opflags & ISBGRND)
 			exit(1);
-		errno = nfhret.stat;
-		warn("can't access %s", spec);
+		warnx("can't access %s: %s", spec, strerror(nfhret.stat));
 		return (0);
 	}
 	saddr.sin_port = htons(tport);
@@ -764,7 +754,6 @@ xdr_fh(xdrsp, np)
 			if (auth == np->auth)
 				authfnd++;
 		}
-
 		/*
 		 * Some servers, such as DEC's OSF/1 return a nil authenticator
 		 * list to indicate RPCAUTH_UNIX.
