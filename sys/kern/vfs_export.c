@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.86 1997/05/06 15:19:38 phk Exp $
+ * $Id: vfs_subr.c,v 1.87 1997/06/10 02:48:08 davidg Exp $
  */
 
 /*
@@ -839,7 +839,8 @@ vget(vp, flags, p)
 	 */
 	if ((vp->v_type == VREG) &&
 		((vp->v_object == NULL) ||
-			(vp->v_object->flags & OBJ_VFS_REF) == 0)) {
+			(vp->v_object->flags & OBJ_VFS_REF) == 0 ||
+			(vp->v_object->flags & OBJ_DEAD))) {
 		/*
 		 * XXX vfs_object_create probably needs the interlock.
 		 */
@@ -1047,7 +1048,8 @@ vref(vp)
 
 	if ((vp->v_type == VREG) &&
 		((vp->v_object == NULL) ||
-			((vp->v_object->flags & OBJ_VFS_REF) == 0)) ) {
+			((vp->v_object->flags & OBJ_VFS_REF) == 0) ||
+			(vp->v_object->flags & OBJ_DEAD))) {
 		/*
 		 * We need to lock to VP during the time that
 		 * the object is created.  This is necessary to
@@ -1237,17 +1239,6 @@ loop:
 			continue;
 		}
 
-		if (vp->v_object && (vp->v_object->flags & OBJ_VFS_REF)) {
-			simple_unlock(&vp->v_interlock);
-			simple_unlock(&mntvnode_slock);
-			vm_object_reference(vp->v_object);
-			pager_cache(vp->v_object, FALSE);
-			vp->v_object->flags &= ~OBJ_VFS_REF;
-			vm_object_deallocate(vp->v_object);
-			simple_lock(&mntvnode_slock);
-			simple_lock(&vp->v_interlock);
-		}
-
 		/*
 		 * With v_usecount == 0, all we need to do is clear out the
 		 * vnode data structures and we are done.
@@ -1295,7 +1286,8 @@ loop:
 static void
 vclean(struct vnode *vp, int flags, struct proc *p)
 {
-	int active;
+	int active, irefed;
+	vm_object_t object;
 
 	/*
 	 * Check to see if the vnode is in use. If so we have to reference it
@@ -1319,11 +1311,28 @@ vclean(struct vnode *vp, int flags, struct proc *p)
 	 * occur while the underlying object is being cleaned out.
 	 */
 	VOP_LOCK(vp, LK_DRAIN | LK_INTERLOCK, p);
+
+	object = vp->v_object;
+	irefed = 0;
+	if (object && ((object->flags & OBJ_DEAD) == 0)) {
+		if (object->ref_count == 0) {
+			vm_object_reference(object);
+			irefed = 1;
+		}
+		++object->ref_count;
+		pager_cache(object, FALSE);
+	}
+
 	/*
 	 * Clean out any buffers associated with the vnode.
 	 */
 	if (flags & DOCLOSE)
 		vinvalbuf(vp, V_SAVE, NOCRED, p, 0, 0);
+
+	if (irefed) {
+		vm_object_deallocate(object);
+	}
+
 	/*
 	 * If purging an active vnode, it must be closed and
 	 * deactivated before being reclaimed. Note that the
