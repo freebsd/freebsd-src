@@ -1,68 +1,59 @@
 #!/usr/bin/perl
-# $Id: sgmlfmt.pl,v 1.9 1996/03/26 13:26:53 jfieber Exp $
+
+# $Id: sgmlfmt.pl,v 1.10 1996/05/15 17:05:17 jfieber Exp $
+
+#  Copyright (C) 1996
+#       John R. Fieber.  All rights reserved.
+#
+#  Redistribution and use in source and binary forms, with or without
+#  modification, are permitted provided that the following conditions
+#  are met:
+#  1. Redistributions of source code must retain the above copyright
+#     notice, this list of conditions and the following disclaimer.
+#  2. Redistributions in binary form must reproduce the above copyright
+#     notice, this list of conditions and the following disclaimer in the
+#     documentation and/or other materials provided with the distribution.
+#
+#  THIS SOFTWARE IS PROVIDED BY JOHN R. FIEBER AND CONTRIBUTORS ``AS IS'' AND
+#  ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+#  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+#  ARE DISCLAIMED.  IN NO EVENT SHALL JOHN R. FIEBER OR CONTRIBUTORS BE LIABLE
+#  FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+#  DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+#  OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+#  HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+#  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+#  OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+#  SUCH DAMAGE.
+
 
 # Format an sgml document tagged according to the linuxdoc DTD.
 # by John Fieber <jfieber@freebsd.org> for the FreeBSD documentation
 # project.  
-#
-# Bugs:
-#
-# Text lines that start with a period (.) confuse the conversions that
-# use groff.  The workaround is to make sure the SGML source doesn't
-# have any periods at the beginning of a line.
-#
-# Although legal by the DTD, it the ascii formatting gets botched if
-# the <heading></heading> tags are omitted following a <sect?>.
-#
-# Beginning and end tags for the <tag> element must occur on the same line.
-#
-# The whole approach of using sgmlsasp and passing a few things
-# through for processing by this script is doomed.  This whole thing
-# needs to be re-thought and a better DTD should be used anyway.
-#
-#######################################################################
 
-# Look in a couple places for the SGML DTD and replacement files
-#
 
 require 'newgetopt.pl';
 
-if (-d "$ENV{'HOME'}/lib/sgml/FreeBSD") {
-    $sgmldir = "$ENV{'HOME'}/lib/sgml";
-}
-elsif (-d "$ENV{'HOME'}/sgml/FreeBSD") {
-    $sgmldir = "$ENV{'HOME'}/sgml";
-}
-elsif (-d "/usr/share/sgml/FreeBSD" ) {
-    $sgmldir = "/usr/share/sgml";
-}
-else {
-    die "Cannot locate sgml files!\n";
-}
+#
+# The SGML parser, and translation engine.
+#
+
+$sgmls = "sgmls";
+$instant = "instant";
 
 #
 # Locate the DTD, an SGML declaration, and the replacement files
 #
 
-$doctype = "<!DOCTYPE html PUBLIC \"-//IETF//DTD HTML 2.0//EN\">";
-$dtdbase = "$sgmldir/FreeBSD";
-$dtd = "$dtdbase/dtd/linuxdoc";
-if (-f "$dtd.dec") {
-    $decl = "$dtd.dec";
-}
-else {
-    $decl = "";
-}
-$replbase = "$dtdbase/rep";
-
-if (! $ENV{"SGML_PATH"}) {
-    $ENV{"SGML_PATH"} = "$sgmldir/%O/%C/%T";
-}
+$doctype = "<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 3.2//EN\">";
+$dtdbase = "/usr/share/sgml/FreeBSD";
+$dtd = "$dtdbase/linuxdoc.dtd";
+$decl = "$dtdbase/linuxdoc.dcl";
 
 sub usage {
     print "Usage:\n";
     print "sgmlfmt -f <format> [-i <namea> ...] [-links] [-ssi] file\n";
-    print "where <format> is one of: html, latex, ascii, nroff\n";
+    print "where <format> is one of: html, latex, ascii, roff\n";
 }
 
 #
@@ -85,64 +76,37 @@ sub getfile {
     $fileroot =~ s/\.sgml$//;	# drop the .sgml
     $filepath = $file;
     $filepath =~ s/\/*[^\/]*$//;	
-    if ($filepath eq "") {
-	$ENV{"SGML_PATH"} .= ":.";
-    }
-    else {
-	$ENV{"SGML_PATH"} .= ":$filepath/%S:.";
+    if ($filepath ne "") {
+       $ENV{"SGML_PATH"} .= ":$filepath/%S:%S";
     }
     return 1;
 }
 
 #
-# A function to run sgmls and sgmlsasp on the input file.
+# A function to run sgmls and instant on the input file.
 #
 # Arguments:
 #   1. A file handle for the output
-#   2. A replacement file (directory actually)
+#   2. A translation file
 #
 
 sub sgmlparse {
-    local($fhandle, $replacement) = @_;
+    local($ifhandle, $replacement) = @_;
     $defines = join(" -i ", @opt_i);
     if ($defines ne "") {
 	$defines = "-i $defines";
     }
-    $ENV{'SGML_PATH'} = "$replbase/$replacement.%N:$ENV{'SGML_PATH'}";
-    open($fhandle, "sgmls $defines $decl $file | sgmlsasp $replbase/$replacement.mapping |");
+    open($ifhandle, "$sgmls $defines $decl $file | " . 
+    	"$instant -Dfilename=$fileroot -t linuxdoc-${replacement}.ts |");
 }
 
 #
-# Generate nroff output
+# Generate roff output
 #
 
-sub gen_nroff {
-    open (outfile, ">$fileroot.nroff");
-    &sgmlparse(infile, "nroff");
-    $\ = "\n";              # automatically add newline on print
-    while (<infile>) {
-	chop;
-	# This is supposed to ensure that no text line starts
-	# with a dot (.), thus confusing groff, but it doesn't
-	# appear to work.
-	unless (/^\.DS/.../^\.DE/) {
-	    s/^[ \t]{1,}(.*)/$1/g;
-	}
-	s/^\.[ \t].*/\\\&$&/g;
-	print outfile;
-    }
-    $\ = "";
-    close(infile);
-    close(outfile);
-}
-
-#
-# Generate ASCII output using groff
-#
-
-sub gen_ascii {
-    &sgmlparse(infile, "nroff");
-    open(outfile, "| groff -T ascii -t -ms | col -b > $fileroot.ascii");
+sub gen_roff {
+    open (outfile, ">$fileroot.roff");
+    &sgmlparse(infile, "roff");
     while (<infile>) {
 	print outfile;
     }
@@ -151,18 +115,28 @@ sub gen_ascii {
 }
 
 #
-# Generate Postscript output using groff (this is suboptimal
-# for printed output!)
+# Generate something from roff output
 #
 
-sub gen_ps {
-    &sgmlparse(infile, "grops");
-    open(outfile, "| groff -T ps -t -ms > $fileroot.ps");
+sub do_groff {
+    local($driver, $postproc) = @_;
+    open (outfile, ">$fileroot.trf");
+    &sgmlparse(infile, "roff");
     while (<infile>) {
 	print outfile;
     }
     close(infile);
     close(outfile);
+    system("groff -T ${driver} -t ${fileroot}.trf ${postproc} > ${fileroot}.${driver}");
+
+    # If foo.tmp has been created, then there are cross references
+    # in the file and we need a second pass to resolve them correctly.
+
+    if (stat("${fileroot}.tmp")) {
+        system("groff -T ${driver} -t ${fileroot}.trf ${postproc} > ${fileroot}.${driver}");
+    	unlink("${fileroot}.qrf");
+    }
+    unlink("${fileroot}.trf");
 }
 
 #
@@ -170,7 +144,7 @@ sub gen_ps {
 #
 
 sub gen_latex {
-    open(outfile, ">$fileroot.tex");
+    open(outfile, ">$fileroot.latex");
     &sgmlparse(infile, "latex");
     while (<infile>) {
 	print outfile;
@@ -544,29 +518,13 @@ sub html2html {
 	      last tagsw;
 	  }
 	  if (s/^<\@\@endref>//) {
-#	      $text[$st_ol[$sc]] .= "</A>";
+	      $text[$st_ol[$sc]] .= "</A>";
 	      last tagsw;
 	  }
 	  if (s/^<\@\@refnam>//) {
-	      $text[$st_ol[$sc]] .= "$refname</A>";
+	      $text[$st_ol[$sc]] .= "$refname";
 	      last tagsw;
 	  }
-	  # URLs
-	  if (s/^<\@\@url>//) {
-	      chop;
-	      $urlname = $_;
-	      $text[$st_ol[$sc]] .= "<A HREF=\"$urlname\">";
-	      last tagsw;
-	  }
-	  if (s/^<\@\@urlnam>//) {
-	      $text[$st_ol[$sc]] .= "$urlname</A>";
-	      last tagsw;
-	  }
-	  if (s/^<\@\@endurl>//) {
-#	      $text[$st_ol[$sc]] .= "</A>";
-	      last tagsw;
-	  }
-	  
 
 	  # If nothing else did anything with this line, just print it.
 	  $text[$st_ol[$sc]] .= "$_";
@@ -690,23 +648,25 @@ sub main {
 
     # Generate output
     if ($opt_f eq 'html') {
-	print "generating $fileroot.html";
-	if ($opt_links == 1) {
-	    print " with external links";
-	}
-	print "...\n"; &gen_html(); 
+    	&gen_html(); 
     }
-    elsif ($opt_f eq 'tex' || $opt_f eq 'latex') {
-	print "generating $fileroot.tex...\n"; &gen_latex(); 
+    elsif ($opt_f eq 'latex' || $opt_f eq 'latex') {
+	&gen_latex(); 
     }
-    elsif ($opt_f eq 'nroff') { 
-	print "generating $fileroot.nroff...\n"; &gen_nroff();
+    elsif ($opt_f eq 'roff') { 
+	&gen_roff();
     }
     elsif ($opt_f eq 'ascii') {
-	print "generating $fileroot.ascii...\n"; &gen_ascii(); 
+    	&do_groff("ascii", "| col");
     }
-    elsif ($opt_f eq 'ps') { 
-	print "generating $fileroot.ps...\n"; &gen_ps(); 
+    elsif ($opt_f eq 'latin1') {
+    	&do_groff("latin1", "| col");
+    }
+    elsif ($opt_f eq 'koi8-r') {
+    	&do_groff("koi8-r", "| col");
+    }
+    elsif ($opt_f eq 'ps') {
+    	&do_groff("ps", "");
     }
     else {
 	if ($opt_f eq "") {
