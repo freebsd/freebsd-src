@@ -21,6 +21,9 @@ static char rcsid[] = "$FreeBSD$";
  * exponentiation or a multiplication.
  */
 
+#include <sys/cdefs.h>
+#include <float.h>
+
 #include "math.h"
 #include "math_private.h"
 
@@ -56,3 +59,8 @@ scalbn (double x, int n)
 	SET_HIGH_WORD(x,(hx&0x800fffff)|(k<<20));
         return x*twom54;
 }
+
+#if (LDBL_MANT_DIG == 53)
+__strong_reference(scalbn, ldexpl);
+__strong_reference(scalbn, scalbnl);
+#endif
