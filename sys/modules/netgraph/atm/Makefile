@@ -1,7 +1,8 @@
 # $FreeBSD$
 
-SUBDIR=	\
-	atm
+SUBDIR=			\
+	atm 		\
+	atmpif
 
 .include <bsd.subdir.mk>
 
