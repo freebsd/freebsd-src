@@ -15,7 +15,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.77.2.3 1999/08/24 15:53:53 iwasaki Exp $
+ *	$Id: apm.c,v 1.77.2.4 1999/08/24 15:56:44 iwasaki Exp $
  */
 
 #include "opt_devfs.h"
@@ -1075,6 +1075,13 @@ apmattach(struct isa_device *dvp)
 	sc->ds_limit = apm_ds_limit - 1;
 	sc->cs_entry = apm_cs_entry;
 
+	if (!(dvp->id_flags & 0x40)) {
+		/* Don't trust the segment limits that the BIOS reports. */
+		sc->cs32_limit = 0xffff;
+		sc->cs16_limit = 0xffff;
+		sc->ds_limit   = 0xffff;
+	}
+
 	/* Always call HLT in idle loop */
 	sc->always_halt_cpu = 1;
 
@@ -1177,8 +1184,6 @@ apmattach(struct isa_device *dvp)
 
         apm_hook_establish(APM_HOOK_SUSPEND, &sc->sc_suspend);
         apm_hook_establish(APM_HOOK_RESUME , &sc->sc_resume);
-
-	apm_event_enable();
 
 	/* Power the system off using APM */
 	at_shutdown_pri(apm_power_off, NULL, SHUTDOWN_FINAL, SHUTDOWN_PRI_LAST);

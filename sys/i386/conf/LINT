@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.539.2.32 1999/08/24 16:42:15 chris Exp $
+#	$Id: LINT,v 1.539.2.33 1999/08/26 19:39:38 ken Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1367,9 +1367,12 @@ device pca0 at isa? port "IO_TIMER1" tty
 #
 # Notes on APM
 #  The flags takes the following meaning for apm0:
+#    0x0040  Use the segment limits that the BIOS reports.
 #    0x0020  Statclock is broken.
 #    0x0011  Limit APM protocol to 1.1 or 1.0
 #    0x0010  Limit APM protocol to 1.0
+#  If `options VM86' is set, V86 mode is used in APM initialization
+#  instead of real mode.  VM86 is recommended if you want to use APM.
 #
 #
 # Notes on the spigot:
