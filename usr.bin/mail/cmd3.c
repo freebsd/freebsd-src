@@ -336,7 +336,7 @@ messize(msgvec)
 	for (ip = msgvec; *ip != 0; ip++) {
 		mesg = *ip;
 		mp = &message[mesg-1];
-		printf("%d: %d/%ld\n", mesg, mp->m_lines, mp->m_size);
+		printf("%d: %ld/%ld\n", mesg, mp->m_lines, mp->m_size);
 	}
 	return(0);
 }

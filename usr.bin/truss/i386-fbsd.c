@@ -31,7 +31,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: i386-fbsd.c,v 1.4 1998/01/09 00:39:07 sef Exp $";
+	"$Id: i386-fbsd.c,v 1.5 1998/01/09 09:31:40 sef Exp $";
 #endif /* not lint */
 
 /*
@@ -269,7 +269,7 @@ i386_syscall_exit(int pid, int syscall) {
   if (!sc) {
     for (i = 0; i < fsc.nargs; i++) {
       fsc.s_args[i] = malloc(12);
-      sprintf(fsc.s_args[i], "0x%x", fsc.args[i]);
+      sprintf(fsc.s_args[i], "0x%lx", fsc.args[i]);
     }
   } else {
     /*
@@ -285,7 +285,7 @@ i386_syscall_exit(int pid, int syscall) {
 	 */
 	if (errorp) {
 	  temp = malloc(12);
-	  sprintf(temp, "0x%x", fsc.args[sc->args[i].offset]);
+	  sprintf(temp, "0x%lx", fsc.args[sc->args[i].offset]);
 	} else {
 	  temp = print_arg(Procfd, &sc->args[i], fsc.args);
 	}
