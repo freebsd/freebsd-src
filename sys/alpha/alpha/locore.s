@@ -140,6 +140,7 @@
 
 	END(locorestart)
 
+#ifdef SMP
 	/*
 	 * Secondary processors start executing here. They will have their
 	 * unique value set to point at the per-cpu structure and will 
@@ -175,6 +176,7 @@
 	call_pal PAL_halt
 		
 	END(smp_init_secondary_glue)
+#endif
 		
 /**************************************************************************/
 
