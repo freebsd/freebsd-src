@@ -145,6 +145,11 @@
       is no longer needed when only a USB keyboard is connected.
       &merged;</para>
 
+    <para arch="i386">The DRM kernel modules have been updated from
+      DRI CVS as of 9 September 2003.  Among other changes, this
+      import includes a newly-ported SiS 300/305/540/630/730
+      driver.</para>
+
     <para arch="sparc64">A new OFW PCI framework, conditional on the
       <literal>OFW_NEWPCI</literal> kernel configuration option, has
       been added.  This addition improves the handling of PCI busses.
@@ -240,6 +245,13 @@
 	for the RealTek RTL8139C+, RTL8169, RTL8169S and RTL8110S PCI
 	Fast Ethernet and Gigabit Ethernet controllers.</para>
 
+      <para>The &man.uart.4; driver has been added to support various
+	classes of UART (Universal Asynchronous Receiver/Transmitter)
+	devices.  It is an analog of the &man.sio.4; driver but
+	supports a wider range of devices.  This driver is necessary
+	to support serial ports on certain architectures, such as
+	ia64 and sparc64.</para>
+
       <para>The suspend/resume support for the &man.wi.4; driver
         now works correctly when the device is configured down.
         &merged;</para>
@@ -289,6 +301,14 @@
 
     <sect3 id="disks">
       <title>Disks and Storage</title>
+
+      <para>A major rework of the &man.ata.4; driver has been
+	committed.  One of the more notable changes is that the
+	&man.ata.4; driver has now out from under the Giant kernel
+	lock.  Note that ATA software RAID systems must now include
+	<literal>device ataraid</literal> in their kernel
+	configuration files, as it is no longer automatically implied
+	by <literal>device atadisk</literal>.</para>
 
       <para>&man.ccd.4; can now operate on raw disks and other
 	&man.geom.4; providers.</para>
@@ -418,6 +438,20 @@
     <para>A bug that &man.rarpd.8; does not recognize removable Ethernet NICs
       has been fixed.</para>
 
+    <para>&man.rtld.1; now includes <quote>libmap</quote>
+      functionality by default; the <varname>WITH_LIBMAP</varname>
+      compile knob is unnecessary and has been retired.  More
+      information can be found in &man.libmap.conf.5;.</para>
+
+    <para>The symorder utility has been removed.  It is unnecessary
+      now that all kernels use ELF format and there is no a.out format
+      toolchain.</para>
+
+    <para>&man.sysinstall.8; now gives the ability to select an
+      alternate MTA during installation.  Currently,
+      <application>exim</application> and
+      <application>Postfix</application> are supported.</para>
+
     <para>&man.systat.1; now includes displays for IPv6 and ICMPv6
       traffic. &merged;</para>
 
@@ -471,6 +505,15 @@
 	  <literal>CPUTYPE=p4</literal> has been removed.</para>
       </note>
       </para>
+
+    <para>The <application>GCC</application> <option>-pthread</option>
+      option, which formerly controlled linking of the threading
+      library, has been removed.  This flag is confusing in the
+      presence of multiple threading libraries (specifically
+      <filename>libc_r</filename>, <filename>libkse</filename>, and
+      <filename>libthr</filename>.  Ports should use the
+      <varname>PTHREAD_LIBS</varname> variable to select the correct
+      threading library.</para>
 
     <para><application>GNU Readline</application> has been updated
       from 4.2 to 4.3.</para>
