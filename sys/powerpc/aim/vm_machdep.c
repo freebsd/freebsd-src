@@ -253,7 +253,6 @@ cpu_exit(p)
 {
 	alpha_fpstate_drop(p);
 
-	(void) splhigh();
 	mtx_enter(&sched_lock, MTX_SPIN);
 	mtx_exit(&Giant, MTX_DEF | MTX_NOSWITCH);
 	mtx_assert(&Giant, MA_NOTOWNED);
