@@ -2,7 +2,7 @@
  * Written by grefen@convex.com (probably moved by now)
  * Based on scsi drivers by Julian Elischer (julian@tfs.com)
  *
- *      $Id: ch.c,v 1.22 1995/11/20 12:42:27 phk Exp $
+ *      $Id: ch.c,v 1.23 1995/11/29 10:48:56 julian Exp $
  */
 
 #include	<sys/types.h>
@@ -536,8 +536,8 @@ static void 	ch_drvinit(void *unused)
 /*	path	name	devsw		minor	type   uid gid perm*/
 	"/",	"ch",	major(dev),	0,	DV_CHR,	0,  0, 0600);
 		}
-    	}
 #endif
+    	}
 }
 
 SYSINIT(chdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,ch_drvinit,NULL)

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_swap.c	8.5 (Berkeley) 2/17/94
- * $Id: vm_swap.c,v 1.25 1995/11/20 12:19:14 phk Exp $
+ * $Id: vm_swap.c,v 1.26 1995/11/29 10:49:16 julian Exp $
  */
 
 #include <sys/param.h>
@@ -296,8 +296,8 @@ static void 	sw_drvinit(void *unused)
 			x=devfs_add_devsw(
 	"/",	"sw",	major(dev),	0,	DV_BLK,	0,  0, 0600);
 		}
-    	}
 #endif
+    	}
 }
 
 SYSINIT(swdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,sw_drvinit,NULL)

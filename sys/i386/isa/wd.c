@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.93 1995/11/28 09:42:03 julian Exp $
+ *	$Id: wd.c,v 1.94 1995/11/29 10:48:01 julian Exp $
  */
 
 /* TODO:
@@ -2158,8 +2158,8 @@ static void 	wd_drvinit(void *unused)
 			x=devfs_add_devsw(
 	"/",	"wd",	major(dev),	0,	DV_BLK,	0,  0, 0600);
 		}
-    	}
 #endif
+    	}
 }
 
 SYSINIT(wddev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,wd_drvinit,NULL)

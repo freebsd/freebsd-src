@@ -42,7 +42,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.106 1995/11/11 05:10:48 bde Exp $
+ *	$Id: conf.c,v 1.107 1995/11/29 12:38:29 julian Exp $
  */
 
 #include <sys/param.h>
@@ -60,9 +60,9 @@
 #define NUMBDEV 32
 
 struct bdevsw	bdevsw[NUMBDEV];
-int	nblkdev = NUMBDEV
+int	nblkdev = NUMBDEV;
 struct cdevsw	cdevsw[NUMCDEV];
-int	nchrdev = NUMCDEV
+int	nchrdev = NUMCDEV;
 
 #else /*JREMOD*/
 /* Bogus defines for compatibility. */

@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: soundcard.c,v 1.32 1995/11/29 01:07:52 jkh Exp $
+ * $Id: soundcard.c,v 1.33 1995/11/29 10:48:16 julian Exp $
  */
 
 #include "sound_config.h"
@@ -509,8 +509,8 @@ static void 	snd_drvinit(void *unused)
 /*	path	name	devsw		minor	type   uid gid perm*/
 	"/",	"snd",	major(dev),	0,	DV_CHR,	0,  0, 0600);
 		}
-    	}
 #endif
+    	}
 }
 
 SYSINIT(snddev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,snd_drvinit,NULL)

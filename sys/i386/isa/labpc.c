@@ -1131,8 +1131,8 @@ static void 	labpc_drvinit(void *unused)
 /*	path	name	devsw		minor	type   uid gid perm*/
 	"/",	"labpc",	major(dev),	0,	DV_CHR,	0,  0, 0600);
 		}
-    	}
 #endif
+    	}
 }
 
 SYSINIT(labpcdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,labpc_drvinit,NULL)

@@ -2,13 +2,14 @@
  * Driver for a device we can't identify.
  * by Julian Elischer (julian@tfs.com)
  *
- *      $Id: uk.c,v 1.9 1995/05/30 08:13:56 rgrimes Exp $
+ *      $Id: uk.c,v 1.10 1995/11/29 10:49:07 julian Exp $
  *
  * If you find that you are adding any code to this file look closely
  * at putting it in "scsi_driver.c" instead.
  */
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <scsi/scsi_all.h>
 #include <scsi/scsiconf.h>
 #ifdef JREMOD
@@ -70,8 +71,8 @@ static void 	uk_drvinit(void *unused)
 /*	path	name	devsw		minor	type   uid gid perm*/
 	"/",	"uk",	major(dev),	0,	DV_CHR,	0,  0, 0600);
 		}
-    	}
 #endif
+    	}
 }
 
 SYSINIT(ukdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,uk_drvinit,NULL)

@@ -630,8 +630,8 @@ static void 	vn_drvinit(void *unused)
 			x=devfs_add_devsw(
 	"/",	"vn",	major(dev),	0,	DV_BLK,	0,  0, 0600);
 		}
-    	}
 #endif
+    	}
 }
 
 SYSINIT(vndev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,vn_drvinit,NULL)

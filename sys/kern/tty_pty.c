@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_pty.c	8.2 (Berkeley) 9/23/93
- * $Id: tty_pty.c,v 1.24 1995/11/04 13:24:55 bde Exp $
+ * $Id: tty_pty.c,v 1.25 1995/11/29 10:48:28 julian Exp $
  */
 
 /*
@@ -768,7 +768,6 @@ static void 	ptc_drvinit(void *unused)
 	if( ! ptc_devsw_installed ) {
 		dev = makedev(CDEV_MAJOR_S,0);
 		cdevsw_add(&dev,&pts_cdevsw,NULL);
-		pts_devsw_installed = 1;
 		dev_c = makedev(CDEV_MAJOR_C,0);
 		cdevsw_add(&dev_c,&ptc_cdevsw,NULL);
 		ptc_devsw_installed = 1;
@@ -778,17 +777,18 @@ static void 	ptc_drvinit(void *unused)
 #undef NPTY
 #define NPTY MAXUNITS
 #endif
-	for ( i = 0 ; i<NPTY ; i++ ) {
-		int x;
+		for ( i = 0 ; i<NPTY ; i++ ) {
+			int x;
 
-		j = i / 16;
-		k = i % 16;
-		sprintf(devname,"pty%c%c",jnames[j],knames[k]);
-		x=devfs_add_devsw("/",devname,major(dev_c),0,DV_CHR,0,0,0600);
-		sprintf(devname,"tty%c%c",jnames[j],knames[k]);
-		x=devfs_add_devsw("/",devname,major(dev),0,DV_CHR,0,0,0600);
-    	}
+			j = i / 16;
+			k = i % 16;
+			sprintf(devname,"pty%c%c",jnames[j],knames[k]);
+			x=devfs_add_devsw("/",devname,major(dev_c),0,DV_CHR,0,0,0600);
+			sprintf(devname,"tty%c%c",jnames[j],knames[k]);
+			x=devfs_add_devsw("/",devname,major(dev),0,DV_CHR,0,0,0600);
+		}
 #endif
+    	}
 }
 
 SYSINIT(ptcdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR_C,ptc_drvinit,NULL)
