@@ -3,7 +3,7 @@
  * SCSI controllers.  This is used to implement product specific
  * probe and attach routines.
  *
- * Copyright (c) 1994, 1995, 1996 Justin T. Gibbs.
+ * Copyright (c) 1994, 1995, 1996, 1997 Justin T. Gibbs.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7xxx.h,v 1.10.2.10 1996/06/08 07:10:48 gibbs Exp $
+ *	$Id: aic7xxx.h,v 1.10.2.11 1996/10/06 16:42:25 gibbs Exp $
  */
 
 #ifndef _AIC7XXX_H_
@@ -55,31 +55,19 @@
 #define	stqe_next		sqe_next
 #endif
 
-#if defined(__FreeBSD__)
-#define	AHC_INB(ahc, port)	\
-	inb((ahc)->baseport+(port))
-#define	AHC_INSB(ahc, port, valp, size)	\
-	insb((ahc)->baseport+(port), valp, size)
-#define	AHC_OUTB(ahc, port, val)	\
-	outb((ahc)->baseport+(port), val)
-#define	AHC_OUTSB(ahc, port, valp, size)	\
-	outsb((ahc)->baseport+(port), valp, size)
-#define	AHC_OUTSL(ahc, port, valp, size)	\
-	outsl((ahc)->baseport+(port), valp, size)
-#elif defined(__NetBSD__)
-#define	AHC_INB(ahc, port)	\
-	bus_io_read_1((ahc)->sc_bc, (ahc)->sc_ioh, port)
-#define	AHC_INSB(ahc, port, valp, size)	\
-	bus_io_read_multi_1((ahc)->sc_bc, (ahc)->sc_ioh, port, valp, size)
-#define	AHC_OUTB(ahc, port, val)	\
-	bus_io_write_1((ahc)->sc_bc, (ahc)->sc_ioh, port, val)
-#define	AHC_OUTSB(ahc, port, valp, size)	\
-	bus_io_write_multi_1((ahc)->sc_bc, (ahc)->sc_ioh, port, valp, size)
-#define	AHC_OUTSL(ahc, port, valp, size)	\
-	bus_io_write_multi_4((ahc)->sc_bc, (ahc)->sc_ioh, port, valp, size)
-#endif
-
-#define	AHC_NSEG	256	/* number of dma segments supported */
+#define AHC_NSEG	32	/* The number of dma segments supported.
+				 * AHC_NSEG can be maxed out at 256 entries,
+				 * but the kernel will never need to transfer
+				 * such a large (1MB) request.  To reduce the
+				 * driver's memory consumption, we reduce the
+				 * max to 32.  16 would work if all transfers
+				 * are paged alined since the kernel will only
+				 * generate at most a 64k transfer, but to
+				 * handle non-page aligned transfers, you need
+				 * 17, so we round to the next power of two
+				 * to make allocating SG space easy and
+				 * efficient.
+				 */
 
 #define AHC_SCB_MAX	255	/*
 				 * Up to 255 SCBs on some types of aic7xxx
@@ -101,23 +89,28 @@ struct ahc_dma_seg {
 };
 
 typedef enum {
-	AHC_NONE	= 0x000,
-	AHC_ULTRA	= 0x001,	/* Supports 20MHz Transfers */
-	AHC_WIDE  	= 0x002,	/* Wide Channel */
-	AHC_TWIN	= 0x008,	/* Twin Channel */
-	AHC_AIC7770	= 0x010,
-	AHC_AIC7850	= 0x020,
-	AHC_AIC7860	= 0x021,	/* ULTRA version of the aic7850 */
-	AHC_AIC7870	= 0x040,
-	AHC_AIC7880	= 0x041,
-	AHC_AIC78X0	= 0x060,	/* PCI Based Controller */
-	AHC_274		= 0x110,	/* EISA Based Controller */
-	AHC_284		= 0x210,	/* VL/ISA Based Controller */
-	AHC_294AU	= 0x421,	/* aic7860 based '2940' */
-	AHC_294		= 0x440,	/* PCI Based Controller */
-	AHC_294U	= 0x441,	/* ULTRA PCI Based Controller */
-	AHC_394		= 0x840,	/* Twin Channel PCI Controller */
-	AHC_394U	= 0x841,	/* Twin, ULTRA Channel PCI Controller */
+	AHC_NONE	= 0x0000,
+	AHC_ULTRA	= 0x0001,	/* Supports 20MHz Transfers */
+	AHC_WIDE  	= 0x0002,	/* Wide Channel */
+	AHC_TWIN	= 0x0008,	/* Twin Channel */
+	AHC_AIC7770	= 0x0010,
+	AHC_AIC7850	= 0x0020,
+	AHC_AIC7860	= 0x0021,	/* ULTRA version of the aic7850 */
+	AHC_AIC7870	= 0x0040,
+	AHC_AIC7880	= 0x0041,
+	AHC_AIC78X0	= 0x0060,	/* PCI Based Controller */
+	AHC_274		= 0x0110,	/* EISA Based Controller */
+	AHC_284		= 0x0210,	/* VL/ISA Based Controller */
+	AHC_294AU	= 0x0421,	/* aic7860 based '2940' */
+	AHC_294		= 0x0440,	/* PCI Based Controller */
+	AHC_294U	= 0x0441,	/* ULTRA PCI Based Controller */
+	AHC_394		= 0x0840,	/* Twin Channel PCI Controller */
+	AHC_394U	= 0x0841,	/* ULTRA, Twin Channel PCI Controller */
+	AHC_398		= 0x1040,	/* Multi Channel PCI RAID Controller */
+	AHC_398U	= 0x1041,	/* ULTRA, Multi Channel PCI
+					 * RAID Controller
+					 */
+	AHC_39X		= 0x1800	/* Multi Channel PCI Adapter */
 }ahc_type;
 
 typedef enum {
@@ -137,11 +130,16 @@ typedef enum {
 					 * settings.
 					 */
 	AHC_CHNLB		= 0x20,	/* 
-					 * Second controller on 3940 
+					 * Second controller on 3940/398X 
 					 * Also encodes the offset in the
 					 * SEEPROM for CHNLB info (32)
 					 */
-}ahc_flag;
+	AHC_CHNLC               = 0x40  /*
+					 * Third controller on 3985
+					 * Also encodes the offset in the
+					 * SEEPROM for CHNLC info (64)
+					 */
+} ahc_flag;
 
 typedef enum {
 	SCB_FREE		= 0x0000,
@@ -157,53 +155,84 @@ typedef enum {
 	SCB_ASSIGNEDQ		= 0x0200,
 	SCB_SENTORDEREDTAG	= 0x0400,
 	SCB_MSGOUT_SDTR		= 0x0800,
-	SCB_MSGOUT_WDTR		= 0x1000
-}scb_flag;
+	SCB_MSGOUT_WDTR		= 0x1000,
+	SCB_ABORT		= 0x2000
+} scb_flag;
 
 /*
- * The driver keeps up to MAX_SCB scb structures per card in memory.  Only the
- * first 28 bytes of the structure need to be transfered to the card during
- * normal operation.  The fields starting at byte 28 are used for kernel level
- * bookkeeping.  
+ * The driver keeps up to MAX_SCB scb structures per card in memory.  The SCB
+ * consists of a "hardware SCB" mirroring the fields availible on the card
+ * and additional information the kernel stores for each transaction.
  */
-struct scb {
-/* ------------    Begin hardware supported fields    ---------------- */
-/*0*/   u_char control;
-/*1*/	u_char tcl;		/* 4/1/3 bits */
-/*2*/	u_char status;
-/*3*/	u_char SG_segment_count;
-/*4*/	physaddr SG_list_pointer;
-/*8*/	u_char residual_SG_segment_count;
-/*9*/	u_char residual_data_count[3];
-/*12*/	physaddr data;
-/*16*/  u_int32_t datalen;		/* Really only three bits, but its
+struct hardware_scb {
+/*0*/   u_int8_t  control;
+/*1*/	u_int8_t  tcl;		/* 4/1/3 bits */
+/*2*/	u_int8_t  status;
+/*3*/	u_int8_t  SG_segment_count;
+/*4*/	physaddr  SG_list_pointer;
+/*8*/	u_int8_t  residual_SG_segment_count;
+/*9*/	u_int8_t  residual_data_count[3];
+/*12*/	physaddr  data;
+/*16*/	u_int32_t datalen;		/* Really only three bits, but its
 					 * faster to treat it as a long on
 					 * a quad boundary.
 					 */
-/*20*/	physaddr cmdpointer;
-/*24*/	u_char cmdlen;
-/*25*/	u_char tag;			/* Index into our kernel SCB array.
+/*20*/	physaddr  cmdpointer;
+/*24*/	u_int8_t  cmdlen;
+/*25*/	u_int8_t  tag;			/* Index into our kernel SCB array.
 					 * Also used as the tag for tagged I/O
 					 */
 #define SCB_PIO_TRANSFER_SIZE	26 	/* amount we need to upload/download
 					 * via PIO to initialize a transaction.
 					 */
-/*26*/	u_char next;			/* Used for threading SCBs in the
+/*26*/	u_int8_t  next;			/* Used for threading SCBs in the
 					 * "Waiting for Selection" and
 					 * "Disconnected SCB" lists down
 					 * in the sequencer.
 					 */
-/*27*/	u_char prev;
-/*-----------------end of hardware supported fields----------------*/
-	STAILQ_ENTRY(scb)	links;	/* for chaining */
-	struct scsi_xfer *xs;	/* the scsi_xfer for this cmd */
-	scb_flag flags;
-	u_char	position;	/* Position in card's scbarray */
-	struct ahc_dma_seg ahc_dma[AHC_NSEG] __attribute__ ((packed));
-	struct scsi_sense sense_cmd;	/* SCSI command block */
+/*27*/	u_int8_t  prev;
+
+/*28*/	u_int32_t pad;			/*
+					 * Unused by the kernel, but we require
+					 * the padding so that the array of
+					 * hardware SCBs is alligned on 32 byte
+					 * boundaries so the sequencer can
+					 * index them easily.
+					 */
 };
 
-struct ahc_data {
+struct scb {
+	struct	hardware_scb	*hscb;
+	STAILQ_ENTRY(scb)	links;	 /* for chaining */
+	struct	scsi_xfer	*xs;	 /* the scsi_xfer for this cmd */
+	scb_flag		flags;
+	struct	ahc_dma_seg 	*ahc_dma;/* Pointer to SG segments */
+	struct	scsi_sense	sense_cmd;
+	u_int8_t		sg_count;/* How full ahc_dma_seg is */
+	u_int8_t		position;/* Position in card's scbarray */
+};
+
+struct scb_data {
+	struct	hardware_scb	*hscbs;	    /* Array of hardware SCBs */
+	struct	scb *scbarray[AHC_SCB_MAX]; /* Array of kernel SCBs */
+	STAILQ_HEAD(, scb) free_scbs;	/*
+					 * Pool of SCBs ready to be assigned
+					 * commands to execute.
+					 */
+	u_int8_t	numscbs;
+	u_int8_t	maxhscbs;	/* Number of SCBs on the card */
+	u_int8_t	maxscbs;	/*
+					 * Max SCBs we allocate total including
+					 * any that will force us to page SCBs
+					 */
+};
+
+struct ahc_busreset_args {
+	struct	ahc_softc *ahc;
+	char	bus;
+};
+
+struct ahc_softc {
 #if defined(__FreeBSD__)
 	int	unit;
 #elif defined(__NetBSD__)
@@ -215,54 +244,58 @@ struct ahc_data {
 	ahc_type type;
 	ahc_flag flags;
 #if defined(__FreeBSD__)
-	u_long	baseport;
+	u_int32_t	baseport;
 #endif
-	struct	scb *scbarray[AHC_SCB_MAX]; /* Mirror boards scbarray */
-	struct	scb *pagedout_ntscbs[16];/* 
-					  * Paged out, non-tagged scbs
-					  * indexed by target.
-					  */
-	STAILQ_HEAD(, scb) free_scbs;	/*
-					 * SCBs assigned to free slots
-					 * on the card. (no paging required)
-					 */
-	STAILQ_HEAD(, scb) page_scbs;	/*
-					 * SCBs that will require paging
-					 * before use (no assigned slot)
-					 */
-	STAILQ_HEAD(, scb) waiting_scbs;/*
-					 * SCBs waiting to be paged in
-					 * and started.
-					 */
-	STAILQ_HEAD(, scb)assigned_scbs;/*
-					 * SCBs that were waiting but have
-					 * now been assigned a slot by
-					 * ahc_free_scb.
-					 */
+	volatile u_int8_t *maddr;
+	struct	scb_data *scb_data;
+	struct	ahc_busreset_args	busreset_args;
+	struct	ahc_busreset_args	busreset_args_b;
 	struct	scsi_link sc_link;
 	struct	scsi_link sc_link_b;	/* Second bus for Twin channel cards */
-	u_short	needsdtr_orig;		/* Targets we initiate sync neg with */
-	u_short	needwdtr_orig;		/* Targets we initiate wide neg with */
-	u_short	needsdtr;		/* Current list of negotiated targets */
-	u_short needwdtr;		/* Current list of negotiated targets */
-	u_short sdtrpending;		/* Pending SDTR to these targets */
-	u_short wdtrpending;		/* Pending WDTR to these targets */
-	u_short	tagenable;		/* Targets that can handle tagqueing */
-	u_short	orderedtag;		/* Targets to use ordered tag on */
-	u_short	discenable;		/* Targets allowed to disconnect */
-	u_char	our_id;			/* our scsi id */
-	u_char	our_id_b;		/* B channel scsi id */
-	u_char	numscbs;
-	u_char	activescbs;
-	u_char  maxhscbs;		/* Number of SCBs on the card */
-	u_char	maxscbs;		/*
-					 * Max SCBs we allocate total including
-					 * any that will force us to page SCBs
+	STAILQ_HEAD(, scb) waiting_scbs;/*
+					 * SCBs waiting ready to go but
+					 * waiting for space in the QINFIFO.
 					 */
-	u_char	qcntmask;
-	u_char	unpause;
-	u_char	pause;
-	u_char	in_timeout;
+	u_int8_t	activescbs;
+	u_int16_t	needsdtr_orig;	/* Targets we initiate sync neg with */
+	u_int16_t	needwdtr_orig;	/* Targets we initiate wide neg with */
+	u_int16_t	needsdtr;	/* Current list of negotiated targets */
+	u_int16_t	needwdtr;	/* Current list of negotiated targets */
+	u_int16_t	sdtrpending;	/* Pending SDTR to these targets */
+	u_int16_t	wdtrpending;	/* Pending WDTR to these targets */
+	u_int16_t	tagenable;	/* Targets that can handle tags */
+	u_int16_t	orderedtag;	/* Targets to use ordered tag on */
+	u_int16_t	discenable;	/* Targets allowed to disconnect */
+	u_int8_t	our_id;		/* our scsi id */
+	u_int8_t	our_id_b;	/* B channel scsi id */
+	u_int8_t	qcntmask;	/*
+					 * Mask of valid registers in the
+					 * Q*CNT registers.
+					 */
+	u_int8_t	qfullcount;	/*
+					 * The maximum number of entries
+					 * storable in the Q*FIFOs.
+					 */
+	u_int8_t	curqincnt;	/*
+					 * The current value we "think" the
+					 * QINCNT has.  The reason it is
+					 * "think" is that this is a cached
+					 * value that is only updated when
+					 * curqincount == qfullcount to reduce
+					 * the amount of accesses made to the
+					 * card.
+					 */
+	u_int8_t	unpause;
+	u_int8_t	pause;
+	u_int8_t	in_timeout;
+	u_int8_t	in_reset;
+#define CHANNEL_A_RESET		0x01
+#define CHANNEL_B_RESET		0x02
+};
+
+struct full_ahc_softc {
+	struct ahc_softc softc;
+	struct scb_data  scb_data_storage;
 };
 
 /* #define AHC_DEBUG */
@@ -279,27 +312,86 @@ extern int ahc_debug; /* Initialized in i386/scsi/aic7xxx.c */
 #endif
 
 #if defined(__FreeBSD__)
-
 extern int bootverbose;
 
-char *ahc_name __P((struct ahc_data *ahc));
+char *ahc_name __P((struct ahc_softc *ahc));
 
-void ahc_reset __P((u_long iobase));
-struct ahc_data *ahc_alloc __P((int unit, u_long io_base, ahc_type type, ahc_flag flags));
+struct ahc_softc *ahc_alloc __P((int unit, u_int32_t io_base,
+				 vm_offset_t maddr, ahc_type type,
+				 ahc_flag flags, struct scb_data *scb_data));
 #elif defined(__NetBSD__)
 
 #define	ahc_name(ahc)	(ahc)->sc_dev.dv_xname
 
-void ahc_reset __P((char *devname, bus_chipset_tag_t bc, bus_io_handle_t ioh));
-void ahc_construct __P((struct ahc_data *ahc, bus_chipset_tag_t bc, bus_io_handle_t ioh, ahc_type type, ahc_flag flags));
+void ahc_construct __P((struct ahc_softc *ahc, bus_chipset_tag_t bc, bus_io_handle_t ioh, ahc_type type, ahc_flag flags));
 #endif
-void ahc_free __P((struct ahc_data *));
-int ahc_init __P((struct ahc_data *));
-int ahc_attach __P((struct ahc_data *));
+void ahc_reset __P((struct ahc_softc *ahc));
+void ahc_free __P((struct ahc_softc *));
+int ahc_init __P((struct ahc_softc *));
+int ahc_attach __P((struct ahc_softc *));
 #if defined(__FreeBSD__)
 void ahc_intr __P((void *arg));
 #elif defined(__NetBSD__)
 int ahc_intr __P((void *arg));
+#endif
+
+#if defined(__FreeBSD__)
+static __inline u_int8_t ahc_inb __P((struct ahc_softc *ahc, u_int32_t port));
+static __inline void ahc_outb __P((struct ahc_softc *ahc, u_int32_t port,
+				   u_int8_t val));
+static __inline void ahc_outsb __P((struct ahc_softc *ahc, u_int32_t port,
+				     u_int8_t *valp, size_t size));
+
+static __inline u_int8_t
+ahc_inb(ahc, port)
+	struct ahc_softc *ahc;
+	u_int32_t port;
+{
+	if (ahc->maddr != NULL)
+		return ahc->maddr[port];
+	else
+		return inb(ahc->baseport + port);
+}
+
+static __inline void
+ahc_outb(ahc, port, val)
+	struct ahc_softc *ahc;
+	u_int32_t port;
+	u_int8_t val;
+{
+	if (ahc->maddr != NULL)
+		ahc->maddr[port] = val;
+	else
+		outb(ahc->baseport + port, val);
+}
+
+static __inline void
+ahc_outsb(ahc, port, valp, size)
+	struct ahc_softc *ahc;
+	u_int32_t port;
+	u_int8_t *valp;
+	size_t size;
+{
+	if (ahc->maddr != NULL) {
+		__asm __volatile("
+			cld;
+		1:	lodsb;
+			movb %%al,(%0);
+			loop 1b"			:
+							:
+			"r" ((ahc)->maddr + (port)),
+			"S" ((valp)), "c" ((size))	:
+			"%esi", "%ecx", "%eax");
+	} else
+		outsb(ahc->baseport + port, valp, size);
+}
+#elif defined(__NetBSD__)
+#define	ahc_inb(ahc, port)	\
+	bus_io_read_1((ahc)->sc_bc, (ahc)->sc_ioh, port)
+#define	ahc_outb(ahc, port, val)	\
+	bus_io_write_1((ahc)->sc_bc, (ahc)->sc_ioh, port, val)
+#define	ahc_outsb(ahc, port, valp, size)	\
+	bus_io_write_multi_1((ahc)->sc_bc, (ahc)->sc_ioh, port, valp, size)
 #endif
 
 #endif  /* _AIC7XXX_H_ */
