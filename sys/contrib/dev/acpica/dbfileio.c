@@ -2,7 +2,7 @@
  *
  * Module Name: dbfileio - Debugger file I/O commands.  These can't usually
  *              be used when running the debugger in Ring 0 (Kernel mode)
- *              $Revision: 68 $
+ *              $Revision: 69 $
  *
  ******************************************************************************/
 
@@ -329,6 +329,10 @@ AcpiDbLoadTable(
     Actual = fread (AmlStart, 1, (size_t) AmlLength, fp);
     if (Actual == AmlLength)
     {
+        /* Now validate the checksum */
+
+        Status = AcpiTbVerifyTableChecksum (*TablePtr);
+
         return (AE_OK);
     }
 
@@ -417,6 +421,18 @@ AeLocalLoadTable (
 
 
 #ifdef ACPI_APPLICATION
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiDbGetAcpiTable
+ *
+ * PARAMETERS:  Filname         - File where table is located
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Get an ACPI table from a file
+ *
+ ******************************************************************************/
+
 ACPI_STATUS
 AcpiDbGetAcpiTable (
     NATIVE_CHAR             *Filename)
@@ -424,6 +440,7 @@ AcpiDbGetAcpiTable (
     FILE                    *fp;
     UINT32                  TableLength;
     ACPI_STATUS             Status;
+
 
     /* Open the file */
 
@@ -450,6 +467,7 @@ AcpiDbGetAcpiTable (
     return (AE_OK);
  }
 #endif
+
 
 /*******************************************************************************
  *
