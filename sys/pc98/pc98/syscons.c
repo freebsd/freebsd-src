@@ -44,6 +44,7 @@
 #include <sys/conf.h>
 #include <sys/proc.h>
 #include <sys/signalvar.h>
+#include <sys/sysctl.h>
 #include <sys/tty.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
@@ -110,6 +111,10 @@ static	void		(*current_saver)(sc_softc_t *, int) = none_saver;
 	d_ioctl_t	*sc_user_ioctl;
 
 static	bios_values_t	bios_value;
+
+static	int		enable_panic_key;
+SYSCTL_INT(_machdep, OID_AUTO, enable_panic_key, CTLFLAG_RW, &enable_panic_key,
+	   0, "");
 
 #define SC_MOUSE 	128
 #define SC_CONSOLECTL	255
@@ -4023,6 +4028,11 @@ next_code:
 #else /* SC_DISABLE_DDBKEY */
 		/* do nothing */
 #endif /* SC_DISABLE_DDBKEY */
+		break;
+
+	    case PNC:
+		if (enable_panic_key)
+			panic("Forced by the panic key");
 		break;
 
 	    case NEXT:
