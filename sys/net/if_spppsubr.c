@@ -3448,8 +3448,8 @@ sppp_pap_input(struct sppp *sp, struct mbuf *m)
 			sppp_print_string((char*)passwd, passwd_len);
 			log(-1, ">\n");
 		}
-		if (name_len > AUTHNAMELEN ||
-		    passwd_len > AUTHKEYLEN ||
+		if (name_len != sppp_strnlen(sp->hisauth.name, AUTHNAMELEN) ||
+		    passwd_len != sppp_strnlen(sp->hisauth.secret, AUTHKEYLEN) ||
 		    bcmp(name, sp->hisauth.name, name_len) != 0 ||
 		    bcmp(passwd, sp->hisauth.secret, passwd_len) != 0) {
 			/* action scn, tld */
