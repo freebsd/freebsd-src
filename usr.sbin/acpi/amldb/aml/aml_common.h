@@ -47,7 +47,7 @@
 	printf(fmt, args);						\
 } while(0)
 #define AML_DEBUGGER(x, y)	/* no debugger in kernel */
-#define AML_STALL(micro)	DELAY(micro)
+#define AML_STALL(micro)	OsdSleepUsec(micro)
 #define AML_SLEEP(sec, milli)	OsdSleep(sec, milli)
 #else /* !_KERNEL */
 #define AML_SYSASSERT(x)	assert(x)

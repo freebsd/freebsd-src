@@ -57,7 +57,6 @@
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <machine/bus.h>
-#include <machine/clock.h>
 #include <dev/acpi/acpireg.h>
 #include <dev/acpi/acpivar.h>
 #ifndef ACPI_NO_OSDFUNC_INLINE
