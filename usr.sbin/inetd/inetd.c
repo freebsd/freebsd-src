@@ -65,7 +65,7 @@ static const char rcsid[] =
  * Inetd uses a configuration file which is read at startup
  * and, possibly, at some later time in response to a hangup signal.
  * The configuration file is ``free format'' with fields given in the
- * order shown below.  Continuation lines for an entry must being with
+ * order shown below.  Continuation lines for an entry must begin with
  * a space or tab.  All fields must be present in each entry.
  *
  *	service name			must be in /etc/services or must
