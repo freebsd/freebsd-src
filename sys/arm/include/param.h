@@ -95,11 +95,11 @@
 #define NPDEPG          (1 << (32 - PDR_SHIFT))
 
 #ifndef KSTACK_PAGES
-#define KSTACK_PAGES    4
+#define KSTACK_PAGES    2
 #endif /* !KSTACK_PAGES */
 
 #ifndef UAREA_PAGES
-#define UAREA_PAGES	2
+#define UAREA_PAGES	1
 #endif /* !UAREA_PAGES */
 
 #ifndef USPACE
