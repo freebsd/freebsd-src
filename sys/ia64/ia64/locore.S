@@ -56,6 +56,7 @@
 #include <machine/asm.h>
 #include <machine/ia64_cpu.h>
 #include <machine/fpu.h>
+#include <machine/pte.h>
 #include <sys/syscall.h>
 #include <assym.s>
 
@@ -153,32 +154,73 @@ END(mi_startup_trampoline)
  */
 	.align	32
 ENTRY(os_boot_rendez,0)
+	rsm	IA64_PSR_IC|IA64_PSR_I
+	;;
+	srlz.d
+	mov	r16 = (5<<8)|(PAGE_SHIFT<<2)|1
+	movl	r17 = 5<<61
+	;;
+	mov	rr[r17] = r16
+	;;
+	srlz.d
+	mov	r16 = (6<<8)|(28<<2)
+	movl	r17 = 6<<61
+	;;
+	mov	rr[r17] = r16
+	;;
+	srlz.d
+	mov	r16 = (7<<8)|(28<<2)
+	movl	r17 = 7<<61
+	;;
+	mov	rr[r17] = r16
+	;;
+	srlz.d
+	mov	r16 = (PTE_P|PTE_MA_WB|PTE_A|PTE_D|PTE_PL_KERN|PTE_AR_RWX)
+	mov	r18 = 28<<2
+	;;
+
+	mov	cr.ifa = r17
+	mov	cr.itir = r18
+	ptr.d	r17, r18
+	ptr.i	r17, r18
+	;;
+	srlz.d
+	srlz.i
+	;;
+	itr.d	dtr[r0] = r16
+	;;
+	itr.i	itr[r0] = r16
+	srlz.d
+	;;
+	srlz.i
+	;;
 1:	mov	r16 = ip
-	movl	r17 = (IA64_PSR_AC|IA64_PSR_DT|IA64_PSR_RT|IA64_PSR_IT|IA64_PSR_BN)
-	mov	r18 = 7
+	add	r17 = 2f-1b, r17
+	movl	r18 = (IA64_PSR_AC|IA64_PSR_IC|IA64_PSR_DT|IA64_PSR_RT|IA64_PSR_IT|IA64_PSR_BN)
 	;;
-	add	r16 = 2f-1b, r16
-	mov	cr.ipsr = r17
+	add	r17 = r17, r16
+	mov	cr.ipsr = r18
+	mov	cr.ifs = r0
 	;;
-	dep	r16 = r18, r16, 61, 3
-	;;
-	mov	cr.iip = r16
+	mov	cr.iip = r17
 	;;
 	rfi
 
 	.align	32
 2:	movl	r16 = ia64_vector_table			// set up IVT early
-	movl	r17 = ia64_vhpt+(1<<8)+(15<<2)+1		// and VHPT
+	movl	r17 = ia64_vhpt+(1<<8)+(15<<2)+1	// and VHPT
 	;;
 	mov	cr.iva = r16
 	mov	cr.pta = r17
 	;;
 	srlz.i
+	ssm	psr.i
 	;;
 	srlz.d
+	mov	ar.rsc = 0
 	movl	gp = __gp
 	;;
-	br.call.sptk.many rp = ia64_ap_get_stack
+	br.call.sptk.few rp = ia64_ap_get_stack
 	;;
 	mov	r9 = KSTACK_PAGES*PAGE_SIZE-SIZEOF_PCB-SIZEOF_TRAPFRAME-16
 	;;
@@ -189,10 +231,11 @@ ENTRY(os_boot_rendez,0)
 	;;
 	mov	ar.rsc = 3
 	;;
-	alloc	r16=ar.pfs,0,0,0,0
+	alloc	r16 = ar.pfs, 0, 0, 0, 0
 	;;
-	br.call.sptk.many rp=ia64_ap_startup
+	br.call.sptk.few rp = ia64_ap_startup
 	/* NOT REACHED */
+9:	br	9b
 END(os_boot_rendez)
 
 #endif /* !SMP */
