@@ -565,6 +565,7 @@ sysctl_bdg(SYSCTL_HANDLER_ARGS)
     int error;
 
     error = sysctl_handle_int(oidp, &enable, 0, req);
+    enable = (enable) ? 1 : 0;
     BDG_LOCK();
     if (enable != do_bridge) {
 	do_bridge = enable;
