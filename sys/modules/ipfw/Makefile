@@ -1,7 +1,7 @@
-#	$Id: Makefile,v 1.7 1997/02/22 12:48:14 peter Exp $
+#	$Id: Makefile,v 1.8 1997/09/10 04:19:07 peter Exp $
 
-.PATH:	${.CURDIR}/../../sys/netinet
-KMOD=	ipfw_mod
+.PATH:	${.CURDIR}/../../netinet
+KMOD=	ipfw
 SRCS=	ip_fw.c
 NOMAN=
 CFLAGS+= -DIPFIREWALL -DIPFIREWALL_MODULE

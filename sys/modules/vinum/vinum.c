@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinum.c,v 1.19 1998/08/13 05:24:02 grog Exp grog $
+ * $Id: vinum.c,v 1.1.1.1 1998/09/16 05:56:21 grog Exp $
  */
 
 #define STATIC						    /* nothing while we're testing XXX */
@@ -161,8 +161,6 @@ vinumattach(void *dummy)
 }
 
 
-#ifdef ACTUALLY_LKM_NOT_KERNEL				    /* stuff for LKMs */
-
 /* Check if we have anything open.  If so, return 0 (not inactive),
  * otherwise 1 (inactive) */
 int 
@@ -228,6 +226,7 @@ free_vinum(int cleardrive)
     bzero(&vinum_conf, sizeof(vinum_conf));
 }
 
+#ifdef ACTUALLY_LKM_NOT_KERNEL				    /* stuff for LKMs */
 MOD_MISC(vinum);
 
 /*
@@ -289,7 +288,39 @@ vinum_mod(struct lkm_table *lkmtp, int cmd, int ver)
 }
 
 #else /* not LKM */
-#error "This driver must be compiled as a loadable kernel module"
+
+STATIC int vinum_modevent(module_t mod, modeventtype_t type, void *unused);
+STATIC int
+vinum_modevent(module_t mod, modeventtype_t type, void *unused)
+{
+    struct sync_args dummyarg = {0};
+
+    BROKEN_GDB;
+    switch (type) {
+    case MOD_LOAD:
+	/* Debugger ("vinum_load"); */
+	vinumattach(NULL);
+	return 0;					    /* OK */
+    case MOD_UNLOAD:
+	if (!vinum_inactive())				    /* is anything open? */
+	    return EBUSY;
+	sync(curproc, &dummyarg);			    /* write out buffers */
+	free_vinum(0);					    /* no: clean up */
+	cdevsw[CDEV_MAJOR] = NULL;			    /* and cdevsw */
+	return 0;
+    default:
+	break;
+    }
+    return 0;
+}
+
+moduledata_t vinum_mod = {
+    "vinum",
+    vinum_modevent,
+    0
+};
+DECLARE_MODULE(vinum, vinum_mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE);
+
 #endif /* LKM */
 
 /* ARGSUSED */
