@@ -128,11 +128,7 @@ struct nfsnode {
 	struct lock		n_rslock;
 	struct nfs4_fctx	n_rfc;
 	struct nfs4_fctx	n_wfc;
-	/*
-	 * The last component name is needed for the NFSv4 OPEN
-	 * operation.
-	 */
-	u_char			*n_name;
+	u_char			*n_name;	/* leaf name, for v4 OPEN op */
 	uint32_t		n_namelen;
 };
 

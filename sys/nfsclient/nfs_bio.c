@@ -187,10 +187,7 @@ nfs_getpages(struct vop_getpages_args *ap)
 	uio.uio_rw = UIO_READ;
 	uio.uio_td = td;
 
-	if ((nmp->nm_flag & NFSMNT_NFSV4) != 0)
-		error = nfs4_readrpc(vp, &uio, cred);
-	else
-		error = nfs_readrpc(vp, &uio, cred);
+	error = (nmp->nm_rpcops->nr_readrpc)(vp, &uio, cred);
 	pmap_qremove(kva, npages);
 
 	relpbuf(bp, &nfs_pbuf_freecnt);
@@ -352,10 +349,7 @@ nfs_putpages(struct vop_putpages_args *ap)
 	else
 	    iomode = NFSV3WRITE_FILESYNC;
 
-	if ((nmp->nm_flag & NFSMNT_NFSV4) != 0)
-		error = nfs4_writerpc(vp, &uio, cred, &iomode, &must_commit);
-	else
-		error = nfs_writerpc(vp, &uio, cred, &iomode, &must_commit);
+	error = (nmp->nm_rpcops->nr_writerpc)(vp, &uio, cred, &iomode, &must_commit);
 
 	pmap_qremove(kva, npages);
 	relpbuf(bp, &nfs_pbuf_freecnt);
@@ -428,7 +422,7 @@ nfs_bioread(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred)
 		if (vp->v_type != VREG) {
 			if (vp->v_type != VDIR)
 				panic("nfs: bioread, not dir");
-			nfs_invaldir(vp);
+			(nmp->nm_rpcops->nr_invaldir)(vp);
 			error = nfs_vinvalbuf(vp, V_SAVE, cred, td, 1);
 			if (error)
 				return (error);
@@ -444,7 +438,7 @@ nfs_bioread(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred)
 			return (error);
 		if (np->n_mtime != vattr.va_mtime.tv_sec) {
 			if (vp->v_type == VDIR)
-				nfs_invaldir(vp);
+				(nmp->nm_rpcops->nr_invaldir)(vp);
 			error = nfs_vinvalbuf(vp, V_SAVE, cred, td, 1);
 			if (error)
 				return (error);
@@ -592,7 +586,7 @@ again:
 		    }
 		    while (error == NFSERR_BAD_COOKIE) {
 			printf("got bad cookie vp %p bp %p\n", vp, bp);
-			nfs_invaldir(vp);
+			(nmp->nm_rpcops->nr_invaldir)(vp);
 			error = nfs_vinvalbuf(vp, 0, cred, td, 1);
 			/*
 			 * Yuck! The directory has been modified on the
@@ -1022,10 +1016,7 @@ again:
 				break;
 		} else if ((n + on) == biosize) {
 			bp->b_flags |= B_ASYNC;
-			if ((nmp->nm_flag & NFSMNT_NFSV4) != 0)
-				(void)nfs4_writebp(bp, 0, 0);
-			else
-				(void)nfs_writebp(bp, 0, 0);
+			(void) (nmp->nm_rpcops->nr_writebp)(bp, 0, 0);
 		} else {
 			bdwrite(bp);
 		}
@@ -1330,7 +1321,7 @@ nfs_doio(struct buf *bp, struct ucred *cr, struct thread *td)
 	    case VREG:
 		uiop->uio_offset = ((off_t)bp->b_blkno) * DEV_BSIZE;
 		nfsstats.read_bios++;
-		error = nfs_readrpc(vp, uiop, cr);
+		error = (nmp->nm_rpcops->nr_readrpc)(vp, uiop, cr);
 
 		if (!error) {
 		    if (uiop->uio_resid) {
@@ -1363,7 +1354,7 @@ nfs_doio(struct buf *bp, struct ucred *cr, struct thread *td)
 	    case VLNK:
 		uiop->uio_offset = (off_t)0;
 		nfsstats.readlink_bios++;
-		error = nfs_readlinkrpc(vp, uiop, cr);
+		error = (nmp->nm_rpcops->nr_readlinkrpc)(vp, uiop, cr);
 		break;
 	    case VDIR:
 		nfsstats.readdir_bios++;
@@ -1404,7 +1395,7 @@ nfs_doio(struct buf *bp, struct ucred *cr, struct thread *td)
 
 		    off = ((u_quad_t)bp->b_blkno) * DEV_BSIZE + bp->b_dirtyoff;
 		    bp->b_flags |= B_WRITEINPROG;
-		    retv = nfs_commit(
+		    retv = (nmp->nm_rpcops->nr_commit)(
 				bp->b_vp, off, bp->b_dirtyend-bp->b_dirtyoff,
 				bp->b_wcred, td);
 		    bp->b_flags &= ~B_WRITEINPROG;
@@ -1442,7 +1433,7 @@ nfs_doio(struct buf *bp, struct ucred *cr, struct thread *td)
 		    iomode = NFSV3WRITE_FILESYNC;
 
 		bp->b_flags |= B_WRITEINPROG;
-		error = nfs_writerpc(vp, uiop, cr, &iomode, &must_commit);
+		error = (nmp->nm_rpcops->nr_writerpc)(vp, uiop, cr, &iomode, &must_commit);
 
 		/*
 		 * When setting B_NEEDCOMMIT also set B_CLUSTEROK to try

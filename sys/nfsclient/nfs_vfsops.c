@@ -124,6 +124,15 @@ VFS_SET(nfs_vfsops, nfs, VFCF_NETWORK);
 /* So that loader and kldload(2) can find us, wherever we are.. */
 MODULE_VERSION(nfs, 1);
 
+static struct nfs_rpcops nfs_rpcops = {
+	nfs_readrpc,
+	nfs_writerpc,
+	nfs_writebp,
+	nfs_readlinkrpc,
+	nfs_invaldir,
+	nfs_commit,
+};
+
 /*
  * This structure must be filled in by a primary bootstrap or bootstrap
  * server for a diskless/dataless machine. It is initialized below just
@@ -790,6 +799,7 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 	/* Set up the sockets and per-host congestion */
 	nmp->nm_sotype = argp->sotype;
 	nmp->nm_soproto = argp->proto;
+	nmp->nm_rpcops = &nfs_rpcops;
 
 	nfs_decode_args(nmp, argp);
 
