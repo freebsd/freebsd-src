@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.3.2.3 1996/11/12 09:11:06 phk Exp $
+# $Id: Makefile,v 1.3.2.4 1996/11/23 08:33:18 phk Exp $
 #
 # This has most of the glue needed to compile tknvi and the perl hooks,
 # but not all.
@@ -39,7 +39,7 @@ MLINKS+=vi.1 ex.1 vi.1 view.1
 MLINKS+=vi.1 nex.1 vi.1 nview.1 vi.1 nvi.1
 
 CATALOGS= dutch english french german ru_SU.KOI8-R spanish swedish
-DALINKS= da_DK
+NLLINKS= nl_NL
 ENLINKS= en_AU en_CA en_GB en_US
 FRLINKS= fr_BE fr_CA fr_CH fr_FR
 DELINKS= de_AT de_CH de_DE
@@ -155,7 +155,7 @@ afterinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 \
 		${CATALOGS:S;^;${SRCDIR}/catalog/;} \
 		${DESTDIR}/usr/share/vi/catalog
-	for l in ${DALINKS}; do \
+	for l in ${NLLINKS}; do \
 		ln -fs dutch ${DESTDIR}/usr/share/vi/catalog/$$l.ISO_8859-1; \
 	done
 	for l in ${ENLINKS}; do \
