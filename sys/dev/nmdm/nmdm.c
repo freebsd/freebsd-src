@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/poll.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
+#include <sys/serial.h>
 #include <sys/vnode.h>
 #include <sys/signalvar.h>
 #include <sys/malloc.h>
@@ -58,6 +59,7 @@ MALLOC_DEFINE(M_NLMDM, "nullmodem", "nullmodem data structures");
 static void 	nmdmstart(struct tty *tp);
 static void 	nmdmstop(struct tty *tp, int rw);
 static void 	nmdminit(struct cdev *dev);
+static t_modem_t	nmdmmodem;
 
 static d_open_t		nmdmopen;
 static d_close_t	nmdmclose;
@@ -76,9 +78,9 @@ static struct cdevsw nmdm_cdevsw = {
 #define BFLAG		CLONE_FLAG0
 
 struct softpart {
-	struct tty	*nm_tty;
-	struct cdev *dev;
-	int	dcd;
+	struct tty		*nm_tty;
+	struct cdev 		*dev;
+	int			nm_dcd;
 	struct task		pt_task;
 	struct softpart		*other;
 };
@@ -151,14 +153,14 @@ nmdm_task_tty(void *arg, int pending __unused)
 	otp = sp->other->nm_tty;
 	KASSERT(otp != NULL, ("NULL otp in nmdmstart"));
 	KASSERT(otp != tp, ("NULL otp == tp nmdmstart"));
-	if (sp->other->dcd) {
+	if (sp->other->nm_dcd) {
 		if (!(tp->t_state & TS_ISOPEN)) {
-			sp->other->dcd = 0;
+			sp->other->nm_dcd = 0;
 			(void)ttyld_modem(otp, 0);
 		}
 	} else {
 		if (tp->t_state & TS_ISOPEN) {
-			sp->other->dcd = 1;
+			sp->other->nm_dcd = 1;
 			(void)ttyld_modem(otp, 1);
 		}
 	}
@@ -200,6 +202,7 @@ nmdminit(struct cdev *dev1)
 	pt->part1.nm_tty = ttymalloc(pt->part1.nm_tty);
 	pt->part1.nm_tty->t_oproc = nmdmstart;
 	pt->part1.nm_tty->t_stop = nmdmstop;
+	pt->part1.nm_tty->t_modem = nmdmmodem;
 	pt->part1.nm_tty->t_dev = dev1;
 	pt->part1.nm_tty->t_sc = &pt->part1;
 	TASK_INIT(&pt->part1.pt_task, 0, nmdm_task_tty, pt->part1.nm_tty);
@@ -207,6 +210,7 @@ nmdminit(struct cdev *dev1)
 	pt->part2.nm_tty = ttymalloc(pt->part2.nm_tty);
 	pt->part2.nm_tty->t_oproc = nmdmstart;
 	pt->part2.nm_tty->t_stop = nmdmstop;
+	pt->part2.nm_tty->t_modem = nmdmmodem;
 	pt->part2.nm_tty->t_dev = dev2;
 	pt->part2.nm_tty->t_sc = &pt->part2;
 	TASK_INIT(&pt->part2.pt_task, 0, nmdm_task_tty, pt->part2.nm_tty);
@@ -257,6 +261,33 @@ nmdmopen(struct cdev *dev, int flag, int devtype, struct thread *td)
 
 	error = ttyld_open(tp, dev);
 	return (error);
+}
+
+static int
+nmdmmodem(struct tty *tp, int sigon, int sigoff)
+{
+	struct softpart *sp;
+	int i;
+
+	sp = tp->t_sc;
+	if (sigon || sigoff) {
+		if (sigon & SER_DTR) {
+			sp->other->nm_dcd = 1;
+			ttyld_modem(sp->other->nm_tty, sp->other->nm_dcd);
+		}
+		if (sigoff & SER_DTR) {
+			sp->other->nm_dcd = 0;
+			ttyld_modem(sp->other->nm_tty, sp->other->nm_dcd);
+		}
+		return (0);
+	} else {
+		i = 0;
+		if (sp->nm_dcd)
+			i |= SER_DCD;
+		if (sp->other->nm_dcd)
+			i |= SER_DTR;
+		return (i);
+	}
 }
 
 static int
