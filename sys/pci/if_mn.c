@@ -395,9 +395,10 @@ ngmn_newhook(node_p node, hook_p hook, const char *name)
 	if (ts == 0)
 		return (EINVAL);
 	chan = ffs(ts) - 1;
-	if (sc->ch[chan]) 
+	if (!sc->ch[chan])
+		mn_create_channel(sc, chan);
+	else if (sc->ch[chan]->state == UP)
 		return (EBUSY);
-	mn_create_channel(sc, chan);
 	sc->ch[chan]->ts = ts;
 	sc->ch[chan]->hook = hook;
 	sc->ch[chan]->tx_limit = nbit * 8;
@@ -511,12 +512,10 @@ ngmn_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 
 	if (sch->state != UP) {
 		NG_FREE_DATA(m, meta);
-		printf("D1\n");
 		return (0);
 	}
 	if (sch->tx_pending + m->m_pkthdr.len > sch->tx_limit * mn_maxlatency) {
 		NG_FREE_DATA(m, meta);
-		printf("D2\n");
 		return (0);
 	}
 	NG_FREE_META(meta);
