@@ -746,12 +746,18 @@ sigwait(struct thread *td, struct sigwait_args *uap)
 	int error;
 
 	error = copyin(uap->set, &set, sizeof(set));
-	if (error)
-		return (error);
+	if (error) {
+		td->td_retval[0] = error;
+		return (0);
+	}
 
 	error = kern_sigtimedwait(td, set, &info, NULL);
-	if (error)
-		return (error);
+	if (error) {
+		if (error == ERESTART)
+			return (error);
+		td->td_retval[0] = error;
+		return (0);
+	}
 
 	error = copyout(&info.si_signo, uap->sig, sizeof(info.si_signo));
 	/* Repost if we got an error. */
@@ -760,7 +766,8 @@ sigwait(struct thread *td, struct sigwait_args *uap)
 		tdsignal(td, info.si_signo, SIGTARGET_TD);
 		PROC_UNLOCK(td->td_proc);
 	}
-	return (error);
+	td->td_retval[0] = error;
+	return (0);
 }
 /*
  * MPSAFE
