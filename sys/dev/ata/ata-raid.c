@@ -67,6 +67,8 @@ static void ar_config_changed(struct ar_softc *, int);
 static void ar_rebuild(void *);
 static int ar_highpoint_read_conf(struct ad_softc *, struct ar_softc **);
 static int ar_highpoint_write_conf(struct ar_softc *);
+static int ar_lsi_read_conf(struct ad_softc *, struct ar_softc **);
+static int ar_lsi_write_conf(struct ar_softc *);
 static int ar_promise_read_conf(struct ad_softc *, struct ar_softc **, int);
 static int ar_promise_write_conf(struct ar_softc *);
 static int ar_rw(struct ad_softc *, u_int32_t, int, caddr_t, int);
@@ -120,6 +122,9 @@ ata_raiddisk_attach(struct ad_softc *adp)
 
     case ATA_HIGHPOINT_ID:
 	return (ar_highpoint_read_conf(adp, ar_table));
+
+    case ATA_SILICON_IMAGE_ID:
+	return (ar_lsi_read_conf(adp, ar_table));
 
     default:
 	return (ar_promise_read_conf(adp, ar_table, 1));
@@ -325,6 +330,12 @@ ata_raid_create(struct raid_setup *setup)
 		    AD_SOFTC(rdp->disks[disk])->total_secs;
 		break;
 
+	    case ATA_SILICON_IMAGE_ID:        
+		ctlr |= AR_F_LSI_RAID;
+		rdp->disks[disk].disk_sectors =
+		    AD_SOFTC(rdp->disks[disk])->total_secs - 4208; /* SOS */
+		break;
+
 	    default:
 		ctlr |= AR_F_FREEBSD_RAID;
 		/* FALLTHROUGH */
@@ -336,9 +347,12 @@ ata_raid_create(struct raid_setup *setup)
 		break;
 	    }
 
-	    if (rdp->flags & (AR_F_PROMISE_RAID|AR_F_HIGHPOINT_RAID) &&
-		(rdp->flags & (AR_F_PROMISE_RAID|AR_F_HIGHPOINT_RAID)) !=
-		 (ctlr & (AR_F_PROMISE_RAID|AR_F_HIGHPOINT_RAID))) {
+	    if ((rdp->flags & 
+		 (AR_F_PROMISE_RAID | AR_F_LSI_RAID | AR_F_HIGHPOINT_RAID)) &&
+		(rdp->flags & 
+		 (AR_F_PROMISE_RAID | AR_F_LSI_RAID | AR_F_HIGHPOINT_RAID)) !=
+		(ctlr &
+		 (AR_F_PROMISE_RAID | AR_F_LSI_RAID | AR_F_HIGHPOINT_RAID))) {
 		free(rdp, M_AR);
 		return EXDEV;
 	    }
@@ -397,10 +411,12 @@ ata_raid_create(struct raid_setup *setup)
 
 	while (setup->interleave >>= 1)
 	    bit++;
-	if (rdp->flags & AR_F_PROMISE_RAID)
-	    rdp->interleave = min(max(2, 1 << bit), 2048);
 	if (rdp->flags & AR_F_HIGHPOINT_RAID)
 	    rdp->interleave = min(max(32, 1 << bit), 128);
+	if (rdp->flags & AR_F_LSI_RAID)
+	    rdp->interleave = min(max(2, 1 << bit), 4096);
+	if (rdp->flags & AR_F_PROMISE_RAID)
+	    rdp->interleave = min(max(2, 1 << bit), 2048);
     }
     rdp->total_disks = total_disks;
     rdp->width = total_disks / ((rdp->flags & AR_F_RAID1) ? 2 : 1);	
@@ -456,10 +472,14 @@ ata_raid_delete(int array)
 	    rdp->disks[disk].flags = 0;
 	}
     }
+
+    if (rdp->flags & AR_F_HIGHPOINT_RAID)
+	ar_highpoint_write_conf(rdp);
+    if (rdp->flags & AR_F_LSI_RAID)
+	ar_lsi_write_conf(rdp);
     if (rdp->flags & AR_F_PROMISE_RAID)
 	ar_promise_write_conf(rdp);
-    else
-	ar_highpoint_write_conf(rdp);
+
     disk_destroy(rdp->disk);
     free(rdp, M_AR);
     ar_table[array] = NULL;
@@ -979,10 +999,12 @@ ar_config_changed(struct ar_softc *rdp, int writeback)
 	}
     }
     if (writeback) {
-	if (rdp->flags & AR_F_PROMISE_RAID)
-	    ar_promise_write_conf(rdp);
 	if (rdp->flags & AR_F_HIGHPOINT_RAID)
 	    ar_highpoint_write_conf(rdp);
+	if (rdp->flags & AR_F_LSI_RAID)
+	    ar_lsi_write_conf(rdp);
+	if (rdp->flags & AR_F_PROMISE_RAID)
+	    ar_promise_write_conf(rdp);
     }
 }
 
@@ -1134,7 +1156,7 @@ ar_highpoint_read_conf(struct ad_softc *adp, struct ar_softc **raidp)
 	    }
 	}
 	raid = raidp[array];
-	if (raid->flags & AR_F_PROMISE_RAID)
+	if (raid->flags & (AR_F_PROMISE_RAID | AR_F_LSI_RAID))
 	    continue;
 
 	switch (info->type) {
@@ -1197,6 +1219,8 @@ highpoint_raid01:
 	default:
 	    printf("ar%d: HighPoint unknown RAID type 0x%02x\n",
 		   array, info->type);
+	    free(raidp[array], M_AR);
+	    raidp[array] = NULL;
 	    goto highpoint_out;
 	}
 
@@ -1229,6 +1253,7 @@ highpoint_raid01:
 	retval = 1;
 	break;
     }
+
 highpoint_out:
     free(info, M_AR);
     return retval;
@@ -1321,6 +1346,216 @@ ar_highpoint_write_conf(struct ar_softc *rdp)
 }
 
 static int
+ar_lsi_read_conf(struct ad_softc *adp, struct ar_softc **raidp)
+{
+    struct lsi_raid_conf *info;
+    struct ar_softc *raid = NULL;
+    int array, retval = 0;
+
+    if (!(info = (struct lsi_raid_conf *)
+	  malloc(sizeof(struct lsi_raid_conf), M_AR, M_NOWAIT | M_ZERO)))
+	return retval;
+
+    if (ar_rw(adp, LSI_LBA(adp), sizeof(struct lsi_raid_conf),
+	      (caddr_t)info, AR_READ | AR_WAIT)) {
+	if (1 || bootverbose)
+	    printf("ar: LSI read conf failed\n");
+	goto lsi_out;
+    }
+
+    /* check if this is a LSI RAID struct */
+    if (strncmp(info->lsi_id, LSI_MAGIC, strlen(LSI_MAGIC))) {
+	if (1 || bootverbose)
+	    printf("ar: LSI check1 failed\n");
+	goto lsi_out;
+    }
+
+    /* now convert LSI config info into our generic form */
+    for (array = 0; array < MAX_ARRAYS; array++) {
+	int raid_entry, conf_entry;
+
+	if (!raidp[array + info->raid_number]) {
+	    raidp[array + info->raid_number] = 
+		(struct ar_softc*)malloc(sizeof(struct ar_softc), M_AR,
+					 M_NOWAIT | M_ZERO);
+	    if (!raidp[array + info->raid_number]) {
+		printf("ar%d: failed to allocate raid config storage\n", array);
+		goto lsi_out;
+	    }
+	}
+	raid = raidp[array + info->raid_number];
+
+	if (raid->flags & (AR_F_PROMISE_RAID | AR_F_HIGHPOINT_RAID))
+	    continue;
+
+	if (raid->magic_0 && 
+	    ((raid->magic_0 != info->timestamp) ||
+	     (raid->magic_1 != info->raid_number)))
+	    continue;
+
+	array += info->raid_number;
+
+	raid_entry = info->raid_number;
+	conf_entry = (info->configs[raid_entry].raid.config_offset >> 4) +
+		     info->disk_number - 1;
+
+	switch (info->configs[raid_entry].raid.type) {
+	case LSI_R_RAID0:
+	    raid->magic_0 = info->timestamp;
+	    raid->magic_1 = info->raid_number;
+	    raid->flags |= AR_F_RAID0;
+	    raid->interleave = info->configs[raid_entry].raid.stripe_size;
+	    raid->width = info->configs[raid_entry].raid.raid_width; 
+	    break;
+
+	case LSI_R_RAID1:
+	    raid->magic_0 = info->timestamp;
+	    raid->magic_1 = info->raid_number;
+	    raid->flags |= AR_F_RAID1;
+	    raid->width = info->configs[raid_entry].raid.raid_width; 
+	    break;
+	    
+	case LSI_R_RAID0 | LSI_R_RAID1:
+	    raid->magic_0 = info->timestamp;
+	    raid->magic_1 = info->raid_number;
+	    raid->flags |= (AR_F_RAID0 | AR_F_RAID1);
+	    raid->interleave = info->configs[raid_entry].raid.stripe_size;
+	    raid->width = info->configs[raid_entry].raid.raid_width; 
+	    break;
+
+	default:
+	    printf("ar%d: LSI unknown RAID type 0x%02x\n",
+		   array, info->configs[raid_entry].raid.type);
+	    free(raidp[array], M_AR);
+	    raidp[array] = NULL;
+	    goto lsi_out;
+	}
+
+	/* setup RAID specifics */
+	raid->flags |= AR_F_LSI_RAID;
+	raid->generation = 0;
+	raid->total_disks = info->configs[raid_entry].raid.disk_count;
+	raid->heads = 255;
+	raid->sectors = 63;
+	raid->cylinders = info->configs[raid_entry].raid.total_sectors/(63*255);
+	raid->total_sectors = info->configs[raid_entry].raid.total_sectors;
+	raid->offset = 0;
+	raid->reserved = 1;
+	raid->lock_start = raid->lock_end = 0;
+	raid->lun = array;
+
+	/* setup RAID specifics of this disk */
+	if (info->configs[conf_entry].disk.device != LSI_D_NONE) {
+	    raid->disks[info->disk_number].device = adp->device;
+	    raid->disks[info->disk_number].disk_sectors = 
+		info->configs[conf_entry].disk.disk_sectors;
+	    raid->disks[info->disk_number].flags = 
+		(AR_DF_ONLINE | AR_DF_PRESENT | AR_DF_ASSIGNED);
+	    AD_SOFTC(raid->disks[info->disk_number])->flags |=
+		AD_F_RAID_SUBDISK;
+	    retval = 1;
+	}
+	else
+	    raid->disks[info->disk_number].flags &= ~AR_DF_ONLINE;
+
+	return retval;
+    }
+
+lsi_out:
+    free(info, M_AR);
+    return retval;
+}
+
+static int
+ar_lsi_write_conf(struct ar_softc *rdp)
+{
+    struct lsi_raid_conf *config;
+    struct timeval timestamp;
+    int disk, disk_entry;
+
+    microtime(&timestamp);
+    rdp->magic_0 = timestamp.tv_sec & 0xffffffc0;
+    rdp->magic_1 = 0;
+   
+    for (disk = 0; disk < rdp->total_disks; disk++) {
+	if (!(config = (struct lsi_raid_conf *)
+	      malloc(sizeof(struct lsi_raid_conf), M_AR, M_NOWAIT | M_ZERO))) {
+	    printf("ar%d: LSI write conf failed\n", rdp->lun);
+	    return -1;
+	}
+
+	bcopy(LSI_MAGIC, config->lsi_id, strlen(LSI_MAGIC));
+	config->dummy_1 = 0x10;
+	config->flags = 0x19;		/* SOS X */
+	config->version[0] = '2';
+	config->version[1] = '0';
+	config->config_entries = 2 + rdp->total_disks;
+	config->raid_count = 1;
+	config->total_disks = rdp->total_disks;
+	config->dummy_e = 0xfc;
+	config->disk_number = disk;
+	config->raid_number = 0;
+	config->timestamp = rdp->magic_0;
+	
+	switch (rdp->flags & (AR_F_RAID0 | AR_F_RAID1 | AR_F_SPAN)) {
+	case AR_F_RAID0:
+	    config->configs[0].raid.type = LSI_R_RAID0;
+	    break;
+
+	case AR_F_RAID1:
+	    config->configs[0].raid.type = LSI_R_RAID1;
+	    break;
+
+	case AR_F_RAID0 | AR_F_RAID1:
+	    config->flags = 0x15;		/* SOS X */
+	    config->configs[0].raid.type = (LSI_R_RAID0 | LSI_R_RAID1);
+	    break;
+
+	default:
+	    return -1;
+	}
+
+	config->configs[0].raid.dummy_1 = 0x10;
+	config->configs[0].raid.stripe_size = rdp->interleave;
+	config->configs[0].raid.raid_width = rdp->width;
+	config->configs[0].raid.disk_count = rdp->total_disks;
+	config->configs[0].raid.config_offset = 2 * 0x10;
+	config->configs[0].raid.total_sectors = rdp->total_sectors;
+
+    	for (disk_entry = 0; disk_entry < rdp->total_disks; disk_entry++) {
+	    if (rdp->disks[disk_entry].flags & AR_DF_ONLINE)
+		config->configs[1 + disk_entry].disk.device = 
+		    (rdp->disks[disk_entry].device->channel->unit ? 
+			LSI_D_CHANNEL1 : LSI_D_CHANNEL0) |
+		    (rdp->disks[disk_entry].device->unit ?
+			LSI_D_SLAVE : LSI_D_MASTER);
+	    else {
+		config->configs[1 + disk_entry].disk.device = LSI_D_NONE;
+		config->configs[1 + disk_entry].disk.flags = LSI_D_GONE;
+	    }
+	    config->configs[1 + disk_entry].disk.dummy_1 = 0x10;
+	    config->configs[1 + disk_entry].disk.disk_sectors = 
+		rdp->disks[disk_entry].disk_sectors;
+	    config->configs[1 + disk_entry].disk.disk_number = disk_entry;
+	    config->configs[1 + disk_entry].disk.raid_number = 0;
+	}
+
+	if ((rdp->disks[disk].device && rdp->disks[disk].device->softc) &&
+	    !(rdp->disks[disk].device->flags & ATA_D_DETACHING)) {
+
+	    if (ar_rw(AD_SOFTC(rdp->disks[disk]),
+		      LSI_LBA(AD_SOFTC(rdp->disks[disk])),
+		      sizeof(struct lsi_raid_conf),
+		      (caddr_t)config, AR_WRITE)) {
+		printf("ar%d: LSI write conf failed\n", rdp->lun);
+		return -1;
+	    }
+	}
+    }
+    return 0;
+}
+
+static int
 ar_promise_read_conf(struct ad_softc *adp, struct ar_softc **raidp, int local)
 {
     struct promise_raid_conf *info;
@@ -1341,14 +1576,14 @@ ar_promise_read_conf(struct ad_softc *adp, struct ar_softc **raidp, int local)
 
     /* check if this is a Promise RAID struct (or our local one) */
     if (local) {
-	if (strncmp(info->promise_id, ATA_MAGIC, sizeof(ATA_MAGIC))) {
+	if (strncmp(info->promise_id, ATA_MAGIC, strlen(ATA_MAGIC))) {
 	    if (bootverbose)
 		printf("ar: FreeBSD check1 failed\n");
 	    goto promise_out;
 	}
     }
     else {
-	if (strncmp(info->promise_id, PR_MAGIC, sizeof(PR_MAGIC))) {
+	if (strncmp(info->promise_id, PR_MAGIC, strlen(PR_MAGIC))) {
 	    if (bootverbose)
 		printf("ar: Promise check1 failed\n");
 	    goto promise_out;
@@ -1382,7 +1617,7 @@ ar_promise_read_conf(struct ad_softc *adp, struct ar_softc **raidp, int local)
 	    }
 	}
 	raid = raidp[array];
-	if (raid->flags & AR_F_HIGHPOINT_RAID)
+	if (raid->flags & (AR_F_LSI_RAID | AR_F_HIGHPOINT_RAID))
 	    continue;
 
 	magic = (pci_get_device(device_get_parent(
@@ -1428,6 +1663,8 @@ ar_promise_read_conf(struct ad_softc *adp, struct ar_softc **raidp, int local)
 	    default:
 		printf("ar%d: %s unknown RAID type 0x%02x\n",
 		       array, local ? "FreeBSD" : "Promise", info->raid.type);
+		free(raidp[array], M_AR);
+		raidp[array] = NULL;
 		goto promise_out;
 	    }
 	    raid->interleave = 1 << info->raid.stripe_shift;
