@@ -8,7 +8,7 @@ INSTALLFLAGS=-fschg
 CFLAGS+=-DDEBUGSHELL -DSECURE -DLOGIN_CAP -DCOMPAT_SYSV_INIT
 
 .if exists(${.CURDIR}/../../secure) && !defined(NOCRYPT) && !defined(NOSECURE)
-DISTRIBUTION=des
+DISTRIBUTION=crypto
 DPADD=	${LIBUTIL} ${DESCRYPTOBJDIR}/libdescrypt.a
 LDADD=	-lutil -L${DESCRYPTOBJDIR} -ldescrypt
 .else
