@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.72 1996/01/01 08:33:17 peter Exp $
+#	$Id: Makefile,v 1.73 1996/01/30 05:22:00 nate Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include and MOST of /usr/lib
@@ -332,6 +332,8 @@ include-tools:
 	@echo " Rebuild tools necessary to build the include files"
 	@echo "--------------------------------------------------------------"
 	@echo
+	cd ${.CURDIR}/usr.bin/xinstall && \
+		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
 	cd ${.CURDIR}/usr.bin/rpcgen && \
 		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
 
