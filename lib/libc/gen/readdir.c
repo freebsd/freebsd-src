@@ -113,11 +113,11 @@ readdir_r(dirp, entry, result)
 	if (__isthreaded) {
 		_pthread_mutex_lock((pthread_mutex_t *)&dirp->dd_lock);
 		if ((dp = _readdir_unlocked(dirp)) != NULL)
-			memcpy(entry, dp, sizeof *entry);
+			memcpy(entry, dp, _GENERIC_DIRSIZ(dp));
 		_pthread_mutex_unlock((pthread_mutex_t *)&dirp->dd_lock);
 	}
 	else if ((dp = _readdir_unlocked(dirp)) != NULL)
-		memcpy(entry, dp, sizeof *entry);
+		memcpy(entry, dp, _GENERIC_DIRSIZ(dp));
 
 	if (errno != 0) {
 		if (dp == NULL)
