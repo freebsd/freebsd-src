@@ -73,16 +73,16 @@ static void freedev(struct cdev *dev);
 static struct cdev *newdev(int x, int y);
 
 
-static void
-devlock(void)
+void
+dev_lock(void)
 {
 	if (!mtx_initialized(&devmtx))
 		mtx_init(&devmtx, "cdev", NULL, MTX_DEF);
 	mtx_lock(&devmtx);
 }
 
-static void
-devunlock(void)
+void
+dev_unlock(void)
 {
 	mtx_unlock(&devmtx);
 }
@@ -90,15 +90,15 @@ devunlock(void)
 void
 dev_ref(struct cdev *dev)
 {
-	devlock();
+	dev_lock();
 	dev->si_refcount++;
-	devunlock();
+	dev_unlock();
 }
 
 void
 dev_rel(struct cdev *dev)
 {
-	devlock();
+
 	dev->si_refcount--;
 	KASSERT(dev->si_refcount >= 0,
 	    ("dev_rel(%s) gave negative count", devtoname(dev)));
@@ -106,25 +106,6 @@ dev_rel(struct cdev *dev)
 		LIST_REMOVE(dev, si_list);
 		freedev(dev);
 	}
-	devunlock();
-}
-
-void
-cdevsw_ref(struct cdevsw *csw)
-{
-	devlock();
-	csw->d_refcount++;
-	devunlock();
-}
-
-void
-cdevsw_rel(struct cdevsw *csw)
-{
-	devlock();
-	csw->d_refcount--;
-	KASSERT(csw->d_refcount >= 0,
-	    ("cdevsw_vrel(%s) gave negative count", csw->d_name));
-	devunlock();
 }
 
 int
@@ -396,7 +377,7 @@ static void
 prep_cdevsw(struct cdevsw *devsw)
 {
 
-	devlock();
+	dev_lock();
 
 	if (devsw->d_version != D_VERSION_00) {
 		printf(
@@ -451,7 +432,7 @@ prep_cdevsw(struct cdevsw *devsw)
 			reserved_majors[devsw->d_maj] = devsw->d_maj;
 		}
 	}
-	devunlock();
+	dev_unlock();
 }
 
 struct cdev *
@@ -477,7 +458,7 @@ make_dev(struct cdevsw *devsw, int minornr, uid_t uid, gid_t gid, int perms, con
 		 */
 		return (dev);
 	}
-	devlock();
+	dev_lock();
 	KASSERT(!(dev->si_flags & SI_NAMED),
 	    ("make_dev() by driver %s on pre-existing device (maj=%d, min=%d, name=%s)",
 	    devsw->d_name, major(dev), minor(dev), devtoname(dev)));
@@ -497,7 +478,7 @@ make_dev(struct cdevsw *devsw, int minornr, uid_t uid, gid_t gid, int perms, con
 
 	LIST_INSERT_HEAD(&devsw->d_devs, dev, si_list);
 	devfs_create(dev);
-	devunlock();
+	dev_unlock();
 	return (dev);
 }
 
@@ -518,11 +499,11 @@ void
 dev_depends(struct cdev *pdev, struct cdev *cdev)
 {
 
-	devlock();
+	dev_lock();
 	cdev->si_parent = pdev;
 	cdev->si_flags |= SI_CHILD;
 	LIST_INSERT_HEAD(&pdev->si_children, cdev, si_siblings);
-	devunlock();
+	dev_unlock();
 }
 
 struct cdev *
@@ -533,7 +514,7 @@ make_dev_alias(struct cdev *pdev, const char *fmt, ...)
 	int i;
 
 	dev = allocdev();
-	devlock();
+	dev_lock();
 	dev->si_flags |= SI_ALIAS;
 	dev->si_flags |= SI_NAMED;
 	va_start(ap, fmt);
@@ -545,7 +526,7 @@ make_dev_alias(struct cdev *pdev, const char *fmt, ...)
 	va_end(ap);
 
 	devfs_create(dev);
-	devunlock();
+	dev_unlock();
 	dev_depends(pdev, dev);
 	return (dev);
 }
@@ -606,9 +587,9 @@ void
 destroy_dev(struct cdev *dev)
 {
 
-	devlock();
+	dev_lock();
 	idestroy_dev(dev);
-	devunlock();
+	dev_unlock();
 }
 
 const char *

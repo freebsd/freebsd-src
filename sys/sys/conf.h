@@ -222,7 +222,7 @@ struct cdevsw {
 	/* These fields should not be messed with by drivers */
 	LIST_ENTRY(cdevsw)	d_list;
 	LIST_HEAD(, cdev)	d_devs;
-	int			d_refcount;
+	int			d_spare3;
 };
 
 #endif /* _KERNEL */
@@ -263,8 +263,6 @@ int clone_create(struct clonedevs **, struct cdevsw *, int *unit, struct cdev **
 int	count_dev(struct cdev *_dev);
 void	destroy_dev(struct cdev *_dev);
 struct cdevsw *devsw(struct cdev *_dev);
-void	cdevsw_ref(struct cdevsw *);
-void	cdevsw_rel(struct cdevsw *);
 const char *devtoname(struct cdev *_dev);
 int	dev_named(struct cdev *_pdev, const char *_name);
 void	dev_depends(struct cdev *_pdev, struct cdev *_cdev);
@@ -276,6 +274,8 @@ struct cdev *make_dev(struct cdevsw *_devsw, int _minor, uid_t _uid, gid_t _gid,
 		int _perms, const char *_fmt, ...) __printflike(6, 7);
 struct cdev *make_dev_alias(struct cdev *_pdev, const char *_fmt, ...) __printflike(2, 3);
 int	dev2unit(struct cdev *_dev);
+void	dev_lock(void);
+void	dev_unlock(void);
 int	unit2minor(int _unit);
 void	setconf(void);
 struct cdev *getdiskbyname(char *_name);
