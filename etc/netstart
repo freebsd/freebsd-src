@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: netstart,v 1.13 1994/09/15 01:19:43 phk Exp $
+#	$Id: netstart,v 1.14 1994/09/29 17:27:45 pst Exp $
 #	From: @(#)netstart	5.9 (Berkeley) 3/30/91
 
 defaultrouter=NO
@@ -37,6 +37,10 @@ done
 
 # set the address for the loopback interface
 ifconfig lo0 inet localhost
+
+# set interface for multicasts to default interface
+# this needs to happen before router discovery
+route add 224.0.0.0 -netmask 0xf0000000 -interface $hostname
 
 if [ -n "$defaultrouter" -a "x$defaultrouter" != "xNO" ] ; then
 	route add default $defaultrouter
