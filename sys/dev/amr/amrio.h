@@ -23,6 +23,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * 3. The party using or redistributing the source code and binary forms
+ *    agrees to the above disclaimer and the terms and conditions set forth
+ *    herein.
+ *
+ * Additional Copyright (c) 2002 by Eric Moore under same license.
+ * Additional Copyright (c) 2002 LSI Logic Corporation
+ *
  *	$FreeBSD$
  */
 

@@ -278,6 +278,7 @@ dev/aic7xxx/ahd_pci.c	optional ahd pci
 dev/aic7xxx/aic79xx.c	optional ahd pci
 dev/aic7xxx/aic79xx_osm.c	optional ahd pci
 dev/aic7xxx/aic79xx_pci.c	optional ahd pci
+dev/amr/amr_cam.c	optional amr
 dev/amr/amr.c		optional amr
 dev/amr/amr_disk.c	optional amr
 dev/amr/amr_pci.c	optional amr
