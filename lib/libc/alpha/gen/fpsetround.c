@@ -36,9 +36,9 @@
 #include <ieeefp.h>
 #include <machine/fpu.h>
 
-fp_rnd
+fp_rnd_t
 fpsetround(rnd_dir)
-	fp_rnd rnd_dir;
+	fp_rnd_t rnd_dir;
 {
 	double fpcrval;
 	u_int64_t old, new;
