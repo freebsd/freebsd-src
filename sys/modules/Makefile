@@ -266,9 +266,12 @@ SUBDIR+=linprocfs \
 	vinum
 .endif
 
+.if ${MACHINE_ARCH} == "powerpc" || ${MACHINE_ARCH} == "sparc64"
+SUBDIR+=gem
+.endif
+
 .if ${MACHINE_ARCH} == "sparc64"
-SUBDIR+=hme \
-	gem
+SUBDIR+=hme
 .endif
 
 .if defined(MODULES_OVERRIDE) && !defined(ALL_MODULES)
