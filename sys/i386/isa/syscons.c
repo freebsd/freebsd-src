@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.117.4.14 1996/11/10 19:12:48 jkh Exp $
+ *  $Id: syscons.c,v 1.117.4.15 1996/11/15 23:36:39 jkh Exp $
  */
 
 #include "sc.h"
@@ -408,8 +408,10 @@ scclose(dev_t dev, int flag, int mode, struct proc *p)
 	scp->smode.mode = VT_AUTO;
 #endif
     }
+    spltty();
     (*linesw[tp->t_line].l_close)(tp, flag);
     ttyclose(tp);
+    spl0();
     return(0);
 }
 
@@ -841,6 +843,8 @@ set_mouse_pos:
 	error = suser(p->p_ucred, &p->p_acflag);
 	if (error != 0)
 	    return error;
+	if (securelevel > 0)
+	    return EPERM;
 	fp = (struct trapframe *)p->p_md.md_regs;
 	fp->tf_eflags |= PSL_IOPL;
 	return 0;
@@ -2003,6 +2007,13 @@ scinit(void)
     hw_cursor = inb(crtc_addr + 1) << 8;
     outb(crtc_addr, 15);
     hw_cursor |= inb(crtc_addr + 1);
+
+    /*
+     * Validate cursor location.  It may be off the screen.  Then we must
+     * not use it for the initial buffer offset.
+     */
+    if (hw_cursor >= ROW * COL)
+	hw_cursor = (ROW - 1) * COL;
 
     /* move hardware cursor out of the way */
     outb(crtc_addr, 14);
