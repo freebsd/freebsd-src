@@ -17,6 +17,9 @@ minimal number of processes, if possible, for that patch.  For those
 updates that don't have an advisory, or to be safe, you can do a full
 build and install as described in the COMMON ITEMS section.
 
+20020804:
+	Bugfix for READ_BIG errors with ATAPI devices.
+
 20020801:	p7	FreeBSD-SA-02:36.nfs
 	RPCs with zero-length payload would cause an infinite loop.
 
