@@ -38,7 +38,7 @@
 .Nd controlling utility for IPv6 firewall
 .Sh SYNOPSIS
 .Nm
-.Op Fl q
+.Op Fl nq
 .Oo
 .Fl p Ar preproc
 .Oo Fl D
@@ -48,13 +48,15 @@
 .Oc
 .Ar pathname
 .Nm
+.Op Fl n
 .Op Fl f | Fl q
 flush
 .Nm
-.Op Fl q
+.Op Fl nq
 zero
 .Op Ar number ...
 .Nm
+.Op Fl n
 delete
 .Ar number ...
 .Nm
@@ -66,7 +68,7 @@ list
 show
 .Op Ar number ...
 .Nm
-.Op Fl q
+.Op Fl nq
 add
 .Op Ar number
 .Ar action
@@ -181,6 +183,9 @@ Don't ask for confirmation for commands that can cause problems if misused
 (ie; flush).
 .Ar Note ,
 if there is no tty associated with the process, this is implied.
+.It Fl n
+Only check syntax of the command strings,
+without actually passing them into the kernel.
 .It Fl q
 While adding, zeroing or flushing, be quiet about actions (implies '-f').
 This is useful for adjusting rules by executing multiple ip6fw commands in a
