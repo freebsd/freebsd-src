@@ -29,7 +29,7 @@
  */
 
 #include <signal.h>
-#include <machine/console.h>
+#include <sys/fbio.h>
 #include "vgl.h"
 
 static byte VGLSavePaletteRed[256];

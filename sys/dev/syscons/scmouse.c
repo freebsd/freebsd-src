@@ -37,8 +37,9 @@
 #include <sys/random.h>
 #include <sys/tty.h>
 #include <sys/malloc.h>
+#include <sys/consio.h>
+#include <sys/fbio.h>
 
-#include <machine/console.h>
 #include <machine/mouse.h>
 
 #include <dev/syscons/syscons.h>

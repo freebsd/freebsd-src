@@ -36,7 +36,8 @@
 #include <sys/filio.h>
 #include <sys/ioctl_compat.h>
 #include <sys/tty.h>
-#include <machine/console.h>
+#include <sys/kbio.h>
+#include <sys/consio.h>
 
 #include <sys/sysproto.h>
 

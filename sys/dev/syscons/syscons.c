@@ -48,9 +48,11 @@
 #include <sys/malloc.h>
 #include <sys/cons.h>
 #include <sys/random.h>
+#include <sys/consio.h>
+#include <sys/kbio.h>
+#include <sys/fbio.h>
 
 #include <machine/clock.h>
-#include <machine/console.h>
 #include <machine/psl.h>
 #include <machine/pc/display.h>
 #ifdef __i386__

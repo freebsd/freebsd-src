@@ -232,7 +232,7 @@ int			kbd_detach(keyboard_t *kbd);
 #define CLKDOWN		(1 << 28)
 #define ALKDOWN		(1 << 29)
 #define SHIFTAON	(1 << 30)
-/* lock key state (defined in machine/console.h) */
+/* lock key state (defined in sys/kbio.h) */
 /*
 #define CLKED		LED_CAP
 #define NLKED		LED_NUM
