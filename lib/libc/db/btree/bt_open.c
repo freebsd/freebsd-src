@@ -388,10 +388,11 @@ tmp()
 {
 	sigset_t set, oset;
 	int fd;
-	char *envtmp;
+	char *envtmp = NULL;
 	char path[MAXPATHLEN];
 
-	envtmp = getenv("TMPDIR");
+	if (issetugid() == 0)
+		envtmp = getenv("TMPDIR");
 	(void)snprintf(path,
 	    sizeof(path), "%s/bt.XXXXXX", envtmp ? envtmp : "/tmp");
 
