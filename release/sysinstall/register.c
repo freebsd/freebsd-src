@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: register.c,v 1.1 1997/03/09 22:25:48 jkh Exp $
+ * $Id: register.c,v 1.2 1997/03/11 00:07:59 jkh Exp $
  *
  * Copyright (c) 1997
  *	Jordan Hubbard.  All rights reserved.
@@ -175,6 +175,7 @@ handle_registration(void)
 	    hotspots[COMMERCE_EMAIL].sel ? "yes" : "no", hotspots[COMMERCE_MAIL].sel ? "yes" : "no",
 	    hotspots[ANNOUNCE_LIST].sel ? "yes" : "no",
 	    hotspots[NEWSLETTER].sel == 0 ? "no" : hotspots[NEWSLETTER].sel == 1 ? "postal" : "email"); 
+    fprintf(fp, "<version>%s</version>\n", RELEASE_NAME);
     fprintf(fp, "</entry>\n");
     fclose(fp);
     if (!msgYesNo("Do you have a working network connection and outgoing email\n"
