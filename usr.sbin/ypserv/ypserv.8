@@ -97,7 +97,7 @@ using several system files as source. The database files are in
 .Xr db 3
 format to help speed retrieval when there are many records involved.
 In
-.Bx Free ,
+.Fx ,
 the maps are always readable and writable only by root for security
 reasons. Technically this is only necessary for the password
 maps, but since the data in the other maps can be found in
@@ -111,10 +111,12 @@ program is started by
 if it has been enabled in
 .Pa /etc/rc.conf .
 .Sh SPECIAL FEATURES
-There are some problems associated with distributing FreeBSD's password
+There are some problems associated with distributing a
+.Fx
+password
 database via
 .Tn NIS Ns :
-.Bx Free
+.Fx
 normally only stores encrypted passwords
 in
 .Pa /etc/master.passwd ,
@@ -124,7 +126,7 @@ into an
 map, this security feature would be completely defeated.
 .Pp
 To make up for this, the
-.Bx Free
+.Fx
 version of
 .Nm
 handles the
@@ -141,8 +143,8 @@ Any requests made by non-privileged users are therefore rejected.
 .Pp
 Furthermore, the
 .Xr getpwent 3
-routines in
-.Bx Free Ns 's
+routines in the
+.Fx 
 standard C library will only attempt to retrieve
 data from the
 .Pa master.passwd.byname
@@ -184,9 +186,9 @@ unrestricted access to machines on your network (even those machines
 which do not run UNIX-based operating systems).
 .It
 If you plan to use a
-.Bx Free
+.Fx
 system to serve
-.Bx non-Free
+.No non- Ns Tn FreeBSD
 clients that
 have no support for password shadowing (which is most of them), you
 will have to disable the password shadowing entirely by uncommenting the
@@ -199,7 +201,7 @@ and
 .Pa passwd.byuid
 maps to be generated with valid encrypted password fields, which is
 necessary in order for
-.Bx non-Free
+.No non- Ns Tn FreeBSD
 clients to perform user
 authentication through
 .Tn NIS .
@@ -261,7 +263,7 @@ package, though it is not compiled in by default since
 the
 .Em tcpwrapper
 package is not distributed with
-.Bx Free .
+.Fx .
 However, if you have
 .Pa libwrap.a
 and
@@ -288,7 +290,8 @@ This version of
 has some support for serving
 .Tn NIS
 v1 clients.
-.Bx Free Ns 's
+The
+.Fx 
 .Tn NIS
 implementation only uses the
 .Tn NIS
@@ -359,11 +362,12 @@ which has brain-damaged resolver functions in its standard C
 library that depend on
 .Tn NIS
 for hostname and address resolution.
-.Bx Free Ns 's
+The
+.Fx
 resolver can be configured to do DNS
 queries directly, therefore it is not necessary to enable this
 option when serving only
-.Bx Free
+.Fx
 .Tn NIS
 clients.
 .It Fl d
