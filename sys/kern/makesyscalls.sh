@@ -51,8 +51,8 @@ awk < $1 "
 	NR == 1 {
 		printf " * created from%s\n */\n\n", $0 > sysdcl
 		printf "#include <sys/param.h>\n" > sysdcl
-		printf "#include <sys/systm.h>\n\n" > sysdcl
-		printf "int\tnosys();\n\n" > sysdcl
+		printf "#include <sys/systm.h>\n" > sysdcl
+		printf "#include <sys/sysent.h>\n\n" > sysdcl
 
 		printf "struct sysent sysent[] = {\n" > sysent
 
