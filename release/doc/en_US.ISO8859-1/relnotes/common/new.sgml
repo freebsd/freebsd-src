@@ -90,117 +90,22 @@
   <sect2 id="security">
     <title>Security Advisories</title>
 
-    <para>A remotely-exploitable buffer overflow vulnerability in
-      <application>sendmail</application> has been fixed.  For more
-      details, see security advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:07.sendmail.asc">FreeBSD-SA-03:07</ulink>.
-      In &os; &release.prev;, this vulnerability was fixed using a
-      vendor-supplied patch (but too late for inclusion in the release
-      notes).  In &os; &release.current;, it has been fixed with the
-      import of a new version of
-      <application>sendmail</application>.</para>
+    <para></para>
 
-    <para>A single-byte buffer overflow in &man.realpath.3; has been
-      fixed.  See security advisory 
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:08.realpath.asc">FreeBSD-SA-03:08</ulink>.</para>
-
-    <para>A bug that could allow the kernel to attempt delivery of
-      invalid signals has been fixed.  The bug could have led to a
-      kernel panic.  For more information, see security advisory
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:09.signal.asc">FreeBSD-SA-03:09</ulink>.</para>
-
-    <para>A bug in the iBCS2 emulation module, which could result in
-      disclosing the contents of kernel memory, has been fixed.  This
-      module is not enabled in &os; by default.  For more information,
-      see security advisory
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:10.ibcs2.asc">FreeBSD-SA-03:10</ulink>.</para>
-
-    <para>A programming error in the
-      <application>sendmail</application> implementation of its
-      <quote>DNS maps</quote> feature has been fixed by the import of
-      a new version of <application>sendmail</application>.  More
-      information can be found in security advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:11.sendmail.asc">FreeBSD-SA-03:11</ulink>.
-      Note that this feature is not used by the default configuration
-      files shipped with &os;.</para>
-
-    <para>A buffer management bug in
-      <application>OpenSSH</application>, which could potentially cause
-      a crash, has been fixed.  More information can be found in
-      security advisory
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:12.openssh.asc">FreeBSD-SA-03:12</ulink>.</para>
-
-    <para>A buffer overflow in <application>sendmail</application> has
-      been fixed.  More information can be found in security advisory
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:13.sendmail.asc">FreeBSD-SA-03:13</ulink>.</para>
-
-    <para>A bug that could allow the kernel to cause resource starvation
-      which eventually results in a system panic in the ARP cache code
-      has been fixed.  More information can be found in security advisory
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:14.arp.asc">FreeBSD-SA-03:14</ulink>.</para>
-
-    <para>Several errors in the <application>OpenSSH</application> PAM
-      challenge/authentication subsystem have been fixed.  The impacts
-      of these bugs vary; details can be found in security advisory
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:15.openssh.asc">FreeBSD-SA-03:15</ulink>.</para>
-
-    <para>A bug in the &man.readv.2; system call, which could potentially
-      cause a system crash or privilege escalation has been fixed.
-      More information can be found in security advisory
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:16.filedesc.asc">FreeBSD-SA-03:16</ulink>.</para>
-
-    <para>A bug in &man.procfs.5; and &man.linprocfs.5;, which could result in
-      disclosing the contents of kernel memory, has been fixed.
-      More information can be found in security advisory
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:17.procfs.asc">FreeBSD-SA-03:17</ulink>.</para>
-
-    <para>Four separate security flaws in <application>OpenSSL</application>,
-      which could allow a remote attacker to crash an
-      <application>OpenSSL</application>-using application or
-      to execute arbitrary code with the privileges of the application,
-      have been fixed.
-      More information can be found in security advisory 
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:18.openssl.asc">FreeBSD-SA-03:18</ulink>.</para>
   </sect2>
 
   <sect2 id="kernel">
     <title>Kernel Changes</title>
 
-    <para arch="i386">A bug that caused
-      &man.atkbd.4; to register an AT keyboard during console initialization,
-      even when no AT keyboard was connected,
-      has been fixed.  <command>kbdcontrol -k /dev/kbd1</command>
-      is no longer needed when only a USB keyboard is connected.</para>
-
-    <para arch="i386,pc98">The &man.hifn.4; driver now supports 
-      symmetric crypto for the 7955 and 7956 chipsets.</para>
-
-    <para arch="i386">The &man.safe.4; driver has been added
-      to support SafeNet 1141- and 1741-based crypto accelerators.
-
-      <warning>
-	<para>This driver should be considered experimental and
-	  and should be used with some caution.</para>
-      </warning>
-
-      <note>
-        <para>The public key support is not implemented.</para>
-      </note></para>
+    <para></para>
 
 <!-- Above this line, kernel changes ordered by manpage/variable name -->
 
     <sect3 id="proc">
       <title>Platform-Specific Hardware Support</title>
 
-      <para arch="i386">A bug which prevented the kernel from booting
-	on an Intel 80386 processor has been corrected.</para>
+      <para></para>
 
-      <para arch="i386">Support for the Physical Address Extensions
-	(PAE) capability on Intel Pentium Pro and higher processors
-	has been added.  This allows the use of up to 64GB of RAM in a
-	machine, although the amount of memory usable by any single
-	process (or the &os; kernel) is unchanged.  The &man.pae.4;
-	manual page has more details on this feature.</para>
     </sect3>
 
     <sect3 id="boot">
@@ -215,27 +120,7 @@
     <sect3 id="net-if">
       <title>Network Interface Support</title>
 
-      <para>&man.bge.4; now supports Broadcom 5705 based Gigabit Ethernet NICs.</para>
-
-      <para>The &man.dc.4; driver once again transmits packets
-	correctly through Davicom DC9102 cards.</para>
-
-      <para>The proatm driver has been added to support 
-        ProSum's ProATM (IDT77252-based) interfaces.  This driver is
-        analogous to the patm driver in &os;-CURRENT.</para>
-
-      <para arch="i386">The &man.rue.4; network driver has been added,
-        providing support for Ethernet adapters based on the RealTek
-        RTL8150 USB to Fast Ethernet controller chip.</para>
-
-      <para arch="i386">The &man.sbsh.4; driver for the Granch SBNI16
-        SHDSL modem has been added.</para>
-
-      <para>&man.sk.4; now supports SK-9521 V2.0 and 3COM 3C940 based Gigabit
-        Ethernet NICs.</para>
-
-      <para>The suspend/resume support for the &man.wi.4; driver
-        now works correctly when the device is configured down.</para>
+      <para></para>
 
 <!-- Above this line, order network driver changes by manpage/variable name-->
 
@@ -244,53 +129,21 @@
     <sect3 id="net-proto">
       <title>Network Protocols</title>
 
-      <para>A bug in &man.ipfw.4; limit rule processing that could
-        cause various panics has been fixed.</para>
-
-      <para>&man.ipfw.4; rules now support comma-separated address lists
-        (such as <literal>1.2.3.4, 5.6.7.8/30, 9.10.11.12/22</literal>),
-        and allow spaces after commas to make lists of addresses more readable.</para>
-
-      <para>&man.ipfw.4; rules now support C++-style comments.
-        Each comment is stored together with its rule and appears using
-        the &man.ipfw.8; <literal>show</literal> command.</para>
-
-      <para>&man.ipfw.8; can now modify &man.ipfw.4; rules in set 31,
-        which was read-only and used for the default rules.
-        They can be deleted by <command>ipfw delete set 31</command>
-        command but are not deleted
-        by the <command>ipfw flush</command> command.
-        This implements a flexible form of <quote>persistent
-          rules</quote>.  More details can be found in &man.ipfw.8;.</para>
-
-      <para>Kernel support has been added for Protocol Independent
-	Multicast routing.</para>
+      <para></para>
 
     </sect3>
 
     <sect3 id="disks">
       <title>Disks and Storage</title>
 
-      <para>The &man.da.4; driver no longer tries to send 6-byte
-	commands to USB and Firewire devices.  Quirks for USB
-	devices (which hopefully are now unnecessary) have been
-	disabled; to restore the old behavior, add <literal>options
-	DA_OLD_QUIRKS</literal> to the kernel configuration.</para>
+      <para></para>
 
-      <para>The &man.twe.4; driver now supports the 3ware generic
-	API.</para>
     </sect3>
 
     <sect3 id="fs">
       <title>File Systems</title>
 
-      <para>A new <literal>DIRECTIO</literal> kernel option enables
-	support for read operations that bypass the buffer cache and
-	put data directly into a userland buffer.  This feature
-	requires that the <literal>O_DIRECT</literal> flag is set on
-	the file descriptor and that both the offset and length for
-	the read operation are multiples of the physical media sector
-	size.</para>
+      <para></para>
 
     </sect3>
 
@@ -312,34 +165,7 @@
   <sect2 id="userland">
     <title>Userland Changes</title>
 
-    <para>&man.arp.8; now supports a <option>-i</option> option
-      to limit the scope of the current operation to the ARP entries
-      on a particular interface.  This option applies to the display
-      operations only.  It should be useful on routers with numerous
-      network interfaces.</para>
-
-    <para>&man.chroot.8; now allows the optional setting of a user,
-      primary group, or group list to use inside the chroot
-      environment via the <option>-u</option>, <option>-g</option>,
-      and <option>-G</option> options respectively.</para>
-
-    <para>&man.ipfw.8; <literal>list</literal> and <literal>show</literal>
-      command now support ranges of rule numbers.</para>
-
-    <para>&man.ipfw.8; now supports a <option>-n</option> flag
-      to test the syntax of commands without actually changing anything.</para>
-
-    <para>The &man.mount.msdos.8; utility now supports a
-      <option>-M</option> option to specify the maximum file
-      permissions for directories in the file system.</para>
-
-    <para>&man.systat.1; now includes displays for IPv6 and ICMPv6
-      traffic.</para>
-
-    <para>&man.uudecode.1; and &man.b64decode.1; now support a
-      <option>-r</option> flag for decoding raw (or broken) files that
-      may be missing the initial and possibly final framing
-      lines.</para>
+    <para></para>
 
 <!-- Above this line, order userland changes by manpage/variable name-->
 
@@ -348,63 +174,21 @@
   <sect2 id="contrib">
     <title>Contributed Software</title>
 
-    <para arch="i386">The Intel ACPI 20030228 distribution (with local
-      &os; changes and support code) has been imported.  This feature
-      should be considered experimental and should be tested prior to
-      being deployed in a production environment.
+    <para></para>
 
-      <note>
-	<para>Unlike on &os;-CURRENT, the ACPI driver must be
-	  statically compiled into the kernel by adding
-	  <literal>device acpica</literal> to a kernel
-	  configuration.  There is no kernel module.  This driver is
-	  not present in the default, <filename>GENERIC</filename>
-	  kernel.</para>
-      </note>
-
-      </para>
-
-    <para><application>groff</application> has been updated from
-      1.18.1 to 1.19.</para>
-
-    <para><application>lukemftpd</application> (not built by default)
-      has been updated from a 1.2beta1 to a 5 January 2003 snapshot
-      from the NetBSD CVS repository.</para>
-
-    <para><application>OpenSSL</application> has been updated from
-      0.9.7a to 0.9.7c.</para>
-
-    <para><application>sendmail</application> has been updated to
-      version 8.12.9.</para>
-
-    <para><application>texinfo</application> has been updated from 4.5
-      to 4.6.</para>
-
-    <para>The timezone database has been updated
-      from the <filename>tzdata2003a</filename> release
-      to the <filename>tzdata2003d</filename> release.</para>
   </sect2>
 
   <sect2 id="ports">
     <title>Ports/Packages Collection Infrastructure</title>
 
-    <para>&man.pkg.create.1; now supports a <option>-C</option>
-      option, which allows packages to register a list of other
-      packages with which they conflict.  They will refuse to install
-      (via &man.pkg.add.1;) if one of the listed packages is already
-      present.  The <option>-f</option> flag to &man.pkg.add.1;
-      overrides this conflict-checking.</para>
+    <para></para>
 
   </sect2>
 
   <sect2 id="releng">
     <title>Release Engineering and Integration</title>
 
-    <para>The supported release of <application>GNOME</application>
-      has been updated from 2.2 to 2.4.</para>
-
-    <para>The supported release of <application>KDE</application>
-      has been updated from 3.1 to 3.1.4.</para>
+    <para></para>
 
   </sect2>
 </sect1>
