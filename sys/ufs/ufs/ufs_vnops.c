@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.27 (Berkeley) 5/27/95
- * $Id: ufs_vnops.c,v 1.67 1997/11/13 01:48:30 julian Exp $
+ * $Id: ufs_vnops.c,v 1.68 1997/11/18 14:20:09 phk Exp $
  */
 
 #include "opt_quota.h"
@@ -1739,7 +1739,8 @@ ufsspec_read(ap)
 	/*
 	 * Set access flag.
 	 */
-	VTOI(ap->a_vp)->i_flag |= IN_ACCESS;
+	if (!(ap->a_vp->v_mount->mnt_flag & MNT_NOATIME))
+		VTOI(ap->a_vp)->i_flag |= IN_ACCESS;
 	return (VOCALL (spec_vnodeop_p, VOFFSET(vop_read), ap));
 }
 
@@ -1799,10 +1800,12 @@ ufsfifo_read(ap)
 		struct ucred *a_cred;
 	} */ *ap;
 {
+
 	/*
 	 * Set access flag.
 	 */
-	VTOI(ap->a_vp)->i_flag |= IN_ACCESS;
+	if (!(ap->a_vp->v_mount->mnt_flag & MNT_NOATIME))
+		VTOI(ap->a_vp)->i_flag |= IN_ACCESS;
 	return (VOCALL (fifo_vnodeop_p, VOFFSET(vop_read), ap));
 }
 
@@ -2062,10 +2065,9 @@ static int
 ufs_missingop(ap)
 	struct vop_generic_args *ap;
 {
-	printf("Missing VOP function (%s) in UFS child",
-		 ap->a_desc->vdesc_name);
-	panic("Missing VOP function in UFS");
-	return(EOPNOTSUPP);
+
+	panic("no vop function for %s in ufs child", ap->a_desc->vdesc_name);
+	return (EOPNOTSUPP);
 }
 
 /* Global vfs data structures for ufs. */
@@ -2073,7 +2075,6 @@ vop_t **ufs_vnodeop_p;
 static struct vnodeopv_entry_desc ufs_vnodeop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) vop_defaultop },
 	{ &vop_fsync_desc,		(vop_t *) ufs_missingop },
-	{ &vop_getpages_desc,		(vop_t *) ufs_missingop },
 	{ &vop_read_desc,		(vop_t *) ufs_missingop },
 	{ &vop_reallocblks_desc,	(vop_t *) ufs_missingop },
 	{ &vop_write_desc,		(vop_t *) ufs_missingop },
