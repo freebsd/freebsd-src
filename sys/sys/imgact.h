@@ -32,32 +32,37 @@
 #ifndef _SYS_IMGACT_H_
 #define	_SYS_IMGACT_H_
 
+#include <sys/uio.h>
+
 #define MAXSHELLCMDLEN	128
+
+struct image_args {
+	char *buf;		/* pointer to string buffer */
+	char *begin_argv;	/* beginning of argv in buf */
+	char *begin_envv;	/* beginning of envv in buf */
+	char *endp;		/* current `end' pointer of arg & env strings */
+	char *fname;            /* pointer to filename of executable (system space) */
+	int stringspace;	/* space left in arg & env buffer */
+	int argc;		/* count of argument strings */
+	int envc;		/* count of environment strings */
+};
 
 struct image_params {
 	struct proc *proc;	/* our process struct */
-	char **userspace_argv;	/* system call argument */
-	char **userspace_envv;	/* system call argument */
 	struct label *execlabel;	/* optional exec label */
 	struct vnode *vp;	/* pointer to vnode of file to exec */
 	struct vm_object *object;	/* The vm object for this vp */
 	struct vattr *attr;	/* attributes of file */
 	const char *image_header; /* head of file to exec */
-	char *stringbase;	/* base address of tmp string storage */
-	char *stringp;		/* current 'end' pointer of tmp strings */
-	char *endargs;		/* end of argv vector */
-	int stringspace;	/* space left in tmp string storage area */
-	int argc, envc;		/* count of argument and environment strings */
-	char *argv0;		/* Replacement for argv[0] when interpreting */
 	unsigned long entry_addr; /* entry address of target executable */
 	char vmspace_destroyed;	/* flag - we've blown away original vm space */
 	char interpreted;	/* flag - this executable is interpreted */
 	char interpreter_name[MAXSHELLCMDLEN]; /* name of the interpreter */
 	void *auxargs;		/* ELF Auxinfo structure pointer */
 	struct sf_buf *firstpage;	/* first page that we mapped */
-	char *fname;            /* pointer to filename of executable (user space) */
 	unsigned long ps_strings; /* PS_STRINGS for BSD/OS binaries */
 	size_t auxarg_size;
+	struct image_args *args;	/* system call arguments */
 };
 
 #ifdef _KERNEL
@@ -66,10 +71,12 @@ struct thread;
 
 int	exec_check_permissions(struct image_params *);
 register_t *exec_copyout_strings(struct image_params *);
-int	exec_extract_strings(struct image_params *);
 int	exec_new_vmspace(struct image_params *, struct sysentvec *);
 void	exec_setregs(struct thread *, u_long, u_long, u_long);
 int	exec_shell_imgact(struct image_params *);
+int	exec_copyin_args(struct image_args *, char *, enum uio_seg,
+	char **, char **);
+void	exec_free_args(struct image_args *);
 #endif
 
 #endif /* !_SYS_IMGACT_H_ */

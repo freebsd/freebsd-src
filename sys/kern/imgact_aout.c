@@ -90,7 +90,7 @@ aout_fixup(stack_base, imgp)
 	struct image_params *imgp;
 {
 
-	return (suword(--(*stack_base), imgp->argc));
+	return (suword(--(*stack_base), imgp->args->argc));
 }
 
 static int
@@ -186,11 +186,6 @@ exec_aout_imgact(imgp)
 			return (ENOMEM);
 	}
 	PROC_UNLOCK(imgp->proc);
-
-	/* copy in arguments and/or environment from old process */
-	error = exec_extract_strings(imgp);
-	if (error)
-		return (error);
 
 	/*
 	 * Destroy old process VM and create a new one (with a new stack)

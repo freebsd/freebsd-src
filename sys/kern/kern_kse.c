@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/imgact.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
@@ -176,6 +177,7 @@ int
 kse_thr_interrupt(struct thread *td, struct kse_thr_interrupt_args *uap)
 {
 	struct kse_execve_args args;
+	struct image_args iargs;
 	struct proc *p;
 	struct thread *td2;
 	struct kse_upcall *ku;
@@ -261,7 +263,11 @@ kse_thr_interrupt(struct thread *td, struct kse_thr_interrupt_args *uap)
 		error = copyin((void *)uap->data, &args, sizeof(args));
 		if (error)
 			return (error);
-		error = kern_execve(td, args.path, args.argv, args.envp, NULL);
+		error = exec_copyin_args(&iargs, args.path, UIO_USERSPACE,
+		    args.argv, args.envp);
+		if (error == 0)
+			error = kern_execve(td, &iargs, NULL);
+		exec_free_args(&iargs);
 		if (error == 0) {
 			PROC_LOCK(p);
 			SIGSETOR(td->td_siglist, args.sigpend);

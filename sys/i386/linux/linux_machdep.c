@@ -31,7 +31,9 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/imgact.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/mman.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
@@ -104,21 +106,27 @@ bsd_to_linux_sigaltstack(int bsa)
 int
 linux_execve(struct thread *td, struct linux_execve_args *args)
 {
-	struct execve_args bsd;
-	caddr_t sg;
+	int error;
+	char *newpath;
+	struct image_args eargs;
 
-	sg = stackgap_init();
-	CHECKALTEXIST(td, &sg, args->path);
+	error = linux_emul_convpath(td, args->path, UIO_USERSPACE,
+	    &newpath, 0);
+	if (newpath == NULL)
+		return (error);
 
 #ifdef DEBUG
 	if (ldebug(execve))
-		printf(ARGS(execve, "%s"), args->path);
+		printf(ARGS(execve, "%s"), newpath);
 #endif
 
-	bsd.fname = args->path;
-	bsd.argv = args->argp;
-	bsd.envv = args->envp;
-	return (execve(td, &bsd));
+	error = exec_copyin_args(&eargs, newpath, UIO_SYSSPACE,
+	    args->argp, args->envp);
+	free(newpath, M_TEMP);
+	if (error == 0)
+		kern_execve(td, &eargs, NULL);
+	exec_free_args(&eargs);
+	return (error);
 }
 
 struct l_ipc_kludge {

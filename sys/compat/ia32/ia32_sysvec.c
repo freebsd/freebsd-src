@@ -183,7 +183,7 @@ ia32_copyout_strings(struct image_params *imgp)
 	arginfo = (struct freebsd32_ps_strings *)FREEBSD32_PS_STRINGS;
 	szsigcode = *(imgp->proc->p_sysent->sv_szsigcode);
 	destp =	(caddr_t)arginfo - szsigcode - SPARE_USRSPACE -
-		roundup((ARG_MAX - imgp->stringspace), sizeof(char *));
+		roundup((ARG_MAX - imgp->args->stringspace), sizeof(char *));
 
 	/*
 	 * install sigcode
@@ -208,7 +208,7 @@ ia32_copyout_strings(struct image_params *imgp)
 		 * the arg and env vector sets,and imgp->auxarg_size is room
 		 * for argument of Runtime loader.
 		 */
-		vectp = (u_int32_t *) (destp - (imgp->argc + imgp->envc + 2 +
+		vectp = (u_int32_t *) (destp - (imgp->args->argc + imgp->args->envc + 2 +
 				       imgp->auxarg_size) * sizeof(u_int32_t));
 
 	} else
@@ -217,20 +217,20 @@ ia32_copyout_strings(struct image_params *imgp)
 		 * the arg and env vector sets
 		 */
 		vectp = (u_int32_t *)
-			(destp - (imgp->argc + imgp->envc + 2) * sizeof(u_int32_t));
+			(destp - (imgp->args->argc + imgp->args->envc + 2) * sizeof(u_int32_t));
 
 	/*
 	 * vectp also becomes our initial stack base
 	 */
 	stack_base = vectp;
 
-	stringp = imgp->stringbase;
-	argc = imgp->argc;
-	envc = imgp->envc;
+	stringp = imgp->args->begin_argv;
+	argc = imgp->args->argc;
+	envc = imgp->args->envc;
 	/*
 	 * Copy out strings - arguments and environment.
 	 */
-	copyout(stringp, destp, ARG_MAX - imgp->stringspace);
+	copyout(stringp, destp, ARG_MAX - imgp->args->stringspace);
 
 	/*
 	 * Fill in "ps_strings" struct for ps, w, etc.
