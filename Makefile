@@ -30,9 +30,7 @@
 # tree. This makefile executes a child make process, forcing it to use
 # the mk files from the source tree which are supposed to DTRT.
 #
-# The user-driven targets (as listed above) are implemented in Makefile.inc0
-# and the private targets are in Makefile.inc1. These are kept separate
-# to help the bootstrap build from aout to elf format.
+# The user-driven targets (as listed above) are implemented in Makefile.inc1.
 #
 # For novices wanting to build from current sources, the simple instructions
 # are:
