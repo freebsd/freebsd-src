@@ -73,6 +73,7 @@ __FBSDID("$FreeBSD$");
 #define CE_SIGNALGROUP	0x0080	/* Signal a process-group instead of a single */
 				/*    process when trimming this file. */
 #define CE_CREATE	0x0100	/* Create the log file if it does not exist. */
+#define	CE_NODUMP	0x0200	/* Set 'nodump' on newly created log file. */
 
 #define MIN_PID         5	/* Don't touch pids lower than this */
 #define MAX_PID		99999	/* was lower, see /usr/include/sys/proc.h */
@@ -1137,6 +1138,9 @@ no_trimat:
 				}
 				working->flags |= CE_CREATE;
 				break;
+			case 'd':
+				working->flags |= CE_NODUMP;
+				break;
 			case 'g':
 				working->flags |= CE_GLOB;
 				break;
@@ -1379,6 +1383,8 @@ dotrim(const struct conf_entry *ent)
 			if (ent->uid != (uid_t)-1 || ent->gid != (gid_t)-1)
 				printf("\tchown %u:%u %s\n",
 				    ent->uid, ent->gid, zfile2);
+			if (ent->flags & CE_NODUMP)
+				printf("\tchflags nodump %s\n", zfile2);
 		} else {
 			(void) rename(zfile1, zfile2);
 			if (chmod(zfile2, ent->permissions))
@@ -1386,6 +1392,9 @@ dotrim(const struct conf_entry *ent)
 			if (ent->uid != (uid_t)-1 || ent->gid != (gid_t)-1)
 				if (chown(zfile2, ent->uid, ent->gid))
 					warn("can't chown %s", zfile2);
+			if (ent->flags & CE_NODUMP)
+				if (chflags(zfile2, UF_NODUMP))
+					warn("can't chflags %s NODUMP", zfile2);
 		}
 	}
 
@@ -1405,6 +1414,8 @@ dotrim(const struct conf_entry *ent)
 			if (ent->uid != (uid_t)-1 || ent->gid != (gid_t)-1)
 				printf("\tchown %u:%u %s\n", ent->uid,
 				    ent->gid, file1);
+			if (ent->flags & CE_NODUMP)
+				printf("\tchflags nodump %s\n", file1);
  		} else {
 			if (!(flags & CE_BINARY)) {
 				/* Report the trimming to the old log */
@@ -1416,6 +1427,9 @@ dotrim(const struct conf_entry *ent)
 			if (ent->uid != (uid_t)-1 || ent->gid != (gid_t)-1)
 				if (chown(file1, ent->uid, ent->gid))
 					warn("can't chown %s", file1);
+			if (ent->flags & CE_NODUMP)
+				if (chflags(file1, UF_NODUMP))
+					warn("can't chflags %s NODUMP", file1);
 		}
 	}
 
@@ -1506,6 +1520,12 @@ log_trim(const char *logname, const struct conf_entry *log_ent)
 	return (0);
 }
 
+/*
+ * XXX - Note that both compress_log and bzcompress_log will lose the
+ *	NODUMP flag if it was set on somelog.0.  Fixing that in newsyslog
+ *	(as opposed to fixing gzip/bzip2) will require some restructuring
+ *	of the code.  That restructuring is planned for a later update...
+ */
 /* Fork of gzip to compress the old log file */
 static void
 compress_log(char *logname, int dowait)
@@ -1783,6 +1803,18 @@ createlog(const struct conf_entry *ent)
 			failed = fchown(fd, ent->uid, ent->gid);
 			if (failed)
 				err(1, "can't fchown temp file %s", tempfile);
+		}
+	}
+
+	/* Turn on NODUMP if it was requested in the config-file. */
+	if (ent->flags & CE_NODUMP) {
+		if (noaction)
+			printf("\tchflags nodump %s\n", tempfile);
+		else {
+			failed = fchflags(fd, UF_NODUMP);
+			if (failed) {
+				warn("log_trim: fchflags(NODUMP)");
+			}
 		}
 	}
 
