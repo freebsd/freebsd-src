@@ -3294,7 +3294,7 @@ ahc_softc_init(struct ahc_softc *ahc, struct ahc_probe_config *config)
 	if ((ahc->chip & AHC_PCI) != 0)
 		ahc->unpause &= ~IRQMS;
 	ahc->pause = ahc->unpause | PAUSE; 
-	/* XXX The shared scb data stuff should be depricated */
+	/* XXX The shared scb data stuff should be deprecated */
 	if (ahc->scb_data == NULL) {
 		ahc->scb_data = malloc(sizeof(*ahc->scb_data),
 				       M_DEVBUF, M_NOWAIT);
