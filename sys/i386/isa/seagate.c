@@ -60,7 +60,7 @@
  *               that category, with the possible exception of scanners and
  *               some of the older MO drives.
  *
- * $Id: seagate.c,v 1.23 1997/05/25 04:13:27 peter Exp $
+ * $Id: seagate.c,v 1.24 1997/07/20 14:10:10 bde Exp $
  */
 
 /*
@@ -217,13 +217,13 @@ typedef struct scb {
 	struct scb *next;               /* in free list */
 	struct scsi_xfer *xfer;		/* the scsi_xfer for this cmd */
 	u_char *data;                   /* position in data buffer so far */
-	int32_t datalen;			/* bytes remaining to transfer */;
+	int32_t datalen;		/* bytes remaining to transfer */
 } scb_t;
 
 typedef enum {
 	CTLR_NONE,
 	CTLR_SEAGATE,
-	CTLR_FUTURE_DOMAIN,
+	CTLR_FUTURE_DOMAIN
 } ctlr_t;
 
 /*
