@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.476 1998/09/25 17:34:47 peter Exp $
+#	$Id: LINT,v 1.477 1998/09/27 11:47:24 jkoshy Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -506,6 +506,8 @@ options		UNION			#Union filesystem
 options		"CD9660_ROOT"		#CD-ROM usable as root device
 options		FFS_ROOT		#FFS usable as root device
 options		NFS_ROOT		#NFS usable as root device
+# This code is still experimental (e.g. doesn't handle disk slices well).
+# Also, 'options MFS' is currently incompatible with DEVFS.
 options		DEVFS			#devices filesystem
 
 # Allow the FFS to use Softupdates technology.
@@ -1594,6 +1596,16 @@ options		HW_WDOG
 # The value below is the one more than the default.
 #
 options         "PMAP_SHPGPERPROC=201"
+
+#
+# Disable swapping. This option removes all code which actually performs
+# swapping, so it's not possible to turn it back on at run-time.
+#
+# This is sometimes usable for systems which don't have any swap space
+# (see also sysctls "vm.defer_swapspace_pageouts" and
+# "vm.disable_swapspace_pageouts")
+#
+#options	NO_SWAPPING
 
 # More undocumented options for linting.
 
