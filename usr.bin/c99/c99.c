@@ -28,7 +28,8 @@
  * c99 -- compile standard C programs
  *
  * This is essentially a wrapper around the system C compiler that forces
- * the compiler into C99 mode.
+ * the compiler into C99 mode and handles some of the standard libraries
+ * specially.
  */
 
 #include <sys/cdefs.h>
@@ -45,22 +46,47 @@ __FBSDID("$FreeBSD$");
 char **args;
 u_int cargs, nargs;
 
-void addarg(const char *item);
+void addarg(const char *);
+void addlib(const char *);
 void usage(void);
 
 int
 main(int argc, char *argv[])
 {
-	int i;
+	int ch, i;
 
 	args = NULL;
 	cargs = nargs = 0;
 
+	while ((ch = getopt(argc, argv, "cD:EgI:L:o:O:sU:l:")) != -1) {
+		if (ch == 'l') {
+			/* Gone too far. Back up and get out. */
+			if (argv[optind - 1][0] == '-')
+				optind -= 1;
+			else
+				optind -= 2;
+			break;
+		} else if (ch == '?')
+			usage();
+	}
+
 	addarg("cc");
 	addarg("-std=iso9899:1999");
 	addarg("-pedantic");
-	for (i = 1; i < argc; i++)
+	for (i = 1; i < optind; i++)
 		addarg(argv[i]);
+	while (i < argc) {
+		if (strncmp(argv[i], "-l", 2) == 0) {
+			if (argv[i][2] != '\0')
+				addlib(argv[i++] + 2);
+			else {
+				if (argv[++i] == NULL)
+					usage();
+				addlib(argv[i++]);
+			}
+		} else
+			addarg(argv[i++]);
+	}
 	execv("/usr/bin/cc", args);
 	err(1, "/usr/bin/cc");
 }
@@ -76,6 +102,25 @@ addarg(const char *item)
 	if ((args[nargs++] = strdup(item)) == NULL)
 		err(1, "strdup");
 	args[nargs] = NULL;
+}
+
+void
+addlib(const char *lib)
+{
+
+	if (strcmp(lib, "pthread") == 0)
+		/* FreeBSD's gcc uses -pthread instead of -lpthread. */
+		addarg("-pthread");
+	else if (strcmp(lib, "rt") == 0)
+		/* librt functionality is in libc or unimplemented. */
+		;
+	else if (strcmp(lib, "xnet") == 0)
+		/* xnet functionality is in libc. */
+		;
+	else {
+		addarg("-l");
+		addarg(lib);
+	}
 }
 
 void
