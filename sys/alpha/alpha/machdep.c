@@ -1851,62 +1851,6 @@ ptrace_single_step(struct proc *p)
 	return 0;
 }
 
-int ptrace_read_u_check(p, addr, len)
-	struct proc *p;
-	vm_offset_t addr;
-	size_t len;
-{
-	vm_offset_t gap;
-
-	if ((vm_offset_t) (addr + len) < addr)
-		return EPERM;
-	if ((vm_offset_t) (addr + len) <= sizeof(struct user))
-		return 0;
-
-	gap = (char *) p->p_frame - (char *) p->p_addr;
-	
-	if ((vm_offset_t) addr < gap)
-		return EPERM;
-	if ((vm_offset_t) (addr + len) <= 
-	    (vm_offset_t) (gap + sizeof(struct trapframe)))
-		return 0;
-	return EPERM;
-}
-
-int
-ptrace_write_u(struct proc *p, vm_offset_t off, long data)
-{
-	vm_offset_t min;
-#if 0
-	struct trapframe frame_copy;
-	struct trapframe *tp;
-#endif
-
-	/*
-	 * Privileged kernel state is scattered all over the user area.
-	 * Only allow write access to parts of regs and to fpregs.
-	 */
-	min = (char *)p->p_frame - (char *)p->p_addr;
-	if (off >= min && off <= min + sizeof(struct trapframe) - sizeof(int)) {
-#if 0
-		tp = p->p_frame;
-		frame_copy = *tp;
-		*(int *)((char *)&frame_copy + (off - min)) = data;
-		if (!EFLAGS_SECURE(frame_copy.tf_eflags, tp->tf_eflags) ||
-		    !CS_SECURE(frame_copy.tf_cs))
-			return (EINVAL);
-#endif
-		*(int*)((char *)p->p_addr + off) = data;
-		return (0);
-	}
-	min = offsetof(struct user, u_pcb) + offsetof(struct pcb, pcb_fp);
-	if (off >= min && off <= min + sizeof(struct fpreg) - sizeof(int)) {
-		*(int*)((char *)p->p_addr + off) = data;
-		return (0);
-	}
-	return (EFAULT);
-}
-
 int
 alpha_pa_access(vm_offset_t pa)
 {
