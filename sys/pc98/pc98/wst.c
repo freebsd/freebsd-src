@@ -29,10 +29,7 @@
  */
 
 #include "wdc.h"
-#include "wst.h"
 #include "opt_ddb.h"
-
-#if NWST > 0 && NWDC > 0
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -775,5 +772,3 @@ wst_drvinit(void *unused)
 }
 
 SYSINIT(wstdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,wst_drvinit,NULL)
-
-#endif /* NWST && NWDC */
