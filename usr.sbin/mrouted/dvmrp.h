@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: dvmrp.h,v 3.5 1995/05/09 01:00:39 fenner Exp $
+ * $Id: dvmrp.h,v 3.6 1995/06/25 18:52:10 fenner Exp $
  */
 
 /*
@@ -121,7 +121,7 @@
  * Various protocol constants (all times in seconds)
  */
 				        /* address for multicast DVMRP msgs */
-#define INADDR_DVMRP_GROUP	(u_int32)0xe0000004    /* 224.0.0.4 */
+#define INADDR_DVMRP_GROUP	(u_int32)0xe0000004     /* 224.0.0.4 */
 					/* address for multicast mtrace msg */
 #define INADDR_ALLRTRS_GROUP	(u_int32)0xe0000002	/* 224.0.0.2 */
 
@@ -151,7 +151,7 @@
 #define DEFAULT_METRIC		1	/* default subnet/tunnel metric     */
 #define DEFAULT_THRESHOLD	1	/* default subnet/tunnel threshold  */
 
-#define MAX_RATE_LIMIT      	100000 	/* max rate limit      */
+#define MAX_RATE_LIMIT      	100000 	/* max rate limit      	    	    */
 #define DEFAULT_PHY_RATE_LIMIT  0 	/* default phyint rate limit  	    */
 #define DEFAULT_TUN_RATE_LIMIT	500	/* default tunnel rate limit	    */
 

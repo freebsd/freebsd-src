@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: prune.h,v 3.5 1995/05/09 01:00:39 fenner Exp $
+ * $Id: prune.h,v 3.6 1995/06/25 19:19:04 fenner Exp $
  */
 
 /*
@@ -131,8 +131,8 @@ struct tr_resp {
 
 #define MASK_TO_VAL(x, i) { \
 			u_int32 _x = ntohl(x); \
-			(i) = 0; \
-			while ((_x) << (i)) \
+			(i) = 1; \
+			while ((_x) <<= 1) \
 				(i)++; \
 			};
 

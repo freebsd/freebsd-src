@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: callout.c,v 3.5 1995/05/09 01:00:39 fenner Exp $
+ * $Id: callout.c,v 3.6 1995/06/25 18:47:29 fenner Exp $
  */
 
 #include "defs.h"
@@ -18,19 +18,22 @@ static struct timeout_q  *Q = 0; /* pointer to the beginning of timeout queue */
 
 static int in_callout= 0;
 
-typedef void (* cfunc_t)();
-
 struct timeout_q {
 	struct timeout_q *next;		/* next event */
 	int        	 id;  
-	cfunc_t          func ;    	/* function to call */
+	cfunc_t          func;    	/* function to call */
 	char	   	 *data;		/* func's data */
 	int            	 time;		/* time offset to next event*/
 };
 
-static void print_Q();
+#ifdef IGMP_DEBUG
+static void print_Q __P((void));
+#else
+#define	print_Q()	
+#endif
 
-void callout_init()
+void
+callout_init()
 {
     Q = (struct timeout_q *) 0;
 }
@@ -39,7 +42,8 @@ void callout_init()
 /*
  * signal handler for SIGALARM that is called once every second
  */
-void age_callout_queue()
+void
+age_callout_queue()
 {
     struct timeout_q *ptr;
     
@@ -52,7 +56,7 @@ void age_callout_queue()
     while (ptr){
 	if (!ptr->time ) {
 	    /* timeout has happened */
-	    if(ptr->func)
+	    if (ptr->func)
 		ptr->func(ptr->data);
 	    Q = Q->next;
 	    
@@ -63,7 +67,7 @@ void age_callout_queue()
 	    ptr->time --;
 #ifdef IGMP_DEBUG
 	    log(LOG_DEBUG,0,"[callout, age_callout_queue] -- time (%d)", ptr->time);
-#endif IGMP_DEBUG
+#endif /* IGMP_DEBUG */
 	    in_callout = 0; return;
 	}
     }
@@ -75,7 +79,8 @@ void age_callout_queue()
 /* 
  * sets the timer
  */
-int timer_setTimer(delay, action, data)
+int
+timer_setTimer(delay, action, data)
     int 	delay;  	/* number of units for timeout */
     cfunc_t	action; 	/* function to be called on timeout */
     char  	*data;  	/* what to call the timeout function with */
@@ -88,7 +93,7 @@ int timer_setTimer(delay, action, data)
     in_callout = 1;
     
     /* create a node */	
-    node   = (struct timeout_q *)malloc(sizeof(struct timeout_q));
+    node = (struct timeout_q *)malloc(sizeof(struct timeout_q));
     if (node == 0) {
 	log(LOG_WARNING, 0, "Malloc Failed in timer_settimer\n");
 	in_callout = 0;
@@ -109,9 +114,9 @@ int timer_setTimer(delay, action, data)
 	Q = node;
     else {
 	/* chase the pointer looking for the right place */
-	while (ptr){
+	while (ptr) {
 	    
-	    if (delay < ptr->time){
+	    if (delay < ptr->time) {
 		/* right place */
 		
 		node->next = ptr;
@@ -123,8 +128,7 @@ int timer_setTimer(delay, action, data)
 		print_Q();
 		in_callout = 0;
 		return node->id;
-	    }
-	    else  {
+	    } else  {
 		/* keep moving */
 		
 		delay -= ptr->time; node->time = delay;
@@ -141,16 +145,18 @@ int timer_setTimer(delay, action, data)
 
 
 /* clears the associated timer */
-void timer_clearTimer( timer_id)
+void
+timer_clearTimer(timer_id)
     int  timer_id;
 {
     struct timeout_q  *ptr, *prev;
     
-    if (in_callout)  return;
+    if (in_callout)
+        return;
+    if (!timer_id)
+	return;
+
     in_callout = 1;
-    
-    
-    if ( !timer_id ) {in_callout = 0; return;}
     
     prev = ptr = Q;
     
@@ -160,12 +166,12 @@ void timer_clearTimer( timer_id)
      */
     
     print_Q();
-    while (ptr){
-	if (ptr->id == timer_id){
+    while (ptr) {
+	if (ptr->id == timer_id) {
 	    /* got the right node */
 	    
 	    /* unlink it from the queue */
-	    if ( ptr == Q)
+	    if (ptr == Q)
 		Q = Q->next;
 	    else
 		prev->next = ptr->next;
@@ -187,16 +193,16 @@ void timer_clearTimer( timer_id)
     in_callout = 0;
 }
 
+#ifdef IGMP_DEBUG
 /*
  * debugging utility
  */
-static void print_Q()
+static void
+print_Q()
 {
-#ifdef IGMP_DEBUG
     struct timeout_q  *ptr;
     
     for(ptr = Q; ptr; ptr = ptr->next)
 	log(LOG_DEBUG,0,"(%d,%d) ", ptr->id, ptr->time);
-#endif IGMP_DEBUG
 }
-
+#endif /* IGMP_DEBUG */

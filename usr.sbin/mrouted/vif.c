@@ -7,31 +7,48 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: vif.c,v 3.5 1995/05/09 01:00:39 fenner Exp $
+ * $Id: vif.c,v 3.6 1995/06/25 19:53:01 fenner Exp $
  */
 
 
 #include "defs.h"
+#include <fcntl.h>
 
 
 /*
  * Exported variables.
  */
-struct uvif	uvifs[MAXVIFS];	/* array of virtual interfaces */
-vifi_t		numvifs;	/* number of vifs in use       */
-int		vifs_down;	/* 1=>some interfaces are down */
+struct uvif	uvifs[MAXVIFS];	/* array of virtual interfaces		    */
+vifi_t		numvifs;	/* number of vifs in use	    	    */
+int		vifs_down;	/* 1=>some interfaces are down	    	    */
+int		phys_vif;	/* An enabled vif		    	    */
 int		udp_socket;	/* Since the honkin' kernel doesn't support */
 				/* ioctls on raw IP sockets, we need a UDP  */
 				/* socket as well as our IGMP (raw) socket. */
 				/* How dumb.                                */
 int		vifs_with_neighbors;	/* == 1 if I am a leaf		    */
 
+typedef struct {
+        vifi_t  vifi;
+        struct listaddr *g;
+	int    q_time;
+} cbk_t;
+
+static cbk_t *cbk;
 /*
  * Forward declarations.
  */
-static void start_vif();
-static void stop_vif();
-static void age_old_hosts();
+static void start_vif __P((vifi_t vifi));
+static void stop_vif __P((vifi_t vifi));
+static void age_old_hosts __P((void));
+static void send_probe_on_vif __P((struct uvif *v));
+static void DelVif __P((cbk_t *cbk));
+static int SetTimer __P((int vifi, struct listaddr *g));
+static int DeleteTimer __P((int id));
+static void SendQuery __P((cbk_t *cbk));
+static int SetQueryTimer __P((struct listaddr *g, vifi_t vifi, int to_expire,
+					int q_time));
+
 
 /*
  * Initialize the virtual interfaces.
@@ -45,6 +62,7 @@ init_vifs()
     extern char *configfilename;
 
     numvifs = 0;
+    vifs_with_neighbors = 0;
     vifs_down = FALSE;
 
     /*
@@ -64,11 +82,15 @@ init_vifs()
      */
     enabled_vifs    = 0;
     enabled_phyints = 0;
+    phys_vif	    = -1;
     for (vifi = 0, v = uvifs; vifi < numvifs; ++vifi, ++v) {
 	if (!(v->uv_flags & VIFF_DISABLED)) {
 	    ++enabled_vifs;
-	    if (!(v->uv_flags & VIFF_TUNNEL))
+	    if (!(v->uv_flags & VIFF_TUNNEL)) {
+    	    	if (phys_vif == -1)
+    	    	    phys_vif = vifi;
 		++enabled_phyints;
+	    }
 	}
     }
     if (enabled_vifs < 2)
@@ -83,17 +105,17 @@ init_vifs()
      * Start routing on all virtual interfaces that are not down or
      * administratively disabled.
      */
-    log(LOG_INFO,0,"Installing vifs in kernel...");
+    log(LOG_INFO, 0, "Installing vifs in kernel...");
     for (vifi = 0, v = uvifs; vifi < numvifs; ++vifi, ++v) {
 	if (!(v->uv_flags & VIFF_DISABLED)) {
 	    if (!(v->uv_flags & VIFF_DOWN)) {
 		if (v->uv_flags & VIFF_TUNNEL)
-		    log(LOG_INFO,0,"vif #%d, tunnel %s -> %s", vifi,
-				inet_fmt(v->uv_lcl_addr,s1),
-				inet_fmt(v->uv_rmt_addr,s2));
+		    log(LOG_INFO, 0, "vif #%d, tunnel %s -> %s", vifi,
+				inet_fmt(v->uv_lcl_addr, s1),
+				inet_fmt(v->uv_rmt_addr, s2));
 		else
-		    log(LOG_INFO,0,"vif #%d, phyint %s", vifi,
-				inet_fmt(v->uv_lcl_addr,s1));
+		    log(LOG_INFO, 0, "vif #%d, phyint %s", vifi,
+				inet_fmt(v->uv_lcl_addr, s1));
 		start_vif(vifi);
 	    } else log(LOG_INFO, 0,
 		     "%s is not yet up; vif #%u not in service",
@@ -152,7 +174,7 @@ check_vif_state()
 /*
  * Send a probe message on vif v
  */
-void
+static void
 send_probe_on_vif(v)
     register struct uvif *v;
 {
@@ -237,7 +259,7 @@ start_vif(vifi)
 	update_route(v->uv_subnet, v->uv_subnetmask, 0, 0, vifi);
 	for (p = v->uv_addrs; p; p = p->pa_next) {
 	    start_route_updates();
-	    update_route(p->pa_addr, p->pa_mask, 0, 0, vifi);
+	    update_route(p->pa_subnet, p->pa_subnetmask, 0, 0, vifi);
 	}
 
 	/*
@@ -292,7 +314,7 @@ stop_vif(vifi)
 	update_route(v->uv_subnet, v->uv_subnetmask, UNREACHABLE, 0, vifi);
 	for (p = v->uv_addrs; p; p = p->pa_next) {
 	    start_route_updates();
-	    update_route(p->pa_addr, p->pa_mask, UNREACHABLE, 0, vifi);
+	    update_route(p->pa_subnet, p->pa_subnetmask, UNREACHABLE, 0, vifi);
 	}
 
 	/*
@@ -385,11 +407,13 @@ find_vif(src, dst)
 	    }
 	    else {
 		if ((src & v->uv_subnetmask) == v->uv_subnet &&
-		    src != v->uv_subnetbcast)
+		    ((v->uv_subnetmask == 0xffffffff) ||
+		     (src != v->uv_subnetbcast)))
 		    return(vifi);
 		for (p=v->uv_addrs; p; p=p->pa_next) {
-		    if ((src & p->pa_mask) == p->pa_addr &&
-			src != p->pa_addr)
+		    if ((src & p->pa_subnetmask) == p->pa_subnet &&
+			((p->pa_subnetmask == 0xffffffff) ||
+			 (src != p->pa_subnetbcast)))
 			return(vifi);
 		}
 	    }
@@ -527,7 +551,7 @@ accept_group_report(src, dst, group, r_type)
 	    log(LOG_ERR, 0, "ran out of memory");    /* fatal */
 
 	g->al_addr   = group;
-	if (r_type == IGMP_HOST_NEW_MEMBERSHIP_REPORT){
+	if (r_type == IGMP_HOST_NEW_MEMBERSHIP_REPORT) {
 	    g->al_last = OLD_AGE_THRESHOLD;
 	    g->al_old = 0;
 	}
@@ -555,7 +579,7 @@ accept_group_report(src, dst, group, r_type)
 
 
 void
-accept_leave_message( src, dst, group)
+accept_leave_message(src, dst, group)
     u_int32 src, dst, group;
 {
     register vifi_t vifi;
@@ -840,7 +864,7 @@ accept_neighbor_request2(src, dst)
 void
 accept_neighbors(src, dst, p, datalen, level)
     u_int32 src, dst, level;
-    char *p;
+    u_char *p;
     int datalen;
 {
     log(LOG_INFO, 0, "ignoring spurious DVMRP neighbor list from %s to %s",
@@ -854,7 +878,7 @@ accept_neighbors(src, dst, p, datalen, level)
 void
 accept_neighbors2(src, dst, p, datalen, level)
     u_int32 src, dst, level;
-    char *p;
+    u_char *p;
     int datalen;
 {
     log(LOG_INFO, 0, "ignoring spurious DVMRP neighbor list2 from %s to %s",
@@ -880,7 +904,8 @@ update_neighbor(vifi, addr, msgtype, p, datalen, level)
     register struct listaddr *n;
     u_int32 genid = 0;
     u_int32 router;
-    int he_hears_me = TRUE;
+    u_int32 send_tables = 0;
+    int do_reset = FALSE;
     int nflags;
 
     v = &uvifs[vifi];
@@ -907,18 +932,83 @@ update_neighbor(vifi, addr, msgtype, p, datalen, level)
     }
 
     /*
-     * If we have received a route report from a neighbor, and we believed
-     * that we had no neighbors on this vif, send a full route report to
-     * all neighbors on the vif.
+     * Look for addr in list of neighbors.
      */
-
-    if (msgtype == DVMRP_REPORT && v->uv_neighbors == NULL)
-	report(ALL_ROUTES, vifi,
-	       (v->uv_flags & VIFF_TUNNEL) ? addr : dvmrp_group);
+    for (n = v->uv_neighbors; n != NULL; n = n->al_next) {
+	if (addr == n->al_addr) {
+	    break;
+	}
+    }
 
     /*
-     * Check if the router gen-ids are the same (only if vers > 3.2)
+     * Found it.  Reset its timer, and check for a version change
+     */
+    if (n) {
+	n->al_timer = 0;
+
+	/*
+	 * update the neighbors version and protocol number
+	 * if changed => router went down and came up, 
+	 * so take action immediately.
+	 */
+	if ((n->al_pv != (level & 0xff)) ||
+	    (n->al_mv != ((level >> 8) & 0xff))) {
+
+	    do_reset = TRUE;
+	    log(LOG_DEBUG, 0,
+		"version change neighbor %s [old:%d.%d, new:%d.%d]",
+		inet_fmt(addr, s1),
+		n->al_pv, n->al_mv, level&0xff, (level >> 8) & 0xff);
+	    
+	    n->al_pv = level & 0xff;
+	    n->al_mv = (level >> 8) & 0xff;
+	}
+    } else {
+	/*
+	 * If not found, add it to the list.  If the neighbor has a lower
+	 * IP address than me, yield querier duties to it.
+	 */
+	log(LOG_DEBUG, 0, "New neighbor %s on vif %d v%d.%d nf 0x%02x",
+	    inet_fmt(addr, s1), vifi, level & 0xff, (level >> 8) & 0xff,
+	    (level >> 16) & 0xff);
+
+	n = (struct listaddr *)malloc(sizeof(struct listaddr));
+	if (n == NULL)
+	    log(LOG_ERR, 0, "ran out of memory");    /* fatal */
+
+	n->al_addr      = addr;
+	n->al_pv	= level & 0xff;
+	n->al_mv	= (level >> 8) & 0xff;
+	n->al_genid	= 0;
+
+	time(&n->al_ctime);
+	n->al_timer     = 0;
+	n->al_next      = v->uv_neighbors;
+
+	/*
+	 * If we thought that we had no neighbors on this vif, send a route
+	 * report to the vif.  If this is just a new neighbor on the same
+	 * vif, send the route report just to the new neighbor.
+	 */
+	if (v->uv_neighbors == NULL) {
+	    send_tables = (v->uv_flags & VIFF_TUNNEL) ? addr : dvmrp_group;
+	    vifs_with_neighbors++;
+	} else {
+	    send_tables = addr;
+	}
+
+	v->uv_neighbors = n;
+
+	if (!(v->uv_flags & VIFF_TUNNEL) &&
+	    ntohl(addr) < ntohl(v->uv_lcl_addr))
+	    v->uv_flags &= ~VIFF_QUERIER;
+    }
+
+    /*
+     * Check if the router gen-ids are the same.
      * Need to reset the prune state of the router if not.
+     * Also check for one-way interfaces by seeing if we are in our
+     * neighbor's list of known routers.
      */
     if (msgtype == DVMRP_PROBE) {
 
@@ -938,13 +1028,24 @@ update_neighbor(vifi, addr, msgtype, p, datalen, level)
 
 	    for (i = 0; i < 4; i++)
 	      ((char *)&genid)[i] = *p++;
-	    datalen -=4;
+	    datalen -= 4;
+
+	    if (n->al_genid == 0)
+		n->al_genid = genid;
+	    else if (n->al_genid != genid) {
+		log(LOG_DEBUG, 0,
+		    "new genid neigbor %s on vif %d [old:%x, new:%x]",
+		    inet_fmt(addr, s1), vifi, n->al_genid, genid);
+
+		n->al_genid = genid;
+		do_reset = TRUE;
+	    }
 	    
 	    /* 
 	     * loop through router list and check for one-way ifs.
 	     */
 	    
-	    he_hears_me = FALSE;
+	    v->uv_flags |= VIFF_ONEWAY;
 	    
 	    while (datalen > 0) {
 		if (datalen < 4) {
@@ -957,139 +1058,37 @@ update_neighbor(vifi, addr, msgtype, p, datalen, level)
 		  ((char *)&router)[i] = *p++;
 		datalen -= 4;
 		if (router == v->uv_lcl_addr) {
-		    he_hears_me = TRUE;
+		    v->uv_flags &= ~VIFF_ONEWAY;
 		    break;
 		}
 	    }
 	}
     }
-    /*
-     * Look for addr in list of neighbors; if found, reset its timer.
-     */
-    for (n = v->uv_neighbors; n != NULL; n = n->al_next) {
-	if (addr == n->al_addr) {
-	    n->al_timer = 0;
+    if (n->al_flags != nflags) {
+	n->al_flags = nflags;
 
-	    /*
-	     * If probe message and version no >= 3.3 check genid
-	     */
-	    if (msgtype == DVMRP_PROBE && 
-		((n->al_pv >= 3 && n->al_mv > 2) || n->al_pv > 3)) {
-		if (he_hears_me == TRUE && v->uv_flags & VIFF_ONEWAY)
-		    v->uv_flags &= ~VIFF_ONEWAY;
-
-		if (he_hears_me == FALSE)
-		    v->uv_flags |= VIFF_ONEWAY;
-
-		if (n->al_genid == 0)
-		    n->al_genid = genid;
-		else if (n->al_genid != genid) {
-		    log(LOG_DEBUG, 0,
-			"reset neighbor %s on vif %d [old genid:%x, new:%x]",
-			inet_fmt(addr, s1), vifi, n->al_genid, genid);
-
-		    n->al_genid = genid;
-		    n->al_pv = level & 0xff;
-		    n->al_mv = (level >> 8) & 0xff;
-		    n->al_flags = 0;	/*XXX*/
-		    reset_neighbor_state(vifi, addr);
-
-		    /* 
-		     * need to do a full route report here 
-		     * it gets done by accept_probe()
-		     */
-		    return (TRUE);
-		}
- 
-                /*XXX nflags shouldn't be dealt with in 2 places in the same
-                 *XXX routine...*/
-                if (n->al_flags != nflags) {
-                    n->al_flags = nflags;
-                    if (nflags & NF_LEAF) {
-                        if (!v->uv_leaf_timer)
-                            v->uv_leaf_timer = LEAF_CONFIRMATION_TIME;
-                    } else {
-                        v->uv_flags &= ~VIFF_LEAF;
-                        v->uv_leaf_timer = 0;
-                    }
-                    /* Neighbor flags changed, do a full report */
-                    return TRUE;
-		}
-	    }
-
-	    /*
-	     * update the neighbors version and protocol number
-	     * if changed => router went down and came up, 
-	     * so take action immediately.
-	     */
-	    if ((n->al_pv != (level & 0xff)) ||
-		(n->al_mv != ((level >> 8) & 0xff))) {
-
-		log(LOG_DEBUG, 0,
-		    "resetting neighbor %s [old:%d.%d, new:%d.%d]",
-		    inet_fmt(addr, s1),
-		    n->al_pv, n->al_mv, level&0xff, (level >> 8) & 0xff);
-		
-		n->al_pv = level & 0xff;
-		n->al_mv = (level >> 8) & 0xff;
-
-		reset_neighbor_state(vifi, addr);
-	    }
-
-	    /* recurring probe - so no need to do a route report */
-	    if (msgtype == DVMRP_PROBE)
-	        return (FALSE);
-	    else
-		return (TRUE);
+	if (n->al_flags & NF_LEAF) {
+	    /*XXX If we have non-leaf neighbors then we know we shouldn't
+	     * mark this vif as a leaf.  For now we just count on other
+	     * probes and/or reports resetting the timer. */
+	    if (!v->uv_leaf_timer)
+		v->uv_leaf_timer = LEAF_CONFIRMATION_TIME;
+	} else {
+	    /* If we get a leaf to non-leaf transition, we *must* update
+	     * the routing table. */
+	    if (v->uv_flags & VIFF_LEAF && send_tables == 0)
+		send_tables = addr;
+	    v->uv_flags &= ~VIFF_LEAF;
+	    v->uv_leaf_timer = 0;
 	}
     }
-
-    /*
-     * If not found, add it to the list.  If the neighbor has a lower
-     * IP address than me, yield querier duties to it.
-     */
-    if (n == NULL) {
-	log(LOG_DEBUG, 0, "New neighbor %s on vif %d v%d.%d nf 0x%02x",
-	    inet_fmt(addr, s1), vifi, level & 0xff, (level >> 8) & 0xff,
-	    (level >> 16) & 0xff);
-
-	n = (struct listaddr *)malloc(sizeof(struct listaddr));
-	if (n == NULL)
-	    log(LOG_ERR, 0, "ran out of memory");    /* fatal */
-
-	n->al_addr      = addr;
-	n->al_pv	= level & 0xff;
-	n->al_mv	= (level >> 8) & 0xff;
-	if (msgtype == DVMRP_PROBE)
-	    n->al_genid = genid;
-	else
-	    n->al_genid = 0;
-
-	time(&n->al_ctime);
-	n->al_timer     = 0;
-	n->al_next      = v->uv_neighbors;
-
-	if (v->uv_neighbors == NULL)
-	    vifs_with_neighbors++;
-
-	v->uv_neighbors = n;
-
-	if (!(v->uv_flags & VIFF_TUNNEL) &&
-	    ntohl(addr) < ntohl(v->uv_lcl_addr))
-	    v->uv_flags &= ~VIFF_QUERIER;
+    if (do_reset) {
+	reset_neighbor_state(vifi, addr);
+	if (!send_tables)
+	    send_tables = addr;
     }
-
-    n->al_flags = nflags;
-    if (!(n->al_flags & NF_LEAF)) {
-	v->uv_flags &= ~VIFF_LEAF;
-	v->uv_leaf_timer = 0;
-    } else {
-	/*XXX If we have non-leaf neighbors then we know we shouldn't
-	 * mark this vif as a leaf.  For now we just count on other
-	 * probes and/or reports resetting the timer. */
-	if (!v->uv_leaf_timer)
-	    v->uv_leaf_timer = LEAF_CONFIRMATION_TIME;
-    }
+    if (send_tables)
+	report(ALL_ROUTES, vifi, send_tables);
 
     return (TRUE);
 }
@@ -1171,20 +1170,6 @@ neighbor_info(vifi, addr)
 }
 
 /*
- * Return the neighbor's version number
- * returns (protocol_version << 8 + mrouted_version) of neighbor
- */
-int
-nbr_vers(vifi, addr)
-    vifi_t vifi;
-    u_int32 addr;
-{
-    struct listaddr *u = neighbor_info(vifi, addr);
-
-    return u ? NBR_VERS(u) : 0;
-}
-
-/*
  * Print the contents of the uvifs array on file 'fp'.
  */
 void
@@ -1234,10 +1219,10 @@ dump_vifs(fp)
 
 	if (v->uv_addrs != NULL) {
 	    fprintf(fp, "                alternate subnets: %s\n",
-		    inet_fmts(v->uv_addrs->pa_addr, v->uv_addrs->pa_mask, s1));
+		    inet_fmts(v->uv_addrs->pa_subnet, v->uv_addrs->pa_subnetmask, s1));
 	    for (p = v->uv_addrs->pa_next; p; p = p->pa_next) {
 		fprintf(fp, "                                   %s\n",
-			inet_fmts(p->pa_addr, p->pa_mask, s1));
+			inet_fmts(p->pa_subnet, p->pa_subnetmask, s1));
 	    }
 	}
 
@@ -1277,9 +1262,9 @@ dump_vifs(fp)
 		"SIOCGETVIFCNT fails");
 	}
 	else {
-	    fprintf(fp, "                         pkts in : %d\n",
+	    fprintf(fp, "                         pkts in : %ld\n",
 		    v_req.icount);
-	    fprintf(fp, "                         pkts out: %d\n",
+	    fprintf(fp, "                         pkts out: %ld\n",
 		    v_req.ocount);
 	}
 	fprintf(fp, "\n");
@@ -1290,15 +1275,7 @@ dump_vifs(fp)
 
 /****           the timeout routines    ********/
 
-typedef struct {
-        vifi_t  vifi;
-        struct listaddr *g;
-	int    q_time;
-} cbk_t;
-
-static cbk_t *cbk;
-
-void
+static void
 DelVif(cbk)
 cbk_t *cbk;
 {
@@ -1320,7 +1297,7 @@ cbk_t *cbk;
              * Group has expired
              * delete all kernel cache entries with this group
              */
-	    if( g->al_query) DeleteTimer(g->al_query);
+	    if (g->al_query) DeleteTimer(g->al_query);
             delete_lclgrp(vifi, a->al_addr);
 
             prev_a->al_next = a->al_next;
@@ -1331,38 +1308,38 @@ cbk_t *cbk;
          free(cbk);
 }
 
-
-int
-SetTimer( vifi, g)
+static int
+SetTimer(vifi, g)
         vifi_t vifi;  struct listaddr *g;
 {
         cbk = (cbk_t *) malloc(sizeof(cbk_t));
         cbk->g = g;
         cbk->vifi = vifi;
-        return timer_setTimer(g->al_timer,DelVif,cbk);
+        return timer_setTimer(g->al_timer, (cfunc_t)DelVif, (void *)cbk);
 }
 
-int
-DeleteTimer( id)
+static int
+DeleteTimer(id)
 int id;
 {
         timer_clearTimer(id);
 	return 0;
 }
 
-void
+static void
 SendQuery(cbk)
 cbk_t *cbk;
 {
-	 register struct uvif *v = &uvifs[cbk->vifi];
-            send_igmp(v->uv_lcl_addr, cbk->g->al_addr,
-                      IGMP_HOST_MEMBERSHIP_QUERY,
-                      cbk->q_time, 0, 0);
-	    cbk->g->al_query = 0;
-	    free(cbk);
+	register struct uvif *v = &uvifs[cbk->vifi];
+
+	send_igmp(v->uv_lcl_addr, cbk->g->al_addr,
+		  IGMP_HOST_MEMBERSHIP_QUERY,
+		  cbk->q_time, 0, 0);
+	cbk->g->al_query = 0;
+	free(cbk);
 }
 
-int
+static int
 SetQueryTimer(g , vifi, to_expire, q_time)
 	struct listaddr *g;  vifi_t vifi;
 	int to_expire, q_time;
@@ -1370,5 +1347,5 @@ SetQueryTimer(g , vifi, to_expire, q_time)
         cbk = (cbk_t *) malloc(sizeof(cbk_t));
         cbk->g = g;
         cbk->q_time = q_time; cbk-> vifi = vifi;
-        return timer_setTimer(to_expire,SendQuery,cbk);
+        return timer_setTimer(to_expire, (cfunc_t)SendQuery, (void *)cbk);
 }

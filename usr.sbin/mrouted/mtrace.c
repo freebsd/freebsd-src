@@ -47,7 +47,7 @@
  * have been derived from mrouted programs sources covered by the
  * license in the accompanying file named "LICENSE".
  *
- * $Id: mtrace.c,v 3.5 1995/05/09 01:24:19 fenner Exp $
+ * $Id: mtrace.c,v 3.6 1995/06/25 19:17:14 fenner Exp $
  */
 
 #include <netdb.h>
@@ -55,8 +55,14 @@
 #include <sys/filio.h>
 #include <memory.h>
 #include <string.h>
+#include <ctype.h>
 #include "defs.h"
 #include <arpa/inet.h>
+#ifdef __STDC__
+#include <stdarg.h>
+#else
+#include <varargs.h>
+#endif
 
 #define DEFAULT_TIMEOUT	3	/* How long to wait before retrying requests */
 #define DEFAULT_RETRIES 3	/* How many times to try */
@@ -104,25 +110,50 @@ u_int32 dst_netmask;			/* netmask to go with qdst */
  * Query/response parameters, all initialized to zero and set later
  * to default values or from options.
  */
-u_int32 qsrc = 0;
-u_int32 qgrp = 0;
-u_int32 qdst = 0;
-u_char qno  = 0;
-u_int32 raddr = 0;
-int    qttl = 0;
-u_char rttl = 0;
-u_int32 gwy = 0;
+u_int32 qsrc = 0;		/* Source address in the query */
+u_int32 qgrp = 0;		/* Group address in the query */
+u_int32 qdst = 0;		/* Destination (receiver) address in query */
+u_char qno  = 0;		/* Max number of hops to query */
+u_int32 raddr = 0;		/* Address where response should be sent */
+int    qttl = 0;		/* TTL for the query packet */
+u_char rttl = 0;		/* TTL for the response packet */
+u_int32 gwy = 0;		/* User-supplied last-hop router address */
+u_int32 tdst = 0;		/* Address where trace is sent (last-hop) */
 
 vifi_t  numvifs;		/* to keep loader happy */
 				/* (see kern.c) */
-extern void k_join();
-extern void k_leave();
-extern void k_set_ttl();
-extern void exit();
 #ifndef SYSV
 extern long random();
 #endif
 extern int errno;
+
+char *			inet_name __P((u_int32 addr));
+u_int32			host_addr __P((char *name));
+/* u_int is promoted u_char */
+char *			proto_type __P((u_int type));
+char *			flag_type __P((u_int type));
+
+u_int32			get_netmask __P((int s, u_int32 dst));
+int			get_ttl __P((struct resp_buf *buf));
+int			t_diff __P((u_long a, u_long b));
+u_long			fixtime __P((u_long time));
+int			send_recv __P((u_int32 dst, int type, int code,
+					int tries, struct resp_buf *save));
+char *			print_host __P((u_int32 addr));
+void			print_trace __P((int index, struct resp_buf *buf));
+int			what_kind __P((struct resp_buf *buf));
+char *			scale __P((int *hop));
+void			stat_line __P((struct tr_resp *r, struct tr_resp *s,
+					int have_next));
+void			fixup_stats __P((struct resp_buf *base,
+					struct resp_buf *new));
+int			print_stats __P((struct resp_buf *base,
+					struct resp_buf *prev,
+					struct resp_buf *new));
+void			check_vif_state __P((void));
+
+int			main __P((int argc, char *argv[]));
+
 
 
 char   *
@@ -141,28 +172,32 @@ u_int32
 host_addr(name)
     char   *name;
 {
-    struct hostent *e = gethostbyname(name);
+    struct hostent *e = (struct hostent *)0;
     u_int32  addr;
     int	i, dots = 3;
     char	buf[40];
     char	*ip = name;
     char	*op = buf;
 
+    /*
+     * Undo BSD's favor -- take fewer than 4 octets as net/subnet address
+     * if the name is all numeric.
+     */
+    for (i = sizeof(buf) - 7; i > 0; --i) {
+	if (*ip == '.') --dots;
+	else if (*ip == '\0') break;
+	else if (!isdigit(*ip)) dots = 0;  /* Not numeric, don't add zeroes */
+	*op++ = *ip++;
+    }
+    for (i = 0; i < dots; ++i) {
+	*op++ = '.';
+	*op++ = '0';
+    }
+    *op = '\0';
+
+    if (dots <= 0) e = gethostbyname(name);
     if (e) memcpy((char *)&addr, e->h_addr_list[0], e->h_length);
     else {
-	/*
-	 * Undo BSD's favor -- take fewer than 4 octets as net/subnet address.
-	 */
-	for (i = sizeof(buf) - 7; i > 0; --i) {
-	    if (*ip == '.') --dots;
-	    if (*ip == '\0') break;
-	    *op++ = *ip++;
-	}
-	for (i = 0; i < dots; ++i) {
-	    *op++ = '.';
-	    *op++ = '0';
-	}
-	*op = '\0';
 	addr = inet_addr(buf);
 	if (addr == -1) {
 	    addr = 0;
@@ -175,7 +210,7 @@ host_addr(name)
 
 char *
 proto_type(type)
-    u_char type;
+    u_int type;
 {
     static char buf[80];
 
@@ -197,7 +232,7 @@ proto_type(type)
 
 char *
 flag_type(type)
-    u_char type;
+    u_int type;
 {
     static char buf[80];
 
@@ -342,7 +377,7 @@ send_recv(dst, type, code, tries, save)
     int datalen;
     int count, recvlen, dummy = 0;
     int len;
-    int i, j;
+    int i;
 
     if (type == IGMP_MTRACE) {
 	group = qgrp;
@@ -366,6 +401,8 @@ send_recv(dst, type, code, tries, save)
     query->tr_raddr = raddr ? raddr : multicast ? resp_cast : lcl_addr;
     query->tr_rttl  = rttl ? rttl :
       IN_MULTICAST(ntohl(query->tr_raddr)) ? get_ttl(save) : UNICAST_TTL;
+    query->tr_src   = qsrc;
+    query->tr_dst   = qdst;
 
     for (i = tries ; i > 0; --i) {
 	if (tries == nqueries && raddr == 0) {
@@ -460,8 +497,26 @@ send_recv(dst, type, code, tries, save)
 
 	      case IGMP_DVMRP:
 		if (igmp->igmp_code != DVMRP_NEIGHBORS2) continue;
-		if (ip->ip_src.s_addr != dst) continue;
 		len = igmpdatalen;
+		/*
+		 * Accept DVMRP_NEIGHBORS2 response if it comes from the
+		 * address queried or if that address is one of the local
+		 * addresses in the response.
+		 */
+		if (ip->ip_src.s_addr != dst) {
+		    register u_int32 *p = (u_int32 *)(igmp + 1);
+		    register u_int32 *ep = p + (len >> 2);
+		    while (p < ep) {
+			register u_int32 laddr = *p++;
+			register int n = ntohl(*p++) & 0xFF;
+			if (laddr == dst) {
+			    ep = p + 1;		/* ensure p < ep after loop */
+			    break;
+			}
+			p += n;
+		    }
+		    if (p >= ep) continue;
+		}
 		break;
 
 	      case IGMP_MTRACE:	    /* For backward compatibility with 3.3 */
@@ -576,44 +631,61 @@ print_trace(index, buf)
 /*
  * See what kind of router is the next hop
  */
-void
+int
 what_kind(buf)
     struct resp_buf *buf;
 {
     u_int32 smask;
-    int recvlen;
+    int retval;
     int hops = buf->len;
     struct tr_resp *r = buf->resps + hops - 1;
     u_int32 next = r->tr_rmtaddr;
 
-    recvlen = send_recv(next, IGMP_DVMRP, DVMRP_ASK_NEIGHBORS2, 1, &incr[0]);
+    retval = send_recv(next, IGMP_DVMRP, DVMRP_ASK_NEIGHBORS2, 1, &incr[0]);
     print_host(next);
-    if (recvlen) {
+    if (retval) {
 	u_int32 version = ntohl(incr[0].igmp.igmp_group.s_addr);
 	u_int32 *p = (u_int32 *)incr[0].ndata;
 	u_int32 *ep = p + (incr[0].len >> 2);
+	char *type = "";
+	retval = 0;
+	switch (version & 0xFF) {
+	  case 1:
+	    type = "proteon/mrouted ";
+	    retval = 1;
+	    break;
+
+	  case 2:
+	  case 3:
+	    if (((version >> 8) & 0xFF) < 3) retval = 1;
+				/* Fall through */
+	  case 4:
+	    type = "mrouted ";
+	    break;
+
+	  case 10:
+	    type = "cisco ";
+	}
 	printf(" [%s%d.%d] didn't respond\n",
-	       (version == 1) ? "proteon/mrouted " :
-	       ((version & 0xff) == 2) ? "mrouted " :
-	       ((version & 0xff) == 3) ? "mrouted " :
-	       ((version & 0xff) == 4) ? "mrouted " :
-	       ((version & 0xff) == 10) ? "cisco " : "",
-	       version & 0xff, (version >> 8) & 0xff);
+	       type, version & 0xFF, (version >> 8) & 0xFF);
 	VAL_TO_MASK(smask, r->tr_smask);
 	while (p < ep) {
 	    register u_int32 laddr = *p++;
+	    register int flags = (ntohl(*p) & 0xFF00) >> 8;
 	    register int n = ntohl(*p++) & 0xFF;
-	    if ((laddr & smask) == (qsrc & smask)) {
+	    if (!(flags & (DVMRP_NF_DOWN | DVMRP_NF_DISABLED)) &&
+		 (laddr & smask) == (qsrc & smask)) {
 		printf("%3d  ", -(hops+2));
 		print_host(qsrc);
 		printf("\n");
-		break;
+		return 1;
 	    }
 	    p += n;
 	}
-	return;
+	return retval;
     }
     printf(" didn't respond\n");
+    return 0;
 }
 
 
@@ -738,7 +810,7 @@ fixup_stats(base, new)
 /*
  * Print responses with statistics for forward path (from src to dst)
  */
-void
+int
 print_stats(base, prev, new)
     struct resp_buf *base, *prev, *new;
 {
@@ -780,10 +852,9 @@ print_stats(base, prev, new)
     }
 
     while (TRUE) {
-	if ((n->tr_inaddr != b->tr_inaddr) || (n->tr_inaddr != b->tr_inaddr)) {
-	    printf("Route changed, start again.\n");
-	    exit(1);
-	}
+	if ((n->tr_inaddr != b->tr_inaddr) || (n->tr_inaddr != b->tr_inaddr))
+	  return 1;		/* Route changed */
+
 	if ((n->tr_inaddr != n->tr_outaddr))
 	  printf("%-15s\n", inet_fmt(n->tr_inaddr, s1));
 	printf("%-15s %-14s %s\n", inet_fmt(n->tr_outaddr, s1), names[rno],
@@ -815,6 +886,7 @@ print_stats(base, prev, new)
     stat_line(b, n, FALSE);
     printf("%-15s %s\n", inet_fmt(qdst, s1), inet_fmt(lcl_addr, s2));
     printf("  Receiver      Query Source\n\n");
+    return 0;
 }
 
 
@@ -833,11 +905,11 @@ char *argv[];
     int recvlen;
     struct timeval tv;
     struct resp_buf *prev, *new;
-    struct tr_query *query;
     struct tr_resp *r;
     u_int32 smask;
     int rno;
-    int hops, tries;
+    int hops, nexthop, tries;
+    u_int32 lastout = 0;
     int numstats = 1;
     int waittime;
     int seed;
@@ -999,31 +1071,33 @@ Usage: mtrace [-Mlnps] [-w wait] [-m max_hops] [-q nqueries] [-g gateway]\n\
      * Default destination for path to be queried is the local host.
      */
     if (qdst == 0) qdst = lcl_addr ? lcl_addr : addr.sin_addr.s_addr;
-
-    /*
-     * If the destination is on the local net, the last-hop router can
-     * be found by multicast to the all-routers multicast group.
-     * Otherwise, use the group address that is the subject of the
-     * query since by definition the last hop router will be a member.
-     * Set default TTLs for local remote multicasts.
-     */
     dst_netmask = get_netmask(udp, qdst);
     close(udp);
     if (lcl_addr == 0) lcl_addr = addr.sin_addr.s_addr;
-    if (gwy == 0)
-      if ((qdst & dst_netmask) == (lcl_addr & dst_netmask)) gwy = query_cast;
-      else gwy = qgrp;
 
-    if (IN_MULTICAST(ntohl(gwy))) {
-      k_set_loop(1);	/* If I am running on a router, I need to hear this */
-      if (gwy == query_cast) k_set_ttl(qttl ? qttl : 1);
-      else k_set_ttl(qttl ? qttl : MULTICAST_TTL1);
-    } else
-      if (send_recv(gwy, IGMP_DVMRP, DVMRP_ASK_NEIGHBORS2, 1, &incr[0]))
-	if (ntohl(incr[0].igmp.igmp_group.s_addr) == 0x0303) {
-	    printf("Don't use -g to address an mrouted 3.3, it might crash\n");
+    /*
+     * Initialize the seed for random query identifiers.
+     */
+    gettimeofday(&tv, 0);
+    seed = tv.tv_usec ^ lcl_addr;
+#ifdef SYSV    
+    srand48(seed);
+#else
+    srandom(seed);
+#endif
+
+    /*
+     * Protect against unicast queries to mrouted versions that might crash.
+     */
+    if (gwy && !IN_MULTICAST(ntohl(gwy)))
+      if (send_recv(gwy, IGMP_DVMRP, DVMRP_ASK_NEIGHBORS2, 1, &incr[0])) {
+	  int version = ntohl(incr[0].igmp.igmp_group.s_addr) & 0xFFFF;
+	  if (version == 0x0303 || version == 0x0503) {
+	    printf("Don't use -g to address an mrouted 3.%d, it might crash\n",
+		   (version >> 8) & 0xFF);
 	    exit(0);
 	}
+      }
 
     printf("Mtrace from %s to %s via group %s\n",
 	   inet_fmt(qsrc, s1), inet_fmt(qdst, s2), inet_fmt(qgrp, s3));
@@ -1034,28 +1108,32 @@ Usage: mtrace [-Mlnps] [-w wait] [-m max_hops] [-q nqueries] [-g gateway]\n\
     }
 
     /*
-     * Make up the IGMP_MTRACE query packet to send (some parameters
-     * are set later), including initializing the seed for random
-     * query identifiers.
-     */
-    query = (struct tr_query *)(send_buf + MIN_IP_HEADER_LEN + IGMP_MINLEN);
-    query->tr_src   = qsrc;
-    query->tr_dst   = qdst;
-
-    gettimeofday(&tv, 0);
-    seed = tv.tv_usec ^ lcl_addr;
-#ifdef SYSV    
-    srand48(seed);
-#else
-    srandom(seed);
-#endif
-
-    /*
      * If the response is to be a multicast address, make sure we 
      * are listening on that multicast address.
      */
-    if (raddr && IN_MULTICAST(ntohl(raddr))) k_join(raddr, lcl_addr);
-    else k_join(resp_cast, lcl_addr);
+    if (raddr) {
+	if (IN_MULTICAST(ntohl(raddr))) k_join(raddr, lcl_addr);
+    } else k_join(resp_cast, lcl_addr);
+
+    /*
+     * If the destination is on the local net, the last-hop router can
+     * be found by multicast to the all-routers multicast group.
+     * Otherwise, use the group address that is the subject of the
+     * query since by definition the last-hop router will be a member.
+     * Set default TTLs for local remote multicasts.
+     */
+    restart:
+
+    if (gwy == 0)
+      if ((qdst & dst_netmask) == (lcl_addr & dst_netmask)) tdst = query_cast;
+      else tdst = qgrp;
+    else tdst = gwy;
+
+    if (IN_MULTICAST(ntohl(tdst))) {
+      k_set_loop(1);	/* If I am running on a router, I need to hear this */
+      if (tdst == query_cast) k_set_ttl(qttl ? qttl : 1);
+      else k_set_ttl(qttl ? qttl : MULTICAST_TTL1);
+    }
 
     /*
      * Try a query at the requested number of hops or MAXOPS if unspecified.
@@ -1074,12 +1152,14 @@ Usage: mtrace [-Mlnps] [-w wait] [-m max_hops] [-q nqueries] [-g gateway]\n\
     base.rtime = 0;
     base.len = 0;
 
-    recvlen = send_recv(gwy, IGMP_MTRACE, hops, tries, &base);
+    recvlen = send_recv(tdst, IGMP_MTRACE, hops, tries, &base);
 
     /*
      * If the initial query was successful, print it.  Otherwise, if
      * the query max hop count is the default of zero, loop starting
-     * from one until a timeout occurs.
+     * from one until there is no response for four hops.  The extra
+     * hops allow getting past an mtrace-capable mrouter that can't
+     * send multicast packets because all phyints are disabled.
      */
     if (recvlen) {
 	printf("\n  0  ");
@@ -1089,7 +1169,6 @@ Usage: mtrace [-Mlnps] [-w wait] [-m max_hops] [-q nqueries] [-g gateway]\n\
 	r = base.resps + base.len - 1;
 	if (r->tr_rflags == TR_OLD_ROUTER) {
 	    printf("%3d  ", -(base.len+1));
-	    fflush(stdout);
 	    what_kind(&base);
 	} else {
 	    VAL_TO_MASK(smask, r->tr_smask);
@@ -1104,36 +1183,75 @@ Usage: mtrace [-Mlnps] [-w wait] [-m max_hops] [-q nqueries] [-g gateway]\n\
 	print_host(qdst);
 	printf("\n");
 
-	for (hops = 1; hops <= MAXHOPS; ++hops) {
+	for (hops = 1, nexthop = 1; hops <= MAXHOPS; ++hops) {
 	    printf("%3d  ", -hops);
 	    fflush(stdout);
 
-	    recvlen = send_recv(gwy, IGMP_MTRACE, hops, nqueries, &base);
+	    /*
+	     * After a successful first hop, try switching to the unicast
+	     * address of the last-hop router instead of multicasting the
+	     * trace query.  This should be safe for mrouted versions 3.3
+	     * and 3.5 because there is a long route timeout with metric
+	     * infinity before a route disappears.  Switching to unicast
+	     * reduces the amount of multicast traffic and avoids a bug
+	     * with duplicate suppression in mrouted 3.5.
+	     */
+	    if (hops == 2 && gwy == 0 &&
+		(recvlen = send_recv(lastout, IGMP_MTRACE, hops, 1, &base)))
+	      tdst = lastout;
+	    else recvlen = send_recv(tdst, IGMP_MTRACE, hops, nqueries, &base);
 
 	    if (recvlen == 0) {
-		if (--hops == 0) break;
-		what_kind(&base);
-		break;
+		if (hops == 1) break;
+		if (hops == nexthop) {
+		    if (what_kind(&base)) {
+			/* the ask_neighbors determined that the
+			 * not-responding router is the first-hop. */
+			break;
+		    }
+		} else if (hops < nexthop + 3) {
+		    printf("\n");
+		} else {
+		    printf("...giving up\n");
+		    break;
+		}
+		continue;
 	    }
 	    r = base.resps + base.len - 1;
-	    if (base.len == hops) print_trace(-hops, &base);
-	    else {
-		hops = base.len;
+	    if (base.len == hops &&
+		(hops == 1 || (base.resps+nexthop-2)->tr_outaddr == lastout)) {
+	    	if (hops == nexthop) {
+		    print_trace(-hops, &base);
+		} else {
+		    printf("\nResuming...\n");
+		    print_trace(nexthop, &base);
+		}
+	    } else {
+		if (base.len == hops - 1) {
+		    if (nexthop <= base.len) {
+			printf("\nResuming...\n");
+			print_trace(nexthop, &base);
+		    }
+		} else {
+		    hops = base.len;
+		    printf("\nRoute must have changed...\n");
+		    print_trace(1, &base);
+		}
 		if (r->tr_rflags == TR_OLD_ROUTER) {
 		    what_kind(&base);
 		    break;
 		}
 		if (r->tr_rflags == TR_NO_SPACE) {
-		    printf("No space left in trace packet for further hops\n");
+		    printf("No space left in trace packet for more hops\n");
 		    break;	/* XXX could do segmented trace */
 		}
-		printf("Route must have changed...\n\n");
-		print_trace(1, &base);
 	    }
+	    lastout = r->tr_outaddr;
+	    nexthop = hops + 1;
 
 	    VAL_TO_MASK(smask, r->tr_smask);
 	    if ((r->tr_inaddr & smask) == (qsrc & smask)) {
-		printf("%3d  ", -(hops+1));
+		printf("%3d  ", -nexthop);
 		print_host(qsrc);
 		printf("\n");
 		break;
@@ -1144,8 +1262,8 @@ Usage: mtrace [-Mlnps] [-w wait] [-m max_hops] [-q nqueries] [-g gateway]\n\
 
     if (base.rtime == 0) {
 	printf("Timed out receiving responses\n");
-	if (IN_MULTICAST(ntohl(gwy)))
-	  if (gwy == query_cast)
+	if (IN_MULTICAST(ntohl(tdst)))
+	  if (tdst == query_cast)
 	    printf("Perhaps no local router has a route for source %s\n",
 		   inet_fmt(qsrc, s1));
 	  else
@@ -1177,7 +1295,7 @@ or multicast at ttl %d doesn't reach its last-hop router for that source\n",
 	    sleep((unsigned)waittime);
 	}
 	rno = base.len;
-	recvlen = send_recv(gwy, IGMP_MTRACE, rno, nqueries, new);
+	recvlen = send_recv(tdst, IGMP_MTRACE, rno, nqueries, new);
 
 	if (recvlen == 0) {
 	    printf("Timed out.\n");
@@ -1185,14 +1303,21 @@ or multicast at ttl %d doesn't reach its last-hop router for that source\n",
 	}
 
 	if (rno != new->len) {
-	    printf("Trace length doesn't match.\n");
-	    exit(1);
+	    printf("Trace length doesn't match:\n");
+	    print_trace(1, new);
+	    printf("Restarting.\n\n");
+	    goto restart;
 	}
 
 	printf("Results after %d seconds:\n\n",
-	       (new->qtime - base.qtime) >> 16);
+	       (int)((new->qtime - base.qtime) >> 16));
 	fixup_stats(&base, new);
-	print_stats(&base, prev, new);
+	if (print_stats(&base, prev, new)) {
+	    printf("Route changed:\n");
+	    print_trace(1, new);
+	    printf("Restarting.\n\n");
+	    goto restart;
+	}
 	prev = new;
 	new = &incr[numstats&1];
 	waittime = 10;
@@ -1201,8 +1326,9 @@ or multicast at ttl %d doesn't reach its last-hop router for that source\n",
     /*
      * If the response was multicast back, leave the group
      */
-    if (raddr && IN_MULTICAST(ntohl(raddr))) k_leave(raddr, lcl_addr);
-    else k_leave(resp_cast, lcl_addr);
+    if (raddr) {
+	if (IN_MULTICAST(ntohl(raddr)))	k_leave(raddr, lcl_addr);
+    } else k_leave(resp_cast, lcl_addr);
 
     return (0);
 }
@@ -1218,14 +1344,27 @@ check_vif_state()
  * of the message and the current debug level.  For errors of severity
  * LOG_ERR or worse, terminate the program.
  */
-/*VARARGS3*/
+#ifdef __STDC__
 void
-log(severity, syserr, format, a, b, c, d, e)
-    int severity, syserr;
-    char *format;
-    int a, b, c, d, e;
+log(int severity, int syserr, char *format, ...)
 {
-    char fmt[100];
+	va_list ap;
+	char    fmt[100];
+
+	va_start(ap, format);
+#else
+/*VARARGS3*/
+void 
+log(severity, syserr, format, va_alist)
+	int     severity, syserr;
+	char   *format;
+	va_dcl
+{
+	va_list ap;
+	char    fmt[100];
+
+	va_start(ap);
+#endif
 
     switch (debug) {
 	case 0: if (severity > LOG_WARNING) return;
@@ -1235,7 +1374,7 @@ log(severity, syserr, format, a, b, c, d, e)
 	    fmt[0] = '\0';
 	    if (severity == LOG_WARNING) strcat(fmt, "warning - ");
 	    strncat(fmt, format, 80);
-	    fprintf(stderr, fmt, a, b, c, d, e);
+	    vfprintf(stderr, fmt, ap);
 	    if (syserr == 0)
 		fprintf(stderr, "\n");
 	    else if(syserr < sys_nerr)
@@ -1247,19 +1386,78 @@ log(severity, syserr, format, a, b, c, d, e)
 }
 
 /* dummies */
-
-/*VARARGS*/
-void accept_probe() {} /*VARARGS*/
-void accept_group_report() {} /*VARARGS*/
-void accept_neighbors() {} /*VARARGS*/
-void accept_neighbors2() {} /*VARARGS*/
-void accept_neighbor_request() {} /*VARARGS*/
-void accept_neighbor_request2() {} /*VARARGS*/
-void accept_report() {} /*VARARGS*/
-void accept_prune() {} /*VARARGS*/
-void accept_graft() {} /*VARARGS*/
-void accept_g_ack() {} /*VARARGS*/
-void add_table_entry() {} /*VARARGS*/
-void accept_mtrace() {} /*VARARGS*/
-void accept_leave_message() {} /*VARARGS*/
-void accept_membership_query() {} /*VARARGS*/
+void accept_probe(src, dst, p, datalen, level)
+	u_int32 src, dst, level;
+	char *p;
+	int datalen;
+{
+}
+void accept_group_report(src, dst, group, r_type)
+	u_int32 src, dst, group;
+	int r_type;
+{
+}
+void accept_neighbor_request2(src, dst)
+	u_int32 src, dst;
+{
+}
+void accept_report(src, dst, p, datalen, level)
+	u_int32 src, dst, level;
+	char *p;
+	int datalen;
+{
+}
+void accept_neighbor_request(src, dst)
+	u_int32 src, dst;
+{
+}
+void accept_prune(src, dst, p, datalen)
+	u_int32 src, dst;
+	char *p;
+	int datalen;
+{
+}
+void accept_graft(src, dst, p, datalen)
+	u_int32 src, dst;
+	char *p;
+	int datalen;
+{
+}
+void accept_g_ack(src, dst, p, datalen)
+	u_int32 src, dst;
+	char *p;
+	int datalen;
+{
+}
+void add_table_entry(origin, mcastgrp)
+	u_int32 origin, mcastgrp;
+{
+}
+void accept_leave_message(src, dst, group)
+	u_int32 src, dst, group;
+{
+}
+void accept_mtrace(src, dst, group, data, no, datalen)
+	u_int32 src, dst, group;
+	char *data;
+	u_int no;
+	int datalen;
+{
+}
+void accept_membership_query(src, dst, group, tmo)
+	u_int32 src, dst, group;
+	int tmo;
+{
+}
+void accept_neighbors(src, dst, p, datalen, level)
+	u_int32 src, dst, level;
+	u_char *p;
+	int datalen;
+{
+}
+void accept_neighbors2(src, dst, p, datalen, level)
+	u_int32 src, dst, level;
+	u_char *p;
+	int datalen;
+{
+}
