@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.72 1997/02/26 15:35:42 bde Exp $
+ * $Id: vfs_subr.c,v 1.73 1997/02/27 02:57:03 dyson Exp $
  */
 
 /*
@@ -651,7 +651,7 @@ pbrelvp(bp)
 
 #if defined(DIAGNOSTIC)
 	if (bp->b_vp == (struct vnode *) 0)
-		panic("brelvp: NULL");
+		panic("pbrelvp: NULL");
 #endif
 
 	bp->b_vp = (struct vnode *) 0;
@@ -938,7 +938,7 @@ vop_nolock(ap)
 }
 
 /*
- * Decrement the active use count.
+ * Do the inverse of vop_nolock, handling the interlock in a compatible way.
  */
 int
 vop_nounlock(ap)
@@ -950,9 +950,13 @@ vop_nounlock(ap)
 {
 	struct vnode *vp = ap->a_vp;
 
-	if (vp->v_vnlock == NULL)
+	if (vp->v_vnlock == NULL) {
+		if (ap->a_flags & LK_INTERLOCK)
+			simple_unlock(&ap->a_vp->v_interlock);
 		return (0);
-	return (lockmgr(vp->v_vnlock, LK_RELEASE, NULL, ap->a_p));
+	}
+	return (lockmgr(vp->v_vnlock, LK_RELEASE | ap->a_flags,
+		&ap->a_vp->v_interlock, ap->a_p));
 }
 
 /*
@@ -1024,18 +1028,20 @@ vputrele(vp, put)
 		vp->v_object &&
 		(vp->v_object->flags & OBJ_VFS_REF)) {
 		vp->v_object->flags &= ~OBJ_VFS_REF;
-		simple_unlock(&vp->v_interlock);
 		if (put) {
-			VOP_UNLOCK(vp, 0, p);
+			VOP_UNLOCK(vp, LK_INTERLOCK, p);
+		} else {
+			simple_unlock(&vp->v_interlock);
 		}
 		vm_object_deallocate(vp->v_object);
 		return;
 	}
 
 	if (vp->v_usecount > 0) {
-		simple_unlock(&vp->v_interlock);
 		if (put) {
-			VOP_UNLOCK(vp, 0, p);
+			VOP_UNLOCK(vp, LK_INTERLOCK, p);
+		} else {
+			simple_unlock(&vp->v_interlock);
 		}
 		return;
 	}
@@ -1056,18 +1062,20 @@ vputrele(vp, put)
 		if(vp->v_tag != VT_TFS)
 			TAILQ_INSERT_TAIL(&vnode_free_list, vp, v_freelist);
 	}
-	simple_unlock(&vnode_free_list_slock);
-	simple_unlock(&vp->v_interlock);
-
 	freevnodes++;
+	simple_unlock(&vnode_free_list_slock);
 
 	/*
 	 * If we are doing a vput, the node is already locked, and we must
 	 * call VOP_INACTIVE with the node locked.  So, in the case of
 	 * vrele, we explicitly lock the vnode before calling VOP_INACTIVE.
 	 */
-	if (put || (vn_lock(vp, LK_EXCLUSIVE | LK_INTERLOCK, p) == 0))
+	if (put) {
+		simple_unlock(&vp->v_interlock);
 		VOP_INACTIVE(vp, p);
+	} else if (vn_lock(vp, LK_EXCLUSIVE | LK_INTERLOCK, p) == 0) {
+		VOP_INACTIVE(vp, p);
+	}
 }
 
 /*
