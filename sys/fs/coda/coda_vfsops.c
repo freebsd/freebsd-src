@@ -290,8 +290,8 @@ coda_root(vfsp, vpp, td)
 	 * on to Venus if the root vnode is the dummy we installed in
 	 * coda_omount() with all c_fid members zeroed.
 	 *
-	 * XXX In addition, if we are called between coda_omount() and
-	 * coda_start(), we assume that the request is from vfs_omount()
+	 * XXX In addition, we assume that the first call to coda_root()
+	 * is from vfs_omount()
 	 * (before the call to checkdirs()) and return the dummy root
 	 * node to avoid a deadlock. This bug is fixed in the Coda CVS
 	 * repository but not in any released versions as of 6 Mar 2003.
@@ -300,6 +300,8 @@ coda_root(vfsp, vpp, td)
 	    sizeof(CodaFid)) != 0 || mi->mi_started == 0)
 	    { /* Found valid root. */
 		*vpp = mi->mi_rootvp;
+		mi->mi_started = 1;
+
 		/* On Mach, this is vref.  On NetBSD, VOP_LOCK */
 #if	1
 		vref(*vpp);
@@ -363,18 +365,6 @@ coda_root(vfsp, vpp, td)
 
  exit:
     return(error);
-}
-
-int
-coda_start(mp, flags, td)
-	struct mount *mp;
-	int flags;
-	struct thread *td;
-{
-
-	/* XXX See coda_root(). */
-	vftomi(mp)->mi_started = 1;
-	return (0);
 }
 
 /*
@@ -531,7 +521,6 @@ struct mount *devtomp(dev)
 struct vfsops coda_vfsops = {
     .vfs_mount =		coda_mount,
     .vfs_root = 		coda_root,
-    .vfs_start =		coda_start,
     .vfs_statfs =		coda_nb_statfs,
     .vfs_sync = 		coda_sync,
     .vfs_unmount =		coda_unmount,

@@ -51,7 +51,6 @@ int coda_fhtovp(struct mount *, struct fid *, struct mbuf *, struct vnode **,
                       int *, struct ucred **);
 
 vfs_mount_t	coda_mount;
-vfs_start_t	coda_start;
 vfs_unmount_t	coda_unmount;
 vfs_root_t	coda_root;
 vfs_quotactl_t	coda_quotactl;
