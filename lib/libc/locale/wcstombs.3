@@ -63,10 +63,11 @@ bytes are stored in
 Partial multibyte characters at the end of the string are not stored.
 The multibyte character string is null terminated if there is room.
 .Sh RETURN VALUES
+The
 .Fn wcstombs
-function returns the number of bytes converted,
-not counting any terminating null byte, or \-1
-if an invalid multibyte character was encountered.
+function returns the number of bytes converted
+(not including any terminating null), if successful, otherwise it returns
+.Po Vt size_t Pc Ns \-1 .
 .Sh ERRORS
 The
 .Fn wcstombs
@@ -75,7 +76,7 @@ function will fail if:
 .\".It Bq Er EINVAL
 .\"Invalid argument.
 .It Bq Er EILSEQ
-An invalid multibyte sequence was detected.
+An invalid wide character was encountered.
 .El
 .Sh SEE ALSO
 .Xr mbstowcs 3 ,
