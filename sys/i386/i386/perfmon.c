@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <machine/clock.h>
 #include <machine/perfmon.h>
+#include <machine/specialreg.h>
 
 static int perfmon_inuse;
 static int perfmon_cpuok;
