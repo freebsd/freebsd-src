@@ -54,7 +54,8 @@ struct cred {
 struct scenario {
 	struct cred	*sc_cred1, *sc_cred2;	/* credentials of p1 and p2 */
 	int		sc_candebug_errno;	/* desired ptrace failure */
-	int		sc_cansignal_errno;	/* desired SIGHUP failure */
+	int		sc_cansighup_errno;	/* desired SIGHUP failure */
+	int		sc_cansigsegv_errno;	/* desired SIGSEGV failure */
 	int		sc_cansee_errno;	/* desired getprio failure */
 	int		sc_cansched_errno;	/* desired setprio failure */
 	char		*sc_name;		/* test name */
@@ -85,51 +86,51 @@ static struct cred creds[] = {
  * Table of scenarios.
  */
 static const struct scenario scenarios[] = {
-/*	cred1		cred2		debug	signal	see	sched	name */
-{	&creds[0],	&creds[0],	0,	0,	0,	0,	"0. priv on priv"},
-{	&creds[0],	&creds[1],	0,	0,	0,	0,	"1. priv on priv"},
-{	&creds[1],	&creds[0],	0,	0,	0,	0,	"2. priv on priv"},
-{	&creds[1],	&creds[1],	0,	0,	0,	0,	"3. priv on priv"},
+/*	cred1		cred2		debug	sighup	sigsegv	see	sched	name */
+{	&creds[0],	&creds[0],	0,	0,	0,	0,	0,	"0. priv on priv"},
+{	&creds[0],	&creds[1],	0,	0,	0,	0,	0,	"1. priv on priv"},
+{	&creds[1],	&creds[0],	0,	0,	0,	0,	0,	"2. priv on priv"},
+{	&creds[1],	&creds[1],	0,	0,	0,	0,	0,	"3. priv on priv"},
 /* privileged on unprivileged */
-{	&creds[0],	&creds[2],	0,	0,	0,	0,	"4. priv on unpriv1"},
-{	&creds[0],	&creds[3],	0,	0,	0,	0,	"5. priv on unpriv1"},
-{	&creds[1],	&creds[2],	0,	0,	0,	0,	"6. priv on unpriv1"},
-{	&creds[1],	&creds[3],	0,	0,	0,	0,	"7. priv on unpriv1"},
+{	&creds[0],	&creds[2],	0,	0,	0,	0,	0,	"4. priv on unpriv1"},
+{	&creds[0],	&creds[3],	0,	0,	0,	0,	0,	"5. priv on unpriv1"},
+{	&creds[1],	&creds[2],	0,	0,	0,	0,	0,	"6. priv on unpriv1"},
+{	&creds[1],	&creds[3],	0,	0,	0,	0,	0,	"7. priv on unpriv1"},
 /* unprivileged on privileged */
-{	&creds[2],	&creds[0],	EPERM,	EPERM,	0,	EPERM,	"8. unpriv1 on priv"},
-{	&creds[2],	&creds[1],	EPERM,	EPERM,	0,	EPERM,	"9. unpriv1 on priv"},
-{	&creds[3],	&creds[0],	EPERM,	EPERM,	0,	EPERM,	"10. unpriv1 on priv"},
-{	&creds[3],	&creds[1],	EPERM,	EPERM,	0,	EPERM,	"11. unpriv1 on priv"},
+{	&creds[2],	&creds[0],	EPERM,	EPERM,	EPERM,	0,	EPERM,	"8. unpriv1 on priv"},
+{	&creds[2],	&creds[1],	EPERM,	EPERM,	EPERM,	0,	EPERM,	"9. unpriv1 on priv"},
+{	&creds[3],	&creds[0],	EPERM,	EPERM,	EPERM,	0,	EPERM,	"10. unpriv1 on priv"},
+{	&creds[3],	&creds[1],	EPERM,	EPERM,	EPERM,	0,	EPERM,	"11. unpriv1 on priv"},
 /* unprivileged on same unprivileged */
-{	&creds[2],	&creds[2],	0,	0,	0,	0,	"12. unpriv1 on unpriv1"},
-{	&creds[2],	&creds[3],	EPERM,	0,	0,	0,	"13. unpriv1 on unpriv1"},
-{	&creds[3],	&creds[2],	0,	0,	0,	0,	"14. unpriv1 on unpriv1"},
-{	&creds[3],	&creds[3],	EPERM,	0,	0,	0,	"15. unpriv1 on unpriv1"},
+{	&creds[2],	&creds[2],	0,	0,	0,	0,	0,	"12. unpriv1 on unpriv1"},
+{	&creds[2],	&creds[3],	EPERM,	0,	EPERM,	0,	0,	"13. unpriv1 on unpriv1"},
+{	&creds[3],	&creds[2],	0,	0,	0,	0,	0,	"14. unpriv1 on unpriv1"},
+{	&creds[3],	&creds[3],	EPERM,	0,	EPERM,	0,	0,	"15. unpriv1 on unpriv1"},
 /* unprivileged on different unprivileged */
-{	&creds[2],	&creds[4],	EPERM,	EPERM,	0,	EPERM,	"16. unpriv1 on unpriv2"},
-{	&creds[2],	&creds[5],	EPERM,	EPERM,	0,	EPERM,	"17. unpriv1 on unpriv2"},
-{	&creds[3],	&creds[4],	EPERM,	EPERM,	0,	EPERM,	"18. unpriv1 on unpriv2"},
-{	&creds[3],	&creds[5],	EPERM,	EPERM,	0,	EPERM,	"19. unpriv1 on unpriv2"},
+{	&creds[2],	&creds[4],	EPERM,	EPERM,	EPERM,	0,	EPERM,	"16. unpriv1 on unpriv2"},
+{	&creds[2],	&creds[5],	EPERM,	EPERM,	EPERM,	0,	EPERM,	"17. unpriv1 on unpriv2"},
+{	&creds[3],	&creds[4],	EPERM,	EPERM,	EPERM,	0,	EPERM,	"18. unpriv1 on unpriv2"},
+{	&creds[3],	&creds[5],	EPERM,	EPERM,	EPERM,	0,	EPERM,	"19. unpriv1 on unpriv2"},
 /* unprivileged on daemon, same */
-{	&creds[2],	&creds[6],	EPERM,	EPERM,	0,	EPERM,	"20. unpriv1 on daemon1"},
-{	&creds[2],	&creds[7],	EPERM,	EPERM,	0, 	EPERM,	"21. unpriv1 on daemon1"},
-{	&creds[3],	&creds[6],	EPERM,	EPERM,	0,	EPERM,	"22. unpriv1 on daemon1"},
-{	&creds[3],	&creds[7],	EPERM,	EPERM,	0,	EPERM,	"23. unpriv1 on daemon1"},
+{	&creds[2],	&creds[6],	EPERM,	EPERM,	EPERM,	0,	EPERM,	"20. unpriv1 on daemon1"},
+{	&creds[2],	&creds[7],	EPERM,	EPERM,	EPERM,	0, 	EPERM,	"21. unpriv1 on daemon1"},
+{	&creds[3],	&creds[6],	EPERM,	EPERM,	EPERM,	0,	EPERM,	"22. unpriv1 on daemon1"},
+{	&creds[3],	&creds[7],	EPERM,	EPERM,	EPERM,	0,	EPERM,	"23. unpriv1 on daemon1"},
 /* unprivileged on daemon, different */
-{	&creds[2],	&creds[8],	EPERM,	EPERM,	0,	EPERM,	"24. unpriv1 on daemon2"},
-{	&creds[2],	&creds[9],	EPERM,	EPERM,	0,	EPERM,	"25. unpriv1 on daemon2"},
-{	&creds[3],	&creds[8],	EPERM,	EPERM,	0,	EPERM,	"26. unpriv1 on daemon2"},
-{	&creds[3],	&creds[9],	EPERM,	EPERM,	0,	EPERM,	"27. unpriv1 on daemon2"},
+{	&creds[2],	&creds[8],	EPERM,	EPERM,	EPERM,	0,	EPERM,	"24. unpriv1 on daemon2"},
+{	&creds[2],	&creds[9],	EPERM,	EPERM,	EPERM,	0,	EPERM,	"25. unpriv1 on daemon2"},
+{	&creds[3],	&creds[8],	EPERM,	EPERM,	EPERM,	0,	EPERM,	"26. unpriv1 on daemon2"},
+{	&creds[3],	&creds[9],	EPERM,	EPERM,	EPERM,	0,	EPERM,	"27. unpriv1 on daemon2"},
 /* unprivileged on setuid, same */
-{	&creds[2],	&creds[10],	EPERM,	0,	0,	0,	"28. unpriv1 on setuid1"},
-{	&creds[2],	&creds[11],	EPERM,	0,	0,	0,	"29. unpriv1 on setuid1"},
-{	&creds[3],	&creds[10],	EPERM,	0,	0,	0,	"30. unpriv1 on setuid1"},
-{	&creds[3],	&creds[11],	EPERM,	0,	0,	0,	"31. unpriv1 on setuid1"},
+{	&creds[2],	&creds[10],	EPERM,	0,	0,	0,	0,	"28. unpriv1 on setuid1"},
+{	&creds[2],	&creds[11],	EPERM,	0,	EPERM,	0,	0,	"29. unpriv1 on setuid1"},
+{	&creds[3],	&creds[10],	EPERM,	0,	0,	0,	0,	"30. unpriv1 on setuid1"},
+{	&creds[3],	&creds[11],	EPERM,	0,	EPERM,	0,	0,	"31. unpriv1 on setuid1"},
 /* unprivileged on setuid, different */
-{	&creds[2],	&creds[12],	EPERM,	EPERM,	0,	EPERM,	"32. unpriv1 on setuid2"},
-{	&creds[2],	&creds[13],	EPERM,	EPERM,	0,	EPERM,	"33. unpriv1 on setuid2"},
-{	&creds[3],	&creds[12],	EPERM,	EPERM,	0,	EPERM,	"34. unpriv1 on setuid2"},
-{	&creds[3],	&creds[13],	EPERM,	EPERM,	0,	EPERM,	"35. unpriv1 on setuid2"},
+{	&creds[2],	&creds[12],	EPERM,	EPERM,	EPERM,	0,	EPERM,	"32. unpriv1 on setuid2"},
+{	&creds[2],	&creds[13],	EPERM,	EPERM,	EPERM,	0,	EPERM,	"33. unpriv1 on setuid2"},
+{	&creds[3],	&creds[12],	EPERM,	EPERM,	EPERM,	0,	EPERM,	"34. unpriv1 on setuid2"},
+{	&creds[3],	&creds[13],	EPERM,	EPERM,	EPERM,	0,	EPERM,	"35. unpriv1 on setuid2"},
 };
 int scenarios_count = sizeof(scenarios) / sizeof(struct scenario);
 
@@ -152,6 +153,8 @@ errno_to_string(int error)
 		return ("ENOSYS");
 	case ESRCH:
 		return ("ESRCH");
+	case EOPNOTSUPP:
+		return ("EOPNOTSUPP");
 	case 0:
 		return ("0");
 	default:
@@ -243,9 +246,10 @@ cred_print(FILE *output, struct cred *cred)
 }
 
 #define	LOOP_PTRACE	0
-#define	LOOP_SIGNAL	1
-#define	LOOP_SEE	2
-#define	LOOP_SCHED	3
+#define	LOOP_SIGHUP	1
+#define	LOOP_SIGSEGV	2
+#define	LOOP_SEE	3
+#define	LOOP_SCHED	4
 #define	LOOP_MAX	LOOP_SCHED
 
 /*
@@ -327,12 +331,19 @@ enact_scenario(int scenario)
 				desirederror =
 				    scenarios[scenario].sc_candebug_errno;
 				break;
-			case LOOP_SIGNAL:
+			case LOOP_SIGHUP:
 				error = kill(pid1, SIGHUP);
 				error = errno;
-				name = "signal";
+				name = "sighup";
 				desirederror =
-				    scenarios[scenario].sc_cansignal_errno;
+				    scenarios[scenario].sc_cansighup_errno;
+				break;
+			case LOOP_SIGSEGV:
+				error = kill(pid1, SIGSEGV);
+				error = errno;
+				name = "sigsegv";
+				desirederror =
+				    scenarios[scenario].sc_cansigsegv_errno;
 				break;
 			case LOOP_SEE:
 				getpriority(PRIO_PROCESS, pid1);
