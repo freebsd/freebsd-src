@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.43 1995/05/30 08:28:57 rgrimes Exp $
+ * $Id: system.c,v 1.43.2.1 1995/05/30 21:34:42 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -192,49 +192,51 @@ systemDisplayFile(char *file)
     return 0;
 }
 
+static char *
+oldFile(char *file)
+{
+    static char oldfile[64];	/* Should be FILENAME_MAX but I don't feel like wasting that much space */
+
+    if (!strcmp(oldfile, file))
+	return oldfile;
+    else if (oldfile[0]) {
+	msgDebug("Unlinking old helpfile: %s\n", oldfile);
+	unlink(oldfile);
+	oldfile[0] = '\0';
+    }
+    if (file_readable(file)) {
+	strncpy(oldfile, file, 64);
+	return file;
+    }
+    return NULL;
+}
+
 char *
 systemHelpFile(char *file, char *buf)
 {
     char *cp;
-    static char oldfile[64];	/* Should be FILENAME_MAX but I don't feel like wasting that much space */
 
     if (!file)
 	return NULL;
 
     if ((cp = getenv("LANG")) != NULL) {
-	snprintf(buf, FILENAME_MAX, "%s/%s", cp, file);
-	if (oldfile[0]) {
-	    if (!strcmp(buf, oldfile))
-		return oldfile;
-	    else {
-		unlink(oldfile);
-		oldfile[0] = '\0';
-	    }
-	}
-	vsystem("cd /stand && zcat help.tgz | cpio --format=tar -idv %s > /dev/null 2>&1",buf);
 	snprintf(buf, FILENAME_MAX, "/stand/%s/%s", cp, file);
-	if (file_readable(buf)) {
-	    strcpy(oldfile, buf);
-	    return buf;
-	}
+	if ((cp = oldFile(buf)) != NULL)
+	    return cp;
+	vsystem("cd /stand && zcat help.tgz | cpio --format=tar -idv %s > /dev/null 2>&1", buf);
+	snprintf(buf, FILENAME_MAX, "/stand/%s/%s", cp, file);
+	if ((cp = oldFile(buf)) != NULL)
+	   return cp;
     }
     /* Fall back to normal imperialistic mode :-) */
     cp = "en_US.ISO8859-1";
-    snprintf(buf, FILENAME_MAX, "%s/%s", cp, file);
-    if (oldfile[0]) {
-	if (!strcmp(buf, oldfile))
-	    return oldfile;
-	else {
-	    unlink(oldfile);
-	    oldfile[0] = '\0';
-	}
-    }
+    snprintf(buf, FILENAME_MAX, "/stand/%s/%s", cp, file);
+    if ((cp = oldFile(buf)) != NULL)
+	return cp;
     vsystem("cd /stand && zcat help.tgz | cpio --format=tar -idv %s > /dev/null 2>&1",buf);
     snprintf(buf, FILENAME_MAX, "/stand/%s/%s", cp, file);
-    if (file_readable(buf)) {
-	strcpy(oldfile, buf);
-	return buf;
-    }
+    if ((cp = oldFile(buf)) != NULL)
+	return cp;
     return NULL;
 }
 

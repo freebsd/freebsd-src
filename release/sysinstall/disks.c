@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.30 1995/05/30 08:28:27 rgrimes Exp $
+ * $Id: disks.c,v 1.30.2.1 1995/05/31 09:05:34 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -109,7 +109,7 @@ print_command_summary()
     mvprintw(14, 0, "The following commands are supported (in upper or lower case):");
     mvprintw(16, 0, "A = Use Entire Disk    B = Bad Block Scan     C = Create Partition");
     mvprintw(17, 0, "D = Delete Partition   G = Set BIOS Geometry  S = Set Bootable");
-    mvprintw(18, 0, "U = Undo All Changes   ESC = Exit this screen");
+    mvprintw(18, 0, "U = Undo All Changes   ESC = Finish");
     mvprintw(20, 0, "The currently selected partition is displayed in ");
     attrset(A_REVERSE); addstr("reverse"); attrset(A_NORMAL); addstr(" video.");
     mvprintw(21, 0, "Use F1 or ? to get more help, arrow keys to move.");

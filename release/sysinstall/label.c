@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.30 1995/05/29 00:50:03 jkh Exp $
+ * $Id: label.c,v 1.31 1995/05/30 08:28:43 rgrimes Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -382,8 +382,8 @@ static void
 print_command_summary()
 {
     mvprintw(17, 0, "The following commands are valid here (upper or lower case):");
-    mvprintw(19, 0, "C = Create New     D = Delete         M = Set Mountpoint");
-    mvprintw(20, 0, "N = Newfs Options  T = Toggle Newfs   U = Undo    ESC = Exit");
+    mvprintw(19, 0, "C = Create New     D = Delete           M = Set Mountpoint");
+    mvprintw(20, 0, "N = Newfs Options  T = Toggle Newfs     U = Undo    ESC = Finish");
     mvprintw(21, 0, "The default target will be displayed in ");
 
     attrset(A_REVERSE);
