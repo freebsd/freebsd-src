@@ -257,7 +257,7 @@ snpread(dev, uio, flag)
 			if (flag & IO_NDELAY)
 				return (EWOULDBLOCK);
 			snp->snp_flags |= SNOOP_RWAIT;
-			error = tsleep((caddr_t)snp, (PZERO + 1) | PCATCH,
+			error = tsleep(snp, (PZERO + 1) | PCATCH,
 			    "snprd", 0);
 			if (error != 0)
 				return (error);
@@ -351,7 +351,7 @@ snp_in(snp, buf, n)
 			snp->snp_flags |= SNOOP_OFLOW;
 			if (snp->snp_flags & SNOOP_RWAIT) {
 				snp->snp_flags &= ~SNOOP_RWAIT;
-				wakeup((caddr_t)snp);
+				wakeup(snp);
 			}
 			splx(s);
 			return (0);
@@ -371,7 +371,7 @@ snp_in(snp, buf, n)
 
 	if (snp->snp_flags & SNOOP_RWAIT) {
 		snp->snp_flags &= ~SNOOP_RWAIT;
-		wakeup((caddr_t)snp);
+		wakeup(snp);
 	}
 	selwakeup(&snp->snp_sel);
 

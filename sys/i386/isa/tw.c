@@ -520,7 +520,7 @@ twwrite(dev, uio, ioflag)
    * originated locally.
    */
   while(sc->sc_state & (TWS_RCVING | TWS_XMITTING)) {
-    error = tsleep((caddr_t)sc, TWPRI|PCATCH, "twwrite", 0);
+    error = tsleep(sc, TWPRI|PCATCH, "twwrite", 0);
     if(error) {
       splx(s);
       return(error);
@@ -534,7 +534,7 @@ twwrite(dev, uio, ioflag)
   error = twsend(sc, house, key, reps);
   s = spltty();
   sc->sc_state &= ~TWS_XMITTING;
-  wakeup((caddr_t)sc);
+  wakeup(sc);
   splx(s);
   if(error) return(EIO);
   else return(0);
@@ -852,7 +852,7 @@ u_char *p;
   }
   if(sc->sc_state & TWS_WANT) {
     sc->sc_state &= ~TWS_WANT;
-    wakeup((caddr_t)(&sc->sc_buf));
+    wakeup((&sc->sc_buf));
   }
   selwakeup(&sc->sc_selp);
   return(0);
@@ -873,7 +873,7 @@ int cnt;
   while(cnt--) {
     while(sc->sc_nextin == sc->sc_nextout) {  /* Buffer empty */
       sc->sc_state |= TWS_WANT;
-      error = tsleep((caddr_t)(&sc->sc_buf), TWPRI|PCATCH, "twread", 0);
+      error = tsleep((&sc->sc_buf), TWPRI|PCATCH, "twread", 0);
       if(error) {
 	return(error);
       }
@@ -907,7 +907,7 @@ twabortrcv(arg)
       log(LOG_ERR, "TWRCV: aborting (%x, %d)\n", sc->sc_bits, sc->sc_rcount);
       twdebugtimes(sc);
   }
-  wakeup((caddr_t)sc);
+  wakeup(sc);
   splx(s);
 }
 
@@ -1105,7 +1105,7 @@ int unit;
 	  sc->sc_rcount, sc->sc_bits, 'A' + pkt[1], X10_KEY_LABEL[pkt[2]]); */
     }
     sc->sc_rcount = 0;
-    wakeup((caddr_t)sc);
+    wakeup(sc);
   }
 }
 

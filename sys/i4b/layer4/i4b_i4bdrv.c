@@ -168,7 +168,7 @@ i4bread(dev_t dev, struct uio *uio, int ioflag)
 	{
 		readflag = 1;
 
-		error = msleep((caddr_t) &i4b_rdqueue, &i4b_rdqueue.ifq_mtx,
+		error = msleep( &i4b_rdqueue, &i4b_rdqueue.ifq_mtx,
 			(PZERO + 1) | PCATCH, "bird", 0);
 
 		if (error != 0) {
@@ -820,7 +820,7 @@ i4bputqueue(struct mbuf *m)
 	if(readflag)
 	{
 		readflag = 0;
-		wakeup((caddr_t) &i4b_rdqueue);
+		wakeup( &i4b_rdqueue);
 	}
 
 	if(selflag)
@@ -863,7 +863,7 @@ i4bputqueue_hipri(struct mbuf *m)
 	if(readflag)
 	{
 		readflag = 0;
-		wakeup((caddr_t) &i4b_rdqueue);
+		wakeup( &i4b_rdqueue);
 	}
 
 	if(selflag)

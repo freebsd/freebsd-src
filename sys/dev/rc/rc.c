@@ -1007,7 +1007,7 @@ rc_hardclose(struct rc_chans *rc)
 		}
 	}
 	rc->rc_flags &= ~RC_ACTOUT;
-	wakeup((caddr_t) &rc->rc_rcb);  /* wake bi */
+	wakeup( &rc->rc_rcb);  /* wake bi */
 	wakeup(TSA_CARR_ON(tp));
 	(void) splx(s);
 }

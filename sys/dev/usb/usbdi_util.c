@@ -429,7 +429,7 @@ usbd_bulk_transfer(usbd_xfer_handle xfer, usbd_pipe_handle pipe,
 		splx(s);
 		return (err);
 	}
-	error = tsleep((caddr_t)xfer, PZERO | PCATCH, lbl, 0);
+	error = tsleep(xfer, PZERO | PCATCH, lbl, 0);
 	splx(s);
 	if (error) {
 		DPRINTF(("usbd_bulk_transfer: tsleep=%d\n", error));
@@ -471,7 +471,7 @@ usbd_intr_transfer(usbd_xfer_handle xfer, usbd_pipe_handle pipe,
 		splx(s);
 		return (err);
 	}
-	error = tsleep((caddr_t)xfer, PZERO | PCATCH, lbl, 0);
+	error = tsleep(xfer, PZERO | PCATCH, lbl, 0);
 	splx(s);
 	if (error) {
 		DPRINTF(("usbd_intr_transfer: tsleep=%d\n", error));

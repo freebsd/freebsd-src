@@ -388,7 +388,7 @@ sema_get(semap, interlock)
 			    semap->timo);
 			FREE_LOCK(interlock);
 		} else {
-			tsleep((caddr_t)semap, semap->prio, semap->name,
+			tsleep(semap, semap->prio, semap->name,
 			    semap->timo);
 		}
 		return (0);

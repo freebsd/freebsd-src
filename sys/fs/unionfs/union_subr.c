@@ -112,7 +112,7 @@ union_list_lock(ix)
 {
 	if (unvplock[ix] & UNVP_LOCKED) {
 		unvplock[ix] |= UNVP_WANT;
-		(void) tsleep((caddr_t) &unvplock[ix], PINOD, "unllck", 0);
+		(void) tsleep( &unvplock[ix], PINOD, "unllck", 0);
 		return (1);
 	}
 	unvplock[ix] |= UNVP_LOCKED;
@@ -127,7 +127,7 @@ union_list_unlock(ix)
 
 	if (unvplock[ix] & UNVP_WANT) {
 		unvplock[ix] &= ~UNVP_WANT;
-		wakeup((caddr_t) &unvplock[ix]);
+		wakeup( &unvplock[ix]);
 	}
 }
 

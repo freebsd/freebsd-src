@@ -241,7 +241,7 @@ nfs_connect(struct nfsmount *nmp, struct nfsreq *rep)
 		 */
 		s = splnet();
 		while ((so->so_state & SS_ISCONNECTING) && so->so_error == 0) {
-			(void) tsleep((caddr_t)&so->so_timeo,
+			(void) tsleep(&so->so_timeo,
 			    PSOCK, "nfscon", 2 * hz);
 			if ((so->so_state & SS_ISCONNECTING) &&
 			    so->so_error == 0 && rep &&
@@ -353,7 +353,7 @@ nfs_reconnect(struct nfsreq *rep)
 	while ((error = nfs_connect(nmp, rep)) != 0) {
 		if (error == EINTR || error == ERESTART)
 			return (EINTR);
-		(void) tsleep((caddr_t)&lbolt, PSOCK, "nfscon", 0);
+		(void) tsleep(&lbolt, PSOCK, "nfscon", 0);
 	}
 
 	/*
@@ -1013,7 +1013,7 @@ tryagain:
 				error = 0;
 				waituntil = time_second + trylater_delay;
 				while (time_second < waituntil)
-					(void) tsleep((caddr_t)&lbolt,
+					(void) tsleep(&lbolt,
 						PSOCK, "nqnfstry", 0);
 				trylater_delay *= nfs_backoff[trylater_cnt];
 				if (trylater_cnt < NFS_NBACKOFF - 1)
@@ -1272,7 +1272,7 @@ nfs_sndlock(struct nfsreq *rep)
 		if (nfs_sigintr(rep->r_nmp, rep, td))
 			return (EINTR);
 		*statep |= NFSSTA_WANTSND;
-		(void) tsleep((caddr_t)statep, slpflag | (PZERO - 1),
+		(void) tsleep(statep, slpflag | (PZERO - 1),
 			"nfsndlck", slptimeo);
 		if (slpflag == PCATCH) {
 			slpflag = 0;
@@ -1296,7 +1296,7 @@ nfs_sndunlock(struct nfsreq *rep)
 	*statep &= ~NFSSTA_SNDLOCK;
 	if (*statep & NFSSTA_WANTSND) {
 		*statep &= ~NFSSTA_WANTSND;
-		wakeup((caddr_t)statep);
+		wakeup(statep);
 	}
 }
 
@@ -1314,7 +1314,7 @@ nfs_rcvlock(struct nfsreq *rep)
 		if (nfs_sigintr(rep->r_nmp, rep, rep->r_td))
 			return (EINTR);
 		*statep |= NFSSTA_WANTRCV;
-		(void) tsleep((caddr_t)statep, slpflag | (PZERO - 1), "nfsrcvlk",
+		(void) tsleep(statep, slpflag | (PZERO - 1), "nfsrcvlk",
 			slptimeo);
 		/*
 		 * If our reply was recieved while we were sleeping,
@@ -1349,7 +1349,7 @@ nfs_rcvunlock(struct nfsreq *rep)
 	*statep &= ~NFSSTA_RCVLOCK;
 	if (*statep & NFSSTA_WANTRCV) {
 		*statep &= ~NFSSTA_WANTRCV;
-		wakeup((caddr_t)statep);
+		wakeup(statep);
 	}
 }
 

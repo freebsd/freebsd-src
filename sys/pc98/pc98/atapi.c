@@ -509,7 +509,7 @@ static struct atapicmd *atapi_alloc (struct atapi *ata)
 	struct atapicmd *ac;
 
 	while (! ata->free)
-		tsleep ((caddr_t)ata, PRIBIO, "atacmd", 100);
+		tsleep (ata, PRIBIO, "atacmd", 100);
 	ac = ata->free;
 	ata->free = ac->next;
 	ac->busy = 1;
@@ -519,7 +519,7 @@ static struct atapicmd *atapi_alloc (struct atapi *ata)
 static void atapi_free (struct atapi *ata, struct atapicmd *ac)
 {
 	if (! ata->free)
-		wakeup ((caddr_t)ata);
+		wakeup (ata);
 	ac->busy = 0;
 	ac->next = ata->free;
 	ata->free = ac;
@@ -553,7 +553,7 @@ static void atapi_done (struct atapi *ata)
 		(*ac->callback) (ac->cbarg1, ac->cbarg2, ac->count, ac->result);
 		atapi_free (ata, ac);
 	} else
-		wakeup ((caddr_t)ac);
+		wakeup (ac);
 }
 
 /*
@@ -899,7 +899,7 @@ struct atapires atapi_request_wait (struct atapi *ata, int unit,
 	atapi_enqueue (ata, ac);
 	wdstart (ata->ctrlr);
 	if (ata->tail == ac)
-		tsleep ((caddr_t)ac, PRIBIO, "atareq", 0);
+		tsleep (ac, PRIBIO, "atareq", 0);
 
 	result = ac->result;
 	atapi_free (ata, ac);

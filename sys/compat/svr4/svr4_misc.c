@@ -1419,7 +1419,7 @@ loop:
 		return 0;
 	}
 
-	if ((error = tsleep((caddr_t)td->td_proc, PWAIT | PCATCH, "svr4_wait", 0)) != 0)
+	if ((error = tsleep(td->td_proc, PWAIT | PCATCH, "svr4_wait", 0)) != 0)
 		return error;
 	goto loop;
 }

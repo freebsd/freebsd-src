@@ -329,7 +329,7 @@ fore_cmd_drain(fup)
 			/*
 			 * Poke whoever is waiting on the stats
 			 */
-			wakeup((caddr_t)&fup->fu_stats);
+			wakeup(&fup->fu_stats);
 			break;
 
 		case CMD_GET_PROM:
@@ -416,7 +416,7 @@ fore_cmd_free(fup)
 				 * Just in case someone is sleeping on this
 				 */
 				fup->fu_stats_ret = EIO;
-				wakeup((caddr_t)&fup->fu_stats);
+				wakeup(&fup->fu_stats);
 				break;
 			}
 

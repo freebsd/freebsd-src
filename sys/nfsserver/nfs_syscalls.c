@@ -150,7 +150,7 @@ nfssvc(struct thread *td, struct nfssvc_args *uap)
 	mtx_lock(&Giant);
 	while (nfssvc_sockhead_flag & SLP_INIT) {
 		 nfssvc_sockhead_flag |= SLP_WANTINIT;
-		(void) tsleep((caddr_t)&nfssvc_sockhead, PSOCK, "nfsd init", 0);
+		(void) tsleep(&nfssvc_sockhead, PSOCK, "nfsd init", 0);
 	}
 	if (uap->flag & NFSSVC_ADDSOCK) {
 		error = copyin(uap->argp, (caddr_t)&nfsdarg, sizeof(nfsdarg));
@@ -316,7 +316,7 @@ nfssvc_nfsd(struct thread *td)
 			    (nfsd_head_flag & NFSD_CHECKSLP) == 0) {
 				nfsd->nfsd_flag |= NFSD_WAITING;
 				nfsd_waiting++;
-				error = tsleep((caddr_t)nfsd, PSOCK | PCATCH,
+				error = tsleep(nfsd, PSOCK | PCATCH,
 				    "nfsd", 0);
 				nfsd_waiting--;
 				if (error)
@@ -611,7 +611,7 @@ nfs_slplock(struct nfssvc_sock *slp, int wait)
 		return(0);	/* already locked, fail */
 	while (*statep & NFSRV_SNDLOCK) {
 		*statep |= NFSRV_WANTSND;
-		(void) tsleep((caddr_t)statep, PZERO - 1, "nfsslplck", 0);
+		(void) tsleep(statep, PZERO - 1, "nfsslplck", 0);
 	}
 	*statep |= NFSRV_SNDLOCK;
 	return (1);
@@ -630,7 +630,7 @@ nfs_slpunlock(struct nfssvc_sock *slp)
 	*statep &= ~NFSRV_SNDLOCK;
 	if (*statep & NFSRV_WANTSND) {
 		*statep &= ~NFSRV_WANTSND;
-		wakeup((caddr_t)statep);
+		wakeup(statep);
 	}
 }
 
@@ -663,7 +663,7 @@ nfsrv_init(int terminating)
 	nfssvc_sockhead_flag &= ~SLP_INIT;
 	if (nfssvc_sockhead_flag & SLP_WANTINIT) {
 		nfssvc_sockhead_flag &= ~SLP_WANTINIT;
-		wakeup((caddr_t)&nfssvc_sockhead);
+		wakeup(&nfssvc_sockhead);
 	}
 
 	TAILQ_INIT(&nfsd_head);

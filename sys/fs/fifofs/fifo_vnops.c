@@ -210,7 +210,7 @@ fifo_open(ap)
 		if (fip->fi_readers == 1) {
 			fip->fi_writesock->so_state &= ~SS_CANTSENDMORE;
 			if (fip->fi_writers > 0) {
-				wakeup((caddr_t)&fip->fi_writers);
+				wakeup(&fip->fi_writers);
 				sowwakeup(fip->fi_writesock);
 			}
 		}
@@ -220,7 +220,7 @@ fifo_open(ap)
 		if (fip->fi_writers == 1) {
 			fip->fi_readsock->so_state &= ~SS_CANTRCVMORE;
 			if (fip->fi_readers > 0) {
-				wakeup((caddr_t)&fip->fi_readers);
+				wakeup(&fip->fi_readers);
 				sorwakeup(fip->fi_writesock);
 			}
 		}
@@ -228,7 +228,7 @@ fifo_open(ap)
 	if ((ap->a_mode & FREAD) && (ap->a_mode & O_NONBLOCK) == 0) {
 		while (fip->fi_writers == 0) {
 			VOP_UNLOCK(vp, 0, td);
-			error = tsleep((caddr_t)&fip->fi_readers,
+			error = tsleep(&fip->fi_readers,
 			    PCATCH | PSOCK, "fifoor", 0);
 			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 			if (error)
@@ -249,7 +249,7 @@ fifo_open(ap)
 				 * by timing out after a sec.  Race seen when
 				 * sendmail hangs here during boot /phk
 				 */
-				error = tsleep((caddr_t)&fip->fi_writers,
+				error = tsleep(&fip->fi_writers,
 				    PCATCH | PSOCK, "fifoow", hz);
 				vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 				if (error)

@@ -617,7 +617,7 @@ nwfs_vinvalbuf(vp, flags, cred, td, intrflg)
 	}
 	while (np->n_flag & NFLUSHINPROG) {
 		np->n_flag |= NFLUSHWANT;
-		error = tsleep((caddr_t)&np->n_flag, PRIBIO + 2, "nwfsvinv", slptimeo);
+		error = tsleep(&np->n_flag, PRIBIO + 2, "nwfsvinv", slptimeo);
 		error = ncp_chkintr(NWFSTOCONN(VTONWFS(vp)), td);
 		if (error == EINTR && intrflg)
 			return EINTR;
@@ -629,7 +629,7 @@ nwfs_vinvalbuf(vp, flags, cred, td, intrflg)
 			np->n_flag &= ~NFLUSHINPROG;
 			if (np->n_flag & NFLUSHWANT) {
 				np->n_flag &= ~NFLUSHWANT;
-				wakeup((caddr_t)&np->n_flag);
+				wakeup(&np->n_flag);
 			}
 			return EINTR;
 		}
@@ -638,7 +638,7 @@ nwfs_vinvalbuf(vp, flags, cred, td, intrflg)
 	np->n_flag &= ~(NMODIFIED | NFLUSHINPROG);
 	if (np->n_flag & NFLUSHWANT) {
 		np->n_flag &= ~NFLUSHWANT;
-		wakeup((caddr_t)&np->n_flag);
+		wakeup(&np->n_flag);
 	}
 	return (error);
 }

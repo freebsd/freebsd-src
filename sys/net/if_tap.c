@@ -607,7 +607,7 @@ tapifstart(ifp)
 	if (ifp->if_snd.ifq_len != 0) {
 		if (tp->tap_flags & TAP_RWAIT) {
 			tp->tap_flags &= ~TAP_RWAIT;
-			wakeup((caddr_t)tp);
+			wakeup(tp);
 		}
 
 		if ((tp->tap_flags & TAP_ASYNC) && (tp->tap_sigio != NULL))
@@ -779,7 +779,7 @@ tapread(dev, uio, flag)
 				return (EWOULDBLOCK);
 
 			tp->tap_flags |= TAP_RWAIT;
-			error = tsleep((caddr_t)tp,PCATCH|(PZERO+1),"taprd",0);
+			error = tsleep(tp,PCATCH|(PZERO+1),"taprd",0);
 			if (error)
 				return (error);
 		}

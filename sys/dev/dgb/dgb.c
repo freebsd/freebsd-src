@@ -1231,7 +1231,7 @@ static void
 dgb_pause(chan)
 	void *chan;
 {
-	wakeup((caddr_t)chan);
+	wakeup(chan);
 }
 
 static void
