@@ -340,13 +340,9 @@ vnode_if_typedef.h:
 	${AWK} -f @/tools/vnode_if.awk @/kern/vnode_if.src -q
 .endif
 
-.for _i in mii pccard usb
+.for _i in mii pccard
 .if ${SRCS:M${_i}devs.h} != ""
 CLEANFILES+=	${_i}devs.h
-_i=		${_i:Musb}
-.if !empty(_i)
-CLEANFILES+=	${_i}devs_data.h
-.endif
 .if !exists(@)
 ${_i}devs.h: @
 .else
@@ -355,6 +351,26 @@ ${_i}devs.h: @/tools/${_i}devs2h.awk @/dev/${_i}/${_i}devs
 	${AWK} -f @/tools/${_i}devs2h.awk @/dev/${_i}/${_i}devs
 .endif
 .endfor # _i
+
+.if ${SRCS:Musbdevs.h} != ""
+CLEANFILES+=	usbdevs.h
+.if !exists(@)
+usbdevs.h: @
+.else
+usbdevs.h: @/tools/usbdevs2h.awk @/dev/usb/usbdevs
+.endif
+	${AWK} -f @/tools/usbdevs2h.awk @/dev/usb/usbdevs -h
+.endif
+
+.if ${SRCS:Musbdevs_data.h} != ""
+CLEANFILES+=	usbdevs_data.h
+.if !exists(@)
+usbdevs_data.h: @
+.else
+usbdevs_data.h: @/tools/usbdevs2h.awk @/dev/usb/usbdevs
+.endif
+	${AWK} -f @/tools/usbdevs2h.awk @/dev/usb/usbdevs -d
+.endif
 
 .if ${SRCS:Macpi_quirks.h} != ""
 CLEANFILES+=	acpi_quirks.h
