@@ -302,10 +302,15 @@ tcp_usr_listen(struct socket *so, struct thread *td)
 	const int inirw = INI_WRITE;
 
 	COMMON_START();
-	if (inp->inp_lport == 0)
+	SOCK_LOCK(so);
+	error = solisten_proto_check(so);
+	if (error == 0 && inp->inp_lport == 0)
 		error = in_pcbbind(inp, (struct sockaddr *)0, td->td_ucred);
-	if (error == 0)
+	if (error == 0) {
 		tp->t_state = TCPS_LISTEN;
+		solisten_proto(so);
+	}
+	SOCK_UNLOCK(so);
 	COMMON_END(PRU_LISTEN);
 }
 
@@ -319,14 +324,19 @@ tcp6_usr_listen(struct socket *so, struct thread *td)
 	const int inirw = INI_WRITE;
 
 	COMMON_START();
-	if (inp->inp_lport == 0) {
+	SOCK_LOCK(so);
+	error = solisten_proto_check(so);
+	if (error == 0 && inp->inp_lport == 0) {
 		inp->inp_vflag &= ~INP_IPV4;
 		if ((inp->inp_flags & IN6P_IPV6_V6ONLY) == 0)
 			inp->inp_vflag |= INP_IPV4;
 		error = in6_pcbbind(inp, (struct sockaddr *)0, td->td_ucred);
 	}
-	if (error == 0)
+	if (error == 0) {
 		tp->t_state = TCPS_LISTEN;
+		solisten_proto(so);
+	}
+	SOCK_UNLOCK(so);
 	COMMON_END(PRU_LISTEN);
 }
 #endif /* INET6 */
