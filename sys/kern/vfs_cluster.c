@@ -56,7 +56,6 @@
 #include <sys/sysctl.h>
 
 #if defined(CLUSTERDEBUG)
-#include <sys/sysctl.h>
 static int	rcluster= 0;
 SYSCTL_INT(_debug, OID_AUTO, rcluster, CTLFLAG_RW, &rcluster, 0,
     "Debug VFS clustering code");

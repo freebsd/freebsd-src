@@ -49,7 +49,6 @@
 #include <sys/sockio.h>
 #include <sys/stat.h>
 #include <sys/uio.h>
-#include <sys/filedesc.h>
 #include <sys/ucred.h>
 
 #include <net/if.h>
