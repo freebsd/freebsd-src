@@ -39,7 +39,7 @@ static char copyright[] =
 
 #ifndef lint
 /*static char sccsid[] = "from: @(#)main.c	8.1 (Berkeley) 6/20/93";*/
-static char rcsid[] = "$Id: main.c,v 1.10 1996/05/07 16:42:26 ache Exp $";
+static char rcsid[] = "$Id: main.c,v 1.10.2.1 1996/11/16 21:07:03 phk Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -292,6 +292,12 @@ main(argc, argv)
 		if (CL && *CL)
 			putpad(CL);
 		edithost(HE);
+
+		/* if a delay was specified then sleep for that 
+		   number of seconds before writing the initial prompt */
+		if(DE)
+		    sleep(DE);
+
 		if (IM && *IM)
 			putf(IM);
 		if (setjmp(timeout)) {
