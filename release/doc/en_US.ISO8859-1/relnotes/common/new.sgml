@@ -89,6 +89,10 @@
   <sect2 id="kernel">
     <title>Kernel Changes</title>
 
+    <para>&man.acct.2; has been changed to open the accounting file in
+      append mode, so that &man.accton.8; can be used to enable
+      accounting to an append-only file.</para>
+
     <para><literal>RLIMIT_VMEM</literal> support has been added.  This
       feature defines a new resource limit that covers a process's
       entire virtual memory space, including &man.mmap.2; space.  This
