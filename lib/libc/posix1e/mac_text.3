@@ -1,0 +1,169 @@
+.\" Copyright (c) 2001 Networks Associates Technology, Inc.
+.\" All rights reserved.
+.\" 
+.\" This software was developed for the FreeBSD Project by Chris
+.\" Costello at Safeport Network Services and NAI Labs, the Security
+.\" Research Division of Network Associates, Inc. under DARPA/SPAWAR
+.\" contract N66001-01-C-8035 ("CBOSS"), as part of the DARPA CHATS
+.\" research program.
+.\" 
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote
+.\"    products derived from this software without specific prior written
+.\"    permission.
+.\" 
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\" 
+.\" $FreeBSD$
+.Dd December 21, 2001
+.Dt MAC_TEXT 3
+.Sh NAME
+.Nm mac_from_text ,
+.Nm mac_to_text
+.Nd convert MAC label to/from text representation
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/mac.h
+.Ft mac_t
+.Fn mac_from_text "const char *text_p"
+.Ft "char *"
+.Fn mac_to_text "mac_t label" "size_t *len_p"
+.Sh DESCRIPTION
+The
+.Fn mac_from_text
+function converts the text representation of a label
+into a
+.Vt mac_t ,
+which must later be freed with
+.Xr mac_free .
+The
+.Fn mac_to_text
+function returns
+the text representation of
+.Fa label
+and sets
+.Fa *len_p
+to the length of the returned string.
+.Pp
+.Fx
+uses the following format
+for MAC policy text representations:
+.Pp
+.Dl Sy policy Ns No / Ns Sy qualifier
+.Pp
+Where
+.Sy policy
+can be one of
+.Dq biba ,
+.Dq mls ,
+or
+.Dq te .
+.Pp
+Valid labels can have the following arguments for
+.Sy qualifier ,
+depending on the value of
+.Sy policy .
+.Bl -tag -width "Policy" -offset indent
+.It Em Policy
+.Em Qualifier
+.It biba
+.Dq high ,
+.Dq low ,
+.Dq equal ,
+or a numeric grade.
+.It mls
+.Dq high ,
+.Dq low ,
+.Dq equal ,
+or a numeric level.
+.It te
+Types for
+.Dq te
+consist of a type name which must
+neither be empty nor exceed the length limit for the label.
+.El
+.Pp
+All policies must be present
+in a comma-separated list,
+but may be in any order
+(see
+.Sx EXAMPLES ) .
+.Sh RETURN VALUES
+The
+.Fn mac_from_text
+function returns a valid
+.Vt mac_t
+equivalent to
+the MAC label described in
+.Fa text_p
+upon success, and
+.Dv NULL
+upon failure, setting
+.Va errno
+to indicate the error.
+.Pp
+The
+.Fn mac_to_text
+function returns a string
+containing the text representation of
+.Fa label
+upon success, and
+.Dv NULL
+upon failure, setting
+.Va errno
+to indicate the error.
+.Sh EXAMPLES
+The following are valid MAC labels:
+.Bd -literal -offset indent
+biba/high,mls/low,te/none
+biba/low,mls/low,te/none
+biba/low,mls/3,te/none
+.Ed
+.Sh COMPATIBILITY
+POSIX.1e does not define
+a text format for text representations
+of MAC labels.
+.Sh ERRORS
+.Bl -tag -width Er
+.It Bq Er EINVAL
+An invalid policy or qualifier
+was specified in
+.Fa text_p ,
+or an invalid MAC label
+was specified in
+.Fa label .
+.It Bq Er ENOMEM
+Insufficient memory was available
+to allocate internal storage.
+.El
+.Sh SEE ALSO
+.Xr mac 3 ,
+.Xr mac_free 3 ,
+.Xr mac_get 3 ,
+.Xr mac_set 3
+.Sh STANDARDS
+POSIX.1e is described in IEEE POSIX.1e draft 17.
+Discussion of the draft
+continues on the cross-platform POSIX.1e implementation mailing list.
+To join this list, see the
+.Fx
+POSIX.1e implementation page
+for more information.
