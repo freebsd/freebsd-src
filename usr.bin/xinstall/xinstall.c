@@ -66,8 +66,6 @@ __FBSDID("$FreeBSD$");
 #include <sysexits.h>
 #include <unistd.h>
 
-#include "pathnames.h"
-
 /* Bootstrap aid - this doesn't exist in most older releases */
 #ifndef MAP_FAILED
 #define MAP_FAILED ((void *)-1)	/* from <sys/mman.h> */
