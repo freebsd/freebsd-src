@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_readwrite.c	8.7 (Berkeley) 1/21/94
- * $Id: ufs_readwrite.c,v 1.5 1994/10/10 01:04:55 phk Exp $
+ * $Id: ufs_readwrite.c,v 1.6 1995/01/09 16:05:26 davidg Exp $
  */
 
 #ifdef LFS_READWRITE
@@ -101,9 +101,6 @@ READ(ap)
 		if ((bytesinfile = ip->i_size - uio->uio_offset) <= 0)
 			break;
 		lbn = lblkno(fs, uio->uio_offset);
-		xfersize = vfs_read_bypass( vp, uio, bytesinfile, lbn);
-		if( xfersize != 0)
-			continue;
 		nextlbn = lbn + 1;
 		size = BLKSIZE(fs, ip, lbn);
 		blkoffset = blkoff(fs, uio->uio_offset);
@@ -256,9 +253,6 @@ WRITE(ap)
 		if (uio->uio_offset + xfersize > ip->i_size) {
 			ip->i_size = uio->uio_offset + xfersize;
 		}
-/*
-		(void)vnode_pager_uncache(vp);
-*/
 
 		size = BLKSIZE(fs, ip, lbn) - bp->b_resid;
 		if (size < xfersize)
