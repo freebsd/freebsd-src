@@ -29,6 +29,8 @@
 #define RELATIVETIMESTAMPS 0x00000002
 #define ABSOLUTETIMESTAMPS 0x00000004
 #define NOSIGS             0x00000008
+#define EXECVEARGS         0x00000010
+#define EXECVEENVS         0x00000020
 
 struct trussinfo
 {
