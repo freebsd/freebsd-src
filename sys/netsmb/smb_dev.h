@@ -34,6 +34,8 @@
 #ifndef _NETSMB_DEV_H_
 #define _NETSMB_DEV_H_
 
+#include <netsmb/smb.h>
+
 #define	NSMB_NAME		"nsmb"
 #define	NSMB_MAJOR		144
 
