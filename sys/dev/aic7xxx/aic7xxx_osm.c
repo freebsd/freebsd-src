@@ -122,7 +122,8 @@ ahc_attach(struct ahc_softc *ahc)
 	 * Attach secondary channel first if the user has
 	 * declared it the primary channel.
 	 */
-	if ((ahc->flags & AHC_CHANNEL_B_PRIMARY) != 0) {
+	if ((ahc->features & AHC_TWIN) != 0
+	 && (ahc->flags & AHC_CHANNEL_B_PRIMARY) != 0) {
 		bus_id = 1;
 		bus_id2 = 0;
 	} else {
@@ -212,7 +213,8 @@ ahc_attach(struct ahc_softc *ahc)
 	}
 
 fail:
-	if ((ahc->flags & AHC_CHANNEL_B_PRIMARY) != 0) {
+	if ((ahc->features & AHC_TWIN) != 0
+	 && (ahc->flags & AHC_CHANNEL_B_PRIMARY) != 0) {
 		ahc->platform_data->sim_b = sim;
 		ahc->platform_data->path_b = path;
 		ahc->platform_data->sim = sim2;
