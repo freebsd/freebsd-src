@@ -237,8 +237,18 @@ Map (do not map)
 to
 .Dv CR-NL
 on output.
+.It Cm ocrnl Pq Fl ocrnl
+Map (do not map)
+.Dv CR
+to
+.Dv NL
+on output.
 .It Cm oxtabs Pq Fl oxtabs
 Expand (do not expand) tabs to spaces on output.
+.It Cm onocr Pq Fl onocr
+Do not (do) output CRs at column zero.
+.It Cm onlret Pq Fl onlret
+On the terminal NL performs (does not perform) the CR function.
 .El
 .Ss Local Modes:
 .Pp
