@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: bt.c,v 1.3 1998/09/17 00:08:27 gibbs Exp $
+ *      $Id: bt.c,v 1.4 1998/09/20 05:08:15 gibbs Exp $
  */
 
  /*
@@ -2062,6 +2062,7 @@ btmapsgs(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 static void
 btpoll(struct cam_sim *sim)
 {
+	bt_intr(cam_sim_softc(sim));
 }
 
 void
