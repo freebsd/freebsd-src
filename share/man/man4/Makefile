@@ -197,6 +197,7 @@ MAN=	aac.4 \
 	ttcp.4 \
 	tty.4 \
 	tun.4 \
+	twa.4 \
 	twe.4 \
 	txp.4 \
 	uaudio.4 \
