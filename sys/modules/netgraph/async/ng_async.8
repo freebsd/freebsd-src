@@ -58,8 +58,7 @@ hook.  Mbuf boundaries of incoming data are ignored.
 Once a complete packet has been received, it is decoded and
 stripped of all framing bytes, and transmitted out the
 .Dv sync
-hook as a single frame.  The address and control bytes,
-if present, are removed from the beginning of the frame.
+hook as a single frame.
 .Pp
 Synchronous frames are transmitted and received on the
 .Dv sync
@@ -67,11 +66,14 @@ hook.
 Packets received on this hook are encoded as asynchronous frames
 and sent out on
 .Dv async .
-Received packets should start with the PPP protocol field.
-If the LCP protocol (0xc021) is detected,
-address and control field compression is disabled
-and complete control character escaping is enabled for that frame
-(in PPP, LCP packets are always sent with these settings).
+Received packets should start with the address and control fields,
+or the PPP protocol field if address and control field compression
+is employed, and contain no checksum field.  If the first four bytes are
+.Dv "0xff 0x03 0xc0 0x21"
+(an LCP protocol frame) then complete control character escaping
+is enabled for that frame (in PPP, LCP packets are always sent with
+no address and control field compression and all control characters
+escaped).
 .Pp
 This node supports ``flag sharing'' for packets transmitted on
 .Dv async .
@@ -89,10 +91,10 @@ Typically this hook would be connected to a
 .Xr ng_tty 8
 node, which handles transmission of serial data over a tty device.
 .It Dv sync
-Synchronous connection. This hook sends and receives synchronous frames.
-For PPP, these frames contain no address, control, or checksum fields;
-each frame begins with the PPP protocol number. Typically this hook would
-be connected to a link hook of a
+Synchronous connection.  This hook sends and receives synchronous frames.
+For PPP, these frames should contain address, control, and protocol fields,
+but no checksum field.
+Typically this hook would be connected to an individual link hook of a
 .Xr ng_ppp 8
 type node.
 .El
@@ -111,7 +113,6 @@ Sets the node configuration, which is described by a
 .Bd -literal -offset 4n
 struct ng_async_cfg {
   u_char    enabled;  /* Turn encoding on/off */
-  u_char    acfcomp;  /* Address/control field comp. */
   u_int16_t amru;     /* Max receive async frame len */
   u_int16_t smru;     /* Max receive sync frame len */
   u_int32_t accm;     /* ACCM encoding */
@@ -121,21 +122,17 @@ struct ng_async_cfg {
 The
 .Dv enabled
 field enables or disables all encoding/decoding functions (default disabled).
-When disabled, the node operates in simple ``pass through'' mode.  Setting
-.Dv acfcomp
-enables address and control field compression on transmission (for packets
-received on the
-.Dv sync
-hook only; default off).
+When disabled, the node operates in simple ``pass through'' mode.
+The
 .Dv amru
 and
 .Dv smru
-are the asynchronous and synchronous MRU (maximum receive unit) values,
-respectively. These both default to 1600; note that the async MRU
+fields are the asynchronous and synchronous MRU (maximum receive unit) values,
+respectively.  These both default to 1600; note that the async MRU
 applies to the incoming frame length after asynchronous decoding.
-Finally,
+The
 .Dv accm
-is the asynchronous character control map, which controls the escaping
+field is the asynchronous character control map, which controls the escaping
 of characters 0x00 thorough 0x1f (default 0xffffffff).
 .It Dv NGM_ASYNC_CMD_GET_CONFIG
 This command returns the current configuration structure.
@@ -153,6 +150,11 @@ control message, or when all hooks have been disconnected.
 .%A W. Simpson
 .%T "PPP in HDLC-link Framing"
 .%O RFC 1662
+.Re
+.Rs
+.%A W. Simpson
+.%T "The Point-to-Point Protocol (PPP)"
+.%O RFC 1661
 .Re
 .Sh AUTHOR
 Archie Cobbs <archie@whistle.com>
