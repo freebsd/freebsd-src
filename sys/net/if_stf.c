@@ -305,13 +305,9 @@ stf_getsrcifa6(ifp)
 			continue;
 
 		bcopy(GET_V4(&sin6->sin6_addr), &in, sizeof(in));
-		for (ia4 = TAILQ_FIRST(&in_ifaddrhead);
-		     ia4;
-		     ia4 = TAILQ_NEXT(ia4, ia_link))
-		{
+		LIST_FOREACH(ia4, INADDR_HASH(in.s_addr), ia_hash)
 			if (ia4->ia_addr.sin_addr.s_addr == in.s_addr)
 				break;
-		}
 		if (ia4 == NULL)
 			continue;
 
