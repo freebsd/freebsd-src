@@ -133,11 +133,11 @@ pccard_attach_card(device_t dev)
 		if (STAILQ_EMPTY(&pf->cfe_head))
 			continue;
 
-		printf ("pf %p sc %p\n", pf, sc);
 		pf->sc = sc;
 		pf->cfe = NULL;
 		pf->ih_fct = NULL;
 		pf->ih_arg = NULL;
+		pf->dev = NULL;
 	}
 
 	DEVPRINTF((dev, "chip_socket_disable\n"));
@@ -165,6 +165,7 @@ pccard_attach_card(device_t dev)
 		device_printf(dev, "pf %p pf->sc %p\n", pf, pf->sc);
 		if (device_probe_and_attach(child) == 0) {
 			attached++;
+			pf->dev = child;
 
 			DEVPRINTF((sc->dev, "function %d CCR at %d "
 			     "offset %x: %x %x %x %x, %x %x %x %x, %x\n",
@@ -194,7 +195,8 @@ pccard_detach_card(device_t dev, int flags)
 			continue;
 
 		pccard_function_disable(pf);
-		device_delete_child(device_get_parent(dev), dev);
+		if (pf->dev)
+			device_delete_child(dev, pf->dev);
 	}
 	return 0;
 }
@@ -690,3 +692,5 @@ DRIVER_MODULE(pccard, pcic, pccard_driver, pccard_devclass, 0, 0);
 DRIVER_MODULE(pccard, pc98pcic, pccard_driver, pccard_devclass, 0, 0);
 DRIVER_MODULE(pccard, pccbb, pccard_driver, pccard_devclass, 0, 0);
 DRIVER_MODULE(pccard, tcic, pccard_driver, pccard_devclass, 0, 0);
+MODULE_VERSION(pccard, 1);
+MODULE_DEPEND(pccard, pcic, 1, 1, 1);
