@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.135 1998/03/01 04:18:44 dyson Exp $
+ * $Id: vfs_subr.c,v 1.136 1998/03/01 23:07:45 dyson Exp $
  */
 
 /*
@@ -181,7 +181,7 @@ vfs_busy(mp, flags, interlkp, p)
 		}
 		return (ENOENT);
 	}
-	lkflags = LK_SHARED;
+	lkflags = LK_SHARED | LK_NOPAUSE;
 	if (interlkp)
 		lkflags |= LK_INTERLOCK;
 	if (lockmgr(&mp->mnt_lock, lkflags, interlkp, p))
@@ -224,7 +224,7 @@ vfs_rootmountalloc(fstypename, devname, mpp)
 		return (ENODEV);
 	mp = malloc((u_long)sizeof(struct mount), M_MOUNT, M_WAITOK);
 	bzero((char *)mp, (u_long)sizeof(struct mount));
-	lockinit(&mp->mnt_lock, PVFS, "vfslock", 0, 0);
+	lockinit(&mp->mnt_lock, PVFS, "vfslock", 0, LK_NOPAUSE);
 	(void)vfs_busy(mp, LK_NOWAIT, 0, p);
 	LIST_INIT(&mp->mnt_vnodelist);
 	mp->mnt_vfc = vfsp;

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)buf.h	8.9 (Berkeley) 3/30/95
- * $Id: buf.h,v 1.44 1997/12/02 21:07:14 phk Exp $
+ * $Id: buf.h,v 1.45 1998/01/22 17:30:10 dyson Exp $
  */
 
 #ifndef _SYS_BUF_H_
@@ -253,6 +253,7 @@ extern struct	buf *swbuf;		/* Swap I/O buffer headers. */
 extern int	nswbuf;			/* Number of swap I/O buffer headers. */
 extern int	needsbuffer, numdirtybuffers;
 extern TAILQ_HEAD(swqueue, buf) bswlist;
+extern TAILQ_HEAD(bqueues, buf) bufqueues[BUFFER_QUEUES];
 
 void	bufinit __P((void));
 void	bremfree __P((struct buf *));

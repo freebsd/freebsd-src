@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spec_vnops.c	8.14 (Berkeley) 5/21/95
- * $Id: spec_vnops.c,v 1.56 1998/02/06 12:13:43 eivind Exp $
+ * $Id: spec_vnops.c,v 1.57 1998/03/04 06:44:59 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -723,8 +723,10 @@ spec_getpages(ap)
 	daddr_t blkno;
 	struct buf *bp;
 	vm_ooffset_t offset;
+	int toff, nextoff, nread;
 	struct vnode *vp = ap->a_vp;
 	int blksiz;
+	int gotreqpage;
 
 	error = 0;
 	pcount = round_page(ap->a_count) / PAGE_SIZE;
@@ -788,8 +790,6 @@ spec_getpages(ap)
 
 	/* Do the input. */
 	VOP_STRATEGY(bp);
-	if (bp->b_flags & B_ASYNC)
-		return (VM_PAGER_PEND);
 
 	s = splbio();
 
@@ -799,12 +799,19 @@ spec_getpages(ap)
 
 	splx(s);
 
-	if ((bp->b_flags & B_ERROR) != 0)
-		error = EIO;
+	if ((bp->b_flags & B_ERROR) != 0) {
+		if (bp->b_error)
+			error = bp->b_error;
+		else
+			error = EIO;
+	}
 
-	if (!error && ap->a_count != pcount * PAGE_SIZE)
-		bzero((caddr_t)kva + ap->a_count,
-		      PAGE_SIZE * pcount - ap->a_count);
+	nread = size - bp->b_resid;
+
+	if (nread < ap->a_count) {
+		bzero((caddr_t)kva + nread,
+			ap->a_count - nread);
+	}
 	pmap_qremove(kva, pcount);
 
 	/*
@@ -812,36 +819,53 @@ spec_getpages(ap)
 	 */
 	relpbuf(bp);
 
-	for (i = 0; i < pcount; i++) {
-		ap->a_m[i]->dirty = 0;
-		ap->a_m[i]->valid = VM_PAGE_BITS_ALL;
-		ap->a_m[i]->flags &= ~PG_ZERO;
-		if (i != ap->a_reqpage) {
-			/*
-			 * Whether or not to leave the page activated is up in
-			 * the air, but we should put the page on a page queue
-			 * somewhere (it already is in the object).  Result:
-			 * It appears that emperical results show that
-			 * deactivating pages is best.
-			 */
+	gotreqpage = 0;
+	for (i = 0, toff = 0; i < pcount; i++, toff = nextoff) {
+		vm_page_t m;
+		nextoff = toff + PAGE_SIZE;
+		m = ap->a_m[i];
 
+		m->flags &= ~PG_ZERO;
+
+		if (nextoff <= nread) {
+			m->valid = VM_PAGE_BITS_ALL;
+			m->dirty = 0;
+		} else if (toff < nread) {
+			int nvalid = ((nread + DEV_BSIZE - 1) - toff) & ~(DEV_BSIZE - 1);
+			vm_page_set_validclean(m, 0, nvalid);
+		} else {
+			m->valid = 0;
+			m->dirty = 0;
+		}
+
+		if (i != ap->a_reqpage) {
 			/*
 			 * Just in case someone was asking for this page we
 			 * now tell them that it is ok to use.
 			 */
-			if (!error) {
-				if (ap->a_m[i]->flags & PG_WANTED)
-					vm_page_activate(ap->a_m[i]);
-				else
-					vm_page_deactivate(ap->a_m[i]);
-				PAGE_WAKEUP(ap->a_m[i]);
-			} else
-				vnode_pager_freepage(ap->a_m[i]);
+			if (!error || (m->valid == VM_PAGE_BITS_ALL)) {
+				if (m->valid) {
+					if (m->flags & PG_WANTED) {
+						vm_page_activate(m);
+					} else {
+						vm_page_deactivate(m);
+					}
+					PAGE_WAKEUP(m);
+				} else {
+					vm_page_free(m);
+				}
+			} else {
+				vm_page_free(m);
+			}
+		} else if (m->valid) {
+			gotreqpage = 1;
 		}
 	}
-	if (error)
-		printf("spec_getpages: I/O read error\n");
-	return (error ? VM_PAGER_ERROR : VM_PAGER_OK);
+	if (!gotreqpage) {
+		printf("spec_getpages: I/O read failure: (code=%d)\n", error);
+		return VM_PAGER_ERROR;
+	}
+	return VM_PAGER_OK;
 }
 
 /* ARGSUSED */

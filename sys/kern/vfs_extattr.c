@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.92 1998/02/08 01:41:33 dyson Exp $
+ * $Id: vfs_syscalls.c,v 1.93 1998/02/15 04:17:09 dyson Exp $
  */
 
 /* For 4.3 integer FS ID compatibility */
@@ -244,7 +244,7 @@ mount(p, uap)
 	mp = (struct mount *)malloc((u_long)sizeof(struct mount),
 		M_MOUNT, M_WAITOK);
 	bzero((char *)mp, (u_long)sizeof(struct mount));
-	lockinit(&mp->mnt_lock, PVFS, "vfslock", 0, 0);
+	lockinit(&mp->mnt_lock, PVFS, "vfslock", 0, LK_NOPAUSE);
 	(void)vfs_busy(mp, LK_NOWAIT, 0, p);
 	mp->mnt_op = vfsp->vfc_vfsops;
 	mp->mnt_vfc = vfsp;
@@ -2158,9 +2158,9 @@ fsync(p, uap)
 	if (error = getvnode(p->p_fd, SCARG(uap, fd), &fp))
 		return (error);
 	vp = (struct vnode *)fp->f_data;
-	if ((error = vn_lock(vp, LK_EXCLUSIVE|LK_RETRY, p)) == NULL) {
+	if ((error = vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p)) == NULL) {
 		if (vp->v_object) {
-			vm_object_page_clean(vp->v_object, 0, 0 ,0);
+			vm_object_page_clean(vp->v_object, 0, 0, FALSE);
 		}
 		error = VOP_FSYNC(vp, fp->f_cred,
 			(vp->v_mount && (vp->v_mount->mnt_flag & MNT_ASYNC)) ? 
