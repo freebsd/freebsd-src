@@ -1,5 +1,8 @@
 #!/usr/local/bin/tclsh
 
+set CTMignoreCVS 0
+set CTMapply 1
+
 source $argv
 
 set tmp $CTMtmp
@@ -79,23 +82,26 @@ proc CTMchg {t1 n1 m1 u1 g1 b1 s1 h1 t2 n2 m2 u2 g2 b2 s2 h2} {
 	incr changes
 	return
     }
-    if {$b1 != "0" || $b2 != "0"} {
-        puts stderr "R $b1$b2 $t1$t2 $n1"
-	puts $fo_files "CTMFS $n2 $u2 $g2 $m2 $h1 $h2 $s2"
-	flush $fo_files
-	exec cat $d2/$n2 >@ $fo_files
-	puts $fo_files ""
-	incr changes
-	return
+    if {$b1 == "0" || $b2 == "0"} {
+	puts stderr "E $b1$b2 $t1$t2 $n1"
+	set i [catch "exec diff -e $d1/$n1 $d2/$n2 > tmp" j]
+	set s [file size tmp]
+	if {$s < $s2} {
+	    puts $fo_files "CTMFE $n1 $u2 $g2 $m2 $h1 $h2 $s"
+	    flush $fo_files
+	    exec cat tmp >@ $fo_files
+	    puts $fo_files ""
+	    incr changes
+	    return
+	}
     }
-    puts stderr "E $b1$b2 $t1$t2 $n1"
-    set i [catch "exec diff -e $d1/$n1 $d2/$n2 > tmp" j]
-    set s [file size tmp]
-    puts $fo_files "CTMFE $n1 $u2 $g2 $m2 $h1 $h2 $s"
+    puts stderr "R $b1$b2 $t1$t2 $n1"
+    puts $fo_files "CTMFS $n2 $u2 $g2 $m2 $h1 $h2 $s2"
     flush $fo_files
-    exec cat tmp >@ $fo_files
+    exec cat $d2/$n2 >@ $fo_files
     puts $fo_files ""
     incr changes
+    return
 }
 #####
 set l1 ""
@@ -113,6 +119,11 @@ while 1 {
     set n2 [lindex $l2 1]
 
     if {$l1 == $l2}  { set l1 "" ; set l2 "" ; continue }
+
+    if {$CTMignoreCVS } {
+	if {[regexp {/CVS/} $l1]} {set l1 ""; continue }
+	if {[regexp {/CVS/} $l2]} {set l2 ""; continue }
+    }
 
     if {$l1 == "" }   { eval CTMadd $l2 ; set l2 "" ; continue }
 
@@ -132,7 +143,7 @@ close $fo_files
 
 exec echo CTM_BEGIN 2.0 $CTMname $CTMnbr $CTMdate $CTMprefix > $tmp.begin
 exec echo -n "CTM_END " >> $tmp.end
-set m [exec cat $tmp.begin $tmp.del $tmp.rmdir $tmp.mkdir $tmp.files $tmp.end | md5]
+set m [exec cat $tmp.begin $tmp.del $tmp.rmdir $tmp.mkdir $tmp.files $tmp.end | /sbin/md5]
 exec echo "$m" >> $tmp.end
 
 if {!$changes} {
@@ -142,6 +153,8 @@ if {!$changes} {
 }
 
 set  nm [format "%s/%s.%04d" $dd $CTMname $CTMnbr]
-exec cat $tmp.begin $tmp.del $tmp.rmdir $tmp.mkdir $tmp.files $tmp.end | gzip -9 -v > ${nm}.gz 2>@ stdout
+exec cat $tmp.begin $tmp.del $tmp.rmdir $tmp.mkdir $tmp.files $tmp.end | gzip -9 -v > ${nm}.gz 
 exec sh -c "rm -f $tmp.*"
-exec sh -e -x -c "cd $CTMcopy ; /root/CTM/ctm -v -v -v ${nm}.gz" >&@ stdout
+if {$CTMapply} {
+	exec sh -e -x -c "cd $CTMcopy ; /root/CTM/ctm -v -v -v ${nm}.gz" >&@ stdout
+}

@@ -1,49 +1,62 @@
-int
-ctm_edit(u_char *script, int length, char *filename, char *md5)
-{
-    u_char *ep, cmd, c;
-    int ln, ln2, iln;
-    FILE *fi,*fo;
-    char buf[BUFSIZ];
+/*
+ * ----------------------------------------------------------------------------
+ * "THE BEER-WARE LICENSE" (Revision 42):
+ * <phk@login.dknet.dk> wrote this file.  As long as you retain this notice you
+ * can do whatever you want with this stuff. If we meet some day, and you think
+ * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
+ * ----------------------------------------------------------------------------
+ *
+ * $Id$
+ *
+ */
 
-    fi = fopen(filename,"r");
-    if(!fi) {
-	/* XXX */
-	return 1;
+#include "ctm.h"
+
+int
+ctm_edit(u_char *script, int length, char *filein, char *fileout)
+{
+    u_char *ep, cmd;
+    int ln, ln2, iln, ret=0, c;
+    FILE *fi=0,*fo=0;
+
+    fi = fopen(filein,"r");
+    if(!fi) { 
+	perror(filein);
+	return 8; 
     }
-    strcpy(buf,filename);
-    strcat(buf,".ctm");
-    fo = fopen(filename,"w");
+
+    fo = fopen(fileout,"w");
     if(!fo) {
-	/* XXX */
-	return 1;
+	perror(fileout);
+	fclose(fi);
+	return 4;
     }
     iln = 0;
     for(ep=script;ep < script+length;) {
 	cmd = *ep++;
-	if(cmd != 'a' && cmd != 'd') ARGH
+	if(cmd != 'a' && cmd != 'd') { ret = 1; goto bye; }
 	ln = 0;
 	while(isdigit(*ep)) {
 	    ln *= 10;
 	    ln += (*ep++ - '0');
 	}
-	if(*ep++ != ' ') BARF
+	if(*ep++ != ' ') { ret = 1; goto bye; }
 	ln2 = 0;
 	while(isdigit(*ep)) {
 	    ln2 *= 10;
 	    ln2 += (*ep++ - '0');
 	}
-	if(*ep++ != '\n') BARF
+	if(*ep++ != '\n') { ret = 1; goto bye; }
 	while(iln < ln) {
-	    c = getf(fi);
+	    c = getc(fi);
 	    putc(c,fo);
-	    if(c == '/n')
+	    if(c == '\n')
 		iln++;
 	}
 	if(cmd == 'd') {
 	    while(ln2) {
-		c = getf(fi);
-		if(c != '/n')
+		c = getc(fi);
+		if(c != '\n')
 		    continue;
 		iln++;
 		ln2--;
@@ -54,27 +67,26 @@ ctm_edit(u_char *script, int length, char *filename, char *md5)
 	    while(ln2) {
 		c = *ep++;
 		putc(c,fo);
-		if(c != '/n')
+		if(c != '\n')
 		    continue;
 		ln2--;
 	    }
 	    continue;
 	}
-	ARGH
+	ret = 1; 
+	goto bye;
     }
     while(1) {
-	c = getf(fi);
+	c = getc(fi);
 	if(c == EOF) break;
 	putc(c,fo);
     }
     fclose(fi);
     fclose(fo);
-    if(strcmp(md5,MD5File(buf))) {
-	unlink(buf);
-	return 1; /*XXX*/
-    }
-    if(rename(buf,filename)) {
-	unlink(buf);
-	return 1; /*XXX*/
-    }
+    return 0;
+bye:
+    if(fi) 	fclose(fi);
+    if(fo) 	fclose(fo);
+    return ret;
 }
+

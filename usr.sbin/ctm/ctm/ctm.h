@@ -1,3 +1,14 @@
+/*
+ * ----------------------------------------------------------------------------
+ * "THE BEER-WARE LICENSE" (Revision 42):
+ * <phk@login.dknet.dk> wrote this file.  As long as you retain this notice you
+ * can do whatever you want with this stuff. If we meet some day, and you think
+ * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
+ * ----------------------------------------------------------------------------
+ *
+ * $Id$
+ *
+ */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -58,7 +69,6 @@ EXTERN u_char *Prefix;
 EXTERN u_char *FileName;
 EXTERN u_char *BaseDir;
 EXTERN u_char *TmpDir;
-EXTERN int Verbose;
 
 /* 
  * Paranoid -- Just in case they should be after us...
@@ -74,15 +84,29 @@ EXTERN int Verbose;
  *  3 Show progress names, and actions.
  *  4 even more...
  *  and so on
+ *
+ * ExitCode -- our Epitaph
+ *  0 Perfect, all input digested, no problems
+ *  1 Bad input, no point in retrying.
+ *  2 Pilot error, commandline problem &c
+ *  4 Out of resources.
+ *  8 Destination-tree not correct.
+ * 16 Destination-tree not correct, can force.
+ * 32 Internal problems.
+ * 
  */
+
 EXTERN int Paranoid;
+EXTERN int Verbose;
+EXTERN int Exit;
+EXTERN int Force;
 
 
 char * String(char *s);
 void Fatal_(int ln, char *fn, char *kind);
 #define Fatal(foo) Fatal_(__LINE__,__FILE__,foo)
 #define Assert() Fatal_(__LINE__,__FILE__,"Assert failed.")
-#define WRONG {Assert(); return 1;}
+#define WRONG {Assert(); return 32;}
 
 u_char * Ffield(FILE *fd, MD5_CTX *ctx,u_char term);
 
@@ -90,12 +114,13 @@ int Fbytecnt(FILE *fd, MD5_CTX *ctx, u_char term);
 
 u_char * Fdata(FILE *fd, int u_chars, MD5_CTX *ctx);
 
-#define GETFIELD(p,q) if(!((p)=Ffield(fd,&ctx,(q)))) return 1
-#define GETFIELDCOPY(p,q) if(!((p)=Ffield(fd,&ctx,(q)))) return 1; else p=String(p)
-#define GETBYTECNT(p,q) if(0 >((p)= Fbytecnt(fd,&ctx,(q)))) return 1
-#define GETDATA(p,q) if(!((p) = Fdata(fd,(q),&ctx))) return 1
+#define GETFIELD(p,q) if(!((p)=Ffield(fd,&ctx,(q)))) return BADREAD
+#define GETFIELDCOPY(p,q) if(!((p)=Ffield(fd,&ctx,(q)))) return BADREAD; else p=String(p)
+#define GETBYTECNT(p,q) if(0 >((p)= Fbytecnt(fd,&ctx,(q)))) return BADREAD
+#define GETDATA(p,q) if(!((p) = Fdata(fd,(q),&ctx))) return BADREAD
 
 int Pass1(FILE *fd);
 int Pass2(FILE *fd);
 int Pass3(FILE *fd);
 
+int ctm_edit(u_char *script, int length, char *filein, char *fileout);
