@@ -28,7 +28,7 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif
 
-static char Options[] = "acdDe:fhiIkl:LmpqrRt:v";
+static char Options[] = "acdDe:fhiIkl:LmpqrRst:v";
 
 int	Flags		= 0;
 Boolean AllInstalled	= FALSE;
@@ -111,6 +111,10 @@ main(int argc, char **argv)
 	case 'm':
 	    Flags |= SHOW_MTREE;
 	    break;
+
+        case 's':
+            Flags |= SHOW_SIZE;
+            break;
 
 	case 'l':
 	    InfoPrefix = optarg;
