@@ -1,5 +1,0 @@
-[1mhostname[m	set or print name of current host system
-
-	Usage:
-
-	hostname [-s] [name-of-host]

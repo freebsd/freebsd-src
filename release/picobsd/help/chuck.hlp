@@ -1,6 +1,0 @@
-[1mchuck[m	a friendly daemon :-)
-
-	This is slightly reworked version of a classic ELIZA program.
-	Kudos go to original author (J. Weizenbaum), then to the
-	author of this implementation <chris@wacsvax.OZ>. I only
-	slightly changed the dialog...
