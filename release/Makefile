@@ -567,7 +567,7 @@ release.5:
 	cd ${j}_crunch; ${WMAKEENV} crunchgen -o ${.CURDIR}/${j}_crunch.conf
 .endif
 	cd ${j}_crunch; ${WMAKE} -f ${j}_crunch.mk subclean
-	cd ${.CURDIR}/..; ${BINMAKE} _build-tools
+	cd ${.CURDIR}/..; ${BINMAKE} -f Makefile.inc1 _build-tools
 	cd ${j}_crunch; ${WMAKE} -f ${j}_crunch.mk \
 	    CFLAGS="-Os -pipe" -DNO_CPU_CFLAGS all
 	${WMAKEENV} strip -R .comment ${j}_crunch/${j}_crunch
