@@ -122,8 +122,8 @@ checkinode(inumber, idesc)
 	}
 	lastino = inumber;
 	if (/* dp->di_size < 0 || */
-	    dp->di_size + sblock.fs_bsize - 1 < dp->di_size /* ||
-	    (mode == IFDIR && dp->di_size > MAXDIRSIZE) */) {
+	    dp->di_size + sblock.fs_bsize - 1 < dp->di_size ||
+	    (mode == IFDIR && dp->di_size > MAXDIRSIZE)) {
 		if (debug)
 			printf("bad size %qu:", dp->di_size);
 		goto unknown;
