@@ -456,9 +456,9 @@ char	STR_mtx_enter_fmt[] = "GOT %s [%p] r=%d";
 char	STR_mtx_exit_fmt[] = "REL %s [%p] r=%d";
 char	STR_mtx_try_enter_fmt[] = "TRY_ENTER %s [%p] result=%d";
 #else
-char	STR_mtx_enter_fmt[] = "GOT %s [%p] at %s:%d r=%d";
-char	STR_mtx_exit_fmt[] = "REL %s [%p] at %s:%d r=%d";
-char	STR_mtx_try_enter_fmt[] = "TRY_ENTER %s [%p] at %s:%d result=%d";
+char	STR_mtx_enter_fmt[] = "GOT %s [%p] r=%d at %s:%d";
+char	STR_mtx_exit_fmt[] = "REL %s [%p] r=%d at %s:%d";
+char	STR_mtx_try_enter_fmt[] = "TRY_ENTER %s [%p] result=%d at %s:%d";
 #endif
 char	STR_mtx_bad_type[] = "((type) & (MTX_NORECURSE | MTX_NOSWITCH)) == 0";
 char	STR_mtx_owned[] = "mtx_owned(mpp)";
@@ -534,8 +534,8 @@ _mtx_enter(struct mtx *mtxp, int type, const char *file, int line)
 	done:
 	WITNESS_ENTER(mpp, type, file, line);
 	CTR5(KTR_LOCK, STR_mtx_enter_fmt,
-	    mpp->mtx_description, mpp, file, line,
-	    mpp->mtx_recurse);
+	    mpp->mtx_description, mpp, mpp->mtx_recurse, file, line);
+
 }
 
 /*
@@ -557,7 +557,7 @@ _mtx_try_enter(struct mtx *mtxp, int type, const char *file, int line)
 	}
 #endif
 	CTR5(KTR_LOCK, STR_mtx_try_enter_fmt,
-	    mpp->mtx_description, mpp, file, line, rval);
+	    mpp->mtx_description, mpp, rval, file, line);
 
 	return rval;
 }
@@ -573,8 +573,7 @@ _mtx_exit(struct mtx *mtxp, int type, const char *file, int line)
 	MPASS2(mtx_owned(mpp), STR_mtx_owned);
 	WITNESS_EXIT(mpp, type, file, line);
 	CTR5(KTR_LOCK, STR_mtx_exit_fmt,
-	    mpp->mtx_description, mpp, file, line,
-	    mpp->mtx_recurse);
+	    mpp->mtx_description, mpp, mpp->mtx_recurse, file, line);
 	if ((type) & MTX_SPIN) {
 		if ((type) & MTX_NORECURSE) {
 			int mtx_intr = mpp->mtx_saveintr;
