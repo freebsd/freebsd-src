@@ -77,8 +77,6 @@ ufs_daddr_t ffs_blkpref __P((struct inode *, ufs_daddr_t, int, ufs_daddr_t *));
 int	ffs_bmap __P((struct vop_bmap_args *));
 void	ffs_clrblock __P((struct fs *, u_char *, ufs_daddr_t));
 int	ffs_fhtovp __P((struct mount *, struct fid *, struct vnode **));
-int	ffs_checkexp __P((struct mount *, struct sockaddr *, int *, 
-	     struct ucred **));
 int	ffs_flushfiles __P((struct mount *, int, struct proc *));
 void	ffs_fragacct __P((struct fs *, int, int32_t [], int));
 int	ffs_freefile __P(( struct vnode *, ino_t, int ));
