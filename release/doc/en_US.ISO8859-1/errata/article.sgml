@@ -126,12 +126,23 @@
 
 <![ %release.type.snapshot [
 
-    <para><application>BIND</application> contains the potential for a
+    <para>(5 Dec 2003) <application>BIND</application> contains the potential for a
       denial-of-service attack.  This vulnerability has been addressed
       by a vendor patch on the &release.prev; security fix branch and
       by the import of a new version to the &release.branch;
       development branch.  For more information, see 
       <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:19.bind.asc">FreeBSD-SA-03:19</ulink>.</para>
+
+    <para>(8 Feb 2004) A bug with the System V Shared Memory interface
+      (specifically the &man.shmat.2; system call)
+      can cause a shared memory segment to reference
+      unallocated kernel memory.  In turn, this can permit a local
+      attacker to gain unauthorized access to parts of kernel memory,
+      possibly resulting in disclosure of sensitive information,
+      bypass of access control mechanisms, or privilege escalation.
+      More details, including bugfix and workaround information,
+      can be found in security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:02.shmat.asc">FreeBSD-SA-04:02</ulink>.</para>
 
 ]]>
 
