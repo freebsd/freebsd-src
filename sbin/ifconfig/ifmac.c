@@ -50,7 +50,7 @@
 #include "ifconfig.h"
 
 void
-mac_status(int s, struct rt_addrinfo *info)
+maclabel_status(int s, struct rt_addrinfo *info)
 {
 	struct ifreq ifr;
 	mac_t label;
@@ -70,7 +70,7 @@ mac_status(int s, struct rt_addrinfo *info)
 		goto mac_free;
 
 	if (strlen(label_text) != 0)
-		printf("\tmac %s\n", label_text);
+		printf("\tmaclabel %s\n", label_text);
 	free(label_text);
 
 mac_free:
@@ -78,7 +78,7 @@ mac_free:
 }
 
 void
-setifmac(const char *val, int d, int s, const struct afswtch *rafp)
+setifmaclabel(const char *val, int d, int s, const struct afswtch *rafp)
 {
 	struct ifreq ifr;
 	mac_t label;
