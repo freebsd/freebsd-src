@@ -2,6 +2,5 @@
 # $FreeBSD$
 
 PROG=	users
-WARNS?=	2
 
 .include <bsd.prog.mk>
