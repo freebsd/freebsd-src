@@ -715,13 +715,13 @@ Other options:\n\
   fputs ("\
 -B, --read-full-blocks	reblock as we read (for reading 4.2BSD pipes)\n\
 -C, --directory DIR	change to directory DIR\n\
---checkpoint		print directory names while reading the archive\n\
+--checkpoint		print number of buffer reads/writes\n\
 ", stdout);			/* KLUDGE */
   fprintf (stdout, "\
 -f, --file [HOSTNAME:]F	use archive file or device F (default %s)\n",
 	   DEF_AR_FILE);
   fputs ("\
---force-local		archive file is local even if has a colon\n\
+--force-local		archive file is local even if it has a colon\n\
 -F, --info-script F\n\
     --new-volume-script F run script at end of each tape (implies -M)\n\
 -G, --incremental	create/list/extract old GNU-format incremental backup\n\
@@ -738,8 +738,10 @@ Other options:\n\
 -m, --modification-time	don't extract file modified time\n\
 -M, --multi-volume	create/list/extract multi-volume archive\n\
 -n, --norecurse		don't recurse into subdircectories\n\
+--volno-file F		use volume number to start with from file F\n\
 -N, --after-date DATE,\n\
-    --newer DATE	only store files newer than DATE\n\
+    --newer DATE	only store files with creation time newer than DATE\n\
+--newer-mtime DATE	only store files with modification time newer than DATE\n\
 -o, --old-archive,\n\
     --portability	write a V7 format archive, rather than ANSI format\n\
 -O, --to-stdout		extract files to standard output\n\
@@ -754,6 +756,7 @@ Other options:\n\
 -s, --same-order,\n\
     --preserve-order	list of names to extract is sorted to match archive\n\
 --same-owner		create extracted files with the same ownership \n\
+--show-omitted-dirs	show omitted directories while processing the archive.\n\
 -S, --sparse		handle sparse files efficiently\n\
 -T, --files-from F	get names to extract or create from file F\n\
 --null			-T reads null-terminated names, disable -C\n\
