@@ -458,6 +458,31 @@ archive_write_pax_header(struct archive *a,
 		    st_main->st_nlink);
 	}
 
+	/* Only regular files have data. */
+	if (!S_ISREG(archive_entry_mode(entry_main)))
+		archive_entry_set_size(entry_main, 0);
+
+	/*
+	 * Pax-restricted does not store data for hardlinks, in order
+	 * to improve compatibility with ustar.
+	 */
+	if (a->archive_format != ARCHIVE_FORMAT_TAR_PAX_INTERCHANGE &&
+	    archive_entry_hardlink(entry_main) != NULL)
+		archive_entry_set_size(entry_main, 0);
+
+	/*
+	 * XXX Full pax interchange format does permit a hardlink
+	 * entry to have data associated with it.  I'm not supporting
+	 * that here because the client expects me to tell them whether
+	 * or not this format expects data for hardlinks.  If I
+	 * don't check here, then every pax archive will end up with
+	 * duplicated data for hardlinks.  Someday, there may be
+	 * need to select this behavior, in which case the following
+	 * will need to be revisited. XXX
+	 */
+	if (archive_entry_hardlink(entry_main) != NULL)
+		archive_entry_set_size(entry_main, 0);
+
 	/* Format 'ustar' header for main entry. */
 	/* We don't care if this returns an error. */
 	__archive_write_format_header_ustar(a, ustarbuff, entry_main);
@@ -528,13 +553,13 @@ archive_write_pax_header(struct archive *a,
 	if (ret != ARCHIVE_OK)
 		ret = (r < 512) ? ARCHIVE_FATAL : ARCHIVE_OK;
 
-	/* Only regular files have data.  Note that pax, unlike ustar,
-	 * does permit a hardlink to have data associated with it. */
-	if (!S_ISREG(archive_entry_mode(entry_main)))
-		pax->entry_bytes_remaining = 0;
-	else
-		pax->entry_bytes_remaining = archive_entry_size(entry_main);
-
+	/*
+	 * Inform the client of the on-disk size we're using, so
+	 * they can avoid unnecessarily writing a body for something
+	 * that we're just going to ignore.
+	 */
+	archive_entry_set_size(entry_original, archive_entry_size(entry_main));
+	pax->entry_bytes_remaining = archive_entry_size(entry_main);
 	pax->entry_padding = 0x1ff & (- pax->entry_bytes_remaining);
 	archive_entry_free(entry_main);
 
