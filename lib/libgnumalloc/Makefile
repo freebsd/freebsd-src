@@ -20,7 +20,7 @@ NOPIC=		true
 # you to run programs that were linked with -lgnumalloc (such as XFree86).
 #
 beforeinstall:
-	rm -f ${DESTDIR}${LIBDIR}/lib${LIB}.a \
+	-rm -f ${DESTDIR}${LIBDIR}/lib${LIB}.a \
 	 ${DESTDIR}${LIBDIR}/lib${LIB}_p.a \
 	 ${DESTDIR}${ORIG_SHLIBDIR}/lib${LIB}.so.${SHLIB_MAJOR}.${SHLIB_MINOR} \
 	 ${DESTDIR}/usr/lib/compat/lib${LIB}.so.${SHLIB_MAJOR}.${SHLIB_MINOR} \
