@@ -84,6 +84,30 @@ start_mta()
 
 stop_mta()
 {
+	# Check to make sure we are configured to start an MTA
+	case ${sendmail_enable} in
+	[Nn][Oo][Nn][Ee])
+		return
+		;;
+	[Yy][Ee][Ss])
+		;;
+	*)
+		case ${sendmail_submit_enable} in
+		[Yy][Ee][Ss])
+			;;
+		*)
+			case ${sendmail_outbound_enable} in
+			[Yy][Ee][Ss])
+				;;
+			*)
+				return
+				;;
+			esac
+			;;
+		esac
+		;;
+	esac
+
 	if [ -r ${sendmail_pidfile} ]; then
 		echo -n ' sendmail'
 		kill -TERM `head -1 ${sendmail_pidfile}`
@@ -94,6 +118,29 @@ stop_mta()
 
 restart_mta()
 {
+	# Check to make sure we are configured to start an MTA
+	case ${sendmail_enable} in
+	[Nn][Oo][Nn][Ee])
+		return
+		;;
+	[Yy][Ee][Ss])
+		;;
+	*)
+		case ${sendmail_submit_enable} in
+		[Yy][Ee][Ss])
+			;;
+		*)
+			case ${sendmail_outbound_enable} in
+			[Yy][Ee][Ss])
+				;;
+			*)
+				return
+				;;
+			esac
+			;;
+		esac
+		;;
+	esac
 	if [ -r ${sendmail_pidfile} ]; then
 		echo -n ' sendmail'
 		kill -HUP `head -1 ${sendmail_pidfile}`
@@ -122,6 +169,24 @@ start_mspq()
 
 stop_mspq()
 {
+	# Check to make sure we are configured to start an MSP queue runner
+	case ${sendmail_enable} in
+	[Nn][Oo][Nn][Ee])
+		return
+		;;
+	*)
+		if [ -r /etc/mail/submit.cf ]; then
+			case ${sendmail_msp_queue_enable} in
+			[Yy][Ee][Ss])
+				;;
+			*)
+				return
+				;;
+			esac
+		fi
+		;;
+	esac
+
 	if [ -r ${sendmail_mspq_pidfile} ]; then
 		echo -n ' sendmail-clientmqueue'
 		kill -TERM `head -1 ${sendmail_mspq_pidfile}`
@@ -132,6 +197,24 @@ stop_mspq()
 
 restart_mspq()
 {
+	# Check to make sure we are configured to start an MSP queue runner
+	case ${sendmail_enable} in
+	[Nn][Oo][Nn][Ee])
+		return
+		;;
+	*)
+		if [ -r /etc/mail/submit.cf ]; then
+			case ${sendmail_msp_queue_enable} in
+			[Yy][Ee][Ss])
+				;;
+			*)
+				return
+				;;
+			esac
+		fi
+		;;
+	esac
+
 	if [ -r ${sendmail_mspq_pidfile} ]; then
 		echo -n ' sendmail-clientmqueue'
 		kill -HUP `head -1 ${sendmail_mspq_pidfile}`
