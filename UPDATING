@@ -1199,8 +1199,8 @@ COMMON ITEMS:
 	If you are updating from a prior version of FreeBSD (even one just
 	a few days old), you should follow this procedure. With a
 	/usr/obj tree with a fresh buildworld,
-	make buildkernel KERNCONF=YOUR_KERNEL_HERE
-	make installkernel KERNCONF=YOUR_KERNEL_HERE
+	make -DALWAYS_CHECK_MAKE buildkernel KERNCONF=YOUR_KERNEL_HERE
+	make -DALWAYS_CHECK_MAKE installkernel KERNCONF=YOUR_KERNEL_HERE
 
 	To just build a kernel when you know that it won't mess you up
 	--------------------------------------------------------------
