@@ -274,7 +274,8 @@ ncp_li_check(struct ncp_conn_loginfo *li) {
 
 int
 ncp_conn_cnt(void) {
-	int error, cnt = 0, len = sizeof(cnt);
+	int error, cnt = 0;
+	size_t len = sizeof(cnt);
 	
 	error = sysctlbyname("net.ncp.conn_cnt", &cnt, &len, NULL, 0);
 	if (error) cnt = 0;
@@ -382,7 +383,8 @@ ncp_li_arg(struct ncp_conn_loginfo *li, int opt, char *arg) {
 
 void *
 ncp_conn_list(void) {
-	int error, cnt = 0, len;
+	int error, cnt = 0;
+	size_t len;
 	void *p;
 	
 	cnt = ncp_conn_cnt();
