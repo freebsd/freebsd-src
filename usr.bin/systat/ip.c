@@ -83,12 +83,12 @@ static struct stat curstat, initstat, oldstat;
 11999999999 - fragments dropped      999999999 total input packets
 12999999999 - fragments timed out    999999999 - too short for header
 13999999999 - packets reassembled ok 999999999 - invalid checksum
-14999999999 packets forwarded        999999999 - invalid length
-15999999999 - unreachable dests      999999999 - no socket for dest port
-16999999999 - redirects generated    999999999 - no socket for broadcast
-17999999999 option errors            999999999 - socket buffer full
-18999999999 unwanted multicasts      999999999 total output packets
-19999999999 delivered to upper layer
+14999999999 packets forwarded        999999999 - no checksum
+15999999999 - unreachable dests      999999999 - invalid length
+16999999999 - redirects generated    999999999 - no socket for dest port
+17999999999 option errors            999999999 - no socket for broadcast
+18999999999 unwanted multicasts      999999999 - socket buffer full
+19999999999 delivered to upper layer 999999999 total output packets
 --0123456789012345678901234567890123456789012345678901234567890123456789012345
 --0         1         2         3         4         5         6         7
 */
@@ -96,7 +96,7 @@ static struct stat curstat, initstat, oldstat;
 WINDOW *
 openip(void)
 {
-	return (subwin(stdscr, LINES-5-1, 0, 5, 0));
+	return (subwin(stdscr, LINES-4-1, 0, 4, 0));
 }
 
 void
@@ -129,12 +129,12 @@ labelip(void)
 	L(11, "- fragments dropped");	R(11, "total input packets");
 	L(12, "- fragments timed out");	R(12, "- too short for header");
 	L(13, "- packets reassembled ok");	R(13, "- invalid checksum");
-	L(14, "packets forwarded");	R(14, "- invalid length");
-	L(15, "- unreachable dests");	R(15, "- no socket for dest port");
-	L(16, "- redirects generated");	R(16, "- no socket for broadcast");
-	L(17, "option errors");		R(17, "- socket buffer full");
-	L(18, "unwanted multicasts");	R(18, "total output packets");
-	L(19, "delivered to upper layer");
+	L(14, "packets forwarded");	R(14, "- no checksum");
+	L(15, "- unreachable dests");	R(15, "- invalid length");
+	L(16, "- redirects generated");	R(16, "- no socket for dest port");
+	L(17, "option errors");		R(17, "- no socket for broadcast");
+	L(18, "unwanted multicasts");	R(18, "- socket buffer full");
+	L(19, "delivered to upper layer");	R(19, "total output packets");
 #undef L
 #undef R
 }
@@ -190,6 +190,7 @@ domode(struct stat *ret)
 	DO(u.udps_ipackets);
 	DO(u.udps_hdrops);
 	DO(u.udps_badsum);
+	DO(u.udps_nosum);
 	DO(u.udps_badlen);
 	DO(u.udps_noport);
 	DO(u.udps_noportbcast);
@@ -233,16 +234,17 @@ showip(void)
 	DO(i.ips_reassembled, 13, 0);
 	DO(u.udps_badsum, 13, 35);
 	DO(i.ips_forward, 14, 0);
-	DO(u.udps_badlen, 14, 35);
+	DO(u.udps_nosum, 14, 35);
 	DO(i.ips_cantforward, 15, 0);
-	DO(u.udps_noport, 15, 35);
+	DO(u.udps_badlen, 15, 35);
 	DO(i.ips_redirectsent, 16, 0);
-	DO(u.udps_noportbcast, 16, 35);
+	DO(u.udps_noport, 16, 35);
 	DO(i.ips_badoptions, 17, 0);
-	DO(u.udps_fullsock, 17, 35);
+	DO(u.udps_noportbcast, 17, 35);
 	DO(i.ips_notmember, 18, 0);
-	DO(u.udps_opackets, 18, 35);
+	DO(u.udps_fullsock, 18, 35);
 	DO(i.ips_delivered, 19, 0);
+	DO(u.udps_opackets, 19, 35);
 #undef DO
 }
 

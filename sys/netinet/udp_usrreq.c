@@ -232,7 +232,8 @@ udp_input(m, off, proto)
 			m_freem(m);
 			return;
 		}
-	}
+	} else
+		udpstat.udps_nosum++;
 
 	if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr)) ||
 	    in_broadcast(ip->ip_dst, m->m_pkthdr.rcvif)) {
