@@ -32,8 +32,9 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)multitech.c	8.1 (Berkeley) 6/6/93";
-#endif /* not lint */
+static const char rcsid[] =
+  "$FreeBSD$";
+#endif
 
 /*
  * Routines for calling up on a Courier modem.
@@ -44,6 +45,7 @@ static char sccsid[] = "@(#)multitech.c	8.1 (Berkeley) 6/6/93";
 #include "acucommon.h"
 
 #include <stdio.h>
+#include <unistd.h>
 
 /* #define DEBUG */
 #define	MAXRETRY	5
@@ -395,7 +397,7 @@ multitech_verbose_read()
 		return;
 	if (read(FD, buf, n) != n)
 		return;
-	write(1, buf, n);
+	write(STDOUT_FILENO, buf, n);
 }
 #endif
 

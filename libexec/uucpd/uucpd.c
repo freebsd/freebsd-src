@@ -204,7 +204,7 @@ int readline(char start[], int num, int passw)
 	register int n = num;
 
 	while (n-- > 0) {
-		if (read(0, &c, 1) <= 0)
+		if (read(STDIN_FILENO, &c, 1) <= 0)
 			return(-1);
 		c &= 0177;
 		if (c == '\n' || c == '\r' || c == '\0') {

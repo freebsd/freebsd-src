@@ -48,6 +48,8 @@
  *
  * Based on recollection of the original options.h produced at the University
  * of Queensland by Ross Patterson (and possibly others).
+ *
+ * $FreeBSD$
  */
 
 static char *O_usage;
@@ -60,11 +62,11 @@ pusage()
     /*
      * Avoid gratuitously loading stdio.
      */
-    write(2, "Usage: ", 7);
-    write(2, O_name, strlen(O_name));
-    write(2, " ", 1);
-    write(2, O_usage, strlen(O_usage));
-    write(2, "\n", 1);
+    write(STDERR_FILENO, "Usage: ", 7);
+    write(STDERR_FILENO, O_name, strlen(O_name));
+    write(STDERR_FILENO, " ", 1);
+    write(STDERR_FILENO, O_usage, strlen(O_usage));
+    write(STDERR_FILENO, "\n", 1);
     }
 
 #define usage()		(pusage(), exit(1))

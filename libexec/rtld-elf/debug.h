@@ -53,7 +53,7 @@ extern int debug;
 #define assert(cond)	((cond) ? (void) 0 :		\
     (msg("ld-elf.so.1: assert failed: " __FILE__ ":"	\
       __XSTRING(__LINE__) "\n"), abort()))
-#define msg(s)		write(1, s, strlen(s))
+#define msg(s)		write(STDOUT_FILENO, s, strlen(s))
 #define trace()		msg("ld-elf.so.1: " __XSTRING(__LINE__) "\n")
 
 #endif /* DEBUG_H */

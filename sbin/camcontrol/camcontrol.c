@@ -1708,7 +1708,7 @@ scsicmd(struct cam_device *device, int argc, char **argv, char *combinedopt,
 		u_int8_t *buf_ptr = data_ptr;
 
 		for (amt_read = 0; amt_to_read > 0;
-		     amt_read = read(0, buf_ptr, amt_to_read)) {
+		     amt_read = read(STDIN_FILENO, buf_ptr, amt_to_read)) {
 			if (amt_read == -1) {
 				warn("error reading data from stdin");
 				error = 1;

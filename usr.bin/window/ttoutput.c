@@ -43,6 +43,7 @@ static char rcsid[] =
 #include "ww.h"
 #include "tt.h"
 #include <errno.h>
+#include <unistd.h>
 
 /*
  * Buffered output package.
@@ -65,7 +66,7 @@ ttflush()
 	wwnflush++;
 	for (p = tt_ob; p < tt_obp;) {
 		wwnwr++;
-		n = write(1, p, tt_obp - p);
+		n = write(STDOUT_FILENO, p, tt_obp - p);
 		if (n < 0) {
 			wwnwre++;
 			if (errno != EWOULDBLOCK) {

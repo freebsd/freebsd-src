@@ -668,7 +668,7 @@ debug_event(void *pfd)
     char *ep;
     int r;
 
-    r = read(0, ibuf + icnt, sizeof(ibuf) - icnt);
+    r = read(STDIN_FILENO, ibuf + icnt, sizeof(ibuf) - icnt);
     if (r <= 0)
 	return;
 
@@ -1729,7 +1729,7 @@ tty_read(REGISTERS, int flag)
 
     if ((flag & TTYF_REDIRECT) && redirect0) {
 	char c;
-    	if (read(0, &c, 1) != 1)
+    	if (read(STDIN_FILENO, &c, 1) != 1)
 	    return(-1);
 	if (c == '\n')
 	    c = '\r';
