@@ -342,7 +342,7 @@ he_intr_rbp(struct hatm_softc *sc, struct herbp *rbp, u_int large,
 			if ((error = bus_dmamap_load(sc->mbuf_tag,
 			    sc->rmaps[sc->lbufs_next],
 			    m->m_data, rbp->bsize, hatm_mbuf_helper,
-			    &rbp->rbp[rbp->tail].phys, BUS_DMA_NOWAIT)) != NULL)
+			    &rbp->rbp[rbp->tail].phys, BUS_DMA_NOWAIT)) != 0)
 				panic("hatm: mbuf mapping failed %d", error);
 
 			bus_dmamap_sync(sc->mbuf_tag,
