@@ -109,7 +109,6 @@ an_pccard_detach(device_t dev)
 	sc->an_gone = 1;
 	bus_teardown_intr(dev, sc->irq_res, sc->irq_handle);
 	an_release_resources(dev);
-	device_printf(dev,"unloaded\n");
 	return (0);
 }
 
