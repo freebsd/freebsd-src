@@ -33,7 +33,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)vmparam.h	5.9 (Berkeley) 5/12/91
+ *	from: @(#)vmparam.h	5.9 (Berkeley) 5/12/91
+ *	$Id$
  */
 
 
@@ -94,7 +95,7 @@
  * Size of the Shared Memory Pages page table.
  */
 #ifndef	SHMMAXPGS
-#define	SHMMAXPGS	64		/* XXX until we have more kmap space */
+#define	SHMMAXPGS	512		/* XXX until we have more kmap space */
 #endif
 
 /*
@@ -219,11 +220,8 @@
 
 /* virtual sizes (bytes) for various kernel submaps */
 #define VM_MBUF_SIZE		(NMBCLUSTERS*MCLBYTES)
-#define VM_KMEM_SIZE		(NKMEMCLUSTERS*CLBYTES)
+#define VM_KMEM_SIZE		(16 * 1024 * 1024)
 #define VM_PHYS_SIZE		(USRIOSIZE*CLBYTES)
-
-/* # of kernel PT pages (initial only, can grow dynamically) */
-#define VM_KERNEL_PT_PAGES	((vm_size_t)2)		/* XXX: SYSPTSIZE */
 
 /* pcb base */
 #define	pcbb(p)		((u_int)(p)->p_addr)
