@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.127 1998/09/29 07:27:33 jkh Exp $
+ * $Id: dist.c,v 1.128 1998/10/14 11:23:48 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -572,7 +572,7 @@ distExtract(char *parent, Distribution *me)
 			   dist, !intr ? "I/O error" : "User interrupt");
 	    }
 	    else {
-		tmp = property_find(dist_attr, "pieces");
+		tmp = property_find(dist_attr, "Pieces");
 		if (tmp)
 		    numchunks = strtol(tmp, 0, 0);
 	    }
