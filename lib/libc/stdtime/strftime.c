@@ -17,7 +17,7 @@
 
 #ifdef LIBC_RCS
 static const char rcsid[] =
-	"$Id$";
+	"$Id: strftime.c,v 1.3 1995/08/04 18:43:01 wollman Exp $";
 #endif
 
 #ifndef lint
@@ -93,12 +93,12 @@ static const struct lc_time_T	C_time_locale = {
 	"%m/%d/%y",
 
 	/*
-	** c_fmt
+	** c_fmt (ctime-compatible)
 	** Note that
 	**	"%a %b %d %H:%M:%S %Y"
 	** is used by Solaris 2.3.
 	*/
-	"%D %X",	/* %m/%d/%y %H:%M:%S */
+	"%a %b %e %X %Y",
 
 	/* am */
 	"AM",
@@ -107,7 +107,7 @@ static const struct lc_time_T	C_time_locale = {
 	"PM",
 
 	/* date_fmt */
-	"%a %b %e %H:%M:%S %Z %Y"
+	"%a %b %e %X %Z %Y"
 };
 
 static char *	_add P((const char *, char *, const char *));
