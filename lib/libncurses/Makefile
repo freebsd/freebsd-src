@@ -25,7 +25,7 @@ BROKEN_LINKER=		0
 BUILTIN_BOOL=		1
 BOOL_TYPE=		0
 HAVE_VSSCANF=		1
-.if defined(BOOTSTRAPPING)
+.if defined(BOOTSTRAPPING) && !exists(/usr/include/stdbool.h)
 HEADER_STDBOOL=		0
 .else
 HEADER_STDBOOL=		1
