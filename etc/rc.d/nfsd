@@ -12,16 +12,15 @@
 
 name="nfsd"
 rcvar=`set_rcvar nfs_server`
+command="/usr/sbin/${name}"
 
 case `${CMD_OSTYPE}` in
 FreeBSD)
-	command="/sbin/nfsd"
 	command_args="${nfs_server_flags}"
 	required_vars="portmap_enable"
 	start_precmd="nfsd_precmd"
 	;;
 NetBSD)
-	command="/usr/sbin/${name}"
 	required_vars="mountd rpcbind"
 	start_precmd=
 	;;
