@@ -101,9 +101,13 @@ random_deinit(void)
 static void
 reseed(int fastslow)
 {
-	unsigned char v[TIMEBIN][KEYSIZE];	/* v[i] */
+	/*
+	 * Allocate the huge variables statically.  They _will_ run you
+	 * out of interrupt-context stack otherwise!
+	 */
+	static BF_KEY hashkey;
+	static unsigned char v[TIMEBIN][KEYSIZE];	/* v[i] */
 	unsigned char hash[KEYSIZE];		/* h' */
-	BF_KEY hashkey;
 	unsigned char ivec[8];
 	unsigned char temp[KEYSIZE];
 	struct entropy *bucket;
