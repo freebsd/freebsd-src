@@ -11,3 +11,4 @@
 */lib/Makefile.in
 */snmp_mibII/Makefile.in
 */snmpd/Makefile.in
+*/snmpd/.gdbinit
