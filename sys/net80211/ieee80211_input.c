@@ -1986,6 +1986,14 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 		IEEE80211_VERIFY_ELEMENT(rates, IEEE80211_RATE_MAXSIZE);
 		IEEE80211_VERIFY_ELEMENT(ssid, IEEE80211_NWID_LEN);
 		IEEE80211_VERIFY_SSID(ic->ic_bss, ssid);
+		if ((ic->ic_flags & IEEE80211_F_HIDESSID) && ssid[1] == 0) {
+			IEEE80211_DISCARD(ic, IEEE80211_MSG_INPUT,
+			    wh, ieee80211_mgt_subtype_name[subtype >>
+				IEEE80211_FC0_SUBTYPE_SHIFT],
+			    "%s", "no ssid with ssid suppression enabled");
+			ic->ic_stats.is_rx_ssidmismatch++; /*XXX*/
+			return;
+		}
 
 		if (ni == ic->ic_bss) {
 			if (ic->ic_opmode == IEEE80211_M_IBSS) {
