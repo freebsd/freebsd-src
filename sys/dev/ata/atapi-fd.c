@@ -30,6 +30,7 @@
 
 #include "ata.h"
 #include "atapifd.h"
+#include "apm.h"
 
 #if NATA > 0 && NATAPIFD > 0
 
@@ -40,22 +41,24 @@
 #include <sys/device.h>
 #include <sys/malloc.h>
 #include <sys/buf.h>
-#include <sys/disklabel.h>
-#include <sys/diskslice.h>
+#include <sys/conf.h>
+#include <sys/disk.h>
 #include <sys/devicestat.h>
 #include <sys/cdio.h>
 #include <sys/fcntl.h>
-#include <sys/conf.h>
 #include <sys/stat.h>
 #include <pci/pcivar.h>
+#if NAPM > 0
+#include <machine/apm_bios.h>
+#endif
 #include <dev/ata/ata-all.h>
 #include <dev/ata/atapi-all.h>
 #include <dev/ata/atapi-fd.h>
 
-static  d_open_t	afdopen;
-static  d_close_t	afdclose;
-static  d_ioctl_t	afdioctl;
-static  d_strategy_t	afdstrategy;
+static	d_open_t	afdopen;
+static	d_close_t	afdclose;
+static	d_ioctl_t	afdioctl;
+static	d_strategy_t	afdstrategy;
 
 static struct cdevsw afd_cdevsw = {
 	/* open */	afdopen,
@@ -78,46 +81,41 @@ static struct cdevsw afd_cdevsw = {
 	/* maxio */	0,
 	/* bmaj */	32,
 };
+static struct cdevsw afddisk_cdevsw;
 
-#define NUNIT 			8
-#define UNIT(d)         	((minor(d) >> 3) & 3)
-
-#define F_OPEN            	0x0001	/* the device is opened */
-#define F_MEDIA_CHANGED   	0x0002	/* the media have changed */
-
-static struct afd_softc *afdtab[NUNIT];	/* drive info by unit number */
-static int32_t afdnlun = 0;             /* number of config'd drives */
-
+/* prototypes */
 int32_t afdattach(struct atapi_softc *);
 static int32_t afd_sense(struct afd_softc *);
 static void afd_describe(struct afd_softc *);
 static void afd_start(struct afd_softc *);
 static void afd_partial_done(struct atapi_request *);
 static void afd_done(struct atapi_request *);
-static int32_t afd_start_device(struct afd_softc *, int32_t);
-static int32_t afd_lock_device(struct afd_softc *, int32_t);
 static int32_t afd_eject(struct afd_softc *, int32_t);
-static void afd_drvinit(void *);
+static int32_t afd_start_stop(struct afd_softc *, int32_t);
+static int32_t afd_prevent_allow(struct afd_softc *, int32_t);
+
+/* internal vars */
+static int32_t afdnlun = 0;		/* number of config'd drives */
 
 int32_t 
 afdattach(struct atapi_softc *atp)
 {
     struct afd_softc *fdp;
+    dev_t dev;
 
-    if (afdnlun >= NUNIT) {
-        printf("afd: too many units\n");
-        return -1;
-    }
+    if (!afd_cdevsw.d_maxio)
+        afd_cdevsw.d_maxio = 254 * DEV_BSIZE;
+
     fdp = malloc(sizeof(struct afd_softc), M_TEMP, M_NOWAIT);
     if (!fdp) {
-        printf("afd: out of memory\n");
-        return -1;
+	printf("afd: out of memory\n");
+	return -1;
     }
     bzero(fdp, sizeof(struct afd_softc));
     bufq_init(&fdp->buf_queue);
     fdp->atp = atp;
-    fdp->lun = afdnlun;
-    fdp->flags = F_MEDIA_CHANGED;
+    fdp->lun = afdnlun++;
+    fdp->atp->flags |= ATAPI_F_MEDIA_CHANGED;
 
     if (afd_sense(fdp)) {
 	free(fdp, M_TEMP);
@@ -128,46 +126,46 @@ afdattach(struct atapi_softc *atp)
 	fdp->transfersize = 64;
 
     afd_describe(fdp);
-    afdtab[afdnlun++] = fdp;
     devstat_add_entry(&fdp->stats, "afd", fdp->lun, DEV_BSIZE,
-                      DEVSTAT_NO_ORDERED_TAGS,
-                      DEVSTAT_TYPE_DIRECT | DEVSTAT_TYPE_IF_IDE,
-                      0x174);
-    make_dev(&afd_cdevsw, dkmakeminor(fdp->lun, 0,0),
-	UID_ROOT, GID_OPERATOR, 0640, "rafd%d", fdp->lun);
-    make_dev(&afd_cdevsw, dkmakeminor(fdp->lun, 0,0),
-	UID_ROOT, GID_OPERATOR, 0640, "afd%d", fdp->lun);
+		      DEVSTAT_NO_ORDERED_TAGS,
+		      DEVSTAT_TYPE_DIRECT | DEVSTAT_TYPE_IF_IDE,
+		      0x174);
+    dev = disk_create(fdp->lun, &fdp->disk, 0, &afd_cdevsw, &afddisk_cdevsw);
+    dev->si_drv1 = fdp;
     return 0;
 }
 
 static int32_t 
 afd_sense(struct afd_softc *fdp)
 {
-    int32_t error, count;
     int8_t buffer[256];
-    int8_t ccb[16] = { ATAPI_MODE_SENSE, 0, ATAPI_REWRITEABLE_CAP_PAGE,
+    int8_t ccb[16] = { ATAPI_MODE_SENSE_BIG, 0, ATAPI_REWRITEABLE_CAP_PAGE,
 		       0, 0, 0, 0, sizeof(buffer)>>8, sizeof(buffer) & 0xff,
-            	       0, 0, 0, 0, 0, 0, 0 };
+		       0, 0, 0, 0, 0, 0, 0 };
+    int32_t error, count;
 
     bzero(buffer, sizeof(buffer));
     /* get drive capabilities, some drives needs this repeated */
     for (count = 0 ; count < 5 ; count++) {
-        if (!(error = atapi_queue_cmd(fdp->atp, ccb, buffer, sizeof(buffer),
-				      A_READ, 30, NULL, NULL, NULL)))
-            break;
+	if (!(error = atapi_immed_cmd(fdp->atp, ccb, buffer, sizeof(buffer),
+				      A_READ, 30))) {
+	    error = atapi_error(fdp->atp, error);
+	    break;
+	}
     }
 #ifdef AFD_DEBUG
     atapi_dump("afd: sense", buffer, sizeof(buffer));
 #endif
     if (error)
-        return error;
+	return error;
     bcopy(buffer, &fdp->header, sizeof(struct afd_header));
     bcopy(buffer+sizeof(struct afd_header), &fdp->cap, 
 	  sizeof(struct afd_cappage));
     if (fdp->cap.page_code != ATAPI_REWRITEABLE_CAP_PAGE)
-        return 1;   
+	return 1;   
     fdp->cap.cylinders = ntohs(fdp->cap.cylinders);
     fdp->cap.sector_size = ntohs(fdp->cap.sector_size);
+    fdp->cap.transfer_rate = ntohs(fdp->cap.transfer_rate);
     return 0;
 }
 
@@ -181,15 +179,20 @@ afd_describe(struct afd_softc *fdp)
     bpack(fdp->atp->atapi_parm->revision, revision_buf, sizeof(revision_buf));
     printf("afd%d: <%s/%s> rewriteable drive at ata%d as %s\n",
 	   fdp->lun, model_buf, revision_buf,
-           fdp->atp->controller->lun,
+	   fdp->atp->controller->lun,
 	   (fdp->atp->unit == ATA_MASTER) ? "master" : "slave ");
     printf("afd%d: %luMB (%u sectors), %u cyls, %u heads, %u S/T, %u B/S\n",
-           afdnlun, 
+	   fdp->lun, 
 	   (fdp->cap.cylinders * fdp->cap.heads * fdp->cap.sectors) / 
 	   ((1024L * 1024L) / fdp->cap.sector_size),
 	   fdp->cap.cylinders * fdp->cap.heads * fdp->cap.sectors,
 	   fdp->cap.cylinders, fdp->cap.heads, fdp->cap.sectors,
 	   fdp->cap.sector_size);
+    printf("afd%d: %dKB/s,", fdp->lun, fdp->cap.transfer_rate/8);
+    if (fdp->transfersize)
+	printf(" transfer limit %d blks,", fdp->transfersize);
+    printf(" %s\n", ata_mode2str(fdp->atp->controller->mode[
+				 (fdp->atp->unit == ATA_MASTER) ? 0 : 1]));
     printf("afd%d: Medium: ", fdp->lun);
     switch (fdp->header.medium_type) {
 	case MFD_2DD:
@@ -213,97 +216,67 @@ afd_describe(struct afd_softc *fdp)
 static int
 afdopen(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
 {
-    struct afd_softc *fdp;
-    struct disklabel label;
-    int32_t lun = UNIT(dev);
+    struct afd_softc *fdp = dev->si_drv1;
+    struct disklabel *label;
 
-    if (lun >= afdnlun || !(fdp = afdtab[lun])) 
-        return ENXIO;
-
-    fdp->flags &= ~F_MEDIA_CHANGED;
-    afd_lock_device(fdp, 1);
+    fdp->atp->flags &= ~ATAPI_F_MEDIA_CHANGED;
+    afd_prevent_allow(fdp, 1);
     if (afd_sense(fdp))
-        printf("afd%d: sense media type failed\n", fdp->lun);
+	printf("afd%d: sense media type failed\n", fdp->lun);
 
     /* build disklabel and initilize slice tables */
-    bzero(&label, sizeof label);
-    label.d_secsize = fdp->cap.sector_size;
-    label.d_nsectors = fdp->cap.sectors;  
-    label.d_ntracks = fdp->cap.heads;
-    label.d_ncylinders = fdp->cap.cylinders;
-    label.d_secpercyl = fdp->cap.heads * fdp->cap.sectors;
-    label.d_secperunit = fdp->cap.heads * fdp->cap.sectors * fdp->cap.cylinders;
+    label = &fdp->disk.d_label;
+    bzero(label, sizeof *label);
+    label->d_secsize = fdp->cap.sector_size;
+    label->d_nsectors = fdp->cap.sectors;  
+    label->d_ntracks = fdp->cap.heads;
+    label->d_ncylinders = fdp->cap.cylinders;
+    label->d_secpercyl = fdp->cap.heads * fdp->cap.sectors;
+    label->d_secperunit = label->d_secpercyl * fdp->cap.cylinders;
 
-    /* initialize slice tables. */
-    return dsopen(dev, fmt, 0, &fdp->slices, &label);
+    return 0;
 }
 
 static int 
 afdclose(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
 {
-    int32_t lun = UNIT(dev);
-    struct afd_softc *fdp;
+    struct afd_softc *fdp = dev->si_drv1;
 
-    if (lun >= afdnlun || !(fdp = afdtab[lun]))      
-        return ENXIO;
-
-    dsclose(dev, fmt, fdp->slices);
-    if(!dsisopen(fdp->slices))
-        afd_lock_device(fdp, 0); 
+    afd_prevent_allow(fdp, 0); 
     return 0;
 }
 
 static int 
 afdioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
 {
-    int32_t lun = UNIT(dev);
-    int32_t error = 0;
-    struct afd_softc *fdp;
-
-    if (lun >= afdnlun || !(fdp = afdtab[lun]))
-        return ENXIO;
-
-    error = dsioctl(dev, cmd, addr, flag, &fdp->slices);
-
-    if (error != ENOIOCTL)
-        return error;
+    struct afd_softc *fdp = dev->si_drv1;
 
     switch (cmd) {
     case CDIOCEJECT:
-        if ((fdp->flags & F_OPEN) && fdp->refcnt)
-            return EBUSY;
-        return afd_eject(fdp, 0);
+	if ((fdp->flags & F_OPEN) && fdp->refcnt)
+	    return EBUSY;
+	return afd_eject(fdp, 0);
 
     case CDIOCCLOSE:
-        if ((fdp->flags & F_OPEN) && fdp->refcnt)
-            return 0;
-        return afd_eject(fdp, 1);
+	if ((fdp->flags & F_OPEN) && fdp->refcnt)
+	    return 0;
+	return afd_eject(fdp, 1);
 
     default:
-        return ENOTTY;
+	return ENOIOCTL;
     }
 }
 
 static void 
 afdstrategy(struct buf *bp)
 {
-    int32_t lun = UNIT(bp->b_dev);
-    struct afd_softc *fdp = afdtab[lun];
-    int32_t x;
+    struct afd_softc *fdp = bp->b_dev->si_drv1;
+    int32_t s;
 
-    if (bp->b_bcount == 0) {
-        bp->b_resid = 0;
-        biodone(bp);
-        return;
-    }
-    if (dscheck(bp, fdp->slices) <= 0) {
-        biodone(bp);
-        return;
-    }
-    x = splbio();
+    s = splbio();
     bufq_insert_tail(&fdp->buf_queue, bp);
     afd_start(fdp);
-    splx(x);
+    splx(s);
 }
 
 static void 
@@ -315,16 +288,16 @@ afd_start(struct afd_softc *fdp)
     int8_t *data_ptr;
     
     if (!bp)
-        return;
+	return;
 
     bufq_remove(&fdp->buf_queue, bp);
 
     /* should reject all queued entries if media have changed. */
-    if (fdp->flags & F_MEDIA_CHANGED) {
-        bp->b_error = EIO;
-        bp->b_flags |= B_ERROR;
-        biodone(bp);
-        return;
+    if (fdp->atp->flags & ATAPI_F_MEDIA_CHANGED) {
+	bp->b_error = EIO;
+	bp->b_flags |= B_ERROR;
+	biodone(bp);
+	return;
     }
 
     lba = bp->b_blkno / (fdp->cap.sector_size / DEV_BSIZE);
@@ -342,16 +315,16 @@ afd_start(struct afd_softc *fdp)
     devstat_start_transaction(&fdp->stats);
 
     while (fdp->transfersize && (count > fdp->transfersize)) {
-        ccb[2] = lba>>24;
-        ccb[3] = lba>>16;
-        ccb[4] = lba>>8;
-        ccb[5] = lba;
-        ccb[7] = fdp->transfersize>>8;
-        ccb[8] = fdp->transfersize;
+	ccb[2] = lba>>24;
+	ccb[3] = lba>>16;
+	ccb[4] = lba>>8;
+	ccb[5] = lba;
+	ccb[7] = fdp->transfersize>>8;
+	ccb[8] = fdp->transfersize;
 
-        atapi_queue_cmd(fdp->atp, ccb, data_ptr, 
+	atapi_queue_cmd(fdp->atp, ccb, data_ptr, 
 			fdp->transfersize * fdp->cap.sector_size,
-                        (bp->b_flags & B_READ) ? A_READ : 0, 30,
+			(bp->b_flags & B_READ) ? A_READ : 0, 30,
 			afd_partial_done, fdp, bp);
 
 	count -= fdp->transfersize;
@@ -367,7 +340,7 @@ afd_start(struct afd_softc *fdp)
     ccb[8] = count;
 
     atapi_queue_cmd(fdp->atp, ccb, data_ptr, count * fdp->cap.sector_size,
- 		    (bp->b_flags & B_READ) ? A_READ : 0, 30, afd_done, fdp, bp);
+		    (bp->b_flags & B_READ) ? A_READ : 0, 30, afd_done, fdp, bp);
 }
 
 static void 
@@ -376,8 +349,8 @@ afd_partial_done(struct atapi_request *request)
     struct buf *bp = request->bp;
 
     if (request->result) {
-        bp->b_error = atapi_error(request->device, request->result);
-        bp->b_flags |= B_ERROR;
+	bp->b_error = atapi_error(request->device, request->result);
+	bp->b_flags |= B_ERROR;
     }
     bp->b_resid += request->bytecount;
 }
@@ -389,76 +362,61 @@ afd_done(struct atapi_request *request)
     struct afd_softc *fdp = request->driver;
 
     if (request->result || (bp->b_flags & B_ERROR)) {
-        bp->b_error = atapi_error(request->device, request->result);
-        bp->b_flags |= B_ERROR;
+	bp->b_error = atapi_error(request->device, request->result);
+	bp->b_flags |= B_ERROR;
     }
     else
 	bp->b_resid += request->bytecount;
-
     devstat_end_transaction_buf(&fdp->stats, bp);
- 
     biodone(bp);
     afd_start(fdp);
-}
-
-static int32_t
-afd_start_device(struct afd_softc *fdp, int32_t start)
-{
-    int8_t ccb[16] = { ATAPI_START_STOP, 0, 0, 0, start,
-		       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-
-    return atapi_queue_cmd(fdp->atp, ccb, NULL, 0, 0, 30, NULL, NULL, NULL);
-}
-
-static int32_t
-afd_lock_device(struct afd_softc *fdp, int32_t lock)
-{
-    int8_t ccb[16] = { ATAPI_PREVENT_ALLOW, 0, 0, 0, lock,
-                       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-    
-    return atapi_queue_cmd(fdp->atp, ccb, NULL, 0, 0, 30, NULL, NULL, NULL);
 }
 
 static int32_t 
 afd_eject(struct afd_softc *fdp, int32_t close)
 {
     int32_t error;
-
-    error = afd_start_device(fdp, 0);
-    if (error == EBUSY || error == EAGAIN) {
-        if (!close)
-            return 0;
-	if ((error = afd_start_device(fdp, 3)))
+     
+    error = afd_start_stop(fdp, 0);
+    if (((fdp->atp->controller->error&ATAPI_SK_MASK)==ATAPI_SK_NOT_READY) ||
+	((fdp->atp->controller->error&ATAPI_SK_MASK)==ATAPI_SK_UNIT_ATTENTION)){
+	if (!close)
+	    return 0;
+	if ((error = afd_start_stop(fdp, 3)))
 	    return error;
-	return afd_lock_device(fdp, 1);
+	return afd_prevent_allow(fdp, 1);
     }
     if (error)
-        return error;
-
+	return error;
     if (close)
-        return 0;
-
+	return 0;
     tsleep((caddr_t) &lbolt, PRIBIO, "afdej1", 0);
     tsleep((caddr_t) &lbolt, PRIBIO, "afdej2", 0);
-    if ((error = afd_lock_device(fdp, 0)))
+    if ((error = afd_prevent_allow(fdp, 0)))
 	return error;
-    fdp->flags |= F_MEDIA_CHANGED;
-    return afd_start_device(fdp, 2);
+    fdp->atp->flags |= ATAPI_F_MEDIA_CHANGED;
+    return afd_start_stop(fdp, 2);
 }
 
-
-static void
-afd_drvinit(void *unused)
+static int32_t
+afd_start_stop(struct afd_softc *fdp, int32_t start)
 {
-    static int32_t afd_devsw_installed = 0;
+    int8_t ccb[16] = { ATAPI_START_STOP, 0x01, 0, 0, start,
+		       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+    int32_t error;
 
-    if (!afd_devsw_installed) {
-        if (!afd_cdevsw.d_maxio)
-            afd_cdevsw.d_maxio = 254 * DEV_BSIZE;
-	cdevsw_add(&afd_cdevsw);
-	afd_devsw_installed = 1;
-    }
+    error = atapi_immed_cmd(fdp->atp, ccb, NULL, 0, 0, 10);
+    if (error)
+	return atapi_error(fdp->atp, error);
+    return atapi_error(fdp->atp, atapi_wait_ready(fdp->atp, 30));
 }
 
-SYSINIT(afddev, SI_SUB_DRIVERS, SI_ORDER_MIDDLE, afd_drvinit, NULL)
+static int32_t
+afd_prevent_allow(struct afd_softc *fdp, int32_t lock)
+{
+    int8_t ccb[16] = { ATAPI_PREVENT_ALLOW, 0, 0, 0, lock,
+		       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+    
+    return atapi_error(fdp->atp, atapi_immed_cmd(fdp->atp, ccb, NULL, 0, 0,30));
+}
 #endif /* NATA & NATAPIFD */
