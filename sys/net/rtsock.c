@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)rtsock.c	8.5 (Berkeley) 11/2/94
- *	$Id: rtsock.c,v 1.19 1996/05/08 04:28:54 gpalmer Exp $
+ *	$Id: rtsock.c,v 1.20 1996/07/10 01:34:36 fenner Exp $
  */
 
 #include <sys/param.h>
@@ -685,7 +685,7 @@ sysctl_iflist(af, w)
 	int	len, error = 0;
 
 	bzero((caddr_t)&info, sizeof(info));
-	for (ifp = ifnet; ifp; ifp = ifp->if_next) {
+	for (ifp = ifnet.tqh_first; ifp; ifp = ifp->if_link.tqe_next) {
 		if (w->w_arg && w->w_arg != ifp->if_index)
 			continue;
 		ifa = ifp->if_addrlist;
