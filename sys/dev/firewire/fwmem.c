@@ -76,6 +76,8 @@ SYSCTL_INT(_hw_firewire_fwmem, OID_AUTO, speed, CTLFLAG_RW, &fwmem_speed, 0,
 SYSCTL_INT(_debug, OID_AUTO, fwmem_debug, CTLFLAG_RW, &fwmem_debug, 0,
 	"Fwmem driver debug flag");
 
+MALLOC_DEFINE(M_FWMEM, "fwmem", "fwmem/FireWire");
+
 #define MAXLEN (512 << fwmem_speed)
 
 struct fwmem_softc {
@@ -94,7 +96,7 @@ fwmem_xfer_req(
 {
 	struct fw_xfer *xfer;
 
-	xfer = fw_xfer_alloc(M_FWXFER);
+	xfer = fw_xfer_alloc(M_FWMEM);
 	if (xfer == NULL)
 		return NULL;
 
@@ -275,7 +277,7 @@ fwmem_open (dev_t dev, int flags, int fmt, fw_proc *td)
 		fms->refcount ++;
 	} else {
 		fms = (struct fwmem_softc *)malloc(sizeof(struct fwmem_softc),
-							M_FW, M_WAITOK);
+							M_FWMEM, M_WAITOK);
 		if (fms == NULL)
 			return ENOMEM;
 		bcopy(&fwmem_eui64, &fms->eui, sizeof(struct fw_eui64));
