@@ -30,22 +30,16 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: exception.s,v 1.9 1995/06/11 19:31:13 rgrimes Exp $
+ *	$Id: exception.s,v 1.10 1995/08/15 19:23:33 bde Exp $
  */
 
 #include "npx.h"				/* NNPX */
-
 #include "assym.s"				/* system defines */
-
 #include <sys/errno.h>				/* error return codes */
-
 #include <machine/spl.h>			/* SWI_AST_MASK ... */
-
 #include <machine/psl.h>			/* PSL_I */
-
 #include <machine/trap.h>			/* trap codes */
 #include <sys/syscall.h>			/* syscall numbers */
-
 #include <machine/asmacros.h>			/* miscellaneous macros */
 
 #define	KDSEL		0x10			/* kernel data selector */
@@ -230,19 +224,26 @@ _bpttraps:
 #endif
 
 /*
- * Call gate entry for syscall
+ * Call gate entry for syscall.
+ * The intersegment call has been set up to specify one dummy parameter.
+ * This leaves a place to put eflags so that the call frame can be
+ * converted to a trap frame. Note that the eflags is (semi-)bogusly
+ * pushed into (what will be) tf_err and then copied later into the
+ * final spot. It has to be done this way because esp can't be just
+ * temporarily altered for the pushfl - an interrupt might come in
+ * and clobber the saved cs/eip.
  */
 	SUPERALIGN_TEXT
 IDTVEC(syscall)
-	pushfl					/* Room for tf_err */
-	pushfl					/* Room for tf_trapno */
+	pushfl					/* save eflags in tf_err for now */
+	subl	$4,%esp				/* skip over tf_trapno */
 	pushal
 	pushl	%ds
 	pushl	%es
 	movl	$KDSEL,%eax			/* switch to kernel segments */
 	movl	%ax,%ds
 	movl	%ax,%es
-	movl	TF_ERR(%esp),%eax		/* copy eflags from tf_err to fs_eflags */
+	movl	TF_ERR(%esp),%eax		/* copy saved eflags to final spot */
 	movl	%eax,TF_EFLAGS(%esp)
 	FAKE_MCOUNT(12*4(%esp))
 	incl	_cnt+V_SYSCALL
@@ -263,16 +264,13 @@ IDTVEC(syscall)
  */
 	SUPERALIGN_TEXT
 IDTVEC(linux_syscall)
-	pushfl					/* Room for tf_err */
-	pushfl					/* Room for tf_trapno */
+	subl	$8,%esp				/* skip over tf_trapno and tf_err */
 	pushal
 	pushl	%ds
 	pushl	%es
 	movl	$KDSEL,%eax			/* switch to kernel segments */
 	movl	%ax,%ds
 	movl	%ax,%es
-	movl	TF_ERR(%esp),%eax		/* copy eflags from tf_err to fs_eflags */
-	movl	%eax,TF_EFLAGS(%esp)
 	FAKE_MCOUNT(12*4(%esp))
 	incl	_cnt+V_SYSCALL
 	movl	$SWI_AST_MASK,_cpl
