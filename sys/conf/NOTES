@@ -140,6 +140,14 @@ options 	NINTR=25		# number of INTs
 #  do NOT properly support bridged PCI cards.  To use one of these
 #  cards you should refer to ???
 
+# SMP Debugging Options:
+#
+# SMP_DEBUG enables various extra assertions in the mutex code.
+# WITNESS enables the mutex witness code which detects deadlocks and cycles
+#         during locking operations.
+options 	SMP_DEBUG
+options 	WITNESS
+
 
 #####################################################################
 # CPU OPTIONS
