@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.15 1997/02/22 15:45:08 peter Exp $
+# $Id: Makefile,v 1.16 1998/03/23 12:23:13 bde Exp $
 #
 
 LIB=	gcc
@@ -14,29 +14,14 @@ INSTALL_PIC_ARCHIVE=  yes
 #
 # Normally, this does not make any difference, since we only have gcc, but
 # when bootstrapping from gcc-2.6.3, we have to use the freshly built 2.7.2
-# compiler for some of the libgcc2.c __attribute__ stuff.  If there is no
-# freshly built compiler in a relative obj directory, then `make world'
-# must have recently installed it.
+# compiler for some of the libgcc2.c __attribute__ stuff.
 #
-.if exists(${.OBJDIR}/../cc/cc)
-XCC=	${.OBJDIR}/../cc/cc
-.elif exists(${.CURDIR}/../cc/cc)
-XCC=	${.CURDIR}/../cc/cc
-.else
-XCC=	cc
-.endif
-
-.if exists(${.OBJDIR}/../cc1/cc1)
-XCC+=	-B${.OBJDIR}/../cc1/
-.elif exists(${.CURDIR}/../cc1/cc1)
-XCC+=	-B${.CURDIR}/../cc1/
-.endif
-
-.if exists(${.OBJDIR}/../cpp/cpp)
-XCC+=	-B${.OBJDIR}/../cpp/
-.elif exists(${.CURDIR}/../cpp/cpp)
-XCC+=	-B${.CURDIR}/../cpp/
-.endif
+# We now depend on a bootstrap pass (normally in `make world') to build
+# and install the new version of gcc before we get here.  This makes
+# finding the new version (XCC) easy but may break finding the old version
+# (CC).
+#
+XCC=	${CC}
 
 # Members of libgcc1.a.
 LIB1FUNCS= _mulsi3 _udivsi3 _divsi3 _umodsi3 _modsi3 \
@@ -67,16 +52,13 @@ LIB1OBJS=	${LIB1FUNCS:S/$/.o/}
 LIB2OBJS=	${LIB2FUNCS:S/$/.o/}
 LIB1SOBJS=	${LIB1FUNCS:S/$/.so/}
 LIB2SOBJS=	${LIB2FUNCS:S/$/.so/}
-P1OBJS=		${LIB1FUNCS:S/$/.po/}
-P2OBJS=		${LIB2FUNCS:S/$/.po/}
+LIB1POBJS=	${LIB1FUNCS:S/$/.po/}
+LIB2POBJS=	${LIB2FUNCS:S/$/.po/}
 
 OBJS=		${LIB1OBJS} ${LIB2OBJS}
 
-config.h:
+config.h tconfig.h:
 	echo '#include "${MACHINE_ARCH}/xm-freebsd.h"' > ${.TARGET}
-
-tconfig.h:
-	echo '#include "${MACHINE_ARCH}/xm-freebsd.h"'  > tconfig.h
 
 tm.h:
 	echo '#include "${MACHINE_ARCH}/freebsd.h"' > ${.TARGET}
@@ -84,30 +66,30 @@ tm.h:
 ${OBJS}: ${COMMONHDRS}
 
 ${LIB1OBJS}: libgcc1.c
-	${CC} -c ${CFLAGS} -DL${.PREFIX} -o ${.TARGET} ${GCCDIR}/libgcc1.c
+	${CC} -c ${CFLAGS} -DL${.PREFIX} -o ${.TARGET} ${.ALLSRC:M*.c}
 	@${LD} -O ${.TARGET} -x -r ${.TARGET}
 
 ${LIB2OBJS}: libgcc2.c
-	${XCC} -c ${CFLAGS} -DL${.PREFIX} -o ${.TARGET} ${GCCDIR}/libgcc2.c
+	${XCC} -c ${CFLAGS} -DL${.PREFIX} -o ${.TARGET} ${.ALLSRC:M*.c}
 	@${LD} -O ${.TARGET} -x -r ${.TARGET}
 
 .if !defined(NOPIC)
 ${LIB1SOBJS}: libgcc1.c
-	${CC} -c -fpic ${CFLAGS} -DL${.PREFIX} -o ${.TARGET} ${GCCDIR}/libgcc1.c
+	${CC} -c -fpic ${CFLAGS} -DL${.PREFIX} -o ${.TARGET} ${.ALLSRC:M*.c}
 	@${LD} -O ${.TARGET} -x -r ${.TARGET}
 
 ${LIB2SOBJS}: libgcc2.c
-	${XCC} -c -fpic ${CFLAGS} -DL${.PREFIX} -o ${.TARGET} ${GCCDIR}/libgcc2.c
+	${XCC} -c -fpic ${CFLAGS} -DL${.PREFIX} -o ${.TARGET} ${.ALLSRC:M*.c}
 	@${LD} -O ${.TARGET} -x -r ${.TARGET}
 .endif
 
 .if !defined(NOPROFILE)
-${P1OBJS}: libgcc1.c
-	${CC} -c -p ${CFLAGS} -DL${.PREFIX} -o ${.TARGET} ${GCCDIR}/libgcc1.c
+${LIB1POBJS}: libgcc1.c
+	${CC} -c -p ${CFLAGS} -DL${.PREFIX} -o ${.TARGET} ${.ALLSRC:M*.c}
 	@${LD} -O ${.TARGET} -X -r ${.TARGET}
 
-${P2OBJS}: libgcc2.c
-	${XCC} -c -p ${CFLAGS} -DL${.PREFIX} -o ${.TARGET} ${GCCDIR}/libgcc2.c
+${LIB2POBJS}: libgcc2.c
+	${XCC} -c -p ${CFLAGS} -DL${.PREFIX} -o ${.TARGET} ${.ALLSRC:M*.c}
 	@${LD} -O ${.TARGET} -X -r ${.TARGET}
 .endif
 
