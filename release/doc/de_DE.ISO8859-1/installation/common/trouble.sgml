@@ -1,7 +1,7 @@
 <!--
   $FreeBSD$
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/installation/common/trouble.sgml,v 1.7 2002/10/16 09:51:38 ue Exp $
-  basiert auf: 1.6
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/installation/common/trouble.sgml,v 1.8 2002/11/09 19:45:30 ue Exp $
+  basiert auf: 1.8
 
 	This file contains the comments of the old TROUBLE.TXT file.
 -->
@@ -34,9 +34,10 @@
   </sect2>
 
   <sect2>
-    <title>Typische Probleme bei der Installation</title>
+    <title>Typische Probleme bei der Installation auf &arch.print;
+      Systemen</title>
 
-    <qandaset>
+    <qandaset arch="i386">
       <qandaentry>
         <question>
           <para>Wenn ich das System nach der &os;-Installation zum
@@ -44,7 +45,7 @@
             und sucht nach Hardware, aber danach kommt eine Meldung
             wie:</para>
 
-          <screen>changing root device to wd1s1a panic: cannot mount root</screen>
+          <screen>changing root device to ad1s1a panic: cannot mount root</screen>
           <para>Was l&auml;uft falsch? Was kann ich tun?</para>
 
           <para>Was bedeutet diese
@@ -76,14 +77,14 @@
             konfiguriert sind und auf dem Sie &os; von der zweiten
             Platte booten wollen.  Das BIOS verwendet f&uuml;r die
             beiden Platten die Nummern 0 und 1, w&auml;hrend &os;
-            <devicename>wd0</devicename> und
-            <devicename>wd2</devicename> verwendet.</para>
+            <devicename>ad0</devicename> und
+            <devicename>ad2</devicename> verwendet.</para>
 
           <para>&os; liegt auf BIOS Platte 1, der Typ der Platte ist
-            <literal>wd</literal>, und &os; vergibt die Nummer 2.  In
+            <literal>ad</literal>, und &os; vergibt die Nummer 2.  In
             diesem Fall m&uuml;ssen Sie folgendes eingeben:</para>
 
-          <screen><userinput>1:wd(2,a)kernel</userinput></screen>
+          <screen><userinput>1:ad(2,a)kernel</userinput></screen>
 
           <para>Bitte beachten Sie, da&szlig; Sie dies nicht eingeben
             m&uuml;ssen, wenn sich auf dem prim&auml;ren IDE Kanal ein
@@ -157,18 +158,7 @@
           </blockquote>
         </answer>
       </qandaentry>
-    </qandaset>
-  </sect2>
 
-  <sect2>
-    <title>Typische Hardware-Probleme</title>
-
-    <note>
-      <para>Erg&auml;nzungen zu diesem Abschnitt schicken Sie bitte an
-        &a.jkh;.</para>
-    </note>
-
-    <qandaset>
       <qandaentry>
         <question>
           <para>Der &man.mcd.4; Treiber glaubt, der habe ein
@@ -185,63 +175,6 @@
             die Sie auch passende Ger&auml;te haben, alle anderen
             Treiber sollten Sie aus dem Kernel entfernen oder
             deaktivieren.</para>
-        </answer>
-      </qandaentry>
-
-      <qandaentry>
-        <question>
-          <para>&os; unterst&uuml;tzt angeblich 3Com PCMCIA Karten,
-            aber meine Karte wird nicht erkannt, wenn Sie in meinem
-            Laptop steckt.</para>
-        </question>
-
-        <answer>
-          <para>Es gibt mehrere m&ouml;gliche Ursachen.  Ersten werden
-            Kombikarten nicht von &os; unterst&uuml;tzt.  Wenn Sie
-            eine Karte mit Ethernet und Modem haben (wie die 3C562),
-            haben Sie ein Problem.  Zweitens braucht der Treiber
-            f&uuml;r die 3C589 wie alle anderen Treiber f&uuml;r &os;
-            auch die Informationen aus dem NVRAM der Karte.  Sie
-            m&uuml;ssen die Werte f&uuml;r IRQ, Port und IOMEM richtig
-            einstellen, damit Sie mit den Werten &uuml;bereinstimmen,
-            die im NVRAM stehen.</para>
-
-          <para>Leider ist das von 3COM mitgelieferte DOS-Programm das
-            einzige Programm, das diese Werte auslesen kann.  Das
-            Programm mu&szlig; auf einem nackten System (es darf kein
-            anderer Treiber installiert sein) ausgef&uuml;hrt werden,
-            wird sich &uuml;ber die fehlenden CARD Services
-            beschweren, aber es macht weiter.  Nur so k&ouml;nnen die
-            Werte aus dem NVRAM ausgelesen werden.  Sie brauchen die
-            Werte IRQ, Port und IOMEM (letztere werden von 3COM CIS
-            tuple genannt).  Die ersten beiden Werte k&ouml;nnen mit
-            dem Programm ge&auml;ndert werden, der dritte kann nicht
-            ge&auml;ndert, sondern nur gelesen werden.  Sobald Sie die
-            Werte haben, benutzen Sie sie in UserConfig und Ihre Karte
-            wird erkannt werden.</para>
-        </answer>
-      </qandaentry>
-
-      <qandaentry>
-        <question>
-          <para>&os; erkennt meine PCMCIA Netzwerkkarte, aber obwohl
-            sie funktionieren soll, werden keine Pakete
-            verwendet.</para>
-        </question>
-
-        <answer>
-          <para>Viele PCMCIA Karten k&ouml;nnen entweder den 10-Base2
-            (BNC) oder den 10-BaseT Anschlu&szlig; f&uuml;r die
-            Verbindung zum Netzwerk benutzen.  Der Treiber kann den
-            richtigen Anschlu&szlig; nicht automatisch ausw&auml;hlen,
-            daher m&uuml;ssen Sie ihm mitteilen, welchen
-            Anschlu&szlig; er benutzen soll.  F&uuml;r diese Auswahl
-            m&uuml;ssen die Link-Flags setzen.  Je nach Karte wird
-            <option>-link0 link1</option> oder <option>-link0
-            -link1</option> den richtigen Anschlu&szlig; aktivieren.
-            In &man.sysinstall.8; k&ouml;nnen Sie diese Werte im Feld
-            <literal>Extra options to ifconfig:</literal> im Dialog
-            <literal>network setup</literal> angeben.</para>
         </answer>
       </qandaentry>
 
@@ -291,101 +224,6 @@
             die 'Flags' f&uuml;r atkbd0 auf 0x4 und das Problem sollte
             gel&ouml;st sein.  Die Einstellung finden Sie im Men&uuml;
             Input.</para>
-        </answer>
-      </qandaentry>
-
-      <qandaentry>
-        <question>
-          <para>Wenn ich von der Installationsdiskette boote, erhalte
-            ich nur die folgende Meldung, danach passiert nichts mehr.
-            Ich kann auch keine Tastatureingaben machen.</para>
-
-          <screen>Keyboard: no</screen>
-        </question>
-
-        <answer>
-          <para>Aus Platzgr&uuml;nden mu&szlig;te der Support f&uuml;r
-            XT/AT Tastaturen (mit 84 Tasten) aus den Bootblocks
-            entfernt werden.  Diese Art der Tastatur wird auch von
-            einigen Laptops verwendet.  Wenn Sie noch eine solche
-            Tastatur verwenden, erhalten Sie die oben aufgef&uuml;hrte
-            Meldung, wenn Sie von der CD oder der
-            Installationsdiskette booten.</para>
-
-          <para>Wenn Sie diese Meldung erhalten, m&uuml;ssen Sie die
-            Leertaste dr&uuml;cken, danach erhalten Sie die folgende
-            Meldung:</para>
-
-          <screen>>> FreeBSD/i386 BOOT
-Default: x:xx(x,x)/boot/loader 
-boot:</screen>
-
-          <para>Wenn Sie jetzt <userinput>-Dh</userinput> eingeben,
-            sollte die Installation normal weiterlaufen.</para>
-        </answer>
-      </qandaentry>
-
-      <qandaentry>
-        <question>
-          <para>Ich habe ein Matsushita/Panasonic CR-522, ein
-            Matsushita/Panasonic CR-523 oder ein TEAC CD55a CDROM,
-            aber es wird nicht korrekt erkannt, selbst wenn ich den
-            richtigen I/O-Port angebe.</para>
-        </question>
-
-        <answer>
-          <para>Diese CDROM Laufwerke werden nicht von &os;
-            unterst&uuml;tzt, da die Befehle zur Ansteuerung dieser
-            Laufwerke sind nicht mit denen f&uuml;r die Double-Speed
-            Laufwerke CR-562 und CR-563 identisch sind.</para>
-
-          <para>Die single-speed Laufwerke CR-522 und CR-523 brauchen
-            einen CD-Caddy.</para>
-        </answer>
-      </qandaentry>
-
-      <qandaentry>
-        <question>
-          <para>Ich versuche, von Band zu installieren, aber ich
-            erhalte nur die folgende Meldung:</para>
-
-          <screen>sa0(aha0:1:0) NOT READY csi 40,0,0,0</screen>
-        </question>
-
-        <answer>
-          <para>Wenn Sie in der aktuellen Version von
-            &man.sysinstall.8; ein Bandlaufwerk nutzen wollen, dann
-            <emphasis>mu&szlig;</emphasis> das Band bereits im
-            Laufwerk liegen, wenn &man.sysinstall.8; gestartet wird;
-            andernfalls wird es nicht erkannt.  Starten Sie
-            &man.sysinstall.8; neu, nachdem Sie das Band eingelegt
-            haben.</para>
-        </answer>
-      </qandaentry>
-
-      <qandaentry>
-        <question>
-          <para>Ich habe &os; auf meinem Rechner installiert, aber
-            beim Neustart bleibt das System stehen.  Die letzte
-            Meldung ist:</para>
-
-          <screen>Changing root to /dev/da0a</screen>
-        </question>
-
-        <answer>
-          <para>Dieses Problem tritt gelegentlich auf, wenn Sie eine
-            3com 3c509 Netzwerkkarte verwenden.  Der Treiber
-            &man.ep.4; mag es scheinbar &uuml;berhaupt nicht, wenn
-            andere Treiber testweise auf die Adresse 0x300 zugreifen.
-            Um das Problem zu beheben, m&uuml;ssen Sie Ihrer Rechner
-            aus- und wieder einschalten.  Sobald Sie die Meldung
-            <literal>Boot:</literal> erhalten, m&uuml;ssen Sie
-            <option>-c</option> eingeben.  Damit starten Sie
-            UserConfig (siehe <xref linkend="repairing"> weiter oben).
-            Benutzen Sie den Befehl <literal>disable</literal>, um
-            alle anderen Treiber abzuschalten, die auch auf die
-            Adresse 0x300 zugreifen.  Danach sollte &os; problemlos
-            starten.</para>
         </answer>
       </qandaentry>
 
@@ -473,8 +311,7 @@ boot:</screen>
 
         <answer>
           <para>Das stimmt.  &os; unterst&uuml;tzt diesen Controller
-            nicht mehr, au&szlig;er im nicht mehr gepflegten wdc
-            Treiber.</para>
+            nicht mehr.</para>
         </answer>
       </qandaentry>
 
@@ -501,26 +338,6 @@ boot:</screen>
 
       <qandaentry>
         <question>
-          <para>Wenn ich das erste Mal von meinem neuen Board mit
-            Intel AL440LX Chipsatz (<quote>Atlanta</quote>) boote,
-            bricht der Startvorgang mit der Meldung <literal>Read
-            Error</literal> ab.</para>
-        </question>
-
-        <answer>
-          <para>Das BIOS einiger dieser Mainboards scheint einen
-            Fehler zu enthalten, der das &os; Startprogramm annehmen
-            l&auml;&szlig;t, da&szlig; es von Diskette bootet.  Das
-            Problem tritt nur auf, wenn Sie BootEasy nicht verwenden.
-            Wenn Sie den Fehler umgehen wollen, sollten Sie Ihre
-            Festplatte im DD Modus partitionieren oder eine neuere
-            BIOS-Version einspielen (Details dazu finden Sie auf den
-            Webseiten von Intel).</para>
-        </answer>
-      </qandaentry>
-
-      <qandaentry>
-        <question>
           <para>Wenn ich &os; auf einem Dell Poweredge XE installiere,
             wird der Dell-eigene RAID Controller DSA (Dell SCSI Array)
             nicht erkannt.</para>
@@ -534,22 +351,6 @@ boot:</screen>
             RAID des DSA nutzen, lediglich die DSA-spezifischen
             Funktionen wie die RAID-&Uuml;berwachung stehen nicht zur
             Verf&uuml;gung.</para>
-        </answer>
-      </qandaentry>
-
-      <qandaentry>
-        <question>
-          <para>Meine Netzwerkkarte wird als AMD PCnet-FAST (oder
-            &auml;hnliche) erkannt, funktioniert aber nicht (betrifft
-            u.a. die eingebauten Netzwerkkarten in den IBM Netfinity
-            5xxx oder 7xxx Systemen)</para>
-        </question>
-
-        <answer>
-          <para>Der Treiber &man.lnc.4; ist zur Zeit fehlerhaft und
-            arbeitet oft nicht korrekt mit den PCnet-FAST und
-            PCnet-FAST+ Karten zusammen.  Sie m&uuml;ssen eine andere
-            Netzwerkkarte verwenden.</para>
         </answer>
       </qandaentry>
 
