@@ -921,7 +921,7 @@ pmap_growkernel(vm_offset_t addr)
 			panic("pmap_growkernel: out of kernel address space");
 
 		nkpg = vm_page_alloc(NULL, nkpt,
-		    VM_ALLOC_NOOBJ | VM_ALLOC_SYSTEM | VM_ALLOC_WIRED);
+		    VM_ALLOC_NOOBJ | VM_ALLOC_INTERRUPT | VM_ALLOC_WIRED);
 		if (!nkpg)
 			panic("pmap_growkernel: no memory to grow kernel");
 
