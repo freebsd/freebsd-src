@@ -1369,7 +1369,7 @@ mly_process_event(struct mly_softc *sc, struct mly_event *me)
 	break;
     case 'e':
 	mly_printf(sc, tp, me->target, me->lun);
-	printf(sc, "\n");
+	printf("\n");
 	break;
     case 'c':
 	mly_printf(sc, "controller %s\n", tp);
