@@ -2,7 +2,7 @@
 # $FreeBSD$
 
 MAN=	assert.3 bitstring.3 end.3 fpgetround.3 intro.3 pthread.3 queue.3 \
-	stdarg.3 sysexits.3 timeradd.3
+	stdarg.3 sysexits.3 timeradd.3 tree.3
 MLINKS+=bitstring.3 bit_alloc.3 bitstring.3 bit_clear.3 \
 	bitstring.3 bit_decl.3 bitstring.3 bit_ffc.3 bitstring.3 bit_ffs.3 \
 	bitstring.3 bit_nclear.3 bitstring.3 bit_nset.3 bitstring.3 bit_set.3 \
@@ -75,5 +75,41 @@ MLINKS+=stdarg.3 va_start.3
 
 MLINKS+=timeradd.3 timersub.3 timeradd.3 timerclear.3 timeradd.3 timerisset.3
 MLINKS+=timeradd.3 timercmp.3
+
+MLINKS+=tree.3 SPLAY_PROTOTYPE.3
+MLINKS+=tree.3 SPLAY_GENERATE.3
+MLINKS+=tree.3 SPLAY_ENTRY.3
+MLINKS+=tree.3 SPLAY_HEAD.3
+MLINKS+=tree.3 SPLAY_INITIALIZER.3
+MLINKS+=tree.3 SPLAY_ROOT.3
+MLINKS+=tree.3 SPLAY_EMPTY.3
+MLINKS+=tree.3 SPLAY_NEXT.3
+MLINKS+=tree.3 SPLAY_MIN.3
+MLINKS+=tree.3 SPLAY_MAX.3
+MLINKS+=tree.3 SPLAY_FIND.3
+MLINKS+=tree.3 SPLAY_LEFT.3
+MLINKS+=tree.3 SPLAY_RIGHT.3
+MLINKS+=tree.3 SPLAY_FOREACH.3
+MLINKS+=tree.3 SPLAY_INIT.3
+MLINKS+=tree.3 SPLAY_INSERT.3
+MLINKS+=tree.3 SPLAY_REMOVE.3
+MLINKS+=tree.3 RB_PROTOTYPE.3
+MLINKS+=tree.3 RB_GENERATE.3
+MLINKS+=tree.3 RB_ENTRY.3
+MLINKS+=tree.3 RB_HEAD.3
+MLINKS+=tree.3 RB_INITIALIZER.3
+MLINKS+=tree.3 RB_ROOT.3
+MLINKS+=tree.3 RB_EMPTY.3
+MLINKS+=tree.3 RB_NEXT.3
+MLINKS+=tree.3 RB_MIN.3
+MLINKS+=tree.3 RB_MAX.3
+MLINKS+=tree.3 RB_FIND.3
+MLINKS+=tree.3 RB_LEFT.3
+MLINKS+=tree.3 RB_RIGHT.3
+MLINKS+=tree.3 RB_PARENT.3
+MLINKS+=tree.3 RB_FOREACH.3
+MLINKS+=tree.3 RB_INIT.3
+MLINKS+=tree.3 RB_INSERT.3
+MLINKS+=tree.3 RB_REMOVE.3
 
 .include <bsd.prog.mk>
