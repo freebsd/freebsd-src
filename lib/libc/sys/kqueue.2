@@ -73,9 +73,9 @@ The queue is not inherited by a child created with
 .Xr fork 2 .
 However, if
 .Xr rfork 2
-is called with the
+is called without the
 .Dv RFFDG
-flag, the descriptor table is shared,
+flag, then the descriptor table is shared,
 which will allow sharing of the kqueue between two processes.
 .Pp
 .Fn kevent
@@ -108,7 +108,10 @@ waits indefinitely.  To effect a poll, the
 .Fa timeout
 argument should be non-NULL, pointing to a zero-valued
 .Va timespec
-structure.
+structure.  The same array may be used for the
+.Fa changelist
+and 
+.Fa eventlist .
 .Pp
 The
 .Va kevent
