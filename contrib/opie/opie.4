@@ -20,6 +20,8 @@
 .\"	Definition of "seed" written by Neil Haller of Bellcore
 .\"	Written at NRL for OPIE 2.0.
 .\"
+.\"	$FreeBSD$
+.\"
 .TH OPIE 4 "January 10, 1995"
 .SH NAME
 .B OPIE \- One-time Passwords In Everything
@@ -211,17 +213,17 @@ sequence number and seed are, and
 .IR opiekey(1),
 which is an OPIE key calculator.
 
-.LP ADDING OPIE TO OTHER PROGRAMS
+.SH ADDING OPIE TO OTHER PROGRAMS
 
 Adding OPIE authentication to programs other than the ones included as clients
 in the OPIE distribution isn't very difficult. First, you will need to make
 sure that the program includes <stdio.h> somewhere. Then, below the other
 includes such as <stdio.h>, but before variable declarations, you need to
-include "opie.h". You need to add a variable of type "struct opie" to your
+include <opie.h>. You need to add a variable of type "struct opie" to your
 program, you need to make sure that the buffer that you use to get a password
 from the user is big enough to hold OPIE_RESPONSE_MAX+1 characters, and you
 need to have a buffer in which to store the challenge string that is big enough
-to hold OPIE_PROMPT_MAX+1 characters.
+to hold OPIE_CHALLENGE_MAX+1 characters.
 .LP
 When you are ready to output the challenge string and know the user's name,
 you would use a call to opiechallenge. Later, to verify the response received,
@@ -253,13 +255,13 @@ you would use a call to opieverify. For example:
 .sp 0
 	struct opie opiedata;
 .sp 0
-	char opieprompt[OPIE_PROMPT_MAX+1];
+	char opieprompt[OPIE_CHALLENGE_MAX+1];
 .sp 0
 		.
 .sp 0
 		.
 .sp 0
-	opiechallenge(&opiedata, user_name, &opieprompt);
+	opiechallenge(&opiedata, user_name, opieprompt);
 .sp 0
 		.
 .sp 0
