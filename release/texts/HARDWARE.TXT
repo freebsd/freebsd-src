@@ -566,17 +566,40 @@ Entrega PCI plug-in card (4 ports).
 
 Specific devices reported to be working:
 
-Cherry G81-3504 Keyboard
+Agiler Mouse 29UO.
+
+Andromeda hub.
+
+ATen parallel printer adapter.
+
+Belkin F5U002 parallel printer adapter.
+
+BTC BTC7935 keyboard with mouse port.
+
+Cherry G81-3504 keyboard.
+
+Chic mouse.
+
+Cypress mouse.
 
 Entrega USB-to-parallel printer adapter.
 
+Genius Niche mouse.
+
 Iomega USB Zip 100Mb.
 
-Logitech Wheel Mouse (3 buttons).
+Kensington Mouse-in-a-Box.
+
+Logitech M2452 keyboard.
+Logitech wheel mouse (3 buttons).
+Logitech PS/2 / USB mouse (3 buttons).
 
 MacAlly self powered hub (4 ports).
 
 Microsoft IntelliMouse (3 buttons).
+Microsoft keyboard.
+
+NEC hub.
 
 
 4.4.    ISDN (European DSS1 [Q.921/Q.931] protocol)
