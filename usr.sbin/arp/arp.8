@@ -47,6 +47,7 @@
 .Fl a
 .Nm
 .Fl d Ar hostname
+.Op Ar proxy
 .Nm
 .Fl d
 .Fl a
@@ -84,7 +85,11 @@ A super-user may delete an entry for the host called
 .Ar hostname
 with the
 .Fl d
-flag. May be combined with the
+flag.
+The
+.Dq Li proxy
+keyword is sometimes required when deleting published ARP entries.
+This flag may be combined with the
 .Fl a
 flag to delete all entries.
 .It Fl n
