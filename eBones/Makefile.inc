@@ -1,5 +1,5 @@
 #	From: @(#)Makefile.inc	5.1 (Berkeley) 6/25/90
-#	$Id: Makefile.inc,v 1.7 1995/09/14 04:00:59 gibbs Exp $
+#	$Id: Makefile.inc,v 1.8 1995/09/14 18:16:08 gibbs Exp $
 
 DISTRIBUTION=	krb
 
@@ -35,6 +35,12 @@ KADMOBJDIR=	${.CURDIR}/../../lib/libkadm/obj
 KADMOBJDIR=	${.CURDIR}/../../lib/libkadm
 .endif
 
+.if exists(${.CURDIR}/../../lib/librkinit/obj)
+RKINITOBJDIR= ${.CURDIR}/../../lib/librkinit/obj
+.else
+RKINITOBJDIR= ${.CURDIR}/../../lib/librkinit
+.endif
+
 CFLAGS+= -I${INCLUDEDIR} -Wall
 
 COMPILE_ET=     compile_et
@@ -50,3 +56,10 @@ ${KADMOBJDIR}/kadm_err.h: ${.CURDIR}/../../lib/libkadm/kadm_err.et
 	cd ${KADMOBJDIR}; compile_et kadm_err.et
 
 CLEANFILES+=${KADMOBJDIR}/kadm_err.h ${KADMOBJDIR}/kadm_err.c
+
+${RKINITOBJDIR}/rkinit_err.h: ${.CURDIR}/../../lib/librkinit/rkinit_err.et
+	test -e ${RKINITOBJDIR}/rkinit_err.et || \
+		ln -s ${.ALLSRC} ${RKINITOBJDIR}
+	cd ${RKINITOBJDIR}; compile_et rkinit_err.et
+
+CLEANFILES+=${RKINITOBJDIR}/rkinit_err.h ${RKINITOBJDIR}/rkinit_err.c
