@@ -66,6 +66,8 @@ struct aic_scb {
 #define	SCB_DEVICE_RESET	0x04
 #define	SCB_SENSE		0x08
 
+enum { AIC6260, AIC6360, AIC6370, GM82C700 };
+
 struct aic_softc {
 	int			unit;
 	bus_space_tag_t		tag;
@@ -94,6 +96,7 @@ struct aic_softc {
 
 	int			min_period;
 	int			max_period;
+	int			chip_type;
 };
 
 #define	AIC_DISC_ENABLE		0x01
