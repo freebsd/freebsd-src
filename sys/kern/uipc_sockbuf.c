@@ -431,7 +431,6 @@ sbreserve(sb, cc, so, p)
 		p->p_rlimit[RLIMIT_SBSIZE].rlim_cur)) {
 		return (0);
 	}
-	sb->sb_hiwat = cc;
 	sb->sb_mbmax = min(cc * sb_efficiency, sb_max);
 	if (sb->sb_lowat > sb->sb_hiwat)
 		sb->sb_lowat = sb->sb_hiwat;
