@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.199 1998/02/27 06:39:32 msmith Exp $
+ *	$Id: sio.c,v 1.147.2.11 1998/03/06 23:44:57 julian Exp $
  */
 
 #include "opt_comconsole.h"
@@ -100,7 +100,11 @@
 
 #define	LOTS_OF_EVENTS	64	/* helps separate urgent events from input */
 #define	RB_I_HIGH_WATER	(TTYHOG - 2 * RS_IBUFSIZE)
+#ifndef DPTOPT /* not sure why this is in dpt.. latency requirements? [JRE]  */
 #define	RS_IBUFSIZE	256
+#else
+#define	RS_IBUFSIZE	512
+#endif /* DPTOPT */
 
 #define	CALLOUT_MASK		0x80
 #define	CONTROL_MASK		0x60
@@ -119,19 +123,9 @@
 #define	COM_NOTAST4(dev)	((dev)->id_flags & 0x04)
 #endif /* COM_MULTIPORT */
 
-#define	COM_CONSOLE(dev)	((dev)->id_flags & 0x10)
-#define	COM_FORCECONSOLE(dev)	((dev)->id_flags & 0x20)
-#define	COM_LLCONSOLE(dev)	((dev)->id_flags & 0x40)
 #define	COM_LOSESOUTINTS(dev)	((dev)->id_flags & 0x08)
 #define	COM_NOFIFO(dev)		((dev)->id_flags & 0x02)
 #define	COM_VERBOSE(dev)	((dev)->id_flags & 0x80)
-#define	COM_NOTST3(dev)		((dev)->id_flags & 0x10000)
-#define COM_ST16650A(dev)	((dev)->id_flags & 0x20000)
-#define COM_C_NOPROBE     (0x40000)
-#define COM_NOPROBE(dev)  ((dev)->id_flags & COM_C_NOPROBE)
-#define COM_C_IIR_TXRDYBUG    (0x80000)
-#define COM_IIR_TXRDYBUG(dev) ((dev)->id_flags & COM_C_IIR_TXRDYBUG)
-#define	COM_FIFOSIZE(dev)	(((dev)->id_flags & 0xff000000) >> 24)
 
 #define	com_scr		7	/* scratch register for 16450-16550 (R/W) */
 
@@ -199,7 +193,6 @@ struct lbq {
 
 /* com device structure */
 struct com_s {
-	u_int	id_flags;	/* Copy isa device falgas */
 	u_char	state;		/* miscellaneous flag bits */
 	bool_t  active_out;	/* nonzero if the callout device is open */
 	u_char	cfcr_image;	/* copy of value written to CFCR */
@@ -209,7 +202,6 @@ struct com_s {
 	u_char	extra_state;	/* more flag bits, separate for order trick */
 	u_char	fifo_image;	/* copy of value written to FIFO */
 	bool_t	hasfifo;	/* nonzero for 16550 UARTs */
-	bool_t	st16650a;	/* Is a Startech 16650A or RTS/CTS compat */
 	bool_t	loses_outints;	/* nonzero if device loses output interrupts */
 	u_char	mcr_image;	/* copy of value written to MCR */
 #ifdef COM_MULTIPORT
@@ -251,7 +243,6 @@ struct com_s {
 	Port_t	modem_ctl_port;
 	Port_t	line_status_port;
 	Port_t	modem_status_port;
-	Port_t	intr_ctl_port;	/* Ports of IIR register */
 
 	struct tty	*tp;	/* cross reference */
 
@@ -359,9 +350,8 @@ static struct cdevsw sio_cdevsw = {
 };
 
 static	int	comconsole = -1;
-static	volatile speed_t	comdefaultrate = CONSPEED;
+static	speed_t	comdefaultrate = CONSPEED;
 static	u_int	com_events;	/* input chars + weighted output completions */
-static	Port_t	siocniobase;
 static	int	sio_timeout;
 static	int	sio_timeouts_until_log;
 #if 0 /* XXX */
@@ -403,9 +393,9 @@ static	Port_t	likely_esp_ports[] = { 0x140, 0x180, 0x280, 0 };
 /*
  *	PC-Card (PCMCIA) specific code.
  */
-static int	sioinit		__P((struct pccard_devinfo *));
-static void	siounload	__P((struct pccard_devinfo *));
-static int	card_intr	__P((struct pccard_devinfo *));
+static int sioinit(struct pccard_devinfo *);		/* init device */
+static void siounload(struct pccard_devinfo *);		/* Disable driver */
+static int card_intr(struct pccard_devinfo *);		/* Interrupt handler */
 
 static struct pccard_device sio_info = {
 	driver_name,
@@ -432,10 +422,6 @@ sioinit(struct pccard_devinfo *devi)
 	/* Make sure it isn't already probed. */
 	if (com_addr(devi->isahd.id_unit))
 		return(EBUSY);
-
-	/* It's already probed as serial by Upper */
-	devi->isahd.id_flags |= COM_C_NOPROBE; 
-
 	/*
 	 * Probe the device. If a value is returned, the
 	 * device was found at the location.
@@ -524,11 +510,6 @@ sioprobe(dev)
 		already_init = TRUE;
 	}
 
-	if (COM_LLCONSOLE(dev)) {
-		printf("sio%d: reserved for low-level i/o\n", dev->id_unit);
-		return (0);
-	}
-
 	/*
 	 * If the device is on a multiport card and has an AST/4
 	 * compatible interrupt control register, initialize this
@@ -580,15 +561,11 @@ sioprobe(dev)
 	 * XXX what about the UART bug avoided by waiting in comparam()?
 	 * We don't want to to wait long enough to drain at 2 bps.
 	 */
-	if (iobase == siocniobase)
-		DELAY((16 + 1) * 1000000 / (comdefaultrate / 10));
-	else {
-		outb(iobase + com_cfcr, CFCR_DLAB | CFCR_8BITS);
-		outb(iobase + com_dlbl, COMBRD(9600) & 0xff);
-		outb(iobase + com_dlbh, (u_int) COMBRD(9600) >> 8);
-		outb(iobase + com_cfcr, CFCR_8BITS);
-		DELAY((16 + 1) * 1000000 / (9600 / 10));
-	}
+	outb(iobase + com_cfcr, CFCR_DLAB | CFCR_8BITS);
+	outb(iobase + com_dlbl, COMBRD(9600) & 0xff);
+	outb(iobase + com_dlbh, (u_int) COMBRD(9600) >> 8);
+	outb(iobase + com_cfcr, CFCR_8BITS);
+	DELAY((16 + 1) * 1000000 / (9600 / 10));
 
 	/*
 	 * Enable the interrupt gate and disable device interupts.  This
@@ -635,37 +612,6 @@ sioprobe(dev)
 /* EXTRA DELAY? */
 	outb(iobase + com_mcr, mcr_image);
 
-    /*
-	 * It's a definitly Serial PCMCIA(16550A), but still be required
-	 * for IIR_TXRDY implementation ( Palido 321s, DC-1S... )
-	 */
-	if ( COM_NOPROBE(dev) ) {
-		/* Reading IIR register twice */
-		for ( fn = 0; fn < 2; fn ++ ) {
-			DELAY(10000);
-			failures[6] = inb(iobase + com_iir);
-		}
-		/* Check IIR_TXRDY clear ? */
-		result = IO_COMSIZE;
-		if ( failures[6] & IIR_TXRDY ) {
-			/* Nop, Double check with clearing IER */
-			outb(iobase + com_ier, 0);
-			if ( inb(iobase + com_iir) & IIR_NOPEND ) {
-				/* Ok. we're familia this gang */
-				dev->id_flags |= COM_C_IIR_TXRDYBUG; /* Set IIR_TXRDYBUG */
-			} else {
-				/* Unknow, Just omit this chip.. XXX*/
-				result = 0;
-			}
-		} else {
-			/* OK. this is well-known guys */
-			dev->id_flags &= ~COM_C_IIR_TXRDYBUG; /*Clear IIR_TXRDYBUG*/
-		}
-		outb(iobase + com_cfcr, CFCR_8BITS);
-		enable_intr();
-		return( result );
-	}
-
 	/*
 	 * Check that
 	 *	o the CFCR, IER and MCR in UART hold the values written to them
@@ -679,7 +625,7 @@ sioprobe(dev)
 	failures[1] = inb(iobase + com_ier) - IER_ETXRDY;
 	failures[2] = inb(iobase + com_mcr) - mcr_image;
 	DELAY(10000);		/* Some internal modems need this time */
-	if (idev->id_irq != 0 && !COM_NOTST3(idev))
+	if (idev->id_irq != 0)
 		failures[3] = isa_irq_pending(idev) ? 0 : 1;
 	failures[4] = (inb(iobase + com_iir) & IIR_IMASK) - IIR_TXRDY;
 	DELAY(1000);		/* XXX */
@@ -836,7 +782,6 @@ sioattach(isdp)
 	com->mcr_image = inb(com->modem_ctl_port);
 	com->line_status_port = iobase + com_lsr;
 	com->modem_status_port = iobase + com_msr;
-	com->intr_ctl_port = iobase + com_ier;
 
 	/*
 	 * We don't use all the flags from <sys/ttydefaults.h> since they
@@ -854,8 +799,6 @@ sioattach(isdp)
 		com->it_in.c_cflag = TTYDEF_CFLAG | CLOCAL;
 		com->it_in.c_lflag = TTYDEF_LFLAG;
 		com->lt_out.c_cflag = com->lt_in.c_cflag = CLOCAL;
-		com->lt_out.c_ispeed = com->lt_out.c_ospeed =
-		com->lt_in.c_ispeed = com->lt_in.c_ospeed =
 		com->it_in.c_ispeed = com->it_in.c_ospeed = comdefaultrate;
 	} else
 		com->it_in.c_ispeed = com->it_in.c_ospeed = TTYDEF_SPEED;
@@ -873,9 +816,7 @@ sioattach(isdp)
 #endif /* DSI_SOFT_MODEM */
 
 #ifdef COM_MULTIPORT
-	if (!COM_ISMULTIPORT(isdp) && !COM_IIR_TXRDYBUG(isdp))
-#else
-	if (!COM_IIR_TXRDYBUG(isdp))
+	if (!COM_ISMULTIPORT(isdp))
 #endif
 	{
 		u_char	scr;
@@ -895,7 +836,6 @@ sioattach(isdp)
 	}
 	outb(iobase + com_fifo, FIFO_ENABLE | FIFO_RX_HIGH);
 	DELAY(100);
-	com->st16650a = 0;
 	switch (inb(com->int_id_port) & IIR_FIFO_MASK) {
 	case FIFO_RX_LOW:
 		printf(" 16450");
@@ -907,37 +847,47 @@ sioattach(isdp)
 		printf(" 16550?");
 		break;
 	case FIFO_RX_HIGH:
+		printf(" 16550A");
 		if (COM_NOFIFO(isdp)) {
-			printf(" 16550A fifo disabled");
+			printf(" fifo disabled");
 		} else {
 			com->hasfifo = TRUE;
-			if (COM_ST16650A(isdp)) {
-				com->st16650a = 1;
-				com->tx_fifo_size = 32;
-				printf(" ST16650A");
-			} else {
-				com->tx_fifo_size = COM_FIFOSIZE(isdp);
-				printf(" 16550A");
-			}
-		}
+			com->tx_fifo_size = 16;
 #ifdef COM_ESP
-		for (espp = likely_esp_ports; *espp != 0; espp++)
-			if (espattach(isdp, com, *espp)) {
-				com->tx_fifo_size = 1024;
-				break;
-			}
+			for (espp = likely_esp_ports; *espp != 0; espp++)
+				if (espattach(isdp, com, *espp)) {
+					com->tx_fifo_size = 1024;
+					break;
+				}
 #endif
-		if (!com->st16650a) {
-			if (!com->tx_fifo_size)
-				com->tx_fifo_size = 16;
-			else
-				printf(" lookalike with %d bytes FIFO",
-				    com->tx_fifo_size);
 		}
+#if 0
+		/*
+		 * Check for the Startech ST16C650 chip.
+		 * it has a shadow register under the com_iir,
+		 * which can only be accessed when cfcr == 0xff
+		 */
+		{
+		u_char i, j;
 
+		i = inb(iobase + com_iir);
+		outb(iobase + com_cfcr, 0xff);
+		outb(iobase + com_iir, 0x0);
+		outb(iobase + com_cfcr, CFCR_8BITS);
+		j = inb(iobase + com_iir);
+		outb(iobase + com_iir, i);
+		if (i != j) {
+			printf(" 16550A");
+		} else {
+			com->tx_fifo_size = 32;
+			printf(" 16650");
+		}
+		if (!com->tx_fifo_size)
+			printf(" fifo disabled");
+		}
+#endif
 		break;
 	}
-	
 #ifdef COM_ESP
 	if (com->esp) {
 		/*
@@ -977,10 +927,6 @@ determined_type: ;
 					  COM_MPMASTER(isdp))->id_irq == 0;
 	 }
 #endif /* COM_MULTIPORT */
-	if (unit == comconsole)
-		printf(", console");
-	if ( COM_IIR_TXRDYBUG(isdp) )
-		printf(" with a bogus IIR_TXRDY register");
 	printf("\n");
 
 	s = spltty();
@@ -1009,7 +955,6 @@ determined_type: ;
 		unit | CALLOUT_MASK | CONTROL_LOCK_STATE, DV_CHR,
 		UID_UUCP, GID_DIALER, 0660, "cuala%n", unit);
 #endif
-	com->id_flags = isdp->id_flags; /* Heritate id_flags for later */
 	return (1);
 }
 
@@ -1149,13 +1094,8 @@ open_top:
 		(void) inb(com->data_port);
 		com->prev_modem_status = com->last_modem_status
 		    = inb(com->modem_status_port);
-		if (COM_IIR_TXRDYBUG(com)) {
-			outb(com->intr_ctl_port, IER_ERXRDY | IER_ERLS
-						| IER_EMSC);
-		} else {
-			outb(com->intr_ctl_port, IER_ERXRDY | IER_ETXRDY
-						| IER_ERLS | IER_EMSC);
-		}
+		outb(iobase + com_ier, IER_ERXRDY | IER_ETXRDY | IER_ERLS
+				       | IER_EMSC);
 		enable_intr();
 		/*
 		 * Handle initial DCD.  Callout devices get a fake initial
@@ -1420,14 +1360,8 @@ siointr1(com)
 	u_char	modem_status;
 	u_char	*ioptr;
 	u_char	recv_data;
-	u_char	int_ident;
-	u_char	int_ctl;
-	u_char	int_ctl_new;
 
-	int_ctl = inb(com->intr_ctl_port);
-	int_ctl_new = int_ctl;
-
-	while (!com->gone) {
+	while (TRUE) {
 		line_status = inb(com->line_status_port);
 
 		/* input event? (check first to help avoid overruns) */
@@ -1552,9 +1486,6 @@ cont:
 				++com->bytes_out;
 			}
 			com->obufq.l_head = ioptr;
-			if (COM_IIR_TXRDYBUG(com)) {
-				int_ctl_new = int_ctl | IER_ETXRDY;
-			}
 			if (ioptr >= com->obufq.l_tail) {
 				struct lbq	*qp;
 
@@ -1567,9 +1498,6 @@ cont:
 					com->obufq.l_next = qp;
 				} else {
 					/* output just completed */
-					if ( COM_IIR_TXRDYBUG(com) ) {
-						int_ctl_new = int_ctl & ~IER_ETXRDY;
-					}
 					com->state &= ~CS_BUSY;
 				}
 				if (!(com->state & CS_ODONE)) {
@@ -1577,9 +1505,6 @@ cont:
 					com->state |= CS_ODONE;
 					setsofttty();	/* handle at high level ASAP */
 				}
-			}
-			if ( COM_IIR_TXRDYBUG(com) && (int_ctl != int_ctl_new)) {
-				outb(com->intr_ctl_port, int_ctl_new);
 			}
 		}
 
@@ -2076,18 +2001,10 @@ retry:
 		if (inb(iobase + com_dlbh) != dlbh)
 			outb(iobase + com_dlbh, dlbh);
 	}
-
-
 	outb(iobase + com_cfcr, com->cfcr_image = cfcr);
-
 	if (!(tp->t_state & TS_TTSTOP))
 		com->state |= CS_TTGO;
-
 	if (cflag & CRTS_IFLOW) {
-		if (com->st16650a) {
-			outb(iobase + com_cfcr, 0xbf);
-			outb(iobase + com_fifo, inb(iobase + com_fifo) | 0x40);
-		}
 		com->state |= CS_RTS_IFLOW;
 		/*
 		 * If CS_RTS_IFLOW just changed from off to on, the change
@@ -2102,12 +2019,7 @@ retry:
 		 * on here, since comstart() won't do it later.
 		 */
 		outb(com->modem_ctl_port, com->mcr_image |= MCR_RTS);
-		if (com->st16650a) {
-			outb(iobase + com_cfcr, 0xbf);
-			outb(iobase + com_fifo, inb(iobase + com_fifo) & ~0x40);
-		}
 	}
-
 
 	/*
 	 * Set up state to handle output flow control.
@@ -2120,21 +2032,7 @@ retry:
 		com->state |= CS_CTS_OFLOW;
 		if (!(com->last_modem_status & MSR_CTS))
 			com->state &= ~CS_ODEVREADY;
-		if (com->st16650a) {
-			outb(iobase + com_cfcr, 0xbf);
-			outb(iobase + com_fifo, inb(iobase + com_fifo) | 0x80);
-		}
-	} else {
-		if (com->st16650a) {
-			outb(iobase + com_cfcr, 0xbf);
-			outb(iobase + com_fifo, inb(iobase + com_fifo) & ~0x80);
-		}
 	}
-
-
-	outb(iobase + com_cfcr, com->cfcr_image);
-
-
 	/* XXX shouldn't call functions while intrs are disabled. */
 	disc_optim(tp, t, com);
 	/*
@@ -2177,7 +2075,6 @@ comstart(tp)
 	}
 	enable_intr();
 	if (tp->t_state & (TS_TIMEOUT | TS_TTSTOP)) {
-		ttwwakeup(tp);
 		splx(s);
 		return;
 	}
@@ -2247,6 +2144,7 @@ siostop(tp, rw)
 		return;
 	disable_intr();
 	if (rw & FWRITE) {
+#ifdef COM_ESP_BUG_FIXED
 		if (com->hasfifo)
 #ifdef COM_ESP
 		    /* XXX avoid h/w bug. */
@@ -2255,6 +2153,7 @@ siostop(tp, rw)
 			/* XXX does this flush everything? */
 			outb(com->iobase + com_fifo,
 			     FIFO_XMT_RST | com->fifo_image);
+#endif
 		com->obufs[0].l_queued = FALSE;
 		com->obufs[1].l_queued = FALSE;
 		if (com->state & CS_ODONE)
@@ -2263,6 +2162,7 @@ siostop(tp, rw)
 		com->tp->t_state &= ~TS_BUSY;
 	}
 	if (rw & FREAD) {
+#ifdef COM_ESP_BUG_FIXED
 		if (com->hasfifo)
 #ifdef COM_ESP
 		    /* XXX avoid h/w bug. */
@@ -2271,6 +2171,7 @@ siostop(tp, rw)
 			/* XXX does this flush everything? */
 			outb(com->iobase + com_fifo,
 			     FIFO_RCV_RST | com->fifo_image);
+#endif
 		com_events -= (com->iptr - com->ibuf);
 		com->iptr = com->ibuf;
 	}
@@ -2457,10 +2358,10 @@ disc_optim(tp, t, com)
 		tp->t_state |= TS_CAN_BYPASS_L_RINT;
 	else
 		tp->t_state &= ~TS_CAN_BYPASS_L_RINT;
-	/*                      
+	/*
 	 * Prepare to reduce input latency for packet
 	 * discplines with a end of packet character.
-	 */     
+	 */
 	if (tp->t_line == SLIPDISC)
 		com->hotchar = 0xc0;
 	else if (tp->t_line == PPPDISC)
@@ -2482,7 +2383,8 @@ struct siocnstate {
 	u_char	mcr;
 };
 
-static speed_t siocngetspeed __P((Port_t, struct speedtab *));
+static	Port_t	siocniobase;
+
 static void siocnclose	__P((struct siocnstate *sp));
 static void siocnopen	__P((struct siocnstate *sp));
 static void siocntxwait	__P((void));
@@ -2501,42 +2403,6 @@ siocntxwait()
 	while ((inb(siocniobase + com_lsr) & (LSR_TSRE | LSR_TXRDY))
 	       != (LSR_TSRE | LSR_TXRDY) && --timo != 0)
 		;
-}
-
-/*
- * Read the serial port specified and try to figure out what speed
- * it's currently running at.  We're assuming the serial port has
- * been initialized and is basicly idle.  This routine is only intended
- * to be run at system startup.
- *
- * If the value read from the serial port doesn't make sense, return 0.
- */
-
-static speed_t
-siocngetspeed(iobase, table)
-	Port_t iobase;
-	struct speedtab *table;
-{
-	int	code;
-	u_char	dlbh;
-	u_char	dlbl;
-	u_char  cfcr;
-
-	cfcr = inb(iobase + com_cfcr);
-	outb(iobase + com_cfcr, CFCR_DLAB | cfcr);
-
-	dlbl = inb(iobase + com_dlbl);
-	dlbh = inb(iobase + com_dlbh);
-
-	outb(iobase + com_cfcr, cfcr);
-
-	code = dlbh << 8 | dlbl;
-
-	for ( ; table->sp_speed != -1; table++)
-		if (table->sp_code == code)
-			return (table->sp_speed);
-
-	return 0;	/* didn't match anything sane */
 }
 
 static void
@@ -2612,66 +2478,21 @@ void
 siocnprobe(cp)
 	struct consdev	*cp;
 {
-	speed_t			boot_speed;
-	u_char			cfcr;
-	struct isa_device	*dvp;
-	int			s;
-	struct siocnstate	sp;
+	int	unit;
 
-	/*
-	 * Find our first enabled console, if any.  If it is a high-level
-	 * console device, then initialize it and return successfully.
-	 * If it is a low-level console device, then initialize it and
-	 * return unsuccessfully.  It must be initialized in both cases
-	 * for early use by console drivers and debuggers.  Initializing
-	 * the hardware is not necessary in all cases, since the i/o
-	 * routines initialize it on the fly, but it is necessary if
-	 * input might arrive while the hardware is switched back to an
-	 * uninitialized state.  We can't handle multiple console devices
-	 * yet because our low-level routines don't take a device arg.
-	 * We trust the user to set the console flags properly so that we
-	 * don't need to probe.
-	 */
-	cp->cn_pri = CN_DEAD;
-	for (dvp = isa_devtab_tty; dvp->id_driver != NULL; dvp++)
-		if (dvp->id_driver == &siodriver && dvp->id_enabled
-		    && COM_CONSOLE(dvp)) {
-			siocniobase = dvp->id_iobase;
-			s = spltty();
-			if (boothowto & RB_SERIAL) {
-				boot_speed = siocngetspeed(siocniobase,
-							   comspeedtab);
-				if (boot_speed)
-					comdefaultrate = boot_speed;
-			}
+	/* XXX: ick */
+	unit = DEV_TO_UNIT(CONUNIT);
+	siocniobase = CONADDR;
 
-			/*
-			 * Initialize the divisor latch.  We can't rely on
-			 * siocnopen() to do this the first time, since it 
-			 * avoids writing to the latch if the latch appears
-			 * to have the correct value.  Also, if we didn't
-			 * just read the speed from the hardware, then we
-			 * need to set the speed in hardware so that
-			 * switching it later is null.
-			 */
-			cfcr = inb(siocniobase + com_cfcr);
-			outb(siocniobase + com_cfcr, CFCR_DLAB | cfcr);
-			outb(siocniobase + com_dlbl,
-			     COMBRD(comdefaultrate) & 0xff);
-			outb(siocniobase + com_dlbh,
-			     (u_int) COMBRD(comdefaultrate) >> 8);
-			outb(siocniobase + com_cfcr, cfcr);
+	/* make sure hardware exists?  XXX */
 
-			siocnopen(&sp);
-			splx(s);
-			if (!COM_LLCONSOLE(dvp)) {
-				cp->cn_dev = makedev(CDEV_MAJOR, dvp->id_unit);
-				cp->cn_pri = COM_FORCECONSOLE(dvp)
-					     || boothowto & RB_SERIAL
-					     ? CN_REMOTE : CN_NORMAL;
-			}
-			break;
-		}
+	/* initialize required fields */
+	cp->cn_dev = makedev(CDEV_MAJOR, unit);
+#ifdef COMCONSOLE
+	cp->cn_pri = CN_REMOTE;		/* Force a serial port console */
+#else
+	cp->cn_pri = (boothowto & RB_SERIAL) ? CN_REMOTE : CN_NORMAL;
+#endif
 }
 
 void
