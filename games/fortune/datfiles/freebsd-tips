@@ -98,7 +98,7 @@ You can use the 'fetch' command to retrieve files over ftp or http.
 will download the front page of the FreeBSD web site.
 %
 In order to make fetch (the FreeBSD downloading tool) ask for
-username/password when it encounter a password-protected web page, you can set
+username/password when it encounters a password-protected web page, you can set
 the environment variable HTTP_AUTH to 'basic:*'.
 %
 You can permanently set environment variables for your shell by putting them
