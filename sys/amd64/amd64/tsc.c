@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id$
+ *	$Id: clock.c,v 1.2 1993/10/16 13:45:44 rgrimes Exp $
  */
 
 /*
@@ -49,9 +49,6 @@
 #include "i386/isa/isa.h"
 #include "i386/isa/rtc.h"
 #include "i386/isa/timerreg.h"
-
-#define DAYST 119
-#define DAYEN 303
 
 /* X-tals being what they are, it's nice to be able to fudge this one... */
 /* Note, the name changed here from XTALSPEED to TIMER_FREQ rgrimes 4/26/93 */
@@ -186,13 +183,6 @@ inittodr(base)
 	sec += bcd(rtcin(RTC_MIN)) * 60;			/* minutes */
 	sec += bcd(rtcin(RTC_SEC));				/* seconds */
 
-	/* XXX off by one? Need to calculate DST on SUNDAY */
-	/* Perhaps we should have the RTC hold GMT time to save */
-	/* us the bother of converting. */
-	yd = yd / (24*60*60);
-	if ((yd >= DAYST) && ( yd <= DAYEN)) {
-		sec -= 60*60;
-	}
 	sec += tz.tz_minuteswest * 60;
 
 	time.tv_sec = sec;
