@@ -204,7 +204,7 @@ static const char *ia64_vector_names[] = {
 };
 
 static void
-printtrap(int vector, struct trapframe *framep, int isfatal, int user)
+printtrap(int vector, int imm, struct trapframe *framep, int isfatal, int user)
 {
 	printf("\n");
 	printf("%s %s trap:\n", isfatal? "fatal" : "handled",
@@ -212,10 +212,11 @@ printtrap(int vector, struct trapframe *framep, int isfatal, int user)
 	printf("\n");
 	printf("    trap vector = 0x%x (%s)\n",
 	       vector, ia64_vector_names[vector]);
-	printf("    iip         = 0x%lx\n", framep->tf_cr_iip);
-	printf("    ipsr        = 0x%lx\n", framep->tf_cr_ipsr);
-	printf("    isr         = 0x%lx\n", framep->tf_cr_isr);
-	printf("    ifa         = 0x%lx\n", framep->tf_cr_ifa);
+	printf("    cr.iip      = 0x%lx\n", framep->tf_cr_iip);
+	printf("    cr.ipsr     = 0x%lx\n", framep->tf_cr_ipsr);
+	printf("    cr.isr      = 0x%lx\n", framep->tf_cr_isr);
+	printf("    cr.ifa      = 0x%lx\n", framep->tf_cr_ifa);
+	printf("    cr.iim      = 0x%x\n", imm);
 	printf("    curproc     = %p\n", curproc);
 	if (curproc != NULL)
 		printf("        pid = %d, comm = %s\n", curproc->p_pid,
@@ -231,10 +232,10 @@ printtrap(int vector, struct trapframe *framep, int isfatal, int user)
  */
 /*ARGSUSED*/
 void
-trap(int vector, struct trapframe *framep)
+trap(int vector, int imm, struct trapframe *framep)
 {
-	register struct proc *p;
-	register int i;
+	struct proc *p;
+	int i;
 	u_int64_t ucode;
 	u_quad_t sticks;
 	int user;
@@ -298,12 +299,7 @@ trap(int vector, struct trapframe *framep)
 		goto dopanic;
 
 	case IA64_VEC_BREAK:
-		/*
-		 * This should never happen. Breaks enter the kernel
-		 * via break().
-		 */
 		goto dopanic;
-
 
 	case IA64_VEC_DISABLED_FP:
 		/*
@@ -456,7 +452,7 @@ trap(int vector, struct trapframe *framep)
 		ucode = va;
 		i = SIGSEGV;
 #ifdef DEBUG
-		printtrap(vector, framep, 1, user);
+		printtrap(vector, imm, framep, 1, user);
 #endif
 		break;
 	}
@@ -466,7 +462,7 @@ trap(int vector, struct trapframe *framep)
 	}
 
 #ifdef DEBUG
-	printtrap(vector, framep, 1, user);
+	printtrap(vector, imm, framep, 1, user);
 #endif
 	trapsignal(p, i, ucode);
 out:
@@ -477,7 +473,7 @@ out:
 	return;
 
 dopanic:
-	printtrap(vector, framep, 1, user);
+	printtrap(vector, imm, framep, 1, user);
 
 	/* XXX dump registers */
 
@@ -492,46 +488,47 @@ dopanic:
  * Process a system call.
  *
  * System calls are strange beasts.  They are passed the syscall number
- * in v0, and the arguments in the registers (as normal).  They return
- * an error flag in a3 (if a3 != 0 on return, the syscall had an error),
- * and the return value (if any) in v0.
+ * in r15, and the arguments in the registers (as normal).  They return
+ * an error flag in r10 (if r10 != 0 on return, the syscall had an error),
+ * and the return value (if any) in r8 and r9.
  *
  * The assembly stub takes care of moving the call number into a register
- * we can get to, and moves all of the argument registers into their places
- * in the trap frame.  On return, it restores the callee-saved registers,
- * a3, and v0 from the frame before returning to the user process.
+ * we can get to, and moves all of the argument registers into a stack 
+ * buffer.  On return, it restores r8-r10 from the frame before
+ * returning to the user process. 
  */
 void
-syscall(code, framep)
-	u_int64_t code;
-	struct trapframe *framep;
+syscall(int code, u_int64_t *args, struct trapframe *framep)
 {
 	struct sysent *callp;
 	struct proc *p;
 	int error = 0;
-	u_int64_t opc;
+	u_int64_t oldip, oldri;
 	u_quad_t sticks;
-	u_int64_t args[10];					/* XXX */
-	u_int hidden = 0, nargs;
 
 	mtx_enter(&Giant, MTX_DEF);
-
-#if notdef				/* can't happen, ever. */
-	if ((framep->tf_cr_ipsr & IA64_PSR_CPL) == IA64_PSR_CPL_KERN)
-		panic("syscall");
-#endif
 
 	cnt.v_syscall++;
 	p = curproc;
 	p->p_md.md_tf = framep;
-	opc = framep->tf_cr_iip;
 	sticks = p->p_sticks;
 
+	/*
+	 * Skip past the break instruction. Remember old address in case
+	 * we have to restart.
+	 */
+	oldip = framep->tf_cr_iip;
+	oldri = framep->tf_cr_ipsr & IA64_PSR_RI;
+	framep->tf_cr_ipsr += IA64_PSR_RI_1;
+	if ((framep->tf_cr_ipsr & IA64_PSR_RI) > IA64_PSR_RI_2) {
+		framep->tf_cr_ipsr &= ~IA64_PSR_RI;
+		framep->tf_cr_iip += 16;
+	}
+			   
 #ifdef DIAGNOSTIC
 	ia64_fpstate_check(p);
 #endif
 
-#if 0
 	if (p->p_sysent->sv_prepsyscall) {
 		/* (*p->p_sysent->sv_prepsyscall)(framep, args, &code, &params); */
 		panic("prepsyscall");
@@ -544,8 +541,8 @@ syscall(code, framep)
 			/*
 			 * Code is first argument, followed by actual args.
 			 */
-			code = framep->tf_regs[FRAME_A0];
-			hidden = 1;
+			code = args[0];
+			args++;
 		}
 	}
 
@@ -557,33 +554,9 @@ syscall(code, framep)
   	else
  		callp = &p->p_sysent->sv_table[code];
 
-	nargs = (callp->sy_narg & SYF_ARGMASK) + hidden;
-	switch (nargs) {
-	default:
-		if (nargs > 10)		/* XXX */
-			panic("syscall: too many args (%d)", nargs);
-		error = copyin((caddr_t)(alpha_pal_rdusp()), &args[6],
-		    (nargs - 6) * sizeof(u_int64_t));
-	case 6:	
-		args[5] = framep->tf_regs[FRAME_A5];
-	case 5:	
-		args[4] = framep->tf_regs[FRAME_A4];
-	case 4:	
-		args[3] = framep->tf_regs[FRAME_A3];
-	case 3:	
-		args[2] = framep->tf_regs[FRAME_A2];
-	case 2:	
-		args[1] = framep->tf_regs[FRAME_A1];
-	case 1:	
-		args[0] = framep->tf_regs[FRAME_A0];
-	case 0:
-		break;
-	}
-#endif
-
 #ifdef KTRACE
 	if (KTRPOINT(p, KTR_SYSCALL))
-		ktrsyscall(p->p_tracep, code, (callp->sy_narg & SYF_ARGMASK), args + hidden);
+		ktrsyscall(p->p_tracep, code, (callp->sy_narg & SYF_ARGMASK), args);
 #endif
 	if (error == 0) {
 		p->p_retval[0] = 0;
@@ -591,7 +564,7 @@ syscall(code, framep)
 
 		STOPEVENT(p, S_SCE, (callp->sy_narg & SYF_ARGMASK));
 
-		error = (*callp->sy_call)(p, args + hidden);
+		error = (*callp->sy_call)(p, args);
 	}
 
 
@@ -602,7 +575,9 @@ syscall(code, framep)
 		framep->tf_r[FRAME_R10] = 0;
 		break;
 	case ERESTART:
-		framep->tf_cr_iip = opc;
+		framep->tf_cr_iip = oldip;
+		framep->tf_cr_ipsr =
+			(framep->tf_cr_ipsr & ~IA64_PSR_RI) | oldri;
 		break;
 	case EJUSTRETURN:
 		break;

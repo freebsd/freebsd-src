@@ -53,13 +53,13 @@
 	mov	b0=r17;				\
 	br.sptk.few exception_save;		\
 2: (p3)	ssm	psr.i;				\
-	alloc	r14=ar.pfs,0,0,2,0;		\
-	movl	r15=exception_restore;		\
+	alloc	r15=ar.pfs,0,0,3,0;		\
 	mov	out0=_n_;			\
-	mov	out1=sp;;			\
+	mov	out1=r14;			\
+	mov	out2=sp;;			\
 	add	sp=-16,sp;;			\
-	mov	rp=r15;				\
-	br.call.sptk.few b6=trap
+	br.call.sptk.few rp=trap;		\
+3:	br.sptk.many exception_restore
 	
 /*
  * The IA64 Interrupt Vector Table (IVT) contains 20 slots with 64
@@ -507,7 +507,24 @@ ia64_vector_table:
 
 /* 0x2c00:	Break Instruction vector */
 
+	mov	r16=pr			// save pr for a moment
+	mov	r17=cr.iim;;		// read break value
+	mov	r18=0x100000;;		// syscall number
+	cmp.eq	p1,p2=r18,r17;;		// check for syscall
+(p2)	br.dpnt.few 9f
+
+	mov	r17=cr.ipsr;;		// check for user mode
+	extr.u	r17=r17,32,2;;
+	cmp.eq	p1,p2=r0,r17
+(p1)	br.dpnt.few 9f			// trap if kernel mode
+
+	br.sptk.many	do_syscall
+	;;
+	
+9:	mov	pr=r16,0x1ffff		// restore pr
+
 	TRAP(11)
+	
 	.align	1024
 		
 /* 0x3000:	External Interrupt vector */
@@ -841,7 +858,7 @@ ia64_vhpt:	.quad 0
 #define rR2	r23
 #define rBSPSTORE r22
 #define rRNAT	r21
-#define rBSP	r27		/* overlay rPR */
+#define rNDIRTY	r27		/* overlay rPR */
 #define rRSC	r20
 #define rPFS	r19
 #define rB0	r31		/* overlay rIIP */
@@ -962,12 +979,12 @@ ENTRY(exception_restore, 0)
 	;;
 	mov	b0=r16
 	mov	ar.fpsr=r17
-	ld8	r18=[r1],-16		// r1=&tf_ar_bsp
+	ld8	r18=[r1],-16		// r1=&tf_ndirty
 	ld8	r19=[r2],-16		// r2=&tf_ar_rnat
 	;;
 	mov	ar.ccv=r18
 	mov	ar.unat=r19
-	ld8	rBSP=[r1],-16		// r1=&tf_ar_bspstore
+	ld8	rNDIRTY=[r1],-16	// r1=&tf_ar_bspstore
 	ld8	rRNAT=[r2],-16		// r2=&tf_cr_ifs
 	;;
 	ld8	rBSPSTORE=[r1],-16	// r1=&tf_cr_pfs
@@ -977,9 +994,7 @@ ENTRY(exception_restore, 0)
 	;;
 	alloc	r16=ar.pfs,0,0,0,0	// discard current frame
 	;;
-	sub	r16=rBSP,rBSPSTORE	// how many bytes to load?
-	;;
-	shl	r16=r16,16		// value for ar.rsc
+	shl	r16=rNDIRTY,16		// value for ar.rsc
 	;;
 	mov	ar.rsc=r16		// setup for loadrs
 	;;
@@ -1012,7 +1027,7 @@ ENTRY(exception_restore, 0)
 	;;
 	rfi
 
-	END(exception_restore)
+END(exception_restore)
 	
 
 /*
@@ -1023,6 +1038,7 @@ ENTRY(exception_restore, 0)
  *	r16	saved b0
  *
  * Return:
+ *	r14	cr.iim value for break traps
  *	sp	kernel stack pointer
  *	p1	true if user mode
  *	p2	true if kernel mode
@@ -1076,18 +1092,21 @@ ENTRY(exception_save, 0)
 	;; 
 (p2)	mov	r16=ar.k5		// kernel backing store
 	mov	rRNAT=ar.rnat
-	mov	rBSP=ar.bsp
 	;; 
 (p2)	mov	ar.bspstore=r16		// switch bspstore
 	st8	[r2]=rRSC,16		// r2=&tf_cr_ifs
 	;; 
 	st8	[r1]=rPFS,16		// r1=&tf_ar_bspstore
 	st8	[r2]=rIFS,16		// r2=&tf_ar_rnat
+(p2)	mov	r17=ar.bsp
+	;;
+(p2)	sub	r17=r17,r16		// ndirty (in bytes)
+(p1)	mov	r17=r0
 	;; 
-	st8	[r1]=rBSPSTORE,16	// r1=&tf_ar_bsp
+	st8	[r1]=rBSPSTORE,16	// r1=&tf_ndirty
 	st8	[r2]=rRNAT,16		// r2=&tf_ar_unat
 	;; 
-	st8	[r1]=rBSP,16		// r1=&tf_ar_ccv
+	st8	[r1]=r17,16		// r1=&tf_ar_ccv
 	mov	ar.rsc=3		// switch RSE back on
 	mov	r16=ar.unat
 	;; 
@@ -1217,12 +1236,207 @@ ENTRY(exception_save, 0)
 	;; 
 	movl	r1=__gp			// kernel globals
 	mov	r13=ar.k4		// processor globals
+	mov	r14=cr.iim		// break immediate
 	ssm	psr.ic|psr.dt		// enable interrupts & translation
 	;;
 	srlz.d				// serialize
 
 	br.sptk.few b0			// not br.ret - we were not br.call'ed
 
-	END(exception_save)
+END(exception_save)
 	
+/*
+ * System call entry point (via Break Instruction vector).
+ *
+ * Arguments:
+ *	r16	saved predicates
+ */
+ENTRY(do_syscall, 0)
+	rsm	psr.dt			// physical addressing for a moment
+	mov	r17=sp;;		// save user sp
+	srlz.d				// serialize psr.dt
+	mov	sp=ar.k6;;		// switch to kernel sp
+	add	sp=-SIZEOF_TRAPFRAME,sp;; // reserve trapframe
+	dep	r30=0,sp,61,3;;		// physical address
+	add	r31=8,r30;;		// secondary pointer
 
+	// save minimal state for syscall
+	mov	r18=cr.iip
+	mov	r19=cr.ipsr
+	mov	r20=cr.isr
+	;;
+	st8	[r30]=r18,16		// save cr.iip
+	st8	[r31]=r19,16		// save cr.ipsr
+	;;
+	st8	[r30]=r20,16		// save cr.isr
+	add	r31=16,r31		// skip cr.ifa
+	mov	r18=ar.rsc
+	mov	r19=ar.pfs
+	;;
+	st8	[r30]=r16,16		// save pr
+	st8	[r31]=r18,16		// save ar.rsc
+	mov	ar.rsc=0		// turn off rse
+	;;
+	st8	[r30]=r19,16		// save ar.pfs
+	add	r31=16,r31		// skip cr.ifs
+	mov	r20=ar.bspstore
+	mov	r21=ar.rnat
+	mov	r22=ar.k5
+	;;
+	mov	ar.bspstore=r22		// switch to kernel backing store
+	;;
+	mov	r23=ar.bsp		// calculate ndirty
+	;;
+	;;
+	st8	[r30]=r20,16		// save ar.bspstore
+	st8	[r31]=r21,16		// save ar.rnat
+	sub	r16=r23,r22		// bytes of dirty regs
+	mov	r18=ar.unat
+	;;
+	st8	[r30]=r16,16		// save ndirty
+	st8	[r31]=r18,16		// save ar.unat
+	mov	r20=ar.ccv
+	mov	r21=ar.fpsr
+	;;
+	st8	[r30]=r20,16		// save ar.ccv
+	st8	[r31]=r21,16		// save ar.fpsr
+	mov	r16=b0
+	;;
+	st8	[r30]=r16,TF_R-TF_B+FRAME_SP*8 // save b0, r1=&tf_r[FRAME_SP]
+	;;
+	st8	[r30]=r17		// save user sp
+	;;
+	bsw.1				// switch back to bank 1
+	;;
+	mov	r18=sp			// trapframe pointer
+	;;
+	add	sp=-(8*8),sp		// reserve stack for arguments
+	;;
+	br.call.sptk.few b0=Lsaveargs	// dump args
+	;;
+	mov	r31=sp			// point at args
+	mov	r20=ar.bsp		// record bsp before the cover
+	;;
+	cover				// preserve arguments
+	;;
+	mov	r22=cr.ifs		// record user's CFM
+	add	r23=TF_CR_IFS,r18
+	;;
+	ssm	psr.dt|psr.ic|psr.i	// safe to take interrupts again
+	;;
+	srlz.d				// serialize psr.dt and psr.ic
+	;;
+	st8	[r23]=r22		// save cr.ifs
+	;;
+	mov	r21=ar.bsp		// r21-r20 = size of user reg frame
+	add	r22=TF_NDIRTY,r18
+	;;
+	sub	r20=r21,r20
+	ld8	r23=[r22]
+	;;
+	add	r23=r23,r20		// adjust ndirty
+	;;
+	st8	[r22]=r23
+	;;
+	add	sp=-16,sp		// reserve scratch space
+	alloc	r14=ar.pfs,0,3,3,0
+	mov	r13=ar.k4		// processor globals
+	;;
+	mov	loc0=r15		// save in case of restarts
+	mov	loc1=r18		// save so we can restore
+	mov	loc2=gp			// save user gp
+	mov	out0=r15		// syscall number (from user)
+	mov	out1=r31		// arguments
+	mov	out2=r18		// trapframe pointer
+	;;
+	movl	gp=__gp			// kernel globals
+	;;
+	br.call.sptk.many rp=syscall	// do the work
+
+	rsm 	psr.dt|psr.ic		// get ready to restore
+	;;
+	srlz.d				// serialise psr.dt and psr.ic
+	dep	r30=0,loc1,61,3		// physical address
+	mov	gp=loc2			// restore user gp
+	;;
+	add	r30=TF_R+FRAME_SP*8,r30	// &tf_r[FRAME_SP]
+	mov	r15=loc0		// saved syscall number
+	alloc	r14=ar.pfs,0,0,0,0	// discard register frame
+	;;
+	ld8	sp=[r30],-16		// restore user sp
+	;;
+	ld8	r10=[r30],-8		// ret2
+	;;
+	ld8	r9=[r30],-8		// ret1
+	;;
+	ld8	r8=[r30],-(TF_R+7*8-TF_B) // ret0
+	;;
+	ld8	r16=[r30],-16		// restore b0
+	;;	
+	mov	b0=r16
+	add	r31=8,r30		// secondary pointer, &tf_fpsr
+	;;
+	ld8	r16=[r31],-16		// restore ar.fpsr
+	ld8	r17=[r30],-16		// restore ar.ccv
+	;;
+	ld8	r18=[r31],-16		// restore ar.unat
+	ld8	r19=[r30],-16		// restore ndirty
+	mov	ar.fpsr=r16
+	mov	ar.ccv=r17
+	;;
+	ld8	r16=[r31],-16		// restore ar.rnat
+	ld8	r17=[r30],-16		// restore ar.bspstore
+	mov	ar.unat=r18
+	;;
+	shl	r19=r19,16		// value for ar.rsc
+	;;
+	mov	ar.rsc=r19		// setup for loadrs
+	;;
+	loadrs				// restore user registers
+	;;
+	mov	ar.bspstore=r17
+	;;
+	mov	ar.rnat=r16
+	ld8	r18=[r31],-16		// restore cr.ifs
+	ld8	r19=[r30],-16		// restore ar.pfs
+	;;
+	ld8	r16=[r31],-32		// restore ar.rsc
+	ld8	r17=[r30],-32		// restore pr
+	mov	cr.ifs=r18
+	mov	ar.pfs=r19
+	;;
+	ld8	r18=[r31],-16		// restore cr.ipsr
+	ld8	r19=[r30],-16		// restore cr.iip
+	mov	ar.rsc=r16
+	mov	pr=r16,0x1ffff
+	;;
+	mov	cr.ipsr=r18
+	mov	cr.iip=r19
+	;;
+	rfi
+
+	// This is done as a function call to make sure that we only
+	// have output registers in the register frame. It also gives
+	// us a chance to use alloc to round up to 8 arguments for
+	// simplicity.
+	//
+	// We are still running in physical mode with psr.ic==0 because
+	// we haven't yet covered the user's register frame to get a
+	// value for cr.ifs
+Lsaveargs:
+	alloc	r14=ar.pfs,0,0,8,0	// round up to 8 outputs
+	;;
+	extr.u	r31=sp,0,61		// physical address
+	;;
+	st8	[r31]=r32,8
+	st8	[r31]=r33,8
+	st8	[r31]=r34,8
+	st8	[r31]=r35,8
+	st8	[r31]=r36,8
+	st8	[r31]=r37,8
+	st8	[r31]=r38,8
+	st8	[r31]=r39
+	;;
+	br.ret.sptk.many b0
+
+END(do_syscall)
