@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.48 1995/04/17 10:00:55 davidg Exp $
+ * $Id: vm_pageout.c,v 1.49 1995/05/10 18:56:06 davidg Exp $
  */
 
 /*
@@ -834,7 +834,7 @@ vm_pageout()
 	 */
 	cnt.v_pageout_free_min = 6 + cnt.v_page_count / 1024 +
 				cnt.v_interrupt_free_min;
-	cnt.v_free_reserved = cnt.v_pageout_free_min + 2;
+	cnt.v_free_reserved = cnt.v_pageout_free_min + 6;
 	cnt.v_free_target = 3 * cnt.v_free_min + cnt.v_free_reserved;
 	cnt.v_free_min += cnt.v_free_reserved;
 

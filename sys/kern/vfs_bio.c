@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.43 1995/04/30 05:09:13 davidg Exp $
+ * $Id: vfs_bio.c,v 1.44 1995/05/11 19:26:29 rgrimes Exp $
  */
 
 /*
@@ -59,6 +59,7 @@ struct swqueue bswlist;
 void vm_hold_free_pages(struct buf * bp, vm_offset_t from, vm_offset_t to);
 void vm_hold_load_pages(struct buf * bp, vm_offset_t from, vm_offset_t to);
 void vfs_clean_pages(struct buf * bp);
+static void vfs_setdirty(struct buf *bp);
 
 int needsbuffer;
 
@@ -127,7 +128,10 @@ bufinit()
 		LIST_INSERT_HEAD(&invalhash, bp, b_hash);
 	}
 /*
- * this will change later!!!
+ * maxbufspace is currently calculated to support all filesystem blocks
+ * to be 8K.  If you happen to use a 16K filesystem, the size of the buffer
+ * cache is still the same as it would be for 8K filesystems.  This
+ * keeps the size of the buffer cache "in check" for big block filesystems.
  */
 	minbuf = nbuf / 3;
 	maxbufspace = 2 * (nbuf + 8) * PAGE_SIZE;
@@ -314,9 +318,32 @@ bdwrite(struct buf * bp)
 		bp->b_flags |= B_DONE | B_DELWRI;
 		reassignbuf(bp, bp->b_vp);
 	}
+
+	/*
+	 * This bmap keeps the system from needing to do the bmap later,
+	 * perhaps when the system is attempting to do a sync.  Since it
+	 * is likely that the indirect block -- or whatever other datastructure
+	 * that the filesystem needs is still in memory now, it is a good
+	 * thing to do this.  Note also, that if the pageout daemon is
+	 * requesting a sync -- there might not be enough memory to do
+	 * the bmap then...  So, this is important to do.
+	 */
 	if( bp->b_lblkno == bp->b_blkno) {
 		VOP_BMAP(bp->b_vp, bp->b_lblkno, NULL, &bp->b_blkno, NULL);
 	}
+
+	/*
+	 * Set the *dirty* buffer range based upon the VM system dirty pages.
+	 */
+	vfs_setdirty(bp);
+
+	/*
+	 * We need to do this here to satisfy the vnode_pager and the
+	 * pageout daemon, so that it thinks that the pages have been
+	 * "cleaned".  Note that since the pages are in a delayed write
+	 * buffer -- the VFS layer "will" see that the pages get written
+	 * out on the next sync, or perhaps the cluster will be completed.
+	 */
 	vfs_clean_pages(bp);
 	brelse(bp);
 	return;
@@ -413,31 +440,39 @@ brelse(struct buf * bp)
 			if (resid > iototal)
 				resid = iototal;
 			if (resid > 0) {
-				if (bp->b_flags & (B_ERROR | B_NOCACHE)) {
-					vm_page_set_invalid(m, foff, resid);
-					if (m->valid == 0)
-						vm_page_protect(m, VM_PROT_NONE);
-				} 
+				/*
+				 * Don't invalidate the page if the local machine has already
+				 * modified it.  This is the lesser of two evils, and should
+				 * be fixed.
+				 */
+				if (bp->b_flags & (B_NOCACHE | B_ERROR)) {
+					vm_page_test_dirty(m);
+					if (m->dirty == 0) {
+						vm_page_set_invalid(m, foff, resid);
+						if (m->valid == 0) 
+							vm_page_protect(m, VM_PROT_NONE);
+					}
+				}
 			}
 			foff += resid;
 			iototal -= resid;
 		}
 
-		if ((bp->b_flags & B_INVAL) || (bp->b_flags & B_RELBUF)) {
+		if (bp->b_flags & (B_INVAL | B_RELBUF)) {
 			for(i=0;i<bp->b_npages;i++) {
 				m = bp->b_pages[i];
 				--m->bmapped;
 				if (m->bmapped == 0) {
-					vm_page_test_dirty(m);
-					if(m->flags & PG_WANTED) {
+					if (m->flags & PG_WANTED) {
 						wakeup((caddr_t) m);
 						m->flags &= ~PG_WANTED;
 					}
+					vm_page_test_dirty(m);
 					if ((m->dirty & m->valid) == 0 &&
 						(m->flags & PG_REFERENCED) == 0 &&
-							!pmap_is_referenced(VM_PAGE_TO_PHYS(m)))
+							!pmap_is_referenced(VM_PAGE_TO_PHYS(m))) {
 						vm_page_cache(m);
-					else if ((m->flags & PG_ACTIVE) == 0) {
+					} else if ((m->flags & PG_ACTIVE) == 0) {
 						vm_page_activate(m);
 						m->act_count = 0;
 					}
@@ -661,8 +696,8 @@ incore(struct vnode * vp, daddr_t blkno)
 	/* Search hash chain */
 	while (bp) {
 		/* hit */
-		if (bp->b_lblkno == blkno && bp->b_vp == vp
-		    && (bp->b_flags & B_INVAL) == 0) {
+		if (bp->b_lblkno == blkno && bp->b_vp == vp &&
+		    (bp->b_flags & B_INVAL) == 0) {
 			splx(s);
 			return (bp);
 		}
@@ -709,6 +744,66 @@ inmem(struct vnode * vp, daddr_t blkno)
 			return 0;
 	}
 	return 1;
+}
+
+/*
+ * now we set the dirty range for the buffer --
+ * for NFS -- if the file is mapped and pages have
+ * been written to, let it know.  We want the
+ * entire range of the buffer to be marked dirty if
+ * any of the pages have been written to for consistancy
+ * with the b_validoff, b_validend set in the nfs write
+ * code, and used by the nfs read code.
+ */
+static void
+vfs_setdirty(struct buf *bp) {
+	int i;
+	vm_object_t object;
+	vm_offset_t boffset, offset;
+	/*
+	 * We qualify the scan for modified pages on whether the
+	 * object has been flushed yet.  The OBJ_WRITEABLE flag
+	 * is not cleared simply by protecting pages off.
+	 */
+	if ((bp->b_flags & B_VMIO) &&
+		((object = bp->b_pages[0]->object)->flags & OBJ_WRITEABLE)) {
+		/*
+		 * test the pages to see if they have been modified directly
+		 * by users through the VM system.
+		 */
+		for (i = 0; i < bp->b_npages; i++)
+			vm_page_test_dirty(bp->b_pages[i]);
+
+		/*
+		 * scan forwards for the first page modified
+		 */
+		for (i = 0; i < bp->b_npages; i++) {
+			if (bp->b_pages[i]->dirty) {
+				break;
+			}
+		}
+		boffset = i * PAGE_SIZE;
+		if (boffset < bp->b_dirtyoff) {
+			bp->b_dirtyoff = boffset;
+		}
+
+		/*
+		 * scan backwards for the last page modified
+		 */
+		for (i = bp->b_npages - 1; i >= 0; --i) {
+			if (bp->b_pages[i]->dirty) {
+				break;
+			}
+		}
+		boffset = (i + 1) * PAGE_SIZE;
+		offset = boffset + bp->b_pages[0]->offset;
+		if (offset >= object->size) {
+			boffset = object->size - bp->b_pages[0]->offset;
+		}
+		if (bp->b_dirtyend < boffset) {
+			bp->b_dirtyend = boffset;
+		}
+	}
 }
 
 /*
@@ -1121,7 +1216,12 @@ biodone(register struct buf * bp)
 			resid = (m->offset + PAGE_SIZE) - foff;
 			if (resid > iosize)
 				resid = iosize;
-			if (!bogusflag && resid > 0) {
+			/*
+			 * In the write case, the valid and clean bits are
+			 * already changed correctly, so we only need to do this
+			 * here in the read case.
+			 */
+			if ((bp->b_flags & B_READ) && !bogusflag && resid > 0) {
 				vm_page_set_valid(m, foff & (PAGE_SIZE-1), resid);
 				vm_page_set_clean(m, foff & (PAGE_SIZE-1), resid);
 			}
@@ -1258,6 +1358,7 @@ vfs_busy_pages(struct buf * bp, int clear_modify)
 		vm_offset_t foff = bp->b_vp->v_mount->mnt_stat.f_iosize * bp->b_lblkno;
 		int iocount = bp->b_bufsize;
 
+		vfs_setdirty(bp);
 		for (i = 0; i < bp->b_npages; i++) {
 			vm_page_t m = bp->b_pages[i];
 			int resid = (m->offset + PAGE_SIZE) - foff;
@@ -1268,8 +1369,6 @@ vfs_busy_pages(struct buf * bp, int clear_modify)
 			m->busy++;
 			if (clear_modify) {
 				vm_page_protect(m, VM_PROT_READ);
-				pmap_clear_reference(VM_PAGE_TO_PHYS(m));
-				m->flags &= ~PG_REFERENCED;
 				vm_page_set_valid(m,
 					foff & (PAGE_SIZE-1), resid);
 				vm_page_set_clean(m,
@@ -1288,8 +1387,8 @@ vfs_busy_pages(struct buf * bp, int clear_modify)
 
 /*
  * Tell the VM system that the pages associated with this buffer
- * are dirty.  This is in case of the unlikely circumstance that
- * a buffer has to be destroyed before it is flushed.
+ * are clean.  This is used for delayed writes where the data is
+ * going to go to disk eventually without additional VM intevention.
  */
 void
 vfs_clean_pages(struct buf * bp)

@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.44 1995/04/21 02:48:40 dyson Exp $
+ * $Id: vm_object.c,v 1.45 1995/05/02 05:57:10 davidg Exp $
  */
 
 /*
@@ -328,6 +328,7 @@ vm_object_deallocate(object)
 		 */
 		if (object->flags & OBJ_CANPERSIST) {
 			if (object->resident_page_count != 0) {
+				vm_object_page_clean(object, 0, 0 ,TRUE);
 				TAILQ_INSERT_TAIL(&vm_object_cached_list, object,
 				    cached_list);
 				vm_object_cached++;
