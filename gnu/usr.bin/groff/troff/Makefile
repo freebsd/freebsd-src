@@ -1,3 +1,5 @@
+#	$Id$
+
 PROG=		troff
 SRCS=		env.cc node.cc input.cc div.cc symbol.cc dictionary.cc reg.cc \
 		number.cc majorminor.cc
@@ -19,10 +21,10 @@ majorminor.cc: ${GROFF_DIST}/VERSION
 	\"`sed -e 's/^[^.]*\.\([0-9]*\).*$$/\1/' ${GROFF_DIST}/VERSION`\"\; >>$@
 
 afterinstall:
-	${INSTALL} -c -o bin -g bin -m 444 ${DIST_DIR}/hyphen.us \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${DIST_DIR}/hyphen.us \
 		${DESTDIR}${tmacdir}/hyphen.us
-	${INSTALL} -c -o bin -g bin -m 444 ${DIST_DIR}/hyphen.us-ru \
-		${DESTDIR}${tmacdir}/hyphen.us-ru
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 \
+		${DIST_DIR}/hyphen.us-ru ${DESTDIR}${tmacdir}/hyphen.us-ru
 
 .include "../Makefile.cfg"
 .include <bsd.prog.mk>
