@@ -84,11 +84,8 @@ main(argc, argv)
 
 	(void) setlocale(LC_ALL, "");
 
-	while ((ch = getopt(argc, argv, "-123i")) != -1)
+	while ((ch = getopt(argc, argv, "123i")) != -1)
 		switch(ch) {
-		case '-':
-			--optind;
-			goto done;
 		case '1':
 			flag1 = 0;
 			break;
@@ -105,7 +102,7 @@ main(argc, argv)
 		default:
 			usage();
 		}
-done:	argc -= optind;
+	argc -= optind;
 	argv += optind;
 
 	if (argc != 2)
