@@ -333,10 +333,31 @@ can continue over NFS or FTP.
         
         [Substitute "ALPHA" for "RELEASE" during the ALPHA test period!]
 
-        If you are installing through a firewall then you should probably
-        select ``Passive mode'' ftp, which is the default.  If you are
-        talking to a server which does not support passive mode for some
-        reason, see the Options menu to select Active mode transfers.
+        There are two FTP installation modes you can use:
+
+           o FTP Active:
+
+	     For all FTP transfers, use "Active" mode.  This will not work
+	     through firewalls, but will often work with older ftp servers
+	     that do not support passive mode.  If your connection hangs
+	     with passive mode (the default), try active!
+
+	   o FTP Passive:
+
+	     For all FTP transfers, use "Passive" mode.  This allows the user
+	     to pass through firewalls that do not allow incoming connections
+	     on random port addresses.
+
+	NOTE: ACTIVE AND PASSIVE MODES ARE NOT THE SAME AS A `PROXY'
+	CONNECTION, WHERE A PROXY FTP SERVER IS LISTENING ON A DIFFERENT
+	PORT!
+
+	In such instances, you should specify the URL as something like:
+
+		ftp://foo.bar.com:1234/pub/FreeBSD
+
+	Where "1234" is the port number of the proxy ftp server.
+
 
 
 3.      Installing FreeBSD
