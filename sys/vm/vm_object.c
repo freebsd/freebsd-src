@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.70 1996/05/19 07:36:50 dyson Exp $
+ * $Id: vm_object.c,v 1.71 1996/05/21 05:26:27 dyson Exp $
  */
 
 /*
@@ -407,8 +407,6 @@ vm_object_terminate(object)
 	while ((p = TAILQ_FIRST(&object->memq)) != NULL) {
 		if (p->flags & PG_BUSY)
 			printf("vm_object_terminate: freeing busy page\n");
-		if ((p->flags & PG_FICTITIOUS) == 0)
-			vm_page_protect(p, VM_PROT_NONE);
 		PAGE_WAKEUP(p);
 		vm_page_free(p);
 		cnt.v_pfree++;
