@@ -1,5 +1,5 @@
 /* $FreeBSD$ */
-OUTPUT_FORMAT("elf32-i386", "elf32-i386", "elf32-i386")
+OUTPUT_FORMAT("elf32-i386-freebsd", "elf32-i386-freebsd", "elf32-i386-freebsd")
 OUTPUT_ARCH(i386)
 ENTRY(btext)
 SEARCH_DIR(/usr/lib);
