@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.57 1998/06/16 19:40:38 brian Exp $
+ * $Id: ipcp.c,v 1.58 1998/06/25 22:33:25 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backward compatibility
@@ -33,6 +33,9 @@
 #include <sys/sockio.h>
 #include <sys/un.h>
 
+#ifndef NOALIAS
+#include <alias.h>
+#endif
 #include <fcntl.h>
 #include <resolv.h>
 #include <stdlib.h>
@@ -706,8 +709,8 @@ ipcp_InterfaceUp(struct ipcp *ipcp)
   }
 
 #ifndef NOALIAS
-  if (alias_IsEnabled())
-    (*PacketAlias.SetAddress)(ipcp->my_ip);
+  if (ipcp->fsm.bundle->AliasEnabled)
+    PacketAliasSetAddress(ipcp->my_ip);
 #endif
 
   return 1;
