@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)syslogd.c	8.3 (Berkeley) 4/4/94";
 #endif
 static const char rcsid[] =
-	"$Id: syslogd.c,v 1.35 1998/06/25 19:39:19 guido Exp $";
+	"$Id: syslogd.c,v 1.36 1998/06/27 21:45:59 steve Exp $";
 #endif /* not lint */
 
 /*
@@ -441,7 +441,7 @@ main(argc, argv)
 		}
 
 		/*dprintf("readfds = %#x\n", readfds);*/
-		nfds = select(nfds, &readfds, (fd_set *)NULL,
+		nfds = select(nfds+1, &readfds, (fd_set *)NULL,
 			      (fd_set *)NULL, tvp);
 		if (nfds == 0) {
 			if (tvp) {
