@@ -123,9 +123,7 @@ userret(td, frame, oticks)
 	if (p->p_flag & P_PROFIL) {
 		quad_t ticks;
 
-		mtx_lock_spin(&sched_lock);
 		ticks = td->td_sticks - oticks;
-		mtx_unlock_spin(&sched_lock);
 		addupc_task(td, TRAPF_PC(frame), (u_int)ticks * psratio);
 	}
 }
@@ -161,6 +159,7 @@ ast(struct trapframe *framep)
 	mtx_assert(&Giant, MA_NOTOWNED);
 	mtx_assert(&sched_lock, MA_NOTOWNED);
 	td->td_frame = framep;
+	sticks = td->td_sticks;
 
 	if ((p->p_flag & P_SA) && (td->td_mailbox == NULL))
 		thread_user_enter(td);
@@ -173,7 +172,6 @@ ast(struct trapframe *framep)
 	 * ast() will be called again.
 	 */
 	mtx_lock_spin(&sched_lock);
-	sticks = td->td_sticks;
 	flags = td->td_flags;
 	sflag = p->p_sflag;
 	p->p_sflag &= ~(PS_ALRMPEND | PS_PROFPEND | PS_XCPU);
