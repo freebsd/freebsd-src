@@ -59,7 +59,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_glue.c,v 1.81 1999/01/21 08:29:10 dillon Exp $
+ * $Id: vm_glue.c,v 1.82 1999/01/21 09:36:23 dillon Exp $
  */
 
 #include "opt_rlimit.h"
@@ -238,16 +238,6 @@ vm_fork(p1, p2, flags)
 
 	up = p2->p_addr;
 
-#ifndef COMPAT_LINUX_THREADS
-	/*
-	 * p_stats and p_sigacts currently point at fields in the user struct
-	 * but not at &u, instead at p_addr. Copy p_sigacts and parts of
-	 * p_stats; zero the rest of p_stats (statistics).
-	 */
-	p2->p_stats = &up->u_stats;
-	p2->p_sigacts = &up->u_sigacts;
-	up->u_sigacts = *p1->p_sigacts;
-#else
 	/*
 	 * p_stats currently points at fields in the user struct
 	 * but not at &u, instead at p_addr. Copy parts of
@@ -263,7 +253,7 @@ vm_fork(p1, p2, flags)
 		p2->p_sigacts = &up->u_sigacts;
 		up->u_sigacts = *p1->p_sigacts;
 	}
-#endif /* COMPAT_LINUX_THREADS */
+
 	bzero(&up->u_stats.pstat_startzero,
 	    (unsigned) ((caddr_t) &up->u_stats.pstat_endzero -
 		(caddr_t) &up->u_stats.pstat_startzero));

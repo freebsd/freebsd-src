@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_fork.c	8.6 (Berkeley) 4/8/94
- * $Id: kern_fork.c,v 1.53 1998/12/19 02:55:33 julian Exp $
+ * $Id: kern_fork.c,v 1.54 1999/01/07 21:23:42 julian Exp $
  */
 
 #include "opt_ktrace.h"
@@ -62,10 +62,9 @@
 #include <vm/vm_extern.h>
 #include <vm/vm_zone.h>
 
-#ifdef COMPAT_LINUX_THREADS
 #include <machine/frame.h>
 #include <sys/user.h>
-#endif /* COMPAT_LINUX_THREADS */
+
 #ifdef SMP
 static int	fast_vfork = 0;	/* Doesn't work on SMP yet. */
 #else
@@ -329,7 +328,6 @@ again:
 	p2->p_cred->p_refcnt = 1;
 	crhold(p1->p_ucred);
 
-#ifdef COMPAT_LINUX_THREADS
 	if (flags & RFSIGSHARE) {
 		p2->p_procsig = p1->p_procsig;
 		p2->p_procsig->ps_refcnt++;
@@ -366,7 +364,7 @@ again:
 	if (flags & RFLINUXTHPN) {
 	        p2->p_sigparent = SIGUSR1;
 	}
-#endif /* COMPAT_LINUX_THREADS */
+
 	/* bump references to the text vnode (for procfs) */
 	p2->p_textvp = p1->p_textvp;
 	if (p2->p_textvp)
