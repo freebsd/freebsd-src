@@ -4923,6 +4923,7 @@ open_include_file (filename, searchptr)
   register char *from;
   char *p, *dir;
 
+#ifndef FREEBSD_NATIVE
   if (searchptr && ! searchptr->got_name_map)
     {
       searchptr->name_map = read_name_map (searchptr->fname
@@ -4945,6 +4946,7 @@ open_include_file (filename, searchptr)
 	    }
 	}
     }
+#endif
 
   /* Try to find a mapping file for the particular directory we are
      looking in.  Thus #include <sys/types.h> will look up sys/types.h
@@ -4981,9 +4983,11 @@ open_include_file (filename, searchptr)
       dir[p - filename] = '\0';
       from = p + 1;
     }
+#ifndef FREEBSD_NATIVE
   for (map = read_name_map (dir); map; map = map->map_next)
     if (! strcmp (map->map_from, from))
       return open (map->map_to, O_RDONLY, 0666);
+#endif
 
   return open (filename, O_RDONLY, 0666);
 }
