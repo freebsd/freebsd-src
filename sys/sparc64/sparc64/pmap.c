@@ -1331,6 +1331,14 @@ pmap_enter(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	}
 }
 
+vm_page_t
+pmap_enter_quick(pmap_t pm, vm_offset_t va, vm_page_t m, vm_page_t mpte)
+{
+
+	pmap_enter(pm, va, m, VM_PROT_READ | VM_PROT_EXECUTE, FALSE);
+	return (NULL);
+}
+
 void
 pmap_object_init_pt(pmap_t pm, vm_offset_t addr, vm_object_t object,
 		    vm_pindex_t pindex, vm_size_t size, int limit)

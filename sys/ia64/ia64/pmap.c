@@ -267,7 +267,6 @@ static void	ia64_protection_init(void);
 
 static pmap_t	pmap_install(pmap_t);
 static void	pmap_invalidate_all(pmap_t pmap);
-static void	pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m);
 
 vm_offset_t
 pmap_steal_memory(vm_size_t size)
@@ -1709,8 +1708,8 @@ validate:
  * but is *MUCH* faster than pmap_enter...
  */
 
-static void
-pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m)
+vm_page_t
+pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_page_t mpte)
 {
 	struct ia64_lpte *pte;
 	pmap_t oldpmap;
@@ -1719,7 +1718,7 @@ pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m)
 
 	pte = pmap_find_pte(va);
 	if (pte->pte_p)
-		return;
+		goto reinstall;
 
 	/*
 	 * Enter on the PV list since its part of our managed memory.
@@ -1737,8 +1736,9 @@ pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m)
 	pmap_set_pte(pte, va, VM_PAGE_TO_PHYS(m),
 		     PTE_IG_MANAGED,
 		     PTE_PL_USER, PTE_AR_R);
-
+reinstall:
 	pmap_install(oldpmap);
+	return (NULL);
 }
 
 /*
@@ -1821,7 +1821,8 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr,
 				vm_page_unlock_queues();
 				VM_OBJECT_UNLOCK(object);
 				pmap_enter_quick(pmap,
-						 addr + ia64_ptob(tmpidx), p);
+						 addr + ia64_ptob(tmpidx), p,
+						 NULL);
 				VM_OBJECT_LOCK(object);
 				vm_page_lock_queues();
 				vm_page_wakeup(p);
@@ -1855,7 +1856,8 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr,
 				vm_page_unlock_queues();
 				VM_OBJECT_UNLOCK(object);
 				pmap_enter_quick(pmap,
-						 addr + ia64_ptob(tmpidx), p);
+						 addr + ia64_ptob(tmpidx), p,
+						 NULL);
 				VM_OBJECT_LOCK(object);
 				vm_page_lock_queues();
 				vm_page_wakeup(p);
@@ -1951,7 +1953,7 @@ pmap_prefault(pmap, addra, entry)
 			}
 			vm_page_busy(m);
 			vm_page_unlock_queues();
-			pmap_enter_quick(pmap, addr, m);
+			pmap_enter_quick(pmap, addr, m, NULL);
 			vm_page_lock_queues();
 			vm_page_wakeup(m);
 		}

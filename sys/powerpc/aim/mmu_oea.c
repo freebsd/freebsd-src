@@ -1032,6 +1032,14 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	pmap_syncicache(VM_PAGE_TO_PHYS(m), PAGE_SIZE);
 }
 
+vm_page_t
+pmap_enter_quick(pmap_t pm, vm_offset_t va, vm_page_t m, vm_page_t mpte)
+{
+
+	pmap_enter(pm, va, m, VM_PROT_READ | VM_PROT_EXECUTE, FALSE);
+	return (NULL);
+}
+
 vm_offset_t
 pmap_extract(pmap_t pm, vm_offset_t va)
 {
