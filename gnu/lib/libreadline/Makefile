@@ -1,7 +1,7 @@
-#       $Id: Makefile,v 1.9 1994/05/14 01:18:01 ache Exp $
+#       $Id: Makefile,v 1.10 1994/05/27 10:51:31 csgr Exp $
 
 
-CFLAGS+= -I${.CURDIR} -I${.CURDIR}/readline -DVOID_SIGHANDLER \
+CFLAGS+= -I${.CURDIR} -DVOID_SIGHANDLER \
 	 -DHAVE_UNISTD_H -DHAVE_STRING_H -DHAVE_STDLIB_H -DHAVE_VARARGS_H \
 	 -DFreeBSD
 
