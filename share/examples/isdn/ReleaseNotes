@@ -1,10 +1,27 @@
 $FreeBSD$
 
-ReleaseNotes for isdn4bsd             last edit-date: [Mon Dec 10 13:23:21 2001]
+ReleaseNotes for isdn4bsd             last edit-date: [Sun Dec 16 16:15:14 2001]
 ================================================================================
+
+ - made ELSA PCC16 attach correctly (again ?)
+
+ - fixed bug in CAPI support (patch from Juha-Matti Liukkonen <jml@cubical.fi>)
 
  - add support written by Steve Looman for the Compaq Microcom 610 ISDN card
    (also known as Compaq series PSB2222I).
+
+release 1.01
+--------------------------------------------------------------------------------
+
+ - add experimental support to send messages via the keypad facility to the
+   PBX or exchange office. The messages - if supported - may be used to 
+   configure and maintain optional services offered by the PBX or exchange
+   office such as call deflection mailbox services. Please consult the
+   nice documentation for the exchange you are connected to.
+
+   Currently keypad messages can be send by using the isdnphone utilities
+   "-k" switch on the command line. Don't forget to properly quote the
+   message in case it contains shell meta characters!
 
  - add keyword "maxconnecttime" to isdnd to prevent a potential telco bill
    desaster. Caution: use only in conjunction with budgets to limit the number
