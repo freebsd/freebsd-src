@@ -1013,6 +1013,21 @@ options		"EXT2FS"
 options		"I586_CTR_GUPROF"
 options		"I586_PMC_GUPROF=0x70000"
 options		"IBCS2"
+options		KBD_MAXRETRY=4
+options		KBD_MAXWAIT=6
+options		KBD_RESETDELAY=201
+options		KBDIO_DEBUG=2
+options		MSGMNB=2049
+options		MSGMNI=41
+options		MSGSEG=2049
+options		MSGSSZ=9
+options		MSGTQL=41
+options		NBUF=512
+options		NMBCLUSTERS=1024
+options		PSM_ACCEL=1
+options		PSM_CHECKSYNC
+options		PSM_DEBUG=1
+options		PSM_EMULATION
 options		"SCSI_2_DEF"
 options		SCSI_DELAY=8	# Be pessimistic about Joe SCSI device
 options		SCSI_NCR_DEBUG
@@ -1020,6 +1035,19 @@ options		SCSI_NCR_DFLT_TAGS=4
 options		SCSI_NCR_MAX_SYNC=10000
 options		SCSI_NCR_MAX_WIDE=1
 options		SCSI_NCR_MYADDR=7
+options		SEMMAP=31
+options		SEMMNI=11
+options		SEMMNS=61
+options		SEMMNU=31
+options		SEMMSL=61
+options		SEMOPM=101
+options		SEMUME=11
 options		SHOW_BUSYBUFS	# List buffers that prevent root unmount
+options		SHMALL=1025
+options		"SHMMAX=(SHMMAXPGS*PAGE_SIZE+1)"
+options		SHMMAXPGS=1025
+options		SHMMIN=2
+options		SHMMNI=33
+options		SHMSEG=9
 options		SI_DEBUG
 options		SPX_HACK
