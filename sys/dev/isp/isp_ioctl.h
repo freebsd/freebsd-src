@@ -43,36 +43,37 @@
  * The old value is written into this argument.
  */
 
-#define	ISP_SDBLEV	_IOWR(ISP_IOC, 0, int)
+#define	ISP_SDBLEV	_IOWR(ISP_IOC, 1, int)
 
 /*
  * This ioctl resets the HBA. Use with caution.
  */
-#define	ISP_RESETHBA	_IO(ISP_IOC, 1)
+#define	ISP_RESETHBA	_IO(ISP_IOC, 2)
 
 /*
  * This ioctl performs a fibre chanel rescan.
  */
-#define	ISP_FC_RESCAN	_IO(ISP_IOC, 2)
+#define	ISP_RESCAN	_IO(ISP_IOC, 3)
 
 /*
- * Initiate a LIP
+ * This ioctl performs a reset and then will set the adapter to the
+ * role that was passed in (the old role will be returned). It almost
+ * goes w/o saying: use with caution.
  */
-#define	ISP_FC_LIP	_IO(ISP_IOC, 3)
+#define ISP_SETROLE     _IOWR(ISP_IOC, 4, int)
+
+#define ISP_ROLE_NONE           0x0
+#define ISP_ROLE_INITIATOR      0x1
+#define ISP_ROLE_TARGET         0x2
+#define ISP_ROLE_BOTH           (ISP_ROLE_TARGET|ISP_ROLE_INITIATOR)
+#ifndef ISP_DEFAULT_ROLES
+#define ISP_DEFAULT_ROLES       ISP_ROLE_BOTH
+#endif
 
 /*
- * Return the Port Database structure for the named device, or ENODEV if none.
- * Caller fills in virtual loopid (0..255), aka 'target'. The driver returns
- * ENODEV (if nothing valid there) or the actual loopid (for local loop devices
- * only), 24 bit Port ID and Node and Port WWNs.
+ * Get the current adapter role
  */
-struct isp_fc_device {
-	u_int32_t	loopid;	/* 0..255 */
-	u_int32_t	portid;	/* 24 bit Port ID */
-	u_int64_t	node_wwn;
-	u_int64_t	port_wwn;
-};
-#define	ISP_FC_GETDINFO	_IOWR(ISP_IOC, 4, struct isp_fc_device)
+#define ISP_GETROLE     _IOR(ISP_IOC, 5), int
 
 /*
  * Get/Clear Stats
@@ -101,6 +102,25 @@ typedef struct {
 
 #define	ISP_GET_STATS	_IOR(ISP_IOC, 6, isp_stats_t)
 #define	ISP_CLR_STATS	_IO(ISP_IOC, 7)
+
+/*
+ * Initiate a LIP
+ */
+#define	ISP_FC_LIP	_IO(ISP_IOC, 8)
+
+/*
+ * Return the Port Database structure for the named device, or ENODEV if none.
+ * Caller fills in virtual loopid (0..255), aka 'target'. The driver returns
+ * ENODEV (if nothing valid there) or the actual loopid (for local loop devices
+ * only), 24 bit Port ID and Node and Port WWNs.
+ */
+struct isp_fc_device {
+	u_int32_t	loopid;	/* 0..255 */
+	u_int32_t	portid;	/* 24 bit Port ID */
+	u_int64_t	node_wwn;
+	u_int64_t	port_wwn;
+};
+#define	ISP_FC_GETDINFO	_IOWR(ISP_IOC, 9, struct isp_fc_device)
 
 /*
  * Get F/W crash dump
