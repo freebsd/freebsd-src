@@ -208,6 +208,17 @@ option may be given.
 Only one pair of routine names may be given with each
 .Fl k
 option.
+.It Fl K
+Gather information about symbols from the currently-running kernel using the
+.Xr sysctl 3
+and
+.Xr kldsym 2
+interfaces.
+This forces the 
+.Pa a.out
+argument to be ignored, and allows for symbols in
+.Xr kld 4
+modules to be used.
 .It Fl l
 Suppresses the printing of the call-graph profile.
 .It Fl L

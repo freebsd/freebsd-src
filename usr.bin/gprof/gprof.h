@@ -238,6 +238,7 @@ bool	Eflag;				/* functions excluded with time */
 bool	fflag;				/* specific functions requested */
 bool	Fflag;				/* functions requested with time */
 bool	kflag;				/* arcs to be deleted */
+bool	Kflag;				/* use the running kernel for symbols */
 bool	sflag;				/* sum multiple gmon.out files */
 bool	uflag;				/* suppress symbols hidden from C */
 bool	zflag;				/* zero time/called functions, too */
@@ -295,6 +296,9 @@ int		elf_getnfile(const char *, char ***);
 		getpfile();
 		gprofheader();
 		gprofline();
+*/
+int		kernel_getnfile(const char *, char ***);
+/*
 		main();
 */
 unsigned long	max();
