@@ -950,65 +950,54 @@ Var_Parse(char *str, GNode *ctxt, Boolean err, size_t *lengthPtr,
 
 	v = VarFind(str, ctxt, FIND_ENV | FIND_GLOBAL | FIND_CMD);
 
-	if ((v == (Var *)NULL) && (ctxt != VAR_CMD) && (ctxt != VAR_GLOBAL) &&
+	if ((v == NULL) &&
+	    (ctxt != VAR_CMD) && (ctxt != VAR_GLOBAL) &&
 	    (vlen == 2) && (str[1] == 'F' || str[1] == 'D'))
 	{
 	    /*
 	     * Check for bogus D and F forms of local variables since we're
 	     * in a local context and the name is the right length.
 	     */
-	    switch (str[0]) {
-		case '@':
-		case '%':
-		case '*':
-		case '!':
-		case '>':
-		case '<':
-		{
-		    char    vname[2];
-		    char    *val;
+	    if (strchr("!%*<>@", str[0]) != NULL) {
+		char    vname[2];
+		char    *val;
 
+		/*
+		 * Well, it's local -- go look for it.
+		 */
+		vname[0] = str[0];
+		vname[1] = '\0';
+
+		v = VarFind(vname, ctxt, 0);
+		if (v != NULL && !haveModifier) {
 		    /*
-		     * Well, it's local -- go look for it.
+		     * No need for nested expansion or anything, as we're
+		     * the only one who sets these things and we sure don't
+		     * put nested invocations in them...
 		     */
-		    vname[0] = str[0];
-		    vname[1] = '\0';
+		    val = (char *)Buf_GetAll(v->val, (size_t *)NULL);
 
-		    v = VarFind(vname, ctxt, 0);
-		    if (v != NULL && !haveModifier) {
-			/*
-			 * No need for nested expansion or anything, as we're
-			 * the only one who sets these things and we sure don't
-			 * put nested invocations in them...
-			 */
-			val = (char *)Buf_GetAll(v->val, (size_t *)NULL);
-
-			if (str[1] == 'D') {
-			    val = VarModify(val, VarHead, (void *)NULL);
-			} else {
-			    val = VarModify(val, VarTail, (void *)NULL);
-			}
-			/*
-			 * Resulting string is dynamically allocated, so
-			 * tell caller to free it.
-			 */
-			*freePtr = TRUE;
-			*lengthPtr = tstr - start + 1;
-			*tstr = endc;
-			Buf_Destroy(buf, TRUE);
-			return (val);
+		    if (str[1] == 'D') {
+			val = VarModify(val, VarHead, (void *)NULL);
+		    } else {
+			val = VarModify(val, VarTail, (void *)NULL);
 		    }
-		    break;
-		default:
-		    break;
+		    /*
+		     * Resulting string is dynamically allocated, so
+		     * tell caller to free it.
+		     */
+		    *freePtr = TRUE;
+		    *lengthPtr = tstr - start + 1;
+		    *tstr = endc;
+		    Buf_Destroy(buf, TRUE);
+		    return (val);
 		}
 	    }
 	}
 
-	if (v == (Var *)NULL) {
-	    if (((vlen == 1) ||
-		 (((vlen == 2) && (str[1] == 'F' || str[1] == 'D')))) &&
-		((ctxt == VAR_CMD) || (ctxt == VAR_GLOBAL)))
+	if (v == NULL) {
+	    if (((ctxt == VAR_CMD) || (ctxt == VAR_GLOBAL)) &&
+		((vlen == 1) || ((vlen == 2) && (str[1] == 'F' || str[1] == 'D'))))
 	    {
 		/*
 		 * If substituting a local variable in a non-local context,
@@ -1019,20 +1008,15 @@ Var_Parse(char *str, GNode *ctxt, Boolean err, size_t *lengthPtr,
 		 * specially as they are the only four that will be set
 		 * when dynamic sources are expanded.
 		 */
-		switch (str[0]) {
-		    case '@':
-		    case '%':
-		    case '*':
-		    case '!':
-			dynamic = TRUE;
-			break;
-		    default:
-			dynamic = FALSE;
-			break;
+		if (strchr("!%*@", str[0]) != NULL) {
+		    dynamic = TRUE;
+		} else {
+		    dynamic = FALSE;
 		}
-	    } else if ((vlen > 2) && (str[0] == '.') &&
-		       isupper((unsigned char)str[1]) &&
-		       ((ctxt == VAR_CMD) || (ctxt == VAR_GLOBAL)))
+	    } else if (((ctxt == VAR_CMD) || (ctxt == VAR_GLOBAL)) &&
+		       (vlen > 2) &&
+		       (str[0] == '.') &&
+		       isupper((unsigned char)str[1]))
 	    {
 		int	len;
 
@@ -1062,18 +1046,24 @@ Var_Parse(char *str, GNode *ctxt, Boolean err, size_t *lengthPtr,
 		 * now.
 		 */
 		if (dynamic) {
-		    *lengthPtr = tstr - start + 1;
-		    *tstr = endc;
-		    str = emalloc(*lengthPtr + 1);
-		    strncpy(str, start, *lengthPtr);
-		    str[*lengthPtr] = '\0';
+		    char	*result;
+		    size_t	rlen = tstr - start + 1;
+
+		    result = emalloc(rlen + 1);
+		    strncpy(result, start, rlen);
+		    result[rlen] = '\0';
+
 		    *freePtr = TRUE;
+		    *lengthPtr = rlen;
+		    *tstr = endc;
+
 		    Buf_Destroy(buf, TRUE);
-		    return (str);
+		    return (result);
 		} else {
+		    *freePtr = FALSE;
 		    *lengthPtr = tstr - start + 1;
 		    *tstr = endc;
-		    *freePtr = FALSE;
+
 		    Buf_Destroy(buf, TRUE);
 		    return (err ? var_Error : varNoError);
 		}
