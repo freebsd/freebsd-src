@@ -102,6 +102,7 @@ options 	DFLDSIZ=(1024UL*1024*1024)
 options 	BLKDEV_IOSIZE=8192
 
 # Options for the VM subsystem
+# L2 cache size (in KB) can be specified in PQ_CACHESIZE
 options 	PQ_CACHESIZE=512	# color for 512k/16k cache
 # Deprecated options supported for backwards compatibility
 #options 	PQ_NOOPT		# No coloring
