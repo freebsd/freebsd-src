@@ -113,13 +113,12 @@ HIDENAME(tmpstk):
 	.globl	boothowto,bootdev
 
 	.globl	cpu,cpu_vendor,cpu_id,bootinfo
-	.globl	cpu_high, cpu_feature, cpu_fxsr
+	.globl	cpu_high, cpu_feature
 
 cpu:		.long	0			/* are we 386, 386sx, or 486 */
 cpu_id:		.long	0			/* stepping ID */
 cpu_high:	.long	0			/* highest arg to CPUID */
 cpu_feature:	.long	0			/* features */
-cpu_fxsr:	.long	0			/* use fxsave/fxrstor instruction */
 cpu_vendor:	.space	20			/* CPU origin code */
 bootinfo:	.space	BOOTINFO_SIZE		/* bootinfo that we can handle */
 

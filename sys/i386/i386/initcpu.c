@@ -70,6 +70,10 @@ SYSCTL_INT(_hw, OID_AUTO, instruction_sse, CTLFLAG_RD,
 	   &hw_instruction_sse, 0,
 	   "SIMD/MMX2 instructions available in CPU");
 
+#ifdef CPU_ENABLE_SSE
+u_int	cpu_fxsr;		/* SSE enabled */
+#endif
+
 #ifdef I486_CPU
 /*
  * IBM Blue Lightning
