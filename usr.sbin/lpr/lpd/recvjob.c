@@ -377,10 +377,25 @@ frecverr(msg, va_alist)
 #else
 	va_start(ap);
 #endif
-	rcleanup(0);
-	syslog(LOG_ERR, "%s", fromb);
+	syslog(LOG_ERR, "Error receiving job from %s:", fromb);
 	vsyslog(LOG_ERR, msg, ap);
 	va_end(ap);
+	/*
+         * rcleanup is not called until AFTER logging the error message,
+         * because rcleanup will zap some variables which may have been
+         * supplied as parameters for that msg...
+	 */
+	rcleanup(0);
+	/* 
+	 * Add a minimal delay before returning the final error code to
+	 * the sending host.  This just in case that machine responds
+	 * this error by INSTANTLY retrying (and instantly re-failing...).
+	 * It would be stupid of the sending host to do that, but if there
+	 * was a broken implementation which did it, the result might be
+	 * obscure performance problems and a flood of syslog messages on
+	 * the receiving host.
+	 */ 
+	sleep(2);		/* a paranoid throttling measure */
 	putchar('\1');		/* return error code */
 	exit(1);
 }
