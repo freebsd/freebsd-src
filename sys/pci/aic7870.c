@@ -36,7 +36,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7870.c,v 1.54 1997/11/18 14:14:34 bde Exp $
+ *	$Id: aic7870.c,v 1.55 1998/07/06 18:38:57 gibbs Exp $
  */
 
 #if defined(__FreeBSD__)
@@ -676,7 +676,6 @@ load_seeprom(ahc, sxfrctl1)
 	struct	  seeprom_descriptor sd;
 	struct	  seeprom_config sc;
 	u_int16_t *scarray = (u_int16_t *)&sc;
-	u_int16_t checksum = 0;
 	u_int8_t  scsi_conf;
 	u_int8_t  host_id;
 	int	  have_seeprom;
@@ -726,8 +725,13 @@ load_seeprom(ahc, sxfrctl1)
 			if (have_seeprom) {
 				/* Check checksum */
 				int i;
-				int maxaddr = (sizeof(sc)/2) - 1;
-				u_int16_t *scarray = (u_int16_t *)&sc;
+				int maxaddr;
+				u_int16_t *scarray;
+				u_int16_t checksum;
+
+				maxaddr = (sizeof(sc)/2) - 1;
+				checksum = 0;
+				scarray = (u_int16_t *)&sc;
 
 				for (i = 0; i < maxaddr; i++)
 					checksum = checksum + scarray[i];
