@@ -5,6 +5,34 @@ directly to him.  See end of file for further details.  For commonly
 done items, please see the end of the file.  Search for 'COMMON
 ITEMS:'
 
+20010211:
+	The size of FILE was changed.  This breaks upgrading.  If
+	you must upgrade, be prepared for pain.  It also breaks almost
+	all binaries that you've compiled on -current.  You are warned
+	that before upgrading would be a good time to do a level 0
+	dump of your system.  No, really, I mean it this time.
+
+	To get to the new system, you'll need to use the following
+	workaround.  Hopefully this can be sorted out so that we
+	don't have to move this to the updating section.
+
+	To get around the installworld problem, do:
+		# cd /usr/src/usr.bin/sed
+		# make install
+		# cd /usr/src
+		# make installworld
+	If that doesn't work, then try:
+		# make -k installworld
+		# make installworld
+
+20010207:
+	DEVFS is now the default.  If you use vinum, make sure that you
+	do not include devfs in your kernel as problems result.
+
+20010205:
+	FFS_ROOT and CD9660_ROOT have been removed or depricated.
+	Remove them from your config.
+
 20010122:
 	****************************** WARNING ******************************
 			buildkernel has been changed slightly
@@ -498,7 +526,7 @@ COMMON ITEMS:
 	-------------------------------------
 	make buildworld
 	make buildkernel KERNCONF=YOUR_KERNEL_HERE
-	cp src/sys/${MACHINE_ARCH}/GENERIC.hints /boot/device.hints [2]
+	cp src/sys/${MACHINE_ARCH}/arch/GENERIC.hints /boot/device.hints [2]
 	make installkernel KERNCONF=YOUR_KERNEL_HERE
 	make installworld
 	[1]
