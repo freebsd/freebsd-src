@@ -39,9 +39,9 @@ rest.  The full original distribution for each port you build is
 retrieved dynamically off of CDROM or a local ftp site, so you need
 only enough disk space to build the ports you want.  (Almost) every
 port is also provided as a pre-compiled "package" which can be
-installed with a simple command (pkg_add) by those who do not wish to
-compile their own ports from source.  See the new Packages option in
-the Configuration menu for an expecially convenient interface to this.
+installed with a simple command (pkg_add).  See also the new Packages
+option in the Configuration menu for an especially convenient interface
+to the package collection.
 
 
 A number of additional documents which you may find helpful in the
@@ -389,4 +389,4 @@ We sincerely hope you enjoy this release of FreeBSD!
 
                         The FreeBSD Core Team
 
-$Id: relnotes.hlp,v 1.1.2.6 1995/11/03 12:03:14 jkh Exp $
+$Id: relnotes.hlp,v 1.1.2.7 1995/11/04 08:48:15 jkh Exp $
