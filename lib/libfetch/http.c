@@ -444,13 +444,13 @@ _http_parse_mtime(char *p, time_t *mtime)
  * Parse a content-length header
  */
 static int
-_http_parse_length(char *p, size_t *length)
+_http_parse_length(char *p, off_t *length)
 {
-    size_t len;
+    off_t len;
     
     for (len = 0; *p && isdigit(*p); ++p)
 	len = len * 10 + (*p - '0');
-    DEBUG(fprintf(stderr, "content length: [\033[1m%d\033[m]\n", len));
+    DEBUG(fprintf(stderr, "content length: [\033[1m%lld\033[m]\n", len));
     *length = len;
     return 0;
 }
@@ -459,7 +459,7 @@ _http_parse_length(char *p, size_t *length)
  * Parse a content-range header
  */
 static int
-_http_parse_range(char *p, off_t *offset, size_t *length, size_t *size)
+_http_parse_range(char *p, off_t *offset, off_t *length, off_t *size)
 {
     int first, last, len;
 
@@ -770,8 +770,7 @@ _http_request(struct url *URL, char *op, struct url_stat *us, char *flags)
     struct url *url, *new;
     int chunked, need_auth, noredirect, proxy, verbose;
     int code, fd, i, n;
-    off_t offset;
-    size_t clength, length, size;
+    off_t offset, clength, length, size;
     time_t mtime;
     char *p;
     FILE *f;
@@ -972,7 +971,7 @@ _http_request(struct url *URL, char *op, struct url_stat *us, char *flags)
 	goto ouch;
     }
 
-    DEBUG(fprintf(stderr, "offset: %lld, length: %d, size: %d, clength: %d\n",
+    DEBUG(fprintf(stderr, "offset %lld, length %lld, size %lld, clength %lld\n",
 		  offset, length, size, clength));
     
     /* check for inconsistencies */
