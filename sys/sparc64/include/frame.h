@@ -29,36 +29,34 @@
 #ifndef	_MACHINE_FRAME_H_
 #define	_MACHINE_FRAME_H_
 
-#define	SPOFF	2047
+#define	PTR_SHIFT	3
+#define	RW_SHIFT	7
+#define	SPOFF		2047
 
 struct trapframe {
 	u_long	tf_global[8];
 	u_long	tf_out[8];
-	u_long	tf_pil;
+	u_long	tf_fsr;
+	u_long	tf_sfar;
+	u_long	tf_tar;
 	u_long	tf_tnpc;
 	u_long	tf_tpc;
 	u_long	tf_tstate;
-	u_long	tf_type;
-	u_long	tf_wstate;
-	uintptr_t tf_arg;
+	u_int	tf_sfsr;
+	u_int	tf_type;
+	u_int	tf_y;
+	u_char	tf_fprs;
+	u_char	tf_pil;
+	u_char	tf_wstate;
+	u_char	tf_pad[1];
 };
-#define	tf_sp	tf_out[6]
+#define	tf_level	tf_sfsr
+#define	tf_sp		tf_out[6]
  
 #define	TF_DONE(tf) do { \
 	tf->tf_tpc = tf->tf_tnpc; \
 	tf->tf_tnpc += 4; \
 } while (0)
-
-#define	TF_DONE(tf) do { \
-	tf->tf_tpc = tf->tf_tnpc; \
-	tf->tf_tnpc += 4; \
-} while (0)
-
-struct mmuframe {
-	u_long	mf_sfar;
-	u_long	mf_sfsr;
-	u_long	mf_tar;
-};
 
 struct clockframe {
 	struct	trapframe cf_tf;
