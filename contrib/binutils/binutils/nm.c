@@ -1455,7 +1455,7 @@ print_symbol_filename_posix (archive_bfd, abfd)
 
 static void
 print_value (abfd, val)
-     bfd *abfd;
+     bfd *abfd ATTRIBUTE_UNUSED;
      bfd_vma val;
 {
 #if ! defined (BFD64) || BFD_HOST_64BIT_LONG
