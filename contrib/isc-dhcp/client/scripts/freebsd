@@ -1,5 +1,33 @@
 #!/bin/sh
 
+make_resolv_conf() {
+  echo search $new_domain_name >/etc/resolv.conf
+  for nameserver in $new_domain_name_servers; do
+    echo nameserver $nameserver >>/etc/resolv.conf
+  done
+}
+
+# Must be used on exit.   Invokes the local dhcp client exit hooks, if any.
+exit_with_hooks() {
+  exit_status=$1
+  if [ -x /etc/dhclient-exit-hooks ]; then
+    . /etc/dhclient-exit-hooks
+  fi
+# probably should do something with exit status of the local script
+  exit $exit_status
+}
+
+# Invoke the local dhcp client enter hooks, if they exist.
+if [ -x /etc/dhclient-enter-hooks ]; then
+  exit_status=0
+  . /etc/dhclient-enter-hooks
+  # allow the local script to abort processing of this state
+  # local script must set exit_status variable to nonzero.
+  if [ $exit_status -ne 0 ]; then
+    exit $exit_status
+  fi
+fi
+
 if [ x$new_network_number != x ]; then
    echo New Network Number: $new_network_number
 fi
@@ -25,7 +53,7 @@ if [ x$reason = xMEDIUM ]; then
   ifconfig $interface $medium
   ifconfig $interface inet -alias 0.0.0.0 $medium >/dev/null 2>&1
   sleep 1
-  exit 0
+  exit_with_hooks 0
 fi
 
 if [ x$reason = xPREINIT ]; then
@@ -35,11 +63,11 @@ if [ x$reason = xPREINIT ]; then
   fi
   ifconfig $interface inet 0.0.0.0 netmask 0.0.0.0 \
 		broadcast 255.255.255.255 up
-  exit 0
+  exit_with_hooks 0
 fi
 
 if [ x$reason = xARPCHECK ] || [ x$reason = xARPSEND ]; then
-  exit 0;
+  exit_with_hooks 0;
 fi
   
 if [ x$reason = xBOUND ] || [ x$reason = xRENEW ] || \
@@ -89,7 +117,7 @@ if [ x$reason = xBOUND ] || [ x$reason = xRENEW ] || \
   for nameserver in $new_domain_name_servers; do
     echo nameserver $nameserver >>/etc/resolv.conf
   done
-  exit 0
+  exit_with_hooks 0
 fi
 
 if [ x$reason = xEXPIRE ] || [ x$reason = xFAIL ]; then
@@ -117,7 +145,7 @@ if [ x$reason = xEXPIRE ] || [ x$reason = xFAIL ]; then
     ifconfig $interface inet alias $alias_ip_address $alias_subnet_arg
     route add $alias_ip_address 127.0.0.1
   fi
-  exit 0
+  exit_with_hooks 0
 fi
 
 if [ x$reason = xTIMEOUT ]; then
@@ -153,7 +181,7 @@ if [ x$reason = xTIMEOUT ]; then
 	rm -f /etc/resolv.conf
       fi
       mv /etc/resolv.conf.std /etc/resolv.conf
-      exit 0
+      exit_with_hooks 0
     fi
   fi
   ifconfig $interface inet -alias $new_ip_address $medium
@@ -169,7 +197,7 @@ if [ x$reason = xTIMEOUT ]; then
   fi
   arp -n -a | sed -n -e 's/^.*(\(.*\)) at .*$/arp -n -d \1/p' \
 							|sh >/dev/null 2>&1
-  exit 1
+  exit_with_hooks 1
 fi
 
-exit 0
+exit_with_hooks 0
