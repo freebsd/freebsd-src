@@ -48,7 +48,7 @@ LNOHEADERDIRS=	fs isofs ufs dev
 LSUBDIRS=	cam/scsi dev/ppbus dev/usb dev/wi \
 	fs/fdescfs fs/fifofs fs/msdosfs fs/ntfs fs/nullfs fs/nwfs fs/portalfs \
 	fs/procfs fs/smbfs fs/umapfs fs/unionfs isofs/cd9660 \
-	ufs/ffs ufs/mfs ufs/ufs
+	ufs/ffs ufs/ufs
 
 # For SHARED=symlinks, cam is a symlink, so cam/scsi is taken care of
 LSYMSUBDIRS=	${LSUBDIRS:Ncam/scsi}
