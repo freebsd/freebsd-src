@@ -165,7 +165,7 @@ See
 for more details on how to set this option.
 .It Fl b Ar block-size
 The block size of the file system, in bytes.  It must be a power of 2.  The
-default size is 8192 bytes, and the smallest allowable size is 4096 bytes.
+default size is 16384 bytes, and the smallest allowable size is 4096 bytes.
 The optimal block:fragment ratio is 8:1.
 Other ratios are possible, but are not recommended,
 and may produce unpredictable results.
@@ -196,7 +196,7 @@ ranging in value between
 .Ar blocksize Ns /8
 and
 .Ar blocksize .
-The default is 1024 bytes.
+The default is 2048 bytes.
 .It Fl g Ar avgfilesize
 The expected average file size for the file system.
 .It Fl h Ar avgfpdir
@@ -352,8 +352,12 @@ Creates a new ufs file system on
 .Nm
 will use a block size of 16384 bytes, a fragement size of 2048 bytes
 and the largest possible number of cylinders per group.
-These values tend to produce better performance than the defaults
-for most applications.
+These values tend to produce better performance for most applications
+than the historical defaults
+(8192 byte block size and 1024 byte fragment size).
+This large fragment size
+may lead to large amounts of wasted space
+on filesystems that contain a large number of small files.
 .Pp
 .Dl mount_mfs -s 131072 -o nosuid,nodev,nosymfollow /dev/da0s1b /tmp
 .Pp
