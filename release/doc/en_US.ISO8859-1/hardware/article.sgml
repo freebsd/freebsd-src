@@ -616,6 +616,8 @@
 
     &hwlist.ixgb;
 
+    &hwlist.vge;
+
   </sect2>
 
   <sect2 id="fddi">
