@@ -33,12 +33,10 @@
         pkg
         ..
     ..
-    empty               mode=0555 flags=schg
+    empty           mode=0555 flags=schg
     ..
-/set gname=games mode=0775
-    games
+    games           gname=games mode=0775
     ..
-/set gname=wheel mode=0755
     heimdal         mode=0700
     ..
     log

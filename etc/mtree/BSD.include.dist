@@ -9,6 +9,16 @@
     ..
     bsnmp
     ..
+    c++
+        3.3
+            backward
+            ..
+            bits
+            ..
+            ext
+            ..
+        ..
+    ..
     cam
         scsi
         ..
@@ -18,11 +28,11 @@
     dev
         an
         ..
+        firewire
+        ..
         ic
         ..
         iicbus
-        ..
-        firewire
         ..
         ofw
         ..
@@ -58,21 +68,11 @@
         ..
         smbfs
         ..
-	udf
-	..
+        udf
+        ..
         umapfs
         ..
         unionfs
-        ..
-    ..
-    c++
-        3.3
-            backward
-            ..
-            bits
-            ..
-            ext
-            ..
         ..
     ..
     geom

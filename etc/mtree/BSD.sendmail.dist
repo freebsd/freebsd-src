@@ -4,9 +4,9 @@
 #
 
 /set type=dir uname=root gname=wheel mode=0755
-.                           nochange
-    var                     nochange
-        spool               nochange
+.               nochange
+    var             nochange
+        spool           nochange
             clientmqueue    uname=smmsp gname=smmsp mode=0770
             ..
         ..
