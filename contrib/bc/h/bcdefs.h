@@ -33,7 +33,7 @@
 #include <stdio.h>
 #include <sys/types.h>
 #include <ctype.h>
-#ifdef STRINGS_H
+#ifdef HAVE_STRINGS_H
 #include <strings.h>
 #else
 #include <string.h>

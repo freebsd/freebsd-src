@@ -2,7 +2,7 @@
 #
 # Time the functions.
 #
-BC=../bc
+BC=../bc/bc
 SYSBC=/usr/bin/bc
 for file in exp.b ln.b sine.b atan.b jn.b mul.b div.b raise.b sqrt.b
 do

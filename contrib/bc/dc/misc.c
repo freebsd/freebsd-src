@@ -1,7 +1,7 @@
 /* 
  * misc. functions for the "dc" Desk Calculator language.
  *
- * Copyright (C) 1994, 1997 Free Software Foundation, Inc.
+ * Copyright (C) 1994, 1997, 1998 Free Software Foundation, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -150,14 +150,16 @@ dc_system DC_DECLARG((s))
 
 /* print out the indicated value */
 void
-dc_print DC_DECLARG((value, obase))
+dc_print DC_DECLARG((value, obase, newline_p, discard_p))
 	dc_data value DC_DECLSEP
-	int obase DC_DECLEND
+	int obase DC_DECLSEP
+	dc_newline newline_p DC_DECLSEP
+	dc_discard discard_p DC_DECLEND
 {
 	if (value.dc_type == DC_NUMBER) {
-		dc_out_num(value.v.number, obase, DC_TRUE, DC_FALSE);
+		dc_out_num(value.v.number, obase, newline_p, discard_p);
 	} else if (value.dc_type == DC_STRING) {
-		dc_out_str(value.v.string, DC_TRUE, DC_FALSE);
+		dc_out_str(value.v.string, newline_p, discard_p);
 	} else {
 		dc_garbage("in data being printed", -1);
 	}
