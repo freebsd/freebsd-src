@@ -90,8 +90,6 @@ struct cfattach ohci_pci_ca = {
 };
 #elif defined(__FreeBSD__)
 
-#define PCI_INTERFACE_MASK      0x0000ff00
-#define PCI_INTERFACE_SHIFT     8
 #define PCI_INTERFACE(d)        (((d) >> 8) & 0xff)
 #define PCI_SUBCLASS(d)         ((d) & PCI_SUBCLASS_MASK)
 #define PCI_CLASS(d)            ((d) & PCI_CLASS_MASK)
@@ -249,9 +247,10 @@ ohci_pci_attach(pcici_t config_id, int unit)
 	if (bootverbose)
 #endif
 	{
-		printf("usb%d: OHCI version %d%d, interrupting at %d\n", unit,
 		/* XXX is this correct? Does the correct version show up? */
-			(rev & 0xf0) >> 8, rev & 0x0f,
+		rev = inw(sc->sc_iobase+OHCI_REVISION);
+		printf("usb%d: OHCI version %d%d, interrupting at %d\n", unit,
+			OHCI_REV_HI(rev), OHCI_REV_LO(rev),
 			(int)pci_conf_read(config_id,PCI_INTERRUPT_REG) & 0xff);
 	}
 
