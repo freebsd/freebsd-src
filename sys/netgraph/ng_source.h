@@ -89,6 +89,7 @@ enum {
 	NGM_SOURCE_START,		/* start sending queued data */
 	NGM_SOURCE_STOP,		/* stop sending queued data */
 	NGM_SOURCE_CLR_DATA,		/* clear the queued data */
+	NGM_SOURCE_START_NOW,		/* start on non-ether output */
 };
 
 #endif /* _NETGRAPH_NG_SOURCE_H_ */
