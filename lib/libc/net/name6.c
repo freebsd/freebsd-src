@@ -114,6 +114,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <stdarg.h>
 #include <nsswitch.h>
+#include <pthread.h>
 #include <unistd.h>
 #include "un-namespace.h"
 
@@ -189,20 +190,18 @@ static void	 _dns_ehent(void) __unused;
 static int	 _icmp_ghbyaddr(void *, void *, va_list);
 #endif /* ICMPNL */
 
-/* Make getipnodeby*() thread-safe in libc for use with kernel threads. */
-#include "libc_private.h"
-#include "spinlock.h"
 /*
  * XXX: Our res_*() is not thread-safe.  So, we share lock between
  * getaddrinfo() and getipnodeby*().  Still, we cannot use
  * getaddrinfo() and getipnodeby*() in conjunction with other
  * functions which call res_*().
  */
-extern spinlock_t __getaddrinfo_thread_lock;
+#include "libc_private.h"
+extern pthread_mutex_t __getaddrinfo_thread_lock;
 #define THREAD_LOCK() \
-	if (__isthreaded) _SPINLOCK(&__getaddrinfo_thread_lock);
+	if (__isthreaded) _pthread_mutex_lock(&__getaddrinfo_thread_lock);
 #define THREAD_UNLOCK() \
-	if (__isthreaded) _SPINUNLOCK(&__getaddrinfo_thread_lock);
+	if (__isthreaded) _pthread_mutex_unlock(&__getaddrinfo_thread_lock);
 
 /* Host lookup order if nsswitch.conf is broken or nonexistant */
 static const ns_src default_src[] = { 
