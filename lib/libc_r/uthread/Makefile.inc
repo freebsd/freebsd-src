@@ -1,4 +1,6 @@
-#	$Id$
+#	$Id: Makefile.inc,v 1.1 1996/01/22 00:23:03 julian Exp $
+
+CPLUSPLUSLIB=	cpluspluslib
 
 # uthread sources
 .PATH: ${.CURDIR}/uthread
@@ -6,6 +8,7 @@
 SRCS+= \
 	uthread_accept.c \
 	uthread_attr_setcreatesuspend.c \
+	uthread_autoinit.cc \
 	uthread_bind.c \
 	uthread_clean.c \
 	uthread_close.c \
