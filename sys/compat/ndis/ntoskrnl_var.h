@@ -35,6 +35,12 @@
 #ifndef _NTOSKRNL_VAR_H_
 #define _NTOSKRNL_VAR_H_
 
+/* Note: assumes x86 page size of 4K. */
+#define PAGE_SHIFT	12
+#define SPAN_PAGES(ptr, len)					\
+	((uint32_t)((((uintptr_t)(ptr) & (PAGE_SIZE -1)) +	\
+	(len) + (PAGE_SIZE - 1)) >> PAGE_SHIFT))
+
 typedef uint32_t kspin_lock;
 
 struct slist_entry {
