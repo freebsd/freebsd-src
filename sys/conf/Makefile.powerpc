@@ -1,6 +1,6 @@
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.i386,v 1.46 1994/10/18 19:45:46 wollman Exp $
+#	$Id: Makefile.i386,v 1.47 1994/10/21 01:10:54 wollman Exp $
 #
 # Makefile for FreeBSD
 #
@@ -25,15 +25,6 @@ LD?=	/usr/bin/ld
 CC?=	cc 
 CPP?=	cpp
 DBSYM?=	/usr/sbin/dbsym
-.if defined(DEBUG)
-.if defined(NOSTRIP)
-STRIP=  echo '(skipping) strip'
-.else
-STRIP=  cp $@ $@.sym; strip
-.endif
-.else
-STRIP=  strip
-.endif
 
 .if exists(./@/.)
 S=	./@
@@ -43,10 +34,9 @@ S=	../..
 I386=	${S}/i386
 
 CWARNFLAGS?=-W -Wreturn-type -Wcomment -Wredundant-decls
-
 #
-# The following flag is next up for working on:
-# -Wnested-externs 
+# The following flags are next up for working on:
+# -Wimplicit -Wnested-externs 
 #
 # When working on removing warnings from code, the `-Werror' flag should be
 # of material assistance.
@@ -62,9 +52,10 @@ NORMAL_C= ${CC} -c ${CFLAGS} ${PROF} $<
 NORMAL_C_C= ${CC} -c ${CFLAGS} ${PROF} ${PARAM} $<
 # XXX errors leak out of all the pipes.  Should use cc *.S.
 # XXX LOCORE means "don't declare C stuff" not "for locore.s".
-NORMAL_S= ${CPP} -I. -DLOCORE ${COPTS} $< | ${AS} ${ASFLAGS} -o $*.o
+NORMAL_S= ${CPP} -DLOCORE ${COPTS} $< | ${AS} ${ASFLAGS} -o $*.o
 DRIVER_C= ${CC} -c ${CFLAGS} ${PROF} $<
 DRIVER_C_C= ${CC} -c ${CFLAGS} ${PROF} ${PARAM} $<
+PROFILE_C= ${CC} -c ${CFLAGS} ${PARAM} $<
 
 SFILES=	${I386}/i386/exception.s ${I386}/i386/microtime.s \
 	${I386}/i386/support.s ${I386}/i386/swtch.s ${I386}/apm/apm_setup.s
@@ -75,16 +66,7 @@ SYSTEM_DEP=Makefile symbols.sort ${SYSTEM_OBJS} libkern.a
 SYSTEM_LD_HEAD= 	@echo loading $@; rm -f $@
 SYSTEM_LD= @${LD} -Bstatic -Z -T ${LOAD_ADDRESS} -o $@ -X ${SYSTEM_OBJS} vers.o libkern.a
 SYSTEM_LD_TAIL= @echo rearranging symbols; symorder symbols.sort $@; \
-	${DBSYM} -fT ${LOAD_ADDRESS} $@; ${STRIP} -x $@; size $@; chmod 755 $@
-
-# (XXX) ok, this is weird.  but we've got a working ed, and a broken ex, and
-# the script is identical for either... -- cgd
-#
-GPROF.EX=	/usr/src/lib/csu.i386/gprof.ex
-PROFILE_C=	${CC} -S -c ${CFLAGS} $< ; \
-		ed - $*.s < ${GPROF.EX} ; \
-		${AS} -o $@ $*.s ; \
-		rm -f $*.s
+	${DBSYM} -fT ${LOAD_ADDRESS} $@; size $@; chmod 755 $@
 
 %OBJS
 
@@ -115,11 +97,10 @@ ${LIBKERN}:
 	@(cd $S/libkern; make)
 
 clean:
-	rm -f eddep *kernel tags *.o locore.i [a-uw-z]*.s \
-		errs linterrs makelinks genassym ,assym.s stamp-assym
+	rm -f eddep kernel tags *.o *.s errs linterrs makelinks genassym
 
 #lint: /tmp param.c
-#	@lint -hbxn -I. -DGENERIC -Dvolatile= ${COPTS} ${PARAM} \
+#	@lint -hbxn -DGENERIC -Dvolatile= ${COPTS} ${PARAM} \
 #	  ${I386}/i386/Locore.c ${CFILES} ioconf.c param.c | \
 #	    grep -v 'struct/union .* never defined' | \
 #	    grep -v 'possible pointer alignment problem'
@@ -149,27 +130,22 @@ trap.o cons.o: Makefile
 ./assym.s: assym.s
 
 assym.s: genassym
-	./genassym >,assym.s
-	if cmp -s assym.s ,assym.s; then \
-		rm -f ,assym.s; \
-	else \
-		rm -f assym.s; \
-		mv ,assym.s assym.s; \
-	fi
+	./genassym >assym.s
 
 # Some of the defines that genassym outputs may well depend on the 
 # value of kernel options.
-genassym:	Makefile
-	${CC} ${INCLUDES} -DKERNEL ${IDENT} ${PARAM} \
-		 ${I386}/i386/genassym.c -static -o genassym
+genassym.o: ${I386}/i386/genassym.c Makefile
+	${CC} -c ${CFLAGS} ${PARAM} ${I386}/i386/genassym.c
+
+genassym: genassym.o
+	${CC} -static ${CFLAGS} ${PARAM} genassym.o -o $@
 
 # XXX this assumes that the options for NORMAL_C* and DRIVER_C* are identical.
 depend: assym.s param.c vnode_if.h
 	mkdep ${COPTS} ${CFILES} ${SYSTEM_CFILES}
-	mkdep -a -p ${INCLUDES} -DKERNEL ${IDENT} ${PARAM} \
-		${I386}/i386/genassym.c
+	mkdep -a ${COPTS} ${PARAM} ${I386}/i386/genassym.c
 	MKDEP_CPP=${CPP} ; export MKDEP_CPP ; \
-	mkdep -a -I. -DLOCORE ${COPTS} ${SFILES} ${SYSTEM_SFILES}
+	mkdep -a -DLOCORE ${COPTS} ${SFILES} ${SYSTEM_SFILES}
 
 links:
 	egrep '#if' ${CFILES} | sed -f $S/conf/defines | \
