@@ -1512,12 +1512,12 @@ ata_sis_ident(device_t dev)
      { ATA_SIS651,  0x00, SIS_SOUTH, 0, ATA_UDMA6, "SiS 651" },	/* ext south */
      { ATA_SIS650,  0x00, SIS_SOUTH, 0, ATA_UDMA6, "SiS 650" },	/* ext south */
      { ATA_SIS648,  0x00, SIS_SOUTH, 0, ATA_UDMA6, "SiS 648" },	/* ext south */
-     { ATA_SIS646,  0x00, SIS_SOUTH, 0, ATA_UDMA6, "SiS 645DX" },/* ext south */
+     { ATA_SIS646,  0x00, SIS_SOUTH, 0, ATA_UDMA6, "SiS 645DX"},/* ext south */
      { ATA_SIS645,  0x00, SIS_SOUTH, 0, ATA_UDMA6, "SiS 645" },	/* ext south */
      { ATA_SIS640,  0x00, SIS_SOUTH, 0, ATA_UDMA4, "SiS 640" },	/* ext south */
      { ATA_SIS635,  0x00, SIS100NEW, 0, ATA_UDMA5, "SiS 635" },	/* 1chip */
      { ATA_SIS633,  0x00, SIS100NEW, 0, ATA_UDMA5, "SiS 633" },	/* unknown */
-     { ATA_SIS630,  0x30, SIS100OLD, 0, ATA_UDMA5, "SiS 630S" }, /* 1chip */
+     { ATA_SIS630,  0x30, SIS100OLD, 0, ATA_UDMA5, "SiS 630S"}, /* 1chip */
      { ATA_SIS630,  0x00, SIS66,     0, ATA_UDMA4, "SiS 630" },	/* 1chip */
      { ATA_SIS620,  0x00, SIS66,     0, ATA_UDMA4, "SiS 620" },	/* 1chip */
 
