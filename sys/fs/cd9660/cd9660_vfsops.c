@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vfsops.c	8.3 (Berkeley) 1/31/94
- * $Id: cd9660_vfsops.c,v 1.10 1995/01/16 17:03:27 joerg Exp $
+ * $Id: cd9660_vfsops.c,v 1.11 1995/03/16 20:23:24 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -94,10 +94,10 @@ cd9660_mountroot()
 	struct iso_args args;
 	
 	/*
-	 * Get vnodes for swapdev and rootdev.
+	 * Get vnode for rootdev.
 	 */
-	if (bdevvp(swapdev, &swapdev_vp) || bdevvp(rootdev, &rootvp))
-		panic("cd9660_mountroot: can't setup bdevvp's");
+	if (bdevvp(rootdev, &rootvp))
+		panic("cd9660_mountroot: can't setup bdevvp for rootdev");
 
 	mp = malloc((u_long)sizeof(struct mount), M_MOUNT, M_WAITOK);
 	bzero((char *)mp, (u_long)sizeof(struct mount));

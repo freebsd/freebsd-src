@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vfsops.c	8.8 (Berkeley) 4/18/94
- * $Id: ffs_vfsops.c,v 1.18 1995/05/01 23:20:24 dyson Exp $
+ * $Id: ffs_vfsops.c,v 1.19 1995/05/15 08:39:37 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -105,10 +105,10 @@ ffs_mountroot()
 	int error;
 	
 	/*
-	 * Get vnodes for swapdev and rootdev.
+	 * Get vnode for rootdev.
 	 */
-	if (bdevvp(swapdev, &swapdev_vp) || bdevvp(rootdev, &rootvp))
-		panic("ffs_mountroot: can't setup bdevvp's");
+	if (bdevvp(rootdev, &rootvp))
+		panic("ffs_mountroot: can't setup bdevvp for root");
 
 	mp = malloc((u_long)sizeof(struct mount), M_MOUNT, M_WAITOK);
 	bzero((char *)mp, (u_long)sizeof(struct mount));

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_swap.c	8.5 (Berkeley) 2/17/94
- * $Id: vm_swap.c,v 1.17 1995/05/14 03:00:10 davidg Exp $
+ * $Id: vm_swap.c,v 1.18 1995/05/18 05:09:54 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -58,6 +58,7 @@
 #endif
 static struct swdevt should_be_malloced[NSWAPDEV];
 struct swdevt *swdevt = should_be_malloced;
+struct vnode *swapdev_vp;
 int nswap;			/* first block after the interleaved devs */
 int nswdev = NSWAPDEV;
 int vm_swap_size;
@@ -249,5 +250,9 @@ swaponvp(p, vp, dev, nblks)
 		rlist_free(&swaplist, vsbase, vsbase + blk - 1);
 		vm_swap_size += blk;
 	}
+
+	if (!swapdev_vp && bdevvp(swapdev, &swapdev_vp))
+		panic("Cannot get vnode for swapdev");
+
 	return (0);
 }
