@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)inode.h	7.17 (Berkeley) 5/8/91
- *	$Id$
+ *	$Id: inode.h,v 1.4 1997/02/22 09:30:56 peter Exp $
  */
 
 #ifndef _UFS_INODE_H_
@@ -155,19 +155,6 @@ extern ino_t	dirpref();
 #define	IUPDAT(ip, t1, t2, waitfor) { \
 	if (ip->i_flag&(IUPD|IACC|ICHG|IMOD)) \
 		(void) iupdat(ip, t1, t2, waitfor); \
-}
-
-#define	ITIMES(ip, t1, t2) { \
-	if ((ip)->i_flag&(IUPD|IACC|ICHG)) { \
-		(ip)->i_flag |= IMOD; \
-		if ((ip)->i_flag&IACC) \
-			(ip)->i_atime = (t1)->tv_sec; \
-		if ((ip)->i_flag&IUPD) \
-			(ip)->i_mtime = (t2)->tv_sec; \
-		if ((ip)->i_flag&ICHG) \
-			(ip)->i_ctime = time.tv_sec; \
-		(ip)->i_flag &= ~(IACC|IUPD|ICHG); \
-	} \
 }
 
 /*

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)inode.h	8.9 (Berkeley) 5/14/95
- * $Id: inode.h,v 1.20 1998/01/30 11:34:02 phk Exp $
+ * $Id: inode.h,v 1.21 1998/03/08 09:59:21 julian Exp $
  */
 
 #ifndef _UFS_UFS_INODE_H_
@@ -142,29 +142,6 @@ struct indir {
 /* Convert between inode pointers and vnode pointers. */
 #define VTOI(vp)	((struct inode *)(vp)->v_data)
 #define ITOV(ip)	((ip)->i_vnode)
-
-/*
- * XXX this is too long to be a macro, and isn't used in any time-critical
- * place; in fact it is only used in ufs_vnops.c so it shouldn't be in a
- * header file.
- */
-#define	ITIMES(ip, t1, t2) {						\
-	long tv_sec = time.tv_sec;					\
-	if ((ip)->i_flag & (IN_ACCESS | IN_CHANGE | IN_UPDATE)) {	\
-		(ip)->i_flag |= IN_MODIFIED;				\
-		if ((ip)->i_flag & IN_ACCESS)				\
-			(ip)->i_atime					\
-			= ((t1) == &time ? tv_sec : (t1)->tv_sec);	\
-		if ((ip)->i_flag & IN_UPDATE) {				\
-			(ip)->i_mtime					\
-			= ((t2) == &time ? tv_sec : (t2)->tv_sec);	\
-			(ip)->i_modrev++;				\
-		}							\
-		if ((ip)->i_flag & IN_CHANGE)				\
-			(ip)->i_ctime = tv_sec;				\
-		(ip)->i_flag &= ~(IN_ACCESS | IN_CHANGE | IN_UPDATE);	\
-	}								\
-}
 
 /* Determine if soft dependencies are being done */
 #define DOINGSOFTDEP(vp)	((vp)->v_mount->mnt_flag & MNT_SOFTDEP)

@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vnops.c,v 1.65 1998/03/06 09:46:31 msmith Exp $ */
+/*	$Id: msdosfs_vnops.c,v 1.66 1998/03/20 02:33:42 kato Exp $ */
 /*	$NetBSD: msdosfs_vnops.c,v 1.68 1998/02/10 14:10:04 mrg Exp $	*/
 
 /*-
@@ -180,7 +180,7 @@ msdosfs_create(ap)
 	ndirent.de_devvp = pdep->de_devvp;
 	ndirent.de_pmp = pdep->de_pmp;
 	ndirent.de_flag = DE_ACCESS | DE_CREATE | DE_UPDATE;
-	TIMEVAL_TO_TIMESPEC(&time, &ts);
+	getnanotime(&ts);
 	DETIMES(&ndirent, &ts, &ts, &ts);
 	error = createde(&ndirent, pdep, &dep, cnp);
 	if (error)
@@ -239,7 +239,7 @@ msdosfs_close(ap)
 
 	simple_lock(&vp->v_interlock);
 	if (vp->v_usecount > 1) {
-		TIMEVAL_TO_TIMESPEC(&time, &ts);
+		getnanotime(&ts);
 		DETIMES(dep, &ts, &ts, &ts);
 	}
 	simple_unlock(&vp->v_interlock);
@@ -340,7 +340,7 @@ msdosfs_getattr(ap)
 	u_long dirsperblk = pmp->pm_BytesPerSec / sizeof(struct direntry);
 	u_long fileid;
 
-	TIMEVAL_TO_TIMESPEC(&time, &ts);
+	getnanotime(&ts);
 	DETIMES(dep, &ts, &ts, &ts);
 	vap->va_fsid = dep->de_dev;
 	/*
@@ -1356,7 +1356,7 @@ msdosfs_mkdir(ap)
 	bzero(&ndirent, sizeof(ndirent));
 	ndirent.de_pmp = pmp;
 	ndirent.de_flag = DE_ACCESS | DE_CREATE | DE_UPDATE;
-	TIMEVAL_TO_TIMESPEC(&time, &ts);
+	getnanotime(&ts);
 	DETIMES(&ndirent, &ts, &ts, &ts);
 
 	/*
