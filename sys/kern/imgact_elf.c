@@ -84,7 +84,7 @@ static int exec_elf_imgact __P((struct image_params *imgp));
 static int elf_trace = 0;
 SYSCTL_INT(_debug, OID_AUTO, elf_trace, CTLFLAG_RW, &elf_trace, 0, "");
 
-static struct sysentvec elf_freebsd_sysvec = {
+struct sysentvec elf_freebsd_sysvec = {
         SYS_MAXSYSCALL,
         sysent,
         0,

@@ -351,6 +351,9 @@ isa/psm.c			optional	psm
 isa/sio.c			count		sio
 isa/syscons_isa.c		optional	sc
 isa/vga_isa.c			optional	vga
+kern/imgact_aout.c		standard
+kern/imgact_gzip.c		optional	gzip
+kern/link_aout.c		standard
 kern/subr_diskmbr.c		standard
 libkern/divdi3.c		standard
 libkern/moddi3.c		standard
