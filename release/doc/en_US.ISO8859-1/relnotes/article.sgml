@@ -3061,7 +3061,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       manpages) or if the running user is
       <username>root</username>.</para>
 
-    <para arch="ia64">The mca utility, for decoding machine check
+    <para arch="ia64">The mca utility, for decoding Machine Check Architecture
       records, has been added.</para>
 
     <para>The &man.mdmfs.8; command has been added; it is a wrapper
