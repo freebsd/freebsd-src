@@ -1,5 +1,5 @@
 #	from: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.prog.mk,v 1.66 1998/03/12 20:02:15 eivind Exp $
+#	$Id: bsd.prog.mk,v 1.67 1998/03/23 14:58:27 eivind Exp $
 
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
@@ -26,6 +26,32 @@ LDFLAGS+= -static
 
 .if defined(PROG)
 .if defined(SRCS)
+
+CLEANFILES?=
+
+.for _LSRC in ${SRCS:M*.l}
+_LC:=	${_LSRC:S/.l/.c/}
+${_LC}: ${_LSRC}
+	${LEX} -t ${LFLAGS} ${.ALLSRC} > ${.TARGET}
+SRCS:=	${SRCS:S/${_LSRC}/${_LC}/}
+CLEANFILES:= ${CLEANFILES} ${_LC}
+.endfor
+
+.for _YSRC in ${SRCS:M*.y}
+_YC:=	${_YSRC:S/.y/.c/}
+_YH:=	${_YSRC:S/.y/.h/}
+.ORDER: ${_YC} ${_YH}
+${_YC} ${_YH}: ${_YSRC}
+	${YACC} ${YFLAGS} -o ${_YC} ${.ALLSRC}
+SRCS:=	${SRCS:S/${_YSRC}/${_YC}/}
+CLEANFILES:= ${CLEANFILES} ${_YC}
+.if ${YFLAGS:M-d} != ""
+y.tab.h:
+	ln -sf ${_YH} ${.TARGET}
+SRCS:=	${SRCS} y.tab.h
+CLEANFILES:= ${CLEANFILES} ${_YH} y.tab.h
+.endif
+.endfor
 
 OBJS+=  ${SRCS:N*.h:R:S/$/.o/g}
 
