@@ -50,6 +50,8 @@
 #include <dev/fe/if_fereg.h>
 #include <dev/fe/if_fevar.h>
 
+#include <isa/isavar.h>
+
 /*
  *	Cbus specific code.
  */
