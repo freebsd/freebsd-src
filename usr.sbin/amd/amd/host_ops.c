@@ -37,7 +37,7 @@
  *
  *	@(#)host_ops.c	8.1 (Berkeley) 6/6/93
  *
- * $Id$
+ * $Id: host_ops.c,v 1.4 1997/02/22 16:01:29 peter Exp $
  *
  */
 
@@ -46,6 +46,7 @@
 #ifdef HAS_HOST
 
 #include "mount.h"
+#include "mountres.h"
 #include <sys/stat.h>
 
 /*
@@ -132,9 +133,9 @@ caddr_t args_ptr;
 	return ((*xdr_args)(&xdr, args_ptr));
 }
 
-static int do_mount P((fhstatus *fhp, char *dir, char *fs_name, char *opts, mntfs *mf));
-static int do_mount(fhp, dir, fs_name, opts, mf)
-fhstatus *fhp;
+static int do_mount P((mountres *mrp, char *dir, char *fs_name, char *opts, mntfs *mf));
+static int do_mount(mrp, dir, fs_name, opts, mf)
+mountres *mrp;
 char *dir;
 char *fs_name;
 char *opts;
@@ -152,7 +153,7 @@ mntfs *mf;
 		return ENOENT;
 	}
 
-	return mount_nfs_fh(fhp, dir, fs_name, opts, mf);
+	return mount_nfs_fh(mrp, dir, fs_name, opts, mf);
 }
 
 static int sortfun P((exports *a, exports *b));
@@ -165,14 +166,16 @@ exports *a,*b;
 /*
  * Get filehandle
  */
-static int fetch_fhandle P((CLIENT *client, char *dir, fhstatus *fhp));
-static int fetch_fhandle(client, dir, fhp)
+static int fetch_fhandle P((CLIENT *client, xdrproc_t xdr_mountres, char *dir, mountres *mrp));
+static int fetch_fhandle(client, xdr_mountres, dir, mrp)
 CLIENT *client;
+xdrproc_t xdr_mountres;
 char *dir;
-fhstatus *fhp;
+mountres *mrp;
 {
 	struct timeval tv;
 	enum clnt_stat clnt_stat;
+	int status;
 
 	/*
 	 * Pick a number, any number...
@@ -187,7 +190,9 @@ fhstatus *fhp;
 	 * Call the mount daemon on the remote host to
 	 * get the filehandle.
 	 */
-	clnt_stat = clnt_call(client, MOUNTPROC_MNT, xdr_dirpath, &dir, xdr_fhstatus, fhp, tv);
+	clnt_stat = clnt_call(client, MOUNTPROC_MNT, xdr_dirpath, &dir, xdr_mountres, &mrp->mr_mountres, tv);
+	if (clnt_stat == 0)
+		status = mrp->mr_fhstatus.fhs_status; /* XXX assumes fhstatus and mountres3 start the same */
 	if (clnt_stat != RPC_SUCCESS) {
 		extern char *clnt_sperrno();
 		char *msg = clnt_sperrno(clnt_stat);
@@ -197,12 +202,12 @@ fhstatus *fhp;
 	/*
 	 * Check status of filehandle
 	 */
-	if (fhp->fhs_status) {
+	if (status) {
 #ifdef DEBUG
-		errno = fhp->fhs_status;
+		errno = status;
 		dlog("fhandle fetch failed: %m");
 #endif /* DEBUG */
-		return fhp->fhs_status;
+		return status;
 	}
 	return 0;
 }
@@ -224,12 +229,35 @@ char *dir;
 }
 
 /*
- * Mount the export tree from a host
+ * Return TRUE if mount opts contains nfsv2 flag.
  */
-static int host_fmount P((mntfs *mf));
-static int host_fmount(mf)
+static int forcev2(mf)
 mntfs *mf;
 {
+	struct mntent mnt;
+
+	mnt.mnt_dir = mf->mf_mount;
+	mnt.mnt_fsname = mf->mf_info;
+	mnt.mnt_type = MTAB_TYPE_NFS;
+	mnt.mnt_opts = mf->mf_mopts;
+	mnt.mnt_freq = 0;
+	mnt.mnt_passno = 0;
+
+	if (hasmntopt(&mnt, "nfsv2") != NULL)
+		return TRUE;
+	else
+		return FALSE;
+}
+
+/*
+ * A helper for host_fmount.
+ */
+static int try_fmount P((mntfs *mf, int mountvers));
+static int try_fmount(mf, mountvers)
+mntfs *mf;
+int mountvers;
+{
+	xdrproc_t xdr_mountres;
 	struct timeval tv2;
 	CLIENT *client;
 	enum clnt_stat clnt_stat;
@@ -237,7 +265,7 @@ mntfs *mf;
 	int j, k;
 	exports exlist = 0, ex;
 	exports *ep = 0;
-	fhstatus *fp = 0;
+	mountres *mrp = 0;
 	char *host = mf->mf_server->fs_host;
 	int error = 0;
 	struct sockaddr_in sin;
@@ -248,6 +276,11 @@ mntfs *mf;
 	char mntpt[MAXPATHLEN];
 	struct timeval tv;
 	tv.tv_sec = 10; tv.tv_usec = 0;
+
+	if (mountvers == MOUNTVERS)
+		xdr_mountres = xdr_fhstatus;
+	else
+		xdr_mountres = xdr_mountres3;
 
 	/*
 	 * Read the mount list
@@ -272,8 +305,8 @@ mntfs *mf;
 	 * Make a client end-point.
 	 * Try TCP first
 	 */
-	if ((client = clnttcp_create(&sin, MOUNTPROG, MOUNTVERS, &sock, 0, 0)) == NULL &&
-		(client = clntudp_create(&sin, MOUNTPROG, MOUNTVERS, tv, &sock)) == NULL) {
+	if ((client = clnttcp_create(&sin, MOUNTPROG, mountvers, &sock, 0, 0)) == NULL &&
+		(client = clntudp_create(&sin, MOUNTPROG, mountvers, tv, &sock)) == NULL) {
 		plog(XLOG_ERROR, "Failed to make rpc connection to mountd on %s", host);
 		error = EIO;
 		goto out;
@@ -337,8 +370,9 @@ mntfs *mf;
 	/*
 	 * Allocate an array of filehandles
 	 */
-	fp = (fhstatus *) xmalloc(n_export * sizeof(fhstatus));
-
+	mrp = (mountres *) xmalloc(n_export * sizeof(mountres));
+	bzero(mrp, n_export * sizeof(mountres));
+	
 	/*
 	 * Try to obtain filehandles for each directory.
 	 * If a fetch fails then just zero out the array
@@ -353,7 +387,8 @@ mntfs *mf;
 			ep[j] = 0;
 		} else {
 			k = j;
-			if (error = fetch_fhandle(client, ep[j]->ex_dir, &fp[j]))
+			mrp[j].mr_version = mountvers;
+			if (error = fetch_fhandle(client, xdr_mountres, ep[j]->ex_dir, &mrp[j]))
 				ep[j] = 0;
 		}
 	}
@@ -376,7 +411,7 @@ mntfs *mf;
 		if (ex) {
 			strcpy(rfs_dir, ex->ex_dir);
 			MAKE_MNTPT(mntpt, ex, mf);
-			if (do_mount(&fp[j], mntpt, fs_name, mf->mf_mopts, mf) == 0)
+			if (do_mount(&mrp[j], mntpt, fs_name, mf->mf_mopts, mf) == 0)
 				ok = TRUE;
 		}
 	}
@@ -388,14 +423,41 @@ out:
 	discard_mntlist(mlist);
 	if (ep)
 		free(ep);
-	if (fp)
-		free(fp);
+	if (mrp) {
+		for (j = 0; j < n_export; j++)
+			xdr_free(xdr_mountres, (char *) &mrp->mr_mountres);
+		free(mrp);
+	}
 	if (client)
 		clnt_destroy(client);
 	if (exlist)
 		xdr_pri_free(xdr_exports, &exlist);
 	if (ok)
 		return 0;
+	return error;
+}
+
+/*
+ * Mount the export tree from a host
+ */
+static int host_fmount P((mntfs *mf));
+static int host_fmount(mf)
+mntfs *mf;
+{
+	int error = -1;
+
+#ifdef DEBUG
+	dlog("host_fmount: trying to mount v3");
+#endif
+	if (!forcev2(mf))
+		error = try_fmount(mf, MOUNTVERS3);
+	if (error) {
+#ifdef DEBUG
+		dlog("host_fmount: trying to mount v2");
+#endif
+		error = try_fmount(mf, MOUNTVERS);
+	}
+
 	return error;
 }
 
