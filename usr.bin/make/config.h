@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)config.h	8.1 (Berkeley) 6/6/93
+ *	from: @(#)config.h	8.1 (Berkeley) 6/6/93
  */
 
 #define	DEFSHELL	1			/* Bourne shell */
@@ -78,15 +78,40 @@
  *	re-made, causing later targets to appear up-to-date. On systems
  *	that don't have this problem, you should defined this. Under
  *	NFS you probably should not, unless you aren't exporting jobs.
- *
- * POSIX
- *	If the POSIX standard for Make is to be followed. There are
- *	several areas that I dislike, hence this constant.
  */
 #define	LIBSUFF	".a"
 #define	RECHECK
 
-#ifndef RANLIBMAG
-#define RANLIBMAG "__.SYMDEF"
+/*
+ * POSIX
+ *	Adhere to the POSIX 1003.2 draft for the make(1) program.
+ *	- Use MAKEFLAGS instead of MAKE to pick arguments from the
+ *	  environment.
+ *	- Allow empty command lines if starting with tab.
+ */
+#define POSIX
+
+/*
+ * SYSVINCLUDE
+ *	Recognize system V like include directives [include "filename"]
+ * SYSVVARSUB
+ *	Recognize system V like ${VAR:x=y} variable substitutions
+ */
+#define SYSVINCLUDE
+#define SYSVVARSUB
+
+/*
+ * SUNSHCMD
+ *	Recognize SunOS and Solaris:
+ *		VAR :sh= CMD	# Assign VAR to the command substitution of CMD
+ *		${VAR:sh}	# Return the command substitution of the value
+ *				# of ${VAR}
+ */
+#define SUNSHCMD
+
+#if !defined(__svr4__) && !defined(__SVR4)
+# ifndef RANLIBMAG
+#  define RANLIBMAG "__.SYMDEF"
+# endif
 #endif
 /*#define POSIX*/

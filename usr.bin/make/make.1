@@ -29,8 +29,8 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)make.1	8.4 (Berkeley) 3/19/94
-.\"	$Id$
+.\"	from: @(#)make.1	8.4 (Berkeley) 3/19/94
+.\"	$Id: make.1,v 1.5 1996/10/05 22:27:13 wosch Exp $
 .\"
 .Dd March 19, 1994
 .Dt MAKE 1
@@ -40,13 +40,14 @@
 .Nd maintain program dependencies
 .Sh SYNOPSIS
 .Nm make
-.Op Fl eiknqrst
+.Op Fl Beiknqrst
 .Op Fl D Ar variable
 .Op Fl d Ar flags
 .Op Fl f Ar makefile
 .Op Fl I Ar directory
 .Bk -words
 .Op Fl j Ar max_jobs
+.Op Fl m Ar directory
 .Ek
 .Op Fl V Ar variable
 .Op Ar variable=value
@@ -75,6 +76,9 @@ and makefiles, please refer to
 .Pp
 The options are as follows:
 .Bl -tag -width Ds
+.It Fl B
+Try to be backwards compatible by executing a single shell per command and
+by executing the commands to make the sources of a dependency line in sequence.
 .It Fl D Ar variable
 Define
 .Ar variable
@@ -128,8 +132,9 @@ standard input is read.
 Multiple makefile's may be specified, and are read in the order specified.
 .It Fl I Ar directory
 Specify a directory in which to search for makefiles and included makefiles.
-The system makefile directory is automatically included as part of this
-list.
+The system makefile directory (or directories, see the
+.Fl m
+option) is automatically included as part of this list.
 .It Fl i
 Ignore non-zero exit of shell commands in the makefile.
 Equivalent to specifying
@@ -138,10 +143,20 @@ before each command line in the makefile.
 .It Fl j Ar max_jobs
 Specify the maximum number of jobs that
 .Nm make
-may have running at any one time.
+may have running at any one time. Turns compatibility mode off, unless the
+.Ar B
+flag is also specified.
 .It Fl k
 Continue processing after errors are encountered, but only on those targets
 that do not depend on the target whose creation caused the error.
+.It Fl m Ar directory
+Specify a directory in which to search for sys.mk and makefiles included
+via the <...> style.  Multiple directories can be added to form a search path.
+This path will override the default system include path: /usr/share/mk.
+Furthermore the system include path will be appended to the search path used
+for "..."-style inclusions (see the
+.Fl I
+option).
 .It Fl n
 Display the commands that would have been executed, but do not actually
 execute them.
@@ -291,13 +306,13 @@ between the previous contents of the variable and the appended value.
 Variables are expanded by surrounding the variable name with either
 curly braces
 .Pq Ql {}
-or parenthesis
+or parentheses
 .Pq Ql ()
 and preceding it with
 a dollar sign
 .Pq Ql \&$ .
 If the variable name contains only a single letter, the surrounding
-braces or parenthesis are not required.
+braces or parentheses are not required.
 This shorter form is not recommended.
 .Pp
 Variable substitution occurs at two distinct times, depending on where
@@ -386,10 +401,11 @@ i.e.
 .Ql \&$$
 expands to a single dollar
 sign.
-.It Ev MAKE
+.It Va .MAKE
 The name that
 .Nm make
-was executed with.
+was executed with
+.Pq Va argv Op 0
 .It Va .CURDIR
 A path to the directory where
 .Nm make
@@ -414,7 +430,7 @@ executes.
 .It Ev PWD
 Alternate path to the current directory.
 .Nm make
-normally sets 
+normally sets
 .Ql Va .CURDIR
 to the canonical path given by
 .Xr getcwd 2 .
@@ -520,23 +536,23 @@ This is the
 .At V
 style variable substitution.
 It must be the last modifier specified.
-If 
+If
 .Ar old_string
 or
 .Ar new_string
 do not contain the pattern matching character
 .Ar %
-then it is assumed that they are 
+then it is assumed that they are
 anchored at the end of each word, so only suffixes or entire
-words may be replaced. Otherwise 
+words may be replaced. Otherwise
 .Ar %
-is the substring of 
-.Ar old_string 
+is the substring of
+.Ar old_string
 to be replaced in
 .Ar new_string
 .El
 .Sh INCLUDE STATEMENTS, CONDITIONALS AND FOR LOOPS
-Makefile inclusion, conditional structures and for loops  reminiscent 
+Makefile inclusion, conditional structures and for loops  reminiscent
 of the C programming language are provided in
 .Nm make .
 All such structures are identified by a line beginning with a single
@@ -738,14 +754,14 @@ In both cases this continues until a
 or
 .Ql Ic .endif
 is found.
-.Pp 
+.Pp
 For loops are typically used to apply a set of rules to a list of files.
 The syntax of a for loop is:
 .Bl -tag -width Ds
 .It Xo
 .Ic \&.for
-.Ar variable 
-.Ic in 
+.Ar variable
+.Ic in
 .Ar expression
 .Xc
 .It Xo
@@ -756,12 +772,12 @@ The syntax of a for loop is:
 .Xc
 .El
 After the for
-.Ic expression 
-is evaluated, it is split into words. The 
+.Ic expression
+is evaluated, it is split into words. The
 iteration
 .Ic variable
-is successively set to each word, and substituted in the 
-.Ic make-rules 
+is successively set to each word, and substituted in the
+.Ic make-rules
 inside the body of the for loop.
 .Sh COMMENTS
 Comments begin with a hash
@@ -815,6 +831,12 @@ If the target already has commands, the
 .Ic .USE
 target's commands are appended
 to them.
+.It Ic .WAIT
+If special
+.Ic .WAIT
+source is appears in a dependency line, the sources that precede it are
+made before the sources that succeed it in the line. Loops are not being
+detected and targets that form loops will be silently ignored.
 .El
 .Sh "SPECIAL TARGETS"
 Special targets may not be included with other targets, i.e. they must be
@@ -863,11 +885,30 @@ The flags are as if typed to the shell, though the
 .Fl f
 option will have
 no effect.
+.\" XXX: NOT YET!!!!
+.\" .It Ic .NOTPARALLEL
+.\" The named targets are executed in non parallel mode. If no targets are
+.\" specified, then all targets are executed in non parallel mode.
+.It Ic .NOTPARALLEL
+Disable parallel mode.
+.It Ic .NO_PARALLEL
+Same as above, for compatibility with other pmake variants.
+.It Ic .ORDER
+The named targets are made in sequence.
+.\" XXX: NOT YET!!!!
+.\" .It Ic .PARALLEL
+.\" The named targets are executed in parallel mode. If no targets are
+.\" specified, then all targets are executed in parallel mode.
 .It Ic .PATH
 The sources are directories which are to be searched for files not
 found in the current directory.
 If no sources are specified, any previously specified directories are
 deleted.
+.It Ic .PHONY
+Apply the
+.Ic .PHONY
+attribute to any specified sources. Targets with this attribute are always
+considered to be out of date.
 .It Ic .PRECIOUS
 Apply the
 .Ic .PRECIOUS

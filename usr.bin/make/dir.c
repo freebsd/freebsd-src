@@ -348,7 +348,7 @@ DirMatchFiles (pattern, p, expansions)
 	     (pattern[0] == '.')))
 	{
 	    (void)Lst_AtEnd(expansions,
-			    (isDot ? strdup(entry->name) :
+			    (isDot ? estrdup(entry->name) :
 			     str_concat(p->name, entry->name,
 					STR_ADDSLASH)));
 	}
@@ -700,7 +700,7 @@ Dir_FindFile (name, path)
 	    }
 	    hits += 1;
 	    dot->hits += 1;
-	    return (strdup (name));
+	    return (estrdup (name));
     }
 
     if (Lst_Open (path) == FAILURE) {
@@ -811,7 +811,7 @@ Dir_FindFile (name, path)
 		/*
 		 * Checking in dot -- DON'T put a leading ./ on the thing.
 		 */
-		file = strdup(name);
+		file = estrdup(name);
 		checkedDot = TRUE;
 	    }
 	    if (DEBUG(DIR)) {
@@ -907,7 +907,7 @@ Dir_FindFile (name, path)
     }
 
     if (Hash_FindEntry (&p->files, cp) != (Hash_Entry *)NULL) {
-	return (strdup (name));
+	return (estrdup (name));
     } else {
 	return ((char *) NULL);
     }
@@ -922,7 +922,7 @@ Dir_FindFile (name, path)
 	if (DEBUG(DIR)) {
 	    printf("got it (in mtime cache)\n");
 	}
-	return(strdup(name));
+	return(estrdup(name));
     } else if (stat (name, &stb) == 0) {
 	entry = Hash_CreateEntry(&mtimes, name, (Boolean *)NULL);
 	if (DEBUG(DIR)) {
@@ -930,7 +930,7 @@ Dir_FindFile (name, path)
 		    name);
 	}
 	Hash_SetValue(entry, (long)stb.st_mtime);
-	return (strdup (name));
+	return (estrdup (name));
     } else {
 	if (DEBUG(DIR)) {
 	    printf("failed. Returning NULL\n");
@@ -973,7 +973,7 @@ Dir_MTime (gn)
     }
 
     if (fullName == (char *)NULL) {
-	fullName = strdup(gn->name);
+	fullName = estrdup(gn->name);
     }
 
     entry = Hash_FindEntry(&mtimes, fullName);
@@ -1047,7 +1047,7 @@ Dir_AddDir (path, name)
 
 	if ((d = opendir (name)) != (DIR *) NULL) {
 	    p = (Path *) emalloc (sizeof (Path));
-	    p->name = strdup (name);
+	    p->name = estrdup (name);
 	    p->hits = 0;
 	    p->refCount = 1;
 	    Hash_InitTable (&p->files, -1);
@@ -1059,7 +1059,7 @@ Dir_AddDir (path, name)
 	    (void)readdir(d);
 
 	    while ((dp = readdir (d)) != (struct dirent *) NULL) {
-#ifdef sun
+#if defined(sun) && defined(d_ino) /* d_ino is a sunos4 #define for d_fileno */
 		/*
 		 * The sun directory library doesn't check for a 0 inode
 		 * (0-inode slots just take up space), so we have to do
@@ -1068,7 +1068,7 @@ Dir_AddDir (path, name)
 		if (dp->d_fileno == 0) {
 		    continue;
 		}
-#endif /* sun */
+#endif /* sun && d_ino */
 		(void)Hash_CreateEntry(&p->files, dp->d_name, (Boolean *)NULL);
 	    }
 	    (void) closedir (d);
@@ -1131,7 +1131,7 @@ Dir_MakeFlags (flag, path)
     LstNode	  ln;	  /* the node of the current directory */
     Path	  *p;	  /* the structure describing the current directory */
 
-    str = strdup ("");
+    str = estrdup ("");
 
     if (Lst_Open (path) == SUCCESS) {
 	while ((ln = Lst_Next (path)) != NILLNODE) {

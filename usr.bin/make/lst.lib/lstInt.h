@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)lstInt.h	8.1 (Berkeley) 6/6/93
+ *	from: @(#)lstInt.h	8.1 (Berkeley) 6/6/93
  */
 
 /*-
@@ -43,6 +43,7 @@
 #ifndef _LSTINT_H_
 #define _LSTINT_H_
 
+#include	  "make.h"
 #include	  "lst.h"
 
 typedef struct ListNode {
@@ -87,7 +88,7 @@ typedef struct	{
  * PAlloc (var, ptype) --
  *	Allocate a pointer-typedef structure 'ptype' into the variable 'var'
  */
-#define	PAlloc(var,ptype)	var = (ptype) malloc (sizeof (*var))
+#define	PAlloc(var,ptype)	var = (ptype) emalloc (sizeof (*var))
 
 /*
  * LstValid (l) --

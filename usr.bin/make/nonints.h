@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)nonints.h	8.3 (Berkeley) 3/19/94
+ *	from: @(#)nonints.h	8.3 (Berkeley) 3/19/94
  */
 
 /* arch.c */
@@ -63,14 +63,18 @@ void For_Run  __P((void));
 /* main.c */
 void Main_ParseArgLine __P((char *));
 int main __P((int, char **));
+char *Cmd_Exec __P((char *, char **));
 void Error __P((char *, ...));
 void Fatal __P((char *, ...));
 void Punt __P((char *, ...));
 void DieHorribly __P((void));
 int PrintAddr __P((ClientData, ClientData));
 void Finish __P((int));
-char *emalloc __P((size_t));
+char *estrdup __P((const char *));
+void *emalloc __P((size_t));
+void *erealloc __P((void *, size_t));
 void enomem __P((void));
+int eunlink __P((const char *));
 
 /* parse.c */
 void Parse_Error __P((int, char *, ...));
