@@ -99,7 +99,6 @@ static char	*word(char *);
 static int	getasciilabel(FILE *, struct disklabel *);
 static int	getasciipartspec(char *, struct disklabel *, int, int);
 static int	checklabel(struct disklabel *);
-static void	Warning(const char *, ...) __printflike(1, 2);
 static void	usage(void);
 static struct disklabel *getvirginlabel(void);
 
@@ -111,6 +110,8 @@ static char	tmpfil[] = PATH_TMPFILE;
 
 static struct	disklabel lab;
 static u_char	bootarea[BBSIZE];
+static off_t	mediasize;
+static u_int	secsize;
 static char	blank[] = "";
 static char	unknown[] = "unknown";
 
@@ -121,6 +122,7 @@ static char    part_offset_type[MAX_NUM_PARTS];
 static int     part_set[MAX_NUM_PARTS];
 
 static int	installboot;	/* non-zero if we should install a boot program */
+static int	allfields;	/* present all fields in edit */
 static char const *xxboot;	/* primary boot */
 
 static int labeloffset = LABELOFFSET + LABELSECTOR * DEV_BSIZE;
@@ -146,8 +148,11 @@ main(int argc, char *argv[])
 	int ch, error = 0;
 	char const *name = 0;
 
-	while ((ch = getopt(argc, argv, "Bb:em:nRrs:w")) != -1)
+	while ((ch = getopt(argc, argv, "ABb:em:nRrs:w")) != -1)
 		switch (ch) {
+			case 'A':
+				allfields = 1;
+				break;
 			case 'B':
 				++installboot;
 				break;
@@ -327,7 +332,7 @@ writelabel(void)
 	struct disklabel *lp = &lab;
 
 	if (disable_write) {
-		Warning("write to disk label supressed - label was as follows:");
+		warnx("write to disk label supressed - label was as follows:");
 		display(stdout, NULL);
 		return (0);
 	}
@@ -419,45 +424,48 @@ display(FILE *f, const struct disklabel *lp)
 		lp = &lab;
 
 	fprintf(f, "# %s:\n", specname);
-	if (lp->d_type < DKMAXTYPES)
-		fprintf(f, "type: %s\n", dktypenames[lp->d_type]);
-	else
-		fprintf(f, "type: %u\n", lp->d_type);
-	fprintf(f, "disk: %.*s\n", (int)sizeof(lp->d_typename),
-		lp->d_typename);
-	fprintf(f, "label: %.*s\n", (int)sizeof(lp->d_packname),
-		lp->d_packname);
-	fprintf(f, "flags:");
-	if (lp->d_flags & D_REMOVABLE)
-		fprintf(f, " removeable");
-	if (lp->d_flags & D_ECC)
-		fprintf(f, " ecc");
-	if (lp->d_flags & D_BADSECT)
-		fprintf(f, " badsect");
-	fprintf(f, "\n");
-	fprintf(f, "bytes/sector: %lu\n", (u_long)lp->d_secsize);
-	fprintf(f, "sectors/track: %lu\n", (u_long)lp->d_nsectors);
-	fprintf(f, "tracks/cylinder: %lu\n", (u_long)lp->d_ntracks);
-	fprintf(f, "sectors/cylinder: %lu\n", (u_long)lp->d_secpercyl);
-	fprintf(f, "cylinders: %lu\n", (u_long)lp->d_ncylinders);
-	fprintf(f, "sectors/unit: %lu\n", (u_long)lp->d_secperunit);
-	fprintf(f, "rpm: %u\n", lp->d_rpm);
-	fprintf(f, "interleave: %u\n", lp->d_interleave);
-	fprintf(f, "trackskew: %u\n", lp->d_trackskew);
-	fprintf(f, "cylinderskew: %u\n", lp->d_cylskew);
-	fprintf(f, "headswitch: %lu\t\t# milliseconds\n",
-	    (u_long)lp->d_headswitch);
-	fprintf(f, "track-to-track seek: %ld\t# milliseconds\n",
-	    (u_long)lp->d_trkseek);
-	fprintf(f, "drivedata: ");
-	for (i = NDDATA - 1; i >= 0; i--)
-		if (lp->d_drivedata[i])
-			break;
-	if (i < 0)
-		i = 0;
-	for (j = 0; j <= i; j++)
-		fprintf(f, "%lu ", (u_long)lp->d_drivedata[j]);
-	fprintf(f, "\n\n%u partitions:\n", lp->d_npartitions);
+	if (allfields) {
+		if (lp->d_type < DKMAXTYPES)
+			fprintf(f, "type: %s\n", dktypenames[lp->d_type]);
+		else
+			fprintf(f, "type: %u\n", lp->d_type);
+		fprintf(f, "disk: %.*s\n", (int)sizeof(lp->d_typename),
+			lp->d_typename);
+		fprintf(f, "label: %.*s\n", (int)sizeof(lp->d_packname),
+			lp->d_packname);
+		fprintf(f, "flags:");
+		if (lp->d_flags & D_REMOVABLE)
+			fprintf(f, " removeable");
+		if (lp->d_flags & D_ECC)
+			fprintf(f, " ecc");
+		if (lp->d_flags & D_BADSECT)
+			fprintf(f, " badsect");
+		fprintf(f, "\n");
+		fprintf(f, "bytes/sector: %lu\n", (u_long)lp->d_secsize);
+		fprintf(f, "sectors/track: %lu\n", (u_long)lp->d_nsectors);
+		fprintf(f, "tracks/cylinder: %lu\n", (u_long)lp->d_ntracks);
+		fprintf(f, "sectors/cylinder: %lu\n", (u_long)lp->d_secpercyl);
+		fprintf(f, "cylinders: %lu\n", (u_long)lp->d_ncylinders);
+		fprintf(f, "sectors/unit: %lu\n", (u_long)lp->d_secperunit);
+		fprintf(f, "rpm: %u\n", lp->d_rpm);
+		fprintf(f, "interleave: %u\n", lp->d_interleave);
+		fprintf(f, "trackskew: %u\n", lp->d_trackskew);
+		fprintf(f, "cylinderskew: %u\n", lp->d_cylskew);
+		fprintf(f, "headswitch: %lu\t\t# milliseconds\n",
+		    (u_long)lp->d_headswitch);
+		fprintf(f, "track-to-track seek: %ld\t# milliseconds\n",
+		    (u_long)lp->d_trkseek);
+		fprintf(f, "drivedata: ");
+		for (i = NDDATA - 1; i >= 0; i--)
+			if (lp->d_drivedata[i])
+				break;
+		if (i < 0)
+			i = 0;
+		for (j = 0; j <= i; j++)
+			fprintf(f, "%lu ", (u_long)lp->d_drivedata[j]);
+		fprintf(f, "\n\n");
+	}
+	fprintf(f, "%u partitions:\n", lp->d_npartitions);
 	fprintf(f,
 	    "#        size   offset    fstype   [fsize bsize bps/cpg]\n");
 	pp = lp->d_partitions;
@@ -494,6 +502,9 @@ display(FILE *f, const struct disklabel *lp)
 			default:
 				fprintf(f, "%20.20s", "");
 				break;
+			}
+			if (i == RAW_PART) {
+				fprintf(f, "  # \"raw\" part, don't edit");
 			}
 			fprintf(f, "\n");
 		}
@@ -1001,36 +1012,54 @@ checklabel(struct disklabel *lp)
 	if (lp == NULL)
 		lp = &lab;
 
-	if (lp->d_secsize == 0) {
-		fprintf(stderr, "sector size 0\n");
-		return (1);
+	if (allfields) {
+
+		if (lp->d_secsize == 0) {
+			fprintf(stderr, "sector size 0\n");
+			return (1);
+		}
+		if (lp->d_nsectors == 0) {
+			fprintf(stderr, "sectors/track 0\n");
+			return (1);
+		}
+		if (lp->d_ntracks == 0) {
+			fprintf(stderr, "tracks/cylinder 0\n");
+			return (1);
+		}
+		if  (lp->d_ncylinders == 0) {
+			fprintf(stderr, "cylinders/unit 0\n");
+			errors++;
+		}
+		if (lp->d_rpm == 0)
+			warnx("revolutions/minute 0");
+		if (lp->d_secpercyl == 0)
+			lp->d_secpercyl = lp->d_nsectors * lp->d_ntracks;
+		if (lp->d_secperunit == 0)
+			lp->d_secperunit = lp->d_secpercyl * lp->d_ncylinders;
+		if (lp->d_bbsize == 0) {
+			fprintf(stderr, "boot block size 0\n");
+			errors++;
+		} else if (lp->d_bbsize % lp->d_secsize)
+			warnx("boot block size %% sector-size != 0");
+		if (lp->d_npartitions > MAXPARTITIONS)
+			warnx("number of partitions (%lu) > MAXPARTITIONS (%d)",
+			    (u_long)lp->d_npartitions, MAXPARTITIONS);
+	} else {
+		struct disklabel *vl;
+
+		vl = getvirginlabel();
+		lp->d_secsize = vl->d_secsize;
+		lp->d_nsectors = vl->d_nsectors;
+		lp->d_ntracks = vl->d_ntracks;
+		lp->d_ncylinders = vl->d_ncylinders;
+		lp->d_rpm = vl->d_rpm;
+		lp->d_interleave = vl->d_interleave;
+		lp->d_secpercyl = vl->d_secpercyl;
+		lp->d_secperunit = vl->d_secperunit;
+		lp->d_bbsize = vl->d_bbsize;
+		lp->d_npartitions = vl->d_npartitions;
 	}
-	if (lp->d_nsectors == 0) {
-		fprintf(stderr, "sectors/track 0\n");
-		return (1);
-	}
-	if (lp->d_ntracks == 0) {
-		fprintf(stderr, "tracks/cylinder 0\n");
-		return (1);
-	}
-	if  (lp->d_ncylinders == 0) {
-		fprintf(stderr, "cylinders/unit 0\n");
-		errors++;
-	}
-	if (lp->d_rpm == 0)
-		Warning("revolutions/minute 0");
-	if (lp->d_secpercyl == 0)
-		lp->d_secpercyl = lp->d_nsectors * lp->d_ntracks;
-	if (lp->d_secperunit == 0)
-		lp->d_secperunit = lp->d_secpercyl * lp->d_ncylinders;
-	if (lp->d_bbsize == 0) {
-		fprintf(stderr, "boot block size 0\n");
-		errors++;
-	} else if (lp->d_bbsize % lp->d_secsize)
-		Warning("boot block size %% sector-size != 0");
-	if (lp->d_npartitions > MAXPARTITIONS)
-		Warning("number of partitions (%lu) > MAXPARTITIONS (%d)",
-		    (u_long)lp->d_npartitions, MAXPARTITIONS);
+
 
 	/* first allocate space to the partitions, then offsets */
 	total_size = 0; /* in sectors */
@@ -1045,7 +1074,7 @@ checklabel(struct disklabel *lp)
 					pp->p_size = lp->d_secperunit;
 				} else {
 					if (hog_part != -1)
-						Warning("Too many '*' partitions (%c and %c)",
+						warnx("Too many '*' partitions (%c and %c)",
 						    hog_part + 'a',i + 'a');
 					else
 						hog_part = i;
@@ -1073,7 +1102,7 @@ checklabel(struct disklabel *lp)
 				case '\0':
 					break;
 				default:
-					Warning("unknown size specifier '%c' (K/M/G are valid)",part_size_type[i]);
+					warnx("unknown size specifier '%c' (K/M/G are valid)",part_size_type[i]);
 					break;
 				}
 				/* don't count %'s yet */
@@ -1084,7 +1113,7 @@ checklabel(struct disklabel *lp)
 					 */
 					if (part_size_type[i] != '\0') {
 						if (size % lp->d_secsize != 0)
-							Warning("partition %c not an integer number of sectors",
+							warnx("partition %c not an integer number of sectors",
 							    i + 'a');
 						size /= lp->d_secsize;
 						pp->p_size = size;
@@ -1162,7 +1191,7 @@ checklabel(struct disklabel *lp)
 					 * this may give unneeded warnings if 
 					 * partitions are out-of-order
 					 */
-					Warning(
+					warnx(
 "Offset %ld for partition %c doesn't match expected value %ld",
 					    (long)pp->p_offset, i + 'a', current_offset);
 				}
@@ -1176,14 +1205,14 @@ checklabel(struct disklabel *lp)
 		part = 'a' + i;
 		pp = &lp->d_partitions[i];
 		if (pp->p_size == 0 && pp->p_offset != 0)
-			Warning("partition %c: size 0, but offset %lu",
+			warnx("partition %c: size 0, but offset %lu",
 			    part, (u_long)pp->p_offset);
 #ifdef notdef
 		if (pp->p_size % lp->d_secpercyl)
-			Warning("partition %c: size %% cylinder-size != 0",
+			warnx("partition %c: size %% cylinder-size != 0",
 			    part);
 		if (pp->p_offset % lp->d_secpercyl)
-			Warning("partition %c: offset %% cylinder-size != 0",
+			warnx("partition %c: offset %% cylinder-size != 0",
 			    part);
 #endif
 		if (pp->p_offset > lp->d_secperunit) {
@@ -1197,18 +1226,17 @@ checklabel(struct disklabel *lp)
 			    part);
 			errors++;
 		}
-		if (i == RAW_PART)
-		{
+		if (i == RAW_PART) {
 			if (pp->p_fstype != FS_UNUSED)
-				Warning("partition %c is not marked as unused!",part);
+				warnx("partition %c is not marked as unused!",part);
 			if (pp->p_offset != 0)
-				Warning("partition %c doesn't start at 0!",part);
+				warnx("partition %c doesn't start at 0!",part);
 			if (pp->p_size != lp->d_secperunit)
-				Warning("partition %c doesn't cover the whole unit!",part);
+				warnx("partition %c doesn't cover the whole unit!",part);
 
 			if ((pp->p_fstype != FS_UNUSED) || (pp->p_offset != 0) ||
 			    (pp->p_size != lp->d_secperunit)) {
-				Warning("An incorrect partition %c may cause problems for "
+				warnx("An incorrect partition %c may cause problems for "
 				    "standard system utilities",part);
 			}
 		}
@@ -1235,7 +1263,7 @@ checklabel(struct disklabel *lp)
 		part = 'a' + i;
 		pp = &lp->d_partitions[i];
 		if (pp->p_size || pp->p_offset)
-			Warning("unused partition %c: size %d offset %lu",
+			warnx("unused partition %c: size %d offset %lu",
 			    'a' + i, pp->p_size, (u_long)pp->p_offset);
 	}
 	return (errors);
@@ -1256,8 +1284,7 @@ getvirginlabel(void)
 	static struct disklabel loclab;
 	struct partition *dp;
 	int f;
-	u_int secsize, u;
-	off_t mediasize;
+	u_int u;
 
 	if ((f = open(specname, O_RDONLY)) == -1) {
 		warn("cannot open %s", specname);
@@ -1301,7 +1328,7 @@ getvirginlabel(void)
 	/* Various (unneeded) compat stuff */
 	loclab.d_rpm = 3600;
 	loclab.d_bbsize = BBSIZE;
-	loclab.d_interleave = 1;;
+	loclab.d_interleave = 1;
 	strncpy(loclab.d_typename, "amnesiac",
 	    sizeof(loclab.d_typename));
 
@@ -1310,20 +1337,6 @@ getvirginlabel(void)
 	loclab.d_checksum = dkcksum(&loclab);
 	close (f);
 	return (&loclab);
-}
-
-
-/*VARARGS1*/
-static void
-Warning(const char *fmt, ...)
-{
-	va_list ap;
-
-	fprintf(stderr, "Warning, ");
-	va_start(ap, fmt);
-	vfprintf(stderr, fmt, ap);
-	fprintf(stderr, "\n");
-	va_end(ap);
 }
 
 static void
