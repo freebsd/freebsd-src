@@ -124,23 +124,23 @@ main(argc, argv)
 	/* resolve the mountpoint with realpath(3) */
 	(void)checkpath(argv[1], mntpath);
 
-	error = mount(vfc.vfc_name, mntpath, mntflags, NULL);
+	iov[0].iov_base = "fstype";
+	iov[0].iov_len = sizeof("fstype");
+	iov[1].iov_base = vfc.vfc_name;
+	iov[1].iov_len = strlen(vfc.vfc_name) + 1;
+	iov[2].iov_base = "fspath";
+	iov[2].iov_len = sizeof("fstype");
+	iov[3].iov_base = mntpath;
+	iov[3].iov_len = strlen(mntpath) + 1;
+	error = nmount(iov, 4, mntflags);
 
 	/*
-	 * Try with the new mount syscall in the case
-	 * this filesystem has been converted.
+	 * Try with the old mount syscall in the case
+	 * this filesystem has not been converted yet,
+	 * or the user didn't recompile his kernel.
 	 */
-	if (error && errno == EOPNOTSUPP) {
-		iov[0].iov_base = "fstype";
-		iov[0].iov_len = sizeof("fstype");
-		iov[1].iov_base = vfc.vfc_name;
-		iov[1].iov_len = strlen(vfc.vfc_name) + 1;
-		iov[2].iov_base = "fspath";
-		iov[2].iov_len = sizeof("fstype");
-		iov[3].iov_base = mntpath;
-		iov[3].iov_len = strlen(mntpath) + 1;
-		error = nmount(iov, 4, mntflags);
-	}
+	if (error && errno == EOPNOTSUPP)
+		error = mount(vfc.vfc_name, mntpath, mntflags, NULL);
 
 	if (error)
 		err(EX_OSERR, NULL);
