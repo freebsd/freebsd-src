@@ -1169,9 +1169,22 @@ static int
 psycho_activate_resource(device_t bus, device_t child, int type, int rid,
     struct resource *r)
 {
+	void *p;
+	int error;
 
 	if (type == SYS_RES_IRQ)
 		return (bus_activate_resource(bus, type, rid, r));
+	if (type == SYS_RES_MEMORY) {
+		/*
+		 * Need to memory-map the device space, as some drivers depend
+		 * on the virtual address being set and useable.
+		 */
+		error = sparc64_bus_mem_map(rman_get_bustag(r),
+		    rman_get_bushandle(r), rman_get_size(r), 0, NULL, &p);
+		if (error != 0)
+			return (error);
+		rman_set_virtual(r, p);
+	}
 	return (rman_activate_resource(r));
 }
 
@@ -1182,6 +1195,10 @@ psycho_deactivate_resource(device_t bus, device_t child, int type, int rid,
 
 	if (type == SYS_RES_IRQ)
 		return (bus_deactivate_resource(bus, type, rid, r));
+	if (type == SYS_RES_MEMORY) {
+		sparc64_bus_mem_unmap(rman_get_virtual(r), rman_get_size(r));
+		rman_set_virtual(r, NULL);
+	}
 	return (rman_deactivate_resource(r));
 }
 
