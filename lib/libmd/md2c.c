@@ -30,7 +30,7 @@ typedef unsigned long int UINT4;
 #define PROTO_LIST(list) list
 
 static void MD2Transform PROTO_LIST
-  ((unsigned char [16], unsigned char [16], unsigned char [16]));
+  ((unsigned char [16], unsigned char [16], const unsigned char [16]));
 
 /* Permutation of 0..255 constructed from the digits of pi. It gives a
    "random" nonlinear byte substitution operation.
@@ -97,7 +97,7 @@ MD2_CTX *context;                                        /* context */
  */
 void MD2Update (context, input, inputLen)
 MD2_CTX *context;                                        /* context */
-unsigned char *input;                                /* input block */
+const unsigned char *input;                                /* input block */
 unsigned int inputLen;                     /* length of input block */
 {
   unsigned int i, index, partLen;
@@ -161,7 +161,7 @@ MD2_CTX *context;                                        /* context */
 static void MD2Transform (state, checksum, block)
 unsigned char state[16];
 unsigned char checksum[16];
-unsigned char block[16];
+const unsigned char block[16];
 {
   unsigned int i, j, t;
   unsigned char x[48];
