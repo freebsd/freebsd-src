@@ -3284,7 +3284,7 @@ pmap_mapdev(pa, size)
 
 	/* We have a 1MB direct mapped region at KERNBASE */
 	if (pa < 0x00100000 && pa + size <= 0x00100000)
-		return (void *)(pa + KERNBASE);
+		return (void *)(pa + offset + KERNBASE);
 
 	GIANT_REQUIRED;
 	va = kmem_alloc_pageable(kernel_map, size);
