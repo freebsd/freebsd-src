@@ -535,6 +535,7 @@ cv_waitq_remove(struct thread *td)
 	if ((cvp = td->td_wchan) != NULL && td->td_flags & TDF_CVWAITQ) {
 		TAILQ_REMOVE(&cvp->cv_waitq, td, td_slpq);
 		td->td_flags &= ~TDF_CVWAITQ;
+		td->td_wmesg = NULL;
 		TD_CLR_ON_SLEEPQ(td);
 	}
 }
