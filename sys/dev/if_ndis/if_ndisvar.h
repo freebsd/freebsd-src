@@ -32,18 +32,6 @@
  * $FreeBSD$
  */
 
-#define NDIS_PCI_LOIO		0x10
-#define NDIS_PCI_LOMEM		0x14
-
-
-struct ndis_chain_onefrag {
-	void			*dummy;
-};
-
-struct ndis_chain {
-	void			*dummy;
-};
-
 struct ndis_type {
 	uint16_t		ndis_vid;
 	uint16_t		ndis_did;
@@ -76,6 +64,9 @@ struct ndis_softc {
 	struct ieee80211com	arpcom;		/* interface info */
 #endif
 	struct ifmedia		ifmedia;	/* media info */
+	u_long			ndis_hwassist;
+	uint32_t		ndis_v4tx;
+	uint32_t		ndis_v4rx;
 	bus_space_handle_t	ndis_bhandle;
 	bus_space_tag_t		ndis_btag;
 	void			*ndis_intrhand;

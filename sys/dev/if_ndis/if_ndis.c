@@ -120,11 +120,12 @@ static void ndis_shutdown	(device_t);
 static int ndis_ifmedia_upd	(struct ifnet *);
 static void ndis_ifmedia_sts	(struct ifnet *, struct ifmediareq *);
 static int ndis_get_assoc	(struct ndis_softc *, ndis_wlan_bssid_ex *);
+static int ndis_probe_offload	(struct ndis_softc *);
+static int ndis_set_offload	(struct ndis_softc *);
 static void ndis_getstate_80211	(struct ndis_softc *);
 static void ndis_setstate_80211	(struct ndis_softc *);
 static void ndis_media_status	(struct ifnet *, struct ifmediareq *);
 
-static void ndis_reset		(struct ndis_softc *);
 static void ndis_setmulti	(struct ndis_softc *);
 static void ndis_map_sclist	(void *, bus_dma_segment_t *,
 	int, bus_size_t, int);
@@ -240,14 +241,6 @@ out:
 	return;
 }
 
-static void
-ndis_reset(sc)
-	struct ndis_softc	*sc;
-{
-	ndis_reset_nic(sc);
-        return;
-}
-
 /*
  * Probe for an NDIS device. Check the PCI vendor and device
  * IDs against our list and return a device name if we find a match.
@@ -274,6 +267,158 @@ ndis_probe(dev)
 	return(ENXIO);
 }
 
+static int
+ndis_set_offload(sc)
+	struct ndis_softc	*sc;
+{
+	ndis_task_offload	*nto;
+	ndis_task_offload_hdr	*ntoh;
+	ndis_task_tcpip_csum	*nttc;
+	struct ifnet		*ifp;
+	int			len, error;
+
+	ifp = &sc->arpcom.ac_if;
+
+	if (!(ifp->if_flags & IFF_UP))
+		return(EINVAL);
+
+	/* See if there's anything to set. */
+
+	error = ndis_probe_offload(sc);
+	if (error)
+		return(error);
+		
+	if (sc->ndis_hwassist == 0 && ifp->if_capabilities == 0)
+		return(0);
+
+	len = sizeof(ndis_task_offload_hdr) + sizeof(ndis_task_offload) +
+	    sizeof(ndis_task_tcpip_csum);
+
+	ntoh = malloc(len, M_TEMP, M_NOWAIT|M_ZERO);
+
+	if (ntoh == NULL)
+		return(ENOMEM);
+
+	ntoh->ntoh_vers = NDIS_TASK_OFFLOAD_VERSION;
+	ntoh->ntoh_len = sizeof(ndis_task_offload_hdr);
+	ntoh->ntoh_offset_firsttask = sizeof(ndis_task_offload_hdr);
+	ntoh->ntoh_encapfmt.nef_encaphdrlen = sizeof(struct ether_header);
+	ntoh->ntoh_encapfmt.nef_encap = NDIS_ENCAP_IEEE802_3;
+	ntoh->ntoh_encapfmt.nef_flags = NDIS_ENCAPFLAG_FIXEDHDRLEN;
+
+	nto = (ndis_task_offload *)((char *)ntoh +
+	    ntoh->ntoh_offset_firsttask);
+
+	nto->nto_vers = NDIS_TASK_OFFLOAD_VERSION;
+	nto->nto_len = sizeof(ndis_task_offload);
+	nto->nto_task = NDIS_TASK_TCPIP_CSUM;
+	nto->nto_offset_nexttask = 0;
+	nto->nto_taskbuflen = sizeof(ndis_task_tcpip_csum);
+
+	nttc = (ndis_task_tcpip_csum *)nto->nto_taskbuf;
+
+	if (ifp->if_capenable & IFCAP_TXCSUM)
+		nttc->nttc_v4tx = sc->ndis_v4tx;
+
+	if (ifp->if_capenable & IFCAP_RXCSUM)
+		nttc->nttc_v4rx = sc->ndis_v4rx;
+
+	error = ndis_set_info(sc, OID_TCP_TASK_OFFLOAD, ntoh, &len);
+	free(ntoh, M_TEMP);
+
+	return(error);
+}
+
+static int
+ndis_probe_offload(sc)
+	struct ndis_softc	*sc;
+{
+	ndis_task_offload	*nto;
+	ndis_task_offload_hdr	*ntoh;
+	ndis_task_tcpip_csum	*nttc = NULL;
+	struct ifnet		*ifp;
+	int			len, error, dummy;
+
+	ifp = &sc->arpcom.ac_if;
+
+	len = sizeof(dummy);
+	error = ndis_get_info(sc, OID_TCP_TASK_OFFLOAD, &dummy, &len);
+
+	if (error != ENOSPC)
+		return(error);
+
+	ntoh = malloc(len, M_TEMP, M_NOWAIT|M_ZERO);
+
+	if (ntoh == NULL)
+		return(ENOMEM);
+
+	ntoh->ntoh_vers = NDIS_TASK_OFFLOAD_VERSION;
+	ntoh->ntoh_len = sizeof(ndis_task_offload_hdr);
+	ntoh->ntoh_encapfmt.nef_encaphdrlen = sizeof(struct ether_header);
+	ntoh->ntoh_encapfmt.nef_encap = NDIS_ENCAP_IEEE802_3;
+	ntoh->ntoh_encapfmt.nef_flags = NDIS_ENCAPFLAG_FIXEDHDRLEN;
+
+	error = ndis_get_info(sc, OID_TCP_TASK_OFFLOAD, ntoh, &len);
+
+	if (error) {
+		free(ntoh, M_TEMP);
+		return(error);
+	}
+
+	if (ntoh->ntoh_vers != NDIS_TASK_OFFLOAD_VERSION) {
+		free(ntoh, M_TEMP);
+		return(EINVAL);
+	}
+
+	nto = (ndis_task_offload *)((char *)ntoh +
+	    ntoh->ntoh_offset_firsttask);
+
+	while (1) {
+		switch (nto->nto_task) {
+		case NDIS_TASK_TCPIP_CSUM:
+			nttc = (ndis_task_tcpip_csum *)nto->nto_taskbuf;
+			break;
+		/* Don't handle these yet. */
+		case NDIS_TASK_IPSEC:
+		case NDIS_TASK_TCP_LARGESEND:
+		default:
+			break;
+		}
+		if (nto->nto_offset_nexttask == 0)
+			break;
+		nto = (ndis_task_offload *)((char *)nto +
+		    nto->nto_offset_nexttask);
+	}
+
+	if (nttc == NULL) {
+		free(ntoh, M_TEMP);
+		return(ENOENT);
+	}
+
+	sc->ndis_v4tx = nttc->nttc_v4tx;
+	sc->ndis_v4rx = nttc->nttc_v4rx;
+
+	if (nttc->nttc_v4tx & NDIS_TCPSUM_FLAGS_IP_CSUM)
+		sc->ndis_hwassist |= CSUM_IP;
+	if (nttc->nttc_v4tx & NDIS_TCPSUM_FLAGS_TCP_CSUM)
+		sc->ndis_hwassist |= CSUM_TCP;
+	if (nttc->nttc_v4tx & NDIS_TCPSUM_FLAGS_UDP_CSUM)
+		sc->ndis_hwassist |= CSUM_UDP;
+
+	if (sc->ndis_hwassist)
+		ifp->if_capabilities |= IFCAP_TXCSUM;
+
+	if (nttc->nttc_v4rx & NDIS_TCPSUM_FLAGS_IP_CSUM)
+		ifp->if_capabilities |= IFCAP_RXCSUM;
+	if (nttc->nttc_v4rx & NDIS_TCPSUM_FLAGS_TCP_CSUM)
+		ifp->if_capabilities |= IFCAP_RXCSUM;
+	if (nttc->nttc_v4rx & NDIS_TCPSUM_FLAGS_UDP_CSUM)
+		ifp->if_capabilities |= IFCAP_RXCSUM;
+
+	free(ntoh, M_TEMP);
+	return(0);
+}
+
 /*
  * Attach the interface. Allocate softc structures, do ifmedia
  * setup and ethernet/BPF attach.
@@ -291,7 +436,6 @@ ndis_attach(dev)
 	int			i, devidx = 0, defidx = 0;
 	struct resource_list	*rl;
 	struct resource_list_entry	*rle;
-
 
 	sc = device_get_softc(dev);
 	unit = device_get_unit(dev);
@@ -465,7 +609,7 @@ ndis_attach(dev)
 	}
 
 	/* Reset the adapter. */
-	ndis_reset(sc);
+	ndis_reset_nic(sc);
 
 	/*
 	 * Get station address from the driver.
@@ -515,6 +659,9 @@ ndis_attach(dev)
 		}
 	}
 
+	/* Check for task offload support. */
+	ndis_probe_offload(sc);
+
 	/*
 	 * An NDIS device was detected. Inform the world.
 	 */
@@ -533,6 +680,8 @@ ndis_attach(dev)
 	ifp->if_init = ndis_init;
 	ifp->if_baudrate = 10000000;
 	ifp->if_snd.ifq_maxlen = 50;
+	ifp->if_capenable = ifp->if_capabilities;
+	ifp->if_hwassist = sc->ndis_hwassist;
 
 	/* Do media setup */
 	if (sc->ndis_80211) {
@@ -823,6 +972,8 @@ ndis_rxeof(adapter, packets, pktcnt)
 	struct ndis_softc	*sc;
 	ndis_miniport_block	*block;
 	ndis_packet		*p;
+	uint32_t		s;
+	ndis_tcpip_csum		*csum;
 	struct ifnet		*ifp;
 	struct mbuf		*m0, *m;
 	int			i;
@@ -851,6 +1002,27 @@ ndis_rxeof(adapter, packets, pktcnt)
 				p->np_oob.npo_status = NDIS_STATUS_PENDING;
 			m0->m_pkthdr.rcvif = ifp;
 			ifp->if_ipackets++;
+
+			/* Deal with checksum offload. */
+
+			if (ifp->if_capenable & IFCAP_RXCSUM &&
+			    p->np_ext.npe_info[ndis_tcpipcsum_info] != NULL) {
+				s = (uintptr_t)
+			 	    p->np_ext.npe_info[ndis_tcpipcsum_info];
+				csum = (ndis_tcpip_csum *)&s;
+				if (csum->u.ntc_rxflags &
+				    NDIS_RXCSUM_IP_PASSED)
+					m0->m_pkthdr.csum_flags |=
+					    CSUM_IP_CHECKED|CSUM_IP_VALID;
+				if (csum->u.ntc_rxflags &
+				    (NDIS_RXCSUM_TCP_PASSED |
+				    NDIS_RXCSUM_UDP_PASSED)) {
+					m0->m_pkthdr.csum_flags |=
+					    CSUM_DATA_VALID|CSUM_PSEUDO_HDR;
+					m0->m_pkthdr.csum_data = 0xFFFF;
+				}
+			}
+
 			(*ifp->if_input)(ifp, m0);
 		}
 	}
@@ -1115,6 +1287,7 @@ ndis_start(ifp)
 	struct ndis_softc	*sc;
 	struct mbuf		*m = NULL;
 	ndis_packet		**p0 = NULL, *p = NULL;
+	ndis_tcpip_csum		*csum;
 	int			pcnt = 0;
 
 	sc = ifp->if_softc;
@@ -1162,6 +1335,22 @@ ndis_start(ifp)
 			    sc->ndis_tmaps[sc->ndis_txidx],
 			    BUS_DMASYNC_PREREAD);
 			p->np_ext.npe_info[ndis_sclist_info] = &p->np_sclist;
+		}
+
+		/* Handle checksum offload. */
+
+		if (ifp->if_capenable & IFCAP_TXCSUM &&
+		    m->m_pkthdr.csum_flags) {
+			csum = (ndis_tcpip_csum *)
+				&p->np_ext.npe_info[ndis_tcpipcsum_info];
+			csum->u.ntc_txflags = NDIS_TXCSUM_DO_IPV4;
+			if (m->m_pkthdr.csum_flags & CSUM_IP)
+				csum->u.ntc_txflags |= NDIS_TXCSUM_DO_IP;
+			if (m->m_pkthdr.csum_flags & CSUM_TCP)
+				csum->u.ntc_txflags |= NDIS_TXCSUM_DO_TCP;
+			if (m->m_pkthdr.csum_flags & CSUM_UDP)
+				csum->u.ntc_txflags |= NDIS_TXCSUM_DO_UDP;
+			p->np_private.npp_flags = NDIS_PROTOCOL_ID_TCP_IP;
 		}
 
 		NDIS_INC(sc);
@@ -1214,7 +1403,7 @@ ndis_init(xsc)
 	/*
 	 * Cancel pending I/O and free all RX/TX buffers.
 	 */
-	ndis_reset(sc);
+	ndis_reset_nic(sc);
 	ndis_stop(sc);
 	ndis_init_nic(sc);
 
@@ -1243,6 +1432,10 @@ ndis_init(xsc)
 	 */
 	ndis_setmulti(sc);
 
+	/* Setup task offload. */
+	ndis_set_offload(sc);
+
+	/* Enable interrupts. */
 	ndis_enable_intr(sc);
 
 	if (sc->ndis_80211)
@@ -1766,6 +1959,14 @@ ndis_ioctl(ifp, command, data)
 		} else
 			error = ifmedia_ioctl(ifp, ifr, &sc->ifmedia, command);
 		break;
+	case SIOCSIFCAP:
+		ifp->if_capenable = ifr->ifr_reqcap;
+		if (ifp->if_capenable & IFCAP_TXCSUM)
+			ifp->if_hwassist = sc->ndis_hwassist;
+		else
+			ifp->if_hwassist = 0;
+		ndis_set_offload(sc);
+		break;
 	case SIOCGIFGENERIC:
 	case SIOCSIFGENERIC:
 		if (sc->ndis_80211 && ifp->if_flags & IFF_UP) {
@@ -1925,7 +2126,7 @@ ndis_watchdog(ifp)
 	device_printf(sc->ndis_dev, "watchdog timeout\n");
 	NDIS_UNLOCK(sc);
 
-	ndis_reset(sc);
+	ndis_reset_nic(sc);
 	ndis_sched(ndis_starttask, ifp, NDIS_TASKQUEUE);
 
 	return;
