@@ -1,18 +1,12 @@
-#       $Id: Makefile,v 1.8 1997/01/05 16:19:35 ache Exp $
+INFO = history readline
 
-SRCDIR= ${.CURDIR}/../../../../contrib/libreadline/doc
+INFOSECTION= "Programming & development tools."
+INFOENTRY_readline= "* Readline: (readline).		The GNU Readline library"
+INFOENTRY_history= "* History: (history).		The GNU History library."
 
-INFO= history readline
 
-CLEANFILES= hist.info rlman.info
 
-hist.info: hstech.texinfo hsuser.texinfo
-rlman.info: rltech.texinfo rluser.texinfo
-
-history.info: hist.info
-	ln -f $> $@
-
-readline.info: rlman.info
-	ln -f $> $@
+history.info: hstech.texinfo hsuser.texinfo
+readline.info: rltech.texinfo rluser.texinfo
 
 .include <bsd.info.mk>
