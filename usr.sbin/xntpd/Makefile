@@ -144,7 +144,7 @@ xntpres/xntpres:	lib/libntp.a xntpres/Makefile FRC
 	@echo '###' creating XNTPRES utility
 	@cd xntpres && $(MAKE) $(MFLAGS) MFLAGS="$(MFLAGS)" MAKE="$(MAKE)" 
 
-util/tickadj: util/Makefile FRC
+util/tickadj: util/Makefile lib/libntp.a FRC
 	@echo
 	@echo '###' creating TICKADJ utility
 	@cd util && $(MAKE) $(MFLAGS) MFLAGS="$(MFLAGS)" MAKE="$(MAKE)"
@@ -162,7 +162,7 @@ parse/libparse.a:	parse/*.c parse/Makefile parse/util/Makefile lib/libntp.a
 FRC:
 
 savebin:
-	@test -d bin || mkdir bin
+	-@test -d bin || mkdir bin
 	@echo
 	@echo '### saving $(TARGETS) $(OPTTARG) in bin'
 	-@for f in $(TARGETS) $(OPTTARG); \

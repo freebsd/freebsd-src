@@ -846,8 +846,12 @@ sysstats(pcmd, fp)
 	if (!check1item(items, fp))
 		return;
 
-	if (!checkitemsize(itemsize, sizeof(struct info_sys_stats)))
+	if (itemsize != sizeof(struct info_sys_stats) &&
+	    itemsize != sizeof(struct old_info_sys_stats)) {
+		/* issue warning according to new structure size */
+		checkitemsize(itemsize, sizeof(struct info_sys_stats));
 		return;
+	}
 
 	(void) fprintf(fp, "system uptime:          %d\n",
 	    ntohl(ss->timeup));
@@ -869,6 +873,11 @@ sysstats(pcmd, fp)
 	    ntohl(ss->badauth));
 	(void) fprintf(fp, "wander hold downs:      %d\n",
 	    ntohl(ss->wanderhold));
+	if (itemsize != sizeof(struct info_sys_stats))
+		return;
+	
+	(void) fprintf(fp, "limitation rejects:     %d\n",
+	    ntohl(ss->limitrejected));
 }
 
 
@@ -1243,6 +1252,7 @@ static struct resflags resflags[] = {
 	{ "nopeer",	RES_NOPEER },
 	{ "notrap",	RES_NOTRAP },
 	{ "lptrap",	RES_LPTRAP },
+	{ "limited",	RES_LIMITED },
 	{ "",		0 }
 };
 
@@ -1463,6 +1473,7 @@ monlist(pcmd, fp)
 	FILE *fp;
 {
 	struct info_monitor *ml;
+	struct old_info_monitor *oml;
 	int items;
 	int itemsize;
 	int res;
@@ -1476,23 +1487,49 @@ monlist(pcmd, fp)
 	if (!checkitems(items, fp))
 		return;
 
-	if (!checkitemsize(itemsize, sizeof(struct info_monitor)))
-		return;
+	if (itemsize == sizeof(struct info_monitor)) {
 
-	(void) fprintf(fp,
-    "     address          port     count  mode version lasttime firsttime\n");
-	(void) fprintf(fp,
-    "=====================================================================\n");
-	while (items > 0) {
-		(void) fprintf(fp, "%-20.20s %5d %9d %4d   %3d %9u %9u\n",
-		    nntohost(ml->addr),
-		    ntohs(ml->port),
-		    ntohl(ml->count),
-		    ml->mode, ml->version,
-		    ntohl(ml->lasttime),
-		    ntohl(ml->firsttime));
-		ml++;
-		items--;
+		(void) fprintf(fp,
+			       "     address          port     count  mode version  lastdrop lasttime firsttime\n");
+		(void) fprintf(fp,
+			       "===============================================================================\n");
+		while (items > 0) {
+			(void) fprintf(fp, "%-20.20s %5d %9d %4d   %3d %9u %9u %9u\n",
+				       nntohost(ml->addr),
+				       ntohs(ml->port),
+				       ntohl(ml->count),
+				       ml->mode,
+				       ml->version,
+				       ntohl(ml->lastdrop),
+				       ntohl(ml->lasttime),
+				       ntohl(ml->firsttime));
+			ml++;
+			items--;
+		}
+	} else {
+		if (itemsize != sizeof(struct old_info_monitor)) {
+			/* issue warning according to new info_monitor size */
+			checkitemsize(itemsize, sizeof(struct info_monitor));
+			return;
+		}
+
+		oml = (struct old_info_monitor *)ml;
+		(void) fprintf(fp,
+			       "     address          port     count  mode version  lasttime firsttime\n");
+		(void) fprintf(fp,
+			       "======================================================================\n");
+		while (items > 0) {
+			(void) fprintf(fp, "%-20.20s %5d %9d %4d   %3d %9u %9u\n",
+				       nntohost(oml->addr),
+				       ntohs(oml->port),
+				       ntohl(oml->count),
+				       oml->mode,
+				       oml->version,
+				       ntohl(oml->lasttime),
+				       ntohl(oml->firsttime));
+			oml++;
+			items--;
+		}
 	}
 }
 

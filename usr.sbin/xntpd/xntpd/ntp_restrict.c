@@ -1,4 +1,4 @@
-/* ntp_restrict.c,v 3.1 1993/07/06 01:11:28 jbj Exp
+/*
  * ntp_restrict.c - find out what restrictions this host is running under
  */
 #include <stdio.h>
@@ -60,6 +60,21 @@ U_LONG res_not_found;
 U_LONG res_timereset;
 
 /*
+ * Parameters of the RES_LIMITED restriction option.
+ * client_limit is the number of hosts allowed per source net
+ * client_limit_period is the number of seconds after which an entry
+ * is no longer considered for client limit determination
+ */
+U_LONG client_limit;
+U_LONG client_limit_period;
+/*
+ * count number of restriction entries referring to RES_LIMITED
+ * controls activation/deactivation of monitoring
+ * (with respect ro RES_LIMITED control)
+ */
+U_LONG res_limited_refcnt;
+
+/*
  * Our initial allocation of list entries.
  */
 static	struct restrictlist resinit[INITRESLIST];
@@ -70,12 +85,18 @@ static	struct restrictlist resinit[INITRESLIST];
 extern U_LONG current_time;
 
 /*
+ * debug flag
+ */
+extern int debug;
+
+/*
  * init_restrict - initialize the restriction data structures
  */
 void
 init_restrict()
 {
 	register int i;
+	char bp[80];
 
 	/*
 	 * Zero the list and put all but one on the free list
@@ -108,6 +129,18 @@ init_restrict()
 	res_found = 0;
 	res_not_found = 0;
 	res_timereset = 0;
+
+	/*
+	 * set default values for RES_LIMIT functionality
+	 */
+	client_limit = 3;
+	client_limit_period = 3600;
+	res_limited_refcnt = 0;
+
+	sprintf(bp, "client_limit=%d", client_limit);
+	set_sys_var(bp, strlen(bp)+1, RO);
+	sprintf(bp, "client_limit_period=%d", client_limit_period);
+	set_sys_var(bp, strlen(bp)+1, RO);
 }
 
 
@@ -150,6 +183,120 @@ restrictions(srcadr)
 	else
 		res_found++;
 	
+	/*
+	 * The following implements limiting the number of clients
+	 * accepted from a given network. The notion of "same network"
+	 * is determined by the mask and addr fields of the restrict
+	 * list entry. The monitor mechanism has to be enabled for
+	 * collecting info on current clients.
+	 *
+	 * The policy is as follows:
+	 *	- take the list of clients recorded
+	 *        from the given "network" seen within the last
+	 *        client_limit_period seconds
+	 *      - if there are at most client_limit entries: 
+	 *        --> access allowed
+	 *      - otherwise sort by time first seen
+	 *      - current client among the first client_limit seen
+	 *        hosts?
+	 *        if yes: access allowed
+	 *        else:   eccess denied
+	 */
+	if (match->flags & RES_LIMITED) {
+		int lcnt;
+		struct mon_data *md, *this_client;
+		extern int mon_enabled;
+		extern struct mon_data mon_fifo_list, mon_mru_list;
+
+#ifdef DEBUG
+		if (debug > 2)
+			printf("limited clients check: %d clients, period %d seconds, net is 0x%X\n",
+			       client_limit, client_limit_period,
+			       netof(hostaddr));
+#endif /*DEBUG*/
+		if (mon_enabled == MON_OFF) {
+#ifdef DEBUG
+			if (debug > 4)
+				printf("no limit - monitoring is off\n");
+#endif
+			return (int)(match->flags & ~RES_LIMITED);
+		}
+
+		/*
+		 * How nice, MRU list provides our current client as the
+		 * first entry in the list.
+		 * Monitoring was verified to be active above, thus we
+		 * know an entry for our client must exist, or some 
+		 * brain dead set the memory limit for mon entries to ZERO!!!
+		 */
+		this_client = mon_mru_list.mru_next;
+
+		for (md = mon_fifo_list.fifo_next,lcnt = 0;
+		     md != &mon_fifo_list;
+		     md = md->fifo_next) {
+			if ((current_time - md->lasttime)
+			    > client_limit_period) {
+#ifdef DEBUG
+				if (debug > 5)
+					printf("checking: %s: ignore: too old: %d\n",
+					       numtoa(md->rmtadr),
+					       current_time - md->lasttime);
+#endif
+				continue;
+			}
+			if (md->mode == MODE_BROADCAST ||
+			    md->mode == MODE_CONTROL ||
+			    md->mode == MODE_PRIVATE) {
+#ifdef DEBUG
+				if (debug > 5)
+					printf("checking: %s: ignore mode %d\n",
+					       numtoa(md->rmtadr),
+					       md->mode);
+#endif
+				continue;
+			}
+			if (netof(md->rmtadr) !=
+			    netof(hostaddr)) {
+#ifdef DEBUG
+				if (debug > 5)
+					printf("checking: %s: different net 0x%X\n",
+					       numtoa(md->rmtadr),
+					       netof(md->rmtadr));
+#endif
+				continue;
+			}
+			lcnt++;
+			if (lcnt > client_limit ||
+			    md->rmtadr == hostaddr) {
+#ifdef DEBUG
+				if (debug > 5)
+					printf("considering %s: found host\n",
+					       numtoa(md->rmtadr));
+#endif
+				break;
+			}
+#ifdef DEBUG
+			else {
+				if (debug > 5)
+					printf("considering %s: same net\n",
+					       numtoa(md->rmtadr));
+			}
+#endif
+
+		}
+#ifdef DEBUG
+		if (debug > 4)
+			printf("this one is rank %d in list, limit is %d: %s\n",
+			       lcnt, client_limit,
+			       (lcnt <= client_limit) ? "ALLOW" : "REJECT");
+#endif
+		if (lcnt <= client_limit) {
+			this_client->lastdrop = 0;
+			return (int)(match->flags & ~RES_LIMITED);
+		} else {
+			this_client->lastdrop = current_time;
+		}
+	}
 	return (int)match->flags;
 }
 
@@ -257,6 +404,10 @@ restrict(op, resaddr, resmask, mflags, flags)
 			rlprev->next = rl;
 			restrictcount++;
 		}
+		if ((rl->flags ^ (u_short)flags) & RES_LIMITED) {
+			res_limited_refcnt++;
+			mon_start(MON_RES); /* ensure data gets collected */
+		}
 		rl->flags |= (u_short)flags;
 		break;
 	
@@ -265,8 +416,14 @@ restrict(op, resaddr, resmask, mflags, flags)
 		 * Remove some bits from the flags.  If we didn't
 		 * find this one, just return.
 		 */
-		if (rl != 0)
+		if (rl != 0) {
+			if ((rl->flags ^ (u_short)flags) & RES_LIMITED) {
+				res_limited_refcnt--;
+				if (res_limited_refcnt == 0)
+					mon_stop(MON_RES);
+			}
 			rl->flags &= (u_short)~flags;
+		}
 		break;
 	
 	case RESTRICT_REMOVE:
@@ -280,6 +437,11 @@ restrict(op, resaddr, resmask, mflags, flags)
 		    && !(rl->mflags & RESM_INTERFACE)) {
 			rlprev->next = rl->next;
 			restrictcount--;
+			if (rl->flags & RES_LIMITED) {
+				res_limited_refcnt--;
+				if (res_limited_refcnt == 0)
+					mon_stop(MON_RES);
+			}
 			memset((char *)rl, 0, sizeof(struct restrictlist));
 
 			rl->next = resfree;

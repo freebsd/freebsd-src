@@ -15,27 +15,29 @@
 #include <signal.h>
 #include <errno.h>
 
-#include <sys/syscall.h>
-
 #include "ntp_fp.h"
 #include "ntp_unixtime.h"
 #include "ntp_stdlib.h"
 
 #ifndef	SYS_DECOSF1
 #define BADCALL -1		/* this is supposed to be a bad syscall */
-#endif
+#endif /* SYS_DECOSF1 */
+
+#ifdef KERNEL_PLL
+#include <sys/timex.h>
+#define ntp_gettime(t)  syscall(SYS_ntp_gettime, (t))
+#define ntp_adjtime(t)  syscall(SYS_ntp_adjtime, (t))
+#else /* KERNEL_PLL */
 #include "ntp_timex.h"
-
-#ifdef	KERNEL_PLL
-#ifndef	SYS_ntp_adjtime
 #define	SYS_ntp_adjtime NTP_SYSCALL_ADJ
-#endif
-#ifndef	SYS_ntp_gettime
 #define	SYS_ntp_gettime NTP_SYSCALL_GET
-#endif
-#endif	/* KERNEL_PLL */
+#endif /* KERNEL_PLL */
 
+/*
+ * Function prototypes
+ */
 extern int sigvec	P((int, struct sigvec *, struct sigvec *));
+extern int syscall	P((int, void *, ...));
 void pll_trap		P((void));
 
 static struct sigvec newsigsys;	/* new sigvec status */
@@ -56,14 +58,14 @@ main(argc, argv)
 	struct ntptimeval ntv;
 	struct timex ntx, _ntx;
 	int	times[20];
-	double ftemp;
+	double ftemp, gtemp;
 	l_fp ts;
 	int c;
 	int errflg	= 0;
 	int cost	= 0;
 	int rawtime	= 0;
 
-	ntx.mode = 0;
+	memset((char *)&ntx, 0, sizeof(ntx));
         progname = argv[0];
 	while ((c = ntp_getopt(argc, argv, optargs)) != EOF) switch (c) {
 		case 'c':
@@ -157,7 +159,7 @@ main(argc, argv)
 		}
 	}
 	(void)ntp_gettime(&ntv);
-	ntx.mode = 0;	/* Ensure nothing is set */
+	_ntx.mode = 0;				/* Ensure nothing is set */
 	(void)ntp_adjtime(&_ntx);
 	if (pll_control < 0) {
 		printf("NTP user interface routines are not configured in this kernel.\n");
@@ -191,13 +193,23 @@ main(argc, argv)
 		printf("ntp_adjtime() returns code %d\n", status);
 		ftemp = ntx.frequency;
 		ftemp /= (1 << SHIFT_USEC);
-		printf("  mode: %02x, offset: %ld usec, frequency: %6.3f ppm,\n",
+		printf("  mode: %02x, offset: %ld usec, frequency:%8.3f ppm,\n",
 		    ntx.mode, ntx.offset, ftemp);
 		printf("  confidence interval: %ld usec, estimated error: %ld usec,\n",
 		    ntx.maxerror, ntx.esterror);
-		printf("  status: %d, time constant: %ld, precision: %ld usec, tolerance: %ld usec\n",
-		    ntx.status, ntx.time_constant, ntx.precision,
-		    ntx.tolerance);
+		ftemp = ntx.tolerance;
+		ftemp /= (1 << SHIFT_USEC);
+		printf("  status: %d, time constant: %ld, precision: %ld usec, tolerance:%4.0f ppm\n",
+		    ntx.status, ntx.time_constant, ntx.precision, ftemp);
+		if (ntx.shift == 0)
+			return;
+		ftemp = ntx.ybar;
+		ftemp /= (1 << SHIFT_USEC);
+		gtemp = ntx.disp;
+		gtemp /= (1 << SHIFT_USEC);
+		printf("  pps frequency%8.3f ppm, pps dispersion:%8.3f ppm, interval:%4d sec,\n  intervals:%5ld, jitter exceeded:%4ld, dispersion exceeded:%4ld\n",
+		    ftemp, gtemp, 1 << ntx.shift, ntx.calcnt, ntx.jitcnt,
+		    ntx.discnt);
 	}
 
 	/*

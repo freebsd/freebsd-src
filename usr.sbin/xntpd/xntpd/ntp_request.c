@@ -916,6 +916,7 @@ sys_stats(srcadr, inter, inpkt)
 	extern U_LONG sys_processed;
 	extern U_LONG sys_badauth;
 	extern U_LONG sys_wanderhold;
+	extern U_LONG sys_limitrejected;
 
 	ss = (struct info_sys_stats *)prepare_pkt(srcadr, inter, inpkt,
 	    sizeof(struct info_sys_stats));
@@ -930,7 +931,7 @@ sys_stats(srcadr, inter, inpkt)
 	ss->processed = htonl(sys_processed);
 	ss->badauth = htonl(sys_badauth);
 	ss->wanderhold = htonl(sys_wanderhold);
-
+	ss->limitrejected = htonl(sys_limitrejected);
 	(void) more_pkt();
 	flush_pkt();
 }
@@ -1311,7 +1312,7 @@ do_monitor(srcadr, inter, inpkt)
 	struct interface *inter;
 	struct req_pkt *inpkt;
 {
-	mon_start();
+	mon_start(MON_ON);
 	req_ack(srcadr, inter, inpkt, INFO_OKAY);
 }
 
@@ -1325,7 +1326,7 @@ do_nomonitor(srcadr, inter, inpkt)
 	struct interface *inter;
 	struct req_pkt *inpkt;
 {
-	mon_stop();
+	mon_stop(MON_ON);
 	req_ack(srcadr, inter, inpkt, INFO_OKAY);
 }
 
@@ -1497,6 +1498,10 @@ mon_getlist(srcadr, inter, inpkt)
 	    md = md->mru_next) {
 		im->lasttime = htonl(current_time - md->lasttime);
 		im->firsttime = htonl(current_time - md->firsttime);
+		if (md->lastdrop)
+			im->lastdrop = htonl(current_time - md->lastdrop);
+		else
+			im->lastdrop = 0;
 		im->count = htonl(md->count);
 		im->addr = md->rmtadr;
 		im->port = md->rmtport;

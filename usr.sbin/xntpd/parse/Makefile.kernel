@@ -40,7 +40,7 @@ mparsestreams.o.$(KARCH): parsestreams.c microtime.o ../lib/libntp.a libparse_ke
 	rm -f parsestreams.o
 
 parsestreams.o: parsestreams.o.$(KARCH)
-	@echo "--- You may load parsestreams.o.$(KARCH) via 'modload parsestreams.o.$(KARCH)' into the kernel"
+	@echo "--- You may load parsestreams.o.$(KARCH) via 'modload parsestreams.o' (put in e.g. /sys/<karch>/OBJ) into the kernel"
 
 parsestreams.o.$(KARCH): parsestreams.c ../lib/libntp.a libparse_kernel.a ../include/parse.h ../include/sys/parsestreams.h
 	cc -c $(DEFS) -I../include parsestreams.c

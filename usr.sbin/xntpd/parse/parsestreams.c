@@ -1,7 +1,7 @@
 /*
- * /src/NTP/REPOSITORY/v3/parse/parsestreams.c,v 3.12 1994/01/25 19:05:30 kardel Exp
+ * /src/NTP/REPOSITORY/v3/parse/parsestreams.c,v 3.19 1994/02/24 16:33:54 kardel Exp
  *  
- * parsestreams.c,v 3.12 1994/01/25 19:05:30 kardel Exp
+ * parsestreams.c,v 3.19 1994/02/24 16:33:54 kardel Exp
  *
  * STREAMS module for reference clocks
  * (SunOS4.x)
@@ -16,7 +16,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "parsestreams.c,v 3.12 1994/01/25 19:05:30 kardel Exp";
+static char rcsid[] = "parsestreams.c,v 3.19 1994/02/24 16:33:54 kardel Exp";
 #endif
 
 #include "sys/types.h"
@@ -195,7 +195,7 @@ int xxxinit(fc, vdp, vdi, vds)
 	}
       else
         {
-	  static char revision[] = "3.12";
+	  static char revision[] = "3.19";
 	  char *s, *S, *t;
 	  
 	  strncpy(ifm->f_name, mname, FMNAMESZ);
@@ -527,7 +527,7 @@ static int parseopen(q, dev, flag, sflag)
        */
       if (!notice)
 	{
-	  printf("%s: Copyright (c) 1991-1993, Frank Kardel\n", parsesync_vd.Drv_name);
+	  printf("%s: Copyright (c) 1991-1994, Frank Kardel\n", parsesync_vd.Drv_name);
 	  notice = 1;
 	}
 
@@ -535,6 +535,8 @@ static int parseopen(q, dev, flag, sflag)
     }
   else
     {
+      kmem_free((caddr_t)parse, sizeof(parsestream_t));
+
 #ifdef VDDRV
       parsebusy--;
 #endif
@@ -1074,6 +1076,11 @@ static void close_zs_linemon(q, my_q)
 
 #define MAXDEPTH 50		/* maximum allowed stream crawl */
 
+#ifdef PPS_SYNC
+extern hardpps();
+extern struct timeval time;
+#endif
+
 /*
  * take external status interrupt (only CD interests us)
  */
@@ -1085,15 +1092,18 @@ static void zs_xsisr(zs)
   register queue_t *q;
   register unsigned char zsstatus;
   register int loopcheck;
-  register unsigned char cdstate;
   register char *dname;
+#ifdef PPS_SYNC
+  register int s;
+  register long usec;
+#endif
 
   /*
    * pick up current state
    */
   zsstatus = zsaddr->zscc_control;
 
-  if (za->za_rr0 ^ (cdstate = zsstatus & ZSRR0_CD))
+  if ((za->za_rr0 ^ zsstatus) & (ZSRR0_CD|ZSRR0_SYNC))
     {
       timestamp_t cdevent;
       register int status;
@@ -1101,26 +1111,44 @@ static void zs_xsisr(zs)
       /*
        * CONDITIONAL external measurement support
        */
-      SET_LED(cdstate);		/*
+      SET_LED(zsstatus & (ZSRR0_CD|ZSRR0_SYNC));		/*
 				 * inconsistent with upper SET_LED, but this
 				 * is for oscilloscope business anyway and we
 				 * are just interested in edge delays in the
 				 * lower us range
 				 */
-      
+#ifdef PPS_SYNC
+      s = splclock();
+      usec = time.tv_usec;
+#endif
       /*
        * time stamp
        */
       uniqtime(&cdevent.tv);
-
-      TIMEVAL_USADD(&cdevent.tv, xsdelay);
-	
-      q = za->za_ttycommon.t_readq;
+      
+#ifdef PPS_SYNC
+      splx(s);
+#endif
 
       /*
        * logical state
        */
-      status = cd_invert ? cdstate == 0 : cdstate != 0;
+      status = cd_invert ? (zsstatus & (ZSRR0_CD|ZSRR0_SYNC)) == 0 : (zsstatus & (ZSRR0_CD|ZSRR0_SYNC)) != 0;
+
+#ifdef PPS_SYNC
+      if (status)
+	{
+	  usec = cdevent.tv.tv_usec - usec;
+	  if (usec < 0)
+	    usec += 1000000;
+
+	  hardpps(&cdevent.tv, usec);
+        }
+#endif
+
+      TIMEVAL_USADD(&cdevent.tv, xsdelay);
+	
+      q = za->za_ttycommon.t_readq;
 
       /*
        * ok - now the hard part - find ourself
@@ -1177,10 +1205,10 @@ static void zs_xsisr(zs)
       /*
        * only pretend that CD has been handled
        */
-      za->za_rr0 = za->za_rr0 & ~ZSRR0_CD | zsstatus & ZSRR0_CD;
+      za->za_rr0 = za->za_rr0 & ~(ZSRR0_CD|ZSRR0_SYNC) | zsstatus & (ZSRR0_CD|ZSRR0_SYNC);
       ZSDELAY(2);
 
-      if (!((za->za_rr0 ^ zsstatus) & ~ZSRR0_CD))
+      if (!((za->za_rr0 ^ zsstatus) & ~(ZSRR0_CD|ZSRR0_SYNC)))
 	{
 	  /*
 	   * all done - kill status indication and return
@@ -1258,6 +1286,24 @@ static void zs_xsisr(zs)
  * History:
  *
  * parsestreams.c,v
+ * Revision 3.19  1994/02/24  16:33:54  kardel
+ * CD events can also be posted on sync flag
+ *
+ * Revision 3.18  1994/02/24  14:12:58  kardel
+ * initial PPS_SYNC support version
+ *
+ * Revision 3.17  1994/02/20  15:18:02  kardel
+ * rcs id cleanup
+ *
+ * Revision 3.16  1994/02/15  22:39:50  kardel
+ * memory leak on open failure closed
+ *
+ * Revision 3.15  1994/02/13  19:16:50  kardel
+ * updated verbose Copyright message
+ *
+ * Revision 3.14  1994/02/02  17:45:38  kardel
+ * rcs ids fixed
+ *
  * Revision 3.12  1994/01/25  19:05:30  kardel
  * 94/01/23 reconcilation
  *
