@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.100 1998/05/21 21:47:48 brian Exp $
+.\" $Id: ppp.8,v 1.101 1998/05/21 23:45:10 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -97,7 +97,7 @@ connections on stdin/stdout.
 .It Supports PAP and CHAP authentication.
 With PAP or CHAP, it is possible to skip the Unix style
 .Xr login 1
-proceedure, and use the
+procedure, and use the
 .Em PPP
 protocol for authentication instead.  If the peer requests Microsoft
 CHAP authentication and
@@ -149,7 +149,7 @@ Name Server Addresses and NetBIOS Name Server Addresses can be negotiated
 with clients using the Microsoft
 .Em PPP
 stack (ie. Win95, WinNT)
-.It Supports Multilink PPP
+.It Supports Multi-link PPP
 It is possible to configure
 .Nm
 to open more than one physical connection to the peer, combining the
@@ -266,13 +266,13 @@ signal to
 after altering
 .Pa /etc/syslog.conf .
 .It
-Although not strictly relevent to
+Although not strictly relevant to
 .Nm ppp Ns No s
 operation, you should configure your resolver so that it works correctly.
 This can be done by configuring a local DNS
 .Pq using Xr named 8
 or by adding the correct
-.Sq nameserver
+.Sq name-server
 lines to the file
 .Pa /etc/resolv.conf .
 Refer to the
@@ -497,7 +497,7 @@ The literal strings
 .Dv MYADDR
 and
 .Dv INTERFACE
-may be used, and will be replaced with the relevent IP addresses and interface
+may be used, and will be replaced with the relevant IP addresses and interface
 name.  Similarly, when a connection is closed, the
 contents of the
 .Pa /etc/ppp/ppp.linkdown
@@ -838,7 +838,7 @@ allowing anybody to establish ppp session with your machine
 a password, opening yourself up to all sorts of potential attacks.
 .Sh AUTHENTICATING INCOMING CONNECTIONS
 Normally, the receiver of a connection requires that the peer
-authenticates themself.  This may be done using
+authenticates itself.  This may be done using
 .Xr login 1 ,
 but alternatively, you can use PAP or CHAP.  CHAP is the more secure
 of the two, but some clients may not support it.  Once you decide which
@@ -846,7 +846,7 @@ you wish to use, add the command
 .Sq enable chap
 or
 .Sq enable pap
-to the relevent section of
+to the relevant section of
 .Pa ppp.conf .
 .Pp
 You must then configure the
@@ -861,7 +861,15 @@ The
 .Ar name
 and
 .Ar key
-specify the client as expected.  If the client does not offer a suitable
+specify the client as expected.  If
+.Ar key
+is
+.Dq \&*
+and PAP is being used,
+.Nm
+will look up the password database
+.Pq Xr passwd 5
+when authenticating.  If the client does not offer a suitable
 response based on any
 .Ar name No / Ar key
 combination in
@@ -884,7 +892,7 @@ This will change the subsequent parsing of the
 and
 .Pa ppp.linkdown
 files.
-.Sh PPP OVER TCP (a.k.a Tunneling)
+.Sh PPP OVER TCP (a.k.a Tunnelling)
 Instead of running
 .Nm
 over a serial link, it is possible to
@@ -1089,7 +1097,7 @@ and
 .Op Ar dst_addr Ns Op / Ns Ar width
 are the source and destination IP number specifications.  If
 .Op / Ns Ar width
-is specified, it gives the number of relevent netmask bits,
+is specified, it gives the number of relevant netmask bits,
 allowing the specification of an address range.
 .It
 .Ar Proto
@@ -1615,11 +1623,11 @@ to close any existing server socket, dropping all existing diagnostic
 connections.
 .El
 .Pp
-.Sh MULTILINK PPP
+.Sh MULTI-LINK PPP
 If you wish to use more than one physical link to connect to a
 .Em PPP
 peer, that peer must also understand the
-.Em MULTILINK PPP
+.Em MULTI-LINK PPP
 protocol.  Refer to RFC 1990 for specification details.
 .Pp
 The peer is identified using a combination of his
@@ -1639,12 +1647,12 @@ commands.  The
 .Pq and Sq authkey
 must be agreed in advance with the peer.
 .Pp
-Multilink capabilities are enabled using the
+Multi-link capabilities are enabled using the
 .Dq set mrru
-command (set maximum reconstructed receive unit).  Once multilink
+command (set maximum reconstructed receive unit).  Once multi-link
 is enabled,
 .Nm
-will attempt to negotiate a multilink connection with the peer.
+will attempt to negotiate a multi-link connection with the peer.
 .Pp
 By default, only one
 .Sq link
@@ -1690,7 +1698,7 @@ in an operation at the
 .Sq bundle
 level.  For example, once two or more links are available, the command
 .Dq show ccp
-will show CCP configuration and statistics at the multilink level, and
+will show CCP configuration and statistics at the multi-link level, and
 .Dq link deflink show ccp
 will show the same information at the
 .Dq deflink
@@ -1753,8 +1761,8 @@ context and which should not have any context.
 When
 .Nm
 has negotiated
-.Em MULTILINK
-mode with the peer, it creates a unix domain socket in the
+.Em MULTI-LINK
+mode with the peer, it creates a local domain socket in the
 .Pa /var/run
 directory.  This socket is used to pass link information (including
 the actual link file descriptor) between different
@@ -1770,7 +1778,7 @@ or directly from
 capability), without needing to have initial control of the serial
 line.  Once
 .Nm
-negotiates multilink mode, it will pass its open link to any
+negotiates multi-link mode, it will pass its open link to any
 already running process.  If there is no already running process,
 .Nm
 will act as the master, creating the socket and listening for new
@@ -1836,9 +1844,9 @@ Some
 .Em PPP
 implementations use "MS-CHAP" rather than MD5 when encrypting the
 challenge.  MS-CHAP is a combination of MD4 and DES.  If
-.Nm was build
-on a machine with DES libraries available, it will respond to MS-CHAP
-authentication requests, but will never request them.
+.Nm
+was built on a machine with DES libraries available, it will respond
+to MS-CHAP authentication requests, but will never request them.
 .It deflate
 Default: Enabled and Accepted.  This option decides if deflate
 compression will be used by the Compression Control Protocol (CCP).
@@ -1864,7 +1872,7 @@ as specified in
 Type
 .Ar 24
 is actually specified as
-.Dq PPP Magnalink Variable Resource Compression
+.Dq PPP Magna-link Variable Resource Compression
 in
 .Pa rfc1975 Ns No !
 .Nm Ppp
@@ -1970,8 +1978,8 @@ Default: Enabled and Accepted.  This option determines if
 .Nm
 will request and accept requests for short
 .Pq 12 bit
-sequence numbers when negotiating multilink mode.  This is only
-applicable if our MRRU is set (thus enabling multilink).
+sequence numbers when negotiating multi-link mode.  This is only
+applicable if our MRRU is set (thus enabling multi-link).
 .It vjcomp
 Default: Enabled and Accepted.  This option determines if Van Jacobson
 header compression will be used.
@@ -2010,14 +2018,18 @@ the interface is also the default route as it avoids the necessity
 of a loopback route.
 .It passwdauth
 Default: Disabled.  Enabling this option will tell the PAP authentication
-code to use the password file (see
+code to use the password database (see
 .Xr passwd 5 )
-to authenticate the caller rather than the
+to authenticate the caller if they cannot be found in the
 .Pa /etc/ppp/ppp.secret
 file.
 .Pa /etc/ppp/ppp.secret
-is checked before
-.Xr passwd 5 .
+is always checked first.  If you wish to use passwords from
+.Xr passwd 5 ,
+but also to specify an IP number or label for a given client, use
+.Dq \&*
+as the client password in
+.Pa /etc/ppp/ppp.secret .
 .It proxy
 Default: Disabled.  Enabling this option will tell
 .Nm
@@ -2038,15 +2050,15 @@ or
 change, this list is re-applied to the routing table.
 .Pp
 Disabling this option will prevent the re-application of sticky routes,
-altough the
+although the
 .Sq stick route
 list will still be maintained.
 .It throughput
 Default: Enabled.  This option tells
 .Nm
-to gather thoroughput statistics.  Input and output is sampled over
+to gather throughput statistics.  Input and output is sampled over
 a rolling 5 second window, and current, best and total figures are
-retained.  This data is output when the relevent
+retained.  This data is output when the relevant
 .Em PPP
 layer shuts down, and is also available using the
 .Dq show
@@ -2198,7 +2210,7 @@ Possible modes are:
 and
 .Sq * .
 .Pp
-When running in multilink mode, a section can be loaded if it allows
+When running in multi-link mode, a section can be loaded if it allows
 .Em any
 of the currently existing line modes.
 .El
@@ -2268,6 +2280,10 @@ dress.  According to RFC 1918, unregistered source addresses
 are 10.0.0.0/8, 172.16.0.0/12 and 192.168.0.0/16.
 .El
 .Pp
+These commands are also discussed in the file
+.Pa README.alias
+which comes with the source distribution.
+.Pp
 .It [!]bg Ar command
 The given
 .Ar command
@@ -2298,7 +2314,7 @@ If no arguments are given, or if
 .Dq lcp
 is specified, the link will be closed.  If
 .Dq ccp
-is specified, only the relevent compression layer is closed.  If the
+is specified, only the relevant compression layer is closed.  If the
 .Dq \&!
 is used, the compression layer will remain in the closed state, otherwise
 it will re-enter the STOPPED state, waiting for the peer to initiate
@@ -2344,7 +2360,7 @@ scripts for the given
 Otherwise, the current settings are used to establish
 the connection, and all closed links are brought up.
 .It down Op Ar lcp|ccp
-Bring the relevent layer down ungracefully, as if the underlying layer
+Bring the relevant layer down ungracefully, as if the underlying layer
 had become unavailable.  It's not considered polite to use this command on
 a Finite State Machine that's in the OPEN state.  If no arguments are
 supplied,
@@ -2357,7 +2373,7 @@ is specified, show the usage string for that command.
 .It [data]link Ar name[,name...] command Op Ar args
 This command may prefix any other command if the user wishes to
 specify which link the command should affect.  This is only
-applicable after multiple links have been created in Multilink
+applicable after multiple links have been created in Multi-link
 mode using the
 .Dq clone
 command.
@@ -2394,7 +2410,7 @@ argument is the same as using
 .Dq dial
 in that all closed links are brought up.  If the
 .Dq ccp
-argument is used, the relevent compression layer is opened.
+argument is used, the relevant compression layer is opened.
 .It passwd Ar pass
 Specify the password required for access to the full
 .Nm
@@ -2427,7 +2443,7 @@ will exit despite the source of the command after closing all existing
 connections.
 .It remove|rm
 This command removes the given link.  It is only really useful in
-multilink mode.  A link must be
+multi-link mode.  A link must be
 in the
 .Dv CLOSED
 state before it is removed.
@@ -2452,7 +2468,7 @@ This option is not (yet) implemented.
 This option allows the setting of any of the following variables:
 .Bl -tag -width 20
 .It set accmap Ar hex-value
-ACCMap stands for Asyncronous Control Character Map.  This is always
+ACCMap stands for Asynchronous Control Character Map.  This is always
 negotiated with the peer, and defaults to a value of 00000000 in hex.
 This protocol is required to defeat hardware that depends on passing
 certain characters from end to end (such as XON/XOFF etc).
@@ -2472,8 +2488,8 @@ is logged as
 for security reasons.
 .It set authname Ar id
 This sets the authentication id used in client mode PAP or CHAP negotiation.
-.It set autoload Ar maxduration maxload [minduration minload]
-These settings apply only in multilink mode and all default to zero.
+.It set autoload Ar max-duration max-load [min-duration min-load]
+These settings apply only in multi-link mode and all default to zero.
 When more than one
 .Ar demand-dial
 .Pq also known as Fl auto
@@ -2482,9 +2498,9 @@ mode link is available, only the first link is made active when
 first reads data from the tun device.  The next
 .Ar demand-dial
 link will be opened only when at least
-.Ar maxload
+.Ar max-load
 packets have been in the send queue for
-.Ar maxduration
+.Ar max-duration
 seconds.  Because both values default to zero,
 .Ar demand-dial
 links will simply come up one at a time by default.
@@ -2494,11 +2510,11 @@ If two or more links are open, at least one of which is a
 link, a
 .Ar demand-dial
 link will be closed when there is less than
-.Ar minpackets
+.Ar min-packets
 in the queue for more than
-.Ar minduration .
+.Ar min-duration .
 If
-.Ar minduration
+.Ar min-duration
 is zero, this timer is disabled.  Because both values default to zero,
 .Ar demand-dial
 links will stay active until the bundle idle timer expires.
@@ -2541,12 +2557,12 @@ If
 .Dq value
 does not begin with
 .Pa /dev/ ,
-it must either begin with an exclaimation mark
+it must either begin with an exclamation mark
 .Pq Dq \&!
 or be of the format
 .Dq host:port .
 .Pp
-If it begins with an exclaimation mark, the rest of the device name is
+If it begins with an exclamation mark, the rest of the device name is
 treated as a program name, and that program is executed when the device
 is opened.  Standard input, output and error are fed back to
 .Nm
@@ -2629,7 +2645,7 @@ set dial "... ATDT\\\\T CONNECT"
 .Pp
 It is also possible to execute external commands from the chat script.
 To do this, the first character of the expect or send string is an
-exclaimation mark
+exclamation mark
 .Pq Dq \&! .
 When the command is executed, standard input and standard output are
 directed to the modem device (see the
@@ -2709,13 +2725,13 @@ The current label is used.
 .It IP
 Our local IP number is used.  As LCP is negotiated prior to IPCP, it is
 possible that the IPCP layer will subsequently change this value.  If
-it does, the endpoint descriminator stays at the old value unless manually
+it does, the endpoint discriminator stays at the old value unless manually
 reset.
 .It MAC
 This is similar to the
 .Ar IP
 option above, except that the MAC address associated with the local IP
-number is used.  If the local IP number is not resident on any ethernet
+number is used.  If the local IP number is not resident on any Ethernet
 interface, the command will fail.
 .Pp
 As the local IP number defaults to whatever the machine host name is,
@@ -2850,7 +2866,7 @@ Note that the
 .Ar HISADDR
 argument may be overridden by the third field in the
 .Pa ppp.secret
-file once the client has authenticated themself
+file once the client has authenticated itself
 .Pq if PAP or CHAP are Dq enabled .
 Refer to the
 .Em AUTHENTICATING INCOMING CONNECTIONS
@@ -2893,16 +2909,16 @@ command if you wish to send LQR requests to the peer.
 .It set mode Ar interactive|auto|ddial|background
 This command allows you to change the
 .Sq mode
-of the specified link.  This is normally only useful in multilink mode,
-but may also be used in unilink mode.
+of the specified link.  This is normally only useful in multi-link mode,
+but may also be used in uni-link mode.
 .Pp
 It is not possible to change a link that is
 .Sq direct
 or
 .Sq dedicated .
 .It set mrru Ar value
-Setting this option enables Multilink PPP negotiations, also known as
-Multilink Protocol or MP.  There is no default MRRU (Maximum
+Setting this option enables Multi-link PPP negotiations, also known as
+Multi-link Protocol or MP.  There is no default MRRU (Maximum
 Reconstructed Receive Unit) value.
 .Em PPP
 protocol *must* be able to accept packets of at
@@ -3004,11 +3020,11 @@ instructs
 .Nm
 to close any existing socket.
 .Pp
-If you wish to specify a unix domain socket,
+If you wish to specify a local domain socket,
 .Ar LocalName
 must be specified as an absolute file name, otherwise it is assumed
 to be the name or number of a TCP port.  You may specify the octal umask that
-should be used with unix domain sockets as a four character octal number
+should be used with local domain sockets as a four character octal number
 beginning with
 .Sq 0 .
 Refer to
@@ -3023,7 +3039,7 @@ You must also specify the password that must be entered by the client
 command above) when connecting to this socket.  If the password is
 specified as an empty string, no password is required for connecting clients.
 .Pp
-When specifying a unix domain socket, the first
+When specifying a local domain socket, the first
 .Dq %d
 sequence found in the socket name will be replaced with the current
 interface unit number.  This is useful when you wish to use the same
@@ -3248,7 +3264,7 @@ modes.
 .It Pa /etc/services
 Get port number if port number is using service name.
 .It Pa /var/run/ppp-authname-class-value
-In multilink mode, unix domain sockets are created using the peer
+In multi-link mode, local domain sockets are created using the peer
 authentication name
 .Pq Sq authname ,
 the peer endpoint discriminator class
@@ -3299,4 +3315,4 @@ It was substantially modified during 1997 by Brian Somers
 (just after the 2.2 release).
 .Pp
 Most of the code was rewritten by Brian Somers in early 1998 when
-multilink ppp support was added.
+multi-link ppp support was added.
