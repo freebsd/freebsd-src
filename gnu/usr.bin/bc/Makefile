@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.7 1998/04/30 07:50:49 ache Exp $
+# $Id: Makefile,v 1.8 1998/04/30 08:14:04 ache Exp $
 
 .include "${.CURDIR}/../Makefile.inc"
 
@@ -19,9 +19,15 @@ CFLAGS+=	-DHAVE_VPRINTF=1  -DSTDC_HEADERS=1 -DHAVE_ISGRAPH=1 \
 		-DHAVE_LIMITS_H=1 -DHAVE_STDARG_H=1 -DHAVE_STDDEF_H=1 \
 		-DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_UNISTD_H=1 \
 		-DREADLINE=1 \
-		-I${.CURDIR}/../../../contrib/bc/h -I${.CURDIR}
+		-I${.CURDIR}/../../../contrib/bc/h -I${.CURDIR} -I.
 
-CLEANFILES+=	${GENSRCS} y.tab.h
+bc.h: bc.c
+	mv y.tab.h bc.h
+
+beforedepend: bc.h
+scan.o:       bc.h
+
+CLEANFILES+=    ${GENSRCS} y.tab.h bc.h
 
 DPADD+= ${LIBREADLINE}
 LDADD+= -lreadline
