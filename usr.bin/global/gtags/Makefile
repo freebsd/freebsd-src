@@ -3,7 +3,7 @@
 MAN1=	gtags.1
 
 beforeinstall:
-	install -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
-	    ${.CURDIR}/gtags.sh ${DESTDIR}/${BINDIR}/gtags
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
+	    ${.CURDIR}/gtags.sh ${DESTDIR}/usr/bin/gtags
 
 .include <bsd.prog.mk>

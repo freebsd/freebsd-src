@@ -29,11 +29,11 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#	htags.pl	5-Apr-97
+#	htags.pl	21-Apr-97
 #
 $com = $0;
 $com =~ s/.*\///;
-$usage = "usage: $com [-a][-v][-w][-t title][-d tagdir][dir]";
+$usage = "usage: $com [-a][-l][-v][-w][-t title][-d tagdir][dir]";
 #-------------------------------------------------------------------------
 # CONFIGURATION
 #-------------------------------------------------------------------------
@@ -52,6 +52,9 @@ $reserved_end   = '</B>';
 $reserved_words = "auto|break|case|char|continue|default|do|double|else|extern|float|for|goto|if|int|long|register|return|short|sizeof|static|struct|switch|typedef|union|unsigned|void|while";
 # temporary directory
 $tmp = '/tmp';
+if (defined($ENV{'TMPDIR'}) && -d $ENV{'TMPDIR'}) {
+	$tmp = $ENV{'TMPDIR'};
+}
 #-------------------------------------------------------------------------
 # DEFINITION
 #-------------------------------------------------------------------------
@@ -117,20 +120,31 @@ sub escape {
 	local($c) = @_;
 	'%' . sprintf("%x", ord($c));
 }
+sub usable {
+	local($com) = @_;
+
+	foreach $path (split(/:/, $ENV{'PATH'})) {
+		if (-x "$path/$com") {
+			return 1;
+		}
+	}
+	return 0;
+}
 #-------------------------------------------------------------------------
 # PROCESS START
 #-------------------------------------------------------------------------
 #
 # options check
 #
-$aflag = $vflag = $wflag = $sflag = '';	# $sflag is set internally
+$aflag = $lflag = $vflag = $wflag = $sflag = '';# $sflag is set internally
 while ($ARGV[0] =~ /^-/) {
 	$opt = shift;
-	if ($opt =~ /[^-avwdt]/) {
+	if ($opt =~ /[^-alvwtd]/) {
 		print STDERR "$usage\n";
 		exit 1;
 	}
 	if ($opt =~ /a/) { $aflag = 1; }
+	if ($opt =~ /l/) { $lflag = 1; }
 	if ($opt =~ /v/) { $vflag = 1; }
 	if ($opt =~ /w/) { $wflag = 1; }
 	if ($opt =~ /t/) {
@@ -153,6 +167,26 @@ if (!$dbpath) {
 unless (-r "$dbpath/GTAGS" && -r "$dbpath/GRTAGS") {
 	&error("GTAGS and GRTAGS not found. please type 'gtags[RET]'\n");
 }
+#
+# recognize format version
+# if version record is not found, it's assumed version 1.
+#
+	$support_version = 1;		# understand this format version
+#
+open(GTAGS, "btreeop -K ' __.VERSION' $dbpath/GTAGS |") || die("$com: GTAGS not found.\n");
+$rec = <GTAGS>;
+close(GTAGS);
+if ($rec =~ /^ __\.VERSION[ \t]+([0-9]+)$/) {
+	$format_version = $1;
+} else {
+	$format_version = 1;
+}
+if ($format_version != $support_version) {
+	die("$com: GTAGS format version unmatched. Please remake it.\n");
+}
+#
+# check directories
+#
 $html = &getcwd() . '/HTML';
 if ($ARGV[0]) {
 	$cwd = &getcwd();
@@ -613,15 +647,16 @@ package convert;
 sub src2html {
 	local($file, $html) = @_;
 	local($ncol) = $'ncol;
+	local($expand) = &'usable('expand') ? 'expand' : 'cat';
 
-	open(HTML, ">$html") || &error("cannot create file <$html>.\n");
+	open(HTML, ">$html") || &'error("cannot create file <$html>.\n");
 	local($old) = select(HTML);
 	#
 	# load tags belonging to this file.
 	#
 	$file =~ s/^\.\///;
 	&anchor'load($file);
-	open(C, $file) || &error("cannot open file <$file>.\n");
+	open(C, "$expand '$file' |") || &'error("cannot open file <$file>.\n");
 	#
 	# print the header
 	#
@@ -659,12 +694,16 @@ sub src2html {
 		local($define_line) = 0;
 		local(@links) = ();
 		local($count) = 0;
-		local($first);
+		local($lno_printed) = 0;
 
-		for ($first = 1; int($LNO) == $.; ($LNO, $TAG, $TYPE) = &anchor'next()) {
-			if ($first) {
-				$first = 0;
-				print "<A NAME=$LNO>"
+		if ($'lflag) {
+			print "<A NAME=$.>";
+			$lno_printed = 1;
+		}
+		for (; int($LNO) == $.; ($LNO, $TAG, $TYPE) = &anchor'next()) {
+			if (!$lno_printed) {
+				print "<A NAME=$.>";
+				$lno_printed = 1;
 			}
 			$define_line = $LNO if ($TYPE eq 'D');
 			$db = ($TYPE eq 'D') ? 'GRTAGS' : 'GTAGS';
@@ -689,7 +728,7 @@ sub src2html {
 					print STDERR "Error: $file $LNO $TAG($TYPE) tag must exist.\n" if ($'wflag);
 				}
 			} else {
-				print STDERR "Warning: $file $LNO $TAG($TYPE) found but not refered.\n" if ($'wflag);
+				print STDERR "Warning: $file $LNO $TAG($TYPE) found but not referred.\n" if ($'wflag);
 			}
 		}
 		# implant links
@@ -831,10 +870,10 @@ package anchor;
 #
 sub create {
 	$ANCH = "$'tmp/ANCH$$";
-	open(ANCH, "| btreeop -C $ANCH") || &error("btreeop -C $ANCH failed.\n");
+	open(ANCH, "| btreeop -C $ANCH") || &'error("btreeop -C $ANCH failed.\n");
 	foreach $db ('GTAGS', 'GRTAGS') {
 		local($type) = ($db eq 'GTAGS') ? 'D' : 'R';
-		open(PIPE, "btreeop $'dbpath/$db |") || &error("btreeop $'dbpath/$db failed.\n");
+		open(PIPE, "btreeop $'dbpath/$db |") || &'error("btreeop $'dbpath/$db failed.\n");
 		while (<PIPE>) {
 			local($tag, $lno, $filename) = split;
 			print ANCH "$filename $lno $tag $type\n";
@@ -860,7 +899,7 @@ sub load {
 	$file = './' . $file if ($file !~ /^\.\//);
 
 	@ANCHORS = ();
-	open(ANCH, "btreeop -K $file $ANCH|") || &error("btreeop -K $file $ANCH failed.\n");
+	open(ANCH, "btreeop -K $file $ANCH|") || &'error("btreeop -K $file $ANCH failed.\n");
 $n = 0;
 	while (<ANCH>) {
 		local($filename, $lno, $tag, $type) = split;
@@ -870,7 +909,7 @@ $n = 0;
 		if ($type eq 'R' && ($line = &cache'get('GTAGS', $tag))) {
 			local($nouse1, $nouse2, $f, $def) = split(/[ \t]+/, $line);
 			if ($f !~ /\.h$/ && $f !~ $filename && $def =~ /^#/) {
-				print STDERR "Information: skip <$filename $lno $tag> because this is a macro which is defined in other C source.\n" if ($'wflag);
+				print STDERR "Information: $filename $lno $tag($type) skipped, because this is a macro which is defined in other C source.\n" if ($'wflag);
 				next;
 			}
 		}
@@ -1016,7 +1055,7 @@ sub put {
 	$cachecount++;
 	if ($cachesize >= 0 && $cachecount > $cachesize) {
 		$CACH  = "$'tmp/CACH$$";
-		dbmopen(%CACH, $CACH, 0600) || &error("make cache database.\n");
+		dbmopen(%CACH, $CACH, 0600) || &'error("make cache database.\n");
 		$cachesize = -1;
 	}
 	$CACH{$label.$tag} = $line;
