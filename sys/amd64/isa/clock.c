@@ -34,14 +34,14 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.20 1994/09/20 00:31:05 ache Exp $
+ *	$Id: clock.c,v 1.21 1994/09/20 21:20:46 bde Exp $
  */
 
- /*
-  * inittodr, settodr and support routines written
-  * by Christoph Robitschko <chmr@edvz.tu-graz.ac.at>
-  *
-  * reintroduced and updated by Chris Stenton <chris@gnome.co.uk> 8/10/94
+/*
+ * inittodr, settodr and support routines written
+ * by Christoph Robitschko <chmr@edvz.tu-graz.ac.at>
+ *
+ * reintroduced and updated by Chris Stenton <chris@gnome.co.uk> 8/10/94
  */
 
 /*
@@ -82,59 +82,21 @@ static 	void (*new_function)();
 static 	u_int new_rate;
 static 	u_int hardclock_divisor;
 static	const u_char daysinmonth[] = {31,28,31,30,31,30,31,31,30,31,30,31};
+static 	u_char rtc_statusa = RTCSA_DIVIDER | RTCSA_NOPROF;
 
 #ifdef I586_CPU
 int pentium_mhz = 0;
 #endif
 
+#if 0
 void
-clkintr(frame)
-	struct clockframe frame;
+clkintr(struct clockframe frame)
 {
 	hardclock(&frame);
 }
-
-static u_char rtc_statusa = RTCSA_DIVIDER | RTCSA_NOPROF;
-
-/*
- * This routine receives statistical clock interrupts from the RTC.
- * As explained above, these occur at 128 interrupts per second.
- * When profiling, we receive interrupts at a rate of 1024 Hz.
- *
- * This does not actually add as much overhead as it sounds, because
- * when the statistical clock is active, the hardclock driver no longer
- * needs to keep (inaccurate) statistics on its own.  This decouples
- * statistics gathering from scheduling interrupts.
- *
- * The RTC chip requires that we read status register C (RTC_INTR)
- * to acknowledge an interrupt, before it will generate the next one.
- */
+#else
 void
-rtcintr(struct clockframe frame)
-{
-	u_char stat;
-	stat = rtcin(RTC_INTR);
-	if(stat & RTCIR_PERIOD) {
-		statclock(&frame);
-	}
-}
-
-#ifdef DEBUG
-void
-printrtc(void)
-{
-	outb(IO_RTC, RTC_STATUSA);
-	printf("RTC status A = %x", inb(IO_RTC+1));
-	outb(IO_RTC, RTC_STATUSB);
-	printf(", B = %x", inb(IO_RTC+1));
-	outb(IO_RTC, RTC_INTR);
-	printf(", C = %x\n", inb(IO_RTC+1));
-}
-#endif
-
-#if 0
-void
-timerintr(struct clockframe frame)
+clkintr(struct clockframe frame)
 {
 	timer_func(&frame);
 	switch (timer0_state) {
@@ -173,7 +135,6 @@ timerintr(struct clockframe frame)
 		break;
 	}
 }
-
 #endif
 
 int
@@ -181,13 +142,11 @@ acquire_timer0(int rate, void (*function)() )
 {
 	if (timer0_state || !function) 	
 		return -1;
-
 	new_function = function;
 	new_rate = rate;
 	timer0_state = 2;
 	return 0;
 }
-
 
 int
 acquire_timer2(int mode)
@@ -199,7 +158,6 @@ acquire_timer2(int mode)
 	return 0;
 }
 
-
 int
 release_timer0()
 {
@@ -208,7 +166,6 @@ release_timer0()
 	timer0_state = 3;
 	return 0;
 }
-
 
 int
 release_timer2()
@@ -220,6 +177,41 @@ release_timer2()
 	return 0;
 }
 
+/*
+ * This routine receives statistical clock interrupts from the RTC.
+ * As explained above, these occur at 128 interrupts per second.
+ * When profiling, we receive interrupts at a rate of 1024 Hz.
+ *
+ * This does not actually add as much overhead as it sounds, because
+ * when the statistical clock is active, the hardclock driver no longer
+ * needs to keep (inaccurate) statistics on its own.  This decouples
+ * statistics gathering from scheduling interrupts.
+ *
+ * The RTC chip requires that we read status register C (RTC_INTR)
+ * to acknowledge an interrupt, before it will generate the next one.
+ */
+void
+rtcintr(struct clockframe frame)
+{
+	u_char stat;
+	stat = rtcin(RTC_INTR);
+	if(stat & RTCIR_PERIOD) {
+		statclock(&frame);
+	}
+}
+
+#ifdef DEBUG
+void
+printrtc(void)
+{
+	outb(IO_RTC, RTC_STATUSA);
+	printf("RTC status A = %x", inb(IO_RTC+1));
+	outb(IO_RTC, RTC_STATUSB);
+	printf(", B = %x", inb(IO_RTC+1));
+	outb(IO_RTC, RTC_INTR);
+	printf(", C = %x\n", inb(IO_RTC+1));
+}
+#endif
 
 static int
 getit() 
@@ -324,16 +316,13 @@ DELAY(int n)
 #endif
 }
 
-
 static void
-sysbeepstop(chan)
-	void	*chan;
+sysbeepstop(void *chan)
 {
 	outb(IO_PPI, inb(IO_PPI)&0xFC);	/* disable counter2 output to speaker */
 	release_timer2();
 	beeping = 0;
 }
-
 
 int 
 sysbeep(int pitch, int period)
@@ -352,7 +341,6 @@ sysbeep(int pitch, int period)
 	}
 	return 0;
 }
-
 
 /*
  * RTC support routines
@@ -382,7 +370,6 @@ readrtc(int port)
 	return(bcd2int(rtcin(port)));
 }
 
-
 void
 startrtclock() 
 {
@@ -401,21 +388,18 @@ startrtclock()
 	outb (IO_RTC+1, rtc_statusa);
 	outb (IO_RTC, RTC_STATUSB);
 	outb (IO_RTC+1, RTCSB_24HR);
-
 	outb (IO_RTC, RTC_DIAG);
 	if (s = inb (IO_RTC+1))
 		printf("RTC BIOS diagnostic error %b\n", s, RTCDG_BITS);
 	writertc(RTC_DIAG, 0);
 }
 
-
 /*
  * Initialize the time of day register,	based on the time base which is, e.g.
  * from	a filesystem.
  */
 void
-inittodr(base)
-time_t	base;
+inittodr(time_t base)
 {
 	unsigned long	sec, days;
 	int		yd;
@@ -467,7 +451,6 @@ wrong_time:
 	printf("Check and reset	the date immediately!\n");
 }
 
-
 /*
  * Write system	time back to RTC
  */
@@ -480,7 +463,7 @@ void resettodr()
 	tm = time.tv_sec;
 	splx(s);
 
-/* First, disable clock	updates	*/
+	/* First, disable clock	updates	*/
 	writertc(RTC_STATUSB, RTCSB_HALT | RTCSB_24HR);
 
 	/* Calculate local time	to put in CMOS */
@@ -516,7 +499,6 @@ void resettodr()
 	/* enable time updates */
 	writertc(RTC_STATUSB, RTCSB_PINTR | RTCSB_24HR);
 }
-
 
 #ifdef garbage
 /*
