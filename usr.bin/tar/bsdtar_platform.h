@@ -35,22 +35,84 @@
 #ifndef BSDTAR_PLATFORM_H_INCLUDED
 #define	BSDTAR_PLATFORM_H_INCLUDED
 
-/* FreeBSD-specific definitions. */
+#if HAVE_CONFIG_H
+#include "config.h"
+#else
+
+#ifdef __FreeBSD__
+/* A default configuration for FreeBSD, used if there is no config.h. */
+#define PACKAGE_NAME "bsdtar"
+#define PACKAGE_VERSION "1.00"
+
+#define HAVE_BZLIB_H 1
+#define HAVE_CHFLAGS 1
+#define HAVE_DIRENT_H 1
+#define HAVE_D_MD_ORDER 1
+#define HAVE_FCHDIR 1
+#define HAVE_FCNTL_H 1
+#define HAVE_FNMATCH 1
+#define HAVE_FTRUNCATE 1
+#define HAVE_GETOPT_LONG 1
+#define HAVE_INTTYPES_H 1
+#define HAVE_LANGINFO_H 1
+#define HAVE_LIBARCHIVE 1
+#define HAVE_LIBBZ2 1
+#define HAVE_LIBZ 1
+#define HAVE_LIMITS_H 1
+#define HAVE_LOCALE_H 1
+#define HAVE_MALLOC 1
+#define HAVE_MEMMOVE 1
+#define HAVE_MEMORY_H 1
+#define HAVE_MEMSET 1
+#if __FreeBSD_version >= 450002 /* nl_langinfo introduced */
+#define HAVE_NL_LANGINFO 1
+#endif
+#define HAVE_PATHS_H 1
+#define HAVE_SETLOCALE 1
+#define HAVE_STDINT_H 1
+#define HAVE_STDLIB_H 1
+#define HAVE_STRCHR 1
+#define HAVE_STRDUP 1
+#define HAVE_STRERROR 1
+#define HAVE_STRFTIME 1
+#define HAVE_STRINGS_H 1
+#define HAVE_STRING_H 1
+#define HAVE_STRRCHR 1
+#define HAVE_STRUCT_STAT_ST_MTIMESPEC_TV_NSEC 1
+#define HAVE_STRUCT_STAT_ST_RDEV 1
+#if __FreeBSD__ > 4
+#define HAVE_SYS_ACL_H 1
+#endif
+#define HAVE_SYS_IOCTL_H 1
+#define HAVE_SYS_PARAM_H 1
+#define HAVE_SYS_STAT_H 1
+#define HAVE_SYS_TYPES_H 1
+#define HAVE_UNISTD_H 1
+#define HAVE_VPRINTF 1
+#define HAVE_ZLIB_H 1
+#define STDC_HEADERS 1
+
+#else /* !__FreeBSD__ */
+/* Warn if the library hasn't been (automatically or manually) configured. */
+#error Oops: No config.h and no built-in configuration in archive_platform.h.
+#endif /* !__FreeBSD__ */
+
+#endif /* !HAVE_CONFIG_H */
+
+/* No non-FreeBSD platform will have __FBSDID, so just define it here. */
 #ifdef __FreeBSD__
 #include <sys/cdefs.h>  /* For __FBSDID */
-#include <paths.h> /* For _PATH_DEFTAPE */
-
-#define	HAVE_CHFLAGS		1
-#define	ARCHIVE_STAT_MTIME_NANOS(st)	(st)->st_mtimespec.tv_nsec
-
-#if __FreeBSD_version >= 450002 /* nl_langinfo introduced */
-/* nl_langinfo supports D_MD_ORDER (FreeBSD extension) */
-#define HAVE_NL_LANGINFO_D_MD_ORDER	1
+#else
+#define	__FBSDID(a)     /* null */
 #endif
 
-#if __FreeBSD__ > 4
-#define	HAVE_GETOPT_LONG	1
-#define	HAVE_POSIX_ACL		1
+#ifndef HAVE_LIBARCHIVE
+#error Configuration error: did not find libarchive.
+#endif
+
+/* TODO: Test for the functions we use as well... */
+#if HAVE_SYS_ACL_H
+#define	HAVE_POSIX_ACLS	1
 #endif
 
 /*
@@ -58,54 +120,31 @@
  * and format string here must be compatible with one another and
  * large enough for any file.
  */
-#include <inttypes.h> /* for uintmax_t, if it exists */
-#ifdef UINTMAX_MAX
+#if HAVE_UINTMAX_T
 #define	BSDTAR_FILESIZE_TYPE	uintmax_t
 #define	BSDTAR_FILESIZE_PRINTF	"%ju"
 #else
+#if HAVE_UNSIGNED_LONG_LONG
 #define	BSDTAR_FILESIZE_TYPE	unsigned long long
 #define	BSDTAR_FILESIZE_PRINTF	"%llu"
+#else
+#define	BSDTAR_FILESIZE_TYPE	unsigned long
+#define	BSDTAR_FILESIZE_PRINTF	"%lu"
+#endif
 #endif
 
-#if __FreeBSD__ < 5
-typedef	int64_t	id_t;
-#endif
-
-#endif /*  __FreeBSD__ */
-
-/* No non-FreeBSD platform will have __FBSDID, so just define it here. */
-#ifndef __FreeBSD__
-#define	__FBSDID(a)     /* null */
-#endif
-
-/* Linux */
-#ifdef linux
-#define	_FILE_OFFSET_BITS	64	/* For a 64-bit off_t */
-#include <stdint.h> /* for uintmax_t */
-#define	BSDTAR_FILESIZE_TYPE	uintmax_t
-#define	BSDTAR_FILESIZE_PRINTF	"%ju"
 /* XXX get fnmatch GNU extensions (FNM_LEADING_DIR)
  * (should probably use AC_FUNC_FNMATCH_GNU once using autoconf...) */
-#define	_GNU_SOURCE
-#define	_PATH_DEFTAPE	"/dev/st0"
-#define	HAVE_GETOPT_LONG	1
 
-#ifdef HAVE_STRUCT_STAT_TIMESPEC
-/* Fetch the nanosecond portion of the timestamp from a struct stat pointer. */
-#define	ARCHIVE_STAT_MTIME_NANOS(pstat)	(pstat)->st_mtim.tv_nsec
+#if HAVE_STRUCT_STAT_ST_MTIMESPEC_TV_NSEC
+#define	ARCHIVE_STAT_MTIME_NANOS(st)	(st)->st_mtimespec.tv_nsec
 #else
-/* High-res timestamps aren't available, so just use stubs here. */
-#define	ARCHIVE_STAT_MTIME_NANOS(pstat)	0
+#if HAVE_STRUCT_STAT_ST_MTIM_TV_NSEC
+#define	ARCHIVE_STAT_MTIME_NANOS(st)	(st)->st_mtim.tv_nsec
+#else
+#define	ARCHIVE_STAT_MTIME_NANOS(st)	(0)
+#endif
 #endif
 
-#endif
-
-/*
- * XXX TODO: Use autoconf to handle non-FreeBSD platforms.
- *
- * #if !defined(__FreeBSD__)
- *    #include "config.h"
- * #endif
- */
 
 #endif /* !BSDTAR_PLATFORM_H_INCLUDED */

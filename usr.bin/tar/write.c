@@ -170,12 +170,16 @@ tar_mode_c(struct bsdtar *bsdtar)
 	switch (bsdtar->create_compression) {
 	case 0:
 		break;
+#ifdef HAVE_LIBBZ2
 	case 'j': case 'y':
 		archive_write_set_compression_bzip2(a);
 		break;
+#endif
+#ifdef HAVE_LIBZ
 	case 'z':
 		archive_write_set_compression_gzip(a);
 		break;
+#endif
 	default:
 		bsdtar_errc(bsdtar, 1, 0,
 		    "Unrecognized compression option -%c",
