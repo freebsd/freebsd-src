@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: atapi-cd.c,v 1.4 1998/10/30 10:57:09 luigi Exp $
+ *	$Id: atapi-cd.c,v 1.4.2.1 1998/11/08 14:08:26 luigi Exp $
  */
 
 #include "wdc.h"
@@ -535,7 +535,7 @@ acdstrategy(struct buf *bp)
         return;
     }
     
-    bp->b_pblkno = bp->b_blkno + cdp->starting_lba ;
+    bp->b_pblkno = bp->b_blkno /* + cdp->starting_lba */ ;
     bp->b_resid = bp->b_bcount;
 
     x = splbio();
