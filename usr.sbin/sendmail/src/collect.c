@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)collect.c	8.61 (Berkeley) 11/24/96";
+static char sccsid[] = "@(#)collect.c	8.62 (Berkeley) 12/11/96";
 #endif /* not lint */
 
 # include <errno.h>
@@ -500,6 +500,21 @@ readerr:
 
 		markstats(e, (ADDRESS *) NULL);
 	}
+
+#ifdef _FFR_DSN_RRT
+	/*
+	**  If we have a Return-Receipt-To:, turn it into a DSN.
+	*/
+
+	if (RrtImpliesDsn && hvalue("return-receipt-to", e->e_header) != NULL)
+	{
+		ADDRESS *q;
+
+		for (q = e->e_sendqueue; q != NULL; q = q->q_next)
+			if (!bitset(QHASNOTIFY, q->q_flags))
+				q->q_flags |= QHASNOTIFY|QPINGONSUCCESS;
+	}
+#endif
 
 	/*
 	**  Add an Apparently-To: line if we have no recipient lines.
