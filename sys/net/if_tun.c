@@ -307,8 +307,7 @@ tunclose(dev_t dev, int foo, int bar, struct proc *p)
 	tp = dev->si_drv1;
 	ifp = &tp->tun_if;
 
-	err = rman_release_resource(tp->r_unit);
-	KASSERT(err == 0, ("Unit %d not marked open", ifp->if_unit));
+	KASSERT(tp->r_unit, ("Unit %d not marked open", ifp->if_unit));
 	tp->tun_flags &= ~TUN_OPEN;
 	tp->tun_pid = 0;
 
@@ -340,6 +339,9 @@ tunclose(dev_t dev, int foo, int bar, struct proc *p)
 	selwakeup(&tp->tun_rsel);
 
 	TUNDEBUG ("%s%d: closed\n", ifp->if_name, ifp->if_unit);
+	err = rman_release_resource(tp->r_unit);
+	KASSERT(err == 0, ("Unit %d failed to release", ifp->if_unit));
+
 	return (0);
 }
 
