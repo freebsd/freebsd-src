@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aicasm_symbol.c,v 1.4 1997/09/27 19:37:30 gibbs Exp $
+ *      $Id: aicasm_symbol.c,v 1.5 1998/09/15 07:24:17 gibbs Exp $
  */
 
 
@@ -128,10 +128,10 @@ symtable_close()
 		DBT	 data;
 
 		while (symtable->seq(symtable, &key, &data, R_FIRST) == 0) {
-			symbol_t *cursym;
+			symbol_t *stored_ptr;
 
-			cursym = *(symbol_t **)data.data;
-			symbol_delete(cursym);
+			memcpy(&stored_ptr, data.data, sizeof(stored_ptr));
+			symbol_delete(stored_ptr);
 		}
 		symtable->close(symtable);
 	}
@@ -145,9 +145,10 @@ symbol_t *
 symtable_get(name)
 	char *name;
 {
-	DBT	key;
-	DBT	data;
-	int	retval;
+	symbol_t *stored_ptr;
+	DBT	  key;
+	DBT	  data;
+	int	  retval;
 
 	key.data = (void *)name;
 	key.size = strlen(name);
@@ -176,7 +177,8 @@ symtable_get(name)
 			/* NOTREACHED */
 		}
 	}
-	return (*(symbol_t **)data.data);
+	memcpy(&stored_ptr, data.data, sizeof(stored_ptr));
+	return (stored_ptr);
 }
 
 symbol_node_t *
@@ -327,7 +329,7 @@ symtable_dump(ofile)
 		while (symtable->seq(symtable, &key, &data, flag) == 0) {
 			symbol_t *cursym;
 
-			cursym = *(symbol_t **)data.data;
+			memcpy(&cursym, data.data, sizeof(cursym));
 			switch(cursym->type) {
 			case REGISTER:
 			case SCBLOC:

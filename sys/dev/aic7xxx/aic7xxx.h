@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7xxx.h,v 1.5 1999/01/14 06:14:15 gibbs Exp $
+ *	$Id: aic7xxx.h,v 1.6 1999/03/05 23:35:47 gibbs Exp $
  */
 
 #ifndef _AIC7XXX_H_
@@ -43,22 +43,31 @@
 #include "ahc.h"                /* for NAHC from config */
 #include "opt_aic7xxx.h"	/* for config options */
 
-#include <pci/pcivar.h>		/* for pcici_t */
+#include <sys/bus.h>		/* For device_t */
 
+#ifndef MAX
+#define MAX(a,b) (((a) > (b)) ? (a) : (b))
+#endif
+
+#ifndef MIN
+#define MIN(a,b) (((a) < (b)) ? (a) : (b))
+#endif
+
+/*
+ * The maximum transfer per S/G segment.
+ */
 #define AHC_MAXTRANSFER_SIZE	 0x00ffffff	/* limited by 24bit counter */
-#define	AHC_NSEG	32	/* The number of dma segments supported.
-				 * AHC_NSEG can be maxed out at 256 entries,
-				 * but the kernel will never need to transfer
-				 * such a large (1MB) request.  To reduce the
-				 * driver's memory consumption, we reduce the
-				 * max to 32.  16 would work if all transfers
-				 * are paged alined since the kernel will only
-				 * generate at most a 64k transfer, but to
-				 * handle non-page aligned transfers, you need
-				 * 17, so we round to the next power of two
-				 * to make allocating SG space easy and
-				 * efficient.
-				 */
+
+/*
+ * The number of dma segments supported.  The current implementation limits
+ * us to 255 S/G entries (this may change to be unlimited at some point).
+ * To reduce the driver's memory consumption, we further limit the number
+ * supported to be sufficient to handle the largest mapping supported by
+ * the kernel, MAXPHYS.  Assuming the transfer is as fragmented as possible
+ * and unaligned, this turns out to be the number of paged sized transfers
+ * in MAXPHYS plus an extra element to handle any unaligned residual.
+ */
+#define AHC_NSEG (MIN(btoc(MAXPHYS) + 1, 255))
 
 #define AHC_SCB_MAX	255	/*
 				 * Up to 255 SCBs on some types of aic7xxx
@@ -74,10 +83,6 @@
 				* in the sequencer by using the natural
 				* wrap point of an 8bit counter.
 				*/
-
-#if defined(__FreeBSD__)
-extern u_long ahc_unit;
-#endif
 
 struct ahc_dma_seg {
 	u_int32_t	addr;
@@ -138,7 +143,6 @@ typedef enum {
 					 * SRAM, we use the default target
 					 * settings.
 					 */
-	AHC_INDIRECT_PAGING	= 0x008,
 	AHC_SHARED_SRAM		= 0x010,
 	AHC_LARGE_SEEPROM	= 0x020,/* Uses C56_66 not C46 */
 	AHC_RESET_BUS_A		= 0x040,
@@ -228,28 +232,13 @@ struct hardware_scb {
 
 struct scb {
 	struct	hardware_scb	*hscb;
-	STAILQ_ENTRY(scb)	links;	 /* for chaining */
+	SLIST_ENTRY(scb)	 links;	 /* for chaining */
 	union ccb		*ccb;	 /* the ccb for this cmd */
-	scb_flag		flags;
-	bus_dmamap_t		dmamap;
-	struct	ahc_dma_seg 	*ahc_dma;/* Pointer to SG segments */
-	u_int32_t		ahc_dmaphys;/* Phsical address of SG list */
-	u_int			sg_count;/* How full ahc_dma_seg is */
-};
-
-struct scb_data {
-	struct	hardware_scb	*hscbs;	    /* Array of hardware SCBs */
-	struct	scb *scbarray[AHC_SCB_MAX]; /* Array of kernel SCBs */
-	STAILQ_HEAD(, scb) free_scbs;	/*
-					 * Pool of SCBs ready to be assigned
-					 * commands to execute.
-					 */
-	u_int8_t	numscbs;
-	u_int8_t	maxhscbs;	/* Number of SCBs on the card */
-	u_int8_t	maxscbs;	/*
-					 * Max SCBs we allocate total including
-					 * any that will force us to page SCBs
-					 */
+	scb_flag		 flags;
+	bus_dmamap_t		 dmamap;
+	struct	ahc_dma_seg 	*sg_list;
+	bus_addr_t		 sg_list_phys;
+	u_int			 sg_count;/* How full ahc_dma_seg is */
 };
 
 /*
@@ -402,10 +391,45 @@ typedef enum {
 	MSG_TYPE_TARGET_MSGIN		= 0x04
 } ahc_msg_type;
 
+struct sg_map_node {
+	bus_dmamap_t		 sg_dmamap;
+	bus_addr_t		 sg_physaddr;
+	struct ahc_dma_seg*	 sg_vaddr;
+	SLIST_ENTRY(sg_map_node) links;
+};
+	
+struct scb_data {
+	struct	hardware_scb	*hscbs;	    /* Array of hardware SCBs */
+	struct	scb *scbarray;		    /* Array of kernel SCBs */
+	SLIST_HEAD(, scb) free_scbs;	/*
+					 * Pool of SCBs ready to be assigned
+					 * commands to execute.
+					 */
+	struct	scsi_sense_data *sense; /* Per SCB sense data */
+
+	/*
+	 * "Bus" addresses of our data structures.
+	 */
+	bus_dma_tag_t	 hscb_dmat;	/* dmat for our hardware SCB array */
+	bus_dmamap_t	 hscb_dmamap;
+	bus_addr_t	 hscb_busaddr;
+	bus_dma_tag_t	 sense_dmat;
+	bus_dmamap_t	 sense_dmamap;
+	bus_addr_t	 sense_busaddr;
+	bus_dma_tag_t	 sg_dmat;	/* dmat for our sg segments */
+	SLIST_HEAD(, sg_map_node) sg_maps;
+	u_int8_t	numscbs;
+	u_int8_t	maxhscbs;	/* Number of SCBs on the card */
+	u_int8_t	init_level;	/*
+					 * How far we've initialized
+					 * this structure.
+					 */
+};
+
 struct ahc_softc {
 	bus_space_tag_t		 tag;
 	bus_space_handle_t	 bsh;
-	bus_dma_tag_t		 dmat;
+	bus_dma_tag_t		 buffer_dmat;	/* dmat for buffer I/O */
 	struct scb_data		*scb_data;
 
 	/*
@@ -447,14 +471,14 @@ struct ahc_softc {
 	/* Command Queues */
 	u_int8_t		 qoutfifonext;
 	u_int8_t		 qinfifonext;
-	u_int8_t		 qoutfifo[256];
-	u_int8_t		 qinfifo[256];
+	u_int8_t		*qoutfifo;
+	u_int8_t		*qinfifo;
 
 	/*
 	 * 256 byte array storing the SCBID of outstanding
 	 * untagged SCBs indexed by TCL.
 	 */	
-	u_int8_t		 untagged_scbs[256];
+	u_int8_t		 *untagged_scbs;
 
 	/*
 	 * Hooks into the XPT.
@@ -482,7 +506,7 @@ struct ahc_softc {
 	 * PCI error interrupt handler.
 	 */
 	int			 unsolicited_ints;
-	pcici_t			 pci_config_id;
+	device_t		 device;
 
 	/*
 	 * Target incoming command FIFO.
@@ -501,13 +525,22 @@ struct ahc_softc {
 	u_int			 msgout_index;	/* Current index in msgout */
 	u_int			 msgin_index;	/* Current index in msgin */
 
+	int			 regs_res_type;
+	int			 regs_res_id;
+	int			 irq_res_type;
+	struct resource		*regs;
+	struct resource		*irq;
+	void			*ih;
+	bus_dma_tag_t		 parent_dmat;
+	bus_dma_tag_t		 shared_data_dmat;
+	bus_dmamap_t		 shared_data_dmamap;
+	bus_addr_t		 shared_data_busaddr;
+
 	/* Number of enabled target mode device on this card */
 	u_int			 enabled_luns;
 
-	/*
-	 * "Bus" addresses of our data structures.
-	 */
-	u_int32_t		hscb_busaddr;
+	/* Initialization level of this data structure */
+	u_int			 init_level;
 };
 
 struct full_ahc_softc {
@@ -530,10 +563,11 @@ extern int ahc_debug; /* Initialized in i386/scsi/aic7xxx.c */
 
 char *ahc_name(struct ahc_softc *ahc);
 
-struct ahc_softc *ahc_alloc(int unit, u_int32_t io_base,
-			    vm_offset_t maddr, ahc_chip chip,
-			    ahc_feature features, ahc_flag flags,
-			    struct scb_data *scb_data);
+struct ahc_softc*
+	ahc_alloc(device_t dev, struct resource *regs, int regs_type,
+		  int regs_id, bus_dma_tag_t parent_dmat, ahc_chip chip,
+		  ahc_feature features, ahc_flag flags,
+		  struct scb_data *scb_data);
 int	ahc_reset(struct ahc_softc *ahc);
 void	ahc_free(struct ahc_softc *);
 int	ahc_probe_scbs(struct ahc_softc *);
