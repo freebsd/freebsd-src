@@ -1971,7 +1971,7 @@ raidread_component_label(dev, b_vp, clabel)
 	bp->b_iocmd = BIO_READ;
  	bp->b_resid = RF_COMPONENT_INFO_SIZE / DEV_BSIZE;
 
-	DEV_STRATEGY(bp, 0);
+	DEV_STRATEGY(bp);
 	error = bufwait(bp); 
 
 	if (!error) {
@@ -2014,7 +2014,7 @@ raidwrite_component_label(dev, b_vp, clabel)
 
 	memcpy(bp->b_data, clabel, sizeof(RF_ComponentLabel_t));
 
-	DEV_STRATEGY(bp, 0);
+	DEV_STRATEGY(bp);
 	error = bufwait(bp); 
 
 	bp->b_flags |= B_INVAL | B_AGE;

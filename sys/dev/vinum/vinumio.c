@@ -281,7 +281,7 @@ driveio(struct drive *drive, char *buf, size_t length, off_t offset, int flag)
 	bp->b_saveaddr = bp->b_data;
 	bp->b_data = buf;
 	bp->b_bcount = len;
-	DEV_STRATEGY(bp, 0);				    /* initiate the transfer */
+	DEV_STRATEGY(bp);				    /* initiate the transfer */
 	error = bufwait(bp);
 	bp->b_data = bp->b_saveaddr;
 	bp->b_flags |= B_INVAL | B_AGE;
@@ -758,7 +758,7 @@ write_volume_label(int volno)
      *
      * Negotiate with phk to get it fixed.
      */
-    DEV_STRATEGY(bp, 0);
+    DEV_STRATEGY(bp);
     error = bufwait(bp);
     bp->b_flags |= B_INVAL | B_AGE;
     bp->b_ioflags &= ~BIO_ERROR;

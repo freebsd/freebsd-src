@@ -197,7 +197,7 @@ dsinit(dev, lp, sspp)
 	bp->b_iocmd = BIO_READ;
 	if (bp->b_bcount < 1024)
 		bp->b_bcount = 1024;
-	DEV_STRATEGY(bp, 1);
+	DEV_STRATEGY(bp);
 	if (bufwait(bp) != 0) {
 		disk_err(&bp->b_io, "reading primary partition table: error",
 		    0, 1);
