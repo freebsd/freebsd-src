@@ -454,7 +454,7 @@ hft-c|ibm8512|ibm8513|IBM High Function Terminal:\
 	:dm=\E[4h:ed=\E[4l:\
 	:so=\E[7m:se=\E[m:ul=\E[4m:ue=\E[m:ms:\
 	:md=\E[1m:mr=\E[7m:mb=\E[5m:me=\E[m:\
-	:ac=^N:ae=^O:sc=\E[s:rc=\E[u:\
+	:as=^N:ae=^O:sc=\E[s:rc=\E[u:\
 	:kb=\E[D:kf=\E[C:ku=\E[A:kd=\E[B:kh=\E[H:\
 	:k1=\E[001q:k2=\E[002q:k3=\E[003q:k4=\E[004q:k5=\E[005q:\
 	:k6=\E[006q:k7=\E[007q:k8=\E[008q:k9=\E[009q:k0=\E[010q:\
@@ -2219,7 +2219,7 @@ cons25w|ansiw|ansi80x25-raw:\
 	:DO=\E[%dB:LE=\E[%dD:RI=\E[%dC:UP=\E[%dA:cv=\E[%i%dd:ch=\E[%i%d`:bw:\
 	:mb=\E[5m:md=\E[1m:mh=\E[30;1m:mr=\E[7m:me=\E[m:bl=^G:ut:it#8:km:
 cons25|ansis|ansi80x25:\
-	:ac=l\332m\300k\277j\331u\264t\303v\301w\302q\304x\263n\305`^Da\260f\370g\361~\371.^Y-^Xh\261I^U0\333y\363z\362:\
+	:ac=l\332m\300k\277j\331u\264t\303v\301w\302q\304x\263n\305`^Da\260f\370g\361~\371.^Y-^Xh\261i^U0\333y\363z\362:\
 	:tc=cons25w:
 cons25-m|ansis-mono|ansi80x25-mono:\
 	:pa@:Co@:AF@:AB@:op@:us=\E[4m:ue=\E[m:md@:mh@:tc=cons25:
@@ -2239,9 +2239,9 @@ cons60|ansi80x60:\
 	:li#60:tc=cons25:
 cons60-m|ansi80x60-mono:\
 	:li#60:tc=cons25-m:
-# Syscons console with koi8-r russian code table.
+# KOI8-R FreeBSD console with ACS support
 cons25r|pc3r|ibmpc3r|cons25-koi8-r:\
-	:ac=q\200x\201m\204v\211j\205t\206n\212u\207l\202w\210k\203y\230z\231f\234~\225a\220h\221`^D.^Y-^XI^U0\215:\
+	:ac=q\200x\201m\204v\211j\205t\206n\212u\207l\202w\210k\203y\230z\231f\234~\225a\220h\221`^D.^Y-^Xi^U0\215:\
 	:kD=\E[K:tc=cons25w:
 cons25r-m|pc3r-m|ibmpc3r-mono|cons25-koi8-r-mono:\
 	:pa@:Co@:AF@:AB@:op@:us=\E[4m:ue=\E[m:md@:mh@:tc=cons25r:
@@ -2261,9 +2261,31 @@ cons60r|cons60-koi8-r:\
 	:li#60:tc=cons25r:
 cons60r-m|cons60-koi8-r-mono:\
 	:li#60:tc=cons25r-m:
-# 80x25 ISO 8859-1 FreeBSD console
+# ISO 8859-2 FreeBSD console with ACS support
+cons25l2|cons25-iso8859-2:\
+	:ac=l\215m\216k\214j\213u\226t\225v\227w\230q\222x\231n\217o\220s\224p\221r\223`\201a\202f\207g\210~\237,\206.\204-\203h\212+\205i\2110\200y\232z\233{\234|\235}\236:\
+	:tc=cons25w:
+cons25l2-m|cons25-iso8859-2-mono:\
+	:pa@:Co@:Sf@:Sb@:op@:us=\E[4m:ue=\E[m:md@:mh@:tc=cons25l2:
+cons30l2|cons30-iso8859-2:\
+	:li#30:tc=cons25l2:
+cons30l2-m|cons30-iso8859-2-mono:\
+	:li#30:tc=cons25l2-m:
+cons43l2|cons43-iso8859-2:\
+	:li#43:tc=cons25l2:
+cons43l2-m|cons43-iso8859-2-mono:\
+	:li#43:tc=cons25l2-m:
+cons50l2|cons50-iso8859-2:\
+	:li#50:tc=cons25l2:
+cons50l2-m|cons50-iso8859-2-mono:\
+	:li#50:tc=cons25l2-m:
+cons60l2|cons60-iso8859-2:\
+	:li#60:tc=cons25l2:
+cons60l2-m|cons60-iso8859-2-mono:\
+	:li#60:tc=cons25l2-m:
+# ISO 8859-1 FreeBSD console with ACS support
 cons25l1|cons25-iso8859-1:\
-	:ac=l\215m\216k\214j\213u\226t\225v\227w\230q\222x\231n\217o\220s\224p\221r\223`\201a\202f\207g\210~\237.^Y-^X+\253,\273I\247y\232z\233:\
+	:ac=l\215m\216k\214j\213u\226t\225v\227w\230q\222x\231n\217o\220s\224p\221r\223`\201a\202f\207g\210~\237.^Y-^X+\253,\273i\247y\232z\233:\
 	:tc=cons25w:
 cons25l1-m|cons25-iso8859-1-mono:\
 	:pa@:Co@:AF@:AB@:op@:us=\E[4m:ue=\E[m:md@:mh@:tc=cons25l1:
@@ -2283,6 +2305,7 @@ cons60l1|cons60-iso8859-1:\
 	:li#60:tc=cons25l1:
 cons60l1-m|cons60-iso8859-1-mono:\
 	:li#60:tc=cons25l1-m:
+#
 dosansi|ANSI.SYS standard crt:\
 	:am:bs:ce=\E[K:cl=\E[2J:cm=\E[%i%d;%dH:co#80:\
 	:do=\E[B:li#25:mi:nd=\E[C:\
@@ -2534,7 +2557,7 @@ SC|screen|VT 100/ANSI X3.64 virtual terminal:\
 	:eA=\E(B\E)0:as=^N:ae=^O:\
 	:vi=\E[?25l:ve=\E[34h\E[?25h:vs=\E[34l:\
 	:Co#8:pa#64:AF=\E[3%dm:AB=\E[4%dm:op=\E[39;49m:AX:\
-	:ac=``aaffggjjkkllmmnnooppqqrrssttuuvvwwxxyyzz{{||}}~~..--++,,hhII00:
+	:ac=``aaffggjjkkllmmnnooppqqrrssttuuvvwwxxyyzz{{||}}~~..--++,,hhii00:
 SW|screen-w|VT 100/ANSI X3.64 virtual terminal with 132 cols:\
 	:co#132:tc=screen:
 xterm-r5|xterm X11R5 version:\
@@ -2591,7 +2614,7 @@ xterm-xf86-v32|xterm terminal emulator (X Window System):\
 	:sf=^J:so=\E[7m:sr=\EM:st=\EH:ta=^I:te=\E[2J\E[?47l\E8:\
 	:ti=\E7\E[?47h:ue=\E[24m:up=\E[A:us=\E[4m:\
 	:vb=\E[?5h\E[?5l:ve=\E[?25h:vi=\E[?25l:vs=\E[?25h:\
-	:ac=``aaffggjjkkllmmnnooppqqrrssttuuvvwwxxyyzz{{||}}~~..--++\054\054II00:\
+	:ac=``aaffggjjkkllmmnnooppqqrrssttuuvvwwxxyyzz{{||}}~~..--++\054\054ii00:\
 	:u6=\E[%i%d;%dR:u7=\E[6n:u8=\E[?1;2c:u9=\E[c:
 # @(#)termcap	X10/6.6	11/7/86, minus alternate screen, plus :cs
 xterm|vs100|xterm terminal emulator (X window system):\
@@ -3837,7 +3860,7 @@ pc3|ibmpc3|IBM PC 386BSD Console:\
 	:AB=\E[1;%dx:\
 	:AF=\E[2;%dx:\
 	:UP=\E[%dA:\
-	:ac=l\332m\300k\277j\331u\264t\303v\301w\302q\304x\263n\305`^Da\260f\370g\361~\371.^Y-^Xh\261I^U0\333y\363z\362:\
+	:ac=l\332m\300k\277j\331u\264t\303v\301w\302q\304x\263n\305`^Da\260f\370g\361~\371.^Y-^Xh\261i^U0\333y\363z\362:\
 	:am:\
 	:bl=^G:\
 	:bs:\
