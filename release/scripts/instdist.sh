@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: instdist.sh,v 1.16 1995/03/24 00:23:02 phk Exp $
+# $Id: instdist.sh,v 1.17 1995/04/09 08:56:02 jkh Exp $
 
 if [ "${_INSTINST_SH_LOADED_}" = "yes" ]; then
 	return 0
@@ -80,18 +80,18 @@ media_cd_tmpdir()
 media_rm_tmpdir()
 {
 	cd /
-	if [ "X${NO_ASK_REMOVE}" != "X" ]; then
-		rm -rf ${_TARGET}
-		return
-	fi
 	if [ -d ${TMPDIR}/${MEDIA_DISTRIBUTION} ]; then
 		_TARGET=${TMPDIR}/${MEDIA_DISTRIBUTION}
 	else
-		_TARGET="${TMPDIR}/*"
+		_TARGET=${TMPDIR}/
+	fi
+	if [ "X${NO_ASK_REMOVE}" != "X" ]; then
+		rm -rf ${_TARGET} > /dev/null 2>&1
+		return
 	fi
 	if dialog --title "Delete contents?" --yesno \
 	  "Do you wish to delete ${_TARGET}?" -1 -1; then
-		rm -rf ${_TARGET}
+		rm -rf ${_TARGET} > /dev/null 2>&1
 		if dialog --title "Future Confirmation?" --yesno \
 		  "Do you wish to suppress this dialog in the future?" -1 -1;
 		   then
@@ -296,6 +296,8 @@ media_install_set()
 			fi
 		else
 			dialog --clear
+			echo "Using manual ftp.  Please download the ${MEDIA_DISTRIBUTION} distribution now."
+			echo "To avoid this kind of manual labor in the future, try to fetch by URL!"
 			SHELL=/stand/sh ftp ${MEDIA_DEVICE}
 			dialog --clear
 			media_extract_dist
