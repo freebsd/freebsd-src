@@ -92,7 +92,7 @@ static enum clnt_stat clnt_vc_call(CLIENT *, rpcproc_t, xdrproc_t, void *,
 static void clnt_vc_geterr(CLIENT *, struct rpc_err *);
 static bool_t clnt_vc_freeres(CLIENT *, xdrproc_t, void *);
 static void clnt_vc_abort(CLIENT *);
-static bool_t clnt_vc_control(CLIENT *, u_int, char *);
+static bool_t clnt_vc_control(CLIENT *, u_int, void *);
 static void clnt_vc_destroy(CLIENT *);
 static struct clnt_ops *clnt_vc_ops(void);
 static bool_t time_not_ok(struct timeval *);
@@ -495,7 +495,7 @@ static bool_t
 clnt_vc_control(cl, request, info)
 	CLIENT *cl;
 	u_int request;
-	char *info;
+	void *info;
 {
 	struct ct_data *ct;
 	void *infop = info;
@@ -539,7 +539,7 @@ clnt_vc_control(cl, request, info)
 	}
 	switch (request) {
 	case CLSET_TIMEOUT:
-		if (time_not_ok((struct timeval *)(void *)info)) {
+		if (time_not_ok((struct timeval *)info)) {
 			release_fd_lock(ct->ct_fd, mask);
 			return (FALSE);
 		}
@@ -553,11 +553,11 @@ clnt_vc_control(cl, request, info)
 		(void) memcpy(info, ct->ct_addr.buf, (size_t)ct->ct_addr.len);
 		break;
 	case CLGET_FD:
-		*(int *)(void *)info = ct->ct_fd;
+		*(int *)info = ct->ct_fd;
 		break;
 	case CLGET_SVC_ADDR:
 		/* The caller should not free this memory area */
-		*(struct netbuf *)(void *)info = ct->ct_addr;
+		*(struct netbuf *)info = ct->ct_addr;
 		break;
 	case CLSET_SVC_ADDR:		/* set to new address */
 		release_fd_lock(ct->ct_fd, mask);
@@ -568,13 +568,13 @@ clnt_vc_control(cl, request, info)
 		 * first element in the call structure
 		 * This will get the xid of the PREVIOUS call
 		 */
-		*(u_int32_t *)(void *)info =
+		*(u_int32_t *)info =
 		    ntohl(*(u_int32_t *)(void *)&ct->ct_u.ct_mcalli);
 		break;
 	case CLSET_XID:
 		/* This will set the xid of the NEXT call */
 		*(u_int32_t *)(void *)&ct->ct_u.ct_mcalli =
-		    htonl(*((u_int32_t *)(void *)info) + 1);
+		    htonl(*((u_int32_t *)info) + 1);
 		/* increment by 1 as clnt_vc_call() decrements once */
 		break;
 	case CLGET_VERS:
@@ -584,7 +584,7 @@ clnt_vc_control(cl, request, info)
 		 * begining of the RPC header. MUST be changed if the
 		 * call_struct is changed
 		 */
-		*(u_int32_t *)(void *)info =
+		*(u_int32_t *)info =
 		    ntohl(*(u_int32_t *)(void *)(ct->ct_u.ct_mcallc +
 		    4 * BYTES_PER_XDR_UNIT));
 		break;
@@ -592,7 +592,7 @@ clnt_vc_control(cl, request, info)
 	case CLSET_VERS:
 		*(u_int32_t *)(void *)(ct->ct_u.ct_mcallc +
 		    4 * BYTES_PER_XDR_UNIT) =
-		    htonl(*(u_int32_t *)(void *)info);
+		    htonl(*(u_int32_t *)info);
 		break;
 
 	case CLGET_PROG:
@@ -602,7 +602,7 @@ clnt_vc_control(cl, request, info)
 		 * begining of the RPC header. MUST be changed if the
 		 * call_struct is changed
 		 */
-		*(u_int32_t *)(void *)info =
+		*(u_int32_t *)info =
 		    ntohl(*(u_int32_t *)(void *)(ct->ct_u.ct_mcallc +
 		    3 * BYTES_PER_XDR_UNIT));
 		break;
@@ -610,7 +610,7 @@ clnt_vc_control(cl, request, info)
 	case CLSET_PROG:
 		*(u_int32_t *)(void *)(ct->ct_u.ct_mcallc +
 		    3 * BYTES_PER_XDR_UNIT) =
-		    htonl(*(u_int32_t *)(void *)info);
+		    htonl(*(u_int32_t *)info);
 		break;
 
 	default:
