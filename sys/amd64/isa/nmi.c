@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: intr_machdep.c,v 1.8 1998/02/09 06:08:30 eivind Exp $
+ *	$Id: intr_machdep.c,v 1.9 1998/03/03 22:56:29 tegge Exp $
  */
 
 #include "opt_auto_eoi.h"
@@ -62,6 +62,9 @@
 
 #include <i386/isa/intr_machdep.h>
 #include <sys/interrupt.h>
+#ifdef APIC_IO
+#include <machine/clock.h>
+#endif
 
 /* XXX should be in suitable include files */
 #ifdef PC98
@@ -450,7 +453,7 @@ icu_setup(int intr, inthand2_t *handler, void *arg, u_int *maskptr, int flags)
 #ifdef APIC_INTR_REORDER
 #ifdef APIC_INTR_HIGHPRI_CLOCK
 		/* XXX: Hack (kludge?) for more accurate clock. */
-		if (intr == 0 || intr == 8) {
+		if (intr == apic_8254_intr || intr == 8) {
 			vector = TPR_FAST_INTS + intr;
 		}
 #endif
