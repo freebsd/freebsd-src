@@ -492,117 +492,22 @@ struct vop_generic_args {
 	/* other random data follows, presumably */
 };
 
-
-#ifdef DEBUG_VFS_LOCKS
 /*
- * Macros to aid in tracing VFS locking problems.  Not totally
+ * Support code to aid in debugging VFS locking problems.  Not totally
  * reliable since if the thread sleeps between changing the lock
  * state and checking it with the assert, some other thread could
  * change the state.  They are good enough for debugging a single
- * filesystem using a single-threaded test.  I find that 'cvs co src'
- * is a pretty good test.
+ * filesystem using a single-threaded test.
  */
+void assert_vi_locked(struct vnode *vp, char *str);
+void assert_vi_unlocked(struct vnode *vp, char *str);
+void assert_vop_unlocked(struct vnode *vp, char *str);
+void assert_vop_locked(struct vnode *vp, char *str);
+void assert_vop_slocked(struct vnode *vp, char *str);
+void assert_vop_elocked(struct vnode *vp, char *str);
+void assert_vop_elocked_other(struct vnode *vp, char *str);
 
-extern int vfs_badlock_panic;
-extern int vfs_badlock_print;
-extern int vfs_badlock_mutex;
-
-#define	ASSERT_VI_UNLOCKED(vp)						\
-do {									\
-	struct vnode *_vp = (vp);					\
-									\
-	if (vfs_badlock_mutex)						\
-		mtx_assert(VI_MTX(_vp), MA_NOTOWNED);			\
-} while (0)								\
-
-#define	ASSERT_VI_LOCKED(vp)						\
-do {									\
-	struct vnode *_vp = (vp);					\
-									\
-	if (vfs_badlock_mutex)						\
-		mtx_assert(VI_MTX(_vp), MA_OWNED);			\
-} while (0)								\
-
-
-/*
- * This only exists to supress warnings from unlocked specfs accesses.  It is
- * no longer ok to have an unlocked VFS.
- */
-
-#define IGNORE_LOCK(vp)	((vp)->v_type == VCHR || (vp)->v_type == VBAD)
-
-#define ASSERT_VOP_LOCKED(vp, str)					\
-do {									\
-	struct vnode *_vp = (vp);					\
-									\
-	if (_vp && !IGNORE_LOCK(_vp) && !VOP_ISLOCKED(_vp, NULL)) {	\
-		if (vfs_badlock_print)					\
-			printf("%s: %p is not locked but should be\n",	\
-			    str, _vp);					\
-		if (vfs_badlock_panic)					\
-			Debugger("Lock violation.\n");			\
-	}								\
-} while (0)
-
-#define ASSERT_VOP_UNLOCKED(vp, str)					\
-do {									\
-	struct vnode *_vp = (vp);					\
-	int lockstate;							\
-									\
-	if (_vp && !IGNORE_LOCK(_vp)) {					\
-		lockstate = VOP_ISLOCKED(_vp, curthread);		\
-		if (lockstate == LK_EXCLUSIVE) {			\
-			if (vfs_badlock_print)				\
-				printf("%s: %p is locked but should not be\n",	\
-				    str, _vp);				\
-			if (vfs_badlock_panic)				\
-				Debugger("Lock Violation.\n");		\
-		}							\
-	}								\
-} while (0)
-
-#define ASSERT_VOP_ELOCKED(vp, str)					\
-do {									\
-	struct vnode *_vp = (vp);					\
-									\
-	if (_vp && !IGNORE_LOCK(_vp) &&					\
-	    VOP_ISLOCKED(_vp, curthread) != LK_EXCLUSIVE) {		\
-		if (vfs_badlock_print)					\
-			printf("%s: %p is not exclusive locked but should be\n",\
-			    str, _vp);					\
-		if (vfs_badlock_panic)					\
-			Debugger("Lock violation.\n");			\
-	}								\
-} while (0)
-
-#define ASSERT_VOP_ELOCKED_OTHER(vp, str)				\
-do {									\
-	struct vnode *_vp = (vp);					\
-									\
-	if (_vp && !IGNORE_LOCK(_vp) &&					\
-	    VOP_ISLOCKED(_vp, curthread) != LK_EXCLOTHER) {		\
-		if (vfs_badlock_print)					\
-			printf("%s: %p is not exclusive locked by another thread\n",\
-			    str, _vp);					\
-		if (vfs_badlock_panic)					\
-			Debugger("Lock violation.\n");			\
-	}								\
-} while (0)
-
-#define ASSERT_VOP_SLOCKED(vp, str)					\
-do {									\
-	struct vnode *_vp = (vp);					\
-									\
-	if (_vp && !IGNORE_LOCK(_vp) &&					\
-	    VOP_ISLOCKED(_vp, NULL) != LK_SHARED) {			\
-		if (vfs_badlock_print)					\
-			printf("%s: %p is not locked shared but should be",\
-		    str, _vp);						\
-		if (vfs_badlock_panic)					\
-			Debugger("Lock violation.\n");			\
-	}								\
-} while (0)
-
+/* These are called from within the actuall VOPS */
 void vop_rename_pre(void *a);
 void vop_strategy_pre(void *a);
 void vop_lookup_pre(void *a);
@@ -612,12 +517,25 @@ void vop_lock_post(void *a, int rc);
 void vop_unlock_pre(void *a);
 void vop_unlock_post(void *a, int rc);
 
+#ifdef DEBUG_VFS_LOCKS
+
+#define	ASSERT_VI_LOCKED(vp, str)	assert_vi_locked((vp), (str))
+#define	ASSERT_VI_UNLOCKED(vp, str)	assert_vi_unlocked((vp), (str))
+#define	ASSERT_VOP_LOCKED(vp, str)	assert_vop_locked((vp), (str))
+#define	ASSERT_VOP_UNLOCKED(vp, str)	assert_vop_unlocked((vp), (str))
+#define	ASSERT_VOP_ELOCKED(vp, str)	assert_vop_elocked((vp), (str))
+#define	ASSERT_VOP_ELOCKED_OTHER(vp, str) assert_vop_locked_other((vp), (str))
+#define	ASSERT_VOP_SLOCKED(vp, str)	assert_vop_slocked((vp), (str))
+
 #else
 
-#define ASSERT_VOP_LOCKED(vp, str)
-#define ASSERT_VOP_UNLOCKED(vp, str)
-#define	ASSERT_VI_UNLOCKED(vp)
-#define	ASSERT_VI_LOCKED(vp)
+#define	ASSERT_VOP_LOCKED(vp, str) do { } while(0)
+#define	ASSERT_VOP_UNLOCKED(vp, str) do { } while(0)
+#define	ASSERT_VOP_ELOCKED(vp, str) do { } while(0)
+#define	ASSERT_VOP_ELOCKED_OTHER(vp, str) do { } while(0)
+#define	ASSERT_VOP_SLOCKED(vp, str) do { } while(0)
+#define	ASSERT_VI_UNLOCKED(vp, str) do { } while(0)
+#define	ASSERT_VI_LOCKED(vp, str) do { } while(0)
 
 #endif
 
