@@ -11,28 +11,28 @@
 .if !defined(NO_WARNS)
 . if defined(WARNS)
 .  if ${WARNS} > 0
-CFLAGS		+=	-Wsystem-headers
+CWARNFLAGS	+=	-Wsystem-headers
 .   if !defined(NO_WERROR)
-CFLAGS		+=	-Werror
+CWARNFLAGS	+=	-Werror
 .   endif
 .  endif
 .  if ${WARNS} > 1
-CFLAGS		+=	-Wall -Wno-format-y2k
+CWARNFLAGS	+=	-Wall -Wno-format-y2k
 .  endif
 .  if ${WARNS} > 2
-CFLAGS		+=	-W -Wstrict-prototypes -Wmissing-prototypes -Wpointer-arith
+CWARNFLAGS	+=	-W -Wstrict-prototypes -Wmissing-prototypes -Wpointer-arith
 .  endif
 .  if ${WARNS} > 3
-CFLAGS		+=	-Wreturn-type -Wcast-qual -Wwrite-strings -Wswitch -Wshadow -Wcast-align
+CWARNFLAGS	+=	-Wreturn-type -Wcast-qual -Wwrite-strings -Wswitch -Wshadow -Wcast-align
 .  endif
 # BDECFLAGS
 .  if ${WARNS} > 5
-CFLAGS		+=	-Wbad-function-cast -Wchar-subscripts -Winline -Wnested-externs -Wredundant-decls
+CWARNFLAGS	+=	-Wbad-function-cast -Wchar-subscripts -Winline -Wnested-externs -Wredundant-decls
 .  endif
 .  if ${WARNS} > 1 && ${WARNS} < 5
 # XXX Delete -Wuninitialized by default for now -- the compiler doesn't
 # XXX always get it right.
-CFLAGS		+=	-Wno-uninitialized
+CWARNFLAGS	+=	-Wno-uninitialized
 .  endif
 . endif
 
@@ -41,10 +41,10 @@ WFORMAT		=	1
 . endif
 . if defined(WFORMAT)
 .  if ${WFORMAT} > 0
-#CFLAGS		+=	-Wformat-nonliteral -Wformat-security -Wno-format-extra-args
-CFLAGS		+=	-Wformat=2 -Wno-format-extra-args
+#CWARNFLAGS	+=	-Wformat-nonliteral -Wformat-security -Wno-format-extra-args
+CWARNFLAGS	+=	-Wformat=2 -Wno-format-extra-args
 .   if !defined(NO_WERROR)
-CFLAGS		+=	-Werror
+CWARNFLAGS	+=	-Werror
 .   endif
 .  endif
 . endif
