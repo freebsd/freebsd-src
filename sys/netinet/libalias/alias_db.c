@@ -1458,7 +1458,7 @@ FindOriginalAddress(struct in_addr alias_addr)
         if (targetAddress.s_addr != 0)
             return targetAddress;
         else
-            return alias_addr;
+            return aliasAddress;
     }
     else
     {
