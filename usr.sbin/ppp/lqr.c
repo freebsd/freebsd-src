@@ -184,9 +184,9 @@ SendLqrReport(void *v)
          p->hdlc.lqm.echo.seq_sent - 5 > p->hdlc.lqm.echo.seq_recv) ||
         (p->hdlc.lqm.echo.seq_sent <= 5 &&
          p->hdlc.lqm.echo.seq_sent > p->hdlc.lqm.echo.seq_recv + 5)) {
-      log_Printf(LogPHASE, "%s: ** Too many ECHO LQR packets lost **\n",
+      log_Printf(LogPHASE, "%s: ** Too many LCP ECHO packets lost **\n",
                 lcp->fsm.link->name);
-      log_Printf(LogLQM, "%s: Too many ECHO LQR packets lost\n",
+      log_Printf(LogLQM, "%s: Too many LCP ECHO packets lost\n",
                 lcp->fsm.link->name);
       p->hdlc.lqm.method = 0;
       datalink_Down(p->dl, CLOSE_NORMAL);
@@ -263,11 +263,11 @@ lqr_Input(struct bundle *bundle __unused, struct link *l, struct mbuf *bp)
 /*
  *  When LCP is reached to opened state, We'll start LQM activity.
  */
-
 static void
 lqr_Setup(struct lcp *lcp)
 {
   struct physical *physical = link2physical(lcp->fsm.link);
+  int period;
 
   physical->hdlc.lqm.lqr.resent = 0;
   physical->hdlc.lqm.echo.seq_sent = 0;
@@ -275,7 +275,7 @@ lqr_Setup(struct lcp *lcp)
   memset(&physical->hdlc.lqm.lqr.peer, '\0',
          sizeof physical->hdlc.lqm.lqr.peer);
 
-  physical->hdlc.lqm.method = LQM_ECHO;
+  physical->hdlc.lqm.method = lcp->cfg.echo ? LQM_ECHO : 0;
   if (IsEnabled(lcp->cfg.lqr) && !REJECTED(lcp, TY_QUALPROTO))
     physical->hdlc.lqm.method |= LQM_LQR;
   timer_Stop(&physical->hdlc.lqm.timer);
@@ -286,19 +286,21 @@ lqr_Setup(struct lcp *lcp)
               physical->link.name, lcp->his_lqrperiod / 100,
               lcp->his_lqrperiod % 100);
 
-  if (lcp->want_lqrperiod) {
+  period = lcp->want_lqrperiod ?
+    lcp->want_lqrperiod : lcp->cfg.lqrperiod * 100;
+  physical->hdlc.lqm.timer.func = SendLqrReport;
+  physical->hdlc.lqm.timer.name = "lqm";
+  physical->hdlc.lqm.timer.arg = lcp;
+
+  if (lcp->want_lqrperiod || physical->hdlc.lqm.method & LQM_ECHO) {
     log_Printf(LogLQM, "%s: Will send %s every %d.%02d secs\n",
-              physical->link.name,
-              physical->hdlc.lqm.method & LQM_LQR ? "LQR" : "ECHO LQR",
-              lcp->want_lqrperiod / 100, lcp->want_lqrperiod % 100);
-    physical->hdlc.lqm.timer.load = lcp->want_lqrperiod * SECTICKS / 100;
-    physical->hdlc.lqm.timer.func = SendLqrReport;
-    physical->hdlc.lqm.timer.name = "lqm";
-    physical->hdlc.lqm.timer.arg = lcp;
+              physical->link.name, lcp->want_lqrperiod ? "LQR" : "LCP ECHO",
+              period / 100, period % 100);
+    physical->hdlc.lqm.timer.load = period * SECTICKS / 100;
   } else {
     physical->hdlc.lqm.timer.load = 0;
     if (!lcp->his_lqrperiod)
-      log_Printf(LogLQM, "%s: LQR/ECHO LQR not negotiated\n",
+      log_Printf(LogLQM, "%s: LQR/LCP ECHO not negotiated\n",
                  physical->link.name);
   }
 }
