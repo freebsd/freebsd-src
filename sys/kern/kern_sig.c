@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sig.c	8.7 (Berkeley) 4/18/94
- * $Id: kern_sig.c,v 1.59 1999/08/14 19:58:58 alfred Exp $
+ * $Id: kern_sig.c,v 1.60 1999/08/16 18:13:38 billf Exp $
  */
 
 #include "opt_compat.h"
@@ -157,7 +157,7 @@ sigaction(p, uap)
 		    sizeof (vec))))
 			return (error);
 		if ((signum == SIGKILL || signum == SIGSTOP) &&
-		    ps->ps_sigact[signum] != SIG_DFL)
+		    sa->sa_handler != SIG_DFL)
 			return (EINVAL);
 		setsigvec(p, signum, sa);
 	}
