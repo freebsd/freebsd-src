@@ -70,7 +70,7 @@ static struct isa_pnp_id  sbni_ids[] = {
 	{ 0, NULL }	/* we have no pnp sbni cards atm.  */
 };
 
-DRIVER_MODULE(sbni, isa, sbni_isa_driver, sbni_isa_devclass, 0, 0);
+DRIVER_MODULE(if_sbni, isa, sbni_isa_driver, sbni_isa_devclass, 0, 0);
 
 
 static int
