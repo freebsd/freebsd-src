@@ -149,8 +149,12 @@ struct ispmdvec {
 #define	QENTRY_LEN			64
 /* Both request and result queue length must be a power of two */
 #define	RQUEST_QUEUE_LEN(x)		MAXISPREQUEST(x)
+#ifdef	ISP_TARGET_MODE
+#define	RESULT_QUEUE_LEN(x)		MAXISPREQUEST(x)
+#else
 #define	RESULT_QUEUE_LEN(x)		\
 	(((MAXISPREQUEST(x) >> 2) < 64)? 64 : MAXISPREQUEST(x) >> 2)
+#endif
 #define	ISP_QUEUE_ENTRY(q, idx)		((q) + ((idx) * QENTRY_LEN))
 #define	ISP_QUEUE_SIZE(n)		((n) * QENTRY_LEN)
 #define	ISP_NXT_QENTRY(idx, qlen)	(((idx) + 1) & ((qlen)-1))
