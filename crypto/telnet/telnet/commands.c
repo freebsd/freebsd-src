@@ -1132,6 +1132,7 @@ dokludgemode()
     send_wont(TELOPT_LINEMODE, 1);
     send_dont(TELOPT_SGA, 1);
     send_dont(TELOPT_ECHO, 1);
+    return 1;
 }
 #endif
 
