@@ -118,6 +118,20 @@ execve(td, uap)
 
 	imgp = &image_params;
 
+	/*
+	 * Lock the process and set the P_INEXEC flag to indicate that
+	 * it should be left alone until we're done here.  This is
+	 * necessary to avoid race conditions - e.g. in ptrace() -
+	 * that might allow a local user to illicitly obtain elevated
+	 * privileges.
+	 */
+	mtx_lock(&Giant);
+	PROC_LOCK(p);
+	KASSERT((p->p_flag & P_INEXEC) == 0,
+	    (__FUNCTION__ "(): process already has P_INEXEC flag"));
+	p->p_flag |= P_INEXEC;
+	PROC_UNLOCK(p);
+	
 /* XXXKSE */
 /* !!!!!!!! we need abort all the other threads of this process before we */
 /* proceed beyond his point! */
@@ -139,8 +153,6 @@ execve(td, uap)
 	imgp->firstpage = NULL;
 	imgp->ps_strings = 0;
 	imgp->auxarg_size = 0;
-
-	mtx_lock(&Giant);
 
 	/*
 	 * Allocate temporary demand zeroed space for argument and
@@ -307,15 +319,6 @@ interpret:
 	}
 
 	/*
-	 * XXX: Note, the whole execve() is incredibly racey right now
-	 * with regards to debugging and privilege/credential management.
-	 * In particular, it's possible to race during exec() to attach
-	 * debugging to a process that will gain privilege.
-	 *
-	 * This MUST be fixed prior to any release.
-	 */
-
-	/*
 	 * Implement image setuid/setgid.
 	 *
 	 * Don't honor setuid/setgid if the filesystem prohibits it or if
@@ -399,14 +402,16 @@ interpret:
 	p->p_textvp = ndp->ni_vp;
 
 	/*
-	 * notify others that we exec'd
+	 * Notify others that we exec'd, and clear the P_INEXEC flag
+	 * as we're now a bona fide freshly-execed process.
 	 */
 	PROC_LOCK(p);
 	KNOTE(&p->p_klist, NOTE_EXEC);
+	p->p_flag &= ~P_INEXEC;
 
 	/*
 	 * If tracing the process, trap to debugger so breakpoints
-	 * 	can be set before the program executes.
+	 * can be set before the program executes.
 	 */
 	_STOPEVENT(p, S_EXEC, 0);
 
@@ -461,15 +466,20 @@ exec_fail_dealloc:
 		goto done2;
 
 exec_fail:
+	/* we're done here, clear P_INEXEC */
+	PROC_LOCK(p);
+	p->p_flag &= ~P_INEXEC;
+	PROC_UNLOCK(p);
+	
 	if (imgp->vmspace_destroyed) {
 		/* sorry, no more process anymore. exit gracefully */
 		exit1(td, W_EXITCODE(0, SIGABRT));
 		/* NOT REACHED */
 		error = 0;
-	} 
+	}
 done2:
 	mtx_unlock(&Giant);
-	return(error);
+	return (error);
 }
 
 int
