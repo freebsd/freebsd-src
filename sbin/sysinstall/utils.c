@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: utils.c,v 1.24 1994/11/05 23:09:26 ache Exp $
+ * $Id: utils.c,v 1.25 1994/11/07 04:53:23 phk Exp $
  *
  */
 
@@ -93,6 +93,7 @@ TellEm(char *fmt, ...)
 	write(debug_fd,p,strlen(p));
 	write(debug_fd,">\n\r",3);
 	dialog_clear();
+	dialog_update();
 	dialog_msgbox("Progress", p, strheight(p)+2, strwidth(p)+4, 0);
 	free(p);
 }
