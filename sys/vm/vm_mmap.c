@@ -433,7 +433,6 @@ mmap(td, uap)
 		goto done;
 	}
 
-	mtx_unlock(&Giant);
 	error = 0;
 #ifdef MAC
 	if (handle != NULL && (flags & MAP_SHARED) != 0) {
@@ -441,6 +440,11 @@ mmap(td, uap)
 		    (struct vnode *)handle, prot);
 	}
 #endif
+	if (vp != NULL) {
+		vput(vp);
+		vp = NULL;
+	}
+	mtx_unlock(&Giant);
 	if (error == 0)
 		error = vm_mmap(&vms->vm_map, &addr, size, prot, maxprot,
 		    flags, handle, pos);
@@ -1164,7 +1168,7 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 	objtype_t type;
 	int rv = KERN_SUCCESS;
 	vm_ooffset_t objsize;
-	int docow;
+	int docow, error;
 	struct thread *td = curthread;
 
 	if (size == 0)
@@ -1211,16 +1215,20 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 	} else {
 		vp = (struct vnode *) handle;
 		mtx_lock(&Giant);
-		ASSERT_VOP_LOCKED(vp, "vm_mmap");
+		error = vget(vp, LK_EXCLUSIVE, td);
+		if (error) {
+			mtx_unlock(&Giant);
+			return (error);
+		}
 		if (vp->v_type == VCHR) {
 			type = OBJT_DEVICE;
 			handle = vp->v_rdev;
 		} else {
 			struct vattr vat;
-			int error;
 
 			error = VOP_GETATTR(vp, &vat, td->td_ucred, td);
 			if (error) {
+				vput(vp);
 				mtx_unlock(&Giant);
 				return (error);
 			}
@@ -1234,6 +1242,7 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 				flags |= MAP_NOSYNC;
 			}
 		}
+		vput(vp);
 		mtx_unlock(&Giant);
 	}
 
