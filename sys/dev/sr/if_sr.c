@@ -300,7 +300,7 @@ sr_attach(device_t device)
 {
 	int intf_sw, pndx;
 	u_int32_t flags;
-	u_int fecr, *fecrp;
+	u_int fecr;
 	struct sr_hardc *hc;
 	struct sr_softc *sc;
 #ifndef NETGRAPH
@@ -345,8 +345,7 @@ sr_attach(device_t device)
 				    SR_FLAGS_CLK_CHAN_SHFT);
 		break;
 	case SR_CRD_N2PCI:
-		fecrp = (u_int *)(hc->sca_base + SR_FECR);
-		fecr = *fecrp;
+		fecr = sr_read_fecr(hc);
 		for (pndx = 0; pndx < hc->numports; pndx++, sc++) {
 			switch (pndx) {
 			case 1:
@@ -455,7 +454,7 @@ sr_attach(device_t device)
 	}
 
 	if (hc->mempages)
-		SRC_SET_OFF(hc->iobase);
+		SRC_SET_OFF(hc);
 
 	return (0);
 
@@ -501,6 +500,9 @@ sr_allocate_ioport(device_t device, int rid, u_long size)
 	if (hc->res_ioport == NULL) {
 		goto errexit;
 	}
+	hc->bt_ioport = rman_get_bustag(hc->res_ioport);
+	hc->bh_ioport = rman_get_bushandle(hc->res_ioport);
+
 	return (0);
 
 errexit:
@@ -537,6 +539,9 @@ sr_allocate_memory(device_t device, int rid, u_long size)
 	if (hc->res_memory == NULL) {
 		goto errexit;
 	}
+	hc->bt_memory = rman_get_bustag(hc->res_memory);
+	hc->bh_memory = rman_get_bushandle(hc->res_memory);
+
 	return (0);
 
 errexit:
@@ -626,9 +631,9 @@ srintr(void *arg)
 		 * Read all three interrupt status registers from the N2
 		 * card...
 		 */
-		isr0 = SRC_GET8(hc->sca_base, sca->isr0);
-		isr1 = SRC_GET8(hc->sca_base, sca->isr1);
-		isr2 = SRC_GET8(hc->sca_base, sca->isr2);
+		isr0 = SRC_GET8(hc, sca->isr0);
+		isr1 = SRC_GET8(hc, sca->isr1);
+		isr2 = SRC_GET8(hc, sca->isr2);
 
 		/*
 		 * If all three registers returned 0, we've finished
@@ -698,13 +703,13 @@ sr_xmit(struct sr_softc *sc)
 	eda_value = sc->block[sc->txb_next_tx].txeda + hc->mem_pstart;
 	eda_value &= 0x00ffff;
 
-	SRC_PUT16(hc->sca_base, dmac->cda, cda_value);
-	SRC_PUT16(hc->sca_base, dmac->eda, eda_value);
+	SRC_PUT16(hc, dmac->cda, cda_value);
+	SRC_PUT16(hc, dmac->eda, eda_value);
 
 	/*
 	 * Now we'll let the DMA status register know about this change
 	 */
-	SRC_PUT8(hc->sca_base, dmac->dsr, SCA_DSR_DE);
+	SRC_PUT8(hc, dmac->dsr, SCA_DSR_DE);
 
 	sc->xmit_busy = 1;	/* mark transmitter busy */
 
@@ -781,8 +786,8 @@ srstart(struct sr_softc *sc)
 	 * buffers and descriptors are assumed to be in the same 16K window.
 	 */
 	if (hc->mempages) {
-		SRC_SET_ON(hc->iobase);
-		SRC_SET_MEM(hc->iobase, sc->block[0].txdesc);
+		SRC_SET_ON(hc);
+		SRC_SET_MEM(hc, sc->block[0].txdesc);
 	}
 
 	/*
@@ -804,7 +809,7 @@ top_srstart:
 #endif /* NETGRAPH */
 
 		if (hc->mempages)
-			SRC_SET_OFF(hc->iobase);
+			SRC_SET_OFF(hc);
 
 #if BUGGY > 9
 		printf("sr%d.srstart: sc->txb_inuse=%d; DPRAM full...\n",
@@ -837,7 +842,7 @@ top_srstart:
 #endif /* NETGRAPH */
 	if (!mtx) {
 		if (hc->mempages)
-			SRC_SET_OFF(hc->iobase);
+			SRC_SET_OFF(hc);
 		return;
 	}
 	/*
@@ -1108,10 +1113,10 @@ srwatchdog(struct sr_softc *sc)
 	sc->oerrors++;	/* update output error count */
 #endif /* NETGRAPH */
 
-	got_st0 = SRC_GET8(hc->sca_base, msci->st0);
-	got_st1 = SRC_GET8(hc->sca_base, msci->st1);
-	got_st3 = SRC_GET8(hc->sca_base, msci->st3);
-	got_dsr = SRC_GET8(hc->sca_base, dmac->dsr);
+	got_st0 = SRC_GET8(hc, msci->st0);
+	got_st1 = SRC_GET8(hc, msci->st1);
+	got_st3 = SRC_GET8(hc, msci->st3);
+	got_dsr = SRC_GET8(hc, dmac->dsr);
 
 #ifndef NETGRAPH
 #if	0
@@ -1125,10 +1130,10 @@ srwatchdog(struct sr_softc *sc)
 		       sc->unit,
 		       got_st0, got_st1, got_st3, got_dsr);
 
-	if (SRC_GET8(hc->sca_base, msci->st1) & SCA_ST1_UDRN) {
-		SRC_PUT8(hc->sca_base, msci->cmd, SCA_CMD_TXABORT);
-		SRC_PUT8(hc->sca_base, msci->cmd, SCA_CMD_TXENABLE);
-		SRC_PUT8(hc->sca_base, msci->st1, SCA_ST1_UDRN);
+	if (SRC_GET8(hc, msci->st1) & SCA_ST1_UDRN) {
+		SRC_PUT8(hc, msci->cmd, SCA_CMD_TXABORT);
+		SRC_PUT8(hc, msci->cmd, SCA_CMD_TXENABLE);
+		SRC_PUT8(hc, msci->st1, SCA_ST1_UDRN);
 	}
 	sc->xmit_busy = 0;
 #ifndef NETGRAPH
@@ -1150,7 +1155,6 @@ srwatchdog(struct sr_softc *sc)
 static void
 sr_up(struct sr_softc *sc)
 {
-	u_int *fecrp;
 	struct sr_hardc *hc = sc->hc;
 	sca_regs *sca = hc->sca;
 	msci_channel *msci = &sca->msci[sc->scachan];
@@ -1165,47 +1169,40 @@ sr_up(struct sr_softc *sc)
 	 *
 	 * XXX What about using AUTO mode in msci->md0 ???
 	 */
-	SRC_PUT8(hc->sca_base, msci->ctl,
-		 SRC_GET8(hc->sca_base, msci->ctl) & ~SCA_CTL_RTS);
+	SRC_PUT8(hc, msci->ctl, SRC_GET8(hc, msci->ctl) & ~SCA_CTL_RTS);
 
 	if (sc->scachan == 0)
 		switch (hc->cardtype) {
 		case SR_CRD_N2:
-			outb(hc->iobase + SR_MCR,
-			     (inb(hc->iobase + SR_MCR) & ~SR_MCR_DTR0));
+			sr_outb(hc, SR_MCR,
+			    (sr_inb(hc, SR_MCR) & ~SR_MCR_DTR0));
 			break;
 		case SR_CRD_N2PCI:
-			fecrp = (u_int *)(hc->sca_base + SR_FECR);
-			*fecrp &= ~SR_FECR_DTR0;
+			sr_write_fecr(hc, sr_read_fecr(hc) & ~SR_FECR_DTR0);
 			break;
 		}
 	else
 		switch (hc->cardtype) {
 		case SR_CRD_N2:
-			outb(hc->iobase + SR_MCR,
-			     (inb(hc->iobase + SR_MCR) & ~SR_MCR_DTR1));
+			sr_outb(hc, SR_MCR,
+			    (sr_inb(hc, SR_MCR) & ~SR_MCR_DTR1));
 			break;
 		case SR_CRD_N2PCI:
-			fecrp = (u_int *)(hc->sca_base + SR_FECR);
-			*fecrp &= ~SR_FECR_DTR1;
+			sr_write_fecr(hc, sr_read_fecr(hc) & ~SR_FECR_DTR1);
 			break;
 		}
 
 	if (sc->scachan == 0) {
-		SRC_PUT8(hc->sca_base, sca->ier0,
-			 SRC_GET8(hc->sca_base, sca->ier0) | 0x000F);
-		SRC_PUT8(hc->sca_base, sca->ier1,
-			 SRC_GET8(hc->sca_base, sca->ier1) | 0x000F);
+		SRC_PUT8(hc, sca->ier0, SRC_GET8(hc, sca->ier0) | 0x000F);
+		SRC_PUT8(hc, sca->ier1, SRC_GET8(hc, sca->ier1) | 0x000F);
 	} else {
-		SRC_PUT8(hc->sca_base, sca->ier0,
-			 SRC_GET8(hc->sca_base, sca->ier0) | 0x00F0);
-		SRC_PUT8(hc->sca_base, sca->ier1,
-			 SRC_GET8(hc->sca_base, sca->ier1) | 0x00F0);
+		SRC_PUT8(hc, sca->ier0, SRC_GET8(hc, sca->ier0) | 0x00F0);
+		SRC_PUT8(hc, sca->ier1, SRC_GET8(hc, sca->ier1) | 0x00F0);
 	}
 
-	SRC_PUT8(hc->sca_base, msci->cmd, SCA_CMD_RXENABLE);
-	inb(hc->iobase);	/* XXX slow it down a bit. */
-	SRC_PUT8(hc->sca_base, msci->cmd, SCA_CMD_TXENABLE);
+	SRC_PUT8(hc, msci->cmd, SCA_CMD_RXENABLE);
+	sr_inb(hc, 0);	/* XXX slow it down a bit. */
+	SRC_PUT8(hc, msci->cmd, SCA_CMD_TXENABLE);
 
 #ifndef NETGRAPH
 #ifdef USE_MODEMCK
@@ -1222,7 +1219,6 @@ sr_up(struct sr_softc *sc)
 static void
 sr_down(struct sr_softc *sc)
 {
-	u_int *fecrp;
 	struct sr_hardc *hc = sc->hc;
 	sca_regs *sca = hc->sca;
 	msci_channel *msci = &sca->msci[sc->scachan];
@@ -1239,46 +1235,37 @@ sr_down(struct sr_softc *sc)
 	 * Disable transmitter and receiver. Lower DTR and RTS. Disable
 	 * interrupts.
 	 */
-	SRC_PUT8(hc->sca_base, msci->cmd, SCA_CMD_RXDISABLE);
-	inb(hc->iobase);	/* XXX slow it down a bit. */
-	SRC_PUT8(hc->sca_base, msci->cmd, SCA_CMD_TXDISABLE);
+	SRC_PUT8(hc, msci->cmd, SCA_CMD_RXDISABLE);
+	sr_inb(hc, 0);	/* XXX slow it down a bit. */
+	SRC_PUT8(hc, msci->cmd, SCA_CMD_TXDISABLE);
 
-	SRC_PUT8(hc->sca_base, msci->ctl,
-		 SRC_GET8(hc->sca_base, msci->ctl) | SCA_CTL_RTS);
+	SRC_PUT8(hc, msci->ctl, SRC_GET8(hc, msci->ctl) | SCA_CTL_RTS);
 
 	if (sc->scachan == 0)
 		switch (hc->cardtype) {
 		case SR_CRD_N2:
-			outb(hc->iobase + SR_MCR,
-			     (inb(hc->iobase + SR_MCR) | SR_MCR_DTR0));
+			sr_outb(hc, SR_MCR, sr_inb(hc, SR_MCR) | SR_MCR_DTR0);
 			break;
 		case SR_CRD_N2PCI:
-			fecrp = (u_int *)(hc->sca_base + SR_FECR);
-			*fecrp |= SR_FECR_DTR0;
+			sr_write_fecr(hc, sr_read_fecr(hc) | SR_FECR_DTR0);
 			break;
 		}
 	else
 		switch (hc->cardtype) {
 		case SR_CRD_N2:
-			outb(hc->iobase + SR_MCR,
-			     (inb(hc->iobase + SR_MCR) | SR_MCR_DTR1));
+			sr_outb(hc, SR_MCR, sr_inb(hc, SR_MCR) | SR_MCR_DTR1);
 			break;
 		case SR_CRD_N2PCI:
-			fecrp = (u_int *)(hc->sca_base + SR_FECR);
-			*fecrp |= SR_FECR_DTR1;
+			sr_write_fecr(hc, sr_read_fecr(hc) | SR_FECR_DTR1);
 			break;
 		}
 
 	if (sc->scachan == 0) {
-		SRC_PUT8(hc->sca_base, sca->ier0,
-			 SRC_GET8(hc->sca_base, sca->ier0) & ~0x0F);
-		SRC_PUT8(hc->sca_base, sca->ier1,
-			 SRC_GET8(hc->sca_base, sca->ier1) & ~0x0F);
+		SRC_PUT8(hc, sca->ier0, SRC_GET8(hc, sca->ier0) & ~0x0F);
+		SRC_PUT8(hc, sca->ier1, SRC_GET8(hc, sca->ier1) & ~0x0F);
 	} else {
-		SRC_PUT8(hc->sca_base, sca->ier0,
-			 SRC_GET8(hc->sca_base, sca->ier0) & ~0xF0);
-		SRC_PUT8(hc->sca_base, sca->ier1,
-			 SRC_GET8(hc->sca_base, sca->ier1) & ~0xF0);
+		SRC_PUT8(hc, sca->ier0, SRC_GET8(hc, sca->ier0) & ~0xF0);
+		SRC_PUT8(hc, sca->ier1, SRC_GET8(hc, sca->ier1) & ~0xF0);
 	}
 }
 
@@ -1360,23 +1347,22 @@ sr_init_sca(struct sr_hardc *hc)
 	/*
 	 * Do the wait registers. Set everything to 0 wait states.
 	 */
-	SRC_PUT8(hc->sca_base, sca->pabr0, 0);
-	SRC_PUT8(hc->sca_base, sca->pabr1, 0);
-	SRC_PUT8(hc->sca_base, sca->wcrl, 0);
-	SRC_PUT8(hc->sca_base, sca->wcrm, 0);
-	SRC_PUT8(hc->sca_base, sca->wcrh, 0);
+	SRC_PUT8(hc, sca->pabr0, 0);
+	SRC_PUT8(hc, sca->pabr1, 0);
+	SRC_PUT8(hc, sca->wcrl, 0);
+	SRC_PUT8(hc, sca->wcrm, 0);
+	SRC_PUT8(hc, sca->wcrh, 0);
 
 	/*
 	 * Configure the interrupt registers. Most are cleared until the
 	 * interface is configured.
 	 */
-	SRC_PUT8(hc->sca_base, sca->ier0, 0x00);	/* MSCI interrupts. */
-	SRC_PUT8(hc->sca_base, sca->ier1, 0x00);	/* DMAC interrupts */
-	SRC_PUT8(hc->sca_base, sca->ier2, 0x00);	/* TIMER interrupts. */
-	SRC_PUT8(hc->sca_base, sca->itcr, 0x00);	/* Use ivr and no intr
-							 * ack */
-	SRC_PUT8(hc->sca_base, sca->ivr, 0x40);	/* Interrupt vector. */
-	SRC_PUT8(hc->sca_base, sca->imvr, 0x40);
+	SRC_PUT8(hc, sca->ier0, 0x00);		/* MSCI interrupts. */
+	SRC_PUT8(hc, sca->ier1, 0x00);		/* DMAC interrupts */
+	SRC_PUT8(hc, sca->ier2, 0x00);		/* TIMER interrupts. */
+	SRC_PUT8(hc, sca->itcr, 0x00);		/* Use ivr and no intr ack */
+	SRC_PUT8(hc, sca->ivr, 0x40);		/* Interrupt vector. */
+	SRC_PUT8(hc, sca->imvr, 0x40);
 
 	/*
 	 * Configure the timers. XXX Later
@@ -1387,8 +1373,8 @@ sr_init_sca(struct sr_hardc *hc)
 	 *
 	 * Enable all dma channels.
 	 */
-	SRC_PUT8(hc->sca_base, sca->pcr, SCA_PCR_PR2);
-	SRC_PUT8(hc->sca_base, sca->dmer, SCA_DMER_EN);
+	SRC_PUT8(hc, sca->pcr, SCA_PCR_PR2);
+	SRC_PUT8(hc, sca->dmer, SCA_DMER_EN);
 }
 
 /*
@@ -1401,7 +1387,6 @@ sr_init_msci(struct sr_softc *sc)
 {
 	int portndx;		/* on-board port number */
 	u_int mcr_v;		/* contents of modem control */
-	u_int *fecrp;		/* pointer for PCI's MCR i/o */
 	struct sr_hardc *hc = sc->hc;
 	msci_channel *msci = &hc->sca->msci[sc->scachan];
 #ifdef N2_TEST_SPEED
@@ -1419,22 +1404,18 @@ sr_init_msci(struct sr_softc *sc)
 	printf("sr: sr_init_msci( sc=%08x)\n", sc);
 #endif
 
-	SRC_PUT8(hc->sca_base, msci->cmd, SCA_CMD_RESET);
-	SRC_PUT8(hc->sca_base, msci->md0, SCA_MD0_CRC_1 |
-		 SCA_MD0_CRC_CCITT |
-		 SCA_MD0_CRC_ENABLE |
-		 SCA_MD0_MODE_HDLC);
-	SRC_PUT8(hc->sca_base, msci->md1, SCA_MD1_NOADDRCHK);
-	SRC_PUT8(hc->sca_base, msci->md2, SCA_MD2_DUPLEX | SCA_MD2_NRZ);
+	SRC_PUT8(hc, msci->cmd, SCA_CMD_RESET);
+	SRC_PUT8(hc, msci->md0, SCA_MD0_CRC_1 | SCA_MD0_CRC_CCITT |
+	    SCA_MD0_CRC_ENABLE | SCA_MD0_MODE_HDLC);
+	SRC_PUT8(hc, msci->md1, SCA_MD1_NOADDRCHK);
+	SRC_PUT8(hc, msci->md2, SCA_MD2_DUPLEX | SCA_MD2_NRZ);
 
 	/*
 	 * According to the manual I should give a reset after changing the
 	 * mode registers.
 	 */
-	SRC_PUT8(hc->sca_base, msci->cmd, SCA_CMD_RXRESET);
-	SRC_PUT8(hc->sca_base, msci->ctl, SCA_CTL_IDLPAT |
-		 SCA_CTL_UDRNC |
-		 SCA_CTL_RTS);
+	SRC_PUT8(hc, msci->cmd, SCA_CMD_RXRESET);
+	SRC_PUT8(hc, msci->ctl, SCA_CTL_IDLPAT | SCA_CTL_UDRNC | SCA_CTL_RTS);
 
 	/*
 	 * XXX Later we will have to support different clock settings.
@@ -1456,10 +1437,8 @@ sr_init_msci(struct sr_softc *sc)
 		printf("sr%d: External Clock Selected.\n", portndx);
 #endif
 
-		SRC_PUT8(hc->sca_base, msci->rxs,
-			 SCA_RXS_CLK_RXC0 | SCA_RXS_DIV1);
-		SRC_PUT8(hc->sca_base, msci->txs,
-			 SCA_TXS_CLK_RX | SCA_TXS_DIV1);
+		SRC_PUT8(hc, msci->rxs, SCA_RXS_CLK_RXC0 | SCA_RXS_DIV1);
+		SRC_PUT8(hc, msci->txs, SCA_TXS_CLK_RX | SCA_TXS_DIV1);
 		break;
 
 	case SR_FLAGS_EXT_SEP_CLK:
@@ -1467,10 +1446,8 @@ sr_init_msci(struct sr_softc *sc)
 		printf("sr%d: Split Clocking Selected.\n", portndx);
 #endif
 
-		SRC_PUT8(hc->sca_base, msci->rxs,
-			 SCA_RXS_CLK_RXC0 | SCA_RXS_DIV1);
-		SRC_PUT8(hc->sca_base, msci->txs,
-			 SCA_TXS_CLK_TXC | SCA_TXS_DIV1);
+		SRC_PUT8(hc, msci->rxs, SCA_RXS_CLK_RXC0 | SCA_RXS_DIV1);
+		SRC_PUT8(hc, msci->txs, SCA_TXS_CLK_TXC | SCA_TXS_DIV1);
 		break;
 
 	case SR_FLAGS_INT_CLK:
@@ -1484,13 +1461,12 @@ sr_init_msci(struct sr_softc *sc)
 #ifdef N2_TEST_SPEED
 		switch (hc->cardtype) {
 		case SR_CRD_N2PCI:
-			fecrp = (u_int *)(hc->sca_base + SR_FECR);
-			mcr_v = *fecrp;
+			mcr_v = sr_read_fecr(hc);
 			etcndx = 2;
 			break;
 		case SR_CRD_N2:
 		default:
-			mcr_v = inb(hc->iobase + SR_MCR);
+			mcr_v = sr_inb(hc, SR_MCR);
 			etcndx = 0;
 		}
 
@@ -1531,18 +1507,18 @@ sr_init_msci(struct sr_softc *sc)
 		 * Now we'll program the registers with these speed- related
 		 * contents...
 		 */
-		SRC_PUT8(hc->sca_base, msci->tmc, tmc_v);
-		SRC_PUT8(hc->sca_base, msci->trc0, fifo_v);
-		SRC_PUT8(hc->sca_base, msci->rxs, SCA_RXS_CLK_INT + br_v);
-		SRC_PUT8(hc->sca_base, msci->txs, SCA_TXS_CLK_INT + br_v);
+		SRC_PUT8(hc, msci->tmc, tmc_v);
+		SRC_PUT8(hc, msci->trc0, fifo_v);
+		SRC_PUT8(hc, msci->rxs, SCA_RXS_CLK_INT + br_v);
+		SRC_PUT8(hc, msci->txs, SCA_TXS_CLK_INT + br_v);
 
 		switch (hc->cardtype) {
 		case SR_CRD_N2PCI:
-			*fecrp = mcr_v;
+			sr_write_fecr(hc, mcr_v);
 			break;
 		case SR_CRD_N2:
 		default:
-			outb(hc->iobase + SR_MCR, mcr_v);
+			sr_outb(hc, SR_MCR, mcr_v);
 		}
 
 #if BUGGY > 0
@@ -1554,35 +1530,33 @@ sr_init_msci(struct sr_softc *sc)
 		       portndx, gotspeed, tmc_v, br_v);
 #endif
 #else
-		SRC_PUT8(hc->sca_base, msci->rxs,
-			 SCA_RXS_CLK_INT | SCA_RXS_DIV1);
-		SRC_PUT8(hc->sca_base, msci->txs,
-			 SCA_TXS_CLK_INT | SCA_TXS_DIV1);
+		SRC_PUT8(hc, msci->rxs, SCA_RXS_CLK_INT | SCA_RXS_DIV1);
+		SRC_PUT8(hc, msci->txs, SCA_TXS_CLK_INT | SCA_TXS_DIV1);
 
-		SRC_PUT8(hc->sca_base, msci->tmc, 5);
+		SRC_PUT8(hc, msci->tmc, 5);
 
 		if (portndx == 0)
 			switch (hc->cardtype) {
 			case SR_CRD_N2PCI:
-				fecrp = (u_int *)(hc->sca_base + SR_FECR);
-				*fecrp |= SR_FECR_ETC0;
+				sr_write_fecr(hc,
+				    sr_read_fecr(hc) | SR_FECR_ETC0);
 				break;
 			case SR_CRD_N2:
 			default:
-				mcr_v = inb(hc->iobase + SR_MCR);
+				mcr_v = sr_inb(hc, SR_MCR);
 				mcr_v |= SR_MCR_ETC0;
-				outb(hc->iobase + SR_MCR, mcr_v);
+				sr_outb(hc, SR_MCR, mcr_v);
 			}
 		else
 			switch (hc->cardtype) {
 			case SR_CRD_N2:
-				mcr_v = inb(hc->iobase + SR_MCR);
+				mcr_v = sr_inb(hc, SR_MCR);
 				mcr_v |= SR_MCR_ETC1;
-				outb(hc->iobase + SR_MCR, mcr_v);
+				sr_outb(hc, SR_MCR, mcr_v);
 				break;
 			case SR_CRD_N2PCI:
-				fecrp = (u_int *)(hc->sca_base + SR_FECR);
-				*fecrp |= SR_FECR_ETC1;
+				sr_write_fecr(hc,
+				    sr_read_fecr(hc) | SR_FECR_ETC1);
 				break;
 			}
 #endif
@@ -1592,19 +1566,19 @@ sr_init_msci(struct sr_softc *sc)
 	 * XXX Disable all interrupts for now. I think if you are using the
 	 * dmac you don't use these interrupts.
 	 */
-	SRC_PUT8(hc->sca_base, msci->ie0, 0);
-	SRC_PUT8(hc->sca_base, msci->ie1, 0x0C);
-	SRC_PUT8(hc->sca_base, msci->ie2, 0);
-	SRC_PUT8(hc->sca_base, msci->fie, 0);
+	SRC_PUT8(hc, msci->ie0, 0);
+	SRC_PUT8(hc, msci->ie1, 0x0C);
+	SRC_PUT8(hc, msci->ie2, 0);
+	SRC_PUT8(hc, msci->fie, 0);
 
-	SRC_PUT8(hc->sca_base, msci->sa0, 0);
-	SRC_PUT8(hc->sca_base, msci->sa1, 0);
+	SRC_PUT8(hc, msci->sa0, 0);
+	SRC_PUT8(hc, msci->sa1, 0);
 
-	SRC_PUT8(hc->sca_base, msci->idl, 0x7E);	/* set flags value */
+	SRC_PUT8(hc, msci->idl, 0x7E);	/* set flags value */
 
-	SRC_PUT8(hc->sca_base, msci->rrc, 0x0E);
-	SRC_PUT8(hc->sca_base, msci->trc0, 0x10);
-	SRC_PUT8(hc->sca_base, msci->trc1, 0x1F);
+	SRC_PUT8(hc, msci->rrc, 0x0E);
+	SRC_PUT8(hc, msci->trc0, 0x10);
+	SRC_PUT8(hc, msci->trc1, 0x1F);
 }
 
 /*
@@ -1626,7 +1600,7 @@ sr_init_rx_dmac(struct sr_softc *sc)
 	dmac = &hc->sca->dmac[DMAC_RXCH(sc->scachan)];
 
 	if (hc->mempages)
-		SRC_SET_MEM(hc->iobase, sc->rxdesc);
+		SRC_SET_MEM(hc, sc->rxdesc);
 
 	/*
 	 * This phase initializes the contents of the descriptor table
@@ -1668,28 +1642,27 @@ sr_init_rx_dmac(struct sr_softc *sc)
 	/*
 	 * We'll now configure the receiver's DMA logic...
 	 */
-	SRC_PUT8(hc->sca_base, dmac->dsr, 0);	/* Disable DMA transfer */
-	SRC_PUT8(hc->sca_base, dmac->dcr, SCA_DCR_ABRT);
+	SRC_PUT8(hc, dmac->dsr, 0);	/* Disable DMA transfer */
+	SRC_PUT8(hc, dmac->dcr, SCA_DCR_ABRT);
 
 	/* XXX maybe also SCA_DMR_CNTE */
-	SRC_PUT8(hc->sca_base, dmac->dmr, SCA_DMR_TMOD | SCA_DMR_NF);
-	SRC_PUT16(hc->sca_base, dmac->bfl, SR_BUF_SIZ);
+	SRC_PUT8(hc, dmac->dmr, SCA_DMR_TMOD | SCA_DMR_NF);
+	SRC_PUT16(hc, dmac->bfl, SR_BUF_SIZ);
 
 	cda_v = (u_short)((sc->rxdesc + hc->mem_pstart) & 0xffff);
 	sarb_v = (u_char)(((sc->rxdesc + hc->mem_pstart) >> 16) & 0xff);
 
-	SRC_PUT16(hc->sca_base, dmac->cda, cda_v);
-	SRC_PUT8(hc->sca_base, dmac->sarb, sarb_v);
+	SRC_PUT16(hc, dmac->cda, cda_v);
+	SRC_PUT8(hc, dmac->sarb, sarb_v);
 
 	rxd = (sca_descriptor *)(uintptr_t)sc->rxstart;
 
-	SRC_PUT16(hc->sca_base, dmac->eda,
-		  (u_short)((uintptr_t) &rxd[sc->rxmax - 1] & 0xffff));
+	SRC_PUT16(hc, dmac->eda,
+	    (u_short)((uintptr_t)&rxd[sc->rxmax - 1] & 0xffff));
 
-	SRC_PUT8(hc->sca_base, dmac->dir, 0xF0);
+	SRC_PUT8(hc, dmac->dir, 0xF0);
 
-
-	SRC_PUT8(hc->sca_base, dmac->dsr, SCA_DSR_DE);	/* Enable DMA */
+	SRC_PUT8(hc, dmac->dsr, SCA_DSR_DE);	/* Enable DMA */
 }
 
 /*
@@ -1716,7 +1689,7 @@ sr_init_tx_dmac(struct sr_softc *sc)
 	dmac = &hc->sca->dmac[DMAC_TXCH(sc->scachan)];
 
 	if (hc->mempages)
-		SRC_SET_MEM(hc->iobase, sc->block[0].txdesc);
+		SRC_SET_MEM(hc, sc->block[0].txdesc);
 
 	/*
 	 * Initialize the array of descriptors for transmission
@@ -1750,16 +1723,15 @@ sr_init_tx_dmac(struct sr_softc *sc)
 		blkp->txtail = (uintptr_t)txd - (uintptr_t)hc->mem_start;
 	}
 
-	SRC_PUT8(hc->sca_base, dmac->dsr, 0);	/* Disable DMA */
-	SRC_PUT8(hc->sca_base, dmac->dcr, SCA_DCR_ABRT);
-	SRC_PUT8(hc->sca_base, dmac->dmr, SCA_DMR_TMOD | SCA_DMR_NF);
-	SRC_PUT8(hc->sca_base, dmac->dir,
-		 SCA_DIR_EOT | SCA_DIR_BOF | SCA_DIR_COF);
+	SRC_PUT8(hc, dmac->dsr, 0);	/* Disable DMA */
+	SRC_PUT8(hc, dmac->dcr, SCA_DCR_ABRT);
+	SRC_PUT8(hc, dmac->dmr, SCA_DMR_TMOD | SCA_DMR_NF);
+	SRC_PUT8(hc, dmac->dir, SCA_DIR_EOT | SCA_DIR_BOF | SCA_DIR_COF);
 
 	sarb_v = (sc->block[0].txdesc + hc->mem_pstart) >> 16;
 	sarb_v &= 0x00ff;
 
-	SRC_PUT8(hc->sca_base, dmac->sarb, (u_char) sarb_v);
+	SRC_PUT8(hc, dmac->sarb, (u_char) sarb_v);
 }
 
 /*
@@ -1790,7 +1762,7 @@ sr_packet_avail(struct sr_softc *sc, int *len, u_char *rxstat)
 	 * of the HD chip...
 	 */
 	wki = DMAC_RXCH(sc->scachan);
-	wko = SRC_GET16(hc->sca_base, hc->sca->dmac[wki].cda);
+	wko = SRC_GET16(hc, hc->sca->dmac[wki].cda);
 
 	cda = (sca_descriptor *)(hc->mem_start + (wko & hc->winmsk));
 
@@ -1803,8 +1775,8 @@ sr_packet_avail(struct sr_softc *sc, int *len, u_char *rxstat)
 	 * open the appropriate memory window and set our expectations...
 	 */
 	if (hc->mempages) {
-		SRC_SET_MEM(hc->iobase, sc->rxdesc);
-		SRC_SET_ON(hc->iobase);
+		SRC_SET_MEM(hc, sc->rxdesc);
+		SRC_SET_ON(hc);
 	}
 	rxdesc = (sca_descriptor *)
 	    (hc->mem_start + (sc->rxdesc & hc->winmsk));
@@ -1899,7 +1871,7 @@ sr_copy_rxbuf(struct mbuf *m, struct sr_softc *sc, int len)
 		tlen = (len < SR_BUF_SIZ) ? len : SR_BUF_SIZ;
 
 		if (hc->mempages)
-			SRC_SET_MEM(hc->iobase, rxdata);
+			SRC_SET_MEM(hc, rxdata);
 
 		bcopy(hc->mem_start + (rxdata & hc->winmsk),
 		      mtod(m, caddr_t) +off,
@@ -1913,7 +1885,7 @@ sr_copy_rxbuf(struct mbuf *m, struct sr_softc *sc, int len)
 		 * the descriptor we've just suctioned...
 		 */
 		if (hc->mempages)
-			SRC_SET_MEM(hc->iobase, sc->rxdesc);
+			SRC_SET_MEM(hc, sc->rxdesc);
 
 		rxdesc->len = 0;
 		rxdesc->stat = 0xff;
@@ -1954,17 +1926,15 @@ sr_eat_packet(struct sr_softc *sc, int single)
 	u_char stat;		/* captured status byte from descr */
 
 	hc = sc->hc;
-	cda = (sca_descriptor *)(hc->mem_start +
-				 (SRC_GET16(hc->sca_base,
-				  hc->sca->dmac[DMAC_RXCH(sc->scachan)].cda) &
-				  hc->winmsk));
+	cda = (sca_descriptor *)(hc->mem_start + (SRC_GET16(hc,
+	    hc->sca->dmac[DMAC_RXCH(sc->scachan)].cda) & hc->winmsk));
 
 	/*
 	 * loop until desc->stat == (0xff || EOM) Clear the status and
 	 * length in the descriptor. Increment the descriptor.
 	 */
 	if (hc->mempages)
-		SRC_SET_MEM(hc->iobase, sc->rxdesc);
+		SRC_SET_MEM(hc, sc->rxdesc);
 
 	rxdesc = (sca_descriptor *)
 	    (hc->mem_start + (sc->rxdesc & hc->winmsk));
@@ -2008,9 +1978,8 @@ sr_eat_packet(struct sr_softc *sc, int single)
 	rxdesc = (sca_descriptor *)(uintptr_t)sc->rxdesc;
 	rxdesc = &rxdesc[(sc->rxhind + sc->rxmax - 2) % sc->rxmax];
 
-	SRC_PUT16(hc->sca_base,
-		  hc->sca->dmac[DMAC_RXCH(sc->scachan)].eda,
-		  (u_short)(((uintptr_t)rxdesc + hc->mem_pstart) & 0xffff));
+	SRC_PUT16(hc, hc->sca->dmac[DMAC_RXCH(sc->scachan)].eda,
+	    (u_short)(((uintptr_t)rxdesc + hc->mem_pstart) & 0xffff));
 }
 
 /*
@@ -2045,8 +2014,8 @@ sr_get_packets(struct sr_softc *sc)
 #endif /* NETGRAPH */
 
 	if (hc->mempages) {
-		SRC_SET_MEM(hc->iobase, sc->rxdesc);
-		SRC_SET_ON(hc->iobase);	/* enable shared memory */
+		SRC_SET_MEM(hc, sc->rxdesc);
+		SRC_SET_ON(hc);	/* enable shared memory */
 	}
 	pkts = 0;		/* reset count of found packets */
 
@@ -2169,10 +2138,9 @@ sr_get_packets(struct sr_softc *sc)
 			rxndx = (sc->rxhind + sc->rxmax - 2) % sc->rxmax;
 			rxdesc = &rxdesc[rxndx];
 
-			SRC_PUT16(hc->sca_base,
-				  hc->sca->dmac[DMAC_RXCH(sc->scachan)].eda,
-				  (u_short)(((uintptr_t)rxdesc + hc->mem_pstart)
-					     & 0xffff));
+			SRC_PUT16(hc, hc->sca->dmac[DMAC_RXCH(sc->scachan)].eda,
+			    (u_short)(((uintptr_t)rxdesc + hc->mem_pstart)
+			    & 0xffff));
 
 		} else {
 			int got_st3, got_cda, got_eda;
@@ -2201,11 +2169,11 @@ sr_get_packets(struct sr_softc *sc)
 			sc->ierrors[0]++;
 #endif /* NETGRAPH */
 
-			got_st3 = SRC_GET8(hc->sca_base,
+			got_st3 = SRC_GET8(hc,
 				  hc->sca->msci[sc->scachan].st3);
-			got_cda = SRC_GET16(hc->sca_base,
+			got_cda = SRC_GET16(hc,
 				  hc->sca->dmac[DMAC_RXCH(sc->scachan)].cda);
-			got_eda = SRC_GET16(hc->sca_base,
+			got_eda = SRC_GET16(hc,
 				  hc->sca->dmac[DMAC_RXCH(sc->scachan)].eda);
 
 #if BUGGY > 0
@@ -2224,7 +2192,7 @@ sr_get_packets(struct sr_softc *sc)
 #endif
 
 	if (hc->mempages)
-		SRC_SET_OFF(hc->iobase);
+		SRC_SET_OFF(hc);
 }
 
 /*
@@ -2272,8 +2240,8 @@ sr_dmac_intr(struct sr_hardc *hc, u_char isr1)
 			 * get the DMA Status Register contents and write
 			 * back to reset interrupt...
 			 */
-			dsr = SRC_GET8(hc->sca_base, dmac->dsr);
-			SRC_PUT8(hc->sca_base, dmac->dsr, dsr);
+			dsr = SRC_GET8(hc, dmac->dsr);
+			SRC_PUT8(hc, dmac->dsr, dsr);
 
 			/*
 			 * Check for (& process) a Counter overflow
@@ -2302,8 +2270,8 @@ sr_dmac_intr(struct sr_hardc *hc, u_char isr1)
 				       sc->unit, sc->opackets,
 #endif /* NETGRAPH */
 				       dsr,
-				       SRC_GET16(hc->sca_base, dmac->cda),
-				       SRC_GET16(hc->sca_base, dmac->eda));
+				       SRC_GET16(hc, dmac->cda),
+				       SRC_GET16(hc, dmac->eda));
 #ifndef NETGRAPH
 				sc->ifsppp.pp_if.if_oerrors++;
 #else
@@ -2345,8 +2313,8 @@ sr_dmac_intr(struct sr_hardc *hc, u_char isr1)
 		if (isr1 & 0x03) {
 			dmac = &sca->dmac[DMAC_RXCH(mch)];
 
-			dsr = SRC_GET8(hc->sca_base, dmac->dsr);
-			SRC_PUT8(hc->sca_base, dmac->dsr, dsr);
+			dsr = SRC_GET8(hc, dmac->dsr);
+			SRC_PUT8(hc, dmac->dsr, dsr);
 
 			/*
 			 * End of frame processing (MSG OK?)
@@ -2384,12 +2352,12 @@ sr_dmac_intr(struct sr_hardc *hc, u_char isr1)
 					       sc->rxend, sc->rxhind,
 					       sc->rxmax);
 					printf("SR: cda %x, eda %x.\n",
-					    SRC_GET16(hc->sca_base, dmac->cda),
-					    SRC_GET16(hc->sca_base, dmac->eda));
+					    SRC_GET16(hc, dmac->cda),
+					    SRC_GET16(hc, dmac->eda));
 
 					if (hc->mempages) {
-						SRC_SET_ON(hc->iobase);
-						SRC_SET_MEM(hc->iobase, sc->rxdesc);
+						SRC_SET_ON(hc);
+						SRC_SET_MEM(hc, sc->rxdesc);
 					}
 					rxdesc = (sca_descriptor *)
 					         (hc->mem_start +
@@ -2403,7 +2371,7 @@ sr_dmac_intr(struct sr_hardc *hc, u_char isr1)
 						       rxdesc->len);
 
 					if (hc->mempages)
-						SRC_SET_OFF(hc->iobase);
+						SRC_SET_OFF(hc);
 				}
 #endif /* BUGGY */
 			}
@@ -2434,8 +2402,8 @@ sr_dmac_intr(struct sr_hardc *hc, u_char isr1)
 				       sc->unit, sc->ipackets,
 #endif /* NETGRAPH */
 				       sc->rxhind,
-				       SRC_GET16(hc->sca_base, dmac->cda),
-				       SRC_GET16(hc->sca_base, dmac->eda),
+				       SRC_GET16(hc, dmac->cda),
+				       SRC_GET16(hc, dmac->eda),
 				       dsr);
 
 				/*
@@ -2443,7 +2411,7 @@ sr_dmac_intr(struct sr_hardc *hc, u_char isr1)
 				 * Then get the system running again.
 				 */
 				if (hc->mempages)
-					SRC_SET_ON(hc->iobase);
+					SRC_SET_ON(hc);
 
 				sr_eat_packet(sc, 0);
 #ifndef NETGRAPH
@@ -2452,11 +2420,10 @@ sr_dmac_intr(struct sr_hardc *hc, u_char isr1)
 				sc->ierrors[2]++;
 #endif /* NETGRAPH */
 
-				SRC_PUT8(hc->sca_base,
-					 sca->msci[mch].cmd,
-					 SCA_CMD_RXMSGREJ);
+				SRC_PUT8(hc, sca->msci[mch].cmd,
+				    SCA_CMD_RXMSGREJ);
 
-				SRC_PUT8(hc->sca_base, dmac->dsr, SCA_DSR_DE);
+				SRC_PUT8(hc, dmac->dsr, SCA_DSR_DE);
 
 #if BUGGY > 0
 				printf("sr%d: RX DMA Buffer overflow, "
@@ -2469,13 +2436,13 @@ sr_dmac_intr(struct sr_hardc *hc, u_char isr1)
 				       sc->ifsppp.pp_if.if_ipackets,
 #endif /* NETGRAPH */
 				       sc->rxhind,
-				       SRC_GET16(hc->sca_base, dmac->cda),
-				       SRC_GET16(hc->sca_base, dmac->eda),
-				       SRC_GET8(hc->sca_base, dmac->dsr));
+				       SRC_GET16(hc, dmac->cda),
+				       SRC_GET16(hc, dmac->eda),
+				       SRC_GET8(hc, dmac->dsr));
 #endif
 
 				if (hc->mempages)
-					SRC_SET_OFF(hc->iobase);
+					SRC_SET_OFF(hc);
 			}
 			/*
 			 * End of Transfer
@@ -2613,10 +2580,10 @@ sr_modemck(void *arg)
 			 * 
 			 * I suck in more registers than strictly needed
 			 */
-			got_st0 = SRC_GET8(hc->sca_base, msci->st0);
-			got_st1 = SRC_GET8(hc->sca_base, msci->st1);
-			got_st2 = SRC_GET8(hc->sca_base, msci->st2);
-			got_st3 = SRC_GET8(hc->sca_base, msci->st3);
+			got_st0 = SRC_GET8(hc, msci->st0);
+			got_st1 = SRC_GET8(hc, msci->st1);
+			got_st2 = SRC_GET8(hc, msci->st2);
+			got_st3 = SRC_GET8(hc, msci->st3);
 
 			/*
 			 * We want to see if the DCD signal is up (DCD is
@@ -2659,7 +2626,7 @@ sr_modemck(struct sr_softc *sc )
 	 * OK, now we can go looking at this channel's register contents...
 	 */
 	msci = &hc->sca->msci[sc->scachan];
-	got_st3 = SRC_GET8(hc->sca_base, msci->st3);
+	got_st3 = SRC_GET8(hc, msci->st3);
 
 	/*
 	 * We want to see if the DCD signal is up (DCD is true if zero)
