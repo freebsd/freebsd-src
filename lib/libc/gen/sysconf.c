@@ -40,10 +40,10 @@ static char sccsid[] = "@(#)sysconf.c	8.2 (Berkeley) 3/20/94";
 
 #include <sys/param.h>
 #include <sys/sysctl.h>
-#include <sys/time.h>
 #include <sys/resource.h>
 
 #include <errno.h>
+#include <time.h>
 #include <unistd.h>
 
 /*
