@@ -674,15 +674,14 @@ send:
 	if (isipv6) {
 		ip6 = mtod(m, struct ip6_hdr *);
 		th = (struct tcphdr *)(ip6 + 1);
-		tcp_fillheaders(tp, ip6, th);
+		tcpip_fillheaders(tp->t_inpcb, ip6, th);
 	} else
 #endif /* INET6 */
       {
 	ip = mtod(m, struct ip *);
 	ipov = (struct ipovly *)ip;
 	th = (struct tcphdr *)(ip + 1);
-	/* this picks up the pseudo header (w/o the length) */
-	tcp_fillheaders(tp, ip, th);
+	tcpip_fillheaders(tp->t_inpcb, ip, th);
       }
 
 	/*
@@ -772,9 +771,8 @@ send:
       {
 	m->m_pkthdr.csum_flags = CSUM_TCP;
 	m->m_pkthdr.csum_data = offsetof(struct tcphdr, th_sum);
-	if (len + optlen)
-		th->th_sum = in_addword(th->th_sum, 
-		    htons((u_short)(optlen + len)));
+	th->th_sum = in_pseudo(ip->ip_src.s_addr, ip->ip_dst.s_addr,
+	    htons(sizeof(struct tcphdr) + IPPROTO_TCP + len + optlen));
 
 	/* IP version must be set here for ipv4/ipv6 checking later */
 	KASSERT(ip->ip_v == IPVERSION,
@@ -894,10 +892,7 @@ send:
  					    tp->t_inpcb->in6p_route.ro_rt ?
  					    tp->t_inpcb->in6p_route.ro_rt->rt_ifp
  					    : NULL);
- 	else
 #endif /* INET6 */
-	ip->ip_ttl = tp->t_inpcb->inp_ip_ttl;	/* XXX */
-	ip->ip_tos = tp->t_inpcb->inp_ip_tos;	/* XXX */
 	/*
 	 * See if we should do MTU discovery.  We do it only if the following
 	 * are true:

@@ -476,8 +476,8 @@ struct rtentry *
 void	 tcp_setpersist(struct tcpcb *);
 void	 tcp_slowtimo(void);
 struct tcptemp *
-	 tcp_maketemplate(struct tcpcb *);
-void	 tcp_fillheaders(struct tcpcb *, void *, void *);
+	 tcpip_maketemplate(struct inpcb *);
+void	 tcpip_fillheaders(struct inpcb *, void *, void *);
 struct tcpcb *
 	 tcp_timers(struct tcpcb *, int);
 void	 tcp_trace(int, int, struct tcpcb *, void *, struct tcphdr *, int);
