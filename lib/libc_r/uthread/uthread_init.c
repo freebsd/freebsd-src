@@ -220,7 +220,7 @@ _thread_init(void)
 
 	_pthread_page_size = getpagesize();;
 	_pthread_guard_default = _pthread_page_size;
-	sched_stack_size = _pthread_page_size;
+	sched_stack_size = 4 * _pthread_page_size;
 
 	_pthread_attr_default.guardsize_attr = _pthread_guard_default;
 
