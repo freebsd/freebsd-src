@@ -34,6 +34,7 @@
  * $FreeBSD$
  */
 
+#include "opt_bootp.h"
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sockio.h>
@@ -730,10 +731,17 @@ in_ifinit(ifp, ia, sin, scrub)
 	if ((error = rtinit(&(ia->ia_ifa), (int)RTM_ADD, flags)) == 0)
 		ia->ia_flags |= IFA_ROUTE;
 
+#ifndef BOOTP
+	/*
+	 * This breaks kernel-bootp support when we have more than one
+	 * interface, because the bootp code wants to set a 0.0.0.0/0
+	 * address on all interfaces. Disable the check when bootp is used.
+	 */
 	if (error != 0 && ia->ia_dstaddr.sin_family == AF_INET) {
 		ia->ia_addr = oldaddr;
 		return (error);
 	}
+#endif
 
 	/* XXX check if the subnet route points to the same interface */
 	if (error == EEXIST)
