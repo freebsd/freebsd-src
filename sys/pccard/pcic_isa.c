@@ -73,26 +73,6 @@ static struct {
 };
 
 /*
- * Read a register from the PCIC.
- */
-static unsigned char
-getb1(struct pcic_slot *sp, int reg)
-{
-	outb(sp->index, sp->offset + reg);
-	return (inb(sp->data));
-}
-
-/*
- * Write a register on the PCIC
- */
-static void
-putb1(struct pcic_slot *sp, int reg, unsigned char val)
-{
-	outb(sp->index, sp->offset + reg);
-	outb(sp->data, val);
-}
-
-/*
  *	Look for an Intel PCIC (or compatible).
  *	For each available slot, allocate a PC-CARD slot.
  */
@@ -132,8 +112,8 @@ pcic_isa_probe(device_t dev)
 		/*
 		 *	Initialise the PCIC slot table.
 		 */
-		sp->getb = getb1;
-		sp->putb = putb1;
+		sp->getb = pcic_getb_io;
+		sp->putb = pcic_putb_io;
 		sp->index = rman_get_start(r);
 		sp->data = sp->index + 1;
 		sp->offset = slotnum * PCIC_SLOT_SIZE;
