@@ -463,7 +463,7 @@ hpfs_vget(
 
 	dprintf(("hpfs_vget(0x%x): ",ino));
 
-	error = vfs_hash_get(mp, ino, flags, curthread, vpp);
+	error = vfs_hash_get(mp, ino, flags, curthread, vpp, NULL, NULL);
 	if (error || *vpp != NULL)
 		return (error);
 
@@ -513,7 +513,7 @@ hpfs_vget(
 	hp->h_mode = hpmp->hpm_mode;
 	hp->h_devvp = hpmp->hpm_devvp;
 
-	error = vfs_hash_insert(vp, ino, flags, curthread, vpp);
+	error = vfs_hash_insert(vp, ino, flags, curthread, vpp, NULL, NULL);
 	if (error || *vpp != NULL)
 		return (error);
 
