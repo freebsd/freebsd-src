@@ -344,6 +344,17 @@ _sx_assert(struct sx *sx, int what, const char *file, int line)
 			    sx->sx_object.lo_name, file, line);
 		mtx_unlock(sx->sx_lock);
 		break;
+	case SX_UNLOCKED:
+#ifdef WITNESS
+		witness_assert(&sx->sx_object, what, file, line);
+#else
+		mtx_lock(sx->sx_lock);
+		if (sx->sx_cnt != 0 && sx->sx_xholder == curthread)
+			printf("Lock %s locked @ %s:%d\n",
+			    sx->sx_object.lo_name, file, line);
+		mtx_unlock(sx->sx_lock);
+#endif
+		break;
 	default:
 		panic("Unknown sx lock assertion: %d @ %s:%d", what, file,
 		    line);
