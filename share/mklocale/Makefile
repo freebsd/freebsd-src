@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.15 1998/08/10 09:49:42 phk Exp $
+# $Id: Makefile,v 1.16 1998/08/15 12:51:48 phk Exp $
 
 NOMAN=YES
 CLEANFILES+= ${LOCALES:S/$/.out/g}
@@ -9,6 +9,7 @@ LOCALES=        ja_JP.EUC \
 		lt_LN.ASCII \
 		lt_LN.ISO_8859-1 \
 		lt_LN.ISO_8859-2 \
+		lt_LN.DIS_8859-15 \
 		ru_SU.CP866 \
 		ru_SU.KOI8-R \
 		zh_CN.EUC \
@@ -41,6 +42,10 @@ afterinstall:
 .for link in ${LATIN1LINKS}
 	ln -fs ../lt_LN.ISO_8859-1/LC_CTYPE \
 		       ${LOCALEDIR}/${link}.ISO_8859-1/LC_CTYPE
+.endfor
+.for link in ${LATIN1LINKS}
+	ln -fs ../lt_LN.DIS_8859-15/LC_CTYPE \
+		       ${LOCALEDIR}/${link}.DIS_8859-15/LC_CTYPE
 .endfor
 .for link in ${LATIN2LINKS}
 	ln -fs ../lt_LN.ISO_8859-2/LC_CTYPE \
