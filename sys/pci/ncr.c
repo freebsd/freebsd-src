@@ -204,10 +204,6 @@
 #include <cam/scsi/scsi_all.h>
 #include <cam/scsi/scsi_message.h>
 
-#ifndef COMPAT_OLDPCI
-#error "The ncr device requires the old pci compatibility shims"
-#endif
-
 /*==========================================================
 **
 **	Debugging tags
