@@ -140,7 +140,7 @@ cnt(file)
 	int clen, fd, len, warned;
 	short gotsp;
 	u_char *p;
-	u_char buf[MAXBSIZE], ch;
+	u_char buf[MAXBSIZE];
 	wchar_t wch;
 
 	linect = wordct = charct = 0;
@@ -235,7 +235,7 @@ word:	gotsp = 1;
 			if (wch == L'\n')
 				++linect;
 			/* XXX Non-portable; should use iswspace() */
-			if (isspace(ch))
+			if (isspace(wch))
 				gotsp = 1;
 			else if (gotsp) {
 				gotsp = 0;
