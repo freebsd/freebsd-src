@@ -32,7 +32,7 @@
  *
  */
 
-#include <hash.h>
+#include <strhash.h>
 #include <ctype.h>
 #include <err.h>
 #include <ncurses.h>
