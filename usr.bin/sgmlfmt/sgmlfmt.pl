@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-# $Id: sgmlfmt.pl,v 1.17.2.2 1997/02/07 02:47:27 jfieber Exp $
+# $Id: sgmlfmt.pl,v 1.24 1997/05/10 01:25:50 jfieber Exp $
 
 #  Copyright (C) 1996
 #       John R. Fieber.  All rights reserved.
@@ -186,7 +186,7 @@ $m_depth = 2;			# depth of menus
 $sc = 0;			# section counter
 $filecount = 0;			# file counter
 
-$doctype = "<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 3.2//EN\">";
+$doctype = "<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 3.2 Final//EN\">";
 $BODY = "<BODY text=\"#000000\" bgcolor=\"#ffffff\">";
 
 # Other variables:
