@@ -73,15 +73,17 @@ struct tm *OPENSSL_gmtime(const time_t *timer, struct tm *result)
 	{
 	struct tm *ts = NULL;
 
-#if defined(OPENSSL_THREADS) && !defined(OPENSSL_SYS_WIN32) && !defined(OPENSSL_SYS_OS2) && !defined(__CYGWIN32__) && (!defined(OPENSSL_SYS_VMS) || defined(gmtime_r)) && !defined(OPENSSL_SYS_MACOSX)
+#if defined(OPENSSL_THREADS) && !defined(OPENSSL_SYS_WIN32) && !defined(OPENSSL_SYS_OS2) && !defined(__CYGWIN32__) && (!defined(OPENSSL_SYS_VMS) || defined(gmtime_r)) && !defined(OPENSSL_SYS_MACOSX) && !defined(OPENSSL_SYS_SUNOS)
 	/* should return &data, but doesn't on some systems,
 	   so we don't even look at the return value */
 	gmtime_r(timer,result);
 	ts = result;
 #elif !defined(OPENSSL_SYS_VMS)
 	ts = gmtime(timer);
-	if (ts != NULL)
-		memcpy(result, ts, sizeof(struct tm));
+	if (ts == NULL)
+		return NULL;
+
+	memcpy(result, ts, sizeof(struct tm));
 	ts = result;
 #endif
 #ifdef OPENSSL_SYS_VMS

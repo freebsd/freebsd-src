@@ -1,7 +1,7 @@
 %define libmaj 0
 %define libmin 9
 %define librel 7
-%define librev a
+%define librev c
 Release: 1
 
 %define openssldir /var/ssl
@@ -83,18 +83,18 @@ documentation and POD files from which the man pages were produced.
 
 %build 
 
-%define CONFIG_FLAGS -DSSL_ALLOW_ADH --prefix=/usr 
+%define CONFIG_FLAGS -DSSL_ALLOW_ADH --prefix=/usr --openssldir=%{openssldir}
 
 perl util/perlpath.pl /usr/bin/perl
 
 %ifarch i386 i486 i586 i686
-./Configure %{CONFIG_FLAGS} --openssldir=%{openssldir} linux-elf shared
+./Configure %{CONFIG_FLAGS} linux-elf shared
 %endif
 %ifarch ppc
-./Configure %{CONFIG_FLAGS} --openssldir=%{openssldir} linux-ppc shared
+./Configure %{CONFIG_FLAGS} linux-ppc shared
 %endif
 %ifarch alpha
-./Configure %{CONFIG_FLAGS} --openssldir=%{openssldir} linux-alpha shared
+./Configure %{CONFIG_FLAGS} linux-alpha shared
 %endif
 LD_LIBRARY_PATH=`pwd` make
 LD_LIBRARY_PATH=`pwd` make rehash
@@ -102,12 +102,7 @@ LD_LIBRARY_PATH=`pwd` make test
 
 %install
 rm -rf $RPM_BUILD_ROOT
-make MANDIR=/usr/man INSTALL_PREFIX="$RPM_BUILD_ROOT" install
-
-# Rename manpages
-for x in $RPM_BUILD_ROOT/usr/man/man*/* 
-	do mv ${x} ${x}ssl
-done
+make MANDIR=/usr/man MANSUFFIX=ssl INSTALL_PREFIX="$RPM_BUILD_ROOT" install
 
 # Make backwards-compatibility symlink to ssleay
 ln -sf /usr/bin/openssl $RPM_BUILD_ROOT/usr/bin/ssleay
@@ -135,6 +130,7 @@ rm -rf $RPM_BUILD_ROOT
 %doc CHANGES CHANGES.SSLeay LICENSE NEWS README
 
 %attr(0644,root,root) /usr/lib/*.a
+%attr(0644,root,root) /usr/lib/pkgconfig/openssl.pc
 %attr(0644,root,root) /usr/include/openssl/*
 %attr(0644,root,root) /usr/man/man[3]/*
 
@@ -150,6 +146,8 @@ ldconfig
 ldconfig
 
 %changelog
+* Wed May  7 2003 Richard Levitte <richard@levitte.org>
+- Add /usr/lib/pkgconfig/openssl.pc to the development section.
 * Thu Mar 22 2001 Richard Levitte <richard@levitte.org>
 - Removed redundant subsection that re-installed libcrypto.a and libssl.a
   as well.  Also remove RSAref stuff completely, since it's not needed

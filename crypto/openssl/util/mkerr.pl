@@ -132,16 +132,16 @@ while (($hdr, $lib) = each %libinc)
 		my $name = $1;
 		$name =~ tr/[a-z]/[A-Z]/;
 		$ftrans{$name} = $1;
-	    } elsif (/\w+\W+(\w+)\W*\(\s*\)$/s){
+	    } elsif (/\w+\W+(\w+)\W*\(\s*\)(\s*__attribute__\(.*\)\s*)?$/s){
 		# K&R C
 		next ;
-	    } elsif (/\w+\W+\w+\W*\(.*\)$/s) {
-		while (not /\(\)$/s) {
-		    s/[^\(\)]*\)$/\)/s;
-		    s/\([^\(\)]*\)\)$/\)/s;
+	    } elsif (/\w+\W+\w+\W*\(.*\)(\s*__attribute__\(.*\)\s*)?$/s) {
+		while (not /\(\)(\s*__attribute__\(.*\)\s*)?$/s) {
+		    s/[^\(\)]*\)(\s*__attribute__\(.*\)\s*)?$/\)/s;
+		    s/\([^\(\)]*\)\)(\s*__attribute__\(.*\)\s*)?$/\)/s;
 		}
 		s/\(void\)//;
-		/(\w+)\W*\(\)/s;
+		/(\w+(\{[0-9]+\})?)\W*\(\)/s;
 		my $name = $1;
 		$name =~ tr/[a-z]/[A-Z]/;
 		$ftrans{$name} = $1;
@@ -262,7 +262,7 @@ foreach $lib (keys %csrc)
 	} else {
 	    push @out,
 "/* ====================================================================\n",
-" * Copyright (c) 2001-2002 The OpenSSL Project.  All rights reserved.\n",
+" * Copyright (c) 2001-2003 The OpenSSL Project.  All rights reserved.\n",
 " *\n",
 " * Redistribution and use in source and binary forms, with or without\n",
 " * modification, are permitted provided that the following conditions\n",
@@ -404,7 +404,7 @@ EOF
 	print OUT <<"EOF";
 /* $cfile */
 /* ====================================================================
- * Copyright (c) 1999-2002 The OpenSSL Project.  All rights reserved.
+ * Copyright (c) 1999-2003 The OpenSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
