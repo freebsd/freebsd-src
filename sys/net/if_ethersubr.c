@@ -651,7 +651,7 @@ ether_demux(struct ifnet *ifp, struct mbuf *m)
 		m_freem(m);
 		return;
 	}
-	if (eh->ether_dhost[0] & 1) {
+	if (ETHER_IS_MULTICAST(eh->ether_dhost)) {
 		if (bcmp((caddr_t)etherbroadcastaddr, (caddr_t)eh->ether_dhost,
 			 sizeof(etherbroadcastaddr)) == 0)
 			m->m_flags |= M_BCAST;
