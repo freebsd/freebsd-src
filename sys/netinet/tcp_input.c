@@ -126,6 +126,11 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, drop_synfin, CTLFLAG_RW,
     &drop_synfin, 0, "Drop TCP packets with SYN+FIN set");
 #endif
 
+static int tcp_insecure_rst = 0;
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, insecure_rst, CTLFLAG_RW,
+    &tcp_insecure_rst, 0,
+    "Follow the old (insecure) criteria for accepting RST packets.");
+
 SYSCTL_NODE(_net_inet_tcp, OID_AUTO, reass, CTLFLAG_RW, 0,
     "TCP Segment Reassembly Queue");
 
@@ -1356,6 +1361,12 @@ trimthenstep6:
 	 *   echo of our outgoing acknowlegement numbers, but some hosts
 	 *   send a reset with the sequence number at the rightmost edge
 	 *   of our receive window, and we have to handle this case.
+	 * Note 2: Paul Watson's paper "Slipping in the Window" has shown
+	 *   that brute force RST attacks are possible.  To combat this,
+	 *   we use a much stricter check while in the ESTABLISHED state,
+	 *   only accepting RSTs where the sequence number is equal to
+	 *   last_ack_sent.  In all other states (the states in which a
+	 *   RST is more likely), the more permissive check is used.
 	 * If we have multiple segments in flight, the intial reset
 	 * segment sequence numbers will be to the left of last_ack_sent,
 	 * but they will eventually catch up.
@@ -1395,6 +1406,11 @@ trimthenstep6:
 				goto close;
 
 			case TCPS_ESTABLISHED:
+				if (tp->last_ack_sent != th->th_seq &&
+				    tcp_insecure_rst == 0) {
+					/* tcpstat.tcps_badrst++; */
+					goto drop;
+				}
 			case TCPS_FIN_WAIT_1:
 			case TCPS_FIN_WAIT_2:
 			case TCPS_CLOSE_WAIT:
