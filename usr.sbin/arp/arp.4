@@ -118,6 +118,9 @@ but received a reply indicating that the host is at a new address.  This
 can happen normally when host hardware addresses change, or when a mobile
 node arrives or leaves the local subnet.  It can also indicate a problem
 with proxy ARP.
+This message can only be issued if the sysctl
+.Dv net.link.ether.inet.log_arp_movements
+is set to 1, which is the system's default behaviour.
 .Pp
 .Em "arpresolve: can't allocate llinfo for %d.%d.%d.%d" :
 The route for the referenced host points to a device upon which ARP is
@@ -138,7 +141,8 @@ is set to 1, which is the system's default behaviour.
 .Xr route 4 ,
 .Xr arp 8 ,
 .Xr ifconfig 8 ,
-.Xr route 8
+.Xr route 8 ,
+.Xr sysctl 8
 .Rs
 .%A Plummer, D.
 .%B "An Ethernet Address Resolution Protocol"
