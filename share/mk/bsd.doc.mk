@@ -1,5 +1,5 @@
 #	from: @(#)bsd.doc.mk	5.3 (Berkeley) 1/2/91
-#	$Id: bsd.doc.mk,v 1.2 1994/08/04 21:09:22 wollman Exp $
+#	$Id: bsd.doc.mk,v 1.3 1994/08/28 15:37:39 bde Exp $
 
 PRINTER?=	ps
 
@@ -75,6 +75,12 @@ install:
         fi
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 ${DOC}.* \
 	${DESTDIR}${BINDIR}/${VOLUME}
+
+DISTRIBUTION?=	bindist
+.if !target(distribute)
+distribute:
+	cd ${.CURDIR} ; $(MAKE) install DESTDIR=${RELEASEDIR}/${DISTRIBUTION} SHARED=copies
+.endif
 
 spell: ${SRCS}
 	(cd ${.CURDIR};  spell ${SRCS} ) | sort | \
