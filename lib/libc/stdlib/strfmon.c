@@ -174,18 +174,6 @@ strfmon(char * __restrict s, size_t maxsize, const char * __restrict format,
 				case '-':	/* alignment (left)  */
 					flags |= LEFT_JUSTIFY;
 					continue;
-				case '#':	/* left || right precision */
-				case '.':
-					if (*fmt == '#')
-						ntmp = &left_prec;
-					else
-						ntmp = &right_prec;
-
-					if (!isdigit((unsigned char)*++fmt))
-						goto format_error;
-					GET_NUMBER(*ntmp);
-					fmt--;
-					continue;
 				default:
 					break;
 			}
@@ -201,7 +189,21 @@ strfmon(char * __restrict s, size_t maxsize, const char * __restrict format,
 			if (dst + width >= s + maxsize)
 				goto e2big_error;
 		}
-		
+
+		/* Left precision */
+		if (*fmt == '#') {
+			if (!isdigit((unsigned char)*++fmt))
+				goto format_error;
+			GET_NUMBER(left_prec);
+		}
+
+		/* Right precision */
+		if (*fmt == '.') {
+			if (!isdigit((unsigned char)*++fmt))
+				goto format_error;
+			GET_NUMBER(right_prec);
+		}
+
 		/* Conversion Characters */
 		switch (*fmt++) {
 			case 'i':	/* use internaltion currency format */
