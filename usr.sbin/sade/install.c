@@ -1059,8 +1059,8 @@ installVarDefaults(dialogMenuItem *self)
 	cp = "/usr/bin/ee";
     variable_set2(VAR_EDITOR,			cp, 0);
     variable_set2(VAR_FTP_USER,			"ftp", 0);
-    variable_set2(VAR_BROWSER_PACKAGE,		"lynx", 0);
-    variable_set2(VAR_BROWSER_BINARY,		"/usr/local/bin/lynx", 0);
+    variable_set2(VAR_BROWSER_PACKAGE,		"links", 0);
+    variable_set2(VAR_BROWSER_BINARY,		"/usr/local/bin/links", 0);
     variable_set2(VAR_FTP_STATE,		"passive", 0);
     variable_set2(VAR_NFS_SECURE,		"NO", -1);
     if (OnVTY)
