@@ -16,7 +16,7 @@
 .\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 .\"
 .\"	@(#)resolver.3	6.5 (Berkeley) 6/23/90
-.\"	$Id: resolver.3,v 8.16 2001/12/28 04:24:20 marka Exp $
+.\"	$Id: resolver.3,v 8.17 2002/08/07 03:47:33 marka Exp $
 .\"
 .Dd July 4, 2000
 .Dt RESOLVER @LIB_NETWORK_EXT_U@ 
@@ -552,6 +552,8 @@ to a full domain name.
 The compressed name is contained in a query or reply message;
 .Fa msg
 is a pointer to the beginning of the message.
+.Fa eomorig
+is a pointer to the first location after the message.
 The uncompressed name is placed in the buffer indicated by
 .Fa exp_dn
 which is of size
