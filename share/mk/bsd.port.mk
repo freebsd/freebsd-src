@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.165.2.8 1996/06/20 23:53:28 jkh Exp $
+# $Id: bsd.port.mk,v 1.165.2.9 1996/06/22 21:34:40 gpalmer Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -148,7 +148,7 @@
 # FETCH_BEFORE_ARGS -
 #				  Arguments to ${FETCH_CMD} before filename (default: none).
 # FETCH_AFTER_ARGS -
-#				  Arguments to ${FETCH_CMD} followingfilename (default: none).
+#				  Arguments to ${FETCH_CMD} following filename (default: none).
 #
 # Motif support:
 #
