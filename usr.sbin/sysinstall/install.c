@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.240 1999/07/06 09:19:35 jkh Exp $
+ * $Id: install.c,v 1.241 1999/07/16 11:13:09 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -533,7 +533,7 @@ nodisks:
 	    dialog_clear_norefresh();
 	    tmp = tcpDeviceSelect();
 	    dialog_clear_norefresh();
-	    if (tmp && !msgYesNo("Would you like to bring the %s interface up right now?", tmp->name))
+	    if (tmp && !((DevInfo *)tmp->private)->use_dhcp && !msgYesNo("Would you like to bring the %s interface up right now?", tmp->name))
 		if (!tmp->init(tmp))
 		    msgConfirm("Initialization of %s device failed.", tmp->name);
 	}

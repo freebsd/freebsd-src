@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.168 1999/07/06 08:45:40 jkh Exp $
+ * $Id: sysinstall.h,v 1.169 1999/07/16 11:13:09 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -316,6 +316,7 @@ typedef int (*commandFunc)(char *key, void *data);
 
 /* This is the structure that Network devices carry around in their private, erm, structures */
 typedef struct _devPriv {
+    int use_dhcp;
     char ipaddr[IPADDR_FIELD_LEN];
     char netmask[IPADDR_FIELD_LEN];
     char extras[EXTRAS_FIELD_LEN];
