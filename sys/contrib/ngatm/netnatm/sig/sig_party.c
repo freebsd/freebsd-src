@@ -26,7 +26,7 @@
  *
  * Author: Hartmut Brandt <harti@freebsd.org>
  *
- * $Begemot: libunimsg/netnatm/sig/sig_party.c,v 1.17 2004/07/08 08:22:21 brandt Exp $
+ * $Begemot: libunimsg/netnatm/sig/sig_party.c,v 1.18 2004/08/05 07:11:01 brandt Exp $
  *
  * Party instance handling
  */
@@ -44,7 +44,7 @@
 static void drop_partyE(struct party *p);
 static int epstate_compat(struct party *, enum uni_epstate);
 
-#define DEF_PRIV_SIG(NAME, FROM)	[SIG##NAME]	"SIG"#NAME,
+#define DEF_PRIV_SIG(NAME, FROM)	[SIG##NAME] =	"SIG"#NAME,
 static const char *const party_sigs[] = {
 	DEF_PARTY_SIGS
 };
