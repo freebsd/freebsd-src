@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"/
-.Dd July 13, 2003
+.Dd August 1, 2003
 .Dt ATH 4
 .Os
 .Sh NAME
@@ -284,15 +284,7 @@ Alternatively, most 11g compatibility issues are in the 802.11 layer
 and you may be able to workaround issues by modifying the
 .Xr wlan 4
 module.
-.Pp
-Atheros Turbo mode is untested.
 .Sh BUGS
-.Pp
-Roaming mode is broken.
-If you lose your access point by going out of
-range the driver does not automaticaly re-associate.
-.Pp
-Adhoc mode is untested and possibly/probably broken.
 .Pp
 Performance in lossy environments is suboptimal.
 The algorithm used to select the rate for transmitted packets is
@@ -305,12 +297,6 @@ General performance is suboptimal.
 The Atheros hardware is known to be capable of transfer rates of 23-34 Mb/s
 (or more) in 11a and 11g modes using their NDIS (aka Windows) driver.
 Results with this driver are mixed and seem to vary significantly.
-.Pp
-It has been observed that getting a DHCP address sometimes requires
-multiple tries.
-This seems to happen only with AR5211 and AR5212 parts and mostly
-in a noisy environment (i.e. one where many access points are found).
-This problem is specific to the driver and not the hardware.
 .Pp
 The driver does not fully enable power-save operation of the chip;
 consequently power use is suboptimal.
