@@ -1,5 +1,5 @@
 #	from: @(#)sys.mk	8.2 (Berkeley) 3/21/94
-#	$Id: sys.mk,v 1.12 1996/03/24 00:02:38 wosch Exp $
+#	$Id: sys.mk,v 1.13 1996/05/09 13:01:44 phk Exp $
 
 unix		?=	We run FreeBSD, not UNIX.
 
@@ -95,21 +95,18 @@ YFLAGS		?=	-d
 	${CC} ${CFLAGS} -c y.tab.c -o ${.TARGET}
 	rm -f y.tab.c
 
-# XXX not -j safe
 .l.o:
-	${LEX} ${LFLAGS} ${.IMPSRC}
-	${CC} ${CFLAGS} -c lex.yy.c -o ${.TARGET}
-	rm -f lex.yy.c
+	${LEX} -t ${LFLAGS} ${.IMPSRC} > ${.PREFIX}.tmp.c
+	${CC} ${CFLAGS} -c ${.PREFIX}.tmp.c -o ${.TARGET}
+	rm -f ${.PREFIX}.tmp.c
 
 # XXX not -j safe
 .y.c:
 	${YACC} ${YFLAGS} ${.IMPSRC}
 	mv y.tab.c ${.TARGET}
 
-# XXX not -j safe
 .l.c:
-	${LEX} ${LFLAGS} ${.IMPSRC}
-	mv lex.yy.c ${.TARGET}
+	${LEX} -t ${LFLAGS} ${.IMPSRC} > ${.TARGET}
 
 .s.out .c.out .o.out:
 	${CC} ${CFLAGS} ${LDFLAGS} ${.IMPSRC} ${LDLIBS} -o ${.TARGET}
@@ -125,11 +122,10 @@ YFLAGS		?=	-d
 	${CC} ${CFLAGS} ${LDFLAGS} y.tab.c ${LDLIBS} -ly -o ${.TARGET}
 	rm -f y.tab.c
 
-# XXX not -j safe
 .l.out:
-	${LEX} ${LFLAGS} ${.IMPSRC}
-	${CC} ${CFLAGS} ${LDFLAGS} lex.yy.c ${LDLIBS} -ll -o ${.TARGET}
-	rm -f lex.yy.c
+	${LEX} -t ${LFLAGS} ${.IMPSRC} > ${.PREFIX}.tmp.c
+	${CC} ${CFLAGS} ${LDFLAGS} ${.PREFIX}.tmp.c ${LDLIBS} -ll -o ${.TARGET}
+	rm -f ${.PREFIX}.tmp.c
 
 .include <bsd.own.mk>
 
