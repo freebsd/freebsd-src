@@ -1,118 +1,297 @@
-<!-- $Id:$ -->
+<!-- $Id: eresources.sgml,v 1.1.1.1 1995/04/28 16:19:59 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
     <chapt>
       <heading>Additional resources on the Internet</heading>
 
       <sect>
-	<heading>Mailing lists</heading>
+        <heading>Mailing lists<label id="eresources:mailing-lists"></heading>
 
-	<p>The FreeBSD Project runs a number of Internet mailing
-	  lists dedicated to the discussion of FreeBSD and
-	  related topics.  Users with access to Internet mail are
-	  encouraged to subscribe to the lists that interest them
-	  and ask questions.  The procedure is quite simple, just
-	  send a mail message to:
-	  <tscreen>
-	    <tt>majordomo@freebsd.org</tt>
-	  </tscreen>
-	  with a message body of:
-	  <tscreen>
-	    <tt><bf>subscribe <it>listname</it></bf></tt>
-	  </tscreen>
-	  where <em>listname</em> is one of the lists described
-	  below.  You can subscribe to multiple lists with a
-	  single message by having several <em>subscribe</em>
-	  lines.  For more detailed information, send a message
-	  to:
-	  <tscreen>
-	    <tt>majordomo@freebsd.org</tt>
-	  </tscreen>
-	  with a message body of
-	  <tscreen>
-	    <tt><bf>help</bf></tt>
-	  </tscreen>
+<p><em>Contributed by &a.dufalt;.<newline>
+  5 May 1995.</em>
 
-	<sect1>
-	  <heading>General discussion lists</heading>
-	  <p><descrip>
-	      <tag>freebsd-announce</tag> Important announcements
-	      about FreeBSD are posted here.
+Though many of the FreeBSD development members read USENET, we cannot
+always guarantee that we'll get to your questions in a timely fashion
+(or at all) if you post them only to one of the comp.os.386bsd.*
+groups.  By addressing your questions to the appropriate mailing list
+you will reach both us and a concentrated FreeBSD audience, invariably
+assuring a better (or at least faster) response.
 
-	      <tag>freebsd-questions</tag> General discussion of
-	      problems people experience in setting up and using
-	      FreeBSD. 
+There are list charters at the bottom of this document.  Please read
+the list charter before joining a list.  We must strive to
+keep the signal to noise ratio of the lists high, especially in
+the technical lists.
 
-	      <tag>freebsd-hackers</tag> Technical discussions
-	      about the design and implementation of FreeBSD. 
+<sect1><heading>List summary</heading>
 
-	      <tag>freebsd-bugs</tag> Bug reports and discussions
-	      of reported bugs are posted here, although the
-	      discussions are usually moved over to the
-	      <em>freebsd-hackers</em> mailing list if the become involved.
-	  </descrip>
+<p><bf>General lists:</bf> The following are general lists that
+anyone is free to join:
+<verb>
+List                     Purpose
+----------------------------------------------------------------------
+freebsd-announce         Important events / milestones
+freebsd-bugs             Bug reports
+freebsd-chat             Non technical items related to the community
+freebsd-policy           Policy issues and suggestions
+freebsd-questions        User questions
+freebsd-current          Discussions about the use of FreeBSD-current
+</verb>
 
-	<sect1>
-	  <heading>CVS lists</heading>
+<bf>Technical lists:</bf> The following are the technical lists. You should
+read the charter carefully before joining them, and you should keep
+your e-mail within the scope of the guidelines.
+<verb>
+List                     Purpose
+----------------------------------------------------------------------
+freebsd-doc              Documentation project
+freebsd-fs               Filesystems
+freebsd-hackers          General Technical discussions
+freebsd-hardware         General discussion of FreeBSD hardware
+freebsd-platforms        Porting to Non-Intel platforms
+freebsd-ports            Discussion of "ports"
+freebsd-security         Security issues
+freebsd-scsi             SCSI subsystem
+</verb>
+
+<bf>Limited lists:</bf> The following are limited lists that you will need
+approval to join.  Even though access to these lists is controled,
+anyone is free to send suggestions and comments to them.  It is a
+good idea establish a presence in the technical lists before asking
+to join one of these limited lists.
+<verb>
+List                     Purpose
+----------------------------------------------------------------------
+freebsd-admin            Administrative issues
+freebsd-arch             Architecture and design discussions
+freebsd-core             FreeBSD core team
+freebsd-install          Installation development
+</verb>
+
+<bf>CVS lists:</bf> The following lists are for people seeing the log messages
+for source changes in specific areas:
+<verb>
+List name       Source area          Area Description (source for)
+----------------------------------------------------------------------
+cvs-CVSROOT     /usr/src/[A-Z]*      Top level /usr/src file changes
+cvs-all         /usr/src             All changes to the tree (superset)
+cvs-bin         /usr/src/bin         System binaries
+cvs-etc         /usr/src/etc         System files
+cvs-games       /usr/src/games       Games
+cvs-gnu         /usr/src/gnu         GPL'd utilities
+cvs-include     /usr/src/include     Include files
+cvs-kerberosIV  /usr/src/kerberosIV  Kerberos encryption code
+cvs-lib         /usr/src/lib         System libraries
+cvs-libexec     /usr/src/libexec     System binaries
+cvs-ports       /usr/ports           Ported software
+cvs-sbin        /usr/src/sbin        System binaries
+cvs-share       /usr/src/share       System shared files
+cvs-sys         /usr/src/sys         Kernel
+cvs-usrbin      /usr/src/usr.bin     Use binaries
+cvs-usrsbin     /usr/src/usr.sbin    System binaries
+</verb>
+
+<sect1><heading>How to subscribe</heading>
+
+<p>All mailing lists live on `FreeBSD.ORG', so to post to a list you
+simply mail to `&lt;listname&gt;@FreeBSD.ORG'.  It will then be redistributed
+to mailing list members throughout the world.
+
+To subscribe to a list, send mail to:
+<tscreen><verb>
+majordomo@FreeBSD.ORG
+</verb></tscreen>
+And include the keyword
+<tscreen><verb>
+subscribe <listname> [<optional address>]
+</verb></tscreen>
+In the body of your message.  For example, to subscribe yourself to
+freebsd-announce, you'd do:
+<tscreen><verb>
+% mail majordomo@FreeBSD.ORG
+subscribe freebsd-announce
+^D
+</verb></tscreen>
+If you want to subscribe yourself under a different name, or submit a
+subscription request for a local mailing list (note: this is more efficient
+if you have several interested parties at one site, and highly appreciated by
+us!), you would do something like:
+<tscreen><verb>
+% mail majordomo@FreeBSD.ORG
+subscribe freebsd-announce local-announce@somesite.com
+^D
+</verb></tscreen>
+Finally, it is also possible to unsubscribe yourself from a list, get a
+list of other list members or see the list of mailing lists again by
+sending other types of control messages to majordomo.  For a complete
+list of available commands, do this:
+<tscreen><verb>
+% mail majordomo@FreeBSD.ORG
+help
+^D
+</verb></tscreen>
+Finally, we again request that you keep the technical mailing lists on
+a technical track.  If you're only interested in the "high points",
+then it's suggested that you join freebsd-announce, which will contain
+only infrequent traffic.
+
+<sect1><heading>List charters</heading>
+
+<p>
+<descrip>
+<tag/FREEBSD-ADMIN/ <em>Administrative issues</em><newline>
+<!-- XXX -->
+
+<tag/FREEBSD-ANNOUNCE/ <em>Important events / milestones</em><newline>
+This is the mailing list for people interested only in occasional
+announcements of significant freebsd events.  This includes
+announcements about snapshots and other releases.  It contains
+announcements of new FreeBSD capabilities.  It may contain calls
+for volunteers etc.  This is a low volume list.
+
+<tag/FREEBSD-ARCH/ <em>Architecture and design discussions</em><newline>
+This is the mailing list for people discussing FreeBSD architectural
+issues.  It is a closed list, and not for general subscription.
+
+<tag/FREEBSD-BUGS/ <em>Bug reports</em><newline>
+This is the mailing list for reporting bugs in FreeBSD
+Whenever possible, bugs should be
+submitted using "send-pr".
+
+<tag/FREEBSD-CHAT/ <em>Non technical items related to the
+                              community</em><newline>
+This list contains the overflow from the other lists about
+non-technical, social information.  It includes discussion about
+whether Jordan looks like a tune ferret or not, whether or not to
+type in capitals, who is drinking too much coffee, where the best
+beer is brewed, who is brewing beer in their basement, and so on.
+Occasional announcements of important events (such as upcoming
+parties, weddings, births, new jobs, etc) can be made to the
+technical lists, but the follow ups should be directed to this
+-chat list.
+
+<tag/FREEBSD-CORE/ <em>FreeBSD core team</em><newline>
+This is an internal mailing list for use by the core members.
+
+<tag/FREEBSD-CURRENT/ <em>Discussions about the use of
+                                  FreeBSD-current</em><newline>
+This is the mailing list for users of freebsd-current.  It includes
+warnings about new features coming out in -current that will affect the
+users, and instructions on steps that must be taken to remain -current.
+Anyone running "current" must subscribe to this list.
+
+<tag/FREEBSD-DOC/ <em>Documentation project</em><newline> 
+This mailing list belongs to the FreeBSD Doc Project and is for
+the discussion of documentation related issues and projects.
+
+<tag/FREEBSD-FS/ <em>Filesystems</em><newline> 
+Discussions concerning FreeBSD filesystems.
+
+<tag/FREEBSD-HACKERS/ <em>Technical discussions</em><newline> 
+This is a forum for technical discussions related to FreeBSD.  This
+is the primary technical mailing list.  It
+is for individuals actively working on FreeBSD, to bring up problems
+or discuss alternative solutions.  Individuals interested in
+following the technical discussion are also welcome.
+
+<tag/FREEBSD-HARDWARE/ <em>General discussion of FreeBSD
+                                          hardware</em><newline> 
+General discussion about the types of hardware that FreeBSD runs on,
+various problems and suggestions concerning what to buy or avoid.
+
+<tag/FREEBSD-INSTALL/ <em>Installation discussion</em><newline> 
+This is the mailing list for people discussing FreeBSD installation
+development for the 2.0 release.
+
+<tag/FREEBSD-PLATFORMS/ <em>Porting to Non-Intel
+                                              platforms</em><newline> 
+Cross-platform freebsd issues, general discussion and proposals for
+non-Intel FreeBSD ports.
+
+<tag/FREEBSD-POLICY/ <em>Policy issues and
+                                                suggestions</em><newline> 
+This is a forum for policy discussions related to FreeBSD.  This
+includes where FreeBSD is going, how to set up a consortium, whether
+or not and how to make FreeBSD pay for itself, how to attract more
+users, and so on.  When a topic relates directly to FreeBSD but has
+little or no technical content then it should be sent to this list.
+
+<tag/FREEBSD-PORTS/ <em>Discussion of "ports"</em><newline> 
+Discussions concerning FreeBSD's "ports collection" (/usr/ports), proposed
+ports, modifications to ports collection infrastructure and general
+coordination efforts.
+
+<tag/FREEBSD-QUESTIONS/ <em>User questions</em><newline> 
+This is the mailing list for questions about FreeBSD.  You should not
+send "how to" questions to the technical lists unless you consider the
+question to be pretty technical.
+
+<tag/FREEBSD-SCSI/ <em>SCSI subsystem</em><newline> 
+This is the mailing list for people working on the scsi subsystem
+for FreeBSD.
+
+<tag/FREEBSD-SECURITY/ <em>Security issues</em><newline> 
+FreeBSD computer security issues (DES, Kerberos, known security holes and
+fixes, etc).
+</descrip>
 
       <sect>
-	<heading>Usenet newsgroups</heading>
+        <heading>Usenet newsgroups</heading>
 
-	<p>While no newsgroups dedicated to FreeBSD exist, there
-	  are many in which FreeBSD is discussed or are otherwise
-	  relevant to FreeBSD users.
+        <p>While no newsgroups dedicated to FreeBSD exist, there
+          are many in which FreeBSD is discussed or are otherwise
+          relevant to FreeBSD users.
 
-	<sect1>
-	  <heading>BSD specific newsgroups</heading>
+        <sect1>
+          <heading>BSD specific newsgroups</heading>
 
-	  <p><itemize>
-	      <item> comp.unix.bsd.freebsd.announce
-	      <item> comp.unix.bsd.freebsd.misc
-	    </itemize>
+          <p><itemize>
+              <item> comp.unix.bsd.freebsd.announce
+              <item> comp.unix.bsd.freebsd.misc
+            </itemize>
 
-	<sect1>
-	  <heading>Other Unix newsgroups of interest</heading>
+        <sect1>
+          <heading>Other Unix newsgroups of interest</heading>
 
-	  <p><itemize>
-	      <item> comp.unix 
-	      <item> comp.unix.questions 
-	      <item> comp.unix.admin 
-	      <item> comp.unix.programmer 
-	      <item> comp.unix.shell 
-	      <item> comp.unix.user-friendly 
-	      <item> comp.security.unix 
-	      <item> comp.sources.unix 
-	      <item> comp.unix.advocacy 
-	      <item> comp.unix.misc 
-	      <item> comp.os.386bsd.announce
-	      <item> comp.os.386bsd.apps
-	      <item> comp.os.386bsd.bugs 
-	      <item> comp.os.386bsd.development 
-	      <item> comp.os.386bsd.misc 
-	      <item> comp.os.386bsd.questions 
-	      <item> comp.bugs.4bsd 
-	      <item> comp.bugs.4bsd.ucb-fixes 
-	      <item> comp.unix.bsd 
-	    </itemize>
+          <p><itemize>
+              <item> comp.unix 
+              <item> comp.unix.questions 
+              <item> comp.unix.admin 
+              <item> comp.unix.programmer 
+              <item> comp.unix.shell 
+              <item> comp.unix.user-friendly 
+              <item> comp.security.unix 
+              <item> comp.sources.unix 
+              <item> comp.unix.advocacy 
+              <item> comp.unix.misc 
+              <item> comp.os.386bsd.announce
+              <item> comp.os.386bsd.apps
+              <item> comp.os.386bsd.bugs 
+              <item> comp.os.386bsd.development 
+              <item> comp.os.386bsd.misc 
+              <item> comp.os.386bsd.questions 
+              <item> comp.bugs.4bsd 
+              <item> comp.bugs.4bsd.ucb-fixes 
+              <item> comp.unix.bsd 
+            </itemize>
 
-	<sect1>
-	  <heading>X-Window system</heading>
+        <sect1>
+          <heading>X-Window system</heading>
 
-	  <p><itemize>
-	      <item> comp.windows.x.i386unix 
-	      <item> comp.windows.x 
-	      <item> comp.windows.x.apps 
-	      <item> comp.windows.x.announce 
-	      <item> comp.windows.x.intrinsics 
-	      <item> comp.windows.x.motif 
-	      <item> comp.windows.x.pex 
-	      <item> comp.emulators.ms-windows.wine 
-	    </itemize>
+          <p><itemize>
+              <item> comp.windows.x.i386unix 
+              <item> comp.windows.x 
+              <item> comp.windows.x.apps 
+              <item> comp.windows.x.announce 
+              <item> comp.windows.x.intrinsics 
+              <item> comp.windows.x.motif 
+              <item> comp.windows.x.pex 
+              <item> comp.emulators.ms-windows.wine 
+            </itemize>
 
       <sect>
-	<heading>Word Wide Web servers</heading>
+        <heading>Word Wide Web servers</heading>
 
-	<p><itemize> 
-	    <item> <url url="http://www.freebsd.org/"></item>
-	  </itemize>
+        <p><itemize> 
+            <item> <url url="http://www.freebsd.org/"></item>
+          </itemize>
     </sect>
