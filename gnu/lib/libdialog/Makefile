@@ -17,8 +17,8 @@ EXAMPLES= Makefile check1.c check2.c check3.c dselect.c fselect.c \
 
 CFLAGS+= -I${.CURDIR} -Wall -Wstrict-prototypes -DLOCALE
 
-LDADD+= -lncurses -lmytinfo
-DPADD+= ${LIBNCURSES} ${LIBMYTINFO}
+LDADD+= -lncurses
+DPADD+= ${LIBNCURSES}
 
 beforeinstall:
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/dialog.h \
@@ -35,7 +35,8 @@ afterinstall:
 MLINKS+=dialog.3 draw_shadow.3 dialog.3 draw_box.3 \
 	dialog.3 line_edit.3 dialog.3 strheight.3 \
 	dialog.3 strwidth.3 dialog.3 dialog_create_rc.3 \
-	dialog.3 dialog_yesno.3 dialog.3 dialog_prgbox.3 \
+	dialog.3 dialog_yesno.3 dialog.3 dialog_noyes.3 \
+	dialog.3 dialog_prgbox.3 \
 	dialog.3 dialog_textbox.3 dialog.3 dialog_menu.3 \
 	dialog.3 dialog_checklist.3 dialog.3 dialog_radiolist.3 \
 	dialog.3 dialog_inputbox.3 dialog.3 dialog_clear_norefresh.3 \
