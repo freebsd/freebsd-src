@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 
 #include <pwd.h>
 #include <stddef.h>
+#include <string.h>
 #include <unistd.h>
 
 #define PAM_SM_AUTH
