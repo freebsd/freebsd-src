@@ -1,4 +1,4 @@
-Hardware Documentation Guide:  $Id: hardware.hlp,v 1.32 1998/03/08 09:29:50 jkh Exp $
+Hardware Documentation Guide:  $Id: hardware.hlp,v 1.33 1998/03/27 03:11:23 yokota Exp $
 
 Contents last changed:  Jan 14th, 1997
 
@@ -96,6 +96,7 @@ ex0     dyn     dyn     dyn     n/a     Intel EtherExpress Pro/10 cards
 fe0     300     dyn     n/a     n/a     Allied-Telesis AT1700, RE2000 and
                                         Fujitsu FMV-180 series cards.
 fxp0    dyn     dyn     n/a     dyn     Intel EtherExpress Pro/100B
+tl0     dyn     dyn     n/a     dyn     TI TNET100 'ThunderLAN' cards.
 ie0     300     10      dyn     d0000   AT&T StarLAN 10 and EN100;
                                         3Com 3C507; NI5210
 ix0     300     10      dyn     d0000   Intel EtherExpress cards
