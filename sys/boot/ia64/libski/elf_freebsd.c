@@ -191,6 +191,7 @@ elf_exec(struct preloaded_file *fp)
 	__asm __volatile("srlz.i;;");
 	__asm __volatile("itr.i itr[%0]=%1;;"
 			 :: "r"(0), "r"(*(u_int64_t*)&pte));
+	__asm __volatile("srlz.i;;");
 	__asm __volatile("itr.d dtr[%0]=%1;;"
 			 :: "r"(0), "r"(*(u_int64_t*)&pte));
 	__asm __volatile("srlz.i;;");
