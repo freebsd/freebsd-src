@@ -18,7 +18,7 @@
 .\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
 .\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 .\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR Ohttp://wafu.netgate.net/tama/unix/indexe.htmlTHERWISE) ARISING IN ANY WAY
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
@@ -90,7 +90,7 @@ argument is ignored.
 .El
 .Sh ENVIRONMENT
 A set of functions are provided for manipulating a flat variable space similar
-to the traditional shell-supported evironment.  Major enhancements are support
+to the traditional shell-supported environment.  Major enhancements are support
 for set/unset hook functions.
 .Bl -hang -width 10n
 .It Xo
@@ -151,7 +151,7 @@ may be used to prevent a variable being unset.
 .Bl -hang -width 10n
 .It Xo
 .Ft int
-.Fn getopt "int argc" "char * const *argv" "cont char *optstring"
+.Fn getopt "int argc" "char * const *argv" "const char *optstring"
 .Xc
 .It Xo
 .Ft long
@@ -188,7 +188,7 @@ Requires
 Defined as
 .Fn _setjmp
 and
-.Fn _lonjmp
+.Fn _longjmp
 respectively as there is no signal state to manipulate.  Requires
 .In setjmp.h
 .El
