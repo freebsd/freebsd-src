@@ -76,7 +76,8 @@ objwarn:
 .endif
 .endif
 
-.if !target(obj) && !defined(NOOBJ)
+.if !defined(NOOBJ)
+.if !target(obj)
 obj:
 	@if ! test -d ${CANONICALOBJDIR}/; then \
 		mkdir -p ${CANONICALOBJDIR}; \
@@ -97,6 +98,7 @@ objlink:
 		echo "No ${CANONICALOBJDIR} to link to - do a make obj."; \
 	fi
 .endif
+.endif !defined(NOOBJ)
 
 #
 # where would that obj directory be?
