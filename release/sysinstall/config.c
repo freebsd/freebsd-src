@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.16.2.32 1995/11/03 12:02:24 jkh Exp $
+ * $Id: config.c,v 1.16.2.33 1995/11/04 11:08:43 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -50,12 +50,8 @@ static int nchunks;
 
 /* arg to sort */
 static int
-chunk_compare(const void *p1, const void *p2)
+chunk_compare(Chunk *c1, Chunk *c2)
 {
-    Chunk *c1, *c2;
-
-    c1 = (Chunk *)p1;
-    c2 = (Chunk *)p2;
     if (!c1 && !c2)
 	return 0;
     else if (!c1 && c2)
@@ -70,6 +66,23 @@ chunk_compare(const void *p1, const void *p2)
 	return 1;
     else
 	return strcmp(((PartInfo *)(c1->private))->mountpoint, ((PartInfo *)(c2->private))->mountpoint);
+}
+
+static void
+chunk_sort(void)
+{
+    int i, j;
+
+    for (i = 0; i < nchunks; i++) {
+	for (j = 0; j < nchunks; j++) {
+	    if (chunk_compare(chunk_list[j], chunk_list[j + 1]) > 0) {
+		Chunk *tmp = chunk_list[j];
+
+		chunk_list[j] = chunk_list[j + 1];
+		chunk_list[j + 1] = tmp;
+	    }
+	}
+    }
 }
 
 static char *
@@ -179,7 +192,7 @@ configFstab(void)
 	}
     }
     chunk_list[nchunks] = 0;
-    qsort(chunk_list, nchunks, sizeof(Chunk *), chunk_compare);
+    chunk_sort();
 
     fstab = fopen("/etc/fstab", "w");
     if (!fstab) {

@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.42.2.42 1995/11/03 12:02:45 jkh Exp $
+ * $Id: sysinstall.h,v 1.42.2.43 1995/11/04 15:08:23 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -91,6 +91,7 @@
 /* Internal environment variable names */
 #define DISK_PARTITIONED	"_diskPartitioned"
 #define DISK_LABELLED		"_diskLabelled"
+#define DISK_SELECTED		"_diskSelected"
 #define SYSTEM_STATE		"_systemState"
 #define RUNNING_ON_ROOT		"_runningOnRoot"
 #define TCP_CONFIGURED		"_tcpConfigured"
