@@ -1,13 +1,14 @@
-# $Id: Makefile,v 1.5 1997/02/22 16:13:44 peter Exp $
+# $Id: Makefile,v 1.6 1997/03/13 04:21:21 davidn Exp $
 
 FILES	= 	2681.sys cdk.sys
 
-MAN4	=	stl.4 stli.4
+MAN4	=	stl.4
 
 LIBMODE	=	444
 LIBOWN	=	bin
 LIBGRP	=	bin
 CLEANFILES= 	${FILES}
+MLINKS	=	stl.4 stli.4
 
 all: $(FILES)
 
