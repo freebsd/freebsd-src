@@ -80,6 +80,8 @@ statment :
 	| order
 ;
 charmap : DEFN CHAR {
+	if (strlen($1) + 1 > CHARMAP_SYMBOL_LEN)
+		yyerror("Charmap symbol name '%s' is too long", $1);
 	strcpy(charmap_table[$2], $1);
 }
 ;
