@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.197 1999/05/01 11:27:37 jkh Exp $
+ * $Id: menus.c,v 1.198 1999/05/05 11:34:03 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -460,10 +460,10 @@ DMenu MenuXDesktops = {
     "you can choose any one of the following desktops as alternatives.",
     NULL,
     NULL,
-    { { "Gnome",	"The GNOME desktop environment.",
-	NULL, dmenuSetVariable, NULL, VAR_DESKSTYLE "=gnome" },
-      { "KDE",		"The K Desktop Environment.",
+    { { "KDE",		"The K Desktop Environment.",
 	NULL, dmenuSetVariable, NULL, VAR_DESKSTYLE "=kde" },
+      { "GNOME",	"The GNOME desktop environment.",
+	NULL, dmenuSetVariable, NULL, VAR_DESKSTYLE "=gnome" },
       { "Afterstep",	"The Afterstep Window manager",
 	NULL, dmenuSetVariable, NULL, VAR_DESKSTYLE "=afterstep" },
       { "Windowmaker",	"The Windowmaker Window manager",
