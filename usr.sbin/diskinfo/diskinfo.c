@@ -41,7 +41,7 @@
 static void
 usage(void)
 {
-	fprintf(stderr, "Usage: diskinfo [-tv]\n");
+	fprintf(stderr, "usage: diskinfo [-tv] disk ...\n");
 	exit (1);
 }
 
@@ -72,6 +72,9 @@ main(int argc, char **argv)
 	}
 	argc -= optind;
 	argv += optind;
+
+	if (argc < 1)
+		usage();
 
 	for (i = 0; i < argc; i++) {
 		fd = open(argv[i], O_RDONLY);
