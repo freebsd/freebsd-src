@@ -109,10 +109,12 @@ main(argc, argv)
 	args.fspec = dev;
 	args.export.ex_root = DEFAULT_ROOTUID;
 
-	if (mntflags & MNT_RDONLY)
-		args.export.ex_flags = MNT_EXRDONLY;
-	else
-		args.export.ex_flags = 0;
+	/*
+	 * ISO 9660 filesystems are not writeable.
+	 */
+	mntflags |= MNT_RDONLY;
+	args.export.ex_flags = MNT_EXRDONLY;
+
 	args.flags = opts;
 
 	if (mount(MOUNT_CD9660, dir, mntflags, &args) < 0)
