@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)cmds.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: cmds.c,v 1.3 1997/10/22 06:20:04 charnier Exp $";
+	"$Id: cmds.c,v 1.4 1997/10/29 07:35:27 charnier Exp $";
 #endif /* not lint */
 
 #include "timedc.h"
@@ -68,7 +68,7 @@ static const char rcsid[] =
 
 int sock;
 int sock_raw;
-char myname[MAXHOSTNAMELEN+1];
+char myname[MAXHOSTNAMELEN];
 struct hostent *hp;
 struct sockaddr_in server;
 struct sockaddr_in dayaddr;

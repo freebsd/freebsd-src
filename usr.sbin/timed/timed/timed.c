@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)timed.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: timed.c,v 1.5 1997/10/22 06:19:49 charnier Exp $";
+	"$Id: timed.c,v 1.6 1997/10/29 07:32:30 charnier Exp $";
 #endif /* not lint */
 
 #define TSPTYPES
@@ -92,7 +92,7 @@ static struct nets {
 struct hosttbl hosttbl[NHOSTS+1];	/* known hosts */
 
 static struct goodhost {		/* hosts that we trust */
-	char	name[MAXHOSTNAMELEN+1];
+	char	name[MAXHOSTNAMELEN];
 	struct goodhost *next;
 	char	perm;
 } *goodhosts;
