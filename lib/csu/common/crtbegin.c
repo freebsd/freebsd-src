@@ -27,10 +27,6 @@
 
 #include <sys/param.h>
 
-#define ABI_VENDOR	"FreeBSD"
-#define ABI_SECTION	".note.ABI-tag"
-#define ABI_NOTETYPE	1
-
 typedef void (*fptr)(void);
 
 static fptr ctor_list[1] __attribute__((section(".ctors"))) = { (fptr) -1 };
@@ -82,4 +78,4 @@ _fini(void)
 	(*p_do_dtors)();
 }
 
-#include "crtbegin.c"
+#include "crtbrand.c"
