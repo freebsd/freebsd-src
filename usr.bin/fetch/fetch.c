@@ -418,7 +418,7 @@ fetch(char *URL, const char *path)
 	sb.st_size = -1;
 	if (!o_stdout) {
 		r = stat(path, &sb);
-		if (r == 0 && S_ISREG(sb.st_mode)) {
+		if (r == 0 && r_flag && S_ISREG(sb.st_mode)) {
 			url->offset = sb.st_size;
 		} else {
 			/*
