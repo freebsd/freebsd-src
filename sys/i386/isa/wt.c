@@ -20,7 +20,7 @@
  * the original CMU copyright notice.
  *
  * Version 1.3, Thu Nov 11 12:09:13 MSK 1993
- * $Id: wt.c,v 1.32 1996/04/08 19:40:57 smpatel Exp $
+ * $Id: wt.c,v 1.33 1996/07/23 21:51:50 phk Exp $
  *
  */
 
@@ -692,7 +692,7 @@ wtintr (int u)
 	}
 
 	if (t->dmacount < t->dmatotal) {        /* continue i/o */
-		t->dmavaddr += t->bsize;
+		t->dmavaddr = (char *)t->dmavaddr + t->bsize;
 		wtdma (t);
 		TRACE (("continue i/o, %d\n", t->dmacount));
 		return;

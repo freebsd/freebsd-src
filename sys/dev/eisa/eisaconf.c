@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: eisaconf.c,v 1.19 1996/04/20 21:21:49 gibbs Exp $
+ *	$Id: eisaconf.c,v 1.20 1996/06/12 05:02:41 gpalmer Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -700,7 +700,7 @@ eisa_generic_externalize(struct kern_devconf *kdc, struct sysctl_req *req)
 	void *ma_prev;	/* Prev Node entries relative to target address space */
 	int retval;
 
-	offset = req->oldptr + req->oldidx;
+	offset = (char *)req->oldptr + req->oldidx;
 	buf = malloc(kdc->kdc_datalen, M_TEMP, M_NOWAIT);
 	if (!buf)
 		return 0;
@@ -710,13 +710,13 @@ eisa_generic_externalize(struct kern_devconf *kdc, struct sysctl_req *req)
 	e_dev = bufp;
 
 	/* Calculate initial prev nodes */
-	ioa_prev = offset + ((void *)&(e_dev->ioconf.ioaddrs.lh_first)
-			  - (void *)e_dev);
-	ma_prev = offset + ((void *)&(e_dev->ioconf.maddrs.lh_first)
-			 - (void *)e_dev);
+	ioa_prev = (char *)offset + ((char *)&(e_dev->ioconf.ioaddrs.lh_first)
+				  - (char *)e_dev);
+	ma_prev = (char *)offset + ((char *)&(e_dev->ioconf.maddrs.lh_first)
+				 - (char *)e_dev);
 
-	offset += sizeof(*e_dev);
-	bufp += sizeof(*e_dev);
+	offset = (char *)offset + sizeof(*e_dev);
+	bufp = (char *)bufp + sizeof(*e_dev);
 
 	if (e_dev->ioconf.ioaddrs.lh_first) {
 		node = e_dev->ioconf.ioaddrs.lh_first;
@@ -726,11 +726,11 @@ eisa_generic_externalize(struct kern_devconf *kdc, struct sysctl_req *req)
 
 			bcopy(node, bufp, sizeof(resvaddr_t));
 			out_node = (resvaddr_t *)bufp;
-			bufp += sizeof(resvaddr_t);
-			offset += sizeof(resvaddr_t);
+			bufp = (char *)bufp + sizeof(resvaddr_t);
+			offset = (char *)offset + sizeof(resvaddr_t);
 
 			out_node->links.le_prev = ioa_prev;
-			ioa_prev += sizeof(resvaddr_t);
+			ioa_prev = (char *)ioa_prev + sizeof(resvaddr_t);
 
 			if (out_node->links.le_next)
 				out_node->links.le_next = offset;
@@ -744,11 +744,11 @@ eisa_generic_externalize(struct kern_devconf *kdc, struct sysctl_req *req)
 
 			bcopy(node, bufp, sizeof(resvaddr_t));
 			out_node = (resvaddr_t *)bufp;
-			bufp += sizeof(resvaddr_t);
-			offset += sizeof(resvaddr_t);
+			bufp = (char *)bufp + sizeof(resvaddr_t);
+			offset = (char *)offset + sizeof(resvaddr_t);
 
 			out_node->links.le_prev = ma_prev;
-			ma_prev += sizeof(resvaddr_t);
+			ma_prev = (char *)ma_prev + sizeof(resvaddr_t);
 
 			if (out_node->links.le_next)
 				out_node->links.le_next = offset;
