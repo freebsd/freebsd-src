@@ -339,12 +339,10 @@ typedef struct Asr_softc {
 	LIST_HEAD(,ccb_hdr)	ha_ccb;	       /* ccbs in use		   */
 	struct cam_path	      * ha_path[MAX_CHANNEL+1];
 	struct cam_sim	      * ha_sim[MAX_CHANNEL+1];
-#if __FreeBSD_version >= 400000
 	struct resource	      * ha_mem_res;
 	struct resource	      * ha_mes_res;
 	struct resource	      * ha_irq_res;
 	void		      * ha_intr;
-#endif
 	PI2O_LCT		ha_LCT;	       /* Complete list of devices */
 #		 define le_type	  IdentityTag[0]
 #			 define I2O_BSA	    0x20
@@ -424,7 +422,6 @@ STATIC Asr_softc_t * Asr_softc;
  */
 
 /* Externally callable routines */
-#if __FreeBSD_version >= 400000
 #define	PROBE_ARGS  IN device_t tag
 #define	PROBE_RET   int
 #define	PROBE_SET() u_int32_t id = (pci_get_device(tag)<<16)|pci_get_vendor(tag)
@@ -433,16 +430,6 @@ STATIC Asr_softc_t * Asr_softc;
 #define	ATTACH_RET  int
 #define	ATTACH_SET() int unit = device_get_unit(tag)
 #define	ATTACH_RETURN(retval) return(retval)
-#else
-#define	PROBE_ARGS  IN pcici_t tag, IN pcidi_t id
-#define	PROBE_RET   const char *
-#define	PROBE_SET()
-#define	PROBE_RETURN(retval) return(retval)
-#define	ATTACH_ARGS IN pcici_t tag, IN int unit
-#define	ATTACH_RET  void
-#define	ATTACH_SET()
-#define	ATTACH_RETURN(retval) return
-#endif
 /* I2O HDM interface */
 STATIC PROBE_RET      asr_probe(PROBE_ARGS);
 STATIC ATTACH_RET     asr_attach(ATTACH_ARGS);
@@ -491,7 +478,6 @@ STATIC void	      asr_poll(
  *	Here is the auto-probe structure used to nest our tests appropriately
  *	during the startup phase of the operating system.
  */
-#if __FreeBSD_version >= 400000
 STATIC device_method_t asr_methods[] = {
 	DEVMETHOD(device_probe,	 asr_probe),
 	DEVMETHOD(device_attach, asr_attach),
@@ -539,37 +525,6 @@ STATIC driver_t mode0_driver = {
 STATIC devclass_t mode0_devclass;
 
 DRIVER_MODULE(mode0, pci, mode0_driver, mode0_devclass, 0, 0);
-#else
-STATIC u_long asr_pcicount = 0;
-STATIC struct pci_device asr_pcidev = {
-	"asr",
-	asr_probe,
-	asr_attach,
-	&asr_pcicount,
-	NULL
-};
-DATA_SET (asr_pciset, asr_pcidev);
-
-STATIC u_long domino_pcicount = 0;
-STATIC struct pci_device domino_pcidev = {
-	"domino",
-	domino_probe,
-	domino_attach,
-	&domino_pcicount,
-	NULL
-};
-DATA_SET (domino_pciset, domino_pcidev);
-
-STATIC u_long mode0_pcicount = 0;
-STATIC struct pci_device mode0_pcidev = {
-	"mode0",
-	mode0_probe,
-	mode0_attach,
-	&mode0_pcicount,
-	NULL
-};
-DATA_SET (mode0_pciset, mode0_pcidev);
-#endif
 
 /*
  * devsw for asr hba driver
@@ -2485,17 +2440,12 @@ asr_hbareset(
  */
 STATIC int
 asr_pci_map_mem (
-#if __FreeBSD_version >= 400000
 	IN device_t	 tag,
-#else
-	IN pcici_t	 tag,
-#endif
 	IN Asr_softc_t * sc)
 {
 	int		 rid;
 	u_int32_t	 p, l, s;
 
-#if __FreeBSD_version >= 400000
 	/*
 	 * I2O specification says we must find first *memory* mapped BAR
 	 */
@@ -2571,162 +2521,6 @@ asr_pci_map_mem (
 	} else {
 		sc->ha_Fvirt = (U8 *)(sc->ha_Virt);
 	}
-#else
-	vm_size_t psize, poffs;
-
-	/*
-	 * I2O specification says we must find first *memory* mapped BAR
-	 */
-	for (rid = PCI_MAP_REG_START;
-	  rid < (PCI_MAP_REG_START + 4 * sizeof(u_int32_t));
-	  rid += sizeof(u_int32_t)) {
-		p = pci_conf_read (tag, rid);
-		if ((p & 1) == 0) {
-			break;
-		}
-	}
-	if (rid >= (PCI_MAP_REG_START + 4 * sizeof(u_int32_t))) {
-		rid = PCI_MAP_REG_START;
-	}
-	/*
-	**	save old mapping, get size and type of memory
-	**
-	**	type is in the lowest four bits.
-	**	If device requires 2^n bytes, the next
-	**	n-4 bits are read as 0.
-	*/
-
-	sc->ha_Base = (void *)((p = pci_conf_read (tag, rid))
-	  & PCI_MAP_MEMORY_ADDRESS_MASK);
-	pci_conf_write (tag, rid, 0xfffffffful);
-	l = pci_conf_read (tag, rid);
-	pci_conf_write (tag, rid, p);
-
-	/*
-	**	check the type
-	*/
-
-	if (!((l & PCI_MAP_MEMORY_TYPE_MASK) == PCI_MAP_MEMORY_TYPE_32BIT_1M
-	   && ((u_long)sc->ha_Base & ~0xfffff) == 0)
-	  && ((l & PCI_MAP_MEMORY_TYPE_MASK) != PCI_MAP_MEMORY_TYPE_32BIT)) {
-		debug_asr_printf (
-		  "asr_pci_map_mem failed: bad memory type=0x%x\n",
-		  (unsigned) l);
-		return (0);
-	};
-
-	/*
-	**	get the size.
-	*/
-
-	psize = -(l & PCI_MAP_MEMORY_ADDRESS_MASK);
-	if (psize > MAX_MAP) {
-		psize = MAX_MAP;
-	}
-	/*
-	 * The 2005S Zero Channel RAID solution is not a perfect PCI
-	 * citizen. It asks for 4MB on BAR0, and 0MB on BAR1, once
-	 * enabled it rewrites the size of BAR0 to 2MB, sets BAR1 to
-	 * BAR0+2MB and sets it's size to 2MB. The IOP registers are
-	 * accessible via BAR0, the messaging registers are accessible
-	 * via BAR1. If the subdevice code is 50 to 59 decimal.
-	 */
-	s = pci_read_config(tag, PCIR_DEVVENDOR, sizeof(s));
-	if (s != 0xA5111044) {
-		s = pci_conf_read (tag, PCIR_SUBVEND_0)
-		if ((((ADPTDOMINATOR_SUB_ID_START ^ s) & 0xF000FFFF) == 0)
-		 && (ADPTDOMINATOR_SUB_ID_START <= s)
-		 && (s <= ADPTDOMINATOR_SUB_ID_END)) {
-			psize = MAX_MAP;
-		}
-	}
-
-	if ((sc->ha_Base == NULL)
-	 || (sc->ha_Base == (void *)PCI_MAP_MEMORY_ADDRESS_MASK)) {
-		debug_asr_printf ("asr_pci_map_mem: not configured by bios.\n");
-		return (0);
-	};
-
-	/*
-	**	Truncate sc->ha_Base to page boundary.
-	**	(Or does pmap_mapdev the job?)
-	*/
-
-	poffs = (u_long)sc->ha_Base - trunc_page ((u_long)sc->ha_Base);
-	sc->ha_Virt = (i2oRegs_t *)pmap_mapdev ((u_long)sc->ha_Base - poffs,
-	  psize + poffs);
-
-	if (sc->ha_Virt == NULL) {
-		return (0);
-	}
-
-	sc->ha_Virt = (i2oRegs_t *)((u_long)sc->ha_Virt + poffs);
-	if (s == 0xA5111044) {
-		if ((rid += sizeof(u_int32_t))
-		  >= (PCI_MAP_REG_START + 4 * sizeof(u_int32_t))) {
-			return (0);
-		}
-
-		/*
-		**	save old mapping, get size and type of memory
-		**
-		**	type is in the lowest four bits.
-		**	If device requires 2^n bytes, the next
-		**	n-4 bits are read as 0.
-		*/
-
-		if ((((p = pci_conf_read (tag, rid))
-		  & PCI_MAP_MEMORY_ADDRESS_MASK) == 0L)
-		 || ((p & PCI_MAP_MEMORY_ADDRESS_MASK)
-		  == PCI_MAP_MEMORY_ADDRESS_MASK)) {
-			debug_asr_printf ("asr_pci_map_mem: not configured by bios.\n");
-		}
-		pci_conf_write (tag, rid, 0xfffffffful);
-		l = pci_conf_read (tag, rid);
-		pci_conf_write (tag, rid, p);
-		p &= PCI_MAP_MEMORY_TYPE_MASK;
-
-		/*
-		**	check the type
-		*/
-
-		if (!((l & PCI_MAP_MEMORY_TYPE_MASK)
-		    == PCI_MAP_MEMORY_TYPE_32BIT_1M
-		   && (p & ~0xfffff) == 0)
-		  && ((l & PCI_MAP_MEMORY_TYPE_MASK)
-		   != PCI_MAP_MEMORY_TYPE_32BIT)) {
-			debug_asr_printf (
-			  "asr_pci_map_mem failed: bad memory type=0x%x\n",
-			  (unsigned) l);
-			return (0);
-		};
-
-		/*
-		**	get the size.
-		*/
-
-		psize = -(l & PCI_MAP_MEMORY_ADDRESS_MASK);
-		if (psize > MAX_MAP) {
-			psize = MAX_MAP;
-		}
-
-		/*
-		**	Truncate p to page boundary.
-		**	(Or does pmap_mapdev the job?)
-		*/
-
-		poffs = p - trunc_page (p);
-		sc->ha_Fvirt = (U8 *)pmap_mapdev (p - poffs, psize + poffs);
-
-		if (sc->ha_Fvirt == NULL) {
-			return (0);
-		}
-
-		sc->ha_Fvirt = (U8 *)((u_long)sc->ha_Fvirt + poffs);
-	} else {
-		sc->ha_Fvirt = (U8 *)(sc->ha_Virt);
-	}
-#endif
 	return (1);
 } /* asr_pci_map_mem */
 
@@ -2736,14 +2530,9 @@ asr_pci_map_mem (
  */
 STATIC int
 asr_pci_map_int (
-#if __FreeBSD_version >= 400000
 	IN device_t	 tag,
-#else
-	IN pcici_t	 tag,
-#endif
 	IN Asr_softc_t * sc)
 {
-#if __FreeBSD_version >= 400000
 	int		 rid = 0;
 
 	sc->ha_irq_res = bus_alloc_resource_any(tag, SYS_RES_IRQ, &rid,
@@ -2756,13 +2545,6 @@ asr_pci_map_int (
 		return (0);
 	}
 	sc->ha_irq = pci_read_config(tag, PCIR_INTLINE, sizeof(char));
-#else
-	if (!pci_map_int(tag, (pci_inthand_t *)asr_intr,
-	  (void *)sc, &cam_imask)) {
-		return (0);
-	}
-	sc->ha_irq = pci_conf_read(tag, PCIR_INTLINE);
-#endif
 	return (1);
 } /* asr_pci_map_int */
 
@@ -2822,7 +2604,6 @@ asr_attach (ATTACH_ARGS)
 			ATTACH_RETURN(ENXIO);
 		}
 		/* Enable if not formerly enabled */
-#if __FreeBSD_version >= 400000
 		pci_write_config (tag, PCIR_COMMAND,
 		  pci_read_config (tag, PCIR_COMMAND, sizeof(char))
 		  | PCIM_CMD_MEMEN | PCIM_CMD_BUSMASTEREN, sizeof(char));
@@ -2837,23 +2618,6 @@ asr_attach (ATTACH_ARGS)
 			sc->ha_pciDeviceNum = (dinfo->cfg.slot << 3)
 					    | dinfo->cfg.func;
 		}
-#else
-		pci_conf_write (tag, PCIR_COMMAND,
-		  pci_conf_read (tag, PCIR_COMMAND)
-		  | PCIM_CMD_MEMEN | PCIM_CMD_BUSMASTEREN);
-		/* Knowledge is power, responsibility is direct */
-		switch (pci_mechanism) {
-
-		case 1:
-			sc->ha_pciBusNum = tag.cfg1 >> 16;
-			sc->ha_pciDeviceNum = tag.cfg1 >> 8;
-
-		case 2:
-			sc->ha_pciBusNum = tag.cfg2.forward;
-			sc->ha_pciDeviceNum = ((tag.cfg2.enable >> 1) & 7)
-					    | (tag.cfg2.port >> 5);
-		}
-#endif
 		/* Check if the device is there? */
 		if ((ASR_resetIOP(sc->ha_Virt, sc->ha_Fvirt) == 0)
 		 || ((status = (PI2O_EXEC_STATUS_GET_REPLY)malloc (
