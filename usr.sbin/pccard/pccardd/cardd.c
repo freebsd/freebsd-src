@@ -149,6 +149,9 @@ slot_change(struct slot *sp)
 			card_removed(sp);
 		break;
 	case filled:
+		/* KLUDGE: if we were suspended, remove card */
+		if (state.laststate == suspend)
+			card_removed(sp);
 		card_inserted(sp);
 		break;
 	case suspend:
