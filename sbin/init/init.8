@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)init.8	8.3 (Berkeley) 4/18/94
-.\"	$Id: init.8,v 1.12 1998/07/06 06:56:07 charnier Exp $
+.\"	$Id: init.8,v 1.13 1998/12/16 16:50:12 ghelmer Exp $
 .\"
 .Dd April 18, 1994
 .Dt INIT 8
@@ -252,6 +252,14 @@ signal, i.e.
 This is useful for shutting the machine down cleanly from inside the kernel
 or from X when the machine appears to be hung.
 .Pp
+.Nm Init
+will do the same, except it will shutdown the machine if sent
+the user defined signal 1
+.Pq Dv USR1 ,
+or will shutdown and turn the power off (if hardware permits) if sent
+the user defined signal 2
+.Pq Dv USR2 .
+.Pp
 When shutting down the machine,
 .Nm
 will try to run the
@@ -286,7 +294,7 @@ that is stuck in a device driver because of
 a persistent device error condition.
 .El
 .Sh FILES
-.Bl -tag -width /var/log/wtmp -compact
+.Bl -tag -width /etc/rc.shutdown -compact
 .It Pa /dev/console
 system console device
 .It Pa /dev/tty*
@@ -318,7 +326,7 @@ system shutdown commands
 .Xr shutdown 8 ,
 .Xr sysctl 8
 .Sh HISTORY
-A
+An
 .Nm
 command appeared in
 .At v6 .

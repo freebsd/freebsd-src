@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)init.c	8.1 (Berkeley) 7/15/93";
 #endif
 static const char rcsid[] =
-	"$Id: init.c,v 1.30 1998/07/06 06:56:08 charnier Exp $";
+	"$Id: init.c,v 1.31 1998/07/22 05:45:11 phk Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -132,6 +132,7 @@ enum { AUTOBOOT, FASTBOOT } runcom_mode = AUTOBOOT;
 #define TRUE	1
 
 int Reboot = FALSE;
+int howto = RB_AUTOBOOT;
 
 int devfs;
 
@@ -259,11 +260,13 @@ main(argc, argv)
 	handle(badsys, SIGSYS, 0);
 	handle(disaster, SIGABRT, SIGFPE, SIGILL, SIGSEGV,
 	       SIGBUS, SIGXCPU, SIGXFSZ, 0);
-	handle(transition_handler, SIGHUP, SIGINT, SIGTERM, SIGTSTP, 0);
+	handle(transition_handler, SIGHUP, SIGINT, SIGTERM, SIGTSTP,
+		SIGUSR1, SIGUSR2, 0);
 	handle(alrm_handler, SIGALRM, 0);
 	sigfillset(&mask);
 	delset(&mask, SIGABRT, SIGFPE, SIGILL, SIGSEGV, SIGBUS, SIGSYS,
-		SIGXCPU, SIGXFSZ, SIGHUP, SIGINT, SIGTERM, SIGTSTP, SIGALRM, 0);
+		SIGXCPU, SIGXFSZ, SIGHUP, SIGINT, SIGTERM, SIGTSTP, SIGALRM, 
+		SIGUSR1, SIGUSR2, 0);
 	sigprocmask(SIG_SETMASK, &mask, (sigset_t *) 0);
 	sigemptyset(&sa.sa_mask);
 	sa.sa_flags = 0;
@@ -594,11 +597,11 @@ single_user()
 		setsecuritylevel(0);
 
 	if (Reboot) {
-		/* Instead of going single user, let's halt the machine */
+		/* Instead of going single user, let's reboot the machine */
 		sync();
 		alarm(2);
 		pause();
-		reboot(RB_AUTOBOOT);
+		reboot(howto);
 		_exit(0);
 	}
 
@@ -1238,6 +1241,10 @@ transition_handler(sig)
 	case SIGHUP:
 		requested_transition = clean_ttys;
 		break;
+	case SIGUSR2:
+		howto = RB_POWEROFF;
+	case SIGUSR1:
+		howto |= RB_HALT;
 	case SIGINT:
 		Reboot = TRUE;
 	case SIGTERM:
