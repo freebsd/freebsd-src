@@ -49,6 +49,7 @@
  */
 
 #include "opt_clock.h"
+#include "opt_isa.h"
 #include "opt_mca.h"
 
 #include <sys/param.h>
@@ -83,7 +84,9 @@
 #include <i386/isa/icu.h>
 #include <i386/isa/isa.h>
 #include <isa/rtc.h>
+#ifdef DEV_ISA
 #include <isa/isavar.h>
+#endif
 #include <i386/isa/timerreg.h>
 
 #include <i386/isa/intr_machdep.h>
@@ -1260,6 +1263,7 @@ tsc_get_timecount(struct timecounter *tc)
 	return (rdtsc());
 }
 
+#ifdef DEV_ISA
 /*
  * Attach to the ISA PnP descriptors for the timer and realtime clock.
  */
@@ -1306,3 +1310,4 @@ static devclass_t attimer_devclass;
 
 DRIVER_MODULE(attimer, isa, attimer_driver, attimer_devclass, 0, 0);
 DRIVER_MODULE(attimer, acpi, attimer_driver, attimer_devclass, 0, 0);
+#endif /* DEV_ISA */

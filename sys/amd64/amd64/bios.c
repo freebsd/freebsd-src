@@ -31,6 +31,8 @@
  * Code for dealing with the BIOS in x86 PC systems.
  */
 
+#include "opt_isa.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -44,9 +46,11 @@
 #include <machine/stdarg.h>
 #include <machine/vmparam.h>
 #include <machine/pc/bios.h>
+#ifdef DEV_ISA
 #include <isa/isavar.h>
 #include <isa/pnpreg.h>
 #include <isa/pnpvar.h>
+#endif
 
 #define BIOS_START	0xe0000
 #define BIOS_SIZE	0x20000
@@ -459,6 +463,7 @@ bios16(struct bios_args *args, char *fmt, ...)
     return (i);
 }
 
+#ifdef DEV_ISA
 /*
  * PnP BIOS interface; enumerate devices only known to the system
  * BIOS and save information about them for later use.
@@ -664,3 +669,4 @@ static driver_t pnpbios_driver = {
 static devclass_t pnpbios_devclass;
 
 DRIVER_MODULE(pnpbios, isa, pnpbios_driver, pnpbios_devclass, 0, 0);
+#endif /* DEV_ISA */
