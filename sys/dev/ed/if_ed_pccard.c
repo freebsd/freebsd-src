@@ -86,9 +86,9 @@ static int	ed_pccard_match(device_t);
 static int	ed_pccard_probe(device_t);
 static int	ed_pccard_attach(device_t);
 
-static int	ed_pccard_ax88190(device_t dev);
+static int	ed_pccard_ax88x90(device_t dev);
 
-static void	ax88190_geteprom(struct ed_softc *);
+static void	ax88x90_geteprom(struct ed_softc *);
 static int	ed_pccard_memread(device_t dev, off_t offset, u_char *byte);
 static int	ed_pccard_memwrite(device_t dev, off_t offset, u_char byte);
 #ifndef ED_NO_MIIBUS
@@ -102,8 +102,8 @@ static int	ed_pccard_Linksys(device_t dev);
 static const struct ed_product {
 	struct pccard_product	prod;
 	int flags;
-#define	NE2000DVF_DL10019	0x0001		/* chip is D-Link DL10019 */
-#define	NE2000DVF_AX88190	0x0002		/* chip is ASIX AX88190 */
+#define	NE2000DVF_DL100XX	0x0001		/* chip is D-Link DL10019/22 */
+#define	NE2000DVF_AX88X90	0x0002		/* chip is ASIX AX88[17]90 */
 #define NE2000DVF_ENADDR	0x0004		/* Get MAC from attr mem */
 	int enoff;
 } ed_pccard_products[] = {
@@ -114,7 +114,7 @@ static const struct ed_product {
 	{ PCMCIA_CARD(BILLIONTON, LNT10TN, 0), 0},
 	{ PCMCIA_CARD(BILLIONTON, CFLT10N, 0), 0},
 	{ PCMCIA_CARD(BUFFALO, LPC3_CLT,  0), 0},
-	{ PCMCIA_CARD(BUFFALO, LPC3_CLX,  0), NE2000DVF_AX88190},
+	{ PCMCIA_CARD(BUFFALO, LPC3_CLX,  0), NE2000DVF_AX88X90},
 	{ PCMCIA_CARD(BUFFALO, LPC_CF_CLT,  0), 0},
 	{ PCMCIA_CARD(CNET, NE2000, 0), 0},
 	{ PCMCIA_CARD(COMPEX, LINKPORT_ENET_B, 0), 0},
@@ -122,15 +122,15 @@ static const struct ed_product {
 	{ PCMCIA_CARD(COREGA, ETHER_II_PCC_TD, 0), 0},
 	{ PCMCIA_CARD(COREGA, ETHER_PCC_T, 0), 0},
 	{ PCMCIA_CARD(COREGA, ETHER_PCC_TD, 0), 0},
-	{ PCMCIA_CARD(COREGA, FAST_ETHER_PCC_TX, 0), NE2000DVF_DL10019 },
-	{ PCMCIA_CARD(COREGA, FETHER_PCC_TXD, 0), NE2000DVF_AX88190 },
-	{ PCMCIA_CARD(COREGA, FETHER_PCC_TXF, 0), NE2000DVF_DL10019 },
+	{ PCMCIA_CARD(COREGA, FAST_ETHER_PCC_TX, 0), NE2000DVF_DL100XX },
+	{ PCMCIA_CARD(COREGA, FETHER_PCC_TXD, 0), NE2000DVF_AX88X90 },
+	{ PCMCIA_CARD(COREGA, FETHER_PCC_TXF, 0), NE2000DVF_DL100XX },
 	{ PCMCIA_CARD(DAYNA, COMMUNICARD_E_1, 0), 0},
 	{ PCMCIA_CARD(DAYNA, COMMUNICARD_E_2, 0), 0},
 	{ PCMCIA_CARD(DLINK, DE650, 0), 0},
 	{ PCMCIA_CARD(DLINK, DE660, 0), 0 },
 	{ PCMCIA_CARD(DLINK, DE660PLUS, 0), 0},
-	{ PCMCIA_CARD(DLINK, DFE670TXD, 0), NE2000DVF_DL10019},
+	{ PCMCIA_CARD(DLINK, DFE670TXD, 0), NE2000DVF_DL100XX },
 	{ PCMCIA_CARD(DYNALINK, L10C, 0), 0},
 	{ PCMCIA_CARD(EDIMAX, EP4000A, 0), 0},
 	{ PCMCIA_CARD(EPSON, EEN10B, 0), 0},
@@ -140,20 +140,20 @@ static const struct ed_product {
 	{ PCMCIA_CARD(IBM, INFOMOVER, 0), NE2000DVF_ENADDR, 0xff0},
 	{ PCMCIA_CARD(IODATA3, PCLAT, 0), 0},
 	{ PCMCIA_CARD(KINGSTON, KNE2, 0), 0},
-	{ PCMCIA_CARD(LANTECH, FASTNETTX, 0),NE2000DVF_AX88190 },
+	{ PCMCIA_CARD(LANTECH, FASTNETTX, 0),NE2000DVF_AX88X90 },
 	{ PCMCIA_CARD(LINKSYS, COMBO_ECARD, 0),
-	    NE2000DVF_DL10019 | NE2000DVF_AX88190 },
+	    NE2000DVF_DL100XX | NE2000DVF_AX88X90 },
 	{ PCMCIA_CARD(LINKSYS, ECARD_1, 0), 0},
 	{ PCMCIA_CARD(LINKSYS, ECARD_2, 0), 0},
-	{ PCMCIA_CARD(LINKSYS, ETHERFAST, 0), NE2000DVF_DL10019 },
+	{ PCMCIA_CARD(LINKSYS, ETHERFAST, 0), NE2000DVF_DL100XX },
 	{ PCMCIA_CARD(LINKSYS, TRUST_COMBO_ECARD, 0), 0},
 	{ PCMCIA_CARD(MACNICA, ME1_JEIDA, 0), 0},
 	{ PCMCIA_CARD(MAGICRAM, ETHER, 0), 0},
-	{ PCMCIA_CARD(MELCO, LPC3_CLX,  0), NE2000DVF_AX88190 },
-	{ PCMCIA_CARD(MELCO, LPC3_TX, 0), NE2000DVF_AX88190 },
+	{ PCMCIA_CARD(MELCO, LPC3_CLX,  0), NE2000DVF_AX88X90 },
+	{ PCMCIA_CARD(MELCO, LPC3_TX, 0), NE2000DVF_AX88X90 },
 	{ PCMCIA_CARD(NDC, ND5100_E, 0), 0},
-	{ PCMCIA_CARD(NETGEAR, FA410TXC, 0), NE2000DVF_DL10019},
-	{ PCMCIA_CARD(NETGEAR, FA411, 0), NE2000DVF_AX88190},
+	{ PCMCIA_CARD(NETGEAR, FA410TXC, 0), NE2000DVF_DL100XX},
+	{ PCMCIA_CARD(NETGEAR, FA411, 0), NE2000DVF_AX88X90},
 	{ PCMCIA_CARD(NEXTCOM, NEXTHAWK, 0), 0},
 	{ PCMCIA_CARD(OEM2, ETHERNET, 0), 0},
 	{ PCMCIA_CARD(PLANET, SMARTCOM2000, 0), 0 },
@@ -165,12 +165,12 @@ static const struct ed_product {
 	{ PCMCIA_CARD(SOCKET, EA_ETHER, 0), 0},
 	{ PCMCIA_CARD(SOCKET, LP_ETHER, 0), 0},
 	{ PCMCIA_CARD(SOCKET, LP_ETHER_CF, 0), 0},
-	{ PCMCIA_CARD(SOCKET, LP_ETH_10_100_CF, 0), NE2000DVF_DL10019},
+	{ PCMCIA_CARD(SOCKET, LP_ETH_10_100_CF, 0), NE2000DVF_DL100XX},
 	{ PCMCIA_CARD(SVEC, COMBOCARD, 0), 0},
 	{ PCMCIA_CARD(SVEC, LANCARD, 0), 0},
 	{ PCMCIA_CARD(TAMARACK, ETHERNET, 0), 0},
 	{ PCMCIA_CARD(TDK, LAK_CD031, 0), 0},
-	{ PCMCIA_CARD(TELECOMDEVICE, TCD_HPC100, 0), NE2000DVF_AX88190 },
+	{ PCMCIA_CARD(TELECOMDEVICE, TCD_HPC100, 0), NE2000DVF_AX88X90 },
 	{ PCMCIA_CARD(XIRCOM, CFE_10, 0), 0},
 	{ PCMCIA_CARD(ZONET, ZEN, 0), 0},
 	{ { NULL } }
@@ -215,7 +215,7 @@ ed_pccard_probe(device_t dev)
 	    (const struct pccard_product *) ed_pccard_products,
 	    sizeof(ed_pccard_products[0]), NULL)) == NULL)
 		return (ENXIO);
-	if (pp->flags & NE2000DVF_DL10019) {
+	if (pp->flags & NE2000DVF_DL100XX) {
 		error = ed_probe_Novell(dev, 0, 0);
 		if (error == 0)
 			error = ed_pccard_Linksys(dev);
@@ -223,8 +223,8 @@ ed_pccard_probe(device_t dev)
 		if (error == 0)
 			goto end2;
 	}
-	if (pp->flags & NE2000DVF_AX88190) {
-		error = ed_pccard_ax88190(dev);
+	if (pp->flags & NE2000DVF_AX88X90) {
+		error = ed_pccard_ax88x90(dev);
 		if (error == 0)
 			goto end2;
 	}
@@ -355,7 +355,7 @@ ed_pccard_attach(device_t dev)
 }
 
 static void
-ax88190_geteprom(struct ed_softc *sc)
+ax88x90_geteprom(struct ed_softc *sc)
 {
 	int prom[16],i;
 	u_char tmp;
@@ -486,14 +486,15 @@ ed_pccard_Linksys(device_t dev)
 }
 
 /*
- * Special setup for AX88190
+ * Special setup for AX88[17]90
  */
 static int
-ed_pccard_ax88190(device_t dev)
+ed_pccard_ax88x90(device_t dev)
 {
 	int	error;
 	int	flags = device_get_flags(dev);
 	int	iobase;
+	char *ts;
 	struct	ed_softc *sc = device_get_softc(dev);
 
 	/* Allocate the port resource during setup. */
@@ -512,17 +513,20 @@ ed_pccard_ax88190(device_t dev)
 	iobase = rman_get_start(sc->port_res);
 	ed_pccard_memwrite(dev, ED_AX88190_IOBASE0, iobase & 0xff);
 	ed_pccard_memwrite(dev, ED_AX88190_IOBASE1, (iobase >> 8) & 0xff);
-	sc->type_str = "AX88190";
+	ts = "AX88190";
 	if (ed_asic_inb(sc, ED_ASIX_TEST) != 0) {
 		ed_pccard_memwrite(dev, ED_AX88790_CSR, ED_AX88790_CSR_PWRDWN);
-		sc->type_str = "AX88790";
+		ts = "AX88790";
 	}
-	ax88190_geteprom(sc);
+	ax88x90_geteprom(sc);
 	ed_release_resources(dev);
 	error = ed_probe_Novell(dev, 0, flags);
+	printf("Error is %d\n", error);
 	if (error == 0) {
 		sc->vendor = ED_VENDOR_NOVELL;
 		sc->type = ED_TYPE_NE2000;
+		sc->chip_type = ED_CHIP_TYPE_AX88190;
+		sc->type_str = ts;
 	}
 	return (error);
 }
