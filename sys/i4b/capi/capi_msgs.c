@@ -195,7 +195,7 @@ void capi_connect_req(capi_softc_t *sc, call_desc_t *cd)
     int slen = strlen(cd->src_telno);
     int dlen = strlen(cd->dst_telno);
 
-    m = i4b_Dgetmbuf(8 + 18 + slen + dlen);
+    m = i4b_Dgetmbuf(8 + 27 + slen + dlen);
     if (!m) {
 	printf("capi%d: can't get mbuf for connect_req\n", sc->sc_unit);
 	return;
@@ -566,7 +566,7 @@ void capi_connect_resp(capi_softc_t *sc, call_desc_t *cd)
     u_int32_t PLCI;
     int dlen = strlen(cd->dst_telno);
 
-    m = i4b_Dgetmbuf(8 + 11 + dlen);
+    m = i4b_Dgetmbuf(8 + 21 + dlen);
     if (!m) {
 	printf("capi%d: can't get mbuf for connect_resp\n", sc->sc_unit);
 	return;
@@ -600,7 +600,12 @@ void capi_connect_resp(capi_softc_t *sc, call_desc_t *cd)
     case SETUP_RESP_DNTCRE:
 	sc->sc_bchan[cd->channelid].state = B_FREE;
 	ctrl_desc[sc->ctrl_unit].bch_state[cd->channelid] = BCH_ST_FREE;
-	msg = capimsg_setu16(msg, 1); /* Ignore */
+	if (sc->sc_nbch == 30) {
+	    /* With PRI, we can't really ignore calls  -- normal clearing */
+	    msg = capimsg_setu16(msg, (0x3480|CAUSE_Q850_NCCLR));
+	} else {
+	    msg = capimsg_setu16(msg, 1); /* Ignore */
+	}
 	break;
 
     default:
@@ -733,7 +738,7 @@ void capi_data_b3_conf(capi_softc_t *sc, struct mbuf *m_in)
 
 void capi_data_b3_ind(capi_softc_t *sc, struct mbuf *m_in)
 {
-    struct mbuf *m = i4b_Dgetmbuf(8 + 14);
+    struct mbuf *m = i4b_Dgetmbuf(8 + 6);
     u_int8_t *msg = mtod(m_in, u_int8_t*);
     u_int16_t applid, msgid;
     u_int32_t NCCI;
