@@ -236,7 +236,7 @@ fcntl(p, uap)
 		return (do_dup(fdp, uap->fd, i, p->p_retval, p));
 
 	case F_GETFD:
-		td->td_retval[0] = (*pop & UF_EXCLOSE) ? FD_CLOEXEC : 0;
+		p->p_retval[0] = (*pop & UF_EXCLOSE) ? FD_CLOEXEC : 0;
 		return (0);
 
 	case F_SETFD:
