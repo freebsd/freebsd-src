@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.10 1994/11/06 05:07:50 davidg Exp $
+ * $Id: vm_object.c,v 1.11 1994/11/25 07:58:27 davidg Exp $
  */
 
 /*
@@ -985,7 +985,8 @@ vm_object_shadow(object, offset, length)
 	 *	count.
 	 */
 	result->shadow = source;
-	TAILQ_INSERT_TAIL(&result->shadow->reverse_shadow_head, result, reverse_shadow_list);
+	if (source)
+		TAILQ_INSERT_TAIL(&result->shadow->reverse_shadow_head, result, reverse_shadow_list);
 	
 	/*
 	 *	Store the offset into the source object,
