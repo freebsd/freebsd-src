@@ -72,8 +72,23 @@ ASN1_INTEGER *ASN1_INTEGER_dup(ASN1_INTEGER *x)
 int ASN1_INTEGER_cmp(ASN1_INTEGER *x, ASN1_INTEGER *y)
 { return M_ASN1_INTEGER_cmp(x,y);}
 
+/* Output ASN1 INTEGER including tag+length */
+
+int i2d_ASN1_INTEGER(ASN1_INTEGER *a, unsigned char **pp)
+{
+	int len, ret;
+	if(!a) return 0;
+	len = i2c_ASN1_INTEGER(a, NULL);	
+	ret=ASN1_object_size(0,len,V_ASN1_INTEGER);
+	if(pp) {
+		ASN1_put_object(pp,0,len,V_ASN1_INTEGER,V_ASN1_UNIVERSAL);
+		i2c_ASN1_INTEGER(a, pp);	
+	}
+	return ret;
+}
+
 /* 
- * This converts an ASN1 INTEGER into its DER encoding.
+ * This converts an ASN1 INTEGER into its content encoding.
  * The internal representation is an ASN1_STRING whose data is a big endian
  * representation of the value, ignoring the sign. The sign is determined by
  * the type: V_ASN1_INTEGER for positive and V_ASN1_NEG_INTEGER for negative. 
@@ -97,23 +112,23 @@ int ASN1_INTEGER_cmp(ASN1_INTEGER *x, ASN1_INTEGER *y)
  * followed by optional zeros isn't padded.
  */
 
-int i2d_ASN1_INTEGER(ASN1_INTEGER *a, unsigned char **pp)
+int i2c_ASN1_INTEGER(ASN1_INTEGER *a, unsigned char **pp)
 	{
-	int pad=0,ret,r,i,t;
+	int pad=0,ret,i,neg;
 	unsigned char *p,*n,pb=0;
 
 	if ((a == NULL) || (a->data == NULL)) return(0);
-	t=a->type;
+	neg=a->type & V_ASN1_NEG;
 	if (a->length == 0)
 		ret=1;
 	else
 		{
 		ret=a->length;
 		i=a->data[0];
-		if ((t == V_ASN1_INTEGER) && (i > 127)) {
+		if (!neg && (i > 127)) {
 			pad=1;
 			pb=0;
-		} else if(t == V_ASN1_NEG_INTEGER) {
+		} else if(neg) {
 			if(i>128) {
 				pad=1;
 				pb=0xFF;
@@ -131,14 +146,12 @@ int i2d_ASN1_INTEGER(ASN1_INTEGER *a, unsigned char **pp)
 		}
 		ret+=pad;
 		}
-	r=ASN1_object_size(0,ret,V_ASN1_INTEGER);
-	if (pp == NULL) return(r);
+	if (pp == NULL) return(ret);
 	p= *pp;
 
-	ASN1_put_object(&p,0,ret,V_ASN1_INTEGER,V_ASN1_UNIVERSAL);
 	if (pad) *(p++)=pb;
 	if (a->length == 0) *(p++)=0;
-	else if (t == V_ASN1_INTEGER) memcpy(p,a->data,(unsigned int)a->length);
+	else if (!neg) memcpy(p,a->data,(unsigned int)a->length);
 	else {
 		/* Begin at the end of the encoding */
 		n=a->data + a->length - 1;
@@ -157,30 +170,22 @@ int i2d_ASN1_INTEGER(ASN1_INTEGER *a, unsigned char **pp)
 		for(;i > 0; i--) *(p--) = *(n--) ^ 0xff;
 	}
 
-	*pp+=r;
-	return(r);
+	*pp+=ret;
+	return(ret);
 	}
 
+/* Convert DER encoded ASN1 INTEGER to ASN1_INTEGER structure */
 ASN1_INTEGER *d2i_ASN1_INTEGER(ASN1_INTEGER **a, unsigned char **pp,
 	     long length)
-	{
-	ASN1_INTEGER *ret=NULL;
-	unsigned char *p,*to,*s, *pend;
+{
+	unsigned char *p;
 	long len;
-	int inf,tag,xclass;
 	int i;
-
-	if ((a == NULL) || ((*a) == NULL))
-		{
-		if ((ret=M_ASN1_INTEGER_new()) == NULL) return(NULL);
-		ret->type=V_ASN1_INTEGER;
-		}
-	else
-		ret=(*a);
+	int inf,tag,xclass;
+	ASN1_INTEGER *ret;
 
 	p= *pp;
 	inf=ASN1_get_object(&p,&len,&tag,&xclass,length);
-	pend = p + len;
 	if (inf & 0x80)
 		{
 		i=ASN1_R_BAD_OBJECT_HEADER;
@@ -192,10 +197,39 @@ ASN1_INTEGER *d2i_ASN1_INTEGER(ASN1_INTEGER **a, unsigned char **pp,
 		i=ASN1_R_EXPECTING_AN_INTEGER;
 		goto err;
 		}
+	ret = c2i_ASN1_INTEGER(a, &p, len);
+	if(ret) *pp = p;
+	return ret;
+err:
+	ASN1err(ASN1_F_D2I_ASN1_INTEGER,i);
+	return(NULL);
 
-	/* We must Malloc stuff, even for 0 bytes otherwise it
+}
+
+
+/* Convert just ASN1 INTEGER content octets to ASN1_INTEGER structure */
+
+ASN1_INTEGER *c2i_ASN1_INTEGER(ASN1_INTEGER **a, unsigned char **pp,
+	     long len)
+	{
+	ASN1_INTEGER *ret=NULL;
+	unsigned char *p,*to,*s, *pend;
+	int i;
+
+	if ((a == NULL) || ((*a) == NULL))
+		{
+		if ((ret=M_ASN1_INTEGER_new()) == NULL) return(NULL);
+		ret->type=V_ASN1_INTEGER;
+		}
+	else
+		ret=(*a);
+
+	p= *pp;
+	pend = p + len;
+
+	/* We must OPENSSL_malloc stuff, even for 0 bytes otherwise it
 	 * signifies a missing NULL parameter. */
-	s=(unsigned char *)Malloc((int)len+1);
+	s=(unsigned char *)OPENSSL_malloc((int)len+1);
 	if (s == NULL)
 		{
 		i=ERR_R_MALLOC_FAILURE;
@@ -248,7 +282,7 @@ ASN1_INTEGER *d2i_ASN1_INTEGER(ASN1_INTEGER **a, unsigned char **pp,
 		memcpy(s,p,(int)len);
 	}
 
-	if (ret->data != NULL) Free(ret->data);
+	if (ret->data != NULL) OPENSSL_free(ret->data);
 	ret->data=s;
 	ret->length=(int)len;
 	if (a != NULL) (*a)=ret;
@@ -260,6 +294,7 @@ err:
 		M_ASN1_INTEGER_free(ret);
 	return(NULL);
 	}
+
 
 /* This is a version of d2i_ASN1_INTEGER that ignores the sign bit of
  * ASN1 integers: some broken software can encode a positive INTEGER
@@ -297,9 +332,9 @@ ASN1_INTEGER *d2i_ASN1_UINTEGER(ASN1_INTEGER **a, unsigned char **pp,
 		goto err;
 		}
 
-	/* We must Malloc stuff, even for 0 bytes otherwise it
+	/* We must OPENSSL_malloc stuff, even for 0 bytes otherwise it
 	 * signifies a missing NULL parameter. */
-	s=(unsigned char *)Malloc((int)len+1);
+	s=(unsigned char *)OPENSSL_malloc((int)len+1);
 	if (s == NULL)
 		{
 		i=ERR_R_MALLOC_FAILURE;
@@ -317,7 +352,7 @@ ASN1_INTEGER *d2i_ASN1_UINTEGER(ASN1_INTEGER **a, unsigned char **pp,
 		p+=len;
 	}
 
-	if (ret->data != NULL) Free(ret->data);
+	if (ret->data != NULL) OPENSSL_free(ret->data);
 	ret->data=s;
 	ret->length=(int)len;
 	if (a != NULL) (*a)=ret;
@@ -340,8 +375,8 @@ int ASN1_INTEGER_set(ASN1_INTEGER *a, long v)
 	if (a->length < (sizeof(long)+1))
 		{
 		if (a->data != NULL)
-			Free(a->data);
-		if ((a->data=(unsigned char *)Malloc(sizeof(long)+1)) != NULL)
+			OPENSSL_free(a->data);
+		if ((a->data=(unsigned char *)OPENSSL_malloc(sizeof(long)+1)) != NULL)
 			memset((char *)a->data,0,sizeof(long)+1);
 		}
 	if (a->data == NULL)
@@ -416,7 +451,7 @@ ASN1_INTEGER *BN_to_ASN1_INTEGER(BIGNUM *bn, ASN1_INTEGER *ai)
 	else ret->type=V_ASN1_INTEGER;
 	j=BN_num_bits(bn);
 	len=((j == 0)?0:((j/8)+1));
-	ret->data=(unsigned char *)Malloc(len+4);
+	ret->data=(unsigned char *)OPENSSL_malloc(len+4);
 	ret->length=BN_bn2bin(bn,ret->data);
 	return(ret);
 err:
@@ -430,6 +465,9 @@ BIGNUM *ASN1_INTEGER_to_BN(ASN1_INTEGER *ai, BIGNUM *bn)
 
 	if ((ret=BN_bin2bn(ai->data,ai->length,bn)) == NULL)
 		ASN1err(ASN1_F_ASN1_INTEGER_TO_BN,ASN1_R_BN_LIB);
-	if(ai->type == V_ASN1_NEG_INTEGER) bn->neg = 1;
+	else if(ai->type == V_ASN1_NEG_INTEGER) ret->neg = 1;
 	return(ret);
 	}
+
+IMPLEMENT_STACK_OF(ASN1_INTEGER)
+IMPLEMENT_ASN1_SET_OF(ASN1_INTEGER)

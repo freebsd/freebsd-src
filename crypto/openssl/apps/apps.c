@@ -64,6 +64,11 @@
 #define NON_MAIN
 #include "apps.h"
 #undef NON_MAIN
+#include <openssl/err.h>
+#include <openssl/x509.h>
+#include <openssl/pem.h>
+#include <openssl/pkcs12.h>
+#include <openssl/safestack.h>
 
 #ifdef WINDOWS
 #  include "bss_file.c"
@@ -91,8 +96,8 @@ int args_from_file(char *file, int *argc, char **argv[])
 	*argv=NULL;
 
 	len=(unsigned int)stbuf.st_size;
-	if (buf != NULL) Free(buf);
-	buf=(char *)Malloc(len+1);
+	if (buf != NULL) OPENSSL_free(buf);
+	buf=(char *)OPENSSL_malloc(len+1);
 	if (buf == NULL) return(0);
 
 	len=fread(buf,1,len,fp);
@@ -102,8 +107,8 @@ int args_from_file(char *file, int *argc, char **argv[])
 	i=0;
 	for (p=buf; *p; p++)
 		if (*p == '\n') i++;
-	if (arg != NULL) Free(arg);
-	arg=(char **)Malloc(sizeof(char *)*(i*2));
+	if (arg != NULL) OPENSSL_free(arg);
+	arg=(char **)OPENSSL_malloc(sizeof(char *)*(i*2));
 
 	*argv=arg;
 	num=0;
@@ -159,6 +164,12 @@ int str2fmt(char *s)
 		return(FORMAT_PEM);
 	else if ((*s == 'N') || (*s == 'n'))
 		return(FORMAT_NETSCAPE);
+	else if ((*s == 'S') || (*s == 's'))
+		return(FORMAT_SMIME);
+	else if ((*s == '1')
+		|| (strcmp(s,"PKCS12") == 0) || (strcmp(s,"pkcs12") == 0)
+		|| (strcmp(s,"P12") == 0) || (strcmp(s,"p12") == 0))
+		return(FORMAT_PKCS12);
 	else
 		return(FORMAT_UNDEF);
 	}
@@ -266,7 +277,7 @@ int chopup_args(ARGS *arg, char *buf, int *argc, char **argv[])
 	if (arg->count == 0)
 		{
 		arg->count=20;
-		arg->data=(char **)Malloc(sizeof(char *)*arg->count);
+		arg->data=(char **)OPENSSL_malloc(sizeof(char *)*arg->count);
 		}
 	for (i=0; i<arg->count; i++)
 		arg->data[i]=NULL;
@@ -285,7 +296,7 @@ int chopup_args(ARGS *arg, char *buf, int *argc, char **argv[])
 		if (num >= arg->count)
 			{
 			arg->count+=20;
-			arg->data=(char **)Realloc(arg->data,
+			arg->data=(char **)OPENSSL_realloc(arg->data,
 				sizeof(char *)*arg->count);
 			if (argc == 0) return(0);
 			}
@@ -414,3 +425,352 @@ static char *app_get_pass(BIO *err, char *arg, int keepbio)
 	if(tmp) *tmp = 0;
 	return BUF_strdup(tpass);
 }
+
+int add_oid_section(BIO *err, LHASH *conf)
+{	
+	char *p;
+	STACK_OF(CONF_VALUE) *sktmp;
+	CONF_VALUE *cnf;
+	int i;
+	if(!(p=CONF_get_string(conf,NULL,"oid_section"))) return 1;
+	if(!(sktmp = CONF_get_section(conf, p))) {
+		BIO_printf(err, "problem loading oid section %s\n", p);
+		return 0;
+	}
+	for(i = 0; i < sk_CONF_VALUE_num(sktmp); i++) {
+		cnf = sk_CONF_VALUE_value(sktmp, i);
+		if(OBJ_create(cnf->value, cnf->name, cnf->name) == NID_undef) {
+			BIO_printf(err, "problem creating object %s=%s\n",
+							 cnf->name, cnf->value);
+			return 0;
+		}
+	}
+	return 1;
+}
+
+X509 *load_cert(BIO *err, char *file, int format)
+	{
+	ASN1_HEADER *ah=NULL;
+	BUF_MEM *buf=NULL;
+	X509 *x=NULL;
+	BIO *cert;
+
+	if ((cert=BIO_new(BIO_s_file())) == NULL)
+		{
+		ERR_print_errors(err);
+		goto end;
+		}
+
+	if (file == NULL)
+		BIO_set_fp(cert,stdin,BIO_NOCLOSE);
+	else
+		{
+		if (BIO_read_filename(cert,file) <= 0)
+			{
+			perror(file);
+			goto end;
+			}
+		}
+
+	if 	(format == FORMAT_ASN1)
+		x=d2i_X509_bio(cert,NULL);
+	else if (format == FORMAT_NETSCAPE)
+		{
+		unsigned char *p,*op;
+		int size=0,i;
+
+		/* We sort of have to do it this way because it is sort of nice
+		 * to read the header first and check it, then
+		 * try to read the certificate */
+		buf=BUF_MEM_new();
+		for (;;)
+			{
+			if ((buf == NULL) || (!BUF_MEM_grow(buf,size+1024*10)))
+				goto end;
+			i=BIO_read(cert,&(buf->data[size]),1024*10);
+			size+=i;
+			if (i == 0) break;
+			if (i < 0)
+				{
+				perror("reading certificate");
+				goto end;
+				}
+			}
+		p=(unsigned char *)buf->data;
+		op=p;
+
+		/* First load the header */
+		if ((ah=d2i_ASN1_HEADER(NULL,&p,(long)size)) == NULL)
+			goto end;
+		if ((ah->header == NULL) || (ah->header->data == NULL) ||
+			(strncmp(NETSCAPE_CERT_HDR,(char *)ah->header->data,
+			ah->header->length) != 0))
+			{
+			BIO_printf(err,"Error reading header on certificate\n");
+			goto end;
+			}
+		/* header is ok, so now read the object */
+		p=op;
+		ah->meth=X509_asn1_meth();
+		if ((ah=d2i_ASN1_HEADER(&ah,&p,(long)size)) == NULL)
+			goto end;
+		x=(X509 *)ah->data;
+		ah->data=NULL;
+		}
+	else if (format == FORMAT_PEM)
+		x=PEM_read_bio_X509_AUX(cert,NULL,NULL,NULL);
+	else if (format == FORMAT_PKCS12)
+		{
+		PKCS12 *p12 = d2i_PKCS12_bio(cert, NULL);
+
+		PKCS12_parse(p12, NULL, NULL, &x, NULL);
+		PKCS12_free(p12);
+		p12 = NULL;
+		}
+	else	{
+		BIO_printf(err,"bad input format specified for input cert\n");
+		goto end;
+		}
+end:
+	if (x == NULL)
+		{
+		BIO_printf(err,"unable to load certificate\n");
+		ERR_print_errors(err);
+		}
+	if (ah != NULL) ASN1_HEADER_free(ah);
+	if (cert != NULL) BIO_free(cert);
+	if (buf != NULL) BUF_MEM_free(buf);
+	return(x);
+	}
+
+EVP_PKEY *load_key(BIO *err, char *file, int format, char *pass)
+	{
+	BIO *key=NULL;
+	EVP_PKEY *pkey=NULL;
+
+	if (file == NULL)
+		{
+		BIO_printf(err,"no keyfile specified\n");
+		goto end;
+		}
+	key=BIO_new(BIO_s_file());
+	if (key == NULL)
+		{
+		ERR_print_errors(err);
+		goto end;
+		}
+	if (BIO_read_filename(key,file) <= 0)
+		{
+		perror(file);
+		goto end;
+		}
+	if (format == FORMAT_ASN1)
+		{
+		pkey=d2i_PrivateKey_bio(key, NULL);
+		}
+	else if (format == FORMAT_PEM)
+		{
+		pkey=PEM_read_bio_PrivateKey(key,NULL,NULL,pass);
+		}
+	else if (format == FORMAT_PKCS12)
+		{
+		PKCS12 *p12 = d2i_PKCS12_bio(key, NULL);
+
+		PKCS12_parse(p12, pass, &pkey, NULL, NULL);
+		PKCS12_free(p12);
+		p12 = NULL;
+		}
+	else
+		{
+		BIO_printf(err,"bad input format specified for key\n");
+		goto end;
+		}
+ end:
+	if (key != NULL) BIO_free(key);
+	if (pkey == NULL)
+		BIO_printf(err,"unable to load Private Key\n");
+	return(pkey);
+	}
+
+EVP_PKEY *load_pubkey(BIO *err, char *file, int format)
+	{
+	BIO *key=NULL;
+	EVP_PKEY *pkey=NULL;
+
+	if (file == NULL)
+		{
+		BIO_printf(err,"no keyfile specified\n");
+		goto end;
+		}
+	key=BIO_new(BIO_s_file());
+	if (key == NULL)
+		{
+		ERR_print_errors(err);
+		goto end;
+		}
+	if (BIO_read_filename(key,file) <= 0)
+		{
+		perror(file);
+		goto end;
+		}
+	if (format == FORMAT_ASN1)
+		{
+		pkey=d2i_PUBKEY_bio(key, NULL);
+		}
+	else if (format == FORMAT_PEM)
+		{
+		pkey=PEM_read_bio_PUBKEY(key,NULL,NULL,NULL);
+		}
+	else
+		{
+		BIO_printf(err,"bad input format specified for key\n");
+		goto end;
+		}
+ end:
+	if (key != NULL) BIO_free(key);
+	if (pkey == NULL)
+		BIO_printf(err,"unable to load Public Key\n");
+	return(pkey);
+	}
+
+STACK_OF(X509) *load_certs(BIO *err, char *file, int format)
+	{
+	BIO *certs;
+	int i;
+	STACK_OF(X509) *othercerts = NULL;
+	STACK_OF(X509_INFO) *allcerts = NULL;
+	X509_INFO *xi;
+
+	if((certs = BIO_new(BIO_s_file())) == NULL)
+		{
+		ERR_print_errors(err);
+		goto end;
+		}
+
+	if (file == NULL)
+		BIO_set_fp(certs,stdin,BIO_NOCLOSE);
+	else
+		{
+		if (BIO_read_filename(certs,file) <= 0)
+			{
+			perror(file);
+			goto end;
+			}
+		}
+
+	if      (format == FORMAT_PEM)
+		{
+		othercerts = sk_X509_new_null();
+		if(!othercerts)
+			{
+			sk_X509_free(othercerts);
+			othercerts = NULL;
+			goto end;
+			}
+		allcerts = PEM_X509_INFO_read_bio(certs, NULL, NULL, NULL);
+		for(i = 0; i < sk_X509_INFO_num(allcerts); i++)
+			{
+			xi = sk_X509_INFO_value (allcerts, i);
+			if (xi->x509)
+				{
+				sk_X509_push(othercerts, xi->x509);
+				xi->x509 = NULL;
+				}
+			}
+		goto end;
+		}
+	else	{
+		BIO_printf(err,"bad input format specified for input cert\n");
+		goto end;
+		}
+end:
+	if (othercerts == NULL)
+		{
+		BIO_printf(err,"unable to load certificates\n");
+		ERR_print_errors(err);
+		}
+	if (allcerts) sk_X509_INFO_pop_free(allcerts, X509_INFO_free);
+	if (certs != NULL) BIO_free(certs);
+	return(othercerts);
+	}
+
+typedef struct {
+	char *name;
+	unsigned long flag;
+	unsigned long mask;
+} NAME_EX_TBL;
+
+int set_name_ex(unsigned long *flags, const char *arg)
+{
+	char c;
+	const NAME_EX_TBL *ptbl, ex_tbl[] = {
+		{ "esc_2253", ASN1_STRFLGS_ESC_2253, 0},
+		{ "esc_ctrl", ASN1_STRFLGS_ESC_CTRL, 0},
+		{ "esc_msb", ASN1_STRFLGS_ESC_MSB, 0},
+		{ "use_quote", ASN1_STRFLGS_ESC_QUOTE, 0},
+		{ "utf8", ASN1_STRFLGS_UTF8_CONVERT, 0},
+		{ "ignore_type", ASN1_STRFLGS_IGNORE_TYPE, 0},
+		{ "show_type", ASN1_STRFLGS_SHOW_TYPE, 0},
+		{ "dump_all", ASN1_STRFLGS_DUMP_ALL, 0},
+		{ "dump_nostr", ASN1_STRFLGS_DUMP_UNKNOWN, 0},
+		{ "dump_der", ASN1_STRFLGS_DUMP_DER, 0},
+		{ "compat", XN_FLAG_COMPAT, 0xffffffffL},
+		{ "sep_comma_plus", XN_FLAG_SEP_COMMA_PLUS, XN_FLAG_SEP_MASK},
+		{ "sep_comma_plus_space", XN_FLAG_SEP_CPLUS_SPC, XN_FLAG_SEP_MASK},
+		{ "sep_semi_plus_space", XN_FLAG_SEP_SPLUS_SPC, XN_FLAG_SEP_MASK},
+		{ "sep_multiline", XN_FLAG_SEP_MULTILINE, XN_FLAG_SEP_MASK},
+		{ "dn_rev", XN_FLAG_DN_REV, 0},
+		{ "nofname", XN_FLAG_FN_NONE, XN_FLAG_FN_MASK},
+		{ "sname", XN_FLAG_FN_SN, XN_FLAG_FN_MASK},
+		{ "lname", XN_FLAG_FN_LN, XN_FLAG_FN_MASK},
+		{ "oid", XN_FLAG_FN_OID, XN_FLAG_FN_MASK},
+		{ "space_eq", XN_FLAG_SPC_EQ, 0},
+		{ "dump_unknown", XN_FLAG_DUMP_UNKNOWN_FIELDS, 0},
+		{ "RFC2253", XN_FLAG_RFC2253, 0xffffffffL},
+		{ "oneline", XN_FLAG_ONELINE, 0xffffffffL},
+		{ "multiline", XN_FLAG_MULTILINE, 0xffffffffL},
+		{ NULL, 0, 0}
+	};
+
+	c = arg[0];
+
+	if(c == '-') {
+		c = 0;
+		arg++;
+	} else if (c == '+') {
+		c = 1;
+		arg++;
+	} else c = 1;
+
+	for(ptbl = ex_tbl; ptbl->name; ptbl++) {
+		if(!strcmp(arg, ptbl->name)) {
+			*flags &= ~ptbl->mask;
+			if(c) *flags |= ptbl->flag;
+			else *flags &= ~ptbl->flag;
+			return 1;
+		}
+	}
+	return 0;
+}
+
+void print_name(BIO *out, char *title, X509_NAME *nm, unsigned long lflags)
+{
+	char buf[256];
+	char mline = 0;
+	int indent = 0;
+	if(title) BIO_puts(out, title);
+	if((lflags & XN_FLAG_SEP_MASK) == XN_FLAG_SEP_MULTILINE) {
+		mline = 1;
+		indent = 4;
+	}
+	if(lflags == XN_FLAG_COMPAT) {
+		X509_NAME_oneline(nm,buf,256);
+		BIO_puts(out,buf);
+		BIO_puts(out, "\n");
+	} else {
+		if(mline) BIO_puts(out, "\n");
+		X509_NAME_print_ex(out, nm, indent, lflags);
+		BIO_puts(out, "\n");
+	}
+}
+

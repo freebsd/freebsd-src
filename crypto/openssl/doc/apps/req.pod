@@ -19,6 +19,7 @@ B<openssl> B<req>
 [B<-verify>]
 [B<-modulus>]
 [B<-new>]
+[B<-rand file(s)>]
 [B<-newkey rsa:bits>]
 [B<-newkey dsa:file>]
 [B<-nodes>]
@@ -104,6 +105,14 @@ in the configuration file and any requested extensions.
 If the B<-key> option is not used it will generate a new RSA private
 key using information specified in the configuration file.
 
+=item B<-rand file(s)>
+
+a file or files containing random data used to seed the random number
+generator, or an EGD socket (see L<RAND_egd(3)|RAND_egd(3)>).
+Multiple files can be specified separated by a OS-dependent character.
+The separator is B<;> for MS-Windows, B<,> for OpenVMS, and B<:> for
+all others.
+
 =item B<-newkey arg>
 
 this option creates a new certificate request and a new private
@@ -158,6 +167,7 @@ when the B<-x509> option is being used this specifies the number of
 days to certify the certificate for. The default is 30 days.
 
 =item B<-extensions section>
+
 =item B<-reqexts section>
 
 these options specify alternative sections to include certificate

@@ -125,12 +125,12 @@
 #include <openssl/evp.h>
 #include <openssl/rand.h>
 
-static int ok_write(BIO *h,char *buf,int num);
-static int ok_read(BIO *h,char *buf,int size);
-static long ok_ctrl(BIO *h,int cmd,long arg1,char *arg2);
+static int ok_write(BIO *h, const char *buf, int num);
+static int ok_read(BIO *h, char *buf, int size);
+static long ok_ctrl(BIO *h, int cmd, long arg1, void *arg2);
 static int ok_new(BIO *h);
 static int ok_free(BIO *data);
-static long ok_callback_ctrl(BIO *h,int cmd,void (*fp)());
+static long ok_callback_ctrl(BIO *h, int cmd, bio_info_cb *fp);
 
 static void sig_out(BIO* b);
 static void sig_in(BIO* b);
@@ -187,7 +187,7 @@ static int ok_new(BIO *bi)
 	{
 	BIO_OK_CTX *ctx;
 
-	ctx=(BIO_OK_CTX *)Malloc(sizeof(BIO_OK_CTX));
+	ctx=(BIO_OK_CTX *)OPENSSL_malloc(sizeof(BIO_OK_CTX));
 	if (ctx == NULL) return(0);
 
 	ctx->buf_len=0;
@@ -209,7 +209,7 @@ static int ok_free(BIO *a)
 	{
 	if (a == NULL) return(0);
 	memset(a->ptr,0,sizeof(BIO_OK_CTX));
-	Free(a->ptr);
+	OPENSSL_free(a->ptr);
 	a->ptr=NULL;
 	a->init=0;
 	a->flags=0;
@@ -287,7 +287,7 @@ static int ok_read(BIO *b, char *out, int outl)
 	return(ret);
 	}
 
-static int ok_write(BIO *b, char *in, int inl)
+static int ok_write(BIO *b, const char *in, int inl)
 	{
 	int ret=0,n,i;
 	BIO_OK_CTX *ctx;
@@ -345,7 +345,7 @@ static int ok_write(BIO *b, char *in, int inl)
 	return(ret);
 	}
 
-static long ok_ctrl(BIO *b, int cmd, long num, char *ptr)
+static long ok_ctrl(BIO *b, int cmd, long num, void *ptr)
 	{
 	BIO_OK_CTX *ctx;
 	EVP_MD *md;
@@ -431,7 +431,7 @@ static long ok_ctrl(BIO *b, int cmd, long num, char *ptr)
 	return(ret);
 	}
 
-static long ok_callback_ctrl(BIO *b, int cmd, void (*fp)())
+static long ok_callback_ctrl(BIO *b, int cmd, bio_info_cb *fp)
 	{
 	long ret=1;
 

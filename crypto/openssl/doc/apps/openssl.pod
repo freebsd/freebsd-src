@@ -83,9 +83,10 @@ CRL to PKCS#7 Conversion.
 
 Message Digest Calculation.
 
-=item L<B<dh>|dh(1)>
+=item B<dh>
 
-Diffie-Hellman Data Management.
+Diffie-Hellman Parameter Management.
+Obsoleted by L<B<dhparam>|dhparam(1)>.
 
 =item L<B<dsa>|dsa(1)>
 
@@ -103,9 +104,14 @@ Encoding with Ciphers.
 
 Error Number to Error String Conversion.
 
-=item L<B<gendh>|gendh(1)>
+=item L<B<dhparam>|dhparam(1)>
+
+Generation and Management of Diffie-Hellman Parameters.
+
+=item B<gendh>
 
 Generation of Diffie-Hellman Parameters.
+Obsoleted by L<B<dhparam>|dhparam(1)>.
 
 =item L<B<gendsa>|gendsa(1)>
 
@@ -134,6 +140,10 @@ X.509 Certificate Signing Request (CSR) Management.
 =item L<B<rsa>|rsa(1)>
 
 RSA Data Management.
+
+=item L<B<rsautl>|rsautl(1)>
+
+RSA utility for signing, verification, encryption, and decryption.
 
 =item L<B<s_client>|s_client(1)>
 
@@ -309,7 +319,8 @@ L<enc(1)|enc(1)>, L<gendsa(1)|gendsa(1)>,
 L<genrsa(1)|genrsa(1)>, L<nseq(1)|nseq(1)>, L<openssl(1)|openssl(1)>,
 L<passwd(1)|passwd(1)>,
 L<pkcs12(1)|pkcs12(1)>, L<pkcs7(1)|pkcs7(1)>, L<pkcs8(1)|pkcs8(1)>,
-L<rand(1)|rand(1)>, L<req(1)|req(1)>, L<rsa(1)|rsa(1)>, L<s_client(1)|s_client(1)>,
+L<rand(1)|rand(1)>, L<req(1)|req(1)>, L<rsa(1)|rsa(1)>,
+L<rsautl(1)|rsautl(1)>, L<s_client(1)|s_client(1)>,
 L<s_server(1)|s_server(1)>, L<smime(1)|smime(1)>, L<spkac(1)|spkac(1)>,
 L<verify(1)|verify(1)>, L<version(1)|version(1)>, L<x509(1)|x509(1)>,
 L<crypto(3)|crypto(3)>, L<ssl(3)|ssl(3)> 
