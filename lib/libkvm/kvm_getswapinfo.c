@@ -19,6 +19,8 @@ static const char rcsid[] =
 #endif /* not lint */
 
 #include <sys/param.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/time.h>
 #include <sys/stat.h>
 #include <sys/conf.h>
