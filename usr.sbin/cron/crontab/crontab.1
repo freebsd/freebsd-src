@@ -114,8 +114,13 @@ from the editor, the modified crontab will be installed automatically.
 The
 .Nm
 command conforms to
-.St -p1003.2 .
-This new command syntax
+.St -p1003.2
+with the exception that the dangerous variant of calling
+.Nm
+without a file name in the first form of the command is not allowed by
+this implementation.
+The pseudo-filename ``-'' must be specified to read from standard input.
+The new command syntax
 differs from previous versions of Vixie Cron, as well as from the classic
 SVR3 syntax.
 .Sh DIAGNOSTICS
