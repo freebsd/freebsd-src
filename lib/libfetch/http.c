@@ -130,7 +130,7 @@ _http_new_chunk(struct cookie *c)
 	if (_fetch_getln(c->conn) == -1)
 		return (-1);
 
-	if (c->b_len < 2 || !ishexnumber(*c->conn->buf))
+	if (c->conn->buflen < 2 || !ishexnumber(*c->conn->buf))
 		return (-1);
 
 	for (p = c->conn->buf; *p && !isspace(*p); ++p) {
