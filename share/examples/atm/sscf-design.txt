@@ -125,5 +125,5 @@ o The Parameter Data parameter is not supported for the following primitives:
 	AAL-RELEASE indication
 
 
-	@(#) $Id: sscf.design,v 1.1.1.1 1996/12/04 20:48:17 mks Exp $
+	@(#) $FreeBSD$
 

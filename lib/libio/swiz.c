@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: swiz.c,v 1.1 1998/12/12 18:05:06 dfr Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

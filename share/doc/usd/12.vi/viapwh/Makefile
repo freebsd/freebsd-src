@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1 1997/03/02 14:07:50 wosch Exp $
+# $FreeBSD$
 
 SRCS=	vi.apwh.ms
 DOC=	viapwh

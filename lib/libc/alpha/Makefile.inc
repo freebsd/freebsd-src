@@ -1,4 +1,4 @@
-# $Id: Makefile.inc,v 1.3 1998/08/08 02:14:45 jb Exp $
+# $FreeBSD$
 #
 # Machine dependent definitions for the alpha architecture.
 #

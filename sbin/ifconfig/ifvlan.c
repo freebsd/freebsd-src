@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id$
+ * $FreeBSD$
  */
 
 #include <sys/param.h>
@@ -59,7 +59,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+  "$FreeBSD$";
 #endif
 static int			__tag = 0;
 static int			__have_tag = 0;

@@ -1,6 +1,6 @@
 # Makefile to build LCD control software for ppi(4) interface.
 #
-# $Id$
+# $FreeBSD$
 
 PROG=	ppilcd
 NOMAN=	YES

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uthread_sigwait.c,v 1.6 1999/06/20 08:28:47 jb Exp $
+ * $FreeBSD$
  */
 #include <signal.h>
 #include <errno.h>

@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/5/93
-#	$Id: Makefile,v 1.10 1999/05/02 00:13:44 obrien Exp $
+# $FreeBSD$
 
 MAN8=	adding_user.8 crash.8 diskless.8 intro.8 rc.8 sticky.8
 

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uthread_open.c,v 1.4 1998/04/29 09:59:07 jb Exp $
+ * $FreeBSD$
  *
  */
 #include <stdarg.h>

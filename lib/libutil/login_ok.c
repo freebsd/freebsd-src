@@ -20,7 +20,7 @@
  *
  * Support allow/deny lists in login class capabilities
  *
- *	$Id: login_ok.c,v 1.5 1997/06/16 23:38:01 davidn Exp $
+ * $FreeBSD$
  */
 
 #include <stdlib.h>

@@ -48,7 +48,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 /* from: static char sccsid[] = 	"@(#)auth_des.c	2.2 88/07/29 4.0 RPCSRC; from 1.9 88/02/08 SMI"; */
-static const char rcsid[] = "$Id$";
+static const char rcsid[] = "$FreeBSD$";
 #endif
 
 extern bool_t __rpc_get_time_offset __P(( struct timeval *, nis_server *,

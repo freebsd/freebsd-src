@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mntopts.h	8.7 (Berkeley) 3/29/95
- *	$Id: mntopts.h,v 1.13 1998/04/08 18:31:17 wosch Exp $
+ * $FreeBSD$
  */
 
 struct mntopt {

@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: atm_show.c,v 1.1 1998/09/15 08:22:46 phk Exp $
+ *	@(#) $FreeBSD$
  *
  */
 
@@ -57,7 +57,7 @@
 #include "atm.h"
 
 #ifndef lint
-__RCSID("@(#) $Id: atm_show.c,v 1.1 1998/09/15 08:22:46 phk Exp $");
+__RCSID("@(#) $FreeBSD$");
 #endif
 
 

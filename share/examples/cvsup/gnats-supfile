@@ -1,4 +1,4 @@
-# $Id: gnats-supfile,v 1.1 1998/04/20 11:26:29 jb Exp $
+# $FreeBSD$
 #
 # This file contains all of the "CVSup collections" that make up the
 # FreeBSD GNATS bug report database.

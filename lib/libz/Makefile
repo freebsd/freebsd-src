@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.8 1998/04/17 07:26:51 phk Exp $
+# $FreeBSD$
 #
 
 MAINTAINER=peter@FreeBSD.org

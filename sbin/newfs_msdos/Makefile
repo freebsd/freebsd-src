@@ -1,4 +1,4 @@
-#	$Id$
+# $FreeBSD$
 
 PROG=	newfs_msdos
 MAN8=	newfs_msdos.8

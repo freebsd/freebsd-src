@@ -35,7 +35,7 @@
 
 #include <machine/asm.h>
 
-RCSID("$Id: e_fmod.S,v 1.4 1997/02/22 15:08:47 peter Exp $")
+RCSID("$FreeBSD$")
 
 ENTRY(__ieee754_fmod)
 	fldl	12(%esp)

@@ -1,5 +1,5 @@
 /* RIPEMD160DRIVER.C - test driver for RIPEMD160
- * $Id: RIPEMD160driver.c,v 1.1 1999/02/26 04:24:56 wollman Exp $
+ * $FreeBSD$
  */
 
 /* Copyright (C) 1990-2, RSA Data Security, Inc. Created 1990. All

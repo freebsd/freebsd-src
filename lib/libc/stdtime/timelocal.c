@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: timelocal.c,v 1.1 1997/08/09 15:43:57 joerg Exp $
+ * $FreeBSD$
  */
 
 #include <sys/types.h>

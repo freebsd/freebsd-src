@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: environment.c,v 1.1.1.1 1998/08/20 08:19:55 msmith Exp $
+ * $FreeBSD$
  *
  */
 

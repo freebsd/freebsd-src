@@ -1,4 +1,4 @@
-#	$Id$
+# $FreeBSD$
 
 PROG =	rpc.rusersd
 SRCS =	rusersd.c rusers_proc.c

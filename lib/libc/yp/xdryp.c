@@ -28,7 +28,7 @@
  */
 
 #ifndef LINT
-static char *rcsid = "$Id$";
+static char *rcsid = "$FreeBSD$";
 #endif
 
 #include <rpc/rpc.h>

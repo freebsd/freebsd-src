@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.4 1999/04/20 11:34:20 obrien Exp $
+# $FreeBSD$
 
 SUBDIR=
 

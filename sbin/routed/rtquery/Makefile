@@ -1,6 +1,6 @@
 # Make `routed` tools for BSD/OS
-# $Revision: 2.15 $
-#	$Id$
+# $Revision: 1.6 $
+# $FreeBSD$
 
 PROG=	rtquery
 MAN8=	rtquery.8

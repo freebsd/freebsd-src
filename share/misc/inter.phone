@@ -1,6 +1,6 @@
 # Country Code : City Code : City : Country
 #	@(#)inter.phone	8.1 (Berkeley) 6/9/93
-#	$Id: inter.phone,v 1.16 1997/03/03 05:01:54 adam Exp $
+# $FreeBSD$
 #
 7:095:Moscow:Russia
 7:::Kazakhstan

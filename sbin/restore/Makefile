@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/5/93
-#	$Id: Makefile,v 1.8 1998/08/06 21:41:13 markm Exp $
+# $FreeBSD$
 
 PROG=	restore
 LINKS=	${BINDIR}/restore ${BINDIR}/rrestore

@@ -1,4 +1,4 @@
-#	$Id:$
+# $FreeBSD$
 
 PROG=		mutex
 SRCS=		mutex.c

@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.1 1999/04/20 11:32:09 obrien Exp $
+# $FreeBSD$
 
 DISTRIBUTION=	compat3x
 

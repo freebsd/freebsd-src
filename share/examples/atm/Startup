@@ -123,5 +123,5 @@ See the file atm-config.sh for an example ATM startup script.
 
     See the man pages scspd(8) and atmarpd(8) for further information.
 
-	@(#) $Id: Startup,v 1.6 1998/08/26 21:37:42 johnc Exp $
+	@(#) $FreeBSD$
 

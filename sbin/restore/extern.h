@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)extern.h	8.2 (Berkeley) 1/7/94
- *	$Id$
+ * $FreeBSD$
  */
 
 struct entry	*addentry __P((char *, ino_t, int));

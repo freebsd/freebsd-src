@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.2 1998/09/30 07:07:59 jb Exp $
+# $FreeBSD$
 #
 # Tests for libc_r functionality.
 #

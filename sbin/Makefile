@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.5 (Berkeley) 3/31/94
-#	$Id: Makefile,v 1.68 1999/04/18 15:56:19 peter Exp $
+# $FreeBSD$
 
 # XXX MISSING:		icheck ncheck
 

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uthread_close.c,v 1.5 1999/06/20 08:28:11 jb Exp $
+ * $FreeBSD$
  */
 #include <errno.h>
 #include <stdlib.h>
