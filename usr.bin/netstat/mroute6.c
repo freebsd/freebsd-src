@@ -88,8 +88,8 @@
 
 #include "netstat.h"
 
-#define	WID_ORG	(lflag ? 39 : (numeric_addr ? 29 : 18)) /* width of origin column */
-#define	WID_GRP	(lflag ? 18 : (numeric_addr ? 16 : 18)) /* width of group column */
+#define	WID_ORG	(Wflag ? 39 : (numeric_addr ? 29 : 18)) /* width of origin column */
+#define	WID_GRP	(Wflag ? 18 : (numeric_addr ? 16 : 18)) /* width of group column */
 
 void
 mroute6pr(u_long mfcaddr, u_long mifaddr)
