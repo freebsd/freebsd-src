@@ -49,7 +49,7 @@ __FBSDID("$FreeBSD$");
  * alphabets and digits are each contiguous.
  */
 unsigned long long
-strtoull(const char *__restrict nptr, char **__restrict endptr, int base)
+strtoull(const char * __restrict nptr, char ** __restrict endptr, int base)
 {
 	const char *s;
 	unsigned long long acc;

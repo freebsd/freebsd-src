@@ -33,8 +33,8 @@ __FBSDID("$FreeBSD$");
 #include <wchar.h>
 
 size_t
-mbrtowc(wchar_t *__restrict pwc, const char *__restrict s, size_t n,
-    mbstate_t *__restrict ps __unused)
+mbrtowc(wchar_t * __restrict pwc, const char * __restrict s, size_t n,
+    mbstate_t * __restrict ps __unused)
 {
         const char *e;
         rune_t r;

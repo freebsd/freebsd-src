@@ -44,7 +44,7 @@ __BEGIN_DECLS
 int	 hcreate(size_t);
 void	 hdestroy(void);
 ENTRY	*hsearch(ENTRY, ACTION);
-void	*tdelete(const void *__restrict, void **__restrict,
+void	*tdelete(const void * __restrict, void ** __restrict,
 	    int (*)(const void *, const void *));
 void	*tfind(const void *, void **, int (*)(const void *, const void *));
 void	*tsearch(const void *, void **, int (*)(const void *, const void *));

@@ -111,9 +111,9 @@ __BEGIN_DECLS
 wint_t	btowc(int);
 wint_t	fgetwc(FILE *);
 wchar_t	*
-	fgetws(wchar_t *__restrict, int, FILE *__restrict);
+	fgetws(wchar_t * __restrict, int, FILE * __restrict);
 wint_t	fputwc(wchar_t, FILE *);
-int	fputws(const wchar_t *__restrict, FILE *__restrict);
+int	fputws(const wchar_t * __restrict, FILE * __restrict);
 int	fwide(FILE *, int);
 wint_t	getwc(FILE *);
 wint_t	getwchar(void);

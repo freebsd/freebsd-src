@@ -44,8 +44,8 @@ __FBSDID("$FreeBSD$");
 
 int
 mbtowc(pwc, s, n)
-	wchar_t *__restrict pwc;
-	const char *__restrict s;
+	wchar_t * __restrict pwc;
+	const char * __restrict s;
 	size_t n;
 {
 	char const *e;

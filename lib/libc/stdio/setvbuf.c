@@ -52,7 +52,7 @@ __FBSDID("$FreeBSD$");
  * a buffer.
  */
 int
-setvbuf(FILE *__restrict fp, char *__restrict buf, int mode, size_t size)
+setvbuf(FILE * __restrict fp, char * __restrict buf, int mode, size_t size)
 {
 	int ret, flags;
 	size_t iosize;
