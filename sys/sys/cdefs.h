@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cdefs.h	8.8 (Berkeley) 1/9/95
- * $Id: cdefs.h,v 1.9 1996/03/11 02:16:19 hsu Exp $
+ * $Id: cdefs.h,v 1.10 1996/04/13 14:23:29 bde Exp $
  */
 
 #ifndef	_SYS_CDEFS_H_
@@ -112,6 +112,7 @@
 #define __dead2
 #define __pure
 #define __pure2
+#define __unused
 #define	__attribute__(x)
 #endif
 #if __GNUC__ == 2 && __GNUC_MINOR__ < 5
@@ -119,12 +120,21 @@
 #define __dead2
 #define	__pure		__const
 #define __pure2
+#define __unused
 #endif
-#if __GNUC__ == 2 && __GNUC_MINOR__ > 5 || __GNUC__ >= 3
+#if __GNUC__ == 2 && __GNUC_MINOR__ >= 5 && __GNUC_MINOR__ < 7
 #define __dead
 #define __dead2		__attribute__((__noreturn__))
 #define __pure
 #define __pure2		__attribute__((__const__))
+#define __unused
+#endif
+#if __GNUC__ == 2 && __GNUC_MINOR__ >= 7 || __GNUC__ >= 3
+#define __dead
+#define __dead2		__attribute__((__noreturn__))
+#define __pure
+#define __pure2		__attribute__((__const__))
+#define __unused	__attribute__((__unused__))
 #endif
 
 #ifdef __GNUC__
