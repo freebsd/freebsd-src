@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kget.c,v 1.1.2.6 1999/05/06 11:33:15 jkh Exp $
+ * $Id: kget.c,v 1.1.2.7 1999/05/07 10:42:29 jkh Exp $
  */
 
 #include "sysinstall.h"
@@ -44,12 +44,20 @@ kget(char *out)
     struct pnp_cinfo *c;
     char *p;
  
+    /* create the output file; if we end up not writing to it, we'll 
+       unlink() it later. */
+    fout = fopen(out, "w");
+    if (fout == NULL) {
+	msgDebug("kget: Unable to open %s for writing.\n", out);
+	return -1;
+    }
+
     /* We use sysctlbyname, because the oid is unknown (OID_AUTO) */
     /* get the buffer size */
     i = sysctlbyname(mib1, NULL, &len, NULL, NULL);
     if (i) {
 	msgDebug("kget: error buffer sizing\n");
-	return -1;
+	goto pnp;
     }
     if (len <= 0) {
 	msgDebug("kget: mib1 has length of %d\n", len);
@@ -59,16 +67,9 @@ kget(char *out)
     i = sysctlbyname(mib1, buf, &len, NULL, NULL);
     if (i) {
 	msgDebug("kget: error retrieving data\n");
-	return -1;
+	goto pnp;
     }
 
-    /* now it's time to create the output file; if we end up not writing to
-       it, we'll unlink() it later. */
-    fout = fopen(out, "w");
-    if (fout == NULL) {
-	msgDebug("kget: Unable to open %s for writing.\n", out);
-	return -1;
-    }
 
     i = 0;
     while (i < len) {
