@@ -599,13 +599,23 @@ kvm_doargv(kd, kp, nchr, info)
 	register char **ap;
 	u_long addr;
 	int cnt;
-	struct ps_strings arginfo;
+	struct ps_strings arginfo, *ps_strings;
+	int mib[2];
+	size_t len;
+
+	ps_strings = NULL;
+	mib[0] = CTL_KERN;
+	mib[1] = KERN_PS_STRINGS;
+	len = sizeof(ps_strings);
+	if (sysctl(mib, 2, &ps_strings, &len, NULL, 0) < 0 ||
+	    ps_strings == NULL)
+		ps_strings = PS_STRINGS;
 
 	/*
 	 * Pointers are stored at the top of the user stack.
 	 */
 	if (p->p_stat == SZOMB ||
-	    kvm_uread(kd, p, USRSTACK - sizeof(arginfo), (char *)&arginfo,
+	    kvm_uread(kd, p, ps_strings, (char *)&arginfo,
 		      sizeof(arginfo)) != sizeof(arginfo))
 		return (0);
 
@@ -658,6 +668,11 @@ kvm_uread(kd, p, uva, buf, len)
 	char procfile[MAXPATHLEN];
 	ssize_t amount;
 	int fd;
+
+	if (!ISALIVE(kd)) {
+		_kvm_err(kd, kd->program, "cannot read user space from dead kernel");
+		return(0);
+	}
 
 	cp = buf;
 
