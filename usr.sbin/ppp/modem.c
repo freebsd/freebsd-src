@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.90 1998/06/15 19:06:21 brian Exp $
+ * $Id: modem.c,v 1.91 1998/06/16 19:40:39 brian Exp $
  *
  *  TODO:
  */
@@ -1062,9 +1062,9 @@ modem2iov(struct physical *p, struct iovec *iov, int *niov, int maxiov,
     if (p->Timer.state != TIMER_STOPPED) {
       timer_Stop(&p->Timer);
       p->Timer.state = TIMER_RUNNING;	/* Special - see iov2modem() */
-      if (tcgetpgrp(p->fd) == getpgrp())
-        p->session_owner = getpid();    /* So I'll eventually get HUP'd */
     }
+    if (tcgetpgrp(p->fd) == getpgrp())
+      p->session_owner = getpid();      /* So I'll eventually get HUP'd */
     timer_Stop(&p->link.throughput.Timer);
     modem_ChangedPid(p, newpid);
   }
