@@ -1,5 +1,5 @@
-/* $Id: isp_freebsd.h,v 1.11 1999/02/09 01:05:42 mjacob Exp $ */
-/* release_03_16_99 */
+/* $Id: isp_freebsd.h,v 1.12 1999/03/17 05:04:39 mjacob Exp $ */
+/* release_03_25_99 */
 /*
  * Qlogic ISP SCSI Host Adapter FreeBSD Wrapper Definitions (non CAM version)
  *---------------------------------------
@@ -36,7 +36,7 @@
 #define	_ISP_FREEBSD_H
 
 #define	ISP_PLATFORM_VERSION_MAJOR	0
-#define	ISP_PLATFORM_VERSION_MINOR	98
+#define	ISP_PLATFORM_VERSION_MINOR	99
 
 #include <sys/param.h>
 
@@ -90,8 +90,8 @@ struct isposinfo {
 #define	XS_NULL(xs)		xs == NULL || xs->sc_link == NULL
 #define	XS_ISP(xs)		\
 	((struct ispsoftc *) (xs)->sc_link->adapter_softc)
-#define	XS_LUN(xs)		(xs)->sc_link->lun
-#define	XS_TGT(xs)		(xs)->sc_link->target
+#define	XS_LUN(xs)		((int) (xs)->sc_link->lun)
+#define	XS_TGT(xs)		((int) (xs)->sc_link->target)
 #define	XS_RESID(xs)		(xs)->resid
 #define	XS_XFRLEN(xs)		(xs)->datalen
 #define	XS_CDBLEN(xs)		(xs)->cmdlen
@@ -267,6 +267,5 @@ static __inline const char *isp2100_pdb_statename(int pdb_state)
 
 #define	ISP_NO_FASTPOST_SCSI		1
 #define	ISP_NO_FASTPOST_FC		1
-#define	ISP_DISABLE_1080_SUPPORT	1
 
 #endif	/* _ISP_FREEBSD_H */

@@ -1,5 +1,5 @@
-/* $Id: ispvar.h,v 1.10 1999/02/09 01:11:35 mjacob Exp $ */
-/* release_03_16_99 */
+/* $Id: ispvar.h,v 1.11 1999/03/17 05:04:39 mjacob Exp $ */
+/* release_03_25_99 */
 /*
  * Soft Definitions for for Qlogic ISP SCSI adapters.
  *
@@ -48,7 +48,7 @@
 #endif
 
 #define	ISP_CORE_VERSION_MAJOR	1
-#define	ISP_CORE_VERSION_MINOR	6
+#define	ISP_CORE_VERSION_MINOR	7
 
 /*
  * Vector for bus specific code to provide specific services.
@@ -106,6 +106,7 @@ typedef struct {
 			isp_fifo_threshold	: 3,
 			isp_ultramode		: 1,
 			isp_diffmode		: 1,
+			isp_lvdmode		: 1,
 			isp_fast_mttr		: 1,
 			isp_initiator_id	: 4,
         		isp_async_data_setup	: 4;
@@ -122,11 +123,13 @@ typedef struct {
 			dev_announced	:	1,
 			dev_update	:	1,
 			dev_refresh	:	1,
-			exc_throttle	:	7,
-			sync_offset	:	4,
-			sync_period	:	8;
-		u_int16_t dev_flags;		/* persistent device flags */
-		u_int16_t cur_dflags;		/* current device flags */
+			exc_throttle	:	8,
+			cur_offset	:	4,
+			sync_offset	:	4;
+		u_int8_t	cur_period;	/* current sync period */
+		u_int8_t	sync_period;	/* goal sync period */
+		u_int16_t	dev_flags;	/* goal device flags */
+		u_int16_t	cur_dflags;	/* current device flags */
 	} isp_devparam[MAX_TARGETS];
 } sdparam;	/* scsi device parameters */
 
@@ -147,6 +150,8 @@ typedef struct {
 #define	DPARM_SAFE_DFLT	(DPARM_DEFAULT & ~(DPARM_WIDE|DPARM_SYNC|DPARM_TQING))
 
 
+/* technically, not really correct, as they need to be rated based upon clock */
+#define	ISP_40M_SYNCPARMS	0x080a
 #define ISP_20M_SYNCPARMS	0x080c
 #define ISP_10M_SYNCPARMS	0x0c19
 #define ISP_08M_SYNCPARMS	0x0c25
@@ -246,7 +251,7 @@ struct ispsoftc {
 
 	u_int				: 8,
 			isp_confopts	: 8,
-					: 1,
+			isp_port	: 1,	/* for dual ported impls */
 			isp_used	: 1,
 			isp_dblev	: 3,
 			isp_gotdparms	: 1,
@@ -351,12 +356,14 @@ struct ispsoftc {
 #define	ISP_HA_SCSI_1040	0x4
 #define	ISP_HA_SCSI_1040A	0x5
 #define	ISP_HA_SCSI_1040B	0x6
-#define	ISP_HA_SCSI_1080	0xe
+#define	ISP_HA_SCSI_1080	0xd
+#define	ISP_HA_SCSI_12X0	0xe
 #define	ISP_HA_FC		0xf0
 #define	ISP_HA_FC_2100		0x10
 
 #define	IS_SCSI(isp)	(isp->isp_type & ISP_HA_SCSI)
 #define	IS_1080(isp)	(isp->isp_type == ISP_HA_SCSI_1080)
+#define	IS_12X0(isp)	(isp->isp_type == ISP_HA_SCSI_12X0)
 #define	IS_FC(isp)	(isp->isp_type & ISP_HA_FC)
 
 /*
