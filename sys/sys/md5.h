@@ -1,5 +1,5 @@
 /* MD5.H - header file for MD5C.C
- * $Id: md5.h,v 1.9 1997/08/25 05:24:31 joerg Exp $
+ * $Id: md5.h,v 1.10 1998/03/27 10:22:35 phk Exp $
  */
 
 /* Copyright (C) 1991-2, RSA Data Security, Inc. Created 1991. All
@@ -43,5 +43,8 @@ void   MD5Final (unsigned char [16], MD5_CTX *);
 char * MD5End(MD5_CTX *, char *);
 char * MD5File(const char *, char *);
 char * MD5Data(const unsigned char *, unsigned int, char *);
+#ifdef KERNEL
+void MD5Transform __P((u_int32_t [4], const unsigned char [64]));
+#endif
 __END_DECLS
 #endif /* _SYS_MD5_H_ */
