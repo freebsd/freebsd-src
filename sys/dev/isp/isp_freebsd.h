@@ -1,5 +1,5 @@
 /* $FreeBSD$ */
-/* $Id: isp_freebsd.h,v 1.1 1998/04/22 17:54:52 mjacob Exp $ */
+/* $Id: isp_freebsd.h,v 1.12 1998/09/08 01:01:53 mjacob Exp $ */
 /*
  * Qlogic ISP SCSI Host Adapter FreeBSD Wrapper Definitions (non CAM version)
  *---------------------------------------
@@ -35,7 +35,14 @@
 #ifndef	_ISP_FREEBSD_H
 #define	_ISP_FREEBSD_H
 
-#include <pci.h>
+#define	ISP_PLATFORM_VERSION_MAJOR	0
+#define	ISP_PLATFORM_VERSION_MINOR	95
+
+#include "opt_scsi.h"
+#ifdef	SCSI_CAM
+#include <dev/isp/isp_freebsd_cam.h>
+#else
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
@@ -43,8 +50,6 @@
 #include <sys/proc.h>
 
 #include <scsi/scsiconf.h>
-#include <scsi/scsi_debug.h>
-
 #include <machine/clock.h>
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -52,11 +57,12 @@
 #include <sys/kernel.h>
 
 /*
- * Quick hack fix to get around osreldate.h not being present.
- * #include <osreldate.h>
+ * Now that __FreeBSD_version is in sys/param.h, we can
+ * automatically handle pre-3.0 cases.
  */
+
 #ifndef	__FreeBSD_version
-#define	__FreeBSD_version	300002
+#define	__FreeBSD_version	226000
 #endif
 
 #define	ISP_SCSI_XFER_T		struct scsi_xfer
@@ -68,6 +74,7 @@ struct isposinfo {
 	struct callout_handle	watchid;
 #endif
 };
+
 /*
  * XXXX: UNTIL WE PUT CODE IN THAT CHECKS RETURNS FROM MALLOC
  * XXXX: FOR CONTIGOUS PAGES, WE LIMIT TO PAGE_SIZE THE SIZE
@@ -75,8 +82,6 @@ struct isposinfo {
  */
 #define	MAXISPREQUEST	64
 
-#define	ISP_VERSION_STRING	\
-	"Version 0.92 Alpha Fri Apr 17 09:34:03 PDT 1998"
 
 #include <dev/isp/ispreg.h>
 #include <dev/isp/ispvar.h>
@@ -84,19 +89,18 @@ struct isposinfo {
 
 #define	PRINTF			printf
 #define	IDPRINTF(lev, x)	if (isp->isp_dblev >= lev) printf x
-#ifdef	SCSIDEBUG
-#define	DFLT_DBLEVEL		2
-#else
 #define	DFLT_DBLEVEL		1
-#endif
 
 #define	ISP_LOCKVAL_DECL	int isp_spl_save
-#define	ISP_UNLOCK		(void) splx(isp_spl_save)
-#define	ISP_LOCK		isp_spl_save = splbio()
+#define	ISP_UNLOCK(isp)		(void) splx(isp_spl_save)
+#define	ISP_LOCK(isp)		isp_spl_save = splbio()
+#define	ISP_ILOCK(isp)		ISP_LOCK(isp)
+#define	ISP_IUNLOCK(isp)	ISP_UNLOCK(isp)
 #define	IMASK			bio_imask
 
 #define	XS_NULL(xs)		xs == NULL || xs->sc_link == NULL
-#define	XS_ISP(xs)		(xs)->sc_link->adapter_softc
+#define	XS_ISP(xs)		\
+	((struct ispsoftc *) (xs)->sc_link->adapter_softc)
 #define	XS_LUN(xs)		(xs)->sc_link->lun
 #define	XS_TGT(xs)		(xs)->sc_link->target
 #define	XS_RESID(xs)		(xs)->resid
@@ -116,6 +120,8 @@ struct isposinfo {
 #define	HBA_TGTBSY		XS_BUSY
 #define	HBA_BUSRESET		XS_DRIVER_STUFFUP
 #define	HBA_ABORTED		XS_DRIVER_STUFFUP
+#define	HBA_DATAOVR		XS_DRIVER_STUFFUP
+#define	HBA_ARQFAIL		XS_DRIVER_STUFFUP
 
 #define	XS_SNS_IS_VALID(xs)	(xs)->error = XS_SENSE
 #define	XS_IS_SNS_VALID(xs)	((xs)->error == XS_SENSE)
@@ -128,7 +134,16 @@ struct isposinfo {
 #define	XS_CMD_DONE(xs)		(xs)->flags |= ITSDONE, scsi_done(xs)
 #define	XS_IS_CMD_DONE(xs)	(((xs)->flags & ITSDONE) != 0)
 
-#define	XS_POLLDCMD(xs)		((xs)->flags & SCSI_NOMASK)
+/*
+ * We decide whether to use tags based upon whether we're polling.
+ */
+#define	XS_CANTAG(xs)		(((xs)->flags & SCSI_NOMASK) != 0)
+
+/*
+ * Our default tag
+ */
+#define	XS_KINDOF_TAG(xs)	REQFLAG_OTAG
+
 
 #define	CMD_COMPLETE		COMPLETE
 #define	CMD_EAGAIN		TRY_AGAIN_LATER
@@ -157,4 +172,7 @@ struct isposinfo {
 #define	RESTART_WATCHDOG(f, s)	START_WATCHDOG(f, s)
 extern void isp_attach __P((struct ispsoftc *));
 
+#define	PVS 				"Qlogic ISP Driver, FreeBSD Non-Cam"
+
+#endif	/* !SCSI_CAM */
 #endif	/* _ISP_FREEBSD_H */
