@@ -1046,7 +1046,7 @@ fbsd_core_open (char *filename, int from_tty)
           fbsd_thread_activate ();
         }
       else
-        error ("fbsd_core_open: td_open: %s", thread_db_err_str (err));
+        error ("fbsd_core_open: td_ta_new: %s", thread_db_err_str (err));
     }
 }
 
@@ -1082,7 +1082,7 @@ init_fbsd_core_ops (void)
 {
   fbsd_core_ops.to_shortname = "FreeBSD-core";
   fbsd_core_ops.to_longname = "FreeBSD core thread.";
-  fbsd_core_ops.to_doc = "FreeBSD thread support for core files.";
+  fbsd_core_ops.to_doc = "FreeBSD threads support for core files.";
   fbsd_core_ops.to_open = fbsd_core_open;
   fbsd_core_ops.to_close = fbsd_core_close;
   fbsd_core_ops.to_attach = 0;
