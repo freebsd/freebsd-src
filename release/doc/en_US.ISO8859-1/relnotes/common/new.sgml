@@ -485,6 +485,12 @@
         Applications using this API have been updated
         accordingly.</para>
 
+      <para>&new.521; The <literal>PFIL_HOOKS</literal> option is now enabled by
+	default in the <filename>GENERIC</filename> kernel.  The most
+	notable effect of this change is to make
+	<application>IPFilter</application> work correctly when loaded
+	as a kernel module.</para>
+
       <para>Support for the source address selection part of RFC 3484
 	has been added.  The &man.ip6addrctl.8; utility can be used to
 	configure the address selection policy.</para>
@@ -941,13 +947,6 @@
       This allows old ports (which contain old versions
       of these scripts) to build on newer architectures like ia64 and amd64.</para>
 
-    <para>&new.521; The <filename
-      role="package">sysutils/kdeadmin3</filename> port and package
-      have been updated to version 3.1.4_1.  This update fixes a bug in the
-      <application>KUser</application> application that could cause
-      the <username>root</username> user to be deleted from the
-      password file</para>
-
   </sect2>
 
   <sect2 id="releng">
@@ -962,6 +961,13 @@
 
     <para>The supported release of <application>KDE</application> has
       been updated from 3.1.2 to 3.1.4. &merged;</para>
+
+    <para>&new.521; The <filename
+      role="package">sysutils/kdeadmin3</filename> port and package
+      have been updated to version 3.1.4_1.  This update fixes a bug in the
+      <application>KUser</application> application that could cause
+      the <username>root</username> user to be deleted from the
+      password file</para>
 
   </sect2>
 
