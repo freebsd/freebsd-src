@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: rmdir.c,v 1.5 1997/02/22 14:05:40 peter Exp $
+ *	$Id: rmdir.c,v 1.6 1997/03/28 15:24:37 imp Exp $
  */
 
 #ifndef lint
@@ -78,14 +78,6 @@ main(argc, argv)
 		usage();
 
 	for (errors = 0; *argv; argv++) {
-		char *p;
-
-		/* Delete trailing slashes, per POSIX. */
-		p = *argv + strlen(*argv);
-		while (--p > *argv && *p == '/')
-			;
-		*++p = '\0';
-
 		if (rmdir(*argv) < 0) {
 			warn("%s", *argv);
 			errors = 1;
