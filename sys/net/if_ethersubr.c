@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ethersubr.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ethersubr.c,v 1.26.2.3 1997/09/30 12:29:00 davidg Exp $
+ * $Id: if_ethersubr.c,v 1.26.2.4 1997/10/29 00:33:48 julian Exp $
  */
 
 #include <sys/param.h>
@@ -100,6 +100,10 @@ extern struct ifqueue pkintrq;
 extern u_char	at_org_code[ 3 ];
 extern u_char	aarp_org_code[ 3 ];
 #endif NETATALK
+
+#ifdef BRIDGE
+#include <net/bridge.h>
+#endif
 
 u_char	etherbroadcastaddr[6] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 #define senderr(e) { error = (e); goto bad;}
@@ -420,6 +424,19 @@ ether_output(ifp, m0, dst, rt0)
  	(void)memcpy(eh->ether_dhost, edst, sizeof (edst));
  	(void)memcpy(eh->ether_shost, ac->ac_enaddr,
 	    sizeof(eh->ether_shost));
+#ifdef BRIDGE
+	if (do_bridge) {
+	    struct ifnet *old_ifp = ifp ;
+	    struct mbuf *m0 = m ;
+	    if (m->m_pkthdr.rcvif )
+		m->m_pkthdr.rcvif = NULL ;
+	    ifp = bridge_dst_lookup(m);
+	    bdg_forward(&m0, ifp);
+	    if (m0)
+		m_freem(m0);
+            return 0 ;
+	}
+#endif
 	s = splimp();
 	/*
 	 * Queue message on interface, and start output if interface

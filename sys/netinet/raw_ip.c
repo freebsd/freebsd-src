@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)raw_ip.c	8.7 (Berkeley) 5/15/95
- *	$Id: raw_ip.c,v 1.37.2.4 1997/09/30 16:25:09 davidg Exp $
+ *	$Id: raw_ip.c,v 1.37.2.5 1997/12/18 09:42:41 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -279,6 +279,23 @@ rip_ctloutput(op, so, level, optname, m)
 		}
 		return (*ip_nat_ctl_ptr)(op, m); 
 
+#endif
+#ifdef DUMMYNET
+	case IP_DUMMYNET_GET:
+		if (ip_dn_ctl_ptr == NULL || op == PRCO_SETOPT) {
+			if (*m) (void)m_free(*m);
+			return(EINVAL);
+		}
+		return (*ip_dn_ctl_ptr)(optname, m); 
+
+	case IP_DUMMYNET_CONFIGURE:
+	case IP_DUMMYNET_DEL:
+	case IP_DUMMYNET_FLUSH:
+		if (ip_dn_ctl_ptr == NULL || op != PRCO_SETOPT) {
+			if (*m) (void)m_free(*m);
+			return(EINVAL);
+		}
+		return (*ip_dn_ctl_ptr)(optname, m); 
 #endif
 	case IP_RSVP_ON:
 		return ip_rsvp_init(so);

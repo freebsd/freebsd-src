@@ -11,7 +11,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.h,v 1.23.2.2 1997/06/20 23:05:34 julian Exp $
+ *	$Id: ip_fw.h,v 1.23.2.3 1997/08/21 01:30:23 alex Exp $
  */
 
 #ifndef _IP_FW_H
@@ -35,7 +35,7 @@
 union ip_fw_if {
     struct in_addr fu_via_ip;	/* Specified by IP address */
     struct {			/* Specified by interface name */
-#define FW_IFNLEN     IFNAMSIZ
+#define FW_IFNLEN     10 /* need room ! was IFNAMSIZ */
 	    char  name[FW_IFNLEN];
 	    short unit;		/* -1 means match any unit */
     } fu_via_if;
@@ -66,6 +66,7 @@ struct ip_fw {
     union ip_fw_if fw_in_if, fw_out_if;	/* Incoming and outgoing interfaces */
     union {
 	u_short fu_divert_port;		/* Divert/tee port (options IPDIVERT) */
+	u_short fu_pipe_nr;		/* pipe number (options DUMMYNET) */
 	u_short fu_skipto_rule;		/* SKIPTO command rule number */
 	u_short fu_reject_code;		/* REJECT response code */
     } fw_un;
@@ -74,6 +75,8 @@ struct ip_fw {
 					/* in ports array (dst ports follow */
 					/* src ports; max of 10 ports in all; */
 					/* count of 0 means match all ports) */
+    void *pipe_ptr;			/* Pipe ptr in case of dummynet pipe */
+    void *next_rule_ptr ;		/* next rule in case of match */
 };
 
 #define IP_FW_GETNSRCP(rule)		((rule)->fw_nports & 0x0f)
@@ -90,6 +93,7 @@ struct ip_fw {
 #define fw_divert_port	fw_un.fu_divert_port
 #define fw_skipto_rule	fw_un.fu_skipto_rule
 #define fw_reject_code	fw_un.fu_reject_code
+#define fw_pipe_nr	fw_un.fu_pipe_nr
 
 struct ip_fw_chain {
         LIST_ENTRY(ip_fw_chain) chain;
@@ -112,6 +116,7 @@ struct ip_fw_chain {
 #define IP_FW_F_DIVERT	0x0040	/* This is a divert rule		*/
 #define IP_FW_F_TEE	0x0050	/* This is a tee rule			*/
 #define IP_FW_F_SKIPTO	0x0060	/* This is a skipto rule		*/
+#define IP_FW_F_PIPE	0x0070	/* This is a 'pipe' rule (dummynet)	*/
 
 #define IP_FW_F_PRN	0x0080	/* Print if this rule matches		*/
 
