@@ -161,6 +161,8 @@ struct fm801_info {
 	unsigned int		bufsz;
 
 	struct fm801_chinfo	pch, rch;
+
+	device_t		radio;
 };
 
 /* Bus Read / Write routines */
@@ -223,7 +225,7 @@ fm801_rdcd(kobj_t obj, void *devinfo, int regno)
 	}
 	if (i >= TIMO) {
 		printf("fm801 rdcd: write codec invalid\n");
-		return -1;
+		return 0;
 	}
 
 	return fm801_rd(fm801,FM_CODEC_DATA,2);
@@ -613,13 +615,6 @@ fm801_pci_attach(device_t dev)
 	codec = AC97_CREATE(dev, fm801, fm801_ac97);
 	if (codec == NULL) goto oops;
 
-	/*
-	 * XXX: quick check that device actually has sound capabilities.
-	 * The problem is that some cards built around fm801 chip only
-	 * have radio tuner onboard, but no sound capabilities.
-	 */
-	if (fm801_rdcd(NULL, fm801, AC97_REG_POWER) == -1) goto oops;
-
 	if (mixer_init(dev, ac97_getmixerclass(), codec) == -1) goto oops;
 
 	fm801->irqid = 0;
@@ -650,6 +645,9 @@ fm801_pci_attach(device_t dev)
 	pcm_addchan(dev, PCMDIR_REC, &fm801ch_class, fm801);
 	pcm_setstatus(dev, status);
 
+	fm801->radio = device_add_child(dev, "radio", -1);
+	bus_generic_attach(dev);
+
 	return 0;
 
 oops:
@@ -670,11 +668,22 @@ fm801_pci_detach(device_t dev)
 
 	DPRINT("Forte Media FM801 detach\n");
 
+	fm801 = pcm_getdevinfo(dev);
+
+	r = bus_generic_detach(dev);
+	if (r)
+		return r;
+	if (fm801->radio != NULL) {
+		r = device_delete_child(dev, fm801->radio);
+		if (r)
+			return r;
+		fm801->radio = NULL;
+	}
+
 	r = pcm_unregister(dev);
 	if (r)
 		return r;
 
-	fm801 = pcm_getdevinfo(dev);
 	bus_release_resource(dev, fm801->regtype, fm801->regid, fm801->reg);
 	bus_teardown_intr(dev, fm801->irq, fm801->ih);
 	bus_release_resource(dev, SYS_RES_IRQ, fm801->irqid, fm801->irq);
@@ -686,10 +695,50 @@ fm801_pci_detach(device_t dev)
 static int
 fm801_pci_probe( device_t dev )
 {
-	int id;
+	u_int32_t data;
+	int id, regtype, regid, result;
+	struct resource *reg;
+	bus_space_tag_t st;
+	bus_space_handle_t sh;
+
+	result = ENXIO;
+	
 	if ((id = pci_get_devid(dev)) == PCI_DEVICE_FORTEMEDIA1 ) {
-		device_set_desc(dev, "Forte Media FM801 Audio Controller");
-		return 0;
+		data = pci_read_config(dev, PCIR_COMMAND, 2);
+		data |= (PCIM_CMD_PORTEN|PCIM_CMD_BUSMASTEREN);
+		pci_write_config(dev, PCIR_COMMAND, data, 2);
+		data = pci_read_config(dev, PCIR_COMMAND, 2);
+
+		regid = PCIR_MAPS;
+		regtype = SYS_RES_IOPORT;
+		reg = bus_alloc_resource(dev, regtype, &regid, 0, ~0, 1,
+		    RF_ACTIVE);
+
+		if (reg == NULL)
+			return ENXIO;
+
+		st = rman_get_bustag(reg);
+		sh = rman_get_bushandle(reg);
+		/*
+		 * XXX: quick check that device actually has sound capabilities.
+		 * The problem is that some cards built around FM801 chip only
+		 * have radio tuner onboard, but no sound capabilities. There
+		 * is no "official" way to quickly check this, because all
+		 * IDs are exactly the same. The only difference is 0x28
+		 * device control register, described in FM801 specification
+		 * as "SRC/Mixer Test Control/DFC Status", but without
+		 * any more detailed explanation. According to specs, and
+		 * available sample cards (SF256-PCP-R and SF256-PCS-R) its
+		 * power-on value should be `0', while on AC97-less tuner
+		 * card (SF64-PCR) it was 0x80.
+		 */
+		if (bus_space_read_1(st, sh, 0x28) == 0) {
+			device_set_desc(dev,
+			    "Forte Media FM801 Audio Controller");
+			result = 0;
+		}
+
+		bus_release_resource(dev, regtype, regid, reg);
 	}
 /*
 	if ((id = pci_get_devid(dev)) == PCI_DEVICE_FORTEMEDIA2 ) {
@@ -697,7 +746,28 @@ fm801_pci_probe( device_t dev )
 		return ENXIO;
 	}
 */
-	return ENXIO;
+	return (result);
+}
+
+static struct resource *
+fm801_alloc_resource(device_t bus, device_t child, int type, int *rid,
+		     u_long start, u_long end, u_long count, u_int flags)
+{
+	struct fm801_info *fm801;
+
+	fm801 = pcm_getdevinfo(bus);
+
+	if (type == SYS_RES_IOPORT && *rid == PCIR_MAPS)
+		return (fm801->reg);
+
+	return (NULL);
+}
+
+static int
+fm801_release_resource(device_t bus, device_t child, int type, int rid,
+		       struct resource *r)
+{
+	return (0);
 }
 
 static device_method_t fm801_methods[] = {
@@ -705,6 +775,16 @@ static device_method_t fm801_methods[] = {
 	DEVMETHOD(device_probe,		fm801_pci_probe),
 	DEVMETHOD(device_attach,	fm801_pci_attach),
 	DEVMETHOD(device_detach,	fm801_pci_detach),
+	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
+	DEVMETHOD(device_suspend,	bus_generic_suspend),
+	DEVMETHOD(device_resume,	bus_generic_resume),
+
+	/* Bus interface */
+	DEVMETHOD(bus_print_child,	bus_generic_print_child),
+	DEVMETHOD(bus_alloc_resource,	fm801_alloc_resource),
+	DEVMETHOD(bus_release_resource,	fm801_release_resource),
+	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
+	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
 	{ 0, 0}
 };
 
@@ -717,4 +797,3 @@ static driver_t fm801_driver = {
 DRIVER_MODULE(snd_fm801, pci, fm801_driver, pcm_devclass, 0, 0);
 MODULE_DEPEND(snd_fm801, snd_pcm, PCM_MINVER, PCM_PREFVER, PCM_MAXVER);
 MODULE_VERSION(snd_fm801, 1);
-
