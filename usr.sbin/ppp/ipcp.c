@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.35 1997/11/11 22:58:11 brian Exp $
+ * $Id: ipcp.c,v 1.36 1997/11/14 15:39:14 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
@@ -33,6 +33,7 @@
 #include <limits.h>
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 
 #include "mbuf.h"
@@ -51,6 +52,7 @@
 #include "vars.h"
 #include "vjcomp.h"
 #include "ip.h"
+#include "throughput.h"
 
 #ifndef NOMSEXT
 struct in_addr ns_entries[2];
@@ -62,7 +64,6 @@ struct in_range  DefMyAddress;
 struct in_range  DefHisAddress;
 struct in_addr   TriggerAddress;
 int HaveTriggerAddress;
-struct pppTimer IpcpReportTimer;
 
 static void IpcpSendConfigReq(struct fsm *);
 static void IpcpSendTerminateAck(struct fsm *);
@@ -73,11 +74,6 @@ static void IpcpLayerFinish(struct fsm *);
 static void IpcpLayerUp(struct fsm *);
 static void IpcpLayerDown(struct fsm *);
 static void IpcpInitRestartCounter(struct fsm *);
-static int  IpcpOctetsIn(void);
-static int  IpcpOctetsOut(void);
-
-static int lastInOctets, lastOutOctets;
-static int StartingIpIn, StartingIpOut;
 
 #define	REJECTED(p, x)	(p->his_reject & (1<<x))
 
@@ -126,32 +122,18 @@ static char *cftypes128[] = {
 
 #define NCFTYPES128 (sizeof(cftypes)/sizeof(char *))
 
-/*
- * Function called every second. Updates connection period and idle period,
- * also update LQR information.
- */
-static void
-IpcpReportFunc()
+struct pppThroughput throughput;
+
+void
+IpcpAddInOctets(int n)
 {
-  ipConnectSecs++;
-  if (lastInOctets == ipInOctets && lastOutOctets == ipOutOctets)
-    ipIdleSecs++;
-  lastInOctets = ipInOctets;
-  lastOutOctets = ipOutOctets;
-  StopTimer(&IpcpReportTimer);
-  IpcpReportTimer.state = TIMER_STOPPED;
-  StartTimer(&IpcpReportTimer);
+  throughput_addin(&throughput, n);
 }
 
-static void
-IpcpStartReport()
+void
+IpcpAddOutOctets(int n)
 {
-  ipIdleSecs = ipConnectSecs = 0;
-  StopTimer(&IpcpReportTimer);
-  IpcpReportTimer.state = TIMER_STOPPED;
-  IpcpReportTimer.load = SECTICKS;
-  IpcpReportTimer.func = IpcpReportFunc;
-  StartTimer(&IpcpReportTimer);
+  throughput_addout(&throughput, n);
 }
 
 int
@@ -167,10 +149,6 @@ ReportIpcpStatus()
 	  inet_ntoa(icp->his_ipaddr), icp->his_compproto);
   fprintf(VarTerm, " my  side: %s, %lx\n",
 	  inet_ntoa(icp->want_ipaddr), icp->want_compproto);
-  fprintf(VarTerm, "Connected: %d secs, idle: %d secs\n\n",
-	  ipConnectSecs, ipIdleSecs);
-  fprintf(VarTerm, " %d octets in, %d octets out\n",
-	  IpcpOctetsIn(), IpcpOctetsOut());
 
   fprintf(VarTerm, "Defaults:\n");
   fprintf(VarTerm, " My Address:  %s/%d\n",
@@ -181,6 +159,9 @@ ReportIpcpStatus()
     fprintf(VarTerm, " Negotiation(trigger): %s\n", inet_ntoa(TriggerAddress));
   else
     fprintf(VarTerm, " Negotiation(trigger): MYADDR\n");
+
+  fprintf(VarTerm, "\n");
+  throughput_disp(&throughput, VarTerm);
 
   return 0;
 }
@@ -232,8 +213,7 @@ IpcpInit()
     icp->want_compproto = 0;
   icp->heis1172 = 0;
   IpcpFsm.maxconfig = 10;
-  StartingIpIn = ipInOctets;
-  StartingIpOut = ipOutOctets;
+  throughput_init(&throughput);
 }
 
 static void
@@ -292,30 +272,12 @@ IpcpLayerFinish(struct fsm * fp)
   NewPhase(PHASE_TERMINATE);
 }
 
-static int
-IpcpOctetsIn()
-{
-  return ipInOctets < StartingIpIn ?
-    INT_MAX - StartingIpIn + ipInOctets - INT_MIN + 1 :
-    ipInOctets - StartingIpIn;
-}
-
-static int
-IpcpOctetsOut()
-{
-  return ipOutOctets < StartingIpOut ?
-    INT_MAX - StartingIpOut + ipOutOctets - INT_MIN + 1 :
-    ipOutOctets - StartingIpOut;
-}
-
 static void
 IpcpLayerDown(struct fsm * fp)
 {
   LogPrintf(LogIPCP, "IpcpLayerDown.\n");
-  LogPrintf(LogIPCP, "%d octets in, %d octets out\n",
-	    IpcpOctetsIn(), IpcpOctetsOut());
-  StopTimer(&IpcpReportTimer);
-  Prompt();
+  throughput_stop(&throughput);
+  throughput_log(&throughput, LogIPCP, NULL);
 }
 
 /*
@@ -344,9 +306,7 @@ IpcpLayerUp(struct fsm * fp)
   if (mode & MODE_ALIAS)
     VarPacketAliasSetAddress(IpcpInfo.want_ipaddr);
   OsLinkup();
-  StartingIpIn = ipInOctets;
-  StartingIpOut = ipOutOctets;
-  IpcpStartReport();
+  throughput_start(&throughput);
   StartIdleTimer();
 }
 
