@@ -3147,7 +3147,7 @@ ciss_print_adapter(struct ciss_softc *sc)
 }
 
 /* DDB hook */
-void
+static void
 ciss_print0(void)
 {
     struct ciss_softc	*sc;
