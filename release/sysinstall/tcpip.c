@@ -268,7 +268,7 @@ tcpOpenDialog(Device *devp)
 
 	/* Try a RTSOL scan if such behavior is desired */
 	if (!variable_cmp(VAR_TRY_RTSOL, "YES") || 
-	    ((variable_cmp(VAR_TRY_RTSOL, "NO")) && (!msgYesNo("Do you want to try IPv6 configuration of the interface?")))) {
+	    ((!variable_cmp(VAR_TRY_RTSOL, "NO")) && (!msgYesNo("Do you want to try IPv6 configuration of the interface?")))) {
 	    int i;
 
 	    i = 0;
