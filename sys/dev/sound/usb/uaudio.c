@@ -66,6 +66,7 @@
 #include <sys/conf.h>
 #endif
 #include <sys/poll.h>
+#include <sys/sysctl.h>
 
 #if defined(__NetBSD__) || defined(__OpenBSD__)
 #include <sys/audioio.h>
@@ -89,6 +90,8 @@
 #define DPRINTF(x)	if (uaudiodebug) logprintf x
 #define DPRINTFN(n,x)	if (uaudiodebug>(n)) logprintf x
 int	uaudiodebug = 0;
+SYSCTL_INT(_debug_usb, OID_AUTO, uaudio, CTLFLAG_RW,
+	   &uaudiodebug, 0, "uaudio debug level");
 #else
 #define DPRINTF(x)
 #define DPRINTFN(n,x)

@@ -104,6 +104,7 @@
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/bus.h>
+#include <sys/sysctl.h>
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
@@ -134,6 +135,8 @@
 #define UDMASS_WIRE	(UDMASS_BBB|UDMASS_CBI)
 #define UDMASS_ALL	0xffff0000	/* all of the above */
 int umassdebug = UDMASS_ALL;
+SYSCTL_INT(_debug_usb, OID_AUTO, umass, CTLFLAG_RW,
+	   &umassdebug, 0, "umass debug level");
 #else
 #define DIF(m, x)	/* nop */
 #define	DPRINTF(m, x)	/* nop */

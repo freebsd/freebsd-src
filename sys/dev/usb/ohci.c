@@ -64,6 +64,7 @@
 #endif
 #include <sys/proc.h>
 #include <sys/queue.h>
+#include <sys/sysctl.h>
 
 #include <machine/bus.h>
 #include <machine/endian.h>
@@ -93,6 +94,8 @@ struct cfdriver ohci_cd = {
 #define DPRINTF(x)	if (ohcidebug) logprintf x
 #define DPRINTFN(n,x)	if (ohcidebug>(n)) logprintf x
 int ohcidebug = 0;
+SYSCTL_INT(_debug_usb, OID_AUTO, ohci, CTLFLAG_RW,
+	   &ohcidebug, 0, "ohci debug level");
 #ifndef __NetBSD__
 #define bitmask_snprintf(q,f,b,l) snprintf((b), (l), "%b", (q), (f))
 #endif

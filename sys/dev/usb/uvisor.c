@@ -64,6 +64,7 @@
 #endif
 #include <sys/conf.h>
 #include <sys/tty.h>
+#include <sys/sysctl.h>
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbhid.h>
@@ -78,10 +79,8 @@
 #define DPRINTF(x)	if (uvisordebug) printf x
 #define DPRINTFN(n,x)	if (uvisordebug>(n)) printf x
 int uvisordebug = 0;
-#ifdef SYSCTL_DECL
 SYSCTL_INT(_debug_usb, OID_AUTO, uvisor, CTLFLAG_RW,
 	   &uvisordebug, 0, "uvisor debug level");
-#endif
 #else
 #define DPRINTF(x)
 #define DPRINTFN(n,x)

@@ -75,6 +75,7 @@
 #include <sys/proc.h>
 #include <sys/vnode.h>
 #include <sys/poll.h>
+#include <sys/sysctl.h>
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbcdc.h>
@@ -90,6 +91,8 @@
 #define DPRINTF(x) if(umodemdebug) logprintf x
 #define DPRINTFN(n, x) if(umodemdebug > (n)) logprintf x
 int	umodemdebug = 1;
+SYSCTL_INT(_debug_usb, OID_AUTO, umodem, CTLFLAG_RW,
+	   &umodemdebug, 0, "umodem debug level");
 #else
 #define DPRINTF(x)
 #define DPRINTFN(n, x)

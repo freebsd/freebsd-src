@@ -57,6 +57,7 @@
 #include <sys/proc.h>
 #include <sys/vnode.h>
 #include <sys/poll.h>
+#include <sys/sysctl.h>
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbcdc.h>
@@ -70,14 +71,8 @@
 
 #ifdef UVSCOM_DEBUG
 static int	uvscomdebug = 1;
-
-#if defined(__FreeBSD__)
-#include <sys/sysctl.h>
-
-SYSCTL_DECL(_debug_usb);
 SYSCTL_INT(_debug_usb, OID_AUTO, uvscom, CTLFLAG_RW,
 	   &uvscomdebug, 0, "uvscom debug level");
-#endif
 
 #define DPRINTFN(n, x) do { \
 				if (uvscomdebug > (n)) \
