@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1992 Keith Muller.
  * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -35,13 +35,11 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
 #if 0
+#ifndef lint
 static char sccsid[] = "@(#)options.c	8.2 (Berkeley) 4/18/94";
-#endif
 #endif /* not lint */
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+#endif
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
