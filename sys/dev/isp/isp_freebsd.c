@@ -1502,14 +1502,19 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 		case CMD_QUEUED:
 			ccb->ccb_h.status |= CAM_SIM_QUEUED;
 			if (ccb->ccb_h.timeout != CAM_TIME_INFINITY) {
-				int ticks;
+				u_int64_t ticks = (u_int64_t) hz;
 				if (ccb->ccb_h.timeout == CAM_TIME_DEFAULT)
-					ticks = 60 * 1000 * hz;
+					ticks = 60 * 1000 * ticks;
 				else
 					ticks = ccb->ccb_h.timeout * hz;
 				ticks = ((ticks + 999) / 1000) + hz + hz;
-				ccb->ccb_h.timeout_ch =
-				    timeout(isp_watchdog, (caddr_t)ccb, ticks);
+				if (ticks >= 0x80000000) {
+					isp_prt(isp, ISP_LOGERR,
+					    "timeout overflow");
+					ticks = 0x80000000;
+				}
+				ccb->ccb_h.timeout_ch = timeout(isp_watchdog,
+				    (caddr_t)ccb, (int)ticks);
 			} else {
 				callout_handle_init(&ccb->ccb_h.timeout_ch);
 			}
@@ -1541,7 +1546,7 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 		default:
 			isp_prt(isp, ISP_LOGERR,
 			    "What's this? 0x%x at %d in file %s",
-			    isp->isp_name, error, __LINE__, __FILE__);
+			    error, __LINE__, __FILE__);
 			XS_SETERR(ccb, CAM_REQ_CMP_ERR);
 			xpt_done(ccb);
 		}
@@ -1721,8 +1726,7 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			*dptr |= DPARM_SAFE_DFLT;
 			isp_prt(isp, ISP_LOGDEBUG0,
 			    "%d.%d set %s period 0x%x offset 0x%x flags 0x%x",
-			    isp->isp_name, bus, tgt,
-			    (cts->flags & CCB_TRANS_CURRENT_SETTINGS)?
+			    bus, tgt, (cts->flags & CCB_TRANS_CURRENT_SETTINGS)?
 			    "current" : "user", 
 			    sdp->isp_devparam[tgt].sync_period,
 			    sdp->isp_devparam[tgt].sync_offset,
@@ -1802,8 +1806,7 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			ISP_UNLOCK(isp);
 			isp_prt(isp, ISP_LOGDEBUG0,
 			    "%d.%d get %s period 0x%x offset 0x%x flags 0x%x",
-			    isp->isp_name, bus, tgt,
-			    (cts->flags & CCB_TRANS_CURRENT_SETTINGS)?
+			    bus, tgt, (cts->flags & CCB_TRANS_CURRENT_SETTINGS)?
 			    "current" : "user", pval, oval, dval);
 		}
 		ccb->ccb_h.status = CAM_REQ_CMP;
@@ -2074,7 +2077,7 @@ isp_async(struct ispsoftc *isp, ispasync_t cmd, void *arg)
 		}
 		isp_prt(isp, ISP_LOGINFO, "Loop UP");
 		break;
-	case ISPASYNC_PDB_CHANGED:
+	case ISPASYNC_LOGGED_INOUT:
 	{
 		const char *fmt = "Target %d (Loop 0x%x) Port ID 0x%x "
 		    "role %s %s\n Port WWN 0x%08x%08x\n Node WWN 0x%08x%08x";
@@ -2100,20 +2103,24 @@ isp_async(struct ispsoftc *isp, ispasync_t cmd, void *arg)
 		break;
 	}
 	case ISPASYNC_CHANGE_NOTIFY:
-		isp_prt(isp, ISP_LOGINFO, "Name Server Database Changed");
+		if (arg == (void *) 1) {
+			isp_prt(isp, ISP_LOGINFO,
+			    "Name Server Database Changed");
+		} else {
+			isp_prt(isp, ISP_LOGINFO,
+			    "Name Server Database Changed");
+		}
 		break;
 #ifdef	ISP2100_FABRIC
 	case ISPASYNC_FABRIC_DEV:
 	{
-		int target;
-		struct lportdb *lp;
+		int target, lrange;
+		struct lportdb *lp = NULL;
 		char *pt;
 		sns_ganrsp_t *resp = (sns_ganrsp_t *) arg;
 		u_int32_t portid;
 		u_int64_t wwpn, wwnn;
 		fcparam *fcp = isp->isp_param;
-
-		rv = -1;
 
 		portid =
 		    (((u_int32_t) resp->snscb_port_id[0]) << 16) |
@@ -2140,7 +2147,6 @@ isp_async(struct ispsoftc *isp, ispasync_t cmd, void *arg)
 		    (((u_int64_t)resp->snscb_nodename[6]) <<  8) |
 		    (((u_int64_t)resp->snscb_nodename[7]));
 		if (portid == 0 || wwpn == 0) {
-			rv = 0;
 			break;
 		}
 
@@ -2174,19 +2180,40 @@ isp_async(struct ispsoftc *isp, ispasync_t cmd, void *arg)
 		    "%s @ 0x%x, Node 0x%08x%08x Port %08x%08x",
 		    pt, portid, ((u_int32_t) (wwnn >> 32)), ((u_int32_t) wwnn),
 		    ((u_int32_t) (wwpn >> 32)), ((u_int32_t) wwpn));
-		for (target = FC_SNS_ID+1; target < MAX_FC_TARG; target++) {
-			lp = &fcp->portdb[target];
-			if (lp->port_wwn == wwpn && lp->node_wwn == wwnn)
-				break;
-		}
-		if (target < MAX_FC_TARG) {
-			rv = 0;
+		/*
+		 * We're only interested in SCSI_FCP types (for now)
+		 */
+		if ((resp->snscb_fc4_types[2] & 1) == 0) {
 			break;
 		}
-		for (target = FC_SNS_ID+1; target < MAX_FC_TARG; target++) {
+		if (fcp->isp_topo != TOPO_F_PORT)
+			lrange = FC_SNS_ID+1;
+		else
+			lrange = 0;
+		/*
+		 * Is it already in our list?
+		 */
+		for (target = lrange; target < MAX_FC_TARG; target++) {
+			if (target >= FL_PORT_ID && target <= FC_SNS_ID) {
+				continue;
+			}
 			lp = &fcp->portdb[target];
-			if (lp->port_wwn == 0)
+			if (lp->port_wwn == wwpn && lp->node_wwn == wwnn) {
+				lp->fabric_dev = 1;
 				break;
+			}
+		}
+		if (target < MAX_FC_TARG) {
+			break;
+		}
+		for (target = lrange; target < MAX_FC_TARG; target++) {
+			if (target >= FL_PORT_ID && target <= FC_SNS_ID) {
+				continue;
+			}
+			lp = &fcp->portdb[target];
+			if (lp->port_wwn == 0) {
+				break;
+			}
 		}
 		if (target == MAX_FC_TARG) {
 			isp_prt(isp, ISP_LOGWARN,
@@ -2196,7 +2223,7 @@ isp_async(struct ispsoftc *isp, ispasync_t cmd, void *arg)
 		lp->node_wwn = wwnn;
 		lp->port_wwn = wwpn;
 		lp->portid = portid;
-		rv = 0;
+		lp->fabric_dev = 1;
 		break;
 	}
 #endif
