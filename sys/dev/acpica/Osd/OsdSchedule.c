@@ -262,15 +262,7 @@ AcpiOsStall (UINT32 Microseconds)
 {
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
-    /* 
-     * Maximum length for stall is 100 us.  If longer, assume caller
-     * really meant "sleep".
-     */
-    if (Microseconds <= 100)
-	DELAY(Microseconds);
-    else
-	AcpiOsSleep(Microseconds / 1000, Microseconds % 1000);
-
+    DELAY(Microseconds);
     return_VOID;
 }
 
