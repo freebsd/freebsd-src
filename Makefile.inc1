@@ -3,12 +3,12 @@
 #
 # Make command line options:
 #	-DNO_KERBEROS Do not build Heimdal (Kerberos 5)
+#	-DNO_RESCUE do not build rescue binaries
 #	-DNOCLEANDIR run ${MAKE} clean, instead of ${MAKE} cleandir
 #	-DNOCLEAN do not clean at all
 #	-DNOCRYPT will prevent building of crypt versions
 #	-DNOMAN do not build the manual pages
 #	-DNOPROFILE do not build profiled libraries
-#	-DNORESCUE do not build rescue binaries
 #	-DNOGAMES do not go into games subdir
 #	-DNOSHARE do not go into share subdir
 #	-DNOINFO do not make or install info files
@@ -67,7 +67,7 @@ SUBDIR+= kerberos5
 .if exists(${.CURDIR}/libexec)
 SUBDIR+= libexec
 .endif
-.if exists(${.CURDIR}/rescue) && !defined(NORESCUE)
+.if exists(${.CURDIR}/rescue) && !defined(NO_RESCUE)
 SUBDIR+= rescue
 .endif
 .if exists(${.CURDIR}/sbin)
@@ -668,7 +668,7 @@ _xargs=		usr.bin/xargs
 _yacc=		usr.bin/yacc
 .endif
 
-.if !defined(NORESCUE) && \
+.if !defined(NO_RESCUE) && \
     ${BOOTSTRAPPING} < 501100
 _crunchgen=	usr.sbin/crunch/crunchgen
 .endif
@@ -722,7 +722,7 @@ _libkrb5= kerberos5/lib/libroken kerberos5/lib/libvers \
     kerberos5/lib/libasn1 kerberos5/lib/libhdb kerberos5/lib/libsl
 .endif
 
-.if exists(${.CURDIR}/rescue) && !defined(NORESCUE)
+.if exists(${.CURDIR}/rescue) && !defined(NO_RESCUE)
 _rescue= rescue/rescue
 .endif
 
@@ -758,7 +758,7 @@ _elf2aout=	usr.bin/elf2aout
 _btxld=		usr.sbin/btxld
 .endif
 
-.if (!defined(NORESCUE) || \
+.if (!defined(NO_RESCUE) || \
     defined(RELEASEDIR)) && \
     ( ${TARGET_ARCH} != ${MACHINE_ARCH} || ${BOOTSTRAPPING} < 501101 )
 _crunchide=	usr.sbin/crunch/crunchide
