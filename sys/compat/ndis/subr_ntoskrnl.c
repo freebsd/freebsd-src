@@ -85,6 +85,7 @@ __stdcall static uint32_t ntoskrnl_waitforobjs(uint32_t,
 	int64_t *, wait_block *);
 static void ntoskrnl_wakeup(void *);
 static void ntoskrnl_timercall(void *);
+static void ntoskrnl_timersched(void *);
 __stdcall static void ntoskrnl_writereg_ushort(uint16_t *, uint16_t);
 __stdcall static uint16_t ntoskrnl_readreg_ushort(uint16_t *);
 __stdcall static void ntoskrnl_writereg_ulong(uint32_t *, uint32_t);
@@ -1585,7 +1586,7 @@ ntoskrnl_create_thread(handle, reqaccess, objattrs, phandle,
 
 	sprintf(tname, "windows kthread %d", ntoskrnl_kth);
 	error = kthread_create(ntoskrnl_thrfunc, tc, &p,
-	    RFHIGHPID, 0, tname);
+	    RFHIGHPID, NDIS_KSTACK_PAGES, tname);
 	*handle = p;
 
 	ntoskrnl_kth++;
@@ -1641,9 +1642,23 @@ ntoskrnl_debugger(void)
 	return;
 }
 
+/*
+ * We run all timer callouts in the ndis swi thread to take
+ * advantage of its larger stack size. If we don't do this,
+ * the callout will run in the clock ithread context.
+ */
+
+static void
+ntoskrnl_timersched(arg)
+	void			*arg;
+{
+	ndis_sched(ntoskrnl_timercall, arg, NDIS_SWI);
+	return;
+}
+
 static void
 ntoskrnl_timercall(arg)
-	void		*arg;
+	void			*arg;
 {
 	ktimer			*timer;
 	__stdcall kdpc_func	timerfunc;
@@ -1666,7 +1681,7 @@ ntoskrnl_timercall(arg)
 		tv.tv_sec = 0;
 		tv.tv_usec = timer->k_period * 1000;
 		timer->k_handle =
-		    timeout(ntoskrnl_timercall, timer, tvtohz(&tv));
+		    timeout(ntoskrnl_timersched, timer, tvtohz(&tv));
 	}
 
 	if (dpc != NULL) {
@@ -1744,7 +1759,7 @@ ntoskrnl_set_timer_ex(timer, duetime, period, dpc)
 
 	if (timer->k_handle.callout != NULL &&
 	    callout_pending(timer->k_handle.callout)) {
-		untimeout(ntoskrnl_timercall, timer, timer->k_handle);
+		untimeout(ntoskrnl_timersched, timer, timer->k_handle);
 		pending = TRUE;
 	} else
 		pending = FALSE;
@@ -1769,7 +1784,7 @@ ntoskrnl_set_timer_ex(timer, duetime, period, dpc)
 		}
 	}
 
-	timer->k_handle = timeout(ntoskrnl_timercall, timer, tvtohz(&tv));
+	timer->k_handle = timeout(ntoskrnl_timersched, timer, tvtohz(&tv));
 
 	return(pending);
 }
@@ -1798,7 +1813,7 @@ ntoskrnl_cancel_timer(timer)
 	else
 		pending = FALSE;
 
-	untimeout(ntoskrnl_timercall, timer, timer->k_handle);
+	untimeout(ntoskrnl_timersched, timer, timer->k_handle);
 
 	return(pending);
 }
