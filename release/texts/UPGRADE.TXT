@@ -170,7 +170,8 @@ successfully rebooted.
 ---    ------------------------------
 
 Those interested in an upgrade method that allows more flexibility and
-sophistication should take a look at the "Upgrading FreeBSD from source"
-tutorial found at http://www.freebsd.org/docs.html.  This method
+sophistication should take a look at the "The Cutting Edge" chapter in the
+Handbook (http://www.FreeBSD.org/docs/en/books/handbook/cutting-edge.html)
+which describes how to upgrade FreeBSD from the source code.  This method
 requires reliable network connectivity, extra disk space and spare time,
 but has advantages for networks and other more complex installations.
