@@ -104,7 +104,7 @@ bus_dma_get_range_nb(void)
 
 #define PCI_MAPREG_MEM_PREFETCHABLE_MASK	0x00000008
 #define PCI_MAPREG_MEM_TYPE_64BIT		0x00000004
-void pmap_kenter(vm_offset_t, vm_offset_t);
+
 int
 iq80321_attach(device_t dev)
 {
