@@ -28,6 +28,7 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
 #include "opt_comconsole.h"
+#include "opt_ofw.h"
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -42,7 +43,10 @@ __FBSDID("$FreeBSD$");
 
 #include <ddb/ddb.h>
 
-#define	OFW_POLL_HZ	4
+#ifndef	OFWCONS_POLL_HZ
+#define	OFWCONS_POLL_HZ	4	/* 50-100 works best on Ultra2 */
+#endif
+#define OFBURSTLEN	128	/* max number of bytes to write in one chunk */
 
 static d_open_t		ofw_dev_open;
 static d_close_t	ofw_dev_close;
@@ -125,7 +129,7 @@ ofw_dev_open(struct cdev *dev, int flag, int mode, struct thread *td)
 		ttychars(tp);
 		tp->t_iflag = TTYDEF_IFLAG;
 		tp->t_oflag = TTYDEF_OFLAG;
-		tp->t_cflag = TTYDEF_CFLAG|CLOCAL;
+		tp->t_cflag = TTYDEF_CFLAG;
 		tp->t_lflag = TTYDEF_LFLAG;
 		tp->t_ispeed = tp->t_ospeed = TTYDEF_SPEED;
 		ttsetwater(tp);
@@ -138,7 +142,7 @@ ofw_dev_open(struct cdev *dev, int flag, int mode, struct thread *td)
 	error = ttyld_open(tp, dev);
 
 	if (error == 0 && setuptimeout) {
-		polltime = hz / OFW_POLL_HZ;
+		polltime = hz / OFWCONS_POLL_HZ;
 		if (polltime < 1) {
 			polltime = 1;
 		}
@@ -162,6 +166,8 @@ ofw_dev_close(struct cdev *dev, int flag, int mode, struct thread *td)
 		return (ENXIO);
 	}
 
+	/* XXX Should be replaced with callout_stop(9) */
+	untimeout(ofw_timeout, tp, ofw_timeouthandle);
 	ttyld_close(tp, flag);
 	ttyclose(tp);
 
@@ -179,16 +185,18 @@ ofw_tty_param(struct tty *tp, struct termios *t)
 static void
 ofw_tty_start(struct tty *tp)
 {
+	struct clist *cl;
+	int len;
+	u_char buf[OFBURSTLEN];
 
-	if (tp->t_state & (TS_TIMEOUT | TS_TTSTOP)) {
-		ttwwakeup(tp);
+
+	if (tp->t_state & (TS_TIMEOUT | TS_BUSY | TS_TTSTOP))
 		return;
-	}
 
 	tp->t_state |= TS_BUSY;
-	while (tp->t_outq.c_cc != 0) {
-		ofw_cons_putc(NULL, getc(&tp->t_outq));
-	}
+	cl = &tp->t_outq;
+	len = q_to_b(cl, buf, OFBURSTLEN);
+	OF_write(stdout, buf, len);
 	tp->t_state &= ~TS_BUSY;
 
 	ttwwakeup(tp);
