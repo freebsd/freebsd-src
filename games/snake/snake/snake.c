@@ -115,7 +115,7 @@ char **argv;
 
 	srandomdev();
 
-	while ((ch = getopt(argc, argv, "l:w:")) != EOF)
+	while ((ch = getopt(argc, argv, "l:w:")) != -1)
 		switch((char)ch) {
 #ifdef notdef
 		case 'd':
