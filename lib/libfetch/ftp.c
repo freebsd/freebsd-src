@@ -911,7 +911,7 @@ FILE *
 _ftp_request(struct url *url, const char *op, struct url_stat *us,
 	     struct url *purl, const char *flags)
 {
-    int cd;
+    int cd, oflag;
     
     /* check if we should use HTTP instead */
     if (purl && strcasecmp(purl->scheme, SCHEME_HTTP) == 0) {
@@ -945,9 +945,13 @@ _ftp_request(struct url *url, const char *op, struct url_stat *us,
     /* just a stat */
     if (strcmp(op, "STAT") == 0)
 	return (FILE *)1; /* bogus return value */
+    if (strcmp(op, "STOR") == 0 || strcmp(op, "APPE") == 0)
+	oflag = O_WRONLY;
+    else
+	oflag = O_RDONLY;
     
     /* initiate the transfer */
-    return _ftp_transfer(cd, op, url->doc, O_RDONLY, url->offset, flags);
+    return _ftp_transfer(cd, op, url->doc, oflag, url->offset, flags);
 }
 
 /*
