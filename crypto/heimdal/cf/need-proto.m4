@@ -1,4 +1,4 @@
-dnl $Id: need-proto.m4,v 1.2 1999/03/01 09:52:24 joda Exp $
+dnl $Id: need-proto.m4,v 1.4 2002/08/23 15:07:41 joda Exp $
 dnl
 dnl
 dnl Check if we need the prototype for a function
@@ -16,10 +16,9 @@ $2(&xx);
 ],
 eval "ac_cv_func_$2_noproto=yes",
 eval "ac_cv_func_$2_noproto=no"))
-define([foo], [NEED_]translit($2, [a-z], [A-Z])[_PROTO])
 if test "$ac_cv_func_$2_noproto" = yes; then
-	AC_DEFINE(foo, 1, [define if the system is missing a prototype for $2()])
+	AC_DEFINE(AS_TR_CPP(NEED_[]$2[]_PROTO), 1,
+		[define if the system is missing a prototype for $2()])
 fi
-undefine([foo])
 fi
 ])

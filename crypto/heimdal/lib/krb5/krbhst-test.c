@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 2001 - 2002 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,30 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: krbhst-test.c,v 1.2 2001/06/17 12:22:59 assar Exp $");
+#include <err.h>
+#include <getarg.h>
+
+RCSID("$Id: krbhst-test.c,v 1.3 2002/08/23 03:43:18 assar Exp $");
+
+static int version_flag = 0;
+static int help_flag	= 0;
+
+static struct getargs args[] = {
+    {"version",	0,	arg_flag,	&version_flag,
+     "print version", NULL },
+    {"help",	0,	arg_flag,	&help_flag,
+     NULL, NULL }
+};
+
+static void
+usage (int ret)
+{
+    arg_printusage (args,
+		    sizeof(args)/sizeof(*args),
+		    NULL,
+		    "[realms ...]");
+    exit (ret);
+}
 
 int
 main(int argc, char **argv)
@@ -43,9 +66,26 @@ main(int argc, char **argv)
     int types[] = {KRB5_KRBHST_KDC, KRB5_KRBHST_ADMIN, KRB5_KRBHST_CHANGEPW,
 		   KRB5_KRBHST_KRB524};
     const char *type_str[] = {"kdc", "admin", "changepw", "krb524"};
+    int optind = 0;
     
+    setprogname (argv[0]);
+
+    if(getarg(args, sizeof(args) / sizeof(args[0]), argc, argv, &optind))
+	usage(1);
+    
+    if (help_flag)
+	usage (0);
+
+    if(version_flag){
+	print_version(NULL);
+	exit(0);
+    }
+
+    argc -= optind;
+    argv += optind;
+
     krb5_init_context (&context);
-    for(i = 1; i < argc; i++) {
+    for(i = 0; i < argc; i++) {
 	krb5_krbhst_handle handle;
 	char host[MAXHOSTNAMELEN];
 

@@ -1,6 +1,6 @@
-.\" $Id: kdc.8,v 1.13 2001/06/08 21:35:32 joda Exp $
+.\" $Id: kdc.8,v 1.17 2002/08/28 21:09:05 joda Exp $
 .\"
-.Dd July 27, 1997
+.Dd August 22, 2002
 .Dt KDC 8
 .Os HEIMDAL
 .Sh NAME
@@ -35,13 +35,17 @@ taken from a config file, or from a default compiled-in value.
 .Pp
 Options supported:
 .Bl -tag -width Ds
-.It Fl c Ar file
-.It Fl -config-file= Ns Ar file
+.It Xo
+.Fl c Ar file ,
+.Fl -config-file= Ns Ar file
+.Xc
 Specifies the location of the config file, the default is
 .Pa /var/heimdal/kdc.conf .
 This is the only value that can't be specified in the config file.
-.It Fl p
-.It Fl -no-require-preauth
+.It Xo
+.Fl p ,
+.Fl -no-require-preauth
+.Xc
 Turn off the requirement for pre-autentication in the initial AS-REQ
 for all principals. The use of pre-authentication makes it more
 difficult to do offline password attacks. You might want to turn it
@@ -57,17 +61,19 @@ flexible way of handling this.
 Gives an upper limit on the size of the requests that the kdc is
 willing to handle.
 .It Xo
-.Fl H Ns ,
+.Fl H ,
 .Fl -enable-http
 .Xc
 Makes the kdc listen on port 80 and handle requests encapsulated in HTTP.
 .It Xo
-.Fl K Ns ,
+.Fl K ,
 .Fl -no-kaserver
 .Xc
 Disables kaserver emulation (in case it's compiled in).
-.It Fl r Ar realm
-.It Fl -v4-realm= Ns Ar realm
+.It Xo
+.Fl r Ar realm ,
+.Fl -v4-realm= Ns Ar realm
+.Xc
 What realm this server should act as when dealing with version 4
 requests. The database can contain any number of realms, but since the
 version 4 protocol doesn't contain a realm for the server, it must be
@@ -76,34 +82,32 @@ explicitly specified. The default is whatever is returned by
 This option is only availabe if the KDC has been compiled with version
 4 support.
 .It Xo
-.Fl P Ar string Ns ,
+.Fl P Ar string ,
 .Fl -ports= Ns Ar string
 .Xc
 Specifies the set of ports the KDC should listen on.  It is given as a
 white-space separated list of services or port numbers.
-.It Xo
-.Fl -addresses= Ns Ar list of addresses
-.Xc
+.It Fl -addresses= Ns Ar list of addresses
 The list of addresses to listen for requests on.  By default, the kdc
 will listen on all the locally configured addresses.  If only a subset
 is desired, or the automatic detection fails, this option might be used.
 .El
 .Pp
-All activities , are logged to one or more destinations, see 
+All activities , are logged to one or more destinations, see
 .Xr krb5.conf 5 ,
 and
 .Xr krb5_openlog 3 .
 The entity used for logging is
 .Nm kdc .
 .Sh CONFIGURATION FILE
-The configuration file has the same syntax as the 
-.Pa krb5.conf
-file (you can actually put the configuration in
+The configuration file has the same syntax as 
+.Xr krb5.conf 5 ,
+but will be read before 
 .Pa /etc/krb5.conf ,
-and then start the KDC with
-.Fl -config-file= Ns Ar /etc/krb5.conf ) .
-All options should be in a section called
-.Dq kdc .
+so it may override settings found there. Options specific to the KDC
+only are found in the
+.Dq [kdc] 
+section.
 All the command-line options can preferably be added in the
 configuration file.  The only difference is the pre-authentication flag,
 that has to be specified as:
@@ -139,5 +143,22 @@ An example of a config file:
 	v4-realm = FOO.SE
 	key-file = /key-file
 .Ed
+.Sh BUGS
+If the machine running the KDC has new addresses added to it, the KDC
+will have to be restarted to listen to them. The reason it doesn't
+just listen to wildcarded (like INADDR_ANY) addresses, is that the
+replies has to come from the same address they were sent to, and most
+OS:es doesn't pass this information to the application. If your normal
+mode of operation require that you add and remove addresses, the best
+option is probably to listen to a wildcarded TCP socket, and make sure
+your clients use TCP to connect. For instance, this will listen to
+IPv4 TCP port 88 only:
+.Bd -literal -offset indent
+kdc --addresses=0.0.0.0 --ports="88/tcp" 
+.Ed
+.Pp
+There should be a way to specify protocol, port, and address triplets,
+not just addresses and protocol, port tuples.
 .Sh SEE ALSO
-.Xr kinit 1
+.Xr kinit 1 ,
+.Xr krb5.conf 5

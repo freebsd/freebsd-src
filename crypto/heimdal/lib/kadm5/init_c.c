@@ -37,7 +37,7 @@
 #include <netinet/in.h>
 #include <netdb.h>
 
-RCSID("$Id: init_c.c,v 1.42 2002/02/08 18:31:49 joda Exp $");
+RCSID("$Id: init_c.c,v 1.44 2002/06/16 15:13:25 nectar Exp $");
 
 static void
 set_funcs(kadm5_client_context *c)
@@ -240,12 +240,45 @@ get_cred_cache(krb5_context context,
 	    if(ret) {
 		krb5_cc_close(context, id);
 		id = NULL;
+	    } else {
+		const char *name, *inst;
+		krb5_principal tmp;
+		name = krb5_principal_get_comp_string(context, 
+						      default_client, 0);
+		inst = krb5_principal_get_comp_string(context, 
+						      default_client, 1);
+		if(inst == NULL || strcmp(inst, "admin") != 0) {
+		    ret = krb5_make_principal(context, &tmp, NULL, 
+					      name, "admin", NULL);
+		    if(ret != 0) {
+			krb5_free_principal(context, default_client);
+			krb5_cc_close(context, id);
+			return ret;
+		    }
+		    krb5_free_principal(context, default_client);
+		    default_client = tmp;
+		    krb5_cc_close(context, id);
+		    id = NULL;
+		}
 	    }
 	}
-	
-	if(client == NULL)
+
+	if (client != NULL) {
+	    /* A client was specified by the caller. */
+	    if (default_client != NULL) {
+		krb5_free_principal(context, default_client);
+		default_client = NULL;
+	    }
+	}
+	else if (default_client != NULL)
+	    /* No client was specified by the caller, but we have a
+	     * client from the default credentials cache.
+	     */
 	    client = default_client;
-	if(client == NULL) {
+	else {
+	    /* No client was specified by the caller and we cannot determine
+	     * the client from a credentials cache.
+	     */
 	    const char *user;
 
 	    user = get_default_username ();
@@ -256,10 +289,6 @@ get_cred_cache(krb5_context context,
 				      NULL, user, "admin", NULL);
 	    if(ret)
 		return ret;
-	}
-	if(client != default_client) {
-	    krb5_free_principal(context, default_client);
-	    default_client = NULL;
 	    if (id != NULL) {
 		krb5_cc_close(context, id);
 		id = NULL;
@@ -268,7 +297,6 @@ get_cred_cache(krb5_context context,
     } else if(ccache != NULL)
 	id = ccache;
     
-
     if(id && (default_client == NULL || 
 	      krb5_principal_compare(context, client, default_client))) {
 	ret = get_kadm_ticket(context, id, client, server_name);

@@ -1,5 +1,5 @@
 .\" Copyright (c) 2001 Kungliga Tekniska Högskolan
-.\" $Id: krb5_verify_user.3,v 1.2 2001/11/09 09:38:29 joda Exp $
+.\" $Id: krb5_verify_user.3,v 1.5 2002/08/28 15:30:58 joda Exp $
 .Dd June 27, 2001
 .Dt KRB5_VERIFY_USER 3
 .Os HEIMDAL
@@ -7,6 +7,8 @@
 .Nm krb5_verify_user ,
 .Nm krb5_verify_user_lrealm
 .Nd Heimdal password verifying functions
+.Sh LIBRARY
+Kerberos 5 Library (libkrb5, -lkrb5)
 .Sh SYNOPSIS
 .Fd #include <krb5.h>
 .Ft krb5_error_code
@@ -16,7 +18,7 @@
 .Sh DESCRIPTION
 The
 .Nm krb5_verify_user
-function verifies the password supplied by a user. 
+function verifies the password supplied by a user.
 The principal whose
 password will be verified is specified in
 .Fa principal .
@@ -44,6 +46,10 @@ function does the same, except that it ignores the realm in
 .Fa principal
 and tries all the local realms (see
 .Xr krb5.conf 5 ) .
+After a successful return, the principal is set to the authenticated
+realm. If the call fails, the principal will not be meaningful, and
+should only be freed with
+.Xr krb5_free_principal 3 .
 .Sh EXAMPLE
 Here is a example program that verifies a password. it uses the
 .Ql host/`hostname`
@@ -74,12 +80,13 @@ main(int argc, char **argv)
     error = krb5_verify_user(context, princ, NULL, NULL, TRUE, NULL);
     if (error)
         krb5_err(context, 1, error, "krb5_verify_user");
-	
+
     return 0;
 }
 .Ed
 .Sh SEE ALSO
 .Xr krb5_err 3 ,
+.Xr krb5_free_principal 3 ,
 .Xr krb5_init_context 3 ,
 .Xr krb5_kt_default 3 ,
 .Xr krb5.conf 5

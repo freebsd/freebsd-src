@@ -1,4 +1,4 @@
-.\" $Id: klist.1,v 1.9 2001/07/12 08:42:27 assar Exp $
+.\" $Id: klist.1,v 1.11 2002/08/20 17:07:14 joda Exp $
 .\"
 .Dd July 8, 2000
 .Dt KLIST 1
@@ -28,29 +28,29 @@ known as the ticket file).
 Options supported:
 .Bl -tag -width Ds
 .It Xo
-.Fl c Ar cache Ns ,
+.Fl c Ar cache ,
 .Fl -cache= Ns Ar cache
 .Xc
 credentials cache to list
 .It Xo
-.Fl s Ns ,
-.Fl t Ns ,
+.Fl s ,
+.Fl t ,
 .Fl -test
 .Xc
 Test for there being an active and valid TGT for the local realm of
 the user in the credential cache.
 .It Xo
-.Fl 4 Ns ,
+.Fl 4 ,
 .Fl -v4
 .Xc
 display v4 tickets
 .It Xo
-.Fl T Ns ,
+.Fl T ,
 .Fl -tokens
 .Xc
 display AFS tokens
 .It Xo
-.Fl 5 Ns ,
+.Fl 5 ,
 .Fl -v5
 .Xc
 display v5 cred cache (this is the default)
@@ -82,11 +82,11 @@ pre-authenticated
 hardware authenticated
 .El
 .Pp
-This information is also output with the 
+This information is also output with the
 .Fl -verbose
 option, but in a more verbose way.
 .It Xo
-.Fl v Ns ,
+.Fl v ,
 .Fl -verbose
 .Xc
 Verbose output. Include all possible information:

@@ -35,9 +35,9 @@
 #include <getarg.h>
 #include <parse_bytes.h>
 
-RCSID("$Id: config.c,v 1.39 2002/02/04 10:53:48 joda Exp $");
+RCSID("$Id: config.c,v 1.43 2002/08/29 01:51:07 assar Exp $");
 
-static char *config_file;	/* location of kdc config file */
+static const char *config_file;	/* location of kdc config file */
 
 int require_preauth = -1;	/* 1 == require preauth for all principals */
 
@@ -51,7 +51,12 @@ struct dbinfo *databases;
 HDB **db;
 int num_db;
 
-char *port_str;
+const char *port_str;
+
+#ifdef HAVE_DAEMON
+int detach_from_console = -1;
+#define DETACH_IS_DEFAULT FALSE
+#endif
 
 int enable_http = -1;
 krb5_boolean encode_as_rep_as_tgs_rep; /* bug compatibility */
@@ -112,6 +117,19 @@ static struct getargs args[] = {
     {	"ports",	'P', 	arg_string, &port_str,
 	"ports to listen to", "portspec"
     },
+#ifdef HAVE_DAEMON
+#if DETACH_IS_DEFAULT
+    {
+	"detach",       'D',      arg_negative_flag, &detach_from_console, 
+	"don't detach from console"
+    },
+#else
+    {
+	"detach",       0 ,      arg_flag, &detach_from_console, 
+	"detach from console"
+    },
+#endif
+#endif
     {	"addresses",	0,	arg_strings, &addresses_str,
 	"addresses to listen on", "list of addresses" },
     {	"help",		'h',	arg_flag,   &help_flag },
@@ -128,11 +146,11 @@ usage(int ret)
 }
 
 static void
-get_dbinfo(krb5_config_section *cf)
+get_dbinfo(void)
 {
-    krb5_config_binding *top_binding = NULL;
-    krb5_config_binding *db_binding;
-    krb5_config_binding *default_binding = NULL;
+    const krb5_config_binding *top_binding = NULL;
+    const krb5_config_binding *db_binding;
+    const krb5_config_binding *default_binding = NULL;
     struct dbinfo *di, **dt;
     const char *default_dbname = HDB_DEFAULT_DB;
     const char *default_mkey = HDB_DB_DIR "/m-key";
@@ -140,8 +158,8 @@ get_dbinfo(krb5_config_section *cf)
 
     databases = NULL;
     dt = &databases;
-    while((db_binding = (krb5_config_binding *)
-	   krb5_config_get_next(context, cf, &top_binding, 
+    while((db_binding = (const krb5_config_binding *)
+	   krb5_config_get_next(context, NULL, &top_binding, 
 				krb5_config_list, 
 				"kdc", 
 				"database",
@@ -225,7 +243,6 @@ add_one_address (const char *str, int first)
 void
 configure(int argc, char **argv)
 {
-    krb5_config_section *cf = NULL;
     int optind = 0;
     int e;
     const char *p;
@@ -247,13 +264,28 @@ configure(int argc, char **argv)
     if (argc != 0)
 	usage(1);
     
-    if(config_file == NULL)
-	config_file = _PATH_KDC_CONF;
-    
-    if(krb5_config_parse_file(context, config_file, &cf))
-	cf = NULL;
-    
-    get_dbinfo(cf);
+    {
+	krb5_error_code ret;
+	char **files;
+	char *tmp;
+	if(config_file == NULL)
+	    config_file = _PATH_KDC_CONF;
+	asprintf(&tmp, "%s:%s", config_file, krb5_config_file);
+	if(tmp == NULL)
+	    krb5_errx(context, 1, "out of memory");
+	    
+	krb5_config_file = tmp;
+
+	ret = krb5_get_default_config_files(&files);
+	if(ret) 
+	    krb5_err(context, 1, ret, "reading configuration files");
+	ret = krb5_set_config_files(context, files);
+	krb5_free_config_files(files);
+	if(ret) 
+	    krb5_err(context, 1, ret, "reading configuration files");
+    }
+
+    get_dbinfo();
     
     if(max_request_str){
 	max_request = parse_bytes(max_request_str, NULL);
@@ -261,7 +293,7 @@ configure(int argc, char **argv)
 
     if(max_request == 0){
 	p = krb5_config_get_string (context,
-				    cf, 
+				    NULL,
 				    "kdc",
 				    "max-request",
 				    NULL);
@@ -270,11 +302,11 @@ configure(int argc, char **argv)
     }
     
     if(require_preauth == -1)
-	require_preauth = krb5_config_get_bool(context, cf, "kdc", 
+	require_preauth = krb5_config_get_bool(context, NULL, "kdc", 
 					       "require-preauth", NULL);
 
     if(port_str == NULL){
-	p = krb5_config_get_string(context, cf, "kdc", "ports", NULL);
+	p = krb5_config_get_string(context, NULL, "kdc", "ports", NULL);
 	if (p != NULL)
 	    port_str = strdup(p);
     }
@@ -288,7 +320,7 @@ configure(int argc, char **argv)
 	    add_one_address (addresses_str.strings[i], i == 0);
 	free_getarg_strings (&addresses_str);
     } else {
-	char **foo = krb5_config_get_strings (context, cf,
+	char **foo = krb5_config_get_strings (context, NULL,
 					      "kdc", "addresses", NULL);
 
 	if (foo != NULL) {
@@ -300,29 +332,29 @@ configure(int argc, char **argv)
 
 #ifdef KRB4
     if(enable_v4 == -1)
-	enable_v4 = krb5_config_get_bool_default(context, cf, TRUE, "kdc", 
+	enable_v4 = krb5_config_get_bool_default(context, NULL, TRUE, "kdc", 
 					 "enable-kerberos4", NULL);
     if(enable_524 == -1)
-	enable_524 = krb5_config_get_bool_default(context, cf, enable_v4, 
+	enable_524 = krb5_config_get_bool_default(context, NULL, enable_v4, 
 						  "kdc", "enable-524", NULL);
 #endif
 
     if(enable_http == -1)
-	enable_http = krb5_config_get_bool(context, cf, "kdc", 
+	enable_http = krb5_config_get_bool(context, NULL, "kdc", 
 					   "enable-http", NULL);
     check_ticket_addresses = 
-	krb5_config_get_bool_default(context, cf, TRUE, "kdc", 
+	krb5_config_get_bool_default(context, NULL, TRUE, "kdc", 
 				     "check-ticket-addresses", NULL);
     allow_null_ticket_addresses = 
-	krb5_config_get_bool_default(context, cf, TRUE, "kdc", 
+	krb5_config_get_bool_default(context, NULL, TRUE, "kdc", 
 				     "allow-null-ticket-addresses", NULL);
 
     allow_anonymous = 
-	krb5_config_get_bool(context, cf, "kdc", 
+	krb5_config_get_bool(context, NULL, "kdc", 
 			     "allow-anonymous", NULL);
 #ifdef KRB4
     if(v4_realm == NULL){
-	p = krb5_config_get_string (context, cf, 
+	p = krb5_config_get_string (context, NULL, 
 				    "kdc",
 				    "v4-realm",
 				    NULL);
@@ -330,23 +362,29 @@ configure(int argc, char **argv)
 	    v4_realm = strdup(p);
     }
     if (enable_kaserver == -1)
-	enable_kaserver = krb5_config_get_bool_default(context, cf, FALSE,
+	enable_kaserver = krb5_config_get_bool_default(context, NULL, FALSE,
 						       "kdc",
 						       "enable-kaserver",
 						       NULL);
 #endif
 
-    encode_as_rep_as_tgs_rep = krb5_config_get_bool(context, cf, "kdc", 
+    encode_as_rep_as_tgs_rep = krb5_config_get_bool(context, NULL, "kdc", 
 						    "encode_as_rep_as_tgs_rep", 
 						    NULL);
 
-    kdc_warn_pwexpire = krb5_config_get_time (context, cf,
+    kdc_warn_pwexpire = krb5_config_get_time (context, NULL,
 					      "kdc",
 					      "kdc_warn_pwexpire",
 					      NULL);
-    kdc_openlog(cf);
-    if(cf)
-	krb5_config_file_free (context, cf);
+
+#ifdef HAVE_DAEMON
+    if(detach_from_console == -1) 
+	detach_from_console = krb5_config_get_bool_default(context, NULL, 
+							   DETACH_IS_DEFAULT,
+							   "kdc",
+							   "detach", NULL);
+#endif
+    kdc_openlog();
     if(max_request == 0)
 	max_request = 64 * 1024;
     if(require_preauth == -1)

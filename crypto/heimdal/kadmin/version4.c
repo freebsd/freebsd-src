@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999 - 2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 1999 - 2002 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -41,7 +41,7 @@
 #include <krb_err.h>
 #include <kadm_err.h>
 
-RCSID("$Id: version4.c,v 1.24 2001/01/29 08:40:45 assar Exp $");
+RCSID("$Id: version4.c,v 1.25 2002/05/24 15:23:43 joda Exp $");
 
 #define KADM_NO_OPCODE -1
 #define KADM_NO_ENCRYPT -2
@@ -61,13 +61,13 @@ make_you_loose_packet(int code, krb5_data *reply)
 static int
 ret_fields(krb5_storage *sp, char *fields)
 {
-    return sp->fetch(sp, fields, FLDSZ);
+    return krb5_storage_read(sp, fields, FLDSZ);
 }
 
 static int
 store_fields(krb5_storage *sp, char *fields)
 {
-    return sp->store(sp, fields, FLDSZ);
+    return krb5_storage_write(sp, fields, FLDSZ);
 }
 
 static void
@@ -470,8 +470,8 @@ kadm_ser_cpw(krb5_context context,
     krb5_warnx(context, "v4-compat %s: CHPASS %s",
 	       principal_string, principal_string); 
 
-    ret = message->fetch(message, key + 4, 4);
-    ret = message->fetch(message, key, 4);
+    ret = krb5_storage_read(message, key + 4, 4);
+    ret = krb5_storage_read(message, key, 4);
     ret = krb5_ret_stringz(message, &password);
     
     if(password) {
@@ -740,7 +740,7 @@ dispatch(krb5_context context,
     krb5_ret_int8(sp_in, &command);
     
     sp_out = krb5_storage_emem();
-    sp_out->store(sp_out, KADM_VERSTR, KADM_VERSIZE);
+    krb5_storage_write(sp_out, KADM_VERSTR, KADM_VERSIZE);
     krb5_store_int32(sp_out, 0);
 
     switch(command) {
@@ -777,7 +777,7 @@ dispatch(krb5_context context,
     }
     krb5_storage_free(sp_in);
     if(retval) {
-	sp_out->seek(sp_out, KADM_VERSIZE, SEEK_SET);
+	krb5_storage_seek(sp_out, KADM_VERSIZE, SEEK_SET);
 	krb5_store_int32(sp_out, retval);
     }
     krb5_storage_to_data(sp_out, reply);

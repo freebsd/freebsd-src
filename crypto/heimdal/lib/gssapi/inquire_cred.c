@@ -33,7 +33,7 @@
 
 #include "gssapi_locl.h"
 
-RCSID("$Id: inquire_cred.c,v 1.2 1999/12/02 17:05:04 joda Exp $");
+RCSID("$Id: inquire_cred.c,v 1.3 2002/08/20 12:02:45 nectar Exp $");
 
 OM_uint32 gss_inquire_cred
            (OM_uint32 * minor_status,
@@ -51,10 +51,22 @@ OM_uint32 gss_inquire_cred
     }
 
     if (name != NULL) {
-        ret = gss_duplicate_name(minor_status, cred_handle->principal, name);
-        if (ret) {
+	if (cred_handle->principal != NULL) {
+            ret = gss_duplicate_name(minor_status, cred_handle->principal,
+		name);
+            if (ret)
         	return ret;
-        }
+	} else if (cred_handle->usage == GSS_C_ACCEPT) {
+	    *minor_status = krb5_sname_to_principal(gssapi_krb5_context, NULL,
+		NULL, KRB5_NT_SRV_HST, name);
+	    if (*minor_status)
+		return GSS_S_FAILURE;
+	} else {
+	    *minor_status = krb5_get_default_principal(gssapi_krb5_context,
+		name);
+	    if (*minor_status)
+		return GSS_S_FAILURE;
+	}
     }
     if (lifetime != NULL) {
         *lifetime = cred_handle->lifetime;

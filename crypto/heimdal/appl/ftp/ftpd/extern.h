@@ -113,7 +113,7 @@ void	afsunlog(void);
 
 int	find(char *);
 
-void	builtin_ls(FILE*, const char*);
+int	builtin_ls(FILE*, const char*);
 
 int	do_login(int code, char *passwd);
 int	klogin(char *name, char *password);

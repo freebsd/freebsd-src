@@ -1,10 +1,14 @@
-# $Id: Makefile.am.common,v 1.31 2001/09/01 11:12:18 assar Exp $
+# $Id: Makefile.am.common,v 1.36 2002/08/19 16:10:25 joda Exp $
 
-AUTOMAKE_OPTIONS = foreign no-dependencies 1.4b
+AUTOMAKE_OPTIONS = foreign no-dependencies 1.6
 
 SUFFIXES = .et .h
 
 INCLUDES = -I$(top_builddir)/include $(INCLUDES_roken)
+
+if do_roken_rename
+ROKEN_RENAME = -DROKEN_RENAME
+endif
 
 AM_CFLAGS = $(WFLAGS)
 
@@ -39,8 +43,6 @@ LIB_socket		= @LIB_socket@
 LIB_syslog		= @LIB_syslog@
 LIB_tgetent		= @LIB_tgetent@
 
-LIBS			= @LIBS@
-
 HESIODLIB = @HESIODLIB@
 HESIODINCLUDE = @HESIODINCLUDE@
 INCLUDE_hesiod = @INCLUDE_hesiod@
@@ -70,7 +72,7 @@ install-suid-programs:
 install-exec-hook: install-suid-programs
 
 install-build-headers:: $(include_HEADERS) $(build_HEADERZ)
-	@foo='$(include_HEADERS) $(build_HEADERZ)'; \
+	@foo='$(include_HEADERS) $(nodist_include_HEADERS) $(build_HEADERZ)'; \
 	for f in $$foo; do \
 		f=`basename $$f`; \
 		if test -f "$(srcdir)/$$f"; then file="$(srcdir)/$$f"; \
@@ -83,6 +85,38 @@ install-build-headers:: $(include_HEADERS) $(build_HEADERZ)
 	done
 
 all-local: install-build-headers
+
+check-local::
+	@if test '$(CHECK_LOCAL)'; then \
+	  foo='$(CHECK_LOCAL)'; else \
+	  foo='$(PROGRAMS)'; fi; \
+	  if test "$$foo"; then \
+	  failed=0; all=0; \
+	  for i in $$foo; do \
+	    all=`expr $$all + 1`; \
+	    if ./$$i --version > /dev/null 2>&1; then \
+	      echo "PASS: $$i"; \
+	    else \
+	      echo "FAIL: $$i"; \
+	      failed=`expr $$failed + 1`; \
+	    fi; \
+	  done; \
+	  if test "$$failed" -eq 0; then \
+	    banner="All $$all tests passed"; \
+	  else \
+	    banner="$$failed of $$all tests failed"; \
+	  fi; \
+	  dashes=`echo "$$banner" | sed s/./=/g`; \
+	  echo "$$dashes"; \
+	  echo "$$banner"; \
+	  echo "$$dashes"; \
+	  test "$$failed" -eq 0; \
+	fi
+
+SUFFIXES += .x
+
+.x.c:
+	@cmp -s $< $@ 2> /dev/null || cp $< $@
 
 SUFFIXES += .1 .3 .5 .8 .cat1 .cat3 .cat5 .cat8
 

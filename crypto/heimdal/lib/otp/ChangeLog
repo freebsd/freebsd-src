@@ -1,3 +1,13 @@
+2002-05-20  Johan Danielsson  <joda@pdc.kth.se>
+
+	* otp_db.c: fix ndbm test
+
+2002-05-17  Johan Danielsson  <joda@pdc.kth.se>
+
+	* Makefile.am: add hooks for ndbm_wrap
+
+	* otp_db.c: use ndbm_wrap
+
 2001-07-12  Assar Westerlund  <assar@sics.se>
 
 	* Makefile.am: add required library dependencies

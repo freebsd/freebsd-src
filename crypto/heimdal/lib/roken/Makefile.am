@@ -1,4 +1,4 @@
-# $Id: Makefile.am,v 1.117 2001/10/27 17:47:53 assar Exp $
+# $Id: Makefile.am,v 1.120 2002/05/31 02:44:37 assar Exp $
 
 include $(top_srcdir)/Makefile.am.common
 
@@ -7,7 +7,7 @@ ACLOCAL_AMFLAGS = -I ../../cf
 CLEANFILES = roken.h make-roken.c $(XHEADERS)
 
 lib_LTLIBRARIES = libroken.la
-libroken_la_LDFLAGS = -version-info 15:0:6
+libroken_la_LDFLAGS = -version-info 16:0:7
 
 noinst_PROGRAMS = make-roken snprintf-test
 
@@ -22,13 +22,17 @@ check_PROGRAMS = 				\
 
 TESTS = $(check_PROGRAMS)
 
-LIB_crypt = @LIB_crypt@
-
 LDADD = libroken.la $(LIB_crypt)
 make_roken_LDADD = 
 
-strpftime_test_SOURCES	= strpftime-test.c strftime.c strptime.c snprintf.c
-snprintf_test_SOURCES	= snprintf-test.c snprintf.c
+noinst_LTLIBRARIES = libtest.la
+libtest_la_SOURCES = strftime.c strptime.c snprintf.c
+libtest_la_CFLAGS = -DTEST_SNPRINTF
+
+strpftime_test_SOURCES	= strpftime-test.c
+strpftime_test_LDADD = libtest.la $(LDADD)
+snprintf_test_SOURCES	= snprintf-test.c
+snprintf_test_LDADD = libtest.la $(LDADD)
 snprintf_test_CFLAGS	= -DTEST_SNPRINTF
 
 libroken_la_SOURCES =		\
@@ -91,7 +95,6 @@ EXTRA_libroken_la_SOURCES =	\
 	flock.c			\
 	fnmatch.c		\
 	fnmatch.hin		\
-	freeaddrinfo.c		\
 	freehostent.c		\
 	gai_strerror.c		\
 	getdtablesize.c		\
@@ -210,7 +213,7 @@ nodist_include_HEADERS = roken.h
 
 man_MANS = getarg.3
 
-SUFFIXES = .hin
+SUFFIXES += .hin
 .hin.h:
 	cp $< $@
 

@@ -1,7 +1,7 @@
 #!/bin/sh
-# $Id: rxterm.in,v 1.22 2001/07/12 09:35:15 assar Exp $
+# $Id: rxterm.in,v 1.23 2002/03/18 17:37:34 joda Exp $
 #
-usage="Usage: $0 [-l username] [-k] [-r rsh_args] [-x xterm_args] [-K kx_args] [-w term_emulator] [-b rsh_binary][-v] [-h | --help] [--version] host"
+usage="Usage: $0 [-l username] [-k] [-f] [-r rsh_args] [-x xterm_args] [-K kx_args] [-w term_emulator] [-b rsh_binary][-v] [-h | --help] [--version] host"
 binary=rsh
 term=xterm
 while true
@@ -10,6 +10,7 @@ do
   -l) rsh_args="${rsh_args} -l $2 "; kx_args="${kx_args} -l $2"; title="${2}@"; shift 2;;
   -r) rsh_args="${rsh_args} $2 "; shift 2;;
   -x) xterm_args="${xterm_args} $2 "; shift 2;;
+  -f) rsh_args="${rsh_args} -f"; shift;;
   -k) kx_args="${kx_args} -k"; shift;;
   -K) kx_args="${kx_args} $2 "; shift 2;;
   -w) term=$2; shift 2;;

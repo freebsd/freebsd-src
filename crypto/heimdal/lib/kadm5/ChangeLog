@@ -1,3 +1,44 @@
+2002-08-26  Assar Westerlund  <assar@kth.se>
+
+	* ipropd_slave.c (receive_everything): type-correctness calling
+	_krb5_get_int
+
+	* context_s.c (find_db_spec): const-correctness in parameters to
+	krb5_config_get_next
+
+2002-08-16  Johan Danielsson  <joda@pdc.kth.se>
+
+	* private.h: rename header file flag macro
+
+	* Makefile.am: generate kadm5-{protos,private}.h
+
+2002-08-15  Johan Danielsson  <joda@pdc.kth.se>
+
+	* ipropd_master.c: check return value of krb5_sockaddr2address
+
+2002-07-04  Johan Danielsson  <joda@pdc.kth.se>
+
+	* ipropd_master.c: handle slaves that come and go; add status
+	reporting (both from Love)
+
+	* iprop.h: KADM5_SLAVE_STATS
+
+2002-03-25  Jacques Vidrine  <n@nectar.com>
+
+	* init_c.c (get_cred_cache): bug fix: the default credentials
+	cache was not being used if a client name was specified.
+
+2002-03-25  Johan Danielsson  <joda@pdc.kth.se>
+
+	* init_c.c (get_cred_cache): when getting the default_client from
+	the cred cache, make sure the instance part is "admin"; this
+	should require fewer uses of -p
+
+2002-03-11  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am (libkadm5srv_la_LDFLAGS): set version to 7:5:0
+	(libkadm5clnt_la_LDFLAGS): set version to 6:3:2
+
 2002-02-08  Johan Danielsson  <joda@pdc.kth.se>
 
 	* init_c.c: we have to create our own param struct before

@@ -1,3 +1,29 @@
+Changes in release 0.5
+
+ * add --detach option to kdc
+
+ * allow setting forward and forwardable option in telnet from
+   .telnetrc, with override from command line
+
+ * accept addresses with or without ports in krb5_rd_cred
+
+ * make it work with modern openssl
+
+ * use our own string2key function even with openssl (that handles weak
+   keys incorrectly)
+
+ * more system-specific requirements in login
+
+ * do not use getlogin() to determine root in su
+
+ * telnet: abort if telnetd does not support encryption
+
+ * update autoconf to 2.53
+
+ * update config.guess, config.sub
+
+ * other bug fixes
+
 Changes in release 0.4e
 
  * improve libcrypto and database autoconf tests

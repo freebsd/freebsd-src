@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2002 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: mcache.c,v 1.14 2001/06/17 23:13:02 assar Exp $");
+RCSID("$Id: mcache.c,v 1.15 2002/04/18 09:40:33 joda Exp $");
 
 typedef struct krb5_mcache {
     char *name;
@@ -54,7 +54,7 @@ static struct krb5_mcache *mcc_head;
 
 #define MCC_CURSOR(C) ((struct link*)(C))
 
-static char*
+static const char*
 mcc_get_name(krb5_context context,
 	     krb5_ccache id)
 {

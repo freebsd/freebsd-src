@@ -1,13 +1,12 @@
-
-KRB5-CONFIG(1)               UNIX Reference Manual              KRB5-CONFIG(1)
+KRB5-CONFIG(1)          FreeBSD General Commands Manual         KRB5-CONFIG(1)
 
 NNAAMMEE
-     kkrrbb55--ccoonnffiigg - give information on how to link code against Heimdal li-
-     braries
+     kkrrbb55--ccoonnffiigg - give information on how to link code against Heimdal
+     libraries
 
 SSYYNNOOPPSSIISS
      kkrrbb55--ccoonnffiigg [----pprreeffiixx[=_d_i_r]] [----eexxeecc--pprreeffiixx[=_d_i_r]] [----lliibbss] [----ccffllaaggss]
-     [_l_i_b_r_a_r_i_e_s]
+                 [_l_i_b_r_a_r_i_e_s]
 
 DDEESSCCRRIIPPTTIIOONN
      kkrrbb55--ccoonnffiigg tells the application programmer what special flags to use to
@@ -49,4 +48,4 @@ SSEEEE AALLSSOO
 HHIISSTTOORRYY
      kkrrbb55--ccoonnffiigg appeared in Heimdal 0.3d.
 
- HEIMDAL                       November 30, 2000                             1
+HEIMDAL                        November 30, 2000                       HEIMDAL

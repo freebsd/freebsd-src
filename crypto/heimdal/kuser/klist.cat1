@@ -1,12 +1,12 @@
-
-KLIST(1)                     UNIX Reference Manual                    KLIST(1)
+KLIST(1)                FreeBSD General Commands Manual               KLIST(1)
 
 NNAAMMEE
      kklliisstt - list Kerberos credentials
 
 SSYYNNOOPPSSIISS
-     kklliisstt [--cc _c_a_c_h_e | ----ccaacchhee==_c_a_c_h_e] [--ss | --tt | ----tteesstt] [--44 | ----vv44] [--TT |
-     ----ttookkeennss] [--55 | ----vv55] [--vv | ----vveerrbboossee] [--ff] [----vveerrssiioonn] [----hheellpp]
+     kklliisstt [--cc _c_a_c_h_e | ----ccaacchhee==_c_a_c_h_e] [--ss | --tt | ----tteesstt] [--44 | ----vv44]
+           [--TT | ----ttookkeennss] [--55 | ----vv55] [--vv | ----vveerrbboossee] [--ff] [----vveerrssiioonn]
+           [----hheellpp]
 
 DDEESSCCRRIIPPTTIIOONN
      kklliisstt reads and displays the current tickets in the crential cache (also
@@ -62,12 +62,11 @@ DDEESSCCRRIIPPTTIIOONN
                          ferent from the encryption type of the ticket
 
                    Auth time
-
                          the time the authentication exchange took place
 
                    Start time
-                         the time that this tickets is valid from (only print-
-                         ed if it's different from the auth time)
+                         the time that this tickets is valid from (only
+                         printed if it's different from the auth time)
 
                    End time
                          when the ticket expires, if it has already expired
@@ -84,6 +83,6 @@ DDEESSCCRRIIPPTTIIOONN
                          the set of addresses from which this ticket is valid
 
 SSEEEE AALLSSOO
-     kinit(1),  kdestroy(1)
+     kdestroy(1), kinit(1)
 
- HEIMDAL                         July 8, 2000                                2
+HEIMDAL                          July 8, 2000                          HEIMDAL

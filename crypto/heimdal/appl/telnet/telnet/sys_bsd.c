@@ -33,7 +33,7 @@
 
 #include "telnet_locl.h"
 
-RCSID("$Id: sys_bsd.c,v 1.29 2001/12/20 20:39:52 joda Exp $");
+RCSID("$Id: sys_bsd.c,v 1.30 2002/04/18 16:18:43 joda Exp $");
 
 /*
  * The following routines try to encapsulate what is system dependent
@@ -743,9 +743,8 @@ sys_telnet_init(void)
 
 
 #if	defined(SO_OOBINLINE)
-    if (SetSockOpt(net, SOL_SOCKET, SO_OOBINLINE, 1) == -1) {
-	perror("SetSockOpt");
-    }
+    if (SetSockOpt(net, SOL_SOCKET, SO_OOBINLINE, 1) == -1)
+	perror("setsockopt (SO_OOBINLINE) (ignored)");
 #endif	/* defined(SO_OOBINLINE) */
 }
 

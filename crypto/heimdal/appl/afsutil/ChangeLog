@@ -1,3 +1,7 @@
+2002-08-23  Assar Westerlund  <assar@kth.se>
+
+	* pagsh.c: make it handle --version/--help
+
 2001-05-17  Assar Westerlund  <assar@sics.se>
 
 	* afslog.c (main): call free_getarg_strings
