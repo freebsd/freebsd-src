@@ -44,8 +44,7 @@
  * the machine context.  The next field is uc_link; we want to
  * avoid destroying the link when copying out contexts.
  */
-#define	UC_COPY_SIZE	(sizeof(sigset_t) + sizeof(mcontext_t))
-
+#define	UC_COPY_SIZE	offsetof(ucontext_t, uc_link)
 
 #ifndef _SYS_SYSPROTO_H_
 struct getcontext_args {
@@ -102,7 +101,7 @@ setcontext(struct thread *td, struct setcontext_args *uap)
 			}
 		}
 	}
-	return (ret);
+	return (ret == 0 ? EJUSTRETURN : ret);
 }
 
 int
@@ -130,5 +129,5 @@ swapcontext(struct thread *td, struct swapcontext_args *uap)
 			}
 		}
 	}
-	return (ret);
+	return (ret == 0 ? EJUSTRETURN : ret);
 }
