@@ -76,7 +76,7 @@
 #define NFS_READDIRSIZE	8192		/* Def. readdir size */
 #define	NFS_DEFRAHEAD	1		/* Def. read ahead # blocks */
 #define	NFS_MAXRAHEAD	4		/* Max. read ahead # blocks */
-#define	NFS_MAXASYNCDAEMON 	20	/* Max. number async_daemons runnable */
+#define	NFS_MAXASYNCDAEMON 	64	/* Max. number async_daemons runnable */
 #define	NFS_DIRBLKSIZ	4096		/* Must be a multiple of DIRBLKSIZ */
 #ifdef _KERNEL
 #define	DIRBLKSIZ	512		/* XXX we used to use ufs's DIRBLKSIZ */
