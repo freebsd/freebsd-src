@@ -12,7 +12,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.41 1996/06/23 14:28:02 bde Exp $
+ *	$Id: ip_fw.c,v 1.42 1996/06/25 00:22:20 alex Exp $
  */
 
 /*
@@ -631,6 +631,16 @@ check_ipfw_struct(struct mbuf *m)
 		dprintf(("ip_fw_ctl: too many ports (%d+%d)\n",
 		    frwl->fw_nsp, frwl->fw_ndp));
 		return (NULL);
+	}
+
+	/*
+	 *	ICMP and ALL protocols don't check port ranges
+	 */
+	if ((frwl->fw_flg & IP_FW_F_KIND) != IP_FW_F_TCP &&
+		(frwl->fw_flg & IP_FW_F_KIND) != IP_FW_F_UDP &&
+		(frwl->fw_nsp || frwl->fw_ndp)) {
+		dprintf(("ip_fw_ctl: invalid protocol/port combination\n"));
+		return(NULL);
 	}
 
 	/*
