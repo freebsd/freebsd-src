@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: pc98.c,v 1.53 1998/10/13 09:44:09 kato Exp $
+ *	$Id: pc98.c,v 1.54 1998/10/22 05:58:45 bde Exp $
  */
 
 /*
@@ -535,7 +535,7 @@ config_isadev_c(isdp, mp, reconfig)
 			printf("%s%d", dp->name, isdp->id_unit);
 			if (id_alive != -1) {
 				if (isdp->id_iobase == -1)
-					printf(" at ?");
+					printf(" at");
 				else {
 					printf(" at 0x%x", isdp->id_iobase);
 					if (isdp->id_iobase + id_alive - 1 !=
