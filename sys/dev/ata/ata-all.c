@@ -758,18 +758,17 @@ static int
 ata_pcisub_probe(device_t dev)
 {
     struct ata_softc *scp = device_get_softc(dev);
-    device_t *list;
+    device_t *children;
     int count, i;
 
     /* find channel number on this controller */
-    device_get_children(device_get_parent(dev), &list, &count);
+    device_get_children(device_get_parent(dev), &children, &count);
     for (i = 0; i < count; i++) {
-	if (list[i] == dev)
+	if (children[i] == dev)
 	    scp->channel = i;
     }
-
+    free(children, M_TEMP);
     scp->chiptype = pci_get_devid(device_get_parent(dev));
-
     return ata_probe(dev);
 }
 
