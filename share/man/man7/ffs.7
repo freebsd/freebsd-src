@@ -37,7 +37,7 @@
 .Dt FFS 7
 .Sh NAME
 .Nm ffs
-.Nd Berkeley fast file system
+.Nd Berkeley fast filesystem
 .Sh SYNOPSIS
 In the kernel configuration file:
 .Cd "options ENABLE_VFS_IOOPT"
@@ -56,14 +56,14 @@ In
 /dev/disk0a	/mnt ufs rw 1 1
 .Ed
 .Sh DESCRIPTION
-The Berkeley fast file system
-provides facilities to store file system data onto a disk device.
+The Berkeley fast filesystem
+provides facilities to store filesystem data onto a disk device.
 .Nm
 has been optimized over the years
 for speed and reliability
 and is the default
 .Fx
-file system.
+filesystem.
 .Ss VFS I/O optimization
 .Bl -tag -width 2n
 .It Cd "options ENABLE_VFS_IOOPT"
@@ -93,7 +93,7 @@ Aggressive optimization (VM used as much as possible)
 This option allows system administrators
 to set limits on disk usage
 on a per-user basis.
-Quotas can be used only on file systems
+Quotas can be used only on filesystems
 mounted with the
 .Cm quota
 option;
@@ -108,11 +108,11 @@ and
 The soft updates feature tracks writes to the disk
 and enforces metadata update dependencies
 (e.g., updating free block maps)
-to ensure that the file system remains consistent.
+to ensure that the filesystem remains consistent.
 .Pp
 To enable soft updates on an
 .Em unmounted
-file system, use the following command:
+filesystem, use the following command:
 .Pp
 .D1 Nm tunefs Fl n Cm enable Ar fs
 .Pp
@@ -134,7 +134,7 @@ on networks including
 and
 .Tn "Apple Macintosh"
 computers,
-this option allows files on file systems
+this option allows files on filesystems
 mounted with the
 .Cm suiddir
 option
@@ -153,7 +153,7 @@ This option requires the presence of the
 option, and it is recommended that
 .Dv UFS_EXTATTR_AUTOSTART
 is included as well,
-so that ACLs are enabled atomically upon mounting the file system.
+so that ACLs are enabled atomically upon mounting the filesystem.
 .El
 .Pp
 In order to enable support for ACLs,
@@ -165,11 +165,11 @@ which holds the access ACL,
 and
 .Pa posix1e.acl_default ,
 which holds the default ACL for directories.
-If you are using file system extended attributes,
+If you are using filesystem extended attributes,
 the following commands may be used to
 allocate space for and create the necessary EA backing files
-for ACLs in the root of each file system.
-In these examples, the root file system is used;
+for ACLs in the root of each filesystem.
+In these examples, the root filesystem is used;
 see
 .Sx "Extended Attributes"
 for more details.
@@ -180,7 +180,7 @@ extattrctl initattr -p / 388 posix1e.acl_access
 extattrctl initattr -p / 388 posix1e.acl_default
 .Ed
 .Pp
-On the next mount of the root file system,
+On the next mount of the root filesystem,
 the attributes will be automatically started
 (if
 .Dv UFS_EXTATTR_AUTOSTART
@@ -205,9 +205,9 @@ If this option is defined,
 .Nm
 will search for a
 .Pa .attribute
-subdirectory of the file system root during the mount operation.
+subdirectory of the filesystem root during the mount operation.
 If found, extended attribute support will be
-automatically started for that file system.
+automatically started for that filesystem.
 .El
 .Pp
 The following
@@ -217,7 +217,7 @@ MIBs are defined for use with
 .Bl -hang -width ".Va vfs.ffs.doreallocblk"
 .It Va vfs.ffs.doasyncfree
 Asynchronously write out modified i-node and indirect blocks
-upon reallocating file system blocks to be contiguous.
+upon reallocating filesystem blocks to be contiguous.
 (Default: 1.)
 .It Va vfs.ffs.doreallocblks
 Enable support for the rearrangement of blocks
