@@ -901,4 +901,5 @@ product YAMAHA UX256		0x1000	UX256 MIDI I/F
 product ZOOM 2986L		0x9700	2986L Fax modem
 
 /* ZyXEL Communication Co. products */
+product ZYXEL OMNI56K		0x1500	Omni 56K Plus
 product ZYXEL 980N		0x2011	Scorpion-980N keyboard
