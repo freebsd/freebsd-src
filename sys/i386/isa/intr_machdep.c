@@ -651,15 +651,9 @@ update_masks(intrmask_t *maskptr, int irq)
 
 	if (find_idesc(maskptr, irq) == NULL) {
 		/* no reference to this maskptr was found in this irq's chain */
-		if ((*maskptr & mask) == 0)
-			return;
-		/* the irq was included in the classes mask, remove it */
 		*maskptr &= ~mask;
 	} else {
 		/* a reference to this maskptr was found in this irq's chain */
-		if ((*maskptr & mask) != 0)
-			return;
-		/* put the irq into the classes mask */
 		*maskptr |= mask;
 	}
 	/* we need to update all values in the intr_mask[irq] array */
