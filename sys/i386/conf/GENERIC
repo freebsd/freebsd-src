@@ -205,9 +205,8 @@ pseudo-device	ppp	1	# Kernel PPP
 pseudo-device	tun		# Packet tunnel.
 pseudo-device	pty		# Pseudo-ttys (telnet etc)
 pseudo-device	md		# Memory "disks"
-# for IPv6
-pseudo-device	gif	4	#IPv6 and IPv4 tunneling
-pseudo-device	faith	1	#for IPv6 and IPv4 translation
+pseudo-device	gif	4	# IPv6 and IPv4 tunneling
+pseudo-device	faith	1	# IPv6-to-IPv4 relaying (translation)
 
 # The `bpf' pseudo-device enables the Berkeley Packet Filter.
 # Be aware of the administrative consequences of enabling this!
