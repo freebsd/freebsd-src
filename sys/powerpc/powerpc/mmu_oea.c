@@ -743,7 +743,6 @@ void
 pmap_activate(struct thread *td)
 {
 	pmap_t	pm;
-	int	i;
 
 	/*
 	 * Load all the data we need up front to encourasge the compiler to
@@ -754,21 +753,6 @@ pmap_activate(struct thread *td)
 	KASSERT(pm->pm_active == 0, ("pmap_activate: pmap already active?"));
 
 	pm->pm_active |= PCPU_GET(cpumask);
-
-	/*
-	 * XXX: Address this again later?
-	 * NetBSD only change the segment registers on return to userland.
-	 */
-#if 0
-	critical_enter();
-
-	for (i = 0; i < 16; i++) {
-		__asm __volatile("mtsr %0,%1" :: "r"(i), "r"(pm->pm_sr[i]));
-	}
-	__asm __volatile("sync; isync");
-
-	critical_exit();
-#endif
 }
 
 void
