@@ -76,7 +76,6 @@
 #include <sys/systm.h>
 #include <sys/tty.h>
 #include <sys/conf.h>
-#include <sys/dkstat.h>
 #include <sys/fcntl.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>

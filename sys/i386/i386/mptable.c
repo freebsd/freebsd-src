@@ -38,7 +38,6 @@
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/cons.h>	/* cngetc() */
-#include <sys/dkstat.h>
 #ifdef GPROF 
 #include <sys/gmon.h>
 #endif
