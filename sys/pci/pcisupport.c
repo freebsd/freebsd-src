@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.13.4.2 1995/09/09 23:10:21 davidg Exp $
+**  $Id: pcisupport.c,v 1.13.4.3 1996/06/26 04:36:53 davidg Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -64,7 +64,7 @@ static	char*	chipset_probe (pcici_t tag, pcidi_t type);
 static	void	chipset_attach(pcici_t tag, int unit);
 static	u_long	chipset_count;
 
-struct pci_device chipset_device = {
+static struct pci_device chipset_device = {
 	"chip",
 	chipset_probe,
 	chipset_attach,
@@ -82,8 +82,8 @@ struct condmsg {
     const char		*text;
 };
 
-/* make sure formats expand to at most as many chars !!! */
-#define PPB_DESCR "generic PCI bridge (vendor=%x device=%x subclass=%x)"
+/* make sure formats expand to at least as many chars !!! */
+#define PPB_DESCR "generic PCI bridge (vendor=%04x device=%04x subclass=%1.2d)"
 
 static char*
 generic_pci_bridge (pcici_t tag)
@@ -95,7 +95,7 @@ generic_pci_bridge (pcici_t tag)
 
 	unsigned id = pci_conf_read (tag, PCI_ID_REG);
 
-	descr = malloc (sizeof PPB_DESCR +5, M_DEVBUF, M_WAITOK);
+	descr = malloc (sizeof PPB_DESCR +1, M_DEVBUF, M_WAITOK);
 	if (descr) {
 	    sprintf (descr, PPB_DESCR, id & 0xffff, (id >> 16) & 0xffff, 
 			(classreg >> 16) & 0xff);
@@ -124,31 +124,37 @@ chipset_probe (pcici_t tag, pcidi_t type)
 		return ("Intel 82424ZX (Saturn) cache DRAM controller");
 	case 0x04828086:
 		return ("Intel 82375EB PCI-EISA bridge");
+	case 0x04961039:
+		return ("SiS 85c496");
 	case 0x04a38086:
 		rev = (unsigned) pci_conf_read (tag, PCI_CLASS_REG) & 0xff;
 		if (rev == 16 || rev == 17)
 		    return ("Intel 82434NX (Neptune) PCI cache memory controller");
 		return ("Intel 82434LX (Mercury) PCI cache memory controller");
 	case 0x122d8086:
-		return ("Intel 82437 PCI cache memory controller");
+		return ("Intel 82437FX PCI cache memory controller");
 	case 0x122e8086:
-		return ("Intel 82371 PCI-ISA bridge");
+		return ("Intel 82371FB PCI-ISA bridge");
+	case 0x12308086:
+		return ("Intel 82371FB IDE interface");
 	case 0x12508086:
 		return ("Intel 82439");
-	case 0x70008086:
-		return ("Intel 82371 PCI-ISA bridge");
-	case 0x70108086:
-		return ("Intel 82371 Bus-Master IDE controller");
-	case 0x12308086:
-		return ("Intel 82371 Bus-master IDE controller");
-	case 0x04961039:
-		return ("SiS 85c496");
 	case 0x04061039:
 		return ("SiS 85c501");
 	case 0x00081039:
 		return ("SiS 85c503");
 	case 0x06011039:
 		return ("SiS 85c601");
+	case 0x70008086:
+		return ("Intel 82371SB PCI-ISA bridge");
+	case 0x70108086:
+		return ("Intel 82371SB IDE interface");
+	case 0x12378086:
+		return ("Intel 82440FX (Natoma) PCI and memory controller");
+	case 0x84c48086:
+		return ("Intel 82450KX (Orion) PCI memory controller");
+	case 0x84c58086:
+		return ("Intel 82454GX (Orion) host to PCI bridge");
 	case 0x00221014:
 		return ("IBM 82351 PCI-PCI bridge");
 	case 0x00011011:
@@ -654,7 +660,7 @@ static	char*	vga_probe  (pcici_t tag, pcidi_t type);
 static	void	vga_attach (pcici_t tag, int unit);
 static	u_long	vga_count;
 
-struct pci_device vga_device = {
+static struct pci_device vga_device = {
 	"vga",
 	vga_probe,
 	vga_attach,
@@ -700,7 +706,6 @@ static void vga_attach (pcici_t tag, int unit)
 #endif
 }
 
-
 /*---------------------------------------------------------
 **
 **	Hook for loadable pci drivers
@@ -712,7 +717,7 @@ static	char*	lkm_probe  (pcici_t tag, pcidi_t type);
 static	void	lkm_attach (pcici_t tag, int unit);
 static	u_long	lkm_count;
 
-struct pci_device lkm_device = {
+static struct pci_device lkm_device = {
 	"lkm",
 	lkm_probe,
 	lkm_attach,
@@ -747,7 +752,7 @@ static	char*	ign_probe  (pcici_t tag, pcidi_t type);
 static	void	ign_attach (pcici_t tag, int unit);
 static	u_long	ign_count;
 
-struct pci_device ign_device = {
+static struct pci_device ign_device = {
 	NULL,
 	ign_probe,
 	ign_attach,
