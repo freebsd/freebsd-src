@@ -1,3 +1,4 @@
+#ifdef NO_GEOM
 /*
  * Copyright (c) 1982, 1986, 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -296,4 +297,5 @@ alpha_fix_srm_checksum(bp)
 		sum += p[i];
 	p[63] = sum;
 }
+#endif
 #endif
