@@ -102,7 +102,7 @@ do {								\
 	while (((tv2.tv_sec-tv1.tv_sec)*1000000 + tv2.tv_usec - tv1.tv_usec) < udelay ); \
 } while (0)
 
-#define DRM_OS_RETURN(v)	return v;
+#define DRM_OS_ERR(v)	v
 
 
 #define DRM_OS_KRNTOUSR(arg1, arg2, arg3) \
