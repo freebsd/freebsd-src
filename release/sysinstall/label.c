@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.84.2.1 1999/02/05 22:20:15 jkh Exp $
+ * $Id: label.c,v 1.84.2.2 1999/03/09 12:40:13 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -655,6 +655,30 @@ clear_wins(void)
     print_label_chunks();
 }
 
+#ifdef __alpha__
+
+/*
+ * If there isn't a freebsd chunk already (i.e. there is no label),
+ * dedicate the disk.
+ */
+static void
+maybe_dedicate(Disk* d)
+{
+    struct chunk *c;
+
+    for (c = d->chunks->part; c; c = c->next) {
+	if (c->type == freebsd)
+	    break;
+    }
+
+    if (!c) {
+	msgDebug("dedicating disk");
+	All_FreeBSD(d, 1);
+    }
+}
+
+#endif
+
 static int
 diskLabel(Device *dev)
 {
@@ -681,7 +705,7 @@ diskLabel(Device *dev)
     keypad(stdscr, TRUE);
 #ifdef __alpha__
     for (i = 0; devs[i]; i++) {
-	All_FreeBSD((Disk*) devs[i]->private, 1);
+	maybe_dedicate((Disk*) devs[i]->private);
     }
 #endif
     record_label_chunks(devs, dev);
@@ -1180,7 +1204,7 @@ diskLabelNonInteractive(Device *dev)
     else
 	d = devs[0]->private;
 #ifdef __alpha__
-    All_FreeBSD(d, 1);
+    maybe_dedicate(d);
 #endif
     record_label_chunks(devs, dev);
     for (i = 0; label_chunk_info[i].c; i++) {
