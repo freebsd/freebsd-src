@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.391 1998/09/24 00:57:05 jkh Exp $
+#	$Id: Makefile,v 1.392 1998/09/24 02:01:07 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -679,6 +679,7 @@ doMFSKERN:
 	  sed	-e '/pty/d' \
 		-e '/pass0/d' \
 		-e '/apm0/d' \
+		-e '/ft0/d' \
 		-e '/ppp/d' \
 		-e '/gzip/d' \
 		-e '/PROCFS/d' \
