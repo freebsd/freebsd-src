@@ -83,11 +83,6 @@ long cp_time[CPUSTATES];
 SYSCTL_OPAQUE(_kern, OID_AUTO, cp_time, CTLFLAG_RD, &cp_time, sizeof(cp_time),
     "LU", "CPU time statistics");
 
-long tk_cancc;
-long tk_nin;
-long tk_nout;
-long tk_rawcc;
-
 /*
  * Clock handling routines.
  *

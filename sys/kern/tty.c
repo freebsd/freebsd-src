@@ -109,6 +109,11 @@
 
 MALLOC_DEFINE(M_TTYS, "ttys", "tty data structures");
 
+long tk_cancc;
+long tk_nin;
+long tk_nout;
+long tk_rawcc;
+
 static int	proc_compare(struct proc *p1, struct proc *p2);
 static int	ttnread(struct tty *tp);
 static void	ttyecho(int c, struct tty *tp);
