@@ -1,6 +1,6 @@
-<!-- $Id: kerneldebug.sgml,v 1.5 1997/02/25 04:56:32 hanai Exp $ -->
+<!-- $Id: kerneldebug.sgml,v 1.6 1997/03/25 06:31:27 hanai Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.13 -->
+<!-- Original revision: 1.14 -->
 
 <chapt><heading>カーネルデバッグ<label id="kerneldebug"></heading>
 
@@ -481,6 +481,37 @@ Debugger (msg=0xf01b0383 "Boot flags requested debugger")
   の gud-mode (これは別の Emacs window に自動的にソースコードを表示し
   ます) で動かすなど, 通常の GDB セッションでできることのほとんどのこ
   とができます.
+
+<p>リモート GDB は LKM のデバッグも行なうことができます. 最初に LKM を
+ デバッグシンボルを含めた形で作ります. 
+<tscreen><verb>
+# cd /usr/src/lkm/linux
+# make clean; make COPTS=-g
+</verb></tscreen>
+
+ そしてターゲットマシン上でモジュールのこのバージョンをインストールし
+ ます. これをロードしてから, <tt>modstat</tt> を使ってロードされている
+ ことを確認してください:
+<tscreen><verb>
+# linux
+# modstat
+Type     Id Off Loadaddr Size Info     Rev Module Name
+EXEC      0   4 f5109000 001c f510f010   1 linux_mod
+</verb></tscreen>
+
+示されたロードアドレスに 0x20 (a.outのヘッダはおそらくこの大きさでしょ
+う) を加えます. それがモジュールコードの再配置されるアドレスです. 
+GDB の <tt>add-symbol-file</tt> コマンドを使ってデバッガにモジュールの
+情報をつたえます. 
+<tscreen><verb>
+(kgdb) add-symbol-file /usr/src/lkm/linux/linux_mod.o 0xf5109020
+add symbol table from file "/usr/src/lkm/linux/linux_mod.o" at
+text_addr = 0xf5109020?
+(y or n) y
+(kgdb)
+</verb></tscreen>
+
+これで LKM のすべてのシンボルにアクセスできるようになります. 
 
 <sect><heading>コンソールドライバのデバッグ</heading>
 
