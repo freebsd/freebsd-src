@@ -69,7 +69,7 @@ sub get_requires($$) {
 		return 1;
 	}
 
-	if (! open(REQUIRES, "<$file")) {
+	if (! open(REQUIRES, "< $file")) {
 		error("Can't open $file, $!");
 		return 0;
 	}
@@ -89,7 +89,7 @@ sub put_requires($$) {
 
 	my $file = "$PKG_DB/$pkg/$PKG_DEP_FILE";
 
-	if (! open(REQUIRES, ">$file")) {
+	if (! open(REQUIRES, "> $file")) {
 		error("Can't open $file, $!");
 		return 0;
 	}
