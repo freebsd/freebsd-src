@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pci.c,v 1.47 1996/04/07 17:32:35 bde Exp $
+**  $Id: pci.c,v 1.48 1996/04/14 20:14:36 se Exp $
 **
 **  General subroutines for the PCI bus.
 **  pci_configure ()
@@ -731,7 +731,7 @@ pci_bus_config (void)
 			**	check for uninitialized bridge.
 			*/
 			if (!(primary < secondary 
-			      && subordinate <= secondary
+			      && secondary <= subordinate
 			      && bus_no == primary))
 			{
 				printf ("\tINCORRECTLY or NEVER CONFIGURED.\n");
