@@ -1927,7 +1927,7 @@ DB_COMMAND(ahd_in, ahd_ddb_in)
 	if (count <= 0)
 		count = 1;
 	while (--count >= 0) {
-		db_printf("%04jx (M)%x: \t", (uintmax_t)addr,
+		db_printf("%04lx (M)%x: \t", (u_long)addr,
 			  ahd_inb(ahd_ddb_softc, MODE_PTR));
 		switch (size) {
 		case 1:
@@ -1986,9 +1986,9 @@ DB_SET(ahd_out, ahd_ddb_out, db_cmd_set, CS_MORE, NULL)
 			ahd_outl(ahd_ddb_softc, addr, new_value);
 			break;
 		}
-		db_printf("%04jx (M)%x: \t0x%jx\t=\t0x%jx",
-			  (uintmax_t)addr, ahd_inb(ahd_ddb_softc, MODE_PTR),
-			  (uintmax_t)old_value, (uintmax_t)new_value);
+		db_printf("%04lx (M)%x: \t0x%lx\t=\t0x%lx",
+			  (u_long)addr, ahd_inb(ahd_ddb_softc, MODE_PTR),
+			  (u_long)old_value, (u_long)new_value);
 		addr += size;
 	}
 	db_skip_to_eol();
