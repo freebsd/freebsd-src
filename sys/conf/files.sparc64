@@ -63,6 +63,7 @@ sparc64/sparc64/support.s	standard
 sparc64/sparc64/sys_machdep.c	standard
 sparc64/sparc64/swtch.s		standard
 sparc64/sparc64/tick.c		standard
+sparc64/sparc64/tlb.c		standard
 sparc64/sparc64/trap.c		standard
 sparc64/sparc64/tsb.c		standard
 sparc64/sparc64/vm_machdep.c	standard
