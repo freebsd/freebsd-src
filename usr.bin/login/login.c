@@ -116,6 +116,8 @@ static void usage __P((void));
 #define	TTYGRPNAME	"tty"		/* name of group to own ttys */
 #define	DEFAULT_BACKOFF	3
 #define	DEFAULT_RETRIES	10
+#define	DEFAULT_PROMPT		"login: "
+#define	DEFAULT_PASSWD_PROMPT	"Password:"
 
 /*
  * This bounds the time given to login.  Not a define so it can
@@ -128,7 +130,7 @@ jmp_buf timeout_buf;
 
 struct	passwd *pwd;
 int	failures;
-char	*term, *envinit[1], *hostname, *username, *tty;
+char	*term, *envinit[1], *hostname, *passwd_prompt, *prompt, *tty, *username;
 char    full_hostname[MAXHOSTNAMELEN];
 #ifndef NO_PAM
 static char **environ_pam;
@@ -257,6 +259,9 @@ main(argc, argv)
 	 * Get "login-retries" & "login-backoff" from default class
 	 */
 	lc = login_getclass(NULL);
+	prompt = login_getcapstr(lc, "prompt", DEFAULT_PROMPT, DEFAULT_PROMPT);
+	passwd_prompt = login_getcapstr(lc, "passwd_prompt",
+	    DEFAULT_PASSWD_PROMPT, DEFAULT_PASSWD_PROMPT);
 	retries = login_getcapnum(lc, "login-retries", DEFAULT_RETRIES, DEFAULT_RETRIES);
 	backoff = login_getcapnum(lc, "login-backoff", DEFAULT_BACKOFF, DEFAULT_BACKOFF);
 	login_close(lc);
@@ -651,7 +656,7 @@ auth_traditional()
 	rval = 1;
 	salt = pwd != NULL ? pwd->pw_passwd : "xx";
 
-	p = getpass("Password:");
+	p = getpass(passwd_prompt);
 	ep = crypt(p, salt);
 
 	if (pwd) {
@@ -819,7 +824,7 @@ getloginname()
 	static char nbuf[NBUFSIZ];
 
 	for (;;) {
-		(void)printf("login: ");
+		(void)printf(prompt);
 		for (p = nbuf; (ch = getchar()) != '\n'; ) {
 			if (ch == EOF) {
 				badlogin(username);
