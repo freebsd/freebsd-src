@@ -266,6 +266,23 @@ cpu_thread_setup(struct thread *td)
 }
 
 void
+cpu_thread_swapin(struct thread *td)
+{
+	/*
+	 * The pcb may be at a different physical address now so cache the
+	 * new address.
+	 */
+	td->td_md.md_pcbpaddr = (void *)vtophys((vm_offset_t)td->td_pcb);
+}
+
+void
+cpu_thread_swapout(struct thread *td)
+{
+	/* Make sure we aren't fpcurthread. */
+	alpha_fpstate_save(td, 1);
+}
+
+void
 cpu_set_upcall(struct thread *td, struct thread *td0)
 {
 	struct pcb *pcb2;
