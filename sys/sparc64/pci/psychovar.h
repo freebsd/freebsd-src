@@ -34,21 +34,17 @@
 #define _SPARC64_PCI_PSYCHOVAR_H_
 
 /*
- * per-PCI bus on mainbus softc structure; one for sabre, or two
- * per pair of psycho's.
+ * Per-PCI bus on mainbus softc structure; one for sabre, or two
+ * per pair of psychos.
  */
 struct psycho_softc {
 	device_t			sc_dev;
-	/*
-	 * PSYCHO register.  we record the base physical address of these
-	 * also as it is the base of the entire PSYCHO
-	 */
 	vm_paddr_t			sc_basepaddr;
 
 	/* Interrupt Group Number for this device */
 	int				sc_ign;
 
-	/* our tags (from parent) */
+	/* Our tags (from parent). */
 	bus_space_tag_t			sc_bustag;
 	bus_space_handle_t		sc_bushandle;
 	bus_dma_tag_t			sc_dmatag;
@@ -56,7 +52,7 @@ struct psycho_softc {
 	bus_addr_t			sc_pcictl;
 
 	int				sc_clockfreq;
-	phandle_t			sc_node;	/* prom node */
+	phandle_t			sc_node;	/* Firmware node. */
 	int				sc_mode;
 #define	PSYCHO_MODE_SABRE	1
 #define	PSYCHO_MODE_PSYCHO	2
@@ -75,15 +71,10 @@ struct psycho_softc {
 	struct ofw_bus_iinfo		sc_iinfo;
 #endif
 
-	/*
-	 * note that the sabre really only has one ranges property,
-	 * used for both simba a and simba b (but the ranges for
-	 * real psychos are the same for PCI A and PCI B anyway).
-	 */
 	struct upa_ranges		*sc_range;
 	int				sc_nrange;
 
-	/* our tags */
+	/* Tags for PCI access. */
 	bus_space_tag_t			sc_cfgt;
 	bus_space_tag_t			sc_memt;
 	bus_space_tag_t			sc_iot;
