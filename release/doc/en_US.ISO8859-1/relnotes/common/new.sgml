@@ -482,6 +482,9 @@
       mode, settable via the <option>-M</option> option to
       &man.ancontrol.8;. &merged;</para>
 
+      <para arch="i386">Generic support for ARCNET token-based
+      networks has been added.</para>
+
       <para arch="i386">The &man.bge.4; driver has been added to
       support the Broadcom BCM570x family of Gigabit Ethernet
       controllers, including the 3Com 3c996-T, the SysKonnect SK-9D21
@@ -489,6 +492,9 @@
       PowerEdge 2550 servers.  Output TCP/IP checksum offload, jumbo frames
       and VLAN tag insertion/stripping are supported, as well as
       interrupt moderation. &merged;</para>
+
+      <para arch="i386">The cm driver has been added to support SMC
+      COM90cx6 ARCNET network adapters.</para>
 
       <para>The &man.dc.4; driver now supports NICs based on the Xircom
       3201 and Conexant LANfinity RS7112 chips.</para>
