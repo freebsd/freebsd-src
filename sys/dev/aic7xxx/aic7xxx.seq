@@ -679,7 +679,15 @@ clear_target_state:
  * STCNT may have been cleared, so restore it from the residual field.
  */
 data_phase_reinit:
-	if ((ahc->features & AHC_CMD_CHAN) != 0) {
+	if ((ahc->features & AHC_ULTRA2) != 0) {
+		/*
+		 * The preload circuitry requires us to
+		 * reload the address too, so pull it from
+		 * the shaddow address.
+		 */
+		bmov	HADDR, SHADDR, 4;
+		bmov	HCNT, SCB_RESID_DCNT, 3;
+	} else if ((ahc->features & AHC_CMD_CHAN) != 0) {
 		bmov	STCNT, SCB_RESID_DCNT, 3;
 	} else {
 		mvi	DINDEX, STCNT;
@@ -928,8 +936,29 @@ ultra2_dmafinish:
 		test	DFCNTRL, DIRECTION jnz ultra2_dmahalt;
 		and	DFCNTRL, ~SCSIEN;
 		test	DFCNTRL, SCSIEN jnz .;
+ultra2_dmafifoflush:
 		or	DFCNTRL, FIFOFLUSH;
-		test	DFSTATUS, FIFOEMP jz . - 1;
+		 * The FIFOEMP status bit on the Ultra2 class
+		 * of controllers seems to be a bit flaky.
+		 * It appears that if the FIFO is full and the
+		 * transfer ends with some data in the REQ/ACK
+		 * FIFO, FIFOEMP will fall temporarily
+		 * as the data is transferred to the PCI bus.
+		 * This glitch lasts for fewer than 5 clock cycles,
+		 * so we work around the problem by ensuring the
+		 * status bit stays false through a full glitch
+		 * window.
+		 */
+		test	DFSTATUS, FIFOEMP jz ultra2_dmafifoflush;
+		test	DFSTATUS, FIFOEMP jz ultra2_dmafifoflush;
+		test	DFSTATUS, FIFOEMP jz ultra2_dmafifoflush;
+		test	DFSTATUS, FIFOEMP jz ultra2_dmafifoflush;
+		test	DFSTATUS, FIFOEMP jz ultra2_dmafifoflush;
+
+ultra2_dmafifoempty:
+		/* Don't clobber an inprogress host data transfer */
+		test	DFSTATUS, MREQPEND	jnz ultra2_dmafifoempty;
+
 ultra2_dmahalt:
 		and     DFCNTRL, ~(SCSIEN|HDMAEN);
 		test	DFCNTRL, HDMAEN jnz .;
