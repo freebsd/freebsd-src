@@ -1,7 +1,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vfsops.c,v 1.11 1996/04/07 01:15:02 joerg Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vfsops.c,v 1.12 1996/06/12 05:08:30 gpalmer Exp $
  *
  *
  */
@@ -34,7 +34,7 @@ devfs_init(void)
 	/* Mark a reference for the "invisible" blueprint mount */
 	dev_root->dnp->dvm->mount->mnt_vfc->vfc_refcount++;
 
-	printf("devfs ready to run\n");
+	printf("DEVFS: ready to run\n");
 	return 0; /*XXX*/
 }
 
