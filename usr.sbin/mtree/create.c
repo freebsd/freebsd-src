@@ -254,7 +254,7 @@ statf(indent, p)
 		output(indent, &offset, "link=%s", rlink(p->fts_accpath));
 	if (keys & F_FLAGS && p->fts_statp->st_flags != flags)
 		output(indent, &offset, "flags=%s",
-		    flags_to_string(p->fts_statp->st_flags, "none"));
+		    getflags(p->fts_statp->st_flags, "none"));
 	(void)putchar('\n');
 }
 
@@ -372,7 +372,7 @@ statd(t, parent, puid, pgid, pmode, pflags)
 			(void)printf(" nlink=1");
 		if (keys & F_FLAGS && saveflags)
 			(void)printf(" flags=%s",
-			    flags_to_string(saveflags, "none"));
+			    getflags(saveflags, "none"));
 		(void)printf("\n");
 		*puid = saveuid;
 		*pgid = savegid;
