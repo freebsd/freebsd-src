@@ -216,7 +216,7 @@ restart:
 #ifndef LOOKUP_EXCLUSIVE
 		int flock;
 
-		if (!exclusive && vp->v_object == NULL)
+		if (!exclusive && VOP_GETVOBJECT(vp, NULL) != 0)
 			VOP_LOCK(vp, LK_UPGRADE, td);
 		/*
 		 * In cases where the object is marked as dead object_create
