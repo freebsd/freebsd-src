@@ -27,7 +27,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: cy.c,v 1.7 1994/05/24 07:31:12 mycroft Exp $
+ *	$Id: cy.c,v 1.1 1995/02/09 09:47:27 jkh Exp $
  */
 
 /*
@@ -244,7 +244,11 @@ struct cy {
 int	cydefaultrate = TTYDEF_SPEED;
 cy_addr	cyclom_base;			/* base address of the card */
 static	struct cy *info[NCY*PORTS_PER_CYCLOM];
+#ifdef __FreeBSD__ /* XXX actually only temporarily for 2.1-Development */
+struct	tty cy_tty[NCY*PORTS_PER_CYCLOM];
+#else
 struct	tty *cy_tty[NCY*PORTS_PER_CYCLOM];
+#endif
 static	volatile u_char timeout_scheduled = 0;	/* true if a timeout has been scheduled */
 
 #ifdef CyDebug
@@ -354,13 +358,17 @@ cyopen(dev_t dev, int flag, int mode, struct proc *p)
 	int		error = 0;
 	u_char		carrier;
 
-	if (unit >= PORTS_PER_CYCLOM)
+	if (unit >= /* NCY * ? */ PORTS_PER_CYCLOM)
 		return (ENXIO);
 
 	infop = info[unit];
 	base = infop->base_addr;
+#ifdef __FreeBSD__
+	infop->tty = &cy_tty[unit];
+#else
 	if (!cy_tty[unit])
 	    infop->tty = cy_tty[unit] = ttymalloc();
+#endif
 	tp = infop->tty;
 
 	tp->t_oproc = cystart;
@@ -421,7 +429,7 @@ cyopen(dev_t dev, int flag, int mode, struct proc *p)
 
 
 void
-cyclose_wakeup(caddr_t arg)
+cyclose_wakeup(void *arg)
 {
 	wakeup(arg);
 } /* end of cyclose_wakeup() */
@@ -664,7 +672,7 @@ service_upper_mdm(int unit)
 
 /* upper level character processing routine */
 void
-cytimeout(caddr_t ptr)
+cytimeout(void *ptr)
 {
 	int	unit;
 
@@ -1496,31 +1504,7 @@ cystop(struct tty *tp, int flag)
 int
 cyselect(dev_t dev, int rw, struct proc *p)
 {
-	struct tty	*tp = info[UNIT(dev)]->tty;
-	int		s = spltty();
-	int		nread;
-
-	switch (rw) {
-
-	case FREAD:
-		nread = ttnread(tp);
-		if (nread > 0 || 
-		   ((tp->t_cflag&CLOCAL) == 0 && (tp->t_state&TS_CARR_ON) == 0))
-			goto win;
-		selrecord(p, &tp->t_rsel);
-		break;
-
-	case FWRITE:
-		if (tp->t_outq.c_cc <= tp->t_lowat)
-			goto win;
-		selrecord(p, &tp->t_wsel);
-		break;
-	}
-	splx(s);
-	return (0);
-  win:
-	splx(s);
-	return (1);
+	return (ttselect(UNIT(dev), rw, p));
 } /* end of cyselect() */
 
 
@@ -1617,11 +1601,15 @@ cyparam_dummy(struct tty *tp, struct termios *t)
 void
 cyset(int unit, int active)
 {
-    if (unit < 0 || unit > PORTS_PER_CYCLOM) {
+    if (unit < 0 || unit >= /* NCY *? */ PORTS_PER_CYCLOM) {
 	printf("bad unit number %d\n", unit);
 	return;
     }
+#ifdef __FreeBSD__
+    cy_tty[unit].t_param = active ? cyparam : cyparam_dummy;
+#else
     cy_tty[unit]->t_param = active ? cyparam : cyparam_dummy;
+#endif
 }
 
 
