@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	5.1 (Berkeley) 6/25/90
-#	$Id: Makefile,v 1.12 1995/11/12 08:13:21 markm Exp $
+#	$Id: Makefile,v 1.13 1996/06/24 04:22:27 jkh Exp $
 
 LIB=	krb
 SHLIB_MINOR=   1
@@ -21,9 +21,7 @@ SRCS=	krb_err.c create_auth_reply.c create_ciph.c \
 LDADD+=	-lcom_err
 
 beforeinstall: krb_err.c
-	-cd ${.OBJDIR}; cmp -s krb_err.h \
-	    ${DESTDIR}/usr/include/kerberosIV/krb_err.h || \
-	    install -c -o ${BINOWN} -g ${BINGRP} -m 444 krb_err.h \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 krb_err.h \
 	    ${DESTDIR}/usr/include/kerberosIV
 
 MAN3=	krb.3 krb_realmofhost.3 krb_sendauth.3 krb_set_tkt_string.3 \

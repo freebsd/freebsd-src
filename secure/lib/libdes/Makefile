@@ -1,5 +1,5 @@
 #	@(#)Makefile	5.4 (Berkeley) 5/7/91
-#	$Id: Makefile,v 1.2 1996/07/27 22:16:19 jkh Exp $
+#	$Id: Makefile,v 1.3 1996/07/29 18:01:39 markm Exp $
 
 LIB=	des
 SRCS=	cbc3_enc.c cbc_cksm.c cbc_enc.c  cfb64enc.c cfb_enc.c  \
@@ -33,9 +33,9 @@ MLINKS= des_crypt.3 des_read_password.3 \
 	des_crypt.3 des_set_odd_parity.3 des_crypt.3 des_is_weak_key.3
 
 beforeinstall:
-	-cd ${.CURDIR}; for file in ${HEADER}; do \
-		cmp -s $$file ${DESTDIR}/usr/include/$$file || \
-		install -c -o ${BINOWN} -g ${BINGRP} -m 444 $$file \
-		${DESTDIR}/usr/include; done
+.for i in ${HEADER}
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/$i \
+		${DESTDIR}/usr/include
+.endfor
 
 .include <bsd.lib.mk>
