@@ -30,8 +30,8 @@
  * SUCH DAMAGE.
  *
  * $FreeBSD$
- *
- * This source file contains the functions responsible for the crypto, keying
+ */
+/* This source file contains the functions responsible for the crypto, keying
  * and mapping operations on the I/O requests.
  *
  */
