@@ -73,6 +73,7 @@
 #ifdef _KERNEL
 typedef enum {
 	DA_STATE_PROBE,
+	DA_STATE_PROBE2,
 	DA_STATE_NORMAL
 } da_state;
 
@@ -96,9 +97,10 @@ typedef enum {
 
 typedef enum {
 	DA_CCB_PROBE		= 0x01,
-	DA_CCB_BUFFER_IO	= 0x02,
-	DA_CCB_WAITING		= 0x03,
-	DA_CCB_DUMP		= 0x04,
+	DA_CCB_PROBE2		= 0x02,
+	DA_CCB_BUFFER_IO	= 0x03,
+	DA_CCB_WAITING		= 0x04,
+	DA_CCB_DUMP		= 0x05,
 	DA_CCB_TYPE_MASK	= 0x0F,
 	DA_CCB_RETRY_UA		= 0x10
 } da_ccb_state;
@@ -109,10 +111,10 @@ typedef enum {
 
 struct disk_params {
 	u_int8_t  heads;
-	u_int16_t cylinders;
+	u_int32_t cylinders;
 	u_int8_t  secs_per_track;
 	u_int32_t secsize;	/* Number of bytes/sector */
-	u_int32_t sectors;	/* total number sectors */
+	u_int64_t sectors;	/* total number sectors */
 };
 
 struct da_softc {
@@ -505,6 +507,7 @@ static	dumper_t	dadump;
 static	periph_init_t	dainit;
 static	void		daasync(void *callback_arg, u_int32_t code,
 				struct cam_path *path, void *arg);
+static	int		dacmdsizesysctl(SYSCTL_HANDLER_ARGS);
 static	periph_ctor_t	daregister;
 static	periph_dtor_t	dacleanup;
 static	periph_start_t	dastart;
@@ -514,8 +517,9 @@ static	void		dadone(struct cam_periph *periph,
 static  int		daerror(union ccb *ccb, u_int32_t cam_flags,
 				u_int32_t sense_flags);
 static void		daprevent(struct cam_periph *periph, int action);
-static void		dasetgeom(struct cam_periph *periph,
-				  struct scsi_read_capacity_data * rdcap);
+static int		dagetcapacity(struct cam_periph *periph);
+static void		dasetgeom(struct cam_periph *periph, uint32_t block_len,
+				  uint64_t maxsector);
 static timeout_t	dasendorderedtag;
 static void		dashutdown(void *arg, int howto);
 
@@ -570,8 +574,6 @@ daopen(struct disk *dp)
 {
 	struct cam_periph *periph;
 	struct da_softc *softc;
-	struct scsi_read_capacity_data *rcap;
-	union  ccb *ccb;
 	int unit;
 	int error;
 	int s;
@@ -603,38 +605,7 @@ daopen(struct disk *dp)
 	}
 	splx(s);
 
-	/* Do a read capacity */
-	rcap = (struct scsi_read_capacity_data *)malloc(sizeof(*rcap),
-							M_TEMP,
-							M_WAITOK);
-		
-	ccb = cam_periph_getccb(periph, /*priority*/1);
-	scsi_read_capacity(&ccb->csio,
-			   /*retries*/4,
-			   /*cbfncp*/dadone,
-			   MSG_SIMPLE_Q_TAG,
-			   rcap,
-			   SSD_FULL_SIZE,
-			   /*timeout*/60000);
-	ccb->ccb_h.ccb_bp = NULL;
-
-	error = cam_periph_runccb(ccb, daerror,
-				  /*cam_flags*/CAM_RETRY_SELTO,
-				  /*sense_flags*/SF_RETRY_UA,
-				  softc->disk.d_devstat);
-
-	if ((ccb->ccb_h.status & CAM_DEV_QFRZN) != 0)
-		cam_release_devq(ccb->ccb_h.path,
-				 /*relsim_flags*/0,
-				 /*reduction*/0,
-				 /*timeout*/0,
-				 /*getcount_only*/0);
-	xpt_release_ccb(ccb);
-
-	if (error == 0)
-		dasetgeom(periph, rcap);
-
-	free(rcap, M_TEMP);
+	error = dagetcapacity(periph);
 
 	if (error == 0) {
 
@@ -1075,18 +1046,18 @@ dacmdsizesysctl(SYSCTL_HANDLER_ARGS)
 		return (error);
 
 	/*
-	 * Acceptable values here are 6, 10 or 12.  It's possible we may
-	 * support a 16 byte minimum command size in the future, since
-	 * there are now READ(16) and WRITE(16) commands defined in the
-	 * SBC-2 spec.
+	 * Acceptable values here are 6, 10, 12 or 16.
 	 */
 	if (value < 6)
 		value = 6;
 	else if ((value > 6)
 	      && (value <= 10))
 		value = 10;
-	else if (value > 10)
+	else if ((value > 10)
+	      && (value <= 12))
 		value = 12;
+	else if (value > 12)
+		value = 16;
 
 	*(int *)arg1 = value;
 
@@ -1174,15 +1145,18 @@ daregister(struct cam_periph *periph, void *arg)
 	TUNABLE_INT_FETCH(tmpstr, &softc->minimum_cmd_size);
 
 	/*
-	 * 6, 10 and 12 are the currently permissible values.
+	 * 6, 10, 12 and 16 are the currently permissible values.
 	 */
 	if (softc->minimum_cmd_size < 6)
 		softc->minimum_cmd_size = 6;
 	else if ((softc->minimum_cmd_size > 6)
 	      && (softc->minimum_cmd_size <= 10))
 		softc->minimum_cmd_size = 10;
-	else if (softc->minimum_cmd_size > 12)
+	else if ((softc->minimum_cmd_size > 10)
+	      && (softc->minimum_cmd_size <= 12))
 		softc->minimum_cmd_size = 12;
+	else if (softc->minimum_cmd_size > 12)
+		softc->minimum_cmd_size = 16;
 
 	/*
 	 * Now register the sysctl handler, so the user can the value on
@@ -1285,17 +1259,18 @@ dastart(struct cam_periph *periph, union ccb *start_ccb)
 			}
 			scsi_read_write(&start_ccb->csio,
 					/*retries*/da_retry_count,
-					dadone,
-					tag_code,
-					bp->bio_cmd == BIO_READ,
+					/*cbfcnp*/dadone,
+					/*tag_action*/tag_code,
+					/*read_op*/bp->bio_cmd == BIO_READ,
 					/*byte2*/0,
 					softc->minimum_cmd_size,
-					bp->bio_pblkno,
-					bp->bio_bcount / softc->params.secsize,
-					bp->bio_data,
-					bp->bio_bcount,
+					/*lba*/bp->bio_pblkno,
+					/*block_count*/bp->bio_bcount /
+					softc->params.secsize,
+					/*data_ptr*/ bp->bio_data,
+					/*dxfer_len*/ bp->bio_bcount,
 					/*sense_len*/SSD_FULL_SIZE,
-					da_default_timeout * 1000);
+					/*timeout*/da_default_timeout*1000);
 			start_ccb->ccb_h.ccb_state = DA_CCB_BUFFER_IO;
 
 			/*
@@ -1351,6 +1326,34 @@ dastart(struct cam_periph *periph, union ccb *start_ccb)
 		start_ccb->ccb_h.ccb_bp = NULL;
 		start_ccb->ccb_h.ccb_state = DA_CCB_PROBE;
 		xpt_action(start_ccb);
+		break;
+	}
+	case DA_STATE_PROBE2:
+	{
+		struct ccb_scsiio *csio;
+		struct scsi_read_capacity_data_long *rcaplong;
+
+		rcaplong = (struct scsi_read_capacity_data_long *)
+			malloc(sizeof(*rcaplong), M_TEMP, M_NOWAIT);
+		if (rcaplong == NULL) {
+			printf("dastart: Couldn't malloc read_capacity data\n");
+			/* da_free_periph??? */
+			break;
+		}
+		csio = &start_ccb->csio;
+		scsi_read_capacity_16(csio,
+				      /*retries*/ 4,
+				      /*cbfcnp*/ dadone,
+				      /*tag_action*/ MSG_SIMPLE_Q_TAG,
+				      /*lba*/ 0,
+				      /*reladr*/ 0,
+				      /*pmi*/ 0,
+				      rcaplong,
+				      /*sense_len*/ SSD_FULL_SIZE,
+				      /*timeout*/ 60000);
+		start_ccb->ccb_h.ccb_bp = NULL;
+		start_ccb->ccb_h.ccb_state = DA_CCB_PROBE2;
+		xpt_action(start_ccb);	
 		break;
 	}
 	}
@@ -1510,20 +1513,53 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 		break;
 	}
 	case DA_CCB_PROBE:
+	case DA_CCB_PROBE2:
 	{
 		struct	   scsi_read_capacity_data *rdcap;
+		struct     scsi_read_capacity_data_long *rcaplong;
 		char	   announce_buf[80];
 
-		rdcap = (struct scsi_read_capacity_data *)csio->data_ptr;
-		
+		rdcap = NULL;
+		rcaplong = NULL;
+		if (softc->state == DA_STATE_PROBE)
+			rdcap =(struct scsi_read_capacity_data *)csio->data_ptr;
+		else
+			rcaplong = (struct scsi_read_capacity_data_long *)
+				csio->data_ptr;
+
 		if ((csio->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP) {
 			struct disk_params *dp;
+			uint32_t block_size;
+			uint64_t maxsector;
 
-			dasetgeom(periph, rdcap);
+			if (softc->state == DA_STATE_PROBE) {
+				block_size = scsi_4btoul(rdcap->length);
+				maxsector = scsi_4btoul(rdcap->addr);
+
+				/*
+				 * According to SBC-2, if the standard 10
+				 * byte READ CAPACITY command returns 2^32,
+				 * we should issue the 16 byte version of
+				 * the command, since the device in question
+				 * has more sectors than can be represented
+				 * with the short version of the command.
+				 */
+				if (maxsector == 0xffffffff) {
+					softc->state = DA_STATE_PROBE2;
+					free(rdcap, M_TEMP);
+					xpt_release_ccb(done_ccb);
+					cam_periph_unlock(periph);
+					break;
+				}
+			} else {
+				block_size = scsi_4btoul(rcaplong->length);
+				maxsector = scsi_8btou64(rcaplong->addr);
+			}
+			dasetgeom(periph, block_size, maxsector);
 			dp = &softc->params;
 			snprintf(announce_buf, sizeof(announce_buf),
-			        "%luMB (%u %u byte sectors: %dH %dS/T %dC)",
-				(unsigned long) (((u_int64_t)dp->secsize *
+			        "%quMB (%qu %u byte sectors: %dH %dS/T %dC)",
+				(uint64_t) (((u_int64_t)dp->secsize *
 				dp->sectors) / (1024*1024)), dp->sectors,
 				dp->secsize, dp->heads, dp->secs_per_track,
 				dp->cylinders);
@@ -1623,7 +1659,7 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 				} 
 			}
 		}
-		free(rdcap, M_TEMP);
+		free(csio->data_ptr, M_TEMP);
 		if (announce_buf[0] != '\0')
 			xpt_announce_periph(periph, announce_buf);
 		softc->state = DA_STATE_NORMAL;	
@@ -1736,8 +1772,101 @@ daprevent(struct cam_periph *periph, int action)
 	xpt_release_ccb(ccb);
 }
 
+static int
+dagetcapacity(struct cam_periph *periph)
+{
+	struct da_softc *softc;
+	union ccb *ccb;
+	struct scsi_read_capacity_data *rcap;
+	struct scsi_read_capacity_data_long *rcaplong;
+	uint32_t block_len;
+	uint64_t maxsector;
+	int error;
+
+	softc = (struct da_softc *)periph->softc;
+	error = 0;
+
+	/* Do a read capacity */
+	rcap = (struct scsi_read_capacity_data *)malloc(sizeof(*rcaplong),
+							M_TEMP,
+							M_WAITOK);
+		
+	ccb = cam_periph_getccb(periph, /*priority*/1);
+	scsi_read_capacity(&ccb->csio,
+			   /*retries*/4,
+			   /*cbfncp*/dadone,
+			   MSG_SIMPLE_Q_TAG,
+			   rcap,
+			   SSD_FULL_SIZE,
+			   /*timeout*/60000);
+	ccb->ccb_h.ccb_bp = NULL;
+
+	error = cam_periph_runccb(ccb, daerror,
+				  /*cam_flags*/CAM_RETRY_SELTO,
+				  /*sense_flags*/SF_RETRY_UA,
+				  softc->disk.d_devstat);
+
+	if ((ccb->ccb_h.status & CAM_DEV_QFRZN) != 0)
+		cam_release_devq(ccb->ccb_h.path,
+				 /*relsim_flags*/0,
+				 /*reduction*/0,
+				 /*timeout*/0,
+				 /*getcount_only*/0);
+
+	if (error == 0) {
+		block_len = scsi_4btoul(rcap->length);
+		maxsector = scsi_4btoul(rcap->addr);
+
+		if (maxsector != 0xffffffff)
+			goto done;
+	} else
+		goto done;
+
+	rcaplong = (struct scsi_read_capacity_data_long *)rcap;
+
+	scsi_read_capacity_16(&ccb->csio,
+			      /*retries*/ 4,
+			      /*cbfcnp*/ dadone,
+			      /*tag_action*/ MSG_SIMPLE_Q_TAG,
+			      /*lba*/ 0,
+			      /*reladr*/ 0,
+			      /*pmi*/ 0,
+			      rcaplong,
+			      /*sense_len*/ SSD_FULL_SIZE,
+			      /*timeout*/ 60000);
+	ccb->ccb_h.ccb_bp = NULL;
+
+	error = cam_periph_runccb(ccb, daerror,
+				  /*cam_flags*/CAM_RETRY_SELTO,
+				  /*sense_flags*/SF_RETRY_UA,
+				  softc->disk.d_devstat);
+
+	if ((ccb->ccb_h.status & CAM_DEV_QFRZN) != 0)
+		cam_release_devq(ccb->ccb_h.path,
+				 /*relsim_flags*/0,
+				 /*reduction*/0,
+				 /*timeout*/0,
+				 /*getcount_only*/0);
+
+	if (error == 0) {
+		block_len = scsi_4btoul(rcaplong->length);
+		maxsector = scsi_8btou64(rcaplong->addr);
+	}
+
+done:
+
+	if (error == 0)
+		dasetgeom(periph, block_len, maxsector);
+
+	xpt_release_ccb(ccb);
+
+	free(rcap, M_TEMP);
+
+	return (error);
+}
+
 static void
-dasetgeom(struct cam_periph *periph, struct scsi_read_capacity_data * rdcap)
+dasetgeom(struct cam_periph *periph, uint32_t block_len, uint64_t maxsector)
 {
 	struct ccb_calc_geometry ccg;
 	struct da_softc *softc;
@@ -1746,8 +1875,8 @@ dasetgeom(struct cam_periph *periph, struct scsi_read_capacity_data * rdcap)
 	softc = (struct da_softc *)periph->softc;
 
 	dp = &softc->params;
-	dp->secsize = scsi_4btoul(rdcap->length);
-	dp->sectors = scsi_4btoul(rdcap->addr) + 1;
+	dp->secsize = block_len;
+	dp->sectors = maxsector + 1;
 	/*
 	 * Have the controller provide us with a geometry
 	 * for this disk.  The only time the geometry
