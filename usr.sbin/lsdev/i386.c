@@ -16,14 +16,14 @@ print(struct devconf *dc)
 
 	switch(dc->dc_devtype) {
 	case MDDT_CPU:
-		printf("CPU on %s", dc->dc_parent);
+		printf("CPU %s%d", dc->dc_name, dc->dc_unit);
 		break;
 	case MDDT_ISA:
 		if(dc->dc_datalen >= ISA_EXTERNALLEN) {
 			print_isa(dc);
 		} else {
 printit:
-			printf("%s%d on %s",
+			printf("%s%d at %s",
 			       dc->dc_name, dc->dc_unit, dc->dc_parent);
 		}
 		break;
@@ -58,11 +58,11 @@ printit:
 		
 	default:
 		if(dc->dc_devtype >= NDEVTYPES) {
-			printf("%s%d (#%d) on %s",
+			printf("%s%d (#%d) at %s",
 			       dc->dc_name, dc->dc_unit, dc->dc_devtype,
 			       dc->dc_parent);
 		} else {
-			printf("%s%d (%s) on %s",
+			printf("%s%d (%s) at %s",
 			       dc->dc_name, dc->dc_unit, 
 			       devtypes[dc->dc_devtype], dc->dc_parent);
 		}
@@ -151,7 +151,7 @@ print_pci(struct devconf *dc)
 	 * be made to serve.
 	 */
 
-	printf("%s%d on %s", dc->dc_name, dc->dc_unit, dc->dc_parent);
+	printf("%s%d %s", dc->dc_name, dc->dc_unit, dc->dc_parent);
 }
 
 static void
@@ -159,7 +159,7 @@ print_scsi(struct devconf *dc)
 {
 	struct scsi_link *sl = (struct scsi_link *)dc->dc_data;
 
-	printf("%s%d on SCSI bus %d:%d:%d",
+	printf("%s%d at SCSI bus %d:%d:%d",
 	       dc->dc_name, dc->dc_unit, sl->scsibus, sl->target,
 	       sl->lun);
 	if(vflag) {
@@ -177,7 +177,7 @@ print_disk(struct devconf *dc)
 {
 	int *slavep = (int *)dc->dc_data;
 
-	printf("%s%d on %s drive %d",
+	printf("%s%d at %s drive %d",
 	       dc->dc_name, dc->dc_unit, dc->dc_parent, *slavep);
 }
 
