@@ -233,7 +233,6 @@ acd_init_lun(struct ata_device *atadev)
     cdp->device = atadev;
     cdp->lun = ata_get_lun(&acd_lun_map);
     cdp->block_size = 2048;
-    cdp->disk_size = -1;			/* hack for GEOM SOS */
     cdp->slot = -1;
     cdp->changer_info = NULL;
     return cdp;
@@ -1201,6 +1200,7 @@ acd_read_toc(struct acd_softc *cdp)
 	return;
 
     cdp->device->flags &= ~ATA_D_MEDIA_CHANGED;
+    cdp->disk_size = -1;			/* hack for GEOM SOS */
 
     len = sizeof(struct ioc_toc_header) + sizeof(struct cd_toc_entry);
     ccb[0] = ATAPI_READ_TOC;
