@@ -36,6 +36,7 @@ static const char rcsid[] =
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <net/if.h>
+#include <net/route.h>		/* for RTX_IFA */
 
 #include <err.h>
 #include <stdio.h>
@@ -53,9 +54,10 @@ static struct ifreq link_ridreq;
 static void
 link_status(int s __unused, const struct rt_addrinfo *info)
 {
-	const struct sockaddr_dl *sdl = (const struct sockaddr_dl *)info;
+	const struct sockaddr_dl *sdl =
+		(const struct sockaddr_dl *) info->rti_info[RTAX_IFA];
 
-	if (sdl->sdl_alen > 0) {
+	if (sdl != NULL && sdl->sdl_alen > 0) {
 		if (sdl->sdl_type == IFT_ETHER &&
 		    sdl->sdl_alen == ETHER_ADDR_LEN)
 			printf("\tether %s\n",

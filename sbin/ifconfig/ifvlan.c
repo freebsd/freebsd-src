@@ -62,7 +62,7 @@ static int			__tag = 0;
 static int			__have_tag = 0;
 
 static void
-vlan_status(int s, const struct rt_addrinfo *info __unused)
+vlan_status(int s)
 {
 	struct vlanreq		vreq;
 
@@ -157,7 +157,7 @@ static struct cmd vlan_cmds[] = {
 static struct afswtch af_vlan = {
 	.af_name	= "af_vlan",
 	.af_af		= AF_UNSPEC,
-	.af_status	= vlan_status,
+	.af_other_status = vlan_status,
 };
 
 static __constructor void

@@ -85,8 +85,17 @@ enum {
 struct afswtch {
 	const char	*af_name;	/* as given on cmd line, e.g. "inet" */
 	short		af_af;		/* AF_* */
-					/* print status method */
+	/*
+	 * Status is handled one of two ways; if there is an
+	 * address associated with the interface then the
+	 * associated address family af_status method is invoked
+	 * with the appropriate addressin info.  Otherwise, if
+	 * all possible info is to be displayed and af_other_status
+	 * is defined then it is invoked after all address status
+	 * is presented.
+	 */
 	void		(*af_status)(int, const struct rt_addrinfo *);
+	void		(*af_other_status)(int);
 					/* parse address method */
 	void		(*af_getaddr)(const char *, int);
 					/* parse prefix method (IPv6) */
