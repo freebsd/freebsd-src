@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.71 1996/05/21 05:26:27 dyson Exp $
+ * $Id: vm_object.c,v 1.72 1996/05/21 17:13:31 dyson Exp $
  */
 
 /*
@@ -709,7 +709,9 @@ vm_object_madvise(object, pindex, count, advise)
 		if (advise == MADV_WILLNEED) {
 			if (m->queue != PQ_ACTIVE)
 				vm_page_activate(m);
-		} else if (advise == MADV_DONTNEED) {
+		} else if ((advise == MADV_DONTNEED) ||
+			((advise == MADV_FREE) &&
+				((object->type != OBJT_DEFAULT) && (object->type != OBJT_SWAP)))) {
 			/*
 			 * If the upper level VM system doesn't think that
 			 * the page is dirty, check the pmap layer.
@@ -732,62 +734,16 @@ vm_object_madvise(object, pindex, count, advise)
 				vm_page_protect(m, VM_PROT_NONE);
 				vm_page_deactivate(m);
 			}
+		} else if (advise == MADV_FREE) {
+			/*
+			 * Force a demand-zero on next ref
+			 */
+			if (object->type == OBJT_SWAP)
+				swap_pager_dmzspace(object, m->pindex, 1);
+			vm_page_protect(m, VM_PROT_NONE);
+			vm_page_free(m);
 		}
 	}	
-}
-
-/*
- *	vm_object_copy:
- *
- *	Create a new object which is a copy of an existing
- *	object, and mark all of the pages in the existing
- *	object 'copy-on-write'.  The new object has one reference.
- *	Returns the new object.
- *
- *	May defer the copy until later if the object is not backed
- *	up by a non-default pager.
- *
- */
-void
-vm_object_copy(src_object, src_offset,
-    dst_object, dst_offset, src_needs_copy)
-	register vm_object_t src_object;
-	vm_pindex_t src_offset;
-	vm_object_t *dst_object;/* OUT */
-	vm_pindex_t *dst_offset;/* OUT */
-	boolean_t *src_needs_copy;	/* OUT */
-{
-	if (src_object == NULL) {
-		/*
-		 * Nothing to copy
-		 */
-		*dst_object = NULL;
-		*dst_offset = 0;
-		*src_needs_copy = FALSE;
-		return;
-	}
-
-	/*
-	 * Try to collapse the object before copying it.
-	 */
-	if (src_object->handle == NULL &&
-	    (src_object->type == OBJT_DEFAULT ||
-	     src_object->type == OBJT_SWAP))
-		vm_object_collapse(src_object);
-
-
-	/*
-	 * Make another reference to the object
-	 */
-	src_object->ref_count++;
-	*dst_object = src_object;
-	*dst_offset = src_offset;
-
-	/*
-	 * Must make a shadow when write is desired
-	 */
-	*src_needs_copy = TRUE;
-	return;
 }
 
 /*

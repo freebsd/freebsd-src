@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.45 1996/05/18 03:37:43 dyson Exp $
+ * $Id: vm_map.c,v 1.46 1996/05/19 07:36:46 dyson Exp $
  */
 
 /*
@@ -1225,6 +1225,7 @@ vm_map_madvise(map, pmap, start, end, advise)
 	 * Right now, we could handle DONTNEED and WILLNEED with common code.
 	 * They are mostly the same, except for the potential async reads (NYI).
 	 */
+	case MADV_FREE:
 	case MADV_DONTNEED:
 			{
 				vm_pindex_t pindex;
