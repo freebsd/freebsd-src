@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_inode.c	8.13 (Berkeley) 4/21/95
- * $Id: ffs_inode.c,v 1.40 1998/03/30 09:55:55 phk Exp $
+ * $Id: ffs_inode.c,v 1.41 1998/04/30 05:28:53 dyson Exp $
  */
 
 #include "opt_quota.h"
@@ -212,7 +212,7 @@ ffs_truncate(vp, length, flags, cred, p)
 			(void) chkdq(oip, -oip->i_blocks, NOCRED, 0);
 #endif
 			softdep_setup_freeblocks(oip, length);
-			vinvalbuf(ovp, V_SAVE | V_SAVEMETA, cred, p, 0, 0);
+			vinvalbuf(ovp, 0, cred, p, 0, 0);
 			oip->i_flag |= IN_CHANGE | IN_UPDATE;
 			return (ffs_update(ovp, &tv, &tv, 0));
 		}
