@@ -29,6 +29,7 @@ SRCS+=	wait.h
 .include "${.CURDIR}/Makefile.${TARGET_ARCH}"
 .endif
 
+WARNS=	0
 .if ${TARGET_ARCH} != ${MACHINE_ARCH}
 CFLAGS+=	-DCROSS_COMPILE=1
 .endif
