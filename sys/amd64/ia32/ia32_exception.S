@@ -30,9 +30,6 @@
 
 #include "assym.s"
 
-#define	IDTVEC(name)	ALIGN_TEXT; .globl __CONCAT(X,name); \
-			.type __CONCAT(X,name),@function; __CONCAT(X,name):
-
 	.text
 /*
  * Call gate entry for FreeBSD ELF and Linux/NetBSD syscall (int 0x80)
