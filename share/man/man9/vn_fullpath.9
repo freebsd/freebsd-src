@@ -32,26 +32,32 @@
 .Os
 .Sh NAME
 .Nm vn_fullpath
-.Nd "Convert a vnode reference to a full pathname, given a process context"
+.Nd "convert a vnode reference to a full pathname, given a process context"
 .Sh SYNOPSIS
 .In sys/param.h
 .In sys/vnode.h
 .Ft int
-.Fn vn_fullpath "struct thread *td" "struct vnode *vp" "char **retbuf" "char **freebuf"
+.Fo vn_fullpath
+.Fa "struct thread *td" "struct vnode *vp" "char **retbuf" "char **freebuf"
+.Fc
 .Sh DESCRIPTION
 The
-.Fn
-function makes a "best effort" attempt to generate a string pathname for
+.Fn vn_fullpath
+function makes a
+.Dq "best effort"
+attempt to generate a string pathname for
 the passed (locked) vnode; the resulting path, if any, will be relative to
 the root directory of the process associated with the passed thread pointer.
-.Fn
+The
+.Fn vn_fullpath
+function
 is implemented by inspecting the VFS name cache, and attempting to
 reconstruct a path from the process root to the object.
 .Pp
 This process is necessarily unreliable for several reasons: intermediate
 entries in the path may not be found in the cache; files may have more
 than one name (hard links), not all file systems use the name cache
-(specifically, most synthetic file systems don't); a single name may
+(specifically, most synthetic file systems do not); a single name may
 be used for more than one file (in the context of file systems covering
 other file systems); a file may have no name (if deleted but still
 open or referenced).
@@ -61,7 +67,7 @@ Code consuming the results of this function should anticipate (and
 properly handle) failure.
 .Pp
 Its arguments are:
-.Bl -tag -width freebuf
+.Bl -tag -width ".Fa freebuf"
 .It Fa td
 The thread performing the call; this pointer will be dereferenced to find
 the process and its file descriptor structure, in order to identify the
@@ -69,23 +75,43 @@ root vnode to use.
 .It Fa vp
 The vnode to search for; must be locked by the caller.
 .It Fa retbuf
-Pointer to a char * that vn_fullpath may (on success) point at a newly
+Pointer to a
+.Vt "char *"
+that
+.Fn vn_fullpath
+may (on success) point at a newly
 allocated buffer containing the resulting pathname.
 .It Fa freebuf
-Pointer to a char * that vn_fullpath may (on success) point at a buffer
+Pointer to a
+.Vt "char *"
+that
+.Fn vn_fullpath
+may (on success) point at a buffer
 to be freed, when the caller is done with
 .Fa retbuf .
 .El
 .Pp
-Typical consumers will declare two character pointers: fullpath and
-freepath; they will set freepath to
+Typical consumers will declare two character pointers:
+.Va fullpath
+and
+.Va freepath ;
+they will set
+.Va freepath
+to
 .Dv NULL ,
-and fullpath to a name to use
+and
+.Va fullpath
+to a name to use
 in the event that the call to
-.Fn
+.Fn vn_fullpath
 fails.
-After done with the value of fullpath, the caller will check if freepath
-is non-NULL, and if so, invoke
+After done with the value of
+.Va fullpath ,
+the caller will check if
+.Va freepath
+is
+.Pf non- Dv NULL ,
+and if so, invoke
 .Xr free 9
 with a pool type of
 .Dv M_TEMP .
