@@ -22,10 +22,13 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $Id: wlconfig.c,v 1.4 1997/08/06 00:45:23 rgrimes Exp $
- *
  */
+
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
 /*
  * wlconfig.c
  * 
@@ -202,21 +205,10 @@ print_psa(u_char *psa, int currnwid)
 }
 
 
-void
-syntax(char *pname)
+static void
+usage()
 {
-    fprintf(stderr,"Usage: %s <ifname> [<param> <value> ...]\n",pname);
-    fprintf(stderr,"    <ifname>    Wavelan interface name.\n");
-    fprintf(stderr,"    <param>     Parameter name (see below)\n");
-    fprintf(stderr,"    <value>     New value for parameter.\n");
-    fprintf(stderr," Parameter name:        Value:\n");
-    fprintf(stderr,"     irq		3,4,5,6,10,11,12,15\n");
-    fprintf(stderr,"     mac		soft ethernet address\n");
-    fprintf(stderr,"     macsel		soft or default\n");
-    fprintf(stderr,"     nwid		default NWID (0x0-0xffff)\n");
-    fprintf(stderr,"     currnwid       current NWID (0x0-0xffff) or 'get'\n");
-    fprintf(stderr,"     cache          signal strength cache\n");
-    fprintf(stderr,"     cache values = { raw, scale, zero }\n");
+    fprintf(stderr,"usage: wlconfig ifname [param value ...]\n");
     exit(1);
 }
 
@@ -225,18 +217,14 @@ void
 get_cache(int sd, struct ifreq *ifr) 
 {
     /* get the cache count */
-    if (ioctl(sd, SIOCGWLCITEM, (caddr_t)ifr)) {
-	perror("SIOCGWLCITEM - get cache count");
-	exit(1);
-    }
+    if (ioctl(sd, SIOCGWLCITEM, (caddr_t)ifr))
+	err(1, "SIOCGWLCITEM - get cache count");
     w_sigitems = (int) ifr->ifr_data;
 
     ifr->ifr_data = (caddr_t) &wsc;
     /* get the cache */
-    if (ioctl(sd, SIOCGWLCACHE, (caddr_t)ifr)) {
-	perror("SIOCGWLCACHE - get cache count");
-	exit(1);
-    }
+    if (ioctl(sd, SIOCGWLCACHE, (caddr_t)ifr))
+	err(1, "SIOCGWLCACHE - get cache count");
 }
 
 static int
@@ -296,7 +284,7 @@ dump_cache(int rawFlag)
 #define raw_cache()	dump_cache(1)
 #define scale_cache()	dump_cache(0)
 
-void
+int
 main(int argc, char *argv[])
 {
     int 		sd;
@@ -309,7 +297,7 @@ main(int argc, char *argv[])
     int			currnwid;
 
     if ((argc < 2) || (argc % 2))
-	syntax(argv[0]);
+	usage();
 
     /* get a socket */
     sd = socket(AF_INET, SOCK_DGRAM, 0);
@@ -321,11 +309,11 @@ main(int argc, char *argv[])
     /* get the PSA */
     ifr.ifr_data = (caddr_t)psabuf;
     if (ioctl(sd, SIOCGWLPSA, (caddr_t)&ifr))
-	err(1,"Get PSA");
+	err(1,"get PSA");
 
     /* get the current NWID */
     if (ioctl(sd, SIOCGWLCNWID, (caddr_t)&ifr))
-	err(1,"Get NWID");
+	err(1,"get NWID");
     currnwid = (int)ifr.ifr_data;
 
     /* just dump and exit? */
@@ -345,11 +333,11 @@ main(int argc, char *argv[])
 	if (!strcasecmp(param,"currnwid")) {		/* set current NWID */
 	    val = strtol(value,&cp,0);
 	    if ((val < 0) || (val > 0xffff) || (cp == value))
-		errx(1,"Bad NWID '%s'",value);
+		errx(1,"bad NWID '%s'",value);
 	    
 	    ifr.ifr_data = (caddr_t)val;
 	    if (ioctl(sd, SIOCSWLCNWID, (caddr_t)&ifr))
-		err(1,"Set NWID (interface not up?)");
+		err(1,"set NWID (interface not up?)");
 	    continue ;
 	}
 
@@ -357,7 +345,7 @@ main(int argc, char *argv[])
 	    val = strtol(value,&cp,0);
 	    val = irqvals[val];
 	    if ((val == 0) || (cp == value))
-		errx(1,"Bad IRQ '%s'",value);
+		errx(1,"bad IRQ '%s'",value);
 	    psabuf[WLPSA_IRQNO] = (u_char)val;
 	    work = 1;
 	    continue;
@@ -365,7 +353,7 @@ main(int argc, char *argv[])
 	
 	if (!strcasecmp(param,"mac")) {
 	    if ((ea = ether_aton(value)) == NULL)
-		errx(1,"Bad ethernet address '%s'",value);
+		errx(1,"bad ethernet address '%s'",value);
 	    for (i = 0; i < 6; i++)
 		psabuf[WLPSA_LOCALMAC + i] = ea->octet[i];
 	    work = 1;
@@ -383,13 +371,13 @@ main(int argc, char *argv[])
 		work = 1;
 		continue;
 	    }
-	    errx(1,"Bad macsel value '%s'",value);
+	    errx(1,"bad macsel value '%s'",value);
 	}
 	
 	if (!strcasecmp(param,"nwid")) {
 	    val = strtol(value,&cp,0);
 	    if ((val < 0) || (val > 0xffff) || (cp == value))
-		errx(1,"Bad NWID '%s'",value);
+		errx(1,"bad NWID '%s'",value);
 	    psabuf[WLPSA_NWID] = (val >> 8) & 0xff;
 	    psabuf[WLPSA_NWID+1] = val & 0xff;
 	    work = 1;	
@@ -415,16 +403,17 @@ main(int argc, char *argv[])
 	    */
 	    else if (!strcasecmp(value,"zero")) {
 		if (ioctl(sd, SIOCDWLCACHE, (caddr_t)&ifr))
-		    err(1,"Zero cache");
+		    err(1,"zero cache");
 		continue;
 	    }
-	    errx(1,"Unknown value '%s'", value);
+	    errx(1,"unknown value '%s'", value);
  	}
-	errx(1,"Unknown parameter '%s'",param);
+	errx(1,"unknown parameter '%s'",param);
     }
     if (work) {
 	ifr.ifr_data = (caddr_t)psabuf;
 	if (ioctl(sd, SIOCSWLPSA, (caddr_t)&ifr))
-	    err(1,"Set PSA");
+	    err(1,"set PSA");
     }
+    return(0);
 }
