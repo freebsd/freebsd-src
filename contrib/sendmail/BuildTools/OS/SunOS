@@ -1,0 +1,10 @@
+#	@(#)SunOS	8.6	(Berkeley)	3/12/98
+define(`confMAPDEF', `-DNDBM -DNIS')
+define(`confLDOPTS', `-Bstatic')
+define(`confMBINDIR', `/usr/lib')
+define(`confSBINDIR', `/usr/etc')
+define(`confUBINDIR', `/usr/ucb')
+define(`confEBINDIR', `/usr/lib')
+define(`confSTDIR', `/etc')
+define(`confHFDIR', `/usr/lib')
+define(`confDEPEND_TYPE', `CC-M')

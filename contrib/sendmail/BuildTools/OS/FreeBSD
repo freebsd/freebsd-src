@@ -1,0 +1,3 @@
+#	@(#)FreeBSD	8.5	(Berkeley)	3/12/98
+define(`confMAPDEF', `-DNEWDB -DNIS -DMAP_REGEX')
+define(`confLIBS', `-lutil')
