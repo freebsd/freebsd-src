@@ -35,7 +35,7 @@
  *
  *	@(#)portal_vfsops.c	8.6 (Berkeley) 1/21/94
  *
- * $Id: portal_vfsops.c,v 1.8 1995/05/30 08:07:05 rgrimes Exp $
+ * $Id: portal_vfsops.c,v 1.9 1995/11/16 11:24:06 bde Exp $
  */
 
 /*
@@ -62,27 +62,27 @@
 #include <sys/un.h>
 #include <miscfs/portal/portal.h>
 
-extern int	portal_init __P((void));
-extern int	portal_mount __P((struct mount *mp, char *path, caddr_t data,
+static int	portal_init __P((void));
+static int	portal_mount __P((struct mount *mp, char *path, caddr_t data,
 				  struct nameidata *ndp, struct proc *p));
-extern int	portal_start __P((struct mount *mp, int flags, struct proc *p));
-extern int	portal_unmount __P((struct mount *mp, int mntflags,
+static int	portal_start __P((struct mount *mp, int flags, struct proc *p));
+static int	portal_unmount __P((struct mount *mp, int mntflags,
 				    struct proc *p));
-extern int	portal_root __P((struct mount *mp, struct vnode **vpp));
-extern int	portal_quotactl __P((struct mount *mp, int cmd, uid_t uid,
+static int	portal_root __P((struct mount *mp, struct vnode **vpp));
+static int	portal_quotactl __P((struct mount *mp, int cmd, uid_t uid,
 				     caddr_t arg, struct proc *p));
-extern int	portal_statfs __P((struct mount *mp, struct statfs *sbp,
+static int	portal_statfs __P((struct mount *mp, struct statfs *sbp,
 				   struct proc *p));
-extern int	portal_sync __P((struct mount *mp, int waitfor,
+static int	portal_sync __P((struct mount *mp, int waitfor,
 				 struct ucred *cred, struct proc *p));
-extern int	portal_vget __P((struct mount *mp, ino_t ino,
+static int	portal_vget __P((struct mount *mp, ino_t ino,
 				 struct vnode **vpp));
-extern int	portal_fhtovp __P((struct mount *mp, struct fid *fhp,
+static int	portal_fhtovp __P((struct mount *mp, struct fid *fhp,
 				   struct mbuf *nam, struct vnode **vpp,
 				   int *exflagsp, struct ucred **credanonp));
-extern int	portal_vptofh __P((struct vnode *vp, struct fid *fhp));
+static int	portal_vptofh __P((struct vnode *vp, struct fid *fhp));
 
-int
+static int
 portal_init()
 {
 
@@ -92,7 +92,7 @@ portal_init()
 /*
  * Mount the per-process file descriptors (/dev/fd)
  */
-int
+static int
 portal_mount(mp, path, data, ndp, p)
 	struct mount *mp;
 	char *path;
@@ -159,7 +159,7 @@ portal_mount(mp, path, data, ndp, p)
 	return (0);
 }
 
-int
+static int
 portal_start(mp, flags, p)
 	struct mount *mp;
 	int flags;
@@ -169,7 +169,7 @@ portal_start(mp, flags, p)
 	return (0);
 }
 
-int
+static int
 portal_unmount(mp, mntflags, p)
 	struct mount *mp;
 	int mntflags;
@@ -229,7 +229,7 @@ portal_unmount(mp, mntflags, p)
 	return (0);
 }
 
-int
+static int
 portal_root(mp, vpp)
 	struct mount *mp;
 	struct vnode **vpp;
@@ -247,7 +247,7 @@ portal_root(mp, vpp)
 	return (0);
 }
 
-int
+static int
 portal_quotactl(mp, cmd, uid, arg, p)
 	struct mount *mp;
 	int cmd;
@@ -259,7 +259,7 @@ portal_quotactl(mp, cmd, uid, arg, p)
 	return (EOPNOTSUPP);
 }
 
-int
+static int
 portal_statfs(mp, sbp, p)
 	struct mount *mp;
 	struct statfs *sbp;
@@ -283,7 +283,7 @@ portal_statfs(mp, sbp, p)
 	return (0);
 }
 
-int
+static int
 portal_sync(mp, waitfor, cred, p)
 	struct mount *mp;
 	int waitfor;
@@ -294,7 +294,7 @@ portal_sync(mp, waitfor, cred, p)
 	return (0);
 }
 
-int
+static int
 portal_vget(mp, ino, vpp)
 	struct mount *mp;
 	ino_t ino;
@@ -304,7 +304,7 @@ portal_vget(mp, ino, vpp)
 	return (EOPNOTSUPP);
 }
 
-int
+static int
 portal_fhtovp(mp, fhp, nam, vpp, exflagsp, credanonp)
 	struct mount *mp;
 	struct fid *fhp;
@@ -317,7 +317,7 @@ portal_fhtovp(mp, fhp, nam, vpp, exflagsp, credanonp)
 	return (EOPNOTSUPP);
 }
 
-int
+static int
 portal_vptofh(vp, fhp)
 	struct vnode *vp;
 	struct fid *fhp;
@@ -326,7 +326,7 @@ portal_vptofh(vp, fhp)
 	return (EOPNOTSUPP);
 }
 
-struct vfsops portal_vfsops = {
+static struct vfsops portal_vfsops = {
 	portal_mount,
 	portal_start,
 	portal_unmount,

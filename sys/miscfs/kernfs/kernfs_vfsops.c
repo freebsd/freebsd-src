@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernfs_vfsops.c	8.4 (Berkeley) 1/21/94
- * $Id: kernfs_vfsops.c,v 1.9 1995/05/25 01:35:15 davidg Exp $
+ * $Id: kernfs_vfsops.c,v 1.10 1995/11/16 11:16:13 bde Exp $
  */
 
 /*
@@ -57,31 +57,31 @@
 
 struct vnode *rrootvp;
 
-extern int	cdevvp __P((dev_t dev, struct vnode **vpp));
-extern int	kernfs_init __P((void));
-extern int	kernfs_mount __P((struct mount *mp, char *path, caddr_t data,
+static int	cdevvp __P((dev_t dev, struct vnode **vpp));
+static int	kernfs_init __P((void));
+static int	kernfs_mount __P((struct mount *mp, char *path, caddr_t data,
 				  struct nameidata *ndp, struct proc *p));
-extern int	kernfs_start __P((struct mount *mp, int flags, struct proc *p));
-extern int	kernfs_unmount __P((struct mount *mp, int mntflags,
+static int	kernfs_start __P((struct mount *mp, int flags, struct proc *p));
+static int	kernfs_unmount __P((struct mount *mp, int mntflags,
 				    struct proc *p));
-extern int	kernfs_root __P((struct mount *mp, struct vnode **vpp));
-extern int	kernfs_quotactl __P((struct mount *mp, int cmd, uid_t uid,
+static int	kernfs_root __P((struct mount *mp, struct vnode **vpp));
+static int	kernfs_quotactl __P((struct mount *mp, int cmd, uid_t uid,
 				     caddr_t arg, struct proc *p));
-extern int	kernfs_statfs __P((struct mount *mp, struct statfs *sbp,
+static int	kernfs_statfs __P((struct mount *mp, struct statfs *sbp,
 				   struct proc *p));
-extern int	kernfs_sync __P((struct mount *mp, int waitfor,
+static int	kernfs_sync __P((struct mount *mp, int waitfor,
 				 struct ucred *cred, struct proc *p));
-extern int	kernfs_vget __P((struct mount *mp, ino_t ino,
+static int	kernfs_vget __P((struct mount *mp, ino_t ino,
 				 struct vnode **vpp));
-extern int	kernfs_fhtovp __P((struct mount *mp, struct fid *fhp,
+static int	kernfs_fhtovp __P((struct mount *mp, struct fid *fhp,
 				   struct mbuf *nam, struct vnode **vpp,
 				   int *exflagsp, struct ucred **credanonp));
-extern int	kernfs_vptofh __P((struct vnode *vp, struct fid *fhp));
+static int	kernfs_vptofh __P((struct vnode *vp, struct fid *fhp));
 
 /*
  * Create a vnode for a character device.
  */
-int
+static int
 cdevvp(dev, vpp)
 	dev_t dev;
 	struct vnode **vpp;
@@ -108,7 +108,7 @@ cdevvp(dev, vpp)
 	return (0);
 }
 
-int
+static int
 kernfs_init()
 {
 	int cmaj;
@@ -138,7 +138,7 @@ kernfs_init()
 /*
  * Mount the Kernel params filesystem
  */
-int
+static int
 kernfs_mount(mp, path, data, ndp, p)
 	struct mount *mp;
 	char *path;
@@ -188,7 +188,7 @@ kernfs_mount(mp, path, data, ndp, p)
 	return (0);
 }
 
-int
+static int
 kernfs_start(mp, flags, p)
 	struct mount *mp;
 	int flags;
@@ -197,7 +197,7 @@ kernfs_start(mp, flags, p)
 	return (0);
 }
 
-int
+static int
 kernfs_unmount(mp, mntflags, p)
 	struct mount *mp;
 	int mntflags;
@@ -251,7 +251,7 @@ kernfs_unmount(mp, mntflags, p)
 	return 0;
 }
 
-int
+static int
 kernfs_root(mp, vpp)
 	struct mount *mp;
 	struct vnode **vpp;
@@ -272,7 +272,7 @@ kernfs_root(mp, vpp)
 	return (0);
 }
 
-int
+static int
 kernfs_quotactl(mp, cmd, uid, arg, p)
 	struct mount *mp;
 	int cmd;
@@ -283,7 +283,7 @@ kernfs_quotactl(mp, cmd, uid, arg, p)
 	return (EOPNOTSUPP);
 }
 
-int
+static int
 kernfs_statfs(mp, sbp, p)
 	struct mount *mp;
 	struct statfs *sbp;
@@ -310,7 +310,7 @@ kernfs_statfs(mp, sbp, p)
 	return (0);
 }
 
-int
+static int
 kernfs_sync(mp, waitfor, cred, p)
 	struct mount *mp;
 	int waitfor;
@@ -325,7 +325,7 @@ kernfs_sync(mp, waitfor, cred, p)
  * Kernfs flat namespace lookup.
  * Currently unsupported.
  */
-int
+static int
 kernfs_vget(mp, ino, vpp)
 	struct mount *mp;
 	ino_t ino;
@@ -336,7 +336,7 @@ kernfs_vget(mp, ino, vpp)
 }
 
 
-int
+static int
 kernfs_fhtovp(mp, fhp, nam, vpp, exflagsp, credanonp)
 	struct mount *mp;
 	struct fid *fhp;
@@ -349,7 +349,7 @@ kernfs_fhtovp(mp, fhp, nam, vpp, exflagsp, credanonp)
 	return (EOPNOTSUPP);
 }
 
-int
+static int
 kernfs_vptofh(vp, fhp)
 	struct vnode *vp;
 	struct fid *fhp;
@@ -357,7 +357,7 @@ kernfs_vptofh(vp, fhp)
 	return (EOPNOTSUPP);
 }
 
-struct vfsops kernfs_vfsops = {
+static struct vfsops kernfs_vfsops = {
 	kernfs_mount,
 	kernfs_start,
 	kernfs_unmount,
