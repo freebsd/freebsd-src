@@ -18,7 +18,7 @@ MLINKS=	usb.3 libusb.3 usb.3 hid_get_report_desc.3 \
 
 SRCS=	descr.c parse.c usage.c data.c
 
-INCS=	libusb.h
+INCS=	libusbhid.h
 
 .include <bsd.lib.mk>
 
