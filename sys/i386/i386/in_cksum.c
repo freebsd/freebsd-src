@@ -30,17 +30,9 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * from tahoe:	in_cksum.c	1.2	86/01/05
- *	@(#)in_cksum.c	1.3 (Berkeley) 1/19/91
- *
- * PATCHES MAGIC                LEVEL   PATCH THAT GOT US HERE
- * --------------------         -----   ----------------------
- * CURRENT PATCH LEVEL:         1       00104
- * --------------------         -----   ----------------------
- *
- * 24 Jul 92	Bakul Shah		Optimized some more
- *
- * 920724 	i386 changes by Bakul Shah <bvs@bitblocks.com>
+ *	from tahoe:	in_cksum.c	1.2	86/01/05
+ *	from:		@(#)in_cksum.c	1.3 (Berkeley) 1/19/91
+ *	$Id$
  */
 
 #include "param.h"

@@ -30,7 +30,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Header$
+ *	from: Steve McCanne's microtime code
+ *	$Id$
  */
 
 #include "asm.h"
