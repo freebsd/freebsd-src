@@ -37,6 +37,7 @@
 #include <sys/pcpu.h>
 #include <sys/smp.h>
 #include <sys/sysctl.h>
+#include <sys/bus.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -49,6 +50,7 @@
 #include <machine/pmap.h>
 #include <machine/rpb.h>
 #include <machine/clock.h>
+#include <machine/prom.h>
 
 /* Set to 1 once we're ready to let the APs out of the pen. */
 static volatile int aps_ready = 0;
@@ -318,14 +320,23 @@ cpu_mp_probe(void)
 			continue;
 		pcsp = (struct pcs *)((char *)hwrpb + hwrpb->rpb_pcs_off +
 		    (i * hwrpb->rpb_pcs_size));
-		if ((pcsp->pcs_flags & PCS_PP) == 0)
+		if ((pcsp->pcs_flags & PCS_PP) == 0) {
 			continue;
-		if ((pcsp->pcs_flags & PCS_PA) == 0)
+		}
+		if ((pcsp->pcs_flags & PCS_PA) == 0) {
+			/*
+			 * The TurboLaser PCS_PA bit doesn't seem to be set
+			 * correctly.
+			 */
+			if (hwrpb->rpb_type != ST_DEC_21000) 
+				continue;
+		}
+		if ((pcsp->pcs_flags & PCS_PV) == 0) {
 			continue;
-		if ((pcsp->pcs_flags & PCS_PV) == 0)
+		}
+		if (i > MAXCPU) {
 			continue;
-		if (i > MAXCPU)
-			continue;
+		}
 		cpus++;
 	}
 	return (cpus);
@@ -339,6 +350,7 @@ cpu_mp_start(void)
 	mtx_init(&ap_boot_mtx, "ap boot", MTX_SPIN);
 
 	for (i = 0; i < hwrpb->rpb_pcs_cnt; i++) {
+		int dv;
 		struct pcs *pcsp;
 
 		if (i == boot_cpu_id)
@@ -348,9 +360,13 @@ cpu_mp_start(void)
 		if ((pcsp->pcs_flags & PCS_PP) == 0)
 			continue;
 		if ((pcsp->pcs_flags & PCS_PA) == 0) {
-			if (bootverbose)
-				printf("CPU %d not available.\n", i);
-			continue;
+			if (hwrpb->rpb_type == ST_DEC_21000)  {
+				printf("Ignoring PA bit for CPU %d.\n", i);
+			} else {
+				if (bootverbose)
+					printf("CPU %d not available.\n", i);
+				continue;
+			}
 		}
 		if ((pcsp->pcs_flags & PCS_PV) == 0) {
 			if (bootverbose)
@@ -365,7 +381,12 @@ cpu_mp_start(void)
 			}
 			continue;
 		}
-		all_cpus |= 1 << i;
+		dv = 0;
+		if (resource_int_value("cpu", i, "disable", &dv) == 0 && dv) {
+			printf("CPU %d disabled by loader.\n", i);
+			continue;
+		}
+		all_cpus |= (1 << i);
 		mp_ncpus++;
 	}
 	PCPU_SET(other_cpus, all_cpus & ~(1 << boot_cpu_id));
@@ -373,13 +394,13 @@ cpu_mp_start(void)
 	for (i = 0; i < hwrpb->rpb_pcs_cnt; i++) {
 		if (i == boot_cpu_id)
 			continue;
-		if (all_cpus & 1 << i)
+		if (all_cpus & (1 << i))
 			smp_start_secondary(i);
 	}
 }
 
 void
-cpu_mp_announce()
+cpu_mp_announce(void)
 {
 }
 
