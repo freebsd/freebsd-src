@@ -334,9 +334,6 @@ filt_procdetach(struct knote *kn)
 {
 	struct proc *p;
 
-	if (kn->kn_status & KN_DETACHED)
-		return;
-
 	p = kn->kn_ptr.p_proc;
 	knlist_remove(&p->p_klist, kn, 0);
 	kn->kn_ptr.p_proc = NULL;
@@ -859,7 +856,8 @@ findkn:
 	} else if (kev->flags & EV_DELETE) {
 		kn->kn_status |= KN_INFLUX;
 		KQ_UNLOCK(kq);
-		kn->kn_fop->f_detach(kn);
+		if (!(kn->kn_status & KN_DETACHED))
+			kn->kn_fop->f_detach(kn);
 		knote_drop(kn, td);
 		goto done;
 	}
@@ -1158,7 +1156,8 @@ start:
 			 * it _INFLUX.
 			 */
 			*kevp = kn->kn_kevent;
-			kn->kn_fop->f_detach(kn);
+			if (!(kn->kn_status & KN_DETACHED))
+				kn->kn_fop->f_detach(kn);
 			knote_drop(kn, td);
 			KQ_LOCK(kq);
 			kn = NULL;
@@ -1332,8 +1331,6 @@ kqueue_close(struct file *fp, struct thread *td)
 	int i;
 	int error;
 
-	GIANT_REQUIRED;
-
 	if ((error = kqueue_aquire(fp, &kq)))
 		return error;
 
@@ -1357,7 +1354,8 @@ kqueue_close(struct file *fp, struct thread *td)
 			    ("KN_INFLUX set when not suppose to be"));
 			kn->kn_status |= KN_INFLUX;
 			KQ_UNLOCK(kq);
-			kn->kn_fop->f_detach(kn);
+			if (!(kn->kn_status & KN_DETACHED))
+				kn->kn_fop->f_detach(kn);
 			knote_drop(kn, td);
 			KQ_LOCK(kq);
 		}
@@ -1369,7 +1367,8 @@ kqueue_close(struct file *fp, struct thread *td)
 				    ("KN_INFLUX set when not suppose to be"));
 				kn->kn_status |= KN_INFLUX;
 				KQ_UNLOCK(kq);
-				kn->kn_fop->f_detach(kn);
+				if (!(kn->kn_status & KN_DETACHED))
+					kn->kn_fop->f_detach(kn);
 				knote_drop(kn, td);
 				KQ_LOCK(kq);
 			}
@@ -1672,7 +1671,8 @@ again:
 			}
 			kn->kn_status |= KN_INFLUX;
 			KQ_UNLOCK(kq);
-			kn->kn_fop->f_detach(kn);
+			if (!(kn->kn_status & KN_DETACHED))
+				kn->kn_fop->f_detach(kn);
 			knote_drop(kn, td);
 			influx = 1;
 			KQ_LOCK(kq);

@@ -219,9 +219,6 @@ filt_netdetach(struct knote *kn)
 {
 	struct knlist *klist = (struct knlist *)kn->kn_hook;
 
-	if (kn->kn_status & KN_DETACHED)
-		return;
-
 	knlist_remove(klist, kn, 0);
 }
 
