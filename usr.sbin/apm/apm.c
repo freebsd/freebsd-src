@@ -15,7 +15,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: apm.c,v 1.10 1997/09/02 06:36:39 charnier Exp $";
+	"$Id: apm.c,v 1.11 1997/11/06 23:55:38 imp Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -33,7 +33,7 @@ void
 usage()
 {
 	fprintf(stderr, "%s\n%s\n",
-		"usage: apm [-ablsz] [-d 1|0]",
+		"usage: apm [-ablstz] [-d 1|0]",
 		"       zzz");
 	exit(1);
 }
@@ -85,6 +85,21 @@ print_all_info(apm_info_t aip)
 	else
 		printf("invalid value (0x%x)", aip->ai_batt_life);
 	printf("\n");
+	printf("Remaining battery time: ");
+	if (aip->ai_batt_time == -1)
+		printf("unknown");
+	else {
+		int t, h, m, s;
+
+		t = aip->ai_batt_time;
+		s = t % 60;
+		t /= 60;
+		m = t % 60;
+		t /= 60;
+		h = t;
+		printf("%2d:%02d:%02d", h, m, s);
+	}
+	printf("\n");
 }
 
 
@@ -106,6 +121,7 @@ main(int argc, char *argv[])
 	int	c, fd;
 	int     sleep = 0, all_info = 1, apm_status = 0, batt_status = 0;
 	int     display = 0, batt_life = 0, ac_status = 0;
+	int	batt_time = 0;
 	char	*cmdname;
 
 
@@ -119,7 +135,7 @@ main(int argc, char *argv[])
 		all_info = 0;
 		goto finish_option;
 	}
-	while ((c = getopt(argc, argv, "ablszd:")) != -1) {
+	while ((c = getopt(argc, argv, "ablstzd:")) != -1) {
 		switch (c) {
 		case 'a':
 			ac_status = 1;
@@ -144,6 +160,10 @@ main(int argc, char *argv[])
 			break;
 		case 's':
 			apm_status = 1;
+			all_info = 0;
+			break;
+		case 't':
+			batt_time = 1;
 			all_info = 0;
 			break;
 		case 'z':
@@ -171,14 +191,16 @@ finish_option:
 		apm_getinfo(fd, &info);
 		if (all_info)
 			print_all_info(&info);
+		if (ac_status)
+			printf("%d\n", info.ai_acline);
 		if (batt_status)
 			printf("%d\n", info.ai_batt_stat);
 		if (batt_life)
 			printf("%d\n", info.ai_batt_life);
-		if (ac_status)
-			printf("%d\n", info.ai_acline);
 		if (apm_status)
 			printf("%d\n", info.ai_status);
+		if (batt_time)
+			printf("%d\n", info.ai_batt_time);
 		if (display)
 			apm_display(fd, display - 1);
 	}

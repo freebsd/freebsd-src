@@ -16,7 +16,7 @@
 .Nd control the APM BIOS and display its information
 .Sh SYNOPSIS
 .Nm apm
-.Op Fl ablsz
+.Op Fl ablstz
 .Op Fl d Ar 1|0
 .Pp
 .Nm zzz
@@ -35,6 +35,8 @@ The following options are available for
 If no options are specified,
 .Nm apm
 displays information and current status of APM in verbose mode.
+If multiple display options are given, the values are displayed one
+per line in the order given here.
 .Bl -tag -width indent
 .It Fl a
 Display the current AC-line status as an integer value.  The values
@@ -71,6 +73,9 @@ Display the status of the APM support as an integer value.  The values
 state or
 .Dq enabled
 state respectively.
+.It Fl t
+Display the estimated remaining battery lifetime in seconds.  If
+it is unknown, -1 is displayed.
 .It Fl z
 Suspend the system. It is equivalent to
 .Nm zzz.
