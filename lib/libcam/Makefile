@@ -34,6 +34,7 @@ MLINKS+=cam.3 cam_open_device.3 \
 
 .PATH: ${.CURDIR}/../../sys/cam/scsi ${.CURDIR}/../../sys/cam
 
-CFLAGS+=-I${.CURDIR} -I${.CURDIR}/../../sys
+SDIR= ${.CURDIR}/../../sys
+CFLAGS+=-I${.CURDIR} -I${SDIR}
 
 .include <bsd.lib.mk>
