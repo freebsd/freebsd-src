@@ -440,7 +440,7 @@ verify_rev_path(struct in_addr src, struct ifnet *ifp)
 	    (ro.ro_rt->rt_ifp->if_index != ifp->if_index))
 		return 0;
 
-    	return 1;
+	return 1;
 }
 
 
