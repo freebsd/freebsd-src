@@ -895,7 +895,7 @@ Make_Run (targs)
 	(void)MakeStartJobs();
     }
 
-    errors = Job_End();
+    errors = Job_Finish();
 
     /*
      * Print the final status of each target. E.g. if it wasn't made
