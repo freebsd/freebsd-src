@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.10 1998/10/07 02:39:32 msmith Exp $
+# $Id: Makefile,v 1.11 1998/10/12 01:03:00 rnordier Exp $
 
 BASE=		loader
 PROG=		${BASE}
@@ -17,7 +17,8 @@ SRCS=		main.c conf.c
 # Always add MI sources 
 .PATH:		${.CURDIR}/../../common
 .include	<${.CURDIR}/../../common/Makefile.inc>
-CFLAGS+=	-I${.CURDIR}/../../common -I.
+CFLAGS+=	-I${.CURDIR}/../../common
+CFLAGS+=	-I${.CURDIR}/../../.. -I.
 
 CLEANFILES+=	vers.c vers.o ${BASE}.list setdef0.o setdef1.o setdefs.h \
 		gensetdefs.o gensetdefs ${BASE}.bin
@@ -68,6 +69,11 @@ setdef0.o:	setdefs.h
 
 setdef1.o:	setdefs.h
 
+machine:
+	ln -sf ${.CURDIR}/../../../i386/include machine
+
+CLEANFILES+=	machine
+
 .include <bsd.prog.mk>
 
 # Linker set gymnastics
@@ -81,4 +87,4 @@ gensetdefs: gensetdefs.o
 gensetdefs.o: gensetdefs.c
 	${CC} -c $<
 
-
+beforedepend ${OBJS}: machine
