@@ -3,7 +3,7 @@
 #
 # modified for PC-9801
 #
-#	$Id: files.pc98,v 1.30 1997/07/31 13:10:43 kato Exp $
+#	$Id: files.pc98,v 1.31 1997/08/02 06:58:53 kato Exp $
 #
 aic7xxx_asm			optional	ahc	device-driver	   \
 	dependency 	"$S/dev/aic7xxx/*.[chyl]"			   \
@@ -167,6 +167,7 @@ pc98/isa/pcvt/pcvt_out.c	optional	vt	device-driver
 pc98/isa/pcvt/pcvt_sup.c	optional	vt	device-driver
 pc98/isa/pcvt/pcvt_vtf.c	optional	vt	device-driver
 i386/isa/prof_machdep.c	optional	profiling-routine
+i386/isa/ppc.c			optional	ppc	device-driver
 pc98/pc98/psm.c			optional	psm	device-driver
 pc98/isa/qcam.c			optional	qcam	device-driver
 pc98/isa/qcamio.c		optional	qcam	device-driver
