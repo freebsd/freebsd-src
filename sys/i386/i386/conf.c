@@ -41,7 +41,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.49 1995/01/07 23:20:08 jkh Exp $
+ *	$Id: conf.c,v 1.50 1995/01/08 13:40:31 dufault Exp $
  */
 
 #include <sys/param.h>
@@ -901,6 +901,10 @@ struct cdevsw	cdevsw[] =
 	{ sscopen,	sscclose,	sscread,	sscwrite,	/*49*/
 	  sscioctl,	nostop,		nullreset,	NULL,	/* scsi super */
 	  sscselect,	sscmmap,		sscstrategy },
+	{ (d_open_t *)enxio, (d_close_t *)enxio, (d_rdwr_t *)enxio,	/*50*/
+	  (d_rdwr_t *)enxio, (d_ioctl_t *)enxio, (d_stop_t *)enxio,/* pcmcia */
+	  (d_reset_t *)enxio, NULL, (d_select_t *)enxio,
+	  (d_mmap_t *)enxio, NULL },
 };
 int	nchrdev = sizeof (cdevsw) / sizeof (cdevsw[0]);
 
