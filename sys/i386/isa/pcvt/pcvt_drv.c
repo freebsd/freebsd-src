@@ -417,7 +417,7 @@ pcvt_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
  *	driver mmap
  *---------------------------------------------------------------------------*/
 static int
-pcvt_mmap(dev_t dev, vm_offset_t offset, vm_offset_t *paddr, int nprot)
+pcvt_mmap(dev_t dev, vm_offset_t offset, vm_paddr_t *paddr, int nprot)
 {
 	if (offset > 0x20000 - PAGE_SIZE)
 		return -1;

@@ -599,7 +599,7 @@ vm86_datacall(intnum, vmf, vmc)
 	struct vm86context *vmc;
 {
 	pt_entry_t *pte = (pt_entry_t *)vm86paddr;
-	u_int page;
+	vm_paddr_t page;
 	int i, entry, retval;
 
 	mtx_lock(&vm86_lock);

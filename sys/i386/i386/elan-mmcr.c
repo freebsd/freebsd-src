@@ -304,7 +304,7 @@ elan_write(dev_t dev, struct uio *uio, int ioflag)
 }
 
 static int
-elan_mmap(dev_t dev, vm_offset_t offset, vm_offset_t *paddr, int nprot)
+elan_mmap(dev_t dev, vm_offset_t offset, vm_paddr_t *paddr, int nprot)
 {
 
 	if (minor(dev) != ELAN_MMCR)

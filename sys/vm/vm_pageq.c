@@ -90,7 +90,7 @@ vm_pageq_enqueue(int queue, vm_page_t m)
  *	Must be called at splhigh().
  */
 vm_page_t
-vm_pageq_add_new_page(vm_offset_t pa)
+vm_pageq_add_new_page(vm_paddr_t pa)
 {
 	vm_page_t m;
 

@@ -74,7 +74,7 @@ static struct mtx dev_pager_mtx;
 
 static uma_zone_t fakepg_zone;
 
-static vm_page_t dev_pager_getfake(vm_offset_t);
+static vm_page_t dev_pager_getfake(vm_paddr_t);
 static void dev_pager_putfake(vm_page_t);
 
 struct pagerops devicepagerops = {
@@ -107,7 +107,8 @@ dev_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot, vm_ooffset_t fo
 	d_mmap_t *mapfunc;
 	vm_object_t object;
 	unsigned int npages;
-	vm_offset_t off, paddr;
+	vm_paddr_t paddr;
+	vm_offset_t off;
 
 	/*
 	 * Offset should be page aligned.
@@ -202,7 +203,7 @@ dev_pager_getpages(object, m, count, reqpage)
 	int reqpage;
 {
 	vm_pindex_t offset;
-	vm_offset_t paddr;
+	vm_paddr_t paddr;
 	vm_page_t page;
 	dev_t dev;
 	int i, ret;
@@ -262,7 +263,7 @@ dev_pager_haspage(object, pindex, before, after)
 
 static vm_page_t
 dev_pager_getfake(paddr)
-	vm_offset_t paddr;
+	vm_paddr_t paddr;
 {
 	vm_page_t m;
 

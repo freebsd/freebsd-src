@@ -268,7 +268,7 @@ struct	spigot_softc	*ss = (struct spigot_softc *)&spigot_softc[unit];
 }
 
 static	int
-spigot_mmap(dev_t dev, vm_offset_t offset, vm_offset_t *paddr, int nprot)
+spigot_mmap(dev_t dev, vm_offset_t offset, vm_paddr_t *paddr, int nprot)
 {
 struct	spigot_softc	*ss = (struct spigot_softc *)&spigot_softc[0];
 

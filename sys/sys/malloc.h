@@ -103,7 +103,7 @@ extern struct mtx malloc_mtx;
 /* XXX struct malloc_type is unused for contig*(). */
 void	contigfree(void *addr, unsigned long size, struct malloc_type *type);
 void	*contigmalloc(unsigned long size, struct malloc_type *type, int flags,
-	    unsigned long low, unsigned long high, unsigned long alignment,
+	    vm_paddr_t low, vm_paddr_t high, unsigned long alignment,
 	    unsigned long boundary);
 void	free(void *addr, struct malloc_type *type);
 void	*malloc(unsigned long size, struct malloc_type *type, int flags);

@@ -211,7 +211,7 @@ mmrw(dev_t dev, struct uio *uio, int flags)
 * instead of going through read/write			*
 \*******************************************************/
 static int
-memmmap(dev_t dev, vm_offset_t offset, vm_offset_t *paddr, int prot)
+memmmap(dev_t dev, vm_offset_t offset, vm_paddr_t *paddr, int prot)
 {
 	switch (minor(dev))
 	{

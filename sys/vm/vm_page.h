@@ -116,7 +116,7 @@ struct vm_page {
 
 	vm_object_t object;		/* which object am I in (O,P)*/
 	vm_pindex_t pindex;		/* offset into object (O,P) */
-	vm_offset_t phys_addr;		/* physical address of page */
+	vm_paddr_t phys_addr;	/* physical address of page */
 	struct md_page md;		/* machine dependant stuff */
 	u_short	queue;			/* page queue index */
 	u_short	flags,			/* see below */
@@ -335,7 +335,7 @@ void vm_page_dirty(vm_page_t m);
 void vm_page_wakeup(vm_page_t m);
 
 void vm_pageq_init(void);
-vm_page_t vm_pageq_add_new_page(vm_offset_t pa);
+vm_page_t vm_pageq_add_new_page(vm_paddr_t pa);
 void vm_pageq_enqueue(int queue, vm_page_t m);
 void vm_pageq_remove_nowakeup(vm_page_t m);
 void vm_pageq_remove(vm_page_t m);
