@@ -819,13 +819,13 @@ fprintlog(f, flags, msg)
 		if (LogFacPri > 1) {
 		  CODE *c;
 
-		  for (c = facilitynames; c; c++) {
+		  for (c = facilitynames; c->name; c++) {
 		    if (c->c_val == fac) {
 		      f_s = c->c_name;
 		      break;
 		    }
 		  }
-		  for (c = prioritynames; c; c++) {
+		  for (c = prioritynames; c->name; c++) {
 		    if (c->c_val == pri) {
 		      p_s = c->c_name;
 		      break;
