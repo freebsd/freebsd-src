@@ -47,11 +47,15 @@
 	printf(fmt, args);						\
 } while(0)
 #define AML_DEBUGGER(x, y)	/* no debugger in kernel */
+#define AML_STALL(micro)	DELAY(micro)
+#define AML_SLEEP(sec, milli)	OsdSleep(sec, milli)
 #else /* !_KERNEL */
 #define AML_SYSASSERT(x)	assert(x)
 #define AML_SYSABORT()  	abort()
 #define AML_SYSERRX(eval, fmt, args...)	errx(eval, fmt, args)
 #define AML_DEBUGGER(x, y)	aml_dbgr(x, y)
+#define AML_STALL(micro)	/* not required in userland */
+#define AML_SLEEP(sec, milli)	/* not required in userland */
 #endif /* _KERNEL */
 
 union	aml_object;

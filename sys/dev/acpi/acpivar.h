@@ -202,6 +202,7 @@ extern void	acpi_intr(void *data);
 extern void	acpi_queue_event(acpi_softc_t *sc, int type, int arg);
 extern int	acpi_send_pm_event(acpi_softc_t *sc, u_int8_t state);
 extern void	acpi_enable_events(acpi_softc_t *sc);
+extern void	acpi_disable_events(acpi_softc_t *sc);
 extern void	acpi_clear_ignore_events(void *arg);
 extern void 	acpi_event_thread(void *arg);
 
@@ -244,3 +245,9 @@ extern void		acpi_mapmem(void);
 extern int acpi_debug;
 #define ACPI_DEVPRINTF(args...)		printf("acpi0: " args)
 #define ACPI_DEBUGPRINT(args...)	do { if (acpi_debug) ACPI_DEVPRINTF(args);} while(0)
+
+/*
+ * System service interface
+ */
+extern int		acpi_sleep(u_int32_t micro);
+
