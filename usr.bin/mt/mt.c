@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)mt.c	8.2 (Berkeley) 5/4/95";
 #endif
 static const char rcsid[] =
-	"$Id: mt.c,v 1.15 1998/09/15 10:28:20 gibbs Exp $";
+	"$Id: mt.c,v 1.16 1998/10/03 10:58:54 dfr Exp $";
 #endif /* not lint */
 
 /*
@@ -101,7 +101,11 @@ struct commands {
 	{ "rewind",	MTREW,	1 },
 	{ "rewoffl",	MTOFFL,	1 },
 	{ "status",	MTNOP,	1 },
+#if defined(__FreeBSD__)
+	{ "weof",	MTWEOF,	0, ZERO_ALLOWED },
+#else
 	{ "weof",	MTWEOF,	0 },
+#endif
 #if defined(__FreeBSD__)
 	{ "erase",	MTERASE, 0, ZERO_ALLOWED},
 	{ "blocksize",	MTSETBSIZ, 0, NEED_2ARGS|ZERO_ALLOWED },
@@ -110,6 +114,10 @@ struct commands {
 	{ "eod",	MTEOD, 1 },
 	{ "comp",	MTCOMP, 0, NEED_2ARGS|ZERO_ALLOWED|IS_COMP },
 	{ "retension",	MTRETENS, 1 },
+	{ "rdhpos",     MTIOCRDHPOS,  0 },
+	{ "rdspos",     MTIOCRDSPOS,  0 },
+	{ "sethpos",    MTIOCHLOCATE, 0, NEED_2ARGS|ZERO_ALLOWED },
+	{ "setspos",    MTIOCSLOCATE, 0, NEED_2ARGS|ZERO_ALLOWED },
 #endif /* defined(__FreeBSD__) */
 	{ NULL }
 };
@@ -215,6 +223,27 @@ main(argc, argv)
 		}
 		else
 			mt_com.mt_count = 1;
+#if	defined(__FreeBSD__)
+		switch (comp->c_code) {
+		case MTIOCRDHPOS:
+		case MTIOCRDSPOS:
+			if (ioctl(mtfd, comp->c_code, &mt_com.mt_count) < 0)
+				err(2, "%s", tape);
+			printf("%s: %s block location %u\n", tape,
+			    (comp->c_code == MTIOCRDHPOS)? "hardware" :
+			    "logical", (unsigned int) mt_com.mt_count);
+			exit (0);
+			/* NOTREACHED */
+		case MTIOCSLOCATE:
+		case MTIOCHLOCATE:
+			if (ioctl(mtfd, comp->c_code, &mt_com.mt_count) < 0)
+				err(2, "%s", tape);
+			exit (0);
+			/* NOTREACHED */
+		default:
+			break;
+		}
+#endif
 		if (ioctl(mtfd, MTIOCTOP, &mt_com) < 0)
 			err(1, "%s: %s", tape, comp->c_name);
 	} else {
