@@ -1289,6 +1289,7 @@ ast(framep)
 	}
 
 	sticks = p->p_sticks;
+	p->p_md.md_regs = framep;
 
 	astoff(p);
 	cnt.v_soft++;
