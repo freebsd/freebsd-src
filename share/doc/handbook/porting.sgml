@@ -49,7 +49,7 @@ the ports collection.
 	is already included; if not, add the code:
 
 <tscreen><verb>
-#ifdef (defined(__unix__) || defined(unix))
+#ifdef (defined(__unix__) || defined(unix)) && !defined(USG)
 #include <sys/param.h>
 #endif
 </verb></tscreen>
