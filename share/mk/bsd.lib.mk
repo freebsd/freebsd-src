@@ -1,5 +1,5 @@
 #	from: @(#)bsd.lib.mk	5.26 (Berkeley) 5/2/91
-#	$Id: bsd.lib.mk,v 1.46.2.5 1997/05/13 17:27:21 jdp Exp $
+#	$Id: bsd.lib.mk,v 1.46.2.6 1997/05/23 08:39:53 asami Exp $
 #
 
 .if exists(${.CURDIR}/../Makefile.inc)
@@ -70,28 +70,28 @@ STRIP?=	-s
 	@${LD} -O ${.TARGET} -x -r ${.TARGET}
 
 .s.o:
-	${CC} -x assembler-with-cpp ${CFLAGS:M-[ID]*} ${AINC} -c \
+	${CC} -x assembler-with-cpp ${CFLAGS:M-[BID]*} ${AINC} -c \
 	    ${.IMPSRC} -o ${.TARGET}
 	@${LD} -O ${.TARGET} -x -r ${.TARGET}
 
 .s.po:
-	${CC} -x assembler-with-cpp -DPROF ${CFLAGS:M-[ID]*} ${AINC} -c \
+	${CC} -x assembler-with-cpp -DPROF ${CFLAGS:M-[BID]*} ${AINC} -c \
 	    ${.IMPSRC} -o ${.TARGET}
 	@${LD} -O ${.TARGET} -X -r ${.TARGET}
 
 .s.so:
-	${CC} -x assembler-with-cpp -fpic -DPIC ${CFLAGS:M-[ID]*} ${AINC} -c \
+	${CC} -x assembler-with-cpp -fpic -DPIC ${CFLAGS:M-[BID]*} ${AINC} -c \
 	    ${.IMPSRC} -o ${.TARGET}
 	@${LD} -O ${.TARGET} -x -r ${.TARGET}
 
 .S.o:
-	${CC} ${CFLAGS:M-[ID]*} ${AINC} -c ${.IMPSRC} -o ${.TARGET}
+	${CC} ${CFLAGS:M-[BID]*} ${AINC} -c ${.IMPSRC} -o ${.TARGET}
 
 .S.po:
-	${CC} -DPROF ${CFLAGS:M-[ID]*} ${AINC} -c ${.IMPSRC} -o ${.TARGET}
+	${CC} -DPROF ${CFLAGS:M-[BID]*} ${AINC} -c ${.IMPSRC} -o ${.TARGET}
 
 .S.so:
-	${CC} -fpic -DPIC ${CFLAGS:M-[ID]*} ${AINC} -c ${.IMPSRC} -o ${.TARGET}
+	${CC} -fpic -DPIC ${CFLAGS:M-[BID]*} ${AINC} -c ${.IMPSRC} -o ${.TARGET}
 	@${LD} -O ${.TARGET} -x -r ${.TARGET}
 
 .m.po:
