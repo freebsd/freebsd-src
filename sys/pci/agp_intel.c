@@ -98,6 +98,9 @@ agp_intel_match(device_t dev)
 
 	case 0x25318086:
 		return ("Intel 82860 host to AGP bridge");
+
+	case 0x25708086:
+		return ("Intel 82865 host to AGP bridge");
 	};
 
 	if (pci_get_vendor(dev) == 0x8086)
@@ -167,7 +170,8 @@ agp_intel_attach(device_t dev)
 		pci_write_config(dev, AGP_INTEL_AGPCTRL, 0x2280, 4);
 		break;
 	default:
-		pci_write_config(dev, AGP_INTEL_AGPCTRL, 0x0080, 4);
+		value = pci_read_config(dev, AGP_INTEL_AGPCTRL, 4);
+		pci_write_config(dev, AGP_INTEL_AGPCTRL, value | 0x80, 4);
 	}
 
 	/* Enable things, clear errors etc. */
@@ -188,6 +192,7 @@ agp_intel_attach(device_t dev)
 		break;
 
 	case 0x1a308086: /* i845 */
+	case 0x25708086: /* i865 */
 		pci_write_config(dev, AGP_INTEL_I845_MCHCFG,
 				 (pci_read_config(dev, AGP_INTEL_I845_MCHCFG, 1)
 				  | (1 << 1)), 1);
@@ -209,7 +214,8 @@ agp_intel_attach(device_t dev)
 	case 0x1a308086: /* i845 */
 	case 0x25308086: /* i850 */
 	case 0x25318086: /* i860 */
-		pci_write_config(dev, AGP_INTEL_I8XX_ERRSTS, 0x001c, 2);
+	case 0x25708086: /* i865 */
+		pci_write_config(dev, AGP_INTEL_I8XX_ERRSTS, 0x00ff, 2);
 		break;
 
 	default: /* Intel Generic (maybe) */
@@ -251,6 +257,7 @@ agp_intel_detach(device_t dev)
 				& ~(1 << 1)), 1);
 
 	case 0x1a308086: /* i845 */
+	case 0x25708086: /* i865 */
 		printf("%s: set MCHCFG to %x\n", __func__, (unsigned)
 				(pci_read_config(dev, AGP_INTEL_I845_MCHCFG, 1)
 				& ~(1 << 1)));
