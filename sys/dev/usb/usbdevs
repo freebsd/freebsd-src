@@ -729,7 +729,7 @@ product SOLIDYEAR KEYBOARD	0x2101	Solid Year USB keyboard
 
 /* SONY products */
 product SONY DSC	0x0010	Sony DSC cameras
-product SONY MSC	0x0032	Sone MSC memory stick slot
+product SONY MSC	0x0032	Sony MSC memory stick slot
 
 /* STMicroelectronics products */
 product STMICRO COMMUNICATOR	0x7554	USB Communicator
