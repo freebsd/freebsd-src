@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.3 1998/08/10 19:08:02 abial Exp $
+# $Id: Makefile,v 1.1.1.1 1998/08/27 17:38:42 abial Exp $
 #
 
 DESTDIR?=/mnt
@@ -39,7 +39,7 @@ links: tree
 		done; \
 		cd share/misc;\
 		ln -s /etc/termcap termcap; \
-		echo emacs >/usr/share/misc/init.ee; \
+		echo emacs >/mnt/usr/share/misc/init.ee; \
 		cd ../; \
 		cd locale; \
 		for i in ${LOCALE_LINKS}; \
