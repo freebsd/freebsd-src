@@ -243,6 +243,22 @@ Is like W, but prints only those filesystems which need to be dumped.
 .El
 .Pp
 .Nm Dump
+honors the user
+.Dq nodump
+flag
+.Pq Dv UF_NODUMP
+on regular files and directories.
+If a directory is marked
+.Dq nodump ,
+the latter and all files and directories under it will not be backed
+up.
+That is,
+.Nm
+propagates the
+.Dq nodump
+flag on directories.
+.Pp
+.Nm Dump
 requires operator intervention on these conditions:
 end of tape,
 end of dump,
