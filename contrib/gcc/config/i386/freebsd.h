@@ -103,10 +103,39 @@ Boston, MA 02111-1307, USA.  */
   fprintf ((FILE), "%s%s%d:\n", (TARGET_UNDERSCORES) ? "" : ".",	\
 	   (PREFIX), (NUM))
 
+/* This is how to hack on the symbol code of certain relcalcitrant
+   symbols to modify their output in output_pic_addr_const ().  */
+
+#undef ASM_HACK_SYMBOLREF_CODE
+#define ASM_HACK_SYMBOLREF_CODE(NAME, CODE)				\
+do {									\
+  /* Part of hack to avoid writing lots of rtl in			\
+     FUNCTION_PROFILER_EPILOGUE ().  */					\
+  char *_name = (NAME);							\
+  if (*_name == '.' && strcmp(_name + 1, "mexitcount") == 0)		\
+    (CODE) = 'X';							\
+} while (0)
+
 /* This is how to output a reference to a user-level label named NAME.  */
-#undef  ASM_OUTPUT_LABELREF
+
+#undef ASM_OUTPUT_LABELREF
 #define ASM_OUTPUT_LABELREF(FILE, NAME)					\
-  fprintf ((FILE), "%s%s", (TARGET_UNDERSCORES) ? "_" : "", (NAME))
+do {									\
+  char *_name = (NAME);							\
+  /* Hack to avoid writing lots of rtl in				\
+     FUNCTION_PROFILER_EPILOGUE ().  */					\
+  if (*_name == '.' && strcmp(_name + 1, "mexitcount") == 0)		\
+    {									\
+      if (TARGET_AOUT)							\
+	_name++;							\
+      if (flag_pic)							\
+	fprintf ((FILE), "*%s@GOT(%%ebx)", _name);			\
+      else								\
+	fprintf ((FILE), "%s", _name);					\
+    }									\
+  else									\
+    fprintf (FILE, "%s%s", TARGET_UNDERSCORES ? "_" : "", _name);	\
+} while (0)
 
 /* This is how to output an element of a case-vector that is relative.
    This is only used for PIC code.  See comments by the `casesi' insn in
@@ -416,37 +445,47 @@ do {									\
 /* Tell final.c that we don't need a label passed to mcount.  */
 #define NO_PROFILE_DATA
 
-/* Output assembler code to FILE to increment profiler label # LABELNO
-   for profiling a function entry.  */
-/* Redefine this to not pass an unused label in %edx.  */
+/* Output assembler code to FILE to begin profiling of the current function.
+   LABELNO is an optional label.  */
 
 #undef FUNCTION_PROFILER
-#define FUNCTION_PROFILER(FILE, LABELNO)  \
-{									\
+#define FUNCTION_PROFILER(FILE, LABELNO)				\
+do {									\
+  char *_name = TARGET_AOUT ? "mcount" : ".mcount";			\
   if (flag_pic)								\
-    {									\
-      fprintf ((FILE), "\tcall *%s@GOT(%%ebx)\n",			\
-      TARGET_AOUT ? "mcount" : ".mcount");				\
-    }									\
+    fprintf ((FILE), "\tcall *%s@GOT(%%ebx)\n", _name);			\
   else									\
-    {									\
-      fprintf ((FILE), "\tcall %s\n", TARGET_AOUT ? "mcount" : ".mcount"); \
-    }									\
-}
+    fprintf ((FILE), "\tcall %s\n", _name);				\
+} while (0)
+
+/* Output assembler code to FILE to end profiling of the current function.  */
 
 #undef FUNCTION_PROFILER_EPILOGUE
-#define FUNCTION_PROFILER_EPILOGUE(FILE)  \
-{									\
+#define FUNCTION_PROFILER_EPILOGUE(FILE, DO_RTL)			\
+do {									\
   if (TARGET_PROFILER_EPILOGUE)						\
     {									\
-      if (flag_pic)							\
-	fprintf ((FILE), "\tcall *%s@GOT(%%ebx)\n",			\
-	  TARGET_AOUT ? "mexitcount" : ".mexitcount");			\
+      if (DO_RTL)							\
+	{								\
+	  /* ".mexitcount" is specially handled in			\
+	     ASM_HACK_SYMBOLREF () so that we don't need to handle	\
+	     flag_pic or TARGET_AOUT here.  */				\
+	  rtx xop;							\
+	  xop = gen_rtx_MEM (FUNCTION_MODE,				\
+			     gen_rtx_SYMBOL_REF (Pmode, ".mexitcount")); \
+	  emit_call_insn (gen_rtx (CALL, VOIDmode, xop, const0_rtx));	\
+	}								\
       else								\
-	fprintf ((FILE), "\tcall %s\n",					\
-	  TARGET_AOUT ? "mexitcount" : ".mexitcount");			\
+	{								\
+	  /* XXX this !DO_RTL case is broken but not actually used.  */	\
+	  char *_name = TARGET_AOUT ? "mcount" : ".mcount";		\
+	  if (flag_pic)							\
+	    fprintf (FILE, "\tcall *%s@GOT(%%ebx)\n", _name);		\
+	  else								\
+	    fprintf (FILE, "\tcall %s\n", _name);			\
+	}								\
     }									\
-}
+} while (0)
 
 #undef SIZE_TYPE
 #define SIZE_TYPE "unsigned int"
