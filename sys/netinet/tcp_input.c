@@ -620,6 +620,7 @@ findpcb:
 			case 1:
 				if ((thflags & TH_SYN) == 0)
 					break;
+				/* FALLTHROUGH */
 			case 2:
 				log(LOG_INFO,
 				    "Connection attempt to TCP %s:%d "
