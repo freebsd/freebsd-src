@@ -54,7 +54,7 @@ rdattr_main(argc, argv)
 		exit(1);
 	}
 	sprintf(name, CARD_DEVICE, atoi(argv[1]));
-	fd = open(name, 2);
+	fd = open(name, O_RDONLY);
 	if (fd < 0) {
 		perror(name);
 		exit(1);
