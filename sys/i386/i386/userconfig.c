@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.102 1998/02/10 00:10:35 msmith Exp $
+ **      $Id: userconfig.c,v 1.103 1998/03/10 08:03:47 jkh Exp $
  **/
 
 /**
@@ -2379,7 +2379,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.102 1998/02/10 00:10:35 msmith Exp $
+ *      $Id: userconfig.c,v 1.103 1998/03/10 08:03:47 jkh Exp $
  */
 
 #include "scbus.h"
@@ -2623,7 +2623,7 @@ parse_args(char *cmd, CmdParm *parms)
 	    continue;
 	}
 	if (parms->type == PARM_ADDR) {
-	    parms->parm.aparm = (void *)strtoul(cmd, &ptr, 0);
+	    parms->parm.aparm = (void *)(uintptr_t)strtoul(cmd, &ptr, 0);
 	    if (cmd == ptr) {
 	        printf("Invalid address argument\n");
 	        return 1;
