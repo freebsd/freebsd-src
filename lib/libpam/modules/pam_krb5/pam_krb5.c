@@ -420,7 +420,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused, int argc, const char
 	PAM_LOG("Credentials stashed");
 
 	/* Verify them */
-	if (verify_krb_v5_tgt(pam_context, ccache, service,
+	if (verify_krb_v5_tgt(pam_context, ccache, (char *)service,
 	    pam_test_option(&options, PAM_OPT_FORWARDABLE, NULL)) == -1) {
 		PAM_VERBOSE_ERROR("Kerberos 5 error");
 		krb5_cc_destroy(pam_context, ccache);
@@ -895,7 +895,7 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags, int argc, const char **argv)
 	PAM_LOG("New passwords are the same");
 
 	/* Change it */
-	krbret = krb5_change_password(pam_context, &creds, pass,
+	krbret = krb5_change_password(pam_context, &creds, (char *)pass,
 	    &result_code, &result_code_string, &result_string);
 	if (krbret != 0) {
 		PAM_LOG("Error krb5_change_password(): %s",
