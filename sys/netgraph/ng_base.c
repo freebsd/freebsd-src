@@ -3269,13 +3269,13 @@ ngintr(void)
 			item = ng_dequeue(&node->nd_input_queue);
 			if (item == NULL) {
 				mtx_unlock_spin(&node->nd_input_queue.q_mtx);
-				NG_NODE_UNREF(node);
 				break; /* go look for another node */
 			} else {
 				mtx_unlock_spin(&node->nd_input_queue.q_mtx);
 				ng_apply_item(item);
 			}
 		}
+		NG_NODE_UNREF(node);
 	}
 }
 
@@ -3544,7 +3544,8 @@ ng_send_fn(node_p node, hook_p hook, ng_item_fn *fn, void * arg1, int arg2)
 		return (ENOMEM);
 	}
 	item->el_flags = NGQF_FN | NGQF_WRITER;
-	NG_NODE_REF(node);
+	NG_NODE_REF(node); /* One for us */
+	NG_NODE_REF(node); /* and one for the item */
 	NGI_SET_NODE(item, node);
 	if (hook) {
 		NG_HOOK_REF(hook);
@@ -3554,6 +3555,7 @@ ng_send_fn(node_p node, hook_p hook, ng_item_fn *fn, void * arg1, int arg2)
 	NGI_ARG1(item) = arg1;
 	NGI_ARG2(item) = arg2;
 	return (ng_snd_item(item, 0));
+	NG_NODE_UNREF(node);
 }
 
 /*
