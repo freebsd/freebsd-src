@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)genassym.c	5.11 (Berkeley) 5/10/91
- *	$Id: genassym.c,v 1.59 1998/07/11 12:17:07 bde Exp $
+ *	$Id: genassym.c,v 1.60 1998/08/18 07:46:58 msmith Exp $
  */
 
 #include "opt_vm86.h"
@@ -44,11 +44,9 @@
 
 #include <sys/param.h>
 #include <sys/buf.h>
-#include <sys/errno.h>
 #include <sys/proc.h>
 #include <sys/mount.h>
 #include <sys/socket.h>
-#include <sys/resource.h>
 #include <sys/resourcevar.h>
 #include <machine/frame.h>
 #include <machine/bootinfo.h>
@@ -58,9 +56,7 @@
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
-#define KERNEL /* XXX avoid user headers */
 #include <sys/user.h>
-#undef KERNEL
 #include <net/if.h>
 #include <netinet/in.h>
 #include <nfs/nfsv2.h>
