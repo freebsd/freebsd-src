@@ -814,11 +814,14 @@ typedef int		pid_t;
 # endif
 # if defined(__FreeBSD__)
 #  undef SPT_TYPE
-#  if __FreeBSD__ == 2
-#   include <osreldate.h>		/* and this works */
-#   if __FreeBSD_version >= 199512	/* 2.2-current right now */
+#  if __FreeBSD__ >= 2
+#   include <osreldate.h>
+#   if __FreeBSD_version >= 199512	/* 2.2-current when it appeared */
 #    include <libutil.h>
 #    define SPT_TYPE	SPT_BUILTIN
+#   endif
+#   if __FreeBSD_version >= 222000	/* 2.2.2-release and later */
+#    define HASSETUSERCONTEXT  1	/* BSDI-style login classes */
 #   endif
 #  endif
 #  ifndef SPT_TYPE
