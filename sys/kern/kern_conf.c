@@ -49,18 +49,8 @@ static MALLOC_DEFINE(M_DEVT, "cdev", "cdev storage");
 /* Built at compile time from sys/conf/majors */
 extern unsigned char reserved_majors[256];
 
-/*
- * This is the number of hash-buckets.  Experiments with 'real-life'
- * dev_t's show that a prime halfway between two powers of two works
- * best.
- */
-#define DEVT_HASH 83
-
-static LIST_HEAD(, cdev) dev_hash[DEVT_HASH];
-
 static struct mtx devmtx;
 static void freedev(struct cdev *dev);
-static struct cdev *newdev(int x, int y, struct cdev *);
 static void destroy_devl(struct cdev *dev);
 
 void
@@ -234,14 +224,6 @@ no_poll(struct cdev *dev __unused, int events, struct thread *td __unused)
  * struct cdev * and u_dev_t primitives
  */
 
-static int
-major(struct cdev *x)
-{
-	if (x == NULL)
-		return NODEV;
-	return((x->si_drv0 >> 8) & 0xff);
-}
-
 int
 minor(struct cdev *x)
 {
@@ -288,25 +270,21 @@ allocdev(void)
 }
 
 static struct cdev *
-newdev(int x, int y, struct cdev *si)
+newdev(struct cdevsw *csw, int y, struct cdev *si)
 {
 	struct cdev *si2;
 	dev_t	udev;
-	int hash;
 
 	mtx_assert(&devmtx, MA_OWNED);
-	if (x == umajor(NODEV) && y == uminor(NODEV))
-		panic("newdev of NODEV");
-	udev = (x << 8) | y;
-	hash = udev % DEVT_HASH;
-	LIST_FOREACH(si2, &dev_hash[hash], si_hash) {
+	udev = (csw->d_maj << 8) | y;
+	LIST_FOREACH(si2, &csw->d_devs, si_list) {
 		if (si2->si_drv0 == udev) {
 			freedev(si);
 			return (si2);
 		}
 	}
 	si->si_drv0 = udev;
-	LIST_INSERT_HEAD(&dev_hash[hash], si, si_hash);
+	LIST_INSERT_HEAD(&csw->d_devs, si, si_list);
 	return (si);
 }
 
@@ -430,7 +408,7 @@ make_dev(struct cdevsw *devsw, int minornr, uid_t uid, gid_t gid, int perms, con
 	}
 	dev = allocdev();
 	dev_lock();
-	dev = newdev(devsw->d_maj, minornr, dev);
+	dev = newdev(devsw, minornr, dev);
 	if (dev->si_flags & SI_CHEAPCLONE &&
 	    dev->si_flags & SI_NAMED &&
 	    dev->si_devsw == devsw) {
@@ -443,8 +421,8 @@ make_dev(struct cdevsw *devsw, int minornr, uid_t uid, gid_t gid, int perms, con
 		return (dev);
 	}
 	KASSERT(!(dev->si_flags & SI_NAMED),
-	    ("make_dev() by driver %s on pre-existing device (maj=%d, min=%x, name=%s)",
-	    devsw->d_name, major(dev), minor(dev), devtoname(dev)));
+	    ("make_dev() by driver %s on pre-existing device (min=%x, name=%s)",
+	    devsw->d_name, minor(dev), devtoname(dev)));
 
 	va_start(ap, fmt);
 	i = vsnrprintf(dev->__si_namebuf, sizeof dev->__si_namebuf, 32, fmt, ap);
@@ -457,7 +435,6 @@ make_dev(struct cdevsw *devsw, int minornr, uid_t uid, gid_t gid, int perms, con
 	dev->si_devsw = devsw;
 	dev->si_flags |= SI_NAMED;
 
-	LIST_INSERT_HEAD(&devsw->d_devs, dev, si_list);
 	devfs_create(dev);
 	dev_unlock();
 	return (dev);
@@ -519,8 +496,7 @@ destroy_devl(struct cdev *dev)
 
 	mtx_assert(&devmtx, MA_OWNED);
 	KASSERT(dev->si_flags & SI_NAMED,
-	    ("WARNING: Driver mistake: destroy_dev on %d/%d\n",
-	    major(dev), minor(dev)));
+	    ("WARNING: Driver mistake: destroy_dev on %d\n", minor(dev)));
 		
 	devfs_destroy(dev);
 
@@ -565,8 +541,6 @@ destroy_devl(struct cdev *dev)
 		/* If cdevsw has no struct cdev *'s, clean it */
 		if (LIST_EMPTY(&csw->d_devs))
 			fini_cdevsw(csw);
-
-		LIST_REMOVE(dev, si_hash);
 	}
 	dev->si_flags &= ~SI_ALIAS;
 
@@ -595,8 +569,6 @@ devtoname(struct cdev *dev)
 
 	if (dev->si_name[0] == '#' || dev->si_name[0] == '\0') {
 		p = dev->si_name;
-		sprintf(p, "#%d", major(dev));
-		p += strlen(p);
 		csw = dev_refthread(dev);
 		if (csw != NULL) {
 			sprintf(p, "(%s)", csw->d_name);
@@ -721,7 +693,7 @@ clone_create(struct clonedevs **cdp, struct cdevsw *csw, int *up, struct cdev **
 	}
 	if (unit == -1)
 		unit = low & CLONE_UNITMASK;
-	dev = newdev(csw->d_maj, unit2minor(unit | extra), ndev);
+	dev = newdev(csw, unit2minor(unit | extra), ndev);
 	if (dev->si_flags & SI_CLONELIST) {
 		printf("dev %p (%s) is on clonelist\n", dev, dev->si_name);
 		printf("unit=%d\n", unit);
