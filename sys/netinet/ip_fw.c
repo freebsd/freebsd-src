@@ -12,7 +12,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.87 1998/06/06 19:39:08 julian Exp $
+ *	$Id: ip_fw.c,v 1.88 1998/06/06 20:45:26 julian Exp $
  */
 
 /*
@@ -1117,7 +1117,7 @@ ip_fw_init(void)
 	default_rule.fw_flg |= IP_FW_F_IN | IP_FW_F_OUT;
 	if (check_ipfw_struct(&default_rule) == NULL ||
 	    add_entry(&ip_fw_chain, &default_rule))
-		panic(__FUNCTION__);
+		panic("ip_fw_init");
 
 	printf("IP packet filtering initialized, "
 #ifdef IPDIVERT
