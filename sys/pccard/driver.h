@@ -19,4 +19,12 @@ void	pccard_configure __P((void));
 void	pccard_remove_driver __P((struct pccard_device *));
 int	pcic_probe __P((void));	/* XXX should be linker set */
 
+enum beepstate { BEEP_ON, BEEP_OFF };
+
+void	pccard_insert_beep __P((void));
+void	pccard_remove_beep __P((void));
+void	pccard_success_beep __P((void));
+void	pccard_failure_beep __P((void));
+void	pccard_beep_select __P((enum beepstate));
+
 #endif /* !_PCCARD_DRIVER_H_ */
