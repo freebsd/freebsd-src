@@ -48,16 +48,6 @@
 #ifdef _KERNEL
 
 /*
- * If kern_mutex.c is being built, compile non-inlined versions of various
- * functions so that kernel modules can use them.
- */
-#ifndef _KERN_MUTEX_C_
-#define _MTX_INLINE	static __inline
-#else
-#define _MTX_INLINE
-#endif
-
-/*
  * Mutex flags
  *
  * Types
@@ -88,23 +78,7 @@
 
 #ifndef LOCORE
 
-#ifdef WITNESS
-struct mtx_debug {
-	struct witness	*mtxd_witness;
-	LIST_ENTRY(mtx)	mtxd_held;
-	const char	*mtxd_file;
-	int		mtxd_line;
-	const char	*mtxd_description;
-};
-
-#define mtx_description	mtx_union.mtxu_debug->mtxd_description
-#define mtx_held	mtx_union.mtxu_debug->mtxd_held
-#define	mtx_line	mtx_union.mtxu_debug->mtxd_line
-#define	mtx_file	mtx_union.mtxu_debug->mtxd_file
-#define	mtx_witness	mtx_union.mtxu_debug->mtxd_witness
-#else	/* WITNESS */
-#define mtx_description	mtx_union.mtxu_description
-#endif	/* WITNESS */
+struct mtx_debug;
 
 /*
  * Sleep/spin mutex
@@ -129,19 +103,15 @@ struct mtx {
 #ifdef _KERNEL
 /* Prototypes */
 void	mtx_init(struct mtx *m, const char *description, int flag);
-void	mtx_enter_hard(struct mtx *, int type, int saveintr);
-void	mtx_exit_hard(struct mtx *, int type);
 void	mtx_destroy(struct mtx *m);
 
 /*
  * Wrap the following functions with cpp macros so that filenames and line
  * numbers are embedded in the code correctly.
  */
-#if (defined(KLD_MODULE) || defined(_KERN_MUTEX_C_))
 void	_mtx_enter(struct mtx *mtxp, int type, const char *file, int line);
 int	_mtx_try_enter(struct mtx *mtxp, int type, const char *file, int line);
 void	_mtx_exit(struct mtx *mtxp, int type, const char *file, int line);
-#endif
 
 #define	mtx_enter(mtxp, type)						\
 	_mtx_enter((mtxp), (type), __FILE__, __LINE__)
@@ -207,7 +177,6 @@ do {									\
 	if (mtx_owned(&Giant))						\
 		WITNESS_RESTORE(&Giant, Giant)
 
-
 /*
  * Debugging
  */
@@ -216,31 +185,7 @@ do {									\
 #define MA_NOTOWNED	2
 #define MA_RECURSED	4
 #define MA_NOTRECURSED	8
-#define mtx_assert(m, what) do {					\
-	switch ((what)) {						\
-	case MA_OWNED:							\
-	case MA_OWNED | MA_RECURSED:					\
-	case MA_OWNED | MA_NOTRECURSED:					\
-		if (!mtx_owned((m)))					\
-			panic("mutex %s not owned at %s:%d",		\
-			    (m)->mtx_description, __FILE__, __LINE__);	\
-		if (mtx_recursed((m))) {				\
-			if (((what) & MA_NOTRECURSED) != 0)		\
-				panic("mutex %s recursed at %s:%d",	\
-				    (m)->mtx_description, __FILE__, __LINE__); \
-		} else if (((what) & MA_RECURSED) != 0)			\
-				panic("mutex %s unrecursed at %s:%d",	\
-				    (m)->mtx_description, __FILE__, __LINE__); \
-		break;							\
-	case MA_NOTOWNED:						\
-		if (mtx_owned((m)))					\
-			panic("mutex %s owned at %s:%d",		\
-			    (m)->mtx_description, __FILE__, __LINE__);	\
-		break;							\
-	default:							\
-		panic("unknown mtx_assert at %s:%d", __FILE__, __LINE__); \
-	}								\
-} while(0)
+void	mtx_assert(struct mtx *m, int what);
 #else	/* INVARIANTS */
 #define mtx_assert(m, what)
 #endif	/* INVARIANTS */
@@ -264,169 +209,6 @@ do {									\
 #define	MPASS3(ex, file, line)
 #define	MPASS4(ex, what, file, line)
 #endif	/* MUTEX_DEBUG */
-
-#ifdef	WITNESS
-#define WITNESS_ENTER(m, t, f, l)					\
-	if ((m)->mtx_witness != NULL)					\
-		witness_enter((m), (t), (f), (l))
-#define WITNESS_EXIT(m, t, f, l)					\
-	if ((m)->mtx_witness != NULL)					\
-		witness_exit((m), (t), (f), (l))
-
-#define	WITNESS_SLEEP(check, m) witness_sleep(check, (m), __FILE__, __LINE__)
-#define	WITNESS_SAVE_DECL(n)						\
-	const char * __CONCAT(n, __wf);					\
-	int __CONCAT(n, __wl)
-
-#define	WITNESS_SAVE(m, n) 						\
-do {									\
-	if ((m)->mtx_witness != NULL) 					\
-		witness_save(m, &__CONCAT(n, __wf), &__CONCAT(n, __wl));\
-} while (0)
-
-#define	WITNESS_RESTORE(m, n) 						\
-do {									\
-	if ((m)->mtx_witness != NULL)					\
-		witness_restore(m, __CONCAT(n, __wf), __CONCAT(n, __wl));\
-} while (0)
-
-void	witness_init(struct mtx *, int flag);
-void	witness_destroy(struct mtx *);
-void	witness_enter(struct mtx *, int, const char *, int);
-void	witness_try_enter(struct mtx *, int, const char *, int);
-void	witness_exit(struct mtx *, int, const char *, int);
-void	witness_display(void(*)(const char *fmt, ...));
-int	witness_list(struct proc *);
-int	witness_sleep(int, struct mtx *, const char *, int);
-void	witness_save(struct mtx *, const char **, int *);
-void	witness_restore(struct mtx *, const char *, int);
-#else	/* WITNESS */
-#define WITNESS_ENTER(m, t, f, l)
-#define WITNESS_EXIT(m, t, f, l)
-#define	WITNESS_SLEEP(check, m)
-#define	WITNESS_SAVE_DECL(n)
-#define	WITNESS_SAVE(m, n)
-#define	WITNESS_RESTORE(m, n)
-
-/*
- * flag++ is slezoid way of shutting up unused parameter warning
- * in mtx_init()
- */
-#define witness_init(m, flag) flag++
-#define witness_destroy(m)
-#define witness_enter(m, t, f, l)
-#define witness_try_enter(m, t, f, l)
-#define witness_exit(m, t, f, l)
-#endif	/* WITNESS */
-
-/*
- * Assembly macros (for internal use only)
- *------------------------------------------------------------------------------
- */
-
-#define	_V(x)	__STRING(x)
-
-/*
- * Default, unoptimized mutex micro-operations
- */
-
-#ifndef _obtain_lock
-/* Actually obtain mtx_lock */
-#define _obtain_lock(mp, tid)						\
-	atomic_cmpset_acq_ptr(&(mp)->mtx_lock, (void *)MTX_UNOWNED, (tid))
-#endif
-
-#ifndef _release_lock
-/* Actually release mtx_lock */
-#define _release_lock(mp, tid)		       				\
-	atomic_cmpset_rel_ptr(&(mp)->mtx_lock, (tid), (void *)MTX_UNOWNED)
-#endif
-
-#ifndef _release_lock_quick
-/* Actually release mtx_lock quickly assuming that we own it */
-#define	_release_lock_quick(mp) 					\
-	atomic_store_rel_ptr(&(mp)->mtx_lock, (void *)MTX_UNOWNED)
-#endif
-
-#ifndef _getlock_sleep
-/* Get a sleep lock, deal with recursion inline. */
-#define	_getlock_sleep(mp, tid, type) do {				\
-	if (!_obtain_lock(mp, tid)) {					\
-		if (((mp)->mtx_lock & MTX_FLAGMASK) != ((uintptr_t)(tid)))\
-			mtx_enter_hard(mp, (type) & MTX_HARDOPTS, 0);	\
-		else {							\
-			atomic_set_ptr(&(mp)->mtx_lock, MTX_RECURSED);	\
-			(mp)->mtx_recurse++;				\
-		}							\
-	}								\
-} while (0)
-#endif
-
-#ifndef _getlock_spin_block
-/* Get a spin lock, handle recursion inline (as the less common case) */
-#define	_getlock_spin_block(mp, tid, type) do {				\
-	u_int _mtx_intr = save_intr();					\
-	disable_intr();							\
-	if (!_obtain_lock(mp, tid))					\
-		mtx_enter_hard(mp, (type) & MTX_HARDOPTS, _mtx_intr);	\
-	else								\
-		(mp)->mtx_saveintr = _mtx_intr;				\
-} while (0)
-#endif
-
-#ifndef _getlock_norecurse
-/*
- * Get a lock without any recursion handling. Calls the hard enter function if
- * we can't get it inline.
- */
-#define	_getlock_norecurse(mp, tid, type) do {				\
-	if (!_obtain_lock(mp, tid))					\
-		mtx_enter_hard((mp), (type) & MTX_HARDOPTS, 0);		\
-} while (0)
-#endif
-
-#ifndef _exitlock_norecurse
-/*
- * Release a sleep lock assuming we haven't recursed on it, recursion is handled
- * in the hard function.
- */
-#define	_exitlock_norecurse(mp, tid, type) do {				\
-	if (!_release_lock(mp, tid))					\
-		mtx_exit_hard((mp), (type) & MTX_HARDOPTS);		\
-} while (0)
-#endif
-
-#ifndef _exitlock
-/*
- * Release a sleep lock when its likely we recursed (the code to
- * deal with simple recursion is inline).
- */
-#define	_exitlock(mp, tid, type) do {					\
-	if (!_release_lock(mp, tid)) {					\
-		if ((mp)->mtx_lock & MTX_RECURSED) {			\
-			if (--((mp)->mtx_recurse) == 0)			\
-				atomic_clear_ptr(&(mp)->mtx_lock,	\
-				    MTX_RECURSED);			\
-		} else {						\
-			mtx_exit_hard((mp), (type) & MTX_HARDOPTS);	\
-		}							\
-	}								\
-} while (0)
-#endif
-
-#ifndef _exitlock_spin
-/* Release a spin lock (with possible recursion). */
-#define	_exitlock_spin(mp) do {						\
-	if (!mtx_recursed((mp))) {					\
-		int _mtx_intr = (mp)->mtx_saveintr;			\
-									\
-		_release_lock_quick(mp);				\
-		restore_intr(_mtx_intr);				\
-	} else {							\
-		(mp)->mtx_recurse--;					\
-	}								\
-} while (0)
-#endif
 
 /*
  * Externally visible mutex functions.
@@ -460,158 +242,41 @@ extern	char STR_mtx_recurse[];
 extern	char STR_mtx_try_enter_fmt[];
 #endif	/* _KERN_MUTEX_C_ */
 
-#ifndef KLD_MODULE
-/*
- * Get lock 'm', the macro handles the easy (and most common cases) and leaves
- * the slow stuff to the mtx_enter_hard() function.
- *
- * Note: since type is usually a constant much of this code is optimized out.
- */
-_MTX_INLINE void
-_mtx_enter(struct mtx *mtxp, int type, const char *file, int line)
-{
-	struct mtx	*mpp = mtxp;
+#ifdef	WITNESS
+void	witness_save(struct mtx *, const char **, int *);
+void	witness_restore(struct mtx *, const char *, int);
+void	witness_enter(struct mtx *, int, const char *, int);
+void	witness_try_enter(struct mtx *, int, const char *, int);
+void	witness_exit(struct mtx *, int, const char *, int);
+int	witness_list(struct proc *);
+int	witness_sleep(int, struct mtx *, const char *, int);
 
-	/* bits only valid on mtx_exit() */
-	MPASS4(((type) & (MTX_NORECURSE | MTX_NOSWITCH)) == 0,
-	    STR_mtx_bad_type, file, line);
+#define WITNESS_ENTER(m, t, f, l) witness_enter((m), (t), (f), (l))
+#define WITNESS_EXIT(m, t, f, l) witness_exit((m), (t), (f), (l))
+#define	WITNESS_SLEEP(check, m) witness_sleep(check, (m), __FILE__, __LINE__)
+#define	WITNESS_SAVE_DECL(n)						\
+	const char * __CONCAT(n, __wf);					\
+	int __CONCAT(n, __wl)
+#define	WITNESS_SAVE(m, n) 						\
+	witness_save(m, &__CONCAT(n, __wf), &__CONCAT(n, __wl))
+#define	WITNESS_RESTORE(m, n) 						\
+	witness_restore(m, __CONCAT(n, __wf), __CONCAT(n, __wl))
+#else	/* WITNESS */
+#define witness_enter(m, t, f, l)
+#define witness_tryenter(m, t, f, l)
+#define witness_exit(m, t, f, l)
+#define	witness_list(p)
+#define	witness_sleep(c, m, f, l)
 
-	if ((type) & MTX_SPIN) {
-		/*
-		 * Easy cases of spin locks:
-		 *
-		 * 1) We already own the lock and will simply recurse on it (if
-		 *    RLIKELY)
-		 *
-		 * 2) The lock is free, we just get it
-		 */
-		if ((type) & MTX_RLIKELY) {
-			/*
-			 * Check for recursion, if we already have this
-			 * lock we just bump the recursion count.
-			 */
-			if (mpp->mtx_lock == (uintptr_t)CURTHD) {
-				mpp->mtx_recurse++;
-				goto done;
-			}
-		}
-
-		if (((type) & MTX_TOPHALF) == 0) {
-			/*
-			 * If an interrupt thread uses this we must block
-			 * interrupts here.
-			 */
-			if ((type) & MTX_FIRST) {
-				ASS_IEN;
-				disable_intr();
-				_getlock_norecurse(mpp, CURTHD,
-				    (type) & MTX_HARDOPTS);
-			} else {
-				_getlock_spin_block(mpp, CURTHD,
-				    (type) & MTX_HARDOPTS);
-			}
-		} else
-			_getlock_norecurse(mpp, CURTHD, (type) & MTX_HARDOPTS);
-	} else {
-		/* Sleep locks */
-		if ((type) & MTX_RLIKELY)
-			_getlock_sleep(mpp, CURTHD, (type) & MTX_HARDOPTS);
-		else
-			_getlock_norecurse(mpp, CURTHD, (type) & MTX_HARDOPTS);
-	}
-done:
-	WITNESS_ENTER(mpp, type, file, line);
-	if (((type) & MTX_QUIET) == 0)
-		CTR5(KTR_LOCK, STR_mtx_enter_fmt,
-		    mpp->mtx_description, mpp, mpp->mtx_recurse, file, line);
-
-}
-
-/*
- * Attempt to get MTX_DEF lock, return non-zero if lock acquired.
- *
- * XXX DOES NOT HANDLE RECURSION
- */
-_MTX_INLINE int
-_mtx_try_enter(struct mtx *mtxp, int type, const char *file, int line)
-{
-	struct mtx	*const mpp = mtxp;
-	int	rval;
-
-	rval = _obtain_lock(mpp, CURTHD);
-#ifdef WITNESS
-	if (rval && mpp->mtx_witness != NULL) {
-		MPASS(mpp->mtx_recurse == 0);
-		witness_try_enter(mpp, type, file, line);
-	}
+#define WITNESS_ENTER(m, t, f, l)
+#define WITNESS_EXIT(m, t, f, l)
+#define	WITNESS_SLEEP(check, m)
+#define	WITNESS_SAVE_DECL(n)
+#define	WITNESS_SAVE(m, n)
+#define	WITNESS_RESTORE(m, n)
 #endif	/* WITNESS */
-	if (((type) & MTX_QUIET) == 0)
-		CTR5(KTR_LOCK, STR_mtx_try_enter_fmt,
-		    mpp->mtx_description, mpp, rval, file, line);
 
-	return rval;
-}
-
-/*
- * Release lock m.
- */
-_MTX_INLINE void
-_mtx_exit(struct mtx *mtxp, int type, const char *file, int line)
-{
-	struct mtx	*const mpp = mtxp;
-
-	MPASS4(mtx_owned(mpp), STR_mtx_owned, file, line);
-	WITNESS_EXIT(mpp, type, file, line);
-	if (((type) & MTX_QUIET) == 0)
-		CTR5(KTR_LOCK, STR_mtx_exit_fmt,
-		    mpp->mtx_description, mpp, mpp->mtx_recurse, file, line);
-	if ((type) & MTX_SPIN) {
-		if ((type) & MTX_NORECURSE) {
-			int mtx_intr = mpp->mtx_saveintr;
-
-			MPASS4(mpp->mtx_recurse == 0, STR_mtx_recurse,
-			    file, line);
-			_release_lock_quick(mpp);
-			if (((type) & MTX_TOPHALF) == 0) {
-				if ((type) & MTX_FIRST) {
-					ASS_IDIS;
-					enable_intr();
-				} else
-					restore_intr(mtx_intr);
-			}
-		} else {
-			if (((type & MTX_TOPHALF) == 0) &&
-			    (type & MTX_FIRST)) {
-				ASS_IDIS;
-				ASS_SIEN(mpp);
-			}
-			_exitlock_spin(mpp);
-		}
-	} else {
-		/* Handle sleep locks */
-		if ((type) & MTX_RLIKELY)
-			_exitlock(mpp, CURTHD, (type) & MTX_HARDOPTS);
-		else {
-			_exitlock_norecurse(mpp, CURTHD,
-			    (type) & MTX_HARDOPTS);
-		}
-	}
-}
-
-#endif	/* KLD_MODULE */
-
-/* Avoid namespace pollution */
-#ifndef _KERN_MUTEX_C_
-#undef	_obtain_lock
-#undef	_release_lock
-#undef	_release_lock_quick
-#undef	_getlock_sleep
-#undef	_getlock_spin_block
-#undef	_getlock_norecurse
-#undef	_exitlock_norecurse
-#undef	_exitlock
-#undef	_exitlock_spin
-#endif	/* !_KERN_MUTEX_C_ */
+/* XXX jasone Move. */ 
 
 #endif	/* _KERNEL */
 #endif	/* !LOCORE */
