@@ -184,6 +184,7 @@ extern ACPI_STATUS	acpi_FindIndexedResource(ACPI_BUFFER *buf, int index,
 						 ACPI_RESOURCE **resp);
 extern ACPI_STATUS	acpi_AppendBufferResource(ACPI_BUFFER *buf,
 						  ACPI_RESOURCE *res);
+extern ACPI_STATUS	acpi_OverrideInterruptLevel(UINT32 InterruptNumber);
 extern ACPI_STATUS	acpi_SetIntrModel(int model);
 extern ACPI_STATUS	acpi_SetSleepState(struct acpi_softc *sc, int state);
 extern ACPI_STATUS	acpi_Enable(struct acpi_softc *sc);
