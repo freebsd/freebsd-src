@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,9 +27,9 @@
  *	i4b_util.c - layer 2 utility routines
  *	-------------------------------------
  *
- *	$Id: i4b_util.c,v 1.15 1998/12/05 18:05:26 hm Exp $ 
+ *	$Id: i4b_util.c,v 1.17 1999/02/14 09:45:01 hm Exp $ 
  *
- *      last edit-date: [Sat Dec  5 18:31:10 1998]
+ *      last edit-date: [Sun Feb 14 10:32:23 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -165,6 +165,8 @@ i4b_enquiry_response(l2_softc_t *l2sc)
 void
 i4b_invoke_retransmission(l2_softc_t *l2sc, int nr)
 {
+	int x = SPLI4B();
+
 	DBGL2(L2_ERROR, "i4b_invoke_retransmission", ("nr = %d\n", nr ));
 	
 	while(l2sc->vs != nr)
@@ -189,6 +191,8 @@ i4b_invoke_retransmission(l2_softc_t *l2sc, int nr)
 			
 		i4b_i_frame_queued_up(l2sc);
 	}
+
+	splx(x);
 }
 
 /*---------------------------------------------------------------------------*
@@ -258,13 +262,13 @@ i4b_rxd_ack(l2_softc_t *l2sc, int nr)
 	{
 		int s;
 		
+		s = SPLI4B();
+		
 		M128DEC(nr);
 
 		if(l2sc->ua_num != nr)
 			DBGL2(L2_ERROR, "i4b_rxd_ack", ("((N(R)-1)=%d) != (UA=%d) !!!\n", nr, l2sc->ua_num));
 			
-		s = SPLI4B();
-		
 		i4b_Dfreembuf(l2sc->ua_frame);
 		l2sc->ua_num = UA_EMPTY;
 		

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,9 +27,9 @@
  *	i4b_isic.c - global isic stuff
  *	==============================
  *
- *	$Id: i4b_isic.c,v 1.44 1998/12/20 11:07:59 hm Exp $ 
+ *	$Id: i4b_isic.c,v 1.46 1999/02/14 19:51:02 hm Exp $ 
  *
- *      last edit-date: [Fri Dec 18 12:14:07 1998]
+ *      last edit-date: [Sun Feb 14 10:27:20 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -61,7 +61,9 @@
 #if defined(__NetBSD__) && defined(amiga)
 #include <machine/bus.h>
 #else
+#ifndef __bsdi__
 #include <dev/isa/isavar.h>
+#endif
 #endif
 #endif
 
@@ -86,6 +88,48 @@
 
 void isic_settrace(int unit, int val);
 int isic_gettrace(int unit);
+
+#ifdef __bsdi__
+static int isicmatch(struct device *parent, struct cfdata *cf, void *aux);
+static void isicattach(struct device *parent, struct device *self, void *aux);
+struct cfdriver isiccd =
+	{ NULL, "isic", isicmatch, isicattach, DV_IFNET,
+	  sizeof(struct isic_softc) };
+
+int isa_isicmatch(struct device *parent, struct cfdata *cf, struct isa_attach_args *);
+int isa_isicattach(struct device *parent, struct device *self, struct isa_attach_args *ia);
+
+static int
+isicmatch(struct device *parent, struct cfdata *cf, void *aux)
+{
+	struct isa_attach_args *ia = (struct isa_attach_args *) aux;
+	if (ia->ia_bustype == BUS_PCMCIA) {
+		ia->ia_irq = IRQNONE;
+		/* return 1;	Not yet */
+		return 0;	/* for now */
+	}
+	if (ia->ia_bustype == BUS_PNP) {
+		/* return isapnp_isicmatch(parent, cf, ia); */
+		return 0;	/* for now */
+	}
+	return isa_isicmatch(parent, cf, ia);
+}
+
+static void
+isicattach(struct device *parent, struct device *self, void *aux)
+{
+	struct isa_attach_args *ia = (struct isa_attach_args *) aux;
+	struct isic_softc *sc = (struct isic_softc *)self;
+
+	sc->sc_flags = sc->sc_dev.dv_flags;
+	isa_isicattach(parent, self, ia);
+	isa_establish(&sc->sc_id, &sc->sc_dev);
+	sc->sc_ih.ih_fun = isicintr;
+	sc->sc_ih.ih_arg = (void *)sc;
+	intr_establish(ia->ia_irq, &sc->sc_ih, DV_NET);
+	/* Could add a shutdown hook here... */
+}
+#endif
 
 #ifdef __FreeBSD__
 void isicintr_sc(struct isic_softc *sc);

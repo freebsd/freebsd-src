@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,9 +27,9 @@
  *	i4b_l4if.c - Layer 3 interface to Layer 4
  *	-------------------------------------------
  *
- *	$Id: i4b_l4if.c,v 1.17 1998/12/05 18:05:36 hm Exp $ 
+ *	$Id: i4b_l4if.c,v 1.18 1999/02/14 09:45:01 hm Exp $ 
  *
- *      last edit-date: [Sat Dec  5 18:33:16 1998]
+ *      last edit-date: [Sun Feb 14 10:33:44 1999]
  *
  *---------------------------------------------------------------------------*/
 
