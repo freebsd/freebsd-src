@@ -1,5 +1,6 @@
 MAN1=	makewhatis.1
-# MAN8=	makewhatis.local.8
+MAN8=	makewhatis.local.8
+MLINKS=	makewhatis.local.8 catman.local.8
 
 libexecdir=/usr/libexec
 LINKS=${libexecdir}/makewhatis.local ${libexecdir}/catman.local 
