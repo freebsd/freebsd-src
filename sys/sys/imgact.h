@@ -35,6 +35,7 @@
 #define MAXSHELLCMDLEN	128
 
 struct label;
+struct sf_buf;
 struct sysentvec;
 struct thread;
 struct vm_object;
@@ -59,7 +60,7 @@ struct image_params {
 	char interpreted;	/* flag - this executable is interpreted */
 	char interpreter_name[MAXSHELLCMDLEN]; /* name of the interpreter */
 	void *auxargs;		/* ELF Auxinfo structure pointer */
-	struct vm_page *firstpage;	/* first page that we mapped */
+	struct sf_buf *firstpage;	/* first page that we mapped */
 	char *fname;            /* pointer to filename of executable (user space) */
 	unsigned long ps_strings; /* PS_STRINGS for BSD/OS binaries */
 	size_t auxarg_size;
