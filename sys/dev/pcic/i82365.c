@@ -487,7 +487,7 @@ pcic_create_event_thread(void *arg)
 	}
 
 	if (kthread_create(pcic_event_thread, h, &h->event_thread,
-	    0 "%s,%s", device_get_name(PCIC_H2SOFTC(h)->dev), cs)) {
+	    0, "%s,%s", device_get_name(PCIC_H2SOFTC(h)->dev), cs)) {
 		device_printf(PCIC_H2SOFTC(h)->dev,
 		    "cannot create event thread for sock 0x%02x\n", h->sock);
 		panic("pcic_create_event_thread");
