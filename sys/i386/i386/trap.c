@@ -781,7 +781,7 @@ int trapwrite(addr)
 	unsigned addr;
 {
 	struct proc *p;
-	vm_offset_t va, v;
+	vm_offset_t va;
 	struct vmspace *vm;
 	int rv;
 
@@ -804,8 +804,6 @@ int trapwrite(addr)
 			return (1);
 		}
 	}
-
-	v = trunc_page(vtopte(va));
 
 	/*
 	 * fault the data page
