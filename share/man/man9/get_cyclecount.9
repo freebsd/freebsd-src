@@ -22,10 +22,10 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"    $FreeBSD$
+.\" $FreeBSD$
 .\"
 .Dd November 20, 2000
-.Dt GET_CYCLECOUNTER 9
+.Dt GET_CYCLECOUNT 9
 .Os
 .Sh NAME
 .Nm get_cyclecount
@@ -39,13 +39,13 @@
 .Sh DESCRIPTION
 The
 .Fn get_cyclecount
-functon uses a register
+function uses a register
 available in most modern CPUs
 to return a value
 that is monotonically increasing
 inside each CPU.
 .Pp
-In SMP systems,
+On SMP systems,
 there will be a number of
 separate monotonic sequences,
 one for each CPU running.
@@ -54,7 +54,7 @@ selected from one of these sequences,
 dependent on which CPU
 was scheduled to service the request.
 .Pp
-The speed and maximum value
+The speed and the maximum value
 of each counter
 is CPU-dependent.
 Some CPUs
