@@ -37,7 +37,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: sctarg.c,v 1.16 1996/07/14 10:46:52 joerg Exp $
+ *      $Id: sctarg.c,v 1.17 1996/09/08 10:44:18 phk Exp $
  */
 
 #include "opt_bounce.h"
@@ -83,18 +83,18 @@ static void sctarg_strategy(struct buf *bp, struct scsi_link *sc_link);
 
 static struct scsi_device sctarg_switch =
 {
-    NULL,
-    sctargstart,			/* we have a queue, and this is how we service it */
-    NULL,
-    NULL,
-    "sctarg",
-    0,
+	NULL,
+	sctargstart,	/* we have a queue, and this is how we service it */
+	NULL,
+	NULL,
+	"sctarg",
+	0,
 	{0, 0},
 	SDEV_ONCE_ONLY,
-	0,
+	sctargattach,
 	"Processor Target",
 	sctargopen,
-    sizeof(struct scsi_data),
+	sizeof(struct scsi_data),
 	T_TARGET,
 	0,
 	0,
@@ -103,6 +103,17 @@ static struct scsi_device sctarg_switch =
 	0,
 	sctarg_strategy,
 };
+
+static errval
+sctargattach(struct scsi_link *sc_link)
+{
+	struct scsi_data *sctarg;
+
+	sctarg = sc_link->sd;
+	bufq_init(&sctarg->buf_queue);
+	sctarg->flags = 0;
+	return 0;
+}
 
 static errval
 sctarg_open(dev_t dev, int flags, int fmt, struct proc *p,
@@ -188,10 +199,10 @@ sctargstart(unit, unused_flags)
 			return;
 		}
 
-		bp = sctarg->buf_queue.tqh_first;
+		bp = bufq_first(&sctarg->buf_queue);
 		if (bp == NULL)
 			return;
-		TAILQ_REMOVE(&sctarg->buf_queue, bp, b_act);
+		bufq_remove(&sctarg->buf_queue, bp);
 
 		/*
 		 *  Fill out the scsi command
@@ -251,7 +262,7 @@ sctarg_strategy(struct buf *bp, struct scsi_link *sc_link)
 	/*
 	 * Place it at the end of the queue of activities for this device.
 	 */
-	TAILQ_INSERT_TAIL( &sctarg->buf_queue, bp, b_act);
+	bufq_insert_tail(&sctarg->buf_queue, bp);
 
 	/*
 	 * Tell the device to get going on the transfer if it's
