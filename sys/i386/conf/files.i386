@@ -59,7 +59,7 @@ dev/ata/atapi-fd.c		optional	atapifd
 dev/ata/atapi-tape.c		optional	atapist
 dev/ed/if_ed.c			optional	ed
 dev/ed/if_ed_isa.c		optional	ed isa
-#dev/ed/if_ed_pccard.c		optional	ed card
+dev/ed/if_ed_pccard.c		optional	ed card
 dev/fb/fb.c			optional	fb
 dev/fb/fb.c			optional	vga
 dev/fb/splash.c			optional	splash
@@ -207,6 +207,7 @@ i386/isa/if_rdp.c		optional	rdp
 i386/isa/if_sr.c		optional	sr
 i386/isa/if_wi.c		optional	wi
 i386/isa/if_wl.c		optional	wl
+i386/isa/if_wlp.c		optional	wlp
 i386/isa/if_ze.c		optional	ze
 i386/isa/if_zp.c		optional	zp
 i386/isa/intr_machdep.c		standard

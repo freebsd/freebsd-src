@@ -95,15 +95,9 @@ SYSCTL_INT(_machdep_pccard, OID_AUTO, pcic_resume_reset, CTLFLAG_RW,
 
 static int		allocate_driver(struct slot *, struct dev_desc *);
 static void		inserted(void *);
-static void		unregister_device_interrupt(struct pccard_devinfo *);
 static void		disable_slot(struct slot *);
 static int		invalid_io_memory(unsigned long, int);
-static struct pccard_device *find_driver(char *);
-static ointhand2_t	slot_irq_handler;
 static void		power_off_slot(void *);
-
-static void		pccard_configure(void *);
-SYSINIT(pccard, SI_SUB_CONFIGURE, SI_ORDER_MIDDLE + 1, pccard_configure, NULL);
 
 #if	NAPM > 0
 /*
@@ -121,7 +115,6 @@ static struct	apmhook r_hook[MAXSLOT];	/* APM resume */
 static struct slot	*pccard_slots[MAXSLOT];	/* slot entries */
 static struct slot	*slot_list;
 static struct slot_ctrl *cont_list;
-static struct pccard_device *drivers;		/* Card drivers */
 
 /*
  *	The driver interface for read/write uses a block
@@ -156,173 +149,6 @@ static struct cdevsw crd_cdevsw = {
 	/* bmaj */	-1
 };
 
-
-/*
- *	pccard_configure - called by autoconf code.
- *	Probes for various PC-CARD controllers, and
- *	initialises data structures to point to the
- *	various slots.
- *
- *	Each controller indicates the number of slots
- *	that it sees, and these are mapped to a master
- *	slot number accessed via the character device entries.
- *
- *	XXX this is a relic.  Each controller has it's own probe
- *	configuration hook.  Printing a list of configured devices
- *	with pccard support probably isn't all that useful.
- */
-static void
-pccard_configure(dummy)
-	void *dummy;
-{
-	struct pccard_device *drv;
-
-	/* This isn't strictly correct, but works because of initialize order */
-	printf("pccard: initalizing drivers:");
-	for (drv = drivers;  drv != NULL;  drv = drv->next) {
-		pccnbk_wrap_old_driver(drv);
-		printf(" %s", drv->name);
-	}
-	cdevsw_add(&crd_cdevsw);
-	printf("\n");
-}
-
-int
-pccard_module_handler(module_t mod, int what, void *arg)
-{
-	struct pccard_device *drv = (struct pccard_device *)arg;
-
-	switch(what) {
-	case MOD_LOAD:
-		pccard_add_driver(drv);
-		break;
-	case MOD_UNLOAD:
-		pccard_remove_driver(drv);
-		break;
-	default:
-		break;
-	}
-	return 0;
-}
-
-/*
- *	pccard_add_driver - Add a new driver to the list of
- *	drivers available for allocation.
- */
-void
-pccard_add_driver(struct pccard_device *drv)
-{
-	/*
-	 *	If already loaded, then reject the driver.
-	 */
-	if (find_driver(drv->name)) {
-		printf("pccard: driver %s already loaded\n", drv->name);
-		return;
-	}
-	drv->next = drivers;
-	drivers = drv;
-}
-
-/*
- *	pccard_remove_driver - called to unlink driver
- *	from devices. Usually called when drivers are
- *	unloaded from kernel.
- */
-void
-pccard_remove_driver(struct pccard_device *drv)
-{
-	struct slot *slt;
-	struct pccard_devinfo *devi, *next;
-	struct pccard_device *drvlist;
-
-	for (slt = slot_list; slt; slt = slt->next)
-		for (devi = slt->devices; devi; devi = next) {
-			next = devi->next;
-			if (devi->drv == drv)
-				pccard_remove_device(devi);
-		}
-	/*
-	 *	Once all the devices belonging to this driver have been
-	 *	freed, then remove the driver from the list
-	 *	of registered drivers.
-	 */
-	if (drivers == drv)
-		drivers = drv->next;
-	else
-		for (drvlist = drivers; drvlist->next; drvlist = drvlist->next)
-			if (drvlist->next == drv) {
-				drvlist->next = drv->next;
-				break;
-			}
-}
-
-/*
- *	pccard_remove_controller - Called when the slot
- *	driver is unloaded. The plan is to unload
- *	drivers from the slots, and then remove the
- *	slots from the slot list, and then finally
- *	remove the controller structure. Messy...
- */
-void
-pccard_remove_controller(struct slot_ctrl *ctrl)
-{
-	struct slot *slt, *next, *last = 0;
-	struct slot_ctrl *cl;
-	struct pccard_devinfo *devi;
-
-	for (slt = slot_list; slt; slt = next) {
-		next = slt->next;
-		/*
-		 *	If this slot belongs to this controller,
-		 *	remove this slot.
-		 */
-		if (slt->ctrl == ctrl) {
-			pccard_slots[slt->slotnum] = 0;
-			if (slt->insert_seq)
-				untimeout(inserted, (void *)slt, slt->insert_ch);
-			/*
-			 * Unload the drivers attached to this slot.
-			 */
-			while ((devi = slt->devices) != NULL)
-				pccard_remove_device(devi);
-			/*
-			 * Disable the slot and unlink the slot from the 
-			 * slot list.
-			 */
-			disable_slot(slt);
-			if (last)
-				last->next = next;
-			else
-				slot_list = next;
-#if NAPM > 0
-			apm_hook_disestablish(APM_HOOK_SUSPEND,
-				&s_hook[slt->slotnum]);
-			apm_hook_disestablish(APM_HOOK_RESUME,
-				&r_hook[slt->slotnum]);
-#endif
-			if (ctrl->extra && slt->cdata)
-				FREE(slt->cdata, M_DEVBUF);
-			FREE(slt, M_DEVBUF);
-			/*
-			 * Can't use slot after we have freed it.
-			 */
-		} else {
-			last = slt;
-		}
-	}
-	/*
-	 *	Unlink controller structure from controller list.
-	 */
-	if (cont_list == ctrl)
-		cont_list = ctrl->next;
-	else
-		for (cl = cont_list; cl->next; cl = cl->next)
-			if (cl->next == ctrl) {
-				cl->next = ctrl->next;
-				break;
-			}
-}
-
 /*
  *	Power off the slot.
  *	(doing it immediately makes the removal of some cards unstable)
@@ -331,39 +157,19 @@ static void
 power_off_slot(void *arg)
 {
 	struct slot *slt = (struct slot *)arg;
+	int s;
 
+	/* 
+	 * The following will generate an interrupt.  So, to hold off
+	 * the interrupt unitl after disable runs so that we can get rid
+	 * rid of the interrupt before it becomes unsafe to touch the 
+	 * device.
+	 */
+	s = splhigh();
 	/* Power off the slot. */
 	slt->pwr_off_pending = 0;
 	slt->ctrl->disable(slt);
-}
-
-/*
- *	unregister_device_interrupt - Disable the interrupt generation to
- *	the device driver which is handling it, so we can remove it.
- */
-static void
-unregister_device_interrupt(struct pccard_devinfo *devi)
-{
-	struct slot *slt = devi->slt;
-	int s;
-
-	if (devi->running) {
-		s = splhigh();
-		devi->drv->disable(devi);
-		devi->running = 0;
-		if (devi->isahd.id_irq && --slt->irqref <= 0) {
-			slt->ctrl->mapirq(slt, 0);
-			INTRDIS(1<<slt->irq);
-			unregister_pcic_intr(slt->irq, slot_irq_handler);
-			if (devi->drv->imask)
-				INTRUNMASK(*devi->drv->imask,(1<<slt->irq));
-			/* Remove from the PCIC controller imask */
-			if (slt->ctrl->imask)
-				INTRUNMASK(*(slt->ctrl->imask), (1<<slt->irq));
-			slt->irq = 0;
-		}
-		splx(s);
-	}
+	splx(s);
 }
 
 /*
@@ -390,9 +196,7 @@ disable_slot(struct slot *slt)
 	 */
 	pccarddev = devclass_get_device(pccard_devclass, 0);
 	for (devi = slt->devices; devi; devi = devi->next) {
-		unregister_device_interrupt(devi);
 		if (devi->isahd.id_device != 0) {
-			pccnbk_release_resources(devi->isahd.id_device);
 			device_delete_child(pccarddev, devi->isahd.id_device);
 			devi->isahd.id_device = 0;
 		}
@@ -408,11 +212,6 @@ disable_slot(struct slot *slt)
 			slt->mem[i].flags = 0;
 			(void)slt->ctrl->mapmem(slt, i);
 		}
-	for (i = 0; i < slt->ctrl->maxio; i++)
-		if (slt->io[i].flags & IODF_ACTIVE) {
-			slt->io[i].flags = 0;
-			(void)slt->ctrl->mapio(slt, i);
-		}
 }
 
 /*
@@ -427,6 +226,7 @@ slot_suspend(void *arg)
 	/* This code stolen from pccard_event:card_removed */
 	if (slt->state == filled) {
 		int s = splhigh();
+printf("splhigh -- slot_suspend\n");
 		disable_slot(slt);
 		slt->laststate = filled;
 		slt->state = suspend;
@@ -529,35 +329,36 @@ pccard_alloc_slot(struct slot_ctrl *ctrl)
 }
 
 /*
- *	pccard_alloc_intr - allocate an interrupt from the
- *	free interrupts and return its number. The interrupts
- *	allowed are passed as a mask.
+ * Allocate resources for this device in the rman system.
  */
-int
-pccard_alloc_intr(u_int imask, ointhand2_t *hand, int unit,
-		  u_int *maskp, u_int *pcic_imask)
+static int
+pccard_alloc_resources(device_t dev)
 {
-	int irq;
-	unsigned int mask;
+	/* XXX NEED TO DO MEMORY TOO XXX */
+	struct pccard_devinfo *devi = device_get_ivars(dev);
+	int rid;
+	u_long start;
+	u_long count;
+	int e;
 
-	for (irq = 1; irq < ICU_LEN; irq++) {
-		mask = 1ul << irq;
-		if (!(mask & imask))
-			continue;
-		INTRMASK(*maskp, mask);
-		if (register_pcic_intr(irq, unit, 0, hand, maskp, unit) == 0) {
-			/* add this to the PCIC controller's mask */
-			if (pcic_imask)
-				INTRMASK(*pcic_imask, (1 << irq));
-			update_intr_masks();
-			INTREN(mask);
-			return(irq);
-		}
-		/* No luck, remove from mask again... */
-		INTRUNMASK(*maskp, mask);
-		update_intr_masks();
+	start = devi->isahd.id_iobase;
+	count = devi->isahd.id_iosize;
+	    
+	rid = 0;
+	e = bus_set_resource(dev, SYS_RES_IOPORT, rid, start, count);
+	if (e) {
+		printf("ioport error %d\n", e);
+		return e;
 	}
-	return(-1);
+	rid = 0;
+	start = ffs(devi->isahd.id_irq) - 1;
+	count = 1;
+	e = bus_set_resource(dev, SYS_RES_IRQ, rid, start, count);
+	if (e) {
+		printf("irq error %d\n", e);
+		return e;
+	}
+	return(0);
 }
 
 /*
@@ -568,80 +369,20 @@ static int
 allocate_driver(struct slot *slt, struct dev_desc *desc)
 {
 	struct pccard_devinfo *devi;
-	struct pccard_device *drv;
 	device_t pccarddev;
-	char devnam[128];
 	int err, irq = 0;
+	device_t child;
 
 	pccarddev = devclass_get_device(pccard_devclass, 0);
-	snprintf(devnam, sizeof(devnam), "pccard-%s", desc->name);
-	drv = find_driver(desc->name);
-	if (drv == 0)
-		return(ENXIO);
-	/*
-	 *	If an instance of this driver is already installed,
-	 *	but not running, then remove it. If it is running,
-	 *	then reject the request.
-	 */
-	for (devi = slt->devices; devi; devi = devi->next) {
-		if (devi->drv == drv && devi->isahd.id_unit == desc->unit) {
-			if (devi->running) {
-				printf("pccard: %s%d still running\n", 
-				    devi->drv->name, desc->unit);
-				return(EBUSY);
-			}
-			pccard_remove_device(devi);
-			break;
-		}
-	}
-	/*
-	 *	If an interrupt mask has been given, then check it
-	 *	against the slot interrupt (if one has been allocated).
-	 */
-	if (desc->irqmask && drv->imask) {
-		if ((slt->ctrl->irqs & desc->irqmask) == 0) {
-			printf("pccard: PIOCSDRV requested irq (mask 0x%x) is "
-			    "not free (available mask 0x%x)\n", desc->irqmask,
-			    slt->ctrl->irqs);
-			return(EINVAL);
-		}
-		if (slt->irq) {
-			if (((1 << slt->irq) & desc->irqmask) == 0) {
-				printf("pccard: PIOSCDRIV irq %d not in "
-				    "available mask 0x%x\n", slt->irq, 
-				    desc->irqmask);
-				return(EINVAL);
-			}
-			slt->irqref++;
-			irq = slt->irq;
-		} else {
-			/*
-			 * Attempt to allocate an interrupt.
-			 * XXX We lose at the moment if the second 
-			 * device relies on a different interrupt mask.
-			 */
-			irq = pccard_alloc_intr(desc->irqmask,
-				slot_irq_handler, (int)slt,
-				drv->imask, slt->ctrl->imask);
-			if (irq < 0) {
-				printf("pccard: alloc intr failed irq %d\n",
-				    irq);
-				return(EINVAL);
-			}
-			slt->irq = irq;
-			slt->irqref = 1;
-			slt->ctrl->mapirq(slt, slt->irq);
-		}
-	}
+	irq = ffs(desc->irqmask) - 1;
 	MALLOC(devi, struct pccard_devinfo *, sizeof(*devi), M_DEVBUF, M_WAITOK);
 	bzero(devi, sizeof(*devi));
+	strcpy(devi->name, desc->name);
 	/*
 	 *	Create an entry for the device under this slot.
 	 */
 	devi->running = 1;
-	devi->drv = drv;
 	devi->slt = slt;
-	devi->isahd.id_irq = irq;
 	devi->isahd.id_unit = desc->unit;
 	devi->isahd.id_msize = desc->memsize;
 	devi->isahd.id_iobase = desc->iobase;
@@ -661,50 +402,16 @@ allocate_driver(struct slot *slt, struct dev_desc *desc)
 	/*
 	 * XXX I think the following should be done in an attach
 	 * routine, but can't seem to slip the knot to get it working
-	 * right.  This is one reason I call this a kludge
+	 * right.  This is one reason I call this a kludge...
 	 */
-	devi->isahd.id_device = device_add_child(pccarddev, devnam,
+	resource_list_init(&devi->resources);
+	child = devi->isahd.id_device = device_add_child(pccarddev, devi->name,
 	    devi->isahd.id_unit, devi);
-	if ((err = pccnbk_alloc_resources(devi->isahd.id_device)) != 0) {
-		device_delete_child(pccarddev, devi->isahd.id_device);
-		devi->isahd.id_device = 0;
-		free(devi, M_DEVBUF);
-		return(err);
-	}
-	err = device_probe_and_attach(devi->isahd.id_device);
+	pccard_alloc_resources(child);
+	err = device_probe_and_attach(child);
+	if (err)
+		device_delete_child(pccarddev, child);
 	return err;
-}
-
-void
-pccard_remove_device(struct pccard_devinfo *devi)
-{
-	struct slot *slt = devi->slt;
-	struct pccard_devinfo *list;
-
-	/*
-	 *	If an interrupt is enabled on this slot,
-	 *	then unregister it if no-one else is using it.
-	 */
-	unregister_device_interrupt(devi);
-	if (devi->isahd.id_device)
-		pccnbk_release_resources(devi->isahd.id_device);
-	devi->isahd.id_device = NULL;
-
-	/*
-	 *	Remove from device list on this slot.
-	 */
-	if (slt->devices == devi)
-		slt->devices = devi->next;
-	else
-		for (list = slt->devices; list->next; list = list->next)
-			if (list->next == devi) {
-				list->next = devi->next;
-				break;
-			}
-	/*
-	 *	Finally, free the memory space.
-	 */
-	FREE(devi, M_DEVBUF);
 }
 
 /*
@@ -758,6 +465,7 @@ pccard_event(struct slot *slt, enum card_event event)
 		 */
 		if (slt->state == filled) {
 			int s = splhigh();
+printf("splhigh card_removed\n");
 			disable_slot(slt);
 			slt->state = empty;
 			splx(s);
@@ -772,32 +480,6 @@ pccard_event(struct slot *slt, enum card_event event)
 		pccard_insert_beep();
 		break;
 	}
-}
-
-/*
- *	slot_irq_handler - Interrupt handler for shared irq devices.
- */
-static void
-slot_irq_handler(int arg)
-{
-	struct pccard_devinfo *devi;
-	struct slot *slt = (struct slot *)arg;
-
-	/*
-	 *	For each device that has the shared interrupt,
-	 *	call the interrupt handler. If the interrupt was
-	 *	caught, the handler returns true.
-	 */
-	for (devi = slt->devices; devi; devi = devi->next)
-		if (devi->isahd.id_irq && devi->running &&
-		    devi->drv->handler(devi))
-			return;
-	/*
-	 * XXX - Should 'debounce' these for drivers that have recently
-	 * been removed.
-	 */
-	printf("pccard: slot %d, unfielded interrupt (%d)\n", slt->slotnum,
-	    slt->irq);
 }
 
 /*
@@ -853,10 +535,6 @@ crdread(dev_t dev, struct uio *uio, int ioflag)
 	mp = &slt->mem[win];
 	oldmap = *mp;
 	mp->flags = slt->rwmem|MDF_ACTIVE;
-#if 0
-	printf("Rd at offs %d, size %d\n", (int)uio->uio_offset,
-				uio->uio_resid);
-#endif
 	while (uio->uio_resid && error == 0) {
 		mp->card = uio->uio_offset;
 		mp->size = PCCARD_MEMSIZE;
@@ -896,17 +574,13 @@ crdwrite(dev_t dev, struct uio *uio, int ioflag)
 	if (pccard_mem == 0)
 		return(ENOMEM);
 	for (win = 0; win < slt->ctrl->maxmem; win++)
-		if ((slt->mem[win].flags & MDF_ACTIVE)==0)
+		if ((slt->mem[win].flags & MDF_ACTIVE) == 0)
 			break;
 	if (win >= slt->ctrl->maxmem)
 		return(EBUSY);
 	mp = &slt->mem[win];
 	oldmap = *mp;
 	mp->flags = slt->rwmem|MDF_ACTIVE;
-#if 0
-	printf("Wr at offs %d, size %d\n", (int)uio->uio_offset,
-				uio->uio_resid);
-#endif
 	while (uio->uio_resid && error == 0) {
 		mp->card = uio->uio_offset;
 		mp->size = PCCARD_MEMSIZE;
@@ -916,9 +590,6 @@ crdwrite(dev_t dev, struct uio *uio, int ioflag)
 		offs = (unsigned int)uio->uio_offset & (PCCARD_MEMSIZE - 1);
 		p = pccard_kmem + offs;
 		count = MIN(PCCARD_MEMSIZE - offs, uio->uio_resid);
-#if 0
-	printf("Writing %d bytes to address 0x%x\n", count, p);
-#endif
 		error = uiomove(p, count, uio);
 	}
 	/*
@@ -963,7 +634,7 @@ crdioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct proc *p)
 		splx(s);
 		((struct slotstate *)data)->maxmem = slt->ctrl->maxmem;
 		((struct slotstate *)data)->maxio = slt->ctrl->maxio;
-		((struct slotstate *)data)->irqs = slt->ctrl->irqs;
+		((struct slotstate *)data)->irqs = 0;
 		break;
 	/*
 	 * Get memory context.
@@ -1017,7 +688,8 @@ crdioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct proc *p)
 		if (s < 0 || s >= slt->ctrl->maxio)
 			return(EINVAL);
 		slt->io[s] = *((struct io_desc *)data);
-		return(slt->ctrl->mapio(slt, s));
+		/* XXX Don't actually map */
+		return 0;
 		break;
 	/*
 	 * Set memory window flags for read/write interface.
@@ -1124,16 +796,5 @@ invalid_io_memory(unsigned long adr, int size)
 	/* XXX - What's magic about 0xC0000?? */
 	if (adr < 0xC0000 || (adr+size) > IOM_END)
 		return(1);
-	return(0);
-}
-
-static struct pccard_device *
-find_driver(char *name)
-{
-	struct pccard_device *drv;
-
-	for (drv = drivers; drv; drv = drv->next)
-		if (strcmp(drv->name, name)==0)
-			return(drv);
 	return(0);
 }
