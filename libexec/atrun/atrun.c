@@ -25,7 +25,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: atrun.c,v 1.12 1997/11/20 07:21:50 charnier Exp $";
 #endif /* not lint */
 
 /* System Headers */
@@ -221,13 +221,13 @@ run_file(const char *filename, uid_t uid, gid_t gid)
     }
     mailname = mailbuf;
     if (nuid != uid) {
-	syslog(LOG_ERR,"Job %s - userid %d does not match file uid %d",
-		filename, nuid, uid);
+	syslog(LOG_ERR,"Job %s - userid %ld does not match file uid %lu",
+		filename, nuid, (unsigned long)uid);
 	exit(EXIT_FAILURE);
     }
     if (ngid != gid) {
-	syslog(LOG_ERR,"Job %s - groupid %d does not match file gid %d",
-		filename, ngid, gid);
+	syslog(LOG_ERR,"Job %s - groupid %ld does not match file gid %lu",
+		filename, ngid, (unsigned long)gid);
 	exit(EXIT_FAILURE);
     }
     fclose(stream);
