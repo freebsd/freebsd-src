@@ -32,13 +32,17 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1987, 1988, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)time.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -51,14 +55,16 @@ static char sccsid[] = "@(#)time.c	8.1 (Berkeley) 6/6/93";
 
 #include <err.h>
 #include <stdio.h>
+#include <unistd.h>
 
 static int getstathz __P((void));
+static void usage __P((void));
 
+int
 main(argc, argv)
 	int argc;
 	char **argv;
 {
-	extern int optind;
 	register int pid;
 	int ch, status, lflag;
 	struct timeval before, after;
@@ -72,8 +78,7 @@ main(argc, argv)
 			break;
 		case '?':
 		default:
-			fprintf(stderr, "usage: time [-l] command.\n");
-			exit(1);
+			usage();
 		}
 
 	if (!(argc -= optind))
@@ -83,12 +88,11 @@ main(argc, argv)
 	gettimeofday(&before, (struct timezone *)NULL);
 	switch(pid = vfork()) {
 	case -1:			/* error */
-		perror("time");
-		exit(1);
+		err(1, "time");
 		/* NOTREACHED */
 	case 0:				/* child */
 		execvp(*argv, argv);
-		perror(*argv);
+		warn("%s", *argv);
 		_exit(1);
 		/* NOTREACHED */
 	}
@@ -98,7 +102,7 @@ main(argc, argv)
 	while (wait3(&status, 0, &ru) != pid);		/* XXX use waitpid */
 	gettimeofday(&after, (struct timezone *)NULL);
 	if (status&0377)
-		fprintf(stderr, "Command terminated abnormally.\n");
+		warnx("command terminated abnormally");
 	after.tv_sec -= before.tv_sec;
 	after.tv_usec -= before.tv_usec;
 	if (after.tv_usec < 0)
@@ -152,6 +156,13 @@ main(argc, argv)
 			ru.ru_nivcsw, "involuntary context switches");
 	}
 	exit (WIFEXITED(status) ? WEXITSTATUS(status) : EXIT_FAILURE);
+}
+
+static void
+usage()
+{
+	fprintf(stderr, "usage: time [-l] command\n");
+	exit(1);
 }
 
 /*
