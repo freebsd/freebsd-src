@@ -5,7 +5,7 @@
 # dependency lines other than the first are silently ignored.
 #
 aicasm				optional ahc				   \
-	dependency 	"$S/dev/aic7xxx/*.[chyl]"			   \
+	dependency 	"$S/dev/aic7xxx/aicasm/*.[chyl]"		   \
 	compile-with	"${MAKE} -f $S/dev/aic7xxx/aicasm/Makefile MAKESRCPATH=$S/dev/aic7xxx/aicasm" \
 	no-obj no-implicit-rule						   \
 	clean		"aicasm aicasm_gram.c aicasm_scan.c y.tab.h"
