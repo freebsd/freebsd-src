@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: ncal.1,v 1.1.1.1 1997/12/15 20:35:22 helbig Exp $
+.\"	$Id: ncal.1,v 1.2 1997/12/19 21:41:21 helbig Exp $
 .\"
 .Dd December 16, 1997
 .Dt CAL 1
@@ -57,8 +57,6 @@ The options are as follows:
 Display Julian Calendar, if combined with the
 .Fl e
 option, display date of easter according to the Julian Calendar.
-If not specified, the Julian Calendar is assumed till October 4, 1582
-and the Gregorian Calendar thereafter.
 .It Fl e
 Display date of easter (for western churches).
 .It Fl j
@@ -70,17 +68,17 @@ Orthodox Churches).
 Print the country codes and switching days from Julian to Gregorian
 Calendar as they are assumed by
 .Nm ncal .
+The country code as determined from the local environment is marked
+with an asterisk.
 .It Fl s Ar country-code
 Assume the switch from Julian to Gregorian Calendar at the date
 associated with the
 .Ar country-code .
 If not specified,
 .Nm ncal
-assumes October 4, 1582 (on this day the Catholic Church switched to Gregorian
-Calendar) and
-.Nm cal
-thinks with Great Britain and her colonies that
-September 2, 1752 was the date to switch to Gregorian Calendar.
+tries to guess the switch date from the local environment or
+falls back to September 2, 1752. This was when Great
+Britain and her colonies switched to the Gregorian Calendar.
 .It Fl w
 Print the number of the week below each week column.
 .It Fl y
@@ -114,3 +112,6 @@ command appeared in
 This
 manual page and the command was written by
 .An Wolfgang Helbig Aq helbig@FreeBSD.ORG .
+.Sh BUGS
+The assignment of Julian - Gregorian switching dates to
+country codes is historically naive for many countries.

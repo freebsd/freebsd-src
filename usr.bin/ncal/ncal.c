@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ncal.c,v 1.1.1.1 1997/12/15 20:35:22 helbig Exp $	
+ *	$Id: ncal.c,v 1.2 1997/12/31 15:55:08 helbig Exp $	
  */
 #include <calendar.h>
 #include <err.h>
@@ -61,35 +61,45 @@ static struct djswitch {
 	char *cc;	/* Country code according to ISO 3166 */
 	char *nm;	/* Name of country */
 	date dt;	/* Last day of Julian calendar */
+	char *efmt;	/* strftime format for printing date of easter */
 } switches[] = {
-	{"AL", "Albania",	{1912, 11, 30}},
-	{"BG", "Bulgaria",	{1916,  3, 18}},
-	{"CA", "Canada",	{1752,  9,  2}},
-	{"CH", "Switzerland",	{1655,  2, 28}},
-	{"CN", "China",		{1911, 12, 18}},
-	{"CZ", "Czech Republic",{1584,  1,  6}},
-	{"DE", "Germany",	{1700,  2, 18}},
-	{"DK", "Denmark",	{1700,  2, 18}},
-	{"ES", "Spain",		{1582, 10,  4}},
-	{"FR", "France",	{1582, 12,  9}},
-	{"GB", "United Kingdom",{1752,  9,  2}},
-	{"GR", "Greece",	{1924,  3,  9}},
-	{"HU", "Hungary",	{1587, 10, 21}},
-	{"IS", "Iceland",	{1700, 11, 16}},
-	{"IT", "Italy",		{1582, 10,  4}},
-	{"JP", "Japan",		{1918, 12, 18}},
-	{"LV", "Latvia",	{1918,  2,  1}},
-	{"LI", "Lithuania",	{1918,  2,  1}},
-	{"NL", "Netherlands",	{1701,  4, 30}},
-	{"NO", "Norway",	{1700,  2, 18}},
-	{"PT", "Portugal",	{1582, 10,  4}},
-	{"RO", "Romania",	{1920,  3,  4}},
-	{"RU", "Russia",	{1920,  3,  4}},
-	{"SW", "Sweden",	{1753,  2, 17}},
-	{"TR", "Turkey",	{1926, 12, 18}},
-	{"US", "United States",	{1752,  9,  2}},
-	{"YU", "Yugoslavia",	{1919,  3,  4}},
+	{"AL", "Albania",	{1912, 11, 30}, "%e %B %Y"},
+	{"AT", "Austria",	{1582, 10,  4}, "%e. %B %Y"},
+	{"AU", "Australia",	{1752,  9,  2}, "%B %e, %Y"},
+	{"BG", "Bulgaria",	{1916,  3, 18}, "%e %B %Y"},
+	{"CA", "Canada",	{1752,  9,  2}, "%B %e, %Y"},
+	{"CH", "Switzerland",	{1655,  2, 28}, "%e. %B %Y"},
+	{"CN", "China",		{1911, 12, 18}, "%e %B %Y"},
+	{"CZ", "Czech Republic",{1584,  1,  6}, "%e %B %Y"},
+	{"DE", "Germany",	{1700,  2, 18}, "%e. %B %Y"},
+	{"DK", "Denmark",	{1700,  2, 18}, "%e. %B %Y"},
+	{"ES", "Spain",		{1582, 10,  4}, "%e de %B de %Y"},
+	{"FR", "France",	{1582, 12,  9}, "%e. %B %Y"},
+	{"GB", "United Kingdom",{1752,  9,  2}, "%e %B %Y"},
+	{"GR", "Greece",	{1924,  3,  9}, "%e %B %Y"},
+	{"HU", "Hungary",	{1587, 10, 21}, "%e %B %Y"},
+	{"IS", "Iceland",	{1700, 11, 16}, "%e %B %Y"},
+	{"IT", "Italy",		{1582, 10,  4}, "%e %B %Y"},
+	{"JP", "Japan",		{1918, 12, 18}, "%Y\x94N %B%e"},
+	{"LV", "Latvia",	{1918,  2,  1}, "%e %B %Y"},
+	{"LI", "Lithuania",	{1918,  2,  1}, "%e %B %Y"},
+	{"NL", "Netherlands",	{1701,  4, 30}, "%e %B %Y"},
+	{"NO", "Norway",	{1700,  2, 18}, "%e %B %Y"},
+	{"PL", "Poland",	{1582, 10,  4}, "%e %B %Y"},
+	{"PT", "Portugal",	{1582, 10,  4}, "%e %B %Y"},
+	{"RO", "Romania",	{1920,  3,  4}, "%e %B %Y"},
+	{"RU", "Russia",	{1920,  3,  4}, "%e %B %Y"},
+	{"SI", "Slovenia",	{1919,  3,  4}, "%e %B %Y"},
+	{"SU", "USSR",		{1920,  3,  4}, "%e %B %Y"},
+	{"SW", "Sweden",	{1753,  2, 17}, "%e %B %Y"},
+	{"TR", "Turkey",	{1926, 12, 18}, "%e %B %Y"},
+	{"US", "United States",	{1752,  9,  2}, "%B %e, %Y"},
+	{"YU", "Yugoslavia",	{1919,  3,  4}, "%e %B %Y"}
 };
+
+struct djswitch *dftswitch =
+    switches + sizeof(switches) / sizeof(struct djswitch) - 2;
+    /* default switch (should be "US") */
 
 /* Table used to print day of month and week numbers */
 char daystr[] = "     1  2  3  4  5  6  7  8  9 10 11 12 13 14 15"
@@ -139,6 +149,7 @@ char jdaystr[] = "       1   2   3   4   5   6   7   8   9"
 int     flag_weeks;		/* user wants number of week */
 int     nswitch;		/* user defined switch date */
 int	nswitchb;		/* switch date for backward compatibility */
+char   *efmt;			/* strftime format string for printeaster() */
 
 char   *center(char *s, char *t, int w);
 void	mkmonth(int year, int month, int jd_flag, struct monthlines * monthl);
@@ -174,8 +185,30 @@ main(int argc, char *argv[])
 	int	flag_orthodox = 0;	/* use wants Orthodox easter */
 	int	flag_easter = 0;	/* use wants easter date */
 	char	*cp;			/* character pointer */
+	char    *locale;		/* locale to get country code */
 
-	setlocale(LC_TIME, "");
+	/*
+	 * Use locale to determine the country code,
+	 * and use the country code to determine the default
+	 * switchdate and date format from the switches table.
+	 */
+	if ((locale = setlocale(LC_TIME, "")) == NULL)
+		warn("setlocale");
+	if (locale == NULL || locale == "C")
+		locale = "_US";
+	q = switches + sizeof(switches) / sizeof(struct djswitch);
+	for (p = switches; p != q; p++)
+		if ((cp = strstr(locale, p->cc)) != NULL && *(cp - 1) == '_')
+			break;
+	if (p == q) {
+		nswitch = ndaysj(&dftswitch->dt);
+		efmt = dftswitch->efmt;
+	} else {
+		nswitch = ndaysj(&p->dt);
+		efmt = p->efmt;
+		dftswitch = p;
+	}
+
 
 	/*
 	 * Get the filename portion of argv[0] and set flag_backward if
@@ -312,27 +345,26 @@ printcc(void)
 	int n;	/* number of lines to print */
 	int m;	/* offset from left to right table entry on the same line */
 
-#define FSTR "%s %-15s %4d-%02d-%02d"
+#define FSTR "%c%s %-15s%4d-%02d-%02d"
+#define DFLT(p) ((p) == dftswitch ? '*' : ' ')
+#define FSTRARG(p) DFLT(p), (p)->cc, (p)->nm, (p)->dt.y, (p)->dt.m, (p)->dt.d
 
 	n = sizeof(switches) / sizeof(struct djswitch);
 	m = (n + 1) / 2;
 	n /= 2;
-	for (p = switches; p != switches + n; p++) {
-		printf(FSTR"     "FSTR"\n" ,
-	 	    p->cc, p->nm, p->dt.y, p->dt.m, p->dt.d,
-	 	    (p+m)->cc, (p+m)->nm, (p+m)->dt.y,
-		    (p+m)->dt.m, (p+m)->dt.d);
-	}
+	for (p = switches; p != switches + n; p++)
+		printf(FSTR"     "FSTR"\n", FSTRARG(p), FSTRARG(p+m));
 	if (m != n)
-		printf(FSTR"\n",
-	 	    p->cc, p->nm, p->dt.y, p->dt.m, p->dt.d);
+		printf(FSTR"\n", FSTRARG(p));
 }
 
 /* print the date of easter sunday */
 void
 printeaster(int y, int julian, int orthodox)
 {
-	date dt;
+	date    dt;
+	struct tm tm;
+	char    buf[80];
 
 	/* force orthodox easter for years before 1583 */
 	if (y < 1583)
@@ -345,7 +377,13 @@ printeaster(int y, int julian, int orthodox)
 			easterog(y, &dt);
 	else
 		easterg(y, &dt);
-	printf("%04d-%02d-%02d\n", dt.y, dt.m, dt.d);
+
+	memset(&tm, 0, sizeof(tm));
+	tm.tm_year = dt.y - 1900;
+	tm.tm_mon  = dt.m - 1;
+	tm.tm_mday = dt.d;
+	strftime(buf, sizeof(buf), efmt,  &tm);
+	printf("%s\n", buf);
 }
 
 void
