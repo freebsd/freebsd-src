@@ -38,17 +38,20 @@
 .Nm panic
 .Nd bring down system on fatal error
 .Sh SYNOPSIS
-.In sys/param.h
+.In sys/types.h
+.In sys/systm.h
 .Ft void
 .Fn panic "const char *fmt" ...
 .Sh DESCRIPTION
 The
 .Fn panic
-function terminates the running system.  The message
+function terminates the running system.
+The message
 .Fa fmt
 is a
 .Xr printf 3
-style format string.  The message is printed to the console and the location
+style format string.
+The message is printed to the console and the location
 .Fa panicstr
 is set to the address of the message text for retrieval from the OS
 core dump.
