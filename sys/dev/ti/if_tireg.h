@@ -807,16 +807,16 @@ struct ti_cmd_desc {
  * that 'sc' and 'cmd' are in local scope.
  */
 #define TI_DO_CMD(x, y, z)		\
-	cmd.ti_cmd = x;			\
-	cmd.ti_code = y;		\
-	cmd.ti_idx = z;			\
+	cmd.ti_cmd = (x);		\
+	cmd.ti_code = (y);		\
+	cmd.ti_idx = (z);		\
 	ti_cmd(sc, &cmd);
 
 #define TI_DO_CMD_EXT(x, y, z, v, w)	\
-	cmd.ti_cmd = x;			\
-	cmd.ti_code = y;		\
-	cmd.ti_idx = z;			\
-	ti_cmd_ext(sc, &cmd, v, w);
+	cmd.ti_cmd = (x);		\
+	cmd.ti_code = (y);		\
+	cmd.ti_idx = (z);		\
+	ti_cmd_ext(sc, &cmd, (v), (w));
 
 /*
  * Other utility macros.

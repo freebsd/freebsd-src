@@ -165,22 +165,22 @@ DRIVER_MODULE(if_ste, pci, ste_driver, ste_devclass, 0, 0);
 DRIVER_MODULE(miibus, ste, miibus_driver, miibus_devclass, 0, 0);
 
 #define STE_SETBIT4(sc, reg, x)				\
-	CSR_WRITE_4(sc, reg, CSR_READ_4(sc, reg) | x)
+	CSR_WRITE_4(sc, reg, CSR_READ_4(sc, reg) | (x))
 
 #define STE_CLRBIT4(sc, reg, x)				\
-	CSR_WRITE_4(sc, reg, CSR_READ_4(sc, reg) & ~x)
+	CSR_WRITE_4(sc, reg, CSR_READ_4(sc, reg) & ~(x))
 
 #define STE_SETBIT2(sc, reg, x)				\
-	CSR_WRITE_2(sc, reg, CSR_READ_2(sc, reg) | x)
+	CSR_WRITE_2(sc, reg, CSR_READ_2(sc, reg) | (x))
 
 #define STE_CLRBIT2(sc, reg, x)				\
-	CSR_WRITE_2(sc, reg, CSR_READ_2(sc, reg) & ~x)
+	CSR_WRITE_2(sc, reg, CSR_READ_2(sc, reg) & ~(x))
 
 #define STE_SETBIT1(sc, reg, x)				\
-	CSR_WRITE_1(sc, reg, CSR_READ_1(sc, reg) | x)
+	CSR_WRITE_1(sc, reg, CSR_READ_1(sc, reg) | (x))
 
 #define STE_CLRBIT1(sc, reg, x)				\
-	CSR_WRITE_1(sc, reg, CSR_READ_1(sc, reg) & ~x)
+	CSR_WRITE_1(sc, reg, CSR_READ_1(sc, reg) & ~(x))
 
 
 #define MII_SET(x)		STE_SETBIT1(sc, STE_PHYCTL, x)
