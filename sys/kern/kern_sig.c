@@ -2521,7 +2521,7 @@ coredump(struct thread *td)
 	struct flock lf;
 	struct nameidata nd;
 	struct vattr vattr;
-	int error, error1, flags;
+	int error, error1, flags, locked;
 	struct mount *mp;
 	char *name;			/* name of corefile */
 	off_t limit;
@@ -2575,9 +2575,7 @@ restart:
 	lf.l_start = 0;
 	lf.l_len = 0;
 	lf.l_type = F_WRLCK;
-	error = VOP_ADVLOCK(vp, (caddr_t)p, F_SETLK, &lf, F_FLOCK);
-	if (error)
-		goto out2;
+	locked = (VOP_ADVLOCK(vp, (caddr_t)p, F_SETLK, &lf, F_FLOCK) == 0);
 
 	if (vn_start_write(vp, &mp, V_NOWAIT) != 0) {
 		lf.l_type = F_UNLCK;
@@ -2603,8 +2601,10 @@ restart:
 	  p->p_sysent->sv_coredump(td, vp, limit) :
 	  ENOSYS;
 
-	lf.l_type = F_UNLCK;
-	VOP_ADVLOCK(vp, (caddr_t)p, F_UNLCK, &lf, F_FLOCK);
+	if (locked) {
+		lf.l_type = F_UNLCK;
+		VOP_ADVLOCK(vp, (caddr_t)p, F_UNLCK, &lf, F_FLOCK);
+	}
 	vn_finished_write(mp);
 out2:
 	error1 = vn_close(vp, FWRITE, cred, td);
