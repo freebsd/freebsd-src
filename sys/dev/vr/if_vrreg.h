@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_vrreg.h,v 1.3 1999/02/23 15:38:24 wpaul Exp $
+ *	$Id: if_vrreg.h,v 1.4 1999/05/06 15:32:50 wpaul Exp $
  */
 
 /*
@@ -402,6 +402,9 @@ struct vr_softc {
 	struct ifmedia		ifmedia;	/* media info */
 	bus_space_handle_t	vr_bhandle;	/* bus space handle */
 	bus_space_tag_t		vr_btag;	/* bus space tag */
+	struct resource		*vr_res;
+	struct resource		*vr_irq;
+	void			*vr_intrhand;
 	struct vr_type		*vr_info;	/* Rhine adapter info */
 	struct vr_type		*vr_pinfo;	/* phy info */
 	u_int8_t		vr_unit;	/* interface number */
@@ -433,6 +436,7 @@ struct vr_softc {
 	bus_space_read_1(sc->vr_btag, sc->vr_bhandle, reg)
 
 #define VR_TIMEOUT		1000
+#define ETHER_ALIGN		2
 
 /*
  * General constants that are fun to know.
