@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)buf.h	8.9 (Berkeley) 3/30/95
- * $Id: buf.h,v 1.38 1997/02/22 09:44:49 peter Exp $
+ * $Id: buf.h,v 1.39 1997/06/15 17:56:53 dyson Exp $
  */
 
 #ifndef _SYS_BUF_H_
@@ -164,9 +164,6 @@ struct buf {
  * Definitions for the buffer free lists.
  */
 #define BUFFER_QUEUES	6	/* number of free buffer queues */
-
-extern LIST_HEAD(bufhashhdr, buf) bufhashtbl[BUFHSZ], invalhash;
-extern TAILQ_HEAD(bqueues, buf) bufqueues[BUFFER_QUEUES];
 
 #define QUEUE_NONE	0	/* on no queue */
 #define QUEUE_LOCKED	1	/* locked buffers */
