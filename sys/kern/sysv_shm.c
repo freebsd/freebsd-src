@@ -46,6 +46,7 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/sysent.h>
+#include <sys/jail.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -223,6 +224,9 @@ shmdt(p, uap)
 	struct shmmap_state *shmmap_s;
 	int i;
 
+	if (!jail_sysvipc_allowed && p->p_prison != NULL)
+		return (ENOSYS);
+
 	shmmap_s = (struct shmmap_state *)p->p_vmspace->vm_shm;
  	if (shmmap_s == NULL)
  	    return EINVAL;
@@ -256,6 +260,9 @@ shmat(p, uap)
 	vm_prot_t prot;
 	vm_size_t size;
 	int rv;
+
+	if (!jail_sysvipc_allowed && p->p_prison != NULL)
+		return (ENOSYS);
 
 	shmmap_s = (struct shmmap_state *)p->p_vmspace->vm_shm;
 	if (shmmap_s == NULL) {
@@ -348,6 +355,9 @@ oshmctl(p, uap)
 	struct shmid_ds *shmseg;
 	struct oshmid_ds outbuf;
 
+	if (!jail_sysvipc_allowed && p->p_prison != NULL)
+		return (ENOSYS);
+
 	shmseg = shm_find_segment_by_shmid(uap->shmid);
 	if (shmseg == NULL)
 		return EINVAL;
@@ -395,6 +405,9 @@ shmctl(p, uap)
 	int error;
 	struct shmid_ds inbuf;
 	struct shmid_ds *shmseg;
+
+	if (!jail_sysvipc_allowed && p->p_prison != NULL)
+		return (ENOSYS);
 
 	shmseg = shm_find_segment_by_shmid(uap->shmid);
 	if (shmseg == NULL)
@@ -572,6 +585,9 @@ shmget(p, uap)
 {
 	int segnum, mode, error;
 
+	if (!jail_sysvipc_allowed && p->p_prison != NULL)
+		return (ENOSYS);
+
 	mode = uap->shmflg & ACCESSPERMS;
 	if (uap->key != IPC_PRIVATE) {
 	again:
@@ -599,6 +615,9 @@ shmsys(p, uap)
 		int	a4;
 	} */ *uap;
 {
+
+	if (!jail_sysvipc_allowed && p->p_prison != NULL)
+		return (ENOSYS);
 
 	if (uap->which >= sizeof(shmcalls)/sizeof(shmcalls[0]))
 		return EINVAL;
