@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_ioctl.c,v 1.30.2.1 1999/07/17 16:59:51 marcel Exp $
+ *  $Id: linux_ioctl.c,v 1.30.2.2 1999/07/17 18:20:33 marcel Exp $
  */
 
 #include <sys/param.h>
@@ -447,6 +447,10 @@ linux_tiocsserial(struct file *fp, struct linux_serial_struct *lss)
     return;
 }
 
+static unsigned dirbits[4] = { IOC_VOID, IOC_OUT, IOC_IN, IOC_INOUT };
+
+#define SETDIR(c)       (((c) & ~IOC_DIRMASK) | dirbits[args->cmd >> 30])
+
 int
 linux_ioctl(struct proc *p, struct linux_ioctl_args *args)
 {
@@ -837,71 +841,71 @@ linux_ioctl(struct proc *p, struct linux_ioctl_args *args)
 	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_SOUND_MIXER_WRITE_VOLUME:
-	args->cmd = SOUND_MIXER_WRITE_VOLUME;
+	args->cmd = SETDIR(SOUND_MIXER_WRITE_VOLUME);
 	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_SOUND_MIXER_WRITE_BASS:
-	args->cmd = SOUND_MIXER_WRITE_BASS;
+	args->cmd = SETDIR(SOUND_MIXER_WRITE_BASS);
 	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_SOUND_MIXER_WRITE_TREBLE:
-	args->cmd = SOUND_MIXER_WRITE_TREBLE;
+	args->cmd = SETDIR(SOUND_MIXER_WRITE_TREBLE);
 	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_SOUND_MIXER_WRITE_SYNTH:
-	args->cmd = SOUND_MIXER_WRITE_SYNTH;
+	args->cmd = SETDIR(SOUND_MIXER_WRITE_SYNTH);
 	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_SOUND_MIXER_WRITE_PCM:
-	args->cmd = SOUND_MIXER_WRITE_PCM;
+	args->cmd = SETDIR(SOUND_MIXER_WRITE_PCM);
 	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_SOUND_MIXER_WRITE_SPEAKER:
-	args->cmd = SOUND_MIXER_WRITE_SPEAKER;
+	args->cmd = SETDIR(SOUND_MIXER_WRITE_SPEAKER);
 	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_SOUND_MIXER_WRITE_LINE:
-	args->cmd = SOUND_MIXER_WRITE_LINE;
+	args->cmd = SETDIR(SOUND_MIXER_WRITE_LINE);
 	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_SOUND_MIXER_WRITE_MIC:
-	args->cmd = SOUND_MIXER_WRITE_MIC;
+	args->cmd = SETDIR(SOUND_MIXER_WRITE_MIC);
 	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_SOUND_MIXER_WRITE_CD:
-	args->cmd = SOUND_MIXER_WRITE_CD;
+	args->cmd = SETDIR(SOUND_MIXER_WRITE_CD);
 	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_SOUND_MIXER_WRITE_IMIX:
-	args->cmd = SOUND_MIXER_WRITE_IMIX;
+	args->cmd = SETDIR(SOUND_MIXER_WRITE_IMIX);
 	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_SOUND_MIXER_WRITE_ALTPCM:
-	args->cmd = SOUND_MIXER_WRITE_ALTPCM;
+	args->cmd = SETDIR(SOUND_MIXER_WRITE_ALTPCM);
 	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_SOUND_MIXER_WRITE_RECLEV:
-	args->cmd = SOUND_MIXER_WRITE_RECLEV;
+	args->cmd = SETDIR(SOUND_MIXER_WRITE_RECLEV);
 	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_SOUND_MIXER_WRITE_IGAIN:
-	args->cmd = SOUND_MIXER_WRITE_IGAIN;
+	args->cmd = SETDIR(SOUND_MIXER_WRITE_IGAIN);
 	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_SOUND_MIXER_WRITE_OGAIN:
-	args->cmd = SOUND_MIXER_WRITE_OGAIN;
+	args->cmd = SETDIR(SOUND_MIXER_WRITE_OGAIN);
 	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_SOUND_MIXER_WRITE_LINE1:
-	args->cmd = SOUND_MIXER_WRITE_LINE1;
+	args->cmd = SETDIR(SOUND_MIXER_WRITE_LINE1);
 	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_SOUND_MIXER_WRITE_LINE2:
-	args->cmd = SOUND_MIXER_WRITE_LINE2;
+	args->cmd = SETDIR(SOUND_MIXER_WRITE_LINE2);
 	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_SOUND_MIXER_WRITE_LINE3:
-	args->cmd = SOUND_MIXER_WRITE_LINE3;
+	args->cmd = SETDIR(SOUND_MIXER_WRITE_LINE3);
 	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_SOUND_MIXER_READ_DEVMASK:
