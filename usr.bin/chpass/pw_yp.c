@@ -35,7 +35,7 @@
  * Center for Telecommunications Research
  * Columbia University, New York City
  *
- *	$Id: pw_yp.c,v 1.3 1996/02/23 16:08:58 wpaul Exp $
+ *	$Id: pw_yp.c,v 1.4 1996/03/04 15:34:43 wpaul Exp $
  */
 
 #ifdef YP
@@ -277,7 +277,8 @@ int use_yp (user, uid, which)
 	bf[0] = _PW_KEYYPENABLED;
 	key.data = (u_char *)bf;
 	key.size = 1;
-	if (!(dbp->get)(dbp,&key,&data,0) || (yp_domain && yp_server)) {
+	if ((!(dbp->get)(dbp,&key,&data,0) && _yp_check(NULL)) ||
+						(yp_domain && yp_server)) {
 		server = get_yp_master(0);
 
 		/* Is the user in the NIS passwd map */
