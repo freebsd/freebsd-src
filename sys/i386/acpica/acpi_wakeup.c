@@ -52,7 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <i386/isa/intr_machdep.h>
 
 #include "acpi.h"
-#include <dev/acpica/acpica_support.h>
 #include <dev/acpica/acpivar.h>
 
 #include "acpi_wakecode.h"
@@ -254,12 +253,14 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 		if (acpi_get_verbose(sc))
 			acpi_printcpu();
 
+		/* Call ACPICA to enter the desired sleep state */
+		ACPI_DISABLE_IRQS();
 		ACPI_FLUSH_CPU_CACHE(); 
-
 		if (state == ACPI_STATE_S4 && sc->acpi_s4bios)
-			status = AcpiEnterSleepStateS4Bios();
+			status = AcpiEnterSleepStateS4bios();
 		else
 			status = AcpiEnterSleepState(state);
+		ACPI_ENABLE_IRQS();
 
 		if (status != AE_OK) {
 			device_printf(sc->acpi_dev,
