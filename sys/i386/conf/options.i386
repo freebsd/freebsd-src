@@ -1,4 +1,4 @@
-#	$Id: options.i386,v 1.103 1999/01/11 03:18:35 yokota Exp $
+#	$Id: options.i386,v 1.104 1999/01/23 10:51:58 yokota Exp $
 
 DISABLE_PSE
 IDE_DELAY
@@ -108,6 +108,8 @@ EISA_SLOTS		opt_eisa.h
 FDC_DEBUG			opt_fdc.h
 FDC_PRINT_BOGUS_CHIPTYPE	opt_fdc.h
 FDC_YE				opt_fdc.h
+
+FE_8BIT_SUPPORT		opt_fe.h
 
 # pcvt(4) has a bunch of options
 FAT_CURSOR		opt_pcvt.h
