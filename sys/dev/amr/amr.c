@@ -708,7 +708,7 @@ amr_enquiry(struct amr_softc *sc, size_t bufsize, u_int8_t cmd, u_int8_t cmdsub,
     if ((result = malloc(bufsize, M_DEVBUF, M_NOWAIT)) == NULL)
 	goto out;
     /* set command flags */
-    ac->ac_flags |= AMR_CMD_PRIORITY | AMR_CMD_DATAOUT;
+    ac->ac_flags |= AMR_CMD_PRIORITY | AMR_CMD_DATAIN;
     
     /* point the command at our data */
     ac->ac_data = result;
