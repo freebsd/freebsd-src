@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.140 1999/01/11 15:05:39 brian Exp $
+.\" $Id: ppp.8,v 1.141 1999/01/19 22:15:41 brian Exp $
 .Dd 20 September 1995
 .nr XX \w'\fC00'
 .Os FreeBSD
@@ -1286,7 +1286,7 @@ and represent the TH_ACK, TH_SYN and TH_FIN or TH_RST TCP flags respectively.
 .El
 .Pp
 .It
-Each filter can hold up to 20 rules, starting from rule 0.
+Each filter can hold up to 40 rules, starting from rule 0.
 The entire rule set is not effective until rule 0 is defined,
 ie. the default is to allow everything through.
 .It
@@ -3263,7 +3263,7 @@ Filtering is done prior to any IP alterations that might be done by the
 alias engine.  By default all filter sets allow all packets to pass.
 Rules are processed in order according to
 .Ar rule-no .
-Up to 20 rules may be given for each set.  If a packet doesn't match
+Up to 40 rules may be given for each set.  If a packet doesn't match
 any of the rules in a given set, it is discarded.  In the case of
 .Em in
 and
