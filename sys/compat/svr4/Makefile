@@ -2,6 +2,8 @@
 #
 # $FreeBSD$
 
+MAINTAINER=	newton@freebsd.org
+
 all:
 	@echo "make svr4_sysent.c only"
 
