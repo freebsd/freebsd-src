@@ -47,7 +47,6 @@
 int	ddp_cksum = 1;
 
 int
-/*ddp_output( struct ddpcb *ddp, struct mbuf *m)*/
 ddp_output( struct mbuf *m, struct socket *so)
 {
     struct ddpehdr	*deh;
