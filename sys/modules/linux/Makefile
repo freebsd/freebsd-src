@@ -10,9 +10,6 @@ SRCS=	linux_file.c linux_ioctl.c linux_machdep.c linux_misc.c \
 	linux_dummy.c linux_sysent.c linux_sysvec.c linux_util.c \
 	opt_compat.h opt_linux.h opt_vmpage.h vnode_if.h
 OBJS=	linux_locore.o
-.if exists(${DESTDIR}/usr/share/man/man8)
-MAN8=	linux.8
-.endif
 
 .if ${MACHINE_ARCH} != "alpha"
 SRCS+=  imgact_linux.c linux_ipc.c
