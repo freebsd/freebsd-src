@@ -234,23 +234,38 @@ ata_completed(void *context, int dummy)
     ATA_DEBUG_RQ(request, "completed called");
 
     if (request->flags & ATA_R_TIMEOUT) {
-	ata_reinit(channel);
 
-	/* if retries still permit, reinject this request */
-	if (request->retries-- > 0) {
-	    request->flags &= ~ATA_R_TIMEOUT;
-	    request->flags |= (ATA_R_IMMEDIATE | ATA_R_REQUEUE);
-	    ata_queue_request(request);
-	    return;
-	}
-
-	/* otherwise just finish with error */
-	else {
+	/* if negative retry count just give up and unlock channel HW */
+	if (request->retries < 0) {
 	    if (!(request->flags & ATA_R_QUIET))
 		ata_prtdev(request->device,
-			   "FAILURE - %s timed out\n",
+			   "FAILURE - %s no interrupt\n",
 			   ata_cmd2str(request));
 	    request->result = EIO;
+	    ATA_UNLOCK_CH(channel);
+	    channel->locking(channel, ATA_LF_UNLOCK);
+	}
+	else {
+
+	    /* reset controller and devices */
+	    ata_reinit(channel);
+
+	    /* if retries still permit, reinject this request */
+	    if (request->retries-- > 0) {
+		request->flags &= ~ATA_R_TIMEOUT;
+		request->flags |= (ATA_R_IMMEDIATE | ATA_R_REQUEUE);
+		ata_queue_request(request);
+		return;
+	    }
+
+	    /* otherwise just finish with error */
+	    else {
+		if (!(request->flags & ATA_R_QUIET))
+		    ata_prtdev(request->device,
+			       "FAILURE - %s timed out\n",
+			       ata_cmd2str(request));
+		request->result = EIO;
+	    }
 	}
     }
     else {
@@ -402,7 +417,7 @@ ata_timeout(struct ata_request *request)
     }
 
     /* report that we timed out */
-    if (!(request->flags & ATA_R_QUIET)) {
+    if (!(request->flags & ATA_R_QUIET) && request->retries > 0) {
 	ata_prtdev(request->device,
 		   "TIMEOUT - %s retrying (%d retr%s left)",
 		   ata_cmd2str(request), request->retries,
