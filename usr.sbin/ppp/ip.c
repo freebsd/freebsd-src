@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ip.c,v 1.38.2.16 1998/03/24 18:47:04 brian Exp $
+ * $Id: ip.c,v 1.38.2.17 1998/04/03 19:21:24 brian Exp $
  *
  *	TODO:
  *		o Return ICMP message for filterd packet
@@ -103,16 +103,17 @@ PortMatch(int op, u_short pport, u_short rport)
 static int
 FilterCheck(struct ip *pip, struct filter *filter)
 {
-  int gotinfo, cproto, estab, n;
+  int gotinfo, cproto, estab, n, len, didname;
   struct tcphdr *th;
   struct udphdr *uh;
   struct icmp *ih;
   char *ptop;
   u_short sport, dport;
   struct filterent *fp = filter->rule;
+  char dbuff[100];
 
   if (fp->action) {
-    cproto = gotinfo = estab = 0;
+    cproto = gotinfo = estab = didname = 0;
     sport = dport = 0;
     for (n = 0; n < MAXFILTERS; n++) {
       if (fp->action) {
@@ -120,7 +121,10 @@ FilterCheck(struct ip *pip, struct filter *filter)
         if (filter->fragok && (ntohs(pip->ip_off) & IP_OFFMASK) != 0)
 	  return (A_PERMIT);
 
-	LogPrintf(LogDEBUG, "rule = %d\n", n);
+        if (!didname)
+          LogPrintf(LogDEBUG, "%s filter:\n", filter->name);
+        didname = 1;
+
 	if ((pip->ip_src.s_addr & fp->smask.s_addr) ==
 	    (fp->saddr.s_addr & fp->smask.s_addr) &&
 	    (pip->ip_dst.s_addr & fp->dmask.s_addr) ==
@@ -134,14 +138,19 @@ FilterCheck(struct ip *pip, struct filter *filter)
 		cproto = P_ICMP;
 		ih = (struct icmp *) ptop;
 		sport = ih->icmp_type;
-		estab = 1;
+		estab = -1;
+                if (LogIsKept(LogDEBUG))
+		  snprintf(dbuff, sizeof dbuff, "sport = %d", sport);
 		break;
 	      case IPPROTO_UDP:
 		cproto = P_UDP;
 		uh = (struct udphdr *) ptop;
 		sport = ntohs(uh->uh_sport);
 		dport = ntohs(uh->uh_dport);
-		estab = 1;
+		estab = -1;
+                if (LogIsKept(LogDEBUG))
+		  snprintf(dbuff, sizeof dbuff, "sport = %d, dport = %d",
+                           sport, dport);
 		break;
 	      case IPPROTO_TCP:
 		cproto = P_TCP;
@@ -149,21 +158,44 @@ FilterCheck(struct ip *pip, struct filter *filter)
 		sport = ntohs(th->th_sport);
 		dport = ntohs(th->th_dport);
 		estab = (th->th_flags & TH_ACK);
-		if (estab == 0)
-		  LogPrintf(LogDEBUG, "flag = %02x, sport = %d, dport = %d\n",
-			    th->th_flags, sport, dport);
+                if (LogIsKept(LogDEBUG) && !estab)
+		  snprintf(dbuff, sizeof dbuff,
+                           "flags = %02x, sport = %d, dport = %d",
+                           th->th_flags, sport, dport);
 		break;
 	      default:
-		return (A_DENY);/* We'll block unknown type of packet */
+		return (A_DENY);       /* We'll block unknown type of packet */
 	      }
+              if (LogIsKept(LogDEBUG)) {
+                if (estab != -1) {
+                  len = strlen(dbuff);
+                  snprintf(dbuff + len, sizeof dbuff - len, ", estab = %d",
+                           estab);
+                }
+	        LogPrintf(LogDEBUG, " Filter: proto = %s, %s\n",
+                          filter_Proto2Nam(cproto), dbuff);
+              }
 	      gotinfo = 1;
-	      LogPrintf(LogDEBUG, "dir = %p, proto = %d, srcop = %d,"
-			" dstop = %d, estab = %d\n", fp, cproto,
-			fp->opt.srcop, fp->opt.dstop, estab);
 	    }
-	    LogPrintf(LogDEBUG, "check0: rule = %d, proto = %d, sport = %d,"
-		      " dport = %d\n", n, cproto, sport, dport);
-	    LogPrintf(LogDEBUG, "check0: action = %d\n", fp->action);
+            if (LogIsKept(LogDEBUG)) {
+	      if (fp->opt.srcop != OP_NONE) {
+                snprintf(dbuff, sizeof dbuff, ", src %s %d",
+                         filter_Op2Nam(fp->opt.srcop), fp->opt.srcport);
+                len = strlen(dbuff);
+              } else
+                len = 0;
+	      if (fp->opt.dstop != OP_NONE) {
+                snprintf(dbuff + len, sizeof dbuff - len,
+                         ", dst %s %d", filter_Op2Nam(fp->opt.dstop),
+                         fp->opt.dstport);
+              } else if (!len)
+                *dbuff = '\0';
+
+	      LogPrintf(LogDEBUG, "  rule = %d: Address match, "
+                        "check against proto %s%s, action = %s\n",
+                        n, filter_Proto2Nam(fp->proto),
+                        dbuff, filter_Action2Nam(fp->action));
+            }
 
 	    if (cproto == fp->proto) {
 	      if ((fp->opt.srcop == OP_NONE ||
@@ -178,10 +210,12 @@ FilterCheck(struct ip *pip, struct filter *filter)
 	    }
 	  } else {
 	    /* Address is mached. Make a decision. */
-	    LogPrintf(LogDEBUG, "check1: action = %d\n", fp->action);
+	    LogPrintf(LogDEBUG, "  rule = %d: Address match, action = %s\n", n,
+                      filter_Action2Nam(fp->action));
 	    return (fp->action);
 	  }
-	}
+	} else
+	  LogPrintf(LogDEBUG, "  rule = %d: Address mismatch\n", n);
       }
       fp++;
     }

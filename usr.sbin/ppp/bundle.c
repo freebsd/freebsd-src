@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.33 1998/03/25 18:38:38 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.34 1998/04/03 19:21:06 brian Exp $
  */
 
 #include <sys/param.h>
@@ -533,6 +533,7 @@ bundle_Create(const char *prefix)
   bundle.filter.out.fragok = bundle.filter.out.logok = 1;
   bundle.filter.out.name = "OUT";
   bundle.filter.dial.name = "DIAL";
+  bundle.filter.dial.logok = 1;
   bundle.filter.alive.name = "ALIVE";
   bundle.filter.alive.logok = 1;
   memset(&bundle.idle.timer, '\0', sizeof bundle.idle.timer);

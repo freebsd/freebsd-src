@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.121.2.40 1998/04/03 19:21:36 brian Exp $
+ * $Id: main.c,v 1.121.2.41 1998/04/03 19:24:17 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -395,9 +395,8 @@ main(int argc, char **argv)
 
   if (label) {
     if (SelectSystem(bundle, label, CONFFILE) < 0) {
-      LogPrintf(LogWARN, "Destination system %s not found in conf file.\n",
-                GetLabel());
-      Cleanup(EX_START);
+      prompt_Printf(&prompt, "Destination system (%s) not found.\n", label);
+      AbortProgram(EX_START);
     }
     /*
      * We don't SetLabel() 'till now in case SelectSystem() has an
@@ -406,9 +405,9 @@ main(int argc, char **argv)
     SetLabel(label);
     if (mode & MODE_AUTO &&
 	bundle->ncp.ipcp.cfg.peer_range.ipaddr.s_addr == INADDR_ANY) {
-      LogPrintf(LogWARN, "You must \"set ifaddr\" in label %s for auto mode.\n",
-		label);
-      Cleanup(EX_START);
+      prompt_Printf(&prompt, "You must \"set ifaddr\" in label %s for "
+                    "auto mode.\n", label);
+      AbortProgram(EX_START);
     }
   }
 
@@ -419,13 +418,13 @@ main(int argc, char **argv)
 
       if (mode & MODE_BACKGROUND && pipe(bgpipe)) {
         LogPrintf(LogERROR, "pipe: %s\n", strerror(errno));
-	Cleanup(EX_SOCK);
+	AbortProgram(EX_SOCK);
       }
 
       bgpid = fork();
       if (bgpid == -1) {
 	LogPrintf(LogERROR, "fork: %s\n", strerror(errno));
-	Cleanup(EX_SOCK);
+	AbortProgram(EX_SOCK);
       }
 
       if (bgpid) {
@@ -615,9 +614,23 @@ DoLoop(struct bundle *bundle)
        * Process on-demand dialup. Output packets are queued within tunnel
        * device until IPCP is opened.
        */
-      if (bundle_Phase(bundle) == PHASE_DEAD && (mode & MODE_AUTO) &&
-	  (pri = PacketCheck(bundle, tun.data, n, &bundle->filter.dial)) >= 0)
-        bundle_Open(bundle, NULL);
+      if (bundle_Phase(bundle) == PHASE_DEAD)
+        /*
+         * Note, we must be in AUTO mode :-/ otherwise our interface should
+         * *not* be UP and we can't receive data
+         */
+        if ((mode & MODE_AUTO) &&
+            (pri = PacketCheck(bundle, tun.data, n, &bundle->filter.dial)) >= 0)
+          bundle_Open(bundle, NULL);
+        else
+          /*
+           * Drop the packet.  If we were to queue it, we'd just end up with
+           * a pile of timed-out data in our output queue by the time we get
+           * around to actually dialing.  We'd also prematurely reach the 
+           * threshold at which we stop select()ing to read() the tun
+           * device - breaking auto-dial.
+           */
+          continue;
 
       pri = PacketCheck(bundle, tun.data, n, &bundle->filter.out);
       if (pri >= 0) {

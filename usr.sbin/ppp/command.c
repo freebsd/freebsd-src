@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131.2.47 1998/04/03 19:24:29 brian Exp $
+ * $Id: command.c,v 1.131.2.48 1998/04/03 19:24:45 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -1335,7 +1335,7 @@ SetVariable(struct cmdargs const *arg)
     break;
   case VAR_IDLETIMEOUT:
     if (arg->argc > 1)
-      err = "Too many idle timeout values";
+      err = "Too many idle timeout values\n";
     else if (arg->argc == 1)
       bundle_SetIdleTimer(arg->bundle, atoi(argp));
     if (err)

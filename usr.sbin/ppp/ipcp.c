@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.50.2.28 1998/04/03 19:21:28 brian Exp $
+ * $Id: ipcp.c,v 1.50.2.29 1998/04/03 19:23:59 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
@@ -273,16 +273,25 @@ ipcp_Setup(struct ipcp *ipcp)
   ipcp->peer_ip = ipcp->cfg.peer_range.ipaddr;
   ipcp->peer_compproto = 0;
 
-  /*
-   * Some implementations of PPP require that we send a
-   * *special* value as our address, even though the rfc specifies
-   * full negotiation (e.g. "0.0.0.0" or Not "0.0.0.0").
-   */
   if (ipcp->cfg.HaveTriggerAddress) {
+    /*
+     * Some implementations of PPP require that we send a
+     * *special* value as our address, even though the rfc specifies
+     * full negotiation (e.g. "0.0.0.0" or Not "0.0.0.0").
+     */
     ipcp->my_ip = ipcp->cfg.TriggerAddress;
     LogPrintf(LogIPCP, "Using trigger address %s\n",
               inet_ntoa(ipcp->cfg.TriggerAddress));
-  } else
+  } else if ((ipcp->my_ifip.s_addr & ipcp->cfg.my_range.mask.s_addr) ==
+             (ipcp->cfg.my_range.ipaddr.s_addr &
+              ipcp->cfg.my_range.mask.s_addr))
+    /*
+     * Otherwise, if we've been assigned an IP number before, we really
+     * want to keep the same IP number so that we can keep any existing
+     * connections that are bound to that IP.
+     */
+    ipcp->my_ip = ipcp->my_ifip;
+  else
     ipcp->my_ip = ipcp->cfg.my_range.ipaddr;
 
   if (Enabled(ConfVjcomp))
@@ -625,8 +634,18 @@ IpcpDecodeConfig(struct fsm *fp, u_char * cp, int plen, int mode_type,
                                 ipaddr, 1)) {
             LogPrintf(LogIPCP, "%s: Address invalid or already in use\n",
                       inet_ntoa(ipaddr));
-            ipcp->peer_ip = ChooseHisAddr
-              (fp->bundle, ipcp->cfg.my_range.ipaddr);
+            if (iplist_ip2pos(&ipcp->cfg.peer_list, ipcp->peer_ifip) >= 0)
+              /*
+               * If we've already got a valid address configured for the peer
+               * (in AUTO mode), try NAKing with that so that we don't
+               * have to upset things too much.
+               */
+              ipcp->peer_ip = ipcp->peer_ifip;
+            else
+              /* Just pick an IP number from our list */
+              ipcp->peer_ip = ChooseHisAddr
+                (fp->bundle, ipcp->cfg.my_range.ipaddr);
+
             if (ipcp->peer_ip.s_addr == INADDR_ANY) {
 	      memcpy(dec->rejend, cp, length);
 	      dec->rejend += length;
@@ -639,11 +658,17 @@ IpcpDecodeConfig(struct fsm *fp, u_char * cp, int plen, int mode_type,
           }
 	} else if (!AcceptableAddr(&ipcp->cfg.peer_range, ipaddr)) {
 	  /*
-	   * If destination address is not acceptable, insist to use what we
+	   * If destination address is not acceptable, NAK with what we
 	   * want to use.
 	   */
 	  memcpy(dec->nakend, cp, 2);
-	  memcpy(dec->nakend+2, &ipcp->peer_ip.s_addr, length - 2);
+          if ((ipcp->peer_ifip.s_addr & ipcp->cfg.peer_range.mask.s_addr) ==
+             (ipcp->cfg.peer_range.ipaddr.s_addr &
+              ipcp->cfg.peer_range.mask.s_addr))
+            /* We prefer the already-configured address */
+	    memcpy(dec->nakend+2, &ipcp->peer_ifip.s_addr, length - 2);
+          else
+	    memcpy(dec->nakend+2, &ipcp->peer_ip.s_addr, length - 2);
 	  dec->nakend += length;
 	  break;
 	}
@@ -659,7 +684,8 @@ IpcpDecodeConfig(struct fsm *fp, u_char * cp, int plen, int mode_type,
 	  LogPrintf(LogIPCP, "%s --> %s\n", tbuff2, inet_ntoa(ipaddr));
 	  ipcp->my_ip = ipaddr;
 	} else {
-	  LogPrintf(LogIPCP, "%s: Unacceptable address!\n", inet_ntoa(ipaddr));
+	  LogPrintf(LogIsKept(LogIPCP) ? LogIPCP : LogPHASE,
+                    "%s: Unacceptable address!\n", inet_ntoa(ipaddr));
           FsmClose(&ipcp->fsm);
 	}
 	break;

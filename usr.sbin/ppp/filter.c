@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: filter.c,v 1.22.2.9 1998/03/16 22:53:42 brian Exp $
+ * $Id: filter.c,v 1.22.2.10 1998/04/03 19:21:19 brian Exp $
  *
  *	TODO: Shoud send ICMP error message when we discard packets.
  */
@@ -56,6 +56,9 @@
 #include "prompt.h"
 #include "mp.h"
 #include "bundle.h"
+
+static int filter_Nam2Proto(int, char const *const *);
+static int filter_Nam2Op(const char *);
 
 static const u_long netmasks[33] = {
   0x00000000,
@@ -124,25 +127,6 @@ ParseAddr(struct ipcp *ipcp, int argc, char const *const *argv,
 }
 
 static int
-ParseProto(int argc, char const *const *argv)
-{
-  int proto;
-
-  if (argc < 1)
-    return (P_NONE);
-
-  if (!strcmp(*argv, "tcp"))
-    proto = P_TCP;
-  else if (!strcmp(*argv, "udp"))
-    proto = P_UDP;
-  else if (!strcmp(*argv, "icmp"))
-    proto = P_ICMP;
-  else
-    proto = P_NONE;
-  return (proto);
-}
-
-static int
 ParsePort(const char *service, int proto)
 {
   const char *protocol_name;
@@ -188,9 +172,7 @@ ParseIcmp(int argc, char const *const *argv, struct filterent *tgt)
     /* permit/deny all ICMP types */
     tgt->opt.srcop = OP_NONE;
     break;
-  default:
-    LogPrintf(LogWARN, "ParseIcmp: bad icmp syntax.\n");
-    return (0);
+
   case 3:
     if (!strcmp(*argv, "src") && !strcmp(argv[1], "eq")) {
       type = strtol(argv[2], &cp, 0);
@@ -202,22 +184,12 @@ ParseIcmp(int argc, char const *const *argv, struct filterent *tgt)
       tgt->opt.srcport = type;
     }
     break;
+
+  default:
+    LogPrintf(LogWARN, "ParseIcmp: bad icmp syntax.\n");
+    return (0);
   }
   return (1);
-}
-
-static int
-ParseOp(const char *cp)
-{
-  int op = OP_NONE;
-
-  if (!strcmp(cp, "eq"))
-    op = OP_EQ;
-  else if (!strcmp(cp, "gt"))
-    op = OP_GT;
-  else if (!strcmp(cp, "lt"))
-    op = OP_LT;
-  return (op);
 }
 
 /*
@@ -236,7 +208,7 @@ ParseUdpOrTcp(int argc, char const *const *argv, int proto,
   }
 
   if (argc >= 3 && !strcmp(*argv, "src")) {
-    tgt->opt.srcop = ParseOp(argv[1]);
+    tgt->opt.srcop = filter_Nam2Op(argv[1]);
     if (tgt->opt.srcop == OP_NONE) {
       LogPrintf(LogWARN, "ParseUdpOrTcp: bad operation\n");
       return (0);
@@ -250,7 +222,7 @@ ParseUdpOrTcp(int argc, char const *const *argv, int proto,
       return (1);
   }
   if (argc >= 3 && !strcmp(argv[0], "dst")) {
-    tgt->opt.dstop = ParseOp(argv[1]);
+    tgt->opt.dstop = filter_Nam2Op(argv[1]);
     if (tgt->opt.dstop == OP_NONE) {
       LogPrintf(LogWARN, "ParseUdpOrTcp: bad operation\n");
       return (0);
@@ -275,8 +247,6 @@ ParseUdpOrTcp(int argc, char const *const *argv, int proto,
     LogPrintf(LogWARN, "ParseUdpOrTcp: bad src/dst port syntax: %s\n", *argv);
   return (0);
 }
-
-static const char *opname[] = {"none", "eq", "gt", NULL, "lt"};
 
 static int
 Parse(struct ipcp *ipcp, int argc, char const *const *argv,
@@ -338,20 +308,20 @@ Parse(struct ipcp *ipcp, int argc, char const *const *argv,
       argv++;
     }
   }
-  proto = ParseProto(argc, argv);
+  proto = filter_Nam2Proto(argc, argv);
   if (proto == P_NONE) {
     if (ParseAddr(ipcp, argc, argv, &filterdata.saddr, &filterdata.smask,
                   &filterdata.swidth)) {
       argc--;
       argv++;
-      proto = ParseProto(argc, argv);
+      proto = filter_Nam2Proto(argc, argv);
       if (proto == P_NONE) {
 	if (ParseAddr(ipcp, argc, argv, &filterdata.daddr, &filterdata.dmask,
                       &filterdata.dwidth)) {
 	  argc--;
 	  argv++;
 	}
-	proto = ParseProto(argc, argv);
+	proto = filter_Nam2Proto(argc, argv);
 	if (proto != P_NONE) {
 	  argc--;
 	  argv++;
@@ -390,10 +360,10 @@ Parse(struct ipcp *ipcp, int argc, char const *const *argv,
   LogPrintf(LogDEBUG, "Parse: Dst mask: %s\n", inet_ntoa(filterdata.dmask));
   LogPrintf(LogDEBUG, "Parse: Proto = %d\n", proto);
 
-  LogPrintf(LogDEBUG, "Parse: src:  %s (%d)\n", opname[filterdata.opt.srcop],
-	    filterdata.opt.srcport);
-  LogPrintf(LogDEBUG, "Parse: dst:  %s (%d)\n", opname[filterdata.opt.dstop],
-	    filterdata.opt.dstport);
+  LogPrintf(LogDEBUG, "Parse: src:  %s (%d)\n",
+            filter_Op2Nam(filterdata.opt.srcop), filterdata.opt.srcport);
+  LogPrintf(LogDEBUG, "Parse: dst:  %s (%d)\n",
+            filter_Op2Nam(filterdata.opt.dstop), filterdata.opt.dstport);
   LogPrintf(LogDEBUG, "Parse: estab: %d\n", filterdata.opt.estab);
 
   if (val)
@@ -424,8 +394,12 @@ SetFilter(struct cmdargs const *arg)
   return 0;
 }
 
-static const char *protoname[] = { "none", "tcp", "udp", "icmp" };
-static const char *actname[] = { "none   ", "permit ", "deny   " };
+const char *
+filter_Action2Nam(int act)
+{
+  static const char *actname[] = { "none   ", "permit ", "deny   " };
+  return actname[act & (A_PERMIT|A_DENY)];
+}
 
 static void
 doShowFilter(struct filterent *fp)
@@ -434,8 +408,7 @@ doShowFilter(struct filterent *fp)
 
   for (n = 0; n < MAXFILTERS; n++, fp++) {
     if (fp->action != A_NONE) {
-      prompt_Printf(&prompt, "  %2d %s", n,
-                    actname[fp->action & (A_PERMIT|A_DENY)]);
+      prompt_Printf(&prompt, "  %2d %s", n, filter_Action2Nam(fp->action));
       if (fp->action & A_UHOST)
         prompt_Printf(&prompt, "host ");
       else if (fp->action & A_UPORT)
@@ -445,13 +418,13 @@ doShowFilter(struct filterent *fp)
       prompt_Printf(&prompt, "%s/%d ", inet_ntoa(fp->saddr), fp->swidth);
       prompt_Printf(&prompt, "%s/%d ", inet_ntoa(fp->daddr), fp->dwidth);
       if (fp->proto) {
-	prompt_Printf(&prompt, "%s", protoname[fp->proto]);
+	prompt_Printf(&prompt, "%s", filter_Proto2Nam(fp->proto));
 
 	if (fp->opt.srcop)
-	  prompt_Printf(&prompt, " src %s %d", opname[fp->opt.srcop],
+	  prompt_Printf(&prompt, " src %s %d", filter_Op2Nam(fp->opt.srcop),
 		  fp->opt.srcport);
 	if (fp->opt.dstop)
-	  prompt_Printf(&prompt, " dst %s %d", opname[fp->opt.dstop],
+	  prompt_Printf(&prompt, " dst %s %d", filter_Op2Nam(fp->opt.dstop),
 		  fp->opt.dstport);
 	if (fp->opt.estab)
 	  prompt_Printf(&prompt, " estab");
@@ -499,4 +472,52 @@ ShowFilter(struct cmdargs const *arg)
   }
 
   return 0;
+}
+
+static const char *protoname[] = { "none", "tcp", "udp", "icmp" };
+
+const char *
+filter_Proto2Nam(int proto)
+{
+  if (proto >= sizeof protoname / sizeof protoname[0])
+    return "unknown";
+  return protoname[proto];
+}
+
+static int
+filter_Nam2Proto(int argc, char const *const *argv)
+{
+  int proto;
+
+  if (argc == 0)
+    proto = 0;
+  else
+    for (proto = sizeof protoname / sizeof protoname[0] - 1; proto; proto--)
+      if (!strcasecmp(*argv, protoname[proto]))
+        break;
+
+  return proto;
+}
+
+static const char *opname[] = {"none", "eq", "gt", "unknown", "lt"};
+
+const char *
+filter_Op2Nam(int op)
+{
+  if (op >= sizeof opname / sizeof opname[0])
+    return "unknown";
+  return opname[op];
+
+}
+
+static int
+filter_Nam2Op(const char *cp)
+{
+  int op;
+
+  for (op = sizeof opname / sizeof opname[0] - 1; op; op--)
+    if (!strcasecmp(cp, opname[op]))
+      break;
+
+  return op;
 }
