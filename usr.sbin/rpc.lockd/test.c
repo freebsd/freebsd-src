@@ -1,10 +1,14 @@
+#ifndef lint
+#if 0
+static char sccsid[] = "from: @(#)nlm_prot.x 1.8 87/09/21 Copyr 1987 Sun Micro";
+static char sccsid[] = "from: * @(#)nlm_prot.x	2.1 88/08/01 4.0 RPCSRC";
+#endif
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
 #include <rpc/rpc.h>
 #include <rpcsvc/nlm_prot.h>
-#ifndef lint
-/*static char sccsid[] = "from: @(#)nlm_prot.x 1.8 87/09/21 Copyr 1987 Sun Micro";*/
-/*static char sccsid[] = "from: * @(#)nlm_prot.x	2.1 88/08/01 4.0 RPCSRC";*/
-static char rcsid[] = "nlm_prot.x,v 1.1 1994/08/04 19:01:48 wollman Exp";
-#endif /* not lint */
 
 /* Default timeout can be changed using clnt_control() */
 static struct timeval TIMEOUT = { 0, 0 };
