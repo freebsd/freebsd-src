@@ -12,7 +12,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: sshpty.c,v 1.8 2003/02/03 08:56:16 markus Exp $");
+RCSID("$OpenBSD: sshpty.c,v 1.10 2003/06/12 07:57:38 markus Exp $");
 
 #ifdef HAVE_UTIL_H
 # include <util.h>
@@ -101,12 +101,12 @@ pty_allocate(int *ptyfd, int *ttyfd, char *namebuf, int namebuflen)
 		error("/dev/ptmx: %.100s", strerror(errno));
 		return 0;
 	}
-	old_signal = mysignal(SIGCHLD, SIG_DFL);
+	old_signal = signal(SIGCHLD, SIG_DFL);
 	if (grantpt(ptm) < 0) {
 		error("grantpt: %.100s", strerror(errno));
 		return 0;
 	}
-	mysignal(SIGCHLD, old_signal);
+	signal(SIGCHLD, old_signal);
 	if (unlockpt(ptm) < 0) {
 		error("unlockpt: %.100s", strerror(errno));
 		return 0;
@@ -226,7 +226,7 @@ pty_allocate(int *ptyfd, int *ttyfd, char *namebuf, int namebuflen)
 		}
 		/* set tty modes to a sane state for broken clients */
 		if (tcgetattr(*ptyfd, &tio) < 0)
-			log("Getting tty modes for pty failed: %.100s", strerror(errno));
+			logit("Getting tty modes for pty failed: %.100s", strerror(errno));
 		else {
 			tio.c_lflag |= (ECHO | ISIG | ICANON);
 			tio.c_oflag |= (OPOST | ONLCR);
@@ -234,7 +234,7 @@ pty_allocate(int *ptyfd, int *ttyfd, char *namebuf, int namebuflen)
 
 			/* Set the new modes for the terminal. */
 			if (tcsetattr(*ptyfd, TCSANOW, &tio) < 0)
-				log("Setting tty modes for pty failed: %.100s", strerror(errno));
+				logit("Setting tty modes for pty failed: %.100s", strerror(errno));
 		}
 
 		return 1;
@@ -258,7 +258,7 @@ pty_release(const char *ttyname)
 		error("chmod %.100s 0666 failed: %.100s", ttyname, strerror(errno));
 }
 
-/* Makes the tty the processes controlling tty and sets it to sane modes. */
+/* Makes the tty the process's controlling tty and sets it to sane modes. */
 
 void
 pty_make_controlling_tty(int *ttyfd, const char *ttyname)
@@ -274,9 +274,9 @@ pty_make_controlling_tty(int *ttyfd, const char *ttyname)
 
 	fd = open(ttyname, O_RDWR|O_NOCTTY);
 	if (fd != -1) {
-		mysignal(SIGHUP, SIG_IGN);
+		signal(SIGHUP, SIG_IGN);
 		ioctl(fd, TCVHUP, (char *)NULL);
-		mysignal(SIGHUP, SIG_DFL);
+		signal(SIGHUP, SIG_DFL);
 		setpgid(0, 0);
 		close(fd);
 	} else {
@@ -323,9 +323,9 @@ pty_make_controlling_tty(int *ttyfd, const char *ttyname)
 		error("SETPGRP %s",strerror(errno));
 #endif /* HAVE_NEWS4 */
 #ifdef USE_VHANGUP
-	old = mysignal(SIGHUP, SIG_IGN);
+	old = signal(SIGHUP, SIG_IGN);
 	vhangup();
-	mysignal(SIGHUP, old);
+	signal(SIGHUP, old);
 #endif /* USE_VHANGUP */
 	fd = open(ttyname, O_RDWR);
 	if (fd < 0) {
@@ -409,10 +409,10 @@ pty_setowner(struct passwd *pw, const char *ttyname)
 			if (errno == EROFS &&
 			    (st.st_mode & (S_IRGRP | S_IROTH)) == 0)
 				debug("chmod(%.100s, 0%o) failed: %.100s",
-				    ttyname, mode, strerror(errno));
+				    ttyname, (u_int)mode, strerror(errno));
 			else
 				fatal("chmod(%.100s, 0%o) failed: %.100s",
-				    ttyname, mode, strerror(errno));
+				    ttyname, (u_int)mode, strerror(errno));
 		}
 	}
 }

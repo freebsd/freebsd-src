@@ -34,7 +34,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh_config.5,v 1.7 2003/03/28 10:11:43 jmc Exp $
+.\" $OpenBSD: ssh_config.5,v 1.20 2003/09/02 18:50:06 jmc Exp $
 .\" $FreeBSD$
 .Dd September 25, 1999
 .Dt SSH_CONFIG 5
@@ -105,7 +105,7 @@ keyword) to be only for those hosts that match one of the patterns
 given after the keyword.
 .Ql \&*
 and
-.Ql ?
+.Ql \&?
 can be used as wildcards in the
 patterns.
 A single
@@ -116,13 +116,14 @@ The host is the
 .Ar hostname
 argument given on the command line (i.e., the name is not converted to
 a canonicalized host name before matching).
-.It Cm AFSTokenPassing
-Specifies whether to pass AFS tokens to remote host.
-The argument to this keyword must be
-.Dq yes
-or
-.Dq no .
-This option applies to protocol version 1 only.
+.It Cm AddressFamily
+Specifies which address family to use when connecting.
+Valid arguments are
+.Dq any ,
+.Dq inet
+(Use IPv4 only) or
+.Dq inet6
+(Use IPv6 only.)
 .It Cm BatchMode
 If set to
 .Dq yes ,
@@ -228,18 +229,41 @@ Specifies the number of tries (one per second) to make before exiting.
 The argument must be an integer.
 This may be useful in scripts if the connection sometimes fails.
 The default is 1.
+.It Cm ConnectTimeout
+Specifies the timeout (in seconds) used when connecting to the ssh
+server, instead of using the default system TCP timeout.
+This value is used only when the target is down or really unreachable,
+not when it refuses the connection.
 .It Cm DynamicForward
 Specifies that a TCP/IP port on the local machine be forwarded
 over the secure channel, and the application
 protocol is then used to determine where to connect to from the
 remote machine.
 The argument must be a port number.
-Currently the SOCKS4 protocol is supported, and
+Currently the SOCKS4 and SOCKS5 protocols are supported, and
 .Nm ssh
-will act as a SOCKS4 server.
+will act as a SOCKS server.
 Multiple forwardings may be specified, and
 additional forwardings can be given on the command line.
 Only the superuser can forward privileged ports.
+.It Cm EnableSSHKeysign
+Setting this option to
+.Dq yes
+in the global client configuration file
+.Pa /etc/ssh/ssh_config
+enables the use of the helper program
+.Xr ssh-keysign 8
+during
+.Cm HostbasedAuthentication .
+The argument must be
+.Dq yes
+or
+.Dq no .
+The default is
+.Dq no .
+See
+.Xr ssh-keysign 8
+for more information.
 .It Cm EscapeChar
 Sets the escape character (default:
 .Ql ~ ) .
@@ -308,6 +332,18 @@ The default is
 Specifies a file to use for the global
 host key database instead of
 .Pa /etc/ssh/ssh_known_hosts .
+.It Cm GSSAPIAuthentication
+Specifies whether authentication based on GSSAPI may be used, either using
+the result of a successful key exchange, or using GSSAPI user
+authentication.
+The default is
+.Dq yes .
+Note that this option applies to protocol version 2 only.
+.It Cm GSSAPIDelegateCredentials
+Forward (delegate) credentials to the server.
+The default is
+.Dq no .
+Note that this option applies to protocol version 2 only.
 .It Cm HostbasedAuthentication
 Specifies whether to try rhosts based authentication with public key
 authentication.
@@ -340,7 +376,8 @@ Numeric IP addresses are also permitted (both on the command line and in
 specifications).
 .It Cm IdentityFile
 Specifies a file from which the user's RSA or DSA authentication identity
-is read. The default is
+is read.
+The default is
 .Pa $HOME/.ssh/identity
 for protocol version 1, and
 .Pa $HOME/.ssh/id_rsa
@@ -370,19 +407,6 @@ if the network goes down or the remote host dies.
 This is important in scripts, and many users want it too.
 .Pp
 To disable keepalives, the value should be set to
-.Dq no .
-.It Cm KerberosAuthentication
-Specifies whether Kerberos authentication will be used.
-The argument to this keyword must be
-.Dq yes
-or
-.Dq no .
-.It Cm KerberosTgtPassing
-Specifies whether a Kerberos TGT will be forwarded to the server.
-This will only work if the Kerberos server is actually an AFS kaserver.
-The argument to this keyword must be
-.Dq yes
-or
 .Dq no .
 .It Cm LocalForward
 Specifies that a TCP/IP port on the local machine be forwarded over
@@ -437,7 +461,8 @@ Specifies the port number to connect on the remote host.
 Default is 22.
 .It Cm PreferredAuthentications
 Specifies the order in which the client should try protocol 2
-authentication methods. This allows a client to prefer one method (e.g.
+authentication methods.
+This allows a client to prefer one method (e.g.
 .Cm keyboard-interactive )
 over another method (e.g.
 .Cm password )
@@ -505,26 +530,6 @@ IPv6 addresses can be specified with an alternative syntax:
 Multiple forwardings may be specified, and additional
 forwardings can be given on the command line.
 Only the superuser can forward privileged ports.
-.It Cm RhostsAuthentication
-Specifies whether to try rhosts based authentication.
-Note that this
-declaration only affects the client side and has no effect whatsoever
-on security.
-Most servers do not permit RhostsAuthentication because it
-is not secure (see
-.Cm RhostsRSAAuthentication ) .
-The argument to this keyword must be
-.Dq yes
-or
-.Dq no .
-The default is
-.Dq no .
-This option applies to protocol version 1 only and requires
-.Nm ssh
-to be setuid root and
-.Cm UsePrivilegedPort
-to be set to
-.Dq yes .
 .It Cm RhostsRSAAuthentication
 Specifies whether to try rhosts based authentication with RSA host
 authentication.
@@ -550,12 +555,12 @@ The default is
 .Dq yes .
 Note that this option applies to protocol version 1 only.
 .It Cm SmartcardDevice
-Specifies which smartcard device to use. The argument to this keyword is
-the device
+Specifies which smartcard device to use.
+The argument to this keyword is the device
 .Nm ssh
 should use to communicate with a smartcard used for storing the user's
-private RSA key. By default, no device is specified and smartcard support
-is not activated.
+private RSA key.
+By default, no device is specified and smartcard support is not activated.
 .It Cm StrictHostKeyChecking
 If this flag is set to
 .Dq yes ,
@@ -605,11 +610,9 @@ If set to
 must be setuid root.
 Note that this option must be set to
 .Dq yes
-if
-.Cm RhostsAuthentication
-and
+for
 .Cm RhostsRSAAuthentication
-authentications are needed with older servers.
+with older servers.
 .It Cm User
 Specifies the user to log in as.
 This can be useful when a different user name is used on different machines.
@@ -619,11 +622,17 @@ having to remember to give the user name on the command line.
 Specifies a file to use for the user
 host key database instead of
 .Pa $HOME/.ssh/known_hosts .
+.It Cm VerifyHostKeyDNS
+Specifies whether to verify the remote key using DNS and SSHFP resource
+records.
+The default is
+.Dq no .
+Note that this option applies to protocol version 2 only.
 .It Cm VersionAddendum
 Specifies a string to append to the regular version string to identify
 OS- or site-specific modifications.
 The default is
-.Dq FreeBSD-20030924 .
+.Dq FreeBSD-20040106 .
 .It Cm XAuthLocation
 Specifies the full pathname of the
 .Xr xauth 1
@@ -649,6 +658,8 @@ values that are not specified in the user's configuration file, and
 for those users who do not have a configuration file.
 This file must be world-readable.
 .El
+.Sh SEE ALSO
+.Xr ssh 1
 .Sh AUTHORS
 OpenSSH is a derivative of the original and free
 ssh 1.2.12 release by Tatu Ylonen.
@@ -658,5 +669,3 @@ removed many bugs, re-added newer features and
 created OpenSSH.
 Markus Friedl contributed the support for SSH
 protocol versions 1.5 and 2.0.
-.Sh SEE ALSO
-.Xr ssh 1

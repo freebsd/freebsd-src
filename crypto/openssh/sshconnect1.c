@@ -13,24 +13,10 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: sshconnect1.c,v 1.52 2002/08/08 13:50:23 aaron Exp $");
+RCSID("$OpenBSD: sshconnect1.c,v 1.56 2003/08/28 12:54:34 markus Exp $");
 
 #include <openssl/bn.h>
 #include <openssl/md5.h>
-
-#ifdef KRB4
-#include <krb.h>
-#endif
-#ifdef KRB5
-#include <krb5.h>
-#ifndef HEIMDAL
-#define krb5_get_err_text(context,code) error_message(code)
-#endif /* !HEIMDAL */
-#endif
-#ifdef AFS
-#include <kafs.h>
-#include "radix.h"
-#endif
 
 #include "ssh.h"
 #include "ssh1.h"
@@ -122,7 +108,7 @@ try_agent_authentication(void)
 			 * although it advertised it supports this.  Just
 			 * return a wrong value.
 			 */
-			log("Authentication agent failed to decrypt challenge.");
+			logit("Authentication agent failed to decrypt challenge.");
 			memset(response, 0, sizeof(response));
 		}
 		key_free(key);
@@ -380,478 +366,6 @@ try_rhosts_rsa_authentication(const char *local_user, Key * host_key)
 	return 0;
 }
 
-#ifdef KRB4
-static int
-try_krb4_authentication(void)
-{
-	KTEXT_ST auth;		/* Kerberos data */
-	char *reply;
-	char inst[INST_SZ];
-	char *realm;
-	CREDENTIALS cred;
-	int r, type;
-	socklen_t slen;
-	Key_schedule schedule;
-	u_long checksum, cksum;
-	MSG_DAT msg_data;
-	struct sockaddr_in local, foreign;
-	struct stat st;
-
-	/* Don't do anything if we don't have any tickets. */
-	if (stat(tkt_string(), &st) < 0)
-		return 0;
-
-	strlcpy(inst, (char *)krb_get_phost(get_canonical_hostname(1)),
-	    INST_SZ);
-
-	realm = (char *)krb_realmofhost(get_canonical_hostname(1));
-	if (!realm) {
-		debug("Kerberos v4: no realm for %s", get_canonical_hostname(1));
-		return 0;
-	}
-	/* This can really be anything. */
-	checksum = (u_long)getpid();
-
-	r = krb_mk_req(&auth, KRB4_SERVICE_NAME, inst, realm, checksum);
-	if (r != KSUCCESS) {
-		debug("Kerberos v4 krb_mk_req failed: %s", krb_err_txt[r]);
-		return 0;
-	}
-	/* Get session key to decrypt the server's reply with. */
-	r = krb_get_cred(KRB4_SERVICE_NAME, inst, realm, &cred);
-	if (r != KSUCCESS) {
-		debug("get_cred failed: %s", krb_err_txt[r]);
-		return 0;
-	}
-	des_key_sched((des_cblock *) cred.session, schedule);
-
-	/* Send authentication info to server. */
-	packet_start(SSH_CMSG_AUTH_KERBEROS);
-	packet_put_string((char *) auth.dat, auth.length);
-	packet_send();
-	packet_write_wait();
-
-	/* Zero the buffer. */
-	(void) memset(auth.dat, 0, MAX_KTXT_LEN);
-
-	slen = sizeof(local);
-	memset(&local, 0, sizeof(local));
-	if (getsockname(packet_get_connection_in(),
-	    (struct sockaddr *)&local, &slen) < 0)
-		debug("getsockname failed: %s", strerror(errno));
-
-	slen = sizeof(foreign);
-	memset(&foreign, 0, sizeof(foreign));
-	if (getpeername(packet_get_connection_in(),
-	    (struct sockaddr *)&foreign, &slen) < 0) {
-		debug("getpeername failed: %s", strerror(errno));
-		fatal_cleanup();
-	}
-	/* Get server reply. */
-	type = packet_read();
-	switch (type) {
-	case SSH_SMSG_FAILURE:
-		/* Should really be SSH_SMSG_AUTH_KERBEROS_FAILURE */
-		debug("Kerberos v4 authentication failed.");
-		return 0;
-		break;
-
-	case SSH_SMSG_AUTH_KERBEROS_RESPONSE:
-		/* SSH_SMSG_AUTH_KERBEROS_SUCCESS */
-		debug("Kerberos v4 authentication accepted.");
-
-		/* Get server's response. */
-		reply = packet_get_string((u_int *) &auth.length);
-		if (auth.length >= MAX_KTXT_LEN)
-			fatal("Kerberos v4: Malformed response from server");
-		memcpy(auth.dat, reply, auth.length);
-		xfree(reply);
-
-		packet_check_eom();
-
-		/*
-		 * If his response isn't properly encrypted with the session
-		 * key, and the decrypted checksum fails to match, he's
-		 * bogus. Bail out.
-		 */
-		r = krb_rd_priv(auth.dat, auth.length, schedule, &cred.session,
-		    &foreign, &local, &msg_data);
-		if (r != KSUCCESS) {
-			debug("Kerberos v4 krb_rd_priv failed: %s",
-			    krb_err_txt[r]);
-			packet_disconnect("Kerberos v4 challenge failed!");
-		}
-		/* Fetch the (incremented) checksum that we supplied in the request. */
-		memcpy((char *)&cksum, (char *)msg_data.app_data,
-		    sizeof(cksum));
-		cksum = ntohl(cksum);
-
-		/* If it matches, we're golden. */
-		if (cksum == checksum + 1) {
-			debug("Kerberos v4 challenge successful.");
-			return 1;
-		} else
-			packet_disconnect("Kerberos v4 challenge failed!");
-		break;
-
-	default:
-		packet_disconnect("Protocol error on Kerberos v4 response: %d", type);
-	}
-	return 0;
-}
-
-#endif /* KRB4 */
-
-#ifdef KRB5
-static int
-try_krb5_authentication(krb5_context *context, krb5_auth_context *auth_context)
-{
-	krb5_error_code problem;
-	const char *tkfile;
-	struct stat buf;
-	krb5_ccache ccache = NULL;
-	const char *remotehost;
-	krb5_data ap;
-	int type;
-	krb5_ap_rep_enc_part *reply = NULL;
-	int ret;
-
-	memset(&ap, 0, sizeof(ap));
-
-	problem = krb5_init_context(context);
-	if (problem) {
-		debug("Kerberos v5: krb5_init_context failed");
-		ret = 0;
-		goto out;
-	}
-	
-	problem = krb5_auth_con_init(*context, auth_context);
-	if (problem) {
-		debug("Kerberos v5: krb5_auth_con_init failed");
-		ret = 0;
-		goto out;
-	}
-
-#ifndef HEIMDAL
-	problem = krb5_auth_con_setflags(*context, *auth_context,
-					 KRB5_AUTH_CONTEXT_RET_TIME);
-	if (problem) {
-		debug("Keberos v5: krb5_auth_con_setflags failed");
-		ret = 0;
-		goto out;
-	}
-#endif
-
-	tkfile = krb5_cc_default_name(*context);
-	if (strncmp(tkfile, "FILE:", 5) == 0)
-		tkfile += 5;
-
-	if (stat(tkfile, &buf) == 0 && getuid() != buf.st_uid) {
-		debug("Kerberos v5: could not get default ccache (permission denied).");
-		ret = 0;
-		goto out;
-	}
-
-	problem = krb5_cc_default(*context, &ccache);
-	if (problem) {
-		debug("Kerberos v5: krb5_cc_default failed: %s",
-		    krb5_get_err_text(*context, problem));
-		ret = 0;
-		goto out;
-	}
-
-	remotehost = get_canonical_hostname(1);
-
-	problem = krb5_mk_req(*context, auth_context, AP_OPTS_MUTUAL_REQUIRED,
-	    "host", remotehost, NULL, ccache, &ap);
-	if (problem) {
-		debug("Kerberos v5: krb5_mk_req failed: %s",
-		    krb5_get_err_text(*context, problem));
-		ret = 0;
-		goto out;
-	}
-
-	packet_start(SSH_CMSG_AUTH_KERBEROS);
-	packet_put_string((char *) ap.data, ap.length);
-	packet_send();
-	packet_write_wait();
-
-	xfree(ap.data);
-	ap.length = 0;
-
-	type = packet_read();
-	switch (type) {
-	case SSH_SMSG_FAILURE:
-		/* Should really be SSH_SMSG_AUTH_KERBEROS_FAILURE */
-		debug("Kerberos v5 authentication failed.");
-		ret = 0;
-		break;
-
-	case SSH_SMSG_AUTH_KERBEROS_RESPONSE:
-		/* SSH_SMSG_AUTH_KERBEROS_SUCCESS */
-		debug("Kerberos v5 authentication accepted.");
-
-		/* Get server's response. */
-		ap.data = packet_get_string((unsigned int *) &ap.length);
-		packet_check_eom();
-		/* XXX je to dobre? */
-
-		problem = krb5_rd_rep(*context, *auth_context, &ap, &reply);
-		if (problem) {
-			ret = 0;
-		}
-		ret = 1;
-		break;
-
-	default:
-		packet_disconnect("Protocol error on Kerberos v5 response: %d",
-		    type);
-		ret = 0;
-		break;
-
-	}
-
- out:
-	if (ccache != NULL)
-		krb5_cc_close(*context, ccache);
-	if (reply != NULL)
-		krb5_free_ap_rep_enc_part(*context, reply);
-	if (ap.length > 0)
-#ifdef HEIMDAL
-		krb5_data_free(&ap);
-#else
-		krb5_free_data_contents(*context, &ap);
-#endif
-
-	return (ret);
-}
-
-static void
-send_krb5_tgt(krb5_context context, krb5_auth_context auth_context)
-{
-	int fd, type;
-	krb5_error_code problem;
-	krb5_data outbuf;
-	krb5_ccache ccache = NULL;
-	krb5_creds creds;
-#ifdef HEIMDAL
-	krb5_kdc_flags flags;
-#else
-	int forwardable;
-#endif
-	const char *remotehost;
-
-	memset(&creds, 0, sizeof(creds));
-	memset(&outbuf, 0, sizeof(outbuf));
-
-	fd = packet_get_connection_in();
-
-#ifdef HEIMDAL
-	problem = krb5_auth_con_setaddrs_from_fd(context, auth_context, &fd);
-#else
-	problem = krb5_auth_con_genaddrs(context, auth_context, fd,
-			KRB5_AUTH_CONTEXT_GENERATE_REMOTE_FULL_ADDR |
-			KRB5_AUTH_CONTEXT_GENERATE_LOCAL_FULL_ADDR);
-#endif
-	if (problem)
-		goto out;
-
-	problem = krb5_cc_default(context, &ccache);
-	if (problem)
-		goto out;
-
-	problem = krb5_cc_get_principal(context, ccache, &creds.client);
-	if (problem)
-		goto out;
-
-	remotehost = get_canonical_hostname(1);
-	
-#ifdef HEIMDAL
-	problem = krb5_build_principal(context, &creds.server,
-	    strlen(creds.client->realm), creds.client->realm,
-	    "krbtgt", creds.client->realm, NULL);
-#else
-	problem = krb5_build_principal(context, &creds.server,
-	    creds.client->realm.length, creds.client->realm.data,
-	    "host", remotehost, NULL);
-#endif
-	if (problem)
-		goto out;
-
-	creds.times.endtime = 0;
-
-#ifdef HEIMDAL
-	flags.i = 0;
-	flags.b.forwarded = 1;
-	flags.b.forwardable = krb5_config_get_bool(context,  NULL,
-	    "libdefaults", "forwardable", NULL);
-	problem = krb5_get_forwarded_creds(context, auth_context,
-	    ccache, flags.i, remotehost, &creds, &outbuf);
-#else
-	forwardable = 1;
-	problem = krb5_fwd_tgt_creds(context, auth_context, remotehost,
-	    creds.client, creds.server, ccache, forwardable, &outbuf);
-#endif
-
-	if (problem)
-		goto out;
-
-	packet_start(SSH_CMSG_HAVE_KERBEROS_TGT);
-	packet_put_string((char *)outbuf.data, outbuf.length);
-	packet_send();
-	packet_write_wait();
-
-	type = packet_read();
-
-	if (type == SSH_SMSG_SUCCESS) {
-		char *pname;
-
-		krb5_unparse_name(context, creds.client, &pname);
-		debug("Kerberos v5 TGT forwarded (%s).", pname);
-		xfree(pname);
-	} else
-		debug("Kerberos v5 TGT forwarding failed.");
-
-	return;
-
- out:
-	if (problem)
-		debug("Kerberos v5 TGT forwarding failed: %s",
-		    krb5_get_err_text(context, problem));
-	if (creds.client)
-		krb5_free_principal(context, creds.client);
-	if (creds.server)
-		krb5_free_principal(context, creds.server);
-	if (ccache)
-		krb5_cc_close(context, ccache);
-	if (outbuf.data)
-		xfree(outbuf.data);
-}
-#endif /* KRB5 */
-
-#ifdef AFS
-static void
-send_krb4_tgt(void)
-{
-	CREDENTIALS *creds;
-	struct stat st;
-	char buffer[4096], pname[ANAME_SZ], pinst[INST_SZ], prealm[REALM_SZ];
-	int problem, type;
-
-	/* Don't do anything if we don't have any tickets. */
-	if (stat(tkt_string(), &st) < 0)
-		return;
-
-	creds = xmalloc(sizeof(*creds));
-
-	problem = krb_get_tf_fullname(TKT_FILE, pname, pinst, prealm);
-	if (problem)
-		goto out;
-
-	problem = krb_get_cred("krbtgt", prealm, prealm, creds);
-	if (problem)
-		goto out;
-
-	if (time(0) > krb_life_to_time(creds->issue_date, creds->lifetime)) {
-		problem = RD_AP_EXP;
-		goto out;
-	}
-	creds_to_radix(creds, (u_char *)buffer, sizeof(buffer));
-
-	packet_start(SSH_CMSG_HAVE_KERBEROS_TGT);
-	packet_put_cstring(buffer);
-	packet_send();
-	packet_write_wait();
-
-	type = packet_read();
-
-	if (type == SSH_SMSG_SUCCESS)
-		debug("Kerberos v4 TGT forwarded (%s%s%s@%s).",
-		    creds->pname, creds->pinst[0] ? "." : "",
-		    creds->pinst, creds->realm);
-	else
-		debug("Kerberos v4 TGT rejected.");
-
-	xfree(creds);
-	return;
-
- out:
-	debug("Kerberos v4 TGT passing failed: %s", krb_err_txt[problem]);
-	xfree(creds);
-}
-
-static void
-send_afs_tokens(void)
-{
-	CREDENTIALS creds;
-	struct ViceIoctl parms;
-	struct ClearToken ct;
-	int i, type, len;
-	char buf[2048], *p, *server_cell;
-	char buffer[8192];
-
-	/* Move over ktc_GetToken, here's something leaner. */
-	for (i = 0; i < 100; i++) {	/* just in case */
-		parms.in = (char *) &i;
-		parms.in_size = sizeof(i);
-		parms.out = buf;
-		parms.out_size = sizeof(buf);
-		if (k_pioctl(0, VIOCGETTOK, &parms, 0) != 0)
-			break;
-		p = buf;
-
-		/* Get secret token. */
-		memcpy(&creds.ticket_st.length, p, sizeof(u_int));
-		if (creds.ticket_st.length > MAX_KTXT_LEN)
-			break;
-		p += sizeof(u_int);
-		memcpy(creds.ticket_st.dat, p, creds.ticket_st.length);
-		p += creds.ticket_st.length;
-
-		/* Get clear token. */
-		memcpy(&len, p, sizeof(len));
-		if (len != sizeof(struct ClearToken))
-			break;
-		p += sizeof(len);
-		memcpy(&ct, p, len);
-		p += len;
-		p += sizeof(len);	/* primary flag */
-		server_cell = p;
-
-		/* Flesh out our credentials. */
-		strlcpy(creds.service, "afs", sizeof(creds.service));
-		creds.instance[0] = '\0';
-		strlcpy(creds.realm, server_cell, REALM_SZ);
-		memcpy(creds.session, ct.HandShakeKey, DES_KEY_SZ);
-		creds.issue_date = ct.BeginTimestamp;
-		creds.lifetime = krb_time_to_life(creds.issue_date,
-		    ct.EndTimestamp);
-		creds.kvno = ct.AuthHandle;
-		snprintf(creds.pname, sizeof(creds.pname), "AFS ID %d", ct.ViceId);
-		creds.pinst[0] = '\0';
-
-		/* Encode token, ship it off. */
-		if (creds_to_radix(&creds, (u_char *)buffer,
-		    sizeof(buffer)) <= 0)
-			break;
-		packet_start(SSH_CMSG_HAVE_AFS_TOKEN);
-		packet_put_cstring(buffer);
-		packet_send();
-		packet_write_wait();
-
-		/* Roger, Roger. Clearance, Clarence. What's your vector,
-		   Victor? */
-		type = packet_read();
-
-		if (type == SSH_SMSG_FAILURE)
-			debug("AFS token for cell %s rejected.", server_cell);
-		else if (type != SSH_SMSG_SUCCESS)
-			packet_disconnect("Protocol error on AFS token response: %d", type);
-	}
-}
-
-#endif /* AFS */
-
 /*
  * Tries to authenticate with any string-based challenge/response system.
  * Note that the client code is not tied to s/key or TIS.
@@ -890,7 +404,7 @@ try_challenge_response_authentication(void)
 		if (i != 0)
 			error("Permission denied, please try again.");
 		if (options.cipher == SSH_CIPHER_NONE)
-			log("WARNING: Encryption is disabled! "
+			logit("WARNING: Encryption is disabled! "
 			    "Response will be transmitted in clear text.");
 		response = read_passphrase(prompt, 0);
 		if (strcmp(response, "") == 0) {
@@ -925,7 +439,7 @@ try_password_authentication(char *prompt)
 
 	debug("Doing password authentication.");
 	if (options.cipher == SSH_CIPHER_NONE)
-		log("WARNING: Encryption is disabled! Password will be transmitted in clear text.");
+		logit("WARNING: Encryption is disabled! Password will be transmitted in clear text.");
 	for (i = 0; i < options.number_of_password_prompts; i++) {
 		if (i != 0)
 			error("Permission denied, please try again.");
@@ -981,9 +495,9 @@ ssh_kex(char *host, struct sockaddr *hostaddr)
 
 	rbits = BN_num_bits(server_key->rsa->n);
 	if (bits != rbits) {
-		log("Warning: Server lies about size of server public key: "
+		logit("Warning: Server lies about size of server public key: "
 		    "actual size is %d bits vs. announced %d.", rbits, bits);
-		log("Warning: This may be due to an old implementation of ssh.");
+		logit("Warning: This may be due to an old implementation of ssh.");
 	}
 	/* Get the host key. */
 	host_key = key_new(KEY_RSA1);
@@ -993,9 +507,9 @@ ssh_kex(char *host, struct sockaddr *hostaddr)
 
 	rbits = BN_num_bits(host_key->rsa->n);
 	if (bits != rbits) {
-		log("Warning: Server lies about size of server host key: "
+		logit("Warning: Server lies about size of server host key: "
 		    "actual size is %d bits vs. announced %d.", rbits, bits);
-		log("Warning: This may be due to an old implementation of ssh.");
+		logit("Warning: This may be due to an old implementation of ssh.");
 	}
 
 	/* Get protocol flags. */
@@ -1086,7 +600,7 @@ ssh_kex(char *host, struct sockaddr *hostaddr)
 			options.cipher = ssh_cipher_default;
 	} else if (options.cipher == SSH_CIPHER_ILLEGAL ||
 	    !(cipher_mask_ssh1(1) & (1 << options.cipher))) {
-		log("No valid SSH1 cipher, using %.100s instead.",
+		logit("No valid SSH1 cipher, using %.100s instead.",
 		    cipher_name(ssh_cipher_default));
 		options.cipher = ssh_cipher_default;
 	}
@@ -1140,10 +654,6 @@ void
 ssh_userauth1(const char *local_user, const char *server_user, char *host,
     Sensitive *sensitive)
 {
-#ifdef KRB5
-	krb5_context context = NULL;
-	krb5_auth_context auth_context = NULL;
-#endif
 	int i, type;
 
 	if (supported_authentications == 0)
@@ -1168,56 +678,6 @@ ssh_userauth1(const char *local_user, const char *server_user, char *host,
 	if (type != SSH_SMSG_FAILURE)
 		packet_disconnect("Protocol error: got %d in response to SSH_CMSG_USER", type);
 
-#ifdef KRB5
-	if ((supported_authentications & (1 << SSH_AUTH_KERBEROS)) &&
-	    options.kerberos_authentication) {
-		debug("Trying Kerberos v5 authentication.");
-
-		if (try_krb5_authentication(&context, &auth_context)) {
-			type = packet_read();
-			if (type == SSH_SMSG_SUCCESS)
-				goto success;
-			if (type != SSH_SMSG_FAILURE)
-				packet_disconnect("Protocol error: got %d in response to Kerberos v5 auth", type);
-		}
-	}
-#endif /* KRB5 */
-
-#ifdef KRB4
-	if ((supported_authentications & (1 << SSH_AUTH_KERBEROS)) &&
-	    options.kerberos_authentication) {
-		debug("Trying Kerberos v4 authentication.");
-
-		if (try_krb4_authentication()) {
-			type = packet_read();
-			if (type == SSH_SMSG_SUCCESS)
-				goto success;
-			if (type != SSH_SMSG_FAILURE)
-				packet_disconnect("Protocol error: got %d in response to Kerberos v4 auth", type);
-		}
-	}
-#endif /* KRB4 */
-
-	/*
-	 * Use rhosts authentication if running in privileged socket and we
-	 * do not wish to remain anonymous.
-	 */
-	if ((supported_authentications & (1 << SSH_AUTH_RHOSTS)) &&
-	    options.rhosts_authentication) {
-		debug("Trying rhosts authentication.");
-		packet_start(SSH_CMSG_AUTH_RHOSTS);
-		packet_put_cstring(local_user);
-		packet_send();
-		packet_write_wait();
-
-		/* The server should respond with success or failure. */
-		type = packet_read();
-		if (type == SSH_SMSG_SUCCESS)
-			goto success;
-		if (type != SSH_SMSG_FAILURE)
-			packet_disconnect("Protocol error: got %d in response to rhosts auth",
-					  type);
-	}
 	/*
 	 * Try .rhosts or /etc/hosts.equiv authentication with RSA host
 	 * authentication.
@@ -1271,36 +731,5 @@ ssh_userauth1(const char *local_user, const char *server_user, char *host,
 	/* NOTREACHED */
 
  success:
-#ifdef KRB5
-	/* Try Kerberos v5 TGT passing. */
-	if ((supported_authentications & (1 << SSH_PASS_KERBEROS_TGT)) &&
-	    options.kerberos_tgt_passing && context && auth_context) {
-		if (options.cipher == SSH_CIPHER_NONE)
-			log("WARNING: Encryption is disabled! Ticket will be transmitted in the clear!");
-		send_krb5_tgt(context, auth_context);
-	}
-	if (auth_context)
-		krb5_auth_con_free(context, auth_context);
-	if (context)
-		krb5_free_context(context);
-#endif
-
-#ifdef AFS
-	/* Try Kerberos v4 TGT passing if the server supports it. */
-	if ((supported_authentications & (1 << SSH_PASS_KERBEROS_TGT)) &&
-	    options.kerberos_tgt_passing) {
-		if (options.cipher == SSH_CIPHER_NONE)
-			log("WARNING: Encryption is disabled! Ticket will be transmitted in the clear!");
-		send_krb4_tgt();
-	}
-	/* Try AFS token passing if the server supports it. */
-	if ((supported_authentications & (1 << SSH_PASS_AFS_TOKEN)) &&
-	    options.afs_token_passing && k_hasafs()) {
-		if (options.cipher == SSH_CIPHER_NONE)
-			log("WARNING: Encryption is disabled! Token will be transmitted in the clear!");
-		send_afs_tokens();
-	}
-#endif /* AFS */
-
 	return;	/* need statement after label */
 }

@@ -1,4 +1,4 @@
-/*	$OpenBSD: log.h,v 1.8 2002/07/19 15:43:33 markus Exp $	*/
+/*	$OpenBSD: log.h,v 1.9 2003/04/08 20:21:28 itojun Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -56,7 +56,7 @@ LogLevel log_level_number(char *);
 
 #define fatal	ssh_fatal
 #define error	ssh_error
-#define log	ssh_log
+#define logit	ssh_logit
 #define verbose	ssh_verbose
 #define debug	ssh_debug
 #define debug2	ssh_debug2
@@ -64,7 +64,7 @@ LogLevel log_level_number(char *);
 
 void     fatal(const char *, ...) __attribute__((format(printf, 1, 2)));
 void     error(const char *, ...) __attribute__((format(printf, 1, 2)));
-void     log(const char *, ...) __attribute__((format(printf, 1, 2)));
+void     logit(const char *, ...) __attribute__((format(printf, 1, 2)));
 void     verbose(const char *, ...) __attribute__((format(printf, 1, 2)));
 void     debug(const char *, ...) __attribute__((format(printf, 1, 2)));
 void     debug2(const char *, ...) __attribute__((format(printf, 1, 2)));

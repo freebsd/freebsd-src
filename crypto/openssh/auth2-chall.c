@@ -43,7 +43,7 @@ static void input_userauth_info_response(int, u_int32_t, void *);
 extern KbdintDevice bsdauth_device;
 #else
 #ifdef USE_PAM
-extern KbdintDevice pam_device;
+extern KbdintDevice sshpam_device;
 #endif
 #ifdef SKEY
 extern KbdintDevice skey_device;
@@ -55,7 +55,7 @@ KbdintDevice *devices[] = {
 	&bsdauth_device,
 #else
 #ifdef USE_PAM
-	&pam_device,
+	&sshpam_device,
 #endif
 #ifdef SKEY
 	&skey_device,
@@ -327,22 +327,24 @@ input_userauth_info_response(int type, u_int32_t seq, void *ctxt)
 void
 privsep_challenge_enable(void)
 {
+#if defined(BSD_AUTH) || defined(USE_PAM) || defined(SKEY)
+	int n = 0;
+#endif
 #ifdef BSD_AUTH
 	extern KbdintDevice mm_bsdauth_device;
 #endif
 #ifdef USE_PAM
-	extern KbdintDevice mm_pam_device;
+	extern KbdintDevice mm_sshpam_device;
 #endif
 #ifdef SKEY
 	extern KbdintDevice mm_skey_device;
 #endif
-	int n = 0;
 
 #ifdef BSD_AUTH
 	devices[n++] = &mm_bsdauth_device;
 #else
 #ifdef USE_PAM
-	devices[n++] = &mm_pam_device;
+	devices[n++] = &mm_sshpam_device;
 #endif
 #ifdef SKEY
 	devices[n++] = &mm_skey_device;
