@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: hd64570.h,v 1.1.1.1 1995/11/21 02:32:04 peter Exp $
+ * $Id: hd64570.h,v 1.2 1996/03/17 00:29:35 peter Exp $
  */
 #ifndef _HD64570_H_
 #define _HD64570_H_
@@ -96,7 +96,7 @@ typedef struct dmac_channel
   unsigned char unused0;
   unsigned short sar;         /* rw On odd numbered dmacs (tx) only */
   unsigned char sarb;         /* rw */
-#define cpb sarb;
+#define cpb sarb
   unsigned char unused1;
   unsigned short cda;         /* rw */
   unsigned short eda;         /* rw */
