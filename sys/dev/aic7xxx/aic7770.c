@@ -37,7 +37,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aic7770.c#25 $
+ * $Id: //depot/aic7xxx/aic7xxx/aic7770.c#26 $
  *
  * $FreeBSD$
  */
@@ -265,7 +265,7 @@ aha2840_load_seeprom(struct ahc_softc *ahc)
 
 	if (bootverbose)
 		printf("%s: Reading SEEPROM...", ahc_name(ahc));
-	have_seeprom = ahc_read_seeprom(&sd, (uint16_t *)&sc,
+	have_seeprom = ahc_read_seeprom(&sd, (uint16_t *)sc,
 					/*start_addr*/0, sizeof(sc)/2);
 
 	if (have_seeprom) {
