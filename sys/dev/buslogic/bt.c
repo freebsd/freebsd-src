@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: bt.c,v 1.9 1998/11/10 06:44:50 gibbs Exp $
+ *      $Id: bt.c,v 1.10 1998/11/10 06:47:11 gibbs Exp $
  */
 
  /*
@@ -1538,10 +1538,12 @@ btdone(struct bt_softc *bt, struct bt_ccb *bccb, bt_mbi_comp_code_t comp_code)
 		break;
 	case BMBI_ABORT:
 	case BMBI_ERROR:
-		printf("bt: ccb %p - error %x occured.  "
-		       "btstat = %x, sdstat = %x\n",
-		       (void *)bccb, comp_code, bccb->hccb.btstat,
-		       bccb->hccb.sdstat);
+		if (bootverbose) {
+			printf("bt: ccb %p - error %x occured.  "
+			       "btstat = %x, sdstat = %x\n",
+			       (void *)bccb, comp_code, bccb->hccb.btstat,
+			       bccb->hccb.sdstat);
+		}
 		/* An error occured */
 		switch(bccb->hccb.btstat) {
 		case BTSTAT_DATARUN_ERROR:
