@@ -101,9 +101,9 @@ struct	cpu_start_args cpu_start_args = { 0, -1, -1, 0, 0 };
 struct	ipi_cache_args ipi_cache_args;
 struct	ipi_tlb_args ipi_tlb_args;
 
-vm_offset_t mp_tramp;
+struct	mtx ipi_mtx;
 
-static struct mtx ap_boot_mtx;
+vm_offset_t mp_tramp;
 
 u_int	mp_boot_mid;
 
@@ -224,7 +224,7 @@ cpu_mp_start(void)
 	u_int mid;
 	u_long s;
 
-	mtx_init(&ap_boot_mtx, "ap boot", NULL, MTX_SPIN);
+	mtx_init(&ipi_mtx, "ipi", NULL, MTX_SPIN);
 
 	intr_setup(PIL_AST, cpu_ipi_ast, -1, NULL, NULL);
 	intr_setup(PIL_RENDEZVOUS, (ih_func_t *)smp_rendezvous_action,
