@@ -82,7 +82,7 @@ struct es_chinfo {
 	pcm_channel *channel;
 	snd_dbuf *buffer;
 	int dir, num;
-	u_int32_t fmt;
+	u_int32_t fmt, blksz, bufsz;
 };
 
 struct es_info {
@@ -253,8 +253,10 @@ eschan_init(kobj_t obj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 	ch->parent = es;
 	ch->channel = c;
 	ch->buffer = b;
+	ch->bufsz = ES_BUFFSIZE;
+	ch->blksz = ch->bufsz / 2;
 	ch->num = ch->parent->num++;
-	if (sndbuf_alloc(ch->buffer, es->parent_dmat, ES_BUFFSIZE) == -1) return NULL;
+	if (sndbuf_alloc(ch->buffer, es->parent_dmat, ch->bufsz) == -1) return NULL;
 	return ch;
 }
 
@@ -265,19 +267,13 @@ eschan_setdir(kobj_t obj, void *data, int dir)
 	struct es_info *es = ch->parent;
 
 	if (dir == PCMDIR_PLAY) {
-		bus_space_write_1(es->st, es->sh, ES1370_REG_MEMPAGE,
-				  ES1370_REG_DAC2_FRAMEADR >> 8);
-		bus_space_write_4(es->st, es->sh, ES1370_REG_DAC2_FRAMEADR & 0xff,
-				  vtophys(sndbuf_getbuf(ch->buffer)));
-		bus_space_write_4(es->st, es->sh, ES1370_REG_DAC2_FRAMECNT & 0xff,
-				  (sndbuf_getsize(ch->buffer) >> 2) - 1);
+		bus_space_write_1(es->st, es->sh, ES1370_REG_MEMPAGE, ES1370_REG_DAC2_FRAMEADR >> 8);
+		bus_space_write_4(es->st, es->sh, ES1370_REG_DAC2_FRAMEADR & 0xff, vtophys(sndbuf_getbuf(ch->buffer)));
+		bus_space_write_4(es->st, es->sh, ES1370_REG_DAC2_FRAMECNT & 0xff, (ch->bufsz >> 2) - 1);
 	} else {
-		bus_space_write_1(es->st, es->sh, ES1370_REG_MEMPAGE,
-				  ES1370_REG_ADC_FRAMEADR >> 8);
-		bus_space_write_4(es->st, es->sh, ES1370_REG_ADC_FRAMEADR & 0xff,
-				  vtophys(sndbuf_getbuf(ch->buffer)));
-		bus_space_write_4(es->st, es->sh, ES1370_REG_ADC_FRAMECNT & 0xff,
-				  (sndbuf_getsize(ch->buffer) >> 2) - 1);
+		bus_space_write_1(es->st, es->sh, ES1370_REG_MEMPAGE, ES1370_REG_ADC_FRAMEADR >> 8);
+		bus_space_write_4(es->st, es->sh, ES1370_REG_ADC_FRAMEADR & 0xff, vtophys(sndbuf_getbuf(ch->buffer)));
+		bus_space_write_4(es->st, es->sh, ES1370_REG_ADC_FRAMECNT & 0xff, (ch->bufsz >> 2) - 1);
 	}
 	ch->dir = dir;
 	return 0;
@@ -332,7 +328,13 @@ eschan1371_setspeed(kobj_t obj, void *data, u_int32_t speed)
 static int
 eschan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 {
-	return blocksize;
+  	struct es_chinfo *ch = data;
+
+	ch->blksz = blocksize;
+	ch->bufsz = ch->blksz * 2;
+	sndbuf_resize(ch->buffer, 2, ch->blksz);
+
+	return ch->blksz;
 }
 
 static int
@@ -345,38 +347,28 @@ eschan_trigger(kobj_t obj, void *data, int go)
 	if (go == PCMTRIG_EMLDMAWR || go == PCMTRIG_EMLDMARD)
 		return 0;
 
-	cnt = (sndbuf_runsz(ch->buffer) / sndbuf_getbps(ch->buffer)) - 1;
+	cnt = (ch->blksz / sndbuf_getbps(ch->buffer)) - 1;
 
 	if (ch->dir == PCMDIR_PLAY) {
 		if (go == PCMTRIG_START) {
 			int b = (ch->fmt & AFMT_S16_LE)? 2 : 1;
 			es->ctrl |= CTRL_DAC2_EN;
-			es->sctrl &= ~(SCTRL_P2ENDINC | SCTRL_P2STINC |
-				       SCTRL_P2LOOPSEL | SCTRL_P2PAUSE |
-				       SCTRL_P2DACSEN);
+			es->sctrl &= ~(SCTRL_P2ENDINC | SCTRL_P2STINC | SCTRL_P2LOOPSEL | SCTRL_P2PAUSE | SCTRL_P2DACSEN);
 			es->sctrl |= SCTRL_P2INTEN | (b << SCTRL_SH_P2ENDINC);
-			bus_space_write_4(es->st, es->sh,
-					  ES1370_REG_DAC2_SCOUNT, cnt);
+			bus_space_write_4(es->st, es->sh, ES1370_REG_DAC2_SCOUNT, cnt);
 			/* start at beginning of buffer */
-			bus_space_write_4(es->st, es->sh, ES1370_REG_MEMPAGE,
-					  ES1370_REG_DAC2_FRAMECNT >> 8);
-			bus_space_write_4(es->st, es->sh,
-					  ES1370_REG_DAC2_FRAMECNT & 0xff,
-				  	  (sndbuf_getsize(ch->buffer) >> 2) - 1);
+			bus_space_write_4(es->st, es->sh, ES1370_REG_MEMPAGE, ES1370_REG_DAC2_FRAMECNT >> 8);
+			bus_space_write_4(es->st, es->sh, ES1370_REG_DAC2_FRAMECNT & 0xff, (ch->bufsz >> 2) - 1);
 		} else es->ctrl &= ~CTRL_DAC2_EN;
 	} else {
 		if (go == PCMTRIG_START) {
 			es->ctrl |= CTRL_ADC_EN;
 			es->sctrl &= ~SCTRL_R1LOOPSEL;
 			es->sctrl |= SCTRL_R1INTEN;
-			bus_space_write_4(es->st, es->sh,
-					  ES1370_REG_ADC_SCOUNT, cnt);
+			bus_space_write_4(es->st, es->sh, ES1370_REG_ADC_SCOUNT, cnt);
 			/* start at beginning of buffer */
-			bus_space_write_4(es->st, es->sh, ES1370_REG_MEMPAGE,
-					  ES1370_REG_ADC_FRAMECNT >> 8);
-			bus_space_write_4(es->st, es->sh,
-					  ES1370_REG_ADC_FRAMECNT & 0xff,
-				  	  (sndbuf_getsize(ch->buffer) >> 2) - 1);
+			bus_space_write_4(es->st, es->sh, ES1370_REG_MEMPAGE, ES1370_REG_ADC_FRAMECNT >> 8);
+			bus_space_write_4(es->st, es->sh, ES1370_REG_ADC_FRAMECNT & 0xff, (ch->bufsz >> 2) - 1);
 		} else es->ctrl &= ~CTRL_ADC_EN;
 	}
 	bus_space_write_4(es->st, es->sh, ES1370_REG_SERIAL_CONTROL, es->sctrl);
