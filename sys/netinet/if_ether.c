@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ether.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ether.c,v 1.48 1998/09/17 00:04:21 fenner Exp $
+ * $Id: if_ether.c,v 1.49 1998/12/14 18:09:13 luigi Exp $
  */
 
 /*
@@ -504,6 +504,7 @@ in_arpinput(m)
 	}
 	la = arplookup(isaddr.s_addr, itaddr.s_addr == myaddr.s_addr, 0);
 	if (la && (rt = la->la_rt) && (sdl = SDL(rt->rt_gateway))) {
+#ifndef BRIDGE /* the following is not an error when doing bridging */
 		if (rt->rt_ifp != &ac->ac_if) {
 			log(LOG_ERR, "arp: %s is on %s%d but got reply from %6D on %s%d\n",
 			    inet_ntoa(isaddr),
@@ -512,6 +513,7 @@ in_arpinput(m)
 			    ac->ac_if.if_name, ac->ac_if.if_unit);
 			goto reply;
 		}
+#endif
 		if (sdl->sdl_alen &&
 		    bcmp((caddr_t)ea->arp_sha, LLADDR(sdl), sdl->sdl_alen))
 			if (rt->rt_expire)
