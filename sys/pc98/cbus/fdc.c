@@ -1378,9 +1378,8 @@ fd_probe(device_t dev)
 			break;
 		}
 
-		printf("Warning: can't control 3mode I/F, "
-			"fallback to 2mode.\n"
-			"fd%d: ", fd->fdu);
+		device_printf(dev,
+		    "Warning: can't control 3mode I/F, fallback to 2mode.\n");
 		/* FALLTHROUGH */
 	case FDT_12M:
 #ifdef EPSON_NRDISK
