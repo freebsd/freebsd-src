@@ -40,7 +40,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mcd.c,v 1.90 1997/05/10 12:13:13 joerg Exp $
+ *	$Id: mcd.c,v 1.91 1997/06/01 15:59:11 peter Exp $
  */
 static const char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
@@ -65,7 +65,6 @@ static const char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 #endif /*DEVFS*/
 
 #include <machine/clock.h>
-#include <machine/ipl.h>
 
 #include <i386/i386/cons.h>
 
