@@ -153,10 +153,10 @@ do { \
 
 /*
  * Indicate whether this ack should be delayed.  We can delay the ack if
- *     - delayed acks are enabled and
- *     - there is no delayed ack timer in progress and
- *     - our last ack wasn't a 0-sized window.  We never want to delay
- *       the ack that opens up a 0-sized window.
+ *	- delayed acks are enabled and
+ *	- there is no delayed ack timer in progress and
+ *	- our last ack wasn't a 0-sized window.  We never want to delay
+ *	  the ack that opens up a 0-sized window.
  */
 #define DELAY_ACK(tp) \
 	(tcp_delack_enabled && !callout_pending(tp->tt_delack) && \
