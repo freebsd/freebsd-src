@@ -67,8 +67,11 @@ static const char rcsid[] =
 #include <unistd.h>
 #include <locale.h>
 #include <pwd.h>
+#include <utmp.h>
 
 #include "ps.h"
+
+#define SEP ", \t"		/* username separators */
 
 KINFO *kinfo;
 struct varent *vhead, *vtail;
@@ -98,6 +101,7 @@ static void	 scanvars __P((void));
 static void	 dynsizevars __P((KINFO *));
 static void	 sizevars __P((void));
 static void	 usage __P((void));
+static uid_t	*getuids(const char *, int *);
 
 char dfmt[] = "pid tt state time command";
 char jfmt[] = "user pid ppid pgid sess jobc state tt time command";
@@ -117,12 +121,11 @@ main(argc, argv)
 	struct kinfo_proc *kp;
 	struct varent *vent;
 	struct winsize ws;
-	struct passwd *pwd;
 	dev_t ttydev;
 	pid_t pid;
-	uid_t uid;
+	uid_t *uids;
 	int all, ch, flag, i, fmt, lineno, nentries, dropgid;
-	int prtheader, wflag, what, xflg;
+	int prtheader, wflag, what, xflg, uid, nuids;
 	char *nlistf, *memf, *swapf, errbuf[_POSIX2_LINE_MAX];
 
 	(void) setlocale(LC_ALL, "");
@@ -140,7 +143,8 @@ main(argc, argv)
 
 	all = fmt = prtheader = wflag = xflg = 0;
 	pid = -1;
-	uid = (uid_t) -1;
+	nuids = 0;
+	uids = NULL;
 	ttydev = NODEV;
 	dropgid = 0;
 	memf = nlistf = swapf = _PATH_DEVNULL;
@@ -242,11 +246,7 @@ main(argc, argv)
 			break;
 		}
 		case 'U':
-			pwd = getpwnam(optarg);
-			if (pwd == NULL)
-				errx(1, "%s: no such user", optarg);
-			uid = pwd->pw_uid;
-			endpwent();
+			uids = getuids(optarg, &nuids);
 			xflg++;		/* XXX: intuitive? */
 			break;
 		case 'u':
@@ -310,8 +310,12 @@ main(argc, argv)
 		parsefmt(dfmt);
 
 	/* XXX - should be cleaner */
-	if (!all && ttydev == NODEV && pid == -1 && uid == (uid_t)-1)
-		uid = getuid();
+	if (!all && ttydev == NODEV && pid == -1 && !nuids) {
+		if ((uids = malloc(sizeof (*uids))) == NULL)
+			errx(1, "malloc: %s", strerror(errno));
+		nuids = 1;
+		*uids = getuid();
+	}
 
 	/*
 	 * scan requested variables, noting what structures are needed,
@@ -321,9 +325,9 @@ main(argc, argv)
 	/*
 	 * get proc list
 	 */
-	if (uid != (uid_t) -1) {
+	if (nuids == 1) {
 		what = KERN_PROC_UID;
-		flag = uid;
+		flag = *uids;
 	} else if (ttydev != NODEV) {
 		what = KERN_PROC_TTY;
 		flag = ttydev;
@@ -367,6 +371,14 @@ main(argc, argv)
 		if (xflg == 0 && (KI_EPROC(&kinfo[i])->e_tdev == NODEV ||
 		    (KI_PROC(&kinfo[i])->p_flag & P_CONTROLT ) == 0))
 			continue;
+		if (nuids > 1) {
+			for (uid = 0; uid < nuids; uid++)
+				if (KI_EPROC(&kinfo[i])->e_ucred.cr_uid ==
+				    uids[uid])
+					break;
+			if (uid == nuids)
+				continue;
+		}
 		for (vent = vhead; vent; vent = vent->next) {
 			(vent->var->oproc)(&kinfo[i], vent);
 			if (vent->next != NULL)
@@ -379,7 +391,51 @@ main(argc, argv)
 			lineno = 0;
 		}
 	}
+	free(uids);
+
 	exit(eval);
+}
+
+uid_t *
+getuids(const char *arg, int *nuids)
+{
+	char name[UT_NAMESIZE + 1];
+	struct passwd *pwd;
+	uid_t *uids, *moreuids;
+	int l, alloc;
+
+
+	alloc = 0;
+	*nuids = 0;
+	uids = NULL;
+	for (; (l = strcspn(arg, SEP)) > 0; arg += l + strspn(arg + l, SEP)) {
+		if (l >= sizeof name) {
+			warnx("%.*s: name too long", l, arg);
+			continue;
+		}
+		strncpy(name, arg, l);
+		name[l] = '\0';
+		if ((pwd = getpwnam(name)) == NULL) {
+			warnx("%s: no such user", name);
+			continue;
+		}
+		if (*nuids >= alloc) {
+			alloc = (alloc + 1) << 1;
+			moreuids = realloc(uids, alloc * sizeof (*uids));
+			if (moreuids == NULL) {
+				free(uids);
+				errx(1, "realloc: %s", strerror(errno));
+			}
+			uids = moreuids;
+		}
+		uids[(*nuids)++] = pwd->pw_uid;
+	}
+	endpwent();
+
+	if (!*nuids)
+		errx(1, "No users specified");
+
+	return uids;
 }
 
 static void
