@@ -31,6 +31,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <machine/pmap.h>
@@ -82,7 +83,7 @@ bios_mcabus_present(void * dummy)
 		if (bootverbose) {
 			printf("BIOS SDT: INT call failed.\n");
 		}
-		return (0);
+		return;
 	}
 
 	if ((vmf.vmf_ah != 0) && (vmf.vmf_flags != 0)) {
@@ -91,7 +92,7 @@ bios_mcabus_present(void * dummy)
 			printf("BIOS SDT: AH 0x%02x, Flags 0x%04x\n",
 				vmf.vmf_ah, vmf.vmf_flags);
 		}
-		return (0);
+		return;
 	}
 
 	paddr = vmf.vmf_es;
