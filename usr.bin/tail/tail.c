@@ -54,7 +54,7 @@ static char sccsid[] = "@(#)tail.c	8.1 (Berkeley) 6/6/93";
 #include <err.h>
 #include "extern.h"
 
-int fflag, rflag, rval;
+int Fflag, fflag, rflag, rval;
 char *fname;
 
 static void obsolete __P((char **));
@@ -107,8 +107,11 @@ main(argc, argv)
 
 	obsolete(argv);
 	style = NOTSET;
-	while ((ch = getopt(argc, argv, "b:c:fn:r")) != -1)
+	while ((ch = getopt(argc, argv, "Fb:c:fn:r")) != -1)
 		switch(ch) {
+		case 'F':	/* -F is superset of (and implies) -f */
+			Fflag = fflag = 1;
+			break;
 		case 'b':
 			ARG(512, FBYTES, RBYTES);
 			break;

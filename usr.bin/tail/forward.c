@@ -86,6 +86,7 @@ forward(fp, style, off, sbp)
 {
 	register int ch;
 	struct timeval interval;
+	struct stat sb2;
 
 	switch(style) {
 	case FBYTES:
@@ -179,6 +180,21 @@ forward(fp, style, off, sbp)
 
 		(void) usleep(250000);
 		clearerr(fp);
+
+		if (Fflag && fileno(fp) != STDIN_FILENO &&
+		    stat(fname, &sb2) != -1) {
+			if (sb2.st_ino != sbp->st_ino ||
+			    sb2.st_dev != sbp->st_dev ||
+			    sb2.st_rdev != sbp->st_rdev ||
+			    sb2.st_nlink == 0) {
+				fp = freopen(fname, "r", fp);
+				if (fp == NULL) {
+					ierr();
+					break;
+				}
+				*sbp = sb2;
+			}
+		}
 	}
 }
 
