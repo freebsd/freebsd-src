@@ -43,9 +43,9 @@
 #ifndef _KERNEL
 #include <sys/filedesc.h>
 #endif
+#include <sys/queue.h>
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
-#include <sys/queue.h>
 #include <sys/priority.h>
 #include <sys/rtprio.h>			/* XXX. */
 #include <sys/runq.h>

@@ -33,10 +33,10 @@
 #define _NET_PFIL_H_
 
 #include <sys/systm.h>
+#include <sys/queue.h>
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
 #include <sys/condvar.h>	/* XXX */
-#include <sys/queue.h>
 
 struct mbuf;
 struct ifnet;
