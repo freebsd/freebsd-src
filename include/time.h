@@ -48,7 +48,7 @@
 #include <sys/cdefs.h>
 #include <machine/ansi.h>
 
-#if __POSIX_VISIBLE < 200112 || __BSD_VISIBLE
+#if __POSIX_VISIBLE > 0 && __POSIX_VISIBLE < 200112 || __BSD_VISIBLE
 /*
  * Frequency of the clock ticks reported by times().  Deprecated - use
  * sysconf(_SC_CLK_TCK) instead.  (Removed in 1003.1-2001.)
