@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	5.1 (Berkeley) 6/25/90
-#	$Id: Makefile,v 1.22 1996/10/01 14:07:34 jkh Exp $
+#	$Id$
 
 SUBDIR=	include lib libexec usr.bin usr.sbin man
 
@@ -25,6 +25,8 @@ kprog:
 	cd ${SDIR}/usr.bin/rlogin; ${CODAI}
 	cd ${SDIR}/usr.bin/rsh; ${CODAI}
 	cd ${SDIR}/usr.bin/su; ${CODAI}
+	cd ${SDIR}/sbin/dump; ${CODAI}
+	cd ${SDIR}/sbin/restore; ${CODAI}
 
 bootstrap:
 	( cd ${.CURDIR}/include; ${MAKE} ${MFLAGS} install )
@@ -45,5 +47,7 @@ help-distribute:	distribute
 	cd ${SDIR}/usr.bin/rlogin; ${CODAD}
 	cd ${SDIR}/usr.bin/rsh; ${CODAD}
 	cd ${SDIR}/usr.bin/su; ${CODAD}
+	cd ${SDIR}/sbin/dump; ${CODAD}
+	cd ${SDIR}/sbin/restore; ${CODAD}
 
 .include <bsd.subdir.mk>
