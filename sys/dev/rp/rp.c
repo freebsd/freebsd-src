@@ -588,7 +588,6 @@ static int	minor_to_unit[128];
 
 static int rp_num_ports[4];	/* Number of ports on each controller */
 
-#define _INLINE_ __inline
 #define POLL_INTERVAL 1
 
 #define CALLOUT_MASK		0x80
@@ -620,7 +619,7 @@ static	void	rpstop(struct tty *, int);
 static	void	rphardclose	(struct rp_port *);
 static	void	rp_disc_optim	(struct tty *tp, struct termios *t);
 
-static _INLINE_ void rp_do_receive(struct rp_port *rp, struct tty *tp,
+static void rp_do_receive(struct rp_port *rp, struct tty *tp,
 			CHANNEL_t *cp, unsigned int ChanStatus)
 {
 	int	spl;
@@ -712,7 +711,7 @@ static _INLINE_ void rp_do_receive(struct rp_port *rp, struct tty *tp,
 	}
 }
 
-static _INLINE_ void rp_handle_port(struct rp_port *rp)
+static void rp_handle_port(struct rp_port *rp)
 {
 	CHANNEL_t	*cp;
 	struct	tty	*tp;
