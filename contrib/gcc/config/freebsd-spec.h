@@ -159,10 +159,9 @@ is built with the --enable-threads configure-time option.}		\
 #include <sys/param.h>
 #if __FreeBSD_version >= 500016
 #define FBSD_LIB_SPEC "							\
-  %{pthread: %eThe -pthread option is deprecated.}			\
   %{!shared:								\
-    %{!pg: -lc}								\
-    %{pg: -lc_p}							\
+    %{!pg: %{pthread:-lc_r} -lc}					\
+    %{pg:  %{pthread:-lc_r_p} -lc_p}					\
   }"
 #else
 #define FBSD_LIB_SPEC "							\
