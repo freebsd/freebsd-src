@@ -712,21 +712,31 @@ pmap_track_modified(vm_offset_t va)
 		return 0;
 }
 
+#ifndef KSTACK_MAX_PAGES
+#define KSTACK_MAX_PAGES 32
+#endif
+
 /*
  * Create the KSTACK for a new thread.
  * This routine directly affects the fork perf for a process/thread.
  */
 void
-pmap_new_thread(struct thread *td)
+pmap_new_thread(struct thread *td, int pages)
 {
 	vm_offset_t *ks;
+
+	/* Bounds check */
+	if (pages <= 1)
+		pages = KSTACK_PAGES;
+	else if (pages > KSTACK_MAX_PAGES)
+		pages = KSTACK_MAX_PAGES;
 
 	/*
 	 * Use contigmalloc for user area so that we can use a region
 	 * 7 address for it which makes it impossible to accidentally
 	 * lose when recording a trapframe.
 	 */
-	ks = contigmalloc(KSTACK_PAGES * PAGE_SIZE, M_PMAP,
+	ks = contigmalloc(pages * PAGE_SIZE, M_PMAP,
 			  M_WAITOK,
 			  0ul,
 			  256*1024*1024 - 1,
@@ -738,6 +748,7 @@ pmap_new_thread(struct thread *td)
 		    KSTACK_PAGES);
 	td->td_md.md_kstackvirt = ks;
 	td->td_kstack = IA64_PHYS_TO_RR7(ia64_tpa((u_int64_t)ks));
+	td->td_kstack_pages = pages;
 }
 
 /*
@@ -747,9 +758,42 @@ pmap_new_thread(struct thread *td)
 void
 pmap_dispose_thread(struct thread *td)
 {
-	contigfree(td->td_md.md_kstackvirt, KSTACK_PAGES * PAGE_SIZE, M_PMAP);
+	int pages;
+
+	pages = td->td_kstack_pages;
+	contigfree(td->td_md.md_kstackvirt, pages * PAGE_SIZE, M_PMAP);
 	td->td_md.md_kstackvirt = 0;
 	td->td_kstack = 0;
+}
+
+/*
+ * Set up a variable sized alternate kstack.  This appears to be MI.
+ */
+void
+pmap_new_altkstack(struct thread *td, int pages)
+{
+
+	/* shuffle the original stack */
+	td->td_altkstack_obj = td->td_kstack_obj;
+	td->td_altkstack = td->td_kstack;
+	td->td_altkstack_pages = td->td_kstack_pages;
+
+	pmap_new_thread(td, pages);
+}
+
+void
+pmap_dispose_altkstack(struct thread *td)
+{
+
+	pmap_dispose_thread(td);
+
+	/* restore the original kstack */
+	td->td_kstack = td->td_altkstack;
+	td->td_kstack_obj = td->td_altkstack_obj;
+	td->td_kstack_pages = td->td_altkstack_pages;
+	td->td_altkstack = 0;
+	td->td_altkstack_obj = NULL;
+	td->td_altkstack_pages = 0;
 }
 
 /*
