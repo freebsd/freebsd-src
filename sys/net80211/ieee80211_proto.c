@@ -895,7 +895,6 @@ ieee80211_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg
 			ic->ic_mgt_timer = 0;
 			IF_DRAIN(&ic->ic_mgtq);
 			ieee80211_reset_bss(ic);
-			ieee80211_crypto_delglobalkeys(ic);
 			break;
 		}
 		if (ic->ic_auth->ia_detach != NULL)
