@@ -103,9 +103,9 @@ showmbufs()
 
 	if (mb == 0)
 		return;
-	for (j = 0; j < wnd->maxy; j++) {
+	for (j = 0; j < wnd->_maxy; j++) {
 		max = 0, index = -1;
-		for (i = 0; i < wnd->maxy; i++) {
+		for (i = 0; i < wnd->_maxy; i++) {
 			if (i == MT_FREE)
 				continue;
 			if (mb->m_mtypes[i] > max) {

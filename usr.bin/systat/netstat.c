@@ -81,7 +81,7 @@ static char *inetname __P((struct in_addr));
 static void inetprint __P((struct in_addr *, int, char *));
 
 #define	streq(a,b)	(strcmp(a,b)==0)
-#define	YMAX(w)		((w)->maxy-1)
+#define	YMAX(w)		((w)->_maxy-1)
 
 WINDOW *
 opennetstat()
