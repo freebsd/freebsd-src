@@ -18,6 +18,13 @@
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#ifdef HAVE_SYS_PARAM_H
+#include <sys/param.h>
+#endif
+#if (defined(BSD) && (BSD >= 199306))
+#define HAVE_STRFTIME
+#include <ctype.h>
+#endif
 #include "filetypes.h"
 #include "system.h"
 #include "cpiohdr.h"
@@ -1043,7 +1050,11 @@ long_format (file_hdr, link_name)
 
   /* Get time values ready to print.  */
   when = file_hdr->c_mtime;
+#if HAVE_STRFTIME
+  strftime(tbuf, sizeof(tbuf), "%c", localtime(&when));
+#else
   strcpy (tbuf, ctime (&when));
+#endif
   if (current_time - when > 6L * 30L * 24L * 60L * 60L
       || current_time - when < 0L)
     {
@@ -1129,6 +1140,9 @@ print_name_with_quoting (p)
 	  break;
 
 	default:
+#if (defined(BSD) && (BSD >= 199306))
+	  if (isprint(c))
+#else
 	  if (c > 040 &&
 #ifdef __MSDOS__
 	      c < 0377 && c != 0177
@@ -1136,6 +1150,7 @@ print_name_with_quoting (p)
 	      c < 0177
 #endif
 	    )
+#endif
 	    putchar (c);
 	  else
 	    printf ("\\%03o", (unsigned int) c);
