@@ -40,7 +40,7 @@
  * struct sockaddr_un {
  *	short	sun_family;
  *	char	sun_path[108];
- * }; 
+ * };
  */
 
 #include <stdio.h>
@@ -49,7 +49,7 @@
 
 /*
  * This program creates a UNIX domain datagram socket, binds a name to it,
- * then reads from the socket. 
+ * then reads from the socket.
  */
 main()
 {

@@ -43,7 +43,7 @@
  *	u_short	sin_port;
  *	struct in_addr sin_addr;
  *	char	sin_zero[8];
- * }; 
+ * };
  *
  * This program creates a datagram socket, binds a name to it, then reads
  * from the socket.

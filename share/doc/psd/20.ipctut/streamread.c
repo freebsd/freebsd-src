@@ -40,9 +40,9 @@
 
 /*
  * This program creates a socket and then begins an infinite loop. Each time
- * through the loop it accepts a connection and prints out messages from it. 
+ * through the loop it accepts a connection and prints out messages from it.
  * When the connection breaks, or a termination message comes through, the
- * program accepts a new connection. 
+ * program accepts a new connection.
  */
 
 main()
@@ -97,6 +97,6 @@ main()
 	/*
 	 * Since this program has an infinite loop, the socket "sock" is
 	 * never explicitly closed.  However, all sockets will be closed
-	 * automatically when a process is killed or terminates normally. 
+	 * automatically when a process is killed or terminates normally.
 	 */
 }

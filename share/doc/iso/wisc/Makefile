@@ -13,7 +13,7 @@ TROFF = /usr/local/lib/troff
 #	Print via speedy for cycles sake...
 #	(assumes postscript printer...)
 #
-program: 
+program:
 	@echo printer is $(PRINTER)
 	(cd figs; make)
 	format -P$(PRINTER) -t program.nr | rsh speedy psdit \| lpr -P$(PRINTER)

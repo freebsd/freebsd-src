@@ -40,14 +40,14 @@ main(argc, argv)
 		clnt_pcreateerror(server);
 		exit(1);
 	}
-	
+
 	/*
 	 * Call the remote procedure "printmessage" on the server
 	 */
 	result = printmessage_1(&message, cl);
 	if (result == NULL) {
 		/*
-		 * An error occurred while calling the server. 
+		 * An error occurred while calling the server.
 	 	 * Print error message and die.
 		 */
 		clnt_perror(cl, server);
@@ -59,13 +59,13 @@ main(argc, argv)
 	 */
 	if (*result == 0) {
 		/*
-		 * Server was unable to print our message. 
+		 * Server was unable to print our message.
 		 * Print error message and die.
 		 */
-		fprintf(stderr, "%s: sorry, %s couldn't print your message\n", 
-			argv[0], server);	
+		fprintf(stderr, "%s: sorry, %s couldn't print your message\n",
+			argv[0], server);
 		exit(1);
-	} 
+	}
 
 	/*
 	 * The message got printed on the server's console
