@@ -406,6 +406,15 @@ int	linux_ioctl_unregister_handlers(struct linker_set *s);
 #define	LINUX_F_UNLCK		2
 
 /*
+ * mount flags
+ */
+#define LINUX_MS_RDONLY         0x0001
+#define LINUX_MS_NOSUID         0x0002
+#define LINUX_MS_NODEV          0x0004
+#define LINUX_MS_NOEXEC         0x0008
+#define LINUX_MS_REMOUNT        0x0020
+        
+/*
  * SystemV IPC defines
  */
 #define	LINUX_SEMOP		1

@@ -40,9 +40,14 @@
 #include <sys/proc.h>
 #include <sys/vnode.h>
 #include <sys/malloc.h>
+#include <sys/mount.h>
 #include <sys/dirent.h>
 #include <sys/conf.h>
 #include <sys/tty.h>
+
+#include <ufs/ufs/extattr.h>
+#include <ufs/ufs/quota.h>
+#include <ufs/ufs/ufsmount.h>
 
 #include <machine/../linux/linux.h>
 #include <machine/../linux/linux_proto.h>
@@ -884,4 +889,88 @@ linux_pwrite(p, uap)
 	bsd.nbyte = uap->nbyte;
 	bsd.offset = uap->offset;
 	return pwrite(p, &bsd);
+}
+
+int
+linux_mount(struct proc *p, struct linux_mount_args *args)
+{
+	struct mount_args bsd_args;
+	struct ufs_args ufs;
+        char fstypename[MFSNAMELEN];
+        char mntonname[MNAMELEN], mntfromname[MNAMELEN];
+	int error = 0;
+
+        error = copyinstr(args->filesystemtype, fstypename, 
+	    MFSNAMELEN - 1, NULL);
+	if (error)
+                return (error);
+        error = copyinstr(args->specialfile, mntfromname, MFSNAMELEN - 1, NULL);
+	if (error)
+                return (error);
+        error = copyinstr(args->dir, mntonname, MFSNAMELEN - 1, NULL);
+	if (error)
+                return (error);
+
+#ifdef DEBUG
+	if (ldebug(mount))
+		printf(ARGS(mount, "%s, %s, %s"),
+		    fstypename, mntfromname, mntonname);
+#endif
+
+	if (strcmp(fstypename, "ext2") == 0) {
+		bsd_args.type = "ext2fs";
+		bsd_args.data = (void *)&ufs;
+		ufs.fspec = mntfromname;
+#define DEFAULT_ROOTID		-2
+		ufs.export.ex_root = DEFAULT_ROOTID;
+		ufs.export.ex_flags =
+		    args->rwflag & LINUX_MS_RDONLY ? MNT_EXRDONLY : 0;
+	} else if (strcmp(fstypename, "proc") == 0) {
+		bsd_args.type = "linprocfs";
+		bsd_args.data = NULL;
+	} else {
+		return (ENODEV);
+	}
+
+	bsd_args.path = mntonname;
+	bsd_args.flags = 0;
+
+	if ((args->rwflag & 0xffff0000) == 0xc0ed0000) {
+		/*
+		 * Linux SYNC flag is not included; the closest equivalent
+		 * FreeBSD has is !ASYNC, which is our default.
+		 */
+		if (args->rwflag & LINUX_MS_RDONLY)
+			bsd_args.flags |= MNT_RDONLY; 
+		if (args->rwflag & LINUX_MS_NOSUID)
+			bsd_args.flags |= MNT_NOSUID; 
+		if (args->rwflag & LINUX_MS_NODEV)
+			bsd_args.flags |= MNT_NODEV; 
+		if (args->rwflag & LINUX_MS_NOEXEC)
+			bsd_args.flags |= MNT_NOEXEC; 
+		if (args->rwflag & LINUX_MS_REMOUNT)
+			bsd_args.flags |= MNT_UPDATE; 
+	}
+
+	return (mount1(p, &bsd_args, UIO_SYSSPACE));
+}
+
+int
+linux_umount(struct proc *p, struct linux_umount_args *args)
+{
+	struct linux_umount2_args args2;
+
+	args2.path = args->path;
+	args2.flags = 0;
+	return (linux_umount2(p, &args2));
+}
+
+int
+linux_umount2(struct proc *p, struct linux_umount2_args *args)
+{
+	struct unmount_args bsd;
+
+	bsd.path = args->path;
+	bsd.flags = args->flags;	/* XXX correct? */
+	return (unmount(p, &bsd));
 }

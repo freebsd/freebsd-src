@@ -54,8 +54,10 @@
 18	STD	LINUX	{ int linux_stat(char *path, struct ostat *up); }
 19	STD	LINUX	{ int linux_lseek(int fdes, long off, int whence); }
 20	NOPROTO	LINUX	{ int getpid(void); }
-21	STD	LINUX	{ int linux_mount(void); }
-22	STD	LINUX	{ int linux_umount(void); }
+21	STD	LINUX	{ int linux_mount(char *specialfile, char *dir, \
+				char *filesystemtype, u_long rwflag, \
+				void *data); }
+22	STD	LINUX	{ int linux_umount(char *path); }
 23	NOPROTO	LINUX	{ int setuid(uid_t uid); }
 24	NOPROTO	LINUX	{ int getuid(void); }
 25	STD	LINUX	{ int linux_stime(void); }
@@ -86,7 +88,7 @@
 49	NOPROTO	LINUX	{ int geteuid(void); }
 50	NOPROTO	LINUX	{ int getegid(void); }
 51	NOPROTO	LINUX	{ int acct(char *path); }
-52	STD	LINUX	{ int linux_umount2(void); }
+52	STD	LINUX	{ int linux_umount2(char *path, int flags); }
 53	STD	LINUX	{ int linux_lock(void); }
 54	STD	LINUX	{ int linux_ioctl(int fd, u_long cmd, int arg); }
 55	STD	LINUX	{ int linux_fcntl(int fd, int cmd, int arg); }
@@ -135,7 +137,7 @@
 				int count); }
 86	STD	LINUX	{ int linux_uselib(char *library); }
 87	NOPROTO	LINUX	{ int swapon(char *name); }
-88	NOPROTO	LINUX	{ int reboot(int opt); }
+88	STD	LINUX	{ int linux_reboot(int magic1, int magic2, int opt); }
 89	STD	LINUX	{ int linux_readdir(int fd, \
 				struct linux_dirent *dent, \
 				unsigned int count); }
