@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.20 1995/05/20 10:33:08 jkh Exp $
+ * $Id: menus.c,v 1.21 1995/05/20 13:36:44 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -137,7 +137,7 @@ to be in experimental status at this time.",		/* prompt */
 	DMENU_CALL, (void *)lang_set_Japanese, 0, 0	},
       { "Norwegian", "Norwegian language and character set (ISO-8859-1)", /* N */
 	DMENU_CALL, (void *)lang_set_Norwegian, 0, 0	},
-      { "Russian", "Russian language and character set (CP866)",	/* R */
+      { "Russian", "Russian language and character set (KOI8-R)",	/* R */
 	DMENU_CALL, (void *)lang_set_Russian, 0, 0	},
       { "Spanish", "Spanish language and character set (ISO-8859-1)",	/* S */
 	DMENU_CALL, (void *)lang_set_Spanish, 0, 0	},
@@ -573,5 +573,28 @@ at this time then select Cancel to leave this menu.",
 	DMENU_CALL, (void *)tcpOpenDialog, 0, 0		},
       { "GO!", "Start the whole show and go out for coffee!",	/* P */
 	DMENU_CALL, (void *)installCommit, 0, 0		},
+      { NULL } },
+};
+
+/* MBR type menu */
+DMenu MenuMBRType = {
+    DMENU_RADIO_TYPE | DMENU_SELECTION_RETURNS,
+    "Chose boot manager type",		/* title */
+    "FreeBSD comes with a boot selector that allows you to easily\n\
+select between FreeBSD and other operating systems on your machine\n\
+at boot time.  If you have more than one drive and wish to boot\n\
+from other than the first, the boot selector will also allow you\n\
+to do so (limitations in the PC boot-BIOS usually prevent this\n\
+otherwise).  If you do not want a boot selector, or wish to replace\n\
+an existing one, select \"standard\".  If you would prefer your master\n\
+boot record to be untouched, then select \"none\".",
+    "Press F1 to read the installation guide",
+    "install.hlp",
+    { { "BootMgr", "Install the FreeBSD Boot Manager (\"Booteasy\")", /* B */
+	DMENU_SET_VARIABLE, (void *)"bootManager=bteasy", 0, 0	},
+      { "Standard", "Use a standard MBR (no boot manager)",	/* S */
+	DMENU_SET_VARIABLE, (void *)"bootManager=mbr", 0, 0	},
+      { "None", "Leave the Master Boot Record untouched",	/* N */
+	DMENU_CALL, (void *)diskPartitionEditor, 0, 0		},
       { NULL } },
 };

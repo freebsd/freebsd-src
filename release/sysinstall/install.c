@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.41 1995/05/20 19:12:11 phk Exp $
+ * $Id: install.c,v 1.42 1995/05/20 19:22:20 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -84,20 +84,26 @@ installInitial(void)
     Device **devs;
     int i;
     static Boolean alreadyDone = FALSE;
+    char *cp;
 
     if (alreadyDone)
 	return;
+
+    dmenuOpenSimple(&MenuMBRType);
+    mbrContents = NULL;
+    cp = getenv("bootManager");
+    if (cp) {
+	if (!strcmp(cp, "bteasy"))
+	    mbrContents = bteasy17;
+	else if (!strcmp(cp, "mbr"))
+	    mbrContents = mbr;
+    }
 
     /* If things aren't kosher, or we refuse to proceed, bail. */
     if (!preInstallCheck()
 	|| msgYesNo("Last Chance!  Are you SURE you want continue the installation?\n\nIf you're running this on an existing system, we STRONGLY\nencourage you to make proper backups before proceeding.\nWe take no responsibility for lost disk contents!"))
 	return;
 
-    mbrContents = NULL;
-    if (!msgYesNo("Would you like to install a boot manager?\n\nThis will allow you to easily select between other operating systems\non the first disk, or boot from a disk other than the first."))
-	mbrContents = bteasy17;
-    else if (!msgYesNo("Would you like to remove an existing boot manager?"))
-	mbrContents = mbr;
     devs = deviceFind(NULL, DEVICE_TYPE_DISK);
     for (i = 0; devs[i]; i++) {
 	Disk *d = (Disk *)devs[i]->private;
