@@ -371,7 +371,7 @@ ENTRY(epc_syscall, 8)
 	movl		gp=__gp
 	;;
 }
-epc_syscall_restart:
+1:
 {	.mib
 	srlz.d
 	add		out0=16,sp
@@ -384,12 +384,25 @@ epc_syscall_restart:
 	br.call.sptk	rp=do_ast
 	;;
 }
-{	.mfb
+{	.mib
 	cmp4.eq		p15,p0=ERESTART,r8
-	nop		0
-(p15)	br.spnt		epc_syscall_restart
+	add		r14=24,sp
+(p15)	br.spnt		1b			// restart syscall
 	;;
 }
+{	.mfb
+	ld8		r14=[r14]		// tf_flags
+	nop		0
+	nop		0
+	;;
+}
+{	.mib
+	nop		0
+	tbit.z		p15,p0=r14,0
+(p15)	br.spnt		exception_restore
+	;;
+}
+
 	.global		epc_syscall_return
 epc_syscall_return:
 {	.mmi
