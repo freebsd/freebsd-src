@@ -32,7 +32,7 @@ SUBDIR=	${_csu} libcom_err libcrypt libkvm msun libmd libncurses \
 	${_libncp} ${_libngatm} libopie libpam libpanel libpcap \
 	${_libpthread} ${_libsdp} ${_libsm} ${_libsmb} ${_libsmdb} \
 	${_libsmutil} libstand libtelnet ${_libthr} ${_libthread_db} libufs \
-	libugidfw ${_libusbhid} ${_libvgl} libwrap libxpg4 liby libz ${_bind}
+	libugidfw ${_libusbhid} ${_libvgl} libwrap liby libz ${_bind}
 
 .if exists(${.CURDIR}/csu/${MACHINE_ARCH}-elf)
 _csu=csu/${MACHINE_ARCH}-elf
