@@ -12,7 +12,7 @@
 .Nd performance tuning under FreeBSD
 .Sh SYSTEM SETUP - DISKLABEL, NEWFS, TUNEFS, SWAP
 When using
-.Xr disklabel 8
+.Xr bsdlabel 8
 or
 .Xr sysinstall 8
 to lay out your file systems on a hard disk it is important to remember
@@ -442,7 +442,7 @@ Note that setting too high a value
 bad clustering performance.
 Do not set this value arbitrarily high!
 Also,
-higher write queueing values may add latency to reads occuring at the same
+higher write queueing values may add latency to reads occurring at the same
 time.
 .Pp
 There are various other buffer-cache and VM page cache related sysctls.
@@ -857,18 +857,6 @@ loader tunable to 1.
 More information on tuning the ATA driver system may be found in the
 .Xr ata 4
 man page.
-.Pp
-There is a new experimental feature for IDE hard drives called
-.Va hw.ata.tags
-(you also set this in the boot loader) which allows write caching to be safely
-turned on.
-This brings SCSI tagging features to IDE drives.
-As of this
-writing only IBM DPTA and DTLA drives support the feature.
-Warning!
-These
-drives apparently have quality control problems and I do not recommend
-purchasing them at this time.
 If you need performance, go with SCSI.
 .Sh CPU, MEMORY, DISK, NETWORK
 The type of tuning you do depends heavily on where your system begins to
@@ -898,7 +886,7 @@ The first line of defense for
 improving network performance is to make sure you are using switches instead
 of hubs, especially these days where switches are almost as cheap.
 Hubs
-have severe problems under heavy loads due to collision backoff and one bad
+have severe problems under heavy loads due to collision back-off and one bad
 host can severely degrade the entire LAN.
 Second, optimize the network path
 as much as possible.
@@ -932,9 +920,9 @@ over services you export from your box (web services, email).
 .Xr hier 7 ,
 .Xr ports 7 ,
 .Xr boot 8 ,
+.Xr bsdlabel 8 ,
 .Xr ccdconfig 8 ,
 .Xr config 8 ,
-.Xr disklabel 8 ,
 .Xr fsck 8 ,
 .Xr ifconfig 8 ,
 .Xr ipfw 8 ,
