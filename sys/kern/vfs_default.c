@@ -342,7 +342,7 @@ vop_sharedlock(ap)
 			return (0);
 		MALLOC(vp->v_vnlock, struct lock *, sizeof(struct lock),
 		    M_VNODE, M_WAITOK);
-		lockinit(vp->v_vnlock, PVFS, "vnlock", 0, 0);
+		lockinit(vp->v_vnlock, PVFS, "vnlock", 0, LK_NOPAUSE);
 	}
 	switch (flags & LK_TYPE_MASK) {
 	case LK_DRAIN:
@@ -410,7 +410,7 @@ vop_nolock(ap)
 			return (0);
 		MALLOC(vp->v_vnlock, struct lock *, sizeof(struct lock),
 		    M_VNODE, M_WAITOK);
-		lockinit(vp->v_vnlock, PVFS, "vnlock", 0, 0);
+		lockinit(vp->v_vnlock, PVFS, "vnlock", 0, LK_NOPAUSE);
 	}
 	switch (flags & LK_TYPE_MASK) {
 	case LK_DRAIN:

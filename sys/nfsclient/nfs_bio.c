@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_bio.c	8.9 (Berkeley) 3/30/95
- * $Id: nfs_bio.c,v 1.50 1998/02/06 12:13:55 eivind Exp $
+ * $Id: nfs_bio.c,v 1.51 1998/03/06 09:46:43 msmith Exp $
  */
 
 
@@ -65,6 +65,7 @@
 
 static struct buf *nfs_getcacheblk __P((struct vnode *vp, daddr_t bn, int size,
 					struct proc *p));
+static void nfs_prot_buf __P((struct buf *bp, int off, int n));
 
 extern int nfs_numasync;
 extern struct nfsstats nfsstats;
@@ -76,58 +77,153 @@ int
 nfs_getpages(ap)
 	struct vop_getpages_args *ap;
 {
-	int i, pcount, error;
+	int i, error, nextoff, size, toff, npages;
 	struct uio uio;
 	struct iovec iov;
 	vm_page_t m;
 	vm_offset_t kva;
+	struct buf *bp;
 
 	if ((ap->a_vp->v_object) == NULL) {
 		printf("nfs_getpages: called with non-merged cache vnode??\n");
 		return EOPNOTSUPP;
 	}
 
-	m = ap->a_m[ap->a_reqpage];
-	kva = vm_pager_map_page(m);
+	/*
+	 * We use only the kva address for the buffer, but this is extremely
+	 * convienient and fast.
+	 */
+	bp = getpbuf();
+
+	npages = btoc(ap->a_count);
+	kva = (vm_offset_t) bp->b_data;
+	pmap_qenter(kva, ap->a_m, npages);
 
 	iov.iov_base = (caddr_t) kva;
-	iov.iov_len = PAGE_SIZE;
+	iov.iov_len = ap->a_count;
 	uio.uio_iov = &iov;
 	uio.uio_iovcnt = 1;
-	uio.uio_offset = IDX_TO_OFF(m->pindex);
-	uio.uio_resid = PAGE_SIZE;
+	uio.uio_offset = IDX_TO_OFF(ap->a_m[0]->pindex);
+	uio.uio_resid = ap->a_count;
 	uio.uio_segflg = UIO_SYSSPACE;
 	uio.uio_rw = UIO_READ;
 	uio.uio_procp = curproc;
 
 	error = nfs_readrpc(ap->a_vp, &uio, curproc->p_ucred);
-	vm_pager_unmap_page(kva);
+	pmap_qremove(kva, npages);
 
-	pcount = round_page(ap->a_count) / PAGE_SIZE;
-	for (i = 0; i < pcount; i++) {
+	relpbuf(bp);
+
+	if (error && (uio.uio_resid == ap->a_count))
+		return VM_PAGER_ERROR;
+
+	size = ap->a_count - uio.uio_resid;
+
+	for (i = 0, toff = 0; i < npages; i++, toff = nextoff) {
+		vm_page_t m;
+		nextoff = toff + PAGE_SIZE;
+		m = ap->a_m[i];
+
+		m->flags &= ~PG_ZERO;
+
+		if (nextoff <= size) {
+			m->valid = VM_PAGE_BITS_ALL;
+			m->dirty = 0;
+		} else {
+			int nvalid = ((size + DEV_BSIZE - 1) - toff) & ~(DEV_BSIZE - 1);
+			vm_page_set_validclean(m, 0, nvalid);
+		}
+		
 		if (i != ap->a_reqpage) {
-			vnode_pager_freepage(ap->a_m[i]);
+			/*
+			 * Whether or not to leave the page activated is up in
+			 * the air, but we should put the page on a page queue
+			 * somewhere (it already is in the object).  Result:
+			 * It appears that emperical results show that
+			 * deactivating pages is best.
+			 */
+
+			/*
+			 * Just in case someone was asking for this page we
+			 * now tell them that it is ok to use.
+			 */
+			if (!error) {
+				if (m->flags & PG_WANTED)
+					vm_page_activate(m);
+				else
+					vm_page_deactivate(m);
+				PAGE_WAKEUP(m);
+			} else {
+				vnode_pager_freepage(m);
+			}
 		}
 	}
-
-	if (error && (uio.uio_resid == PAGE_SIZE))
-		return VM_PAGER_ERROR;
 	return 0;
 }
 
-
 /*
- * put page routine
- *
- * XXX By default, wimp out... note that a_offset is ignored (and always
- * XXX has been).
+ * Vnode op for VM putpages.
  */
 int
 nfs_putpages(ap)
 	struct vop_putpages_args *ap;
 {
-	return vnode_pager_generic_putpages(ap->a_vp, ap->a_m, ap->a_count,
-		ap->a_sync, ap->a_rtvals);
+	struct uio uio;
+	struct iovec iov;
+	vm_page_t m;
+	vm_offset_t kva;
+	struct buf *bp;
+	int iomode, must_commit, i, error, npages;
+	int *rtvals;
+
+	rtvals = ap->a_rtvals;
+
+	npages = btoc(ap->a_count);
+
+	for (i = 0; i < npages; i++) {
+		rtvals[i] = VM_PAGER_AGAIN;
+	}
+
+	/*
+	 * We use only the kva address for the buffer, but this is extremely
+	 * convienient and fast.
+	 */
+	bp = getpbuf();
+
+	kva = (vm_offset_t) bp->b_data;
+	pmap_qenter(kva, ap->a_m, npages);
+
+	iov.iov_base = (caddr_t) kva;
+	iov.iov_len = ap->a_count;
+	uio.uio_iov = &iov;
+	uio.uio_iovcnt = 1;
+	uio.uio_offset = IDX_TO_OFF(ap->a_m[0]->pindex);
+	uio.uio_resid = ap->a_count;
+	uio.uio_segflg = UIO_SYSSPACE;
+	uio.uio_rw = UIO_WRITE;
+	uio.uio_procp = curproc;
+
+	if ((ap->a_sync & VM_PAGER_PUT_SYNC) == 0)
+	    iomode = NFSV3WRITE_UNSTABLE;
+	else
+	    iomode = NFSV3WRITE_FILESYNC;
+
+	error = nfs_writerpc(ap->a_vp, &uio,
+		curproc->p_ucred, &iomode, &must_commit);
+
+	pmap_qremove(kva, npages);
+	relpbuf(bp);
+
+	if (!error) {
+		int nwritten = round_page(ap->a_count - uio.uio_resid) / PAGE_SIZE;
+		for (i = 0; i < nwritten; i++) {
+			rtvals[i] = VM_PAGER_OK;
+			ap->a_m[i]->dirty = 0;
+		}
+		if (must_commit)
+			nfs_clearcommit(ap->a_vp->v_mount);
+	}
+	return ap->a_rtvals[0];
 }
 
 /*
@@ -464,7 +560,7 @@ again:
 	    };
 
 	    if (n > 0) {
-		error = uiomove(bp->b_data + on, (int)n, uio);
+		    error = uiomove(bp->b_data + on, (int)n, uio);
 	    }
 	    switch (vp->v_type) {
 	    case VREG:
@@ -482,6 +578,24 @@ again:
 	    brelse(bp);
 	} while (error == 0 && uio->uio_resid > 0 && n > 0);
 	return (error);
+}
+
+static void
+nfs_prot_buf(bp, off, n)
+	struct buf *bp;
+	int off;
+	int n;
+{
+	int pindex, boff, end;
+
+	if ((bp->b_flags & B_VMIO) == 0)
+		return;
+
+	end = round_page(off + n);
+	for (boff = trunc_page(off); boff < end; boff += PAGE_SIZE) {
+		pindex = boff >> PAGE_SHIFT;
+		vm_page_protect(bp->b_pages[pindex], VM_PROT_NONE);
+	}
 }
 
 /*
@@ -648,12 +762,19 @@ again:
 				goto again;
 			}
 		}
+
 		error = uiomove((char *)bp->b_data + on, n, uio);
 		if (error) {
 			bp->b_flags |= B_ERROR;
 			brelse(bp);
 			return (error);
 		}
+
+		/*
+		 * This will keep the buffer and mmaped regions more coherent.
+		 */
+		nfs_prot_buf(bp, on, n);
+
 		if (bp->b_dirtyend > 0) {
 			bp->b_dirtyoff = min(on, bp->b_dirtyoff);
 			bp->b_dirtyend = max((on + n), bp->b_dirtyend);
@@ -681,6 +802,8 @@ again:
 		 */
 		if ((np->n_flag & NQNFSNONCACHE) || (ioflag & IO_SYNC)) {
 			bp->b_proc = p;
+			if (ioflag & IO_INVAL)
+				bp->b_flags |= B_INVAL;
 			error = VOP_BWRITE(bp);
 			if (error)
 				return (error);

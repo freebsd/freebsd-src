@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_pager.h	8.4 (Berkeley) 1/12/94
- * $Id: vm_pager.h,v 1.14 1997/10/12 20:26:32 phk Exp $
+ * $Id: vm_pager.h,v 1.15 1998/02/03 22:19:35 bde Exp $
  */
 
 /*
@@ -55,7 +55,7 @@ struct pagerops {
 	vm_object_t (*pgo_alloc) __P((void *, vm_size_t, vm_prot_t, vm_ooffset_t));	/* Allocate pager. */
 	void (*pgo_dealloc) __P((vm_object_t));	/* Disassociate. */
 	int (*pgo_getpages) __P((vm_object_t, vm_page_t *, int, int));	/* Get (read) page. */
-	int (*pgo_putpages) __P((vm_object_t, vm_page_t *, int, boolean_t, int *)); /* Put (write) page. */
+	int (*pgo_putpages) __P((vm_object_t, vm_page_t *, int, int, int *)); /* Put (write) page. */
 	boolean_t (*pgo_haspage) __P((vm_object_t, vm_pindex_t, int *, int *)); /* Does pager have page? */
 	void (*pgo_sync) __P((void));
 };
@@ -75,6 +75,9 @@ struct pagerops {
 #define	VM_PAGER_PEND	3
 #define	VM_PAGER_ERROR	4
 #define VM_PAGER_AGAIN	5
+
+#define	VM_PAGER_PUT_SYNC	0x1
+#define	VM_PAGER_PUT_INVAL	0x2
 
 #ifdef KERNEL
 

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_inode.c	8.13 (Berkeley) 4/21/95
- * $Id: ffs_inode.c,v 1.33 1998/02/04 22:33:31 eivind Exp $
+ * $Id: ffs_inode.c,v 1.34 1998/02/06 12:14:14 eivind Exp $
  */
 
 #include "opt_quota.h"
@@ -204,6 +204,7 @@ ffs_truncate(vp, length, flags, cred, p)
 	 * value of osize is 0, length will be at least 1.
 	 */
 	if (osize < length) {
+		vnode_pager_setsize(ovp, length);
 		offset = blkoff(fs, length - 1);
 		lbn = lblkno(fs, length - 1);
 		aflags = B_CLRBUF;
@@ -214,7 +215,6 @@ ffs_truncate(vp, length, flags, cred, p)
 		if (error)
 			return (error);
 		oip->i_size = length;
-		vnode_pager_setsize(ovp, length);
 		if (bp->b_bufsize == fs->fs_bsize)
 			bp->b_flags |= B_CLUSTEROK;
 		if (aflags & B_SYNC)
@@ -257,7 +257,6 @@ ffs_truncate(vp, length, flags, cred, p)
 		else
 			bawrite(bp);
 	}
-	vnode_pager_setsize(ovp, length);
 	/*
 	 * Calculate index into inode's block list of
 	 * last direct and indirect blocks (if any)
@@ -298,6 +297,7 @@ ffs_truncate(vp, length, flags, cred, p)
 	oip->i_size = osize;
 	vflags = ((length > 0) ? V_SAVE : 0) | V_SAVEMETA;
 	allerror = vinvalbuf(ovp, vflags, cred, p, 0, 0);
+	vnode_pager_setsize(ovp, length);
 
 	/*
 	 * Indirect blocks first.

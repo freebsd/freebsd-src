@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.93 1998/02/09 06:11:32 eivind Exp $
+ *	$Id: vm_page.c,v 1.94 1998/03/01 04:18:24 dyson Exp $
  */
 
 /*
@@ -88,6 +88,7 @@
 static void	vm_page_queue_init __P((void));
 static vm_page_t vm_page_select_free __P((vm_object_t object,
 			vm_pindex_t pindex, int prefqueue));
+static vm_page_t vm_page_select_cache __P((vm_object_t, vm_pindex_t));
 
 /*
  *	Associated with page of user-allocatable memory is a
@@ -685,6 +686,36 @@ vm_page_select(object, pindex, basequeue)
 }
 
 /*
+ * Find a page on the cache queue with color optimization.  As pages
+ * might be found, but not applicable, they are deactivated.  This
+ * keeps us from using potentially busy cached pages.
+ */
+vm_page_t
+vm_page_select_cache(object, pindex)
+	vm_object_t object;
+	vm_pindex_t pindex;
+{
+	vm_page_t m;
+
+	while (TRUE) {
+#if PQ_L2_SIZE > 1
+		int index;
+		index = (pindex + object->pg_color) & PQ_L2_MASK;
+		m = vm_page_list_find(PQ_CACHE, index);
+
+#else
+		m = TAILQ_FIRST(vm_page_queues[PQ_CACHE].pl);
+#endif
+		if (m && ((m->flags & PG_BUSY) || m->busy ||
+			       m->hold_count || m->wire_count)) {
+			vm_page_deactivate(m);
+			continue;
+		}
+		return m;
+	}
+}
+
+/*
  * Find a free or zero page, with specified preference.
  */
 static vm_page_t
@@ -825,7 +856,7 @@ vm_page_alloc(object, pindex, page_req)
 				panic("vm_page_alloc(NORMAL): missing page on free queue\n");
 #endif
 		} else {
-			m = vm_page_select(object, pindex, PQ_CACHE);
+			m = vm_page_select_cache(object, pindex);
 			if (m == NULL) {
 				splx(s);
 #if defined(DIAGNOSTIC)
@@ -847,7 +878,7 @@ vm_page_alloc(object, pindex, page_req)
 				panic("vm_page_alloc(ZERO): missing page on free queue\n");
 #endif
 		} else {
-			m = vm_page_select(object, pindex, PQ_CACHE);
+			m = vm_page_select_cache(object, pindex);
 			if (m == NULL) {
 				splx(s);
 #if defined(DIAGNOSTIC)
@@ -871,7 +902,7 @@ vm_page_alloc(object, pindex, page_req)
 				panic("vm_page_alloc(SYSTEM): missing page on free queue\n");
 #endif
 		} else {
-			m = vm_page_select(object, pindex, PQ_CACHE);
+			m = vm_page_select_cache(object, pindex);
 			if (m == NULL) {
 				splx(s);
 #if defined(DIAGNOSTIC)
@@ -986,18 +1017,18 @@ vm_wait()
 int
 vm_page_sleep(vm_page_t m, char *msg, char *busy) {
 	vm_object_t object = m->object;
-	int generation = object->generation;
+	int slept = 0;
 	if ((busy && *busy) || (m->flags & PG_BUSY)) {
 		int s;
 		s = splvm();
 		if ((busy && *busy) || (m->flags & PG_BUSY)) {
 			m->flags |= PG_WANTED;
-			tsleep(m, PVM, msg, 800);
+			tsleep(m, PVM, msg, 0);
+			slept = 1;
 		}
 		splx(s);
 	}
-	return ((generation != object->generation) || (busy && *busy) ||
-		(m->flags & PG_BUSY));
+	return slept;
 }
 
 /*
@@ -1540,13 +1571,11 @@ again1:
 				if (m->dirty) {
 					if (m->object->type == OBJT_VNODE) {
 						vn_lock(m->object->handle, LK_EXCLUSIVE | LK_RETRY, curproc);
-						vm_object_page_clean(m->object, 0, 0, TRUE);
+						vm_object_page_clean(m->object, 0, 0, OBJPC_SYNC);
 						VOP_UNLOCK(m->object->handle, 0, curproc);
 						goto again1;
 					} else if (m->object->type == OBJT_SWAP ||
 								m->object->type == OBJT_DEFAULT) {
-						m->flags |= PG_BUSY;
-						vm_page_protect(m, VM_PROT_NONE);
 						vm_pageout_flush(&m, 1, 0);
 						goto again1;
 					}
@@ -1570,13 +1599,11 @@ again1:
 				if (m->dirty) {
 					if (m->object->type == OBJT_VNODE) {
 						vn_lock(m->object->handle, LK_EXCLUSIVE | LK_RETRY, curproc);
-						vm_object_page_clean(m->object, 0, 0, TRUE);
+						vm_object_page_clean(m->object, 0, 0, OBJPC_SYNC);
 						VOP_UNLOCK(m->object->handle, 0, curproc);
 						goto again1;
 					} else if (m->object->type == OBJT_SWAP ||
 								m->object->type == OBJT_DEFAULT) {
-						m->flags |= PG_BUSY;
-						vm_page_protect(m, VM_PROT_NONE);
 						vm_pageout_flush(&m, 1, 0);
 						goto again1;
 					}

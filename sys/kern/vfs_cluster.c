@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cluster.c	8.7 (Berkeley) 2/13/94
- * $Id: vfs_cluster.c,v 1.54 1998/02/04 22:32:39 eivind Exp $
+ * $Id: vfs_cluster.c,v 1.55 1998/02/06 12:13:30 eivind Exp $
  */
 
 #include "opt_debug_cluster.h"
@@ -150,17 +150,12 @@ cluster_read(vp, filesize, lblkno, size, cred, totread, seqcount, bpp)
 					(i == (maxra - 1)))
 					tbp->b_flags |= B_RAM;
 
-#if 0
-				if (tbp->b_usecount == 0) {
-					/*
-					 * Make sure that the soon-to-be used readaheads
-					 * are still there.  The getblk/bqrelse pair will
-					 * boost the priority of the buffer.
-					 */
-					tbp = getblk(vp, lblkno+i, size, 0, 0);
-					bqrelse(tbp);
+				if ((tbp->b_usecount < 5) &&
+					((tbp->b_flags & B_BUSY) == 0) &&
+					(tbp->b_qindex == QUEUE_LRU)) {
+					TAILQ_REMOVE(&bufqueues[QUEUE_LRU], tbp, b_freelist);
+					TAILQ_INSERT_TAIL(&bufqueues[QUEUE_LRU], tbp, b_freelist);
 				}
-#endif
 			}
 			splx(s);
 			if (i >= maxra) {
@@ -215,7 +210,6 @@ single_block_read:
 	 * if we have been doing sequential I/O, then do some read-ahead
 	 */
 	rbp = NULL;
-	/* if (seqcount && (lblkno < (origblkno + maxra))) { */
 	if (seqcount && (lblkno < (origblkno + seqcount))) {
 		/*
 		 * we now build the read-ahead buffer if it is desirable.

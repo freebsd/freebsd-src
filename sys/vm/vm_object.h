@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.h,v 1.45 1998/02/05 03:32:45 dyson Exp $
+ * $Id: vm_object.h,v 1.46 1998/02/25 03:55:52 dyson Exp $
  */
 
 /*
@@ -141,6 +141,9 @@ struct vm_object {
 #define OFF_TO_IDX(off) ((vm_pindex_t)(((vm_ooffset_t)(off)) >> PAGE_SHIFT))
 
 #ifdef	KERNEL
+
+#define	OBJPC_SYNC	0x1			/* sync I/O */
+#define	OBJPC_INVAL	0x2			/* invalidate */
 
 TAILQ_HEAD(object_q, vm_object);
 

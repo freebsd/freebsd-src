@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.116 1998/02/23 08:22:33 dyson Exp $
+ * $Id: vm_map.c,v 1.117 1998/02/25 03:55:49 dyson Exp $
  */
 
 /*
@@ -286,7 +286,7 @@ vm_map_init(map, min, max)
 	map->first_free = &map->header;
 	map->hint = &map->header;
 	map->timestamp = 0;
-	lockinit(&map->lock, PVM, "thrd_sleep", 0, 0);
+	lockinit(&map->lock, PVM, "thrd_sleep", 0, LK_NOPAUSE);
 }
 
 /*
@@ -1665,12 +1665,15 @@ vm_map_clean(map, start, end, syncio, invalidate)
 			 *     idea.
 			 */
 			if (current->protection & VM_PROT_WRITE) {
+				int flags;
 				if (object->type == OBJT_VNODE)
 					vn_lock(object->handle, LK_EXCLUSIVE | LK_RETRY, curproc);
+				flags = (syncio || invalidate) ? OBJPC_SYNC : 0;
+				flags |= invalidate ? OBJPC_INVAL : 0;
 		   	    vm_object_page_clean(object,
 					OFF_TO_IDX(offset),
 					OFF_TO_IDX(offset + size + PAGE_MASK),
-					(syncio||invalidate)?1:0);
+					flags);
 				if (invalidate)
 					vm_object_page_remove(object,
 						OFF_TO_IDX(offset),
