@@ -308,10 +308,12 @@ struct m68k_it {
 	struct	{
 		int	n;
 		symbolS	*add,
-		*sub;
-		long off;
+			*sub,
+			*got;
+		long	off;
 		char	wid;
 		char	pcrel;
+		enum	reloc_type rtype;
 	} reloc[5];		/* Five is enough??? */
 };
 
@@ -326,47 +328,50 @@ static struct m68k_it the_ins;		/* the instruction being assembled */
 #define addword(w)	the_ins.opcode[the_ins.numo++]=(w)
 
 /* Like addword, but goes BEFORE general operands */
-#define insop(w)	{int z;\
-			     for (z=the_ins.numo;z>opcode->m_codenum;--z)\
-				 the_ins.opcode[z]=the_ins.opcode[z-1];\
-				     for (z=0;z<the_ins.nrel;z++)\
-					 the_ins.reloc[z].n+=2;\
-					     the_ins.opcode[opcode->m_codenum]=w;\
-						 the_ins.numo++;\
-					     }
+#define insop(w)	{ \
+	int z; \
+	for (z=the_ins.numo;z>opcode->m_codenum;--z) \
+	    the_ins.opcode[z]=the_ins.opcode[z-1]; \
+	for (z=0;z<the_ins.nrel;z++) \
+	    the_ins.reloc[z].n+=2; \
+	the_ins.opcode[opcode->m_codenum]=w; \
+	the_ins.numo++; \
+    }
 
 
-#define add_exp(beg,end) (\
-			  the_ins.exprs[the_ins.nexp].e_beg=beg,\
-			  the_ins.exprs[the_ins.nexp].e_end=end,\
-			  &the_ins.exprs[the_ins.nexp++]\
+#define add_exp(beg,end) (the_ins.exprs[the_ins.nexp].e_beg=beg, \
+			  the_ins.exprs[the_ins.nexp].e_end=end, \
+			  &the_ins.exprs[the_ins.nexp++] \
 			  )
 
 
 /* The numo+1 kludge is so we can hit the low order byte of the prev word. Blecch*/
-#define add_fix(width,exp,pc_rel) {\
-				       the_ins.reloc[the_ins.nrel].n= ((width) == 'B') ? (the_ins.numo*2-1) : \
-					   (((width) == 'b') ? ((the_ins.numo-1)*2) : (the_ins.numo*2));\
-					       the_ins.reloc[the_ins.nrel].add=adds((exp));\
-						   the_ins.reloc[the_ins.nrel].sub=subs((exp));\
-						       the_ins.reloc[the_ins.nrel].off=offs((exp));\
-							   the_ins.reloc[the_ins.nrel].wid=width;\
-							       the_ins.reloc[the_ins.nrel++].pcrel=pc_rel;\
-							   }
+#define add_fix(width, exp, pc_rel, r_type) { \
+	the_ins.reloc[the_ins.nrel].n= ((width) == 'B') ? (the_ins.numo*2-1) : \
+	    (((width) == 'b') ? ((the_ins.numo-1)*2) : (the_ins.numo*2)); \
+	the_ins.reloc[the_ins.nrel].add=adds((exp)); \
+	the_ins.reloc[the_ins.nrel].sub=subs((exp)); \
+	the_ins.reloc[the_ins.nrel].off=offs((exp)); \
+	the_ins.reloc[the_ins.nrel].got=gots((exp)); \
+	the_ins.reloc[the_ins.nrel].wid=width; \
+	the_ins.reloc[the_ins.nrel].pcrel=pc_rel; \
+	the_ins.reloc[the_ins.nrel++].rtype=r_type; \
+    }
 
 #define add_frag(add,off,type)  {\
-				     the_ins.fragb[the_ins.nfrag].fragoff=the_ins.numo;\
-					 the_ins.fragb[the_ins.nfrag].fadd=add;\
-					     the_ins.fragb[the_ins.nfrag].foff=off;\
-						 the_ins.fragb[the_ins.nfrag++].fragty=type;\
-					     }
+	the_ins.fragb[the_ins.nfrag].fragoff=the_ins.numo;\
+	the_ins.fragb[the_ins.nfrag].fadd=add;\
+	the_ins.fragb[the_ins.nfrag].foff=off;\
+	the_ins.fragb[the_ins.nfrag++].fragty=type;\
+    }
 
-#define isvar(exp)	((exp) && (adds(exp) || subs(exp)))
+#define isvar(exp)	((exp) && (adds(exp) || subs(exp) || gots(exp)))
 
 #define seg(exp)	((exp)->e_exp.X_seg)
 #define adds(exp)	((exp)->e_exp.X_add_symbol)
 #define subs(exp)	((exp)->e_exp.X_subtract_symbol)
 #define offs(exp)	((exp)->e_exp.X_add_number)
+#define gots(exp)	((exp)->e_exp.X_got_symbol)
 
 
 struct m68k_incant {
@@ -527,6 +532,13 @@ static char alt_notend_table[256];
 #if 0
 #define mklower(c)	(isupper(c) ? tolower(c) : c)
 #endif
+
+/* Handle the extra arg for fix_new when doing PIC */
+#ifdef	PIC
+#define FIX_NO_RELOC	NO_RELOC, NULL
+#else
+#define FIX_NO_RELOC	NO_RELOC
+#endif	/* PIC */
 
 
 /* JF modified this to handle cases where the first part of a symbol name
@@ -1200,6 +1212,7 @@ char *instring;
 	char	c;
 	int	losing;
 	int	opsfound;
+	int	reloc_type;
 	char	*crack_operand();
 	LITTLENUM_TYPE words[6];
 	LITTLENUM_TYPE *wordp;
@@ -1286,6 +1299,14 @@ char *instring;
 				/* Code with multiple case ...: gets sorted by the lowest case ...
 				   it belongs to.  I hope this makes sense. */
 				switch (*s) {
+#ifdef	PIC
+				case ' ':
+					/* this operand is just here to indicate a jump-table branch */
+					if (!flagseen['k'])
+						losing++;
+					break;
+#endif	/* PIC */
+
 				case '!':
 					if (opP->mode == MSCR || opP->mode == IMMED
 					    || opP->mode == DREG || opP->mode == AREG
@@ -1583,7 +1604,7 @@ char *instring;
 						++losing;
 					} /* not absolute */
 					break;
-					
+
 				default:
 					as_fatal("Internal error:  Operand mode %c unknown in line %s of file \"%s\"",
 						 *s, __LINE__, __FILE__);
@@ -1620,6 +1641,12 @@ char *instring;
 		   Watch the first step; its a big one! */
 		switch (s[0]) {
 			
+#ifdef	PIC
+		case ' ':
+			/* this operand is just here to indicate a jump-table branch */
+			break;
+#endif	/* PIC */
+
 		case '*':
 		case '~':
 		case '%':
@@ -1633,13 +1660,33 @@ char *instring;
 #ifndef NO_68851
 		case '|':
 #endif
+
+#ifdef	PIC
+			/* Use GLOB_DAT for operand references in PIC mode */
+			if (flagseen['k'])
+			    reloc_type = RELOC_GLOB_DAT;
+			else
+#endif	/* PIC */
+			reloc_type = NO_RELOC;
+
 			switch (opP->mode) {
 			case IMMED:
 				tmpreg=0x3c;	/* 7.4 */
 				if (strchr("bwl",s[1])) nextword=get_num(opP->con1,80);
 				else nextword=nextword=get_num(opP->con1,0);
-				if (isvar(opP->con1))
-				    add_fix(s[1],opP->con1,0);
+				if (isvar(opP->con1)) {
+#ifdef	PIC
+				    /* KLUDGE!!!  In PIC assembly, an immediate reference to
+				       __GLOBAL_OFFSET_TABLE_ is turned into a pc-relative
+				       reference to __GLOBAL_OFFSET_TABLE_ - 6,
+				       for the sake of Sun compatibility. */
+				    if (s[1] == 'l' && flagseen['k'] && gots(opP->con1)) {
+					offs(opP->con1) -= 6;
+					add_fix(s[1], opP->con1, 1, NO_RELOC);
+				    } else
+#endif	/* PIC */
+					add_fix(s[1],opP->con1,0,reloc_type);
+				}
 				switch (s[1]) {
 				case 'b':
 					if (!isbyte(nextword))
@@ -1746,14 +1793,14 @@ char *instring;
 					else
 					    tmpreg=0x30+opP->reg-ADDR;	/* 6.areg */
 					if (isvar(opP->con1)) {
-						if (opP->reg == PC) {
+						if (opP->reg == PC && !subs(opP->con1)) {
 							add_frag(adds(opP->con1),
 								 offs(opP->con1),
 								 TAB(PCLEA,SZ_UNDEF));
 							break;
 						} else {
 							addword(0x0170);
-							add_fix('l',opP->con1,1);
+							add_fix('l',opP->con1,0,reloc_type);
 						}
 					} else
 					    addword(0x0170);
@@ -1766,9 +1813,9 @@ char *instring;
 					
 					if (isvar(opP->con1)) {
 						if (opP->reg == PC) {
-							add_fix('w',opP->con1,1);
+							add_fix('w',opP->con1,1,NO_RELOC);
 						} else
-						    add_fix('w',opP->con1,0);
+						    add_fix('w',opP->con1,0,reloc_type);
 					}
 				}
 				addword(nextword);
@@ -1827,7 +1874,7 @@ char *instring;
 						nextword +=baseo&0xff;
 						addword(nextword);
 						if (isvar(opP->con1))
-						    add_fix('B',opP->con1,0);
+						    add_fix('B',opP->con1,0,reloc_type);
 						break;
 					}
 				} else
@@ -1890,10 +1937,10 @@ char *instring;
 				
 				if (isvar(opP->con1)) {
 					if (opP->reg == PC || opP->reg == ZPC) {
-						add_fix(siz1 == 3 ? 'l' : 'w',opP->con1,1);
+						add_fix(siz1 == 3 ? 'l' : 'w',opP->con1,1,NO_RELOC);
 						opP->con1->e_exp.X_add_number+=6;
 					} else
-					    add_fix(siz1 == 3 ? 'l' : 'w',opP->con1,0);
+					    add_fix(siz1 == 3 ? 'l' : 'w',opP->con1,0,reloc_type);
 				}
 				if (siz1 == 3)
 				    addword(baseo>>16);
@@ -1902,10 +1949,10 @@ char *instring;
 				
 				if (isvar(opP->con2)) {
 					if (opP->reg == PC || opP->reg == ZPC) {
-						add_fix(siz2 == 3 ? 'l' : 'w',opP->con2,1);
+						add_fix(siz2 == 3 ? 'l' : 'w',opP->con2,1,NO_RELOC);
 						opP->con1->e_exp.X_add_number+=6;
 					} else
-					    add_fix(siz2 == 3 ? 'l' : 'w',opP->con2,0);
+					    add_fix(siz2 == 3 ? 'l' : 'w',opP->con2,0,reloc_type);
 				}
 				if (siz2 == 3)
 				    addword(outro>>16);
@@ -1942,7 +1989,7 @@ char *instring;
 					}
 				case 3:		/* Fall through into long */
 					if (isvar(opP->con1))
-					    add_fix('l',opP->con1,0);
+					    add_fix('l',opP->con1,0,NO_RELOC);
 					
 					tmpreg=0x39;	/* 7.1 mode */
 					addword(nextword>>16);
@@ -1951,7 +1998,7 @@ char *instring;
 					
 				case 2:		/* Word */
 					if (isvar(opP->con1))
-					    add_fix('w',opP->con1,0);
+					    add_fix('w',opP->con1,0,NO_RELOC);
 					
 					tmpreg=0x38;	/* 7.0 mode */
 					addword(nextword);
@@ -1985,7 +2032,7 @@ char *instring;
 			}
 			tmpreg=get_num(opP->con1,tmpreg);
 			if (isvar(opP->con1))
-			    add_fix(s[1],opP->con1,0);
+			    add_fix(s[1],opP->con1,0,NO_RELOC);
 			switch (s[1]) {
 			case 'b':	/* Danger:  These do no check for
 					   certain types of overflow.
@@ -2031,13 +2078,12 @@ char *instring;
 			tmpreg = get_num(opP->con1, 80);
 			switch (s[1]) {
 			case 'B':
-				/* Needs no offsetting */
-				add_fix('B', opP->con1, 1);
+				/* Offset is relative to next word */
+				opP->con1->e_exp.X_add_number -= 1;
+				add_fix('B', opP->con1, 1,NO_RELOC);
 				break;
 			case 'W':
-				/* Offset the displacement to be relative to byte disp location */
-				opP->con1->e_exp.X_add_number += 2;
-				add_fix('w', opP->con1, 1);
+				add_fix('w', opP->con1, 1,NO_RELOC);
 				addword(0);
 				break;
 			case 'L':
@@ -2045,13 +2091,22 @@ char *instring;
 				if (cpu_of_arch(current_architecture) < m68020) 	/* 68000 or 010 */
 				    as_warn("Can't use long branches on 68000/68010");
 				the_ins.opcode[the_ins.numo-1]|=0xff;
-				/* Offset the displacement to be relative to byte disp location */
-				opP->con1->e_exp.X_add_number+=4;
-				add_fix('l',opP->con1,1);
+				add_fix('l',opP->con1,1,NO_RELOC);
 				addword(0);
 				addword(0);
 				break;
 			case 'g':
+#ifdef	PIC
+				/* If we have the optional kludgey 2nd operand,
+				   make this go via the jump table. */
+				if (flagseen['k'] && s[2] == ' ') {
+				    the_ins.opcode[the_ins.numo-1] |= 0xFF;
+				    add_fix('l', opP->con1, 1, RELOC_JMP_TBL);
+				    addword(0);
+				    addword(0);
+				    break;
+				}
+#endif	/* PIC */
 				if (subs(opP->con1))	 /* We can't relax it */
 				    goto long_branch;
 				
@@ -2083,7 +2138,7 @@ char *instring;
 					
 					/* Don't ask! */
 					opP->con1->e_exp.X_add_number+=2;
-					add_fix('w',opP->con1,1);
+					add_fix('w',opP->con1,1,NO_RELOC);
 				}
 				addword(0);
 				break;
@@ -2093,20 +2148,20 @@ char *instring;
 				/* Coproc branches don't have a byte disp option, but they are
 				   compatible with the ordinary branches, which do... */
 				opP->con1->e_exp.X_add_number+=4;
-				add_fix('l',opP->con1,1);
+				add_fix('l',opP->con1,1,NO_RELOC);
 				addword(0);
 				addword(0);
 				break;
 			case 'c':		/* Var size Coprocesssor branches */
 				if (subs(opP->con1)) {
-					add_fix('l',opP->con1,1);
+					add_fix('l',opP->con1,1,NO_RELOC);
 					add_frag((symbolS *)0,(long)0,TAB(FBRANCH,LONG));
 				} else if (adds(opP->con1)) {
 					add_frag(adds(opP->con1),offs(opP->con1),TAB(FBRANCH,SZ_UNDEF));
 				} else {
 					/* add_frag((symbolS *)0,offs(opP->con1),TAB(FBRANCH,SHORT)); */
 					the_ins.opcode[the_ins.numo-1]|=0x40;
-					add_fix('l',opP->con1,1);
+					add_fix('l',opP->con1,1,NO_RELOC);
 					addword(0);
 					addword(4);
 				}
@@ -2649,6 +2704,50 @@ char *s;
 }
 #endif
 
+/*
+ * Generate a new fixup for one of the relocs in the_ins.
+ */
+static void
+    make_fix(m, where)
+int m;
+char *where;
+{
+	int n;
+
+	switch (the_ins.reloc[m].wid) {
+	case 'B':
+	case 'b':
+		n=1;
+		break;
+	case '3':
+	case 'w':
+		n=2;
+		break;
+	case 'l':
+		n=4;
+		break;
+	default:
+		as_fatal("Don't know how to figure width of %c in md_assemble()",the_ins.reloc[m].wid);
+	}
+	fix_new(frag_now,
+		where - frag_now->fr_literal + the_ins.reloc[m].n,
+		n,
+		the_ins.reloc[m].add,
+		the_ins.reloc[m].sub,
+		the_ins.reloc[m].off,
+		the_ins.reloc[m].pcrel,
+		the_ins.reloc[m].rtype
+#ifdef	PIC
+		, the_ins.reloc[m].got
+#endif	/* PIC */
+		);
+#ifdef	PIC
+	if (the_ins.reloc[m].rtype == RELOC_GLOB_DAT
+	    && the_ins.reloc[m].add != NULL)
+		the_ins.reloc[m].add->sy_forceout = 1;
+#endif	/* PIC */
+}
+
 /* This is the guts of the machine-dependent assembler.  STR points to a
    machine dependent instruction.  This function is supposed to emit
    the frags/bytes it assembles to.
@@ -2701,34 +2800,7 @@ char *str;
 		}
 		/* put out symbol-dependent info */
 		for (m = 0; m < the_ins.nrel; m++) {
-			switch (the_ins.reloc[m].wid) {
-			case 'B':
-				n=1;
-				break;
-			case 'b':
-				n=1;
-				break;
-			case '3':
-				n=2;
-				break;
-			case 'w':
-				n=2;
-				break;
-			case 'l':
-				n=4;
-				break;
-			default:
-				as_fatal("Don't know how to figure width of %c in md_assemble()",the_ins.reloc[m].wid);
-			}
-			
-			fix_new(frag_now,
-				(toP-frag_now->fr_literal)-the_ins.numo*2+the_ins.reloc[m].n,
-				n,
-				the_ins.reloc[m].add,
-				the_ins.reloc[m].sub,
-				the_ins.reloc[m].off,
-				the_ins.reloc[m].pcrel,
-				NO_RELOC);
+			make_fix(m, toP-the_ins.numo*2);
 		}
 		return;
 	}
@@ -2753,20 +2825,10 @@ char *str;
 				the_ins.reloc[m].n-= 2*shorts_this_frag /* 2*the_ins.fragb[n].fragoff */;
 				break;
 			}
-			wid=the_ins.reloc[m].wid;
-			if (wid == 0)
+			if (the_ins.reloc[m].wid == 0)
 			    continue;
+			make_fix(m, toP-the_ins.numo*2);
 			the_ins.reloc[m].wid=0;
-			wid = (wid == 'b') ? 1 : (wid == 'w') ? 2 : (wid == 'l') ? 4 : 4000;
-			
-			fix_new(frag_now,
-				(toP-frag_now->fr_literal)-the_ins.numo*2+the_ins.reloc[m].n,
-				wid,
-				the_ins.reloc[m].add,
-				the_ins.reloc[m].sub,
-				the_ins.reloc[m].off,
-				the_ins.reloc[m].pcrel,
-				NO_RELOC);
 		}
 		/* know(the_ins.fragb[n].fadd); */
 		(void)frag_var(rs_machine_dependent,10,0,(relax_substateT)(the_ins.fragb[n].fragty),
@@ -2784,22 +2846,9 @@ char *str;
 		}
 	}
 	for (m=0;m<the_ins.nrel;m++) {
-		int wid;
-		
-		wid=the_ins.reloc[m].wid;
-		if (wid == 0)
+		if (the_ins.reloc[m].wid == 0)
 		    continue;
-		the_ins.reloc[m].wid=0;
-		wid = (wid == 'b') ? 1 : (wid == 'w') ? 2 : (wid == 'l') ? 4 : 4000;
-		
-		fix_new(frag_now,
-			(the_ins.reloc[m].n + toP-frag_now->fr_literal)-/* the_ins.numo */ shorts_this_frag*2,
-			wid,
-			the_ins.reloc[m].add,
-			the_ins.reloc[m].sub,
-			the_ins.reloc[m].off,
-			the_ins.reloc[m].pcrel,
-			NO_RELOC);
+		make_fix(m, toP - /* the_ins.numo */ shorts_this_frag*2);
 	}
 }
 
@@ -3076,7 +3125,7 @@ register fragS *fragP;
 			     0,
 			     fragP->fr_offset,
 			     0,
-			     NO_RELOC);
+			     FIX_NO_RELOC);
 		     
 		     fragP->fr_fix+=4;
 		     ext=0;
@@ -3085,7 +3134,7 @@ register fragS *fragP;
 		     fragP->fr_opcode[1]= 0xF9;      /* JMP  with ABSL LONG offset */
 		     subseg_change(SEG_TEXT, 0);
 		     fix_new(fragP, fragP->fr_fix, 4, fragP->fr_symbol, 0, fragP->fr_offset,0,
-			     NO_RELOC);
+			     FIX_NO_RELOC);
 		     fragP->fr_fix+=4;
 		     ext=0;
 	     } else {
@@ -3111,7 +3160,7 @@ register fragS *fragP;
         subseg_change(SEG_TEXT,0);
         fix_new(fragP, fragP->fr_fix, 4, fragP->fr_symbol, 0, 
 		fragP->fr_offset,0,
-		NO_RELOC);
+		FIX_NO_RELOC);
         fragP->fr_fix += 4;
         ext=0;
 	break;
@@ -3130,7 +3179,7 @@ register fragS *fragP;
         subseg_change(SEG_TEXT,0);
         fix_new(fragP, fragP->fr_fix, 4, fragP->fr_symbol, 0, 
 		fragP->fr_offset,0,
-		NO_RELOC);
+		FIX_NO_RELOC);
         fragP->fr_fix += 4;
         ext=0;
 	break;
@@ -3150,7 +3199,7 @@ register fragS *fragP;
 	PCREL is really trying to shorten an ABSOLUTE address anyway */
      /* JF FOO This code has not been tested */
      subseg_change(SEG_TEXT,0);
-	fix_new(fragP, fragP->fr_fix, 4, fragP->fr_symbol, 0, fragP->fr_offset, 0, NO_RELOC);
+	fix_new(fragP, fragP->fr_fix, 4, fragP->fr_symbol, 0, fragP->fr_offset, 0, FIX_NO_RELOC);
 	if ((fragP->fr_opcode[1] & 0x3F) != 0x3A)
 	    as_bad("Internal error (long PC-relative operand) for insn 0x%04lx at 0x%lx",
 		   fragP->fr_opcode[0],fragP->fr_address);
@@ -3164,14 +3213,14 @@ register fragS *fragP;
 	break;
  case TAB(PCLEA,SHORT):
      subseg_change(SEG_TEXT,0);
-	fix_new(fragP, (int) (fragP->fr_fix), 2, fragP->fr_symbol, (symbolS *) 0, fragP->fr_offset, 1, NO_RELOC);
+	fix_new(fragP, (int) (fragP->fr_fix), 2, fragP->fr_symbol, (symbolS *) 0, fragP->fr_offset, 1, FIX_NO_RELOC);
 	fragP->fr_opcode[1] &= ~0x3F;
 	fragP->fr_opcode[1] |= 0x3A;
 	ext=2;
 	break;
  case TAB(PCLEA,LONG):
      subseg_change(SEG_TEXT,0);
-	fix_new(fragP, (int) (fragP->fr_fix) + 2, 4, fragP->fr_symbol, (symbolS *) 0, fragP->fr_offset + 2, 1, NO_RELOC);
+	fix_new(fragP, (int) (fragP->fr_fix) + 2, 4, fragP->fr_symbol, (symbolS *) 0, fragP->fr_offset + 2, 1, FIX_NO_RELOC);
 	*buffer_address++ = 0x01;
 	*buffer_address++ = 0x70;
 	fragP->fr_fix+=2;
@@ -3215,10 +3264,10 @@ segT segment;
 			/* FIXME, we should check abs val, pick short or long */
 			if (fragP->fr_opcode[0] == 0x61) {
 				fragP->fr_opcode[0]= 0x4E;
-				fragP->fr_opcode[1]= 0xB9;	/* JBSR with ABSL LONG offset */
+				fragP->fr_opcode[1]= 0xB9;	/* JSR with ABSL LONG offset */
 				subseg_change(SEG_TEXT, 0);
 				fix_new(fragP, fragP->fr_fix, 4, 
-					fragP->fr_symbol, 0, fragP->fr_offset, 0, NO_RELOC);
+					fragP->fr_symbol, 0, fragP->fr_offset, 0, FIX_NO_RELOC);
 				fragP->fr_fix+=4;
 				frag_wane(fragP);
 			} else if (fragP->fr_opcode[0] == 0x60) {
@@ -3226,7 +3275,7 @@ segT segment;
 				fragP->fr_opcode[1]= 0xF9;  /* JMP  with ABSL LONG offset */
 				subseg_change(SEG_TEXT, 0);
 				fix_new(fragP, fragP->fr_fix, 4, 
-					fragP->fr_symbol, 0, fragP->fr_offset, 0, NO_RELOC);
+					fragP->fr_symbol, 0, fragP->fr_offset, 0, FIX_NO_RELOC);
 				fragP->fr_fix+=4;
 				frag_wane(fragP);
 			} else {
@@ -3234,13 +3283,20 @@ segT segment;
 			}
 		} else if (flagseen['l']) { /* Symbol is still undefined.  Make it simple */
 			fix_new(fragP, (int) (fragP->fr_fix), 2, fragP->fr_symbol,
-				(symbolS *) 0, fragP->fr_offset, 1, NO_RELOC);
+				(symbolS *) 0, fragP->fr_offset, 1, FIX_NO_RELOC);
 			fragP->fr_fix += 2;
 			fragP->fr_opcode[1] = 0x00;
 			frag_wane(fragP);
 		} else {
 			fix_new(fragP, (int) (fragP->fr_fix), 4, fragP->fr_symbol,
-				(symbolS *) 0, fragP->fr_offset, 1, NO_RELOC);
+				(symbolS *) 0, fragP->fr_offset, 1,
+#ifdef	PIC
+				/* With -k, make all external branches go via the jump table. */
+				(flagseen['k']? RELOC_JMP_TBL: NO_RELOC), NULL
+#else
+				NO_RELOC
+#endif
+				);
 			fragP->fr_fix += 4;
 			fragP->fr_opcode[1] = 0xff;
 			frag_wane(fragP);
@@ -3289,7 +3345,7 @@ segT segment;
 			fragP->fr_fix += 2;	     /* account for jmp instruction */
 			subseg_change(SEG_TEXT,0);
 			fix_new(fragP, fragP->fr_fix, 2, fragP->fr_symbol, 0, 
-				fragP->fr_offset, 0, NO_RELOC);
+				fragP->fr_offset, 0, FIX_NO_RELOC);
 			fragP->fr_fix += 2;
 		} else {
 			fragP->fr_opcode[1] = 0x06;   /* branch offset = 6 */
@@ -3299,7 +3355,7 @@ segT segment;
 			fragP->fr_fix += 2;	     /* account for jmp instruction */
 			subseg_change(SEG_TEXT,0);
 			fix_new(fragP, fragP->fr_fix, 4, fragP->fr_symbol, 0, 
-				fragP->fr_offset, 0, NO_RELOC);
+				fragP->fr_offset, 0, FIX_NO_RELOC);
 			fragP->fr_fix += 4;
 		}
 		frag_wane(fragP);
@@ -3327,7 +3383,7 @@ segT segment;
 			fragP->fr_fix += 6;	  /* account for bra/jmp instruction */
 			subseg_change(SEG_TEXT,0);
 			fix_new(fragP, fragP->fr_fix, 2, fragP->fr_symbol, 0, 
-				fragP->fr_offset, 0, NO_RELOC);
+				fragP->fr_offset, 0, FIX_NO_RELOC);
 			fragP->fr_fix += 2;
 		} else {
 			/* JF: these were fr_opcode[5-7] */
@@ -3337,7 +3393,7 @@ segT segment;
 			fragP->fr_fix += 6;	  /* account for bra/jmp instruction */
 			subseg_change(SEG_TEXT,0);
 			fix_new(fragP, fragP->fr_fix, 4, fragP->fr_symbol, 0, 
-				fragP->fr_offset, 0, NO_RELOC);
+				fragP->fr_offset, 0, FIX_NO_RELOC);
 			fragP->fr_fix += 4;
 		}
 		
@@ -3416,10 +3472,11 @@ relax_addressT segment_address_in_file;
 	 * In: length of relocation (or of address) in chars: 1, 2 or 4.
 	 * Out: GNU LD relocation length code: 0, 1, or 2.
 	 */
-	
+
 	static unsigned char nbytes_r_length[] = { 42, 0, 1, 42, 2 };
 	long r_symbolnum;
-	
+	int r_flags;
+
 	know(fixP->fx_addsy != NULL);
 	
 	md_number_to_chars(where,
@@ -3429,12 +3486,40 @@ relax_addressT segment_address_in_file;
 	r_symbolnum = (S_IS_DEFINED(fixP->fx_addsy)
 		       ? S_GET_TYPE(fixP->fx_addsy)
 		       : fixP->fx_addsy->sy_number);
+	r_flags = (fixP->fx_pcrel? 0x80: 0)
+	    | ((nbytes_r_length[fixP->fx_size] & 3) << 5)
+	    | (!S_IS_DEFINED(fixP->fx_addsy)? 0x10: 0);
+
+#ifdef	PIC
+	switch (fixP->fx_r_type) {
+	case NO_RELOC:
+	    break;
+	case RELOC_32:
+	    if (flagseen['k'] && S_IS_EXTERNAL(fixP->fx_addsy)) {
+		r_symbolnum = fixP->fx_addsy->sy_number;
+		r_flags |= 0x10;	/* set extern bit */
+	    }
+	    break;
+	case RELOC_GLOB_DAT:
+	    r_flags |= 8;		/* set baserel bit */
+	    r_symbolnum = fixP->fx_addsy->sy_number;
+	    if (S_IS_EXTERNAL(fixP->fx_addsy))
+		r_flags |= 0x10;
+	    break;
+	case RELOC_JMP_TBL:
+	    r_flags |= 4;		/* set jmptable bit */
+	    break;
+	case RELOC_RELATIVE:
+	    /* should never happen */
+	    r_flags |= 2;		/* set relative bit */
+	    break;
+	}
+#endif	/* PIC */
 	
 	where[4] = (r_symbolnum >> 16) & 0x0ff;
 	where[5] = (r_symbolnum >> 8) & 0x0ff;
 	where[6] = r_symbolnum & 0x0ff;
-	where[7] = (((fixP->fx_pcrel << 7)  & 0x80) | ((nbytes_r_length[fixP->fx_size] << 5) & 0x60) | 
-		    (((!S_IS_DEFINED(fixP->fx_addsy)) << 4)  & 0x10));
+	where[7] = r_flags;
 	
 	return;
 } /* tc_aout_fix_to_chars() */
@@ -3476,7 +3561,7 @@ symbolS	*to_symbol;
 		md_number_to_chars(ptr  ,(long)0x4EF9,2);
 		md_number_to_chars(ptr+2,(long)offset,4);
 		fix_new(frag,(ptr+2)-frag->fr_literal,4,to_symbol,(symbolS *)0,(long)0,0,
-			NO_RELOC);
+			FIX_NO_RELOC);
 	} else {
 		offset=to_addr - (from_addr+2);
 		md_number_to_chars(ptr  ,(long)0x60ff,2);
@@ -3807,6 +3892,13 @@ char ***vecP;
 			return(0);
 		} /* pic or not */
 		
+#ifdef	PIC
+	case 'k':
+		/* Predefine GOT symbol */
+		GOT_symbol = symbol_find_or_make("__GLOBAL_OFFSET_TABLE_");
+		break;
+#endif	/* PIC */
+
 	default:
 		return 0;
 	}
@@ -3966,8 +4058,7 @@ long size;
 }
 
 /* Exactly what point is a PC-relative offset relative TO?
-   On the 68k, they're relative to the address of the offset, plus
-   its size. (??? Is this right?  FIXME-SOON!) */
+   On the 68k, they're relative to the address of the offset. */
 long
     md_pcrel_from (fixP)
 fixS *fixP;
