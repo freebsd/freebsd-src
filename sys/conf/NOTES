@@ -665,6 +665,9 @@ options 	NFS_ROOT		#NFS usable as root device
 # This code is still experimental (e.g. doesn't handle disk slices well).
 # Also, 'options MFS' is currently incompatible with DEVFS.
 options 	DEVFS			#devices filesystem
+# This code enables IFS, an FFS which exports inodes as the namespace.
+# You can find details in src/sys/ufs/ifs/README .
+options		IFS
 
 # Soft updates is a technique for improving file system speed and
 # making abrupt shutdown less risky.

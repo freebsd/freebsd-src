@@ -68,10 +68,8 @@
 static MALLOC_DEFINE(M_FFSNODE, "FFS node", "FFS vnode private part");
 
 static int	ffs_sbupdate __P((struct ufsmount *, int));
-static int	ffs_reload __P((struct mount *,struct ucred *,struct proc *));
+int	ffs_reload __P((struct mount *,struct ucred *,struct proc *));
 static int	ffs_oldfscompat __P((struct fs *));
-static int	ffs_mount __P((struct mount *, char *, caddr_t,
-				struct nameidata *, struct proc *));
 static int	ffs_init __P((struct vfsconf *));
 
 static struct vfsops ufs_vfsops = {
@@ -134,7 +132,7 @@ VFS_SET(ufs_vfsops, ufs, 0);
  *		system call will fail with EFAULT in copyinstr in
  *		namei() if it is a genuine NULL from the user.
  */
-static int
+int
 ffs_mount(mp, path, data, ndp, p)
         struct mount		*mp;	/* mount struct pointer*/
         char			*path;	/* path to mount point*/
@@ -359,7 +357,7 @@ ffs_mount(mp, path, data, ndp, p)
  *	5) invalidate all cached file data.
  *	6) re-read inode data for all active vnodes.
  */
-static int
+int
 ffs_reload(mp, cred, p)
 	register struct mount *mp;
 	struct ucred *cred;

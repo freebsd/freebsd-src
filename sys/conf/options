@@ -122,6 +122,7 @@ NTFS		opt_dontuse.h
 CODA
 CD9660
 FFS
+IFS
 NFS
 NWFS
 
