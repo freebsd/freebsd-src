@@ -1467,24 +1467,24 @@ saregister(struct cam_periph *periph, void *arg)
 
 	softc->devs.ctl_dev = make_dev(&sa_cdevsw, SAMINOR(SA_CTLDEV,
 	    periph->unit_number, 0, SA_ATYPE_R), UID_ROOT, GID_OPERATOR,
-	    0660, "r%s%d.ctl", periph->periph_name, periph->unit_number);
+	    0660, "%s%d.ctl", periph->periph_name, periph->unit_number);
 
 	for (i = 0; i < SA_NUM_MODES; i++) {
 
 		softc->devs.mode_devs[i].r_dev = make_dev(&sa_cdevsw,
 		    SAMINOR(SA_NOT_CTLDEV, periph->unit_number, i, SA_ATYPE_R),
-		    UID_ROOT, GID_OPERATOR, 0660, "r%s%d.%d",
+		    UID_ROOT, GID_OPERATOR, 0660, "%s%d.%d",
 		    periph->periph_name, periph->unit_number, i);
 
 		softc->devs.mode_devs[i].nr_dev = make_dev(&sa_cdevsw,
 		    SAMINOR(SA_NOT_CTLDEV, periph->unit_number, i, SA_ATYPE_NR),
-		    UID_ROOT, GID_OPERATOR, 0660, "nr%s%d.%d",
+		    UID_ROOT, GID_OPERATOR, 0660, "n%s%d.%d",
 		    periph->periph_name, periph->unit_number, i);
 
 
 		softc->devs.mode_devs[i].er_dev = make_dev(&sa_cdevsw,
 		    SAMINOR(SA_NOT_CTLDEV, periph->unit_number, i, SA_ATYPE_ER),
-		    UID_ROOT, GID_OPERATOR, 0660, "er%s%d.%d",
+		    UID_ROOT, GID_OPERATOR, 0660, "e%s%d.%d",
 		    periph->periph_name, periph->unit_number, i);
 
 		/*
@@ -1492,11 +1492,11 @@ saregister(struct cam_periph *periph, void *arg)
 		 */
 		if (i == 0) {
 			make_dev_alias(softc->devs.mode_devs[i].r_dev,
-			   "r%s%d", periph->periph_name, periph->unit_number);
+			   "%s%d", periph->periph_name, periph->unit_number);
 			make_dev_alias(softc->devs.mode_devs[i].nr_dev,
-			    "nr%s%d", periph->periph_name, periph->unit_number);
+			    "n%s%d", periph->periph_name, periph->unit_number);
 			make_dev_alias(softc->devs.mode_devs[i].er_dev,
-			    "er%s%d", periph->periph_name, periph->unit_number);
+			    "e%s%d", periph->periph_name, periph->unit_number);
 		}
 	}
 
