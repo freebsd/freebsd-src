@@ -40,7 +40,7 @@
 #include "pthread_private.h"
 
 int
-connect(int fd, const struct sockaddr * name, int namelen)
+connect(int fd, const struct sockaddr * name, socklen_t namelen)
 {
 	struct sockaddr tmpname;
 	int             errnolen, ret, tmpnamelen;

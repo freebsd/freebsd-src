@@ -805,7 +805,7 @@ recvit(p, s, mp, namelenp)
 			len -= tocopy;
 			m = m->m_next;
 		}
-		mp->msg_controllen = ctlbuf - mp->msg_control;
+		mp->msg_controllen = ctlbuf - (caddr_t)mp->msg_control;
 	}
 out:
 	if (fromsa)
