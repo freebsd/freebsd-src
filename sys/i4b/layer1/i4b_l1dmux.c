@@ -36,6 +36,7 @@
 #include "isic.h"
 #include "iwic.h"
 #include "ifpi.h"
+#include "ifpi2.h"
 #include "ifpnp.h"
 #include "ihfc.h"
 #include "itjc.h"
@@ -93,6 +94,10 @@ static int l1iwicunittab[MAXL1UNITS];
 
 #if NIFPI > 0
 static int l1ifpiunittab[MAXL1UNITS];
+#endif
+
+#if NIFPI2 > 0
+static int l1ifpi2unittab[MAXL1UNITS];
 #endif
 
 #if NIHFC > 0
@@ -175,6 +180,11 @@ getl1tab(int drv)
 #if NIFPI > 0
 		case L1DRVR_IFPI:
 			return(l1ifpiunittab);
+			break;
+#endif
+#if NIFPI2 > 0
+		case L1DRVR_IFPI2:
+			return(l1ifpi2unittab);
 			break;
 #endif
 #if NIHFC > 0
@@ -313,6 +323,11 @@ i4b_l1_mph_status_ind(int drv_unit, int status, int parm, struct i4b_l1mux_func 
 #if NIFPI > 0
 				case L1DRVR_IFPI:
 					printf("ifpi%d: passive stack unit %d\n", L0UNIT(drv_unit), numl1units);
+					break;
+#endif
+#if NIFPI2 > 0
+				case L1DRVR_IFPI2:
+					printf("ifpi2-%d: passive stack unit %d\n", L0UNIT(drv_unit), numl1units);
 					break;
 #endif
 #if NIFPNP > 0
