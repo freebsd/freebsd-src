@@ -97,7 +97,7 @@ int is_probe(),is_attach(),is_watchdog();
 int is_ioctl(),is_init(),is_start();
 
 static inline void is_rint(int unit);
-static inline void isread(struct is_softc*, char*, int);
+static inline void isread(struct is_softc*, unsigned char*, int);
 
 struct	mbuf *isget();
 
@@ -648,7 +648,7 @@ static inline void is_rint(int unit)
  * We deal with the trailer protocol here.
  */
 static inline void 
-isread(struct is_softc *is, char *buf, int len)
+isread(struct is_softc *is, unsigned char *buf, int len)
 {
         register struct ether_header *eh;
         struct mbuf *m;
