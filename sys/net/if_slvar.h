@@ -56,9 +56,9 @@ struct sl_softc {
 	u_char	*sc_buf;		/* input buffer */
 	u_int	sc_flags;		/* see below */
 	u_int	sc_escape;	/* =1 if last char input was FRAME_ESCAPE */
-	long	sc_lasttime;		/* last time a char arrived */
+	time_t	sc_lasttime;		/* last time a char arrived */
 	long	sc_abortcount;		/* number of abort escape chars */
-	long	sc_starttime;		/* time of first abort in window */
+	time_t	sc_starttime;		/* time of first abort in window */
 	u_int	sc_keepalive;		/* time	to decide link hang */
 	u_int	sc_outfill;	/* time	to send	FRAME_END when output idle */
 					/*
