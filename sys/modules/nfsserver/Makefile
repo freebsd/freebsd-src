@@ -5,6 +5,7 @@ KMOD=	nfsserver
 SRCS=	vnode_if.h \
 	nfs_serv.c nfs_srvsock.c nfs_srvcache.c nfs_srvsubs.c nfs_syscalls.c \
 	nfs_common.c \
+	opt_mac.h \
 	opt_nfs.h
 SRCS+=	opt_inet6.h
 NFS_INET6?=	1	# 0/1 - requires INET6 to be configured in kernel

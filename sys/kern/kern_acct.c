@@ -40,12 +40,15 @@
  * $FreeBSD$
  */
 
+#include "opt_mac.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/sysproto.h>
 #include <sys/proc.h>
+#include <sys/mac.h>
 #include <sys/mount.h>
 #include <sys/vnode.h>
 #include <sys/fcntl.h>
@@ -144,12 +147,25 @@ acct(td, uap)
 		if (error)
 			goto done2;
 		NDFREE(&nd, NDF_ONLY_PNBUF);
+#ifdef MAC
+		error = mac_check_system_acct(td->td_ucred, nd.ni_vp);
+		if (error) {
+			vn_close(nd.ni_vp, flags, td->td_ucred, td);
+			goto done2;
+		}
+#endif
 		VOP_UNLOCK(nd.ni_vp, 0, td);
 		if (nd.ni_vp->v_type != VREG) {
 			vn_close(nd.ni_vp, flags, td->td_ucred, td);
 			error = EACCES;
 			goto done2;
 		}
+#ifdef MAC
+	} else {
+		error = mac_check_system_acct(td->td_ucred, NULL);
+		if (error)
+			goto done2;
+#endif
 	}
 
 	/*
