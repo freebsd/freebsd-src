@@ -624,6 +624,7 @@ ffs_mountfs(devvp, mp, p, malloctype)
 	blks = howmany(size, fs->fs_fsize);
 	if (fs->fs_contigsumsize > 0)
 		size += fs->fs_ncg * sizeof(int32_t);
+	size += fs->fs_ncg * sizeof(u_int8_t);
 	space = malloc((u_long)size, M_UFSMNT, M_WAITOK);
 	fs->fs_csp = space;
 	for (i = 0; i < blks; i += fs->fs_frag) {
@@ -645,6 +646,15 @@ ffs_mountfs(devvp, mp, p, malloctype)
 		for (i = 0; i < fs->fs_ncg; i++)
 			*lp++ = fs->fs_contigsumsize;
 	}
+	size = fs->fs_ncg * sizeof(u_int8_t);
+	fs->fs_contigdirs = (u_int8_t *)space;
+	space = (u_int8_t *)space + size;
+	bzero(fs->fs_contigdirs, size);
+	/* Compatibility for old filesystems 	   XXX */
+	if (fs->fs_avgfilesize <= 0)		/* XXX */
+		fs->fs_avgfilesize = AVFILESIZ;	/* XXX */
+	if (fs->fs_avgfpdir <= 0)		/* XXX */
+		fs->fs_avgfpdir = AFPDIR;	/* XXX */
 	mp->mnt_data = (qaddr_t)ump;
 	mp->mnt_stat.f_fsid.val[0] = fs->fs_id[0];
 	mp->mnt_stat.f_fsid.val[1] = fs->fs_id[1];
