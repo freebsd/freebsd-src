@@ -42,42 +42,39 @@ extern u_int64_t ia64_efi_acpi20_table;
 u_long ia64_acpi_root;
 
 SYSCTL_ULONG(_machdep, OID_AUTO, acpi_root, CTLFLAG_RD, &ia64_acpi_root, 0,
-    "The physical address of the RSDP");
+	     "The physical address of the RSDP");
 
 ACPI_STATUS
 AcpiOsInitialize(void)
 {
-
 	return(NULL);
 }
 
 ACPI_STATUS
 AcpiOsTerminate(void)
 {
-
 	return(NULL);
 }
 
 ACPI_STATUS
 AcpiOsGetRootPointer(UINT32 Flags, ACPI_POINTER *RsdpAddress)
 {
-
 	if (ia64_acpi_root == 0) {
 		if (ia64_efi_acpi20_table) {
 			/* XXX put under bootverbose. */
 			printf("Using ACPI2.0 table at 0x%lx\n",
-			    ia64_efi_acpi20_table);
+			       ia64_efi_acpi20_table);
 			ia64_acpi_root = ia64_efi_acpi20_table;
 		} else if (ia64_efi_acpi_table) {
 			/* XXX put under bootverbose. */
 			printf("Using ACPI1.x table at 0x%lx\n",
-			    ia64_efi_acpi_table);
+			       ia64_efi_acpi_table);
 			ia64_acpi_root = ia64_efi_acpi_table;
 		} else
-			return(AE_NOT_FOUND);
+			return (AE_NOT_FOUND);
 	}
 
 	RsdpAddress->PointerType = ACPI_PHYSICAL_POINTER;
 	RsdpAddress->Pointer.Physical = ia64_acpi_root;
-	return(AE_OK);
+	return (AE_OK);
 }
