@@ -732,9 +732,11 @@ sigwait(struct thread *td, struct sigwait_args *uap)
 
 	error = copyout(&info.si_signo, uap->sig, sizeof(info.si_signo));
 	/* Repost if we got an error. */
-	if (error && info.si_signo)
+	if (error && info.si_signo) {
+		PROC_LOCK(td->td_proc);
 		tdsignal(td, info.si_signo);
-
+		PROC_UNLOCK(td->td_proc);
+	}
 	return (error);
 }
 /*
@@ -768,9 +770,11 @@ sigtimedwait(struct thread *td, struct sigtimedwait_args *uap)
 
 	error = copyout(&info, uap->info, sizeof(info));
 	/* Repost if we got an error. */
-	if (error && info.si_signo)
+	if (error && info.si_signo) {
+		PROC_LOCK(td->td_proc);
 		tdsignal(td, info.si_signo);
-
+		PROC_UNLOCK(td->td_proc);
+	}
 	return (error);
 }
 
@@ -794,9 +798,11 @@ sigwaitinfo(struct thread *td, struct sigwaitinfo_args *uap)
 
 	error = copyout(&info, uap->info, sizeof(info));
 	/* Repost if we got an error. */
-	if (error && info.si_signo)
+	if (error && info.si_signo) {
+		PROC_LOCK(td->td_proc);
 		tdsignal(td, info.si_signo);
-
+		PROC_UNLOCK(td->td_proc);
+	}
 	return (error);
 }
 
