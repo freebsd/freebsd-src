@@ -581,9 +581,9 @@ extractfile(name)
 		}
 		(void) chown(name, curfile.dip->di_uid, curfile.dip->di_gid);
 		(void) chmod(name, mode);
+		utimes(name, timep);
 		(void) chflags(name, flags);
 		skipfile();
-		utimes(name, timep);
 		return (GOOD);
 
 	case IFCHR:
@@ -603,9 +603,9 @@ extractfile(name)
 		}
 		(void) chown(name, curfile.dip->di_uid, curfile.dip->di_gid);
 		(void) chmod(name, mode);
+		utimes(name, timep);
 		(void) chflags(name, flags);
 		skipfile();
-		utimes(name, timep);
 		return (GOOD);
 
 	case IFREG:
@@ -625,10 +625,10 @@ extractfile(name)
 		}
 		(void) fchown(ofile, curfile.dip->di_uid, curfile.dip->di_gid);
 		(void) fchmod(ofile, mode);
-		(void) fchflags(ofile, flags);
 		getfile(xtrfile, xtrskip);
 		(void) close(ofile);
 		utimes(name, timep);
+		(void) chflags(name, flags);
 		return (GOOD);
 	}
 	/* NOTREACHED */
