@@ -25,7 +25,8 @@
 #include "phase2.h"
 #include <netatalk/at_extern.h>
 
-static int aa_addrangeroute(struct ifaddr *ifa, u_int first, u_int last);
+static int aa_dorangeroute(struct ifaddr *ifa,
+			u_int first, u_int last, int cmd);
 static int aa_addsingleroute(struct ifaddr *ifa,
 			struct at_addr *addr, struct at_addr *mask);
 static int aa_delsingleroute(struct ifaddr *ifa,
@@ -345,9 +346,17 @@ at_scrub( ifp, aa )
     int			error;
 
     if ( aa->aa_flags & AFA_ROUTE ) {
-	if (( error = rtinit( &(aa->aa_ifa), RTM_DELETE,
-		( ifp->if_flags & IFF_LOOPBACK ) ? RTF_HOST : 0 )) != 0 ) {
-	    return( error );
+	if (ifp->if_flags & IFF_LOOPBACK) {
+		if ((error = rtinit( &aa->aa_ifa, RTM_DELETE, RTF_HOST)) != 0)
+	    	return( error );
+	} else if (ifp->if_flags & IFF_POINTOPOINT) {
+		if ((error = rtinit( &aa->aa_ifa, RTM_DELETE, RTF_HOST)) != 0)
+	    		return( error );
+	} else if (ifp->if_flags & IFF_BROADCAST) {
+		error = aa_dorangeroute(&aa->aa_ifa,
+				ntohs(aa->aa_firstnet),
+				ntohs(aa->aa_lastnet),
+				RTM_DELETE );
 	}
 	aa->aa_ifa.ifa_flags &= ~IFA_ROUTE;
 	aa->aa_flags &= ~AFA_ROUTE;
@@ -368,7 +377,7 @@ at_ifinit( ifp, aa, sat )
     struct netrange	nr, onr;
     struct sockaddr_at	oldaddr;
     int			s = splimp(), error = 0, i, j;
-    int			flags = RTF_UP, netinc, nodeinc, nnets;
+    int			netinc, nodeinc, nnets;
     u_short		net;
 
     /* 
@@ -576,6 +585,7 @@ at_ifinit( ifp, aa, sat )
     /* 
      * set up the netmask part of the at_ifaddr
      * and point the appropriate pointer in the ifaddr to it.
+     * probably pointless, but what the heck.. XXX
      */
     bzero(&aa->aa_netmask, sizeof(aa->aa_netmask));
     aa->aa_netmask.sat_len = sizeof(struct sockaddr_at);
@@ -595,35 +605,21 @@ at_ifinit( ifp, aa, sat )
     if (ifp->if_flags & IFF_BROADCAST) {
 	aa->aa_broadaddr.sat_addr.s_net = htons(0);
 	aa->aa_broadaddr.sat_addr.s_node = 0xff;
-	aa->aa_netmask.sat_addr.s_net = htons(0xffff);	/* XXX */
-	aa->aa_netmask.sat_addr.s_node = 0;		/* XXX */
         aa->aa_ifa.ifa_broadaddr = (struct sockaddr *) &aa->aa_broadaddr;
+	/* add the range of routes needed */
+	error = aa_dorangeroute(&aa->aa_ifa,
+		ntohs(aa->aa_firstnet), ntohs(aa->aa_lastnet), RTM_ADD );
     }
-#if 0
-    else if (ifp->if_flags & IFF_LOOPBACK) {
-	aa->aa_ifa.ifa_dstaddr = aa->aa_ifa.ifa_addr;
-	aa->aa_netmask.sat_addr.s_net = htons(0xffff);	/* XXX */
-	aa->aa_netmask.sat_addr.s_node = 0xff;		/* XXX */
-	flags |= RTF_HOST;
-    }
-#endif
     else if (ifp->if_flags & IFF_POINTOPOINT) {
+	struct at_addr	rtaddr, rtmask;
+
+	bzero(&rtaddr, sizeof(rtaddr));
+	bzero(&rtmask, sizeof(rtmask));
+	/* fill in the far end if we know it here XXX */
         aa->aa_ifa.ifa_dstaddr = (struct sockaddr *) &aa->aa_dstaddr;
-	aa->aa_netmask.sat_addr.s_net = htons(0xffff);
-	aa->aa_netmask.sat_addr.s_node = 0xff;
-	flags |= RTF_HOST;
+	error = aa_addsingleroute(&aa->aa_ifa, &rtaddr, &rtmask);
     }
-
-    /*
-     * Now that we have selected an address, it becomes
-     * important that we start setting up the routing table so that
-     * we can actually USE that address.
-     */
-
-    if ( ifp->if_flags & IFF_LOOPBACK ) {
-#if 0
-	    error = rtinit(&aa->aa_ifa, RTM_ADD, flags);
-#else
+    else if ( ifp->if_flags & IFF_LOOPBACK ) {
 	struct at_addr	rtaddr, rtmask;
 
 	bzero(&rtaddr, sizeof(rtaddr));
@@ -632,17 +628,7 @@ at_ifinit( ifp, aa, sat )
 	rtaddr.s_node = AA_SAT( aa )->sat_addr.s_node;
 	rtmask.s_net = 0xffff;
 	rtmask.s_node = 0x0;
-
 	error = aa_addsingleroute(&aa->aa_ifa, &rtaddr, &rtmask);
-#endif
-    } else {
-#if 0
-	    error = rtinit(&aa->aa_ifa, RTM_ADD, flags);
-#else
-	/* add the range of routes needed */
-	    error = aa_addrangeroute(&aa->aa_ifa,
-		  ntohs(aa->aa_firstnet), ntohs(aa->aa_lastnet) );
-#endif
     }
 
 
@@ -651,6 +637,7 @@ at_ifinit( ifp, aa, sat )
      * risky by now XXX
      */
     if ( error ) {
+	at_scrub( ifp, aa );
 	aa->aa_addr = oldaddr;
 	aa->aa_firstnet = onr.nr_firstnet;
 	aa->aa_lastnet = onr.nr_lastnet;
@@ -704,24 +691,22 @@ at_broadcast( sat )
 }
 
 /*
- * aa_addrangeroute()
+ * aa_dorangeroute()
  *
- * Add a route for a range of networks from bot to top .
- * bot == top means a single net.
+ * Add a route for a range of networks from bot to top - 1.
  * Algorithm:
  *
- * Starting with the lowest net on it's own, keep doubling the subnet size
- * until it overflows the netrange (either at the top or the bottom)
- * then back off one bit (to the last subnet that fit), and use that.
- * Repeat the operation for the left over space at the top of the
- * netrange until the entire range is done. This produces a minimal
- * spanning set of binary subnets that cover the netrange.
- *
- * May need to use this to clear the routes out too.. not sure yet. XXX
+ * Split the range into two subranges such that the middle
+ * of the two ranges is the point where the highest bit of difference
+ * between the two addresses, makes it's transition
+ * Each of the upper and lower ranges might not exist, or might be 
+ * representable by 1 or more netmasks. In addition, if both
+ * ranges can be represented by the same netmask, then teh can be merged
+ * by using the next higher netmask..
  */
 
 static int
-aa_addrangeroute(struct ifaddr *ifa, u_int bot, u_int top)
+aa_dorangeroute(struct ifaddr *ifa, u_int bot, u_int top, int cmd)
 {
 	u_int mask1;
 	struct at_addr addr;
@@ -750,10 +735,14 @@ aa_addrangeroute(struct ifaddr *ifa, u_int bot, u_int top)
 		mask1 >>= 1;
 		mask.s_net = htons(~mask1);
 		addr.s_net = htons(bot);
-		error = aa_addsingleroute(ifa,&addr,&mask);
-		if (error) {
-			/* XXX clean up? */
-			return (error);
+		if(cmd == RTM_ADD) {
+		error =	 aa_addsingleroute(ifa,&addr,&mask);
+			if (error) {
+				/* XXX clean up? */
+				return (error);
+			}
+		} else {
+			error =	 aa_delsingleroute(ifa,&addr,&mask);
 		}
 		bot = (bot | mask1) + 1;
 	}
