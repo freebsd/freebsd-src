@@ -1242,7 +1242,7 @@ sis_attach(dev)
 	printf("sis%d: Ethernet address: %6D\n", unit, eaddr, ":");
 
 	sc->sis_unit = unit;
-	callout_handle_init(&sc->sis_stat_ch);
+	callout_init(&sc->sis_stat_ch, CALLOUT_MPSAFE);
 	bcopy(eaddr, (char *)&sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
 
 	/*
@@ -1763,7 +1763,7 @@ sis_tick(xsc)
 			sis_start(ifp);
 	}
 
-	sc->sis_stat_ch = timeout(sis_tick, sc, hz);
+	callout_reset(&sc->sis_stat_ch, hz,  sis_tick, sc);
 	sc->in_tick = 0;
 	SIS_UNLOCK(sc);
 
@@ -2236,7 +2236,7 @@ sis_init(xsc)
 	ifp->if_flags &= ~IFF_OACTIVE;
 
 	if (!sc->in_tick)
-		sc->sis_stat_ch = timeout(sis_tick, sc, hz);
+		callout_reset(&sc->sis_stat_ch, hz,  sis_tick, sc);
 
 	SIS_UNLOCK(sc);
 
@@ -2374,7 +2374,7 @@ sis_stop(sc)
 	ifp = &sc->arpcom.ac_if;
 	ifp->if_timer = 0;
 
-	untimeout(sis_tick, sc, sc->sis_stat_ch);
+	callout_stop(&sc->sis_stat_ch);
 
 	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
 #ifdef DEVICE_POLLING
