@@ -43,7 +43,7 @@
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
  *	from:	i386 Id: pmap.c,v 1.193 1998/04/19 15:22:48 bde Exp
  *		with some ideas from NetBSD's alpha pmap
- *	$Id: pmap.c,v 1.25 1999/06/08 17:14:07 dt Exp $
+ *	$Id: pmap.c,v 1.26 1999/06/10 20:40:55 dt Exp $
  */
 
 /*
@@ -728,18 +728,20 @@ pmap_invalidate_asn(pmap_t pmap)
 static void
 pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
 {
-	if (pmap_isactive(pmap))
+	if (pmap_isactive(pmap)) {
 		ALPHA_TBIS(va);
-	else
+		alpha_pal_imb();		/* XXX overkill? */
+	} else
 		pmap_invalidate_asn(pmap);
 }
 
 static void
 pmap_invalidate_all(pmap_t pmap)
 {
-	if (pmap_isactive(pmap))
+	if (pmap_isactive(pmap)) {
 		ALPHA_TBIA();
-	else
+		alpha_pal_imb();		/* XXX overkill? */
+	} else
 		pmap_invalidate_asn(pmap);
 }
 
@@ -785,7 +787,7 @@ pmap_get_asn(pmap_t pmap)
 			 * with the ASN.
 			 */
 			ALPHA_TBIAP();
-			alpha_pal_imb();
+			alpha_pal_imb();	/* XXX overkill? */
 		}
 		pmap->pm_asn = pmap_nextasn++;
 		pmap->pm_asngen = pmap_current_asngen;
@@ -2176,6 +2178,8 @@ validate:
 		*pte = newpte;
 		if (origpte)
 			pmap_invalidate_page(pmap, va);
+		if (prot & VM_PROT_EXECUTE)
+			alpha_pal_imb();
 	}
 }
 
@@ -2250,6 +2254,7 @@ retry:
 	if (*pte) {
 		if (mpte)
 			pmap_unwire_pte_hold(pmap, va, mpte);
+		alpha_pal_imb();		/* XXX overkill? */
 		return 0;
 	}
 
@@ -2271,6 +2276,7 @@ retry:
 	 */
 	*pte = pmap_phys_to_pte(pa) | PG_V | PG_KRE | PG_URE | PG_MANAGED;
 
+	alpha_pal_imb();			/* XXX overkill? */
 	return mpte;
 }
 
