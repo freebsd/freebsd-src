@@ -12,7 +12,7 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: parseaddr.c,v 8.234.4.12 2001/05/03 17:24:11 gshapiro Exp $";
+static char id[] = "@(#)$Id: parseaddr.c,v 8.234.4.13 2001/08/14 23:08:13 ca Exp $";
 #endif /* ! lint */
 
 #include <sendmail.h>
@@ -766,9 +766,6 @@ struct match
 	char	**match_last;		/* last token matched */
 	char	**match_pattern;	/* pointer to pattern */
 };
-
-#define MAXMATCH	9	/* max params per rewrite */
-
 
 int
 rewrite(pvp, ruleset, reclevel, e)
