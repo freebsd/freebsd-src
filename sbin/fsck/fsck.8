@@ -243,7 +243,7 @@ then a default list of filesystems is read from
 the file
 .Pa /etc/fstab .
 .Pp
-.Bl -enum -indent indent -compact
+.Bl -enum -compact
 Inconsistencies checked are as follows:
 .It
 Blocks claimed by more than one inode or the free map.
@@ -253,7 +253,7 @@ Blocks claimed by an inode outside the range of the filesystem.
 Incorrect link counts.
 .It
 Size checks:
-.Bl -item -indent indent -compact
+.Bl -item -offset indent -compact
 .It 
 Directory size not a multiple of DIRBLKSIZ.
 .It
@@ -265,7 +265,7 @@ Bad inode format.
 Blocks not accounted for anywhere.
 .It
 Directory checks:
-.Bl -item -indent indent -compact
+.Bl -item -offset indent -compact
 .It 
 File pointing to unallocated inode.
 .It
@@ -278,7 +278,7 @@ or having the wrong inode number.
 .El
 .It
 Super Block checks:
-.Bl -item -indent indent -compact
+.Bl -item -offset indent -compact
 .It 
 More blocks for inodes than there are in the filesystem.
 .It
