@@ -130,8 +130,11 @@
 #define twe_printf(sc, fmt, args...)	device_printf(sc->twe_dev, fmt , ##args)
 #define twed_printf(twed, fmt, args...)	device_printf(twed->twed_dev, fmt , ##args)
 
-#if __FreeBSD_version < 500003		/* old buf style */
-# include <sys/buf.h>
+#if __FreeBSD_version < 500003
+# include <machine/clock.h>
+# define INTR_ENTROPY			0
+
+# include <sys/buf.h>			/* old buf style */
 typedef struct buf			twe_bio;
 typedef struct buf_queue_head		twe_bioq;
 # define TWE_BIO_QINIT(bq)		bufq_init(&bq);

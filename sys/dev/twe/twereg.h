@@ -47,6 +47,8 @@
 #define TWE_CONTROL_ENABLE_INTERRUPTS		0x00000080
 #define TWE_CONTROL_DISABLE_INTERRUPTS		0x00000040
 #define TWE_CONTROL_ISSUE_HOST_INTERRUPT	0x00000020
+#define TWE_CONTROL_CLEAR_PARITY_ERROR		0x00800000
+#define TWE_CONTROL_CLEAR_PCI_ABORT		0x00100000
 
 #define TWE_SOFT_RESET(sc)	TWE_CONTROL(sc, TWE_CONTROL_ISSUE_SOFT_RESET |		\
 					   TWE_CONTROL_CLEAR_HOST_INTERRUPT |		\
@@ -100,6 +102,8 @@
 #define TWE_VENDOR_ID			0x13C1
 #define TWE_DEVICE_ID			0x1000
 #define TWE_DEVICE_ID_ASIC		0x1001
+#define TWE_PCI_CLEAR_PARITY_ERROR	0xc100
+#define TWE_PCI_CLEAR_PCI_ABORT		0x2000
 
 /* command packet opcodes */
 #define TWE_OP_NOP			0x00
@@ -123,6 +127,14 @@
 #define TWE_OP_SECTOR_INFO		0x1a
 #define TWE_OP_AEN_LISTEN		0x1c
 #define TWE_OP_CMD_PACKET		0x1d
+#define TWE_OP_ATA_PASSTHROUGH		0x1e
+#define TWE_OP_CMD_WITH_DATA		0x1f
+
+/* command status values */
+#define TWE_STATUS_RESET		0xff	/* controller requests reset */
+#define TWE_STATUS_FATAL		0xc0	/* fatal errors not requiring reset */
+#define TWE_STATUS_WARNING		0x80	/* warnings */
+#define TWE_STAUS_INFO			0x40	/* informative status */
 
 /* misc defines */
 #define TWE_ALIGNMENT			0x200
@@ -132,6 +144,8 @@
 #define TWE_SHUTDOWN_MESSAGE_CREDITS	0x001
 #define TWE_INIT_COMMAND_PACKET_SIZE	0x3
 #define TWE_MAX_SGL_LENGTH		62
+#define TWE_MAX_ATA_SGL_LENGTH		60
+#define TWE_MAX_PASSTHROUGH		4096
 #define TWE_Q_LENGTH			TWE_INIT_MESSAGE_CREDITS
 #define TWE_Q_START			0
 #define TWE_MAX_RESET_TRIES		3
@@ -266,6 +280,26 @@ typedef struct
     u_int8_t	unit:4;
     u_int8_t	host_id:4;
     u_int8_t	status;
+    u_int16_t	param;
+    u_int16_t	features;
+    u_int16_t	sector_count;
+    u_int16_t	sector_num;
+    u_int16_t	cylinder_lo;
+    u_int16_t	cylinder_hi;
+    u_int8_t	drive_head;
+    u_int8_t	command;
+    TWE_SG_Entry sgl[TWE_MAX_ATA_SGL_LENGTH];
+} TWE_Command_ATA __attribute__ ((packed));
+
+typedef struct
+{
+    u_int8_t	opcode:5;
+    u_int8_t	sgl_offset:3;
+    u_int8_t	size;
+    u_int8_t	request_id;
+    u_int8_t	unit:4;
+    u_int8_t	host_id:4;
+    u_int8_t	status;
     u_int8_t	flags;
 #define TWE_FLAGS_SUCCESS	0x00
 #define TWE_FLAGS_INFORMATIONAL	0x01
@@ -284,6 +318,7 @@ typedef union
     TWE_Command_CHECKSTATUS	checkstatus;
     TWE_Command_REBUILDUNIT	rebuildunit;
     TWE_Command_SETATAFEATURE	setatafeature;
+    TWE_Command_ATA		ata;
     TWE_Command_Generic		generic;
     u_int8_t			pad[512];
 } TWE_Command;
@@ -454,3 +489,4 @@ typedef struct
     u_int8_t	parameter_size_bytes;
     u_int8_t	data[0];
 } TWE_Param __attribute__ ((packed));
+

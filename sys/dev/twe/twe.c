@@ -46,9 +46,13 @@ static int	twe_get_param_2(struct twe_softc *sc, int table_id, int param_id, u_i
 static int	twe_get_param_4(struct twe_softc *sc, int table_id, int param_id, u_int32_t *result);
 static void	*twe_get_param(struct twe_softc *sc, int table_id, int parameter_id, size_t size, 
 					       void (* func)(struct twe_request *tr));
+#ifdef TWE_SHUTDOWN_NOTIFICATION
 static int	twe_set_param_1(struct twe_softc *sc, int table_id, int param_id, u_int8_t value);
+#endif
+#if 0
 static int	twe_set_param_2(struct twe_softc *sc, int table_id, int param_id, u_int16_t value);
 static int	twe_set_param_4(struct twe_softc *sc, int table_id, int param_id, u_int32_t value);
+#endif
 static int	twe_set_param(struct twe_softc *sc, int table_id, int param_id, int param_size, 
 					      void *data);
 static int	twe_init_connection(struct twe_softc *sc, int mode);
@@ -96,7 +100,6 @@ static void	twe_release_request(struct twe_request *tr);
  */
 static char 	*twe_format_aen(struct twe_softc *sc, u_int16_t aen);
 static int	twe_report_request(struct twe_request *tr);
-static int	twe_request_qlen(struct twe_request *tr);
 static void	twe_panic(struct twe_softc *sc, char *reason);
 
 /********************************************************************************
@@ -112,6 +115,7 @@ int
 twe_setup(struct twe_softc *sc)
 {
     struct twe_request	*tr;
+    u_int32_t		status_reg;
     int			i;
 
     debug_called(4);
@@ -144,6 +148,12 @@ twe_setup(struct twe_softc *sc)
 	 */
 	twe_release_request(tr);
     }
+
+    /*
+     * Check status register for errors, clear them.
+     */
+    status_reg = TWE_STATUS(sc);
+    twe_check_bits(sc, status_reg);
 
     /*
      * Wait for the controller to come ready.
@@ -563,6 +573,8 @@ twe_ioctl(struct twe_softc *sc, int cmd, void *addr)
 	twe_reset(sc);
 	break;
 
+	/* XXX implement ATA PASSTHROUGH */
+
 	/* nothing we understand */
     default:	
 	error = ENOTTY;
@@ -715,12 +727,15 @@ err:
 /********************************************************************************
  * Set integer parameter table entries.
  */
+#ifdef TWE_SHUTDOWN_NOTIFICATION
 static int
 twe_set_param_1(struct twe_softc *sc, int table_id, int param_id, u_int8_t value)
 {
     return(twe_set_param(sc, table_id, param_id, sizeof(value), &value));
 }
+#endif
 
+#if 0
 static int
 twe_set_param_2(struct twe_softc *sc, int table_id, int param_id, u_int16_t value)
 {
@@ -732,6 +747,7 @@ twe_set_param_4(struct twe_softc *sc, int table_id, int param_id, u_int32_t valu
 {
     return(twe_set_param(sc, table_id, param_id, sizeof(value), &value));
 }
+#endif
 
 /********************************************************************************
  * Perform a TWE_OP_SET_PARAM command, returns nonzero on error.
@@ -912,12 +928,16 @@ twe_reset(struct twe_softc *sc)
     struct twe_request	*tr;
     int			i, s;
 
-    twe_printf(sc, "controller reset in progress...\n");
+    /*
+     * Sleep for a short period to allow AENs to be signalled.
+     */
+    tsleep(NULL, PRIBIO, "twereset", hz);
 
     /*
      * Disable interrupts from the controller, and mask any accidental entry
      * into our interrupt handler.
      */
+    twe_printf(sc, "controller reset in progress...\n");
     twe_disable_interrupts(sc);
     s = splbio();
 
@@ -1171,10 +1191,11 @@ twe_soft_reset(struct twe_softc *sc)
 
     TWE_SOFT_RESET(sc);
 
-    if (twe_wait_status(sc, TWE_STATUS_ATTENTION_INTERRUPT, 15)) {
+    if (twe_wait_status(sc, TWE_STATUS_ATTENTION_INTERRUPT, 30)) {
 	twe_printf(sc, "no attention interrupt\n");
 	return(1);
     }
+    TWE_CONTROL(sc, TWE_CONTROL_CLEAR_ATTENTION_INTERRUPT);
     if (twe_drain_aen_queue(sc)) {
 	twe_printf(sc, "can't drain AEN queue\n");
 	return(1);
@@ -1579,6 +1600,14 @@ twe_check_bits(struct twe_softc *sc, u_int32_t status_reg)
 	    lastwarn[1] = time_second;
 	}
 	result = 1;
+	if (status_reg & TWE_STATUS_PCI_PARITY_ERROR) {
+	    twe_printf(sc, "PCI parity error: Reseat card, move card or buggy device present.");
+	    twe_clear_pci_parity_error(sc);
+	}
+	if (status_reg & TWE_STATUS_PCI_ABORT) {
+	    twe_printf(sc, "PCI abort, clearing.");
+	    twe_clear_pci_abort(sc);
+	}
     }
 
     return(result);
@@ -1609,7 +1638,7 @@ twe_format_aen(struct twe_softc *sc, u_int16_t aen)
 	if (!bootverbose)
 	    return(NULL);
 	/* FALLTHROUGH */
-    case 'p':
+    case 'a':
 	return(msg);
 
     case 'c':
@@ -1620,6 +1649,12 @@ twe_format_aen(struct twe_softc *sc, u_int16_t aen)
 		    msg, TWE_AEN_UNIT(aen));
 	}
 	return(buf);
+
+    case 'p':
+	sprintf(buf, "twe%d: port %d: %s", device_get_unit(sc->twe_dev), TWE_AEN_UNIT(aen),
+		msg);
+	return(buf);
+
 	
     case 'x':
     default:
@@ -1638,32 +1673,58 @@ twe_report_request(struct twe_request *tr)
 {
     struct twe_softc	*sc = tr->tr_sc;
     TWE_Command		*cmd = &tr->tr_command;
-    int			result;
+    int			result = 0;
 
-    switch (cmd->generic.flags) {
-    case TWE_FLAGS_SUCCESS:
-	result = 0;
-	break;
-    case TWE_FLAGS_INFORMATIONAL:
-    case TWE_FLAGS_WARNING:
-	twe_printf(sc, "command completed - %s\n", 
-		   twe_describe_code(twe_table_status, cmd->generic.status));
-	result = 0;
-	break;
-
-    case TWE_FLAGS_FATAL:
-    default:
-	twe_printf(sc, "command failed - %s\n", 
-		   twe_describe_code(twe_table_status, cmd->generic.status));
-	result = 1;
-
+    /*
+     * Check the command status value and handle accordingly.
+     */
+    if (cmd->generic.status == TWE_STATUS_RESET) {
 	/*
-	 * The status code 0xff requests a controller reset
+	 * The status code 0xff requests a controller reset.
 	 */
-	if (cmd->generic.status == 0xff)
-	    twe_reset(sc);
-	break;
+	twe_printf(sc, "command returned with controller rest request\n");
+	twe_reset(sc);
+	result = 1;
+    } else if (cmd->generic.status > TWE_STATUS_FATAL) {
+	/*
+	 * Fatal errors that don't require controller reset.
+	 *
+	 * We know a few special flags values.
+	 */
+	switch (cmd->generic.flags) {
+	case 0x1b:
+	    device_printf(sc->twe_drive[cmd->generic.unit].td_disk,
+			  "drive timeout");
+	    break;
+	case 0x51:
+	    device_printf(sc->twe_drive[cmd->generic.unit].td_disk,
+			  "unrecoverable drive error");
+	    break;
+	default:
+	    device_printf(sc->twe_drive[cmd->generic.unit].td_disk,
+			  "controller error - %s (flags = 0x%x)\n",
+			  twe_describe_code(twe_table_status, cmd->generic.status),
+			  cmd->generic.flags);
+	    result = 1;
+	}
+    } else if (cmd->generic.status > TWE_STATUS_WARNING) {
+	/*
+	 * Warning level status.
+	 */
+	device_printf(sc->twe_drive[cmd->generic.unit].td_disk,
+		      "warning - %s (flags = 0x%x)\n",
+		      twe_describe_code(twe_table_status, cmd->generic.status),
+		      cmd->generic.flags);
+    } else if (cmd->generic.status > 0x40) {
+	/*
+	 * Info level status.
+	 */
+	device_printf(sc->twe_drive[cmd->generic.unit].td_disk,
+		      "attention - %s (flags = 0x%x)\n",
+		      twe_describe_code(twe_table_status, cmd->generic.status),
+		      cmd->generic.flags);
     }
+    
     return(result);
 }
 
