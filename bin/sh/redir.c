@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: redir.c,v 1.2 1994/09/24 02:58:10 davidg Exp $
+ *	$Id: redir.c,v 1.3 1995/05/30 00:07:22 rgrimes Exp $
  */
 
 #ifndef lint
@@ -120,6 +120,9 @@ redirect(redir, flags)
 	}
 	for (n = redir ; n ; n = n->nfile.next) {
 		fd = n->nfile.fd;
+		if ((n->nfile.type == NTOFD || n->nfile.type == NFROMFD) &&
+		    n->ndup.dupfd == fd)
+			continue; /* redirect from/to myself */
 		if ((flags & REDIR_PUSH) && sv->renamed[fd] == EMPTY) {
 			INTOFF;
 			if ((i = copyfd(fd, 10)) != EMPTY) {
@@ -341,5 +344,7 @@ copyfd(from, to) {
 	newfd = fcntl(from, F_DUPFD, to);
 	if (newfd < 0 && errno == EMFILE)
 		return EMPTY;
+	if (newfd < 0)
+		error("%d: %s", from, strerror(errno));
 	return newfd;
 }

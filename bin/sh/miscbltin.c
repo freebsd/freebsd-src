@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: miscbltin.c,v 1.2 1994/09/24 02:57:52 davidg Exp $
+ *	$Id: miscbltin.c,v 1.3 1995/10/19 18:42:10 joerg Exp $
  */
 
 #ifndef lint
@@ -209,7 +209,7 @@ static struct restab restab[] = {
 	{RLIMIT_FSIZE,    512,  "filesize(512-blocks)    "},
 	{RLIMIT_MEMLOCK,  1024, "lockedmem(kilobytes)    "},
 	{RLIMIT_NOFILE,   1,    "nofiles(descriptors)    "},
-	{RLIMIT_NPROC,    1,    "processes(max)          "},
+	{RLIMIT_NPROC,    1,    "userprocs(max)          "},
 	{RLIMIT_RSS,      1024, "memoryuse(kilobytes)    "},
 	{RLIMIT_STACK,    1024, "stacksize(kilobytes)    "}
 };
@@ -265,7 +265,7 @@ ulimitcmd(argc, argv)  char **argv; {
 	opterr = 0;		/* use own error processing */
 	optreset = 1;
 	optind = 1;
-	while ((i = getopt(argc, argv, "HSacdfnstmlp")) != EOF) {
+	while ((i = getopt(argc, argv, "HSacdfnstmlu")) != EOF) {
 		arg++;
 		switch(i) {
 		case 'H':
@@ -313,7 +313,7 @@ ulimitcmd(argc, argv)  char **argv; {
 			if(resource != RLIMIT_UNSPEC) errs++;
 			resource = RLIMIT_MEMLOCK;
 			break;
-		case 'p':
+		case 'u':
 			if(resource != RLIMIT_UNSPEC) errs++;
 			resource = RLIMIT_NPROC;
 			break;
