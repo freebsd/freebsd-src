@@ -3,7 +3,7 @@
  *    Copyright (c) 1989-1992, Brian Berliner
  *
  *    You may distribute under the terms of the GNU General Public License
- *    as specified in the README file that comes with the CVS 1.3 kit.
+ *    as specified in the README file that comes with the CVS 1.4 kit.
  *
  * This is the main C driver for the CVS system.
  *
@@ -35,7 +35,10 @@
 #include "cvs.h"
 #include "patchlevel.h"
 
-char rcsid[] = "@(#)main.c 1.64 92/03/31\n";
+#ifndef lint
+char rcsid[] = "$CVSid: @(#)main.c 1.78 94/10/07 $\n";
+USE(rcsid)
+#endif
 
 extern char *getenv ();
 
@@ -43,6 +46,7 @@ char *program_name;
 char *command_name = "";
 
 int use_editor = TRUE;
+int use_cvsrc = TRUE;
 int cvswrite = !CVSREAD_DFLT;
 int really_quiet = FALSE;
 int quiet = FALSE;
@@ -58,44 +62,28 @@ char *CurDir;
 char *Rcsbin = RCSBIN_DFLT;
 char *Editor = EDITOR_DFLT;
 char *CVSroot = CVSROOT_DFLT;
+#ifdef CVSADM_ROOT
+/*
+ * The path found in CVS/Root must match $CVSROOT and/or 'cvs -d root'
+ */
+char *CVSADM_Root = CVSROOT_DFLT;
+#endif /* CVSADM_ROOT */
 
-#if __STDC__
-int add (int argc, char **argv);
-int admin (int argc, char **argv);
-int checkout (int argc, char **argv);
-int commit (int argc, char **argv);
-int diff (int argc, char **argv);
-int history (int argc, char **argv);
-int import (int argc, char **argv);
-int cvslog (int argc, char **argv);
-int patch (int argc, char **argv);
-int release (int argc, char **argv);
-int cvsremove (int argc, char **argv);
-int rtag (int argc, char **argv);
-int status (int argc, char **argv);
-int tag (int argc, char **argv);
-int update (int argc, char **argv);
-#else
-int add ();
-int admin ();
-int checkout ();
-int commit ();
-int diff ();
-int history ();
-int import ();
-int cvslog ();
-int patch ();
-int release ();
-int cvsremove ();
-int rtag ();
-int status ();
-int tag ();
-int update ();
-#endif				/* __STDC__ */
-
-#ifdef FREEBSD_DEVELOPER
-int freebsd = TRUE;		/* Use the FreeBSD -K flags!! */
-#endif
+int add PROTO((int argc, char **argv));
+int admin PROTO((int argc, char **argv));
+int checkout PROTO((int argc, char **argv));
+int commit PROTO((int argc, char **argv));
+int diff PROTO((int argc, char **argv));
+int history PROTO((int argc, char **argv));
+int import PROTO((int argc, char **argv));
+int cvslog PROTO((int argc, char **argv));
+int patch PROTO((int argc, char **argv));
+int release PROTO((int argc, char **argv));
+int cvsremove PROTO((int argc, char **argv));
+int rtag PROTO((int argc, char **argv));
+int status PROTO((int argc, char **argv));
+int tag PROTO((int argc, char **argv));
+int update PROTO((int argc, char **argv));
 
 struct cmd
 {
@@ -141,9 +129,7 @@ static char *usg[] =
     "        -b bindir    Find RCS programs in 'bindir'\n",
     "        -e editor    Use 'editor' for editing log information\n",
     "        -d CVS_root  Overrides $CVSROOT as the root of the CVS tree\n",
-#ifdef FREEBSD_DEVELOPER
-    "        -x           Do NOT use the FreeBSD -K default flags\n",
-#endif
+    "        -f           Do not use the ~/.cvsrc file\n",
     "\n",
     "    and where 'command' is:\n",
     "        add          Adds a new file/directory to the repository\n",
@@ -165,7 +151,7 @@ static char *usg[] =
     NULL,
 };
 
-static SIGTYPE
+static RETSIGTYPE
 main_cleanup ()
 {
     exit (1);
@@ -180,13 +166,13 @@ main (argc, argv)
     char *cp;
     struct cmd *cm;
     int c, help = FALSE, err = 0;
-    int rcsbin_update_env, cvs_update_env;
+    int rcsbin_update_env, cvs_update_env = 0;
     char tmp[PATH_MAX];
 
     /*
      * Just save the last component of the path for error messages
      */
-    if ((program_name = rindex (argv[0], '/')) == NULL)
+    if ((program_name = strrchr (argv[0], '/')) == NULL)
 	program_name = argv[0];
     else
 	program_name++;
@@ -200,12 +186,15 @@ main (argc, argv)
      * they can be overridden by command line arguments
      */
     rcsbin_update_env = *Rcsbin;	/* RCSBIN_DFLT must be set */
+    cvs_update_env = 0;
     if ((cp = getenv (RCSBIN_ENV)) != NULL)
     {
 	Rcsbin = cp;
 	rcsbin_update_env = 0;		/* it's already there */
     }
-    if ((cp = getenv (EDITOR_ENV)) != NULL)
+    if ((cp = getenv (EDITOR1_ENV)) != NULL)
+ 	Editor = cp;
+    else if ((cp = getenv (EDITOR2_ENV)) != NULL)
 	Editor = cp;
     if ((cp = getenv (CVSROOT_ENV)) != NULL)
     {
@@ -216,11 +205,7 @@ main (argc, argv)
 	cvswrite = FALSE;
 
     optind = 1;
-#ifdef FREEBSD_DEVELOPER
-    while ((c = gnu_getopt (argc, argv, "Qqrwtnlvb:e:d:Hx")) != -1)
-#else
-    while ((c = gnu_getopt (argc, argv, "Qqrwtnlvb:e:d:H")) != -1)
-#endif /* FREEBSD_DEVELOPER */
+    while ((c = getopt (argc, argv, "Qqrwtnlvb:e:d:Hf")) != -1)
     {
 	switch (c)
 	{
@@ -245,11 +230,10 @@ main (argc, argv)
 		logoff = TRUE;
 		break;
 	    case 'v':
-		(void) fputs (rcsid, stdout);
 		(void) fputs (version_string, stdout);
 		(void) sprintf (tmp, "Patch Level: %d\n", PATCHLEVEL);
 		(void) fputs (tmp, stdout);
-		(void) fputs ("\nCopyright (c) 1992, Brian Berliner and Jeff Polk\nCopyright (c) 1989-1992, Brian Berliner\n\nCVS may be copied only under the terms of the GNU General Public License,\na copy of which can be found with the CVS 1.3 distribution kit.\n", stdout);
+		(void) fputs ("\nCopyright (c) 1993-1994 Brian Berliner\nCopyright (c) 1993-1994 david d `zoo' zuhn\nCopyright (c) 1992, Brian Berliner and Jeff Polk\nCopyright (c) 1989-1992, Brian Berliner\n\nCVS may be copied only under the terms of the GNU General Public License,\na copy of which can be found with the CVS distribution kit.\n", stdout);
 		exit (0);
 		break;
 	    case 'b':
@@ -264,13 +248,12 @@ main (argc, argv)
 		cvs_update_env = 1;	/* need to update environment */
 		break;
 	    case 'H':
+		use_cvsrc = FALSE;      /* this ensure that cvs -H works */
 		help = TRUE;
 		break;
-#ifdef FREEBSD_DEVELOPER
-	    case 'x':
-		freebsd = FALSE;
+            case 'f':
+		use_cvsrc = FALSE;
 		break;
-#endif /* FREEBSD_DEVELOPER */
 	    case '?':
 	    default:
 		usage (usg);
@@ -281,25 +264,49 @@ main (argc, argv)
     if (argc < 1)
 	usage (usg);
 
+#ifdef CVSADM_ROOT
     /*
-     * XXX - Compatibility.  This can be removed in the release after CVS 1.3.
-     * Try to rename the CVSROOT.adm file to CVSROOT, unless there already is
-     * a CVSROOT directory.
+     * See if we are able to find a 'better' value for CVSroot in the
+     * CVSADM_ROOT directory.
      */
-    if (CVSroot != NULL)
+    CVSADM_Root = Name_Root((char *) NULL, (char *) NULL);
+    if (CVSADM_Root != NULL)
     {
-	char rootadm[PATH_MAX];
-	char orootadm[PATH_MAX];
-
-	(void) sprintf (rootadm, "%s/%s", CVSroot, CVSROOTADM);
-	if (!isdir (rootadm))
-	{
-	    (void) sprintf (orootadm, "%s/%s", CVSroot, OCVSROOTADM);
-	    if (isdir (orootadm))
-		(void) rename (orootadm, rootadm);
-	}
-	strip_path (CVSroot);
+        if (CVSroot == NULL)
+        {
+	    CVSroot = CVSADM_Root;
+	    cvs_update_env = 1;	/* need to update environment */
+        }
+        else
+        {
+            /*
+	     * Now for the hard part, compare the two directories. If they
+	     * are not identical, then abort this command.
+	     */
+            if ((strcmp (CVSroot, CVSADM_Root) != 0) &&
+		!same_directories(CVSroot, CVSADM_Root))
+	    {
+	        error (0, 0, "%s value for CVS Root found in %s",
+		       CVSADM_Root, CVSADM_ROOT);
+		if (cvs_update_env)
+		{
+		    error (0, 0, "does not match command line -d %s setting",
+			   CVSroot);
+		    error (1, 0,
+			   "you may wish to try the cvs command again without the -d option ");
+                }
+		else
+		{
+		    error (0, 0,
+			   "does not match CVSROOT environment value of %s",
+			   CVSroot);
+		    error (1, 0,
+			   "you may wish to unsetenv CVSROOT and try again");
+                }
+	    }
+        }
     }
+#endif /* CVSADM_ROOT */
 
     /*
      * Specifying just the '-H' flag to the sub-command causes a Usage
@@ -332,7 +339,7 @@ main (argc, argv)
 	    }
 	    (void) strcat (path, "/");
 	    (void) strcat (path, CVSROOTADM_HISTORY);
-	    if (isfile (path) && access (path, R_OK | (logoff ? 0 : W_OK)))
+	    if (isfile (path) && access (path, R_OK | W_OK))
 	    {
 		save_errno = errno;
 		error (0, 0,
@@ -342,7 +349,7 @@ main (argc, argv)
 	}
     }
 
-#ifndef PUTENV_MISSING
+#ifdef HAVE_PUTENV
     /* Now, see if we should update the environment with the Rcsbin value */
     if (cvs_update_env)
     {
@@ -403,7 +410,7 @@ main (argc, argv)
 	(void) SIG_register (SIGPIPE, main_cleanup);
 	(void) SIG_register (SIGTERM, main_cleanup);
 
-#ifndef SETVBUF_MISSING
+#ifdef HAVE_SETVBUF
 	/*
 	 * Make stdout line buffered, so 'tail -f' can monitor progress.
 	 * Patch creates too much output to monitor and it runs slowly.
@@ -412,7 +419,11 @@ main (argc, argv)
 	    (void) setvbuf (stdout, (char *) NULL, _IOLBF, 0);
 #endif
 
+	if (use_cvsrc)
+	  read_cvsrc(&argc, &argv);
+
 	err = (*(cm->func)) (argc, argv);
+
     }
     /*
      * If the command's error count is modulo 256, we need to change it
