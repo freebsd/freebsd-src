@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aic7xxx.c,v 1.112 1997/04/04 19:36:04 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.113 1997/04/05 21:41:13 gibbs Exp $
  */
 /*
  * TODO:
@@ -301,6 +301,7 @@ static void	ahc_add_curscb_to_free_list __P((struct ahc_softc *ahc));
 static void	ahc_clear_intstat __P((struct ahc_softc *ahc));
 static void	ahc_reset_current_bus __P((struct ahc_softc *ahc));
 static void	ahc_run_done_queue __P((struct ahc_softc *ahc));
+static void	ahc_untimeout_done_queue __P((struct ahc_softc *ahc));
 static void	ahc_scsirate __P((struct ahc_softc* ahc, u_int8_t *scsirate,
 				  u_int8_t *period, u_int8_t *offset,
 				  char channel, int target));
@@ -3625,6 +3626,8 @@ ahc_reset_current_bus(ahc)
 
 		/* Wait a minimal bus settle delay */
 		DELAY(AHC_BUSSETTLE_DELAY);
+
+		ahc_run_done_queue(ahc);
 	}
 }
 
@@ -3692,6 +3695,7 @@ ahc_busreset_settle_complete(arg)
 	printf("Clearing 'in-reset' flag\n");
 	ahc->in_reset &= (args->bus == 'A' ? ~CHANNEL_A_RESET
 					   : ~CHANNEL_B_RESET);
+	ahc_run_done_queue(ahc);
 	splx(s);
 }
 
@@ -3777,11 +3781,22 @@ ahc_reset_channel(ahc, channel, xs_error, initiate_reset)
 		ahc_clear_intstat(ahc);
 		restart_sequencer(ahc);
 	}
-	ahc_run_done_queue(ahc);
+	/*
+	 * Untimeout our scbs now in case we have to delay our done
+	 * processing.
+	 */
+	ahc_untimeout_done_queue(ahc);
+	if (initiate_reset == 0) {
+		/*
+		 * If we initiated the reset, we'll run the queue
+		 * once our bus-settle delay has expired.
+		 */
+		ahc_run_done_queue(ahc);
+	}
 	return found;
 }
 
-void
+static void
 ahc_run_done_queue(ahc)
 	struct ahc_softc *ahc;
 {
@@ -3795,6 +3810,20 @@ ahc_run_done_queue(ahc)
 	}
 }
 	
+static void
+ahc_untimeout_done_queue(ahc)
+	struct ahc_softc *ahc;
+{
+	int i;
+	struct scb *scbp;
+	
+	for (i = 0; i < ahc->scb_data->numscbs; i++) {
+		scbp = ahc->scb_data->scbarray[i];
+		if (scbp->flags & SCB_QUEUED_FOR_DONE) 
+			untimeout(ahc_timeout, (caddr_t)scbp);
+	}
+}
+
 static int
 ahc_match_scb (scb, target, channel, lun, tag)
 	struct	 scb *scb;
