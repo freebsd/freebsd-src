@@ -468,7 +468,7 @@ arpintr()
 
 		if (ml < sizeof(struct arphdr) + 2 * ar->ar_hln
 		    + 2 * ar->ar_pln) {
-			log(LOG_ERR, "arp: runt packet.");
+			log(LOG_ERR, "arp: runt packet\n");
 			m_freem(m);
 			continue;
 		}
