@@ -225,7 +225,7 @@ installInitial(void)
 	return DITEM_FAILURE;
     }
 
-    if (chroot("/mnt") == -1) {
+    if (!Restarting && chroot("/mnt") == -1) {
 	msgConfirm("installInitial: Unable to chroot to %s - this is bad!",
 		   "/mnt");
 	return DITEM_FAILURE;
