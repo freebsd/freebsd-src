@@ -21,8 +21,7 @@ CFLAGS+= -DINET6 -DIPSEC -I. -I${.CURDIR}
 LDADD=	-lipsec -lcompat -ll -ly
 DPADD=	${LIBIPSEC} ${LIBCOMPAT} ${LIBL} ${LIBY}
 
-MAN5=	rrenumd.conf.5
-MAN8=	rrenumd.8
+MAN=	rrenumd.conf.5 rrenumd.8
 
 SRCS+=y.tab.h
 y.tab.h: parser.y

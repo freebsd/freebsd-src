@@ -2,6 +2,7 @@
 # $FreeBSD$
 
 PROG=	rmt
+MAN=	rmt.8
 
 # called from /usr/src/etc/Makefile
 etc-rmt:

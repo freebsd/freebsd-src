@@ -15,8 +15,7 @@ COPTS	+=	-DDEBUG
 # enable rtprio usage
 COPTS	+=	-DUSE_RTPRIO
 
-MAN8	 =	isdnd.8
-MAN5	 =	isdnd.rc.5 isdnd.rates.5 isdnd.acct.5
+MAN	 =	isdnd.rc.5 isdnd.rates.5 isdnd.acct.5 isdnd.8
 
 .if !defined(I4B_WITHOUT_CURSES)
 COPTS	+=	-DUSE_CURSES

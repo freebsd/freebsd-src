@@ -7,8 +7,6 @@
 #---------------------------------------------------------------------------
 
 PROG		=	g711conv
-SRC		=	g711conv.c
 CFLAGS		+= 	-Wall
-MAN1		=	g711conv.1
 
 .include <bsd.prog.mk>

@@ -9,5 +9,6 @@
 .PATH:		${.CURDIR}/../../../contrib/amd/mk-amd-map
 
 PROG=		mk-amd-map
+MAN=		mk-amd-map.8
 
 .include <bsd.prog.mk>

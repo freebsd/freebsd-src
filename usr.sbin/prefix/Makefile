@@ -3,6 +3,7 @@
 #	$FreeBSD$
 
 PROG=	prefix
+MAN=	prefix.8
 
 CFLAGS+=-DINET6
 

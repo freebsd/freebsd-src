@@ -2,5 +2,6 @@
 # $FreeBSD$
 
 PROG=	slstat
+MAN=	slstat.8
 
 .include <bsd.prog.mk>

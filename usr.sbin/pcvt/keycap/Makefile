@@ -6,12 +6,12 @@ CAPPATH	=	$(CAPDIR)/keycap.pcvt
 KEYCAPSRC=	keycap.src
 CFLAGS	+=	-DKEYCAP_PATH=\"$(CAPPATH)\"
 SRCS	=	keycap.c
-MAN3	=	keycap.3
+MAN	=	keycap.3
 MLINKS+=	keycap.3 kgetent.3 \
 		keycap.3 kgetnum.3 \
 		keycap.3 kgetflag.3 \
 		keycap.3 kgetstr.3
-MAN5	=	man5/keycap.5
+MAN	+=	man5/keycap.5
 #CLEANFILES+=	keycap.0 man5/keycap.0
 
 beforeinstall:
