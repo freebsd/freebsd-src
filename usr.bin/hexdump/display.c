@@ -32,18 +32,22 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)display.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
 #include <sys/stat.h>
 
-#include <unistd.h>
-#include <errno.h>
 #include <ctype.h>
+#include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include "hexdump.h"
 
 enum _vflag vflag = FIRST;
@@ -263,8 +267,7 @@ get()
 		    length == -1 ? need : MIN(length, need), stdin);
 		if (!n) {
 			if (ferror(stdin))
-				(void)fprintf(stderr, "hexdump: %s: %s\n",
-				    _argv[-1], strerror(errno));
+				warn("%s", _argv[-1]);
 			ateof = 1;
 			continue;
 		}
@@ -307,8 +310,7 @@ next(argv)
 	for (;;) {
 		if (*_argv) {
 			if (!(freopen(*_argv, "r", stdin))) {
-				(void)fprintf(stderr, "hexdump: %s: %s\n",
-				    *_argv, strerror(errno));
+				warn("%s", *_argv);
 				exitval = 1;
 				++_argv;
 				continue;
@@ -339,7 +341,7 @@ doskip(fname, statok)
 
 	if (statok) {
 		if (fstat(fileno(stdin), &sb))
-			err("%s: %s", fname, strerror(errno));
+			err(1, "%s", fname);
 		if (S_ISREG(sb.st_mode) && skip >= sb.st_size) {
 			address += sb.st_size;
 			skip -= sb.st_size;
@@ -348,7 +350,7 @@ doskip(fname, statok)
 	}
 	if (S_ISREG(sb.st_mode)) {
 		if (fseek(stdin, skip, SEEK_SET))
-			err("%s: %s", fname, strerror(errno));
+			err(1, "%s", fname);
 		address += skip;
 		skip = 0;
 	} else {
@@ -375,5 +377,5 @@ emalloc(size)
 void
 nomem()
 {
-	err("%s", strerror(errno));
+	err(1, NULL);
 }

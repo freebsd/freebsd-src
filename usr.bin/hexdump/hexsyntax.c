@@ -32,11 +32,16 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)hexsyntax.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/types.h>
 
+#include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -90,7 +95,7 @@ newsyntax(argc, argvp)
 			break;
 		case 'n':
 			if ((length = atoi(optarg)) < 0)
-				err("%s: bad length value", optarg);
+				errx(1, "%s: bad length value", optarg);
 			break;
 		case 'o':
 			add("\"%07.7_Ax\n\"");
@@ -98,7 +103,7 @@ newsyntax(argc, argvp)
 			break;
 		case 's':
 			if ((skip = strtol(optarg, &p, 0)) < 0)
-				err("%s: bad skip value", optarg);
+				errx(1, "%s: bad skip value", optarg);
 			switch(*p) {
 			case 'b':
 				skip *= 512;
@@ -133,7 +138,10 @@ newsyntax(argc, argvp)
 void
 usage()
 {
-	(void)fprintf(stderr,
-"hexdump: [-bcCdovx] [-e fmt] [-f fmt_file] [-n length] [-s skip] [file ...]\n");
+	(void)fprintf(stderr, "%s\n%s\n%s\n%s\n",
+"usage: hexdump [-bcCdovx] [-e fmt] [-f fmt_file] [-n length]",
+"               [-s skip] [file ...]",
+"       hd      [-bcdovx]  [-e fmt] [-f fmt_file] [-n length]",
+"               [-s skip] [file ...]");
 	exit(1);
 }
