@@ -42,7 +42,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)login.c	8.4 (Berkeley) 4/2/94";
 #endif
 static const char rcsid[] =
-	"$Id: login.c,v 1.30 1997/10/19 09:34:06 joerg Exp $";
+	"$Id: login.c,v 1.31 1998/02/05 18:37:02 guido Exp $";
 #endif /* not lint */
 
 /*
@@ -454,6 +454,8 @@ main(argc, argv)
 		(void)signal(SIGQUIT, SIG_IGN);
 
 		if (pwd) {
+			if (!p[0] && pwd->pw_passwd[0])
+				ep = ":";
 #ifdef KERBEROS
 #ifdef SKEY
 			/*
