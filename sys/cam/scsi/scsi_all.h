@@ -20,7 +20,6 @@
 /*
  * SCSI general  interface description
  */
-
 #ifndef	_SCSI_SCSI_ALL_H
 #define _SCSI_SCSI_ALL_H 1
 
