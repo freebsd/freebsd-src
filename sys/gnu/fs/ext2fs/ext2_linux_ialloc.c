@@ -43,7 +43,7 @@
 #include <gnu/ext2fs/fs.h>
 #include <sys/stat.h>
 
-#if (i386)
+#ifdef __i386__
 #include <gnu/ext2fs/i386-bitops.h>
 #else
 #error please provide bit operation functions
@@ -449,6 +449,7 @@ repeat:
 	return j;
 }
 
+#ifdef unused
 static unsigned long ext2_count_free_inodes (struct mount * mp)
 {
 #ifdef EXT2FS_DEBUG
@@ -482,6 +483,7 @@ static unsigned long ext2_count_free_inodes (struct mount * mp)
 	return VFSTOUFS(mp)->um_e2fsb->s_free_inodes_count;
 #endif
 }
+#endif /* unused */
 
 #ifdef LATER
 void ext2_check_inodes_bitmap (struct mount * mp)
