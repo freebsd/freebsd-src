@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: apecs.c,v 1.3 1998/11/15 18:25:16 dfr Exp $
+ *	$Id: apecs.c,v 1.4 1998/12/04 22:54:42 archie Exp $
  */
 /*
  * Copyright (c) 1995, 1996 Carnegie-Mellon University.
@@ -60,13 +60,16 @@
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/bus.h>
+#include <sys/rman.h>
 
 #include <alpha/pci/apecsreg.h>
 #include <alpha/pci/apecsvar.h>
 #include <alpha/pci/pcibus.h>
 #include <machine/intr.h>
+#include <machine/intrcnt.h>
 #include <machine/cpuconf.h>
 #include <machine/swiz.h>
+#include <machine/rpb.h>
 
 #define KV(pa)			ALPHA_PHYS_TO_K0SEG(pa)
 
@@ -439,9 +442,10 @@ apecs_write_hae(u_int64_t hae)
 
 static int apecs_probe(device_t dev);
 static int apecs_attach(device_t dev);
-static void *apecs_create_intr(device_t dev, device_t child, int irq, driver_intr_t *intr, void *arg);
-static int apecs_connect_intr(device_t dev, void* ih);
-
+static int apecs_setup_intr(device_t dev, device_t child, struct resource *irq,
+			  driver_intr_t *intr, void *arg, void **cookiep);
+static int apecs_teardown_intr(device_t dev, device_t child,
+			     struct resource *irq, void *cookie);
 static device_method_t apecs_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		apecs_probe),
@@ -452,6 +456,8 @@ static device_method_t apecs_methods[] = {
 	DEVMETHOD(bus_release_resource,	pci_release_resource),
 	DEVMETHOD(bus_activate_resource, pci_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, pci_deactivate_resource),
+	DEVMETHOD(bus_setup_intr,	apecs_setup_intr),
+	DEVMETHOD(bus_teardown_intr,	apecs_teardown_intr),
 
 	{ 0, 0 }
 };
@@ -492,6 +498,8 @@ apecs_probe(device_t dev)
 	}
 	apecs_hae_mem = REGVAL(EPIC_HAXR1);
 
+	pci_init_resources();
+
 	isa0 = device_add_child(dev, "isa", 0, 0);
 
 	return 0;
@@ -504,7 +512,15 @@ apecs_attach(device_t dev)
 {
 	struct apecs_softc* sc = APECS_SOFTC(dev);
 	apecs_init();
-	chipset.intrdev = isa0;
+
+	/* 
+	 *  the avanti routes interrupts through the isa interrupt
+	 *  controller, so we need to special case it 
+	 */
+	if(hwrpb->rpb_type == ST_DEC_2100_A50)
+		chipset.intrdev = isa0;
+	else
+		chipset.intrdev = apecs0;
 
 	sc->dmem_base = APECS_PCI_DENSE;
 	sc->smem_base = APECS_PCI_SPARSE;
@@ -523,6 +539,36 @@ apecs_attach(device_t dev)
 
 	bus_generic_attach(dev);
 	return 0;
+}
+
+static int
+apecs_setup_intr(device_t dev, device_t child,
+	       struct resource *irq,
+	       driver_intr_t *intr, void *arg, void **cookiep)
+{
+	int error;
+	
+	error = rman_activate_resource(irq);
+	if (error)
+		return error;
+
+	error = alpha_setup_intr(0x900 + (irq->r_start << 4),
+			intr, arg, cookiep,
+			&intrcnt[INTRCNT_EB64PLUS_IRQ + irq->r_start]);
+	if (error)
+		return error;
+
+	/* Enable PCI interrupt */
+	platform.pci_intr_enable(irq->r_start);
+	return 0;
+}
+
+static int
+apecs_teardown_intr(device_t dev, device_t child,
+		  struct resource *irq, void *cookie)
+{
+	alpha_teardown_intr(cookie);
+	return rman_deactivate_resource(irq);
 }
 
 DRIVER_MODULE(apecs, root, apecs_driver, apecs_devclass, 0, 0);
