@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: atapi-fd.c,v 1.6 1999/05/07 07:03:14 phk Exp $
+ *	$Id: atapi-fd.c,v 1.7 1999/05/17 15:58:46 sos Exp $
  */
 
 #include "ata.h"
@@ -86,6 +86,7 @@ static int32_t afd_sense(struct afd_softc *);
 static void afd_describe(struct afd_softc *);
 static void afd_strategy(struct buf *);
 static void afd_start(struct afd_softc *);
+static void afd_partial_done(struct atapi_request *);
 static void afd_done(struct atapi_request *);
 static int32_t afd_start_device(struct afd_softc *, int32_t);
 static int32_t afd_lock_device(struct afd_softc *, int32_t);
@@ -116,6 +117,9 @@ afdattach(struct atapi_softc *atp)
 	free(fdp, M_TEMP);
 	return -1;
     }
+
+    if (!strncmp(atp->atapi_parm->model, "IOMEGA  ZIP", 11))
+	fdp->transfersize = 64;
 
     afd_describe(fdp);
     afdtab[afdnlun++] = fdp;
@@ -180,12 +184,24 @@ afd_describe(struct afd_softc *fdp)
     printf("afd%d: %luMB (%u sectors), %u cyls, %u heads, %u S/T, %u B/S\n",
            afdnlun, 
 	   (fdp->cap.cylinders * fdp->cap.heads * fdp->cap.sectors) / 
-		((1024L * 1024L) / fdp->cap.sector_size),
+	   ((1024L * 1024L) / fdp->cap.sector_size),
 	   fdp->cap.cylinders * fdp->cap.heads * fdp->cap.sectors,
 	   fdp->cap.cylinders, fdp->cap.heads, fdp->cap.sectors,
 	   fdp->cap.sector_size);
-    printf("afd%d: ", fdp->lun);
+    printf("afd%d: Medium: ", fdp->lun);
     switch (fdp->header.medium_type) {
+	case MFD_2DD:
+	    printf("720KB DD disk"); break;
+
+	case MFD_HD_12:
+	    printf("1.2MB HD disk"); break;
+
+	case MFD_HD_144:
+	    printf("1.44MB HD disk"); break;
+
+	case MFD_UHD: 
+	    printf("120MB UHD disk"); break;
+
 	default: printf("Unknown media (0x%x)", fdp->header.medium_type);
     }
     if (fdp->header.wp) printf(", writeprotected");
@@ -303,6 +319,7 @@ afd_start(struct afd_softc *fdp)
     struct buf *bp = bufq_first(&fdp->buf_queue);
     u_int32_t lba, count;
     int8_t ccb[16];
+    int8_t *data_ptr;
     
     if (!bp)
         return;
@@ -319,10 +336,8 @@ afd_start(struct afd_softc *fdp)
 
     lba = bp->b_blkno / (fdp->cap.sector_size / DEV_BSIZE);
     count = (bp->b_bcount + (fdp->cap.sector_size - 1)) / fdp->cap.sector_size;
-
-    /* Should only be needed for ZIP drives, but better safe than sorry */
-    if (count > 64)
-	count = 64;
+    data_ptr = bp->b_data;
+    bp->b_resid = 0; 
 
     bzero(ccb, sizeof(ccb));
 
@@ -331,18 +346,48 @@ afd_start(struct afd_softc *fdp)
     else
 	ccb[0] = ATAPI_WRITE_BIG;
 
-    ccb[1] = 0; 
-    ccb[2] = lba>>24;  
+    devstat_start_transaction(&fdp->stats);
+
+    while (fdp->transfersize && (count > fdp->transfersize)) {
+
+        ccb[2] = lba>>24;
+        ccb[3] = lba>>16;
+        ccb[4] = lba>>8;
+        ccb[5] = lba;
+        ccb[7] = fdp->transfersize>>8;
+        ccb[8] = fdp->transfersize;
+
+        atapi_queue_cmd(fdp->atp, ccb, data_ptr, 
+			fdp->transfersize * fdp->cap.sector_size,
+                        (bp->b_flags & B_READ) ? A_READ : 0, 
+			afd_partial_done, fdp, bp);
+
+	count -= fdp->transfersize;
+	lba += fdp->transfersize;
+	data_ptr += fdp->transfersize * fdp->cap.sector_size;
+    }
+
+    ccb[2] = lba>>24;
     ccb[3] = lba>>16;
     ccb[4] = lba>>8;
-    ccb[5] = lba;   
+    ccb[5] = lba;
     ccb[7] = count>>8;
     ccb[8] = count;
 
-    devstat_start_transaction(&fdp->stats);
+    atapi_queue_cmd(fdp->atp, ccb, data_ptr, count * fdp->cap.sector_size,
+ 		    (bp->b_flags & B_READ) ? A_READ : 0, afd_done, fdp, bp);
+}
 
-    atapi_queue_cmd(fdp->atp, ccb, bp->b_data, count * fdp->cap.sector_size, 
-		    (bp->b_flags & B_READ) ? A_READ : 0, afd_done, fdp, bp);
+static void 
+afd_partial_done(struct atapi_request *request)
+{
+    struct buf *bp = request->bp;
+
+    if (request->result) {
+        bp->b_error = EIO;
+        bp->b_flags |= B_ERROR;
+    }
+    bp->b_resid += request->bytecount;
 }
 
 static void 
@@ -351,17 +396,18 @@ afd_done(struct atapi_request *request)
     struct buf *bp = request->bp;
     struct afd_softc *fdp = request->driver;
 
-    devstat_end_transaction(&fdp->stats, request->donecount,
-                            DEVSTAT_TAG_NONE,
-                            (bp->b_flags&B_READ) ? DEVSTAT_READ:DEVSTAT_WRITE);
- 
-    if (request->result) {
+    if (request->result || (bp->b_flags & B_ERROR)) {
         atapi_error(request->device, request->result);
         bp->b_error = EIO;
         bp->b_flags |= B_ERROR;
     }
     else
-	bp->b_resid = bp->b_bcount - request->donecount;
+	bp->b_resid += request->bytecount;
+
+    devstat_end_transaction(&fdp->stats, bp->b_bcount - bp->b_resid,
+                            DEVSTAT_TAG_NONE,
+                            (bp->b_flags&B_READ) ? DEVSTAT_READ:DEVSTAT_WRITE);
+ 
     biodone(bp);
     afd_start(fdp);
 }

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: ata-all.c,v 1.12 1999/05/08 21:58:58 dfr Exp $
+ *  $Id: ata-all.c,v 1.13 1999/05/17 15:58:44 sos Exp $
  */
 
 #include "ata.h"
@@ -92,12 +92,13 @@ ata_isaprobe(device_t dev)
     int32_t ctlr, res;
     int32_t lun;
 
-    /* Allocate the port range */
+    /* allocate the port range */
     rid = 0;
     port = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0, 1, RF_ACTIVE);
     if (!port)
 	return (ENOMEM);
 
+    /* check if allready in use by a PCI device */
     for (ctlr = 0; ctlr < atanlun; ctlr++) {
 	if (atadevices[ctlr]->ioaddr == rman_get_start(port)) {
 	    printf("ata-isa%d: already registered as ata%d\n", 
@@ -115,6 +116,7 @@ ata_isaprobe(device_t dev)
 
     if (res) {
 	isa_set_portsize(dev, res);
+	*(int *)device_get_softc(dev) = lun;
 	return 0;
     }
 
@@ -124,7 +126,6 @@ ata_isaprobe(device_t dev)
 static int
 ata_isaattach(device_t dev)
 {
-    struct ata_softc *scp;
     struct resource *port;
     struct resource *irq;
     void *ih;
@@ -142,8 +143,8 @@ ata_isaattach(device_t dev)
 	bus_release_resource(dev, SYS_RES_IOPORT, 0, port);
 	return (ENOMEM);
     }
-    scp = device_get_softc(dev);
-    return bus_setup_intr(dev, irq, INTR_TYPE_BIO, ataintr, scp, &ih);
+    return bus_setup_intr(dev, irq, INTR_TYPE_BIO, ataintr, 
+			  atadevices[*(int *)device_get_softc(dev)], &ih);
 }
 
 static device_method_t ata_isa_methods[] = {
@@ -154,7 +155,7 @@ static device_method_t ata_isa_methods[] = {
 };
 
 static driver_t ata_isa_driver = {
-    "ata-isa",
+    "ata",
     ata_isa_methods,
     sizeof(int),
 };
@@ -666,7 +667,7 @@ ata_command(struct ata_softc *scp, int32_t device, u_int32_t command,
 	   u_int32_t count, u_int32_t feature, int32_t flags)
 {
 #ifdef ATA_DEBUG
-printf("ata_command: addr=%04x, device=%02x, cmd=%02x, c=%d, h=%d, s=%d, count=%d, flags=%02x\n", scp->ioaddr, device, command, cylinder, head, sector, count, flags);
+printf("ata%d: ata_command: addr=%04x, device=%02x, cmd=%02x, c=%d, h=%d, s=%d, count=%d, flags=%02x\n", scp->lun, scp->ioaddr, device, command, cylinder, head, sector, count, flags);
 #endif
 
     /* ready to issue command ? */

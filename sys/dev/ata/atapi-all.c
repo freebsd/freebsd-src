@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: atapi-all.c,v 1.7 1999/04/16 21:21:53 peter Exp $
+ *	$Id: atapi-all.c,v 1.8 1999/05/17 15:58:45 sos Exp $
  */
 
 #include "ata.h"
@@ -220,7 +220,7 @@ atapi_transfer(struct atapi_request *request)
 {
     struct atapi_softc *atp;
     int32_t timeout;
-    int8_t reason; /* not needed really */
+    int8_t reason;
 
     /* get device params */
     atp = request->device;
@@ -310,8 +310,13 @@ printf("atapi_interrupt: length=%d reason=0x%02x\n", length, reason);
 	if (request->bytecount < length) {
 	    printf("atapi_interrupt: write data underrun %d/%d\n",
 		   length, request->bytecount);
+#if 0
 	    outsw(atp->controller->ioaddr + ATA_DATA, 
 		  (void *)((uintptr_t)request->data), length / sizeof(int16_t));
+#else
+	    outsl(atp->controller->ioaddr + ATA_DATA, 
+		  (void *)((uintptr_t)request->data), length / sizeof(int32_t));
+#endif
 	    for (resid=request->bytecount; resid<length; resid+=sizeof(int16_t))
 		outw(atp->controller->ioaddr + ATA_DATA, 0);
 	}
@@ -332,8 +337,13 @@ printf("atapi_interrupt: length=%d reason=0x%02x\n", length, reason);
         if (request->bytecount < length) {
             printf("atapi_interrupt: read data overrun %d/%d\n",
                    length, request->bytecount);
+#if 0
             insw(atp->controller->ioaddr + ATA_DATA, 
                   (void *)((uintptr_t)request->data), length / sizeof(int16_t));
+#else
+            insl(atp->controller->ioaddr + ATA_DATA, 
+                  (void *)((uintptr_t)request->data), length / sizeof(int32_t));
+#endif
             for (resid=request->bytecount; resid<length; resid+=sizeof(int16_t))
                 inw(atp->controller->ioaddr + ATA_DATA);
         }                       
@@ -352,6 +362,7 @@ printf("atapi_interrupt: length=%d reason=0x%02x\n", length, reason);
 	if (atp->controller->status & (ATA_S_ERROR | ATA_S_DWF)) {
 	    /* check sense !! SOS */
 	    request->result = atp->controller->error;
+	    break;
 	}
 #ifdef ATAPI_DEBUG
         if (request->bytecount > 0) {
