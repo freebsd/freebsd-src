@@ -117,7 +117,7 @@
  * in fs_fsmnt. MAXMNTLEN defines the amount of space allocated in
  * the super block for this name.
  */
-#define MAXMNTLEN	472
+#define MAXMNTLEN	468
 
 /*
  * The volume name for this filesystem is maintained in fs_volname.
@@ -311,7 +311,8 @@ struct fs {
 	int8_t   fs_old_flags;		/* old FS_ flags */
 	u_char	 fs_fsmnt[MAXMNTLEN];	/* name mounted on */
 	u_char	 fs_volname[MAXVOLLEN];	/* volume name */
-	u_int64_t fs_uuid;		/* system-wide unique uid */
+	u_int64_t fs_swuid;		/* system-wide uid */
+	int32_t  fs_pad;		/* padding for non-i386 */
 /* these fields retain the current block allocation info */
 	int32_t	 fs_cgrotor;		/* last cg searched */
 	void 	*fs_ocsp[NOCSPTRS];	/* padding; was list of fs_cs buffers */
