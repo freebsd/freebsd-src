@@ -943,6 +943,8 @@ int main(argc, argv)
 	struct timeval 	tv;
 	int 		count, recvlen, dummy = 0;
 
+	if (igmp_socket >= FD_SETSIZE)
+		log(LOG_ERR, 0, "descriptor too big");
 	FD_ZERO(&fds);
 	FD_SET(igmp_socket, &fds);
 
