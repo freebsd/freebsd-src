@@ -66,22 +66,6 @@ extern	int	szfreebsd4_sigcode;
 #ifdef COMPAT_43
 extern	int	szosigcode;
 #endif
-#ifdef SWTCH_OPTIM_STATS
-extern int stupid_switch;
-extern int swtch_optim_stats;
-extern int tlb_flush_count;
-extern int lazy_flush_count;
-extern int lazy_flush_fixup;
-#ifdef SMP
-extern int lazy_flush_smpfixup;
-extern int lazy_flush_smpipi;
-extern int lazy_flush_smpbadcr3;
-extern int lazy_flush_smpmiss;
-#endif
-#endif
-#ifdef LAZY_SWITCH
-extern int lazy_flush_enable;
-#endif
 
 typedef void alias_for_inthand_t(u_int cs, u_int ef, u_int esp, u_int ss);
 struct	thread;

@@ -51,7 +51,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_msgbuf.h"
 #include "opt_npx.h"
 #include "opt_perfmon.h"
-#include "opt_swtch.h"
 #include "opt_kstack_pages.h"
 
 #include <sys/param.h>
@@ -152,43 +151,6 @@ SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL)
 
 int	_udatasel, _ucodesel;
 u_int	atdevbase;
-
-#if defined(SWTCH_OPTIM_STATS)
-int stupid_switch;
-SYSCTL_INT(_debug, OID_AUTO, stupid_switch,
-	CTLFLAG_RW, &stupid_switch, 0, "");
-int swtch_optim_stats;
-SYSCTL_INT(_debug, OID_AUTO, swtch_optim_stats,
-	CTLFLAG_RW, &swtch_optim_stats, 0, "");
-int tlb_flush_count;
-SYSCTL_INT(_debug, OID_AUTO, tlb_flush_count,
-	CTLFLAG_RW, &tlb_flush_count, 0, "");
-int lazy_flush_count;
-SYSCTL_INT(_debug, OID_AUTO, lazy_flush_count,
-	CTLFLAG_RW, &lazy_flush_count, 0, "");
-int lazy_flush_fixup;
-SYSCTL_INT(_debug, OID_AUTO, lazy_flush_fixup,
-	CTLFLAG_RW, &lazy_flush_fixup, 0, "");
-#ifdef SMP
-int lazy_flush_smpfixup;
-SYSCTL_INT(_debug, OID_AUTO, lazy_flush_smpfixup,
-	CTLFLAG_RW, &lazy_flush_smpfixup, 0, "");
-int lazy_flush_smpipi;
-SYSCTL_INT(_debug, OID_AUTO, lazy_flush_smpipi,
-	CTLFLAG_RW, &lazy_flush_smpipi, 0, "");
-int lazy_flush_smpbadcr3;
-SYSCTL_INT(_debug, OID_AUTO, lazy_flush_smpbadcr3,
-	CTLFLAG_RW, &lazy_flush_smpbadcr3, 0, "");
-int lazy_flush_smpmiss;
-SYSCTL_INT(_debug, OID_AUTO, lazy_flush_smpmiss,
-	CTLFLAG_RW, &lazy_flush_smpmiss, 0, "");
-#endif
-#endif
-#ifdef LAZY_SWITCH
-int lazy_flush_enable = 1;
-SYSCTL_INT(_debug, OID_AUTO, lazy_flush_enable,
-	CTLFLAG_RW, &lazy_flush_enable, 0, "");
-#endif
 
 int cold = 1;
 
