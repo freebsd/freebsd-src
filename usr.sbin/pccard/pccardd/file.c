@@ -63,6 +63,7 @@ static char *keys[] = {
 	"debuglevel",		/* 13 */
 	"include",		/* 14 */
 	"function",		/* 15 */
+	"logstr",		/* 16 */
 	0
 };
 
@@ -81,6 +82,7 @@ static char *keys[] = {
 #define KWD_DEBUGLEVEL		13
 #define KWD_INCLUDE		14
 #define KWD_FUNCTION		15
+#define KWD_LOGSTR		16
 
 /* for keyword compatibility with PAO/plain FreeBSD */
 static struct {
@@ -124,15 +126,12 @@ delete_card(struct card *cp)
 	struct card_config *configp, *config_next;
 	struct cmd	*cmdp, *cmd_next;
 
-	/* free characters */
-	if (cp->manuf != NULL)
-		free(cp->manuf);
-	if (cp->version != NULL)
-		free(cp->version);
-	if (cp->add_info1 != NULL) 
-		free(cp->add_info1);
-	if (cp->add_info2 != NULL)
-		free(cp->add_info2);
+	/* free strings */
+	free(cp->manuf);
+	free(cp->version);
+	free(cp->add_info1);
+	free(cp->add_info2);
+	free(cp->logstr);
 
 	/* free structures */
 	for (etherp = cp->ether; etherp; etherp = ether_next) {
@@ -434,11 +433,14 @@ parse_card(int deftype)
 		}
 		cp->manuf = man;
 		cp->version = vers;
+		cp->logstr = NULL;
+		asprintf(&cp->logstr, "%s (%s)", man, vers);
 		cp->func_id = 0;
 		break;
 	case DT_FUNC:
 		cp->manuf = NULL;
 		cp->version = NULL;
+		cp->logstr = NULL;
 		cp->func_id = (u_char) func_tok();
 		break;
 	default:
@@ -541,6 +543,10 @@ parse_card(int deftype)
 				break;
 			}
 			cp->iosize = iosize;
+			break;
+		case KWD_LOGSTR:
+			free(cp->logstr);
+			cp->logstr = newstr(next_tok());
 			break;
 		default:
 			pusht = 1;
