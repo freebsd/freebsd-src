@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: vidcontrol.c,v 1.5 1995/01/28 22:18:05 sos Exp $
+ *	$Id: vidcontrol.c,v 1.6 1995/01/30 21:44:07 sos Exp sos $
  */
 
 #include <ctype.h>
@@ -269,12 +269,15 @@ set_cursor_type(char *appearence)
 {
 	int type;
 
-	if (!strcmp(appearence, "blink"))
-		type = 1;
-	else if (!strcmp(appearence, "noblink"))
+	if (!strcmp(appearence, "normal"))
 		type = 0;
+	else if (!strcmp(appearence, "blink"))
+		type = 1;
+	else if (!strcmp(appearence, "destructive"))
+		type = 3;
 	else {
-		fprintf(stderr, "argument to -c must be blink or noblink\n");
+		fprintf(stderr, 
+		    "argument to -c must be normal, blink or destructive\n");
 		return;
 	}
 	ioctl(0, CONS_CURSORTYPE, &type);
@@ -395,19 +398,22 @@ usage()
 "Usage: vidcontrol mode             (available modes: VGA_40x25, VGA_80x25,\n"
 "                                                     VGA_80x50, VGA_320x200,\n"
 "                                                     EGA_80x25, EGA_80x43)\n"
-"                                     (experimental)  VGA_80x30, VGA_80x60)\n"
-"                  show               (show available colors)\n"
-"                  fgcol bgcol        (set fore- & background colors)\n"
-"                  -r fgcol bgcol     (set reverse fore- & background colors)\n"
-"                  -b color           (set border color)\n"
-"                  -c blink | noblink (set cursor type)\n"
-"                  -d                 (dump screenmap to stdout)\n"
-"                  -l filename        (load srceenmap file filename)\n"
-"                  -L                 (load default screenmap)\n"
-"                  -f DxL filename    (load font, D dots wide & L lines high)\n"
-"                  -s saver | help    (set screensaver type or help for a list)\n"
-"                  -t N               (set screensaver timeout in seconds)\n"
-"                  -x                 (use hex numbers for output)\n"
+"                                   (experimental)    VGA_80x30, VGA_80x60)\n"
+"\n"
+"                  show             (show available colors)\n"
+"                  fgcol bgcol      (set fore- & background colors)\n"
+"                  -r fgcol bgcol   (set reverse fore- & background colors)\n"
+"                  -b color         (set border color)\n"
+"                  -c normal        (set cursor to inverting block\n"
+"                  -c blink         (set cursor to blinking inverted block\n"
+"                  -c destructive   (set cursor to blinking destructive char\n"
+"                  -d               (dump screenmap to stdout)\n"
+"                  -l filename      (load srceenmap file filename)\n"
+"                  -L               (load default screenmap)\n"
+"                  -f DxL filename  (load font, D dots wide & L lines high)\n"
+"                  -s saver | help  (set screensaver type or help for a list)\n"
+"                  -t N             (set screensaver timeout in seconds)\n"
+"                  -x               (use hex numbers for output)\n"
 	);
 }
 
