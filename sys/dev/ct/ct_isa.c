@@ -145,6 +145,15 @@ ct_isa_match(device_t dev)
 	if (ISA_PNP_PROBE(device_get_parent(dev), dev, ct_pnp_ids) == ENXIO)
 		return ENXIO;
 
+	switch (isa_get_logicalid(dev)) {
+	case 0x0100e7b1:	/* LHA-301 */
+	case 0x110154dc:	/* SC-98III */
+	case 0x4120acb4:	/* IFC-NN */
+		/* XXX - force to SMIT mode */
+		device_set_flags(dev, device_get_flags(dev) | 0x40000);
+		break;
+	}
+
 	if (isa_get_port(dev) == -1)
 		bus_set_resource(dev, SYS_RES_IOPORT, 0,
 				 BSHW_IOBASE, BSHW_IOSZ);
