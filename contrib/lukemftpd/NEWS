@@ -1,0 +1,13 @@
+This is a brief description of the new features and fixes added to
+lukemftpd-1.1 since the release of lukemftpd-1.0.
+
+* Fixed checkportcmd for the IPv4 case.
+
+* Added support for S/Key authentication.
+
+* Use method other than glob(3) to do ~ expansion.
+
+* Improve portability.
+
+* Rewrite method of handling out-of-band operations, in order to more
+  easily support RFC2228 security extensions in a future release.
