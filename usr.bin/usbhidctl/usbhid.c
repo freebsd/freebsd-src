@@ -123,7 +123,7 @@ dumpitems(report_desc_t r)
 {
 	struct hid_data *d;
 	struct hid_item h;
-	int report_id, size;
+	int size;
 
 	for (d = hid_start_parse(r, ~0); hid_get_item(d, &h); ) {
 		switch (h.kind) {
@@ -147,20 +147,14 @@ dumpitems(report_desc_t r)
 		}
 	}
 	hid_end_parse(d);
-	size = hid_report_size(r, hid_input, &report_id);
-	size -= report_id != 0;
-	printf("Total   input size %s%d bytes\n", 
-	       report_id && size ? "1+" : "", size);
-	       
-	size = hid_report_size(r, hid_output, &report_id);
-	size -= report_id != 0;
-	printf("Total  output size %s%d bytes\n",
-	       report_id && size ? "1+" : "", size);
+	size = hid_report_size(r, 0, hid_input);
+	printf("Total   input size %s%d bytes\n", size);
 
-	size = hid_report_size(r, hid_feature, &report_id);
-	size -= report_id != 0;
-	printf("Total feature size %s%d bytes\n",
-	       report_id && size ? "1+" : "", size);
+	size = hid_report_size(r, 0, hid_output);
+	printf("Total  output size %d bytes\n", size);
+
+	size = hid_report_size(r, 0, hid_feature);
+	printf("Total feature size %d bytes\n", size);
 }
 
 void
@@ -225,7 +219,7 @@ dumpdata(int f, report_desc_t rd, int loop)
 	}
 	hid_end_parse(d);
 	rev(&hids);
-	dlen = hid_report_size(rd, hid_input, &report_id);
+	dlen = hid_report_size(rd, 0, hid_input);
 	dbuf = malloc(dlen);
 	if (!loop)
 		if (ioctl(f, USB_SET_IMMED, &one) < 0) {
