@@ -1,9 +1,0 @@
-A special shell will be launched by this option with a fixit Floppy
-(or CD in later revisions of this utility) mounted as /mnt2.  This gives
-one extra commands in /mnt2 as well as a more complete set of device
-files in /mnt2/dev.  Some device operations, like fsck and disklabel,
-may therefore require you to go to /mnt2/dev and use the entries there
-rather than assuming that they will be present in the default /dev (which
-came from the boot medium and is very minimal).
-
-When you're done, exit the shell to reboot.
