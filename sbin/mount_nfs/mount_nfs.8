@@ -41,7 +41,7 @@
 .Nd mount nfs file systems
 .Sh SYNOPSIS
 .Nm
-.Op Fl 23NPTUbcdils
+.Op Fl 23NPTUbcdiLls
 .Op Fl D Ar deadthresh
 .Op Fl I Ar readdirsize
 .Op Fl R Ar retrycnt
@@ -109,6 +109,21 @@ message is displayed.
 Set the readdir read size to the specified value.
 The value should normally
 be a multiple of DIRBLKSIZ that is <= the read size for the mount.
+.It Fl L
+Do
+.Em not
+forward
+.Xr fcntl 2
+locks over the wire.
+All locks will be local and not seen by the server
+and likewise not seen by other NFS clients.  This removes
+the need to run the
+.Xr rpcbind 8
+service and the 
+.Xr rpc.statd 8
+and
+.Xr rpc.lockd 8
+servers on the client.
 .It Fl N
 Do
 .Em not
@@ -226,6 +241,9 @@ Same as
 .It intr
 Same as
 .Fl i .
+.It lockd
+Same as not specifying
+.Fl L .
 .It nfsv2
 Same as
 .Fl 2 .
