@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.h,v 1.15 1995/11/05 20:46:03 dyson Exp $
+ * $Id: vm_pageout.h,v 1.16 1995/11/20 12:19:22 phk Exp $
  */
 
 #ifndef _VM_VM_PAGEOUT_H_
@@ -91,6 +91,7 @@ extern int vm_pageout_pages_needed;
  *	Signal pageout-daemon and wait for it.
  */
 
+static void pagedaemon_wakeup __P((void));
 static inline void
 pagedaemon_wakeup()
 {
@@ -102,6 +103,7 @@ pagedaemon_wakeup()
 
 #define VM_WAIT vm_wait()
 
+static void vm_wait __P((void));
 static inline void
 vm_wait()
 {

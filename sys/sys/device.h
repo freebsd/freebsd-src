@@ -40,7 +40,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)device.h	8.2 (Berkeley) 2/17/94
- * $Id: device.h,v 1.2 1994/08/02 07:52:45 davidg Exp $
+ * $Id: device.h,v 1.3 1995/07/29 11:42:44 bde Exp $
  */
 
 #ifndef _SYS_DEVICE_H_
@@ -86,7 +86,8 @@ struct cfdata {
 	int	*cf_loc;		/* locators (machine dependent) */
 	int	cf_flags;		/* flags from config */
 	short	*cf_parents;		/* potential parents */
-	void	(**cf_ivstubs)();	/* config-generated vectors, if any */
+	void	(**cf_ivstubs) __P((void));
+					/* config-generated vectors, if any */
 };
 #define FSTATE_NOTFOUND	0	/* has not been found */
 #define	FSTATE_FOUND	1	/* has been found */

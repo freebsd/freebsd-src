@@ -198,6 +198,9 @@ struct atapidrv {                       /* delayed attach info */
 	struct kern_devconf *parent;    /* the devconf info pattern */
 };
 
+struct wcd;
+typedef void atapi_callback_t(struct wcd *, struct buf *, int, struct atapires);
+
 struct atapicmd {                       /* ATAPI command block */
 	struct atapicmd *next;          /* next command in queue */
 	int              busy;          /* busy flag */
@@ -205,7 +208,7 @@ struct atapicmd {                       /* ATAPI command block */
 	int              unit;          /* drive unit number */
 	int              count;         /* byte count, >0 - read, <0 - write */
 	char            *addr;          /* data to transfer */
-	void           (*callback) ();  /* call when done */
+	atapi_callback_t *callback;     /* call when done */
 	void            *cbarg1;        /* callback arg 1 */
 	void            *cbarg2;        /* callback arg 1 */
 	struct atapires  result;        /* resulting error code */
@@ -260,7 +263,7 @@ void atapi_request_callback (struct atapi *ata, int unit,
 	u_char cmd, u_char a1, u_char a2, u_char a3, u_char a4,
 	u_char a5, u_char a6, u_char a7, u_char a8, u_char a9,
 	u_char a10, u_char a11, u_char a12, u_char a13, u_char a14, u_char a15,
-	char *addr, int count, void (*done)(), void *x, void *y);
+	char *addr, int count, atapi_callback_t *done, void *x, void *y);
 struct atapires atapi_request_immediate (struct atapi *ata, int unit,
 	u_char cmd, u_char a1, u_char a2, u_char a3, u_char a4,
 	u_char a5, u_char a6, u_char a7, u_char a8, u_char a9,

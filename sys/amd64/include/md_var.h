@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: md_var.h,v 1.3 1995/05/30 08:00:43 rgrimes Exp $
+ *	$Id: md_var.h,v 1.4 1995/09/03 05:43:25 julian Exp $
  */
 
 #ifndef _MACHINE_MD_VAR_H_
@@ -61,8 +61,8 @@ void	doreti_popl_es __P((void)) __asm(__STRING(doreti_popl_es));
 void	doreti_popl_es_fault __P((void)) __asm(__STRING(doreti_popl_es_fault));
 int	fill_regs __P((struct proc *p, struct reg *regs));
 int	mvesp __P((void));
-void	setconf __P((void));
 void	userconfig __P((void));
 void	vm_bounce_init __P((void));
+int	vm_page_zero_idle __P((void));
 
 #endif /* !_MACHINE_MD_VAR_H_ */

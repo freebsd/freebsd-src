@@ -64,7 +64,7 @@ typedef struct
 	union what
 	{
 		u_char *string;		/* ptr to string, null terminated */
-		void (*func)();		/* ptr to function */
+		void (*func)(void);	/* ptr to function */
 	} what;
 } entry;
 
