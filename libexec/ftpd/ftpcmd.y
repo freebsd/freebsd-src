@@ -148,18 +148,21 @@ cmd
 			pass($3);
 			free($3);
 		}
-	| PORT SP host_port CRLF
+	| PORT check_login SP host_port CRLF
 		{
-			usedefault = 0;
-			if (pdata >= 0) {
-				(void) close(pdata);
-				pdata = -1;
+			if ($2) {
+				usedefault = 0;
+				if (pdata >= 0) {
+					(void) close(pdata);
+					pdata = -1;
+				}
+				reply(200, "PORT command successful.");
 			}
-			reply(200, "PORT command successful.");
 		}
-	| PASV CRLF
+	| PASV check_login CRLF
 		{
-			passive();
+			if ($2)
+				passive();
 		}
 	| TYPE SP type_code CRLF
 		{
@@ -291,16 +294,18 @@ cmd
 			if ($4 != NULL)
 				free($4);
 		}
-	| RNTO SP pathname CRLF
+	| RNTO check_login SP pathname CRLF
 		{
-			if (fromname) {
-				renamecmd(fromname, $3);
-				free(fromname);
-				fromname = (char *) 0;
-			} else {
-				reply(503, "Bad sequence of commands.");
+			if ($2) {
+				if (fromname) {
+					renamecmd(fromname, $4);
+					free(fromname);
+					fromname = (char *) 0;
+				} else {
+					reply(503, "Bad sequence of commands.");
+				}
+				free($4);
 			}
-			free($3);
 		}
 	| ABOR CRLF
 		{
