@@ -99,6 +99,7 @@ SUBDIR=	accf_data \
 	pps \
 	procfs \
 	pseudofs \
+	pst \
 	raidframe \
 	${_random} \
 	rc \
