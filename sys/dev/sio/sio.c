@@ -1795,12 +1795,6 @@ siointr1(com)
 				recv_data = inb(com->data_port);
 #ifdef DDB
 #ifdef ALT_BREAK_TO_DEBUGGER
-			/*
-			 * Solaris implements a new BREAK which is initiated
-			 * by a character sequence CR ~ ^b which is similar
-			 * to a familiar pattern used on Sun servers by the
-			 * Remote Console.
-			 */
 			if (com->unit == comconsole &&
 			    db_alt_break(recv_data, &com->alt_brk_state) != 0)
 				breakpoint();
