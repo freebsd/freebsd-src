@@ -402,7 +402,7 @@ hint.npx.0.irq="13"
 # Note that building ACPI into the kernel is deprecated; the module is
 # normally loaded automatically by the loader.
 #
-device		acpica
+device		acpi
 options 	ACPI_DEBUG
 
 # M-systems DiskOnchip products see src/sys/contrib/dev/fla/README
