@@ -154,6 +154,7 @@ ufs_lookup(ap)
 
 	bp = NULL;
 	slotoffset = -1;
+	cnp->cn_flags &= ~PDIRUNLOCK;
 /*
  *  XXX there was a soft-update diff about this I couldn't merge.
  * I think this was the equiv.
@@ -395,8 +396,10 @@ notfound:
 		 * information cannot be used.
 		 */
 		cnp->cn_flags |= SAVENAME;
-		if (!lockparent)
+		if (!lockparent) {
 			VOP_UNLOCK(vdp, 0, p);
+			cnp->cn_flags |= PDIRUNLOCK;
+		}
 		return (EJUSTRETURN);
 	}
 	/*
@@ -460,8 +463,10 @@ found:
 		if (flags & ISDOTDOT)
 			VOP_UNLOCK(vdp, 0, p);	/* race to get the inode */
 		error = VFS_VGET(vdp->v_mount, dp->i_ino, &tdp);
-		if (flags & ISDOTDOT)
-			vn_lock(vdp, LK_EXCLUSIVE | LK_RETRY, p);
+		if (flags & ISDOTDOT) {
+			if (vn_lock(vdp, LK_EXCLUSIVE | LK_RETRY, p) != 0)
+				cnp->cn_flags |= PDIRUNLOCK;
+		}
 		if (error)
 			return (error);
 		/*
@@ -478,8 +483,10 @@ found:
 			return (EPERM);
 		}
 		*vpp = tdp;
-		if (!lockparent)
+		if (!lockparent) {
 			VOP_UNLOCK(vdp, 0, p);
+			cnp->cn_flags |= PDIRUNLOCK;
+		}
 		return (0);
 	}
 
@@ -501,14 +508,18 @@ found:
 		if (flags & ISDOTDOT)
 			VOP_UNLOCK(vdp, 0, p);	/* race to get the inode */
 		error = VFS_VGET(vdp->v_mount, dp->i_ino, &tdp);
-		if (flags & ISDOTDOT)
-			vn_lock(vdp, LK_EXCLUSIVE | LK_RETRY, p);
+		if (flags & ISDOTDOT) {
+			if (vn_lock(vdp, LK_EXCLUSIVE | LK_RETRY, p) != 0)
+				cnp->cn_flags |= PDIRUNLOCK;
+		}
 		if (error)
 			return (error);
 		*vpp = tdp;
 		cnp->cn_flags |= SAVENAME;
-		if (!lockparent)
+		if (!lockparent) {
 			VOP_UNLOCK(vdp, 0, p);
+			cnp->cn_flags |= PDIRUNLOCK;
+		}
 		return (0);
 	}
 
@@ -534,14 +545,18 @@ found:
 	pdp = vdp;
 	if (flags & ISDOTDOT) {
 		VOP_UNLOCK(pdp, 0, p);	/* race to get the inode */
+		cnp->cn_flags |= PDIRUNLOCK;
 		if ((error = VFS_VGET(vdp->v_mount, dp->i_ino, &tdp)) != 0) {
-			vn_lock(pdp, LK_EXCLUSIVE | LK_RETRY, p);
+			if (vn_lock(pdp, LK_EXCLUSIVE | LK_RETRY, p) == 0)
+				cnp->cn_flags &= ~PDIRUNLOCK;
 			return (error);
 		}
-		if (lockparent && (flags & ISLASTCN) &&
-		    (error = vn_lock(pdp, LK_EXCLUSIVE, p))) {
-			vput(tdp);
-			return (error);
+		if (lockparent && (flags & ISLASTCN)) {
+			if ((error = vn_lock(pdp, LK_EXCLUSIVE, p)) != 0) {
+				vput(tdp);
+				return (error);
+			}
+			cnp->cn_flags &= ~PDIRUNLOCK;
 		}
 		*vpp = tdp;
 	} else if (dp->i_number == dp->i_ino) {
@@ -551,8 +566,10 @@ found:
 		error = VFS_VGET(vdp->v_mount, dp->i_ino, &tdp);
 		if (error)
 			return (error);
-		if (!lockparent || !(flags & ISLASTCN))
+		if (!lockparent || !(flags & ISLASTCN)) {
 			VOP_UNLOCK(pdp, 0, p);
+			cnp->cn_flags |= PDIRUNLOCK;
+		}
 		*vpp = tdp;
 	}
 

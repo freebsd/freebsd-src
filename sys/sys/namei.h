@@ -140,6 +140,7 @@ struct nameidata {
 #define	DOWHITEOUT	0x040000 /* do whiteouts */
 #define	WILLBEDIR	0x080000 /* new files will be dirs; allow trailing / */
 #define	ISUNICODE	0x100000 /* current component name is unicode*/
+#define	PDIRUNLOCK	0x200000 /* file system lookup() unlocked parent dir */
 #define PARAMASK	0x1fff00 /* mask of parameter descriptors */
 /*
  * Initialization of an nameidata structure.
