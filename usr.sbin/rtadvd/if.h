@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: if.h,v 1.2 2000/05/16 13:34:13 itojun Exp $	*/
+/*	$KAME: if.h,v 1.6 2001/01/21 15:37:14 itojun Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, 1998, and 1999 WIDE Project.
@@ -37,23 +37,22 @@ extern size_t ifblock_size;
 extern char *ifblock;
 
 struct nd_opt_hdr;
-struct sockaddr_dl *if_nametosdl __P((char *name));
-int if_getmtu __P((char *name));
-int if_getflags __P((int ifindex, int oifflags));
-int lladdropt_length __P((struct sockaddr_dl *sdl));
-void lladdropt_fill __P((struct sockaddr_dl *sdl, struct nd_opt_hdr *ndopt));
+struct sockaddr_dl *if_nametosdl __P((char *));
+int if_getmtu __P((char *));
+int if_getflags __P((int, int));
+int lladdropt_length __P((struct sockaddr_dl *));
+void lladdropt_fill __P((struct sockaddr_dl *, struct nd_opt_hdr *));
 int rtbuf_len __P((void));
-int get_rtinfo __P((char *buf, size_t *len));
-char *get_next_msg __P((char *buf, char *lim, int ifindex, size_t *lenp,
-			   int filter));
-struct in6_addr *get_addr __P((char *buf));
-int get_rtm_ifindex __P((char *buf));
-int get_ifm_ifindex __P((char *buf));
-int get_ifam_ifindex __P((char *buf));
-int get_ifm_flags __P((char *buf));
-int get_prefixlen __P((char *buf));
-int rtmsg_type __P((char *buf));
-int ifmsg_type __P((char *buf));
-int rtmsg_len __P((char *buf));
-int ifmsg_len __P((char *buf));
+char *get_next_msg __P((char *, char *, int, size_t *, int));
+struct in6_addr *get_addr __P((char *));
+int get_rtm_ifindex __P((char *));
+int get_ifm_ifindex __P((char *));
+int get_ifam_ifindex __P((char *));
+int get_ifm_flags __P((char *));
+int get_prefixlen __P((char *));
+int prefixlen __P((u_char *, u_char *));
+int rtmsg_type __P((char *));
+int ifmsg_type __P((char *));
+int rtmsg_len __P((char *));
+int ifmsg_len __P((char *));
 void init_iflist __P((void));

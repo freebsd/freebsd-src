@@ -296,15 +296,6 @@ icmp_input(m, off, proto)
 		    icp->icmp_code);
 #endif
 
-#ifdef IPSEC
-	/* drop it if it does not match the policy */
-	/* XXX Is there meaning of check in here ? */
-	if (ipsec4_in_reject(m, NULL)) {
-		ipsecstat.in_polvio++;
-		goto freeit;
-	}
-#endif
-
 	/*
 	 * Message type specific processing.
 	 */

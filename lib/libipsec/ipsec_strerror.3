@@ -1,7 +1,7 @@
-.\" Copyright (C) 1995, 1996, 1997, 1998, and 1999 WIDE Project.
+.\"	$KAME: ipsec_strerror.3,v 1.8 2000/11/20 00:35:14 sakane Exp $
 .\"     $FreeBSD$
-.\"	$KAME: ipsec_strerror.3,v 1.6 2000/05/07 05:25:03 itojun Exp $
 .\"
+.\" Copyright (C) 1995, 1996, 1997, 1998, and 1999 WIDE Project.
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -34,24 +34,23 @@
 .\"
 .Sh NAME
 .Nm ipsec_strerror
-.Nd error code for IPsec policy manipulation library
+.Nd error message for IPsec policy manipulation library
 .\"
 .Sh SYNOPSIS
 .Fd #include <netinet6/ipsec.h>
-.Ft "char *"
+.Ft "const char *"
 .Fn ipsec_strerror
 .\"
 .Sh DESCRIPTION
 .Pa netinet6/ipsec.h
 declares
-.Bd -ragged -offset indent
-.Vt extern int ipsec_errcode ;
-.Ed
 .Pp
-which is used to pass error code from IPsec policy manipulation library
-to user program.
+.Dl extern int ipsec_errcode;
+.Pp
+which is used to pass an error code from IPsec policy manipulation library
+to an user program.
 .Fn ipsec_strerror
-can be used to obtain error message string for the error code.
+can be used to obtain the error message string for the error code.
 .Pp
 The array pointed to is not to be modified by the program.
 Since
@@ -75,7 +74,9 @@ The C string must not be overwritten by user programs.
 .Xr ipsec_set_policy 3
 .\"
 .Sh HISTORY
-The functions first appeared in WIDE/KAME IPv6 protocol stack kit.
+.Fn ipsec_strerror
+first appeared in WIDE/KAME IPv6 protocol stack kit.
 .\"
-.\" .Sh BUGS
-.\" (to be written)
+.Sh BUGS
+.Fn ipsec_strerror
+will return its result which may be overwritten by subsequent calls.

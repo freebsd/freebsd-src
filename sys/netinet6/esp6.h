@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: esp.h,v 1.8 2000/07/02 13:23:33 itojun Exp $	*/
+/*	$KAME: esp.h,v 1.16 2000/10/18 21:28:00 itojun Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -41,6 +41,8 @@
 extern int esp6_output __P((struct mbuf *, u_char *, struct mbuf *,
 	struct ipsecrequest *));
 extern int esp6_input __P((struct mbuf **, int *, int));
+
+extern void esp6_ctlinput __P((int, struct sockaddr *, void *));
 #endif /*_KERNEL*/
 
 #endif /*_NETINET6_ESP6_H_*/

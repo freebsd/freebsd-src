@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: if_stf.c,v 1.42 2000/08/15 07:24:23 itojun Exp $	*/
+/*	$KAME: if_stf.c,v 1.60 2001/05/03 14:51:47 itojun Exp $	*/
 
 /*
  * Copyright (C) 2000 WIDE Project.
@@ -31,7 +31,7 @@
  */
 
 /*
- * 6to4 interface, based on draft-ietf-ngtrans-6to4-06.txt.
+ * 6to4 interface, based on RFC3056.
  *
  * 6to4 interface is NOT capable of link-layer (I mean, IPv4) multicasting.
  * There is no address mapping defined from IPv6 multicast address to IPv4
@@ -60,12 +60,13 @@
  * ICMPv6:
  * - Redirects cannot be used due to the lack of link-local address.
  *
- * Starting from 04 draft, the specification suggests how to construct
- * link-local address for 6to4 interface.
- * However, it seems to have no real use and does not help the above symptom
- * much.  Even if we assign link-locals to interface, we cannot really
- * use link-local unicast/multicast on top of 6to4 cloud, and the above
- * analysis does not change.
+ * stf interface does not have, and will not need, a link-local address.  
+ * It seems to have no real benefit and does not help the above symptoms much.
+ * Even if we assign link-locals to interface, we cannot really
+ * use link-local unicast/multicast on top of 6to4 cloud (since there's no
+ * encapsulation defined for link-local address), and the above analysis does
+ * not change.  RFC3056 does not mandate the assignment of link-local address
+ * either.
  *
  * 6to4 interface has security issues.  Refer to
  * http://playground.iijlab.net/i-d/draft-itojun-ipv6-transition-abuse-00.txt
@@ -159,8 +160,10 @@ static int stf_encapcheck __P((const struct mbuf *, int, int, void *));
 static struct in6_ifaddr *stf_getsrcifa6 __P((struct ifnet *));
 static int stf_output __P((struct ifnet *, struct mbuf *, struct sockaddr *,
 	struct rtentry *));
-static int stf_checkaddr4 __P((struct in_addr *, struct ifnet *));
-static int stf_checkaddr6 __P((struct in6_addr *, struct ifnet *));
+static int stf_checkaddr4 __P((struct stf_softc *, struct in_addr *,
+	struct ifnet *));
+static int stf_checkaddr6 __P((struct stf_softc *, struct in6_addr *,
+	struct ifnet *));
 static void stf_rtrequest __P((int, struct rtentry *, struct sockaddr *));
 static int stf_ioctl __P((struct ifnet *, u_long, caddr_t));
 
@@ -197,6 +200,10 @@ stfattach(dummy)
 		sc->sc_if.if_ioctl  = stf_ioctl;
 		sc->sc_if.if_output = stf_output;
 		sc->sc_if.if_type   = IFT_STF;
+#if 0
+		/* turn off ingress filter */
+		sc->sc_if.if_flags  |= IFF_LINK2;
+#endif
 		sc->sc_if.if_snd.ifq_maxlen = IFQ_MAXLEN;
 		if_attach(&sc->sc_if);
 #if NBPFILTER > 0
@@ -228,6 +235,10 @@ stf_encapcheck(m, off, proto, arg)
 		return 0;
 
 	if ((sc->sc_if.if_flags & IFF_UP) == 0)
+		return 0;
+
+	/* IFF_LINK0 means "no decapsulation" */
+	if ((sc->sc_if.if_flags & IFF_LINK0) != 0)
 		return 0;
 
 	if (proto != IPPROTO_IPV6)
@@ -317,6 +328,7 @@ stf_output(ifp, m, dst, rt)
 {
 	struct stf_softc *sc;
 	struct sockaddr_in6 *dst6;
+	struct in_addr *in4;
 	struct sockaddr_in *dst4;
 	u_int8_t tos;
 	struct ip *ip;
@@ -351,6 +363,19 @@ stf_output(ifp, m, dst, rt)
 	ip6 = mtod(m, struct ip6_hdr *);
 	tos = (ntohl(ip6->ip6_flow) >> 20) & 0xff;
 
+	/*
+	 * Pickup the right outer dst addr from the list of candidates.
+	 * ip6_dst has priority as it may be able to give us shorter IPv4 hops.
+	 */
+	if (IN6_IS_ADDR_6TO4(&ip6->ip6_dst))
+		in4 = GET_V4(&ip6->ip6_dst);
+	else if (IN6_IS_ADDR_6TO4(&dst6->sin6_addr))
+		in4 = GET_V4(&dst6->sin6_addr);
+	else {
+		m_freem(m);
+		return ENETUNREACH;
+	}
+
 	M_PREPEND(m, sizeof(struct ip), M_DONTWAIT);
 	if (m && m->m_len < sizeof(struct ip))
 		m = m_pullup(m, sizeof(struct ip));
@@ -362,12 +387,14 @@ stf_output(ifp, m, dst, rt)
 
 	bcopy(GET_V4(&((struct sockaddr_in6 *)&ia6->ia_addr)->sin6_addr),
 	    &ip->ip_src, sizeof(ip->ip_src));
-	bcopy(GET_V4(&dst6->sin6_addr), &ip->ip_dst, sizeof(ip->ip_dst));
+	bcopy(in4, &ip->ip_dst, sizeof(ip->ip_dst));
 	ip->ip_p = IPPROTO_IPV6;
 	ip->ip_ttl = ip_gif_ttl;	/*XXX*/
 	ip->ip_len = m->m_pkthdr.len;	/*host order*/
 	if (ifp->if_flags & IFF_LINK1)
 		ip_ecn_ingress(ECN_ALLOWED, &ip->ip_tos, &tos);
+	else
+		ip_ecn_ingress(ECN_NOCARE, &ip->ip_tos, &tos);
 
 	dst4 = (struct sockaddr_in *)&sc->sc_ro.ro_dst;
 	if (dst4->sin_family != AF_INET ||
@@ -394,9 +421,10 @@ stf_output(ifp, m, dst, rt)
 }
 
 static int
-stf_checkaddr4(in, ifp)
+stf_checkaddr4(sc, in, inifp)
+	struct stf_softc *sc;
 	struct in_addr *in;
-	struct ifnet *ifp;	/* incoming interface */
+	struct ifnet *inifp;	/* incoming interface */
 {
 	struct in_ifaddr *ia4;
 
@@ -427,7 +455,7 @@ stf_checkaddr4(in, ifp)
 	/*
 	 * perform ingress filter
 	 */
-	if (ifp) {
+	if (sc && (sc->sc_if.if_flags & IFF_LINK2) == 0 && inifp) {
 		struct sockaddr_in sin;
 		struct rtentry *rt;
 
@@ -436,10 +464,14 @@ stf_checkaddr4(in, ifp)
 		sin.sin_len = sizeof(struct sockaddr_in);
 		sin.sin_addr = *in;
 		rt = rtalloc1((struct sockaddr *)&sin, 0, 0UL);
-		if (!rt)
-			return -1;
-		if (rt->rt_ifp != ifp) {
-			rtfree(rt);
+		if (!rt || rt->rt_ifp != inifp) {
+#if 0
+			log(LOG_WARNING, "%s: packet from 0x%x dropped "
+			    "due to ingress filter\n", if_name(&sc->sc_if),
+			    (u_int32_t)ntohl(sin.sin_addr.s_addr));
+#endif
+			if (rt)
+				rtfree(rt);
 			return -1;
 		}
 		rtfree(rt);
@@ -449,15 +481,16 @@ stf_checkaddr4(in, ifp)
 }
 
 static int
-stf_checkaddr6(in6, ifp)
+stf_checkaddr6(sc, in6, inifp)
+	struct stf_softc *sc;
 	struct in6_addr *in6;
-	struct ifnet *ifp;	/* incoming interface */
+	struct ifnet *inifp;	/* incoming interface */
 {
 	/*
 	 * check 6to4 addresses
 	 */
 	if (IN6_IS_ADDR_6TO4(in6))
-		return stf_checkaddr4(GET_V4(in6), ifp);
+		return stf_checkaddr4(sc, GET_V4(in6), inifp);
 
 	/*
 	 * reject anything that look suspicious.  the test is implemented
@@ -476,7 +509,7 @@ void
 in_stf_input(struct mbuf *m, ...)
 #else
 in_stf_input(m, va_alist)
-	register struct mbuf *m;
+	struct mbuf *m;
 #endif
 {
 	int off, proto;
@@ -514,8 +547,8 @@ in_stf_input(m, va_alist)
 	 * perform sanity check against outer src/dst.
 	 * for source, perform ingress filter as well.
 	 */
-	if (stf_checkaddr4(&ip->ip_dst, NULL) < 0 ||
-	    stf_checkaddr4(&ip->ip_src, m->m_pkthdr.rcvif) < 0) {
+	if (stf_checkaddr4(sc, &ip->ip_dst, NULL) < 0 ||
+	    stf_checkaddr4(sc, &ip->ip_src, m->m_pkthdr.rcvif) < 0) {
 		m_freem(m);
 		return;
 	}
@@ -534,8 +567,8 @@ in_stf_input(m, va_alist)
 	 * perform sanity check against inner src/dst.
 	 * for source, perform ingress filter as well.
 	 */
-	if (stf_checkaddr6(&ip6->ip6_dst, NULL) < 0 ||
-	    stf_checkaddr6(&ip6->ip6_src, m->m_pkthdr.rcvif) < 0) {
+	if (stf_checkaddr6(sc, &ip6->ip6_dst, NULL) < 0 ||
+	    stf_checkaddr6(sc, &ip6->ip6_src, m->m_pkthdr.rcvif) < 0) {
 		m_freem(m);
 		return;
 	}
@@ -543,6 +576,8 @@ in_stf_input(m, va_alist)
 	itos = (ntohl(ip6->ip6_flow) >> 20) & 0xff;
 	if ((ifp->if_flags & IFF_LINK1) != 0)
 		ip_ecn_egress(ECN_ALLOWED, &otos, &itos);
+	else
+		ip_ecn_egress(ECN_NOCARE, &otos, &itos);
 	ip6->ip6_flow &= ~htonl(0xff << 20);
 	ip6->ip6_flow |= htonl((u_int32_t)itos << 20);
 
@@ -558,7 +593,7 @@ in_stf_input(m, va_alist)
 		 * try to free it or keep a pointer a to it).
 		 */
 		struct mbuf m0;
-		u_int af = AF_INET6;
+		u_int32_t af = AF_INET6;
 		
 		m0.m_next = m;
 		m0.m_len = 4;
@@ -594,11 +629,7 @@ static void
 stf_rtrequest(cmd, rt, sa)
 	int cmd;
 	struct rtentry *rt;
-#if defined(__bsdi__) && _BSDI_VERSION >= 199802
-	struct rt_addrinfo *sa;
-#else
 	struct sockaddr *sa;
-#endif
 {
 
 	if (rt)

@@ -163,19 +163,15 @@ contrib/ipfilter/netinet/ip_nat.c	optional ipfilter inet
 contrib/ipfilter/netinet/ip_proxy.c	optional ipfilter inet
 contrib/ipfilter/netinet/ip_state.c	optional ipfilter inet
 contrib/ipfilter/netinet/mlfk_ipl.c	optional ipfilter inet
-crypto/blowfish/bf_cbc.c	optional ipsec ipsec_esp
-crypto/blowfish/bf_cbc_m.c	optional ipsec ipsec_esp
 crypto/blowfish/bf_enc.c	optional ipsec ipsec_esp
 crypto/blowfish/bf_skey.c	optional ipsec ipsec_esp
 crypto/cast128/cast128.c	optional ipsec ipsec_esp
-crypto/cast128/cast128_cbc.c	optional ipsec ipsec_esp
-crypto/des/des_3cbc.c	optional ipsec ipsec_esp
-crypto/des/des_cbc.c	optional ipsec ipsec_esp
 crypto/des/des_ecb.c	optional ipsec ipsec_esp
 crypto/des/des_setkey.c	optional ipsec ipsec_esp
-crypto/rc5/rc5.c		optional ipsec ipsec_esp
-crypto/rc5/rc5_cbc.c		optional ipsec ipsec_esp
+crypto/rijndael/rijndael-alg-fst.c	optional ipsec ipsec_esp
+crypto/rijndael/rijndael-api-fst.c	optional ipsec ipsec_esp
 crypto/sha1.c		optional ipsec
+crypto/sha2/sha2.c	optional ipsec
 ddb/db_access.c		optional ddb
 ddb/db_break.c		optional ddb
 ddb/db_command.c	optional ddb
@@ -1083,6 +1079,7 @@ netinet6/dest6.c	optional inet6
 netinet6/esp_core.c	optional ipsec ipsec_esp
 netinet6/esp_input.c	optional ipsec ipsec_esp
 netinet6/esp_output.c	optional ipsec ipsec_esp
+netinet6/esp_rijndael.c	optional ipsec ipsec_esp
 netinet6/frag6.c	optional inet6
 netinet6/icmp6.c	optional inet6
 netinet6/in6.c		optional inet6
@@ -1124,8 +1121,8 @@ netipx/ipx_usrreq.c	optional ipx
 netipx/spx_debug.c	optional ipx
 netipx/spx_usrreq.c	optional ipx
 netkey/key.c		optional ipsec
-netkey/keydb.c	optional ipsec
 netkey/key_debug.c	optional ipsec
+netkey/keydb.c		optional ipsec
 netkey/keysock.c	optional ipsec
 netnatm/natm.c		optional natm
 netnatm/natm_pcb.c	optional natm

@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: dump.c,v 1.10 2000/05/23 11:31:25 itojun Exp $	*/
+/*	$KAME: dump.c,v 1.16 2001/03/21 17:41:13 jinmei Exp $	*/
 
 /*
  * Copyright (C) 2000 WIDE Project.
@@ -31,6 +31,7 @@
  */
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/queue.h>
 
 #include <net/if.h>
 #if defined(__FreeBSD__) && __FreeBSD__ >= 3
@@ -71,6 +72,13 @@ static void if_dump __P((void));
 #define LONGLONG "%llu"
 #endif
 
+static char *rtpref_str[] = {
+	"medium",		/* 00 */
+	"high",			/* 01 */
+	"rsv",			/* 10 */
+	"low"			/* 11 */
+};
+
 static char *
 ether_str(sdl)
 	struct sockaddr_dl *sdl;
@@ -97,7 +105,9 @@ if_dump()
 	struct prefix *pfx;
 	char prefixbuf[INET6_ADDRSTRLEN];
 	int first;
+	struct timeval now;
 
+	gettimeofday(&now, NULL); /* XXX: unused in most cases */
 	for (rai = ralist; rai; rai = rai->next) {
 		fprintf(fp, "%s:\n", rai->ifname);
 
@@ -141,12 +151,15 @@ if_dump()
 			"  DefaultLifetime: %d, MaxAdvInterval: %d, "
 			"MinAdvInterval: %d\n",
 			rai->lifetime, rai->maxinterval, rai->mininterval);
-		fprintf(fp, "  Flags: %s%s%s MTU: %d\n",
+		fprintf(fp, "  Flags: %s%s%s, ",
 			rai->managedflg ? "M" : "", rai->otherflg ? "O" : "",
 #ifdef MIP6
 			rai->haflg ? "H" :
 #endif
-			"", rai->linkmtu);
+			"");
+		fprintf(fp, "Preference: %s, ",
+			rtpref_str[(rai->rtpref >> 3) & 0xff]);
+		fprintf(fp, "MTU: %d\n", rai->linkmtu);
 		fprintf(fp, "  ReachableTime: %d, RetransTimer: %d, "
 			"CurHopLimit: %d\n", rai->reachabletime,
 			rai->retranstimer, rai->hoplimit);
@@ -155,6 +168,9 @@ if_dump()
 			rai->hapref, rai->hatime);
 #endif 
 
+		if (rai->clockskew)
+			fprintf(fp, "  Clock skew: %ldsec\n",
+				rai->clockskew);  
 		for (first = 1, pfx = rai->prefix.next; pfx != &rai->prefix;
 		     pfx = pfx->next) {
 			if (first) {
@@ -177,15 +193,27 @@ if_dump()
 				break;
 			}
 			if (pfx->validlifetime == ND6_INFINITE_LIFETIME)
-				fprintf(fp, "vltime: infinity, ");
+				fprintf(fp, "vltime: infinity");
 			else
-				fprintf(fp, "vltime: %ld, ",
+				fprintf(fp, "vltime: %ld",
 					(long)pfx->validlifetime);
-			if (pfx->preflifetime ==  ND6_INFINITE_LIFETIME)
-				fprintf(fp, "pltime: infinity, ");
+			if (pfx->vltimeexpire != 0)
+				fprintf(fp, "(decr,expire %ld), ", (long)
+					pfx->vltimeexpire > now.tv_sec ?
+					pfx->vltimeexpire - now.tv_sec : 0);
 			else
-				fprintf(fp, "pltime: %ld, ",
+				fprintf(fp, ", ");
+			if (pfx->preflifetime ==  ND6_INFINITE_LIFETIME)
+				fprintf(fp, "pltime: infinity");
+			else
+				fprintf(fp, "pltime: %ld",
 					(long)pfx->preflifetime);
+			if (pfx->pltimeexpire != 0)
+				fprintf(fp, "(decr,expire %ld), ", (long)
+					pfx->pltimeexpire > now.tv_sec ?
+					pfx->pltimeexpire - now.tv_sec : 0);
+			else
+				fprintf(fp, ", ");
 			fprintf(fp, "flags: %s%s%s",
 				pfx->onlinkflg ? "L" : "",
 				pfx->autoconfflg ? "A" : "",

@@ -1,7 +1,7 @@
 Configuring FAITH IPv6-to-IPv4 TCP relay
 
 Kazu Yamamoto and Jun-ichiro itojun Hagino
-$KAME: README,v 1.4 2000/05/31 03:16:14 itojun Exp $
+$KAME: README,v 1.7 2001/04/25 11:25:19 itojun Exp $
 $FreeBSD$
 
 Introduction
@@ -27,13 +27,13 @@ invoked per each TCP services (TCP port number).
 	clients	  IPv6 node "src"				|
 
 You will have to allocate an IPv6 address prefix to map IPv4 addresses into.
-The following description uses 3ffe:0501:1234:ffff:: as example.
+The following description uses 3ffe:0501:ffff:0000:: as example.
 Please use a prefix which belongs to your site.
 FAITH will make it possible to make a IPv6 TCP connection From IPv6 node
 "src", toward IPv4 node "dest", by specifying FAITH-mapped address
-3ffe:0501:1234:ffff::123.4.5.6
-(which is, 3ffe:0501:1234:ffff:0000:0000:7b04:0506).
-The address mapping can be performed by hand:-), by speical nameserver on
+3ffe:0501:ffff:0000::123.4.5.6
+(which is, 3ffe:0501:ffff:0000:0000:0000:7b04:0506).
+The address mapping can be performed by hand:-), by special nameserver on
 the network, or by special resolver on the source node.
 
 
@@ -41,7 +41,7 @@ Setup
 =====
 
 The following example assumes:
-- You have assigned 3ffe:0501:1234:ffff:: as FAITH adderss prefix.
+- You have assigned 3ffe:0501:ffff:0000:: as FAITH adderss prefix.
 - You are willing to provide IPv6-to IPv4 TCP relay for telnet.
 
 <<On the translating router on which faithd runs>>
@@ -57,12 +57,12 @@ The following example assumes:
 (3) Route packets toward FAITH prefix into "faith0" interface.
 
 	# ifconfig faith0 up
-	# route add -inet6 3ffe:0501:1234:ffff:: -prefixlen 64 \
-		fe80::xxxx:yyyy:zzzz:wwww%faith0
+	# route add -inet6 3ffe:0501:ffff:0000:: -prefixlen 64 ::1
+	# route change -inet6 3ffe:0501:ffff:0000:: -prefixlen 64 -ifp faith0
 
 (4) Execute "faithd" by root as follows:
 
-	# faithd telnet /usr/local/v6/libexec/telnetd telnetd
+	# faithd telnet /usr/libexec/telnetd telnetd
 
     1st argument is a service name you are willing to provide TCP relay.
 	(it can be specified either by number "23" or by string "telnet")
@@ -73,10 +73,13 @@ The following example assumes:
 
     More examples:
 
-	# faithd login /usr/local/v6/libexec/rlogin rlogind
-	# faithd shell /usr/local/v6/libexec/rshd rshd
-	# faithd ftpd /usr/local/v6/libexec/ftpd ftpd -l
+	# faithd login /usr/libexec/rlogin rlogind
+	# faithd shell /usr/libexec/rshd rshd
+	# faithd ftpd /usr/libexec/ftpd ftpd -l
 	# faithd sshd
+
+If inetd(8) on your platform have special support for faithd, it is possible
+to setup faithd services via inetd(8).  Consult manpage for details.
 
 
 <<Routing>>
@@ -95,7 +98,7 @@ There are two ways to translate IPv4 address to IPv6 address:
 (5.b) Add an entry into /etc/hosts so that you can resolve hostname into
 faked IPv6 addrss.  For example, add the following line for www.netbsd.org:
 
-	3ffe:0501:1234:ffff::140.160.140.252	www.netbsd.org
+	3ffe:0501:ffff:0000::140.160.140.252	www.netbsd.org
 
 <<On the translating router on which faithd runs.>>
 
@@ -107,18 +110,31 @@ in "/var/log/daemon".
 	daemon.*   /var/log/daemon
 
 
+Access control
+==============
+
+Since faithd implements TCP relaying service, it is critical to implement
+proper access control to cope with malicious use.  Bad guy may try to
+use your relay router to circumvent access controls, or may try to
+abuse your network (like sending SPAMs from IPv4 address that belong to you).
+Install IPv6 packet filter directives that would reject traffic from
+unwanted source.  If you are using inetd-based setup, you may be able to
+use access control mechanisms in inetd.
+
+
 Advanced configuration
 ======================
 
 If you would like to restrict IPv4 destination for translation, you may
 want to do the following:
 
-	# route add -inet6 3ffe:0501:1234:ffff::123.0.0.0 -prefixlen 104 \
-		-interface faith0
+	# route add -inet6 3ffe:0501:ffff:0000::123.0.0.0 -prefixlen 104 ::1
+	# route change -inet6 3ffe:0501:ffff:0000::123.0.0.0 -prefixlen 104 \
+		-ifp faith0
 
 By this way, you can restrict IPv4 destination to 123.0.0.0/8.
-You may also want to reject packets toward 3ffe:0501:1234:ffff::/64 which
-is not in 3ffe:0501:1234:ffff::123.0.0.0/104.  This will be left as excerside
+You may also want to reject packets toward 3ffe:0501:ffff:0000::/64 which
+is not in 3ffe:0501:ffff:0000::123.0.0.0/104.  This will be left as excerside
 for the reader.
 
 By doing this, you will be able to provide your IPv4 web server to outside

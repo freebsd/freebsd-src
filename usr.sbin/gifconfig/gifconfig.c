@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: gifconfig.c,v 1.12 2000/05/22 05:50:43 itojun Exp $	*/
+/*	$KAME: gifconfig.c,v 1.14 2001/01/01 04:04:56 jinmei Exp $	*/
 
 /*
  * Copyright (c) 1983, 1993
@@ -111,7 +111,7 @@ void delifaddrs __P((char *, int));
 
 #define	NEXTARG		0xffffff
 
-struct	cmd {
+static struct	cmd {
 	char	*c_name;
 	int	c_parameter;		/* NEXTARG means next argv */
 	void	(*c_func) __P((char *, int));
@@ -565,10 +565,11 @@ phys_status(force)
 	char psrcaddr[256];
 	char pdstaddr[256];
 	char hostname[NI_MAXHOST];
-	u_long srccmd, dstcmd;
 	int flags = NI_NUMERICHOST;
+	char *af;
+#ifndef SIOCGLIFPHYADDR
+	u_long srccmd, dstcmd;
 	struct ifreq *ifrp;
-	char *ver = "";
 #ifdef INET6
 	int s6;
 #endif
@@ -596,20 +597,55 @@ phys_status(force)
 #endif /* INET6 */
 
 	if (0 <= ioctl(s, srccmd, (caddr_t)ifrp)) {
-		getnameinfo(&ifrp->ifr_addr, ifrp->ifr_addr.sa_len,
-			    hostname, sizeof(hostname), 0, 0, flags);
 #ifdef INET6
 		if (ifrp->ifr_addr.sa_family == AF_INET6)
-			ver = "6";
+			af = "inet6";
+		else
+			af = "inet";
+#else
+		af = "inet";
 #endif /* INET6 */
-		sprintf(psrcaddr, "inet%s %s", ver, hostname);
+		if (getnameinfo(&ifrp->ifr_addr, ifrp->ifr_addr.sa_len,
+		    psrcaddr, sizeof(psrcaddr), 0, 0, flags) != 0)
+			psrcaddr[0] = '\0';
 	}
 	if (0 <= ioctl(s, dstcmd, (caddr_t)ifrp)) {
-		getnameinfo(&ifrp->ifr_addr, ifrp->ifr_addr.sa_len,
-			    hostname, sizeof(hostname), 0, 0, flags);
-		sprintf(pdstaddr, "%s", hostname);
+		if (getnameinfo(&ifrp->ifr_addr, ifrp->ifr_addr.sa_len,
+		    pdstaddr, sizeof(pdstaddr), 0, 0, flags) != 0)
+			pdstaddr[0] = '\0';
 	}
-	printf("\tphysical address %s --> %s\n", psrcaddr, pdstaddr);
+	printf("\tphysical address %s %s --> %s\n", af, psrcaddr, pdstaddr);
+#else
+	struct if_laddrreq iflr;
+
+	force = 0;	/*fool gcc*/
+
+	psrcaddr[0] = pdstaddr[0] = '\0';
+
+	memset(&iflr, 0, sizeof(iflr));
+	memcpy(iflr.iflr_name, ifr.ifr_name, sizeof(iflr.iflr_name));
+
+	if (0 <= ioctl(s, SIOCGLIFPHYADDR, (caddr_t)&iflr)) {
+		switch (iflr.addr.ss_family) {
+		case AF_INET:
+			af = "inet";
+			break;
+#ifdef INET6
+		case AF_INET6:
+			af = "inet6";
+			break;
+#endif /* INET6 */
+		}
+		if (getnameinfo((struct sockaddr *)&iflr.addr, iflr.addr.ss_len,
+		    psrcaddr, sizeof(psrcaddr), 0, 0, flags) != 0)
+			psrcaddr[0] = '\0';
+		if (getnameinfo((struct sockaddr *)&iflr.dstaddr,
+		    iflr.dstaddr.ss_len, pdstaddr, sizeof(pdstaddr), 0, 0,
+		    flags) != 0)
+			pdstaddr[0] = '\0';
+	}
+	printf("\tphysical address %s %s --> %s\n", af, psrcaddr, pdstaddr);
+#endif
 }
 
 void

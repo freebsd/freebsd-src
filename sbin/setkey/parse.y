@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: parse.y,v 1.29 2000/06/10 14:17:44 sakane Exp $	*/
+/*	$KAME: kame/kame/kame/setkey/parse.y,v 1.36 2001/06/07 15:53:12 sakane Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, 1998, and 1999 WIDE Project.
@@ -57,6 +57,7 @@
 
 u_int p_type;
 u_int32_t p_spi;
+int p_no_spi;
 struct sockaddr *p_src, *p_dst;
 u_int p_prefs, p_prefd, p_upper;
 u_int p_satype, p_ext, p_alg_enc, p_alg_auth, p_replay, p_mode;
@@ -79,7 +80,6 @@ extern int m_len;
 extern char cmdarg[8192];
 extern int f_debug;
 
-int setkeymsg __P((void));
 static struct addrinfo *parse_addr __P((char *, char *, int));
 static int setvarbuf __P((int *, struct sadb_ext *, int, caddr_t, int));
 void parse_init __P((void));
@@ -107,7 +107,7 @@ extern void yyerror __P((const char *));
 %token F_EXT EXTENSION NOCYCLICSEQ
 %token ALG_AUTH ALG_ENC ALG_ENC_DESDERIV ALG_ENC_DES32IV ALG_COMP
 %token F_LIFETIME_HARD F_LIFETIME_SOFT
-%token DECSTRING QUOTEDSTRING HEXSTRING ANY
+%token DECSTRING QUOTEDSTRING HEXSTRING STRING ANY
 	/* SPD management */
 %token SPDADD SPDDELETE SPDDUMP SPDFLUSH
 %token F_POLICY PL_REQUESTS
@@ -118,7 +118,7 @@ extern void yyerror __P((const char *));
 %type <num> DECSTRING
 %type <val> ADDRESS PL_REQUESTS
 %type <val> key_string policy_requests
-%type <val> QUOTEDSTRING HEXSTRING
+%type <val> QUOTEDSTRING HEXSTRING STRING
 
 %%
 commands
@@ -140,6 +140,7 @@ command
 	:	add_command
 	|	get_command
 	|	delete_command
+	|	deleteall_command
 	|	flush_command
 	|	dump_command
 	|	spdadd_command
@@ -163,6 +164,16 @@ delete_command
 			if (p_mode != IPSEC_MODE_ANY)
 				yyerror("WARNING: mode is obsoleted.");
 		}
+		EOT
+	;
+
+	/* deleteall command */
+deleteall_command
+	:	DELETEALL { p_type = SADB_DELETE; }
+		ipaddress { p_src = pp_addr; }
+		ipaddress { p_dst = pp_addr; }
+		protocol_spec 
+		{ p_no_spi = 1; }
 		EOT
 	;
 
@@ -327,7 +338,7 @@ auth_alg
 auth_key
 	:	/*NOTHING*/
 		{
-			if (p_alg_auth != SADB_AALG_NULL) {
+			if (p_alg_auth != SADB_X_AALG_NULL) {
 				yyerror("no key found.");
 				return -1;
 			}
@@ -541,10 +552,27 @@ port
 upper_spec
 	:	DECSTRING { p_upper = $1; }
 	|	UP_PROTO { p_upper = $1; }
-	|	PR_ESP { p_upper = IPPROTO_ESP; };
-	|	PR_AH { p_upper = IPPROTO_AH; };
-	|	PR_IPCOMP { p_upper = IPPROTO_IPCOMP; };
 	|	ANY { p_upper = IPSEC_ULPROTO_ANY; }
+	|	STRING
+		{
+			struct protoent *ent;
+
+			ent = getprotobyname($1.buf);
+			if (ent)
+				p_upper = ent->p_proto;
+			else {
+				if (strcmp("icmp6", $1.buf) == 0) {
+					p_upper = IPPROTO_ICMPV6;
+				} else if(strcmp("ip4", $1.buf) == 0) {
+					p_upper = IPPROTO_IPV4;
+				} else {
+					yyerror("invalid upper layer protocol");
+					free($1.buf);
+					return -1;
+				}
+			}
+			free($1.buf);
+		}
 	;
 
 policy_spec
@@ -665,27 +693,29 @@ setkeymsg()
 		struct sadb_address m_addr;
 		u_int len;
 
-		len = sizeof(struct sadb_sa);
-		m_sa.sadb_sa_len = PFKEY_UNIT64(len);
-		m_sa.sadb_sa_exttype = SADB_EXT_SA;
-		m_sa.sadb_sa_spi = htonl(p_spi);
-		m_sa.sadb_sa_replay = p_replay;
-		m_sa.sadb_sa_state = 0;
-		m_sa.sadb_sa_auth = p_alg_auth;
-		m_sa.sadb_sa_encrypt = p_alg_enc;
-		m_sa.sadb_sa_flags = p_ext;
+		if (p_no_spi == 0) {
+			len = sizeof(struct sadb_sa);
+			m_sa.sadb_sa_len = PFKEY_UNIT64(len);
+			m_sa.sadb_sa_exttype = SADB_EXT_SA;
+			m_sa.sadb_sa_spi = htonl(p_spi);
+			m_sa.sadb_sa_replay = p_replay;
+			m_sa.sadb_sa_state = 0;
+			m_sa.sadb_sa_auth = p_alg_auth;
+			m_sa.sadb_sa_encrypt = p_alg_enc;
+			m_sa.sadb_sa_flags = p_ext;
 
-		memcpy(m_buf + m_len, &m_sa, len);
-		m_len += len;
+			memcpy(m_buf + m_len, &m_sa, len);
+			m_len += len;
 
-		len = sizeof(struct sadb_x_sa2);
-		m_sa2.sadb_x_sa2_len = PFKEY_UNIT64(len);
-		m_sa2.sadb_x_sa2_exttype = SADB_X_EXT_SA2;
-		m_sa2.sadb_x_sa2_mode = p_mode;
-		m_sa2.sadb_x_sa2_reqid = p_reqid;
+			len = sizeof(struct sadb_x_sa2);
+			m_sa2.sadb_x_sa2_len = PFKEY_UNIT64(len);
+			m_sa2.sadb_x_sa2_exttype = SADB_X_EXT_SA2;
+			m_sa2.sadb_x_sa2_mode = p_mode;
+			m_sa2.sadb_x_sa2_reqid = p_reqid;
 
-		memcpy(m_buf + m_len, &m_sa2, len);
-		m_len += len;
+			memcpy(m_buf + m_len, &m_sa2, len);
+			m_len += len;
+		}
 
 		/* set src */
 		m_addr.sadb_address_len =
@@ -864,6 +894,7 @@ parse_init()
 {
 	p_type = 0;
 	p_spi = 0;
+	p_no_spi = 0;
 
 	p_src = 0, p_dst = 0;
 	pp_prefix = p_prefs = p_prefd = ~0;

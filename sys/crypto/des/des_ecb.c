@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: des_ecb.c,v 1.3 2000/03/27 04:36:33 sumikawa Exp $	*/
+/*	$KAME: des_ecb.c,v 1.5 2000/11/06 13:58:08 itojun Exp $	*/
 
 /* crypto/des/ecb_enc.c */
 /* Copyright (C) 1995-1996 Eric Young (eay@mincom.oz.au)
@@ -48,6 +48,8 @@
  * [including the GNU Public Licence.]
  */
 
+#include <sys/param.h>
+#include <sys/systm.h>
 #include <crypto/des/des_locl.h>
 #include <crypto/des/spr.h>
 

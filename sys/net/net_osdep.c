@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: net_osdep.c,v 1.4 2000/03/25 07:23:34 sumikawa Exp $	*/
+/*	$KAME: net_osdep.c,v 1.9 2001/04/06 09:22:05 itojun Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -32,6 +32,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
@@ -52,8 +53,15 @@ const char *
 if_name(ifp)
 	struct ifnet *ifp;
 {
-	static char nam[IFNAMSIZ + 10];	/*enough?*/
+#define MAXNUMBUF	8
+	static char nam[MAXNUMBUF][IFNAMSIZ + 10];	/*enough?*/
+	static int ifbufround = 0;
+	char *cp;
 
-	snprintf(nam, sizeof(nam), "%s%d", ifp->if_name, ifp->if_unit);
-	return nam;
+	ifbufround = (ifbufround + 1) % MAXNUMBUF;
+	cp = nam[ifbufround];
+
+	snprintf(cp, sizeof(nam), "%s%d", ifp->if_name, ifp->if_unit);
+	return((const char *)cp);
+#undef MAXNUMBUF
 }

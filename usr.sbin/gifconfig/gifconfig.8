@@ -1,5 +1,5 @@
 .\"	$FreeBSD$
-.\"	$KAME: gifconfig.8,v 1.5 2000/05/13 07:48:10 itojun Exp $
+.\"	$KAME: gifconfig.8,v 1.6 2000/11/22 11:10:09 itojun Exp $
 .\"
 .\" Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
 .\" All rights reserved.
@@ -34,6 +34,7 @@
 .Sh NAME
 .Nm gifconfig
 .Nd configure generic IP tunnel
+.\"
 .Sh SYNOPSIS
 .Nm
 .Ar interface
@@ -60,7 +61,7 @@ specifies the address family for
 .Ar physsrc
 and
 .Ar physdest .
-.Ar Af
+.Ar af
 can be
 .Li inet
 or
@@ -81,7 +82,9 @@ If no outer addresses are specified, this usage has no effect.
 takes the following optional argument:
 .Bl -tag -width Ds
 .It Fl a
-Display information associated all generic IP tunnel interfaces.
+Display information associated with all
+.Xr gif 4
+interfaces.
 .El
 .Pp
 Please note that it is very easy to create infinite routing loop,

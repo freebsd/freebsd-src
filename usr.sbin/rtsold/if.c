@@ -1,4 +1,4 @@
-/*	$KAME$	*/
+/*	$KAME: if.c,v 1.15 2001/05/22 06:04:17 jinmei Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -218,6 +218,9 @@ lladdropt_length(struct sockaddr_dl *sdl)
 {
 	switch(sdl->sdl_type) {
 	 case IFT_ETHER:
+#ifdef IFT_IEEE80211
+	case IFT_IEEE80211:
+#endif
 		 return(ROUNDUP8(ETHER_ADDR_LEN + 2));
 	 default:
 		 return(0);
@@ -233,6 +236,9 @@ lladdropt_fill(struct sockaddr_dl *sdl, struct nd_opt_hdr *ndopt)
 
 	switch(sdl->sdl_type) {
 	 case IFT_ETHER:
+#ifdef IFT_IEEE80211
+	case IFT_IEEE80211:
+#endif
 		 ndopt->nd_opt_len = (ROUNDUP8(ETHER_ADDR_LEN + 2)) >> 3;
 		 addr = (char *)(ndopt + 1);
 		 memcpy(addr, LLADDR(sdl), ETHER_ADDR_LEN);
@@ -295,6 +301,7 @@ if_nametosdl(char *name)
 		return(NULL);
 	memcpy((caddr_t)ret_sdl, (caddr_t)sdl, sdl->sdl_len);
 
+	free(buf);
 	return(ret_sdl);
 }
 
