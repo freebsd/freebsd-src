@@ -61,7 +61,7 @@
  * Change it for NETGRAPH_DEBUG version so we cannot mix debug and non debug
  * modules.
  */
-#define _NG_ABI_VERSION 5
+#define _NG_ABI_VERSION 6
 #ifdef	NETGRAPH_DEBUG /*----------------------------------------------*/
 #define NG_ABI_VERSION	(_NG_ABI_VERSION + 0x10000)
 #else	/* NETGRAPH_DEBUG */ /*----------------------------------------------*/
