@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_prf.c	8.3 (Berkeley) 1/21/94
- * $Id: subr_prf.c,v 1.32 1996/03/23 21:23:43 jkh Exp $
+ * $Id: subr_prf.c,v 1.33 1996/03/23 21:41:00 jkh Exp $
  */
 
 #include "opt_ddb.h"
@@ -120,17 +120,18 @@ panic(const char *fmt, ...)
 	va_end(ap);
 	printf("\n");
 
-#if defined(KGDB) || defined(DDB)
+#if defined(DDB) || defined (KGDB)
 	if (debugger_on_panic) {
+#ifdef KGDB
 		kgdb_panic();
+#endif
 #ifdef DDB
 		Debugger ("panic");
 #endif
 	}
-	boot(bootopt);
 #endif
+	boot(bootopt);
 }
-
 
 /*
  * Warn that a system table is full.
