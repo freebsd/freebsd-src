@@ -36,6 +36,7 @@ int dialog_checklist(unsigned char *title, unsigned char *prompt, int height, in
 {
   int i, j, x, y, cur_x, cur_y, box_x, box_y, key = 0, button = 0, choice = 0,
       l, k, scroll = 0, max_choice, *status;
+  int redraw_menu = FALSE;
   WINDOW *dialog, *list;
 
   /* Allocate space for storing item on/off status */
@@ -138,14 +139,7 @@ int dialog_checklist(unsigned char *title, unsigned char *prompt, int height, in
   for (i = 0; i < max_choice; i++)
     print_item(list, items[i*3], items[i*3 + 1], status[i], i, i == choice);
   wnoutrefresh(list);
-
-  if (list_height < item_no) {
-    wattrset(dialog, darrow_attr);
-    wmove(dialog, box_y + list_height + 1, box_x + check_x + 5);
-    waddch(dialog, ACS_DARROW);
-    wmove(dialog, box_y + list_height + 1, box_x + check_x + 6);
-    waddstr(dialog, "(+)");
-  }
+  print_arrows(dialog, scroll, list_height, item_no, box_x, box_y, check_x + 4, cur_x, cur_y);
 
   display_helpline(dialog, height-1, width);
 
@@ -195,27 +189,7 @@ int dialog_checklist(unsigned char *title, unsigned char *prompt, int height, in
             print_item(list, items[scroll*3], items[scroll*3 + 1], status[scroll], 0, TRUE);
 #endif
             wnoutrefresh(list);
-
-            /* print the up/down arrows */
-            wmove(dialog, box_y, box_x + check_x + 5);
-            wattrset(dialog, scroll ? uarrow_attr : menubox_attr);
-            waddch(dialog, scroll ? ACS_UARROW : ACS_HLINE);
-            wmove(dialog, box_y, box_x + check_x + 6);
-            waddch(dialog, scroll ? '(' : ACS_HLINE);
-            wmove(dialog, box_y, box_x + check_x + 7);
-            waddch(dialog, scroll ? '-' : ACS_HLINE);
-            wmove(dialog, box_y, box_x + check_x + 8);
-            waddch(dialog, scroll ? ')' : ACS_HLINE);
-            wattrset(dialog, darrow_attr);
-            wmove(dialog, box_y + list_height + 1, box_x + check_x + 5);
-            waddch(dialog, ACS_DARROW);
-            wmove(dialog, box_y + list_height + 1, box_x + check_x + 6);
-            waddch(dialog, '(');
-            wmove(dialog, box_y + list_height + 1, box_x + check_x + 7);
-            waddch(dialog, '+');
-            wmove(dialog, box_y + list_height + 1, box_x + check_x + 8);
-            waddch(dialog, ')');
-            wmove(dialog, cur_y, cur_x);  /* Restore cursor position */
+	    print_arrows(dialog, scroll, list_height, item_no, box_x, box_y, check_x + 4, cur_x, cur_y);
             wrefresh(dialog);
           }
           continue;    /* wait for another key press */
@@ -251,23 +225,7 @@ int dialog_checklist(unsigned char *title, unsigned char *prompt, int height, in
             print_item(list, items[(scroll+max_choice-1)*3], items[(scroll+max_choice-1)*3 + 1], status[scroll+max_choice-1], max_choice-1, TRUE);
 #endif
             wnoutrefresh(list);
-
-            /* print the up/down arrows */
-            wattrset(dialog, uarrow_attr);
-            wmove(dialog, box_y, box_x + check_x + 5);
-            waddch(dialog, ACS_UARROW);
-            wmove(dialog, box_y, box_x + check_x + 6);
-            waddstr(dialog, "(-)");
-            wmove(dialog, box_y + list_height + 1, box_x + check_x + 5);
-            wattrset(dialog, scroll+choice < item_no-1 ? darrow_attr : menubox_border_attr);
-            waddch(dialog, scroll+choice < item_no-1 ? ACS_DARROW : ACS_HLINE);
-            wmove(dialog, box_y + list_height + 1, box_x + check_x + 6);
-            waddch(dialog, scroll+choice < item_no-1 ? '(' : ACS_HLINE);
-            wmove(dialog, box_y + list_height + 1, box_x + check_x + 7);
-            waddch(dialog, scroll+choice < item_no-1 ? '+' : ACS_HLINE);
-            wmove(dialog, box_y + list_height + 1, box_x + check_x + 8);
-            waddch(dialog, scroll+choice < item_no-1 ? ')' : ACS_HLINE);
-            wmove(dialog, cur_y, cur_x);  /* Restore cursor position */
+	    print_arrows(dialog, scroll, list_height, item_no, box_x, box_y, check_x + 4, cur_x, cur_y);
             wrefresh(dialog);
           }
           continue;    /* wait for another key press */
@@ -303,6 +261,34 @@ int dialog_checklist(unsigned char *title, unsigned char *prompt, int height, in
     }
 
     switch (key) {
+    case KEY_PPAGE:
+	if (scroll > height-4) {	/* can we go up? */
+	    scroll -= (height-4);
+	} else {
+	    scroll = 0;
+	}
+	redraw_menu = TRUE;
+	break;
+    case KEY_NPAGE:
+	if (scroll + list_height >= item_no-1 - list_height) { /* can we go down a full page? */
+	    scroll = item_no - list_height;
+	    if (scroll < 0) scroll = 0;
+	} else {
+	    scroll += list_height;
+	}
+	redraw_menu = TRUE;
+	break;
+    case KEY_HOME:
+	scroll = 0;
+	choice = 0;
+	redraw_menu = TRUE;
+	break;
+    case KEY_END:
+	scroll = item_no - list_height;
+	if (scroll < 0) scroll = 0;
+	choice = max_choice - 1;
+	redraw_menu = TRUE;
+	break;
       case 'O':
       case 'o':
         delwin(dialog);
@@ -355,6 +341,14 @@ int dialog_checklist(unsigned char *title, unsigned char *prompt, int height, in
     case '?':
 	display_helpfile();
 	break;
+    }
+    if (redraw_menu) {
+	for (i = 0; i < max_choice; i++)
+	  print_item(list, items[(scroll+i)*3], items[(scroll+i)*3 + 1], status[scroll+i], i, i == choice);
+	wnoutrefresh(list);
+	print_arrows(dialog, scroll, list_height, item_no, box_x, box_y, check_x + 4, cur_x, cur_y);
+	wrefresh(dialog);
+	redraw_menu = FALSE;
     }
   }
 

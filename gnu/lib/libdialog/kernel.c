@@ -478,3 +478,27 @@ int strheight(const char *p)
 	return i;
 }
 
+void print_arrows(WINDOW *dialog, int scroll, int menu_height, int item_no,
+		  int box_x, int box_y, int tag_x, int cur_x, int cur_y)
+{
+    wmove(dialog, box_y, box_x + tag_x + 1);
+    wattrset(dialog, scroll ? uarrow_attr : menubox_attr);
+    waddch(dialog, scroll ? ACS_UARROW : ACS_HLINE);
+    wmove(dialog, box_y, box_x + tag_x + 2);
+    waddch(dialog, scroll ? '(' : ACS_HLINE);
+    wmove(dialog, box_y, box_x + tag_x + 3);
+    waddch(dialog, scroll ? '-' : ACS_HLINE);
+    wmove(dialog, box_y, box_x + tag_x + 4);
+    waddch(dialog, scroll ? ')' : ACS_HLINE);
+    wmove(dialog, box_y + menu_height + 1, box_x + tag_x + 1);
+    wattrset(dialog, scroll+menu_height < item_no ? darrow_attr : menubox_border_attr);
+    waddch(dialog, scroll+menu_height < item_no ? ACS_DARROW : ACS_HLINE);
+    wmove(dialog, box_y + menu_height + 1, box_x + tag_x + 2);
+    waddch(dialog, scroll+menu_height < item_no ? '(' : ACS_HLINE);
+    wmove(dialog, box_y + menu_height + 1, box_x + tag_x + 3);
+    waddch(dialog, scroll+menu_height < item_no ? '+' : ACS_HLINE);
+    wmove(dialog, box_y + menu_height + 1, box_x + tag_x + 4);
+    waddch(dialog, scroll+menu_height < item_no ? ')' : ACS_HLINE);
+    wmove(dialog, cur_y, cur_x);  /* Restore cursor position */
+}
+

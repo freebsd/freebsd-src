@@ -25,7 +25,6 @@
 
 static void print_item(WINDOW *win, unsigned char *tag, unsigned char *item, int choice, int selected);
 
-
 static int menu_width, tag_x, item_x;
 
 /*
@@ -132,14 +131,7 @@ int dialog_menu(unsigned char *title, unsigned char *prompt, int height, int wid
   for (i = 0; i < max_choice; i++)
     print_item(menu, items[i*2], items[i*2 + 1], i, i == choice);
   wnoutrefresh(menu);
-
-  if (menu_height < item_no) {
-    wattrset(dialog, darrow_attr);
-    wmove(dialog, box_y + menu_height + 1, box_x + tag_x + 1);
-    waddch(dialog, ACS_DARROW);
-    wmove(dialog, box_y + menu_height + 1, box_x + tag_x + 2);
-    waddstr(dialog,"(+)");
-  }
+  print_arrows(dialog, scroll, menu_height, item_no, box_x, box_y, tag_x, cur_x, cur_y);
 
   display_helpline(dialog, height-1, width);
 
@@ -189,23 +181,7 @@ int dialog_menu(unsigned char *title, unsigned char *prompt, int height, int wid
             print_item(menu, items[scroll*2], items[scroll*2 + 1], 0, TRUE);
 #endif
             wnoutrefresh(menu);
-
-            /* print the up/down arrows */
-            wmove(dialog, box_y, box_x + tag_x + 1);
-            wattrset(dialog, scroll ? uarrow_attr : menubox_attr);
-            waddch(dialog, scroll ? ACS_UARROW : ACS_HLINE);
-            wmove(dialog, box_y, box_x + tag_x + 2);
-            waddch(dialog, scroll ? '(' : ACS_HLINE);
-            wmove(dialog, box_y, box_x + tag_x + 3);
-            waddch(dialog, scroll ? '-' : ACS_HLINE);
-            wmove(dialog, box_y, box_x + tag_x + 4);
-            waddch(dialog, scroll ? ')' : ACS_HLINE);
-            wattrset(dialog, darrow_attr);
-            wmove(dialog, box_y + menu_height + 1, box_x + tag_x + 1);
-            waddch(dialog, ACS_DARROW);
-            wmove(dialog, box_y + menu_height + 1, box_x + tag_x + 2);
-            waddstr(dialog,"(+)");
-            wmove(dialog, cur_y, cur_x);  /* Restore cursor position */
+	    print_arrows(dialog, scroll, menu_height, item_no, box_x, box_y, tag_x, cur_x, cur_y);
             wrefresh(dialog);
           }
           continue;    /* wait for another key press */
@@ -241,23 +217,7 @@ int dialog_menu(unsigned char *title, unsigned char *prompt, int height, int wid
               print_item(menu, items[(scroll+max_choice-1)*2], items[(scroll+max_choice-1)*2 + 1], max_choice-1, TRUE);
 #endif
             wnoutrefresh(menu);
-
-            /* print the up/down arrows */
-            wattrset(dialog, uarrow_attr);
-            wmove(dialog, box_y, box_x + tag_x + 1);
-            waddch(dialog, ACS_UARROW);
-            wmove(dialog, box_y, box_x + tag_x + 2);
-            waddstr(dialog,"(-)");
-            wmove(dialog, box_y + menu_height + 1, box_x + tag_x + 1);
-            wattrset(dialog, scroll+choice < item_no-1 ? darrow_attr : menubox_border_attr);
-            waddch(dialog, scroll+choice < item_no-1 ? ACS_DARROW : ACS_HLINE);
-            wmove(dialog, box_y + menu_height + 1, box_x + tag_x + 2);
-            waddch(dialog, scroll+choice < item_no-1 ? '(' : ACS_HLINE);
-            wmove(dialog, box_y + menu_height + 1, box_x + tag_x + 3);
-            waddch(dialog, scroll+choice < item_no-1 ? '+' : ACS_HLINE);
-            wmove(dialog, box_y + menu_height + 1, box_x + tag_x + 4);
-            waddch(dialog, scroll+choice < item_no-1 ? ')' : ACS_HLINE);
-            wmove(dialog, cur_y, cur_x);  /* Restore cursor position */
+	    print_arrows(dialog, scroll, menu_height, item_no, box_x, box_y, tag_x, cur_x, cur_y);
             wrefresh(dialog);
           }
           continue;    /* wait for another key press */
@@ -360,6 +320,7 @@ int dialog_menu(unsigned char *title, unsigned char *prompt, int height, int wid
 		       items[(scroll+i)*2 + 1], i, i == choice);
 	}
 	wnoutrefresh(menu);
+	print_arrows(dialog, scroll, menu_height, item_no, box_x, box_y, tag_x, cur_x, cur_y);
 	wrefresh(dialog);
 	redraw_menu = FALSE;
     }
@@ -393,3 +354,5 @@ static void print_item(WINDOW *win, unsigned char *tag, unsigned char *item, int
   waddstr(win, item);
 }
 /* End of print_item() */
+
+
