@@ -46,7 +46,6 @@ struct snoop {
 	u_long		snp_blen;	/* Overall buffer len	       */
 	caddr_t		snp_buf;	/* Data buffer		       */
 	int 		snp_flags;	/* Flags place		       */
-#define SNOOP_NBIO		0x0001
 #define SNOOP_ASYNC		0x0002
 #define SNOOP_OPEN		0x0004
 #define SNOOP_RWAIT		0x0008
