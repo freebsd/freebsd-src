@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.98 1997/11/24 15:03:13 bde Exp $
+ * $Id: vm_map.c,v 1.99 1997/12/19 09:03:11 dyson Exp $
  */
 
 /*
@@ -848,7 +848,7 @@ _vm_map_clip_start(map, entry, start)
 			vm_object_t object;
 
 			object = vm_object_allocate(OBJT_DEFAULT,
-					btoc(entry->end - entry->start));
+					atop(entry->end - entry->start));
 			entry->object.vm_object = object;
 			entry->offset = 0;
 	}
@@ -906,7 +906,7 @@ _vm_map_clip_end(map, entry, end)
 			vm_object_t object;
 
 			object = vm_object_allocate(OBJT_DEFAULT,
-					btoc(entry->end - entry->start));
+					atop(entry->end - entry->start));
 			entry->object.vm_object = object;
 			entry->offset = 0;
 	}
@@ -1336,15 +1336,14 @@ vm_map_user_pageable(map, start, end, new_pageable)
 
 					vm_object_shadow(&entry->object.vm_object,
 					    &entry->offset,
-					    btoc(entry->end
-						- entry->start));
+					    atop(entry->end - entry->start));
 					entry->eflags &= ~MAP_ENTRY_NEEDS_COPY;
 
 				} else if (entry->object.vm_object == NULL) {
 
 					entry->object.vm_object =
 					    vm_object_allocate(OBJT_DEFAULT,
-						btoc(entry->end - entry->start));
+						atop(entry->end - entry->start));
 					entry->offset = (vm_offset_t) 0;
 
 				}
@@ -1529,12 +1528,12 @@ vm_map_pageable(map, start, end, new_pageable)
 
 						vm_object_shadow(&entry->object.vm_object,
 						    &entry->offset,
-						    btoc(entry->end - entry->start));
+						    atop(entry->end - entry->start));
 						entry->eflags &= ~MAP_ENTRY_NEEDS_COPY;
 					} else if (entry->object.vm_object == NULL) {
 						entry->object.vm_object =
 						    vm_object_allocate(OBJT_DEFAULT,
-							btoc(entry->end - entry->start));
+							atop(entry->end - entry->start));
 						entry->offset = (vm_offset_t) 0;
 					}
 					default_pager_convert_to_swapq(entry->object.vm_object);
@@ -2079,13 +2078,13 @@ vmspace_fork(vm1)
 			object = old_entry->object.vm_object;
 			if (object == NULL) {
 				object = vm_object_allocate(OBJT_DEFAULT,
-					btoc(old_entry->end - old_entry->start));
+					atop(old_entry->end - old_entry->start));
 				old_entry->object.vm_object = object;
 				old_entry->offset = (vm_offset_t) 0;
 			} else if (old_entry->eflags & MAP_ENTRY_NEEDS_COPY) {
 				vm_object_shadow(&old_entry->object.vm_object,
 					&old_entry->offset,
-					btoc(old_entry->end - old_entry->start));
+					atop(old_entry->end - old_entry->start));
 				old_entry->eflags &= ~MAP_ENTRY_NEEDS_COPY;
 				object = old_entry->object.vm_object;
 			}
@@ -2369,7 +2368,7 @@ RetryLookup:;
 			vm_object_shadow(
 			    &entry->object.vm_object,
 			    &entry->offset,
-			    btoc(entry->end - entry->start));
+			    atop(entry->end - entry->start));
 
 			entry->eflags &= ~MAP_ENTRY_NEEDS_COPY;
 			vm_map_lock_downgrade(share_map);
@@ -2393,7 +2392,7 @@ RetryLookup:;
 			goto RetryLookup;
 		}
 		entry->object.vm_object = vm_object_allocate(OBJT_DEFAULT,
-		    btoc(entry->end - entry->start));
+		    atop(entry->end - entry->start));
 		entry->offset = 0;
 		vm_map_lock_downgrade(share_map);
 	}
@@ -2501,7 +2500,7 @@ vm_uiomove(mapa, srcobject, cp, cnt, uaddra)
 		printf("new entry: (0x%x, 0x%x)\n", start, end);
 #endif
 
-		osize = btoc(tcnt);
+		osize = atop(tcnt);
 		oindex = OFF_TO_IDX(first_entry->offset);
 
 /*
