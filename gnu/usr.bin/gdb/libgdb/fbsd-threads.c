@@ -997,26 +997,13 @@ ps_pglobal_lookup (struct ps_prochandle *ph, const char *obj,
 }
 
 ps_err_e
-ps_pdread (struct ps_prochandle *ph, psaddr_t addr, void *buf, size_t len)
+ps_pread (struct ps_prochandle *ph, psaddr_t addr, void *buf, size_t len)
 {
   return target_read_memory ((CORE_ADDR) addr, buf, len);
 }
 
 ps_err_e
-ps_pdwrite (struct ps_prochandle *ph, psaddr_t addr, const void *buf,
-            size_t len)
-{
-  return target_write_memory ((CORE_ADDR) addr, (void *)buf, len);
-}
-
-ps_err_e
-ps_ptread (struct ps_prochandle *ph, psaddr_t addr, void *buf, size_t len)
-{
-  return target_read_memory ((CORE_ADDR) addr, buf, len);
-}
-
-ps_err_e
-ps_ptwrite (struct ps_prochandle *ph, psaddr_t addr, const void *buf,
+ps_pwrite (struct ps_prochandle *ph, psaddr_t addr, const void *buf,
             size_t len)
 {
   return target_write_memory ((CORE_ADDR) addr, (void *)buf, len);
@@ -1090,10 +1077,3 @@ ps_lcontinue(struct ps_prochandle *ph, lwpid_t lwpid)
     return PS_ERR;
   return PS_OK;   
 }
-
-pid_t
-ps_getpid (struct ps_prochandle *ph)
-{
-  return ph->pid;
-}
-
