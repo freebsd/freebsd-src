@@ -1,7 +1,7 @@
 /*
  * random.h -- A strong random number generator
  *
- * $Id: random.h,v 1.12 1997/06/07 00:57:26 bde Exp $
+ * $Id: random.h,v 1.13 1997/09/14 03:19:03 peter Exp $
  *
  * Version 0.95, last modified 18-Oct-95
  * 
@@ -75,8 +75,8 @@ void add_blkdev_randomness(int major);
 #ifdef notused
 void get_random_bytes(void *buf, u_int nbytes);
 #endif
-u_int read_random(char *buf, u_int size);
-u_int read_random_unlimited(char *buf, u_int size);
+u_int read_random(void *buf, u_int size);
+u_int read_random_unlimited(void *buf, u_int size);
 #ifdef notused
 u_int write_random(const char *buf, u_int nbytes);
 #endif
