@@ -82,7 +82,7 @@ setrunelocale(encoding)
 			) {
 			if (strlen(p) + 1/*"/"*/ + ENCODING_LEN +
 			    1/*"/"*/ + CATEGORY_LEN >= PATH_MAX)
-				return(EFAULT);
+				return (ENAMETOOLONG);
 			_PathLocale = strdup(p);
 			if (_PathLocale == NULL)
 				return (errno);
