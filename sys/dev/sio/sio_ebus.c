@@ -40,9 +40,9 @@ __FBSDID($FreeBSD$);
 #include <ofw/openfirm.h>
 #include <sparc64/ebus/ebusvar.h>
 
-int	sio_ofw_inlist __P((char *name, char *list[]));
-static	int	sio_ebus_attach __P((device_t dev));
-static	int	sio_ebus_probe __P((device_t dev));
+int	sio_ofw_inlist(char *name, char *list[]);
+static	int	sio_ebus_attach(device_t dev);
+static	int	sio_ebus_probe(device_t dev);
 
 static device_method_t sio_ebus_methods[] = {
 	/* Device interface */

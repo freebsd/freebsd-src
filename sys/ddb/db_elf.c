@@ -56,7 +56,7 @@
 
 #include <machine/elf.h>
 
-static char *db_elf_find_strtab __P((db_symtab_t *));
+static char *db_elf_find_strtab(db_symtab_t *);
 
 #define	STAB_TO_SYMSTART(stab)	((Elf_Sym *)((stab)->start))
 #define	STAB_TO_SYMEND(stab)	((Elf_Sym *)((stab)->end))
