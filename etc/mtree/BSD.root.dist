@@ -38,6 +38,8 @@
 #             s               uname=bind gname=bind mode=0750
 #             ..
         ..
+        ntp		uname=root mode=700
+        ..
         pam.d
         ..
         periodic
