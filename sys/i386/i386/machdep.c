@@ -1504,9 +1504,16 @@ getmemsize(int first)
 	char *cp;
 	struct bios_smap *smap;
 
+	/*
+	 * Change the mapping of the page at address zero from r/o to r/w
+	 * so that vm86 can scribble on this page.  Note that this page is
+	 * not in the general free page pool.
+	 */
+	pmap_kenter(KERNBASE, 0);
+
 	hasbrokenint12 = 0;
 	TUNABLE_INT_FETCH("hw.hasbrokenint12", &hasbrokenint12);
-	bzero(&vmf, sizeof(struct vm86frame));
+	bzero(&vmf, sizeof(vmf));
 	bzero(physmap, sizeof(physmap));
 	basemem = 0;
 
@@ -1555,14 +1562,10 @@ getmemsize(int first)
 		pmap_kenter(KERNBASE + pa, pa);
 
 	/*
-	 * Map the page at address zero for the bios code to use.
-	 * Note that page zero is not in the general page pool.
-	 */
-	pmap_kenter(KERNBASE, 0);
-
-	/*
-	 * if basemem != 640, map pages r/w into vm86 page table so 
-	 * that the bios can scribble on it.
+	 * Map pages between basemem and ISA_HOLE_START, if any, r/w into
+	 * the vm86 page table so that vm86 can scribble on them using
+	 * the vm86 map too.  XXX: why 2 ways for this and only 1 way for
+	 * page 0, at least as initialized here?
 	 */
 	pte = (pt_entry_t *)vm86paddr;
 	for (i = basemem / 4; i < 160; i++)
@@ -1645,20 +1648,26 @@ next_run: ;
 			}
 		}
 
-		if (basemem == 0) {
+		/*
+		 * XXX this function is horribly organized and has to the same
+		 * things that it does above here.
+		 */
+		if (basemem == 0)
 			basemem = 640;
-		}
-
 		if (basemem > 640) {
-			printf("Preposterous BIOS basemem of %uK, truncating to 640K\n",
-				basemem);
+			printf(
+		    "Preposterous BIOS basemem of %uK, truncating to 640K\n",
+			    basemem);
 			basemem = 640;
 		}
 
+		/*
+		 * Let vm86 scribble on pages between basemem and
+		 * ISA_HOLE_START, as above.
+		 */
 		for (pa = trunc_page(basemem * 1024);
 		     pa < ISA_HOLE_START; pa += PAGE_SIZE)
 			pmap_kenter(KERNBASE + pa, pa);
-
 		pte = (pt_entry_t *)vm86paddr;
 		for (i = basemem / 4; i < 160; i++)
 			pte[i] = (i << PAGE_SHIFT) | PG_V | PG_RW | PG_U;
