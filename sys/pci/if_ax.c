@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_ax.c,v 1.6 1999/02/23 01:52:42 wpaul Exp $
+ *	$Id: if_ax.c,v 1.10 1999/04/08 03:57:57 wpaul Exp $
  */
 
 /*
@@ -87,7 +87,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_ax.c,v 1.6 1999/02/23 01:52:42 wpaul Exp $";
+	"$Id: if_ax.c,v 1.10 1999/04/08 03:57:57 wpaul Exp $";
 #endif
 
 /*
@@ -1150,7 +1150,12 @@ ax_attach(config_id, unit)
 		printf ("ax%d: couldn't map ports\n", unit);
 		goto fail;
         }
+#ifdef __i386__
 	sc->ax_btag = I386_BUS_SPACE_IO;
+#endif
+#ifdef __alpha__
+	sc->ax_btag = ALPHA_BUS_SPACE_IO;
+#endif
 #else
 	if (!(command & PCIM_CMD_MEMEN)) {
 		printf("ax%d: failed to enable memory mapping!\n", unit);
@@ -1161,7 +1166,12 @@ ax_attach(config_id, unit)
 		printf ("ax%d: couldn't map memory\n", unit);
 		goto fail;
 	}
+#ifdef __i386__
 	sc->ax_btag = I386_BUS_SPACE_MEM;
+#endif
+#ifdef __alpha__
+	sc->ax_btag = ALPHA_BUS_SPACE_MEM;
+#endif
 	sc->ax_bhandle = vbase;
 #endif
 
@@ -1429,6 +1439,9 @@ static void ax_rxeof(sc)
 
 	while(!((rxstat = sc->ax_cdata.ax_rx_head->ax_ptr->ax_status) &
 							AX_RXSTAT_OWN)) {
+#ifdef __alpha__
+		struct mbuf		*m0 = NULL;
+#endif
 		cur_rx = sc->ax_cdata.ax_rx_head;
 		sc->ax_cdata.ax_rx_head = cur_rx->ax_nextdesc;
 
@@ -1453,6 +1466,51 @@ static void ax_rxeof(sc)
 
 		total_len -= ETHER_CRC_LEN;
 
+#ifdef __alpha__
+		/*
+		 * Try to conjure up a new mbuf cluster. If that
+		 * fails, it means we have an out of memory condition and
+		 * should leave the buffer in place and continue. This will
+		 * result in a lost packet, but there's little else we
+		 * can do in this situation.
+		 */
+		if (ax_newbuf(sc, cur_rx) == ENOBUFS) {
+			ifp->if_ierrors++;
+			cur_rx->ax_ptr->ax_status = AX_RXSTAT;
+			cur_rx->ax_ptr->ax_ctl = (MCLBYTES - 1);
+			continue;
+		}
+
+		/*
+		 * Sadly, the ASIX chip doesn't decode the last few
+		 * bits of the RX DMA buffer address, so we have to
+		 * cheat in order to obtain proper payload alignment
+		 * on the alpha.
+		 */
+		MGETHDR(m0, M_DONTWAIT, MT_DATA);
+		if (m0 == NULL) {
+			ifp->if_ierrors++;
+			cur_rx->ax_ptr->ax_status = AX_RXSTAT;
+			cur_rx->ax_ptr->ax_ctl = (MCLBYTES - 1);
+			continue;
+		}
+
+		m0->m_data += 2;
+		if (total_len <= (MHLEN - 2)) {
+			bcopy(mtod(m, caddr_t), mtod(m0, caddr_t), total_len);				m_freem(m);
+			m = m0;
+			m->m_pkthdr.len = m->m_len = total_len;
+		} else {
+			bcopy(mtod(m, caddr_t), mtod(m0, caddr_t), (MHLEN - 2));
+			m->m_len = total_len - (MHLEN - 2);
+			m->m_data += (MHLEN - 2);
+			m0->m_next = m;
+			m0->m_len = (MHLEN - 2);
+			m = m0;
+			m->m_pkthdr.len = total_len;
+		}
+		m->m_pkthdr.rcvif = ifp;
+#else
 		if (total_len < MINCLSIZE) {
 			m = m_devget(mtod(cur_rx->ax_mbuf, char *),
 				total_len, 0, ifp, NULL);
@@ -1480,6 +1538,7 @@ static void ax_rxeof(sc)
 			m->m_pkthdr.rcvif = ifp;
 			m->m_pkthdr.len = m->m_len = total_len;
 		}
+#endif
 
 		ifp->if_ipackets++;
 		eh = mtod(m, struct ether_header *);
