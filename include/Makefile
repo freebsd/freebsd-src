@@ -1,4 +1,5 @@
-#	@(#)Makefile	8.2 (Berkeley) 1/4/94
+#	From: @(#)Makefile	8.2 (Berkeley) 1/4/94
+#	$Id$
 #
 # Doing a make install builds /usr/include
 #
@@ -7,6 +8,7 @@
 #
 all clean cleandir depend lint tags:
 
+SUBDIR= rpcsvc
 # XXX MISSING:	mp.h
 FILES=	a.out.h ar.h assert.h bitstring.h ctype.h db.h dirent.h disktab.h \
 	err.h fnmatch.h fstab.h fts.h glob.h grp.h kvm.h limits.h link.h \
@@ -17,7 +19,7 @@ FILES=	a.out.h ar.h assert.h bitstring.h ctype.h db.h dirent.h disktab.h \
 	struct.h sysexits.h tar.h time.h ttyent.h tzfile.h unistd.h utime.h \
 	utmp.h vis.h
 
-MFILES=	float.h frame.h stdarg.h varargs.h
+MFILES=	float.h floatingpoint.h frame.h stdarg.h varargs.h
 LFILES=	errno.h fcntl.h syslog.h termios.h
 
 DIRS=	arpa protocols
