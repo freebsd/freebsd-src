@@ -76,24 +76,24 @@ struct iommu_state {
 };
 
 /* interfaces for PCI/SBUS code */
-void iommu_init __P((char *, struct iommu_state *, int, u_int32_t));
-void iommu_reset __P((struct iommu_state *));
-void iommu_enter __P((struct iommu_state *, vm_offset_t, vm_offset_t, int));
-void iommu_remove __P((struct iommu_state *, vm_offset_t, size_t));
+void iommu_init(char *, struct iommu_state *, int, u_int32_t);
+void iommu_reset(struct iommu_state *);
+void iommu_enter(struct iommu_state *, vm_offset_t, vm_offset_t, int);
+void iommu_remove(struct iommu_state *, vm_offset_t, size_t);
 
-int iommu_dvmamap_create __P((bus_dma_tag_t, struct iommu_state *, int,
-    bus_dmamap_t *));
-int iommu_dvmamap_destroy __P((bus_dma_tag_t, struct iommu_state *,
-    bus_dmamap_t));
-int iommu_dvmamap_load __P((bus_dma_tag_t, struct iommu_state *, bus_dmamap_t,
-    void *, bus_size_t, bus_dmamap_callback_t *, void *, int));
-void iommu_dvmamap_unload __P((bus_dma_tag_t, struct iommu_state *,
-    bus_dmamap_t));
-void iommu_dvmamap_sync __P((bus_dma_tag_t, struct iommu_state *, bus_dmamap_t,
-    bus_dmasync_op_t));
-int iommu_dvmamem_alloc __P((bus_dma_tag_t, struct iommu_state *, void **, int,
-    bus_dmamap_t *));
-void iommu_dvmamem_free __P((bus_dma_tag_t, struct iommu_state *, void *,
-    bus_dmamap_t));
+int iommu_dvmamap_create(bus_dma_tag_t, struct iommu_state *, int,
+    bus_dmamap_t *);
+int iommu_dvmamap_destroy(bus_dma_tag_t, struct iommu_state *,
+    bus_dmamap_t);
+int iommu_dvmamap_load(bus_dma_tag_t, struct iommu_state *, bus_dmamap_t,
+    void *, bus_size_t, bus_dmamap_callback_t *, void *, int);
+void iommu_dvmamap_unload(bus_dma_tag_t, struct iommu_state *,
+    bus_dmamap_t);
+void iommu_dvmamap_sync(bus_dma_tag_t, struct iommu_state *, bus_dmamap_t,
+    bus_dmasync_op_t);
+int iommu_dvmamem_alloc(bus_dma_tag_t, struct iommu_state *, void **, int,
+    bus_dmamap_t *);
+void iommu_dvmamem_free(bus_dma_tag_t, struct iommu_state *, void *,
+    bus_dmamap_t);
 
 #endif /* !_MACHINE_IOMMUVAR_H_ */

@@ -42,9 +42,9 @@
 #include <ddb/db_variables.h>
 #include <ddb/db_watch.h>
 
-int  db_md_set_watchpoint   __P((db_expr_t addr, db_expr_t size));
-int  db_md_clr_watchpoint   __P((db_expr_t addr, db_expr_t size));
-void db_md_list_watchpoints __P((void));
+int  db_md_set_watchpoint(db_expr_t addr, db_expr_t size);
+int  db_md_clr_watchpoint(db_expr_t addr, db_expr_t size);
+void db_md_list_watchpoints(void);
 
 static void db_watch_print(vm_offset_t wp, int bm);
 
