@@ -227,12 +227,27 @@ if_detach(ifp)
 	 * Remove address from ifnet_addrs[] and maybe decrement if_index.
 	 * Clean up all addresses.
 	 */
-	ifnet_addrs[ifp->if_index] = 0;
-	while (ifnet_addrs[if_index] == 0)
+	ifnet_addrs[ifp->if_index - 1] = 0;
+	while (if_index > 0 && ifnet_addrs[if_index - 1] == 0)
 		if_index--;
 
 	for (ifa = TAILQ_FIRST(&ifp->if_addrhead); ifa;
 	     ifa = TAILQ_FIRST(&ifp->if_addrhead)) {
+#if 1 /* ONOE */
+		/* XXX: Ugly!! ad hoc just for INET */
+		if (ifa->ifa_addr && ifa->ifa_addr->sa_family == AF_INET) {
+			struct ifaliasreq ifr;
+
+			bzero(&ifr, sizeof(ifr));
+			if (ifa->ifa_addr)
+				ifr.ifra_addr = *ifa->ifa_addr;
+			if (ifa->ifa_dstaddr)
+				ifr.ifra_broadaddr = *ifa->ifa_dstaddr;
+			if (in_control(NULL, SIOCDIFADDR, (caddr_t)&ifr, ifp,
+			    NULL) == 0)
+				continue;
+		}
+#endif /* ONOE */
 		TAILQ_REMOVE(&ifp->if_addrhead, ifa, ifa_link);
 		IFAFREE(ifa);
 	}
