@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vfsops.c	8.31 (Berkeley) 5/20/95
- * $Id: ffs_vfsops.c,v 1.81 1998/05/06 05:29:40 msmith Exp $
+ * $Id: ffs_vfsops.c,v 1.82 1998/05/18 06:38:18 julian Exp $
  */
 
 #include "opt_devfs.h" /* for SLICE */
@@ -139,7 +139,7 @@ ffs_mount( mp, path, data, ndp, p)
         struct nameidata	*ndp;	/* mount point credentials*/
         struct proc		*p;	/* process requesting mount*/
 {
-	u_int		size;
+	size_t		size;
 	int		err = 0;
 	struct vnode	*devvp;
 
@@ -588,7 +588,7 @@ ffs_mountfs(devvp, mp, p, malloctype)
 	int32_t *lp;
 	struct ucred *cred;
 	u_int64_t maxfilesize;					/* XXX */
-	u_int strsize;
+	size_t strsize;
 	int ncount;
 
 	dev = devvp->v_rdev;
