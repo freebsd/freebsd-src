@@ -1,4 +1,4 @@
-# @(#)northamerica	7.63
+# @(#)northamerica	7.69
 # also includes Central America and the Caribbean
 
 # This data is by no means authoritative; if you think you know better,
@@ -193,10 +193,6 @@ Rule	US	1987	max	-	Apr	Sun>=1	2:00	1:00	D
 #	Samoa standard time
 # The law doesn't give abbreviations.
 #
-# From Paul Eggert (1995-12-19):
-# Shanks uses 1983-10-30, not 1983-11-30, for the 1983 transitions.
-# Go with Shanks.
-#
 # From Paul Eggert (2000-01-08), following a heads-up from Rives McDow:
 # Public law 106-564 (2000-12-23) introduced the abbreviation
 # "Chamorro Standard Time" for time in Guam and the Northern Marianas.
@@ -228,7 +224,9 @@ Zone America/New_York	-4:56:02 -	LMT	1883 Nov 18 12:00
 
 # US central time, represented by Chicago
 
-# Alabama, Arkansas, Florida panhandle, Illinois, western Indiana
+# Alabama, Arkansas, Florida panhandle (Bay, Calhoun, Escambia,
+# Gulf, Holmes, Jackson, Okaloosa, Santa Rosa, Walton, and
+# Washington counties), Illinois, western Indiana
 # (Gibson, Jasper, Lake, LaPorte, Newton, Porter, Posey, Spencer,
 # Vanderburgh, and Warrick counties), Iowa, most of Kansas, western
 # Kentucky, Louisiana, Minnesota, Mississippi, Missouri, eastern
@@ -258,7 +256,7 @@ Zone America/North_Dakota/Center -6:45:12 - LMT	1883 Nov 18 12:00
 
 # US mountain time, represented by Denver
 #
-# Colorado, southern Idaho, far western Kansas, Montana, western
+# Colorado, far western Kansas, Montana, western
 # Nebraska, Nevada border (Jackpot, Owyhee, and Mountain City),
 # New Mexico, southwestern North Dakota, far eastern Oregon,
 # western South Dakota, far western Texas (El Paso County, Hudspeth County,
@@ -280,7 +278,9 @@ Zone America/Denver	-6:59:56 -	LMT	1883 Nov 18 12:00
 
 # US Pacific time, represented by Los Angeles
 #
-# California, northern Idaho, most of Nevada, most of Oregon, and Washington
+# California, northern Idaho (Benewah, Bonner, Boundary, Clearwater,
+# Idaho, Kootenai, Latah, Lewis, Nez Perce, and Shoshone counties),
+# most of Nevada, most of Oregon, and Washington
 #
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER
 Rule	CA	1948	only	-	Mar	14	2:00	1:00	D
@@ -319,13 +319,14 @@ Zone America/Juneau	 15:02:19 -	LMT	1867 Oct 18
 			 -8:00	US	P%sT	1946
 			 -8:00	-	PST	1969
 			 -8:00	US	P%sT	1983 Oct 30 2:00
+			 -9:00	US	Y%sT	1983 Nov 30
 			 -9:00	US	AK%sT
 Zone America/Yakutat	 14:41:05 -	LMT	1867 Oct 18
 			 -9:18:55 -	LMT	1900 Aug 20 12:00
 			 -9:00	-	YST	1942
 			 -9:00	US	Y%sT	1946
 			 -9:00	-	YST	1969
-			 -9:00	US	Y%sT	1983 Oct 30 2:00
+			 -9:00	US	Y%sT	1983 Nov 30
 			 -9:00	US	AK%sT
 Zone America/Anchorage	 14:00:24 -	LMT	1867 Oct 18
 			 -9:59:36 -	LMT	1900 Aug 20 12:00
@@ -334,6 +335,7 @@ Zone America/Anchorage	 14:00:24 -	LMT	1867 Oct 18
 			-10:00	-	CAT	1967 Apr
 			-10:00	-	AHST	1969
 			-10:00	US	AH%sT	1983 Oct 30 2:00
+			 -9:00	US	Y%sT	1983 Nov 30
 			 -9:00	US	AK%sT
 Zone America/Nome	 12:58:21 -	LMT	1867 Oct 18
 			-11:01:38 -	LMT	1900 Aug 20 12:00
@@ -342,6 +344,7 @@ Zone America/Nome	 12:58:21 -	LMT	1867 Oct 18
 			-11:00	-	NST	1967 Apr
 			-11:00	-	BST	1969
 			-11:00	US	B%sT	1983 Oct 30 2:00
+			 -9:00	US	Y%sT	1983 Nov 30
 			 -9:00	US	AK%sT
 Zone America/Adak	 12:13:21 -	LMT	1867 Oct 18
 			-11:46:38 -	LMT	1900 Aug 20 12:00
@@ -350,6 +353,7 @@ Zone America/Adak	 12:13:21 -	LMT	1867 Oct 18
 			-11:00	-	NST	1967 Apr
 			-11:00	-	BST	1969
 			-11:00	US	B%sT	1983 Oct 30 2:00
+			-10:00	US	AH%sT	1983 Nov 30
 			-10:00	US	HA%sT
 # Shanks writes that part of southwest Alaska (e.g. Aniak)
 # switched from -11:00 to -10:00 on 1968-09-22 at 02:00,
@@ -405,14 +409,20 @@ Zone America/Phoenix	-7:28:18 -	LMT	1883 Nov 18 12:00
 			-7:00	-	MST
 # From Arthur David Olson (1988-02-13):
 # A writer from the Inter Tribal Council of Arizona, Inc.,
-# notes in private correspondence dated 12/28/87 that "Presently, only the
+# notes in private correspondence dated 1987-12-28 that "Presently, only the
 # Navajo Nation participates in the Daylight Saving Time policy, due to its
 # large size and location in three states."  (The "only" means that other
 # tribal nations don't use DST.)
 
 Link America/Denver America/Shiprock
 
-# Southern Idaho and eastern Oregon switched four weeks late in 1974.
+# Southern Idaho (Ada, Adams, Bannock, Bear Lake, Bingham, Blaine,
+# Boise, Bonneville, Butte, Camas, Canyon, Caribou, Cassia, Clark,
+# Custer, Elmore, Franklin, Fremont, Gem, Gooding, Jefferson, Jerome,
+# Lemhi, Lincoln, Madison, Minidoka, Oneida, Owyhee, Payette, Power,
+# Teton, Twin Falls, Valley, Washington counties) and eastern Oregon
+# switched four weeks late in 1974.
+# 
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone America/Boise	-7:44:49 -	LMT	1883 Nov 18 12:00
 			-8:00	US	P%sT	1923 May 13 2:00
@@ -951,10 +961,18 @@ Rule	Mont	1922	only	-	Apr	30	2:00	1:00	D
 Rule	Mont	1924	only	-	May	17	2:00	1:00	D
 Rule	Mont	1924	1926	-	Sep	lastSun	2:30	0	S
 Rule	Mont	1925	1926	-	May	Sun>=1	2:00	1:00	D
-Rule	Mont	1927	1937	-	Apr	lastSat	24:00	1:00	D
-Rule	Mont	1927	1937	-	Sep	lastSat	24:00	0	S
-Rule	Mont	1938	1940	-	Apr	lastSun	0:00	1:00	D
-Rule	Mont	1938	1939	-	Sep	lastSun	0:00	0	S
+# The 1927-to-1937 rules can be expressed more simply as
+# Rule	Mont	1927	1937	-	Apr	lastSat	24:00	1:00	D
+# Rule	Mont	1927	1937	-	Sep	lastSat	24:00	0	S
+# The rules below avoid use of 24:00
+# (which pre-1998 versions of zic cannot handle).
+Rule	Mont	1927	only	-	May	1	0:00	1:00	D
+Rule	Mont	1927	1932	-	Sep	lastSun	0:00	0	S
+Rule	Mont	1928	1931	-	Apr	lastSun	0:00	1:00	D
+Rule	Mont	1932	only	-	May	1	0:00	1:00	D
+Rule	Mont	1933	1940	-	Apr	lastSun	0:00	1:00	D
+Rule	Mont	1933	only	-	Oct	1	0:00	0	S
+Rule	Mont	1934	1939	-	Sep	lastSun	0:00	0	S
 Rule	Mont	1946	1973	-	Apr	lastSun	2:00	1:00	D
 Rule	Mont	1945	1948	-	Sep	lastSun	2:00	0	S
 Rule	Mont	1949	1950	-	Oct	lastSun	2:00	0	S
@@ -971,14 +989,19 @@ Rule	Toronto	1922	1923	-	May	Sun>=8	2:00	1:00	D
 # Shanks says 1923-09-19; assume it's a typo and that "-16" was meant.
 Rule	Toronto	1922	1926	-	Sep	Sun>=15	2:00	0	S
 Rule	Toronto	1924	1927	-	May	Sun>=1	2:00	1:00	D
-Rule	Toronto	1927	1928	-	Sep	lastSun	2:00	0	S
-Rule	Toronto	1928	only	-	Apr	lastSun	2:00	1:00	D
-Rule	Toronto	1929	only	-	Apr	lastSun	0:00	1:00	D
-Rule	Toronto	1929	only	-	Sep	lastSun	0:00	0	S
-Rule	Toronto	1930	1937	-	Apr	lastSat	24:00	1:00	D
-Rule	Toronto	1930	1937	-	Sep	lastSat	24:00	0	S
-Rule	Toronto	1938	1940	-	Apr	lastSun	0:00	1:00	D
-Rule	Toronto	1938	1939	-	Sep	lastSun	0:00	0	S
+# The 1927-to-1939 rules can be expressed more simply as
+# Rule	Toronto	1927	1937	-	Sep	Sun>=25	2:00	0	S
+# Rule	Toronto	1928	1937	-	Apr	Sun>=25	2:00	1:00	D
+# Rule	Toronto	1938	1940	-	Apr	lastSun	2:00	1:00	D
+# Rule	Toronto	1938	1939	-	Sep	lastSun	2:00	0	S
+# The rules below avoid use of Sun>=25
+# (which pre-2004 versions of zic cannot handle).
+Rule	Toronto	1927	1932	-	Sep	lastSun	2:00	0	S
+Rule	Toronto	1928	1931	-	Apr	lastSun	2:00	1:00	D
+Rule	Toronto	1932	only	-	May	1	2:00	1:00	D
+Rule	Toronto	1933	1940	-	Apr	lastSun	2:00	1:00	D
+Rule	Toronto	1933	only	-	Oct	1	2:00	0	S
+Rule	Toronto	1934	1939	-	Sep	lastSun	2:00	0	S
 Rule	Toronto	1945	1946	-	Sep	lastSun	2:00	0	S
 Rule	Toronto	1946	only	-	Apr	lastSun	2:00	1:00	D
 Rule	Toronto	1947	1949	-	Apr	lastSun	0:00	1:00	D
@@ -996,15 +1019,19 @@ Rule	Toronto	1957	1973	-	Oct	lastSun	2:00	0	S
 # Willett (1914-03) writes (p. 17) "In the Cities of Fort William, and
 # Port Arthur, Ontario, the principle of the Bill has been in
 # operation for the past three years, and in the City of Moose Jaw,
-# Saskatchewan, for one year."  Assume that the Thunder Bay region
-# observed DST starting 1910, and Moose Jaw starting 1912, as this
-# matches the Toronto Star report about Moose Jaw.  For lack of better
-# info, assume the Thunder Bay region used Willett's proposal, namely
-# third Sunday in April at 02:00 to third Sunday in September at
-# 03:00; also assume that they continued until Canada instituted
-# uniform DST in 1918.
-Rule	Thunder	1910	1917	-	Apr	Sun>=15	2:00s	1:00	D
-Rule	Thunder	1910	1917	-	Sep	Sun>=15	2:00s	0	S
+# Saskatchewan, for one year."
+
+# From David Bryan via Tory Tronrud, Director/Curator,
+# Thunder Bay Museum (2003-11-12):
+# There is some suggestion, however, that, by-law or not, daylight
+# savings time was being practiced in Fort William and Port Arthur
+# before 1909.... [I]n 1910, the line between the Eastern and Central
+# Time Zones was permanently moved about two hundred miles west to
+# include the Thunder Bay area....  When Canada adopted daylight
+# savings time in 1916, Fort William and Port Arthur, having done so
+# already, did not change their clocks....  During the Second World
+# War,... [t]he cities agreed to implement DST during the summer
+# months for the remainder of the war years.
 
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone America/Montreal	-4:54:16 -	LMT	1884
@@ -1021,9 +1048,8 @@ Zone America/Toronto	-5:17:32 -	LMT	1895
 			-5:00	Toronto	E%sT	1974
 			-5:00	Canada	E%sT
 Zone America/Thunder_Bay -5:57:00 -	LMT	1895
-			-5:00	Thunder	E%sT	1918
-			-5:00	Canada	E%sT	1940 Sep 29
-			-5:00	1:00	EDT	1942 Feb  9 2:00s
+			-6:00	-	CST	1910
+			-5:00	-	EST	1942
 			-5:00	Canada	E%sT	1970
 			-5:00	Mont	E%sT	1973
 			-5:00	-	EST	1974
