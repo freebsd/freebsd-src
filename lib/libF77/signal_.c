@@ -1,21 +1,19 @@
 #include "f2c.h"
 
 #ifdef KR_headers
-typedef VOID (*sig_type)();
-extern sig_type signal();
-typedef int (*sig_proc)();
+typedef VOID (*sig_pf)();
+extern sig_pf signal();
+#define signal1 signal
 
-ftnint signal_(sigp, proc) integer *sigp; sig_type proc;
+ftnint signal_(sigp, proc) integer *sigp; sig_pf proc;
 #else
-#include "signal.h"
-typedef void (*sig_type)(int);
-typedef int (*sig_proc)(int);
+#include "signal1.h"
 
-ftnint signal_(integer *sigp, sig_proc proc)
+ftnint signal_(integer *sigp, sig_pf proc)
 #endif
 {
 	int sig;
 	sig = (int)*sigp;
 
-	return (ftnint)signal(sig, (sig_type)proc);
+	return (ftnint)signal(sig, proc);
 	}

@@ -11,6 +11,7 @@ extern double f__cabs(double, double);
 void c_log(complex *r, complex *z)
 #endif
 {
-r->i = atan2(z->i, z->r);
-r->r = log( f__cabs(z->r, z->i) );
-}
+	double zi;
+	r->i = atan2(zi = z->i, z->r);
+	r->r = log( f__cabs(z->r, zi) );
+	}

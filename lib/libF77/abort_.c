@@ -12,5 +12,7 @@ int abort_(void)
 #endif
 {
 sig_die("Fortran abort routine called", 1);
+#ifdef __cplusplus
 return 0;
+#endif
 }

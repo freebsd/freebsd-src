@@ -4,9 +4,9 @@ extern uiolen f__reclen;
 long f__recloc;
 
 #ifdef KR_headers
-int c_sue(a) cilist *a;
+c_sue(a) cilist *a;
 #else
-int c_sue(cilist *a)
+c_sue(cilist *a)
 #endif
 {
 	if(a->ciunit >= MXUNIT || a->ciunit < 0)
@@ -31,7 +31,7 @@ integer s_rsue(cilist *a)
 	int n;
 	if(!f__init) f_init();
 	f__reading=1;
-	if( (n=c_sue(a)) ) return(n);
+	if(n=c_sue(a)) return(n);
 	f__recpos=0;
 	if(f__curunit->uwrt && f__nowreading(f__curunit))
 		err(a->cierr, errno, "read start");
@@ -54,7 +54,7 @@ integer s_wsue(cilist *a)
 {
 	int n;
 	if(!f__init) f_init();
-	if( (n=c_sue(a)) ) return(n);
+	if(n=c_sue(a)) return(n);
 	f__reading=0;
 	f__reclen=0;
 	if(f__curunit->uwrt != 1 && f__nowwriting(f__curunit))

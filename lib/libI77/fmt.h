@@ -45,7 +45,10 @@ typedef union
 } ufloat;
 typedef union
 {	short is;
-	char ic;
+#ifndef KR_headers
+	signed
+#endif
+		char ic;
 	integer il;
 #ifdef Allow_TYQUAD
 	longint ili;

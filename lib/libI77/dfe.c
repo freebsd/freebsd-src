@@ -2,7 +2,6 @@
 #include "fio.h"
 #include "fmt.h"
 
-int
 y_rsk(Void)
 {
 	if(f__curunit->uend || f__curunit->url <= f__recpos
@@ -12,8 +11,6 @@ y_rsk(Void)
 	} while(++f__recpos < f__curunit->url);
 	return 0;
 }
-
-int
 y_getc(Void)
 {
 	int ch;
@@ -33,10 +30,7 @@ y_getc(Void)
 		return(-1);
 	}
 	err(f__elist->cierr,errno,"readingd");
-	return 0;
 }
-
-int
 #ifdef KR_headers
 y_putc(c)
 #else
@@ -50,8 +44,6 @@ y_putc(int c)
 		err(f__elist->cierr,110,"dout");
 	return(0);
 }
-
-int
 y_rev(Void)
 {	/*what about work done?*/
 	if(f__curunit->url==1 || f__recpos==f__curunit->url)
@@ -61,17 +53,11 @@ y_rev(Void)
 	f__recpos=0;
 	return(0);
 }
-
-int
 y_err(Void)
 {
 	err(f__elist->cierr, 110, "dfe");
-#ifdef __cplusplus
-	return 0;
-#endif
 }
 
-int
 y_newrec(Void)
 {
 	if(f__curunit->url == 1 || f__recpos == f__curunit->url) {
@@ -85,7 +71,6 @@ y_newrec(Void)
 	return(1);
 }
 
-int
 #ifdef KR_headers
 c_dfe(a) cilist *a;
 #else
@@ -105,7 +90,9 @@ c_dfe(cilist *a)
 	if(!f__curunit->ufmt) err(a->cierr,102,"dfe")
 	if(!f__curunit->useek) err(a->cierr,104,"dfe")
 	f__fmtbuf=a->cifmt;
-	(void) fseek(f__cf,(long)f__curunit->url * (a->cirec-1),SEEK_SET);
+	if(a->cirec <= 0)
+		err(a->cierr,130,"dfe")
+	fseek(f__cf,(long)f__curunit->url * (a->cirec-1),SEEK_SET);
 	f__curunit->uend = 0;
 	return(0);
 }
@@ -117,8 +104,8 @@ integer s_rdfe(cilist *a)
 {
 	int n;
 	if(!f__init) f_init();
-	if( (n=c_dfe(a)) )return(n);
 	f__reading=1;
+	if(n=c_dfe(a))return(n);
 	if(f__curunit->uwrt && f__nowreading(f__curunit))
 		err(a->cierr,errno,"read start");
 	f__getn = y_getc;
@@ -139,8 +126,8 @@ integer s_wdfe(cilist *a)
 {
 	int n;
 	if(!f__init) f_init();
-	if( (n=c_dfe(a)) ) return(n);
 	f__reading=0;
+	if(n=c_dfe(a)) return(n);
 	if(f__curunit->uwrt != 1 && f__nowwriting(f__curunit))
 		err(a->cierr,errno,"startwrt");
 	f__putn = y_putc;

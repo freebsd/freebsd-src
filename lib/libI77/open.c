@@ -1,4 +1,3 @@
-#include <unistd.h>
 #ifndef NON_UNIX_STDIO
 #include "sys/types.h"
 #include "sys/stat.h"
@@ -29,9 +28,9 @@ char *f__w_mode[4] = {"wb", "w", "r+b", "r+"};
 #endif
 
 #ifdef KR_headers
-int f__isdev(s) char *s;
+f__isdev(s) char *s;
 #else
-int f__isdev(char *s)
+f__isdev(char *s)
 #endif
 {
 #ifdef NON_UNIX_STDIO
@@ -165,7 +164,7 @@ integer f_open(olist *a)
 	case 'R':
  replace:
 #ifdef NON_UNIX_STDIO
-		if ( (tf = fopen(buf,f__w_mode[0])) )
+		if (tf = fopen(buf,f__w_mode[0]))
 			fclose(tf);
 #else
 		(void) close(creat(buf, 0666));
@@ -188,9 +187,9 @@ integer f_open(olist *a)
 	else {
 		if(!(b->ufd = fopen(buf, f__r_mode[ufmt]))) {
 #ifdef NON_UNIX_STDIO
-			if ( (b->ufd = fopen(buf, f__w_mode[ufmt|2])) )
+			if (b->ufd = fopen(buf, f__w_mode[ufmt|2]))
 				b->uwrt = 2;
-			else if ( (b->ufd = fopen(buf, f__w_mode[ufmt])) )
+			else if (b->ufd = fopen(buf, f__w_mode[ufmt]))
 				b->uwrt = 1;
 			else
 #else
@@ -220,9 +219,9 @@ integer f_open(olist *a)
 	return(0);
 }
 #ifdef KR_headers
-int fk_open(seq,fmt,n) ftnint n;
+fk_open(seq,fmt,n) ftnint n;
 #else
-int fk_open(int seq, int fmt, ftnint n)
+fk_open(int seq, int fmt, ftnint n)
 #endif
 {	char nbuf[10];
 	olist a;

@@ -40,9 +40,9 @@ char *ap_end(char *s)
 	/*NOTREACHED*/ return 0;
 }
 #ifdef KR_headers
-int op_gen(a,b,c,d)
+op_gen(a,b,c,d)
 #else
-int op_gen(int a, int b, int c, int d)
+op_gen(int a, int b, int c, int d)
 #endif
 {	struct syl *p= &f__syl[f__pc];
 	if(f__pc>=SYLMX)
@@ -99,9 +99,9 @@ char *f_s(char *s, int curloc)
 	return(s);
 }
 #ifdef KR_headers
-int ne_d(s,p) char *s,**p;
+ne_d(s,p) char *s,**p;
 #else
-int ne_d(char *s, char **p)
+ne_d(char *s, char **p)
 #endif
 {	int n,x,sign=0;
 	struct syl *sp;
@@ -185,9 +185,9 @@ int ne_d(char *s, char **p)
 	return(1);
 }
 #ifdef KR_headers
-int e_d(s,p) char *s,**p;
+e_d(s,p) char *s,**p;
 #else
-int e_d(char *s, char **p)
+e_d(char *s, char **p)
 #endif
 {	int i,im,n,w,d,e,found=0,x=0;
 	char *sv=s;
@@ -333,9 +333,9 @@ char *f_list(char *s)
 }
 
 #ifdef KR_headers
-int pars_f(s) char *s;
+pars_f(s) char *s;
 #else
-int pars_f(char *s)
+pars_f(char *s)
 #endif
 {
 	f__parenlvl=f__revloc=f__pc=0;
@@ -350,9 +350,9 @@ int f__cnt[STKSZ],f__ret[STKSZ],f__cp,f__rp;
 flag f__workdone, f__nonl;
 
 #ifdef KR_headers
-int type_f(n)
+type_f(n)
 #else
-int type_f(int n)
+type_f(int n)
 #endif
 {
 	switch(n)
@@ -476,8 +476,6 @@ loop:	switch(type_f((p= &f__syl[f__pc])->op))
 	}
 	return(0);
 }
-
-int
 en_fio(Void)
 {	ftnint one=1;
 	return(do_fio(&one,(char *)NULL,(ftnint)0));
