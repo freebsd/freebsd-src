@@ -1,0 +1,562 @@
+ $FreeBSD$
+;	from: @(#)syscalls.master	8.2 (Berkeley) 1/13/94
+;	from: src/sys/kern/syscalls.master 1.107
+;
+; System call name/number master file.
+; Processed to created init_sysent.c, syscalls.c and syscall.h.
+
+; Columns: number [M]type nargs namespc name alt{name,tag,rtyp}/comments
+;	number	system call number, must be in order
+;	type	one of [M]STD, [M]OBSOL, [M]UNIMPL, [M]COMPAT, [M]CPT_NOA,
+;		[M]LIBCOMPAT, [M]NODEF,  [M]NOARGS,  [M]NOPROTO,  [M]NOIMPL,
+;		[M]NOSTD
+;	namespc one of POSIX, BSD, NOHIDE
+;	name	psuedo-prototype of syscall routine
+;		If one of the following alts is different, then all appear:
+;	altname	name of system call if different
+;	alttag	name of args struct tag if different from [o]`name'"_args"
+;	altrtyp	return type if not int (bogus - syscalls always return int)
+;		for UNIMPL/OBSOL, name continues with comments
+
+; types:
+;	[M]	e.g. like MSTD -- means the system call is MP-safe.  If no
+;		M prefix is used, the syscall wrapper will obtain the Giant
+;		lock for the syscall.
+;	STD	always included
+;	COMPAT	included on COMPAT #ifdef
+;	LIBCOMPAT included on COMPAT #ifdef, and placed in syscall.h
+;	OBSOL	obsolete, not included in system, only specifies name
+;	UNIMPL	not implemented, placeholder only
+;	NOSTD	implemented but as a lkm that can be statically
+;			compiled in sysent entry will be filled with lkmsys
+;			so the SYSCALL_MODULE macro works
+
+; #ifdef's, etc. may be included, and are copied to the output files.
+
+#include <sys/param.h>
+#include <sys/sysent.h>
+#include <sys/sysproto.h>
+
+; Reserved/unimplemented system calls in the range 0-150 inclusive
+; are reserved for use in future Berkeley releases.
+; Additional system calls implemented in vendor and other
+; redistributions should be placed in the reserved range at the end
+; of the current calls.
+
+0	STD	NOHIDE	{ int nosys(void); } syscall nosys_args int
+1	MSTD	NOHIDE	{ void sys_exit(int rval); } exit sys_exit_args void
+2	MSTD	POSIX	{ int fork(void); }
+3	MSTD	POSIX	{ ssize_t read(int fd, void *buf, size_t nbyte); }
+4	MSTD	POSIX	{ ssize_t write(int fd, const void *buf, size_t nbyte); }
+5	STD	POSIX	{ int open(char *path, int flags, int mode); }
+; XXX should be		{ int open(const char *path, int flags, ...); }
+; but we're not ready for `const' or varargs.
+; XXX man page says `mode_t mode'.
+6	MSTD	POSIX	{ int close(int fd); }
+7	MSTD	BSD	{ int wait4(int pid, int *status, int options, \
+			    struct rusage *rusage); } wait4 wait_args int
+8	COMPAT	BSD	{ int creat(char *path, int mode); }
+9	STD	POSIX	{ int link(char *path, char *link); }
+10	STD	POSIX	{ int unlink(char *path); }
+11	OBSOL	NOHIDE	execv
+12	STD	POSIX	{ int chdir(char *path); }
+13	STD	BSD	{ int fchdir(int fd); }
+14	STD	POSIX	{ int mknod(char *path, int mode, int dev); }
+15	STD	POSIX	{ int chmod(char *path, int mode); }
+16	STD	POSIX	{ int chown(char *path, int uid, int gid); }
+17	MSTD	BSD	{ int obreak(char *nsize); } break obreak_args int
+18	STD	BSD	{ int getfsstat(struct statfs *buf, long bufsize, \
+			    int flags); }
+19	COMPAT	POSIX	{ long lseek(int fd, long offset, int whence); }
+20	MSTD	POSIX	{ pid_t getpid(void); }
+21	STD	BSD	{ int mount(char *type, char *path, int flags, \
+			    caddr_t data); }
+; XXX `path' should have type `const char *' but we're not ready for that.
+22	STD	BSD	{ int unmount(char *path, int flags); }
+23	MSTD	POSIX	{ int setuid(uid_t uid); }
+24	MSTD	POSIX	{ uid_t getuid(void); }
+25	MSTD	POSIX	{ uid_t geteuid(void); }
+26	STD	BSD	{ int ptrace(int req, pid_t pid, caddr_t addr, \
+			    int data); }
+27	MSTD	BSD	{ int recvmsg(int s, struct msghdr *msg, int flags); }
+28	MSTD	BSD	{ int sendmsg(int s, caddr_t msg, int flags); }
+29	MSTD	BSD	{ int recvfrom(int s, caddr_t buf, size_t len, \
+			    int flags, caddr_t from, int *fromlenaddr); }
+30	MSTD	BSD	{ int accept(int s, caddr_t name, int *anamelen); }
+31	MSTD	BSD	{ int getpeername(int fdes, caddr_t asa, int *alen); }
+32	MSTD	BSD	{ int getsockname(int fdes, caddr_t asa, int *alen); }
+33	STD	POSIX	{ int access(char *path, int flags); }
+34	STD	BSD	{ int chflags(char *path, int flags); }
+35	STD	BSD	{ int fchflags(int fd, int flags); }
+36	STD	BSD	{ int sync(void); }
+37	MSTD	POSIX	{ int kill(int pid, int signum); }
+38	COMPAT	POSIX	{ int stat(char *path, struct ostat *ub); }
+39	MSTD	POSIX	{ pid_t getppid(void); }
+40	COMPAT	POSIX	{ int lstat(char *path, struct ostat *ub); }
+41	STD	POSIX	{ int dup(u_int fd); }
+42	STD	POSIX	{ int pipe(void); }
+43	MSTD	POSIX	{ gid_t getegid(void); }
+44	MSTD	BSD	{ int profil(caddr_t samples, size_t size, \
+			    size_t offset, u_int scale); }
+45	STD	BSD	{ int ktrace(const char *fname, int ops, int facs, \
+			    int pid); }
+46	MCOMPAT	POSIX	{ int sigaction(int signum, struct osigaction *nsa, \
+			    struct osigaction *osa); }
+47	MSTD	POSIX	{ gid_t getgid(void); }
+48	MCOMPAT	POSIX	{ int sigprocmask(int how, osigset_t mask); }
+; XXX note nonstandard (bogus) calling convention - the libc stub passes
+; us the mask, not a pointer to it, and we return the old mask as the
+; (int) return value.
+49	MSTD	BSD	{ int getlogin(char *namebuf, u_int namelen); }
+50	MSTD	BSD	{ int setlogin(char *namebuf); }
+51	MSTD	BSD	{ int acct(char *path); }
+52	MCOMPAT	POSIX	{ int sigpending(void); }
+53	MSTD	BSD	{ int sigaltstack(stack_t *ss, stack_t *oss); }
+54	MSTD	POSIX	{ int ioctl(int fd, u_long com, caddr_t data); }
+55	MSTD	BSD	{ int reboot(int opt); }
+56	STD	POSIX	{ int revoke(char *path); }
+57	STD	POSIX	{ int symlink(char *path, char *link); }
+58	STD	POSIX	{ int readlink(char *path, char *buf, int count); }
+59	MSTD	POSIX	{ int execve(char *fname, char **argv, char **envv); }
+60	MSTD	POSIX	{ int umask(int newmask); } umask umask_args int
+61	STD	BSD	{ int chroot(char *path); }
+62	MCOMPAT	POSIX	{ int fstat(int fd, struct ostat *sb); }
+63	MCOMPAT	BSD	{ int getkerninfo(int op, char *where, size_t *size, \
+			    int arg); } getkerninfo getkerninfo_args int
+64	MCOMPAT	BSD	{ int getpagesize(void); } \
+			    getpagesize getpagesize_args int
+65	STD	BSD	{ int msync(void *addr, size_t len, int flags); }
+66	MSTD	BSD	{ int vfork(void); }
+67	OBSOL	NOHIDE	vread
+68	OBSOL	NOHIDE	vwrite
+69	MSTD	BSD	{ int sbrk(int incr); }
+70	MSTD	BSD	{ int sstk(int incr); }
+71	MCOMPAT	BSD	{ int mmap(void *addr, int len, int prot, \
+			    int flags, int fd, long pos); }
+72	MSTD	BSD	{ int ovadvise(int anom); } vadvise ovadvise_args int
+73	MSTD	BSD	{ int munmap(void *addr, size_t len); }
+74	MSTD	BSD	{ int mprotect(const void *addr, size_t len, int prot); }
+75	MSTD	BSD	{ int madvise(void *addr, size_t len, int behav); }
+76	OBSOL	NOHIDE	vhangup
+77	OBSOL	NOHIDE	vlimit
+78	MSTD	BSD	{ int mincore(const void *addr, size_t len, \
+			    char *vec); }
+79	MSTD	POSIX	{ int getgroups(u_int gidsetsize, gid_t *gidset); }
+80	MSTD	POSIX	{ int setgroups(u_int gidsetsize, gid_t *gidset); }
+81	MSTD	POSIX	{ int getpgrp(void); }
+82	MSTD	POSIX	{ int setpgid(int pid, int pgid); }
+83	MSTD	BSD	{ int setitimer(u_int which, struct itimerval *itv, \
+			    struct itimerval *oitv); }
+84	MCOMPAT	BSD	{ int wait(void); }
+85	MSTD	BSD	{ int swapon(char *name); }
+86	MSTD	BSD	{ int getitimer(u_int which, struct itimerval *itv); }
+87	MCOMPAT	BSD	{ int gethostname(char *hostname, u_int len); } \
+			    gethostname gethostname_args int
+88	MCOMPAT	BSD	{ int sethostname(char *hostname, u_int len); } \
+			    sethostname sethostname_args int
+89	MSTD	BSD	{ int getdtablesize(void); }
+90	MSTD	POSIX	{ int dup2(u_int from, u_int to); }
+91	UNIMPL	BSD	getdopt
+92	MSTD	POSIX	{ int fcntl(int fd, int cmd, long arg); }
+; XXX should be		{ int fcntl(int fd, int cmd, ...); }
+; but we're not ready for varargs.
+; XXX man page says `int arg' too.
+93	MSTD	BSD	{ int select(int nd, fd_set *in, fd_set *ou, \
+			    fd_set *ex, struct timeval *tv); }
+94	UNIMPL	BSD	setdopt
+95	STD	POSIX	{ int fsync(int fd); }
+96	MSTD	BSD	{ int setpriority(int which, int who, int prio); }
+97	MSTD	BSD	{ int socket(int domain, int type, int protocol); }
+98	MSTD	BSD	{ int connect(int s, caddr_t name, int namelen); }
+99	MCPT_NOA BSD	{ int accept(int s, caddr_t name, int *anamelen); } \
+			    accept accept_args int
+100	MSTD	BSD	{ int getpriority(int which, int who); }
+101	MCOMPAT	BSD	{ int send(int s, caddr_t buf, int len, int flags); }
+102	MCOMPAT	BSD	{ int recv(int s, caddr_t buf, int len, int flags); }
+103	STD	BSD	{ int osigreturn(struct osigcontext *sigcntxp); }
+104	MSTD	BSD	{ int bind(int s, caddr_t name, int namelen); }
+105	MSTD	BSD	{ int setsockopt(int s, int level, int name, \
+			    caddr_t val, int valsize); }
+106	MSTD	BSD	{ int listen(int s, int backlog); }
+107	OBSOL	NOHIDE	vtimes
+108	MCOMPAT	BSD	{ int sigvec(int signum, struct sigvec *nsv, \
+			    struct sigvec *osv); }
+109	MCOMPAT	BSD	{ int sigblock(int mask); }
+110	MCOMPAT	BSD	{ int sigsetmask(int mask); }
+111	MCOMPAT	POSIX	{ int sigsuspend(osigset_t mask); }
+; XXX note nonstandard (bogus) calling convention - the libc stub passes
+; us the mask, not a pointer to it.
+112	MCOMPAT	BSD	{ int sigstack(struct sigstack *nss, \
+			    struct sigstack *oss); }
+113	MCOMPAT	BSD	{ int recvmsg(int s, struct omsghdr *msg, int flags); }
+114	MCOMPAT	BSD	{ int sendmsg(int s, caddr_t msg, int flags); }
+115	OBSOL	NOHIDE	vtrace
+116	MSTD	BSD	{ int gettimeofday(struct timeval *tp, \
+			    struct timezone *tzp); }
+117	MSTD	BSD	{ int getrusage(int who, struct rusage *rusage); }
+118	MSTD	BSD	{ int getsockopt(int s, int level, int name, \
+			    caddr_t val, int *avalsize); }
+119	UNIMPL	NOHIDE	resuba (BSD/OS 2.x)
+120	MSTD	BSD	{ int readv(int fd, struct iovec *iovp, u_int iovcnt); }
+121	MSTD	BSD	{ int writev(int fd, struct iovec *iovp, \
+			    u_int iovcnt); }
+122	MSTD	BSD	{ int settimeofday(struct timeval *tv, \
+			    struct timezone *tzp); }
+123	STD	BSD	{ int fchown(int fd, int uid, int gid); }
+124	STD	BSD	{ int fchmod(int fd, int mode); }
+125	MCPT_NOA BSD	{ int recvfrom(int s, caddr_t buf, size_t len, \
+			    int flags, caddr_t from, int *fromlenaddr); } \
+			    recvfrom recvfrom_args int
+126	MSTD	BSD	{ int setreuid(int ruid, int euid); }
+127	MSTD	BSD	{ int setregid(int rgid, int egid); }
+128	STD	POSIX	{ int rename(char *from, char *to); }
+129	COMPAT	BSD	{ int truncate(char *path, long length); }
+130	COMPAT	BSD	{ int ftruncate(int fd, long length); }
+131	MSTD	BSD	{ int flock(int fd, int how); }
+132	STD	POSIX	{ int mkfifo(char *path, int mode); }
+133	MSTD	BSD	{ int sendto(int s, caddr_t buf, size_t len, \
+			    int flags, caddr_t to, int tolen); }
+134	MSTD	BSD	{ int shutdown(int s, int how); }
+135	MSTD	BSD	{ int socketpair(int domain, int type, int protocol, \
+			    int *rsv); }
+136	STD	POSIX	{ int mkdir(char *path, int mode); }
+137	STD	POSIX	{ int rmdir(char *path); }
+138	STD	BSD	{ int utimes(char *path, struct timeval *tptr); }
+139	OBSOL	NOHIDE	4.2 sigreturn
+140	MSTD	BSD	{ int adjtime(struct timeval *delta, \
+			    struct timeval *olddelta); }
+141	MCOMPAT	BSD	{ int getpeername(int fdes, caddr_t asa, int *alen); }
+142	MCOMPAT	BSD	{ long gethostid(void); }
+143	MCOMPAT	BSD	{ int sethostid(long hostid); }
+144	MCOMPAT	BSD	{ int getrlimit(u_int which, struct orlimit *rlp); }
+145	MCOMPAT	BSD	{ int setrlimit(u_int which, struct orlimit *rlp); }
+146	MCOMPAT	BSD	{ int killpg(int pgid, int signum); }
+147	MSTD	POSIX	{ int setsid(void); }
+148	STD	BSD	{ int quotactl(char *path, int cmd, int uid, \
+			    caddr_t arg); }
+149	MCOMPAT	BSD	{ int quota(void); }
+150	MCPT_NOA BSD	{ int getsockname(int fdec, caddr_t asa, int *alen); }\
+			    getsockname getsockname_args int
+
+; Syscalls 151-180 inclusive are reserved for vendor-specific
+; system calls.  (This includes various calls added for compatibity
+; with other Unix variants.)
+; Some of these calls are now supported by BSD...
+151	UNIMPL	NOHIDE	sem_lock (BSD/OS 2.x)
+152	UNIMPL	NOHIDE	sem_wakeup (BSD/OS 2.x)
+153	UNIMPL	NOHIDE	asyncdaemon (BSD/OS 2.x)
+154	UNIMPL	NOHIDE	nosys
+; 155 is initialized by the NFS code, if present.
+155	MNOIMPL	BSD	{ int nfssvc(int flag, caddr_t argp); }
+156	COMPAT	BSD	{ int getdirentries(int fd, char *buf, u_int count, \
+			    long *basep); }
+157	STD	BSD	{ int statfs(char *path, struct statfs *buf); }
+158	STD	BSD	{ int fstatfs(int fd, struct statfs *buf); }
+159	UNIMPL	NOHIDE	nosys
+160	UNIMPL	NOHIDE	nosys
+161	STD	BSD	{ int getfh(char *fname, struct fhandle *fhp); }
+162	MSTD	BSD	{ int getdomainname(char *domainname, int len); }
+163	MSTD	BSD	{ int setdomainname(char *domainname, int len); }
+164	MSTD	BSD	{ int uname(struct utsname *name); }
+165	STD	BSD	{ int sysarch(int op, char *parms); }
+166	MSTD	BSD	{ int rtprio(int function, pid_t pid, \
+			    struct rtprio *rtp); }
+167	UNIMPL	NOHIDE	nosys
+168	UNIMPL	NOHIDE	nosys
+; 169 is initialized by the SYSVSEM code if present or loaded
+169	MNOSTD	BSD	{ int semsys(int which, int a2, int a3, int a4, \
+			    int a5); }
+; 169 is initialized by the SYSVMSG code if present or loaded
+; XXX should be		{ int semsys(int which, ...); }
+170	MNOSTD	BSD	{ int msgsys(int which, int a2, int a3, int a4, \
+			    int a5, int a6); }
+; 169 is initialized by the SYSVSHM code if present or loaded
+; XXX should be		{ int msgsys(int which, ...); }
+171	MNOSTD	BSD	{ int shmsys(int which, int a2, int a3, int a4); }
+; XXX should be		{ int shmsys(int which, ...); }
+172	UNIMPL	NOHIDE	nosys
+173	MSTD	POSIX	{ ssize_t pread(int fd, void *buf, size_t nbyte, \
+			    int pad, off_t offset); }
+174	MSTD	POSIX	{ ssize_t pwrite(int fd, const void *buf, \
+			    size_t nbyte, int pad, off_t offset); }
+175	UNIMPL	NOHIDE	nosys
+176	MSTD	BSD	{ int ntp_adjtime(struct timex *tp); }
+177	UNIMPL	NOHIDE	sfork (BSD/OS 2.x)
+178	UNIMPL	NOHIDE	getdescriptor (BSD/OS 2.x)
+179	UNIMPL	NOHIDE	setdescriptor (BSD/OS 2.x)
+180	UNIMPL	NOHIDE	nosys
+
+; Syscalls 181-199 are used by/reserved for BSD
+181	MSTD	POSIX	{ int setgid(gid_t gid); }
+182	MSTD	BSD	{ int setegid(gid_t egid); }
+183	MSTD	BSD	{ int seteuid(uid_t euid); }
+184	UNIMPL	BSD	lfs_bmapv
+185	UNIMPL	BSD	lfs_markv
+186	UNIMPL	BSD	lfs_segclean
+187	UNIMPL	BSD	lfs_segwait
+188	STD	POSIX	{ int stat(char *path, struct stat *ub); }
+189	MSTD	POSIX	{ int fstat(int fd, struct stat *sb); }
+190	STD	POSIX	{ int lstat(char *path, struct stat *ub); }
+191	STD	POSIX	{ int pathconf(char *path, int name); }
+192	MSTD	POSIX	{ int fpathconf(int fd, int name); }
+193	UNIMPL	NOHIDE	nosys
+194	MSTD	BSD	{ int getrlimit(u_int which, \
+			    struct rlimit *rlp); } \
+			    getrlimit __getrlimit_args int
+195	MSTD	BSD	{ int setrlimit(u_int which, \
+			    struct rlimit *rlp); } \
+			    setrlimit __setrlimit_args int
+196	STD	BSD	{ int getdirentries(int fd, char *buf, u_int count, \
+			    long *basep); }
+197	MSTD	BSD	{ caddr_t mmap(caddr_t addr, size_t len, int prot, \
+			    int flags, int fd, int pad, off_t pos); }
+198	STD	NOHIDE	{ int nosys(void); } __syscall __syscall_args int
+199	STD	POSIX	{ off_t lseek(int fd, int pad, off_t offset, \
+			    int whence); }
+200	STD	BSD	{ int truncate(char *path, int pad, off_t length); }
+201	STD	BSD	{ int ftruncate(int fd, int pad, off_t length); }
+202	MSTD	BSD	{ int __sysctl(int *name, u_int namelen, void *old, \
+			    size_t *oldlenp, void *new, size_t newlen); } \
+			    __sysctl sysctl_args int
+; properly, __sysctl should be a NOHIDE, but making an exception
+; here allows to avoid one in libc/sys/Makefile.inc.
+203	MSTD	BSD	{ int mlock(const void *addr, size_t len); }
+204	MSTD	BSD	{ int munlock(const void *addr, size_t len); }
+205	STD	BSD	{ int undelete(char *path); }
+206	STD	BSD	{ int futimes(int fd, struct timeval *tptr); }
+207	MSTD	BSD	{ int getpgid(pid_t pid); }
+208	UNIMPL	NOHIDE	newreboot (NetBSD)
+209	MSTD	BSD	{ int poll(struct pollfd *fds, u_int nfds, \
+			    int timeout); }
+
+;
+; The following are reserved for loadable syscalls
+;
+210	NODEF	NOHIDE	lkmnosys lkmnosys nosys_args int
+211	NODEF	NOHIDE	lkmnosys lkmnosys nosys_args int
+212	NODEF	NOHIDE	lkmnosys lkmnosys nosys_args int
+213	NODEF	NOHIDE	lkmnosys lkmnosys nosys_args int
+214	NODEF	NOHIDE	lkmnosys lkmnosys nosys_args int
+215	NODEF	NOHIDE	lkmnosys lkmnosys nosys_args int
+216	NODEF	NOHIDE	lkmnosys lkmnosys nosys_args int
+217	NODEF	NOHIDE	lkmnosys lkmnosys nosys_args int
+218	NODEF	NOHIDE	lkmnosys lkmnosys nosys_args int
+219	NODEF	NOHIDE	lkmnosys lkmnosys nosys_args int
+
+;
+; The following were introduced with NetBSD/4.4Lite-2
+; They are initialized by thier respective modules/sysinits
+220	MNOSTD	BSD	{ int __semctl(int semid, int semnum, int cmd, \
+			    union semun *arg); }
+221	MNOSTD	BSD	{ int semget(key_t key, int nsems, int semflg); }
+222	MNOSTD	BSD	{ int semop(int semid, struct sembuf *sops, \
+			    u_int nsops); }
+223	UNIMPL	NOHIDE	semconfig
+224	MNOSTD	BSD	{ int msgctl(int msqid, int cmd, \
+			    struct msqid_ds *buf); }
+225	MNOSTD	BSD	{ int msgget(key_t key, int msgflg); }
+226	MNOSTD	BSD	{ int msgsnd(int msqid, void *msgp, size_t msgsz, \
+			    int msgflg); }
+227	MNOSTD	BSD	{ int msgrcv(int msqid, void *msgp, size_t msgsz, \
+			    long msgtyp, int msgflg); }
+228	MNOSTD	BSD	{ int shmat(int shmid, void *shmaddr, int shmflg); }
+229	MNOSTD	BSD	{ int shmctl(int shmid, int cmd, \
+			    struct shmid_ds *buf); }
+230	MNOSTD	BSD	{ int shmdt(void *shmaddr); }
+231	MNOSTD	BSD	{ int shmget(key_t key, int size, int shmflg); }
+;
+232	MSTD	POSIX	{ int clock_gettime(clockid_t clock_id, \
+			    struct timespec *tp); }
+233	MSTD	POSIX	{ int clock_settime(clockid_t clock_id, \
+			    const struct timespec *tp); }
+234	MSTD	POSIX	{ int clock_getres(clockid_t clock_id, \
+			    struct timespec *tp); }
+235	UNIMPL	NOHIDE	timer_create
+236	UNIMPL	NOHIDE	timer_delete
+237	UNIMPL	NOHIDE	timer_settime
+238	UNIMPL	NOHIDE	timer_gettime
+239	UNIMPL	NOHIDE	timer_getoverrun
+240	MSTD	POSIX	{ int nanosleep(const struct timespec *rqtp, \
+			    struct timespec *rmtp); }
+241	UNIMPL	NOHIDE	nosys
+242	UNIMPL	NOHIDE	nosys
+243	UNIMPL	NOHIDE	nosys
+244	UNIMPL	NOHIDE	nosys
+245	UNIMPL	NOHIDE	nosys
+246	UNIMPL	NOHIDE	nosys
+247	UNIMPL	NOHIDE	nosys
+248	UNIMPL	NOHIDE	nosys
+249	UNIMPL	NOHIDE	nosys
+; syscall numbers initially used in OpenBSD
+250	MSTD	BSD	{ int minherit(void *addr, size_t len, int inherit); }
+251	MSTD	BSD	{ int rfork(int flags); }
+252	MSTD	BSD	{ int openbsd_poll(struct pollfd *fds, u_int nfds, \
+			    int timeout); }
+253	STD	BSD	{ int issetugid(void); }
+254	STD	BSD	{ int lchown(char *path, int uid, int gid); }
+255	UNIMPL	NOHIDE	nosys
+256	UNIMPL	NOHIDE	nosys
+257	UNIMPL	NOHIDE	nosys
+258	UNIMPL	NOHIDE	nosys
+259	UNIMPL	NOHIDE	nosys
+260	UNIMPL	NOHIDE	nosys
+261	UNIMPL	NOHIDE	nosys
+262	UNIMPL	NOHIDE	nosys
+263	UNIMPL	NOHIDE	nosys
+264	UNIMPL	NOHIDE	nosys
+265	UNIMPL	NOHIDE	nosys
+266	UNIMPL	NOHIDE	nosys
+267	UNIMPL	NOHIDE	nosys
+268	UNIMPL	NOHIDE	nosys
+269	UNIMPL	NOHIDE	nosys
+270	UNIMPL	NOHIDE	nosys
+271	UNIMPL	NOHIDE	nosys
+272	STD	BSD	{ int getdents(int fd, char *buf, size_t count); }
+273	UNIMPL	NOHIDE	nosys
+274	STD	BSD	{ int lchmod(char *path, mode_t mode); }
+275	NOPROTO BSD	{ int lchown(char *path, uid_t uid, gid_t gid); } netbsd_lchown lchown_args int
+276	STD	BSD	{ int lutimes(char *path, struct timeval *tptr); }
+277	MNOPROTO BSD	{ int msync(void *addr, size_t len, int flags); } netbsd_msync msync_args int
+278	STD	BSD	{ int nstat(char *path, struct nstat *ub); }
+279	MSTD	BSD	{ int nfstat(int fd, struct nstat *sb); }
+280	STD	BSD	{ int nlstat(char *path, struct nstat *ub); }
+281	UNIMPL	NOHIDE	nosys
+282	UNIMPL	NOHIDE	nosys
+283	UNIMPL	NOHIDE	nosys
+284	UNIMPL	NOHIDE	nosys
+285	UNIMPL	NOHIDE	nosys
+286	UNIMPL	NOHIDE	nosys
+287	UNIMPL	NOHIDE	nosys
+288	UNIMPL	NOHIDE	nosys
+289	UNIMPL	NOHIDE	nosys
+290	UNIMPL	NOHIDE	nosys
+291	UNIMPL	NOHIDE	nosys
+292	UNIMPL	NOHIDE	nosys
+293	UNIMPL	NOHIDE	nosys
+294	UNIMPL	NOHIDE	nosys
+295	UNIMPL	NOHIDE	nosys
+296	UNIMPL	NOHIDE	nosys
+; XXX 297 is 300 in NetBSD 
+297	STD	BSD	{ int fhstatfs(const struct fhandle *u_fhp, struct statfs *buf); }
+298	STD	BSD	{ int fhopen(const struct fhandle *u_fhp, int flags); }
+299	STD	BSD 	{ int fhstat(const struct fhandle *u_fhp, struct stat *sb); }
+; syscall numbers for FreeBSD
+300	MSTD	BSD	{ int modnext(int modid); }
+301	MSTD	BSD	{ int modstat(int modid, struct module_stat* stat); }
+302	MSTD	BSD	{ int modfnext(int modid); }
+303	MSTD	BSD	{ int modfind(const char *name); }
+304	MSTD	BSD	{ int kldload(const char *file); }
+305	MSTD	BSD	{ int kldunload(int fileid); }
+306	MSTD	BSD	{ int kldfind(const char *file); }
+307	MSTD	BSD	{ int kldnext(int fileid); }
+308	MSTD	BSD	{ int kldstat(int fileid, struct kld_file_stat* stat); }
+309	MSTD	BSD	{ int kldfirstmod(int fileid); }
+310	MSTD	BSD	{ int getsid(pid_t pid); }
+311	MSTD	BSD	{ int setresuid(uid_t ruid, uid_t euid, uid_t suid); }
+312	MSTD	BSD	{ int setresgid(gid_t rgid, gid_t egid, gid_t sgid); }
+313	OBSOL	NOHIDE	signanosleep
+314     NOSTD   BSD     { int aio_return(struct aiocb *aiocbp); }
+315     NOSTD   BSD     { int aio_suspend(struct aiocb * const * aiocbp, int nent, const struct timespec *timeout); }
+316     NOSTD   BSD     { int aio_cancel(int fd, struct aiocb *aiocbp); }
+317     NOSTD   BSD     { int aio_error(struct aiocb *aiocbp); }
+318     NOSTD   BSD     { int aio_read(struct aiocb *aiocbp); }
+319     NOSTD   BSD     { int aio_write(struct aiocb *aiocbp); }
+320     NOSTD   BSD     { int lio_listio(int mode, struct aiocb * const *acb_list, int nent, struct sigevent *sig); }
+321     MSTD	BSD     { int yield(void); }
+322	OBSOL	NOHIDE	thr_sleep
+323	OBSOL	NOHIDE	thr_wakeup
+324     MSTD	BSD     { int mlockall(int how); }
+325     MSTD	BSD     { int munlockall(void); }
+326     STD     BSD     { int __getcwd(u_char *buf, u_int buflen); }
+
+327     MSTD     POSIX   { int sched_setparam (pid_t pid, const struct sched_param *param); }
+328     MSTD     POSIX   { int sched_getparam (pid_t pid, struct sched_param *param); }
+
+329     MSTD     POSIX   { int sched_setscheduler (pid_t pid, int policy, const struct sched_param *param); }
+330     MSTD     POSIX   { int sched_getscheduler (pid_t pid); }
+
+331     MSTD     POSIX   { int sched_yield (void); }
+332     MSTD     POSIX   { int sched_get_priority_max (int policy); }
+333     MSTD     POSIX   { int sched_get_priority_min (int policy); }
+334     MSTD     POSIX   { int sched_rr_get_interval (pid_t pid, struct timespec *interval); }
+335	STD	BSD	{ int utrace(const void *addr, size_t len); }
+336	MSTD	BSD	{ int sendfile(int fd, int s, off_t offset, size_t nbytes, \
+				struct sf_hdtr *hdtr, off_t *sbytes, int flags); }
+337	STD	BSD	{ int kldsym(int fileid, int cmd, void *data); }
+338	MSTD	BSD	{ int jail(struct jail *jail); }
+339	UNIMPL	BSD	pioctl
+340	MSTD	POSIX	{ int sigprocmask(int how, const sigset_t *set, \
+			    sigset_t *oset); }
+341	MSTD	POSIX	{ int sigsuspend(const sigset_t *sigmask); }
+342	MSTD	POSIX	{ int sigaction(int sig, const struct sigaction *act, \
+			    struct sigaction *oact); }
+343	MSTD	POSIX	{ int sigpending(sigset_t *set); }
+344	STD	BSD	{ int sigreturn(const struct __ucontext *sigcntxp); }
+345	UNIMPL	NOHIDE	sigtimedwait
+346	UNIMPL	NOHIDE	sigwaitinfo
+347	MSTD	BSD	{ int __acl_get_file(const char *path, \
+			    acl_type_t type, struct acl *aclp); }
+348	MSTD	BSD	{ int __acl_set_file(const char *path, \
+			    acl_type_t type, struct acl *aclp); }
+349	MSTD	BSD	{ int __acl_get_fd(int filedes, acl_type_t type, \
+			    struct acl *aclp); }
+350	MSTD	BSD	{ int __acl_set_fd(int filedes, acl_type_t type, \
+			    struct acl *aclp); }
+351	MSTD	BSD	{ int __acl_delete_file(const char *path, \
+			    acl_type_t type); }
+352	MSTD	BSD	{ int __acl_delete_fd(int filedes, acl_type_t type); }
+353	MSTD	BSD	{ int __acl_aclcheck_file(const char *path, \
+			    acl_type_t type, struct acl *aclp); }
+354	MSTD	BSD	{ int __acl_aclcheck_fd(int filedes, acl_type_t type, \
+			    struct acl *aclp); }
+355	STD	BSD	{ int extattrctl(const char *path, int cmd, \
+			    const char *filename, int attrnamespace, \
+			    const char *attrname); }
+356	STD	BSD	{ int extattr_set_file(const char *path, \
+			    int attrnamespace, const char *attrname, \
+			    void *data, size_t nbytes); }
+357	STD	BSD	{ ssize_t extattr_get_file(const char *path, \
+			    int attrnamespace, const char *attrname, \
+			    void *data, size_t nbytes); }
+358	STD	BSD	{ int extattr_delete_file(const char *path, \
+			    int attrnamespace, const char *attrname); }
+359	NOSTD	BSD	{ int aio_waitcomplete(struct aiocb **aiocbp, struct timespec *timeout); }
+360	MSTD	BSD	{ int getresuid(uid_t *ruid, uid_t *euid, uid_t *suid); }
+361	MSTD	BSD	{ int getresgid(gid_t *rgid, gid_t *egid, gid_t *sgid); }
+362	MSTD	BSD	{ int kqueue(void); }
+363	MSTD	BSD	{ int kevent(int fd, \
+			    const struct kevent *changelist, int nchanges, \
+			    struct kevent *eventlist, int nevents, \
+			    const struct timespec *timeout); }
+364	STD	BSD	{ int __cap_get_proc(struct cap *cap_p); }
+365	STD	BSD	{ int __cap_set_proc(struct cap *cap_p); }
+366	STD	BSD	{ int __cap_get_fd(int fd, struct cap *cap_p); }
+367	STD	BSD	{ int __cap_get_file(const char *path_p, struct cap *cap_p); }
+368	STD	BSD	{ int __cap_set_fd(int fd, struct cap *cap_p); }
+369	STD	BSD	{ int __cap_set_file(const char *path_p, struct cap *cap_p); }
+370	NODEF	NOHIDE	lkmressys lkmressys nosys_args int
+371	STD	BSD	{ int extattr_set_fd(int fd, int attrnamespace, \
+			    const char *attrname, void *data, \
+			    size_t nbytes); }
+372	STD	BSD	{ ssize_t extattr_get_fd(int fd, int attrnamespace, \
+			    const char *attrname, void *data, size_t nbytes); }
+373	STD	BSD	{ int extattr_delete_fd(int fd, int attrnamespace, \
+			    const char *attrname); }
+374	MSTD	BSD	{ int __setugid(int flag); }
+375	NOIMPL	BSD	{ int nfsclnt(int flag, caddr_t argp); }
+376	STD	BSD	{ int eaccess(char *path, int flags); }
+377	UNIMPL	BSD	afs_syscall
+378	STD	BSD	{ int nmount(struct iovec *iovp, unsigned int iovcnt, \
+			    int flags); }
+379	STD	BSD	{ int kse_exit(void); }
+380	STD	BSD	{ int kse_wakeup(void); }
+381	STD	BSD	{ int kse_new(struct kse_mailbox * mbx, \
+			int new_grp_flag); }
+382	STD	BSD	{ int thread_wakeup(struct thread_mailbox *tmbx); }
+383	STD	BSD	{ int kse_yield(void); }
+384	UNIMPL	BSD	__mac_get_proc
+385	UNIMPL	BSD	__mac_set_proc
+386	UNIMPL	BSD	__mac_get_fd
+387	UNIMPL	BSD	__mac_get_file
+388	UNIMPL	BSD	__mac_set_fd
+389	UNIMPL	BSD	__mac_set_file
