@@ -7,6 +7,11 @@ if [ -z "$TESTDIR" ]; then
 fi
 cd $TESTDIR
 
+# Note that currently the uuencode(1) program provides no facility to
+# include the file mode explicitly based on an argument passed to it,
+# so the regress.in file must be mode 644, or the test will say that,
+# incorrectly, regression has occurred based on the header.
+
 for test in traditional base64; do
   echo "Running test $test"
   case "$test" in
