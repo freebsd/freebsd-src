@@ -69,9 +69,9 @@ static const char rcsid[] =
 #include <unistd.h>
 #include "pathnames.h"
 
-char *qfname = QUOTAFILENAME;
-char *qfextension[] = INITQFNAMES;
-char *quotagroup = QUOTAGROUP;
+const char *qfname = QUOTAFILENAME;
+const char *qfextension[] = INITQFNAMES;
+const char *quotagroup = QUOTAGROUP;
 char tmpfil[] = _PATH_TMP;
 
 struct quotause {
@@ -83,12 +83,12 @@ struct quotause {
 };
 #define	FOUND	0x01
 
-int alldigits __P((char *s));
+int alldigits __P((const char *s));
 int cvtatos __P((time_t, char *, time_t *));
 char *cvtstoa __P((time_t));
 int editit __P((char *));
 void freeprivs __P((struct quotause *));
-int getentry __P((char *, int));
+int getentry __P((const char *, int));
 struct quotause *getprivs __P((long, int, char *));
 int hasquota __P((struct fstab *, int, char **));
 void putprivs __P((long, int, struct quotause *));
@@ -220,7 +220,7 @@ usage()
  */
 int
 getentry(name, quotatype)
-	char *name;
+	const char *name;
 	int quotatype;
 {
 	struct passwd *pw;
@@ -364,11 +364,11 @@ putprivs(id, quotatype, quplist)
  * Take a list of priviledges and get it edited.
  */
 int
-editit(tmpfile)
-	char *tmpfile;
+editit(tmpf)
+	char *tmpf;
 {
 	long omask;
-	int pid, stat;
+	int pid, status;
 
 	omask = sigblock(sigmask(SIGINT)|sigmask(SIGQUIT)|sigmask(SIGHUP));
  top:
@@ -386,19 +386,19 @@ editit(tmpfile)
 		return (0);
 	}
 	if (pid == 0) {
-		register char *ed;
+		register const char *ed;
 
 		sigsetmask(omask);
 		setgid(getgid());
 		setuid(getuid());
 		if ((ed = getenv("EDITOR")) == (char *)0)
 			ed = _PATH_VI;
-		execlp(ed, ed, tmpfile, (char *)0);
+		execlp(ed, ed, tmpf, (char *)0);
 		err(1, "%s", ed);
 	}
-	waitpid(pid, &stat, 0);
+	waitpid(pid, &status, 0);
 	sigsetmask(omask);
-	if (!WIFEXITED(stat) || WEXITSTATUS(stat) != 0)
+	if (!WIFEXITED(status) || WEXITSTATUS(status) != 0)
 		return (0);
 	return (1);
 }
@@ -653,22 +653,22 @@ readtimes(quplist, inname)
  * Convert seconds to ASCII times.
  */
 char *
-cvtstoa(time)
-	time_t time;
+cvtstoa(secs)
+	time_t secs;
 {
 	static char buf[20];
 
-	if (time % (24 * 60 * 60) == 0) {
-		time /= 24 * 60 * 60;
-		sprintf(buf, "%ld day%s", (long)time, time == 1 ? "" : "s");
-	} else if (time % (60 * 60) == 0) {
-		time /= 60 * 60;
-		sprintf(buf, "%ld hour%s", (long)time, time == 1 ? "" : "s");
-	} else if (time % 60 == 0) {
-		time /= 60;
-		sprintf(buf, "%ld minute%s", (long)time, time == 1 ? "" : "s");
+	if (secs % (24 * 60 * 60) == 0) {
+		secs /= 24 * 60 * 60;
+		sprintf(buf, "%ld day%s", (long)secs, secs == 1 ? "" : "s");
+	} else if (secs % (60 * 60) == 0) {
+		secs /= 60 * 60;
+		sprintf(buf, "%ld hour%s", (long)secs, secs == 1 ? "" : "s");
+	} else if (secs % 60 == 0) {
+		secs /= 60;
+		sprintf(buf, "%ld minute%s", (long)secs, secs == 1 ? "" : "s");
 	} else
-		sprintf(buf, "%ld second%s", (long)time, time == 1 ? "" : "s");
+		sprintf(buf, "%ld second%s", (long)secs, secs == 1 ? "" : "s");
 	return (buf);
 }
 
@@ -676,20 +676,20 @@ cvtstoa(time)
  * Convert ASCII input times to seconds.
  */
 int
-cvtatos(time, units, seconds)
-	time_t time;
+cvtatos(period, units, seconds)
+	time_t period;
 	char *units;
 	time_t *seconds;
 {
 
 	if (bcmp(units, "second", 6) == 0)
-		*seconds = time;
+		*seconds = period;
 	else if (bcmp(units, "minute", 6) == 0)
-		*seconds = time * 60;
+		*seconds = period * 60;
 	else if (bcmp(units, "hour", 4) == 0)
-		*seconds = time * 60 * 60;
+		*seconds = period * 60 * 60;
 	else if (bcmp(units, "day", 3) == 0)
-		*seconds = time * 24 * 60 * 60;
+		*seconds = period * 24 * 60 * 60;
 	else {
 		printf("%s: bad units, specify %s\n", units,
 		    "days, hours, minutes, or seconds");
@@ -718,9 +718,9 @@ freeprivs(quplist)
  */
 int
 alldigits(s)
-	register char *s;
+	register const char *s;
 {
-	register c;
+	register int c;
 
 	c = *s++;
 	do {
