@@ -42,22 +42,25 @@
 
 #define ACPIDEV	"/dev/acpi"
 
+static int	acpifd;
+
+static int
+acpi_init()
+{
+	acpifd = open(ACPIDEV, O_RDWR);
+	if (acpifd == -1)
+		err(EX_OSFILE, ACPIDEV);
+}
+
 static int
 acpi_enable_disable(int enable)
 {
-	int	fd;
-
-	fd  = open(ACPIDEV, O_RDWR);
-	if (fd == -1) {
-		err(EX_OSFILE, ACPIDEV);
-	}
-	if (ioctl(fd, enable, NULL) == -1) {
+	if (ioctl(acpifd, enable, NULL) == -1) {
 		if (enable == ACPIIO_ENABLE)
 			err(EX_IOERR, "enable failed");
 		else
 			err(EX_IOERR, "disable failed");
 	}
-	close(fd);
 
 	return (0);
 }
@@ -65,16 +68,43 @@ acpi_enable_disable(int enable)
 static int
 acpi_sleep(int sleep_type)
 {
-	int	fd;
-
-	fd  = open(ACPIDEV, O_RDWR);
-	if (fd == -1) {
-		err(EX_OSFILE, ACPIDEV);
-	}
-	if (ioctl(fd, ACPIIO_SETSLPSTATE, &sleep_type) == -1) {
+	if (ioctl(acpifd, ACPIIO_SETSLPSTATE, &sleep_type) == -1)
 		err(EX_IOERR, "sleep type (%d) failed", sleep_type);
-	}
-	close(fd);
+
+	return (0);
+}
+
+static int
+acpi_battinfo(int num)
+{
+	union acpi_battery_ioctl_arg battio;
+	const char *pwr_units;
+
+	if (num < 0 || num > 64)
+		err(EX_USAGE, "invalid battery %d", num);
+
+	battio.unit = num;
+	if (ioctl(acpifd, ACPIIO_CMBAT_GET_BIF, &battio) == -1)
+		err(EX_IOERR, "get battery info (%d) failed", num);
+	printf("Battery %d information\n", num);
+	if (battio.bif.units == 0)
+		pwr_units = "mWh";
+	else
+		pwr_units = "mAh";
+
+	printf("Design capacity:\t%d %s\n", battio.bif.dcap, pwr_units);
+	printf("Last full capacity:\t%d %s\n", battio.bif.lfcap, pwr_units);
+	printf("Technology:\t\t%s\n", battio.bif.btech == 0 ?
+	    "primary (non-rechargeable)" : "secondary (rechargeable)");
+	printf("Design voltage:\t\t%d mV\n", battio.bif.dvol);
+	printf("Capacity (warn):\t%d %s\n", battio.bif.wcap, pwr_units);
+	printf("Capacity (low):\t\t%d %s\n", battio.bif.lcap, pwr_units);
+	printf("Low/warn granularity:\t%d %s\n", battio.bif.gra1, pwr_units);
+	printf("Warn/full granularity:\t%d %s\n", battio.bif.gra2, pwr_units);
+	printf("Model number:\t\t%s\n", battio.bif.model);
+	printf("Serial number:\t\t%s\n", battio.bif.serial);
+	printf("Type:\t\t\t%s\n", battio.bif.type);
+	printf("OEM info:\t\t%s\n", battio.bif.oeminfo);
 
 	return (0);
 }
@@ -82,7 +112,7 @@ acpi_sleep(int sleep_type)
 static void
 usage(const char* prog)
 {
-	printf("usage: %s [-deh] [-s [1|2|3|4|4b|5]]\n", prog);
+	printf("usage: %s [-deh] [-i batt] [-s 1-5]\n", prog);
 	exit(0);
 }
 
@@ -93,21 +123,23 @@ main(int argc, char *argv[])
 	int	sleep_type;
 
 	prog = argv[0];
+	if (argc < 2)
+		usage(prog);
+		/* NOTREACHED */
+
 	sleep_type = -1;
-	while ((c = getopt(argc, argv, "dehs:")) != -1) {
+	acpi_init();
+	while ((c = getopt(argc, argv, "dehi:s:")) != -1) {
 		switch (c) {
+		case 'i':
+			acpi_battinfo(atoi(optarg));
+			break;
 		case 'd':
 			acpi_enable_disable(ACPIIO_DISABLE);
 			break;
-
 		case 'e':
 			acpi_enable_disable(ACPIIO_ENABLE);
 			break;
-
-		case 'h':
-			usage(prog);
-			break;
-
 		case 's':
 			if (optarg[0] == 'S')
 				sleep_type = optarg[1] - '0';
@@ -115,17 +147,22 @@ main(int argc, char *argv[])
 				sleep_type = optarg[0] - '0';
 			if (sleep_type < 0 || sleep_type > 5)
 				errx(EX_USAGE, "invalid sleep type (%d)",
-				    sleep_type);
+				     sleep_type);
 			break;
+		case 'h':
 		default:
-			argc -= optind;
-			argv += optind;
+			usage(prog);
+			/* NOTREACHED */
 		}
 	}
+	argc -= optind;
+	argv += optind;
 
 	if (sleep_type != -1) {
 		sleep(1);	/* wait 1 sec. for key-release event */
 		acpi_sleep(sleep_type);
 	}
-	return (0);
+
+	close(acpifd);
+	exit (0);
 }
