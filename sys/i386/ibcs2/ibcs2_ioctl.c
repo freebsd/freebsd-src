@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ibcs2_ioctl.c,v 1.13 1994/10/12 20:28:06 sos Exp $
+ *	$Id: ibcs2_ioctl.c,v 1.1 1994/10/14 08:53:02 sos Exp $
  */
 
 #include <i386/ibcs2/ibcs2.h>
@@ -743,8 +743,29 @@ ibcs2_ioctl(struct proc *p, struct ibcs2_ioctl_args *args, int *retval)
 		break;
 
 	/* below is console ioctl's, we have syscons so no problem here */
+	case 'a':
+		switch (num) {
+		case 0:
+			args->cmd = GIO_ATTR;
+			ioctl(p, args, retval);
+			IBCS2_MAGIC_RETURN(args);
+		}
+		break;
+
 	case 'c':
 		switch (num) {
+		case 0:
+			args->cmd = GIO_COLOR;
+			ioctl(p, args, retval);
+			IBCS2_MAGIC_RETURN(args);
+		case 1:
+			args->cmd = CONS_CURRENT;
+			ioctl(p, args, retval);
+			IBCS2_MAGIC_RETURN(args);
+		case 2:
+			args->cmd = CONS_GET;
+			ioctl(p, args, retval);
+			IBCS2_MAGIC_RETURN(args);
 		case 4:
 			args->cmd = CONS_BLANKTIME;
 			return ioctl(p, args, retval);
@@ -843,8 +864,8 @@ ibcs2_ioctl(struct proc *p, struct ibcs2_ioctl_args *args, int *retval)
 		break;
 
 	case 'S':
-			args->cmd = _IO('S', num);
-			return ioctl(p, args, retval);
+		args->cmd = _IO('S', num);
+		return ioctl(p, args, retval);
 
 	case 'v':
 		switch (num) {
@@ -868,6 +889,15 @@ ibcs2_ioctl(struct proc *p, struct ibcs2_ioctl_args *args, int *retval)
 			return ioctl(p, args, retval);
 		}
 		break;
+	}
+
+	switch (type & 0xff) {
+	case 'I':	/* socksys 'I' type calls */
+		return ioctl(p, args, retval);
+	case 'R':	/* socksys 'R' type calls */
+		return ioctl(p, args, retval);
+	case 'S':	/* socksys 'S' type calls */
+		return ioctl(p, args, retval);
 	}
 	uprintf("IBCS2: 'ioctl' fd=%d, typ=%d(%c), num=%d not implemented\n",
 			args->fd, type, type, num);
