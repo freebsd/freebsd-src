@@ -6,10 +6,11 @@ GREP_LIBZ= YES
 GREP_FTS=  YES
 
 PROG=	grep
-SRCS=   dfa.c grep.c getopt.c kwset.c obstack.c search.c
+SRCS=	dfa.c grep.c getopt.c getopt1.c kwset.c obstack.c savedir.c search.c \
+	stpcpy.c
 CFLAGS+=-DGREP -DHAVE_STRING_H=1 -DHAVE_SYS_PARAM_H=1 -DHAVE_UNISTD_H=1 \
 	-DHAVE_GETPAGESIZE=1 -DHAVE_MEMCHR=1 -DHAVE_STRERROR=1 \
-	-DHAVE_VALLOC=1 -DHAVE_WORKING_MMAP=1
+	-DHAVE_VALLOC=1 -DHAVE_WORKING_MMAP=1 -DVERSION=\"2.3\" -DHAVE_DIRENT_H
 
 LINKS+= ${BINDIR}/grep ${BINDIR}/egrep \
 	${BINDIR}/grep ${BINDIR}/fgrep
