@@ -259,6 +259,7 @@ foreach $packageName (sort keys %currentPackages) {
 	}
     }
     else {
+	next if $ShowCommandsFlag;
 	$versionCode = "?";
 	$Comment = "unknown in index";
     }
