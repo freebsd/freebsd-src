@@ -489,6 +489,7 @@ struct	mbuf	*m_getcl(int, short, int);
 struct	mbuf	*m_gethdr(int, short);
 struct	mbuf	*m_gethdr_clrd(int, short);
 struct	mbuf	*m_getm(struct mbuf *, int, int, short);
+int		 m_length(struct mbuf *m, struct mbuf **l);
 struct	mbuf	*m_prepend(struct mbuf *, int, int);
 void		 m_print(const struct mbuf *m);
 struct	mbuf	*m_pulldown(struct mbuf *, int, int, int *);
