@@ -984,4 +984,4 @@ static moduledata_t tkip_mod = {
 };
 DECLARE_MODULE(wlan_tkip, tkip_mod, SI_SUB_DRIVERS, SI_ORDER_FIRST);
 MODULE_VERSION(wlan_tkip, 1);
-MODULE_DEPEND(wlan_wep, wlan, 1, 1, 1);
+MODULE_DEPEND(wlan_tkip, wlan, 1, 1, 1);
