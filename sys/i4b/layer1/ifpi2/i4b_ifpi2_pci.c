@@ -950,8 +950,8 @@ avma1pp2_disable(device_t dev)
 	bus_space_handle_t bhandle = rman_get_bushandle(sc->sc_resources.io_base[0]);
 	bus_space_tag_t btag = rman_get_bustag(sc->sc_resources.io_base[0]); 
 
-	/* could be wrong */
-	bus_space_write_1(btag, bhandle, STAT0_OFFSET, 0x07);
+	/* could still be wrong, but it seems to help */
+	bus_space_write_1(btag, bhandle, STAT0_OFFSET, 0x00);
 }
 
 static void
