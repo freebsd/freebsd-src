@@ -1,4 +1,4 @@
-/* $Id: ispvar.h,v 1.1 1998/04/22 17:54:58 mjacob Exp $ */
+/* $Id: ispvar.h,v 1.2 1998/05/01 18:10:50 bde Exp $ */
 /*
  * Soft Definitions for for Qlogic ISP SCSI adapters.
  *
@@ -89,7 +89,7 @@ struct ispmdvec {
  */
 
 typedef struct {
-        u_int16_t	isp_adapter_enabled	: 1,
+        u_int		isp_adapter_enabled	: 1,
         		isp_req_ack_active_neg	: 1,	
 	        	isp_data_line_active_neg: 1,
 			isp_cmd_dma_burst_enable: 1,
@@ -109,7 +109,7 @@ typedef struct {
 		u_int8_t	dev_flags;	/* Device Flags - see below */
 		u_int8_t	exc_throttle;
 		u_int8_t	sync_period;
-		u_int8_t	sync_offset	: 4,
+		u_int		sync_offset	: 4,
 				dev_enable	: 1;
 	} isp_devparam[MAX_TARGETS];
 } sdparam;	/* scsi device parameters */

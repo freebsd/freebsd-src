@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_fxpreg.h,v 1.11 1997/09/29 11:27:42 davidg Exp $
+ *	$Id: if_fxpreg.h,v 1.12 1998/03/03 14:19:09 dg Exp $
  */
 
 #define FXP_VENDORID_INTEL	0x8086
@@ -116,57 +116,57 @@ struct fxp_cb_config {
 	volatile u_int16_t	cb_status;
 	volatile u_int16_t	cb_command;
 	volatile u_int32_t	link_addr;
-	volatile u_int8_t	byte_count:6,
+	volatile u_int		byte_count:6,
 				:2;
-	volatile u_int8_t	rx_fifo_limit:4,
+	volatile u_int		rx_fifo_limit:4,
 				tx_fifo_limit:3,
 				:1;
 	volatile u_int8_t	adaptive_ifs;
-	volatile u_int8_t	:8;
-	volatile u_int8_t	rx_dma_bytecount:7,
+	volatile u_int		:8;
+	volatile u_int		rx_dma_bytecount:7,
 				:1;
-	volatile u_int8_t	tx_dma_bytecount:7,
+	volatile u_int		tx_dma_bytecount:7,
 				dma_bce:1;
-	volatile u_int8_t	late_scb:1,
+	volatile u_int		late_scb:1,
 				:1,
 				tno_int:1,
 				ci_int:1,
 				:3,
 				save_bf:1;
-	volatile u_int8_t	disc_short_rx:1,
+	volatile u_int		disc_short_rx:1,
 				underrun_retry:2,
 				:5;
-	volatile u_int8_t	mediatype:1,
+	volatile u_int		mediatype:1,
 				:7;
-	volatile u_int8_t	:8;
-	volatile u_int8_t	:3,
+	volatile u_int		:8;
+	volatile u_int		:3,
 				nsai:1,
 				preamble_length:2,
 				loopback:2;
-	volatile u_int8_t	linear_priority:3,
+	volatile u_int		linear_priority:3,
 				:5;
-	volatile u_int8_t	linear_pri_mode:1,
+	volatile u_int		linear_pri_mode:1,
 				:3,
 				interfrm_spacing:4;
-	volatile u_int8_t	:8;
-	volatile u_int8_t	:8;
-	volatile u_int8_t	promiscuous:1,
+	volatile u_int		:8;
+	volatile u_int		:8;
+	volatile u_int		promiscuous:1,
 				bcast_disable:1,
 				:5,
 				crscdt:1;
-	volatile u_int8_t	:8;
-	volatile u_int8_t	:8;
-	volatile u_int8_t	stripping:1,
+	volatile u_int		:8;
+	volatile u_int		:8;
+	volatile u_int		stripping:1,
 				padding:1,
 				rcv_crc_xfer:1,
 				:5;
-	volatile u_int8_t	:6,
+	volatile u_int		:6,
 				force_fdx:1,
 				fdx_pin_en:1;
-	volatile u_int8_t	:6,
+	volatile u_int		:6,
 				multi_ia:1,
 				:1;
-	volatile u_int8_t	:3,
+	volatile u_int		:3,
 				mc_all:1,
 				:4;
 };

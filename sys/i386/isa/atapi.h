@@ -241,13 +241,13 @@ struct atapicmd {                       /* ATAPI command block */
 struct atapi {                          /* ATAPI controller data */
 	u_short          port;          /* i/o port base */
 	u_char           ctrlr;         /* physical controller number */
-	u_char           debug : 1;     /* trace enable flag */
-	u_char           cmd16 : 1;     /* 16-byte command flag */
-	u_char           intrcmd : 1;   /* interrupt before cmd flag */
-	u_char           slow : 1;      /* slow reaction device */
-	u_char           accel : 1;     /* accelerated reaction device */
-	u_char           use_dsc : 1;	/* use DSC completition handeling */
-	u_char		 wait_for_dsc : 1;
+	u_int            debug : 1;     /* trace enable flag */
+	u_int            cmd16 : 1;     /* 16-byte command flag */
+	u_int            intrcmd : 1;   /* interrupt before cmd flag */
+	u_int            slow : 1;      /* slow reaction device */
+	u_int            accel : 1;     /* accelerated reaction device */
+	u_int            use_dsc : 1;	/* use DSC completition handeling */
+	u_int 		 wait_for_dsc : 1;
 	u_int		 dsc_timeout;
 	u_char           attached[2];   /* units are attached to subdrivers */
 	struct atapi_params *params[2]; /* params for units 0,1 */

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: wst.c,v 1.4 1998/04/20 18:51:33 sos Exp $
+ *	$Id: wst.c,v 1.5 1998/06/08 06:18:52 bde Exp $
  */
 
 #include "wdc.h"
@@ -108,33 +108,33 @@ struct wst_header {
 #define ATAPI_TAPE_CAP_PAGE     0x2a
 
 struct wst_cappage {
-    u_char  page_code		:6;	/* Page code == 0x2a */
-    u_char  reserved1_67	:2;
+    u_int   page_code		:6;	/* Page code == 0x2a */
+    u_int   reserved1_67	:2;
     u_char  page_length;        	/* Page Length == 0x12 */
     u_char  reserved2;
     u_char  reserved3;
-    u_char  readonly		:1;	/* Read Only Mode */
-    u_char  reserved4_1234	:4;
-    u_char  reverse		:1;	/* Supports reverse direction */
-    u_char  reserved4_67	:2;
-    u_char  reserved5_012	:3;
-    u_char  eformat		:1;	/* Supports ERASE formatting */
-    u_char  reserved5_4		:1;
-    u_char  qfa     		:1;	/* Supports QFA formats */
-    u_char  reserved5_67    	:2;
-    u_char  lock        	:1;	/* Supports locking media */
-    u_char  locked      	:1;	/* The media is locked */
-    u_char  prevent     	:1;	/* Defaults  to prevent state */
-    u_char  eject       	:1;	/* Supports eject */
-    u_char  disconnect		:1;	/* Can break request > ctl */
-    u_char  reserved6_5    	:1;
-    u_char  ecc     		:1;	/* Supports error correction */
-    u_char  compress    	:1;	/* Supports data compression */
-    u_char  reserved7_0 	:1;
-    u_char  blk512      	:1;	/* Supports 512b block size */
-    u_char  blk1024     	:1;	/* Supports 1024b block size */
-    u_char  reserved7_3456  	:4;
-    u_char  slowb       	:1;	/* Restricts byte count */
+    u_int   readonly		:1;	/* Read Only Mode */
+    u_int   reserved4_1234	:4;
+    u_int   reverse		:1;	/* Supports reverse direction */
+    u_int   reserved4_67	:2;
+    u_int   reserved5_012	:3;
+    u_int   eformat		:1;	/* Supports ERASE formatting */
+    u_int   reserved5_4		:1;
+    u_int   qfa     		:1;	/* Supports QFA formats */
+    u_int   reserved5_67    	:2;
+    u_int   lock        	:1;	/* Supports locking media */
+    u_int   locked      	:1;	/* The media is locked */
+    u_int   prevent     	:1;	/* Defaults  to prevent state */
+    u_int   eject       	:1;	/* Supports eject */
+    u_int   disconnect		:1;	/* Can break request > ctl */
+    u_int   reserved6_5    	:1;
+    u_int   ecc     		:1;	/* Supports error correction */
+    u_int   compress    	:1;	/* Supports data compression */
+    u_int   reserved7_0 	:1;
+    u_int   blk512      	:1;	/* Supports 512b block size */
+    u_int   blk1024     	:1;	/* Supports 1024b block size */
+    u_int   reserved7_3456  	:4;
+    u_int   slowb       	:1;	/* Restricts byte count */
     u_short max_speed;      		/* Supported speed in KBps */
     u_short max_defects;       		/* Max stored defect entries */
     u_short ctl;            		/* Continuous Transfer Limit */
@@ -148,22 +148,22 @@ struct wst_cappage {
  * REQUEST SENSE structure
  */
 struct wst_reqsense {
-    u_char  error_code      	:7;	/* Current or deferred errors */
-    u_char  valid          	:1;	/* Follows QIC-157C */
+    u_int   error_code      	:7;	/* Current or deferred errors */
+    u_int   valid          	:1;	/* Follows QIC-157C */
     u_char  reserved1;			/* Segment Number - Reserved */
-    u_char  sense_key		:4;	/* Sense Key */
-    u_char  reserved2_4		:1;	/* Reserved */
-    u_char  ili			:1;	/* Incorrect Length Indicator */
-    u_char  eom			:1;	/* End Of Medium */
-    u_char  filemark		:1;	/* Filemark */
+    u_int   sense_key		:4;	/* Sense Key */
+    u_int   reserved2_4		:1;	/* Reserved */
+    u_int   ili			:1;	/* Incorrect Length Indicator */
+    u_int   eom			:1;	/* End Of Medium */
+    u_int   filemark		:1;	/* Filemark */
     u_int   info __attribute__((packed)); /* Cmd specific info */
     u_char  asl;			/* Additional sense length (n-7) */
     u_int   command_specific;		/* Additional cmd specific info */
     u_char  asc;			/* Additional Sense Code */
     u_char  ascq;			/* Additional Sense Code Qualifier */
     u_char  replaceable_unit_code;	/* Field Replaceable Unit Code */
-    u_char  sk_specific1	:7;	/* Sense Key Specific */
-    u_char  sksv		:1;	/* Sense Key Specific info valid */
+    u_int   sk_specific1	:7;	/* Sense Key Specific */
+    u_int   sksv		:1;	/* Sense Key Specific info valid */
     u_char  sk_specific2;		/* Sense Key Specific */
     u_char  sk_specific3;		/* Sense Key Specific */
     u_char  pad[2];			/* Padding */

@@ -19,7 +19,7 @@
 
 typedef struct {
     unsigned short r_addr_lo;
-    unsigned short LN_BITFIELD3(r_addr_hi   : 8,
+    unsigned int   LN_BITFIELD3(r_addr_hi   : 8,
 				            : 5,
 				r_log2_size : 3);
 } ln_ring_t;

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: tcp.h,v 1.8 1997/02/22 09:41:37 peter Exp $
  */
 
 #ifndef _NETINET_TCP_H_
@@ -50,11 +50,11 @@ struct tcphdr {
 	tcp_seq	th_seq;			/* sequence number */
 	tcp_seq	th_ack;			/* acknowledgement number */
 #if BYTE_ORDER == LITTLE_ENDIAN
-	u_char	th_x2:4,		/* (unused) */
+	u_int	th_x2:4,		/* (unused) */
 		th_off:4;		/* data offset */
 #endif
 #if BYTE_ORDER == BIG_ENDIAN
-	u_char	th_off:4,		/* data offset */
+	u_int	th_off:4,		/* data offset */
 		th_x2:4;		/* (unused) */
 #endif
 	u_char	th_flags;
