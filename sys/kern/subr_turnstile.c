@@ -920,6 +920,8 @@ static char *spin_order_list[] = {
 #ifdef __i386__
 	"cy",
 #endif
+	"ng_node",
+	"ng_worklist",
 	"ithread table lock",
 	"ithread list lock",
 	"sched lock",
@@ -930,8 +932,6 @@ static char *spin_order_list[] = {
 	/*
 	 * leaf locks
 	 */
-	"ng_node",
-	"ng_worklist",
 #ifdef SMP
 #ifdef __i386__
 	"ap boot",
