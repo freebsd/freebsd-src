@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: installUpgrade.c,v 1.64 1999/02/15 02:22:47 jkh Exp $
+ * $Id: installUpgrade.c,v 1.65 1999/03/19 08:22:31 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -248,6 +248,17 @@ installUpgrade(dialogMenuItem *self)
     }
 
     saved_etc[0] = '\0';
+
+    /* Don't allow sources to be upgraded unless if we have src already */
+    if (directory_exists("/usr/src/") && (Dists & DIST_SRC)) {
+	Dists &= ~DIST_SRC;
+	msgConfirm("Warning: /usr/src exists and sources were selected as upgrade\n"
+		   "targets.  Unfortunately, this is not the way to upgrade your\n"
+		   "sources - please use CTM or CVSup or some other method which\n"
+		   "handles ``deletion events'', unlike this particular feature.\n\n"
+		   "Your existing /usr/src will not be affected by this upgrade.\n");
+    }
+
     if (extractingBin) {
 	while (!*saved_etc) {
 	    char *cp = msgGetInput("/usr/tmp/etc", "Under which directory do you wish to save your current /etc?");
