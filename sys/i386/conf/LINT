@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.286.2.30 1997/10/18 11:03:25 joerg Exp $
+#	$Id: LINT,v 1.286.2.31 1997/10/30 00:38:14 nate Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -613,6 +613,7 @@ options		PCVT_SCANSET=2 		# IBM keyboards are non-std
 device		sc0	at isa? port "IO_KBD" tty irq 1 vector scintr
 options		MAXCONS=16		# number of virtual consoles
 options		SLOW_VGA		# do byte-wide i/o's to TS and GDC regs
+options		SC_HISTORY_SIZE=200	# number of history buffer lines
 
 #
 # `flags' for sc0:
