@@ -945,52 +945,29 @@ kernel_core_file_hook (fd, addr, buf, len)
   return (cp - buf);
 }
 
-struct target_ops kcore_ops = {
-  "kcore",			/* to_shortname */
-  "Kernel core dump file",	/* to_longname */
-  "Use a core file as a target.  Specify the filename of the core file.", /* to_doc */
-  kcore_open,			/* to_open */
-  kcore_close,			/* to_close */
-  find_default_attach,		/* to_attach */
-  kcore_detach,			/* to_detach */
-  NULL,				/* to_resume */
-  NULL,				/* to_wait */
-  get_kcore_registers,		/* to_fetch_registers */
-  NULL,				/* to_store_registers */
-  NULL,				/* to_prepare_to_store */
-  kcore_xfer_kmem,		/* to_xfer_memory */
-  kcore_files_info,		/* to_files_info */
-  NULL,				/* to_insert_breakpoint */
-  NULL,				/* to_remove_breakpoint */
-  NULL,				/* to_terminal_init */
-  NULL,				/* to_terminal_inferior */
-  NULL,				/* to_terminal_ours_for_output */
-  NULL,				/* to_terminal_ours */
-  NULL,				/* to_terminal_info */
-  NULL,				/* to_kill */
-  NULL,				/* to_load */
-  NULL,				/* to_lookup_symbol */
-  find_default_create_inferior,	/* to_create_inferior */
-  NULL,				/* to_mourn_inferior */
-  0,				/* to_can_run */
-  0,				/* to_notice_signals */
-  NULL,				/* to_thread_alive */
-  0,				/* to_stop */
-  kcore_stratum,		/* to_stratum */
-  NULL,				/* to_next */
-  0,				/* to_has_all_memory */
-  1,				/* to_has_memory */
-  1,				/* to_has_stack */
-  1,				/* to_has_registers */
-  0,				/* to_has_execution */
-  NULL,				/* sections */
-  NULL,				/* sections_end */
-  OPS_MAGIC			/* to_magic */
-};
+static struct target_ops kcore_ops;
 
 void
 _initialize_kcorelow()
 {
+  kcore_ops.to_shortname = "kcore";
+  kcore_ops.to_longname = "Kernel core dump file";
+  kcore_ops.to_doc =
+    "Use a core file as a target.  Specify the filename of the core file.";
+  kcore_ops.to_open = kcore_open;
+  kcore_ops.to_close = kcore_close;
+  kcore_ops.to_attach = find_default_attach;
+  kcore_ops.to_detach = kcore_detach;
+  kcore_ops.to_fetch_registers = get_kcore_registers;
+  kcore_ops.to_xfer_memory = kcore_xfer_kmem;
+  kcore_ops.to_files_info = kcore_files_info;
+  kcore_ops.to_create_inferior = find_default_create_inferior;
+  kcore_ops.to_stratum = kcore_stratum;
+  kcore_ops.to_has_memory = 1;
+  kcore_ops.to_has_stack = 1;
+  kcore_ops.to_has_registers = 1;
+  kcore_ops.to_magic = OPS_MAGIC;
+
   add_target (&kcore_ops);
   add_com ("proc", class_obscure, set_proc_cmd, "Set current process context");
   add_com ("cpu", class_obscure, set_cpu_cmd, "Set current cpu");
