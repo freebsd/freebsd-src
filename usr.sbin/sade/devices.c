@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: devices.c,v 1.66 1998/01/19 23:28:41 jkh Exp $
+ * $Id: devices.c,v 1.67 1998/01/21 19:25:49 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -69,7 +69,7 @@ static struct {
     { DEVICE_TYPE_DISK, 	"sd",		"SCSI disk device"					},
     { DEVICE_TYPE_DISK, 	"da",		"SCSI disk device (CAM)"				},
     { DEVICE_TYPE_DISK, 	"wd",		"IDE/ESDI/MFM/ST506 disk device"			},
-    { DEVICE_TYPE_DISK, 	"wfd",		"IDE floppy device"					},
+    { DEVICE_TYPE_DISK, 	"wfd",		"ATAPI floppy (LS-120) device"				},
     { DEVICE_TYPE_DISK, 	"od",		"SCSI optical disk device"				},
     { DEVICE_TYPE_FLOPPY,	"fd0",		"floppy drive unit A"					},
     { DEVICE_TYPE_FLOPPY,	"fd1",		"floppy drive unit B"					},
