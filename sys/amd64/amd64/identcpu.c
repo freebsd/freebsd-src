@@ -76,6 +76,7 @@ static void identifycyrix(void);
 static void print_AMD_features(u_int *regs);
 static void print_AMD_info(u_int amd_maxregs);
 static void print_AMD_assoc(int i);
+static void print_transmeta_info(void);
 static void do_cpuid(u_int ax, u_int *p);
 
 u_int	cyrix_did;		/* Device ID of Cyrix CPU */
@@ -130,7 +131,6 @@ int has_f00f_bug = 0;
 void
 printcpuinfo(void)
 {
-
 	u_int regs[4], nreg = 0;
 	cpu_class = i386_cpus[cpu].cpu_class;
 	printf("CPU: ");
@@ -489,8 +489,22 @@ printcpuinfo(void)
 		default:
 			strcat(cpu_model, "Unknown");
 		}
-	} else if (strcmp(cpu_vendor, "IBM") == 0)
+	} else if (strcmp(cpu_vendor, "IBM") == 0) {
 		strcpy(cpu_model, "Blue Lightning CPU");
+	} else if (strcmp(cpu_vendor, "GenuineTMx86") == 0 ||
+		   strcmp(cpu_vendor, "TransmetaCPU") == 0) {
+		do_cpuid(0x80000000, regs);
+		nreg = regs[0];
+		if (nreg >= 0x80000004) {
+			do_cpuid(0x80000002, regs);
+			memcpy(cpu_model, regs, sizeof regs);
+			do_cpuid(0x80000003, regs);
+			memcpy(cpu_model+16, regs, sizeof regs);
+			do_cpuid(0x80000004, regs);
+			memcpy(cpu_model+32, regs, sizeof regs);
+		}
+		cpu_model[64] = '\0';
+	}
 #endif
 
 	printf("%s (", cpu_model);
@@ -611,6 +625,10 @@ printcpuinfo(void)
 
 	if (strcmp(cpu_vendor, "AuthenticAMD") == 0)
 		print_AMD_info(nreg);
+	else if (strcmp(cpu_vendor, "GenuineTMx86") == 0 ||
+		 strcmp(cpu_vendor, "TransmetaCPU") == 0)
+		print_transmeta_info();
+
 #ifdef I686_CPU
 	/*
 	 * XXX - Do PPro CPUID level=2 stuff here?
@@ -1005,4 +1023,39 @@ print_AMD_features(u_int *regs)
 		"\037DSP"	/* AMD 3DNow! Instruction Extensions */
 		"\0403DNow!"
 		);
+}
+
+static void
+print_transmeta_info()
+{
+	u_int regs[4], nreg = 0;
+
+	do_cpuid(0x80860000, regs);
+	nreg = regs[0];
+	if (nreg >= 0x80860001) {
+		do_cpuid(0x80860001, regs);
+		printf("  Processor revision %u.%u.%u.%u\n",
+		       (regs[1] >> 24) & 0xff,
+		       (regs[1] >> 16) & 0xff,
+		       (regs[1] >> 8) & 0xff,
+		       regs[1] & 0xff);
+	}
+	if (nreg >= 0x80860002) {
+		do_cpuid(0x80860002, regs);
+		printf("  Code Morphing Software revision %u.%u.%u-%u-%u\n",
+		       (regs[1] >> 24) & 0xff,
+		       (regs[1] >> 16) & 0xff,
+		       (regs[1] >> 8) & 0xff,
+		       regs[1] & 0xff,
+		       regs[2]);
+	}
+	if (nreg >= 0x80860006) {
+		char info[65];
+		do_cpuid(0x80860003, (u_int*) &info[0]);
+		do_cpuid(0x80860004, (u_int*) &info[16]);
+		do_cpuid(0x80860005, (u_int*) &info[32]);
+		do_cpuid(0x80860006, (u_int*) &info[48]);
+		info[64] = 0;
+		printf("  %s\n", info);
+	}
 }
