@@ -1,4 +1,40 @@
 .\"  Hey, Emacs, edit this file in -*- nroff-fill -*- mode
+.\"-
+.\" Copyright (c) 1997, 1998
+.\"	Nan Yang Computer Services Limited.  All rights reserved.
+.\"
+.\"  This software is distributed under the so-called ``Berkeley
+.\"  License'':
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by Nan Yang Computer
+.\"      Services Limited.
+.\" 4. Neither the name of the Company nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"  
+.\" This software is provided ``as is'', and any express or implied
+.\" warranties, including, but not limited to, the implied warranties of
+.\" merchantability and fitness for a particular purpose are disclaimed.
+.\" In no event shall the company or contributors be liable for any
+.\" direct, indirect, incidental, special, exemplary, or consequential
+.\" damages (including, but not limited to, procurement of substitute
+.\" goods or services; loss of use, data, or profits; or business
+.\" interruption) however caused and on any theory of liability, whether
+.\" in contract, strict liability, or tort (including negligence or
+.\" otherwise) arising in any way out of the use of this software, even if
+.\" advised of the possibility of such damage.
+.\"
+.\" $Id: vinum.4,v 1.9 1999/03/23 04:57:24 grog Exp grog $
 .\"
 .Dd 28 March 1999
 .Dt vinum 8
@@ -1904,6 +1940,46 @@ vinumioctl: invalid ioctl from process 247 (vinum): c0e44642
 .Ed
 .Pp
 This error may also occur if you use old versions of kld or userland program.
+.It
+.Nm
+drives are UNIX disk partitions and should have the partition type
+.Ar vinum .
+This is different from
+.Nm ccd ,
+which expects partitions of type
+.Ar 4.2BSD .
+This behaviour of ccd is an invitation to shoot yourself in the foot: with
+.Nm ccd 
+you can easily overwrite a file system.  
+.Nm
+will not permit this.
+.Pp
+For similar reasons, the
+.Nm vinum Ar start
+command will not accept a drive on partition
+.Ar c .
+Partition
+.Ar c
+is used by the system to represent the whole disk, and must be of type
+.Ar unused .
+Clearly there is a conflict here, which
+.Nm
+resolves by not using the
+.Ar c
+partition.
+.It
+The
+.Nm vinum Ar read
+command has a particularly emetic syntax.  Once it was the only way to start
+.Nm vinum ,
+but now the preferred method is with
+.Nm vinum Ar start .
+.Nm vinum Ar read
+should be used for maintenance purposes only.  Note that its syntax has changed,
+and the arguments must be disk slices, such as
+.Pa /dev/da0 ,
+not partitions such as
+.Pa /dev/da0e .
 .El
 .\"XXX.Sh BUGS
 .Sh FILES
