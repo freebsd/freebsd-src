@@ -12,7 +12,7 @@
  *
  * Sep., 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id$
+ *	$Id: apm_init.S,v 1.2 1994/10/01 05:12:29 davidg Exp $
  */
 
 /*
@@ -67,12 +67,11 @@
 	.text
 ENTRY(apm_init)
 	cli				/* disable interrupt */
-	push	%ebp			/* save original base pointer */
+	pushl	%ebp			/* save original base pointer */
 					/* ebp is used as a register variable */
 	/* 
 	 * save old data segments: We assume that %ds == %es && %ds == %ss
 	 */
-	push	%fs
 	movw	%ds, %ax
 	movw	%ax, %fs
 	movw	$(APM_INIT_DS_SEL), %ax	/* initializer data segment */
@@ -185,7 +184,6 @@ finish:
 	movw	%ax, %es
 	movw	%ax, %ds
 	movl	%ebp, %eax
-	pop	%fs
 	popl	%ebp			/* restore old base pointer */
 	lret				/* restore old code segment */
 
