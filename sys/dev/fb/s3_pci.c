@@ -169,8 +169,10 @@ s3lfb_init(int unit, video_adapter_t *adp, int flags)
 static int
 s3lfb_get_info(video_adapter_t *adp, int mode, video_info_t *info)
 {
+#if 0
 	device_t dev = s3pci_dev;			/* XXX */
 	struct s3pci_softc *sc = (struct s3pci_softc *)device_get_softc(dev);
+#endif
 	int error;
 
 	if ((error = (*prevvidsw->get_info)(adp, mode, info)))
@@ -217,8 +219,9 @@ s3lfb_set_mode(video_adapter_t *adp, int mode)
 {
 	device_t dev = s3pci_dev;			/* XXX */
 	struct s3pci_softc *sc = (struct s3pci_softc *)device_get_softc(dev);
-	u_long cr59, cr5A;
+#if 0
 	unsigned char tmp;
+#endif
 	int error;
 
 	/* First, set the mode as if it was a classic VESA card
