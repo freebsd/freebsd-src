@@ -37,6 +37,11 @@
 		.set SIZ_PAG,0x1000		// Page size
 		.set SIZ_SEC,0x200		// Sector size
 
+#ifdef UFS1_ONLY
+		.set NSECT,0x10
+#else
+		.set NSECT,0x14
+#endif
 		.globl start
 		.globl xread
 		.code16
@@ -181,13 +186,13 @@ main.4: 	xor %dx,%dx			// Partition:drive
 // entry point is relative to MEM_USR; thus boot2.bin starts at 0xb000.
 // 
 main.5: 	mov %dx,MEM_ARG			// Save args
-		movb $0x14,%dh			// Sector count
+		movb $NSECT,%dh			// Sector count
 		callw nread			// Read disk
 		mov $MEM_BTX,%bx		// BTX
 		mov 0xa(%bx),%si		// Get BTX length and set
 		add %bx,%si			//  %si to start of boot2.bin
 		mov $MEM_USR+SIZ_PAG,%di	// Client page 1
-		mov $MEM_BTX+0x12*SIZ_SEC,%cx	// Byte
+		mov $MEM_BTX+(NSECT-2)*SIZ_SEC,%cx	// Byte
 		sub %si,%cx			//  count
 		rep				// Relocate
 		movsb				//  client
