@@ -1,4 +1,4 @@
-/*	$NetBSD: ohci.c,v 1.91 2000/06/01 14:28:58 augustss Exp $	*/
+/*	$NetBSD: usb/ohci.c,v 1.92 2000/08/08 19:51:46 tv Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -91,6 +91,9 @@ struct cfdriver ohci_cd = {
 #define DPRINTF(x)	if (ohcidebug) logprintf x
 #define DPRINTFN(n,x)	if (ohcidebug>(n)) logprintf x
 int ohcidebug = 1;
+#ifndef __NetBSD__
+#define bitmask_snprintf(q,f,b,l) snprintf((b), (l), "%b", (q), (f))
+#endif
 #else
 #define DPRINTF(x)
 #define DPRINTFN(n,x)
@@ -1779,11 +1782,15 @@ ohci_dump_tds(ohci_soft_td_t *std)
 void
 ohci_dump_td(ohci_soft_td_t *std)
 {
-	DPRINTF(("TD(%p) at %08lx: %b delay=%d ec=%d cc=%d\ncbp=0x%08lx "
+	char sbuf[128];
+
+	bitmask_snprintf((int)le32toh(std->td.td_flags),
+			 "\20\23R\24OUT\25IN\31TOG1\32SETTOGGLE",
+			 sbuf, sizeof(sbuf));
+
+	DPRINTF(("TD(%p) at %08lx: %s delay=%d ec=%d cc=%d\ncbp=0x%08lx "
 		 "nexttd=0x%08lx be=0x%08lx\n",
-		 std, (u_long)std->physaddr,
-		 (int)le32toh(std->td.td_flags),
-		 "\20\23R\24OUT\25IN\31TOG1\32SETTOGGLE",
+		 std, (u_long)std->physaddr, sbuf,
 		 OHCI_TD_GET_DI(le32toh(std->td.td_flags)),
 		 OHCI_TD_GET_EC(le32toh(std->td.td_flags)),
 		 OHCI_TD_GET_CC(le32toh(std->td.td_flags)),
@@ -1823,17 +1830,22 @@ ohci_dump_itds(ohci_soft_itd_t *sitd)
 void
 ohci_dump_ed(ohci_soft_ed_t *sed)
 {
- 	DPRINTF(("ED(%p) at 0x%08lx: addr=%d endpt=%d maxp=%d %b\ntailp=0x%08lx "
- 		 "headflags=%b headp=0x%08lx nexted=0x%08lx\n",
+	char sbuf[128], sbuf2[128];
+
+	bitmask_snprintf((int)le32toh(sed->ed.ed_flags),
+			 "\20\14OUT\15IN\16LOWSPEED\17SKIP\20ISO",
+			 sbuf, sizeof(sbuf));
+	bitmask_snprintf((u_long)le32toh(sed->ed.ed_headp),
+			 "\20\1HALT\2CARRY", sbuf2, sizeof(sbuf2));
+
+	DPRINTF(("ED(%p) at 0x%08lx: addr=%d endpt=%d maxp=%d %s\ntailp=0x%08lx "
+		 "headflags=%s headp=0x%08lx nexted=0x%08lx\n",
+
 		 sed, (u_long)sed->physaddr,
 		 OHCI_ED_GET_FA(le32toh(sed->ed.ed_flags)),
 		 OHCI_ED_GET_EN(le32toh(sed->ed.ed_flags)),
-		 OHCI_ED_GET_MAXP(le32toh(sed->ed.ed_flags)),
-		 (int)le32toh(sed->ed.ed_flags),
-		 "\20\14OUT\15IN\16LOWSPEED\17SKIP\20ISO",
-		 (u_long)(uintptr_t)le32toh(sed->ed.ed_tailp),
-		 (int)(uintptr_t)le32toh(sed->ed.ed_headp),
-		 "\20\1HALT\2CARRY",
+		 OHCI_ED_GET_MAXP(le32toh(sed->ed.ed_flags)), sbuf,
+		 (u_long)le32toh(sed->ed.ed_tailp), sbuf2,
 		 (u_long)le32toh(sed->ed.ed_headp),
 		 (u_long)le32toh(sed->ed.ed_nexted)));
 }
