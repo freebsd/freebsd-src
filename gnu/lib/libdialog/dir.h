@@ -34,3 +34,5 @@ typedef struct DirList {             /* structure to hold the directory entries 
 #endif
 
 void get_dir(char *dirname, char *fmask, DirList **dir, int *n);
+void get_filenames(DirList *d, int n, char ***names, int *nf);
+void FreeDir(DirList *d, int n);

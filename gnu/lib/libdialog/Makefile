@@ -1,10 +1,10 @@
 # Makefile for libdialog
-# $Id: Makefile,v 1.6 1994/10/28 05:36:38 jkh Exp $
+# $Id: Makefile,v 1.7 1995/02/15 19:43:49 ache Exp $
 
 LIB=    dialog
 SRCS=   kernel.c rc.c checklist.c inputbox.c menubox.c msgbox.c \
 	lineedit.c radiolist.c textbox.c yesno.c prgbox.c raw_popen.c \
-	fselect.c ui_objects.c dir.c notify.c help.c
+	fselect.c ui_objects.c dir.c notify.c help.c gauge.c
 
 CFLAGS+= -I${.CURDIR} -Wall -Wstrict-prototypes -DLOCALE
 

@@ -30,6 +30,11 @@ int dialog_yesno(unsigned char *title, unsigned char * prompt, int height, int w
 {
   int i, j, x, y, key = 0, button = 0;
   WINDOW *dialog;
+  char *tmphlp;
+
+  /* disable helpline */
+  tmphlp = get_helpline();
+  use_helpline(NULL);
 
   if (height < 0)
 	height = strheight(prompt)+4;
@@ -97,10 +102,12 @@ int dialog_yesno(unsigned char *title, unsigned char * prompt, int height, int w
       case 'Y':
       case 'y':
         delwin(dialog);
+	restore_helpline(tmphlp);
         return 0;
       case 'N':
       case 'n':
         delwin(dialog);
+	restore_helpline(tmphlp);
         return 1;
       case KEY_BTAB:
       case TAB:
@@ -124,6 +131,7 @@ int dialog_yesno(unsigned char *title, unsigned char * prompt, int height, int w
       case '\r':
       case '\n':
         delwin(dialog);
+	restore_helpline(tmphlp);
         return button;
       case ESC:
         break;
@@ -135,6 +143,7 @@ int dialog_yesno(unsigned char *title, unsigned char * prompt, int height, int w
   }
 
   delwin(dialog);
+  restore_helpline(tmphlp);
   return -1;    /* ESC pressed */
 }
 /* End of dialog_yesno() */

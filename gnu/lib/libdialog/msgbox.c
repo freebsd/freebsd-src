@@ -200,10 +200,11 @@ dialog_mesgbox(unsigned char *title, unsigned char *prompt, int height, int widt
 	    if (startline < max_lines - theight) startline++;
 	    break;
 	case KEY_RIGHT:
-	    hscroll++;
+	    hscroll+=5;
 	    break;
 	case KEY_LEFT:
-	    if (hscroll > 0) hscroll--;
+	    if (hscroll > 0) hscroll-=5;
+	    if (hscroll < 0) hscroll =0;
 	    break;
 	case KEY_PPAGE:
 	    if (startline - height > 0) {
@@ -260,10 +261,11 @@ getnlines(unsigned char *buf)
 {
     int i = 0;
 
+    if (*buf)
+	i++;
     while (*buf) {
-	if (*buf == '\n' || *buf == '\r') {
+	if (*buf == '\n' || *buf == '\r')
 	    i++;
-	}
 	buf++;
     }
     return(i);
