@@ -3,7 +3,7 @@
 #	german holidays file 2001 / bundeseinheitliche Feiertage 2001
 #	-------------------------------------------------------------
 #
-#	last edit-date: [Wed Jan 10 13:17:49 2001]
+#	last edit-date: [Wed Jan 10 13:24:19 2001]
 #
 #	ref: http://hamburg.de/Services/ferien/ferien.htm
 #
@@ -23,8 +23,8 @@
 1.1		Neujahr
 1.5		1. Mai
 3.10		Tag der deutschen Einheit
-25.12		1. Weichnachstfeiertag
-26.12		2. Weichnachstfeiertag
+25.12		1. Weihnachtsfeiertag
+26.12		2. Weihnachtsfeiertag
 #
 # different day/month each year
 #
