@@ -16,9 +16,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. The names of the authors may not be used to endorse or promote
- *    products derived from this software without specific prior written
- *    permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -42,12 +39,14 @@
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/malloc.h>
-#include <geom/geom.h>
-#include <geom/bde/g_bde.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
 
+#include <crypto/rijndael/rijndael.h>
+#include <crypto/sha2/sha2.h>
+#include <geom/geom.h>
+#include <geom/bde/g_bde.h>
 #define BDE_CLASS_NAME "BDE"
 
 static void
@@ -176,6 +175,7 @@ g_bde_create(struct g_createargs *ga)
 		g_topology_unlock();
 		while (sc->dead != 2 && !LIST_EMPTY(&pp->consumers))
 			tsleep(sc, PRIBIO, "g_bdedie", hz);
+		g_waitidle();
 		g_topology_lock();
 		g_destroy_provider(pp);
 		mtx_destroy(&sc->worklist_mutex);
@@ -208,6 +208,7 @@ g_bde_create(struct g_createargs *ga)
 		return (error);
 	}
 	g_topology_unlock();
+	g_waitidle();
 	while (1) {
 		sectorsize = cp->provider->sectorsize;
 		mediasize = cp->provider->mediasize;
@@ -217,8 +218,9 @@ g_bde_create(struct g_createargs *ga)
 		sc->consumer = cp;
 
 		error = g_bde_decrypt_lock(sc, ga->ptr,
-		    (u_char *)ga->ptr + 256, mediasize, sectorsize, NULL);
-		bzero(sc->arc4_sbox, sizeof sc->arc4_sbox);
+		    (u_char *)ga->ptr + (sizeof sc->sha2),
+		    mediasize, sectorsize, NULL);
+		bzero(sc->sha2, sizeof sc->sha2);
 		if (error)
 			break;
 		kp = &sc->key;
