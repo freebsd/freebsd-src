@@ -40,7 +40,6 @@ LEAF(atomic_set_8, 2)
 	or	t2, t0, t0
 	stq_c	t0, 0(t1)
 	beq	t0, 1f
-	mb
 	RET
 1:	br	0b
 	END(atomic_set_8)
@@ -55,7 +54,6 @@ LEAF(atomic_clear_8, 2)
 	or	t2, t0, t0
 	stq_c	t0, 0(t1)
 	beq	t0, 1f
-	mb
 	RET
 1:	br	0b
 	END(atomic_clear_8)
@@ -70,7 +68,6 @@ LEAF(atomic_add_8, 2)
 	or	t2, t0, t0
 	stq_c	t0, 0(t1)
 	beq	t0, 1f
-	mb
 	RET
 1:	br	0b
 	END(atomic_add_8)
@@ -85,7 +82,6 @@ LEAF(atomic_subtract_8, 2)
 	or	t2, t0, t0
 	stq_c	t0, 0(t1)
 	beq	t0, 1f
-	mb
 	RET
 1:	br	0b
 	END(atomic_subtract_8)
@@ -100,7 +96,6 @@ LEAF(atomic_set_16, 2)
 	or	t2, t0, t0
 	stq_c	t0, 0(t1)
 	beq	t0, 1f
-	mb
 	RET
 1:	br	0b
 	END(atomic_set_16)
@@ -115,7 +110,6 @@ LEAF(atomic_clear_16, 2)
 	or	t2, t0, t0
 	stq_c	t0, 0(t1)
 	beq	t0, 1f
-	mb
 	RET
 1:	br	0b
 	END(atomic_clear_16)
@@ -130,7 +124,6 @@ LEAF(atomic_add_16, 2)
 	or	t2, t0, t0
 	stq_c	t0, 0(t1)
 	beq	t0, 1f
-	mb
 	RET
 1:	br	0b
 	END(atomic_add_16)
@@ -145,7 +138,6 @@ LEAF(atomic_subtract_16, 2)
 	or	t2, t0, t0
 	stq_c	t0, 0(t1)
 	beq	t0, 1f
-	mb
 	RET
 1:	br	0b
 	END(atomic_subtract_16)
