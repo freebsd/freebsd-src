@@ -45,13 +45,6 @@ static char sccsid[] = "@(#)rune.c	8.1 (Berkeley) 6/4/93";
 #include <sys/types.h>
 #include <sys/stat.h>
 
-void
-setinvalidrune(ir)
-	rune_t ir;
-{
-	_INVALID_RUNE = ir;
-}
-
 _RuneLocale *
 _Read_RuneMagi(fp)
 	FILE *fp;
