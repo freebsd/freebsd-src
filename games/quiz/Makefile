@@ -11,7 +11,7 @@ CATS=	africa america areas arith asia babies bard chinese collectives \
 HIDEGAME=hidegame
 
 beforeinstall:
-	(cd ${.CURDIR}/datfiles; ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} \
-	    -m ${NOBINMODE} ${CATS} ${DESTDIR}${SHAREDIR}/games/quiz.db)
+	(cd ${.CURDIR}/datfiles; ${INSTALL} -c -o ${SHAREOWN} -g ${SHAREGRP} \
+	    -m ${SHAREMODE} ${CATS} ${DESTDIR}${SHAREDIR}/games/quiz.db)
 
 .include <bsd.prog.mk>

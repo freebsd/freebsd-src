@@ -106,8 +106,8 @@ realinstall: beforeinstall
 .endif
 .endif
 .if defined(HIDEGAME)
-	(cd ${DESTDIR}/${GBINDIR}; rm -f ${PROG}; ln -s dm ${PROG}; \
-	    chown games:bin ${PROG})
+	(cd ${DESTDIR}${ORIGBINDIR}; ln -fs dm ${PROG}; \
+	    chown -h ${BINOWN}:${ORIGBINGRP} ${PROG})
 .endif
 .if defined(LINKS) && !empty(LINKS)
 	@set ${LINKS}; \

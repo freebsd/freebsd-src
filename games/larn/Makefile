@@ -63,8 +63,8 @@ LDADD=	-ltermcap -lcompat
 HIDEGAME=hidegame
 
 beforeinstall:
-	(cd ${.CURDIR}/datfiles; ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} \
-	    -m ${NOBINMODE} larnmaze larnopts larn.help \
+	(cd ${.CURDIR}/datfiles; ${INSTALL} -c -o ${SHAREOWN} -g ${SHAREGRP} \
+	    -m ${SHAREMODE} larnmaze larnopts larn.help \
 	    ${DESTDIR}${SHAREDIR}/games/larn)
 .if !exists(${DESTDIR}/var/games/larn/lscore12.0)
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 660 /dev/null \
