@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.76 1997/11/25 07:07:41 julian Exp $
+ * $Id: init_main.c,v 1.77 1997/12/06 04:11:09 sef Exp $
  */
 
 #include "opt_devfs.h"
@@ -59,6 +59,7 @@
 #include <sys/reboot.h>
 #include <sys/sysproto.h>
 #include <sys/vmmeter.h>
+#include <sys/unistd.h>
 
 #include <machine/cpu.h>
 
@@ -194,6 +195,7 @@ main(framep)
 	 * which will not return.
 	 */
 	for( sipp = (struct sysinit **)sysinit_set.ls_items; *sipp; sipp++) {
+
 		if( (*sipp)->subsystem == SI_SUB_DUMMY)
 			continue;	/* skip dummy task(s)*/
 
@@ -204,8 +206,17 @@ main(framep)
 			break;
 
 		case SI_TYPE_KTHREAD:
+#if !defined(SMP)
 			/* kernel thread*/
-			if (fork(&proc0, NULL))
+			if (fork1(&proc0, RFMEM|RFFDG|RFPROC))
+				panic("fork kernel thread");
+			cpu_set_fork_handler(pfind(proc0.p_retval[0]),
+			    (*sipp)->func, (*sipp)->udata);
+			break;
+#endif
+
+		case SI_TYPE_KPROCESS:
+			if (fork1(&proc0, RFFDG|RFPROC))
 				panic("fork kernel process");
 			cpu_set_fork_handler(pfind(proc0.p_retval[0]),
 			    (*sipp)->func, (*sipp)->udata);
@@ -507,7 +518,7 @@ SYSINIT(retrofit, SI_SUB_ROOT_FDTAB, SI_ORDER_FIRST, xxx_vfs_root_fdtab, NULL)
  */
 
 static void kthread_init __P((void *dummy));
-SYSINIT_KT(init,SI_SUB_KTHREAD_INIT, SI_ORDER_FIRST, kthread_init, NULL)
+SYSINIT_KP(init,SI_SUB_KTHREAD_INIT, SI_ORDER_FIRST, kthread_init, NULL)
 
 
 extern void prepare_usermode __P((void));

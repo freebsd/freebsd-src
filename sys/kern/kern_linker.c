@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_linker.c,v 1.3 1997/11/06 19:29:10 phk Exp $
+ *	$Id: kern_linker.c,v 1.4 1997/11/20 20:07:45 bde Exp $
  */
 
 #include <sys/param.h>
@@ -37,6 +37,7 @@
 #include <machine/cpu.h>
 #include <sys/module.h>
 #include <sys/linker.h>
+#include <sys/unistd.h>
 
 linker_file_t linker_current_file;
 
@@ -129,8 +130,18 @@ linker_file_sysinit(linker_file_t lf)
 	    break;
 
 	case SI_TYPE_KTHREAD:
+#if !defined(SMP)
 	    /* kernel thread*/
-	    if (fork(&proc0, NULL))
+	    if (fork1(&proc0, RFFDG|RFPROC|RFMEM))
+		panic("fork kernel thread");
+	    cpu_set_fork_handler(pfind(proc0.p_retval[0]),
+		(*sipp)->func, (*sipp)->udata);
+	    break;
+#endif
+
+	case SI_TYPE_KPROCESS:
+	    /* kernel thread*/
+	    if (fork1(&proc0, RFFDG|RFPROC))
 		panic("fork kernel process");
 	    cpu_set_fork_handler(pfind(proc0.p_retval[0]),
 		(*sipp)->func, (*sipp)->udata);

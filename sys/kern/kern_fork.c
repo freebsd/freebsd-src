@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_fork.c	8.6 (Berkeley) 4/8/94
- * $Id: kern_fork.c,v 1.48 1997/11/06 19:29:09 phk Exp $
+ * $Id: kern_fork.c,v 1.49 1997/11/20 16:36:17 bde Exp $
  */
 
 #include "opt_ktrace.h"
@@ -67,8 +67,6 @@ static int	fast_vfork = 0;	/* Doesn't work on SMP yet. */
 static int	fast_vfork = 1;
 #endif
 SYSCTL_INT(_kern, OID_AUTO, fast_vfork, CTLFLAG_RW, &fast_vfork, 0, "");
-
-static int fork1 __P((struct proc *p, int flags));
 
 /*
  * These are the stuctures used to create a callout list for things to do
@@ -121,7 +119,7 @@ rfork(p, uap)
 int	nprocs = 1;		/* process 0 */
 static int nextpid = 0;
 
-static int
+int
 fork1(p1, flags)
 	register struct proc *p1;
 	int flags;
