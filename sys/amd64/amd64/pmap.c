@@ -1296,11 +1296,16 @@ pmap_release(pmap_t pmap)
 	LIST_REMOVE(pmap, pm_list);
 	mtx_unlock_spin(&allpmaps_lock);
 
-	vm_page_lock_queues();
 	m = PHYS_TO_VM_PAGE(pmap->pm_pml4[PML4PML4I]);
+
+	pmap->pm_pml4[KPML4I] = 0;	/* KVA */
+	pmap->pm_pml4[DMPML4I] = 0;	/* Direct Map */
+	pmap->pm_pml4[PML4PML4I] = 0;	/* Recursive Mapping */
+
+	vm_page_lock_queues();
 	m->wire_count--;
 	atomic_subtract_int(&cnt.v_wire_count, 1);
-	vm_page_free(m);
+	vm_page_free_zero(m);
 	vm_page_unlock_queues();
 }
 
