@@ -42,34 +42,52 @@
 .Ft int
 .Fn vfs_modevent "module_t mod" "int type" "void *data"
 .Sh DESCRIPTION
-Each filesystem type known to the kernel has a vfsconf structure that contains the
+Each filesystem type known to the kernel has a
+.Vt vfsconf
+structure that contains the
 information required to create a new mount of that filesystems type.
 .Bd -literal
-	struct vfsconf {
-		struct	vfsops *vfc_vfsops;	/* filesystem operations vector */
-		char	vfc_name[MFSNAMELEN];	/* filesystem type name */
-		int	vfc_typenum;		/* historic filesystem type number */
-		int	vfc_refcount;		/* number mounted of this type */
-		int	vfc_flags;		/* permanent flags */
-		struct	vfsconf *vfc_next;	/* next in list */
-	};
-
+struct vfsconf {
+	struct	vfsops *vfc_vfsops;	/* filesystem operations vector */
+	char	vfc_name[MFSNAMELEN];	/* filesystem type name */
+	int	vfc_typenum;		/* historic filesystem type number */
+	int	vfc_refcount;		/* number mounted of this type */
+	int	vfc_flags;		/* permanent flags */
+	struct	vfsconf *vfc_next;	/* next in list */
+};
 .Ed
-When a new filesystem is mounted
-.Fn vfs_mount
-does a lookup of the vfcconf structure by its name, and if it is not already registered,
+.Pp
+When a new filesystem is mounted,
+.Xr vfs_mount 9
+does a lookup of the
+.Vt vfsconf
+structure by its name, and if it is not already registered,
 attempts to load a kernel module for it.
-The filesystem operations for the new mount point are taken from vfc_vfsops, and mnt_vfc
-in the mount structure is made to point directly at the vfcconf structure for the
+The filesystem operations for the new mount point are taken from
+.Va vfc_vfsops ,
+and
+.Va mnt_vfc
+in the
+.Vt mount
+structure is made to point directly at the
+.Vt vfsconf
+structure for the
 filesystem type.
-The filesystem type number is taken from vfs_typenum which was assigned in
+The filesystem type number is taken from
+.Va vfc_typenum
+which was assigned in
 .Fn vfs_register ,
-and the mount flags are taken from a mask of vfc_flags.
-Each time a filesystem of a given type is mounted vfc_refcount is incremented.
+and the mount flags are taken from a mask of
+.Va vfc_flags .
+Each time a filesystem of a given type is mounted,
+.Va vfc_refcount
+is incremented.
 .Pp
 .Fn vfs_register
-takes a new vfsconf structure and adds it to the list of existing filesystems.
-If the type has not already been registered it is initialize by calling the
+takes a new
+.Vt vfsconf
+structure and adds it to the list of existing filesystems.
+If the type has not already been registered, it is initialized by calling the
 .Fn vfs_init
 function in the filesystem operations vector.
 .Fn vfs_register
@@ -82,49 +100,51 @@ unlinks
 from the list of registered filesystem types if there are currently no mounted instances.
 If the
 .Fn vfs_uninit
-function in the filesystems initialization vector is defined it is called.
+function in the filesystems initialization vector is defined, it is called.
 .Pp
 .Fn vfs_modevent
 is registered by
 .Fn VFS_SET
 to handle the loading and unloading of filesystem kernel modules.
 In the case of
-.Dv MOD_LOAD
+.Dv MOD_LOAD ,
 .Fn vfs_register
 is called.
 In the case of
-.Dv MOD_UNLOAD
+.Dv MOD_UNLOAD ,
 .Fn vfs_unregister
 is called.
 .Sh RETURN VALUES
 .Fn vfs_register
 returns 0 if successful; otherwise,
-.Dv EEXIST
+.Er EEXIST
 is returned indicating that the filesystem type has already been registered.
 .Pp
 .Fn vfs_unregister
 returns 0 if successful.
-If no vfsconf entry can be found matching the name in
+If no
+.Vt vfsconf
+entry can be found matching the name in
 .Fa vfc ,
-.Dv EINVAL
+.Er EINVAL
 is returned.
-If the reference count of mounted instances of the filesystem type is not zero
-.Dv EBUSY
+If the reference count of mounted instances of the filesystem type is not zero,
+.Er EBUSY
 is returned.
 If
 .Fn vfs_uninit
-is called any errors it returns will be returned by
+is called, any errors it returns will be returned by
 .Fn vfs_unregister .
 .Pp
 .Fn vfs_modevent
 returns the result of the call to
 .Fn vfs_register
 or
-.Fn vfs_unregister
+.Fn vfs_unregister ,
 whatever the case.
 .Sh SEE ALSO
+.Xr vfs_mount 9 ,
 .Xr vfs_rootmountalloc 9 ,
-.Xr vfs_mount ,
 .Xr VFS_SET 9
 .Sh AUTHORS
 This man page was written by

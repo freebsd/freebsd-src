@@ -31,42 +31,47 @@
 .Os
 .Sh NAME
 .Nm vfs_getvfs
-.Nd "returns a mount point given its fsid"
+.Nd "returns a mount point given its filesystem identifier"
 .Sh SYNOPSIS
 .In sys/param.h
 .In sys/mount.h
-.Ft struct mount *
+.Ft "struct mount *"
 .Fn vfs_getvfs "fsid_t *fsid"
 .Sh DESCRIPTION
 The
 .Fn vfs_getvfs
 function returns the mount point structure for a filesystem given its filesystem
-identifier.  The filesystem id should have been allocated by calling
-.Fn vfs_getnewfsid ;
+identifier.
+The filesystem ID should have been allocated by calling
+.Xr vfs_getnewfsid 9 ;
 otherwise, it will not be found.
 .Pp
 A major user of
 .Fn vfs_getvfs
-is NFS, which uses the fsid as part of file handles in order to determine the
+is NFS, which uses the
+.Vt fsid
+as part of file handles in order to determine the
 filesystem a given RPC is for.
 If
 .Fn vfs_getvfs
 fails to find the mount point related to
-.Fa fsid
+.Fa fsid ,
 the filesystem is considered stale.
 .Sh RETURN VALUES
 If
 .Fa fsid
-is found the mount point for the id is returned; otherwise,
+is found, the mount point for the ID is returned; otherwise,
 .Dv NULL
 is returned.
 .Sh PSEUDOCODE
 .Bd -literal
-	if ((mp = vfs_getvfs(&fhp->fh_fsid)) == NULL) {
-		error = ESTALE;
-		goto out;
-	}
+if ((mp = vfs_getvfs(&fhp->fh_fsid)) == NULL) {
+	error = ESTALE;
+	goto out;
+}
 .Ed
+.Sh SEE ALSO
+.Xr vfs_getnewfsid 9
 .Sh AUTHORS
 This man page was written by
 .An Chad David Aq davidc@acns.ab.ca .

@@ -45,8 +45,8 @@ function flags that the page should no longer be managed by the VM system like
 other pages.
 The page is removed from any page queue it may be on, and after its
 .Dv PG_UNMANAGED
-flag is set the page daemon will ignore it (if the page is
-currently wired it will not be removed from its current queue).
+flag is set, the page daemon will ignore it (if the page is
+currently wired, it will not be removed from its current queue).
 .Pp
 Unmanaged pages are used by
 .Dv OBJT_PHYS
