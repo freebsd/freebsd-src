@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/pam_end.c#10 $
+ * $P4: //depot/projects/openpam/lib/pam_end.c#11 $
  */
 
 #include <stdlib.h>
@@ -54,8 +54,9 @@ pam_end(pam_handle_t *pamh,
 	pam_data_t *dp;
 	int i;
 
+	ENTER();
 	if (pamh == NULL)
-		return (PAM_SYSTEM_ERR);
+		RETURNC(PAM_SYSTEM_ERR);
 
 	/* clear module data */
 	while ((dp = pamh->module_data) != NULL) {
@@ -80,7 +81,7 @@ pam_end(pam_handle_t *pamh,
 
 	free(pamh);
 
-	return (PAM_SUCCESS);
+	RETURNC(PAM_SUCCESS);
 }
 
 /*

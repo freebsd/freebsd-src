@@ -7,20 +7,21 @@ implementations disagree, OpenPAM tries to remain compatible with
 Solaris, at the expense of XSSO conformance and Linux-PAM
 compatibility.
 
-These are some of OpenPAM's features:	 
+These are some of OpenPAM's features:
 
    - Implements the complete PAM API as described in the original PAM
      paper and in OSF-RFC 86.0; this corresponds to the full XSSO API
-     except for mappings and secondary authentication.
+     except for mappings and secondary authentication.  Also
+     implements some extensions found in Solaris 9.
 
    - Extends the API with several useful and time-saving functions.
 
    - Performs strict checking of return values from service modules.
 
-   - Reads configuration from /etc/pam.d/, /usr/local/etc/pam.d/ and
-     /etc/pam.conf, in that order; this will be made configurable in a
-     future release.
+   - Reads configuration from /etc/pam.d/, /etc/pam.conf,
+     /usr/local/etc/pam.d/ and /usr/local/etc/pam.conf, in that order;
+     this will be made configurable in a future release.
 
 Please direct bug reports and inquiries to openpam@thinksec.com.
 
-$P4: //depot/projects/openpam/README#3 $
+$P4: //depot/projects/openpam/README#4 $

@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/openpam_load.c#14 $
+ * $P4: //depot/projects/openpam/lib/openpam_load.c#15 $
  */
 
 #include <dlfcn.h>
@@ -41,6 +41,15 @@
 #include <security/pam_appl.h>
 
 #include "openpam_impl.h"
+
+const char *_pam_func_name[PAM_NUM_PRIMITIVES] = {
+	"pam_authenticate",
+	"pam_setcred",
+	"pam_acct_mgmt",
+	"pam_open_session",
+	"pam_close_session",
+	"pam_chauthtok"
+};
 
 const char *_pam_sm_func_name[PAM_NUM_PRIMITIVES] = {
 	"pam_sm_authenticate",

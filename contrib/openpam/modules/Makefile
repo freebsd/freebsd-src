@@ -31,12 +31,11 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $P4: //depot/projects/openpam/modules/Makefile#7 $
+# $P4: //depot/projects/openpam/modules/Makefile#8 $
 #
 
 SUBDIR		 =
 SUBDIR		+= pam_deny
-SUBDIR		+= pam_dummy
 SUBDIR		+= pam_permit
 SUBDIR		+= pam_unix
 

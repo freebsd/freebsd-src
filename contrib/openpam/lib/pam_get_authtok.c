@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/pam_get_authtok.c#19 $
+ * $P4: //depot/projects/openpam/lib/pam_get_authtok.c#20 $
  */
 
 #include <sys/param.h>
@@ -65,9 +65,9 @@ pam_get_authtok(pam_handle_t *pamh,
 	char *resp, *resp2;
 	int pitem, r, style, twice;
 
+	ENTER();
 	if (pamh == NULL || authtok == NULL)
-		return (PAM_SYSTEM_ERR);
-
+		RETURNC(PAM_SYSTEM_ERR);
 	*authtok = NULL;
 	twice = 0;
 	switch (item) {
@@ -86,16 +86,15 @@ pam_get_authtok(pam_handle_t *pamh,
 		twice = 0;
 		break;
 	default:
-		return (PAM_SYMBOL_ERR);
+		RETURNC(PAM_SYMBOL_ERR);
 	}
-
 	if (openpam_get_option(pamh, "try_first_pass") ||
 	    openpam_get_option(pamh, "use_first_pass")) {
 		r = pam_get_item(pamh, item, (const void **)authtok);
 		if (r == PAM_SUCCESS && *authtok != NULL)
-			return (PAM_SUCCESS);
+			RETURNC(PAM_SUCCESS);
 		else if (openpam_get_option(pamh, "use_first_pass"))
-			return (r == PAM_SUCCESS ? PAM_AUTH_ERR : r);
+			RETURNC(r == PAM_SUCCESS ? PAM_AUTH_ERR : r);
 	}
 	if (prompt == NULL) {
 		r = pam_get_item(pamh, pitem, (const void **)&prompt);
@@ -106,12 +105,12 @@ pam_get_authtok(pam_handle_t *pamh,
 	    PAM_PROMPT_ECHO_ON : PAM_PROMPT_ECHO_OFF;
 	r = pam_prompt(pamh, style, &resp, "%s", prompt);
 	if (r != PAM_SUCCESS)
-		return (r);
+		RETURNC(r);
 	if (twice) {
 		r = pam_prompt(pamh, style, &resp2, "Retype %s", prompt);
 		if (r != PAM_SUCCESS) {
 			free(resp);
-			return (r);
+			RETURNC(r);
 		}
 		if (strcmp(resp, resp2) != 0) {
 			free(resp);
@@ -120,12 +119,12 @@ pam_get_authtok(pam_handle_t *pamh,
 		free(resp2);
 	}
 	if (resp == NULL)
-		return (PAM_TRY_AGAIN);
+		RETURNC(PAM_TRY_AGAIN);
 	r = pam_set_item(pamh, item, resp);
 	free(resp);
 	if (r != PAM_SUCCESS)
-		return (r);
-	return (pam_get_item(pamh, item, (const void **)authtok));
+		RETURNC(r);
+	RETURNC(pam_get_item(pamh, item, (const void **)authtok));
 }
 
 /*

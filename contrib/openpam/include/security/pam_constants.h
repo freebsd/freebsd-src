@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/include/security/pam_constants.h#18 $
+ * $P4: //depot/projects/openpam/include/security/pam_constants.h#19 $
  */
 
 #ifndef _PAM_CONSTANTS_H_INCLUDED
@@ -76,7 +76,8 @@ enum {
 	PAM_ABORT			=  26,
 	PAM_TRY_AGAIN			=  27,
 	PAM_MODULE_UNKNOWN		=  28,
-	PAM_DOMAIN_UNKNOWN		=  29
+	PAM_DOMAIN_UNKNOWN		=  29,
+	PAM_NUM_ERRORS					/* OpenPAM extension */
 };
 
 /*

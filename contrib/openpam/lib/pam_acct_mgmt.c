@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/pam_acct_mgmt.c#9 $
+ * $P4: //depot/projects/openpam/lib/pam_acct_mgmt.c#10 $
  */
 
 #include <sys/param.h>
@@ -51,8 +51,11 @@ int
 pam_acct_mgmt(pam_handle_t *pamh,
 	int flags)
 {
+	int pam_err;
 
-	return (openpam_dispatch(pamh, PAM_SM_ACCT_MGMT, flags));
+	ENTER();
+	pam_err = openpam_dispatch(pamh, PAM_SM_ACCT_MGMT, flags);
+	RETURNC(pam_err);
 }
 
 /*

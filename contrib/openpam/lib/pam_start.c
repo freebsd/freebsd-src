@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/pam_start.c#16 $
+ * $P4: //depot/projects/openpam/lib/pam_start.c#17 $
  */
 
 #include <stdlib.h>
@@ -56,8 +56,9 @@ pam_start(const char *service,
 	struct pam_handle *ph;
 	int r;
 
+	ENTER();
 	if ((ph = calloc(1, sizeof *ph)) == NULL)
-		return (PAM_BUF_ERR);
+		RETURNC(PAM_BUF_ERR);
 	if ((r = pam_set_item(ph, PAM_SERVICE, service)) != PAM_SUCCESS)
 		goto fail;
 	if ((r = pam_set_item(ph, PAM_USER, user)) != PAM_SUCCESS)
@@ -71,11 +72,11 @@ pam_start(const char *service,
 
 	*pamh = ph;
 	openpam_log(PAM_LOG_DEBUG, "pam_start(\"%s\") succeeded", service);
-	return (PAM_SUCCESS);
+	RETURNC(PAM_SUCCESS);
 
  fail:
 	pam_end(ph, r);
-	return (r);
+	RETURNC(r);
 }
 
 /*

@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/pam_set_mapped_authtok.c#6 $
+ * $P4: //depot/projects/openpam/lib/pam_set_mapped_authtok.c#7 $
  */
 
 #include <security/pam_appl.h>
@@ -52,7 +52,8 @@ pam_set_mapped_authtok(pam_handle_t *pamh,
 	const char *target_authn_domain)
 {
 
-	return (PAM_SYSTEM_ERR);
+	ENTER();
+	RETURNC(PAM_SYSTEM_ERR);
 }
 
 /*
