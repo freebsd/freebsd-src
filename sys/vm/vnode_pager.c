@@ -799,7 +799,9 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 	 */
 	if (dp->v_type == VBLK || dp->v_type == VCHR) {
 		int secmask = dp->v_bufobj.bo_bsize - 1;
-		KASSERT(secmask < PAGE_SIZE, ("vnode_pager_generic_getpages: sector size %d too large\n", secmask + 1));
+		KASSERT(secmask < PAGE_SIZE && secmask > 0,
+		    ("vnode_pager_generic_getpages: sector size %d too large",
+		    secmask + 1));
 		size = (size + secmask) & ~secmask;
 	}
 
