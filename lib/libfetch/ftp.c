@@ -259,6 +259,8 @@ _ftp_stat(int cd, char *file, struct url_stat *us)
 	_ftp_seterr(FTP_PROTOCOL_ERROR);
 	return -1;
     }
+    if (us->size == 0)
+	us->size = -1;
     DEBUG(fprintf(stderr, "size: [\033[1m%lld\033[m]\n", us->size));
 
     if ((e = _ftp_cmd(cd, "MDTM %s", s)) != FTP_FILE_STATUS) {
@@ -844,9 +846,6 @@ fetchStatFTP(struct url *url, struct url_stat *us, char *flags)
 
     if (_ftp_use_http_proxy())
 	return fetchStatHTTP(url, us, flags);
-    
-    us->size = -1;
-    us->atime = us->mtime = 0;
     
     /* connect to server */
     if ((cd = _ftp_cached_connect(url, flags)) == NULL)
