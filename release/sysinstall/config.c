@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.51.2.35 1997/04/07 05:59:23 jkh Exp $
+ * $Id: config.c,v 1.51.2.36 1997/04/07 13:20:28 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -478,7 +478,7 @@ configUsers(dialogMenuItem *self)
 int
 configXFree86(dialogMenuItem *self)
 {
-#ifndef USE_XIG_SERVER
+#ifndef USE_XIG_ENVIRONMENT
     char *config, *execfile;
 
     dialog_clear_norefresh();
@@ -486,7 +486,7 @@ configXFree86(dialogMenuItem *self)
 	return DITEM_FAILURE | DITEM_RESTORE;
 #endif
     systemExecute("/sbin/ldconfig /usr/lib /usr/X11R6/lib /usr/local/lib /usr/lib/compat");
-#ifdef USE_XIG_SERVER
+#ifdef USE_XIG_ENVIRONMENT
     if (!file_readable("/usr/X11R6/lib/X11/AcceleratedX/bin/Xinstall") ||
 	!file_readable("/usr/X11R6/lib/X11/AcceleratedX/bin/Xsetup")) {
 	dialog_clear_norefresh();
@@ -511,12 +511,12 @@ configXFree86(dialogMenuItem *self)
 	}
 	dialog_clear();
 	systemExecute("/usr/X11R6/lib/X11/AcceleratedX/bin/Xsetup");
-	if (directory_exists("/dist/CDE") && !msgYesNo("Would you like to install the CDE desktop package?")) {
+	if (directory_exists("/dist/CDE") && !msgYesNo("Would you like to install the CDE desktop package now?")) {
 	    int i;
 
 	    dialog_clear_norefresh();
-	    msgNotify("Running CDE installation - please wait (awhile!).");
-	    i = system("(cd /dist/CDE; sh dtinstall)");
+	    msgNotify("Running CDE installation - please wait (this may take awhile!).");
+	    i = system("(cd /dist/CDE; sh Install)");
 	    dialog_clear_norefresh();
 	    if (i) {
 		msgConfirm("/dist/CDE/dtinstall script returned an error status!\n\n"
@@ -528,7 +528,7 @@ configXFree86(dialogMenuItem *self)
 	return DITEM_SUCCESS | DITEM_RESTORE;
     }
 
-#else	/* !USE_XIG_SERVER */
+#else	/* !USE_XIG_ENVIRONMENT */
 
     config = variable_get(VAR_XF86_CONFIG);
     if (!config)
@@ -548,7 +548,7 @@ configXFree86(dialogMenuItem *self)
 		   "The XFree86 distribution before attempting to configure it.");
 	return DITEM_FAILURE | DITEM_RESTORE;
     }
-#endif	/* USE_XIG_SERVER */
+#endif	/* USE_XIG_ENVIRONMENT */
 }
 
 void
