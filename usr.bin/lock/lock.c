@@ -70,6 +70,7 @@ struct timeval	timeout;
 struct timeval	zerotime;
 struct sgttyb	tty, ntty;
 long	nexttime;			/* keep the timeout time */
+int            no_timeout;                     /* lock terminal forever */
 
 /*ARGSUSED*/
 main(argc, argv)
@@ -90,7 +91,8 @@ main(argc, argv)
 	sectimeout = TIMEOUT;
 	mypw = NULL;
 	usemine = 0;
-	while ((ch = getopt(argc, argv, "pt:")) != EOF)
+       no_timeout = 0;
+       while ((ch = getopt(argc, argv, "npt:")) != EOF)
 		switch((char)ch) {
 		case 't':
 			if ((sectimeout = atoi(optarg)) <= 0) {
@@ -108,10 +110,13 @@ main(argc, argv)
 			}
 			mypw = strdup(pw->pw_passwd);
 			break;
+               case 'n':
+                       no_timeout = 1;
+                       break;
 		case '?':
 		default:
 			(void)fprintf(stderr,
-			    "usage: lock [-p] [-t timeout]\n");
+                           "usage: lock [-n] [-p] [-t timeout]\n");
 			exit(1);
 	}
 	timeout.tv_sec = sectimeout * 60;
@@ -169,11 +174,17 @@ main(argc, argv)
 
 	ntimer.it_interval = zerotime;
 	ntimer.it_value = timeout;
-	setitimer(ITIMER_REAL, &ntimer, &otimer);
+       if (!no_timeout)
+               setitimer(ITIMER_REAL, &ntimer, &otimer);
 
 	/* header info */
+       if (no_timeout) {
+(void)printf("lock: %s on %s. no timeout\ntime now is %.20s%s%s",
+           ttynam, hostname, ap, tzn, ap + 19);
+       } else {
 (void)printf("lock: %s on %s. timeout in %d minutes\ntime now is %.20s%s%s",
 	    ttynam, hostname, sectimeout, ap, tzn, ap + 19);
+       }
 
 	for (;;) {
 		(void)printf("Key: ");
@@ -201,9 +212,16 @@ hi()
 {
 	struct timeval timval;
 
-	if (!gettimeofday(&timval, (struct timezone *)NULL))
-(void)printf("lock: type in the unlock key. timeout in %ld:%ld minutes\n",
-	    (nexttime - timval.tv_sec) / 60, (nexttime - timval.tv_sec) % 60);
+       if (!gettimeofday(&timval, (struct timezone *)NULL)) {
+               (void)printf("lock: type in the unlock key. ");
+               if (no_timeout) {
+                       (void)putchar('\n');
+               } else {
+                       (void)printf("timeout in %ld:%ld minutes\n",
+                               (nexttime - timval.tv_sec) / 60,
+                               (nexttime - timval.tv_sec) % 60);
+               }
+       }
 }
 
 void
@@ -217,7 +235,9 @@ quit()
 void
 bye()
 {
-	(void)ioctl(0, TIOCSETP, &tty);
-	(void)printf("lock: timeout\n");
-	exit(1);
+       if (!no_timeout) {
+               (void)ioctl(0, TIOCSETP, &tty);
+               (void)printf("lock: timeout\n");
+               exit(1);
+       }
 }
