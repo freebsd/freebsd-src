@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: rm.c,v 1.14 1997/02/22 14:05:27 peter Exp $
+ *	$Id: rm.c,v 1.15 1997/03/28 15:24:34 imp Exp $
  */
 
 #ifndef lint
@@ -59,7 +59,7 @@ static char const sccsid[] = "@(#)rm.c	8.5 (Berkeley) 4/18/94";
  * XXX Until we get kernel support for the undelete(2) system call,
  * this define *must* remain in place.
  */
-#define BSD4_4_LITE
+/* #define BSD4_4_LITE */
 
 extern char *flags_to_string __P((u_long, char *));
 
