@@ -410,8 +410,7 @@ ep_if_init(xsc)
 
 #ifdef EP_LOCAL_STATS
     sc->rx_no_first = sc->rx_no_mbuf =
-	sc->rx_bpf_disc = sc->rx_overrunf = sc->rx_overrunl =
-	sc->tx_underrun = 0;
+	sc->rx_overrunf = sc->rx_overrunl = sc->tx_underrun = 0;
 #endif
     EP_FSET(sc, F_RX_FIRST);
     if (sc->top) {
@@ -593,8 +592,8 @@ rescan:
 	    printf("\tStat: %x\n", sc->stat);
 	    printf("\tIpackets=%d, Opackets=%d\n",
 		ifp->if_ipackets, ifp->if_opackets);
-	    printf("\tNOF=%d, NOMB=%d, BPFD=%d, RXOF=%d, RXOL=%d, TXU=%d\n",
-		   sc->rx_no_first, sc->rx_no_mbuf, sc->rx_bpf_disc, sc->rx_overrunf,
+	    printf("\tNOF=%d, NOMB=%d, RXOF=%d, RXOL=%d, TXU=%d\n",
+		   sc->rx_no_first, sc->rx_no_mbuf, sc->rx_overrunf,
 		   sc->rx_overrunl, sc->tx_underrun);
 #else
 
@@ -771,35 +770,6 @@ read_again:
     EP_FSET(sc, F_RX_FIRST);
     top->m_pkthdr.rcvif = &sc->arpcom.ac_if;
     top->m_pkthdr.len = sc->cur_len;
-
-    if (ifp->if_bpf) {
-	bpf_mtap(ifp, top);
-
-	/*
-	 * Note that the interface cannot be in promiscuous mode if there are
-	 * no BPF listeners.  And if we are in promiscuous mode, we have to
-	 * check if this packet is really ours.
-	 */
-	eh = mtod(top, struct ether_header *);
-	if ((ifp->if_flags & IFF_PROMISC) &&
-	    (eh->ether_dhost[0] & 1) == 0 &&
-	    bcmp(eh->ether_dhost, sc->arpcom.ac_enaddr,
-		 sizeof(eh->ether_dhost)) != 0 &&
-	    bcmp(eh->ether_dhost, etherbroadcastaddr,
-		 sizeof(eh->ether_dhost)) != 0) {
-	    if (sc->top) {
-		m_freem(sc->top);
-		sc->top = 0;
-	    }
-	    EP_FSET(sc, F_RX_FIRST);
-#ifdef EP_LOCAL_STATS
-	    sc->rx_bpf_disc++;
-#endif
-	    while (inw(BASE + EP_STATUS) & S_COMMAND_IN_PROGRESS);
-	    outw(BASE + EP_COMMAND, SET_RX_EARLY_THRESH | RX_INIT_EARLY_THRESH);
-	    return;
-	}
-    }
 
     eh = mtod(top, struct ether_header *);
     m_adj(top, sizeof(struct ether_header));

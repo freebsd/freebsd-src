@@ -1652,16 +1652,6 @@ static void sk_rxeof(sc_if)
 		ifp->if_ipackets++;
 		eh = mtod(m, struct ether_header *);
 
-		if (ifp->if_bpf) {
-			bpf_mtap(ifp, m);
-			if (ifp->if_flags & IFF_PROMISC &&
-			    (bcmp(eh->ether_dhost, sc_if->arpcom.ac_enaddr,
-			    ETHER_ADDR_LEN) && !(eh->ether_dhost[0] & 1))) {
-				m_freem(m);
-				continue;
-			}
-		}
-
 		/* Remove header from mbuf and pass it on. */
 		m_adj(m, sizeof(struct ether_header));
 		ether_input(ifp, eh, m);

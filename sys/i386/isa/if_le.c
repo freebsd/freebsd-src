@@ -204,9 +204,6 @@ struct le_softc {
     le_mcbits_t *le_mctbl;		/* pointer to multicast table */
     const char *le_prodname;		/* product name DE20x-xx */
     u_char le_hwaddr[6];		/* local copy of hwaddr */
-    unsigned le_scast_drops;		/* singlecast drops */
-    unsigned le_mcast_drops;		/* multicast drops */
-    unsigned le_bcast_drops;		/* broadcast drops */
     union {
 #if !defined(LE_NOLEMAC)
 	struct le_lemac_info un_lemac;	/* LEMAC specific information */
@@ -395,27 +392,6 @@ le_input(
     }
     MEMCPY(&eh, seg1, sizeof(eh));
 
-    if (sc->le_if.if_bpf != NULL && seg2 == NULL) {
-	bpf_tap(&sc->le_if, seg1, total_len);
-	/*
-	 * If this is single cast but not to us
-	 * drop it!
-	 */
-	if ((eh.ether_dhost[0] & 1) == 0) {
-	    if (!LE_ADDREQUAL(eh.ether_dhost, sc->le_ac.ac_enaddr)) {
-		sc->le_scast_drops++;
-		return;
-	    }
-	} else if ((sc->le_flags & IFF_MULTICAST) == 0) {
-	    sc->le_mcast_drops++;
-	    return;
-	} else if (sc->le_flags & LE_BRDCSTONLY) {
-	    if (!LE_ADDRBRDCST(eh.ether_dhost)) {
-		sc->le_bcast_drops++;
-		return;
-	    }
-	}
-    }
     seg1 += sizeof(eh); total_len -= sizeof(eh); len1 -= sizeof(eh);
 
     MGETHDR(m, M_DONTWAIT, MT_DATA);
@@ -450,30 +426,6 @@ le_input(
     MEMCPY(mtod(m, caddr_t), seg1, len1);
     if (seg2 != NULL)
 	MEMCPY(mtod(m, caddr_t) + len1, seg2, total_len - len1);
-    if (sc->le_if.if_bpf != NULL && seg2 != NULL) {
-	bpf_mtap(&sc->le_if, m);
-	/*
-	 * If this is single cast but not to us
-	 * drop it!
-	 */
-	if ((eh.ether_dhost[0] & 1) == 0) {
-	    if (!LE_ADDREQUAL(eh.ether_dhost, sc->le_ac.ac_enaddr)) {
-		sc->le_scast_drops++;
-		m_freem(m);
-		return;
-	    }
-	} else if ((sc->le_flags & IFF_MULTICAST) == 0) {
-	    sc->le_mcast_drops++;
-	    m_freem(m);
-	    return;
-	} else if (sc->le_flags & LE_BRDCSTONLY) {
-	    if (!LE_ADDRBRDCST(eh.ether_dhost)) {
-		sc->le_bcast_drops++;
-		m_freem(m);
-		return;
-	    }
-	}
-    }
     ether_input(&sc->le_if, &eh, m);
 }
 

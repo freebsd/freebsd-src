@@ -66,7 +66,6 @@
  *      cons of multiple frame transmission.
  *  o   To test IPX codes.
  *  o   To test FreeBSD3.0-current.
- *  o   To test BRIDGE codes.
  */
 
 #include "fe.h"
@@ -91,10 +90,6 @@
 #include <netinet/if_ether.h>
 
 #include <net/bpf.h>
-
-#ifdef BRIDGE
-#include <net/bridge.h>
-#endif
 
 #include <machine/clock.h>
 
@@ -3819,7 +3814,7 @@ fe_ioctl ( struct ifnet * ifp, u_long command, caddr_t data )
 
 /*
  * Retrieve packet from receive buffer and send to the next level up via
- * ether_input(). If there is a BPF listener, give a copy to BPF, too.
+ * ether_input().
  * Returns 0 if success, -1 if error (i.e., mbuf allocation failure).
  */
 static int
@@ -3897,61 +3892,6 @@ fe_get_packet ( struct fe_softc * sc, u_short len )
 		insw( sc->ioaddr[ FE_BMPR8 ], eh, ( len + 1 ) >> 1 );
 	}
 
-#define ETHER_ADDR_IS_MULTICAST(A) (*(char *)(A) & 1)
-
-	/*
-	 * Check if there's a BPF listener on this interface.
-	 * If it is, hand off the raw packet to bpf.
-	 */
-	if ( sc->sc_if.if_bpf ) {
-		bpf_mtap( &sc->sc_if, m );
-	}
-
-#ifdef BRIDGE
-	if (do_bridge) {
-		struct ifnet *ifp;
-
-		ifp = bridge_in(m);
-		if (ifp == BDG_DROP) {
-			m_freem(m);
-			return 0;
-		}
-		if (ifp != BDG_LOCAL)
-			bdg_forward(&m, ifp); /* not local, need forwarding */
-		if (ifp == BDG_LOCAL || ifp == BDG_BCAST || ifp == BDG_MCAST)
-			goto getit;
-		/* not local and not multicast, just drop it */
-		if (m)
-			m_freem(m);
-		return 0;
-	}
-#endif
-
-	/*
-	 * Make sure this packet is (or may be) directed to us.
-	 * That is, the packet is either unicasted to our address,
-	 * or broad/multi-casted.  If any other packets are
-	 * received, it is an indication of an error -- probably
-	 * 86960 is in a wrong operation mode.
-	 * Promiscuous mode is an exception.  Under the mode, all
-	 * packets on the media must be received.  (We must have
-	 * programmed the 86960 so.)
-	 */
-
-	if ( ( sc->sc_if.if_flags & IFF_PROMISC )
-	  && !ETHER_ADDR_IS_MULTICAST( eh->ether_dhost )
-	  && bcmp( eh->ether_dhost, sc->sc_enaddr, ETHER_ADDR_LEN ) != 0 ) {
-		/*
-		 * The packet was not for us.  This is normal since
-		 * we are now in promiscuous mode.  Just drop the packet.
-		 */
-		m_freem( m );
-		return 0;
-	}
-
-#ifdef BRIDGE
-getit:
-#endif
 	/* Strip off the Ethernet header.  */
 	m->m_pkthdr.len -= sizeof ( struct ether_header );
 	m->m_len -= sizeof ( struct ether_header );

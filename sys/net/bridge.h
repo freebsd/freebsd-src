@@ -49,9 +49,9 @@ extern int bdg_ports ;
 #define HASH_FN(addr)   (	\
 	ntohs( ((short *)addr)[1] ^ ((short *)addr)[2] ) & (HASH_SIZE -1))
 
-struct ifnet *bridge_in(struct mbuf *m);
+struct ifnet *bridge_in(struct ifnet *ifp, struct ether_header *eh);
 /* bdg_forward frees the mbuf if necessary, returning null */
-int bdg_forward (struct mbuf **m, struct ifnet *dst);
+int bdg_forward(struct mbuf **m0, struct ether_header *eh, struct ifnet *dst);
 
 #ifdef __i386__
 #define BDG_MATCH(a,b) ( \
@@ -109,9 +109,8 @@ struct bdg_stats {
  */
 static __inline
 struct ifnet *
-bridge_dst_lookup(struct mbuf *m)
+bridge_dst_lookup(struct ether_header *eh)
 {
-    struct ether_header *eh = mtod(m, struct ether_header *);
     struct ifnet *dst ;
     int index ;
     u_char *eth_addr = bdg_addresses ;
