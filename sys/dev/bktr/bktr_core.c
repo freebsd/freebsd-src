@@ -1581,6 +1581,8 @@ video_open( bktr_ptr_t bktr )
 	frame_rate = 30;
 #endif
 
+	bktr->flags = (bktr->flags & ~METEOR_DEV_MASK) | METEOR_DEV0;
+
 	bktr->max_clip_node = 0;
 
 	bt848->color_ctl_gamma       = 1;
