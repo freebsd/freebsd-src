@@ -33,7 +33,7 @@
 
 #include "gssapi_locl.h"
 
-RCSID("$Id: import_sec_context.c,v 1.2 2000/02/12 21:26:00 assar Exp $");
+RCSID("$Id: import_sec_context.c,v 1.3 2000/07/08 11:56:03 assar Exp $");
 
 OM_uint32
 gss_import_sec_context (
@@ -51,7 +51,6 @@ gss_import_sec_context (
     krb5_data data;
     gss_buffer_desc buffer;
     krb5_keyblock keyblock;
-    size_t sz;
     int32_t tmp;
     int32_t flags;
 
@@ -121,21 +120,25 @@ gss_import_sec_context (
     krb5_ret_int32 (sp, &ac->remote_seqnumber);
 
 #if 0
-    krb5_ret_data (sp, &data);
-    ac->authenticator = malloc (sizeof (*ac->authenticator));
-    if (ac->authenticator == NULL) {
-	*minor_status = ENOMEM;
-	ret = GSS_S_FAILURE;
-	goto failure;
-    }
+    {
+	    size_t sz;
 
-    kret = decode_Authenticator (data.data, data.length,
-				 ac->authenticator, &sz);
-    krb5_data_free (&data);
-    if (kret) {
-	*minor_status = kret;
-	ret = GSS_S_FAILURE;
-	goto failure;
+	    krb5_ret_data (sp, &data);
+	    ac->authenticator = malloc (sizeof (*ac->authenticator));
+	    if (ac->authenticator == NULL) {
+		*minor_status = ENOMEM;
+		ret = GSS_S_FAILURE;
+		goto failure;
+	    }
+
+	    kret = decode_Authenticator (data.data, data.length,
+					 ac->authenticator, &sz);
+	    krb5_data_free (&data);
+	    if (kret) {
+		*minor_status = kret;
+		ret = GSS_S_FAILURE;
+		goto failure;
+	    }
     }
 #endif
 

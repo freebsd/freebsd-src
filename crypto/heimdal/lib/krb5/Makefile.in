@@ -1,6 +1,6 @@
-# Makefile.in generated automatically by automake 1.4 from Makefile.am
+# Makefile.in generated automatically by automake 1.4a from Makefile.am
 
-# Copyright (C) 1994, 1995-8, 1999 Free Software Foundation, Inc.
+# Copyright (C) 1994, 1995-9, 2000 Free Software Foundation, Inc.
 # This Makefile.in is free software; the Free Software Foundation
 # gives unlimited permission to copy and/or distribute it,
 # with or without modifications, as long as this notice is preserved.
@@ -9,15 +9,6 @@
 # but WITHOUT ANY WARRANTY, to the extent permitted by law; without
 # even the implied warranty of MERCHANTABILITY or FITNESS FOR A
 # PARTICULAR PURPOSE.
-
-# $Id: Makefile.am,v 1.98 2000/02/19 18:53:56 assar Exp $
-
-
-# $Id: Makefile.am.common,v 1.3 1999/04/01 14:58:43 joda Exp $
-
-
-# $Id: Makefile.am.common,v 1.13 1999/11/01 03:19:58 assar Exp $
-
 
 SHELL = @SHELL@
 
@@ -40,8 +31,6 @@ mandir = @mandir@
 includedir = @includedir@
 oldincludedir = /usr/include
 
-DESTDIR =
-
 pkgdatadir = $(datadir)/@PACKAGE@
 pkglibdir = $(libdir)/@PACKAGE@
 pkgincludedir = $(includedir)/@PACKAGE@
@@ -54,9 +43,10 @@ AUTOMAKE = @AUTOMAKE@
 AUTOHEADER = @AUTOHEADER@
 
 INSTALL = @INSTALL@
-INSTALL_PROGRAM = @INSTALL_PROGRAM@ $(AM_INSTALL_PROGRAM_FLAGS)
+INSTALL_PROGRAM = @INSTALL_PROGRAM@
 INSTALL_DATA = @INSTALL_DATA@
 INSTALL_SCRIPT = @INSTALL_SCRIPT@
+INSTALL_STRIP_FLAG =
 transform = @program_transform_name@
 
 NORMAL_INSTALL = :
@@ -65,26 +55,39 @@ POST_INSTALL = :
 NORMAL_UNINSTALL = :
 PRE_UNINSTALL = :
 POST_UNINSTALL = :
+
+@SET_MAKE@
 host_alias = @host_alias@
 host_triplet = @host@
-AFS_EXTRA_LD = @AFS_EXTRA_LD@
 AIX_EXTRA_KAFS = @AIX_EXTRA_KAFS@
+AMDEP = @AMDEP@
+AMTAR = @AMTAR@
+AS = @AS@
 AWK = @AWK@
 CANONICAL_HOST = @CANONICAL_HOST@
 CATMAN = @CATMAN@
 CATMANEXT = @CATMANEXT@
 CC = @CC@
+CPP = @CPP@
+CXX = @CXX@
+CXXCPP = @CXXCPP@
 DBLIB = @DBLIB@
+DEPDIR = @DEPDIR@
+DIR_des = @DIR_des@
+DIR_roken = @DIR_roken@
+DLLTOOL = @DLLTOOL@
 EXEEXT = @EXEEXT@
 EXTRA_LIB45 = @EXTRA_LIB45@
 GROFF = @GROFF@
+INCLUDES_roken = @INCLUDES_roken@
 INCLUDE_ = @INCLUDE_@
-LD = @LD@
 LEX = @LEX@
 LIBOBJS = @LIBOBJS@
 LIBTOOL = @LIBTOOL@
 LIB_ = @LIB_@
 LIB_AUTH_SUBDIRS = @LIB_AUTH_SUBDIRS@
+LIB_des = @LIB_des@
+LIB_des_appl = @LIB_des_appl@
 LIB_kdb = @LIB_kdb@
 LIB_otp = @LIB_otp@
 LIB_roken = @LIB_roken@
@@ -92,30 +95,42 @@ LIB_security = @LIB_security@
 LN_S = @LN_S@
 LTLIBOBJS = @LTLIBOBJS@
 MAKEINFO = @MAKEINFO@
-MAKE_X_PROGS_BIN_PROGS = @MAKE_X_PROGS_BIN_PROGS@
-MAKE_X_PROGS_BIN_SCRPTS = @MAKE_X_PROGS_BIN_SCRPTS@
-MAKE_X_PROGS_LIBEXEC_PROGS = @MAKE_X_PROGS_LIBEXEC_PROGS@
 NEED_WRITEAUTH_FALSE = @NEED_WRITEAUTH_FALSE@
 NEED_WRITEAUTH_TRUE = @NEED_WRITEAUTH_TRUE@
-NM = @NM@
 NROFF = @NROFF@
+OBJDUMP = @OBJDUMP@
 OBJEXT = @OBJEXT@
 PACKAGE = @PACKAGE@
 RANLIB = @RANLIB@
+STRIP = @STRIP@
 VERSION = @VERSION@
 VOID_RETSIGTYPE = @VOID_RETSIGTYPE@
 WFLAGS = @WFLAGS@
 WFLAGS_NOIMPLICITINT = @WFLAGS_NOIMPLICITINT@
 WFLAGS_NOUNUSED = @WFLAGS_NOUNUSED@
 YACC = @YACC@
+dpagaix_CFLAGS = @dpagaix_CFLAGS@
+dpagaix_LDADD = @dpagaix_LDADD@
+install_sh = @install_sh@
+
+# $Id: Makefile.am,v 1.119 2001/01/30 01:50:52 assar Exp $
+
+
+# $Id: Makefile.am.common,v 1.3 1999/04/01 14:58:43 joda Exp $
+
+
+# $Id: Makefile.am.common,v 1.23 2000/12/05 09:11:09 joda Exp $
+
 
 AUTOMAKE_OPTIONS = foreign no-dependencies
 
 SUFFIXES = .et .h .1 .3 .5 .8 .cat1 .cat3 .cat5 .cat8 .x
 
-INCLUDES = -I$(top_builddir)/include $(INCLUDE_krb4)
+INCLUDES = -I$(top_builddir)/include $(INCLUDES_roken)
 
 AM_CFLAGS =  $(WFLAGS)
+
+CP = cp
 
 COMPILE_ET = $(top_builddir)/lib/com_err/compile_et
 
@@ -136,6 +151,7 @@ LIB_getsockopt = @LIB_getsockopt@
 LIB_logout = @LIB_logout@
 LIB_logwtmp = @LIB_logwtmp@
 LIB_odm_initialize = @LIB_odm_initialize@
+LIB_pidfile = @LIB_pidfile@
 LIB_readline = @LIB_readline@
 LIB_res_search = @LIB_res_search@
 LIB_setpcred = @LIB_setpcred@
@@ -143,6 +159,8 @@ LIB_setsockopt = @LIB_setsockopt@
 LIB_socket = @LIB_socket@
 LIB_syslog = @LIB_syslog@
 LIB_tgetent = @LIB_tgetent@
+
+LIBS = @LIBS@
 
 HESIODLIB = @HESIODLIB@
 HESIODINCLUDE = @HESIODINCLUDE@
@@ -152,59 +170,170 @@ LIB_hesiod = @LIB_hesiod@
 INCLUDE_krb4 = @INCLUDE_krb4@
 LIB_krb4 = @LIB_krb4@
 
+INCLUDE_openldap = @INCLUDE_openldap@
+LIB_openldap = @LIB_openldap@
+
 INCLUDE_readline = @INCLUDE_readline@
 
 LEXLIB = @LEXLIB@
 
-cat1dir = $(mandir)/cat1
-cat3dir = $(mandir)/cat3
-cat5dir = $(mandir)/cat5
-cat8dir = $(mandir)/cat8
-
-MANRX = \(.*\)\.\([0-9]\)
-CATSUFFIX = @CATSUFFIX@
-
 NROFF_MAN = groff -mandoc -Tascii
 
-@KRB4_TRUE@LIB_kafs = $(top_builddir)/lib/kafs/libkafs.la $(AIX_EXTRA_KAFS)
+@KRB4_TRUE@LIB_kafs = @KRB4_TRUE@$(top_builddir)/lib/kafs/libkafs.la $(AIX_EXTRA_KAFS)
 
-@KRB5_TRUE@LIB_krb5 = $(top_builddir)/lib/krb5/libkrb5.la 	$(top_builddir)/lib/asn1/libasn1.la
-@KRB5_TRUE@LIB_gssapi = $(top_builddir)/lib/gssapi/libgssapi.la
+@KRB5_TRUE@LIB_krb5 = @KRB5_TRUE@$(top_builddir)/lib/krb5/libkrb5.la \
+@KRB5_TRUE@	$(top_builddir)/lib/asn1/libasn1.la
+@KRB5_TRUE@LIB_gssapi = @KRB5_TRUE@$(top_builddir)/lib/gssapi/libgssapi.la
 
 CHECK_LOCAL = $(PROGRAMS)
 
 bin_PROGRAMS = verify_krb5_conf
 
-noinst_PROGRAMS = dump_config
+noinst_PROGRAMS = dump_config test_get_addrs
 
 check_PROGRAMS = n-fold-test string-to-key-test
 TESTS = n-fold-test string-to-key-test
 
-@KRB4_TRUE@KRB4LIB = $(LIB_krb4)
-@KRB4_TRUE@keytab_krb4_c = keytab_krb4.c
+LDADD = libkrb5.la \
+	$(LIB_des) \
+	$(top_builddir)/lib/asn1/libasn1.la \
+	$(LIB_roken)
 
-LDADD = libkrb5.la 	$(KRB4LIB) 	$(top_builddir)/lib/des/libdes.la 	$(top_builddir)/lib/asn1/libasn1.la 	$(LIB_roken)
+
+libkrb5_la_LIBADD = \
+	../com_err/error.lo ../com_err/com_err.lo \
+	$(LIB_des) \
+	$(top_builddir)/lib/asn1/libasn1.la \
+	$(LIB_roken)
 
 
 lib_LTLIBRARIES = libkrb5.la
 
 ERR_FILES = krb5_err.c heim_err.c
 
-libkrb5_la_SOURCES =  	add_et_list.c 	addr_families.c 	address.c 	aname_to_localname.c 	asn1_glue.c 	auth_context.c 	build_ap_req.c 	build_auth.c 	cache.c 	changepw.c 	codec.c 	config_file.c 	config_file_netinfo.c 	convert_creds.c 	constants.c 	context.c 	copy_host_realm.c 	crc.c 	creds.c 	crypto.c 	data.c 	expand_hostname.c 	fcache.c 	free.c 	free_host_realm.c 	generate_seq_number.c 	generate_subkey.c 	get_addrs.c 	get_cred.c 	get_default_principal.c 	get_default_realm.c 	get_for_creds.c 	get_host_realm.c 	get_in_tkt.c 	get_in_tkt_pw.c 	get_in_tkt_with_keytab.c 	get_in_tkt_with_skey.c 	get_port.c 	init_creds.c 	init_creds_pw.c 	keyblock.c 	keytab.c 	keytab_file.c 	keytab_memory.c 	$(keytab_krb4_c) 	keytab_keyfile.c 	krbhst.c 	kuserok.c 	log.c 	mcache.c 	misc.c 	mk_error.c 	mk_priv.c 	mk_rep.c 	mk_req.c 	mk_req_ext.c 	mk_safe.c 	net_read.c 	net_write.c 	n-fold.c 	padata.c 	principal.c 	prog_setup.c 	prompter_posix.c 	rd_cred.c 	rd_error.c 	rd_priv.c 	rd_rep.c 	rd_req.c 	rd_safe.c 	read_message.c 	recvauth.c 	send_to_kdc.c 	sendauth.c 	set_default_realm.c 	sock_principal.c 	store.c 	store_emem.c 	store_fd.c 	store_mem.c 	ticket.c 	time.c 	transited.c 	verify_init.c 	verify_user.c 	version.c 	warn.c 	write_message.c 	$(ERR_FILES)
+libkrb5_la_SOURCES = \
+	acl.c \
+	add_et_list.c \
+	addr_families.c \
+	address.c \
+	aname_to_localname.c \
+	appdefault.c \
+	asn1_glue.c \
+	auth_context.c \
+	build_ap_req.c \
+	build_auth.c \
+	cache.c \
+	changepw.c \
+	codec.c \
+	config_file.c \
+	config_file_netinfo.c \
+	convert_creds.c \
+	constants.c \
+	context.c \
+	copy_host_realm.c \
+	crc.c \
+	creds.c \
+	crypto.c \
+	data.c \
+	eai_to_heim_errno.c \
+	expand_hostname.c \
+	fcache.c \
+	free.c \
+	free_host_realm.c \
+	generate_seq_number.c \
+	generate_subkey.c \
+	get_addrs.c \
+	get_cred.c \
+	get_default_principal.c \
+	get_default_realm.c \
+	get_for_creds.c \
+	get_host_realm.c \
+	get_in_tkt.c \
+	get_in_tkt_pw.c \
+	get_in_tkt_with_keytab.c \
+	get_in_tkt_with_skey.c \
+	get_port.c \
+	init_creds.c \
+	init_creds_pw.c \
+	keyblock.c \
+	keytab.c \
+	keytab_file.c \
+	keytab_memory.c \
+	keytab_keyfile.c \
+	keytab_krb4.c \
+	krbhst.c \
+	kuserok.c \
+	log.c \
+	mcache.c \
+	misc.c \
+	mk_error.c \
+	mk_priv.c \
+	mk_rep.c \
+	mk_req.c \
+	mk_req_ext.c \
+	mk_safe.c \
+	net_read.c \
+	net_write.c \
+	n-fold.c \
+	padata.c \
+	principal.c \
+	prog_setup.c \
+	prompter_posix.c \
+	rd_cred.c \
+	rd_error.c \
+	rd_priv.c \
+	rd_rep.c \
+	rd_req.c \
+	rd_safe.c \
+	read_message.c \
+	recvauth.c \
+	replay.c \
+	send_to_kdc.c \
+	sendauth.c \
+	set_default_realm.c \
+	sock_principal.c \
+	store.c \
+	store_emem.c \
+	store_fd.c \
+	store_mem.c \
+	ticket.c \
+	time.c \
+	transited.c \
+	verify_init.c \
+	verify_user.c \
+	version.c \
+	warn.c \
+	write_message.c \
+	$(ERR_FILES)
 
 
-EXTRA_libkrb5_la_SOURCES = keytab_krb4.c
+libkrb5_la_LDFLAGS = -version-info 15:0:0
 
-libkrb5_la_LDFLAGS = -version-info 9:1:0
+#libkrb5_la_LIBADD = ../com_err/error.lo ../com_err/com_err.lo
 
-libkrb5_la_LIBADD = ../com_err/error.lo ../com_err/com_err.lo
-
-man_MANS = krb5.conf.5 krb5_warn.3 krb5_openlog.3 	krb5_425_conv_principal.3 krb5_build_principal.3 krb5_free_principal.3 	krb5_parse_name.3 krb5_sname_to_principal.3 krb5_unparse_name.3
+man_MANS = \
+	kerberos.8				\
+	krb5.conf.5				\
+	krb5_425_conv_principal.3		\
+	krb5_appdefault.3			\
+	krb5_build_principal.3			\
+	krb5_config.3				\
+	krb5_free_principal.3			\
+	krb5_openlog.3				\
+	krb5_parse_name.3			\
+	krb5_sname_to_principal.3		\
+	krb5_unparse_name.3			\
+	krb5_warn.3				\
+	verify_krb5_conf.8			\
+	krb5_auth_context.3			\
+	krb5_context.3				\
+	krb5_init_context.3
 
 
 include_HEADERS = krb5.h krb5-protos.h krb5-private.h krb5_err.h heim_err.h
 
 CLEANFILES = krb5_err.c krb5_err.h heim_err.c heim_err.h
+subdir = lib/krb5
 mkinstalldirs = $(SHELL) $(top_srcdir)/mkinstalldirs
 CONFIG_HEADER = ../../include/config.h
 CONFIG_CLEAN_FILES = 
@@ -214,128 +343,94 @@ LTLIBRARIES =  $(lib_LTLIBRARIES)
 DEFS = @DEFS@ -I. -I$(srcdir) -I../../include
 CPPFLAGS = @CPPFLAGS@
 LDFLAGS = @LDFLAGS@
-LIBS = @LIBS@
 X_CFLAGS = @X_CFLAGS@
 X_LIBS = @X_LIBS@
 X_EXTRA_LIBS = @X_EXTRA_LIBS@
 X_PRE_LIBS = @X_PRE_LIBS@
-libkrb5_la_DEPENDENCIES =  ../com_err/error.lo ../com_err/com_err.lo
-@KRB4_TRUE@libkrb5_la_OBJECTS =  add_et_list.lo addr_families.lo \
-@KRB4_TRUE@address.lo aname_to_localname.lo asn1_glue.lo \
-@KRB4_TRUE@auth_context.lo build_ap_req.lo build_auth.lo cache.lo \
-@KRB4_TRUE@changepw.lo codec.lo config_file.lo config_file_netinfo.lo \
-@KRB4_TRUE@convert_creds.lo constants.lo context.lo copy_host_realm.lo \
-@KRB4_TRUE@crc.lo creds.lo crypto.lo data.lo expand_hostname.lo \
-@KRB4_TRUE@fcache.lo free.lo free_host_realm.lo generate_seq_number.lo \
-@KRB4_TRUE@generate_subkey.lo get_addrs.lo get_cred.lo \
-@KRB4_TRUE@get_default_principal.lo get_default_realm.lo \
-@KRB4_TRUE@get_for_creds.lo get_host_realm.lo get_in_tkt.lo \
-@KRB4_TRUE@get_in_tkt_pw.lo get_in_tkt_with_keytab.lo \
-@KRB4_TRUE@get_in_tkt_with_skey.lo get_port.lo init_creds.lo \
-@KRB4_TRUE@init_creds_pw.lo keyblock.lo keytab.lo keytab_file.lo \
-@KRB4_TRUE@keytab_memory.lo keytab_krb4.lo keytab_keyfile.lo krbhst.lo \
-@KRB4_TRUE@kuserok.lo log.lo mcache.lo misc.lo mk_error.lo mk_priv.lo \
-@KRB4_TRUE@mk_rep.lo mk_req.lo mk_req_ext.lo mk_safe.lo net_read.lo \
-@KRB4_TRUE@net_write.lo n-fold.lo padata.lo principal.lo prog_setup.lo \
-@KRB4_TRUE@prompter_posix.lo rd_cred.lo rd_error.lo rd_priv.lo \
-@KRB4_TRUE@rd_rep.lo rd_req.lo rd_safe.lo read_message.lo recvauth.lo \
-@KRB4_TRUE@send_to_kdc.lo sendauth.lo set_default_realm.lo \
-@KRB4_TRUE@sock_principal.lo store.lo store_emem.lo store_fd.lo \
-@KRB4_TRUE@store_mem.lo ticket.lo time.lo transited.lo verify_init.lo \
-@KRB4_TRUE@verify_user.lo version.lo warn.lo write_message.lo \
-@KRB4_TRUE@krb5_err.lo heim_err.lo
-@KRB4_FALSE@libkrb5_la_OBJECTS =  add_et_list.lo addr_families.lo \
-@KRB4_FALSE@address.lo aname_to_localname.lo asn1_glue.lo \
-@KRB4_FALSE@auth_context.lo build_ap_req.lo build_auth.lo cache.lo \
-@KRB4_FALSE@changepw.lo codec.lo config_file.lo config_file_netinfo.lo \
-@KRB4_FALSE@convert_creds.lo constants.lo context.lo copy_host_realm.lo \
-@KRB4_FALSE@crc.lo creds.lo crypto.lo data.lo expand_hostname.lo \
-@KRB4_FALSE@fcache.lo free.lo free_host_realm.lo generate_seq_number.lo \
-@KRB4_FALSE@generate_subkey.lo get_addrs.lo get_cred.lo \
-@KRB4_FALSE@get_default_principal.lo get_default_realm.lo \
-@KRB4_FALSE@get_for_creds.lo get_host_realm.lo get_in_tkt.lo \
-@KRB4_FALSE@get_in_tkt_pw.lo get_in_tkt_with_keytab.lo \
-@KRB4_FALSE@get_in_tkt_with_skey.lo get_port.lo init_creds.lo \
-@KRB4_FALSE@init_creds_pw.lo keyblock.lo keytab.lo keytab_file.lo \
-@KRB4_FALSE@keytab_memory.lo keytab_keyfile.lo krbhst.lo kuserok.lo \
-@KRB4_FALSE@log.lo mcache.lo misc.lo mk_error.lo mk_priv.lo mk_rep.lo \
-@KRB4_FALSE@mk_req.lo mk_req_ext.lo mk_safe.lo net_read.lo net_write.lo \
-@KRB4_FALSE@n-fold.lo padata.lo principal.lo prog_setup.lo \
-@KRB4_FALSE@prompter_posix.lo rd_cred.lo rd_error.lo rd_priv.lo \
-@KRB4_FALSE@rd_rep.lo rd_req.lo rd_safe.lo read_message.lo recvauth.lo \
-@KRB4_FALSE@send_to_kdc.lo sendauth.lo set_default_realm.lo \
-@KRB4_FALSE@sock_principal.lo store.lo store_emem.lo store_fd.lo \
-@KRB4_FALSE@store_mem.lo ticket.lo time.lo transited.lo verify_init.lo \
-@KRB4_FALSE@verify_user.lo version.lo warn.lo write_message.lo \
-@KRB4_FALSE@krb5_err.lo heim_err.lo
+libkrb5_la_DEPENDENCIES =  ../com_err/error.lo ../com_err/com_err.lo \
+$(top_builddir)/lib/asn1/libasn1.la
+am_libkrb5_la_OBJECTS =  acl.lo add_et_list.lo addr_families.lo \
+address.lo aname_to_localname.lo appdefault.lo asn1_glue.lo \
+auth_context.lo build_ap_req.lo build_auth.lo cache.lo changepw.lo \
+codec.lo config_file.lo config_file_netinfo.lo convert_creds.lo \
+constants.lo context.lo copy_host_realm.lo crc.lo creds.lo crypto.lo \
+data.lo eai_to_heim_errno.lo expand_hostname.lo fcache.lo free.lo \
+free_host_realm.lo generate_seq_number.lo generate_subkey.lo \
+get_addrs.lo get_cred.lo get_default_principal.lo get_default_realm.lo \
+get_for_creds.lo get_host_realm.lo get_in_tkt.lo get_in_tkt_pw.lo \
+get_in_tkt_with_keytab.lo get_in_tkt_with_skey.lo get_port.lo \
+init_creds.lo init_creds_pw.lo keyblock.lo keytab.lo keytab_file.lo \
+keytab_memory.lo keytab_keyfile.lo keytab_krb4.lo krbhst.lo kuserok.lo \
+log.lo mcache.lo misc.lo mk_error.lo mk_priv.lo mk_rep.lo mk_req.lo \
+mk_req_ext.lo mk_safe.lo net_read.lo net_write.lo n-fold.lo padata.lo \
+principal.lo prog_setup.lo prompter_posix.lo rd_cred.lo rd_error.lo \
+rd_priv.lo rd_rep.lo rd_req.lo rd_safe.lo read_message.lo recvauth.lo \
+replay.lo send_to_kdc.lo sendauth.lo set_default_realm.lo \
+sock_principal.lo store.lo store_emem.lo store_fd.lo store_mem.lo \
+ticket.lo time.lo transited.lo verify_init.lo verify_user.lo version.lo \
+warn.lo write_message.lo krb5_err.lo heim_err.lo
+libkrb5_la_OBJECTS =  $(am_libkrb5_la_OBJECTS)
 bin_PROGRAMS =  verify_krb5_conf$(EXEEXT)
 check_PROGRAMS =  n-fold-test$(EXEEXT) string-to-key-test$(EXEEXT)
-noinst_PROGRAMS =  dump_config$(EXEEXT)
+noinst_PROGRAMS =  dump_config$(EXEEXT) test_get_addrs$(EXEEXT)
 PROGRAMS =  $(bin_PROGRAMS) $(noinst_PROGRAMS)
 
-verify_krb5_conf_SOURCES = verify_krb5_conf.c
-verify_krb5_conf_OBJECTS =  verify_krb5_conf.$(OBJEXT)
-verify_krb5_conf_LDADD = $(LDADD)
-@KRB4_TRUE@verify_krb5_conf_DEPENDENCIES =  libkrb5.la \
-@KRB4_TRUE@$(top_builddir)/lib/des/libdes.la \
-@KRB4_TRUE@$(top_builddir)/lib/asn1/libasn1.la
-@KRB4_FALSE@verify_krb5_conf_DEPENDENCIES =  libkrb5.la \
-@KRB4_FALSE@$(top_builddir)/lib/des/libdes.la \
-@KRB4_FALSE@$(top_builddir)/lib/asn1/libasn1.la
-verify_krb5_conf_LDFLAGS = 
+dump_config_SOURCES = dump_config.c
+dump_config_OBJECTS =  dump_config.$(OBJEXT)
+dump_config_LDADD = $(LDADD)
+dump_config_DEPENDENCIES =  libkrb5.la \
+$(top_builddir)/lib/asn1/libasn1.la
+dump_config_LDFLAGS = 
 n_fold_test_SOURCES = n-fold-test.c
 n_fold_test_OBJECTS =  n-fold-test.$(OBJEXT)
 n_fold_test_LDADD = $(LDADD)
-@KRB4_TRUE@n_fold_test_DEPENDENCIES =  libkrb5.la \
-@KRB4_TRUE@$(top_builddir)/lib/des/libdes.la \
-@KRB4_TRUE@$(top_builddir)/lib/asn1/libasn1.la
-@KRB4_FALSE@n_fold_test_DEPENDENCIES =  libkrb5.la \
-@KRB4_FALSE@$(top_builddir)/lib/des/libdes.la \
-@KRB4_FALSE@$(top_builddir)/lib/asn1/libasn1.la
+n_fold_test_DEPENDENCIES =  libkrb5.la \
+$(top_builddir)/lib/asn1/libasn1.la
 n_fold_test_LDFLAGS = 
 string_to_key_test_SOURCES = string-to-key-test.c
 string_to_key_test_OBJECTS =  string-to-key-test.$(OBJEXT)
 string_to_key_test_LDADD = $(LDADD)
-@KRB4_TRUE@string_to_key_test_DEPENDENCIES =  libkrb5.la \
-@KRB4_TRUE@$(top_builddir)/lib/des/libdes.la \
-@KRB4_TRUE@$(top_builddir)/lib/asn1/libasn1.la
-@KRB4_FALSE@string_to_key_test_DEPENDENCIES =  libkrb5.la \
-@KRB4_FALSE@$(top_builddir)/lib/des/libdes.la \
-@KRB4_FALSE@$(top_builddir)/lib/asn1/libasn1.la
+string_to_key_test_DEPENDENCIES =  libkrb5.la \
+$(top_builddir)/lib/asn1/libasn1.la
 string_to_key_test_LDFLAGS = 
-dump_config_SOURCES = dump_config.c
-dump_config_OBJECTS =  dump_config.$(OBJEXT)
-dump_config_LDADD = $(LDADD)
-@KRB4_TRUE@dump_config_DEPENDENCIES =  libkrb5.la \
-@KRB4_TRUE@$(top_builddir)/lib/des/libdes.la \
-@KRB4_TRUE@$(top_builddir)/lib/asn1/libasn1.la
-@KRB4_FALSE@dump_config_DEPENDENCIES =  libkrb5.la \
-@KRB4_FALSE@$(top_builddir)/lib/des/libdes.la \
-@KRB4_FALSE@$(top_builddir)/lib/asn1/libasn1.la
-dump_config_LDFLAGS = 
-CFLAGS = @CFLAGS@
+test_get_addrs_SOURCES = test_get_addrs.c
+test_get_addrs_OBJECTS =  test_get_addrs.$(OBJEXT)
+test_get_addrs_LDADD = $(LDADD)
+test_get_addrs_DEPENDENCIES =  libkrb5.la \
+$(top_builddir)/lib/asn1/libasn1.la
+test_get_addrs_LDFLAGS = 
+verify_krb5_conf_SOURCES = verify_krb5_conf.c
+verify_krb5_conf_OBJECTS =  verify_krb5_conf.$(OBJEXT)
+verify_krb5_conf_LDADD = $(LDADD)
+verify_krb5_conf_DEPENDENCIES =  libkrb5.la \
+$(top_builddir)/lib/asn1/libasn1.la
+verify_krb5_conf_LDFLAGS = 
 COMPILE = $(CC) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
 LTCOMPILE = $(LIBTOOL) --mode=compile $(CC) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
+CFLAGS = @CFLAGS@
 CCLD = $(CC)
-LINK = $(LIBTOOL) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(LDFLAGS) -o $@
+LINK = $(LIBTOOL) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@
+DIST_SOURCES =  $(libkrb5_la_SOURCES) dump_config.c n-fold-test.c \
+string-to-key-test.c test_get_addrs.c verify_krb5_conf.c
 man3dir = $(mandir)/man3
 man5dir = $(mandir)/man5
+man8dir = $(mandir)/man8
 MANS = $(man_MANS)
 HEADERS =  $(include_HEADERS)
 
-DIST_COMMON =  Makefile.am Makefile.in
+depcomp = 
+DIST_COMMON =  $(include_HEADERS) Makefile.am Makefile.in
 
 
-DISTFILES = $(DIST_COMMON) $(SOURCES) $(HEADERS) $(TEXINFOS) $(EXTRA_DIST)
+DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 
-TAR = tar
 GZIP_ENV = --best
-SOURCES = $(libkrb5_la_SOURCES) $(EXTRA_libkrb5_la_SOURCES) verify_krb5_conf.c n-fold-test.c string-to-key-test.c dump_config.c
-OBJECTS = $(libkrb5_la_OBJECTS) verify_krb5_conf.$(OBJEXT) n-fold-test.$(OBJEXT) string-to-key-test.$(OBJEXT) dump_config.$(OBJEXT)
+SOURCES = $(libkrb5_la_SOURCES) dump_config.c n-fold-test.c string-to-key-test.c test_get_addrs.c verify_krb5_conf.c
+OBJECTS = $(am_libkrb5_la_OBJECTS) dump_config.$(OBJEXT) n-fold-test.$(OBJEXT) string-to-key-test.$(OBJEXT) test_get_addrs.$(OBJEXT) verify_krb5_conf.$(OBJEXT)
 
 all: all-redirect
 .SUFFIXES:
-.SUFFIXES: .1 .3 .5 .8 .S .c .cat1 .cat3 .cat5 .cat8 .et .h .lo .o .obj .s .x
+.SUFFIXES: .1 .3 .5 .8 .c .cat1 .cat3 .cat5 .cat8 .et .h .lo .o .obj .x
 $(srcdir)/Makefile.in: Makefile.am $(top_srcdir)/configure.in $(ACLOCAL_M4) $(top_srcdir)/Makefile.am.common $(top_srcdir)/cf/Makefile.am.common
 	cd $(top_srcdir) && $(AUTOMAKE) --foreign lib/krb5/Makefile
 
@@ -358,30 +453,17 @@ install-libLTLIBRARIES: $(lib_LTLIBRARIES)
 	$(mkinstalldirs) $(DESTDIR)$(libdir)
 	@list='$(lib_LTLIBRARIES)'; for p in $$list; do \
 	  if test -f $$p; then \
-	    echo "$(LIBTOOL)  --mode=install $(INSTALL) $$p $(DESTDIR)$(libdir)/$$p"; \
-	    $(LIBTOOL)  --mode=install $(INSTALL) $$p $(DESTDIR)$(libdir)/$$p; \
+	    echo " $(LIBTOOL)  --mode=install $(INSTALL) $(INSTALL_STRIP_FLAG) $$p $(DESTDIR)$(libdir)/$$p"; \
+	    $(LIBTOOL)  --mode=install $(INSTALL) $(INSTALL_STRIP_FLAG) $$p $(DESTDIR)$(libdir)/$$p; \
 	  else :; fi; \
 	done
 
 uninstall-libLTLIBRARIES:
 	@$(NORMAL_UNINSTALL)
-	list='$(lib_LTLIBRARIES)'; for p in $$list; do \
+	@list='$(lib_LTLIBRARIES)'; for p in $$list; do \
+	  echo " $(LIBTOOL)  --mode=uninstall rm -f $(DESTDIR)$(libdir)/$$p"; \
 	  $(LIBTOOL)  --mode=uninstall rm -f $(DESTDIR)$(libdir)/$$p; \
 	done
-
-.c.o:
-	$(COMPILE) -c $<
-
-# FIXME: We should only use cygpath when building on Windows,
-# and only if it is available.
-.c.obj:
-	$(COMPILE) -c `cygpath -w $<`
-
-.s.o:
-	$(COMPILE) -c $<
-
-.S.o:
-	$(COMPILE) -c $<
 
 mostlyclean-compile:
 	-rm -f *.o core *.core
@@ -393,15 +475,6 @@ distclean-compile:
 	-rm -f *.tab.c
 
 maintainer-clean-compile:
-
-.c.lo:
-	$(LIBTOOL) --mode=compile $(COMPILE) -c $<
-
-.s.lo:
-	$(LIBTOOL) --mode=compile $(COMPILE) -c $<
-
-.S.lo:
-	$(LIBTOOL) --mode=compile $(COMPILE) -c $<
 
 mostlyclean-libtool:
 	-rm -f *.lo
@@ -430,15 +503,18 @@ install-binPROGRAMS: $(bin_PROGRAMS)
 	$(mkinstalldirs) $(DESTDIR)$(bindir)
 	@list='$(bin_PROGRAMS)'; for p in $$list; do \
 	  if test -f $$p; then \
-	    echo " $(LIBTOOL)  --mode=install $(INSTALL_PROGRAM) $$p $(DESTDIR)$(bindir)/`echo $$p|sed 's/$(EXEEXT)$$//'|sed '$(transform)'|sed 's/$$/$(EXEEXT)/'`"; \
-	    $(LIBTOOL)  --mode=install $(INSTALL_PROGRAM) $$p $(DESTDIR)$(bindir)/`echo $$p|sed 's/$(EXEEXT)$$//'|sed '$(transform)'|sed 's/$$/$(EXEEXT)/'`; \
+	    f="`echo $$p|sed -e 's/$(EXEEXT)$$//' -e '$(transform)' -e 's/$$/$(EXEEXT)/'`"; \
+	    echo " $(LIBTOOL)  --mode=install $(INSTALL_PROGRAM) $(INSTALL_STRIP_FLAG) $$p $(DESTDIR)$(bindir)/$$f"; \
+	    $(LIBTOOL)  --mode=install $(INSTALL_PROGRAM) $(INSTALL_STRIP_FLAG) $$p $(DESTDIR)$(bindir)/$$f; \
 	  else :; fi; \
 	done
 
 uninstall-binPROGRAMS:
 	@$(NORMAL_UNINSTALL)
-	list='$(bin_PROGRAMS)'; for p in $$list; do \
-	  rm -f $(DESTDIR)$(bindir)/`echo $$p|sed 's/$(EXEEXT)$$//'|sed '$(transform)'|sed 's/$$/$(EXEEXT)/'`; \
+	@list='$(bin_PROGRAMS)'; for p in $$list; do \
+	  f="`echo $$p|sed -e 's/$(EXEEXT)$$//' -e '$(transform)' -e 's/$$/$(EXEEXT)/'`"; \
+	  echo " rm -f $(DESTDIR)$(bindir)/$$f"; \
+	  rm -f $(DESTDIR)$(bindir)/$$f; \
 	done
 
 mostlyclean-checkPROGRAMS:
@@ -459,9 +535,9 @@ distclean-noinstPROGRAMS:
 
 maintainer-clean-noinstPROGRAMS:
 
-verify_krb5_conf$(EXEEXT): $(verify_krb5_conf_OBJECTS) $(verify_krb5_conf_DEPENDENCIES)
-	@rm -f verify_krb5_conf$(EXEEXT)
-	$(LINK) $(verify_krb5_conf_LDFLAGS) $(verify_krb5_conf_OBJECTS) $(verify_krb5_conf_LDADD) $(LIBS)
+dump_config$(EXEEXT): $(dump_config_OBJECTS) $(dump_config_DEPENDENCIES)
+	@rm -f dump_config$(EXEEXT)
+	$(LINK) $(dump_config_LDFLAGS) $(dump_config_OBJECTS) $(dump_config_LDADD) $(LIBS)
 
 n-fold-test$(EXEEXT): $(n_fold_test_OBJECTS) $(n_fold_test_DEPENDENCIES)
 	@rm -f n-fold-test$(EXEEXT)
@@ -471,9 +547,19 @@ string-to-key-test$(EXEEXT): $(string_to_key_test_OBJECTS) $(string_to_key_test_
 	@rm -f string-to-key-test$(EXEEXT)
 	$(LINK) $(string_to_key_test_LDFLAGS) $(string_to_key_test_OBJECTS) $(string_to_key_test_LDADD) $(LIBS)
 
-dump_config$(EXEEXT): $(dump_config_OBJECTS) $(dump_config_DEPENDENCIES)
-	@rm -f dump_config$(EXEEXT)
-	$(LINK) $(dump_config_LDFLAGS) $(dump_config_OBJECTS) $(dump_config_LDADD) $(LIBS)
+test_get_addrs$(EXEEXT): $(test_get_addrs_OBJECTS) $(test_get_addrs_DEPENDENCIES)
+	@rm -f test_get_addrs$(EXEEXT)
+	$(LINK) $(test_get_addrs_LDFLAGS) $(test_get_addrs_OBJECTS) $(test_get_addrs_LDADD) $(LIBS)
+
+verify_krb5_conf$(EXEEXT): $(verify_krb5_conf_OBJECTS) $(verify_krb5_conf_DEPENDENCIES)
+	@rm -f verify_krb5_conf$(EXEEXT)
+	$(LINK) $(verify_krb5_conf_LDFLAGS) $(verify_krb5_conf_OBJECTS) $(verify_krb5_conf_LDADD) $(LIBS)
+.c.o:
+	$(COMPILE) -c $<
+.c.obj:
+	$(COMPILE) -c `cygpath -w $<`
+.c.lo:
+	$(LTCOMPILE) -c -o $@ $<
 
 install-man3:
 	$(mkinstalldirs) $(DESTDIR)$(man3dir)
@@ -488,6 +574,7 @@ install-man3:
 	  else file=$$i; fi; \
 	  ext=`echo $$i | sed -e 's/^.*\\.//'`; \
 	  inst=`echo $$i | sed -e 's/\\.[0-9a-z]*$$//'`; \
+	  inst=`echo $$inst | sed -e 's/^.*\///'`; \
 	  inst=`echo $$inst | sed '$(transform)'`.$$ext; \
 	  echo " $(INSTALL_DATA) $$file $(DESTDIR)$(man3dir)/$$inst"; \
 	  $(INSTALL_DATA) $$file $(DESTDIR)$(man3dir)/$$inst; \
@@ -503,6 +590,7 @@ uninstall-man3:
 	for i in $$list; do \
 	  ext=`echo $$i | sed -e 's/^.*\\.//'`; \
 	  inst=`echo $$i | sed -e 's/\\.[0-9a-z]*$$//'`; \
+	  inst=`echo $$inst | sed -e 's/^.*\///'`; \
 	  inst=`echo $$inst | sed '$(transform)'`.$$ext; \
 	  echo " rm -f $(DESTDIR)$(man3dir)/$$inst"; \
 	  rm -f $(DESTDIR)$(man3dir)/$$inst; \
@@ -521,6 +609,7 @@ install-man5:
 	  else file=$$i; fi; \
 	  ext=`echo $$i | sed -e 's/^.*\\.//'`; \
 	  inst=`echo $$i | sed -e 's/\\.[0-9a-z]*$$//'`; \
+	  inst=`echo $$inst | sed -e 's/^.*\///'`; \
 	  inst=`echo $$inst | sed '$(transform)'`.$$ext; \
 	  echo " $(INSTALL_DATA) $$file $(DESTDIR)$(man5dir)/$$inst"; \
 	  $(INSTALL_DATA) $$file $(DESTDIR)$(man5dir)/$$inst; \
@@ -536,51 +625,94 @@ uninstall-man5:
 	for i in $$list; do \
 	  ext=`echo $$i | sed -e 's/^.*\\.//'`; \
 	  inst=`echo $$i | sed -e 's/\\.[0-9a-z]*$$//'`; \
+	  inst=`echo $$inst | sed -e 's/^.*\///'`; \
 	  inst=`echo $$inst | sed '$(transform)'`.$$ext; \
 	  echo " rm -f $(DESTDIR)$(man5dir)/$$inst"; \
 	  rm -f $(DESTDIR)$(man5dir)/$$inst; \
 	done
+
+install-man8:
+	$(mkinstalldirs) $(DESTDIR)$(man8dir)
+	@list='$(man8_MANS)'; \
+	l2='$(man_MANS)'; for i in $$l2; do \
+	  case "$$i" in \
+	    *.8*) list="$$list $$i" ;; \
+	  esac; \
+	done; \
+	for i in $$list; do \
+	  if test -f $(srcdir)/$$i; then file=$(srcdir)/$$i; \
+	  else file=$$i; fi; \
+	  ext=`echo $$i | sed -e 's/^.*\\.//'`; \
+	  inst=`echo $$i | sed -e 's/\\.[0-9a-z]*$$//'`; \
+	  inst=`echo $$inst | sed -e 's/^.*\///'`; \
+	  inst=`echo $$inst | sed '$(transform)'`.$$ext; \
+	  echo " $(INSTALL_DATA) $$file $(DESTDIR)$(man8dir)/$$inst"; \
+	  $(INSTALL_DATA) $$file $(DESTDIR)$(man8dir)/$$inst; \
+	done
+
+uninstall-man8:
+	@list='$(man8_MANS)'; \
+	l2='$(man_MANS)'; for i in $$l2; do \
+	  case "$$i" in \
+	    *.8*) list="$$list $$i" ;; \
+	  esac; \
+	done; \
+	for i in $$list; do \
+	  ext=`echo $$i | sed -e 's/^.*\\.//'`; \
+	  inst=`echo $$i | sed -e 's/\\.[0-9a-z]*$$//'`; \
+	  inst=`echo $$inst | sed -e 's/^.*\///'`; \
+	  inst=`echo $$inst | sed '$(transform)'`.$$ext; \
+	  echo " rm -f $(DESTDIR)$(man8dir)/$$inst"; \
+	  rm -f $(DESTDIR)$(man8dir)/$$inst; \
+	done
 install-man: $(MANS)
 	@$(NORMAL_INSTALL)
-	$(MAKE) $(AM_MAKEFLAGS) install-man3 install-man5
+	$(MAKE) $(AM_MAKEFLAGS) install-man3 install-man5 install-man8
 uninstall-man:
 	@$(NORMAL_UNINSTALL)
-	$(MAKE) $(AM_MAKEFLAGS) uninstall-man3 uninstall-man5
+	$(MAKE) $(AM_MAKEFLAGS) uninstall-man3 uninstall-man5 uninstall-man8
 
 install-includeHEADERS: $(include_HEADERS)
 	@$(NORMAL_INSTALL)
 	$(mkinstalldirs) $(DESTDIR)$(includedir)
 	@list='$(include_HEADERS)'; for p in $$list; do \
 	  if test -f "$$p"; then d= ; else d="$(srcdir)/"; fi; \
-	  echo " $(INSTALL_DATA) $$d$$p $(DESTDIR)$(includedir)/$$p"; \
-	  $(INSTALL_DATA) $$d$$p $(DESTDIR)$(includedir)/$$p; \
+	  f="`echo $$p | sed -e 's|^.*/||'`"; \
+	  echo " $(INSTALL_DATA) $$d$$p $(DESTDIR)$(includedir)/$$f"; \
+	  $(INSTALL_DATA) $$d$$p $(DESTDIR)$(includedir)/$$f; \
 	done
 
 uninstall-includeHEADERS:
 	@$(NORMAL_UNINSTALL)
-	list='$(include_HEADERS)'; for p in $$list; do \
-	  rm -f $(DESTDIR)$(includedir)/$$p; \
+	@list='$(include_HEADERS)'; for p in $$list; do \
+	  f="`echo $$p | sed -e 's|^.*/||'`"; \
+	  echo " rm -f $(DESTDIR)$(includedir)/$$f"; \
+	  rm -f $(DESTDIR)$(includedir)/$$f; \
 	done
 
 tags: TAGS
 
-ID: $(HEADERS) $(SOURCES) $(LISP)
-	list='$(SOURCES) $(HEADERS)'; \
-	unique=`for i in $$list; do echo $$i; done | \
-	  awk '    { files[$$0] = 1; } \
+ID: $(HEADERS) $(SOURCES) $(LISP) $(TAGS_FILES)
+	list='$(SOURCES) $(HEADERS) $(TAGS_FILES)'; \
+	unique=`for i in $$list; do \
+	    if test -f "$$i"; then echo $$i; else echo $(srcdir)/$$i; fi; \
+	  done | \
+	  $(AWK) '    { files[$$0] = 1; } \
 	       END { for (i in files) print i; }'`; \
-	here=`pwd` && cd $(srcdir) \
-	  && mkid -f$$here/ID $$unique $(LISP)
+	mkid -fID $$unique $(LISP)
 
-TAGS:  $(HEADERS) $(SOURCES)  $(TAGS_DEPENDENCIES) $(LISP)
+TAGS:  $(HEADERS) $(SOURCES)  $(TAGS_DEPENDENCIES) \
+		$(TAGS_FILES) $(LISP)
 	tags=; \
 	here=`pwd`; \
-	list='$(SOURCES) $(HEADERS)'; \
-	unique=`for i in $$list; do echo $$i; done | \
-	  awk '    { files[$$0] = 1; } \
+	list='$(SOURCES) $(HEADERS) $(TAGS_FILES)'; \
+	unique=`for i in $$list; do \
+	    if test -f "$$i"; then echo $$i; else echo $(srcdir)/$$i; fi; \
+	  done | \
+	  $(AWK) '    { files[$$0] = 1; } \
 	       END { for (i in files) print i; }'`; \
 	test -z "$(ETAGS_ARGS)$$unique$(LISP)$$tags" \
-	  || (cd $(srcdir) && etags $(ETAGS_ARGS) $$tags  $$unique $(LISP) -o $$here/TAGS)
+	  || etags $(ETAGS_ARGS) $$tags  $$unique $(LISP)
 
 mostlyclean-tags:
 
@@ -590,48 +722,76 @@ distclean-tags:
 	-rm -f TAGS ID
 
 maintainer-clean-tags:
+check-TESTS: $(TESTS)
+	@failed=0; all=0; xfail=0; xpass=0; \
+	srcdir=$(srcdir); export srcdir; \
+	list='$(TESTS)'; \
+	if test -n "$$list"; then \
+	  for tst in $$list; do \
+	    if test -f ./$$tst; then dir=./; \
+	    elif test -f $$tst; then dir=; \
+	    else dir="$(srcdir)/"; fi; \
+	    if $(TESTS_ENVIRONMENT) $${dir}$$tst; then \
+	      all=`expr $$all + 1`; \
+	      case " $(XFAIL_TESTS) " in \
+	      *" $$tst "*) \
+	        xpass=`expr $$xpass + 1`; \
+	        failed=`expr $$failed + 1`; \
+	        echo "XPASS: $$tst"; \
+	      ;; \
+	      *) \
+	        echo "PASS: $$tst"; \
+	      ;; \
+	      esac; \
+	    elif test $$? -ne 77; then \
+	      all=`expr $$all + 1`; \
+	      case " $(XFAIL_TESTS) " in \
+	      *" $$tst "*) \
+	        xfail=`expr $$xfail + 1`; \
+	        echo "XFAIL: $$tst"; \
+	      ;; \
+	      *) \
+	        failed=`expr $$failed + 1`; \
+	        echo "FAIL: $$tst"; \
+	      ;; \
+	      esac; \
+	    fi; \
+	  done; \
+	  if test "$$failed" -eq 0; then \
+	    if test "$$xfail" -eq 0; then \
+	      banner="All $$all tests passed"; \
+	    else \
+	      banner="All $$all tests behaved as expected ($$xfail expected failures)"; \
+	    fi; \
+	  else \
+	    if test "$$xpass" -eq 0; then \
+	      banner="$$failed of $$all tests failed"; \
+	    else \
+	      banner="$$failed of $$all tests did not behave as expected ($$xpass unexpected passes)"; \
+	    fi; \
+	  fi; \
+	  dashes=`echo "$$banner" | sed s/./=/g`; \
+	  echo "$$dashes"; \
+	  echo "$$banner"; \
+	  echo "$$dashes"; \
+	  test "$$failed" -eq 0; \
+	fi
 
 distdir = $(top_builddir)/$(PACKAGE)-$(VERSION)/$(subdir)
-
-subdir = lib/krb5
 
 distdir: $(DISTFILES)
 	@for file in $(DISTFILES); do \
 	  d=$(srcdir); \
 	  if test -d $$d/$$file; then \
-	    cp -pr $$/$$file $(distdir)/$$file; \
+	    cp -pR $$d/$$file $(distdir) \
+	    || exit 1; \
 	  else \
 	    test -f $(distdir)/$$file \
-	    || ln $$d/$$file $(distdir)/$$file 2> /dev/null \
-	    || cp -p $$d/$$file $(distdir)/$$file || :; \
+	    || cp -p $$d/$$file $(distdir)/$$file \
+	    || exit 1; \
 	  fi; \
 	done
 	$(MAKE) $(AM_MAKEFLAGS) top_distdir="$(top_distdir)" distdir="$(distdir)" dist-hook
-check-TESTS: $(TESTS)
-	@failed=0; all=0; \
-	srcdir=$(srcdir); export srcdir; \
-	for tst in $(TESTS); do \
-	  if test -f $$tst; then dir=.; \
-	  else dir="$(srcdir)"; fi; \
-	  if $(TESTS_ENVIRONMENT) $$dir/$$tst; then \
-	    all=`expr $$all + 1`; \
-	    echo "PASS: $$tst"; \
-	  elif test $$? -ne 77; then \
-	    all=`expr $$all + 1`; \
-	    failed=`expr $$failed + 1`; \
-	    echo "FAIL: $$tst"; \
-	  fi; \
-	done; \
-	if test "$$failed" -eq 0; then \
-	  banner="All $$all tests passed"; \
-	else \
-	  banner="$$failed of $$all tests failed"; \
-	fi; \
-	dashes=`echo "$$banner" | sed s/./=/g`; \
-	echo "$$dashes"; \
-	echo "$$banner"; \
-	echo "$$dashes"; \
-	test "$$failed" -eq 0
 info-am:
 info: info-am
 dvi-am:
@@ -659,11 +819,11 @@ uninstall: uninstall-am
 all-am: Makefile $(LTLIBRARIES) $(PROGRAMS) $(MANS) $(HEADERS) all-local
 all-redirect: all-am
 install-strip:
-	$(MAKE) $(AM_MAKEFLAGS) AM_INSTALL_PROGRAM_FLAGS=-s install
+	$(MAKE) $(AM_MAKEFLAGS) INSTALL_STRIP_FLAG=-s install
 installdirs:
 	$(mkinstalldirs)  $(DESTDIR)$(libdir) $(DESTDIR)$(bindir) \
 		$(DESTDIR)$(mandir)/man3 $(DESTDIR)$(mandir)/man5 \
-		$(DESTDIR)$(includedir)
+		$(DESTDIR)$(mandir)/man8 $(DESTDIR)$(includedir)
 
 
 mostlyclean-generic:
@@ -676,6 +836,7 @@ distclean-generic:
 	-rm -f config.cache config.log stamp-h stamp-h[0-9]*
 
 maintainer-clean-generic:
+	-rm -f Makefile.in
 mostlyclean-am:  mostlyclean-libLTLIBRARIES mostlyclean-compile \
 		mostlyclean-libtool mostlyclean-binPROGRAMS \
 		mostlyclean-checkPROGRAMS mostlyclean-noinstPROGRAMS \
@@ -720,15 +881,16 @@ install-binPROGRAMS mostlyclean-checkPROGRAMS distclean-checkPROGRAMS \
 clean-checkPROGRAMS maintainer-clean-checkPROGRAMS \
 mostlyclean-noinstPROGRAMS distclean-noinstPROGRAMS \
 clean-noinstPROGRAMS maintainer-clean-noinstPROGRAMS install-man3 \
-uninstall-man3 install-man5 uninstall-man5 install-man uninstall-man \
-uninstall-includeHEADERS install-includeHEADERS tags mostlyclean-tags \
-distclean-tags clean-tags maintainer-clean-tags distdir check-TESTS \
-info-am info dvi-am dvi check-local check check-am installcheck-am \
-installcheck install-exec-am install-exec install-data-local \
-install-data-am install-data install-am install uninstall-am uninstall \
-all-local all-redirect all-am all installdirs mostlyclean-generic \
-distclean-generic clean-generic maintainer-clean-generic clean \
-mostlyclean distclean maintainer-clean
+uninstall-man3 install-man5 uninstall-man5 install-man8 uninstall-man8 \
+install-man uninstall-man uninstall-includeHEADERS \
+install-includeHEADERS tags mostlyclean-tags distclean-tags clean-tags \
+maintainer-clean-tags check-TESTS distdir info-am info dvi-am dvi \
+check-local check check-am installcheck-am installcheck install-exec-am \
+install-exec install-data-local install-data-am install-data install-am \
+install uninstall-am uninstall all-local all-redirect all-am all \
+install-strip installdirs mostlyclean-generic distclean-generic \
+clean-generic maintainer-clean-generic clean mostlyclean distclean \
+maintainer-clean
 
 
 install-suid-programs:
@@ -736,7 +898,10 @@ install-suid-programs:
 	for file in $$foo; do \
 	x=$(DESTDIR)$(bindir)/$$file; \
 	if chown 0:0 $$x && chmod u+s $$x; then :; else \
-	chmod 0 $$x; fi; done
+	echo "*"; \
+	echo "* Failed to install $$x setuid root"; \
+	echo "*"; \
+	fi; done
 
 install-exec-hook: install-suid-programs
 
@@ -748,8 +913,8 @@ install-build-headers:: $(include_HEADERS) $(build_HEADERZ)
 		else file="$$f"; fi; \
 		if cmp -s  $$file $(buildinclude)/$$f 2> /dev/null ; then \
 		: ; else \
-			echo " cp $$file $(buildinclude)/$$f"; \
-			cp $$file $(buildinclude)/$$f; \
+			echo " $(CP) $$file $(buildinclude)/$$f"; \
+			$(CP) $$file $(buildinclude)/$$f; \
 		fi ; \
 	done
 
@@ -818,87 +983,8 @@ dist-cat8-mans:
 
 dist-hook: dist-cat1-mans dist-cat3-mans dist-cat5-mans dist-cat8-mans
 
-install-cat1-mans:
-	@ext=1;\
-	foo='$(man1_MANS)'; \
-	bar='$(man_MANS)'; \
-	for i in $$bar; do \
-	case $$i in \
-	*.1) foo="$$foo $$i";; \
-	esac; done; \
-	if test "$$foo"; then \
-		$(mkinstalldirs) $(DESTDIR)$(cat1dir); \
-		for x in $$foo; do \
-			f=`echo $$x | sed 's/\.[^.]*$$/.cat1/'`; \
-			if test -f "$(srcdir)/$$f"; then \
-				b=`echo $$x | sed 's!$(MANRX)!\1!'`; \
-				echo "$(INSTALL_DATA) $(srcdir)/$$f $(DESTDIR)$(cat1dir)/$$b.$(CATSUFFIX)";\
-				$(INSTALL_DATA) $(srcdir)/$$g $(DESTDIR)$(cat1dir)/$$b.$(CATSUFFIX);\
-			 fi; \
-		done ;\
-	fi
-
-install-cat3-mans:
-	@ext=3;\
-	foo='$(man3_MANS)'; \
-	bar='$(man_MANS)'; \
-	for i in $$bar; do \
-	case $$i in \
-	*.3) foo="$$foo $$i";; \
-	esac; done; \
-	if test "$$foo"; then \
-		$(mkinstalldirs) $(DESTDIR)$(cat3dir); \
-		for x in $$foo; do \
-			f=`echo $$x | sed 's/\.[^.]*$$/.cat3/'`; \
-			if test -f "$(srcdir)/$$f"; then \
-				b=`echo $$x | sed 's!$(MANRX)!\1!'`; \
-				echo "$(INSTALL_DATA) $(srcdir)/$$f $(DESTDIR)$(cat3dir)/$$b.$(CATSUFFIX)";\
-				$(INSTALL_DATA) $(srcdir)/$$g $(DESTDIR)$(cat3dir)/$$b.$(CATSUFFIX);\
-			 fi; \
-		done ;\
-	fi
-
-install-cat5-mans:
-	@ext=5;\
-	foo='$(man5_MANS)'; \
-	bar='$(man_MANS)'; \
-	for i in $$bar; do \
-	case $$i in \
-	*.5) foo="$$foo $$i";; \
-	esac; done; \
-	if test "$$foo"; then \
-		$(mkinstalldirs) $(DESTDIR)$(cat5dir); \
-		for x in $$foo; do \
-			f=`echo $$x | sed 's/\.[^.]*$$/.cat5/'`; \
-			if test -f "$(srcdir)/$$f"; then \
-				b=`echo $$x | sed 's!$(MANRX)!\1!'`; \
-				echo "$(INSTALL_DATA) $(srcdir)/$$f $(DESTDIR)$(cat5dir)/$$b.$(CATSUFFIX)";\
-				$(INSTALL_DATA) $(srcdir)/$$g $(DESTDIR)$(cat5dir)/$$b.$(CATSUFFIX);\
-			 fi; \
-		done ;\
-	fi
-
-install-cat8-mans:
-	@ext=8;\
-	foo='$(man8_MANS)'; \
-	bar='$(man_MANS)'; \
-	for i in $$bar; do \
-	case $$i in \
-	*.8) foo="$$foo $$i";; \
-	esac; done; \
-	if test "$$foo"; then \
-		$(mkinstalldirs) $(DESTDIR)$(cat8dir); \
-		for x in $$foo; do \
-			f=`echo $$x | sed 's/\.[^.]*$$/.cat8/'`; \
-			if test -f "$(srcdir)/$$f"; then \
-				b=`echo $$x | sed 's!$(MANRX)!\1!'`; \
-				echo "$(INSTALL_DATA) $(srcdir)/$$f $(DESTDIR)$(cat8dir)/$$b.$(CATSUFFIX)";\
-				$(INSTALL_DATA) $(srcdir)/$$g $(DESTDIR)$(cat8dir)/$$b.$(CATSUFFIX);\
-			 fi; \
-		done ;\
-	fi
-
-install-cat-mans: install-cat1-mans install-cat3-mans install-cat5-mans install-cat8-mans
+install-cat-mans:
+	$(SHELL) $(top_srcdir)/cf/install-catman.sh "$(INSTALL_DATA)" "$(mkinstalldirs)" "$(srcdir)" "$(DESTDIR)$(mandir)" '$(CATMANEXT)' $(man_MANS) $(man1_MANS) $(man3_MANS) $(man5_MANS) $(man8_MANS)
 
 install-data-local: install-cat-mans
 

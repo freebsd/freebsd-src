@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "gssapi_locl.h"
 
-RCSID("$Id: decapsulate.c,v 1.5 1999/12/02 17:05:03 joda Exp $");
+RCSID("$Id: decapsulate.c,v 1.6 2000/07/29 05:48:13 assar Exp $");
 
 OM_uint32
 gssapi_krb5_verify_header(u_char **str,
@@ -44,18 +44,20 @@ gssapi_krb5_verify_header(u_char **str,
     int e;
     u_char *p = *str;
 
+    if (total_len < 1)
+	return GSS_S_DEFECTIVE_TOKEN;
     if (*p++ != 0x60)
 	return GSS_S_DEFECTIVE_TOKEN;
     e = der_get_length (p, total_len - 1, &len, &len_len);
     if (e || 1 + len_len + len != total_len)
-	abort ();
+	return GSS_S_DEFECTIVE_TOKEN;
     p += len_len;
     if (*p++ != 0x06)
 	return GSS_S_DEFECTIVE_TOKEN;
     e = der_get_length (p, total_len - 1 - len_len - 1,
 			&mech_len, &foo);
     if (e)
-	abort ();
+	return GSS_S_DEFECTIVE_TOKEN;
     p += foo;
     if (mech_len != GSS_KRB5_MECHANISM->length)
 	return GSS_S_BAD_MECH;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: init_creds.c,v 1.2 1999/12/02 17:05:10 joda Exp $");
+RCSID("$Id: init_creds.c,v 1.5 2001/01/05 16:27:39 joda Exp $");
 
 void
 krb5_get_init_creds_opt_init(krb5_get_init_creds_opt *opt)
@@ -41,6 +41,48 @@ krb5_get_init_creds_opt_init(krb5_get_init_creds_opt *opt)
     memset (opt, 0, sizeof(*opt));
     opt->flags = 0;
 }
+
+void
+krb5_get_init_creds_opt_set_default_flags(krb5_context context,
+					  const char *appname, 
+					  krb5_realm realm,
+					  krb5_get_init_creds_opt *opt)
+{
+    krb5_boolean b;
+    time_t t;
+
+    krb5_appdefault_boolean(context, appname, realm, "forwardable", FALSE, &b);
+    krb5_get_init_creds_opt_set_forwardable(opt, b);
+
+    krb5_appdefault_boolean(context, appname, realm, "proxiable", FALSE, &b);
+    krb5_get_init_creds_opt_set_proxiable (opt, b);
+
+    krb5_appdefault_time(context, appname, realm, "ticket_life", 0, &t);
+    if(t != 0)
+	krb5_get_init_creds_opt_set_tkt_life(opt, t);
+    
+    krb5_appdefault_time(context, appname, realm, "renewable_life", 0, &t);
+    if(t != 0)
+	krb5_get_init_creds_opt_set_renew_life(opt, t);
+
+#if 0
+    krb5_appdefault_boolean(context, appname, realm, "anonymous", FALSE, &b);
+    krb5_get_init_creds_opt_set_anonymous (opt, b);
+
+    krb5_get_init_creds_opt_set_etype_list(opt, enctype, 
+					   etype_str.num_strings);
+
+    krb5_get_init_creds_opt_set_salt(krb5_get_init_creds_opt *opt,
+				     krb5_data *salt);
+
+    krb5_get_init_creds_opt_set_preauth_list(krb5_get_init_creds_opt *opt,
+					     krb5_preauthtype *preauth_list,
+					     int preauth_list_length);
+    krb5_get_init_creds_opt_set_address_list(krb5_get_init_creds_opt *opt,
+					     krb5_addresses *addresses);
+#endif
+}
+
 
 void
 krb5_get_init_creds_opt_set_tkt_life(krb5_get_init_creds_opt *opt,
@@ -108,4 +150,12 @@ krb5_get_init_creds_opt_set_salt(krb5_get_init_creds_opt *opt,
 {
     opt->flags |= KRB5_GET_INIT_CREDS_OPT_SALT;
     opt->salt = salt;
+}
+
+void
+krb5_get_init_creds_opt_set_anonymous(krb5_get_init_creds_opt *opt,
+				      int anonymous)
+{
+    opt->flags |= KRB5_GET_INIT_CREDS_OPT_ANONYMOUS;
+    opt->anonymous = anonymous;
 }

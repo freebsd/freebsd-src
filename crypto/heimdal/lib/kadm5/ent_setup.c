@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998, 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "kadm5_locl.h"
 
-RCSID("$Id: ent_setup.c,v 1.11 1999/12/02 17:05:06 joda Exp $");
+RCSID("$Id: ent_setup.c,v 1.12 2000/03/23 23:02:35 assar Exp $");
 
 #define set_value(X, V) do { if((X) == NULL) (X) = malloc(sizeof(*(X))); *(X) = V; } while(0)
 #define set_null(X)     do { if((X) != NULL) free((X)); (X) = NULL; } while (0)
@@ -62,7 +62,8 @@ attr_to_flags(unsigned attr, HDBFlags *flags)
  */
 
 kadm5_ret_t
-_kadm5_setup_entry(hdb_entry *ent,
+_kadm5_setup_entry(kadm5_server_context *context,
+		   hdb_entry *ent,
 		   u_int32_t mask,
 		   kadm5_principal_ent_t princ, 
 		   u_int32_t princ_mask,
@@ -129,7 +130,7 @@ _kadm5_setup_entry(hdb_entry *ent,
     }
     if(mask & KADM5_KEY_DATA
        && princ_mask & KADM5_KEY_DATA) {
-	_kadm5_set_keys2(ent, princ->n_key_data, princ->key_data);
+	_kadm5_set_keys2(context, ent, princ->n_key_data, princ->key_data);
     }
     if(mask & KADM5_TL_DATA) {
 	/* XXX */

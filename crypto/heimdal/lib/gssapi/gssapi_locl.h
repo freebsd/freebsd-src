@@ -31,13 +31,14 @@
  * SUCH DAMAGE. 
  */
 
-/* $Id: gssapi_locl.h,v 1.12 2000/02/12 21:26:26 assar Exp $ */
+/* $Id: gssapi_locl.h,v 1.14 2000/08/27 04:19:00 assar Exp $ */
 
 #ifndef GSSAPI_LOCL_H
 #define GSSAPI_LOCL_H
 
 #include <krb5_locl.h>
 #include <gssapi.h>
+#include <assert.h>
 
 extern krb5_context gssapi_krb5_context;
 
@@ -47,17 +48,19 @@ krb5_error_code
 gssapi_krb5_create_8003_checksum (
 		      const gss_channel_bindings_t input_chan_bindings,
 		      OM_uint32 flags,
+                      krb5_data *fwd_data,
 		      Checksum *result);
 
 krb5_error_code
 gssapi_krb5_verify_8003_checksum (
 		      const gss_channel_bindings_t input_chan_bindings,
 		      Checksum *cksum,
-		      OM_uint32 *flags);
+		      OM_uint32 *flags,
+                      krb5_data *fwd_data);
 
 OM_uint32
 gssapi_krb5_encapsulate(
-			krb5_data *in_data,
+			const krb5_data *in_data,
 			gss_buffer_t output_token,
 			u_char *type);
 
@@ -84,7 +87,13 @@ gssapi_krb5_verify_header(u_char **str,
 
 OM_uint32
 gss_krb5_getsomekey(const gss_ctx_id_t context_handle,
-		    des_cblock *key);
+		    krb5_keyblock **key);
+
+krb5_error_code
+gss_address_to_krb5addr(OM_uint32 gss_addr_type,
+                        gss_buffer_desc *gss_addr,
+                        int16_t port,
+                        krb5_address *address);
 
 /* sec_context flags */
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: log.c,v 1.21 1999/12/02 17:05:11 joda Exp $");
+RCSID("$Id: log.c,v 1.25 2000/09/17 21:46:07 assar Exp $");
 
 struct facility {
     int min;
@@ -56,14 +56,14 @@ log_realloc(krb5_log_facility *f)
     return fp;
 }
 
-struct s2i{
+struct s2i {
     char *s;
     int val;
 };
 
 #define L(X) { #X, LOG_ ## X }
 
-struct s2i syslogvals[] = {
+static struct s2i syslogvals[] = {
     L(EMERG),
     L(ALERT),
     L(CRIT),
@@ -356,18 +356,22 @@ krb5_vlog_msg(krb5_context context,
      __attribute__((format (printf, 5, 0)))
 {
     char *msg;
+    const char *actual;
     char buf[64];
     time_t t;
     int i;
 
     vasprintf(&msg, fmt, ap);
+    if (msg != NULL)
+	actual = msg;
+    else
+	actual = fmt;
     t = time(NULL);
-    strftime(buf, sizeof(buf), context->time_fmt, 
-	     context->log_utc ? gmtime(&t) : localtime(&t));
+    krb5_format_time(context, t, buf, sizeof(buf), TRUE);
     for(i = 0; i < fac->len; i++)
 	if(fac->val[i].min <= level && 
 	   (fac->val[i].max < 0 || fac->val[i].max >= level))
-	    (*fac->val[i].log)(buf, msg, fac->val[i].data);
+	    (*fac->val[i].log)(buf, actual, fac->val[i].data);
     *reply = msg;
     return 0;
 }

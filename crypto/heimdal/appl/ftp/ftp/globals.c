@@ -1,5 +1,5 @@
 #include "ftp_locl.h"
-RCSID("$Id: globals.c,v 1.6 1996/08/26 22:46:26 assar Exp $");
+RCSID("$Id: globals.c,v 1.8 2000/11/15 22:56:08 assar Exp $");
 
 /*
  * Options and other state info.
@@ -11,6 +11,7 @@ int	verbose;		/* print messages coming back from server */
 int	connected;		/* connected to server */
 int	fromatty;		/* input is from a terminal */
 int	interactive;		/* interactively prompt on m* cmds */
+int	lineedit;		/* use line-editing */
 int	debug;			/* debugging level */
 int	bell;			/* ring bell on cmd completion */
 int	doglob;			/* glob local file names */
@@ -60,6 +61,7 @@ int     cpend;                  /* flag: if != 0, then pending server reply */
 int	mflag;			/* flag: if != 0, then active multi command */
 
 int	options;		/* used during socket creation */
+int     use_kerberos;           /* use Kerberos authentication */
 
 /*
  * Format of command table.

@@ -33,7 +33,7 @@
 
 #include <krb5_locl.h>
 
-RCSID("$Id: rd_req.c,v 1.41 2000/02/07 13:31:55 joda Exp $");
+RCSID("$Id: rd_req.c,v 1.44 2000/11/15 23:16:28 assar Exp $");
 
 static krb5_error_code
 decrypt_tkt_enc_part (krb5_context context,
@@ -46,7 +46,9 @@ decrypt_tkt_enc_part (krb5_context context,
     size_t len;
     krb5_crypto crypto;
 
-    krb5_crypto_init(context, key, 0, &crypto);
+    ret = krb5_crypto_init(context, key, 0, &crypto);
+    if (ret)
+	return ret;
     ret = krb5_decrypt_EncryptedData (context,
 				      crypto,
 				      KRB5_KU_TICKET,
@@ -66,19 +68,29 @@ static krb5_error_code
 decrypt_authenticator (krb5_context context,
 		       EncryptionKey *key,
 		       EncryptedData *enc_part,
-		       Authenticator *authenticator)
+		       Authenticator *authenticator,
+		       krb5_key_usage usage)
 {
     krb5_error_code ret;
     krb5_data plain;
     size_t len;
     krb5_crypto crypto;
 
-    krb5_crypto_init(context, key, 0, &crypto);
+    ret = krb5_crypto_init(context, key, 0, &crypto);
+    if (ret)
+	return ret;
     ret = krb5_decrypt_EncryptedData (context,
 				      crypto,
-				      KRB5_KU_AP_REQ_AUTH,
+				      usage /* KRB5_KU_AP_REQ_AUTH */,
 				      enc_part,
 				      &plain);
+    /* for backwards compatibility, also try the old usage */
+    if (ret && usage == KRB5_KU_TGS_REQ_AUTH)
+	ret = krb5_decrypt_EncryptedData (context,
+					  crypto,
+					  KRB5_KU_AP_REQ_AUTH,
+					  enc_part,
+					  &plain);
     krb5_crypto_destroy(context, crypto);
     if (ret)
 	return ret;
@@ -136,10 +148,14 @@ krb5_decrypt_ticket(krb5_context context,
 	    start = *t.starttime;
 	if(start - now > context->max_skew
 	   || (t.flags.invalid
-	       && !(flags & KRB5_VERIFY_AP_REQ_IGNORE_INVALID)))
+	       && !(flags & KRB5_VERIFY_AP_REQ_IGNORE_INVALID))) {
+	    free_EncTicketPart(&t);
 	    return KRB5KRB_AP_ERR_TKT_NYV;
-	if(now - t.endtime > context->max_skew)
+	}
+	if(now - t.endtime > context->max_skew) {
+	    free_EncTicketPart(&t);
 	    return KRB5KRB_AP_ERR_TKT_EXPIRED;
+	}
     }
     
     if(out)
@@ -222,19 +238,40 @@ krb5_verify_ap_req(krb5_context context,
 		   krb5_flags *ap_req_options,
 		   krb5_ticket **ticket)
 {
+    return krb5_verify_ap_req2 (context,
+				auth_context,
+				ap_req,
+				server,
+				keyblock,
+				flags,
+				ap_req_options,
+				ticket,
+				KRB5_KU_AP_REQ_AUTH);
+}
+
+krb5_error_code
+krb5_verify_ap_req2(krb5_context context,
+		    krb5_auth_context *auth_context,
+		    krb5_ap_req *ap_req,
+		    krb5_const_principal server,
+		    krb5_keyblock *keyblock,
+		    krb5_flags flags,
+		    krb5_flags *ap_req_options,
+		    krb5_ticket **ticket,
+		    krb5_key_usage usage)
+{
     krb5_ticket t;
     krb5_auth_context ac;
     krb5_error_code ret;
     
-    if(auth_context) {
-	if(*auth_context == NULL){
-	    krb5_auth_con_init(context, &ac);
-	    *auth_context = ac;
-	}else
-	    ac = *auth_context;
-    } else
-	krb5_auth_con_init(context, &ac);
-	
+    if (auth_context && *auth_context) {
+	ac = *auth_context;
+    } else {
+	ret = krb5_auth_con_init (context, &ac);
+	if (ret)
+	    return ret;
+    }
+
     if (ap_req->ap_options.use_session_key && ac->keyblock){
 	ret = krb5_decrypt_ticket(context, &ap_req->ticket, 
 				  ac->keyblock, 
@@ -249,7 +286,7 @@ krb5_verify_ap_req(krb5_context context,
 				  flags);
     
     if(ret)
-	return ret;
+	goto out;
 
     principalname2krb5_principal(&t.server, ap_req->ticket.sname, 
 				 ap_req->ticket.realm);
@@ -263,11 +300,10 @@ krb5_verify_ap_req(krb5_context context,
     ret = decrypt_authenticator (context,
 				 &t.ticket.key,
 				 &ap_req->authenticator,
-				 ac->authenticator);
-    if (ret){
-	/* XXX free data */
-	return ret;
-    }
+				 ac->authenticator,
+				 usage);
+    if (ret)
+	goto out2;
 
     {
 	krb5_principal p1, p2;
@@ -282,8 +318,10 @@ krb5_verify_ap_req(krb5_context context,
 	res = krb5_principal_compare (context, p1, p2);
 	krb5_free_principal (context, p1);
 	krb5_free_principal (context, p2);
-	if (!res)
-	    return KRB5KRB_AP_ERR_BADMATCH;
+	if (!res) {
+	    ret = KRB5KRB_AP_ERR_BADMATCH;
+	    goto out2;
+	}
     }
 
     /* check addresses */
@@ -292,8 +330,10 @@ krb5_verify_ap_req(krb5_context context,
 	&& ac->remote_address
 	&& !krb5_address_search (context,
 				 ac->remote_address,
-				 t.ticket.caddr))
-	return KRB5KRB_AP_ERR_BADADDR;
+				 t.ticket.caddr)) {
+	ret = KRB5KRB_AP_ERR_BADADDR;
+	goto out2;
+    }
 
     if (ac->authenticator->seq_number)
 	ac->remote_seqnumber = *ac->authenticator->seq_number;
@@ -322,7 +362,18 @@ krb5_verify_ap_req(krb5_context context,
 	**ticket = t;
     } else
 	krb5_free_ticket (context, &t);
+    if (auth_context) {
+	if (*auth_context == NULL)
+	    *auth_context = ac;
+    } else
+	krb5_auth_con_free (context, ac);
     return 0;
+ out2:
+    krb5_free_ticket (context, &t);
+ out:
+    if (auth_context == NULL || *auth_context == NULL)
+	krb5_auth_con_free (context, ac);
+    return ret;
 }
 		   
 

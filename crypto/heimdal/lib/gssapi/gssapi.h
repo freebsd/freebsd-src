@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998, 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -31,7 +31,7 @@
  * SUCH DAMAGE. 
  */
 
-/* $Id: gssapi.h,v 1.14 1999/12/02 17:05:03 joda Exp $ */
+/* $Id: gssapi.h,v 1.20 2001/01/30 00:35:48 assar Exp $ */
 
 #ifndef GSSAPI_H_
 #define GSSAPI_H_
@@ -54,6 +54,8 @@
  */
 
 typedef u_int32_t OM_uint32;
+
+typedef u_int32_t gss_uint32;
 
 /*
  * This is to avoid having to include <krb5.h>
@@ -89,6 +91,8 @@ typedef struct gss_OID_set_desc_struct  {
 
 struct krb5_keytab_data;
 
+struct krb5_ccache_data;
+
 typedef int gss_cred_usage_t;
 
 typedef struct gss_cred_id_t_desc_struct {
@@ -97,6 +101,7 @@ typedef struct gss_cred_id_t_desc_struct {
   OM_uint32 lifetime;
   gss_cred_usage_t usage;
   gss_OID_set mechanisms;
+  struct krb5_ccache_data *ccache;
 } gss_cred_id_t_desc;
 
 typedef gss_cred_id_t_desc *gss_cred_id_t;
@@ -203,6 +208,9 @@ typedef OM_uint32 gss_qop_t;
  */
 #define GSS_C_QOP_DEFAULT 0
 
+#define GSS_KRB5_CONF_C_QOP_DES		0x0100
+#define GSS_KRB5_CONF_C_QOP_DES3_KD	0x0200
+
 /*
  * Expiration time of 2^32-1 seconds means infinite lifetime for a
  * credential or security context
@@ -253,10 +261,30 @@ extern gss_OID GSS_C_NT_STRING_UID_NAME;
  * gss_OID_desc object containing the value
  * {6, (void *)"\x2b\x06\x01\x05\x06\x02"},
  * corresponding to an object-identifier value of
- * {1(iso), 3(org), 6(dod), 1(internet), 5(security),
- * 6(nametypes), 2(gss-host-based-services)}.  The constant
- * GSS_C_NT_HOSTBASED_SERVICE should be initialized to point
- * to that gss_OID_desc.
+ * {iso(1) org(3) dod(6) internet(1) security(5)
+ * nametypes(6) gss-host-based-services(2)).  The constant
+ * GSS_C_NT_HOSTBASED_SERVICE_X should be initialized to point
+ * to that gss_OID_desc.  This is a deprecated OID value, and
+ * implementations wishing to support hostbased-service names
+ * should instead use the GSS_C_NT_HOSTBASED_SERVICE OID,
+ * defined below, to identify such names;
+ * GSS_C_NT_HOSTBASED_SERVICE_X should be accepted a synonym
+ * for GSS_C_NT_HOSTBASED_SERVICE when presented as an input
+ * parameter, but should not be emitted by GSS-API
+ * implementations
+ */
+extern gss_OID GSS_C_NT_HOSTBASED_SERVICE_X;
+
+/*
+ * The implementation must reserve static storage for a
+ * gss_OID_desc object containing the value
+ * {10, (void *)"\x2a\x86\x48\x86\xf7\x12"
+ *              "\x01\x02\x01\x04"}, corresponding to an
+ * object-identifier value of {iso(1) member-body(2)
+ * Unites States(840) mit(113554) infosys(1) gssapi(2)
+ * generic(1) service_name(4)}.  The constant
+ * GSS_C_NT_HOSTBASED_SERVICE should be initialized
+ * to point to that gss_OID_desc.
  */
 extern gss_OID GSS_C_NT_HOSTBASED_SERVICE;
 
@@ -294,6 +322,10 @@ extern gss_OID GSS_KRB5_NT_MACHINE_UID_NAME;
 extern gss_OID GSS_KRB5_NT_STRING_UID_NAME;
 
 extern gss_OID GSS_KRB5_MECHANISM;
+
+/* for compatibility with MIT api */
+
+#define gss_mech_krb5 GSS_KRB5_MECHANISM
 
 /* Major status codes */
 
@@ -738,5 +770,10 @@ OM_uint32 gss_unseal
 
 OM_uint32 gsskrb5_register_acceptor_identity
         (char *identity);
+
+OM_uint32 gss_krb5_copy_ccache
+	(OM_uint32 *minor,
+	 gss_cred_id_t cred,
+	 struct krb5_ccache_data *out);
 
 #endif /* GSSAPI_H_ */

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "kadm5_locl.h"
 
-RCSID("$Id: modify_s.c,v 1.9 1999/12/02 17:05:06 joda Exp $");
+RCSID("$Id: modify_s.c,v 1.12 2001/01/30 01:24:28 assar Exp $");
 
 static kadm5_ret_t
 modify_principal(void *server_handle,
@@ -56,14 +56,16 @@ modify_principal(void *server_handle,
     ret = context->db->fetch(context->context, context->db, 0, &ent);
     if(ret)
 	goto out;
-    ret = _kadm5_setup_entry(&ent, mask, princ, mask, NULL, 0);
+    ret = _kadm5_setup_entry(context, &ent, mask, princ, mask, NULL, 0);
     if(ret)
 	goto out2;
     ret = _kadm5_set_modifier(context, &ent);
     if(ret)
 	goto out2;
 
-    hdb_seal_keys(context->db, &ent);
+    ret = hdb_seal_keys(context->context, context->db, &ent);
+    if (ret)
+	goto out2;
 
     kadm5_log_modify (context,
 		      &ent,

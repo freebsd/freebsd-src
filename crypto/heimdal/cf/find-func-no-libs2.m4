@@ -1,4 +1,4 @@
-dnl $Id: find-func-no-libs2.m4,v 1.3 1999/10/30 21:09:53 assar Exp $
+dnl $Id: find-func-no-libs2.m4,v 1.4 2000/07/15 18:10:19 joda Exp $
 dnl
 dnl
 dnl Look for function in any of the specified libraries
@@ -28,12 +28,10 @@ fi
 
 eval "ac_res=\$ac_cv_funclib_$1"
 
-dnl autoheader tricks *sigh*
-: << END
-@@@funcs="$funcs $1"@@@
-@@@libs="$libs $2"@@@
-END
-
+if false; then
+	AC_CHECK_FUNCS($1)
+dnl	AC_CHECK_LIBS($2, foo)
+fi
 # $1
 eval "ac_tr_func=HAVE_[]upcase($1)"
 eval "ac_tr_lib=HAVE_LIB[]upcase($ac_res | sed -e 's/-l//')"

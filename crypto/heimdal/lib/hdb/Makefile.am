@@ -1,4 +1,4 @@
-# $Id: Makefile.am,v 1.33 2000/01/06 21:45:41 assar Exp $
+# $Id: Makefile.am,v 1.43 2001/01/30 01:49:16 assar Exp $
 
 include $(top_srcdir)/Makefile.am.common
 
@@ -13,27 +13,33 @@ CLEANFILES = $(BUILT_SOURCES) $(foo) hdb_asn1.h asn1_files
 
 noinst_PROGRAMS = convert_db
 LDADD = libhdb.la \
+	$(LIB_openldap) \
 	../krb5/libkrb5.la \
 	../asn1/libasn1.la \
-	../des/libdes.la \
+	$(LIB_des) \
 	$(LIB_roken) \
 	$(DBLIB)
 
 lib_LTLIBRARIES = libhdb.la
-libhdb_la_LDFLAGS = -version-info 4:1:1
+libhdb_la_LDFLAGS = -version-info 7:0:0
 
-libhdb_la_SOURCES = 				\
-		    keytab.c			\
-		    hdb.c			\
-		    common.c			\
-		    db.c			\
-		    ndbm.c			\
-		    print.c			\
-		    $(BUILT_SOURCES)
+libhdb_la_SOURCES =				\
+	common.c				\
+	db.c					\
+	db3.c					\
+	hdb-ldap.c				\
+	hdb.c					\
+	keytab.c				\
+	mkey.c					\
+	ndbm.c					\
+	print.c					\
+	$(BUILT_SOURCES)
+
+INCLUDES += $(INCLUDE_openldap)
 
 include_HEADERS = hdb.h hdb_err.h hdb_asn1.h hdb-protos.h hdb-private.h
 
-libhdb_la_LIBADD = 
+libhdb_la_LIBADD = $(LIB_openldap)
 
 $(libhdb_la_OBJECTS): $(srcdir)/hdb-protos.h $(srcdir)/hdb-private.h
 

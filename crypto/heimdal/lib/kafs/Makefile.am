@@ -1,4 +1,4 @@
-# $Id: Makefile.am,v 1.19 2000/01/06 15:14:27 assar Exp $
+# $Id: Makefile.am,v 1.23 2000/12/11 00:44:50 assar Exp $
 
 include $(top_srcdir)/Makefile.am.common
 
@@ -41,7 +41,7 @@ endif # KRB4
 
 
 lib_LTLIBRARIES = $(AFSLIBS)
-libkafs_la_LDFLAGS = -version-info 1:2:1
+libkafs_la_LDFLAGS = -version-info 2:3:2
 foodir = $(libdir)
 foo_DATA = $(AFS_EXTRA_LIBS)
 # EXTRA_DATA = afslib.so
