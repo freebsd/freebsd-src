@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.90 1999/02/14 21:26:29 jkh Exp $
+ * $Id: system.c,v 1.91 1999/02/15 00:49:33 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -109,11 +109,15 @@ systemInitialize(int argc, char **argv)
 	close(1); dup(0);
 	close(2); dup(0);
 	printf("%s running as init on %s\n", argv[0], OnVTY ? "vty0" : "serial console");
-	i = ioctl(0, TIOCSCTTY, (char *)NULL);
+	ioctl(0, TIOCSCTTY, (char *)NULL);
 	setlogin("root");
 	setenv("PATH", "/stand:/bin:/sbin:/usr/sbin:/usr/bin:/mnt/bin:/mnt/sbin:/mnt/usr/sbin:/mnt/usr/bin:/usr/X11R6/bin", 1);
 	setbuf(stdin, 0);
 	setbuf(stderr, 0);
+#ifdef __alpha__
+	i = 0;
+	sysctlbyname("machdep.unaligned_print", NULL, 0, &i, sizeof(i));
+#endif
     }
     else {
 	char hname[256];
