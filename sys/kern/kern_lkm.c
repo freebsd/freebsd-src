@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_lkm.c,v 1.41 1997/08/02 14:31:32 bde Exp $
+ * $Id: kern_lkm.c,v 1.42 1997/09/14 02:52:14 peter Exp $
  */
 
 #include <sys/param.h>
@@ -660,8 +660,6 @@ _lkm_vfs(lkmtp, cmd)
 		if (vfsp->vfc_refcount) {
 			return EBUSY;
 		}
-
-		FREE(vfsp, M_VFSCONF);
 
 		prev_vfsp->vfc_next = vfsp->vfc_next;
 
