@@ -1,4 +1,4 @@
-#	$Id: BSD.var.dist,v 1.22 1995/04/12 03:02:01 ache Exp $
+#	$Id: BSD.var.dist,v 1.23 1995/05/17 09:31:17 rgrimes Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -34,7 +34,7 @@
     ..
     mail            uname=bin
     ..
-    msgs            uname=bin
+    msgs            uname=daemon
     ..
     preserve        uname=bin
     ..
