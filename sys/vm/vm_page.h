@@ -305,7 +305,7 @@ extern long first_page;			/* first physical page number */
 #define VM_ALLOC_NORMAL		0
 #define VM_ALLOC_INTERRUPT	1
 #define VM_ALLOC_SYSTEM		2
-#define	VM_ALLOC_ZERO		3
+#define	VM_ALLOC_ZERO		0x40
 #define	VM_ALLOC_RETRY		0x80
 
 void vm_page_flag_set(vm_page_t m, unsigned short bits);
