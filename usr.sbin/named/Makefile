@@ -36,10 +36,10 @@ FILES=	${HTMLS} ${MISCS}
 .PATH: ${BIND_DIR}/doc/html ${BIND_DIR}/doc/misc
 
 .for file in ${HTMLS}
-FILESDIR_${file}=	${DESTDIR}${DOCDIR}/bind/html
+FILESDIR_${file}=	${DOCDIR}/bind/html
 .endfor
 .for file in ${MISCS}
-FILESDIR_${file}=	${DESTDIR}${DOCDIR}/bind/misc
+FILESDIR_${file}=	${DOCDIR}/bind/misc
 .endfor
 
 .include <bsd.prog.mk>
