@@ -38,6 +38,12 @@
 #define	_SYS_MBUF_H_
 
 /*
+ * XXXMAC: Possibly this recursive include is a bad idea, but a lot
+ * of code exists that assumes it is sufficient to include just mbuf.h
+ */
+#include <sys/mac.h>
+
+/*
  * Mbufs are of a single size, MSIZE (machine/param.h), which
  * includes overhead.  An mbuf may add a single "mbuf cluster" of size
  * MCLBYTES (also in machine/param.h), which has no additional overhead
@@ -85,6 +91,7 @@ struct pkthdr {
 	int	csum_flags;		/* flags regarding checksum */
 	int	csum_data;		/* data field used by csum routines */
 	struct	mbuf *aux;		/* extra data buffer; ipsec/others */
+	struct	label label;		/* MAC label of data in packet */
 };
 
 /*
