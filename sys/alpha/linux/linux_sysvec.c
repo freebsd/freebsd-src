@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_sysvec.c,v 1.23 1998/02/06 12:13:19 eivind Exp $
+ *  $Id: linux_sysvec.c,v 1.24 1998/02/09 06:09:17 eivind Exp $
  */
 
 /* XXX we use functions that might not exist. */
@@ -401,7 +401,7 @@ struct sysentvec elf_linux_sysvec = {
 /*
  * Installed either via SYSINIT() or via LKM stubs.
  */
-static Elf32_Brandinfo linux_brand = {
+Elf32_Brandinfo linux_brand = {
 					"Linux",
 					"/compat/linux",
 					"/lib/ld-linux.so.1",
