@@ -33,6 +33,7 @@ SUBDIR=	3dfx \
 	if_stf \
 	if_tap \
 	if_tun \
+	if_vlan \
 	ip6fw \
 	ip_mroute_mod \
 	ipfilter \
