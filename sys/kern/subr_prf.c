@@ -39,6 +39,8 @@
  * $FreeBSD$
  */
 
+#include "opt_ddb.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/lock.h>
@@ -55,6 +57,10 @@
 #include <sys/syslog.h>
 #include <sys/cons.h>
 #include <sys/uio.h>
+
+#ifdef DDB
+#include <ddb/ddb.h>
+#endif
 
 /*
  * Note that stdarg.h and the ANSI style va_start macro is used for both
@@ -900,9 +906,7 @@ SYSCTL_PROC(_kern, OID_AUTO, msgbuf_clear,
     CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_SECURE, &msgbuf_clear, 0,
     sysctl_kern_msgbuf_clear, "I", "Clear kernel message buffer");
 
-#include "opt_ddb.h"
 #ifdef DDB
-#include <ddb/ddb.h>
 
 DB_SHOW_COMMAND(msgbuf, db_show_msgbuf)
 {
