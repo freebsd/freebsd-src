@@ -152,6 +152,8 @@ static l_fp time_offset;		/* time offset (ns) */
 static l_fp time_freq;			/* frequency offset (ns/s) */
 static l_fp time_adj;			/* tick adjust (ns/s) */
 
+static int64_t time_adjtime;		/* correction from adjtime(2) (usec) */
+
 #ifdef PPS_SYNC
 /*
  * The following variables are used when a pulse-per-second (PPS) signal
@@ -437,6 +439,7 @@ void
 ntp_update_second(struct timecounter *tcp)
 {
 	u_int32_t *newsec;
+	int tickrate;
 	l_fp ftemp;		/* 32/64-bit temporary */
 
 	newsec = &tcp->tc_offset.sec;
@@ -532,7 +535,31 @@ ntp_update_second(struct timecounter *tcp)
 	time_adj = ftemp;
 	L_SUB(time_offset, ftemp);
 	L_ADD(time_adj, time_freq);
+	
+	/*
+	 * Apply any correction from adjtime(2).  If more than one second
+	 * off we slew at a rate of 5ms/s (5000 PPM) else 500us/s (500PPM)
+	 * until the last second is slewed the final < 500 usecs.
+	 */
+	if (time_adjtime != 0) {
+		if (time_adjtime > 1000000)
+			tickrate = 5000;
+		else if (time_adjtime < -1000000)
+			tickrate = -5000;
+		else if (time_adjtime > 500)
+			tickrate = 500;
+		else if (time_adjtime < -500)
+			tickrate = -500;
+		else if (time_adjtime != 0)
+			tickrate = time_adjtime;
+		else
+			tickrate = 0;	/* GCC sucks! */
+		time_adjtime -= tickrate;
+		L_LINT(ftemp, tickrate * 1000);
+		L_ADD(time_adj, ftemp);
+	}
 	tcp->tc_adjustment = time_adj;
+		
 #ifdef PPS_SYNC
 	if (pps_valid > 0)
 		pps_valid--;
@@ -865,3 +892,50 @@ hardpps(tsp, nsec)
 		time_freq = pps_freq;
 }
 #endif /* PPS_SYNC */
+
+#ifndef _SYS_SYSPROTO_H_
+struct adjtime_args {
+	struct timeval *delta;
+	struct timeval *olddelta;
+};
+#endif
+/*
+ * MPSAFE
+ */
+/* ARGSUSED */
+int
+adjtime(struct thread *td, struct adjtime_args *uap)
+{
+	struct timeval atv;
+	int error;
+
+	mtx_lock(&Giant);
+
+	if ((error = suser(td)))
+		goto done2;
+	if (uap->olddelta) {
+		atv.tv_sec = time_adjtime / 1000000;
+		atv.tv_usec = time_adjtime % 1000000;
+		if (atv.tv_usec < 0) {
+			atv.tv_usec += 1000000;
+			atv.tv_sec--;
+		}
+		printf("Old: time_adjtime = %ld.%06ld %lld\n", 
+		    atv.tv_sec, atv.tv_usec, time_adjtime);
+		error = copyout(&atv, uap->olddelta, sizeof(atv));
+		if (error)
+			goto done2;
+	}
+	if (uap->delta) {
+		error = copyin(uap->delta, &atv, sizeof(atv));
+		if (error)
+			goto done2;
+		time_adjtime = (int64_t)atv.tv_sec * 1000000 + atv.tv_usec;
+		printf("New: time_adjtime = %ld.%06ld %lld\n", 
+		    atv.tv_sec, atv.tv_usec, time_adjtime);
+	}
+done2:
+	mtx_unlock(&Giant);
+	return (error);
+}
+

@@ -65,7 +65,6 @@
 
 int	hz;
 int	tick;
-int	tickadj;			 /* can adjust 30ms in 60s */
 int	maxusers;			/* base tunable */
 int	maxproc;			/* maximum # of processes */
 int	maxprocperuid;			/* max # of procs per user */
@@ -100,7 +99,6 @@ init_param1(void)
 	hz = HZ;
 	TUNABLE_INT_FETCH("kern.hz", &hz);
 	tick = 1000000 / hz;
-	tickadj = howmany(30000, 60 * hz);	/* can adjust 30ms in 60s */
 
 #ifdef VM_SWZONE_SIZE_MAX
 	maxswzone = VM_SWZONE_SIZE_MAX;
