@@ -7,8 +7,8 @@
 #else
 #ifdef BSD
 #include <sys/timeb.h>
-#endif BSD
-#endif SYSV
+#endif /* BSD */
+#endif /* SYSV */
 
 /*
  *	routine to take a nap for n milliseconds
@@ -30,7 +30,7 @@ napms(x)	/* do nothing */
 	int x;
 	{
 	}
-#else NONAP
+#else /* NONAP */
 #ifdef SYSV
 /*	napms - sleep for time milliseconds - uses times() */
 /* this assumes that times returns a relative time in 60ths of a second */
@@ -114,8 +114,8 @@ static napms(time)
 		}
 	}
 #endif
-#else not BSD
+#else /* not BSD */
 static napms(time) int time; {}	/* do nothing, forget it */
-#endif BSD
-#endif SYSV
-#endif NONAP
+#endif /* BSD */
+#endif /* SYSV */
+#endif /* NONAP */
