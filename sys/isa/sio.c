@@ -41,7 +41,9 @@
 #include "opt_sio.h"
 #include "card.h"
 #include "pci.h"
+#ifdef __i386__
 #include "puc.h"
+#endif
 #include "sio.h"
 
 /*
