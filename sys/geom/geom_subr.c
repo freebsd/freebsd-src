@@ -663,6 +663,7 @@ g_sanity(void *ptr)
 	}
 }
 
+#ifdef _KERNEL
 struct g_class *
 g_idclass(struct geomidorname *p)
 {
@@ -746,3 +747,4 @@ g_idprovider(struct geomidorname *p)
 	g_free(n);
 	return (NULL);
 }
+#endif /* _KERNEL */
