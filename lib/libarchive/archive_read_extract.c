@@ -423,7 +423,7 @@ archive_read_extract_dir(struct archive *a, struct archive_entry *entry,
 	}
 
 	if (archive_read_extract_dir_create(a, archive_entry_pathname(entry),
-		mode, flags)) {
+		writable_mode, flags)) {
 		/* Unable to create directory; just use the existing dir. */
 		return (ARCHIVE_WARN);
 	}
