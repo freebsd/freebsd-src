@@ -31,8 +31,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_malloc.c	8.3 (Berkeley) 1/4/94
- * $Id: kern_malloc.c,v 1.42 1998/02/06 12:13:23 eivind Exp $
+ * $Id: kern_malloc.c,v 1.43 1998/02/09 06:09:22 eivind Exp $
  */
+
+#include "opt_vm.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -61,6 +63,7 @@ static struct kmembuckets bucket[MINBUCKET + 16];
 static struct kmemusage *kmemusage;
 static char *kmembase;
 static char *kmemlimit;
+static int vm_kmem_size;
 
 #ifdef DIAGNOSTIC
 /*
@@ -371,6 +374,7 @@ kmeminit(dummy)
 {
 	register long indx;
 	int npg;
+	int mem_size;
 
 #if	((MAXALLOCSAVE & (MAXALLOCSAVE - 1)) != 0)
 #error "kmeminit: MAXALLOCSAVE not power of 2"
@@ -381,7 +385,36 @@ kmeminit(dummy)
 #if	(MAXALLOCSAVE < PAGE_SIZE)
 #error "kmeminit: MAXALLOCSAVE too small"
 #endif
-	npg = (nmbufs * MSIZE + nmbclusters * MCLBYTES + VM_KMEM_SIZE)
+
+	/*
+	 * Try to auto-tune the kernel memory size, so that it is
+	 * more applicable for a wider range of machine sizes.
+	 * On an X86, a VM_KMEM_SIZE_SCALE value of 4 is good, while
+	 * a VM_KMEM_SIZE of 12MB is a fair compromise.  The
+	 * VM_KMEM_SIZE_MAX is dependent on the maximum KVA space
+	 * available, and on an X86 with a total KVA space of 256MB,
+	 * try to keep VM_KMEM_SIZE_MAX at 80MB or below.
+	 *
+	 * Note that the kmem_map is also used by the zone allocator,
+	 * so make sure that there is enough space.
+	 */
+	vm_kmem_size = VM_KMEM_SIZE;
+	mem_size = cnt.v_page_count * PAGE_SIZE;
+
+#if defined(VM_KMEM_SIZE_SCALE)
+	if ((mem_size / VM_KMEM_SIZE_SCALE) > vm_kmem_size)
+		vm_kmem_size = mem_size / VM_KMEM_SIZE_SCALE;
+#endif
+
+#if defined(VM_KMEM_SIZE_MAX)
+	if (vm_kmem_size >= VM_KMEM_SIZE_MAX)
+		vm_kmem_size = VM_KMEM_SIZE_MAX;
+#endif
+
+	if (vm_kmem_size > 2 * (cnt.v_page_count * PAGE_SIZE))
+		vm_kmem_size = 2 * (cnt.v_page_count * PAGE_SIZE);
+
+	npg = (nmbufs * MSIZE + nmbclusters * MCLBYTES + vm_kmem_size)
 		/ PAGE_SIZE;
 
 	kmemusage = (struct kmemusage *) kmem_alloc(kernel_map,
@@ -403,6 +436,7 @@ malloc_init(type)
 	struct malloc_type *type;
 {
 	int npg;
+	int mem_size;
 
 	if (type->ks_magic != M_MAGIC) 
 		panic("malloc type lacks magic");
@@ -411,15 +445,10 @@ malloc_init(type)
 		panic("malloc_init not allowed before vm init");
 
 	/*
-	 * Limit maximum memory for each type to 60% of malloc area size or
-	 * 60% of physical memory, whichever is smaller.
+	 * The default limits for each malloc region is 1/2 of the
+	 * malloc portion of the kmem map size.
 	 */
-	npg = (nmbufs * MSIZE + nmbclusters * MCLBYTES + VM_KMEM_SIZE)
-		/ PAGE_SIZE;
-
-	type->ks_limit = min(cnt.v_page_count * PAGE_SIZE,
-		(npg * PAGE_SIZE - nmbclusters * MCLBYTES
-		 - nmbufs * MSIZE)) * 6 / 10;
+	type->ks_limit = vm_kmem_size / 2;
 	type->ks_next = kmemstatistics;	
 	kmemstatistics = type;
 }
