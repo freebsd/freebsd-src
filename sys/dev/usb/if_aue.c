@@ -159,9 +159,9 @@ Static struct aue_type aue_devs[] = {
 
 Static struct usb_qdat aue_qdat;
 
-Static int aue_match(device_t);
-Static int aue_attach(device_t);
-Static int aue_detach(device_t);
+Static int aue_match(device_ptr_t);
+Static int aue_attach(device_ptr_t);
+Static int aue_detach(device_ptr_t);
 
 Static void aue_reset_pegasus_II(struct aue_softc *sc);
 Static int aue_tx_list_init(struct aue_softc *);
@@ -180,15 +180,15 @@ Static int aue_ioctl(struct ifnet *, u_long, caddr_t);
 Static void aue_init(void *);
 Static void aue_stop(struct aue_softc *);
 Static void aue_watchdog(struct ifnet *);
-Static void aue_shutdown(device_t);
+Static void aue_shutdown(device_ptr_t);
 Static int aue_ifmedia_upd(struct ifnet *);
 Static void aue_ifmedia_sts(struct ifnet *, struct ifmediareq *);
 
 Static void aue_eeprom_getword(struct aue_softc *, int, u_int16_t *);
 Static void aue_read_eeprom(struct aue_softc *, caddr_t, int, int, int);
-Static int aue_miibus_readreg(device_t, int, int);
-Static int aue_miibus_writereg(device_t, int, int, int);
-Static void aue_miibus_statchg(device_t);
+Static int aue_miibus_readreg(device_ptr_t, int, int);
+Static int aue_miibus_writereg(device_ptr_t, int, int, int);
+Static void aue_miibus_statchg(device_ptr_t);
 
 Static void aue_setmulti(struct aue_softc *);
 Static u_int32_t aue_crc(caddr_t);
@@ -403,7 +403,7 @@ aue_read_eeprom(struct aue_softc *sc, caddr_t dest, int off, int cnt, int swap)
 }
 
 Static int
-aue_miibus_readreg(device_t dev, int phy, int reg)
+aue_miibus_readreg(device_ptr_t dev, int phy, int reg)
 {
 	struct aue_softc	*sc;
 	int			i;
@@ -449,7 +449,7 @@ aue_miibus_readreg(device_t dev, int phy, int reg)
 }
 
 Static int
-aue_miibus_writereg(device_t dev, int phy, int reg, int data)
+aue_miibus_writereg(device_ptr_t dev, int phy, int reg, int data)
 {
 	struct aue_softc	*sc;
 	int			i;
@@ -477,7 +477,7 @@ aue_miibus_writereg(device_t dev, int phy, int reg, int data)
 }
 
 Static void
-aue_miibus_statchg(device_t dev)
+aue_miibus_statchg(device_ptr_t dev)
 {
 	struct aue_softc	*sc;
 	struct mii_data		*mii;
@@ -776,7 +776,7 @@ USB_ATTACH(aue)
 }
 
 Static int
-aue_detach(device_t dev)
+aue_detach(device_ptr_t dev)
 {
 	struct aue_softc	*sc;
 	struct ifnet		*ifp;
@@ -1552,7 +1552,7 @@ aue_stop(struct aue_softc *sc)
  * get confused by errant DMAs when rebooting.
  */
 Static void
-aue_shutdown(device_t dev)
+aue_shutdown(device_ptr_t dev)
 {
 	struct aue_softc	*sc;
 
