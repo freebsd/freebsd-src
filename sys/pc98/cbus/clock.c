@@ -194,7 +194,12 @@ static void rtc_serialcom __P((int));
 static int rtc_inb __P((void));
 static void rtc_outb __P((int));
 #endif
+#if defined(I386_CPU) || defined(I486_CPU)
+	u_int	tsc_present;	/* Not static; other parts of the kernel
+				 * Need to know this */
+#else
 static	u_int	tsc_present;
+#endif
 
 static	unsigned i8254_get_timecount __P((struct timecounter *tc));
 static	unsigned tsc_get_timecount __P((struct timecounter *tc));
