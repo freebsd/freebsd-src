@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: options.c,v 1.1 1995/10/04 07:54:58 jkh Exp $
+ * $Id: options.c,v 1.2 1995/10/04 10:34:04 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -47,7 +47,7 @@
 static char *
 userPassCheck(Option opt)
 {
-    char *cp = getenv(FTP_USER);
+    char *cp = variable_get(FTP_USER);
 
     return cp ? cp : "ftp";
 }
@@ -66,7 +66,7 @@ ftpFlagCheck(Option opt)
 static char *
 blockSizeCheck(Option opt)
 {
-    char *cp = getenv(TAPE_BLOCKSIZE);
+    char *cp = variable_get(TAPE_BLOCKSIZE);
 
     return cp ? cp : DEFAULT_TAPE_BLOCKSIZE;
 }
@@ -75,7 +75,14 @@ static char *
 releaseCheck(Option opt)
 {
     /* This one is always defined */
-    return getenv(RELNAME);
+    return variable_get(RELNAME);
+}
+
+static char *
+checkCpioVerbosity(Option opt)
+{
+    /* This one is always defined */
+    return getenv(CPIO_VERBOSITY_LEVEL);
 }
 
 /* Nuke all the flags */
@@ -110,8 +117,8 @@ static Option Options[] = {
       OPT_IS_FUNC,	mediaSetFtpUserPass,	0,		userPassCheck	},
 { "Tape Blocksize",	"Tape media block size in 512 byte blocks",
       OPT_IS_FUNC,	mediaSetTapeBlocksize,	0,		blockSizeCheck	},
-{ "Detail High",	"Show filenames on debug screen as CPIO extracts them",
-      OPT_IS_FLAG,	&OptFlags,	OPT_CPIO_HIGH,		NULL		},
+{ "Detail Level",	"How to display filenames on debug screen as CPIO extracts them",
+      OPT_IS_FUNC,	mediaSetCPIOVerbosity,	0,		checkCpioVerbosity },
 { "Release Name",	"Which release to attempt to load from installation media",
       OPT_IS_FUNC,	installSelectRelease,	0,		releaseCheck	},
 { "Reset Flags",	"Reset all flag values to defaults",
