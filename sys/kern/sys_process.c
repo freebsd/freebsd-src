@@ -280,8 +280,12 @@ ptrace(curp, uap)
 			return EBUSY;
 
 		/* not currently stopped */
-		if (p->p_stat != SSTOP || (p->p_flag & P_WAITED) == 0)
+		mtx_enter(&sched_lock, MTX_SPIN);
+		if (p->p_stat != SSTOP || (p->p_flag & P_WAITED) == 0) {
+			mtx_exit(&sched_lock, MTX_SPIN);
 			return EBUSY;
+		}
+		mtx_exit(&sched_lock, MTX_SPIN);
 
 		/* OK */
 		break;
@@ -363,11 +367,17 @@ ptrace(curp, uap)
 	sendsig:
 		/* deliver or queue signal */
 		s = splhigh();
+		mtx_enter(&sched_lock, MTX_SPIN);
 		if (p->p_stat == SSTOP) {
 			p->p_xstat = uap->data;
 			setrunnable(p);
-		} else if (uap->data) {
-			psignal(p, uap->data);
+			mtx_exit(&sched_lock, MTX_SPIN);
+		} else {
+			mtx_exit(&sched_lock, MTX_SPIN);
+			if (uap->data) {
+				mtx_assert(&Giant, MA_OWNED);
+				psignal(p, uap->data);
+			}
 		}
 		splx(s);
 		return 0;
