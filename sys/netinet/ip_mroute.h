@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_mroute.h	8.1 (Berkeley) 6/10/93
- * $Id: ip_mroute.h,v 1.9 1995/08/23 18:20:17 wollman Exp $
+ * $Id: ip_mroute.h,v 1.10 1995/12/02 19:38:06 bde Exp $
  */
 
 #ifndef _NETINET_IP_MROUTE_H_
@@ -153,8 +153,6 @@ struct sioc_vif_req {
 };
     
 
-#ifdef KERNEL
-
 /*
  * The kernel's virtual-interface structure.
  */
@@ -247,6 +245,8 @@ struct tbf
     struct mbuf *tbf_q;		/* Packet queue			*/
     struct mbuf *tbf_t;		/* tail-insertion pointer	*/
 };
+
+#ifdef KERNEL
 
 extern int	(*ip_mrouter_set) __P((int, struct socket *, struct mbuf *));
 extern int	(*ip_mrouter_get) __P((int, struct socket *, struct mbuf **));
