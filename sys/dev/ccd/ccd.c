@@ -1380,7 +1380,7 @@ ccdlookup(path, p, vpp)
 	vp = nd.ni_vp;
 
 	if (vp->v_usecount > 1) {
-		VOP_UNLOCK(vp);
+		VOP_UNLOCK(vp, 0, p);
 		(void)vn_close(vp, FREAD|FWRITE, p->p_ucred, p);
 		return (EBUSY);
 	}
@@ -1390,14 +1390,14 @@ ccdlookup(path, p, vpp)
 		if (ccddebug & CCDB_FOLLOW|CCDB_INIT)
 			printf("ccdlookup: getattr error = %d\n", error);
 #endif
-		VOP_UNLOCK(vp);
+		VOP_UNLOCK(vp, 0, p);
 		(void)vn_close(vp, FREAD|FWRITE, p->p_ucred, p);
 		return (error);
 	}
 
 	/* XXX: eventually we should handle VREG, too. */
 	if (va.va_type != VBLK) {
-		VOP_UNLOCK(vp);
+		VOP_UNLOCK(vp, 0, p);
 		(void)vn_close(vp, FREAD|FWRITE, p->p_ucred, p);
 		return (ENOTBLK);
 	}
@@ -1407,7 +1407,7 @@ ccdlookup(path, p, vpp)
 		vprint("ccdlookup: vnode info", vp);
 #endif
 
-	VOP_UNLOCK(vp);
+	VOP_UNLOCK(vp, 0, p);
 	*vpp = vp;
 	return (0);
 }
