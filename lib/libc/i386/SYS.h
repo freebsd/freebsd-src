@@ -39,7 +39,7 @@
  */
 
 #include <sys/syscall.h>
-#include "DEFS.h"
+#include <machine/asm.h>
 
 #define	SYSCALL(x)	2: PIC_PROLOGUE; jmp PIC_PLT(HIDENAME(cerror));	\
 			ENTRY(__CONCAT(__sys_,x));			\

@@ -49,7 +49,7 @@
 
 /* With CHOP mode on, frndint behaves as TRUNC does.  Useful. */
 
-#include "DEFS.h"
+#include <machine/asm.h>
 
 ENTRY(modf)
 	pushl %ebp
