@@ -80,6 +80,8 @@ struct puc_device_description {
 		u_int	serialfreq;
 		u_int	flags;
 	} ports[PUC_MAX_PORTS];
+	uint32_t	ilr_type;
+	uint32_t	ilr_offset[2];
 };
 
 #define	PUC_REG_VEND		0
@@ -90,6 +92,10 @@ struct puc_device_description {
 #define	PUC_PORT_TYPE_NONE	0
 #define	PUC_PORT_TYPE_COM	1
 #define	PUC_PORT_TYPE_LPT	2
+
+/* Interrupt Latch Register (ILR) types */
+#define	PUC_ILR_TYPE_NONE	0
+#define	PUC_ILR_TYPE_DIGI	1
 
 #define	PUC_FLAGS_MEMORY	0x0001		/* Use memory mapped I/O. */
 
@@ -126,6 +132,9 @@ struct puc_softc {
 	int			irqrid;
 	struct resource		*irqres;
 	void			*intr_cookie;
+	int			ilr_enabled;
+	bus_space_tag_t		ilr_st;
+	bus_space_handle_t	ilr_sh;
 
 	struct {
 		int		used;
