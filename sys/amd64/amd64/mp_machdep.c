@@ -272,7 +272,6 @@ int apic_itrace_noforward[32];
 int apic_itrace_leave[32];
 int apic_itrace_enter2[32];
 int apic_itrace_doreti[32];
-int apic_itrace_splz[32];
 int apic_itrace_eoi[32];
 #ifdef APIC_INTR_DIAGNOSTIC_IRQ
 unsigned short apic_itrace_debugbuffer[32768];
