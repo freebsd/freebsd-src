@@ -37,10 +37,8 @@
  * software, so it is avoided for compatabilities sake.
  * savefp clobbers %fprs.
  */
-	.macro	savefp	state, tmp
-	rd	%fprs, \tmp
-	stx	\tmp, [\state + FP_FPRS]
-	or	\tmp, FPRS_FEF, \tmp
+	.macro	savefp	state, tmp, fprs
+	or	\fprs, FPRS_FEF, \tmp
 	wr	\tmp, 0, %fprs
 	stx	%fsr, [\state + FP_FSR]
 	rd	%asi, \tmp
@@ -66,9 +64,15 @@
 	wr	\tmp, 0, %asi
 	membar	#Sync
 	ldx	[\state + FP_FSR], %fsr
-	ldx	[\state + FP_FPRS], \tmp
-	wr	\tmp, 0, %fprs
 	.endm
+
+ENTRY(cpu_throw)
+	save	%sp, -CCFSZ, %sp
+	call	chooseproc
+	 ldx	[PCPU(CURPROC)], %l0
+	flushw
+	b,a	sw1
+END(cpu_throw)
 
 ENTRY(cpu_switch)
 	/*
@@ -83,14 +87,21 @@ ENTRY(cpu_switch)
 	 EMPTY
 
 	/*
+	 * Always save %fprs and %y. Both are not used within the kernel
+	 * and are therefore not saved in the trap frame.
 	 * If the process was using floating point, save its context.
 	 */
 	 ldx	[%l0 + P_FRAME], %l1
+	ldx	[PCPU(CURPCB)], %l2
+	rd	%y, %l3
+	stx	%l3, [%l2 + PCB_Y]
+	rd	%fprs, %l3
+	stx	%l3, [%l2 + PCB_FPSTATE + FP_FPRS]
 	ldx	[%l1 + TF_TSTATE], %l1
 	andcc	%l1, TSTATE_PEF, %l1
 	be,pt	%xcc, 1f
-	 ldx	[PCPU(CURPCB)], %l2
-	savefp	%l2 + PCB_FPSTATE, %l3
+	 nop
+	savefp	%l2 + PCB_FPSTATE, %l4, %l3
 
 	/*
 	 * Flush the windows out to the stack and save the current frame
@@ -105,7 +116,7 @@ ENTRY(cpu_switch)
 	 * Load the new process's frame pointer and program counter, and set
 	 * the current process and pcb.
 	 */
-	ldx	[%o0 + P_ADDR], %o1
+sw1:	ldx	[%o0 + P_ADDR], %o1
 	ldx	[%o1 + U_PCB + PCB_FP], %fp
 	ldx	[%o1 + U_PCB + PCB_PC], %i7
 	sub	%fp, CCFSZ, %sp
@@ -123,6 +134,7 @@ ENTRY(cpu_switch)
 
 	/*
 	 * If the new process was using floating point, restore its context.
+	 * Always restore %fprs and %y.
 	 */
 	 ldx	[%o0 + P_FRAME], %o4
 	ldx	[%o4 + TF_TSTATE], %o4
@@ -130,6 +142,11 @@ ENTRY(cpu_switch)
 	be,pt	%xcc, 2f
 	 nop
 	restrfp	%o1 + U_PCB + PCB_FPSTATE, %o4
+
+2:	ldx	[%o1 + PCB_FPSTATE + FP_FPRS], %o4
+	wr	%o4, 0, %fprs
+	ldx	[%o1 + PCB_Y], %o4
+	wr	%o4, 0, %y
 
 	/*
 	 * Point to the current process's vmspace and load the hardware
@@ -145,7 +162,7 @@ ENTRY(cpu_switch)
 	/*
 	 * Install the new primary context.
 	 */
-2:	mov	AA_DMMU_PCXR, %o1
+	mov	AA_DMMU_PCXR, %o1
 	stxa	%o3, [%o1] ASI_DMMU
 	flush	%o0
 
@@ -181,6 +198,10 @@ END(cpu_switch)
 ENTRY(savectx)
 	save	%sp, -CCFSZ, %sp
 	flushw
+	rd	%y, %l0
+	stx	%l0, [%i0 + PCB_Y]
+	rd	%fprs, %l0
+	stx	%l0, [%i0 + PCB_FPSTATE + FP_FPRS]
 	ldx	[PCPU(CURPROC)], %l0
 	ldx	[%l0 + P_FRAME], %l0
 	ldx	[%l0 + TF_TSTATE], %l0
@@ -194,15 +215,17 @@ ENTRY(savectx)
 	 restore %g0, 0, %o0
 END(savectx)
 
+/* Note: this does not save %fprs. */
 ENTRY(savefpctx)
 	rd	%fprs, %o2
-	savefp	%o0, %o1
+	savefp	%o0, %o1, %o2
 	retl
 	 wr	%o2, 0, %fprs
 END(savefpctx)
 
 ENTRY(restorefpctx)
 	restrfp	%o0, %o1
+	ldx	[%o0 + FP_FPRS], %o1
 	retl
-	 nop
+	 wr	%o1, 0, %fprs
 END(restorefpctx)
