@@ -82,6 +82,8 @@ distribution:	freebsd.cf freebsd.mc ${INSTALL_CF}
 	@echo ">>> ERROR: Both SENDMAIL_CF and SENDMAIL_MC can not be set"
 	@false
 .endif
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 644 ${.CURDIR}/rc.sendmail \
+		${DESTDIR}/etc
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 644 ${.CURDIR}/freebsd.mc \
 		${DESTDIR}/etc/mail/freebsd.mc
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 644 freebsd.cf \

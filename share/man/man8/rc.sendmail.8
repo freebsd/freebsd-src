@@ -1,0 +1,241 @@
+.\" Copyright (c) 1995
+.\"	Jordan K. Hubbard
+.\" Copyright (c) 2002 The FreeBSD Project
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 30, 2002
+.Dt RC.SENDMAIL 8
+.Os
+.Sh NAME
+.Nm rc.sendmail
+.Nd
+.Xr sendmail 8
+startup script
+.Sh DESCRIPTION
+The
+.Nm
+script is used by
+.Pa /etc/rc
+at boot time to start
+.Xr sendmail 8 .
+It is meant to be
+.Xr sendmail 8
+specific and not a generic script for all MTAs.
+It is only called by
+.Pa /etc/rc
+if the
+.Xr rc.conf 5
+.Va mta_start_script
+variable is set to
+.Pa /etc/rc.sendmail .
+.Pp
+The
+.Nm
+script can take an optional argument specifying the action to
+perform.
+The available actions are:
+.Bl -tag -width ".Cm restart-mspq"
+.It Cm start
+Starts both the MTA and the MSP queue runner.
+.It Cm stop
+Stops both the MTA and the MSP queue runner.
+.It Cm restart
+Restarts both the MTA and the MSP queue runner.
+.It Cm start-mta
+Starts just the MTA.
+.It Cm stop-mta
+Stops just the MTA.
+.It Cm restart-mta
+Restarts just the MTA.
+.It Cm start-mspq
+Starts just the MSP queue runner.
+.It Cm stop-mspq
+Stops just the MSP queue runner.
+.It Cm restart-mspq
+Restarts just the MSP queue runner.
+.El
+.Pp
+If no action is specified,
+.Cm start
+is assumed.
+.Pp
+The
+.Nm
+script is also used by
+.Pa /etc/mail/Makefile
+to enable the
+.Pa Makefile Ns 's
+.Cm start , stop ,
+and
+.Cm restart
+targets.
+.Sh RC.CONF VARIABLES
+The following variables effect the behavior of
+.Nm .
+They are defined in
+.Pa /etc/defaults/rc.conf
+and can be changed in
+.Pa /etc/rc.conf .
+.Bl -tag -width indent
+.It Va sendmail_enable
+.Pq Vt str
+If set to
+.Dq Li YES ,
+run the
+.Xr sendmail 8
+daemon at system boot time.
+If set to
+.Dq Li NONE ,
+do not run any
+.Xr sendmail 8
+daemons at system boot time.
+.It Va sendmail_flags
+.Pq Vt str
+If
+.Va sendmail_enable
+is set to
+.Dq Li YES ,
+these are the flags to pass to the
+.Xr sendmail 8
+daemon.
+.It Va sendmail_submit_enable
+.Pq Vt bool
+If set to
+.Dq Li YES
+and
+.Va sendmail_enable
+is set to
+.Dq Li NO ,
+run
+.Xr sendmail 8
+using
+.Va sendmail_submit_flags
+instead of
+.Va sendmail_flags .
+This is intended to allow local mail submission via
+a localhost-only listening SMTP service required for running
+.Xr sendmail 8
+as a non-set-user-ID binary.
+.It Va sendmail_submit_flags
+.Pq Vt str
+If
+.Va sendmail_enable
+is set to
+.Dq Li NO
+and
+.Va sendmail_submit_enable
+is set to
+.Dq Li YES ,
+these are the flags to pass to the
+.Xr sendmail 8
+daemon.
+.It Va sendmail_outbound_enable
+.Pq Vt bool
+If set to
+.Dq Li YES
+and both
+.Va sendmail_enable
+and
+.Va sendmail_submit_enable
+are set to
+.Dq Li NO ,
+run
+.Xr sendmail 8
+using
+.Va sendmail_outbound_flags
+instead of
+.Va sendmail_flags .
+This is intended to allow local mail queue management
+for systems that do not offer a listening SMTP service.
+.It Va sendmail_outbound_flags
+.Pq Vt str
+If both
+.Va sendmail_enable
+and
+.Va sendmail_submit_enable
+are set to
+.Dq Li NO
+and
+.Va sendmail_outbound_enable
+is set to
+.Dq Li YES ,
+these are the flags to pass to the
+.Xr sendmail 8
+daemon.
+.It Va sendmail_msp_queue_enable
+.Pq Vt bool
+If set to
+.Dq Li YES ,
+start a client (MSP) queue runner
+.Xr sendmail 8
+daemon at system boot time.
+As of sendmail 8.12, a separate queue is used for command line
+submissions.
+The client queue runner assures that nothing is
+left behind in the submission queue.
+.It Va sendmail_msp_queue_flags
+.Pq Vt str
+If
+.Va sendmail_msp_queue_enable
+is set to
+.Dq Li YES ,
+these are the flags to pass to the
+.Xr sendmail 8
+daemon.
+.El
+.Pp
+These variables are used to determine how the
+.Xr sendmail 8
+daemons are started:
+.Pp
+.Bd -literal -offset indent
+# MTA
+if (${sendmail_enable} == NONE)
+        # Do nothing
+else if (${sendmail_enable} == YES)
+        start sendmail with ${sendmail_flags}
+else if (${sendmail_submit_enable} == YES)
+        start sendmail with ${sendmail_submit_flags}
+else if (${sendmail_outbound_enable} == YES)
+        start sendmail with ${sendmail_outbound_flags}
+endif
+
+# MSP Queue Runner
+if (${sendmail_enable} != NONE &&
+    [ -r /etc/mail/submit.cf] &&
+    ${sendmail_msp_queue_enable} == YES)
+        start sendmail with ${sendmail_msp_queue_flags}
+endif
+.Ed
+.Sh SEE ALSO
+.Xr rc.conf 5 ,
+.Xr rc 8 ,
+.Xr sendmail 8
+.Sh HISTORY
+The
+.Nm
+file appeared in
+.Fx 4.6 .
