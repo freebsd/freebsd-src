@@ -198,7 +198,6 @@ rerelease release:
 	@echo "unset NOPORTS!"
 	@exit 1
 .endif
-	-vnconfig 2>/dev/null
 .if make(release)
 .if exists(${CHROOTDIR})
 # The first command will fail on a handful of files that have their schg
