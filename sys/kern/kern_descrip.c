@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_descrip.c	8.6 (Berkeley) 4/19/94
- * $Id: kern_descrip.c,v 1.44 1997/11/23 10:43:43 bde Exp $
+ * $Id: kern_descrip.c,v 1.45 1997/11/23 12:24:59 bde Exp $
  */
 
 #include <sys/param.h>
@@ -744,6 +744,12 @@ fdcopy(p)
 	register struct file **fpp;
 	register int i;
 
+/*
+ * Certain daemons might not have file descriptors
+ */
+	if (fdp == NULL)
+		return NULL;
+
 	MALLOC(newfdp, struct filedesc *, sizeof(struct filedesc0),
 	    M_FILEDESC, M_WAITOK);
 	bcopy(fdp, newfdp, sizeof(struct filedesc));
@@ -797,6 +803,12 @@ fdfree(p)
 	struct file **fpp;
 	register int i;
 
+/*
+ * Certain daemons might not have file descriptors
+ */
+	if (fdp == NULL)
+		return;
+
 	if (--fdp->fd_refcnt > 0)
 		return;
 	fpp = fdp->fd_ofiles;
@@ -822,6 +834,12 @@ fdcloseexec(p)
 	struct file **fpp;
 	char *fdfp;
 	register int i;
+
+/*
+ * Certain daemons might not have file descriptors
+ */
+	if (fdp == NULL)
+		return;
 
 	fpp = fdp->fd_ofiles;
 	fdfp = fdp->fd_ofileflags;
