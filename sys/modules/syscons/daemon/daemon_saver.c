@@ -25,14 +25,12 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: daemon_saver.c,v 1.10 1998/09/15 18:16:38 sos Exp $
+ *	$Id: daemon_saver.c,v 1.11 1998/09/17 19:40:30 sos Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/exec.h>
-#include <sys/sysent.h>
-#include <sys/lkm.h>
+#include <sys/module.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
@@ -47,8 +45,6 @@
 
 #define DAEMON_MAX_WIDTH	32
 #define DAEMON_MAX_HEIGHT	19
-
-MOD_MISC(daemon_saver);
 
 static char *message;
 static int messagelen;
@@ -335,7 +331,7 @@ daemon_saver(int blank)
 }
 
 static int
-daemon_saver_load(struct lkm_table *lkmtp, int cmd)
+daemon_saver_load(void)
 {
 	int err;
 
@@ -351,7 +347,7 @@ daemon_saver_load(struct lkm_table *lkmtp, int cmd)
 }
 
 static int
-daemon_saver_unload(struct lkm_table *lkmtp, int cmd)
+daemon_saver_unload(void)
 {
 	int err;
 
@@ -361,9 +357,4 @@ daemon_saver_unload(struct lkm_table *lkmtp, int cmd)
 	return err;
 }
 
-int
-daemon_saver_mod(struct lkm_table *lkmtp, int cmd, int ver)
-{
-	MOD_DISPATCH(daemon_saver, lkmtp, cmd, ver,
-		daemon_saver_load, daemon_saver_unload, lkm_nullcmd);
-}
+SAVER_MODULE(daemon_saver);
