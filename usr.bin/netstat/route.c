@@ -281,7 +281,7 @@ p_tree(rn)
 
 again:
 	kget(rn, rnode);
-	if (rnode.rn_b < 0) {
+	if (rnode.rn_bit < 0) {
 		if (Aflag)
 			printf("%-8.8lx ", (u_long)rn);
 		if (rnode.rn_flags & RNF_ROOT) {
@@ -305,8 +305,8 @@ again:
 			printf("%-8.8lx ", (u_long)rn);
 			p_rtnode();
 		}
-		rn = rnode.rn_r;
-		p_tree(rnode.rn_l);
+		rn = rnode.rn_right;
+		p_tree(rnode.rn_left);
 		p_tree(rn);
 	}
 }
@@ -318,7 +318,7 @@ p_rtnode()
 {
 	struct radix_mask *rm = rnode.rn_mklist;
 
-	if (rnode.rn_b < 0) {
+	if (rnode.rn_bit < 0) {
 		if (rnode.rn_mask) {
 			printf("\t  mask ");
 			p_sockaddr(kgetsa((struct sockaddr *)rnode.rn_mask),
@@ -326,14 +326,14 @@ p_rtnode()
 		} else if (rm == 0)
 			return;
 	} else {
-		sprintf(nbuf, "(%d)", rnode.rn_b);
-		printf("%6.6s %8.8lx : %8.8lx", nbuf, (u_long)rnode.rn_l, (u_long)rnode.rn_r);
+		sprintf(nbuf, "(%d)", rnode.rn_bit);
+		printf("%6.6s %8.8lx : %8.8lx", nbuf, (u_long)rnode.rn_left, (u_long)rnode.rn_right);
 	}
 	while (rm) {
 		kget(rm, rmask);
 		sprintf(nbuf, " %d refs, ", rmask.rm_refs);
 		printf(" mk = %8.8lx {(%d),%s",
-			(u_long)rm, -1 - rmask.rm_b, rmask.rm_refs ? nbuf : " ");
+			(u_long)rm, -1 - rmask.rm_bit, rmask.rm_refs ? nbuf : " ");
 		if (rmask.rm_flags & RNF_NORMAL) {
 			struct radix_node rnode_aux;
 			printf(" <normal>, ");
