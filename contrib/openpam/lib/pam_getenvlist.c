@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/pam_getenvlist.c#12 $
+ * $P4: //depot/projects/openpam/lib/pam_getenvlist.c#13 $
  */
 
 #include <stdlib.h>
@@ -65,8 +65,10 @@ pam_getenvlist(pam_handle_t *pamh)
 	}
 	for (i = 0; i < pamh->env_count; ++i) {
 		if ((envlist[i] = strdup(pamh->env[i])) == NULL) {
-			while (i)
-				FREE(envlist[--i]);
+			while (i) {
+				--i;
+				FREE(envlist[i]);
+			}
 			FREE(envlist);
 			openpam_log(PAM_LOG_ERROR, "%s",
 				pam_strerror(pamh, PAM_BUF_ERR));
