@@ -65,6 +65,7 @@ phys_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 		 vm_ooffset_t foff)
 {
 	vm_object_t object;
+	vm_pindex_t pindex;
 
 	/*
 	 * Offset should be page aligned.
@@ -72,7 +73,7 @@ phys_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 	if (foff & PAGE_MASK)
 		return (NULL);
 
-	size = round_page(size);
+	pindex = OFF_TO_IDX(foff + PAGE_MASK + size);
 
 	if (handle != NULL) {
 		mtx_lock(&Giant);
@@ -93,8 +94,7 @@ phys_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 			/*
 			 * Allocate object and associate it with the pager.
 			 */
-			object = vm_object_allocate(OBJT_PHYS,
-				OFF_TO_IDX(foff + size));
+			object = vm_object_allocate(OBJT_PHYS, pindex);
 			object->handle = handle;
 			mtx_lock(&phys_pager_mtx);
 			TAILQ_INSERT_TAIL(&phys_pager_object_list, object,
@@ -105,16 +105,15 @@ phys_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 			 * Gain a reference to the object.
 			 */
 			vm_object_reference(object);
-			if (OFF_TO_IDX(foff + size) > object->size)
-				object->size = OFF_TO_IDX(foff + size);
+			if (pindex > object->size)
+				object->size = pindex;
 		}
 		if (phys_pager_alloc_lock == -1)
 			wakeup(&phys_pager_alloc_lock);
 		phys_pager_alloc_lock = 0;
 		mtx_unlock(&Giant);
 	} else {
-		object = vm_object_allocate(OBJT_PHYS,
-			OFF_TO_IDX(foff + size));
+		object = vm_object_allocate(OBJT_PHYS, pindex);
 	}
 
 	return (object);
