@@ -664,24 +664,12 @@ repeat:
 				if (icnt <= 0 || !(tp->t_state & TS_ISOPEN))
 					goto done1;
 
-				if (   linesw[tp->t_line].l_rint == ttyinput
-				    && ((rc->rc_flags & RC_RTSFLOW) || (tp->t_iflag & IXOFF))
-				    && !(tp->t_state & TS_TBLOCK)
-				    && (tp->t_rawq.c_cc + icnt) > RB_I_HIGH_WATER) {
-					int queue_full = 0;
-
-					if ((tp->t_iflag & IXOFF) &&
-					    tp->t_cc[VSTOP] != _POSIX_VDISABLE &&
-					    (queue_full = putc(tp->t_cc[VSTOP], &tp->t_outq)) == 0 ||
-					    (rc->rc_flags & RC_RTSFLOW)) {
-						tp->t_state |= TS_TBLOCK;
-						ttstart(tp);
-						if (queue_full) /* try again */
-							tp->t_state &= ~TS_TBLOCK;
-					}
-				}
 				if (   (tp->t_state & TS_CAN_BYPASS_L_RINT)
 				    && !(tp->t_state & TS_LOCAL)) {
+					if ((tp->t_rawq.c_cc + icnt) >= RB_I_HIGH_WATER
+					    && ((rc->rc_flags & RC_RTSFLOW) || (tp->t_iflag & IXOFF))
+					    && !(tp->t_state & TS_TBLOCK))
+						ttyblock(tp);
 					tk_nin += icnt;
 					tk_rawcc += icnt;
 					tp->t_rawcc += icnt;

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.h	8.6 (Berkeley) 1/21/94
- * $Id: tty.h,v 1.25 1995/07/29 13:40:13 bde Exp $
+ * $Id: tty.h,v 1.26 1995/07/30 12:39:42 bde Exp $
  */
 
 #ifndef _SYS_TTY_H_
@@ -241,6 +241,7 @@ int	 ttstart __P((struct tty *tp));
 void	 ttwakeup __P((struct tty *tp));
 int	 ttwrite __P((struct tty *tp, struct uio *uio, int flag));
 void	 ttwwakeup __P((struct tty *tp));
+void	 ttyblock __P((struct tty *tp));
 void	 ttychars __P((struct tty *tp));
 int	 ttycheckoutq __P((struct tty *tp, int wait));
 int	 ttyclose __P((struct tty *tp));
