@@ -288,6 +288,8 @@ static struct witness_order_list_entry order_lists[] = {
 	{ "intr table", &lock_class_mtx_spin },
 	{ "ithread table lock", &lock_class_mtx_spin },
 	{ "sched lock", &lock_class_mtx_spin },
+	{ "turnstile chain", &lock_class_mtx_spin },
+	{ "td_contested", &lock_class_mtx_spin },
 	{ "callout", &lock_class_mtx_spin },
 	/*
 	 * leaf locks
@@ -342,9 +344,7 @@ static struct mtx all_mtx = {
 	  LO_INITIALIZED,		/* mtx_object.lo_flags */
 	  { NULL, NULL },		/* mtx_object.lo_list */
 	  NULL },			/* mtx_object.lo_witness */
-	MTX_UNOWNED, 0,			/* mtx_lock, mtx_recurse */
-	TAILQ_HEAD_INITIALIZER(all_mtx.mtx_blocked),
-	{ NULL, NULL }			/* mtx_contested */
+	MTX_UNOWNED, 0			/* mtx_lock, mtx_recurse */
 };
 
 /*

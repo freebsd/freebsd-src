@@ -30,101 +30,159 @@
  */
 
 /*
- * Machine independent bits of mutex implementation.
+ * Implementation of turnstiles used to hold queue of threads blocked on
+ * non-sleepable locks.  Sleepable locks use condition variables to
+ * implement their queues.  Turnstiles differ from a sleep queue in that
+ * turnstile queue's are assigned to a lock held by an owning thread.  Thus,
+ * when one thread is enqueued onto a turnstile, it can lend its priority
+ * to the owning thread.
+ *
+ * We wish to avoid bloating locks with an embedded turnstile and we do not
+ * want to use back-pointers in the locks for the same reason.  Thus, we
+ * use a similar approach to that of Solaris 7 as described in Solaris
+ * Internals by Jim Mauro and Richard McDougall.  Turnstiles are looked up
+ * in a hash table based on the address of the lock.  Each entry in the
+ * hash table is a linked-lists of turnstiles and is called a turnstile
+ * chain.  Each chain contains a spin mutex that protects all of the
+ * turnstiles in the chain.
+ *
+ * Each time a thread is created, a turnstile is malloc'd and attached to
+ * that thread.  When a thread blocks on a lock, if it is the first thread
+ * to block, it lends its turnstile to the lock.  If the lock already has
+ * a turnstile, then it gives its turnstile to the lock's turnstile's free
+ * list.  When a thread is woken up, it takes a thread from the free list
+ * if there are any other waiters.  If it is the only thread blocked on the
+ * lock, then it reclaims the turnstile associated with the lock and removes
+ * it from the hash table.
+ *
+ * XXX: We should probably implement some sort of sleep queue that condition
+ * variables and sleepqueue's share.  On Solaris condition variables are
+ * implemented using a hash table of sleep queues similar to our current
+ * sleep queues.  We might want to investigate doing that ourselves.
  */
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_adaptive_mutexes.h"
-#include "opt_ddb.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/queue.h>
 #include <sys/resourcevar.h>
+#include <sys/turnstile.h>
 #include <sys/sched.h>
-#include <sys/sbuf.h>
-#include <sys/sysctl.h>
-#include <sys/vmmeter.h>
-
-#include <machine/atomic.h>
-#include <machine/bus.h>
-#include <machine/clock.h>
-#include <machine/cpu.h>
-
-#include <ddb/ddb.h>
-
-#include <vm/vm.h>
-#include <vm/vm_extern.h>
 
 /*
- * Internal utility macros.
+ * Constants for the hash table of turnstile chains.  TC_SHIFT is a magic
+ * number chosen because the sleep queue's use the same value for the
+ * shift.  Basically, we ignore the lower 8 bits of the address.
+ * TC_TABLESIZE must be a power of two for TC_MASK to work properly.
  */
-#define mtx_unowned(m)	((m)->mtx_lock == MTX_UNOWNED)
-
-#define mtx_owner(m)	(mtx_unowned((m)) ? NULL \
-	: (struct thread *)((m)->mtx_lock & MTX_FLAGMASK))
+#define	TC_TABLESIZE	128			/* Must be power of 2. */
+#define	TC_MASK		(TC_TABLESIZE - 1)
+#define	TC_SHIFT	8
+#define	TC_HASH(lock)	(((uintptr_t)(lock) >> TC_SHIFT) & TC_MASK)
+#define	TC_LOOKUP(lock)	&turnstile_chains[TC_HASH(lock)]
 
 /*
- * Lock classes for sleep and spin mutexes.
+ * There are three different lists of turnstiles as follows.  The list
+ * connected by ts_link entries is a per-thread list of all the turnstiles
+ * attached to locks that we own.  This is used to fixup our priority when
+ * a lock is released.  The other two lists use the ts_hash entries.  The
+ * first of these two is turnstile chain list that a turnstile is on when
+ * it is attached to a lock.  The second list to use ts_hash is the free
+ * list hung off a turnstile that is attached to a lock.
+ *
+ * Each turnstile contains two lists of threads.  The ts_blocked list is
+ * a linked list of threads blocked on the turnstile's lock.  The
+ * ts_pending list is a linked list of threads previously awoken by
+ * turnstile_signal() or turnstile_wait() that are waiting to be put on
+ * the run queue.
+ *
+ * Locking key:
+ *  c - turnstile chain lock
+ *  q - td_contested lock
  */
-struct lock_class lock_class_mtx_sleep = {
-	"sleep mutex",
-	LC_SLEEPLOCK | LC_RECURSABLE
+struct turnstile {
+	TAILQ_HEAD(, thread) ts_blocked;	/* (c + q) Blocked threads. */
+	TAILQ_HEAD(, thread) ts_pending;	/* (c) Pending threads. */
+	LIST_ENTRY(turnstile) ts_hash;		/* (c) Chain and free list. */
+	LIST_ENTRY(turnstile) ts_link;		/* (q) Contested locks. */
+	LIST_HEAD(, turnstile) ts_free;		/* (c) Free turnstiles. */
+	struct lock_object *ts_lockobj;		/* (c) Lock we reference. */
+	struct thread *ts_owner;		/* (q) Who owns the lock. */
 };
-struct lock_class lock_class_mtx_spin = {
-	"spin mutex",
-	LC_SPINLOCK | LC_RECURSABLE
+
+struct turnstile_chain {
+	LIST_HEAD(, turnstile) tc_turnstiles;	/* List of turnstiles. */
+	struct mtx tc_lock;			/* Spin lock for this chain. */
 };
 
-/*
- * System-wide mutexes
- */
-struct mtx sched_lock;
-struct mtx Giant;
+static struct mtx td_contested_lock;
+static struct turnstile_chain turnstile_chains[TC_TABLESIZE];
+
+MALLOC_DEFINE(M_TURNSTILE, "turnstiles", "turnstiles");
 
 /*
  * Prototypes for non-exported routines.
  */
+static void	init_turnstile0(void *dummy);
 static void	propagate_priority(struct thread *);
+static void	turnstile_setowner(struct turnstile *ts, struct thread *owner);
 
+/*
+ * Walks the chain of turnstiles and their owners to propagate the priority
+ * of the thread being blocked to all the threads holding locks that have to
+ * release their locks before this thread can run again.
+ */
 static void
 propagate_priority(struct thread *td)
 {
-	int pri = td->td_priority;
-	struct mtx *m = td->td_blocked;
+	struct turnstile_chain *tc;
+	struct turnstile *ts;
+	struct thread *td1;
+	int pri;
 
 	mtx_assert(&sched_lock, MA_OWNED);
+	pri = td->td_priority;
+	ts = td->td_blocked;
 	for (;;) {
-		struct thread *td1;
-
-		td = mtx_owner(m);
+		td = ts->ts_owner;
 
 		if (td == NULL) {
 			/*
 			 * This really isn't quite right. Really
 			 * ought to bump priority of thread that
-			 * next acquires the mutex.
+			 * next acquires the lock.
 			 */
-			MPASS(m->mtx_lock == MTX_CONTESTED);
 			return;
 		}
 
 		MPASS(td->td_proc != NULL);
 		MPASS(td->td_proc->p_magic == P_MAGIC);
-		KASSERT(!TD_IS_SLEEPING(td), (
-		    "sleeping thread (pid %d) owns a mutex",
-		    td->td_proc->p_pid));
-		if (td->td_priority <= pri) /* lower is higher priority */
-			return;
 
+		/*
+		 * XXX: The owner of a turnstile can be stale if it is the
+		 * first thread to grab a slock of a sx lock.  In that case
+		 * it is possible for us to be at SSLEEP or some other
+		 * weird state.  We should probably just return if the state
+		 * isn't SRUN or SLOCK.
+		 */
+		KASSERT(!TD_IS_SLEEPING(td),
+		    ("sleeping thread (pid %d) owns a non-sleepable lock",
+		    td->td_proc->p_pid));
+
+		/*
+		 * If this thread already has higher priority than the
+		 * thread that is being blocked, we are finished.
+		 */
+		if (td->td_priority <= pri)
+			return;
 
 		/*
 		 * If lock holder is actually running, just bump priority.
@@ -152,35 +210,42 @@ propagate_priority(struct thread *td)
 			sched_prio(td, pri);
 			return;
 		}
+
 		/*
-		 * Adjust for any other cases.
+		 * Bump this thread's priority.
 		 */
 		td->td_priority = pri;
 
 		/*
-		 * If we aren't blocked on a mutex, we should be.
+		 * If we aren't blocked on a lock, we should be.
 		 */
 		KASSERT(TD_ON_LOCK(td), (
-		    "process %d(%s):%d holds %s but isn't blocked on a mutex\n",
+		    "process %d(%s):%d holds %s but isn't blocked on a lock\n",
 		    td->td_proc->p_pid, td->td_proc->p_comm, td->td_state,
-		    m->mtx_object.lo_name));
+		    ts->ts_lockobj->lo_name));
 
 		/*
-		 * Pick up the mutex that td is blocked on.
+		 * Pick up the lock that td is blocked on.
 		 */
-		m = td->td_blocked;
-		MPASS(m != NULL);
+		ts = td->td_blocked;
+		MPASS(ts != NULL);
+		tc = TC_LOOKUP(ts->ts_lockobj);
+		mtx_lock_spin(&tc->tc_lock);
 
 		/*
 		 * Check if the thread needs to be moved up on
-		 * the blocked chain
+		 * the blocked chain.  It doesn't need to be moved
+		 * if it is already at the head of the list or if
+		 * the item in front of it still has a higher priority.
 		 */
-		if (td == TAILQ_FIRST(&m->mtx_blocked)) {
+		if (td == TAILQ_FIRST(&ts->ts_blocked)) {
+			mtx_unlock_spin(&tc->tc_lock);
 			continue;
 		}
 
 		td1 = TAILQ_PREV(td, threadqueue, td_lockq);
 		if (td1->td_priority <= pri) {
+			mtx_unlock_spin(&tc->tc_lock);
 			continue;
 		}
 
@@ -191,8 +256,9 @@ propagate_priority(struct thread *td)
 		 * thread in the chain has a lower priority and that
 		 * td1 will thus not be NULL after the loop.
 		 */
-		TAILQ_REMOVE(&m->mtx_blocked, td, td_lockq);
-		TAILQ_FOREACH(td1, &m->mtx_blocked, td_lockq) {
+		mtx_lock_spin(&td_contested_lock);
+		TAILQ_REMOVE(&ts->ts_blocked, td, td_lockq);
+		TAILQ_FOREACH(td1, &ts->ts_blocked, td_lockq) {
 			MPASS(td1->td_proc->p_magic == P_MAGIC);
 			if (td1->td_priority > pri)
 				break;
@@ -200,803 +266,450 @@ propagate_priority(struct thread *td)
 
 		MPASS(td1 != NULL);
 		TAILQ_INSERT_BEFORE(td1, td, td_lockq);
+		mtx_unlock_spin(&td_contested_lock);
 		CTR4(KTR_LOCK,
-		    "propagate_priority: p %p moved before %p on [%p] %s",
-		    td, td1, m, m->mtx_object.lo_name);
+		    "propagate_priority: td %p moved before %p on [%p] %s",
+		    td, td1, ts->ts_lockobj, ts->ts_lockobj->lo_name);
+		mtx_unlock_spin(&tc->tc_lock);
 	}
 }
 
-#ifdef MUTEX_PROFILING
-SYSCTL_NODE(_debug, OID_AUTO, mutex, CTLFLAG_RD, NULL, "mutex debugging");
-SYSCTL_NODE(_debug_mutex, OID_AUTO, prof, CTLFLAG_RD, NULL, "mutex profiling");
-static int mutex_prof_enable = 0;
-SYSCTL_INT(_debug_mutex_prof, OID_AUTO, enable, CTLFLAG_RW,
-    &mutex_prof_enable, 0, "Enable tracing of mutex holdtime");
-
-struct mutex_prof {
-	const char	*name;
-	const char	*file;
-	int		line;
-	uintmax_t	cnt_max;
-	uintmax_t	cnt_tot;
-	uintmax_t	cnt_cur;
-	struct mutex_prof *next;
-};
-
 /*
- * mprof_buf is a static pool of profiling records to avoid possible
- * reentrance of the memory allocation functions.
- *
- * Note: NUM_MPROF_BUFFERS must be smaller than MPROF_HASH_SIZE.
+ * Early initialization of turnstiles.  This is not done via a SYSINIT()
+ * since this needs to be initialized very early when mutexes are first
+ * initialized.
  */
-#define	NUM_MPROF_BUFFERS	1000
-static struct mutex_prof mprof_buf[NUM_MPROF_BUFFERS];
-static int first_free_mprof_buf;
-#define	MPROF_HASH_SIZE		1009
-static struct mutex_prof *mprof_hash[MPROF_HASH_SIZE];
-/* SWAG: sbuf size = avg stat. line size * number of locks */
-#define MPROF_SBUF_SIZE		256 * 400
-
-static int mutex_prof_acquisitions;
-SYSCTL_INT(_debug_mutex_prof, OID_AUTO, acquisitions, CTLFLAG_RD,
-    &mutex_prof_acquisitions, 0, "Number of mutex acquistions recorded");
-static int mutex_prof_records;
-SYSCTL_INT(_debug_mutex_prof, OID_AUTO, records, CTLFLAG_RD,
-    &mutex_prof_records, 0, "Number of profiling records");
-static int mutex_prof_maxrecords = NUM_MPROF_BUFFERS;
-SYSCTL_INT(_debug_mutex_prof, OID_AUTO, maxrecords, CTLFLAG_RD,
-    &mutex_prof_maxrecords, 0, "Maximum number of profiling records");
-static int mutex_prof_rejected;
-SYSCTL_INT(_debug_mutex_prof, OID_AUTO, rejected, CTLFLAG_RD,
-    &mutex_prof_rejected, 0, "Number of rejected profiling records");
-static int mutex_prof_hashsize = MPROF_HASH_SIZE;
-SYSCTL_INT(_debug_mutex_prof, OID_AUTO, hashsize, CTLFLAG_RD,
-    &mutex_prof_hashsize, 0, "Hash size");
-static int mutex_prof_collisions = 0;
-SYSCTL_INT(_debug_mutex_prof, OID_AUTO, collisions, CTLFLAG_RD,
-    &mutex_prof_collisions, 0, "Number of hash collisions");
-
-/*
- * mprof_mtx protects the profiling buffers and the hash.
- */
-static struct mtx mprof_mtx;
-MTX_SYSINIT(mprof, &mprof_mtx, "mutex profiling lock", MTX_SPIN | MTX_QUIET);
-
-static u_int64_t
-nanoseconds(void)
+void
+init_turnstiles(void)
 {
-	struct timespec tv;
+	int i;
 
-	nanotime(&tv);
-	return (tv.tv_sec * (u_int64_t)1000000000 + tv.tv_nsec);
+	for (i = 0; i < TC_TABLESIZE; i++) {
+		LIST_INIT(&turnstile_chains[i].tc_turnstiles);
+		mtx_init(&turnstile_chains[i].tc_lock, "turnstile chain",
+		    NULL, MTX_SPIN);
+	}
+	mtx_init(&td_contested_lock, "td_contested", NULL, MTX_SPIN);
+#ifdef INVARIANTS
+	thread0.td_turnstile = NULL;
+#endif
 }
 
-static int
-dump_mutex_prof_stats(SYSCTL_HANDLER_ARGS)
+static void
+init_turnstile0(void *dummy)
 {
-	struct sbuf *sb;
-	int error, i;
-	static int multiplier = 1;
 
-	if (first_free_mprof_buf == 0)
-		return (SYSCTL_OUT(req, "No locking recorded",
-		    sizeof("No locking recorded")));
+	thread0.td_turnstile = turnstile_alloc();
+}
+SYSINIT(turnstile0, SI_SUB_LOCK, SI_ORDER_ANY, init_turnstile0, NULL);
 
-retry_sbufops:
-	sb = sbuf_new(NULL, NULL, MPROF_SBUF_SIZE * multiplier, SBUF_FIXEDLEN);
-	sbuf_printf(sb, "%6s %12s %11s %5s %s\n",
-	    "max", "total", "count", "avg", "name");
+/*
+ * Set the owner of the lock this turnstile is attached to.
+ */
+static void
+turnstile_setowner(struct turnstile *ts, struct thread *owner)
+{
+
+	mtx_assert(&td_contested_lock, MA_OWNED);
+	MPASS(owner->td_proc->p_magic == P_MAGIC);
+	MPASS(ts->ts_owner == NULL);
+	ts->ts_owner = owner;
+	LIST_INSERT_HEAD(&owner->td_contested, ts, ts_link);
+}
+
+/*
+ * Malloc a turnstile for a new thread, initialize it and return it.
+ */
+struct turnstile *
+turnstile_alloc(void)
+{
+	struct turnstile *ts;
+
+	ts = malloc(sizeof(struct turnstile), M_TURNSTILE, M_WAITOK | M_ZERO);
+	TAILQ_INIT(&ts->ts_blocked);
+	TAILQ_INIT(&ts->ts_pending);
+	LIST_INIT(&ts->ts_free);
+	return (ts);
+}
+
+/*
+ * Free a turnstile when a thread is destroyed.
+ */
+void
+turnstile_free(struct turnstile *ts)
+{
+
+	MPASS(ts != NULL);
+	MPASS(TAILQ_EMPTY(&ts->ts_blocked));
+	MPASS(TAILQ_EMPTY(&ts->ts_pending));
+	free(ts, M_TURNSTILE);
+}
+
+/*
+ * Look up the turnstile for a lock in the hash table locking the associated
+ * turnstile chain along the way.  Return with the turnstile chain locked.
+ * If no turnstile is found in the hash table, NULL is returned.
+ */
+struct turnstile *
+turnstile_lookup(struct lock_object *lock)
+{
+	struct turnstile_chain *tc;
+	struct turnstile *ts;
+
+	tc = TC_LOOKUP(lock);
+	mtx_lock_spin(&tc->tc_lock);
+	LIST_FOREACH(ts, &tc->tc_turnstiles, ts_hash)
+		if (ts->ts_lockobj == lock)
+			return (ts);
+	return (NULL);
+}
+
+/*
+ * Unlock the turnstile chain associated with a given lock.
+ */
+void
+turnstile_release(struct lock_object *lock)
+{
+	struct turnstile_chain *tc;
+
+	tc = TC_LOOKUP(lock);
+	mtx_unlock_spin(&tc->tc_lock);
+}
+
+/*
+ * Take ownership of a turnstile and adjust the priority of the new
+ * owner appropriately.
+ */
+void
+turnstile_claim(struct turnstile *ts)
+{
+	struct turnstile_chain *tc;
+	struct thread *td, *owner;
+
+	tc = TC_LOOKUP(ts->ts_lockobj);
+	mtx_assert(&tc->tc_lock, MA_OWNED);
+
+	owner = curthread;
+	mtx_lock_spin(&td_contested_lock);
+	turnstile_setowner(ts, owner);
+	mtx_unlock_spin(&td_contested_lock);
+
+	td = TAILQ_FIRST(&ts->ts_blocked);
+	MPASS(td != NULL);
+	MPASS(td->td_proc->p_magic == P_MAGIC);
+	mtx_unlock_spin(&tc->tc_lock);
+
 	/*
-	 * XXX this spinlock seems to be by far the largest perpetrator
-	 * of spinlock latency (1.6 msec on an Athlon1600 was recorded
-	 * even before I pessimized it further by moving the average
-	 * computation here).
+	 * Update the priority of the new owner if needed.
 	 */
-	mtx_lock_spin(&mprof_mtx);
-	for (i = 0; i < first_free_mprof_buf; ++i) {
-		sbuf_printf(sb, "%6ju %12ju %11ju %5ju %s:%d (%s)\n",
-		    mprof_buf[i].cnt_max / 1000,
-		    mprof_buf[i].cnt_tot / 1000,
-		    mprof_buf[i].cnt_cur,
-		    mprof_buf[i].cnt_cur == 0 ? (uintmax_t)0 :
-			mprof_buf[i].cnt_tot / (mprof_buf[i].cnt_cur * 1000),
-		    mprof_buf[i].file, mprof_buf[i].line, mprof_buf[i].name);
-		if (sbuf_overflowed(sb)) {
-			mtx_unlock_spin(&mprof_mtx);
-			sbuf_delete(sb);
-			multiplier++;
-			goto retry_sbufops;
-		}
-	}
-	mtx_unlock_spin(&mprof_mtx);
-	sbuf_finish(sb);
-	error = SYSCTL_OUT(req, sbuf_data(sb), sbuf_len(sb) + 1);
-	sbuf_delete(sb);
-	return (error);
-}
-SYSCTL_PROC(_debug_mutex_prof, OID_AUTO, stats, CTLTYPE_STRING | CTLFLAG_RD,
-    NULL, 0, dump_mutex_prof_stats, "A", "Mutex profiling statistics");
-#endif
-
-/*
- * Function versions of the inlined __mtx_* macros.  These are used by
- * modules and can also be called from assembly language if needed.
- */
-void
-_mtx_lock_flags(struct mtx *m, int opts, const char *file, int line)
-{
-
-	MPASS(curthread != NULL);
-	KASSERT(m->mtx_object.lo_class == &lock_class_mtx_sleep,
-	    ("mtx_lock() of spin mutex %s @ %s:%d", m->mtx_object.lo_name,
-	    file, line));
-	_get_sleep_lock(m, curthread, opts, file, line);
-	LOCK_LOG_LOCK("LOCK", &m->mtx_object, opts, m->mtx_recurse, file,
-	    line);
-	WITNESS_LOCK(&m->mtx_object, opts | LOP_EXCLUSIVE, file, line);
-#ifdef MUTEX_PROFILING
-	/* don't reset the timer when/if recursing */
-	if (m->mtx_acqtime == 0) {
-		m->mtx_filename = file;
-		m->mtx_lineno = line;
-		m->mtx_acqtime = mutex_prof_enable ? nanoseconds() : 0;
-		++mutex_prof_acquisitions;
-	}
-#endif
-}
-
-void
-_mtx_unlock_flags(struct mtx *m, int opts, const char *file, int line)
-{
-
-	MPASS(curthread != NULL);
-	KASSERT(m->mtx_object.lo_class == &lock_class_mtx_sleep,
-	    ("mtx_unlock() of spin mutex %s @ %s:%d", m->mtx_object.lo_name,
-	    file, line));
-	WITNESS_UNLOCK(&m->mtx_object, opts | LOP_EXCLUSIVE, file, line);
-	LOCK_LOG_LOCK("UNLOCK", &m->mtx_object, opts, m->mtx_recurse, file,
-	    line);
-	mtx_assert(m, MA_OWNED);
-#ifdef MUTEX_PROFILING
-	if (m->mtx_acqtime != 0) {
-		static const char *unknown = "(unknown)";
-		struct mutex_prof *mpp;
-		u_int64_t acqtime, now;
-		const char *p, *q;
-		volatile u_int hash;
-
-		now = nanoseconds();
-		acqtime = m->mtx_acqtime;
-		m->mtx_acqtime = 0;
-		if (now <= acqtime)
-			goto out;
-		for (p = m->mtx_filename;
-		    p != NULL && strncmp(p, "../", 3) == 0; p += 3)
-			/* nothing */ ;
-		if (p == NULL || *p == '\0')
-			p = unknown;
-		for (hash = m->mtx_lineno, q = p; *q != '\0'; ++q)
-			hash = (hash * 2 + *q) % MPROF_HASH_SIZE;
-		mtx_lock_spin(&mprof_mtx);
-		for (mpp = mprof_hash[hash]; mpp != NULL; mpp = mpp->next)
-			if (mpp->line == m->mtx_lineno &&
-			    strcmp(mpp->file, p) == 0)
-				break;
-		if (mpp == NULL) {
-			/* Just exit if we cannot get a trace buffer */
-			if (first_free_mprof_buf >= NUM_MPROF_BUFFERS) {
-				++mutex_prof_rejected;
-				goto unlock;
-			}
-			mpp = &mprof_buf[first_free_mprof_buf++];
-			mpp->name = mtx_name(m);
-			mpp->file = p;
-			mpp->line = m->mtx_lineno;
-			mpp->next = mprof_hash[hash];
-			if (mprof_hash[hash] != NULL)
-				++mutex_prof_collisions;
-			mprof_hash[hash] = mpp;
-			++mutex_prof_records;
-		}
-		/*
-		 * Record if the mutex has been held longer now than ever
-		 * before.
-		 */
-		if (now - acqtime > mpp->cnt_max)
-			mpp->cnt_max = now - acqtime;
-		mpp->cnt_tot += now - acqtime;
-		mpp->cnt_cur++;
-unlock:
-		mtx_unlock_spin(&mprof_mtx);
-	}
-out:
-#endif
-	_rel_sleep_lock(m, curthread, opts, file, line);
-}
-
-void
-_mtx_lock_spin_flags(struct mtx *m, int opts, const char *file, int line)
-{
-
-	MPASS(curthread != NULL);
-	KASSERT(m->mtx_object.lo_class == &lock_class_mtx_spin,
-	    ("mtx_lock_spin() of sleep mutex %s @ %s:%d",
-	    m->mtx_object.lo_name, file, line));
-#if defined(SMP) || LOCK_DEBUG > 0 || 1
-	_get_spin_lock(m, curthread, opts, file, line);
-#else
-	critical_enter();
-#endif
-	LOCK_LOG_LOCK("LOCK", &m->mtx_object, opts, m->mtx_recurse, file,
-	    line);
-	WITNESS_LOCK(&m->mtx_object, opts | LOP_EXCLUSIVE, file, line);
-}
-
-void
-_mtx_unlock_spin_flags(struct mtx *m, int opts, const char *file, int line)
-{
-
-	MPASS(curthread != NULL);
-	KASSERT(m->mtx_object.lo_class == &lock_class_mtx_spin,
-	    ("mtx_unlock_spin() of sleep mutex %s @ %s:%d",
-	    m->mtx_object.lo_name, file, line));
-	WITNESS_UNLOCK(&m->mtx_object, opts | LOP_EXCLUSIVE, file, line);
-	LOCK_LOG_LOCK("UNLOCK", &m->mtx_object, opts, m->mtx_recurse, file,
-	    line);
-	mtx_assert(m, MA_OWNED);
-#if defined(SMP) || LOCK_DEBUG > 0 || 1
-	_rel_spin_lock(m);
-#else
-	critical_exit();
-#endif
+	mtx_lock_spin(&sched_lock);
+	if (td->td_priority < owner->td_priority)
+		owner->td_priority = td->td_priority; 
+	mtx_unlock_spin(&sched_lock);
 }
 
 /*
- * The important part of mtx_trylock{,_flags}()
- * Tries to acquire lock `m.' We do NOT handle recursion here.  If this
- * function is called on a recursed mutex, it will return failure and
- * will not recursively acquire the lock.  You are expected to know what
- * you are doing.
- */
-int
-_mtx_trylock(struct mtx *m, int opts, const char *file, int line)
-{
-	int rval;
-
-	MPASS(curthread != NULL);
-
-	rval = _obtain_lock(m, curthread);
-
-	LOCK_LOG_TRY("LOCK", &m->mtx_object, opts, rval, file, line);
-	if (rval)
-		WITNESS_LOCK(&m->mtx_object, opts | LOP_EXCLUSIVE | LOP_TRYLOCK,
-		    file, line);
-
-	return (rval);
-}
-
-/*
- * _mtx_lock_sleep: the tougher part of acquiring an MTX_DEF lock.
- *
- * We call this if the lock is either contested (i.e. we need to go to
- * sleep waiting for it), or if we need to recurse on it.
+ * Block the current thread on the turnstile ts.  This function will context
+ * switch and not return until this thread has been woken back up.  This
+ * function must be called with the appropriate turnstile chain locked and
+ * will return with it unlocked.
  */
 void
-_mtx_lock_sleep(struct mtx *m, int opts, const char *file, int line)
+turnstile_wait(struct turnstile *ts, struct lock_object *lock,
+    struct thread *owner)
 {
-	struct thread *td = curthread;
-	struct thread *td1;
-#if defined(SMP) && defined(ADAPTIVE_MUTEXES)
-	struct thread *owner;
-#endif
-	uintptr_t v;
-#ifdef KTR
-	int cont_logged = 0;
-#endif
-
-	if (mtx_owned(m)) {
-		m->mtx_recurse++;
-		atomic_set_ptr(&m->mtx_lock, MTX_RECURSED);
-		if (LOCK_LOG_TEST(&m->mtx_object, opts))
-			CTR1(KTR_LOCK, "_mtx_lock_sleep: %p recursing", m);
-		return;
-	}
-
-	if (LOCK_LOG_TEST(&m->mtx_object, opts))
-		CTR4(KTR_LOCK,
-		    "_mtx_lock_sleep: %s contested (lock=%p) at %s:%d",
-		    m->mtx_object.lo_name, (void *)m->mtx_lock, file, line);
-
-	while (!_obtain_lock(m, td)) {
-
-		mtx_lock_spin(&sched_lock);
-		v = m->mtx_lock;
-
-		/*
-		 * Check if the lock has been released while spinning for
-		 * the sched_lock.
-		 */
-		if (v == MTX_UNOWNED) {
-			mtx_unlock_spin(&sched_lock);
-#ifdef __i386__
-			ia32_pause();
-#endif
-			continue;
-		}
-
-		/*
-		 * The mutex was marked contested on release. This means that
-		 * there are other threads blocked on it.  Grab ownership of
-		 * it and propagate its priority to the current thread if
-		 * necessary.
-		 */
-		if (v == MTX_CONTESTED) {
-			td1 = TAILQ_FIRST(&m->mtx_blocked);
-			MPASS(td1 != NULL);
-			m->mtx_lock = (uintptr_t)td | MTX_CONTESTED;
-			LIST_INSERT_HEAD(&td->td_contested, m, mtx_contested);
-
-			if (td1->td_priority < td->td_priority)
-				td->td_priority = td1->td_priority;
-			mtx_unlock_spin(&sched_lock);
-			return;
-		}
-
-		/*
-		 * If the mutex isn't already contested and a failure occurs
-		 * setting the contested bit, the mutex was either released
-		 * or the state of the MTX_RECURSED bit changed.
-		 */
-		if ((v & MTX_CONTESTED) == 0 &&
-		    !atomic_cmpset_ptr(&m->mtx_lock, (void *)v,
-			(void *)(v | MTX_CONTESTED))) {
-			mtx_unlock_spin(&sched_lock);
-#ifdef __i386__
-			ia32_pause();
-#endif
-			continue;
-		}
-
-#if defined(SMP) && defined(ADAPTIVE_MUTEXES)
-		/*
-		 * If the current owner of the lock is executing on another
-		 * CPU, spin instead of blocking.
-		 */
-		owner = (struct thread *)(v & MTX_FLAGMASK);
-		if (m != &Giant && TD_IS_RUNNING(owner)) {
-			mtx_unlock_spin(&sched_lock);
-			while (mtx_owner(m) == owner && TD_IS_RUNNING(owner)) {
-#ifdef __i386__
-				ia32_pause();
-#endif
-			}
-			continue;
-		}
-#endif	/* SMP && ADAPTIVE_MUTEXES */
-
-		/*
-		 * We definitely must sleep for this lock.
-		 */
-		mtx_assert(m, MA_NOTOWNED);
-
-#ifdef notyet
-		/*
-		 * If we're borrowing an interrupted thread's VM context, we
-		 * must clean up before going to sleep.
-		 */
-		if (td->td_ithd != NULL) {
-			struct ithd *it = td->td_ithd;
-
-			if (it->it_interrupted) {
-				if (LOCK_LOG_TEST(&m->mtx_object, opts))
-					CTR2(KTR_LOCK,
-				    "_mtx_lock_sleep: %p interrupted %p",
-					    it, it->it_interrupted);
-				intr_thd_fixup(it);
-			}
-		}
-#endif
-
-		/*
-		 * Put us on the list of threads blocked on this mutex
-		 * and add this mutex to the owning thread's list of
-		 * contested mutexes if needed.
-		 */
-		if (TAILQ_EMPTY(&m->mtx_blocked)) {
-			td1 = mtx_owner(m);
-			LIST_INSERT_HEAD(&td1->td_contested, m, mtx_contested);
-			TAILQ_INSERT_TAIL(&m->mtx_blocked, td, td_lockq);
-		} else {
-			TAILQ_FOREACH(td1, &m->mtx_blocked, td_lockq)
-				if (td1->td_priority > td->td_priority)
-					break;
-			if (td1)
-				TAILQ_INSERT_BEFORE(td1, td, td_lockq);
-			else
-				TAILQ_INSERT_TAIL(&m->mtx_blocked, td, td_lockq);
-		}
-#ifdef KTR
-		if (!cont_logged) {
-			CTR6(KTR_CONTENTION,
-			    "contention: %p at %s:%d wants %s, taken by %s:%d",
-			    td, file, line, m->mtx_object.lo_name,
-			    WITNESS_FILE(&m->mtx_object),
-			    WITNESS_LINE(&m->mtx_object));
-			cont_logged = 1;
-		}
-#endif
-
-		/*
-		 * Save who we're blocked on.
-		 */
-		td->td_blocked = m;
-		td->td_lockname = m->mtx_object.lo_name;
-		TD_SET_LOCK(td);
-		propagate_priority(td);
-
-		if (LOCK_LOG_TEST(&m->mtx_object, opts))
-			CTR3(KTR_LOCK,
-			    "_mtx_lock_sleep: p %p blocked on [%p] %s", td, m,
-			    m->mtx_object.lo_name);
-
-		td->td_proc->p_stats->p_ru.ru_nvcsw++;
-		mi_switch();
-
-		if (LOCK_LOG_TEST(&m->mtx_object, opts))
-			CTR3(KTR_LOCK,
-			  "_mtx_lock_sleep: p %p free from blocked on [%p] %s",
-			  td, m, m->mtx_object.lo_name);
-
-		mtx_unlock_spin(&sched_lock);
-	}
-
-#ifdef KTR
-	if (cont_logged) {
-		CTR4(KTR_CONTENTION,
-		    "contention end: %s acquired by %p at %s:%d",
-		    m->mtx_object.lo_name, td, file, line);
-	}
-#endif
-	return;
-}
-
-/*
- * _mtx_lock_spin: the tougher part of acquiring an MTX_SPIN lock.
- *
- * This is only called if we need to actually spin for the lock. Recursion
- * is handled inline.
- */
-void
-_mtx_lock_spin(struct mtx *m, int opts, const char *file, int line)
-{
-	int i = 0;
-
-	if (LOCK_LOG_TEST(&m->mtx_object, opts))
-		CTR1(KTR_LOCK, "_mtx_lock_spin: %p spinning", m);
-
-	for (;;) {
-		if (_obtain_lock(m, curthread))
-			break;
-
-		/* Give interrupts a chance while we spin. */
-		critical_exit();
-		while (m->mtx_lock != MTX_UNOWNED) {
-			if (i++ < 10000000) {
-#ifdef __i386__
-				ia32_pause();
-#endif
-				continue;
-			}
-			if (i < 60000000)
-				DELAY(1);
-#ifdef DDB
-			else if (!db_active) {
-#else
-			else {
-#endif
-				printf("spin lock %s held by %p for > 5 seconds\n",
-				    m->mtx_object.lo_name, (void *)m->mtx_lock);
-#ifdef WITNESS
-				witness_display_spinlock(&m->mtx_object,
-				    mtx_owner(m));
-#endif
-				panic("spin lock held too long");
-			}
-#ifdef __i386__
-			ia32_pause();
-#endif
-		}
-		critical_enter();
-	}
-
-	if (LOCK_LOG_TEST(&m->mtx_object, opts))
-		CTR1(KTR_LOCK, "_mtx_lock_spin: %p spin done", m);
-
-	return;
-}
-
-/*
- * _mtx_unlock_sleep: the tougher part of releasing an MTX_DEF lock.
- *
- * We are only called here if the lock is recursed or contested (i.e. we
- * need to wake up a blocked thread).
- */
-void
-_mtx_unlock_sleep(struct mtx *m, int opts, const char *file, int line)
-{
+	struct turnstile_chain *tc;
 	struct thread *td, *td1;
-	struct mtx *m1;
-	int pri;
 
 	td = curthread;
+	tc = TC_LOOKUP(lock);
+	mtx_assert(&tc->tc_lock, MA_OWNED);
+	MPASS(td->td_turnstile != NULL);
+	MPASS(owner != NULL);
+	MPASS(owner->td_proc->p_magic == P_MAGIC);
 
-	if (mtx_recursed(m)) {
-		if (--(m->mtx_recurse) == 0)
-			atomic_clear_ptr(&m->mtx_lock, MTX_RECURSED);
-		if (LOCK_LOG_TEST(&m->mtx_object, opts))
-			CTR1(KTR_LOCK, "_mtx_unlock_sleep: %p unrecurse", m);
-		return;
+	/* If the passed in turnstile is NULL, use this thread's turnstile. */
+	if (ts == NULL) {
+		ts = td->td_turnstile;
+		LIST_INSERT_HEAD(&tc->tc_turnstiles, ts, ts_hash);
+		KASSERT(TAILQ_EMPTY(&ts->ts_pending),
+		    ("thread's turnstile has pending threads"));
+		KASSERT(TAILQ_EMPTY(&ts->ts_blocked),
+		    ("thread's turnstile has a non-empty queue"));
+		KASSERT(LIST_EMPTY(&ts->ts_free),
+		    ("thread's turnstile has a non-empty free list"));
+		KASSERT(ts->ts_lockobj == NULL, ("stale ts_lockobj pointer"));
+		ts->ts_lockobj = lock;
+		mtx_lock_spin(&td_contested_lock);
+		TAILQ_INSERT_TAIL(&ts->ts_blocked, td, td_lockq);
+		turnstile_setowner(ts, owner);
+		mtx_unlock_spin(&td_contested_lock);
+	} else {
+		TAILQ_FOREACH(td1, &ts->ts_blocked, td_lockq)
+			if (td1->td_priority > td->td_priority)
+				break;
+		mtx_lock_spin(&td_contested_lock);
+		if (td1 != NULL)
+			TAILQ_INSERT_BEFORE(td1, td, td_lockq);
+		else
+			TAILQ_INSERT_TAIL(&ts->ts_blocked, td, td_lockq);
+		mtx_unlock_spin(&td_contested_lock);
+		MPASS(td->td_turnstile != NULL);
+		LIST_INSERT_HEAD(&ts->ts_free, td->td_turnstile, ts_hash);
+		MPASS(owner == ts->ts_owner);
 	}
+#ifdef INVARIANTS
+	td->td_turnstile = NULL;
+#endif
+	mtx_unlock_spin(&tc->tc_lock);
 
 	mtx_lock_spin(&sched_lock);
-	if (LOCK_LOG_TEST(&m->mtx_object, opts))
-		CTR1(KTR_LOCK, "_mtx_unlock_sleep: %p contested", m);
-
-	td1 = TAILQ_FIRST(&m->mtx_blocked);
-#if defined(SMP) && defined(ADAPTIVE_MUTEXES)
-	if (td1 == NULL) {
-		_release_lock_quick(m);
-		if (LOCK_LOG_TEST(&m->mtx_object, opts))
-			CTR1(KTR_LOCK, "_mtx_unlock_sleep: %p no sleepers", m);
+	/*
+	 * Handle race condition where a thread on another CPU that owns
+	 * lock 'lock' could have woken us in between us dropping the
+	 * turnstile chain lock and acquiring the sched_lock.
+	 */
+	if (td->td_flags & TDF_TSNOBLOCK) {
+		td->td_flags &= ~TDF_TSNOBLOCK;
 		mtx_unlock_spin(&sched_lock);
 		return;
 	}
+		
+#ifdef notyet
+	/*
+	 * If we're borrowing an interrupted thread's VM context, we
+	 * must clean up before going to sleep.
+	 */
+	if (td->td_ithd != NULL) {
+		struct ithd *it = td->td_ithd;
+
+		if (it->it_interrupted) {
+			if (LOCK_LOG_TEST(lock, 0))
+				CTR3(KTR_LOCK, "%s: %p interrupted %p",
+				    __func__, it, it->it_interrupted);
+			intr_thd_fixup(it);
+		}
+	}
 #endif
+
+	/* Save who we are blocked on and switch. */
+	td->td_blocked = ts;
+	td->td_lockname = lock->lo_name;
+	TD_SET_LOCK(td);
+	propagate_priority(td);
+
+	if (LOCK_LOG_TEST(lock, 0))
+		CTR4(KTR_LOCK, "%s: td %p blocked on [%p] %s", __func__, td,
+		    lock, lock->lo_name);
+
+	td->td_proc->p_stats->p_ru.ru_nvcsw++;
+	mi_switch();
+
+	if (LOCK_LOG_TEST(lock, 0))
+		CTR4(KTR_LOCK, "%s: td %p free from blocked on [%p] %s",
+		    __func__, td, lock, lock->lo_name);
+
+	mtx_unlock_spin(&sched_lock);
+}
+
+/*
+ * Pick the highest priority thread on this turnstile and put it on the
+ * pending list.  This must be called with the turnstile chain locked.
+ */
+int
+turnstile_signal(struct turnstile *ts)
+{
+	struct turnstile_chain *tc;
+	struct thread *td;
+	int empty;
+
+	MPASS(ts != NULL);
+	MPASS(curthread->td_proc->p_magic == P_MAGIC);
+	MPASS(ts->ts_owner == curthread);
+	tc = TC_LOOKUP(ts->ts_lockobj);
+	mtx_assert(&tc->tc_lock, MA_OWNED);
+
+	/*
+	 * Pick the highest priority thread blocked on this lock and
+	 * move it to the pending list.
+	 */
+	td = TAILQ_FIRST(&ts->ts_blocked);
 	MPASS(td->td_proc->p_magic == P_MAGIC);
-	MPASS(td1->td_proc->p_magic == P_MAGIC);
+	mtx_lock_spin(&td_contested_lock);
+	TAILQ_REMOVE(&ts->ts_blocked, td, td_lockq);
+	mtx_unlock_spin(&td_contested_lock);
+	TAILQ_INSERT_TAIL(&ts->ts_pending, td, td_lockq);
 
-	TAILQ_REMOVE(&m->mtx_blocked, td1, td_lockq);
+	/*
+	 * If the turnstile is now empty, remove it from its chain and
+	 * give it to the about-to-be-woken thread.  Otherwise take a
+	 * turnstile from the free list and give it to the thread.
+	 */
+	empty = TAILQ_EMPTY(&ts->ts_blocked);
+	if (empty)
+		MPASS(LIST_EMPTY(&ts->ts_free));
+	else
+		ts = LIST_FIRST(&ts->ts_free);
+	LIST_REMOVE(ts, ts_hash);
+	td->td_turnstile = ts;
 
-	LIST_REMOVE(m, mtx_contested);
-	if (TAILQ_EMPTY(&m->mtx_blocked)) {
-		_release_lock_quick(m);
-		if (LOCK_LOG_TEST(&m->mtx_object, opts))
-			CTR1(KTR_LOCK, "_mtx_unlock_sleep: %p not held", m);
-	} else
-		m->mtx_lock = MTX_CONTESTED;
+	return (empty);
+}
+	
+/*
+ * Put all blocked threads on the pending list.  This must be called with
+ * the turnstile chain locked.
+ */
+void
+turnstile_wakeup(struct turnstile *ts)
+{
+	struct turnstile_chain *tc;
+	struct turnstile *ts1;
+	struct thread *td;
 
+	MPASS(ts != NULL);
+	MPASS(curthread->td_proc->p_magic == P_MAGIC);
+	MPASS(ts->ts_owner == curthread);
+	tc = TC_LOOKUP(ts->ts_lockobj);
+	mtx_assert(&tc->tc_lock, MA_OWNED);
+
+	/*
+	 * Transfer the blocked list to the pending list.
+	 */
+	mtx_lock_spin(&td_contested_lock);
+	TAILQ_CONCAT(&ts->ts_pending, &ts->ts_blocked, td_lockq);
+	mtx_unlock_spin(&td_contested_lock);
+
+	/*
+	 * Give a turnstile to each thread.  The last thread gets
+	 * this turnstile.
+	 */
+	TAILQ_FOREACH(td, &ts->ts_pending, td_lockq) {
+		if (LIST_EMPTY(&ts->ts_free)) {
+			MPASS(TAILQ_NEXT(td, td_lockq) == NULL);
+			ts1 = ts;
+		} else
+			ts1 = LIST_FIRST(&ts->ts_free);
+		LIST_REMOVE(ts1, ts_hash);
+		td->td_turnstile = ts1;
+	}
+}
+	
+/*
+ * Wakeup all threads on the pending list and adjust the priority of the
+ * current thread appropriately.  This must be called with the turnstile
+ * chain locked.
+ */
+void
+turnstile_unpend(struct turnstile *ts)
+{
+	TAILQ_HEAD( ,thread) pending_threads;
+	struct turnstile_chain *tc;
+	struct thread *td;
+	int cp, pri;
+
+	MPASS(ts != NULL);
+	MPASS(ts->ts_owner == curthread);
+	tc = TC_LOOKUP(ts->ts_lockobj);
+	mtx_assert(&tc->tc_lock, MA_OWNED);
+	MPASS(!TAILQ_EMPTY(&ts->ts_pending));
+
+	/*
+	 * Move the list of pending threads out of the turnstile and
+	 * into a local variable.
+	 */
+	TAILQ_INIT(&pending_threads);
+	TAILQ_CONCAT(&pending_threads, &ts->ts_pending, td_lockq);
+#ifdef INVARIANTS
+	if (TAILQ_EMPTY(&ts->ts_blocked))
+		ts->ts_lockobj = NULL;
+#endif
+
+	/*
+	 * Remove the turnstile from this thread's list of contested locks
+	 * since this thread doesn't own it anymore.  New threads will
+	 * not be blocking on the turnstile until it is claimed by a new
+	 * owner.
+	 */
+	mtx_lock_spin(&td_contested_lock);
+#ifdef INVARIANTS
+	ts->ts_owner = NULL;
+#endif
+	LIST_REMOVE(ts, ts_link);
+	mtx_unlock_spin(&td_contested_lock);
+	mtx_unlock_spin(&tc->tc_lock);
+
+	/*
+	 * Adjust the priority of curthread based on other contested
+	 * locks it owns.  Don't lower the priority below the base
+	 * priority however.
+	 */
+	td = curthread;
 	pri = PRI_MAX;
-	LIST_FOREACH(m1, &td->td_contested, mtx_contested) {
-		int cp = TAILQ_FIRST(&m1->mtx_blocked)->td_priority;
+	mtx_lock_spin(&sched_lock);
+	mtx_lock_spin(&td_contested_lock);
+	LIST_FOREACH(ts, &td->td_contested, ts_link) {
+		cp = TAILQ_FIRST(&ts->ts_blocked)->td_priority;
 		if (cp < pri)
 			pri = cp;
 	}
-
+	mtx_unlock_spin(&td_contested_lock);
 	if (pri > td->td_base_pri)
 		pri = td->td_base_pri;
 	td->td_priority = pri;
 
-	if (LOCK_LOG_TEST(&m->mtx_object, opts))
-		CTR2(KTR_LOCK, "_mtx_unlock_sleep: %p contested setrunqueue %p",
-		    m, td1);
-
-	td1->td_blocked = NULL;
-	TD_CLR_LOCK(td1);
-	if (!TD_CAN_RUN(td1)) {
-		mtx_unlock_spin(&sched_lock);
-		return;
-	}
-	setrunqueue(td1);
-
-	if (td->td_critnest == 1 && td1->td_priority < pri) {
-#ifdef notyet
-		if (td->td_ithd != NULL) {
-			struct ithd *it = td->td_ithd;
-
-			if (it->it_interrupted) {
-				if (LOCK_LOG_TEST(&m->mtx_object, opts))
-					CTR2(KTR_LOCK,
-				    "_mtx_unlock_sleep: %p interrupted %p",
-					    it, it->it_interrupted);
-				intr_thd_fixup(it);
-			}
+	/*
+	 * Wake up all the pending threads.  If a thread is not blocked
+	 * on a lock, then it is currently executing on another CPU in
+	 * turnstile_wait().  Set a flag to force it to try to acquire
+	 * the lock again instead of blocking.
+	 */
+	while (!TAILQ_EMPTY(&pending_threads)) {
+		td = TAILQ_FIRST(&pending_threads);
+		TAILQ_REMOVE(&pending_threads, td, td_lockq);
+		MPASS(td->td_proc->p_magic == P_MAGIC);
+		if (TD_ON_LOCK(td)) {
+			td->td_blocked = NULL;
+			td->td_lockname = NULL;
+			TD_CLR_LOCK(td);
+			MPASS(TD_CAN_RUN(td));
+			setrunqueue(td);
+		} else {
+			td->td_flags |= TDF_TSNOBLOCK;
+			MPASS(TD_IS_RUNNING(td));
 		}
-#endif
-		if (LOCK_LOG_TEST(&m->mtx_object, opts))
-			CTR2(KTR_LOCK,
-			    "_mtx_unlock_sleep: %p switching out lock=%p", m,
-			    (void *)m->mtx_lock);
-
-		td->td_proc->p_stats->p_ru.ru_nivcsw++;
-		mi_switch();
-		if (LOCK_LOG_TEST(&m->mtx_object, opts))
-			CTR2(KTR_LOCK, "_mtx_unlock_sleep: %p resuming lock=%p",
-			    m, (void *)m->mtx_lock);
 	}
-
 	mtx_unlock_spin(&sched_lock);
-
-	return;
 }
 
 /*
- * All the unlocking of MTX_SPIN locks is done inline.
- * See the _rel_spin_lock() macro for the details.
+ * Return the first thread in a turnstile.
  */
-
-/*
- * The backing function for the INVARIANTS-enabled mtx_assert()
- */
-#ifdef INVARIANT_SUPPORT
-void
-_mtx_assert(struct mtx *m, int what, const char *file, int line)
+struct thread *
+turnstile_head(struct turnstile *ts)
 {
+#ifdef INVARIANTS
+	struct turnstile_chain *tc;
 
-	if (panicstr != NULL)
-		return;
-	switch (what) {
-	case MA_OWNED:
-	case MA_OWNED | MA_RECURSED:
-	case MA_OWNED | MA_NOTRECURSED:
-		if (!mtx_owned(m))
-			panic("mutex %s not owned at %s:%d",
-			    m->mtx_object.lo_name, file, line);
-		if (mtx_recursed(m)) {
-			if ((what & MA_NOTRECURSED) != 0)
-				panic("mutex %s recursed at %s:%d",
-				    m->mtx_object.lo_name, file, line);
-		} else if ((what & MA_RECURSED) != 0) {
-			panic("mutex %s unrecursed at %s:%d",
-			    m->mtx_object.lo_name, file, line);
-		}
-		break;
-	case MA_NOTOWNED:
-		if (mtx_owned(m))
-			panic("mutex %s owned at %s:%d",
-			    m->mtx_object.lo_name, file, line);
-		break;
-	default:
-		panic("unknown mtx_assert at %s:%d", file, line);
-	}
-}
+	MPASS(ts != NULL);
+	tc = TC_LOOKUP(ts->ts_lockobj);
+	mtx_assert(&tc->tc_lock, MA_OWNED);
 #endif
-
-/*
- * The MUTEX_DEBUG-enabled mtx_validate()
- *
- * Most of these checks have been moved off into the LO_INITIALIZED flag
- * maintained by the witness code.
- */
-#ifdef MUTEX_DEBUG
-
-void	mtx_validate(struct mtx *);
-
-void
-mtx_validate(struct mtx *m)
-{
-
-/*
- * XXX: When kernacc() does not require Giant we can reenable this check
- */
-#ifdef notyet
-/*
- * XXX - When kernacc() is fixed on the alpha to handle K0_SEG memory properly
- * we can re-enable the kernacc() checks.
- */
-#ifndef __alpha__
-	/*
-	 * Can't call kernacc() from early init386(), especially when
-	 * initializing Giant mutex, because some stuff in kernacc()
-	 * requires Giant itself.
-	 */
-	if (!cold)
-		if (!kernacc((caddr_t)m, sizeof(m),
-		    VM_PROT_READ | VM_PROT_WRITE))
-			panic("Can't read and write to mutex %p", m);
-#endif
-#endif
-}
-#endif
-
-/*
- * General init routine used by the MTX_SYSINIT() macro.
- */
-void
-mtx_sysinit(void *arg)
-{
-	struct mtx_args *margs = arg;
-
-	mtx_init(margs->ma_mtx, margs->ma_desc, NULL, margs->ma_opts);
+	return (TAILQ_FIRST(&ts->ts_blocked));
 }
 
 /*
- * Mutex initialization routine; initialize lock `m' of type contained in
- * `opts' with options contained in `opts' and name `name.'  The optional
- * lock type `type' is used as a general lock category name for use with
- * witness.
+ * Returns true if a turnstile is empty.
  */
-void
-mtx_init(struct mtx *m, const char *name, const char *type, int opts)
+int
+turnstile_empty(struct turnstile *ts)
 {
-	struct lock_object *lock;
+#ifdef INVARIANTS
+	struct turnstile_chain *tc;
 
-	MPASS((opts & ~(MTX_SPIN | MTX_QUIET | MTX_RECURSE |
-	    MTX_NOWITNESS | MTX_DUPOK)) == 0);
-
-#ifdef MUTEX_DEBUG
-	/* Diagnostic and error correction */
-	mtx_validate(m);
+	MPASS(ts != NULL);
+	tc = TC_LOOKUP(ts->ts_lockobj);
+	mtx_assert(&tc->tc_lock, MA_OWNED);
 #endif
-
-	lock = &m->mtx_object;
-	KASSERT((lock->lo_flags & LO_INITIALIZED) == 0,
-	    ("mutex \"%s\" %p already initialized", name, m));
-	bzero(m, sizeof(*m));
-	if (opts & MTX_SPIN)
-		lock->lo_class = &lock_class_mtx_spin;
-	else
-		lock->lo_class = &lock_class_mtx_sleep;
-	lock->lo_name = name;
-	lock->lo_type = type != NULL ? type : name;
-	if (opts & MTX_QUIET)
-		lock->lo_flags = LO_QUIET;
-	if (opts & MTX_RECURSE)
-		lock->lo_flags |= LO_RECURSABLE;
-	if ((opts & MTX_NOWITNESS) == 0)
-		lock->lo_flags |= LO_WITNESS;
-	if (opts & MTX_DUPOK)
-		lock->lo_flags |= LO_DUPOK;
-
-	m->mtx_lock = MTX_UNOWNED;
-	TAILQ_INIT(&m->mtx_blocked);
-
-	LOCK_LOG_INIT(lock, opts);
-
-	WITNESS_INIT(lock);
-}
-
-/*
- * Remove lock `m' from all_mtx queue.  We don't allow MTX_QUIET to be
- * passed in as a flag here because if the corresponding mtx_init() was
- * called with MTX_QUIET set, then it will already be set in the mutex's
- * flags.
- */
-void
-mtx_destroy(struct mtx *m)
-{
-
-	LOCK_LOG_DESTROY(&m->mtx_object, 0);
-
-	if (!mtx_owned(m))
-		MPASS(mtx_unowned(m));
-	else {
-		MPASS((m->mtx_lock & (MTX_RECURSED|MTX_CONTESTED)) == 0);
-
-		/* Tell witness this isn't locked to make it happy. */
-		WITNESS_UNLOCK(&m->mtx_object, LOP_EXCLUSIVE, __FILE__,
-		    __LINE__);
-	}
-
-	WITNESS_DESTROY(&m->mtx_object);
-}
-
-/*
- * Intialize the mutex code and system mutexes.  This is called from the MD
- * startup code prior to mi_startup().  The per-CPU data space needs to be
- * setup before this is called.
- */
-void
-mutex_init(void)
-{
-
-	/* Setup thread0 so that mutexes work. */
-	LIST_INIT(&thread0.td_contested);
-
-	/*
-	 * Initialize mutexes.
-	 */
-	mtx_init(&Giant, "Giant", NULL, MTX_DEF | MTX_RECURSE);
-	mtx_init(&sched_lock, "sched lock", NULL, MTX_SPIN | MTX_RECURSE);
-	mtx_init(&proc0.p_mtx, "process lock", NULL, MTX_DEF | MTX_DUPOK);
-	mtx_lock(&Giant);
+	return (TAILQ_EMPTY(&ts->ts_blocked));
 }
