@@ -828,7 +828,6 @@ vn_fullpath(struct thread *td, struct vnode *vn, char **retbuf, char **freebuf)
 		return (ENODEV);
 	if (vn == NULL)
 		return (EINVAL);
-	ASSERT_VOP_LOCKED(vp, "vn_fullpath");
 	buf = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
 	bp = buf + MAXPATHLEN - 1;
 	*bp = '\0';
@@ -836,6 +835,7 @@ vn_fullpath(struct thread *td, struct vnode *vn, char **retbuf, char **freebuf)
 	slash_prefixed = 0;
 	FILEDESC_LOCK(fdp);
 	for (vp = vn; vp != fdp->fd_rdir && vp != rootvnode;) {
+		ASSERT_VOP_LOCKED(vp, "vn_fullpath");
 		if (vp->v_vflag & VV_ROOT) {
 			if (vp->v_mount == NULL) {	/* forced unmount */
 				FILEDESC_UNLOCK(fdp);
