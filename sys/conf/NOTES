@@ -102,7 +102,6 @@ options 	INCLUDE_CONFIG_FILE     # Include this file in kernel
 
 options	GEOM				# Use the GEOMetry system for
 					# disk-I/O transformations.
-options	GEOM_GPT			# Include support for GPT disks.
 
 #
 # The root device and filesystem type can be compiled in;
