@@ -409,7 +409,7 @@ tables:
 /*
  * These values indicate bootable types we know the names of.
  */
-		.byte 0x1, 0x4, 0x6, 0xb, 0xc, 0xe, 0x83
+		.byte 0x1, 0x6, 0x7, 0xb, 0xc, 0xe, 0x83
 		.byte 0x9f, 0xa5, 0xa6, 0xa9
 /*
  * These are offsets that match the known names above and point to the strings
@@ -418,7 +418,7 @@ tables:
  */
 		.byte os_dos-.			# DOS
 		.byte os_dos-.			# DOS
-		.byte os_dos-.			# DOS
+		.byte os_dos-.			# Windows
 		.byte os_dos-.			# Windows
 		.byte os_dos-.			# Windows
 		.byte os_dos-.			# Windows
