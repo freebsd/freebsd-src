@@ -23,11 +23,11 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-
-#ifndef _IBCS2_SOCKSYS_H
-#define _IBCS2_SOCKSYS_H 1
+#ifndef	_I386_IBCS2_IBCS2_SOCKSYS_H_
+#define	_I386_IBCS2_IBCS2_SOCKSYS_H_
 
 #include <sys/ioccom.h>
+
 #include <i386/ibcs2/ibcs2_types.h>
 
 #define SOCKSYS_ACCEPT		1
@@ -123,4 +123,4 @@ struct ibcs2_socksys_args {
 
 int ibcs2_socksys __P((struct proc *, struct ibcs2_socksys_args *, int *));
 
-#endif /* _IBCS2_SOCKSYS_H */
+#endif /* !_I386_IBCS2_IBCS2_SOCKSYS_H_ */

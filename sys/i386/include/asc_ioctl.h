@@ -29,11 +29,10 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _I386_ASC_IOCTL_H_
-#define _I386_ASC_IOCTL_H_
+#ifndef	_MACHINE_ASC_IOCTL_H_
+#define	_MACHINE_ASC_IOCTL_H_
 
-#include <sys/types.h>
-#include <sys/ioctl.h>
+#include <sys/ioccom.h>
 
 #define ASC_GRES	_IOR('S', 1, int)	/* get resolution / dpi */
 #define ASC_SRES	_IOW('S', 2, int)	/* set resolution / dpi */
@@ -49,4 +48,4 @@
 
 #define ASC_SRESSW	_IO('S', 11)	        /* set resolution by switch */
 
-#endif
+#endif /* !_MACHINE_ASC_IOCTL_H_ */

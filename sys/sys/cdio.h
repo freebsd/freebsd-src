@@ -1,8 +1,9 @@
 /*
  * 16 Feb 93	Julian Elischer	(julian@dialix.oz.au)
  *
- *	$Id: cdio.h,v 1.12 1996/02/02 20:41:11 ache Exp $
+ *	$Id: cdio.h,v 1.13 1996/02/03 14:19:13 ache Exp $
  */
+
 /*
 <1>	Fixed a conflict with ioctl usage.  There were two different
 	functions using code #25.  Made file formatting consistent.
@@ -20,10 +21,15 @@
 	2-Apr-95  Frank Durda IV	bsdmail@nemesis.lonestar.org
 */
 
-
 /* Shared between kernel & process */
-#ifndef _SYS_CDIO_H_
-#define _SYS_CDIO_H_
+
+#ifndef	_SYS_CDIO_H_
+#define	_SYS_CDIO_H_
+
+#ifndef KERNEL
+#include <sys/types.h>
+#endif
+#include <sys/ioccom.h>
 
 union msf_lba {
 	struct {
@@ -259,5 +265,4 @@ struct ioc_capability {			/*<2>*/
 
 #define	CDIOCCAPABILITY	_IOR('c',30,struct ioc_capability)	/*<2>*/
 
-#endif /* _SYS_CDIO_H_ */
-
+#endif /* !_SYS_CDIO_H_ */

@@ -25,12 +25,10 @@
  *  ioctl functions added.
  */
 
-#ifndef	_FTAPE_H_
-#define	_FTAPE_H_
+#ifndef	_SYS_FTAPE_H_
+#define	_SYS_FTAPE_H_
 
-#ifndef _IOCTL_H_
-#include <sys/ioctl.h>
-#endif
+#include <sys/ioccom.h>
 
 /* Miscellaneous constant values */
 #define QCV_BLKSIZE	1024		/* Size of a block */
@@ -219,4 +217,4 @@ typedef struct qic_fileset {
 	UCHAR fs_dsize[4];	/* Data size */
 } QIC_FileSet;
 
-#endif	/* _FTAPE_H_ */
+#endif /* !_SYS_FTAPE_H_ */

@@ -1,12 +1,13 @@
 /*
- * $Id: scsiio.h,v 1.4 1995/04/28 19:26:02 dufault Exp $
+ * $Id: scsiio.h,v 1.5 1996/01/30 23:01:14 mpp Exp $
  */
-#ifndef _SYS_SCSIIO_H_
-#define _SYS_SCSIIO_H_
+#ifndef	_SYS_SCSIIO_H_
+#define	_SYS_SCSIIO_H_
 
-
+#ifndef KERNEL
 #include <sys/types.h>
-#include <sys/ioctl.h>
+#endif
+#include <sys/ioccom.h>
 
 #define	SENSEBUFLEN 48
 
@@ -66,4 +67,4 @@ struct	scsi_addr {
 #define SCIOCFREEZETHAW	_IOW('Q', 11, int) /* Freeze SCSI for some seconds */
 #define SCIOCWAITTHAW	_IO('Q', 12) /* Wait for SCSI to thaw */
 
-#endif /* _SYS_SCSIIO_H_ */
+#endif /* !_SYS_SCSIIO_H_ */

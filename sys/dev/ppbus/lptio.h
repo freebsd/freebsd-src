@@ -11,15 +11,14 @@
  *
  *	Geoff Rehmet, Rhodes University, South Africa <csgr@cs.ru.ac.za>
  *
- * $Id: lpt.h,v 1.2 1994/08/02 07:38:52 davidg Exp $
+ * $Id: lpt.h,v 1.3 1995/05/30 08:00:41 rgrimes Exp $
  */
 
-#ifndef _LPT_PRINTER_H_
-#define _LPT_PRINTER_H_
+#ifndef	_MACHINE_LPT_H_
+#define	_MACHINE_LPT_H_
 
-#include <sys/types.h>
-#include <sys/ioctl.h>
+#include <sys/ioccom.h>
 
 #define	LPT_IRQ		_IOW('p', 1, long)	/* set interrupt status */
 
-#endif
+#endif /* !_MACHINE_LPT_H_ */

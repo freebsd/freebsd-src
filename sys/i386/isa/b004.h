@@ -1,6 +1,3 @@
-#ifndef _B004_H
-#define _B004_H
-
 /*
  * b004.h
  *
@@ -41,7 +38,10 @@
  * Works for FreeBSD 1.1.5
  */
 
-#include <sys/ioctl.h>
+#ifndef	_I386_ISA_B004_H_
+#define	_I386_ISA_B004_H_
+
+#include <sys/ioccom.h>
 
 /*
  * device status FLAGS
@@ -151,4 +151,4 @@ struct b004_struct {
 #define B004_ASSERT_ANALYSE	0x01	/* switch transputer to analyse-mode */
 #define B004_DEASSERT_ANALYSE	0x00
 
-#endif
+#endif /* !_I386_ISA_B004_H_ */

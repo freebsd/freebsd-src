@@ -7,17 +7,18 @@
  *	of this software, nor does the author assume any responsibility
  *	for damages incurred with its use
  *
- *	$Id: ioctl_ctx.h,v 1.1 1994/10/01 17:59:38 davidg Exp $
+ *	$Id: ioctl_ctx.h,v 1.2 1995/05/30 08:00:40 rgrimes Exp $
  */
 
 /*
  *	ioctl constants for Cortex-I frame grabber
  */
 
-#ifndef _MACHINE_IOCTL_CTX_H_
-#define _MACHINE_IOCTL_CTX_H_
+#ifndef	_MACHINE_IOCTL_CTX_H_
+#define	_MACHINE_IOCTL_CTX_H_
 
-#include <sys/ioctl.h>
+#include <sys/ioccom.h>
+
 typedef char _CTX_LUTBUF[256];	/* look up table buffer */
 
 #define CTX_LIVE _IO('x', 1)		/* live video */
@@ -27,4 +28,4 @@ typedef char _CTX_LUTBUF[256];	/* look up table buffer */
 #define CTX_SET_LUT _IOW('x', 5, _CTX_LUTBUF)  /* set lookup table */
 #define CTX_GET_LUT _IOR('x', 6, _CTX_LUTBUF)  /* get lookup table */
 
-#endif /* ifndef _MACHINE_IOCTL_CTX_H */
+#endif /* !_MACHINE_IOCTL_CTX_H_ */
