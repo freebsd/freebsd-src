@@ -708,6 +708,11 @@ hw.pcic.irq="0"</programlisting>
 
 	<para>The <option>-R</option> (router renumbering) option to
 	&man.rtadvd.8; is currently ignored.</para>
+
+	<para arch="alpha">Sysinstall reports  /: write failed, file 
+	system is full when navigating the menus. These messages do not
+	affect sysinstall's operation or the actual installation process
+	and can safely be ignored.</para>
       </sect4>
     </sect3>
 
