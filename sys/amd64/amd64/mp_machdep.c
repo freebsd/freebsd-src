@@ -429,11 +429,11 @@ init_secondary(void)
 	/* set up CPU registers and state */
 	cpu_setregs();
 
-	/* set up FPU state on the AP */
-	fpuinit();
-
 	/* set up SSE/NX registers */
 	initializecpu();
+
+	/* set up FPU state on the AP */
+	fpuinit();
 
 	/* A quick check from sanity claus */
 	if (PCPU_GET(apic_id) != lapic_id()) {
