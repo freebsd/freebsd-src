@@ -9,6 +9,13 @@ A reverse chronology since 4.0 was released is included, followed by
 the common items quick how-tos, followed by entries for versions of
 -current prior to 4.0 Release.
 
+20020411:
+	New sendmail startup scripts have been installed to make it
+	easier to use alternative MTAs with FreeBSD.  The rc.conf
+	variable mta_start_script can be set to a script for starting
+	an alternative MTA or to "" to prevent any MTA from being
+	started at boot.
+
 20020409:
 	The default ephemeral port range has changed from [1024-5000] to
 	[49152-65535].  This may cause conflicts with some configurations
