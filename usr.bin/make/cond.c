@@ -133,8 +133,10 @@ static Token	  condPushBack=None;	/* Single push-back token used in
 #define	MAXIF		30	  /* greatest depth of #if'ing */
 
 static Boolean	  condStack[MAXIF]; 	/* Stack of conditionals's values */
+static int	  condLineno[MAXIF];	/* Line numbers of the opening .if */
 static int  	  condTop = MAXIF;  	/* Top-most conditional */
 static int  	  skipIfLevel=0;    	/* Depth of skipped conditionals */
+static int	  skipIfLineno[MAXIF];  /* Line numbers of skipped .ifs */
 static Boolean	  skipLine = FALSE; 	/* Whether the parse module is skipping
 					 * lines */
 
@@ -1047,8 +1049,10 @@ Cond_Eval (char *line)
     Boolean 	    isElse;
     Boolean 	    value = FALSE;
     int	    	    level;  	/* Level at which to report errors. */
+    int		    lineno;
 
     level = PARSE_FATAL;
+    lineno = curFile.lineno;
 
     for (line++; *line == ' ' || *line == '\t'; line++) {
 	continue;
@@ -1109,6 +1113,7 @@ Cond_Eval (char *line)
 		return (COND_INVALID);
 	    } else if (skipIfLevel == 0) {
 		value = !condStack[condTop];
+		lineno = condLineno[condTop];
 	    } else {
 		return (COND_SKIP);
 	    }
@@ -1130,6 +1135,7 @@ Cond_Eval (char *line)
 		 * undefined, for which there's an enclosing ifdef that
 		 * we're skipping...
 		 */
+	        skipIfLineno[skipIfLevel - 1] = lineno;
 		return(COND_SKIP);
 	    }
 	} else if (skipLine) {
@@ -1137,6 +1143,7 @@ Cond_Eval (char *line)
 	     * Don't even try to evaluate a conditional that's not an else if
 	     * we're skipping things...
 	     */
+	    skipIfLineno[skipIfLevel] = lineno;
 	    skipIfLevel += 1;
 	    return(COND_SKIP);
 	}
@@ -1202,6 +1209,7 @@ Cond_Eval (char *line)
 	return (COND_INVALID);
     } else {
 	condStack[condTop] = value;
+	condLineno[condTop] = lineno;
 	skipLine = !value;
 	return (value ? COND_PARSE : COND_SKIP);
     }
@@ -1223,9 +1231,20 @@ Cond_Eval (char *line)
 void
 Cond_End(void)
 {
+    int level;
+
     if (condTop != MAXIF) {
-	Parse_Error(PARSE_FATAL, "%d open conditional%s", MAXIF-condTop,
-		    MAXIF-condTop == 1 ? "" : "s");
+	Parse_Error(PARSE_FATAL, "%d open conditional%s:",
+	    MAXIF - condTop + skipIfLevel,
+ 	    MAXIF - condTop + skipIfLevel== 1 ? "" : "s");
+
+	for (level = skipIfLevel; level > 0; level--)
+		Parse_Error(PARSE_FATAL, "\t%*sat line %d (skipped)",
+		    MAXIF - condTop + level + 1, "", skipIfLineno[level - 1]);
+	for (level = condTop; level < MAXIF; level++)
+		Parse_Error(PARSE_FATAL, "\t%*sat line %d "
+		    "(evaluated to %s)", MAXIF - level + skipIfLevel, "",
+		    condLineno[level], condStack[level] ? "true" : "false");
     }
     condTop = MAXIF;
 }
