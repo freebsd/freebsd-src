@@ -136,14 +136,14 @@ main(argc, argv)
 			ops |= pid ? KTROP_CLEAR : KTROP_CLEARFILE;
 
 		if (ktrace(tracefile, ops, trpoints, pid) < 0)
-			err(1, tracefile);
+			err(1, "%s", tracefile);
 		exit(0);
 	}
 
 	omask = umask(S_IRWXG|S_IRWXO);
 	if (append) {
 		if ((fd = open(tracefile, O_CREAT | O_WRONLY, DEFFILEMODE)) < 0)
-			err(1, tracefile);
+			err(1, "%s", tracefile);
 		if (fstat(fd, &sb) != 0 || sb.st_uid != getuid())
 			errx(1, "Refuse to append to %s not owned by you.",
 			    tracefile);
@@ -152,19 +152,19 @@ main(argc, argv)
 			err(1, "unlink %s", tracefile);
 		if ((fd = open(tracefile, O_CREAT | O_EXCL | O_WRONLY,
 		    DEFFILEMODE)) < 0)
-			err(1, tracefile);
+			err(1, "%s", tracefile);
 	}
 	(void)umask(omask);
 	(void)close(fd);
 
 	if (*argv) { 
 		if (ktrace(tracefile, ops, trpoints, getpid()) < 0)
-			err(1, tracefile);
+			err(1, "%s", tracefile);
 		execvp(argv[0], &argv[0]);
 		err(1, "exec of '%s' failed", argv[0]);
 	}
 	else if (ktrace(tracefile, ops, trpoints, pid) < 0)
-		err(1, tracefile);
+		err(1, "%s", tracefile);
 	exit(0);
 }
 
