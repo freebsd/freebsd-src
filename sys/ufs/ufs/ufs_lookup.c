@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_lookup.c	8.15 (Berkeley) 6/16/95
- * $Id: ufs_lookup.c,v 1.27 1999/01/28 00:57:56 dillon Exp $
+ * $Id: ufs_lookup.c,v 1.28 1999/06/16 23:27:51 mckusick Exp $
  */
 
 #include <sys/param.h>
@@ -687,7 +687,7 @@ ufs_direnter(dvp, tvp, dirp, cnp, newdirbp)
 		if (dp->i_offset & (DIRBLKSIZ - 1))
 			panic("ufs_direnter: newblk");
 		flags = B_CLRBUF;
-		if (!DOINGSOFTDEP(dvp))
+		if (!DOINGSOFTDEP(dvp) && !DOINGASYNC(dvp))
 			flags |= B_SYNC;
 		if ((error = VOP_BALLOC(dvp, (off_t)dp->i_offset, DIRBLKSIZ,
 		    cr, flags, &bp)) != 0) {
@@ -718,10 +718,14 @@ ufs_direnter(dvp, tvp, dirp, cnp, newdirbp)
 			softdep_setup_directory_add(bp, dp, dp->i_offset,
 			    dirp->d_ino, newdirbp);
 			bdwrite(bp);
-		} else {
-			error = VOP_BWRITE(bp->b_vp, bp);
+			return (UFS_UPDATE(dvp, 0));
 		}
-		ret = UFS_UPDATE(dvp, !DOINGSOFTDEP(dvp));
+		if (DOINGASYNC(dvp)) {
+			bdwrite(bp);
+			return (UFS_UPDATE(dvp, 0));
+		}
+		error = VOP_BWRITE(bp->b_vp, bp);
+		ret = UFS_UPDATE(dvp, 1);
 		if (error == 0)
 			return (ret);
 		return (error);
@@ -806,7 +810,7 @@ ufs_direnter(dvp, tvp, dirp, cnp, newdirbp)
 		    dp->i_offset + (caddr_t)ep - dirbuf, dirp->d_ino, newdirbp);
 		bdwrite(bp);
 	} else {
-		if (dvp->v_mount->mnt_flag & MNT_ASYNC) {
+		if (DOINGASYNC(dvp)) {
 			bdwrite(bp);
 			error = 0;
 		} else {
@@ -897,8 +901,7 @@ out:
 			ip->i_nlink--;
 		if (flags & DOWHITEOUT)
 			error = VOP_BWRITE(bp->b_vp, bp);
-		else if (dvp->v_mount->mnt_flag & MNT_ASYNC
-		    && dp->i_count != 0) {
+		else if (DOINGASYNC(dvp) && dp->i_count != 0) {
 			bdwrite(bp);
 			error = 0;
 		} else
@@ -938,7 +941,7 @@ ufs_dirrewrite(dp, oip, newinum, newtype, isrmdir)
 		bdwrite(bp);
 	} else {
 		oip->i_nlink--;
-		if (vdp->v_mount->mnt_flag & MNT_ASYNC) {
+		if (DOINGASYNC(vdp)) {
 			bdwrite(bp);
 			error = 0;
 		} else {

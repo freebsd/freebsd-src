@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_readwrite.c	8.11 (Berkeley) 5/8/95
- * $Id: ufs_readwrite.c,v 1.58 1999/04/05 19:38:30 julian Exp $
+ * $Id: ufs_readwrite.c,v 1.59 1999/07/08 06:06:00 mckusick Exp $
  */
 
 #define	BLKSIZE(a, b, c)	blksize(a, b, c)
@@ -399,8 +399,7 @@ WRITE(ap)
 	case VLNK:
 		break;
 	case VDIR:
-		if ((ioflag & IO_SYNC) == 0)
-			panic("%s: nonsync dir write", WRITE_S);
+		panic("%s: dir write", WRITE_S);
 		break;
 	default:
 		panic("%s: type %p %d (%d,%d)", WRITE_S, vp, (int)vp->v_type,
@@ -432,7 +431,9 @@ WRITE(ap)
 
 	resid = uio->uio_resid;
 	osize = ip->i_size;
-	flags = ioflag & IO_SYNC ? B_SYNC : 0;
+	flags = 0;
+	if ((ioflag & IO_SYNC) && !DOINGASYNC(vp))
+		flags = B_SYNC;
 
 	if (object && (object->flags & OBJ_OPT)) {
 		vm_freeze_copyopts(object,

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.27 (Berkeley) 5/27/95
- * $Id: ufs_vnops.c,v 1.114 1999/05/11 19:55:05 phk Exp $
+ * $Id: ufs_vnops.c,v 1.115 1999/06/16 23:27:53 mckusick Exp $
  */
 
 #include "opt_quota.h"
@@ -759,7 +759,7 @@ ufs_link(ap)
 	ip->i_flag |= IN_CHANGE;
 	if (DOINGSOFTDEP(vp))
 		softdep_increase_linkcnt(ip);
-	error = UFS_UPDATE(vp, !DOINGSOFTDEP(vp));
+	error = UFS_UPDATE(vp, !(DOINGSOFTDEP(vp) | DOINGASYNC(vp)));
 	if (!error) {
 		ufs_makedirentry(ip, cnp, &newdir);
 		error = ufs_direnter(tdvp, vp, &newdir, cnp, NULL);
@@ -884,7 +884,7 @@ ufs_rename(ap)
 	struct inode *ip, *xp, *dp;
 	struct direct newdir;
 	int doingdirectory = 0, oldparent = 0, newparent = 0;
-	int error = 0;
+	int error = 0, ioflag;
 
 #ifdef DIAGNOSTIC
 	if ((tcnp->cn_flags & HASBUF) == 0 ||
@@ -1027,7 +1027,8 @@ abortit:
 	ip->i_flag |= IN_CHANGE;
 	if (DOINGSOFTDEP(fvp))
 		softdep_increase_linkcnt(ip);
-	if ((error = UFS_UPDATE(fvp, !DOINGSOFTDEP(fvp))) != 0) {
+	if ((error = UFS_UPDATE(fvp, !(DOINGSOFTDEP(fvp) |
+				       DOINGASYNC(fvp)))) != 0) {
 		VOP_UNLOCK(fvp, 0, p);
 		goto bad;
 	}
@@ -1091,7 +1092,8 @@ abortit:
 			dp->i_flag |= IN_CHANGE;
 			if (DOINGSOFTDEP(tdvp))
 				softdep_increase_linkcnt(dp);
-			error = UFS_UPDATE(tdvp, !DOINGSOFTDEP(tdvp));
+			error = UFS_UPDATE(tdvp, !(DOINGSOFTDEP(tdvp) |
+						   DOINGASYNC(tdvp)));
 			if (error)
 				goto bad;
 		}
@@ -1177,7 +1179,8 @@ abortit:
 			if (!newparent)
 				dp->i_nlink--;
 			xp->i_nlink--;
-			if ((error = UFS_TRUNCATE(tvp, (off_t)0, IO_SYNC,
+			ioflag = DOINGASYNC(tvp) ? 0 : IO_SYNC;
+			if ((error = UFS_TRUNCATE(tvp, (off_t)0, ioflag,
 			    tcnp->cn_cred, tcnp->cn_proc)) != 0)
 				goto bad;
 		}
@@ -1384,7 +1387,7 @@ ufs_mkdir(ap)
 	dp->i_flag |= IN_CHANGE;
 	if (DOINGSOFTDEP(dvp))
 		softdep_increase_linkcnt(dp);
-	error = UFS_UPDATE(tvp, !DOINGSOFTDEP(dvp));
+	error = UFS_UPDATE(tvp, !(DOINGSOFTDEP(dvp) | DOINGASYNC(dvp)));
 	if (error)
 		goto bad;
 
@@ -1420,7 +1423,8 @@ ufs_mkdir(ap)
 			blkoff += DIRBLKSIZ;
 		}
 	}
-	if ((error = UFS_UPDATE(tvp, !DOINGSOFTDEP(tvp))) != 0) {
+	if ((error = UFS_UPDATE(tvp, !(DOINGSOFTDEP(tvp) |
+				       DOINGASYNC(tvp)))) != 0) {
 		(void)VOP_BWRITE(bp->b_vp, bp);
 		goto bad;
 	}
@@ -1436,7 +1440,9 @@ ufs_mkdir(ap)
 	 * an appropriate ordering dependency to the buffer which ensures that
 	 * the buffer is written before the new name is written in the parent.
 	 */
-	if (!DOINGSOFTDEP(dvp) && ((error = VOP_BWRITE(bp->b_vp, bp)) != 0))
+	if (DOINGASYNC(dvp))
+		bdwrite(bp);
+	else if (!DOINGSOFTDEP(dvp) && ((error = VOP_BWRITE(bp->b_vp, bp))))
 		goto bad;
 	ufs_makedirentry(ip, cnp, &newdir);
 	error = ufs_direnter(dvp, tvp, &newdir, cnp, bp);
@@ -1477,7 +1483,7 @@ ufs_rmdir(ap)
 	struct vnode *dvp = ap->a_dvp;
 	struct componentname *cnp = ap->a_cnp;
 	struct inode *ip, *dp;
-	int error;
+	int error, ioflag;
 
 	ip = VTOI(vp);
 	dp = VTOI(dvp);
@@ -1537,7 +1543,8 @@ ufs_rmdir(ap)
 	if (!DOINGSOFTDEP(vp)) {
 		dp->i_nlink--;
 		ip->i_nlink--;
-		error = UFS_TRUNCATE(vp, (off_t)0, IO_SYNC, cnp->cn_cred,
+		ioflag = DOINGASYNC(vp) ? 0 : IO_SYNC;
+		error = UFS_TRUNCATE(vp, (off_t)0, ioflag, cnp->cn_cred,
 		    cnp->cn_proc);
 	}
 	cache_purge(vp);
@@ -2175,7 +2182,7 @@ ufs_makeinode(mode, dvp, vpp, cnp)
 	/*
 	 * Make sure inode goes to disk before directory entry.
 	 */
-	error = UFS_UPDATE(tvp, !DOINGSOFTDEP(tvp));
+	error = UFS_UPDATE(tvp, !(DOINGSOFTDEP(tvp) | DOINGASYNC(tvp)));
 	if (error)
 		goto bad;
 	ufs_makedirentry(ip, cnp, &newdir);
