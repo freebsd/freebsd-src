@@ -125,6 +125,7 @@ struct ip {
 #define	IPOPT_TS		68		/* timestamp */
 #define	IPOPT_SECURITY		130		/* provide s,c,h,tcc */
 #define	IPOPT_LSRR		131		/* loose source route */
+#define	IPOPT_ESO		133		/* extended security */
 #define	IPOPT_CIPSO		134		/* commerical security */
 #define	IPOPT_SATID		136		/* satnet id */
 #define	IPOPT_SSRR		137		/* strict source route */
