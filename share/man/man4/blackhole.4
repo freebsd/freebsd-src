@@ -11,7 +11,7 @@
 .\"    documentation and/or other materials provided with the distribution.
 .\"
 .\"
-.\" $Id: lptcontrol.8,v 1.9 1999/05/28 02:09:46 ghelmer Exp $
+.\" $Id: blackhole.4,v 1.1 1999/08/17 13:46:38 csgr Exp $
 .Dd August 17, 1999
 .Dt BLACKHOLE 4
 .Os FreeBSD 
@@ -25,8 +25,8 @@ attempts.
 .Nm \&sysctl net.inet.tcp.blackhole
 .Nm \&sysctl net.inet.udp.blackhole
 .Pp
-.Nm \&sysctl -w net.inet.tcp.blackhole=[1 | 0]
-.Nm \&sysctl -w net.inet.udp.blackhole=[1 | 0]
+.Nm \&sysctl -w net.inet.tcp.blackhole=[0 | 1 | 2]
+.Nm \&sysctl -w net.inet.udp.blackhole=[0 | 1]
 .Sh DESCRIPTION
 The
 .Nm
@@ -38,8 +38,11 @@ Normal behaviour, when a TCP SYN segment is received on a port where
 there is no socket accepting connections, is for the system to return
 a RST segment, and drop the connection.  The connecting system will
 see this as a "Connection reset by peer".  By turning the TCP black
-hole MIB on, the incoming SYN segment is merely dropped, and no
-RST is sent, making the system appear as a blackhole.
+hole MIB on to a numeric value of one, the incoming SYN segment 
+is merely dropped, and no RST is sent, making the system appear
+as a blackhole.  By setting the MIB value to two, any segment arriving
+on a closed port is dropped without returning a RST.  This provides
+some degree of protection against stealth port scans.
 .Pp
 In the UDP instance, enabling blackhole behaviour turns off the sending
 of an ICMP port unreachable message in response to a UDP datagram which
