@@ -1,7 +1,7 @@
 /* Mapper for connections between MRouteD multicast routers.
  * Written by Pavel Curtis <Pavel@PARC.Xerox.Com>
  *
- * $Id: mapper.c,v 1.6 1996/01/06 21:09:53 peter Exp $
+ * $Id: mapper.c,v 1.7 1996/10/01 23:14:34 fenner Exp $
  */
 
 /*
@@ -826,7 +826,7 @@ u_int32 host_addr(name)
     struct hostent *e = gethostbyname(name);
     int addr;
 
-    if (e)
+    if (e && e->h_length == sizeof(addr))
 	memcpy(&addr, e->h_addr_list[0], e->h_length);
     else {
 	addr = inet_addr(name);
