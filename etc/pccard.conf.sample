@@ -8,7 +8,7 @@
 # IRQ == 0 means "allocate free IRQ from IRQ pool"
 # IRQ == 16 means "do not use IRQ (e.g. PIO mode)"
 #
-# $Id: pccard.conf.sample,v 1.4.2.6 1998/07/19 06:53:20 jkh Exp $
+# $Id: pccard.conf.sample,v 1.4.2.7 1998/09/11 18:36:47 msmith Exp $
 
 # Generally available IO ports
 io	0x240-0x360
@@ -130,6 +130,13 @@ card "EAGLE Technology" "NE200 ETHERNET LAN MBH10303  "
 	config 0x1 "fe0" ?
 	insert /etc/pccard_ether fe0
         remove /sbin/ifconfig fe0 delete
+
+# Compex Net-A adapter
+card "Ethernet" "Adapter"
+	config 0x1 "ed0" 11
+	ether 0xff0
+	insert	/etc/pccard_ether ed0
+	remove	/sbin/ifconfig ed0 delete
 
 # Telecom Device SuperSocket RE450T
 # Note: There are several revisions of the cardon the market.
@@ -308,6 +315,12 @@ card "U.S. Robotics" "XJ/CC1560J"
 	config	0x22 "sio2" 10
 	insert	echo U.S. Robotics XJ1560J inserted
 	remove	echo U.S. Robotics XJ1560J removed
+
+# 3com/USR/Megahertz 3CCM556
+card "3Com" "3CXM/3CCM556"
+	config 0x23 "sio2" 10
+	insert echo 3Com PCMCIA 56K Modem inserted
+	remove echo 3Com PCMCIA 56K Modem removed
 
 # BUG Linkboy D64K (ISDN)
 card "BUG Inc." "Linkboy D64K"
