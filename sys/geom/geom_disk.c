@@ -376,11 +376,12 @@ sysctl_disks(SYSCTL_HANDLER_ARGS)
 
 	sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
 	sbuf_clear(sb);
-	g_call_me(g_kern_disks, sb);
-	do {
+	error = g_call_me(g_kern_disks, sb);
+	while (!error && !sbuf_done(sb)) {
 		tsleep(sb, PZERO, "kern.disks", hz);
-	} while(!sbuf_done(sb));
-	error = SYSCTL_OUT(req, sbuf_data(sb), sbuf_len(sb) + 1);
+	}
+	if (!error)
+		error = SYSCTL_OUT(req, sbuf_data(sb), sbuf_len(sb) + 1);
 	sbuf_delete(sb);
 	return error;
 }
