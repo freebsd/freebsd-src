@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: smptests.h,v 1.15 1997/07/22 18:46:41 fsmp Exp $
+ *	$Id: smptests.h,v 1.16 1997/07/26 01:47:26 fsmp Exp $
  */
 
 #ifndef _MACHINE_SMPTESTS_H_
@@ -59,8 +59,10 @@
  *  99.12s real  130.04s user   51.82s system	# time make -j16
  *  97.75s real  129.91s user   51.62s system	# time make -j18
  * 100.51s real  132.67s user   50.91s system	# time make -j20
- */
+ *
+ * Note: currently broken for INTerrupting ISA cards, including onboard IDE.
 #define PEND_INTS
+ */
 
 
 /*
