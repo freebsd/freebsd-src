@@ -224,8 +224,8 @@ acpi_pci_link_get_irq_resources(ACPI_RESOURCE *resources,
 
 	if (resources->Id != ACPI_RSTYPE_IRQ &&
 	    resources->Id != ACPI_RSTYPE_EXT_IRQ) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-		    "Resource is not an IRQ entry - %d\n", resources->Id));
+		printf("acpi link get: resource %d is not an IRQ\n",
+		    resources->Id);
 		return_ACPI_STATUS (AE_TYPE);
 	}
 
@@ -242,7 +242,7 @@ acpi_pci_link_get_irq_resources(ACPI_RESOURCE *resources,
 	}
 	
 	if (NumberOfInterrupts == 0) {
-		ACPI_DEBUG_PRINT((ACPI_DB_WARN, "Blank IRQ resource\n"));
+		printf("acpi link get: empty IRQ resource\n");
 		return_ACPI_STATUS (AE_NULL_ENTRY);
 	}
 
@@ -397,8 +397,12 @@ acpi_pci_link_add_link(ACPI_HANDLE handle, struct acpi_prt_entry *entry)
 		goto out;
 	}
 
-	/* XXX This only handles one resource, ignoring SourceIndex. */
+	/* Skip any DPF descriptors.  XXX We should centralize this code. */
 	resources = (ACPI_RESOURCE *) buf.Pointer;
+	if (resources->Id == ACPI_RSTYPE_START_DPF)
+		resources = ACPI_NEXT_RESOURCE(resources);
+
+	/* XXX This only handles one resource, ignoring SourceIndex. */
 	bcopy(resources, &link->possible_resources,
 	    sizeof(link->possible_resources));
 
