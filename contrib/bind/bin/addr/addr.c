@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(SABER)
-static const char rcsid[] = "$Id: addr.c,v 8.8 1999/10/13 16:38:55 vixie Exp $";
+static const char rcsid[] = "$Id: addr.c,v 8.9 2002/05/21 02:26:21 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -47,11 +47,7 @@ usage() {
 
 /* Warning: this scribbles on `dst' even if it's going to return `0'. */
 static int
-hexstring(src, dst, len)
-	const char *src;
-	u_char *dst;
-	int len;
-{
+hexstring(const char *src, u_char *dst, int len) {
 	static const char xdigits[] = "0123456789abcdef";
 	u_char *ptr = dst, *end = dst + len;
 	u_int val;
@@ -100,12 +96,7 @@ hexstring(src, dst, len)
 }
 
 static void
-display(input, af, addr, len)
-	const char *input;
-	int af;
-	const u_char *addr;
-	int len;
-{
+display(const char *input, int af, const u_char *addr, int len) {
 	static int before = 0;
 	char p[sizeof "xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:255.255.255.255"];
 	int i;
