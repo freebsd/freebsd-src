@@ -439,7 +439,7 @@ ntp_update_second(struct timecounter *tcp)
 	u_int32_t *newsec;
 	l_fp ftemp;		/* 32/64-bit temporary */
 
-	newsec = &tcp->tc_offset_sec;
+	newsec = &tcp->tc_offset.sec;
 	/*
 	 * On rollover of the second both the nanosecond and microsecond
 	 * clocks are updated and the state machine cranked as

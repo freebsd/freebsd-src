@@ -78,13 +78,9 @@ struct timecounter {
 	void			*tc_priv;
 	/* These fields will be managed by the generic code. */
 	int64_t			tc_adjustment;
-	u_int32_t		tc_scale_micro;
-	u_int32_t		tc_scale_nano_i;
-	u_int32_t		tc_scale_nano_f;
+	u_int64_t		tc_scale;
 	unsigned 		tc_offset_count;
-	u_int32_t		tc_offset_sec;
-	u_int32_t		tc_offset_micro;
-	u_int64_t		tc_offset_nano;
+	struct bintime		tc_offset;
 	struct timeval		tc_microtime;
 	struct timespec		tc_nanotime;
 	struct timecounter	*tc_avail;
