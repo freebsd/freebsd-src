@@ -25,7 +25,7 @@
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)ipsopt.c	1.2 1/11/96 (C)1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ipsopt.c,v 2.1.4.4 2002/12/06 11:40:35 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ipsopt.c,v 2.1.4.5 2004/04/10 11:50:52 darrenr Exp $";
 #endif
 
 
@@ -98,7 +98,10 @@ char *class;
 			len += val;
 		} else
 			*op++ = io->on_siz;
-		*op++ = IPOPT_MINOFF;
+		if (io->on_value == IPOPT_TS)
+			*op++ = IPOPT_MINOFF + 1;
+		else
+			*op++ = IPOPT_MINOFF;
 
 		while (class && *class) {
 			t = NULL;

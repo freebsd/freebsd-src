@@ -60,7 +60,7 @@ extern	char	*sys_errlist[];
 
 #if !defined(lint)
 static const char sccsid[] ="@(#)ipnat.c	1.9 6/5/96 (C) 1993 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ipnat.c,v 2.16.2.22 2002/12/06 11:40:26 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ipnat.c,v 2.16.2.25 2003/06/05 14:00:28 darrenr Exp $";
 #endif
 
 
@@ -71,27 +71,31 @@ int	use_inet6 = 0;
 char	thishost[MAXHOSTNAMELEN];
 
 extern	char	*optarg;
+extern	int	optind;
+#if 0
 extern	ipnat_t	*natparse __P((char *, int));
+#endif
 extern	void	natparsefile __P((int, char *, int));
 extern	void	printnat __P((ipnat_t *, int));
 extern	void	printactivenat __P((nat_t *, int));
 extern	void	printhostmap __P((hostmap_t *, u_int));
 extern	char	*getsumd __P((u_32_t));
 
-void	dostats __P((natstat_t *, int)), flushtable __P((int, int));
+static int	dostats __P((natstat_t *, int));
+static int	flushtable __P((int, int));
 void	usage __P((char *));
 int	countbits __P((u_32_t));
 char	*getnattype __P((ipnat_t *));
 int	main __P((int, char*[]));
 void	printaps __P((ap_session_t *, int));
-void	showhostmap __P((natstat_t *nsp));
-void	natstat_dead __P((natstat_t *, char *));
+static int	showhostmap __P((natstat_t *nsp));
+static int	natstat_dead __P((natstat_t *, char *));
 
 
 void usage(name)
 char *name;
 {
-	fprintf(stderr, "%s: [-CFhlnrsv] [-f filename]\n", name);
+	fprintf(stderr, "Usage: %s [-CFhlnrsv] [-f filename]\n", name);
 	exit(1);
 }
 
@@ -153,9 +157,13 @@ char *argv[];
 		case 'v' :
 			opts |= OPT_VERBOSE;
 			break;
+		case '?' :
 		default :
 			usage(argv[0]);
 		}
+
+	if (optind < 2)
+		usage(argv[0]);
 
 	if ((kernel != NULL) || (core != NULL)) {
 		(void) setgid(getgid());
@@ -189,27 +197,36 @@ char *argv[];
 		if (openkmem(kernel, core) == -1)
 			exit(1);
 
-		natstat_dead(nsp, kernel);
-		if (opts & (OPT_LIST|OPT_STAT))
-			dostats(nsp, opts);
+		if (natstat_dead(nsp, kernel))
+			exit(1);
+		if (opts & (OPT_LIST|OPT_STAT)) {
+			if (dostats(nsp, opts))
+				exit(1);
+		}
 		exit(0);
 	}
 
 	if (opts & (OPT_FLUSH|OPT_CLEAR))
-		flushtable(fd, opts);
-	if (file)
+		if (flushtable(fd, opts))
+		    exit(1);
+	if (file) {
+		/* NB natparsefile exits with nonzero in case of error */
 		natparsefile(fd, file, opts);
+	}
 	if (opts & (OPT_LIST|OPT_STAT))
-		dostats(nsp, opts);
+		if (dostats(nsp, opts))
+			exit(1);
+
+	/* TBD why not exit(0)? */
 	return 0;
 }
 
 
 /*
- * Read nat statistic information in using a symbol table and memory file
+ * Read NAT statistic information in using a symbol table and memory file
  * rather than doing ioctl's.
  */
-void natstat_dead(nsp, kernel)
+static int natstat_dead(nsp, kernel)
 natstat_t *nsp;
 char *kernel;
 {
@@ -229,12 +246,12 @@ char *kernel;
 
 	if (nlist(kernel, nat_nlist) == -1) {
 		fprintf(stderr, "nlist error\n");
-		return;
+		return -1;
 	}
 
 	/*
 	 * Normally the ioctl copies all of these values into the structure
-	 * for us, before returning it to useland, so here we must copy each
+	 * for us, before returning it to userland, so here we must copy each
 	 * one in individually.
 	 */
 	kmemcpy((char *)&tables, nat_nlist[0].n_value, sizeof(tables));
@@ -257,18 +274,21 @@ char *kernel;
 		sizeof(nsp->ns_instances));
 	kmemcpy((char *)&nsp->ns_apslist, nat_nlist[8].n_value,
 		sizeof(nsp->ns_apslist));
+
+	return 0;
 }
 
 
 /*
  * Display NAT statistics.
  */
-void dostats(nsp, opts)
+static int dostats(nsp, opts)
 natstat_t *nsp;
 int opts;
 {
 	nat_t **nt[2], *np, nat;
 	ipnat_t	ipn;
+	int rc = 0;
 
 	/*
 	 * Show statistics ?
@@ -297,6 +317,7 @@ int opts;
 			if (kmemcpy((char *)&ipn, (long)nsp->ns_list,
 				    sizeof(ipn))) {
 				perror("kmemcpy");
+				rc = -1;
 				break;
 			}
 			if (opts & OPT_HITS)
@@ -309,28 +330,40 @@ int opts;
 		if (kmemcpy((char *)nt[0], (long)nsp->ns_table[0],
 			    sizeof(**nt) * NAT_SIZE)) {
 			perror("kmemcpy");
-			return;
+			rc = -1;
+		}
+		if (rc) {
+			free(nt[0]);
+			return rc;
 		}
 
 		printf("\nList of active sessions:\n");
 
 		for (np = nsp->ns_instances; np; np = nat.nat_next) {
-			if (kmemcpy((char *)&nat, (long)np, sizeof(nat)))
+			if (kmemcpy((char *)&nat, (long)np, sizeof(nat))) {
+				/* TBD Is this an error? If so, return -1 */
 				break;
+			}
 			printactivenat(&nat, opts);
 		}
 
-		if (opts & OPT_VERBOSE)
-			showhostmap(nsp);
+		if (opts & OPT_VERBOSE) {
+			if (showhostmap(nsp)) {
+				free(nt[0]);
+				return -1;
+			}
+		}
+
 		free(nt[0]);
 	}
+	return 0;
 }
 
 
 /*
- * display the active host mapping table.
+ * Display the active host mapping table.
  */
-void showhostmap(nsp)
+static int showhostmap(nsp)
 natstat_t *nsp;
 {
 	hostmap_t hm, *hmp, **maptable;
@@ -343,7 +376,8 @@ natstat_t *nsp;
 	if (kmemcpy((char *)maptable, (u_long)nsp->ns_maptable,
 		    sizeof(hostmap_t *) * nsp->ns_hostmap_sz)) {
 		perror("kmemcpy (maptable)");
-		return;
+		free(maptable);
+		return -1;
 	}
 
 	for (hv = 0; hv < nsp->ns_hostmap_sz; hv++) {
@@ -352,7 +386,8 @@ natstat_t *nsp;
 		while (hmp) {
 			if (kmemcpy((char *)&hm, (u_long)hmp, sizeof(hm))) {
 				perror("kmemcpy (hostmap)");
-				return;
+				free(maptable);
+				return -1;
 			}
 
 			printhostmap(&hm, hv);
@@ -360,6 +395,7 @@ natstat_t *nsp;
 		}
 	}
 	free(maptable);
+	return 0;
 }
 
 
@@ -367,24 +403,31 @@ natstat_t *nsp;
  * Issue an ioctl to flush either the NAT rules table or the active mapping
  * table or both.
  */
-void flushtable(fd, opts)
+static int flushtable(fd, opts)
 int fd, opts;
 {
 	int n = 0;
+	int rc = 0;
 
 	if (opts & OPT_FLUSH) {
 		n = 0;
-		if (!(opts & OPT_NODO) && ioctl(fd, SIOCIPFFL, &n) == -1)
+		if (!(opts & OPT_NODO) && ioctl(fd, SIOCIPFFL, &n) == -1) {
 			perror("ioctl(SIOCFLNAT)");
-		else
+			rc = -1;
+		} else {
 			printf("%d entries flushed from NAT table\n", n);
+		}
 	}
 
 	if (opts & OPT_CLEAR) {
 		n = 1;
-		if (!(opts & OPT_NODO) && ioctl(fd, SIOCIPFFL, &n) == -1)
+		if (!(opts & OPT_NODO) && ioctl(fd, SIOCIPFFL, &n) == -1) {
 			perror("ioctl(SIOCCNATL)");
-		else
+			rc = -1;
+		} else {
 			printf("%d entries flushed from NAT list\n", n);
+		}
 	}
+
+	return rc;
 }

@@ -56,7 +56,7 @@ extern	char	*sys_errlist[];
 
 #if !defined(lint)
 static const char sccsid[] ="@(#)ipnat.c	1.9 6/5/96 (C) 1993 Darren Reed";
-static const char rcsid[] = "@(#)$Id: natparse.c,v 1.17.2.27 2002/12/06 11:40:27 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: natparse.c,v 1.17.2.29 2003/05/15 17:45:34 darrenr Exp $";
 #endif
 
 
@@ -68,7 +68,7 @@ extern	void	printnat __P((ipnat_t *, int));
 extern	int	countbits __P((u_32_t));
 extern	char	*proto;
 
-ipnat_t	*natparse __P((char *, int));
+ipnat_t	*natparse __P((char *, int, int *));
 void	natparsefile __P((int, char *, int));
 void	nat_setgroupmap __P((struct ipnat *));
 
@@ -98,10 +98,16 @@ ipnat_t *n;
 
 /*
  * Parse a line of input from the ipnat configuration file
+ *
+ * status:
+ *	< 0	error
+ *	= 0	OK
+ *	> 0	programmer error
  */
-ipnat_t *natparse(line, linenum)
+ipnat_t *natparse(line, linenum, status)
 char *line;
 int linenum;
+int *status;
 {
 	static ipnat_t ipn;
 	struct protoent *pr;
@@ -110,6 +116,7 @@ int linenum;
 	int i, cnt;
 	char *port1a = NULL, *port1b = NULL, *port2a = NULL;
 
+	*status = 100;		/* default to error */
 	proto = NULL;
 
 	/*
@@ -121,8 +128,10 @@ int linenum;
 		*s = '\0';
 	while (*line && isspace(*line))
 		line++;
-	if (!*line)
+	if (!*line) {
+		*status = 0;
 		return NULL;
+	}
 
 	bzero((char *)&ipn, sizeof(ipn));
 	cnt = 0;
@@ -137,6 +146,7 @@ int linenum;
 
 	if (cnt < 3) {
 		fprintf(stderr, "%d: not enough segments in line\n", linenum);
+		*status = -1;
 		return NULL;
 	}
 
@@ -156,6 +166,7 @@ int linenum;
 	else {
 		fprintf(stderr, "%d: unknown mapping: \"%s\"\n",
 			linenum, *cpp);
+		*status = -1;
 		return NULL;
 	}
 
@@ -174,12 +185,14 @@ int linenum;
 			cpp++;
 			if (strcasecmp(*cpp, "from")) {
 				fprintf(stderr, "Missing from after !\n");
+				*status = -1;
 				return NULL;
 			}
 			ipn.in_flags |= IPN_NOTSRC;
 		} else if (**cpp == '!') {
 			if (strcasecmp(*cpp + 1, "from")) {
 				fprintf(stderr, "Missing from after !\n");
+				*status = -1;
 				return NULL;
 			}
 			ipn.in_flags |= IPN_NOTSRC;
@@ -187,6 +200,7 @@ int linenum;
 		if ((ipn.in_flags & IPN_NOTSRC) &&
 		    (ipn.in_redir & (NAT_MAP|NAT_MAPBLK))) {
 			fprintf(stderr, "Cannot use '! from' with map\n");
+			*status = -1;
 			return NULL;
 		}
 
@@ -196,12 +210,14 @@ int linenum;
 			if (hostmask(&cpp, (u_32_t *)&ipn.in_srcip,
 				     (u_32_t *)&ipn.in_srcmsk, &ipn.in_sport,
 				     &ipn.in_scmp, &ipn.in_stop, linenum)) {
+				*status = -1;
 				return NULL;
 			}
 		} else {
 			if (hostmask(&cpp, (u_32_t *)&ipn.in_inip,
 				     (u_32_t *)&ipn.in_inmsk, &ipn.in_sport,
 				     &ipn.in_scmp, &ipn.in_stop, linenum)) {
+				*status = -1;
 				return NULL;
 			}
 		}
@@ -217,22 +233,26 @@ int linenum;
 		if (strcasecmp(*cpp, "to")) {
 			fprintf(stderr, "%d: unexpected keyword (%s) - to\n",
 				linenum, *cpp);
+			*status = -1;
 			return NULL;
 		}
 		if ((ipn.in_flags & IPN_NOTDST) &&
 		    (ipn.in_redir & (NAT_REDIRECT))) {
 			fprintf(stderr, "Cannot use '! to' with rdr\n");
+			*status = -1;
 			return NULL;
 		}
 
 		if (!*++cpp) {
 			fprintf(stderr, "%d: missing host after to\n", linenum);
+			*status = -1;
 			return NULL;
 		}
 		if (ipn.in_redir == NAT_REDIRECT) {
 			if (hostmask(&cpp, (u_32_t *)&ipn.in_outip,
 				     (u_32_t *)&ipn.in_outmsk, &ipn.in_dport,
 				     &ipn.in_dcmp, &ipn.in_dtop, linenum)) {
+				*status = -1;
 				return NULL;
 			}
 			ipn.in_pmin = htons(ipn.in_dport);
@@ -240,6 +260,7 @@ int linenum;
 			if (hostmask(&cpp, (u_32_t *)&ipn.in_srcip,
 				     (u_32_t *)&ipn.in_srcmsk, &ipn.in_dport,
 				     &ipn.in_dcmp, &ipn.in_dtop, linenum)) {
+				*status = -1;
 				return NULL;
 			}
 		}
@@ -247,30 +268,39 @@ int linenum;
 		s = *cpp;
 		if (!s) {
 			fprintf(stderr, "%d: short line\n", linenum);
+			*status = -1;
 			return NULL;
 		}
 		t = strchr(s, '/');
 		if (!t) {
 			fprintf(stderr, "%d: no netmask on LHS\n", linenum);
+			*status = -1;
 			return NULL;
 		}
 		*t++ = '\0';
 		if (ipn.in_redir == NAT_REDIRECT) {
-			if (hostnum((u_32_t *)&ipn.in_outip, s, linenum) == -1)
+			if (hostnum((u_32_t *)&ipn.in_outip, s, linenum) == -1){
+				*status = -1;
 				return NULL;
+			}
 			if (genmask(t, (u_32_t *)&ipn.in_outmsk) == -1) {
+				*status = -1;
 				return NULL;
 			}
 		} else {
-			if (hostnum((u_32_t *)&ipn.in_inip, s, linenum) == -1)
+			if (hostnum((u_32_t *)&ipn.in_inip, s, linenum) == -1) {
+				*status = -1;
 				return NULL;
+			}
 			if (genmask(t, (u_32_t *)&ipn.in_inmsk) == -1) {
+				*status = -1;
 				return NULL;
 			}
 		}
 		cpp++;
 		if (!*cpp) {
 			fprintf(stderr, "%d: short line\n", linenum);
+			*status = -1;
 			return NULL;
 		}
 	}
@@ -283,6 +313,7 @@ int linenum;
 		if (strcasecmp(*cpp, "port")) {
 			fprintf(stderr, "%d: missing fields - 1st port\n",
 				linenum);
+			*status = -1;
 			return NULL;
 		}
 
@@ -292,6 +323,7 @@ int linenum;
 			fprintf(stderr,
 				"%d: missing fields (destination port)\n",
 				linenum);
+			*status = -1;
 			return NULL;
 		}
 
@@ -319,10 +351,12 @@ int linenum;
 	 */
 	if (!*cpp) {
 		fprintf(stderr, "%d: missing fields (->)\n", linenum);
+		*status = -1;
 		return NULL;
 	}
 	if (strcmp(*cpp, "->")) {
 		fprintf(stderr, "%d: missing ->\n", linenum);
+		*status = -1;
 		return NULL;
 	}
 	cpp++;
@@ -330,6 +364,7 @@ int linenum;
 	if (!*cpp) {
 		fprintf(stderr, "%d: missing fields (%s)\n",
 			linenum, ipn.in_redir ? "destination" : "target");
+		*status = -1;
 		return NULL;
 	}
 
@@ -341,6 +376,7 @@ int linenum;
 				fprintf(stderr, "%d: missing fields (%s)\n",
 					linenum,
 					ipn.in_redir ? "destination":"target");
+				*status = -1;
 				return NULL;
 			}
 		}
@@ -358,6 +394,7 @@ int linenum;
 			fprintf(stderr,
 				"%d: desination range not specified\n",
 				linenum);
+			*status = -1;
 			return NULL;
 		}
 	} else if (ipn.in_redir != NAT_REDIRECT) {
@@ -371,6 +408,7 @@ int linenum;
 			fprintf(stderr,
 				"%d: missing fields (dest netmask)\n",
 				linenum);
+			*status = -1;
 			return NULL;
 		}
 		if (*dnetm == '/')
@@ -383,20 +421,25 @@ int linenum;
 			ipn.in_flags |= IPN_SPLIT;
 			*dnetm++ = '\0';
 		}
-		if (hostnum((u_32_t *)&ipn.in_inip, *cpp, linenum) == -1)
+		if (hostnum((u_32_t *)&ipn.in_inip, *cpp, linenum) == -1) {
+			*status = -1;
 			return NULL;
+		}
 #if SOLARIS
 		if (ntohl(ipn.in_inip) == INADDR_LOOPBACK) {
 			fprintf(stderr,
 				"localhost as destination not supported\n");
+			*status = -1;
 			return NULL;
 		}
 #endif
 	} else {
 		if (!strcmp(*cpp, ipn.in_ifname))
 			*cpp = "0";
-		if (hostnum((u_32_t *)&ipn.in_outip, *cpp, linenum) == -1)
+		if (hostnum((u_32_t *)&ipn.in_outip, *cpp, linenum) == -1) {
+			*status = -1;
 			return NULL;
+		}
 	}
 	cpp++;
 
@@ -406,6 +449,7 @@ int linenum;
 				fprintf(stderr,
 					"%d: expected \"ports\" - got \"%s\"\n",
 					linenum, *cpp);
+				*status = -1;
 				return NULL;
 			}
 			cpp++;
@@ -413,6 +457,7 @@ int linenum;
 				fprintf(stderr,
 					"%d: missing argument to \"ports\"\n",
 					linenum);
+				*status = -1;
 				return NULL;
 			}
 			if (!strcasecmp(*cpp, "auto"))
@@ -426,12 +471,14 @@ int linenum;
 		if (*cpp && (strrchr(*cpp, '/') != NULL)) {
 			fprintf(stderr, "%d: No netmask supported in %s\n",
 				linenum, "destination host for redirect");
+			*status = -1;
 			return NULL;
 		}
 
 		if (!*cpp) {
 			fprintf(stderr, "%d: Missing destination port %s\n",
 				linenum, "in redirect");
+			*status = -1;
 			return NULL;
 		}
 
@@ -440,6 +487,7 @@ int linenum;
 		if (strcasecmp(*cpp, "port")) {
 			fprintf(stderr, "%d: missing fields - 2nd port (%s)\n",
 				linenum, *cpp);
+			*status = -1;
 			return NULL;
 		}
 		cpp++;
@@ -447,6 +495,7 @@ int linenum;
 			fprintf(stderr,
 				"%d: missing fields (destination port)\n",
 				linenum);
+			*status = -1;
 			return NULL;
 		}
 
@@ -458,17 +507,25 @@ int linenum;
 	if (ipn.in_redir & (NAT_MAP|NAT_MAPBLK)) {
 		if (ipn.in_flags & IPN_IPRANGE) {
 			if (hostnum((u_32_t *)&ipn.in_outmsk, dnetm,
-				    linenum) == -1)
+				    linenum) == -1) {
+				*status = -1;
 				return NULL;
-		} else if (genmask(dnetm, (u_32_t *)&ipn.in_outmsk))
+			}
+		} else if (genmask(dnetm, (u_32_t *)&ipn.in_outmsk)) {
+			*status = -1;
 			return NULL;
+		}
 	} else {
 		if (ipn.in_flags & IPN_SPLIT) {
 			if (hostnum((u_32_t *)&ipn.in_inmsk, dnetm,
-				    linenum) == -1)
+				    linenum) == -1) {
+				*status = -1;
 				return NULL;
-		} else if (genmask("255.255.255.255", (u_32_t *)&ipn.in_inmsk))
+			}
+		} else if (genmask("255.255.255.255", (u_32_t *)&ipn.in_inmsk)){
+			*status = -1;
 			return NULL;
+		}
 		if (!*cpp) {
 			ipn.in_flags |= IPN_TCP; /* XXX- TCP only by default */
 			proto = "tcp";
@@ -494,6 +551,7 @@ int linenum;
 						fprintf(stderr,
 						"%d: Unknown protocol %s\n",
 							linenum, proto);
+						*status = -1;
 						return NULL;
 					} else
 						ipn.in_p = atoi(proto);
@@ -520,6 +578,7 @@ int linenum;
 					fprintf(stderr,
 						"%d: age with no parameters\n",
 						linenum);
+					*status = -1;
 					return NULL;
 				}
 
@@ -541,6 +600,7 @@ int linenum;
 					fprintf(stderr,
 					   "%d: mssclamp with no parameters\n",
 						linenum);
+					*status = -1;
 					return NULL;
 				}
 			}
@@ -549,26 +609,33 @@ int linenum;
 				fprintf(stderr,
 				"%d: extra junk at the end of the line: %s\n",
 					linenum, *cpp);
+				*status = -1;
 				return NULL;
 			}
 		}
 	}
 
 	if ((ipn.in_redir == NAT_REDIRECT) && !(ipn.in_flags & IPN_FILTER)) {
-		if (!portnum(port1a, &ipn.in_pmin, linenum))
+		if (!portnum(port1a, &ipn.in_pmin, linenum)) {
+			*status = -1;
 			return NULL;
+		}
 		ipn.in_pmin = htons(ipn.in_pmin);
 		if (port1b != NULL) {
-			if (!portnum(port1b, &ipn.in_pmax, linenum))
+			if (!portnum(port1b, &ipn.in_pmax, linenum)) {
+				*status = -1;
 				return NULL;
+			}
 			ipn.in_pmax = htons(ipn.in_pmax);
 		} else
 			ipn.in_pmax = ipn.in_pmin;
 	}
 
 	if ((ipn.in_redir & NAT_BIMAP) == NAT_REDIRECT) {
-		if (!portnum(port2a, &ipn.in_pnext, linenum))
+		if (!portnum(port2a, &ipn.in_pnext, linenum)) {
+			*status = -1;
 			return NULL;
+		}
 		ipn.in_pnext = htons(ipn.in_pnext);
 	}
 
@@ -586,13 +653,18 @@ int linenum;
 		ipn.in_flags |= IPN_FRAG;
 	}
 
-	if (!*cpp)
+	if (!*cpp) {
+		*status = 0;
 		return &ipn;
+	}
 
 	if (ipn.in_redir != NAT_BIMAP && !strcasecmp(*cpp, "proxy")) {
+		u_short pport;
+
 		if (ipn.in_redir == NAT_BIMAP) {
 			fprintf(stderr, "%d: cannot use proxy with bimap\n",
 				linenum);
+			*status = -1;
 			return NULL;
 		}
 		cpp++;
@@ -600,6 +672,7 @@ int linenum;
 			fprintf(stderr,
 				"%d: missing parameter for \"proxy\"\n",
 				linenum);
+			*status = -1;
 			return NULL;
 		}
 		dport = NULL;
@@ -610,6 +683,7 @@ int linenum;
 				fprintf(stderr,
 					"%d: missing parameter for \"port\"\n",
 					linenum);
+				*status = -1;
 				return NULL;
 			}
 
@@ -620,11 +694,13 @@ int linenum;
 				fprintf(stderr,
 					"%d: missing parameter for \"proxy\"\n",
 					linenum);
+				*status = -1;
 				return NULL;
 			}
 		} else {
 			fprintf(stderr,
 				"%d: missing keyword \"port\"\n", linenum);
+			*status = -1;
 			return NULL;
 		}
 
@@ -637,9 +713,17 @@ int linenum;
 		} else
 			ipn.in_p = 0;
 
-		if (dport && !portnum(dport, &ipn.in_dport, linenum))
+		if (dport && !portnum(dport, &pport, linenum))
 			return NULL;
-		ipn.in_dport = htons(ipn.in_dport);
+		if (ipn.in_dcmp != 0) {
+			if (pport != ipn.in_dport) {
+				fprintf(stderr,
+					"%d: mismatch in port numbers\n",
+					linenum);
+				return NULL;
+			}
+		} else
+			ipn.in_dport = htons(pport);
 
 		(void) strncpy(ipn.in_plabel, *cpp, sizeof(ipn.in_plabel));
 		cpp++;
@@ -648,6 +732,7 @@ int linenum;
 		if (ipn.in_redir == NAT_BIMAP) {
 			fprintf(stderr, "%d: cannot use portmap with bimap\n",
 				linenum);
+			*status = -1;
 			return NULL;
 		}
 		cpp++;
@@ -655,6 +740,7 @@ int linenum;
 			fprintf(stderr,
 				"%d: missing expression following portmap\n",
 				linenum);
+			*status = -1;
 			return NULL;
 		}
 
@@ -670,6 +756,7 @@ int linenum;
 			fprintf(stderr,
 				"%d: expected protocol name - got \"%s\"\n",
 				linenum, *cpp);
+			*status = -1;
 			return NULL;
 		}
 		proto = *cpp;
@@ -677,6 +764,7 @@ int linenum;
 
 		if (!*cpp) {
 			fprintf(stderr, "%d: no port range found\n", linenum);
+			*status = -1;
 			return NULL;
 		}
 
@@ -691,12 +779,15 @@ int linenum;
 				fprintf(stderr,
 					"%d: no port range in \"%s\"\n",
 					linenum, *cpp);
+				*status = -1;
 				return NULL;
 			}
 			*t++ = '\0';
 			if (!portnum(*cpp, &ipn.in_pmin, linenum) ||
-			    !portnum(t, &ipn.in_pmax, linenum))
+			    !portnum(t, &ipn.in_pmax, linenum)) {
+				*status = -1;
 				return NULL;
+			}
 			ipn.in_pmin = htons(ipn.in_pmin);
 			ipn.in_pmax = htons(ipn.in_pmax);
 			cpp++;
@@ -713,6 +804,7 @@ int linenum;
 		if (!*cpp) {
 			fprintf(stderr, "%d: age with no parameters\n",
 				linenum);
+			*status = -1;
 			return NULL;
 		}
 		ipn.in_age[0] = atoi(*cpp);
@@ -732,6 +824,7 @@ int linenum;
 		} else {
 			fprintf(stderr, "%d: mssclamp with no parameters\n",
 				linenum);
+			*status = -1;
 			return NULL;
 		}
 	}
@@ -739,8 +832,11 @@ int linenum;
 	if (*cpp) {
 		fprintf(stderr, "%d: extra junk at the end of the line: %s\n",
 			linenum, *cpp);
+		*status = -1;
 		return NULL;
 	}
+
+	*status = 0;
 	return &ipn;
 }
 
@@ -754,6 +850,7 @@ int opts;
 	ipnat_t	*np;
 	FILE	*fp;
 	int	linenum = 0;
+	int	parsestatus;
 
 	if (strcmp(file, "-")) {
 		if (!(fp = fopen(file, "r"))) {
@@ -770,11 +867,20 @@ int opts;
 		if ((s = strchr(line, '\n')))
 			*s = '\0';
 
-		if (!(np = natparse(line, linenum))) {
-			if (*line)
+		parsestatus = 1;
+		np = natparse(line, linenum, &parsestatus);
+		if (parsestatus != 0) {
+			if (*line) {
 				fprintf(stderr, "%d: syntax error in \"%s\"\n",
 					linenum, line);
-		} else {
+			}
+			fprintf(stderr, "%s: %s error (%d), quitting\n",
+			    file,
+			    ((parsestatus < 0)? "parse": "internal"),
+			    parsestatus);
+			exit(1);
+		}
+		if (np) {
 			if ((opts & OPT_VERBOSE) && np)
 				printnat(np, opts);
 			if (!(opts & OPT_NODO)) {
