@@ -421,9 +421,9 @@ static void DaemonMode ()
 static void ParseArgs (int argc, char** argv)
 {
 	int		arg;
-	char*		parm;
 	char*		opt;
 	char		parmBuf[256];
+	int		len; /* bounds checking */
 
 	for (arg = 1; arg < argc; arg++) {
 
@@ -434,23 +434,27 @@ static void ParseArgs (int argc, char** argv)
 			Usage ();
 		}
 
-		parm = NULL;
 		parmBuf[0] = '\0';
+		len = 0;
 
 		while (arg < argc - 1) {
 
 			if (argv[arg + 1][0] == '-')
 				break;
 
-			if (parm)
-				strcat (parmBuf, " ");
+		if (len) {
+				strncat (parmBuf, " ", sizeof(parmBuf) - (len + 1));
+				len += strlen(parmBuf + len);
+			}
 
 			++arg;
-			parm = parmBuf;
-			strcat (parmBuf, argv[arg]);
+			strncat (parmBuf, argv[arg], sizeof(parmBuf) - (len + 1));
+			len += strlen(parmBuf + len);
+
 		}
 
-		ParseOption (opt + 1, parm, 1);
+		ParseOption (opt + 1, (len ? parmBuf : NULL), 1);
+
 	}
 }
 
