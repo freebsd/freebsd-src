@@ -138,7 +138,7 @@ static const char rcsid[] =
 #include <vm/vm_extern.h>
 #include <vm/vm_pageout.h>
 #include <vm/vm_pager.h>
-#include <vm/vm_zone.h>
+#include <vm/uma.h>
 
 #include <machine/bat.h>
 #include <machine/frame.h>
@@ -245,8 +245,8 @@ struct	pvo_head pmap_pvo_kunmanaged =
 struct	pvo_head pmap_pvo_unmanaged =
     LIST_HEAD_INITIALIZER(pmap_pvo_unmanaged);	/* list of unmanaged pages */
 
-vm_zone_t	pmap_upvo_zone;	/* zone for pvo entries for unmanaged pages */
-vm_zone_t	pmap_mpvo_zone;	/* zone for pvo entries for managed pages */
+uma_zone_t	pmap_upvo_zone;	/* zone for pvo entries for unmanaged pages */
+uma_zone_t	pmap_mpvo_zone;	/* zone for pvo entries for managed pages */
 struct		vm_object pmap_upvo_zone_obj;
 struct		vm_object pmap_mpvo_zone_obj;
 static vm_object_t	pmap_pvo_obj;
@@ -305,7 +305,7 @@ static int		pmap_pte_insert(u_int, struct pte *);
 /*
  * PVO calls.
  */
-static int	pmap_pvo_enter(pmap_t, vm_zone_t, struct pvo_head *,
+static int	pmap_pvo_enter(pmap_t, uma_zone_t, struct pvo_head *,
 		    vm_offset_t, vm_offset_t, u_int, int);
 static void	pmap_pvo_remove(struct pvo_entry *, int);
 static struct	pvo_entry *pmap_pvo_find_va(pmap_t, vm_offset_t, int *);
@@ -869,7 +869,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	   boolean_t wired)
 {
 	struct		pvo_head *pvo_head;
-	vm_zone_t	zone;
+	uma_zone_t	zone;
 	u_int		pte_lo, pvo_flags;
 	int		error;
 
@@ -939,11 +939,11 @@ pmap_init2(void)
 
 	pmap_pvo_obj = vm_object_allocate(OBJT_PHYS, 16);
 	pmap_pvo_count = 0;
-	pmap_upvo_zone = zinit("UPVO entry", sizeof (struct pvo_entry),
-	    0, 0, 0);
+	pmap_upvo_zone = uma_zcreate("UPVO entry", sizeof (struct pvo_entry),
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 	uma_zone_set_allocf(pmap_upvo_zone, pmap_pvo_allocf);
-	pmap_mpvo_zone = zinit("MPVO entry", sizeof(struct pvo_entry),
-	    PMAP_PVO_SIZE, ZONE_INTERRUPT, 1);
+	pmap_mpvo_zone = uma_zcreate("MPVO entry", sizeof(struct pvo_entry),
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 	uma_zone_set_allocf(pmap_mpvo_zone, pmap_pvo_allocf);
 	pmap_initialized = TRUE;
 }
@@ -1627,7 +1627,7 @@ tlbia(void)
 }
 
 static int
-pmap_pvo_enter(pmap_t pm, vm_zone_t zone, struct pvo_head *pvo_head,
+pmap_pvo_enter(pmap_t pm, uma_zone_t zone, struct pvo_head *pvo_head,
     vm_offset_t va, vm_offset_t pa, u_int pte_lo, int flags)
 {
 	struct	pvo_entry *pvo;
@@ -1662,7 +1662,7 @@ pmap_pvo_enter(pmap_t pm, vm_zone_t zone, struct pvo_head *pvo_head,
 	 * If we aren't overwriting a mapping, try to allocate.
 	 */
 	if (pmap_initialized) {
-		pvo = zalloc(zone);
+		pvo = uma_zalloc(zone, M_NOWAIT);
 	} else {
 		if (pmap_bpvo_pool_index >= pmap_bpvo_pool_count) {
 			pmap_bpvo_pool = (struct pvo_entry *)
@@ -1764,7 +1764,7 @@ pmap_pvo_remove(struct pvo_entry *pvo, int pteidx)
 	 */
 	LIST_REMOVE(pvo, pvo_olink);
 	if (!(pvo->pvo_vaddr & PVO_BOOTSTRAP))
-		zfree(pvo->pvo_vaddr & PVO_MANAGED ? pmap_mpvo_zone :
+		uma_zfree(pvo->pvo_vaddr & PVO_MANAGED ? pmap_mpvo_zone :
 		    pmap_upvo_zone, pvo);
 	pmap_pvo_entries--;
 	pmap_pvo_remove_calls++;
