@@ -1051,7 +1051,8 @@ doMFSKERN:
 	cd ${.CURDIR}/..; \
 	KERNEL_KO=BOOTMFS KODIR= \
 	    ${CROSSMAKE} ${KERNEL_FLAGS} -DNO_MODULES -DNO_KERNELCLEAN \
-	    KERNCONF=BOOTMFS COPTFLAGS="-Os -pipe" -DNO_CPU_COPTFLAGS \
+	    KERNCONF=BOOTMFS COPTFLAGS="-Os -fno-strict-aliasing -pipe" \
+	    -DNO_CPU_COPTFLAGS \
 	    buildkernel reinstallkernel \
 	    DESTDIR=${RD}/kernels
 	[ -r ${.CURDIR}/../sys/${TARGET}/conf/BOOTMFS.hints ] && \
