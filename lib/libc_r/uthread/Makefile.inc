@@ -49,6 +49,7 @@ SRCS+= \
 	uthread_find_thread.c \
 	uthread_flock.c \
 	uthread_fork.c \
+	uthread_fpathconf.c \
 	uthread_fstat.c \
 	uthread_fstatfs.c \
 	uthread_fsync.c \
