@@ -357,8 +357,17 @@ kse_release(struct thread *td, struct kse_release_args *uap)
 			/* NOTREACHED */
 		} else {
 			mtx_unlock_spin(&sched_lock);
-			PROC_UNLOCK(p);
-			return EWOULDBLOCK;
+			if (td->td_standin == NULL) {
+				PROC_UNLOCK(p);
+				td->td_standin = thread_alloc();
+				PROC_LOCK(p);
+			}
+			msleep(p->p_sigacts, &p->p_mtx, PPAUSE|PCATCH,
+			       "pause", 0); 
+			mtx_lock_spin(&sched_lock);
+			td->td_flags &= ~TDF_UNBOUND;
+			thread_schedule_upcall(td, td->td_kse);
+			thread_exit();
 		}
 	}
 	return (EINVAL);
