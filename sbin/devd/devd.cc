@@ -795,7 +795,7 @@ gensighand(int)
 static void
 usage()
 {
-	fprintf(stderr, "usage: %s [-d]\n", getprogname());
+	fprintf(stderr, "usage: %s [-Ddn]\n", getprogname());
 	exit(1);
 }
 

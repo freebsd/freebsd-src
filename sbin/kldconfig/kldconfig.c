@@ -307,7 +307,7 @@ usage(void)
 {
 
 	fprintf(stderr, "%s\n%s\n",
-	    "usage:\tkldconfig [-dfimnUv] [-S sysctlname] [path..]",
+	    "usage:\tkldconfig [-dfimnUv] [-S sysctlname] [path ...]",
 	    "\tkldconfig -r");
 	exit(1);
 }

@@ -217,7 +217,7 @@ void
 usage()
 {
 	(void)fprintf(stderr, "%s\n%s\n", 
-		"usage: quotacheck -a [-guv]",
+		"usage: quotacheck [-guv] -a",
 		"       quotacheck [-guv] filesystem ...");
 	exit(1);
 }

@@ -389,7 +389,7 @@ static void
 usage()
 {
 	fprintf(stderr,
-"usage: nos-tun -t <tun_name> -s <source_addr> -d <dest_addr> -p <protocol_number> [<source_addr>] <target_addr>\n");
+"usage: nos-tun -t tunnel -s source -d destination -p protocol_number [source] target\n");
 	exit(1);
 }
 

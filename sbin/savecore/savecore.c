@@ -478,8 +478,10 @@ closefd:
 static void
 usage(void)
 {
-	fprintf(stderr,
-	    "usage: savecore [-Cv|-cfkvz] [directory [device...]]\n");
+	fprintf(stderr, "%s\n%s\n%s\n",
+	    "usage: savecore -c",
+	    "       savecore -C [-v] [directory device]",
+	    "       savecore [-fkvz] [directory [device ...]]");
 	exit (1);
 }
 
