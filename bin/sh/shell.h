@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)shell.h	8.2 (Berkeley) 5/4/95
- *	$Id: shell.h,v 1.3 1995/08/27 20:26:44 joerg Exp $
+ *	$Id: shell.h,v 1.4 1996/09/01 10:21:41 peter Exp $
  */
 
 /*
@@ -57,9 +57,7 @@
 #ifndef BSD
 #define BSD 1
 #endif
-#ifndef DEBUG
-#define DEBUG 1
-#endif
+/* #define DEBUG 1 */
 
 #ifdef __STDC__
 typedef void *pointer;
