@@ -451,7 +451,7 @@ dirloop:
 				VREF(dp);
 				goto nextname;
 			}
-			if ((dp->v_flag & VROOT) == 0 ||
+			if ((dp->v_vflag & VV_ROOT) == 0 ||
 			    (cnp->cn_flags & NOCROSSMOUNT))
 				break;
 			if (dp->v_mount == NULL) {	/* forced unmount */
@@ -485,7 +485,7 @@ unionlookup:
 		printf("not found\n");
 #endif
 		if ((error == ENOENT) &&
-		    (dp->v_flag & VROOT) && (dp->v_mount != NULL) &&
+		    (dp->v_vflag & VV_ROOT) && (dp->v_mount != NULL) &&
 		    (dp->v_mount->mnt_flag & MNT_UNION)) {
 			tdp = dp;
 			dp = dp->v_mount->mnt_vnodecovered;

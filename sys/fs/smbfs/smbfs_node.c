@@ -235,8 +235,9 @@ loop:
 	np->n_ino = fap->fa_ino;
 
 	if (dvp) {
+		ASSERT_VOP_LOCKED(dvp, "smbfs_node_alloc");
 		np->n_parent = dnp;
-		if (/*vp->v_type == VDIR &&*/ (dvp->v_flag & VROOT) == 0) {
+		if (/*vp->v_type == VDIR &&*/ (dvp->v_vflag & VV_ROOT) == 0) {
 			vref(dvp);
 			np->n_flag |= NREFPARENT;
 		}

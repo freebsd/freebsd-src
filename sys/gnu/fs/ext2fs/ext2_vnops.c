@@ -718,10 +718,13 @@ loop:
 		goto loop;
 	}
 	if (ap->a_waitfor == MNT_WAIT) {
+		VI_LOCK(vp);
 		while (vp->v_numoutput) {
-			vp->v_flag |= VBWAIT;
-			tsleep(&vp->v_numoutput, PRIBIO + 1, "e2fsyn", 0);
+			vp->v_iflag |= VI_BWAIT;
+			msleep(&vp->v_numoutput, VI_MTX(vp), 
+			    PRIBIO + 1, "e2fsyn", 0);
 		}
+		VI_UNLOCK(vp);
 #if DIAGNOSTIC
 		if (!TAILQ_EMPTY(&vp->v_dirtyblkhd)) {
 			vprint("ext2_fsync: dirty", vp);
@@ -1861,7 +1864,7 @@ ext2_vinit(mntp, specops, fifoops, vpp)
 
 	}
 	if (ip->i_number == ROOTINO)
-		vp->v_flag |= VROOT;
+		vp->v_vflag |= VV_ROOT;
 	/*
 	 * Initialize modrev times
 	 */

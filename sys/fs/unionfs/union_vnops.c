@@ -190,7 +190,7 @@ union_lookup1(udvp, pdvp, vpp, cnp)
 	 * hierarchy.
 	 */
 	if (cnp->cn_flags & ISDOTDOT) {
-		while ((dvp != udvp) && (dvp->v_flag & VROOT)) {
+		while ((dvp != udvp) && (dvp->v_vflag & VV_ROOT)) {
 			/*
 			 * Don't do the NOCROSSMOUNT check
 			 * at this level.  By definition,
@@ -1625,7 +1625,7 @@ union_getwritemount(ap)
 
 	if (uvp == NULL) {
 		VI_LOCK(vp);
-		if (vp->v_flag & VFREE) {
+		if (vp->v_iflag & VI_FREE) {
 			VI_UNLOCK(vp);
 			return (EOPNOTSUPP);
 		}
@@ -1788,7 +1788,7 @@ union_createvobject(ap)
 {
 	struct vnode *vp = ap->a_vp;
 
-	vp->v_flag |= VOBJBUF;
+	vp->v_vflag |= VV_OBJBUF;
 	return (0);
 }
 
@@ -1803,7 +1803,7 @@ union_destroyvobject(ap)
 {
 	struct vnode *vp = ap->a_vp;
 
-	vp->v_flag &= ~VOBJBUF;
+	vp->v_vflag &= ~VV_OBJBUF;
 	return (0);
 }
 

@@ -195,7 +195,7 @@ spec_open(ap)
 
 	/* XXX: Special casing of ttys for deadfs.  Probably redundant. */
 	if (dsw->d_flags & D_TTY)
-		vp->v_flag |= VISTTY;
+		vp->v_vflag |= VV_ISTTY;
 
 	VOP_UNLOCK(vp, 0, td);
 	error = (*dsw->d_open)(dev, ap->a_mode, S_IFCHR, td);
@@ -401,7 +401,7 @@ loop2:
 			continue;
 		if ((bp->b_flags & B_DELWRI) == 0)
 			panic("spec_fsync: not dirty");
-		if ((vp->v_flag & VOBJBUF) && (bp->b_flags & B_CLUSTEROK)) {
+		if ((vp->v_vflag & VV_OBJBUF) && (bp->b_flags & B_CLUSTEROK)) {
 			BUF_UNLOCK(bp);
 			vfs_bio_awrite(bp);
 			splx(s);
@@ -420,11 +420,13 @@ loop2:
 	 * retry if dirty blocks still exist.
 	 */
 	if (ap->a_waitfor == MNT_WAIT) {
+		VI_LOCK(vp);
 		while (vp->v_numoutput) {
-			vp->v_flag |= VBWAIT;
-			(void)tsleep((caddr_t)&vp->v_numoutput, PRIBIO + 1,
-			    "spfsyn", 0);
+			vp->v_iflag |= VI_BWAIT;
+			msleep((caddr_t)&vp->v_numoutput, VI_MTX(vp),
+			    PRIBIO + 1, "spfsyn", 0);
 		}
+		VI_UNLOCK(vp);
 		if (!TAILQ_EMPTY(&vp->v_dirtyblkhd)) {
 			if (--maxretry != 0) {
 				splx(s);
@@ -462,7 +464,9 @@ spec_strategy(ap)
 		bp->b_flags &= ~B_VALIDSUSPWRT;
 		if (LIST_FIRST(&bp->b_dep) != NULL)
 			buf_start(bp);
-		if ((vp->v_flag & VCOPYONWRITE) && vp->v_rdev->si_copyonwrite &&
+		mp_fixme("This should require the vnode lock.");
+		if ((vp->v_vflag & VV_COPYONWRITE) &&
+		    vp->v_rdev->si_copyonwrite &&
 		    (error = (*vp->v_rdev->si_copyonwrite)(vp, bp)) != 0 &&
 		    error != EOPNOTSUPP) {
 			bp->b_io.bio_error = error;
@@ -580,6 +584,7 @@ spec_close(ap)
 	struct thread *td = ap->a_td;
 	dev_t dev = vp->v_rdev;
 
+	mp_fixme("Use of v_iflags bogusly locked.");
 	/*
 	 * Hack: a tty device that is a controlling terminal
 	 * has a reference from the session structure.
@@ -589,9 +594,15 @@ spec_close(ap)
 	 * if the reference count is 2 (this last descriptor
 	 * plus the session), release the reference from the session.
 	 */
+
+	/*
+	 * This needs to be rewritten to take the vp interlock into
+	 * consideration.
+	 */
+
 	oldvp = NULL;
 	sx_xlock(&proctree_lock);
-	if (vcount(vp) == 2 && td && (vp->v_flag & VXLOCK) == 0 &&
+	if (vcount(vp) == 2 && td && (vp->v_iflag & VI_XLOCK) == 0 &&
 	    vp == td->td_proc->p_session->s_ttyvp) {
 		SESS_LOCK(td->td_proc->p_session);
 		td->td_proc->p_session->s_ttyvp = NULL;
@@ -610,7 +621,7 @@ spec_close(ap)
 	 * sum of the reference counts on all the aliased
 	 * vnodes descends to one, we are on last close.
 	 */
-	if (vp->v_flag & VXLOCK) {
+	if (vp->v_iflag & VI_XLOCK) {
 		/* Forced close. */
 	} else if (devsw(dev)->d_flags & D_TRACKCLOSE) {
 		/* Keep device updated on status. */

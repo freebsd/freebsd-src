@@ -2107,7 +2107,7 @@ inmem(struct vnode * vp, daddr_t blkno)
 		return 1;
 	if (vp->v_mount == NULL)
 		return 0;
-	if (VOP_GETVOBJECT(vp, &obj) != 0 || (vp->v_flag & VOBJBUF) == 0)
+	if (VOP_GETVOBJECT(vp, &obj) != 0 || (vp->v_vflag & VV_OBJBUF) == 0)
 		return 0;
 
 	size = PAGE_SIZE;
@@ -2408,7 +2408,8 @@ loop:
 			bsize = size;
 
 		offset = blkno * bsize;
-		vmio = (VOP_GETVOBJECT(vp, NULL) == 0) && (vp->v_flag & VOBJBUF);
+		vmio = (VOP_GETVOBJECT(vp, NULL) == 0) &&
+		    (vp->v_vflag & VV_OBJBUF);
 		maxsize = vmio ? size + (offset & PAGE_MASK) : size;
 		maxsize = imax(maxsize, bsize);
 
@@ -2912,11 +2913,12 @@ bufdone(struct buf *bp)
 		obj = bp->b_object;
 
 #if defined(VFS_BIO_DEBUG)
+		mp_fixme("usecount and vflag accessed without locks.");
 		if (vp->v_usecount == 0) {
 			panic("biodone: zero vnode ref count");
 		}
 
-		if ((vp->v_flag & VOBJBUF) == 0) {
+		if ((vp->v_vflag & VV_OBJBUF) == 0) {
 			panic("biodone: vnode is not setup for merged cache");
 		}
 #endif

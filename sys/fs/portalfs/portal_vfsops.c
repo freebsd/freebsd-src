@@ -128,7 +128,7 @@ portal_mount(mp, path, data, ndp, td)
 
 	rvp->v_data = pn;
 	rvp->v_type = VDIR;
-	rvp->v_flag |= VROOT;
+	rvp->v_vflag |= VV_ROOT;
 	VTOPORTAL(rvp)->pt_arg = 0;
 	VTOPORTAL(rvp)->pt_size = 0;
 	VTOPORTAL(rvp)->pt_fileid = PORTAL_ROOTFILEID;

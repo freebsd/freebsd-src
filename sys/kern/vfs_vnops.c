@@ -279,13 +279,15 @@ vn_writechk(vp)
 	register struct vnode *vp;
 {
 
+	ASSERT_VOP_LOCKED(vp, "vn_writechk");
 	/*
 	 * If there's shared text associated with
 	 * the vnode, try to free it up once.  If
 	 * we fail, we can't allow writing.
 	 */
-	if (vp->v_flag & VTEXT)
+	if (vp->v_vflag & VV_TEXT)
 		return (ETXTBSY);
+
 	return (0);
 }
 
@@ -818,10 +820,10 @@ debug_vn_lock(vp, flags, td, filename, line)
 
 	do {
 		if ((flags & LK_INTERLOCK) == 0)
-			mtx_lock(&vp->v_interlock);
-		if ((vp->v_flag & VXLOCK) && vp->v_vxproc != curthread) {
-			vp->v_flag |= VXWANT;
-			msleep(vp, &vp->v_interlock, PINOD | PDROP,
+			VI_LOCK(vp);
+		if ((vp->v_iflag & VI_XLOCK) && vp->v_vxproc != curthread) {
+			vp->v_iflag |= VI_XWANT;
+			msleep(vp, VI_MTX(vp), PINOD | PDROP,
 			    "vn_lock", 0);
 			error = ENOENT;
 		} else {

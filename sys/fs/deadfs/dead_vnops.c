@@ -145,7 +145,7 @@ dead_read(ap)
 	/*
 	 * Return EOF for tty devices, EIO for others
 	 */
-	if ((ap->a_vp->v_flag & VISTTY) == 0)
+	if ((ap->a_vp->v_vflag & VV_ISTTY) == 0)
 		return (EIO);
 	return (0);
 }
@@ -262,11 +262,13 @@ chkvnlock(vp)
 {
 	int locked = 0;
 
-	while (vp->v_flag & VXLOCK) {
-		vp->v_flag |= VXWANT;
-		(void) tsleep((caddr_t)vp, PINOD, "ckvnlk", 0);
+	VI_LOCK(vp);
+	while (vp->v_iflag & VI_XLOCK) {
+		vp->v_iflag |= VI_XWANT;
+		(void) msleep((caddr_t)vp, VI_MTX(vp), PINOD, "ckvnlk", 0);
 		locked = 1;
 	}
+	VI_UNLOCK(vp);
 	return (locked);
 }
 

@@ -793,7 +793,7 @@ ufs_remove(ap)
 	}
 	error = ufs_dirremove(dvp, ip, ap->a_cnp->cn_flags, 0);
 	if (ip->i_nlink <= 0)
-		vp->v_flag |= VNOSYNC;
+		vp->v_vflag |= VV_NOSYNC;
 	VN_KNOTE(vp, NOTE_DELETE);
 	VN_KNOTE(dvp, NOTE_WRITE);
 out:
@@ -2289,8 +2289,9 @@ ufs_vinit(mntp, specops, fifoops, vpp)
 		break;
 
 	}
+	ASSERT_VOP_LOCKED(vp, "ufs_vinit");
 	if (ip->i_number == ROOTINO)
-		vp->v_flag |= VROOT;
+		vp->v_vflag |= VV_ROOT;
 	/*
 	 * Initialize modrev times
 	 */

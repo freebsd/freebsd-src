@@ -473,7 +473,8 @@ exec_coff_imgact(imgp)
 	DPRINTF(("%s(%d):  returning successfully!\n", __FILE__, __LINE__));
 
 	/* Indicate that this file should not be modified */
-	imgp->vp->v_flag |= VTEXT;
+	mp_fixme("Unlocked v_flag access");
+	imgp->vp->v_vflag |= VV_TEXT;
 	return 0;
 }
 

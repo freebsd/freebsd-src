@@ -95,14 +95,20 @@ struct vpollinfo {
  * Reading or writing any of these items requires holding the appropriate lock.
  * v_freelist is locked by the global vnode_free_list mutex.
  * v_mntvnodes is locked by the global mntvnodes mutex.
- * v_flag, v_usecount, v_holdcount and v_writecount are
+ * v_iflag, v_usecount, v_holdcount and v_writecount are
  *    locked by the v_interlock mutex.
  * v_pollinfo is locked by the lock contained inside it.
+ * V vnode lock
+ * I inter lock
  */
 struct vnode {
-	u_long	v_flag;				/* vnode flags (see below) */
-	int	v_usecount;			/* reference count of users */
-	int	v_writecount;			/* reference count of writers */
+	struct	mtx v_interlock;		/* lock on usecount and flag */
+	u_long	v_iflag;			/* I vnode flags (see below) */
+	int	v_usecount;			/* I ref count of users */
+	int	v_writecount;			/* I ref count of writers */
+	long	v_numoutput;			/* I writes in progress */
+	struct thread *v_vxproc;		/* I thread owning VXLOCK */
+	u_long	v_vflag;			/* V vnode flags */
 	int	v_holdcnt;			/* page & buffer references */
 	u_long	v_id;				/* capability identifier */
 	struct	mount *v_mount;			/* ptr to vfs we are in */
@@ -114,7 +120,6 @@ struct vnode {
 	struct	buflists v_dirtyblkhd;		/* SORTED dirty blocklist */
 	struct buf	*v_dirtyblkroot;	/* dirty buf splay tree root */
 	LIST_ENTRY(vnode) v_synclist;		/* vnodes with dirty buffers */
-	long	v_numoutput;			/* num of writes in progress */
 	enum	vtype v_type;			/* vnode type */
 	union {
 		struct mount	*vu_mountedhere;/* ptr to mounted vfs (VDIR) */
@@ -130,7 +135,6 @@ struct vnode {
 	daddr_t	v_lasta;			/* last allocation (cluster) */
 	int	v_clen;				/* length of current cluster */
 	struct vm_object *v_object;		/* Place to store VM object */
-	struct	mtx v_interlock;		/* lock on usecount and flag */
 	struct	lock v_lock;			/* used if fs don't have one */
 	struct	lock *v_vnlock;			/* pointer to vnode lock */
 	enum	vtagtype v_tag;			/* type of underlying data */
@@ -140,7 +144,6 @@ struct vnode {
 	struct	vnode *v_dd;			/* .. vnode */
 	u_long	v_ddid;				/* .. capability identifier */
 	struct vpollinfo *v_pollinfo;
-	struct thread *v_vxproc;		/* thread owning VXLOCK */
 	struct label v_label;			/* MAC label for vnode */
 #ifdef	DEBUG_LOCKS
 	const char *filename;			/* Source file doing locking */
@@ -161,7 +164,7 @@ struct vnode {
 struct xvnode {
 	size_t	xv_size;			/* sizeof(struct xvnode) */
 	void	*xv_vnode;			/* address of real vnode */
-	u_long	xv_flag;			/* vnode flags */
+	u_long	xv_flag;			/* vnode vflags */
 	int	xv_usecount;			/* reference count of users */
 	int	xv_writecount;			/* reference count of writers */
 	int	xv_holdcnt;			/* page & buffer references */
@@ -200,27 +203,33 @@ struct xvnode {
 
 /*
  * Vnode flags.
+ *	VI flags are protected by interlock and live in v_iflag
+ *	VV flags are protected by the vnode lock and live in v_vflag
  */
-#define	VROOT		0x00001	/* root of its filesystem */
-#define	VTEXT		0x00002	/* vnode is a pure text prototype */
-#define	VSYSTEM		0x00004	/* vnode being used by kernel */
-#define	VISTTY		0x00008	/* vnode represents a tty */
-#define	VXLOCK		0x00100	/* vnode is locked to change underlying type */
-#define	VXWANT		0x00200	/* thread is waiting for vnode */
-#define	VBWAIT		0x00400	/* waiting for output to complete */
-#define	VNOSYNC		0x01000	/* unlinked, stop syncing */
-/* open for business    0x01000 */
-#define	VOBJBUF		0x02000	/* Allocate buffers in VM object */
-#define	VCOPYONWRITE    0x04000 /* vnode is doing copy-on-write */
-#define	VAGE		0x08000	/* Insert vnode at head of free list */
-#define	VOLOCK		0x10000	/* vnode is locked waiting for an object */
-#define	VOWANT		0x20000	/* a thread is waiting for VOLOCK */
-#define	VDOOMED		0x40000	/* This vnode is being recycled */
-#define	VFREE		0x80000	/* This vnode is on the freelist */
-#define	VCACHEDLABEL	0x100000 /* Vnode has valid cached MAC label */
-#define	VONWORKLST	0x200000 /* On syncer work-list */
-#define	VMOUNT		0x400000 /* Mount in progress */
-#define	VOBJDIRTY	0x800000 /* object might be dirty */
+#define	VI_XLOCK	0x0001	/* vnode is locked to change vtype */
+#define	VI_XWANT	0x0002	/* thread is waiting for vnode */
+#define	VI_BWAIT	0x0004	/* waiting for output to complete */
+#define	VI_OLOCK	0x0008	/* vnode is locked waiting for an object */
+#define	VI_OWANT	0x0010	/* a thread is waiting for VOLOCK */
+#define	VI_MOUNT	0x0020	/* Mount in progress */
+#define	VI_AGE		0x0040	/* Insert vnode at head of free list */
+#define	VI_DOOMED	0x0080	/* This vnode is being recycled */
+#define	VI_FREE		0x0100	/* This vnode is on the freelist */
+#define	VI_OBJDIRTY	0x0400	/* object might be dirty */
+/*
+ * XXX VI_ONWORKLST could be replaced with a check for NULL list elements
+ * in v_synclist.
+ */
+#define	VI_ONWORKLST	0x0200	/* On syncer work-list */
+
+#define	VV_ROOT		0x0001	/* root of its filesystem */
+#define	VV_ISTTY	0x0002	/* vnode represents a tty */
+#define	VV_NOSYNC	0x0004	/* unlinked, stop syncing */
+#define	VV_OBJBUF	0x0008	/* Allocate buffers in VM object */
+#define	VV_CACHEDLABEL	0x0010	/* Vnode has valid cached MAC label */
+#define	VV_TEXT		0x0020	/* vnode is a pure text prototype */
+#define	VV_COPYONWRITE	0x0040	/* vnode is doing copy-on-write */
+#define	VV_SYSTEM	0x0080	/* vnode being used by kernel */
 
 /*
  * Vnode attributes.  A field value of VNOVAL represents a field whose value
@@ -361,23 +370,27 @@ extern	int vfs_ioopt;
 
 extern void	(*lease_updatetime)(int deltat);
 
+/* Requires interlock */
 #define	VSHOULDFREE(vp)	\
-	(!((vp)->v_flag & (VFREE|VDOOMED)) && \
+	(!((vp)->v_iflag & (VI_FREE|VI_DOOMED)) && \
 	 !(vp)->v_holdcnt && !(vp)->v_usecount && \
 	 (!(vp)->v_object || \
 	  !((vp)->v_object->ref_count || (vp)->v_object->resident_page_count)))
 
+/* Requires interlock */
 #define VMIGHTFREE(vp) \
-	(!((vp)->v_flag & (VFREE|VDOOMED|VXLOCK)) &&	\
+	(!((vp)->v_iflag & (VI_FREE|VI_DOOMED|VI_XLOCK)) &&	\
 	 LIST_EMPTY(&(vp)->v_cache_src) && !(vp)->v_usecount)
 
+/* Requires interlock */
 #define	VSHOULDBUSY(vp)	\
-	(((vp)->v_flag & VFREE) && \
+	(((vp)->v_iflag & VI_FREE) && \
 	 ((vp)->v_holdcnt || (vp)->v_usecount))
 
 #define	VI_LOCK(vp)	mtx_lock(&(vp)->v_interlock)
 #define	VI_TRYLOCK(vp)	mtx_trylock(&(vp)->v_interlock)
 #define	VI_UNLOCK(vp)	mtx_unlock(&(vp)->v_interlock)
+#define	VI_MTX(vp)	(&(vp)->v_interlock)
 
 #endif /* _KERNEL */
 

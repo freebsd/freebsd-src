@@ -223,8 +223,9 @@ umapfs_mount(mp, path, data, ndp, td)
 	 * Keep a held reference to the root vnode.
 	 * It is vrele'd in umapfs_unmount.
 	 */
+	ASSERT_VOP_LOCKED(vp, "umapfs_mount");
 	umapm_rootvp = vp;
-	umapm_rootvp->v_flag |= VROOT;
+	umapm_rootvp->v_vflag |= VV_ROOT;
 	amp->umapm_rootvp = umapm_rootvp;
 	if (UMAPVPTOLOWERVP(umapm_rootvp)->v_mount->mnt_flag & MNT_LOCAL)
 		mp->mnt_flag |= MNT_LOCAL;
