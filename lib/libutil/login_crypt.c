@@ -31,9 +31,14 @@
 #include <login_cap.h>
 #include <unistd.h>
 
+/*
+ * Stub out what's in -lcrypt.
+ */
+
 #pragma weak crypt_set_format
 int
 crypt_set_format(const char *f) {
+
 	return (0);
 }
 

@@ -132,7 +132,6 @@ getnewpasswd(pw, nis)
 		}
 		/* mixpasswordcase capability */
 		force_mix_case = login_getcapbool(lc, "mixpasswordcase", 1);
-		login_close(lc);
 	}
 #endif
 
@@ -172,20 +171,18 @@ getnewpasswd(pw, nis)
 #else
 	/* Make a good size salt for algoritms that can use it. */
 	gettimeofday(&tv,0);
-	if (strncmp(pw->pw_passwd, "$1$", 3)) {
-	    /* DES Salt */
-	    to64(&salt[0], random(), 3);
-	    to64(&salt[3], tv.tv_usec, 3);
-	    to64(&salt[6], tv.tv_sec, 2);
-	    salt[8] = '\0';
-	}
-	else {
-	    /* MD5 Salt */
-	    strncpy(&salt[0], "$1$", 3);
-	    to64(&salt[3], random(), 3);
-	    to64(&salt[6], tv.tv_usec, 3);
-	    salt[8] = '\0';
-	}
+#ifdef LOGIN_CAP
+	if (login_setcryptfmt(lc, "md5", NULL) == NULL)
+		pw_error("cannot set password cipher", 1, 1);
+	login_close(lc);
+#else
+	(void)crypt_set_format("md5");
+#endif
+	/* Salt suitable for anything */
+	to64(&salt[0], random(), 3);
+	to64(&salt[3], tv.tv_usec, 3);
+	to64(&salt[6], tv.tv_sec, 2);
+	salt[8] = '\0';
 #endif
 	return (crypt(buf, salt));
 }
