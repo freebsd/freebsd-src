@@ -78,8 +78,8 @@ sbni_pci_probe(device_t dev)
 	u_int32_t  ports;
    
 	ports = SBNI_PORTS;
-	if (pci_get_vendor(dev) != SBNI_PCI_VENDOR
-	    || pci_get_device(dev) != SBNI_PCI_DEVICE)
+	if (pci_get_vendor(dev) != SBNI_PCI_VENDOR ||
+	    pci_get_device(dev) != SBNI_PCI_DEVICE)
 		return (ENXIO);
 
 	sc = device_get_softc(dev);
