@@ -1,8 +1,10 @@
-# $Id: Makefile,v 1.33 1999/01/18 03:08:33 yokota Exp $
+# $Id: Makefile,v 1.34 1999/01/28 10:48:28 yokota Exp $
 
 KEYMAPS=  INDEX.keymaps
 KEYMAPS+= be.iso.kbd
 KEYMAPS+= br275.iso.kbd br275.iso.acc.kbd br275.cp850.kbd
+KEYMAPS+= ce.iso2.kbd
+KEYMAPS+= cz.iso2.kbd
 KEYMAPS+= danish.iso.kbd danish.cp865.kbd
 KEYMAPS+= finnish.iso.kbd finnish.cp850.kbd
 KEYMAPS+= fr.iso.kbd fr.iso.acc.kbd
@@ -18,6 +20,7 @@ KEYMAPS+= pl_PL.ISO_8859-2.kbd
 KEYMAPS+= pt.iso.kbd pt.iso.acc.kbd
 KEYMAPS+= ru.koi8-r.kbd ru.koi8-r.shift.kbd ru.cp866.kbd
 KEYMAPS+= si.iso.kbd
+KEYMAPS+= sk.iso2.kbd
 KEYMAPS+= spanish.iso.kbd spanish.iso.acc.kbd
 KEYMAPS+= swedish.iso.kbd swedish.cp850.kbd
 KEYMAPS+= swissfrench.iso.kbd
