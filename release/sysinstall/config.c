@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.16.2.29 1995/10/27 03:07:06 jkh Exp $
+ * $Id: config.c,v 1.16.2.30 1995/10/27 03:59:28 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -242,9 +242,9 @@ configSysconfig(void)
     char *lines[MAX_LINES], *cp;
     char line[256];
     Variable *v;
-    int i, nlines = 0;
+    int i, nlines;
 
-    fp = fopen("/etc/sysconfig", "rw");
+    fp = fopen("/etc/sysconfig", "r");
     if (!fp) {
 	dialog_clear();
 	msgConfirm("Unable to open /etc/sysconfig file!  Things may work\n"
@@ -252,11 +252,16 @@ configSysconfig(void)
 	return;
     }
     msgNotify("Writing configuration changes to /etc/sysconfig file..");
+
+    nlines = 0;
+    /* Read in the entire file */
     for (i = 0; i < MAX_LINES; i++) {
 	if (!fgets(line, 255, fp))
 	    break;
 	lines[nlines++] = strdup(line);
     }
+    msgDebug("Read %d lines from sysconfig.\n", nlines);
+    /* Now do variable substitutions */
     for (v = VarHead; v; v = v->next) {
 	for (i = 0; i < nlines; i++) {
 	    char tmp[256];
@@ -273,12 +278,14 @@ configSysconfig(void)
 		free(lines[i]);
 		lines[i] = (char *)malloc(strlen(v->name) + strlen(v->value) + 5);
 		sprintf(lines[i], "%s=\"%s\"\n", v->name, v->value);
+		msgDebug("Variable substitution on: %s\n", lines[i]);
 	    }
 	}
     }
 
     /* Now write it all back out again */
-    rewind(fp);
+    fclose(fp);
+    fp = fopen("/etc/sysconfig", "w");
     for (i = 0; i < nlines; i++) {
 	fprintf(fp, lines[i]);
 	/* Stand by for bogus special case handling - we try to dump the interface specs here */
