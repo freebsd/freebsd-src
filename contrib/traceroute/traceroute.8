@@ -13,7 +13,7 @@
 .\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 .\" WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 .\"
-.\"	$Header: traceroute.8,v 1.7 96/09/27 20:02:41 leres Exp $
+.\"	$Header: /home/ncvs/src/contrib/traceroute/traceroute.8,v 1.1.1.1 1996/09/30 19:09:55 fenner Exp $
 .\"
 .TH TRACEROUTE 8 "27 September 1996"
 .UC 6
@@ -24,7 +24,7 @@ traceroute \- print the route packets take to network host
 .na
 .B traceroute
 [
-.B \-dnrv
+.B \-Sdnrv
 ] [
 .B \-g
 .I gw_host
@@ -75,6 +75,8 @@ name.
 .PP
 Other options are:
 .TP
+.B \-S
+Print a summary of how many probes were not answered for each hop.
 .B \-g
 Specify a loose source route gateway (8 maximum).
 .TP
