@@ -90,8 +90,8 @@ device		ahc		# AHA2940 and onboard AIC7xxx devices
 device		amd		# AMD 53C974 (Teckram DC-390(T))
 device		dpt		# DPT Smartcache - See NOTES for options!
 device		isp		# Qlogic family
-device		ncr		# NCR/Symbios Logic
-device		sym		# NCR/Symbios Logic (newer chipsets)
+#device		ncr		# NCR/Symbios Logic
+device		sym		# NCR/Symbios Logic (newer chipsets + those of `ncr')
 
 device		adv
 device		adw
