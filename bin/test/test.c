@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: test.c,v 1.4 1994/09/24 02:59:15 davidg Exp $
+ *	$Id: test.c,v 1.5 1994/11/05 17:07:14 ache Exp $
  */
 
 #ifndef lint
@@ -336,22 +336,30 @@ expr_operator(op, sp, fs)
 		sp->type = BOOLEAN;
 		break;
 	case ISEXIST:
+exist:
 		if (fs == NULL || fs->rcode == -1)
 			goto false;
 		else
 			goto true;
 	case ISREAD:
+		if (geteuid() == 0)
+			goto exist;
 		i = S_IROTH;
 		goto permission;
 	case ISWRITE:
+		if (geteuid() == 0)
+			goto exist;
 		i = S_IWOTH;
 		goto permission;
 	case ISEXEC:
+		if (geteuid() != 0) {
 		i = S_IXOTH;
-permission:     if (geteuid() == 0 || fs->stat.st_uid == geteuid())
+permission:             if (fs->stat.st_uid == geteuid())
 			i <<= 6;
 		else if (fs->stat.st_gid == getegid())
 			i <<= 3;
+		} else
+			i = S_IXOTH|S_IXGRP|S_IXUSR;
 		goto filebit;	/* true if (stat.st_mode & i) != 0 */
 	case ISFILE:
 		i = S_IFREG;
