@@ -57,8 +57,8 @@ usage(void)
 	    "  extattrctl start [path]\n"
 	    "  extattrctl stop [path]\n"
 	    "  extattrctl initattr [-f] [-p path] [attrsize] [attrfile]\n"
-	    "  extattrctl enable [path] [namespace] [attrname] [attrfile]\n"
-	    "  extattrctl disable [path] [namespace] [attrname]\n");
+	    "  extattrctl enable [path] [attrnamespace] [attrname] [attrfile]\n"
+	    "  extattrctl disable [path] [attrnamespace] [attrname]\n");
 	exit(-1);
 }
 
@@ -159,7 +159,7 @@ initattr(int argc, char *argv[])
 int
 main(int argc, char *argv[])
 {
-	int	error = 0, namespace;
+	int	error = 0, attrnamespace;
 
 	if (argc < 2)
 		usage();
@@ -187,13 +187,13 @@ main(int argc, char *argv[])
 	} else if (!strcmp(argv[1], "enable")) {
 		if (argc != 6)
 			usage();
-		error = extattr_string_to_namespace(argv[3], &namespace);
+		error = extattr_string_to_namespace(argv[3], &attrnamespace);
 		if (error) {
 			perror("extattrctl enable");
 			return (-1);
 		}
 		error = extattrctl(argv[2], UFS_EXTATTR_CMD_ENABLE, argv[5],
-		    namespace, argv[4]);
+		    attrnamespace, argv[4]);
 		if (error) {
 			perror("extattrctl enable");
 			return (-1);
@@ -202,13 +202,13 @@ main(int argc, char *argv[])
 	} else if (!strcmp(argv[1], "disable")) {
 		if (argc != 5)
 			usage();
-		error = extattr_string_to_namespace(argv[3], &namespace);
+		error = extattr_string_to_namespace(argv[3], &attrnamespace);
 		if (error) {
 			perror("extattrctl disable");
 			return (-1);
 		}
 		error = extattrctl(argv[2], UFS_EXTATTR_CMD_DISABLE, NULL,
-		    namespace, argv[4]);
+		    attrnamespace, argv[4]);
 		if (error) {
 			perror("extattrctl disable");
 			return (-1);
