@@ -49,7 +49,6 @@
 #include <sys/systm.h>
 #else
 #include <string.h>
-#include <stdio.h>
 #endif
 
 void
@@ -76,13 +75,11 @@ bsd_disklabel_le_dec(u_char *ptr, struct disklabel *d, int maxpart)
 
 	d->d_magic2 = le32dec(ptr + 132);
 	if (d->d_magic2 != DISKMAGIC) {
-printf("HERE %s %d\n", __FILE__, __LINE__);
 		return(EINVAL);
 	}
 
 	d->d_npartitions = le16dec(ptr + 138);
 	if (d->d_npartitions > maxpart) {
-printf("HERE %s %d\n", __FILE__, __LINE__);
 		return(EINVAL);
 	}
 
@@ -91,7 +88,6 @@ printf("HERE %s %d\n", __FILE__, __LINE__);
 	for (p = ptr; p < pe; p += 2)
 		sum ^= le16dec(p);
 	if (sum != 0) {
-printf("HERE %s %d\n", __FILE__, __LINE__);
 		return(EINVAL);
 	}
 
