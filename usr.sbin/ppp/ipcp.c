@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.7 1996/01/11 17:48:50 phk Exp $
+ * $Id: ipcp.c,v 1.8 1996/05/11 20:48:26 phk Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
@@ -42,6 +42,10 @@ extern struct in_addr ifnetmask;
 
 struct ipcpstate IpcpInfo;
 struct in_range DefMyAddress, DefHisAddress, DefTriggerAddress;
+
+#ifdef MSEXT
+struct in_addr ns_entries[2], nbns_entries[2];
+#endif /* MSEXT */
 
 static void IpcpSendConfigReq __P((struct fsm *));
 static void IpcpSendTerminateAck __P((struct fsm *));
@@ -310,7 +314,7 @@ int mode;
   int type, length;
   u_long *lp, compproto;
   struct compreq *pcomp;
-  struct in_addr ipaddr, dstipaddr;
+  struct in_addr ipaddr, dstipaddr, dnsstuff, ms_info_req;
   char tbuff[100];
 
   ackp = AckBuff;
@@ -452,6 +456,102 @@ int mode;
 	break;
       }
       break;
+
+ /*
+  * MS extensions for MS's PPP 
+  */
+
+#ifdef MSEXT
+    case TY_PRIMARY_DNS:   /* MS PPP DNS negotiation hack */
+    case TY_SECONDARY_DNS:
+      if( !Enabled( ConfMSExt ) ) {
+	LogPrintf( LOG_LCP, "MS NS req - rejected - msext disabled\n" );
+	IpcpInfo.my_reject |= ( 1 << type );
+	bcopy(cp, rejp, length);
+	rejp += length;
+	break;
+      }
+      switch( mode ){
+      case MODE_REQ:
+	lp = (u_long *)(cp + 2);
+	dnsstuff.s_addr = *lp;
+	ms_info_req.s_addr = ns_entries[((type - TY_PRIMARY_DNS)?1:0)].s_addr;
+	if( dnsstuff.s_addr != ms_info_req.s_addr )
+	{
+	  /*
+	   So the client has got the DNS stuff wrong (first request)
+	   so well tell 'em how it is           
+	  */
+	  bcopy( cp, nakp, 2 );  /* copy first two (type/length) */
+	  LogPrintf( LOG_LCP, "MS NS req %d:%s->%s - nak\n",
+		type,
+		inet_ntoa( dnsstuff ),
+		inet_ntoa( ms_info_req ));
+	  bcopy( &ms_info_req, nakp+2, length );
+	  nakp += length;
+	  break;
+	}
+	  /*
+	   Otherwise they have it right (this time) so we send
+	   a ack packet back confirming it... end of story
+	  */
+	LogPrintf( LOG_LCP, "MS NS req %d:%s ok - ack\n",
+		type,
+		inet_ntoa( ms_info_req ));
+	bcopy( cp, ackp, length );
+	ackp += length;
+	break;
+      case MODE_NAK: /* what does this mean?? */
+	LogPrintf(LOG_LCP, "MS NS req %d - NAK??\n", type );
+	break;
+      case MODE_REJ: /* confused?? me to :) */
+	LogPrintf(LOG_LCP, "MS NS req %d - REJ??\n", type );
+	break;
+      }
+      break;
+
+    case TY_PRIMARY_NBNS:   /* MS PPP NetBIOS nameserver hack */
+    case TY_SECONDARY_NBNS:
+    if( !Enabled( ConfMSExt ) ) {
+      LogPrintf( LOG_LCP, "MS NBNS req - rejected - msext disabled\n" );
+      IpcpInfo.my_reject |= ( 1 << type );
+      bcopy( cp, rejp, length );
+      rejp += length;
+      break;
+    }
+      switch( mode ){
+      case MODE_REQ:
+	lp = (u_long *)(cp + 2);
+	dnsstuff.s_addr = *lp;
+	ms_info_req.s_addr = nbns_entries[((type - TY_PRIMARY_NBNS)?1:0)].s_addr;
+	if( dnsstuff.s_addr != ms_info_req.s_addr )
+	{
+	  bcopy( cp, nakp, 2 );
+	  bcopy( &ms_info_req.s_addr , nakp+2, length );
+	  LogPrintf( LOG_LCP, "MS NBNS req %d:%s->%s - nak\n",
+		type,
+		inet_ntoa( dnsstuff ),
+		inet_ntoa( ms_info_req ));
+	  nakp += length;
+	  break;
+	}
+	LogPrintf( LOG_LCP, "MS NBNS req %d:%s ok - ack\n",
+		type,
+		inet_ntoa( ms_info_req ));
+	bcopy( cp, ackp, length );
+	ackp += length;
+	break;
+      case MODE_NAK:
+	LogPrintf( LOG_LCP, "MS NBNS req %d - NAK??\n", type );
+	break;
+      case MODE_REJ:
+	LogPrintf( LOG_LCP, "MS NBNS req %d - REJ??\n", type );
+	break;
+      }
+      break;
+
+#endif /* MSEXT */
+
     default:
       IpcpInfo.my_reject |= (1 << type);
       bcopy(cp, rejp, length);
