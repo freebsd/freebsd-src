@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.59 1996/05/16 11:47:46 jkh Exp $
+ * $Id: system.c,v 1.44.2.22 1996/05/24 06:09:04 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -24,6 +24,10 @@
 #include <sys/ioctl.h>
 #include <sys/wait.h>
 
+
+/* Where we stick our temporary expanded doc file */
+#define	DOC_TMP_FILE	"/tmp/doc.tmp"
+
 /*
  * Handle interrupt signals - this probably won't work in all cases
  * due to our having bogotified the internal state of dialog or curses,
@@ -34,6 +38,16 @@ handle_intr(int sig)
 {
     if (!msgYesNo("Are you sure you want to abort the installation?"))
 	systemShutdown(1);
+}
+
+/* Expand a file into a convenient location, nuking it each time */
+static char *
+expand(char *fname)
+{
+    unlink(DOC_TMP_FILE);
+    if (vsystem("gzip -c -d %s > %s", fname, DOC_TMP_FILE))
+	return NULL;
+    return DOC_TMP_FILE;
 }
 
 /* Initialize system defaults */
@@ -93,6 +107,9 @@ systemShutdown(int status)
 
     /* Shut down curses */
     endwin();
+
+    /* If we have a temporary doc file lying around, nuke it */
+    unlink(DOC_TMP_FILE);
 
     /* REALLY exit! */
     if (RunningAsInit) {
@@ -160,9 +177,9 @@ systemHelpFile(char *file, char *buf)
     if (!file)
 	return NULL;
 
-    snprintf(buf, FILENAME_MAX, "/stand/help/%s.hlp", file);
+    snprintf(buf, FILENAME_MAX, "/stand/help/%s.hlp.gz", file);
     if (file_readable(buf)) 
-	return buf;
+	return expand(buf);
     snprintf(buf, FILENAME_MAX, "/usr/src/release/sysinstall/help/%s.hlp", file);
     if (file_readable(buf))
 	return buf;
