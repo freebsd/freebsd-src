@@ -3,5 +3,4 @@
 
 BINDIR?=	/bin
 NOSHARED?=	YES
-WARNS?=		2
-WFORMAT?=	1
+WARNS?=		6
