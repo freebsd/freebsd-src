@@ -1,4 +1,4 @@
-/*	$Id: sysv_msg.c,v 1.7 1995/08/30 00:33:00 bde Exp $ */
+/*	$Id: sysv_msg.c,v 1.8 1995/09/09 18:10:06 davidg Exp $ */
 
 /*
  * Implementation of SVID messages
@@ -21,10 +21,11 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/sysproto.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/msg.h>
-#include <sys/malloc.h>
+#include <sys/sysent.h>
 
 static void msginit __P((void *));
 SYSINIT(sysv_msg, SI_SUB_SYSV_MSG, SI_ORDER_FIRST, msginit, NULL)
@@ -32,9 +33,21 @@ SYSINIT(sysv_msg, SI_SUB_SYSV_MSG, SI_ORDER_FIRST, msginit, NULL)
 #define MSG_DEBUG
 #undef MSG_DEBUG_OK
 
-static int	msgctl(), msgget(), msgsnd(), msgrcv();
+struct msgctl_args;
+static int msgctl __P((struct proc *p, struct msgctl_args *uap, int *retval));
+struct msgget_args;
+static int msgget __P((struct proc *p, struct msgget_args *uap, int *retval));
+struct msgsnd_args;
+static int msgsnd __P((struct proc *p, struct msgsnd_args *uap, int *retval));
+struct msgrcv_args;
+static int msgrcv __P((struct proc *p, struct msgrcv_args *uap, int *retval));
+static void msg_freehdr __P((struct msg *msghdr));
 
-int	(*msgcalls[])() = { msgctl, msgget, msgsnd, msgrcv };
+/* XXX casting to (sy_call_t *) is bogus, as usual. */
+sy_call_t *msgcalls[] = {
+	(sy_call_t *)msgctl, (sy_call_t *)msgget,
+	(sy_call_t *)msgsnd, (sy_call_t *)msgrcv
+};
 
 int nfree_msgmaps;		/* # of free map entries */
 short free_msgmaps;		/* head of linked list of free map entries */
@@ -45,8 +58,8 @@ struct msg *msghdrs;		/* MSGTQL msg headers */
 struct msqid_ds *msqids;	/* MSGMNI msqid_ds struct's */
 
 void
-msginit(udata)
-	void *udata;
+msginit(dummy)
+	void *dummy;
 {
 	register int i;
 
@@ -104,21 +117,24 @@ msginit(udata)
 /*
  * Entry point for all MSG calls
  */
-
-struct msgsys_args {
-	u_int	which;
-};
-
 int
 msgsys(p, uap, retval)
-	struct caller *p;
-	struct msgsys_args *uap;
+	struct proc *p;
+	/* XXX actually varargs. */
+	struct msgsys_args /* {
+		u_int	which;
+		int	a2;
+		int	a3;
+		int	a4;
+		int	a5;
+		int	a6;
+	} */ *uap;
 	int *retval;
 {
 
 	if (uap->which >= sizeof(msgcalls)/sizeof(msgcalls[0]))
 		return (EINVAL);
-	return ((*msgcalls[uap->which])(p, &uap[1], retval));
+	return ((*msgcalls[uap->which])(p, &uap->a2, retval));
 }
 
 static void
@@ -151,7 +167,7 @@ struct msgctl_args {
 	struct	msqid_ds *user_msqptr;
 };
 
-int
+static int
 msgctl(p, uap, retval)
 	struct proc *p;
 	register struct msgctl_args *uap;
@@ -285,7 +301,7 @@ struct msgget_args {
 	int	msgflg;
 };
 
-int
+static int
 msgget(p, uap, retval)
 	struct proc *p;
 	register struct msgget_args *uap;
@@ -392,7 +408,7 @@ struct msgsnd_args {
 	int	msgflg;
 };
 
-int
+static int
 msgsnd(p, uap, retval)
 	struct proc *p;
 	register struct msgsnd_args *uap;
@@ -727,7 +743,7 @@ struct msgrcv_args {
 	int	msgflg;
 };
 
-int
+static int
 msgrcv(p, uap, retval)
 	struct proc *p;
 	register struct msgrcv_args *uap;
