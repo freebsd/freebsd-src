@@ -27,7 +27,8 @@
  */
 
 /* $Header: /home/daffy/u0/vern/flex/RCS/gen.c,v 2.56 96/05/25 20:43:38 vern Exp $ */
-/* $FreeBSD$ */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "flexdef.h"
 

@@ -41,8 +41,6 @@ static const char copyright[] =
 #if 0
 static char sccsid[] = "@(#)gcore.c	8.2 (Berkeley) 9/23/93";
 #endif
-#endif /* not lint */
-
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 

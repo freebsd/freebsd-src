@@ -169,11 +169,11 @@
  */
 
 #ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
 static const char copyright[] =
   "Copyright (c) 1997 Gareth McCaughan. All rights reserved.\n";
 #endif /* not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <ctype.h>
 #include <err.h>
