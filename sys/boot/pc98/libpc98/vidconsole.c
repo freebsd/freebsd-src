@@ -422,7 +422,7 @@ write_char(int c, int fgcol, int bgcol)
 {
 
 #ifdef PC98
-    *crtat = (c == 0x5c ? 0xfc : c);
+    *crtat = (c == 0x5c ? 0xfc : (c & 0xff));
     *(crtat + 0x1000) = at2pc98(fgcol, bgcol);
 #else
     v86.ctl = 0;
