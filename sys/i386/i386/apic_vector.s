@@ -1,6 +1,6 @@
 /*
  *	from: vector.s, 386BSD 0.1 unknown origin
- *	$Id: apic_vector.s,v 1.25 1998/01/15 07:33:58 gibbs Exp $
+ *	$Id: apic_vector.s,v 1.26 1998/03/03 20:55:24 tegge Exp $
  */
 
 
@@ -166,6 +166,18 @@ IDTVEC(vec_name) ;							\
 	popal ;								\
 	addl	$4+4,%esp
 
+#define MASK_IRQ(irq_num)						\
+	IMASK_LOCK ;				/* into critical reg */	\
+	testl	$IRQ_BIT(irq_num), _apic_imen ;				\
+	jne	7f ;			/* masked, don't mask */	\
+	orl	$IRQ_BIT(irq_num), _apic_imen ;	/* set the mask bit */	\
+	movl	_ioapic, %ecx ;			/* ioapic[0] addr */	\
+	movl	$REDTBL_IDX(irq_num), (%ecx) ;	/* write the index */	\
+	movl	IOAPIC_WINDOW(%ecx), %eax ;	/* current value */	\
+	orl	$IOART_INTMASK, %eax ;		/* set the mask */	\
+	movl	%eax, IOAPIC_WINDOW(%ecx) ;	/* new value */		\
+7: ;						/* already masked */	\
+	IMASK_UNLOCK
 /*
  * Test to see whether we are handling an edge or level triggered INT.
  *  Level-triggered INTs must still be masked as we don't clear the source,
@@ -173,36 +185,45 @@ IDTVEC(vec_name) ;							\
  */
 #define MASK_LEVEL_IRQ(irq_num)						\
 	testl	$IRQ_BIT(irq_num), _apic_pin_trigger ;			\
-	jz	8f ;				/* edge, don't mask */	\
-	IMASK_LOCK ;				/* into critical reg */	\
-	orl	$IRQ_BIT(irq_num), _apic_imen ;	/* set the mask bit */	\
-	movl	_ioapic, %ecx ;			/* ioapic[0] addr */	\
-	movl	$REDTBL_IDX(irq_num), (%ecx) ;	/* write the index */	\
-	movl	IOAPIC_WINDOW(%ecx), %eax ;	/* current value */	\
-	orl	$IOART_INTMASK, %eax ;		/* set the mask */	\
-	movl	%eax, IOAPIC_WINDOW(%ecx) ;	/* new value */		\
-	IMASK_UNLOCK ;							\
-8:
+	jz	9f ;				/* edge, don't mask */	\
+	MASK_IRQ(irq_num) ;						\
+9:
 
+
+#ifdef APIC_INTR_REORDER
+#define EOI_IRQ(irq_num)						\
+	movl	_apic_isrbit_location + 8 * (irq_num), %eax ;		\
+	movl	(%eax), %eax ;						\
+	testl	_apic_isrbit_location + 4 + 8 * (irq_num), %eax ;	\
+	jz	9f ;				/* not active */	\
+	movl	$0, lapic_eoi ;						\
+	APIC_ITRACE(apic_itrace_eoi, irq_num, APIC_ITRACE_EOI) ;	\
+9:
+
+#else
+#define EOI_IRQ(irq_num)						\
+	testl	$IRQ_BIT(irq_num), lapic_isr1;				\
+	jz	9f	;			/* not active */	\
+	movl	$0, lapic_eoi;						\
+	APIC_ITRACE(apic_itrace_eoi, irq_num, APIC_ITRACE_EOI) ;	\
+9:
+#endif
+	
+	
 /*
  * Test to see if the source is currntly masked, clear if so.
  */
 #define UNMASK_IRQ(irq_num)					\
 	IMASK_LOCK ;				/* into critical reg */	\
 	testl	$IRQ_BIT(irq_num), _apic_imen ;				\
-	jne	7f ;				/* bit set, masked */	\
-	testl	$IRQ_BIT(irq_num), _apic_pin_trigger ;			\
-	jz	9f ;				/* edge, don't EOI */	\
-	movl	$0, lapic_eoi ;			/* should be safe */	\
-	jmp	9f ;				/* skip unmasking */	\
-7:									\
+	je	7f ;			/* bit clear, not masked */	\
 	andl	$~IRQ_BIT(irq_num), _apic_imen ;/* clear mask bit */	\
 	movl	_ioapic,%ecx ;			/* ioapic[0]addr */	\
 	movl	$REDTBL_IDX(irq_num),(%ecx) ;	/* write the index */	\
 	movl	IOAPIC_WINDOW(%ecx),%eax ;	/* current value */	\
 	andl	$~IOART_INTMASK,%eax ;		/* clear the mask */	\
 	movl	%eax,IOAPIC_WINDOW(%ecx) ;	/* new value */		\
-9: ;									\
+7: ;									\
 	IMASK_UNLOCK
 
 #ifdef INTR_SIMPLELOCK
@@ -213,11 +234,75 @@ IDTVEC(vec_name) ;							\
 #define ENLOCK \
 	ISR_TRYLOCK ;		/* XXX this is going away... */		\
 	testl	%eax, %eax ;			/* did we get it? */	\
-	jz	1f
+	jz	3f
 #define DELOCK	ISR_RELLOCK
 #define LATELOCK
 #endif
 
+#ifdef APIC_INTR_DIAGNOSTIC
+#ifdef APIC_INTR_DIAGNOSTIC_IRQ
+log_intr_event:
+	pushf
+	cli
+	pushl	$CNAME(apic_itrace_debuglock)
+	call	_s_lock_np
+	addl	$4, %esp
+	movl	CNAME(apic_itrace_debugbuffer_idx), %ecx
+	andl	$32767, %ecx
+	movl	_cpuid, %eax
+	shll	$8,	%eax
+	orl	8(%esp), %eax
+	movw	%ax,	CNAME(apic_itrace_debugbuffer)(,%ecx,2)
+	incl	%ecx
+	andl	$32767, %ecx
+	movl	%ecx,	CNAME(apic_itrace_debugbuffer_idx)
+	pushl	$CNAME(apic_itrace_debuglock)
+	call	_s_unlock_np
+	addl	$4, %esp
+	popf
+	ret
+	
+
+#define APIC_ITRACE(name, irq_num, id)					\
+	lock ;					/* MP-safe */		\
+	incl	CNAME(name) + (irq_num) * 4 ;				\
+	pushl	%eax ;							\
+	pushl	%ecx ;							\
+	pushl	%edx ;							\
+	movl	$(irq_num), %eax ;					\
+	cmpl	$APIC_INTR_DIAGNOSTIC_IRQ, %eax ;			\
+	jne	7f ;							\
+	pushl	$id ;							\
+	call	log_intr_event ;					\
+	addl	$4, %esp ;						\
+7: ;									\
+	popl	%edx ;							\
+	popl	%ecx ;							\
+	popl	%eax
+#else
+#define APIC_ITRACE(name, irq_num, id)					\
+	lock ;					/* MP-safe */		\
+	incl	CNAME(name) + (irq_num) * 4
+#endif
+
+#define APIC_ITRACE_ENTER 1
+#define APIC_ITRACE_EOI 2
+#define APIC_ITRACE_TRYISRLOCK 3
+#define APIC_ITRACE_GOTISRLOCK 4
+#define APIC_ITRACE_ENTER2 5
+#define APIC_ITRACE_LEAVE 6
+#define APIC_ITRACE_UNMASK 7
+#define APIC_ITRACE_ACTIVE 8
+#define APIC_ITRACE_MASKED 9
+#define APIC_ITRACE_NOISRLOCK 10
+#define APIC_ITRACE_MASKED2 11
+#define APIC_ITRACE_SPLZ 12
+#define APIC_ITRACE_DORETI 13	
+	
+#else	
+#define APIC_ITRACE(name, irq_num, id)
+#endif
+		
 #ifdef CPL_AND_CML
 
 #define	INTR(irq_num, vec_name)						\
@@ -230,12 +315,18 @@ IDTVEC(vec_name) ;							\
 	movl	%ax, %ds ;						\
 	movl	%ax, %es ;						\
 ;									\
+	APIC_ITRACE(apic_itrace_enter, irq_num, APIC_ITRACE_ENTER) ;	\
 	lock ;					/* MP-safe */		\
 	btsl	$(irq_num), iactive ;		/* lazy masking */	\
 	jc	1f ;				/* already active */	\
 ;									\
+	MASK_LEVEL_IRQ(irq_num) ;					\
+	EOI_IRQ(irq_num) ;						\
+0: ;									\
+	APIC_ITRACE(apic_itrace_tryisrlock, irq_num, APIC_ITRACE_TRYISRLOCK) ;\
 	ENLOCK ;							\
 ;									\
+	APIC_ITRACE(apic_itrace_gotisrlock, irq_num, APIC_ITRACE_GOTISRLOCK) ;\
 	AVCPL_LOCK ;				/* MP-safe */		\
 	testl	$IRQ_BIT(irq_num), _cpl ;				\
 	jne	2f ;				/* this INT masked */	\
@@ -244,7 +335,6 @@ IDTVEC(vec_name) ;							\
 	orl	$IRQ_BIT(irq_num), _cil ;				\
 	AVCPL_UNLOCK ;							\
 ;									\
-;;;	movl	$0, lapic_eoi ;			/* XXX too soon? */	\
 	incb	_intr_nesting_level ;					\
 ;	 								\
   /* entry point used by doreti_unpend for HWIs. */			\
@@ -263,38 +353,66 @@ __CONCAT(Xresume,irq_num): ;						\
 ;									\
 	pushl	_intr_unit + (irq_num) * 4 ;				\
 	incl	_inside_intr ;						\
+	APIC_ITRACE(apic_itrace_enter2, irq_num, APIC_ITRACE_ENTER2) ;	\
 	sti ;								\
 	call	*_intr_handler + (irq_num) * 4 ;			\
 	cli ;								\
+	APIC_ITRACE(apic_itrace_leave, irq_num, APIC_ITRACE_LEAVE) ;	\
 	decl	_inside_intr ;						\
 ;									\
 	lock ;	andl $~IRQ_BIT(irq_num), iactive ;			\
 	lock ;	andl $~IRQ_BIT(irq_num), _cil ;				\
 	UNMASK_IRQ(irq_num) ;						\
+	APIC_ITRACE(apic_itrace_unmask, irq_num, APIC_ITRACE_UNMASK) ;	\
 	sti ;				/* doreti repeats cli/sti */	\
 	MEXITCOUNT ;							\
 	LATELOCK ;							\
 	jmp	_doreti ;						\
 ;									\
 	ALIGN_TEXT ;							\
-1: ;						/* active or locked */	\
-	MASK_LEVEL_IRQ(irq_num) ;					\
-	movl	$0, lapic_eoi ;			/* do the EOI */	\
-;									\
+1: ;						/* active */		\
+	APIC_ITRACE(apic_itrace_active, irq_num, APIC_ITRACE_ACTIVE) ;	\
 	AVCPL_LOCK ;				/* MP-safe */		\
 	orl	$IRQ_BIT(irq_num), _ipending ;				\
 	AVCPL_UNLOCK ;							\
-;									\
+	MASK_IRQ(irq_num) ;						\
+	EOI_IRQ(irq_num) ;						\
+	btsl	$(irq_num), iactive ;		/* still active */	\
+	jnc	0b ;				/* retry */		\
 	POP_FRAME ;							\
 	iret ;								\
 ;									\
 	ALIGN_TEXT ;							\
 2: ;						/* masked by cpl|cml */	\
+	APIC_ITRACE(apic_itrace_masked, irq_num, APIC_ITRACE_MASKED) ;	\
+	orl	$IRQ_BIT(irq_num), _ipending ;				\
 	AVCPL_UNLOCK ;							\
 	DELOCK ;		/* XXX this is going away... */		\
-	jmp	1b
+	POP_FRAME ;							\
+	iret ;								\
+	ALIGN_TEXT ;							\
+3: ; 			/* other cpu has isr lock */			\
+	APIC_ITRACE(apic_itrace_noisrlock, irq_num, APIC_ITRACE_NOISRLOCK) ;\
+	AVCPL_LOCK ;				/* MP-safe */		\
+	orl	$IRQ_BIT(irq_num), _ipending ;				\
+	testl	$IRQ_BIT(irq_num), _cpl ;				\
+	jne	4f ;				/* this INT masked */	\
+	testl	$IRQ_BIT(irq_num), _cml ;				\
+	jne	4f ;				/* this INT masked */	\
+	orl	$IRQ_BIT(irq_num), _cil ;				\
+	AVCPL_UNLOCK ;							\
+	call	forward_irq ;	/* forward irq to lock holder */	\
+	POP_FRAME ;	 			/* and return */	\
+	iret ;								\
+	ALIGN_TEXT ;							\
+4: ;	 					/* blocked */		\
+	APIC_ITRACE(apic_itrace_masked2, irq_num, APIC_ITRACE_MASKED2) ;\
+	AVCPL_UNLOCK ;							\
+	POP_FRAME ;	 			/* and return */	\
+	iret
 
 #else /* CPL_AND_CML */
+
 
 #define	INTR(irq_num, vec_name)						\
 	.text ;								\
@@ -306,20 +424,25 @@ IDTVEC(vec_name) ;							\
 	movl	%ax, %ds ;						\
 	movl	%ax, %es ;						\
 ;									\
+	APIC_ITRACE(apic_itrace_enter, irq_num, APIC_ITRACE_ENTER) ;	\
 	lock ;					/* MP-safe */		\
 	btsl	$(irq_num), iactive ;		/* lazy masking */	\
 	jc	1f ;				/* already active */	\
 ;									\
+	MASK_LEVEL_IRQ(irq_num) ;					\
+	EOI_IRQ(irq_num) ;						\
+0: ;									\
+	APIC_ITRACE(apic_itrace_tryisrlock, irq_num, APIC_ITRACE_TRYISRLOCK) ;\
 	ISR_TRYLOCK ;		/* XXX this is going away... */		\
 	testl	%eax, %eax ;			/* did we get it? */	\
-	jz	1f ;				/* no */		\
+	jz	3f ;				/* no */		\
 ;									\
+	APIC_ITRACE(apic_itrace_gotisrlock, irq_num, APIC_ITRACE_GOTISRLOCK) ;\
 	AVCPL_LOCK ;				/* MP-safe */		\
 	testl	$IRQ_BIT(irq_num), _cpl ;				\
 	jne	2f ;				/* this INT masked */	\
 	AVCPL_UNLOCK ;							\
 ;									\
-;;;	movl	$0, lapic_eoi ;			/* XXX too soon? */	\
 	incb	_intr_nesting_level ;					\
 ;	 								\
   /* entry point used by doreti_unpend for HWIs. */			\
@@ -334,36 +457,60 @@ __CONCAT(Xresume,irq_num): ;						\
 	pushl	%eax ;							\
 	orl	_intr_mask + (irq_num) * 4, %eax ;			\
 	movl	%eax, _cpl ;						\
+	andl	$~IRQ_BIT(irq_num), _ipending ;				\
 	AVCPL_UNLOCK ;							\
 ;									\
 	pushl	_intr_unit + (irq_num) * 4 ;				\
+	APIC_ITRACE(apic_itrace_enter2, irq_num, APIC_ITRACE_ENTER2) ;	\
 	sti ;								\
 	call	*_intr_handler + (irq_num) * 4 ;			\
 	cli ;								\
+	APIC_ITRACE(apic_itrace_leave, irq_num, APIC_ITRACE_LEAVE) ;	\
 ;									\
 	lock ;	andl	$~IRQ_BIT(irq_num), iactive ;			\
 	UNMASK_IRQ(irq_num) ;						\
+	APIC_ITRACE(apic_itrace_unmask, irq_num, APIC_ITRACE_UNMASK) ;	\
 	sti ;				/* doreti repeats cli/sti */	\
 	MEXITCOUNT ;							\
 	jmp	_doreti ;						\
 ;									\
 	ALIGN_TEXT ;							\
-1: ;						/* active or locked */	\
-	MASK_LEVEL_IRQ(irq_num) ;					\
-	movl	$0, lapic_eoi ;			/* do the EOI */	\
-;									\
+1: ;						/* active  */		\
+	APIC_ITRACE(apic_itrace_active, irq_num, APIC_ITRACE_ACTIVE) ;	\
 	AVCPL_LOCK ;				/* MP-safe */		\
 	orl	$IRQ_BIT(irq_num), _ipending ;				\
 	AVCPL_UNLOCK ;							\
-;									\
+	MASK_IRQ(irq_num) ;						\
+	EOI_IRQ(irq_num) ;						\
+	btsl	$(irq_num), iactive ;		/* still active */	\
+	jnc	0b ;				/* retry */		\
 	POP_FRAME ;							\
-	iret ;								\
-;									\
+	iret ;		/* XXX:	 iactive bit might be 0 now */		\
 	ALIGN_TEXT ;							\
-2: ;						/* masked by cpl */	\
+2: ;				/* masked by cpl, leave iactive set */	\
+	APIC_ITRACE(apic_itrace_masked, irq_num, APIC_ITRACE_MASKED) ;	\
+	orl	$IRQ_BIT(irq_num), _ipending ;				\
 	AVCPL_UNLOCK ;							\
 	ISR_RELLOCK ;		/* XXX this is going away... */		\
-	jmp	1b
+	POP_FRAME ;							\
+	iret ;								\
+	ALIGN_TEXT ;							\
+3: ; 			/* other cpu has isr lock */			\
+	APIC_ITRACE(apic_itrace_noisrlock, irq_num, APIC_ITRACE_NOISRLOCK) ;\
+	AVCPL_LOCK ;				/* MP-safe */		\
+	orl	$IRQ_BIT(irq_num), _ipending ;				\
+	testl	$IRQ_BIT(irq_num), _cpl ;				\
+	jne	4f ;				/* this INT masked */	\
+	AVCPL_UNLOCK ;							\
+	call	forward_irq ;	 /* forward irq to lock holder */	\
+	POP_FRAME ;	 			/* and return */	\
+	iret ;								\
+	ALIGN_TEXT ;							\
+4: ;	 					/* blocked */		\
+	APIC_ITRACE(apic_itrace_masked2, irq_num, APIC_ITRACE_MASKED2) ;\
+	AVCPL_UNLOCK ;							\
+	POP_FRAME ;	 			/* and return */	\
+	iret
 
 #endif /* CPL_AND_CML */
 
@@ -515,15 +662,14 @@ _Xcpuast:
 	movl	_cpl, %eax
 #endif
 	pushl	%eax
+	lock
+	orl	$SWI_AST_PENDING, _ipending
 	AVCPL_UNLOCK
 	lock
 	incb	_intr_nesting_level
 	sti
 	
 	pushl	$0
-	
-	lock
-	orl	$SWI_AST_PENDING, _ipending
 	
 	movl	_cpuid, %eax
 	lock	
@@ -536,6 +682,113 @@ _Xcpuast:
 	POP_FRAME
 	iret			
 
+
+/*
+ *	 Executed by a CPU when it receives an XFORWARD_IRQ IPI.
+ */
+
+	.text
+	SUPERALIGN_TEXT
+	.globl _Xforward_irq
+_Xforward_irq:
+	PUSH_FRAME
+	movl	$KDSEL, %eax
+	movl	%ax, %ds		/* use KERNEL data segment */
+	movl	%ax, %es
+
+	movl	$0, lapic_eoi		/* End Of Interrupt to APIC */
+
+	FAKE_MCOUNT(12*4(%esp))
+
+	ISR_TRYLOCK
+	testl	%eax,%eax		/* Did we get the lock ? */
+	jz  1f				/* No */
+
+	lock
+	incl	CNAME(forward_irq_hitcnt)
+	cmpb	$4, _intr_nesting_level
+	jae	2f
+	
+	jmp	3f
+
+	AVCPL_LOCK
+#ifdef CPL_AND_CML
+	movl	_cml, %eax
+#else
+	movl	_cpl, %eax
+#endif
+	pushl	%eax
+	AVCPL_UNLOCK
+	lock
+	incb	_intr_nesting_level
+	sti
+	
+	pushl	$0
+
+	MEXITCOUNT
+	jmp	_doreti			/* Handle forwarded interrupt */
+4:	
+	lock	
+	decb	_intr_nesting_level
+	ISR_RELLOCK
+	MEXITCOUNT
+	addl	$8, %esp
+	POP_FRAME
+	iret
+1:
+	lock
+	incl	CNAME(forward_irq_misscnt)
+	call	forward_irq	/* Oops, we've lost the isr lock */
+	MEXITCOUNT
+	POP_FRAME
+	iret
+2:
+	lock
+	incl	CNAME(forward_irq_toodeepcnt)
+3:	
+	ISR_RELLOCK
+	MEXITCOUNT
+	POP_FRAME
+	iret
+
+/*
+ * 
+ */
+forward_irq:
+	MCOUNT
+	cmpl	$0,_invltlb_ok
+	jz	4f
+
+	cmpl	$0, CNAME(forward_irq_enabled)
+	jz	4f
+
+	movl	_mp_lock,%eax
+	cmpl	$FREE_LOCK,%eax
+	jne	1f
+	movl	$0, %eax		/* Pick CPU #0 if noone has lock */
+1:
+	shrl	$24,%eax
+	movl	_cpu_num_to_apic_id(,%eax,4),%ecx
+	shll	$24,%ecx
+	movl	lapic_icr_hi, %eax
+	andl	$~APIC_ID_MASK, %eax
+	orl	%ecx, %eax
+	movl	%eax, lapic_icr_hi
+
+2:
+	movl	lapic_icr_lo, %eax
+	andl	$APIC_DELSTAT_MASK,%eax
+	jnz	2b
+	movl	lapic_icr_lo, %eax
+	andl	$APIC_RESV2_MASK, %eax
+	orl	$(APIC_DEST_DESTFLD|APIC_DELMODE_FIXED|XFORWARD_IRQ_OFFSET), %eax
+	movl	%eax, lapic_icr_lo
+3:
+	movl	lapic_icr_lo, %eax
+	andl	$APIC_DELSTAT_MASK,%eax
+	jnz	3b
+4:		
+	ret
 	
 /*
  * Executed by a CPU when it receives an Xcpustop IPI from another CPU,
@@ -702,6 +955,16 @@ _checkstate_need_ast:
 	.long	0
 _checkstate_pending_ast:
 	.long	0
+	.globl CNAME(forward_irq_misscnt)
+	.globl CNAME(forward_irq_toodeepcnt)
+	.globl CNAME(forward_irq_hitcnt)
+CNAME(forward_irq_misscnt):	
+	.long 0
+CNAME(forward_irq_hitcnt):	
+	.long 0
+CNAME(forward_irq_toodeepcnt):
+	.long 0
+
 
 	.globl	_apic_pin_trigger
 _apic_pin_trigger:

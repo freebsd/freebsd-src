@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.67 1998/03/03 20:09:14 tegge Exp $
+ *	$Id: mp_machdep.c,v 1.68 1998/03/03 20:55:25 tegge Exp $
  */
 
 #include "opt_smp.h"
@@ -245,6 +245,35 @@ extern	int nkpt;
 
 u_int32_t cpu_apic_versions[NCPU];
 u_int32_t io_apic_versions[NAPIC];
+
+#ifdef APIC_INTR_DIAGNOSTIC
+int apic_itrace_enter[32];
+int apic_itrace_tryisrlock[32];
+int apic_itrace_gotisrlock[32];
+int apic_itrace_active[32];
+int apic_itrace_masked[32];
+int apic_itrace_noisrlock[32];
+int apic_itrace_masked2[32];
+int apic_itrace_unmask[32];
+int apic_itrace_noforward[32];
+int apic_itrace_leave[32];
+int apic_itrace_enter2[32];
+int apic_itrace_doreti[32];
+int apic_itrace_splz[32];
+int apic_itrace_eoi[32];
+#ifdef APIC_INTR_DIAGNOSTIC_IRQ
+unsigned short apic_itrace_debugbuffer[32768];
+int apic_itrace_debugbuffer_idx;
+struct simplelock apic_itrace_debuglock;
+#endif
+#endif
+
+#ifdef APIC_INTR_REORDER
+struct {
+	volatile int *location;
+	int bit;
+} apic_isrbit_location[32];
+#endif
 
 /*
  * APIC ID logical/physical mapping structures.
@@ -575,6 +604,10 @@ mp_enable(u_int boot_addr)
 	setidt(XCPUAST_OFFSET, Xcpuast,
 	       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
 	
+	/* install an inter-CPU IPI for interrupt forwarding */
+	setidt(XFORWARD_IRQ_OFFSET, Xforward_irq,
+	       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
+
 	/* install an inter-CPU IPI for CPU stop/restart */
 	setidt(XCPUSTOP_OFFSET, Xcpustop,
 	       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
@@ -1537,6 +1570,10 @@ init_locks(void)
 	/* ISR uses its own "giant lock" */
 	isr_lock = FREE_LOCK;
 
+#if defined(APIC_INTR_DIAGNOSTIC) && defined(APIC_INTR_DIAGNOSTIC_IRQ)
+	s_lock_init((struct simplelock*)&apic_itrace_debuglock);
+#endif
+
 	s_lock_init((struct simplelock*)&mpintr_lock);
 
 	s_lock_init((struct simplelock*)&mcount_lock);
@@ -1995,6 +2032,11 @@ int do_page_zero_idle = 1; /* bzero pages for fun and profit in idleloop */
 SYSCTL_INT(_machdep, OID_AUTO, do_page_zero_idle, CTLFLAG_RW,
 	   &do_page_zero_idle, 0, "");
 
+/* Is forwarding of a interrupt to the CPU holding the ISR lock enabled ? */
+int forward_irq_enabled = 1;
+SYSCTL_INT(_machdep, OID_AUTO, forward_irq_enabled, CTLFLAG_RW,
+	   &forward_irq_enabled, 0, "");
+
 /* Enable forwarding of a signal to a process running on a different CPU */
 int forward_signal_enabled = 1;
 SYSCTL_INT(_machdep, OID_AUTO, forward_signal_enabled, CTLFLAG_RW,
@@ -2438,3 +2480,20 @@ forward_signal(struct proc *p)
 			return;
 	}
 }
+
+
+#ifdef APIC_INTR_REORDER
+/*
+ *	Maintain mapping from softintr vector to isr bit in local apic.
+ */
+void
+set_lapic_isrloc(int intr, int vector)
+{
+	if (intr < 0 || intr > 32)
+		panic("set_apic_isrloc: bad intr argument: %d",intr);
+	if (vector < ICU_OFFSET || vector > 255)
+		panic("set_apic_isrloc: bad vector argument: %d",vector);
+	apic_isrbit_location[intr].location = &lapic.isr0 + ((vector>>5)<<2);
+	apic_isrbit_location[intr].bit = (1<<(vector & 31));
+}
+#endif
