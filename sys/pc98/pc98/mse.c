@@ -79,12 +79,11 @@ typedef struct mse_softc {
 	bus_space_handle_t sc_ioh;
 	void		*sc_ih;
 	void		(*sc_enablemouse)(bus_space_tag_t t,
-					       bus_space_handle_t h);
+			    bus_space_handle_t h);
 	void		(*sc_disablemouse)(bus_space_tag_t t,
-						bus_space_handle_t h);
-	void		(*sc_getmouse)(bus_space_tag_t t,
-					    bus_space_handle_t h,
-					    int *dx, int *dy, int *but);
+			    bus_space_handle_t h);
+	void		(*sc_getmouse)(bus_space_tag_t t, bus_space_handle_t h,
+			    int *dx, int *dy, int *but);
 	int		sc_deltax;
 	int		sc_deltay;
 	int		sc_obuttons;
@@ -202,13 +201,10 @@ static	timeout_t	msetimeout;
 static	bus_addr_t	mse_port[] = {0, 2, 4, 6};
 
 static	int		mse_probe98m(device_t dev, mse_softc_t *sc);
-static	void		mse_disable98m(bus_space_tag_t t,
-					    bus_space_handle_t h);
-static	void		mse_get98m(bus_space_tag_t t,
-					bus_space_handle_t h,
-					int *dx, int *dy, int *but);
-static	void		mse_enable98m(bus_space_tag_t t,
-					   bus_space_handle_t h);
+static	void		mse_disable98m(bus_space_tag_t t, bus_space_handle_t h);
+static	void		mse_get98m(bus_space_tag_t t, bus_space_handle_t h,
+			    int *dx, int *dy, int *but);
+static	void		mse_enable98m(bus_space_tag_t t, bus_space_handle_t h);
 #else
 /*
  * Logitech bus mouse definitions
@@ -249,12 +245,11 @@ static	void		mse_enable98m(bus_space_tag_t t,
 
 static	int		mse_probelogi(device_t dev, mse_softc_t *sc);
 static	void		mse_disablelogi(bus_space_tag_t t,
-					     bus_space_handle_t h);
-static	void		mse_getlogi(bus_space_tag_t t,
-					 bus_space_handle_t h,
-					 int *dx, int *dy, int *but);
+			    bus_space_handle_t h);
+static	void		mse_getlogi(bus_space_tag_t t, bus_space_handle_t h,
+			    int *dx, int *dy, int *but);
 static	void		mse_enablelogi(bus_space_tag_t t,
-					    bus_space_handle_t h);
+			    bus_space_handle_t h);
 
 /*
  * ATI Inport mouse definitions
@@ -268,13 +263,10 @@ static	void		mse_enablelogi(bus_space_tag_t t,
 #define	MSE_INPORT_INTREN	0x09
 
 static	int		mse_probeati(device_t dev, mse_softc_t *sc);
-static	void		mse_enableati(bus_space_tag_t t,
-					   bus_space_handle_t h);
-static	void		mse_disableati(bus_space_tag_t t,
-					    bus_space_handle_t h);
-static	void		mse_getati(bus_space_tag_t t,
-					bus_space_handle_t h,
-					int *dx, int *dy, int *but);
+static	void		mse_enableati(bus_space_tag_t t, bus_space_handle_t h);
+static	void		mse_disableati(bus_space_tag_t t, bus_space_handle_t h);
+static	void		mse_getati(bus_space_tag_t t, bus_space_handle_t h,
+			    int *dx, int *dy, int *but);
 #endif
 
 #define	MSEPRI	(PZERO + 3)
@@ -292,8 +284,8 @@ static struct mse_types {
 				/* Start routine */
 	void	(*m_disable)(bus_space_tag_t t, bus_space_handle_t h);
 				/* Disable interrupts routine */
-	void	(*m_get)(bus_space_tag_t t, bus_space_handle_t h,
-			      int *dx, int *dy, int *but);
+	void	(*m_get)(bus_space_tag_t t, bus_space_handle_t h, int *dx,
+		    int *dy, int *but);
 				/* and get mouse status */
 	mousehw_t   m_hw;	/* buttons iftype type model hwid */
 	mousemode_t m_mode;	/* proto rate res accel level size mask */
