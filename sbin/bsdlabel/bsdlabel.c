@@ -46,7 +46,7 @@ static char sccsid[] = "@(#)disklabel.c	8.2 (Berkeley) 1/7/94";
 /* from static char sccsid[] = "@(#)disklabel.c	1.2 (Symmetric) 11/28/85"; */
 #endif
 static const char rcsid[] =
-	"$Id: disklabel.c,v 1.17 1998/07/25 16:19:10 bde Exp $";
+	"$Id: disklabel.c,v 1.18 1998/08/17 07:43:54 dfr Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -89,7 +89,7 @@ static const char rcsid[] =
 #ifdef tahoe
 #define	NUMBOOT	0
 #else
-#if defined(hp300) || defined(hp800) || defined(__alpha__)
+#if defined(__alpha__) || defined(hp300) || defined(hp800)
 #define	NUMBOOT	1
 #else
 #define	NUMBOOT	2
@@ -393,17 +393,13 @@ writelabel(f, boot, lp)
 	char *boot;
 	register struct disklabel *lp;
 {
-#ifdef vax
-	register int i;
-#endif
 	int flag;
-
 #ifdef __alpha__
-	/*
-	 * Generate the bootblock checksum for the SRM console.
-	 */
 	u_long *p, sum;
 	int i;
+#endif
+#ifdef vax
+	register int i;
 #endif
 
 	setbootflag(lp);
@@ -426,18 +422,21 @@ writelabel(f, boot, lp)
 			return (1);
 		}
 		(void)lseek(f, (off_t)0, SEEK_SET);
+
+#ifdef __alpha__
+		/*
+		 * Generate the bootblock checksum for the SRM console.
+		 */
+		for (p = (u_long *)boot, i = 0, sum = 0; i < 63; i++)
+			sum += p[i];
+		p[63] = sum;
+#endif
+
 		/*
 		 * write enable label sector before write (if necessary),
 		 * disable after writing.
 		 */
 		flag = 1;
-
-#ifdef __alpha__
-		for (p = (u_long *)boot, i = 0, sum = 0; i < 63; i++)
-		sum += p[i];
-		p[63] = sum;
-#endif
-
 		if (ioctl(f, DIOCWLABEL, &flag) < 0)
 			warn("ioctl DIOCWLABEL");
 		if (write(f, boot, lp->d_bbsize) != lp->d_bbsize) {
@@ -555,10 +554,14 @@ makebootarea(boot, dp, f)
 #if NUMBOOT > 0
 	char *dkbasename;
 	struct stat sb;
+#endif
+#ifdef __alpha__
+	u_long *lp;
+	int n;
+#endif
 #ifdef __i386__
 	char *tmpbuf;
 	int i, found;
-#endif /* i386 */
 #endif
 
 	/* XXX */
@@ -676,29 +679,25 @@ makebootarea(boot, dp, f)
 	if (read(b, &boot[dp->d_secsize],
 		 (int)(dp->d_bbsize-dp->d_secsize)) < 0)
 		err(4, "%s", bootxx);
-#else
+#else /* !(NUMBOOT > 1) */
 #ifdef __alpha__
-	{
-
-	    /*
-	     * On the alpha, the primary bootstrap starts at the
-	     * second sector of the boot area.  The first sector
-	     * contains the label and must be edited to contain the
-	     * size and location of the primary bootstrap.
-	     */
-	    int n = read(b, boot + dp->d_secsize, (int)dp->d_bbsize);
-	    u_long *lp;
-	    if (n < 0)
+	/*
+	 * On the alpha, the primary bootstrap starts at the
+	 * second sector of the boot area.  The first sector
+	 * contains the label and must be edited to contain the
+	 * size and location of the primary bootstrap.
+	 */
+	n = read(b, boot + dp->d_secsize, (int)dp->d_bbsize);
+	if (n < 0)
 		err(4, "%s", xxboot);
-	    lp = (u_long *) (boot + 480);
-	    lp[0] = (n + dp->d_secsize - 1) / dp->d_secsize;
-	    lp[1] = 1;		/* start at sector 1 */
-	    lp[2] = 0;		/* flags (must be zero) */
-	}
-#else
+	lp = (u_long *) (boot + 480);
+	lp[0] = (n + dp->d_secsize - 1) / dp->d_secsize;
+	lp[1] = 1;		/* start at sector 1 */
+	lp[2] = 0;		/* flags (must be zero) */
+#else /* !__alpha__ */
 	if (read(b, boot, (int)dp->d_bbsize) < 0)
 		err(4, "%s", xxboot);
-#endif
+#endif /* __alpha__ */
 	if (fstat(b, &sb) != 0)
 		err(4, "%s", xxboot);
 	bootsize = (int)sb.st_size - dp->d_bbsize;
@@ -713,9 +712,9 @@ makebootarea(boot, dp, f)
 			err(4, "%s", xxboot);
 		}
 	}
-#endif
+#endif /* NUMBOOT > 1 */
 	(void)close(b);
-#endif
+#endif /* NUMBOOT > 0 */
 	/*
 	 * Make sure no part of the bootstrap is written in the area
 	 * reserved for the label.
