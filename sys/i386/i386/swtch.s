@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: swtch.s,v 1.1 1993/11/13 02:25:06 davidg Exp $
  */
 
 #include "npx.h"	/* for NNPX */
@@ -137,6 +137,9 @@ sw0:	.asciz	"swtch"
  */
 	ALIGN_TEXT
 Idle:
+	movl	_IdlePTD,%ecx
+	movl	%ecx,%cr3
+	movl	$tmpstk-4,%esp
 	sti
 	SHOW_STI
 

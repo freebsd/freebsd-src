@@ -6,7 +6,14 @@
  *
  *
  */
+#include <sys/types.h>
 #include <sys/param.h>
+#include <machine/param.h>
+#include <vm/vm_statistics.h>
+#include <vm/vm_param.h>
+#include <vm/lock.h>
+#include <machine/pmap.h>
+#include <machine/vmparam.h>
 #include "systm.h"
 #include <sys/errno.h>
 #include <sys/malloc.h>
@@ -238,7 +245,7 @@ errval	scsi_do_ioctl(struct scsi_link *sc_link, int cmd, caddr_t addr, int f)
 			caddr_t	d_addr;
 			int	len;
 
-			if((unsigned int)screq < (unsigned int)0xfe000000UL)
+			if((unsigned int)screq < (unsigned int)KERNBASE)
 			{
 				screq = malloc(sizeof(scsireq_t),M_TEMP,M_WAITOK);
 				bcopy(screq2,screq,sizeof(scsireq_t));
@@ -269,7 +276,7 @@ errval	scsi_do_ioctl(struct scsi_link *sc_link, int cmd, caddr_t addr, int f)
 				ret =  bp->b_error;
 			}
 			free(bp,M_TEMP);
-			if((unsigned int)screq2 < (unsigned int)0xfe000000UL)
+			if((unsigned int)screq2 < (unsigned int)KERNBASE)
 			{
 				bcopy(screq,screq2,sizeof(scsireq_t));
 				free(screq,M_TEMP);

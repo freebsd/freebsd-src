@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_aout.c,v 1.4 1993/11/25 01:30:02 wollman Exp $
+ *	$Id: db_aout.c,v 1.5 1994/01/03 07:54:08 davidg Exp $
  */
 
 /*
@@ -68,7 +68,7 @@
 	 ep = (struct nlist *)((char *)sp + *(symtab)))
 
 #ifndef	SYMTAB_SPACE
-#define SYMTAB_SPACE 63000
+#define SYMTAB_SPACE 73000
 #endif	/*SYMTAB_SPACE*/
 
 int db_symtabsize = SYMTAB_SPACE;

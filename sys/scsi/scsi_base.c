@@ -8,12 +8,19 @@
  * file.
  * 
  * Written by Julian Elischer (julian@dialix.oz.au)
- *      $Id: scsi_base.c,v 1.2 1993/11/25 06:30:58 davidg Exp $
+ *      $Id: scsi_base.c,v 1.3 1993/12/19 00:54:50 wollman Exp $
  */
 
 #define SPLSD splbio
 #define ESUCCESS 0
+#include <sys/types.h>
 #include <sys/param.h>
+#include <machine/param.h>
+#include <vm/vm_statistics.h>
+#include <vm/vm_param.h>
+#include <vm/lock.h>
+#include <machine/pmap.h>
+#include <machine/vmparam.h>
 #include "systm.h"
 #include <sys/buf.h>
 #include <sys/uio.h>
@@ -411,7 +418,7 @@ scsi_scsi_cmd(sc_link, scsi_cmd, cmdlen, data_addr, datalen,
 	xs->resid = datalen;
 	xs->bp = bp;
 /*XXX*/ /*use constant not magic number */
-	if (datalen && ((caddr_t) data_addr < (caddr_t) 0xfe000000UL)) {
+	if (datalen && ((caddr_t) data_addr < (caddr_t) KERNBASE)) {
 		if (bp) {
 			printf("Data buffered space not in kernel context\n");
 #ifdef	SCSIDEBUG
@@ -439,7 +446,7 @@ scsi_scsi_cmd(sc_link, scsi_cmd, cmdlen, data_addr, datalen,
 retry:
 	xs->error = XS_NOERROR;
 #ifdef	PARANOID
-	if (datalen && ((caddr_t) xs->data < (caddr_t) 0xfe000000)) {
+	if (datalen && ((caddr_t) xs->data < (caddr_t) KERNBASE)) {
 		printf("It's still wrong!\n");
 	}
 #endif	/*PARANOID*/
