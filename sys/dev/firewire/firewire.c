@@ -402,7 +402,7 @@ fw_asy_callback(struct fw_xfer *xfer){
  * Postpone to later retry.
  */
 void fw_asybusy(struct fw_xfer *xfer){
-#if 0
+#if 1
 	printf("fw_asybusy\n");
 #endif
 #if XFER_TIMEOUT
@@ -1594,186 +1594,12 @@ nextnode:
 	fw_bus_explore(fc);
 	return;
 }
-#if 0
-/*
- * Async. write responce support for kernel internal use. 
- */
-int
-fw_writeres(struct firewire_comm *fc, u_int32_t dst, u_int32_t tlrt)
-{
-	int err = 0;
-	struct fw_xfer *xfer;
-	struct fw_pkt *fp;
 
-	xfer = fw_xfer_alloc();
-	if(xfer == NULL){
-		err = ENOMEM;
-		return err;
-	}
-	xfer->send.len = 12;
-	xfer->spd = 0;
-	xfer->send.buf = malloc(xfer->send.len, M_DEVBUF, M_NOWAIT);
-	if(xfer->send.buf == NULL){
-		return ENOMEM;
-	}
-	xfer->send.off = 0; 
-	fp = (struct fw_pkt *)xfer->send.buf;
-	 
-	fp->mode.wres.tlrt = tlrt;
-	fp->mode.wres.tcode = FWTCODE_WRES;
-	fp->mode.wres.pri = 0;
-	fp->mode.wres.dst = htons(dst);
-
-	xfer->act.hand = fw_asy_callback;
-	err = fw_asyreq(fc, -1, xfer);
-	if(err){
-		fw_xfer_free( xfer);
-		return err;
-	}
-	err = tsleep((caddr_t)xfer, FWPRI, "asyreq", 0);
-	fw_xfer_free( xfer);
-
-	return err;
-}
-
-/*
- * Async. read responce block support for kernel internal use. 
- */
-int
-fw_readresb(struct firewire_comm *fc, u_int32_t dst, u_int32_t tlrt,
-	u_int32_t len, u_int32_t *buf)
-{
-	int err = 0;
-	struct fw_xfer *xfer ;
-	struct fw_pkt *fp;
-
-	xfer = fw_xfer_alloc();
-	if(xfer == NULL){
-		err = ENOMEM;
-		return err;
-	}
-	xfer->send.len = sizeof(struct fw_pkt) + len;
-	xfer->spd = 0;
-	xfer->send.buf = malloc(sizeof(struct fw_pkt) + 1024, M_DEVBUF, M_DONTWAIT);
-	if(xfer->send.buf == NULL){
-		return ENOMEM;
-	}
-	xfer->send.off = 0; 
-	fp = (struct fw_pkt *)xfer->send.buf;
-	fp->mode.rresb.tlrt = tlrt;
-	fp->mode.rresb.tcode = FWTCODE_RRESB;
-	fp->mode.rresb.pri = 0;
-	fp->mode.rresb.dst = htons(dst);
-	fp->mode.rresb.rtcode = 0;
-	fp->mode.rresb.extcode = 0;
-	fp->mode.rresb.len = htons(len);
-	bcopy(buf, fp->mode.rresb.payload, len);
-	xfer->act.hand = fw_asy_callback;
-	err = fw_asyreq(fc, -1, xfer);
-	if(err){
-		fw_xfer_free( xfer);
-		return err;
-	}
-	err = tsleep((caddr_t)xfer, FWPRI, "asyreq", 0);
-
-	fw_xfer_free( xfer);
-	return err;
-}
-
-/*
- * Async. write request block support for kernel internal use. 
- */
-int
-fw_writereqb(struct firewire_comm *fc, u_int32_t addr_hi, u_int32_t addr_lo,
-	u_int len, u_int32_t *buf)
-{
-	int err = 0;
-	struct fw_xfer *xfer ;
-	struct fw_pkt *fp;
-
-	xfer = fw_xfer_alloc();
-	if(xfer == NULL){
-		err = ENOMEM;
-		return err;
-	}
-	xfer->send.len = sizeof(struct fw_pkt) + len;
-	xfer->spd = 0;
-	xfer->send.buf = malloc(sizeof(struct fw_pkt) + 1024, M_DEVBUF, M_DONTWAIT);
-	if(xfer->send.buf == NULL){
-		return ENOMEM;
-	}
-	xfer->send.off = 0; 
-	fp = (struct fw_pkt *)xfer->send.buf;
-	fp->mode.wreqb.dest_hi = htonl(addr_hi & 0xffff);
-	fp->mode.wreqb.tlrt = 0;
-	fp->mode.wreqb.tcode = FWTCODE_WREQB;
-	fp->mode.wreqb.pri = 0;
-	fp->mode.wreqb.dst = htons(addr_hi >> 16);
-	fp->mode.wreqb.dest_lo = htonl(addr_lo);
-	fp->mode.wreqb.len = htons(len);
-	fp->mode.wreqb.extcode = 0;
-	bcopy(buf, fp->mode.wreqb.payload, len);
-	xfer->act.hand = fw_asy_callback;
-	err = fw_asyreq(fc, -1, xfer);
-	if(err){
-		fw_xfer_free( xfer);
-		return err;
-	}
-	err = tsleep((caddr_t)xfer, FWPRI, "asyreq", 0);
-
-	fw_xfer_free( xfer);
-	return err;
-}
-
-/*
- * Async. read request support for kernel internal use. 
- */
-int
-fw_readreqq(struct firewire_comm *fc, u_int32_t addr_hi, u_int32_t addr_lo, u_int32_t *ret){
-	int err = 0;
-	struct fw_xfer *xfer ;
-	struct fw_pkt *fp, *rfp;
-
-	xfer = fw_xfer_alloc();
-	if(xfer == NULL){
-		err = ENOMEM;
-		return err;
-	}
-	xfer->send.len = 16;
-	xfer->spd = 0;
-	xfer->send.buf = malloc(16, M_DEVBUF, M_DONTWAIT);
-	if(xfer->send.buf == NULL){
-		return ENOMEM;
-	}
-	xfer->send.off = 0; 
-	fp = (struct fw_pkt *)xfer->send.buf;
-	fp->mode.rreqq.dest_hi = htonl(addr_hi & 0xffff);
-	fp->mode.rreqq.tlrt = 0;
-	fp->mode.rreqq.tcode = FWTCODE_RREQQ;
-	fp->mode.rreqq.pri = 0;
-	xfer->dst = addr_hi >> 16;
-	fp->mode.rreqq.dst = htons(xfer->dst);
-	fp->mode.rreqq.dest_lo = htonl(addr_lo);
-	xfer->act.hand = fw_asy_callback;
-	err = fw_asyreq(fc, -1, xfer);
-	if(err){
-		fw_xfer_free( xfer);
-		return err;
-	}
-	err = tsleep((caddr_t)xfer, FWPRI, "asyreq", 0);
-
-	if(err == 0 && xfer->recv.buf != NULL){
-		rfp = (struct fw_pkt *)xfer->recv.buf;
-		*ret = ntohl(rfp->mode.rresq.data);
-	}
-	fw_xfer_free( xfer);
-	return err;
-}
-#endif
 /*
  * To obtain CSR register values.
  */
-u_int32_t getcsrdata(struct fw_device *fwdev, u_int8_t key)
+u_int32_t
+getcsrdata(struct fw_device *fwdev, u_int8_t key)
 {
 	int i;
 	struct csrhdr *chdr;
@@ -1787,10 +1613,12 @@ u_int32_t getcsrdata(struct fw_device *fwdev, u_int8_t key)
 	}
 	return 0;
 }
+
 /*
  * To attach sub-devices layer onto IEEE1394 bus.
  */
-static void fw_attach_dev(struct firewire_comm *fc)
+static void
+fw_attach_dev(struct firewire_comm *fc)
 {
 	struct fw_device *fwdev;
 	struct fw_xfer *xfer;
@@ -1890,10 +1718,12 @@ static void fw_attach_dev(struct firewire_comm *fc)
 	}
 	return;
 }
+
 /*
  * To allocate uniq transaction label.
  */
-static int fw_get_tlabel(struct firewire_comm *fc, struct fw_xfer *xfer)
+static int
+fw_get_tlabel(struct firewire_comm *fc, struct fw_xfer *xfer)
 {
 	u_int i;
 	struct tlabel *tl, *tmptl;
@@ -1924,10 +1754,12 @@ static int fw_get_tlabel(struct firewire_comm *fc, struct fw_xfer *xfer)
 	printf("fw_get_tlabel: no free tlabel\n");
 	return(-1);
 }
+
 /*
  * Generic packet receving process.
  */
-void fw_rcv(struct firewire_comm* fc, caddr_t buf, u_int len, u_int sub, u_int off, u_int spd)
+void
+fw_rcv(struct firewire_comm* fc, caddr_t buf, u_int len, u_int sub, u_int off, u_int spd)
 {
 	struct fw_pkt *fp, *resfp;
 	struct fw_xfer *xfer;
@@ -2147,6 +1979,7 @@ void fw_rcv(struct firewire_comm* fc, caddr_t buf, u_int len, u_int sub, u_int o
 err:
 	free(buf, M_DEVBUF);
 }
+
 /*
  * Post process for Bus Manager election process.
  */
@@ -2187,10 +2020,12 @@ fw_try_bmr_callback(struct fw_xfer *xfer)
 error:
 	fw_xfer_free(xfer);
 }
+
 /*
  * To candidate Bus Manager election process.
  */
-void fw_try_bmr(void *arg)
+void
+fw_try_bmr(void *arg)
 {
 	struct fw_xfer *xfer;
 	struct firewire_comm *fc = (struct firewire_comm *)arg;
@@ -2241,7 +2076,8 @@ void fw_try_bmr(void *arg)
  * Software implementation for physical memory block access.
  * XXX:Too slow, usef for debug purpose only.
  */
-static void fw_vmaccess(struct fw_xfer *xfer){
+static void
+fw_vmaccess(struct fw_xfer *xfer){
 	struct fw_pkt *rfp, *sfp = NULL;
 	u_int32_t *ld = (u_int32_t *)(xfer->recv.buf + xfer->recv.off);
 
@@ -2316,7 +2152,8 @@ static void fw_vmaccess(struct fw_xfer *xfer){
 /*
  * CRC16 check-sum for IEEE1394 register blocks.
  */
-u_int16_t fw_crc16(u_int32_t *ptr, u_int32_t len){
+u_int16_t
+fw_crc16(u_int32_t *ptr, u_int32_t len){
 	u_int32_t i, sum, crc = 0;
 	int shift;
 	len = (len + 3) & ~3;
@@ -2329,5 +2166,6 @@ u_int16_t fw_crc16(u_int32_t *ptr, u_int32_t len){
 	}
 	return((u_int16_t) crc);
 }
+
 DRIVER_MODULE(firewire,fwohci,firewire_driver,firewire_devclass,0,0);
 MODULE_VERSION(firewire, 1);
