@@ -4,7 +4,7 @@
 
 <title>Frequently Asked Questions for FreeBSD 2.X
 <author>The FreeBSD FAQ Team, <tt/FAQ@FreeBSD.ORG/
-<date> $Id: freebsd-faq.sgml,v 1.51 1996/07/09 22:37:38 jraynard Exp $
+<date> $Id: freebsd-faq.sgml,v 1.52 1996/07/10 17:09:20 jraynard Exp $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -2297,6 +2297,19 @@ disk        fd1   at fdc0 drive 1
           standard requirements for routers; however, it comes close enough
           for ordinary usage.
 
+      <sect1>
+	<heading>Can I connect my Win95 box to the Internet via FreeBSD?</heading>
+	<p>
+	  Typically, people who ask this question have two PC's at home, one
+	  with FreeBSD and one with Win95; the idea is to use the FreeBSD
+	  box to connect to the Internet and then be able to access the
+	  Internet from the Windows95 box through the FreeBSD box. This
+	  is really just a special case of the previous question.
+
+	  There's a useful document available which explains how to set
+	  FreeBSD up as a <url url="http://www.ssimicro.com/~jeremy/ppp.html"
+	  name="PPP Dialup Router">
+	
       <sect1>
 	<heading>Does FreeBSD support SLIP and PPP?</heading>
 
