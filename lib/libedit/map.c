@@ -1061,8 +1061,8 @@ map_init_emacs(el)
     map_init_nls(el);
 
     buf[0] = CONTROL('X');
-    buf[2] = 0;
     buf[1] = CONTROL('X');
+    buf[2] = 0;
     key_add(el, buf, key_map_cmd(el, EM_EXCHANGE_MARK), XK_CMD);
 
     tty_bind_char(el, 1);
