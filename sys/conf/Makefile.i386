@@ -54,7 +54,6 @@ ASM_CFLAGS= -x assembler-with-cpp -DLOCORE ${CFLAGS}
 FMT=		-elf
 CFLAGS+=	${FMT}
 
-LOAD_ADDRESS?=	C0100000
 DEFINED_PROF=	${PROF}
 .if defined(PROF)
 CFLAGS+=	-malign-functions=4
