@@ -23,8 +23,6 @@
 #define     MODE_ECB              1 /*  Are we ciphering in ECB mode?   */
 #define     MODE_CBC              2 /*  Are we ciphering in CBC mode?   */
 #define     MODE_CFB1             3 /*  Are we ciphering in 1-bit CFB mode? */
-#define     TRUE                  1
-#define     FALSE                 0
 #define     BITSPERBLOCK        128 /* Default number of bits in a cipher block */
 
 /*  Error Codes - CHANGE POSSIBLE: inclusion of additional error codes  */
