@@ -28,7 +28,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id: mount_msdos.8,v 1.9 1998/02/23 09:41:01 ache Exp $
+.\"	$Id: mount_msdos.8,v 1.10 1998/02/23 16:49:12 ache Exp $
 .\"
 .Dd April 7, 1994
 .Dt MOUNT_MSDOS 8
@@ -132,6 +132,7 @@ if deleting or renaming a file. This forces
 .It Fl L Ar locale
 Specify locale name used for internal uppercase and lowercase conversions
 for DOS and Win'95 names.
+By default ISO 8859-1 assumed as local character set.
 .It Fl W Ar table
 Specify text file with 3 conversion tables:
 .Bl -enum
@@ -146,6 +147,7 @@ Local character set to DOS conversion table (upper half) for DOS names,
 128 character codes.
 .El
 .Pp
+By default ISO 8859-1 assumed as local character set.
 If file path isn't absolute,
 .Pa /usr/libdata/msdosfs/
 prefix prepended.
