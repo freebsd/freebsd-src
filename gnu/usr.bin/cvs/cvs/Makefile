@@ -13,15 +13,16 @@ PROG=	cvs
 MAN=	cvs.1 cvs.5
 
 SRCS=	add.c admin.c annotate.c buffer.c \
-	checkin.c checkout.c classify.c client_P.c \
+	checkin.c checkout.c classify.c client.c \
 	commit.c create_adm.c cvsrc.c diff.c edit.c entries.c error.c \
 	expand_path.c fileattr.c filesubr.c find_names.c \
 	hardlink.c hash.c history.c \
 	ignore.c import.c lock.c log.c login.c logmsg.c main.c mkmodules.c \
-	modules_P.c myndbm.c no_diff.c parseinfo.c patch.c prepend_args.c \
+	modules.c myndbm.c no_diff.c parseinfo.c patch.c prepend_args.c \
 	rcs.c rcscmds.c \
 	recurse.c release.c remove.c repos.c root.c run.c scramble.c \
-	server.c status.c subr.c tag.c update.c vers_ts.c version.c watch.c \
+	server.c stack.c status.c subr.c \
+	tag.c update.c vers_ts.c version.c watch.c \
 	wrapper.c zlib.c
 
 # gnu must be before lib to pick correct regex.h
@@ -61,13 +62,5 @@ regress:
 		sh ${CVSDIR}/src/sanity.sh ${.OBJDIR}/cvs)
 .endif
 .endif
-
-# XXX Temporary until next CVS import: patch security issues
-.for f in client modules
-CLEANFILES+=	${f}_P.c
-
-${f}_P.c:	${f}.c ${f}.patch
-	patch -t -s -p3 -o ${.TARGET} ${.ALLSRC:M*.c} ${.ALLSRC:M*.patch}
-.endfor
 
 .include <bsd.prog.mk>
