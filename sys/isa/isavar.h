@@ -45,10 +45,10 @@
 #define ISA_ORDER_SPECULATIVE	1 /* legacy non-sensitive hardware */
 #define ISA_ORDER_PNP		2 /* plug-and-play hardware */
 
-#define	ISA_NPORT_IVARS	8
-#define	ISA_NMEM_IVARS	4
-#define	ISA_NIRQ_IVARS	2
-#define	ISA_NDRQ_IVARS	2
+#define	ISA_NPORT	8
+#define	ISA_NMEM	4
+#define	ISA_NIRQ	2
+#define	ISA_NDRQ	2
 
 enum isa_device_ivars {
 	ISA_IVAR_PORT,
