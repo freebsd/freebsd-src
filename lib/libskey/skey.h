@@ -55,6 +55,6 @@ int skeychallenge __P((struct skey *mp, const char *name, char *challenge));
 int skeyinfo __P((struct skey *mp, const char* name, char *ss));
 int skeyaccess __P((char *user, const char *port, const char *host, const char *addr));
 char *skey_getpass __P((const char *prompt, struct passwd * pwd, int pwok));
-char *skey_crypt __P((char *pp, char *salt, struct passwd *pwd, int pwok));
+const char *skey_crypt __P((char *pp, char *salt, struct passwd *pwd, int pwok));
 
 #endif /* _SKEY_H_ */
