@@ -405,7 +405,7 @@ profil(p, uap)
 void
 addupc_intr(p, pc, ticks)
 	register struct proc *p;
-	register u_long pc;
+	register uintptr_t pc;
 	u_int ticks;
 {
 	register struct uprof *prof;
@@ -435,7 +435,7 @@ addupc_intr(p, pc, ticks)
 void
 addupc_task(p, pc, ticks)
 	register struct proc *p;
-	register u_long pc;
+	register uintptr_t pc;
 	u_int ticks;
 {
 	register struct uprof *prof;
