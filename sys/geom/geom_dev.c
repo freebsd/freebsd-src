@@ -50,7 +50,6 @@
 #include <sys/fcntl.h>
 #include <geom/geom.h>
 #include <geom/geom_int.h>
-#include <geom/geom_stats.h>
 #include <machine/limits.h>
 
 static d_open_t		g_dev_open;
