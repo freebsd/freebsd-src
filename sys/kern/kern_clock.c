@@ -67,6 +67,16 @@
 #include <sys/gmon.h>
 #endif
 
+#ifdef DEVICE_POLLING
+#include <i386/include/md_var.h>	/* for vm_page_zero_idle() */
+#include <sys/socket.h>	/* needed by sys/if.h */
+#include <net/if.h>	/* for IFF_* flags */
+#include <net/netisr.h>	/* for NETISR_POLL */
+
+static u_int32_t poll_handlers; /* next free entry in pr[]. */
+static void ether_poll1(void);
+static void update_poll_threshold(struct clockframe *frame);
+#endif /* DEVICE_POLLING */
 
 /*
  * Number of timecounters used to implement stable storage
@@ -188,6 +198,10 @@ initclocks(dummy)
 	psdiv = pscnt = 1;
 	cpu_initclocks();
 
+#ifdef DEVICE_POLLING
+	register_netisr(NETISR_POLL, ether_poll1);
+#endif
+
 	/*
 	 * Compute profhz/stathz, and fix profhz if needed.
 	 */
@@ -235,6 +249,12 @@ hardclock(frame)
 
 	tco_forward(0);
 	ticks++;
+
+#ifdef DEVICE_POLLING
+	update_poll_threshold(frame);
+	if (poll_handlers > 0)
+		schednetisr(NETISR_POLL);
+#endif
 
 	/*
 	 * Process callouts at a very low cpu priority, so we don't keep the
@@ -999,3 +1019,235 @@ pps_event(struct pps_state *pps, struct timecounter *tc, unsigned count, int eve
 	}
 #endif
 }
+
+#ifdef DEVICE_POLLING
+/*
+ * Polling support for device drivers.
+ */
+
+SYSCTL_NODE(_kern, OID_AUTO, polling, CTLFLAG_RW, 0,
+	"Device polling parameters");
+
+static u_int32_t idle_done;
+SYSCTL_ULONG(_kern_polling, OID_AUTO, idle_done, CTLFLAG_RD,
+	&idle_done, 0, "Have gone in idle_loop");
+
+u_int32_t poll_burst = 5;	/* used in device drivers */
+SYSCTL_ULONG(_kern_polling, OID_AUTO, burst, CTLFLAG_RW,
+	&poll_burst, 0, "Current polling burst size");
+
+static u_int32_t poll_burst_max = 100;
+SYSCTL_ULONG(_kern_polling, OID_AUTO, burst_max, CTLFLAG_RW,
+	&poll_burst_max, 0, "Max Polling burst size");
+
+u_int32_t poll_in_trap;		/* used in trap.c */
+SYSCTL_ULONG(_kern_polling, OID_AUTO, poll_in_trap, CTLFLAG_RW,
+	&poll_in_trap, 0, "Poll burst size while getting a trap");
+
+static u_int32_t user_frac = 50;
+SYSCTL_ULONG(_kern_polling, OID_AUTO, user_frac, CTLFLAG_RW,
+	&user_frac, 0, "Desired user fraction of cpu time");
+
+static u_int32_t reg_frac = 20 ;
+SYSCTL_ULONG(_kern_polling, OID_AUTO, reg_frac, CTLFLAG_RW,
+	&reg_frac, 0, "Every this many cycles poll register");
+
+/*
+ * Devices that want to do polling must register for it,
+ * typically from the interrupt service routine, by calling
+ * ether_poll_register(handler, arg).
+ *
+ * The handler is called with 3 arguments: the "arg" passed at register
+ * time (a struct ifnet pointer), a command (see below) and a count limit.
+ * The command can be one of the following:
+ *  0: quick move of "count" packets from input/output queues.
+ *  1: as above, plus check status registers for errors etc.
+ *  2: unregister and return to interrupt mode.
+ * Commands 0 and 1 are only issued if the interface is marked as
+ *  'IFF_UP and IFF_RUNNING',
+ * command 2 is issued only if IFF_RUNNING is set.
+ *
+ * The count limit specifies how much work the handler can do during the
+ * call -- typically this is the number of packets to be received, or
+ * transmitted, etc. (drivers are free to interpret this number, as long
+ * as the max time spent in the function grows roughly linearly with the
+ * count).
+ */
+#define POLL_LIST_LEN  128
+struct pollrec {
+	poll_handler_t	*handler ;
+	struct ifnet	*ifp;
+};
+
+static struct pollrec pr[POLL_LIST_LEN];
+SYSCTL_ULONG(_kern_polling, OID_AUTO, handlers, CTLFLAG_RD,
+	&poll_handlers, 0, "Number of registered poll handlers");
+
+/*
+ * this sysctl variable globally controls polling
+ */
+static int polling = 0;
+SYSCTL_ULONG(_kern_polling, OID_AUTO, enable, CTLFLAG_RW,
+	&polling, 0, "Polling enabled");
+
+/*
+ * poll state reflects from what context we are polling.
+ */
+enum poll_states {
+	POLL_NONE, POLL_INTR, POLL_IDLE,
+};
+static enum poll_states poll_state = POLL_NONE;
+
+/*
+ * ether_poll is called from the idle loop or from trap handlers.
+ */
+int
+ether_poll(int count)
+{
+	int i;
+	int s = splimp();
+
+	poll_state = POLL_IDLE;
+	if (count > poll_burst)
+		count = poll_burst;
+	for (i = 0 ; i < poll_handlers ; i++)
+		if (pr[i].handler && (IFF_UP|IFF_RUNNING) ==
+		    (pr[i].ifp->if_flags & (IFF_UP|IFF_RUNNING)) )
+			pr[i].handler(pr[i].ifp, 0, count); /* quick check */
+	poll_state = POLL_NONE;
+	splx(s);
+	return 1; /* more polling */
+}
+
+int
+idle_poll(void)
+{
+	idle_done=1;
+	if (poll_handlers > 0) {
+		int s = splimp();
+		enable_intr();
+		ether_poll(poll_burst);
+		disable_intr();
+		splx(s);
+		vm_page_zero_idle();
+		return 1;
+	} else
+		return vm_page_zero_idle();
+}
+
+/*
+ * update burst size to avoid livelock.
+ */
+static void
+update_poll_threshold(struct clockframe *frame)
+{
+	static u_int32_t ready = 0 ; /* act when ready==0 */
+
+	if (poll_state == POLL_INTR) {
+		/*
+		 * We are spending too much time in polling,
+		 * so we need to lower the threshold.
+		 */
+		if (poll_burst >= 2)
+			poll_burst = (poll_burst*3)/4;
+	} else if (idle_done > 0 && ready == 0 && poll_burst < poll_burst_max)
+		poll_burst++;
+
+	idle_done = 0 ;
+
+	if (ready-- > 0)
+		return ;
+
+	ready = hz/10 ;
+}
+
+/*
+ * ether_poll1 is called by schednetisr when appropriate, typically once
+ * per tick. It is called at splnet() so first thing to do is to upgrade to
+ * splimp(), and call all registered handlers.
+ */
+static void
+ether_poll1(void)
+{
+	static int reg_frac_count;
+	int i, arg=0;
+	int s=splimp();
+	if (reg_frac > hz)
+		reg_frac = hz;
+	else if (reg_frac < 1)
+		reg_frac = 1;
+	if (reg_frac_count > reg_frac)
+		reg_frac_count = reg_frac - 1;
+	if (reg_frac_count-- == 0) {
+		arg = 1;
+		reg_frac_count = reg_frac - 1;
+	}
+
+	poll_state = POLL_INTR ;
+	if (polling) {
+		for (i = 0 ; i < poll_handlers ; i++)
+			if (pr[i].handler && (IFF_UP|IFF_RUNNING) ==
+			    (pr[i].ifp->if_flags & (IFF_UP|IFF_RUNNING)) )
+				pr[i].handler(pr[i].ifp, arg, poll_burst);
+	} else {	/* unregister */
+		for (i = 0 ; i < poll_handlers ; i++) {
+			if (pr[i].handler &&
+			    pr[i].ifp->if_flags & IFF_RUNNING) {
+				pr[i].ifp->if_ipending &= ~IFF_POLLING;
+				pr[i].handler(pr[i].ifp, 2, poll_burst);
+			}
+			pr[i].handler=NULL;
+		}
+		poll_handlers = 0;
+	}
+	poll_state = POLL_NONE;
+	splx(s);
+}
+
+/*
+ * Try to register routine for polling. Returns 1 if successful
+ * (and polling should be enabled), 0 otherwise.
+ * A device is not supposed to register itself multiple times.
+ */
+int
+ether_poll_register(poll_handler_t *h, struct ifnet *ifp)
+{
+	int s;
+
+	if (polling == 0) /* polling disabled, cannot register */
+		return 0;
+	if (h == NULL || ifp == NULL) /* bad arguments */
+		return 0;
+	if ( !(ifp->if_flags & IFF_UP) )	/* must be up */
+		return 0;
+	if (ifp->if_ipending & IFF_POLLING)	/* sorry, already polling */
+		return 0;
+
+	s = splhigh();
+	if (poll_handlers >= POLL_LIST_LEN) {
+		/*
+		 * List full, cannot register more entries.
+		 * This should never happen; if it does, it is probably a
+		 * broken driver trying to register multiple times. Checking
+		 * this at runtime is expensive, and won't solve the problem
+		 * anyways, so just report a few times and then give up.
+		 */
+		static int verbose = 10 ;
+		splx(s);
+		if (verbose >0) {
+			printf("poll handlers list full, "
+				"maybe a broken driver ?\n");
+			verbose--;
+		}
+		return 0; /* no polling for you */
+	}
+
+	pr[poll_handlers].handler = h;
+	pr[poll_handlers].ifp = ifp;
+	poll_handlers++;
+	ifp->if_ipending |= IFF_POLLING;
+	splx(s);
+	return 1; /* polling enabled in next call */
+}
+
+#endif /* DEVICE_POLLING */

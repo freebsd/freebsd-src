@@ -89,6 +89,20 @@ extern int maxusers;		/* system tune hint */
 #define	CONDSPLASSERT(cond, level, msg)
 #endif
 
+#ifdef DEVICE_POLLING
+#ifdef SMP
+#error DEVICE_POLLING is not compatible with SMP
+#endif
+extern u_int32_t poll_in_trap;	/* do we poll devices in a trap ? */
+extern u_int32_t poll_burst;	/* how many pkts per poll cycle */
+
+struct	ifnet ; /* keep compiler quiet */
+typedef	void poll_handler_t __P((struct ifnet *ifp, int cmd, int count));
+int	idle_poll __P((void));
+int	ether_poll __P((int count));
+int	ether_poll_register __P((poll_handler_t *h, struct ifnet *sc));
+#endif /* DEVICE_POLLING */
+
 /*
  * General function declarations.
  */

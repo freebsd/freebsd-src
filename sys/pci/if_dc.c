@@ -2319,6 +2319,13 @@ static void dc_rxeof(sc)
 
 	while(!(sc->dc_ldata->dc_rx_list[i].dc_status & DC_RXSTAT_OWN)) {
 
+#ifdef DEVICE_POLLING
+		if (ifp->if_ipending & IFF_POLLING) {
+			if (sc->rxcycles <= 0)
+				break ;
+			sc->rxcycles -- ;
+		}
+#endif /* DEVICE_POLLING */
 		cur_rx = &sc->dc_ldata->dc_rx_list[i];
 		rxstat = cur_rx->dc_status;
 		m = sc->dc_cdata.dc_rx_chain[i];
@@ -2627,6 +2634,61 @@ static void dc_tx_underrun(sc)
 	return;
 }
 
+#ifdef DEVICE_POLLING
+static poll_handler_t dc_poll;
+
+static void
+dc_poll(struct ifnet *ifp, int cmd, int count)
+{
+	struct	dc_softc *sc = ifp->if_softc;
+
+	if (cmd == 2) { /* final call, enable interrupts */
+		/* Re-enable interrupts. */
+		CSR_WRITE_4(sc, DC_IMR, DC_INTRS);
+		return;
+	}
+	sc->rxcycles = count;
+	dc_rxeof(sc);
+	dc_txeof(sc);
+	if (ifp->if_snd.ifq_head != NULL && !(ifp->if_flags & IFF_OACTIVE))
+		dc_start(ifp);
+
+	if (cmd == 1) { /* also check status register */
+		u_int32_t          status;
+
+		status = CSR_READ_4(sc, DC_ISR);
+		status &= (DC_ISR_RX_WATDOGTIMEO|DC_ISR_RX_NOBUF|
+			DC_ISR_TX_NOBUF|DC_ISR_TX_IDLE|DC_ISR_TX_UNDERRUN|
+			DC_ISR_BUS_ERR);
+		if (!status)
+			return ;
+		/* ack what we have */
+		CSR_WRITE_4(sc, DC_ISR, status);
+
+		if (status & (DC_ISR_RX_WATDOGTIMEO|DC_ISR_RX_NOBUF) ) {
+			u_int32_t r = CSR_READ_4(sc, DC_FRAMESDISCARDED);
+			ifp->if_ierrors += (r & 0xffff) +
+				( (r >> 17) & 0x7ff ) ;
+
+			if (dc_rx_resync(sc))
+				dc_rxeof(sc);
+		}
+		/* restart transmit unit if necessary */
+		if (status & DC_ISR_TX_IDLE && sc->dc_cdata.dc_tx_cnt)
+			CSR_WRITE_4(sc, DC_TXSTART, 0xFFFFFFFF);
+
+		if (status & DC_ISR_TX_UNDERRUN)
+			dc_tx_underrun(sc);
+
+		if (status & DC_ISR_BUS_ERR) {
+			printf("dc_poll: dc%d bus error\n", sc->dc_unit);
+			dc_reset(sc);
+			dc_init(sc);
+		}
+	}
+}
+#endif /* DEVICE_POLLING */
+
 static void dc_intr(arg)
 	void			*arg;
 {
@@ -2636,6 +2698,16 @@ static void dc_intr(arg)
 
 	sc = arg;
 	ifp = &sc->arpcom.ac_if;
+
+#ifdef DEVICE_POLLING
+	if (ifp->if_ipending & IFF_POLLING)
+		return ;
+	if (ether_poll_register(dc_poll, ifp)) { /* ok, disable interrupts */
+		CSR_WRITE_4(sc, DC_IMR, 0x00000000);
+		dc_poll(ifp, 0, poll_burst);
+		return ;
+	}
+#endif /* DEVICE_POLLING */
 
 	if ( (CSR_READ_4(sc, DC_ISR) & DC_INTRS) == 0)
 		return ;
