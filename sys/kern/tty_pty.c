@@ -154,6 +154,7 @@ ptyinit(struct cdev *devc)
 	pt->devc = devc;
 
 	pt->pt_tty = ttymalloc(pt->pt_tty);
+	pt->pt_tty->t_sc = pt;
 	devs->si_drv1 = devc->si_drv1 = pt;
 	devs->si_tty = devc->si_tty = pt->pt_tty;
 	pt->pt_tty->t_dev = devs;
@@ -246,7 +247,7 @@ ptswrite(struct cdev *dev, struct uio *uio, int flag)
 static void
 ptsstart(struct tty *tp)
 {
-	struct ptsc *pt = tp->t_dev->si_drv1;
+	struct ptsc *pt = tp->t_sc;
 
 	if (tp->t_state & TS_TTSTOP)
 		return;
@@ -260,7 +261,7 @@ ptsstart(struct tty *tp)
 static void
 ptcwakeup(struct tty *tp, int flag)
 {
-	struct ptsc *pt = tp->t_dev->si_drv1;
+	struct ptsc *pt = tp->t_sc;
 
 	if (flag & FREAD) {
 		selwakeuppri(&pt->pt_selr, TTIPRI);
@@ -385,7 +386,7 @@ ptcread(struct cdev *dev, struct uio *uio, int flag)
 static	void
 ptsstop(struct tty *tp, int flush)
 {
-	struct ptsc *pt = tp->t_dev->si_drv1;
+	struct ptsc *pt = tp->t_sc;
 	int flag;
 
 	/* note: FLUSHREAD and FLUSHWRITE already ok */
