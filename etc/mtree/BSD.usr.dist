@@ -63,8 +63,6 @@
                 I18N
                 ..
                 IO
-                    Socket
-                    ..
                 ..
                 IPC
                 ..
@@ -116,6 +114,8 @@
                     Data
                     ..
                     IO
+                        Socket
+                        ..
                     ..
                     IPC
                     ..
