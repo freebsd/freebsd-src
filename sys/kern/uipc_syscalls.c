@@ -481,11 +481,12 @@ kern_connect(td, fd, sa)
 {
 	struct socket *so;
 	int error, s;
+	int interrupted = 0;
 
 	mtx_lock(&Giant);
 	if ((error = fgetsock(td, fd, &so, NULL)) != 0)
 		goto done2;
-	if ((so->so_state & SS_NBIO) && (so->so_state & SS_ISCONNECTING)) {
+	if (so->so_state & SS_ISCONNECTING) {
 		error = EALREADY;
 		goto done1;
 	}
@@ -504,8 +505,11 @@ kern_connect(td, fd, sa)
 	s = splnet();
 	while ((so->so_state & SS_ISCONNECTING) && so->so_error == 0) {
 		error = tsleep(&so->so_timeo, PSOCK | PCATCH, "connec", 0);
-		if (error)
+		if (error) {
+			if (error == EINTR || error == ERESTART)
+				interrupted = 1;
 			break;
+		}
 	}
 	if (error == 0) {
 		error = so->so_error;
@@ -513,7 +517,8 @@ kern_connect(td, fd, sa)
 	}
 	splx(s);
 bad:
-	so->so_state &= ~SS_ISCONNECTING;
+	if (!interrupted)
+		so->so_state &= ~SS_ISCONNECTING;
 	if (error == ERESTART)
 		error = EINTR;
 done1:
