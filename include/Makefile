@@ -1,12 +1,12 @@
 #	From: @(#)Makefile	8.2 (Berkeley) 1/4/94
-#	$Id: Makefile,v 1.16 1994/10/03 04:15:54 bde Exp $
+#	$Id: Makefile,v 1.17 1994/10/26 18:35:39 ljo Exp $
 #
 # Doing a make install builds /usr/include
 #
 # The ``rm -rf''s used below are safe because rm doesn't follow symbolic
 # links.
 #
-all clean cleandir depend lint tags:
+all depend lint tags:
 
 SUBDIR= rpcsvc
 # XXX MISSING:	mp.h
