@@ -723,12 +723,16 @@ pmap_get_asn(pmap_t pmap)
 				printf("pmap_get_asn: generation rollover\n");
 #endif
 				PCPU_GET(current_asngen) = 1;
+				lockmgr(&allproc_lock, LK_SHARED, NULL,
+				    CURPROC);
 				LIST_FOREACH(p, &allproc, p_list) {
 					if (p->p_vmspace) {
 						tpmap = vmspace_pmap(p->p_vmspace);
 						tpmap->pm_asn[PCPU_GET(cpuno)].gen = 0;
 					}
 				}
+				lockmgr(&allproc_lock, LK_RELEASE, NULL,
+				    CURPROC);
 			}
 
 			/*
@@ -1553,12 +1557,14 @@ pmap_growkernel(vm_offset_t addr)
 			newlev1 = pmap_phys_to_pte(pa)
 				| PG_V | PG_ASM | PG_KRE | PG_KWE;
 
+			lockmgr(&allproc_lock, LK_SHARED, NULL, CURPROC);
 			LIST_FOREACH(p, &allproc, p_list) {
 				if (p->p_vmspace) {
 					pmap = vmspace_pmap(p->p_vmspace);
 					*pmap_lev1pte(pmap, kernel_vm_end) = newlev1;
 				}
 			}
+			lockmgr(&allproc_lock, LK_RELEASE, NULL, CURPROC);
 			*pte = newlev1;
 			pmap_invalidate_all(kernel_pmap);
 		}
@@ -3057,6 +3063,7 @@ pmap_pid_dump(int pid)
 	struct proc *p;
 	int npte = 0;
 	int index;
+	lockmgr(&allproc_lock, LK_SHARED, NULL, CURPROC);
 	LIST_FOREACH(p, &allproc, p_list) {
 		if (p->p_pid != pid)
 			continue;
@@ -3079,6 +3086,7 @@ pmap_pid_dump(int pid)
 								index = 0;
 								printf("\n");
 							}
+							lockmgr(&allproc_lock, LK_RELEASE, NULL, CURPROC);
 							return npte;
 						}
 						pte = pmap_pte_quick( pmap, va);
@@ -3103,6 +3111,7 @@ pmap_pid_dump(int pid)
 			}
 		}
 	}
+	lockmgr(&allproc_lock, LK_RELEASE, NULL, CURPROC);
 	return npte;
 }
 #endif

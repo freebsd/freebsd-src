@@ -405,10 +405,12 @@ proc0_post(void *dummy __unused)
 	 * Now we can look at the time, having had a chance to verify the
 	 * time from the file system.  Pretend that proc0 started now.
 	 */
+	lockmgr(&allproc_lock, LK_SHARED, NULL, CURPROC);
 	LIST_FOREACH(p, &allproc, p_list) {
 		microtime(&p->p_stats->p_start);
 		p->p_runtime = 0;
 	}
+	lockmgr(&allproc_lock, LK_RELEASE, NULL, CURPROC);
 	microuptime(&switchtime);
 	PCPU_SET(switchticks, ticks);
 

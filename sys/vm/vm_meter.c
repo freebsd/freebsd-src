@@ -78,6 +78,7 @@ loadav(struct loadavg *avg)
 	register int i, nrun;
 	register struct proc *p;
 
+	lockmgr(&allproc_lock, LK_SHARED, NULL, CURPROC);
 	for (nrun = 0, p = allproc.lh_first; p != 0; p = p->p_list.le_next) {
 		switch (p->p_stat) {
 		case SSLEEP:
@@ -92,6 +93,7 @@ loadav(struct loadavg *avg)
 			nrun++;
 		}
 	}
+	lockmgr(&allproc_lock, LK_RELEASE, NULL, CURPROC);
 	for (i = 0; i < 3; i++)
 		avg->ldavg[i] = (cexp[i] * avg->ldavg[i] +
 		    nrun * FSCALE * (FSCALE - cexp[i])) >> FSHIFT;
@@ -149,6 +151,7 @@ vmtotal(SYSCTL_HANDLER_ARGS)
 	/*
 	 * Calculate process statistics.
 	 */
+	lockmgr(&allproc_lock, LK_SHARED, NULL, CURPROC);
 	for (p = allproc.lh_first; p != 0; p = p->p_list.le_next) {
 		if (p->p_flag & P_SYSTEM)
 			continue;
@@ -199,6 +202,7 @@ vmtotal(SYSCTL_HANDLER_ARGS)
 		if (paging)
 			totalp->t_pw++;
 	}
+	lockmgr(&allproc_lock, LK_RELEASE, NULL, CURPROC);
 	/*
 	 * Calculate object memory usage statistics.
 	 */

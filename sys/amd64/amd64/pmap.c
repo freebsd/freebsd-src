@@ -3324,6 +3324,7 @@ pmap_pid_dump(int pid)
 	struct proc *p;
 	int npte = 0;
 	int index;
+	lockmgr(&allproc_lock, LK_SHARED, NULL, CURPROC);
 	LIST_FOREACH(p, &allproc, p_list) {
 		if (p->p_pid != pid)
 			continue;
@@ -3346,6 +3347,7 @@ pmap_pid_dump(int pid)
 								index = 0;
 								printf("\n");
 							}
+							lockmgr(&allproc_lock, LK_RELEASE, NULL, CURPROC);
 							return npte;
 						}
 						pte = pmap_pte_quick( pmap, va);
@@ -3370,6 +3372,7 @@ pmap_pid_dump(int pid)
 			}
 		}
 	}
+	lockmgr(&allproc_lock, LK_RELEASE, NULL, CURPROC);
 	return npte;
 }
 #endif

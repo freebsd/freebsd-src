@@ -264,11 +264,13 @@ exit1(p, rv)
 	 * Remove proc from allproc queue and pidhash chain.
 	 * Place onto zombproc.  Unlink from parent's child list.
 	 */
+	lockmgr(&allproc_lock, LK_EXCLUSIVE, NULL, CURPROC);
 	LIST_REMOVE(p, p_list);
 	LIST_INSERT_HEAD(&zombproc, p, p_list);
 	p->p_stat = SZOMB;
 
 	LIST_REMOVE(p, p_hash);
+	lockmgr(&allproc_lock, LK_RELEASE, NULL, CURPROC);
 
 	q = LIST_FIRST(&p->p_children);
 	if (q)		/* only need this if any child is S_ZOMB */
@@ -510,7 +512,9 @@ loop:
 			 * Unlink it from its process group and free it.
 			 */
 			leavepgrp(p);
+			lockmgr(&allproc_lock, LK_EXCLUSIVE, NULL, CURPROC);
 			LIST_REMOVE(p, p_list);	/* off zombproc */
+			lockmgr(&allproc_lock, LK_RELEASE, NULL, CURPROC);
 			LIST_REMOVE(p, p_sibling);
 
 			if (--p->p_procsig->ps_refcnt == 0) {
