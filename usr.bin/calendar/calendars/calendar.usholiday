@@ -1,7 +1,7 @@
 /*
  * USA holiday
  *
- * $Id: calendar.usholiday,v 1.3 1996/01/29 00:33:01 wosch Exp $
+ * $Id: calendar.usholiday,v 1.6 1997/02/22 19:28:24 peter Exp $
  */
 
 #ifndef _calendar_usholiday_
