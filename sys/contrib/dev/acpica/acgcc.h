@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acgcc.h - GCC specific defines, etc.
- *       $Revision: 1 $
+ *       $Revision: 2 $
  *
  *****************************************************************************/
 
@@ -165,7 +165,7 @@
         ";;\n"                  \
         "(p8) mov %0=-1\n"      \
         "(p9) mov %0=r0\n"      \
-        :"=r"(Acq):"m" __atomic_fool_gcc((GLptr)):"r2","r29","r30","memory"); \
+        :"=r"(Acq):"m"(GLptr):"r2","r29","r30","memory"); \
     } while (0)
 
 #define ACPI_RELEASE_GLOBAL_LOCK(GLptr, Acq) \
@@ -182,7 +182,7 @@
         "(p7) br.dpnt.few 1b\n" \
         "and    %0=1,r2\n"      \
         ";;\n"                  \
-        :"=r"(Acq):"m" __atomic_fool_gcc((GLptr)):"r2","r29","r30","memory"); \
+        :"=r"(Acq):"m"(GLptr):"r2","r29","r30","memory"); \
     } while (0)
 /*! [End] no source code translation !*/
 
