@@ -330,7 +330,11 @@ pccard_event(struct slot *slt, enum card_event event)
  *	Device driver interface.
  */
 static	int
+#if __FreeBSD_version >= 500000
 crdopen(dev_t dev, int oflags, int devtype, struct thread *td)
+#else
+crdopen(dev_t dev, int oflags, int devtype, struct proc *p)
+#endif
 {
 	struct slot *slt = PCCARD_DEV2SOFTC(dev);
 
@@ -346,7 +350,11 @@ crdopen(dev_t dev, int oflags, int devtype, struct thread *td)
  *	slots may be assigned to drivers already.
  */
 static	int
+#if __FreeBSD_version >= 500000
 crdclose(dev_t dev, int fflag, int devtype, struct thread *td)
+#else
+crdclose(dev_t dev, int fflag, int devtype, struct proc *p)
+#endif
 {
 	return (0);
 }
@@ -447,7 +455,11 @@ crdwrite(dev_t dev, struct uio *uio, int ioflag)
  *	descriptors, and assignment of drivers.
  */
 static	int
+#if __FreeBSD_version >= 500000
 crdioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
+#else
+crdioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct proc *p)
+#endif
 {
 	u_int32_t	addr;
 	int		err;
@@ -497,7 +509,11 @@ crdioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 	 * At the very least, we only allow root to set the context.
 	 */
 	case PIOCSMEM:
+#if __FreeBSD_version >= 500000
 		if (suser_td(td))
+#else
+		if (suser(p))
+#endif
 			return (EPERM);
 		if (slt->state != filled)
 			return (ENXIO);
@@ -522,7 +538,11 @@ crdioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 	 * Set I/O port context.
 	 */
 	case PIOCSIO:
+#if __FreeBSD_version >= 500000
 		if (suser_td(td))
+#else
+		if (suser(p))
+#endif
 			return (EPERM);
 		if (slt->state != filled)
 			return (ENXIO);
@@ -548,7 +568,11 @@ crdioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 			*(unsigned long *)data = pccard_mem;
 			break;
 		}
+#if __FreeBSD_version >= 500000
 		if (suser_td(td))
+#else
+		if (suser(p))
+#endif
 			return (EPERM);
 		/*
 		 * Validate the memory by checking it against the I/O
@@ -580,7 +604,11 @@ crdioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 	 * Allocate a driver to this slot.
 	 */
 	case PIOCSDRV:
+#if __FreeBSD_version >= 500000
 		if (suser_td(td))
+#else
+		if (suser(p))
+#endif
 			return (EPERM);
 		err = allocate_driver(slt, (struct dev_desc *)data);
 		if (!err)
@@ -617,7 +645,11 @@ crdioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
  *	when a change in card status occurs.
  */
 static	int
+#if __FreeBSD_version >= 500000
 crdpoll(dev_t dev, int events, struct thread *td)
+#else
+crdpoll(dev_t dev, int events, struct proc *p)
+#endif
 {
 	int	revents = 0;
 	int	s;
