@@ -1,4 +1,4 @@
-<!-- $Id: current.sgml,v 1.2.4.4 1996/06/19 20:27:33 jkh Exp $ -->
+<!-- $Id: current.sgml,v 1.2.4.5 1996/07/05 11:30:15 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 
@@ -10,7 +10,7 @@
 
                         THE FREEBSD CURRENT POLICY 
 
-Last updated: $Date: 1996/06/19 20:27:33 $
+Last updated: $Date: 1996/07/05 11:30:15 $
 
 This document attempts to explain the rationale behind
 FreeBSD-current, what you should expect should you decide to run it,
@@ -115,7 +115,7 @@ ask!  It takes far too much time to do this as a general task.
             have a good TCP/IP connection at a flat rate, this is 
             the way to do it.
 
-        <item>  Use the CMU <ref id="sup"> program (Software Update
+        <item>  Use the CMU <ref id="sup" name="sup"> program (Software Update
 	     Protocol).
             This is the second most recommended method, since it allows 
 	    you to grab the entire collection once and then only what has
