@@ -1,6 +1,6 @@
 /*
  *	from: vector.s, 386BSD 0.1 unknown origin
- *	$Id: vector.s,v 1.20 1996/05/31 01:08:08 peter Exp $
+ *	$Id: vector.s,v 1.21 1996/10/30 22:39:04 asami Exp $
  */
 
 /*
@@ -184,13 +184,13 @@ IDTVEC(vec_name) ; \
 	movb	%al,_imen + IRQ_BYTE(irq_num) ; \
 	outb	%al,$icu+ICU_IMR_OFFSET ; \
 	enable_icus ; \
-	incl	_cnt+V_INTR ;	/* tally interrupts */ \
 	movl	_cpl,%eax ; \
 	testb	$IRQ_BIT(irq_num),%reg ; \
 	jne	2f ; \
 	incb	_intr_nesting_level ; \
 __CONCAT(Xresume,irq_num): ; \
 	FAKE_MCOUNT(12*4(%esp)) ;	/* XXX late to avoid double count */ \
+	incl	_cnt+V_INTR ;	/* tally interrupts */ \
 	movl	_intr_countp + (irq_num) * 4,%eax ; \
 	incl	(%eax) ; \
 	movl	_cpl,%eax ; \
