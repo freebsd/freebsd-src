@@ -41,9 +41,15 @@
 .Fd #include <unistd.h>
 .Ft pid_t
 .Fn getpgrp "void"
+.Ft pid_t
+.Fn getpgid "pid_t pid"
 .Sh DESCRIPTION
 The process group of the current process is returned by
 .Fn getpgrp .
+The process group of the process identified by
+.Fa pid
+is returned by
+.Fn getpgid .
 .Pp
 Process groups are used for distribution of signals, and
 by terminals to arbitrate requests for their input: processes
@@ -64,12 +70,16 @@ calls
 are used to get/set the process group of the control terminal.
 .Sh SEE ALSO
 .Xr setpgid 2 ,
+.Xr getsid 2 ,
 .Xr termios 4
 .Sh HISTORY
 The
 .Fn getpgrp
 function call appeared in
 .Bx 4.0 .
+The
+.Fn getpgid
+function call is derived from it's usage in System V Release 4.
 .Sh STANDARDS
 The
 .Fn getpgrp
@@ -82,10 +92,10 @@ differs from past Berkeley versions by not taking a
 .Fa "pid_t pid"
 argument.
 This incompatibility is required by
-.St -p1003.1-88 .
+.St -p1003.1-90 .
 .Pp
 From the
-.St -p1003.1-88
+.St -p1003.1-90
 Rationale:
 .Pp
 .Bx 4.3
@@ -102,3 +112,6 @@ suffices, and the added complexity of the
 .Bx 4.3
 .Fn getpgrp
 has been omitted from POSIX.1.
+The old functionality is available from the
+.Fn getpgid
+function.
