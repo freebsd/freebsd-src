@@ -1162,6 +1162,9 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 		/* Announce the departure of the interface. */
 		rt_ifannouncemsg(ifp, IFAN_DEPARTURE);
 
+		log(LOG_INFO, "%s: changing name to '%s'\n",
+		    ifp->if_xname, new_name);
+
 		strlcpy(ifp->if_xname, new_name, sizeof(ifp->if_xname));
 		ifa = ifaddr_byindex(ifp->if_index);
 		IFA_LOCK(ifa);
