@@ -392,7 +392,7 @@ fetch(char *URL, const char *path)
 	if (sigalrm || sigint)
 		goto signal;
 	if (f == NULL) {
-		warnx("%s: %s", path, fetchLastErrString);
+		warnx("%s: %s", URL, fetchLastErrString);
 		goto failure;
 	}
 	if (sigint)
@@ -401,11 +401,11 @@ fetch(char *URL, const char *path)
 	/* check that size is as expected */
 	if (S_size) {
 		if (us.size == -1) {
-			warnx("%s: size unknown", path);
+			warnx("%s: size unknown", URL);
 			goto failure;
 		} else if (us.size != S_size) {
 			warnx("%s: size mismatch: expected %lld, actual %lld",
-			    path, (long long)S_size, (long long)us.size);
+			    URL, (long long)S_size, (long long)us.size);
 			goto failure;
 		}
 	}
@@ -420,7 +420,7 @@ fetch(char *URL, const char *path)
 	}
 
 	if (us.size == -1 && !o_stdout && v_level > 0)
-		warnx("%s: size of remote file is not known", path);
+		warnx("%s: size of remote file is not known", URL);
 	if (v_level > 1) {
 		if (sb.st_size != -1)
 			fprintf(stderr, "local size / mtime: %lld / %ld\n",
@@ -470,7 +470,7 @@ fetch(char *URL, const char *path)
 			if (nsb.st_dev != sb.st_dev ||
 			    nsb.st_ino != nsb.st_ino ||
 			    nsb.st_size != sb.st_size) {
-				warnx("%s: file has changed", path);
+				warnx("%s: file has changed", URL);
 				fclose(of);
 				of = NULL;
 				sb = nsb;
@@ -497,7 +497,7 @@ fetch(char *URL, const char *path)
 			 */
 			url->offset = 0;
 			if ((f = fetchXGet(url, &us, flags)) == NULL) {
-				warnx("%s: %s", path, fetchLastErrString);
+				warnx("%s: %s", URL, fetchLastErrString);
 				goto failure;
 			}
 			if (sigint)
