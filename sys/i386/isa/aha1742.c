@@ -11,41 +11,15 @@
  * TFS supplies this software to be publicly redistributed
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
- */
-
-/*
- * HISTORY
- * $Log: aha1742.c,v $
- * Revision 1.4  1993/08/06  11:59:02  rgrimes
- * Fixed **probing for scsi devices** message to have a controller and unit
- * message on the begining of it:
- * aha0: **probing for scsi devices**
  *
- * Revision 1.3  1993/07/29  11:55:34  nate
- * Syncing our sources back with Julian's, and removing PATCHKIT headers.
  *
- * Large Bustek changes, most everything else is minimal.
+ * PATCHES MAGIC                LEVEL   PATCH THAT GOT US HERE
+ * --------------------         -----   ----------------------
+ * CURRENT PATCH LEVEL:         1       00098
+ * --------------------         -----   ----------------------
  *
- * Revision 1.2  1993/07/15  17:52:58  davidg
- * Modified attach printf's so that the output is compatible with the "new"
- * way of doing things. There still remain several drivers that need to
- * be updated.  Also added a compile-time option to pccons to switch the
- * control and caps-lock keys (REVERSE_CAPS_CTRL) - added for my personal
- * sanity.
- *
- * Revision 1.1.1.1  1993/06/12  14:57:59  rgrimes
- * Initial import, 0.1 + pk 0.2.4-B1
- *
- * julian - removed un-necessary splx() calls and debugging code
- *
- * Revision 1.3  93/05/22  16:51:18  julian
- * set up  dev->dev_pic before it's needed for OSF
- * 
- * Revision 1.2  93/05/07  11:40:27  julian
- * fixed SLEEPTIME calculation
- * 
- * Revision 1.1  93/05/07  11:14:03  julian
- * Initial revision
+ * 16 Feb 93	Julian Elischer		ADDED for SCSI system
+ * commenced: Sun Sep 27 18:14:01 PDT 1992
  */
 
 #include <sys/types.h>
@@ -103,6 +77,7 @@ int     Debugger();
 #endif  MACH
 
 typedef unsigned long int physaddr;
+extern int 	hz;
 
 #ifdef        MACH
 extern physaddr kvtophys();
@@ -297,8 +272,6 @@ struct	ecb
 	/*-----------------end of hardware supported fields----------------*/
 	struct	ecb	*next;	/* in free list */
 	struct	scsi_xfer *xs; /* the scsi_xfer for this cmd */
-	long	int	delta;  /* difference from previous*/
-	struct	ecb	*later,*sooner;
 	int		flags;
 #define ECB_FREE	0
 #define ECB_ACTIVE	1
@@ -310,9 +283,6 @@ struct	ecb
 	struct	scsi_sense_data	ecb_sense;
 };
 
-struct	ecb	*ahb_soonest	= (struct ecb *)0;
-struct	ecb	*ahb_latest	= (struct ecb *)0;
-long	int	ahb_furtherest	= 0; /* longest time in the timeout queue */
 /**/
 
 struct	ahb_data
@@ -546,6 +516,7 @@ struct isa_dev *dev;
 #ifdef  __386BSD__				/* 386BSD */
         dev->id_irq = (1 << ahb_data[unit].vect);
         dev->id_drq = -1; /* use EISA dma */
+	printf("\n  **");
 #endif  __386BSD__
 
 	ahb_unit++;
@@ -562,7 +533,7 @@ struct	isa_dev	*dev;
 
 
 #ifdef  __386BSD__
-	printf("ahb%d: **probing for scsi devices**\n", unit);
+	printf(" probing for scsi devices**\n");
 #endif  __386BSD__
 
 	/***********************************************\
@@ -572,10 +543,9 @@ struct	isa_dev	*dev;
 #if defined(OSF)
 	ahb_attached[unit]=1;
 #endif /* defined(OSF) */
-	if(!unit) /* only one for all boards */
-	{
-		ahb_timeout(0);
-	}
+#ifdef  __386BSD__
+	printf("ahb%d",unit);
+#endif  __386BSD__
 	return;
 }
 
@@ -603,8 +573,10 @@ ahbintr(unit)
 
 	int	port = ahb_data[unit].baseport;
 
+#ifdef	AHBDEBUG
 	if(scsi_debug & PRINTROUTINES)
 		printf("ahbintr ");
+#endif	/*AHBDEBUG*/
 
 #if defined(OSF)
 	if (!ahb_attached[unit])
@@ -623,8 +595,10 @@ ahbintr(unit)
 		stat = ahbstat & G2INTST_INT_STAT;
 		mboxval = inl(port + MBOXIN0);/* don't know this will work */
 		outb(port + G2CNTRL, G2CNTRL_CLEAR_EISA_INT);
+#ifdef	AHBDEBUG
 		if(scsi_debug & TRACEINTERRUPTS)
 			printf("status = 0x%x ",stat);
+#endif	/*AHBDEBUG*/
 		/***********************************************\
 		* Process the completed operation		*
 		\***********************************************/
@@ -647,13 +621,9 @@ ahbintr(unit)
 				ahb_data[unit].immed_ecb = 0;
 				break;
 			case	AHB_ASN:	/* for target mode */
-				printf("ahb%d: Unexpected ASN interrupt(%x)\n",
-					unit, mboxval);
 				ecb = 0;
 				break;
 			case	AHB_HW_ERR:
-				printf("ahb%d: Hardware error interrupt(%x)\n",
-					unit, mboxval);
 				ecb = 0;
 				break;
 			case	AHB_ECB_RECOVERED:
@@ -669,13 +639,15 @@ ahbintr(unit)
 		}
 		if(ecb)
 		{
+#ifdef	AHBDEBUG
 			if(ahb_debug & AHB_SHOWCMDS )
 			{
 				ahb_show_scsi_cmd(ecb->xs);
 			}
 			if((ahb_debug & AHB_SHOWECBS) && ecb)
 				printf("<int ecb(%x)>",ecb);
-			ahb_remove_timeout(ecb);
+#endif	/*AHBDEBUG*/
+			untimeout(ahb_timeout,ecb);
 			ahb_done(unit,ecb,((stat == AHB_ECB_OK)?SUCCESS:FAIL));
 		}
 	}
@@ -695,8 +667,10 @@ struct ecb *ecb;
 	struct	scsi_sense_data *s1,*s2;
 	struct	scsi_xfer *xs = ecb->xs;
 
+#ifdef	AHBDEBUG
 	if(scsi_debug & (PRINTROUTINES | TRACEINTERRUPTS))
 		printf("ahb_done ");
+#endif	/*AHBDEBUG*/
 	/***********************************************\
 	* Otherwise, put the results of the operation	*
 	* into the xfer and call whoever started it	*
@@ -732,19 +706,23 @@ struct ecb *ecb;
 			case	HS_CMD_ABORTED_ADAPTER:	/* No response */
 				break;
 			case	HS_TIMED_OUT:		/* No response */
+#ifdef	AHBDEBUG
 				if (ahb_debug & AHB_SHOWMISC)
 				{
 					printf("timeout reported back\n");
 				}
+#endif	/*AHBDEBUG*/
 				xs->error = XS_TIMEOUT;
 				break;
 			default:	/* Other scsi protocol messes */
 				xs->error = XS_DRIVER_STUFFUP;
+#ifdef	AHBDEBUG
 				if (ahb_debug & AHB_SHOWMISC)
 				{
 					printf("unexpected ha_status: %x\n",
 						stat->ha_status);
 				}
+#endif	/*AHBDEBUG*/
 			}
 
 		}
@@ -761,11 +739,13 @@ struct ecb *ecb;
 				xs->error = XS_BUSY;
 				break;
 			default:
+#ifdef	AHBDEBUG
 				if (ahb_debug & AHB_SHOWMISC)
 				{
 					printf("unexpected targ_status: %x\n",
 						stat->targ_status);
 				}
+#endif	/*AHBDEBUG*/
 				xs->error = XS_DRIVER_STUFFUP;
 			}
 		}
@@ -785,8 +765,10 @@ struct ecb *ecb;
 {
 	unsigned int opri;
 	
+#ifdef	AHBDEBUG
 	if(scsi_debug & PRINTROUTINES)
 		printf("ecb%d(0x%x)> ",unit,flags);
+#endif	/*AHBDEBUG*/
 	if (!(flags & SCSI_NOMASK)) 
 	  	opri = splbio();
 
@@ -813,8 +795,10 @@ ahb_get_ecb(unit,flags)
 	unsigned opri;
 	struct ecb *rc;
 
+#ifdef	AHBDEBUG
 	if(scsi_debug & PRINTROUTINES)
 		printf("<ecb%d(0x%x) ",unit,flags);
+#endif	/*AHBDEBUG*/
 	if (!(flags & SCSI_NOMASK)) 
 	  	opri = splbio();
 	/***********************************************\
@@ -865,8 +849,10 @@ int	unit;
 		&& (spincount--));
 	if(spincount == -1)
 	{
+#ifdef	AHBDEBUG
 		if (ahb_debug & AHB_SHOWMISC)
 			printf("ahb_init: No answer from bt742a board\n");
+#endif	/*AHBDEBUG*/
 		return(ENXIO);
 	}
 	i = inb(port + MBOXIN0) & 0xff;
@@ -890,6 +876,7 @@ int	unit;
 	* level						*
 	\***********************************************/
 #ifdef	__386BSD__
+	printf("ahb%d reading board settings, ",unit);
 #define	PRNT(x)
 #else	__386BSD__
 	printf("ahb%d:",unit);
@@ -988,8 +975,10 @@ struct scsi_xfer *xs;
 	int	bytes_this_seg,bytes_this_page,datalen,flags;
 	struct	iovec	*iovp;
 	int	s;
+#ifdef	AHBDEBUG
 	if(scsi_debug & PRINTROUTINES)
 		printf("ahb_scsi_cmd ");
+#endif	/*AHBDEBUG*/
 	/***********************************************\
 	* get a ecb (mbox-out) to use. If the transfer	*
 	* is from a buf (possibly from interrupt time)	*
@@ -1014,12 +1003,14 @@ struct scsi_xfer *xs;
 	}
 
 cheat = ecb;
+#ifdef	AHBDEBUG
 	if(ahb_debug & AHB_SHOWECBS)
 				printf("<start ecb(%x)>",ecb);
 	if(scsi_debug & SHOWCOMMANDS)
 	{
 		ahb_show_scsi_cmd(xs);
 	}
+#endif	/*AHBDEBUG*/
 	ecb->xs = xs;
 	/***********************************************\
 	* If it's a reset, we need to do an 'immediate'	*
@@ -1039,7 +1030,7 @@ cheat = ecb;
 		{
 			s = splbio();
 			ahb_send_immed(unit,xs->targ,AHB_TARG_RESET);
-			ahb_add_timeout(ecb,xs->timeout);
+			timeout(ahb_timeout,ecb,(xs->timeout * hz)/1000);
 			splx(s);
 			return(SUCCESSFULLY_QUEUED);
 		}
@@ -1049,8 +1040,10 @@ cheat = ecb;
 			/***********************************************\
 			* If we can't use interrupts, poll on completion*
 			\***********************************************/
+#ifdef	AHBDEBUG
 			if(scsi_debug & TRACEINTERRUPTS)
 				printf("wait ");
+#endif	/*AHBDEBUG*/
 			if( ahb_poll(unit,xs->timeout))
 			{
 				ahb_free_ecb(unit,ecb,flags);
@@ -1089,10 +1082,12 @@ cheat = ecb;
 			{
 				sg->addr = (physaddr)iovp->iov_base;
 				xs->datalen += sg->len = iovp->iov_len;	
+#ifdef	AHBDEBUG
 				if(scsi_debug & SHOWSCATGATH)
 					printf("(0x%x@0x%x)"
 							,iovp->iov_len
 							,iovp->iov_base);
+#endif	/*AHBDEBUG*/
 				sg++;
 				iovp++;
 				seg++;
@@ -1105,8 +1100,10 @@ cheat = ecb;
 			* Set up the scatter gather block		*
 			\***********************************************/
 		
+#ifdef	AHBDEBUG
 			if(scsi_debug & SHOWSCATGATH)
 				printf("%d @0x%x:- ",xs->datalen,xs->data);
+#endif	/*AHBDEBUG*/
 			datalen		=	xs->datalen;
 			thiskv		=	(int)xs->data;
 			thisphys	=	KVTOPHYS(thiskv);
@@ -1118,8 +1115,10 @@ cheat = ecb;
 				/* put in the base address */
 				sg->addr = thisphys;
 		
+#ifdef	AHBDEBUG
 				if(scsi_debug & SHOWSCATGATH)
 					printf("0x%x",thisphys);
+#endif	/*AHBDEBUG*/
 	
 				/* do it at least once */
 				nextphys = thisphys;	
@@ -1148,16 +1147,20 @@ cheat = ecb;
 				/********************************************\
 				* next page isn't contiguous, finish the seg *
 				\********************************************/
+#ifdef	AHBDEBUG
 				if(scsi_debug & SHOWSCATGATH)
 					printf("(0x%x)",bytes_this_seg);
+#endif	/*AHBDEBUG*/
 				sg->len = bytes_this_seg;	
 				sg++;
 				seg++;
 			}
 		} /*end of iov/kv decision */
 		ecb->datalen = seg * sizeof(struct ahb_dma_seg);
+#ifdef	AHBDEBUG
 		if(scsi_debug & SHOWSCATGATH)
 			printf("\n");
+#endif	/*AHBDEBUG*/
 		if (datalen)
 		{ /* there's still data, must have run out of segs! */
 			printf("ahb_scsi_cmd%d: more than %d DMA segs\n",
@@ -1185,18 +1188,22 @@ cheat = ecb;
 	{
 		s = splbio();
 		ahb_send_mbox(unit,OP_START_ECB,xs->targ,ecb);
-		ahb_add_timeout(ecb,xs->timeout);
+		timeout(ahb_timeout,ecb,(xs->timeout * hz)/1000);
 		splx(s);
+#ifdef	AHBDEBUG
 		if(scsi_debug & TRACEINTERRUPTS)
 			printf("cmd_sent ");
+#endif	/*AHBDEBUG*/
 		return(SUCCESSFULLY_QUEUED);
 	}
 	/***********************************************\
 	* If we can't use interrupts, poll on completion*
 	\***********************************************/
 	ahb_send_mbox(unit,OP_START_ECB,xs->targ,ecb);
+#ifdef	AHBDEBUG
 	if(scsi_debug & TRACEINTERRUPTS)
 		printf("cmd_wait ");
+#endif	/*AHBDEBUG*/
 	do
 	{
 		if(ahb_poll(unit,xs->timeout))
@@ -1219,172 +1226,55 @@ cheat = ecb;
 	return(COMPLETE);
 }
 
-/*
- *                +----------+    +----------+    +----------+
- * ahb_soonest--->|    later |--->|     later|--->|     later|--->0
- *                | [Delta]  |    | [Delta]  |    | [Delta]  |
- *           0<---|sooner    |<---|sooner    |<---|sooner    |<---ahb_latest
- *                +----------+    +----------+    +----------+
- *
- *     ahb_furtherest = sum(Delta[1..n])
- */
-ahb_add_timeout(ecb,time)
-struct	ecb	*ecb;
-int	time;
+
+ahb_timeout(struct ecb *ecb)
 {
-	int	timeprev;
-	struct ecb *prev;
-	int	s = splbio();
-
-	if(prev = ahb_latest) /* yes, an assign */
-	{
-		timeprev = ahb_furtherest;
-	}
-	else
-	{
-		timeprev = 0;
-	}
-	while(prev && (timeprev > time)) 
-	{
-		timeprev -= prev->delta;
-		prev = prev->sooner;
-	}
-	if(prev)
-	{
-		ecb->delta = time - timeprev;
-		if( ecb->later = prev->later) /* yes an assign */
-		{
-			ecb->later->sooner = ecb;
-			ecb->later->delta -= ecb->delta;
-		}
-		else
-		{
-			ahb_furtherest = time;
-			ahb_latest = ecb;
-		}
-		ecb->sooner = prev;
-		prev->later = ecb;
-	}
-	else
-	{
-		if( ecb->later = ahb_soonest) /* yes, an assign*/
-		{
-			ecb->later->sooner = ecb;
-			ecb->later->delta -= time;
-		}
-		else
-		{
-			ahb_furtherest = time;
-			ahb_latest = ecb;
-		}
-		ecb->delta = time;
-		ecb->sooner = (struct ecb *)0;
-		ahb_soonest = ecb;
-	}
-	splx(s);
-}
-
-ahb_remove_timeout(ecb)
-struct	ecb	*ecb;
-{
-	int	s = splbio();
-
-	if(ecb->sooner)
-	{
-		ecb->sooner->later = ecb->later;
-	}
-	else
-	{
-		ahb_soonest = ecb->later;
-	}
-	if(ecb->later)
-	{
-		ecb->later->sooner = ecb->sooner;
-		ecb->later->delta += ecb->delta;
-	}
-	else
-	{
-		ahb_latest = ecb->sooner;
-		ahb_furtherest -= ecb->delta;
-	}
-	ecb->sooner = ecb->later = (struct ecb *)0;
-	splx(s);
-}
-
-
-extern int 	hz;
-#define ONETICK 500 /* milliseconds */
-#define SLEEPTIME ((hz * ONETICK) / 1000)
-ahb_timeout(arg)
-int	arg;
-{
-	struct  ecb  *ecb;
 	int	unit;
 	int	s	= splbio();
 
-	while( ecb = ahb_soonest )
+	unit = ecb->xs->adapter;
+	printf("ahb%d:%d device timed out\n",unit
+			,ecb->xs->targ);
+#ifdef	AHBDEBUG
+	if(ahb_debug & AHB_SHOWECBS)
+		ahb_print_active_ecb(unit);
+#endif	/*AHBDEBUG*/
+
+	/***************************************\
+	* If it's immediate, don't try abort it *
+	\***************************************/
+	if(ecb->flags & ECB_IMMED)
 	{
-		if(ecb->delta <= ONETICK)
-		/***********************************************\
-		* It has timed out, we need to do some work	*
-		\***********************************************/
-		{
-			unit = ecb->xs->adapter;
-			printf("ahb%d:%d device timed out\n",unit
-					,ecb->xs->targ);
-			if(ahb_debug & AHB_SHOWECBS)
-				ahb_print_active_ecb();
-
-			/***************************************\
-			* Unlink it from the queue		*
-			\***************************************/
-			ahb_remove_timeout(ecb);
-
-			/***************************************\
-			* If it's immediate, don't try abort it *
-			\***************************************/
-			if(ecb->flags & ECB_IMMED)
-			{
-				ecb->xs->retries = 0; /* I MEAN IT ! */
-				ecb->flags |= ECB_IMMED_FAIL;
-                                ahb_done(unit,ecb,FAIL);
-				continue;
-			}
-			/***************************************\
-			* If it has been through before, then	*
-			* a previous abort has failed, don't	*
-			* try abort again			*
-			\***************************************/
-			if(ecb->flags == ECB_ABORTED) /* abort timed out */
-			{
-				printf("AGAIN");
-				ecb->xs->retries = 0; /* I MEAN IT ! */
-				ecb->ecb_status.ha_status = HS_CMD_ABORTED_HOST;
-				ahb_done(unit,ecb,FAIL);
-			}
-			else	/* abort the operation that has timed out */
-			{
-				printf("\n");
-				ahb_send_mbox(unit,OP_ABORT_ECB,ecb->xs->targ,ecb);
-					/* 2 secs for the abort */
-				ahb_add_timeout(ecb,2000 + ONETICK);
-				ecb->flags = ECB_ABORTED;
-			}
-		}
-		else
-		/***********************************************\
-		* It has not timed out, adjust and leave	*
-		\***********************************************/
-		{
-			ecb->delta -= ONETICK;
-			ahb_furtherest -= ONETICK;
-			break;
-		}
+		ecb->xs->retries = 0; /* I MEAN IT ! */
+		ecb->flags |= ECB_IMMED_FAIL;
+                              ahb_done(unit,ecb,FAIL);
+		splx(s);
+		return;
+	}
+	/***************************************\
+	* If it has been through before, then	*
+	* a previous abort has failed, don't	*
+	* try abort again			*
+	\***************************************/
+	if(ecb->flags == ECB_ABORTED) /* abort timed out */
+	{
+		printf("AGAIN");
+		ecb->xs->retries = 0; /* I MEAN IT ! */
+		ecb->ecb_status.ha_status = HS_CMD_ABORTED_HOST;
+		ahb_done(unit,ecb,FAIL);
+	}
+	else	/* abort the operation that has timed out */
+	{
+		printf("\n");
+		ahb_send_mbox(unit,OP_ABORT_ECB,ecb->xs->targ,ecb);
+			/* 2 secs for the abort */
+		timeout(ahb_timeout,ecb,2 * hz);
+		ecb->flags = ECB_ABORTED;
 	}
 	splx(s);
-	timeout(ahb_timeout,arg,SLEEPTIME);
 }
 
+#ifdef	AHBDEBUG
 ahb_show_scsi_cmd(struct scsi_xfer *xs)
 {
 	u_char	*b = (u_char *)xs->cmd;
@@ -1419,24 +1309,26 @@ struct	ecb *ecb;
 		,ecb->opcode
 		,ecb->cdblen
 		,ecb->senselen);
-	printf("	datlen:%d hstat:%x tstat:%x delta:%d flags:%x\n"
+	printf("	datlen:%d hstat:%x tstat:%x flags:%x\n"
 		,ecb->datalen
 		,ecb->ecb_status.ha_status
 		,ecb->ecb_status.targ_status
-		,ecb->delta
 		,ecb->flags);
 	ahb_show_scsi_cmd(ecb->xs);
 }
 
-ahb_print_active_ecb()
+ahb_print_active_ecb(int unit)
 {
-	struct	ecb *ecb;
-	ecb = ahb_soonest;
+	struct	ecb *ecb = ahb_data[unit].ecbs;
+	int	i = NUM_CONCURRENT;
 
-	while(ecb)
+	while(i--)
 	{
-		ahb_print_ecb(ecb);
-		ecb = ecb->later;
+		if(ecb->flags != ECB_FREE)
+		{
+			ahb_print_ecb(ecb);
+		}
+		ecb++;
 	}
-	printf("Furtherest = %d\n",ahb_furtherest);
 }
+#endif	/*AHBDEBUG */

@@ -16,20 +16,13 @@
  * functioning of this software in any circumstances.
  *
  *
- */
-
-/*
- * HISTORY
- * $Log: ultra14f.c,v $
- * Revision 1.3  1993/07/29  11:55:37  nate
- * Syncing our sources back with Julian's, and removing PATCHKIT headers.
+ * PATCHES MAGIC                LEVEL   PATCH THAT GOT US HERE
+ * --------------------         -----   ----------------------
+ * CURRENT PATCH LEVEL:         1       00098
+ * --------------------         -----   ----------------------
  *
- * Large Bustek changes, most everything else is minimal.
- *
- *
- * Revision 1.1  93/05/07  11:37:24  julian
- * fix SLEEPTIME calculation.
- *
+ * 16 Feb 93	Julian Elischer		ADDED for SCSI system
+ * commenced: Sun Sep 27 18:14:01 PDT 1992
  * slight mod to make work with 34F as well: Wed Jun  2 18:05:48 WST 1993
  */
  
@@ -102,6 +95,7 @@ extern physaddr kvtophys();
 #define KVTOPHYS(x)   vtophys(x)
 #endif        __386BSD__
 
+extern int      hz;
 extern int delaycount;  /* from clock setup code */
 #define NUM_CONCURRENT	16	/* number of concurrent ops per board */
 #define UHA_NSEG        33      /* number of dma segments supported     */
@@ -251,8 +245,6 @@ struct  mscp
 	/*-----------------end of hardware supported fields----------------*/
 	struct  mscp     *next;  /* in free list */
 	struct  scsi_xfer *xs; /* the scsi_xfer for this cmd */
-	long    int     delta;  /* difference from previous*/
-	struct  mscp     *later,*sooner;
 	int             flags;
 #define MSCP_FREE        0
 #define MSCP_ACTIVE      1
@@ -261,9 +253,6 @@ struct  mscp
 	struct  scsi_sense_data mscp_sense;
 };
 
-struct  mscp     *uha_soonest    = (struct mscp *)0;
-struct  mscp     *uha_latest     = (struct mscp *)0;
-long    int     uha_furtherest  = 0; /* longest time in the timeout queue */
 /**/
 
 struct  uha_data
@@ -300,7 +289,9 @@ struct  isa_driver      uhadriver = { uhaprobe, uha_attach, "uha"};
 #endif  __386BSD__
 
 static	uha_unit = 0;
+#ifdef	UHADEBUG
 int     uha_debug = 0;
+#endif	/*UHADEBUG*/
 #define UHA_SHOWMSCPS 0x01
 #define UHA_SHOWINTS 0x02
 #define UHA_SHOWCMDS 0x04
@@ -458,7 +449,7 @@ struct  isa_dev *dev;
 
 
 #ifdef  __386BSD__
-	printf("uha%d: **probing for scsi devices**\n", unit);
+	printf(" probing for scsi devices**\n");
 #endif  __386BSD__
 
 	/***********************************************\
@@ -469,11 +460,6 @@ struct  isa_dev *dev;
 #if defined(OSF)
 	uha_attached[unit]=1;
 #endif /* defined(OSF) */
-	if(!unit)  /* only one for all boards */
-	{
-		uha_timeout(0);
-	}
-
 
 #ifdef  __386BSD__
 	printf("uha%d",unit);
@@ -503,8 +489,10 @@ uhaintr(unit)
 	int     port = uha_data[unit].baseport;
 
 
+#ifdef	UHADEBUG
 	if(scsi_debug & PRINTROUTINES)
 		printf("uhaintr ");
+#endif	/*UHADEBUG*/
 
 #if defined(OSF)
 	if (!uha_attached[unit])
@@ -522,21 +510,25 @@ uhaintr(unit)
 		mboxval = inl(port + UHA_ICM0);
 		outb(port + UHA_SINT,UHA_ICM_ACK);
 
+#ifdef	UHADEBUG
 		if(scsi_debug & TRACEINTERRUPTS)
 			printf("status = 0x%x ",uhastat);
+#endif	/*UHADEBUG*/
 		/***********************************************\
 		* Process the completed operation               *
 		\***********************************************/
 	
 			mscp = (struct mscp *)(PHYSTOKV(mboxval)); 
 
+#ifdef	UHADEBUG
 			if(uha_debug & UHA_SHOWCMDS )
 			{
 				uha_show_scsi_cmd(mscp->xs);
 			}
 			if((uha_debug & UHA_SHOWMSCPS) && mscp)
 				printf("<int mscp(%x)>",mscp);
-			uha_remove_timeout(mscp);
+#endif	/*UHADEBUG*/
+			untimeout(uha_timeout,mscp);
 
 			uha_done(unit,mscp);
 	}
@@ -556,8 +548,10 @@ struct mscp *mscp;
 	struct  scsi_sense_data *s1,*s2;
 	struct  scsi_xfer *xs = mscp->xs;
 
+#ifdef	UHADEBUG
 	if(scsi_debug & (PRINTROUTINES | TRACEINTERRUPTS))
 		printf("uha_done ");
+#endif	/*UHADEBUG*/
 	/***********************************************\
 	* Otherwise, put the results of the operation   *
 	* into the xfer and call whoever started it     *
@@ -578,33 +572,41 @@ struct mscp *mscp;
 			switch(mscp->ha_status)
 			{
 			case    UHA_SBUS_TIMEOUT:           /* No response */
+#ifdef	UHADEBUG
 				if (uha_debug & UHA_SHOWMISC)
 				{
 					printf("timeout reported back\n");
 				}
+#endif	/*UHADEBUG*/
 				xs->error = XS_TIMEOUT;
 				break;
 			case	UHA_SBUS_OVER_UNDER:
+#ifdef	UHADEBUG
 				if (uha_debug & UHA_SHOWMISC)
 				{
 					printf("scsi bus xfer over/underrun\n");
 				}
+#endif	/*UHADEBUG*/
 				xs->error = XS_DRIVER_STUFFUP;
 				break;
 			case	UHA_BAD_SG_LIST:
+#ifdef	UHADEBUG
 				if (uha_debug & UHA_SHOWMISC)
 				{
 					printf("bad sg list reported back\n");
 				}
+#endif	/*UHADEBUG*/
 				xs->error = XS_DRIVER_STUFFUP;
 				break;
 			default:        /* Other scsi protocol messes */
 				xs->error = XS_DRIVER_STUFFUP;
+#ifdef	UHADEBUG
 				if (uha_debug & UHA_SHOWMISC)
 				{
 					printf("unexpected ha_status: %x\n",
 						mscp->ha_status);
 				}
+#endif	/*UHADEBUG*/
 			}
 
 		}
@@ -619,11 +621,13 @@ struct mscp *mscp;
 \**************************************************************************/
 
 			{	
+#ifdef	UHADEBUG
 				if (uha_debug & UHA_SHOWMISC)
 				{
 					printf("unexpected targ_status: %x\n",
 						mscp->targ_status);
 				}
+#endif	/*UHADEBUG*/
 				xs->error = XS_DRIVER_STUFFUP;
 			}
 		}
@@ -643,8 +647,10 @@ struct mscp *mscp;
 {
 	unsigned int opri;
 	
+#ifdef	UHADEBUG
 	if(scsi_debug & PRINTROUTINES)
 		printf("mscp%d(0x%x)> ",unit,flags);
+#endif	/*UHADEBUG*/
 	if (!(flags & SCSI_NOMASK)) 
 		opri = splbio();
 
@@ -671,8 +677,10 @@ uha_get_mscp(unit,flags)
 	unsigned opri;
 	struct mscp *rc;
 
+#ifdef	UHADEBUG
 	if(scsi_debug & PRINTROUTINES)
 		printf("<mscp%d(0x%x) ",unit,flags);
+#endif	/*UHADEBUG*/
 	if (!(flags & SCSI_NOMASK)) 
 		opri = splbio();
 	/***********************************************\
@@ -845,8 +853,10 @@ struct scsi_xfer *xs;
 	unsigned long int templen;
 
 
+#ifdef	UHADEBUG
 	if(scsi_debug & PRINTROUTINES)
 		printf("uha_scsi_cmd ");
+#endif	/*UHADEBUG*/
 	/***********************************************\
 	* get a mscp (mbox-out) to use. If the transfer  *
 	* is from a buf (possibly from interrupt time)  *
@@ -871,12 +881,14 @@ struct scsi_xfer *xs;
 	}
 
 cheat = mscp;
+#ifdef	UHADEBUG
 	if(uha_debug & UHA_SHOWMSCPS)
 				printf("<start mscp(%x)>",mscp);
 	if(scsi_debug & SHOWCOMMANDS)
 	{
 		uha_show_scsi_cmd(xs);
 	}
+#endif	/*UHADEBUG*/
 	mscp->xs = xs;
 	/***********************************************\
 	* Put all the arguments for the xfer in the mscp *
@@ -952,10 +964,12 @@ cheat = mscp;
 				sg->addr.addr[2] = ((scratch >> 16) & 0xff);
 				sg->addr.addr[3] = ((scratch >> 24) & 0xff);
 				xs->datalen += *(unsigned long *)sg->len.len = iovp->iov_len; 
+#ifdef	UHADEBUG
 				if(scsi_debug & SHOWSCATGATH)
 					printf("(0x%x@0x%x)"
 							,iovp->iov_len
 							,iovp->iov_base);
+#endif	/*UHADEBUG*/
 				sg++;
 				iovp++;
 				seg++;
@@ -968,8 +982,10 @@ cheat = mscp;
 			* Set up the scatter gather block               *
 			\***********************************************/
 		
+#ifdef	UHADEBUG
 			if(scsi_debug & SHOWSCATGATH)
 				printf("%d @0x%x:- ",xs->datalen,xs->data);
+#endif	/*UHADEBUG*/
 			datalen         =       xs->datalen;
 			thiskv          =       (int)xs->data;
 			thisphys        =       KVTOPHYS(thiskv);
@@ -985,8 +1001,10 @@ cheat = mscp;
 				sg->addr.addr[2] = ((thisphys >> 16) & 0xff);
 				sg->addr.addr[3] = ((thisphys >> 24) & 0xff);
 		
+#ifdef	UHADEBUG
 				if(scsi_debug & SHOWSCATGATH)
 					printf("0x%x",thisphys);
+#endif	/*UHADEBUG*/
 	
 				/* do it at least once */
 				nextphys = thisphys;    
@@ -1015,8 +1033,10 @@ cheat = mscp;
 				/********************************************\
 				* next page isn't contiguous, finish the seg *
 				\********************************************/
+#ifdef	UHADEBUG
 				if(scsi_debug & SHOWSCATGATH)
 					printf("(0x%x)",bytes_this_seg);
+#endif	/*UHADEBUG*/
 				sg->len.len[0] = (bytes_this_seg & 0xff);
 				sg->len.len[1] = ((bytes_this_seg >> 8) & 0xff);
 				sg->len.len[2] = ((bytes_this_seg >> 16) & 0xff);
@@ -1032,8 +1052,10 @@ cheat = mscp;
 		mscp->datalen.len[3] = ((templen >> 24) & 0xff);
 		mscp->sg_num = seg;
 
+#ifdef	UHADEBUG
 		if(scsi_debug & SHOWSCATGATH)
 			printf("\n");
+#endif	/*UHADEBUG*/
 		if (datalen)
 		{ /* there's still data, must have run out of segs! */
 			printf("uha_scsi_cmd%d: more than %d DMA segs\n",
@@ -1071,18 +1093,22 @@ cheat = mscp;
 	{
 		s = splbio();
 		uha_send_mbox(unit,mscp);
-		uha_add_timeout(mscp,xs->timeout);
+		timeout(uha_timeout,mscp,(xs->timeout * hz) / 1000);
 		splx(s);
+#ifdef	UHADEBUG
 		if(scsi_debug & TRACEINTERRUPTS)
 			printf("cmd_sent ");
+#endif	/*UHADEBUG*/
 		return(SUCCESSFULLY_QUEUED);
 	}
 	/***********************************************\
 	* If we can't use interrupts, poll on completion*
 	\***********************************************/
 	uha_send_mbox(unit,mscp);
+#ifdef	UHADEBUG
 	if(scsi_debug & TRACEINTERRUPTS)
 		printf("cmd_wait ");
+#endif	/*UHADEBUG*/
 	do
 	{
 		if(uha_poll(unit,xs->timeout))
@@ -1094,12 +1120,9 @@ cheat = mscp;
 				uha_free_mscp(unit,mscp,flags);
 			}
 			xs->error = XS_DRIVER_STUFFUP;
-			splx(s);
 			return(HAD_ERROR);
 		}
 	} while (!(xs->flags & ITSDONE));/* something (?) else finished */
-	splx(s);
-scsi_debug = 0;uha_debug = 0;
 	if(xs->error)
 	{
 		return(HAD_ERROR);
@@ -1107,154 +1130,34 @@ scsi_debug = 0;uha_debug = 0;
 	return(COMPLETE);
 }
 
-/*
- *                +----------+    +----------+    +----------+
- * uha_soonest--->|    later |--->|     later|--->|     later|--->0
- *                | [Delta]  |    | [Delta]  |    | [Delta]  |
- *           0<---|sooner    |<---|sooner    |<---|sooner    |<---uha_latest
- *                +----------+    +----------+    +----------+
- *
- *     uha_furtherest = sum(Delta[1..n])
- */
-uha_add_timeout(mscp,time)
-struct  mscp     *mscp;
-int     time;
+
+uha_timeout(struct mscp *mscp)
 {
-	int     timeprev;
-	struct mscp *prev;
-	int     s = splbio();
-
-	if(prev = uha_latest) /* yes, an assign */
-	{
-		timeprev = uha_furtherest;
-	}
-	else
-	{
-		timeprev = 0;
-	}
-	while(prev && (timeprev > time)) 
-	{
-		timeprev -= prev->delta;
-		prev = prev->sooner;
-	}
-	if(prev)
-	{
-		mscp->delta = time - timeprev;
-		if( mscp->later = prev->later) /* yes an assign */
-		{
-			mscp->later->sooner = mscp;
-			mscp->later->delta -= mscp->delta;
-		}
-		else
-		{
-			uha_furtherest = time;
-			uha_latest = mscp;
-		}
-		mscp->sooner = prev;
-		prev->later = mscp;
-	}
-	else
-	{
-		if( mscp->later = uha_soonest) /* yes, an assign*/
-		{
-			mscp->later->sooner = mscp;
-			mscp->later->delta -= time;
-		}
-		else
-		{
-			uha_furtherest = time;
-			uha_latest = mscp;
-		}
-		mscp->delta = time;
-		mscp->sooner = (struct mscp *)0;
-		uha_soonest = mscp;
-	}
-	splx(s);
-}
-
-uha_remove_timeout(mscp)
-struct  mscp     *mscp;
-{
-	int     s = splbio();
-
-	if(mscp->sooner)
-	{
-		mscp->sooner->later = mscp->later;
-	}
-	else
-	{
-		uha_soonest = mscp->later;
-	}
-	if(mscp->later)
-	{
-		mscp->later->sooner = mscp->sooner;
-		mscp->later->delta += mscp->delta;
-	}
-	else
-	{
-		uha_latest = mscp->sooner;
-		uha_furtherest -= mscp->delta;
-	}
-	mscp->sooner = mscp->later = (struct mscp *)0;
-	splx(s);
-}
-
-
-extern int      hz;
-#define ONETICK 500 /* milliseconds */
-#define SLEEPTIME ((hz * ONETICK) / 1000)
-uha_timeout(arg)
-int     arg;
-{
-	struct  mscp  *mscp;
 	int     unit;
 	int     s       = splbio();
-	unsigned int stat;
 	int	port = uha_data[unit].baseport;
 
-	while( mscp = uha_soonest )
+	unit = mscp->xs->adapter;
+	printf("uha%d:%d device timed out\n",unit
+			,mscp->xs->targ);
+#ifdef	UHADEBUG
+	if(uha_debug & UHA_SHOWMSCPS)
+		uha_print_active_mscp(unit);
+#endif	/*UHADEBUG*/
+
+	if((uha_abort(unit,mscp) !=1) || (mscp->flags = MSCP_ABORTED))
 	{
-		if(mscp->delta <= ONETICK)
-		/***********************************************\
-		* It has timed out, we need to do some work     *
-		\***********************************************/
-		{
-			unit = mscp->xs->adapter;
-			printf("uha%d:%d device timed out\n",unit
-					,mscp->xs->targ);
-			if(uha_debug & UHA_SHOWMSCPS)
-				uha_print_active_mscp();
-
-			/***************************************\
-			* Unlink it from the queue              *
-			\***************************************/
-			uha_remove_timeout(mscp);
-
-			if((uha_abort(unit,mscp) !=1) || (mscp->flags = MSCP_ABORTED))
-			{
-				printf("AGAIN");
-				mscp->xs->retries = 0; /* I MEAN IT ! */
-				uha_done(unit,mscp,FAIL);
-			}
-			else    /* abort the operation that has timed out */
-			{
-				printf("\n");
-				uha_add_timeout(mscp,2000 + ONETICK);
-				mscp->flags = MSCP_ABORTED;
-			}
-		}
-		else
-		/***********************************************\
-		* It has not timed out, adjust and leave        *
-		\***********************************************/
-		{
-			mscp->delta -= ONETICK;
-			uha_furtherest -= ONETICK;
-			break;
-		}
+		printf("AGAIN");
+		mscp->xs->retries = 0; /* I MEAN IT ! */
+		uha_done(unit,mscp,FAIL);
+	}
+	else    /* abort the operation that has timed out */
+	{
+		printf("\n");
+		timeout(uha_timeout,mscp,2 * hz);
+		mscp->flags = MSCP_ABORTED;
 	}
 	splx(s);
-	timeout(uha_timeout,arg,SLEEPTIME);
 }
 
 uha_show_scsi_cmd(struct scsi_xfer *xs)
@@ -1291,26 +1194,25 @@ struct  mscp *mscp;
 		,mscp->opcode
 		,mscp->cdblen
 		,mscp->senselen);
-	printf("	sg:%d sgnum:%x datlen:%d hstat:%x tstat:%x delta:%d flags:%x\n"
+	printf("	sg:%d sgnum:%x datlen:%d hstat:%x tstat:%x flags:%x\n"
 		,mscp->sgth
 		,mscp->sg_num
 		,mscp->datalen
 		,mscp->ha_status
 		,mscp->targ_status
-		,mscp->delta
 		,mscp->flags);
 	uha_show_scsi_cmd(mscp->xs);
 }
 
-uha_print_active_mscp()
+uha_print_active_mscp(int unit)
 {
-	struct  mscp *mscp;
-	mscp = uha_soonest;
+	struct  mscp *mscp = uha_data[unit].mscps;
+	int i = NUHA;
 
-	while(mscp)
+	while(i--)
 	{
-		uha_print_mscp(mscp);
-		mscp = mscp->later;
+		if(mscp->flags != MSCP_FREE)
+			uha_print_mscp(mscp);
+		mscp++;
 	}
-	printf("Furtherest = %d\n",uha_furtherest);
 }
