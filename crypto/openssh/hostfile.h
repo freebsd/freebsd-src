@@ -1,4 +1,4 @@
-/*	$OpenBSD: hostfile.h,v 1.7 2001/02/08 19:30:51 itojun Exp $	*/
+/*	$OpenBSD: hostfile.h,v 1.10 2001/12/18 10:04:21 jakob Exp $	*/
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -14,27 +14,13 @@
 #ifndef HOSTFILE_H
 #define HOSTFILE_H
 
-int
-auth_rsa_read_key(char **cpp, u_int *bitsp, BIGNUM * e, BIGNUM * n);
-
-/*
- * Checks whether the given host is already in the list of our known hosts.
- * Returns HOST_OK if the host is known and has the specified key, HOST_NEW
- * if the host is not known, and HOST_CHANGED if the host is known but used
- * to have a different host key.  The host must be in all lowercase.
- */
 typedef enum {
 	HOST_OK, HOST_NEW, HOST_CHANGED
 }       HostStatus;
 
+int	 hostfile_read_key(char **, u_int *, Key *);
 HostStatus
-check_host_in_hostfile(const char *filename, const char *host, Key *key,
-    Key *found, int *line);
-
-/*
- * Appends an entry to the host file.  Returns false if the entry could not
- * be appended.
- */
-int	add_host_to_hostfile(const char *filename, const char *host, Key *key);
+check_host_in_hostfile(const char *, const char *, Key *, Key *, int *);
+int	 add_host_to_hostfile(const char *, const char *, Key *);
 
 #endif

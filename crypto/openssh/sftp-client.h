@@ -1,7 +1,7 @@
-/* $OpenBSD: sftp-client.h,v 1.5 2001/04/05 10:42:52 markus Exp $ */
+/* $OpenBSD: sftp-client.h,v 1.9 2002/02/13 00:59:23 djm Exp $ */
 
 /*
- * Copyright (c) 2001 Damien Miller.  All rights reserved.
+ * Copyright (c) 2001,2002 Damien Miller.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -26,6 +26,9 @@
 
 /* Client side of SSH2 filexfer protocol */
 
+#ifndef _SFTP_CLIENT_H
+#define _SFTP_CLIENT_H
+
 typedef struct SFTP_DIRENT SFTP_DIRENT;
 
 struct SFTP_DIRENT {
@@ -38,57 +41,59 @@ struct SFTP_DIRENT {
  * Initialiase a SSH filexfer connection. Returns -1 on error or
  * protocol version on success.
  */
-int do_init(int fd_in, int fd_out);
+struct sftp_conn *
+do_init(int, int, u_int, u_int);
+
+u_int
+sftp_proto_version(struct sftp_conn *);
 
 /* Close file referred to by 'handle' */
-int do_close(int fd_in, int fd_out, char *handle, u_int handle_len);
+int do_close(struct sftp_conn *, char *, u_int);
 
 /* List contents of directory 'path' to stdout */
-int do_ls(int fd_in, int fd_out, char *path);
+int do_ls(struct sftp_conn *, char *);
 
 /* Read contents of 'path' to NULL-terminated array 'dir' */
-int do_readdir(int fd_in, int fd_out, char *path, SFTP_DIRENT ***dir);
+int do_readdir(struct sftp_conn *, char *, SFTP_DIRENT ***);
 
 /* Frees a NULL-terminated array of SFTP_DIRENTs (eg. from do_readdir) */
-void free_sftp_dirents(SFTP_DIRENT **s);
+void free_sftp_dirents(SFTP_DIRENT **);
 
 /* Delete file 'path' */
-int do_rm(int fd_in, int fd_out, char *path);
+int do_rm(struct sftp_conn *, char *);
 
 /* Create directory 'path' */
-int do_mkdir(int fd_in, int fd_out, char *path, Attrib *a);
+int do_mkdir(struct sftp_conn *, char *, Attrib *);
 
 /* Remove directory 'path' */
-int do_rmdir(int fd_in, int fd_out, char *path);
+int do_rmdir(struct sftp_conn *, char *);
 
 /* Get file attributes of 'path' (follows symlinks) */
-Attrib *do_stat(int fd_in, int fd_out, char *path, int quiet);
+Attrib *do_stat(struct sftp_conn *, char *, int);
 
 /* Get file attributes of 'path' (does not follow symlinks) */
-Attrib *do_lstat(int fd_in, int fd_out, char *path, int quiet);
+Attrib *do_lstat(struct sftp_conn *, char *, int);
 
 /* Get file attributes of open file 'handle' */
-Attrib *do_fstat(int fd_in, int fd_out, char *handle, u_int handle_len,
-    int quiet);
+Attrib *do_fstat(struct sftp_conn *, char *, u_int, int);
 
 /* Set file attributes of 'path' */
-int do_setstat(int fd_in, int fd_out, char *path, Attrib *a);
+int do_setstat(struct sftp_conn *, char *, Attrib *);
 
 /* Set file attributes of open file 'handle' */
-int do_fsetstat(int fd_in, int fd_out, char *handle,
-    u_int handle_len, Attrib *a);
+int do_fsetstat(struct sftp_conn *, char *, u_int, Attrib *);
 
 /* Canonicalise 'path' - caller must free result */
-char *do_realpath(int fd_in, int fd_out, char *path);
+char *do_realpath(struct sftp_conn *, char *);
 
 /* Rename 'oldpath' to 'newpath' */
-int do_rename(int fd_in, int fd_out, char *oldpath, char *newpath);
+int do_rename(struct sftp_conn *, char *, char *);
 
 /* Rename 'oldpath' to 'newpath' */
-int do_symlink(int fd_in, int fd_out, char *oldpath, char *newpath);
+int do_symlink(struct sftp_conn *, char *, char *);
 
 /* Return target of symlink 'path' - caller must free result */
-char *do_readlink(int fd_in, int fd_out, char *path);
+char *do_readlink(struct sftp_conn *, char *);
 
 /* XXX: add callbacks to do_download/do_upload so we can do progress meter */
 
@@ -96,12 +101,12 @@ char *do_readlink(int fd_in, int fd_out, char *path);
  * Download 'remote_path' to 'local_path'. Preserve permissions and times
  * if 'pflag' is set
  */
-int do_download(int fd_in, int fd_out, char *remote_path, char *local_path,
-    int pflag);
+int do_download(struct sftp_conn *, char *, char *, int);
 
 /*
  * Upload 'local_path' to 'remote_path'. Preserve permissions and times
  * if 'pflag' is set
  */
-int do_upload(int fd_in, int fd_out, char *local_path, char *remote_path,
-    int pflag);
+int do_upload(struct sftp_conn *, char *, char *, int);
+
+#endif
