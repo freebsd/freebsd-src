@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static char sccsid[] = "@(#)ns_req.c	4.47 (Berkeley) 7/1/91";
-static char rcsid[] = "$Id: ns_req.c,v 8.27 1996/10/08 04:51:03 vixie Exp $";
+static char rcsid[] = "$Id: ns_req.c,v 8.28 1997/06/01 20:34:34 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -496,7 +496,7 @@ req_query(hp, cpp, eom, qsp, buflenp, msglenp, msg, dfd, from)
 		PUTLONG(0, *cpp);		/* TTL */
 		tp = *cpp;			/* Temp RdLength */
 		PUTSHORT(0, *cpp);
-		copyCharString(cpp, Version);
+		copyCharString(cpp, ShortVersion);
 		PUTSHORT((*cpp) - (tp + INT16SZ), tp);	/* Real RdLength */
 		*msglenp = *cpp - msg;		/* Total message length */
 		return (Finish);
@@ -1693,7 +1693,7 @@ doaxfr(np, rfp, top, class)
 	struct namebuf *tnp;	/* top namebuf */
 	struct databuf *tdp;	/* top databuf */
 	struct namebuf **npp, **nppend;
-	u_char msg[PACKETSZ];
+	u_char msg[64*1024];
 	u_char *cp;
 	const char *fname;
 	char dname[MAXDNAME];
@@ -2009,8 +2009,8 @@ startxfr(qsp, np, soa, soalen, class, dname)
 	 */
 	setsockopt(qsp->s_rfd, SOL_SOCKET, SO_LINGER,
 		   (char *)&ll, sizeof ll);
-	close(qsp->s_rfd);
 #endif
+	close(qsp->s_rfd);
 	_exit(0);
 	/* NOTREACHED */
 }

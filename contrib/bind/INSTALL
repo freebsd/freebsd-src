@@ -1,4 +1,4 @@
-$Id: INSTALL,v 8.7 1996/11/11 06:36:40 vixie Exp $
+$Id: INSTALL,v 8.8 1997/06/01 20:34:25 vixie Exp vixie $
 
 THE FILES:
 ----------
@@ -39,13 +39,13 @@ sure you turn any links into files:
 2. (optional) If you have a typical site, you should find yourself only
 editing Makefile and conf/options.h.  Make backups of them now:
 
-	mv Makefile Makefile.tmp
-	cp Makefile.tmp Makefile ; rm Makefile.tmp
-	chmod u+w Makefile
-
-	mv conf/options.h conf/options.h.tmp
-	cp conf/options.h.tmp conf/options.h ; rm conf/options.h.tmp
+	mv conf/options.h conf/options.h.dist
+	cp conf/options.h.dist conf/options.h
 	chmod u+w conf/options.h
+
+	mv Makefile Makefile.dist
+	cp Makefile.dist Makefile
+	chmod u+w Makefile
 
 3.  Edit "conf/options.h" and turn on any options that you want.  The
 defaults are pretty reasonable for most installations.
@@ -62,7 +62,7 @@ path if "make depend" fails and you think bin/mkdep will help you out.
 
 	*** NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE ***
 
-	The next step (#5) will burn down files which were supplied with
+	The next step (#6) will burn down files which were supplied with
 	your operating system.  You should run the suggested "-n" first
 	and make sure you have saved any files you want to save.
 
@@ -82,16 +82,18 @@ how to do it.
 
 HOW TO GET HELP:
 ----------------
-The "bind@uunet.uu.net" mailing list was created especially for people
-to talk about and ask questions about installation, maintenance, etc.
-It is highly recommended that you first help yourself by reading
-the BOG (doc/bog) or a book on DNS and BIND.
+The "bind-users@vix.com" mailing list was created especially for people to
+talk about and ask questions about installation, maintenance, etc.  It is
+highly recommended that you first help yourself by reading the BOG (doc/bog)
+or a book on DNS and BIND.
 
-To be added to this mailing list, send mail to
-        bind-request@uunet.uu.net
+To be added to this mailing list, send mail to <bind-users-request@vix.com>
 
+Note that the bind-users mailing list is also available on Usenet as
+	comp.protocols.dns.bind
+and that we would all prefer that you read it that way if you possibly can.
 
-
-This INSTALL was originally written on 15Jul94 by Tom Limoncelli
-<tal@bell-labs.org> Minor changes 23Dec95 by Christopher Davis
-<ckd@kei.com> and then by Tom Limoncelli 16Oct96.
+This INSTALL was...
+	originally written on 15Jul94 by Tom Limoncelli <tal@bell-labs.com>
+	changed in minor ways 23Dec95 by Christopher Davis <ckd@kei.com>
+	and then changed by Tom Limoncelli again 16Oct96.
