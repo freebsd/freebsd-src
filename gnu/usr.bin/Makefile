@@ -7,8 +7,10 @@ SUBDIR= awk bc binutils cc cpio dc dialog diff diff3 gperf \
 SUBDIR+=cvs
 .endif
 
+.if defined(WANT_AOUT)
 .if ${MACHINE_ARCH} == "i386"
 SUBDIR+=as ld
+.endif
 .endif
 
 .if !defined(NOPERL) && exists(${.CURDIR}/perl)
