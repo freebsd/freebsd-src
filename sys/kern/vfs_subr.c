@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.13 (Berkeley) 4/18/94
- * $Id: vfs_subr.c,v 1.24 1995/03/20 02:08:24 davidg Exp $
+ * $Id: vfs_subr.c,v 1.25 1995/03/20 10:19:09 davidg Exp $
  */
 
 /*
@@ -495,11 +495,10 @@ vinvalbuf(vp, flags, cred, p, slpflag, slptimeo)
 				(void) VOP_BWRITE(bp);
 				break;
 			}
-			bp->b_flags |= B_INVAL;
+			bp->b_flags |= (B_INVAL|B_NOCACHE);
 			brelse(bp);
 		}
 	}
-
 
 	s = splbio();
 	while (vp->v_numoutput > 0) {
@@ -511,13 +510,12 @@ vinvalbuf(vp, flags, cred, p, slpflag, slptimeo)
 	/*
 	 * Destroy the copy in the VM cache, too.
 	 */
-	if ((flags & V_SAVE) == 0) {
-		object = (vm_object_t) vp->v_vmdata;
-		if (object != NULL) {
-			vm_object_lock(object);
-			vm_object_page_remove(object, 0, object->size);
-			vm_object_unlock(object);
-		}
+	object = (vm_object_t) vp->v_vmdata;
+	if (object != NULL) {
+		vm_object_lock(object);
+		vm_object_page_remove(object, 0, object->size,
+		    (flags & V_SAVE) ? TRUE : FALSE);
+		vm_object_unlock(object);
 	}
 	if (!(flags & V_SAVEMETA) &&
 	    (vp->v_dirtyblkhd.lh_first || vp->v_cleanblkhd.lh_first))
