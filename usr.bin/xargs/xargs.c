@@ -63,13 +63,18 @@ __FBSDID("$FreeBSD$");
 
 #include "pathnames.h"
 
-static void	prerun(int, char **, int, const char *, char **, char **);
+static void	parse_input(int, char **);
+static void	prerun(int, char **);
 static void	run(char **);
 static void	usage(void);
 void		strnsubst(char **, const char *, const char *, size_t);
 
 static char echo[] = _PATH_ECHO;
-static int pflag, tflag, rval, zflag;
+static char **av, **bxp, **ep, **exp, **xp;
+static char *argp, *bbp, *ebp, *inpline, *p, *replstr;
+static const char *eofstr;
+static int count, insingle, indouble, pflag, tflag, Rflag, rval, zflag;
+static int cnt, Iflag, jfound, Lflag, wasquoted, xflag;
 
 extern char *environ[];
 
@@ -77,18 +82,13 @@ int
 main(int argc, char **argv)
 {
 	long arg_max;
-	int ch, cnt, count, Iflag, indouble, insingle, Jflag, jfound, Lflag;
-	int nargs, nflag, nline, Rflag, wasquoted, foundeof, xflag;
+	int ch, Jflag, nargs, nflag, nline;
 	size_t linelen;
-	const char *eofstr;
-	char **av, **avj, **bxp, **ep, **exp, **xp;
-	char *argp, *bbp, *ebp, *inpline, *p, *replstr;
 
-	ep = environ;
 	inpline = replstr = NULL;
+	ep = environ;
 	eofstr = "";
-	cnt = count = Iflag = Jflag = jfound = Lflag = nflag = Rflag = xflag =
-	    wasquoted = 0;
+	Jflag = nflag = 0;
 
 	/*
 	 * POSIX.2 limits the exec line length to ARG_MAX - 2K.  Running that
@@ -107,7 +107,7 @@ main(int argc, char **argv)
 	if ((arg_max = sysconf(_SC_ARG_MAX)) == -1)
 		errx(1, "sysconf(_SC_ARG_MAX) failed");
 	nline = arg_max - 4 * 1024;
-	while (*ep) {
+	while (*ep != NULL) {
 		/* 1 byte for each '\0' */
 		nline -= strlen(*ep++) + 1 + sizeof(*ep);
 	}
@@ -176,7 +176,7 @@ main(int argc, char **argv)
 	 */
 	linelen = 1 + argc + nargs + 1;
 	if ((av = bxp = malloc(linelen * sizeof(char **))) == NULL)
-		err(1, "malloc");
+		errx(1, "malloc failed");
 
 	/*
 	 * Use the user's name for the utility as argv[0], just like the
@@ -188,6 +188,7 @@ main(int argc, char **argv)
 	else {
 		do {
 			if (Jflag && strcmp(*argv, replstr) == 0) {
+				char **avj;
 				jfound = 1;
 				argv++;
 				for (avj = argv; *avj; avj++)
@@ -218,145 +219,154 @@ main(int argc, char **argv)
 		errx(1, "insufficient space for command");
 
 	if ((bbp = malloc((size_t)(nline + 1))) == NULL)
-		err(1, "malloc");
+		errx(1, "malloc failed");
 	ebp = (argp = p = bbp) + nline - 1;
+	for (;;)
+		parse_input(argc, argv);
+}
 
-	for (insingle = indouble = 0;;)
-		switch(ch = getchar()) {
-		case EOF:
-			/* No arguments since last exec. */
-			if (p == bbp)
-				exit(rval);
-			goto arg1;
-		case ' ':
-		case '\t':
-			/* Quotes escape tabs and spaces. */
-			if (insingle || indouble || zflag)
-				goto addch;
-			goto arg2;
-		case '\0':
-			if (zflag)
-				goto arg2;
+static void
+parse_input(int argc, char **argv)
+{
+	int ch, foundeof;
+	char **avj;
+
+	foundeof = 0;
+
+	switch(ch = getchar()) {
+	case EOF:
+		/* No arguments since last exec. */
+		if (p == bbp)
+			exit(rval);
+		goto arg1;
+	case ' ':
+	case '\t':
+		/* Quotes escape tabs and spaces. */
+		if (insingle || indouble || zflag)
 			goto addch;
-		case '\n':
-			count++;
-			if (zflag)
-				goto addch;
+		goto arg2;
+	case '\0':
+		if (zflag)
+			goto arg2;
+		goto addch;
+	case '\n':
+		count++;
+		if (zflag)
+			goto addch;
 
-			/* Quotes do not escape newlines. */
-arg1:			if (insingle || indouble)
-				 errx(1, "unterminated quote");
-
+		/* Quotes do not escape newlines. */
+arg1:		if (insingle || indouble)
+			errx(1, "unterminated quote");
 arg2:
-			foundeof = *eofstr != '\0' &&
-			    strcmp(argp, eofstr) == 0;
+		foundeof = *eofstr != '\0' &&
+		    strcmp(argp, eofstr) == 0;
 
-			/* Do not make empty args unless they are quoted */
-			if ((argp != p || wasquoted) && !foundeof) {
-				*p++ = '\0';
-				*xp++ = argp;
-				if (Iflag) {
-					size_t curlen;
+		/* Do not make empty args unless they are quoted */
+		if ((argp != p || wasquoted) && !foundeof) {
+			*p++ = '\0';
+			*xp++ = argp;
+			if (Iflag) {
+				size_t curlen;
 
-					if (inpline == NULL)
-						curlen = 0;
-					else {
-						/*
-						 * If this string is not zero
-						 * length, append a space for
-						 * seperation before the next
-						 * argument.
-						 */
-						if ((curlen = strlen(inpline)))
-							strcat(inpline, " ");
-					}
-					curlen++;
+				if (inpline == NULL)
+					curlen = 0;
+				else {
 					/*
-					 * Allocate enough to hold what we will
-					 * be holding in a secont, and to append
-					 * a space next time through, if we have
-					 * to.
+					 * If this string is not zero
+					 * length, append a space for
+					 * seperation before the next
+					 * argument.
 					 */
-					inpline = realloc(inpline, curlen + 2 +
-					    strlen(argp));
-					if (inpline == NULL)
-						err(1, "realloc");
-					if (curlen == 1)
-						strcpy(inpline, argp);
-					else
-						strcat(inpline, argp);
+					if ((curlen = strlen(inpline)))
+						strcat(inpline, " ");
 				}
+				curlen++;
+				/*
+				 * Allocate enough to hold what we will
+				 * be holding in a secont, and to append
+				 * a space next time through, if we have
+				 * to.
+				 */
+				inpline = realloc(inpline, curlen + 2 +
+				    strlen(argp));
+				if (inpline == NULL)
+					errx(1, "realloc failed");
+				if (curlen == 1)
+					strcpy(inpline, argp);
+				else
+					strcat(inpline, argp);
 			}
+		}
 
-			/*
-			 * If max'd out on args or buffer, or reached EOF,
-			 * run the command.  If xflag and max'd out on buffer
-			 * but not on args, object.  Having reached the limit
-			 * of input lines, as specified by -L is the same as
-			 * maxing out on arguments.
-			 */
-			if (xp == exp || p > ebp || ch == EOF || (Lflag <= count && xflag) || foundeof) {
-				if (xflag && xp != exp && p > ebp)
-					errx(1, "insufficient space for arguments");
-				if (jfound) {
-					for (avj = argv; *avj; avj++)
-						*xp++ = *avj;
-				}
-				prerun(argc, av, Rflag, replstr, xp, &inpline);
-				if (ch == EOF || foundeof)
-					exit(rval);
-				p = bbp;
-				xp = bxp;
-				count = 0;
-			}
-			argp = p;
-			wasquoted = 0;
-			break;
-		case '\'':
-			if (indouble || zflag)
-				goto addch;
-			insingle = !insingle;
-			wasquoted = 1;
-			break;
-		case '"':
-			if (insingle || zflag)
-				goto addch;
-			indouble = !indouble;
-			wasquoted = 1;
-			break;
-		case '\\':
-			if (zflag)
-				goto addch;
-			/* Backslash escapes anything, is escaped by quotes. */
-			if (!insingle && !indouble && (ch = getchar()) == EOF)
-				errx(1, "backslash at EOF");
-			/* FALLTHROUGH */
-		default:
-addch:			if (p < ebp) {
-				*p++ = ch;
-				break;
-			}
-
-			/* If only one argument, not enough buffer space. */
-			if (bxp == xp)
-				errx(1, "insufficient space for argument");
-			/* Didn't hit argument limit, so if xflag object. */
-			if (xflag)
+		/*
+		 * If max'd out on args or buffer, or reached EOF,
+		 * run the command.  If xflag and max'd out on buffer
+		 * but not on args, object.  Having reached the limit
+		 * of input lines, as specified by -L is the same as
+		 * maxing out on arguments.
+		 */
+		if (xp == exp || p > ebp || ch == EOF || (Lflag <= count && xflag) || foundeof) {
+			if (xflag && xp != exp && p > ebp)
 				errx(1, "insufficient space for arguments");
-
 			if (jfound) {
 				for (avj = argv; *avj; avj++)
 					*xp++ = *avj;
 			}
-			prerun(argc, av, Rflag, replstr, xp, &inpline);
+			prerun(argc, av);
+			if (ch == EOF || foundeof)
+				exit(rval);
+			p = bbp;
 			xp = bxp;
-			cnt = ebp - argp;
-			memcpy(bbp, argp, (size_t)cnt);
-			p = (argp = bbp) + cnt;
+			count = 0;
+		}
+		argp = p;
+		wasquoted = 0;
+		break;
+	case '\'':
+		if (indouble || zflag)
+			goto addch;
+		insingle = !insingle;
+		wasquoted = 1;
+		break;
+	case '"':
+		if (insingle || zflag)
+			goto addch;
+		indouble = !indouble;
+		wasquoted = 1;
+		break;
+	case '\\':
+		if (zflag)
+			goto addch;
+		/* Backslash escapes anything, is escaped by quotes. */
+		if (!insingle && !indouble && (ch = getchar()) == EOF)
+			errx(1, "backslash at EOF");
+		/* FALLTHROUGH */
+	default:
+addch:		if (p < ebp) {
 			*p++ = ch;
 			break;
 		}
-	/* NOTREACHED */
+
+		/* If only one argument, not enough buffer space. */
+		if (bxp == xp)
+			errx(1, "insufficient space for argument");
+		/* Didn't hit argument limit, so if xflag object. */
+		if (xflag)
+			errx(1, "insufficient space for arguments");
+
+		if (jfound) {
+			for (avj = argv; *avj; avj++)
+				*xp++ = *avj;
+		}
+		prerun(argc, av);
+		xp = bxp;
+		cnt = ebp - argp;
+		memcpy(bbp, argp, (size_t)cnt);
+		p = (argp = bbp) + cnt;
+		*p++ = ch;
+		break;
+	}
+	return;
 }
 
 /*
@@ -364,9 +374,12 @@ addch:			if (p < ebp) {
  * and then call run().
  */
 static void
-prerun(int argc, char **argv, int repls, const char *replstr, char **xp, char **inpline)
+prerun(int argc, char **argv)
 {
 	char **tmp, **tmp2, **avj;
+	int repls;
+
+	repls = Rflag;
 
 	if (repls == 0) {
 		*xp = NULL;
@@ -382,7 +395,7 @@ prerun(int argc, char **argv, int repls, const char *replstr, char **xp, char **
 	 */
 	tmp = malloc((argc + 1) * sizeof(char**));
 	if (tmp == NULL)
-		err(1, "malloc");
+		errx(1, "malloc failed");
 	tmp2 = tmp;
 
 	/*
@@ -390,7 +403,7 @@ prerun(int argc, char **argv, int repls, const char *replstr, char **xp, char **
 	 * cannot do strnsubst() to it.
 	 */
 	if ((*tmp++ = strdup(*avj++)) == NULL)
-		err(1, "strdup");
+		errx(1, "strdup failed");
 
 	/*
 	 * For each argument to utility, if we have not used up
@@ -403,11 +416,11 @@ prerun(int argc, char **argv, int repls, const char *replstr, char **xp, char **
 	while (--argc) {
 		*tmp = *avj++;
 		if (repls && strstr(*tmp, replstr) != NULL) {
-			strnsubst(tmp++, replstr, *inpline, (size_t)255);
+			strnsubst(tmp++, replstr, inpline, (size_t)255);
 			repls--;
 		} else {
 			if ((*tmp = strdup(*tmp)) == NULL)
-				err(1, "strdup");
+				errx(1, "strdup failed");
 			tmp++;
 		}
 	}
@@ -431,23 +444,23 @@ prerun(int argc, char **argv, int repls, const char *replstr, char **xp, char **
 	/*
 	 * Free the input line buffer, and create a new dummy.
 	 */
-	free(*inpline);
-	*inpline = strdup("");
+	free(inpline);
+	inpline = strdup("");
 }
 
 static void
 run(char **argv)
 {
 	volatile int childerr;
-	char **p;
+	char **avec;
 	FILE *ttyfp;
 	pid_t pid;
 	int ch, status;
 
 	if (tflag || pflag) {
 		(void)fprintf(stderr, "%s", *argv);
-		for (p = argv + 1; *p != NULL; ++p)
-			(void)fprintf(stderr, " %s", *p);
+		for (avec = argv + 1; *avec != NULL; ++avec)
+			(void)fprintf(stderr, " %s", *avec);
 		if (pflag && (ttyfp = fopen("/dev/tty", "r")) != NULL) {
 			(void)fprintf(stderr, "?");
 			(void)fflush(stderr);
