@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)time.h	8.5 (Berkeley) 5/4/95
- * $Id: time.h,v 1.14 1997/05/13 10:58:14 peter Exp $
+ * $Id: time.h,v 1.15 1997/06/24 18:21:09 jhay Exp $
  */
 
 #ifndef _SYS_TIME_H_
@@ -141,9 +141,10 @@ struct clockinfo {
 void	gettime __P((struct timeval *tv));
 int	itimerfix __P((struct timeval *tv));
 int	itimerdecr __P((struct itimerval *itp, int usec));
-void	microtime __P((struct timeval *tv));
 void	timevaladd __P((struct timeval *, struct timeval *));
 void	timevalsub __P((struct timeval *, struct timeval *));
+void	microtime __P((struct timeval *tv));
+void	nanotime __P((struct timespec *ts));
 #else /* !KERNEL */
 #include <time.h>
 

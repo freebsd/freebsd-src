@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	from: Steve McCanne's microtime code
- *	$Id: microtime.s,v 1.36 1997/12/26 20:15:03 phk Exp $
+ *	$Id: microtime.s,v 1.37 1997/12/26 20:41:35 phk Exp $
  */
 
 #include <machine/asmacros.h>
@@ -58,11 +58,11 @@ ENTRY(microtime)
 	mull	_tsc_multiplier
 	movl	%edx, %eax
 	jmp	common_microtime
+	ALIGN_TEXT
 #else
 	xorl	%ecx, %ecx	/* clear ecx */
 #endif
 
-	ALIGN_TEXT
 i8254_microtime:
 	movb	$TIMER_SEL0|TIMER_LATCH, %al	/* prepare to latch */
 
