@@ -1,4 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/4/93
+# $FreeBSD$
 
 LIB=compat
 CFLAGS+=-DLIBC_SCCS -DSYSLIBC_SCCS -I${.CURDIR}/../libc/locale
@@ -11,10 +12,10 @@ NOPIC=
 	${.CURDIR}/regexp
 
 # compat 4.1 sources
-# XXX MISSING:	tell.c vlimit.c vtimes.c
+# XXX MISSING:	tell.c
 SRCS+=	ascftime.c cftime.c ftime.c getpw.c gtty.c stty.c
 
-MAN3+=	4.1/ftime.3 4.1/getpw.3 4.1/stty.3 4.1/vlimit.3 4.1/vtimes.3
+MAN3+=	4.1/ftime.3 4.1/getpw.3 4.1/stty.3
 MAN3+=	4.1/cftime.3
 
 MLINKS+=stty.3 gtty.3
