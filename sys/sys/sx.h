@@ -30,9 +30,8 @@
 #ifndef	_SYS_SX_H_
 #define	_SYS_SX_H_
 
-#ifndef	LOCORE
+#include <sys/queue.h>
 #include <sys/_lock.h>
-#include <sys/_mutex.h>
 #include <sys/condvar.h>	/* XXX */
 
 struct sx {
@@ -89,14 +88,14 @@ struct sx_args {
 #define	SX_SLOCKED		LA_SLOCKED
 #define	SX_XLOCKED		LA_XLOCKED
 #define	SX_UNLOCKED		LA_UNLOCKED
-#endif	/* INVARIANTS || INVARIANT_SUPPORT */
+#endif
 
 #ifdef INVARIANTS
 #define	sx_assert(sx, what)	_sx_assert((sx), (what), LOCK_FILE, LOCK_LINE)
-#else	/* INVARIANTS */
+#else
 #define	sx_assert(sx, what)
-#endif	/* INVARIANTS */
+#endif
 
-#endif	/* _KERNEL */
-#endif	/* !LOCORE */
-#endif	/* _SYS_SX_H_ */
+#endif /* _KERNEL */
+
+#endif /* !_SYS_SX_H_ */
