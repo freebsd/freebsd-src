@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <ufs/ufs/ufsmount.h>
 #include <err.h>
 #include <math.h>
+#include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -88,37 +89,51 @@ __FBSDID("$FreeBSD$");
 
 /* Maximum widths of various fields. */
 struct maxwidths {
-	int mntfrom;
-	int total;
-	int used;
-	int avail;
-	int iused;
-	int ifree;
+	size_t mntfrom;
+	size_t total;
+	size_t used;
+	size_t avail;
+	size_t iused;
+	size_t ifree;
 };
 
-unsigned long long vals_si [] = {1, KILO_SI_SZ, MEGA_SI_SZ, GIGA_SI_SZ, TERA_SI_SZ, PETA_SI_SZ};
-unsigned long long vals_base2[] = {1, KILO_2_SZ, MEGA_2_SZ, GIGA_2_SZ, TERA_2_SZ, PETA_2_SZ};
-unsigned long long *valp;
+static uintmax_t vals_si [] = {
+	1,
+	KILO_SI_SZ,
+	MEGA_SI_SZ,
+	GIGA_SI_SZ,
+	TERA_SI_SZ,
+	PETA_SI_SZ
+};
+static uintmax_t vals_base2[] = {
+	1,
+	KILO_2_SZ,
+	MEGA_2_SZ,
+	GIGA_2_SZ,
+	TERA_2_SZ,
+	PETA_2_SZ
+};
+static uintmax_t *valp;
 
 typedef enum { NONE, KILO, MEGA, GIGA, TERA, PETA, UNIT_MAX } unit_t;
 
-unit_t unitp [] = { NONE, KILO, MEGA, GIGA, TERA, PETA };
+static unit_t unitp [] = { NONE, KILO, MEGA, GIGA, TERA, PETA };
 
-static char	 *getmntpt(char *);
-static int	  longwidth(long);
+static char	 *getmntpt(const char *);
+static size_t	  longwidth(long);
 static char	 *makenetvfslist(void);
-static void	  prthuman(struct statfs *, long);
+static void	  prthuman(const struct statfs *, long);
 static void	  prthumanval(double);
 static void	  prtstat(struct statfs *, struct maxwidths *);
 static long	  regetmntinfo(struct statfs **, long, const char **);
 static unit_t	  unit_adjust(double *);
-static void	  update_maxwidths(struct maxwidths *, struct statfs *);
+static void	  update_maxwidths(struct maxwidths *, const struct statfs *);
 static void	  usage(void);
 
-static __inline int
-imax(int a, int b)
+static __inline u_int
+max(u_int a, u_int b)
 {
-	return (MAX(a, b));
+	return (a > b ? a : b);
 }
 
 static int	aflag = 0, hflag, iflag, nflag;
@@ -275,7 +290,7 @@ main(int argc, char *argv[])
 }
 
 static char *
-getmntpt(char *name)
+getmntpt(const char *name)
 {
 	long mntsize, i;
 	struct statfs *mntbuf;
@@ -326,13 +341,13 @@ unit_adjust(double *val)
 {
 	double abval;
 	unit_t unit;
-	unsigned int unit_sz;
+	int unit_sz;
 
 	abval = fabs(*val);
 
 	unit_sz = abval ? ilogb(abval) / 10 : 0;
 
-	if (unit_sz >= UNIT_MAX) {
+	if (unit_sz >= (int)UNIT_MAX) {
 		unit = NONE;
 	} else {
 		unit = unitp[unit_sz];
@@ -343,7 +358,7 @@ unit_adjust(double *val)
 }
 
 static void
-prthuman(struct statfs *sfsp, long used)
+prthuman(const struct statfs *sfsp, long used)
 {
 
 	prthumanval((double)sfsp->f_blocks * (double)sfsp->f_bsize);
@@ -381,28 +396,28 @@ static void
 prtstat(struct statfs *sfsp, struct maxwidths *mwp)
 {
 	static long blocksize;
-	static int headerlen, timesthrough;
+	static int headerlen, timesthrough = 0;
 	static const char *header;
 	long used, availblks, inodes;
 
 	if (++timesthrough == 1) {
-		mwp->mntfrom = imax(mwp->mntfrom, strlen("Filesystem"));
+		mwp->mntfrom = max(mwp->mntfrom, strlen("Filesystem"));
 		if (hflag) {
 			header = "  Size";
 			mwp->total = mwp->used = mwp->avail = strlen(header);
 		} else {
 			header = getbsize(&headerlen, &blocksize);
-			mwp->total = imax(mwp->total, headerlen);
+			mwp->total = max(mwp->total, (u_int)headerlen);
 		}
-		mwp->used = imax(mwp->used, strlen("Used"));
-		mwp->avail = imax(mwp->avail, strlen("Avail"));
+		mwp->used = max(mwp->used, strlen("Used"));
+		mwp->avail = max(mwp->avail, strlen("Avail"));
 
 		(void)printf("%-*s %-*s %*s %*s Capacity", mwp->mntfrom,
 		    "Filesystem", mwp->total, header, mwp->used, "Used",
 		    mwp->avail, "Avail");
 		if (iflag) {
-			mwp->iused = imax(mwp->iused, strlen("  iused"));
-			mwp->ifree = imax(mwp->ifree, strlen("ifree"));
+			mwp->iused = max(mwp->iused, strlen("  iused"));
+			mwp->ifree = max(mwp->ifree, strlen("ifree"));
 			(void)printf(" %*s %*s %%iused", mwp->iused - 2,
 			    "iused", mwp->ifree, "ifree");
 		}
@@ -438,31 +453,31 @@ prtstat(struct statfs *sfsp, struct maxwidths *mwp)
  * the file system specified by `sfsp'.
  */
 static void
-update_maxwidths(struct maxwidths *mwp, struct statfs *sfsp)
+update_maxwidths(struct maxwidths *mwp, const struct statfs *sfsp)
 {
-	static long blocksize;
+	static long blocksize = 0;
 	int dummy;
 
 	if (blocksize == 0)
 		getbsize(&dummy, &blocksize);
 
-	mwp->mntfrom = imax(mwp->mntfrom, strlen(sfsp->f_mntfromname));
-	mwp->total = imax(mwp->total, longwidth(fsbtoblk(sfsp->f_blocks,
+	mwp->mntfrom = max(mwp->mntfrom, strlen(sfsp->f_mntfromname));
+	mwp->total = max(mwp->total, longwidth(fsbtoblk(sfsp->f_blocks,
 	    sfsp->f_bsize, blocksize)));
-	mwp->used = imax(mwp->used, longwidth(fsbtoblk(sfsp->f_blocks -
+	mwp->used = max(mwp->used, longwidth(fsbtoblk(sfsp->f_blocks -
 	    sfsp->f_bfree, sfsp->f_bsize, blocksize)));
-	mwp->avail = imax(mwp->avail, longwidth(fsbtoblk(sfsp->f_bavail,
+	mwp->avail = max(mwp->avail, longwidth(fsbtoblk(sfsp->f_bavail,
 	    sfsp->f_bsize, blocksize)));
-	mwp->iused = imax(mwp->iused, longwidth(sfsp->f_files -
+	mwp->iused = max(mwp->iused, longwidth(sfsp->f_files -
 	    sfsp->f_ffree));
-	mwp->ifree = imax(mwp->ifree, longwidth(sfsp->f_ffree));
+	mwp->ifree = max(mwp->ifree, longwidth(sfsp->f_ffree));
 }
 
 /* Return the width in characters of the specified long. */
-static int
+static size_t
 longwidth(long val)
 {
-	int len;
+	size_t len;
 
 	len = 0;
 	/* Negative or zero values require one extra digit. */
@@ -491,7 +506,7 @@ static char *
 makenetvfslist(void)
 {
 	char *str, *strptr, **listptr;
-	struct xvfsconf *xvfsp;
+	struct xvfsconf *xvfsp, *keep_xvfsp;
 	size_t buflen;
 	int cnt, i, maxvfsconf;
 
@@ -504,14 +519,17 @@ makenetvfslist(void)
 		warnx("malloc failed");
 		return (NULL);
 	}
+	keep_xvfsp = xvfsp;
 	if (sysctlbyname("vfs.conflist", xvfsp, &buflen, NULL, 0) < 0) {
 		warn("sysctl(vfs.conflist)");
+		free(keep_xvfsp);
 		return (NULL);
 	}
 	maxvfsconf = buflen / sizeof(struct xvfsconf);
 
 	if ((listptr = malloc(sizeof(char*) * maxvfsconf)) == NULL) {
 		warnx("malloc failed");
+		free(keep_xvfsp);
 		return (NULL);
 	}
 
@@ -520,6 +538,8 @@ makenetvfslist(void)
 			listptr[cnt++] = strdup(xvfsp->vfc_name);
 			if (listptr[cnt-1] == NULL) {
 				warnx("malloc failed");
+				free(listptr);
+				free(keep_xvfsp);
 				return (NULL);
 			}
 		}
@@ -531,6 +551,7 @@ makenetvfslist(void)
 		if (cnt > 0)
 			warnx("malloc failed");
 		free(listptr);
+		free(keep_xvfsp);
 		return (NULL);
 	}
 
@@ -543,6 +564,7 @@ makenetvfslist(void)
 	}
 	*(--strptr) = NULL;
 
+	free(keep_xvfsp);
 	free(listptr);
 	return (str);
 }
