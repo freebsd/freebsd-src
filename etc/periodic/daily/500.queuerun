@@ -18,13 +18,15 @@ case "$daily_queuerun_enable" in
 	    echo '$daily_queuerun_enable is set but /usr/sbin/sendmail' \
 		"isn't executable"
 	    rc=2
-	elif [ ! -d /var/spool/mqueue ]
-	then
-	    echo '$daily_queuerun_enable is set but /var/spool/mqueue' \
-		"doesn't exist"
-	    rc=2
 	else
 	    /usr/sbin/sendmail -q >/dev/null 2>&1 &
+	    case "$daily_submit_queuerun" in
+	    [Yy][Ee][Ss])
+		if [ -f /etc/mail/submit.cf ]
+		then
+		    /usr/sbin/sendmail -q -Ac >/dev/null 2>&1 &
+		fi;;
+	    esac
 	    rc=0
 	fi;;
 
