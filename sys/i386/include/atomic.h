@@ -98,7 +98,8 @@ atomic_##NAME##_##TYPE(volatile u_##TYPE *p, u_##TYPE v)\
 	__asm __volatile(__XSTRING(MPLOCKED) OP		\
 			 : "+m" (*p)			\
 			 : CONS (V));			\
-}
+}							\
+struct __hack
 
 #else /* !__GNUC__ */
 
@@ -191,7 +192,8 @@ atomic_store_rel_##TYPE(volatile u_##TYPE *p, u_##TYPE v)\
 {							\
 	*p = v;						\
 	__asm __volatile("" : : : "memory");		\
-}
+}							\
+struct __hack
 
 #else /* !defined(I386_CPU) */
 
@@ -219,7 +221,8 @@ atomic_store_rel_##TYPE(volatile u_##TYPE *p, u_##TYPE v)\
 	: "+m" (*p),			/* 0 */		\
 	  "+r" (v)			/* 1 */		\
 	: : "memory");				 	\
-}
+}							\
+struct __hack
 
 #endif	/* defined(I386_CPU) */
 
