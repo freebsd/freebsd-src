@@ -130,13 +130,6 @@ in Bourne-derived shells, and
 
 in csh-derived shells.
 %
-If you accidently drop into /bin/sh (e.g, due to a computer failure where you
-end up in single user mode), you can make the cursor keys work by typing
-
-	set -E
-
-The E represents the initial E in Emacs (for emacs keys).
-%
 If you do not want to get beeps in X11 (X Windows), you can turn them off with
 
 	xset b off
@@ -255,17 +248,13 @@ modes.
 %
 Any user that is a member of the wheel group can use "su -" to simulate
 a root login. You can add a user to the wheel group by editing /etc/group.
-		-- 	-- Konstantinos Konstantinidis <kkonstan@duth.gr>
+		-- Konstantinos Konstantinidis <kkonstan@duth.gr>
 %
 Over quota?  "du -s * | sort -n " will give you a sorted list of your
 directory sizes.
 		-- David Scheidt <dscheidt@tumbolia.com>
 %
 Handy bash(1) prompt:   PS1="\u@\h \w \!$ "
-		-- David Scheidt <dscheidt@tumbolia.com>
-%
-man -k "something" will give you a list of manpages that have "something"
-in their description.
 		-- David Scheidt <dscheidt@tumbolia.com>
 %
 Ever wonder what those numbers after command names were, as in cat(1)?  It's
