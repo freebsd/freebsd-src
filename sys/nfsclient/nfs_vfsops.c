@@ -529,7 +529,7 @@ nfs_mountdiskless(path, which, mountflag, sin, args, p, vpp, mpp)
 	return (0);
 }
 
-#ifdef COMPAT_PRELITE2
+#ifndef NO_COMPAT_PRELITE2
 /*
  * Old arguments to mount NFS
  */
@@ -552,7 +552,7 @@ struct onfs_args {
 	int		deadthresh;	/* Retrans threshold */
 	char		*hostname;	/* server's name */
 };
-#endif
+#endif /* !NO_COMPAT_PRELITE2 */
 
 /*
  * VFS Operations.
@@ -584,7 +584,7 @@ nfs_mount(mp, path, data, ndp, p)
 	if (error)
 		return (error);
 	if (args.version != NFS_ARGSVERSION) {
-#ifdef COMPAT_PRELITE2
+#ifndef NO_COMPAT_PRELITE2
 		/*
 		 * If the argument version is unknown, then assume the
 		 * caller is a pre-lite2 4.4BSD client and convert its
@@ -612,9 +612,9 @@ nfs_mount(mp, path, data, ndp, p)
 		args.leaseterm = oargs.leaseterm;
 		args.deadthresh = oargs.deadthresh;
 		args.hostname = oargs.hostname;
-#else  /* COMPAT_PRELITE2 */
+#else /* NO_COMPAT_PRELITE2 */
 		return (EPROGMISMATCH);
-#endif /* COMPAT_PRELITE2 */
+#endif /* !NO_COMPAT_PRELITE2 */
 	}
 	error = copyin((caddr_t)args.fh, (caddr_t)nfh, args.fhsize);
 	if (error)
