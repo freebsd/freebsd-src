@@ -121,6 +121,9 @@ int	mac_externalize_pipe_label(struct label *label, char *elements,
 	    char *outbuf, size_t outbuflen);
 int	mac_internalize_pipe_label(struct label *label, char *string);
 
+int	mac_socket_label_set(struct ucred *cred, struct socket *so,
+	    struct label *label);
+
 int	mac_externalize_vnode_label(struct label *label, char *elements,
 	    char *outbuf, size_t outbuflen);
 int	mac_internalize_vnode_label(struct label *label, char *string);
