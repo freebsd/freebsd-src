@@ -32,6 +32,7 @@ sed	\
 	-e '/lpt/d' \
 	-e '/ppi/d' \
 	-e '/vpo/d' \
+	-e '/	txp	/d' \
 	-e '/	le	/d' \
 	-e '/	pcn	/d' \
 	-e '/	sf	/d' \
