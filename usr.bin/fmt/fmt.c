@@ -202,6 +202,15 @@ get_positive(const char *s, const char *err_mess, int fussyP) {
   return (size_t) result;
 }
 
+static size_t
+get_nonnegative(const char *s, const char *err_mess, int fussyP) {
+  char *t;
+  long result = strtol(s,&t,0);
+  if (*t) { if (fussyP) goto Lose; else return 0; }
+  if (result<0) { Lose: errx(EX_USAGE, "%s", err_mess); }
+  return (size_t) result;
+}
+
 /* Global variables */
 
 static int centerP=0;		/* Try to center lines? */
@@ -210,7 +219,7 @@ static size_t max_length=0;	/* Maximum length for output lines */
 static int coalesce_spaces_P=0;	/* Coalesce multiple whitespace -> ' ' ? */
 static int allow_indented_paragraphs=0;	/* Can first line have diff. ind.? */
 static int tab_width=8;		/* Number of spaces per tab stop */
-static size_t output_tab_width=0;	/* Ditto, when squashing leading spaces */
+static size_t output_tab_width=8;	/* Ditto, when squashing leading spaces */
 static const char *sentence_enders=".?!";	/* Double-space after these */
 static int grok_mail_headers=0;	/* treat embedded mail headers magically? */
 
@@ -258,7 +267,7 @@ main(int argc, char *argv[]) {
       continue;
     case 'l':
       output_tab_width
-        = get_positive(optarg, "output tab width must be positive", 1);
+        = get_nonnegative(optarg, "output tab width must be non-negative", 1);
       continue;
     case 'm':
       grok_mail_headers = 1;
