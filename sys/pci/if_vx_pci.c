@@ -69,10 +69,17 @@ vx_pci_probe(
    if(device_id == 0x595010b7ul || device_id == 0x595110b7ul ||
 	device_id == 0x595210b7ul)
       return "3COM 3C595 Fast Etherlink III PCI";
+	/*
+	 * The (Fast) Etherlink XL adapters are now supported by
+	 * the xl driver, which uses bus master DMA and is much
+	 * faster. (And which also supports the 3c905B.
+	 */
+#ifdef VORTEX_ETHERLINK_XL
    if(device_id == 0x900010b7ul || device_id == 0x900110b7ul)
       return "3COM 3C900 Etherlink XL PCI";
    if(device_id == 0x905010b7ul || device_id == 0x905110b7ul)
       return "3COM 3C905 Fast Etherlink XL PCI";
+#endif
    return NULL;
 }
 
