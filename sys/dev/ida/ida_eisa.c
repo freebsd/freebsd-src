@@ -122,8 +122,10 @@ ida_v1_int_enable(struct ida_softc *ida, int enable)
 		ida_outb(ida, R_EISA_LOCAL_DOORBELL, EISA_CHANNEL_BUSY);
 		ida_outb(ida, R_EISA_INT_MASK, INT_ENABLE);
 		ida_outb(ida, R_EISA_SYSTEM_MASK, INT_ENABLE);
+		ida->flags |= IDA_INTERRUPTS;
 	} else {
 		ida_outb(ida, R_EISA_SYSTEM_MASK, INT_DISABLE);
+		ida->flags &= ~IDA_INTERRUPTS;
 	}
 }
 
@@ -154,6 +156,10 @@ ida_v2_int_pending(struct ida_softc *ida)
 static void
 ida_v2_int_enable(struct ida_softc *ida, int enable)
 {
+	if (enable)
+		ida->flags |= IDA_INTERRUPTS;
+	else
+		ida->flags &= ~IDA_INTERRUPTS;
 	ida_outl(ida, R_INT_MASK, enable ? INT_ENABLE : INT_DISABLE);
 }
 
@@ -323,7 +329,7 @@ ida_eisa_attach(device_t dev)
 	}
 
 	ida_attach(ida);
-	ida->flags |= IDA_ATTACHED; 
+	ida->flags |= IDA_ATTACHED;
 
 	return (0);
 }

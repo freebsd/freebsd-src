@@ -38,6 +38,7 @@
 #include <sys/buf.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
+#include <sys/cons.h>
 #include <sys/devicestat.h>
 #include <sys/disk.h>
 
@@ -48,6 +49,10 @@
 #include <machine/bus.h>
 #include <machine/clock.h>
 #include <sys/rman.h>
+
+#include <vm/vm.h>
+#include <vm/pmap.h>
+#include <machine/md_var.h>
 
 #include <dev/ida/idareg.h>
 #include <dev/ida/idavar.h>
@@ -60,6 +65,7 @@ static int idad_detach(device_t dev);
 static	d_open_t	idad_open;
 static	d_close_t	idad_close;
 static	d_strategy_t	idad_strategy;
+static	d_dump_t	idad_dump;
 
 #define IDAD_BDEV_MAJOR	29
 #define IDAD_CDEV_MAJOR	109
@@ -75,7 +81,7 @@ static struct cdevsw id_cdevsw = {
 	/* strategy */	idad_strategy,
 	/* name */ 	"idad",
 	/* maj */	IDAD_CDEV_MAJOR,
-	/* dump */	nodump,
+	/* dump */	idad_dump,
 	/* psize */ 	nopsize,
 	/* flags */	D_DISK,
 	/* bmaj */	IDAD_BDEV_MAJOR
@@ -192,6 +198,62 @@ done:
 	return;
 }
 
+static int
+idad_dump(dev_t dev)
+{
+	struct idad_softc *drv;
+	u_int count, blkno, secsize;
+	long blkcnt;
+	int i, error, dumppages;
+        caddr_t va;
+	vm_offset_t addr, a;
+
+	if ((error = disk_dumpcheck(dev, &count, &blkno, &secsize)))
+		return (error);
+
+	drv = idad_getsoftc(dev);
+	if (drv == NULL)
+		return (ENXIO);
+
+	addr = 0;
+	blkcnt = howmany(PAGE_SIZE, secsize);
+
+	while (count > 0) {
+		va = NULL;
+
+		dumppages = imin(count / blkcnt, MAXDUMPPGS); 
+
+		for (i = 0; i < dumppages; i++) {
+			a = addr + (i * PAGE_SIZE);
+			if (is_physical_memory(a))
+				va = pmap_kenter_temporary(trunc_page(a), i);
+			else
+				va = pmap_kenter_temporary(trunc_page(0), i);
+		}
+
+		error = ida_command(drv->controller, CMD_WRITE, va,
+		    PAGE_SIZE * dumppages, drv->drive, blkno, DMA_DATA_OUT);
+		if (error)
+			return (error);
+
+		if (addr % (1024 * 1024) == 0) {
+#ifdef HW_WDOG
+			if (wdog_tickler)
+				(*wdog_tickler)();
+#endif
+			printf("%ld ", (long)(count * DEV_BSIZE)/(1024 * 1024));
+		}
+
+		blkno += blkcnt * dumppages;
+		count -= blkcnt * dumppages;
+		addr += PAGE_SIZE * dumppages;
+
+		if (cncheckc() != -1)
+			return (EINTR);
+	}
+	return (0);
+}
+
 void
 idad_intr(struct buf *bp)
 {
@@ -231,7 +293,7 @@ idad_attach(device_t dev)
 	drv->controller->num_drives++;
 
 	error = ida_command(drv->controller, CMD_GET_LOG_DRV_INFO,
-	    &dinfo, sizeof(dinfo), drv->drive, DMA_DATA_IN);
+	    &dinfo, sizeof(dinfo), drv->drive, 0, DMA_DATA_IN);
 	if (error) {
 		device_printf(dev, "CMD_GET_LOG_DRV_INFO failed\n");
 		return (ENXIO);

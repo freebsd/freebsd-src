@@ -84,6 +84,10 @@ ida_v3_int_pending(struct ida_softc *ida)
 static void
 ida_v3_int_enable(struct ida_softc *ida, int enable)
 {
+	if (enable)
+		ida->flags |= IDA_INTERRUPTS;
+	else
+		ida->flags &= ~IDA_INTERRUPTS;
 	ida_outl(ida, R_INT_MASK, enable ? INT_ENABLE : INT_DISABLE);
 }
 
@@ -120,6 +124,10 @@ ida_v4_int_pending(struct ida_softc *ida)
 static void
 ida_v4_int_enable(struct ida_softc *ida, int enable)
 {
+	if (enable)
+		ida->flags |= IDA_INTERRUPTS;
+	else
+		ida->flags &= ~IDA_INTERRUPTS;
 	ida_outl(ida, R_42XX_INT_MASK,
 	    enable ? INT_ENABLE_42XX : INT_DISABLE_42XX);
 }
@@ -278,7 +286,7 @@ ida_pci_attach(device_t dev)
                 return (error);
         }
 	ida_attach(ida);
-	ida->flags |= IDA_ATTACHED; 
+	ida->flags |= IDA_ATTACHED;
 
 	return (0);
 }

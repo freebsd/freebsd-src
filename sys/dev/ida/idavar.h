@@ -119,8 +119,9 @@ struct ida_access {
 /*
  * flags for the controller 
  */
-#define IDA_ATTACHED	0x01		/* attached, interrupts okay */
+#define IDA_ATTACHED	0x01		/* attached */
 #define IDA_FIRMWARE	0x02		/* firmware must be started */
+#define IDA_INTERRUPTS	0x04		/* interrupts enabled */
 
 struct ida_softc {
 	device_t	dev;
@@ -193,7 +194,7 @@ extern void ida_free(struct ida_softc *ida);
 extern int ida_init(struct ida_softc *ida);
 extern void ida_attach(struct ida_softc *ida); 
 extern int ida_command(struct ida_softc *ida, int command, void *data,
-	int datasize, int drive, int flags);
+	int datasize, int drive, u_int32_t pblkno, int flags);
 extern void ida_submit_buf(struct ida_softc *ida, struct buf *bp);
 extern void ida_intr(void *data);
 
