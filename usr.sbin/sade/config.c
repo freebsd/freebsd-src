@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.85 1997/03/09 22:25:42 jkh Exp $
+ * $Id: config.c,v 1.86 1997/03/12 02:31:28 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -480,10 +480,57 @@ configUsers(dialogMenuItem *self)
 int
 configXFree86(dialogMenuItem *self)
 {
+#ifndef USE_XIG_ENVIRONMENT
     char *config, *execfile;
 
     dialog_clear_norefresh();
-    dmenuOpenSimple(&MenuXF86Config, FALSE); 
+    if (!dmenuOpenSimple(&MenuXF86Config, FALSE))
+	return DITEM_FAILURE | DITEM_RESTORE;
+#endif
+    systemExecute("/sbin/ldconfig /usr/lib /usr/X11R6/lib /usr/local/lib /usr/lib/compat");
+#ifdef USE_XIG_ENVIRONMENT
+    if (!file_readable("/usr/X11R6/lib/X11/AcceleratedX/bin/Xinstall") ||
+	!file_readable("/usr/X11R6/lib/X11/AcceleratedX/bin/Xsetup")) {
+	dialog_clear_norefresh();
+	msgConfirm("Hmmm!  It looks like you elected not to install the AccelleratedX\n"
+		   "server package (or the installation failed somehow).  If this was\n"
+		   "an omission rather than an error, please go to the Distributions\n"
+		   "menu, select the Custom distribution options and then choose your X11\n"
+		   "distribution components from the XFree86 menu.  AccelX will be selected\n"
+		   "as the default server automatically.");
+	return DITEM_FAILURE | DITEM_RESTORE;
+    }
+    else {
+	int i;
+
+	if (directory_exists("/dist/CDE") && !msgYesNo("Would you like to install the CDE desktop package now?")) {
+	    dialog_clear_norefresh();
+	    msgNotify("Running CDE installation - please wait (this may take awhile!).");
+	    dialog_clear();
+	    i = systemExecute("(cd /dist/CDE; sh Install)");
+	    dialog_clear();
+	    if (i) {
+		msgConfirm("/dist/CDE/dtinstall script returned an error status!\n\n"
+			   "To try again, you should run this command manually after the system\n"
+			   "is up (and if your CDROM is mounted in the standard location, the path\n"
+			   "to it will actually be /cdrom/CDE/dtinstall when you run it later).\n");
+	    }
+	}
+
+	dialog_clear_norefresh();
+	msgNotify("Running AcceleratedX 3.1 installation procedure, please wait.");
+	if ((i = vsystem("/usr/X11R6/lib/X11/AcceleratedX/bin/Xinstall"))) {
+	    msgConfirm("Installation procedure failed, error code %d!  Please report\n"
+		       "error to Walnut Creek CDROM tech support (either send email\n"
+		       "to support@cdrom.com or call +1 510 603 1234).  Thank you!", i);
+	    return DITEM_FAILURE | DITEM_RESTORE;
+	}
+	dialog_clear();
+	systemExecute("/usr/X11R6/lib/X11/AcceleratedX/bin/Xsetup");
+	return DITEM_SUCCESS | DITEM_RESTORE;
+    }
+
+#else	/* !USE_XIG_ENVIRONMENT */
 
     config = variable_get(VAR_XF86_CONFIG);
     if (!config)
@@ -494,7 +541,6 @@ configXFree86(dialogMenuItem *self)
 	if (!file_readable("/dev/mouse") && !msgYesNo("Does this system have a mouse attached to it?"))
 	    dmenuOpenSimple(&MenuMouse, FALSE); 
 	dialog_clear();
-	systemExecute("/sbin/ldconfig /usr/lib /usr/X11R6/lib /usr/local/lib /usr/lib/compat");
 	systemExecute(execfile);
 	return DITEM_SUCCESS | DITEM_RESTORE;
     }
@@ -502,8 +548,9 @@ configXFree86(dialogMenuItem *self)
 	dialog_clear_norefresh();
 	msgConfirm("XFree86 does not appear to be installed!  Please install\n"
 		   "The XFree86 distribution before attempting to configure it.");
-	return DITEM_FAILURE;
+	return DITEM_FAILURE | DITEM_RESTORE;
     }
+#endif	/* USE_XIG_ENVIRONMENT */
 }
 
 void
