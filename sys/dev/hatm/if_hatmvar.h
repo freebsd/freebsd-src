@@ -239,7 +239,6 @@ SLIST_HEAD(tpd_list, tpd);
 /* each allocated page has one of these structures at its very end. */
 struct mbuf_page_hdr {
 	uint8_t		card[32];	/* bitmap for on-card */
-	uint8_t		used[32];	/* bitmap for used but not on-card */
 	uint16_t	nchunks;	/* chunks on this page */
 	bus_dmamap_t	map;		/* the DMA MAP */
 	uint32_t	phys;		/* physical base address */
@@ -292,9 +291,8 @@ struct mbuf1_chunk {
 };
 
 struct mbufx_free {
-	SLIST_ENTRY(mbufx_free)	link;
+	struct mbufx_free	*link;
 };
-SLIST_HEAD(mbufx_free_list, mbufx_free);
 
 /*==================================================================*/
 
@@ -413,10 +411,7 @@ struct hatm_softc {
 	bus_dma_tag_t		mbuf_tag;
 	struct mbuf_page	**mbuf_pages;
 	u_int			mbuf_npages;
-	struct mtx		mbuf0_mtx;
-	struct mbufx_free_list	mbuf0_list;
-	struct mtx		mbuf1_mtx;
-	struct mbufx_free_list	mbuf1_list;
+	struct mbufx_free	*mbuf_list[2];
 
 	/* mbuf cluster tracking and mapping for group 0 */
 	struct mbuf		**lbufs;	/* mbufs */
