@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_shutdown.c	8.3 (Berkeley) 1/21/94
- * $Id: kern_shutdown.c,v 1.36 1998/08/19 20:20:52 des Exp $
+ * $Id: kern_shutdown.c,v 1.37 1998/08/23 14:18:08 des Exp $
  */
 
 #include "opt_ddb.h"
@@ -399,6 +399,7 @@ panic(const char *fmt, ...)
 {
 	int bootopt;
 	va_list ap;
+	static char buf[256];
 
 	bootopt = RB_AUTOBOOT | RB_DUMP;
 	if (panicstr)
@@ -406,11 +407,12 @@ panic(const char *fmt, ...)
 	else
 		panicstr = fmt;
 
-	printf("panic: ");
 	va_start(ap, fmt);
-	vprintf(fmt, ap);
+	(void)vsprintf(buf, fmt, ap);
+	if (panicstr == fmt)
+		panicstr = buf;
 	va_end(ap);
-	printf("\n");
+	printf("panic: %s\n", buf);
 #ifdef SMP
 	/* three seperate prints in case of an unmapped page and trap */
 	printf("mp_lock = %08x; ", mp_lock);
@@ -499,4 +501,3 @@ rm_at_shutdown(bootlist_fn function, void *arg)
 	}
 	return (count);
 }
-
