@@ -236,7 +236,7 @@
       <filename>libcrypto.so.2</filename>,
       <filename>libgmp.so.3</filename>, and
       <filename>libssl.so.2</filename> libraries from &os;
-      4.7-RELEASE.
+      4.7-RELEASE.</para>
 
     <para>&man.config.8; now implements a <literal>nodevice</literal>
       kernel configuration file directive that cancels the effect of a
@@ -416,7 +416,7 @@
         <quote>Daffodil</quote> release.</para>
 
       <para><application>OpenSSL</application> has been updated to
-        release 0.9.7.  Among other features, this release includes
+        release 0.9.7a.  Among other features, this release includes
         support for AES and takes advantage of &man.crypto.4;
         devices. &merged;</para>
 
