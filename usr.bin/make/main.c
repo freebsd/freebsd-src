@@ -91,10 +91,6 @@ __FBSDID("$FreeBSD$");
 
 #define WANT_ENV_MKLVL	1
 
-#ifndef	DEFMAXLOCAL
-#define	DEFMAXLOCAL DEFMAXJOBS
-#endif	/* DEFMAXLOCAL */
-
 #define	MAKEFLAGS	".MAKEFLAGS"
 
 Lst			create;		/* Targets to be made */
@@ -108,7 +104,6 @@ static Boolean		expandVars;	/* fully expand printed variables */
 static Lst		variables;	/* list of variables to print */
 int			maxJobs;	/* -j argument */
 static Boolean          forceJobs;      /* -j argument given */
-static int		maxLocal;	/* -L argument */
 Boolean			compatMake;	/* -B argument */
 Boolean			debug;		/* -d flag */
 Boolean			noExecute;	/* -n flag */
@@ -284,7 +279,6 @@ rearg:	while((c = getopt(argc, argv, OPTFLAGS)) != -1) {
 				    optarg);
 				usage();
 			}
-			maxLocal = maxJobs;
 			MFLAGS_append("-j", optarg);
 			break;
 		}
@@ -578,8 +572,7 @@ main(int argc, char **argv)
 	debug = 0;			/* No debug verbosity, please. */
 	jobsRunning = FALSE;
 
-	maxLocal = DEFMAXLOCAL;		/* Set default local max concurrency */
-	maxJobs = maxLocal;
+	maxJobs = DEFMAXJOBS;
 	forceJobs = FALSE;              /* No -j flag */
 	compatMake = FALSE;		/* No compat mode */
 
@@ -859,9 +852,7 @@ main(int argc, char **argv)
 			 * being executed should it exist).
 			 */
 			if (!queryFlag) {
-				if (maxLocal == -1)
-					maxLocal = maxJobs;
-				Job_Init(maxJobs, maxLocal);
+				Job_Init(maxJobs, maxJobs);
 				jobsRunning = TRUE;
 			}
 
