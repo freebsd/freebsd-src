@@ -495,8 +495,8 @@ buildhints()
 		warn("%s", hints_file);
 		return -1;
 	}
-	if (write(fd, blist, hdr.hh_nbucket * sizeof(struct hints_bucket)) !=
-				(ssize_t)(hdr.hh_nbucket * sizeof(struct hints_bucket))) {
+	if (write(fd, blist, hdr.hh_nbucket * sizeof(*blist)) !=
+				(ssize_t)(hdr.hh_nbucket * sizeof(*blist))) {
 		warn("%s", hints_file);
 		return -1;
 	}
@@ -585,11 +585,11 @@ readhints()
 	if (rescan)
 		return 0;
 
-	blist = malloc(sizeof(struct hints_bucket) * hdr->hh_nbucket);
+	blist = malloc(sizeof(*blist) * hdr->hh_nbucket);
 	if (blist == NULL)
 		err(1, "readhints");
 	memcpy(blist, (char *)addr + hdr->hh_hashtab,
-		sizeof(struct hints_bucket) * hdr->hh_nbucket);
+		sizeof(*blist) * hdr->hh_nbucket);
 
 
 	for (i = 0; i < hdr->hh_nbucket; i++) {
