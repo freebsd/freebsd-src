@@ -136,7 +136,7 @@ ENTRY(cpu_switch)
 	 * tsb.
 	 */
 	lduw	[PCPU(CPUID)], %l3
-	sllx	%l3, 2, %l3
+	sllx	%l3, INT_SHIFT, %l3
 	add	%l2, VM_PMAP + PM_CONTEXT, %l4
 	lduw	[%l3 + %l4], %l5
 	brz,a,pn %l5, 3f
@@ -164,7 +164,7 @@ ENTRY(cpu_switch)
 	 * If the new process has nucleus context we are done.
 	 */
 3:	lduw	[PCPU(CPUID)], %o3
-	sllx	%o3, 2, %o3
+	sllx	%o3, INT_SHIFT, %o3
 	add	%o2, VM_PMAP + PM_CONTEXT, %o4
 	lduw	[%o3 + %o4], %o5
 	brz,a,pn %o5, 4f

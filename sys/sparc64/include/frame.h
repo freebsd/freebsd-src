@@ -29,7 +29,6 @@
 #ifndef	_MACHINE_FRAME_H_
 #define	_MACHINE_FRAME_H_
 
-#define	PTR_SHIFT	3
 #define	RW_SHIFT	7
 #define	SPOFF		2047
 

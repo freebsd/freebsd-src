@@ -137,6 +137,9 @@ void sparc64_shutdown_final(void *dummy, int howto);
 static void cpu_startup(void *);
 SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL);
 
+CTASSERT((1 << INT_SHIFT) == sizeof(int));
+CTASSERT((1 << PTR_SHIFT) == sizeof(char *));
+
 CTASSERT(sizeof(struct pcpu) <= (PAGE_SIZE / 2));
 
 static void

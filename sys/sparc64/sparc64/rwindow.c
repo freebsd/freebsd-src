@@ -38,7 +38,6 @@
 #include <machine/frame.h>
 
 CTASSERT((1 << RW_SHIFT) == sizeof(struct rwindow));
-CTASSERT((1 << PTR_SHIFT) == sizeof(char *));
 
 int
 rwindow_load(struct thread *td, struct trapframe *tf, int n)
