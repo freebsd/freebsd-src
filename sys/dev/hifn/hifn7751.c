@@ -470,7 +470,8 @@ hifn_attach(device_t dev)
 	if (sc->sc_flags & (HIFN_HAS_PUBLIC | HIFN_HAS_RNG))
 		hifn_init_pubrng(sc);
 
-	callout_init(&sc->sc_tickto, 0);
+	/* NB: 1 means the callout runs w/o Giant locked */
+	callout_init(&sc->sc_tickto, 1);
 	callout_reset(&sc->sc_tickto, hz, hifn_tick, sc);
 
 	return (0);
