@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$NecBSD: scsi_low_pisa.c,v 1.13 1998/11/26 14:26:11 honda Exp $	*/
+/*	$NecBSD: scsi_low_pisa.c,v 1.13.18.1 2001/06/08 06:27:48 honda Exp $	*/
 /*	$NetBSD$	*/
 
 /*
@@ -33,25 +33,16 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifdef	__NetBSD__
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#ifdef __NetBSD__
-#include <sys/disklabel.h>
-#endif
-#if defined(__FreeBSD__) && __FreeBSD_version >= 500001
-#include <sys/bio.h>
-#endif
-#include <sys/buf.h>
-#include <sys/queue.h>
-#include <sys/device_port.h>
+#include <sys/device.h>
+#include <sys/errno.h>
 
-#ifdef __NetBSD__
 #include <machine/bus.h>
 #include <machine/intr.h>
-#endif
 
-#ifdef __NetBSD__
 #include <dev/isa/isareg.h>
 #include <dev/isa/isavar.h>
 
@@ -68,93 +59,44 @@
 #include <i386/Cbus/dev/scsi_low_pisa.h>
 
 #define	SCSIBUS_RESCAN
-#else
-#ifdef __FreeBSD__
-#include <cam/scsi/scsi_low.h>
-#include <cam/scsi/scsi_low_pisa.h>
-#endif
-#endif
 
-#ifdef __FreeBSD__
 int
-scsi_low_deactivate(struct scsi_low_softc *sc)
-{
-#else
-#ifdef __NetBSD__
-int
-scsi_low_deactivate(dh)
+scsi_low_deactivate_pisa(dh)
 	pisa_device_handle_t dh;
 {
 	struct scsi_low_softc *sc = PISA_DEV_SOFTC(dh);
-#endif
-#endif
-	sc->sl_flags |= HW_INACTIVE;
 
-#ifdef __NetBSD__
-#ifdef	SCSI_LOW_POWFUNC
-	untimeout(scsi_low_recover, sc);
-#endif	/* SCSI_LOW_POWFUNC */
-	untimeout(scsi_low_timeout, sc);
-#else
-#ifdef __FreeBSD__
-#ifdef	SCSI_LOW_POWFUNC
-	untimeout(scsi_low_recover, sc, sc->recover_ch);
-#endif	/* SCSI_LOW_POWFUNC */
-	untimeout(scsi_low_timeout, sc, sc->timeout_ch);
-#endif
-#endif
-
+	if (scsi_low_deactivate(sc) != 0)
+		return EBUSY;
 	return 0;
 }
 
-#ifdef __FreeBSD__
 int
-scsi_low_activate(struct scsi_low_softc *sc, int flags)
-{
-#else
-#ifdef __NetBSD__
-int
-scsi_low_activate(dh)
+scsi_low_activate_pisa(dh)
 	pisa_device_handle_t dh;
 {
 	struct scsi_low_softc *sc = PISA_DEV_SOFTC(dh);
 	slot_device_res_t dr = PISA_RES_DR(dh);
-#endif
-#endif
-	int error;
 
-	sc->sl_flags &= ~HW_INACTIVE;
-#ifdef	__FreeBSD__
-	sc->sl_cfgflags = ((sc->sl_cfgflags & 0xffff0000) |
-			   (flags & 0x00ff));
-#else	/* __NetBSD__ */
 	sc->sl_cfgflags = DVCFG_MKCFG(DVCFG_MAJOR(sc->sl_cfgflags), \
 				      DVCFG_MINOR(PISA_DR_DVCFG(dr)));
 	sc->sl_irq = PISA_DR_IRQ(dr);
-#endif
 
-	if ((error = scsi_low_restart(sc, SCSI_LOW_RESTART_HARD, NULL)) != 0)
-	{
-		sc->sl_flags |= HW_INACTIVE;
-		return error;
-	}
+	if (scsi_low_activate(sc) != 0)
+		return EBUSY;
 
-#ifdef __FreeBSD__
-	sc->timeout_ch = 
-#endif
-	timeout(scsi_low_timeout, sc, SCSI_LOW_TIMEOUT_CHECK_INTERVAL * hz);
 	/* rescan the scsi bus */
 #ifdef	SCSIBUS_RESCAN
-	if (PISA_RES_EVENT(dh) == PISA_EVENT_INSERT &&
-	    TAILQ_FIRST(&sc->sl_start) == NULL)
-		scsi_probe_busses((int) sc->sl_link.scsipi_scsi.scsibus, -1, -1);
+	if (scsi_low_is_busy(sc) == 0 &&
+	    PISA_RES_EVENT(dh) == PISA_EVENT_INSERT)
+		scsi_probe_busses((int) sc->sl_si.si_splp->scsipi_scsi.scsibus,
+				  -1, -1);
 #endif
 	return 0;
 }
 
-#ifdef __NetBSD__
 int
-scsi_low_notify(dh, ev)
+scsi_low_notify_pisa(dh, ev)
 	pisa_device_handle_t dh;
 	pisa_event_t ev;
 {
@@ -163,7 +105,7 @@ scsi_low_notify(dh, ev)
 	switch(ev)
 	{
 	case PISA_EVENT_QUERY_SUSPEND:
-		if (TAILQ_FIRST(&sc->sl_start) != NULL)
+		if (scsi_low_is_busy(sc) != 0)
 			return SD_EVENT_STATUS_BUSY;
 		break;
 
@@ -172,4 +114,43 @@ scsi_low_notify(dh, ev)
 	}
 	return 0;
 }
+#endif	/* __NetBSD__ */
+
+#ifdef	__FreeBSD__ 
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
+#if __FreeBSD_version >= 500001
+#include <sys/bio.h>
 #endif
+#include <sys/buf.h>
+#include <sys/queue.h>
+#include <sys/device_port.h>
+
+#include <cam/scsi/scsi_low.h>
+#include <cam/scsi/scsi_low_pisa.h>
+
+int
+scsi_low_deactivate_pisa(sc)
+	struct scsi_low_softc *sc;
+{
+
+	if (scsi_low_deactivate(sc) != 0)
+		return EBUSY;
+	return 0;
+}
+
+int
+scsi_low_activate_pisa(sc, flags)
+	struct scsi_low_softc *sc;
+	int flags;
+{
+
+	sc->sl_cfgflags = ((sc->sl_cfgflags & 0xffff0000) |
+			   (flags & 0x00ff));
+
+	if (scsi_low_activate(sc) != 0)
+		return EBUSY;
+	return 0;
+}
+#endif	/* __FreeBSD__ */

@@ -1,5 +1,5 @@
 /* $FreeBSD$ */
-/*	$NecBSD: bshwvar.h,v 1.3 1999/04/15 01:36:10 kmatsuda Exp $	*/
+/*	$NecBSD: bshwvar.h,v 1.3.14.3 2001/06/21 04:07:37 honda Exp $	*/
 /*	$NetBSD$	*/
 
 /*
@@ -46,12 +46,11 @@ struct bshw {
 #define	BSHW_SMFIFO		0x02
 #define	BSHW_DOUBLE_DMACHAN	0x04
 	u_int hw_flags;
+	u_int hw_sregaddr;
 
-	u_int sregaddr;
-
-	int ((*dma_init) __P((struct ct_softc *)));
-	void ((*dma_start) __P((struct ct_softc *)));
-	void ((*dma_stop) __P((struct ct_softc *)));
+	int ((*hw_dma_init) __P((struct ct_softc *)));
+	void ((*hw_dma_start) __P((struct ct_softc *)));
+	void ((*hw_dma_stop) __P((struct ct_softc *)));
 };
 
 struct bshw_softc {
@@ -63,7 +62,8 @@ struct bshw_softc {
 	u_int8_t *sc_segaddr;
 	u_int8_t *sc_bufp;
 	int sc_seglen;
-	int sc_tdatalen;		/* temp datalen */
+	u_int sc_sdatalen;		/* SMIT */
+	u_int sc_edatalen;		/* SMIT */
 
 	/* private bounce */
 	u_int8_t *sc_bounce_phys;
@@ -71,16 +71,26 @@ struct bshw_softc {
 	u_int sc_bounce_size;
 	bus_addr_t sc_minphys;
 	
+	/* io control */
+#define	BSHW_READ_INTERRUPT_DRIVEN	0x0001
+#define	BSHW_WRITE_INTERRUPT_DRIVEN	0x0002
+#define	BSHW_DMA_BLOCK			0x0010
+#define	BSHW_SMIT_BLOCK			0x0020
+	u_int sc_io_control;
+
 	/* hardware */
 	struct bshw *sc_hw;
+	void ((*sc_dmasync_before)) __P((struct ct_softc *));
+	void ((*sc_dmasync_after)) __P((struct ct_softc *));
 };
 
-void bshw_synch_setup __P((struct ct_softc *, struct lun_info *));
+void bshw_synch_setup __P((struct ct_softc *, struct targ_info *));
 void bshw_bus_reset __P((struct ct_softc *));
-int bshw_read_settings __P((bus_space_tag_t, bus_space_handle_t, struct bshw_softc *));
-void bshw_smit_xfer_start __P((struct ct_softc *));
+int bshw_read_settings __P((struct ct_bus_access_handle *, struct bshw_softc *));
+int bshw_smit_xfer_start __P((struct ct_softc *));
 void bshw_smit_xfer_stop __P((struct ct_softc *));
-void bshw_dma_xfer_start __P((struct ct_softc *));
+int bshw_dma_xfer_start __P((struct ct_softc *));
 void bshw_dma_xfer_stop __P((struct ct_softc *));
+
 extern struct dvcfg_hwsel bshw_hwsel;
 #endif	/* !_BSHWVAR_H_ */

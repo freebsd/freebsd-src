@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$NecBSD: scsi_low_pisa.h,v 1.3 1999/04/15 01:35:57 kmatsuda Exp $	*/
+/*	$NecBSD: scsi_low_pisa.h,v 1.3.14.1 2001/06/08 06:27:49 honda Exp $	*/
 /*	$NetBSD$	*/
 
 /*
@@ -34,13 +34,14 @@
 #ifndef	_SCSI_LOW_PISA_H_
 #define	_SCSI_LOW_PISA_H_
 
-#ifdef __NetBSD__
-int scsi_low_activate __P((pisa_device_handle_t));
-int scsi_low_deactivate __P((pisa_device_handle_t));
-int scsi_low_notify __P((pisa_device_handle_t, pisa_event_t));
-#endif
-#ifdef __FreeBSD__
-int scsi_low_activate __P((struct scsi_low_softc *, int));
-int scsi_low_deactivate __P((struct scsi_low_softc *));
-#endif
+#ifdef	__NetBSD__
+int scsi_low_activate_pisa __P((pisa_device_handle_t));
+int scsi_low_deactivate_pisa __P((pisa_device_handle_t));
+int scsi_low_notify_pisa __P((pisa_device_handle_t, pisa_event_t));
+#endif	/* __NetBSD__ */
+
+#ifdef	__FreeBSD__
+int scsi_low_activate_pisa __P((struct scsi_low_softc *, int));
+int scsi_low_deactivate_pisa __P((struct scsi_low_softc *));
+#endif	/* __FreeBSD__ */
 #endif	/* !_SCSI_LOW_PISA_H_ */

@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$NecBSD: tmc18c30reg.h,v 1.4 1998/03/14 07:05:23 kmatsuda Exp $	*/
+/*	$NecBSD: tmc18c30reg.h,v 1.4.24.1 2001/06/08 06:27:50 honda Exp $	*/
 /*	$NetBSD$	*/
 
 /*
@@ -57,14 +57,13 @@
 #define		BSTAT_REQ	0x10
 #define		BSTAT_SEL	0x20
 #define		BSTAT_ACK	0x40
-#define		BSTAT_PHMASK	(BSTAT_MSG | BSTAT_IO | BSTAT_CMD)
 
 #define	tmc_ictl	0x02
 #define		ICTL_FIFO	0x10
 #define		ICTL_ARBIT	0x20
 #define		ICTL_SEL	0x40
 #define		ICTL_CD		0x80
-#define		ICTL_ALLINT	(ICTL_ARBIT | ICTL_CD | ICTL_SEL)
+#define		ICTL_ALLINT	(ICTL_ARBIT | ICTL_CD | ICTL_SEL | ICTL_FIFO)
 #define	tmc_astat	0x02
 #define		ASTAT_INT	0x01
 #define		ASTAT_ARBIT	0x02
@@ -112,6 +111,7 @@
 #define	tmc_cfg1	0x0a
 
 #define	tmc_ioctl	0x0b
+#define		IOCTL_IO32	0x80
 #define	tmc_cfg2	0x0b
 
 #define	tmc_wfifo	0x0c
@@ -127,11 +127,14 @@
 #define	STATUS_PHASE		(BSTAT_CMD|BSTAT_BSY|BSTAT_IO)
 #define	MESSAGE_OUT_PHASE	(BSTAT_CMD|BSTAT_MSG|BSTAT_BSY)
 #define	MESSAGE_IN_PHASE	(BSTAT_CMD|BSTAT_MSG|BSTAT_BSY|BSTAT_IO)
-
 #define	PHASE_RESELECTED	(BSTAT_SEL|BSTAT_IO)
 
-#define	PHASE_MASK		0x2f
-#define	RESEL_PHASE_MASK	0x2e
+#define	BSTAT_PHMASK		(BSTAT_MSG | BSTAT_IO | BSTAT_CMD)
+#define	PHASE_MASK		(BSTAT_SEL | BSTAT_BSY | BSTAT_PHMASK)
+#define	RESEL_PHASE_MASK	(BSTAT_SEL | BSTAT_PHMASK)
+
+#define	STG_IS_PHASE_DATA(st) \
+	((((st) & PHASE_MASK) & ~BSTAT_IO) == BSTAT_BSY)
 
 /* chip type */
 #define	TMCCHIP_UNK		0x00
