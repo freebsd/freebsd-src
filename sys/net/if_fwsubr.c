@@ -56,8 +56,6 @@
 #include <netinet/in.h>
 #include <netinet/in_var.h>
 #include <netinet/if_ether.h>
-#include <netinet/ip_fw.h>
-#include <netinet/ip_dummynet.h>
 #endif
 #ifdef INET6
 #include <netinet6/nd6.h>
