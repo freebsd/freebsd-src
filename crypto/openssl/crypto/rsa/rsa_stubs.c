@@ -32,12 +32,13 @@
 #include "cryptlib.h"
 #include <openssl/rsa.h>
 
+#define VERBOSE_STUBS	/* undef if you don't want missing rsaref reported */
+
 #ifdef PIC
 #include <dlfcn.h>
 
 #define RSAUSA_SHLIB	"librsaUSA.so"
 #define RSAINTL_SHLIB	"librsaINTL.so"
-#define VERBOSE_STUBS	/* undef if you don't want missing rsaref reported */
 
 static void *
 getsym(const char *sym)
