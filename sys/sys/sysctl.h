@@ -581,7 +581,7 @@ SYSCTL_DECL(_compat);
 extern char	machine[];
 extern char	osrelease[];
 extern char	ostype[];
-extern char	ident[];
+extern char	kern_ident[];
 
 /* Dynamic oid handling */
 struct sysctl_oid *sysctl_add_oid(struct sysctl_ctx_list *clist,
