@@ -10,6 +10,7 @@ SUBDIR=	geom_apple \
 	geom_gpt \
 	geom_label \
 	geom_mbr \
+	geom_mirror \
 	geom_nop \
 	geom_pc98 \
 	geom_stripe \
