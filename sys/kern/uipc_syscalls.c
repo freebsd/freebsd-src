@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_syscalls.c	8.4 (Berkeley) 2/21/94
- * $Id: uipc_syscalls.c,v 1.32 1997/11/06 19:29:26 phk Exp $
+ * $Id: uipc_syscalls.c,v 1.33 1997/12/14 03:15:21 msmith Exp $
  */
 
 #include "opt_ktrace.h"
@@ -243,13 +243,14 @@ accept1(p, uap, compat)
 		return 0;
 	}
 	if (uap->name) {
+		/* check sa_len before it is destroyed */
+		if (namelen > sa->sa_len)
+			namelen = sa->sa_len;
 #ifdef COMPAT_OLDSOCK
 		if (compat)
 			((struct osockaddr *)sa)->sa_family =
 			    sa->sa_family;
 #endif
-		if (namelen > sa->sa_len)
-			namelen = sa->sa_len;
 		error = copyout(sa, (caddr_t)uap->name, (u_int)namelen);
 		if (!error)
 gotnoname:
