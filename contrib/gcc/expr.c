@@ -153,7 +153,7 @@ static rtx clear_storage_via_libcall PARAMS ((rtx, rtx));
 static tree clear_storage_libcall_fn PARAMS ((int));
 static rtx compress_float_constant PARAMS ((rtx, rtx));
 static rtx get_subtarget	PARAMS ((rtx));
-static int is_zeros_p		PARAMS ((tree));
+static int is_zeros_p         PARAMS ((tree));
 static int mostly_zeros_p	PARAMS ((tree));
 static void store_constructor_field PARAMS ((rtx, unsigned HOST_WIDE_INT,
 					     HOST_WIDE_INT, enum machine_mode,
@@ -177,6 +177,7 @@ static rtx do_store_flag	PARAMS ((tree, rtx, enum machine_mode, int));
 static void emit_single_push_insn PARAMS ((enum machine_mode, rtx, tree));
 #endif
 static void do_tablejump PARAMS ((rtx, enum machine_mode, rtx, rtx, rtx));
+static rtx const_vector_from_tree PARAMS ((tree));
 
 /* Record for each mode whether we can move a register directly to or
    from an object of that mode in memory.  If we can't, we won't try
@@ -2659,6 +2660,9 @@ can_store_by_pieces (len, constfun, constfundata, align)
   int reverse;
   rtx cst;
 
+  if (len == 0)
+    return 1;
+
   if (! MOVE_BY_PIECES_P (len, align))
     return 0;
 
@@ -2734,6 +2738,9 @@ store_by_pieces (to, len, constfun, constfundata, align)
 {
   struct store_by_pieces data;
 
+  if (len == 0)
+    return;
+
   if (! MOVE_BY_PIECES_P (len, align))
     abort ();
   to = protect_from_queue (to, 1);
@@ -2755,6 +2762,9 @@ clear_by_pieces (to, len, align)
      unsigned int align;
 {
   struct store_by_pieces data;
+
+  if (len == 0)
+    return;
 
   data.constfun = clear_by_pieces_1;
   data.constfundata = NULL;
@@ -2926,7 +2936,9 @@ clear_storage (object, size)
       object = protect_from_queue (object, 1);
       size = protect_from_queue (size, 0);
 
-      if (GET_CODE (size) == CONST_INT
+      if (GET_CODE (size) == CONST_INT && INTVAL (size) == 0)
+	;
+      else if (GET_CODE (size) == CONST_INT
 	  && CLEAR_BY_PIECES_P (INTVAL (size), align))
 	clear_by_pieces (object, INTVAL (size), align);
       else if (clear_storage_via_clrstr (object, size, align))
@@ -4802,11 +4814,13 @@ store_constructor (exp, target, cleared, size)
     {
       tree elt;
 
+      /* If size is zero or the target is already cleared, do nothing.  */
+      if (size == 0 || cleared)
+	cleared = 1;
       /* We either clear the aggregate or indicate the value is dead.  */
-      if ((TREE_CODE (type) == UNION_TYPE
-	   || TREE_CODE (type) == QUAL_UNION_TYPE)
-	  && ! cleared
-	  && ! CONSTRUCTOR_ELTS (exp))
+      else if ((TREE_CODE (type) == UNION_TYPE
+		|| TREE_CODE (type) == QUAL_UNION_TYPE)
+	       && ! CONSTRUCTOR_ELTS (exp))
 	/* If the constructor is empty, clear the union.  */
 	{
 	  clear_storage (target, expr_size (exp));
@@ -4817,7 +4831,7 @@ store_constructor (exp, target, cleared, size)
 	 set the initial value as zero so we can fold the value into
 	 a constant.  But if more than one register is involved,
 	 this probably loses.  */
-      else if (! cleared && GET_CODE (target) == REG && TREE_STATIC (exp)
+      else if (GET_CODE (target) == REG && TREE_STATIC (exp)
 	       && GET_MODE_SIZE (GET_MODE (target)) <= UNITS_PER_WORD)
 	{
 	  emit_move_insn (target, CONST0_RTX (GET_MODE (target)));
@@ -4829,10 +4843,8 @@ store_constructor (exp, target, cleared, size)
 	 clear the whole structure first.  Don't do this if TARGET is a
 	 register whose mode size isn't equal to SIZE since clear_storage
 	 can't handle this case.  */
-      else if (! cleared && size > 0
-	       && ((list_length (CONSTRUCTOR_ELTS (exp))
-		    != fields_length (type))
-		   || mostly_zeros_p (exp))
+      else if (((list_length (CONSTRUCTOR_ELTS (exp)) != fields_length (type))
+		|| mostly_zeros_p (exp))
 	       && (GET_CODE (target) != REG
 		   || ((HOST_WIDE_INT) GET_MODE_SIZE (GET_MODE (target))
 		       == size)))
@@ -6781,6 +6793,9 @@ expand_expr (exp, target, tmode, modifier)
 	temp = force_reg (mode, temp);
 
       return temp;
+
+    case VECTOR_CST:
+      return const_vector_from_tree (exp);
 
     case CONST_DECL:
       return expand_expr (DECL_INITIAL (exp), target, VOIDmode, modifier);
@@ -11230,6 +11245,43 @@ vector_mode_valid_p (mode)
   /* If we have support for the inner mode, we can safely emulate it.
      We may not have V2DI, but me can emulate with a pair of DIs.  */
   return mov_optab->handlers[innermode].insn_code != CODE_FOR_nothing;
+}
+
+/* Return a CONST_VECTOR rtx for a VECTOR_CST tree.  */
+static rtx
+const_vector_from_tree (exp)
+     tree exp;
+{
+  rtvec v;
+  int units, i;
+  tree link, elt;
+  enum machine_mode inner, mode;
+
+  mode = TYPE_MODE (TREE_TYPE (exp));
+
+  if (is_zeros_p (exp))
+    return CONST0_RTX (mode);
+
+  units = GET_MODE_NUNITS (mode);
+  inner = GET_MODE_INNER (mode);
+
+  v = rtvec_alloc (units);
+
+  link = TREE_VECTOR_CST_ELTS (exp);
+  for (i = 0; link; link = TREE_CHAIN (link), ++i)
+    {
+      elt = TREE_VALUE (link);
+
+      if (TREE_CODE (elt) == REAL_CST)
+	RTVEC_ELT (v, i) = CONST_DOUBLE_FROM_REAL_VALUE (TREE_REAL_CST (elt),
+							 inner);
+      else
+	RTVEC_ELT (v, i) = immed_double_const (TREE_INT_CST_LOW (elt),
+					       TREE_INT_CST_HIGH (elt),
+					       inner);
+    }
+
+  return gen_rtx_raw_CONST_VECTOR (mode, v);
 }
 
 #include "gt-expr.h"
