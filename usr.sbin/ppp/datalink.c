@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.14 1998/06/27 14:18:04 brian Exp $
+ *	$Id: datalink.c,v 1.15 1998/06/30 23:04:14 brian Exp $
  */
 
 #include <sys/types.h>
@@ -174,6 +174,7 @@ datalink_LoginDone(struct datalink *dl)
       modem_Offline(dl->physical);
       chat_Init(&dl->chat, dl->physical, dl->cfg.script.hangup, 1, NULL);
     } else {
+      timer_Stop(&dl->physical->Timer);
       if (dl->physical->type == PHYS_DEDICATED)
         /* force a redial timeout */
         modem_Close(dl->physical);
@@ -289,7 +290,7 @@ datalink_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
             case DATALINK_DIAL:
             case DATALINK_LOGIN:
               datalink_NewState(dl, DATALINK_HANGUP);
-              modem_Offline(dl->physical);
+              modem_Offline(dl->physical);	/* Is this required ? */
               chat_Init(&dl->chat, dl->physical, dl->cfg.script.hangup, 1, NULL);
               return datalink_UpdateSet(d, r, w, e, n);
           }
@@ -402,6 +403,7 @@ datalink_ComeDown(struct datalink *dl, int how)
 
   if (dl->state >= DATALINK_READY && dl->stayonline) {
     dl->stayonline = 0;
+    timer_Stop(&dl->physical->Timer);
     datalink_NewState(dl, DATALINK_READY);
   } else if (dl->state != DATALINK_CLOSED && dl->state != DATALINK_HANGUP) {
     modem_Offline(dl->physical);

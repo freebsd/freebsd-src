@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.93 1998/06/24 19:33:32 brian Exp $
+ * $Id: modem.c,v 1.94 1998/06/27 14:18:07 brian Exp $
  *
  *  TODO:
  */
@@ -668,9 +668,6 @@ modem_Open(struct physical *modem, struct bundle *bundle)
       return (-1);
     }
     fcntl(modem->fd, F_SETFL, oldflag & ~O_NONBLOCK);
-
-    /* We do the timer only for ttys */
-    modem_StartTimer(bundle, modem);
   }
 
   return modem->fd;
@@ -723,12 +720,12 @@ modem_Raw(struct physical *modem, struct bundle *bundle)
   fcntl(modem->fd, F_SETFL, oldflag | O_NONBLOCK);
 
   if (modem->dev_is_modem && ioctl(modem->fd, TIOCMGET, &modem->mbits) == 0 &&
-      !(modem->mbits & TIOCM_CD)) {
-    log_Printf(LogDEBUG, "%s: Switching off timer - %s doesn't support CD\n",
-               modem->link.name, modem->name.full);
-    timer_Stop(&modem->Timer);
-  } else
+      (modem->mbits & TIOCM_CD)) {
+    modem_StartTimer(bundle, modem);
     modem_Timeout(modem);
+  } else
+    log_Printf(LogDEBUG, "%s: %s doesn't support CD\n",
+               modem->link.name, modem->name.full);
 
   return 0;
 }
@@ -753,10 +750,10 @@ modem_PhysicalClose(struct physical *modem)
   int newsid;
 
   log_Printf(LogDEBUG, "%s: Physical Close\n", modem->link.name);
+  timer_Stop(&modem->Timer);
   newsid = tcgetpgrp(modem->fd) == getpgrp();
   close(modem->fd);
   modem->fd = -1;
-  timer_Stop(&modem->Timer);
   log_SetTtyCommandMode(modem->dl);
   throughput_stop(&modem->link.throughput);
   throughput_log(&modem->link.throughput, LogPHASE, modem->link.name);
@@ -774,6 +771,7 @@ modem_Offline(struct physical *modem)
   if (modem->fd >= 0) {
     struct termios tio;
 
+    timer_Stop(&modem->Timer);
     modem->mbits &= ~TIOCM_DTR;
     if (isatty(modem->fd) && Online(modem)) {
       tcgetattr(modem->fd, &tio);
