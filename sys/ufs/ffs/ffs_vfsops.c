@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vfsops.c	8.31 (Berkeley) 5/20/95
- * $Id: ffs_vfsops.c,v 1.101 1999/08/08 18:43:01 phk Exp $
+ * $Id: ffs_vfsops.c,v 1.102 1999/08/13 10:29:33 phk Exp $
  */
 
 #include "opt_quota.h"
@@ -284,12 +284,8 @@ ffs_mount( mp, path, data, ndp, p)
 
 	devvp = ndp->ni_vp;
 
-	if (devvp->v_type != VBLK) {
+	if (!vn_isdisk(devvp)) {
 		err = ENOTBLK;
-		goto error_2;
-	}
-	if (devsw(devvp->v_rdev) == NULL) {
-		err = ENXIO;
 		goto error_2;
 	}
 

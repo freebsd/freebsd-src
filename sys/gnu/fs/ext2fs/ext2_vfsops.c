@@ -270,13 +270,9 @@ ext2_mount(mp, path, data, ndp, p)
 		return (error);
 	devvp = ndp->ni_vp;
 
-	if (devvp->v_type != VBLK) {
+	if (!vn_isdisk(devvp)) {
 		vrele(devvp);
 		return (ENOTBLK);
-	}
-	if (devsw(devvp->v_rdev) == NULL) {
-		vrele(devvp);
-		return (ENXIO);
 	}
 
 	/*
