@@ -569,6 +569,10 @@ ata_ioctl(struct cdev *dev, u_long cmd, caddr_t addr,
 
 	ata_queue_request(request);
 
+	iocmd->u.request.u.ata.command = request->u.ata.command;
+	iocmd->u.request.u.ata.feature = request->u.ata.feature;
+	iocmd->u.request.u.ata.lba = request->u.ata.lba;
+	iocmd->u.request.u.ata.count = request->u.ata.count;
 	if (request->result)
 	    iocmd->u.request.error = request->result;
 	else {
