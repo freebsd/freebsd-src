@@ -860,6 +860,7 @@ enum Option {
 	OutPort,
 	Port,
 	AliasAddress,
+	TargetAddress,
 	InterfaceName,
 	RedirectPort,
 	RedirectProto,
@@ -1006,6 +1007,14 @@ static struct OptionInfo optionTable[] = {
 		"address to use for aliasing",
 		"alias_address",
 		"a" },
+	
+	{ TargetAddress,
+		0,
+		Address,
+		"x.x.x.x",
+		"address to use for incoming sessions",
+		"target_address",
+		"t" },
 	
 	{ InterfaceName,
 		0,
@@ -1204,6 +1213,10 @@ static void ParseOption (const char* option, const char* parms, int cmdLine)
 
 	case AliasAddress:
 		memcpy (&aliasAddr, &addrValue, sizeof (struct in_addr));
+		break;
+
+	case TargetAddress:
+		PacketAliasSetTarget(addrValue);
 		break;
 
 	case RedirectPort:
