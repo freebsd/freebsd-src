@@ -63,7 +63,7 @@ drive as a boot device.
 By default, a three-stage bootstrap is employed, and control is
 automatically passed from the boot blocks (bootstrap stages one and
 two) to a separate third-stage bootstrap program,
-.Pa loader .
+.Xr loader 8 .
 This third stage provides more sophisticated control over the booting
 process than it is possible to achieve in the boot blocks, which are
 constrained by occupying limited fixed space on a given disk or slice.
@@ -79,7 +79,7 @@ or by hitting a key during a brief pause (while one of the characters
 or
 .Dv /
 is displayed) before
-.Pa loader
+.Xr loader 8
 is invoked.  Booting will also be attempted at stage two, if the
 third stage cannot be loaded.
 .Pp
@@ -146,7 +146,9 @@ By convention, only partition
 contains a bootable image.  If sliced disks are used
 .Pq Dq fdisk partitions ,
 any slice can be booted from, with the default being the active slice
-or, otherwise, the first FreeBSD slice.
+or, otherwise, the first
+.Fx
+slice.
 .It filename
 The pathname of the file to boot (relative to the root directory
 on the specified partition).  Defaults to
@@ -162,7 +164,8 @@ ask for the device to mount as as the root file system.
 boot from CDROM.
 .It Fl c
 run UserConfig to modify hardware parameters for the loaded
-kernel.  If the kernel was built with the USERCONFIG_BOOT option,
+kernel.  If the kernel was built with one of USERCONFIG,
+INTRO_USERCONFIG, VISUAL_USERCONFIG options,
 remain in UserConfig regardless of any
 .Ic quit
 commands present in the script.
@@ -261,8 +264,8 @@ typical non-default kernel (optional)
 .Sh DIAGNOSTICS
 When disk-related errors occur, these are reported by the second-stage
 bootstrap using the same error codes returned by the BIOS, for example
-``Disk error 0x1 (lba=0x12345678)''.  Here is a partial list of these
-error codes:
+.Dq Disk error 0x1 (lba=0x12345678) .
+Here is a partial list of these error codes:
 .Bl -tag -width "0x80" -compat
 .It 0x1
 Invalid argument
