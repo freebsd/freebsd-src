@@ -8,8 +8,10 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.  Important recent entries: 20040724 (default X changes).
 
-NOTE TO PEOPLE WHO THINK THAT FreeBSD 5.x IS SLOW:
-	FreeBSD 5.x has many debugging features turned on, in
+[[ The UPDATING file will be trimmed to 20040814 on or about Oct 1, 2004 ]]
+
+NOTE TO PEOPLE WHO THINK THAT FreeBSD 6.x IS SLOW:
+	FreeBSD 6.x has many debugging features turned on, in
 	both the kernel and userland.  These features attempt to detect
 	incorrect use of system primitives, and encourage loud failure
 	through extra sanity checking and fail stop semantics.  They
