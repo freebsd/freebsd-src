@@ -128,8 +128,7 @@ Int_Open_Disk(const char *name, char *conftxt)
 	lo[0] = 0;
 
 	for (; p != NULL && *p; p = q) {
-		if (sn)
-			sn = NULL;
+		sn = NULL;
 		q = strchr(p, '\n');
 		if (q != NULL)
 			*q++ = '\0';
