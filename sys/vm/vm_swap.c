@@ -151,7 +151,9 @@ swapdev_strategy(ap)
 			}
 			VI_UNLOCK(vp);
 		}
+		VI_LOCK(sp->sw_vp);
 		sp->sw_vp->v_numoutput++;
+		VI_UNLOCK(sp->sw_vp);
 	}
 	bp->b_vp = sp->sw_vp;
 	splx(s);

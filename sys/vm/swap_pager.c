@@ -1359,7 +1359,9 @@ swap_pager_putpages(object, m, count, sync, rtvals)
 
 		cnt.v_swapout++;
 		cnt.v_swappgsout += bp->b_npages;
+		VI_LOCK(swapdev_vp);
 		swapdev_vp->v_numoutput++;
+		VI_UNLOCK(swapdev_vp);
 
 		splx(s);
 
