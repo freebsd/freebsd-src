@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/openpam_borrow_cred.c#2 $
+ * $P4: //depot/projects/openpam/lib/openpam_borrow_cred.c#3 $
  */
 
 #include <sys/param.h>
@@ -57,30 +57,31 @@ openpam_borrow_cred(pam_handle_t *pamh,
 	struct pam_saved_cred *scred;
 	int r;
 
+	ENTER();
 	if (geteuid() != 0)
-		return (PAM_PERM_DENIED);
+		RETURNC(PAM_PERM_DENIED);
 	scred = calloc(1, sizeof *scred);
 	if (scred == NULL)
-		return (PAM_BUF_ERR);
+		RETURNC(PAM_BUF_ERR);
 	scred->euid = geteuid();
 	scred->egid = getegid();
 	r = getgroups(NGROUPS_MAX, scred->groups);
 	if (r == -1) {
 		free(scred);
-		return (PAM_SYSTEM_ERR);
+		RETURNC(PAM_SYSTEM_ERR);
 	}
 	scred->ngroups = r;
 	r = pam_set_data(pamh, PAM_SAVED_CRED, scred, &openpam_free_data);
 	if (r != PAM_SUCCESS) {
 		free(scred);
-		return (r);
+		RETURNC(r);
 	}
 	if (initgroups(pwd->pw_name, pwd->pw_gid) == -1 ||
 	      setegid(pwd->pw_gid) == -1 || seteuid(pwd->pw_uid) == -1) {
 		openpam_restore_cred(pamh);
-		return (PAM_SYSTEM_ERR);
+		RETURNC(PAM_SYSTEM_ERR);
 	}
-	return (PAM_SUCCESS);
+	RETURNC(PAM_SUCCESS);
 }
 
 /*

@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/pam_set_item.c#15 $
+ * $P4: //depot/projects/openpam/lib/pam_set_item.c#16 $
  */
 
 #include <sys/param.h>
@@ -58,9 +58,9 @@ pam_set_item(pam_handle_t *pamh,
 	void **slot, *tmp;
 	size_t nsize, osize;
 
+	ENTER();
 	if (pamh == NULL)
-		return (PAM_SYSTEM_ERR);
-
+		RETURNC(PAM_SYSTEM_ERR);
 	slot = &pamh->item[item_type];
 	switch (item_type) {
 	case PAM_SERVICE:
@@ -85,7 +85,7 @@ pam_set_item(pam_handle_t *pamh,
 		osize = nsize = sizeof(struct pam_conv);
 		break;
 	default:
-		return (PAM_SYMBOL_ERR);
+		RETURNC(PAM_SYMBOL_ERR);
 	}
 	if (*slot != NULL) {
 		memset(*slot, 0xd0, osize);
@@ -93,13 +93,13 @@ pam_set_item(pam_handle_t *pamh,
 	}
 	if (item != NULL) {
 		if ((tmp = malloc(nsize)) == NULL)
-			return (PAM_BUF_ERR);
+			RETURNC(PAM_BUF_ERR);
 		memcpy(tmp, item, nsize);
 	} else {
 		tmp = NULL;
 	}
 	*slot = tmp;
-	return (PAM_SUCCESS);
+	RETURNC(PAM_SUCCESS);
 }
 
 /*

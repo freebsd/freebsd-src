@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/pam_getenvlist.c#9 $
+ * $P4: //depot/projects/openpam/lib/pam_getenvlist.c#10 $
  */
 
 #include <stdlib.h>
@@ -54,14 +54,14 @@ pam_getenvlist(pam_handle_t *pamh)
 	char **envlist;
 	int i;
 
+	ENTER();
 	if (pamh == NULL)
-		return (NULL);
-
+		RETURNP(NULL);
 	envlist = malloc(sizeof(char *) * (pamh->env_count + 1));
 	if (envlist == NULL) {
 		openpam_log(PAM_LOG_ERROR, "%s",
 			pam_strerror(pamh, PAM_BUF_ERR));
-		return (NULL);
+		RETURNP(NULL);
 	}
 	for (i = 0; i < pamh->env_count; ++i) {
 		if ((envlist[i] = strdup(pamh->env[i])) == NULL) {
@@ -70,12 +70,11 @@ pam_getenvlist(pam_handle_t *pamh)
 			free(envlist);
 			openpam_log(PAM_LOG_ERROR, "%s",
 				pam_strerror(pamh, PAM_BUF_ERR));
-			return (NULL);
+			RETURNP(NULL);
 		}
 	}
 	envlist[i] = NULL;
-	openpam_log(PAM_LOG_DEBUG, "returning %d variables\n", pamh->env_count);
-	return (envlist);
+	RETURNP(envlist);
 }
 
 /**
