@@ -1,4 +1,4 @@
-<!-- $Id: hw.sgml,v 1.57 1996/12/27 08:48:17 obrien Exp $ -->
+<!-- $Id: hw.sgml,v 1.58 1996/12/31 21:54:13 mpp Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -65,8 +65,8 @@ Slippery when wet.  Beware of dog.
     <htmlurl url="http://asustek.asus.com.tw/FTP/ASUS/Info/Spec/pi-p55tp4xe.txt"
      name="P55TP4XE">
     motherboard appears to be a good choice for mid-to-high range Pentium
-    server and workstation systems, though the newer Triton-II boards (see
-    below) have largely supplanted them.  If you buy one of these boards,
+    server and workstation systems, though the newer 430HX (Triton-II) boards
+    (see below) have largely supplanted them.  If you buy one of these boards,
     be also sure to get it with the
     <htmlurl url="http://asustek.asus.com.tw/Products/TB/mem-0002.html"
     name="pipelined burst cache module">.  If you are looking for a 486 class
@@ -77,10 +77,11 @@ Slippery when wet.  Beware of dog.
 
     NOTE:  The Intel <htmlurl
     url="http://asustek.asus.com.tw/Products/TB/triton-intro.html"
-    name="Triton"> chip-set based motherboards do not offer memory
+    name="430FX (Triton)"> chip-set based motherboards do not offer memory
     parity logic, making it almost impossible to detect when a memory error
     has occurred.  Those wishing to build more fault-tolerant systems should
-    therefore buy one of the newer Triton II based motherboards, which offer
+    therefore buy one of the newer 430HX (ie. Triton II) based motherboards,
+    which offer
     both better performance, parity checking and ECC.  I am also told that
     if you are using ECC memory, be sure to get a motherboard with uses the
     A2 or later steppings of the 82439HX Triton-II chipset.  Do not get this
@@ -288,20 +289,20 @@ Slippery when wet.  Beware of dog.
 		PCI bus arbiter (appears on Intel Altair board
 		and several other Intel server group MB's).  And
 		of course Intel's official answer, move to the
-		Triton chip set, we ``fixed it there''.
+		430FX chip set, we ``fixed it there''.
 
-	      <tag>Triton <em>(ie, 430FX)</em>:</tag>
-	        No known cache coherency or bus
-		master problems, chip set does not implement
-		parity checking.  Workaround for parity issue.
-		Use Triton-II based motherboards if you have the choice.
+	      <tag>430FX <em>(ie, Triton I)</em>:</tag>
+	        No known cache coherency or bus master problems, chip set
+		does not implement parity checking.  A workaround for the
+		parity issue is to use a 430HX (Triton-II) based motherboard
+		if you have the choice.
 
-	      <tag>Triton-II <em>(ie, 430HX)</em>:</tag>
+	      <tag>430HX <em>(ie, Triton II)</em>:</tag>
 	        All reports on motherboards using
 		this chipset have been favorable so far.  Although, some
 		have said that if you are using ECC memory, be sure to get a
 		motherboard with the A2 or later steppings of the 82439HX
-		Triton-II chipset.  Do not get this confused with the 82371SB
+		chip.  Do not get this confused with the 82371SB
 		stepping - you have an A2 stepping if the 82439HX chip has a
 		marking of "SU102".  You have an A1 stepping if it is not
 		marked with an S-number or if the number is "SU087".
@@ -313,16 +314,17 @@ Slippery when wet.  Beware of dog.
 		space restriction of 128MB, though it does add support for
 		SDRAM.  However, it will not cache memory above 64MB.
 		
-	      <tag>Orion <em>(ie, 450KX)</em>:</tag> Early versions of this
+	      <tag>450KX <em>(ie, Orion)</em>:</tag> Early versions of this
 	        chipset suffered from
 	 	a PCI write-posting bug which can cause noticeable performance
 		degradation in applications where large amounts of PCI bus
 		traffic is involved.  B0 stepping or later revisions of the
-		chipset fixed this problem.
+		chipset somewhat fixed this problem.  The problem should be
+		fully fixed in the C0 or later stepping.
 
 	      <tag><htmlurl
 	      url="http://www.intel.com/design/motherbd/vs/index.htm"
-	      name="VS440FX"><em>(ie, Natoma)</em>:</tag>This <htmlurl
+	      name="440FX"> <em>(ie, Natoma)</em>:</tag>This <htmlurl
 	      url="http://www.intel.com/procs/ppro/intro/index.htm"
 	      name="Pentium Pro"> support chipset seems to work well,
 	      and does not suffer from any of the early Orion chipset
