@@ -164,6 +164,7 @@ isp_module_handler(module_t mod, int what, void *arg)
 		}
 		break;
 	default:
+		return (EOPNOTSUPP);
 		break;
 	}
 	return (0);

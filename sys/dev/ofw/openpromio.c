@@ -215,7 +215,7 @@ openprom_modevent(module_t mode, int type, void *data)
 		destroy_dev(openprom_dev);
 		return (0);
 	default:
-		return (0);
+		return (EOPNOTSUPP);
 	}
 }
 

@@ -2954,7 +2954,7 @@ ng_mod_event(module_t mod, int event, void *data)
 		if (type->mod_event != NULL)
 			error = (*type->mod_event)(mod, event, data);
 		else
-			error = 0;		/* XXX ? */
+			error = EOPNOTSUPP;		/* XXX ? */
 		break;
 	}
 	return (error);

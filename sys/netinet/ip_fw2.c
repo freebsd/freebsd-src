@@ -3441,6 +3441,7 @@ ipfw_modevent(module_t mod, int type, void *unused)
 		err = 0;
 		break;
 	default:
+		return EOPNOTSUPP;
 		break;
 	}
 	return err;

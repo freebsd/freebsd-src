@@ -2535,6 +2535,8 @@ root_bus_module_handler(module_t mod, int what, void* arg)
 	case MOD_SHUTDOWN:
 		device_shutdown(root_bus);
 		return (0);
+	default:
+		return (EOPNOTSUPP);
 	}
 
 	return (0);
@@ -2611,6 +2613,9 @@ driver_module_handler(module_t mod, int what, void *arg)
 
 		if (!error && dmd->dmd_chainevh)
 			error = dmd->dmd_chainevh(mod,what,dmd->dmd_chainarg);
+		break;
+	default:
+		error = EOPNOTSUPP;
 		break;
 	}
 

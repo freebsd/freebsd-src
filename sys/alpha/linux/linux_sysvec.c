@@ -274,6 +274,7 @@ linux_elf_modevent(module_t mod, int type, void *data)
 			printf("Could not deinstall ELF interpreter entry\n");
 		break;
 	default:
+		return (EOPNOTSUPP);
 		break;
 	}
 	return error;

@@ -155,6 +155,8 @@ disc_modevent(module_t mod, int type, void *data)
 		mtx_unlock(&disc_mtx);
 		mtx_destroy(&disc_mtx);
 		break;
+	default:
+		return (EOPNOTSUPP);
 	}
 	return (0);
 }

@@ -115,6 +115,9 @@ syscall_module_handler(struct module *mod, int what, void *arg)
                }
                error = syscall_deregister(data->offset, &data->old_sysent);
                return error;
+       default :
+	       return EOPNOTSUPP;
+	
        }
 
        if (data->chainevh)
