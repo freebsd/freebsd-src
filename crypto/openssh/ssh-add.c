@@ -121,7 +121,7 @@ add_file(AuthenticationConnection *ac, const char *filename)
 		/* clear passphrase since it did not work */
 		clear_pass();
 		printf("Need passphrase for %.200s\n", filename);
-		snprintf(msg, sizeof msg, "Enter passphrase for %.200s ",
+		snprintf(msg, sizeof msg, "Enter passphrase for %.200s: ",
 		   comment);
 		for (;;) {
 			pass = read_passphrase(msg, 1);
