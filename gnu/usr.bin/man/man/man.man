@@ -14,6 +14,7 @@
 .\"
 .Dd Jan 5, 1991
 .Dt MAN 1
+.Os
 .Sh NAME
 .Nm man
 .Nd format and display the on-line manual pages
@@ -129,10 +130,10 @@ is used.
 .El
 .Sh SEE ALSO
 .Xr apropos 1 ,
-.Xr whatis 1 ,
+.Xr groff 1 ,
 .Xr manpath 1 ,
 .Xr more 1 ,
-.Xr groff 1 ,
+.Xr whatis 1 ,
 .Xr man 7 ,
 .Xr mdoc 7 ,
 .Xr mdoc.samples 7
