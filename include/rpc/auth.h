@@ -28,7 +28,7 @@
  *
  *	from: @(#)auth.h 1.17 88/02/08 SMI
  *	from: @(#)auth.h	2.3 88/08/07 4.0 RPCSRC
- *	$Id$
+ *	$Id: auth.h,v 1.8 1997/02/23 09:17:21 peter Exp $
  */
 
 /*
@@ -89,7 +89,7 @@ struct opaque_auth {
 	u_int	oa_length;		/* not to exceed MAX_AUTH_BYTES */
 };
 __BEGIN_DECLS
-bool_t xdr_opaque_auth(XDR *xdrs, struct opaque_auth *ap);
+bool_t xdr_opaque_auth __P((XDR *xdrs, struct opaque_auth *ap));
 __END_DECLS
 
 
