@@ -27,7 +27,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: cy.c,v 1.47 1997/03/24 11:23:42 bde Exp $
+ *	$Id: cy.c,v 1.1 1997/08/20 05:59:24 smp Exp smp $
  */
 
 #include "cy.h"
@@ -83,6 +83,15 @@
 #endif
 
 #include <machine/clock.h>
+
+#ifdef SMP
+#include <machine/smp.h>
+#define COM_LOCK() 	s_lock(&com_lock)
+#define COM_UNLOCK() 	s_unlock(&com_lock)
+#else
+#define COM_LOCK()
+#define COM_UNLOCK()
+#endif /* SMP */
 
 #include <i386/isa/isa_device.h>
 #include <i386/isa/cyreg.h>
@@ -756,22 +765,26 @@ open_top:
 		}
 
 		disable_intr();
+		COM_LOCK();
 		(void) inb(com->line_status_port);
 		(void) inb(com->data_port);
 		com->prev_modem_status = com->last_modem_status
 		    = inb(com->modem_status_port);
 		outb(iobase + com_ier, IER_ERXRDY | IER_ETXRDY | IER_ERLS
 				       | IER_EMSC);
+		COM_UNLOCK();
 		enable_intr();
 #else /* !0 */
 		/* XXX raise RTS too */
 		(void)commctl(com, TIOCM_DTR | TIOCM_RTS, DMSET);
 		disable_intr();
+		COM_LOCK();
 		com->prev_modem_status = com->last_modem_status
 		    = cd_inb(iobase, CD1400_MSVR2, com->cy_align);
 		cd_outb(iobase, CD1400_SRER, com->cy_align,
 			com->intr_enable
 			    = CD1400_SRER_MDMCH | CD1400_SRER_RXDATA);
+		COM_UNLOCK();
 		enable_intr();
 #endif /* 0 */
 		/*
@@ -873,7 +886,9 @@ comhardclose(com)
 		outb(iobase + com_ier, 0);
 #else
 		disable_intr();
+		COM_LOCK();
 		cd_outb(iobase, CD1400_SRER, com->cy_align, com->intr_enable = 0);
+		COM_UNLOCK();
 		enable_intr();
 #endif
 		tp = com->tp;
@@ -1531,6 +1546,7 @@ repeat:
 			 * loop.
 			 */
 			disable_intr();
+			COM_LOCK();
 			incc = com->iptr - com->ibuf;
 			com->iptr = com->ibuf;
 			if (com->state & CS_CHECKMSR) {
@@ -1538,6 +1554,7 @@ repeat:
 				com->state &= ~CS_CHECKMSR;
 			}
 			com_events -= incc;
+			COM_UNLOCK();
 			enable_intr();
 			if (incc != 0)
 				log(LOG_DEBUG,
@@ -1553,6 +1570,7 @@ repeat:
 		} else {
 			buf = ibuf;
 			disable_intr();
+			COM_LOCK();
 			incc = com->iptr - buf;
 			com_events -= incc;
 			if (ibuf == com->ibuf1)
@@ -1581,6 +1599,7 @@ repeat:
 				cd_outb(iobase, CD1400_MSVR1, com->cy_align,
 					com->mcr_image |= MCR_RTS);
 #endif
+			COM_UNLOCK();
 			enable_intr();
 			com->ibuf = ibuf;
 		}
@@ -1589,11 +1608,13 @@ repeat:
 			u_char	delta_modem_status;
 
 			disable_intr();
+			COM_LOCK();
 			delta_modem_status = com->last_modem_status
 					     ^ com->prev_modem_status;
 			com->prev_modem_status = com->last_modem_status;
 			com_events -= LOTS_OF_EVENTS;
 			com->state &= ~CS_CHECKMSR;
+			COM_UNLOCK();
 			enable_intr();
 			if (delta_modem_status & MSR_DCD)
 				(*linesw[tp->t_line].l_modem)
@@ -1601,10 +1622,12 @@ repeat:
 		}
 		if (com->state & CS_ODONE) {
 			disable_intr();
+			COM_LOCK();
 			com_events -= LOTS_OF_EVENTS;
 			com->state &= ~CS_ODONE;
 			if (!(com->state & CS_BUSY))
 				com->tp->t_state &= ~TS_BUSY;
+			COM_UNLOCK();
 			enable_intr();
 			(*linesw[tp->t_line].l_start)(tp);
 		}
@@ -1947,6 +1970,7 @@ comparam(tp, t)
 	 * to change all atomically.
 	 */
 	disable_intr();
+	COM_LOCK();
 
 	com->state &= ~CS_TTGO;
 	if (!(tp->t_state & TS_TTSTOP))
@@ -2008,6 +2032,7 @@ comparam(tp, t)
 				com->intr_enable &= ~CD1400_SRER_TXRDY);
 	}
 
+	COM_UNLOCK();
 	enable_intr();
 	splx(s);
 	comstart(tp);
@@ -2037,6 +2062,7 @@ comstart(tp)
 #endif
 
 	disable_intr();
+	COM_LOCK();
 	cd_outb(iobase, CD1400_CAR, com->cy_align, unit & CD1400_CAR_CHAN);
 	if (tp->t_state & TS_TTSTOP) {
 		com->state &= ~CS_TTGO;
@@ -2068,6 +2094,7 @@ comstart(tp)
 				com->mcr_image |= MCR_RTS);
 #endif
 	}
+	COM_UNLOCK();
 	enable_intr();
 	if (tp->t_state & (TS_TIMEOUT | TS_TTSTOP)) {
 		splx(s);
@@ -2087,6 +2114,7 @@ comstart(tp)
 			com->obufs[0].l_next = NULL;
 			com->obufs[0].l_queued = TRUE;
 			disable_intr();
+			COM_LOCK();
 			if (com->state & CS_BUSY) {
 				qp = com->obufq.l_next;
 				while ((next = qp->l_next) != NULL)
@@ -2103,6 +2131,7 @@ comstart(tp)
 						com->intr_enable
 						|= CD1400_SRER_TXRDY);
 			}
+			COM_UNLOCK();
 			enable_intr();
 		}
 		if (tp->t_outq.c_cc != 0 && !com->obufs[1].l_queued) {
@@ -2115,6 +2144,7 @@ comstart(tp)
 			com->obufs[1].l_next = NULL;
 			com->obufs[1].l_queued = TRUE;
 			disable_intr();
+			COM_LOCK();
 			if (com->state & CS_BUSY) {
 				qp = com->obufq.l_next;
 				while ((next = qp->l_next) != NULL)
@@ -2131,6 +2161,7 @@ comstart(tp)
 						com->intr_enable
 						|= CD1400_SRER_TXRDY);
 			}
+			COM_UNLOCK();
 			enable_intr();
 		}
 		tp->t_state |= TS_BUSY;
@@ -2141,8 +2172,10 @@ comstart(tp)
 #endif
 #if 0
 	disable_intr();
+	COM_LOCK();
 	if (com->state >= (CS_BUSY | CS_TTGO))
 		siointr1(com);	/* fake interrupt to start output */
+	COM_UNLOCK();
 	enable_intr();
 #endif
 	ttwwakeup(tp);
@@ -2158,6 +2191,7 @@ siostop(tp, rw)
 
 	com = com_addr(DEV_TO_UNIT(tp->t_dev));
 	disable_intr();
+	COM_LOCK();
 	if (rw & FWRITE) {
 		com->obufs[0].l_queued = FALSE;
 		com->obufs[1].l_queued = FALSE;
@@ -2170,6 +2204,7 @@ siostop(tp, rw)
 		com_events -= (com->iptr - com->ibuf);
 		com->iptr = com->ibuf;
 	}
+	COM_UNLOCK();
 	enable_intr();
 	comstart(tp);
 
@@ -2240,6 +2275,7 @@ commctl(com, bits, how)
 	if (bits & TIOCM_RTS)
 		mcr |= MCR_RTS;
 	disable_intr();
+	COM_LOCK();
 	switch (how) {
 	case DMSET:
 		com->mcr_image = mcr;
@@ -2257,6 +2293,7 @@ commctl(com, bits, how)
 		cd_outb(iobase, CD1400_MSVR2, com->cy_align, mcr);
 		break;
 	}
+	COM_UNLOCK();
 	enable_intr();
 	return (0);
 }
@@ -2319,7 +2356,9 @@ comwakeup(chan)
 		if (com != NULL
 		    && (com->state >= (CS_BUSY | CS_TTGO) || com->poll)) {
 			disable_intr();
+			COM_LOCK();
 			siointr1(com);
+			COM_UNLOCK();
 			enable_intr();
 		}
 	}
@@ -2342,8 +2381,10 @@ comwakeup(chan)
 			u_long	total;
 
 			disable_intr();
+			COM_LOCK();
 			delta = com->delta_error_counts[errnum];
 			com->delta_error_counts[errnum] = 0;
+			COM_UNLOCK();
 			enable_intr();
 			if (delta == 0)
 				continue;
