@@ -40,8 +40,8 @@ CFLAGS+= -I${BINUTILSDISTDIR}/ld
 EMXFR=
 EMLST=
 .for _e in ${EMS}
-EMXFR+=	extern ld_emulation_xfer_type ${_e};
-EMLST+=	&${_e},
+EMXFR+=	extern ld_emulation_xfer_type ld_${_e}_emulation;
+EMLST+=	&ld_${_e}_emulation,
 .endfor
 
 ldemul-list.h:

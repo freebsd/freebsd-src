@@ -3,22 +3,23 @@
 TARGET_TUPLE?=	ia64-unknown-freebsd
 
 .if ${TARGET_ARCH} == "ia64"
+NATIVE_EMULATION=	elf64_ia64
 HOST=	${TARGET_TUPLE}	# do what?? how does this work for a cross-build??
-CFLAGS+= -DDEFAULT_EMULATION=\"elf64_ia64\"
+CFLAGS+= -DDEFAULT_EMULATION=\"${NATIVE_EMULATION}\"
 CFLAGS+= -DTARGET=\"${TARGET_TUPLE}\"
 _ia64_path=	\"${TOOLS_PREFIX}/usr/lib\"
 .else
 _ia64_path=	\"/usr/cross/ia64-freebsd/usr/lib\"
 .endif
 
-EMS+=		ld_elf64_ia64_emulation
-LDSCRIPTS+=	elf64_ia64.x elf64_ia64.xbn elf64_ia64.xn elf64_ia64.xr \
-		elf64_ia64.xs elf64_ia64.xu elf64_ia64.xc elf64_ia64.xsc
-SRCS+=	eelf64_ia64.c
-CLEANFILES+=	eelf64_ia64.c
+EMS+=		${NATIVE_EMULATION}
+LDSCRIPTS+=	${NATIVE_EMULATION}.x ${NATIVE_EMULATION}.xbn ${NATIVE_EMULATION}.xn ${NATIVE_EMULATION}.xr \
+		${NATIVE_EMULATION}.xs ${NATIVE_EMULATION}.xu ${NATIVE_EMULATION}.xc ${NATIVE_EMULATION}.xsc
+SRCS+=	e${NATIVE_EMULATION}.c
+CLEANFILES+=	e${NATIVE_EMULATION}.c
 
-eelf64_ia64.c: emulparams/elf64_ia64.sh emultempl/elf32.em scripttempl/elf.sc \
+e${NATIVE_EMULATION}.c: emulparams/${NATIVE_EMULATION}.sh emultempl/elf32.em scripttempl/elf.sc \
     genscripts.sh stringify.sed
 	sh ${.CURDIR}/genscripts.sh ${SRCDIR}/ld ${_ia64_path} \
 	    ${HOST} ${TARGET_TUPLE} ${TARGET_TUPLE} \
-	    "elf64_ia64" "" elf64_ia64 "${TARGET_TUPLE}"
+	    "${NATIVE_EMULATION}" "" ${NATIVE_EMULATION} "${TARGET_TUPLE}"

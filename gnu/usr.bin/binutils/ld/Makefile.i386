@@ -3,27 +3,28 @@
 TARGET_TUPLE?=	i386-unknown-freebsd
 
 .if ${TARGET_ARCH} == "i386"
+NATIVE_EMULATION=	elf_i386
 HOST=	${TARGET_TUPLE}
-CFLAGS+= -DDEFAULT_EMULATION=\"elf_i386\"
+CFLAGS+= -DDEFAULT_EMULATION=\"${NATIVE_EMULATION}\"
 CFLAGS+= -DTARGET=\"${TARGET_TUPLE}\"
 _i386_path=	\"${TOOLS_PREFIX}/usr/lib\"
 .else
 _i386_path=	\"/usr/cross/i386-freebsd/usr/lib\"
 .endif
-EMS+=		ld_elf_i386_emulation
-LDSCRIPTS+=	elf_i386.x elf_i386.xbn elf_i386.xn elf_i386.xr \
-		elf_i386.xs elf_i386.xu elf_i386.xc elf_i386.xsc
-SRCS+=	 eelf_i386.c
-CLEANFILES+=	eelf_i386.c
+EMS+=		${NATIVE_EMULATION}
+LDSCRIPTS+=	${NATIVE_EMULATION}.x ${NATIVE_EMULATION}.xbn ${NATIVE_EMULATION}.xn ${NATIVE_EMULATION}.xr \
+		${NATIVE_EMULATION}.xs ${NATIVE_EMULATION}.xu ${NATIVE_EMULATION}.xc ${NATIVE_EMULATION}.xsc
+SRCS+=	e${NATIVE_EMULATION}.c
+CLEANFILES+=	e${NATIVE_EMULATION}.c
 
-eelf_i386.c: emulparams/elf_i386.sh emultempl/elf32.em scripttempl/elf.sc \
+e${NATIVE_EMULATION}.c: emulparams/${NATIVE_EMULATION}.sh emultempl/elf32.em scripttempl/elf.sc \
     genscripts.sh stringify.sed
 	sh ${.CURDIR}/genscripts.sh ${SRCDIR}/ld ${_i386_path} \
 	    ${HOST} ${TARGET_TUPLE} ${TARGET_TUPLE} \
-	    elf_i386 "" elf_i386 ${TARGET_TUPLE}
+	    "${NATIVE_EMULATION}" "" ${NATIVE_EMULATION} "${TARGET_TUPLE}"
 
 .if defined(BINUTILSDISTDIR) && exists(${BINUTILSDISTDIR})
-EMS+=		ld_i386pe_emulation
+EMS+=		i386pe
 LDSCRIPTS+=	i386pe.x	\
 		i386pe.xbn	\
 		i386pe.xn	\
