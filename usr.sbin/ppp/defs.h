@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: defs.h,v 1.38 1999/02/11 10:14:08 brian Exp $
+ * $Id: defs.h,v 1.39 1999/02/16 00:16:56 brian Exp $
  *
  *	TODO:
  */
@@ -93,3 +93,4 @@ extern void randinit(void);
 extern ssize_t fullread(int, void *, size_t);
 extern const char *mode2Nam(int);
 extern int Nam2mode(const char *);
+extern struct in_addr GetIpAddr(const char *);
