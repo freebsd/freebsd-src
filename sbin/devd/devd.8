@@ -48,12 +48,13 @@ becoming a daemon.
 .El
 .Sh IMPLEMENTATION NOTES
 .Nm 
-is a system daemon.
-It runs in the background all the time.
-When ever a device is added to or removed from the device tree, devd
-will cause a certain action to take place.
-In addition, when a device that is not matched enters the system, devd
-will also perform an action.
+is a system daemon that runs in the background all the time.
+Whenever a device is added to or removed from the device tree,
+.Nm
+will execute specified actions.
+In addition, when a device without a suitable driver loaded enters the system,
+.Nm
+will perform a different specified action.
 .Pp
 .Nm 
 hooks into the
@@ -61,17 +62,18 @@ hooks into the
 device driver.
 This device driver has hooks into the device configuration system.
 When nodes are added or deleted from the tree, this device will
-deliver information about the even to
+deliver information about the event to
 .Nm .
 Once 
 .Nm 
 has parsed the message, it will search its action list for that kind
-of event, and perform the action with the highest matching value.
+of event and perform the action with the highest matching value.
 For most mundane uses, the default handlers are adequate.
 However, for more advanced users, the power is present to tweak every
 aspect of what happens.
 .Pp
-.Nm reads /etc/devd.conf, and that drives the rest of the process.
+.Nm
+reads /etc/devd.conf and uses that file to drive the rest of the process.
 While the format of this file is described in 
 .Xr devd.conf 5 
 some basics are covered here.
@@ -79,7 +81,9 @@ In the options section, one can define multiple directories to search
 for config files.
 All files in each of these directories are parsed.
 These files are intended to be installed by third party vendors that
-wish to hook into the devd system without modifying the user's other
+wish to hook into the
+.Nm
+system without modifying the user's other
 config files.
 .Sh SEE ALSO
 .Xr devctl 4 ,
