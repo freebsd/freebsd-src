@@ -50,6 +50,8 @@ Internet File Transfer Protocol server
 .Op Fl R
 .Op Fl S
 .Op Fl U
+.Op Fl r
+.Op Fl E
 .Op Fl T Ar maxtimeout
 .Op Fl t Ar timeout
 .Op Fl a Ar address
@@ -86,8 +88,8 @@ configuration file.
 With this option set,
 .Nm
 will detach and become a daemon, accepting connections on the FTP port and
-forking children processes to handle them. This is lower overhead than
-starting
+forking children processes to handle them.
+This is lower overhead than starting
 .Nm
 from
 .Xr inetd 8
@@ -153,6 +155,12 @@ When
 is not specified, accept IPv4 connection via AF_INET socket.
 .It Fl A
 Allow only anonymous ftp access.
+.It Fl r
+Put server in read-only mode.
+All commands which may modify the local filesystem are disabled.
+.It Fl E
+Disable the EPSV command.
+This is useful for servers behind older firewalls.
 .El
 .Pp
 The file
@@ -178,20 +186,27 @@ relative to the login environment.  This means the one in
 in the anonymous user's case.
 .Pp
 The ftp server currently supports the following ftp requests.
-The case of the requests is ignored.
+The case of the requests is ignored.  Requests marked [RW] are
+disabled if 
+.Fl r
+is specified.
 .Bl -column "Request" -offset indent
 .It Sy Request Ta Sy "Description"
 .It ABOR Ta "abort previous command"
 .It ACCT Ta "specify account (ignored)"
 .It ALLO Ta "allocate storage (vacuously)"
-.It APPE Ta "append to a file"
+.It APPE Ta "append to a file [RW]"
 .It CDUP Ta "change to parent of current working directory"
 .It CWD Ta "change working directory"
-.It DELE Ta "delete a file"
+.It DELE Ta "delete a file [RW]"
+.It EPRT Ta "specify data connection port, multiprotocol"
+.It EPSV Ta "prepare for server-to-server transfer, multiprotocol"
 .It HELP Ta "give help information"
 .It LIST Ta "give list files in a directory" Pq Dq Li "ls -lgA"
-.It MKD Ta "make a directory"
+.It LPRT Ta "specify data connection port, multiprotocol"
+.It LPSV Ta "prepare for server-to-server transfer, multiprotocol"
 .It MDTM Ta "show last modification time of file"
+.It MKD Ta "make a directory [RW]"
 .It MODE Ta "specify data transfer" Em mode
 .It NLST Ta "give name list of files in directory"
 .It NOOP Ta "do nothing"
@@ -202,27 +217,23 @@ The case of the requests is ignored.
 .It QUIT Ta "terminate session"
 .It REST Ta "restart incomplete transfer"
 .It RETR Ta "retrieve a file"
-.It RMD Ta "remove a directory"
-.It RNFR Ta "specify rename-from file name"
-.It RNTO Ta "specify rename-to file name"
+.It RMD Ta "remove a directory [RW]"
+.It RNFR Ta "specify rename-from file name [RW]"
+.It RNTO Ta "specify rename-to file name [RW]"
 .It SITE Ta "non-standard commands (see next section)"
 .It SIZE Ta "return size of file"
 .It STAT Ta "return status of server"
-.It STOR Ta "store a file"
-.It STOU Ta "store a file with a unique name"
+.It STOR Ta "store a file [RW]"
+.It STOU Ta "store a file with a unique name [RW]"
 .It STRU Ta "specify data transfer" Em structure
 .It SYST Ta "show operating system type of server system"
 .It TYPE Ta "specify data transfer" Em type
 .It USER Ta "specify user name"
 .It XCUP Ta "change to parent of current working directory (deprecated)"
 .It XCWD Ta "change working directory (deprecated)"
-.It XMKD Ta "make a directory (deprecated)"
+.It XMKD Ta "make a directory (deprecated) [RW]"
 .It XPWD Ta "print the current working directory (deprecated)"
-.It XRMD Ta "remove a directory (deprecated)"
-.It LPSV Ta "prepare for server-to-server transfer, multiprotocol"
-.It LPRT Ta "specify data connection port, multiprotocol"
-.It EPSV Ta "prepare for server-to-server transfer, multiprotocol"
-.It EPRT Ta "specify data connection port, multiprotocol"
+.It XRMD Ta "remove a directory (deprecated) [RW]"
 .El
 .Pp
 The following non-standard or
@@ -235,7 +246,7 @@ SITE request.
 .It Sy Request Ta Sy Description
 .It UMASK Ta change umask, e.g. ``SITE UMASK 002''
 .It IDLE Ta set idle-timer, e.g. ``SITE IDLE 60''
-.It CHMOD Ta "change mode of a file, e.g. ``SITE CHMOD 755 filename''"
+.It CHMOD Ta "change mode of a file [RW], e.g. ``SITE CHMOD 755 filename''"
 .It HELP Ta give help information
 .El
 .Pp
@@ -273,13 +284,15 @@ and not have a null password.
 In this case a password must be provided by the client before any
 file operations may be performed.
 If the user has an S/Key key, the response from a successful USER
-command will include an S/Key challenge. The client may choose to respond
-with a PASS command giving either a standard password or an S/Key
-one-time password. The server will automatically determine which type of
-password it has been given and attempt to authenticate accordingly. See
+command will include an S/Key challenge.
+The client may choose to respond with a PASS command giving either
+a standard password or an S/Key one-time password.
+The server will automatically determine which type of
+password it has been given and attempt to authenticate accordingly.
+See
 .Xr key 1
-for more information on S/Key authentication. S/Key is a Trademark of
-Bellcore.
+for more information on S/Key authentication.
+S/Key is a Trademark of Bellcore.
 .It
 The login name must not appear in the file
 .Pa /etc/ftpusers .
