@@ -96,6 +96,8 @@
 #include <sys/mbuf.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
+#include <sys/proc.h>
+#include <sys/ucred.h>
 #include <sys/socket.h>
 #ifdef ANCACHE
 #include <sys/syslog.h>
@@ -969,14 +971,17 @@ static int an_ioctl(ifp, command, data)
 	struct an_softc		*sc;
 	struct an_req		areq;
 	struct ifreq		*ifr;
+	struct proc		*p = curproc;
 
 	s = splimp();
 
 	sc = ifp->if_softc;
 	ifr = (struct ifreq *)data;
 
-	if (sc->an_gone)
-		return(ENODEV);
+	if (sc->an_gone) {
+		error = ENODEV;
+		goto out;
+	}
 
 	switch(command) {
 	case SIOCSIFADDR:
@@ -1035,6 +1040,8 @@ static int an_ioctl(ifp, command, data)
 		error = copyout(&areq, ifr->ifr_data, sizeof(areq));
 		break;
 	case SIOCSAIRONET:
+		if ((error = suser(p)))
+			goto out;
 		error = copyin(ifr->ifr_data, &areq, sizeof(areq));
 		if (error)
 			break;
@@ -1044,7 +1051,7 @@ static int an_ioctl(ifp, command, data)
 		error = EINVAL;
 		break;
 	}
-
+out:
 	splx(s);
 
 	return(error);
