@@ -1227,6 +1227,7 @@ Fdopen(dev_t dev, int flags, int mode, struct proc *p)
 	fdc_p	fdc;
 
 	dev->si_bsize_phys = DEV_BSIZE;
+	dev->si_bsize_best = BLKDEV_IOSIZE;
 	dev->si_bsize_max = MAXBSIZE;
 	/* check bounds */
 	if ((fd = devclass_get_softc(fd_devclass, fdu)) == 0)
