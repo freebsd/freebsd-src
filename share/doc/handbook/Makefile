@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.6 1995/10/14 21:49:43 jfieber Exp $
+# $Id: Makefile,v 1.7 1995/12/07 13:22:12 jkh Exp $
 
 SRCS= authors.sgml basics.sgml bibliography.sgml boothelp.sgml
 SRCS+= booting.sgml contrib.sgml crypt.sgml ctm.sgml current.sgml dialup.sgml
@@ -9,7 +9,7 @@ SRCS+= kernelconfig.sgml kerneldebug.sgml memoryuse.sgml
 SRCS+= mirrors.sgml nfs.sgml nutshell.sgml 
 SRCS+= porting.sgml ports.sgml ppp.sgml printing.sgml relnotes.sgml 
 SRCS+= routing.sgml scsi.sgml sections.sgml
-SRCS+= skey.sgml slipc.sgml slips.sgml submitters.sgml sup.sgml
-SRCS+= troubleshooting.sgml userppp.sgml
+SRCS+= skey.sgml slipc.sgml slips.sgml stable.sgml submitters.sgml sup.sgml
+SRCS+= synching.sgml troubleshooting.sgml userppp.sgml
 
 .include <bsd.sgml.mk>
