@@ -70,17 +70,16 @@ or a previous successfull call to
 .Fn acl_get_fd ,
 .Fn acl_get_file ,
 .Fn acl_set_fd ,
-.Fn acl_set_file,
+.Fn acl_set_file ,
 or
 .Fn acl_valid ,
 then the result is unspecified.
-.Pp
 .Sh RETURN VALUES
 If the
 .Fn acl_get_entry
 function successfully obtains an ACL entry, a value of 1 is returned.
 If the ACL has no ACL entries, the
-.Fn function 
+.Fn acl_get_entry
 returns a value of 0.  If the value of
 .Fa entry_id
 is
@@ -93,6 +92,7 @@ a value of 0 will be returned until a successful call with
 of
 .Dv ACL_FIRST_ENTRY
 is made.  Otherwise, a value of -1 will be returned and
+the global variable
 .Va errno
 will be set to indicate the error.
 .Sh ERRORS
@@ -107,8 +107,9 @@ does not point to a valid ACL.  Argument
 .Fa entry_id
 is neither
 .Dv ACL_FIRST_ENTRY
-nor 
+nor
 .Dv ACL_NEXT_ENTRY .
+.El
 .Sh SEE ALSO
 .Xr acl 3 ,
 .Xr acl_calc_mask 3 ,
