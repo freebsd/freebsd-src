@@ -2217,24 +2217,16 @@ comparam(tp, t)
 	if (com == NULL)
 		return (ENODEV);
 
-	/* do historical conversions */
-	if (t->c_ispeed == 0)
-		t->c_ispeed = t->c_ospeed;
-
 	/* check requested parameters */
-	if (t->c_ospeed == 0)
-		divisor = 0;
-	else {
-		if (t->c_ispeed != t->c_ospeed)
-			return (EINVAL);
-		divisor = siodivisor(com->rclk, t->c_ispeed);
-		if (divisor == 0)
-			return (EINVAL);
-	}
+	if (t->c_ispeed != (t->c_ospeed != 0 ? t->c_ospeed : tp->t_ospeed))
+		return (EINVAL);
+	divisor = siodivisor(com->rclk, t->c_ispeed);
+	if (divisor == 0)
+		return (EINVAL);
 
 	/* parameters are OK, convert them to the com struct and the device */
 	s = spltty();
-	if (divisor == 0)
+	if (t->c_ospeed == 0)
 		(void)commctl(com, TIOCM_DTR, DMBIC);	/* hang up line */
 	else
 		(void)commctl(com, TIOCM_DTR, DMBIS);
@@ -2261,7 +2253,7 @@ comparam(tp, t)
 	if (cflag & CSTOPB)
 		cfcr |= CFCR_STOPB;
 
-	if (com->hasfifo && divisor != 0) {
+	if (com->hasfifo) {
 		/*
 		 * Use a fifo trigger level low enough so that the input
 		 * latency from the fifo is less than about 16 msec and
@@ -2276,7 +2268,7 @@ comparam(tp, t)
 		 * without producing silo overflow errors.
 		 */
 		com->fifo_image = com->unit == siotsunit ? 0
-				  : t->c_ospeed <= 4800
+				  : t->c_ispeed <= 4800
 				  ? FIFO_ENABLE : FIFO_ENABLE | FIFO_RX_MEDH;
 #ifdef COM_ESP
 		/*
@@ -2297,21 +2289,18 @@ comparam(tp, t)
 	 */
 	(void) siosetwater(com, t->c_ispeed);
 
-	if (divisor != 0) {
-		sio_setreg(com, com_cfcr, cfcr | CFCR_DLAB);
-		/*
-		 * Only set the divisor registers if they would change,
-		 * since on some 16550 incompatibles (UMC8669F), setting
-		 * them while input is arriving them loses sync until
-		 * data stops arriving.
-		 */
-		dlbl = divisor & 0xFF;
-		if (sio_getreg(com, com_dlbl) != dlbl)
-			sio_setreg(com, com_dlbl, dlbl);
-		dlbh = divisor >> 8;
-		if (sio_getreg(com, com_dlbh) != dlbh)
-			sio_setreg(com, com_dlbh, dlbh);
-	}
+	sio_setreg(com, com_cfcr, cfcr | CFCR_DLAB);
+	/*
+	 * Only set the divisor registers if they would change, since on
+	 * some 16550 incompatibles (UMC8669F), setting them while input
+	 * is arriving loses sync until data stops arriving.
+	 */
+	dlbl = divisor & 0xFF;
+	if (sio_getreg(com, com_dlbl) != dlbl)
+		sio_setreg(com, com_dlbl, dlbl);
+	dlbh = divisor >> 8;
+	if (sio_getreg(com, com_dlbh) != dlbh)
+		sio_setreg(com, com_dlbh, dlbh);
 
 	if (!(tp->t_state & TS_TTSTOP))
 		com->state |= CS_TTGO;
