@@ -229,7 +229,11 @@ Use APM to suspend power.
 Activate screen saver
 by toggling between splash/text screen.
 .It panic
-Panic the system.
+Panic the system.  The
+.Xr sysctl 8
+variable
+.Va machdep.enable_panic_key
+must be set to 1 to enable this feature.
 .It paste
 Act as mouse buffer paste.
 .El
