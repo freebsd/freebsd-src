@@ -578,7 +578,7 @@ pcic_pci_attach(device_t dev)
 	sc->irqrid = rid;
 	sc->irqres = r;
 	sc->irq = rman_get_start(r);
-	error = bus_setup_intr(dev, r, INTR_TYPE_MISC, pcic_pci_intr,
+	error = bus_setup_intr(dev, r, INTR_TYPE_AV, pcic_pci_intr,
 	    (void *) sc, &sc->ih);
 	if (error) {
 		pcic_dealloc(dev);
