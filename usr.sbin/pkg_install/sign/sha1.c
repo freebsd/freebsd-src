@@ -170,7 +170,6 @@ retrieve_sha1_marker(filename, sign, userid)
 	char result[BUFSIZE];
 	ssize_t length = -1;
 	struct sha1_checker *checker;
-	struct signature *old;
 
 	*sign = NULL;
 	if (userid == NULL)

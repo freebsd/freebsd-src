@@ -52,10 +52,10 @@
 #define NO		1
 
 /* Usually "rm", but often "echo" during debugging! */
-#define REMOVE_CMD	"rm"
+#define REMOVE_CMD	"/bin/rm"
 
 /* Usually "rm", but often "echo" during debugging! */
-#define RMDIR_CMD	"rmdir"
+#define RMDIR_CMD	"/bin/rmdir"
 
 /* Where we put logging information by default, else ${PKG_DBDIR} if set */
 #define DEF_LOG_DIR	"/var/db/pkg"
@@ -77,6 +77,12 @@
 #define DISPLAY_FNAME		"+DISPLAY"
 #define MTREE_FNAME		"+MTREE_DIRS"
 
+#if defined(__FreeBSD_version) && __FreeBSD_version >= 500036
+#define INDEX_FNAME		"INDEX-5"
+#else
+#define INDEX_FNAME		"INDEX"
+#endif
+
 #define CMD_CHAR		'@'	/* prefix for extended PLIST cmd */
 
 /* The name of the "prefix" environment variable given to scripts */
@@ -86,7 +92,7 @@
  * Version of the package tools - increase only when some
  * functionality used by bsd.port.mk is changed, added or removed
  */
-#define PKG_INSTALL_VERSION	20030417
+#define PKG_INSTALL_VERSION	20040629
 
 #define PKG_WRAPCONF_FNAME	"/var/db/pkg_install.conf"
 #define main(argc, argv)	real_main(argc, argv)

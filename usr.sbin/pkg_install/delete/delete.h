@@ -27,7 +27,6 @@ extern char	*Prefix;
 extern Boolean	CleanDirs;
 extern Boolean	Interactive;
 extern Boolean	NoDeInstall;
-extern Boolean	Force;
 extern Boolean	Recursive;
 extern char	*Directory;
 extern char	*PkgName;
