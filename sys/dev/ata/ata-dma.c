@@ -502,45 +502,20 @@ ata_dmainit(struct ata_device *atadev, int apiomode, int wdmamode, int udmamode)
 	}
 	break;
 
+    case 0x01bc10de:	/* nVIDIA nForce */
     case 0x74411022:	/* AMD 768 */
     case 0x74111022:	/* AMD 766 */
-	if (udmamode >= 5) {
-	    error = ata_command(atadev, ATA_C_SETFEATURES, 0,
-				ATA_UDMA5, ATA_C_F_SETXFER, ATA_WAIT_READY);
-	    if (bootverbose)
-		ata_prtdev(atadev, "%s setting UDMA5 on AMD chip\n",
-			   (error) ? "failed" : "success");
-	    if (!error) {
-		pci_write_config(parent, 0x53 - devno, 0xc6, 1);
-		ata_dmacreate(atadev, apiomode, ATA_UDMA5);
-		return;
-	    }
-	}
-	/* FALLTHROUGH */
-
     case 0x74091022:	/* AMD 756 */
-	if (udmamode >= 4) {
-	    error = ata_command(atadev, ATA_C_SETFEATURES, 0,
-				ATA_UDMA4, ATA_C_F_SETXFER, ATA_WAIT_READY);
-	    if (bootverbose)
-		ata_prtdev(atadev, "%s setting UDMA4 on AMD chip\n",
-			   (error) ? "failed" : "success");
-	    if (!error) {
-		pci_write_config(parent, 0x53 - devno, 0xc5, 1);
-		ata_dmacreate(atadev, apiomode, ATA_UDMA4);
-		return;
-	    }
-	}
-	goto via_82c586;
-
     case 0x05711106:	/* VIA 82C571, 82C586, 82C596, 82C686 , 8231, 8233 */
 	{
-	    int via_modes[4][7] = {
-		{ 0x00, 0x00, 0xc0, 0x00, 0x00, 0x00, 0x00 },	/* ATA33 */
-		{ 0x00, 0x00, 0xea, 0x00, 0xe8, 0x00, 0x00 },	/* ATA66 */
-		{ 0x00, 0x00, 0xf4, 0x00, 0xf1, 0xf0, 0x00 },	/* ATA100 */
-		{ 0x00, 0x00, 0xf6, 0x00, 0xf2, 0xf1, 0xf0 }};	/* ATA133 */
+	    int via_modes[5][7] = {
+		{ 0x00, 0x00, 0xc0, 0x00, 0x00, 0x00, 0x00 },	/* VIA ATA33 */
+		{ 0x00, 0x00, 0xea, 0x00, 0xe8, 0x00, 0x00 },	/* VIA ATA66 */
+		{ 0x00, 0x00, 0xf4, 0x00, 0xf1, 0xf0, 0x00 },	/* VIA ATA100 */
+		{ 0x00, 0x00, 0xf6, 0x00, 0xf2, 0xf1, 0xf0 },	/* VIA ATA133 */
+		{ 0x00, 0x00, 0xc0, 0x00, 0xc5, 0xc6, 0x00 }};	/* AMD/nVIDIA */
 	    int *reg_val = NULL;
+	    char *chip = "VIA";
 
 	    if (ata_find_dev(parent, 0x31471106, 0)) {		/* 8233a */
 		udmamode = imin(udmamode, 6);
@@ -564,19 +539,34 @@ ata_dmainit(struct ata_device *atadev, int apiomode, int wdmamode, int udmamode)
 	    }
 	    else if (ata_find_dev(parent, 0x05961106, 0) ||	/* 82C596a */
 		     ata_find_dev(parent, 0x05861106, 0x03)) {	/* 82C586b */
-via_82c586:
 		udmamode = imin(udmamode, 2);
 		reg_val = via_modes[0];
 	    }
-	    else
+	    else if (chiptype == 0x74411022 ||			/* AMD 768 */
+		     chiptype == 0x74111022) {			/* AMD 766 */
+		udmamode = imin(udmamode, 5);
+		reg_val = via_modes[4];
+		chip = "AMD";
+	    }
+	    else if (chiptype == 0x74091022) {			/* AMD 756 */
+		udmamode = imin(udmamode, 4);
+		reg_val = via_modes[4];
+		chip = "AMD";
+	    }
+	    else if (chiptype == 0x01bc10de) {			/* nVIDIA */
+		udmamode = imin(udmamode, 5);
+		reg_val = via_modes[4];
+		chip = "nVIDIA";
+	    }
+	    else 
 		udmamode = 0;
-	
+
 	    if (udmamode >= 6) {
 		error = ata_command(atadev, ATA_C_SETFEATURES, 0,
 				    ATA_UDMA6, ATA_C_F_SETXFER, ATA_WAIT_READY);
 		if (bootverbose)
-		    ata_prtdev(atadev, "%s setting UDMA6 on VIA chip\n",
-			       (error) ? "failed" : "success");
+		    ata_prtdev(atadev, "%s setting UDMA6 on %s chip\n",
+			       (error) ? "failed" : "success", chip);
 		if (!error) {
 		    pci_write_config(parent, 0x53 - devno, reg_val[6], 1);
 		    ata_dmacreate(atadev, apiomode, ATA_UDMA6);
@@ -587,8 +577,8 @@ via_82c586:
 		error = ata_command(atadev, ATA_C_SETFEATURES, 0,
 				    ATA_UDMA5, ATA_C_F_SETXFER, ATA_WAIT_READY);
 		if (bootverbose)
-		    ata_prtdev(atadev, "%s setting UDMA5 on VIA chip\n",
-			       (error) ? "failed" : "success");
+		    ata_prtdev(atadev, "%s setting UDMA5 on %s chip\n",
+			       (error) ? "failed" : "success", chip);
 		if (!error) {
 		    pci_write_config(parent, 0x53 - devno, reg_val[5], 1);
 		    ata_dmacreate(atadev, apiomode, ATA_UDMA5);
@@ -599,8 +589,8 @@ via_82c586:
 		error = ata_command(atadev, ATA_C_SETFEATURES, 0,
 				    ATA_UDMA4, ATA_C_F_SETXFER, ATA_WAIT_READY);
 		if (bootverbose)
-		    ata_prtdev(atadev, "%s setting UDMA4 on VIA chip\n",
-			       (error) ? "failed" : "success");
+		    ata_prtdev(atadev, "%s setting UDMA4 on %s chip\n",
+			       (error) ? "failed" : "success", chip);
 		if (!error) {
 		    pci_write_config(parent, 0x53 - devno, reg_val[4], 1);
 		    ata_dmacreate(atadev, apiomode, ATA_UDMA4);
@@ -611,28 +601,26 @@ via_82c586:
 		error = ata_command(atadev, ATA_C_SETFEATURES, 0,
 				    ATA_UDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
 		if (bootverbose)
-		    ata_prtdev(atadev, "%s setting UDMA2 on VIA chip\n",
-			       (error) ? "failed" : "success");
+		    ata_prtdev(atadev, "%s setting UDMA2 on %s chip\n",
+			       (error) ? "failed" : "success", chip);
 		if (!error) {
 		    pci_write_config(parent, 0x53 - devno, reg_val[2], 1);
 		    ata_dmacreate(atadev, apiomode, ATA_UDMA2);
 		    return;
 		}
 	    }
-
-	}
-	if (wdmamode >= 2 && apiomode >= 4) {
-	    error = ata_command(atadev, ATA_C_SETFEATURES, 0,
-				ATA_WDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
-	    if (bootverbose)
-		ata_prtdev(atadev, "%s setting WDMA2 on %s chip\n",
-			   (error) ? "failed" : "success",
-			   (chiptype == 0x74091022) ? "AMD" : "VIA");
-	    if (!error) {
-		pci_write_config(parent, 0x53 - devno, 0x0b, 1);
-		pci_write_config(parent, 0x4b - devno, 0x31, 1);
-		ata_dmacreate(atadev, apiomode, ATA_WDMA2);
-		return;
+	    if (wdmamode >= 2 && apiomode >= 4) {
+		error = ata_command(atadev, ATA_C_SETFEATURES, 0,
+				    ATA_WDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
+		if (bootverbose)
+		    ata_prtdev(atadev, "%s setting WDMA2 on %s chip\n",
+			       (error) ? "failed" : "success", chip);
+		if (!error) {
+		    pci_write_config(parent, 0x53 - devno, 0x0b, 1);
+		    pci_write_config(parent, 0x4b - devno, 0x31, 1);
+		    ata_dmacreate(atadev, apiomode, ATA_WDMA2);
+		    return;
+		}
 	    }
 	}
 	/* we could set PIO mode timings, but we assume the BIOS did that */
