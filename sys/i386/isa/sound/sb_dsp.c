@@ -311,7 +311,7 @@ dsp_set_stereo (int mode)
 #ifdef EXCLUDE_SBPRO
   return 0;
 #else
-  if (sb_dsp_model == 1 || sb16)
+  if (sb_dsp_model < 3 || sb16)
     return 0;			/* Sorry no stereo */
 
   if (mode && sb_midi_busy)
@@ -683,8 +683,7 @@ sb_dsp_init (long mem_start, struct address_info *hw_config)
   if (major == 4)
     sb16 = 1;
 
-  if (major >= 3)
-    sb_dsp_model = 2;
+  sb_dsp_model = major;
 
 #ifndef EXCLUDE_SBPRO
   if (major >= 3)
