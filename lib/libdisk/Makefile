@@ -1,6 +1,6 @@
 .PATH:	/usr/src/sbin/disklabel
 OBJS=	tst01.o blocks.o disklabel.o dkcksum.o chunk.o disk.o change.o \
-	create_chunk.o
+	create_chunk.o rules.o
 CFLAGS+= -Wall
 
 test:	tst01

@@ -15,11 +15,11 @@
 #include <unistd.h>
 #include <string.h>
 #include <sys/types.h>
-#include <sys/queue.h>
 #include <err.h>
 #include "libdisk.h"
 
 CHAR_N;
+
 #define new_chunk() malloc(sizeof(struct chunk))
 
 /* Is c2 completely inside c1 ? */
@@ -206,6 +206,10 @@ Add_Chunk(struct disk *d, u_long offset, u_long size, char *name, chunk_e type,
 		c1 = Find_Mother_Chunk(d->chunks,offset,end,whole);
 	if(!c1 && type == part)
 		c1 = Find_Mother_Chunk(d->chunks,offset,end,freebsd);
+	if(!c1 && type == reserved)
+		c1 = Find_Mother_Chunk(d->chunks,offset,end,extended);
+	if(!c1 && type == reserved)
+		c1 = Find_Mother_Chunk(d->chunks,offset,end,whole);
 	if(!c1)
 		return __LINE__;
 	for(c2=c1->part;c2;c2=c2->next) {
@@ -252,26 +256,25 @@ Bios_Limit_Chunk(struct chunk *c1, u_long limit)
 }
 
 int
-Delete_Chunk(struct disk *d, u_long offset, u_long end, chunk_e type)
+Delete_Chunk(struct disk *d, struct chunk *c)
 {
 	struct chunk *c1=0,*c2,*c3;
+	chunk_e type = c->type;
 
 	if(type == whole) 
 		return 1;
 	if(!c1 && (type == freebsd || type == fat || type == foo))
-		c1 = Find_Mother_Chunk(d->chunks,offset,end,extended);
+		c1 = Find_Mother_Chunk(d->chunks,c->offset,c->end,extended);
 	if(!c1 && (type == freebsd || type == fat || type == foo))
-		c1 = Find_Mother_Chunk(d->chunks,offset,end,whole);
+		c1 = Find_Mother_Chunk(d->chunks,c->offset,c->end,whole);
 	if(!c1 && type == extended)
-		c1 = Find_Mother_Chunk(d->chunks,offset,end,whole);
+		c1 = Find_Mother_Chunk(d->chunks,c->offset,c->end,whole);
 	if(!c1 && type == part)
-		c1 = Find_Mother_Chunk(d->chunks,offset,end,freebsd);
+		c1 = Find_Mother_Chunk(d->chunks,c->offset,c->end,freebsd);
 	if(!c1)
 		return 1;
 	for(c2=c1->part;c2;c2=c2->next) {
-		if (c2->offset == offset &&
-		    c2->end == end &&
-		    c2->type == type) {
+		if (c2 == c) {
 			c2->type = unused;
 			c2->subtype = 0;
 			c2->flags = 0;
@@ -329,7 +332,7 @@ Collapse_Chunk(struct disk *d, struct chunk *c1)
 		return 0;
 
 	if(c3->type == unused && c3->size == c1->size) {
-		Delete_Chunk(d,c1->offset, c1->end, c1->type);
+		Delete_Chunk(d,c1);
 		return 1;
 	}
 	if(c3->type == unused) {
