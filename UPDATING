@@ -5,6 +5,12 @@ directly to him.  See end of file for further details.  For commonly
 done items, please see the end of the file.  Search for 'COMMON
 ITEMS:'
 
+20001218:
+	Linksys Fast Ethernet PCCARD cards supported by the ed driver
+	now require the addition of flag 0x80000 to their config line
+	in pccard.conf(5).  This flag is not optional.  These Linksys
+	cards will not be recognized without it.
+
 20001205:
 	Important new FreeBSD-version stuff: PAM support has been worked
 	in, partially from the "Unix" OpenSSH version.  This requires
