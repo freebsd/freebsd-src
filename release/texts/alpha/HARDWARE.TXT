@@ -222,35 +222,55 @@ The kernel configuration file for a NoName kernel must contain:
 Note: Multia can be either Intel or Alpha CPU based. We assume Alpha based
       ones here for obvious reasons.
 
-Multia is a very compact 21066 based box, roughly 40cm square and 8 cm thick.
-It comes with 2 PCMCIA slots, which don't work with FreeBSD (?).
+Features:
+- 21066 Alpha CPU at 166 MHz or 21066A CPU at 233MHz
+- memory bus: 64 bits 
+- on-board Bcache / L2 cache: COAST-like 256kByte cache module
+- PS/2 mouse & keyboard port
+- memory: PS/2 style 72 pin 36 bit Fast Page Mode SIMMs, 
+	  70ns or better,
+          installed in pairs of 2,
+	  4 SIMM sockets
+	  uses ECC 
+- 2x 16550A serial ports, 1x parallel port, floppy interface
+- 1x embedded 21040 based 10Mbit Ethernet, AUI or 10base2 connector
+- expansion: 1 32 bit PCI slot
+- embedded Fast SCSI using a NCR/Symbios 53C810 chip on the PCI riser card
 
-It has a small 2.5" SCSI disk of 340Mbyte or so. Fortunately there is
-an external high density 50pin SCSI connector to hookup something bigger.
-Some Multia models came without disk. 
+SRM/ARC:
+Multia has enough Flash ROM to store both SRM and ARC code at the same time
+and allow software selection of one of them.
 
-It has an embedded 10Mbit Ethernet interface. There is only one PCI slot
-for expansion, and only for a small PCI card too. The CPU is 
-either 166 or 233 MHz. The CPU might or might not be socketed, check before
-considering CPU upgrade hacks. It comes with a TGA based graphics on-board. 
-The 3.5" floppy drive is a very compact laptop variant.
+Expansion:
+Multia has only one 32 bit PCI slot for expansion, and it is only 
+suitable for a small form factor PCI card too. In sacrificing the PCI slot
+space you can mount a 3.5" hard disk drive. Mounting stuff may have come
+with your Multia. 
 
-Note: most the discussion of the NoName applies to Multia too.
+CPU:
+The CPU might or might not be socketed, check before considering CPU upgrade 
+hacks. 
+
+Graphics: 
+It comes with a TGA based graphics on-board. Which is not suitable for
+console use according to reports I have received.
 
 Hot:
 Multias are somewhat notorious for dying of heat strokes. The very compact
 box does not really allow cooling air access very well. Please use the 
 Multia on it's vertical stand, don't put it horizontally ('pizza style').
 Replacing the fan with something which pushes around more air is
-wholeheartedly recommended.
+wholeheartedly recommended. Beware of PCI cards with high power consumption.
 
 SCSI:
 In case you want to change the internal hard drive: the internal flat cable
 running from the PCI riser board to the 2.5" (!!) hard drive has a finer pitch
 than the standard SCSI flat cables. Otherwise it would not fit on the 2.5"
-drives. I recommend against trying to cram another hard disk inside. Use the
-external SCSI connector and put your disk in an external enclosure. The run
-hot enough as-is.
+drives. I recommend against trying to cram replacement hard disk inside. Use the
+external SCSI connector and put your disk in an external enclosure. Multias run
+hot enough as-is. In most cases you will have the external high density 
+50pin SCSI connector but some Multia models came without disk and may lack
+the connector. Something to check before buying one.
 
 The kernel configuration file for a Multia kernel must contain:
         options         DEC_AXPPCI_33
