@@ -1,4 +1,4 @@
-/*	$Id: ftp.c,v 1.11 1997/12/13 20:38:17 pst Exp $	*/
+/*	$Id: ftp.c,v 1.12 1997/12/16 08:22:37 ache Exp $	*/
 /*	$NetBSD: ftp.c,v 1.29.2.1 1997/11/18 01:01:04 mellon Exp $	*/
 
 /*
@@ -39,7 +39,7 @@
 #if 0
 static char sccsid[] = "@(#)ftp.c	8.6 (Berkeley) 10/27/94";
 #else
-__RCSID("$Id: ftp.c,v 1.11 1997/12/13 20:38:17 pst Exp $");
+__RCSID("$Id: ftp.c,v 1.12 1997/12/16 08:22:37 ache Exp $");
 __RCSID_SOURCE("$NetBSD: ftp.c,v 1.29.2.1 1997/11/18 01:01:04 mellon Exp $");
 #endif
 #endif /* not lint */
@@ -95,8 +95,7 @@ hookup(host, port)
 	memset((void *)&hisctladdr, 0, sizeof(hisctladdr));
 	if (inet_aton(host, &hisctladdr.sin_addr) != 0) {
 		hisctladdr.sin_family = AF_INET;
-		(void)strncpy(hostnamebuf, host, sizeof(hostnamebuf) - 1);
-		hostnamebuf[sizeof(hostnamebuf) - 1] = '\0';
+		(void) strncpy(hostnamebuf, host, sizeof(hostnamebuf));
 	} else {
 		hp = gethostbyname(host);
 		if (hp == NULL) {
@@ -105,10 +104,11 @@ hookup(host, port)
 			return ((char *) 0);
 		}
 		hisctladdr.sin_family = hp->h_addrtype;
-		memcpy(&hisctladdr.sin_addr, hp->h_addr, hp->h_length);
-		(void)strncpy(hostnamebuf, hp->h_name, sizeof(hostnamebuf) - 1);
-		hostnamebuf[sizeof(hostnamebuf) - 1] = '\0';
+		memcpy(&hisctladdr.sin_addr, hp->h_addr_list[0], 
+			MIN(hp->h_length,sizeof(hisctladdr.sin_addr)));
+		(void) strncpy(hostnamebuf, hp->h_name, sizeof(hostnamebuf));
 	}
+	hostnamebuf[sizeof(hostnamebuf) - 1] = '\0';
 	hostname = hostnamebuf;
 	s = socket(hisctladdr.sin_family, SOCK_STREAM, 0);
 	if (s < 0) {
@@ -127,7 +127,8 @@ hookup(host, port)
 			errno = oerrno;
 			warn("connect to address %s", ia);
 			hp->h_addr_list++;
-			memcpy(&hisctladdr.sin_addr, hp->h_addr, hp->h_length);
+			memcpy(&hisctladdr.sin_addr, hp->h_addr_list[0], 
+				MIN(hp->h_length,sizeof(hisctladdr.sin_addr)));
 			printf("Trying %s...\n",
 			    inet_ntoa(hisctladdr.sin_addr));
 			(void)close(s);
