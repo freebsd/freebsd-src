@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.206 1998/08/02 09:24:59 wosch Exp $
+#	$Id: Makefile,v 1.207 1998/08/03 08:28:14 bde Exp $
 #
 # While porting to the another architecture include the bootstrap instead
 # of the normal build.
@@ -110,7 +110,7 @@ SUBDIR+= lkm
 .endif
 
 # etc must be last for "distribute" to work
-.if exists(etc) && make(distribute)
+.if exists(etc)
 SUBDIR+= etc
 .endif
 
