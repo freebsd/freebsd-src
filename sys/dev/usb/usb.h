@@ -98,7 +98,7 @@ typedef u_int8_t uDWord[4];
 #define USETDW(w,v) (*(u_int32_t *)(w) = (v))
 #endif
 
-#define UPACKED __attribute__((__packed__))
+#define UPACKED __packed
 
 typedef struct {
 	uByte		bmRequestType;

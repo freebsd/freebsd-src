@@ -74,7 +74,7 @@ struct ray_mib_common_head {			/*Offset*/	/*Size*/
     u_int8_t	mib_country_code;		/*48*/
     u_int8_t	mib_hop_seq;			/*49*/
     u_int8_t	mib_hop_seq_len;		/*4a*/
-} __attribute__((__packed__));
+} __packed;
 
 struct ray_mib_common_tail {
     u_int8_t	mib_noise_filter_gain;		/*00*/
@@ -85,14 +85,14 @@ struct ray_mib_common_tail {
     u_int8_t	mib_test_mode;			/*05*/
     u_int8_t	mib_test_min_chan;		/*06*/
     u_int8_t	mib_test_max_chan;		/*07*/
-} __attribute__((__packed__));
+} __packed;
 
 struct ray_mib_4 {
     struct ray_mib_common_head	mib_head;	/*00*/
     u_int8_t			mib_cw_max;	/*4b*/
     u_int8_t			mib_cw_min;	/*4c*/
     struct ray_mib_common_tail	mib_tail;	/*4d*/
-} __attribute__((__packed__));
+} __packed;
 
 struct ray_mib_5 {
     struct ray_mib_common_head	mib_head;		/*00*/
@@ -103,7 +103,7 @@ struct ray_mib_5 {
     u_int8_t			mib_privacy_must_start;	/*58*/
     u_int8_t			mib_privacy_can_join;	/*59*/
     u_int8_t			mib_basic_rate_set[8];	/*5a*/		/*08*/
-} __attribute__((__packed__));
+} __packed;
 
 #define mib_net_type		mib_head.mib_net_type
 #define mib_ap_status		mib_head.mib_ap_status
