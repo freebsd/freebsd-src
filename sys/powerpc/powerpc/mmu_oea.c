@@ -817,7 +817,7 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr,
 }
 
 void
-pmap_copy_page(vm_offset_t src, vm_offset_t dst)
+pmap_copy_page(vm_page_t src, vm_page_t dst)
 {
 	TODO;
 }
@@ -826,8 +826,9 @@ pmap_copy_page(vm_offset_t src, vm_offset_t dst)
  * Zero a page of physical memory by temporarily mapping it into the tlb.
  */
 void
-pmap_zero_page(vm_offset_t pa)
+pmap_zero_page(vm_page_t m)
 {
+	vm_offset_t pa = VM_PAGE_TO_PHYS(m);
 	caddr_t	va;
 	int	i;
 
@@ -854,7 +855,7 @@ pmap_zero_page(vm_offset_t pa)
 }
 
 void
-pmap_zero_page_area(vm_offset_t pa, int off, int size)
+pmap_zero_page_area(vm_page_t m, int off, int size)
 {
 	TODO;
 }
