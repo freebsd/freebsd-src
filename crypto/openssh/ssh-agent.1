@@ -1,4 +1,4 @@
-.\" $OpenBSD: ssh-agent.1,v 1.9 2000/01/22 02:17:50 aaron Exp $
+.\" $OpenBSD: ssh-agent.1,v 1.10 2000/03/23 21:10:10 aaron Exp $
 .\"
 .\"  -*- nroff -*-
 .\"
@@ -27,12 +27,13 @@
 .Oc
 .Sh DESCRIPTION 
 .Nm
-is a program to hold authentication private keys.  The
-idea is that
+is a program to hold authentication private keys.
+The idea is that
 .Nm
 is started in the beginning of an X-session or a login session, and
 all other windows or programs are started as clients to the ssh-agent
-program.  Through use of environment variables the agent can be located
+program.
+Through use of environment variables the agent can be located
 and automatically used for RSA authentication when logging in to other
 machines using
 .Xr ssh 1 .
@@ -60,30 +61,34 @@ environment variable).
 If a commandline is given, this is executed as a subprocess of the agent.
 When the command dies, so does the agent.
 .Pp
-The agent initially does not have any private keys.  Keys are added
-using
+The agent initially does not have any private keys.
+Keys are added using
 .Xr ssh-add 1 .
 When executed without arguments, 
 .Xr ssh-add 1
 adds the 
 .Pa $HOME/.ssh/identity
-file.  If the identity has a passphrase, 
+file.
+If the identity has a passphrase, 
 .Xr ssh-add 1
 asks for the passphrase (using a small X11 application if running
-under X11, or from the terminal if running without X).  It then sends
-the identity to the agent.  Several identities can be stored in the
+under X11, or from the terminal if running without X).
+It then sends the identity to the agent.
+Several identities can be stored in the
 agent; the agent can automatically use any of these identities.
 .Ic ssh-add -l
 displays the identities currently held by the agent.
 .Pp
 The idea is that the agent is run in the user's local PC, laptop, or
-terminal.  Authentication data need not be stored on any other
+terminal.
+Authentication data need not be stored on any other
 machine, and authentication passphrases never go over the network.
 However, the connection to the agent is forwarded over SSH
 remote logins, and the user can thus use the privileges given by the
 identities anywhere in the network in a secure way.
 .Pp
-There are two main ways to get an agent setup:  Either you let the agent
+There are two main ways to get an agent setup:
+Either you let the agent
 start a new subcommand into which some environment variables are exported, or
 you let the agent print the needed shell commands (either
 .Xr sh 1
@@ -99,7 +104,8 @@ A unix-domain socket is created
 and the name of this socket is stored in the
 .Ev SSH_AUTH_SOCK
 environment
-variable.  The socket is made accessible only to the current user.
+variable.
+The socket is made accessible only to the current user.
 This method is easily abused by root or another instance of the same
 user.
 .Pp
@@ -112,28 +118,30 @@ line terminates.
 .Sh FILES
 .Bl -tag -width Ds
 .It Pa $HOME/.ssh/identity
-Contains the RSA authentication identity of the user.  This file
-should not be readable by anyone but the user.  It is possible to
+Contains the RSA authentication identity of the user.
+This file should not be readable by anyone but the user.
+It is possible to
 specify a passphrase when generating the key; that passphrase will be
-used to encrypt the private part of this file.  This file
-is not used by
+used to encrypt the private part of this file.
+This file is not used by
 .Nm
 but is normally added to the agent using
 .Xr ssh-add 1
 at login time.
 .It Pa /tmp/ssh-XXXX/agent.<pid> ,
 Unix-domain sockets used to contain the connection to the
-authentication agent.  These sockets should only be readable by the
-owner.  The sockets should get automatically removed when the agent
-exits.
+authentication agent.
+These sockets should only be readable by the owner.
+The sockets should get automatically removed when the agent exits.
 .Sh AUTHOR
 Tatu Ylonen <ylo@cs.hut.fi>
 .Pp
 OpenSSH
 is a derivative of the original (free) ssh 1.2.12 release, but with bugs
-removed and newer features re-added.   Rapidly after the 1.2.12 release,
-newer versions bore successively more restrictive licenses.  This version
-of OpenSSH
+removed and newer features re-added.
+Rapidly after the 1.2.12 release,
+newer versions bore successively more restrictive licenses.
+This version of OpenSSH
 .Bl -bullet
 .It
 has all components of a restrictive nature (i.e., patents, see
