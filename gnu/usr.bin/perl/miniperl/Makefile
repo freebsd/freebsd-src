@@ -17,8 +17,6 @@ LDADD=	${MYLIBPERL} -lm -lcrypt -lutil
 build-tools:	cleandepend
 	cd ${.CURDIR} && ${MAKE} ${PROG}
 
-install distribute:
-
 NO_PERL_SCRIPT_MAKE=	true
 
 .include <bsd.prog.mk>
