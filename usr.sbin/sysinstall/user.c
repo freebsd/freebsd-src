@@ -171,7 +171,7 @@ verifyGroupSettings(void)
 	return 0;
     }
     snprintf(tmp, 256, "pw group show -q -n %s > /dev/null", gname);
-    if (vsystem(tmp) == 0) {
+    if (vsystem("%s", tmp) == 0) {
 	feepout("This group name is already in use.");
 	return 0;
     }
@@ -410,7 +410,7 @@ verifyUserSettings(WINDOW *ds_win)
 	return 0;
     }
     snprintf(tmp, 256, "pw user show -q -n %s > /dev/null", uname);
-    if (vsystem(tmp) == 0) {
+    if (vsystem("%s", tmp) == 0) {
 	feepout("This user name is already in use.");
 	return 0;
     }

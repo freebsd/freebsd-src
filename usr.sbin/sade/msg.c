@@ -340,13 +340,13 @@ msgWeHaveOutput(char *fmt, ...)
 int
 msgSimpleConfirm(char *str)
 {
-    msgConfirm(str);
+    msgConfirm("%s", str);
     return DITEM_SUCCESS;
 }
 
 int
 msgSimpleNotify(char *str)
 {
-    msgNotify(str);
+    msgNotify("%s", str);
     return DITEM_SUCCESS;
 }

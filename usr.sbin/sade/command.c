@@ -161,7 +161,7 @@ command_execute(void)
 	    /* If it's a shell command, run system on it */
 	    if (commandStack[i]->cmds[j].type == CMD_SHELL) {
 		msgNotify("Doing %s", commandStack[i]->cmds[j].ptr);
-		ret = vsystem((char *)commandStack[i]->cmds[j].ptr);
+		ret = vsystem("%s", (char *)commandStack[i]->cmds[j].ptr);
 		if (isDebug())
 		    msgDebug("Command `%s' returns status %d\n", commandStack[i]->cmds[j].ptr, ret);
 	    }
