@@ -42,7 +42,7 @@ Next_Track_Aligned(struct disk *d, u_long offset)
 {
 	if (!d->bios_sect)
 		return offset;
-	return Prev_Track_Aligned(d,offset + d->bios_sect-1);
+	return Prev_Track_Aligned(d, offset + d->bios_sect-1);
 }
 
 int
@@ -88,7 +88,7 @@ Rule_000(struct disk *d, struct chunk *c, char *msg)
 
 	if (c->type != whole)
 		return;
-	for (c1=c->part; c1; c1=c1->next) {
+	for (c1 = c->part; c1; c1 = c1->next) {
 		if (c1->type != unused) continue;
 #ifndef PC98
 		if (c1->flags & CHUNK_ACTIVE)
@@ -97,12 +97,12 @@ Rule_000(struct disk *d, struct chunk *c, char *msg)
 		i++;
 	}
 	if (i > NDOSPART)
-		sprintf(msg+strlen(msg),
+		sprintf(msg + strlen(msg),
 	"%d is too many children of the 'whole' chunk.  Max is %d\n",
 			i, NDOSPART);
 #ifndef PC98
 	if (j > 1)
-		sprintf(msg+strlen(msg),
+		sprintf(msg + strlen(msg),
 	"Too many active children of 'whole'");
 #endif
 }
@@ -120,28 +120,28 @@ Rule_001(struct disk *d, struct chunk *c, char *msg)
 
 	if (c->type != whole && c->type != extended)
 		return;
-	for (i=0, c1=c->part; c1; c1=c1->next) {
+	for (i = 0, c1 = c->part; c1; c1 = c1->next) {
 		if (c1->type == unused) continue;
 		c1->flags |= CHUNK_ALIGN;
 #ifdef PC98
-		if (!Cyl_Aligned(d,c1->offset))
+		if (!Cyl_Aligned(d, c1->offset))
 #else
-		if (!Track_Aligned(d,c1->offset))
+		if (!Track_Aligned(d, c1->offset))
 #endif
-			sprintf(msg+strlen(msg),
+			sprintf(msg + strlen(msg),
 #ifdef PC98
 		    "chunk '%s' [%ld..%ld] does not start on a cylinder boundary\n",
 #else
 		    "chunk '%s' [%ld..%ld] does not start on a track boundary\n",
 #endif
-				c1->name,c1->offset,c1->end);
+				c1->name, c1->offset, c1->end);
 		if ((c->type == whole || c->end == c1->end)
-		    || Cyl_Aligned(d,c1->end+1))
+		    || Cyl_Aligned(d, c1->end + 1))
 			;
 		else
-			sprintf(msg+strlen(msg),
+			sprintf(msg + strlen(msg),
 		    "chunk '%s' [%ld..%ld] does not end on a cylinder boundary\n",
-				c1->name,c1->offset,c1->end);
+				c1->name, c1->offset, c1->end);
 	}
 }
 
@@ -158,13 +158,13 @@ Rule_002(struct disk *d, struct chunk *c, char *msg)
 
 	if (c->type != whole)
 		return;
-	for (i=0, c1=c->part; c1; c1=c1->next) {
+	for (i = 0, c1 = c->part; c1; c1 = c1->next) {
 		if (c1->type != fat)
 			continue;
 		i++;
 	}
 	if (i > 1) {
-		sprintf(msg+strlen(msg),
+		sprintf(msg + strlen(msg),
 		    "Max one 'fat' allowed as child of 'whole'\n");
 	}
 #endif
@@ -183,13 +183,13 @@ Rule_003(struct disk *d, struct chunk *c, char *msg)
 
 	if (c->type != whole)
 		return;
-	for (i=0, c1=c->part; c1; c1=c1->next) {
+	for (i = 0, c1 = c->part; c1; c1 = c1->next) {
 		if (c1->type != extended)
 			continue;
 		i++;
 	}
 	if (i > 1) {
-		sprintf(msg+strlen(msg),
+		sprintf(msg + strlen(msg),
 		    "Max one 'extended' allowed as child of 'whole'\n");
 	}
 #endif
@@ -209,7 +209,7 @@ Rule_004(struct disk *d, struct chunk *c, char *msg)
 	if (c->type != freebsd)
 		return;
 
-	for (c1=c->part; c1; c1=c1->next) {
+	for (c1 = c->part; c1; c1 = c1->next) {
 		if (c1->type != part)
 			continue;
 		if (c1->flags & CHUNK_IS_ROOT)
@@ -217,11 +217,11 @@ Rule_004(struct disk *d, struct chunk *c, char *msg)
 		i++;
 	}
 	if (i > 7) {
-		sprintf(msg+strlen(msg),
+		sprintf(msg + strlen(msg),
 		    "Max seven partitions per freebsd slice\n");
 	}
 	if (k > 1) {
-		sprintf(msg+strlen(msg),
+		sprintf(msg + strlen(msg),
 		    "Max one root partition child per freebsd slice\n");
 	}
 }
@@ -229,15 +229,15 @@ Rule_004(struct disk *d, struct chunk *c, char *msg)
 void
 Check_Chunk(struct disk *d, struct chunk *c, char *msg)
 {
-	Rule_000(d,c,msg);
-	Rule_001(d,c,msg);
-	Rule_002(d,c,msg);
-	Rule_003(d,c,msg);
-	Rule_004(d,c,msg);
+	Rule_000(d, c, msg);
+	Rule_001(d, c, msg);
+	Rule_002(d, c, msg);
+	Rule_003(d, c, msg);
+	Rule_004(d, c, msg);
 	if (c->part)
-		Check_Chunk(d,c->part,msg);
+		Check_Chunk(d, c->part, msg);
 	if (c->next)
-		Check_Chunk(d,c->next,msg);
+		Check_Chunk(d, c->next, msg);
 }
 
 char *
@@ -246,7 +246,7 @@ CheckRules(struct disk *d)
 	char msg[BUFSIZ];
 
 	*msg = '\0';
-	Check_Chunk(d,d->chunks,msg);
+	Check_Chunk(d, d->chunks, msg);
 	if (*msg)
 		return strdup(msg);
 	return 0;
@@ -260,8 +260,8 @@ ChunkCanBeRoot(struct chunk *c)
 	char msg[BUFSIZ];
 
 	*msg = '\0';
-	for (c1=d->chunks->part;;) {
-		for (; c1; c1=c1->next)
+	for (c1 = d->chunks->part; ; ) {
+		for (; c1; c1 = c1->next)
 			if (c1->offset <= c->offset && c1->end >= c->end)
 				break;
 		if (!c1) {
