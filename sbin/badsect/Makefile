@@ -2,7 +2,7 @@
 # $FreeBSD$
 
 PROG=	badsect
-DPADD=	-lufs
+DPADD=	${LIBUFS}
 LDADD=	-lufs
 WARNS=	0
 MAN=	badsect.8
