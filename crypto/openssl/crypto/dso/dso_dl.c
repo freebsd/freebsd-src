@@ -82,7 +82,7 @@ static int dl_unbind_func(DSO *dso, char *symname, DSO_FUNC_TYPE symptr);
 static int dl_init(DSO *dso);
 static int dl_finish(DSO *dso);
 #endif
-static int dl_ctrl(DSO *dso, int cmd, long larg, void *parg);
+static long dl_ctrl(DSO *dso, int cmd, long larg, void *parg);
 
 static DSO_METHOD dso_meth_dl = {
 	"OpenSSL 'dl' shared library method",
@@ -111,6 +111,11 @@ DSO_METHOD *DSO_METHOD_dl(void)
  * type so the cast is safe.
  */
 
+#if defined(__hpux)
+static const char extension[] = ".sl";
+#else
+static const char extension[] = ".so";
+#endif
 static int dl_load(DSO *dso, const char *filename)
 	{
 	shl_t ptr;
@@ -118,12 +123,12 @@ static int dl_load(DSO *dso, const char *filename)
 	int len;
 
 	/* The same comment as in dlfcn_load applies here. bleurgh. */
-	len = strlen(filename);
+	len = strlen(filename) + strlen(extension);
 	if((dso->flags & DSO_FLAG_NAME_TRANSLATION) &&
-			(len + 6 < DSO_MAX_TRANSLATED_SIZE) &&
+			(len + 3 < DSO_MAX_TRANSLATED_SIZE) &&
 			(strstr(filename, "/") == NULL))
 		{
-		sprintf(translated, "lib%s.so", filename);
+		sprintf(translated, "lib%s%s", filename, extension);
 		ptr = shl_load(translated, BIND_IMMEDIATE, NULL);
 		}
 	else
@@ -224,7 +229,7 @@ static DSO_FUNC_TYPE dl_bind_func(DSO *dso, const char *symname)
 	return((DSO_FUNC_TYPE)sym);
 	}
 
-static int dl_ctrl(DSO *dso, int cmd, long larg, void *parg)
+static long dl_ctrl(DSO *dso, int cmd, long larg, void *parg)
 	{
 	if(dso == NULL)
 		{
@@ -236,10 +241,10 @@ static int dl_ctrl(DSO *dso, int cmd, long larg, void *parg)
 	case DSO_CTRL_GET_FLAGS:
 		return dso->flags;
 	case DSO_CTRL_SET_FLAGS:
-		dso->flags = (int)larg;
+		dso->flags = larg;
 		return(0);
 	case DSO_CTRL_OR_FLAGS:
-		dso->flags |= (int)larg;
+		dso->flags |= larg;
 		return(0);
 	default:
 		break;
