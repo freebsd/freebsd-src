@@ -62,7 +62,10 @@ g_slice_alloc(unsigned nslice, unsigned scsize)
 	struct g_slicer *gsp;
 
 	gsp = g_malloc(sizeof *gsp, M_WAITOK | M_ZERO);
-	gsp->softc = g_malloc(scsize, M_WAITOK | M_ZERO);
+	if (scsize > 0)
+		gsp->softc = g_malloc(scsize, M_WAITOK | M_ZERO);
+	else
+		gsp->softc = NULL;
 	gsp->slices = g_malloc(nslice * sizeof(struct g_slice),
 	    M_WAITOK | M_ZERO);
 	gsp->nslice = nslice;
@@ -468,7 +471,8 @@ g_slice_new(struct g_class *mp, u_int slices, struct g_provider *pp, struct g_co
 		g_wither_geom(gp, ENXIO);
 		return (NULL);
 	}
-	*vp = gsp->softc;
+	if (extrap != NULL)
+		*vp = gsp->softc;
 	*cpp = cp;
 	return (gp);
 }
