@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.402 1998/10/07 21:53:14 jkh Exp $
+#	$Id: Makefile,v 1.403 1998/10/07 22:36:48 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -88,7 +88,6 @@ FIXITINODE=		2000
 BOOTLABEL=		fd1440
 BOOTMFSLABEL=		minimum2
 FIXITLABEL=		minimum2
-MFSKERN=		YES
 .endif
 
 ZIPNSPLIT=		gzip --no-name -9 -c | split -b 240640 -
@@ -471,9 +470,15 @@ release.8: write_mfs_in_kernel dumpnlist
 		${RD}/mfsfd ${MFSINODE} ${BOOTMFSLABEL}
 	mv fs-image fs-image.std
 	mv fs-image.size fs-image.std.size
+	cp fs-image.std ${RD}/floppies/mfsroot.flp
 	cd ${.CURDIR} && ${MAKE} doMFSKERN FSIMAGE=std
-	mv ${RD}/floppies/bootstd.flp ${RD}/floppies/boot.flp
-	@echo "Regular boot floppy made."
+	mv ${RD}/floppies/bootstd.flp ${RD}/floppies/bootkern.flp
+	cd ${.CURDIR} && ${MAKE} doMFSKERN FSIMAGE=std _MFSKERN=YES
+	mv ${RD}/floppies/bootstd.flp ${RD}/floppies/bootmfs.flp
+.if ${MACHINE_ARCH} != "alpha"
+	ln -fs ${RD}/floppies/bootmfs.flp ${RD}/floppies/boot.flp
+.endif
+	@echo "Regular and MFS boot floppies made."
 	touch release.8
 
 #
@@ -705,7 +710,7 @@ doMFSKERN:
 	  echo "options  SCSI_NO_OP_STRINGS" >> BOOTMFS && \
 	  echo "options  SCSI_NO_SENSE_STRINGS" >> BOOTMFS && \
 	  echo "options  USERCONFIG_BOOT" >> BOOTMFS
-.if defined(MFSKERN)
+.if defined(_MFSKERN)
 	@echo "options \"MFS_ROOT_SIZE=`cat fs-image.${FSIMAGE}.size`\"" >> \
 	  ${.CURDIR}/../sys/i386/conf/BOOTMFS
 .endif
@@ -724,7 +729,7 @@ doMFSKERN:
 	@umount /tmp/mnt_xx
 	@vnconfig -u /dev/${VNDEVICE}
 	@rmdir /tmp/mnt_xx
-.if defined(MFSKERN)
+.if defined(_MFSKERN)
 	./write_mfs_in_kernel ${RD}/boot.${FSIMAGE}/kernel \
 		fs-image.${FSIMAGE}
 .else
