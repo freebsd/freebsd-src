@@ -334,10 +334,12 @@ pcic_pci_ti_init(device_t dev)
 	 * Takeshi Shibagaki(shiba@jp.freebsd.org)
 	 */
 	if (sc->func_route >= pci_parallel) {
+#ifdef	PCI_CARDBUS_CARD
 		devcntl &= ~TI113X_DEVCNTL_INTR_MASK;
 		pci_write_config(dev, TI113X_PCI_DEVICE_CONTROL, devcntl, 1);
 		devcntl = pci_read_config(dev, TI113X_PCI_DEVICE_CONTROL, 1);
 		syscntl |= TI113X_SYSCNTL_INTRTIE;
+#endif
 		syscntl &= ~TI113X_SYSCNTL_SMIENB;
 		pci_write_config(dev, TI113X_PCI_SYSTEM_CONTROL, syscntl, 1);
 	}
