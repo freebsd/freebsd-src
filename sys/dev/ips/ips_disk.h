@@ -46,8 +46,8 @@
 #include <sys/rman.h>
 #include <machine/resource.h>
 
-#include <pci/pcireg.h>
-#include <pci/pcivar.h>
+#include <dev/pci/pcireg.h>
+#include <dev/pci/pcivar.h>
 
 #define IPS_MAX_IO_SIZE		0x10000
 
