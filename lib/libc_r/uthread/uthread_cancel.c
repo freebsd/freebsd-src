@@ -15,7 +15,8 @@ pthread_cancel(pthread_t pthread)
 
 	if ((ret = _find_thread(pthread)) != 0) {
 		/* NOTHING */
-	} else if (pthread->state == PS_DEAD || pthread->state == PS_DEADLOCK) {
+	} else if (pthread->state == PS_DEAD || pthread->state == PS_DEADLOCK
+	    || (pthread->flags & PTHREAD_EXITING) != 0) {
 		ret = 0;
 	} else {
 		/* Protect the scheduling queues: */
@@ -186,7 +187,8 @@ void
 pthread_testcancel(void)
 {
 	if (((_thread_run->cancelflags & PTHREAD_CANCEL_DISABLE) == 0) &&
-	    ((_thread_run->cancelflags & PTHREAD_CANCELLING) != 0)) {
+	    ((_thread_run->cancelflags & PTHREAD_CANCELLING) != 0) &&
+	    ((_thread_run->flags & PTHREAD_EXITING) == 0)) {
 		/*
 		 * It is possible for this thread to be swapped out
 		 * while performing cancellation; do not allow it
