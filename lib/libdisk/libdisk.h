@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: libdisk.h,v 1.8 1995/05/01 21:30:24 jkh Exp $
+ * $Id: libdisk.h,v 1.9 1995/05/03 06:30:57 phk Exp $
  *
  */
 
@@ -15,8 +15,7 @@
 
 typedef enum {whole, unknown, fat, freebsd, extended, part, unused, reserved} chunk_e;
 
-#define CHAR_N static char *chunk_n[] = { \
-	"whole","unknown","fat","freebsd","extended","part","unused","reserved",0};
+extern char *chunk_n[];
 
 struct disk {
 	char		*name;
