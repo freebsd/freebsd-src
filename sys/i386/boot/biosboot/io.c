@@ -25,7 +25,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:35:57  rpd
- *	$Id: io.c,v 1.8 1994/09/18 07:39:55 swallace Exp $
+ *	$Id: io.c,v 1.9 1994/09/20 22:24:59 adam Exp $
  */
 
 #include <machine/cpufunc.h>
@@ -124,15 +124,21 @@ putchar(c)
 	putc(c);
 }
 
-getchar()
+getchar(in_buf)
+	int in_buf;
 {
 	int c;
 
+loop:
 	if ((c=getc()) == '\r')
 		c = '\n';
 	if (c == '\b') {
-		putchar('\b');
-		putchar(' ');
+		if (in_buf != 0) {
+			putchar('\b');
+			putchar(' ');
+		} else {
+			goto loop;
+		}
 	}
 	putchar(c);
 	return(c);
@@ -169,7 +175,7 @@ char *buf;
 #endif
 		if (ischar())
 			for (;;)
-				switch(*ptr = getchar() & 0xff) {
+				switch(*ptr = getchar(ptr - buf) & 0xff) {
 				      case '\n':
 				      case '\r':
 					*ptr = '\0';

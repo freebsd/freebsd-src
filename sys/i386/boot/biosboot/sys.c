@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:36:34  rpd
- *	$Id: sys.c,v 1.4 1994/08/21 17:47:26 paul Exp $
+ *	$Id: sys.c,v 1.5 1994/09/20 22:25:00 adam Exp $
  */
 
 #include "boot.h"
@@ -97,6 +97,10 @@ find(path)
 	char *rest, ch;
 	int block, off, loc, ino = ROOTINO;
 	struct direct *dp;
+	int list_only = 0;
+
+	if (strcmp("?", path) == 0)
+		list_only = 1;
 loop:	iodest = iobuf;
 	cnt = fs->fs_bsize;
 	bnum = fsbtodb(fs,ino_to_fsba(fs,ino)) + boff;
@@ -114,8 +118,14 @@ loop:	iodest = iobuf;
 	*rest = 0;
 	loc = 0;
 	do {
-		if (loc >= inode.i_size)
-			return 0;
+		if (loc >= inode.i_size) {
+			if (list_only) {
+				printf("\n");
+				return -1;
+			} else {
+				return 0;
+			}
+		}
 		if (!(off = blkoff(fs, loc))) {
 			block = lblkno(fs, loc);
 			cnt = blksize(fs, &inode, block);
@@ -125,6 +135,8 @@ loop:	iodest = iobuf;
 		}
 		dp = (struct direct *)(iodest + off);
 		loc += dp->d_reclen;
+		if (dp->d_ino && list_only)
+			printf("%s ", dp->d_name);
 	} while (!dp->d_ino || strcmp(path, dp->d_name));
 	ino = dp->d_ino;
 	*(path = rest) = ch;
@@ -151,6 +163,7 @@ block_map(file_block)
 openrd()
 {
 	char **devp, *cp = name;
+	int ret;
 	/*******************************************************\
 	* If bracket given look for preceding device name	*
 	\*******************************************************/
@@ -232,10 +245,9 @@ openrd()
 	/***********************************************\
 	* Find the actual FILE on the mounted device	*
 	\***********************************************/
-	if (!find(cp))
-	{
-		return 1;
-	}
+	ret = find(cp);
+	if (ret <= 0)
+		return (ret == 0) ? 1 : -1;
 	poff = 0;
 	name = cp;
 	return 0;

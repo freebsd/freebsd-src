@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, [92/04/03  16:51:14  rvb]
- *	$Id: boot.c,v 1.20 1994/10/26 20:46:05 jkh Exp $
+ *	$Id: boot.c,v 1.21 1994/10/31 18:00:06 jkh Exp $
  */
 
 
@@ -69,14 +69,17 @@ extern int end;
 boot(drive)
 int drive;
 {
-	int loadflags, currname = 0;
+	int loadflags, currname = 0, ret;
 	char *t;
 		
 	printf("\n>> FreeBSD BOOT @ 0x%x: %d/%d k of memory\n",
 		ouraddr,
 		memsize(0),
 		memsize(1));
-	printf("use hd(1,a)/kernel to boot sd0 when wd0 is also installed\n");
+	printf("Use hd(1,a)/kernel to boot sd0 when wd0 is also installed.\n");
+	printf("Usage: [[[%s(0,a)]%s][-s][-r][-a][-c][-d][-b]]\nUse ? for file list.\n\n"
+			, devs[(drive & 0x80) ? 0 : 2]
+			, names[0]);
 	gateA20();
 loadstart:
 	/***************************************************************\
@@ -90,9 +93,12 @@ loadstart:
 	loadflags = 0;
 	if (currname == NUMNAMES)
 		currname = 0;
+	printf("Boot: ");
 	getbootdev(&loadflags);
-	if (openrd()) {
-		printf("Can't find %s\n", name);
+	ret = openrd();
+	if (ret != 0) {
+		if (ret > 0)
+			printf("Can't find %s\n", name);
 		goto loadstart;
 	}
 /*	if (inode.i_mode&IEXEC)
@@ -240,11 +246,6 @@ getbootdev(howto)
      int *howto;
 {
 	char c, *ptr = namebuf;
-	printf("Boot: [[[%s(%d,%c)]%s][-s][-r][-a][-c][-d][-b]] :- "
-			, devs[maj]
-			, unit
-			, 'a'+part
-			, name);
 	if (gets(namebuf)) {
 		while (c=*ptr) {
 			while (c==' ')
