@@ -842,20 +842,18 @@ installFixupBin(dialogMenuItem *self)
     return DITEM_SUCCESS | DITEM_RESTORE;
 }
 
-#ifdef X_AS_PKG
 int
-installX11package(dialogMenuItem *self)
+installPackage(dialogMenuItem *self, char *desc, char *package)
 {
     WINDOW *w = savescr();
     int i;
 
     dialog_clear_norefresh();
-    msgNotify("Installing XFree86 package...");
-    i = package_add("XFree86-4");
+    msgNotify("Installing %s package...", desc);
+    i = package_add(package);
     restorescr(w);
     return i;
 }
-#endif
 
 /* Fix side-effects from the the XFree86 installation */
 int
