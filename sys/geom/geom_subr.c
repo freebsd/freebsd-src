@@ -85,6 +85,8 @@ g_load_class(void *arg, int flag)
 	mp = hh->mp;
 	g_free(hh);
 	g_trace(G_T_TOPOLOGY, "g_load_class(%s)", mp->name);
+	KASSERT(mp->name != NULL && *mp->name != '\0',
+	    ("GEOM class has no name"));
 	LIST_FOREACH(mp2, &g_classes, class) {
 		KASSERT(mp2 != mp,
 		    ("The GEOM class %s already loaded", mp2->name));
@@ -291,6 +293,9 @@ g_new_consumer(struct g_geom *gp)
 	struct g_consumer *cp;
 
 	g_topology_assert();
+	KASSERT(!(gp->flags & G_GEOM_WITHER),
+	    ("g_new_consumer on WITHERing geom(%s) (class %s)",
+	    gp->name, gp->class->name));
 	KASSERT(gp->orphan != NULL,
 	    ("g_new_consumer on geom(%s) (class %s) without orphan",
 	    gp->name, gp->class->name));
@@ -368,6 +373,12 @@ g_new_providerf(struct g_geom *gp, const char *fmt, ...)
 	va_list ap;
 
 	g_topology_assert();
+	KASSERT(gp->start != NULL,
+	    ("new provider on geom(%s) without ->start (class:%s)",
+	    gp->class->name, gp->class->name));
+	KASSERT(!(gp->flags & G_GEOM_WITHER),
+	    ("new provider on WITHERing geom(%s) (class:%s)",
+	    gp->class->name, gp->class->name));
 	sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
 	va_start(ap, fmt);
 	sbuf_vprintf(sb, fmt, ap);
