@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.185 1998/05/27 18:50:01 peter Exp $
+#	$Id: Makefile,v 1.186 1998/05/28 12:31:42 peter Exp $
 #
 # While porting to the another architecture include the bootstrap instead
 # of the normal build.
@@ -632,9 +632,12 @@ _csu=lib/csu/${MACHINE}.pcc
 _csu=lib/csu/${MACHINE}
 .endif
 
-_libcrypt=	lib/libcrypt
+# Build the "default" libcrypt first since it sets symlinks for static
+# binaries such as /sbin/init.  lib/Makefile builds the other if needed.
 .if !defined(NOSECURE) && !defined(NOCRYPT)
-_libcrypt+=	secure/lib/libcrypt
+_libcrypt=	secure/lib/libcrypt
+.else
+_libcrypt=	lib/libcrypt
 .endif
 
 .if defined(WANT_CSRG_LIBM)
@@ -661,7 +664,7 @@ _libm=	lib/msun
 bootstrap-libraries:
 .for _lib in ${_csu} gnu/usr.bin/cc/libgcc lib/libtermcap \
     gnu/lib/libregex gnu/lib/libreadline lib/libc \
-    lib/libcrypt lib/libcurses lib/libedit ${_libm} \
+    ${_libcrypt} lib/libcurses lib/libedit ${_libm} \
     lib/libmd lib/libutil lib/libz usr.bin/lex/lib
 .if exists(${.CURDIR}/${_lib})
 	cd ${.CURDIR}/${_lib}; \
