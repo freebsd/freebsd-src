@@ -70,7 +70,7 @@ static const char rcsid[] =
 #endif
 
 #ifdef __i386__
-#define ok(number) ((number) - KERNBASE)
+#define ok(number) ((number) - kernbase)
 #endif
 
 struct nlist current_nl[] = {	/* Namelist for currently running system. */
@@ -86,6 +86,8 @@ struct nlist current_nl[] = {	/* Namelist for currently running system. */
 	{ "_panicstr" },
 #define	X_DUMPMAG	5
 	{ "_dumpmag" },
+#define	X_KERNBASE	6
+	{ "_kernbase" },
 	{ "" },
 };
 int cursyms[] = { X_DUMPLO, X_VERSION, X_DUMPMAG, -1 };
@@ -98,6 +100,7 @@ struct nlist dump_nl[] = {	/* Name list for dumped system. */
 	{ "_version" },
 	{ "_panicstr" },
 	{ "_dumpmag" },
+	{ "_kernbase" },
 	{ "" },
 };
 
@@ -117,6 +120,10 @@ time_t	now;				/* current date */
 char	panic_mesg[1024];		/* panic message */
 int	panicstr;		        /* flag: dump was caused by panic */
 char	vers[1024];			/* version of kernel that crashed */
+
+#ifdef __i386__
+u_long	kernbase;			/* offset of kvm to core file */
+#endif
 
 int	clear, compress, force, verbose;	/* flags */
 int	keep;			/* keep dump on device */
@@ -250,6 +257,13 @@ kmem_setup()
 			    dump_sys, dump_nl[dumpsyms[i]].n_name);
 			exit(1);
 		}
+
+#ifdef __i386__
+	if (dump_nl[X_KERNBASE].n_value != 0)
+		kernbase = dump_nl[X_KERNBASE].n_value;
+	else
+		kernbase = KERNBASE;
+#endif
 
 	len = sizeof dumpdev;
 	if (sysctlbyname("kern.dumpdev", &dumpdev, &len, NULL, 0) == -1) {
