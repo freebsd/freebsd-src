@@ -38,10 +38,6 @@
 typedef vm_offset_t	db_addr_t;
 typedef long		db_expr_t;
 
-struct db_regs {
-	u_long	dr_global[8];
-};
-
 typedef struct trapframe db_regs_t;
 extern db_regs_t ddb_regs;
 #define	DDB_REGS	(&ddb_regs)
@@ -52,10 +48,10 @@ extern db_regs_t ddb_regs;
 #define	BKPT_SIZE	(4)
 #define	BKPT_SET(inst)	(BKPT_INST)
 
-#define	FIXUP_PC_AFTER_BREAK do {					\
-	ddb_regs.tf_tpc = ddb_regs.tf_tnpc;				\
-	ddb_regs.tf_tnpc += BKPT_SIZE;					\
-} while (0);
+#define	BKPT_SKIP do {							\
+	ddb_regs.tf_tpc = ddb_regs.tf_tnpc + 4;				\
+	ddb_regs.tf_tnpc += 8;						\
+} while (0)
 
 #define	db_clear_single_step(regs)
 #define	db_set_single_step(regs)

@@ -62,13 +62,11 @@ static int db_global_jmpbuf_valid;
 int
 kdb_trap(struct trapframe *tf)
 {
-	struct kdbframe *kf;
 
 	if (db_global_jmpbuf_valid)
 		longjmp(db_global_jmpbuf, 1);
+	flushw();
 	ddb_regs = *tf;
-	kf = (struct kdbframe *)ddb_regs.tf_arg;
-	kf->kf_cfp = kf->kf_fp;
 	setjmp(db_global_jmpbuf);
 	db_global_jmpbuf_valid = TRUE;
 	db_active++;
@@ -77,6 +75,7 @@ kdb_trap(struct trapframe *tf)
 	cndbctl(FALSE);
 	db_active--;
 	db_global_jmpbuf_valid = FALSE;
+	*tf = ddb_regs;
 	return (1);
 }
 

@@ -49,20 +49,15 @@ struct trapframe {
 	tf->tf_tnpc += 4; \
 } while (0)
 
+#define	TF_DONE(tf) do { \
+	tf->tf_tpc = tf->tf_tnpc; \
+	tf->tf_tnpc += 4; \
+} while (0)
+
 struct mmuframe {
 	u_long	mf_sfar;
 	u_long	mf_sfsr;
 	u_long	mf_tar;
-};
-
-struct kdbframe {
-	u_long	kf_fp;
-	u_long	kf_cfp;
-	u_long	kf_canrestore;
-	u_long	kf_cansave;
-	u_long	kf_cleanwin;
-	u_long	kf_cwp;
-	u_long	kf_otherwin;
 };
 
 struct clockframe {
