@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_xxx.c	8.2 (Berkeley) 11/14/93
- * $Id: kern_xxx.c,v 1.13 1995/08/20 04:42:25 davidg Exp $
+ * $Id: kern_xxx.c,v 1.14 1995/09/06 15:23:20 nate Exp $
  */
 
 #include <sys/param.h>
@@ -94,10 +94,12 @@ ogethostname(p, uap, retval)
 	struct gethostname_args *uap;
 	int *retval;
 {
-	int name;
+	int name[2];
 
-	name = KERN_HOSTNAME;
-	return (kern_sysctl(&name, 1, uap->hostname, &uap->len, 0, 0, p));
+	name[0] = CTL_KERN;
+	name[1] = KERN_HOSTNAME;
+	return (userland_sysctl(p, name, 2, uap->hostname, &uap->len, 
+		1, 0, 0, 0));
 }
 
 struct sethostname_args {
@@ -111,13 +113,15 @@ osethostname(p, uap, retval)
 	register struct sethostname_args *uap;
 	int *retval;
 {
-	int name;
+	int name[2];
 	int error;
 
+	name[0] = CTL_KERN;
+	name[1] = KERN_HOSTNAME;
 	if ((error = suser(p->p_ucred, &p->p_acflag)))
 		return (error);
-	name = KERN_HOSTNAME;
-	return (kern_sysctl(&name, 1, 0, 0, uap->hostname, uap->len, p));
+	return (userland_sysctl(p, name, 2, 0, 0, 0,
+		uap->hostname, uap->len, 0));
 }
 
 struct gethostid_args {
@@ -188,33 +192,36 @@ uname(p, uap, retval)
 	struct uname_args *uap;
 	int *retval;
 {
-	int name;
-	int len;
-	int rtval;
+	int name[2], len, rtval, junk;
 	char *s, *us;
 
-	name = KERN_OSTYPE;
+	name[0] = CTL_KERN;
+	name[1] = KERN_OSTYPE;
 	len = sizeof uap->name->sysname;
-	rtval = kern_sysctl(&name, 1, uap->name->sysname, &len, 0, 0, p);
+	rtval = userland_sysctl(p, name, 2, uap->name->sysname, &len, 
+		1, 0, 0, 0);
 	if( rtval) return rtval;
 	subyte( uap->name->sysname + sizeof(uap->name->sysname) - 1, 0);
 
-	name = KERN_HOSTNAME;
+	name[1] = KERN_HOSTNAME;
 	len = sizeof uap->name->nodename;
-	rtval = kern_sysctl(&name, 1, uap->name->nodename, &len, 0, 0, p);
+	rtval = userland_sysctl(p, name, 2, uap->name->nodename, &len, 
+		1, 0, 0, 0);
 	if( rtval) return rtval;
 	subyte( uap->name->nodename + sizeof(uap->name->nodename) - 1, 0);
 
-	name = KERN_OSRELEASE;
+	name[1] = KERN_OSRELEASE;
 	len = sizeof uap->name->release;
-	rtval = kern_sysctl(&name, 1, uap->name->release, &len, 0, 0, p);
+	rtval = userland_sysctl(p, name, 2, uap->name->release, &len, 
+		1, 0, 0, 0);
 	if( rtval) return rtval;
 	subyte( uap->name->release + sizeof(uap->name->release) - 1, 0);
 
 /*
 	name = KERN_VERSION;
 	len = sizeof uap->name->version;
-	rtval = kern_sysctl(&name, 1, uap->name->version, &len, 0, 0, p);
+	rtval = userland_sysctl(p, name, 2, uap->name->version, &len, 
+		1, 0, 0, 0);
 	if( rtval) return rtval;
 	subyte( uap->name->version + sizeof(uap->name->version) - 1, 0);
 */
@@ -233,9 +240,10 @@ uname(p, uap, retval)
 	if( rtval)
 		return rtval;
 
-	name = HW_MACHINE;
+	name[1] = HW_MACHINE;
 	len = sizeof uap->name->machine;
-	rtval = hw_sysctl(&name, 1, uap->name->machine, &len, 0, 0, p);
+	rtval = userland_sysctl(p, name, 2, uap->name->machine, &len, 
+		1, 0, 0, 0);
 	if( rtval) return rtval;
 	subyte( uap->name->machine + sizeof(uap->name->machine) - 1, 0);
 
