@@ -1253,7 +1253,7 @@ do_ssh1_kex(void)
 
 #ifdef AFS
 	if (options.krb4_tgt_passing)
-		auth_mask |= 1 << SSH_PASS_KRB4_TGT;
+		auth_mask |= 1 << SSH_PASS_KERBEROS_TGT;
 	if (options.afs_token_passing)
 		auth_mask |= 1 << SSH_PASS_AFS_TOKEN;
 #endif
