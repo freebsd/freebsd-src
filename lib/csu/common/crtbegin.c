@@ -82,4 +82,4 @@ _fini(void)
 	(*p_do_dtors)();
 }
 
-#include "crtbegin.c"
+#include "crtbrand.c"
