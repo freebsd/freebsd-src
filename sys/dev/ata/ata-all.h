@@ -145,6 +145,7 @@
 #define		ATA_BMCMD_START_STOP	0x01
 #define		ATA_BMCMD_WRITE_READ	0x08
 
+#define ATA_BMCTL_PORT			0x09
 #define ATA_BMDEVSPEC_0			0x0a
 #define ATA_BMSTAT_PORT			0x0b
 #define		ATA_BMSTAT_ACTIVE	0x01
@@ -158,6 +159,8 @@
 #define ATA_BMDEVSPEC_1			0x0c
 #define ATA_BMDTP_PORT			0x0d
 
+#define ATA_IDX_ADDR			0x0e
+#define ATA_IDX_DATA			0x0f
 #define ATA_MAX_RES			0x10
 
 /* structure for holding DMA address data */
@@ -207,7 +210,6 @@ struct ata_dma_data {
     int (*setup)(struct ata_device *, caddr_t, int32_t);
     int (*start)(struct ata_channel *, caddr_t, int32_t, int);
     int (*stop)(struct ata_channel *);
-    int (*status)(struct ata_channel *);
 };
 
 /* structure holding resources for an ATA channel */
@@ -365,31 +367,102 @@ int ata_limit_mode(struct ata_device *, int, int);
 	bus_space_write_multi_stream_4(rman_get_bustag((res)), \
 				       rman_get_bushandle((res)), \
 				       (offset), (addr), (count))
+
+#define ATA_IDX_SET(ch, idx) \
+	ATA_OUTB(ch->r_io[ATA_IDX_ADDR].res, ch->r_io[ATA_IDX_ADDR].offset, \
+		 ch->r_io[idx].offset)
+	
 #define ATA_IDX_INB(ch, idx) \
-	ATA_INB(ch->r_io[idx].res, ch->r_io[idx].offset)
+	((ch->r_io[idx].res) \
+	? ATA_INB(ch->r_io[idx].res, ch->r_io[idx].offset) \
+	: (ATA_IDX_SET(ch, idx), \
+	   ATA_INB(ch->r_io[ATA_IDX_DATA].res, ch->r_io[ATA_IDX_DATA].offset)))
+
 #define ATA_IDX_INW(ch, idx) \
-	ATA_INW(ch->r_io[idx].res, ch->r_io[idx].offset)
+	((ch->r_io[idx].res) \
+	? ATA_INW(ch->r_io[idx].res, ch->r_io[idx].offset) \
+	: (ATA_IDX_SET(ch, idx), \
+	   ATA_INW(ch->r_io[ATA_IDX_DATA].res, ch->r_io[ATA_IDX_DATA].offset)))
+
 #define ATA_IDX_INL(ch, idx) \
-	ATA_INL(ch->r_io[idx].res, ch->r_io[idx].offset)
+	((ch->r_io[idx].res) \
+	? ATA_INL(ch->r_io[idx].res, ch->r_io[idx].offset) \
+	: (ATA_IDX_SET(ch, idx), \
+	   ATA_INL(ch->r_io[ATA_IDX_DATA].res, ch->r_io[ATA_IDX_DATA].offset)))
+
 #define ATA_IDX_INSW(ch, idx, addr, count) \
-	ATA_INSW(ch->r_io[idx].res, ch->r_io[idx].offset, addr, count)
+	((ch->r_io[idx].res) \
+	? ATA_INSW(ch->r_io[idx].res, ch->r_io[idx].offset, addr, count) \
+	: (ATA_IDX_SET(ch, idx), \
+	   ATA_INSW(ch->r_io[ATA_IDX_DATA].res, \
+		    ch->r_io[ATA_IDX_DATA].offset, addr, count)))
+
 #define ATA_IDX_INSW_STRM(ch, idx, addr, count) \
-	ATA_INSW_STRM(ch->r_io[idx].res, ch->r_io[idx].offset, addr, count)
+	((ch->r_io[idx].res) \
+	? ATA_INSW_STRM(ch->r_io[idx].res, ch->r_io[idx].offset, addr, count) \
+	: (ATA_IDX_SET(ch, idx), \
+	   ATA_INSW_STRM(ch->r_io[ATA_IDX_DATA].res, \
+			 ch->r_io[ATA_IDX_DATA].offset, addr, count)))
+
 #define ATA_IDX_INSL(ch, idx, addr, count) \
-	ATA_INSL(ch->r_io[idx].res, ch->r_io[idx].offset, addr, count)
+	((ch->r_io[idx].res) \
+	? ATA_INSL(ch->r_io[idx].res, ch->r_io[idx].offset, addr, count) \
+	: (ATA_IDX_SET(ch, idx), \
+	   ATA_INSL(ch->r_io[ATA_IDX_DATA].res, \
+		    ch->r_io[ATA_IDX_DATA].offset, addr, count)))
+
 #define ATA_IDX_INSL_STRM(ch, idx, addr, count) \
-	ATA_INSL_STRM(ch->r_io[idx].res, ch->r_io[idx].offset, addr, count)
+	((ch->r_io[idx].res) \
+	? ATA_INSL_STRM(ch->r_io[idx].res, ch->r_io[idx].offset, addr, count) \
+	: (ATA_IDX_SET(ch, idx), \
+	   ATA_INSL_STRM(ch->r_io[ATA_IDX_DATA].res, \
+			 ch->r_io[ATA_IDX_DATA].offset, addr, count)))
+
 #define ATA_IDX_OUTB(ch, idx, value) \
-	ATA_OUTB(ch->r_io[idx].res, ch->r_io[idx].offset, value)
+	((ch->r_io[idx].res) \
+	? ATA_OUTB(ch->r_io[idx].res, ch->r_io[idx].offset, value) \
+	: (ATA_IDX_SET(ch, idx), \
+	   ATA_OUTB(ch->r_io[ATA_IDX_DATA].res, \
+		    ch->r_io[ATA_IDX_DATA].offset, value)))
+
 #define ATA_IDX_OUTW(ch, idx, value) \
-	ATA_OUTW(ch->r_io[idx].res, ch->r_io[idx].offset, value)
+	((ch->r_io[idx].res) \
+	? ATA_OUTW(ch->r_io[idx].res, ch->r_io[idx].offset, value) \
+	: (ATA_IDX_SET(ch, idx), \
+	   ATA_OUTW(ch->r_io[ATA_IDX_DATA].res, \
+		    ch->r_io[ATA_IDX_DATA].offset, value)))
+
 #define ATA_IDX_OUTL(ch, idx, value) \
-	ATA_OUTL(ch->r_io[idx].res, ch->r_io[idx].offset, value)
+	((ch->r_io[idx].res) \
+	? ATA_OUTL(ch->r_io[idx].res, ch->r_io[idx].offset, value) \
+	: (ATA_IDX_SET(ch, idx), \
+	   ATA_OUTL(ch->r_io[ATA_IDX_DATA].res, \
+		    ch->r_io[ATA_IDX_DATA].offset, value)))
+
 #define ATA_IDX_OUTSW(ch, idx, addr, count) \
-	ATA_OUTSW(ch->r_io[idx].res, ch->r_io[idx].offset, addr, count)
+	((ch->r_io[idx].res) \
+	? ATA_OUTSW(ch->r_io[idx].res, ch->r_io[idx].offset, addr, count) \
+	: (ATA_IDX_SET(ch, idx), \
+	   ATA_OUTSW(ch->r_io[ATA_IDX_DATA].res, \
+		     ch->r_io[ATA_IDX_DATA].offset, addr, count)))
+
 #define ATA_IDX_OUTSW_STRM(ch, idx, addr, count) \
-	ATA_OUTSW_STRM(ch->r_io[idx].res, ch->r_io[idx].offset, addr, count)
+	((ch->r_io[idx].res) \
+	? ATA_OUTSW_STRM(ch->r_io[idx].res, ch->r_io[idx].offset, addr, count) \
+	: (ATA_IDX_SET(ch, idx), \
+	   ATA_OUTSW_STRM(ch->r_io[ATA_IDX_DATA].res, \
+			  ch->r_io[ATA_IDX_DATA].offset, addr, count)))
+
 #define ATA_IDX_OUTSL(ch, idx, addr, count) \
-	ATA_OUTSL(ch->r_io[idx].res, ch->r_io[idx].offset, addr, count)
+	((ch->r_io[idx].res) \
+	? ATA_OUTSL(ch->r_io[idx].res, ch->r_io[idx].offset, addr, count) \
+	: (ATA_IDX_SET(ch, idx), \
+	   ATA_OUTSL(ch->r_io[ATA_IDX_DATA].res, \
+		     ch->r_io[ATA_IDX_DATA].offset, addr, count)))
+
 #define ATA_IDX_OUTSL_STRM(ch, idx, addr, count) \
-	ATA_OUTSL_STRM(ch->r_io[idx].res, ch->r_io[idx].offset, addr, count)
+	((ch->r_io[idx].res) \
+	? ATA_OUTSL_STRM(ch->r_io[idx].res, ch->r_io[idx].offset, addr, count) \
+	: (ATA_IDX_SET(ch, idx), \
+	   ATA_OUTSL_STRM(ch->r_io[ATA_IDX_DATA].res, \
+			  ch->r_io[ATA_IDX_DATA].offset, addr, count)))
