@@ -96,9 +96,7 @@ uma_zone_t proc_zone;
 uma_zone_t ithread_zone;
 
 int kstack_pages = KSTACK_PAGES;
-int uarea_pages = UAREA_PAGES;
 SYSCTL_INT(_kern, OID_AUTO, kstack_pages, CTLFLAG_RD, &kstack_pages, 0, "");
-SYSCTL_INT(_kern, OID_AUTO, uarea_pages, CTLFLAG_RD, &uarea_pages, 0, "");
 
 CTASSERT(sizeof(struct kinfo_proc) == KINFO_PROC_SIZE);
 
@@ -180,11 +178,11 @@ proc_init(void *mem, int size, int flags)
 
 	p = (struct proc *)mem;
 	p->p_sched = (struct p_sched *)&p[1];
-	vm_proc_new(p);
 	td = thread_alloc();
 	kg = ksegrp_alloc();
 	bzero(&p->p_mtx, sizeof(struct mtx));
 	mtx_init(&p->p_mtx, "process lock", NULL, MTX_DEF | MTX_DUPOK);
+	p->p_stats = pstats_alloc();
 	proc_linkup(p, kg, td);
 	sched_newproc(p, kg, td);
 	return (0);
@@ -660,8 +658,6 @@ fill_kinfo_thread(struct thread *td, struct kinfo_proc *kp)
 
 		kp->ki_size = vm->vm_map.size;
 		kp->ki_rssize = vmspace_resident_count(vm); /*XXX*/
-		if (p->p_sflag & PS_INMEM)
-			kp->ki_rssize += UAREA_PAGES;
 		FOREACH_THREAD_IN_PROC(p, td0) {
 			if (!TD_IS_SWAPPED(td0))
 				kp->ki_rssize += td0->td_kstack_pages;
@@ -802,6 +798,49 @@ fill_kinfo_thread(struct thread *td, struct kinfo_proc *kp)
 	kp->ki_lock = p->p_lock;
 	if (p->p_pptr)
 		kp->ki_ppid = p->p_pptr->p_pid;
+}
+
+/*
+ * Fill a 'struct user' for backwards compatibility with a.out core dumps.
+ * This is used by the aout, linux, and pecoff modules.
+ */
+void
+fill_user(struct proc *p, struct user *u)
+{
+
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+	bcopy(&p->p_stats, &u->u_stats, sizeof(struct pstats));
+	fill_kinfo_proc(p, &u->u_kproc);
+}
+
+struct pstats *
+pstats_alloc(void)
+{
+
+	return (malloc(sizeof(struct pstats), M_SUBPROC, M_ZERO|M_WAITOK));
+}
+
+/*
+ * Copy parts of p_stats; zero the rest of p_stats (statistics).
+ */
+void
+pstats_fork(struct pstats *src, struct pstats *dst)
+{
+
+#define	RANGEOF(type, start, end) (offsetof(type, end) - offsetof(type, start))
+
+	bzero(&dst->pstat_startzero,
+	    (unsigned)RANGEOF(struct pstats, pstat_startzero, pstat_endzero));
+	bcopy(&src->pstat_startcopy, &dst->pstat_startcopy,
+	    (unsigned)RANGEOF(struct pstats, pstat_startcopy, pstat_endcopy));
+#undef RANGEOF
+}
+
+void
+pstats_free(struct pstats *ps)
+{
+
+	free(ps, M_SUBPROC);
 }
 
 /*

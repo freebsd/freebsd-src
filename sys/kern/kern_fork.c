@@ -489,7 +489,6 @@ again:
 	/*
 	 * Duplicate sub-structures as needed.
 	 * Increase reference counts on shared objects.
-	 * The p_stats substruct is set in vm_forkproc.
 	 */
 	p2->p_flag = 0;
 	if (p1->p_flag & P_PROFIL)
@@ -527,6 +526,9 @@ again:
 	 * p_limit is copy-on-write.  Bump its refcount.
 	 */
 	p2->p_limit = lim_hold(p1->p_limit);
+
+	pstats_fork(p1->p_stats, p2->p_stats);
+
 	PROC_UNLOCK(p1);
 	PROC_UNLOCK(p2);
 
