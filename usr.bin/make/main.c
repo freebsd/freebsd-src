@@ -47,7 +47,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)main.c	8.3 (Berkeley) 3/19/94";
 #endif
 static const char rcsid[] =
-	"$Id: main.c,v 1.30 1999/03/01 06:01:05 imp Exp $";
+	"$Id: main.c,v 1.31 1999/07/31 20:40:23 hoek Exp $";
 #endif /* not lint */
 
 /*-
@@ -137,6 +137,7 @@ Boolean			beSilent;	/* -s flag */
 Boolean			beVerbose;	/* -v flag */
 Boolean			oldVars;	/* variable substitution style */
 Boolean			checkEnvFirst;	/* -e flag */
+Lst			envFirstVars;	/* (-E) vars to override from env */
 static Boolean		jobsRunning;	/* TRUE if the jobs might be running */
 
 static void		MainParseArgs __P((int, char **));
@@ -173,9 +174,9 @@ MainParseArgs(argc, argv)
 
 	optind = 1;	/* since we're called more than once */
 #ifdef REMOTE
-# define OPTFLAGS "BD:I:L:PSV:d:ef:ij:km:nqrstv"
+# define OPTFLAGS "BD:E:I:L:PSV:d:ef:ij:km:nqrstv"
 #else
-# define OPTFLAGS "BD:I:PSV:d:ef:ij:km:nqrstv"
+# define OPTFLAGS "BD:E:I:PSV:d:ef:ij:km:nqrstv"
 #endif
 rearg:	while((c = getopt(argc, argv, OPTFLAGS)) != -1) {
 		switch(c) {
@@ -279,6 +280,15 @@ rearg:	while((c = getopt(argc, argv, OPTFLAGS)) != -1) {
 			Var_Append(MAKEFLAGS, optarg, VAR_GLOBAL);
 			break;
 		}
+		case 'E':
+			p = malloc(strlen(optarg) + 1);
+			if (!p)
+				Punt("make: cannot allocate memory.");
+			(void)strcpy(p, optarg);
+			(void)Lst_AtEnd(envFirstVars, (ClientData)p);
+			Var_Append(MAKEFLAGS, "-E", VAR_GLOBAL);
+			Var_Append(MAKEFLAGS, optarg, VAR_GLOBAL);
+			break;
 		case 'e':
 			checkEnvFirst = TRUE;
 			Var_Append(MAKEFLAGS, "-e", VAR_GLOBAL);
@@ -599,6 +609,7 @@ main(argc, argv)
 
 	create = Lst_Init(FALSE);
 	makefiles = Lst_Init(FALSE);
+	envFirstVars = Lst_Init(FALSE);
 	printVars = FALSE;
 	variables = Lst_Init(FALSE);
 	beSilent = FALSE;		/* Print commands as executed */
@@ -1295,7 +1306,7 @@ static void
 usage()
 {
 	(void)fprintf(stderr, "%s\n%s\n%s\n",
-"usage: make [-Beiknqrstv] [-D variable] [-d flags] [-f makefile]",
+"usage: make [-Beiknqrstv] [-D variable] [-d flags] [-E variable] [-f makefile]",
 "            [-I directory] [-j max_jobs] [-m directory] [-V variable]",
 "            [variable=value] [target ...]");
 	exit(2);

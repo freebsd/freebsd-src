@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	from: @(#)make.1	8.4 (Berkeley) 3/19/94
-.\"	$Id: make.1,v 1.16 1998/11/29 13:46:39 pds Exp $
+.\"	$Id: make.1,v 1.17 1999/04/19 07:30:03 imp Exp $
 .\"
 .Dd March 19, 1994
 .Dt MAKE 1
@@ -43,6 +43,7 @@
 .Op Fl Beiknqrstv
 .Op Fl D Ar variable
 .Op Fl d Ar flags
+.Op Fl E Ar variable
 .Op Fl f Ar makefile
 .Op Fl I Ar directory
 .Bk -words
@@ -118,9 +119,12 @@ Print debugging information about target list maintenance.
 .It Ar v
 Print debugging information about variable assignment.
 .El
+.It Fl E Ar variable
+Specify a variable whose environment value (if any) will override
+macro assignments within makefiles.
 .It Fl e
-Specify that environment variables override macro assignments within
-makefiles.
+Specify that environment values override macro assignments within
+makefiles for all variables.
 .It Fl f Ar makefile
 Specify a makefile to read instead of the default
 .Ql Pa makefile
