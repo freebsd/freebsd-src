@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)npx.h	5.3 (Berkeley) 1/18/91
- *	$Id: npx.h,v 1.12 1997/02/22 09:34:52 peter Exp $
+ *	$Id: npx.h,v 1.13 1997/06/22 16:03:50 peter Exp $
  */
 
 /*
@@ -135,11 +135,6 @@ struct	save87 {
 #endif
 
 #ifdef KERNEL
-#include <sys/cdefs.h>
-#include <machine/frame.h>
-
-struct proc;
-
 extern struct proc *npxproc;
 
 int	npxdna __P((void));
