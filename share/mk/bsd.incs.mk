@@ -6,22 +6,17 @@
 
 INCSGROUPS?=	INCS
 
-.if !target(includes)
+.if !target(buildincludes)
 .for group in ${INCSGROUPS}
-includes: ${${group}}
+buildincludes: ${${group}}
 .endfor
 .endif
 
-_incsinstall: .USE
+all: buildincludes
 
-.if !target(incsinstall)
-incsinstall: _incsinstall
-.endif
-
+.if !target(installincludes)
 .for group in ${INCSGROUPS}
 .if defined(${group}) && !empty(${group})
-
-all: ${${group}}
 
 ${group}OWN?=	${BINOWN}
 ${group}GRP?=	${BINGRP}
@@ -42,7 +37,7 @@ ${group}NAME_${header:T}?=	${${group}NAME}
 .else
 ${group}NAME_${header:T}?=	${header:T}
 .endif
-_incsinstall: _${group}INS_${header:T}
+installincludes: _${group}INS_${header:T}
 _${group}INS_${header:T}: ${header}
 	${INSTALL} -C -o ${${group}OWN_${.ALLSRC:T}} \
 	    -g ${${group}GRP_${.ALLSRC:T}} -m ${${group}MODE_${.ALLSRC:T}} \
@@ -53,7 +48,7 @@ _${group}INCS+= ${header}
 .endif
 .endfor
 .if !empty(_${group}INCS)
-_incsinstall: _${group}INS
+installincludes: _${group}INS
 _${group}INS: ${_${group}INCS}
 .if defined(${group}NAME)
 	${INSTALL} -C -o ${${group}OWN} -g ${${group}GRP} -m ${${group}MODE} \
@@ -68,7 +63,7 @@ _${group}INS: ${_${group}INCS}
 .endfor
 
 .if defined(INCSLINKS) && !empty(INCSLINKS)
-_incsinstall:
+installincludes:
 	@set ${INCSLINKS}; \
 	while test $$# -ge 2; do \
 		l=$$1; \
@@ -79,3 +74,6 @@ _incsinstall:
 		ln -fs $$l $$t; \
 	done; true
 .endif
+.endif !target(installincludes)
+
+realinstall: installincludes

@@ -196,7 +196,7 @@ _FILESINS_${file:T}: ${file}
 .endfor
 .endif
 
-realinstall: _incsinstall
+.include <bsd.incs.mk>
 
 .if !defined(NOMAN)
 realinstall: _maninstall
@@ -224,8 +224,6 @@ tags: ${SRCS}
 .endif
 .endif
 .endif
-
-.include <bsd.incs.mk>
 
 .if !defined(NOMAN)
 .include <bsd.man.mk>
