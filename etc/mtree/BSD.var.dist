@@ -1,8 +1,8 @@
-#	$Id: BSD.var.dist,v 1.35 1997/10/01 13:06:31 ache Exp $
+#	$Id: BSD.var.dist,v 1.36 1998/09/14 08:34:45 obrien Exp $
 #
 
 /set type=dir uname=root gname=wheel mode=0755
-.               uname=root gname=wheel
+.
     account
     ..
 /set type=dir uname=daemon gname=wheel mode=0755
@@ -34,15 +34,15 @@
         phantasia        gname=games mode=0775
         ..
     ..
-    log             uname=root
+    log
     ..
     mail            uname=root gname=mail mode=0775
     ..
     msgs            uname=daemon
     ..
-    preserve        uname=root
+    preserve
     ..
-    run             uname=root
+    run
     ..
     rwho            uname=root gname=daemon mode=0775
     ..
