@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_time.c	8.1 (Berkeley) 6/10/93
- * $Id: kern_time.c,v 1.7 1995/03/16 18:12:38 bde Exp $
+ * $Id: kern_time.c,v 1.8 1995/05/30 08:05:47 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -295,6 +295,10 @@ setitimer(p, uap, retval)
  * Else compute next time timer should go off which is > current time.
  * This is where delay in processing this timeout causes multiple
  * SIGALRM calls to be compressed into one.
+ * hzto() always adds 1 to allow for the time until the next clock
+ * interrupt being strictly less than 1 clock tick, but we don't want
+ * that here since we want to appear to be in sync with the clock
+ * interrupt even when we're delayed.
  */
 void
 realitexpire(arg)
@@ -315,7 +319,7 @@ realitexpire(arg)
 		    &p->p_realtimer.it_interval);
 		if (timercmp(&p->p_realtimer.it_value, &time, >)) {
 			timeout(realitexpire, (caddr_t)p,
-			    hzto(&p->p_realtimer.it_value));
+			    hzto(&p->p_realtimer.it_value) - 1);
 			splx(s);
 			return;
 		}
