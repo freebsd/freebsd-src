@@ -253,7 +253,8 @@ __rpc_get_time_offset(td, srv, thost, uaddr, netid)
 	nis_server		tsrv;
 	void			(*oldsig)() = NULL; /* old alarm handler */
 	struct sockaddr_in	sin;
-	int			s = RPC_ANYSOCK, len;
+	socklen_t		len;
+	int			s = RPC_ANYSOCK;
 	int			type = 0;
 
 	td->tv_sec = 0;
