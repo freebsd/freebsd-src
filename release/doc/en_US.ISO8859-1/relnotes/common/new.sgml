@@ -182,6 +182,10 @@
         <literal>GEOM_VOL</literal> module, volumes can be accessed
         using their labels under <filename>/dev/vol</filename>.</para>
 
+      <para>The root filesystem can now be located on a &man.vinum.4;
+	volume.  More information can be found in the &man.vinum.4;
+	manual page.</para>
+
     </sect3>
 
     <sect3>
@@ -294,6 +298,11 @@
 
     <para>&man.ping.8; now supports a <option>-z</option> flag to set
       the Type of Service bits in outgoing packets.</para>
+
+    <para>&man.pw.8; can now add a user whose name ends with a
+      <literal>$</literal> character; this change is intended to help
+      administration of <application>Samba</application>
+      services. &merged;</para>
 
     <para arch="sparc64">The sunlabel utility, a program analogous to
       &man.disklabel.8; that works on Sun disk labels, has been
