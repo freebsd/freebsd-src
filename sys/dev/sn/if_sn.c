@@ -159,8 +159,6 @@ sn_attach(device_t dev)
 	struct ifnet    *ifp = &sc->arpcom.ac_if;
 	uint16_t        i, w;
 	uint8_t         *p;
-	struct ifaddr   *ifa;
-	struct sockaddr_dl *sdl;
 	int             rev;
 	uint16_t        address;
 	int		j;
