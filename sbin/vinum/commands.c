@@ -36,7 +36,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: commands.c,v 1.23 2003/05/04 05:23:59 grog Exp grog $
+ * $Id: commands.c,v 1.24 2003/05/07 03:17:43 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -160,18 +160,12 @@ vinum_read(int argc, char *argv[], char *arg0[])
 	    strcat(buffer, " ");
 	}
     }
-    if (ioctl(superdev, VINUM_STARTCONFIG, &force)) {	    /* can't get config? */
-	fprintf(stderr, "Can't configure: %s (%d)\n", strerror(errno), errno);
-	return;
-    }
     ioctl(superdev, VINUM_READCONFIG, &buffer);
     if (reply->error != 0) {				    /* error in config */
 	fprintf(stdout, "** %s: %s\n", reply->msg, strerror(reply->error));
-	error = ioctl(superdev, VINUM_RELEASECONFIG, NULL); /* save the config to disk */
 	if (error != 0)
 	    perror("Can't save Vinum config");
     } else {
-	error = ioctl(superdev, VINUM_RELEASECONFIG, NULL); /* save the config to disk */
 	if (error != 0)
 	    perror("Can't save Vinum config");
 	if (no_devfs)
