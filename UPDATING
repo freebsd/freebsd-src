@@ -17,6 +17,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 5.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20031112:
+ 	Some netgraph string length constants have been changed. This
+ 	change requires the netgraph kernel modules and all netgraph
+ 	userland components to be in sync. Especially users who require
+ 	netgraph to boot need to make sure to have world and kernel in
+ 	sync before rebooting.
+
 20031103:
 	The i386 APIC_IO kernel option has been replaced by
         'device apic'.  The ACPI module has also been temporarily
