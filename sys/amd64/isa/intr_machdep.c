@@ -642,11 +642,11 @@ inthand_add(const char *name, int irq, driver_intr_t handler, void *arg,
 		&& (icu_setup(irq, idesc->ih_handler, idesc->ih_argument,
 			      idesc->ih_flags) != 0) ) {
 		if (bootverbose)
-				printf("\tinthand_add(irq%d) failed, result=%d\n", 
+			printf("\tinthand_add(irq%d) failed, result=%d\n", 
 			       irq, errcode);
 		free(idesc->ih_name, M_DEVBUF);
 		free(idesc, M_DEVBUF);
-			return NULL;
+		return NULL;
 	}
 	head = ithd->it_ih;		/* look at chain of handlers */
 	if (head) {
