@@ -37,17 +37,9 @@
 #ifndef _SYS_TIME_H_
 #define _SYS_TIME_H_
 
+#include <sys/_timeval.h>
 #include <sys/types.h>
 #include <sys/timespec.h>
-
-/*
- * Structure returned by gettimeofday(2) system call,
- * and used in other calls.
- */
-struct timeval {
-	long	tv_sec;		/* seconds */
-	long	tv_usec;	/* and microseconds */
-};
 
 struct timezone {
 	int	tz_minuteswest;	/* minutes west of Greenwich */
