@@ -27,7 +27,11 @@ _pthread_cancel(pthread_t pthread)
 		 * Take the scheduling lock while we change the cancel flags.
 		 */
 		THR_SCHED_LOCK(curthread, pthread);
-
+		if (pthread->flags & THR_FLAGS_EXITING) {
+			THR_SCHED_UNLOCK(curthread, pthread);
+			_thr_ref_delete(curthread, pthread);
+			return (ESRCH);
+		}
 		if (((pthread->cancelflags & PTHREAD_CANCEL_DISABLE) != 0) ||
 		    (((pthread->cancelflags & THR_AT_CANCEL_POINT) == 0) &&
 		    ((pthread->cancelflags & PTHREAD_CANCEL_ASYNCHRONOUS) == 0)))
@@ -105,7 +109,7 @@ _pthread_cancel(pthread_t pthread)
 			}
 			if ((pthread->blocked != 0) &&
 			    ((pthread->cancelflags & THR_AT_CANCEL_POINT) != 0))
-				kse_thr_interrupt(&pthread->tmbx);
+				kse_thr_interrupt(&pthread->tmbx, -1);
 		}
 
 		/*
