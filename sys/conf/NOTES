@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.370 1997/09/23 16:28:00 jkh Exp $
+#	$Id: LINT,v 1.371 1997/10/06 08:08:33 kato Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1311,6 +1311,8 @@ options		POWERFAIL_NMI	# make it beep instead of panicing
 #
 # Supported devices:
 # vpo	Iomega Zip Drive
+#	Requires SCSI disk support ('scbus' and 'sd'), best
+#	performance is achieved with ports in EPP 1.9 mode.
 # nlpt	Parallel Printer
 # ppi	General-purpose I/O ("Geek Port")
 #
