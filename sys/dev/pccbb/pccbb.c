@@ -640,6 +640,10 @@ cbb_chipinit(struct cbb_softc *sc)
 }
 
 #ifndef BURN_BRIDGES
+/*
+ * Still need this because the pci code only does power for type 0
+ * header devices.
+ */
 static void
 cbb_powerstate_d0(device_t dev)
 {
@@ -683,7 +687,7 @@ cbb_print_config(device_t dev)
 static int
 cbb_attach(device_t brdev)
 {
-	static int curr_bus_number = 1; /* XXX EVILE BAD (see below) */
+	static int curr_bus_number = 2; /* XXX EVILE BAD (see below) */
 	struct cbb_softc *sc = (struct cbb_softc *)device_get_softc(brdev);
 	int rid, bus, pribus;
 	device_t parent;
@@ -701,55 +705,16 @@ cbb_attach(device_t brdev)
 	STAILQ_INIT(&sc->intr_handlers);
 #ifndef	BURN_BRIDGES
 	cbb_powerstate_d0(brdev);
-
-	/*
-	 * The PCI bus code should assign us memory in the absense
-	 * of the BIOS doing so.  However, 'should' isn't 'is,' so we kludge
-	 * up something here until the PCI/acpi code properly assigns the
-	 * resource.
-	 */
 #endif
+
 	rid = CBBR_SOCKBASE;
 	sc->base_res = bus_alloc_resource_any(brdev, SYS_RES_MEMORY, &rid,
 	    RF_ACTIVE);
 	if (!sc->base_res) {
-#ifdef BURN_BRIDGES
 		device_printf(brdev, "Could not map register memory\n");
 		mtx_destroy(&sc->mtx);
 		cv_destroy(&sc->cv);
 		return (ENOMEM);
-#else
-		uint32_t sockbase;
-		/*
-		 * Generally, the BIOS will assign this memory for us.
-		 * However, newer BIOSes do not because the MS design
-		 * documents have mandated that this is for the OS
-		 * to assign rather than the BIOS.  This driver shouldn't
-		 * be doing this, but until the pci bus code (or acpi)
-		 * does this, we allow CardBus bridges to work on more
-		 * machines.
-		 */
-		pci_write_config(brdev, rid, 0xfffffffful, 4);
-		sockbase = pci_read_config(brdev, rid, 4);
-		sockbase = (sockbase & 0xfffffff0ul) &
-		    -(sockbase & 0xfffffff0ul);
-		sc->base_res = bus_generic_alloc_resource(
-		    device_get_parent(brdev), brdev, SYS_RES_MEMORY,
-		    &rid, cbb_start_mem, ~0, sockbase,
-		    RF_ACTIVE | rman_make_alignment_flags(sockbase));
-		if (!sc->base_res) {
-			device_printf(brdev,
-			    "Could not grab register memory\n");
-			mtx_destroy(&sc->mtx);
-			cv_destroy(&sc->cv);
-			return (ENOMEM);
-		}
-		sc->flags |= CBB_KLUDGE_ALLOC;
-		pci_write_config(brdev, CBBR_SOCKBASE,
-		    rman_get_start(sc->base_res), 4);
-		DEVPRINTF((brdev, "PCI Memory allocated: %08lx\n",
-		    rman_get_start(sc->base_res)));
-#endif
 	} else {
 		DEVPRINTF((brdev, "Found memory at %08lx\n",
 		    rman_get_start(sc->base_res)));
@@ -841,19 +806,13 @@ cbb_attach(device_t brdev)
 		device_printf(brdev, "unable to create event thread.\n");
 		panic("cbb_create_event_thread");
 	}
-
 	return (0);
 err:
 	if (sc->irq_res)
 		bus_release_resource(brdev, SYS_RES_IRQ, 0, sc->irq_res);
 	if (sc->base_res) {
-		if (sc->flags & CBB_KLUDGE_ALLOC)
-			bus_generic_release_resource(device_get_parent(brdev),
-			    brdev, SYS_RES_MEMORY, CBBR_SOCKBASE,
-			    sc->base_res);
-		else
-			bus_release_resource(brdev, SYS_RES_MEMORY,
-			    CBBR_SOCKBASE, sc->base_res);
+		bus_release_resource(brdev, SYS_RES_MEMORY, CBBR_SOCKBASE,
+		    sc->base_res);
 	}
 	mtx_destroy(&sc->mtx);
 	cv_destroy(&sc->cv);
@@ -892,12 +851,8 @@ cbb_detach(device_t brdev)
 	mtx_unlock(&sc->mtx);
 
 	bus_release_resource(brdev, SYS_RES_IRQ, 0, sc->irq_res);
-	if (sc->flags & CBB_KLUDGE_ALLOC)
-		bus_generic_release_resource(device_get_parent(brdev),
-		    brdev, SYS_RES_MEMORY, CBBR_SOCKBASE, sc->base_res);
-	else
-		bus_release_resource(brdev, SYS_RES_MEMORY,
-		    CBBR_SOCKBASE, sc->base_res);
+	bus_release_resource(brdev, SYS_RES_MEMORY, CBBR_SOCKBASE,
+	    sc->base_res);
 	mtx_destroy(&sc->mtx);
 	cv_destroy(&sc->cv);
 	return (0);
