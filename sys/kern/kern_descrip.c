@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_descrip.c	8.6 (Berkeley) 4/19/94
- * $Id: kern_descrip.c,v 1.24 1996/01/28 23:41:39 dyson Exp $
+ * $Id: kern_descrip.c,v 1.25 1996/02/04 19:56:34 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -82,6 +82,7 @@ static int finishdup(struct filedesc *fdp, int old, int new, int *retval);
  */
 struct file *filehead;	/* head of list of open files */
 int nfiles;		/* actual number of open files */
+extern int cmask;	
 
 /*
  * System calls on descriptors.
@@ -698,6 +699,49 @@ ffree(fp)
 #endif
 	nfiles--;
 	FREE(fp, M_FILE);
+}
+
+/*
+ * Build a new filedesc structure.
+ */
+struct filedesc *
+fdinit(p)
+	struct proc *p;
+{
+	register struct filedesc0 *newfdp;
+	register struct filedesc *fdp = p->p_fd;
+
+	MALLOC(newfdp, struct filedesc0 *, sizeof(struct filedesc0),
+	    M_FILEDESC, M_WAITOK);
+	bzero(newfdp, sizeof(struct filedesc0));
+	newfdp->fd_fd.fd_cdir = fdp->fd_cdir;
+	VREF(newfdp->fd_fd.fd_cdir);
+	newfdp->fd_fd.fd_rdir = fdp->fd_rdir;
+	if (newfdp->fd_fd.fd_rdir)
+		VREF(newfdp->fd_fd.fd_rdir);
+
+	/* Create the file descriptor table. */
+	newfdp->fd_fd.fd_refcnt = 1;
+	newfdp->fd_fd.fd_cmask = cmask;
+	newfdp->fd_fd.fd_ofiles = newfdp->fd_dfiles;
+	newfdp->fd_fd.fd_ofileflags = newfdp->fd_dfileflags;
+	newfdp->fd_fd.fd_nfiles = NDFILE;
+
+	newfdp->fd_fd.fd_freefile = 0;
+	newfdp->fd_fd.fd_lastfile = 0;
+
+	return (&newfdp->fd_fd);
+}
+
+/*
+ * Share a filedesc structure.
+ */
+struct filedesc *
+fdshare(p)
+	struct proc *p;
+{
+	p->p_fd->fd_refcnt++;
+	return (p->p_fd);
 }
 
 /*

@@ -1,4 +1,4 @@
-/*	$Id: sysv_ipc.c,v 1.2 1996/01/05 16:37:52 wollman Exp $ */
+/*	$Id: sysv_ipc.c,v 1.3 1996/01/08 04:30:48 peter Exp $ */
 /*	$NetBSD: sysv_ipc.c,v 1.7 1994/06/29 06:33:11 cgd Exp $	*/
 
 /*
@@ -278,9 +278,8 @@ shmsys(p, uap, retval)
 
 /* called from kern_fork.c */
 void
-shmfork(p1, p2, isvfork)
+shmfork(p1, p2)
 	struct proc *p1, *p2;
-	int isvfork;
 {
 	return;
 }
