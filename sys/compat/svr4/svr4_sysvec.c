@@ -72,9 +72,6 @@
 #include <svr4/svr4_siginfo.h>
 #include <svr4/svr4_util.h>
 
-extern int bsd_to_svr4_sig[];
-extern int svr4_to_bsd_sig[];
-
 int bsd_to_svr4_errno[ELAST+1] = {
         0,
         SVR4_EPERM,
@@ -176,7 +173,7 @@ struct sysentvec svr4_sysvec = {
   SVR4_SYS_MAXSYSCALL,
   svr4_sysent,
   0xff,
-  NSIG,
+  SVR4_SIGTBLSZ,
   bsd_to_svr4_sig,
   ELAST,  /* ELAST */
   bsd_to_svr4_errno,

@@ -36,9 +36,10 @@
 #include <sys/sysent.h>
 #include <sys/signalvar.h>
 #include <sys/proc.h>
-#include <i386/ibcs2/ibcs2_syscall.h>
 
-extern int bsd_to_ibcs2_sig[];
+#include <i386/ibcs2/ibcs2_syscall.h>
+#include <i386/ibcs2/ibcs2_signal.h>
+
 extern int bsd_to_ibcs2_errno[];
 extern struct sysent ibcs2_sysent[IBCS2_SYS_MAXSYSCALL];
 extern int szsigcode;
@@ -48,7 +49,7 @@ struct sysentvec ibcs2_svr3_sysvec = {
         sizeof (ibcs2_sysent) / sizeof (ibcs2_sysent[0]),
         ibcs2_sysent,
         0xFF,
-        NSIG,
+        IBCS2_SIGTBLSZ,
         bsd_to_ibcs2_sig,
         ELAST + 1,
         bsd_to_ibcs2_errno,

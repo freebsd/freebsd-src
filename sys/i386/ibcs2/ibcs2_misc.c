@@ -167,9 +167,9 @@ ibcs2_wait(p, uap)
 		/* convert status/signal result */
 		if(WIFSTOPPED(status))
 			status =
-			  IBCS2_STOPCODE(bsd_to_ibcs2_sig[WSTOPSIG(status)]);
+			  IBCS2_STOPCODE(bsd_to_ibcs2_sig[_SIG_IDX(WSTOPSIG(status))]);
 		else if(WIFSIGNALED(status))
-			status = bsd_to_ibcs2_sig[WTERMSIG(status)];
+			status = bsd_to_ibcs2_sig[_SIG_IDX(WTERMSIG(status))];
 		/* else exit status -- identical */
 
 		/* record result/status */

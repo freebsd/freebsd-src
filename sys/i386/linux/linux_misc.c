@@ -47,6 +47,7 @@
 #include <sys/vnode.h>
 #include <sys/wait.h>
 #include <sys/time.h>
+#include <sys/signalvar.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -66,6 +67,9 @@
 #include <i386/linux/linux_mib.h>
 
 #include <posix4/sched.h>
+
+#define BSD_TO_LINUX_SIGNAL(sig)	\
+	(((sig) <= LINUX_SIGTBLSZ) ? bsd_to_linux_signal[_SIG_IDX(sig)] : sig)
 
 static unsigned int linux_to_bsd_resource[LINUX_RLIM_NLIMITS] =
 { RLIMIT_CPU, RLIMIT_FSIZE, RLIMIT_DATA, RLIMIT_STACK,
@@ -622,7 +626,9 @@ linux_clone(struct proc *p, struct linux_clone_args *args)
     exit_signal = args->flags & 0x000000ff;
     if (exit_signal >= LINUX_NSIG)
 	return EINVAL;
-    exit_signal = linux_to_bsd_signal[exit_signal];
+
+    if (exit_signal <= LINUX_SIGTBLSZ)
+	exit_signal = linux_to_bsd_signal[_SIG_IDX(exit_signal)];
 
     /* RFTHREAD probably not necessary here, but it shouldn't hurt either */
     ff |= RFTHREAD;
@@ -979,10 +985,10 @@ linux_waitpid(struct proc *p, struct linux_waitpid_args *args)
 	    return error;
 	if (WIFSIGNALED(tmpstat))
 	    tmpstat = (tmpstat & 0xffffff80) |
-		      bsd_to_linux_signal[WTERMSIG(tmpstat)];
+		      BSD_TO_LINUX_SIGNAL(WTERMSIG(tmpstat));
 	else if (WIFSTOPPED(tmpstat))
 	    tmpstat = (tmpstat & 0xffff00ff) |
-		      (bsd_to_linux_signal[WSTOPSIG(tmpstat)]<<8);
+		      (BSD_TO_LINUX_SIGNAL(WSTOPSIG(tmpstat)) << 8);
 	return copyout(&tmpstat, args->status, sizeof(int));
     } else
 	return 0;
@@ -1015,17 +1021,17 @@ linux_wait4(struct proc *p, struct linux_wait4_args *args)
     if ((error = wait4(p, &tmp)) != 0)
 	return error;
 
-    p->p_siglist &= ~sigmask(SIGCHLD);
+    SIGDELSET(p->p_siglist, SIGCHLD);
 
     if (args->status) {
 	if ((error = copyin(args->status, &tmpstat, sizeof(int))) != 0)
 	    return error;
 	if (WIFSIGNALED(tmpstat))
 	    tmpstat = (tmpstat & 0xffffff80) |
-		  bsd_to_linux_signal[WTERMSIG(tmpstat)];
+		  BSD_TO_LINUX_SIGNAL(WTERMSIG(tmpstat));
 	else if (WIFSTOPPED(tmpstat))
 	    tmpstat = (tmpstat & 0xffff00ff) |
-		  (bsd_to_linux_signal[WSTOPSIG(tmpstat)]<<8);
+		  (BSD_TO_LINUX_SIGNAL(WSTOPSIG(tmpstat)) << 8);
 	return copyout(&tmpstat, args->status, sizeof(int));
     } else
 	return 0;
@@ -1312,7 +1318,7 @@ linux_sched_setscheduler(p, uap)
 
 #ifdef DEBUG
 	printf("Linux-emul(%ld): sched_setscheduler(%d, %d, %p)\n",
-	       (long)p->p_pid, uap->pid, uap->policy, (void *)uap->param);
+	    (long)p->p_pid, uap->pid, uap->policy, (const void *)uap->param);
 #endif
 
 	switch (uap->policy) {

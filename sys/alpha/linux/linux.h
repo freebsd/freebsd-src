@@ -47,35 +47,32 @@ typedef struct {
 	long val[2];
 } linux_fsid_t;
 typedef int linux_pid_t;
-typedef unsigned long linux_sigset_t;
-typedef void (*linux_handler_t)(int);
-typedef struct {
-	void (*lsa_handler)(int);
-	linux_sigset_t lsa_mask;
-	unsigned long lsa_flags;
-	void (*lsa_restorer)(void);
-} linux_sigaction_t;
 typedef int linux_key_t;
 
-typedef struct {
-    unsigned    long sig[2];
-} linux_new_sigset_t;
-typedef struct {
-    void        (*lsa_handler)(int);
-    unsigned    long lsa_flags;
-    void        (*lsa_restorer)(void);
-    linux_new_sigset_t lsa_mask;
-} linux_new_sigaction_t;
+/*
+ * Signal stuff...
+ */
+typedef void (*linux_handler_t)(int);
 
-#define LINUX_MAX_UTSNAME	65
-struct linux_new_utsname {
-    char sysname[LINUX_MAX_UTSNAME];
-    char nodename[LINUX_MAX_UTSNAME];
-    char release[LINUX_MAX_UTSNAME];
-    char version[LINUX_MAX_UTSNAME];
-    char machine[LINUX_MAX_UTSNAME];
-    char domainname[LINUX_MAX_UTSNAME];
-};
+typedef unsigned long linux_osigset_t;
+
+typedef struct {
+	unsigned int	__bits[2];
+} linux_sigset_t;
+
+typedef struct {
+	void		(*lsa_handler)(int);
+	linux_osigset_t	lsa_mask;
+	unsigned long	lsa_flags;
+	void		(*lsa_restorer)(void);
+} linux_osigaction_t;
+
+typedef struct {
+	void		(*lsa_handler)(int);
+	unsigned long	lsa_flags;
+	void		(*lsa_restorer)(void);
+	linux_sigset_t	lsa_mask;
+} linux_sigaction_t;
 
 /*
  * The Linux sigcontext, pretty much a standard 386 trapframe.
@@ -121,20 +118,6 @@ struct linux_sigframe {
 
 extern int bsd_to_linux_signal[];
 extern int linux_to_bsd_signal[];
-extern char linux_sigcode[];
-extern int linux_szsigcode;
-extern const char linux_emul_path[];
-
-extern struct sysent linux_sysent[LINUX_SYS_MAXSYSCALL];
-extern struct sysentvec linux_sysvec;
-extern struct sysentvec elf_linux_sysvec;
-
-/* dummy struct definitions */
-struct image_params;
-struct trapframe;
-
-/* misc defines */
-#define LINUX_NAME_MAX		255
 
 /* signal numbers */
 #define LINUX_SIGHUP		 1
@@ -170,7 +153,8 @@ struct trapframe;
 #define LINUX_SIGPOLL		LINUX_SIGIO
 #define LINUX_SIGPWR		30
 #define LINUX_SIGUNUSED		31
-#define LINUX_NSIG		32
+#define LINUX_NSIG		64
+#define LINUX_SIGTBLSZ		31
 
 /* sigaction flags */
 #define LINUX_SA_NOCLDSTOP	0x00000001
@@ -187,6 +171,35 @@ struct trapframe;
 #define LINUX_SIG_BLOCK		0
 #define LINUX_SIG_UNBLOCK	1
 #define LINUX_SIG_SETMASK	2
+
+#define LINUX_SIGEMPTYSET(set)		(set).__bits[0] = (set).__bits[1] = 0
+#define LINUX_SIGISMEMBER(set, sig)	SIGISMEMBER(set, sig)
+#define LINUX_SIGADDSET(set, sig)	SIGADDSET(set, sig)
+
+extern char linux_sigcode[];
+extern int linux_szsigcode;
+extern const char linux_emul_path[];
+
+extern struct sysent linux_sysent[LINUX_SYS_MAXSYSCALL];
+extern struct sysentvec linux_sysvec;
+extern struct sysentvec elf_linux_sysvec;
+
+/* dummy struct definitions */
+struct image_params;
+struct trapframe;
+
+#define LINUX_MAX_UTSNAME	65
+struct linux_new_utsname {
+    char sysname[LINUX_MAX_UTSNAME];
+    char nodename[LINUX_MAX_UTSNAME];
+    char release[LINUX_MAX_UTSNAME];
+    char version[LINUX_MAX_UTSNAME];
+    char machine[LINUX_MAX_UTSNAME];
+    char domainname[LINUX_MAX_UTSNAME];
+};
+
+/* misc defines */
+#define LINUX_NAME_MAX		255
 
 /* resource limits */
 #define LINUX_RLIMIT_CPU        0
