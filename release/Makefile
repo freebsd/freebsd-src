@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.246.2.1 1996/11/03 12:01:12 phk Exp $
+#	$Id: Makefile,v 1.246.2.2 1996/11/04 10:10:20 phk Exp $
 #
 # How to roll a release:
 #
@@ -198,11 +198,15 @@ release.3:
 
 # Make and install the three crunched binaries which live on the floppies.
 # You are not supposed to like this :-)
+#
+# NB: the "RELEASE_BUILD_FIXIT" magic prevents vi from including the
+# Tcl and Perl APIs.  See also /usr/src/usr.bin/vi/Makefile.
 release.4:
 	@cd ${.CURDIR} && $(MAKE) ckRELEASEDIR
 	cd ${.CURDIR}/sysinstall && make depend all
 	rm -rf ${RD}/crunch
 	mkdir -p ${RD}/crunch
+	export RELEASE_BUILD_FIXIT=noway ; \
 	for j in ${WHICH_CRUNCH} ; do \
 		rm -rf $${j}_crunch && \
 		mkdir $${j}_crunch && \
