@@ -46,20 +46,20 @@
 int	ddp_cksum = 1;
 
 int
-ddp_output( struct mbuf *m, struct socket *so)
+ddp_output(struct mbuf *m, struct socket *so)
 {
     struct ddpehdr	*deh;
-    struct ddpcb *ddp = sotoddpcb( so );
+    struct ddpcb *ddp = sotoddpcb(so);
 
 #ifdef MAC
     mac_create_mbuf_from_socket(so, m);
 #endif
 
-    M_PREPEND( m, sizeof( struct ddpehdr ), M_TRYWAIT );
-    if ( m == NULL )
-	return( ENOBUFS );
+    M_PREPEND(m, sizeof(struct ddpehdr), M_TRYWAIT);
+    if (m == NULL)
+	return (ENOBUFS);
 
-    deh = mtod( m, struct ddpehdr *);
+    deh = mtod(m, struct ddpehdr *);
     deh->deh_pad = 0;
     deh->deh_hops = 0;
 
@@ -76,50 +76,50 @@ ddp_output( struct mbuf *m, struct socket *so)
      * The checksum calculation is done after all of the other bytes have
      * been filled in.
      */
-    if ( ddp_cksum ) {
-	deh->deh_sum = at_cksum( m, sizeof( int ));
+    if (ddp_cksum) {
+	deh->deh_sum = at_cksum(m, sizeof(int));
     } else {
 	deh->deh_sum = 0;
     }
-    deh->deh_bytes = htonl( deh->deh_bytes );
+    deh->deh_bytes = htonl(deh->deh_bytes);
 
 #ifdef NETATALK_DEBUG
     printf ("ddp_output: from %d.%d:%d to %d.%d:%d\n",
 	ntohs(deh->deh_snet), deh->deh_snode, deh->deh_sport,
 	ntohs(deh->deh_dnet), deh->deh_dnode, deh->deh_dport);
 #endif
-    return( ddp_route( m, &ddp->ddp_route ));
+    return (ddp_route(m, &ddp->ddp_route));
 }
 
 u_short
-at_cksum( struct mbuf *m, int skip)
+at_cksum(struct mbuf *m, int skip)
 {
     u_char	*data, *end;
     u_long	cksum = 0;
 
-    for (; m; m = m->m_next ) {
-	for ( data = mtod( m, u_char * ), end = data + m->m_len; data < end;
-		data++ ) {
-	    if ( skip ) {
+    for (; m; m = m->m_next) {
+	for (data = mtod(m, u_char *), end = data + m->m_len; data < end;
+		data++) {
+	    if (skip) {
 		skip--;
 		continue;
 	    }
-	    cksum = ( cksum + *data ) << 1;
-	    if ( cksum & 0x00010000 ) {
+	    cksum = (cksum + *data) << 1;
+	    if (cksum & 0x00010000) {
 		cksum++;
 	    }
 	    cksum &= 0x0000ffff;
 	}
     }
 
-    if ( cksum == 0 ) {
+    if (cksum == 0) {
 	cksum = 0x0000ffff;
     }
-    return( (u_short)cksum );
+    return ((u_short)cksum);
 }
 
 int
-ddp_route( struct mbuf *m, struct route *ro)
+ddp_route(struct mbuf *m, struct route *ro)
 {
     struct sockaddr_at	gate;
     struct elaphdr	*elh;
@@ -140,24 +140,24 @@ ddp_route( struct mbuf *m, struct route *ro)
      * if we have a route, find the ifa that refers to this route.
      * I.e The ifa used to get to the gateway.
      */
-    if ( (ro->ro_rt == NULL)
-    || ( ro->ro_rt->rt_ifa == NULL )
-    || ( (ifp = ro->ro_rt->rt_ifa->ifa_ifp) == NULL )) {
+    if ((ro->ro_rt == NULL)
+    || (ro->ro_rt->rt_ifa == NULL)
+    || ((ifp = ro->ro_rt->rt_ifa->ifa_ifp) == NULL)) {
 	rtalloc(ro);
     }
-    if ( (ro->ro_rt != NULL)
-    && ( ro->ro_rt->rt_ifa )
-    && ( ifp = ro->ro_rt->rt_ifa->ifa_ifp )) {
+    if ((ro->ro_rt != NULL)
+    && (ro->ro_rt->rt_ifa)
+    && (ifp = ro->ro_rt->rt_ifa->ifa_ifp)) {
 	net = ntohs(satosat(ro->ro_rt->rt_gateway)->sat_addr.s_net);
-	for ( aa = at_ifaddr; aa; aa = aa->aa_next ) {
+	for (aa = at_ifaddr; aa; aa = aa->aa_next) {
 	    if (((net == 0) || (aa->aa_ifp == ifp)) &&
-		    net >= ntohs( aa->aa_firstnet ) &&
-		    net <= ntohs( aa->aa_lastnet )) {
+		    net >= ntohs(aa->aa_firstnet) &&
+		    net <= ntohs(aa->aa_lastnet)) {
 		break;
 	    }
 	}
     } else {
-	m_freem( m );
+	m_freem(m);
 #ifdef NETATALK_DEBUG
 	if (ro->ro_rt == NULL)
 	    printf ("ddp_route: no ro_rt.\n");
@@ -166,29 +166,29 @@ ddp_route( struct mbuf *m, struct route *ro)
 	else
 	    printf ("ddp_route: no ro_rt->rt_ifa->ifa_ifp\n");
 #endif
-	return( ENETUNREACH );
+	return (ENETUNREACH);
     }
 
-    if ( aa == NULL ) {
+    if (aa == NULL) {
 #ifdef NETATALK_DEBUG
-	printf( "ddp_route: no atalk address found for %s\n", 
+	printf("ddp_route: no atalk address found for %s\n", 
 	    ifp->if_xname);
 #endif
-	m_freem( m );
-	return( ENETUNREACH );
+	m_freem(m);
+	return (ENETUNREACH);
     }
 
     /*
      * if the destination address is on a directly attached node use that,
      * else use the official gateway.
      */
-    if ( ntohs( satosat( &ro->ro_dst )->sat_addr.s_net ) >=
-	    ntohs( aa->aa_firstnet ) &&
-	    ntohs( satosat( &ro->ro_dst )->sat_addr.s_net ) <=
-	    ntohs( aa->aa_lastnet )) {
-	gate = *satosat( &ro->ro_dst );
+    if (ntohs(satosat(&ro->ro_dst)->sat_addr.s_net) >=
+	    ntohs(aa->aa_firstnet) &&
+	    ntohs(satosat(&ro->ro_dst)->sat_addr.s_net) <=
+	    ntohs(aa->aa_lastnet)) {
+	gate = *satosat(&ro->ro_dst);
     } else {
-	gate = *satosat( ro->ro_rt->rt_gateway );
+	gate = *satosat(ro->ro_rt->rt_gateway);
     }
 
     /*
@@ -197,12 +197,12 @@ ddp_route( struct mbuf *m, struct route *ro)
      * This is bad for transition routing, since phase 1 and phase 2
      * packets end up poorly aligned due to the three byte elap header.
      */
-    if ( !(aa->aa_flags & AFA_PHASE2) ) {
-	MGET( m0, M_TRYWAIT, MT_HEADER );
-	if ( m0 == NULL ) {
-	    m_freem( m );
+    if (!(aa->aa_flags & AFA_PHASE2)) {
+	MGET(m0, M_TRYWAIT, MT_HEADER);
+	if (m0 == NULL) {
+	    m_freem(m);
 	    printf("ddp_route: no buffers\n");
-	    return( ENOBUFS );
+	    return (ENOBUFS);
 	}
 #ifdef MAC
 	mac_create_mbuf_from_mbuf(m, m0);
@@ -212,8 +212,8 @@ ddp_route( struct mbuf *m, struct route *ro)
 	m0->m_len = SZ_ELAPHDR;
 	m = m0;
 
-	elh = mtod( m, struct elaphdr *);
-	elh->el_snode = satosat( &aa->aa_addr )->sat_addr.s_node;
+	elh = mtod(m, struct elaphdr *);
+	elh->el_snode = satosat(&aa->aa_addr)->sat_addr.s_node;
 	elh->el_type = ELAP_DDPEXTEND;
 	elh->el_dnode = gate.sat_addr.s_node;
     }
@@ -237,6 +237,6 @@ ddp_route( struct mbuf *m, struct route *ro)
 	return (if_simloop(ifp, m, gate.sat_family, 0));
     }
 
-    return((*ifp->if_output)( ifp,
+    return ((*ifp->if_output)(ifp,
 	m, (struct sockaddr *)&gate, NULL)); /* XXX */
 }
