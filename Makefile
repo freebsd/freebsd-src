@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.112 1997/01/07 02:28:57 jkh Exp $
+#	$Id: Makefile,v 1.113 1997/01/11 10:53:01 jmacd Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -438,8 +438,6 @@ lib-tools:
 	cd ${.CURDIR}/usr.bin/nm && ${MAKE} depend && \
 		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
 	cd ${.CURDIR}/usr.bin/lex/lib && ${MAKE} depend && \
-		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
-	cd ${.CURDIR}/usr.bin/yacc && ${MAKE} depend && \
 		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
 	cd ${.CURDIR}/usr.bin/compile_et && ${MAKE} depend && \
 		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR} && \
