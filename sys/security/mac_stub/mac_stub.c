@@ -351,6 +351,13 @@ stub_create_ipq(struct mbuf *fragment, struct label *fragmentlabel,
 }
 
 static void
+stub_create_mbuf_from_inpcb(struct inpcb *inp, struct label *inplabel,
+    struct mbuf *m, struct label *mlabel)
+{
+
+}
+
+static void
 stub_create_mbuf_from_mbuf(struct mbuf *oldmbuf,
     struct label *oldmbuflabel, struct mbuf *newmbuf,
     struct label *newmbuflabel)
@@ -1092,6 +1099,7 @@ static struct mac_policy_ops mac_stub_ops =
 	.mpo_create_datagram_from_ipq = stub_create_datagram_from_ipq,
 	.mpo_create_fragment = stub_create_fragment,
 	.mpo_create_ipq = stub_create_ipq,
+	.mpo_create_mbuf_from_inpcb = stub_create_mbuf_from_inpcb,
 	.mpo_create_mbuf_from_mbuf = stub_create_mbuf_from_mbuf,
 	.mpo_create_mbuf_linklayer = stub_create_mbuf_linklayer,
 	.mpo_create_mbuf_from_bpfdesc = stub_create_mbuf_from_bpfdesc,

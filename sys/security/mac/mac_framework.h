@@ -213,6 +213,7 @@ void	mac_create_inpcb_from_socket(struct socket *so, struct inpcb *inp);
 void	mac_create_ipq(struct mbuf *fragment, struct ipq *ipq);
 void	mac_create_datagram_from_ipq(struct ipq *ipq, struct mbuf *datagram);
 void	mac_create_fragment(struct mbuf *datagram, struct mbuf *fragment);
+void	mac_create_mbuf_from_inpcb(struct inpcb *inp, struct mbuf *m);
 void	mac_create_mbuf_from_mbuf(struct mbuf *oldmbuf, struct mbuf *newmbuf);
 void	mac_create_mbuf_linklayer(struct ifnet *ifnet, struct mbuf *m);
 void	mac_create_mbuf_from_bpfdesc(struct bpf_d *bpf_d, struct mbuf *m);
