@@ -67,7 +67,6 @@
 /*
  *	Virtual memory map module definitions.
  */
-
 #ifndef	_VM_MAP_
 #define	_VM_MAP_
 
@@ -94,7 +93,6 @@ typedef u_int vm_eflags_t;
  *	another map (called a "sharing map") which denotes read-write
  *	sharing with other maps.
  */
-
 union vm_map_object {
 	struct vm_object *vm_object;	/* object object */
 	struct vm_map *sub_map;		/* belongs to another map */
@@ -193,7 +191,6 @@ struct vmspace {
 };
 
 #ifdef	_KERNEL
-
 u_char vm_map_entry_behavior(struct vm_map_entry *entry);
 void vm_map_entry_set_behavior(struct vm_map_entry *entry, u_char behavior);
 
@@ -214,7 +211,7 @@ void vm_map_entry_set_behavior(struct vm_map_entry *entry, u_char behavior);
 		lockmgr(&(map)->lock, LK_DRAIN|LK_INTERLOCK, \
 			&(map)->ref_lock, curthread); \
 		(map)->timestamp++; \
-	} while(0)
+	} while (0)
 #endif
 
 void vm_map_lock(vm_map_t map);
@@ -231,7 +228,6 @@ struct pmap *vm_map_pmap(vm_map_t map);
 
 struct pmap *vmspace_pmap(struct vmspace *vmspace);
 long vmspace_resident_count(struct vmspace *vmspace);
-
 #endif	/* _KERNEL */
 
 
@@ -293,5 +289,5 @@ int vm_map_stack (vm_map_t, vm_offset_t, vm_size_t, vm_prot_t, vm_prot_t, int);
 int vm_map_growstack (struct proc *p, vm_offset_t addr);
 int vmspace_swap_count (struct vmspace *vmspace);
 
-#endif
+#endif				/* _KERNEL */
 #endif				/* _VM_MAP_ */

@@ -93,7 +93,6 @@ default_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
  * the swapblk in the underlying vm_page's when we free the vm_page or
  * garbage collect the vm_page cache list.
  */
-
 static void
 default_pager_dealloc(object)
 	vm_object_t object;
@@ -108,7 +107,6 @@ default_pager_dealloc(object)
  * OBJT_SWAP at the time a swap-backed vm_page_t is freed, we will never
  * see a vm_page with assigned swap here.
  */
-
 static int
 default_pager_getpages(object, m, count, reqpage)
 	vm_object_t object;
@@ -125,7 +123,6 @@ default_pager_getpages(object, m, count, reqpage)
  * object will be converted when the written-out vm_page_t is moved from the
  * cache to the free list.
  */
-
 static void
 default_pager_putpages(object, m, c, sync, rtvals)
 	vm_object_t object;
@@ -149,7 +146,6 @@ default_pager_putpages(object, m, c, sync, rtvals)
  * deal with it since it must already deal with it plus deal with swap
  * meta-data structures.
  */
-
 static boolean_t
 default_pager_haspage(object, pindex, before, after)
 	vm_object_t object;

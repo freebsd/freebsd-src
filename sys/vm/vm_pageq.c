@@ -58,7 +58,7 @@ vm_pageq_aquire(int queue)
 		mtx_lock(&vm_pageq_mtx[queue]);
 #endif
 	}
-	return(vpq);
+	return (vpq);
 }
 
 void
@@ -127,7 +127,6 @@ vm_pageq_add_new_page(vm_offset_t pa)
  *	This routine must be called at splhigh().
  *	This routine may not block.
  */
-
 void
 vm_pageq_remove_nowakeup(vm_page_t m)
 {
@@ -150,7 +149,6 @@ vm_pageq_remove_nowakeup(vm_page_t m)
  *	This routine must be called at splhigh().
  *	This routine may not block.
  */
-
 void
 vm_pageq_remove(vm_page_t m)
 {
@@ -190,7 +188,6 @@ vm_pageq_remove(vm_page_t m)
  *	This routine may only be called from the vm_page_list_find() macro
  *	in vm_page.h
  */
-
 static __inline vm_page_t
 _vm_pageq_find(int basequeue, int index)
 {
@@ -206,18 +203,16 @@ _vm_pageq_find(int basequeue, int index)
 	 * same place.  Even though this is not totally optimal, we've already
 	 * blown it by missing the cache case so we do not care.
 	 */
-
-	for(i = PQ_L2_SIZE / 2; i > 0; --i) {
+	for (i = PQ_L2_SIZE / 2; i > 0; --i) {
 		if ((m = TAILQ_FIRST(&pq[(index + i) & PQ_L2_MASK].pl)) != NULL)
 			break;
 
 		if ((m = TAILQ_FIRST(&pq[(index - i) & PQ_L2_MASK].pl)) != NULL)
 			break;
 	}
-	return(m);
+	return (m);
 }
-
-#endif
+#endif		/* PQ_L2_SIZE > 1 */
 
 vm_page_t
 vm_pageq_find(int basequeue, int index, boolean_t prefer_zero)
@@ -242,6 +237,6 @@ vm_pageq_find(int basequeue, int index, boolean_t prefer_zero)
                 m = TAILQ_FIRST(&vm_page_queues[basequeue].pl);
         }
 #endif
-        return(m);
+        return (m);
 }
 

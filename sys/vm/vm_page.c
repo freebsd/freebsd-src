@@ -123,7 +123,6 @@
  *	Associated with page of user-allocatable memory is a
  *	page structure.
  */
-
 static struct vm_page **vm_page_buckets; /* Array of buckets */
 static int vm_page_bucket_count;	/* How big is array? */
 static int vm_page_hash_mask;		/* Mask for hash function */
@@ -160,7 +159,6 @@ vm_set_page_size(void)
  *	for the object/offset-to-page hash table headers.
  *	Each page cell is initialized and placed on the free list.
  */
-
 vm_offset_t
 vm_page_startup(vm_offset_t starta, vm_offset_t enda, vm_offset_t vaddr)
 {
@@ -207,7 +205,6 @@ vm_page_startup(vm_offset_t starta, vm_offset_t enda, vm_offset_t vaddr)
 	 * Initialize the queue headers for the free queue, the active queue
 	 * and the inactive queue.
 	 */
-
 	vm_pageq_init();
 
 	/*
@@ -255,13 +252,10 @@ vm_page_startup(vm_offset_t starta, vm_offset_t enda, vm_offset_t vaddr)
 	 * use (taking into account the overhead of a page structure per
 	 * page).
 	 */
-
 	first_page = phys_avail[0] / PAGE_SIZE;
-
 	page_range = phys_avail[(nblocks - 1) * 2 + 1] / PAGE_SIZE - first_page;
 	npages = (total - (page_range * sizeof(struct vm_page)) -
 	    (end - new_end)) / PAGE_SIZE;
-
 	end = new_end;
 
 	/*
@@ -317,7 +311,7 @@ vm_page_hash(vm_object_t object, vm_pindex_t pindex)
 {
 	int i = ((uintptr_t)object + pindex) ^ object->hash_rand;
 
-	return(i & vm_page_hash_mask);
+	return (i & vm_page_hash_mask);
 }
 
 void
@@ -347,7 +341,6 @@ vm_page_busy(vm_page_t m)
  *
  *      wakeup anyone waiting for the page.
  */
-
 void
 vm_page_flash(vm_page_t m)
 {
@@ -364,7 +357,6 @@ vm_page_flash(vm_page_t m)
  *      page.
  *
  */
-
 void
 vm_page_wakeup(vm_page_t m)
 {
@@ -377,7 +369,6 @@ vm_page_wakeup(vm_page_t m)
  *
  *
  */
-
 void
 vm_page_io_start(vm_page_t m)
 {
@@ -424,7 +415,6 @@ vm_page_unhold(vm_page_t mem)
  *	protection and therefore can be safely called if the page is already
  *	at VM_PROT_NONE (it will be a NOP effectively ).
  */
-
 void
 vm_page_protect(vm_page_t mem, int prot)
 {
@@ -507,7 +497,6 @@ vm_page_free_zero(vm_page_t m)
  *	PG_BUSY to m->busy or vise versa (which would create a timing
  *	window).
  */
-
 int
 vm_page_sleep_busy(vm_page_t m, int also_m_busy, const char *msg)
 {
@@ -522,17 +511,16 @@ vm_page_sleep_busy(vm_page_t m, int also_m_busy, const char *msg)
 			tsleep(m, PVM, msg, 0);
 		}
 		splx(s);
-		return(TRUE);
+		return (TRUE);
 		/* not reached */
 	}
-	return(FALSE);
+	return (FALSE);
 }
 /*
  *	vm_page_dirty:
  *
  *	make page all dirty
  */
-
 void
 vm_page_dirty(vm_page_t m)
 {
@@ -546,7 +534,6 @@ vm_page_dirty(vm_page_t m)
  *
  *	Set page to not be dirty.  Note: does not clear pmap modify bits
  */
-
 void
 vm_page_undirty(vm_page_t m)
 {
@@ -566,7 +553,6 @@ vm_page_undirty(vm_page_t m)
  *	The object and page must be locked, and must be splhigh.
  *	This routine may not block.
  */
-
 void
 vm_page_insert(vm_page_t m, vm_object_t object, vm_pindex_t pindex)
 {
@@ -580,14 +566,12 @@ vm_page_insert(vm_page_t m, vm_object_t object, vm_pindex_t pindex)
 	/*
 	 * Record the object/offset pair in this page
 	 */
-
 	m->object = object;
 	m->pindex = pindex;
 
 	/*
 	 * Insert it into the object_object/offset hash table
 	 */
-
 	bucket = &vm_page_buckets[vm_page_hash(object, pindex)];
 	m->hnext = *bucket;
 	*bucket = m;
@@ -596,14 +580,12 @@ vm_page_insert(vm_page_t m, vm_object_t object, vm_pindex_t pindex)
 	/*
 	 * Now link into the object's list of backed pages.
 	 */
-
 	TAILQ_INSERT_TAIL(&object->memq, m, listq);
 	object->generation++;
 
 	/*
 	 * show that the object has one more resident page.
 	 */
-
 	object->resident_page_count++;
 
 	/*
@@ -626,7 +608,6 @@ vm_page_insert(vm_page_t m, vm_object_t object, vm_pindex_t pindex)
  *	The underlying pmap entry (if any) is NOT removed here.
  *	This routine may not block.
  */
-
 void
 vm_page_remove(vm_page_t m)
 {
@@ -644,7 +625,6 @@ vm_page_remove(vm_page_t m)
 	/*
 	 * Basically destroy the page.
 	 */
-
 	vm_page_wakeup(m);
 
 	object = m->object;
@@ -656,7 +636,6 @@ vm_page_remove(vm_page_t m)
 	 * Note: we must NULL-out m->hnext to prevent loops in detached
 	 * buffers with vm_page_lookup().
 	 */
-
 	{
 		struct vm_page **bucket;
 
@@ -674,13 +653,11 @@ vm_page_remove(vm_page_t m)
 	/*
 	 * Now remove from the object's list of backed pages.
 	 */
-
 	TAILQ_REMOVE(&object->memq, m, listq);
 
 	/*
 	 * And show that the object has one fewer resident page.
 	 */
-
 	object->resident_page_count--;
 	object->generation++;
 
@@ -702,7 +679,6 @@ vm_page_remove(vm_page_t m)
  *	This routine may not block.
  *	This is a critical path routine
  */
-
 vm_page_t
 vm_page_lookup(vm_object_t object, vm_pindex_t pindex)
 {
@@ -713,7 +689,6 @@ vm_page_lookup(vm_object_t object, vm_pindex_t pindex)
 	/*
 	 * Search the hash table for this object/offset pair
 	 */
-
 retry:
 	generation = vm_page_bucket_generation;
 	bucket = &vm_page_buckets[vm_page_hash(object, pindex)];
@@ -752,7 +727,6 @@ retry:
  *	      or vm_page_dirty() will panic.  Dirty pages are not allowed
  *	      on the cache.
  */
-
 void
 vm_page_rename(vm_page_t m, vm_object_t new_object, vm_pindex_t new_pindex)
 {
@@ -806,7 +780,6 @@ vm_page_select_cache(vm_object_t object, vm_pindex_t pindex)
  *	This routine must be called at splvm().
  *	This routine may not block.
  */
-
 static __inline vm_page_t
 vm_page_select_free(vm_object_t object, vm_pindex_t pindex, boolean_t prefer_zero)
 {
@@ -817,7 +790,7 @@ vm_page_select_free(vm_object_t object, vm_pindex_t pindex, boolean_t prefer_zer
 		(pindex + object->pg_color) & PQ_L2_MASK,
 		prefer_zero
 	);
-	return(m);
+	return (m);
 }
 
 /*
@@ -838,7 +811,6 @@ vm_page_select_free(vm_object_t object, vm_pindex_t pindex, boolean_t prefer_zer
  *	interrupt (VM_ALLOC_INTERRUPT).  We are not allowed to mess with
  *	the page cache in this case.
  */
-
 vm_page_t
 vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int page_req)
 {
@@ -853,7 +825,6 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int page_req)
 	/*
 	 * The pager is allowed to eat deeper into the free page list.
 	 */
-
 	if ((curproc == pageproc) && (page_req != VM_ALLOC_INTERRUPT)) {
 		page_req = VM_ALLOC_SYSTEM;
 	};
@@ -930,7 +901,6 @@ loop:
 	/*
 	 * Initialize structure.  Only the PG_ZERO flag is inherited.
 	 */
-
 	if (m->flags & PG_ZERO) {
 		vm_page_zero_count--;
 		m->flags = PG_ZERO | PG_BUSY;
@@ -950,7 +920,6 @@ loop:
 	 * could cause us to block allocating memory).  We cannot block 
 	 * anywhere.
 	 */
-
 	vm_page_insert(m, object, pindex);
 
 	/*
@@ -961,7 +930,6 @@ loop:
 		pagedaemon_wakeup();
 
 	splx(s);
-
 	return (m);
 }
 
@@ -971,7 +939,6 @@ loop:
  *	Block until free pages are available for allocation
  *	- Called in various places before memory allocations.
  */
-
 void
 vm_wait(void)
 {
@@ -1001,7 +968,6 @@ vm_wait(void)
  *	  processes will be able to grab memory first.  Do not change
  *	  this balance without careful testing first.
  */
-
 void
 vm_waitpfault(void)
 {
@@ -1033,13 +999,10 @@ vm_page_activate(vm_page_t m)
 
 	GIANT_REQUIRED;
 	s = splvm();
-
 	if (m->queue != PQ_ACTIVE) {
 		if ((m->queue - m->pc) == PQ_CACHE)
 			cnt.v_reactivated++;
-
 		vm_pageq_remove(m);
-
 		if (m->wire_count == 0 && (m->flags & PG_UNMANAGED) == 0) {
 			if (m->act_count < ACT_INIT)
 				m->act_count = ACT_INIT;
@@ -1049,7 +1012,6 @@ vm_page_activate(vm_page_t m)
 		if (m->act_count < ACT_INIT)
 			m->act_count = ACT_INIT;
 	}
-
 	splx(s);
 }
 
@@ -1124,7 +1086,6 @@ vm_page_free_toq(vm_page_t m)
 	 * callback routine until after we've put the page on the
 	 * appropriate free queue.
 	 */
-
 	vm_pageq_remove_nowakeup(m);
 	vm_page_remove(m);
 
@@ -1132,7 +1093,6 @@ vm_page_free_toq(vm_page_t m)
 	 * If fictitious remove object association and
 	 * return, otherwise delay object association removal.
 	 */
-
 	if ((m->flags & PG_FICTITIOUS) != 0) {
 		splx(s);
 		return;
@@ -1153,7 +1113,6 @@ vm_page_free_toq(vm_page_t m)
 	 * If we've exhausted the object's resident pages we want to free
 	 * it up.
 	 */
-
 	if (object && 
 	    (object->type == OBJT_VNODE) &&
 	    ((object->flags & OBJ_DEAD) == 0)
@@ -1167,12 +1126,11 @@ vm_page_free_toq(vm_page_t m)
 	/*
 	 * Clear the UNMANAGED flag when freeing an unmanaged page.
 	 */
-
 	if (m->flags & PG_UNMANAGED) {
-	    m->flags &= ~PG_UNMANAGED;
+		m->flags &= ~PG_UNMANAGED;
 	} else {
 #ifdef __alpha__
-	    pmap_page_is_free(m);
+		pmap_page_is_free(m);
 #endif
 	}
 
@@ -1189,16 +1147,13 @@ vm_page_free_toq(vm_page_t m)
 	 * Put zero'd pages on the end ( where we look for zero'd pages
 	 * first ) and non-zerod pages at the head.
 	 */
-
 	if (m->flags & PG_ZERO) {
 		TAILQ_INSERT_TAIL(&pq->pl, m, pageq);
 		++vm_page_zero_count;
 	} else {
 		TAILQ_INSERT_HEAD(&pq->pl, m, pageq);
 	}
-
 	vm_page_free_wakeup();
-
 	splx(s);
 }
 
@@ -1220,7 +1175,6 @@ vm_page_free_toq(vm_page_t m)
  *	will eventually be extended to support 4MB unmanaged physical 
  *	mappings.
  */
-
 void
 vm_page_unmanage(vm_page_t m)
 {
@@ -1379,13 +1333,13 @@ vm_page_try_to_cache(vm_page_t m)
 
 	if (m->dirty || m->hold_count || m->busy || m->wire_count ||
 	    (m->flags & (PG_BUSY|PG_UNMANAGED))) {
-		return(0);
+		return (0);
 	}
 	vm_page_test_dirty(m);
 	if (m->dirty)
-		return(0);
+		return (0);
 	vm_page_cache(m);
-	return(1);
+	return (1);
 }
 
 /*
@@ -1399,15 +1353,15 @@ vm_page_try_to_free(vm_page_t m)
 {
 	if (m->dirty || m->hold_count || m->busy || m->wire_count ||
 	    (m->flags & (PG_BUSY|PG_UNMANAGED))) {
-		return(0);
+		return (0);
 	}
 	vm_page_test_dirty(m);
 	if (m->dirty)
-		return(0);
+		return (0);
 	vm_page_busy(m);
 	vm_page_protect(m, VM_PROT_NONE);
 	vm_page_free(m);
-	return(1);
+	return (1);
 }
 
 /*
@@ -1434,7 +1388,6 @@ vm_page_cache(vm_page_t m)
 	 * Remove all pmaps and indicate that the page is not
 	 * writeable or mapped.
 	 */
-
 	vm_page_protect(m, VM_PROT_NONE);
 	if (m->dirty != 0) {
 		panic("vm_page_cache: caching a dirty page, pindex: %ld",
@@ -1468,7 +1421,6 @@ vm_page_cache(vm_page_t m)
  *	space from active.  The idea is to not force this to happen too
  *	often.
  */
-
 void
 vm_page_dontneed(vm_page_t m)
 {
@@ -1482,7 +1434,6 @@ vm_page_dontneed(vm_page_t m)
 	/*
 	 * occassionally leave the page alone
 	 */
-
 	if ((dnw & 0x01F0) == 0 ||
 	    m->queue == PQ_INACTIVE || 
 	    m->queue - m->pc == PQ_CACHE
@@ -1565,7 +1516,6 @@ retrylookup:
  *
  * Inputs are required to range within a page.
  */
-
 __inline int
 vm_page_bits(int base, int size)
 {
@@ -1578,7 +1528,7 @@ vm_page_bits(int base, int size)
 	);
 
 	if (size == 0)		/* handle degenerate case */
-		return(0);
+		return (0);
 
 	first_bit = base >> DEV_BSHIFT;
 	last_bit = (base + size - 1) >> DEV_BSHIFT;
@@ -1614,7 +1564,6 @@ vm_page_set_validclean(vm_page_t m, int base, int size)
 	 * bit is clear, we have to zero out a portion of the
 	 * first block.
 	 */
-
 	if ((frag = base & ~(DEV_BSIZE - 1)) != base &&
 	    (m->valid & (1 << (base >> DEV_BSHIFT))) == 0
 	) {
@@ -1630,9 +1579,7 @@ vm_page_set_validclean(vm_page_t m, int base, int size)
 	 * valid bit is clear, we have to zero out a portion of
 	 * the last block.
 	 */
-
 	endoff = base + size;
-
 	if ((frag = endoff & ~(DEV_BSIZE - 1)) != endoff &&
 	    (m->valid & (1 << (endoff >> DEV_BSHIFT))) == 0
 	) {
@@ -1654,7 +1601,6 @@ vm_page_set_validclean(vm_page_t m, int base, int size)
 	 * clear dirty bits for DEV_BSIZE chunks that are fully within
 	 * the range.
 	 */
-
 	pagebits = vm_page_bits(base, size);
 	m->valid |= pagebits;
 #if 0	/* NOT YET */
@@ -1722,7 +1668,6 @@ vm_page_set_invalid(vm_page_t m, int base, int size)
  *	Pages are most often semi-valid when the end of a file is mapped 
  *	into memory and the file's size is not page aligned.
  */
-
 void
 vm_page_zero_invalid(vm_page_t m, boolean_t setvalid)
 {
@@ -1735,7 +1680,6 @@ vm_page_zero_invalid(vm_page_t m, boolean_t setvalid)
 	 * valid bit may be set ) have already been zerod by
 	 * vm_page_set_validclean().
 	 */
-
 	for (b = i = 0; i <= PAGE_SIZE / DEV_BSIZE; ++i) {
 		if (i == (PAGE_SIZE / DEV_BSIZE) || 
 		    (m->valid & (1 << i))
@@ -1756,7 +1700,6 @@ vm_page_zero_invalid(vm_page_t m, boolean_t setvalid)
 	 * as being valid.  We can do this if there are no cache consistancy
 	 * issues.  e.g. it is ok to do with UFS, but not ok to do with NFS.
 	 */
-
 	if (setvalid)
 		m->valid = VM_PAGE_BITS_ALL;
 }
@@ -1770,7 +1713,6 @@ vm_page_zero_invalid(vm_page_t m, boolean_t setvalid)
  *
  *	May not block.
  */
-
 int
 vm_page_is_valid(vm_page_t m, int base, int size)
 {
@@ -1785,7 +1727,6 @@ vm_page_is_valid(vm_page_t m, int base, int size)
 /*
  * update dirty bits from pmap/mmu.  May not block.
  */
-
 void
 vm_page_test_dirty(vm_page_t m)
 {

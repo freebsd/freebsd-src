@@ -174,7 +174,7 @@ _vm_object_allocate(objtype_t type, vm_size_t size, vm_object_t object)
 	object->resident_page_count = 0;
 	object->shadow_count = 0;
 	object->pg_color = next_index;
-	if ( size > (PQ_L2_SIZE / 3 + PQ_PRIME1))
+	if (size > (PQ_L2_SIZE / 3 + PQ_PRIME1))
 		incr = PQ_L2_SIZE / 3 + PQ_PRIME1;
 	else
 		incr = size;
@@ -308,7 +308,6 @@ vm_object_pip_wait(vm_object_t object, char *waitid)
  *
  *	Returns a new object with the given size.
  */
-
 vm_object_t
 vm_object_allocate(objtype_t type, vm_size_t size)
 {
@@ -589,7 +588,6 @@ vm_object_terminate(vm_object_t object)
  *
  *	The object must be locked.
  */
-
 void
 vm_object_page_clean(vm_object_t object, vm_pindex_t start, vm_pindex_t end, int flags)
 {
@@ -695,7 +693,6 @@ vm_object_page_clean(vm_object_t object, vm_pindex_t start, vm_pindex_t end, int
 	 * stay dirty so do not mess with the page and do not clear the
 	 * object flags.
 	 */
-
 	clearobjflags = 1;
 
 	TAILQ_FOREACH(p, &object->memq, listq) {
@@ -839,7 +836,7 @@ vm_object_page_collect_flush(vm_object_t object, vm_page_t p, int curgeneration,
 					(tp->flags & PG_CLEANCHK) == 0 ||
 					(tp->busy != 0))
 					break;
-				if((tp->queue - tp->pc) == PQ_CACHE) {
+				if ((tp->queue - tp->pc) == PQ_CACHE) {
 					vm_page_flag_clear(tp, PG_CLEANCHK);
 					break;
 				}
@@ -900,7 +897,6 @@ vm_object_page_collect_flush(vm_object_t object, vm_page_t p, int curgeneration,
  * NOTE: If the page is already at VM_PROT_NONE, calling
  * vm_page_protect will have no effect.
  */
-
 void
 vm_object_pmap_copy_1(vm_object_t object, vm_pindex_t start, vm_pindex_t end)
 {
@@ -981,7 +977,6 @@ vm_object_madvise(vm_object_t object, vm_pindex_t pindex, int count, int advise)
 	/*
 	 * Locate and adjust resident pages
 	 */
-
 	for (; pindex < end; pindex += 1) {
 relookup:
 		tobject = object;
@@ -1076,7 +1071,6 @@ shadowlookup:
  *	The new object and offset into that object
  *	are returned in the source parameters.
  */
-
 void
 vm_object_shadow(
 	vm_object_t *object,	/* IN/OUT */
@@ -1092,7 +1086,6 @@ vm_object_shadow(
 	/*
 	 * Don't create the new object if the old object isn't shared.
 	 */
-
 	if (source != NULL &&
 	    source->ref_count == 1 &&
 	    source->handle == NULL &&
@@ -1128,13 +1121,11 @@ vm_object_shadow(
 	 * Store the offset into the source object, and fix up the offset into
 	 * the new object.
 	 */
-
 	result->backing_object_offset = *offset;
 
 	/*
 	 * Return the new things
 	 */
-
 	*offset = 0;
 	*object = result;
 }
@@ -1161,7 +1152,6 @@ vm_object_backing_scan(vm_object_t object, int op)
 	/*
 	 * Initial conditions
 	 */
-
 	if (op & OBSC_TEST_ALL_SHADOWED) {
 		/*
 		 * We do not want to have to test for the existence of
@@ -1174,7 +1164,7 @@ vm_object_backing_scan(vm_object_t object, int op)
 		 */
 		if (backing_object->type != OBJT_DEFAULT) {
 			splx(s);
-			return(0);
+			return (0);
 		}
 	}
 	if (op & OBSC_COLLAPSE_WAIT) {
@@ -1184,7 +1174,6 @@ vm_object_backing_scan(vm_object_t object, int op)
 	/*
 	 * Our scan
 	 */
-
 	p = TAILQ_FIRST(&backing_object->memq);
 	while (p) {
 		vm_page_t next = TAILQ_NEXT(p, listq);
@@ -1201,7 +1190,6 @@ vm_object_backing_scan(vm_object_t object, int op)
 			 * note that we do not busy the backing object's
 			 * page.
 			 */
-
 			if (
 			    p->pindex < backing_offset_index ||
 			    new_pindex >= object->size
@@ -1233,7 +1221,6 @@ vm_object_backing_scan(vm_object_t object, int op)
 		/*
 		 * Check for busy page
 		 */
-
 		if (op & (OBSC_COLLAPSE_WAIT | OBSC_COLLAPSE_NOWAIT)) {
 			vm_page_t pp;
 
@@ -1331,7 +1318,7 @@ vm_object_backing_scan(vm_object_t object, int op)
 		p = next;
 	}
 	splx(s);
-	return(r);
+	return (r);
 }
 
 
@@ -1416,19 +1403,16 @@ vm_object_collapse(vm_object_t object)
 		 * vm_object_backing_scan fails the shadowing test in this
 		 * case.
 		 */
-
 		if (backing_object->ref_count == 1) {
 			/*
 			 * If there is exactly one reference to the backing
 			 * object, we can collapse it into the parent.  
 			 */
-
 			vm_object_backing_scan(object, OBSC_COLLAPSE_WAIT);
 
 			/*
 			 * Move the pager from backing_object to object.
 			 */
-
 			if (backing_object->type == OBJT_SWAP) {
 				vm_object_pip_add(backing_object, 1);
 
@@ -1440,7 +1424,6 @@ vm_object_collapse(vm_object_t object)
 				 * new swapper is able to optimize the
 				 * destroy-source case.
 				 */
-
 				vm_object_pip_add(object, 1);
 				swap_pager_copy(
 				    backing_object,
@@ -1456,7 +1439,6 @@ vm_object_collapse(vm_object_t object)
 			 * backing_object->backing_object moves from within 
 			 * backing_object to within object.
 			 */
-
 			TAILQ_REMOVE(
 			    &object->backing_object->shadow_head, 
 			    object,
@@ -1514,7 +1496,6 @@ vm_object_collapse(vm_object_t object)
 			 * If we do not entirely shadow the backing object,
 			 * there is nothing we can do so we give up.
 			 */
-
 			if (vm_object_backing_scan(object, OBSC_TEST_ALL_SHADOWED) == 0) {
 				break;
 			}
@@ -1524,7 +1505,6 @@ vm_object_collapse(vm_object_t object)
 			 * chain.  Deallocating backing_object will not remove
 			 * it, since its reference count is at least 2.
 			 */
-
 			TAILQ_REMOVE(
 			    &backing_object->shadow_head,
 			    object,
@@ -1611,7 +1591,6 @@ again:
 				 * The busy flags are only cleared at
 				 * interrupt -- minimize the spl transitions
 				 */
-
  				if (vm_page_sleep_busy(p, TRUE, "vmopar"))
  					goto again;
 
@@ -1714,7 +1693,6 @@ vm_object_coalesce(vm_object_t prev_object, vm_pindex_t prev_pindex, vm_size_t p
 	 * another object . has a copy elsewhere (any of which mean that the
 	 * pages not mapped to prev_entry may be in use anyway)
 	 */
-
 	if (prev_object->backing_object != NULL) {
 		return (FALSE);
 	}
@@ -1789,7 +1767,7 @@ _vm_object_in_map(vm_map_t map, vm_object_t object, vm_map_entry_t entry)
 		tmpe = map->header.next;
 		entcount = map->nentries;
 		while (entcount-- && (tmpe != &map->header)) {
-			if( _vm_object_in_map(map, object, tmpe)) {
+			if (_vm_object_in_map(map, object, tmpe)) {
 				return 1;
 			}
 			tmpe = tmpe->next;
@@ -1799,14 +1777,14 @@ _vm_object_in_map(vm_map_t map, vm_object_t object, vm_map_entry_t entry)
 		tmpe = tmpm->header.next;
 		entcount = tmpm->nentries;
 		while (entcount-- && tmpe != &tmpm->header) {
-			if( _vm_object_in_map(tmpm, object, tmpe)) {
+			if (_vm_object_in_map(tmpm, object, tmpe)) {
 				return 1;
 			}
 			tmpe = tmpe->next;
 		}
 	} else if ((obj = entry->object.vm_object) != NULL) {
 		for (; obj; obj = obj->backing_object)
-			if( obj == object) {
+			if (obj == object) {
 				return 1;
 			}
 	}
@@ -1820,21 +1798,21 @@ vm_object_in_map(vm_object_t object)
 
 	/* sx_slock(&allproc_lock); */
 	LIST_FOREACH(p, &allproc, p_list) {
-		if( !p->p_vmspace /* || (p->p_flag & (P_SYSTEM|P_WEXIT)) */)
+		if (!p->p_vmspace /* || (p->p_flag & (P_SYSTEM|P_WEXIT)) */)
 			continue;
-		if( _vm_object_in_map(&p->p_vmspace->vm_map, object, 0)) {
+		if (_vm_object_in_map(&p->p_vmspace->vm_map, object, 0)) {
 			/* sx_sunlock(&allproc_lock); */
 			return 1;
 		}
 	}
 	/* sx_sunlock(&allproc_lock); */
-	if( _vm_object_in_map( kernel_map, object, 0))
+	if (_vm_object_in_map(kernel_map, object, 0))
 		return 1;
-	if( _vm_object_in_map( kmem_map, object, 0))
+	if (_vm_object_in_map(kmem_map, object, 0))
 		return 1;
-	if( _vm_object_in_map( pager_map, object, 0))
+	if (_vm_object_in_map(pager_map, object, 0))
 		return 1;
-	if( _vm_object_in_map( buffer_map, object, 0))
+	if (_vm_object_in_map(buffer_map, object, 0))
 		return 1;
 	return 0;
 }
@@ -1949,7 +1927,7 @@ DB_SHOW_COMMAND(vmopag, vm_object_print_pages)
 		vm_page_t m;
 
 		db_printf("new object: %p\n", (void *)object);
-		if ( nl > 18) {
+		if (nl > 18) {
 			c = cngetc();
 			if (c != ' ')
 				return;
@@ -1967,7 +1945,7 @@ DB_SHOW_COMMAND(vmopag, vm_object_print_pages)
 				if (rcount) {
 					db_printf(" index(%ld)run(%d)pa(0x%lx)\n",
 						(long)fidx, rcount, (long)pa);
-					if ( nl > 18) {
+					if (nl > 18) {
 						c = cngetc();
 						if (c != ' ')
 							return;
@@ -1997,7 +1975,7 @@ DB_SHOW_COMMAND(vmopag, vm_object_print_pages)
 				db_printf(" index(%ld)run(%d)pa(0x%lx)",
 					(long)fidx, rcount, (long)pa);
 				db_printf("pd(%ld)\n", (long)padiff);
-				if ( nl > 18) {
+				if (nl > 18) {
 					c = cngetc();
 					if (c != ' ')
 						return;
@@ -2012,7 +1990,7 @@ DB_SHOW_COMMAND(vmopag, vm_object_print_pages)
 		if (rcount) {
 			db_printf(" index(%ld)run(%d)pa(0x%lx)\n",
 				(long)fidx, rcount, (long)pa);
-			if ( nl > 18) {
+			if (nl > 18) {
 				c = cngetc();
 				if (c != ' ')
 					return;

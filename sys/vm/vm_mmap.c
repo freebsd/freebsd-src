@@ -93,7 +93,6 @@ SYSCTL_INT(_vm, OID_AUTO, max_proc_mmap, CTLFLAG_RW, &max_proc_mmap, 0, "");
  * if attacked from compromised user account but generous enough such that
  * multi-threaded processes are not unduly inconvenienced.
  */
-
 static void vmmapentry_rsrc_init __P((void *));
 SYSINIT(vmmersrc, SI_SUB_KVM_RSRC, SI_ORDER_FIRST, vmmapentry_rsrc_init, NULL)
 
@@ -380,7 +379,6 @@ mmap(td, uap)
 			 * we're at securelevel < 1, to allow the XIG X server
 			 * to continue to work.
 			 */
-
 			if ((flags & MAP_SHARED) != 0 ||
 			    (vp->v_type == VCHR && disablexworkaround)) {
 				if ((fp->f_flag & FWRITE) != 0) {
@@ -517,7 +515,7 @@ msync(td, uap)
 	size += pageoff;
 	size = (vm_size_t) round_page(size);
 	if (addr + size < addr)
-		return(EINVAL);
+		return (EINVAL);
 
 	if ((flags & (MS_ASYNC|MS_INVALIDATE)) == (MS_ASYNC|MS_INVALIDATE))
 		return (EINVAL);
@@ -558,7 +556,7 @@ done2:
 
 	switch (rv) {
 	case KERN_SUCCESS:
-		return(0);
+		return (0);
 	case KERN_INVALID_ADDRESS:
 		return (EINVAL);	/* Sun returns ENOMEM? */
 	case KERN_FAILURE:
@@ -594,7 +592,7 @@ munmap(td, uap)
 	size += pageoff;
 	size = (vm_size_t) round_page(size);
 	if (addr + size < addr)
-		return(EINVAL);
+		return (EINVAL);
 
 	if (size == 0)
 		return (0);
@@ -672,7 +670,7 @@ mprotect(td, uap)
 	size += pageoff;
 	size = (vm_size_t) round_page(size);
 	if (addr + size < addr)
-		return(EINVAL);
+		return (EINVAL);
 
 	mtx_lock(&Giant);
 	ret = vm_map_protect(&td->td_proc->p_vmspace->vm_map, addr,
@@ -716,7 +714,7 @@ minherit(td, uap)
 	size += pageoff;
 	size = (vm_size_t) round_page(size);
 	if (addr + size < addr)
-		return(EINVAL);
+		return (EINVAL);
 
 	mtx_lock(&Giant);
 	ret = vm_map_inherit(&td->td_proc->p_vmspace->vm_map, addr, addr+size,
@@ -921,7 +919,7 @@ RestartScan:
 			 * the byte vector is zeroed for those skipped entries.
 			 */
 			while ((lastvecindex + 1) < vecindex) {
-				error = subyte( vec + lastvecindex, 0);
+				error = subyte(vec + lastvecindex, 0);
 				if (error) {
 					error = EFAULT;
 					goto done2;
@@ -932,7 +930,7 @@ RestartScan:
 			/*
 			 * Pass the page information to the user
 			 */
-			error = subyte( vec + vecindex, mincoreinfo);
+			error = subyte(vec + vecindex, mincoreinfo);
 			if (error) {
 				error = EFAULT;
 				goto done2;
@@ -962,7 +960,7 @@ RestartScan:
 	 */
 	vecindex = OFF_TO_IDX(end - first_addr);
 	while ((lastvecindex + 1) < vecindex) {
-		error = subyte( vec + lastvecindex, 0);
+		error = subyte(vec + lastvecindex, 0);
 		if (error) {
 			error = EFAULT;
 			goto done2;
