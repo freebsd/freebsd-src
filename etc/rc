@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.104.2.8 1997/04/26 22:39:33 jkh Exp $
+#	$Id: rc,v 1.104.2.9 1997/04/27 11:13:38 jkh Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -214,7 +214,7 @@ ldconfig ${_LDC}
 
 # Now start up miscellaneous daemons that don't belong anywhere else
 #
-echo -n standard daemons:
+echo -n starting standard daemons:
 echo -n ' inetd';		inetd
 echo -n ' cron';		cron
 
