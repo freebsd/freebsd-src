@@ -291,7 +291,7 @@ extern	u_char sys_poll;	/* log2 of system poll interval */
 extern	struct peer *sys_peer;	/* system peer structure pointer */
 
 /*
- * Tables to compute the ddd of year form icky dd/mm timecode. Viva la
+ * Tables to compute the ddd of year from icky dd/mm timecode. Viva la
  * leap.
  */
 static day1tab[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
@@ -581,7 +581,7 @@ acts_receive(rbufp)
 		(void)write(pp->io.fd, &flag, 1);
 
 	/*
-	 * Yes, I know this code incorrectly thinks that 2000 is a leap
+	 * Yes, I know this code incorrectly thinks that 2100 is a leap
 	 * year. The ACTS timecode format croaks then anyway. Life is
 	 * short. Would only the timecode mavens resist the urge to
 	 * express months of the year and days of the month in favor of
