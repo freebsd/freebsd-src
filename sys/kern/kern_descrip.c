@@ -642,7 +642,7 @@ fpathconf(p, uap)
 		return (VOP_PATHCONF(vp, uap->name, p->p_retval));
 
 	default:
-		panic("fpathconf");
+		return (EOPNOTSUPP);
 	}
 	/*NOTREACHED*/
 }
