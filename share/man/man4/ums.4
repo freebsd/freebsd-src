@@ -27,7 +27,7 @@
 .\"
 .\"	$FreeBSD$
 .\"
-.Dd April 11, 1999
+.Dd February 5, 2005
 .Dt UMS 4
 .Os
 .Sh NAME
@@ -75,7 +75,7 @@ Use the first
 mouse on the system as your console mouse.
 .Pp
 Change the "Pointer" section in
-.Nm XF86Config
+.Nm xorg.conf
 to the following
 .Pp
 .Dl Device "/dev/ums0"
@@ -91,17 +91,12 @@ as in X change it to:
 .Pp
 .Dl Device "/dev/sysmouse"
 .Dl Protocol "Auto"
-.Pp
-For XFree86 3.3.1 the entry should be:
-.Pp
-.Dl Device "/dev/sysmouse"
-.Dl Protocol "MouseSystems"
 .Sh SEE ALSO
 .Xr ohci 4 ,
 .Xr sysmouse 4 ,
 .Xr uhci 4 ,
 .Xr usb 4 ,
-.Xr XF86Config 5 ,
+.Xr xorg.conf 5 ,
 .Xr moused 8
 .\".Sh HISTORY
 .Sh AUTHORS
