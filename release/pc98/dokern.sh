@@ -40,6 +40,9 @@ sed	-e '/	pty	/d' \
 	-e '/	isp	/d' \
 	-e '/	sym	/d' \
 	-e '/	ncr	/d' \
+	-e '/	ch	/d' \
+	-e '/	sa	/d' \
+	-e '/	ses	/d' \
 	-e '/	pcm/d' \
 	-e '/	atapist	/d' \
 	-e '/	lpt	/d' \
