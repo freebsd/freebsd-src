@@ -1,13 +1,13 @@
 #	from @(#)Makefile.inc	8.1 (Berkeley) 6/4/93
-#	$Id: Makefile.inc,v 1.11 1997/10/21 08:41:07 bde Exp $
+#	$Id: Makefile.inc,v 1.12 1998/02/20 08:17:23 jb Exp $
 
 # locale sources
 .PATH: ${.CURDIR}/../libc/${MACHINE_ARCH}/locale ${.CURDIR}/../libc/locale
 
-SRCS+=	ansi.c collate.c collcmp.c ctype.c euc.c frune.c isctype.c lconv.c \
-	localeconv.c mbrune.c mskanji.c nomacros.c none.c rune.c runetype.c \
-	setinvalidrune.c setlocale.c setrunelocale.c table.c tolower.c \
-	toupper.c utf2.c
+SRCS+=	ansi.c big5.c collate.c collcmp.c ctype.c euc.c frune.c isctype.c \
+	lconv.c localeconv.c mbrune.c mskanji.c nomacros.c none.c rune.c \
+	runetype.c setinvalidrune.c setlocale.c setrunelocale.c table.c \
+	tolower.c toupper.c utf2.c
 
 .if ${LIB} == "c"
 MAN3+=	ctype.3 isalnum.3 isalpha.3 isascii.3 isblank.3 iscntrl.3 \
