@@ -53,17 +53,18 @@ static char sccsid[] = "@(#)mount_union.c	8.5 (Berkeley) 3/27/94";
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sysexits.h>
 #include <unistd.h>
 
 #include "mntopts.h"
 
-struct mntopt mopts[] = {
+static struct mntopt mopts[] = {
 	MOPT_STDOPTS,
 	{ NULL }
 };
 
-int	subdir __P((const char *, const char *));
-void	usage __P((void));
+static int	subdir __P((const char *, const char *));
+static __dead void	usage __P((void)) __dead2;
 
 int
 main(argc, argv)
@@ -102,10 +103,10 @@ main(argc, argv)
 		usage();
 
 	if (realpath(argv[0], target) == 0)
-		err(1, "%s", target);
+		err(EX_OSERR, "%s", target);
 
 	if (subdir(target, argv[1]) || subdir(argv[1], target))
-		errx(1, "%s (%s) and %s are not distinct paths",
+		errx(EX_USAGE, "%s (%s) and %s are not distinct paths",
 		    argv[0], target, argv[1]);
 
 	args.target = target;
@@ -117,9 +118,11 @@ main(argc, argv)
 		endvfsent();	/* flush cache */
 		vfc = getvfsbyname("union");
 	}
+	if (!vfc)
+		errx(EX_OSERR, "union filesystem is not available");
 
-	if (mount(vfc ? vfc->vfc_index : MOUNT_UNION, argv[1], mntflags, &args))
-		err(1, NULL);
+	if (mount(vfc->vfc_index, argv[1], mntflags, &args))
+		err(EX_OSERR, target);
 	exit(0);
 }
 
@@ -145,5 +148,5 @@ usage()
 {
 	(void)fprintf(stderr,
 		"usage: mount_union [-br] [-o options] target_fs mount_point\n");
-	exit(1);
+	exit(EX_USAGE);
 }

@@ -41,7 +41,11 @@ char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
+/*
 static char sccsid[] = "@(#)mount_portal.c	8.4 (Berkeley) 3/27/94";
+*/
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -58,6 +62,7 @@ static char sccsid[] = "@(#)mount_portal.c	8.4 (Berkeley) 3/27/94";
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sysexits.h>
 #include <unistd.h>
 
 #include "mntopts.h"
@@ -69,7 +74,7 @@ struct mntopt mopts[] = {
 	{ NULL }
 };
 
-static void usage __P((void));
+static __dead void usage __P((void)) __dead2;
 
 static sig_atomic_t readcf;	/* Set when SIGHUP received */
 
@@ -144,8 +149,7 @@ main(argc, argv)
 	 */
 	un.sun_family = AF_UNIX;
 	if (sizeof(_PATH_TMPPORTAL) >= sizeof(un.sun_path)) {
-		fprintf(stderr, "mount_portal: portal socket name too long\n");
-		exit(1);
+		errx(EX_SOFTWARE, "portal socket name too long");
 	}
 	strcpy(un.sun_path, _PATH_TMPPORTAL);
 	mktemp(un.sun_path);
@@ -153,8 +157,7 @@ main(argc, argv)
 
 	so = socket(AF_UNIX, SOCK_STREAM, 0);
 	if (so < 0) {
-		fprintf(stderr, "mount_portal: socket: %s\n", strerror(errno));
-		exit(1);
+		err(EX_OSERR, "socket");
 	}
 	(void) unlink(un.sun_path);
 	if (bind(so, (struct sockaddr *) &un, sizeof(un)) < 0)
@@ -171,10 +174,12 @@ main(argc, argv)
 	vfc = getvfsbyname("portal");
 	if(!vfc && vfsisloadable("portal")) {
 		if(vfsload("portal"))
-			err(1, "vfsload(portal)");
+			err(EX_OSERR, "vfsload(portal)");
 		endvfsent();	/* flush cache */
 		vfc = getvfsbyname("portal");
 	}
+	if (!vfc)
+		errx(EX_OSERR, "portal filesystem is not available");
 
 	rc = mount(vfc ? vfc->vfc_index : MOUNT_PORTAL, mountpt, mntflags, &args);
 	if (rc < 0)
@@ -233,7 +238,7 @@ main(argc, argv)
 			if (errno == EINTR)
 				continue;
 			syslog(LOG_ERR, "select: %s", strerror(errno));
-			exit(1);
+			exit(EX_OSERR);
 		}
 		if (rc == 0)
 			break;
@@ -247,7 +252,7 @@ main(argc, argv)
 				break;
 			if (errno != EINTR) {
 				syslog(LOG_ERR, "accept: %s", strerror(errno));
-				exit(1);
+				exit(EX_OSERR);
 			}
 			continue;
 		}
@@ -282,5 +287,5 @@ usage()
 {
 	(void)fprintf(stderr,
 		"usage: mount_portal [-o options] config mount-point\n");
-	exit(1);
+	exit(EX_USAGE);
 }
