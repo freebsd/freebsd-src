@@ -56,7 +56,7 @@ int
 jail(td, uap)
 	struct thread *td;
 	struct jail_args /* {
-		syscallarg(struct jail *) jail;
+		struct jail *jail;
 	} */ *uap;
 {
 	struct proc *p = td->td_proc;

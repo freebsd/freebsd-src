@@ -79,10 +79,10 @@ int
 kenv(td, uap)
 	struct thread *td;
 	struct kenv_args /* {
-		syscallarg(int) what;
-		syscallarg(const char *) name;
-		syscallarg(char *) value;
-		syscallarg(int) len;
+		int what;
+		const char *name;
+		char *value;
+		int len;
 	} */ *uap;
 {
 	char *name, *value;
