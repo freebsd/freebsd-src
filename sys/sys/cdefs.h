@@ -230,10 +230,6 @@
 #define	__IDSTRING(name,string)	static const char name[] __unused = string
 #endif
 
-#ifndef	__RCSID
-#define	__RCSID(s)	__IDSTRING(__CONCAT(__rcsid_,__LINE__),s)
-#endif
-
 /*
  * Embed the rcs id of a source file in the resulting library.  Note that in
  * more recent ELF binutils, we use .ident allowing the ID to be stripped.
@@ -248,11 +244,19 @@
 #endif
 #endif
 
-#ifndef	__RCSID_SOURCE
+#if !defined(__SCCSID) && !defined(NO__SCCSID)
+#define	__SCCSID(s)	__IDSTRING(__CONCAT(__sccsid_,__LINE__),s)
+#endif
+
+#if !defined(__RCSID) && !defined(NO__RCSID)
+#define	__RCSID(s)	__IDSTRING(__CONCAT(__rcsid_,__LINE__),s)
+#endif
+
+#if !defined(__RCSID_SOURCE) && !defined(NO__RCSID_SOURCE)
 #define	__RCSID_SOURCE(s)	__IDSTRING(__CONCAT(__rcsid_source_,__LINE__),s)
 #endif
 
-#ifndef	__COPYRIGHT
+#if !defined(__COPYRIGHT) && !defined(NO__COPYRIGHT)
 #define	__COPYRIGHT(s)	__IDSTRING(__CONCAT(__copyright_,__LINE__),s)
 #endif
 
