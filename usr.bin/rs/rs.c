@@ -105,6 +105,11 @@ void	  prints __P((char *, int));
 void	  putfile __P((void));
 static void usage __P((void));
 
+#define	INCR(ep) do {			\
+	if (++ep >= endelem)		\
+		ep = getptrs(ep);	\
+} while(0)
+
 int
 main(argc, argv)
 	int argc;
@@ -126,7 +131,7 @@ getfile()
 {
 	register char *p;
 	register char *endp;
-	register char **ep = 0;
+	char **ep;
 	int multisep = (flags & ONEISEPONLY ? 0 : 1);
 	int nullpad = flags & NULLPAD;
 	char **padto;
@@ -153,7 +158,8 @@ getfile()
 	p = curline;
 	do {
 		if (flags & ONEPERLINE) {
-			*ep++ = curline;
+			*ep = curline;
+			INCR(ep);		/* prepare for next entry */
 			if (maxlen < curlen)
 				maxlen = curlen;
 			irows++;
@@ -171,16 +177,16 @@ getfile()
 			*p = '\0';		/* mark end of entry */
 			if (maxlen < p - *ep)	/* update maxlen */
 				maxlen = p - *ep;
-			ep++;			/* prepare for next entry */
+			INCR(ep);		/* prepare for next entry */
 		}
 		irows++;			/* update row count */
 		if (nullpad) {			/* pad missing entries */
 			padto = elem + irows * icols;
-			while  (ep < padto)
-				*ep++ = "";
+			while (ep < padto) {
+				*ep = "";
+				INCR(ep);
+			}
 		}
-	if (ep > endelem)			/* if low on pointers */
-		ep = getptrs(ep);		/* get some more */
 	} while (getline() != EOF);
 	*ep = 0;				/* mark end of pointers */
 	nelem = ep - elem;
@@ -368,24 +374,16 @@ char **
 getptrs(sp)
 	char **sp;
 {
-	register char **p, **ep;
+	char **p;
 
-	for (;;) {
-		allocsize += allocsize;
-		if (!(p = (char **) malloc(allocsize * sizeof(char *))))
-			errx(1, "malloc");
-		if ((endelem = p + allocsize - icols) <= p) {
-			free(p);
-			continue;
-		}
-		if (elem != 0)
-			free(elem);
-		ep = elem;
-		elem = p;
-		while (ep < sp)
-			*p++ = *ep++;
-		return(p);
-	}
+	allocsize += allocsize;
+	p = (char **)realloc(elem, allocsize * sizeof(char *));
+	if (p == NULL)
+		err(1, "no memory");
+
+	sp += (p - elem);
+	endelem = (elem = p) + allocsize;
+	return(sp);
 }
 
 void
