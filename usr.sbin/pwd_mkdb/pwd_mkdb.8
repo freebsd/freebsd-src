@@ -50,12 +50,12 @@ creates
 .Xr db 3
 style secure and insecure databases for the specified file.
 These databases are then installed into
-.Dq Pa /etc/spwd.db
+.Pa /etc/spwd.db
 and
-.Dq Pa /etc/pwd.db
+.Pa /etc/pwd.db
 respectively.
 The file is installed into
-.Dq Pa /etc/master.passwd .
+.Pa /etc/master.passwd .
 The file must be in the correct format (see
 .Xr passwd 5 ) .
 It is important to note that the format used in this system is
@@ -68,10 +68,10 @@ Check if the password file is in the correct format. Do not
 change, add, or remove any files.
 .It Fl p
 Create a Version 7 style password file and install it into
-.Dq Pa /etc/passwd .
+.Pa /etc/passwd .
 .It Fl d Ar directory
 Store databases into specified destination directory instead of
-.Dq Pa /etc .
+.Pa /etc .
 .It Fl u Ar username
 Only update the record for the specified user.  Utilities that
 operate on a single user can use this option to avoid the
@@ -103,17 +103,17 @@ A Version 7 format password file.
 .El
 .Sh BUGS
 Because of the necessity for atomic update of the password files,
-.Nm pwd_mkdb
+.Nm
 uses
 .Xr rename 2
 to install them.
 This, however, requires that the file specified on the command line live
 on the same file system as the
-.Dq Pa /etc
+.Pa /etc
 directory.
 .Pp
 There are the obvious races with multiple people running
-.Nm pwd_mkdb
+.Nm
 on different password files at the same time.
 The front-ends to 
 .Nm pwd_mkdb ,
