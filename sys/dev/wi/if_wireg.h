@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_wireg.h,v 1.28 1999/05/03 18:34:16 wpaul Exp $
+ *	$Id: if_wireg.h,v 1.29 1999/05/06 03:05:48 wpaul Exp $
  */
 
 struct wi_counters {
@@ -330,7 +330,7 @@ struct wi_ltv_str {
 		bzero((char *)&s, sizeof(s));			\
 		s.wi_len = (l / 2) + 2;				\
 		s.wi_type = recno;				\
-		s.wi_str[0] = htons(strlen(str));		\
+		s.wi_str[0] = strlen(str);			\
 		bcopy(str, (char *)&s.wi_str[1], strlen(str));	\
 		wi_write_record(sc, (struct wi_ltv_gen *)&s);	\
 	} while (0)
