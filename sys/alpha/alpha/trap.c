@@ -335,8 +335,10 @@ trap(a0, a1, a2, entry, framep)
 		case ALPHA_IF_CODE_BPT:
 		case ALPHA_IF_CODE_BUGCHK:
 			if (p->p_md.md_flags & (MDP_STEP1|MDP_STEP2)) {
+				mtx_lock(&Giant);
 				ptrace_clear_single_step(p);
 				p->p_md.md_tf->tf_regs[FRAME_PC] -= 4;
+				mtx_unlock(&Giant);
 			}
 			ucode = a0;		/* trap type */
 			i = SIGTRAP;
