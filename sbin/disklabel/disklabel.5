@@ -54,13 +54,13 @@ and may be changed later with the
 program.
 This information is used by the system disk driver and by the bootstrap
 program to determine how to program the drive
-and where to find the filesystems on the disk partitions.
-Additional information is used by the filesystem in order
-to use the disk most efficiently and to locate important filesystem information.
+and where to find the file systems on the disk partitions.
+Additional information is used by the file system in order
+to use the disk most efficiently and to locate important file system information.
 The description of each partition contains an identifier for the partition
-type (standard filesystem, swap area, etc.).
-The filesystem updates the in-core copy of the label if it contains
-incomplete information about the filesystem.
+type (standard file system, swap area, etc.).
+The file system updates the in-core copy of the label if it contains
+incomplete information about the file system.
 .Pp
 The label is located in sector number
 .Dv LABELSECTOR
@@ -122,7 +122,7 @@ is
 
 /*
  * Each disk has a label which includes information about the hardware
- * disk geometry, filesystem partitions, and drive specific information.
+ * disk geometry, file system partitions, and drive specific information.
  * The label is in block 0 or 1, possibly offset from the beginning
  * to leave room for a bootstrap, etc.
  */
@@ -216,16 +216,16 @@ struct disklabel {
 	u_int32_t d_magic2;		/* the magic number (again) */
 	u_int16_t d_checksum;		/* xor of data incl. partitions */
 
-			/* filesystem and partition information: */
+			/* file system and partition information: */
 	u_int16_t d_npartitions;	/* number of partitions in following */
 	u_int32_t d_bbsize;		/* size of boot area at sn0, bytes */
 	u_int32_t d_sbsize;		/* max size of fs superblock, bytes */
 	struct	partition {		/* the partition table */
 		u_int32_t p_size;	/* number of sectors in partition */
 		u_int32_t p_offset;	/* starting sector */
-		u_int32_t p_fsize;	/* filesystem basic fragment size */
-		u_int8_t p_fstype;	/* filesystem type, see below */
-		u_int8_t p_frag;	/* filesystem fragments per block */
+		u_int32_t p_fsize;	/* file system basic fragment size */
+		u_int8_t p_fstype;	/* file system type, see below */
+		u_int8_t p_frag;	/* file system fragments per block */
 		union {
 			u_int16_t cpg;	/* UFS: FS cylinders per group */
 			u_int16_t sgs;	/* LFS: FS segment shift */
@@ -288,7 +288,7 @@ static char *dktypenames[] = {
 
 /*
  * Filesystem type and version.
- * Used to interpret other filesystem-specific
+ * Used to interpret other file system-specific
  * per-partition information.
  */
 #define	FS_UNUSED	0		/* unused */
@@ -298,11 +298,11 @@ static char *dktypenames[] = {
 #define	FS_SYSV		4		/* System V */
 #define	FS_V71K		5		/* V7 with 1K blocks (4.1, 2.9) */
 #define	FS_V8		6		/* Eighth Edition, 4K blocks */
-#define	FS_BSDFFS	7		/* 4.2BSD fast filesystem */
-#define	FS_MSDOS	8		/* MSDOS filesystem */
-#define	FS_BSDLFS	9		/* 4.4BSD log-structured filesystem */
+#define	FS_BSDFFS	7		/* 4.2BSD fast file system */
+#define	FS_MSDOS	8		/* MSDOS file system */
+#define	FS_BSDLFS	9		/* 4.4BSD log-structured file system */
 #define	FS_OTHER	10		/* in use, but unknown/unsupported */
-#define	FS_HPFS		11		/* OS/2 high-performance filesystem */
+#define	FS_HPFS		11		/* OS/2 high-performance file system */
 #define	FS_ISO9660	12		/* ISO 9660, normally CD-ROM */
 #define	FS_BOOT		13		/* partition contains bootstrap */
 #define	FS_VINUM	14		/* Vinum drive */

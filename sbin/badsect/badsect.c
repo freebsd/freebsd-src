@@ -52,7 +52,7 @@ static const char rcsid[] =
  * and makes files containing the blocks of which these sectors are a part.
  * It can be used to contain sectors which have problems if these sectors
  * are not part of the bad file for the pack (see bad144).  For instance,
- * this program can be used if the driver for the filesystem in question
+ * this program can be used if the driver for the file system in question
  * does not support bad block forwarding.
  */
 #include <sys/param.h>
@@ -150,7 +150,7 @@ main(int argc, char *argv[])
 			break;
 	}
 	if (sblock_try[i] == -1) {
-		printf("Cannot find filesystem\n");
+		printf("Cannot find file system\n");
 		exit(7);
 	}
 	dev_bsize = fs->fs_fsize / fsbtodb(fs, 1);
@@ -187,7 +187,7 @@ chkuse(daddr_t blkno, int cnt)
 
 	fsbn = dbtofsb(fs, blkno);
 	if ((unsigned)(fsbn+cnt) > fs->fs_size) {
-		printf("block %ld out of range of filesystem\n", (long)blkno);
+		printf("block %ld out of range of file system\n", (long)blkno);
 		return (1);
 	}
 	cg = dtog(fs, fsbn);
@@ -218,7 +218,7 @@ chkuse(daddr_t blkno, int cnt)
 }
 
 /*
- * read a block from the filesystem
+ * read a block from the file system
  */
 void
 rdfs(daddr_t bno, int size, char *bf)

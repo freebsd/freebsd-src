@@ -49,7 +49,7 @@ __RCSID("$NetBSD$");
 
 
 #ifdef sgi
-/* use *stat64 for files on large filesystems */
+/* use *stat64 for files on large file systems */
 #define stat	stat64
 #endif
 

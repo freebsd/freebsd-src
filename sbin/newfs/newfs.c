@@ -98,7 +98,7 @@ static const char rcsid[] =
 /*
  * Cylinder groups may have up to MAXBLKSPERCG blocks. The actual
  * number used depends upon how much information can be stored
- * in a cylinder group map which must fit in a single filesystem
+ * in a cylinder group map which must fit in a single file system
  * block. The default is to use as many as possible blocks per group.
  */
 #define	MAXBLKSPERCG	0x7fffffff	/* desired fs_fpg ("infinity") */
@@ -111,16 +111,16 @@ static const char rcsid[] =
 #define MAXBLKPG(bsize)	((bsize) / sizeof(ufs2_daddr_t))
 
 /*
- * Each filesystem has a number of inodes statically allocated.
+ * Each file system has a number of inodes statically allocated.
  * We allocate one inode slot per NFPI fragments, expecting this
  * to be far more than we will ever need.
  */
 #define	NFPI		4
 
-int	Nflag;			/* run without writing filesystem */
-int	Oflag = 1;		/* filesystem format (1 => UFS1, 2 => UFS2) */
+int	Nflag;			/* run without writing file system */
+int	Oflag = 1;		/* file system format (1 => UFS1, 2 => UFS2) */
 int	Rflag;			/* regression test */
-int	Uflag;			/* enable soft updates for filesystem */
+int	Uflag;			/* enable soft updates for file system */
 quad_t	fssize;			/* file system size */
 int	sectorsize;		/* bytes/sector */
 int	realsectorsize;		/* bytes/sector in hardware */
@@ -164,7 +164,7 @@ main(int argc, char *argv[])
 			break;
 		case 'O':
 			if ((Oflag = atoi(optarg)) < 1 || Oflag > 2)
-				errx(1, "%s: bad filesystem format value",
+				errx(1, "%s: bad file system format value",
 				    optarg);
 			break;
 		case 'R':
@@ -235,7 +235,7 @@ main(int argc, char *argv[])
 			break;
 		case 's':
 			if ((fssize = atoi(optarg)) <= 0)
-				errx(1, "%s: bad filesystem size", optarg);
+				errx(1, "%s: bad file system size", optarg);
 			break;
 		case '?':
 		default:
@@ -271,7 +271,7 @@ main(int argc, char *argv[])
 		if (fssize == 0)
 			fssize = mediasize / sectorsize;
 		else if (fssize > mediasize / sectorsize)
-			errx(1, "%s: maximum filesystem size is %u",
+			errx(1, "%s: maximum file system size is %u",
 			    special, (u_int)(mediasize / sectorsize));
 	}
 	pp = NULL;
@@ -280,7 +280,7 @@ main(int argc, char *argv[])
 		cp = strchr(special, '\0');
 		cp--;
 		if ((*cp < 'a' || *cp > 'h') && !isdigit(*cp))
-			errx(1, "%s: can't figure out filesystem partition",
+			errx(1, "%s: can't figure out file system partition",
 			    special);
 		if (isdigit(*cp))
 			pp = &lp->d_partitions[RAW_PART];
@@ -297,7 +297,7 @@ main(int argc, char *argv[])
 			fssize = pp->p_size;
 		if (fssize > pp->p_size)
 			errx(1, 
-		    "%s: maximum filesystem size %d", special, pp->p_size);
+		    "%s: maximum file system size %d", special, pp->p_size);
 		if (sectorsize == 0)
 			sectorsize = lp->d_secsize;
 		if (fsize == 0)
@@ -315,7 +315,7 @@ main(int argc, char *argv[])
 		maxbsize = bsize;
 	/*
 	 * Maxcontig sets the default for the maximum number of blocks
-	 * that may be allocated sequentially. With filesystem clustering
+	 * that may be allocated sequentially. With file system clustering
 	 * it is possible to allocate contiguous blocks up to the maximum
 	 * transfer size permitted by the controller or buffering.
 	 */
@@ -389,8 +389,8 @@ usage()
 	    " [device-type]");
 	fprintf(stderr, "where fsoptions are:\n");
 	fprintf(stderr,
-	    "\t-N do not create filesystem, just print out parameters\n");
-	fprintf(stderr, "\t-O filesystem format: 1 => UFS1, 2 => UFS2\n");
+	    "\t-N do not create file system, just print out parameters\n");
+	fprintf(stderr, "\t-O file system format: 1 => UFS1, 2 => UFS2\n");
 	fprintf(stderr, "\t-R regression test, supress random factors\n");
 	fprintf(stderr, "\t-S sector size\n");
 	fprintf(stderr, "\t-T disktype\n");

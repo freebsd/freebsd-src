@@ -325,7 +325,7 @@ nodeupdates(char *name, ino_t ino, int type)
 
 	/*
 	 * A previously non-existent file.
-	 * Add it to the filesystem, and request its extraction.
+	 * Add it to the file system, and request its extraction.
 	 * If it is a directory, create it immediately.
 	 * (Since the name is unused there can be no conflict)
 	 */

@@ -38,7 +38,7 @@
 .Sh NAME
 .Nm restore ,
 .Nm rrestore
-.Nd "restore files or filesystems from backups made with dump"
+.Nd "restore files or file systems from backups made with dump"
 .Sh SYNOPSIS
 .Nm
 .Fl i
@@ -87,7 +87,7 @@ The
 .Nm
 utility performs the inverse function of
 .Xr dump 8 .
-A full backup of a filesystem may be restored and
+A full backup of a file system may be restored and
 subsequent incremental backups layered on top of it.
 Single files and
 directory subtrees may be restored from full or partial
@@ -180,7 +180,7 @@ It also causes
 to print out information about each file as it is extracted.
 .It Ic what
 Display dump header information, which includes: date,
-level, label, and the filesystem and host dump was made
+level, label, and the file system and host dump was made
 from.
 .El
 .It Fl R
@@ -191,12 +191,12 @@ a full restore
 flag below).
 This is useful if the restore has been interrupted.
 .It Fl r
-Restore (rebuild a filesystem).
-The target filesystem should be made pristine with
+Restore (rebuild a file system).
+The target file system should be made pristine with
 .Xr newfs 8 ,
 mounted and the user
 .Xr cd Ns 'd
-into the pristine filesystem
+into the pristine file system
 before starting the restoration of the initial level 0 backup.
 If the
 level 0 restores successfully, the
@@ -232,7 +232,7 @@ in conjunction with
 .Xr newfs 8
 and
 .Xr dump 8 ,
-may be used to modify filesystem parameters
+may be used to modify file system parameters
 such as size or block size.
 .It Fl t
 The names of the specified files are listed if they occur
@@ -281,7 +281,7 @@ tries to determine the media block size dynamically.
 Normally,
 .Nm
 will try to determine dynamically whether the dump was made from an
-old (pre-4.4) or new format filesystem.  The
+old (pre-4.4) or new format file system.  The
 .Fl c
 flag disables this check, and only allows reading a dump in the old
 format.
@@ -385,19 +385,19 @@ Most checks are self-explanatory or can ``never happen''.
 Common errors are given below.
 .Pp
 .Bl -tag -width Ds -compact
-.It Converting to new filesystem format.
-A dump tape created from the old filesystem has been loaded.
-It is automatically converted to the new filesystem format.
+.It Converting to new file system format.
+A dump tape created from the old file system has been loaded.
+It is automatically converted to the new file system format.
 .Pp
 .It <filename>: not found on tape
 The specified file name was listed in the tape directory,
 but was not found on the tape.
 This is caused by tape read errors while looking for the file,
-and from using a dump tape created on an active filesystem.
+and from using a dump tape created on an active file system.
 .Pp
 .It expected next file <inumber>, got <inumber>
 A file that was not listed in the directory showed up.
-This can occur when using a dump created on an active filesystem.
+This can occur when using a dump created on an active file system.
 .Pp
 .It Incremental dump too low
 When doing incremental restore,
@@ -446,7 +446,7 @@ information passed between incremental restores.
 The
 .Nm
 utility can get confused when doing incremental restores from
-dumps that were made on active filesystems.
+dumps that were made on active file systems.
 .Pp
 A level zero dump must be done after a full restore.
 Because restore runs in user code,

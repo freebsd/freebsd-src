@@ -46,7 +46,7 @@ static const char rcsid[] =
 #endif /* not lint */
 
 /*
- * tunefs: change layout parameters to an existing filesystem.
+ * tunefs: change layout parameters to an existing file system.
  */
 #include <sys/param.h>
 #include <sys/mount.h>
@@ -214,7 +214,7 @@ again:
 		err(1, "%s", special);
 	}
 	if (fs == NULL && (st.st_mode & S_IFMT) == S_IFDIR)
-		errx(10, "%s: unknown filesystem", special);
+		errx(10, "%s: unknown file system", special);
 	getsb(&sblock, special);
 
 	if (pflag) {
@@ -327,7 +327,7 @@ again:
 		if (mount("ufs", fs->fs_file,
 		    stfs.f_flags | MNT_UPDATE | MNT_RELOAD, &args) < 0)
 			err(9, "%s: reload", special);
-		warnx("filesystem reloaded");
+		warnx("file system reloaded");
 	}
 	exit(0);
 }
@@ -338,7 +338,7 @@ usage()
 	fprintf(stderr, "%s\n%s\n%s\n",
 "usage: tunefs [-A] [-a maxcontig] [-d rotdelay] [-e maxbpg] [-f avgfilesize]",
 "              [-m minfree] [-p] [-n enable | disable] [-o space | time]",
-"              [-s filesperdir] special | filesystem");
+"              [-s filesperdir] special | file system");
 	exit(2);
 }
 
@@ -369,7 +369,7 @@ getsb(fs, file)
 			break;
 	}
 	if (sblock_try[i] == -1)
-		err(5, "Cannot find filesystem superblock");
+		err(5, "Cannot find file system superblock");
 	dev_bsize = fs->fs_fsize / fsbtodb(fs, 1);
 	sblockloc = sblock_try[i] / dev_bsize;
 }

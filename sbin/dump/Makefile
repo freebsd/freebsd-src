@@ -7,7 +7,7 @@
 #	optr.c			operator interface
 #	dumprmt.c		handles remote tape via rmt(8)
 #	tape.c			handles the mag tape and opening/closing
-#	traverse.c		traverses the filesystem
+#	traverse.c		traverses the file system
 #	unctime.c		undo ctime
 #
 #	DEBUG			use local directory to find ddate and dumpdates

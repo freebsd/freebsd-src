@@ -131,13 +131,13 @@ static struct part_type
 } part_types[] = {
 	 {0x00, "unused"}
 	,{0x01, "Primary DOS with 12 bit FAT"}
-	,{0x02, "XENIX / filesystem"}
-	,{0x03, "XENIX /usr filesystem"}
+	,{0x02, "XENIX / file system"}
+	,{0x03, "XENIX /usr file system"}
 	,{0x04, "Primary DOS with 16 bit FAT (< 32MB)"}
 	,{0x05, "Extended DOS"}
 	,{0x06, "Primary 'big' DOS (>= 32MB)"}
 	,{0x07, "OS/2 HPFS, NTFS, QNX-2 (16 bit) or Advanced UNIX"}
-	,{0x08, "AIX filesystem or SplitDrive"}
+	,{0x08, "AIX file system or SplitDrive"}
 	,{0x09, "AIX boot partition or Coherent"}
 	,{0x0A, "OS/2 Boot Manager, OPUS or Coherent swap"}
 	,{0x0B, "DOS or Windows 95 with 32 bit FAT"}
@@ -186,7 +186,7 @@ static struct part_type
 	,{0x85, "Linux extended"}
 	,{0x86, "NTFS volume set??"}
 	,{0x87, "NTFS volume set??"}
-	,{0x93, "Amoeba filesystem"}
+	,{0x93, "Amoeba file system"}
 	,{0x94, "Amoeba bad block table"}
 	,{0x9F, "BSD/OS"}
 	,{0xA0, "Suspend to Disk"}
@@ -195,7 +195,7 @@ static struct part_type
 	,{0xA7, "NeXTSTEP"}
 	,{0xA9, "NetBSD"}
 	,{0xAC, "IBM JFS"}
-	,{0xB7, "BSDI BSD/386 filesystem"}
+	,{0xB7, "BSDI BSD/386 file system"}
 	,{0xB8, "BSDI BSD/386 swap"}
 	,{0xC1, "DRDOS/sec with 12-bit FAT"}
 	,{0xC4, "DRDOS/sec with 16-bit FAT (< 32MB)"}
@@ -205,7 +205,7 @@ static struct part_type
 	,{0xE1, "DOS access or SpeedStor with 12-bit FAT extended partition"}
 	,{0xE3, "DOS R/O or SpeedStor"}
 	,{0xE4, "SpeedStor with 16-bit FAT extended partition < 1024 cyl."}
-	,{0xEB, "BeOS filesystem"}
+	,{0xEB, "BeOS file system"}
 	,{0xEE, "EFI GPT"}
 	,{0xEF, "EFI System Partition"}
 	,{0xF1, "SpeedStor"}

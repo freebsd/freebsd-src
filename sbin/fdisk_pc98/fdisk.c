@@ -156,13 +156,13 @@ struct part_type
 	,{0x21, "MSDOS"}
 	,{0x22, "MSDOS"}
 	,{0x23, "MSDOS"}
-	,{0x02, "XENIX / filesystem"}  
-	,{0x03, "XENIX /usr filesystem"}  
+	,{0x02, "XENIX / file system"}  
+	,{0x03, "XENIX /usr file system"}  
 	,{0x04, "PC-UX"}   
 	,{0x05, "Extended DOS"}   
 	,{0x06, "Primary 'big' DOS (> 32MB)"}   
 	,{0x07, "OS/2 HPFS, QNX or Advanced UNIX"}  
-	,{0x08, "AIX filesystem"}   
+	,{0x08, "AIX file system"}   
 	,{0x09, "AIX boot partition or Coherent"}  
 	,{0x0A, "OS/2 Boot Manager or OPUS"}  
 	,{0x10, "OPUS"} 
@@ -180,13 +180,13 @@ struct part_type
 	,{0x75, "PCIX"}
 	,{0x40, "Minix"} 
 #else
-	,{0x02, "XENIX / filesystem"}
-	,{0x03, "XENIX /usr filesystem"}
+	,{0x02, "XENIX / file system"}
+	,{0x03, "XENIX /usr file system"}
 	,{0x04, "Primary DOS with 16 bit FAT (<= 32MB)"}
 	,{0x05, "Extended DOS"}
 	,{0x06, "Primary 'big' DOS (> 32MB)"}
 	,{0x07, "OS/2 HPFS, NTFS, QNX or Advanced UNIX"}
-	,{0x08, "AIX filesystem"}
+	,{0x08, "AIX file system"}
 	,{0x09, "AIX boot partition or Coherent"}
 	,{0x0A, "OS/2 Boot Manager or OPUS"}
 	,{0x0B, "DOS or Windows 95 with 32 bit FAT"}
@@ -207,15 +207,15 @@ struct part_type
 	,{0x80, "Minix 1.1 ... 1.4a"}
 	,{0x81, "Minix 1.4b ... 1.5.10"}
 	,{0x82, "Linux swap or Solaris x86"}
-	,{0x83, "Linux filesystem"}
-	,{0x93, "Amoeba filesystem"}
+	,{0x83, "Linux file system"}
+	,{0x93, "Amoeba file system"}
 	,{0x94, "Amoeba bad block table"}
 	,{0x9F, "BSD/OS"}
 	,{0xA5, "FreeBSD/NetBSD/386BSD"}
 	,{0xA6, "OpenBSD"}
 	,{0xA7, "NEXTSTEP"}
 	,{0xA9, "NetBSD"}
-	,{0xB7, "BSDI BSD/386 filesystem"}
+	,{0xB7, "BSDI BSD/386 file system"}
 	,{0xB8, "BSDI BSD/386 swap"}
 	,{0xDB, "Concurrent CPM or C.DOS or CTOS"}
 	,{0xE1, "Speed"}

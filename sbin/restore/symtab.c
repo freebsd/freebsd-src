@@ -41,7 +41,7 @@ static const char rcsid[] =
 
 /*
  * These routines maintain the symbol table which tracks the state
- * of the filesystem being restored. They provide lookup by either
+ * of the file system being restored. They provide lookup by either
  * name or inode number. They also provide for creation, deletion,
  * and renaming of entries. Because of the dynamic nature of pathnames,
  * names should not be saved, but always constructed just before they
@@ -66,7 +66,7 @@ static const char rcsid[] =
 /*
  * The following variables define the inode symbol table.
  * The primary hash table is dynamically allocated based on
- * the number of inodes in the filesystem (maxino), scaled by
+ * the number of inodes in the file system (maxino), scaled by
  * HASHFACTOR. The variable "entry" points to the hash table;
  * the variable "entrytblsize" indicates its size (in entries).
  */

@@ -35,7 +35,7 @@
 .Os
 .Sh NAME
 .Nm mount_msdosfs
-.Nd mount an MS-DOS filesystem
+.Nd mount an MS-DOS file system
 .Sh SYNOPSIS
 .Nm
 .Op Fl o Ar options
@@ -53,18 +53,18 @@
 .Sh DESCRIPTION
 The
 .Nm
-utility attaches the MS-DOS filesystem residing on
+utility attaches the MS-DOS file system residing on
 the device
 .Pa special
-to the global filesystem namespace at the location
+to the global file system namespace at the location
 indicated by
 .Pa node .
 This command is normally executed by
 .Xr mount 8
 at boot time, but can be used by any user to mount an
-MS-DOS filesystem on any directory that they own (provided,
+MS-DOS file system on any directory that they own (provided,
 of course, that they have appropriate access to the device that
-contains the filesystem).
+contains the file system).
 .Pp
 The options are as follows:
 .Bl -tag -width Ds
@@ -73,26 +73,26 @@ Use the specified mount
 .Ar options ,
 as described in
 .Xr mount 8 ,
-or one of the MSDOS filesystem-specific options
+or one of the MSDOS file system-specific options
 .Ar shortnames ,
 .Ar longnames
 or
 .Ar nowin95 ,
 all of which can be used to affect Windows name translation in the
-underlying filesystem.
+underlying file system.
 .It Fl u Ar uid
-Set the owner of the files in the filesystem to
+Set the owner of the files in the file system to
 .Ar uid .
 The default owner is the owner of the directory
-on which the filesystem is being mounted.
+on which the file system is being mounted.
 .It Fl g Ar gid
-Set the group of the files in the filesystem to
+Set the group of the files in the file system to
 .Ar gid .
 The default group is the group of the directory
-on which the filesystem is being mounted.
+on which the file system is being mounted.
 .It Fl m Ar mask
 Specify the maximum file permissions for files
-in the filesystem.
+in the file system.
 (For example, a
 .Ar mask
 of
@@ -109,7 +109,7 @@ are used.
 The default
 .Ar mask
 is taken from the
-directory on which the filesystem is being mounted.
+directory on which the file system is being mounted.
 .It Fl s
 Force behaviour to
 ignore and not generate Win'95 long filenames.
@@ -124,7 +124,7 @@ nor
 .Fl l
 are given,
 .Nm
-searches the root directory of the filesystem to
+searches the root directory of the file system to
 be mounted for any existing Win'95 long filenames.
 If no such entries are found, but short DOS filenames are found,
 .Fl s
@@ -138,8 +138,8 @@ if deleting or renaming a file.
 This forces
 .Fl s .
 .\".It Fl G
-.\"This option causes the filesystem to be interpreted as an Atari-Gemdos
-.\"filesystem. The differences to the MS-DOS filesystem are minimal and
+.\"This option causes the file system to be interpreted as an Atari-Gemdos
+.\"file system. The differences to the MS-DOS file system are minimal and
 .\"limited to the boot block. This option enforces
 .\".Fl s .
 .It Fl L Ar locale
@@ -190,16 +190,16 @@ default place for character sets conversion tables
 .Sh CAVEATS
 The use of the
 .Fl 9
-flag could result in damaged filesystems,
+flag could result in damaged file systems,
 albeit the damage is in part taken care of by
 procedures similar to the ones used in Win'95.
 .Pp
 .Fx 2.1
 and earlier versions could not handle cluster sizes larger than 16K.
-Just mounting an MS-DOS filesystem could cause corruption to any
-mounted filesystem.
-Cluster sizes larger than 16K are unavoidable for filesystem sizes
-larger than 1G, and also occur when filesystems larger than 1G are
+Just mounting an MS-DOS file system could cause corruption to any
+mounted file system.
+Cluster sizes larger than 16K are unavoidable for file system sizes
+larger than 1G, and also occur when file systems larger than 1G are
 shrunk to smaller than 1G using FIPS.
 .Sh HISTORY
 The

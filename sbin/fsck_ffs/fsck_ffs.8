@@ -39,19 +39,19 @@
 .Sh NAME
 .Nm fsck_ffs ,
 .Nm fsck_ufs
-.Nd filesystem consistency check and interactive repair
+.Nd file system consistency check and interactive repair
 .Sh SYNOPSIS
 .Nm
 .Op Fl BFpfny
 .Op Fl b Ar block#
 .Op Fl c Ar level
 .Op Fl m Ar mode
-.Ar filesystem
+.Ar file system
 .Ar ...
 .Sh DESCRIPTION
-The specified disk partitions and/or filesystems are checked.
-In "preen" mode the clean flag of each filesystem's superblock is examined
-and only those filesystems that
+The specified disk partitions and/or file systems are checked.
+In "preen" mode the clean flag of each file system's superblock is examined
+and only those file systems that
 are not marked clean are checked.
 Filesystems are marked clean when they are unmounted,
 when they have been mounted read-only, or when
@@ -59,10 +59,10 @@ when they have been mounted read-only, or when
 runs on them successfully.
 If the
 .Fl f
-option is specified, the filesystems
+option is specified, the file systems
 will be checked regardless of the state of their clean flag.
 .Pp
-The kernel takes care that only a restricted class of innocuous filesystem
+The kernel takes care that only a restricted class of innocuous file system
 inconsistencies can happen unless hardware or software failures intervene.
 These are limited to the following:
 .Pp
@@ -86,10 +86,10 @@ with the
 option will correct; if it encounters other inconsistencies, it exits
 with an abnormal return status and an automatic reboot will then fail.
 For each corrected inconsistency one or more lines will be printed
-identifying the filesystem on which the correction will take place,
-and the nature of the correction.  After successfully correcting a filesystem,
+identifying the file system on which the correction will take place,
+and the nature of the correction.  After successfully correcting a file system,
 .Nm
-will print the number of files on that filesystem,
+will print the number of files on that file system,
 the number of used and free blocks,
 and the percentage of fragmentation.
 .Pp
@@ -97,9 +97,9 @@ If sent a
 .Dv QUIT
 signal,
 .Nm
-will finish the filesystem checks, then exit with an abnormal
+will finish the file system checks, then exit with an abnormal
 return status that causes an automatic reboot to fail.
-This is useful when you want to finish the filesystem checks during an
+This is useful when you want to finish the file system checks during an
 automatic reboot,
 but do not want the machine to come up multiuser after the checks complete.
 .Pp
@@ -119,8 +119,8 @@ Without the
 .Fl p
 option,
 .Nm
-audits and interactively repairs inconsistent conditions for filesystems.
-If the filesystem is inconsistent the operator is prompted for concurrence
+audits and interactively repairs inconsistent conditions for file systems.
+If the file system is inconsistent the operator is prompted for concurrence
 before each correction is attempted.
 It should be noted that some of the corrective actions which are not
 correctable under the
@@ -133,7 +133,7 @@ is to wait for the operator to respond
 .Li yes
 or
 .Li no .
-If the operator does not have write permission on the filesystem
+If the operator does not have write permission on the file system
 .Nm
 will default to a
 .Fl n
@@ -143,7 +143,7 @@ The following flags are interpreted by
 .Nm :
 .Bl -tag -width indent
 .It Fl F
-Determine whether the filesystem needs to be cleaned immediately
+Determine whether the file system needs to be cleaned immediately
 in foreground, or if its cleaning can be deferred to background.
 To be eligible for background cleaning it must have been running
 with soft updates, not have been marked as needing a foreground check,
@@ -152,9 +152,9 @@ If these conditions are met, then
 .Nm
 exits with a zero exit status.
 Otherwise it exits with a non-zero exit status.
-If the filesystem is clean,
+If the file system is clean,
 it will exit with a non-zero exit status so that the clean status
-of the filesystem can be verified and reported during the foreground
+of the file system can be verified and reported during the foreground
 checks.
 Note that when invoked with the
 .Fl F
@@ -164,30 +164,30 @@ The only thing that
 does is to determine whether a foreground or background
 check is needed and exit with an appropriate status code.
 .It Fl B
-A check is done on the specified and possibly active filesystem.
+A check is done on the specified and possibly active file system.
 The set of corrections that can be done is limited to those done
 when running in preen mode (see the
 .Fl p
 flag).
 If unexpected errors are found,
-the filesystem is marked as needing a foreground check and
+the file system is marked as needing a foreground check and
 .Nm
 exits without attempting any further cleaning.
 .It Fl b
 Use the block specified immediately after the flag as
-the super block for the filesystem.  Block 32 is usually
+the super block for the file system.  Block 32 is usually
 an alternate super block.
 .It Fl c
-Convert the filesystem to the specified level.
-Note that the level of a filesystem can only be raised.
+Convert the file system to the specified level.
+Note that the level of a file system can only be raised.
 There are currently four levels defined:
 .Bl -tag -width indent
 .It 0
-The filesystem is in the old (static table) format.
+The file system is in the old (static table) format.
 .It 1
-The filesystem is in the new (dynamic table) format.
+The file system is in the new (dynamic table) format.
 .It 2
-The filesystem supports 32-bit uid's and gid's,
+The file system supports 32-bit uid's and gid's,
 short symbolic links are stored in the inode,
 and directories have an added field showing the file type.
 .It 3
@@ -201,13 +201,13 @@ In interactive mode,
 will list the conversion to be made
 and ask whether the conversion should be done.
 If a negative answer is given,
-no further operations are done on the filesystem.
+no further operations are done on the file system.
 In preen mode,
 the conversion is listed and done if
 possible without user interaction.
-Conversion in preen mode is best used when all the filesystems
+Conversion in preen mode is best used when all the file systems
 are being converted at once.
-The format of a filesystem can be determined from the
+The format of a file system can be determined from the
 first line of output from
 .Xr dumpfs 8 .
 .It Fl f
@@ -215,7 +215,7 @@ Force
 .Nm
 to check
 .Sq clean
-filesystems when preening.
+file systems when preening.
 .It Fl m
 Use the mode specified in octal immediately after the flag as the
 permission bits to use when creating the
@@ -230,9 +230,9 @@ Assume a no response to all questions asked by
 except for
 .Ql CONTINUE? ,
 which is assumed to be affirmative;
-do not open the filesystem for writing.
+do not open the file system for writing.
 .It Fl p
-Preen filesystems (see above).
+Preen file systems (see above).
 .It Fl y
 Assume a yes response to all questions asked by
 .Nm ;
@@ -246,7 +246,7 @@ Inconsistencies checked are as follows:
 .It
 Blocks claimed by more than one inode or the free map.
 .It
-Blocks claimed by an inode outside the range of the filesystem.
+Blocks claimed by an inode outside the range of the file system.
 .It
 Incorrect link counts.
 .It
@@ -278,7 +278,7 @@ or having the wrong inode number.
 Super Block checks:
 .Bl -item -offset indent -compact
 .It
-More blocks for inodes than there are in the filesystem.
+More blocks for inodes than there are in the file system.
 .It
 Bad free block map format.
 .It
@@ -299,7 +299,7 @@ If there is insufficient space its size is increased.
 .Sh FILES
 .Bl -tag -width /etc/fstab -compact
 .It Pa /etc/fstab
-contains default list of filesystems to check.
+contains default list of file systems to check.
 .El
 .Sh DIAGNOSTICS
 .Ex -std

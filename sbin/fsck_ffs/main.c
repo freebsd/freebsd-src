@@ -152,7 +152,7 @@ main(int argc, char *argv[])
 	signal(SIGINFO, infohandler);
 	/*
 	 * Push up our allowed memory limit so we can cope
-	 * with huge filesystems.
+	 * with huge file systems.
 	 */
 	if (getrlimit(RLIMIT_DATA, &rlimit) == 0) {
 		rlimit.rlim_cur = rlimit.rlim_max;
@@ -179,7 +179,7 @@ argtoi(int flag, const char *req, const char *str, int base)
 }
 
 /*
- * Check the specified filesystem.
+ * Check the specified file system.
  */
 /* ARGSUSED */
 static int
@@ -200,7 +200,7 @@ checkfilesys(char *filesys)
 		pwarn("starting\n");
 	/*
 	 * Make best effort to get the disk name. Check first to see
-	 * if it is listed among the mounted filesystems. Failing that
+	 * if it is listed among the mounted file systems. Failing that
 	 * check to see if it is listed in /etc/fstab.
 	 */
 	mntp = getmntpt(filesys);
@@ -233,7 +233,7 @@ checkfilesys(char *filesys)
 	}
 	/*
 	 * If we are to do a background check:
-	 *	Get the mount point information of the filesystem
+	 *	Get the mount point information of the file system
 	 *	create snapshot file
 	 *	return created snapshot file
 	 *	if not found, clear bkgrdflag and proceed with normal fsck
@@ -259,7 +259,7 @@ checkfilesys(char *filesys)
 				if ((sblock.fs_flags & FS_UNCLEAN) == 0 &&
 				    skipclean && preen) {
 					/*
-					 * filesystem is clean;
+					 * file system is clean;
 					 * skip snapshot and report it clean
 					 */
 					pwarn("FILESYSTEM CLEAN; %s\n",
@@ -315,7 +315,7 @@ checkfilesys(char *filesys)
 	if (preen == 0) {
 		printf("** Last Mounted on %s\n", sblock.fs_fsmnt);
 		if (mntp != NULL && mntp->f_flags & MNT_ROOTFS)
-			printf("** Root filesystem\n");
+			printf("** Root file system\n");
 		printf("** Phase 1 - Check Blocks and Sizes\n");
 	}
 	pass1();
@@ -419,7 +419,7 @@ checkfilesys(char *filesys)
 		resolved = 0;
 
 	/*
-	 * Check to see if the filesystem is mounted read-write.
+	 * Check to see if the file system is mounted read-write.
 	 */
 	if (bkgrdflag == 0 && mntp != NULL && (mntp->f_flags & MNT_RDONLY) == 0)
 		resolved = 0;
@@ -436,7 +436,7 @@ checkfilesys(char *filesys)
 		printf("\n***** PLEASE RERUN FSCK *****\n");
 	if (mntp != NULL) {
 		/*
-		 * We modified a mounted filesystem.  Do a mount update on
+		 * We modified a mounted file system.  Do a mount update on
 		 * it unless it is read-write, so we can continue using it
 		 * as safely as possible.
 		 */
@@ -506,7 +506,7 @@ usage(void)
 {
         (void) fprintf(stderr,
             "usage: %s [-BFpfny] [-b block] [-c level] [-m mode] "
-                        "filesystem ...\n",
+                        "file system ...\n",
             getprogname());
         exit(1);
 }
