@@ -70,7 +70,8 @@ options 	WITNESS_SKIPSPIN	# Don't run witness on spinlocks for speed
 options 	SMP		# Symmetric MultiProcessor Kernel
 device		apic		# I/O APIC
 
-device		isa		# Required by npx(4)
+# Bus support.  Do not remove isa, even if you have no isa slots
+device		isa
 device		eisa
 device		pci
 
