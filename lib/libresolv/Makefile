@@ -1,7 +1,6 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/4/93
 
 LIB=		resolv
-SHLIBDIR=	${LIBDIR}/compat
 INTERNALLIB=	yes		# Do not build or install libresolv*.a
 SHLIB_MAJOR=	2
 SHLIB_MINOR=	0
@@ -19,7 +18,9 @@ SRCS=	fakelib.c
 # libresolv on FreeBSD-2.x **never did anything**!!
 #
 beforeinstall:
-	rm -f ${DESTDIR}${LIBDIR}/libresolv.a
-	rm -f ${DESTDIR}${LIBDIR}/libresolv.so.${SHLIB_MAJOR}.${SHLIB_MINOR}
+	rm -f ${DESTDIR}${ORIG_SHLIBDIR}/libresolv.a
+	rm -f ${DESTDIR}${ORIG_SHLIBDIR}/libresolv.so.${SHLIB_MAJOR}.${SHLIB_MINOR}
 
 .include <bsd.lib.mk>
+ORIG_SHLIBDIR:=	${SHLIBDIR}
+SHLIBDIR=	${ORIG_SHLIBDIR}/compat
