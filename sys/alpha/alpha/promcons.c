@@ -149,7 +149,7 @@ promclose(dev, flag, mode, td)
 
 	untimeout(promtimeout, tp, promtimeouthandle);
 	ttyld_close(tp, flag);
-	ttyclose(tp);
+	tty_close(tp);
 	return 0;
 }
  

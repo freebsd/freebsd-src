@@ -230,7 +230,7 @@ dcons_close(struct cdev *dev, int flag, int mode, struct THREAD *td)
 	tp = dev->si_tty;
 	if (tp->t_state & TS_ISOPEN) {
 		ttyld_close(tp, flag);
-		ttyclose(tp);
+		tty_close(tp);
 	}
 
 	return (0);
@@ -597,7 +597,7 @@ dcons_detach(int port)
 	if (tp->t_state & TS_ISOPEN) {
 		printf("dcons: still opened\n");
 		ttyld_close(tp, 0);
-		ttyclose(tp);
+		tty_close(tp);
 	}
 	/* XXX
 	 * must wait until all device are closed.

@@ -1138,7 +1138,7 @@ rpclose(dev, flag, mode, td)
 	rphardclose(rp);
 
 	tp->t_state &= ~TS_BUSY;
-	ttyclose(tp);
+	tty_close(tp);
 
 	splx(oldspl);
 

@@ -207,7 +207,7 @@ ptsclose(struct cdev *dev, int flag, int mode, struct thread *td)
 
 	tp = dev->si_tty;
 	err = ttyld_close(tp, flag);
-	(void) ttyclose(tp);
+	(void) tty_close(tp);
 	return (err);
 }
 

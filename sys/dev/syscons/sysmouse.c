@@ -110,7 +110,7 @@ smclose(struct cdev *dev, int flag, int mode, struct thread *td)
 	s = spltty();
 	mouse_level = 0;
 	ttyld_close(tp, flag);
-	ttyclose(tp);
+	tty_close(tp);
 	splx(s);
 
 	return 0;

@@ -318,7 +318,7 @@ zsclose(struct cdev *dev, int flag, int mode, struct thread *td)
 	s = spltty();
 	untimeout(zs_poll_intr, sc, sc->zst);
 	ttyld_close(tp, flag);
-	ttyclose(tp);
+	tty_close(tp);
 	splx(s);
 
 	return (0);

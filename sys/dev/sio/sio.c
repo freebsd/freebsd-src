@@ -467,7 +467,7 @@ siodetach(dev)
 	if (com->tp && (com->tp->t_state & TS_ISOPEN)) {
 		device_printf(dev, "still open, forcing close\n");
 		ttyld_close(com->tp, 0);
-		ttyclose(com->tp);
+		tty_close(com->tp);
 	} else {
 		if (com->ibuf != NULL)
 			free(com->ibuf, M_DEVBUF);
@@ -1419,7 +1419,7 @@ sioclose(dev, flag, mode, td)
 	ttyld_close(tp, flag);
 	ttyldoptim(tp);
 	comhardclose(com);
-	ttyclose(tp);
+	tty_close(tp);
 	siosettimeout();
 	splx(s);
 	if (com->gone) {

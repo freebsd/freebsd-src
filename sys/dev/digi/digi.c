@@ -893,7 +893,7 @@ digiclose(struct cdev *dev, int flag, int mode, struct thread *td)
 	ttyld_close(tp, flag);
 	ttyldoptim(tp);
 	digihardclose(port);
-	ttyclose(tp);
+	tty_close(tp);
 	if (--sc->opencnt == 0)
 		splx(s);
 	return (0);
