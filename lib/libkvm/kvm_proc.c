@@ -302,10 +302,16 @@ kvm_getprocs(kd, op, arg, cnt)
 			_kvm_syserr(kd, kd->program, "kvm_getprocs");
 			return (0);
 		}
-		kd->procbase = (struct kinfo_proc *)_kvm_malloc(kd, size);
-		if (kd->procbase == 0)
-			return (0);
-		st = sysctl(mib, op == KERN_PROC_ALL ? 3 : 4, kd->procbase, &size, NULL, 0);
+		kd->procbase = 0;
+		do {
+			size += size / 10;
+			kd->procbase = (struct kinfo_proc *)
+				_kvm_realloc(kd, kd->procbase, size);
+			if (kd->procbase == 0)
+				return (0);
+			st = sysctl(mib, op == KERN_PROC_ALL ? 3 : 4,
+				    kd->procbase, &size, NULL, 0);
+		} while (st == -1 && errno == ENOMEM);
 		if (st == -1) {
 			_kvm_syserr(kd, kd->program, "kvm_getprocs");
 			return (0);
