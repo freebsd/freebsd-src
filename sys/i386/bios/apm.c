@@ -13,7 +13,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.6 1994/11/07 04:23:58 phk Exp $
+ *	$Id: apm.c,v 1.7 1994/11/15 14:09:18 bde Exp $
  */
 
 #include "apm.h"
@@ -92,11 +92,18 @@ apm_int(u_long *eax,u_long *ebx,u_long *ecx)
 	u_long cf;
 	__asm ("pushl	%%ebp
 		pushl	%%edx
+		pushl	%%esi
+		pushl	%%edi
 		xorl	%3,%3
+		movl	%%edi,%3
+		movl	%%esi,%3
 		lcall	_apm_addr
 		jnc	1f
 		incl	%3
-	1:	popl	%%edx
+	1:	
+		popl	%%edi
+		popl	%%esi
+		popl	%%edx
 		popl	%%ebp"
 		: "=a" (*eax), "=b" (*ebx), "=c" (*ecx), "=D" (cf)
 		: "0" (*eax),  "1" (*ebx),  "2" (*ecx)
@@ -175,6 +182,8 @@ apm_getevent(void)
 
 	eax = (APM_BIOS<<8) | APM_GETPMEVENT;
 	
+	ebx = 0;
+	ecx = 0;
 	if (apm_int(&eax,&ebx,&ecx))
 		return PMEV_NOEVENT;
 
@@ -243,6 +252,7 @@ apm_get_info(apm_info_t aip)
 
 	eax = (APM_BIOS<<8)|APM_GETPWSTATUS;
 	ebx = PMDV_ALLDEV;
+	ecx = 0;
 
 	if (apm_int(&eax,&ebx,&ecx))
 		return 1;
