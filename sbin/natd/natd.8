@@ -1,5 +1,5 @@
 .\" manual page [] for natd 1.4
-.\"	$Id: natd.8,v 1.17 1999/04/08 23:15:31 eivind Exp $
+.\"	$Id: natd.8,v 1.16.2.2 1999/05/04 12:12:01 kris Exp $
 .Dd 15 April 1997
 .Os FreeBSD
 .Dt NATD 8
@@ -114,19 +114,31 @@ Only alter outgoing packets with an unregistered source address.
 According to rfc 1918, unregistered source addresses are 10.0.0.0/8,
 172.16.0.0/12 and 192.168.0.0/16.
 
-.It Fl redirect_port Ar proto targetIP:targetPORT [aliasIP:]aliasPORT [remoteIP[:remotePORT]]
-Redirect incoming connections arriving to given port to another host and port.
+.It Fl redirect_port Ar proto targetIP:targetPORT[-targetPORT] [aliasIP:]aliasPORT[-aliasPORT] [remoteIP[:remotePORT[-remotePORT]]]
+Redirect incoming connections arriving to given port(s) to another host
+and port(s).
 Proto is either tcp or udp, targetIP is the desired target IP
-number, targetPORT is the desired target PORT number, aliasPORT
-is the requested PORT number and aliasIP is the aliasing address.
+number, targetPORT is the desired target PORT number or range, aliasPORT
+is the requested PORT number or range, and aliasIP is the aliasing address.
 RemoteIP and remotePORT can be used to specify the connection
 more accurately if necessary.
+The targetPORT range and aliasPORT range need not be the same numerically,
+but must have the same size.
+If remotePORT is not specified, it is assumed to be all ports.
+If remotePORT is specified, it must match the size of targetPORT, or be 0
+(all ports).
 For example, the argument
 
 .Ar tcp inside1:telnet 6666
 
 means that tcp packets destined for port 6666 on this machine will
 be sent to the telnet port on the inside1 machine.
+
+.Ar tcp inside2:2300-2399 3300-3399
+
+will redirect incoming connections on ports 3300-3399 to host
+inside2, ports 2300-2399.
+The mapping is 1:1 meaning port 3300 maps to 2300, 3301 maps to 2301, etc.
 
 .It Fl redirect_address Ar localIP publicIP
 Redirect traffic for public IP address to a machine on the local
