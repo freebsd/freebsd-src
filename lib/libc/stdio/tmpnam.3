@@ -182,9 +182,27 @@ for any of the errors specified for the library functions
 .Xr malloc 3
 or
 .Xr mktemp 3 .
+.Sh SECURITY CONSIDERATIONS
+The
+.Fn tmpnam
+and
+.Fn tempnam
+functions are susceptible to a race condition,
+which allows malicious users
+to potentially overwrite arbitrary files in the system,
+depending on the level of privilege of the running program.
+It is strongly suggested that
+.Xr mkstemp 3
+be used in place of these functions.
+(See
+the FSA.)
 .Sh SEE ALSO
 .Xr mkstemp 3 ,
 .Xr mktemp 3
+.Rs
+.%T "The FreeBSD Security Architecture"
+.%J "/usr/share/doc/{to be determined}"
+.Re
 .Sh STANDARDS
 The
 .Fn tmpfile
