@@ -27,15 +27,18 @@
 int
 main(int argc, char **argv)
 {
-  int retval;
+  int rval1, rval2;
 
   init_dialog();
 
-  retval = dialog_yesno("This is dialog_yesno() in action",
-			"Have you stopped deliberately putting bugs into your code?", -1, -1);
+  rval1 = dialog_yesno("This is dialog_yesno() in action",
+		       "Have you stopped deliberately putting bugs into your code?", -1, -1);
   dialog_clear();
-  fprintf(stderr, "returned value for dialog_yesno was %d\n", retval);
-
+  rval2 = dialog_noyes("This is dialog_noyes() in action",
+		       "Have you stopped beating your wife?", -1, -1);
+  dialog_clear();
   end_dialog();
+  fprintf(stderr, "returned value for dialog_yesno was %d\n", rval1);
+  fprintf(stderr, "returned value for dialog_noyes was %d\n", rval2);
   return 0;
 }

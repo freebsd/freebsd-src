@@ -18,15 +18,37 @@
  *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#ifndef lint
+static const char rcsid[] = "$FreeBSD$";
+#endif
 
 #include <dialog.h>
 #include "dialog.priv.h"
 
+/* Actual work function */
+static int dialog_yesno_proc(unsigned char *title, unsigned char *prompt,
+			     int height, int width, int yesdefault);
 
 /*
  * Display a dialog box with two buttons - Yes and No
  */
-int dialog_yesno(unsigned char *title, unsigned char * prompt, int height, int width)
+int
+dialog_yesno(unsigned char *title, unsigned char *prompt, int height, int width)
+{
+  return dialog_yesno_proc(title, prompt, height, width, TRUE);
+}
+
+/*
+ * Display a dialog box with two buttons - No and Yes
+ */
+int
+dialog_noyes(unsigned char *title, unsigned char *prompt, int height, int width)
+{
+  return dialog_yesno_proc(title, prompt, height, width, FALSE);
+}
+
+static int
+dialog_yesno_proc(unsigned char *title, unsigned char *prompt, int height, int width, int yesdefault)
 {
   int i, j, x, y, key = 0, button = 0;
   WINDOW *dialog;
@@ -92,8 +114,8 @@ int dialog_yesno(unsigned char *title, unsigned char * prompt, int height, int w
 
   x = width/2-10;
   y = height-2;
-  print_button(dialog, "  No  ", y, x+13, FALSE);
-  print_button(dialog, " Yes ", y, x, TRUE);
+  print_button(dialog, yesdefault ? "  No  " : " Yes ", y, x+13, FALSE);
+  print_button(dialog, yesdefault ? " Yes " : "  No  ", y, x, TRUE);
   wrefresh(dialog);
 
   while (key != ESC) {
@@ -117,13 +139,13 @@ int dialog_yesno(unsigned char *title, unsigned char * prompt, int height, int w
       case KEY_RIGHT:
         if (!button) {
           button = 1;    /* Indicates "No" button is selected */
-          print_button(dialog, " Yes ", y, x, FALSE);
-          print_button(dialog, "  No  ", y, x+13, TRUE);
+          print_button(dialog, yesdefault ? " Yes " : "  No  ", y, x, FALSE);
+          print_button(dialog, yesdefault ? "  No  " : " Yes ", y, x+13, TRUE);
         }
         else {
           button = 0;    /* Indicates "Yes" button is selected */
-          print_button(dialog, "  No  ", y, x+13, FALSE);
-          print_button(dialog, " Yes ", y, x, TRUE);
+          print_button(dialog, yesdefault ? "  No  " : " Yes ", y, x+13, FALSE);
+          print_button(dialog, yesdefault ? " Yes " : "  No  ", y, x, TRUE);
         }
         wrefresh(dialog);
         break;
@@ -132,7 +154,10 @@ int dialog_yesno(unsigned char *title, unsigned char * prompt, int height, int w
       case '\n':
         delwin(dialog);
 	restore_helpline(tmphlp);
-        return button;
+	if (yesdefault)
+	    return button;
+	else
+	    return !button;
       case ESC:
         break;
     case KEY_F(1):
