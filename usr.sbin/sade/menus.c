@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.217 1999/07/29 06:23:17 jkh Exp $
+ * $Id: menus.c,v 1.218 1999/07/29 21:15:10 billf Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -838,6 +838,8 @@ DMenu MenuSubDistributions = {
 	srcFlagCheck,	distSetSrc },
       { "ports",	"The FreeBSD Ports collection",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_PORTS },
+      { "local",	"Local additions collection",
+	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_LOCAL},
       { "XFree86",	"The XFree86 3.3.4 distribution",
 	x11FlagCheck,	distSetXF86 },
       { "All",		"All sources, binaries and X Window System binaries",
