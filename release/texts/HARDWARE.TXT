@@ -98,7 +98,8 @@ de0     n/a     n/a     n/a     n/a     DEC DC21x40 PCI based cards
                                         (including 21140 100bT cards)
 ed0     280     10      dyn     d8000   WD & SMC 80xx; Novell NE1000 &
                                         NE2000; 3Com 3C503; HP PC Lan+
-ep0     300     10      dyn     dyn     3Com 3C509
+ep0     300     10      dyn     dyn     3Com 3C509, 3C529, 3C556, 3C562D,
+                                        3C563D, 3C572, 3C574X, 3C579, 3C589
 ex0     dyn     dyn     dyn     n/a     Intel EtherExpress Pro/10 cards
 fe0     300     dyn     n/a     n/a     Allied-Telesyn AT1700, RE2000 and
                                         Fujitsu FMV-180 series cards.
@@ -591,7 +592,7 @@ Winbond W89C940, Surecom NE-34, VIA VT86C926, etc.
 
 3Com 3C507 Etherlink 16/TP
 
-3Com 3C509, 3C579, 
+3Com 3C509, 3C529, 3C556, 3C562D, 3C563D, 3C572, 3C574X, 3C579, 
 3C589/589B/589C/589D/589E/XE589ET/574TX/574B (PC-card/PCMCIA), 
 3C590/592/595/900/905/905B/905C PCI 
 and EISA (Fast) Etherlink III / (Fast) Etherlink XL
