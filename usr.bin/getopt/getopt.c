@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/usr.bin/getopt/getopt.c,v 1.4.2.2 2001/07/30 10:16:38 dd Exp $ */
 
 #include <stdio.h>
 #include <stdlib.h>

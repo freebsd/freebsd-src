@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  *
  * Version 1.2, Aug 30, 1995.
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/include/spigot.h,v 1.5 1999/12/29 04:33:08 peter Exp $
  */
 
 #ifndef	_MACHINE_SPIGOT_H_

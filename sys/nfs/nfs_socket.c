@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_socket.c	8.5 (Berkeley) 3/30/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/nfs/nfs_socket.c,v 1.60.2.3.2.1 2002/08/01 19:31:55 des Exp $
  */
 
 /*

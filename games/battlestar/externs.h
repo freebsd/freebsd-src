@@ -32,7 +32,7 @@
  *
  *	@(#)externs.h	8.1 (Berkeley) 5/31/93
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/games/battlestar/externs.h,v 1.9.2.1 2001/03/05 11:45:36 kris Exp $
  */
 
 #include <errno.h>

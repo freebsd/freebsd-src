@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/isa/sound/dev_table.c,v 1.18 1999/12/20 18:04:59 eivind Exp $
  */
 
 #define _DEV_TABLE_C_

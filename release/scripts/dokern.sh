@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# $FreeBSD$
+# $FreeBSD: src/release/scripts/dokern.sh,v 1.23.2.27.2.2 2002/06/14 18:57:19 jhb Exp $
 
 if [ $# -lt 1 ]; then
 	FDSIZE=NORMAL

@@ -36,7 +36,7 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- * $FreeBSD$
+ * $FreeBSD: src/contrib/libpam/modules/pam_rhosts/pam_rhosts_auth.c,v 1.3.2.2 2001/06/11 15:28:24 markm Exp $
  */
 
 #define _BSD_SOURCE

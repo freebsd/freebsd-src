@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/bin/csh/nls/russian/Makefile,v 1.1.2.1 2001/10/08 21:11:01 mp Exp $
 
 NL=     russian
 DL=     ru_RU.KOI8-R

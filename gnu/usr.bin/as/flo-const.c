@@ -18,7 +18,7 @@
    the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #ifndef lint
-static char rcsid[] = "$FreeBSD$";
+static char rcsid[] = "$FreeBSD: src/gnu/usr.bin/as/flo-const.c,v 1.5 1999/08/27 23:34:14 peter Exp $";
 #endif
 
 #include "flonum.h"

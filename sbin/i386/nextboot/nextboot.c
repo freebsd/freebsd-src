@@ -15,7 +15,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/sbin/i386/nextboot/nextboot.c,v 1.6 1999/08/28 00:13:06 peter Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>

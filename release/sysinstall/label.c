@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $FreeBSD$
+ * $FreeBSD: src/release/sysinstall/label.c,v 1.98.2.8 2002/01/30 00:02:11 murray Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.

@@ -18,7 +18,7 @@ along with GNU CC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/gcc/cp/g++spec.c,v 1.1.1.2.2.1 2002/05/01 20:04:36 obrien Exp $ */
 
 #include "config.h"
 #include "system.h"

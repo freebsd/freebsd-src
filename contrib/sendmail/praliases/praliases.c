@@ -22,7 +22,7 @@ SM_IDSTR(copyright,
 
 SM_IDSTR(id, "@(#)$Id: praliases.c,v 8.93 2001/09/11 04:05:07 gshapiro Exp $")
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/sendmail/praliases/praliases.c,v 1.3.6.5 2002/03/25 21:25:48 gshapiro Exp $ */
 
 #include <sys/types.h>
 #include <ctype.h>

@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/stdtime/timelocal.c,v 1.8.2.3 2002/03/12 17:24:54 phantom Exp $
  */
 
 #include <stddef.h>

@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/lib/libpam/modules/pam_krb5/TODO,v 1.1.2.1 2001/06/07 09:37:07 markm Exp $
 
 Things for 1.1, in no particular order:
 

@@ -1,7 +1,7 @@
 /*
  * USA holiday
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/calendar/calendars/calendar.usholiday,v 1.7 1999/08/28 00:59:23 peter Exp $
  */
 
 #ifndef _calendar_usholiday_

@@ -8,7 +8,7 @@
  * July 25, 1996.
  * This code shamelessly ripped from the pam_rootok module.
  * Slight modifications AGM. 1996/12/3
- * $FreeBSD$
+ * $FreeBSD: src/contrib/libpam/modules/pam_securetty/pam_securetty.c,v 1.3.2.2 2001/06/11 15:28:27 markm Exp $
  */
 
 #define _GNU_SOURCE

@@ -23,7 +23,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/pci/pci_if.m,v 1.2.2.1 2001/07/21 22:40:26 imp Exp $
 #
 
 INTERFACE pci;

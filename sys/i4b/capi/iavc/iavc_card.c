@@ -25,7 +25,7 @@
  * capi/iavc/iavc_card.c
  *		The AVM ISDN controllers' card specific support routines.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i4b/capi/iavc/iavc_card.c,v 1.1.2.1 2001/08/10 14:08:34 obrien Exp $
  */
 
 #include "iavc.h"

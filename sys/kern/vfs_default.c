@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/vfs_default.c,v 1.28.2.6 2001/10/25 18:55:58 dillon Exp $
  */
 
 #include <sys/param.h>

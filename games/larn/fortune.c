@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)fortune.c	5.5 (Berkeley) 6/10/91";
 #endif
 static const char rcsid[] =
- "$FreeBSD$";
+ "$FreeBSD: src/games/larn/fortune.c,v 1.2 1999/11/30 03:48:59 billf Exp $";
 #endif /* not lint */
 
 /* fortune.c		 Larn is copyrighted 1986 by Noah Morgan. */

@@ -1,4 +1,4 @@
-#       $FreeBSD$ 
+#       $FreeBSD: src/sys/modules/ugen/Makefile,v 1.7 1999/11/28 18:53:28 bde Exp $ 
 
 MAINTAINER	 = n_hibma@freebsd.org
 

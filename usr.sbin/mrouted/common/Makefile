@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/mrouted/common/Makefile,v 1.5 1999/08/28 01:17:11 peter Exp $
 
 LIB=		mrouted
 NOPROFILE=	yes

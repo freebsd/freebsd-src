@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/kern/sysv_sem.c,v 1.24.2.7 2002/03/13 12:54:02 maxim Exp $ */
 
 /*
  * Implementation of SVID semaphores

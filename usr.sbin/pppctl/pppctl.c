@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/pppctl/pppctl.c,v 1.21.2.2 2001/11/23 13:18:39 brian Exp $
  */
 
 #include <sys/types.h>

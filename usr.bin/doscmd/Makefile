@@ -1,6 +1,6 @@
 # from BSDI Makefile,v 2.6 1996/04/08 20:06:40 bostic Exp
 #
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/doscmd/Makefile,v 1.21.2.4 2002/04/25 11:04:50 tg Exp $
 
 PROG=	doscmd
 SRCS=	AsyncIO.c ParseBuffer.c bios.c callback.c cmos.c config.c cpu.c cwd.c \

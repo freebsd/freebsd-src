@@ -21,7 +21,7 @@
    02111-1307, USA.  */
 
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/binutils/gas/config/tc-i386.h,v 1.3.6.3 2001/08/01 23:03:01 obrien Exp $ */
 
 
 #ifndef TC_I386

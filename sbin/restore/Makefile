@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/5/93
-# $FreeBSD$
+# $FreeBSD: src/sbin/restore/Makefile,v 1.13.2.2 2001/08/30 17:49:53 ru Exp $
 
 PROG=	restore
 LINKS=	${BINDIR}/restore ${BINDIR}/rrestore

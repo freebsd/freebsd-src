@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/release/sysinstall/Makefile,v 1.92.2.19 2002/04/23 20:35:08 obrien Exp $
 
 PROG=	sysinstall
 MAN=	sysinstall.8

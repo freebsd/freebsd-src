@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/truss/Makefile,v 1.10.2.1 2001/10/29 20:12:56 des Exp $
 
 PROG=	truss
 SRCS=	main.c setup.c syscalls.c syscalls.h ioctl.c

@@ -3,7 +3,7 @@
  * code.
  *
  * $Id: ip_ipsec_pxy.c,v 1.1.2.10 2002/01/13 04:58:29 darrenr Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/contrib/ipfilter/netinet/ip_ipsec_pxy.c,v 1.1.1.1.2.1 2002/04/27 17:37:12 darrenr Exp $
  *
  */
 #define	IPF_IPSEC_PROXY

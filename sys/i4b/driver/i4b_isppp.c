@@ -36,7 +36,7 @@
  *
  *	$Id: i4b_isppp.c,v 1.44 2000/08/31 07:07:26 hm Exp $
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i4b/driver/i4b_isppp.c,v 1.7.2.2 2002/04/24 18:45:24 joerg Exp $
  *
  *	last edit-date: [Thu Aug 31 09:02:27 2000]
  *

@@ -9,7 +9,7 @@
  * authorized by a written license agreement from QSSL. For more information,
  * please email licensing@qnx.com.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/contrib/ipfilter/netinet/ip_h323_pxy.c,v 1.2.2.1 2002/04/27 17:37:12 darrenr Exp $
  */
 
 /*

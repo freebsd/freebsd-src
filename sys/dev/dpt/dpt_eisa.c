@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/dev/dpt/dpt_eisa.c,v 1.12.2.1 2000/08/07 18:48:14 peter Exp $
  */
 
 #include <sys/param.h>

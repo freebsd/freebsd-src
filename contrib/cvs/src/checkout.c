@@ -34,7 +34,7 @@
  */
 
 /*
- * $FreeBSD$
+ * $FreeBSD: src/contrib/cvs/src/checkout.c,v 1.1.1.8.2.3 2001/10/28 21:32:07 peter Exp $
  */
 
 #include <assert.h>

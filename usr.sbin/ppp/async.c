@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/ppp/async.c,v 1.23.2.2 2002/03/11 10:45:47 brian Exp $
  */
 
 #include <sys/types.h>

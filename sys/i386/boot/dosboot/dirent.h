@@ -32,7 +32,7 @@
  *
  *	@(#)dirent.h	5.18 (Berkeley) 2/23/91
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/boot/dosboot/dirent.h,v 1.2 1999/12/29 04:32:50 peter Exp $
  */
 
 #ifndef _DIRENT_H_

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)player.h	8.1 (Berkeley) 5/31/93
- * $FreeBSD$
+ * $FreeBSD: src/games/sail/player.h,v 1.2.6.1 2001/05/01 11:45:08 dwmalone Exp $
  */
 
 #include <curses.h>

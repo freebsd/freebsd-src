@@ -33,7 +33,7 @@ SUCH DAMAGE.
 
 ***************************************************************************/
 
-/*$FreeBSD$*/
+/*$FreeBSD: src/sys/dev/em/if_em.c,v 1.2.2.4 2002/05/10 23:01:43 pdeuskar Exp $*/
 
 #include <dev/em/if_em.h>
 

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/ntfs/Makefile,v 1.5 1999/12/12 20:34:07 peter Exp $
 
 .PATH:	${.CURDIR}/../../ntfs
 KMOD=	ntfs

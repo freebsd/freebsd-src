@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)extern.h	8.1 (Berkeley) 5/31/93
- * $FreeBSD$
+ * $FreeBSD: src/bin/ls/extern.h,v 1.7.2.4 2002/03/28 01:28:14 joe Exp $
  */
 
 int	 acccmp(const FTSENT *, const FTSENT *);

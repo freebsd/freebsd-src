@@ -36,7 +36,7 @@
 static char sccsid[] = "From: @(#)route.c	8.6 (Berkeley) 4/28/95";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.bin/netstat/route.c,v 1.41.2.12 2002/04/08 08:01:51 ru Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>

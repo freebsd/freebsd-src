@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/i386/libi386/aout_freebsd.c,v 1.12.2.2 2000/12/28 13:12:37 ps Exp $
  */
 
 #include <sys/param.h>

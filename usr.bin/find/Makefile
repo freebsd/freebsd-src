@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/find/Makefile,v 1.8.2.4 2001/05/06 09:53:22 phk Exp $
 
 CFLAGS+=-Wall
 PROG=	find

@@ -1,5 +1,5 @@
 /*
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/pc98/libpc98/gatea20.c,v 1.2.2.1 2000/12/30 12:01:06 nyan Exp $
  * From: $NetBSD: gatea20.c,v 1.2 1997/10/29 00:32:49 fvdl Exp $
  */
 

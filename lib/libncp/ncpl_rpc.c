@@ -30,7 +30,7 @@
  * SUCH DAMAGE.
  * NetWare RPCs
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libncp/ncpl_rpc.c,v 1.1 1999/10/12 11:56:41 bp Exp $
  */
 #include <sys/types.h>
 #include <sys/time.h>

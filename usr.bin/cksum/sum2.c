@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)sum2.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.bin/cksum/sum2.c,v 1.4 1999/12/05 20:03:22 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>

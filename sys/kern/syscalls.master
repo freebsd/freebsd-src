@@ -1,4 +1,4 @@
- $FreeBSD$
+ $FreeBSD: src/sys/kern/syscalls.master,v 1.72.2.9 2002/03/09 04:43:21 dd Exp $
 ;	from: @(#)syscalls.master	8.2 (Berkeley) 1/13/94
 ;
 ; System call name/number master file.

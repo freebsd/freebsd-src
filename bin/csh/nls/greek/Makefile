@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/bin/csh/nls/greek/Makefile,v 1.4.2.2 2002/01/05 15:50:16 phantom Exp $
 
 NL=     greek
 DL=     el_GR.ISO8859-7

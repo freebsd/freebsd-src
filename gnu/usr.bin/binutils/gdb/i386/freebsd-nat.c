@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/gnu/usr.bin/binutils/gdb/i386/freebsd-nat.c,v 1.21.4.4 2001/08/15 02:42:27 peter Exp $ */
 /* Native-dependent code for BSD Unix running on i386's, for GDB.
    Copyright 1988, 1989, 1991, 1992, 1994, 1996 Free Software Foundation, Inc.
 

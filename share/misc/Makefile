@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.1 (Berkeley) 6/8/93
-# $FreeBSD$
+# $FreeBSD: src/share/misc/Makefile,v 1.17.2.3 2002/02/18 15:03:34 ru Exp $
 
 FILES=	ascii birthtoken bsd-family-tree eqnchar flowers init.ee \
 	iso3166 iso639 man.template mdoc.template operator pci_vendors \

@@ -1,4 +1,4 @@
-/* $FreeBSD$	*/
+/* $FreeBSD: src/usr.bin/ftp/main.c,v 1.25.2.3 2000/06/24 15:35:46 ru Exp $	*/
 /*	$NetBSD: main.c,v 1.26 1997/10/14 16:31:22 christos Exp $	*/
 
 /*
@@ -44,7 +44,7 @@ __COPYRIGHT("@(#) Copyright (c) 1985, 1989, 1993, 1994\
 #if 0
 static char sccsid[] = "@(#)main.c	8.6 (Berkeley) 10/9/94";
 #else
-__RCSID("$FreeBSD$");
+__RCSID("$FreeBSD: src/usr.bin/ftp/main.c,v 1.25.2.3 2000/06/24 15:35:46 ru Exp $");
 __RCSID_SOURCE("$NetBSD: main.c,v 1.26 1997/10/14 16:31:22 christos Exp $");
 #endif
 #endif /* not lint */

@@ -24,7 +24,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$ 
+ * $FreeBSD: src/sys/alpha/osf1/osf1.h,v 1.2.2.2 2001/02/22 05:15:00 marcel Exp $ 
  */
 
 extern struct sysent osf1_sysent[];

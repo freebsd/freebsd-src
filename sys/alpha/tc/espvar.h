@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/alpha/tc/espvar.h,v 1.4 1999/10/05 20:46:56 n_hibma Exp $ */
 /*	$NetBSD: espvar.h,v 1.3.4.1 1996/09/10 17:28:18 cgd Exp $	*/
 
 /*

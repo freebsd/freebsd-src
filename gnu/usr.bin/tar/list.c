@@ -17,7 +17,7 @@ You should have received a copy of the GNU General Public License
 along with GNU Tar; see the file COPYING.  If not, write to
 the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  
 
-$FreeBSD$
+$FreeBSD: src/gnu/usr.bin/tar/list.c,v 1.8.6.1 2002/03/12 19:16:03 phantom Exp $
 
 */
 

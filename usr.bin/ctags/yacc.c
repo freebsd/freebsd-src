@@ -36,7 +36,7 @@
 static const char sccsid[] = "@(#)yacc.c	8.3 (Berkeley) 4/2/94";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.bin/ctags/yacc.c,v 1.3.6.2 2002/03/05 03:08:22 gshapiro Exp $";
 #endif /* not lint */
 
 #include <ctype.h>

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/alpha/include/clockvar.h,v 1.1.6.1 2000/08/03 00:48:04 peter Exp $ */
 /* $NetBSD: clockvar.h,v 1.4 1997/06/22 08:02:18 jonathan Exp $ */
 
 /*

@@ -22,7 +22,7 @@ SM_IDSTR(copyright,
 
 SM_IDSTR(id, "@(#)$Id: mailstats.c,v 8.95 2001/12/30 04:59:40 gshapiro Exp $")
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/sendmail/mailstats/mailstats.c,v 1.5.2.5 2002/03/25 21:25:42 gshapiro Exp $ */
 
 #include <unistd.h>
 #include <stddef.h>

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/pc98/kgzldr/Makefile,v 1.1.2.1 2002/02/03 11:37:20 nyan Exp $
 
 PROG=	kgzldr.o
 SRCS=	start.s boot.c inflate.c lib.c crt.s sio.s

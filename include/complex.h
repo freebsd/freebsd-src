@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/include/complex.h,v 1.1.2.1 2001/11/23 16:16:18 dd Exp $
  */
 
 #ifndef _COMPLEX_H

@@ -32,7 +32,7 @@
  *
  *	@(#)mille.h	8.1 (Berkeley) 5/31/93
  *
- * $FreeBSD$
+ * $FreeBSD: src/games/mille/mille.h,v 1.7 1999/12/12 06:17:24 billf Exp $
  */
 
 # include	<sys/types.h>

@@ -56,7 +56,7 @@ char *banner[] =
 {
     "#ifndef lint",
     "static char const ",
-    "yyrcsid[] = \"$FreeBSD$\";",
+    "yyrcsid[] = \"$FreeBSD: src/usr.bin/yacc/skeleton.c,v 1.28.2.1 2001/07/19 05:46:39 peter Exp $\";",
     "#endif",
     "#include <stdlib.h>",
     "#define YYBYACC 1",

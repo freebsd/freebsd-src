@@ -25,7 +25,7 @@
  * capi/iavc/iavc_pci.c
  *		The AVM ISDN controllers' PCI bus attachment handling.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i4b/capi/iavc/iavc_pci.c,v 1.1.2.1 2001/08/10 14:08:34 obrien Exp $
  */
 
 #include "iavc.h"

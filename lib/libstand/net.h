@@ -37,7 +37,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libstand/net.h,v 1.1.1.1.6.3 2001/03/05 06:27:18 kris Exp $
  */
 
 #ifndef _KERNEL	/* XXX - see <netinet/in.h> */

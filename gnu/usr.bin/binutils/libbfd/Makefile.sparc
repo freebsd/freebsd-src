@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/binutils/libbfd/Makefile.sparc,v 1.2.2.1 2000/07/06 22:15:54 obrien Exp $
 #
 SRCS+=		aout32.c	\
 		cpu-sparc.c	\

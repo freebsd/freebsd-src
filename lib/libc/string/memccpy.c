@@ -36,7 +36,7 @@ static char sccsid[] = "@(#)memccpy.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/lib/libc/string/memccpy.c,v 1.2.12.1 2001/07/09 23:30:03 obrien Exp $";
 #endif
 
 #include <sys/cdefs.h>

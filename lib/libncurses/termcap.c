@@ -59,7 +59,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libncurses/termcap.c,v 1.2.2.1 2000/07/10 09:54:51 ps Exp $
  */
 
 #ifndef lint

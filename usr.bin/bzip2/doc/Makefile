@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/bzip2/doc/Makefile,v 1.1.2.2 2002/02/18 09:13:07 sobomax Exp $
 
 .PATH: ${.CURDIR}/../../../contrib/bzip2
 

@@ -47,7 +47,7 @@ static char sccsid[] = "@(#)xargs.c	8.1 (Berkeley) 6/6/93";
 #endif
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/xargs/xargs.c,v 1.9.2.2 2002/03/18 04:56:32 des Exp $");
 
 #include <sys/types.h>
 #include <sys/wait.h>

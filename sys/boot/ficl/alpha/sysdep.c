@@ -7,7 +7,7 @@
 **
 *******************************************************************/
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/boot/ficl/alpha/sysdep.c,v 1.7.2.1 2000/07/06 23:51:46 obrien Exp $ */
 
 #ifdef TESTMAIN
 #include <stdio.h>

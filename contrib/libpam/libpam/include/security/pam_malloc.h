@@ -1,5 +1,5 @@
 /* $Id: pam_malloc.h,v 1.1 1996/11/10 21:23:14 morgan Exp $
- * $FreeBSD$
+ * $FreeBSD: src/contrib/libpam/libpam/include/security/pam_malloc.h,v 1.1.1.1.6.2 2001/06/11 15:28:14 markm Exp $
  *
  * $Log: pam_malloc.h,v $
  * Revision 1.1  1996/11/10 21:23:14  morgan

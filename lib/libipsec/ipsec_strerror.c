@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/lib/libipsec/ipsec_strerror.c,v 1.1.2.2 2001/07/03 11:01:14 ume Exp $	*/
 /*	$KAME: ipsec_strerror.c,v 1.7 2000/07/30 00:45:12 itojun Exp $	*/
 
 /*

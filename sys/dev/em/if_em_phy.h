@@ -33,7 +33,7 @@
 
 *******************************************************************************/
 
-/*$FreeBSD$*/
+/*$FreeBSD: src/sys/dev/em/if_em_phy.h,v 1.1.2.3 2002/04/12 16:49:07 pdeuskar Exp $*/
 /* if_em_phy.h
  * Structures, enums, and macros for the PHY
  */

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/linux/Makefile,v 1.34.2.9 2001/11/05 19:08:24 marcel Exp $
 
 MAINTAINER=	marcel@FreeBSD.org
 

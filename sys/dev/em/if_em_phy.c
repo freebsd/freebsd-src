@@ -33,7 +33,7 @@
 
 *******************************************************************************/
 
-/*$FreeBSD$*/
+/*$FreeBSD: src/sys/dev/em/if_em_phy.c,v 1.1.2.3 2002/04/12 16:49:07 pdeuskar Exp $*/
 /* if_em_phy.c
  * Shared functions for accessing and configuring the PHY
  */

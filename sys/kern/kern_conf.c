@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/kern_conf.c,v 1.73.2.2 2001/11/08 15:40:06 roam Exp $
  */
 
 #include <sys/param.h>

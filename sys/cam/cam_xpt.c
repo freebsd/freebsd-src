@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/cam/cam_xpt.c,v 1.80.2.15 2002/04/24 17:13:36 mjacob Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>

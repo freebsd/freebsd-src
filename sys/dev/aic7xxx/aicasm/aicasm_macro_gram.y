@@ -40,7 +40,7 @@
  *
  * $Id$
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/aic7xxx/aicasm/aicasm_macro_gram.y,v 1.1.2.1 2002/04/29 19:36:36 gibbs Exp $
  */
 
 #include <sys/types.h>

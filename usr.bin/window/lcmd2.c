@@ -37,7 +37,7 @@
 #ifndef lint
 static char sccsid[] = "@(#)lcmd2.c	8.1 (Berkeley) 6/6/93";
 static char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.bin/window/lcmd2.c,v 1.2.6.2 2001/05/17 09:45:00 obrien Exp $";
 #endif /* not lint */
 
 #include "defs.h"

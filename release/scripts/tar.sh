@@ -32,7 +32,7 @@
 #
 
 #
-# $FreeBSD$
+# $FreeBSD: src/release/scripts/tar.sh,v 1.5.2.1 2000/05/19 16:03:36 joerg Exp $
 #
 
 archive=${TAPE:-/dev/rsa0}

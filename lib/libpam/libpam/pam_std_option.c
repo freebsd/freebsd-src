@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libpam/libpam/pam_std_option.c,v 1.1.1.1.6.2.6.1 2002/07/16 12:33:23 des Exp $");
 
 #include <stdio.h>
 #include <string.h>

@@ -30,7 +30,7 @@
  *
  * $Id$
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/aic7xxx/aic7xxx_osm.c,v 1.27.2.1 2002/04/29 19:36:31 gibbs Exp $
  */
 
 #include <dev/aic7xxx/aic7xxx_osm.h>

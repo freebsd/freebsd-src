@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/gen/fstab.c,v 1.8 2000/01/27 23:06:15 jasone Exp $
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -38,7 +38,7 @@
 static char sccsid[] = "@(#)fstab.c	8.1 (Berkeley) 6/4/93";
 #else
 static char rcsid[] =
- "$FreeBSD$";
+ "$FreeBSD: src/lib/libc/gen/fstab.c,v 1.8 2000/01/27 23:06:15 jasone Exp $";
 #endif
 #endif /* LIBC_SCCS and not lint */
 

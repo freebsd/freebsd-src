@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/kdump/Makefile,v 1.4 1999/12/03 12:50:01 marcel Exp $
 
 PROG=	kdump
 CFLAGS+=-I${.CURDIR}/../ktrace -I${.CURDIR}/../..

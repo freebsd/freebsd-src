@@ -45,7 +45,7 @@
  *
  *
  * @(#)ioctl_pcvt.h, 3.20, Last Edit-Date: [Fri Apr  7 10:17:13 1995]
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/include/pcvt_ioctl.h,v 1.13 1999/12/29 04:33:04 peter Exp $
  */
 
 /*---------------------------------------------------------------------------

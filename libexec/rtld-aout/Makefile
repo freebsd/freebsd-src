@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/libexec/rtld-aout/Makefile,v 1.29.2.1 2001/04/25 10:41:00 ru Exp $
 PROG=	ld.so
 SRCS=	mdprologue.S rtld.c shlib.c md.c support.c
 MAN=	rtld.1aout

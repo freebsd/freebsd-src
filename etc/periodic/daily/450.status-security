@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/periodic/daily/450.status-security,v 1.3.2.7 2002/05/21 03:20:49 brian Exp $
 #
 
 # If there is a global system configuration file, suck it in.

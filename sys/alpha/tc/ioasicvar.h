@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/alpha/tc/ioasicvar.h,v 1.3 1999/10/05 20:46:57 n_hibma Exp $ */
 /*	$NetBSD: ioasicvar.h,v 1.5 1998/01/19 02:50:19 thorpej Exp $	*/
 
 /*

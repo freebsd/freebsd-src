@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/isa/pnpreg.h,v 1.3.2.1 2000/05/11 11:10:35 nyan Exp $
  *      from: pnp.h,v 1.7 1998/09/13 22:15:44 eivind Exp
  */
 

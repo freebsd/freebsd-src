@@ -1,7 +1,7 @@
 <!--
  an sgml list of people to credit for their contributions to Linux-PAM
  $Id: CREDITS,v 1.4 1997/04/05 06:47:26 morgan Exp morgan $
- $FreeBSD$
+ $FreeBSD: src/contrib/libpam/doc/CREDITS,v 1.1.1.1.6.2 2001/06/11 15:28:10 markm Exp $
   -->
 Peter Allgeyer,
 Tim Baverstock,

@@ -10,7 +10,7 @@
  * Credit to Dick Grune, Vrije Universiteit, Amsterdam, for writing
  * the shell-script CVS system that this is based on.
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/cvs/src/main.c,v 1.18.2.2 2001/10/28 21:32:08 peter Exp $
  */
 
 #include <assert.h>

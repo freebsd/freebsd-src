@@ -6,7 +6,7 @@
  * v1.2 with color support and minor portability fixes, November 1990
  * v2.0 featuring strict ANSI/POSIX conformance, November 1993.
  *
- * $FreeBSD$
+ * $FreeBSD: src/games/bs/bs.c,v 1.9 2000/02/21 03:07:31 billf Exp $
  */
 
 #include <ncurses.h>

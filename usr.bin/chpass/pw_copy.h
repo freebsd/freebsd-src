@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)pw_copy.h	8.1 (Berkeley) 4/2/94
- *	$FreeBSD$
+ *	$FreeBSD: src/usr.bin/chpass/pw_copy.h,v 1.1.1.1.14.1 2002/03/24 09:00:03 cjc Exp $
  */
 
 void	 pw_copy __P((int, int, struct passwd *, struct passwd *));

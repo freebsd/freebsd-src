@@ -51,7 +51,7 @@
 /*
  *	@(#)resolv.h	8.1 (Berkeley) 6/2/93
  *	From Id: resolv.h,v 8.12 1998/04/28 19:36:46 halley Exp $
- * $FreeBSD$
+ * $FreeBSD: src/include/resolv.h,v 1.19.2.1 2001/06/15 22:08:26 ume Exp $
  */
 
 #ifndef _RESOLV_H_

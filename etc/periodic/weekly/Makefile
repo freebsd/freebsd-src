@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/etc/periodic/weekly/Makefile,v 1.4.2.2 2000/10/31 09:44:13 dougb Exp $
 
 BIN=	120.clean-kvmdb \
 	310.locate \

@@ -91,7 +91,7 @@
 
 #if !defined(lint)
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/sys/dev/mii/ukphy.c,v 1.2.2.1 2000/12/12 19:29:15 wpaul Exp $";
 #endif
 
 static int ukphy_probe		__P((device_t));

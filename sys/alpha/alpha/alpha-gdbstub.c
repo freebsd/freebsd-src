@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/alpha/alpha/alpha-gdbstub.c,v 1.7.2.1 2000/08/03 18:46:59 peter Exp $ */
 /****************************************************************************
 
 		THIS SOFTWARE IS NOT COPYRIGHTED

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/sound/driver/cmi/Makefile,v 1.1.2.1 2001/02/27 03:42:29 cg Exp $
 
 .PATH:		${.CURDIR}/../../../../dev/sound/pci
 KMOD		= snd_cmi

@@ -1,5 +1,5 @@
 %{
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/bind/bin/nslookup/commands.l,v 1.4.2.3.2.1 2002/07/15 07:51:15 dougb Exp $ */
 /*
  * Copyright (c) 1985
  *    The Regents of the University of California.  All rights reserved.

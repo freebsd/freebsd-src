@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/etc/mtree/README,v 1.4.2.1 2001/01/11 13:06:22 dougb Exp $
 
 These files are used to create empty file hierarchies for building the
 system into.  Some notes about working with them are placed here to try

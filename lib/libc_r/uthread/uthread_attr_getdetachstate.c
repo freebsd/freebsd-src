@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc_r/uthread/uthread_attr_getdetachstate.c,v 1.3.2.1 2000/08/17 18:16:54 jhb Exp $
  */
 #include <errno.h>
 #ifdef _THREAD_SAFE

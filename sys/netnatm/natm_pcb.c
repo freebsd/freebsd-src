@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/netnatm/natm_pcb.c,v 1.6.6.1 2000/08/03 18:56:28 peter Exp $ */
 /*	$NetBSD: natm_pcb.c,v 1.4 1996/11/09 03:26:27 chuck Exp $	*/
 
 /*

@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)hexdump.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.bin/hexdump/hexdump.c,v 1.4.2.1 2002/03/12 19:36:56 phantom Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>

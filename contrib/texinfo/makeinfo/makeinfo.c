@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/texinfo/makeinfo/makeinfo.c,v 1.9.2.1 2002/03/30 17:09:21 ru Exp $ */
 /* makeinfo -- convert Texinfo source into other formats.
    $Id: makeinfo.c,v 1.195 2002/02/11 17:12:49 karl Exp $
 

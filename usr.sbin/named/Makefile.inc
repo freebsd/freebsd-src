@@ -1,5 +1,5 @@
 # From: Id: Makefile.inc,v 8.4 1996/03/03 17:42:43 vixie Exp
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/named/Makefile.inc,v 1.12.2.3 2001/07/22 18:57:06 dillon Exp $
 
 .ifndef (Mk.Inc)
 Mk.Inc?=defined

@@ -2,7 +2,7 @@
 .\" Must use -- tbl and pic -- with this one
 .\"
 .\" @(#)rpc.prog.ms	2.3 88/08/11 4.0 RPCSRC
-.\" $FreeBSD$
+.\" $FreeBSD: src/lib/libc/rpc/PSD.doc/rpc.prog.ms,v 1.1.14.1 2000/11/24 09:36:30 ru Exp $
 .\"
 .so stubs
 .de BT

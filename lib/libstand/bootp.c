@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  * @(#) Header: bootp.c,v 1.4 93/09/11 03:13:51 leres Exp  (LBL)
- * $FreeBSD$
+ * $FreeBSD: src/lib/libstand/bootp.c,v 1.1.1.1.6.2 2000/09/20 18:37:25 ps Exp $
  */
 
 #include <sys/types.h>

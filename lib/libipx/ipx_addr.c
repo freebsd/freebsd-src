@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libipx/ipx_addr.c,v 1.2.8.1 2001/03/05 06:21:40 kris Exp $
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)

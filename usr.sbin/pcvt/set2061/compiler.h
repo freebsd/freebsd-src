@@ -20,7 +20,7 @@
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/pcvt/set2061/compiler.h,v 1.5 1999/08/28 05:11:28 peter Exp $
  */
 
 

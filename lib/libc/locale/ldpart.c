@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/locale/ldpart.c,v 1.7.2.1 2002/03/12 17:17:48 phantom Exp $
  */
 
 #include <sys/types.h>

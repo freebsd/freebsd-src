@@ -28,7 +28,7 @@
  */
 
 /*
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/i386/sys/i386_clr_watch.c,v 1.1.2.1 2000/10/21 01:33:34 bsd Exp $
  */
 
 

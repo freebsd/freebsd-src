@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/gnu/usr.bin/binutils/libbfd/i386/bfd.h,v 1.2.6.3 2001/08/01 22:54:11 obrien Exp $ */
 
 /* Main header file for the bfd library -- portable access to object files.
    Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,

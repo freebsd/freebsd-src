@@ -1,6 +1,6 @@
 # -*- makefile -*-
 #
-# $FreeBSD$
+# $FreeBSD: src/release/doc/share/examples/Makefile.relnotesng,v 1.1.2.2.4.3 2002/08/01 16:15:50 bmah Exp $
 #
 # Sample makefile for rendering and uploading RELNOTESng files outside
 # the build tree.

@@ -6,7 +6,7 @@
  * that wishes to use it.
  *
  * Note, the copyright information is at end of file.
- * $FreeBSD$
+ * $FreeBSD: src/contrib/libpam/libpam/include/security/pam_appl.h,v 1.1.1.1.6.2 2001/06/11 15:28:14 markm Exp $
  *
  * Created: 15-Jan-96 by TYT
  * Last modified: 1996/3/5 by AGM

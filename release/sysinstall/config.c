@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $FreeBSD$
+ * $FreeBSD: src/release/sysinstall/config.c,v 1.156.2.28.2.1 2002/06/10 04:39:50 obrien Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.

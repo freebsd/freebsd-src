@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  *
  *	$Id: if_xe.c,v 1.20 1999/06/13 19:17:40 scott Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/xe/if_xe.c,v 1.13.2.5 2000/07/21 22:38:24 imp Exp $
  */
 
 /*

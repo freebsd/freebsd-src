@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/joy/Makefile,v 1.15.2.1 2001/04/25 11:24:03 ru Exp $
 
 .PATH:	${.CURDIR}/../../isa
 KMOD	= joy

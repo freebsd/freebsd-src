@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/portmap/Makefile,v 1.7.2.1 2001/04/25 12:10:33 ru Exp $
 
 PROG=	portmap
 MAN=	portmap.8

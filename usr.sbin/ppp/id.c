@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/ppp/id.c,v 1.18.2.2 2002/03/20 03:13:47 brian Exp $
  */
 
 #include <sys/param.h>

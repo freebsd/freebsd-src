@@ -1,5 +1,5 @@
 /*	$NetBSD: usb_port.h,v 1.15 1999/11/16 12:04:28 augustss Exp $	*/
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/dev/usb/usb_port.h,v 1.25.2.6 2002/02/14 02:32:16 joe Exp $	*/
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.

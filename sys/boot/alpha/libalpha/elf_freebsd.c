@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/boot/alpha/libalpha/elf_freebsd.c,v 1.8.2.2 2001/03/04 05:21:25 obrien Exp $ */
 /* $NetBSD: loadfile.c,v 1.10 1998/06/25 06:45:46 ross Exp $ */
 
 /*-

@@ -27,7 +27,7 @@
  *	i4b_isic.c - global isic stuff
  *	==============================
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i4b/layer1/isic/i4b_isic.c,v 1.4.2.1 2001/08/10 14:08:38 obrien Exp $
  *
  *      last edit-date: [Wed Jan 24 09:29:42 2001]
  *

@@ -1,6 +1,6 @@
 /*
  * $Id: misc_conv.c,v 1.5 1997/01/04 20:16:48 morgan Exp morgan $
- * $FreeBSD$
+ * $FreeBSD: src/contrib/libpam/libpam_misc/misc_conv.c,v 1.1.1.1.6.2 2001/06/11 15:28:15 markm Exp $
  *
  * A generic conversation function for text based applications
  *

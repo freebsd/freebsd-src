@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/perl/library/Makefile,v 1.3.2.2 2001/05/31 11:43:38 markm Exp $
 
 SUBDIR=	B DB_File Dumper Errno Fcntl IO SysV NDBM_File Opcode POSIX \
 	SDBM_File Socket attrs re

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/liby/Makefile,v 1.7 1999/08/28 00:05:59 peter Exp $
 
 LIB=		y
 SHLIB_MAJOR=	2

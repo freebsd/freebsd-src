@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/usr.sbin/pkg_install/sign/x509.c,v 1.1.2.1 2001/03/05 03:43:53 wes Exp $ */
 /*-
  * Copyright (c) 2000 Softweyr LLC, South Jordan, Utah, USA.
  *

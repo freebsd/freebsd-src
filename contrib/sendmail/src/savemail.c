@@ -11,7 +11,7 @@
  *
  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/sendmail/src/savemail.c,v 1.4.2.6 2002/03/25 21:26:04 gshapiro Exp $ */
 
 #include <sendmail.h>
 

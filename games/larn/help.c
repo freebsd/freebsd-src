@@ -1,5 +1,5 @@
 /*	help.c		Larn is copyrighted 1986 by Noah Morgan. */
-/* $FreeBSD$ */
+/* $FreeBSD: src/games/larn/help.c,v 1.4 1999/11/16 02:57:21 billf Exp $ */
 #include "header.h"
 /*
  *	help function to display the help info

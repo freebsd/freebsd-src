@@ -15,7 +15,7 @@
 
 SM_RCSID("@(#)$Id: err.c,v 8.189 2002/01/09 18:52:30 ca Exp $")
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/sendmail/src/err.c,v 1.3.6.5 2002/03/25 21:26:02 gshapiro Exp $ */
 
 #if LDAPMAP
 # include <lber.h>

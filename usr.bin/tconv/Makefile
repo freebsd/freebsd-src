@@ -1,5 +1,5 @@
 # Makefile for tconv
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/tconv/Makefile,v 1.5 1999/08/28 01:06:17 peter Exp $
 
 PROG=   tconv
 SRCS=   tconv.c quit.c

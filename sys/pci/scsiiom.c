@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/pci/scsiiom.c,v 1.4.6.1 2000/08/03 01:09:11 peter Exp $ */
 /***********************************************************************
  *	FILE NAME : SCSIIOM.C					       *
  *	     BY   : C.L. Huang	  (ching@tekram.com.tw) 	       *

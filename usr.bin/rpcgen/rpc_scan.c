@@ -26,7 +26,7 @@
  * 2550 Garcia Avenue
  * Mountain View, California  94043
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/rpcgen/rpc_scan.c,v 1.4.8.1 2001/03/04 08:59:50 kris Exp $
  */
 
 #ident	"@(#)rpc_scan.c	1.13	93/07/05 SMI"

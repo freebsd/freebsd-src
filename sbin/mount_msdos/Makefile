@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/sbin/mount_msdos/Makefile,v 1.14.2.4 2002/04/14 16:57:18 phantom Exp $
 #
 
 PROG=	mount_msdos

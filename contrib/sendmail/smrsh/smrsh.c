@@ -22,7 +22,7 @@ SM_IDSTR(copyright,
 
 SM_IDSTR(id, "@(#)$Id: smrsh.c,v 8.55 2001/09/11 04:05:22 gshapiro Exp $")
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/sendmail/smrsh/smrsh.c,v 1.3.6.6 2002/03/25 21:25:54 gshapiro Exp $ */
 
 /*
 **  SMRSH -- sendmail restricted shell

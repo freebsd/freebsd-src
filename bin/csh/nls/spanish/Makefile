@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/bin/csh/nls/spanish/Makefile,v 1.4.2.2 2002/01/05 15:50:17 phantom Exp $
 
 NL=     spanish
 DL=     es_ES.ISO8859-1

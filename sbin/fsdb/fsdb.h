@@ -27,7 +27,7 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sbin/fsdb/fsdb.h,v 1.4.2.1 2002/03/20 13:39:02 joerg Exp $
  */
 
 extern int bread __P((int fd, char *buf, daddr_t blk, long size));

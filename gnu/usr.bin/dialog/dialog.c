@@ -17,7 +17,7 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- * $FreeBSD$
+ * $FreeBSD: src/gnu/usr.bin/dialog/dialog.c,v 1.12.6.1 2001/03/05 10:28:10 kris Exp $
  *
  *
  *  HISTORY:

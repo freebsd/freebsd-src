@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/libkern/alpha/htons.S,v 1.1.6.1 2000/08/03 01:03:45 peter Exp $ */
 /*	$NetBSD: htons.S,v 1.1 1996/04/17 22:36:54 cgd Exp $	*/
 
 /*

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)socketvar.h	8.3 (Berkeley) 2/19/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/socketvar.h,v 1.46.2.8 2002/05/01 03:26:32 silby Exp $
  */
 
 #ifndef _SYS_SOCKETVAR_H_

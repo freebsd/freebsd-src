@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 5/31/93
-# $FreeBSD$
+# $FreeBSD: src/games/snake/snake/Makefile,v 1.5.2.1 2001/04/25 09:29:03 ru Exp $
 
 PROG=	snake
 SRCS=	snake.c move.c

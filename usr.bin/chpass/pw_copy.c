@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/chpass/pw_copy.c,v 1.9.2.2 2002/03/24 09:00:03 cjc Exp $
  */
 
 #ifndef lint

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/amr/Makefile,v 1.4.2.1 2000/10/28 10:17:01 msmith Exp $
 
 .PATH:		${.CURDIR}/../../dev/amr
 KMOD		= amr

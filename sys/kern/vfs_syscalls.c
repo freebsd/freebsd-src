@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/vfs_syscalls.c,v 1.151.2.16 2002/04/26 00:46:04 iedowse Exp $
  */
 
 /* For 4.3 integer FS ID compatibility */

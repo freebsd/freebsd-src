@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/gen/getttyent.c,v 1.11 1999/11/04 04:16:27 ache Exp $
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libbind/Makefile,v 1.5.2.1 2002/03/22 18:40:30 ru Exp $
 
 BIND_DIR=${.CURDIR}/../../contrib/bind
 

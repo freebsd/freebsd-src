@@ -29,7 +29,7 @@
  *
  *	$Id: pathnames.h,v 1.11 2000/10/09 11:17:07 hm Exp $ 
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/i4b/isdnd/pathnames.h,v 1.6.2.1 2001/08/01 17:45:03 obrien Exp $
  *
  *      last edit-date: [Mon Oct  2 22:55:28 2000]
  *

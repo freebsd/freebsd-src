@@ -1,6 +1,6 @@
 /*	$OpenBSD: mailwrapper.c,v 1.6 1999/12/17 05:06:28 mickey Exp $	*/
 /*	$NetBSD: mailwrapper.c,v 1.3 1999/05/29 18:18:15 christos Exp $	*/
-/* $FreeBSD$ */
+/* $FreeBSD: src/usr.sbin/mailwrapper/mailwrapper.c,v 1.4.2.3 2001/10/01 12:52:47 dd Exp $ */
 
 /*
  * Copyright (c) 1998

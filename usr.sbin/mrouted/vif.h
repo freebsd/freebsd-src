@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/mrouted/vif.h,v 1.10 1999/08/28 01:17:09 peter Exp $
  * vif.h,v 3.8.4.26 1998/01/14 21:21:19 fenner Exp
  */
 

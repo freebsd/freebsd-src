@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/iir/Makefile,v 1.1.2.1 2002/05/04 08:16:15 asmodai Exp $
 
 KMOD=   iir
 

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/ncplogin/ncplogin.c,v 1.1 1999/10/31 02:14:59 bp Exp $
  */
 #include <sys/types.h>
 #include <sys/errno.h>

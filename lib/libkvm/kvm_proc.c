@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libkvm/kvm_proc.c,v 1.25.2.2 2002/01/31 23:47:10 peter Exp $
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)

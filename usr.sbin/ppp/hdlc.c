@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/ppp/hdlc.c,v 1.46.2.1 2001/06/13 21:56:34 brian Exp $
  */
 
 #include <sys/param.h>

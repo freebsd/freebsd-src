@@ -1,6 +1,6 @@
 /*
  * $Id: md5_crypt.c,v 1.1.1.1 2000/06/20 22:12:03 agmorgan Exp $
- * $FreeBSD$
+ * $FreeBSD: src/contrib/libpam/modules/pam_unix/md5_crypt.c,v 1.1.1.1.2.2 2001/06/11 15:28:30 markm Exp $
  *
  * ----------------------------------------------------------------------------
  * "THE BEER-WARE LICENSE" (Revision 42):

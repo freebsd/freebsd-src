@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/lib/libpam/modules/pam_kerberosIV/pam_kerberosIV.c,v 1.4.10.1 2002/07/16 12:33:24 des Exp $
  */
 
 #include <sys/param.h>

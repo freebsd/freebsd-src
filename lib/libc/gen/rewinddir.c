@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/gen/rewinddir.c,v 1.2.8.1 2001/03/05 09:52:13 obrien Exp $
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)

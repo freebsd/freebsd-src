@@ -122,7 +122,7 @@ extern	int	ip_optcopy __P((struct ip *, struct ip *));
 
 #if !defined(lint)
 /*static const char rcsid[] = "@(#)$Id: ip_fil.c,v 2.42.2.14 2000/07/18 13:57:55 darrenr Exp $";*/
-static const char rcsid[] = "@(#)$FreeBSD$";
+static const char rcsid[] = "@(#)$FreeBSD: src/sys/contrib/ipfilter/netinet/ip_fil.c,v 1.25.2.4 2002/04/27 17:37:12 darrenr Exp $";
 #endif
 
 

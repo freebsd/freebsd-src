@@ -5,7 +5,7 @@ $ Based on uk_UA.KOI8-U translation by Olexander Kunytsa <kunia@istc.kiev.ua>
 $
 $ For ee patchlevel 3
 $
-$ $FreeBSD$
+$ $FreeBSD: src/usr.bin/ee/nls/ru_RU.KOI8-R/ee.msg,v 1.1.2.1 2001/06/10 11:06:11 sobomax Exp $
 $
 $
 $set 1

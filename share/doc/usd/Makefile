@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.2 (Berkeley) 4/20/94
-# $FreeBSD$
+# $FreeBSD: src/share/doc/usd/Makefile,v 1.8.2.1 2001/12/19 04:44:24 dd Exp $
 
 # The following modules are encumbered:
 # 01.begin 02.learn 03.shell 05.dc 06.bc 09.edtut 10.edadv 15.sed 16.awk

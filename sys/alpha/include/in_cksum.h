@@ -33,7 +33,7 @@
  *	from tahoe:	in_cksum.c	1.2	86/01/05
  *	from:		@(#)in_cksum.c	1.3 (Berkeley) 1/19/91
  *	from: Id: in_cksum.c,v 1.8 1995/12/03 18:35:19 bde Exp
- * $FreeBSD$
+ * $FreeBSD: src/sys/alpha/include/in_cksum.h,v 1.3.2.1 2000/05/05 13:37:03 jlemon Exp $
  */
 
 #ifndef _MACHINE_IN_CKSUM_H_

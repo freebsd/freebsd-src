@@ -1,6 +1,6 @@
 /* Copyright (c) Stichting Mathematisch Centrum, Amsterdam, 1985. */
 /* hack.apply.c - version 1.0.3 */
-/* $FreeBSD$ */
+/* $FreeBSD: src/games/hack/hack.apply.c,v 1.4.2.1 2001/02/18 02:20:07 kris Exp $ */
 
 #include	"hack.h"
 #include	"def.edog.h"

@@ -1,4 +1,4 @@
-% $FreeBSD$
+% $FreeBSD: src/gnu/usr.bin/groff/tmac/hyphen.us-ru,v 1.1.12.1 2001/04/26 17:08:42 ru Exp $
 % Hyphenation patterns for US English and Russian (koi8-r).
 % These are the standard Plain TeX hyphenation patterns (in hyphen.tex).
 .ach4

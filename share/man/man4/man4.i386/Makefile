@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/man/man4/man4.i386/Makefile,v 1.122.2.10 2002/04/19 05:52:11 nsouch Exp $
 
 MAN=	aic.4 alpm.4 amdpm.4 apm.4 ar.4 asc.4 asr.4 \
 	cs.4 cx.4 cy.4 \

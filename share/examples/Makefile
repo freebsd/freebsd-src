@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/examples/Makefile,v 1.28.2.3.2.1 2002/07/27 14:51:29 jhb Exp $
 #
 # Doing a make install builds /usr/share/examples
 

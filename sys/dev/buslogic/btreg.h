@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/buslogic/btreg.h,v 1.10.2.2 2001/09/03 02:45:22 peter Exp $
  */
 
 #ifndef _BTREG_H_

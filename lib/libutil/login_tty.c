@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)login_tty.c	8.1 (Berkeley) 6/4/93";
 #else
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/lib/libutil/login_tty.c,v 1.6 1999/08/28 00:05:49 peter Exp $";
 #endif
 #endif /* LIBC_SCCS and not lint */
 

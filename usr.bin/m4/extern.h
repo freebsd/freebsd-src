@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)extern.h	8.1 (Berkeley) 6/6/93
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/m4/extern.h,v 1.3.6.2 2002/04/24 13:18:22 jmallett Exp $
  */
 
 char	*basename __P((char *));

@@ -40,7 +40,7 @@
 static char sccsid[] = "@(#)ftree.c	8.2 (Berkeley) 4/18/94";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/bin/pax/ftree.c,v 1.13.2.1 2001/08/01 05:03:11 obrien Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/syscons/Makefile,v 1.11.2.1 2000/05/06 02:09:48 obrien Exp $
 
 SUBDIR =
 SUBDIR += blank

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc_r/uthread/uthread_detach.c,v 1.11.2.3 2002/03/14 00:12:35 deischen Exp $
  */
 #include <errno.h>
 #ifdef _THREAD_SAFE

@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/binutils/libbinutils/Makefile.alpha,v 1.2.2.2 2001/02/21 21:35:41 obrien Exp $
 #
 
 TARGET=		alpha-unknown-freebsd

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)string.h	8.1 (Berkeley) 6/6/93
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/window/mystring.h,v 1.2.2.2 2001/05/17 09:45:00 obrien Exp $
  */
 
 #define STR_DEBUG

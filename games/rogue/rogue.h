@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)rogue.h	8.1 (Berkeley) 5/31/93
- * $FreeBSD$
+ * $FreeBSD: src/games/rogue/rogue.h,v 1.3.2.1 2001/12/17 12:43:23 phantom Exp $
  */
 
 #include <curses.h>

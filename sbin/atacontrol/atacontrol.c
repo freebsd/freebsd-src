@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sbin/atacontrol/atacontrol.c,v 1.11.2.4 2002/04/05 11:52:14 sos Exp $
  */
 
 #include <stdio.h>

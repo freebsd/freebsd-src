@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/svr4/svr4.sh,v 1.3 1999/08/28 00:47:42 peter Exp $
 
 STREAMS=`kldstat -v | egrep 'streams'`
 SVR4=`kldstat -v | egrep 'svr4elf'`

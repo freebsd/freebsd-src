@@ -36,7 +36,7 @@
  *
  * Author: Archie Cobbs <archie@freebsd.org>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netgraph/ng_async.h,v 1.6.2.2 2000/10/24 18:36:44 julian Exp $
  * $Whistle: ng_async.h,v 1.5 1999/01/25 01:17:14 archie Exp $
  */
 
