@@ -421,7 +421,8 @@ iface_Add(struct iface *iface, struct ncp *ncp, const struct ncprange *ifa,
   ncprange_getaddr(ifa, &ncplocal);
 
   for (n = 0; n < iface->addrs; n++) {
-    if (ncprange_contains(&iface->addr[n].ifa, &ncplocal)) {
+    if (ncprange_contains(&iface->addr[n].ifa, &ncplocal) ||
+        ncpaddr_equal(&iface->addr[n].peer, peer)) {
       if (!(how & IFACE_FORCE_ADD)) {
         close(s);
         return 0;	/* errno = EEXIST; */
