@@ -23,6 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ *	from: FreeBSD: src/sys/i386/include/globaldata.h,v 1.27 2001/04/27
  * $FreeBSD$
  */
 
@@ -32,6 +33,8 @@
 #ifdef _KERNEL
 
 #include <sys/queue.h>
+
+#define	ALT_STACK_SIZE	128
 
 /*
  * This structure maps out the global data that needs to be kept on a
@@ -59,6 +62,9 @@ struct globaldata {
 #endif
 	struct	intr_queue *gd_iq;
 	struct	intr_vector *gd_ivt;
+
+	/* Alternate global stack */
+	u_long	gd_alt_stack[ALT_STACK_SIZE];
 
 	/* Watch point support. */
 	u_int	gd_wp_insn;
