@@ -281,14 +281,16 @@ mmap(td, uap)
 		addr = round_page((vm_offset_t)vms->vm_daddr + maxdsiz);
 
 	mtx_lock(&Giant);	/* syscall marked mp-safe but isn't */
-	if (flags & MAP_ANON) {
-		/*
-		 * Mapping blank space is trivial.
-		 */
-		handle = NULL;
-		maxprot = VM_PROT_ALL;
-		pos = 0;
-	} else {
+	do {
+		if (flags & MAP_ANON) {
+			/*
+			 * Mapping blank space is trivial.
+			 */
+			handle = NULL;
+			maxprot = VM_PROT_ALL;
+			pos = 0;
+			break;
+		}
 		/*
 		 * Mapping file, get fp for validation. Obtain vnode and make
 		 * sure it is of appropriate type.
@@ -343,80 +345,80 @@ mmap(td, uap)
 			maxprot = VM_PROT_ALL;
 			flags |= MAP_ANON;
 			pos = 0;
-		} else {
-			/*
-			 * cdevs does not provide private mappings of any kind.
-			 */
-			/*
-			 * However, for XIG X server to continue to work,
-			 * we should allow the superuser to do it anyway.
-			 * We only allow it at securelevel < 1.
-			 * (Because the XIG X server writes directly to video
-			 * memory via /dev/mem, it should never work at any
-			 * other securelevel.
-			 * XXX this will have to go
-			 */
-			if (securelevel_ge(td->td_ucred, 1))
-				disablexworkaround = 1;
-			else
-				disablexworkaround = suser(td);
-			if (vp->v_type == VCHR && disablexworkaround &&
-			    (flags & (MAP_PRIVATE|MAP_COPY))) {
-				error = EINVAL;
-				goto done;
-			}
-			/*
-			 * Ensure that file and memory protections are
-			 * compatible.  Note that we only worry about
-			 * writability if mapping is shared; in this case,
-			 * current and max prot are dictated by the open file.
-			 * XXX use the vnode instead?  Problem is: what
-			 * credentials do we use for determination? What if
-			 * proc does a setuid?
-			 */
-			maxprot = VM_PROT_EXECUTE;	/* ??? */
-			if (fp->f_flag & FREAD) {
-				maxprot |= VM_PROT_READ;
-			} else if (prot & PROT_READ) {
+			break;
+		}
+		/*
+		 * cdevs does not provide private mappings of any kind.
+		 */
+		/*
+		 * However, for XIG X server to continue to work,
+		 * we should allow the superuser to do it anyway.
+		 * We only allow it at securelevel < 1.
+		 * (Because the XIG X server writes directly to video
+		 * memory via /dev/mem, it should never work at any
+		 * other securelevel.
+		 * XXX this will have to go
+		 */
+		if (securelevel_ge(td->td_ucred, 1))
+			disablexworkaround = 1;
+		else
+			disablexworkaround = suser(td);
+		if (vp->v_type == VCHR && disablexworkaround &&
+		    (flags & (MAP_PRIVATE|MAP_COPY))) {
+			error = EINVAL;
+			goto done;
+		}
+		/*
+		 * Ensure that file and memory protections are
+		 * compatible.  Note that we only worry about
+		 * writability if mapping is shared; in this case,
+		 * current and max prot are dictated by the open file.
+		 * XXX use the vnode instead?  Problem is: what
+		 * credentials do we use for determination? What if
+		 * proc does a setuid?
+		 */
+		maxprot = VM_PROT_EXECUTE;	/* ??? */
+		if (fp->f_flag & FREAD) {
+			maxprot |= VM_PROT_READ;
+		} else if (prot & PROT_READ) {
+			error = EACCES;
+			goto done;
+		}
+		/*
+		 * If we are sharing potential changes (either via
+		 * MAP_SHARED or via the implicit sharing of character
+		 * device mappings), and we are trying to get write
+		 * permission although we opened it without asking
+		 * for it, bail out.  Check for superuser, only if
+		 * we're at securelevel < 1, to allow the XIG X server
+		 * to continue to work.
+		 */
+		if ((flags & MAP_SHARED) != 0 ||
+		    (vp->v_type == VCHR && disablexworkaround)) {
+			if ((fp->f_flag & FWRITE) != 0) {
+				struct vattr va;
+				if ((error =
+				    VOP_GETATTR(vp, &va,
+						td->td_ucred, td))) {
+					goto done;
+				}
+				if ((va.va_flags &
+				   (SF_SNAPSHOT|IMMUTABLE|APPEND)) == 0) {
+					maxprot |= VM_PROT_WRITE;
+				} else if (prot & PROT_WRITE) {
+					error = EPERM;
+					goto done;
+				}
+			} else if ((prot & PROT_WRITE) != 0) {
 				error = EACCES;
 				goto done;
 			}
-			/*
-			 * If we are sharing potential changes (either via
-			 * MAP_SHARED or via the implicit sharing of character
-			 * device mappings), and we are trying to get write
-			 * permission although we opened it without asking
-			 * for it, bail out.  Check for superuser, only if
-			 * we're at securelevel < 1, to allow the XIG X server
-			 * to continue to work.
-			 */
-			if ((flags & MAP_SHARED) != 0 ||
-			    (vp->v_type == VCHR && disablexworkaround)) {
-				if ((fp->f_flag & FWRITE) != 0) {
-					struct vattr va;
-					if ((error =
-					    VOP_GETATTR(vp, &va,
-						        td->td_ucred, td))) {
-						goto done;
-					}
-					if ((va.va_flags &
-					   (SF_SNAPSHOT|IMMUTABLE|APPEND)) == 0) {
-						maxprot |= VM_PROT_WRITE;
-					} else if (prot & PROT_WRITE) {
-						error = EPERM;
-						goto done;
-					}
-				} else if ((prot & PROT_WRITE) != 0) {
-					error = EACCES;
-					goto done;
-				}
-			} else {
-				maxprot |= VM_PROT_WRITE;
-			}
-
-			handle = (void *)vp;
+		} else {
+			maxprot |= VM_PROT_WRITE;
 		}
-	}
+
+		handle = (void *)vp;
+	} while (0);
 
 	/*
 	 * Do not allow more then a certain number of vm_map_entry structures
