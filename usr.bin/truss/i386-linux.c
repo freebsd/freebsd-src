@@ -246,7 +246,8 @@ i386_linux_syscall_exit(int pid, int syscall) {
       if (retval == bsd_to_linux_errno[i])
       break;
   }
-  print_syscall_ret(outfile, lsc.name, lsc.nargs, lsc.s_args, errorp, i);
+  print_syscall_ret(outfile, lsc.name, lsc.nargs, lsc.s_args, errorp,
+    errorp ? i : retval);
   clear_lsc();
   return;
 }
