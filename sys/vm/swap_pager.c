@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.98 1998/07/28 15:30:01 bde Exp $
+ * $Id: swap_pager.c,v 1.99 1998/08/13 08:05:13 dfr Exp $
  */
 
 /*
@@ -1104,7 +1104,7 @@ swap_pager_getpages(object, m, count, reqpage)
 	if (rv == VM_PAGER_OK) {
 		for (i = 0; i < count; i++) {
 			m[i]->dirty = 0;
-			m[i]->flags &= ~PG_ZERO;
+			PAGE_CLEAR_FLAG(m[i], PG_ZERO);
 			if (i != reqpage) {
 				/*
 				 * whether or not to leave the page
@@ -1590,12 +1590,10 @@ swap_pager_finish(spc)
 			PAGE_BWAKEUP(ma[i]);
 		}
 
-		s = splvm();
-		object->paging_in_progress -= spc->spc_count;
-		splx(s);
+		vm_object_pip_subtract(object, spc->spc_count);
 		if ((object->paging_in_progress == 0) &&
 			(object->flags & OBJ_PIPWNT)) {
-			object->flags &= ~OBJ_PIPWNT;
+			vm_object_clear_flag(object, OBJ_PIPWNT);
 			wakeup(object);
 		}
 
@@ -1648,10 +1646,10 @@ swap_pager_iodone(bp)
 		    (bp->b_flags & B_READ) ? "pagein" : "pageout",
 		    (u_long) bp->b_blkno, bp->b_bcount, bp->b_error);
 	} else {
-		object->paging_in_progress -= spc->spc_count;
+		vm_object_pip_subtract(object, spc->spc_count);
 		if ((object->paging_in_progress == 0) &&
 			(object->flags & OBJ_PIPWNT)) {
-			object->flags &= ~OBJ_PIPWNT;
+			vm_object_clear_flag(object, OBJ_PIPWNT);
 			wakeup(object);
 		}
 		ma = spc->spc_m;

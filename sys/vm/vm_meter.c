@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_meter.c	8.4 (Berkeley) 1/4/94
- * $Id: vm_meter.c,v 1.24 1998/03/28 10:33:27 bde Exp $
+ * $Id: vm_meter.c,v 1.25 1998/03/30 09:56:49 phk Exp $
  */
 
 #include <sys/param.h>
@@ -138,7 +138,7 @@ vmtotal SYSCTL_HANDLER_ARGS
 	for (object = TAILQ_FIRST(&vm_object_list);
 	    object != NULL;
 	    object = TAILQ_NEXT(object,object_list))
-		object->flags &= ~OBJ_ACTIVE;
+		vm_object_clear_flag(object, OBJ_ACTIVE);
 	/*
 	 * Calculate process statistics.
 	 */
@@ -181,7 +181,7 @@ vmtotal SYSCTL_HANDLER_ARGS
 			if ((entry->eflags & (MAP_ENTRY_IS_A_MAP|MAP_ENTRY_IS_SUB_MAP)) ||
 			    entry->object.vm_object == NULL)
 				continue;
-			entry->object.vm_object->flags |= OBJ_ACTIVE;
+			vm_object_set_flag(entry->object.vm_object, OBJ_ACTIVE);
 			paging |= entry->object.vm_object->paging_in_progress;
 		}
 		if (paging)
