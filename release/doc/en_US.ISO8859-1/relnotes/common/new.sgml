@@ -232,6 +232,11 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <para>The &man.ata.4; driver now has support for creating,
 	deleting, querying, and rebuilding ATA RAIDs under control of
 	&man.atacontrol.8;.</para>
+
+      <para>&new.461; The &man.ata.4; driver now computes maximum transfer sizes
+        correctly.  This fixes numerous <literal>READ_BIG</literal>
+        and other errors that occurred when accessing certain ATA
+        devices.</para>
     </sect3>
 
     <sect3>
