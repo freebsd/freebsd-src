@@ -334,7 +334,7 @@ dev/fxp/if_fxp.c	optional fxp
 dev/gem/if_gem.c	optional gem
 dev/gem/if_gem_pci.c	optional gem pci
 dev/gx/if_gx.c		optional gx
-dev/hea/eni.c		optional hea
+dev/hea/eni.c		optional hea nowerror
 dev/hea/eni_buffer.c	optional hea
 dev/hea/eni_globals.c	optional hea
 dev/hea/eni_if.c	optional hea
@@ -349,7 +349,7 @@ dev/hfa/fore_globals.c	optional hfa
 dev/hfa/fore_if.c	optional hfa
 dev/hfa/fore_init.c	optional hfa
 dev/hfa/fore_intr.c	optional hfa
-dev/hfa/fore_load.c	optional hfa
+dev/hfa/fore_load.c	optional hfa nowerror
 dev/hfa/fore_output.c	optional hfa
 dev/hfa/fore_receive.c	optional hfa
 dev/hfa/fore_stats.c	optional hfa
@@ -387,7 +387,7 @@ dev/joy/joy.c		optional joy
 dev/joy/joy_isa.c	optional joy isa
 dev/joy/joy_pccard.c	optional joy pccard
 dev/lge/if_lge.c	optional lge
-dev/lmc/if_lmc.c	optional lmc
+dev/lmc/if_lmc.c	optional lmc nowerror
 dev/lnc/if_lnc.c	optional lnc
 dev/lnc/if_lnc_pci.c	optional lnc pci
 dev/ncv/ncr53c500.c	optional ncv
@@ -453,8 +453,8 @@ dev/pdq/if_fea.c	optional fea eisa
 dev/pdq/if_fpa.c	optional fpa pci
 dev/pdq/pdq.c		optional fea eisa
 dev/pdq/pdq.c		optional fpa pci
-dev/pdq/pdq_ifsubr.c	optional fea eisa
-dev/pdq/pdq_ifsubr.c	optional fpa pci
+dev/pdq/pdq_ifsubr.c	optional fea eisa nowerror
+dev/pdq/pdq_ifsubr.c	optional fpa pci nowerror
 dev/ppbus/ppbus_if.m	optional ppbus
 dev/ppbus/if_plip.c	optional plip
 dev/ppbus/immio.c	optional vpo
@@ -1241,7 +1241,7 @@ pci/if_vr.c		optional vr
 pci/if_wb.c		optional wb
 pci/if_xl.c		optional xl
 pci/intpm.c		optional intpm
-pci/meteor.c		count meteor pci
+pci/meteor.c		count meteor pci nowerror
 pci/ncr.c		optional ncr
 pci/ohci_pci.c		optional ohci
 pci/simos.c		optional simos
