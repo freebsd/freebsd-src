@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 30, 2004
+.Dd December 13, 2004
 .Dt ACPI 4
 .Os
 .Sh NAME
@@ -48,167 +48,93 @@ from Intel.
 .Pp
 Note that the
 .Nm
-driver is automatically loaded by the bootloader, and should not normally
-be compiled into the kernel.
-.Sh ENVIRONMENT
-This support is still experimental, and thus there are many debugging
-and tuning options which are managed via the kernel environment.
+driver is automatically loaded by the bootloader, and should only be
+compiled into the kernel on platforms where ACPI is mandatory.
+.Sh SYSCTLS
+The
+.Nm
+driver is intended to provide power management without user intervention.
+Thus, some of these sysctls are controlled automatically by the
+.Nm power_profile
+rc script, which can be configured via
+.Xr rc.conf 5 .
+If you specify values manually, they may be overridden.
+.Bl -tag -width indent
+.It Va hw.acpi.cpu.throttle_max
+Maximum value for CPU throttling, equal to 100% of the clock rate.
+.It Va hw.acpi.cpu.throttle_state
+Get or set the current throttling state, from 1 to
+.Va hw.acpi.cpu.throttle_max .
+This scales back the CPU clock rate and the corresponding power consumption.
+.It Va hw.acpi.cpu.cx_usage
+Debugging information listing the percent of total usage for each sleep state.
+The values are reset when
+.Va hw.acpi.cpu.cx_lowest
+is modified.
+.It Va hw.acpi.cpu.cx_lowest
+Lowest Cx state to use for idling the CPU.
+A scheduling algorithm will select states between C1 and this setting
+as system load dictates.
+To enable ACPI CPU idling control,
+.Va machdep.cpu_idle_hlt
+must be set to 1.
+.It Va hw.acpi.cpu.cx_supported
+List of supported CPU idle states and their transition latency
+in microseconds.
+Each state has a type (e.g., C2).
+C1 is equivalent to the ia32 HLT instruction, C2 provides a deeper
+sleep with the same semantics, and C3 provides the deepest sleep
+but additionally requires bus mastering to be disabled.
+States greater than C3 provide even more power savings with the same
+semantics as the C3 state.
+Deeper sleeps provide more power savings but increased transition
+latency when an interrupt occurs.
+.El
+.Sh TUNABLES
 Tunables can be set at the
 .Xr loader 8
 prompt before booting the kernel or stored in
 .Pa /boot/loader.conf .
-.Pp
-Debugging is separated between layers and levels, where a layer is
-a portion of the ACPI subsystem, and a level is a particular kind
-of debugging output.
-.Pp
-Both layers and levels are specified as a whitespace-separated list of
-tokens, with layers listed in
-.Va debug.acpi.layer
-and levels in
-.Va debug.acpi.level .
-The supported layers are:
-.Pp
-.Bl -item -offset indent -compact
-.It
-.Li ACPI_UTILITIES
-.It
-.Li ACPI_HARDWARE
-.It
-.Li ACPI_EVENTS
-.It
-.Li ACPI_TABLES
-.It
-.Li ACPI_NAMESPACE
-.It
-.Li ACPI_PARSER
-.It
-.Li ACPI_DISPATCHER
-.It
-.Li ACPI_EXECUTER
-.It
-.Li ACPI_RESOURCES
-.It
-.Li ACPI_CA_DEBUGGER
-.It
-.Li ACPI_OS_SERVICES
-.It
-.Li ACPI_CA_DISASSEMBLER
-.It
-.Li ACPI_ALL_COMPONENTS
-.It
-.Li ACPI_AC_ADAPTER
-.It
-.Li ACPI_BATTERY
-.It
-.Li ACPI_BUS
-.It
-.Li ACPI_BUTTON
-.It
-.Li ACPI_EC
-.It
-.Li ACPI_FAN
-.It
-.Li ACPI_OEM
-.It
-.Li ACPI_POWER
-.It
-.Li ACPI_PROCESSOR
-.It
-.Li ACPI_THERMAL
-.It
-.Li ACPI_TIMER
-.It
-.Li ACPI_ALL_DRIVERS
+.Bl -tag -width indent
+.It Va acpi_dsdt_load
+Enables loading of a custom ACPI DSDT.
+.It Va acpi_dsdt_name
+Name of the DSDT table to load, if loading is enabled.
+.It Va debug.acpi.disabled
+Selectively disables portions of ACPI for debugging purposes.
+.It Va hint.acpi.0.disabled
+Set this to 1 to disable all of ACPI.
+If ACPI has been disabled on your system due to a blacklist entry for your
+BIOS, you can set this to 0 to re-enable ACPI for testing.
+.It Va hw.acpi.ec.poll_timeout
+Delay in milliseconds to wait for the EC to respond.
+Try increasing this number if you get the error
+.Er AE_NO_HARDWARE_RESPONSE .
+.It Va hw.acpi.osname
+Some systems' ASL may have problems because they look for names
+of Microsoft operating systems.
+This tunable overrides the value of the
+.Qq Li \e_OS
+object from its default of
+.Qq Li FreeBSD .
+.It Va hw.acpi.pci.link.%d.%d.%d.irq
+Override the interrupt to use.
+.It Va hw.acpi.reset_video
+Enables calling the VESA reset BIOS vector on the resume path.
+Some graphic chips have problems such as LCD white-out after resume.
+Try setting this to 0 if this causes problems for you.
+.It Va hw.acpi.serialize_methods
+Allow override of whether methods execute in parallel or not.
+Enable this for serial behavior, which fixes "AE_ALREADY_EXISTS" errors for 
+AML that really can't handle parallel method execution.
+It is off by default since this breaks recursive methods and some IBMs use 
+such code.
+.It Va hw.acpi.verbose
+Turn on verbose debugging information about what ACPI is doing.
 .El
-.Pp
-The supported levels are:
-.Pp
-.Bl -item -offset indent -compact
-.It
-.Li ACPI_LV_ERROR
-.It
-.Li ACPI_LV_WARN
-.It
-.Li ACPI_LV_INIT
-.It
-.Li ACPI_LV_DEBUG_OBJECT
-.It
-.Li ACPI_LV_INFO
-.It
-.Li ACPI_LV_ALL_EXCEPTIONS
-.It
-.Li ACPI_LV_INIT_NAMES
-.It
-.Li ACPI_LV_PARSE
-.It
-.Li ACPI_LV_LOAD
-.It
-.Li ACPI_LV_DISPATCH
-.It
-.Li ACPI_LV_EXEC
-.It
-.Li ACPI_LV_NAMES
-.It
-.Li ACPI_LV_OPREGION
-.It
-.Li ACPI_LV_BFIELD
-.It
-.Li ACPI_LV_TABLES
-.It
-.Li ACPI_LV_VALUES
-.It
-.Li ACPI_LV_OBJECTS
-.It
-.Li ACPI_LV_RESOURCES
-.It
-.Li ACPI_LV_USER_REQUESTS
-.It
-.Li ACPI_LV_PACKAGE
-.It
-.Li ACPI_LV_VERBOSITY1
-.It
-.Li ACPI_LV_ALLOCATIONS
-.It
-.Li ACPI_LV_FUNCTIONS
-.It
-.Li ACPI_LV_OPTIMIZATIONS
-.It
-.Li ACPI_LV_VERBOSITY2
-.It
-.Li ACPI_LV_ALL
-.It
-.Li ACPI_LV_MUTEX
-.It
-.Li ACPI_LV_THREADS
-.It
-.Li ACPI_LV_IO
-.It
-.Li ACPI_LV_INTERRUPTS
-.It
-.Li ACPI_LV_VERBOSITY3
-.It
-.Li ACPI_LV_AML_DISASSEMBLE
-.It
-.Li ACPI_LV_VERBOSE_INFO
-.It
-.Li ACPI_LV_FULL_TABLES
-.It
-.Li ACPI_LV_EVENTS
-.It
-.Li ACPI_LV_VERBOSE
-.El
-.Pp
-Selection of the appropriate layer and level values is important
-to avoid massive amounts of debugging output.
-Check the code to see which you need.
-.Pp
-Debugging output by the ACPI CA subsystem is prefixed with the
-module name in lowercase, followed by a source line number.
-Output from the
-.Fx Ns -local
-code follows the same format, but
-the module name is uppercased.
+.Sh DISABLING ACPI
+Since ACPI support on different platforms varies greatly, there are many
+debugging and tuning options available.
 .Pp
 For machines known not to work with
 .Nm
@@ -236,9 +162,8 @@ to 1.
 .Pp
 Some i386 machines totally fail to operate with some or all of ACPI disabled.
 Other i386 machines fail with ACPI enabled.
-Non-i386 platforms do not support operating systems which do not use ACPI.
-Disabling all or part of ACPI on non-i386 platforms may result in a
-non-functional system.
+Disabling all or part of ACPI on non-i386 platforms (i.e., platforms where
+ACPI support is mandatory) may result in a non-functional system.
 .Pp
 The
 .Nm
@@ -319,6 +244,118 @@ The object and all of its children will be ignored during the
 bus/children scan of the namespace.
 The ACPI CA code will still
 know about the avoided region.
+.Sh DEBUGGING OUTPUT
+To enable debugging output,
+.Nm
+must be compiled with
+"options ACPI_DEBUG."
+Debugging output is separated between layers and levels, where a layer is
+a component of the ACPI subsystem, and a level is a particular kind
+of debugging output.
+.Pp
+Both layers and levels are specified as a whitespace-separated list of
+tokens, with layers listed in
+.Va debug.acpi.layer
+and levels in
+.Va debug.acpi.level .
+The supported layers are:
+.Pp
+.Bl -tag -compact -width ACPI_CA_DISASSEMBLER
+.It Li ACPI_UTILITIES
+.It Li ACPI_HARDWARE
+.It Li ACPI_EVENTS
+.It Li ACPI_TABLES
+.It Li ACPI_NAMESPACE
+.It Li ACPI_PARSER
+.It Li ACPI_DISPATCHER
+.It Li ACPI_EXECUTER
+.It Li ACPI_RESOURCES
+.It Li ACPI_CA_DEBUGGER
+.It Li ACPI_OS_SERVICES
+.It Li ACPI_CA_DISASSEMBLER
+.It Li ACPI_ALL_COMPONENTS
+All the above ACPI-CA components
+.It Li ACPI_AC_ADAPTER
+AC adapter driver
+.It Li ACPI_BATTERY
+Control-method battery driver
+.It Li ACPI_BUS
+ACPI, ISA, and PCI bus drivers
+.It Li ACPI_BUTTON
+Power and sleep button driver
+.It Li ACPI_EC
+Embedded controller driver
+.It Li ACPI_FAN
+Fan driver
+.It Li ACPI_OEM
+Platform-specific driver for hotkeys, LED, etc.
+.It Li ACPI_POWER
+Power resource driver
+.It Li ACPI_PROCESSOR
+CPU driver
+.It Li ACPI_THERMAL
+Thermal zone driver
+.It Li ACPI_TIMER
+Timer driver
+.It Li ACPI_ALL_DRIVERS
+All the above
+.Fx
+ACPI drivers
+.El
+.Pp
+The supported levels are:
+.Pp
+.Bl -tag -compact -width ACPI_LV_AML_DISASSEMBLE
+.It Li ACPI_LV_ERROR
+.It Li ACPI_LV_WARN
+.It Li ACPI_LV_INIT
+.It Li ACPI_LV_DEBUG_OBJECT
+.It Li ACPI_LV_INFO
+.It Li ACPI_LV_ALL_EXCEPTIONS
+All the above errors and warnings
+.It Li ACPI_LV_INIT_NAMES
+.It Li ACPI_LV_PARSE
+.It Li ACPI_LV_LOAD
+.It Li ACPI_LV_DISPATCH
+.It Li ACPI_LV_EXEC
+.It Li ACPI_LV_NAMES
+.It Li ACPI_LV_OPREGION
+.It Li ACPI_LV_BFIELD
+.It Li ACPI_LV_TABLES
+.It Li ACPI_LV_VALUES
+.It Li ACPI_LV_OBJECTS
+.It Li ACPI_LV_RESOURCES
+.It Li ACPI_LV_USER_REQUESTS
+.It Li ACPI_LV_PACKAGE
+.It Li ACPI_LV_VERBOSITY1
+.It Li ACPI_LV_ALLOCATIONS
+.It Li ACPI_LV_FUNCTIONS
+.It Li ACPI_LV_OPTIMIZATIONS
+.It Li ACPI_LV_VERBOSITY2
+.It Li ACPI_LV_ALL
+.It Li ACPI_LV_MUTEX
+.It Li ACPI_LV_THREADS
+.It Li ACPI_LV_IO
+.It Li ACPI_LV_INTERRUPTS
+.It Li ACPI_LV_VERBOSITY3
+.It Li ACPI_LV_AML_DISASSEMBLE
+.It Li ACPI_LV_VERBOSE_INFO
+.It Li ACPI_LV_FULL_TABLES
+.It Li ACPI_LV_EVENTS
+.It Li ACPI_LV_VERBOSE
+.El
+.Pp
+Selection of the appropriate layer and level values is important
+to avoid massive amounts of debugging output.
+Check the code to see which you need.
+.Pp
+Debugging output by the ACPI CA subsystem is prefixed with the
+module name in lowercase, followed by a source line number.
+Output from the
+.Fx Ns -local
+code follows the same format, but
+the module name is uppercased.
+.Pp
 .Sh OVERRIDING YOUR BIOS BYTECODE
 ACPI interprets bytecode named AML
 (ACPI Machine Language)
@@ -343,76 +380,6 @@ In order to prepare your AML code, you will need the
 and
 .Xr iasl 1
 utilities and some ACPI knowledge.
-.Sh TUNABLES
-.Bl -tag -width indent
-.It Va acpi_dsdt_load
-Enables loading of a custom ACPI DSDT.
-.It Va acpi_dsdt_name
-Name of the DSDT table to load, if loading is enabled.
-.It Va debug.acpi.disabled
-Selectively disables portions of ACPI for debugging purposes.
-.It Va hint.acpi.0.disabled
-Set this to 1 to disable all of ACPI.
-If ACPI has been disabled on your system due to a blacklist entry for your
-BIOS, you can set this to 0 to re-enable ACPI for testing.
-.It Va hw.acpi.ec.poll_timeout
-Delay in milliseconds to wait for the EC to respond.
-Try increasing this number if you get the error
-.Er AE_NO_HARDWARE_RESPONSE .
-.It Va hw.acpi.osname
-Some systems' ASL may have problems because they look for names
-of Microsoft operating systems.
-This tunable overrides the value of the
-.Qq Li \e_OS
-object from its default of
-.Qq Li FreeBSD .
-.It Va hw.acpi.pci.link.%d.%d.%d.irq
-Override the interrupt to use.
-.It Va hw.acpi.reset_video
-Enables calling the VESA reset BIOS vector on the resume path.
-Some graphic chips have problems such as LCD white-out after resume.
-Try setting this to 0 if this causes problems for you.
-.It Va hw.acpi.serialize_methods
-Allow override of whether methods execute in parallel or not.
-Enable this for serial behavior, which fixes "AE_ALREADY_EXISTS" errors for 
-AML that really can't handle parallel method execution.
-It is off by default since this breaks recursive methods and some IBMs use 
-such code.
-.It Va hw.acpi.verbose
-Turn on verbose debugging information about what ACPI is doing.
-.El
-.Sh SYSCTLS
-.Bl -tag -width indent
-.It Va hw.acpi.cpu.throttle_max
-Maximum value for CPU throttling, equal to 100% of the clock rate.
-.It Va hw.acpi.cpu.throttle_state
-Get or set the current throttling state, from 1 to
-.Va hw.acpi.cpu.throttle_max .
-This scales back the CPU clock rate and the corresponding power consumption.
-.It Va hw.acpi.cpu.cx_usage
-Debugging information listing the percent of total usage for each sleep state.
-The values are reset when
-.Va hw.acpi.cpu.cx_lowest
-is modified.
-.It Va hw.acpi.cpu.cx_lowest
-Lowest Cx state to use for idling the CPU.
-A scheduling algorithm will select states between C1 and this setting
-as system load dictates.
-To enable ACPI CPU idling control,
-.Va machdep.cpu_idle_hlt
-must be set to 1.
-.It Va hw.acpi.cpu.cx_supported
-List of supported CPU idle states and their transition latency
-in microseconds.
-Each state has a type (e.g., C2).
-C1 is equivalent to the ia32 HLT instruction, C2 provides a deeper
-sleep with the same semantics, and C3 provides the deepest sleep
-but additionally requires bus mastering to be disabled.
-States greater than C3 provide even more power savings with the same
-semantics as the C3 state.
-Deeper sleeps provide more power savings but increased transition
-latency when an interrupt occurs.
-.El
 .Sh COMPATIBILITY
 ACPI is only found and supported on i386/ia32, ia64, and amd64.
 .Sh SEE ALSO
