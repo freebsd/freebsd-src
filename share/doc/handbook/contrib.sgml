@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.87 1996/05/27 01:15:29 asami Exp $ -->
+<!-- $Id: contrib.sgml,v 1.88 1996/05/29 16:32:26 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>FreeBSD contributor list<label id="contrib"></heading>
@@ -116,6 +116,7 @@
         <item>&a.martin;
         <item>&a.paul;
         <item>&a.roberto;
+        <item>&a.jraynard;
         <item>&a.dima;
         <item>&a.wosch;
         <item>&a.ats;
