@@ -483,6 +483,8 @@ cache_drain(uma_zone_t zone)
 			continue;
 		CPU_UNLOCK(zone, cpu);
 	}
+
+	zone->uz_cachefree = 0;
 }
 
 /*
@@ -1878,6 +1880,7 @@ sysctl_vm_zone(SYSCTL_HANDLER_ARGS)
 	if (error || cnt == 0)
 		goto out;
 	offset = tmpbuf;
+	mtx_lock(&uma_mtx);
 	LIST_FOREACH(z, &uma_zones, uz_link) {
 		if (cnt == 0)	/* list may have changed size */
 			break;
@@ -1897,6 +1900,7 @@ sysctl_vm_zone(SYSCTL_HANDLER_ARGS)
 		cnt--;
 		offset += len;
 	}
+	mtx_unlock(&uma_mtx);
 	*offset++ = '\0';
 	error = SYSCTL_OUT(req, tmpbuf, offset - tmpbuf);
 out:
