@@ -467,7 +467,7 @@ tcp_usr_accept(struct socket *so, struct sockaddr **nam)
 	tp = intotcpcb(inp);
 	TCPDEBUG1();
 
-	/* 
+	/*
 	 * We inline in_setpeeraddr and COMMON_END here, so that we can
 	 * copy the data of interest and defer the malloc until after we
 	 * release the lock.
@@ -511,7 +511,7 @@ tcp6_usr_accept(struct socket *so, struct sockaddr **nam)
 	INP_INFO_RUNLOCK(&tcbinfo);
 	tp = intotcpcb(inp);
 	TCPDEBUG1();
-	/* 
+	/*
 	 * We inline in6_mapped_peeraddr and COMMON_END here, so that we can
 	 * copy the data of interest and defer the malloc until after we
 	 * release the lock.
@@ -539,8 +539,8 @@ out:	TCPDEBUG2(PRU_ACCEPT);
 #endif /* INET6 */
 
 /*
- * This is the wrapper function for in_setsockaddr. We just pass down 
- * the pcbinfo for in_setsockaddr to lock. We don't want to do the locking 
+ * This is the wrapper function for in_setsockaddr. We just pass down
+ * the pcbinfo for in_setsockaddr to lock. We don't want to do the locking
  * here because in_setsockaddr will call malloc and can block.
  */
 static int
@@ -602,7 +602,7 @@ tcp_usr_rcvd(struct socket *so, int flags)
  * generally are caller-frees.
  */
 static int
-tcp_usr_send(struct socket *so, int flags, struct mbuf *m, 
+tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 	     struct sockaddr *nam, struct mbuf *control, struct thread *td)
 {
 	int error = 0;
@@ -728,7 +728,7 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 		error = tcp_output(tp);
 		tp->t_force = 0;
 	}
-	COMMON_END((flags & PRUS_OOB) ? PRU_SENDOOB : 
+	COMMON_END((flags & PRUS_OOB) ? PRU_SENDOOB :
 		   ((flags & PRUS_EOF) ? PRU_SEND_EOF : PRU_SEND));
 }
 
@@ -945,7 +945,7 @@ tcp6_connect(tp, nam, td)
 	/* update flowinfo - draft-itojun-ipv6-flowlabel-api-00 */
 	inp->in6p_flowinfo &= ~IPV6_FLOWLABEL_MASK;
 	if (inp->in6p_flags & IN6P_AUTOFLOWLABEL)
-		inp->in6p_flowinfo |= 
+		inp->in6p_flowinfo |=
 		    (htonl(ip6_randomflowlabel()) & IPV6_FLOWLABEL_MASK);
 	in_pcbrehash(inp);
 
@@ -1133,10 +1133,10 @@ tcp_ctloutput(so, sopt)
  * be set by the route).
  */
 u_long	tcp_sendspace = 1024*32;
-SYSCTL_INT(_net_inet_tcp, TCPCTL_SENDSPACE, sendspace, CTLFLAG_RW, 
+SYSCTL_INT(_net_inet_tcp, TCPCTL_SENDSPACE, sendspace, CTLFLAG_RW,
     &tcp_sendspace , 0, "Maximum outgoing TCP datagram size");
 u_long	tcp_recvspace = 1024*64;
-SYSCTL_INT(_net_inet_tcp, TCPCTL_RECVSPACE, recvspace, CTLFLAG_RW, 
+SYSCTL_INT(_net_inet_tcp, TCPCTL_RECVSPACE, recvspace, CTLFLAG_RW,
     &tcp_recvspace , 0, "Maximum incoming TCP datagram size");
 
 /*
