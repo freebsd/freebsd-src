@@ -71,6 +71,7 @@ __FBSDID("$FreeBSD$");
 #include <security/pam_appl.h>
 #include <security/pam_modules.h>
 #include <security/pam_mod_misc.h>
+#include <security/openpam.h>
 
 #define	COMPAT_HEIMDAL
 /* #define	COMPAT_MIT */
@@ -84,29 +85,17 @@ static void	compat_free_data_contents(krb5_context, krb5_data *);
 #define PASSWORD_PROMPT		"Password:"
 #define NEW_PASSWORD_PROMPT	"New Password:"
 
-enum {
-	PAM_OPT_AUTH_AS_SELF = PAM_OPT_STD_MAX,
-	PAM_OPT_CCACHE,
-	PAM_OPT_FORWARDABLE,
-	PAM_OPT_NO_CCACHE,
-	PAM_OPT_REUSE_CCACHE
-};
-
-static struct opttab other_options[] = {
-	{ "auth_as_self",	PAM_OPT_AUTH_AS_SELF },
-	{ "ccache",		PAM_OPT_CCACHE },
-	{ "forwardable",	PAM_OPT_FORWARDABLE },
-	{ "no_ccache",		PAM_OPT_NO_CCACHE },
-	{ "reuse_ccache",	PAM_OPT_REUSE_CCACHE },
-	{ NULL, 0 }
-};
+#define PAM_OPT_CCACHE		"ccache"
+#define PAM_OPT_FORWARDABLE	"forwardable"
+#define PAM_OPT_NO_CCACHE	"no_ccache"
+#define PAM_OPT_REUSE_CCACHE	"reuse_ccache"
 
 /*
  * authentication management
  */
 PAM_EXTERN int
 pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
-    int argc, const char *argv[])
+    int argc __unused, const char *argv[] __unused)
 {
 	krb5_error_code krbret;
 	krb5_context pam_context;
@@ -114,15 +103,10 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 	krb5_principal princ;
 	krb5_ccache ccache;
 	krb5_get_init_creds_opt opts;
-	struct options options;
 	struct passwd *pwd;
 	int retval;
 	const char *sourceuser, *user, *pass, *service;
 	char *principal, *princ_name, *ccache_name, luser[32], *srvdup;
-
-	pam_std_option(&options, other_options, argc, argv);
-
-	PAM_LOG("Options processed");
 
 	retval = pam_get_user(pamh, &user, USER_PROMPT);
 	if (retval != PAM_SUCCESS)
@@ -153,7 +137,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 
 	krb5_get_init_creds_opt_init(&opts);
 
-	if (pam_test_option(&options, PAM_OPT_FORWARDABLE, NULL))
+	if (openpam_get_option(pamh, PAM_OPT_FORWARDABLE))
 		krb5_get_init_creds_opt_set_forwardable(&opts, 1);
 
 	PAM_LOG("Credentials initialised");
@@ -168,7 +152,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 	PAM_LOG("Done krb5_cc_register()");
 
 	/* Get principal name */
-	if (pam_test_option(&options, PAM_OPT_AUTH_AS_SELF, NULL))
+	if (openpam_get_option(pamh, PAM_OPT_AUTH_AS_SELF))
 		asprintf(&principal, "%s/%s", sourceuser, user);
 	else
 		principal = strdup(user);
@@ -288,7 +272,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 		goto cleanup;
 	}
 	krbret = verify_krb_v5_tgt(pam_context, ccache, srvdup,
-	    pam_test_option(&options, PAM_OPT_FORWARDABLE, NULL));
+	    openpam_get_option(pamh, PAM_OPT_FORWARDABLE) ? 1 : 0);
 	free(srvdup);
 	if (krbret == -1) {
 		PAM_VERBOSE_ERROR("Kerberos 5 error");
@@ -348,7 +332,7 @@ cleanup3:
 
 PAM_EXTERN int
 pam_sm_setcred(pam_handle_t *pamh, int flags,
-    int argc, const char *argv[])
+    int argc __unused, const char *argv[] __unused)
 {
 
 	krb5_error_code krbret;
@@ -357,18 +341,13 @@ pam_sm_setcred(pam_handle_t *pamh, int flags,
 	krb5_creds creds;
 	krb5_ccache ccache_temp, ccache_perm;
 	krb5_cc_cursor cursor;
-	struct options options;
 	struct passwd *pwd = NULL;
 	int retval;
-	char *user;
-	char *cache_name, *cache_env_name, *p, *q;
+	const char *cache_name, *q, *user;
+	char *cache_name_buf = NULL, *p;
 
 	uid_t euid;
 	gid_t egid;
-
-	pam_std_option(&options, other_options, argc, argv);
-
-	PAM_LOG("Options processed");
 
 	if (flags & PAM_DELETE_CRED)
 		return (PAM_SUCCESS);
@@ -440,10 +419,11 @@ pam_sm_setcred(pam_handle_t *pamh, int flags,
 	PAM_LOG("Done setegid() & seteuid()");
 
 	/* Get the cache name */
-	cache_name = NULL;
-	pam_test_option(&options, PAM_OPT_CCACHE, &cache_name);
-	if (cache_name == NULL)
-		asprintf(&cache_name, "FILE:/tmp/krb5cc_%d", pwd->pw_uid);
+	cache_name = openpam_get_option(pamh, PAM_OPT_CCACHE);
+	if (cache_name == NULL) {
+		asprintf(&cache_name_buf, "FILE:/tmp/krb5cc_%d", pwd->pw_uid);
+		cache_name = cache_name_buf;
+	}
 
 	p = calloc(PATH_MAX + 16, sizeof(char));
 	q = cache_name;
@@ -559,17 +539,9 @@ pam_sm_setcred(pam_handle_t *pamh, int flags,
 
 	PAM_LOG("Cache closed");
 
-	cache_env_name = malloc(strlen(cache_name) + 12);
-	if (!cache_env_name) {
-		PAM_LOG("Error malloc(): failure");
-		krb5_cc_destroy(pam_context, ccache_perm);
-		retval = PAM_BUF_ERR;
-		goto cleanup2;
-	}
-
-	sprintf(cache_env_name, "KRB5CCNAME=%s", cache_name);
-	if ((retval = pam_putenv(pamh, cache_env_name)) != 0) {
-		PAM_LOG("Error pam_putenv(): %s", pam_strerror(pamh, retval));
+	retval = pam_setenv(pamh, "KRB5CCNAME", cache_name, 1);
+	if (retval != PAM_SUCCESS) {
+		PAM_LOG("Error pam_setenv(): %s", pam_strerror(pamh, retval));
 		krb5_cc_destroy(pam_context, ccache_perm);
 		retval = PAM_SERVICE_ERR;
 		goto cleanup2;
@@ -589,6 +561,9 @@ cleanup3:
 
 	PAM_LOG("Done seteuid() & setegid()");
 
+	if (cache_name_buf != NULL)
+		free(cache_name_buf);
+
 	return (retval);
 }
 
@@ -597,19 +572,14 @@ cleanup3:
  */
 PAM_EXTERN int
 pam_sm_acct_mgmt(pam_handle_t *pamh, int flags __unused,
-    int argc, const char *argv[])
+    int argc __unused, const char *argv[] __unused)
 {
 	krb5_error_code krbret;
 	krb5_context pam_context;
 	krb5_ccache ccache;
 	krb5_principal princ;
-	struct options options;
 	int retval;
 	const char *user, *ccache_name;
-
-	pam_std_option(&options, other_options, argc, argv);
-
-	PAM_LOG("Options processed");
 
 	retval = pam_get_item(pamh, PAM_USER, (const void **)&user);
 	if (retval != PAM_SUCCESS)
@@ -673,7 +643,7 @@ cleanup:
  */
 PAM_EXTERN int
 pam_sm_chauthtok(pam_handle_t *pamh, int flags,
-    int argc, const char *argv[])
+    int argc __unused, const char *argv[] __unused)
 {
 	krb5_error_code krbret;
 	krb5_context pam_context;
@@ -681,14 +651,9 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags,
 	krb5_principal princ;
 	krb5_get_init_creds_opt opts;
 	krb5_data result_code_string, result_string;
-	struct options options;
 	int result_code, retval;
 	const char *user, *pass;
 	char *princ_name, *passdup;
-
-	pam_std_option(&options, other_options, argc, argv);
-
-	PAM_LOG("Options processed");
 
 	if (!(flags & PAM_UPDATE_AUTHTOK))
 		return (PAM_AUTHTOK_ERR);
