@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)init.8	8.3 (Berkeley) 4/18/94
-.\"	$Id: init.8,v 1.13 1998/12/16 16:50:12 ghelmer Exp $
+.\"	$Id: init.8,v 1.14 1999/06/16 20:01:18 ru Exp $
 .\"
 .Dd April 18, 1994
 .Dt INIT 8
@@ -43,24 +43,29 @@
 .Nd process control initialization
 .Sh SYNOPSIS
 .Nm init
+.Nm init
+.Oo
+.Cm 0 | 1 | 6 |
+.Cm c | q
+.Oc
 .Sh DESCRIPTION
 The
 .Nm
 program
 is the last stage of the boot process.
 It normally runs the automatic reboot sequence as described in
-.Xr reboot 8 ,
+.Xr rc 8 ,
 and if this succeeds, begins multi-user operation.
 If the reboot scripts fail,
 .Nm
-commences single user operation by giving
+commences single-user operation by giving
 the super-user a shell on the console.
 The
 .Nm
 program may be passed parameters
 from the boot program to
 prevent the system from going multi-user and to instead execute
-a single user shell without starting the normal daemons.
+a single-user shell without starting the normal daemons.
 The system is then quiescent for maintenance work and may
 later be made to go to multi-user by exiting the
 single-user shell (with ^D).
@@ -75,17 +80,19 @@ If the
 .Em console
 entry in the
 .Xr ttys 5
-file is marked ``insecure'',
+file is marked
+.Dq insecure ,
 then
 .Nm
-will require that the superuser password be
+will require that the super-user password be
 entered before the system will start a single-user shell.
 The password check is skipped if the 
 .Em console
-is marked as ``secure''.
+is marked as
+.Dq secure .
 .Pp
 The kernel runs with four different levels of security.
-Any superuser process can raise the security level, but only 
+Any super-user process can raise the security level, but only 
 .Nm
 can lower it.
 The security levels are:
@@ -119,7 +126,9 @@ IP packet filter rules (see
 .Xr ipfw 8
 and
 .Xr ipfirewall 4 )
-can not be changed and dummynet configuration can not be adjusted.
+can not be changed and
+.Xr dummynet 4
+configuration can not be adjusted.
 .El
 .Pp
 If the security level is initially -1, then
@@ -127,10 +136,10 @@ If the security level is initially -1, then
 leaves it unchanged.
 Otherwise,
 .Nm
-arranges to run the system in level 0 mode while single user
-and in level 1 mode while multiuser.
-If level 2 mode is desired while running multiuser,
-it can be set while single user, e.g., in the startup script
+arranges to run the system in level 0 mode while single-user
+and in level 1 mode while multi-user.
+If level 2 mode is desired while running multi-user,
+it can be set while single-user, e.g., in the startup script
 .Pa /etc/rc ,
 using
 .Xr sysctl 8 
@@ -237,7 +246,7 @@ and allow the system to slowly die away, if it is sent a terminal stop
 signal, i.e.
 .Dq Li "kill \-TSTP 1" .
 A later hangup will resume full
-multi-user operations, or a terminate will start a single user shell.
+multi-user operations, or a terminate will start a single-user shell.
 This hook is used by
 .Xr reboot 8
 and
@@ -253,10 +262,10 @@ This is useful for shutting the machine down cleanly from inside the kernel
 or from X when the machine appears to be hung.
 .Pp
 .Nm Init
-will do the same, except it will shutdown the machine if sent
+will do the same, except it will halt the machine if sent
 the user defined signal 1
 .Pq Dv USR1 ,
-or will shutdown and turn the power off (if hardware permits) if sent
+or will halt and turn the power off (if hardware permits) if sent
 the user defined signal 2
 .Pq Dv USR2 .
 .Pp
@@ -276,14 +285,42 @@ automatically.
 If, at bootstrap time, the
 .Nm
 process cannot be located, the system will panic with the message
-``panic: "init died (signal %d, exit %d)''.
+.Dq "panic: init died (signal %d, exit %d)" .
+.Pp
+The second synopsis form is only available if
+.Nm
+was compiled with the
+.Em COMPAT_SYSV_INIT
+option.
+In this case,
+.Nm
+will emulate
+.At V
+behavior, i.e. super-user can specify the desired
+.Em run-level
+on a command line, and
+.Nm
+will signal the original
+.Pq PID 1
+.Nm
+as follows:
+.Bl -column Run-level SIGTERM
+.It Sy Run-level	Signal	Action
+.It Cm 0 Ta Dv SIGUSR2 Ta "Halt and turn the power off"
+.It Cm 1 Ta Dv SIGTERM Ta "Go to single-user mode"
+.It Cm 6 Ta Dv SIGINT Ta "Reboot the machine"
+.It Cm c Ta Dv SIGTSTP Ta "Block further logins"
+.It Cm q Ta Dv SIGHUP Ta Rescan the
+.Xr ttys 5
+file
+.El
 .Sh DIAGNOSTICS
 .Bl -diag
 .It "getty repeating too quickly on port %s, sleeping"
 A process being started to service a line is exiting quickly
 each time it is started.
 This is often caused by a ringing or noisy terminal line.
-.Em "Init will sleep for 10 seconds" ,
+.Em "Init will sleep for 30 seconds" ,
 .Em "then continue trying to start the process" .
 .Pp
 .It "some processes would not die; ps axl advised."
@@ -315,6 +352,7 @@ system shutdown commands
 .Xr kill 1 ,
 .Xr login 1 ,
 .Xr sh 1 ,
+.Xr dummynet 4 ,
 .Xr ipfirewall 4 ,
 .Xr ttys 5 ,
 .Xr crash 8 ,
