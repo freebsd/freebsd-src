@@ -111,7 +111,7 @@
 #define	PCONFIG	32
 #define	PLOCK	36
 #define	PPAUSE	40
-#define	PUSER	50
+#define	PUSER	48
 #define	MAXPRI	127		/* Priorities range from 0 through MAXPRI. */
 
 #define	PRIMASK	0x0ff
