@@ -2,10 +2,11 @@
 .\" See /usr/src/gnu/COPYING for conditions of redistribution
 .\"
 .\"	Written by John F. Woods <jfw@jfwhome.funhouse.com>
+.\"	Updated by Robert Eckardt <roberte@mep.ruhr-uni-bochum.de>
 .\"
-.\"	$Id: tar.1,v 1.10 1997/06/23 04:51:55 steve Exp $
+.\"	$Id: tar.1,v 1.6 1996/08/13 00:13:49 chuckr Exp $
 .\"
-.Dd August 6, 1994
+.Dd 25 August 1997
 .Os FreeBSD
 .Dt TAR 1
 .Sh NAME
@@ -13,17 +14,16 @@
 .Nd
 tape archiver; manipulate "tar" archive files
 .Sh SYNOPSIS
-.Nm
-.Op Cm Bq -
-.Op Cm bundled-options
-.Op Ar [gnu-style-flags]
+.Nm tar
+.Op [-] Ns Ar bundled-options
+.Op Ar gnu-style-flags
 .Op Ar tarfile
 .Op Ar blocksize
 .Op Ar exclude-file
 .Op Ar filenames
 .Op Fl C Ar directory-name
 .Sh DESCRIPTION
-.Nm
+.Nm Tar
 is short for 
 .Dq tape archiver,
 so named for historical reasons; the
@@ -123,13 +123,16 @@ below).
 .Bl -tag -width "--preserve-permissions" -compact
 .It Fl -help
 Prints a message listing and briefly describing all the command
-options to tar.
+options to
+.Nm tar.
 .It Fl -atime-preserve
 Restore the access times on files which are written to tape (note that
 this will change the inode-change time!).
 .It Fl b
 .It Fl -block-size Ar number
-Sets the block size for reading or writing to N 512-byte blocks.
+Sets the block size for reading or writing to
+.Ar number
+* 512-byte blocks.
 .It Fl B
 .It Fl -read-full-blocks
 Re-assemble short reads into full blocks (for reading 4.2BSD pipes).
@@ -139,7 +142,7 @@ Change to
 .Ar directory
 for extraction.
 .It Fl -checkpoint
-Print directory names while reading the archive.
+Print number of buffer reads/writes while reading/writing the archive.
 .It Fl f Ar [hostname:]file
 .It Fl -file  Ar [hostname:]file
 Read or write the specified
@@ -154,6 +157,8 @@ to read or write the specified
 .Ar file
 on a remote machine. "-" may be used is a filename, for reading
 or writing to/from stdin/stdout.
+.It Fl -force-local
+Archive file is local even if it has a colon
 .It Fl F Ar file
 .It Fl -info-script Ar file
 .It Fl -new-volume-script Ar file
@@ -190,7 +195,9 @@ Stay in local filesystem when creating an archive (do not cross mount
 points).
 .It Fl L Ar number
 .It Fl -tape-length Ar number
-Change tapes after writing N*1024 bytes.
+Change tapes after writing 
+.Ar number
+* 1024 bytes.
 .It Fl m
 .It Fl -modification-time
 Don't extract file modified time.
@@ -200,10 +207,15 @@ Create/list/extract multi-volume archive.
 .It Fl n
 .It Fl -norecurse
 Don't recurse into subdirectories when creating.
+.It Fl -volno-file Ar file
+File name with volume number to start with.
 .It Fl N Ar date
 .It Fl -after-date Ar date
 .It Fl -newer Ar date
-Only store files newer than
+Only store files with creation time newer than
+.Ar date .
+.It Fl -newer-mtime Ar date
+Only store files with modifiction time newer than
 .Ar date .
 .It Fl o
 .It Fl -old-archive
@@ -231,6 +243,8 @@ Remove files after adding them to the archive.
 .It Fl -same-order
 .It Fl -preserve-order
 List of names to extract is sorted to match archive.
+.It Fl -show-omitted-dirs
+Show directories which were omitted while processing the archive.
 .It Fl S
 .It Fl -sparse
 Handle "sparse" files efficiently.
@@ -245,17 +259,24 @@ Modifies behavior of
 to expect null-terminated names; disables
 .Fl C.
 .It Fl -totals
-Prints total bytes written with --create.
+Prints total bytes written with
+.Fl -create.
 .It Fl v
 .It Fl -verbose
-Lists files written to archive with --create or extracted with --extract;
-lists file protection information along with file names with --list.
+Lists files written to archive with
+.Fl -create
+or extracted with
+.Fl -extract;
+lists file protection information along with file names with
+.Fl -list.
 .It Fl V Ar volume-name
 .It Fl -label Ar volume-name
 Create archive with the given
 .Ar volume-name .
 .It Fl -version
-Print tar program version number.
+Print
+.Nm tar
+program version number.
 .It Fl w
 .It Fl -interactive
 .It Fl -confirmation
@@ -300,7 +321,7 @@ To create an archive on tape drive /dev/rst0 with a block size of 20
 blocks, containing files named "bert" and "ernie", you can enter
 .Dl tar cfb /dev/rst0 20 bert ernie
 or
-.Dl tar --create --file /dev/rst0 --block-size 20 bert ernie
+.Dl tar\ --create\ --file\ /dev/rst0\ --block-size\ 20\ bert\ ernie
 Note that the
 .Fl f
 and
@@ -314,7 +335,7 @@ size, the above example could have simply been
 .Pp
 To extract all the C sources and headers from an archive named
 "backup.tar", type
-.Dl tar xf backup.tar "*.[ch]"
+.Dl tar xf backup.tar '*.[ch]'
 Note that the pattern must be quoted to prevent the shell from
 attempting to expand it according the files in the current working
 directory (the shell does not have access to the list of files in
@@ -327,6 +348,7 @@ tar -cf - -C srcdir . | tar xpf - -C destdir
 .Pp
 To create a compressed archive on diskette, using gzip, use a command-line like
 .Dl tar --block-compress -z -c -v -f /dev/rfd1a -b 36 tar/
+.Pp
 Note that you cannot mix bundled flags and --style flags; you can use
 single-letter flags in the manner above, rather than having to type
 .Dl tar --block-compress --gzip --verbose --file /dev/rfd1a --block-size 20 tar/
@@ -340,12 +362,28 @@ which will add the files contained in archive2.tar onto the end of
 archive1.tar (note that this can't be done by simply typing
 .Dl cat archive2.tar >> archive1.tar
 because of the end-of-file block at the end of a tar archive).
+.Pp
+To archive all files from the directory srcdir, which were modified
+after Feb. 9th 1997, 13:00 h, use
+.Dl tar\ -c\ -f\ backup.tar\ --newer-mtime\ 'Feb\ 9\ 13:15\ 1997'\ srcdir/
+.Pp
+Other possible time specifications are '02/09/97 13:15',
+'1997-02-09 13:15', '13:15 9 Feb 1997', '9 Feb 1997 13:15', 
+'Feb. 9, 1997 1:15pm', '09-Feb', '3 weeks ago' or 'May first Sunday'.
+To specify the correct time zone use either e.g. `13:15 CEST' or `13:15+200'.
+
 .Sh ENVIRONMENT
-The tar program examines the following environment variables.
+The
+.Nm tar
+program examines the following environment variables.
 .Bl -tag -width "POSIXLY-CORRECT"
 .It POSIXLY-CORRECT
-Normally, tar will process flag arguments that appear in the file list
-If set in the environment, this causes tar to consider the first
+Normally,
+.Nm tar
+will process flag arguments that appear in the file list.
+If set in the environment, this causes
+.Nm tar
+to consider the first
 non-flag argument to terminate flag processing, as per the POSIX specification.
 .It SHELL
 In interactive mode, a permissible response to the prompt is to
@@ -373,7 +411,9 @@ The default tape drive.
 .\" .Sh STANDARDS
 .Sh HISTORY
 The tar format has a rich history, dating back to Sixth Edition UNIX.
-The current implementation of tar is the GNU implementation, which
+The current implementation of
+.Nm tar
+is the GNU implementation, which
 originated as the public-domain tar written by John Gilmore.
 .Sh AUTHORS
 A cast of thousands, including [as listed in the ChangeLog file in the
