@@ -261,7 +261,7 @@ tmx86_longrun_profile_sysctl(SYSCTL_HANDLER_ARGS)
 static void
 setup_tmx86_longrun(void *dummy __unused)
 {
-	if (strcmp(cpu_vendor, "GenuineTMx86") != 0 ||
+	if (strcmp(cpu_vendor, "GenuineTMx86") != 0 &&
 	    strcmp(cpu_vendor, "TransmetaCPU") != 0)
 		return;
 
