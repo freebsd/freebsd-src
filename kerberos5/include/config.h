@@ -318,7 +318,9 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
 #endif
 
 /* Define to 1 if you have the `getpwnam_r' function. */
-/* #undef HAVE_GETPWNAM_R */
+#if __FreeBSD_version >= 500112
+#define HAVE_GETPWNAM_R 1
+#endif
 
 /* Define to 1 if you have the `getrlimit' function. */
 #define HAVE_GETRLIMIT 1
@@ -346,7 +348,9 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
 #define HAVE_GLOB 1
 
 /* Define to 1 if you have the `grantpt' function. */
-/* #undef HAVE_GRANTPT */
+#if __FreeBSD_version >= 500100
+#define HAVE_GRANTPT 1
+#endif
 
 /* Define to 1 if you have the <grp.h> header file. */
 #define HAVE_GRP_H 1
@@ -412,19 +416,19 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
 #define HAVE_ISSETUGID 1
 
 /* Define to 1 if you have the `krb_disable_debug' function. */
-#define HAVE_KRB_DISABLE_DEBUG 1
+/* #undef HAVE_KRB_DISABLE_DEBUG */
 
 /* Define to 1 if you have the `krb_enable_debug' function. */
-#define HAVE_KRB_ENABLE_DEBUG 1
+/* #undef HAVE_KRB_ENABLE_DEBUG */
 
 /* Define to 1 if you have the `krb_get_kdc_time_diff' function. */
-#define HAVE_KRB_GET_KDC_TIME_DIFF 1
+/* #undef HAVE_KRB_GET_KDC_TIME_DIFF */
 
 /* Define to 1 if you have the `krb_get_our_ip_for_realm' function. */
-#define HAVE_KRB_GET_OUR_IP_FOR_REALM 1
+/* #undef HAVE_KRB_GET_OUR_IP_FOR_REALM */
 
 /* Define to 1 if you have the `krb_kdctimeofday' function. */
-#define HAVE_KRB_KDCTIMEOFDAY 1
+/* #undef HAVE_KRB_KDCTIMEOFDAY */
 
 /* Define to 1 if you have the <libutil.h> header file. */
 #define HAVE_LIBUTIL_H 1
@@ -553,7 +557,9 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
 #define HAVE_PTHREAD_H 1
 
 /* Define to 1 if you have the `ptsname' function. */
-/* #undef HAVE_PTSNAME */
+#if __FreeBSD_version >= 500100
+#define HAVE_PTSNAME 1
+#endif
 
 /* Define to 1 if you have the <pty.h> header file. */
 /* #undef HAVE_PTY_H */
@@ -1008,7 +1014,9 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
 #define HAVE_UNISTD_H 1
 
 /* Define to 1 if you have the `unlockpt' function. */
-/* #undef HAVE_UNLOCKPT */
+#if __FreeBSD_version >= 500100
+#define HAVE_UNLOCKPT 1
+#endif
 
 /* Define if you have the function `unsetenv'. */
 #define HAVE_UNSETENV 1
@@ -1237,13 +1245,13 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
 #define PACKAGE_NAME "Heimdal"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "Heimdal 0.5.1"
+#define PACKAGE_STRING "Heimdal 0.6 (FreeBSD)"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "heimdal"
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "0.5.1"
+#define PACKAGE_VERSION "0.6"
 
 /* Define if getlogin has POSIX flavour (and not BSD). */
 /* #undef POSIX_GETLOGIN */
@@ -1273,7 +1281,7 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
 /* #undef TM_IN_SYS_TIME */
 
 /* Version number of package */
-#define VERSION "0.4f"
+#define VERSION "0.6"
 
 /* Define if signal handlers return void. */
 #define VOID_RETSIGTYPE 1

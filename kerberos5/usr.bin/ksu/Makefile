@@ -18,10 +18,10 @@ CFLAGS+=-I${KRB5DIR}/include	\
 	-I${ASN1OBJDIR}		\
 	-I${.OBJDIR}
 
-LDADD=	-lkrb5 -lroken ${LIBVERS} \
+LDADD=	-lkrb5 -lroken -lkafs5 ${LIBVERS} \
 	-lasn1 -lcrypto -lcrypt -lcom_err
 
-DPADD=	${LIBKRB5} ${LIBROKEN} ${LIBVERS} \
+DPADD=	${LIBKRB5} ${LIBROKEN} ${LIBKAFS5} ${LIBVERS} \
 	${LIBASN1} ${LIBCRYPTO} ${LIBCRYPT} ${LIBCOM_ERR}
 
 NOMAN=	true

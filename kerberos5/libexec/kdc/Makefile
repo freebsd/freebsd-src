@@ -3,9 +3,11 @@
 PROG=	kdc
 
 SRCS=	\
+	524.c			\
 	config.c		\
 	connect.c		\
 	kdc_locl.h		\
+	kerberos4.c		\
 	kerberos5.c		\
 	log.c			\
 	main.c			\
