@@ -220,7 +220,7 @@ ah_sumsiz_1216(sav)
 	struct secasvar *sav;
 {
 	if (!sav)
-		return -1;
+		panic("ah_sumsiz_1216: null pointer is passed");
 	if (sav->flags & SADB_X_EXT_OLD)
 		return 16;
 	else
@@ -232,7 +232,7 @@ ah_sumsiz_zero(sav)
 	struct secasvar *sav;
 {
 	if (!sav)
-		return -1;
+		panic("ah_sumsiz_zero: null pointer is passed");
 	return 0;
 }
 
@@ -1571,10 +1571,17 @@ ah6_calccksum(m, ahdat, len, algo, sav)
 					goto fail;
 				}
 				optlen = optp[1] + 2;
-
-				if (optp[0] & IP6OPT_MUTABLE)
-					bzero(optp + 2, optlen - 2);
 			}
+
+			if (optp + optlen > optend) {
+				error = EINVAL;
+				m_free(n);
+				n = NULL;
+				goto fail;
+			}
+
+			if (optp[0] & IP6OPT_MUTABLE)
+				bzero(optp + 2, optlen - 2);
 
 			optp += optlen;
 		}
