@@ -1,5 +1,5 @@
 #	@(#)Makefile.inc	8.1 (Berkeley) 6/17/93
-#	$Id: Makefile.inc,v 1.17 1996/05/07 23:16:38 wosch Exp $
+#	$Id: Makefile.inc,v 1.18 1996/05/09 11:30:51 phk Exp $
 
 # sys sources
 .PATH: ${.CURDIR}/${MACHINE}/sys ${.CURDIR}/sys
@@ -44,16 +44,14 @@ ${ASM}: ${.CURDIR}/${MACHINE}/SYS.h /usr/include/sys/syscall.h
 	@${ECHO} creating ${.PREFIX}.o
 	@printf '#include "SYS.h"\nRSYSCALL(${.PREFIX})\n' | \
 	    ${CPP} ${CFLAGS:M-[ID]*} ${AINC} | ${AS} -o ${.PREFIX}.o
-	@${LD} -o ${.PREFIX}.tmp -x -r ${.PREFIX}.o
-	@mv -f ${.PREFIX}.tmp ${.PREFIX}.o
+	@${LD} -O ${.PREFIX}.o -x -r ${.PREFIX}.o
 
 PASM=	${ASM:.o=.po}
 ${PASM}: ${.CURDIR}/${MACHINE}/SYS.h /usr/include/sys/syscall.h
 	@${ECHO} creating ${.PREFIX}.po
 	@printf '#include "SYS.h"\nRSYSCALL(${.PREFIX})\n' | \
 	    ${CPP} -DPROF ${CFLAGS:M-[ID]*} ${AINC} | ${AS} -o ${.PREFIX}.po
-	@${LD} -o ${.PREFIX}.tmp -x -r ${.PREFIX}.po
-	@mv -f ${.PREFIX}.tmp ${.PREFIX}.po
+	@${LD} -O ${.PREFIX}.po -x -r ${.PREFIX}.po
 
 SASM=	${ASM:.o=.so}
 ${SASM}: ${.CURDIR}/${MACHINE}/SYS.h /usr/include/sys/syscall.h
@@ -65,16 +63,14 @@ ${PSEUDO}: ${.CURDIR}/${MACHINE}/SYS.h /usr/include/sys/syscall.h
 	@${ECHO} creating ${.PREFIX}.o
 	@printf '#include "SYS.h"\nPSEUDO(${.PREFIX},${.PREFIX:S/_//})\n' | \
 	    ${CPP} ${CFLAGS:M-[ID]*} ${AINC} | ${AS} -o ${.PREFIX}.o
-	@${LD} -o ${.PREFIX}.tmp -x -r ${.PREFIX}.o
-	@mv -f ${.PREFIX}.tmp ${.PREFIX}.o
+	@${LD} -O ${.PREFIX}.o -x -r ${.PREFIX}.o
 
 PPSEUDO=${PSEUDO:.o=.po}
 ${PPSEUDO}: ${.CURDIR}/${MACHINE}/SYS.h /usr/include/sys/syscall.h
 	@${ECHO} creating ${.PREFIX}.po
 	@printf '#include "SYS.h"\nPSEUDO(${.PREFIX},${.PREFIX:S/_//})\n' | \
 	    ${CPP} -DPROF ${CFLAGS:M-[ID]*} ${AINC} | ${AS} -o ${.PREFIX}.po
-	@${LD} -o ${.PREFIX}.tmp -x -r ${.PREFIX}.po
-	@mv -f ${.PREFIX}.tmp ${.PREFIX}.po
+	@${LD} -O ${.PREFIX}.po -x -r ${.PREFIX}.po
 
 SPSEUDO=${PSEUDO:.o=.so}
 ${SPSEUDO}: ${.CURDIR}/${MACHINE}/SYS.h /usr/include/sys/syscall.h
