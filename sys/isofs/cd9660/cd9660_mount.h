@@ -52,3 +52,4 @@ struct iso_args {
 #define	ISOFSMNT_GENS	0x00000002	/* enable generation numbers */
 #define	ISOFSMNT_EXTATT	0x00000004	/* enable extended attributes */
 #define ISOFSMNT_NOJOLIET 0x00000008	/* disable Joliet Ext.*/
+#define ISOFSMNT_BROKENJOLIET 0x00000010/* allow broken Joliet disks */
