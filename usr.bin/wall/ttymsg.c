@@ -51,6 +51,8 @@ static const char rcsid[] =
 #include <stdlib.h>
 #include <unistd.h>
 
+#include "ttymsg.h"
+
 /*
  * Display the contents of a uio structure on a terminal.  Used by wall(1),
  * syslogd(8), and talkd(8).  Forks and finishes in child if write would block,
@@ -58,17 +60,18 @@ static const char rcsid[] =
  * error; string is not newline-terminated.  Various "normal" errors are
  * ignored (exclusive-use, lack of permission, etc.).
  */
-char *
+const char *
 ttymsg(struct iovec *iov, int iovcnt, const char *line, int tmout)
 {
 	struct iovec localiov[7];
-	int cnt, fd, left, wret;
+	ssize_t left, wret;
+	int cnt, fd;
 	static char device[MAXNAMLEN] = _PATH_DEV;
 	static char errbuf[1024];
 	int forked;
 
 	forked = 0;
-	if (iovcnt > sizeof(localiov) / sizeof(localiov[0]))
+	if (iovcnt > (int)(sizeof(localiov) / sizeof(localiov[0])))
 		return ("too many iov's (change code in wall/ttymsg.c)");
 
 	strlcpy(device + sizeof(_PATH_DEV) - 1, line, sizeof(device));
@@ -91,7 +94,7 @@ ttymsg(struct iovec *iov, int iovcnt, const char *line, int tmout)
 		return (errbuf);
 	}
 
-	for (cnt = left = 0; cnt < iovcnt; ++cnt)
+	for (cnt = 0, left = 0; cnt < iovcnt; ++cnt)
 		left += iov[cnt].iov_len;
 
 	for (;;) {
@@ -105,7 +108,7 @@ ttymsg(struct iovec *iov, int iovcnt, const char *line, int tmout)
 				    iovcnt * sizeof(struct iovec));
 				iov = localiov;
 			}
-			for (cnt = 0; wret >= iov->iov_len; ++cnt) {
+			for (cnt = 0; (size_t)wret >= iov->iov_len; ++cnt) {
 				wret -= iov->iov_len;
 				++iov;
 				--iovcnt;
