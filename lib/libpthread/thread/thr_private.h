@@ -603,38 +603,13 @@ struct pthread_state_data {
 
 struct join_status {
 	struct pthread	*thread;
-	int		ret;
+	void		*ret;
 	int		error;
 };
 
 /*
- * Normally thread contexts are stored as jmp_bufs via _setjmp()/_longjmp(),
- * but they may also be sigjmp_buf and ucontext_t.  When a thread is
- * interrupted by a signal, it's context is saved as a ucontext_t.  An
- * application is also free to use [_]longjmp()/[_]siglongjmp() to jump
- * between contexts within the same thread.  Future support will also
- * include setcontext()/getcontext().
- *
- * Define an enumerated type that can identify the 4 different context
- * types.
- */
-typedef enum {
-	CTX_JB_NOSIG,	/* context is jmp_buf without saved sigset */
-	CTX_JB,		/* context is jmp_buf (with saved sigset) */
-	CTX_SJB,	/* context is sigjmp_buf (with saved sigset) */
-	CTX_UC		/* context is ucontext_t (with saved sigset) */
-} thread_context_t;
-
-/*
- * There are 2 basic contexts that a frame may contain at any
- * one time:
- *
- *   o ctx - The context that the thread should return to after normal
- *     completion of the signal handler.
- *   o sig_jb - The context just before the signal handler is invoked.
- *     Attempts at abnormal returns from user supplied signal handlers
- *     will return back to the signal context to perform any necessary
- *     cleanup.
+ * The frame that is added to the top of a threads stack when setting up
+ * up the thread to run a signal handler.
  */
 struct pthread_signal_frame {
 	/*
@@ -643,19 +618,12 @@ struct pthread_signal_frame {
 	struct pthread_state_data saved_state;
 
 	/*
-	 * Threads return context; ctxtype identifies the type of context.
-	 * For signal frame 0, these point to the context storage area
-	 * within the pthread structure.  When handling signals (frame > 0),
-	 * these point to a context storage area that is allocated off the
-	 * threads stack.
+	 * Threads return context; we use only jmp_buf's for now.
 	 */
 	union {
 		jmp_buf		jb;
-		sigjmp_buf	sigjb;
 		ucontext_t	uc;
 	} ctx;
-	thread_context_t	ctxtype;
-	int			longjmp_val;
 	int			signo;	/* signal, arg 1 to sighandler */
 	int			sig_has_args;	/* use signal args if true */
 	ucontext_t		uc;
@@ -696,15 +664,12 @@ struct pthread {
 	struct pthread_attr	attr;
 
 	/*
-	 * Threads return context; ctxtype identifies the type of context.
+	 * Threads return context; we use only jmp_buf's for now.
 	 */
 	union {
 		jmp_buf		jb;
-		sigjmp_buf	sigjb;
 		ucontext_t	uc;
 	} ctx;
-	thread_context_t	ctxtype;
-	int			longjmp_val;
 
 	/*
 	 * Used for tracking delivery of signal handlers.
@@ -1145,9 +1110,6 @@ SCLASS	volatile int	_sigq_check_reqd
 #endif
 ;
 
-/* The signal stack. */
-SCLASS struct sigaltstack _thread_sigstack;
-
 /* Thread switch hook. */
 SCLASS pthread_switch_routine_t _sched_switch_hook
 #ifdef GLOBAL_PTHREAD_PRIVATE
@@ -1257,11 +1219,12 @@ void    _thread_kern_set_timeout(const struct timespec *);
 void    _thread_kern_sig_defer(void);
 void    _thread_kern_sig_undefer(void);
 void    _thread_sig_handler(int, siginfo_t *, ucontext_t *);
-void    _thread_sig_check_pending(pthread_t pthread);
+void    _thread_sig_check_pending(struct pthread *pthread);
 void    _thread_sig_handle_pending(void);
-void	_thread_sig_send(pthread_t pthread, int sig);
+void	_thread_sig_send(struct pthread *pthread, int sig);
 void	_thread_sig_wrapper(void);
-void	_thread_sigframe_restore(pthread_t thread, struct pthread_signal_frame *psf);
+void	_thread_sigframe_restore(struct pthread *thread,
+	    struct pthread_signal_frame *psf);
 void    _thread_start(void);
 void	_thread_seterrno(pthread_t, int);
 int     _thread_fd_table_init(int fd);
