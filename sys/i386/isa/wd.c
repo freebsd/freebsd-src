@@ -551,7 +551,7 @@ loop:
 	}
 
 	/* then send it! */
-	outsw (wdc+wd_data, addr+du->dk_skip * DEV_BSIZE,
+	outsw (wdc + wd_data, (caddr_t)addr + du->dk_skip * DEV_BSIZE,
 		DEV_BSIZE/sizeof(short));
 	du->dk_bc -= DEV_BSIZE;
 }
@@ -641,11 +641,11 @@ oops:
 
 		/* suck in data */
 		insw (wdc+wd_data,
-			(int)bp->b_un.b_addr + du->dk_skip * DEV_BSIZE, chk);
+		      (caddr_t)bp->b_un.b_addr + du->dk_skip * DEV_BSIZE, chk);
 		du->dk_bc -= chk * sizeof(short);
 
 		/* for obselete fractional sector reads */
-		while (chk++ < 256) insw (wdc+wd_data, &dummy, 1);
+		while (chk++ < 256) insw (wdc + wd_data, (caddr_t)&dummy, 1);
 	}
 
 	wdxfer[du->dk_lunit]++;
@@ -1023,6 +1023,7 @@ wdgetctlr(struct disk *du) {
 	du->dk_dd.d_type = DTYPE_ESDI;
 	du->dk_dd.d_subtype |= DSTYPE_GEOMETRY;
 	
+	
 	return (0);
 }
 
@@ -1277,7 +1278,8 @@ wddump(dev_t dev)			/* dump core after a system crash */
 			blkcnt = secpercyl - (blknum % secpercyl);
 			    /* keep transfer within current cylinder */
 #endif
-		pmap_enter(kernel_pmap, CADDR1, trunc_page(addr), VM_PROT_READ, TRUE);
+		pmap_enter(kernel_pmap, (vm_offset_t)CADDR1,
+			   trunc_page(addr), VM_PROT_READ, TRUE);
 
 		/* compute disk address */
 		cylin = blknum / secpercyl;
