@@ -174,7 +174,7 @@
       filesystem devices listed.  Prior to commencing the upgrade, the
       administrator should make a note of the device names and
       corresponding mountpoints.  These mountpoints should be entered
-      here.  <emphasis>Do not</emphasis>set the <quote>newfs
+      here.  <emphasis>Do not</emphasis> set the <quote>newfs
       flag</quote> for any filesystems, as this will cause data
       loss.</para>
     </sect3>
@@ -183,7 +183,7 @@
       <title>Select Distributions</title>
 
       <para>When selecting distributions, there are no constraints
-      on which must be selected.  As a general rule, the <literal>bin</literal>
+      on which must be selected.  As a general rule, the <literal>base</literal>
       distribution should be selected for an update, and the <literal>man</literal>
       distribution if manpages are already installed.  Other
       distributions may be selected beyond those originally
