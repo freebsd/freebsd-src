@@ -2393,6 +2393,7 @@ ttyinfo(struct tty *tp)
 
 			td = FIRST_THREAD_IN_PROC(pick);
 			stmp = pick->p_stat == SRUN ? "running" :  /* XXXKSE */
+			    pick->p_stat == SMTX ? td->td_mtxname :
 			    td->td_wmesg ? td->td_wmesg : "iowait";
 			calcru(pick, &utime, &stime, NULL);
 			ltmp = pick->p_stat == SIDL || pick->p_stat == SWAIT ||
@@ -2400,8 +2401,8 @@ ttyinfo(struct tty *tp)
 			    pgtok(vmspace_resident_count(pick->p_vmspace));
 			mtx_unlock_spin(&sched_lock);
 
-			ttyprintf(tp, " cmd: %s %d [%s] ", pick->p_comm, pick->p_pid,
-			    stmp);
+			ttyprintf(tp, " cmd: %s %d [%s%s] ", pick->p_comm,
+			    pick->p_pid, pick->p_stat == SMTX ? "*" : "", stmp);
 
 			/* Print user time. */
 			ttyprintf(tp, "%ld.%02ldu ",
