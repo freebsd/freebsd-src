@@ -50,6 +50,7 @@ struct pcic_softc
 #define	PCIC_VG_POWER	0x00000008	/* Uses VG power regs */
 #define PCIC_KING_POWER	0x00000010	/* Uses IBM KING regs  */
 #define PCIC_RICOH_POWER 0x00000020	/* Uses the ricoh power regs */
+#define PCIC_SHARED_IRQ 0x00000040	/* Allow IRQs to be shared */
 	int			iorid;	/* Rid of I/O region */
 	struct resource 	*iores;	/* resource for I/O region */
 	int			memrid;	/* Memory rid */
