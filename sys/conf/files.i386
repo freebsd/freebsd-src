@@ -56,6 +56,7 @@ i386/isa/lpa.c			optional	lpa	device-driver
 i386/isa/lpt.c			optional	lpt	device-driver
 i386/isa/mse.c			optional	mse	device-driver
 i386/isa/npx.c			optional	npx	device-driver
+i386/isa/syscons.c		optional	sc	device-driver
 i386/isa/pccons.c		optional	pc	device-driver
 i386/isa/sio.c			optional	sio	device-driver
 i386/isa/spkr.c			optional	speaker
