@@ -377,7 +377,7 @@ m_tag_locate(struct mbuf *m, u_int32_t cookie, int type, struct m_tag *t)
 {
 	struct m_tag *p;
 
-	KASSERT(m, ("m_tag_find: null mbuf"));
+	KASSERT(m, ("m_tag_locate: null mbuf"));
 	if (t == NULL)
 		p = SLIST_FIRST(&m->m_pkthdr.tags);
 	else
@@ -416,7 +416,7 @@ m_tag_copy_chain(struct mbuf *to, struct mbuf *from)
 	struct m_tag *p, *t, *tprev = NULL;
 
 	KASSERT(to && from,
-		("m_tag_copy: null argument, to %p from %p", to, from));
+		("m_tag_copy_chain: null argument, to %p from %p", to, from));
 	m_tag_delete_chain(to, NULL);
 	SLIST_FOREACH(p, &from->m_pkthdr.tags, m_tag_link) {
 		t = m_tag_copy(p);
