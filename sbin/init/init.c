@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)init.c	8.1 (Berkeley) 7/15/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: init.c,v 1.30 1998/07/06 06:56:08 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -583,6 +583,9 @@ single_user()
 		"Enter root password, or ^D to go multi-user\n";
 	char *clear, *password;
 #endif
+#ifdef DEBUGSHELL
+	char altshell[128];
+#endif
 
 	/*
 	 * If the kernel is in secure mode, downgrade it to insecure mode.
@@ -632,7 +635,7 @@ single_user()
 
 #ifdef DEBUGSHELL
 		{
-			char altshell[128], *cp = altshell;
+			char *cp = altshell;
 			int num;
 
 #define	SHREQUEST \
