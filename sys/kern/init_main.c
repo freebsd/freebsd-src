@@ -290,7 +290,7 @@ struct sysentvec null_sysvec = {
 /*
  ***************************************************************************
  ****
- **** The two following SYSINT's are proc0 specific glue code.  I am not
+ **** The two following SYSINIT's are proc0 specific glue code.  I am not
  **** convinced that they can not be safely combined, but their order of
  **** operation has been maintained as the same as the original init_main.c
  **** for right now.
