@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_vnops.c	8.6 (Berkeley) 2/7/94
  *
- *	$Id: procfs_vnops.c,v 1.15 1995/08/11 07:26:26 davidg Exp $
+ *	$Id: procfs_vnops.c,v 1.16 1995/09/02 18:28:48 mpp Exp $
  */
 
 /*
@@ -103,7 +103,7 @@ static pid_t atopid __P((const char *, u_int));
  * is to support exclusive open on process
  * memory images.
  */
-int
+static int
 procfs_open(ap)
 	struct vop_open_args *ap;
 {
@@ -138,7 +138,7 @@ procfs_open(ap)
  * nothing to do for procfs other than undo
  * any exclusive open flag (see _open above).
  */
-int
+static int
 procfs_close(ap)
 	struct vop_close_args *ap;
 {
@@ -160,7 +160,7 @@ procfs_close(ap)
  * do an ioctl operation on pfsnode (vp).
  * (vp) is not locked on entry or exit.
  */
-int
+static int
 procfs_ioctl(ap)
 	struct vop_ioctl_args *ap;
 {
@@ -184,7 +184,7 @@ procfs_ioctl(ap)
  *
  * (vp) is not locked on entry or exit.
  */
-int
+static int
 procfs_inactive(ap)
 	struct vop_inactive_args *ap;
 {
@@ -203,7 +203,7 @@ procfs_inactive(ap)
  * to free any private data and remove the node
  * from any private lists.
  */
-int
+static int
 procfs_reclaim(ap)
 	struct vop_reclaim_args *ap;
 {
@@ -216,7 +216,7 @@ procfs_reclaim(ap)
 /*
  * Return POSIX pathconf information applicable to special devices.
  */
-int
+static int
 procfs_pathconf(ap)
 	struct vop_pathconf_args /* {
 		struct vnode *a_vp;
@@ -255,7 +255,7 @@ procfs_pathconf(ap)
  * just print a readable description
  * of (vp).
  */
-int
+static int
 procfs_print(ap)
 	struct vop_print_args *ap;
 {
@@ -273,7 +273,7 @@ procfs_print(ap)
  * for undoing any side-effects caused by the lookup.
  * this will always include freeing the pathname buffer.
  */
-int
+static int
 procfs_abortop(ap)
 	struct vop_abortop_args *ap;
 {
@@ -286,7 +286,7 @@ procfs_abortop(ap)
 /*
  * generic entry point for unsupported operations
  */
-int
+static int
 procfs_badop()
 {
 
@@ -302,7 +302,7 @@ procfs_badop()
  *
  * this is relatively minimal for procfs.
  */
-int
+static int
 procfs_getattr(ap)
 	struct vop_getattr_args *ap;
 {
@@ -438,7 +438,7 @@ procfs_getattr(ap)
 	return (error);
 }
 
-int
+static int
 procfs_setattr(ap)
 	struct vop_setattr_args *ap;
 {
@@ -467,7 +467,7 @@ procfs_setattr(ap)
  * but does mean that the i/o entry points need to check
  * that the operation really does make sense.
  */
-int
+static int
 procfs_access(ap)
 	struct vop_access_args *ap;
 {
@@ -520,7 +520,7 @@ found:
  * filesystem doesn't do any locking of its own.  otherwise
  * read and inwardly digest ufs_lookup().
  */
-int
+static int
 procfs_lookup(ap)
 	struct vop_lookup_args *ap;
 {
@@ -634,7 +634,7 @@ procfs_lookup(ap)
  *
  * this should just be done through read()
  */
-int
+static int
 procfs_readdir(ap)
 	struct vop_readdir_args *ap;
 {
@@ -800,7 +800,7 @@ atopid(b, len)
  * procfs vnode operations.
  */
 int (**procfs_vnodeop_p)();
-struct vnodeopv_entry_desc procfs_vnodeop_entries[] = {
+static struct vnodeopv_entry_desc procfs_vnodeop_entries[] = {
 	{ &vop_default_desc, vn_default_error },
 	{ &vop_lookup_desc, procfs_lookup },		/* lookup */
 	{ &vop_create_desc, procfs_create },		/* create */
@@ -843,7 +843,7 @@ struct vnodeopv_entry_desc procfs_vnodeop_entries[] = {
 	{ &vop_update_desc, procfs_update },		/* update */
 	{ (struct vnodeop_desc*)NULL, (int(*)())NULL }
 };
-struct vnodeopv_desc procfs_vnodeop_opv_desc =
+static struct vnodeopv_desc procfs_vnodeop_opv_desc =
 	{ &procfs_vnodeop_p, procfs_vnodeop_entries };
 
 VNODEOP_SET(procfs_vnodeop_opv_desc);
