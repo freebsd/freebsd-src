@@ -209,8 +209,6 @@ cache_init(phandle_t node)
 		panic("cache_init: D$ size not a power of 2");
 	if (((cache.dc_size / cache.dc_assoc) / PAGE_SIZE) != DCACHE_COLORS)
 		panic("cache_init: too many D$ colors");
-	if (cache.dc_assoc != 1)
-		panic("cache_init: D$ is not directly mapped!");
 	set = cache.ec_size / cache.ec_assoc;
 	cache.ec_l2set = ffs(set) - 1;
 	if ((set & ~(1UL << cache.ec_l2set)) != 0)
