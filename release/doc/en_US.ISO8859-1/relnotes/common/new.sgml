@@ -398,7 +398,7 @@
     <sect3 id="mm">
       <title>Multimedia Support</title>
 
-      <para arch="i386">The <filename>atspeaker.ko</filename> and
+      <para arch="i386,pc98">The <filename>atspeaker.ko</filename> and
         <filename>pcspeaker.ko</filename> modules for the
         &man.speaker.4; device have been renamed
         <filename>speaker.ko</filename>.</para>
