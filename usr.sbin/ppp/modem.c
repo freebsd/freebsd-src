@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.96 1998/07/29 18:20:53 brian Exp $
+ * $Id: modem.c,v 1.97 1998/08/07 18:42:50 brian Exp $
  *
  *  TODO:
  */
@@ -966,16 +966,14 @@ modem_DescriptorRead(struct descriptor *d, struct bundle *bundle,
       cp = hdlc_Detect(p, rbuff, n);
       if (cp) {
         /* LCP packet is detected. Turn ourselves into packet mode */
-        if (cp != rbuff) {
+        if (cp != rbuff)
           /* Get rid of the bit before the HDLC header */
-          log_WritePrompts(p->dl, rbuff, cp - rbuff);
-          log_WritePrompts(p->dl, "\r\n", 2);
-        }
+          log_WritePrompts(p->dl, "%.*s\r\n", cp - rbuff, rbuff);
         log_Printf(LogPHASE, "%s: PPP packet detected, coming up\n",
                    p->link.name);
         datalink_Up(p->dl, 0, 1);
       } else
-        log_WritePrompts(p->dl, rbuff, n);
+        log_WritePrompts(p->dl, "%.*s", n, rbuff);
     }
   } else if (n > 0)
     async_Input(bundle, rbuff, n, p);
