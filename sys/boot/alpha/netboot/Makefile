@@ -16,8 +16,7 @@ SRCS+=		main.c conf.c dev_net.c
 CFLAGS+=	-mno-fp-regs
 CFLAGS+=	-I${.CURDIR}/../../common -I${.CURDIR}
 CFLAGS+=	-I${.OBJDIR}
-# Verbose ls causes extra heap usage
-CFLAGS+=	-DVERBOSE_LS
+CFLAGS+=	-DNETBOOT
 
 CLEANFILES+=	vers.c vers.o gensetdefs.o gensetdefs setdef0.o setdef1.o \
 		setdefs.h start.o
