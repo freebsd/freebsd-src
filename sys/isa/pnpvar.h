@@ -31,11 +31,6 @@
 
 #ifdef _KERNEL
 
-#if 0
-void    pnp_write(int d, u_char r); /* used by Luigi's sound driver */
-u_char  pnp_read(int d); /* currently unused, but who knows... */
-#endif
-
 #define PNP_HEXTONUM(c)	((c) >= 'a'		\
 			 ? (c) - 'a' + 10	\
 			 : ((c) >= 'A'		\
