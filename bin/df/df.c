@@ -491,31 +491,40 @@ static char *
 makenetvfslist(void)
 {
 	char *str, *strptr, **listptr;
-	int mib[3], maxvfsconf, cnt=0, i;
-	size_t miblen;
-	struct ovfsconf *ptr;
+	struct xvfsconf *xvfsp;
+	size_t buflen;
+	int cnt, i, maxvfsconf;
 
-	mib[0] = CTL_VFS; mib[1] = VFS_GENERIC; mib[2] = VFS_MAXTYPENUM;
-	miblen=sizeof(maxvfsconf);
-	if (sysctl(mib, (unsigned int)(sizeof(mib) / sizeof(mib[0])),
-	    &maxvfsconf, &miblen, NULL, 0)) {
-		warnx("sysctl failed");
+	if (sysctlbyname("vfs.conflist", NULL, &buflen, NULL, 0) < 0) {
+		warn("sysctl(vfs.conflist)");
 		return (NULL);
 	}
+	xvfsp = malloc(buflen);
+	if (xvfsp == NULL) {
+		warnx("malloc failed");
+		return (NULL);
+	}
+	if (sysctlbyname("vfs.conflist", xvfsp, &buflen, NULL, 0) < 0) {
+		warn("sysctl(vfs.conflist)");
+		return (NULL);
+	}
+	maxvfsconf = buflen / sizeof(struct xvfsconf);
 
 	if ((listptr = malloc(sizeof(char*) * maxvfsconf)) == NULL) {
 		warnx("malloc failed");
 		return (NULL);
 	}
 
-	for (ptr = getvfsent(); ptr; ptr = getvfsent())
-		if (ptr->vfc_flags & VFCF_NETWORK) {
-			listptr[cnt++] = strdup(ptr->vfc_name);
+	for (cnt = 0, i = 0; i < maxvfsconf; i++) {
+		if (xvfsp->vfc_flags & VFCF_NETWORK) {
+			listptr[cnt++] = strdup(xvfsp->vfc_name);
 			if (listptr[cnt-1] == NULL) {
 				warnx("malloc failed");
 				return (NULL);
 			}
 		}
+		xvfsp++;
+	}
 
 	if (cnt == 0 ||
 	    (str = malloc(sizeof(char) * (32 * cnt + cnt + 2))) == NULL) {

@@ -41,39 +41,43 @@ __FBSDID("$FreeBSD$");
 #include <sys/mount.h>
 #include <sys/sysctl.h>
 #include <errno.h>
+#include <stdlib.h>
+#include <string.h>
 
 /*
  * Given a filesystem name, determine if it is resident in the kernel,
- * and if it is resident, return its vfsconf structure.
+ * and if it is resident, return its xvfsconf structure.
  */
+int
 getvfsbyname(fsname, vfcp)
 	const char *fsname;
-	struct vfsconf *vfcp;
+	struct xvfsconf *vfcp;
 {
 #ifdef	__NETBSD_SYSCALLS
 	errno = ENOSYS;
 #else
-	int name[4], maxtypenum, cnt;
+	struct xvfsconf *xvfsp;
 	size_t buflen;
+	int cnt, i;
 
-	name[0] = CTL_VFS;
-	name[1] = VFS_GENERIC;
-	name[2] = VFS_MAXTYPENUM;
-	buflen = 4;
-	if (sysctl(name, 3, &maxtypenum, &buflen, (void *)0, (size_t)0) < 0)
+	if (sysctlbyname("vfs.conflist", NULL, &buflen, NULL, 0) < 0)
 		return (-1);
-	name[2] = VFS_CONF;
-	buflen = sizeof *vfcp;
-	for (cnt = 0; cnt < maxtypenum; cnt++) {
-		name[3] = cnt;
-		if (sysctl(name, 4, vfcp, &buflen, (void *)0, (size_t)0) < 0) {
-			if (errno != EOPNOTSUPP)
-				return (-1);
-			continue;
-		}
-		if (!strcmp(fsname, vfcp->vfc_name))
-			return (0);
+	xvfsp = malloc(buflen);
+	if (xvfsp == NULL)
+		return (-1);
+	if (sysctlbyname("vfs.conflist", xvfsp, &buflen, NULL, 0) < 0) {
+		free(xvfsp);
+		return (-1);
 	}
+	cnt = buflen / sizeof(struct xvfsconf);
+	for (i = 0; i < cnt; i++) {
+		if (strcmp(fsname, xvfsp[i].vfc_name) == 0) {
+			memcpy(vfcp, xvfsp + i, sizeof(struct xvfsconf));
+			free(xvfsp);
+			return (0);
+		}
+	}
+	free(xvfsp);
 	errno = ENOENT;
 #endif
 	return (-1);
