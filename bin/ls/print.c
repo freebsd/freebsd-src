@@ -80,35 +80,35 @@ static int      colortype __P((mode_t));
 #ifdef COLORLS
 /* Most of these are taken from <sys/stat.h> */
 typedef enum Colors {
-    C_DIR,     /* directory */
-    C_LNK,     /* symbolic link */
-    C_SOCK,    /* socket */
-    C_FIFO,    /* pipe */
-    C_EXEC,    /* executable */
-    C_BLK,     /* block special */
-    C_CHR,     /* character special */
-    C_SUID,    /* setuid executable */
-    C_SGID,    /* setgid executable */
-    C_WSDIR,   /* directory writeble to others, with sticky bit */
-    C_WDIR,    /* directory writeble to others, without sticky bit */
-    C_NUMCOLORS        /* just a place-holder */
-} Colors ;
+	C_DIR,		/* directory */
+	C_LNK,		/* symbolic link */
+	C_SOCK,		/* socket */
+	C_FIFO,		/* pipe */
+	C_EXEC,		/* executable */
+	C_BLK,		/* block special */
+	C_CHR,		/* character special */
+	C_SUID,		/* setuid executable */
+	C_SGID,		/* setgid executable */
+	C_WSDIR,	/* directory writeble to others, with sticky bit */
+	C_WDIR,		/* directory writeble to others, without sticky bit */
+	C_NUMCOLORS	/* just a place-holder */
+} Colors;
 
 char *defcolors = "exfxcxdxbxegedabagacad";
 
 /* colors for file types */
 static struct {
-	int num[2];
-	int bold;
+	int	num[2];
+	int	bold;
 } colors[C_NUMCOLORS];
 
 #endif
 
 void
 printscol(dp)
-	DISPLAY *dp;
+	DISPLAY	*dp;
 {
-	FTSENT *p;
+	FTSENT	*p;
 
 	for (p = dp->list; p; p = p->fts_link) {
 		if (IS_NOPRINT(p))
@@ -138,11 +138,11 @@ printlong(dp)
 	DISPLAY *dp;
 {
 	struct stat *sp;
-	FTSENT *p;
-	NAMES *np;
-	char buf[20];
+	FTSENT	*p;
+	NAMES	*np;
+	char	buf[20];
 #ifdef COLORLS
-	int color_printed = 0;
+	int	color_printed = 0;
 #endif
 
 	if (dp->list->fts_level != FTS_ROOTLEVEL && (f_longform || f_size))
@@ -204,15 +204,23 @@ printlong(dp)
 
 void
 printcol(dp)
-	DISPLAY *dp;
+	DISPLAY	*dp;
 {
 	extern int termwidth;
 	static FTSENT **array;
 	static int lastentries = -1;
-	FTSENT *p;
-	int base, chcnt, cnt, col, colwidth, num;
-	int endcol, numcols, numrows, row;
-	int tabwidth;
+	FTSENT	*p;
+	int	base;
+	int	chcnt;
+	int	cnt;
+	int	col;
+	int	colwidth;
+	int	endcol;
+	int	num;
+	int	numcols;
+	int	numrows;
+	int	row;
+	int	tabwidth;
 
 	if (f_notabs)
 		tabwidth = 1;
@@ -280,13 +288,14 @@ printcol(dp)
  */
 static int
 printaname(p, inodefield, sizefield)
-	FTSENT *p;
-	u_long sizefield, inodefield;
+	FTSENT	*p;
+	u_long	inodefield;
+	u_long	sizefield;
 {
 	struct stat *sp;
-	int chcnt;
+	int	chcnt;
 #ifdef COLORLS
-	int color_printed = 0;
+	int	color_printed = 0;
 #endif
 
 	sp = p->fts_statp;
@@ -312,12 +321,12 @@ printaname(p, inodefield, sizefield)
 
 static void
 printtime(ftime)
-	time_t ftime;
+	time_t	ftime;
 {
-	char longstring[80];
-	static time_t now;
-	const char *format;
-	static int d_first = -1;
+	char		longstring[80];
+	static time_t	now;
+	const char	*format;
+	static int	d_first = -1;
 
 	if (d_first < 0)
 		d_first = (*nl_langinfo(D_MD_ORDER) == 'd');
@@ -340,7 +349,7 @@ printtime(ftime)
 
 static int
 printtype(mode)
-	u_int mode;
+	u_int	mode;
 {
 	switch (mode & S_IFMT) {
 	case S_IFDIR:
@@ -369,7 +378,7 @@ printtype(mode)
 #ifdef COLORLS
 static int
 putch(c)
-	int c;
+	int	c;
 {
 	(void) putchar(c);
 	return 0;
@@ -377,9 +386,9 @@ putch(c)
 
 static int
 writech(c)
-	int c;
+	int	c;
 {
-	char tmp = c;
+	char	tmp = c;
 
 	(void) write(STDOUT_FILENO, &tmp, 1);
 	return 0;
@@ -387,9 +396,9 @@ writech(c)
 
 static void
 printcolor(c)
-       Colors c;
+	Colors	c;
 {
-	char *ansiseq;
+	char	*ansiseq;
 
 	if (colors[c].bold)
 		tputs(enter_bold, 1, putch);
@@ -409,7 +418,7 @@ printcolor(c)
 
 static void
 endcolor(sig)
-	int sig;
+	int	sig;
 {
 	tputs(ansi_coloff, 1, sig ? writech : putch);
 	tputs(attrs_off, 1, sig ? writech : putch);
@@ -417,7 +426,7 @@ endcolor(sig)
 
 static int
 colortype(mode)
-       mode_t mode;
+	mode_t	mode;
 {
 	switch(mode & S_IFMT) {
 	      case S_IFDIR:
@@ -459,24 +468,27 @@ colortype(mode)
 
 void
 parsecolors(cs)
-char *cs;
+	char	*cs;
 {
-	int i, j, len;
-	char c[2];
-	short legacy_warn = 0;
+	int	i;
+	int	j;
+	int	len;
+	char	c[2];
+	short	legacy_warn = 0;
 
-	if (cs == NULL)    cs = ""; /* LSCOLORS not set */
+	if (cs == NULL)
+		cs = ""; /* LSCOLORS not set */
 	len = strlen(cs);
 	for (i = 0 ; i < C_NUMCOLORS ; i++) {
 		colors[i].bold = 0;
 
-		if (len <= 2*i) {
-			c[0] = defcolors[2*i];
-			c[1] = defcolors[2*i+1];
+		if (len <= 2 * i) {
+			c[0] = defcolors[2 * i];
+			c[1] = defcolors[2 * i + 1];
 		}
 		else {
-			c[0] = cs[2*i];
-			c[1] = cs[2*i+1];
+			c[0] = cs[2 * i];
+			c[1] = cs[2 * i + 1];
 		}
 		for (j = 0 ; j < 2 ; j++) {
 			/* Legacy colours used 0-7 */
@@ -508,7 +520,7 @@ char *cs;
 
 void
 colorquit(sig)
-	int sig;
+	int	sig;
 {
 	endcolor(sig);
 
@@ -519,10 +531,11 @@ colorquit(sig)
  
 static void
 printlink(p)
-	FTSENT *p;
+	FTSENT	*p;
 {
-	int lnklen;
-	char name[MAXPATHLEN + 1], path[MAXPATHLEN + 1];
+	int	lnklen;
+	char	name[MAXPATHLEN + 1];
+	char	path[MAXPATHLEN + 1];
 
 	if (p->fts_level == FTS_ROOTLEVEL)
 		(void)snprintf(name, sizeof(name), "%s", p->fts_name);
