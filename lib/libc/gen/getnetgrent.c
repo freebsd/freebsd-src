@@ -35,7 +35,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)getnetgrent.c	8.1 (Berkeley) 6/4/93";
+static char sccsid[] = "@(#)getnetgrent.c	8.2 (Berkeley) 4/27/95";
 #endif /* LIBC_SCCS and not lint */
 
 #include <stdio.h>
@@ -82,6 +82,7 @@ static char sccsid[] = "@(#)getnetgrent.c	8.1 (Berkeley) 6/4/93";
  *   netgroup entries, we use just those local entries and ignore
  *   NIS (this is the original, pre-NIS behavior).
  */
+
 #include <rpc/rpc.h>
 #include <rpcsvc/yp_prot.h>
 #include <rpcsvc/ypclnt.h>
@@ -295,7 +296,7 @@ static int _listmatch(list, group, len)
 			while(*ptr != ','  && !isspace(*ptr))
 				ptr++;
 			if (strncmp(cptr, group, glen) == 0 &&
-				glen == (ptr - cptr))
+					glen == (ptr - cptr))
 				return(1);
 			while(*ptr == ','  || isspace(*ptr))
 				ptr++;
@@ -383,8 +384,8 @@ innetgr(group, host, user, dom)
 		}
 		/*
 		 * Couldn't match using NIS-exclusive mode. If the error
-		 * was YPERR_MAP, then the failure happened because there
-		 * was no netgroup.byhost or netgroup.byuser map. The odds
+	 	 * was YPERR_MAP, then the failure happened because there
+	 	 * was no netgroup.byhost or netgroup.byuser map. The odds
 		 * are we are talking to an Sun NIS+ server in YP emulation
 		 * mode; if this is the case, then we have to do the check
 		 * the 'old-fashioned' way by grovelling through the netgroup
@@ -510,10 +511,10 @@ parse_netgrp(group)
 			if (parse_netgrp(spos))
 				continue;
 		}
-		/* Watch for null pointer dereferences, dammit! */
-		if (pos != NULL)
-			while (*pos == ' ' || *pos == ',' || *pos == '\t')
-				pos++;
+		if (pos == NULL)
+			break;
+		while (*pos == ' ' || *pos == ',' || *pos == '\t')
+			pos++;
 	}
 	return (0);
 }
