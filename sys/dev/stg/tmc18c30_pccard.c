@@ -58,8 +58,7 @@
 
 #include <dev/stg/tmc18c30reg.h>
 #include <dev/stg/tmc18c30var.h>
-
-#define	STG_HOSTID	7
+#include <dev/stg/tmc18c30.h>
 
 #include	<sys/kernel.h>
 #include	<sys/module.h>
@@ -68,11 +67,6 @@
 #endif
 #include	<pccard/cardinfo.h>
 #include	<pccard/slot.h>
-
-static	int	stgprobe(DEVPORT_PDEVICE devi);
-static	int	stgattach(DEVPORT_PDEVICE devi);
-
-static	void	stg_card_unload	(DEVPORT_PDEVICE);
 
 static const struct pccard_product stg_products[] = {
 	PCMCIA_CARD(FUTUREDOMAIN, SCSI2GO, 0),
@@ -86,86 +80,6 @@ static const struct pccard_product stg_products[] = {
 /*
  * Additional code for FreeBSD new-bus PCCard frontend
  */
-
-static void
-stg_pccard_intr(void * arg)
-{
-	stgintr(arg);
-}
-
-static void
-stg_release_resource(DEVPORT_PDEVICE dev)
-{
-	struct stg_softc	*sc = device_get_softc(dev);
-
-	if (sc->stg_intrhand) {
-		bus_teardown_intr(dev, sc->irq_res, sc->stg_intrhand);
-	}
-
-	if (sc->port_res) {
-		bus_release_resource(dev, SYS_RES_IOPORT,
-				     sc->port_rid, sc->port_res);
-	}
-
-	if (sc->irq_res) {
-		bus_release_resource(dev, SYS_RES_IRQ,
-				     sc->irq_rid, sc->irq_res);
-	}
-
-	if (sc->mem_res) {
-		bus_release_resource(dev, SYS_RES_MEMORY,
-				     sc->mem_rid, sc->mem_res);
-	}
-}
-
-static int
-stg_alloc_resource(DEVPORT_PDEVICE dev)
-{
-	struct stg_softc	*sc = device_get_softc(dev);
-	u_long			ioaddr, iosize, maddr, msize;
-	int			error;
-
-	error = bus_get_resource(dev, SYS_RES_IOPORT, 0, &ioaddr, &iosize);
-	if (error || iosize < STGIOSZ) {
-		return(ENOMEM);
-	}
-
-	sc->port_rid = 0;
-	sc->port_res = bus_alloc_resource(dev, SYS_RES_IOPORT, &sc->port_rid,
-					  0, ~0, STGIOSZ, RF_ACTIVE);
-	if (sc->port_res == NULL) {
-		stg_release_resource(dev);
-		return(ENOMEM);
-	}
-
-	sc->irq_rid = 0;
-	sc->irq_res = bus_alloc_resource(dev, SYS_RES_IRQ, &sc->irq_rid,
-					 0, ~0, 1, RF_ACTIVE);
-	if (sc->irq_res == NULL) {
-		stg_release_resource(dev);
-		return(ENOMEM);
-	}
-
-	error = bus_get_resource(dev, SYS_RES_MEMORY, 0, &maddr, &msize);
-	if (error) {
-		return(0);      /* XXX */
-	}
-
-	/* no need to allocate memory if not configured */
-	if (maddr == 0 || msize == 0) {
-		return(0);
-	}
-
-	sc->mem_rid = 0;
-	sc->mem_res = bus_alloc_resource(dev, SYS_RES_MEMORY, &sc->mem_rid,
-					 0, ~0, 1, RF_ACTIVE);
-	if (sc->mem_res == NULL) {
-		stg_release_resource(dev);
-		return(ENOMEM);
-	}
-
-	return(0);
-}
 
 static int stg_pccard_match(device_t dev)
 {
@@ -185,14 +99,14 @@ stg_pccard_probe(DEVPORT_PDEVICE dev)
 	struct stg_softc	*sc = device_get_softc(dev);
 	int			error;
 
-	bzero(sc, sizeof(struct stg_softc));
-
+	sc->port_rid = 0;
+	sc->irq_rid = 0;
 	error = stg_alloc_resource(dev);
 	if (error) {
 		return(error);
 	}
 
-	if (stgprobe(dev) == 0) {
+	if (stg_probe(dev) == 0) {
 		stg_release_resource(dev);
 		return(ENXIO);
 	}
@@ -208,19 +122,21 @@ stg_pccard_attach(DEVPORT_PDEVICE dev)
 	struct stg_softc	*sc = device_get_softc(dev);
 	int			error;
 
+	sc->port_rid = 0;
+	sc->irq_rid = 0;
 	error = stg_alloc_resource(dev);
 	if (error) {
 		return(error);
 	}
 
 	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_CAM | INTR_ENTROPY,
-			       stg_pccard_intr, (void *)sc, &sc->stg_intrhand);
+			       stg_intr, (void *)sc, &sc->stg_intrhand);
 	if (error) {
 		stg_release_resource(dev);
 		return(error);
 	}
 
-	if (stgattach(dev) == 0) {
+	if (stg_attach(dev) == 0) {
 		stg_release_resource(dev);
 		return(ENXIO);
 	}
@@ -228,18 +144,11 @@ stg_pccard_attach(DEVPORT_PDEVICE dev)
 	return(0);
 }
 
-static	void
-stg_pccard_detach(DEVPORT_PDEVICE dev)
-{
-	stg_card_unload(dev);
-	stg_release_resource(dev);
-}
-
 static device_method_t stg_pccard_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		pccard_compat_probe),
 	DEVMETHOD(device_attach,	pccard_compat_attach),
-	DEVMETHOD(device_detach,	stg_pccard_detach),
+	DEVMETHOD(device_detach,	stg_detach),
 
 	/* Card interface */
 	DEVMETHOD(card_compat_match,	stg_pccard_match),
@@ -255,71 +164,5 @@ static driver_t stg_pccard_driver = {
 	sizeof(struct stg_softc),
 };
 
-static devclass_t stg_devclass;
-
-MODULE_DEPEND(stg, scsi_low, 1, 1, 1);
 DRIVER_MODULE(stg, pccard, stg_pccard_driver, stg_devclass, 0, 0);
-
-static	void
-stg_card_unload(DEVPORT_PDEVICE devi)
-{
-	struct stg_softc *sc = DEVPORT_PDEVGET_SOFTC(devi);
-	intrmask_t s;
-
-	printf("%s: unload\n",sc->sc_sclow.sl_xname);
-	s = splcam();
-	scsi_low_deactivate((struct scsi_low_softc *)sc);
-        scsi_low_dettach(&sc->sc_sclow);
-	splx(s);
-}
-
-static	int
-stgprobe(DEVPORT_PDEVICE devi)
-{
-	int rv;
-	struct stg_softc *sc = device_get_softc(devi);
-
-	rv = stgprobesubr(rman_get_bustag(sc->port_res),
-			  rman_get_bushandle(sc->port_res),
-			  DEVPORT_PDEVFLAGS(devi));
-
-	return rv;
-}
-
-static	int
-stgattach(DEVPORT_PDEVICE devi)
-{
-	struct stg_softc *sc;
-	struct scsi_low_softc *slp;
-	u_int32_t flags = DEVPORT_PDEVFLAGS(devi);
-	u_int iobase = DEVPORT_PDEVIOBASE(devi);
-	intrmask_t s;
-	char	dvname[16];
-
-	strcpy(dvname,"stg");
-
-	if (iobase == 0)
-	{
-		printf("%s: no ioaddr is given\n", dvname);
-		return (0);
-	}
-
-	sc = DEVPORT_PDEVALLOC_SOFTC(devi);
-	if (sc == NULL) {
-		return(0);
-	}
-
-	slp = &sc->sc_sclow;
-	slp->sl_dev = devi;
-	sc->sc_iot = rman_get_bustag(sc->port_res);
-	sc->sc_ioh = rman_get_bushandle(sc->port_res);
-
-	slp->sl_hostid = STG_HOSTID;
-	slp->sl_cfgflags = flags;
-
-	s = splcam();
-	stgattachsubr(sc);
-	splx(s);
-
-	return(STGIOSZ);
-}
+MODULE_DEPEND(stg, scsi_low, 1, 1, 1);

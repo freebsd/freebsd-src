@@ -1,19 +1,17 @@
-/*	$FreeBSD$	*/
-/*	$NecBSD: tmc18c30_pisa.c,v 1.22 1998/11/26 01:59:21 honda Exp $	*/
-/*	$NetBSD$	*/
-
 /*
+ *	Copyright (c) 2003 Bob Bishop
+ *      All rights reserved.
  * [Ported for FreeBSD]
  *  Copyright (c) 2000
  *      Noriaki Mitsunaga, Mitsuru Iwasaki and Takanori Watanabe.
  *      All rights reserved.
  * [NetBSD for NEC PC-98 series]
  *  Copyright (c) 1996, 1997, 1998
- *	NetBSD/pc98 porting staff. All rights reserved.
+ *      NetBSD/pc98 porting staff. All rights reserved.
  *  Copyright (c) 1996, 1997, 1998
- *	Naofumi HONDA. All rights reserved.
+ *      Naofumi HONDA. All rights reserved.
  *  Copyright (c) 1996, 1997, 1998
- *	Kouichi Matsuda. All rights reserved.
+ *      Kouichi Matsuda. All rights reserved.
  * 
  *  Redistribution and use in source and binary forms, with or without
  *  modification, are permitted provided that the following conditions
@@ -37,6 +35,8 @@
  * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #include <sys/param.h>
@@ -52,6 +52,9 @@
 #include <machine/resource.h>
 #include <sys/rman.h>
 
+#include <pci/pcireg.h>
+#include <pci/pcivar.h>
+
 #include <cam/scsi/scsi_low.h>
 #include <cam/scsi/scsi_low_pisa.h>
 
@@ -59,42 +62,44 @@
 #include <dev/stg/tmc18c30var.h>
 #include <dev/stg/tmc18c30.h>
 
-static int
-stg_isa_probe(device_t dev)
+static struct _pcsid
 {
-	struct stg_softc	*sc = device_get_softc(dev);
-	int			error;
+	u_int32_t	type;
+	const char	*desc;
+} pci_ids[] = {
+	{ 0x00001036, 	"Adaptec AHA-2920/A,Future Domain TMC-18XX/3260"	},
+	{ 0x00000000, 	NULL							}
+};
 
-	sc->port_rid = 0;
-	sc->irq_rid = 0;
-	error = stg_alloc_resource(dev);
-	if (error) {
-		return(error);
+static int
+stg_pci_probe(device_t dev)
+{
+	u_int32_t type = pci_get_devid(dev);
+	struct _pcsid *stg = pci_ids;
+
+	while (stg->type && stg->type != type)
+		++stg;
+	if (stg->desc) {
+		device_set_desc(dev, stg->desc);
+		return 0;
 	}
-
-	if (stg_probe(dev) == 0) {
-		stg_release_resource(dev);
-		return(ENXIO);
-	}
-
-	stg_release_resource(dev);
-
-	return(0);
+	return(ENXIO);
 }
 
 static int
-stg_isa_attach(device_t dev)
+stg_pci_attach(device_t dev)
 {
 	struct stg_softc	*sc = device_get_softc(dev);
 	int			error;
 
-	sc->port_rid = 0;
+	sc->port_rid = PCIR_MAPS;
 	sc->irq_rid = 0;
 	error = stg_alloc_resource(dev);
 	if (error) {
 		return(error);
 	}
 
+	/* XXXX remove INTR_ENTROPY below for MFC */
 	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_CAM | INTR_ENTROPY,
 			       stg_intr, (void *)sc, &sc->stg_intrhand);
 	if (error) {
@@ -110,20 +115,21 @@ stg_isa_attach(device_t dev)
 	return(0);
 }
 
-static device_method_t stg_isa_methods[] = {
+static device_method_t stg_pci_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		stg_isa_probe),
-	DEVMETHOD(device_attach,	stg_isa_attach),
+	DEVMETHOD(device_probe,		stg_pci_probe),
+	DEVMETHOD(device_attach,	stg_pci_attach),
 	DEVMETHOD(device_detach,	stg_detach),
 
 	{ 0, 0 }
 };
 
-static driver_t stg_isa_driver = {
+static driver_t stg_pci_driver = {
 	"stg",
-	stg_isa_methods,
+	stg_pci_methods,
 	sizeof(struct stg_softc),
 };
 
-DRIVER_MODULE(stg, isa, stg_isa_driver, stg_devclass, 0, 0);
+DRIVER_MODULE(stg, pci, stg_pci_driver, stg_devclass, 0, 0);
 MODULE_DEPEND(stg, scsi_low, 1, 1, 1);
+MODULE_DEPEND(stg, pci, 1, 1, 1);
