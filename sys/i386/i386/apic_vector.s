@@ -57,6 +57,18 @@
 	pushl	%es ;							\
 	pushl	%fs
 
+#define	PUSH_FRAME_AND_SET_SEGS						\
+	PUSH_FRAME ;							\
+	mov	%fs,%ax ;	/* get current per-cpu selector */	\
+	cmp	$KPSEL,%ax ;	/* are we already in the kernel? */	\
+	je	1f ;		/* skip expensive segment reloads */	\
+	mov	$KDSEL,%ax ;	/* load kernel ds, es and fs */		\
+	mov	%ax,%ds ;						\
+	mov	%ax,%es ;						\
+	mov	$KPSEL,%ax ;						\
+	mov	%ax,%fs ;						\
+1:
+
 #define POP_FRAME							\
 	popl	%fs ;							\
 	popl	%es ;							\
@@ -75,12 +87,7 @@
 	.text ;								\
 	SUPERALIGN_TEXT ;						\
 IDTVEC(vec_name) ;							\
-	PUSH_FRAME ;							\
-	movl	$KDSEL, %eax ;	/* reload with kernel's data segment */	\
-	mov	%ax, %ds ;						\
-	mov	%ax, %es ;						\
-	movl	$KPSEL, %eax ;	/* reload with per-CPU data segment */	\
-	mov	%ax, %fs ;						\
+	PUSH_FRAME_AND_SET_SEGS ;					\
 	FAKE_MCOUNT(13*4(%esp)) ;					\
 	movl	lapic, %edx ;	/* pointer to local APIC */		\
 	movl	LA_ISR + 16 * (index)(%edx), %eax ;	/* load ISR */	\
@@ -130,9 +137,12 @@ MCOUNT_LABEL(eintr2)
 IDTVEC(invltlb)
 	pushl	%eax
 	pushl	%ds
+	mov	%ds,%ax			/* get current data selector */
+	cmp	$KDSEL,%ax		/* are we already in the kernel? */
+	je	1f			/* skip expensive segment reload */
 	movl	$KDSEL, %eax		/* Kernel data selector */
 	mov	%ax, %ds
-
+1:
 #ifdef COUNT_XINVLTLB_HITS
 	pushl	%fs
 	movl	$KPSEL, %eax		/* Private space selector */
@@ -163,9 +173,12 @@ IDTVEC(invltlb)
 IDTVEC(invlpg)
 	pushl	%eax
 	pushl	%ds
+	mov	%ds,%ax			/* get current data selector */
+	cmp	$KDSEL,%ax		/* are we already in the kernel? */
+	je	1f			/* skip expensive segment reload */
 	movl	$KDSEL, %eax		/* Kernel data selector */
 	mov	%ax, %ds
-
+1:
 #ifdef COUNT_XINVLTLB_HITS
 	pushl	%fs
 	movl	$KPSEL, %eax		/* Private space selector */
@@ -197,9 +210,12 @@ IDTVEC(invlrng)
 	pushl	%eax
 	pushl	%edx
 	pushl	%ds
+	mov	%ds,%ax			/* get current data selector */
+	cmp	$KDSEL,%ax		/* are we already in the kernel? */
+	je	1f			/* skip expensive segment reload */
 	movl	$KDSEL, %eax		/* Kernel data selector */
 	mov	%ax, %ds
-
+1:
 #ifdef COUNT_XINVLTLB_HITS
 	pushl	%fs
 	movl	$KPSEL, %eax		/* Private space selector */
@@ -234,12 +250,7 @@ IDTVEC(invlrng)
 	.text
 	SUPERALIGN_TEXT
 IDTVEC(hardclock)
-	PUSH_FRAME
-	movl	$KDSEL, %eax	/* reload with kernel's data segment */
-	mov	%ax, %ds
-	mov	%ax, %es
-	movl	$KPSEL, %eax
-	mov	%ax, %fs
+	PUSH_FRAME_AND_SET_SEGS
 
 	movl	lapic, %edx
 	movl	$0, LA_EOI(%edx)	/* End Of Interrupt to APIC */
@@ -257,12 +268,7 @@ IDTVEC(hardclock)
 	.text
 	SUPERALIGN_TEXT
 IDTVEC(statclock)
-	PUSH_FRAME
-	movl	$KDSEL, %eax	/* reload with kernel's data segment */
-	mov	%ax, %ds
-	mov	%ax, %es
-	movl	$KPSEL, %eax
-	mov	%ax, %fs
+	PUSH_FRAME_AND_SET_SEGS
 
 	movl	lapic, %edx
 	movl	$0, LA_EOI(%edx)	/* End Of Interrupt to APIC */
@@ -286,12 +292,7 @@ IDTVEC(statclock)
 	.text
 	SUPERALIGN_TEXT
 IDTVEC(cpuast)
-	PUSH_FRAME
-	movl	$KDSEL, %eax
-	mov	%ax, %ds		/* use KERNEL data segment */
-	mov	%ax, %es
-	movl	$KPSEL, %eax
-	mov	%ax, %fs
+	PUSH_FRAME_AND_SET_SEGS
 
 	movl	lapic, %edx
 	movl	$0, LA_EOI(%edx)	/* End Of Interrupt to APIC */
@@ -377,12 +378,7 @@ IDTVEC(cpustop)
 	.text
 	SUPERALIGN_TEXT
 IDTVEC(rendezvous)
-	PUSH_FRAME
-	movl	$KDSEL, %eax
-	mov	%ax, %ds		/* use KERNEL data segment */
-	mov	%ax, %es
-	movl	$KPSEL, %eax
-	mov	%ax, %fs
+	PUSH_FRAME_AND_SET_SEGS
 
 	call	smp_rendezvous_action
 
@@ -397,12 +393,7 @@ IDTVEC(rendezvous)
  */
 	SUPERALIGN_TEXT
 IDTVEC(lazypmap)
-	PUSH_FRAME
-	movl	$KDSEL, %eax
-	mov	%ax, %ds		/* use KERNEL data segment */
-	mov	%ax, %es
-	movl	$KPSEL, %eax
-	mov	%ax, %fs
+	PUSH_FRAME_AND_SET_SEGS
 
 	call	pmap_lazyfix_action
 
