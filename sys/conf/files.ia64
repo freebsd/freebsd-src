@@ -44,6 +44,7 @@ ia64/ia64/interrupt.c		standard
 # now normal.
 # ia64/ia64/locore.s		standard
 ia64/ia64/machdep.c		standard
+ia64/ia64/mca.c			standard
 ia64/ia64/mem.c			standard
 ia64/ia64/mountroot.c		optional	slice
 ia64/ia64/mp_machdep.c		optional	smp
