@@ -70,8 +70,6 @@ ed_isa_probe(dev)
 	int flags = device_get_flags(dev);
 	int error = 0;
 
-	bzero(sc, sizeof(struct ed_softc));
-
 	/* Check isapnp ids */
 	error = ISA_PNP_PROBE(device_get_parent(dev), dev, ed_ids);
 
