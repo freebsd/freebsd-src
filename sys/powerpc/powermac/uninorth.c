@@ -202,6 +202,7 @@ uninorth_attach(device_t dev)
 	}
 	sc->sc_io_rman.rm_type = RMAN_ARRAY;
 	sc->sc_io_rman.rm_descr = "UniNorth PCI I/O Ports";
+	sc->sc_iostart = io->host;
 	if (rman_init(&sc->sc_io_rman) != 0 ||
 	    rman_manage_region(&sc->sc_io_rman, io->pci_lo,
 	    io->pci_lo + io->size_lo) != 0) {
@@ -360,6 +361,12 @@ uninorth_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		rm = &sc->sc_mem_rman;
 		bt = PPC_BUS_SPACE_MEM;
 		break;
+
+	case SYS_RES_IOPORT:
+		rm = &sc->sc_io_rman;
+		bt = PPC_BUS_SPACE_IO;
+		break;
+
 	case SYS_RES_IRQ:
 		return (bus_alloc_resource(bus, type, rid, start, end, count,
 		    flags));
@@ -398,13 +405,29 @@ uninorth_activate_resource(device_t bus, device_t child, int type, int rid,
     struct resource *res)
 {
 	void	*p;
+	struct	uninorth_softc *sc;
+
+	sc = device_get_softc(bus);
 
 	if (type == SYS_RES_IRQ)
 		return (bus_activate_resource(bus, type, rid, res));
 
-	if (type == SYS_RES_MEMORY) {
-		p = pmap_mapdev((vm_offset_t)rman_get_start(res),
-		    (vm_size_t)rman_get_size(res));
+	if (type == SYS_RES_MEMORY || type == SYS_RES_IOPORT) {
+		vm_offset_t start;
+
+		start = (vm_offset_t)rman_get_start(res);
+		/*
+		 * For i/o-ports, convert the start address to the
+		 * uninorth PCI i/o window
+		 */
+		if (type == SYS_RES_IOPORT)
+			start += sc->sc_iostart;
+
+		if (bootverbose)
+			printf("uninorth mapdev: start %x, len %ld\n", start,
+			    rman_get_size(res));
+
+		p = pmap_mapdev(start, (vm_size_t)rman_get_size(res));
 		if (p == NULL)
 			return (ENOMEM);
 		rman_set_virtual(res, p);
