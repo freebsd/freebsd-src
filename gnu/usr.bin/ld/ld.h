@@ -1,5 +1,5 @@
 /*
- *	$Id: ld.h,v 1.14 1995/05/30 05:01:45 rgrimes Exp $
+ *	$Id: ld.h,v 1.15 1996/01/13 00:14:52 jdp Exp $
  */
 /*-
  * This code is derived from software copyrighted by the Free Software
@@ -643,6 +643,7 @@ int	findlib __P((struct file_entry *));
 
 /* In shlib.c: */
 char	*findshlib __P((char *, int *, int *, int));
+char	*find_lib_file __P((char *));
 char	*search_lib_dir __P((char *, char *, int *, int *, int));
 void	add_search_dir __P((char *));
 void	add_search_path __P((char *));
