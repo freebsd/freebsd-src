@@ -43,9 +43,8 @@
 .Nd make directories
 .Sh SYNOPSIS
 .Nm mkdir
-.Op Fl p
+.Op Fl pv
 .Op Fl m Ar mode
-.Op Fl v
 .Ar directory_name  ...
 .Sh DESCRIPTION
 .Nm Mkdir
@@ -89,6 +88,10 @@ The
 utility exits 0 on success, and >0 if an error occurs.
 .Sh SEE ALSO
 .Xr rmdir 1
+.Sh COMPATIBILITY
+The
+.Fl v
+option is non-standard and its use in scripts is not recommended.
 .Sh STANDARDS
 The
 .Nm
