@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.138 1997/02/22 09:32:40 peter Exp $
+ *	$Id: pmap.c,v 1.139 1997/04/07 07:15:52 peter Exp $
  */
 
 /*
@@ -93,6 +93,8 @@
 #include <vm/vm_extern.h>
 #include <vm/vm_pageout.h>
 #include <vm/vm_pager.h>
+
+#include <sys/user.h>
 
 #include <machine/pcb.h>
 #include <machine/cputypes.h>
@@ -2964,6 +2966,13 @@ pmap_mincore(pmap, addr)
 		}
 	} 
 	return val;
+}
+
+void
+pmap_activate(struct proc *p)
+{
+	load_cr3(p->p_addr->u_pcb.pcb_cr3 =
+		vtophys(p->p_vmspace->vm_pmap.pm_pdir));
 }
 
 #if defined(PMAP_DEBUG)

@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_coff.c,v 1.22 1997/03/23 03:34:09 bde Exp $
+ *	$Id: imgact_coff.c,v 1.23 1997/04/01 08:39:01 bde Exp $
  */
 
 #include <sys/param.h>
@@ -299,7 +299,7 @@ exec_coff_imgact(imgp)
 	const struct aouthdr *ahdr;
 	const struct scnhdr *scns;
 	int i;
-	struct vmspace *vmspace = imgp->proc->p_vmspace;
+	struct vmspace *vmspace;
 	int nscns;
 	int error;
 	unsigned long text_offset = 0, text_address = 0, text_size = 0;
@@ -339,6 +339,7 @@ exec_coff_imgact(imgp)
 	}
 
 	exec_new_vmspace(imgp);
+	vmspace = imgp->proc->p_vmspace;
 
 	for (i = 0; i < nscns; i++) {
 
