@@ -160,7 +160,7 @@ kern_timeout_callwheel_init(void)
  * George Varghese, published in a technical report entitled "Redesigning
  * the BSD Callout and Timer Facilities" and modified slightly for inclusion
  * in FreeBSD by Justin T. Gibbs.  The original work on the data structures
- * used in this implementation was published by G.Varghese and A. Lauck in
+ * used in this implementation was published by G. Varghese and T. Lauck in
  * the paper "Hashed and Hierarchical Timing Wheels: Data Structures for
  * the Efficient Implementation of a Timer Facility" in the Proceedings of
  * the 11th ACM Annual Symposium on Operating Systems Principles,
