@@ -3,7 +3,7 @@
                  ISDN cards supported by isdn4bsd in FreeBSD
                  ===========================================
 
-                 last edit-date: [Sat Jun  2 14:03:57 2001]
+                 last edit-date: [Mon Dec 10 13:24:49 2001]
 
  $FreeBSD$
 
@@ -57,6 +57,8 @@
   Teles S0 PnP		YES	(Note 5)
   Teles 16.3c		EXP	(Note 4)
   AcerISDN P10		EXP	(Note 4)
+  Compaq Microcom 610	YES	( = Compaq series PSB2222I ?)
+
 
 3. Passive PCI bus ISDN cards 
 =============================

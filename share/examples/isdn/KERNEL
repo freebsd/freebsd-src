@@ -7,7 +7,7 @@
 #	file and then edited (stripped down) to match your
 #	hardware configuration.
 #
-#	last edit-date: [Mon Aug 13 14:24:02 2001]
+#	last edit-date: [Mon Dec 10 13:21:40 2001]
 #
 # $FreeBSD$
 #
@@ -52,6 +52,7 @@ options		ELSA_QS1ISA
 options		SIEMENS_ISURF2
 options		ASUSCOM_IPAC
 options		EICON_DIVA
+options		COMPAQ_M610
 
 # enable ELSA Microlink PCI card within the "isic" driver
 options		ELSA_QS1PCI
