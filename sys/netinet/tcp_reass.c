@@ -650,6 +650,7 @@ findpcb:
 		}
 		ip6_savecontrol(inp, &inp->in6p_options, ip6, m);
 	}
+        /* else, should also do ip_srcroute() here? */
 #endif /* INET6 */
 
 	so = inp->inp_socket;
