@@ -161,6 +161,7 @@ dev/ppbus/ppi.c		optional ppi
 dev/ppbus/pps.c		optional pps
 dev/ppbus/vpo.c		optional vpo
 dev/ppbus/vpoio.c	optional vpo
+dev/sio/sio.c		optional sio
 smbus_if.o		optional smbus					\
 	dependency	"smbus_if.c smbus_if.h"				\
 	compile-with	"${NORMAL_C}"					\
