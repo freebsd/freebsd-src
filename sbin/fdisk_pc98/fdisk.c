@@ -378,7 +378,7 @@ main(int argc, char *argv[])
 			if (partp->dp_start == 0 && partp->dp_size == 0)
 #endif
 				continue;
-			printf("%4d: %11lu %11lu 0x%02xn", i + 1,
+			printf("%4d: %11lu %11lu 0x%02x\n", i + 1,
 #ifdef PC98
 			    partp->dp_scyl * cylsecs,
 			    (partp->dp_ecyl - partp->dp_scyl + 1) * cylsecs,
