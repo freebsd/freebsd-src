@@ -6,6 +6,7 @@
 
 PROG=	size
 SRCS=	size.c
+WARNS=	2
 CFLAGS+= -I${.CURDIR}/${RELTOP}/libbinutils
 CFLAGS+= -I${SRCDIR}/binutils
 DPADD=	${RELTOP}/libbinutils/libbinutils.a
