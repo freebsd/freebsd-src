@@ -92,7 +92,7 @@ time_t timenow;
 
 #define MIN_PID         5
 #define MAX_PID		99999	/* was lower, see /usr/include/sys/proc.h */
-char hostname[MAXHOSTNAMELEN + 1];	/* hostname */
+char hostname[MAXHOSTNAMELEN];	/* hostname */
 char *daytime;			/* timenow in human readable form */
 
 static struct conf_entry *parse_file(char **files);
@@ -290,13 +290,16 @@ parse_file(char **files)
 		}
 
 		if (!first) {
-			working = (struct conf_entry *) malloc(sizeof(struct conf_entry));
+			if ((working = (struct conf_entry *) malloc(sizeof(struct conf_entry))) == NULL)
+				err(1, "malloc");
 			first = working;
 		} else {
-			working->next = (struct conf_entry *) malloc(sizeof(struct conf_entry));
+			if ((working->next = (struct conf_entry *) malloc(sizeof(struct conf_entry))) == NULL)
+				err(1, "malloc");
 			working = working->next;
 		}
-		working->log = strdup(q);
+		if ((working->log = strdup(q)) == NULL)
+			err(1, "strdup");
 
 		q = parse = missing_field(sob(++parse), errline);
 		parse = son(parse);
@@ -474,9 +477,9 @@ static void
 dotrim(char *log, char *pid_file, int numdays, int flags, int perm,
     int owner_uid, int group_gid, int sig)
 {
-	char dirpart[MAXPATHLEN + 1], namepart[MAXPATHLEN + 1];
-	char file1[MAXPATHLEN + 1], file2[MAXPATHLEN + 1];
-	char zfile1[MAXPATHLEN + 1], zfile2[MAXPATHLEN + 1];
+	char dirpart[MAXPATHLEN], namepart[MAXPATHLEN];
+	char file1[MAXPATHLEN], file2[MAXPATHLEN];
+	char zfile1[MAXPATHLEN], zfile2[MAXPATHLEN];
 	int notified, need_notification, fd, _numdays;
 	struct stat st;
 	pid_t pid;
@@ -496,15 +499,15 @@ dotrim(char *log, char *pid_file, int numdays, int flags, int perm,
 
 		/* build complete name of archive directory into dirpart */
 		if (*archdirname == '/') {	/* absolute */
-			strcpy(dirpart, archdirname);
+			strlcpy(dirpart, archdirname, sizeof(dirpart));
 		} else {	/* relative */
 			/* get directory part of logfile */
-			strcpy(dirpart, log);
+			strlcpy(dirpart, log, sizeof(dirpart));
 			if ((p = rindex(dirpart, '/')) == NULL)
 				dirpart[0] = '\0';
 			else
 				*(p + 1) = '\0';
-			strcat(dirpart, archdirname);
+			strlcat(dirpart, archdirname, sizeof(dirpart));
 		}
 
 		/* check if archive directory exists, if not, create it */
@@ -513,19 +516,19 @@ dotrim(char *log, char *pid_file, int numdays, int flags, int perm,
 
 		/* get filename part of logfile */
 		if ((p = rindex(log, '/')) == NULL)
-			strcpy(namepart, log);
+			strlcpy(namepart, log, sizeof(namepart));
 		else
-			strcpy(namepart, p + 1);
+			strlcpy(namepart, p + 1, sizeof(namepart));
 
 		/* name of oldest log */
-		(void) sprintf(file1, "%s/%s.%d", dirpart, namepart, numdays);
-		(void) strcpy(zfile1, file1);
-		(void) strcat(zfile1, COMPRESS_POSTFIX);
+		(void) snprintf(file1, sizeof(file1), "%s/%s.%d", dirpart, namepart, numdays);
+		(void) snprintf(zfile1, sizeof(zfile1), "%s%s", file1,
+		    COMPRESS_POSTFIX);
 	} else {
 		/* name of oldest log */
-		(void) sprintf(file1, "%s.%d", log, numdays);
-		(void) strcpy(zfile1, file1);
-		(void) strcat(zfile1, COMPRESS_POSTFIX);
+		(void) snprintf(file1, sizeof(file1), "%s.%d", log, numdays);
+		(void) snprintf(zfile1, sizeof(zfile1), "%s%s", file1,
+		    COMPRESS_POSTFIX);
 	}
 
 	if (noaction) {
@@ -540,18 +543,18 @@ dotrim(char *log, char *pid_file, int numdays, int flags, int perm,
 	_numdays = numdays;	/* preserve */
 	while (numdays--) {
 
-		(void) strcpy(file2, file1);
+		(void) strlcpy(file2, file1, sizeof(file2));
 
 		if (archtodir)
-			(void) sprintf(file1, "%s/%s.%d", dirpart, namepart, numdays);
+			(void) snprintf(file1, sizeof(file1), "%s/%s.%d", dirpart, namepart, numdays);
 		else
-			(void) sprintf(file1, "%s.%d", log, numdays);
+			(void) snprintf(file1, sizeof(file1), "%s.%d", log, numdays);
 
-		(void) strcpy(zfile1, file1);
-		(void) strcpy(zfile2, file2);
+		(void) strlcpy(zfile1, file1, sizeof(zfile1));
+		(void) strlcpy(zfile2, file2, sizeof(zfile2));
 		if (lstat(file1, &st)) {
-			(void) strcat(zfile1, COMPRESS_POSTFIX);
-			(void) strcat(zfile2, COMPRESS_POSTFIX);
+			(void) strlcat(zfile1, COMPRESS_POSTFIX, sizeof(zfile1));
+			(void) strlcat(zfile2, COMPRESS_POSTFIX, sizeof(zfile2));
 			if (lstat(zfile1, &st))
 				continue;
 		}
@@ -633,7 +636,7 @@ dotrim(char *log, char *pid_file, int numdays, int flags, int perm,
 				sleep(10);
 			}
 			if (archtodir) {
-				(void) sprintf(file1, "%s/%s", dirpart, namepart);
+				(void) snprintf(file1, sizeof(file1), "%s/%s", dirpart, namepart);
 				compress_log(file1);
 			} else {
 				compress_log(log);
@@ -662,9 +665,9 @@ static void
 compress_log(char *log)
 {
 	pid_t pid;
-	char tmp[MAXPATHLEN + 1];
+	char tmp[MAXPATHLEN];
 
-	(void) sprintf(tmp, "%s.0", log);
+	(void) snprintf(tmp, sizeof(tmp), "%s.0", log);
 	pid = fork();
 	if (pid < 0)
 		err(1, "fork");
@@ -697,26 +700,26 @@ age_old_log(char *file)
 
 		/* build name of archive directory into tmp */
 		if (*archdirname == '/') {	/* absolute */
-			strcpy(tmp, archdirname);
+			strlcpy(tmp, archdirname, sizeof(tmp));
 		} else {	/* relative */
 			/* get directory part of logfile */
-			strcpy(tmp, file);
+			strlcpy(tmp, file, sizeof(tmp));
 			if ((p = rindex(tmp, '/')) == NULL)
 				tmp[0] = '\0';
 			else
 				*(p + 1) = '\0';
-			strcat(tmp, archdirname);
+			strlcat(tmp, archdirname, sizeof(tmp));
 		}
 
-		strcat(tmp, "/");
+		strlcat(tmp, "/", sizeof(tmp));
 
 		/* get filename part of logfile */
 		if ((p = rindex(file, '/')) == NULL)
-			strcat(tmp, file);
+			strlcat(tmp, file, sizeof(tmp));
 		else
-			strcat(tmp, p + 1);
+			strlcat(tmp, p + 1, sizeof(tmp));
 	} else {
-		(void) strcpy(tmp, file);
+		(void) strlcpy(tmp, file, sizeof(tmp));
 	}
 
 	if (stat(strcat(tmp, ".0"), &sb) < 0)
@@ -886,7 +889,7 @@ static void
 createdir(char *dirpart)
 {
 	char *s, *d;
-	char mkdirpath[MAXPATHLEN + 1];
+	char mkdirpath[MAXPATHLEN];
 	struct stat st;
 
 	s = dirpart;
