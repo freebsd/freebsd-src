@@ -222,6 +222,10 @@ options 	WITNESS_SKIPSPIN
 # MUTEX_PROFILING - Profiling mutual exclusion locks (mutexes).  See
 # MUTEX_PROFILING(9) for details.
 options 	MUTEX_PROFILING
+# Set the number of buffers and the hash size.  The hash size MUST be larger
+# than the number of buffers.  Hash size should be prime.
+options		MPROF_BUFFERS="1536"
+options		MPROF_HASH_SIZE="1543"
 
 # Profiling for internal hash tables.
 options 	SLEEPQUEUE_PROFILING
