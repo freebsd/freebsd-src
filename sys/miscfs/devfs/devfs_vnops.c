@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	$Id: devfs_vnops.c,v 1.58 1998/07/30 17:40:44 bde Exp $
+ *	$Id: devfs_vnops.c,v 1.59 1998/08/16 01:21:51 bde Exp $
  */
 
 
@@ -2030,7 +2030,7 @@ devfs_getpages(struct vop_getpages_args *ap)
 					} else {
 						vm_page_deactivate(m);
 					}
-					PAGE_WAKEUP(m);
+					vm_page_wakeup(m);
 				} else {
 					vm_page_free(m);
 				}

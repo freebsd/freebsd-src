@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_page.h,v 1.44 1998/08/24 08:39:38 dfr Exp $
+ * $Id: vm_page.h,v 1.45 1998/09/01 17:12:19 wollman Exp $
  */
 
 /*
@@ -281,31 +281,57 @@ extern vm_offset_t last_phys_addr;	/* physical address for last_page */
  *	Functions implemented as macros
  */
 
-#define PAGE_SET_FLAG(m, bits)	atomic_set_short(&(m)->flags, bits)
-
-#define PAGE_CLEAR_FLAG(m, bits) atomic_clear_short(&(m)->flags, bits)
-
-#define PAGE_ASSERT_WAIT(m, interruptible)	{ \
-	PAGE_SET_FLAG(m, PG_WANTED); \
-	assert_wait((int) (m), (interruptible)); \
+static __inline void
+vm_page_flag_set(vm_page_t m, unsigned int bits)
+{
+	atomic_set_short(&(m)->flags, bits);
 }
 
-#define PAGE_WAKEUP(m)	{ \
-	PAGE_CLEAR_FLAG(m, PG_BUSY); \
-	if ((m)->flags & PG_WANTED) { \
-		PAGE_CLEAR_FLAG(m, PG_WANTED); \
-		wakeup((m)); \
-	} \
+static __inline void
+vm_page_flag_clear(vm_page_t m, unsigned int bits)
+{
+	atomic_clear_short(&(m)->flags, bits);
 }
 
-#define PAGE_BUSY(m)	atomic_add_char(&(m)->busy, 1)
+#if 0
+static __inline void
+vm_page_assert_wait(vm_page_t m, int interruptible)
+{
+	vm_page_flag_set(m, PG_WANTED);
+	assert_wait((int) m, interruptible);
+}
+#endif
 
-#define PAGE_BWAKEUP(m) { \
-	atomic_subtract_char(&(m)->busy, 1); \
-	if (((m)->flags & PG_WANTED) && (m)->busy == 0) { \
-		PAGE_CLEAR_FLAG(m, PG_WANTED); \
-		wakeup((m)); \
-	} \
+static __inline void
+vm_page_busy(vm_page_t m)
+{
+	vm_page_flag_set(m, PG_BUSY);
+}
+
+static __inline void
+vm_page_wakeup(vm_page_t m)
+{
+	vm_page_flag_clear(m, PG_BUSY);
+	if (m->flags & PG_WANTED) {
+		vm_page_flag_clear(m, PG_WANTED);
+		wakeup(m);
+	}
+}
+
+static __inline void
+vm_page_io_start(vm_page_t m)
+{
+	atomic_add_char(&(m)->busy, 1);
+}
+
+static __inline void
+vm_page_io_finish(vm_page_t m)
+{
+	atomic_subtract_char(&m->busy, 1);
+	if ((m->flags & PG_WANTED) && m->busy == 0) {
+		vm_page_flag_clear(m, PG_WANTED);
+		wakeup(m);
+	}
 }
 
 
@@ -380,11 +406,11 @@ vm_page_protect(vm_page_t mem, int prot)
 	if (prot == VM_PROT_NONE) {
 		if (mem->flags & (PG_WRITEABLE|PG_MAPPED)) {
 			pmap_page_protect(VM_PAGE_TO_PHYS(mem), VM_PROT_NONE);
-			PAGE_CLEAR_FLAG(mem, PG_WRITEABLE|PG_MAPPED);
+			vm_page_flag_clear(mem, PG_WRITEABLE|PG_MAPPED);
 		}
 	} else if ((prot == VM_PROT_READ) && (mem->flags & PG_WRITEABLE)) {
 		pmap_page_protect(VM_PAGE_TO_PHYS(mem), VM_PROT_READ);
-		PAGE_CLEAR_FLAG(mem, PG_WRITEABLE);
+		vm_page_flag_clear(mem, PG_WRITEABLE);
 	}
 }
 
