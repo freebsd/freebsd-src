@@ -93,12 +93,10 @@ struct ath_pci_softc {
 	struct resource		*sc_sr;		/* memory resource */
 	struct resource		*sc_irq;	/* irq resource */
 	void			*sc_ih;		/* intererupt handler */
-	u_int8_t		sc_saved_intline;
-	u_int8_t		sc_saved_cachelinesz;
-	u_int8_t		sc_saved_lattimer;
 };
 
 #define	BS_BAR	0x10
+#define	PCIR_RETRY_TIMEOUT	0x41
 
 static int
 ath_pci_probe(device_t dev)
@@ -113,32 +111,48 @@ ath_pci_probe(device_t dev)
 	return ENXIO;
 }
 
+static u_int32_t
+ath_pci_setup(device_t dev)
+{
+	u_int32_t cmd;
+
+	/*
+	 * Enable memory mapping and bus mastering.
+	 */
+	cmd = pci_read_config(dev, PCIR_COMMAND, 4);
+	cmd |= PCIM_CMD_MEMEN | PCIM_CMD_BUSMASTEREN;
+	pci_write_config(dev, PCIR_COMMAND, cmd, 4);
+	cmd = pci_read_config(dev, PCIR_COMMAND, 4);
+	if ((cmd & PCIM_CMD_MEMEN) == 0) {
+		device_printf(dev, "failed to enable memory mapping\n");
+		return 0;
+	}
+	if ((cmd & PCIM_CMD_BUSMASTEREN) == 0) {
+		device_printf(dev, "failed to enable bus mastering\n");
+		return 0;
+	}
+
+	/*
+	 * Disable retry timeout to keep PCI Tx retries from
+	 * interfering with C3 CPU state.
+	 */
+	pci_write_config(dev, PCIR_RETRY_TIMEOUT, 0, 1);
+
+	return 1;
+}
+
 static int
 ath_pci_attach(device_t dev)
 {
 	struct ath_pci_softc *psc = device_get_softc(dev);
 	struct ath_softc *sc = &psc->sc_sc;
-	u_int32_t cmd;
 	int error = ENXIO;
 	int rid;
 
-	bzero(psc, sizeof (*psc));
 	sc->sc_dev = dev;
- 
-	cmd = pci_read_config(dev, PCIR_COMMAND, 4);
-	cmd |= PCIM_CMD_MEMEN | PCIM_CMD_BUSMASTEREN;
-	pci_write_config(dev, PCIR_COMMAND, cmd, 4);
-	cmd = pci_read_config(dev, PCIR_COMMAND, 4);
 
-	if ((cmd & PCIM_CMD_MEMEN) == 0) {
-		device_printf(dev, "failed to enable memory mapping\n");
+	if (!ath_pci_setup(dev))
 		goto bad;
-	}
-
-	if ((cmd & PCIM_CMD_BUSMASTEREN) == 0) {
-		device_printf(dev, "failed to enable bus mastering\n");
-		goto bad;
-	}
 
 	/* 
 	 * Setup memory-mapping of PCI registers.
@@ -251,10 +265,6 @@ ath_pci_suspend(device_t dev)
 
 	ath_suspend(&psc->sc_sc);
 
-	psc->sc_saved_intline	= pci_read_config(dev, PCIR_INTLINE, 1);
-	psc->sc_saved_cachelinesz= pci_read_config(dev, PCIR_CACHELNSZ, 1);
-	psc->sc_saved_lattimer	= pci_read_config(dev, PCIR_LATTIMER, 1);
-
 	return (0);
 }
 
@@ -262,16 +272,9 @@ static int
 ath_pci_resume(device_t dev)
 {
 	struct ath_pci_softc *psc = device_get_softc(dev);
-	u_int16_t cmd;
 
-	pci_write_config(dev, PCIR_INTLINE,	psc->sc_saved_intline, 1);
-	pci_write_config(dev, PCIR_CACHELNSZ,	psc->sc_saved_cachelinesz, 1);
-	pci_write_config(dev, PCIR_LATTIMER,	psc->sc_saved_lattimer, 1);
-
-	/* re-enable mem-map and busmastering */
-	cmd = pci_read_config(dev, PCIR_COMMAND, 2);
-	cmd |= PCIM_CMD_MEMEN | PCIM_CMD_BUSMASTEREN;
-	pci_write_config(dev, PCIR_COMMAND, cmd, 2);
+	if (!ath_pci_setup(dev))
+		return ENXIO;
 
 	ath_resume(&psc->sc_sc);
 
