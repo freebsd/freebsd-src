@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: scvidctl.c,v 1.9 1999/06/22 14:13:29 yokota Exp $
+ * $Id: scvidctl.c,v 1.10 1999/07/07 13:48:49 yokota Exp $
  */
 
 #include "sc.h"
@@ -243,7 +243,6 @@ sc_set_graphics_mode(scr_stat *scp, struct tty *tp, int mode)
 #else
     video_info_t info;
     sc_rndr_sw_t *rndr;
-    int prev_ysize;
     int error;
     int s;
 
@@ -264,12 +263,13 @@ sc_set_graphics_mode(scr_stat *scp, struct tty *tp, int mode)
     }
 
     /* set up scp */
-    prev_ysize = scp->ysize;
     scp->status |= (UNKNOWN_MODE | GRAPHICS_MODE);
     scp->status &= ~PIXEL_MODE;
     scp->mode = mode;
-    scp->xsize = info.vi_width/8;
-    scp->ysize = info.vi_height/info.vi_cheight;
+    /*
+     * Don't change xsize and ysize; preserve the previous vty
+     * and history buffers.
+     */
     scp->xoff = 0;
     scp->yoff = 0;
     scp->xpixel = info.vi_width;
@@ -279,9 +279,6 @@ sc_set_graphics_mode(scr_stat *scp, struct tty *tp, int mode)
 #ifndef SC_NO_SYSMOUSE
     /* move the mouse cursor at the center of the screen */
     sc_mouse_move(scp, scp->xpixel / 2, scp->ypixel / 2);
-#endif
-#ifndef SC_NO_HISTORY
-    sc_free_history_buffer(scp, prev_ysize);
 #endif
     scp->rndr = rndr;
     splx(s);
