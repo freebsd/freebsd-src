@@ -37,6 +37,9 @@
  * $FreeBSD$
  */
 
+#ifndef	_FINGER_H_
+#define	_FINGER_H_
+
 typedef struct person {
 	uid_t uid;			/* user id */
 	char *dir;			/* user's home directory */
@@ -69,3 +72,5 @@ typedef struct where {
 #define TIME_LIMIT	360		/* Do not keep listinging forever */
 
 #include "extern.h"
+
+#endif /* !_FINGER_H_ */
