@@ -197,12 +197,12 @@ struct nfssvc_sock {
 };
 
 /* Bits for "ns_flag" */
-#define	SLP_VALID	0x01
-#define	SLP_DOREC	0x02
-#define	SLP_NEEDQ	0x04
-#define	SLP_DISCONN	0x08
-#define	SLP_GETSTREAM	0x10
-#define	SLP_LASTFRAG	0x20
+#define	SLP_VALID	0x01		/* Socket valid for use (XXX) */
+#define	SLP_DOREC	0x02		/* Socket ready for processing */
+#define	SLP_NEEDQ	0x04		/* Socket has request queued */
+#define	SLP_DISCONN	0x08		/* Error received from stream socket */
+#define	SLP_GETSTREAM	0x10		/* nfsrv_getstream in prog on sock */
+#define	SLP_LASTFRAG	0x20		/* Socket received end-of-record */
 #define SLP_ALLFLAGS	0xff
 
 extern TAILQ_HEAD(nfssvc_sockhead, nfssvc_sock) nfssvc_sockhead;
