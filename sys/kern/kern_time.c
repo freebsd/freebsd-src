@@ -321,6 +321,7 @@ int
 gettimeofday(struct thread *td, struct gettimeofday_args *uap)
 {
 	struct timeval atv;
+	struct timezone rtz;
 	int error = 0;
 
 	if (uap->tp) {
@@ -329,8 +330,9 @@ gettimeofday(struct thread *td, struct gettimeofday_args *uap)
 	}
 	if (error == 0 && uap->tzp != NULL) {
 		mtx_lock(&Giant);
-		error = copyout(&tz, uap->tzp, sizeof (tz));
+		rtz = tz;
 		mtx_unlock(&Giant);
+		error = copyout(&rtz, uap->tzp, sizeof (rtz));
 	}
 	return (error);
 }
@@ -417,7 +419,6 @@ getitimer(struct thread *td, struct getitimer_args *uap)
 	struct timeval ctv;
 	struct itimerval aitv;
 	int s;
-	int error;
 
 	if (uap->which > ITIMER_PROF)
 		return (EINVAL);
@@ -444,9 +445,8 @@ getitimer(struct thread *td, struct getitimer_args *uap)
 		aitv = p->p_stats->p_timer[uap->which];
 	}
 	splx(s);
-	error = copyout(&aitv, uap->itv, sizeof (struct itimerval));
 	mtx_unlock(&Giant);
-	return(error);
+	return (copyout(&aitv, uap->itv, sizeof (struct itimerval)));
 }
 
 #ifndef _SYS_SYSPROTO_H_
