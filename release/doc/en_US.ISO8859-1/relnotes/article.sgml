@@ -1006,7 +1006,7 @@
       management, has been added.  This functionality has been
       provided by the <application>Intel ACPI Component
       Architecture</application> project, updated to the ACPI CA
-      20011018 snapshot.  Some backward compatability for
+      20011120 snapshot.  Some backward compatability for
       applications using the older APM standard has been provided.</para>
 
       <sect4>
