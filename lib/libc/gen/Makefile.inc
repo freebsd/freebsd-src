@@ -25,8 +25,7 @@ SRCS+=  __xuname.c _pthread_stubs.c _rand48.c _spinlock_stub.c _thread_init.c \
 	raise.c readdir.c readpassphrase.c rewinddir.c \
 	scandir.c seed48.c seekdir.c sem.c semctl.c \
 	setdomainname.c sethostname.c setjmperr.c setmode.c \
-	setproctitle.c setprogname.c \
-	siginterrupt.c siglist.c signal.c signbit.c \
+	setproctitle.c setprogname.c siginterrupt.c siglist.c signal.c \
 	sigsetops.c sleep.c srand48.c statvfs.c stringlist.c strtofflags.c \
 	sysconf.c sysctl.c sysctlbyname.c sysctlnametomib.c \
 	syslog.c telldir.c termios.c time.c times.c timezone.c ttyname.c \
@@ -57,7 +56,7 @@ MAN+=	alarm.3 arc4random.3 \
 	scandir.3 sem_destroy.3 sem_getvalue.3 sem_init.3 \
 	sem_open.3 sem_post.3 sem_wait.3 \
 	setjmp.3 setmode.3 setproctitle.3 shm_open.3 \
-	siginterrupt.3 signal.3 signbit.3 sigsetops.3 sleep.3 \
+	siginterrupt.3 signal.3 sigsetops.3 sleep.3 \
 	statvfs.3 stringlist.3 \
 	strtofflags.3 sysconf.3 sysctl.3 syslog.3 tcgetpgrp.3 \
 	tcsendbreak.3 tcsetattr.3 tcsetpgrp.3 time.3 times.3 timezone.3 \
