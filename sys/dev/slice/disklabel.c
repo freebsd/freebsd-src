@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	$Id: disklabel.c,v 1.4 1998/05/06 22:14:31 julian Exp $
+ *	$Id: disklabel.c,v 1.5 1998/05/06 23:32:47 julian Exp $
  */
 #define BAD144
 
@@ -778,7 +778,7 @@ RR;
 #endif	/* 0 */
 
 static int
-dkl_ioctl(void *private, int cmd, caddr_t addr, int flag, struct proc * p)
+dkl_ioctl(void *private, u_long cmd, caddr_t addr, int flag, struct proc * p)
 {
 	register struct private_data *pd;
 	struct subdev *sdp;
@@ -857,7 +857,7 @@ static struct disklabel static_label;
  * knows about disklabels.
  */
 int
-dkl_dummy_ioctl(struct slice *slice, int cmd, caddr_t addr,
+dkl_dummy_ioctl(struct slice *slice, u_long cmd, caddr_t addr,
 					int flag, struct proc * p)
 {
 	struct disklabel *lp = &static_label;
