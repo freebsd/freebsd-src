@@ -40,7 +40,6 @@
  */
 
 #include <sys/param.h>
-#include <gnu/ext2fs/ext2_fs.h>
 #include <gnu/ext2fs/ext2_fs_sb.h>
 #include <gnu/ext2fs/fs.h>
 
