@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996 by Internet Software Consortium.
+ * Copyright (c) 1996,1999 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -16,7 +16,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: dns_pw.c,v 1.13 1997/12/04 04:57:48 halley Exp $";
+static const char rcsid[] = "$Id: dns_pw.c,v 1.18 1999/09/04 22:06:14 vixie Exp $";
 #endif
 
 #include "port_before.h"
@@ -30,6 +30,13 @@ static int __bind_irs_pw_unneeded;
 #include <errno.h>
 #include <string.h>
 
+#include <sys/types.h>
+#include <netinet/in.h>
+#include <arpa/nameser.h>
+#include <resolv.h>
+
+#include <isc/memcluster.h>
+
 #include <irs.h>
 
 #include "port_after.h"
@@ -41,7 +48,7 @@ static int __bind_irs_pw_unneeded;
 /* Types. */
 
 struct pvt {
-	struct dns_p *dns;
+	struct dns_p *	dns;
 	struct passwd	passwd;
 	char *		pwbuf;
 };
@@ -54,6 +61,10 @@ static struct passwd *		pw_byuid(struct irs_pw *, uid_t);
 static struct passwd *		pw_next(struct irs_pw *);
 static void 			pw_rewind(struct irs_pw *);
 static void			pw_minimize(struct irs_pw *);
+static struct __res_state *	pw_res_get(struct irs_pw *);
+static void			pw_res_set(struct irs_pw *,
+					   struct __res_state *,
+					   void (*)(void *));
 
 static struct passwd *		getpwcommon(struct irs_pw *, const char *,
 					    const char *);
@@ -70,14 +81,14 @@ irs_dns_pw(struct irs_acc *this) {
 		errno = ENODEV;
 		return (NULL);
 	}
-	if (!(pvt = malloc(sizeof *pvt))) {
+	if (!(pvt = memget(sizeof *pvt))) {
 		errno = ENOMEM;
 		return (NULL);
 	}
 	memset(pvt, 0, sizeof *pvt);
 	pvt->dns = dns;
-	if (!(pw = malloc(sizeof *pw))) {
-		free(pvt);
+	if (!(pw = memget(sizeof *pw))) {
+		memput(pvt, sizeof *pvt);
 		errno = ENOMEM;
 		return (NULL);
 	}
@@ -89,6 +100,8 @@ irs_dns_pw(struct irs_acc *this) {
 	pw->next = pw_next;
 	pw->rewind = pw_rewind;
 	pw->minimize = pw_minimize;
+	pw->res_get = pw_res_get;
+	pw->res_set = pw_res_set;
 	return (pw);
 }
 
@@ -100,7 +113,9 @@ pw_close(struct irs_pw *this) {
 
 	if (pvt->pwbuf)
 		free(pvt->pwbuf);
-	free(this);
+
+	memput(pvt, sizeof *pvt);
+	memput(this, sizeof *this);
 }
 
 static struct passwd *
@@ -130,6 +145,23 @@ pw_rewind(struct irs_pw *this) {
 static void
 pw_minimize(struct irs_pw *this) {
 	/* NOOP */
+}
+
+static struct __res_state *
+pw_res_get(struct irs_pw *this) {
+	struct pvt *pvt = (struct pvt *)this->private;
+	struct dns_p *dns = pvt->dns;
+
+	return (__hesiod_res_get(dns->hes_ctx));
+}
+
+static void
+pw_res_set(struct irs_pw *this, struct __res_state * res,
+	   void (*free_res)(void *)) {
+	struct pvt *pvt = (struct pvt *)this->private;
+	struct dns_p *dns = pvt->dns;
+
+	__hesiod_res_set(dns->hes_ctx, res, free_res);
 }
 
 /* Private. */

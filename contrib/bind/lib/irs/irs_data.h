@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996 by Internet Software Consortium.
+ * Copyright (c) 1996,1999 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -16,10 +16,11 @@
  */
 
 /*
- * $Id: irs_data.h,v 1.7 1997/12/04 04:57:55 halley Exp $
+ * $Id: irs_data.h,v 1.12 1999/01/18 07:46:55 vixie Exp $
  */
 
-#define net_data		__net_data
+#ifndef __BIND_NOSTATIC
+
 #define	net_data_init		__net_data_init
 
 struct net_data {
@@ -37,7 +38,8 @@ struct net_data {
 	struct passwd *		pw_last;
 	struct servent *	sv_last;
 	struct protoent *	pr_last;
-	struct netent *		nw_last;
+	struct netent *		nw_last; /* should have been ne_last */
+	struct nwent *		nww_last;
 	struct hostent *	ho_last;
 
 	unsigned int		gr_stayopen :1;
@@ -50,8 +52,11 @@ struct net_data {
 	void *			nw_data;
 	void *			ho_data;
 
-	char			fill[512 - 68];	/* 68 = sizeof(above) */
+	struct __res_state *	res;	/* for gethostent.c */
+
 };
 
-extern struct net_data		net_data;
-extern int			net_data_init(void);
+extern struct net_data *	net_data_init(const char *conf_file);
+extern void			net_data_minimize(struct net_data *);
+
+#endif /*__BIND_NOSTATIC*/

@@ -100,10 +100,11 @@ static char sccsid[] = "@(#)commands.l	5.13 (Berkeley) 7/24/90";
 
 extern char rootServerName[];
 extern void PrintHelp();
+extern void ViewList(char *);
 
 %}
 WS	[ \t]
-FLET	[A-Za-z0-9.*\\]
+FLET	[A-Za-z0-9.*\\_]
 LET	[A-Za-z0-9.*]
 NAME	[A-Za-z0-9.*=_/-]
 %%
@@ -142,7 +143,7 @@ NAME	[A-Za-z0-9.*=_/-]
 					    return(1);
 					}
 ^{WS}*view{WS}+{NAME}+{WS}*$	{
-					    ViewList(yytext);
+					    ViewList((char *)yytext);
 					    return(1);
 					}
 ^{WS}*ls{WS}+(("-a"|"-d"|"-h"|"-m"|"-s"){WS}+)?{LET}{NAME}*{WS}+>>?{WS}+{NAME}+{WS}*$	{

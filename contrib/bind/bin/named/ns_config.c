@@ -1,9 +1,9 @@
 #if !defined(lint) && !defined(SABER)
-static char rcsid[] = "$Id: ns_config.c,v 8.35 1998/05/05 19:44:48 halley Exp $";
+static const char rcsid[] = "$Id: ns_config.c,v 8.104 1999/11/08 23:09:42 vixie Exp $";
 #endif /* not lint */
 
 /*
- * Copyright (c) 1996, 1997 by Internet Software Consortium.
+ * Copyright (c) 1996-1999 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -19,12 +19,33 @@ static char rcsid[] = "$Id: ns_config.c,v 8.35 1998/05/05 19:44:48 halley Exp $"
  * SOFTWARE.
  */
 
+/*
+ * Portions Copyright (c) 1999 by Check Point Software Technologies, Inc.
+ * 
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies, and that
+ * the name of Check Point Software Technologies Incorporated not be used 
+ * in advertising or publicity pertaining to distribution of the document 
+ * or software without specific, written prior permission.
+ * 
+ * THE SOFTWARE IS PROVIDED "AS IS" AND CHECK POINT SOFTWARE TECHNOLOGIES 
+ * INCORPORATED DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE, 
+ * INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS.   
+ * IN NO EVENT SHALL CHECK POINT SOFTWARE TECHNOLOGIES INCORPRATED
+ * BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR 
+ * ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER
+ * IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT 
+ * OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
+
 #include "port_before.h"
 
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
+#include <sys/un.h>
 
 #include <netinet/in.h>
 #include <arpa/nameser.h>
@@ -46,6 +67,8 @@ static char rcsid[] = "$Id: ns_config.c,v 8.35 1998/05/05 19:44:48 halley Exp $"
 #include <isc/logging.h>
 #include <isc/memcluster.h>
 
+#include <isc/dst.h>
+
 #include "port_after.h"
 
 #ifdef HAVE_GETRUSAGE		/* XXX */
@@ -54,6 +77,8 @@ static char rcsid[] = "$Id: ns_config.c,v 8.35 1998/05/05 19:44:48 halley Exp $"
 
 #include "named.h"
 #include "ns_parseutil.h"
+
+/* Private. */
 
 static int tmpnum = 0;
 static int config_initialized = 0;
@@ -90,8 +115,7 @@ free_zone_contents(struct zoneinfo *zp, int undefine_sym) {
 	INSIST(zp != NULL);
 
 	if (undefine_sym)
-		undefine_symbol(zone_symbol_table, zp->z_origin,
-				(zp->z_type << 16) | zp->z_class);
+		undefine_symbol(zone_symbol_table, zp->z_origin, zp->z_class);
 	if (zp->z_flags & Z_TIMER_SET) {
 		free_zone_timerinfo(zp);
 		if (evClearTimer(ev, zp->z_timer) < 0)
@@ -102,22 +126,44 @@ free_zone_contents(struct zoneinfo *zp, int undefine_sym) {
 	}
 	if (zp->z_origin != NULL)
 		freestr(zp->z_origin);
+	zp->z_origin = NULL;
 	if (zp->z_source != NULL)
 		freestr(zp->z_source);
+	zp->z_source = NULL;
+	if (zp->z_ixfr_base != NULL)
+		freestr(zp->z_ixfr_base);
+	zp->z_ixfr_base = NULL;
+	if (zp->z_ixfr_tmp != NULL)
+		freestr(zp->z_ixfr_tmp);
+	zp->z_ixfr_tmp = NULL;
 	if (zp->z_update_acl != NULL)
 		free_ip_match_list(zp->z_update_acl);
+	zp->z_update_acl = NULL;
 	if (zp->z_query_acl != NULL)
 		free_ip_match_list(zp->z_query_acl);
+	zp->z_query_acl = NULL;
 	if (zp->z_transfer_acl != NULL)
 		free_ip_match_list(zp->z_transfer_acl);
+	zp->z_transfer_acl = NULL;
 #ifdef BIND_UPDATE
 	if (zp->z_updatelog != NULL)
 		freestr(zp->z_updatelog);
+	zp->z_updatelog = NULL;
 #endif /* BIND_UPDATE */
+#ifdef BIND_NOTIFY
+	if (zp->z_also_notify != NULL)
+		memput(zp->z_also_notify,
+		       zp->z_notify_count * sizeof *zp->z_also_notify);
+	zp->z_also_notify = NULL;
+#endif
+	block_signals();
+	if (LINKED(zp, z_reloadlink))
+		UNLINK(reloadingzones, zp, z_reloadlink);
+	unblock_signals();
 }
 
 static void
-free_zone(struct zoneinfo *zp) {
+release_zone(struct zoneinfo *zp) {
 	INSIST(zp != NULL);
 
 	free_zone_contents(zp, 0);
@@ -125,16 +171,16 @@ free_zone(struct zoneinfo *zp) {
 }
 
 struct zoneinfo *
-find_zone(const char *name, int type, int class) {
+find_zone(const char *name, int class) {
 	struct zoneinfo *zp;
 	symbol_value value;
 
-	ns_debug(ns_log_config, 3, "find_zone(%s,%d,%d)", name, type, class);
-	if (lookup_symbol(zone_symbol_table, name,
-			  (type<<16) | class, &value)) {
+	ns_debug(ns_log_config, 3, "find_zone(%s, %d)",
+		 *name ? name : ".", class);
+	if (lookup_symbol(zone_symbol_table, name, class, &value)) {
 		INSIST(value.integer >= 0 && value.integer < nzones);
-		ns_debug(ns_log_config, 3,
-			 "find_zone: existing zone %d", value.integer);
+		ns_debug(ns_log_config, 3, "find_zone: existing zone %d",
+			 value.integer);
 		zp = &zones[value.integer];
 		return (zp);
 	}
@@ -146,33 +192,11 @@ static struct zoneinfo *
 new_zone(int class, int type) {
 	struct zoneinfo *zp;
 
-	if (zones != NULL) {
-		if (type == z_hint) {
-			zp = &zones[0];
-			return (zp);
-		}
+	if (EMPTY(freezones))
+		make_new_zones();
 
-		for (zp = &zones[1]; zp < &zones[nzones]; zp++)
-			if (zp->z_type == z_nil)
-				return (zp);
-	}
-
-	/*
-	 * This code assumes that nzones never decreases.
-	 */
-	if (nzones % 64 == 0) {
-		ns_debug(ns_log_config, 1, "Reallocating zones structure");
-		zp = (struct zoneinfo *)
-			memget((64 + nzones) * sizeof(struct zoneinfo));
-		if (zp == NULL)
-			panic("no memory for more zones", NULL);
-		memcpy(zp, zones, nzones * sizeof(struct zoneinfo));
-		memset(&zp[nzones], 0, 64 * sizeof(struct zoneinfo));
-		memput(zones, nzones * sizeof(struct zoneinfo));
-		zones = zp;
-	}
-	zp = &zones[nzones++];
-
+	zp = HEAD(freezones);
+	UNLINK(freezones, zp, z_freelink);
 	return (zp);
 }
 
@@ -181,7 +205,6 @@ new_zone(int class, int type) {
  */
 static int
 validate_zone(struct zoneinfo *zp) {
-	int warnings = 0;
 	char filename[MAXPATHLEN+1];
 
 	/* Check name */
@@ -204,7 +227,13 @@ validate_zone(struct zoneinfo *zp) {
 			 zp->z_origin);
 		return (0);
 	}
-	if (zp->z_type == z_hint && strcasecmp(zp->z_origin, "") != 0) {
+	if (zp->z_type == z_cache && ns_samename(zp->z_origin, "") != 1) {
+		ns_error(ns_log_config,
+			 "only the root zone may be a cache zone (zone '%s')",
+			 zp->z_origin);
+		return (0);
+	}
+	if (zp->z_type == z_hint && ns_samename(zp->z_origin, "") != 1) {
 		ns_error(ns_log_config,
 			 "only the root zone may be a hint zone (zone '%s')",
 			 zp->z_origin);
@@ -229,12 +258,25 @@ validate_zone(struct zoneinfo *zp) {
 		return (0);
 	}
 
+	if (zp->z_ixfr_base != NULL && strlen(zp->z_ixfr_base) > MAXPATHLEN) {
+		ns_error(ns_log_config, "ixfr filename too long for zone '%s'",
+			 zp->z_origin);
+		return (0);
+	}
+	if (zp->z_ixfr_tmp != NULL && strlen(zp->z_ixfr_tmp) > MAXPATHLEN) {
+		ns_error(ns_log_config, "tmp ixfr filename too long for zone '%s'",
+			 zp->z_origin);
+		return (0);
+	}
+
 	/* Check masters */
 	if (zp->z_addrcnt != 0) {
-		if (zp->z_type != z_slave && zp->z_type != z_stub) {
+		if (zp->z_type == z_master || zp->z_type == z_hint ||
+		    zp->z_type == z_cache) {
 			ns_error(ns_log_config,
 				"'masters' statement present for %s zone '%s'",
-				 (zp->z_type == z_master) ? "master" : "hint",
+				 (zp->z_type == z_master) ? "master" :
+				 (zp->z_type == z_hint) ? "hint" : "cache",
 				 zp->z_origin);
 			return (0);
 		}
@@ -242,6 +284,39 @@ validate_zone(struct zoneinfo *zp) {
 		if (zp->z_type == z_slave || zp->z_type == z_stub) {
 			ns_error(ns_log_config,
 			  "no 'masters' statement for non-master zone '%s'",
+				 zp->z_origin);
+			return (0);
+		}
+	}
+
+	/* Check allow-update and allow-transfer. */
+	if (zp->z_update_acl || zp->z_transfer_acl) {
+		if (zp->z_type != z_master && zp->z_type != z_slave) {
+			ns_error(ns_log_config,
+	   "'allow-{update,transfer}' option for non-{master,slave} zone '%s'",
+				 zp->z_origin);
+			return (0);
+		}
+	}
+
+	/* Check allow-query. */
+	if (zp->z_query_acl) {
+		if (zp->z_type != z_master &&
+		    zp->z_type != z_slave &&
+		    zp->z_type != z_stub) {
+			ns_error(ns_log_config,
+		  "'allow-query' option for non-{master,slave,stub} zone '%s'",
+				 zp->z_origin);
+			return (0);
+		}
+	}
+
+#ifdef BIND_NOTIFY
+	/* Check notify */
+	if (zp->z_notify != znotify_use_default) {
+		if (zp->z_type != z_master && zp->z_type != z_slave) {
+			ns_error(ns_log_config,
+			"'notify' given for non-master, non-slave zone '%s'",
 				 zp->z_origin);
 			return (0);
 		}
@@ -256,9 +331,43 @@ validate_zone(struct zoneinfo *zp) {
 			return (0);
 		}
 	}
+#endif
 
 #ifdef BIND_UPDATE
 	/* XXX need more checking here */
+	if (!zp->z_updatelog && zp->z_source) {
+		/* XXX OS-specific filename validation here */
+		if ((strlen(zp->z_source) + (sizeof ".log" - 1)) >
+		    MAXPATHLEN) {
+			ns_error(ns_log_config,
+			  "filename too long for dynamic zone '%s'",
+				 zp->z_origin);
+			return (0);
+		}
+		/* this sprintf() is now safe */
+		sprintf(filename, "%s.log", zp->z_source);
+		zp->z_updatelog = savestr(filename, 1);
+	}
+
+	/* Check forward */
+	if (zp->z_optset & OPTION_FORWARD_ONLY) {
+		if (zp->z_type == z_hint) {
+			ns_error(ns_log_config,
+				 "'forward' given for hint zone '%s'",
+				 zp->z_origin);
+			return (0);
+		}
+	}
+	/* Check forwarders */
+	if (zp->z_fwdtab) {
+		if (zp->z_type == z_hint) {
+			ns_error(ns_log_config,
+				 "'forwarders' given for hint zone '%s'",
+				 zp->z_origin);
+			return (0);
+		}
+	}
+
 	if (zp->z_type == z_master) {
 		if (!zp->z_soaincrintvl)
 			zp->z_soaincrintvl = SOAINCRINTVL;
@@ -266,21 +375,35 @@ validate_zone(struct zoneinfo *zp) {
 			zp->z_dumpintvl = DUMPINTVL;
 		if (!zp->z_deferupdcnt)
 			zp->z_deferupdcnt = DEFERUPDCNT;
-		if (!zp->z_updatelog) {
-			/* XXX OS-specific filename validation here */
-			if ((strlen(zp->z_source) + (sizeof ".log" - 1)) >
-			    MAXPATHLEN) {
-				ns_error(ns_log_config,
-				  "filename too long for dynamic zone '%s'",
-					 zp->z_origin);
-				return (0);
-			}
-			/* this sprintf() is now safe */
-			sprintf(filename, "%s.log", zp->z_source);
-			zp->z_updatelog = savestr(filename, 1);
-		}
 	}
 #endif /* BIND_UPDATE */
+
+	if (!zp->z_ixfr_base && zp->z_source) {
+		/* XXX OS-specific filename validation here */
+		if ((strlen(zp->z_source) + (sizeof ".ixfr" - 1)) >
+		    MAXPATHLEN) {
+			ns_error(ns_log_config,
+			  "filename too long for dynamic zone '%s'",
+				 zp->z_origin);
+			return (0);
+		}
+		/* this sprintf() is now safe */
+		sprintf(filename, "%s.ixfr", zp->z_source);
+		zp->z_ixfr_base = savestr(filename, 1);
+	}
+	if (!zp->z_ixfr_tmp && zp->z_source) {
+		/* XXX OS-specific filename validation here */
+		if ((strlen(zp->z_source) + (sizeof ".ixfr.tmp" - 1)) >
+		    MAXPATHLEN) {
+			ns_error(ns_log_config,
+			  "filename too long for dynamic zone '%s'",
+				 zp->z_origin);
+			return (0);
+		}
+		/* this sprintf() is now safe */
+		sprintf(filename, "%s.ixfr.tmp", zp->z_source);
+		zp->z_ixfr_tmp = savestr(filename, 1);
+	}
 
 	return (1);
 }
@@ -308,6 +431,12 @@ begin_zone(char *name, int class) {
 	zp->z_origin = name;
 	zp->z_class = class;
 	zp->z_checknames = not_set;
+	zp->z_log_size_ixfr = 0;
+	if (server_options->flags & OPTION_MAINTAIN_IXFR_BASE)
+		 zp->z_maintain_ixfr_base = 1;
+	else
+		 zp->z_maintain_ixfr_base = 0;	
+	zp->z_max_log_size_ixfr = server_options->max_log_size_ixfr;
 	zh.opaque = zp;
 	return (zh);
 }
@@ -318,7 +447,6 @@ begin_zone(char *name, int class) {
  */
 static void
 update_zone_info(struct zoneinfo *zp, struct zoneinfo *new_zp) {
-	struct stat f_time;
 	char buf[MAXPATHLEN+1];
 	int i;
 
@@ -337,7 +465,7 @@ update_zone_info(struct zoneinfo *zp, struct zoneinfo *new_zp) {
 	if ((zp->z_flags & Z_DYNAMIC) && !(new_zp->z_flags & Z_DYNAMIC) &&
 	    ((zp->z_flags & Z_NEED_SOAUPDATE) ||
 	     (zp->z_flags & Z_NEED_DUMP)))
-		(void)zonedump(zp);
+		(void) zonedump(zp, ISNOTIXFR);
 #endif
 
 	/*
@@ -348,6 +476,9 @@ update_zone_info(struct zoneinfo *zp, struct zoneinfo *new_zp) {
 		freestr(zp->z_origin);
 	zp->z_origin = new_zp->z_origin;
 	new_zp->z_origin = NULL;
+	zp->z_maintain_ixfr_base = new_zp->z_maintain_ixfr_base;
+	zp->z_max_log_size_ixfr = new_zp->z_max_log_size_ixfr;
+	zp->z_log_size_ixfr = new_zp->z_log_size_ixfr;
 	zp->z_class = new_zp->z_class;
 	zp->z_type = new_zp->z_type;
 	zp->z_checknames = new_zp->z_checknames;
@@ -368,11 +499,28 @@ update_zone_info(struct zoneinfo *zp, struct zoneinfo *new_zp) {
 	zp->z_transfer_acl = new_zp->z_transfer_acl;
 	new_zp->z_transfer_acl = NULL;
 	zp->z_max_transfer_time_in = new_zp->z_max_transfer_time_in;
-
+#ifdef BIND_NOTIFY
 	zp->z_notify = new_zp->z_notify;
-	for (i = 0; i < new_zp->z_notify_count; i++)
-		zp->z_also_notify[i] = new_zp->z_also_notify[i];
+	if (zp->z_also_notify) 
+		memput(zp->z_also_notify,
+		       zp->z_notify_count * sizeof *zp->z_also_notify);
+	zp->z_also_notify = new_zp->z_also_notify;
 	zp->z_notify_count = new_zp->z_notify_count;
+	new_zp->z_also_notify = NULL;
+	new_zp->z_notify_count = 0;
+#endif
+	if ((new_zp->z_flags & Z_FORWARD_SET) != 0)
+		zp->z_flags |= Z_FORWARD_SET;
+	else
+		zp->z_flags &= ~Z_FORWARD_SET;
+	if (zp->z_fwdtab != NULL)
+		free_forwarders(zp->z_fwdtab);
+	zp->z_fwdtab = new_zp->z_fwdtab;
+	new_zp->z_fwdtab = NULL;
+
+	zp->z_dialup = new_zp->z_dialup;
+	zp->z_options = new_zp->z_options;
+	zp->z_optset = new_zp->z_optset;
 
 #ifdef BIND_UPDATE
 	if (new_zp->z_flags & Z_DYNAMIC)
@@ -387,24 +535,21 @@ update_zone_info(struct zoneinfo *zp, struct zoneinfo *new_zp) {
 	zp->z_updatelog = new_zp->z_updatelog;
 	new_zp->z_updatelog = NULL;
 #endif /* BIND_UPDATE */
+	zp->z_port = new_zp->z_port;
 
 	/*
-	 * now deal with files
+	 * Now deal with files.
 	 */
 	switch (zp->z_type) {
+	case z_cache:
+		ns_panic(ns_log_config, 1, "impossible condition");
+		break;
 	case z_hint:
 		ns_debug(ns_log_config, 1, "source = %s", new_zp->z_source);
 		zp->z_refresh = 0;	/* No dumping. */
-		/*
-		 * If we've loaded this file, and the file has
-		 * not been modified and contains no $include,
-		 * then there's no need to reload.
-		 */
-		if (zp->z_source &&
-		    !strcmp(new_zp->z_source, zp->z_source) &&
-		    !(zp->z_flags & Z_INCLUDE) && 
-		    stat(zp->z_source, &f_time) != -1 &&
-		    zp->z_ftime == f_time.st_mtime) {
+		if (zp->z_source != NULL &&
+		    strcmp(new_zp->z_source, zp->z_source) == 0 &&
+		    (reconfiging || !zonefile_changed_p(zp))) {
 			ns_debug(ns_log_config, 1, "cache is up to date");
 			break;
 		}
@@ -412,28 +557,37 @@ update_zone_info(struct zoneinfo *zp, struct zoneinfo *new_zp) {
 		/* File has changed, or hasn't been loaded yet. */
 		if (zp->z_source) {
 			freestr(zp->z_source);
-			clean_cache(fcachetab, 1);
+			purge_zone(zp->z_origin, fcachetab, zp->z_class);
 		}
 		zp->z_source = new_zp->z_source;
 		new_zp->z_source = NULL;
-		ns_debug(ns_log_config, 1, "reloading zone");
-		(void) db_load(zp->z_source, zp->z_origin, zp, NULL);
+
+		if (zp->z_ixfr_base)
+			freestr(zp->z_ixfr_base);
+		zp->z_ixfr_base = new_zp->z_ixfr_base;
+		new_zp->z_ixfr_base = NULL;	
+
+		if (zp->z_ixfr_tmp)
+			freestr(zp->z_ixfr_tmp);
+		zp->z_ixfr_tmp = new_zp->z_ixfr_tmp;
+		new_zp->z_ixfr_tmp = NULL;	
+
+		ns_debug(ns_log_config, 1, "reloading hint zone");
+		(void) db_load(zp->z_source, zp->z_origin, zp, NULL,
+			       ISNOTIXFR);
 		break;
 
 	case z_master:
 		ns_debug(ns_log_config, 1, "source = %s", new_zp->z_source);
 		/*
-		 * If we've loaded this file, and the file has
-		 * not been modified and contains no $include,
+		 * If we've loaded this file, and the file hasn't changed
 		 * then there's no need to reload.
 		 */
-		if (zp->z_source &&
-		    !strcmp(new_zp->z_source, zp->z_source) &&
-		    !(zp->z_flags & Z_INCLUDE) && 
-		    stat(zp->z_source, &f_time) != -1 &&
-		    zp->z_ftime == f_time.st_mtime) {
+		if (zp->z_source != NULL &&
+		    strcmp(new_zp->z_source, zp->z_source) == 0 &&
+		    (reconfiging || !zonefile_changed_p(zp))) {
 			ns_debug(ns_log_config, 1, "zone is up to date");
-			break; /* zone is already up to date */
+			break;
 		}
 #ifdef BIND_UPDATE
 		if (zp->z_source && (zp->z_flags & Z_DYNAMIC))
@@ -447,41 +601,27 @@ update_zone_info(struct zoneinfo *zp, struct zoneinfo *new_zp) {
 			freestr(zp->z_source);
 		zp->z_source = new_zp->z_source;
 		new_zp->z_source = NULL;
-		zp->z_flags &= ~Z_AUTH;
-		ns_stopxfrs(zp);
-		purge_zone(zp->z_origin, hashtab, zp->z_class);
-		ns_debug(ns_log_config, 1, "reloading zone");
-#ifdef BIND_UPDATE
-		if (zp->z_flags & Z_DYNAMIC) {
-			struct stat sb;
 
-			if (stat(zp->z_source, &sb) < 0)
-				ns_error(ns_log_config, "stat(%s) failed: %s",
-					 zp->z_source, strerror(errno));
-			else {
-				if (sb.st_mode & (S_IWUSR|S_IWGRP|S_IWOTH))
-					ns_warning(ns_log_config,
-					 "dynamic zone file '%s' is writable",
-						   zp->z_source);
-			}
-		}
-#endif
-		if (!db_load(zp->z_source, zp->z_origin, zp, NULL))
-			zp->z_flags |= Z_AUTH;
-		zp->z_refresh = 0;	/* no maintenance needed */
-		zp->z_time = 0;
-#ifdef BIND_UPDATE
-		zp->z_lastupdate = 0;
-		if (zp->z_flags & Z_DYNAMIC)
+		if (zp->z_ixfr_base != NULL)
+			freestr(zp->z_ixfr_base);
+		zp->z_ixfr_base = new_zp->z_ixfr_base;
+		new_zp->z_ixfr_base = NULL;
+
+		if (zp->z_ixfr_tmp != NULL)
+			freestr(zp->z_ixfr_tmp);
+		zp->z_ixfr_tmp = new_zp->z_ixfr_tmp;
+		new_zp->z_ixfr_tmp = NULL;
+
+		if (reload_master(zp) == 1) {
 			/*
 			 * Note that going to primary_reload
 			 * unconditionally reloads the zone.
 			 */
-			if (merge_logs(zp) == 1) {
-				new_zp->z_source = savestr(zp->z_source, 1);
-				goto primary_reload;
-			}
-#endif
+			new_zp->z_source = savestr(zp->z_source, 1);
+			new_zp->z_ixfr_base = savestr(zp->z_ixfr_base, 1);
+			new_zp->z_ixfr_tmp = savestr(zp->z_ixfr_tmp, 1);
+			goto primary_reload;
+		}
 		break;
 
 	case z_slave:
@@ -505,10 +645,9 @@ update_zone_info(struct zoneinfo *zp, struct zoneinfo *new_zp) {
 		 * current zone contents, try again now in case
 		 * we have a new server on the list.
 		 */
-		if (zp->z_source &&
-		    (strcmp(new_zp->z_source, zp->z_source) ||
-		     (stat(zp->z_source, &f_time) == -1 ||
-		      (zp->z_ftime != f_time.st_mtime)))) {
+		if (zp->z_source != NULL &&
+		    (strcmp(new_zp->z_source, zp->z_source) != 0 ||
+		     ((!reconfiging) && zonefile_changed_p(zp)))) {
 			ns_debug(ns_log_config, 1,
 				 "backup file changed or missing");
 			freestr(zp->z_source);
@@ -516,42 +655,60 @@ update_zone_info(struct zoneinfo *zp, struct zoneinfo *new_zp) {
 			zp->z_serial = 0;	/* force xfer */
 			ns_stopxfrs(zp);
 			/*
-			 * We only need to do_reload if we have
+			 * We only need to reload if we have ever
 			 * successfully transferred the zone.
 			 */
-			if (zp->z_flags & Z_AUTH) {
+			if ((zp->z_flags & Z_AUTH) != 0) {
 				zp->z_flags &= ~Z_AUTH;
 				/*
-				 * Purge old data and reload parent so that
-				 * NS records are present during the zone
-				 * transfer.
+				 * Purge old data and mark the parent for
+				 * reloading so that NS records are present
+				 * during the zone transfer.
 				 */
 				do_reload(zp->z_origin, zp->z_type,
-					  zp->z_class);
+					  zp->z_class, 1);
 			}
 		}
 		if (zp->z_source == NULL) {
 			zp->z_source = new_zp->z_source;
 			new_zp->z_source = NULL;
 		}
-		if (!(zp->z_flags & Z_AUTH))
+
+		if (zp->z_ixfr_base != NULL)
+			freestr(zp->z_ixfr_base);
+		zp->z_ixfr_base = new_zp->z_ixfr_base;
+		new_zp->z_ixfr_base = NULL;
+
+		if (zp->z_ixfr_tmp != NULL)
+			freestr(zp->z_ixfr_tmp);
+		zp->z_ixfr_tmp = new_zp->z_ixfr_tmp;
+		new_zp->z_ixfr_tmp = NULL;
+
+		if ((zp->z_flags & Z_AUTH) == 0)
 			zoneinit(zp);
-#ifdef FORCED_RELOAD
 		else {
 			/* 
 			** Force secondary to try transfer soon
 			** after SIGHUP.
 			*/
-			if (!(zp->z_flags & (Z_QSERIAL|Z_XFER_RUNNING))
-			    && reloading) {
+			if ((zp->z_flags & (Z_QSERIAL|Z_XFER_RUNNING)) == 0 &&
+			    reloading && !reconfiging) {
 				qserial_retrytime(zp, tt.tv_sec);
 				sched_zone_maint(zp);
 			}
 		}
-#endif /* FORCED_RELOAD */
+		break;
+	case z_forward:
+		/*
+		 * We don't know if the forwarder's list has changed
+		 * so just purge the cache.  In the future we may want
+		 * see if the forwarders list has changed and only
+		 * do this then.
+		 */
+		clean_cache_from(zp->z_origin, hashtab);
 		break;
 	}
-	if ((zp->z_flags & Z_FOUND) &&	/* already found? */
+	if ((zp->z_flags & Z_FOUND) != 0 &&	/* already found? */
 	    (zp - zones) != DB_Z_CACHE)	/* cache never sets Z_FOUND */
 		ns_error(ns_log_config, "Zone \"%s\" declared more than once",
 			 zp->z_origin);
@@ -582,40 +739,43 @@ end_zone(zone_config zh, int should_install) {
 		 should_install);
 
 	if (!should_install) {
-		free_zone(new_zp);
+		release_zone(new_zp);
 		return;
 	}
 	if (!validate_zone(new_zp)) {
 		ns_error(ns_log_config,
 			 "zone '%s' did not validate, skipping", zname);
-		free_zone(new_zp);
+		release_zone(new_zp);
 		return;
 	}
-	zp = find_zone(new_zp->z_origin, new_zp->z_type, new_zp->z_class);
+	zp = find_zone(new_zp->z_origin, new_zp->z_class);
+	if (zp != NULL && zp->z_type != new_zp->z_type) {
+		remove_zone(zp, "redefined");
+		zp = NULL;
+	}
 	if (zp == NULL) {
 		zp = new_zone(new_zp->z_class, new_zp->z_type);
 		INSIST(zp != NULL);
 		value.integer = (zp - zones);
 		define_symbol(zone_symbol_table, savestr(new_zp->z_origin, 1),
-			      (new_zp->z_type << 16) | new_zp->z_class,
-			      value, SYMBOL_FREE_KEY);
+			      new_zp->z_class, value, SYMBOL_FREE_KEY);
 	}
 	ns_debug(ns_log_config, 5, "zone '%s', type = %d, class = %d", zname,
 		 new_zp->z_type, new_zp->z_class);
 	if (new_zp->z_source != NULL)
 		ns_debug(ns_log_config, 5, "  file = %s", new_zp->z_source);
 	ns_debug(ns_log_config, 5, "  checknames = %d", new_zp->z_checknames);
-	if (new_zp->z_addrcnt) {
+	if (new_zp->z_addrcnt != 0) {
 		int i;
 
 		ns_debug(ns_log_config, 5, "  masters:");
-		for (i=0; i<new_zp->z_addrcnt; i++)
+		for (i = 0; i < new_zp->z_addrcnt; i++)
 			ns_debug(ns_log_config, 5, "    %s",
 				 inet_ntoa(new_zp->z_addr[i]));
 	}
 
 	update_zone_info(zp, new_zp);
-	free_zone(new_zp);
+	release_zone(new_zp);
 	zh.opaque = NULL;
 }
 
@@ -662,7 +822,63 @@ set_zone_checknames(zone_config zh, enum severity s) {
 }
 
 int
+set_zone_ixfr_file(zone_config zh, char *filename) {
+	struct zoneinfo *zp;
+
+	zp = zh.opaque;
+	INSIST(zp != NULL);
+
+	/* Fail if filename already set for this zone */
+	if (zp->z_ixfr_base != NULL)
+		return (0);
+	zp->z_ixfr_base = filename;
+	if (zp->z_ixfr_tmp == NULL) {
+		int len = strlen(zp->z_ixfr_base) + (sizeof ".tmp" - 1);
+		char *str = (char *) memget(len);
+
+		sprintf(str, "%s.tmp", zp->z_ixfr_base);
+		zp->z_ixfr_tmp = savestr(str, 1);
+		memput(str, len);
+	}
+
+	return (1);
+}
+
+int
+set_zone_ixfr_tmp(zone_config zh, char *filename) {
+	struct zoneinfo *zp;
+
+	zp = zh.opaque;
+	INSIST(zp != NULL);
+
+	/* Fail if filename already set for this zone */
+	if (zp->z_ixfr_tmp != NULL)
+		return (0);
+	zp->z_ixfr_tmp = filename;
+	return (1);
+}
+
+int
+set_zone_dialup(zone_config zh, int value) {
+	struct zoneinfo *zp;
+
+	zp = zh.opaque;
+	INSIST(zp != NULL);
+
+	if (value) {
+		zp->z_dialup = zdialup_yes;
+#ifdef BIND_NOTIFY
+		zp->z_notify = znotify_yes;
+#endif
+	} else
+		zp->z_dialup = zdialup_no;
+
+	return (1);
+}
+
+int
 set_zone_notify(zone_config zh, int value) {
+#ifdef BIND_NOTIFY
 	struct zoneinfo *zp;
 
 	zp = zh.opaque;
@@ -672,6 +888,17 @@ set_zone_notify(zone_config zh, int value) {
 		zp->z_notify = znotify_yes;
 	else
 		zp->z_notify = znotify_no;
+#endif
+	return (1);
+}
+
+int
+set_zone_maintain_ixfr_base(zone_config zh, int value) {
+	struct zoneinfo *zp;
+
+	zp = zh.opaque;
+	INSIST(zp != NULL);
+	zp->z_maintain_ixfr_base = value;
 
 	return (1);
 }
@@ -683,7 +910,7 @@ set_zone_update_acl(zone_config zh, ip_match_list iml) {
 	zp = zh.opaque;
 	INSIST(zp != NULL);
 
-	/* Fail if checknames already set for this zone */
+	/* Fail if update_acl already set for this zone */
 	if (zp->z_update_acl != NULL)
 		return (0);
 	zp->z_update_acl = iml;
@@ -708,6 +935,14 @@ set_zone_query_acl(zone_config zh, ip_match_list iml) {
 	if (zp->z_query_acl != NULL)
 		return (0);
 	zp->z_query_acl = iml;
+	return (1);
+}
+
+int
+set_zone_master_port(zone_config zh, u_short port) {
+	struct zoneinfo *zp = zh.opaque;
+
+	zp->z_port = port;
 	return (1);
 }
 
@@ -748,6 +983,37 @@ set_zone_transfer_time_in(zone_config zh, long max_time) {
 }
 
 int
+set_zone_max_log_size_ixfr(zone_config zh, int size) {
+	struct zoneinfo *zp;
+
+	zp = zh.opaque;
+	INSIST(zp != NULL);
+
+	zp->z_max_log_size_ixfr = size;
+	return (0);
+}
+
+int
+set_zone_pubkey(zone_config zh, const int flags, const int proto,
+		const int alg, const char *str)
+{
+	struct zoneinfo *zp;
+
+	zp = zh.opaque;
+	INSIST(zp != NULL);
+
+	INSIST(zp != NULL && zp->z_origin != NULL);
+	return (add_trusted_key(zp->z_origin, flags, proto, alg, str));
+}
+
+int
+set_trusted_key(const char *name, const int flags, const int proto,
+		const int alg, const char *str) {
+	INSIST(name != NULL);
+	return (add_trusted_key(name, flags, proto, alg, str));
+}
+
+int
 add_zone_master(zone_config zh, struct in_addr address) {
 	struct zoneinfo *zp;
 
@@ -766,18 +1032,51 @@ add_zone_master(zone_config zh, struct in_addr address) {
 
 int
 add_zone_notify(zone_config zh, struct in_addr address) {
+#ifdef BIND_NOTIFY
 	struct zoneinfo *zp;
+	int i;
 
 	zp = zh.opaque;
 	INSIST(zp != NULL);
 
-	zp->z_also_notify[zp->z_notify_count] = address;
-	zp->z_notify_count++;
-	if (zp->z_notify_count >= NSMAX) {
-		ns_warning(ns_log_config, "also-notify set full for zone '%s'",
-			   zp->z_origin);
-		zp->z_notify_count = NSMAX - 1;
+	/* Check for duplicates. */
+
+	for (i = 0; i < zp->z_notify_count; i++) {
+		if (memcmp(zp->z_also_notify + i,
+			   &address, sizeof address) == 0) {
+			ns_warning(ns_log_config,
+		    "duplicate also-notify address ignored [%s] for zone '%s'",
+				inet_ntoa(address), zp->z_origin);
+			return (1);
+		}
 	}
+	i = 0;
+
+	if (zp->z_also_notify == NULL) {
+		zp->z_also_notify = memget(sizeof *zp->z_also_notify);
+		if (zp->z_also_notify == NULL)
+			i = 1;
+	} else {
+		register size_t size;
+		register struct in_addr *an_tmp;
+		size = zp->z_notify_count * sizeof *zp->z_also_notify;
+		an_tmp = memget(size + sizeof *zp->z_also_notify);
+		if (an_tmp == NULL) {
+			i = 1;
+		} else {
+			memcpy(an_tmp, zp->z_also_notify, size);
+			memput(zp->z_also_notify, size);
+			zp->z_also_notify = an_tmp;
+		}
+	}
+	if (i == 0) {
+		zp->z_also_notify[zp->z_notify_count] = address;
+		zp->z_notify_count++;
+	} else {
+		ns_warning(ns_log_config, "also-notify add failed (memget) [%s] for zone '%s'",
+			inet_ntoa(address), zp->z_origin);
+	}
+#endif
 	return (1);
 }
 
@@ -786,13 +1085,12 @@ add_zone_notify(zone_config zh, struct in_addr address) {
 options
 new_options() {
 	options op;
-	ip_match_list iml;
-	ip_match_element ime;
 
 	op = (options)memget(sizeof (struct options));
 	if (op == NULL)
 		panic("memget failed in new_options()", NULL);
 
+	op->version = savestr(ShortVersion, 1);
 	op->directory = savestr(".", 1);
 	op->pid_filename = savestr(_PATH_PIDFILE, 1);
 	op->named_xfer = savestr(_PATH_XFER, 1);
@@ -803,21 +1101,24 @@ new_options() {
 	op->transfers_in = DEFAULT_XFERS_RUNNING;
 	op->transfers_per_ns = DEFAULT_XFERS_PER_NS;
 	op->transfers_out = 0;
+	op->serial_queries = MAXQSERIAL;
 	op->transfer_format = axfr_one_answer;
 	op->max_transfer_time_in = MAX_XFER_TIME;
 	memset(&op->query_source, 0, sizeof op->query_source);
 	op->query_source.sin_family = AF_INET;
 	op->query_source.sin_addr.s_addr = htonl(INADDR_ANY);
 	op->query_source.sin_port = htons(0);		/* INPORT_ANY */
+	op->axfr_src.s_addr = 0;
+#ifdef BIND_NOTIFY
+	op->notify_count = 0;
+	op->also_notify = NULL;
+#endif
+	op->blackhole_acl = NULL;
 	op->query_acl = NULL;
 	op->transfer_acl = NULL;
-	/* default topology is { localhost; localnets; } */
-	iml = new_ip_match_list();
-	ime = new_ip_match_localhost();
-	add_to_ip_match_list(iml, ime);
-	ime = new_ip_match_localnets();
-	add_to_ip_match_list(iml, ime);
-	op->topology = iml;
+	op->recursion_acl = NULL;
+	op->sortlist = NULL;
+	op->topology = NULL;
 	op->data_size = 0UL;	/* use system default */
 	op->stack_size = 0UL;	/* use system default */
 	op->core_size = 0UL;	/* use system default */
@@ -831,6 +1132,12 @@ new_options() {
 	op->clean_interval = 3600;
 	op->interface_interval = 3600;
 	op->stats_interval = 3600;
+	op->ordering = NULL;
+	op->max_ncache_ttl = DEFAULT_MAX_NCACHE_TTL;
+	op->lame_ttl = NTTL;
+	op->heartbeat_interval = 3600;
+	op->max_log_size_ixfr = 20;
+	op->minroots = MINROOTS;
 	return (op);
 }
 
@@ -838,6 +1145,8 @@ void
 free_options(options op) {
 	INSIST(op != NULL);
 
+	if (op->version)
+		freestr(op->version);
 	if (op->directory)
 		freestr(op->directory);
 	if (op->pid_filename)
@@ -850,10 +1159,22 @@ free_options(options op) {
 		freestr(op->stats_filename);
 	if (op->memstats_filename)
 		freestr(op->memstats_filename);
+#ifdef BIND_NOTIFY
+	if (op->also_notify)
+		free_also_notify(op);
+#endif
+	if (op->blackhole_acl)
+		free_ip_match_list(op->blackhole_acl);
 	if (op->query_acl)
 		free_ip_match_list(op->query_acl);
+	if (op->recursion_acl)
+		free_ip_match_list(op->recursion_acl);
 	if (op->transfer_acl)
 		free_ip_match_list(op->transfer_acl);
+	if (op->sortlist)
+		free_ip_match_list(op->sortlist);
+	if (op->ordering)
+		free_rrset_order_list(op->ordering);
 	if (op->topology)
 		free_ip_match_list(op->topology);
 	if (op->listen_list)
@@ -863,9 +1184,9 @@ free_options(options op) {
 	memput(op, sizeof *op);
 }
 
-void
-set_boolean_option(options op, int bool_opt, int value) {
-	INSIST(op != NULL);
+static void
+set_boolean_option(u_int *op_flags, int bool_opt, int value) {
+	INSIST(op_flags != NULL);
 
 	switch (bool_opt) {
 	case OPTION_NORECURSE:
@@ -875,16 +1196,43 @@ set_boolean_option(options op, int bool_opt, int value) {
 	case OPTION_NONOTIFY:
 	case OPTION_NONAUTH_NXDOMAIN:
 	case OPTION_MULTIPLE_CNAMES:
+	case OPTION_USE_IXFR:
+	case OPTION_MAINTAIN_IXFR_BASE:
 	case OPTION_HOSTSTATS:
 	case OPTION_DEALLOC_ON_EXIT:
+	case OPTION_USE_ID_POOL:
+	case OPTION_NORFC2308_TYPE1:
+	case OPTION_NODIALUP:
+	case OPTION_TREAT_CR_AS_SPACE:
 		if (value)
-			op->flags |= bool_opt;
+			*op_flags |= bool_opt;
 		else
-			op->flags &= ~bool_opt;
+			*op_flags &= ~bool_opt;
 		break;
 	default:
 		panic("unexpected option in set_boolean_option", NULL);
 	}
+}
+
+void
+set_global_boolean_option(options op, int bool_opt, int value) {
+
+	INSIST(op != NULL);
+
+	set_boolean_option(&op->flags, bool_opt, value);
+}
+
+void
+set_zone_boolean_option(zone_config zh, int bool_opt, int value) {
+	struct zoneinfo *zp;
+
+	zp = zh.opaque;
+	INSIST(zp != NULL);
+
+	set_boolean_option(&zp->z_options, bool_opt, value);
+
+	/* Flag that zone option overrides corresponding global option */
+	zp->z_optset |= bool_opt;
 }
 
 #ifdef HAVE_GETRUSAGE
@@ -897,6 +1245,8 @@ static struct rlimit initial_num_files;
 
 static void
 get_initial_limits() {
+	int fdlimit = evHighestFD(ev) + 1;
+
 # ifdef RLIMIT_DATA
 	if (getrlimit(RLIMIT_DATA, &initial_data_size) < 0)
 		ns_warning(ns_log_config, "getrlimit(DATA): %s",
@@ -916,6 +1266,19 @@ get_initial_limits() {
 	if (getrlimit(RLIMIT_NOFILE, &initial_num_files) < 0)
 		ns_warning(ns_log_config, "getrlimit(NOFILE): %s",
 			   strerror(errno));
+	else if (initial_num_files.rlim_cur > fdlimit) {
+		initial_num_files.rlim_cur = fdlimit;
+		if (initial_num_files.rlim_cur > initial_num_files.rlim_max)
+			initial_num_files.rlim_max = fdlimit;
+		if (setrlimit(RLIMIT_NOFILE, &initial_num_files) < 0) {
+			ns_warning(ns_log_config, "setrlimit(files): %s",
+				   strerror(errno));
+		} else {
+			ns_warning(ns_log_config,
+				   "limit files set to fdlimit (%d)",
+				   fdlimit);
+		}
+	}
 # endif
 }
 
@@ -923,13 +1286,14 @@ static void
 ns_rlimit(enum limit limit, u_long limit_value) {
 	struct rlimit limits, old_limits;
 	int rlimit = -1;
+	int fdlimit = evHighestFD(ev) + 1;
 	char *name;
 	rlimit_type value;
 
 	if (limit_value == ULONG_MAX) {
 #ifndef RLIMIT_FILE_INFINITY
 		if (limit == Files)
-			value = MAX((rlimit_type)sysconf(_SC_OPEN_MAX),
+			value = MIN((rlimit_type)evHighestFD(ev) + 1,
 				    initial_num_files.rlim_max);
 		else
 #endif
@@ -970,7 +1334,8 @@ ns_rlimit(enum limit limit, u_long limit_value) {
 		name = "max number of open files";
 		if (value == 0)
 			limits = initial_num_files;
-		/* XXX check < FD_SETSIZE? */
+		if (value > fdlimit)
+			limits.rlim_cur = limits.rlim_max = value = fdlimit;
 		break;
 	default:
 		name = NULL;	/* Make gcc happy. */
@@ -994,8 +1359,7 @@ ns_rlimit(enum limit limit, u_long limit_value) {
 		return;
 	} else {
 		if (value == 0)
-			ns_debug(ns_log_config, 3, "%s is default",
-				 name);
+			ns_debug(ns_log_config, 3, "%s is default", name);
 		else if (value == RLIM_INFINITY)
 			ns_debug(ns_log_config, 3, "%s is unlimited", name);
 		else
@@ -1155,7 +1519,7 @@ periodic_getnetconf(evContext ctx, void *uap, struct timespec due,
 {
 	getnetconf(1);
 }
-				   
+
 static void
 set_interval_timer(int which_timer, int interval) {
 	evTimerID *tid = NULL;
@@ -1173,6 +1537,10 @@ set_interval_timer(int which_timer, int interval) {
 	case STATS_TIMER:
 		tid = &stats_timer;
 		func = ns_logstats;
+		break;
+	case HEARTBEAT_TIMER:
+		tid = &heartbeat_timer;
+		func = ns_heartbeat;
 		break;
 	default:
 		ns_panic(ns_log_config, 1,
@@ -1215,7 +1583,6 @@ set_interval_timer(int which_timer, int interval) {
  */
 void
 set_options(options op, int is_default) {
-	listen_info li;
 	INSIST(op != NULL);
 
 	if (op->listen_list == NULL) {
@@ -1230,6 +1597,18 @@ set_options(options op, int is_default) {
 		ime = new_ip_match_pattern(address, 0);
 		add_to_ip_match_list(iml, ime);
 		add_listen_on(op, htons(NS_DEFAULTPORT), iml);
+	}
+	if (op->topology == NULL) {
+		ip_match_list iml;
+		ip_match_element ime;
+
+		/* default topology is { localhost; localnets; } */
+		iml = new_ip_match_list();
+		ime = new_ip_match_localhost();
+		add_to_ip_match_list(iml, ime);
+		ime = new_ip_match_localnets();
+		add_to_ip_match_list(iml, ime);
+		op->topology = iml;
 	}
 	if (server_options != NULL)
 		free_options(server_options);
@@ -1263,6 +1642,14 @@ set_options(options op, int is_default) {
 
 	/* XXX currently transfers_out is not used */
 
+	if (!op->max_ncache_ttl)
+		op->max_ncache_ttl = DEFAULT_MAX_NCACHE_TTL;
+	else if (op->max_ncache_ttl > max_cache_ttl)
+		op->max_ncache_ttl = max_cache_ttl;
+	
+	if (op->lame_ttl > (3 * NTTL))
+		op->lame_ttl = 3 * NTTL;
+
 	/*
 	 * Limits
 	 */
@@ -1276,7 +1663,6 @@ set_options(options op, int is_default) {
 	ns_info(ns_log_config, "cannot set resource limits on this system");
 #endif
 
-
 	/*
 	 * Timers
 	 */
@@ -1284,6 +1670,8 @@ set_options(options op, int is_default) {
 	set_interval_timer(INTERFACE_TIMER,
 			   server_options->interface_interval);
 	set_interval_timer(STATS_TIMER, server_options->stats_interval);
+	set_interval_timer(HEARTBEAT_TIMER,
+			   server_options->heartbeat_interval);
 
 	options_installed = 1;
 	default_options_installed = is_default;
@@ -1294,6 +1682,129 @@ use_default_options() {
 	set_options(new_options(), 1);	
 }
 
+/*
+ * rrset order types
+ */
+static struct res_sym order_table [] = {
+	{ unknown_order, " unknown " }, /* can't match */
+	{ fixed_order, "fixed" },
+	{ cyclic_order, "cyclic" },
+	{ random_order, "random" },
+	{ unknown_order, NULL }
+};
+
+/*
+ * Return the print name of the ordering value.
+ */
+const char *
+p_order(int order) {
+	return (__sym_ntos(order_table, order, (int *)0));
+}
+
+/*
+ * Lookup the ordering by name and return the matching enum value.
+ */
+enum ordering
+lookup_ordering(const char *name) {
+	int i;
+
+	for (i = 0; order_table[i].name != NULL; i++)
+		if (strcasecmp(name,order_table[i].name) == 0)
+			return ((enum ordering)order_table[i].number);
+	return (unknown_order);
+}
+
+/*
+ * rrset-order Lists
+ */
+rrset_order_list
+new_rrset_order_list() {
+	rrset_order_list rol ;
+
+	rol = (rrset_order_list)memget(sizeof (struct rrset_order_list));
+	if (rol == NULL)
+		panic("memget failed in new_rrset_order_list", NULL);
+	rol->first = NULL;
+	rol->last = NULL;
+	
+	return (rol);
+}
+
+void
+free_rrset_order_list(rrset_order_list rol) {
+	rrset_order_element roe, next_element;
+
+	for (roe = rol->first; roe != NULL; roe = next_element) {
+		next_element = roe->next;
+		freestr(roe->name);
+		memput(roe, sizeof (*roe));
+	}
+	memput(rol, sizeof (*rol));
+}
+
+
+void
+add_to_rrset_order_list(rrset_order_list rol, rrset_order_element roe) {
+	INSIST(rol != NULL);
+	INSIST(roe != NULL);
+
+	if (rol->last != NULL)
+		rol->last->next = roe;
+	roe->next = NULL;
+	rol->last = roe;
+	if (rol->first == NULL)
+		rol->first = roe;
+}
+
+/* XXX this isn't being used yet, but it probably should be. Where? */
+void
+dprint_rrset_order_list(int category, rrset_order_list rol, int indent,
+			char *allow, char *deny) {
+	rrset_order_element roe ;
+	char spaces[40+1];
+
+	INSIST(rol != NULL);
+
+	if (indent > 40)
+		indent = 40;
+	if (indent)
+		memset(spaces, ' ', indent);
+	spaces[indent] = '\0';
+
+	for (roe = rol->first; roe != NULL; roe = roe->next) {
+		ns_debug(category, 7, "%sclass %s type %s name %s order %s",
+			 spaces, p_class(roe->class), p_type(roe->type),
+			 roe->name, p_order(roe->order));
+	}
+}
+
+
+rrset_order_element
+new_rrset_order_element(int class, int type, char *name, enum ordering order)
+{
+	rrset_order_element roe;
+	int i ;
+	
+	roe = (rrset_order_element)memget(sizeof (struct rrset_order_element));
+	if (roe == NULL)
+		panic("memget failed in new_rrset_order_element", NULL);
+	roe->class = class ;
+	roe->type = type ;
+	roe->name = name;
+	roe->order = order;
+
+	i = strlen(roe->name) - 1;
+	INSIST (i >= 0);
+	if (roe->name[i - 1] == '.') {
+		/* We compare from right to left so we don't need a dot on
+		   the end. */
+		roe->name[i - 1] = '\0' ;
+	}
+	
+	return roe ;
+}
+
+	
 /*
  * IP Matching Lists
  */
@@ -1390,6 +1901,19 @@ new_ip_match_indirect(ip_match_list iml) {
 }
 
 ip_match_element
+new_ip_match_key(DST_KEY *dst_key) {
+	ip_match_element ime;
+
+	ime = (ip_match_element)memget(sizeof (struct ip_match_element));
+	if (ime == NULL)
+		panic("memget failed in new_ip_match_key", NULL);
+	ime->type = ip_match_key;
+	ime->flags = 0;
+	ime->u.key.key = dst_key;
+	return (ime);
+}
+
+ip_match_element
 new_ip_match_localhost() {
 	ip_match_element ime;
 
@@ -1445,7 +1969,6 @@ dprint_ip_match_list(int category, ip_match_list iml, int indent,
 	char spaces[40+1];
 	char addr_text[sizeof "255.255.255.255"];
 	char mask_text[sizeof "255.255.255.255"];
-	char *tmp;
 
 	INSIST(iml != NULL);
 
@@ -1488,6 +2011,11 @@ dprint_ip_match_list(int category, ip_match_list iml, int indent,
 						     ime->u.indirect.list,
 						     indent+2, allow, deny);
 			break;
+		case ip_match_key:
+			ns_debug(category, 7, "%s%skey %s", spaces,
+				 (ime->flags & IP_MATCH_NEGATE) ? deny : allow,
+				 ime->u.key.key->dk_key_name);
+			break;
 		default:
 			panic("unexpected ime type in dprint_ip_match_list()",
 			      NULL);
@@ -1496,7 +2024,9 @@ dprint_ip_match_list(int category, ip_match_list iml, int indent,
 }
 
 int
-ip_match_address(ip_match_list iml, struct in_addr address) {
+ip_match_addr_or_key(ip_match_list iml, struct in_addr address,
+		     DST_KEY *key)
+{
 	ip_match_element ime;
 	int ret;
 	int indirect;
@@ -1518,13 +2048,25 @@ ip_match_address(ip_match_list iml, struct in_addr address) {
 			ime->u.indirect.list = local_networks;
 			indirect = 1;
 			break;
+		case ip_match_key:
+			if (key == NULL) {
+				indirect = 0;
+				break;
+			}
+			else {
+				if (ns_samename(ime->u.key.key->dk_key_name,
+					        key->dk_key_name) == 1)
+					return (1);
+				else
+					continue;
+			}
 		default:
-			indirect = 0;	/* Make gcc happy. */
-			panic("unexpected ime type in ip_match_address()",
+			panic("unexpected ime type in ip_match_addr_or_key()",
 			      NULL);
 		}
 		if (indirect) {
-			ret = ip_match_address(ime->u.indirect.list, address);
+			ret = ip_match_addr_or_key(ime->u.indirect.list,
+						   address, key);
 			if (ret >= 0) {
 				if (ime->flags & IP_MATCH_NEGATE)
 					ret = (ret) ? 0 : 1;
@@ -1544,15 +2086,27 @@ ip_match_address(ip_match_list iml, struct in_addr address) {
 }
 
 int
-ip_address_allowed(ip_match_list iml, struct in_addr address) {
+ip_match_address(ip_match_list iml, struct in_addr address) {
+	return ip_match_addr_or_key(iml, address, NULL);
+}
+
+int
+ip_addr_or_key_allowed(ip_match_list iml, struct in_addr address,
+		       DST_KEY *key)
+{
 	int ret;
 
 	if (iml == NULL)
 		return (0);
-	ret = ip_match_address(iml, address);
+	ret = ip_match_addr_or_key(iml, address, key);
 	if (ret < 0)
 		ret = 0;
 	return (ret);
+}
+
+int
+ip_address_allowed(ip_match_list iml, struct in_addr address) {
+	return(ip_addr_or_key_allowed(iml, address, NULL));
 }
 
 int
@@ -1578,6 +2132,9 @@ ip_match_network(ip_match_list iml, struct in_addr address,
 		case ip_match_localnets:
 			ime->u.indirect.list = local_networks;
 			indirect = 1;
+			break;
+		case ip_match_key:
+			indirect = 0;
 			break;
 		default:
 			indirect = 0;	/* Make gcc happy. */
@@ -1630,6 +2187,9 @@ distance_of_address(ip_match_list iml, struct in_addr address) {
 			ime->u.indirect.list = local_networks;
 			indirect = 1;
 			break;
+		case ip_match_key:
+			indirect = 0;
+			return (-1);
 		default:
 			indirect = 0;	/* Make gcc happy. */
 			panic("unexpected ime type in distance_of_address()",
@@ -1666,14 +2226,14 @@ int
 ip_match_is_none(ip_match_list iml) {
 	ip_match_element ime;
 
-	if (iml == NULL)
+	if ((iml == NULL) || (iml->first == NULL))
 		return (1);
 	ime = iml->first;
 	if (ime->type == ip_match_indirect) {
 		if (ime->flags & IP_MATCH_NEGATE)
 			return (0);
 		iml = ime->u.indirect.list;
-		if (iml == NULL)
+		if ((iml == NULL) || (iml->first == NULL))
 			return (0);
 		ime = iml->first;
 	}
@@ -1694,30 +2254,13 @@ ip_match_is_none(ip_match_list iml) {
  *      forward zones.
  */
 
-void
-add_forwarder(options op, struct in_addr address) {
-	struct fwdinfo *fip = NULL, *ftp = NULL;
-
-#ifdef SLAVE_FORWARD
-	int forward_count = 0;
-#endif
-
-	INSIST(op != NULL);
+static void
+add_forwarder(struct fwdinfo **fipp, struct in_addr address) {
+	struct fwdinfo *fip = *fipp, *ftp = NULL;
 
 	/* On multiple forwarder lines, move to end of the list. */
-#ifdef SLAVE_FORWARD
-	if (op->fwdtab != NULL) {
-		forward_count++;
-		for (fip = op->fwdtab; fip->next != NULL; fip = fip->next)
-			forward_count++;
-	}
-#else
-	if (op->fwdtab != NULL) {
-		for (fip = op->fwdtab; fip->next != NULL; fip = fip->next) {
-			;
-		}
-	}
-#endif /* SLAVE_FORWARD */
+	while (fip != NULL && fip->next != NULL)
+		fip = fip->next;
 
 	ftp = (struct fwdinfo *)memget(sizeof(struct fwdinfo));
 	if (!ftp)
@@ -1733,25 +2276,127 @@ add_forwarder(options op, struct in_addr address) {
 		return;
 	}
 #endif /* FWD_LOOP */
-	ns_debug(ns_log_config, 2, "added forwarder %s", inet_ntoa(address));
 	ftp->next = NULL;
-	if (op->fwdtab == NULL)
-		op->fwdtab = ftp;	/* First time only */
+	if (fip == NULL)
+		*fipp = ftp;		/* First time only */
 	else
 		fip->next = ftp;
-#ifdef SLAVE_FORWARD
-	forward_count++;
+}
 
+void
+free_also_notify(options op) {
+#ifdef BIND_NOTIFY
+	memput(op->also_notify, op->notify_count * sizeof *op->also_notify);
+	op->also_notify = NULL;
+	op->notify_count = 0;
+#endif
+}
+
+int
+add_global_also_notify(options op, struct in_addr address) {
+#ifdef BIND_NOTIFY
+	int i;
+
+	INSIST(op != NULL);
+
+	ns_debug(ns_log_config, 2, "adding global notify %s",
+		 inet_ntoa(address));
+
+	/* Check for duplicates. */
+
+	for (i = 0; i < op->notify_count; i++) {
+		if (memcmp(op->also_notify + i,
+			   &address, sizeof address) == 0) {
+			ns_warning(ns_log_config,
+			   "duplicate global also-notify address ignored [%s]",
+				inet_ntoa(address));
+			return (1);
+		}
+	}
+	i = 0;
+
+	if (op->also_notify == NULL) {
+		op->also_notify = memget(sizeof *op->also_notify);
+		if (op->also_notify == NULL)
+			i = 1;
+	} else {
+		register size_t size;
+		register struct in_addr *an_tmp;
+		size = op->notify_count * sizeof *op->also_notify;
+		an_tmp = memget(size + sizeof *op->also_notify);
+		if (an_tmp == NULL) {
+			i = 1;
+		} else {
+			memcpy(an_tmp, op->also_notify, size);
+			memput(op->also_notify, size);
+			op->also_notify = an_tmp;
+		}
+	}
+	if (i == 0) {
+		op->also_notify[op->notify_count] = address;
+		op->notify_count++;
+	} else {
+		ns_warning(ns_log_config,
+		     "global also-notify add failed (memget) [%s]",
+			inet_ntoa(address));
+	}
+#endif
+	return (1);
+}
+
+void
+add_global_forwarder(options op, struct in_addr address) {
+#ifdef SLAVE_FORWARD
+	struct fwdinfo *fip;
+	int forward_count;
+#endif
+
+	INSIST(op != NULL);
+
+	ns_debug(ns_log_config, 2, "adding default forwarder %s",
+		 inet_ntoa(address));
+
+	add_forwarder(&op->fwdtab, address);
+
+#ifdef SLAVE_FORWARD
 	/*
 	** Set the slave retry time to 60 seconds total divided
 	** between each forwarder
 	*/
+	for (forward_count = 0, fip = op->fwdtab; fip != NULL; fip = fip->next)
+		forward_count++;
 	if (forward_count != 0) {
 		slave_retry = (int) (60 / forward_count);
 		if(slave_retry <= 0)
 			slave_retry = 1;
 	}
 #endif
+}
+
+void
+set_zone_forward(zone_config zh) {
+	struct zoneinfo *zp;
+	zp = zh.opaque;
+
+	zp->z_flags |= Z_FORWARD_SET;
+	set_zone_boolean_option(zh, OPTION_FORWARD_ONLY, 0);
+}
+
+void
+add_zone_forwarder(zone_config zh, struct in_addr address) {
+	struct zoneinfo *zp;
+	char *zname;
+
+	zp = zh.opaque;
+	INSIST(zp != NULL);
+
+	zname = (zp->z_origin[0] == '\0') ? "." : zp->z_origin;
+	ns_debug(ns_log_config, 2, "adding forwarder %s for zone zone '%s'",
+		 inet_ntoa(address), zname);
+
+	zp->z_flags |= Z_FORWARD_SET;
+
+	add_forwarder(&zp->z_fwdtab, address);
 }
 
 void
@@ -1762,12 +2407,12 @@ free_forwarders(struct fwdinfo *fwdtab) {
 		fnext = ftp->next;
 		memput(ftp, sizeof *ftp);
 	}
+	fwdtab = NULL;
 }
 
 /*
  * Servers 
  */
-
 
 static server_info
 new_server(struct in_addr address) {
@@ -1782,7 +2427,11 @@ new_server(struct in_addr address) {
 	si->transfer_format = axfr_use_default;
 	si->key_list = NULL;
 	si->next = NULL;
-	return si;
+	if (server_options->flags & OPTION_MAINTAIN_IXFR_BASE)
+		si->flags |= SERVER_INFO_SUPPORT_IXFR;
+	else
+		si->flags &= ~SERVER_INFO_SUPPORT_IXFR;	
+	return (si);
 }
 
 static void
@@ -1839,6 +2488,14 @@ free_nameserver_info() {
 	}
 }
 
+static void
+free_secretkey_info() {
+	if (secretkey_info != NULL) {
+		free_key_info_list(secretkey_info);
+		secretkey_info = NULL;
+	}
+}
+
 server_config
 begin_server(struct in_addr address) {
 	server_config sc;
@@ -1872,6 +2529,7 @@ set_server_option(server_config sc, int bool_opt, int value) {
 
 	switch (bool_opt) {
 	case SERVER_INFO_BOGUS:
+	case SERVER_INFO_SUPPORT_IXFR:
 		if (value)
 			si->flags |= bool_opt;
 		else
@@ -1908,7 +2566,7 @@ set_server_transfer_format(server_config sc,
 }
 
 void
-add_server_key_info(server_config sc, key_info ki) {
+add_server_key_info(server_config sc, DST_KEY *dst_key) {
 	server_info si;
 
 	si = sc.opaque;
@@ -1917,44 +2575,75 @@ add_server_key_info(server_config sc, key_info ki) {
 
 	if (si->key_list == NULL)
 		si->key_list = new_key_info_list();
-	add_to_key_info_list(si->key_list, ki);
+	add_to_key_info_list(si->key_list, dst_key);
 }
 
 /*
  * Keys
  */
 
-key_info
+DST_KEY *
 new_key_info(char *name, char *algorithm, char *secret) {
-	key_info ki;
+	DST_KEY *dst_key;
+	int alg, blen;
+	u_char buffer[1024];
 
 	INSIST(name != NULL);
 	INSIST(algorithm != NULL);
 	INSIST(secret != NULL);
-	ki = (key_info)memget(sizeof (struct key_info));
-	if (ki == NULL)
-		panic("memget failed in new_key_info", NULL);
-	ki->name = name;
-	ki->algorithm = algorithm;
-	ki->secret = secret;
-	return (ki);
+	alg = tsig_alg_value(algorithm);
+	if (alg == -1) {
+		ns_warning(ns_log_config, "Unsupported TSIG algorithm %s",
+			 algorithm);
+		return (NULL);
+	}
+
+	blen = b64_pton(secret, buffer, sizeof(buffer));
+	if (blen < 0) {
+		ns_warning(ns_log_config, "Invalid TSIG secret \"%s\"", secret);
+		return (NULL);
+	}
+	dst_key = dst_buffer_to_key(name, alg,
+				    NS_KEY_TYPE_AUTH_ONLY|NS_KEY_NAME_ENTITY,
+				    NS_KEY_PROT_ANY, buffer, blen);
+	if (dst_key == NULL)
+		ns_warning(ns_log_config,
+			   "dst_buffer_to_key failed in new_key_info");
+	return (dst_key);
 }
 
 void
-free_key_info(key_info ki) {
-	INSIST(ki != NULL);
-	freestr(ki->name);
-	freestr(ki->algorithm);
-	freestr(ki->secret);
-	memput(ki, sizeof *ki);
+free_key_info(DST_KEY *dst_key) {
+	INSIST(dst_key != NULL);
+	dst_free_key(dst_key);
+}
+
+DST_KEY *
+find_key(char *name, char *algorithm) {
+	key_list_element ke;
+
+	if (secretkey_info == NULL)
+		return (NULL);
+
+	for (ke = secretkey_info->first; ke != NULL; ke = ke->next) {
+		DST_KEY *dst_key = ke->key;
+
+		if (ns_samename(name, dst_key->dk_key_name) != 1)
+			continue;
+		if (algorithm == NULL ||
+		    dst_key->dk_alg == tsig_alg_value(algorithm))
+			break;
+	}
+	if (ke == NULL)
+		return (NULL);
+	return (ke->key);
 }
 
 void
-dprint_key_info(key_info ki) {
-	INSIST(ki != NULL);
-	ns_debug(ns_log_config, 7, "key %s", ki->name);
-	ns_debug(ns_log_config, 7, "  algorithm %s", ki->algorithm);
-	ns_debug(ns_log_config, 7, "  secret %s", ki->secret);
+dprint_key_info(DST_KEY *dst_key) {
+	INSIST(dst_key != NULL);
+	ns_debug(ns_log_config, 7, "key %s", dst_key->dk_key_name);
+	ns_debug(ns_log_config, 7, "  algorithm %d", dst_key->dk_alg);
 }
 
 key_info_list
@@ -1983,16 +2672,16 @@ free_key_info_list(key_info_list kil) {
 }
 
 void
-add_to_key_info_list(key_info_list kil, key_info ki) {
+add_to_key_info_list(key_info_list kil, DST_KEY *dst_key) {
 	key_list_element kle;
 
 	INSIST(kil != NULL);
-	INSIST(ki != NULL);
+	INSIST(dst_key != NULL);
 
 	kle = (key_list_element)memget(sizeof (struct key_list_element));
 	if (kle == NULL)
 		panic("memget failed in add_to_key_info_list()", NULL);
-	kle->info = ki;
+	kle->key = dst_key;
 	if (kil->last != NULL)
 		kil->last->next = kle;
 	kle->next = NULL;
@@ -2008,7 +2697,7 @@ dprint_key_info_list(key_info_list kil) {
 	INSIST(kil != NULL);
 
 	for (kle = kil->first; kle != NULL; kle = kle->next)
-		dprint_key_info(kle->info);
+		dprint_key_info(kle->key);
 }
 
 /*
@@ -2098,7 +2787,6 @@ open_special_channels() {
 void
 set_logging(log_config log_cfg, int is_default) {
 	log_context lc;
-	int skip_debug = 0;
 
 	INSIST(log_cfg != NULL);
 	lc = log_cfg->log_ctx;
@@ -2203,7 +2891,6 @@ use_default_logging() {
 
 static void
 init_default_log_channels() {
-	FILE *null_stream;
 	u_int flags;
 	char *name;
 	FILE *stream;
@@ -2244,9 +2931,8 @@ shutdown_default_log_channels() {
 	log_free_channel(null_channel);
 }
 
-void
+void 
 init_logging() {
-	int i;
 	int size;
 	const struct ns_sym *s;
 	char category_name[256];
@@ -2266,7 +2952,7 @@ init_logging() {
 	use_default_logging();
 }
 
-void
+void 
 shutdown_logging() {
 	int size;
 	const struct ns_sym *s;
@@ -2279,6 +2965,7 @@ shutdown_logging() {
 		freestr(logging_categories[s->number]);
 	size = ns_log_max_category * (sizeof (char *));
 	memput(logging_categories, size);
+	logging_categories = NULL;
 }
 
 /*
@@ -2297,6 +2984,7 @@ init_configuration() {
 	zone_symbol_table = new_symbol_table(ZONE_SYM_TABLE_SIZE, NULL);
 	use_default_options();
 	parser_initialize();
+	ns_ctl_initialize();
 	config_initialized = 1;
 }
 
@@ -2304,6 +2992,7 @@ void
 shutdown_configuration() {
 	REQUIRE(config_initialized);
 
+	ns_ctl_shutdown();
 	if (server_options != NULL) {
 		free_options(server_options);
 		server_options = NULL;
@@ -2311,6 +3000,7 @@ shutdown_configuration() {
 	if (current_pid_filename != NULL)
 		freestr(current_pid_filename);
 	free_nameserver_info();
+	free_secretkey_info();
 	free_symbol_table(zone_symbol_table);
 	parser_shutdown();
 	config_initialized = 0;
@@ -2329,6 +3019,7 @@ load_configuration(const char *filename) {
 	 * global data structures we'll be updating.
 	 */
 	free_nameserver_info();
+	free_secretkey_info();
 	bogus_nameservers = new_ip_match_list();
 
 	options_installed = 0;

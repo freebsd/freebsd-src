@@ -52,7 +52,7 @@
  */
 
 /*
- * Portions Copyright (c) 1996 by Internet Software Consortium.
+ * Portions Copyright (c) 1996-1999 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -69,8 +69,8 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)res_mkquery.c	8.1 (Berkeley) 6/4/93";
-static char rcsid[] = "$Id: res_mkquery.c,v 8.9 1997/04/24 22:22:36 vixie Exp $";
+static const char sccsid[] = "@(#)res_mkquery.c	8.1 (Berkeley) 6/4/93";
+static const char rcsid[] = "$Id: res_mkquery.c,v 8.12 1999/10/13 16:39:40 vixie Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include "port_before.h"
@@ -87,34 +87,32 @@ static char rcsid[] = "$Id: res_mkquery.c,v 8.9 1997/04/24 22:22:36 vixie Exp $"
 /* Options.  Leave them on. */
 #define DEBUG
 
+extern const char *_res_opcodes[];
+
 /*
  * Form all types of queries.
  * Returns the size of the result or -1.
  */
 int
-res_mkquery(op, dname, class, type, data, datalen, newrr_in, buf, buflen)
-	int op;			/* opcode of query */
-	const char *dname;	/* domain name */
-	int class, type;	/* class and type of query */
-	const u_char *data;	/* resource record data */
-	int datalen;		/* length of data */
-	const u_char *newrr_in;	/* new rr for modify or append */
-	u_char *buf;		/* buffer to put query */
-	int buflen;		/* size of buffer */
+res_nmkquery(res_state statp,
+	     int op,			/* opcode of query */
+	     const char *dname,		/* domain name */
+	     int class, int type,	/* class and type of query */
+	     const u_char *data,	/* resource record data */
+	     int datalen,		/* length of data */
+	     const u_char *newrr_in,	/* new rr for modify or append */
+	     u_char *buf,		/* buffer to put query */
+	     int buflen)		/* size of buffer */
 {
 	register HEADER *hp;
 	register u_char *cp;
 	register int n;
 	u_char *dnptrs[20], **dpp, **lastdnptr;
 
-	if ((_res.options & RES_INIT) == 0 && res_init() == -1) {
-		h_errno = NETDB_INTERNAL;
-		return (-1);
-	}
 #ifdef DEBUG
-	if (_res.options & RES_DEBUG)
-		printf(";; res_mkquery(%d, %s, %d, %d)\n",
-		       op, dname, class, type);
+	if (statp->options & RES_DEBUG)
+		printf(";; res_nmkquery(%s, %s, %s, %s)\n",
+		       _res_opcodes[op], dname, p_class(class), p_type(type));
 #endif
 	/*
 	 * Initialize header fields.
@@ -123,9 +121,9 @@ res_mkquery(op, dname, class, type, data, datalen, newrr_in, buf, buflen)
 		return (-1);
 	memset(buf, 0, HFIXEDSZ);
 	hp = (HEADER *) buf;
-	hp->id = htons(++_res.id);
+	hp->id = htons(++statp->id);
 	hp->opcode = op;
-	hp->rd = (_res.options & RES_RECURSE) != 0;
+	hp->rd = (statp->options & RES_RECURSE) != 0;
 	hp->rcode = NOERROR;
 	cp = buf + HFIXEDSZ;
 	buflen -= HFIXEDSZ;

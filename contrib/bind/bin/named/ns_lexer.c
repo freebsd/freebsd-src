@@ -1,9 +1,9 @@
 #if !defined(lint) && !defined(SABER)
-static char rcsid[] = "$Id: ns_lexer.c,v 8.12 1997/12/04 08:11:52 halley Exp $";
+static const char rcsid[] = "$Id: ns_lexer.c,v 8.19 1999/10/13 16:39:08 vixie Exp $";
 #endif /* not lint */
 
 /*
- * Copyright (c) 1996, 1997 by Internet Software Consortium.
+ * Copyright (c) 1996-1999 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -22,6 +22,8 @@ static char rcsid[] = "$Id: ns_lexer.c,v 8.12 1997/12/04 08:11:52 halley Exp $";
 #include "port_before.h"
 
 #include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/un.h>
 
 #include <netinet/in.h>
 #include <arpa/nameser.h>
@@ -52,6 +54,7 @@ typedef enum lexer_state {
 } LexerState;
 
 #define LEX_EOF			0x01
+#define LEXER_MAX_PUSHBACK	2
 
 typedef struct lexer_file_context {
 	const char *	name;
@@ -61,6 +64,8 @@ typedef struct lexer_file_context {
 	u_int		flags;
         int		warnings;
         int		errors;
+	u_int		pushback_count;
+	char		pushback[LEXER_MAX_PUSHBACK];
 	struct lexer_file_context *
 			next;
 } *LexerFileContext;
@@ -216,21 +221,29 @@ static struct keyword keywords[] = {
 	{"acl", T_ACL}, 
 	{"address", T_ADDRESS},
 	{"algorithm", T_ALGID},
+	{"allow", T_ALLOW},
 	{"allow-query", T_ALLOW_QUERY}, 
+	{"allow-recursion", T_ALLOW_RECURSION},
 	{"allow-transfer", T_ALLOW_TRANSFER},
 	{"allow-update", T_ALLOW_UPDATE},
+#ifdef BIND_NOTIFY
 	{"also-notify", T_ALSO_NOTIFY},
+#endif
 	{"auth-nxdomain", T_AUTH_NXDOMAIN},
+	{"blackhole", T_BLACKHOLE},
 	{"bogus", T_BOGUS},
 	{"category", T_CATEGORY},
+	{"class", T_CLASS},
 	{"channel", T_CHANNEL},
 	{"check-names", T_CHECK_NAMES},
 	{"cleaning-interval", T_CLEAN_INTERVAL},
+	{"controls", T_CONTROLS},
 	{"coresize", T_CORESIZE},
 	{"datasize", T_DATASIZE},
 	{"deallocate-on-exit", T_DEALLOC_ON_EXIT},
 	{"debug", T_DEBUG},
 	{"default", T_DEFAULT},
+	{"dialup", T_DIALUP},
 	{"directory", T_DIRECTORY}, 
 	{"dump-file", T_DUMP_FILE},
 	{"dynamic", T_DYNAMIC},
@@ -243,47 +256,70 @@ static struct keyword keywords[] = {
 	{"first", T_FIRST}, 
 	{"forward", T_FORWARD},
 	{"forwarders", T_FORWARDERS},
+	{"group", T_GROUP},
+	{"has-old-clients", T_HAS_OLD_CLIENTS},
+	{"heartbeat-interval", T_HEARTBEAT},
 	{"hint", T_HINT},
 	{"host-statistics", T_HOSTSTATS},
 	{"if-no-answer", T_IF_NO_ANSWER},
 	{"if-no-domain", T_IF_NO_DOMAIN},
 	{"ignore", T_IGNORE},
 	{"include", T_INCLUDE},
+	{"inet", T_INET},
 	{"interface-interval", T_INTERFACE_INTERVAL},
+	{"ixfr-base", T_FILE_IXFR},
+	{"ixfr-tmp-file", T_IXFR_TMP},
 	{"key", T_SEC_KEY},
 	{"keys", T_KEYS},
+	{"lame-ttl", T_LAME_TTL},
 	{"listen-on", T_LISTEN_ON},
 	{"logging", T_LOGGING},
+	{"maintain-ixfr-base", T_MAINTAIN_IXFR_BASE},
 	{"many-answers", T_MANY_ANSWERS},
 	{"master", T_MASTER},
 	{"masters", T_MASTERS},
+	{"max-ixfr-log-size", T_MAX_LOG_SIZE_IXFR},
+	{"max-ncache-ttl", T_MAX_NCACHE_TTL},
 	{"max-transfer-time-in", T_MAX_TRANSFER_TIME_IN},
 	{"memstatistics-file", T_MEMSTATS_FILE},
+	{"min-roots", T_MIN_ROOTS},
 	{"multiple-cnames", T_MULTIPLE_CNAMES},
+	{"name", T_NAME},
 	{"named-xfer", T_NAMED_XFER},
 	{"no", T_NO},
+#ifdef BIND_NOTIFY
 	{"notify", T_NOTIFY},
+#endif
 	{"null", T_NULL_OUTPUT},
 	{"one-answer", T_ONE_ANSWER},
 	{"only", T_ONLY},
+	{"order", T_ORDER},
 	{"options", T_OPTIONS},
+	{"owner", T_OWNER},
+	{"perm", T_PERM},
 	{"pid-file", T_PIDFILE},
 	{"port", T_PORT},
 	{"print-category", T_PRINT_CATEGORY},
 	{"print-severity", T_PRINT_SEVERITY},
 	{"print-time", T_PRINT_TIME},
+	{"pubkey", T_PUBKEY},
 	{"query-source", T_QUERY_SOURCE},
+	{"rfc2308-type1", T_RFC2308_TYPE1},
+	{"rrset-order", T_RRSET_ORDER},
 	{"recursion", T_RECURSION},
 	{"response", T_RESPONSE},
 	{"secret", T_SECRET},
+	{"serial-queries", T_SERIAL_QUERIES},
 	{"server", T_SERVER}, 
 	{"severity", T_SEVERITY}, 
 	{"size", T_SIZE}, 
 	{"slave", T_SLAVE},
+	{"sortlist", T_SORTLIST},
 	{"stacksize", T_STACKSIZE},
 	{"statistics-file", T_STATS_FILE},
 	{"statistics-interval", T_STATS_INTERVAL},
 	{"stub", T_STUB},
+	{"support-ixfr", T_SUPPORT_IXFR},
 	{"syslog", T_SYSLOG}, 
 	{"topology", T_TOPOLOGY},
 	{"transfer-format", T_TRANSFER_FORMAT}, 
@@ -292,9 +328,15 @@ static struct keyword keywords[] = {
 	{"transfers-in", T_TRANSFERS_IN}, 
 	{"transfers-out", T_TRANSFERS_OUT}, 
 	{"transfers-per-ns", T_TRANSFERS_PER_NS}, 
+	{"treat-cr-as-space", T_TREAT_CR_AS_SPACE},
 	{"true", T_TRUE}, 
+	{"trusted-keys", T_TRUSTED_KEYS},
 	{"type", T_TYPE},
+	{"unix", T_UNIX},
 	{"unlimited", T_UNLIMITED},
+	{"use-id-pool", T_USE_ID_POOL},
+	{"use-ixfr", T_USE_IXFR},
+	{"version", T_VERSION},
 	{"versions", T_VERSIONS}, 
 	{"warn", T_WARN},
 	{"yes", T_YES}, 
@@ -351,6 +393,7 @@ lexer_begin_file(const char *filename, FILE *stream) {
 	lf->flags = 0;
 	lf->warnings = 0;
 	lf->errors = 0;
+	lf->pushback_count = 0;
 	lf->next = current_file;
 	current_file = lf;
 }
@@ -370,14 +413,29 @@ lexer_end_file(void) {
  * Character Input
  */
 
+#define LEXER_GETC(c, cf) \
+	do { \
+		if ((cf)->pushback_count > 0) { \
+			(cf)->pushback_count--; \
+			(c) = (cf)->pushback[(cf)->pushback_count]; \
+		} else \
+			(c) = getc((cf)->stream); \
+	} while (0);
+
+#define LEXER_UNGETC(c, cf) \
+	do { \
+		INSIST((cf)->pushback_count < LEXER_MAX_PUSHBACK); \
+		(cf)->pushback[(cf)->pushback_count++] = (c); \
+	} while (0);
+
 static void
 scan_to_comment_end(int c_plus_plus_style) {
-	int c, nc;
+	int c;
 	int done = 0;
 	int prev_was_star = 0;
 
 	while (!done) {
-		c = getc(current_file->stream);
+		LEXER_GETC(c, current_file);
 		switch (c) {
 		case EOF:
 			if (!c_plus_plus_style)
@@ -399,7 +457,7 @@ scan_to_comment_end(int c_plus_plus_style) {
 				   we want it to be a delimiter for
 				   anything before the comment
 				   started */
-				ungetc(c, current_file->stream);
+				LEXER_UNGETC(c, current_file);
 				done = 1;
 			} else {
 				current_file->line_number++;
@@ -419,7 +477,7 @@ get_next_char(int comment_ok) {
 	if (current_file->flags & LEX_EOF)
 		return (EOF);
 
-	c = getc(current_file->stream);
+	LEXER_GETC(c, current_file);
 
 	if (comment_ok) {
 		while (c == '/' || c == '#') {
@@ -427,9 +485,9 @@ get_next_char(int comment_ok) {
 				scan_to_comment_end(1);
 				if (current_file->flags & LEX_EOF)
 					return (EOF);
-				c = getc(current_file->stream);
+				LEXER_GETC(c, current_file);
 			} else {
-				nc = getc(current_file->stream);
+				LEXER_GETC(nc, current_file);
 				switch (nc) {
 				case EOF:
 					current_file->flags |= LEX_EOF;
@@ -439,10 +497,10 @@ get_next_char(int comment_ok) {
 					scan_to_comment_end((nc == '/'));
 					if (current_file->flags & LEX_EOF)
 						return (EOF);
-					c = getc(current_file->stream);
+					LEXER_GETC(c, current_file);
 					break;
 				default:
-					ungetc((nc), current_file->stream);
+					LEXER_UNGETC(nc, current_file);
 					return ('/');
 				}
 			}
@@ -461,7 +519,7 @@ put_back_char(int c) {
 	if (c == EOF)
 		current_file->flags |= LEX_EOF;
 	else {
-		ungetc((c), current_file->stream);
+		LEXER_UNGETC(c, current_file);
 		if (c == '\n')
 			current_file->line_number--;
 	}
@@ -504,7 +562,7 @@ add_to_identifier(LexerIdentifier id, int c) {
 		parser_error(0, "identifier too long");
 		current_file->state = scan;
 		/* discard chars until we hit a non-identifier char */
-		while (identifier_char(c)) {
+		while (c != EOF && identifier_char(c)) {
 			c = get_next_char(1);
 		}
 		put_back_char(c);
@@ -526,7 +584,7 @@ add_to_identifier(LexerIdentifier id, int c) {
  */
 int
 yylex() {
-	int c, i;
+	int c;
 	int comment_ok = 1;
 	int token = -1;
 	symbol_value value;
@@ -581,7 +639,7 @@ yylex() {
 			break;
 
 		case number:
-			if (identifier_char(c)) {
+			if (c != EOF && identifier_char(c)) {
 				if (!isdigit(c))
 					current_file->state =
 						(c == '.') ? ipv4 : identifier;
@@ -590,13 +648,13 @@ yylex() {
 				put_back_char(c);
 				current_file->state = scan;
 				finish_identifier(id);
-				yylval.num = atoi(id->buffer);
+				yylval.num = strtol(id->buffer, (char**)0, 0);
 				token = L_NUMBER;
 			}
 			break;
 
 		case identifier:
-			if (identifier_char(c)) {
+			if (c != EOF && identifier_char(c)) {
 				add_to_identifier(id, c);
 			} else {
 				put_back_char(c);
@@ -615,7 +673,7 @@ yylex() {
 			break;
 
 		case ipv4:
-			if (identifier_char(c)) {
+			if (c != EOF && identifier_char(c)) {
 				if (!isdigit(c)) {
 					if (c != '.' ||
 					    (id->flags & LEX_CONSECUTIVE_DOTS))
@@ -725,7 +783,7 @@ lexer_initialize() {
 	special_chars['*'] = 1;
 	id = (LexerIdentifier)memget(sizeof (struct lexer_identifier));
 	if (id == NULL)
-		panic("memget failed in init_once", NULL);
+		panic("memget failed in lexer_initialize", NULL);
 	init_keywords();
 	import_all_constants();
 	lexer_initialized = 1;
@@ -746,5 +804,6 @@ lexer_shutdown(void) {
 	free_symbol_table(keyword_table);
 	free_symbol_table(constants);
 	memput(id, sizeof (struct lexer_identifier));
+	id = NULL;
 	lexer_initialized = 0;
 }

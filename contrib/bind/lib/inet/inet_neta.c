@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996 by Internet Software Consortium.
+ * Copyright (c) 1996,1999 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -16,7 +16,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: inet_neta.c,v 1.5 1997/09/26 17:56:01 halley Exp $";
+static const char rcsid[] = "$Id: inet_neta.c,v 1.6 1999/01/08 19:23:45 vixie Exp $";
 #endif
 
 #include "port_before.h"

@@ -1,4 +1,4 @@
-## Copyright (c) 1996 by Internet Software Consortium
+## Copyright (c) 1996,1999 by Internet Software Consortium
 ##
 ## Permission to use, copy, modify, and distribute this software for any
 ## purpose with or without fee is hereby granted, provided that the above
@@ -13,7 +13,7 @@
 ## ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 ## SOFTWARE.
 
-# $Id: Makefile,v 8.19 1997/06/19 03:22:07 halley Exp $
+# $Id: Makefile,v 8.25 1999/08/08 17:51:01 vixie Exp $
 
 DESTDIR=
 CC= cc
@@ -29,15 +29,17 @@ PORTINCL = ${TOP}/port/${SYSTYPE}/include
 LIBBIND = ${TOP}/lib/libbind.a
 A=a
 O=o
+EXE=
 LEX = lex -I
 SYSLIBS = -ll -lutil
-PIDDIR = /var/run
 DESTBIN = /usr/local/bin
 DESTSBIN = /usr/local/sbin
 DESTEXEC = /usr/local/libexec
 DESTMAN = /usr/share/man
 DESTHELP= /usr/share/misc
 STRIP=-s
+INSTALL_EXEC=
+INSTALL_LIB=-o bin -g bin
 
 LDFLAGS=
 CFLAGS=	${CDEBUG} -I${PORTINCL} -I${INCL}
@@ -50,26 +52,29 @@ PROG= dig
 SRCS= ${PROG}.c
 OBJS= ${PROG}.${O} 
 
-all: ${PROG}
+all: ${PROG}${EXE}
 
-${PROG}: ${OBJS} ${NSLOOKUP_OBJS} ${LIBBIND} Makefile
-	${CC} ${CDEBUG} ${LDFLAGS} -o ${PROG} ${OBJS} ${NSLOOKUP_OBJS} \
-		${LIBBIND} ${SYSLIBS}
+${PROG}${EXE}: ${OBJS} ${NSLOOKUP_OBJS} ${LIBBIND} Makefile
+	${CC} ${CDEBUG} ${LDFLAGS} ${BOUNDS} -o ${PROG}${EXE} ${OBJS} \
+		${NSLOOKUP_OBJS} ${LIBBIND} ${SYSLIBS}
+
+.c.${O}:
+	${CC} ${CPPFLAGS} ${CFLAGS} ${BOUNDS} -c $*.c
 
 distclean: clean
 
 clean: FRC
-	rm -f ${PROG} ${OBJS} core .depend
+	rm -f ${PROG}${EXE} ${OBJS} core .depend
 	rm -f *.BAK *.CKP *~ *.orig
 
 depend: ${SRCS}
-	mkdep -p ${CPPFLAGS} -I${INCL} -I${PORTINCL} ${SRCS}
+	mkdep ${CPPFLAGS} -I${INCL} -I${PORTINCL} ${SRCS}
 
 ${DESTDIR}${DESTBIN}:
 	mkdir -p ${DESTDIR}${DESTBIN}
 
-install: ${DESTDIR}${DESTBIN} ${PROG}
-	${INSTALL} ${STRIP} -c -m 755 ${PROG} ${DESTDIR}${DESTBIN}/${PROG}
+install: ${DESTDIR}${DESTBIN} ${PROG}${EXE}
+	${INSTALL} ${STRIP} -c ${INSTALL_EXEC} -m 755 ${PROG}${EXE} ${DESTDIR}${DESTBIN}/${PROG}${EXE}
 
 links: FRC
 	@set -e; ln -s SRC/*.[ch] .

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996 by Internet Software Consortium.
+ * Copyright (c) 1996,1999 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -16,7 +16,7 @@
  */
 
 #if !defined(LINT) && !defined(CODECENTER)
-static char rcsid[] = "$Id: gen_sv.c,v 1.8 1997/12/04 04:57:52 halley Exp $";
+static const char rcsid[] = "$Id: gen_sv.c,v 1.12 1999/10/13 16:39:30 vixie Exp $";
 #endif
 
 /* Imports */
@@ -24,11 +24,15 @@ static char rcsid[] = "$Id: gen_sv.c,v 1.8 1997/12/04 04:57:52 halley Exp $";
 #include "port_before.h"
 
 #include <sys/types.h>
+#include <netinet/in.h>
+#include <arpa/nameser.h>
+#include <resolv.h>
 
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include <isc/memcluster.h>
 #include <irs.h>
 
 #include "port_after.h"
@@ -41,6 +45,8 @@ static char rcsid[] = "$Id: gen_sv.c,v 1.8 1997/12/04 04:57:52 halley Exp $";
 struct pvt {
 	struct irs_rule *	rules;
 	struct irs_rule *	rule;
+	struct __res_state *	res;
+	void			(*free_res)(void *);
 };
 
 /* Forward */
@@ -52,6 +58,10 @@ static struct servent *		sv_byname(struct irs_sv *, const char *,
 static struct servent *		sv_byport(struct irs_sv *, int, const char *);
 static void			sv_rewind(struct irs_sv *);
 static void			sv_minimize(struct irs_sv *);
+static struct __res_state *	sv_res_get(struct irs_sv *);
+static void			sv_res_set(struct irs_sv *,
+					      struct __res_state *,
+					      void (*)(void *));
 
 /* Public */
 
@@ -61,13 +71,13 @@ irs_gen_sv(struct irs_acc *this) {
 	struct irs_sv *sv;
 	struct pvt *pvt;
 
-	if (!(sv = (struct irs_sv *)malloc(sizeof *sv))) {
+	if (!(sv = memget(sizeof *sv))) {
 		errno = ENOMEM;
 		return (NULL);
 	}
 	memset(sv, 0x5e, sizeof *sv);
-	if (!(pvt = (struct pvt *)malloc(sizeof *pvt))) {
-		free(sv);
+	if (!(pvt = memget(sizeof *pvt))) {
+		memput(sv, sizeof *sv);
 		errno = ENOMEM;
 		return (NULL);
 	}
@@ -81,6 +91,8 @@ irs_gen_sv(struct irs_acc *this) {
 	sv->byport = sv_byport;
 	sv->rewind = sv_rewind;
 	sv->minimize = sv_minimize;
+	sv->res_get = sv_res_get;
+	sv->res_set = sv_res_set;
 	return (sv);
 }
 
@@ -90,8 +102,8 @@ static void
 sv_close(struct irs_sv *this) {
 	struct pvt *pvt = (struct pvt *)this->private;
 	
-	free(pvt);
-	free(this);
+	memput(pvt, sizeof *pvt);
+	memput(this, sizeof *this);
 }
 
 static struct servent *
@@ -171,5 +183,45 @@ sv_minimize(struct irs_sv *this) {
 		struct irs_sv *sv = rule->inst->sv;
 
 		(*sv->minimize)(sv);
+	}
+}
+
+static struct __res_state *
+sv_res_get(struct irs_sv *this) {
+	struct pvt *pvt = (struct pvt *)this->private;
+
+	if (!pvt->res) {
+		struct __res_state *res;
+		res = (struct __res_state *)malloc(sizeof *res);
+		if (!res) {
+			errno = ENOMEM;
+			return (NULL);
+		}
+		memset(res, 0, sizeof *res);
+		sv_res_set(this, res, free);
+	}
+
+	return (pvt->res);
+}
+
+static void
+sv_res_set(struct irs_sv *this, struct __res_state *res,
+		void (*free_res)(void *)) {
+	struct pvt *pvt = (struct pvt *)this->private;
+	struct irs_rule *rule;
+
+	if (pvt->res && pvt->free_res) {
+		res_nclose(pvt->res);
+		(*pvt->free_res)(pvt->res);
+	}
+
+	pvt->res = res;
+	pvt->free_res = free_res;
+
+	for (rule = pvt->rules; rule != NULL; rule = rule->next) {
+		struct irs_sv *sv = rule->inst->sv;
+
+		if (sv->res_set)
+			(*sv->res_set)(sv, pvt->res, NULL);
 	}
 }

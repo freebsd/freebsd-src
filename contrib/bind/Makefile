@@ -1,4 +1,4 @@
-## Copyright (c) 1996 by Internet Software Consortium.
+## Copyright (c) 1996,1999 by Internet Software Consortium.
 ##
 ## Permission to use, copy, modify, and distribute this software for any
 ## purpose with or without fee is hereby granted, provided that the above
@@ -13,12 +13,14 @@
 ## ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 ## SOFTWARE.
 
-# $Id: Makefile,v 8.46 1998/01/28 23:42:06 halley Exp $
+# $Id: Makefile,v 8.51 1999/11/06 03:24:02 vixie Exp $
 
 TOP=
 SUBDIRS= include port lib bin
 
 SH=sh
+
+default: all
 
 all clean depend install distclean:: FRC
 	@set -e; \
@@ -46,7 +48,7 @@ links: FRC
 	@set -e; mkdir ${DST}; cd ${DST}; pwd; ln -s ${SRC} SRC; \
 	ln -s SRC/Version .; cp SRC/Makefile .; chmod +w Makefile; \
 	systype=`${SH} SRC/port/systype`; \
-	for x in ${SUBDIRS}; do \
+	for x in ${SUBDIRS} ; do \
 		( mkdir $$x; cd $$x; pwd; ln -s ../SRC/$$x SRC; \
 		  cp SRC/Makefile Makefile; chmod +w Makefile; \
 		  ${MAKE} ${MARGS} SYSTYPE=$$systype links; \
@@ -61,6 +63,6 @@ stdlinks: FRC
 
 uplinks: FRC
 	@set -e; systype=`${SH} ${TOP}port/systype`; pwd=`pwd`; \
-	${MAKE} ${MARGS} SRC=$$pwd "DST=`dirname $$pwd`/$$systype" links
+	${MAKE} ${MARGS} SRC=../`basename $$pwd` "DST=../$$systype" links
 
 FRC:

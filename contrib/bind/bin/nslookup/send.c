@@ -52,8 +52,8 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)send.c	5.18 (Berkeley) 3/2/91";
-static char rcsid[] = "$Id: send.c,v 8.6 1997/05/21 19:49:58 halley Exp $";
+static const char sccsid[] = "@(#)send.c	5.18 (Berkeley) 3/2/91";
+static const char rcsid[] = "$Id: send.c,v 8.9 1999/10/13 16:39:19 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -94,18 +94,6 @@ static char rcsid[] = "$Id: send.c,v 8.6 1997/05/21 19:49:58 halley Exp $";
 #include "res.h"
 
 static int s = -1;	/* socket used for communications */
-
-
-#ifndef FD_SET
-#define	NFDBITS		32
-#define	FD_SETSIZE	32
-#define	FD_SET(n, p)	((p)->fds_bits[(n)/NFDBITS] |= (1 << ((n) % NFDBITS)))
-#define	FD_CLR(n, p)	((p)->fds_bits[(n)/NFDBITS] &= ~(1 << ((n) % NFDBITS)))
-#define	FD_ISSET(n, p)	((p)->fds_bits[(n)/NFDBITS] & (1 << ((n) % NFDBITS)))
-#define FD_ZERO(p)	memset((p), 0, sizeof(*(p)))
-#endif
-
-
 
 unsigned short nsport = NAMESERVER_PORT;
 
@@ -148,19 +136,19 @@ SendRequest(struct in_addr *nsAddrPtr, const u_char *buf, int buflen,
 	char junk[512];
 	struct sockaddr_in sin, sa;
 
-	if (_res.options & RES_DEBUG2) {
+	if (res.options & RES_DEBUG2) {
 	    printf("------------\nSendRequest(), len %d\n", buflen);
 	    Print_query(buf, buf + buflen, 1);
 	}
 	sin.sin_family	= AF_INET;
 	sin.sin_port	= htons(nsport);
 	sin.sin_addr	= *nsAddrPtr;
-	v_circuit = (_res.options & RES_USEVC) || buflen > PACKETSZ;
+	v_circuit = (res.options & RES_USEVC) || buflen > PACKETSZ;
 	id = hp->id;
 	/*
 	 * Send request, RETRY times, or until successful
 	 */
-	for (try = 0; try < _res.retry; try++) {
+	for (try = 0; try < res.retry; try++) {
 	usevc:
 		if (v_circuit) {
 			int truncated = 0;
@@ -169,19 +157,19 @@ SendRequest(struct in_addr *nsAddrPtr, const u_char *buf, int buflen,
 			 * Use virtual circuit;
 			 * at most one attempt per server.
 			 */
-			try = _res.retry;
+			try = res.retry;
 			if (s < 0) {
 				s = socket(AF_INET, SOCK_STREAM, 0);
 				if (s < 0) {
 					terrno = errno;
-					if (_res.options & RES_DEBUG)
+					if (res.options & RES_DEBUG)
 					    perror("socket (vc) failed");
 					continue;
 				}
 				if (connect(s, (struct sockaddr *)&sin,
 				   sizeof(struct sockaddr)) < 0) {
 					terrno = errno;
-					if (_res.options & RES_DEBUG)
+					if (res.options & RES_DEBUG)
 					    perror("connect failed");
 					(void) close(s);
 					s = -1;
@@ -198,7 +186,7 @@ SendRequest(struct in_addr *nsAddrPtr, const u_char *buf, int buflen,
 			iov[1].iov_len = buflen;
 			if (writev(s, iov, 2) != INT16SZ + buflen) {
 				terrno = errno;
-				if (_res.options & RES_DEBUG)
+				if (res.options & RES_DEBUG)
 					perror("write failed");
 				(void) close(s);
 				s = -1;
@@ -216,7 +204,7 @@ SendRequest(struct in_addr *nsAddrPtr, const u_char *buf, int buflen,
 			}
 			if (n <= 0) {
 				terrno = errno;
-				if (_res.options & RES_DEBUG)
+				if (res.options & RES_DEBUG)
 					perror("read failed");
 				(void) close(s);
 				s = -1;
@@ -236,7 +224,7 @@ SendRequest(struct in_addr *nsAddrPtr, const u_char *buf, int buflen,
 			}
 			cp = answer;
 			if ((resplen = ns_get16((u_char*)cp)) > anslen) {
-				if (_res.options & RES_DEBUG)
+				if (res.options & RES_DEBUG)
 					fprintf(stderr, "response truncated\n");
 				len = anslen;
 				truncated = 1;
@@ -249,7 +237,7 @@ SendRequest(struct in_addr *nsAddrPtr, const u_char *buf, int buflen,
 			}
 			if (n <= 0) {
 				terrno = errno;
-				if (_res.options & RES_DEBUG)
+				if (res.options & RES_DEBUG)
 					perror("read failed");
 				(void) close(s);
 				s = -1;
@@ -279,7 +267,7 @@ SendRequest(struct in_addr *nsAddrPtr, const u_char *buf, int buflen,
 				s = socket(AF_INET, SOCK_DGRAM, 0);
 				if (s < 0) {
 					terrno = errno;
-					if (_res.options & RES_DEBUG)
+					if (res.options & RES_DEBUG)
 					    perror("socket (dg) failed");
 					continue;
 				}
@@ -288,14 +276,14 @@ SendRequest(struct in_addr *nsAddrPtr, const u_char *buf, int buflen,
 			if (connected == 0) {
 				if (connect(s, (struct sockaddr *)&sin,
 				    sizeof sin) < 0) {
-					if (_res.options & RES_DEBUG)
+					if (res.options & RES_DEBUG)
 						perror("connect");
 					continue;
 				}
 				connected = 1;
 			}
 			if (send(s, buf, buflen, 0) != buflen) {
-				if (_res.options & RES_DEBUG)
+				if (res.options & RES_DEBUG)
 					perror("send");
 				continue;
 			}
@@ -303,7 +291,7 @@ SendRequest(struct in_addr *nsAddrPtr, const u_char *buf, int buflen,
 			if (sendto(s, (const char *)buf, buflen, 0,
 				   (struct sockaddr *) &sin,
 				   sizeof sin) != buflen) {
-				if (_res.options & RES_DEBUG)
+				if (res.options & RES_DEBUG)
 					perror("sendto");
 				continue;
 			}
@@ -312,7 +300,7 @@ SendRequest(struct in_addr *nsAddrPtr, const u_char *buf, int buflen,
 			/*
 			 * Wait for reply
 			 */
-			timeout.tv_sec = (_res.retrans << try);
+			timeout.tv_sec = (res.retrans << try);
 			if (timeout.tv_sec <= 0)
 				timeout.tv_sec = 1;
 			timeout.tv_usec = 0;
@@ -322,7 +310,7 @@ SendRequest(struct in_addr *nsAddrPtr, const u_char *buf, int buflen,
 			n = select(s+1, &dsmask, (fd_set *)NULL,
 				(fd_set *)NULL, &timeout);
 			if (n < 0) {
-				if (_res.options & RES_DEBUG)
+				if (res.options & RES_DEBUG)
 					perror("select");
 				continue;
 			}
@@ -330,7 +318,7 @@ SendRequest(struct in_addr *nsAddrPtr, const u_char *buf, int buflen,
 				/*
 				 * timeout
 				 */
-				if (_res.options & RES_DEBUG)
+				if (res.options & RES_DEBUG)
 					printf("timeout\n");
 #if BSD >= 43
 				gotsomewhere = 1;
@@ -342,7 +330,7 @@ SendRequest(struct in_addr *nsAddrPtr, const u_char *buf, int buflen,
 			resplen = recvfrom(s, (char *)answer, anslen, 0,
 					   (struct sockaddr *)&sa, &salen);
 			if (resplen <= 0) {
-				if (_res.options & RES_DEBUG)
+				if (res.options & RES_DEBUG)
 					perror("recvfrom");
 				continue;
 			}
@@ -351,18 +339,18 @@ SendRequest(struct in_addr *nsAddrPtr, const u_char *buf, int buflen,
 				/*
 				 * response from old query, ignore it
 				 */
-				if (_res.options & RES_DEBUG2) {
+				if (res.options & RES_DEBUG2) {
 					printf("------------\nOld answer:\n");
 					Print_query(answer, answer+resplen, 1);
 				}
 				goto wait;
 			}
-			if (!(_res.options & RES_IGNTC) && anhp->tc) {
+			if (!(res.options & RES_IGNTC) && anhp->tc) {
 				/*
 				 * get rest of answer;
 				 * use TCP with same server.
 				 */
-				if (_res.options & RES_DEBUG)
+				if (res.options & RES_DEBUG)
 					printf("truncated answer\n");
 				(void) close(s);
 				s = -1;
@@ -370,8 +358,8 @@ SendRequest(struct in_addr *nsAddrPtr, const u_char *buf, int buflen,
 				goto usevc;
 			}
 		}
-		if (_res.options & RES_DEBUG) {
-		    if (_res.options & RES_DEBUG2)
+		if (res.options & RES_DEBUG) {
+		    if (res.options & RES_DEBUG2)
 			printf("------------\nGot answer (%d bytes):\n",
 			    resplen);
 		    else

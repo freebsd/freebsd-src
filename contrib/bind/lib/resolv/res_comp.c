@@ -52,7 +52,7 @@
  */
 
 /*
- * Portions Copyright (c) 1996 by Internet Software Consortium.
+ * Portions Copyright (c) 1996-1999 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -69,8 +69,8 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)res_comp.c	8.1 (Berkeley) 6/4/93";
-static char rcsid[] = "$Id: res_comp.c,v 8.11 1997/05/21 19:31:04 halley Exp $";
+static const char sccsid[] = "@(#)res_comp.c	8.1 (Berkeley) 6/4/93";
+static const char rcsid[] = "$Id: res_comp.c,v 8.15 1999/10/13 16:39:39 vixie Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include "port_before.h"
@@ -244,6 +244,8 @@ res_dnok(const char *dn) {
  */
 void __putlong(u_int32_t src, u_char *dst) { ns_put32(src, dst); }
 void __putshort(u_int16_t src, u_char *dst) { ns_put16(src, dst); }
+#ifndef __ultrix__
 u_int32_t _getlong(const u_char *src) { return (ns_get32(src)); }
 u_int16_t _getshort(const u_char *src) { return (ns_get16(src)); }
+#endif /*__ultrix__*/
 #endif /*BIND_4_COMPAT*/

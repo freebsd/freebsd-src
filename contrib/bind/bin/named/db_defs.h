@@ -1,9 +1,10 @@
 /*
  *	from db.h	4.16 (Berkeley) 6/1/90
- *	$Id: db_defs.h,v 8.17 1998/02/17 17:17:43 vixie Exp $
+ *	$Id: db_defs.h,v 8.36 1999/08/26 18:42:32 vixie Exp $
  */
 
-/* Copyright (c) 1985, 1990
+/*
+ * Copyright (c) 1985, 1990
  *    The Regents of the University of California.  All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
@@ -35,7 +36,8 @@
  * SUCH DAMAGE.
  */
 
-/* Portions Copyright (c) 1993 by Digital Equipment Corporation.
+/*
+ * Portions Copyright (c) 1993 by Digital Equipment Corporation.
  * 
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -54,7 +56,8 @@
  * SOFTWARE.
  */
 
-/* Portions Copyright (c) 1996, 1997 by Internet Software Consortium.
+/*
+ * Portions Copyright (c) 1996-1999 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -74,11 +77,11 @@
  * Global definitions for data base routines.
  */
 
-#define INVBLKSZ	7	/* # of namebuf pointers per block */
-#define INVHASHSZ	919	/* size of inverse hash table */
-
 	/* max length of data in RR data field */
 #define MAXDATA		(2*MAXDNAME + 5*INT32SZ)
+
+	/* max length of data in a TXT RR segment */
+#define MAXCHARSTRING 255
 
 #define DB_ROOT_TIMBUF	3600
 #define TIMBUF		300
@@ -86,6 +89,16 @@
 #define	DICT_INDEXBITS	24
 #define	DICT_MAXLENGTH	127
 #define	DICT_INSERT_P	0x0001
+
+/* Average hash chain depths. */
+#define	AVGCH_MARSHAL	5
+#define	AVGCH_NLOOKUP	3
+
+/* Nonstandard maximum class to force better packing. */
+#define	ZONE_BITS	24
+#define	CLASS_BITS	8
+#define	ZONE_MAX	((1<<ZONE_BITS)-1)
+#define	CLASS_MAX	((1<<CLASS_BITS)-1)
 
 /*
  * Hash table structures.
@@ -101,17 +114,18 @@ struct databuf {
 					 * primary and secondary zones),
 					 * d_ttl is the time to live.
 					 */
-	unsigned	d_flags :7;	/* see below */
+	unsigned	d_zone :ZONE_BITS; /* zone number or 0 for the cache */
+	unsigned	d_class :CLASS_BITS; /* class number (nonstandard limit) */
+	unsigned	d_flags :4;	/* DB_F_{??????} */
+	unsigned	d_secure :2;	/* DB_S_{??????} */
 	unsigned	d_cred :3;	/* DB_C_{??????} */
 	unsigned	d_clev :6;
-	u_int16_t	d_zone;		/* zone number or 0 for the cache */
-	int16_t		d_class;	/* class number */
+	unsigned	d_rcode :4;	/* rcode for negative caching */
+	unsigned	d_mark :3;	/* place to mark data */
 	int16_t		d_type;		/* type number */
 	int16_t		d_size;		/* size of data area */
 	u_int32_t	d_rcnt;
-	unsigned	d_rcode :4;	/* rcode for negative caching */
-	unsigned	d_mark :12;	/* place to mark data */
-	u_int16_t       d_nstime;       /* NS response time, milliseconds */
+	u_int16_t	d_nstime;	/* NS response time, milliseconds */
 	u_char		d_data[sizeof(void*)]; /* dynamic (padded) */
 };
 #define DATASIZE(n) (sizeof(struct databuf) - sizeof(void*) + n)
@@ -131,6 +145,7 @@ struct databuf {
 #define DB_F_HINT	0x01		/* databuf belongs to fcachetab */
 #define DB_F_ACTIVE	0x02		/* databuf is linked into a cache */
 #define DB_F_FREE	0x04		/* databuf has been freed */
+#define DB_F_LAME	0x08		/* databuf may refer to lame server */
 
 /*
  * d_cred definitions
@@ -140,6 +155,13 @@ struct databuf {
 #define	DB_C_ANSWER	2		/* non-authoritative answer */
 #define	DB_C_ADDITIONAL	1		/* additional data */
 #define	DB_C_CACHE	0		/* cache - worst */
+
+/*
+ * d_secure definitions
+ */
+#define	DB_S_SECURE	2		/* secure (verified) data */
+#define	DB_S_INSECURE	1		/* insecure data */
+#define	DB_S_FAILED	0		/* data that failed a security check */
 
 struct namebuf {
 	u_int		n_hashval;	/* hash value of _n_name */
@@ -162,6 +184,51 @@ struct hashbuf {
 
 #define HASHSHIFT	3
 #define HASHMASK	0x1f
+#define HASHROTATE(v) \
+	(((v) << HASHSHIFT) | ((v) >> ((sizeof(v) * 8) - HASHSHIFT)))
+#define HASHLOWER(c)	((isascii(c) && isupper(c)) ? tolower(c) : (c))
+#define HASHIMILATE(v,c) ((v) = (HASHROTATE(v)) + (HASHLOWER(c) & HASHMASK))
+
+#define TSIG_BUF_SIZE 640
+#define TSIG_SIG_SIZE 20
+
+struct tsig_record {
+	u_int8_t	sig[TSIG_SIG_SIZE];
+	struct dst_key	*key;
+	int		siglen;
+};
+
+struct sig_record {
+	u_int16_t sig_type_n;
+	u_int8_t sig_alg_n, sig_labels_n;
+	u_int32_t sig_ottl_n, sig_exp_n, sig_time_n;
+	u_int16_t sig_keyid_n;
+};
+
+/* This is the wire format size of "struct sig_record", i.e., no padding. */
+#define SIG_HDR_SIZE 18
+
+struct dnode {
+	struct databuf	*dp;
+	struct dnode	*dn_next;
+	int		line;
+	char		*file;
+};
+
+typedef struct dnode * dlist;
+
+struct db_rrset {
+	dlist		rr_list;
+	dlist		rr_sigs;
+	char		*rr_name;
+	int16_t		rr_class;
+	int16_t		rr_type;
+	struct db_rrset *rr_next;
+};
+#define DBHASHSIZE(s) (sizeof(struct hashbuf) + \
+		       (s-1) * sizeof(struct db_rrset *))
+
+#define SIG_COVERS(dp) (ns_get16(dp->d_data))
 
 /*
  * Flags to updatedb
@@ -172,6 +239,8 @@ struct hashbuf {
 #define DB_NOTAUTH	0x08	/* must not update authoritative data */
 #define DB_NOHINTS      0x10	/* don't reflect update in fcachetab */
 #define DB_PRIMING	0x20	/* is this update the result of priming? */
+#define DB_MERGE	0x40    /* make no control on rr in db_update (for ixfr) */
+#define DB_REPLACE	0x80	/* replace data if it exists */
 
 #define DB_Z_CACHE	0	/* cache-zone-only db_dump() */
 #define DB_Z_ALL	65535	/* normal db_dump() */
@@ -194,6 +263,8 @@ struct hashbuf {
 #ifdef BIND_UPDATE
 #define SERIAL		(-11)
 #endif
+#define CNAMEANDOTHER	(-12)
+#define DNSSECFAIL	(-13)	/* db_set_update */
 
 /*
  * getnum() options
@@ -203,13 +274,18 @@ struct hashbuf {
 #define GETNUM_SCALED	0x02	/* permit "k", "m" suffixes, scale result */
 
 /*
+ * db_load() options
+ */
+#define ISNOTIXFR	0
+#define ISIXFR		1
+#define ISAXFRIXFR	2
+
+/*
  * Database access abstractions.
  */
 #define	foreach_rr(dp, np, ty, cl, zn) \
 	for ((dp) = (np)->n_data; (dp) != NULL; (dp) = (dp)->d_next) \
-		if ((cl) != C_ANY && (cl) != (dp)->d_class) \
-			continue; \
-		else if ((ty) != T_ANY && (ty) != (dp)->d_type) \
+		if (!match(dp, (cl), (ty))) \
 			continue; \
 		else if (((zn) == DB_Z_CACHE) \
 			 ? stale(dp) \

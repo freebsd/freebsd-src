@@ -1,5 +1,5 @@
 #ifndef lint
-static char rcsid[] = "$Id: host.c,v 8.21 1998/03/19 19:31:25 halley Exp $";
+static const char rcsid[] = "$Id: host.c,v 8.34 1999/11/11 19:39:10 cyarnell Exp $";
 #endif /* not lint */
 
 /*
@@ -56,7 +56,7 @@ static char rcsid[] = "$Id: host.c,v 8.21 1998/03/19 19:31:25 halley Exp $";
  */
 
 /*
- * Portions Copyright (c) 1996 by Internet Software Consortium
+ * Portions Copyright (c) 1996-1999 by Internet Software Consortium
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -76,7 +76,7 @@ static char rcsid[] = "$Id: host.c,v 8.21 1998/03/19 19:31:25 halley Exp $";
 static const char copyright[] =
 "@(#) Copyright (c) 1986 Regents of the University of California.\n\
  Portions Copyright (c) 1993 Digital Equipment Corporation.\n\
- Portions Copyright (c) 1996 Internet Software Consortium.\n\
+ Portions Copyright (c) 1996-1999 Internet Software Consortium.\n\
  All rights reserved.\n";
 #endif /* not lint */
 
@@ -106,16 +106,22 @@ static const char copyright[] =
 #include <string.h>
 #include <unistd.h>
 
+#include <memory.h>
+#include <errno.h>
+#include <sys/stat.h>
+#include <isc/dst.h>
+
 #include "port_after.h"
 
-extern int h_errno;
-extern char *_res_resultcodes[];
-
 /* Global. */
+
+#define SIG_RDATA_BY_NAME	18
+#define NS_HEADERDATA_SIZE 10
 
 #define NUMNS		8
 #define NUMNSADDR	16
 #define NUMMX		50
+#define NUMRR		127   /* max rr's per node to verify signatures for */
 
 #define SUCCESS		0
 #define TIME_OUT	-1
@@ -123,10 +129,36 @@ extern char *_res_resultcodes[];
 #define ERROR 		-3
 #define NONAUTH 	-4
 
+#define MY_PACKETSZ    64*1024  /* need this to hold tcp answers */
+
 typedef union {
 	HEADER	qb1;
-	u_char	qb2[NS_PACKETSZ];
+	u_char	qb2[MY_PACKETSZ];
 } querybuf;
+
+#define SD_RR        1
+#define SD_SIG       2
+#define SD_BADSIG    4
+
+typedef struct {
+	u_char data[MY_PACKETSZ];
+	size_t len;
+} rrstruct;
+
+static char		chase_domain[NS_MAXDNAME];
+static int		chase_class;
+static int		chase_type;
+static char		chase_sigorigttl[NS_INT32SZ];
+static rrstruct		chase_rr[NUMRR];
+static int		chase_rr_num;
+static char		chase_lastgoodkey[NS_MAXDNAME];
+static char		chase_signer[NS_MAXDNAME];
+static u_char		chase_sigrdata[MY_PACKETSZ];
+static size_t		chase_sigrdata_len;
+static u_char		chase_signature[MY_PACKETSZ];
+static size_t		chase_signature_len;
+static int		chase_step;
+static int		sigchase;
 
 static char		cnamebuf[NS_MAXDNAME];
 static u_char		hostbuf[NS_MAXDNAME];
@@ -134,11 +166,13 @@ static u_char		hostbuf[NS_MAXDNAME];
 static int		sockFD;
 static FILE		*filePtr;
 
-static struct __res_state  orig;
+static struct __res_state  res, orig;
 static char		*cname = NULL;
+static const char	*progname = "amnesia";
 static int		getclass = ns_c_in, verbose = 0, list = 0;
 static int		server_specified = 0;
 static int		gettype;
+static char		getdomain[NS_MAXDNAME];
 
 /* Forward. */
 
@@ -146,7 +180,7 @@ static int		parsetype(const char *s);
 static int		parseclass(const char *s);
 static void		printanswer(const struct hostent *hp);
 static void		hperror(int errnum);
-static int		getaddrinfo(struct in_addr addr);
+static int		addrinfo(struct in_addr addr);
 static int		gethostinfo(char *name);
 static int		getdomaininfo(const char *name, const char *domain);
 static int		getinfo(const char *name, const char *domain,
@@ -162,74 +196,97 @@ static const u_char *	pr_cdname(const u_char *cp, const u_char *msg,
 static int		ListHosts(char *namePtr, int queryType);
 static const char *	DecodeError(int result);
 
+static void
+usage(const char *msg) {
+	fprintf(stderr, "%s: usage error (%s)\n", progname, msg);
+	fprintf(stderr, "\
+Usage: %s [-adlrwv] [-t querytype] [-c class] host [server]\n\
+\t-a is equivalent to '-v -t *'\n\
+\t-c class to look for non-Internet data\n\
+\t-d to turn on debugging output\n\
+\t-l to turn on 'list mode'\n\
+\t-r to disable recursive processing\n\
+\t-s recursively chase signature found in answers\n\
+\t-t querytype to look for a specific type of information\n\
+\t-v for verbose output\n\
+\t-w to wait forever until reply\n\
+", progname);
+	exit(1);
+}
+
 /* Public. */
 
 int
-main(int c, char **v) {
+main(int argc, char **argv) {
 	struct in_addr addr;
 	struct hostent *hp;
-	char *s, *oldcname;
+	char *s;
 	int inverse = 0, waitmode = 0;
-	int ncnames;
+	int ncnames, ch;
+	int nkeychains, i;
 
-	res_init();
-	_res.retrans = 5;
+	dst_init();
 
-	if (c < 2) {
-		fprintf(stderr, "Usage: host [-w] [-v] [-r] [-d] [-t querytype] [-c class] [-a] host [server]\n  -w to wait forever until reply\n  -v for verbose output\n  -r to disable recursive processing\n  -d to turn on debugging output\n  -t querytype to look for a specific type of information\n  -c class to look for non-Internet data\n  -a is equivalent to '-v -t *'\n");
-		exit(1);
-	}
-	while (c > 2 && v[1][0] == '-') {
-		if (strcmp (v[1], "-w") == 0) {
-			_res.retry = 1;
-			_res.retrans = 15;
-			waitmode = 1;
-			v++;
-			c--;
-		}
-		else if (strcmp (v[1], "-r") == 0) {
-			_res.options &= ~RES_RECURSE;
-			v++;
-			c--;
-		}
-		else if (strcmp (v[1], "-d") == 0) {
-			_res.options |= RES_DEBUG;
-			v++;
-			c--;
-		}
-		else if (strcmp (v[1], "-v") == 0) {
-			verbose = 1;
-			v++;
-			c--;
-		}
-		else if (strcmp (v[1], "-l") == 0) {
-			list = 1;
-			v++;
-			c--;
-		}
-		else if (strncmp (v[1], "-t", 2) == 0) {
-			v++;
-			c--;
-			gettype = parsetype(v[1]);
-			v++;
-			c--;
-		}
-		else if (strncmp (v[1], "-c", 2) == 0) {
-			v++;
-			c--;
-			getclass = parseclass(v[1]);
-			v++;
-			c--;
-		}
-		else if (strcmp (v[1], "-a") == 0) {
+	if ((progname = strrchr(argv[0], '/')) == NULL)
+		progname = argv[0];
+	else
+		progname++;
+	res_ninit(&res);
+	res.retrans = 5;
+	while ((ch = getopt(argc, argv, "ac:dlrst:vw")) != -1) {
+		switch (ch) {
+		case 'a':
 			verbose = 1;
 			gettype = ns_t_any;
-			v++;
-			c--;
-		}		
-        }
-	if (c > 2) {
-		s = v[2];
+			break;
+		case 'c':
+			getclass = parseclass(optarg);
+			break;
+		case 'd':
+			res.options |= RES_DEBUG;
+			break;
+		case 'l':
+			list = 1;
+			break;
+		case 'r':
+			res.options &= ~RES_RECURSE;
+			break;
+		case 's':
+			sigchase = 1;
+			break;
+		case 't':
+			gettype = parsetype(optarg);
+			break;
+		case 'v':
+			verbose = 1;
+			break;
+		case 'w':
+			res.retry = 1;
+			res.retrans = 15;
+			waitmode = 1;
+			break;
+		default:
+			usage("unrecogized switch");
+			/*NOTREACHED*/
+		}
+	}
+	if (gettype == 0) {
+		if (verbose)
+			printf ("Forcing `-t a' for signature trace.\n");
+		gettype = ns_t_a;
+	}
+	argc -= optind;
+	argv += optind;
+	if (argc < 1)
+		usage("missing host argument");
+	strncpy(getdomain, *argv++, NS_MAXDNAME);
+	getdomain[NS_MAXDNAME-1] = 0;
+	argc--;
+	if (argc > 1)
+		usage("extra undefined arguments");
+	if (argc == 1) {
+		s = *argv++;
+		argc--;
 		server_specified++;
 		
 		if (!inet_aton(s, &addr)) {
@@ -237,55 +294,85 @@ main(int c, char **v) {
 			if (hp == NULL) {
 				fprintf(stderr,
 					"Error in looking up server name:\n");
-				hperror(h_errno);
+				hperror(res.res_h_errno);
 				exit(1);
 			}
-			memcpy(&_res.nsaddr.sin_addr, hp->h_addr, NS_INADDRSZ);
+			memcpy(&res.nsaddr.sin_addr, hp->h_addr, NS_INADDRSZ);
 			printf("Using domain server:\n");
 			printanswer(hp);
 		} else {
-			_res.nsaddr.sin_family = AF_INET;
-			_res.nsaddr.sin_addr = addr;
-			_res.nsaddr.sin_port = htons(NAMESERVER_PORT);
+			res.nsaddr.sin_family = AF_INET;
+			res.nsaddr.sin_addr = addr;
+			res.nsaddr.sin_port = htons(NAMESERVER_PORT);
 			printf("Using domain server %s:\n",
-			       inet_ntoa(_res.nsaddr.sin_addr));
+			       inet_ntoa(res.nsaddr.sin_addr));
 		}
-		_res.nscount = 1;
-		_res.retry = 2;
+		res.nscount = 1;
+		res.retry = 2;
 	}
-	if (strcmp(v[1], ".") == 0 || !inet_aton(v[1], &addr))
+	if (strcmp(getdomain, ".") == 0 || !inet_aton(getdomain, &addr))
 		addr.s_addr = INADDR_NONE;
 	hp = NULL;
-	h_errno = TRY_AGAIN;
+	res.res_h_errno = TRY_AGAIN;
 /*
  * We handle default domains ourselves, thank you.
  */
-	_res.options &= ~RES_DEFNAMES;
+	res.options &= ~RES_DEFNAMES;
 
         if (list)
-		exit(ListHosts(v[1], gettype ? gettype : ns_t_a));
-	oldcname = NULL;
-	ncnames = 5;
-	while (hp == NULL && h_errno == TRY_AGAIN) {
+		exit(ListHosts(getdomain, gettype ? gettype : ns_t_a));
+	ncnames = 5; nkeychains = 18;
+	while (hp == NULL && res.res_h_errno == TRY_AGAIN) {
 		if (addr.s_addr == INADDR_NONE) {
 			cname = NULL;
-			if (oldcname == NULL)
-				hp = (struct hostent *)gethostinfo(v[1]);
-			else
-				hp = (struct hostent *)gethostinfo(oldcname);
-			if (cname) {
+			hp = (struct hostent *)gethostinfo(getdomain);
+			getdomain[0] = 0; /* clear this query */
+			if (sigchase && (chase_step & SD_RR)) {
+				if (nkeychains-- == 0) {
+					printf("Too many sig/key chains. Loop?\n");
+					exit(1);
+				}
+				if (chase_step & SD_SIG) {
+					/* start new query, for KEY */
+					strcpy (getdomain, chase_signer);
+					strcat (getdomain, ".");
+					gettype = ns_t_key;
+				} else if (!(chase_step & SD_BADSIG)) { 
+					/* start new query, for SIG */
+					strcpy (getdomain, chase_domain);
+					strcat (getdomain, ".");
+					gettype = ns_t_sig;
+				} else if (hp && !(chase_step & SD_SIG) && 
+					   (chase_step & SD_BADSIG)) {
+					printf ("%s for %s not found, last verified key %s\n",
+						chase_step & SD_SIG ? "Key" : "Signature",
+						chase_step & SD_SIG ? chase_signer : chase_domain, 
+						chase_domain, 
+						chase_lastgoodkey ? chase_lastgoodkey : "None");
+				}
+			}
+			if (!getdomain[0] && cname) {
 				if (ncnames-- == 0) {
 					printf("Too many cnames.  Loop?\n");
 					exit(1);
 				}
-				strcat(cname, ".");
-				oldcname = cname;
+				strcpy(getdomain, cname);
+				strcat(getdomain, ".");
+			}
+			if (getdomain[0]) {
+				if (chase_step & SD_SIG) {
+					printf ("Locating key for %s\n", getdomain);
+				} else if (chase_step & SD_SIG) {
+					printf ("Locating signature for %s record(s) on %s\n",
+						sym_ntos(__p_type_syms, chase_type, NULL),
+						getdomain);
+				}
 				hp = NULL;
-				h_errno = TRY_AGAIN;
+				res.res_h_errno = TRY_AGAIN;
 				continue;
 			}
 		} else {
-			if (getaddrinfo(addr) == 0)
+			if (addrinfo(addr) == 0)
 				hp = NULL;
 			else
 				hp = (struct hostent *)1;	/* XXX */
@@ -295,7 +382,7 @@ main(int c, char **v) {
 	}
 
 	if (hp == NULL) {
-		hperror(h_errno);
+		hperror(res.res_h_errno);
 		exit(1);
 	}
 
@@ -317,6 +404,7 @@ parsetype(const char *s) {
 		return (atoi(s));
 	fprintf(stderr, "Invalid query type: %s\n", s);
 	exit(2);
+	/*NOTREACHED*/
 }
 
 static int
@@ -330,6 +418,7 @@ parseclass(const char *s) {
 		return (atoi(s));
 	fprintf(stderr, "Invalid query class: %s\n", s);
 	exit(2);
+	/*NOTREACHED*/
 }
 
 static void
@@ -430,7 +519,7 @@ hperror(int errnum) {
 }
 
 static int
-getaddrinfo(struct in_addr addr) {
+addrinfo(struct in_addr addr) {
 	u_int32_t ha = ntohl(addr.s_addr);
 	char name[NS_MAXDNAME];
 
@@ -445,6 +534,7 @@ getaddrinfo(struct in_addr addr) {
 static int
 gethostinfo(char *name) {
 	char *cp, **domain;
+	char tmp[NS_MAXDNAME];
 	const char *tp;
 	int hp, nDomain;
 	int asis = 0;
@@ -463,13 +553,13 @@ gethostinfo(char *name) {
 			cp[-1] = '.';
 		return (hp);
 	}
-	if (n == 0 && (tp = hostalias(name))) {
+	if (n == 0 && (tp = res_hostalias(&res, name, tmp, sizeof tmp))) {
 	        if (verbose)
 		    printf("Aliased to \"%s\"\n", tp);
-		_res.options |= RES_DEFNAMES;	  
+		res.options |= RES_DEFNAMES;	  
 		return (getdomaininfo(tp, (char *)NULL));
 	}
-	if (n >= _res.ndots) {
+	if (n >= res.ndots) {
 		asis = 1;
 		if (verbose)
 		    printf("Trying null domain\n");
@@ -477,14 +567,14 @@ gethostinfo(char *name) {
 		if (hp)
 			return (hp);
 	}
-	for (domain = _res.dnsrch; *domain; domain++) {
+	for (domain = res.dnsrch; *domain; domain++) {
 		if (verbose)
 			printf("Trying domain \"%s\"\n", *domain);
 		hp = getdomaininfo(name, *domain);
 		if (hp)
 			return (hp);
 	}
-	if (h_errno != HOST_NOT_FOUND || (_res.options & RES_DNSRCH) == 0)
+	if (res.res_h_errno != HOST_NOT_FOUND || (res.options & RES_DNSRCH) == 0)
 		return (0);
 	if (!asis)
 		return (0);
@@ -500,10 +590,10 @@ getdomaininfo(const char *name, const char *domain) {
 	if (gettype)
 		return (getinfo(name, domain, gettype));
 	else {
-		val1 = getinfo(name, domain, ns_t_a);
+		val1 = getinfo(name, domain, gettype=ns_t_a);
 		if (cname || verbose)
 			return (val1);
-		val2 = getinfo(name, domain, ns_t_mx);
+		val2 = getinfo(name, domain, gettype=ns_t_mx);
 		return (val1 || val2);
 	}
 }
@@ -523,19 +613,19 @@ getinfo(const char *name, const char *domain, int type) {
 		sprintf(host, "%.*s.%.*s",
 			NS_MAXDNAME, name, NS_MAXDNAME, domain);
 
-	n = res_mkquery(QUERY, host, getclass, type, NULL, 0, NULL,
-			buf.qb2, sizeof buf);
+	n = res_nmkquery(&res, QUERY, host, getclass, type, NULL, 0, NULL,
+			 buf.qb2, sizeof buf);
 	if (n < 0) {
-		if (_res.options & RES_DEBUG)
-			printf("res_mkquery failed\n");
-		h_errno = NO_RECOVERY;
+		if (res.options & RES_DEBUG)
+			printf("res_nmkquery failed\n");
+		res.res_h_errno = NO_RECOVERY;
 		return (0);
 	}
-	n = res_send(buf.qb2, n, answer.qb2, sizeof answer);
+	n = res_nsend(&res, buf.qb2, n, answer.qb2, sizeof answer);
 	if (n < 0) {
-		if (_res.options & RES_DEBUG)
-			printf("res_send failed\n");
-		h_errno = TRY_AGAIN;
+		if (res.options & RES_DEBUG)
+			printf("res_nsend failed\n");
+		res.res_h_errno = TRY_AGAIN;
 		return (0);
 	}
 	eom = answer.qb2 + n;
@@ -544,7 +634,7 @@ getinfo(const char *name, const char *domain, int type) {
 
 static int
 printinfo(const querybuf *answer, const u_char *eom, int filter, int isls) {
-	int n, n1, i, j, nmx, ancount, nscount, arcount, qdcount, buflen;
+	int n, n1, i, j, nmx, ancount, nscount, arcount, qdcount, buflen, savesigchase;
 	u_short pref, class;
 	const u_char *bp, *cp;
 	const HEADER *hp;
@@ -557,24 +647,24 @@ printinfo(const querybuf *answer, const u_char *eom, int filter, int isls) {
 	qdcount = ntohs(hp->qdcount);
 	nscount = ntohs(hp->nscount);
 	arcount = ntohs(hp->arcount);
-	if (_res.options & RES_DEBUG || (verbose && isls == 0))
+	if (res.options & RES_DEBUG || (verbose && isls == 0))
 		printf("rcode = %d (%s), ancount=%d\n", 
 		       hp->rcode, DecodeError(hp->rcode), ancount);
 	if (hp->rcode != NOERROR || (ancount+nscount+arcount) == 0) {
 		switch (hp->rcode) {
 		case NXDOMAIN:
-			h_errno = HOST_NOT_FOUND;
+			res.res_h_errno = HOST_NOT_FOUND;
 			return (0);
 		case SERVFAIL:
-			h_errno = TRY_AGAIN;
+			res.res_h_errno = TRY_AGAIN;
 			return (0);
 			case NOERROR:
-				h_errno = NO_DATA;
+				res.res_h_errno = NO_DATA;
 				return (0);
 			case FORMERR:
 			case NOTIMP:
 			case REFUSED:
-				h_errno = NO_RECOVERY;
+				res.res_h_errno = NO_RECOVERY;
 				return (0);
 		}
 		return (0);
@@ -603,21 +693,20 @@ printinfo(const querybuf *answer, const u_char *eom, int filter, int isls) {
 				printf(
 				 "The following answer is not authoritative:\n"
 				       );
-		while (--ancount >= 0 && cp && cp < eom) {
+		if (!hp->ad)
+		    if (verbose && isls == 0)
+			printf("The following answer is not verified as authentic by the server:\n");
+		while (--ancount >= 0 && cp && cp < eom)
 			cp = pr_rr(cp, answer->qb2, stdout, filter);
-			/*
-			 * When we ask for address and there is a CNAME, it
-			 * seems to return both the CNAME and the address.
-			 * Since we trace down the CNAME chain ourselves, we
-			 * don't really want to print the address at this
-			 * point.
-			 */
-			if (cname && ! verbose)
-				return (1);
-		}
 	}
 	if (!verbose)
 		return (1);
+
+	/* don't chase signatures for non-answer stuff */
+
+	savesigchase = sigchase;
+	sigchase = 0;
+
 	if (nscount) {
 		printf("For authoritative answers, see:\n");
 		while (--nscount >= 0 && cp && cp < eom)
@@ -628,7 +717,78 @@ printinfo(const querybuf *answer, const u_char *eom, int filter, int isls) {
 		while (--arcount >= 0 && cp && cp < eom)
 			cp = (u_char *)pr_rr(cp, answer->qb2, stdout, filter);
 	}
+
+	/* restore sigchase value */
+	
+	sigchase = savesigchase;
+
 	return (1);
+}
+
+void print_hex_field (u_int8_t field[], int length, int width, char *pref)
+{
+	/* Prints an arbitrary bit field, from one address for some number of
+		bytes.  Output is formatted via the width, and includes the raw
+		hex value and (if printable) the printed value underneath.  "pref"
+		is a string used to start each line, e.g., "   " to indent.
+
+		This is very useful in gdb to see what's in a memory field.
+	*/
+	int		i, start, stop;
+
+	start=0;
+	do
+	{
+		stop=(start+width)<length?(start+width):length;
+		printf (pref);
+ 		for (i = start; i < stop; i++)
+			printf ("%02x ", (u_char) field[i]);
+		printf ("\n");
+
+		printf (pref);
+		for (i = start; i < stop; i++)
+			if (isprint(field[i]))
+				printf (" %c ", (u_char) field[i]);
+			else
+				printf ("   ");
+			printf ("\n");
+
+		start = stop;
+	} while (start < length);
+}
+
+void memswap (void *s1, void *s2, size_t n)
+{
+	void *tmp;
+
+	tmp = malloc(n);
+	if (!tmp) {
+		printf ("Out of memory\n");
+		exit (1);
+	}
+		
+	memcpy(tmp, s1, n);
+	memcpy(s1, s2, n);
+	memcpy(s2, tmp, n);
+
+	free (tmp);
+}
+
+void print_hex (u_int8_t field[], int length)
+{
+	/* Prints the hex values of a field...not as pretty as the print_hex_field.
+	*/
+	int		i, start, stop;
+
+	start=0;
+	do
+	{
+		stop=length;
+ 		for (i = start; i < stop; i++)
+			printf ("%02x ", (u_char) field[i]);
+		start = stop;
+		if (start < length) printf ("\n");
+	} while (start < length);
 }
 
 /*
@@ -639,16 +799,21 @@ pr_rr(const u_char *cp, const u_char *msg, FILE *file, int filter) {
 	int type, class, dlen, n, c, proto, ttl;
 	struct in_addr inaddr;
 	u_char in6addr[NS_IN6ADDRSZ];
+	const u_char *savecp = cp;
 	const u_char *cp1;
 	struct protoent *protop;
 	struct servent *servp;
 	char punc = ' ';
 	int doprint;
 	char name[NS_MAXDNAME];
+	char thisdomain[NS_MAXDNAME];
 	char tmpbuf[sizeof "ffff:ffff:ffff:ffff:ffff:ffff:255.255.255.255"];
+	u_char canonrr[MY_PACKETSZ];
+	size_t canonrr_len = 0;
 
 	if ((cp = (u_char *)pr_cdname(cp, msg, name, sizeof(name))) == NULL)
 		return (NULL);			/* compression error */
+	strcpy(thisdomain, name);
 
 	type = ns_get16(cp);
 	cp += INT16SZ;
@@ -711,10 +876,31 @@ pr_rr(const u_char *cp, const u_char *msg, FILE *file, int filter) {
 	case ns_t_mr:
 	case ns_t_ns:
 	case ns_t_ptr:
-		cp = (u_char *)pr_cdname(cp, msg, name, sizeof(name));
+	{
+		const u_char *startrdata = cp;
+		u_char cdname[NS_MAXCDNAME];
+
+		cp = (u_char *)pr_cdname(cp, msg, name, sizeof name);
 		if (doprint)
-			fprintf(file,"%c%s",punc, name);
+			fprintf(file, "%c%s", punc, name);
+
+		/* Extract DNSSEC canonical RR. */
+
+		n = ns_name_unpack(msg, msg+MY_PACKETSZ, startrdata,
+				   cdname, sizeof cdname);
+		if (n >= 0)
+			n = ns_name_ntol(cdname, cdname, sizeof cdname);
+		if (n >= 0) {
+			/* Copy header. */
+			memcpy(canonrr, cp1 - NS_HEADERDATA_SIZE, NS_HEADERDATA_SIZE);
+			/* Overwrite length field. */
+			ns_put16(n, canonrr + NS_HEADERDATA_SIZE - NS_INT16SZ);
+			/* Copy unpacked name. */
+			memcpy(canonrr + NS_HEADERDATA_SIZE, cdname, n);
+			canonrr_len = NS_HEADERDATA_SIZE + n;
+		}
 		break;
+	}
 
 	case ns_t_hinfo:
 	case ns_t_isdn:
@@ -739,12 +925,47 @@ pr_rr(const u_char *cp, const u_char *msg, FILE *file, int filter) {
 		break;
 
 	case ns_t_soa:
-		cp = (u_char *)pr_cdname(cp, msg, name, sizeof(name));
+	{
+		const u_char *startname = cp;
+		u_char cdname[NS_MAXCDNAME];
+
+		cp = (u_char *)pr_cdname(cp, msg, name, sizeof name);
 		if (doprint)
 			fprintf(file, "\t%s", name);
-		cp = (u_char *)pr_cdname(cp, msg, name, sizeof(name));
+
+		n = ns_name_unpack(msg, msg + 512, startname,
+				   cdname, sizeof cdname);
+		if (n >= 0)
+			n = ns_name_ntol(cdname, cdname, sizeof cdname);
+		if (n >= 0) {
+			/* Copy header. */
+			memcpy(canonrr, cp1 - NS_HEADERDATA_SIZE, NS_HEADERDATA_SIZE);
+			/* Copy expanded name. */
+			memcpy(canonrr + NS_HEADERDATA_SIZE, cdname, n);
+			canonrr_len = NS_HEADERDATA_SIZE + n;
+		}
+
+		startname = cp;
+		cp = (u_char *)pr_cdname(cp, msg, name, sizeof name);
 		if (doprint)
 			fprintf(file, " %s", name);
+
+		n = ns_name_unpack(msg, msg + 512, startname,
+				   cdname, sizeof cdname);
+		if (n >= 0)
+			n = ns_name_ntol(cdname, cdname, sizeof cdname);
+		if (n >= 0) {
+			/* Copy expanded name. */
+			memcpy(canonrr + canonrr_len, cdname, n);
+			canonrr_len += n;
+			/* Copy rest of SOA. */
+			memcpy(canonrr + canonrr_len, cp, 5 * INT32SZ);
+			canonrr_len += 5 * INT32SZ;
+			/* Overwrite length field. */
+			ns_put16(canonrr_len - NS_HEADERDATA_SIZE,
+				 canonrr + NS_HEADERDATA_SIZE - NS_INT16SZ);
+		}
+
 		if (doprint)
 			fprintf(file, "(\n\t\t\t%ld\t;serial (version)",
 				ns_get32(cp));
@@ -767,10 +988,14 @@ pr_rr(const u_char *cp, const u_char *msg, FILE *file, int filter) {
 				ns_get32(cp));
 		cp += INT32SZ;
 		break;
-
+	}
 	case ns_t_mx:
 	case ns_t_afsdb:
 	case ns_t_rt:
+	{
+		const u_char *startrdata = cp;
+		u_char cdname[NS_MAXCDNAME];
+
 		if (doprint) {
 			if (type == ns_t_mx && !verbose)
 				fprintf(file," (pri=%d) by ", ns_get16(cp));
@@ -783,7 +1008,28 @@ pr_rr(const u_char *cp, const u_char *msg, FILE *file, int filter) {
 		cp = (u_char *)pr_cdname(cp, msg, name, sizeof(name));
 		if (doprint)
 			fprintf(file, "%s", name);
+
+		n = ns_name_unpack(msg, msg+512, startrdata + sizeof(u_short),
+				   cdname, sizeof cdname);
+		if (n >= 0)
+			n = ns_name_ntol(cdname, cdname, sizeof cdname);
+		if (n >= 0) {
+			/* Copy header. */
+			memcpy(canonrr, cp1 - NS_HEADERDATA_SIZE,
+			       NS_HEADERDATA_SIZE);
+			/* Overwrite length field. */
+			ns_put16(sizeof(u_short) + n,
+				 canonrr + NS_HEADERDATA_SIZE - NS_INT16SZ);
+			/* Copy u_short. */
+			memcpy(canonrr + NS_HEADERDATA_SIZE, startrdata,
+			       sizeof(u_short));
+			/* Copy expanded name. */
+			memcpy(canonrr + NS_HEADERDATA_SIZE + sizeof(u_short),
+			       cdname, n);
+			canonrr_len = NS_HEADERDATA_SIZE + sizeof(u_short) + n;
+		}
 		break;
+	}
 
 	case ns_t_srv:
 		if (doprint)
@@ -934,6 +1180,260 @@ pr_rr(const u_char *cp, const u_char *msg, FILE *file, int filter) {
 			} while (++n & 07);
 		}
 		break;
+	case ns_t_nxt:
+	{
+		const u_char *startrdata = cp;
+		u_char cdname[NS_MAXCDNAME];
+		size_t bitmaplen;
+
+		cp = (u_char *) pr_cdname(cp, msg, name, sizeof name);
+		if (doprint)
+			fprintf(file, "%c%s", punc, name);
+		bitmaplen = dlen - (cp - startrdata);
+
+		/* extract dnssec canonical rr */
+
+		n = ns_name_unpack(msg, msg+MY_PACKETSZ, startrdata,
+				   cdname, sizeof cdname);
+		if (n >= 0)
+			n = ns_name_ntol(cdname, cdname, sizeof cdname);
+		if (n >= 0) {
+			/* Copy header. */
+			memcpy(canonrr, cp1 - NS_HEADERDATA_SIZE,
+			       NS_HEADERDATA_SIZE);
+			/* Overwrite length field. */
+			ns_put16(n + bitmaplen, 
+				 canonrr + NS_HEADERDATA_SIZE - NS_INT16SZ);
+			/* Copy expanded name. */
+			memcpy(canonrr + NS_HEADERDATA_SIZE, cdname, n);
+			/* Copy type bit map. */
+			memcpy(canonrr + NS_HEADERDATA_SIZE + n, cp,
+			       bitmaplen);
+			canonrr_len = NS_HEADERDATA_SIZE + n + bitmaplen;
+		}
+		cp += bitmaplen;
+		break;
+	}
+	case ns_t_sig:
+	{
+		int tc;
+		const u_char *origttl;
+
+		/* type covered */
+		tc = ns_get16(cp);
+		if (doprint && verbose)
+			fprintf(file, "%c%s", punc, sym_ntos(__p_type_syms, tc, NULL));
+		cp += sizeof(u_short);
+		/* algorithm */
+		if (doprint && verbose)
+			fprintf(file, " %d", *cp);
+		cp++;
+		/* labels */
+		if (doprint && verbose)
+			fprintf(file, " %d", *cp);
+		cp++;
+		/* original ttl */
+		origttl = cp;
+		if (doprint && verbose)
+			fprintf(file, " %d", ns_get32(cp));
+		cp += INT32SZ;
+		/* signature expiration */
+		if (doprint && verbose)
+			fprintf(file, " %d", ns_get32(cp));
+		cp += INT32SZ;
+		/* time signed */
+		if (doprint && verbose)
+			fprintf(file, " %d", ns_get32(cp));
+		cp += INT32SZ;
+		/* key footprint */
+		if (doprint && verbose)
+			fprintf(file, " %d", ns_get16(cp));
+		cp += sizeof(u_short);
+		/* signer's name */
+		cp = (u_char *)pr_cdname(cp, msg, name, sizeof(name));
+		if (doprint && verbose)
+			fprintf(file, " %s", name);
+		else if (doprint && !verbose)
+			fprintf (file, " %s for type %s", name, 
+				 sym_ntos(__p_type_syms, tc, NULL));
+		/* signature */
+		{
+			char str[MY_PACKETSZ];
+			size_t len = cp1-cp+dlen;
+			
+			b64_ntop (cp, len, str, MY_PACKETSZ-1);
+
+			if (sigchase && !(chase_step & SD_SIG) && 
+			    strcmp (chase_domain, thisdomain) == 0 && 
+			    chase_class == class & chase_type == tc)
+			{
+				u_char cdname[NS_MAXCDNAME];
+
+				if (doprint && !verbose)
+					fprintf(file, " (chasing key)");
+				
+				strcpy(chase_signer, name);
+
+				memcpy(&chase_sigorigttl[0], origttl, 
+				       NS_INT32SZ);
+
+				n = ns_name_ntol(cp1 + SIG_RDATA_BY_NAME, 
+						 cdname, sizeof cdname);
+				if (n >= 0) {
+					memcpy(chase_sigrdata, cp1,
+					       SIG_RDATA_BY_NAME);
+					memcpy(chase_sigrdata + SIG_RDATA_BY_NAME,
+					       cdname, n);
+					chase_sigrdata_len += SIG_RDATA_BY_NAME + n;
+					memcpy(chase_signature, cp, len);
+					chase_signature_len = len;
+
+					chase_step |= SD_SIG;
+				}
+			} else if (sigchase) {
+				chase_step |= SD_BADSIG;
+			}
+
+			cp += len;
+			if (doprint && verbose)
+				fprintf (file, " %s", str);
+		}
+		break;
+	}
+	case ns_t_key:
+		/* flags */
+		if (doprint && verbose)
+			fprintf(file, "%c%d", punc, ns_get16(cp));
+		cp += sizeof(u_short);
+		/* protocol */
+		if (doprint && verbose)
+			fprintf(file, " %d", *cp);
+		cp++;
+		/* algorithm */
+		n = *cp;
+		if (doprint && verbose)
+			fprintf(file, " %d", *cp);
+		cp++;
+		switch (n) {
+		case 1: /* MD5/RSA */
+		{
+			char str[MY_PACKETSZ];
+			size_t len = cp1-cp+dlen;
+
+			b64_ntop (cp, len, str, MY_PACKETSZ-1);
+			cp += len;
+			
+			if (doprint && verbose)
+				fprintf (file, " %s", str);
+			break;
+		}
+		
+		default:
+			fprintf (stderr, "Unknown algorithm %d\n", n);
+			cp = cp1 + dlen;
+			break;
+		}
+		
+		if (sigchase && (chase_step & (SD_SIG|SD_RR)) && 
+		    strcmp (getdomain, name) == 0 && 
+		    getclass == class & gettype == type)
+		{
+			DST_KEY *dstkey;
+			int rc, len, i, j;
+			
+			/* convert dnskey to dstkey */
+		
+			dstkey = dst_dnskey_to_key (name, cp1, dlen);
+		
+			/* fix ttl in rr */
+			
+			for (i = 0; i < NUMRR && chase_rr[i].len; i++)
+			{
+				len = dn_skipname(chase_rr[i].data, 
+						  chase_rr[i].data + 
+						  chase_rr[i].len);
+				if (len>=0) 
+					memcpy(chase_rr[i].data + len + NS_INT16SZ +
+					       NS_INT16SZ,
+					       &chase_sigorigttl, INT32SZ);
+			}
+
+			/* sort rr's (qsort() is too slow) */
+			
+			for (i = 0; i < NUMRR && chase_rr[i].len; i++)
+				for (j = i + 1; i < NUMRR && chase_rr[j].len; j++)
+					if (memcmp(chase_rr[i].data, chase_rr[j].data, MY_PACKETSZ) > 0)
+						memswap(&chase_rr[i], &chase_rr[j], sizeof(rrstruct));
+			
+			/* append rr's to sigrdata */
+
+			for (i = 0; i < NUMRR && chase_rr[i].len; i++)
+			{
+				memcpy (chase_sigrdata + chase_sigrdata_len, 
+					chase_rr[i].data, chase_rr[i].len);
+				chase_sigrdata_len += chase_rr[i].len;
+			}
+
+			/* print rr-data and signature */
+
+			if (verbose) {
+				print_hex_field(chase_sigrdata,
+						chase_sigrdata_len,
+						21,"DATA: ");
+				print_hex_field(chase_signature,
+						chase_signature_len,
+						21,"SIG: ");
+			}
+			
+			/* do the works */
+
+			if (dstkey)
+				rc = dst_verify_data(SIG_MODE_ALL, dstkey, NULL,
+						     chase_sigrdata, 
+						     chase_sigrdata_len,
+						     chase_signature, 
+						     chase_signature_len);
+			else
+				rc = 1;
+
+			dst_free_key(dstkey);
+
+			if (verbose)
+			{
+				fprintf(file, "\nVerification %s", rc == 0 ? 
+					"was SUCCESSFULL" :
+					"FAILED");
+			}
+			else
+			{
+				fprintf (file, 
+					 " that %s verify our %s "
+					 "record(s) on %s", 
+					 rc == 0 ? "successfully" :
+					 "DOES NOT", 
+					 sym_ntos(__p_type_syms, chase_type, 
+						  NULL),
+					 chase_domain);
+			}
+
+			if (rc == 0)
+			{
+				strcpy (chase_lastgoodkey, name);
+			}
+			else
+			{
+				/* don't trace further after a failure */
+				sigchase = 0; 
+			}
+
+			chase_step = 0;
+			chase_signature_len = 0;
+			chase_sigrdata_len = 0;
+			memset(chase_sigorigttl, 0, NS_INT32SZ);
+			memset(chase_rr, 0, sizeof(chase_rr));
+			chase_rr_num = 0;
+		}
+		break;
 
 	default:
 		if (doprint)
@@ -944,8 +1444,42 @@ pr_rr(const u_char *cp, const u_char *msg, FILE *file, int filter) {
 	if (cp != cp1 + dlen)
 		fprintf(file, "packet size error (%p != %p)\n",
 			cp, cp1 + dlen);
+
+	if (sigchase && !(chase_step & SD_SIG) && 
+	    strcmp (getdomain, thisdomain) == 0 && getclass == class && 
+	    gettype == type && type != ns_t_sig)
+	{
+		u_char cdname[NS_MAXCDNAME];
+
+		if (doprint && !verbose)
+			fprintf (file, " (chasing signature)", sigchase-1);
+
+		/* unpack rr */
+
+		n = ns_name_unpack(msg, msg + MY_PACKETSZ, savecp,
+				   cdname, sizeof cdname);
+		if (n >= 0)
+			n = ns_name_ntol(cdname, cdname, sizeof cdname);
+		if (n >= 0) {
+			memcpy(chase_rr[chase_rr_num].data, cdname, n);
+			memcpy(chase_rr[chase_rr_num].data + n,
+			       canonrr_len ? canonrr : cp1 - NS_HEADERDATA_SIZE,
+			       canonrr_len ? canonrr_len : dlen + NS_HEADERDATA_SIZE);
+			chase_rr[chase_rr_num].len = 
+				n + (canonrr_len != 0 ? canonrr_len : 
+				     dlen + NS_HEADERDATA_SIZE);
+			
+			strcpy(chase_domain, getdomain);
+			chase_class = class;
+			chase_type = type;
+			chase_step |= SD_RR;
+			chase_rr_num++;
+		}
+	}
+
 	if (doprint)
 		fprintf(file, "\n");
+
 	return (cp);
 }
 
@@ -965,6 +1499,12 @@ pr_type(int type) {
 		return ("mail is handled");
 	case ns_t_txt:
 		return ("descriptive text");
+	case ns_t_sig:
+                return ("has a signature signed by");
+	case ns_t_key:
+                return ("has a key");
+	case ns_t_nxt:
+		return ("next valid name");
 	case ns_t_afsdb:
 		return ("DCE or AFS service from");
 	}
@@ -995,7 +1535,7 @@ pr_class(int class) {
 
 static const u_char *
 pr_cdname(const u_char *cp, const u_char *msg, char *name, int namelen) {
-	int n = dn_expand(msg, msg + 512, cp, name, namelen - 2);
+	int n = dn_expand(msg, msg + MY_PACKETSZ, cp, name, namelen - 2);
 
 	if (n < 0)
 		return (NULL);
@@ -1036,7 +1576,7 @@ ListHosts(char *namePtr, int queryType) {
 		namePtr[i-1] = 0;
 
 	if (server_specified) {
-		memcpy(&nsipaddr[0], &_res.nsaddr.sin_addr, NS_INADDRSZ);
+		memcpy(&nsipaddr[0], &res.nsaddr.sin_addr, NS_INADDRSZ);
 		numnsaddr = 1;
 	} else {
 		/*
@@ -1044,19 +1584,22 @@ ListHosts(char *namePtr, int queryType) {
 		 * query, possibly followed by looking up addresses for some
 		 * of the names.
 		 */
-		msglen = res_mkquery(ns_o_query, namePtr, ns_c_in, ns_t_ns,
-				     NULL, 0, NULL, buf.qb2, sizeof buf);
+		msglen = res_nmkquery(&res, ns_o_query, namePtr,
+				      ns_c_in, ns_t_ns,
+				      NULL, 0, NULL,
+				      buf.qb2, sizeof buf);
 		if (msglen < 0) {
-			printf("res_mkquery failed\n");
+			printf("res_nmkquery failed\n");
 			return (ERROR);
 		}
 
-		msglen = res_send(buf.qb2, msglen, answer.qb2, sizeof answer);
+		msglen = res_nsend(&res, buf.qb2, msglen,
+				   answer.qb2, sizeof answer);
 		if (msglen < 0) {
 			printf("Cannot find nameserver -- try again later\n");
 			return (ERROR);
 		}
-		if (_res.options & RES_DEBUG || verbose)
+		if (res.options & RES_DEBUG || verbose)
 			printf("rcode = %d (%s), ancount=%d\n", 
 			       answer.qb1.rcode, DecodeError(answer.qb1.rcode),
 			       ntohs(answer.qb1.ancount));
@@ -1134,13 +1677,13 @@ ListHosts(char *namePtr, int queryType) {
 				if (dn_expand(answer.qb2, eom,
 					      cp, name, sizeof(name)) >= 0) {
 					if (numns < NUMNS &&
-					    strcasecmp((char *)domain, 
-						       namePtr) == 0) {
+					    ns_samename((char *)domain, 
+							namePtr) == 1) {
 						for (i = 0; i < numns; i++)
-							if (strcasecmp(
+							if (ns_samename(
 								     nsname[i],
 								   (char *)name
-								       ) == 0)
+								       ) == 1)
 								/* duplicate */
 								break;
 						if (i >= numns) {
@@ -1155,9 +1698,9 @@ ListHosts(char *namePtr, int queryType) {
 			} else if (type == ns_t_a) {
 				if (numnsaddr < NUMNSADDR)
 					for (i = 0; i < numns; i++) {
-						if (strcasecmp(nsname[i],
+						if (ns_samename(nsname[i],
 							       (char *)domain)
-						    == 0) {
+						    == 1) {
 							nshaveaddr[i]++;
 							memcpy(
 							  &nsipaddr[numnsaddr],
@@ -1195,11 +1738,11 @@ ListHosts(char *namePtr, int queryType) {
 							numaddrs++;
 						}
 				}
-				if (_res.options & RES_DEBUG || verbose)
+				if (res.options & RES_DEBUG || verbose)
 					printf(
 				  "Found %d addresses for %s by extra query\n",
 					       numaddrs, nsname[i]);
-			} else if (_res.options & RES_DEBUG || verbose)
+			} else if (res.options & RES_DEBUG || verbose)
 				printf("Found %d addresses for %s\n",
 				       nshaveaddr[i], nsname[i]);
 		}
@@ -1218,10 +1761,10 @@ ListHosts(char *namePtr, int queryType) {
 	/*
 	 * Create a query packet for the requested domain name.
 	 */
-	msglen = res_mkquery(QUERY, namePtr, getclass, ns_t_axfr, NULL,
-			     0, NULL, buf.qb2, sizeof buf);
+	msglen = res_nmkquery(&res, QUERY, namePtr, getclass, ns_t_axfr, NULL,
+			      0, NULL, buf.qb2, sizeof buf);
 	if (msglen < 0) {
-		if (_res.options & RES_DEBUG)
+		if (res.options & RES_DEBUG)
 			fprintf(stderr, "ListHosts: Res_mkquery failed\n");
 		return (ERROR);
 	}
@@ -1240,7 +1783,7 @@ ListHosts(char *namePtr, int queryType) {
 			return (ERROR);
 		}
 		memcpy(&sin.sin_addr, &nsipaddr[thisns], NS_INADDRSZ);
-		if (_res.options & RES_DEBUG || verbose)
+		if (res.options & RES_DEBUG || verbose)
 			printf("Trying %s\n", inet_ntoa(sin.sin_addr));
 		if (connect(sockFD, (struct sockaddr *)&sin, sizeof(sin)) >= 0)
 			break;
@@ -1310,7 +1853,7 @@ ListHosts(char *namePtr, int queryType) {
 		if (i != NOERROR || ntohs(buf.qb1.ancount) == 0) {
 			if (thisns + 1 < numnsaddr &&
 			    (i == SERVFAIL || i == NOTIMP || i == REFUSED)) {
-				if (_res.options & RES_DEBUG || verbose)
+				if (res.options & RES_DEBUG || verbose)
 					printf(
 				     "Server failed, trying next server: %s\n",
 					       i != NOERROR
@@ -1356,7 +1899,7 @@ ListHosts(char *namePtr, int queryType) {
 			(void) dn_expand(buf.qb2, buf.qb2 + len, nmp,
 					 dname[soacnt], sizeof dname[0]);
 			if (soacnt) {
-				if (strcmp(dname[0], dname[1]) == 0)
+				if (ns_samename(dname[0], dname[1]) == 1)
 					break;
 			} else
 				soacnt++;
@@ -1383,7 +1926,7 @@ ListHosts(char *namePtr, int queryType) {
 		fprintf(stderr,"ListHosts: error receiving zone transfer:\n");
 		fprintf(stderr,
 	       "  result: %s, answers = %d, authority = %d, additional = %d\n",
-			_res_resultcodes[headerPtr->rcode], 
+			p_rcode(headerPtr->rcode), 
 		    	ntohs(headerPtr->ancount), ntohs(headerPtr->nscount), 
 			ntohs(headerPtr->arcount));
 		return (ERROR);
@@ -1395,16 +1938,16 @@ ListHosts(char *namePtr, int queryType) {
 static const char *
 DecodeError(int result) {
 	switch(result) {
-	case NOERROR: 	return ("Success"); break;
-	case FORMERR:	return ("Format error"); break;
-	case SERVFAIL:	return ("Server failed"); break;
-	case NXDOMAIN:	return ("Non-existent domain"); break;
-	case NOTIMP:	return ("Not implemented"); break;
-	case REFUSED:	return ("Query refused"); break;
-	case NO_INFO: 	return ("No information"); break;
-	case ERROR: 	return ("Unspecified error"); break;
-	case TIME_OUT: 	return ("Timed out"); break;
-	case NONAUTH: 	return ("Non-authoritative answer"); break;
+	case NOERROR: 	return ("Success");
+	case FORMERR:	return ("Format error");
+	case SERVFAIL:	return ("Server failed");
+	case NXDOMAIN:	return ("Non-existent domain");
+	case NOTIMP:	return ("Not implemented");
+	case REFUSED:	return ("Query refused");
+	case NO_INFO: 	return ("No information");
+	case ERROR: 	return ("Unspecified error");
+	case TIME_OUT: 	return ("Timed out");
+	case NONAUTH: 	return ("Non-authoritative answer");
 	default:	return ("BAD ERROR VALUE");
 	}
 	/* NOTREACHED */

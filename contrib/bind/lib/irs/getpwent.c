@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996 by Internet Software Consortium.
+ * Copyright (c) 1996,1999 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -16,21 +16,25 @@
  */
 
 #if !defined(LINT) && !defined(CODECENTER)
-static char rcsid[] = "$Id: getpwent.c,v 1.13 1998/03/21 00:59:48 halley Exp $";
+static const char rcsid[] = "$Id: getpwent.c,v 1.20 1999/10/13 16:39:31 vixie Exp $";
 #endif
 
 /* Imports */
 
 #include "port_before.h"
 
-#ifndef WANT_IRS_PW
+#if !defined(WANT_IRS_PW) || defined(__BIND_NOSTATIC)
 static int __bind_irs_pw_unneeded;
 #else
 
 #include <sys/types.h>
 
+#include <netinet/in.h>
+#include <arpa/nameser.h>
+
 #include <errno.h>
 #include <pwd.h>
+#include <resolv.h>
 #include <stdio.h>
 
 #include <irs.h>
@@ -41,95 +45,155 @@ static int __bind_irs_pw_unneeded;
 
 /* Forward */
 
-static struct irs_pw *	init(void);
+static struct net_data * init(void);
 
 /* Public */
 
 struct passwd *
 getpwent(void) {
-	struct irs_pw *pw = init();
+	struct net_data *net_data = init();
 
-	if (!pw)
-		return (NULL);
-	net_data.pw_last = (*pw->next)(pw);
-	return (net_data.pw_last);
+	return (getpwent_p(net_data));
 }
 
 struct passwd *
 getpwnam(const char *name) {
-	struct irs_pw *pw = init();
-	
-	if (!pw)
-		return (NULL);
-	if (net_data.pw_stayopen && net_data.pw_last &&
-	    !strcmp(net_data.pw_last->pw_name, name))
-		return (net_data.pw_last);
-	net_data.pw_last = (*pw->byname)(pw, name);
-	if (!net_data.pw_stayopen)
-		endpwent();
-	return (net_data.pw_last);
+	struct net_data *net_data = init();
+
+	return (getpwnam_p(name, net_data));
 }
 
 struct passwd *
 getpwuid(uid_t uid) {
-	struct irs_pw *pw = init();
+	struct net_data *net_data = init();
 
-	if (!pw)
-		return (NULL);
-	if (net_data.pw_stayopen && net_data.pw_last &&
-	    net_data.pw_last->pw_uid == uid)
-		return (net_data.pw_last);
-	net_data.pw_last = (*pw->byuid)(pw, uid);
-	if (!net_data.pw_stayopen)
-		endpwent();
-	return (net_data.pw_last);
+	return (getpwuid_p(uid, net_data));
 }
 
 int
 setpassent(int stayopen) {
-	struct irs_pw *pw = init();
-	
-	if (!pw)
-		return (0);
-	(*pw->rewind)(pw);
-	net_data.pw_stayopen = (stayopen != 0);
-	return (1);
+	struct net_data *net_data = init();
+
+	return (setpassent_p(stayopen, net_data));
 }
 
 #ifdef SETPWENT_VOID
 void
 setpwent() {
-	(void) setpassent(0);
+	struct net_data *net_data = init();
+
+	setpwent_p(net_data);
 }
 #else
-int 
+int
 setpwent() {
-	return (setpassent(0));
+	struct net_data *net_data = init();
+
+	return (setpwent_p(net_data));
 }
 #endif
 
 void
 endpwent() {
-	struct irs_pw *pw = init();
+	struct net_data *net_data = init();
 
-	if (pw != NULL)
+	return (endpwent_p(net_data));
+}
+
+/* Shared private. */
+
+struct passwd *
+getpwent_p(struct net_data *net_data) {
+	struct irs_pw *pw;
+
+	if (!net_data || !(pw = net_data->pw))
+		return (NULL);
+	net_data->pw_last = (*pw->next)(pw);
+	return (net_data->pw_last);
+}
+
+struct passwd *
+getpwnam_p(const char *name, struct net_data *net_data) {
+	struct irs_pw *pw;
+
+	if (!net_data || !(pw = net_data->pw))
+		return (NULL);
+	if (net_data->pw_stayopen && net_data->pw_last &&
+	    !strcmp(net_data->pw_last->pw_name, name))
+		return (net_data->pw_last);
+	net_data->pw_last = (*pw->byname)(pw, name);
+	if (!net_data->pw_stayopen)
+		endpwent();
+	return (net_data->pw_last);
+}
+
+struct passwd *
+getpwuid_p(uid_t uid, struct net_data *net_data) {
+	struct irs_pw *pw;
+
+	if (!net_data || !(pw = net_data->pw))
+		return (NULL);
+	if (net_data->pw_stayopen && net_data->pw_last &&
+	    net_data->pw_last->pw_uid == uid)
+		return (net_data->pw_last);
+	net_data->pw_last = (*pw->byuid)(pw, uid);
+	if (!net_data->pw_stayopen)
+		endpwent();
+	return (net_data->pw_last);
+}
+
+int
+setpassent_p(int stayopen, struct net_data *net_data) {
+	struct irs_pw *pw;
+
+	if (!net_data || !(pw = net_data->pw))
+		return (0);
+	(*pw->rewind)(pw);
+	net_data->pw_stayopen = (stayopen != 0);
+	if (stayopen == 0)
+		net_data_minimize(net_data);
+	return (1);
+}
+
+#ifdef SETPWENT_VOID
+void
+setpwent_p(struct net_data *net_data) {
+	(void) setpassent_p(0, net_data);
+}
+#else
+int
+setpwent_p(struct net_data *net_data) {
+	return (setpassent_p(0, net_data));
+}
+#endif
+
+void
+endpwent_p(struct net_data *net_data) {
+	struct irs_pw *pw;
+
+	if ((net_data != NULL) && ((pw = net_data->pw) != NULL))
 		(*pw->minimize)(pw);
 }
 
 /* Private */
 
-static struct irs_pw *
+static struct net_data *
 init() {
-	if (!net_data_init())
+	struct net_data *net_data;
+	if (!(net_data = net_data_init(NULL)))
 		goto error;
-	if (!net_data.pw)
-		net_data.pw = (*net_data.irs->pw_map)(net_data.irs);
-	if (!net_data.pw) {
+	if (!net_data->pw) {
+		net_data->pw = (*net_data->irs->pw_map)(net_data->irs);
+
+		if (!net_data->pw || !net_data->res) {
  error: 
-		errno = EIO;
-		return (NULL);
+			errno = EIO;
+			return (NULL);
+		}
+		(*net_data->pw->res_set)(net_data->pw, net_data->res, NULL);
 	}
-	return (net_data.pw);
+	
+	return (net_data);
 }
 
 #endif /* WANT_IRS_PW */
