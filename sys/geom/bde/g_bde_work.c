@@ -370,11 +370,9 @@ g_bde_read_keysector(struct g_bde_softc *sc, struct g_bde_work *wp)
 static void
 g_bde_contribute(struct bio *bp, off_t bytes, int error)
 {
-	struct g_bde_softc *sc;
 
 	g_trace(G_T_TOPOLOGY, "g_bde_contribute bp %p bytes %jd error %d",
 	     bp, (intmax_t)bytes, error);
-	sc = bp->bio_driver1;
 	if (bp->bio_error == 0)
 		bp->bio_error = error;
 	bp->bio_completed += bytes;
