@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: simplelock.s,v 1.6 1997/08/31 03:17:48 fsmp Exp $
+ *	$Id: simplelock.s,v 1.7 1997/12/15 02:18:22 tegge Exp $
  */
 
 /*
@@ -105,20 +105,21 @@ ENTRY(s_lock)
 	cmpl	$0, _smp_active
 	je	gotit
 
-	movl	4(%esp), %eax		/* get the address of the lock */
+	movl	4(%esp), %edx		/* get the address of the lock */
 setlock:
 	movl	_cpu_lockid, %ecx	/* add cpu id portion */
 	incl	%ecx			/* add lock portion */
-	xchgl	%ecx, (%eax)
-	testl	%ecx, %ecx
+	movl	$0, %eax
+	lock
+	cmpxchgl %ecx, (%edx)
 	jz	gotit			/* it was clear, return */
-	pushl	%ecx			/* save what we xchanged */
-	decl	%ecx			/* remove lock portion */
-	cmpl	_cpu_lockid, %ecx	/* do we hold it? */
+	pushl	%eax			/* save what we xchanged */
+	decl	%eax			/* remove lock portion */
+	cmpl	_cpu_lockid, %eax	/* do we hold it? */
 	je	bad_slock		/* yes, thats not good... */
 	addl	$4, %esp		/* clear the stack */
 wait:
-	cmpl	$0, (%eax)		/* wait to empty */
+	cmpl	$0, (%edx)		/* wait to empty */
 	jne	wait			/* still set... */
 	jmp	setlock			/* empty again, try once more */
 gotit:
@@ -126,8 +127,8 @@ gotit:
 
 	ALIGN_TEXT
 bad_slock:
-	/* %ecx (current lock) is already on the stack */
-	pushl	%eax
+	/* %eax (current lock) is already on the stack */
+	pushl	%edx
 	pushl	_cpuid
 	pushl	$bsl1
 	call	_panic
@@ -237,7 +238,7 @@ ENTRY(ss_lock)
 	cmpl	$0, _smp_active
 	je	sgotit2
 
-	movl	4(%esp), %eax		/* get the address of the lock */
+	movl	4(%esp), %edx		/* get the address of the lock */
 ssetlock:
 	movl	_cpu_lockid, %ecx	/* add cpu id portion */
 	incl	%ecx			/* add lock portion */
@@ -247,17 +248,18 @@ ssetlock:
 #else
 	movl	$TPR_BLOCK_HWI, lapic_tpr	/* block hw INTs */
 #endif
-	xchgl	%ecx, (%eax)		/* compete */
-	testl	%ecx, %ecx
+	movl	$0, %eax
+	lock
+	cmpxchgl %ecx, (%edx)		/* compete */
 	jz	sgotit			/* it was clear, return */
-	pushl	%ecx			/* save what we xchanged */
-	decl	%ecx			/* remove lock portion */
-	cmpl	_cpu_lockid, %ecx	/* do we hold it? */
+	pushl	%eax			/* save what we xchanged */
+	decl	%eax			/* remove lock portion */
+	cmpl	_cpu_lockid, %eax	/* do we hold it? */
 	je	sbad_slock		/* yes, thats not good... */
 	addl	$4, %esp		/* clear the stack */
 	popl	lapic_tpr		/* previous value while waiting */
 swait:
-	cmpl	$0, (%eax)		/* wait to empty */
+	cmpl	$0, (%edx)		/* wait to empty */
 	jne	swait			/* still set... */
 	jmp	ssetlock		/* empty again, try once more */
 sgotit:
@@ -267,8 +269,8 @@ sgotit2:
 
 	ALIGN_TEXT
 sbad_slock:
-	/* %ecx (current lock) is already on the stack */
-	pushl	%eax
+	/* %eax (current lock) is already on the stack */
+	pushl	%edx
 	pushl	_cpuid
 	pushl	$sbsl1
 	call	_panic
