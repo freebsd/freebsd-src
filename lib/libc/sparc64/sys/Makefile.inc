@@ -2,6 +2,7 @@
 
 SRCS+=	__sparc_sigtramp_setup.c \
 	__sparc_utrap.c \
+	__sparc_utrap_align.c \
 	__sparc_utrap_emul.c \
 	__sparc_utrap_fp_disabled.S \
 	__sparc_utrap_gen.S \

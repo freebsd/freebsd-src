@@ -91,6 +91,7 @@ __sparc_utrap(struct utrapframe *uf)
 		sig = __emul_insn(uf);
 		break;
 	case UT_MEM_ADDRESS_NOT_ALIGNED:
+		sig = __unaligned_fixup(uf);
 		break;
 	default:
 		break;
