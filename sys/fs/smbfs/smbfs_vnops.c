@@ -62,7 +62,6 @@
  * Prototypes for SMBFS vnode operations
  */
 static int smbfs_create(struct vop_create_args *);
-static int smbfs_mknod(struct vop_mknod_args *);
 static int smbfs_open(struct vop_open_args *);
 static int smbfs_close(struct vop_close_args *);
 static int smbfs_access(struct vop_access_args *);
@@ -72,12 +71,10 @@ static int smbfs_read(struct vop_read_args *);
 static int smbfs_write(struct vop_write_args *);
 static int smbfs_fsync(struct vop_fsync_args *);
 static int smbfs_remove(struct vop_remove_args *);
-static int smbfs_link(struct vop_link_args *);
 static int smbfs_lookup(struct vop_lookup_args *);
 static int smbfs_rename(struct vop_rename_args *);
 static int smbfs_mkdir(struct vop_mkdir_args *);
 static int smbfs_rmdir(struct vop_rmdir_args *);
-static int smbfs_symlink(struct vop_symlink_args *);
 static int smbfs_readdir(struct vop_readdir_args *);
 static int smbfs_strategy(struct vop_strategy_args *);
 static int smbfs_print(struct vop_print_args *);
@@ -98,11 +95,8 @@ static struct vnodeopv_entry_desc smbfs_vnodeop_entries[] = {
 	{ &vop_getattr_desc,		(vop_t *) smbfs_getattr },
 	{ &vop_getpages_desc,		(vop_t *) smbfs_getpages },
 	{ &vop_inactive_desc,		(vop_t *) smbfs_inactive },
-	{ &vop_ioctl_desc,		(vop_t *) smbfs_ioctl },
-	{ &vop_link_desc,		(vop_t *) smbfs_link },
 	{ &vop_lookup_desc,		(vop_t *) smbfs_lookup },
 	{ &vop_mkdir_desc,		(vop_t *) smbfs_mkdir },
-	{ &vop_mknod_desc,		(vop_t *) smbfs_mknod },
 	{ &vop_open_desc,		(vop_t *) smbfs_open },
 	{ &vop_pathconf_desc,		(vop_t *) smbfs_pathconf },
 	{ &vop_print_desc,		(vop_t *) smbfs_print },
@@ -115,7 +109,6 @@ static struct vnodeopv_entry_desc smbfs_vnodeop_entries[] = {
 	{ &vop_rmdir_desc,		(vop_t *) smbfs_rmdir },
 	{ &vop_setattr_desc,		(vop_t *) smbfs_setattr },
 	{ &vop_strategy_desc,		(vop_t *) smbfs_strategy },
-	{ &vop_symlink_desc,		(vop_t *) smbfs_symlink },
 	{ &vop_write_desc,		(vop_t *) smbfs_write },
 #ifndef FB_RELENG3
 	{ &vop_getextattr_desc, 	(vop_t *) smbfs_getextattr },
@@ -673,45 +666,6 @@ out:
 	return error;
 }
 
-/*
- * somtime it will come true...
- */
-static int
-smbfs_link(ap)
-	struct vop_link_args /* {
-		struct vnode *a_tdvp;
-		struct vnode *a_vp;
-		struct componentname *a_cnp;
-	} */ *ap;
-{
-	return EOPNOTSUPP;
-}
-
-/*
- * smbfs_symlink link create call.
- * Sometime it will be functional...
- */
-static int
-smbfs_symlink(ap)
-	struct vop_symlink_args /* {
-		struct vnode *a_dvp;
-		struct vnode **a_vpp;
-		struct componentname *a_cnp;
-		struct vattr *a_vap;
-		char *a_target;
-	} */ *ap;
-{
-	return EOPNOTSUPP;
-}
-
-static int
-smbfs_mknod(ap) 
-	struct vop_mknod_args /* {
-	} */ *ap;
-{
-	return EOPNOTSUPP;
-}
-
 static int
 smbfs_mkdir(ap)
 	struct vop_mkdir_args /* {
@@ -902,20 +856,6 @@ smbfs_strategy (ap)
 	if ((bp->b_flags & B_ASYNC) == 0 )
 		error = smbfs_doio(bp, cr, td);
 	return error;
-}
-
-int
-smbfs_ioctl(ap)
-	struct vop_ioctl_args /* {
-		struct vnode *a_vp;
-		u_long a_command;
-		caddr_t a_data;
-		int fflag;
-		struct ucred *cred;
-		struct thread *td;
-	} */ *ap;
-{
-	return ENOTTY;
 }
 
 static char smbfs_atl[] = "rhsvda";
