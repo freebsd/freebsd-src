@@ -176,9 +176,11 @@ VGLInit(int mode)
       return -4;
     }
     VGLDisplay->Type = VIDBUF8;
+    VGLDisplay->PixelBytes = 1;
     break;
   case V_INFO_MM_VGAX:
     VGLDisplay->Type = VIDBUF8X;
+    VGLDisplay->PixelBytes = 1;
     break;
   case V_INFO_MM_DIRECT:
     VGLDisplay->PixelBytes = VGLModeInfo.vi_pixel_size;
