@@ -39,7 +39,7 @@ static const char copyright[] =
 
 #if 0
 #ifndef lint
-static char sccsid[] = "@(#)cap_mkdb.c	8.1 (Berkeley) 6/6/93";
+static char sccsid[] = "@(#)cap_mkdb.c	8.2 (Berkeley) 4/27/95";
 #endif
 #endif
 
@@ -64,6 +64,15 @@ void	 usage(void);
 DB *capdbp;
 int verbose;
 char *capdb, *capname, buf[8 * 1024];
+
+HASHINFO openinfo = {
+	4096,		/* bsize */
+	0,		/* ffactor */
+	0,		/* nelem */
+	0,		/* cachesize */
+	NULL,		/* hash() */
+	0		/* lorder */
+};
 
 /*
  * Mkcapdb creates a capability hash database for quick retrieval of capability
@@ -104,8 +113,8 @@ main(int argc, char *argv[])
 	(void)snprintf(buf, sizeof(buf), "%s.db", capname ? capname : *argv);
 	if ((capname = strdup(buf)) == NULL)
 		errx(1, "strdup failed");
-	if ((capdbp = dbopen(capname,
-	    O_CREAT | O_TRUNC | O_RDWR, DEFFILEMODE, DB_HASH, NULL)) == NULL)
+	if ((capdbp = dbopen(capname, O_CREAT | O_TRUNC | O_RDWR,
+	    DEFFILEMODE, DB_HASH, &openinfo)) == NULL)
 		err(1, "%s", buf);
 
 	if (atexit(dounlink))
