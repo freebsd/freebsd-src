@@ -316,9 +316,6 @@ EVENTHANDLER_DECLARE(ifnet_arrival_event, ifnet_arrival_event_handler_t);
 /* interface departure event */
 typedef void (*ifnet_departure_event_handler_t)(void *, struct ifnet *);
 EVENTHANDLER_DECLARE(ifnet_departure_event, ifnet_departure_event_handler_t);
-/* interface clone event */
-typedef void (*if_clone_event_handler_t)(void *, struct if_clone *);
-EVENTHANDLER_DECLARE(if_clone_event, if_clone_event_handler_t);
 
 #define	IF_AFDATA_LOCK_INIT(ifp)	\
     mtx_init(&(ifp)->if_afdata_mtx, "if_afdata", NULL, MTX_DEF)
@@ -684,12 +681,6 @@ struct	ifaddr *ifaof_ifpforaddr(struct sockaddr *, struct ifnet *);
 
 struct	ifmultiaddr *ifmaof_ifpforaddr(struct sockaddr *, struct ifnet *);
 int	if_simloop(struct ifnet *ifp, struct mbuf *m, int af, int hlen);
-
-void	if_clone_attach(struct if_clone *);
-void	if_clone_detach(struct if_clone *);
-
-int	if_clone_create(char *, int);
-int	if_clone_destroy(const char *);
 
 #define IF_LLADDR(ifp)							\
     LLADDR((struct sockaddr_dl *) ifaddr_byindex((ifp)->if_index)->ifa_addr)

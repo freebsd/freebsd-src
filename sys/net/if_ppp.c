@@ -97,6 +97,7 @@
 #include <sys/module.h>
 
 #include <net/if.h>
+#include <net/if_clone.h>
 #include <net/if_types.h>
 #include <net/netisr.h>
 #include <net/bpf.h>
@@ -157,8 +158,7 @@ static void	pppdumpm(struct mbuf *m0);
 static int	ppp_clone_create(struct if_clone *, int);
 static void	ppp_clone_destroy(struct ifnet *);
 
-static struct if_clone ppp_cloner = IF_CLONE_INITIALIZER(PPPNAME,
-    ppp_clone_create, ppp_clone_destroy, 0, IF_MAXUNIT);
+IFC_SIMPLE_DECLARE(ppp, 0);
 
 /*
  * Some useful mbuf macros not in mbuf.h.

@@ -45,6 +45,7 @@
 #include <sys/sockio.h>
 
 #include <net/if.h>
+#include <net/if_clone.h>
 #include <net/if_types.h>
 #include <net/route.h>
 #include <net/bpf.h>
@@ -75,8 +76,8 @@ static void	disc_clone_destroy(struct ifnet *);
 static struct mtx disc_mtx;
 static MALLOC_DEFINE(M_DISC, DISCNAME, "Discard interface");
 static LIST_HEAD(, disc_softc) disc_softc_list;
-static struct if_clone disc_cloner = IF_CLONE_INITIALIZER(DISCNAME,
-    disc_clone_create, disc_clone_destroy, 0, IF_MAXUNIT);
+
+IFC_SIMPLE_DECLARE(disc, 0);
 
 static int
 disc_clone_create(struct if_clone *ifc, int unit)
