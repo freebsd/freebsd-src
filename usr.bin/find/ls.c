@@ -34,11 +34,10 @@
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)ls.c	8.1 (Berkeley) 6/6/93";
-#else
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif
 #endif /* not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/stat.h>
