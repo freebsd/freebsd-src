@@ -21,14 +21,8 @@ COPTFLAGS?=-O
 .else
 . if ${MACHINE_ARCH} == "amd64"
 COPTFLAGS?=-O2 -frename-registers -pipe
-. elif ${MACHINE_ARCH} == "ia64"
-COPTFLAGS?=-O2 -pipe
-. elif ${MACHINE_ARCH} == "sparc64"
-COPTFLAGS?=-O2 -pipe
-. elif ${MACHINE_ARCH} == "arm"
-COPTFLAGS?=-O2 -pipe
 . else
-COPTFLAGS?=-O -pipe
+COPTFLAGS?=-O2 -pipe
 . endif
 . if ${COPTFLAGS:M-O[23s]} != ""
 COPTFLAGS+= -fno-strict-aliasing
