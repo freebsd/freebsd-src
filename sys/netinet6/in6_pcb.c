@@ -726,7 +726,7 @@ in6_mapped_sockaddr(struct socket *so, struct sockaddr **nam)
 
 	if (inp == NULL)
 		return EINVAL;
-	if (inp->inp_vflag & INP_IPV4) {
+	if ((inp->inp_vflag & (INP_IPV4 | INP_IPV6)) == INP_IPV4) {
 		error = in_setsockaddr(so, nam);
 		if (error == 0)
 			in6_sin_2_v4mapsin6_in_sock(nam);
@@ -745,7 +745,7 @@ in6_mapped_peeraddr(struct socket *so, struct sockaddr **nam)
 
 	if (inp == NULL)
 		return EINVAL;
-	if (inp->inp_vflag & INP_IPV4) {
+	if ((inp->inp_vflag & (INP_IPV4 | INP_IPV6)) == INP_IPV4) {
 		error = in_setpeeraddr(so, nam);
 		if (error == 0)
 			in6_sin_2_v4mapsin6_in_sock(nam);
