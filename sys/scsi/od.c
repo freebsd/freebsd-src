@@ -28,7 +28,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: od.c,v 1.7 1995/12/08 23:22:20 phk Exp $
+ *	$Id: od.c,v 1.8 1995/12/10 19:52:55 bde Exp $
  */
 
 /*
@@ -64,8 +64,7 @@
 #include <sys/dkstat.h>
 #include <machine/md_var.h>
 
-
-u_int32 odstrats, odqueues;
+static u_int32 odstrats, odqueues;
 
 #define SECSIZE 512
 #define	ODOUTSTANDING	4
@@ -78,12 +77,6 @@ u_int32 odstrats, odqueues;
 /* XXX introduce a dkmodunit() macro for this. */
 #define ODSETUNIT(DEV, U) \
  makedev(major(DEV), dkmakeminor((U), dkslice(DEV), dkpart(DEV)))
-
-errval	od_get_parms __P((int unit, int flags));
-static	void	odstrategy1 __P((struct buf *));
-
-int	od_sense_handler __P((struct scsi_xfer *));
-void    odstart __P((u_int32, u_int32));
 
 struct scsi_data {
 	u_int32 flags;
@@ -104,21 +97,27 @@ struct scsi_data {
 #endif
 };
 
-static int odunit(dev_t dev) { return ODUNIT(dev); }
-static dev_t odsetunit(dev_t dev, int unit) { return ODSETUNIT(dev, unit); }
+static errval	od_get_parms __P((int unit, int flags));
+static errval	od_reassign_blocks __P((int unit, int block));
+static u_int32	od_size __P((int unit, int flags));
+static int	od_sense_handler __P((struct scsi_xfer *));
+static void	odstart __P((u_int32, u_int32));
+static void	odstrategy1 __P((struct buf *));
 
-errval od_open __P((dev_t dev, int mode, int fmt, struct proc *p,
-		    struct scsi_link *sc_link));
-errval od_ioctl(dev_t dev, int cmd, caddr_t addr, int flag,
-		struct proc *p, struct scsi_link *sc_link);
-errval od_close __P((dev_t dev, int fflag, int fmt, struct proc *p,
-		     struct scsi_link *sc_link));
-void od_strategy(struct buf *bp, struct scsi_link *sc_link);
+static dev_t odsetunit(dev_t dev, int unit) { return ODSETUNIT(dev, unit); }
+static int odunit(dev_t dev) { return ODUNIT(dev); }
+
+static errval od_open __P((dev_t dev, int mode, int fmt, struct proc *p,
+			   struct scsi_link *sc_link));
+static errval od_ioctl(dev_t dev, int cmd, caddr_t addr, int flag,
+		       struct proc *p, struct scsi_link *sc_link);
+static errval od_close __P((dev_t dev, int fflag, int fmt, struct proc *p,
+			    struct scsi_link *sc_link));
+static void od_strategy(struct buf *bp, struct scsi_link *sc_link);
 
 static	d_open_t	odopen;
 static	d_close_t	odclose;
 static	d_ioctl_t	odioctl;
-static	d_psize_t	odsize;
 static	d_strategy_t	odstrategy;
 
 #define CDEV_MAJOR 70
@@ -126,7 +125,7 @@ static	d_strategy_t	odstrategy;
 extern	struct cdevsw od_cdevsw;
 static struct bdevsw od_bdevsw = 
 	{ odopen,	odclose,	odstrategy,	odioctl,	/*20*/
-	  nodump,	odsize,		0,	"od",	&od_cdevsw,	-1 };
+	  nodump,	nopsize,	0,	"od",	&od_cdevsw,	-1 };
 
 static struct cdevsw od_cdevsw = 
 	{ odopen,	odclose,	rawread,	rawwrite,	/*70*/
@@ -204,7 +203,7 @@ od_registerdev(int unit)
  * The routine called by the low level scsi routine when it discovers
  * a device suitable for this driver.
  */
-errval
+static errval
 odattach(struct scsi_link *sc_link)
 {
 	u_int32 unit;
@@ -269,7 +268,7 @@ odattach(struct scsi_link *sc_link)
 /*
  * open the device. Make sure the partition info is a up-to-date as can be.
  */
-errval
+static errval
 od_open(dev, mode, fmt, p, sc_link)
 	dev_t	dev;
 	int	mode;
@@ -393,7 +392,7 @@ bad:
  * close the device.. only called if we are the LAST occurence of an open
  * device.  Convenient now but usually a pain.
  */
-errval
+static errval
 od_close(dev, fflag, fmt, p, sc_link)
 	dev_t	dev;
 	int	fflag;
@@ -417,7 +416,7 @@ od_close(dev, fflag, fmt, p, sc_link)
  * can understand.  The transfer is described by a buf and will include
  * only one physical transfer.
  */
-void
+static void
 od_strategy(struct buf *bp, struct scsi_link *sc_link)
 {
 	u_int32 opri;
@@ -510,7 +509,7 @@ odstrategy1(struct buf *bp)
  * must be called at the correct (highish) spl level
  * odstart() is called at SPLOD  from odstrategy and scsi_done
  */
-void
+static void
 odstart(u_int32 unit, u_int32 flags)
 {
 	register struct	scsi_link *sc_link = SCSI_LINK(&od_switch, unit);
@@ -608,7 +607,7 @@ bad:
  * Perform special action on behalf of the user
  * Knows about the internals of this device
  */
-errval
+static errval
 od_ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p,
 	 struct scsi_link *sc_link)
 {
@@ -648,7 +647,7 @@ od_ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p,
 /*
  * Find out from the device what it's capacity is
  */
-u_int32
+static u_int32
 od_size(unit, flags)
 	int	unit, flags;
 {
@@ -690,7 +689,7 @@ od_size(unit, flags)
 /*
  * Tell the device to map out a defective block
  */
-errval
+static errval
 od_reassign_blocks(unit, block)
 	int	unit, block;
 {
@@ -726,7 +725,7 @@ od_reassign_blocks(unit, block)
  * device and use the results to fill out the disk
  * parameter structure.
  */
-errval
+static errval
 od_get_parms(unit, flags)
 	int	unit, flags;
 {
@@ -763,18 +762,12 @@ od_get_parms(unit, flags)
 	return retval;
 }
 
-int
-odsize(dev_t dev)
-{
-	return -1;
-}
-
 /*
  * sense handler: Called to determine what to do when the
  * device returns a CHECK CONDITION.
  */
 
-int
+static int
 od_sense_handler(struct scsi_xfer *xs)
 {
 	struct scsi_sense_data *sense;
