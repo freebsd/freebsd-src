@@ -722,6 +722,7 @@ ours:
 	 */
 	if (ip->ip_off & (IP_MF | IP_OFFMASK)) {
 
+		/* If maxnipq is 0, never accept fragments. */
 		if (maxnipq == 0) {
                 	ipstat.ips_fragments++;
 			ipstat.ips_fragdropped++;
@@ -748,7 +749,6 @@ ours:
 		/*
 		 * Enforce upper bound on number of fragmented packets
 		 * for which we attempt reassembly;
-		 * If maxnipq is 0, never accept fragments. (Handled above.)
 		 * If maxnipq is -1, accept all fragments without limitation.
 		 */
 		if ((nipq > maxnipq) && (maxnipq > 0)) {
@@ -1216,8 +1216,8 @@ ip_slowtimo()
 	 * (due to the limit being lowered), drain off
 	 * enough to get down to the new limit.
 	 */
-	for (i = 0; i < IPREASS_NHASH; i++) {
-		if (maxnipq >= 0) {
+	if (maxnipq > 0 && nipq > maxnipq) {
+		for (i = 0; i < IPREASS_NHASH; i++) {
 			while (nipq > maxnipq &&
 				!TAILQ_EMPTY(&ipq[i])) {
 				ipstat.ips_fragdropped++;
