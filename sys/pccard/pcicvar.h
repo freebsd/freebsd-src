@@ -67,7 +67,9 @@ struct pcic_softc
 	void (*slot_poll)(void *);
 	struct callout_handle	timeout_ch;
 	struct pcic_slot	slots[PCIC_MAX_SLOTS];
-	int			cd_pending;
+	int			cd_pending; /* debounce timeout active */
+	int			cd_present; /* debounced card-present state */
+	struct callout_handle	cd_ch;	/* handle for pcic_cd_insert */
 };
 
 extern devclass_t	pcic_devclass;
