@@ -2563,6 +2563,49 @@ vt320-nac|vt300-nac|vt340-nac|vt320 without pseudographics:\
 	:as@:ae@:ac@:tc=vt320:
 dec-vt320-nac|dec-vt300-nac|dec-vt340-nac|dec vt320 without pseudographics:\
 	:tc=vt320-nac:
+# From ftp://gatekeeper.dec.com/pub/DEC/termcaps/ :
+#
+# vt520.tc (9/30/94)
+#
+# VT520/VT525
+#
+# The VT520 is a monochrome text terminal capable of managing up to
+# four independent sessions in the terminal.  It has multiple ANSI
+# emulations (VT520, VT420, VT320, VT220, VT100, VT PCTerm, SCO Console)
+# and ASCII emulations (WY160/60, PCTerm, 50/50+, 150/120, TVI 950,
+# 925 910+, ADDS A2).  This termcap data is for the ANSI emulations only.
+# SCO Console emulation uses the "ansi" entry.  Existing ASCII termcap
+# entries are used with the ASCII emulations.
+#
+# Terminal Set-Up is entered by pressing [F3], [Caps Lock]/[F3] or
+# [Alt]/[Print Screen] depending upon which keyboard and which
+# terminal mode is being used.  If Set-Up has been disabled or
+# assigned to an unknown key, Set-Up may be entered by pressing
+# [F3] as the first key after power up, regardless of keyboard type.
+#
+d6|vt520|DEC VT520 :\
+	:am:mi:xn:xo:bs:pt:\
+	:co#80:li#24:kn#3:\
+	:ae=4\E(B:al=\E[L:as=2\E(0:cd=50\E[J:ce=3\E[K:\
+	:cl=50\E[;H\E[2J:cm=10\E[%i%d;%dH:cs=\E[%i%d;%dr:\
+	:dc=\E[P:dl=\E[M:ei=\E[4l:ho=\E[H:\
+	:if=/usr/lib/tabset/vt100:\
+        :im=\E[4h:\
+	:is=\E[1;24r\E[24;1H:\
+	:r3=\E[?67h\E[64;1"p:\
+	:i3=\E[?67h\E[64;1"p:\
+	:k0=\E[29~:\
+        :k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:\
+        :k5=\E[17~:k6=\E[18~:k7=\E[19~:k8=\E[20~:k9=\E[21~:\
+        :kb=\b:kd=\E[B:ke=\E>:kl=\E[D:\
+	:kr=\E[C:ks=\E=:ku=\E[A:nd=\E[C:\
+	:rc=\E8:rf=/usr/lib/tabset/vt100:\
+        :se=\E[m:so=\E[7m:\
+	:sr=\EM:ue=\E[m:up=\E[A:us=\E[4m:nl=\E[B:ko=do,nd,up:
+#
+df|vt520nam|vt520-nam|v520n|DEC VT520 with no automargins:\
+	:am@:tc=vt520:
+
 #
 # SC,SW names needed for screen(1)        ache
 SC|screen|VT 100/ANSI X3.64 virtual terminal:\
