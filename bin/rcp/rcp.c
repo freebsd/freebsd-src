@@ -106,10 +106,11 @@ char cmd[CMDNEEDS];		/* must hold "rcp -r -p -d\0" */
 
 #ifdef KERBEROS
 int	 kerberos __P((char **, char *, char *, char *));
-void	 oldw __P((const char *, ...));
+void	 oldw __P((const char *, ...)) __printflike(1, 2);
 #endif
 int	 response __P((void));
 void	 rsource __P((char *, struct stat *));
+void	 run_err __P((const char *, ...)) __printflike(1, 2);
 void	 sink __P((int, char *[]));
 void	 source __P((int, char *[]));
 void	 tolocal __P((int, char *[]));
