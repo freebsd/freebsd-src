@@ -222,7 +222,7 @@ pthread_exit(void *status)
 			break;
 		default:
 			PANIC("Unreachable code reached");
- 		}
+		}
 
 		/* Set the return value for the joining thread: */
 		pthread->ret = _thread_run->ret;
