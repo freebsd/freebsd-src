@@ -21,7 +21,7 @@
  *
  * Low-level routines relating to the user capabilities database
  *
- *	$Id$
+ *	$Id: login_auth.c,v 1.1 1997/01/04 16:49:59 davidn Exp $
  */
 
 #include <sys/types.h>
@@ -152,8 +152,8 @@ collect_info(int fd)
 	    auth_info.env_count++;
 	}
       }
-    } else if (strncasecmp(line, BI_REMOVE, STRSIZE(BI_REMOVE)) == 0) {
-      ptr = line + STRSIZE(BI_REMOVE);
+    } else if (strncasecmp(line, BI_REMOVE, STRSIZEOF(BI_REMOVE)) == 0) {
+      ptr = line + STRSIZEOF(BI_REMOVE);
       ptr += strspn(ptr, " \t");
       if (*ptr) {
 	char **tmp = realloc(auth_info.files, sizeof(char*) * (auth_info.file_count + 1));
