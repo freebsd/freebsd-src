@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.35.2.6 1995/06/02 02:01:03 jkh Exp $
+ * $Id: dist.c,v 1.35.2.7 1995/06/02 15:30:56 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -304,7 +304,7 @@ distExtract(char *parent, Distribution *me)
 	    if (numchunks)
 		strcat(buf,".aa");
 	    fd = (*mediaDevice->get)(buf);
-	    if (fd == -1)
+	    if (fd < 0)
 		status = FALSE;
 	    else {
 		msgNotify("Extracting %s into %s directory...", me[i].my_name, me[i].my_dir);
