@@ -197,6 +197,7 @@ tcp_init()
 	tcp_maxpersistidle = TCPTV_KEEP_IDLE;
 	tcp_msl = TCPTV_MSL;
 
+	INP_INFO_LOCK_INIT(&tcbinfo, "tcp");
 	LIST_INIT(&tcb);
 	tcbinfo.listhead = &tcb;
 	TUNABLE_INT_FETCH("net.inet.tcp.tcbhashsize", &hashsize);
@@ -748,7 +749,9 @@ tcp_drain()
 	 * 	where we're really low on mbufs, this is potentially
 	 *  	usefull.	
 	 */
+		INP_INFO_RLOCK(&tcbinfo);
 		LIST_FOREACH(inpb, tcbinfo.listhead, inp_list) {
+			INP_LOCK(inpb);
 			if ((tcpb = intotcpcb(inpb))) {
 				while ((te = LIST_FIRST(&tcpb->t_segq))
 			            != NULL) {
@@ -757,7 +760,9 @@ tcp_drain()
 					FREE(te, M_TSEGQ);
 				}
 			}
+			INP_UNLOCK(inpb);
 		}
+		INP_INFO_RUNLOCK(&tcbinfo);
 	}
 }
 
@@ -825,8 +830,10 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 	 * OK, now we're committed to doing something.
 	 */
 	s = splnet();
+	INP_INFO_RLOCK(&tcbinfo);
 	gencnt = tcbinfo.ipi_gencnt;
 	n = tcbinfo.ipi_count;
+	INP_INFO_RUNLOCK(&tcbinfo);
 	splx(s);
 
 	xig.xig_len = sizeof xig;
@@ -842,21 +849,26 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 		return ENOMEM;
 	
 	s = splnet();
+	INP_INFO_RLOCK(&tcbinfo);
 	for (inp = LIST_FIRST(tcbinfo.listhead), i = 0; inp && i < n;
 	     inp = LIST_NEXT(inp, inp_list)) {
+		INP_LOCK(inp);
 		if (inp->inp_gencnt <= gencnt) {
 			if (cr_canseesocket(req->td->td_ucred,
 			    inp->inp_socket))
 				continue;
 			inp_list[i++] = inp;
 		}
+		INP_UNLOCK(inp);
 	}
+	INP_INFO_RUNLOCK(&tcbinfo);
 	splx(s);
 	n = i;
 
 	error = 0;
 	for (i = 0; i < n; i++) {
 		inp = inp_list[i];
+		INP_LOCK(inp);
 		if (inp->inp_gencnt <= gencnt) {
 			struct xtcpcb xt;
 			caddr_t inp_ppcb;
@@ -872,6 +884,7 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 				sotoxsocket(inp->inp_socket, &xt.xt_socket);
 			error = SYSCTL_OUT(req, &xt, sizeof xt);
 		}
+		INP_UNLOCK(inp);
 	}
 	if (!error) {
 		/*
@@ -882,9 +895,11 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 		 * might be necessary to retry.
 		 */
 		s = splnet();
+		INP_INFO_RLOCK(&tcbinfo);
 		xig.xig_gen = tcbinfo.ipi_gencnt;
 		xig.xig_sogen = so_gencnt;
 		xig.xig_count = tcbinfo.ipi_count;
+		INP_INFO_RUNLOCK(&tcbinfo);
 		splx(s);
 		error = SYSCTL_OUT(req, &xig, sizeof xig);
 	}
@@ -910,18 +925,29 @@ tcp_getcred(SYSCTL_HANDLER_ARGS)
 	if (error)
 		return (error);
 	s = splnet();
+	INP_INFO_RLOCK(&tcbinfo);
 	inp = in_pcblookup_hash(&tcbinfo, addrs[1].sin_addr, addrs[1].sin_port,
 	    addrs[0].sin_addr, addrs[0].sin_port, 0, NULL);
-	if (inp == NULL || inp->inp_socket == NULL) {
+	if (inp == NULL) {
 		error = ENOENT;
-		goto out;
+		goto outunlocked;
+	} else {
+		INP_LOCK(inp);
+		if (inp->inp_socket == NULL) {
+			error = ENOENT;
+			goto out;
+		}
 	}
+
 	error = cr_canseesocket(req->td->td_ucred, inp->inp_socket);
 	if (error)
 		goto out;
 	cru2x(inp->inp_socket->so_cred, &xuc);
 	error = SYSCTL_OUT(req, &xuc, sizeof(struct xucred));
 out:
+	INP_UNLOCK(inp);
+outunlocked:
+	INP_INFO_RUNLOCK(&tcbinfo);
 	splx(s);
 	return (error);
 }
@@ -952,6 +978,7 @@ tcp6_getcred(SYSCTL_HANDLER_ARGS)
 			return (EINVAL);
 	}
 	s = splnet();
+	INP_INFO_RLOCK(&tcbinfo);
 	if (mapped == 1)
 		inp = in_pcblookup_hash(&tcbinfo,
 			*(struct in_addr *)&addrs[1].sin6_addr.s6_addr[12],
@@ -964,9 +991,15 @@ tcp6_getcred(SYSCTL_HANDLER_ARGS)
 				 addrs[1].sin6_port,
 				 &addrs[0].sin6_addr, addrs[0].sin6_port,
 				 0, NULL);
-	if (inp == NULL || inp->inp_socket == NULL) {
+	if (inp == NULL) {
 		error = ENOENT;
-		goto out;
+		goto outunlocked;
+	} else {
+		INP_LOCK(inp);
+		if (inp->inp_socket == NULL) {
+			error = ENOENT;
+			goto out;
+		}
 	}
 	error = cr_canseesocket(req->td->td_ucred, inp->inp_socket);
 	if (error)
@@ -974,6 +1007,9 @@ tcp6_getcred(SYSCTL_HANDLER_ARGS)
 	cru2x(inp->inp_socket->so_cred, &xuc);
 	error = SYSCTL_OUT(req, &xuc, sizeof(struct xucred));
 out:
+	INP_UNLOCK(inp);
+outunlocked:
+	INP_INFO_RUNLOCK(&tcbinfo);
 	splx(s);
 	return (error);
 }
@@ -1021,14 +1057,19 @@ tcp_ctlinput(cmd, sa, vip)
 		s = splnet();
 		th = (struct tcphdr *)((caddr_t)ip 
 				       + (IP_VHL_HL(ip->ip_vhl) << 2));
+		INP_INFO_RLOCK(&tcbinfo);
 		inp = in_pcblookup_hash(&tcbinfo, faddr, th->th_dport,
 		    ip->ip_src, th->th_sport, 0, NULL);
-		if (inp != NULL && inp->inp_socket != NULL) {
-			icmp_seq = htonl(th->th_seq);
-			tp = intotcpcb(inp);
-			if (SEQ_GEQ(icmp_seq, tp->snd_una) &&
-			    SEQ_LT(icmp_seq, tp->snd_max))
-				(*notify)(inp, inetctlerrmap[cmd]);
+		if (inp != NULL)  {
+			INP_LOCK(inp);
+			if (inp->inp_socket != NULL) {
+				icmp_seq = htonl(th->th_seq);
+				tp = intotcpcb(inp);
+				if (SEQ_GEQ(icmp_seq, tp->snd_una) &&
+			    		SEQ_LT(icmp_seq, tp->snd_max))
+					(*notify)(inp, inetctlerrmap[cmd]);
+			}
+			INP_UNLOCK(inp);
 		} else {
 			struct in_conninfo inc;
 
@@ -1041,9 +1082,10 @@ tcp_ctlinput(cmd, sa, vip)
 #endif
 			syncache_unreach(&inc, th);
 		}
+		INP_INFO_RUNLOCK(&tcbinfo);
 		splx(s);
 	} else
-		in_pcbnotifyall(&tcb, faddr, inetctlerrmap[cmd], notify);
+		in_pcbnotifyall(&tcbinfo, faddr, inetctlerrmap[cmd], notify);
 }
 
 #ifdef INET6
