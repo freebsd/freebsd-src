@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: netinst.sh,v 1.15 1994/12/02 21:05:27 jkh Exp $
+# $Id: netinst.sh,v 1.16 1994/12/05 00:13:11 ache Exp $
 
 if [ "${_NETINST_SH_LOADED_}" = "yes" ]; then
 	return 0
@@ -139,10 +139,9 @@ network_setup()
 	while [ "${INTERFACE}" = "" ]; do
 		dialog --title "Set up network interface" --menu \
 		  "Please select the type of network connection you have:\n" \
-		  -1 -1 4 \
+		  -1 -1 3 \
 		"Ether" "A supported ethernet card" \
 		"SLIP" "A point-to-point SLIP (Serial Line IP) connection" \
-		"PPP" "A Point-To-Point-Protocol connection" \
 		"PLIP" "A Parallel-Line IP setup (with standard laplink cable)" \
 		2> ${TMP}/menu.tmp.$$
 
@@ -153,9 +152,6 @@ network_setup()
 		case ${CHOICE} in
 		Ether)	if ! network_setup_ether; then continue; fi ;;
 		SLIP)	if ! network_setup_serial sl0; then continue; fi ;;
-
-		PPP)	if ! network_setup_serial ppp0; then continue; fi ;;
-
 		PLIP)	if ! network_setup_plip; then continue; fi ;;
 		esac
 		if [ "${INTERFACE}" = "" ]; then continue; fi
@@ -187,14 +183,6 @@ network_setup()
 			fi
 			${SLATTACH_CMD} ${SLATTACH_FLAGS} ${SERIAL_SPEED} ${SERIAL_INTERFACE}
 			progress ${SLATTACH_CMD} ${SLATTACH_FLAGS} ${SERIAL_SPEED} ${SERIAL_INTERFACE}
-		fi
-		if [ "${INTERFACE}" = "ppp0" ]; then
-			DEFAULT_VALUE=${PPPD_FLAGS}
-			if network_dialog "Set extra flags to ${PPPD}?"; then
-				PPPD_FLAGS=${ANSWER}
-			fi
-			${PPPD_CMD} ${PPPD_FLAGS} ${SERIAL_INTERFACE} ${SERIAL_SPEED} ${IPADDR}:${REMOTE_IPADDR}
-			progress ${PPPD_CMD} ${PPPD_FLAGS} ${SERIAL_INTERFACE} ${SERIAL_SPEED} ${IPADDR}:${REMOTE_IPADDR}
 		fi
 		echo "${IPADDR} ${REMOTE_IPADDR} netmask ${NETMASK} ${IFCONFIG_FLAGS}" > ${ETC}/hostname.${INTERFACE}
 		DEFAULT_VALUE=""
