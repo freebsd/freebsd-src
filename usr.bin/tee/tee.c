@@ -32,24 +32,28 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1988, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)tee.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <signal.h>
-#include <errno.h>
+#include <err.h>
 #include <fcntl.h>
-#include <unistd.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 typedef struct _list {
 	struct _list *next;
@@ -59,7 +63,7 @@ typedef struct _list {
 LIST *head;
 
 void add __P((int, char *));
-void err __P((int, const char *, ...));
+static void usage __P((void));
 
 int
 main(argc, argv)
@@ -84,21 +88,20 @@ main(argc, argv)
 			break;
 		case '?':
 		default:
-			(void)fprintf(stderr, "usage: tee [-ai] [file ...]\n");
-			exit(1);
+			usage();
 		}
 	argv += optind;
 	argc -= optind;
 
 	if ((buf = malloc((u_int)BSIZE)) == NULL)
-		err(1, "%s", strerror(errno));
+		errx(1, "malloc");
 
 	add(STDOUT_FILENO, "stdout");
 
 	for (exitval = 0; *argv; ++argv)
 		if ((fd = open(*argv, append ? O_WRONLY|O_CREAT|O_APPEND :
 		    O_WRONLY|O_CREAT|O_TRUNC, DEFFILEMODE)) < 0) {
-			err(0, "%s: %s", *argv, strerror(errno));
+			warn("%s", *argv);
 			exitval = 1;
 		} else
 			add(fd, *argv);
@@ -109,8 +112,7 @@ main(argc, argv)
 			bp = buf;
 			do {
 				if ((wval = write(p->fd, bp, n)) == -1) {
-					err(0, "%s: %s",
-					    p->name, strerror(errno));
+					warn("%s", p->name);
 					exitval = 1;
 					break;
 				}
@@ -118,8 +120,15 @@ main(argc, argv)
 			} while (n -= wval);
 		}
 	if (rval < 0)
-		err(1, "read: %s", strerror(errno));
+		err(1, "read");
 	exit(exitval);
+}
+
+static void
+usage()
+{
+	(void)fprintf(stderr, "usage: tee [-ai] [file ...]\n");
+	exit(1);
 }
 
 void
@@ -130,39 +139,9 @@ add(fd, name)
 	LIST *p;
 
 	if ((p = malloc((u_int)sizeof(LIST))) == NULL)
-		err(1, "%s", strerror(errno));
+		errx(1, "malloc");
 	p->fd = fd;
 	p->name = name;
 	p->next = head;
 	head = p;
-}
-
-#if __STDC__
-#include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
-
-void
-#if __STDC__
-err(int doexit, const char *fmt, ...)
-#else
-err(doexit, fmt, va_alist)
-	int doexit;
-	char *fmt;
-        va_dcl
-#endif
-{
-	va_list ap;
-#if __STDC__
-	va_start(ap, fmt);
-#else
-	va_start(ap);
-#endif
-	(void)fprintf(stderr, "tee: ");
-	(void)vfprintf(stderr, fmt, ap);
-	va_end(ap);
-	(void)fprintf(stderr, "\n");
-	if (doexit)
-		exit(1);
 }
