@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *       $FreeBSD$
+ * $FreeBSD$
  */
 /*
  * TrustedBSD Project - support for POSIX.1e process capabilities
@@ -55,7 +55,10 @@ cap_set_flag(cap_t cap_p, cap_flag_t flag, int ncap, cap_value_t caps[],
 	}
 
 	for (i = 0; i < ncap; i++)
-		SET_CAPABILITY(mask, caps[i]);
+		if (value == CAP_SET)
+			SET_CAPABILITY(mask, caps[i]);
+		else
+			UNSET_CAPABILITY(mask, caps[i]);
 	
 	return (0);
 }
