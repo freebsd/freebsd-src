@@ -161,9 +161,14 @@
       <para>A bug in the &man.bge.4; driver that prevented it from
 	working correctly at 10 Mbps has been fixed.</para>
 
+      <para arch="i386,sparc64">The &man.hatm.4; driver has been added
+        to support Fore/Marconi HE155 and HE622 ATM cards.</para>
+
+      <para arch="i386,sparc64">The patm driver has been added to
+        support IDT77252 based ATM interfaces.</para>
+
       <para>The 802.11 support layer has been rewritten to allow for
 	future growth and new features.</para>
-
     </sect3>
 
     <sect3 id="net-proto">
@@ -263,8 +268,7 @@
       the <filename>/stand</filename> directory installed by
       &man.sysinstall.8;, but it <filename>/rescue</filename> includes
       more functionality and is updated by as part of
-      buildworld/installworld operations.  More details can be found in
-      &man.rescue.7;.
+      buildworld/installworld operations.
 
       <note>
         <para>Due to some cross-build interactions,
@@ -294,7 +298,7 @@
 
     <para><application>OpenPAM</application> has been updated from the
       <quote>Dianthus</quote> release to the
-      <quote>Digitalis</quote> release.</para>
+      <quote>Dogwood</quote> release.</para>
 
     <para><application>texinfo</application> has been updated from 4.5
       to 4.6. &merged;</para>
