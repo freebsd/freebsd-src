@@ -99,6 +99,7 @@ ISO8859-1_UTF-8= af_ZA ca_ES da_DK de_DE en_US es_ES eu_ES fi_FI fr_BE \
 		fr_FR is_IS it_IT nl_NL no_NO pt_BR pt_PT sv_SE
 ISO8859-2_UTF-8= cs_CZ hr_HR hu_HU pl_PL ro_RO sk_SK sl_SI
 ISO8859-5_UTF-8= sr_YU uk_UA
+ISO8859-5_CP1251= uk_UA
 ISO8859-7_UTF-8= el_GR
 ISO8859-9_UTF-8= tr_TR
 ISO8859-13_ISO8859-4= lt_LT
