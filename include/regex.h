@@ -92,6 +92,7 @@ typedef struct {
 #define	REG_EMPTY	14
 #define	REG_ASSERT	15
 #define	REG_INVARG	16
+#define	REG_ILLSEQ	17
 #define	REG_ATOI	255	/* convert name to number (!) */
 #define	REG_ITOA	0400	/* convert number to name (!) */
 
