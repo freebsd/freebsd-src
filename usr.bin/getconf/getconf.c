@@ -112,7 +112,7 @@ do_confstr(const char *name, int key)
 	size_t len;
 
 	len = confstr(key, 0, 0);
-	if (len < 0)
+	if (len == (size_t)-1)
 		err(EX_OSERR, "confstr: %s", name);
 	
 	if (len == 0) {
