@@ -14,7 +14,7 @@
  * Turned inside out. Now returns xfers as new file ids, not as a special
  * `state' of FTP_t
  *
- * $Id: ftpio.c,v 1.14 1996/09/19 17:28:26 peter Exp $
+ * $Id: ftpio.c,v 1.15 1996/10/10 08:34:27 jkh Exp $
  *
  */
 
@@ -253,11 +253,13 @@ ftpGet(FILE *fp, char *file, off_t *seekto)
 
 /* Returns a standard FILE pointer type representing an open control connection */
 FILE *
-ftpLogin(char *host, char *user, char *passwd, int port, int verbose)
+ftpLogin(char *host, char *user, char *passwd, int port, int verbose, int *retcode)
 {
     FTP_t n;
     FILE *fp;
 
+    if (retcode)
+	*retcode = 0;
     if (networkInit() != SUCCESS)
 	return NULL;
 
@@ -267,6 +269,8 @@ ftpLogin(char *host, char *user, char *passwd, int port, int verbose)
 	fp = funopen(n, ftp_read_method, ftp_write_method, NULL, ftp_close_method);	/* BSD 4.4 function! */
 	fp->_file = n->fd_ctrl;
     }
+    if (n && retcode)
+	*retcode = n->errno;
     return fp;
 }
 
@@ -299,7 +303,7 @@ ftpPassive(FILE *fp, int st)
 }
 
 FILE *
-ftpGetURL(char *url, char *user, char *passwd)
+ftpGetURL(char *url, char *user, char *passwd, int *retcode)
 {
     char host[255], name[255];
     int port;
@@ -307,8 +311,10 @@ ftpGetURL(char *url, char *user, char *passwd)
     static FILE *fp = NULL;
     static char *prev_host;
 
+    if (retcode)
+	*retcode = 0;
     if (get_url_info(url, host, &port, name) == SUCCESS) {
-	if (prev_host) {
+	if (fp && prev_host) {
 	    if (!strcmp(prev_host, host)) {
 		/* Try to use cached connection */
 		fp2 = ftpGet(fp, name, NULL);
@@ -316,20 +322,30 @@ ftpGetURL(char *url, char *user, char *passwd)
 		    /* Connection timed out or was no longer valid */
 		    fclose(fp);
 		    free(prev_host);
+		    prev_host = NULL;
 		}
 		else
 		    return fp2;
 	    }
 	    else {
 		/* It's a different host now, flush old */
-		free(prev_host);
 		fclose(fp);
+		free(prev_host);
+		prev_host = NULL;
 	    }
 	}
-	fp = ftpLogin(host, user, passwd, port, 0);
+	fp = ftpLogin(host, user, passwd, port, 0, retcode);
 	if (fp) {
 	    fp2 = ftpGet(fp, name, NULL);
-	    prev_host = strdup(host);
+	    if (!fp2) {
+		/* Connection timed out or was no longer valid */
+		if (retcode)
+		    *retcode = ftpErrno(fp);
+		fclose(fp);
+		fp = NULL;
+	    }
+	    else
+		prev_host = strdup(host);
 	    return fp2;
 	}
     }
@@ -337,21 +353,29 @@ ftpGetURL(char *url, char *user, char *passwd)
 }
 
 FILE *
-ftpPutURL(char *url, char *user, char *passwd)
+ftpPutURL(char *url, char *user, char *passwd, int *retcode)
 {
     char host[255], name[255];
     int port;
     static FILE *fp = NULL;
     FILE *fp2;
 
+    if (retcode)
+	*retcode = 0;
     if (fp) {	/* Close previous managed connection */
 	fclose(fp);
 	fp = NULL;
     }
     if (get_url_info(url, host, &port, name) == SUCCESS) {
-	fp = ftpLogin(host, user, passwd, port, 0);
+	fp = ftpLogin(host, user, passwd, port, 0, retcode);
 	if (fp) {
 	    fp2 = ftpPut(fp, name);
+	    if (!fp2) {
+		if (retcode)
+		    *retcode = ftpErrno(fp);
+		fclose(fp);
+		fp = NULL;
+	    }
 	    return fp2;
 	}
     }
@@ -542,11 +566,11 @@ ftp_close(FTP_t ftp)
     int i;
 
     if (ftp->con_state == isopen) {
+	ftp->con_state = quit;
 	/* Debug("ftp_pkg: in ftp_close(), sending QUIT"); */
 	i = cmd(ftp, "QUIT");
 	close(ftp->fd_ctrl);
 	ftp->fd_ctrl = -1;
-	ftp->con_state = init;
 	if (check_code(ftp, i, FTP_QUIT_HAPPY)) {
 	    ftp->errno = i;
 	    return FAILURE;
@@ -576,7 +600,7 @@ cmd(FTP_t ftp, const char *fmt, ...)
     (void)vsnprintf(p, sizeof p, fmt, ap);
     va_end(ap);
 
-    if (ftp->con_state != isopen)
+    if (ftp->con_state == init)
 	return botch("cmd", "open");
 
     strcat(p, "\r\n");
@@ -647,6 +671,8 @@ ftp_login_session(FTP_t ftp, char *host, char *user, char *passwd, int port, int
 	i = cmd(ftp, "PASS %s", passwd);
     if (i >= 299 || i < 0) {
 	ftp_close(ftp);
+	if (i > 0)
+	    ftp->errno = i;
 	return FAILURE;
     }
     return SUCCESS;
