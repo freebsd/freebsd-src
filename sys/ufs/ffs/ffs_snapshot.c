@@ -135,10 +135,11 @@ restart:
 		wrtmp = NULL;
 	if (wrtmp != mp)
 		panic("ffs_snapshot: mount mismatch");
-	if (vn_start_write(wrtmp, V_NOWAIT) != 0) {
+	if (vn_start_write(NULL, &wrtmp, V_NOWAIT) != 0) {
 		NDFREE(&nd, NDF_ONLY_PNBUF);
 		vput(nd.ni_dvp);
-		if ((error = vn_start_write(wrtmp, V_XSLEEP | PCATCH)) != 0)
+		if ((error = vn_start_write(NULL, &wrtmp,
+		    V_XSLEEP | PCATCH)) != 0)
 			return (error);
 		goto restart;
 	}
@@ -257,7 +258,7 @@ restart:
 		vfs_write_suspend(vp->v_mount);
 		if (mp->mnt_kern_flag & MNTK_SUSPENDED)
 			break;
-		vn_start_write(wrtmp, V_WAIT);
+		vn_start_write(NULL, &wrtmp, V_WAIT);
 	}
 	/*
 	 * First, copy all the cylinder group maps. All the unallocated
@@ -457,7 +458,7 @@ restart:
 	 */
 out1:
 	vfs_write_resume(vp->v_mount);
-	vn_start_write(wrtmp, V_WAIT);
+	vn_start_write(NULL, &wrtmp, V_WAIT);
 out:
 	mp->mnt_flag = flag;
 	(void) VOP_FSYNC(vp, KERNCRED, MNT_WAIT, p);
