@@ -26,4 +26,9 @@ if ($?prompt) then
 	set history = 100
 	set savehist = 100
 	set mail = (/var/mail/$USER)
+	if ( $?tcsh ) then
+		bindkey "^W" backward-delete-word
+		bindkey -k up history-search-backward
+		bindkey -k down history-search-forward
+	endif
 endif
