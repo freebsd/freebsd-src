@@ -2095,7 +2095,7 @@ cts_print(struct cam_device *device, struct ccb_trans_settings *cts)
 			u_int freq;
 
 			freq = scsi_calc_syncsrate(cts->sync_period);
-			fprintf(stdout, "%sfrequencey: %d.%03dMHz\n", pathstr,
+			fprintf(stdout, "%sfrequency: %d.%03dMHz\n", pathstr,
 				freq / 1000, freq % 1000);
 		}
 	}
