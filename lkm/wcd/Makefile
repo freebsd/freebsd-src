@@ -1,11 +1,11 @@
-#	$Id: $
+#	$Id: Makefile,v 1.2 1996/05/07 23:19:42 wosch Exp $
 
 .PATH:          ${.CURDIR}/../../sys/i386/isa
 KMOD            = wcd_mod
 SRCS            = wcd.c wdc.h wcd.h
 NOMAN           =
 BINDIR          = /lkm
-CFLAGS         += -nostdinc -I. -I/sys -DATAPI -DWCD_MODULE
+CFLAGS         += -nostdinc -I. -DATAPI -DWCD_MODULE
 CLEANFILES     += $(KMOD) machine wdc.h wcd.h *.b
 LN              = ln -f -s
 
