@@ -831,7 +831,7 @@ acd*|cd*|mcd*|scd*)
 	scd*) units=`expr $i : '...\(.*\)'`; name=scd; chr=45;;
 	esac
 	if [ -z "${units}" -o "${units}" -le 0 ]; then
-		units=1
+		units=0
 	fi
 	if [ "${units}" -le 31 ]; then
 		i=0
