@@ -730,7 +730,7 @@ nd6_nud_hint(rt, dst6)
 	}
 
 	ln = (struct llinfo_nd6 *)rt->rt_llinfo;
-	if (ln->ln_state == ND6_LLINFO_INCOMPLETE)
+	if (ln->ln_state < ND6_LLINFO_REACHABLE)
 		return;
 
 	ln->ln_state = ND6_LLINFO_REACHABLE;
