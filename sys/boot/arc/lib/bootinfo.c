@@ -121,17 +121,17 @@ bi_copyenv(vm_offset_t addr)
 vm_offset_t
 bi_copymodules(vm_offset_t addr)
 {
-    struct loaded_module	*mp;
-    struct module_metadata	*md;
+    struct preloaded_file	*fp;
+    struct file_metadata	*md;
 
     /* start with the first module on the list, should be the kernel */
-    for (mp = mod_findmodule(NULL, NULL); mp != NULL; mp = mp->m_next) {
+    for (fp = file_findfile(NULL, NULL); fp != NULL; fp = fp->f_next) {
 
-	MOD_NAME(addr, mp->m_name);	/* this field must come first */
-	MOD_TYPE(addr, mp->m_type);
-	MOD_ADDR(addr, mp->m_addr);
-	MOD_SIZE(addr, mp->m_size);
-	for (md = mp->m_metadata; md != NULL; md = md->md_next)
+	MOD_NAME(addr, fp->f_name);	/* this field must come first */
+	MOD_TYPE(addr, fp->f_type);
+	MOD_ADDR(addr, fp->f_addr);
+	MOD_SIZE(addr, fp->f_size);
+	for (md = fp->f_metadata; md != NULL; md = md->md_next)
 	    if (!(md->md_type & MODINFOMD_NOCOPY))
 		MOD_METADATA(addr, md);
     }
@@ -147,18 +147,18 @@ bi_copymodules(vm_offset_t addr)
  */
 int
 bi_load(struct bootinfo_v1 *bi, vm_offset_t *ffp_save,
-	struct loaded_module *mp)
+	struct preloaded_file *fp)
 {
-    struct loaded_module	*xp;
+    struct preloaded_file	*xp;
     vm_offset_t			addr, bootinfo_addr;
     u_int			pad;
     vm_offset_t			ssym, esym;
-    struct module_metadata	*md;
+    struct file_metadata	*md;
 
     ssym = esym = 0;
-    if ((md = mod_findmetadata(mp, MODINFOMD_SSYM)) != NULL)
+    if ((md = file_findmetadata(fp, MODINFOMD_SSYM)) != NULL)
 	ssym = *((vm_offset_t *)&(md->md_data));
-    if ((md = mod_findmetadata(mp, MODINFOMD_ESYM)) != NULL)
+    if ((md = file_findmetadata(fp, MODINFOMD_ESYM)) != NULL)
 	esym = *((vm_offset_t *)&(md->md_data));
     if (ssym == 0 || esym == 0)
 	ssym = esym = 0;		/* sanity */
@@ -168,9 +168,9 @@ bi_load(struct bootinfo_v1 *bi, vm_offset_t *ffp_save,
 
     /* find the last module in the chain */
     addr = 0;
-    for (xp = mod_findmodule(NULL, NULL); xp != NULL; xp = xp->m_next) {
-	if (addr < (xp->m_addr + xp->m_size))
-	    addr = xp->m_addr + xp->m_size;
+    for (xp = file_findfile(NULL, NULL); xp != NULL; xp = xp->f_next) {
+	if (addr < (xp->f_addr + xp->f_size))
+	    addr = xp->f_addr + xp->f_size;
     }
     /* pad to a page boundary */
     pad = (u_int)addr & PAGE_MASK;

@@ -153,62 +153,79 @@ extern char			*pnp_eisaformat(u_int8_t *data);
 extern int			isapnp_readport;
 
 /*
- * Module metadata header.
+ * Preloaded file metadata header.
  *
  * Metadata are allocated on our heap, and copied into kernel space
  * before executing the kernel.
  */
-struct module_metadata 
+struct file_metadata 
 {
     size_t			md_size;
     u_int16_t			md_type;
-    struct module_metadata	*md_next;
+    struct file_metadata	*md_next;
     char			md_data[0];	/* data are immediately appended */
 };
 
+struct preloaded_file;
+
+struct kernel_module
+{
+    char			*m_name;	/* module name */
+/*    char			*m_args;*/	/* arguments for the module */
+    struct preloaded_file	*m_fp;
+    struct kernel_module	*m_next;
+};
+
 /*
- * Loaded module information.
+ * Preloaded file information. Depending on type, file can contain
+ * additional units called 'modules'.
  *
- * At least one module (the kernel) must be loaded in order to boot.
+ * At least one file (the kernel) must be loaded in order to boot.
  * The kernel is always loaded first.
  *
  * String fields (m_name, m_type) should be dynamically allocated.
  */
-struct loaded_module
+struct preloaded_file
 {
-    char			*m_name;	/* module name */
-    char			*m_type;	/* verbose module type, eg 'ELF kernel', 'pnptable', etc. */
-    char			*m_args;	/* arguments for the module */
-    struct module_metadata	*m_metadata;	/* metadata that will be placed in the module directory */
-    int				m_loader;	/* index of the loader that read the file */
-    vm_offset_t			m_addr;		/* load address */
-    size_t			m_size;		/* module size */
-    struct loaded_module	*m_next;	/* next module */
+    char			*f_name;	/* file name */
+    char			*f_type;	/* verbose file type, eg 'ELF kernel', 'pnptable', etc. */
+    char			*f_args;	/* arguments for the file */
+    struct file_metadata	*f_metadata;	/* metadata that will be placed in the module directory */
+    int				f_loader;	/* index of the loader that read the file */
+    vm_offset_t			f_addr;		/* load address */
+    size_t			f_size;		/* file size */
+    struct kernel_module	*f_modules;	/* list of modules if any */
+    struct preloaded_file	*f_next;	/* next file */
 };
 
-struct module_format
+struct file_format
 {
     /* Load function must return EFTYPE if it can't handle the module supplied */
-    int		(* l_load)(char *filename, vm_offset_t dest, struct loaded_module **result);
+    int		(* l_load)(char *filename, vm_offset_t dest, struct preloaded_file **result);
     /* Only a loader that will load a kernel (first module) should have an exec handler */
-    int		(* l_exec)(struct loaded_module *mp);
+    int		(* l_exec)(struct preloaded_file *mp);
 };
-extern struct module_format	*module_formats[];	/* supplied by consumer */
-extern struct loaded_module	*loaded_modules;
+
+extern struct file_format	*file_formats[];	/* supplied by consumer */
+extern struct preloaded_file	*preloaded_files;
+
 extern int			mod_load(char *name, int argc, char *argv[]);
 extern int			mod_loadobj(char *type, char *name);
-extern struct loaded_module	*mod_findmodule(char *name, char *type);
-extern void			mod_addmetadata(struct loaded_module *mp, int type, size_t size, void *p);
-extern struct module_metadata	*mod_findmetadata(struct loaded_module *mp, int type);
-extern void			mod_discard(struct loaded_module *mp);
-extern struct loaded_module	*mod_allocmodule(void);
+
+struct preloaded_file *file_alloc(void);
+struct preloaded_file *file_findfile(char *name, char *type);
+struct file_metadata *file_findmetadata(struct preloaded_file *fp, int type);
+void file_discard(struct preloaded_file *fp);
+void file_addmetadata(struct preloaded_file *fp, int type, size_t size, void *p);
+int  file_addmodule(struct preloaded_file *fp, char *modname,
+	struct kernel_module **newmp);
 
 
 /* MI module loaders */
-extern int		aout_loadmodule(char *filename, vm_offset_t dest, struct loaded_module **result);
-extern vm_offset_t	aout_findsym(char *name, struct loaded_module *mp);
+extern int		aout_loadfile(char *filename, vm_offset_t dest, struct preloaded_file **result);
+extern vm_offset_t	aout_findsym(char *name, struct preloaded_file *fp);
 
-extern int	elf_loadmodule(char *filename, vm_offset_t dest, struct loaded_module **result);
+extern int	elf_loadfile(char *filename, vm_offset_t dest, struct preloaded_file **result);
 
 #ifndef NEW_LINKER_SET
 #include <sys/linker_set.h>

@@ -39,9 +39,9 @@
 #include "libi386.h"
 #include "btxv86.h"
 
-static int	aout_exec(struct loaded_module *amp);
+static int	aout_exec(struct preloaded_file *fp);
 
-struct module_format i386_aout = { aout_loadmodule, aout_exec };
+struct file_format i386_aout = { aout_loadfile, aout_exec };
 
 /*
  * There is an a.out kernel and one or more a.out modules loaded.  
@@ -49,27 +49,27 @@ struct module_format i386_aout = { aout_loadmodule, aout_exec };
  * preparations as are required, and do so.
  */
 static int
-aout_exec(struct loaded_module *mp)
+aout_exec(struct preloaded_file *fp)
 {
-    struct module_metadata	*md;
+    struct file_metadata	*md;
     struct exec			*ehdr;
     vm_offset_t			entry, bootinfop;
     int				boothowto, err, bootdev;
     struct bootinfo		*bi;
     vm_offset_t			ssym, esym;
 
-    if ((md = mod_findmetadata(mp, MODINFOMD_AOUTEXEC)) == NULL)
+    if ((md = file_findmetadata(fp, MODINFOMD_AOUTEXEC)) == NULL)
 	return(EFTYPE);			/* XXX actually EFUCKUP */
     ehdr = (struct exec *)&(md->md_data);
 
-    if ((err = bi_load(mp->m_args, &boothowto, &bootdev, &bootinfop)) != 0)
+    if ((err = bi_load(fp->f_args, &boothowto, &bootdev, &bootinfop)) != 0)
 	return(err);
     entry = ehdr->a_entry & 0xffffff;
 
     ssym = esym = 0;
-    if ((md = mod_findmetadata(mp, MODINFOMD_SSYM)) != NULL)
+    if ((md = file_findmetadata(fp, MODINFOMD_SSYM)) != NULL)
 	ssym = *((vm_offset_t *)&(md->md_data));
-    if ((md = mod_findmetadata(mp, MODINFOMD_ESYM)) != NULL)
+    if ((md = file_findmetadata(fp, MODINFOMD_ESYM)) != NULL)
 	esym = *((vm_offset_t *)&(md->md_data));
     if (ssym == 0 || esym == 0) 
 	ssym = esym = 0;	/* sanity */

@@ -73,10 +73,10 @@ struct fs_ops *file_system[] = {
  * Sort formats so that those that can detect based on arguments
  * rather than reading the file go first.
  */
-extern struct module_format	i386_aout;
-extern struct module_format	i386_elf;
+extern struct file_format	i386_aout;
+extern struct file_format	i386_elf;
 
-struct module_format *module_formats[] = {
+struct file_format *file_formats[] = {
     &i386_elf,
     &i386_aout,
     NULL
