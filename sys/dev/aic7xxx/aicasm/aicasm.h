@@ -2,7 +2,7 @@
  * Assembler for the sequencer program downloaded to Aic7xxx SCSI host adapters
  *
  * Copyright (c) 1997 Justin T. Gibbs.
- * Copyright (c) 2001 Adaptec Inc.
+ * Copyright (c) 2001, 2002 Adaptec Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,7 +37,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aicasm/aicasm.h#10 $
+ * $Id: //depot/aic7xxx/aic7xxx/aicasm/aicasm.h#14 $
  *
  * $FreeBSD$
  */
@@ -76,8 +76,10 @@ extern struct scope_list scope_stack;
 extern struct symlist patch_functions;
 extern int includes_search_curdir;		/* False if we've seen -I- */
 extern char *appname;
+extern char *stock_include_file;
 extern int yylineno;
 extern char *yyfilename;
+extern char *prefix;
 extern char *patch_arg_list;
 extern char *versions;
 extern int   src_mode;

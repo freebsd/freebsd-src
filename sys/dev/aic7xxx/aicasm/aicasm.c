@@ -2,7 +2,7 @@
  * Aic7xxx SCSI host adapter firmware asssembler
  *
  * Copyright (c) 1997, 1998, 2000, 2001 Justin T. Gibbs.
- * Copyright (c) 2001 Adaptec Inc.
+ * Copyright (c) 2001, 2002 Adaptec Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,7 +37,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aicasm/aicasm.c#17 $
+ * $Id: //depot/aic7xxx/aic7xxx/aicasm/aicasm.c#22 $
  *
  * $FreeBSD$
  */
@@ -85,12 +85,15 @@ static int check_patch(patch_t **start_patch, int start_instr,
 struct path_list search_path;
 int includes_search_curdir;
 char *appname;
+char *stock_include_file;
 FILE *ofile;
 char *ofilename;
 char *regfilename;
 FILE *regfile;
 char *listfilename;
 FILE *listfile;
+char *regdiagfilename;
+FILE *regdiagfile;
 int   src_mode;
 int   dst_mode;
 
@@ -140,7 +143,7 @@ main(int argc, char *argv[])
 	yydebug = 0;
 	mmdebug = 0;
 #endif
-	while ((ch = getopt(argc, argv, "d:l:n:o:r:I:O:")) != -1) {
+	while ((ch = getopt(argc, argv, "d:i:l:n:o:p:r:I:")) != -1) {
 		switch(ch) {
 		case 'd':
 #if DEBUG
@@ -159,6 +162,9 @@ main(int argc, char *argv[])
 			stop("-d: Assembler not built with debugging "
 			     "information", EX_SOFTWARE);
 #endif
+			break;
+		case 'i':
+			stock_include_file = optarg;
 			break;
 		case 'l':
 			/* Create a program listing */
@@ -183,6 +189,14 @@ main(int argc, char *argv[])
 				stop(NULL, EX_CANTCREAT);
 			}
 			ofilename = optarg;
+			break;
+		case 'p':
+			/* Create Register Diagnostic "printing" Functions */
+			if ((regdiagfile = fopen(optarg, "w")) == NULL) {
+				perror(optarg);
+				stop(NULL, EX_CANTCREAT);
+			}
+			regdiagfilename = optarg;
 			break;
 		case 'r':
 			if ((regfile = fopen(optarg, "w")) == NULL) {
@@ -245,6 +259,14 @@ main(int argc, char *argv[])
 		/* NOTREACHED */
 	}
 
+	if (regdiagfile != NULL
+	 && (regfile == NULL || stock_include_file == NULL)) {
+		fprintf(stderr,
+			"%s: The -p option requires the -r and -i options.\n",
+			appname);
+		usage();
+		/* NOTREACHED */
+	}
 	symtable_open();
 	inputfilename = *argv;
 	include_file(*argv, SOURCE_FILE);
@@ -271,9 +293,8 @@ main(int argc, char *argv[])
 
 		if (ofile != NULL)
 			output_code();
-		if (regfile != NULL) {
-			symtable_dump(regfile);
-		}
+		if (regfile != NULL)
+			symtable_dump(regfile, regdiagfile);
 		if (listfile != NULL)
 			output_listing(inputfilename);
 	}
@@ -289,9 +310,9 @@ usage()
 
 	(void)fprintf(stderr,
 "usage: %-16s [-nostdinc] [-I-] [-I directory] [-o output_file]\n"
-"			[-r register_output_file] [-l program_list_file]\n"
-"			input_file\n",
-			appname);
+"	[-r register_output_file [-p register_diag_file -i includefile]]\n"
+"	[-l program_list_file]\n"
+"	input_file\n", appname);
 	exit(EX_USAGE);
 }
 
@@ -370,38 +391,43 @@ output_code()
 	/*
 	 *  Output patch information.  Patch functions first.
 	 */
+	fprintf(ofile,
+"typedef int %spatch_func_t (%s);\n", prefix, patch_arg_list);
+
 	for (cur_node = SLIST_FIRST(&patch_functions);
 	     cur_node != NULL;
 	     cur_node = SLIST_NEXT(cur_node,links)) {
 		fprintf(ofile,
-"static int aic_patch%d_func(%s);\n"
+"static %spatch_func_t %spatch%d_func;\n"
 "\n"
 "static int\n"
-"aic_patch%d_func(%s)\n"
+"%spatch%d_func(%s)\n"
 "{\n"
 "	return (%s);\n"
 "}\n\n",
+			prefix,
+			prefix,
 			cur_node->symbol->info.condinfo->func_num,
-			patch_arg_list,
+			prefix,
 			cur_node->symbol->info.condinfo->func_num,
 			patch_arg_list,
 			cur_node->symbol->name);
 	}
 
 	fprintf(ofile,
-"typedef int patch_func_t (%s);\n"
 "static struct patch {\n"
-"	patch_func_t	*patch_func;\n"
-"	uint32_t	begin	   :10,\n"
-"			skip_instr :10,\n"
-"			skip_patch :12;\n"
-"} patches[] = {\n", patch_arg_list);
+"	%spatch_func_t		*patch_func;\n"
+"	uint32_t		 begin		:10,\n"
+"				 skip_instr	:10,\n"
+"				 skip_patch	:12;\n"
+"} patches[] = {\n", prefix);
 
 	for (cur_patch = STAILQ_FIRST(&patches);
 	     cur_patch != NULL;
 	     cur_patch = STAILQ_NEXT(cur_patch,links)) {
-		fprintf(ofile, "%s\t{ aic_patch%d_func, %d, %d, %d }",
+		fprintf(ofile, "%s\t{ %spatch%d_func, %d, %d, %d }",
 			cur_patch == STAILQ_FIRST(&patches) ? "" : ",\n",
+			prefix,
 			cur_patch->patch_func, cur_patch->begin,
 			cur_patch->skip_instr, cur_patch->skip_patch);
 	}
@@ -410,8 +436,8 @@ output_code()
 
 	fprintf(ofile,
 "static struct cs {\n"
-"	u_int16_t	begin;\n"
-"	u_int16_t	end;\n"
+"	uint16_t	begin;\n"
+"	uint16_t	end;\n"
 "} critical_sections[] = {\n");
 
 	for (cs = TAILQ_FIRST(&cs_tailq);
