@@ -221,7 +221,6 @@ static void pmap_insert_entry(pmap_t pmap, vm_offset_t va,
 static vm_page_t pmap_allocpte(pmap_t pmap, vm_offset_t va);
 
 static vm_page_t _pmap_allocpte(pmap_t pmap, vm_pindex_t ptepindex);
-static vm_page_t pmap_page_lookup(vm_object_t object, vm_pindex_t pindex);
 static int pmap_unuse_pt(pmap_t, vm_offset_t, vm_page_t);
 static vm_offset_t pmap_kmem_choose(vm_offset_t addr);
 static void *pmap_pv_allocf(uma_zone_t zone, int bytes, u_int8_t *flags, int wait);
@@ -860,22 +859,6 @@ pmap_qremove(vm_offset_t sva, int count)
 	pmap_invalidate_range(kernel_pmap, sva, va);
 }
 
-static vm_page_t
-pmap_page_lookup(vm_object_t object, vm_pindex_t pindex)
-{
-	vm_page_t m;
-
-retry:
-	m = vm_page_lookup(object, pindex);
-	if (m != NULL) {
-		vm_page_lock_queues();
-		if (vm_page_sleep_if_busy(m, FALSE, "pplookp"))
-			goto retry;
-		vm_page_unlock_queues();
-	}
-	return m;
-}
-
 /***************************************************
  * Page table page management routines.....
  ***************************************************/
@@ -1132,8 +1115,7 @@ _pmap_allocpte(pmap, ptepindex)
 			_pmap_allocpte(pmap, NUPDE + NUPDPE + pml4index);
 		} else {
 			/* Add reference to pdp page */
-			pdppg = pmap_page_lookup(pmap->pm_pteobj,
-			    NUPDE + NUPDPE + pml4index);
+			pdppg = PHYS_TO_VM_PAGE(*pml4);
 			pdppg->hold_count++;
 		}
 		pdp = (pdp_entry_t *)PHYS_TO_DMAP(*pml4 & PG_FRAME);
@@ -1168,8 +1150,7 @@ _pmap_allocpte(pmap, ptepindex)
 				_pmap_allocpte(pmap, NUPDE + pdpindex);
 			} else {
 				/* Add reference to the pd page */
-				pdpg = pmap_page_lookup(pmap->pm_pteobj,
-				    NUPDE + pdpindex);
+				pdpg = PHYS_TO_VM_PAGE(*pdp);
 				pdpg->hold_count++;
 			}
 		}
@@ -1227,16 +1208,7 @@ pmap_allocpte(pmap_t pmap, vm_offset_t va)
 	 * hold count, and activate it.
 	 */
 	if (pd != 0 && (*pd & PG_V) != 0) {
-		/*
-		 * In order to get the page table page, try the
-		 * hint first.
-		 */
-		if (pmap->pm_pteobj->root &&
-			(pmap->pm_pteobj->root->pindex == ptepindex)) {
-			m = pmap->pm_pteobj->root;
-		} else {
-			m = pmap_page_lookup(pmap->pm_pteobj, ptepindex);
-		}
+		m = PHYS_TO_VM_PAGE(*pd);
 		m->hold_count++;
 		return m;
 	}
@@ -1982,7 +1954,6 @@ pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_page_t mpte)
 		if (mpte && (mpte->pindex == ptepindex)) {
 			mpte->hold_count++;
 		} else {
-retry:
 			/*
 			 * Get the page directory entry
 			 */
@@ -1995,14 +1966,7 @@ retry:
 			if (ptepa && (*ptepa & PG_V) != 0) {
 				if (*ptepa & PG_PS)
 					panic("pmap_enter_quick: unexpected mapping into 2MB page");
-				if (pmap->pm_pteobj->root &&
-					(pmap->pm_pteobj->root->pindex == ptepindex)) {
-					mpte = pmap->pm_pteobj->root;
-				} else {
-					mpte = pmap_page_lookup(pmap->pm_pteobj, ptepindex);
-				}
-				if (mpte == NULL)
-					goto retry;
+				mpte = PHYS_TO_VM_PAGE(*ptepa);
 				mpte->hold_count++;
 			} else {
 				mpte = _pmap_allocpte(pmap, ptepindex);
