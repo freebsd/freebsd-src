@@ -853,7 +853,7 @@ out:
  * data from a socket.  For more complete comments, see soreceive(), from
  * which this code originated.
  *
- * Note that soreceive_rcvoob(), unlike the remainder of soreiceve(), is
+ * Note that soreceive_rcvoob(), unlike the remainder of soreceive(), is
  * unable to return an mbuf chain to the caller.
  */
 static int
