@@ -3221,7 +3221,6 @@ pf_load(void)
 	++pfaltq_ref;
 	mtx_unlock(&pf_altq_mtx);
 #endif
-	printf("pf: $Name:  $\n");
 	return (0);
 }
 
