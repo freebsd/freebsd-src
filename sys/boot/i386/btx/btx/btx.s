@@ -1063,7 +1063,7 @@ dmpfmt: 	.byte '\n'			# "\n"
 		.byte 0x80|DMP_MEM|DMP_EOL,0x48 # "00 00 ... 00 00\n"
 		.ascii "ss:esp" 		# "ss:esp="
 		.byte 0x80|DMP_MEM|DMP_EOL,0x0	# "00 00 ... 00 00\n"
-		.asciz "System halted"		# End
+		.asciz "BTX halted"		# End
 #
 # End of BTX memory.
 #
