@@ -280,6 +280,9 @@ out:
 		ksp->ks_maxused = ksp->ks_memuse;
 	splx(s);
 	mtx_exit(&malloc_mtx, MTX_DEF);
+	/* XXX: Do idle pre-zeroing.  */
+	if (va != NULL && (flags & M_ZERO))
+		bzero(va, size);
 	return ((void *) va);
 }
 
