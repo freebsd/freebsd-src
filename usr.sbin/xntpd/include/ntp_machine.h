@@ -375,6 +375,7 @@ in this file.
 #define HAVE_LIBKVM
 #define NTP_POSIX_SOURCE
 #define HAVE_BSD_NICE
+#define USE_PROTOTYPES
 #ifndef STR_SYSTEM
 #define STR_SYSTEM "UNIX/4.4BSD"
 #endif
@@ -382,6 +383,7 @@ in this file.
 #define HAVE_TERMIOS
 #define HAVE_UNAME
 #define HAVE_SYS_TIMEX_H
+#define HAVE_GETBOOTFILE
 #define NTP_SYSCALLS_LIBC
 #define KERNEL_PLL
 #endif

@@ -47,7 +47,10 @@ void msyslog(va_alist)
 	const char *err;
 	register int c, l;
 	register char *n, *f, *prog;
+#ifndef SYS_44BSD
 	extern int sys_nerr;
+	extern char *sys_errlist[];
+#endif
 	int olderrno;
 
 #ifdef __STDC__
