@@ -510,6 +510,14 @@ ether_input(struct ifnet *ifp, struct mbuf *m)
 	}
 #endif
 
+#ifdef MAC
+	/*
+	 * Tag the mbuf with an appropriate MAC label before any other
+	 * consumers can get to it.
+	 */
+	mac_create_mbuf_from_ifnet(ifp, m);
+#endif
+
 	/*
 	 * Give bpf a chance at the packet.
 	 */
@@ -528,10 +536,6 @@ ether_input(struct ifnet *ifp, struct mbuf *m)
 		m_adj(m, -ETHER_CRC_LEN);
 		m->m_flags &= ~M_HASFCS;
 	}
-
-#ifdef MAC
-	mac_create_mbuf_from_ifnet(ifp, m);
-#endif
 
 	ifp->if_ibytes += m->m_pkthdr.len;
 
