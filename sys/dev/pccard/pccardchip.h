@@ -33,6 +33,7 @@
 #ifndef _PCCARD_PCCARDCHIP_H_
 #define	_PCCARD_PCCARDCHIP_H_
 
+#if 0
 #include <machine/bus.h>
 
 struct pccard_function;
@@ -43,6 +44,7 @@ struct pccard_io_handle;
 
 typedef struct pccard_chip_functions *pccard_chipset_tag_t;
 typedef void *pccard_chipset_handle_t;
+#endif
 typedef int pccard_mem_handle_t;
 
 #define	PCCARD_MEM_ATTR		1
@@ -52,6 +54,7 @@ typedef int pccard_mem_handle_t;
 #define	PCCARD_WIDTH_IO8	1
 #define	PCCARD_WIDTH_IO16	2
 
+#if 0
 struct pccard_chip_functions {
 	/* memory space allocation */
 	int	(*mem_alloc)(pccard_chipset_handle_t, bus_size_t,
@@ -126,13 +129,11 @@ struct pccard_chip_functions {
 #define pccard_chip_intr_disestablish(tag, handle, ih)			\
 	((*(tag)->intr_disestablish)((handle), (ih)))
 
-#if 0
 /* Socket functions. */
 #define	pccard_chip_socket_enable(tag, handle)				\
 	((*(tag)->socket_enable)((handle)))
 #define	pccard_chip_socket_disable(tag, handle)				\
 	((*(tag)->socket_disable)((handle)))
-#endif /* 0 */
 
 struct pccardbus_attach_args {
 	char *paa_busname;	/* Bus name */
@@ -141,5 +142,7 @@ struct pccardbus_attach_args {
 	bus_addr_t iobase;		/* start i/o space allocation here */
 	bus_size_t iosize;		/* size of the i/o space range */
 };
+
+#endif /* 0 */
 
 #endif /* _PCCARD_PCCARDCHIP_H_ */
