@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.15 1994/10/26 03:34:20 phk Exp $
+ * $Id: init_main.c,v 1.16 1994/11/06 05:01:58 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -319,7 +319,6 @@ main(framep)
 		/* NOTREACHED */
 	}
 
-#ifdef REL2_1
 	/*
 	 * Start high level vm daemon (process 3).
 	 */
@@ -333,7 +332,6 @@ main(framep)
 		vm_daemon();
 		/*NOTREACHED*/
 	}
-#endif
 
 	/*
 	 * Start update daemon (process 4).
