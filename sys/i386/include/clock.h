@@ -39,10 +39,6 @@ int	rtcin(int val);
 int	acquire_timer1(int mode);
 int	release_timer1(void);
 #endif
-#ifndef BURN_BRIDGES
-int	acquire_timer0(int rate, void (*function)(struct clockframe *frame));
-int	release_timer0(void);
-#endif
 int	sysbeep(int pitch, int period);
 void	timer_restore(void);
 void	init_TSC(void);
