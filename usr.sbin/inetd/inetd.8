@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     from: @(#)inetd.8	8.3 (Berkeley) 4/13/94
-.\"	$Id: inetd.8,v 1.28 1999/06/27 18:05:33 sheldonh Exp $
+.\"	$Id: inetd.8,v 1.29 1999/06/27 21:07:55 sheldonh Exp $
 .\"
 .Dd February 7, 1996
 .Dt INETD 8
@@ -389,10 +389,8 @@ When given the
 .Fl l
 option
 .Nm
-will log an entry to syslog each time an 
-.Xr accept 2 
-is made, which notes the
-service selected and the IP-number of the remote requestor.
+will log an entry to syslog each time a connection is accepted, noting the
+service selected and the IP-number of the remote requestor if available.
 .Pp
 The
 .Nm
@@ -412,7 +410,9 @@ When given the
 option,
 .Nm
 will wrap all services specified as
-.Dq stream tcp nowait
+.Dq stream nowait
+or
+.Dq dgram
 except for 
 .Dq internal
 services. If the
@@ -420,6 +420,21 @@ services. If the
 option is given twice, such
 .Dq internal
 services will be wrapped as well.
+.Pp
+If the
+.Fl l
+option is specified, all connection attempts are logged, whether they are
+allowed, denied or not wrapped at all. Otherwise, only denied requests will
+be logged.
+.Pp
+Note that
+.Nm
+only wraps requests for a
+.Dq wait
+service while no servers are available to service requests. Once a
+connection to such a service has been allowed, inetd has no control
+over subsequent connections to the service until no more servers
+are left listening for connection requests.
 .Pp
 When wrapping is enabled, the
 .Pa tcpd
