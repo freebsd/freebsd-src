@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.129 1995/12/10 20:54:38 bde Exp $
+ *	$Id: sio.c,v 1.130 1995/12/22 14:58:55 bde Exp $
  */
 
 #include "sio.h"
@@ -68,6 +68,10 @@
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
 #include <i386/isa/sioreg.h>
+
+#ifdef COM_ESP
+#include <i386/isa/ic/esp.h>
+#endif
 #include <i386/isa/ic/ns16550.h>
 
 #include "crd.h"
@@ -170,6 +174,9 @@ struct com_s {
 	u_char	state;		/* miscellaneous flag bits */
 	bool_t  active_out;	/* nonzero if the callout device is open */
 	u_char	cfcr_image;	/* copy of value written to CFCR */
+#ifdef COM_ESP
+	bool_t	esp;		/* is this unit a hayes esp board? */
+#endif
 	u_char	fifo_image;	/* copy of value written to FIFO */
 	bool_t	hasfifo;	/* nonzero for 16550 UARTs */
 	bool_t	loses_outints;	/* nonzero if device loses output interrupts */
@@ -205,6 +212,9 @@ struct com_s {
 	struct lbq	obufs[2];	/* output buffers */
 
 	Port_t	data_port;	/* i/o ports */
+#ifdef COM_ESP
+	Port_t	esp_port;
+#endif
 	Port_t	int_id_port;
 	Port_t	iobase;
 	Port_t	modem_ctl_port;
@@ -267,6 +277,8 @@ void	siopoll		__P((void));
 #define	siommap		nommap
 #define	siostrategy	nostrategy
 
+static	int	espattach	__P((struct isa_device *isdp, struct com_s *com,
+				     Port_t esp_port));
 static	int	sioattach	__P((struct isa_device *dev));
 static	timeout_t siodtrwakeup;
 static	void	comhardclose	__P((struct com_s *com));
@@ -366,6 +378,11 @@ static struct kern_devconf kdc_sio[NSIO] = { {
 	"Serial port",
 	DC_CLS_SERIAL		/* class */
 } };
+
+#ifdef COM_ESP
+static	Port_t	likely_esp_ports[] = { 0x140, 0x180, 0x280, 0 };
+#endif
+
 #if NCRD > 0
 /*
  *	PC-Card (PCMCIA) specific code.
@@ -704,12 +721,81 @@ sioprobe(dev)
 	return (result);
 }
 
+#ifdef COM_ESP
+static int
+espattach(isdp, com, esp_port)
+	struct isa_device	*isdp;
+	struct com_s		*com;
+	Port_t			esp_port;
+{
+	u_char	dips;
+	u_char	val;
+
+	/*
+	 * Check the ESP-specific I/O port to see if we're an ESP
+	 * card.  If not, return failure immediately.
+	 */
+	if ((inb(esp_port) & 0xf3) == 0) {
+		printf(" port 0x%x is not an ESP board?\n", esp_port);
+		return (0);
+	}
+
+	/*
+	 * We've got something that claims to be a Hayes ESP card.
+	 * Let's hope so.
+	 */
+
+	/* Get the dip-switch configuration */
+	outb(esp_port + ESP_CMD1, ESP_GETDIPS);
+	dips = inb(esp_port + ESP_STATUS1);
+
+	/*
+	 * Bits 0,1 of dips say which COM port we are.
+	 */
+	if (com->iobase == likely_com_ports[dips & 0x03])
+		printf(" : ESP");
+	else {
+		printf(" esp_port has com %d\n", dips & 0x03);
+		return (0);
+	}
+
+	/*
+	 * Check for ESP version 2.0 or later:  bits 4,5,6 = 010.
+	 */
+	outb(esp_port + ESP_CMD1, ESP_GETTEST);
+	val = inb(esp_port + ESP_STATUS1);	/* clear reg 1 */
+	val = inb(esp_port + ESP_STATUS2);
+	if ((val & 0x70) < 0x20) {
+		printf("-old (%o)", val & 0x70);
+		return (0);
+	}
+
+	/*
+	 * Check for ability to emulate 16550:  bit 7 == 1
+	 */
+	if ((dips & 0x80) == 0) {
+		printf(" slave");
+		return (0);
+	}
+
+	/*
+	 * Okay, we seem to be a Hayes ESP card.  Whee.
+	 */
+	com->esp = TRUE;
+	com->esp_port = esp_port;
+	return (1);
+}
+#endif /* COM_ESP */
+
 static int
 sioattach(isdp)
 	struct isa_device	*isdp;
 {
 	struct com_s	*com;
 	dev_t		dev;
+#ifdef COM_ESP
+	Port_t		*espp;
+#endif
 	Port_t		iobase;
 	char		name[32];
 	int		s;
@@ -838,6 +924,15 @@ sioattach(isdp)
 			com->tx_fifo_size = 16;
 			kdc_sio[unit].kdc_description =
 			  "Serial port: National 16550A or compatible";
+#ifdef COM_ESP
+			for (espp = likely_esp_ports; *espp != 0; espp++)
+				if (espattach(isdp, com, *espp)) {
+					com->tx_fifo_size = 1024;
+					kdc_sio[unit].kdc_description =
+					  "Serial port: Hayes ESP";
+					break;
+				}
+#endif
 		}
 #if 0
 		/*
@@ -868,6 +963,30 @@ sioattach(isdp)
 #endif
 		break;
 	}
+#ifdef COM_ESP
+	if (com->esp) {
+		outb(iobase + com_fifo,
+		     FIFO_DMA_MODE | FIFO_ENABLE | FIFO_RCV_RST | FIFO_XMT_RST
+		     | FIFO_RX_MEDH);
+
+		/* Set 16550 compatibility mode. */
+		outb(com->esp_port + ESP_CMD1, ESP_SETMODE);
+		outb(com->esp_port + ESP_CMD2,
+		     ESP_MODE_SCALE | ESP_MODE_RTS | ESP_MODE_FIFO);
+
+		/* Set RTS/CTS flow control. */
+		outb(com->esp_port + ESP_CMD1, ESP_SETFLOWTYPE);
+		outb(com->esp_port + ESP_CMD2, ESP_FLOW_RTS);
+		outb(com->esp_port + ESP_CMD2, ESP_FLOW_CTS);
+
+		/* Set flow-control levels. */
+		outb(com->esp_port + ESP_CMD1, ESP_SETRXFLOW);
+		outb(com->esp_port + ESP_CMD2, HIBYTE(768));
+		outb(com->esp_port + ESP_CMD2, LOBYTE(768));
+		outb(com->esp_port + ESP_CMD2, HIBYTE(512));
+		outb(com->esp_port + ESP_CMD2, LOBYTE(512));
+	}
+#endif /* COM_ESP */
 	outb(iobase + com_fifo, 0);
 determined_type: ;
 
