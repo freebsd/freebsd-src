@@ -42,6 +42,7 @@ dev/syscons/scvidctl.c		optional	sc
 dev/syscons/scvtb.c		optional	sc
 dev/syscons/syscons.c		optional	sc
 dev/syscons/sysmouse.c		optional	sc
+dev/uart/uart_cpu_amd64.c	optional	uart
 isa/atkbd_isa.c			optional	atkbd
 
 amd64/acpica/OsdEnvironment.c	optional	acpi
