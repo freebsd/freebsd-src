@@ -84,7 +84,7 @@ static char sccsid[] = "@(#)move.c	8.1 (Berkeley) 7/19/93";
  *
  *		point(&p,x,y)	return point set to x,y.
  *
- *		baudrate(x)	returns the baudrate of the terminal.
+ *		baudrate()	returns the baudrate of the terminal.
  *		delay(t)	causes an approximately constant delay
  *					independent of baudrate.
  *					Duration is ~ t/20 seconds.
@@ -506,6 +506,8 @@ char *str;
 	if (str)
 		tputs(str, 1, outch);
 }
+
+#if 0
 baudrate()
 {
 
@@ -522,6 +524,8 @@ baudrate()
 		return(0);
 	}
 }
+#endif
+
 delay(t)
 int t;
 {
