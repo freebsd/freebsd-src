@@ -16,7 +16,7 @@
  *
  * NEW command line interface for IP firewall facility
  *
- * $Id: ipfw.c,v 1.34.2.19 1998/09/17 18:01:59 luigi Exp $
+ * $Id: ipfw.c,v 1.34.2.20 1998/10/12 17:29:15 luigi Exp $
  *
  */
 
@@ -990,7 +990,7 @@ add(ac,av)
 	} else if (!strncmp(*av,"divert",strlen(*av))) {
 		rule.fw_flg |= IP_FW_F_DIVERT; av++; ac--;
 		if (!ac)
-			show_usage("missing divert port");
+			show_usage("missing %s port", "divert");
 		rule.fw_divert_port = strtoul(*av, NULL, 0); av++; ac--;
 		if (rule.fw_divert_port == 0) {
 			struct servent *s;
@@ -999,12 +999,12 @@ add(ac,av)
 			if (s != NULL)
 				rule.fw_divert_port = ntohs(s->s_port);
 			else
-				show_usage("illegal divert port");
+				show_usage("illegal %s port", "divert");
 		}
 	} else if (!strncmp(*av,"tee",strlen(*av))) {
 		rule.fw_flg |= IP_FW_F_TEE; av++; ac--;
 		if (!ac)
-			show_usage("missing divert port");
+			show_usage("missing %s port", "tee divert");
 		rule.fw_divert_port = strtoul(*av, NULL, 0); av++; ac--;
 		if (rule.fw_divert_port == 0) {
 			struct servent *s;
@@ -1013,8 +1013,11 @@ add(ac,av)
 			if (s != NULL)
 				rule.fw_divert_port = ntohs(s->s_port);
 			else
-				show_usage("illegal divert port");
+				show_usage("illegal %s port", "tee divert");
 		}
+#ifndef IPFW_TEE_IS_FINALLY_IMPLEMENTED
+		err(1, "the ``tee'' action is not implemented");
+#endif
 	} else if (!strncmp(*av,"skipto",strlen(*av))) {
 		rule.fw_flg |= IP_FW_F_SKIPTO; av++; ac--;
 		if (!ac)
