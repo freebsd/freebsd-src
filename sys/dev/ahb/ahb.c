@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ahb.c,v 1.11 1999/05/06 20:16:31 ken Exp $
+ *	$Id: ahb.c,v 1.12 1999/05/08 21:59:17 dfr Exp $
  */
 
 #include "eisa.h"
@@ -206,6 +206,7 @@ ahbprobe(device_t dev)
 	u_int32_t iobase;
 	u_int32_t irq;
 	u_int8_t  intdef;      
+	int shared;
                 
 	desc = ahbmatch(eisa_get_id(dev));
 	if (!desc)
@@ -247,7 +248,10 @@ ahbprobe(device_t dev)
 	if (irq == 0)
 	    return ENXIO;
 
-	eisa_add_intr(dev, irq);
+	shared = (inb(INTDEF + iobase) & INTLEVEL) ?
+		 EISA_TRIGGER_LEVEL : EISA_TRIGGER_EDGE;
+
+	eisa_add_intr(dev, irq, shared);
 
 	return 0;   
 }
@@ -262,7 +266,7 @@ ahbattach(device_t dev)
 	struct	    ecb* next_ecb;
 	struct	    resource *io = 0;
 	struct	    resource *irq = 0;
-	int	    shared, rid;
+	int	    rid;
 	void	    *ih;
 
 	rid = 0;
@@ -280,10 +284,9 @@ ahbattach(device_t dev)
 	if (ahbreset(ahb) != 0)
 		goto error_exit;
 
-	shared = (ahb_inb(ahb, INTDEF) & INTLEVEL) ? RF_SHAREABLE : 0;
 	rid = 0;
 	irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid,
-				 0, ~0, 1, shared  | RF_ACTIVE);
+				 0, ~0, 1, RF_ACTIVE);
 	if (!irq) {
 		device_printf(dev, "Can't allocate interrupt\n");
 		goto error_exit;
@@ -746,10 +749,14 @@ ahbprocesserror(struct ahb_softc *ahb, struct ecb *ecb, union ccb *ccb)
 	case HS_SCSI_RESET_INCOMING:
 		ccb->ccb_h.status = CAM_SCSI_BUS_RESET;
 		break;
+	case HS_INVALID_ECB_PARAM:
+		printf("ahb%ld: opcode 0x%02x, flag_word1 0x%02x, flag_word2 0x%02x\n",
+			ahb->unit, hecb->opcode, hecb->flag_word1, hecb->flag_word2);	
+		ccb->ccb_h.status = CAM_SCSI_BUS_RESET;
+		break;
 	case HS_DUP_TCB_RECEIVED:
 	case HS_INVALID_OPCODE:
 	case HS_INVALID_CMD_LINK:
-	case HS_INVALID_ECB_PARAM:
 	case HS_PROGRAM_CKSUM_ERROR:
 		panic("ahb%ld: Can't happen host status %x occurred",
 		      ahb->unit, status->ha_status);

@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_fea.c,v 1.15 1999/07/10 19:46:08 peter Exp $
+ * $Id: if_fea.c,v 1.16 1999/07/31 00:43:48 mdodd Exp $
  */
 
 /*
@@ -148,7 +148,7 @@ pdq_eisa_probe (dev)
 
 	eisa_add_iospace(dev, iobase, 0x200, RESVADDR_NONE);
 	eisa_add_mspace(dev, maddr, msize, RESVADDR_NONE);
-	eisa_add_intr(dev, irq);
+	eisa_add_intr(dev, irq, EISA_TRIGGER_LEVEL);
 	
 	return (0);
 }
@@ -196,7 +196,7 @@ pdq_eisa_attach (dev)
 
 	rid = 0;
 	irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid,
-				 0, ~0, 1, RF_SHAREABLE | RF_ACTIVE);
+				 0, ~0, 1, RF_ACTIVE);
 
 	if (!irq) {
 		device_printf(dev, "No, irq?!\n");
