@@ -530,14 +530,14 @@ rtmsg_input()
 		}
 
 		/* check if an interface flag is changed */
-		if ((oldifflags & IFF_UP) != 0 &&	/* UP to DOWN */
-		    (iflist[ifindex]->ifm_flags & IFF_UP) == 0) {
+		if ((oldifflags & IFF_UP) && /* UP to DOWN */
+		    !(iflist[ifindex]->ifm_flags & IFF_UP)) {
 			syslog(LOG_INFO,
 			    "<%s> interface %s becomes down. stop timer.",
 			    __func__, rai->ifname);
 			rtadvd_remove_timer(&rai->timer);
-		} else if ((oldifflags & IFF_UP) == 0 &&	/* DOWN to UP */
-			 (iflist[ifindex]->ifm_flags & IFF_UP) != 0) {
+		} else if (!(oldifflags & IFF_UP) && /* DOWN to UP */
+			 (iflist[ifindex]->ifm_flags & IFF_UP)) {
 			syslog(LOG_INFO,
 			    "<%s> interface %s becomes up. restart timer.",
 			    __func__, rai->ifname);
@@ -760,7 +760,7 @@ rs_input(int len, struct nd_router_solicit *rs,
 	memset(&ndopts, 0, sizeof(ndopts));
 	if (nd6_options((struct nd_opt_hdr *)(rs + 1),
 			len - sizeof(struct nd_router_solicit),
-			 &ndopts, NDOPT_FLAG_SRCLINKADDR)) {
+			&ndopts, NDOPT_FLAG_SRCLINKADDR)) {
 		syslog(LOG_DEBUG,
 		       "<%s> ND option check failed for an RS from %s on %s",
 		       __func__,
@@ -1092,7 +1092,7 @@ prefix_check(struct nd_opt_prefix_info *pinfo,
 		if (rai->clockskew &&
 		    abs(preferred_time - pp->pltimeexpire) > rai->clockskew) {
 			syslog(LOG_INFO,
-			       "<%s> prefeerred lifetime for %s/%d"
+			       "<%s> preferred lifetime for %s/%d"
 			       " (decr. in real time) inconsistent on %s:"
 			       " %d from %s, %ld from us",
 			       __func__,
@@ -1107,7 +1107,7 @@ prefix_check(struct nd_opt_prefix_info *pinfo,
 		}
 	} else if (preferred_time != pp->preflifetime) {
 		syslog(LOG_INFO,
-		       "<%s> prefeerred lifetime for %s/%d"
+		       "<%s> preferred lifetime for %s/%d"
 		       " inconsistent on %s:"
 		       " %d from %s, %d from us",
 		       __func__,
@@ -1227,16 +1227,14 @@ nd6_options(struct nd_opt_hdr *hdr, int limit,
 		}
 
 		if (hdr->nd_opt_type > ND_OPT_MTU) {
-			syslog(LOG_INFO,
-			    "<%s> unknown ND option(type %d)",
+			syslog(LOG_INFO, "<%s> unknown ND option(type %d)",
 			    __func__, hdr->nd_opt_type);
 			continue;
 		}
 
 		if ((ndopt_flags[hdr->nd_opt_type] & optflags) == 0) {
-			syslog(LOG_INFO,
-			    "<%s> unexpected ND option(type %d)",
-			       __func__, hdr->nd_opt_type);
+			syslog(LOG_INFO, "<%s> unexpected ND option(type %d)",
+			    __func__, hdr->nd_opt_type);
 			continue;
 		}
 
