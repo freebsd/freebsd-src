@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)mbuf.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: mbuf.c,v 1.10 1998/04/24 04:30:27 dg Exp $";
+	"$Id: mbuf.c,v 1.11 1998/05/15 20:19:18 wollman Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -130,7 +130,7 @@ mbpr()
 	totmbufs = 0;
 	for (mp = mbtypes; mp->mt_name; mp++)
 		totmbufs += mbstat.m_mtypes[mp->mt_type];
-	printf("%u/%u mbufs in use:\n", totmbufs, mbstat.m_mbufs);
+	printf("%u/%lu mbufs in use:\n", totmbufs, mbstat.m_mbufs);
 	for (mp = mbtypes; mp->mt_name; mp++)
 		if (mbstat.m_mtypes[mp->mt_type]) {
 			seen[mp->mt_type] = YES;
@@ -143,8 +143,9 @@ mbpr()
 			printf("\t%u mbufs allocated to <mbuf type %d>\n",
 			    mbstat.m_mtypes[i], i);
 		}
-	printf("%lu/%lu/%lu mbuf clusters in use (current/peak/max)\n",
-		mbstat.m_clusters - mbstat.m_clfree, mbstat.m_clusters, nmbclusters);
+	printf("%lu/%lu/%u mbuf clusters in use (current/peak/max)\n",
+		mbstat.m_clusters - mbstat.m_clfree, mbstat.m_clusters,
+		nmbclusters);
 	totmem = mbstat.m_mbufs * MSIZE + mbstat.m_clusters * MCLBYTES;
 	totfree = mbstat.m_clfree * MCLBYTES + 
 		MSIZE * (mbstat.m_mbufs - totmbufs);
