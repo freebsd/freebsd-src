@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.226 1999/02/05 22:15:48 jkh Exp $
+ * $Id: install.c,v 1.227 1999/02/09 22:18:10 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -1062,7 +1062,7 @@ installVarDefaults(dialogMenuItem *self)
     variable_set2(VAR_BROWSER_PACKAGE,		"lynx", 0);
     variable_set2(VAR_BROWSER_BINARY,		"/usr/local/bin/lynx", 0);
     variable_set2(VAR_FTP_STATE,		"passive", 0);
-    variable_set2(VAR_NFS_SECURE,		"YES", 1);
+    variable_set2(VAR_NFS_SECURE,		"YES", 0);
     variable_set2(VAR_PKG_TMPDIR,		"/usr/tmp", 0);
     variable_set2(VAR_GATED_PKG,		"gated", 0);
     variable_set2(VAR_PCNFSD_PKG,		"pcnfsd", 0);
