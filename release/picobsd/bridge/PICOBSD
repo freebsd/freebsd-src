@@ -3,8 +3,8 @@
 #
 # Line starting with #PicoBSD contains PicoBSD build parameters
 #marker         def_sz  init    MFS_inodes      floppy_inodes
-#PicoBSD	2200	init	8192		32768
-options MD_ROOT_SIZE=2200      # same as def_sz
+#PicoBSD	3200	init	8192		32768
+options MD_ROOT_SIZE=3200      # same as def_sz
 
 hints	"PICOBSD.hints"
 machine		i386
@@ -13,9 +13,8 @@ cpu		I486_CPU
 cpu		I586_CPU
 cpu		I686_CPU
 ident		PICOBSD
-maxusers	20
 
-#options		MATH_EMULATE		#Support for x87 emulation
+#options	MATH_EMULATE		#Support for x87 emulation
 options 	INET			#InterNETworking
 #options	INET6
 options 	FFS			#Berkeley Fast Filesystem
@@ -32,18 +31,17 @@ options 	MD_ROOT			#MD is a potential root device
 #options 	PROCFS			#Process filesystem
 options		COMPAT_43		#Compatible with BSD 4.3 [KEEP THIS!]
 
-options		DDB
+#options		DDB
 
 options		IPFIREWALL
 options		IPFIREWALL_DEFAULT_TO_ACCEPT
 options		IPDIVERT		# divert (for natd)
-options		PCI_QUIET		#quiets PCI code on chipset settings
 
 # Support for bridging and bandwidth limiting
 options		DUMMYNET
 options		BRIDGE
 options		HZ=1000
-options		NMBCLUSTERS=4096
+#options		NMBCLUSTERS=4096
 
 device		isa
 device		pci
@@ -93,14 +91,14 @@ device		sio
 #
 device	miibus 
 #device		de		# DEC/Intel DC21x4x (``Tulip'')
-device		lnc
+#device		lnc
 device		fxp		# Intel EtherExpress PRO/100B (82557, 82558)
 #device		xl		# 3Com
 device		rl		# RealTek 8129/8139
 #device		vx		# 3Com 3c590, 3c595 (``Vortex'')
 #device		wx		# Intel Gigabit Ethernet Card (``Wiseman'')
 device		dc		# DEC/Intel 21143 and various workalikes
-#device		ed
+device		ed
 
 device		loop		# Network loopback
 device		ether		# Ethernet support
@@ -112,6 +110,7 @@ device		md		# Memory "disks"
 #device		faith	1	# IPv6-to-IPv4 relaying (translation)
 #device		tap
 
+options		DEVICE_POLLING
 
 # The `bpf' device enables the Berkeley Packet Filter.
 # Be aware of the administrative consequences of enabling this!
