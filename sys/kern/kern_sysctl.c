@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_sysctl.c,v 1.83 1999/01/10 07:45:31 phk Exp $
+ * $Id: kern_sysctl.c,v 1.84 1999/02/16 10:49:48 dfr Exp $
  */
 
 #include "opt_compat.h"
@@ -220,7 +220,7 @@ sysctl_sysctl_name SYSCTL_HANDLER_ARGS
 	u_int namelen = arg2;
 	int error = 0;
 	struct sysctl_oid *oid;
-	struct sysctl_oid_list *lsp = &sysctl__children;
+	struct sysctl_oid_list *lsp = &sysctl__children, *lsp2;
 	char buf[10];
 
 	while (namelen) {
@@ -236,6 +236,7 @@ sysctl_sysctl_name SYSCTL_HANDLER_ARGS
 			name++;
 			continue;
 		}
+		lsp2 = 0;
 		SLIST_FOREACH(oid, lsp, oid_link) {
 			if (oid->oid_number != *name)
 				continue;
@@ -251,15 +252,16 @@ sysctl_sysctl_name SYSCTL_HANDLER_ARGS
 			namelen--;
 			name++;
 
-			if ((oid->oid_kind & CTLTYPE) != CTLTYPE_NODE)
+			if ((oid->oid_kind & CTLTYPE) != CTLTYPE_NODE) 
 				break;
 
 			if (oid->oid_handler)
 				break;
 
-			lsp = (struct sysctl_oid_list *)oid->oid_arg1;
+			lsp2 = (struct sysctl_oid_list *)oid->oid_arg1;
 			break;
 		}
+		lsp = lsp2;
 	}
 	return (SYSCTL_OUT(req, "", 1));
 }
