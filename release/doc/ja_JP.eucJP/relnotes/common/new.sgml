@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.264
+    Original revision: 1.265
 -->
 
 <articleinfo>
@@ -205,7 +205,7 @@
       デフォルトとなりました. &merged;</para>
 
     <para arch="alpha">カーネルオプション <varname>MAXMEM</varname>
-      と <varname>hw.physmem</varname> ローダ変数
+      と <varname>hw.physmem</varname> 調整可能なローダ変数
       はテスト (やその他の目的) のために, 人工的にマシンのメモリサイズ
       を減らすことに使えるようになりました. &merged;</para>
 
@@ -1793,6 +1793,13 @@ hw.pcic.irq="0"</programlisting>
     <para>&man.c89.1; がシェルスクリプトからバイナリ実行ファイルに置き換えられ,
       いくつかあった小さなバグが修正されました.
       &merged;</para>
+
+    <para arch="i386">機能限定版の &man.camcontrol.8; がインストール
+      用フロッピーに入りました.
+      これにより, <quote>緊急ホログラフィックシェル</quote> の中から
+      ブート後に接続されたデバイスを再スキャンしたり,
+      SCSI バスに接続されたデバイスを見たりすることができるように
+      なりました. &merged;</para>
 
     <para>&man.cat.1; が新しく UNIX ドメインソケットの読み出しに対応しました.
       &merged;</para>
