@@ -36,14 +36,9 @@
  */
 
 #include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/types.h>
-#include <sys/errno.h>
-#include <sys/time.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <net/if.h>
-#include <netinet/in.h>
 #include <netatm/port.h>
 #include <netatm/queue.h>
 #include <netatm/atm.h>
