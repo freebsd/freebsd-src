@@ -2171,19 +2171,30 @@ hint.pcf.0.at="isa"
 hint.pcf.0.port="0x320"
 hint.pcf.0.irq="5"
 
-# ISDN4BSD section
+#---------------------------------------------------------------------------
+# ISDN4BSD
 #
 # See /usr/share/examples/isdn/ROADMAP for an introduction to isdn4bsd.
 #
-# i4b passive ISDN cards support (isic - I4b Siemens Isdn Chipset driver)
-# note that the ``options'' and ``device'' lines must BOTH be defined !
+# i4b passive ISDN cards support contains the following hardware drivers:
 #
-# Driver entries marked "(not supported yet!)" are not working currently
-# due to not being converted to newbus. We hope to get them back to support
-# in the near future.
+#	isic - I4b Siemens Isdn Chipset driver
+#	iwic - I4b Winbond Isdn Chip driver
+#	ifpi - I4b Fritz!card PcI driver
+#	ihfc - I4b cologne chip designs HFC ISA chip driver
 #
-device		isic		# core driver support
-
+# Note that the ``options'' (if given) and ``device'' lines must BOTH
+# be uncommented to enable support for a given card !
+#
+# In addition to a hardware driver (and probably an option) the mandatory
+# ISDN protocol stack devices and the mandatory support device must be 
+# enabled as well as one or more devices from the optional devices section.
+#
+#---------------------------------------------------------------------------
+#	isic driver (Siemens/Infineon chipsets)
+#
+device	isic
+#
 # ISA bus non-PnP Cards:
 # ----------------------
 #
@@ -2216,19 +2227,19 @@ hint.isic.0.port="0x340"
 hint.isic.0.irq="5"
 hint.isic.0.flags="4"
 #
-# USRobotics Sportster ISDN TA intern (not supported yet!)
-#options 	USR_STI
-#hint.isic.0.at="isa"
-#hint.isic.0.port="0x268"
-#hint.isic.0.irq="5"
-#hint.isic.0.flags="7"
+# USRobotics Sportster ISDN TA intern
+options 	USR_STI
+hint.isic.0.at="isa"
+hint.isic.0.port="0x268"
+hint.isic.0.irq="5"
+hint.isic.0.flags="7"
 #
-# ITK ix1 Micro ( < V.3, non-PnP version ) (not supported yet!)
-#options 	ITKIX1
-#hint.isic.0.at="isa"
-#hint.isic.0.port="0x398"
-#hint.isic.0.irq="10"
-#hint.isic.0.flags="18"
+# ITK ix1 Micro ( < V.3, non-PnP version )
+options 	ITKIX1
+hint.isic.0.at="isa"
+hint.isic.0.port="0x398"
+hint.isic.0.irq="10"
+hint.isic.0.flags="18"
 #
 # ELSA PCC-16
 options 	ELSA_PCC16
@@ -2252,23 +2263,17 @@ options 	DRN_NGO
 # Sedlbauer Win Speed
 options 	SEDLBAUER
 #
-# Dynalink IS64PH (not supported yet!)
-#options 	DYNALINK 
+# Dynalink IS64PH
+options 	DYNALINK 
 #
 # ELSA QuickStep 1000pro ISA
 options 	ELSA_QS1ISA
-#
-# ITK ix1 Micro ( V.3, PnP version ) (not supported yet!)
-#options 	ITKIX1
-#
-# AVM Fritz!Card PnP (not supported yet!)
-#options 	AVM_PNP
 #
 # Siemens I-Surf 2.0
 options 	SIEMENS_ISURF2
 #
 # Asuscom ISDNlink 128K ISA
-#options 	ASUSCOM_IPAC
+options 	ASUSCOM_IPAC
 #
 # PCI bus Cards:
 # --------------
@@ -2276,27 +2281,35 @@ options 	SIEMENS_ISURF2
 # ELSA MicroLink ISDN/PCI (same as ELSA QuickStep 1000pro PCI)
 options 	ELSA_QS1PCI
 #
+#
+#---------------------------------------------------------------------------
+#	ifpnp driver for AVM Fritz!Card PnP
+#
+# AVM Fritz!Card PnP
+device ifpnp
+#
+#---------------------------------------------------------------------------
+#	ihfc driver for Cologne Chip ISA chipsets (experimental!)
+#
+# Teles 16.3c ISA PnP
+# AcerISDN P10 ISA PnP
+# TELEINT ISDN SPEED No.1
+device ihfc
+#
+#---------------------------------------------------------------------------
+#	ifpi driver for AVM Fritz!Card PCI
+#
 # AVM Fritz!Card PCI
-options 	AVM_A1_PCI
+device  ifpi
 #
-# PCMCIA Cards:
-# -------------
+#---------------------------------------------------------------------------
+#	iwic driver for Winbond W6692 chipset
 #
-# AVM PCMCIA Fritz!Card (not supported yet!)
-#options 	AVM_A1_PCMCIA
+# ASUSCOM P-IN100-ST-D (and other Winbond W6692 based cards)
+device  iwic0
 #
-# Active Cards:
-# -------------
-#
-# Stollmann Tina-dd control device 
-# (driver under development, not fully functional!)
-device		tina
-hint.tina.0.at="isa"
-hint.tina.0.port="0x260"
-hint.tina.0.irq="10"
-#
-# ISDN Protocol Stack
-# -------------------
+#---------------------------------------------------------------------------
+#	ISDN Protocol Stack - mandatory for all hardware drivers
 #
 # Q.921 / layer 2 - i4b passive cards D channel handling
 device		"i4bq921"
@@ -2307,14 +2320,17 @@ device		"i4bq931"
 # layer 4 - i4b common passive and active card handling
 device		"i4b"
 #
-# ISDN devices
-# ------------
+#---------------------------------------------------------------------------
+#	ISDN devices - mandatory for all hardware drivers
 #
 # userland driver to do ISDN tracing (for passive cards only)
 device		"i4btrc"	4
 #
 # userland driver to control the whole thing
 device		"i4bctl"
+#
+#---------------------------------------------------------------------------
+#	ISDN devices - optional
 #
 # userland driver for access to raw B channel
 device		"i4brbch"	4
@@ -2332,7 +2348,11 @@ options 	IPR_LOG=32
 # network driver for sync PPP over ISDN; requires an equivalent
 # number of sppp device to be configured
 device		"i4bisppp"	4
-
+#
+# B-channel inteface to the netgraph subsystem
+device		"i4bing"	2
+#
+#---------------------------------------------------------------------------
 
 # Parallel-Port Bus
 #
