@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: md.c,v 1.4 1993/11/22 19:05:23 jkh Exp $
+ *	$Id: md.c,v 1.6 1993/12/02 01:03:04 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -40,6 +40,8 @@
 #include <string.h>
 
 #include "ld.h"
+
+int netzmagic = 0;
 
 /*
  * Get relocation addend corresponding to relocation record RP
@@ -96,10 +98,14 @@ md_init_header(hp, magic, flags)
 struct exec	*hp;
 int		magic, flags;
 {
-	if (oldmagic)
-		hp->a_midmag = oldmagic;
-	else
-		N_SETMAGIC((*hp), magic, MID_I386, flags);
+	if (!netzmagic && (magic == ZMAGIC) && !(link_mode & DYNAMIC)) {
+		hp->a_midmag = magic;
+	} else {
+		if (netzmagic)
+			N_SETMAGIC_NET((*hp), magic, MID_I386, flags);
+		else
+			N_SETMAGIC((*hp), magic, MID_I386, flags);
+	}
 
 	/* TEXT_START depends on the value of outheader.a_entry.  */
 	if (!(link_mode & SHAREABLE)) /*WAS: if (entry_symbol) */
