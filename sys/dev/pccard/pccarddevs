@@ -123,6 +123,7 @@ product 3COM 3CCFEM556BI	0x0556 3Com/Megahertz 3CCFEM556BI Ethernet/Modem
 product 3COM 3C562		0x0562 3Com 3c562 33.6 Modem/10Mbps Ethernet
 product 3COM 3C589		0x0589 3Com 3c589 10Mbps Ethernet
 product 3COM 3C574		0x0574 3Com 3c574-TX 10/100Mbps Ethernet
+product	3COM 3CRWE777A		0x0777 3Com 3CRWE777A Airconnect
 product 3COM 3C1		0x0cf1 3Com Megahertz 3C1 10Mbps LAN CF+ Card
 product 3COM 3CRWE62092A	0x2092 3Com 3CRWE62092A	Wireless LAN
 
