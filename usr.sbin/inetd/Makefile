@@ -4,4 +4,7 @@ PROG=	inetd
 MAN8=	inetd.8
 MLINKS=	inetd.8 inetd.conf.5
 
+DPADD+=	${LIBUTIL}
+LDADD+=	-lutil
+
 .include <bsd.prog.mk>
