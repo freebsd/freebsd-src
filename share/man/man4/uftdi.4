@@ -36,7 +36,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 13, 2000
+.Dd September 12, 2004
 .Dt UFTDI 4
 .Os
 .Sh NAME
@@ -45,19 +45,6 @@
 .Sh SYNOPSIS
 .Cd "device uftdi"
 .Cd "device ucom"
-.Sh HARDWARE
-The
-.Nm
-driver supports the following adapters:
-.Pp
-.Bl -bullet -compact
-.It
-Inland UAS111
-.It
-QVS USC-1000
-.It
-HP USB-Serial adapter shipped with some HP laptops
-.El
 .Sh DESCRIPTION
 The
 .Nm
@@ -68,6 +55,19 @@ The device is accessed through the
 .Xr ucom 4
 driver which makes it behave like a
 .Xr tty 4 .
+.Sh HARDWARE
+The
+.Nm
+driver supports the following adapters:
+.Pp
+.Bl -bullet -compact
+.It
+HP USB-Serial adapter shipped with some HP laptops
+.It
+Inland UAS111
+.It
+QVS USC-1000
+.El
 .Sh SEE ALSO
 .Xr tty 4 ,
 .Xr ucom 4 ,
