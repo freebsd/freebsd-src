@@ -1,5 +1,6 @@
 /*	$NecBSD: bs.c,v 1.1 1997/07/18 09:18:59 kmatsuda Exp $	*/
 /*	$NetBSD$	*/
+/* $FreeBSD$ */
 /*
  * [NetBSD for NEC PC98 series]
  *  Copyright (c) 1994, 1995, 1996 NetBSD/pc98 porting staff.
@@ -107,7 +108,7 @@ bs_scsi_cmd(struct cam_sim *sim, union ccb *ccb)
 		if (cb->tcmax < BS_DEFAULT_TIMEOUT_SECOND)
 			cb->tcmax = BS_DEFAULT_TIMEOUT_SECOND;
 
-		s = splbio();
+		s = splcam();
 
 		TAILQ_INSERT_TAIL(&ti->ti_ctab, cb, ccb_chain);
 
@@ -1637,7 +1638,7 @@ bs_scsi_cmd_poll(cti, targetcb)
 	struct targ_info *ti;
 	int s, error = COMPLETE;
 
-	s = splbio();
+	s = splcam();
 	bs_terminate_timeout(bsc);
 
 	if (bsc->sc_hstate == BSC_TARG_CHECK)
