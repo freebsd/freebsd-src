@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_raymib.h,v 1.6 2000/04/24 14:51:25 dmlb Exp $
+ * $FreeBSD$
  *
  */
 
