@@ -73,12 +73,13 @@ struct ucred {
  * any need to change the size of this or layout of its used fields.
  */
 struct xucred {
-	u_short	_cr_unused0;		/* compatibility with old ucred */
+	u_int	cr_version;		/* structure layout version */
 	uid_t	cr_uid;			/* effective user id */
 	short	cr_ngroups;		/* number of groups */
 	gid_t	cr_groups[NGROUPS];	/* groups */
 	void	*_cr_unused1;		/* compatibility with old ucred */
 };
+#define	XUCRED_VERSION	0
 
 #ifdef _KERNEL
 
@@ -96,6 +97,7 @@ void		crfree(struct ucred *cr);
 struct ucred	*crget(void);
 struct ucred	*crhold(struct ucred *cr);
 int		crshared(struct ucred *cr);
+void		cru2x(struct ucred *cr, struct xucred *xcr);
 int		groupmember(gid_t gid, struct ucred *cred);
 #endif /* _KERNEL */
 
