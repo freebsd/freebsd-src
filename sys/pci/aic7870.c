@@ -19,7 +19,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: aic7870.c,v 1.14 1995/09/05 23:53:48 gibbs Exp $
+ *	$Id: aic7870.c,v 1.15 1995/10/08 17:46:11 gibbs Exp $
  */
 
 #include <pci.h>
@@ -35,9 +35,11 @@
 #include <i386/scsi/aic7xxx.h>
 
 #define PCI_BASEADR0	PCI_MAP_REG_START
+#define PCI_DEVICE_ID_ADAPTEC_3940U	0x82789004ul
 #define PCI_DEVICE_ID_ADAPTEC_2940U	0x81789004ul
 #define PCI_DEVICE_ID_ADAPTEC_3940	0x72789004ul
 #define PCI_DEVICE_ID_ADAPTEC_2940	0x71789004ul
+#define PCI_DEVICE_ID_ADAPTEC_AIC7880	0x80789004ul
 #define PCI_DEVICE_ID_ADAPTEC_AIC7870	0x70789004ul
 #define PCI_DEVICE_ID_ADAPTEC_AIC7850	0x50789004ul
 
@@ -45,7 +47,7 @@
 #define		MPORTMODE	0x00000400ul	/* aic7870 only */
 #define		RAMPSM		0x00000200ul	/* aic7870 only */
 #define		VOLSENSE	0x00000100ul
-#define		DEVCONFIG7	0x00000080ul
+#define		RAMENB		0x00000080ul
 #define		MRDCEN		0x00000040ul
 #define		EXTSCBTIME	0x00000020ul	/* aic7870 only */
 #define		EXTSCBPEN	0x00000010ul	/* aic7870 only */
@@ -74,6 +76,9 @@ static  char*
 aic7870_probe (pcici_t tag, pcidi_t type)
 {
 	switch(type) {
+		case PCI_DEVICE_ID_ADAPTEC_3940U:
+			return ("Adaptec 3940 Ultra SCSI host adapter");
+			break;
 		case PCI_DEVICE_ID_ADAPTEC_3940:
 			return ("Adaptec 3940 SCSI host adapter");
 			break;
@@ -82,6 +87,9 @@ aic7870_probe (pcici_t tag, pcidi_t type)
 			break;
 		case PCI_DEVICE_ID_ADAPTEC_2940:
 			return ("Adaptec 2940 SCSI host adapter");
+			break;
+		case PCI_DEVICE_ID_ADAPTEC_AIC7880:
+			return ("Adaptec aic7880 Ultra SCSI host adapter");
 			break;
 		case PCI_DEVICE_ID_ADAPTEC_AIC7870:
 			return ("Adaptec aic7870 SCSI host adapter");
@@ -102,6 +110,7 @@ aic7870_attach(config_id, unit)
 	int	unit;
 {
 	u_long io_port;
+	u_long id;
 	unsigned opri = 0;
 	ahc_type ahc_t = AHC_NONE;
 	ahc_flag ahc_f = AHC_FNONE;
@@ -115,17 +124,28 @@ aic7870_attach(config_id, unit)
 	 */
 	io_port -= 0xc01ul;
 
-	switch (pci_conf_read(config_id, PCI_ID_REG)) {
+	switch ((id = pci_conf_read(config_id, PCI_ID_REG))) {
+		case PCI_DEVICE_ID_ADAPTEC_3940U:
 		case PCI_DEVICE_ID_ADAPTEC_3940:
-			ahc_t = AHC_394;
+			if (id == PCI_DEVICE_ID_ADAPTEC_3940U)
+				ahc_t = AHC_394U;
+			else
+				ahc_t = AHC_394;
 			aic3940_count++;
 			if(!(aic3940_count & 0x01))
 				/* Even count implies second channel */
 				ahc_f |= AHC_CHNLB;
+			/* Even though it doesn't turn on RAMPS, it has them */
+			ahc_f |= AHC_EXTSCB;
 			break;
 		case PCI_DEVICE_ID_ADAPTEC_2940U:
+			ahc_t = AHC_294U;
+			break;
 		case PCI_DEVICE_ID_ADAPTEC_2940:
 			ahc_t = AHC_294;
+			break;
+		case PCI_DEVICE_ID_ADAPTEC_AIC7880:
+			ahc_t = AHC_AIC7880;
 			break;
 		case PCI_DEVICE_ID_ADAPTEC_AIC7870:
 			ahc_t = AHC_AIC7870;
@@ -139,7 +159,7 @@ aic7870_attach(config_id, unit)
 
 	if(ahc_t & AHC_AIC7870){
 		u_long devconfig = pci_conf_read(config_id, DEVCONFIG);
-		if(devconfig & RAMPSM) {
+		if(devconfig & (RAMPSM|RAMENB)) {
 			/*
 			 * External SRAM present.  Have the probe walk
 			 * the SCBs to see how much SRAM we have and set
