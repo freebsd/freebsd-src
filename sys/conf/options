@@ -31,7 +31,7 @@
 # opt_<name-of-option-in-lower-case>.h
 
 # Adaptec Array Controller driver options
-AAC_COMPAT_LINUX	opt_acc.h	# Enable the linux ioctl interface
+AAC_COMPAT_LINUX	opt_aac.h	# Enable the linux ioctl interface
  
 AAC_DEBUG		opt_aac.h	# Debugging levels:
 					# 0 - quiet, only emit warnings
