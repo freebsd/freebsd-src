@@ -50,9 +50,6 @@ static  d_ioctl_t   wstioctl;
 static  d_strategy_t    wststrategy;
 
 #define CDEV_MAJOR 90
-#define BDEV_MAJOR 24
-
-
 
 static struct cdevsw wst_cdevsw = {
 	/* open */	wstopen,
@@ -73,7 +70,7 @@ static struct cdevsw wst_cdevsw = {
 	/* psize */	nopsize,
 	/* flags */	0,
 	/* maxio */	0,
-	/* bmaj */	BDEV_MAJOR
+	/* bmaj */	-1
 };
 
 static unsigned int wst_total = 0;
