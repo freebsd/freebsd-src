@@ -4,7 +4,7 @@
 # This is sysconfig - a file full of useful variables that you can set 
 # to change the default startup behavior of your system.
 #
-#	$Id: sysconfig,v 1.41 1996/03/12 15:39:26 nate Exp $
+#	$Id: sysconfig,v 1.42 1996/03/14 18:24:07 nate Exp $
 
 ######################### Start Of Local Configuration Section ###########
 
@@ -190,6 +190,9 @@ kerberos_server=NO
 
 # If you want this host to be a gateway, set to YES.
 gateway=NO
+
+# If you want this host to be a firewall or otherwise filter IP, set to YES.
+firewall=NO
 
 # Set to YES if you wish to check quotas.  NOTE:  For now this probably
 # doesn't work and should be left disabled.
