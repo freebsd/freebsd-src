@@ -1,0 +1,25 @@
+$FreeBSD$
+Index: contrib/cvs/src/modules.c
+===================================================================
+RCS file: /home/ncvs/src/contrib/cvs/src/modules.c,v
+retrieving revision 1.1.1.9
+diff -c -r1.1.1.9 modules.c
+*** contrib/cvs/src/modules.c	21 Jan 2004 16:27:56 -0000	1.1.1.9
+--- contrib/cvs/src/modules.c	14 Apr 2004 15:54:51 -0000
+***************
+*** 170,175 ****
+--- 170,183 ----
+      if (isabsolute (mname))
+  	error (1, 0, "Absolute module reference invalid: `%s'", mname);
+  
++     /* Similarly for directories that attempt to step above the root of the
++      * repository.
++      */
++     if (pathname_levels (mname) > 0)
++ 	error (1, 0, "up-level in module reference (`..') invalid: `%s'.",
++ 		mname);
++ 
++ 
+      /* if this is a directory to ignore, add it to that list */
+      if (mname[0] == '!' && mname[1] != '\0')
+      {
