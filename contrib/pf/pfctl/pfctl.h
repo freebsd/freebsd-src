@@ -1,4 +1,3 @@
-/*	$FreeBSD$	*/
 /*	$OpenBSD: pfctl.h,v 1.25 2003/08/29 21:47:36 cedric Exp $ */
 
 /*
@@ -29,6 +28,7 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
+ * $FreeBSD$
  */
 
 #ifndef _PFCTL_H_
