@@ -10,6 +10,7 @@ SUBDIR=	UI \
 	eiface \
 	etf \
 	ether \
+	fec \
 	frame_relay \
 	gif \
 	gif_demux \
