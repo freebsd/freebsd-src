@@ -564,7 +564,7 @@ gen_linktype(proto)
 	case DLT_NULL:
 		/* XXX */
 		if (proto == ETHERTYPE_IP)
-			return (gen_cmp(0, BPF_W, (bpf_int32)AF_INET));
+			return (gen_cmp(0, BPF_W, (bpf_int32)htonl(AF_INET)));
 		else
 			return gen_false();
 	case DLT_EN10MB:
