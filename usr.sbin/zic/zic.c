@@ -528,14 +528,14 @@ const char * const	tofile;
 	register char *	toname;
 
 	if (fromfile[0] == '/')
-		fromname = fromfile;
+		fromname = (char *)fromfile;
 	else {
 		fromname = ecpyalloc(directory);
 		fromname = ecatalloc(fromname, "/");
 		fromname = ecatalloc(fromname, fromfile);
 	}
 	if (tofile[0] == '/')
-		toname = tofile;
+		toname = (char *)tofile;
 	else {
 		toname = ecpyalloc(directory);
 		toname = ecatalloc(toname, "/");
