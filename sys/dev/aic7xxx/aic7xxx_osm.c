@@ -146,7 +146,8 @@ ahc_attach(struct ahc_softc *ahc)
 	/*
 	 * Construct our first channel SIM entry
 	 */
-	sim = cam_sim_alloc(ahc_action, ahc_poll, "ahc", ahc, ahc->unit,
+	sim = cam_sim_alloc(ahc_action, ahc_poll, "ahc", ahc,
+			    device_get_unit(ahc->dev_softc),
 			    1, AHC_SCB_MAX, devq);
 	if (sim == NULL) {
 		cam_simq_free(devq);
@@ -178,7 +179,7 @@ ahc_attach(struct ahc_softc *ahc)
 
 	if (ahc->features & AHC_TWIN) {
 		sim2 = cam_sim_alloc(ahc_action, ahc_poll, "ahc",
-				    ahc, ahc->unit, 1,
+				    ahc, device_get_unit(ahc->dev_softc), 1,
 				    AHC_SCB_MAX, devq);
 
 		if (sim2 == NULL) {
