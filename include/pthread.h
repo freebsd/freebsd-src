@@ -30,6 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
  * SUCH DAMAGE.
  *
+ * $Id$
  */
 #ifndef _PTHREAD_H_
 #define _PTHREAD_H_
@@ -262,12 +263,15 @@ int		pthread_rwlockattr_setpshared __P((pthread_rwlockattr_t *,
 			int *));
 int		pthread_rwlockattr_destroy __P((pthread_rwlockattr_t *));
 pthread_t	pthread_self __P((void));
-int		pthread_setcancelstate __P((int, int *));
-int		pthread_setcanceltype __P((int, int *));
 int		pthread_setspecific __P((pthread_key_t, const void *));
 int		pthread_sigmask __P((int, const sigset_t *, sigset_t *));
-int		pthread_testcancel __P((void));
 
+#ifdef NOT_YET
+int		pthread_cancel __P((pthread_t));
+int		pthread_setcancelstate __P((int, int *));
+int		pthread_setcanceltype __P((int, int *));
+void		pthread_testcancel __P((void));
+#endif
 
 int		pthread_getprio __P((pthread_t));
 int		pthread_setprio __P((pthread_t, int));
