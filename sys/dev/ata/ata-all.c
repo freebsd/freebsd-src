@@ -343,8 +343,10 @@ ataioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
 	    scp = device_get_softc(device);
 	    if (!scp)
 		return ENXIO;
-	    mode->mode[MASTER] = scp->mode[MASTER];
-	    mode->mode[SLAVE] = scp->mode[SLAVE];
+	    if (scp->dev_param[MASTER])
+		mode->mode[MASTER] = scp->mode[MASTER];
+	    if (scp->dev_param[SLAVE])
+		mode->mode[SLAVE] = scp->mode[SLAVE];
 	    break;
 	}
 
@@ -358,12 +360,14 @@ ataioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
 	    scp = device_get_softc(device);
 	    if (!scp)
 		return ENXIO;
-	    if (mode->mode[MASTER] >= 0)
+	    if (scp->dev_param[MASTER] && mode->mode[MASTER] >= 0) {
 		ata_change_mode(scp, ATA_MASTER, mode->mode[MASTER]);
-	    if (mode->mode[SLAVE] >= 0)
+		mode->mode[MASTER] = scp->mode[MASTER];
+	    }
+	    if (scp->dev_param[SLAVE] && mode->mode[SLAVE] >= 0) {
 		ata_change_mode(scp, ATA_SLAVE, mode->mode[SLAVE]);
-	    mode->mode[MASTER] = scp->mode[MASTER];
-	    mode->mode[SLAVE] = scp->mode[SLAVE];
+		mode->mode[SLAVE] = scp->mode[SLAVE];
+	    }
 	    break;
 	}
 
