@@ -11,7 +11,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.h,v 1.11.4.2 1996/02/23 15:26:05 phk Exp $
+ *	$Id: ip_fw.h,v 1.15 1996/02/23 15:47:52 phk Exp $
  */
 
 /*
@@ -66,21 +66,27 @@ struct ip_fw_chain {
 #define IP_FW_F_ICMP	0x003	/* This is a ICMP packet rule         */
 #define IP_FW_F_KIND	0x003	/* Mask to isolate rule kind          */
 
-#define IP_FW_F_ACCEPT	0x004	/* This is an accept rule	      */
-#define IP_FW_F_PRN	0x008	/* Print if this rule matches	      */
-#define IP_FW_F_ICMPRPL	0x010	/* Send back icmp unreachable packet  */
+#define IP_FW_F_IN	0x004	/* Inbound 			      */
+#define IP_FW_F_OUT	0x008	/* Outboun 			      */
+
+#define IP_FW_F_ACCEPT	0x010	/* This is an accept rule	      */
+#define IP_FW_F_COUNT	0x020	/* This is an accept rule	      */
+#define IP_FW_F_PRN	0x040	/* Print if this rule matches	      */
+#define IP_FW_F_ICMPRPL	0x080	/* Send back icmp unreachable packet  */
 				 
-#define IP_FW_F_SRNG	0x020	/* The first two src ports are a min  *
+#define IP_FW_F_SRNG	0x100	/* The first two src ports are a min  *
 				 * and max range (stored in host byte *
 				 * order).                            */
 
-#define IP_FW_F_DRNG	0x040	/* The first two dst ports are a min  *
+#define IP_FW_F_DRNG	0x200	/* The first two dst ports are a min  *
 				 * and max range (stored in host byte *
 				 * order).                            */
 
-#define IP_FW_F_IFNAME	0x080	/* Use interface name/unit (not IP)   */
+#define IP_FW_F_IFNAME	0x400	/* Use interface name/unit (not IP)   */
 
-#define IP_FW_F_MASK	0x0FF	/* All possible flag bits mask        */
+#define IP_FW_F_FRAG	0x800	/* Fragment			      */
+
+#define IP_FW_F_MASK	0xFFF	/* All possible flag bits mask        */
 
 /*
  * Definitions for IP option names.
@@ -96,7 +102,7 @@ struct ip_fw_chain {
 #define IP_FW_TCPF_FIN		TH_FIN
 #define IP_FW_TCPF_SYN		TH_SYN
 #define IP_FW_TCPF_RST		TH_RST
-#define IP_FW_TCPF_PUSH		TH_PUSH
+#define IP_FW_TCPF_PSH		TH_PUSH
 #define IP_FW_TCPF_ACK		TH_ACK
 #define IP_FW_TCPF_URG		TH_URG
 

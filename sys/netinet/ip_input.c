@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.35 1996/02/05 20:36:02 wollman Exp $
+ * $Id: ip_input.c,v 1.36 1996/02/23 15:47:53 phk Exp $
  */
 
 #include <sys/param.h>
@@ -172,6 +172,9 @@ ip_init()
 	ipq.next = ipq.prev = &ipq;
 	ip_id = time.tv_sec & 0xffff;
 	ipintrq.ifq_maxlen = ipqmaxlen;
+#ifdef IPFIREWALL
+	ip_fw_init();
+#endif
 }
 
 static struct	sockaddr_in ipaddr = { sizeof(ipaddr), AF_INET };
