@@ -57,6 +57,12 @@ ECHODIR		?=	true
 .endif
 .endif
 
+.if !empty(.MAKEFLAGS:M-n) && ${.MAKEFLAGS:M-n} == "-n"
+_+_		?=
+.else
+_+_		?=	+
+.endif
+
 .if defined(%POSIX)
 FC		?=	fort77
 FFLAGS		?=	-O 1

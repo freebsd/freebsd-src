@@ -35,14 +35,14 @@ DISTRIBUTION?=	base
 .if !target(distribute)
 distribute:
 .for dist in ${DISTRIBUTION}
-	cd ${.CURDIR}; \
+	${_+_}cd ${.CURDIR}; \
 	    ${MAKE} install -DNO_SUBDIR DESTDIR=${DISTDIR}/${dist} SHARED=copies
 .endfor
 .endif
 
 _SUBDIR: .USE
 .if defined(SUBDIR) && !empty(SUBDIR) && !defined(NO_SUBDIR)
-	@for entry in ${SUBDIR}; do \
+	@${_+_}for entry in ${SUBDIR}; do \
 		if test -d ${.CURDIR}/$${entry}.${MACHINE_ARCH}; then \
 			${ECHODIR} "===> ${DIRPRFX}$${entry}.${MACHINE_ARCH}"; \
 			edir=$${entry}.${MACHINE_ARCH}; \
@@ -58,12 +58,12 @@ _SUBDIR: .USE
 .endif
 
 ${SUBDIR}::
-	@if test -d ${.TARGET}.${MACHINE_ARCH}; then \
+	${_+_}@if test -d ${.TARGET}.${MACHINE_ARCH}; then \
 		cd ${.CURDIR}/${.TARGET}.${MACHINE_ARCH}; \
 	else \
 		cd ${.CURDIR}/${.TARGET}; \
 	fi; \
-	${MAKE} all
+	${_+_}${MAKE} all
 
 
 .for __target in all all-man checkdpadd clean cleandepend cleandir \
@@ -80,7 +80,7 @@ ${__stage}${__target}: _SUBDIR
 .endif
 .endfor
 ${__target}:
-	cd ${.CURDIR}; ${MAKE} build${__target}; ${MAKE} install${__target}
+	${_+_}cd ${.CURDIR}; ${MAKE} build${__target}; ${MAKE} install${__target}
 .endfor
 
 .if !target(install)
