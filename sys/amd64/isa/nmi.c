@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: intr_machdep.c,v 1.15 1998/12/04 22:54:46 archie Exp $
+ *	$Id: intr_machdep.c,v 1.16 1999/01/08 19:17:48 bde Exp $
  */
 
 #include "opt_auto_eoi.h"
@@ -61,7 +61,6 @@
 #include <i386/isa/isa.h>
 #endif
 #include <i386/isa/icu.h>
-#include "vector.h"
 
 #include <i386/isa/intr_machdep.h>
 #include <sys/interrupt.h>
@@ -85,6 +84,8 @@
  */
 #define	AUTO_EOI_1	1
 #endif
+
+#define	NR_INTRNAMES	(1 + ICU_LEN + 2 * ICU_LEN)
 
 u_long	*intr_countp[ICU_LEN];
 inthand2_t *intr_handler[ICU_LEN];
@@ -264,9 +265,9 @@ isa_strayintr(vcookiep)
 	 * must be done before sending an EOI so it can't be done if
 	 * we are using AUTO_EOI_1.
 	 */
-	if (intrcnt[NR_DEVICES + intr] <= 5)
+	if (intrcnt[1 + intr] <= 5)
 		log(LOG_ERR, "stray irq %d\n", intr);
-	if (intrcnt[NR_DEVICES + intr] == 5)
+	if (intrcnt[1 + intr] == 5)
 		log(LOG_CRIT,
 		    "too many stray irq %d's; not logging any more\n", intr);
 }
@@ -315,74 +316,88 @@ update_intr_masks(void)
 	return (n);
 }
 
-/*
- * The find_device_id function is only required because of the way the
- * device names are currently stored for reporting in systat or vmstat.
- * In fact, those programs should be modified to use the sysctl interface
- * to obtain a list of driver names by traversing intreclist_head[irq].
- */
-static int
-find_device_id(int irq)
+static const char *
+isa_get_nameunit(int id)
 {
-	char buf[16];
-	char *cp;
-	int free_id, id;
+	static char buf[32];
+	struct isa_device *dp;
 
-	snprintf(buf, sizeof(buf), "pci irq%d", irq);
-	cp = intrnames;
-	/* default to 0, which corresponds to clk0 */
-	free_id = 0;
+	if (id == -1)
+		return ("pci");		/* XXX may also be eisa */
+	if (id == 0)
+		return ("clk0");	/* XXX may also be sloppy driver */
+	if (id == 1)
+		return ("rtc0");
+	for (dp = isa_devtab_bio; dp->id_driver != NULL; dp++)
+		if (dp->id_id == id)
+			goto found_device;
+	for (dp = isa_devtab_cam; dp->id_driver != NULL; dp++)
+		if (dp->id_id == id)
+			goto found_device;
+	for (dp = isa_devtab_net; dp->id_driver != NULL; dp++)
+		if (dp->id_id == id)
+			goto found_device;
+	for (dp = isa_devtab_null; dp->id_driver != NULL; dp++)
+		if (dp->id_id == id)
+			goto found_device;
+	for (dp = isa_devtab_tty; dp->id_driver != NULL; dp++)
+		if (dp->id_id == id)
+			goto found_device;
+	return "???";
 
-	for (id = 0; id < NR_DEVICES; id++) {
-		if (strcmp(cp, buf) == 0)
-			return (id);
-		if (free_id == 0 && strcmp(cp, "pci irqnn") == 0)
-			free_id = id;
-		while (*cp++ != '\0');
-	}
-#if 0
-	if (free_id == 0) {
-		/*
-		 * All pci irq counters are in use, perhaps because config
-		 * is old so there aren't any. Abuse the clk0 counter.
-		 */
-		printf("\tcounting shared irq%d as clk0 irq\n", irq);
-	}
-#endif
-	return (free_id);
+found_device:
+	snprintf(buf, sizeof(buf), "%s%d", dp->id_driver->name, dp->id_unit);
+	return (buf);
 }
 
 void
 update_intrname(int intr, int device_id)
 {
-	char	*cp;
-	int	id;
+	char buf[32];
+	char *cp;
+	const char *name;
+	int name_index, off, strayintr;
 
-	if (device_id == -1)
-		device_id = find_device_id(intr);
-
-	if ((u_int)device_id >= NR_DEVICES)
-		return;
-
-	intr_countp[intr] = &intrcnt[device_id];
-
-	for (cp = intrnames, id = 0; id <= device_id; id++)
-		while (*cp++ != '\0')
-			;
-	if (cp > eintrnames)
-		return;
-	if (intr < 10) {
-		cp[-3] = intr + '0';
-		cp[-2] = ' ';
-	} else if (intr < 20) {
-		cp[-3] = '1';
-		cp[-2] = intr - 10 + '0';
-	} else {
-		cp[-3] = '2';
-		cp[-2] = intr - 20 + '0';
+	/*
+	 * Initialise strings for bitbucket and stray interrupt counters.
+	 * These have statically allocated indices 0 and 1 through ICU_LEN.
+	 */
+	if (intrnames[0] == '\0') {
+		off = sprintf(intrnames, "???") + 1;
+		for (strayintr = 0; strayintr < ICU_LEN; strayintr++)
+			off += sprintf(intrnames + off, "stray irq%d",
+			    strayintr) + 1;
 	}
-}
 
+	name = isa_get_nameunit(device_id);
+	if (snprintf(buf, sizeof(buf), "%s irq%d", name, intr) >= sizeof(buf))
+		goto use_bitbucket;
+
+	/*
+	 * Search for `buf' in `intrnames'.  In the usual case when it is
+	 * not found, append it to the end if there is enough space (the \0
+	 * terminator for the previous string, if any, becomes a separator).
+	 */
+	for (cp = intrnames, name_index = 0;
+	    cp != eintrnames && name_index < NR_INTRNAMES;
+	    cp += strlen(cp) + 1, name_index++) {
+		if (*cp == '\0') {
+			if (strlen(buf) >= eintrnames - cp)
+				break;
+			strcpy(cp, buf);
+			goto found;
+		}
+		if (strcmp(cp, buf) == 0)
+			goto found;
+	}
+
+use_bitbucket:
+	printf("update_intrname: counting %s irq%d as %s\n", name, intr,
+	    intrnames);
+	name_index = 0;
+found:
+	intr_countp[intr] = &intrcnt[name_index];
+}
 
 int
 icu_setup(int intr, inthand2_t *handler, void *arg, u_int *maskptr, int flags)
@@ -479,7 +494,7 @@ icu_unset(intr, handler)
 	INTRDIS(1 << intr);
 	ef = read_eflags();
 	disable_intr();
-	intr_countp[intr] = &intrcnt[NR_DEVICES + intr];
+	intr_countp[intr] = &intrcnt[1 + intr];
 	intr_handler[intr] = isa_strayintr;
 	intr_mptr[intr] = NULL;
 	intr_mask[intr] = HWI_MASK | SWI_MASK;

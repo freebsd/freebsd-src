@@ -1,6 +1,6 @@
 /*
  *	from: vector.s, 386BSD 0.1 unknown origin
- *	$Id: icu_vector.s,v 1.8 1998/08/11 15:08:12 bde Exp $
+ *	$Id: icu_vector.s,v 1.9 1998/08/11 17:01:32 bde Exp $
  */
 
 /*
@@ -213,38 +213,5 @@ imasks:				/* masks for interrupt handlers */
 	.long	SWI_VM_MASK, 0, 0, 0
 	.long	0, 0, 0, 0
 	.long	0, 0, SWI_CLOCK_MASK, SWI_AST_MASK
-
-/*
- * Interrupt counters and names.  The format of these and the label names
- * must agree with what vmstat expects.  The tables are indexed by device
- * ids so that we don't have to move the names around as devices are
- * attached.
- */
-#include "vector.h"
-	.globl	_intrcnt, _eintrcnt
-_intrcnt:
-	.space	(NR_DEVICES + ICU_LEN) * 4
-_eintrcnt:
-
-	.globl	_intrnames, _eintrnames
-_intrnames:
-	.ascii	DEVICE_NAMES
-	.asciz	"stray irq0"
-	.asciz	"stray irq1"
-	.asciz	"stray irq2"
-	.asciz	"stray irq3"
-	.asciz	"stray irq4"
-	.asciz	"stray irq5"
-	.asciz	"stray irq6"
-	.asciz	"stray irq7"
-	.asciz	"stray irq8"
-	.asciz	"stray irq9"
-	.asciz	"stray irq10"
-	.asciz	"stray irq11"
-	.asciz	"stray irq12"
-	.asciz	"stray irq13"
-	.asciz	"stray irq14"
-	.asciz	"stray irq15"
-_eintrnames:
 
 	.text
