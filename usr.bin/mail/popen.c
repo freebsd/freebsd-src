@@ -110,6 +110,7 @@ Popen(cmd, mode)
 	int p[2];
 	int myside, hisside, fd0, fd1;
 	int pid;
+	sigset_t nset;
 	FILE *fp;
 
 	if (pipe(p) < 0)
@@ -125,7 +126,8 @@ Popen(cmd, mode)
 		hisside = fd0 = p[READ];
 		fd1 = -1;
 	}
-	if ((pid = start_command(cmd, 0, fd0, fd1, NULL, NULL, NULL)) < 0) {
+	(void)sigemptyset(&nset);
+	if ((pid = start_command(cmd, &nset, fd0, fd1, NULL, NULL, NULL)) < 0) {
 		(void)close(p[READ]);
 		(void)close(p[WRITE]);
 		return (NULL);
@@ -141,14 +143,17 @@ Pclose(ptr)
 	FILE *ptr;
 {
 	int i;
-	int omask;
+	sigset_t nset, oset;
 
 	i = file_pid(ptr);
 	unregister_file(ptr);
 	(void)fclose(ptr);
-	omask = sigblock(sigmask(SIGINT)|sigmask(SIGHUP));
+	(void)sigemptyset(&nset);
+	(void)sigaddset(&nset, SIGINT);
+	(void)sigaddset(&nset, SIGHUP);
+	(void)sigprocmask(SIG_BLOCK, &nset, &oset);
 	i = wait_child(i);
-	(void)sigsetmask(omask);
+	(void)sigprocmask(SIG_SETMASK, &oset, NULL);
 	return (i);
 }
 
@@ -219,7 +224,8 @@ file_pid(fp)
 int
 run_command(cmd, mask, infd, outfd, a0, a1, a2)
 	char *cmd;
-	int mask, infd, outfd;
+	sigset_t *mask;
+	int infd, outfd;
 	char *a0, *a1, *a2;
 {
 	int pid;
@@ -233,7 +239,8 @@ run_command(cmd, mask, infd, outfd, a0, a1, a2)
 int
 start_command(cmd, mask, infd, outfd, a0, a1, a2)
 	char *cmd;
-	int mask, infd, outfd;
+	sigset_t *mask;
+	int infd, outfd;
 	char *a0, *a1, *a2;
 {
 	int pid;
@@ -259,10 +266,12 @@ start_command(cmd, mask, infd, outfd, a0, a1, a2)
 }
 
 void
-prepare_child(mask, infd, outfd)
-	int mask, infd, outfd;
+prepare_child(nset, infd, outfd)
+	sigset_t *nset;
+	int infd, outfd;
 {
 	int i;
+	sigset_t eset;
 
 	/*
 	 * All file descriptors other than 0, 1, and 2 are supposed to be
@@ -272,12 +281,13 @@ prepare_child(mask, infd, outfd)
 		dup2(infd, 0);
 	if (outfd >= 0)
 		dup2(outfd, 1);
-	for (i = 1; i <= NSIG; i++)
-		if (mask & sigmask(i))
+	for (i = 1; i < NSIG; i++)
+		if (nset != NULL && sigismember(nset, i))
 			(void)signal(i, SIG_IGN);
-	if ((mask & sigmask(SIGINT)) == 0)
+	if (nset == NULL || !sigismember(nset, SIGINT))
 		(void)signal(SIGINT, SIG_DFL);
-	(void)sigsetmask(0);
+	(void)sigemptyset(&eset);
+	(void)sigprocmask(SIG_SETMASK, &eset, NULL);
 }
 
 int
@@ -353,14 +363,18 @@ int
 wait_child(pid)
 	int pid;
 {
-	int mask = sigblock(sigmask(SIGCHLD));
+	sigset_t nset, oset;
 	struct child *cp = findchild(pid);
 
+	(void)sigemptyset(&nset);
+	(void)sigaddset(&nset, SIGCHLD);
+	(void)sigprocmask(SIG_BLOCK, &nset, &oset);	
+
 	while (!cp->done)
-		sigpause(mask);
+		(void)sigsuspend(&oset);
 	wait_status = cp->status;
 	delchild(cp);
-	(void)sigsetmask(mask);
+	(void)sigprocmask(SIG_SETMASK, &oset, NULL);
 	return ((WIFEXITED(wait_status) && WEXITSTATUS(wait_status)) ? -1 : 0);
 }
 
@@ -371,12 +385,16 @@ void
 free_child(pid)
 	int pid;
 {
-	int mask = sigblock(sigmask(SIGCHLD));
+	sigset_t nset, oset;
 	struct child *cp = findchild(pid);
+
+	(void)sigemptyset(&nset);
+	(void)sigaddset(&nset, SIGCHLD);
+	(void)sigprocmask(SIG_BLOCK, &nset, &oset);	
 
 	if (cp->done)
 		delchild(cp);
 	else
 		cp->free = 1;
-	(void)sigsetmask(mask);
+	(void)sigprocmask(SIG_SETMASK, &oset, NULL);
 }

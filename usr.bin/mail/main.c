@@ -39,7 +39,7 @@ static char copyright[] =
 
 #ifndef lint
 #if 0
-static char sccsid[] = "@(#)main.c	8.1 (Berkeley) 6/6/93";
+static char sccsid[] = "@(#)main.c	8.2 (Berkeley) 4/20/95";
 #endif
 static const char rcsid[] =
   "$FreeBSD$";
@@ -67,7 +67,7 @@ main(argc, argv)
 	int i;
 	struct name *to, *cc, *bcc, *smopts;
 	char *subject, *replyto;
-	char *ef;
+	char *ef, *rc;
 	char nosrc = 0;
 	sig_t prevint;
 
@@ -228,7 +228,9 @@ Usage: %s [-EiInv] [-s subject] [-c cc-addr] [-b bcc-addr] to-addr ...\n\
 	 * Expand returns a savestr, but load only uses the file name
 	 * for fopen, so it's safe to do this.
 	 */
-	load(expand("~/.mailrc"));
+	if ((rc = getenv("MAILRC")) == NULL)
+		rc = "~/.mailrc";
+	load(expand(rc));
 
 	replyto = value("REPLYTO");
 	if (!rcvmode) {
@@ -290,16 +292,16 @@ hdrstop(signo)
 void
 setscreensize()
 {
+	struct termios tbuf;
 	struct winsize ws;
-	struct termios tio;
-	speed_t speed = 0;
+	speed_t speed;
 
 	if (ioctl(1, TIOCGWINSZ, (char *)&ws) < 0)
 		ws.ws_col = ws.ws_row = 0;
-	if (tcgetattr(1, &tio) != -1)
-		speed = cfgetospeed(&tio);
-	if (speed <= 0)
+	if (tcgetattr(1, &tbuf) < 0)
 		speed = B9600;
+	else
+		speed = cfgetospeed(&tbuf);
 	if (speed < B1200)
 		screenheight = 9;
 	else if (speed == B1200)
