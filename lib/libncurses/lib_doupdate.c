@@ -517,6 +517,10 @@ static void DelChar(int count)
 {
 	T(("DelChar(%d) called", count));
 
+	if (back_color_erase) {
+		T(("back_color_erase, turning attributes off"));
+		vidattr(A_NORMAL);
+	}
 	if (parm_dch) {
 		tputs(tparm(parm_dch, count), 1, _outc);
 	} else {
