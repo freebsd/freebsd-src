@@ -28,15 +28,21 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/systm.h>
+#include <sys/sysctl.h>
 #include <vm/vm.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pageout.h>
 #include <vm/uma.h>
 #include <vm/uma_int.h>
 #include <machine/vmparam.h>
+
+static int hw_uma_mdpages;
+SYSCTL_INT(_hw, OID_AUTO, uma_mdpages, CTLFLAG_RD, &hw_uma_mdpages, 0,
+	   "UMA MD pages in use");
 
 void *
 uma_small_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
@@ -67,6 +73,8 @@ uma_small_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 	va = (void *) VM_PAGE_TO_PHYS(m);
 	if ((wait & M_ZERO) && (m->flags & PG_ZERO) == 0)
 		bzero(va, PAGE_SIZE);
+	atomic_add_int(&hw_uma_mdpages, 1);
+
 	return (va);
 }
 
@@ -79,4 +87,5 @@ uma_small_free(void *mem, int size, u_int8_t flags)
 	vm_page_lock_queues();
 	vm_page_free(m);
 	vm_page_unlock_queues();
+	atomic_subtract_int(&hw_uma_mdpages, 1);
 }
