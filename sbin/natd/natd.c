@@ -286,6 +286,8 @@ int main (int argc, char** argv)
  * Catch signals to manage shutdown and
  * refresh of interface address.
  */
+	siginterrupt(SIGTERM, 1);
+	siginterrupt(SIGHUP, 1);
 	signal (SIGTERM, InitiateShutdown);
 	signal (SIGHUP, RefreshAddr);
 /*
@@ -816,7 +818,6 @@ void Warn (const char* msg)
 
 static void RefreshAddr (int sig)
 {
-	signal (SIGHUP, RefreshAddr);
 	if (ifName)
 		assignAliasAddr = 1;
 }
@@ -828,6 +829,7 @@ static void InitiateShutdown (int sig)
  * shutdown existing connections when system
  * is shut down.
  */
+	siginterrupt(SIGALRM, 1);
 	signal (SIGALRM, Shutdown);
 	alarm (10);
 }
