@@ -524,7 +524,7 @@ via_82c586:
 	if (ata_find_dev(parent, 0x06301039, 0x30) || 	/* SiS 630 */
 	    ata_find_dev(parent, 0x06331039, 0x00) || 	/* SiS 633 */
 	    ata_find_dev(parent, 0x06351039, 0x00) || 	/* SiS 635 */
-	    ata_find_dev(parent, 0x06451039, 0x00) || 	/* SiS 635 */
+	    ata_find_dev(parent, 0x06451039, 0x00) || 	/* SiS 645 */
 	    ata_find_dev(parent, 0x07301039, 0x00) || 	/* SiS 730 */
 	    ata_find_dev(parent, 0x07331039, 0x00) || 	/* SiS 733 */
 	    ata_find_dev(parent, 0x07351039, 0x00)) { 	/* SiS 735 */
