@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.123 1996/08/16 07:56:45 asami Exp $ -->
+<!-- $Id: contrib.sgml,v 1.124 1996/08/19 12:11:35 asami Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!-- Please try to keep the file 'avail' (from CVSROOT) 
@@ -12,7 +12,7 @@
     <p>This software was originally derived from William
       F. Jolitz's 386BSD release 0.1, though almost none of the
       original 386BSD specific code remains.  This software has
-      been essentially re-implemented from the 4.4 BSD Lite
+      been essentially re-implemented from the 4.4BSD-Lite
       release provided by the Computer Science Research Group
       (CSRG) at the University of California, Berkeley and
       associated academic contributors.

@@ -1,4 +1,4 @@
-<!-- $Id: nutshell.sgml,v 1.8 1996/01/31 14:26:12 mpp Exp $ -->
+<!-- $Id: nutshell.sgml,v 1.9 1996/05/16 23:18:07 mpp Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>FreeBSD in a nutshell<label id="nutshell"></heading>
@@ -62,7 +62,7 @@
       <item><bf>And many more!</bf></item>
     </itemize>
 
-      FreeBSD is based on the BSD 4.4-lite release from Computer
+      FreeBSD is based on the 4.4BSD-Lite release from Computer
       Systems Research Group (CSRG) at the University of
       California at Berkeley, and carries on the distinguished
       tradition of BSD systems development.  In addition to the
