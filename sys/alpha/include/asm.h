@@ -25,6 +25,9 @@
  * $FreeBSD$
  */
 
+#ifndef _MACHINE_ASM_H_
+#define	_MACHINE_ASM_H_
+
 /*
  *	Assembly coding style
  *
@@ -642,3 +645,5 @@ label:	ASCIZ msg;						\
 #else
 #define __FBSDID(s)	/* nothing */
 #endif /* not lint and not STRIP_FBSDID */
+
+#endif /* !_MACHINE_ASM_H_ */
