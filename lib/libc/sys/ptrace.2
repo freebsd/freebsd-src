@@ -2,7 +2,7 @@
 .\"	$NetBSD: ptrace.2,v 1.2 1995/02/27 12:35:37 cgd Exp $
 .\"
 .\" This file is in the public domain.
-.Dd January 20, 1996
+.Dd August 11, 2003
 .Dt PTRACE 2
 .Os
 .Sh NAME
@@ -162,7 +162,8 @@ should be passed
 The
 .Fa data
 argument
-is not used.
+provides a signal number to be delivered to the traced process as it
+resumes execution, or 0 if no signal is to be sent.
 .It Dv PT_KILL
 The traced process terminates, as if
 .Dv PT_CONTINUE
