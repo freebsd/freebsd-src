@@ -48,19 +48,6 @@
 #include <sparc64/isa/ofw_isa.h>
 #include <sparc64/pci/ofw_pci.h>
 
-/*
- * This applies only for an ISA/EBus with an own interrupt-map property.
- */
-int
-ofw_isa_map_intr(struct isa_imap *imap, int nimap, struct isa_imap_msk *imapmsk,
-    int intr, struct isa_regs *regs, int nregs)
-{
-	char regm[8];
-
-	return (ofw_bus_route_intr(intr, regs, sizeof(*regs), 8, nregs,
-	    imap, nimap, imapmsk, regm));
-}
-
 /* XXX: this only supports PCI as parent bus right now. */
 int
 ofw_isa_map_iorange(struct isa_ranges *range, int nrange, u_long *start,

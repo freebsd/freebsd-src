@@ -50,66 +50,15 @@
 
 #include "pcib_if.h"
 
-/*
- * Find the interrupt-map properties for a node. This might not be a property
- * of the parent, because there may be bridges in between, so go up through the
- * tree to find it.
- * This seems to be only needed for PCI systems, so it has not been moved to
- * ofw_bus.c
- */
-int
-ofw_pci_find_imap(phandle_t node, struct ofw_pci_imap **imap,
-    struct ofw_pci_imap_msk *imapmsk)
+u_int32_t
+ofw_pci_route_intr(phandle_t node)
 {
-	int nimap;
+	u_int32_t rv;
 
-	nimap = -1;
-	while ((node = OF_parent(node)) != 0) {
-		if ((nimap = OF_getprop_alloc(node, "interrupt-map",
-		    sizeof(**imap), (void **)imap)) == -1 ||
-		    OF_getprop(node, "interrupt-map-mask",
-		    imapmsk, sizeof(*imapmsk)) == -1) {
-			if (*imap != NULL) {
-				free(*imap, M_OFWPROP);
-				*imap = NULL;
-			}
-			nimap = -1;
-		} else
-			break;
-	}
-	return (nimap);
-}
-
-/*
- * Route an interrupt using the firmware nodes. Returns 255 for interrupts
- * that cannot be routed (suitable for the PCI code).
- */
-int
-ofw_pci_route_intr2(int intr, struct ofw_pci_register *pcir,
-    struct ofw_pci_imap *imap, int nimap, struct ofw_pci_imap_msk *imapmsk)
-{
-	char regm[12];
-	int cintr;
-
-	cintr = ofw_bus_route_intr(intr, pcir, sizeof(*pcir), 12, 1, imap,
-	    nimap, imapmsk, regm);
-	if (cintr == -1)
+	rv = ofw_bus_route_intr(node, ORIP_NOINT);
+	if (rv == ORIR_NOTFOUND)
 		return (255);
-	else
-		return (cintr);
-}
-
-int
-ofw_pci_route_intr(phandle_t node, struct ofw_pci_register *pcir,
-    struct ofw_pci_imap *intrmap, int nintrmap,
-    struct ofw_pci_imap_msk *intrmapmsk)
-{
-	int intr;
-
-	if (OF_getprop(node, "interrupts", &intr, sizeof(intr)) == -1)
-		return (255);
-
-	return (ofw_pci_route_intr2(intr, pcir, intrmap, nintrmap, intrmapmsk));
+	return (rv);
 }
 
 #define	OFW_PCI_PCIBUS	"pci"
@@ -119,10 +68,8 @@ ofw_pci_route_intr(phandle_t node, struct ofw_pci_register *pcir,
  * of attached devices using firmware information.
  */
 void
-ofw_pci_init_intr(device_t dev, phandle_t bus, struct ofw_pci_imap *intrmap,
-    int nintrmap, struct ofw_pci_imap_msk *intrmapmsk)
+ofw_pci_init_intr(device_t dev, phandle_t bus)
 {
-	struct ofw_pci_imap_msk lintrmapmsk;
 	struct ofw_pci_register pcir;
 	phandle_t node;
 	char type[32];
@@ -146,40 +93,19 @@ ofw_pci_init_intr(device_t dev, phandle_t bus, struct ofw_pci_imap *intrmap,
 			 * deep, so recursion is feasible.
 			 */
 #ifdef OFW_PCI_DEBUG
-			device_printf(dev, __func__": descending to "
-			    "subordinate PCI bus\n");
+			device_printf(dev, "%s: descending to "
+			    "subordinate PCI bus\n", __func__);
 #endif
-			ofw_pci_init_intr(dev, node, NULL, 0, NULL);
+			ofw_pci_init_intr(dev, node);
 		} else {
 			if (OF_getprop(node, "reg", &pcir, sizeof(pcir)) == -1)
 				panic("ofw_pci_route_intr: OF_getprop failed");
-			/*
-			 * If we didn't get interrupt map properties passed,
-			 * try to find them now. On some systems, buses that
-			 * have no non-bridge children have no such properties,
-			 * so only try to find them at need.
-			 */
-			if (intrmap == NULL) {
-				nintrmap = OF_getprop_alloc(bus,
-				    "interrupt-map", sizeof(*intrmap),
-				    (void **)&intrmap);
-				if (nintrmap == -1 ||
-				    OF_getprop(bus, "interrupt-map-mask",
-				    &lintrmapmsk, sizeof(lintrmapmsk)) == -1) {
-					printf("ofw_pci_init_intr: could not get "
-					    "interrupt map properties\n");
-					if (nintrmap != -1)
-						free(intrmap, M_OFWPROP);
-					return;
-				}
-				intrmapmsk = &lintrmapmsk;
-				freemap = 1;
-			}
-			if ((intr = ofw_pci_route_intr(node, &pcir, intrmap,
-			    nintrmap, intrmapmsk)) != 255) {
+
+			if ((intr = ofw_pci_route_intr(node)) != 255) {
 #ifdef OFW_PCI_DEBUG
-				device_printf(dev, __func__": mapping intr for "
+				device_printf(dev, "%s: mapping intr for "
 				    "%d/%d/%d to %d (preset was %d)\n",
+				    __func__,
 				    OFW_PCI_PHYS_HI_BUS(pcir.phys_hi),
 				    OFW_PCI_PHYS_HI_DEVICE(pcir.phys_hi),
 				    OFW_PCI_PHYS_HI_FUNCTION(pcir.phys_hi),
@@ -189,7 +115,6 @@ ofw_pci_init_intr(device_t dev, phandle_t bus, struct ofw_pci_imap *intrmap,
 					OFW_PCI_PHYS_HI_DEVICE(pcir.phys_hi),
 					OFW_PCI_PHYS_HI_FUNCTION(pcir.phys_hi),
 					PCIR_INTLINE, 1));
-				    
 #endif /* OFW_PCI_DEBUG */
 				PCIB_WRITE_CONFIG(dev,
 				    OFW_PCI_PHYS_HI_BUS(pcir.phys_hi),
@@ -198,8 +123,9 @@ ofw_pci_init_intr(device_t dev, phandle_t bus, struct ofw_pci_imap *intrmap,
 				    PCIR_INTLINE, intr, 1);
 			} else {
 #ifdef OFW_PCI_DEBUG
-				device_printf(dev, __func__": no interrupt "
+				device_printf(dev, "%s: no interrupt "
 				    "mapping found for %d/%d/%d (preset %d)\n",
+				    __func__,
 				    OFW_PCI_PHYS_HI_BUS(pcir.phys_hi),
 				    OFW_PCI_PHYS_HI_DEVICE(pcir.phys_hi),
 				    OFW_PCI_PHYS_HI_FUNCTION(pcir.phys_hi),
@@ -218,8 +144,6 @@ ofw_pci_init_intr(device_t dev, phandle_t bus, struct ofw_pci_imap *intrmap,
 			}
 		}
 	} while ((node = OF_peer(node)) != 0);
-	if (freemap)
-		free(intrmap, M_OFWPROP);
 }
 
 phandle_t
@@ -267,4 +191,12 @@ ofw_pci_find_node(int bus, int slot, int func)
 		}
 	}
 	return (0);
+}
+
+phandle_t
+ofw_pci_node(device_t dev)
+{
+
+	return (ofw_pci_find_node(pci_get_bus(dev), pci_get_slot(dev),
+	    pci_get_function(dev)));
 }

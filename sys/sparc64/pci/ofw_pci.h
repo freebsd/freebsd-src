@@ -56,18 +56,9 @@ struct ofw_pci_imap_msk {
 	u_int32_t	intr;
 };
 
-int ofw_pci_find_imap(phandle_t, struct ofw_pci_imap **,
-    struct ofw_pci_imap_msk *);
-int ofw_pci_route_intr2(int, struct ofw_pci_register *,
-    struct ofw_pci_imap *, int, struct ofw_pci_imap_msk *);
-int ofw_pci_route_intr(phandle_t, struct ofw_pci_register *,
-    struct ofw_pci_imap *, int, struct ofw_pci_imap_msk *);
-void ofw_pci_init_intr(device_t, phandle_t, struct ofw_pci_imap *, int,
-    struct ofw_pci_imap_msk *);
+u_int32_t ofw_pci_route_intr(phandle_t);
+void ofw_pci_init_intr(device_t, phandle_t);
 phandle_t ofw_pci_find_node(int, int, int);
-int ofw_pci_dev_iterate_node(device_t, phandle_t, uintptr_t *, int, int *,
-    int *, uintptr_t *, uintptr_t *);
-int ofw_pci_dev_iterate(device_t, uintptr_t *, int, int *, int *, uintptr_t *,
-    uintptr_t *);
+phandle_t ofw_pci_node(device_t);
 
 #endif /* ! _SPARC64_PCI_OFW_PCI_H_ */
