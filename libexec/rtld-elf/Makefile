@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.1.1.1 1998/03/07 19:24:35 jdp Exp $
+#	$Id: Makefile,v 1.2 1998/04/30 07:47:58 dfr Exp $
 #
 
 PROG=		ld-elf.so.1
@@ -9,6 +9,8 @@ CFLAGS+=	-elf -fpic -DFREEBSD_ELF
 CFLAGS+=	-Wall
 LDFLAGS+=	-elf -nostdlib -Wl,-Bshareable,-Bsymbolic
 LDADD+=		-lc_pic
+# Atomic installation with "-C" is very important for this program.
+INSTALLFLAGS+=	-C
 
 .PATH: ${.CURDIR}/${MACHINE}
 
