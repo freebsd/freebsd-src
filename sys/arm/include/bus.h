@@ -117,9 +117,6 @@ struct bus_space {
 	/* get kernel virtual address */
 	void *		(*bs_vaddr) (void *, bus_space_handle_t);
 
-	/* mmap bus space for user */
-	int		(*bs_mmap) (struct cdev *, vm_offset_t, vm_paddr_t *, int);
-
 	/* barrier */
 	void		(*bs_barrier) (void *, bus_space_handle_t,
 			    bus_size_t, bus_size_t, int);
@@ -256,12 +253,6 @@ struct bus_space {
  */
 #define	bus_space_vaddr(t, h)						\
 	(*(t)->bs_vaddr)((t)->bs_cookie, (h))
-
-/*
- * MMap bus space for a user application.
- */
-#define bus_space_mmap(t, a, o, p, f)					\
-	(*(t)->bs_mmap)((t)->bs_cookie, (a), (o), (p), (f))
 
 /*
  * Bus barrier operations.
