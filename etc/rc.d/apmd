@@ -25,8 +25,18 @@ apmd_prestart()
 {
 	case `${SYSCTL_N} hw.machine_arch` in
 	i386)
-		# Start apm if it is not already running
-		/etc/rc.d/apm forcestatus > /dev/null || /etc/rc.d/apm forcestart
+		# Enable apm if it is not already enabled
+		if ! checkyesno apm_enable  && \
+		    ! /etc/rc.d/apm forcestatus 1>/dev/null 2>&1
+		then
+			force_depend apm || return 1
+		fi
+
+		# Warn user about acpi apm compatibility support which
+		# does not work with apmd.
+		if [ ! -e /dev/apmctl ]; then
+		    warn "/dev/apmctl not found; kernel is missing apm(4)"
+		fi
 		;;
 	*)
 		return 1
