@@ -342,8 +342,6 @@ struct aac_softc
 	TAILQ_HEAD(,aac_command) aac_ready;	/* commands on hold for
 						 * controller resources */
 	TAILQ_HEAD(,aac_command) aac_busy;
-	TAILQ_HEAD(,aac_command) aac_complete;	/* commands which have been
-						 * returned by the controller */
 	struct bio_queue_head	aac_bioq;
 	struct aac_queue_table	*aac_queues;
 	struct aac_queue_entry	*aac_qentries[AAC_QUEUE_COUNT];
@@ -559,7 +557,6 @@ struct hack
 AACQ_COMMAND_QUEUE(free, AACQ_FREE);
 AACQ_COMMAND_QUEUE(ready, AACQ_READY);
 AACQ_COMMAND_QUEUE(busy, AACQ_BUSY);
-AACQ_COMMAND_QUEUE(complete, AACQ_COMPLETE);
 
 /*
  * outstanding bio queue
