@@ -2254,10 +2254,11 @@ canon_hash (x, mode)
     case REG:
       {
 	unsigned int regno = REGNO (x);
+	bool record;
 
 	/* On some machines, we can't record any non-fixed hard register,
 	   because extending its life will cause reload problems.  We
-	   consider ap, fp, and sp to be fixed for this purpose.
+	   consider ap, fp, sp, gp to be fixed for this purpose.
 
 	   We also consider CCmode registers to be fixed for this purpose;
 	   failure to do so leads to failure to simplify 0<100 type of
@@ -2267,16 +2268,28 @@ canon_hash (x, mode)
 	   Nor should we record any register that is in a small
 	   class, as defined by CLASS_LIKELY_SPILLED_P.  */
 
-	if (regno < FIRST_PSEUDO_REGISTER
-	    && (global_regs[regno]
-		|| CLASS_LIKELY_SPILLED_P (REGNO_REG_CLASS (regno))
-		|| (SMALL_REGISTER_CLASSES
-		    && ! fixed_regs[regno]
-		    && x != frame_pointer_rtx
-		    && x != hard_frame_pointer_rtx
-		    && x != arg_pointer_rtx
-		    && x != stack_pointer_rtx
-		    && GET_MODE_CLASS (GET_MODE (x)) != MODE_CC)))
+	if (regno >= FIRST_PSEUDO_REGISTER)
+	  record = true;
+	else if (x == frame_pointer_rtx
+		 || x == hard_frame_pointer_rtx
+		 || x == arg_pointer_rtx
+		 || x == stack_pointer_rtx
+		 || x == pic_offset_table_rtx)
+	  record = true;
+	else if (global_regs[regno])
+	  record = false;
+	else if (fixed_regs[regno])
+	  record = true;
+	else if (GET_MODE_CLASS (GET_MODE (x)) == MODE_CC)
+	  record = true;
+	else if (SMALL_REGISTER_CLASSES)
+	  record = false;
+	else if (CLASS_LIKELY_SPILLED_P (REGNO_REG_CLASS (regno)))
+	  record = false;
+	else
+	  record = true;
+	    
+	if (!record)
 	  {
 	    do_not_record = 1;
 	    return 0;
@@ -3464,7 +3477,9 @@ fold_rtx (x, insn)
 		  && GET_CODE (elt->exp) != SIGN_EXTEND
 		  && GET_CODE (elt->exp) != ZERO_EXTEND
 		  && GET_CODE (XEXP (elt->exp, 0)) == SUBREG
-		  && GET_MODE (SUBREG_REG (XEXP (elt->exp, 0))) == mode)
+		  && GET_MODE (SUBREG_REG (XEXP (elt->exp, 0))) == mode
+		  && (GET_MODE_CLASS (mode)
+		      == GET_MODE_CLASS (GET_MODE (XEXP (elt->exp, 0)))))
 		{
 		  rtx op0 = SUBREG_REG (XEXP (elt->exp, 0));
 
@@ -4906,7 +4921,10 @@ cse_insn (insn, libcall_insn)
       && (tem = find_reg_note (insn, REG_EQUAL, NULL_RTX)) != 0
       && (! rtx_equal_p (XEXP (tem, 0), SET_SRC (sets[0].rtl))
 	  || GET_CODE (SET_DEST (sets[0].rtl)) == STRICT_LOW_PART))
-    src_eqv = canon_reg (XEXP (tem, 0), NULL_RTX);
+    {
+      src_eqv = fold_rtx (canon_reg (XEXP (tem, 0), NULL_RTX), insn);
+      XEXP (tem, 0) = src_eqv;
+    }
 
   /* Canonicalize sources and addresses of destinations.
      We do this in a separate pass to avoid problems when a MATCH_DUP is
@@ -5010,7 +5028,6 @@ cse_insn (insn, libcall_insn)
 	    eqvmode = GET_MODE (SUBREG_REG (XEXP (dest, 0)));
 	  do_not_record = 0;
 	  hash_arg_in_memory = 0;
-	  src_eqv = fold_rtx (src_eqv, insn);
 	  src_eqv_hash = HASH (src_eqv, eqvmode);
 
 	  /* Find the equivalence class for the equivalent expression.  */

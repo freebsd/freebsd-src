@@ -167,7 +167,7 @@ esac])
 
 if test x${gcc_gxx_include_dir} = x; then
   if test x${enable_version_specific_runtime_libs} = xyes; then
-    gcc_gxx_include_dir='${libsubdir}/include/g++'
+    gcc_gxx_include_dir='${libsubdir}/include/c++'
   else
     topsrcdir=${srcdir}/.. . ${srcdir}/../config.if
 changequote(<<, >>)dnl
@@ -259,6 +259,18 @@ elif test x$withval != xno; then
   cpp_install_dir=$withval
 fi])
 
+# Enable __cxa_atexit for C++.
+AC_ARG_ENABLE(__cxa_atexit,
+[  --enable-__cxa_atexit   enable __cxa_atexit for C++],
+[], [])
+if test x$enable___cxa_atexit = xyes; then
+  AC_DEFINE(DEFAULT_USE_CXA_ATEXIT, 1,
+  [Define if you want to use __cxa_atexit, rather than atexit, to
+   register C++ destructors for local statics and global objects.
+   This is essential for fully standards-compliant handling of
+   destructors, but requires __cxa_atexit in libc.])
+fi
+  
 # Enable Multibyte Characters for C/C++
 AC_ARG_ENABLE(c-mbchar,
 [  --enable-c-mbchar       enable multibyte characters for C and C++],
@@ -1525,11 +1537,31 @@ elif test x$gcc_cv_as != x; then
 	ld_ver=`$gcc_cv_ld --version 2>/dev/null | head -1`
 	if echo "$ld_ver" | grep GNU > /dev/null; then
 changequote(,)dnl
+		ld_vers=`echo $ld_ver | sed -n 's,^.*[ 	]\([0-9][0-9]*\.[0-9][0-9]*\(\|\.[0-9][0-9]*\)\)\([ 	].*\|\)$,\1,p'`
 		ld_date=`echo $ld_ver | sed -n 's,^.*\([2-9][0-9][0-9][0-9]\)[-]*\([01][0-9]\)[-]*\([0-3][0-9]\).*$,\1\2\3,p'`
-changequote([,])dnl
 		if test 0"$ld_date" -lt 20020404; then
-			gcc_cv_as_hidden="no"
+			if test -n "$ld_date"; then
+				# If there was date string, but was earlier than 2002-04-04, fail
+				gcc_cv_as_hidden="no"
+			elif test -z "$ld_vers"; then
+				# If there was no date string nor ld version number, something is wrong
+				gcc_cv_as_hidden="no"
+			else
+				ld_vers_major=`expr "$ld_vers" : '\([0-9]*\)'`
+				ld_vers_minor=`expr "$ld_vers" : '[0-9]*\.\([0-9]*\)'`
+				ld_vers_patch=`expr "$ld_vers" : '[0-9]*\.[0-9]*\.\([0-9]*\)'`
+				test -z "$ld_vers_patch" && ld_vers_patch=0
+				if test "$ld_vers_major" -lt 2; then
+					gcc_cv_as_hidden="no"
+				elif test "$ld_vers_major" -eq 2 -a "$ld_vers_minor" -lt 12; then
+					gcc_cv_as_hidden="no"
+				elif test "$ld_vers_major" -eq 2 -a "$ld_vers_minor" -eq 12 \
+					  -a "$ld_vers_patch" -eq 0; then
+					gcc_cv_as_hidden="no"
+				fi
+			fi
 		fi
+changequote([,])dnl
 	fi
 fi
 

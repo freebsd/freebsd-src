@@ -1,3 +1,269 @@
+2002-08-27  Mark Mitchell  <mark@codesourcery.com>
+
+	* cp-tree.h (warn_abi): Declare it.
+	* decl.c (warn_abi): Define it.
+	(cxx_decode_option): Set it.
+	* class.c (layout_virtual_bases): Warn about bugs in G++ that
+	result in incorrect object layouts.
+	(layout_class_type): Likewise.
+
+2002-08-22  Jason Merrill  <jason@redhat.com>
+
+	PR c++/5607
+	* search.c (check_final_overrider): No longer static.
+	* class.c (update_vtable_entry_for_fn): Call it.
+	* cp-tree.h: Adjust.
+
+	* cp-lang.c (LANG_HOOKS_EXPR_SIZE): Define.
+	(cp_expr_size): New fn.
+	* call.c (convert_arg_to_ellipsis): Promote non-POD warning to error.
+	* typeck.c (build_modify_expr): Don't use save_expr on an lvalue.
+
+2002-08-14  Release Manager
+
+	* GCC 3.2 Released.
+
+2002-08-03  Nathan Sidwell  <nathan@codesourcery.com>
+
+	PR 7470.
+	C++ ABI change - vfunc ordering.
+	* class.c (add_virtual_function): Remove.
+	(dfs_modify_all_vtables): Take list of all declared
+	virtuals. Assign all that are not in primary base.
+	(check_for_override): Adjust comments.
+	(create_vtable_ptr): Take single list of virtuals. Build chain
+	of declared virtuals here.
+	(layout_class_type): Take single list of virtuals. Adjust.
+	(finish_struct_1): Keep virtuals on single list. Adjust.
+
+2002-07-30  Franz Sirl  <Franz.Sirl-kernel@lauterbach.com>
+
+	* lang-specs.h: Remove __GXX_ABI_VERSION, moved to gcc.c.
+
+2002-07-17  Scott Snyder <snyder@fnal.gov>
+
+	PR c++/7320
+	* rtti.c (get_tinfo_decl): Set DECL_COMDAT.
+
+2002-07-05  Nathan Sidwell  <nathan@codesourcery.com>
+
+	Repair damage on weak-impared targets caused by my previous patch.
+	* cp-tree.h (import_export_tinfo): Add parameter.
+	* decl2.c (import_export_tinfo): Add parameter, post adjust
+	DECL_COMDAT.
+	* rtti.c (emit_tinfo_decl): DECL_COMDAT is (nearly) always setup by
+	import_export_tinfo.
+
+2002-06-30  Nathan Sidwell  <nathan@codesourcery.com>
+
+	* cp-tree.h (CPTI_TINFO_DECL_TYPE): Replace with ...
+	(CPTI_TYPE_INFO_PTR_TYPE): ... this.
+	(tinfo_decl_type): Replace with ...
+	(type_info_ptr_type): ... this.
+	(import_export_tinfo): Declare.
+	(tinfo_decl_p): Rename to ...
+	(unemitted_tinfo_decl_p): ... this.
+	* decl2.c (import_export_decl): Break out tinfo handling into ...
+	(import_export_tinfo): ... here. New function.
+	(finish_file): Adjust.
+	* rtti.c (TINFO_REAL_NAME): New macro.
+	(init_rtti_processing): Create the tinfo types.
+	(get_tinfo_decl_dynamic): Use type_info_ptr_type, get_tinfo_ptr.
+	(get_tinfo_decl): Adjust.
+	(get_tinfo_ptr): New function.
+	(get_type_id): Use it.
+	(tinfo_base_init): Create vtable decl here, if it doesn't exist.
+	(ptr_initializer): Use get_tinfo_ptr.
+	(ptm_initializer): Likewise.
+	(synthesize_tinfo_var): Break into ...
+	(get_pseudo_ti_init): ... this. Just create the initializer.
+	(get_pseudo_ti_desc): .. and this.
+	(create_real_tinfo_var): Remove.
+	(create_pseudo_type_info): Don't create the vtable decl here.
+	(get_vmi_pseudo_type_info): Remove.
+	(create_tinfo_types): Adjust.
+	(tinfo_decl_p): Rename to ...
+	(unemitted_tinfo_decl_p): ... here. Adjust.
+	(emit_tinfo_decl): Adjust. Create the initializer.
+
+2002-06-14  Jason Merrill  <jason@redhat.com>
+
+	C++ ABI changes.
+	* class.c (build_base_field): Set DECL_PACKED.
+	(layout_class_type): Don't use tail padding of PODs.
+	* mangle.c (write_unqualified_name): Fix template conversion op
+	mangling.
+
+2002-05-18  Jason Merrill  <jason@redhat.com>
+
+	PR c++/6611
+	* decl2.c (import_export_decl): If we clear
+	DECL_NOT_REALLY_EXTERN, make sure DECL_EXTERNAL is set.
+
+2002-05-14  Jason Merrill  <jason@redhat.com>
+
+	* rtti.c (get_tinfo_decl): Don't call comdat_linkage.
+	Do set DECL_COMDAT.
+	(synthesize_tinfo_var): Take the public decl.
+	(create_real_tinfo_var): Likewise.  Check DECL_COMDAT.
+	(emit_tinfo_decl): Adjust.  Call import_export_decl.
+	* decl2.c (import_export_decl): Simplify tinfo decl handling.
+
+2002-07-25  Release Manager
+
+	* GCC 3.1.1 Released.
+
+2002-07-12  Mark Mitchell  <mark@codesourcery.com>
+
+	* class.c (add_method): Correct handling of conversion operators.
+
+2002-07-11  Mark Mitchell  <mark@codesourcery.com>
+
+	PR c++/7224
+	* class.c (add_method): Simplify.
+
+2002-07-11  Jason Merrill  <jason@redhat.com>
+
+	PR c++/7279
+	* tree.c (cp_copy_res_decl_for_inlining): Also copy
+	TREE_ADDRESSABLE.
+
+2002-07-10  Jason Merrill  <jason@redhat.com>
+
+	PR c++/6255
+	* decl.c (lookup_name_real): Build a new TYPENAME_TYPE rather than
+	modifying the old one.
+
+2002-07-08  Kriang Lerdsuwanakij  <lerdsuwa@users.sourceforge.net>
+
+	* pt.c (can_complete_type_without_circularity): Add static to
+	function definition.
+
+2002-07-05  Jim Wilson  <wilson@redhat.com>
+
+	* decl.c (mark_named_label_lists): Add missing & in call to
+	mark_binding_level.
+
+2002-07-05  Jason Merrill  <jason@redhat.com>
+
+	* cvt.c (cp_convert_to_pointer): Call force_fit_type for null
+	pointers.
+
+	PR optimization/7145
+	* tree.c (cp_copy_res_decl_for_inlining): Also copy DECL_INITIAL.
+
+2002-05-18  Jason Merrill  <jason@redhat.com>
+
+	PR c++/6611
+	* decl2.c (import_export_decl): If we clear
+	DECL_NOT_REALLY_EXTERN, make sure DECL_EXTERNAL is set.
+
+2002-07-03  Kriang Lerdsuwanakij  <lerdsuwa@users.sourceforge.net>
+
+	PR c++/6944
+	* init.c (build_aggr_init): Remove qualifiers of init before calling
+	build_vec_init.
+	(build_vec_init): Flatten multi-dimensional array during cleanup.
+	(build_vec_delete_1): Abort if the type of each element is array.
+
+2002-07-02  Kriang Lerdsuwanakij  <lerdsuwa@users.sourceforge.net>
+
+	PR c++/6716
+	* pt.c (can_complete_type_without_circularity): New function.
+	(instantiate_class_template): Use it.
+	* typeck2.c (incomplete_type_error): Improve error message
+	due to incomplete fields.
+
+2002-07-01  Mark Mitchell  <mark@codesourcery.com>
+
+	PR c++/7112
+	* mangle.c (write_expression): Add mangling for sizeof when
+	applied to a type.
+	* operators.def: Remove stale comment.
+
+2002-06-27  Mark Mitchell  <mark@codesourcery.com>
+
+	PR c++/6695
+	* pt.c (tsubst_friend_class): Substitute into the context of the
+	friend before using it.
+
+2002-06-23  Matt Thomas  <matt@3am-software.com>
+
+	* decl.c (finish_function): Change "#ifdef VMS_TARGET" to
+	"#if VMS_TARGET".
+
+2002-06-20  Richard Henderson  <rth@redhat.com>
+
+	PR c++/6747
+	* typeck.c (mark_addressable): Don't test TREE_ADDRESSABLE early.
+	Call put_var_into_stack.
+
+2002-06-20  Kriang Lerdsuwanakij  <lerdsuwa@users.sourceforge.net>
+
+	PR c++/6892
+	* pt.c (tsubst_expr): Handle FILE_STMT.
+
+2002-06-20  Kriang Lerdsuwanakij  <lerdsuwa@users.sourceforge.net>
+
+	PR c++/6723
+	* pt.c (lookup_template_class): Don't build complete argument of
+	BOUND_TEMPLATE_TEMPLATE_PARM if appeared as a default template
+	argument.
+
+2002-06-16  Richard Henderson  <rth@redhat.com>
+
+	PR opt/6793
+	* tree.c (cp_cannot_inline_tree_fn): Don't short-circuit test
+	after template instantiation.
+
+2002-06-07  H.J. Lu  (hjl@gnu.org)
+
+	* decl2.c (flag_use_cxa_atexit): Set to DEFAULT_USE_CXA_ATEXIT.
+
+2002-05-23  Neil Booth  <neil@daikokuya.demon.co.uk>
+
+	* cp-lang.c (LANG_HOOKS_POST_OPTIONS): Use c_common_post_options.
+	* cp-tree.h (cxx_post_options): Kill.
+	* cp-lex.c (cxx_post_options): Kill.
+
+2002-05-19  Kriang Lerdsuwanakij  <lerdsuwa@users.sourceforge.net>
+
+	* error.c (dump_type) [TYPEOF_TYPE]: Fix parenthesis printing.
+
+2002-05-19  Kriang Lerdsuwanakij  <lerdsuwa@users.sourceforge.net>
+
+	PR c++/186, DR 259
+	* pt.c (do_decl_instantiation): Don't complain explicit
+	instantiation after explicit specialization.
+	(do_type_instantiation): Likewise.
+
+2002-05-09  Jason Merrill  <jason@redhat.com>
+
+	* pt.c (tsubst_expr) [ASM_STMT]: Copy ASM_INPUT_P.
+
+2002-05-15  Alexandre Oliva  <aoliva@redhat.com>
+
+	* cp-tree.h (struct lang_type): Added non_zero_init.
+	(CLASSTYPE_NON_ZERO_INIT_P): New macro.
+	(zero_init_p, force_store_init_value, build_forced_zero_init): Declare.
+	* class.c (check_field_decls): Test non_zero_init.
+	* cvt.c (convert_to_pointer_force): Use cp_convert_to_pointer for
+	zero-to-NULL conversions.
+	* decl.c (obscure_complex_init): Don't reset DECL_INITIAL of a
+	type that needs zero-initialization without zeros.
+	(check_initializer_decl): Compute zero-initializer for types
+	that require a non-trivial one.
+	* init.c (build_forced_zero_init): New function.
+	(build_default_init): Use it.
+	* tree.c (zero_init_p): New function.
+	* typeck2.c (force_store_init_value): New function.
+	(process_init_constructor): Create non-trivial zero-initializers
+	for array members and class fields.
+
+2002-05-14  Release Manager
+
+	* GCC 3.1 Released.
+
 2002-05-03  Jason Merrill  <jason@redhat.com>
 
 	* decl.c (BOOL_TYPE_SIZE): Move default to defaults.h.
@@ -26,6 +292,7 @@
 
 2002-04-30  Jason Merrill  <jason@redhat.com>
 
+	PR debug/6436
 	* decl.c (grokdeclarator): Don't override TYPE_NAME of an
 	anonymous class with a typedef if there are attributes.
 
@@ -163,12 +430,12 @@
 
 2002-04-11  Andrew Haley  <aph@redhat.com>
 
-        * typeck.c (type_after_usual_arithmetic_conversions):
-        If two types have the same variant, return immediately.
-        When two floating-point operands are the same precision: 
-          convert to float if one of the operands is float;
-          if neither operand is one of the standard types, return the type
-          of the first operand.
+	* typeck.c (type_after_usual_arithmetic_conversions):
+	If two types have the same variant, return immediately.
+	When two floating-point operands are the same precision: 
+	  convert to float if one of the operands is float;
+	  if neither operand is one of the standard types, return the type
+	  of the first operand.
  
 2002-04-12  Richard Sandiford  <rsandifo@redhat.com>
 

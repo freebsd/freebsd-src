@@ -9735,23 +9735,22 @@ output_mi_thunk (file, thunk_fndecl, delta, function)
 	fprintf (file, "\taddi %s,%s,%d\n", this_reg, this_reg, delta);
     }
 
+  /* 64-bit constants.  If "int" is 32 bits, we'll never hit this abort.  */
+  else if (TARGET_64BIT && (delta < -2147483647 - 1 || delta > 2147483647))
+    abort ();
+
   /* Large constants that can be done by one addis instruction.  */
-  else if ((delta & 0xffff) == 0 && num_insns_constant_wide (delta) == 1)
+  else if ((delta & 0xffff) == 0)
     asm_fprintf (file, "\t{cau|addis} %s,%s,%d\n", this_reg, this_reg,
 		 delta >> 16);
 
   /* 32-bit constants that can be done by an add and addis instruction.  */
-  else if (TARGET_32BIT || num_insns_constant_wide (delta) == 1)
+  else
     {
       /* Break into two pieces, propagating the sign bit from the low
 	 word to the upper word.  */
-      int delta_high = delta >> 16;
-      int delta_low  = delta & 0xffff;
-      if ((delta_low & 0x8000) != 0)
-	{
-	  delta_high++;
-	  delta_low = (delta_low ^ 0x8000) - 0x8000;	/* sign extend */
-	}
+      int delta_low  = ((delta & 0xffff) ^ 0x8000) - 0x8000;
+      int delta_high = (delta - delta_low) >> 16;
 
       asm_fprintf (file, "\t{cau|addis} %s,%s,%d\n", this_reg, this_reg,
 		   delta_high);
@@ -9761,10 +9760,6 @@ output_mi_thunk (file, thunk_fndecl, delta, function)
       else
 	fprintf (file, "\taddi %s,%s,%d\n", this_reg, this_reg, delta_low);
     }
-
-  /* 64-bit constants, fixme */
-  else
-    abort ();
 
   /* Get the prefix in front of the names.  */
   switch (DEFAULT_ABI)
@@ -9821,7 +9816,10 @@ output_mi_thunk (file, thunk_fndecl, delta, function)
 	    }
 	  assemble_name (file, fname);
 	  putc ('\n', file);
-	  text_section ();
+	  if (TARGET_ELF)
+	    function_section (current_function_decl);
+	  else
+	    text_section ();
 	  if (TARGET_MINIMAL_TOC)
 	    asm_fprintf (file, (TARGET_32BIT)
 			 ? "\t{l|lwz} %s,%s(%s)\n" : "\tld %s,%s(%s)\n", r12,
@@ -10157,8 +10155,10 @@ output_toc (file, x, labelno, mode)
 	  if (TARGET_MINIMAL_TOC)
 	    fputs (DOUBLE_INT_ASM_OP, file);
 	  else
-	    fprintf (file, "\t.tc FD_%lx_%lx[TC],", k[0], k[1]);
-	  fprintf (file, "0x%lx%08lx\n", k[0], k[1]);
+	    fprintf (file, "\t.tc FD_%lx_%lx[TC],",
+		     k[0] & 0xffffffff, k[1] & 0xffffffff);
+	  fprintf (file, "0x%lx%08lx\n",
+		   k[0] & 0xffffffff, k[1] & 0xffffffff);
 	  return;
 	}
       else
@@ -10166,8 +10166,10 @@ output_toc (file, x, labelno, mode)
 	  if (TARGET_MINIMAL_TOC)
 	    fputs ("\t.long ", file);
 	  else
-	    fprintf (file, "\t.tc FD_%lx_%lx[TC],", k[0], k[1]);
-	  fprintf (file, "0x%lx,0x%lx\n", k[0], k[1]);
+	    fprintf (file, "\t.tc FD_%lx_%lx[TC],",
+		     k[0] & 0xffffffff, k[1] & 0xffffffff);
+	  fprintf (file, "0x%lx,0x%lx\n",
+		   k[0] & 0xffffffff, k[1] & 0xffffffff);
 	  return;
 	}
     }
@@ -10184,8 +10186,8 @@ output_toc (file, x, labelno, mode)
 	  if (TARGET_MINIMAL_TOC)
 	    fputs (DOUBLE_INT_ASM_OP, file);
 	  else
-	    fprintf (file, "\t.tc FS_%lx[TC],", l);
-	  fprintf (file, "0x%lx00000000\n", l);
+	    fprintf (file, "\t.tc FS_%lx[TC],", l & 0xffffffff);
+	  fprintf (file, "0x%lx00000000\n", l & 0xffffffff);
 	  return;
 	}
       else
@@ -10193,8 +10195,8 @@ output_toc (file, x, labelno, mode)
 	  if (TARGET_MINIMAL_TOC)
 	    fputs ("\t.long ", file);
 	  else
-	    fprintf (file, "\t.tc FS_%lx[TC],", l);
-	  fprintf (file, "0x%lx\n", l);
+	    fprintf (file, "\t.tc FS_%lx[TC],", l & 0xffffffff);
+	  fprintf (file, "0x%lx\n", l & 0xffffffff);
 	  return;
 	}
     }
@@ -10244,8 +10246,10 @@ output_toc (file, x, labelno, mode)
 	  if (TARGET_MINIMAL_TOC)
 	    fputs (DOUBLE_INT_ASM_OP, file);
 	  else
-	    fprintf (file, "\t.tc ID_%lx_%lx[TC],", (long) high, (long) low);
-	  fprintf (file, "0x%lx%08lx\n", (long) high, (long) low);
+	    fprintf (file, "\t.tc ID_%lx_%lx[TC],",
+		     (long) high & 0xffffffff, (long) low & 0xffffffff);
+	  fprintf (file, "0x%lx%08lx\n",
+		   (long) high & 0xffffffff, (long) low & 0xffffffff);
 	  return;
 	}
       else
@@ -10256,16 +10260,17 @@ output_toc (file, x, labelno, mode)
 		fputs ("\t.long ", file);
 	      else
 		fprintf (file, "\t.tc ID_%lx_%lx[TC],",
-			 (long) high, (long) low);
-	      fprintf (file, "0x%lx,0x%lx\n", (long) high, (long) low);
+			 (long) high & 0xffffffff, (long) low & 0xffffffff);
+	      fprintf (file, "0x%lx,0x%lx\n",
+		       (long) high & 0xffffffff, (long) low & 0xffffffff);
 	    }
 	  else
 	    {
 	      if (TARGET_MINIMAL_TOC)
 		fputs ("\t.long ", file);
 	      else
-		fprintf (file, "\t.tc IS_%lx[TC],", (long) low);
-	      fprintf (file, "0x%lx\n", (long) low);
+		fprintf (file, "\t.tc IS_%lx[TC],", (long) low & 0xffffffff);
+	      fprintf (file, "0x%lx\n", (long) low & 0xffffffff);
 	    }
 	  return;
 	}
@@ -10879,18 +10884,19 @@ rs6000_select_section (decl, reloc)
   if (TREE_CODE (decl) == STRING_CST)
     readonly = ! flag_writable_strings;
   else if (TREE_CODE (decl) == VAR_DECL)
-    readonly = (! (flag_pic && reloc)
+    readonly = (! ((flag_pic || DEFAULT_ABI == ABI_AIX) && reloc)
 		&& TREE_READONLY (decl)
 		&& ! TREE_SIDE_EFFECTS (decl)
 		&& DECL_INITIAL (decl)
 		&& DECL_INITIAL (decl) != error_mark_node
 		&& TREE_CONSTANT (DECL_INITIAL (decl)));
   else if (TREE_CODE (decl) == CONSTRUCTOR)
-    readonly = (! (flag_pic && reloc)
+    readonly = (! ((flag_pic || DEFAULT_ABI == ABI_AIX) && reloc)
 		&& ! TREE_SIDE_EFFECTS (decl)
 		&& TREE_CONSTANT (decl));
   else
-    readonly = 1;
+    readonly = ! ((flag_pic || DEFAULT_ABI == ABI_AIX) && reloc);
+
   if (needs_sdata && rs6000_sdata != SDATA_EABI)
     readonly = 0;
   
@@ -10935,14 +10941,15 @@ rs6000_unique_section (decl, reloc)
       int needs_sdata;
       int size;
 
-      readonly = 1;
       if (TREE_CODE (decl) == STRING_CST)
 	readonly = ! flag_writable_strings;
       else if (TREE_CODE (decl) == VAR_DECL)
-	readonly = (! (flag_pic && reloc)
+	readonly = (! ((flag_pic || DEFAULT_ABI == ABI_AIX) && reloc)
 		    && TREE_READONLY (decl)
 		    && ! TREE_SIDE_EFFECTS (decl)
 		    && TREE_CONSTANT (DECL_INITIAL (decl)));
+      else
+	readonly = ! ((flag_pic || DEFAULT_ABI == ABI_AIX) && reloc);
 
       size = int_size_in_bytes (TREE_TYPE (decl));
       needs_sdata = (size > 0 

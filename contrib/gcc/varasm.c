@@ -186,7 +186,7 @@ static hashval_t const_str_htab_hash	PARAMS ((const void *x));
 static int const_str_htab_eq		PARAMS ((const void *x, const void *y));
 static void const_str_htab_del		PARAMS ((void *));
 static void asm_emit_uninitialised	PARAMS ((tree, const char*, int, int));
-static void resolve_unique_section	PARAMS ((tree, int));
+static void resolve_unique_section	PARAMS ((tree, int, int));
 static void mark_weak                   PARAMS ((tree));
 
 static enum in_section { no_section, in_text, in_data, in_named
@@ -461,12 +461,13 @@ named_section (decl, name, reloc)
 /* If required, set DECL_SECTION_NAME to a unique name.  */
 
 static void
-resolve_unique_section (decl, reloc)
+resolve_unique_section (decl, reloc, flag_function_or_data_sections)
      tree decl;
      int reloc ATTRIBUTE_UNUSED;
+     int flag_function_or_data_sections;
 {
   if (DECL_SECTION_NAME (decl) == NULL_TREE
-      && (flag_function_sections
+      && (flag_function_or_data_sections
 	  || (targetm.have_named_sections
 	      && DECL_ONE_ONLY (decl))))
     UNIQUE_SECTION (decl, reloc);
@@ -515,7 +516,7 @@ asm_output_bss (file, decl, name, size, rounded)
   /* Standard thing is just output label for the object.  */
   ASM_OUTPUT_LABEL (file, name);
 #endif /* ASM_DECLARE_OBJECT_NAME */
-  ASM_OUTPUT_SKIP (file, rounded);
+  ASM_OUTPUT_SKIP (file, rounded ? rounded : 1);
 }
 
 #endif
@@ -1188,7 +1189,7 @@ assemble_start_function (decl, fnname)
   if (CONSTANT_POOL_BEFORE_FUNCTION)
     output_constant_pool (fnname, decl);
 
-  resolve_unique_section (decl, 0);
+  resolve_unique_section (decl, 0, flag_function_sections);
   function_section (decl);
 
   /* Tell assembler to move to target machine's alignment for functions.  */
@@ -1397,7 +1398,7 @@ asm_emit_uninitialised (decl, name, size, rounded)
 
   if (destination == asm_dest_bss)
     globalize_decl (decl);
-  resolve_unique_section (decl, 0);
+  resolve_unique_section (decl, 0, flag_data_sections);
 
   if (flag_shared_data)
     {
@@ -1642,7 +1643,7 @@ assemble_variable (decl, top_level, at_end, dont_output_data)
     reloc = output_addressed_constants (DECL_INITIAL (decl));
 
   /* Switch to the appropriate section.  */
-  resolve_unique_section (decl, reloc);
+  resolve_unique_section (decl, reloc, flag_data_sections);
   variable_section (decl, reloc);
 
   /* dbxout.c needs to know this.  */
@@ -2560,6 +2561,7 @@ const_hash (exp)
 	}
 
     case ADDR_EXPR:
+    case FDESC_EXPR:
       {
 	struct addr_const value;
 
@@ -2801,6 +2803,7 @@ compare_constant_1 (exp, p)
 	}
 
     case ADDR_EXPR:
+    case FDESC_EXPR:
       {
 	struct addr_const value;
 
@@ -4247,6 +4250,7 @@ output_addressed_constants (exp)
   switch (TREE_CODE (exp))
     {
     case ADDR_EXPR:
+    case FDESC_EXPR:
       /* Go inside any operations that get_inner_reference can handle and see
 	 if what's inside is a constant: no need to do anything here for
 	 addresses of variables or functions.  */
@@ -5016,14 +5020,6 @@ merge_weak (newdecl, olddecl)
   if (DECL_WEAK (newdecl) == DECL_WEAK (olddecl))
     return;
 
-  if (SUPPORTS_WEAK
-      && DECL_WEAK (newdecl) 
-      && DECL_EXTERNAL (newdecl) && DECL_EXTERNAL (olddecl)
-      && (TREE_CODE (olddecl) != VAR_DECL || ! TREE_STATIC (olddecl))
-      && TREE_USED (olddecl)
-      && TREE_SYMBOL_REFERENCED (DECL_ASSEMBLER_NAME (olddecl)))
-    warning_with_decl (newdecl, "weak declaration of `%s' after first use results in unspecified behavior");
-
   if (DECL_WEAK (newdecl))
     {
       tree wd;
@@ -5034,10 +5030,17 @@ merge_weak (newdecl, olddecl)
 	 go back and make it weak.  This error cannot caught in
 	 declare_weak because the NEWDECL and OLDDECL was not yet
 	 been merged; therefore, TREE_ASM_WRITTEN was not set.  */
-      if (TREE_CODE (olddecl) == FUNCTION_DECL && TREE_ASM_WRITTEN (olddecl))
+      if (TREE_ASM_WRITTEN (olddecl))
 	error_with_decl (newdecl, 
 			 "weak declaration of `%s' must precede definition");
-      
+
+      /* If we've already generated rtl referencing OLDDECL, we may
+	 have done so in a way that will not function properly with
+	 a weak symbol.  */
+      else if (TREE_USED (olddecl)
+	       && TREE_SYMBOL_REFERENCED (DECL_ASSEMBLER_NAME (olddecl)))
+	warning_with_decl (newdecl, "weak declaration of `%s' after first use results in unspecified behavior");
+
       if (SUPPORTS_WEAK)
 	{
 	  /* We put the NEWDECL on the weak_decls list at some point.
@@ -5174,7 +5177,6 @@ assemble_alias (decl, target)
 #else
   ASM_OUTPUT_DEF (asm_out_file, name, IDENTIFIER_POINTER (target));
 #endif
-  TREE_ASM_WRITTEN (decl) = 1;
 #else /* !ASM_OUTPUT_DEF */
 #if defined (ASM_OUTPUT_WEAK_ALIAS) || defined (ASM_WEAKEN_DECL)
   if (! DECL_WEAK (decl))
@@ -5185,11 +5187,14 @@ assemble_alias (decl, target)
 #else
   ASM_OUTPUT_WEAK_ALIAS (asm_out_file, name, IDENTIFIER_POINTER (target));
 #endif
-  TREE_ASM_WRITTEN (decl) = 1;
 #else
   warning ("alias definitions not supported in this configuration; ignored");
 #endif
 #endif
+
+  TREE_USED (decl) = 1;
+  TREE_ASM_WRITTEN (decl) = 1;
+  TREE_ASM_WRITTEN (DECL_ASSEMBLER_NAME (decl)) = 1;
 }
 
 /* Returns 1 if the target configuration supports defining public symbols
