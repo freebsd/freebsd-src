@@ -37,7 +37,9 @@
 .Os
 .Sh NAME
 .Nm uuencode ,
-.Nm uudecode
+.Nm uudecode ,
+.Nm b64encode ,
+.Nm b64decode
 .Nd encode/decode a binary file
 .Sh SYNOPSIS
 .Nm
@@ -51,6 +53,13 @@
 .Nm uudecode
 .Op Fl i
 .Fl o Ar output_file
+.Nm b64encode
+.Op Fl o Ar output_file
+.Op Ar file
+.Ar name
+.Nm b64decode
+.Op Fl i
+.Fl o Ar output_file
 .Op Ar file
 .Sh DESCRIPTION
 The
@@ -61,6 +70,17 @@ utilities are used to transmit binary files over transmission mediums
 that do not support other than simple
 .Tn ASCII
 data.
+The
+.Nm b64encode
+utility is synonymous with
+.Nm
+with the
+.Fl m
+flag specified.
+The
+.Nm b64decode
+utility is synonymous with
+.Nm uudecode .
 .Pp
 The
 .Nm
