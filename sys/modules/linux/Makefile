@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.22 1998/11/10 19:39:58 jkh Exp $
+#	$Id: Makefile,v 1.23 1998/11/11 07:04:10 peter Exp $
 
 .PATH:	${.CURDIR}/../../i386/linux
 KMOD=	linux
@@ -37,6 +37,6 @@ opt_linux.h opt_vmpage.h:
 
 afterinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
-		${.CURDIR}/linux.sh ${DESTDIR}/usr/bin
+		${.CURDIR}/linux.sh ${DESTDIR}/usr/bin/linux
 
 .include <bsd.kmod.mk>
