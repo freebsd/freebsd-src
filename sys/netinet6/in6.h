@@ -401,9 +401,9 @@ struct route_in6 {
  */
 #define IPV6_JOIN_GROUP		12 /* ip6_mreq; join a group membership */
 #define IPV6_LEAVE_GROUP	13 /* ip6_mreq; leave a group membership */
-#define IPV6_MULTICAST_HOPS	10 /* u_char; set/get IP6 multicast hops */
-#define IPV6_MULTICAST_IF	9  /* u_char; set/get IP6 multicast i/f  */
-#define IPV6_MULTICAST_LOOP	11 /* u_char; set/get IP6 multicast loopback */
+#define IPV6_MULTICAST_HOPS	10 /* int; set/get IP6 multicast hops */
+#define IPV6_MULTICAST_IF	9  /* u_int; set/get IP6 multicast i/f  */
+#define IPV6_MULTICAST_LOOP	11 /* u_int; set/get IP6 multicast loopback */
 #define IPV6_UNICAST_HOPS	4  /* int; IP6 hops */
 #define IPV6_V6ONLY		27 /* bool; only bind INET6 at wildcard bind */
 
