@@ -40,9 +40,12 @@
 .Nd display system data structures
 .Sh SYNOPSIS
 .Nm pstat
-.Op Fl Tfnstv
+.Op Fl Tfknstv
 .Op Fl M Ar core
 .Op Fl N Ar system
+.Pp
+.Nm swapinfo
+.Op Fl k
 .Sh DESCRIPTION
 .Nm Pstat
 displays open file entry, swap space utilization,
@@ -57,13 +60,22 @@ The required namelist is taken from
 unless 
 .Ar system
 is specified.
-The
-.Fl n
-option specifies that devices should be printed out by major/minor
-number rather than by name.
+.Pp
+If invoked as 
+.Nm swapinfo
+the 
+.Fl s
+option is implied, and only the
+.Fl k
+option is legal.
 .Pp
 Options are
 .Bl -tag -width indent
+.It Fl n
+Print devices out by major/minor instead of name.
+.It Fl k
+Print sizes in kilobytes, regardless of the setting of the BLOCKSIZE
+environment variable.
 .It Fl T
 Prints the number of used and free slots in the several system tables
 and is useful for checking to see how large system tables have become
@@ -311,9 +323,6 @@ default source of tables
 .Ra K. Thompson
 .Re
 .Sh BUGS
-Swap statistics are reported for all swap partitions compiled into the kernel,
-regardless of whether those partitions are being used.
-.Pp
 Does not understand NFS swap servers.
 .Sh HISTORY
 The
