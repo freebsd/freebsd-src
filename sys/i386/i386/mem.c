@@ -38,7 +38,7 @@
  *
  *	from: Utah $Hdr: mem.c 1.13 89/10/08$
  *	from: @(#)mem.c	7.2 (Berkeley) 5/9/91
- *	$Id: mem.c,v 1.23 1995/12/08 11:13:25 julian Exp $
+ *	$Id: mem.c,v 1.24 1995/12/08 23:20:02 phk Exp $
  */
 
 /*
@@ -72,7 +72,7 @@
 
 static	d_open_t	mmopen;
 static	d_close_t	mmclose;
-static	d_rdwr_t	mmrw;
+static	d_read_t	mmrw;
 static	d_ioctl_t	mmioctl;
 static	d_mmap_t	memmmap;
 

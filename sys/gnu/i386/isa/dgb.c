@@ -1,5 +1,5 @@
 /*-
- *  dgb.c $Id: dgb.c,v 1.10 1995/12/08 11:12:42 julian Exp $
+ *  dgb.c $Id: dgb.c,v 1.11 1995/12/08 23:19:28 phk Exp $
  *
  *  Digiboard driver.
  *
@@ -201,7 +201,7 @@ static	d_read_t	dgbread;
 static	d_write_t	dgbwrite;
 static	d_ioctl_t	dgbioctl;
 static	d_stop_t	dgbstop;
-static	d_ttycv_t	dgbdevtotty;
+static	d_devtotty_t	dgbdevtotty;
 
 #define CDEV_MAJOR 58
 static struct cdevsw dgb_cdevsw = 

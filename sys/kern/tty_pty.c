@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_pty.c	8.2 (Berkeley) 9/23/93
- * $Id: tty_pty.c,v 1.29 1995/12/08 11:17:09 julian Exp $
+ * $Id: tty_pty.c,v 1.30 1995/12/08 23:21:34 phk Exp $
  */
 
 /*
@@ -66,7 +66,7 @@ static	d_read_t	ptsread;
 static	d_write_t	ptswrite;
 static	d_ioctl_t	ptyioctl;
 static	d_stop_t	ptsstop;
-static	d_ttycv_t	ptydevtotty;
+static	d_devtotty_t	ptydevtotty;
 static	d_open_t	ptcopen;
 static	d_close_t	ptcclose;
 static	d_read_t	ptcread;

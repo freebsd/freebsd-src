@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.97 1995/12/08 11:15:43 julian Exp $
+ *	$Id: wd.c,v 1.98 1995/12/08 23:20:52 phk Exp $
  */
 
 /* TODO:
@@ -303,10 +303,10 @@ struct isa_driver wdcdriver = {
 
 static	d_open_t	wdopen;
 static	d_close_t	wdclose;
+static	d_strategy_t	wdstrategy;
 static	d_ioctl_t	wdioctl;
 static	d_dump_t	wddump;
-static	d_size_t	wdsize;
-static	d_strategy_t	wdstrategy;
+static	d_psize_t	wdsize;
 
 #define CDEV_MAJOR 3
 #define BDEV_MAJOR 0

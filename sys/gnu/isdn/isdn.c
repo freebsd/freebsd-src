@@ -1,6 +1,6 @@
-static char     _isdnid[] = "@(#)$Id: isdn.c,v 1.9 1995/12/08 11:13:01 julian Exp $";
+static char     _isdnid[] = "@(#)$Id: isdn.c,v 1.10 1995/12/08 23:19:44 phk Exp $";
 /*******************************************************************************
- *  II - Version 0.1 $Revision: 1.9 $   $State: Exp $
+ *  II - Version 0.1 $Revision: 1.10 $   $State: Exp $
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -10,6 +10,9 @@ static char     _isdnid[] = "@(#)$Id: isdn.c,v 1.9 1995/12/08 11:13:01 julian Ex
  *
  *******************************************************************************
  * $Log: isdn.c,v $
+ * Revision 1.10  1995/12/08  23:19:44  phk
+ * Julian forgot to make the *devsw structures static.
+ *
  * Revision 1.9  1995/12/08  11:13:01  julian
  * Pass 3 of the great devsw changes
  * most devsw referenced functions are now static, as they are
@@ -128,7 +131,6 @@ static void	passout __P((int unit, int l, char *buf));
 
 static	d_open_t	isdnopen;
 static	d_close_t	isdnclose;
-static	d_rdwr_t	isdnrw;
 static	d_read_t	isdnread;
 static	d_write_t	isdnwrite;
 static	d_ioctl_t	isdnioctl;

@@ -84,8 +84,8 @@ static	d_read_t	cxread;
 static	d_write_t	cxwrite;
 static	d_ioctl_t	cxioctl;
 static	d_stop_t	cxstop;
+static	d_devtotty_t	cxdevtotty;
 static	d_select_t	cxselect;
-static	d_ttycv_t	cxdevtotty;
 
 # define CDEV_MAJOR 42
 
