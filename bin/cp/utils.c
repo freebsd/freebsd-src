@@ -215,7 +215,7 @@ copy_link(p, exists)
 		warn("symlink: %s", link);
 		return (1);
 	}
-	return (0);
+	return (pflag ? setfile(p->fts_statp, -1) : 0);
 }
 
 int
@@ -231,7 +231,7 @@ copy_fifo(from_stat, exists)
 		warn("mkfifo: %s", to.p_path);
 		return (1);
 	}
-	return (pflag ? setfile(from_stat, 0) : 0);
+	return (pflag ? setfile(from_stat, -1) : 0);
 }
 
 int
@@ -247,7 +247,7 @@ copy_special(from_stat, exists)
 		warn("mknod: %s", to.p_path);
 		return (1);
 	}
-	return (pflag ? setfile(from_stat, 0) : 0);
+	return (pflag ? setfile(from_stat, -1) : 0);
 }
 
 #define	RETAINBITS \
@@ -260,20 +260,22 @@ setfile(fs, fd)
 {
 	static struct timeval tv[2];
 	struct stat ts;
-	int rval;
-	int gotstat;
+	int rval, gotstat, islink, fdval;
 
 	rval = 0;
+	fdval = fd != -1;
+	islink = !fdval && S_ISLNK(fs->st_mode);
 	fs->st_mode &= S_ISUID | S_ISGID | S_ISVTX |
 		       S_IRWXU | S_IRWXG | S_IRWXO;
 
 	TIMESPEC_TO_TIMEVAL(&tv[0], &fs->st_atimespec);
 	TIMESPEC_TO_TIMEVAL(&tv[1], &fs->st_mtimespec);
-	if (utimes(to.p_path, tv)) {
-		warn("utimes: %s", to.p_path);
+	if (islink ? lutimes(to.p_path, tv) : utimes(to.p_path, tv)) {
+		warn("%sutimes: %s", islink ? "l" : "", to.p_path);
 		rval = 1;
 	}
-	if (fd ? fstat(fd, &ts) : stat(to.p_path, &ts))
+	if (fdval ? fstat(fd, &ts) :
+	    (islink ? lstat(to.p_path, &ts) : stat(to.p_path, &ts)))
 		gotstat = 0;
 	else {
 		gotstat = 1;
@@ -287,8 +289,9 @@ setfile(fs, fd)
 	 * chown.  If chown fails, lose setuid/setgid bits.
 	 */
 	if (!gotstat || fs->st_uid != ts.st_uid || fs->st_gid != ts.st_gid)
-		if (fd ? fchown(fd, fs->st_uid, fs->st_gid) :
-		    chown(to.p_path, fs->st_uid, fs->st_gid)) {
+		if (fdval ? fchown(fd, fs->st_uid, fs->st_gid) :
+		    (islink ? lchown(to.p_path, fs->st_uid, fs->st_gid) :
+		    chown(to.p_path, fs->st_uid, fs->st_gid))) {
 			if (errno != EPERM) {
 				warn("chown: %s", to.p_path);
 				rval = 1;
@@ -297,14 +300,18 @@ setfile(fs, fd)
 		}
 
 	if (!gotstat || fs->st_mode != ts.st_mode)
-		if (fd ? fchmod(fd, fs->st_mode) : chmod(to.p_path, fs->st_mode)) {
+		if (fdval ? fchmod(fd, fs->st_mode) :
+		    (islink ? lchmod(to.p_path, fs->st_mode) :
+		    chmod(to.p_path, fs->st_mode))) {
 			warn("chmod: %s", to.p_path);
 			rval = 1;
 		}
 
 	if (!gotstat || fs->st_flags != ts.st_flags)
-		if (fd ?
-		    fchflags(fd, fs->st_flags) : chflags(to.p_path, fs->st_flags)) {
+		if (fdval ?
+		    fchflags(fd, fs->st_flags) :
+		    (islink ? (errno = ENOSYS) :
+		    chflags(to.p_path, fs->st_flags))) {
 			warn("chflags: %s", to.p_path);
 			rval = 1;
 		}
