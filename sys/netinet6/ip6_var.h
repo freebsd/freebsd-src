@@ -276,7 +276,9 @@ extern time_t	ip6_log_time;
 extern int	ip6_hdrnestlimit; /* upper limit of # of extension headers */
 extern int	ip6_dad_count;		/* DupAddrDetectionTransmits */
 
+#ifndef RANDOM_IP_ID
 extern u_int32_t ip6_flow_seq;
+#endif
 extern int ip6_auto_flowlabel;
 extern int ip6_auto_linklocal;
 
@@ -357,6 +359,7 @@ int	none_input __P((struct mbuf **, int *, int));
 
 #ifdef RANDOM_IP_ID
 u_int32_t ip6_randomid __P((void));
+u_int32_t ip6_randomflowlabel __P((void));
 #endif
 #endif /* _KERNEL */
 
