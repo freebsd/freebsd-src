@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.99.4.1 1995/09/14 07:09:28 davidg Exp $
+ *	$Id: sio.c,v 1.99.4.2 1996/01/29 08:17:15 bde Exp $
  */
 
 #include "sio.h"
@@ -1648,7 +1648,7 @@ comparam(tp, t)
 	if (cflag & CSTOPB)
 		cfcr |= CFCR_STOPB;
 
-	if (com->hasfifo) {
+	if (com->hasfifo && divisor != 0) {
 		/*
 		 * Use a fifo trigger level low enough so that the input
 		 * latency from the fifo is less than about 16 msec and
