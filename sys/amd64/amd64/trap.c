@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.99 1997/06/07 04:36:10 bde Exp $
+ *	$Id: trap.c,v 1.100 1997/06/22 16:03:37 peter Exp $
  */
 
 /*
@@ -48,11 +48,9 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
-#include <sys/acct.h>
 #include <sys/kernel.h>
 #include <sys/syscall.h>
 #include <sys/sysent.h>
-#include <sys/queue.h>
 #include <sys/vmmeter.h>
 #ifdef KTRACE
 #include <sys/ktrace.h>
@@ -74,8 +72,6 @@
 #include <machine/ipl.h>
 #include <machine/md_var.h>
 #include <machine/psl.h>
-#include <machine/reg.h>
-#include <machine/trap.h>
 #include <machine/../isa/intr_machdep.h>
 #include <machine/smp.h>
 

@@ -37,7 +37,7 @@
  *	@(#)procfs_machdep.c	8.3 (Berkeley) 1/27/94
  *
  * From:
- *	$Id$
+ *	$Id: procfs_machdep.c,v 1.9 1997/02/22 09:32:44 peter Exp $
  */
 
 /*
@@ -66,20 +66,14 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/time.h>
-#include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/ptrace.h>
 #include <sys/vnode.h>
-#include <machine/psl.h>
 #include <machine/reg.h>
-#include <machine/frame.h>
 #include <machine/md_var.h>
 #include <miscfs/procfs/procfs.h>
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
-#include <vm/vm_prot.h>
 #include <sys/lock.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
