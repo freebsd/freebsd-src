@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.6 1997/02/22 22:50:54 ache Exp $
+# $Id: Makefile,v 1.7 1997/02/28 19:51:39 wosch Exp $
 
 NOMAN=YES
 CLEANFILES+= ${LOCALES:S/$/.out/g}
@@ -34,9 +34,9 @@ LATIN2LINKS = hr_HR
 all: ${LOCALES:S/$/.out/g}
 
 afterinstall:
-.for locales in ${LOCALES}
+.for locale in ${LOCALES}
 	${INSTALL} ${COPY} -m 644 -o ${BINOWN} -g ${BINGRP} \
-		${locales}.out ${LOCALEDIR}/${locales}/LC_CTYPE
+		${locale}.out ${LOCALEDIR}/${locale}/LC_CTYPE
 .endfor
 .for link in ${LATIN1LINKS}
 	ln -fs ../lt_LN.ISO_8859-1/LC_CTYPE \
