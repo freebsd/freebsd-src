@@ -30,7 +30,7 @@ device_if.h			standard				\
 	no-obj no-implicit-rule before-depend				\
 	clean		"device_if.h"
 bus_if.o			standard				\
-	dependency	"bus_if.c"					\
+	dependency	"bus_if.c bus_if.h"				\
 	compile-with	"${NORMAL_C}"					\
 	no-implicit-rule local
 bus_if.c			standard				\
