@@ -1,10 +1,16 @@
+/* XXX _G_VTABLE_LABLE_PREFIX is different between ELF and a.out */
+
 /* AUTOMATICALLY GENERATED; DO NOT EDIT! */ 
 #ifndef _G_config_h
 #define _G_config_h
 #define _G_LIB_VERSION "2.7.2"
 #define _G_NAMES_HAVE_UNDERSCORE 1
 #define _G_VTABLE_LABEL_HAS_LENGTH 1
+#ifdef __ELF__
+#define _G_VTABLE_LABEL_PREFIX "_vt."
+#else
 #define _G_VTABLE_LABEL_PREFIX "__vt$"
+#endif
 #define _G_HAVE_ST_BLKSIZE 1
 typedef unsigned long _G_clock_t;
 typedef unsigned int _G_dev_t;
