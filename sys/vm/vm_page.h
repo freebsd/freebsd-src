@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_page.h,v 1.12 1995/01/10 09:19:52 davidg Exp $
+ * $Id: vm_page.h,v 1.13 1995/01/24 10:13:45 davidg Exp $
  */
 
 /*
@@ -226,6 +226,7 @@ extern simple_lock_data_t vm_page_queue_free_lock; /* lock on free page queue */
 
 void vm_page_activate __P((vm_page_t));
 vm_page_t vm_page_alloc __P((vm_object_t, vm_offset_t, int));
+void vm_page_cache __P((register vm_page_t));
 void vm_page_copy __P((vm_page_t, vm_page_t));
 void vm_page_deactivate __P((vm_page_t));
 void vm_page_free __P((vm_page_t));
@@ -244,6 +245,9 @@ void vm_page_set_valid __P((vm_page_t, int, int));
 void vm_page_set_invalid __P((vm_page_t, int, int));
 int vm_page_is_valid __P((vm_page_t, int, int));
 void vm_page_test_dirty __P((vm_page_t));
+int vm_page_unqueue __P((vm_page_t ));
+int vm_page_bits __P((int, int));
+
 
 
 /*
