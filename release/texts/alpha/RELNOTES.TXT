@@ -253,6 +253,7 @@ is no longer required, in some cases, for a "buildworld" to precede a
 major releases, across binutil upgrades and when config changes
 version.)
 
+The API UP1100 mainboard has been verified to work OK.
 
 1.2. SECURITY FIXES
 -------------------
