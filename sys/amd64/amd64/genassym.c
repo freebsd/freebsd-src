@@ -80,6 +80,7 @@ ASSYM(P_VMSPACE, offsetof(struct proc, p_vmspace));
 ASSYM(VM_PMAP, offsetof(struct vmspace, vm_pmap));
 ASSYM(PM_ACTIVE, offsetof(struct pmap, pm_active));
 ASSYM(P_ADDR, offsetof(struct proc, p_addr));
+ASSYM(P_INTR_NESTING_LEVEL, offsetof(struct proc, p_intr_nesting_level));
 ASSYM(P_STAT, offsetof(struct proc, p_stat));
 ASSYM(P_WCHAN, offsetof(struct proc, p_wchan));
 
@@ -182,7 +183,6 @@ ASSYM(GD_TSS_GDT, offsetof(struct globaldata, gd_tss_gdt));
 ASSYM(GD_ASTPENDING, offsetof(struct globaldata, gd_astpending));
 ASSYM(AST_PENDING, AST_PENDING);
 ASSYM(AST_RESCHED, AST_RESCHED);
-ASSYM(GD_INTR_NESTING_LEVEL, offsetof(struct globaldata, gd_intr_nesting_level));
 
 #ifdef USER_LDT
 ASSYM(GD_CURRENTLDT, offsetof(struct globaldata, gd_currentldt));

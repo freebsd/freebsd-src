@@ -56,7 +56,6 @@ struct globaldata {
 	struct pmap	*gd_current_pmap;	/* which pmap is active */
 	u_int32_t	gd_next_asn;		/* next ASN to allocate */
 	u_int32_t	gd_current_asngen;	/* ASN rollover check */
-	u_int32_t	gd_intr_nesting_level;  /* interrupt recursion */
 
 	u_int		gd_astpending;
 	SLIST_ENTRY(globaldata) gd_allcpu;

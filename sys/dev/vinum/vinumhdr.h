@@ -87,7 +87,7 @@ void FFree (void *mem, char *, int);
 #define LOCKDRIVE(d) lockdrive (d, __FILE__, __LINE__)
 #else
 #define Malloc(x)  malloc((x), M_DEVBUF, \
-	PCPU_GET(intr_nesting_level) == 0? M_WAITOK: M_NOWAIT)
+	curproc->p_intr_nesting_level == 0? M_WAITOK: M_NOWAIT)
 #define Free(x)    free((x), M_DEVBUF)
 #define LOCKDRIVE(d) lockdrive (d)
 #endif

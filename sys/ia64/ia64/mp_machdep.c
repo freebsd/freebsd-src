@@ -772,7 +772,7 @@ smp_handle_ipi(struct trapframe *frame)
 			if ((frame->tf_cr_ipsr & IA64_PSR_CPL)
 			    == IA64_PSR_CPL_USER)
 				checkstate_cpustate[cpuno] = CHECKSTATE_USER;
-			else if (PCPU_GET(intr_nesting_level) == 1)
+			else if (curproc->p_intr_nesting_level == 1)
 				checkstate_cpustate[cpuno] = CHECKSTATE_SYS;
 			else
 				checkstate_cpustate[cpuno] = CHECKSTATE_INTR;

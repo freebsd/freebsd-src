@@ -67,7 +67,7 @@ struct clockframe {
 #define	CLKF_BASEPRI(framep)						\
 	(((framep)->cf_tf.tf_cr_ipsr & IA64_PSR_I) == 0)
 #define	CLKF_PC(framep)		((framep)->cf_tf.tf_cr_iip)
-#define	CLKF_INTR(framep)	(PCPU_GET(intr_nesting_level) >= 2)
+#define	CLKF_INTR(framep)	(curproc->p_intr_nesting_level >= 2)
 
 /*
  * Preempt the current process if in interrupt from user mode,

@@ -44,6 +44,7 @@
 #include <sys/mutex.h>
 #include <sys/vmmeter.h>
 #include <sys/lock.h>
+#include <sys/proc.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -147,7 +148,7 @@ malloc(size, type, flags)
 
 #if defined(INVARIANTS) && defined(__i386__)
 	if (flags == M_WAITOK)
-		KASSERT(PCPU_GET(intr_nesting_level) == 0,
+		KASSERT(curproc->p_intr_nesting_level == 0,
 		   ("malloc(M_WAITOK) in interrupt context"));
 #endif
 	indx = BUCKETINDX(size);

@@ -1053,7 +1053,7 @@ smp_handle_ipi(struct trapframe *frame)
 			CTR0(KTR_SMP, "IPI_CHECKSTATE");
 			if (frame->tf_regs[FRAME_PS] & ALPHA_PSL_USERMODE)
 				checkstate_cpustate[cpuno] = CHECKSTATE_USER;
-			else if (PCPU_GET(intr_nesting_level) == 1)
+			else if (curproc->p_intr_nesting_level == 1)
 				checkstate_cpustate[cpuno] = CHECKSTATE_SYS;
 			else
 				checkstate_cpustate[cpuno] = CHECKSTATE_INTR;

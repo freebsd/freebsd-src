@@ -351,6 +351,7 @@ again:
 		nextpid = trypid;
 
 	p2 = newproc;
+	p2->p_intr_nesting_level = 0;
 	p2->p_stat = SIDL;			/* protect against others */
 	p2->p_pid = trypid;
 	LIST_INSERT_HEAD(&allproc, p2, p_list);
