@@ -508,14 +508,14 @@ fmt(fn, ki, comm, maxlen)
 	return (s);
 }
 
-#define UREADOK(ki)	(forceuread || (ki->ki_p->ki_flag & P_INMEM))
+#define UREADOK(ki)	(forceuread || (ki->ki_p->ki_sflag & PS_INMEM))
 
 static void
 saveuser(ki)
 	KINFO *ki;
 {
 
-	if (ki->ki_p->ki_flag & P_INMEM) {
+	if (ki->ki_p->ki_sflag & PS_INMEM) {
 		/*
 		 * The u-area might be swapped out, and we can't get
 		 * at it because we have a crashdump and no swap.
