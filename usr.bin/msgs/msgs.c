@@ -37,11 +37,11 @@ static const char copyright[] =
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
-#ifndef lint
 #if 0
+#ifndef lint
 static char sccsid[] = "@(#)msgs.c	8.2 (Berkeley) 4/28/95";
-#endif
 #endif /* not lint */
+#endif
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -150,7 +150,6 @@ bool	use_pager = NO;
 bool	clean = NO;
 bool	lastcmd = NO;
 jmp_buf	tstpbuf;
-
 
 void	ask(const char *);
 void	gfrsub(FILE *);
@@ -544,6 +543,7 @@ cmnd:
 			case 'X':
 				exit(0);
 				/* NOTREACHED */
+
 			case 'q':
 				/* FALLTHROUGH */
 			case 'Q':
@@ -551,6 +551,7 @@ cmnd:
 				printf("--Postponed--\n");
 				exit(0);
 				/* NOTREACHED */
+
 			case 'n':
 				/* FALLTHROUGH */
 			case 'N':
