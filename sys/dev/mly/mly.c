@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2000 Michael Smith
+ * Copyright (c) 2000, 2001 Michael Smith
  * Copyright (c) 2000 BSDi
  * All rights reserved.
  *
@@ -34,6 +34,8 @@
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/ctype.h>
+#include <sys/ioccom.h>
+#include <sys/stat.h>
 
 #include <machine/bus_memio.h>
 #include <machine/bus.h>
@@ -43,6 +45,7 @@
 #include <cam/scsi/scsi_all.h>
 
 #include <dev/mly/mlyreg.h>
+#include <dev/mly/mlyio.h>
 #include <dev/mly/mlyvar.h>
 #define MLY_DEFINE_TABLES
 #include <dev/mly/mly_tables.h>
@@ -65,9 +68,8 @@ static int	mly_immediate_command(struct mly_command *mc);
 static int	mly_start(struct mly_command *mc);
 static void	mly_complete(void *context, int pending);
 
-static int	mly_get_slot(struct mly_command *mc);
-static void	mly_alloc_command_cluster_map(void *arg, bus_dma_segment_t *segs, int nseg, int error);
-static void	mly_alloc_command_cluster(struct mly_softc *sc);
+static void	mly_alloc_commands_map(void *arg, bus_dma_segment_t *segs, int nseg, int error);
+static int	mly_alloc_commands(struct mly_softc *sc);
 static void	mly_map_command(struct mly_command *mc);
 static void	mly_unmap_command(struct mly_command *mc);
 
@@ -80,6 +82,32 @@ static void	mly_print_command(struct mly_command *mc);
 static void	mly_print_packet(struct mly_command *mc);
 static void	mly_panic(struct mly_softc *sc, char *reason);
 #endif
+void		mly_print_controller(int controller);
+
+static d_open_t		mly_user_open;
+static d_close_t	mly_user_close;
+static d_ioctl_t	mly_user_ioctl;
+static int	mly_user_command(struct mly_softc *sc, struct mly_user_command *uc);
+static int	mly_user_health(struct mly_softc *sc, struct mly_user_health *uh);
+
+#define MLY_CDEV_MAJOR  158
+
+static struct cdevsw mly_cdevsw = {
+    mly_user_open,
+    mly_user_close,
+    noread,
+    nowrite,
+    mly_user_ioctl,
+    nopoll,
+    nommap,
+    nostrategy,
+    "mly",
+    MLY_CDEV_MAJOR,
+    nodump,
+    nopsize,
+    0,
+    -1
+};
 
 /********************************************************************************
  ********************************************************************************
@@ -100,10 +128,10 @@ mly_attach(struct mly_softc *sc)
     /*
      * Initialise per-controller queues.
      */
-    TAILQ_INIT(&sc->mly_freecmds);
-    TAILQ_INIT(&sc->mly_ready);
-    TAILQ_INIT(&sc->mly_completed);
-    TAILQ_INIT(&sc->mly_clusters);
+    mly_initq_free(sc);
+    mly_initq_ready(sc);
+    mly_initq_busy(sc);
+    mly_initq_complete(sc);
 
 #if __FreeBSD_version >= 500005
     /*
@@ -124,21 +152,16 @@ mly_attach(struct mly_softc *sc)
 	return(error);
 
     /*
-     * Initialise the slot allocator so that we can issue commands.
+     * Allocate command buffers
      */
-    sc->mly_max_commands = MLY_SLOT_MAX;
-    sc->mly_last_slot = MLY_SLOT_START;
+    if ((error = mly_alloc_commands(sc)))
+	return(error);
 
     /* 
      * Obtain controller feature information
      */
     if ((error = mly_get_controllerinfo(sc)))
 	return(error);
-
-    /*
-     * Update the slot allocator limit based on the controller inquiry.
-     */
-    sc->mly_max_commands = imin(sc->mly_controllerinfo->maximum_parallel_commands, MLY_SLOT_MAX);
 
     /*
      * Get the current event counter for health purposes, populate the initial
@@ -176,6 +199,13 @@ mly_attach(struct mly_softc *sc)
      * discovery here...)
      */
     mly_periodic((void *)sc);
+
+    /*
+     * Create the control device.
+     */
+    sc->mly_dev_t = make_dev(&mly_cdevsw, device_get_unit(sc->mly_dev), UID_ROOT, GID_OPERATOR,
+			     S_IRUSR | S_IWUSR, "mly%d", device_get_unit(sc->mly_dev));
+    sc->mly_dev_t->si_drv1 = sc;
 
     /* enable interrupts now */
     MLY_UNMASK_INTERRUPTS(sc);
@@ -371,6 +401,8 @@ mly_complete_rescan(struct mly_command *mc)
 	    sc->mly_btl[bus][target].mb_flags = MLY_BTL_PHYSICAL;	/* clears all other flags */
 	    sc->mly_btl[bus][target].mb_type = MLY_DEVICE_TYPE_PHYSICAL;
 	    sc->mly_btl[bus][target].mb_state = pdi->state;
+	    sc->mly_btl[bus][target].mb_speed = pdi->speed;
+	    sc->mly_btl[bus][target].mb_width = pdi->width;
 	    if (pdi->state != MLY_DEVICE_STATE_UNCONFIGURED)
 		sc->mly_btl[bus][target].mb_flags |= MLY_BTL_PROTECTED;
 	    debug(2, "BTL rescan for %d:%d returns %s", bus, target, 
@@ -439,9 +471,12 @@ mly_enable_mmbox(struct mly_softc *sc)
     bzero(&mci, sizeof(mci));
     mci.sub_ioctl = MDACIOCTL_SETMEMORYMAILBOX;
     /* set buffer addresses */
-    mci.param.setmemorymailbox.command_mailbox_physaddr = sc->mly_mmbox_busaddr + offsetof(struct mly_mmbox, mmm_command);
-    mci.param.setmemorymailbox.status_mailbox_physaddr = sc->mly_mmbox_busaddr + offsetof(struct mly_mmbox, mmm_status);
-    mci.param.setmemorymailbox.health_buffer_physaddr = sc->mly_mmbox_busaddr + offsetof(struct mly_mmbox, mmm_health);
+    mci.param.setmemorymailbox.command_mailbox_physaddr = 
+	sc->mly_mmbox_busaddr + offsetof(struct mly_mmbox, mmm_command);
+    mci.param.setmemorymailbox.status_mailbox_physaddr = 
+	sc->mly_mmbox_busaddr + offsetof(struct mly_mmbox, mmm_status);
+    mci.param.setmemorymailbox.health_buffer_physaddr = 
+	sc->mly_mmbox_busaddr + offsetof(struct mly_mmbox, mmm_health);
 
     /* set buffer sizes - abuse of data_size field is revolting */
     sp = (u_int8_t *)&mci.data_size;
@@ -452,7 +487,8 @@ mly_enable_mmbox(struct mly_softc *sc)
     debug(1, "memory mailbox at %p (0x%llx/%d 0x%llx/%d 0x%llx/%d", sc->mly_mmbox,
 	  mci.param.setmemorymailbox.command_mailbox_physaddr, sp[0],
 	  mci.param.setmemorymailbox.status_mailbox_physaddr, sp[1],
-	  mci.param.setmemorymailbox.health_buffer_physaddr, mci.param.setmemorymailbox.health_buffer_size);
+	  mci.param.setmemorymailbox.health_buffer_physaddr, 
+	  mci.param.setmemorymailbox.health_buffer_size);
 
     if ((error = mly_ioctl(sc, &mci, NULL, 0, &status, NULL, NULL)))
 	return(error);
@@ -808,13 +844,14 @@ mly_immediate_command(struct mly_command *mc)
 
     if (sc->mly_state & MLY_STATE_INTERRUPTS_ON) {
 	/* sleep on the command */
-	while(MLY_CMD_STATE(mc) != MLY_CMD_COMPLETE) {
+	while(!(mc->mc_flags & MLY_CMD_COMPLETE)) {
 	    tsleep(mc, PRIBIO, "mlywait", 0);
 	}
     } else {
 	/* spin and collect status while we do */
-	while(MLY_CMD_STATE(mc) != MLY_CMD_COMPLETE)
+	while(!(mc->mc_flags & MLY_CMD_COMPLETE)) {
 	    mly_done(mc->mc_sc);
+	}
     }
     splx(s);
     return(0);
@@ -866,14 +903,13 @@ mly_start(struct mly_command *mc)
     debug_called(2);
 
     /* 
-     * Set the command up for delivery to the controller.  This may fail
-     * due to resource shortages.
+     * Set the command up for delivery to the controller. 
      */
-    if (mly_get_slot(mc))
-	return(EBUSY);
     mly_map_command(mc);
+    mc->mc_packet->generic.command_id = mc->mc_slot;
 
     s = splcam();
+
     /*
      * Do we have to use the hardware mailbox?
      */
@@ -885,7 +921,8 @@ mly_start(struct mly_command *mc)
 	    splx(s);
 	    return(EBUSY);
 	}
-
+	mc->mc_flags |= MLY_CMD_BUSY;
+	
 	/*
 	 * It's ready, send the command.
 	 */
@@ -896,11 +933,12 @@ mly_start(struct mly_command *mc)
 
 	pkt = &sc->mly_mmbox->mmm_command[sc->mly_mmbox_command_index];
 
-	/* check to see if the next slot is free yet */
+	/* check to see if the next index is free yet */
 	if (pkt->mmbox.flag != 0) {
 	    splx(s);
 	    return(EBUSY);
 	}
+	mc->mc_flags |= MLY_CMD_BUSY;
 	
 	/* copy in new command */
 	bcopy(mc->mc_packet->mmbox.data, pkt->mmbox.data, sizeof(pkt->mmbox.data));
@@ -916,6 +954,7 @@ mly_start(struct mly_command *mc)
 	sc->mly_mmbox_command_index = (sc->mly_mmbox_command_index + 1) % MLY_MMBOX_COMMANDS;
     }
 
+    mly_enqueue_busy(mc);
     splx(s);
     return(0);
 }
@@ -938,17 +977,14 @@ mly_done(struct mly_softc *sc)
     if (MLY_ODBR_TRUE(sc, MLY_HM_STSREADY)) {
 	slot = MLY_GET_REG2(sc, sc->mly_status_mailbox);
 	if (slot < MLY_SLOT_MAX) {
-	    mc = sc->mly_busycmds[slot];
-	    if (mc != NULL) {
-		mc->mc_status = MLY_GET_REG(sc, sc->mly_status_mailbox + 2);
-		mc->mc_sense = MLY_GET_REG(sc, sc->mly_status_mailbox + 3);
-		mc->mc_resid = MLY_GET_REG4(sc, sc->mly_status_mailbox + 4);
-		mly_enqueue_completed(mc);
-		sc->mly_busycmds[slot] = NULL;
-		worked = 1;
-	    } else {
-		mly_printf(sc, "got HM completion for nonbusy slot %u\n", slot);
-	    }
+	    mc = &sc->mly_command[slot - MLY_SLOT_START];
+	    mc->mc_status = MLY_GET_REG(sc, sc->mly_status_mailbox + 2);
+	    mc->mc_sense = MLY_GET_REG(sc, sc->mly_status_mailbox + 3);
+	    mc->mc_resid = MLY_GET_REG4(sc, sc->mly_status_mailbox + 4);
+	    mly_remove_busy(mc);
+	    mc->mc_flags &= ~MLY_CMD_BUSY;
+	    mly_enqueue_complete(mc);
+	    worked = 1;
 	} else {
 	    /* slot 0xffff may mean "extremely bogus command" */
 	    mly_printf(sc, "got HM completion for illegal slot %u\n", slot);
@@ -970,23 +1006,21 @@ mly_done(struct mly_softc *sc)
 	    /* get slot number */
 	    slot = sp->status.command_id;
 	    if (slot < MLY_SLOT_MAX) {
-		mc = sc->mly_busycmds[slot];
-		if (mc != NULL) {
-		    mc->mc_status = sp->status.status;
-		    mc->mc_sense = sp->status.sense_length;
-		    mc->mc_resid = sp->status.residue;
-		    mly_enqueue_completed(mc);
-		    sc->mly_busycmds[slot] = NULL;
-		    worked = 1;
-		} else {
-		    mly_printf(sc, "got AM completion for nonbusy slot %u\n", slot);
-		}
+		mc = &sc->mly_command[slot - MLY_SLOT_START];
+		mc->mc_status = sp->status.status;
+		mc->mc_sense = sp->status.sense_length;
+		mc->mc_resid = sp->status.residue;
+		mly_remove_busy(mc);
+		mc->mc_flags &= ~MLY_CMD_BUSY;
+		mly_enqueue_complete(mc);
+		worked = 1;
 	    } else {
 		/* slot 0xffff may mean "extremely bogus command" */
-		mly_printf(sc, "got AM completion for illegal slot %u at %d\n", slot, sc->mly_mmbox_status_index);
+		mly_printf(sc, "got AM completion for illegal slot %u at %d\n", 
+			   slot, sc->mly_mmbox_status_index);
 	    }
 
-	    /* clear and move to next slot */
+	    /* clear and move to next index */
 	    sp->mmbox.flag = 0;
 	    sc->mly_mmbox_status_index = (sc->mly_mmbox_status_index + 1) % MLY_MMBOX_STATUS;
 	}
@@ -1021,7 +1055,7 @@ mly_complete(void *context, int pending)
     /* 
      * Spin pulling commands off the completed queue and processing them.
      */
-    while ((mc = mly_dequeue_completed(sc)) != NULL) {
+    while ((mc = mly_dequeue_complete(sc)) != NULL) {
 
 	/*
 	 * Free controller resources, mark command complete.
@@ -1033,7 +1067,7 @@ mly_complete(void *context, int pending)
 	 */
 	mly_unmap_command(mc);
 	mc_complete = mc->mc_complete;
-	MLY_CMD_SETSTATE(mc, MLY_CMD_COMPLETE);
+	mc->mc_flags |= MLY_CMD_COMPLETE;
 
 	/* 
 	 * Call completion handler or wake up sleeping consumer.
@@ -1065,6 +1099,9 @@ mly_complete(void *context, int pending)
 	debug(1, "event change %d, event status update, %d -> %d", sc->mly_event_change,
 	      sc->mly_event_waiting, sc->mly_mmbox->mmm_health.status.next_event);
 	sc->mly_event_waiting = sc->mly_mmbox->mmm_health.status.next_event;
+
+	/* wake up anyone that might be interested in this */
+	wakeup(&sc->mly_event_change);
     }
     if (sc->mly_event_counter != sc->mly_event_waiting)
 	mly_fetch_event(sc);
@@ -1077,54 +1114,6 @@ mly_complete(void *context, int pending)
  ********************************************************************************/
 
 /********************************************************************************
- * Give a command a slot in our lookup table, so that we can recover it when
- * the controller returns the slot number.
- *
- * Slots are freed in mly_done().
- */
-static int
-mly_get_slot(struct mly_command *mc)
-{
-    struct mly_softc	*sc = mc->mc_sc;
-    u_int16_t		slot;
-    int			tries;
-
-    debug_called(3);
-
-    if (mc->mc_flags & MLY_CMD_SLOTTED)
-	return(0);
-
-    /*
-     * Optimisation for the controller-busy case - check to see whether
-     * we are already over the limit and stop immediately.
-     */
-    if (sc->mly_busy_count >= sc->mly_max_commands)
-	return(EBUSY);
-
-    /*
-     * Scan forward from the last slot that we assigned looking for a free
-     * slot.  Don't scan more than the maximum number of commands that we
-     * support (we should never reach the limit here due to the optimisation
-     * above)
-     */
-    slot = sc->mly_last_slot;
-    for (tries = sc->mly_max_commands; tries > 0; tries--) {
-	if (sc->mly_busycmds[slot] == NULL) {
-	    sc->mly_busycmds[slot] = mc;
-	    mc->mc_slot = slot;
-	    mc->mc_packet->generic.command_id = slot;
-	    mc->mc_flags |= MLY_CMD_SLOTTED;
-	    sc->mly_last_slot = slot;
-	    return(0);
-	}
-	slot++;
-	if (slot >= MLY_SLOT_MAX)
-	    slot = MLY_SLOT_START;
-    }
-    return(EBUSY);
-}
-
-/********************************************************************************
  * Allocate a command.
  */
 int
@@ -1134,17 +1123,9 @@ mly_alloc_command(struct mly_softc *sc, struct mly_command **mcp)
 
     debug_called(3);
 
-    if ((mc = mly_dequeue_free(sc)) == NULL) {
-	mly_alloc_command_cluster(sc);
-	mc = mly_dequeue_free(sc);
-    }
-    if (mc != NULL)
-	TAILQ_REMOVE(&sc->mly_freecmds, mc, mc_link);
-
-    if (mc == NULL)
+    if ((mc = mly_dequeue_free(sc)) == NULL)
 	return(ENOMEM);
 
-    MLY_CMD_SETSTATE(mc, MLY_CMD_SETUP);
     *mcp = mc;
     return(0);
 }
@@ -1161,7 +1142,6 @@ mly_release_command(struct mly_command *mc)
      * Fill in parts of the command that may cause confusion if
      * a consumer doesn't when we are later allocated.
      */
-    MLY_CMD_SETSTATE(mc, MLY_CMD_FREE);
     mc->mc_data = NULL;
     mc->mc_flags = 0;
     mc->mc_complete = NULL;
@@ -1178,66 +1158,55 @@ mly_release_command(struct mly_command *mc)
 }
 
 /********************************************************************************
- * Map helper for command cluster allocation.
- *
- * Note that there are never more command packets in a cluster than will fit in
- * a page, so there is no need to look at anything other than the base of the
- * allocation (which will be page-aligned).
+ * Map helper for command allocation.
  */
 static void
-mly_alloc_command_cluster_map(void *arg, bus_dma_segment_t *segs, int nseg, int error)
+mly_alloc_commands_map(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 {
-    struct mly_command_cluster	*mcc = (struct mly_command_cluster *)arg;
+    struct mly_softc	*sc = (struct mly_softc *)arg
 
     debug_called(2);
 
-    mcc->mcc_packetphys = segs[0].ds_addr;
+    sc->mly_packetphys = segs[0].ds_addr;
 }
 
 /********************************************************************************
- * Allocate and initialise a cluster of commands.
+ * Allocate and initialise command and packet structures.
  */
-static void
-mly_alloc_command_cluster(struct mly_softc *sc)
+static int
+mly_alloc_commands(struct mly_softc *sc)
 {
-    struct mly_command_cluster	*mcc;
     struct mly_command		*mc;
     int				i;
  
-    debug_called(1);
-
-    mcc = malloc(sizeof(struct mly_command_cluster), M_DEVBUF, M_NOWAIT);
-    if (mcc != NULL) {
-
-	/*
-	 * Allocate enough space for all the command packets for this cluster and
-	 * map them permanently into controller-visible space.
-	 */
-	if (bus_dmamem_alloc(sc->mly_packet_dmat, (void **)&mcc->mcc_packet, 
-			     BUS_DMA_NOWAIT, &mcc->mcc_packetmap)) {
-	    free(mcc, M_DEVBUF);
-	    return;
-	}
-	bus_dmamap_load(sc->mly_packet_dmat, mcc->mcc_packetmap, mcc->mcc_packet, 
-			MLY_CMD_CLUSTERCOUNT * sizeof(union mly_command_packet), 
-			mly_alloc_command_cluster_map, mcc, 0);
-
-	mly_enqueue_cluster(sc, mcc);
-	for (i = 0; i < MLY_CMD_CLUSTERCOUNT; i++) {
-	    mc = &mcc->mcc_command[i];
-	    bzero(mc, sizeof(*mc));
-	    mc->mc_sc = sc;
-	    mc->mc_packet = mcc->mcc_packet + i;
-	    mc->mc_packetphys = mcc->mcc_packetphys + (i * sizeof(union mly_command_packet));
-	    if (!bus_dmamap_create(sc->mly_buffer_dmat, 0, &mc->mc_datamap))
-		mly_release_command(mc);
-	}
+    /*
+     * Allocate enough space for all the command packets in one chunk and
+     * map them permanently into controller-visible space.
+     */
+    if (bus_dmamem_alloc(sc->mly_packet_dmat, (void **)&sc->mly_packet, 
+			 BUS_DMA_NOWAIT, &sc->mly_packetmap)) {
+	return(ENOMEM);
     }
+    bus_dmamap_load(sc->mly_packet_dmat, sc->mly_packetmap, sc->mly_packet, 
+		    MLY_MAXCOMMANDS * sizeof(union mly_command_packet), 
+		    mly_alloc_commands_map, sc, 0);
+
+    for (i = 0; i < MLY_MAXCOMMANDS; i++) {
+	mc = &sc->mly_command[i];
+	bzero(mc, sizeof(*mc));
+	mc->mc_sc = sc;
+	mc->mc_slot = MLY_SLOT_START + i;
+	mc->mc_packet = sc->mly_packet + i;
+	mc->mc_packetphys = sc->mly_packetphys + (i * sizeof(union mly_command_packet));
+	if (!bus_dmamap_create(sc->mly_buffer_dmat, 0, &mc->mc_datamap))
+	    mly_release_command(mc);
+    }
+    return(0);
 }
 
 /********************************************************************************
- * Command-mapping helper function - populate this command slot's s/g table
- * with the s/g entries for this command.
+ * Command-mapping helper function - populate this command's s/g table
+ * with the s/g entries for its data.
  */
 static void
 mly_map_command_sg(void *arg, bus_dma_segment_t *segs, int nseg, int error)
@@ -1255,7 +1224,7 @@ mly_map_command_sg(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 	sg = &gen->transfer.direct.sg[0];
 	gen->command_control.extended_sg_table = 0;
     } else {
-	tabofs = (mc->mc_slot * MLY_MAXSGENTRIES);
+	tabofs = ((mc->mc_slot - MLY_SLOT_START) * MLY_MAXSGENTRIES);
 	sg = sc->mly_sg_table + tabofs;
 	gen->transfer.indirect.entries[0] = nseg;
 	gen->transfer.indirect.table_physaddr[0] = sc->mly_sg_busaddr + (tabofs * sizeof(struct mly_sg_entry));
@@ -1522,7 +1491,6 @@ mly_print_command(struct mly_command *mc)
     
     mly_printf(sc, "COMMAND @ %p\n", mc);
     mly_printf(sc, "  slot      %d\n", mc->mc_slot);
-    mly_printf(sc, "  state     %d\n", MLY_CMD_STATE(mc));
     mly_printf(sc, "  status    0x%x\n", mc->mc_status);
     mly_printf(sc, "  sense len %d\n", mc->mc_sense);
     mly_printf(sc, "  resid     %d\n", mc->mc_resid);
@@ -1530,7 +1498,7 @@ mly_print_command(struct mly_command *mc)
     if (mc->mc_packet != NULL)
 	mly_print_packet(mc);
     mly_printf(sc, "  data      %p/%d\n", mc->mc_data, mc->mc_length);
-    mly_printf(sc, "  flags     %b\n", mc->mc_flags, "\20\11slotted\12mapped\13priority\14datain\15dataout\n");
+    mly_printf(sc, "  flags     %b\n", mc->mc_flags, "\20\1busy\2complete\3slotted\4mapped\5datain\6dataout\n");
     mly_printf(sc, "  complete  %p\n", mc->mc_complete);
     mly_printf(sc, "  private   %p\n", mc->mc_private);
 }
@@ -1708,3 +1676,187 @@ mly_panic(struct mly_softc *sc, char *reason)
     panic(reason);
 }
 #endif
+
+/********************************************************************************
+ * Print queue statistics, callable from DDB.
+ */
+void
+mly_print_controller(int controller)
+{
+    struct mly_softc	*sc;
+    
+    if ((sc = devclass_get_softc(devclass_find("mly"), controller)) == NULL) {
+	printf("mly: controller %d invalid\n", controller);
+    } else {
+	device_printf(sc->mly_dev, "queue    curr max\n");
+	device_printf(sc->mly_dev, "free     %04d/%04d\n", 
+		      sc->mly_qstat[MLYQ_FREE].q_length, sc->mly_qstat[MLYQ_FREE].q_max);
+	device_printf(sc->mly_dev, "ready    %04d/%04d\n", 
+		      sc->mly_qstat[MLYQ_READY].q_length, sc->mly_qstat[MLYQ_READY].q_max);
+	device_printf(sc->mly_dev, "busy     %04d/%04d\n", 
+		      sc->mly_qstat[MLYQ_BUSY].q_length, sc->mly_qstat[MLYQ_BUSY].q_max);
+	device_printf(sc->mly_dev, "complete %04d/%04d\n", 
+		      sc->mly_qstat[MLYQ_COMPLETE].q_length, sc->mly_qstat[MLYQ_COMPLETE].q_max);
+    }
+}
+
+
+/********************************************************************************
+ ********************************************************************************
+                                                         Control device interface
+ ********************************************************************************
+ ********************************************************************************/
+
+/********************************************************************************
+ * Accept an open operation on the control device.
+ */
+static int
+mly_user_open(dev_t dev, int flags, int fmt, struct proc *p)
+{
+    int			unit = minor(dev);
+    struct mly_softc	*sc = devclass_get_softc(devclass_find("mly"), unit);
+
+    sc->mly_state |= MLY_STATE_OPEN;
+    return(0);
+}
+
+/********************************************************************************
+ * Accept the last close on the control device.
+ */
+static int
+mly_user_close(dev_t dev, int flags, int fmt, struct proc *p)
+{
+    int			unit = minor(dev);
+    struct mly_softc	*sc = devclass_get_softc(devclass_find("mly"), unit);
+
+    sc->mly_state &= ~MLY_STATE_OPEN;
+    return (0);
+}
+
+/********************************************************************************
+ * Handle controller-specific control operations.
+ */
+static int
+mly_user_ioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
+{
+    struct mly_softc		*sc = (struct mly_softc *)dev->si_drv1;
+    struct mly_user_command	*uc = (struct mly_user_command *)addr;
+    struct mly_user_health	*uh = (struct mly_user_health *)addr;
+    
+    switch(cmd) {
+    case MLYIO_COMMAND:
+	return(mly_user_command(sc, uc));
+    case MLYIO_HEALTH:
+	return(mly_user_health(sc, uh));
+    default:
+	return(ENOIOCTL);
+    }
+}
+
+/********************************************************************************
+ * Execute a command passed in from userspace.
+ *
+ * The control structure contains the actual command for the controller, as well
+ * as the user-space data pointer and data size, and an optional sense buffer
+ * size/pointer.  On completion, the data size is adjusted to the command
+ * residual, and the sense buffer size to the size of the returned sense data.
+ * 
+ */
+static int
+mly_user_command(struct mly_softc *sc, struct mly_user_command *uc)
+{
+    struct mly_command			*mc;
+    int					error, s;
+
+    /* allocate a command */
+    if (mly_alloc_command(sc, &mc)) {
+	error = ENOMEM;
+	goto out;		/* XXX Linux version will wait for a command */
+    }
+
+    /* handle data size/direction */
+    mc->mc_length = (uc->DataTransferLength >= 0) ? uc->DataTransferLength : -uc->DataTransferLength;
+    if (mc->mc_length > 0) {
+	if ((mc->mc_data = malloc(mc->mc_length, M_DEVBUF, M_NOWAIT)) == NULL) {
+	    error = ENOMEM;
+	    goto out;
+	}
+    }
+    if (uc->DataTransferLength > 0) {
+	mc->mc_flags |= MLY_CMD_DATAIN;
+	bzero(mc->mc_data, mc->mc_length);
+    }
+    if (uc->DataTransferLength < 0) {
+	mc->mc_flags |= MLY_CMD_DATAOUT;
+	if ((error = copyin(uc->DataTransferBuffer, mc->mc_data, mc->mc_length)) != 0)
+	    goto out;
+    }
+
+    /* copy the controller command */
+    bcopy(&uc->CommandMailbox, mc->mc_packet, sizeof(uc->CommandMailbox));
+
+    /* clear command completion handler so that we get woken up */
+    mc->mc_complete = NULL;
+
+    /* execute the command */
+    s = splcam();
+    mly_requeue_ready(mc);
+    mly_startio(sc);
+    while (!(mc->mc_flags & MLY_CMD_COMPLETE))
+	tsleep(mc, PRIBIO, "mlyioctl", 0);
+    splx(s);
+
+    /* return the data to userspace */
+    if (uc->DataTransferLength > 0)
+	if ((error = copyout(mc->mc_data, uc->DataTransferBuffer, mc->mc_length)) != 0)
+	    goto out;
+    
+    /* return the sense buffer to userspace */
+    if ((uc->RequestSenseLength > 0) && (mc->mc_sense > 0)) {
+	if ((error = copyout(mc->mc_packet, uc->RequestSenseBuffer, 
+			     min(uc->RequestSenseLength, mc->mc_sense))) != 0)
+	    goto out;
+    }
+    
+    /* return command results to userspace (caller will copy out) */
+    uc->DataTransferLength = mc->mc_resid;
+    uc->RequestSenseLength = min(uc->RequestSenseLength, mc->mc_sense);
+    uc->CommandStatus = mc->mc_status;
+    error = 0;
+
+ out:
+    if (mc->mc_data != NULL)
+	free(mc->mc_data, M_DEVBUF);
+    if (mc != NULL)
+	mly_release_command(mc);
+    return(error);
+}
+
+/********************************************************************************
+ * Return health status to userspace.  If the health change index in the user
+ * structure does not match that currently exported by the controller, we
+ * return the current status immediately.  Otherwise, we block until either
+ * interrupted or new status is delivered.
+ */
+static int
+mly_user_health(struct mly_softc *sc, struct mly_user_health *uh)
+{
+    struct mly_health_status		mh;
+    int					error, s;
+    
+    /* fetch the current health status from userspace */
+    if ((error = copyin(uh->HealthStatusBuffer, &mh, sizeof(mh))) != 0)
+	return(error);
+
+    /* spin waiting for a status update */
+    s = splcam();
+    error = EWOULDBLOCK;
+    while ((error != 0) && (sc->mly_event_change == mh.change_counter))
+	error = tsleep(&sc->mly_event_change, PRIBIO | PCATCH, "mlyhealth", 0);
+    splx(s);
+    
+    /* copy the controller's health status buffer out (there is a race here if it changes again) */
+    error = copyout(&sc->mly_mmbox->mmm_health.status, uh->HealthStatusBuffer, 
+		    sizeof(uh->HealthStatusBuffer));
+    return(error);
+}

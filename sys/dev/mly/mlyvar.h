@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2000 Michael Smith
+ * Copyright (c) 2000, 2001 Michael Smith
  * Copyright (c) 2000 BSDi
  * All rights reserved.
  *
@@ -38,7 +38,7 @@
  * table this size (256k) would be too expensive, so we cap ourselves at a
  * reasonable limit.
  */
-#define MLY_MAXCOMMANDS		256	/* max outstanding commands per controller, limit 65535 */
+#define MLY_MAXCOMMANDS		256	/* max commands per controller */
 
 /*
  * The firmware interface allows for a 16-bit s/g list length.  We limit 
@@ -48,13 +48,25 @@
 
 /********************************************************************************
  ********************************************************************************
-                                                      Driver Variable Definitions
+                                                      Cross-version Compatibility
  ********************************************************************************
  ********************************************************************************/
 
 #if __FreeBSD_version >= 500005
 # include <sys/taskqueue.h>
 #endif
+
+#if __FreeBSD_version <= 500014
+# include <machine/clock.h>
+# undef offsetof
+# define offsetof(type, field) ((size_t)(&((type *)0)->field))
+#endif
+
+/********************************************************************************
+ ********************************************************************************
+                                                      Driver Variable Definitions
+ ********************************************************************************
+ ********************************************************************************/
 
 /*
  * Debugging levels:
@@ -93,6 +105,10 @@ struct mly_btl {
     char		mb_name[16];		/* peripheral attached to this device */
     int			mb_state;		/* see 8.1 */
     int			mb_type;		/* see 8.2 */
+
+    /* physical devices only */
+    int			mb_speed;		/* interface transfer rate */
+    int			mb_width;		/* interface width */
 };
 
 /*
@@ -104,18 +120,11 @@ struct mly_command {
     struct mly_softc		*mc_sc;		/* controller that owns us */
     u_int16_t			mc_slot;	/* command slot we occupy */
     int				mc_flags;
-#define MLY_CMD_STATEMASK	((1<<8)-1)
-#define MLY_CMD_STATE(mc)	((mc)->mc_flags & MLY_CMD_STATEMASK)
-#define MLY_CMD_SETSTATE(mc, s)	((mc)->mc_flags = ((mc)->mc_flags &= ~MLY_CMD_STATEMASK) | (s))
-#define MLY_CMD_FREE		0		/* command is on the free list */
-#define MLY_CMD_SETUP		1		/* command is being built */
-#define MLY_CMD_BUSY		2		/* command is being run, or ready to run, or not completed */
-#define MLY_CMD_COMPLETE	3		/* command has been completed */
-#define MLY_CMD_SLOTTED		(1<<8)		/* command has a slot number */
-#define MLY_CMD_MAPPED		(1<<9)		/* command has had its data mapped */
-#define MLY_CMD_PRIORITY	(1<<10)		/* allow use of "priority" slots */
-#define MLY_CMD_DATAIN		(1<<11)		/* data moves controller->system */
-#define MLY_CMD_DATAOUT		(1<<12)		/* data moves system->controller */
+#define MLY_CMD_BUSY		(1<<0)		/* command is being run, or ready to run, or not completed */
+#define MLY_CMD_COMPLETE	(1<<1)		/* command has been completed */
+#define MLY_CMD_MAPPED		(1<<3)		/* command has had its data mapped */
+#define MLY_CMD_DATAIN		(1<<4)		/* data moves controller->system */
+#define MLY_CMD_DATAOUT		(1<<5)		/* data moves system->controller */
     u_int16_t			mc_status;	/* command completion status */
     u_int8_t			mc_sense;	/* sense data length */
     int32_t			mc_resid;	/* I/O residual count */
@@ -141,36 +150,12 @@ struct mly_command {
 #define MLY_SLOT_MAX		(MLY_SLOT_START + MLY_MAXCOMMANDS)
 
 /*
- * Command/command packet cluster.
- *
- * Due to the difficulty of using the zone allocator to create a new
- * zone from within a module, we use our own clustering to reduce 
- * memory wastage caused by allocating lots of these small structures.
- *
- * Note that it is possible to require more than MLY_MAXCOMMANDS 
- * command structures.
- *
- * Since we may need to allocate extra clusters at any time, and since this
- * process needs to allocate a physically contiguous slab of controller
- * addressible memory in which to place the command packets, do not allow more
- * command packets in a cluster than will fit in a page.
- */
-#define MLY_CMD_CLUSTERCOUNT	(PAGE_SIZE / sizeof(union mly_command_packet))
-
-struct mly_command_cluster {
-    TAILQ_ENTRY(mly_command_cluster)	mcc_link;
-    union mly_command_packet		*mcc_packet;
-    bus_dmamap_t			mcc_packetmap;
-    u_int64_t				mcc_packetphys;
-    struct mly_command			mcc_command[MLY_CMD_CLUSTERCOUNT];
-};
-
-/*
  * Per-controller structure.
  */
 struct mly_softc {
     /* bus connections */
     device_t		mly_dev;
+    dev_t		mly_dev_t;
     struct resource	*mly_regs_resource;	/* register interface window */
     int			mly_regs_rid;		/* resource ID */
     bus_space_handle_t	mly_bhandle;		/* bus space handle */
@@ -203,8 +188,8 @@ struct mly_softc {
     u_int64_t		mly_mmbox_busaddr;		/* bus-space address of memory mailbox */
     bus_dma_tag_t	mly_mmbox_dmat;			/* memory mailbox DMA tag */
     bus_dmamap_t	mly_mmbox_dmamap;		/* memory mailbox DMA map */
-    u_int32_t		mly_mmbox_command_index;	/* next slot to use */
-    u_int32_t		mly_mmbox_status_index;		/* slot we next expect status in */
+    u_int32_t		mly_mmbox_command_index;	/* next index to use */
+    u_int32_t		mly_mmbox_status_index;		/* index we next expect status at */
 
     /* controller features, limits and status */
     int			mly_state;
@@ -212,20 +197,21 @@ struct mly_softc {
 #define	MLY_STATE_OPEN		(1<<1)
 #define MLY_STATE_INTERRUPTS_ON	(1<<2)
 #define MLY_STATE_MMBOX_ACTIVE	(1<<3)
-    int			mly_max_commands;	/* max parallel commands we allow */
     struct mly_ioctl_getcontrollerinfo	*mly_controllerinfo;
     struct mly_param_controller		*mly_controllerparam;
     struct mly_btl			mly_btl[MLY_MAX_CHANNELS][MLY_MAX_TARGETS];
 
     /* command management */
-    struct mly_command		*mly_busycmds[MLY_SLOT_MAX];	/* busy commands */
-    int				mly_busy_count;
-    int				mly_last_slot;
-    TAILQ_HEAD(,mly_command)	mly_freecmds;		/* commands available for reuse */
+    struct mly_command		mly_command[MLY_MAXCOMMANDS];	/* commands */
+    union mly_command_packet	*mly_packet;		/* command packets */
+    bus_dma_tag_t		mly_packet_dmat;	/* packet DMA tag */
+    bus_dmamap_t		mly_packetmap;		/* packet DMA map */
+    u_int64_t			mly_packetphys;		/* packet array base address */
+    TAILQ_HEAD(,mly_command)	mly_free;		/* commands available for reuse */
     TAILQ_HEAD(,mly_command)	mly_ready;		/* commands ready to be submitted */
-    TAILQ_HEAD(,mly_command)	mly_completed;		/* commands which have been returned by the controller */
-    TAILQ_HEAD(,mly_command_cluster)	mly_clusters;	/* command memory blocks */
-    bus_dma_tag_t		mly_packet_dmat;	/* command packet DMA tag */
+    TAILQ_HEAD(,mly_command)	mly_busy;
+    TAILQ_HEAD(,mly_command)	mly_complete;		/* commands which have been returned by the controller */
+    struct mly_qstat		mly_qstat[MLYQ_COUNT];	/* queue statistics */
 
     /* health monitoring */
     u_int32_t			mly_event_change;	/* event status change indicator */
@@ -311,113 +297,80 @@ extern int	mly_name_device(struct mly_softc *sc, int bus, int target);
 
 /********************************************************************************
  * Queue primitives
- *
- * These are broken out individually to make statistics gathering easier.
  */
 
-static __inline void
-mly_enqueue_ready(struct mly_command *mc)
-{
-    int		s;
+#define MLYQ_ADD(sc, qname)					\
+	do {							\
+	    struct mly_qstat *qs = &(sc)->mly_qstat[qname];	\
+								\
+	    qs->q_length++;					\
+	    if (qs->q_length > qs->q_max)			\
+		qs->q_max = qs->q_length;			\
+	} while(0)
 
-    s = splcam();
-    TAILQ_INSERT_TAIL(&mc->mc_sc->mly_ready, mc, mc_link);
-    MLY_CMD_SETSTATE(mc, MLY_CMD_BUSY);
-    splx(s);
-}
+#define MLYQ_REMOVE(sc, qname)    (sc)->mly_qstat[qname].q_length--
+#define MLYQ_INIT(sc, qname)			\
+	do {					\
+	    sc->mly_qstat[qname].q_length = 0;	\
+	    sc->mly_qstat[qname].q_max = 0;	\
+	} while(0)
 
-static __inline void
-mly_requeue_ready(struct mly_command *mc)
-{
-    int		s;
 
-    s = splcam();
-    TAILQ_INSERT_HEAD(&mc->mc_sc->mly_ready, mc, mc_link);
-    splx(s);
-}
+#define MLYQ_COMMAND_QUEUE(name, index)					\
+static __inline void							\
+mly_initq_ ## name (struct mly_softc *sc)				\
+{									\
+    TAILQ_INIT(&sc->mly_ ## name);					\
+    MLYQ_INIT(sc, index);						\
+}									\
+static __inline void							\
+mly_enqueue_ ## name (struct mly_command *mc)				\
+{									\
+    int		s;							\
+									\
+    s = splcam();							\
+    TAILQ_INSERT_TAIL(&mc->mc_sc->mly_ ## name, mc, mc_link);		\
+    MLYQ_ADD(mc->mc_sc, index);						\
+    splx(s);								\
+}									\
+static __inline void							\
+mly_requeue_ ## name (struct mly_command *mc)				\
+{									\
+    int		s;							\
+									\
+    s = splcam();							\
+    TAILQ_INSERT_HEAD(&mc->mc_sc->mly_ ## name, mc, mc_link);		\
+    MLYQ_ADD(mc->mc_sc, index);						\
+    splx(s);								\
+}									\
+static __inline struct mly_command *					\
+mly_dequeue_ ## name (struct mly_softc *sc)				\
+{									\
+    struct mly_command	*mc;						\
+    int			s;						\
+									\
+    s = splcam();							\
+    if ((mc = TAILQ_FIRST(&sc->mly_ ## name)) != NULL) {		\
+	TAILQ_REMOVE(&sc->mly_ ## name, mc, mc_link);			\
+	MLYQ_REMOVE(sc, index);						\
+    }									\
+    splx(s);								\
+    return(mc);								\
+}									\
+static __inline void							\
+mly_remove_ ## name (struct mly_command *mc)				\
+{									\
+    int			s;						\
+									\
+    s = splcam();							\
+    TAILQ_REMOVE(&mc->mc_sc->mly_ ## name, mc, mc_link);		\
+    MLYQ_REMOVE(mc->mc_sc, index);					\
+    splx(s);								\
+}									\
+struct hack
 
-static __inline struct mly_command *
-mly_dequeue_ready(struct mly_softc *sc)
-{
-    struct mly_command	*mc;
-    int			s;
-
-    s = splcam();
-    if ((mc = TAILQ_FIRST(&sc->mly_ready)) != NULL)
-	TAILQ_REMOVE(&sc->mly_ready, mc, mc_link);
-    splx(s);
-    return(mc);
-}
-
-static __inline void
-mly_enqueue_completed(struct mly_command *mc)
-{
-    int		s;
-
-    s = splcam();
-    TAILQ_INSERT_TAIL(&mc->mc_sc->mly_completed, mc, mc_link);
-    /* don't set MLY_CMD_COMPLETE here to avoid wakeup race */
-    splx(s);
-}
-
-static __inline struct mly_command *
-mly_dequeue_completed(struct mly_softc *sc)
-{
-    struct mly_command	*mc;
-    int			s;
-
-    s = splcam();
-    if ((mc = TAILQ_FIRST(&sc->mly_completed)) != NULL)
-	TAILQ_REMOVE(&sc->mly_completed, mc, mc_link);
-    splx(s);
-    return(mc);
-}
-
-static __inline void
-mly_enqueue_free(struct mly_command *mc)
-{
-    int		s;
-
-    s = splcam();
-    TAILQ_INSERT_HEAD(&mc->mc_sc->mly_freecmds, mc, mc_link);
-    MLY_CMD_SETSTATE(mc, MLY_CMD_FREE);
-    splx(s);
-}
-
-static __inline struct mly_command *
-mly_dequeue_free(struct mly_softc *sc)
-{
-    struct mly_command	*mc;
-    int			s;
-
-    s = splcam();
-    if ((mc = TAILQ_FIRST(&sc->mly_freecmds)) != NULL)
-	TAILQ_REMOVE(&sc->mly_freecmds, mc, mc_link);
-    splx(s);
-    return(mc);
-}
-
-static __inline void
-mly_enqueue_cluster(struct mly_softc *sc, struct mly_command_cluster *mcc)
-{
-    int		s;
-
-    s = splcam();
-    TAILQ_INSERT_HEAD(&sc->mly_clusters, mcc, mcc_link);
-    splx(s);
-}
-
-static __inline struct mly_command_cluster *
-mly_dequeue_cluster(struct mly_softc *sc)
-{
-    struct mly_command_cluster	*mcc;
-    int				s;
-
-    s = splcam();
-    if ((mcc = TAILQ_FIRST(&sc->mly_clusters)) != NULL)
-	TAILQ_REMOVE(&sc->mly_clusters, mcc, mcc_link);
-    splx(s);
-    return(mcc);
-}
-
+MLYQ_COMMAND_QUEUE(free, MLYQ_FREE);
+MLYQ_COMMAND_QUEUE(ready, MLYQ_READY);
+MLYQ_COMMAND_QUEUE(busy, MLYQ_BUSY);
+MLYQ_COMMAND_QUEUE(complete, MLYQ_COMPLETE);
 
