@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.h,v 1.6 1995/02/02 09:08:56 davidg Exp $
+ * $Id: vm_object.h,v 1.7 1995/02/22 09:15:30 davidg Exp $
  */
 
 /*
@@ -88,10 +88,6 @@ struct vm_object {
 	TAILQ_ENTRY(vm_object) cached_list; /* for persistence */
 	vm_size_t size;			/* Object size */
 	int ref_count;			/* How many refs?? */
-	struct {
-		int recursion;		/* object locking */
-		struct proc *proc;	/* process owned */
-	} lock;
 	u_short flags;			/* see below */
 	u_short paging_in_progress;	/* Paging (in or out) so don't collapse or destroy */
 	int resident_page_count;	/* number of resident pages */
@@ -143,47 +139,12 @@ vm_object_t kmem_object;
 #define	vm_object_cache_unlock()	simple_unlock(&vm_cache_lock)
 #endif				/* KERNEL */
 
-#define	vm_object_sleep(event, object, interruptible) \
-					thread_sleep((event), &(object)->Lock, (interruptible))
-#if 0
+#if 1
 #define	vm_object_lock_init(object)	simple_lock_init(&(object)->Lock)
 #define	vm_object_lock(object)		simple_lock(&(object)->Lock)
 #define	vm_object_unlock(object)	simple_unlock(&(object)->Lock)
 #define	vm_object_lock_try(object)	simple_lock_try(&(object)->Lock)
 #endif
-#define	vm_object_lock_init(object) (object->flags &= ~OBJ_ILOCKED, object->lock.recursion = 0, object->lock.proc = 0)
-
-static __inline void 
-vm_object_lock(vm_object_t obj)
-{
-	if (obj->flags & OBJ_ILOCKED) {
-		++obj->lock.recursion;
-		return;
-	}
-	obj->flags |= OBJ_ILOCKED;
-	obj->lock.recursion = 1;
-}
-
-static __inline void 
-vm_object_unlock(vm_object_t obj)
-{
-	--obj->lock.recursion;
-	if (obj->lock.recursion != 0)
-		return;
-	obj->flags &= ~OBJ_ILOCKED;
-}
-
-static __inline int 
-vm_object_lock_try(vm_object_t obj)
-{
-	if (obj->flags & OBJ_ILOCKED) {
-		++obj->lock.recursion;
-		return 1;
-	}
-	obj->flags |= OBJ_ILOCKED;
-	obj->lock.recursion = 1;
-	return 1;
-}
 
 #ifdef KERNEL
 vm_object_t vm_object_allocate __P((vm_size_t));
