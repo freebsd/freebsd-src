@@ -340,36 +340,44 @@ void
 free_firewall_chain(chainptr)
 struct ip_firewall **chainptr;
 {
+int s=splnet();
     while ( *chainptr != NULL ) {
 	struct ip_firewall *ftmp;
 	ftmp = *chainptr;
 	*chainptr = ftmp->next;
 	free(ftmp,M_SOOPTS);
     }
+splx(s);
 }
+
 
 static
 int
-add_to_chain(chainptr,firewall)
-struct ip_firewall **chainptr;
-struct ip_firewall *firewall;
+add_to_chain(chainptr,frwl)
+struct ip_fw **chainptr;
+struct ip_fw *frwl;
 {
-    struct ip_firewall *ftmp;
-    struct ip_firewall *chaintmp=NULL;
-    struct ip_firewall *chaintmp_prev=NULL;
+    struct ip_fw *ftmp;
+    struct ip_fw *chtmp=NULL;
+    struct ip_fw *chtmp_prev=NULL;
+    int s=splnet();
     u_long m_src_mask,m_dst_mask;
     u_long n_sa,n_da,o_sa,o_da,o_sm,o_dm,n_sm,n_dm;
+    u_short n_sr,n_dr,o_sr,o_dr; 
     u_short oldkind,newkind;
     int addb4=0;
     int n_o,n_n;
 
-    ftmp = malloc( sizeof(struct ip_firewall), M_SOOPTS, M_DONTWAIT );
+    ftmp = malloc( sizeof(struct ip_fw), M_SOOPTS, M_DONTWAIT );
     if ( ftmp == NULL ) {
-	printf("ip_firewall_ctl:  malloc said no\n");
+#ifdef DEBUG_IPFIREWALL
+	printf("ip_fw_ctl:  malloc said no\n");
+#endif
+	splx(s);
 	return( ENOSPC );
     }
 
-    bcopy( firewall, ftmp, sizeof( struct ip_firewall ) );
+    bcopy( frwl, ftmp, sizeof( struct ip_fw ) );
     ftmp->next = NULL;
 
     if (*chainptr==NULL)
@@ -378,16 +386,16 @@ struct ip_firewall *firewall;
        }
     else
        {
-	chaintmp_prev=NULL;
-	for (chaintmp=*chainptr;chaintmp!=NULL;chaintmp=chaintmp->next) {
+	chtmp_prev=NULL;
+	for (chtmp=*chainptr;chtmp!=NULL;chtmp=chtmp->next) {
 
 		addb4=0;
 
-		newkind=ftmp->flags & IP_FIREWALL_KIND;
-		oldkind=chaintmp->flags & IP_FIREWALL_KIND;
+		newkind=ftmp->flags & IP_FW_F_KIND;
+		oldkind=chtmp->flags & IP_FW_F_KIND;
 
-		if (newkind!=IP_FIREWALL_UNIVERSAL 
-		&&  oldkind!=IP_FIREWALL_UNIVERSAL
+		if (newkind!=IP_FW_F_ALL 
+		&&  oldkind!=IP_FW_F_ALL
 		&&  oldkind!=newkind)
 			continue;
 		/*
@@ -399,10 +407,10 @@ struct ip_firewall *firewall;
 		n_sm=ntohl(ftmp->src_mask.s_addr);
 		n_dm=ntohl(ftmp->dst_mask.s_addr);
 
-		o_sa=ntohl(chaintmp->src.s_addr);
-		o_da=ntohl(chaintmp->dst.s_addr);
-		o_sm=ntohl(chaintmp->src_mask.s_addr);
-		o_dm=ntohl(chaintmp->dst_mask.s_addr);
+		o_sa=ntohl(chtmp->src.s_addr);
+		o_da=ntohl(chtmp->dst.s_addr);
+		o_sm=ntohl(chtmp->src_mask.s_addr);
+		o_dm=ntohl(chtmp->dst_mask.s_addr);
 
 		m_src_mask = o_sm & n_sm;
 		m_dst_mask = o_dm & n_dm;
@@ -424,54 +432,85 @@ struct ip_firewall *firewall;
 		if (((o_da & o_dm) == (n_da & n_dm))
                   &&((o_sa & o_sm) == (n_sa & n_sm)))
 		{
-			if (newkind!=IP_FIREWALL_UNIVERSAL &&
-			    oldkind==IP_FIREWALL_UNIVERSAL)
+			if (newkind!=IP_FW_F_ALL &&
+			    oldkind==IP_FW_F_ALL)
 				addb4++;
-			if (newkind==oldkind && (oldkind==IP_FIREWALL_TCP
-					     ||  oldkind==IP_FIREWALL_UDP)) {
-				if ( (!(ftmp->flags & IP_FIREWALL_SRC_RANGE)
-					&& ftmp->num_src_ports>0)
-				  || (!(ftmp->flags & IP_FIREWALL_DST_RANGE)
-					&& ftmp->num_dst_ports>0))
+			if (newkind==oldkind && (oldkind==IP_FW_F_TCP
+					     ||  oldkind==IP_FW_F_UDP)) {
+
+				/*
+				 * Here the main ide is to check the size
+				 * of port range which the frwl covers
+				 * We actually don't check their values but
+				 * just the wideness of range they have
+				 * so that less wide ranges or single ports
+				 * go first and wide ranges go later. No ports
+				 * at all treated as a range of maximum number
+				 * of ports.
+				 */
+
+				if (ftmp->flags & IP_FW_F_SRNG) 
+					n_sr=ftmp->ports[1]-ftmp->ports[0];
+				else 
+					n_sr=(ftmp->n_src_p)?
+						ftmp->n_src_p : USHRT_MAX;
+					
+				if (chtmp->flags & IP_FW_F_SRNG) 
+				     o_sr=chtmp->ports[1]-chtmp->ports[0];
+				else 
+				     o_sr=(chtmp->n_src_p)?
+				 	    chtmp->n_src_p : USHRT_MAX;
+
+				if (n_sr<o_sr)
 					addb4++;
-				if ((ftmp->flags & IP_FIREWALL_SRC_RANGE) &&
-				(chaintmp->flags & IP_FIREWALL_SRC_RANGE))
-					if ((ftmp->ports[1]-ftmp->ports[0])<
-					(chaintmp->ports[1]-chaintmp->ports[0]))
-						addb4++;
-				n_n=ftmp->num_src_ports;
-				n_o=chaintmp->num_src_ports;
-				if ((n_n>(IP_FIREWALL_MAX_PORTS-2)) ||
-				    (n_o>(IP_FIREWALL_MAX_PORTS-2)))
-					goto skip_1_check;
+				if (n_sr>o_sr)
+					addb4--;
+					
+				n_n=ftmp->n_src_p;
+				n_o=chtmp->n_src_p;
 		/*
-		 * Actually this cannot happen as the firewall control
+		 * Actually this cannot happen as the frwl control
 		 * procedure checks for number of ports in source and
 		 * destination range but we will try to be more safe.
 		 */
-				if ((ftmp->flags & IP_FIREWALL_DST_RANGE) &&
-				(chaintmp->flags & IP_FIREWALL_DST_RANGE))
-				   if ((ftmp->ports[n_n+1]-ftmp->ports[n_n])<
-				  (chaintmp->ports[n_o+1]-chaintmp->ports[n_o]))
-						addb4++;
-				
-skip_1_check:
+				if ((n_n>(IP_FW_MAX_PORTS-2)) ||
+				    (n_o>(IP_FW_MAX_PORTS-2)))
+					goto skip_check;
+
+				if (ftmp->flags & IP_FW_F_DRNG) 
+				       n_dr=ftmp->ports[n_n+1]-ftmp->ports[n_n];
+				else 
+				       n_dr=(ftmp->n_dst_p)?
+						ftmp->n_dst_p : USHRT_MAX;
+
+				if (chtmp->flags & IP_FW_F_DRNG) 
+				     o_dr=chtmp->ports[n_o+1]-chtmp->ports[n_o];
+				else 
+				       o_dr=(chtmp->n_dst_p)?
+						chtmp->n_dst_p : USHRT_MAX;
+				if (n_dr<o_dr)
+					addb4++;
+				if (n_dr>o_dr)
+					addb4--;
+
+skip_check:
 			}
 		}
 		if (addb4>0) {
-			if (chaintmp_prev) {
-				chaintmp_prev->next=ftmp; 
-				ftmp->next=chaintmp;
+			if (chtmp_prev) {
+				chtmp_prev->next=ftmp; 
+				ftmp->next=chtmp;
 			} else {
 				*chainptr=ftmp;
-				ftmp->next=chaintmp;
+				ftmp->next=chtmp;
 			}
+			splx(s);
 			return 0;
 		}
-		chaintmp_prev=chaintmp;
+		chtmp_prev=chtmp;
 	}
-	if (chaintmp_prev)
-		chaintmp_prev->next=ftmp;
+	if (chtmp_prev)
+		chtmp_prev->next=ftmp;
 	else
 #define wrong
 #ifdef wrong
@@ -481,8 +520,11 @@ skip_1_check:
 #endif
 #undef wrong
        }
+    splx(s);
     return(0);
 }
+
+
 
 static
 int
@@ -493,13 +535,15 @@ struct ip_firewall *firewall;
     struct ip_firewall *ftmp,*ltmp;
     u_short	tport1,tport2,tmpnum;
     char	matches,was_found;
+    int 	s=splnet();
 
     ftmp=*chainptr;
 
     if ( ftmp == NULL ) {
 	printf("ip_firewall_ctl:  chain is empty\n");
+	splx(s);
 	return( EINVAL );
-    			}
+   }
 
     ltmp=NULL;
     was_found=0;
@@ -532,14 +576,12 @@ struct ip_firewall *firewall;
               ltmp->next=ftmp->next;
 	      free(ftmp,M_SOOPTS);
               ftmp=ltmp->next;
-              /* return 0; */
             }
         else
             {
              *chainptr=ftmp->next; 
              free(ftmp,M_SOOPTS);
              ftmp=*chainptr;
-             /* return 0; */
             }
        
       }
@@ -549,6 +591,7 @@ struct ip_firewall *firewall;
        ftmp = ftmp->next;
       }
     }
+    splx(s);
     if (was_found) return 0;
     else return(EINVAL);
 }
