@@ -235,10 +235,10 @@ main(argc, argv)
 
 	datap = &outpack[8 + PHDR_LEN];
 #ifndef IPSEC
-	while ((ch = getopt(argc, argv, "I:LQRT:c:adfi:l:np:qrs:t:v")) != -1)
+	while ((ch = getopt(argc, argv, "I:LQRS:T:c:adfi:l:np:qrs:t:v")) != -1)
 #else
 #ifdef IPSEC_POLICY_IPSEC
-	while ((ch = getopt(argc, argv, "I:LQRT:c:adfi:l:np:qrs:t:vP:")) != -1)
+	while ((ch = getopt(argc, argv, "I:LQRS:T:c:adfi:l:np:qrs:t:vP:")) != -1)
 #endif /*IPSEC_POLICY_IPSEC*/
 #endif
 	{
