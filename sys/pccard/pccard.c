@@ -87,8 +87,8 @@ static void slot_irq_handler(int);
  *	drivers do not need to know about the hooks (or the
  *	data structures).
  */
-static int slot_suspend(struct slot *sp);
-static int slot_resume(struct slot *sp);
+static int slot_suspend(void *vsp);
+static int slot_resume(void *vsp);
 static struct apmhook s_hook[MAXSLOT];		/* APM suspend */
 static struct apmhook r_hook[MAXSLOT];		/* APM resume */
 #endif /* NAPM > 0 */
@@ -302,9 +302,10 @@ struct pccard_dev *devp;
  */
 #if	NAPM > 0
 static int
-slot_suspend(struct slot *sp)
+slot_suspend(void *vsp)
 {
 struct pccard_dev *dp;
+struct slot *sp = vsp;
 
 	for (dp = sp->devices; dp; dp = dp->next)
 		(void)dp->drv->suspend(dp);
@@ -312,9 +313,10 @@ struct pccard_dev *dp;
 	return(0);
 }
 static int
-slot_resume(struct slot *sp)
+slot_resume(void *vsp)
 {
 struct pccard_dev *dp;
+struct slot *sp = vsp;
 
 	sp->cinfo->power(sp);
 	if (sp->irq)
