@@ -5,7 +5,7 @@
 .Nm ipfw
 .Nd controlling utility for IP firewall
 .Sh SYNOPSIS
-.Nm ipfw
+.Nm
 .Ar file
 .Nm ipfw
 flush
@@ -47,10 +47,12 @@ via
 If used as shown in the first synopsis line, the
 .Ar file
 will be read line by line and applied as arguments to the 
-.Nm ipfw
+.Nm
 command.
 .Pp
-The ipfw code works by going through the rule-list for each packet,
+The
+.Nm
+code works by going through the rule-list for each packet,
 until a match is found.
 All rules have two associated counters, a packet count and
 a byte count.
@@ -142,6 +144,10 @@ Only TCP packets match.
 Only UDP packets match.
 .It Nm icmp
 Only ICMP packets match.
+.It Nm <number|name>
+Only packets for the specified protocol matches (see
+.Pa /etc/protocols
+for a complete list).
 .El
 .Pp
 .Ar src 
@@ -249,14 +255,6 @@ Matches if the ICMP type is in the list
 .Ar types .
 The list may be specified as any combination of ranges
 or individual types separated by commas.
-.It proto Ar ipproto
-Matches if the protocol field in the IP header matches
-any of the protocol numbers specified by the list
-.Ar ipproto
-(see
-.Pa /etc/protocols
-for a complete list).
-Protocol ranges may not be used.
 .El
 .Sh CHECKLIST
 Here are some important points to consider when designing your
@@ -324,8 +322,6 @@ This rule diverts all incoming packets from 192.168.2.0/24 to divert port 5000:
 .Pp
 .Dl ipfw divert 5000 all from 192.168.2.0/24 to any in
 .Sh SEE ALSO
-.Xr gethostbyname 3 ,
-.Xr getservbyport 3 ,
 .Xr divert 4 ,
 .Xr ip 4 ,
 .Xr ipfirewall 4 ,
@@ -345,16 +341,12 @@ do anything you don't understand.
 .Pp
 When manipulating/adding chain entries, service and protocol names are
 not accepted.
+.Sh AUTHORS
+Ugen J. S. Antsilevich,
+Poul-Henning Kamp,
+Alex Nash,
+Archie Cobbs.
+API based upon code written by Daniel Boulet for BSDI.
 .Sh HISTORY
-Initially this utility was written for BSDI by:
-.Pp
-.Dl Daniel Boulet <danny@BouletFermat.ab.ca>
-.Pp
-The FreeBSD version is written completely by:
-.Pp
-.Dl Ugen J.S.Antsilevich <ugen@FreeBSD.ORG>
-.Pp
-This has all been extensively rearranged by Poul-Henning Kamp and
-Alex Nash.
-.Pp
-Packet diversion added by Archie Cobbs <archie@whistle.com>.
+.Nm
+first appeared in FreeBSD 2.0.
