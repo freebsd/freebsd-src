@@ -339,6 +339,8 @@ res_init()
 			}
 			nserv++;
 		    }
+		    if (res)
+			    freeaddrinfo(res);
 		    continue;
 		}
 #ifdef RESOLVSORT
