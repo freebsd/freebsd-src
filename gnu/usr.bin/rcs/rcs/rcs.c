@@ -28,7 +28,6 @@ Report problems and direct all questions to:
 */
 
 /*
- * $Log: rcs.c,v $
  * Revision 5.21  1995/06/16 06:19:24  eggert
  * Update FSF address.
  *
@@ -276,7 +275,7 @@ static struct delrevpair delrev;
 static struct hshentry *cuthead, *cuttail, *delstrt;
 static struct hshentries *gendeltas;
 
-mainProg(rcsId, "rcs", "$Id: rcs.c,v 5.21 1995/06/16 06:19:24 eggert Exp $")
+mainProg(rcsId, "rcs", "$Id: rcs.c,v 1.3 1995/10/28 21:50:13 peter Exp $")
 {
 	static char const cmdusage[] =
 		"\nrcs usage: rcs -{ae}logins -Afile -{blu}[rev] -cstring -{iILqTU} -ksubst -mrev:msg -{nN}name[:[rev]] -orange -sstate[:rev] -t[text] -Vn -xsuff -zzone file ...";

@@ -28,7 +28,6 @@ Report problems and direct all questions to:
 */
 
 /*
- * $Log: rcsmerge.c,v $
  * Revision 5.15  1995/06/16 06:19:24  eggert
  * Update FSF address.
  *
@@ -118,7 +117,7 @@ Report problems and direct all questions to:
 
 static char const co[] = CO;
 
-mainProg(rcsmergeId, "rcsmerge", "$Id: rcsmerge.c,v 5.15 1995/06/16 06:19:24 eggert Exp $")
+mainProg(rcsmergeId, "rcsmerge", "$Id: rcsmerge.c,v 1.3 1995/10/28 21:50:52 peter Exp $")
 {
 	static char const cmdusage[] =
 		"\nrcsmerge usage: rcsmerge -rrev1 [-rrev2] -ksubst -{pq}[rev] -Vn -xsuff -zzone file";

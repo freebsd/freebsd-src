@@ -28,17 +28,6 @@ Report problems and direct all questions to:
 */
 
 /*
- * $Log: co.c,v $
- * Revision 1.4  1995/10/28  21:49:12  peter
- * First part of import conflict merge from rcs-5.7 import.
- *
- * All those $Log$ entries, combined with the whitespace changes are a real
- * pain.
- *
- * I'm committing this now, before it's completely finished to get it compiling
- * and working again ASAP.  Some of the FreeBSD specific features are not working
- * in this commit yet (mainly rlog stuff and $FreeBSD$ support)
- *
  * Revision 5.18  1995/06/16 06:19:24  eggert
  * Update FSF address.
  *
@@ -202,7 +191,7 @@ static struct hshentries *gendeltas;	/* deltas to be generated	*/
 static struct hshentry *targetdelta;	/* final delta to be generated	*/
 static struct stat workstat;
 
-mainProg(coId, "co", "$Id: co.c,v 1.4 1995/10/28 21:49:12 peter Exp $")
+mainProg(coId, "co", "$Id: co.c,v 1.5 1995/10/29 19:31:07 peter Exp $")
 {
 	static char const cmdusage[] =
 		"\nco usage: co -{fIlMpqru}[rev] -ddate -jjoins -ksubst -sstate -T -w[who] -Vn -xsuff -zzone file ...";

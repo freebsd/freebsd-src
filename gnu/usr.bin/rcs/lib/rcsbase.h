@@ -1,6 +1,6 @@
 /* RCS common definitions and data structures */
 
-#define RCSBASE "$Id: rcsbase.h,v 1.4 1995/10/28 21:49:34 peter Exp $"
+#define RCSBASE "$Id: rcsbase.h,v 1.5 1995/10/29 19:31:09 peter Exp $"
 
 /* Copyright 1982, 1988, 1989 Walter Tichy
    Copyright 1990, 1991, 1992, 1993, 1994, 1995 Paul Eggert
@@ -30,17 +30,6 @@ Report problems and direct all questions to:
 */
 
 /*
- * $Log: rcsbase.h,v $
- * Revision 1.4  1995/10/28  21:49:34  peter
- * First part of import conflict merge from rcs-5.7 import.
- *
- * All those $Log$ entries, combined with the whitespace changes are a real
- * pain.
- *
- * I'm committing this now, before it's completely finished to get it compiling
- * and working again ASAP.  Some of the FreeBSD specific features are not working
- * in this commit yet (mainly rlog stuff and $FreeBSD$ support)
- *
  * Revision 5.20  1995/06/16 06:19:24  eggert
  * Update FSF address.
  *

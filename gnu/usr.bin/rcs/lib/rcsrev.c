@@ -28,7 +28,6 @@ Report problems and direct all questions to:
 */
 
 /*
- * $Log: rcsrev.c,v $
  * Revision 5.10  1995/06/16 06:19:24  eggert
  * Update FSF address.
  *
@@ -106,7 +105,7 @@ Report problems and direct all questions to:
 
 #include "rcsbase.h"
 
-libId(revId, "$Id: rcsrev.c,v 5.10 1995/06/16 06:19:24 eggert Exp $")
+libId(revId, "$Id: rcsrev.c,v 1.3 1995/10/28 21:49:51 peter Exp $")
 
 static char const *branchtip P((char const*));
 static char const *lookupsym P((char const*));
