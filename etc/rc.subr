@@ -326,6 +326,7 @@ wait_for_pids()
 #		------	---------
 #		fast	Skip the pid check, and set rc_fast=yes
 #		force	Set ${rcvar} to YES, and set rc_force=yes
+#		one	Set ${rcvar} to YES
 #
 #	The following globals are used:
 #
@@ -435,7 +436,7 @@ wait_for_pids()
 #
 #	Variable	Purpose
 #	--------	-------
-#	rc_arg		Argument to command, after fast/force processing
+#	rc_arg		Argument to command, after fast/force/one processing
 #			performed
 #
 #	rc_flags	Flags to start the default command with.
@@ -458,14 +459,23 @@ run_rc_command()
 		err 3 'run_rc_command: $name is not set.'
 	fi
 
+	_rc_prefix=
 	case "$rc_arg" in
 	fast*)				# "fast" prefix; don't check pid
 		rc_arg=${rc_arg#fast}
 		rc_fast=yes
 		;;
-	force*)				# "force prefix; always start
-		rc_arg=${rc_arg#force}
+	force*)				# "force prefix; always run
 		rc_force=yes
+		_rc_prefix=force
+		rc_arg=${rc_arg#${_rc_prefix}}
+		if [ -n "${rcvar}" ]; then
+			eval ${rcvar}=YES
+		fi
+		;;
+	one*)				# "one" prefix; set ${rcvar}=yes
+		_rc_prefix=one
+		rc_arg=${rc_arg#${_rc_prefix}}
 		if [ -n "${rcvar}" ]; then
 			eval ${rcvar}=YES
 		fi
@@ -749,8 +759,8 @@ $command $rc_flags $command_args"
 			fi
 			_rc_restart_done=true
 
-			( $0 ${rc_force:+force}stop )
-			$0 ${rc_force:+force}start
+			( $0 ${_rc_prefix}stop )
+			$0 ${_rc_prefix}start
 
 			if [ -n "$_postcmd" ]; then
 				eval $_postcmd
@@ -885,7 +895,7 @@ load_rc_config()
 #
 rc_usage()
 {
-	echo -n 1>&2 "Usage: $0 [fast|force]("
+	echo -n 1>&2 "Usage: $0 [fast|force|one]("
 
 	_sep=
 	for _elem; do
