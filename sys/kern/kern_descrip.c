@@ -1394,12 +1394,41 @@ fdinit(struct filedesc *fdp)
 
 	/* Create the file descriptor table. */
 	newfdp->fd_fd.fd_refcnt = 1;
+	newfdp->fd_fd.fd_holdcnt = 1;
 	newfdp->fd_fd.fd_cmask = CMASK;
 	newfdp->fd_fd.fd_ofiles = newfdp->fd_dfiles;
 	newfdp->fd_fd.fd_ofileflags = newfdp->fd_dfileflags;
 	newfdp->fd_fd.fd_nfiles = NDFILE;
 	newfdp->fd_fd.fd_map = newfdp->fd_dmap;
 	return (&newfdp->fd_fd);
+}
+
+static struct filedesc *
+fdhold(struct proc *p)
+{
+	struct filedesc *fdp;
+
+	mtx_lock(&fdesc_mtx);
+	fdp = p->p_fd;
+	if (fdp != NULL)
+		fdp->fd_holdcnt++;
+	mtx_unlock(&fdesc_mtx);
+	return (fdp);
+}
+
+static void
+fddrop(struct filedesc *fdp)
+{
+	int i;
+
+	mtx_lock(&fdesc_mtx);
+	i = --fdp->fd_holdcnt;
+	mtx_unlock(&fdesc_mtx);
+	if (i > 0)
+		return;
+
+	mtx_destroy(&fdp->fd_mtx);
+	FREE(fdp, M_FILEDESC);
 }
 
 /*
@@ -1588,7 +1617,6 @@ fdfree(struct thread *td)
 	 * We are the last reference to the structure, so we can
 	 * safely assume it will not change out from under us.
 	 */
-	FILEDESC_UNLOCK(fdp);
 	fpp = fdp->fd_ofiles;
 	for (i = fdp->fd_lastfile; i-- >= 0; fpp++) {
 		if (*fpp)
@@ -1604,14 +1632,22 @@ fdfree(struct thread *td)
 		FREE(fdp->fd_ofiles, M_FILEDESC);
 	if (NDSLOTS(fdp->fd_nfiles) > NDSLOTS(NDFILE))
 		FREE(fdp->fd_map, M_FILEDESC);
+
+	fdp->fd_nfiles = 0;
+
 	if (fdp->fd_cdir)
 		vrele(fdp->fd_cdir);
+	fdp->fd_cdir = NULL;
 	if (fdp->fd_rdir)
 		vrele(fdp->fd_rdir);
+	fdp->fd_rdir = NULL;
 	if (fdp->fd_jdir)
 		vrele(fdp->fd_jdir);
-	mtx_destroy(&fdp->fd_mtx);
-	FREE(fdp, M_FILEDESC);
+	fdp->fd_jdir = NULL;
+
+	FILEDESC_UNLOCK(fdp);
+
+	fddrop(fdp);
 }
 
 /*
@@ -2262,8 +2298,7 @@ dupfdopen(struct thread *td, struct filedesc *fdp, int indx, int dfd, int mode, 
  * mount point.
  */
 void
-mountcheckdirs(olddp, newdp)
-	struct vnode *olddp, *newdp;
+mountcheckdirs(struct vnode *olddp, struct vnode *newdp)
 {
 	struct filedesc *fdp;
 	struct proc *p;
@@ -2273,12 +2308,9 @@ mountcheckdirs(olddp, newdp)
 		return;
 	sx_slock(&allproc_lock);
 	LIST_FOREACH(p, &allproc, p_list) {
-		mtx_lock(&fdesc_mtx);
-		fdp = p->p_fd;
-		if (fdp == NULL) {
-			mtx_unlock(&fdesc_mtx);
+		fdp = fdhold(p);
+		if (fdp == NULL)
 			continue;
-		}
 		nrele = 0;
 		FILEDESC_LOCK_FAST(fdp);
 		if (fdp->fd_cdir == olddp) {
@@ -2292,7 +2324,6 @@ mountcheckdirs(olddp, newdp)
 			nrele++;
 		}
 		FILEDESC_UNLOCK_FAST(fdp);
-		mtx_unlock(&fdesc_mtx);
 		while (nrele--)
 			vrele(olddp);
 	}
@@ -2383,11 +2414,9 @@ sysctl_kern_file(SYSCTL_HANDLER_ARGS)
 		xf.xf_pid = p->p_pid;
 		xf.xf_uid = p->p_ucred->cr_uid;
 		PROC_UNLOCK(p);
-		mtx_lock(&fdesc_mtx);
-		if ((fdp = p->p_fd) == NULL) {
-			mtx_unlock(&fdesc_mtx);
+		fdp = fdhold(p);
+		if (fdp == NULL)
 			continue;
-		}
 		FILEDESC_LOCK_FAST(fdp);
 		for (n = 0; n < fdp->fd_nfiles; ++n) {
 			if ((fp = fdp->fd_ofiles[n]) == NULL)
@@ -2406,7 +2435,7 @@ sysctl_kern_file(SYSCTL_HANDLER_ARGS)
 				break;
 		}
 		FILEDESC_UNLOCK_FAST(fdp);
-		mtx_unlock(&fdesc_mtx);
+		fddrop(fdp);
 		if (error)
 			break;
 	}
