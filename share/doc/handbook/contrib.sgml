@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.130 1996/09/09 01:56:55 jkh Exp $ -->
+<!-- $Id: contrib.sgml,v 1.131 1996/09/11 16:47:30 nate Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!-- Please try to keep the file 'avail' (from CVSROOT) 
@@ -270,7 +270,7 @@
 	  <item>Michael Smith &lt;msmith@atrad.adelaide.edu.au&gt;
 	  <item>Mikael Hybsch &lt;micke@dynas.se&gt;
 	  <item>Mike Peck &lt;mike@binghamton.edu&gt;
-	  <item>MITA Yoshio &lt;mita@iis.u-tokyo.ac.jp&gt;
+	  <item>MITA Yoshio &lt;mita@jp.FreeBSD.ORG&gt;
 	  <item>NIIMI Satoshi &lt;sa2c@and.or.jp&gt;
 	  <item>Nisha Talagala &lt;nisha@cs.berkeley.edu&gt;
 	  <item>Nobuhiro Yasutomi &lt;nobu@psrc.isac.co.jp&gt;
