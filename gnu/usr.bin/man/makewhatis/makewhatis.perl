@@ -344,7 +344,7 @@ sub manual {
 		chop;
 		s/^\.IX\s.*//;            # delete perlpod garbage
 		s/^\.[A-Z]+[ ]+[0-9]+$//; # delete commands
-		s/^\.[A-Za-z]+[ \t]*//;	  # delete commands
+		s/^\.[A-Za-z]*[ \t]*//;	  # delete commands
 		s/^\.\\".*$//;            #" delete comments
 		s/^[ \t]+//;
 		if ($_) {
@@ -375,7 +375,7 @@ sub manual {
 			$list .= @_[1];
 			$list .= "(@_[2])" if @_[2];
 		    } else {
-			s/^\.[A-Z][a-z][ \t]*//;
+			s/^\.([A-Z][a-z])?[ \t]*//;
 			s/[ \t]+$//;
 			$list .= $_;
 		    }
