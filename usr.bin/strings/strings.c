@@ -54,7 +54,9 @@ static char sccsid[] = "@(#)strings.c	8.2 (Berkeley) 1/28/94";
 #include <unistd.h>
 
 #define DEF_LEN		4		/* default minimum string length */
-#define ISSTR(ch)       (isalnum(ch) || ispunct(ch) || isascii(ch) && isprint(ch) || ch == '\t')
+#define ISSTR(ch)       (isalnum(ch) || ispunct(ch) || \
+			 isspace(ch) && (!iscntrl(ch) || ch == '\t') || \
+			 isascii(ch) && isprint(ch))
 
 typedef struct exec	EXEC;		/* struct exec cast */
 
