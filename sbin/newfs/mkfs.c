@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)mkfs.c	8.11 (Berkeley) 5/3/95";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: mkfs.c,v 1.24 1998/07/15 06:28:04 charnier Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -1217,7 +1217,7 @@ calloc(size, numelm)
 	caddr_t base;
 
 	size *= numelm;
-	if ((base = malloc(size)) == NULL);
+	if ((base = malloc(size)) == NULL)
 		return (NULL);
 	memset(base, 0, size);
 	return (base);
