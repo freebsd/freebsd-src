@@ -200,6 +200,129 @@ to the
 .Xr execve 2
 function;
 ignored signals remain ignored.
+.Pp
+The following functions are either reentrant or not interruptible
+by signals and are async-signal safe.
+Therefore applications may
+invoke them, without restriction, from signal-catching functions:
+.Pp
+Base Interfaces:
+.Pp
+.Fn _exit ,
+.Fn access ,
+.Fn alarm ,
+.Fn cfgetispeed ,
+.Fn cfgetospeed ,
+.Fn cfsetispeed ,
+.Fn cfsetospeed ,
+.Fn chdir ,
+.Fn chmod ,
+.Fn chown ,
+.Fn close ,
+.Fn creat ,
+.Fn dup ,
+.Fn dup2 ,
+.Fn execle ,
+.Fn execve ,
+.Fn fcntl ,
+.Fn fork ,
+.Fn fpathconf ,
+.Fn fstat ,
+.Fn fsync ,
+.Fn getegid ,
+.Fn geteuid ,
+.Fn getgid ,
+.Fn getgroups ,
+.Fn getpgrp ,
+.Fn getpid ,
+.Fn getppid ,
+.Fn getuid ,
+.Fn kill ,
+.Fn link ,
+.Fn lseek ,
+.Fn mkdir ,
+.Fn mkfifo ,
+.Fn open ,
+.Fn pathconf ,
+.Fn pause ,
+.Fn pipe ,
+.Fn raise ,
+.Fn read ,
+.Fn rename ,
+.Fn rmdir ,
+.Fn setgid ,
+.Fn setpgid ,
+.Fn setsid ,
+.Fn setuid ,
+.Fn sigaction ,
+.Fn sigaddset ,
+.Fn sigdelset ,
+.Fn sigemptyset ,
+.Fn sigfillset  ,
+.Fn sigismember ,
+.Fn signal ,
+.Fn sigpending ,
+.Fn sigprocmask ,
+.Fn sigsuspend ,
+.Fn sleep ,
+.Fn stat ,
+.Fn sysconf ,
+.Fn tcdrain ,
+.Fn tcflow ,
+.Fn tcflush ,
+.Fn tcgetattr ,
+.Fn tcgetpgrp ,
+.Fn tcsendbreak ,
+.Fn tcsetattr ,
+.Fn tcsetpgrp ,
+.Fn time ,
+.Fn times ,
+.Fn umask ,
+.Fn uname ,
+.Fn unlink ,
+.Fn utime ,
+.Fn wait ,
+.Fn waitpid ,
+.Fn write .
+.Pp
+Realtime Interfaces:
+.Pp
+.Fn aio_error ,
+.Fn clock_gettime ,
+.Fn sigpause ,
+.Fn timer_getoverrun ,
+.Fn aio_return ,
+.Fn fdatasync ,
+.Fn sigqueue ,
+.Fn timer_gettime ,
+.Fn aio_suspend ,
+.Fn sem_post ,
+.Fn sigset ,
+.Fn timer_settime .
+.Pp
+ANSI C Interfaces:
+.Pp
+.Fn strcpy ,
+.Fn strcat ,
+.Fn strncpy ,
+.Fn strncat ,
+and perhaps some others.
+.Pp
+Extension Interfaces:
+.Pp
+.Fn strlcpy ,
+.Fn strlcat .
+.Pp
+All functions not in the above lists are considered to be unsafe
+with respect to signals.  That is to say, the behaviour of such
+functions when called from a signal handler is undefined.
+In general though, signal handlers should do little more than set a
+flag; most other actions are not safe.  
+.Pp
+As well, inside the signal handler it is also considered more safe to
+make a copy the global variable
+.Va errno 
+and restore it before returning from the signal handler.
 .Sh RETURN VALUES
 The previous action is returned on a successful call.
 Otherwise, SIG_ERR is returned and  the global variable
