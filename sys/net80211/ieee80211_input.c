@@ -1871,7 +1871,8 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 			    ieee80211_parse_wmeparams(ic, wme, wh) > 0)
 				ieee80211_wme_updateparams(ic);
 			/* NB: don't need the rest of this */
-			return;
+			if ((ic->ic_flags & IEEE80211_F_SCAN) == 0)
+				return;
 		}
 
 		if (ni == ic->ic_bss) {
