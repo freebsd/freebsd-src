@@ -36,7 +36,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: es1370.c,v 1.3 1999/05/09 10:43:54 peter Exp $
+ *	$Id: es1370.c,v 1.4 1999/05/09 17:06:45 peter Exp $
  */
 
 #include "pci.h"
@@ -147,7 +147,7 @@ static int      write_codec(snddev_info *, u_char, u_char);
  */
 
 static struct pci_device es_pci_driver = {
-	"es",
+	"pcm",
 	es_pci_probe,
 	es_pci_attach,
 	&nsnd,
