@@ -57,3 +57,10 @@ inet_lnaof(in)
 	else
 		return ((i)&IN_CLASSC_HOST);
 }
+
+/*
+ * Weak aliases for applications that use certain private entry points,
+ * and fail to include <arpa/inet.h>.
+ */
+#undef inet_lnaof
+__weak_reference(__inet_lnaof, inet_lnaof);

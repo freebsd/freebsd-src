@@ -71,7 +71,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)res_mkquery.c	8.1 (Berkeley) 6/4/93";
 static char orig_rcsid[] = "From: Id: res_mkquery.c,v 8.9 1997/04/24 22:22:36 vixie Exp $";
-static char rcsid[] = "$Id: res_mkquery.c,v 1.12 1997/02/22 15:00:33 peter Exp $";
+static char rcsid[] = "$Id: res_mkquery.c,v 1.13 1998/06/11 09:02:55 peter Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/types.h>
@@ -197,3 +197,10 @@ res_mkquery(op, dname, class, type, data, datalen, newrr_in, buf, buflen)
 	}
 	return (cp - buf);
 }
+
+/*
+ * Weak aliases for applications that use certain private entry points,
+ * and fail to include <resolv.h>.
+ */
+#undef res_mkquery
+__weak_reference(__res_mkquery, res_mkquery);

@@ -95,7 +95,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)res_debug.c	8.1 (Berkeley) 6/4/93";
-static char rcsid[] = "$Id: res_debug.c,v 8.20 1998/02/13 01:11:34 halley Exp $";
+static char rcsid[] = "$Id: res_debug.c,v 1.15 1998/06/11 09:02:53 peter Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/types.h>
@@ -964,3 +964,24 @@ p_secstodate (u_long secs) {
 		time->tm_hour, time->tm_min, time->tm_sec);
 	return (output);
 }
+
+/*
+ * Weak aliases for applications that use certain private entry points,
+ * and fail to include <resolv.h>.
+ */
+#undef fp_resstat
+__weak_reference(__fp_resstat, fp_resstat);
+#undef p_query
+__weak_reference(__p_query, p_query);
+#undef p_fqnname
+__weak_reference(__p_fqnname, p_fqnname);
+#undef sym_ston
+__weak_reference(__sym_ston, sym_ston);
+#undef sym_ntos
+__weak_reference(__sym_ntos, sym_ntos);
+#undef sym_ntop
+__weak_reference(__sym_ntop, sym_ntop);
+#undef dn_count_labels
+__weak_reference(__dn_count_labels, dn_count_labels);
+#undef p_secstodate
+__weak_reference(__p_secstodate, p_secstodate);

@@ -60,3 +60,10 @@ inet_makeaddr(net, host)
 	addr = htonl(addr);
 	return (*(struct in_addr *)&addr);
 }
+
+/*
+ * Weak aliases for applications that use certain private entry points,
+ * and fail to include <arpa/inet.h>.
+ */
+#undef inet_makeaddr
+__weak_reference(__inet_makeaddr, inet_makeaddr);
