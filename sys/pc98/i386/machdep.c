@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.78 1998/03/02 10:02:01 kato Exp $
+ *	$Id: machdep.c,v 1.79 1998/03/07 15:42:54 kato Exp $
  */
 
 #include "apm.h"
@@ -1628,7 +1628,9 @@ SYSINIT(f00f_hack, SI_SUB_INTRINSIC, SI_ORDER_FIRST, f00f_hack, NULL);
 
 static void
 f00f_hack(void *unused) {
+#ifndef SMP
 	struct region_descriptor r_idt;
+#endif
 	vm_offset_t tmp;
 	int i;
 
