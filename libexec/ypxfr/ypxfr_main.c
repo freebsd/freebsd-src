@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ypxfr_main.c,v 1.8 1997/02/22 14:22:48 peter Exp $
+ *	$Id: ypxfr_main.c,v 1.9 1997/03/28 15:48:21 imp Exp $
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -51,7 +51,7 @@ struct dom_binding {};
 #include "ypxfr_extern.h"
 
 #ifndef lint
-static const char rcsid[] = "$Id: ypxfr_main.c,v 1.8 1997/02/22 14:22:48 peter Exp $";
+static const char rcsid[] = "$Id: ypxfr_main.c,v 1.9 1997/03/28 15:48:21 imp Exp $";
 #endif
 
 char *progname = "ypxfr";
@@ -133,10 +133,26 @@ int ypxfr_foreach(status, key, keylen, val, vallen, data)
 	if (status != YP_TRUE)
 		return (status);
 
-	dbkey.data = key;
-	dbkey.size = keylen;
-	dbval.data = val;
-	dbval.size = vallen;
+	/*
+	 * XXX Do not attempt to write zero-length keys or
+	 * data into a Berkeley DB hash database. It causes a
+	 * strange failure mode where sequential searches get
+	 * caught in an infinite loop.
+	 */
+	if (keylen) {
+		dbkey.data = key;
+		dbkey.size = keylen;
+	} else {
+		dbkey.data = "";
+		dbkey.size = 1;
+	}
+	if (vallen) {
+		dbval.data = val;
+		dbval.size = vallen;
+	} else {
+		dbval.data = "";
+		dbval.size = 1;
+	}
 
 	if (yp_put_record(dbp, &dbkey, &dbval, 0) != YP_TRUE)
 		return(yp_errno);
