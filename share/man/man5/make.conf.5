@@ -685,6 +685,10 @@ The table size should be a prime number
 approximately twice as large as the number of lines in
 .Pa /etc/passwd .
 The default number is 20011.
+.It Va WANT_EXT2FS_MODULE
+.Pq Vt bool
+Set this if you always want to build the Linux ext2fs kernel module when you
+build modules.
 .It Va WANT_FORCE_OPTIMIZATION_DOWNGRADE
 .Pq Vt int
 Causes the system compiler to be built such that it forces high optimization
