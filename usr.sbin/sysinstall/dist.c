@@ -45,9 +45,11 @@
 unsigned int Dists;
 unsigned int CRYPTODists;
 unsigned int SrcDists;
+#ifndef X_AS_PKG
 unsigned int XF86Dists;
 unsigned int XF86ServerDists;
 unsigned int XF86FontDists;
+#endif
 
 typedef struct _dist {
     char *my_name;
@@ -60,9 +62,11 @@ typedef struct _dist {
 extern Distribution DistTable[];
 extern Distribution CRYPTODistTable[];
 extern Distribution SrcDistTable[];
+#ifndef X_AS_PKG
 extern Distribution XF86DistTable[];
 extern Distribution XF86FontDistTable[];
 extern Distribution XF86ServerDistTable[];
+#endif
 
 /* The top-level distribution categories */
 static Distribution DistTable[] = {
@@ -86,7 +90,9 @@ static Distribution DistTable[] = {
 #endif
 { "ports",	"/usr",			&Dists,		DIST_PORTS,		NULL		},
 { "local",	"/",			&Dists,		DIST_LOCAL,		NULL		},
+#ifndef X_AS_PKG
 { "XF86336",	"/usr",			&Dists,		DIST_XF86,		XF86DistTable	},
+#endif
 { NULL },
 };
 
@@ -123,6 +129,7 @@ static Distribution SrcDistTable[] = {
 { NULL },
 };
 
+#ifndef X_AS_PKG
 /* The XFree86 distribution */
 static Distribution XF86DistTable[] = {
 { "XF86336",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_FONTS,	XF86FontDistTable },
@@ -200,6 +207,7 @@ static Distribution XF86FontDistTable[] = {
 { "Xfsrv",	"/usr/X11R6",		&XF86FontDists,		DIST_XF86_FONTS_SERVER,	NULL		},
 { NULL },
 };
+#endif /* !X_AS_PKG */
 
 static int	distMaybeSetPorts(dialogMenuItem *self);
 
@@ -215,18 +223,24 @@ distVerifyFlags(void)
     }
     else if ((Dists & DIST_CRYPTO) && !CRYPTODists)
 	CRYPTODists |= DIST_CRYPTO_ALL;
+#ifndef X_AS_PKG
     if (XF86Dists & DIST_XF86_SET)
 	XF86ServerDists |= DIST_XF86_SERVER_VGA16;
     if (XF86ServerDists)
 	XF86Dists |= DIST_XF86_SERVER;
     if (XF86FontDists)
 	XF86Dists |= DIST_XF86_FONTS;
-    if (XF86Dists || XF86ServerDists || XF86FontDists) {
+    if (XF86Dists || XF86ServerDists || XF86FontDists)
 	Dists |= DIST_XF86;
+#endif
+    if (isDebug()) {
+	msgDebug("Dist Masks: Dists: %0x, CRYPTO: %0x, Srcs: %0x\n", Dists,
+	    CRYPTODists, SrcDists);
+#ifndef X_AS_PKG
+	msgDebug("XServer: %0x, XFonts: %0x, XDists: %0x\n", XF86ServerDists,
+	    XF86FontDists, XF86Dists);
+#endif
     }
-    if (isDebug())
-	msgDebug("Dist Masks: Dists: %0x, CRYPTO: %0x, Srcs: %0x\nXServer: %0x, XFonts: %0x, XDists: %0x\n",
-		 Dists, CRYPTODists, SrcDists, XF86ServerDists, XF86FontDists, XF86Dists);
 }
 
 int
@@ -235,9 +249,11 @@ distReset(dialogMenuItem *self)
     Dists = 0;
     CRYPTODists = 0;
     SrcDists = 0;
+#ifndef X_AS_PKG
     XF86Dists = 0;
     XF86ServerDists = 0;
     XF86FontDists = 0;
+#endif
     return DITEM_SUCCESS | DITEM_REDRAW;
 }
 
@@ -257,6 +273,12 @@ distConfig(dialogMenuItem *self)
     if ((cp = variable_get(VAR_DIST_SRC)) != NULL)
 	SrcDists = atoi(cp);
 
+#ifdef X_AS_PKG
+    if (variable_get(VAR_DIST_X11) != NULL ||
+	variable_get(VAR_DIST_XSERVER) != NULL ||
+	variable_get(VAR_DIST_XFONTS) != NULL)
+	Dists |= DIST_XF86;
+#else
     if ((cp = variable_get(VAR_DIST_X11)) != NULL)
 	XF86Dists = atoi(cp);
 
@@ -265,6 +287,7 @@ distConfig(dialogMenuItem *self)
 
     if ((cp = variable_get(VAR_DIST_XFONTS)) != NULL)
 	XF86FontDists = atoi(cp);
+#endif
     distVerifyFlags();
     return DITEM_SUCCESS | DITEM_REDRAW;
 }
@@ -273,13 +296,14 @@ static int
 distSetX(void)
 {
     Dists |= DIST_XF86;
+#ifndef X_AS_PKG
     XF86Dists = DIST_XF86_BIN | DIST_XF86_SET | DIST_XF86_CFG | DIST_XF86_LIB | DIST_XF86_PROG | DIST_XF86_MAN | DIST_XF86_DOC | DIST_XF86_SERVER | DIST_XF86_FONTS;
     XF86ServerDists = DIST_XF86_SERVER_SVGA | DIST_XF86_SERVER_VGA16;
     XF86FontDists = DIST_XF86_FONTS_MISC;
-#ifndef X_AS_PKG
     return distSetXF86(NULL);
-#endif
+#else
     return DITEM_SUCCESS;
+#endif
 }
 
 int
@@ -374,9 +398,11 @@ distSetEverything(dialogMenuItem *self)
     Dists = DIST_ALL | DIST_XF86;
     SrcDists = DIST_SRC_ALL;
     CRYPTODists = DIST_CRYPTO_ALL;
+#ifndef X_AS_PKG
     XF86Dists = DIST_XF86_ALL;
     XF86ServerDists = DIST_XF86_SERVER_ALL;
     XF86FontDists = DIST_XF86_FONTS_ALL;
+#endif
     i = distMaybeSetPorts(self);
     distVerifyFlags();
     return i;
@@ -514,6 +540,7 @@ distSetSrc(dialogMenuItem *self)
     return i | DITEM_RESTORE;
 }
 
+#ifndef X_AS_PKG
 int
 distSetXF86(dialogMenuItem *self)
 {
@@ -525,6 +552,7 @@ distSetXF86(dialogMenuItem *self)
     distVerifyFlags();
     return i | DITEM_RESTORE;
 }
+#endif
 
 static Boolean got_intr = FALSE;
 
@@ -902,7 +930,6 @@ distExtractAll(dialogMenuItem *self)
     if(Dists & DIST_XF86)
     	want_x_package = 1;
     Dists &= ~DIST_XF86;
-    /*Dists &= ~(DIST_XF86 | XF86Dists | XF86ServerDists | XF86FontDists);*/
 #endif
     
     /* Try for 3 times around the loop, then give up. */

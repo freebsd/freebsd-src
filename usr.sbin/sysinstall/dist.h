@@ -62,6 +62,7 @@
 #define DIST_SRC_BIN		0x08000
 #define DIST_SRC_ALL		0x0FFFF
 
+#ifndef X_AS_PKG
 /* Subtypes for XFree86 distribution */
 #define DIST_XF86_BIN		0x0001
 #define DIST_XF86_CFG		0x0002
@@ -119,6 +120,7 @@
 #define DIST_XF86_FONTS_SERVER		0x0020
 #define DIST_XF86_FONTS_ALL		0x003F
 #define DIST_XF86_ALL		0x1FFFF
+#endif
 
 /* Canned distribution sets */
 #define _DIST_USER \
