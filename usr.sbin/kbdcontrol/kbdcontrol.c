@@ -28,7 +28,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: kbdcontrol.c,v 1.24 1999/03/17 11:42:18 gpalmer Exp $";
+	"$Id: kbdcontrol.c,v 1.25 1999/05/09 04:57:51 yokota Exp $";
 #endif /* not lint */
 
 #include <ctype.h>
@@ -163,6 +163,8 @@ get_entry()
 		return LCTR | 0x100;
 	case TNEXT:
 		return NEXT | 0x100;
+	case TPREV:
+		return PREV | 0x100;
 	case TRCTR:
 		return RCTR | 0x100;
 	case TRALT:
@@ -361,6 +363,9 @@ print_entry(FILE *fp, int value)
 	case NEXT | 0x100:
 		fprintf(fp, " nscr  ");
 		break;
+	case PREV | 0x100:
+		fprintf(fp, " pscr  ");
+		break;
 	case RCTR | 0x100:
 		fprintf(fp, " rctrl ");
 		break;
@@ -529,6 +534,9 @@ dump_entry(int value)
 			break;
 		case NEXT:
 			printf(" NEXT, ");
+			break;
+		case PREV:
+			printf(" PREV, ");
 			break;
 		case RCTR:
 			printf(" RCTR, ");
