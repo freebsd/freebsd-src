@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: chmod.c,v 1.3 1995/02/03 22:21:09 bde Exp $
+ *	$Id: chmod.c,v 1.4 1995/03/19 13:27:43 joerg Exp $
  */
 
 #ifndef lint
@@ -161,11 +161,10 @@ done:	argv += optind;
 		err(1, NULL);
 	for (rval = 0; (p = fts_read(ftsp)) != NULL;) {
 		switch (p->fts_info) {
-		case FTS_D:
-			if (Rflag)		/* Change it at FTS_DP. */
-				continue;
-			fts_set(ftsp, p, FTS_SKIP);
-			break;
+		case FTS_D:			/* Change it at FTS_DP. */
+			if (!Rflag)
+				fts_set(ftsp, p, FTS_SKIP);
+			continue;
 		case FTS_DNR:			/* Warn, chmod, continue. */
 			warnx("%s: %s", p->fts_path, strerror(p->fts_errno));
 			rval = 1;
