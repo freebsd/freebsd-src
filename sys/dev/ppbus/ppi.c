@@ -278,9 +278,9 @@ ppiopen(dev_t dev, int flags, int fmt, struct proc *p)
 
 #ifdef PERIPH_1284
 		if (ppi->intr_resource) {
-		/* register our interrupt handler */
-		BUS_SETUP_INTR(device_get_parent(ppidev), ppidev, ppi->intr_resource,
-			       INTR_TYPE_TTY, ppiintr, dev, &ppi->intr_cookie);
+			/* register our interrupt handler */
+			BUS_SETUP_INTR(device_get_parent(ppidev), ppidev, ppi->intr_resource,
+				       INTR_TYPE_TTY, ppiintr, dev, &ppi->intr_cookie);
 		}
 #endif /* PERIPH_1284 */
 	}
