@@ -1,4 +1,4 @@
-/*	$NetBSD: ohci.c,v 1.65 2000/01/25 12:06:21 augustss Exp $	*/
+/*	$NetBSD: ohci.c,v 1.68 2000/01/31 20:17:25 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -641,7 +641,7 @@ ohci_init(sc)
 	ohci_soft_ed_t *sed, *psed;
 	usbd_status err;
 	int i;
-	u_int32_t s, ctl, ival, hcr, fm, per, rev;
+	u_int32_t s, ctl, ival, hcr, fm, per, rev, desca;
 
 	DPRINTF(("ohci_init: start\n"));
 #if defined(__OpenBSD__)
@@ -815,7 +815,12 @@ ohci_init(sc)
 	per = OHCI_PERIODIC(ival); /* 90% periodic */
 	OWRITE4(sc, OHCI_PERIODIC_START, per);
 
-	OWRITE4(sc, OHCI_RH_STATUS, OHCI_LPSC);	/* Enable port power */
+	/* Fiddle the No OverCurrent Protection bit to avoid chip bug. */
+	desca = OREAD4(sc, OHCI_RH_DESCRIPTOR_A);
+	OWRITE4(sc, OHCI_RH_DESCRIPTOR_A, desca | OHCI_NOCP);
+	OWRITE4(sc, OHCI_RH_STATUS, OHCI_LPSC); /* Enable port power */
+	usb_delay_ms(&sc->sc_bus, 5);
+	OWRITE4(sc, OHCI_RH_DESCRIPTOR_A, desca);
 
 	sc->sc_noport = OHCI_GET_NDP(OREAD4(sc, OHCI_RH_DESCRIPTOR_A));
 

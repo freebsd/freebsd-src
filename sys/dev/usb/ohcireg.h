@@ -1,4 +1,4 @@
-/*	$NetBSD: ohcireg.h,v 1.11 2000/01/16 10:35:24 augustss Exp $	*/
+/*	$NetBSD: ohcireg.h,v 1.13 2000/01/31 20:17:26 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 
@@ -110,6 +110,9 @@
 #define  OHCI_GET_NDP(s)	((s) & 0xff)
 #define  OHCI_PSM		0x0100     /* Power Switching Mode */
 #define  OHCI_NPS		0x0200	   /* No Power Switching */
+#define  OHCI_DT		0x0400     /* Device Type */
+#define  OHCI_OCPM		0x0800     /* Overcurrent Protection Mode */
+#define  OHCI_NOCP		0x1000     /* No Overcurrent Protection */
 #define  OHCI_GET_POTPGT(s)	((s) >> 24)
 #define OHCI_RH_DESCRIPTOR_B	0x4c
 #define OHCI_RH_STATUS		0x50
