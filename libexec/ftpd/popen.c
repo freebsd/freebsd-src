@@ -32,15 +32,15 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: popen.c,v 1.7 1997/02/22 14:21:31 peter Exp $
  */
 
-#if 0
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)popen.c	8.3 (Berkeley) 4/6/94";
-#endif /* not lint */
 #endif
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
 
 #include <sys/types.h>
 #include <sys/wait.h>
