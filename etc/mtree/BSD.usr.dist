@@ -815,13 +815,33 @@
             ..
             el_GR.ISO8859-7
             ..
+            en_AU.ISO8859-15
+            ..
+            en_AU.ISO8859-1
+            ..
             en_AU.US-ASCII
+            ..
+            en_CA.ISO8859-15
+            ..
+            en_CA.ISO8859-1
             ..
             en_CA.US-ASCII
             ..
+            en_GB.ISO8859-15
+            ..
+            en_GB.ISO8859-1
+            ..
             en_GB.US-ASCII
             ..
+            en_NZ.ISO8859-15
+            ..
+            en_NZ.ISO8859-1
+            ..
             en_NZ.US-ASCII
+            ..
+            en_US.ISO8859-15
+            ..
+            en_US.ISO8859-1
             ..
             es_ES.ISO8859-15
             ..
