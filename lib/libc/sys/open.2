@@ -217,6 +217,10 @@ The system file table is full.
 The named file is a character special or block
 special file, and the device associated with this special file
 does not exist.
+.It Bq Er ENXIO
+The named file is a fifo, no process has
+it open for reading, and the arguments specify it is
+to be opened for writing.
 .It Bq Er EINTR
 The
 .Fn open
