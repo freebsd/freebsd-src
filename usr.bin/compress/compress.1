@@ -36,7 +36,7 @@
 .\"     @(#)compress.1	8.2 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd April 18, 1994
+.Dd May 17, 2002
 .Dt COMPRESS 1
 .Os
 .Sh NAME
@@ -79,8 +79,11 @@ output) for confirmation.
 If prompting is not possible or confirmation is not received, the files
 are not overwritten.
 .Pp
-If no files are specified, the standard input is compressed or uncompressed
-to the standard output.
+If no files are specified or a
+.Ar file
+argument is a single dash
+.Pq Sq Fl ,
+the standard input is compressed or uncompressed to the standard output.
 If either the input and output files are not regular files, the checks for
 reduction in size and file overwriting are not performed, the input file is
 not removed, and the attributes of the input file are not retained.
@@ -150,6 +153,13 @@ coding (as used in the historical command compact), and takes less
 time to compute.
 .Sh DIAGNOSTICS
 .Ex -std compress uncompress
+.Pp
+The
+.Nm compress
+utility exits 2 if attempting to compress the file would not reduce its size
+and the
+.Fl f
+option was not specified.
 .Sh SEE ALSO
 .Xr gunzip 1 ,
 .Xr gzexe 1 ,
@@ -165,6 +175,13 @@ time to compute.
 .%V 17:6
 .%P pp. 8-19
 .Re
+.Sh STANDARDS
+The
+.Nm compress
+and
+.Nm uncompress
+utilities conform to
+.St -p1003.1-2001 .
 .Sh HISTORY
 The
 .Nm
