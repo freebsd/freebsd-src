@@ -74,6 +74,12 @@
 /*
  * PTmap is recursive pagemap at top of virtual address space.
  * Within PTmap, the page directory can be found (third indirection).
+ *
+ * NOTE: PTDpde, PTmap, and PTD are being defined as address symbols.
+ * In C you access them directly, and not with a '*'. Storage is not being 
+ * allocated. They will magically address teh correct locations in KVM
+ * whach C will treat as normal variables of the type they are defined in in 
+ * machine/pmap.h, i.e.  PTDpde = XX ; to set a PDE entry, NOT *PTDpde = XX;
  */
 	.globl	PTmap,PTD,PTDpde
 	.set	PTmap,(PTDPTDI << PDRSHIFT)
@@ -83,6 +89,7 @@
 /*
  * APTmap, APTD is the alternate recursive pagemap.
  * It's used when modifying another process's page tables.
+ * See the note above. It is true here as well.
  */
 	.globl	APTmap,APTD,APTDpde
 	.set	APTmap,APTDPTDI << PDRSHIFT
