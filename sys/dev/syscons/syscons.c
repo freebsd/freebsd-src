@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: syscons.c,v 1.63 1994/10/02 17:41:42 phk Exp $
+ *	$Id: syscons.c,v 1.64 1994/10/03 01:22:46 ache Exp $
  */
 
 #include "sc.h"
@@ -283,6 +283,7 @@ struct	tty 		pccons[NCONS+1];
 u_short			*Crtat = (u_short *)MONO_BUF;
 void 	consinit(void) 	{scinit();}
 extern  char 		*video_mode_ptr;
+int	color_display =	0;
 
 struct	isa_driver scdriver = {
 	pcprobe, pcattach, "sc",
@@ -2035,10 +2036,12 @@ scinit(void)
 	*cp = (u_short) 0xA55A;
 	if (*cp != 0xA55A) {
 		crtc_addr = MONO_BASE;
+		color_display =	0;
 	} else {
 		*cp = was;
 		crtc_addr = COLOR_BASE;
 		Crtat = Crtat + (CGA_BUF-MONO_BUF)/sizeof(u_short);
+		color_display =	1;
 	}
 
 	/* Extract cursor location */
