@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)mount.8	8.8 (Berkeley) 6/16/94
-.\"	$Id: mount.8,v 1.17 1997/08/24 17:51:12 joerg Exp $
+.\"	$Id: mount.8,v 1.18 1997/08/24 21:02:48 steve Exp $
 .\"
 .Dd June 16, 1994
 .Dt MOUNT 8
@@ -128,6 +128,10 @@ filesystems.
 This filesystem should be skipped when mount is run with the
 .Fl a
 flag.
+.It noclusterr
+Disable read clustering.
+.It noclusterw
+Disable write clustering.
 .It nodev
 Do not interpret character or block special devices on the file system.
 This option is useful for a server that has file systems containing
