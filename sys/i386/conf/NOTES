@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.595 1999/05/09 16:45:56 phk Exp $
+#	$Id: LINT,v 1.596 1999/05/09 22:26:10 peter Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -2129,5 +2129,5 @@ options		ULPT_DEBUG
 # Embedded system options:
 #
 # An embedded system might want to run something other than init.
-options		INIT_PATH="/sbin/init;/stand/sysinstall"
+options		INIT_PATH="/sbin/init:/stand/sysinstall"
 
