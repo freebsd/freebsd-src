@@ -181,9 +181,3 @@ extern devclass_t ucom_devclass;
 int ucom_attach(struct ucom_softc *);
 int ucom_detach(struct ucom_softc *);
 void ucom_status_change(struct ucom_softc *);
-
-#if 0
-#define UCOM_DEBUG	1
-#define UPLCOM_DEBUG	1
-#define UVSCOM_DEBUG	1
-#endif

@@ -71,10 +71,10 @@
 
 #include <sys/mouse.h>
 
-#ifdef UMS_DEBUG
+#ifdef USB_DEBUG
 #define DPRINTF(x)	if (umsdebug) logprintf x
 #define DPRINTFN(n,x)	if (umsdebug>(n)) logprintf x
-int	umsdebug = 1;
+int	umsdebug = 0;
 SYSCTL_INT(_debug_usb, OID_AUTO, ums, CTLFLAG_RW,
 	   &umsdebug, 0, "ums debug level");
 #else
@@ -310,7 +310,7 @@ USB_ATTACH(ums)
 	sc->sc_disconnected = 0;
 	free(desc, M_TEMP);
 
-#ifdef UMS_DEBUG
+#ifdef USB_DEBUG
 	DPRINTF(("ums_attach: sc=%p\n", sc));
 	DPRINTF(("ums_attach: X\t%d/%d\n", 
 		 sc->sc_loc_x.pos, sc->sc_loc_x.size));

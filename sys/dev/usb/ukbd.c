@@ -76,10 +76,10 @@
 
 #define delay(d)         DELAY(d)
 
-#ifdef UKBD_DEBUG
+#ifdef USB_DEBUG
 #define DPRINTF(x)	if (ukbddebug) logprintf x
 #define DPRINTFN(n,x)	if (ukbddebug>(n)) logprintf x
-int	ukbddebug = 1;
+int	ukbddebug = 0;
 SYSCTL_INT(_debug_usb, OID_AUTO, ukbd, CTLFLAG_RW,
 	   &ukbddebug, 0, "ukbd debug level");
 #else
@@ -775,7 +775,7 @@ ukbd_interrupt(keyboard_t *kbd, void *arg)
 	if (state->ks_inputs <= 0)
 		return 0;
 
-#ifdef UKBD_DEBUG
+#ifdef USB_DEBUG
 	for (i = state->ks_inputhead, j = 0; j < state->ks_inputs; ++j,
 		i = (i + 1)%INPUTBUFSIZE) {
 		c = state->ks_input[i];
@@ -789,7 +789,7 @@ ukbd_interrupt(keyboard_t *kbd, void *arg)
 			DPRINTF(("%d ", ud->keycode[i]));
 	}
 	DPRINTF(("\n"));
-#endif /* UKBD_DEBUG */
+#endif /* USB_DEBUG */
 
 	if (state->ks_polling)
 		return 0;
@@ -1250,7 +1250,7 @@ ukbd_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 		splx(s);
 		return genkbd_commonioctl(kbd, cmd, arg);
 
-#ifdef UKBD_DEBUG
+#ifdef USB_DEBUG
 	case USB_SETDEBUG:
 		ukbddebug = *(int *)arg;
 		break;

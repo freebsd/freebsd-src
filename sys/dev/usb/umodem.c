@@ -87,10 +87,10 @@
 
 #include <dev/usb/usbdevs.h>
 
-#ifdef UMODEM_DEBUG
+#ifdef USB_DEBUG
 #define DPRINTF(x) if(umodemdebug) logprintf x
 #define DPRINTFN(n, x) if(umodemdebug > (n)) logprintf x
-int	umodemdebug = 1;
+int	umodemdebug = 0;
 SYSCTL_INT(_debug_usb, OID_AUTO, umodem, CTLFLAG_RW,
 	   &umodemdebug, 0, "umodem debug level");
 #else

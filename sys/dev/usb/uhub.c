@@ -65,7 +65,7 @@
 
 #define UHUB_INTR_INTERVAL 255	/* ms */
 
-#ifdef UHUB_DEBUG
+#ifdef USB_DEBUG
 #define DPRINTF(x)	if (uhubdebug) logprintf x
 #define DPRINTFN(n,x)	if (uhubdebug>(n)) logprintf x
 int	uhubdebug = 0;

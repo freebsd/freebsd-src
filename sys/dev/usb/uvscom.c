@@ -69,8 +69,8 @@
 
 #include <dev/usb/ucomvar.h>
 
-#ifdef UVSCOM_DEBUG
-static int	uvscomdebug = 1;
+#ifdef USB_DEBUG
+static int	uvscomdebug = 0;
 SYSCTL_INT(_debug_usb, OID_AUTO, uvscom, CTLFLAG_RW,
 	   &uvscomdebug, 0, "uvscom debug level");
 

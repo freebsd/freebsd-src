@@ -103,10 +103,10 @@ SYSCTL_NODE(_debug, OID_AUTO, usb, CTLFLAG_RW, 0, "USB debugging");
 int	usbdebug = 0;
 SYSCTL_INT(_debug_usb, OID_AUTO, usb, CTLFLAG_RW,
 	   &usbdebug, 0, "usb debug level");
-#ifdef UHCI_DEBUG
+#ifdef USB_DEBUG
 extern int uhcidebug;
 #endif
-#ifdef OHCI_DEBUG
+#ifdef USB_DEBUG
 extern int ohcidebug;
 #endif
 /*
@@ -576,12 +576,8 @@ usbioctl(dev_t devt, u_long cmd, caddr_t data, int flag, usb_proc_ptr p)
 #ifdef USB_DEBUG
 	case USB_SETDEBUG:
 		usbdebug  = ((*(int *)data) & 0x000000ff);
-#ifdef UHCI_DEBUG
 		uhcidebug = ((*(int *)data) & 0x0000ff00) >> 8;
-#endif
-#ifdef OHCI_DEBUG
 		ohcidebug = ((*(int *)data) & 0x00ff0000) >> 16;
-#endif
 		break;
 #endif /* USB_DEBUG */
 	case USB_REQUEST:
