@@ -379,11 +379,12 @@ wt*)
 	;;
 
 # Individual slices.
-aacd*s*|ad*s*|afd*s*|amrd*s*|da*s*|fla*s*|idad*s*|md*s*|mlxd*s*|twed*s*|vn*s*|wd*s*|wfd*s*)
+aacd*s*|ad*s*|ar*s*|afd*s*|amrd*s*|da*s*|fla*s*|idad*s*|md*s*|mlxd*s*|twed*s*|vn*s*|wd*s*|wfd*s*)
 	umask $disk_umask
 	case $i in
 	aacd*s*) name=aacd; chr=151;;
 	ad*s*) name=ad; chr=116;;
+	ar*s*) name=ar; chr=157;;
 	afd*s*) name=afd; chr=118;;
 	amrd*s*) name=amrd; chr=133;;
 	da*s*) name=da;  chr=13;;
@@ -562,11 +563,12 @@ fd*)
 	umask 77
 	;;
 
-aacd*|ad*|afd*|amrd*|da*|fla*|idad*|md*|mlxd*|twed*|vn*|wd*|wfd*)
+aacd*|ad*|ar*|afd*|amrd*|da*|fla*|idad*|md*|mlxd*|twed*|vn*|wd*|wfd*)
 	umask $disk_umask
 	case $i in
 	aacd*) name=aacd; chr=151;;
 	ad*) name=ad; chr=116;;
+	ar*) name=ar; chr=157;;
 	afd*) name=afd; chr=118;;
 	amrd*) name=amrd; chr=133;;
 	da*) name=da;  chr=13;;
