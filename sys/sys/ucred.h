@@ -49,6 +49,7 @@
  * Please do not inspect cr_uid directly to determine superuserness.
  * Only the suser() or suser_cred() function should be used for this.
  */
+#ifdef _KERNEL
 struct ucred {
 	u_int	cr_ref;			/* reference count */
 #define	cr_startcopy cr_uid
@@ -68,6 +69,7 @@ struct ucred {
 };
 #define	NOCRED	((struct ucred *)0)	/* no credential available */
 #define	FSCRED	((struct ucred *)-1)	/* filesystem credential */
+#endif /* _KERNEL */
 
 /*
  * This is the external representation of struct ucred.
