@@ -1302,7 +1302,7 @@ vfs_mountroot_try(char *mountfrom)
 	vfsname = malloc(MFSNAMELEN, M_MOUNT, M_WAITOK);
 	path = malloc(MNAMELEN, M_MOUNT, M_WAITOK);
 	vfsname[0] = path[0] = 0;
-	sprintf(patt, "%%%d[a-z0-9]:%%%zds", MFSNAMELEN, MNAMELEN);
+	sprintf(patt, "%%%d[a-z0-9]:%%%ds", MFSNAMELEN, MNAMELEN);
 	if (sscanf(mountfrom, patt, vfsname, path) < 1)
 		goto done;
 
