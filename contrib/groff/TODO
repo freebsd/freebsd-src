@@ -1,3 +1,10 @@
+Unicode input:
+  Implementing \U'xxxx' to access Unicode characters directly.
+
+  Making groff 16bit input-clean.
+
+Separating input and output encodings (similar to LaTeX).
+
 Better selection of paper sizes with -Tps.
 
 Make -Tlj4 work with -X.
@@ -7,8 +14,6 @@ Guess man5ext and man7ext variables.
 Provide man.sun implementing .TX.
 
 Improve GROFF_PRINT macro in aclocal.m4.
-
-Put all dev* files in a separate subdirectory `font'.
 
 Provide a `check' target.
 

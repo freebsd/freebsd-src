@@ -57,6 +57,7 @@ both be zero. */
 #include "error.h"
 #include "assert.h"
 #include "cset.h"
+#include "nonposix.h"
 
 /* Values in the tfm file should be multiplied by this. */
 
@@ -125,7 +126,7 @@ public:
 
 
 kern_iterator::kern_iterator(tfm *p)
-: t(p), i(-1), c(t->bc)
+: t(p), c(t->bc), i(-1)
 {
 }
 
@@ -273,7 +274,7 @@ int read4(unsigned char *&s)
 int tfm::load(const char *file)
 {
   errno = 0;
-  FILE *fp = fopen(file, "r");
+  FILE *fp = fopen(file, FOPEN_RB);
   if (!fp) {
     error("can't open `%1': %2", file, strerror(errno));
     return 0;
@@ -413,7 +414,7 @@ int gf::load(const char *file)
   int left_adj, right_adj;
   const int gf_id_byte = 131;
   errno = 0;
-  FILE *fp = fopen(file, "r");
+  FILE *fp = fopen(file, FOPEN_RB);
   if (!fp) {
     error("can't open `%1': %2", file, strerror(errno));
     return 0;
@@ -711,8 +712,8 @@ int main(int argc, char **argv)
       }
     case 'v':
       {
-	extern const char *version_string;
-	fprintf(stderr, "tfmtodit version %s\n", version_string);
+	extern const char *Version_string;
+	fprintf(stderr, "tfmtodit version %s\n", Version_string);
 	fflush(stderr);
 	break;
       }
@@ -750,7 +751,18 @@ int main(int argc, char **argv)
   int len = strlen(internal_name);
   if (len > 4 && strcmp(internal_name + len - 4, ".tfm") == 0)
     internal_name[len - 4] = '\0';
-  char *s = strrchr(internal_name, '/');
+  // DIR_SEPS[] are possible directory separator characters, see nonposix.h.
+  // We want the rightmost separator of all possible ones.
+  // Example: d:/foo\\bar.
+  const char *s = strrchr(internal_name, DIR_SEPS[0]), *s1;
+  const char *sep = &DIR_SEPS[1];
+  while (*sep)
+    {
+      s1 = strrchr(internal_name, *sep);
+      if (s1 && (!s || s1 > s))
+	s = s1;
+      sep++;
+    }
   printf("internalname %s\n", s ? s + 1 : internal_name);
   int n;
   if (t.get_param(2, &n)) {

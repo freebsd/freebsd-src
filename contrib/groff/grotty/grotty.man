@@ -1,5 +1,6 @@
 .ig \"-*- nroff -*-
-Copyright (C) 1989-1995 Free Software Foundation, Inc.
+$FreeBSD$
+Copyright (C) 1989-2000 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -28,6 +29,10 @@ grotty \- groff driver for typewriter-like devices
 ] [
 .IR files \|.\|.\|.
 ]
+.PP
+It is possible to have whitespace between the
+.B \-F
+option and its parameter.
 .SH DESCRIPTION
 .B grotty
 translates the output of GNU
@@ -40,10 +45,13 @@ should invoked by using the
 command
 with a
 .BR \-Tascii ,
-.B \-Tkoi8-r
-or
+.BR \-Tkoi8-r ,
 .B \-Tlatin1
-option.
+or
+.B \-Tutf8
+option on ASCII based systems, and with
+.B \-Tcp1047
+on EBCDIC based hosts.
 If no files are given,
 .B grotty
 will read the standard input.
@@ -120,9 +128,11 @@ for font and device description files;
 .I name
 is the name of the device, usually
 .BR ascii ,
-.B koi8-r
+.BR koi8-r ,
+.BR latin1 ,
+.BR utf8 ,
 or
-.BR latin1 .
+.BR cp1047 .
 .TP
 .B \-h
 Use horizontal tabs in the output.
@@ -169,16 +179,64 @@ characters.
 Print the version number.
 .SH FILES
 .TP
-.B @FONTDIR@/dev\fIname\fB/DESC
+.B @FONTDIR@/devascii/DESC
 Device description file for
-.I name
+.B ascii
 device.
 .TP
-.BI @FONTDIR@/dev\fIname\fB/ F
+.BI @FONTDIR@/devascii/ F
 Font description file for font
 .I F
 of
-.I name
+.B ascii
+device.
+.TP
+.B @FONTDIR@/devkoi8-r/DESC
+Device description file for
+.B koi8-r
+device.
+.TP
+.BI @FONTDIR@/devkoi8-r/ F
+Font description file for font
+.I F
+of
+.B koi8-r
+device.
+.TP
+.B @FONTDIR@/devlatin1/DESC
+Device description file for
+.B latin1
+device.
+.TP
+.BI @FONTDIR@/devlatin1/ F
+Font description file for font
+.I F
+of
+.B latin1
+device.
+.TP
+.B @FONTDIR@/devutf8/DESC
+Device description file for
+.B utf8
+device.
+.TP
+.BI @FONTDIR@/devutf8/ F
+Font description file for font
+.I F
+of
+.B utf8
+device.
+.TP
+.B @FONTDIR@/devcp1047/DESC
+Device description file for
+.B cp1047
+device.
+.TP
+.BI @FONTDIR@/devcp1047/ F
+Font description file for font
+.I F
+of
+.B cp1047
 device.
 .TP
 .B @MACRODIR@/tmac.tty
@@ -188,6 +246,10 @@ Macros for use with
 .B @MACRODIR@/tmac.tty-char
 Additional klugey character definitions for use with
 .BR grotty .
+.LP
+Note that on EBCDIC hosts, only files for the
+.B cp1047
+device will be installed.
 .SH BUGS
 .LP
 .B grotty
@@ -209,4 +271,5 @@ cannot be printed.
 .BR groff_font (@MAN5EXT@),
 .BR groff_char (@MAN7EXT@),
 .BR ul (1),
-.BR more (1)
+.BR more (1),
+.BR less (1)

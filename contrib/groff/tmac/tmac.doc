@@ -409,7 +409,7 @@
 .	ie \\n(jM==2 .as b1 \&\\*(A\\n(aP
 .	el .as b1 \&\f\\n(cF\s\\n(cZ\\*(A\\n(aP\fP\s0
 .	ie \\n(aC==\\n(aP \{\
-.		as b1 \&\f\\n(cF\s\\n(cZ
+.		as b1 \f\\n(cF\s\\n(cZ
 .		aZ
 .	\}
 .	el \{\
@@ -752,24 +752,12 @@
 .\" NS iS register - indent second command line in a synopsis
 .de Nm
 .if \\n(aC==0 \{\
+.	ds mN Nm
 .	ie \\n(.$==0 \{\
 .		ie "\\*(n1"" .tm Usage: .Nm Name(s) ... \\*(Pu (#\\n(.c)
-.		el \&\\*(nM\\*(n1\fP\s0
+.		el .aV \\*(n1
 .	\}
-.	el \{\
-.		ds mN Nm
-.               ds A1 \\$1
-.               ds A2 \\$2
-.               ds A3 \\$3
-.               ds A4 \\$4
-.               ds A5 \\$5
-.               ds A6 \\$6
-.               ds A7 \\$7
-.               ds A8 \\$8
-.               ds A9 \\$9
-.               nr fV \\n(.$
-.               fV
-.       \}
+.	el .aV \\$1 \\$2 \\$3 \\$4 \\$5 \\$6 \\$7 \\$8 \\$9
 .\}
 .if \\n(aC>0 \{\
 .	ie \\n(aC==\\n(aP \{\
@@ -779,9 +767,8 @@
 .	el \{\
 .		as b1 \\*(nM
 .		nr aP \\n(aP+1
-.		ie \\n(C\\n(aP==1 \{\
+.		ie !\\n(C\\n(aP==2 \{\
 .			as b1 \&\\*(n1\fP\s0
-.			\\*(A\\n(aP
 .		\}
 .		el \{\
 .			nr cF \\n(.f
@@ -793,7 +780,7 @@
 .					ie \\n(nS>1 .br
 .					el \{\
 .						if \\n(iS==0 \{\
-.							sw \\$1
+.							sW \\*(A\\n(aP
 .					nr iS ((\\n(sWu+1)*\\n(fW)u
 .						\}
 .					\}
@@ -803,8 +790,8 @@
 .				\}
 .			\}
 .			if "\\*(n1"" .ds n1 \\*(A\\n(aP
-.			nR
 .		\}
+.		nR
 .	\}
 .\}
 ..
@@ -2269,18 +2256,16 @@
 .		ie \\n(C\\n(aP>2 .y\\n(C\\n(aP
 .		el \{\
 .			as b1 \&\\*(xR\\*(A\\n(aP\fP\s0
-.			if \\n(aC>\\n(aP \{\
-.				nr aP \\n(aP+1
+.			nr aP \\n(aP+1
+.			if \\n(aC>=\\n(aP \{\
 .				if \\n(C\\n(aP==2 \{\
 .					as b1 \&(\\*(A\\n(aP)
 .					nr aP \\n(aP+1
 .				\}
-.				if \\n(aC>=\\n(aP \{\
-.					c\\n(C\\n(aP
-.				\}
 .			\}
+.			ie \\n(aC>=\\n(aP .c\\n(C\\n(aP
+.			el .aZ
 .		\}
-.		aZ
 .       \}
 .\}
 ..
@@ -3374,19 +3359,21 @@ File:
 .\" NS aN register
 .nr aN 0
 .de An
+.if \\n(aC==0 \{\
+.	ie \\n(.$==0 .tm Usage: .An author_name ... \\*(Pu (#\\n(.c)
+.	el .ie "\\$1"-nosplit" .nr nY 0
+.	el .ie "\\$1"-split" .nr nY 1
+.	el \{\
+.		ds mN An
+.		aV \\$1 \\$2 \\$3 \\$4 \\$5 \\$6 \\$7 \\$8 \\$9
+.	\}
+.\}
 .if \\n(nY==1 \{\
 .	ie \\n(aN==1 \{\
 .		br
 .	\}
 .	el \{\
 .		nr aN 1
-.	\}
-.\}
-.if \\n(aC==0 \{\
-.       ie \\n(.$==0 .tm Usage: .An author_name ... \\*(Pu (#\\n(.c)
-.	el \{\
-.		ds mN An
-.		aV \\$1 \\$2 \\$3 \\$4 \\$5 \\$6 \\$7 \\$8 \\$9
 .	\}
 .\}
 .if \\n(aC>\\n(aP \{\

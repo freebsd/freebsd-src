@@ -28,7 +28,7 @@ font_pointer_list::font_pointer_list(font *f, font_pointer_list *fp)
 }
 
 printer::printer()
-: font_table(0), nfonts(0), font_list(0)
+: font_list(0), font_table(0), nfonts(0)
 {
 }
 

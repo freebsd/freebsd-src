@@ -1,5 +1,5 @@
 .ig \"-*- nroff -*-
-Copyright (C) 1989-1999 Free Software Foundation, Inc.
+Copyright (C) 1989-2000 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -36,7 +36,7 @@ the original English.
 .\" The BSD man macros can't handle " in arguments to font change macros,
 .\" so use \(ts instead of ".
 .tr \(ts"
-.TH @G@TROFF 1 "@MDATE@" "Groff Version @VERSION@"
+.TH @G@TROFF @MAN1EXT@ "@MDATE@" "Groff Version @VERSION@"
 .SH NAME
 @g@troff \- format documents
 .SH SYNOPSIS
@@ -65,6 +65,9 @@ the original English.
 .RI "[\ " files\|.\|.\|. "\ ]"
 .br
 .ad \na
+.PP
+It is possible to have whitespace between a command line option and its
+parameter.
 .SH DESCRIPTION
 This manual page describes the GNU version of
 .BR troff ,
@@ -84,7 +87,7 @@ approximation of the typeset output.
 Print a backtrace with each warning or error message.  This backtrace
 should help track down the cause of the error.  The line numbers given
 in the backtrace may not always be correct:
-.B troff 's
+.BR troff 's
 idea of line numbers
 gets confused by
 .B as
@@ -145,9 +148,10 @@ as the default font family.
 Read in the file
 .BI tmac. name\fR.
 Normally this will be searched for in @MACRODIR@.
-By default is used the 
+By default, the 
 .I safer
-macro (reverted using -U ).
+macro is used (this can be reverted using
+.BR \-U ).
 .TP
 .B \-U
 Unsafe option, avoids default use of 
@@ -156,7 +160,9 @@ macro.
 .TP
 .B \-R
 Don't load
-.BR troffrc .
+.B troffrc
+and
+.BR troffrc-end .
 .TP
 .BI \-n num
 Number the first page
@@ -476,7 +482,7 @@ is a numeric expression with a default scale indicator of
 .TQ
 .BI \eV[ xxx ]
 Interpolate the contents of the environment variable
-.I xxx ,
+.IR xxx ,
 as returned by
 .BR getenv (3).
 .B \eV
@@ -880,6 +886,12 @@ sourced by
 are interpreted.
 .RE
 .TP
+.BI .evc\  xx
+Copy the contents of environment
+.I xx
+to the current environment.
+No pushing or popping of environents will be done.
+.TP
 .BI .fam\  xx
 Set the current font family to
 .IR xx .
@@ -1050,12 +1062,19 @@ If
 .I n
 is non-zero or missing, enable pairwise kerning, otherwise disable it.
 .TP
+.BI .length\  xx\ string
+Compute the length of
+.I string
+and return it in the number register
+.I xx
+(which is not necessarily defined before).
+.TP
 .BI .mso\  file
 The same as the
 .B so
 request except that
 .I file
-is searched for in the same way that
+is searched for in the same directories as
 .BI tmac. name
 is searched for when the
 .BI \-m name
@@ -1095,8 +1114,25 @@ exists, append to it instead of truncating it.
 Print the names and contents of all currently defined number registers
 on stderr.
 .TP
+.BI .psbb \ filename
+Get the bounding box of a PostScript image
+.IR filename .
+This file must conform to Adobe's Document Structuring Conventions; the
+command looks for a
+.B %%BoundingBox
+comment to extract the bounding box values.
+After a successful call, the coordinates (in PostScript units) of the lower
+left and upper right corner can be found in the registers
+.BR \en[llx] ,
+.BR \en[lly] ,
+.BR \en[urx] ,
+and
+.BR \en[ury] ,
+respectively.
+If some error has occurred, the four registers are set to zero.
+.TP
 .BI .pso \ command
-This is behaves like the
+This behaves like the
 .B so
 request except that input comes from the standard output of
 .IR command .
@@ -1222,6 +1258,25 @@ The styles command in the
 .SM DESC
 file controls which font positions
 (if any) are initially associated with styles rather than fonts.
+.TP
+.BI .substring\  xx\ n1\  [ n2 ]
+Replace the string in register
+.I xx
+with the substring defined by the indices
+.I n1
+and
+.IR n2 .
+The first character in the string has index one.
+If
+.I n2
+is omitted, it is taken to be equal to the string's length.  If the
+index value
+.I n1
+or
+.I n2
+is negative or zero, it will be counted from the end of the string,
+going backwards: The last character has index 0, the character before
+the last character has index -1, etc.
 .TP
 .BI .tkf\  f\ s1\ n1\ s2\ n2
 Enable track kerning for font
@@ -1394,7 +1449,7 @@ In Unix troff, the
 contents of
 .I filename
 is immediately copied through to the output regardless of whether
-there is a current diversion; this behavior is so anomalous that it
+there is a current diversion; this behaviour is so anomalous that it
 must be considered a bug.
 .TP
 .BI .ev\  xx
@@ -1436,7 +1491,7 @@ if the end of a sentence occurs at the end of a line in fill mode, then
 both an inter-word space and a sentence space will be added;
 if two spaces follow the end of a sentence in the middle of a line,
 then the second space will be a sentence space.
-Note that the behavior of Unix troff will be exactly
+Note that the behaviour of Unix troff will be exactly
 that exhibited by GNU troff if a second argument is never given to the
 .B ss
 request.
@@ -1642,6 +1697,21 @@ then
 .B \en(.y
 will contain
 .BR 03 .
+.TP
+.B \en(.Y
+The revision number of groff.
+.TP
+.B \en[llx]
+.TQ
+.B \en[lly]
+.TQ
+.B \en[urx]
+.TQ
+.B \en[ury]
+These four registers are set by the
+.B \&.psbb
+request and contain the bounding box values (in PostScript units) of a given
+PostScript image.
 .LP
 The following registers are set by the
 .B \ew
@@ -1679,7 +1749,32 @@ If greater than 0, the maximum number of objects on the input stack.
 If less than or equal to 0, there is no limit on the number of objects
 on the input stack.  With no limit, recursion can continue until
 virtual memory is exhausted.
+.TP
+.B \en[year]
+The current year.
+Note that the traditional
+.B troff
+number register
+.B \en(yr
+is the current year minus 1900.
 .SS Miscellaneous
+.B @g@troff
+predefines a single (read/write) string-based register,
+.BR \e*(.T ,
+which contains the argument given to the
+.B -T
+command line option, namely the current output device (for example,
+.I latin1
+or
+.IR ascii ).
+Note that this is not the same as the (read-only) number register
+.B \en(.T
+which is defined to be\ 1 if
+.B troff
+is called with the
+.B -T
+command line option, and zero otherwise.  This behaviour is different to
+Unix troff.
 .LP
 Fonts not listed in the
 .SM DESC
@@ -2037,7 +2132,10 @@ after these.
 .SH FILES
 .Tp \w'@FONTDIR@/devname/DESC'u+3n
 .B @MACRODIR@/troffrc
-Initialization file
+Initialization file (called before any other macro package).
+.TP
+.B @MACRODIR@/troffrc-end
+Initialization file (called after any other macro package).
 .TP
 .BI @MACRODIR@/tmac. name
 Macro files
@@ -2052,14 +2150,18 @@ Font file for font
 of device
 .IR name .
 .SH "SEE ALSO"
-.BR groff (@MAN1EXT@)
+.BR groff (@MAN1EXT@),
 .BR @g@tbl (@MAN1EXT@),
 .BR @g@pic (@MAN1EXT@),
 .BR @g@eqn (@MAN1EXT@),
+.BR @g@refer (@MAN1EXT@),
+.BR @g@soelim (@MAN1EXT@),
+.BR @g@grn (@MAN1EXT@),
 .BR grops (@MAN1EXT@),
 .BR grodvi (@MAN1EXT@),
 .BR grotty (@MAN1EXT@),
 .BR grohtml (@MAN1EXT@),
+.BR grolj4 (@MAN1EXT@),
 .BR groff_font (@MAN5EXT@),
 .BR groff_out (@MAN5EXT@),
 .BR groff_char (@MAN7EXT@)

@@ -72,6 +72,7 @@
 .nr Ev 15n
 .nr Ex 10n
 .nr Fa 12n
+.nr Fx 12n
 .nr Fl 10n
 .nr Fc 3
 .nr Fo 16n
@@ -129,6 +130,7 @@
 .nr z, 3
 .nr z: 3
 .nr z; 3
+.nr z? 3
 .nr z( 4
 .nr z) 3
 .nr z[ 4
@@ -230,41 +232,8 @@
 .	if "\\*(oS"Null" .tm Unknown BSD version ``\\$2'' at line \\n(c.
 .\}
 .if "\\$1"FreeBSD" \{\
-.	if "\\$2"2"      .ds oS FreeBSD 2.0
-.	    ie \\n(.$==1        %comment%
-.	el .ie "\\$2"1.0"       %comment%
-.	el .ie "\\$2"1.1"       %comment%
-.	el .ie "\\$2"1.1.5"     %comment%
-.	el .ie "\\$2"1.1.5.1"   %comment%
-.	el .ie "\\$2"2"         %comment%
-.	el .ie "\\$2"2.0"       %comment%
-.	el .ie "\\$2"2.0.5"     %comment%
-.	el .ie "\\$2"2.1"       %comment%
-.	el .ie "\\$2"2.1.5"     %comment%
-.	el .ie "\\$2"2.1.6"     %comment%
-.	el .ie "\\$2"2.1.7"     %comment%
-.	el .ie "\\$2"2.2"       %comment%
-.	el .ie "\\$2"2.2.1"     %comment%
-.	el .ie "\\$2"2.2.2"     %comment%
-.	el .ie "\\$2"2.2.5"     %comment%
-.	el .ie "\\$2"2.2.6"     %comment%
-.	el .ie "\\$2"2.2.7"     %comment%
-.	el .ie "\\$2"2.2.8"     %comment%
-.	el .ie "\\$2"3"         %comment%
-.	el .ie "\\$2"3.0"       %comment%
-.	el .ie "\\$2"3.1"       %comment%
-.	el .ie "\\$2"3.2"       %comment%
-.	el .ie "\\$2"3.3"       %comment%
-.	el .ie "\\$2"3.4"       %comment%
-.	el .ie "\\$2"3.5"       %comment%
-.	el .ie "\\$2"4"         %comment%
-.	el .ie "\\$2"4.0"       %comment%
-.	el .ie "\\$2"4.1"       %comment%
-.	el .ie "\\$2"4.1.1"	%comment%
-.	el .ie "\\$2"4.2"       %comment%
-.	el .ie "\\$2"5"         %comment%
-.	el .ie "\\$2"5.0"       %comment%
-.	el .tm Unknown FreeBSD version ``\\$2'' at line \\n(c.
+.	ie "\\$2"2" .ds oS FreeBSD 2.0
+.	el .if !"\\$2"" .if !dFx*\\$2 .tm Unknown FreeBSD version ``\\$2'' at line \\n(c.
 .\}
 .if "\\*(oS"Null" \{\
 .	ds oS \&\\$1

@@ -1,13 +1,13 @@
 #! /bin/sh
+#
+# $FreeBSD$
 
 # Print the modification date of $1 `nicely'.
 
 # Don't want foreign dates.
 
 LANGUAGE=
-LANG=C; export LANG
 LC_TIME=C; export LC_TIME
-LC_CTYPE=C; export LC_CTYPE
 
 
 (date;

@@ -20,6 +20,9 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
 
 #include <stdio.h>
 #include <string.h>
+#ifdef HAVE_STRINGS_H
+#include <strings.h>
+#endif
 #include <ctype.h>
 #include <stdlib.h>
 #include <stddef.h>

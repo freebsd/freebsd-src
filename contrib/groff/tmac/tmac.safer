@@ -1,4 +1,6 @@
 .\" remove unsafe requests
+.nr _C \n(.C
+.cp 0
 .rm open opena pso sy pi
 .de unsafe
 .tm \\n(.F:\\n(.c: unsafe to execute request `\\$1'
@@ -8,3 +10,4 @@
 .als pso unsafe
 .als sy unsafe
 .als pi unsafe
+.cp \n(_C

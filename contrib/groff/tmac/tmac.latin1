@@ -15,7 +15,7 @@
 .latin1-tr \[char170] \(Of
 .latin1-tr \[char171] \(Fo
 .latin1-tr \[char172] \(no
-.latin1-tr \[char173] \(hy
+.latin1-tr \[char173] \[shc]
 .latin1-tr \[char174] \(rg
 .latin1-tr \[char175] \(a-
 .latin1-tr \[char176] \(de
@@ -25,7 +25,7 @@
 .latin1-tr \[char180] \(aa
 .latin1-tr \[char181] \(*m
 .latin1-tr \[char182] \(ps
-.latin1-tr \[char183] \(md
+.latin1-tr \[char183] \(pc
 .latin1-tr \[char184] \(ac
 .latin1-tr \[char185] \(S1
 .latin1-tr \[char186] \(Om

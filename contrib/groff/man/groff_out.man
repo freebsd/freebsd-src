@@ -1,6 +1,7 @@
 '\" e
-.ig \"-*- nroff -*-
-Copyright (C) 1989-1999 Free Software Foundation, Inc.
+.\" The above line should force the use of eqn as a preprocessor
+.ig
+Copyright (C) 1989-2000 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -233,3 +234,7 @@ should be treated like the part of the line following the
 command.
 .SH "SEE ALSO"
 .BR groff_font (@MAN5EXT@)
+.\"
+.\" Local Variables:
+.\" mode: nroff
+.\" End:

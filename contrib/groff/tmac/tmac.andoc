@@ -1,3 +1,4 @@
+.\" $FreeBSD$
 .\" Load either tmac.an or tmac.doc.
 .if !\n(.g .ab These macros require groff.
 .de Dd
@@ -7,6 +8,6 @@
 ..
 .de TH
 .rm TH
-.do mso tmac.groff_an
+.do mso tmac.an
 \\*(TH\\
 ..

@@ -22,7 +22,7 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
 #include "device.h"
 #include "cset.h"
 
-const char *current_filename;
+const char *current_filename=0;
 int current_lineno;
 const char *device = 0;
 FILE *current_file;
@@ -49,11 +49,31 @@ inline int get_char()
   return getc(current_file);
 }
 
+/*
+ *  remember_filename - is needed as get_string might overwrite the
+ *                      filename eventually.
+ */
+
+void remember_filename (const char *filename)
+{
+  if (current_filename != 0) {
+    free((char *)current_filename);
+  }
+  if (strcmp(filename, "-") == 0) {
+    filename = "<standard input>";
+  }
+  current_filename = (const char *)malloc(strlen(filename)+1);
+  if (current_filename == 0) {
+    fatal("can't malloc space for filename");
+  }
+  strcpy((char *)current_filename, (char *)filename);
+}
+
 void do_file(const char *filename)
 {
   int npages = 0;
   if (filename[0] == '-' && filename[1] == '\0') {
-    current_filename = "<standard input>";
+    remember_filename(filename);
     current_file = stdin;
   }
   else {
@@ -63,7 +83,7 @@ void do_file(const char *filename)
       error("can't open `%1'", filename);
       return;
     }
-    current_filename = filename;
+    remember_filename(filename);
   }
   environment env;
   env.vpos = -1;
@@ -129,6 +149,9 @@ void do_file(const char *filename)
       break;
     case 'f':
       env.fontno = get_integer();
+      break;
+    case 'F':
+      remember_filename(get_string());
       break;
     case 'C':
       {

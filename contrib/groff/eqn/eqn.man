@@ -1,5 +1,5 @@
 .ig \"-*- nroff -*-
-Copyright (C) 1989-1995 Free Software Foundation, Inc.
+Copyright (C) 1989-2000 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -31,34 +31,30 @@ the original English.
 .SH NAME
 @g@eqn \- format equations for troff
 .SH SYNOPSIS
+.nr a \n(.j
+.ad l
+.nr i \n(.i
+.in +\w'\fB@g@eqn 'u
+.ti \niu
 .B @g@eqn
-[
-.B \-rvCNR
-]
-[
-.BI \-d cc
-]
-[
-.BI \-T name
-]
-[
-.BI \-M dir
-]
-[
-.BI \-f F
-]
-[
-.BI \-s n
-]
-[
-.BI \-p n
-]
-[
-.BI \-m n
-]
-[
-.IR files \|.\|.\|.
-]
+.de OP
+.ie \\n(.$-1 .RI "[\ \fB\\$1\fP" "\\$2" "\ ]"
+.el .RB "[\ " "\\$1" "\ ]"
+..
+.OP \-rvCNR
+.OP \-d cc
+.OP \-T name
+.OP \-M dir
+.OP \-f F
+.OP \-s n
+.OP \-p n
+.OP \-m n
+.RI "[\ " files\|.\|.\|. "\ ]"
+.br
+.ad \na
+.PP
+It is possible to have whitespace between a command line option and its
+parameter.
 .SH DESCRIPTION
 This manual page describes the GNU version of
 .BR eqn ,
@@ -743,9 +739,11 @@ The default value is 0
 (This is typically changed to 1 by the
 .B eqnrc
 file for the
-.B ascii
+.BR ascii ,
+.BR latin1 ,
+.BR utf8 ,
 and
-.B latin1
+.B cp1047
 devices.)
 .LP
 A more precise description of the role of many of these

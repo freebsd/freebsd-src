@@ -30,6 +30,7 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
 #include "error.h"
 #include "cset.h"
 #include "cmap.h"
+#include "nonposix.h"
 
 #include "refid.h"
 #include "search.h"
@@ -330,6 +331,19 @@ int file_buffer::load(int fd, const char *filename)
       else {
 	close(fd);
 	buffer[3] = '\n';
+	int sidx = 4, didx = 4;
+	for ( ; sidx < size + 4; sidx++, didx++)
+	  {
+	    if (buffer[sidx] == '\r')
+	      {
+		if (buffer[++sidx] != '\n')
+		  buffer[didx++] = '\r';
+		else
+		  size--;
+	      }
+	    if (sidx != didx)
+	      buffer[didx] = buffer[sidx];
+	  }
 	bufend = buffer + 4 + size;
 	if (bufend[-1] != '\n')
 	  *bufend++ = '\n';
@@ -345,7 +359,7 @@ int file_buffer::load(int fd, const char *filename)
 
 linear_searcher::linear_searcher(const char *query, int query_len,
 				 const char *ign, int trunc)
-: keys(0), nkeys(0), truncate_len(trunc), ignore_fields(ign)
+: ignore_fields(ign), truncate_len(trunc), keys(0), nkeys(0)
 {
   const char *query_end = query + query_len;
   int nk = 0;

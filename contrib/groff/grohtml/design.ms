@@ -122,33 +122,6 @@ has been spanned by words. Ie no gaps exist.
 the documentation about these rules is particularly incomplete and needs finishing
 when time prevails.
 .SH
-To do
-.LP
-.IP (i) .5i
-finish working out the max and min x, y, extents for splines.
-.IP (ii) .5i
-check and test thoroughly all the character descriptions in devhtml
-(originally taken from devX100)
-.IP (iii) .5i
-improve tmac.arkup
-.IP (vi) .5i
-also improve documentation.
-.IP (v) .5i
-fix the bugs which are exposed by Eric Raymonds pic guide,
-\fBMaking Pictures With GNU PIC\fR. It appears that grohtml becomes confused
-about which sections of the document are text and which sections need
-to be rendered as an image.
-.IP (vi) .5i
-it would be nice to modularise the source. A natural division might be
-to extract the table handling code from html.cc into table.cc.
-The table.cc could be expanded to recognise output from tbl and try
-and generate html tables with lines/rules/boxes. The code as it stands
-should cope with very simple plain text tables. But of course at present
-it does not get a chance to do this because the output of gtbl is
-bracketed by \fCgraphic-start\fR and \fCgraphic-end\fR.
-.IP (vii) .5i
-introduce anti aliasing for the images as mentioned by Werner.
-.SH
 Dependencies
 .LP
 Grohtml is dependent upon grops, gs which are invoked to

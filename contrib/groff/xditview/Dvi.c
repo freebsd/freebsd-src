@@ -379,15 +379,9 @@ static void CloseFile (dw)
 static void OpenFile (dw)
 	DviWidget	dw;
 {
-	char	tmpName[sizeof ("/tmp/dviXXXXXX")];
-
 	dw->dvi.tmpFile = 0;
-	if (!dw->dvi.seek) {
-		strcpy (tmpName, "/tmp/dviXXXXXX");
-		mktemp (tmpName);
-		dw->dvi.tmpFile = fopen (tmpName, "w+");
-		unlink (tmpName);
-	}
+	if (!dw->dvi.seek)
+		dw->dvi.tmpFile = tmpfile();
 	dw->dvi.requested_page = 1;
 	dw->dvi.last_page = 0;
 }

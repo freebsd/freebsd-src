@@ -57,14 +57,14 @@ int errarg::empty() const
 }
 
 extern "C" {
-  const char *itoa(int);
+  const char *i_to_a(int);
 }
 	    
 void errarg::print() const
 {
   switch (type) {
   case INTEGER:
-    fputs(itoa(n), stderr);
+    fputs(i_to_a(n), stderr);
     break;
   case CHAR:
     putc(c, stderr);

@@ -74,6 +74,7 @@ public:
   void set_number(int);
   int get_number();
   int numbered();
+  symbol *get_symbol();
 };
 
 charinfo *get_charinfo(symbol);
@@ -162,4 +163,9 @@ inline int charinfo::first_time_not_found()
     not_found = 1;
     return 1;
   }
+}
+
+inline symbol *charinfo::get_symbol()
+{
+  return( &nm );
 }

@@ -1,3 +1,146 @@
+2000-06-17  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* html.cc [!_POSIX_VERSION]: Include limits.h and dirent.h or
+	sys/dir.h.  Define NAME_MAX using MAXNAMLEN.  Include nonposix.h.
+	(file_name_max): New function.
+	(html_printer::make_new_image_name): If the filesystem doesn't
+	support file names longer than 14 characters, use a shorter
+	image_name string.
+	(html_printer::convert_to_image): Enlarge the size of buffer[] to
+	accomodate 2 temp file names plus some slack.  Don't put \n at the
+	end of commands passed to system().  Redirect stderr to the null
+	device programmatically, not via the shell.  Use NULL_DEV, not
+	literal "/dev/null".  Print diagnostics if any calls to system()
+	failed.
+
+2000-05-31  Keith Thompson  <kst@SDSC.EDU>
+
+	* html.cc: Added declaration of mktemp() as needed for SunOS 4.1.3.
+
+2000-05-11  Werner LEMBERG  <wl@gnu.org>
+
+	* output.cc (simple_output::simple_output): Reordering of
+	initializers to remove compiler warning.
+
+2000-04-28  Gaius Mulley  <gaius@glam.ac.uk>
+
+	* html.cc (calculate_margin): Calculate the left and right margin
+	irrespective of the boolean `margin_on'.  Fixes a divide by zero bug
+	and a column bug as reported by Steve Blinkhorn <steve@prd.co.uk>.
+	Improved the behaviour of the -m (margin on) option.
+
+	* html.cc (make_html_indent): More checking.
+
+	* html.cc (right_indentation): Fixed substitution slip-up.
+	
+2000-03-30  Werner LEMBERG  <wl@gnu.org>
+
+	* grohtml.man: Document use of whitespace between command line
+	arguments and its parameters.
+
+2000-03-17  Werner LEMBERG  <wl@gnu.org>
+
+	* grohtml.man: Some formatting.
+
+2000-03-11  Werner LEMBERG  <wl@gnu.org>
+
+	* ordered_list.h (list_element): Added `<T>' twice to satisfy picky
+	compilers.
+
+2000-03-01  Gaius Mulley  <gaius@glam.ac.uk>
+
+	* html.cc (handle_unknown_font_command): Removed dead code as
+	spotted by Werner.
+	
+2000-02-11  Gaius Mulley  <gaius@glam.ac.uk>
+
+	* html.cc (create_tmp_file, create_temp_name): Removed.  It has been
+	replaced with calls to xtmpfile() and xtmptemplate().
+
+2000-02-07  Gaius Mulley  <gaius@glam.ac.uk>
+
+	* html.cc (html_printer::make_new_image_name): Tidied up file and
+	fixed name of image if the source file is in a different directory.
+
+	* html.cc (create_file): Renamed to create_tmp_file.
+	
+2000-02-07  Colin Phipps  <crp22@cam.ac.uk>
+
+	* html.cc (create_file): Identified & fixed security bug when
+	creating files in /tmp.
+
+2000-02-06  Werner LEMBERG  <wl@gnu.org>
+
+	* Makefile.sub: Adapted to new directory structure.
+
+2000-01-28  Gaius Mulley  <gaius@glam.ac.uk>
+
+	* html.cc: Minor fixes.
+
+2000-01-27  Gaius Mulley  <gaius@glam.ac.uk>
+
+	* html.cc: Added support for the new tcommand `F'.
+	* TODO: Updated.
+	
+2000-01-24  Gaius Mulley  <gaius@glam.ac.uk>
+
+	* design.ms: Revised.  Removed TODO stuff.
+
+	* TODO: New file.
+
+2000-01-21  Gaius Mulley  <gaius@glam.ac.uk>
+
+	* html.cc: Add support for char names in special requests (to
+	support e.g. accented characters in HTML specials).
+
+2000-01-14  Gaius Mulley  <gaius@glam.ac.uk>
+
+	* html.cc, html.h: Many fixes to table code.
+
+	Fixes to manual page handling, font changes, spaces, and
+	diacritical characters.  All *standard* html character encodings
+	are handled.
+	
+	Added -T option which turns off all image generation for tables. 
+	One day grohtml should be able to determine this for itself.
+
+	Altered image name to: <groff_input_file>-<index>.png as per
+	Werners suggestion.
+
+	* grohtml.man: Document -T option.
+
+	* html_chars.h: New file, providing diacritical table support.
+
+	* output.cc: New file, providing basic output routines for grohtml.
+
+	* Makefile.sub: Added output.cc.
+
+	* Makefile.dep: Updated.
+
+2000-01-13  Bruno Haible  <haible@clisp.cons.org>
+
+	* html.cc: Avoid most "g++ -Wall -Wno-sign-compare" warnings.
+
+2000-01-10  Werner Lemberg  <wl@gnu.org>
+
+	* html.cc: Use Version_string instead of version_string.
+
+1999-12-30  Gaius Mulley  <gaius@glam.ac.uk>
+
+	* html.cc (is_appropriate_to_start_table): Added a missing
+	declaration.
+
+1999-12-28  Gaius Mulley  <gaius@glam.ac.uk>
+
+	* html.cc: Revisited the table handling code with a vengeance,
+	aiming to make manual pages generate sensible html.
+	Superscripting/subscripting revisited.  Fixed wierd table lengths.
+	Table widths are now specified in percentages.  Fixed the man.n
+	test example which Werner reported.
+
+Version 1.15 released
+=====================
+
 1999-12-21  Werner LEMBERG  <wl@gnu.org>
 
 	* grohtml.man: Fixed copyright year.
