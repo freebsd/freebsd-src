@@ -46,7 +46,7 @@
  * entering from the right is passed to the left and duplicated on
  * right2left, and data entering from the left is passed to the right
  * and duplicated on left2right. Data entering from left2right is
- * sent to right, and data from right2left to left.
+ * sent to left, and data from right2left to right.
  */
 
 #include <sys/param.h>
