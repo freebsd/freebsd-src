@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: cd.c,v 1.64 1996/02/02 20:43:11 ache Exp $
+ *      $Id: cd.c,v 1.66 1996/02/13 03:46:48 ache Exp $
  */
 
 #include "opt_bounce.h"
@@ -48,20 +48,20 @@
 #include <scsi/scsiconf.h>
 
 static errval cd_get_parms __P((int, int));
-static u_int32 cd_size __P((int unit, int flags));
-static errval cd_get_mode __P((u_int32, struct cd_mode_data *, u_int32));
-static errval cd_set_mode __P((u_int32 unit, struct cd_mode_data *));
-static errval cd_read_toc __P((u_int32, u_int32, u_int32, struct cd_toc_entry *,
-			  u_int32));
+static u_int32_t cd_size __P((int unit, int flags));
+static errval cd_get_mode __P((u_int32_t, struct cd_mode_data *, u_int32_t));
+static errval cd_set_mode __P((u_int32_t unit, struct cd_mode_data *));
+static errval cd_read_toc __P((u_int32_t, u_int32_t, u_int32_t, struct cd_toc_entry *,
+			  u_int32_t));
 
-static errval cd_pause __P((u_int32, u_int32));
-static errval cd_reset __P((u_int32));
-static errval cd_play_msf __P((u_int32, u_int32, u_int32, u_int32, u_int32, u_int32, u_int32));
-static errval cd_play __P((u_int32, u_int32, u_int32));
-static errval cd_play_big __P((u_int32 unit, u_int32 blk, u_int32 len));
-static errval cd_play_tracks __P((u_int32, u_int32, u_int32, u_int32, u_int32));
-static errval cd_read_subchannel __P((u_int32, u_int32, u_int32, int, struct cd_sub_channel_info *, u_int32));
-static errval cd_getdisklabel __P((u_int8));
+static errval cd_pause __P((u_int32_t, u_int32_t));
+static errval cd_reset __P((u_int32_t));
+static errval cd_play_msf __P((u_int32_t, u_int32_t, u_int32_t, u_int32_t, u_int32_t, u_int32_t, u_int32_t));
+static errval cd_play __P((u_int32_t, u_int32_t, u_int32_t));
+static errval cd_play_big __P((u_int32_t unit, u_int32_t blk, u_int32_t len));
+static errval cd_play_tracks __P((u_int32_t, u_int32_t, u_int32_t, u_int32_t, u_int32_t));
+static errval cd_read_subchannel __P((u_int32_t, u_int32_t, u_int32_t, int, struct cd_sub_channel_info *, u_int32_t));
+static errval cd_getdisklabel __P((u_int8_t));
 
 static	d_open_t	cdopen;
 static	d_close_t	cdclose;
@@ -82,7 +82,7 @@ static struct cdevsw cd_cdevsw =
 	  &cd_bdevsw,	-1 };
 
 
-static int32   cdstrats, cdqueues;
+static int32_t cdstrats, cdqueues;
 
 #define CDUNIT(DEV)      ((minor(DEV)&0xF8) >> 3)    /* 5 bit unit */
 #define CDSETUNIT(DEV, U) makedev(major(DEV), ((U) << 3))
@@ -96,20 +96,20 @@ static int32   cdstrats, cdqueues;
 #define PARTITION(z)	(minor(z) & 0x07)
 #define RAW_PART        2
 
-static void	cdstart(u_int32 unit, u_int32 flags);
+static void	cdstart(u_int32_t unit, u_int32_t flags);
 
 struct scsi_data {
-	u_int32 flags;
+	u_int32_t flags;
 #define	CDINIT		0x04	/* device has been init'd */
 	struct cd_parms {
-		u_int32 blksize;
+		u_int32_t blksize;
 		u_long  disksize;	/* total number sectors */
 	} params;
 	struct disklabel disklabel;
-	u_int32 partflags[MAXPARTITIONS];	/* per partition flags */
+	u_int32_t partflags[MAXPARTITIONS];	/* per partition flags */
 #define CDOPEN	0x01
-	u_int32 openparts;	/* one bit for each open partition */
-	u_int32 xfer_block_wait;
+	u_int32_t openparts;	/* one bit for each open partition */
+	u_int32_t xfer_block_wait;
 	struct buf_queue_head buf_queue;
 	int dkunit;
 #ifdef	DEVFS
@@ -203,7 +203,7 @@ cd_registerdev(int unit)
 static int
 cdattach(struct scsi_link *sc_link)
 {
-	u_int32 unit;
+	u_int32_t unit;
 	struct cd_parms *dp;
 	struct scsi_data *cd = sc_link->sd;
 	char	name[32];
@@ -275,7 +275,7 @@ cd_open(dev_t dev, int flags, int fmt, struct proc *p,
 	struct scsi_link *sc_link)
 {
 	errval  errcode = 0;
-	u_int32 unit, part;
+	u_int32_t unit, part;
 	struct scsi_data *cd;
 
 	unit = CDUNIT(dev);
@@ -388,7 +388,7 @@ static errval
 cd_close(dev_t dev, int flag, int fmt, struct proc *p,
 	 struct scsi_link *sc_link)
 {
-	u_int8  unit, part;
+	u_int8_t  unit, part;
 	struct scsi_data *cd;
 
 	unit = CDUNIT(dev);
@@ -418,8 +418,8 @@ cd_close(dev_t dev, int flag, int fmt, struct proc *p,
 static void
 cd_strategy(struct buf *bp, struct scsi_link *sc_link)
 {
-	u_int32 opri;
-	u_int32 unit = CDUNIT((bp->b_dev));
+	u_int32_t opri;
+	u_int32_t unit = CDUNIT((bp->b_dev));
 	struct scsi_data *cd = sc_link->sd;
 
 	cdstrats++;
@@ -506,12 +506,12 @@ cd_strategy(struct buf *bp, struct scsi_link *sc_link)
  */
 static void
 cdstart(unit, flags)
-	u_int32 unit;
-	u_int32 flags;
+	u_int32_t unit;
+	u_int32_t flags;
 {
 	register struct buf *bp = 0;
 	struct scsi_rw_big cmd;
-	u_int32 blkno, nblk;
+	u_int32_t blkno, nblk;
 	struct partition *p;
 	struct scsi_link *sc_link = SCSI_LINK(&cd_switch, unit);
 	struct scsi_data *cd = sc_link->sd;
@@ -606,7 +606,7 @@ cd_ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p,
 	 struct scsi_link *sc_link)
 {
 	errval  error = 0;
-	u_int8  unit, part;
+	u_int8_t  unit, part;
 	register struct scsi_data *cd;
 
 	/*
@@ -722,7 +722,7 @@ cd_ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p,
 			struct ioc_read_subchannel *args
 			= (struct ioc_read_subchannel *) addr;
 			struct cd_sub_channel_info data;
-			u_int32 len = args->data_len;
+			u_int32_t len = args->data_len;
 			if (len > sizeof(data) ||
 			    len < sizeof(struct cd_sub_channel_header)) {
 				error = EINVAL;
@@ -764,8 +764,8 @@ cd_ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p,
 			struct ioc_read_toc_entry *te =
 			(struct ioc_read_toc_entry *) addr;
 			struct ioc_toc_header *th;
-			u_int32 len, readlen, idx, num;
-			u_int32 starting_track = te->starting_track;
+			u_int32_t len, readlen, idx, num;
+			u_int32_t starting_track = te->starting_track;
 
 			if (   te->data_len < sizeof(struct cd_toc_entry)
 			    || (te->data_len % sizeof(struct cd_toc_entry)) != 0
@@ -1004,7 +1004,7 @@ cd_ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p,
  */
 static errval
 cd_getdisklabel(unit)
-	u_int8  unit;
+	u_int8_t  unit;
 {
 	/*unsigned int n, m; */
 	struct scsi_data *cd;
@@ -1051,15 +1051,15 @@ cd_getdisklabel(unit)
 /*
  * Find out from the device what it's capacity is
  */
-static u_int32
+static u_int32_t
 cd_size(unit, flags)
 	int unit;
 	int flags;
 {
 	struct scsi_read_cd_cap_data rdcap;
 	struct scsi_read_cd_capacity scsi_cmd;
-	u_int32 size;
-	u_int32 blksize;
+	u_int32_t size;
+	u_int32_t blksize;
 	struct scsi_link *sc_link = SCSI_LINK(&cd_switch, unit);
 	struct scsi_data *cd = sc_link->sd;
 
@@ -1110,9 +1110,9 @@ cd_size(unit, flags)
  */
 static errval
 cd_get_mode(unit, data, page)
-	u_int32 unit;
+	u_int32_t unit;
 	struct cd_mode_data *data;
-	u_int32 page;
+	u_int32_t page;
 {
 	struct scsi_mode_sense scsi_cmd;
 	errval  retval;
@@ -1139,7 +1139,7 @@ cd_get_mode(unit, data, page)
  */
 static errval
 cd_set_mode(unit, data)
-	u_int32 unit;
+	u_int32_t unit;
 	struct cd_mode_data *data;
 {
 	struct scsi_mode_select scsi_cmd;
@@ -1171,7 +1171,7 @@ cd_set_mode(unit, data)
  */
 static errval
 cd_play(unit, blk, len)
-	u_int32 unit, blk, len;
+	u_int32_t unit, blk, len;
 {
 	struct scsi_play scsi_cmd;
 
@@ -1199,7 +1199,7 @@ cd_play(unit, blk, len)
  */
 static errval
 cd_play_big(unit, blk, len)
-	u_int32 unit, blk, len;
+	u_int32_t unit, blk, len;
 {
 	struct scsi_play_big scsi_cmd;
 
@@ -1229,7 +1229,7 @@ cd_play_big(unit, blk, len)
  */
 static errval
 cd_play_tracks(unit, strack, sindex, etrack, eindex)
-	u_int32 unit, strack, sindex, etrack, eindex;
+	u_int32_t unit, strack, sindex, etrack, eindex;
 {
 	struct scsi_play_track scsi_cmd;
 
@@ -1255,7 +1255,7 @@ cd_play_tracks(unit, strack, sindex, etrack, eindex)
  */
 static errval
 cd_play_msf(unit, startm, starts, startf, endm, ends, endf)
-	u_int32 unit, startm, starts, startf, endm, ends, endf;
+	u_int32_t unit, startm, starts, startf, endm, ends, endf;
 {
 	struct scsi_play_msf scsi_cmd;
 
@@ -1284,7 +1284,7 @@ cd_play_msf(unit, startm, starts, startf, endm, ends, endf)
  */
 static errval
 cd_pause(unit, go)
-	u_int32 unit, go;
+	u_int32_t unit, go;
 {
 	struct scsi_pause scsi_cmd;
 
@@ -1308,7 +1308,7 @@ cd_pause(unit, go)
  */
 static errval
 cd_reset(unit)
-	u_int32 unit;
+	u_int32_t unit;
 {
 	return scsi_reset_target(SCSI_LINK(&cd_switch, unit));
 }
@@ -1318,10 +1318,10 @@ cd_reset(unit)
  */
 static errval
 cd_read_subchannel(unit, mode, format, track, data, len)
-	u_int32 unit, mode, format;
+	u_int32_t unit, mode, format;
 	int track;
 	struct cd_sub_channel_info *data;
-	u_int32 len;
+	u_int32_t len;
 {
 	struct scsi_read_subchannel scsi_cmd;
 
@@ -1351,12 +1351,12 @@ cd_read_subchannel(unit, mode, format, track, data, len)
  */
 static errval
 cd_read_toc(unit, mode, start, data, len)
-	u_int32 unit, mode, start;
+	u_int32_t unit, mode, start;
 	struct cd_toc_entry *data;
-	u_int32 len;
+	u_int32_t len;
 {
 	struct scsi_read_toc scsi_cmd;
-	u_int32 ntoc;
+	u_int32_t ntoc;
 
 	bzero(&scsi_cmd, sizeof(scsi_cmd));
 	/*if(len!=sizeof(struct ioc_toc_header))

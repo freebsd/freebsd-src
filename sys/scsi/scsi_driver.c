@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: scsi_driver.c,v 1.12 1995/12/05 07:14:23 julian Exp $
+ * $Id: scsi_driver.c,v 1.13 1996/01/20 15:05:50 joerg Exp $
  *
  */
 #include <sys/types.h>
@@ -108,7 +108,7 @@ scsi_open(dev_t dev, int flags, int fmt, struct proc *p,
 struct scsi_device *device)
 {
 	errval  errcode;
-	u_int32 unit;
+	u_int32_t unit;
 	struct scsi_link *sc_link;
 
 	if (device == 0)
@@ -164,7 +164,7 @@ struct scsi_device *device)
 }
 
 int
-scsi_ioctl(dev_t dev, u_int32 cmd, caddr_t arg, int flags, struct proc *p,
+scsi_ioctl(dev_t dev, u_int32_t cmd, caddr_t arg, int flags, struct proc *p,
 struct scsi_device *device)
 {
 	errval errcode;
@@ -188,7 +188,7 @@ scsi_minphys(struct buf *bp, struct scsi_device *device)
 void
 scsi_strategy(struct buf *bp, struct scsi_device *device)
 {
-	u_int32 unit = GETUNIT(device, bp->b_dev);
+	u_int32_t unit = GETUNIT(device, bp->b_dev);
 	struct scsi_link *sc_link = SCSI_LINK(device, unit);
 
 	SC_DEBUG(sc_link, SDEV_DB2, ("\n%sstrategy ", device->name));

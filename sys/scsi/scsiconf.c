@@ -16,7 +16,7 @@
  *
  * New configuration setup: dufault@hda.com
  *
- *      $Id: scsiconf.c,v 1.55 1996/02/19 09:26:07 julian Exp $
+ *      $Id: scsiconf.c,v 1.56 1996/03/09 07:13:57 peter Exp $
  */
 
 #include "opt_scsi.h"
@@ -165,15 +165,15 @@ static struct extend_array *scbusses;
  * The structure of known drivers for autoconfiguration
  */
 struct scsidevs {
-	u_int32 type;
-	u_int32 driver;		/* normally the same as type */
+	u_int32_t type;
+	u_int32_t driver;		/* normally the same as type */
 	boolean removable;
 	char   *manufacturer;
 	char   *model;
 	char   *version;
 	char   *devname;
 	char    flags;		/* 1 show my comparisons during boot(debug) */
-	u_int16	quirks;
+	u_int16_t	quirks;
 	void   *devmodes;
 };
 
@@ -380,7 +380,7 @@ static struct scsidevs knowndevs[] =
  */
 static struct scsidevs *scsi_probedev __P((struct scsi_link *sc_link,
 				    boolean *maybe_more, int *type_p));
-static struct scsidevs *scsi_selectdev __P((u_int32 qualifier, u_int32 type,
+static struct scsidevs *scsi_selectdev __P((u_int32_t qualifier, u_int32_t type,
 				     boolean remov, char *manu, char *model,
 				     char *rev));
 
@@ -754,7 +754,7 @@ scsi_probe_busses(int bus, int targ, int lun)
 static int
 scsi_alloc_unit(struct scsi_link *sc_link)
 {
-	u_int32 unit;
+	u_int32_t unit;
 	struct scsi_data *sd;
 	struct scsi_device *dsw;
 
@@ -949,7 +949,7 @@ scsi_probe_bus(int bus, int targ, int lun)
 	struct scsibus_data *scsibus_data ;
 	int	maxtarg,mintarg,maxlun,minlun;
 	struct scsi_link *sc_link_proto;
-	u_int8  scsi_addr ;
+	u_int8_t  scsi_addr ;
 	struct scsidevs *bestmatch = NULL;
 	struct scsi_link *sc_link = NULL;
 	boolean maybe_more;
@@ -1089,14 +1089,14 @@ scsi_probedev(sc_link, maybe_more, type_p)
 	struct scsi_link *sc_link;
 	int *type_p;
 {
-	u_int8  target = sc_link->target;
-	u_int8  lu = sc_link->lun;
+	u_int8_t  target = sc_link->target;
+	u_int8_t  lu = sc_link->lun;
 	struct scsidevs *bestmatch = (struct scsidevs *) 0;
 	int    dtype = 0;
 	char   *desc;
 	char   *qtype;
 	struct scsi_inquiry_data *inqbuf;
-	u_int32 len, qualifier, type;
+	u_int32_t len, qualifier, type;
 	boolean remov;
 	char    manu[8 + 1];
 	char    model[16 + 1];
@@ -1300,7 +1300,7 @@ match(pattern, name)
  */
 static struct scsidevs *
 scsi_selectdev(qualifier, type, remov, manu, model, rev)
-	u_int32 qualifier, type;
+	u_int32_t qualifier, type;
 	boolean remov;
 	char   *manu, *model, *rev;
 {
