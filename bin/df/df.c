@@ -51,15 +51,18 @@ static const char rcsid[] =
 #endif
 #endif /* not lint */
 
+#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <sys/mount.h>
 #include <sys/sysctl.h>
 #include <ufs/ufs/ufsmount.h>
+#include <ufs/ffs/fs.h>
 
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <fstab.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -94,35 +97,33 @@ unsigned long long *valp;
 
 typedef enum { NONE, KILO, MEGA, GIGA, TERA, PETA, UNIT_MAX } unit_t;
 
-int unitp [] = { NONE, KILO, MEGA, GIGA, TERA, PETA };
+unit_t unitp [] = { NONE, KILO, MEGA, GIGA, TERA, PETA };
 
-int	  main __P((int, char *[]));
-int	  bread __P((off_t, void *, int));
-int	  checkvfsname __P((const char *, char **));
-char	 *makenetvfslist __P((void));
-char	**makevfslist __P((char *));
-char	 *getmntpt __P((char *));
-void	  prthuman __P((struct statfs *, long));
-void	  prthumanval __P((double));
-void	  prtstat __P((struct statfs *, int));
-long	  regetmntinfo __P((struct statfs **, long, char **));
-int	  ufs_df __P((char *, int));
-unit_t	  unit_adjust __P((double *));
-void	  usage __P((void));
+int	  bread(off_t, void *, int);
+int	  checkvfsname(const char *, char **);
+char	 *getmntpt(char *);
+char	 *makenetvfslist(void);
+char	**makevfslist(char *);
+void	  prthuman(struct statfs *, long);
+void	  prthumanval(double);
+void	  prtstat(struct statfs *, int);
+long	  regetmntinfo(struct statfs **, long, char **);
+int	  ufs_df(char *, int);
+unit_t	  unit_adjust(double *);
+void	  usage(void);
 
 int	aflag = 0, hflag, iflag, nflag;
 struct	ufs_args mdev;
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	struct stat stbuf;
 	struct statfs statfsbuf, *mntbuf;
+	const char *fstype;
+	char *mntpath, *mntpt, **vfslist;
 	long mntsize;
 	int ch, i, maxwidth, rv, width;
-	char *fstype, *mntpt, *mntpath, **vfslist;
 
 	fstype = "ufs";
 
@@ -171,7 +172,7 @@ main(argc, argv)
 			break;
 		case 't':
 			if (vfslist != NULL)
-				errx(1, "only one -t option may be specified.");
+				errx(1, "only one -t option may be specified");
 			fstype = optarg;
 			vfslist = makevfslist(optarg);
 			break;
@@ -268,8 +269,7 @@ main(argc, argv)
 }
 
 char *
-getmntpt(name)
-	char *name;
+getmntpt(char *name)
 {
 	long mntsize, i;
 	struct statfs *mntbuf;
@@ -288,10 +288,7 @@ getmntpt(name)
  * current (not cached) info.  Returns the new count of valid statfs bufs.
  */
 long
-regetmntinfo(mntbufp, mntsize, vfslist)
-	struct statfs **mntbufp;
-	long mntsize;
-	char **vfslist;
+regetmntinfo(struct statfs **mntbufp, long mntsize, char **vfslist)
 {
 	int i, j;
 	struct statfs *mntbuf;
@@ -319,8 +316,7 @@ regetmntinfo(mntbufp, mntsize, vfslist)
  *
  */
 unit_t
-unit_adjust(val)
-	double *val;
+unit_adjust(double *val)
 {
 	double abval;
 	unit_t unit;
@@ -341,9 +337,7 @@ unit_adjust(val)
 }
 
 void
-prthuman(sfsp, used)
-	struct statfs *sfsp;
-	long used;
+prthuman(struct statfs *sfsp, long used)
 {
 
 	prthumanval((double)sfsp->f_blocks * (double)sfsp->f_bsize);
@@ -352,8 +346,7 @@ prthuman(sfsp, used)
 }
 
 void
-prthumanval(bytes)
-	double bytes;
+prthumanval(double bytes)
 {
 
 	unit_t unit;
@@ -379,9 +372,7 @@ prthumanval(bytes)
  * Print out status about a filesystem.
  */
 void
-prtstat(sfsp, maxwidth)
-	struct statfs *sfsp;
-	int maxwidth;
+prtstat(struct statfs *sfsp, int maxwidth)
 {
 	static long blocksize;
 	static int headerlen, timesthrough;
@@ -432,10 +423,6 @@ prtstat(sfsp, maxwidth)
  * This code constitutes the pre-system call Berkeley df code for extracting
  * information from filesystem superblocks.
  */
-#include <ufs/ufs/dinode.h>
-#include <ufs/ffs/fs.h>
-#include <errno.h>
-#include <fstab.h>
 
 union {
 	struct fs iu_fs;
@@ -446,9 +433,7 @@ union {
 int	rfd;
 
 int
-ufs_df(file, maxwidth)
-	char *file;
-	int maxwidth;
+ufs_df(char *file, int maxwidth)
 {
 	struct statfs statfsbuf;
 	struct statfs *sfsp;
@@ -482,34 +467,31 @@ ufs_df(file, maxwidth)
 	sfsp->f_fsid.val[1] = 0;
 	if ((mntpt = getmntpt(file)) == 0)
 		mntpt = "";
-	memmove(&sfsp->f_mntonname[0], mntpt, MNAMELEN);
-	memmove(&sfsp->f_mntfromname[0], file, MNAMELEN);
+	memmove(&sfsp->f_mntonname[0], mntpt, (size_t)MNAMELEN);
+	memmove(&sfsp->f_mntfromname[0], file, (size_t)MNAMELEN);
 	prtstat(sfsp, maxwidth);
 	(void)close(rfd);
 	return (0);
 }
 
 int
-bread(off, buf, cnt)
-	off_t off;
-	void *buf;
-	int cnt;
+bread(off_t off, void *buf, int cnt)
 {
-	int nr;
+	ssize_t nr;
 
 	(void)lseek(rfd, off, SEEK_SET);
-	if ((nr = read(rfd, buf, cnt)) != cnt) {
+	if ((nr = read(rfd, buf, (size_t)cnt)) != (ssize_t)cnt) {
 		/* Probably a dismounted disk if errno == EIO. */
 		if (errno != EIO)
-			(void)fprintf(stderr, "\ndf: %qd: %s\n",
-			    off, strerror(nr > 0 ? EIO : errno));
+			(void)fprintf(stderr, "\ndf: %lld: %s\n",
+			    (long long)off, strerror(nr > 0 ? EIO : errno));
 		return (0);
 	}
 	return (1);
 }
 
 void
-usage()
+usage(void)
 {
 
 	(void)fprintf(stderr,
@@ -517,28 +499,31 @@ usage()
 	exit(EX_USAGE);
 }
 
-char *makenetvfslist()
+char *
+makenetvfslist(void)
 {
 	char *str, *strptr, **listptr;
-	int mib[3], maxvfsconf, miblen, cnt=0, i;
+	int mib[3], maxvfsconf, cnt=0, i;
+	size_t miblen;
 	struct ovfsconf *ptr;
 
 	mib[0] = CTL_VFS; mib[1] = VFS_GENERIC; mib[2] = VFS_MAXTYPENUM;
 	miblen=sizeof(maxvfsconf);
-	if (sysctl(mib, sizeof(mib)/sizeof(mib[0]), &maxvfsconf, &miblen, NULL, 0)) {
+	if (sysctl(mib, (unsigned int)(sizeof(mib) / sizeof(mib[0])),
+	    &maxvfsconf, &miblen, NULL, 0)) {
 		warnx("sysctl failed");
 		return (NULL);
 	}
 
-	if ((listptr=malloc(sizeof(char*) * maxvfsconf)) == NULL) {
+	if ((listptr = malloc(sizeof(char*) * maxvfsconf)) == NULL) {
 		warnx("malloc failed");
 		return (NULL);
 	}
 
-	for (ptr=getvfsent();ptr;ptr=getvfsent())
+	for (ptr = getvfsent(); ptr; ptr = getvfsent())
 		if (ptr->vfc_flags & VFCF_NETWORK) {
-			listptr[cnt++] = strdup (ptr->vfc_name);
-			if (! listptr[cnt-1]) {
+			listptr[cnt++] = strdup(ptr->vfc_name);
+			if (listptr[cnt-1] == NULL) {
 				warnx("malloc failed");
 				return (NULL);
 			}
@@ -552,11 +537,11 @@ char *makenetvfslist()
 		return (NULL);
 	}
 
-	*str = 'n'; *(str+1) = 'o';
-	for (i = 0,strptr=str+2; i < cnt; i++,strptr++) {
-		strncpy (strptr, listptr[i], 32);
-		strptr+=strlen(listptr[i]);
-		*strptr=',';
+	*str = 'n'; *(str + 1) = 'o';
+	for (i = 0, strptr = str + 2; i < cnt; i++, strptr++) {
+		strncpy(strptr, listptr[i], 32);
+		strptr += strlen(listptr[i]);
+		*strptr = ',';
 		free(listptr[i]);
 	}
 	*(--strptr) = NULL;
