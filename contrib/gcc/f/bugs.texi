@@ -1,4 +1,4 @@
-@c Copyright (C) 1995-1999 Free Software Foundation, Inc.
+@c Copyright (C) 1995, 1996, 1997, 1998, 1999, 2000, 2001 Free Software Foundation, Inc.
 @c This is part of the G77 manual.
 @c For copying conditions, see the file g77.texi.
 
@@ -7,9 +7,9 @@
 
 @c Keep this the same as the dates above, since it's used
 @c in the standalone derivations of this file (e.g. BUGS).
-@set copyrights-bugs 1995-1999
+@set copyrights-bugs 1995,1996,1997,1998,1999,2000,2001
 
-@set last-update-bugs 1999-06-29
+@set last-update-bugs 2001-06-10
 
 @include root.texi
 
@@ -77,22 +77,10 @@ most consistent with the @code{g77} product in that version.
 
 An online, ``live'' version of this document
 (derived directly from the mainline, development version
-of @code{g77} within @code{egcs})
+of @code{g77} within @code{gcc})
 is available via
 @uref{http://www.gnu.org/software/gcc/onlinedocs/g77_bugs.html}.
 Follow the ``Known Bugs'' link.
-
-@ifset DOC-G77
-For information on bugs that might afflict people who
-configure, port, build, and install @code{g77},
-see @ref{Problems Installing}.
-@end ifset
-
-@ifset DOC-BUGS
-For information on bugs that might afflict people who
-configure, port, build, and install @code{g77},
-see "Problems Installing" in @file{@value{path-g77}/INSTALL}.
-@end ifset
 
 The following information was last updated on @value{last-update-bugs}:
 
@@ -167,30 +155,40 @@ improvements to the compiler.)
 Note that @code{g77} does display a warning message to
 notify the user before the compiler appears to hang.
 @ifset DOC-G77
-@xref{Large Initialization,,Initialization of Large Aggregate Areas},
-for information on how to change the point at which
-@code{g77} decides to issue this warning.
-@end ifset
+A warning message is issued when @code{g77} sees code that provides
+initial values (e.g. via @code{DATA}) to an aggregate area (@code{COMMON}
+or @code{EQUIVALENCE}, or even a large enough array or @code{CHARACTER}
+variable)
+that is large enough to increase @code{g77}'s compile time by roughly
+a factor of 10.
 
-@cindex debugging
-@cindex common blocks
-@cindex equivalence areas
-@cindex local equivalence areas
-@item
-@code{g77} doesn't emit variable and array members of common blocks for use
-with a debugger (the @samp{-g} command-line option).
-The code is present to do this, but doesn't work with at least
-one debug format---perhaps it works with others.
-And it turns out there's a similar bug for
-local equivalence areas, so that has been disabled as well.
+This size currently is quite small, since @code{g77}
+currently has a known bug requiring too much memory
+and time to handle such cases.
+In @file{@value{path-g77}/data.c}, the macro
+@code{FFEDATA_sizeTOO_BIG_INIT_} is defined
+to the minimum size for the warning to appear.
+The size is specified in storage units,
+which can be bytes, words, or whatever, on a case-by-case basis.
 
-As of Version 0.5.19, a temporary kludge solution is provided whereby
-some rudimentary information on a member is written as a string that
-is the member's value as a character string.
+After changing this macro definition, you must
+(of course) rebuild and reinstall @code{g77} for
+the change to take effect.
 
-@ifset DOC-G77
-@xref{Code Gen Options,,Options for Code Generation Conventions},
-for information on the @samp{-fdebug-kludge} option.
+Note that, as of version 0.5.18, improvements have
+reduced the scope of the problem for @emph{sparse}
+initialization of large arrays, especially those
+with large, contiguous uninitialized areas.
+However, the warning is issued at a point prior to
+when @code{g77} knows whether the initialization is sparse,
+and delaying the warning could mean it is produced
+too late to be helpful.
+
+Therefore, the macro definition should not be adjusted to
+reflect sparse cases.
+Instead, adjust it to generate the warning when densely
+initialized arrays begin to cause responses noticeably slower
+than linear performance would suggest.
 @end ifset
 
 @cindex code, displaying main source

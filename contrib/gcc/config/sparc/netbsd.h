@@ -1,13 +1,7 @@
-#include <sparc/sparc.h>
-
-/* Get generic NetBSD definitions.  */
-
-#include <netbsd.h>
-
 /* Names to predefine in the preprocessor for this target machine.  */
 
 #undef CPP_PREDEFINES
-#define CPP_PREDEFINES "-Dunix -Dsparc -D__NetBSD__ -Asystem(unix) -Asystem(NetBSD) -Acpu(sparc) -Amachine(sparc)"
+#define CPP_PREDEFINES "-Dunix -Dsparc -D__NetBSD__ -Asystem=unix -Asystem=NetBSD -Acpu=sparc -Amachine=sparc"
 
 /* Make gcc agree with <machine/ansi.h> */
 
@@ -43,4 +37,3 @@
 /* Until they use ELF or something that handles dwarf2 unwinds
    and initialization stuff better.  */
 #define DWARF2_UNWIND_INFO 0
-

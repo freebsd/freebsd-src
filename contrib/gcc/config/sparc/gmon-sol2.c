@@ -10,10 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
+ * 3. [rescinded 22 July 1999]
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -88,9 +85,9 @@ static int	s_scale;
 
 #define	MSG "No space for profiling buffer(s)\n"
 
-static void moncontrol	PROTO ((int));
-extern void monstartup	PROTO ((char *, char *));
-extern void _mcleanup	PROTO ((void));
+static void moncontrol	PARAMS ((int));
+extern void monstartup	PARAMS ((char *, char *));
+extern void _mcleanup	PARAMS ((void));
 
 void monstartup(lowpc, highpc)
     char	*lowpc;
@@ -105,10 +102,10 @@ void monstartup(lowpc, highpc)
 	 *	so the rest of the scaling (here and in gprof) stays in ints.
 	 */
     lowpc = (char *)
-	    ROUNDDOWN((unsigned)lowpc, HISTFRACTION*sizeof(HISTCOUNTER));
+	    ROUNDDOWN((unsigned long)lowpc, HISTFRACTION*sizeof(HISTCOUNTER));
     s_lowpc = lowpc;
     highpc = (char *)
-	    ROUNDUP((unsigned)highpc, HISTFRACTION*sizeof(HISTCOUNTER));
+	    ROUNDUP((unsigned long)highpc, HISTFRACTION*sizeof(HISTCOUNTER));
     s_highpc = highpc;
     s_textsize = highpc - lowpc;
     monsize = (s_textsize / HISTFRACTION) + sizeof(struct phdr);
@@ -198,7 +195,7 @@ _mcleanup()
 	else
 	    progname++;
 
-	sprintf(buf, "%s/%ld.%s", profdir, getpid(), progname);
+	sprintf(buf, "%s/%ld.%s", profdir, (long) getpid(), progname);
 	proffile = buf;
     } else {
 	proffile = "gmon.out";
@@ -211,7 +208,7 @@ _mcleanup()
     }
 #   ifdef DEBUG
 	fprintf( stderr , "[mcleanup] sbuf 0x%x ssiz %d\n" , sbuf , ssiz );
-#   endif DEBUG
+#   endif /* DEBUG */
     write( fd , sbuf , ssiz );
     endfrom = s_textsize / (HASHFRACTION * sizeof(*froms));
     for ( fromindex = 0 ; fromindex < endfrom ; fromindex++ ) {
@@ -224,7 +221,7 @@ _mcleanup()
 		fprintf( stderr ,
 			"[mcleanup] frompc 0x%x selfpc 0x%x count %d\n" ,
 			frompc , tos[toindex].selfpc , tos[toindex].count );
-#	    endif DEBUG
+#	    endif /* DEBUG */
 	    rawarc.raw_frompc = (unsigned long) frompc;
 	    rawarc.raw_selfpc = (unsigned long) tos[toindex].selfpc;
 	    rawarc.raw_count = tos[toindex].count;
@@ -269,7 +266,7 @@ _mcleanup()
  * -- [eichin:19920702.1107EST]
  */
 
-static void internal_mcount PROTO((char *, unsigned short *)) ATTRIBUTE_UNUSED;
+static void internal_mcount PARAMS ((char *, unsigned short *)) ATTRIBUTE_UNUSED;
 
 /* i7 == last ret, -> frompcindex */
 /* o7 == current ret, -> selfpc */
@@ -415,7 +412,7 @@ static void moncontrol(mode)
 	/* start */
 	profil((unsigned short *)(sbuf + sizeof(struct phdr)),
 	       ssiz - sizeof(struct phdr),
-	       (int)s_lowpc, s_scale);
+	       (long)s_lowpc, s_scale);
 	profiling = 0;
     } else {
 	/* stop */

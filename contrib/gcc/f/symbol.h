@@ -19,8 +19,8 @@ along with GNU Fortran; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 02111-1307, USA.  */
 
-#ifndef _H_f_symbol
-#define _H_f_symbol
+#ifndef GCC_F_SYMBOL_H
+#define GCC_F_SYMBOL_H
 
 /* The main symbol type.  */
 
@@ -182,9 +182,6 @@ ffesymbol ffesymbol_declare_subrunit (ffelexToken t);
 void ffesymbol_drive (ffesymbol (*fn) (ffesymbol));
 void ffesymbol_drive_sfnames (ffesymbol (*fn) (ffesymbol));
 #define ffesymbol_dummyargs(s) ((s)->dummy_args)
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-void ffesymbol_dump (ffesymbol s);
-#endif
 void ffesymbol_error (ffesymbol s, ffelexToken t);
 #define ffesymbol_equiv(s) ((s)->equiv)
 #define ffesymbol_explicitwhere(s) ((s)->explicit_where)
@@ -223,10 +220,6 @@ ffesymbol ffesymbol_lookup_local (ffelexToken t);
 #define ffesymbol_ptr_to_namelist(s) (&(s)->namelist)
 #define ffesymbol_rank(s) ffeinfo_rank((s)->info)
 void ffesymbol_reference (ffesymbol s, ffelexToken t, bool explicit);
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-ffesymbol ffesymbol_report (ffesymbol s);
-void ffesymbol_report_all (void);
-#endif
 void ffesymbol_resolve_intrin (ffesymbol s);
 void ffesymbol_retract (bool retract);
 bool ffesymbol_retractable (void);
@@ -293,4 +286,4 @@ void ffesymbol_update_save (ffesymbol s);
 #define ffesymbol_where_line(s) (((s)->name == NULL) ? ffewhere_line_unknown() \
       : ffename_where_line((s)->name))
 
-#endif
+#endif /* ! GCC_F_SYMBOL_H */

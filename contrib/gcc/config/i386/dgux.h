@@ -1,5 +1,6 @@
 /* Target definitions for GNU compiler for Intel 80x86 running DG/ux
-   Copyright (C) 1993, 1995, 1996, 1997, 1998 Free Software Foundation, Inc.
+   Copyright (C) 1993, 1995, 1996, 1997, 1998, 2000, 2001
+   Free Software Foundation, Inc.
    Currently maintained by gcc@dg-rtp.dg.com.
 
 This file is part of GNU CC.
@@ -23,10 +24,8 @@ Boston, MA 02111-1307, USA.  */
    few hacks
 */
 
-#include "i386/sysv4.h"
-
 #ifndef VERSION_INFO2
-#define VERSION_INFO2   "$Revision: 1.6 $"
+#define VERSION_INFO2   "$Revision: 1.16 $"
 #endif
 
 #ifndef VERSION_STRING
@@ -57,12 +56,17 @@ Boston, MA 02111-1307, USA.  */
 
 #undef  SUBTARGET_SWITCHES
 #define SUBTARGET_SWITCHES \
-    { "standard",			 MASK_STANDARD, "Retain standard MXDB information" },          \
-    { "legend",				-MASK_NOLEGEND, "Retain legend information" },          \
-    { "no-legend",			 MASK_NOLEGEND, "" },          \
-    { "external-legend",		 MASK_EXTERNAL_LEGEND, "Generate external legend information" },   \
-    { "identify-revision", 		 MASK_IDENTIFY_REVISION, "Emit identifying info in .s file" }, \
-    { "warn-passed-structs", 		 MASK_WARN_PASS_STRUCT, "Warn when a function arg is a structure" },
+    { "standard",		MASK_STANDARD,			\
+      N_("Retain standard MXDB information") },			\
+    { "legend",			-MASK_NOLEGEND,			\
+      N_("Retain legend information") },          		\
+    { "no-legend",		MASK_NOLEGEND, "" },		\
+    { "external-legend",	MASK_EXTERNAL_LEGEND,		\
+      N_("Generate external legend information") },		\
+    { "identify-revision", 	MASK_IDENTIFY_REVISION,		\
+      N_("Emit identifying info in .s file") },			\
+    { "warn-passed-structs", 	MASK_WARN_PASS_STRUCT,		\
+      N_("Warn when a function arg is a structure") },
 
 #undef  DWARF_DEBUGGING_INFO
 #define DWARF_DEBUGGING_INFO
@@ -74,13 +78,18 @@ Boston, MA 02111-1307, USA.  */
 #undef  DBX_DEBUGGING_INFO
 #define DBX_DEBUGGING_INFO
 
+#undef  PREFERRED_DEBUGGING_TYPE
 #define PREFERRED_DEBUGGING_TYPE DWARF_DEBUG
 
-/* Override svr[34].h.  */
+/* Override svr[34].h.  Switch to the data section so that the coffsem
+   symbol isn't in the text section.  */
 #undef	ASM_FILE_START
 #define ASM_FILE_START(FILE) \
-  output_file_start (FILE, f_options, sizeof f_options / sizeof f_options[0], \
-		     W_options, sizeof W_options / sizeof W_options[0])
+  do { \
+    output_file_directive (FILE, main_input_filename); \
+    fprintf (FILE, "\t.version\t\"01.01\"\n"); \
+    data_section (); \
+  } while (0)
 
 /* ix86 abi specified type for wchar_t */
 
@@ -144,15 +153,15 @@ Boston, MA 02111-1307, USA.  */
    operate without installing the header files.  */
 
 #undef	CPP_PREDEFINES
-#define CPP_PREDEFINES "-Di386 -D__ix86 -Dunix -DDGUX -D__CLASSIFY_TYPE__=2\
-   -Asystem(unix) -Asystem(svr4) -Acpu(i386) -Amachine(i386)"
+#define CPP_PREDEFINES "-D__ix86 -Dunix -DDGUX -D__CLASSIFY_TYPE__=2\
+   -Asystem=unix -Asystem=svr4"
 
    /*
      If not -ansi, -traditional, or restricting include files to one
      specific source target, specify full DG/UX features.
    */
 #undef	CPP_SPEC
-#define	CPP_SPEC "%{!ansi:%{!traditional:-D__OPEN_NAMESPACE__}}"
+#define	CPP_SPEC "%(cpp_cpu) %{!ansi:%{!traditional:-D__OPEN_NAMESPACE__}}"
 
 /* Assembler support (legends for mxdb).  */
 #undef	ASM_SPEC
@@ -207,8 +216,8 @@ Boston, MA 02111-1307, USA.  */
 #undef	STARTFILE_SPEC
 #define STARTFILE_SPEC "%{!shared:%{!symbolic:%{pg:gcrt1.o%s} 		\
 			                      %{!pg:%{p:/lib/mcrt1.o%s}	\
-					      %{!p:/lib/crt1.o%s}}} 	\
-			%{pg:gcrti.o%s}%{!pg:/lib/crti.o%s}} 		\
+					     %{!p:/lib/crt1.o%s}}}}    \
+		       %{pg:gcrti.o%s}%{!pg:/lib/crti.o%s}	     \
 			crtbegin.o%s 					\
 			%{ansi:/lib/values-Xc.o%s} 			\
 			%{!ansi:%{traditional:/lib/values-Xt.o%s} 	\
@@ -226,9 +235,9 @@ Boston, MA 02111-1307, USA.  */
 
 /* Must use data section for relocatable constants when pic.  */
 #undef SELECT_RTX_SECTION
-#define SELECT_RTX_SECTION(MODE,RTX)            \
+#define SELECT_RTX_SECTION(MODE,RTX,ALIGN)      \
 {                                               \
-  if (flag_pic && symbolic_operand (RTX))       \
+  if (flag_pic && symbolic_operand (RTX, VOIDmode)) \
     data_section ();                            \
   else                                          \
     const_section ();                           \
@@ -245,4 +254,4 @@ Boston, MA 02111-1307, USA.  */
 
 /* Add .align 1 to avoid .backalign bug in assembler */
 #undef CONST_SECTION_ASM_OP
-#define CONST_SECTION_ASM_OP    ".section\t.rodata\n\t.align 1"
+#define CONST_SECTION_ASM_OP    "\t.section\t.rodata\n\t.align 1"

@@ -1,5 +1,5 @@
 /* Header file for generic hash table support.
-   Copyright (C) 1993, 1994, 1997, 1998 Free Software Foundation, Inc.
+   Copyright (C) 1993, 1994, 1997, 1998, 2001 Free Software Foundation, Inc.
    Written by Steve Chamberlain <sac@cygnus.com>
 
 This file was lifted from BFD, the Binary File Descriptor library.
@@ -24,8 +24,6 @@ Boston, MA 02111-1307, USA.  */
 #endif /* ! IN_GCC */
 
 #include "obstack.h"
-
-typedef enum {false, true} boolean;
 
 typedef PTR hash_table_key;
 
@@ -66,28 +64,28 @@ struct hash_table
   /* A function to compute the hash code for a key in the hash table.  */
   unsigned long (*hash) PARAMS ((hash_table_key));
   /* A function to compare two keys.  */
-  boolean (*comp) PARAMS ((hash_table_key, hash_table_key));
+  bool (*comp) PARAMS ((hash_table_key, hash_table_key));
   /* An obstack for this hash table.  */
   struct obstack memory;
 };
 
 /* Initialize a hash table.  */
-extern boolean hash_table_init
+extern void hash_table_init
   PARAMS ((struct hash_table *,
 	   struct hash_entry *(*) (struct hash_entry *,
 				   struct hash_table *,
 				   hash_table_key),
 	   unsigned long (*hash) (hash_table_key),
-	   boolean (*comp) (hash_table_key, hash_table_key)));
+	   bool (*comp) (hash_table_key, hash_table_key)));
 
 /* Initialize a hash table specifying a size.  */
-extern boolean hash_table_init_n
+extern void hash_table_init_n
   PARAMS ((struct hash_table *,
 	   struct hash_entry *(*) (struct hash_entry *,
 				   struct hash_table *,
 				   hash_table_key),
 	   unsigned long (*hash) (hash_table_key),
-	   boolean (*comp) (hash_table_key, hash_table_key),
+	   bool (*comp) (hash_table_key, hash_table_key),
 	   unsigned int size));
 
 /* Free up a hash table.  */
@@ -98,7 +96,7 @@ extern void hash_table_free PARAMS ((struct hash_table *));
    COPY is non-NULL, it is used to copy the KEY before storing it in
    the hash table.  */
 extern struct hash_entry *hash_lookup
-  PARAMS ((struct hash_table *, hash_table_key key, boolean create,
+  PARAMS ((struct hash_table *, hash_table_key key, int create,
 	   hash_table_key (*copy)(struct obstack*, hash_table_key)));
 
 /* Base method for creating a hash table entry.  */
@@ -114,7 +112,7 @@ extern PTR hash_allocate PARAMS ((struct hash_table *,
    element.  If the function returns false, the traversal stops.  The
    INFO argument is passed to the function.  */
 extern void hash_traverse PARAMS ((struct hash_table *,
-				   boolean (*) (struct hash_entry *,
+				   bool (*) (struct hash_entry *,
 						hash_table_key),
 				   hash_table_key info));
 
@@ -122,7 +120,7 @@ extern void hash_traverse PARAMS ((struct hash_table *,
 extern unsigned long string_hash PARAMS ((hash_table_key k));
 
 /* Compare two strings K1, K2 which are really of type `char*'.  */
-extern boolean string_compare PARAMS ((hash_table_key k1, 
+extern bool string_compare PARAMS ((hash_table_key k1, 
 				       hash_table_key k2));
 
 /* Copy a string K, which is really of type `char*'.  */

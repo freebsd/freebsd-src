@@ -1,42 +1,31 @@
 /* Generate attribute information (insn-attr.h) from machine description.
-   Copyright (C) 1991, 1994, 1996, 1998, 1999 Free Software Foundation, Inc.
+   Copyright (C) 1991, 1994, 1996, 1998, 1999, 2000 Free Software Foundation, Inc.
    Contributed by Richard Kenner (kenner@vlsi1.ultra.nyu.edu)
 
-This file is part of GNU CC.
+This file is part of GCC.
 
-GNU CC is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2, or (at your option)
-any later version.
+GCC is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free
+Software Foundation; either version 2, or (at your option) any later
+version.
 
-GNU CC is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+GCC is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or
+FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+for more details.
 
 You should have received a copy of the GNU General Public License
-along with GNU CC; see the file COPYING.  If not, write to
-the Free Software Foundation, 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
+along with GCC; see the file COPYING.  If not, write to the Free
+Software Foundation, 59 Temple Place - Suite 330, Boston, MA
+02111-1307, USA.  */
 
 
 #include "hconfig.h"
 #include "system.h"
 #include "rtl.h"
-#include "obstack.h"
+#include "errors.h"
+#include "gensupport.h"
 
-static struct obstack obstack;
-struct obstack *rtl_obstack = &obstack;
-
-#define obstack_chunk_alloc xmalloc
-#define obstack_chunk_free free
-
-void fatal PVPROTO ((const char *, ...))
-  ATTRIBUTE_PRINTF_1 ATTRIBUTE_NORETURN;
-void fancy_abort PROTO((void)) ATTRIBUTE_NORETURN;
-
-/* Define this so we can link with print-rtl.o to get debug_rtx function.  */
-char **insn_name_ptr = 0;
 
 /* A range of values.  */
 
@@ -60,11 +49,11 @@ struct function_unit
   struct range issue_delay;	/* Range of issue delay values.  */
 };
 
-static void extend_range PROTO((struct range *, int, int));
-static void init_range PROTO((struct range *));
-static void write_upcase PROTO((char *));
-static void gen_attr PROTO((rtx));
-static void write_units PROTO((int, struct range *, struct range *,
+static void extend_range PARAMS ((struct range *, int, int));
+static void init_range PARAMS ((struct range *));
+static void write_upcase PARAMS ((const char *));
+static void gen_attr PARAMS ((rtx));
+static void write_units PARAMS ((int, struct range *, struct range *,
 			       struct range *, struct range *,
 			       struct range *));
 static void
@@ -87,26 +76,25 @@ init_range (range)
 
 static void
 write_upcase (str)
-    char *str;
+    const char *str;
 {
   for (; *str; str++)
-    if (*str >= 'a' && *str <= 'z')
-      printf ("%c", *str - 'a' + 'A');
-    else
-      printf ("%c", *str);
+    putchar (TOUPPER(*str));
 }
 
 static void
 gen_attr (attr)
      rtx attr;
 {
-  char *p;
+  const char *p;
+  int is_const = GET_CODE (XEXP (attr, 2)) == CONST;  
 
   printf ("#define HAVE_ATTR_%s\n", XSTR (attr, 0));
 
   /* If numeric attribute, don't need to write an enum.  */
   if (*XSTR (attr, 1) == '\0')
-    printf ("extern int get_attr_%s ();\n", XSTR (attr, 0));
+    printf ("extern int get_attr_%s PARAMS ((%s));\n", XSTR (attr, 0),
+	    (is_const ? "void" : "rtx"));
   else
     {
       printf ("enum attr_%s {", XSTR (attr, 0));
@@ -121,28 +109,24 @@ gen_attr (attr)
 	      write_upcase (XSTR (attr, 0));
 	      printf ("_");
 	    }
-	  else if (*p >= 'a' && *p <= 'z')
-	    printf ("%c", *p - 'a' + 'A');
 	  else
-	    printf ("%c", *p);
+	    putchar (TOUPPER(*p));
 	}
 
       printf ("};\n");
-      printf ("extern enum attr_%s get_attr_%s ();\n\n",
-	      XSTR (attr, 0), XSTR (attr, 0));
+      printf ("extern enum attr_%s get_attr_%s PARAMS ((%s));\n\n",
+	      XSTR (attr, 0), XSTR (attr, 0), (is_const ? "void" : "rtx"));
     }
 
   /* If `length' attribute, write additional function definitions and define
      variables used by `insn_current_length'.  */
   if (! strcmp (XSTR (attr, 0), "length"))
     {
-      printf ("extern void init_lengths ();\n");
-      printf ("extern void shorten_branches PROTO((rtx));\n");
-      printf ("extern int insn_default_length PROTO((rtx));\n");
-      printf ("extern int insn_variable_length_p PROTO((rtx));\n");
-      printf ("extern int insn_current_length PROTO((rtx));\n\n");
-      printf ("extern int *insn_addresses;\n");
-      printf ("extern int insn_current_address;\n\n");
+      printf ("extern void shorten_branches PARAMS ((rtx));\n");
+      printf ("extern int insn_default_length PARAMS ((rtx));\n");
+      printf ("extern int insn_variable_length_p PARAMS ((rtx));\n");
+      printf ("extern int insn_current_length PARAMS ((rtx));\n\n");
+      printf ("#include \"insn-addr.h\"\n\n");
     }
 }
 
@@ -159,21 +143,21 @@ write_units (num_units, multiplicity, simultaneity,
   int i, q_size;
 
   printf ("#define INSN_SCHEDULING\n\n");
-  printf ("extern int result_ready_cost PROTO((rtx));\n");
-  printf ("extern int function_units_used PROTO((rtx));\n\n");
-  printf ("extern struct function_unit_desc\n");
+  printf ("extern int result_ready_cost PARAMS ((rtx));\n");
+  printf ("extern int function_units_used PARAMS ((rtx));\n\n");
+  printf ("extern const struct function_unit_desc\n");
   printf ("{\n");
-  printf ("  char *name;\n");
-  printf ("  int bitmask;\n");
-  printf ("  int multiplicity;\n");
-  printf ("  int simultaneity;\n");
-  printf ("  int default_cost;\n");
-  printf ("  int max_issue_delay;\n");
-  printf ("  int (*ready_cost_function) ();\n");
-  printf ("  int (*conflict_cost_function) ();\n");
-  printf ("  int max_blockage;\n");
-  printf ("  unsigned int (*blockage_range_function) ();\n");
-  printf ("  int (*blockage_function) ();\n");
+  printf ("  const char *const name;\n");
+  printf ("  const int bitmask;\n");
+  printf ("  const int multiplicity;\n");
+  printf ("  const int simultaneity;\n");
+  printf ("  const int default_cost;\n");
+  printf ("  const int max_issue_delay;\n");
+  printf ("  int (*const ready_cost_function) PARAMS ((rtx));\n");
+  printf ("  int (*const conflict_cost_function) PARAMS ((rtx, rtx));\n");
+  printf ("  const int max_blockage;\n");
+  printf ("  unsigned int (*const blockage_range_function) PARAMS ((rtx));\n");
+  printf ("  int (*const blockage_function) PARAMS ((rtx, rtx));\n");
   printf ("} function_units[];\n\n");
   printf ("#define FUNCTION_UNITS_SIZE %d\n", num_units);
   printf ("#define MIN_MULTIPLICITY %d\n", multiplicity->min);
@@ -198,70 +182,14 @@ write_units (num_units, multiplicity, simultaneity,
   printf ("#define INSN_QUEUE_SIZE %d\n", q_size);
 }
 
-PTR
-xmalloc (size)
-  size_t size;
-{
-  register PTR val = (PTR) malloc (size);
+extern int main PARAMS ((int, char **));
 
-  if (val == 0)
-    fatal ("virtual memory exhausted");
-  return val;
-}
-
-PTR
-xrealloc (old, size)
-  PTR old;
-  size_t size;
-{
-  register PTR ptr;
-  if (old)
-    ptr = (PTR) realloc (old, size);
-  else
-    ptr = (PTR) malloc (size);
-  if (!ptr)
-    fatal ("virtual memory exhausted");
-  return ptr;
-}
-
-void
-fatal VPROTO ((const char *format, ...))
-{
-#ifndef ANSI_PROTOTYPES
-  const char *format;
-#endif
-  va_list ap;
-
-  VA_START (ap, format);
-
-#ifndef ANSI_PROTOTYPES
-  format = va_arg (ap, const char *);
-#endif
-
-  fprintf (stderr, "genattr: ");
-  vfprintf (stderr, format, ap);
-  va_end (ap);
-  fprintf (stderr, "\n");
-  exit (FATAL_EXIT_CODE);
-}
-
-/* More 'friendly' abort that prints the line and file.
-   config.h can #define abort fancy_abort if you like that sort of thing.  */
-
-void
-fancy_abort ()
-{
-  fatal ("Internal gcc abort.");
-}
-
 int
 main (argc, argv)
      int argc;
      char **argv;
 {
   rtx desc;
-  FILE *infile;
-  register int c;
   int have_delay = 0;
   int have_annul_true = 0;
   int have_annul_false = 0;
@@ -277,39 +205,35 @@ main (argc, argv)
   init_range (&all_issue_delay);
   init_range (&all_blockage);
 
-  obstack_init (rtl_obstack);
+  progname = "genattr";
 
   if (argc <= 1)
-    fatal ("No input file name.");
+    fatal ("no input file name");
 
-  infile = fopen (argv[1], "r");
-  if (infile == 0)
-    {
-      perror (argv[1]);
-      exit (FATAL_EXIT_CODE);
-    }
+  if (init_md_reader_args (argc, argv) != SUCCESS_EXIT_CODE)
+    return (FATAL_EXIT_CODE);
 
-  init_rtl ();
-
-  printf ("/* Generated automatically by the program `genattr'\n\
-from the machine description file `md'.  */\n\n");
+  puts ("/* Generated automatically by the program `genattr'");
+  puts ("   from the machine description file `md'.  */\n");
+  puts ("#ifndef GCC_INSN_ATTR_H");
+  puts ("#define GCC_INSN_ATTR_H\n");
 
   /* For compatibility, define the attribute `alternative', which is just
      a reference to the variable `which_alternative'.  */
 
-  printf ("#define HAVE_ATTR_alternative\n");
-  printf ("#define get_attr_alternative(insn) which_alternative\n");
+  puts ("#define HAVE_ATTR_alternative");
+  puts ("#define get_attr_alternative(insn) which_alternative");
      
   /* Read the machine description.  */
 
   while (1)
     {
-      c = read_skip_spaces (infile);
-      if (c == EOF)
-	break;
-      ungetc (c, infile);
+      int line_no, insn_code_number;
 
-      desc = read_rtx (infile);
+      desc = read_md_rtx (&line_no, &insn_code_number);
+      if (desc == NULL)
+	break;
+
       if (GET_CODE (desc) == DEFINE_ATTR)
 	gen_attr (desc);
 
@@ -318,9 +242,9 @@ from the machine description file `md'.  */\n\n");
 	  if (! have_delay)
 	    {
 	      printf ("#define DELAY_SLOTS\n");
-	      printf ("extern int num_delay_slots PROTO((rtx));\n");
-	      printf ("extern int eligible_for_delay PROTO((rtx, int, rtx, int));\n\n");
-	      printf ("extern int const_num_delay_slots PROTO((rtx));\n\n");
+	      printf ("extern int num_delay_slots PARAMS ((rtx));\n");
+	      printf ("extern int eligible_for_delay PARAMS ((rtx, int, rtx, int));\n\n");
+	      printf ("extern int const_num_delay_slots PARAMS ((rtx));\n\n");
 	      have_delay = 1;
 	    }
 
@@ -329,14 +253,14 @@ from the machine description file `md'.  */\n\n");
 	      if (XVECEXP (desc, 1, i + 1) && ! have_annul_true)
 		{
 		  printf ("#define ANNUL_IFTRUE_SLOTS\n");
-		  printf ("extern int eligible_for_annul_true ();\n");
+		  printf ("extern int eligible_for_annul_true PARAMS ((rtx, int, rtx, int));\n");
 		  have_annul_true = 1;
 		}
 
 	      if (XVECEXP (desc, 1, i + 2) && ! have_annul_false)
 		{
 		  printf ("#define ANNUL_IFFALSE_SLOTS\n");
-		  printf ("extern int eligible_for_annul_false ();\n");
+		  printf ("extern int eligible_for_annul_false PARAMS ((rtx, int, rtx, int));\n");
 		  have_annul_false = 1;
 		}
 	    }
@@ -344,7 +268,7 @@ from the machine description file `md'.  */\n\n");
 
       else if (GET_CODE (desc) == DEFINE_FUNCTION_UNIT)
 	{
-	  char *name = XSTR (desc, 0);
+	  const char *name = XSTR (desc, 0);
 	  int multiplicity = XINT (desc, 1);
 	  int simultaneity = XINT (desc, 2);
 	  int ready_cost = MAX (XINT (desc, 4), 1);
@@ -357,11 +281,9 @@ from the machine description file `md'.  */\n\n");
 
 	  if (unit == 0)
 	    {
-	      int len = strlen (name) + 1;
 	      unit = (struct function_unit *)
-		alloca (sizeof (struct function_unit));
-	      unit->name = (char *) alloca (len);
-	      bcopy (name, unit->name, len);
+		xmalloc (sizeof (struct function_unit));
+	      unit->name = xstrdup (name);
 	      unit->multiplicity = multiplicity;
 	      unit->simultaneity = simultaneity;
 	      unit->ready_cost.min = unit->ready_cost.max = ready_cost;
@@ -375,7 +297,7 @@ from the machine description file `md'.  */\n\n");
 	    }
 	  else if (unit->multiplicity != multiplicity
 		   || unit->simultaneity != simultaneity)
-	    fatal ("Differing specifications given for `%s' function unit.",
+	    fatal ("Differing specifications given for `%s' function unit",
 		   unit->name);
 
 	  extend_range (&unit->ready_cost, ready_cost, ready_cost);
@@ -439,8 +361,18 @@ from the machine description file `md'.  */\n\n");
   printf("#define ATTR_FLAG_unlikely\t0x10\n");
   printf("#define ATTR_FLAG_very_unlikely\t0x20\n");
 
-  fflush (stdout);
-  exit (ferror (stdout) != 0 ? FATAL_EXIT_CODE : SUCCESS_EXIT_CODE);
-  /* NOTREACHED */
-  return 0;
+  puts("\n#endif /* GCC_INSN_ATTR_H */");
+
+  if (ferror (stdout) || fflush (stdout) || fclose (stdout))
+    return FATAL_EXIT_CODE;
+
+  return SUCCESS_EXIT_CODE;
+}
+
+/* Define this so we can link with print-rtl.o to get debug_rtx function.  */
+const char *
+get_insn_name (code)
+     int code ATTRIBUTE_UNUSED;
+{
+  return NULL;
 }

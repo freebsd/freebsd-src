@@ -1,1 +1,4 @@
-char *version_string = "2.95.3 20010315 (release)";
+#include "ansidecl.h"
+#include "version.h"
+
+const char *const version_string = "3.1 20020201 (experimental)";

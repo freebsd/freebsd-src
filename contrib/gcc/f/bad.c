@@ -1,5 +1,5 @@
 /* bad.c -- Implementation File (module.c template V1.0)
-   Copyright (C) 1995 Free Software Foundation, Inc.
+   Copyright (C) 1995, 2002 Free Software Foundation, Inc.
    Contributed by James Craig Burley.
 
 This file is part of GNU Fortran.
@@ -38,10 +38,11 @@ the Free Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 
 #include "proj.h"
 #include "bad.h"
-#include "flags.j"
+#include "flags.h"
 #include "com.h"
-#include "toplev.j"
+#include "toplev.h"
 #include "where.h"
+#include "intl.h"
 
 /* Externals defined here. */
 
@@ -61,24 +62,27 @@ bool ffebad_is_inhibited_ = FALSE;
 
 struct _ffebad_message_
   {
-    ffebadSeverity severity;
-    const char *message;
+    const ffebadSeverity severity;
+    const char *const message;
   };
 
 /* Static objects accessed by functions in this module.	 */
 
-static struct _ffebad_message_ ffebad_messages_[]
+static const struct _ffebad_message_ ffebad_messages_[]
 =
 {
-#define FFEBAD_MSGS1(KWD,SEV,MSG) { SEV, MSG },
+#define FFEBAD_MSG(kwd,sev,msgid) { sev, msgid },
 #if FFEBAD_LONG_MSGS_ == 0
-#define FFEBAD_MSGS2(KWD,SEV,LMSG,SMSG) { SEV, SMSG },
+#define LONG(m)
+#define SHORT(m) m
 #else
-#define FFEBAD_MSGS2(KWD,SEV,LMSG,SMSG) { SEV, LMSG },
+#define LONG(m) m
+#define SHORT(m)
 #endif
 #include "bad.def"
-#undef FFEBAD_MSGS1
-#undef FFEBAD_MSGS2
+#undef FFEBAD_MSG
+#undef LONG
+#undef SHORT
 };
 
 static struct
@@ -161,7 +165,7 @@ ffebad_severity (ffebad errnum)
 
 bool
 ffebad_start_ (bool lex_override, ffebad errnum, ffebadSeverity sev,
-	       const char *message)
+	       const char *msgid)
 {
   unsigned char i;
 
@@ -174,54 +178,48 @@ ffebad_start_ (bool lex_override, ffebad errnum, ffebadSeverity sev,
   if (errnum != FFEBAD)
     {
       ffebad_severity_ = ffebad_messages_[errnum].severity;
-      ffebad_message_ = ffebad_messages_[errnum].message;
+      ffebad_message_ = gettext (ffebad_messages_[errnum].message);
     }
   else
     {
       ffebad_severity_ = sev;
-      ffebad_message_ = message;
+      ffebad_message_ = gettext (msgid);
     }
 
-#if FFECOM_targetCURRENT == FFECOM_targetGCC
-  {
-    extern int inhibit_warnings;	/* From toplev.c. */
+  switch (ffebad_severity_)
+    {				/* Tell toplev.c about this message. */
+    case FFEBAD_severityINFORMATIONAL:
+    case FFEBAD_severityTRIVIAL:
+      if (inhibit_warnings)
+	{			/* User wants no warnings. */
+	  ffebad_is_temp_inhibited_ = TRUE;
+	  return FALSE;
+	}
+      /* Fall through.  */
+    case FFEBAD_severityWARNING:
+    case FFEBAD_severityPECULIAR:
+    case FFEBAD_severityPEDANTIC:
+      if ((ffebad_severity_ != FFEBAD_severityPEDANTIC)
+	  || !flag_pedantic_errors)
+	{
+	  if (count_error (1) == 0)
+	    {			/* User wants no warnings. */
+	      ffebad_is_temp_inhibited_ = TRUE;
+	      return FALSE;
+	    }
+	  break;
+	}
+      /* Fall through (PEDANTIC && flag_pedantic_errors).  */
+    case FFEBAD_severityFATAL:
+    case FFEBAD_severityWEIRD:
+    case FFEBAD_severitySEVERE:
+    case FFEBAD_severityDISASTER:
+      count_error (0);
+      break;
 
-    switch (ffebad_severity_)
-      {				/* Tell toplev.c about this message. */
-      case FFEBAD_severityINFORMATIONAL:
-      case FFEBAD_severityTRIVIAL:
-	if (inhibit_warnings)
-	  {			/* User wants no warnings. */
-	    ffebad_is_temp_inhibited_ = TRUE;
-	    return FALSE;
-	  }
-	/* Fall through.  */
-      case FFEBAD_severityWARNING:
-      case FFEBAD_severityPECULIAR:
-      case FFEBAD_severityPEDANTIC:
-	if ((ffebad_severity_ != FFEBAD_severityPEDANTIC)
-	    || !flag_pedantic_errors)
-	  {
-	    if (count_error (1) == 0)
-	      {			/* User wants no warnings. */
-		ffebad_is_temp_inhibited_ = TRUE;
-		return FALSE;
-	      }
-	    break;
-	  }
-	/* Fall through (PEDANTIC && flag_pedantic_errors).  */
-      case FFEBAD_severityFATAL:
-      case FFEBAD_severityWEIRD:
-      case FFEBAD_severitySEVERE:
-      case FFEBAD_severityDISASTER:
-	count_error (0);
-	break;
-
-      default:
-	break;
-      }
-  }
-#endif	/* FFECOM_targetCURRENT == FFECOM_targetGCC */
+    default:
+      break;
+    }
 
   ffebad_is_temp_inhibited_ = FALSE;
   ffebad_errnum_ = errnum;
@@ -351,7 +349,7 @@ void
 ffebad_finish ()
 {
 #define MAX_SPACES 132
-  static const char *spaces
+  static const char *const spaces
   = "...>\
 \040\040\040\040\040\040\040\040\040\040\040\040\040\040\040\040\
 \040\040\040\040\040\040\040\040\040\040\040\040\040\040\040\040\
@@ -385,15 +383,15 @@ ffebad_finish ()
   switch (ffebad_severity_)
     {
     case FFEBAD_severityINFORMATIONAL:
-      s = "note:";
+      s = _("note:");
       break;
 
     case FFEBAD_severityWARNING:
-      s = "warning:";
+      s = _("warning:");
       break;
 
     case FFEBAD_severitySEVERE:
-      s = "fatal:";
+      s = _("fatal:");
       break;
 
     default:
@@ -422,27 +420,20 @@ ffebad_finish ()
 	{
 	  if (bi != 0)
 	    fputc ('\n', stderr);
-#if FFECOM_targetCURRENT == FFECOM_targetGCC
 	  report_error_function (fn);
-#endif	/* FFECOM_targetCURRENT == FFECOM_targetGCC */
 	  fprintf (stderr,
-#if 0
-		   "Line %" ffewhereLineNumber_f "u of %s:\n   %s\n   %s%c",
-		   rn, fn,
-#else
 		   /* the trailing space on the <file>:<line>: line
 		      fools emacs19 compilation mode into finding the
 		      report */
 		   "%s:%" ffewhereLineNumber_f "u: %s\n   %s\n   %s%c",
 		   fn, rn,
-#endif
 		   s,
 		   ffewhere_line_content (l),
 		   &spaces[cn > MAX_SPACES ? 0 : MAX_SPACES - cn + 4],
 		   pointer);
 	  last_line_num = ln;
 	  last_col_num = cn;
-	  s = "(continued):";
+	  s = _("(continued):");
 	}
       else
 	{
@@ -457,11 +448,11 @@ ffebad_finish ()
   if (ffebad_places_ == 0)
     {
       /* Didn't output "warning:" string, capitalize it for message.  */
-      if ((s[0] != '\0') && ISALPHA (s[0]) && ISLOWER (s[0]))
+      if (s[0] != '\0')
 	{
 	  char c;
 
-	  c = toupper (s[0]);
+	  c = TOUPPER (s[0]);
 	  fprintf (stderr, "%c%s ", c, &s[1]);
 	}
       else if (s[0] != '\0')
@@ -486,20 +477,20 @@ ffebad_finish ()
       if (c == '%')
 	{
 	  c = ffebad_message_[++i];
-	  if (ISALPHA (c) && ISUPPER (c))
+	  if (ISUPPER (c))
 	    {
 	      index = c - 'A';
 
 	      if ((index < 0) || (index >= FFEBAD_MAX_))
 		{
-		  bufi = ffebad_bufputs_ (buf, bufi, "[REPORT BUG!!] %");
+		  bufi = ffebad_bufputs_ (buf, bufi, _("[REPORT BUG!!] %"));
 		  bufi = ffebad_bufputc_ (buf, bufi, c);
 		}
 	      else
 		{
 		  s = ffebad_string_[index];
 		  if (s == NULL)
-		    bufi = ffebad_bufputs_ (buf, bufi, "[REPORT BUG!!]");
+		    bufi = ffebad_bufputs_ (buf, bufi, _("[REPORT BUG!!]"));
 		  else
 		    bufi = ffebad_bufputs_ (buf, bufi, s);
 		}
@@ -510,7 +501,7 @@ ffebad_finish ()
 
 	      if ((index < 0) || (index >= FFEBAD_MAX_))
 		{
-		  bufi = ffebad_bufputs_ (buf, bufi, "[REPORT BUG!!] %");
+		  bufi = ffebad_bufputs_ (buf, bufi, _("[REPORT BUG!!] %"));
 		  bufi = ffebad_bufputc_ (buf, bufi, c);
 		}
 	      else
@@ -531,7 +522,7 @@ ffebad_finish ()
 	    bufi = ffebad_bufputc_ (buf, bufi, '%');
 	  else
 	    {
-	      bufi = ffebad_bufputs_ (buf, bufi, "[REPORT BUG!!]");
+	      bufi = ffebad_bufputs_ (buf, bufi, _("[REPORT BUG!!]"));
 	      bufi = ffebad_bufputc_ (buf, bufi, '%');
 	      bufi = ffebad_bufputc_ (buf, bufi, c);
 	    }

@@ -24,87 +24,20 @@ the Free Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 /* This is the contribution to the `default_compilers' array in gcc.c for
    g77.  */
 
-  {".F", {"@f77-cpp-input"}},
-  {".fpp", {"@f77-cpp-input"}},
-  {".FPP", {"@f77-cpp-input"}},
+  {".F",   "@f77-cpp-input", 0},
+  {".fpp", "@f77-cpp-input", 0},
+  {".FPP", "@f77-cpp-input", 0},
   {"@f77-cpp-input",
-     /* For f77 we want -traditional to avoid errors with, for
-	instance, mismatched '.  Also, we avoid unpleasant surprises
-	with substitution of names not prefixed by `_' by using %P
-	rather than %p (although this isn't consistent with SGI and
-	Sun f77, at least) so you test `__unix' rather than `unix'.
-	-D_LANGUAGE_FORTRAN is used by some compilers like SGI and
-	might as well be in there. */
-   {"cpp0 -lang-c %{nostdinc*} %{C} %{v} %{A*} %{I*} %{P} %{$} %I\
-	%{C:%{!E:%eGNU C does not support -C without using -E}}\
-	%{M} %{MM} %{MD:-MD %b.d} %{MMD:-MMD %b.d} %{MG}\
-	%{!no-gcc:-D__GNUC__=%v1 -D__GNUC_MINOR__=%v2}\
-	%{ansi:-trigraphs -$ -D__STRICT_ANSI__}\
-	%{!undef:%P} -D_LANGUAGE_FORTRAN %{trigraphs} \
-	%c %{Os:-D__OPTIMIZE_SIZE__} %{O*:%{!O0:-D__OPTIMIZE__}} -traditional\
-	%{ffast-math:-D__FAST_MATH__}\
-	%{g*} %{W*} %{w} %{pedantic*} %{H} %{d*} %C %{D*} %{U*} %{i*} %Z\
-	%i %{!M:%{!MM:%{!E:%{!pipe:%g.i}}}}%{E:%W{o*}}%{M:%W{o*}}%{MM:%W{o*}} |\n",
-    "%{!M:%{!MM:%{!E:f771 %{!pipe:%g.i} %(f771) \
-		   %{!Q:-quiet} -dumpbase %b.F %{d*} %{m*} %{a*}\
-		   %{g*} %{O*} %{W*} %{w} %{pedantic*} \
-		   %{v:-version -fversion} %{pg:-p} %{p} %{f*} %{I*}\
-		   %{aux-info*} %{Qn:-fno-ident}\
-		   %{pg:%{fomit-frame-pointer:%e-pg and -fomit-frame-pointer are incompatible}}\
-		   %{S:%W{o*}%{!o*:-o %b.s}}%{!S:-o %{|!pipe:%g.s}} |\n\
-	      %{!S:as %a %Y\
-		      %{c:%W{o*}%{!o*:-o %w%b%O}}%{!c:-o %d%w%u%O}\
-		      %{!pipe:%g.s} %A\n }}}}"}},
-  {".r", {"@ratfor"}},
+   "tradcpp0 -lang-fortran %(cpp_options) %{!M:%{!MM:%{!E:%{!pipe:%g.f} |\n\
+    f771 %{!pipe:%g.f} %(cc1_options) %{I*} %{!fsyntax-only:%(invoke_as)}}}}", 0},
+  {".r", "@ratfor", 0},
   {"@ratfor",
-   {"ratfor %{C} %{v}\
-           %{C:%{!E:%eGNU C does not support -C without using -E}}\
-           %{!E:%{!pipe:-o %g.f}}%{E:%W{o*}} %i |\n",
-    "%{!E:f771 %{!pipe:%g.f} %(f771) \
-	   %{!Q:-quiet} -dumpbase %b.r %{d*} %{m*} %{a*}\
-	   %{g*} %{O*} %{W*} %{w} %{pedantic*} \
-	   %{v:-version -fversion} %{pg:-p} %{p} %{f*} %{I*}\
-	   %{aux-info*} %{Qn:-fno-ident}\
-	   %{pg:%{fomit-frame-pointer:%e-pg and -fomit-frame-pointer are incompatible}}\
-	   %{S:%W{o*}%{!o*:-o %b.s}}%{!S:-o %{|!pipe:%g.s}} |\n\
-	   %{!S:as %a %Y\
-	   %{c:%W{o*}%{!o*:-o %w%b%O}}%{!c:-o %d%w%u%O}\
-           %{!pipe:%g.s} %A\n }}"}},
-  {".f", {"@f77"}},
-  {".for", {"@f77"}},
-  {".FOR", {"@f77"}},
+   "%{C:%{!E:%eGNU C does not support -C without using -E}}\
+    ratfor %{C} %{v} %i %{E:%W{o*}} %{!E: %{!pipe:-o %g.f} |\n\
+    f771 %{!pipe:%g.f} %(cc1_options) %{I*} %{!fsyntax-only:%(invoke_as)}}", 0},
+  {".f",   "@f77", 0},
+  {".for", "@f77", 0},
+  {".FOR", "@f77", 0},
   {"@f77",
-   {"%{!M:%{!MM:%{!E:f771 %i %(f771) \
-		   %{!Q:-quiet} -dumpbase %b.f %{d*} %{m*} %{a*}\
-		   %{g*} %{O*} %{W*} %{w} %{pedantic*}\
-		   %{v:-version -fversion} %{pg:-p} %{p} %{f*} %{I*}\
-		   %{aux-info*} %{Qn:-fno-ident}\
-		   %{pg:%{fomit-frame-pointer:%e-pg and -fomit-frame-pointer are incompatible}}\
-		   %{S:%W{o*}%{!o*:-o %b.s}}%{!S:-o %{|!pipe:%g.s}} |\n\
-	      %{!S:as %a %Y\
-		      %{c:%W{o*}%{!o*:-o %w%b%O}}%{!c:-o %d%w%u%O}\
-		      %{!pipe:%g.s} %A\n }}}}"}},
-  {"@f77-version",
-   {"cpp0 -lang-c %{nostdinc*} %{C} %{v} %{A*} %{I*} %{P} %{$} %I \
-      %{C:%{!E:%eGNU C does not support -C without using -E}} \
-      %{M} %{MM} %{MD:-MD %b.d} %{MMD:-MMD %b.d} %{MG} \
-      %{!no-gcc:-D__GNUC__=%v1 -D__GNUC_MINOR__=%v2} \
-      %{ansi:-trigraphs -$ -D__STRICT_ANSI__} \
-      %{!undef:%P} -D_LANGUAGE_FORTRAN %{trigraphs} \
-      %c %{Os:-D__OPTIMIZE_SIZE__} %{O*:%{!O0:-D__OPTIMIZE__}} -traditional \
-      %{ffast-math:-D__FAST_MATH__}\
-      %{g*} %{W*} %{w} %{pedantic*} %{H} %{d*} %C %{D*} %{U*} %{i*} %Z \
-      /dev/null /dev/null \n\
-     f771 -fnull-version %(f771) \
-      %{!Q:-quiet} -dumpbase g77-version.f %{d*} %{m*} %{a*} \
-      %{g*} %{O*} %{W*} %{w} %{pedantic*} \
-      -version -fversion %{f*} %{I*} -o %g.s /dev/null \n\
-     as %a %Y -o %g%O %g.s %A \n\
-     ld %l %X -o %g %g%O %{A} %{d} %{e*} %{m} %{N} %{n} \
-      %{r} %{s} %{t} %{u*} %{x} %{z} %{Z} \
-      %{!A:%{!nostdlib:%{!nostartfiles:%S}}} \
-      %{static:} %{L*} %D -lg2c -lm \
-      %{!nostdlib:%{!nodefaultlibs:%G %L %G}} \
-      %{!A:%{!nostdlib:%{!nostartfiles:%E}}} \
-      %{T*} \n\
-     %g \n"}},
+   "%{!M:%{!MM:%{!E:f771 %i %(cc1_options) %{I*}\
+	%{!fsyntax-only:%(invoke_as)}}}}", 0},

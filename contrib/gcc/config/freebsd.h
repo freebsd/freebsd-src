@@ -1,5 +1,5 @@
 /* Base configuration file for all FreeBSD targets.
-   Copyright (C) 1999 Free Software Foundation, Inc.
+   Copyright (C) 1999, 2000, 2001 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -21,100 +21,108 @@ Boston, MA 02111-1307, USA.  */
 /* Common FreeBSD configuration. 
    All FreeBSD architectures should include this file, which will specify
    their commonalities.
-   Adapted from /usr/src/contrib/gcc/config/i386/freebsd.h & 
-   egcs/gcc/config/i386/freebsd-elf.h version by David O'Brien  */
+   Adapted from gcc/config/i386/freebsd-elf.h by 
+   David O'Brien <obrien@FreeBSD.org>.  
+   Further work by David O'Brien <obrien@FreeBSD.org> and
+   Loren J. Rittle <ljrittle@acm.org>.  */
 
 
-/* Don't assume anything about the header files. */
+/* In case we need to know.  */
+#define USING_CONFIG_FREEBSD 1
+
+/* This defines which switch letters take arguments.  On FreeBSD, most of
+   the normal cases (defined in gcc.c) apply, and we also have -h* and
+   -z* options (for the linker) (coming from SVR4).
+   We also have -R (alias --rpath), no -z, --soname (-h), --assert etc.  */
+
+#undef  SWITCH_TAKES_ARG
+#define SWITCH_TAKES_ARG(CHAR) (FBSD_SWITCH_TAKES_ARG(CHAR))
+
+#undef  WORD_SWITCH_TAKES_ARG
+#define WORD_SWITCH_TAKES_ARG(STR) (FBSD_WORD_SWITCH_TAKES_ARG(STR))
+
+#undef  CPP_PREDEFINES
+#define CPP_PREDEFINES FBSD_CPP_PREDEFINES
+
+#undef  CPP_SPEC
+#define CPP_SPEC FBSD_CPP_SPEC
+
+#undef  STARTFILE_SPEC
+#define STARTFILE_SPEC FBSD_STARTFILE_SPEC
+
+#undef  ENDFILE_SPEC
+#define ENDFILE_SPEC FBSD_ENDFILE_SPEC
+
+#undef  LIB_SPEC
+#define LIB_SPEC FBSD_LIB_SPEC
+
+
+/************************[  Target stuff  ]***********************************/
+
+/* Don't assume anything about the header files.  */
+#undef  NO_IMPLICIT_EXTERN_C
 #define NO_IMPLICIT_EXTERN_C
 
-/* This defines which switch letters take arguments.  On svr4, most of
-   the normal cases (defined in gcc.c) apply, and we also have -h* and
-   -z* options (for the linker).  We have a slightly different mix.  We
-   have -R (alias --rpath), no -z, --soname (-h), --assert etc. */
+/* Allow #sccs in preprocessor.  */
+#undef  SCCS_DIRECTIVE
+#define SCCS_DIRECTIVE
 
-#undef SWITCH_TAKES_ARG
-#define SWITCH_TAKES_ARG(CHAR) \
-  (   (CHAR) == 'D' \
-   || (CHAR) == 'U' \
-   || (CHAR) == 'o' \
-   || (CHAR) == 'e' \
-   || (CHAR) == 'T' \
-   || (CHAR) == 'u' \
-   || (CHAR) == 'I' \
-   || (CHAR) == 'm' \
-   || (CHAR) == 'x' \
-   || (CHAR) == 'L' \
-   || (CHAR) == 'A' \
-   || (CHAR) == 'V' \
-   || (CHAR) == 'B' \
-   || (CHAR) == 'b' \
-   || (CHAR) == 'h' \
-   || (CHAR) == 'z' /* ignored by ld */ \
-   || (CHAR) == 'R')
+/* Make gcc agree with FreeBSD's standard headers (<machine/ansi.h>, etc...)  */
 
-#undef WORD_SWITCH_TAKES_ARG
-#define WORD_SWITCH_TAKES_ARG(STR)					\
-  (DEFAULT_WORD_SWITCH_TAKES_ARG (STR)					\
-   || !strcmp (STR, "rpath") || !strcmp (STR, "rpath-link")		\
-   || !strcmp (STR, "soname") || !strcmp (STR, "defsym") 		\
-   || !strcmp (STR, "assert") || !strcmp (STR, "dynamic-linker"))
+#undef  WCHAR_TYPE
+#define WCHAR_TYPE "int"
 
-
-#define CPP_FBSD_PREDEFINES "-Dunix -D__ELF__ -D__FreeBSD__=4 -D__FreeBSD_cc_version=400001 -Asystem(unix) -Asystem(FreeBSD)"
-
+#undef  WCHAR_UNSIGNED
+#define WCHAR_UNSIGNED 0
 
 /* Code generation parameters.  */
 
 /* Don't default to pcc-struct-return, because gcc is the only compiler, and
-   we want to retain compatibility with older gcc versions.  
-   (even though the svr4 ABI for the i386 says that records and unions are
-   returned in memory)  */
+   we want to retain compatibility with older gcc versions
+   (even though the SVR4 ABI for the i386 says that records and unions are
+   returned in memory).  */
+#undef  DEFAULT_PCC_STRUCT_RETURN
 #define DEFAULT_PCC_STRUCT_RETURN 0
 
-/* Ensure we the configuration knows our system correctly so we can link with
-   libraries compiled with the native cc. */
+/* Use periods rather than dollar signs in special g++ assembler names.
+   This ensures the configuration knows our system correctly so we can link
+   with libraries compiled with the native cc.  */
 #undef NO_DOLLAR_IN_LABEL
 
+/* Used by libgcc2.c.  We support file locking with fcntl / F_SETLKW.
+   This enables the test coverage code to use file locking when exiting a
+   program, which avoids race conditions if the program has forked.  */
+#define TARGET_HAS_F_SETLKW
 
-/* Miscellaneous parameters.  */
+/* The prefix to add to user-visible assembler symbols.
+   For System V Release 4 & ELF the convention is *not* to prepend a leading
+   underscore onto user-level symbol names. Some CPU files such as
+   config/sparc/sparc.h set this wrong for ELF.  */
 
-/* Tell libgcc2.c that FreeBSD targets support atexit(3).  */
-#define HAVE_ATEXIT
+#undef  USER_LABEL_PREFIX
+#define USER_LABEL_PREFIX ""
 
+/* Handle #pragma weak and #pragma pack.  */
+#undef  HANDLE_SYSV_PRAGMA
+#define HANDLE_SYSV_PRAGMA
 
-/* FREEBSD_NATIVE is defined when gcc is integrated into the FreeBSD
-   source tree so it can be configured appropriately without using
-   the GNU configure/build mechanism. */
+/************************[  Assembler stuff  ]********************************/
 
-#ifdef FREEBSD_NATIVE
+#undef  IDENT_ASM_OP
+#define IDENT_ASM_OP "\t.ident\t"
 
-/* Look for the include files in the system-defined places.  */
+/************************[  Debugger stuff  ]*********************************/
 
-#define GPLUSPLUS_INCLUDE_DIR		"/usr/include/g++"
-#define GCC_INCLUDE_DIR			"/usr/include"
+/* All ELF targets can support DWARF-2.  */
+#undef  DWARF2_DEBUGGING_INFO
+#define DWARF2_DEBUGGING_INFO
 
-/* Now that GCC knows what the include path applies to, put the G++ one first.
-   C++ can now have include files that override the default C ones.  */
-#define INCLUDE_DEFAULTS			\
-  {						\
-    { GPLUSPLUS_INCLUDE_DIR, "C++", 1, 1 },	\
-    { GCC_INCLUDE_DIR, "GCC", 0, 0 },		\
-    { 0, 0, 0, 0 }				\
-  }
+/* This is BSD, so we want the DBX format.  */
+#undef  DBX_DEBUGGING_INFO
+#define DBX_DEBUGGING_INFO
 
-/* Under FreeBSD, the normal location of the compiler back ends is the
-   /usr/libexec directory.  */
-
-#define STANDARD_EXEC_PREFIX		"/usr/libexec/"
-#define TOOLDIR_BASE_PREFIX		"/usr/libexec/"
-
-/* Under FreeBSD, the normal location of the various *crt*.o files is the
-   /usr/lib directory.  */
-
-#define STANDARD_STARTFILE_PREFIX	"/usr/lib/"
-
-/* FreeBSD is 4.4BSD derived */
-#define bsd4_4
-
-#endif /* FREEBSD_NATIVE */
+/* Even though this is BSD, ELF and the GNU tools operates better with dwarf2
+   than stabs.  Since we don't have any native tools to be compatible with,
+   defaulting to dwarf2 is OK.  */
+#undef  PREFERRED_DEBUGGING_TYPE
+#define PREFERRED_DEBUGGING_TYPE DWARF2_DEBUG

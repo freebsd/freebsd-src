@@ -1,23 +1,23 @@
-/* Threads compatibily routines for libgcc2.  */
+/* Threads compatibility routines for libgcc2.  */
 /* Compile this one with gcc.  */
 /* Copyright (C) 1997, 1998 Free Software Foundation, Inc.
 
-This file is part of GNU CC.
+This file is part of GCC.
 
-GNU CC is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2, or (at your option)
-any later version.
+GCC is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free
+Software Foundation; either version 2, or (at your option) any later
+version.
 
-GNU CC is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+GCC is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or
+FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+for more details.
 
 You should have received a copy of the GNU General Public License
-along with GNU CC; see the file COPYING.  If not, write to
-the Free Software Foundation, 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
+along with GCC; see the file COPYING.  If not, write to the Free
+Software Foundation, 59 Temple Place - Suite 330, Boston, MA
+02111-1307, USA.  */
 
 /* As a special exception, if you link this library with other files,
    some of which are compiled with GCC, to produce an executable,
@@ -26,8 +26,8 @@ Boston, MA 02111-1307, USA.  */
    This exception does not however invalidate any other reasons why
    the executable file might be covered by the GNU General Public License.  */
 
-#ifndef __gthr_h
-#define __gthr_h
+#ifndef GCC_GTHR_H
+#define GCC_GTHR_H
 
 /* If this file is compiled with threads support, it must
        #define __GTHREADS 1
@@ -49,7 +49,7 @@ Boston, MA 02111-1307, USA.  */
      		to initialize __gthread_mutex_t to get a fast
 		non-recursive mutex.
      __GTHREAD_MUTEX_INIT_FUNCTION
-     		some systems can't initalize a mutex without a
+     		some systems can't initialize a mutex without a
 		function call.  On such systems, define this to a
 		function which looks like this:
 		  void __GTHREAD_MUTEX_INIT_FUNCTION (__gthread_mutex_t *)
@@ -80,7 +80,7 @@ Boston, MA 02111-1307, USA.  */
      Solaris/UI threads with -D_SOLARIS_THREADS
 */
 
-/* Check first for thread specific defines. */
+/* Check first for thread specific defines.  */
 #if _PTHREADS
 #include "gthr-posix.h"
 #elif _DCE_THREADS
@@ -88,7 +88,7 @@ Boston, MA 02111-1307, USA.  */
 #elif _SOLARIS_THREADS
 #include "gthr-solaris.h"
 
-/* Include GTHREAD_FILE if one is defined. */
+/* Include GTHREAD_FILE if one is defined.  */
 #elif defined(HAVE_GTHR_DEFAULT)
 #if SUPPORTS_WEAK
 #ifndef GTHREAD_USE_WEAK
@@ -97,9 +97,9 @@ Boston, MA 02111-1307, USA.  */
 #endif
 #include "gthr-default.h"
 
-/* Fallback to single thread definitions. */
+/* Fallback to single thread definitions.  */
 #else
 #include "gthr-single.h"
 #endif
 
-#endif /* not __gthr_h */
+#endif /* ! GCC_GTHR_H */

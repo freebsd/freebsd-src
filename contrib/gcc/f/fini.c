@@ -62,7 +62,7 @@ static FILE *out;
 static char prefix[32];
 static char postfix[32];
 static char storage[32];
-static const char *xspaces[]
+static const char *const xspaces[]
 =
 {
   "",				/* 0 */
@@ -234,7 +234,7 @@ int
 main (int argc, char **argv)
 {
   char buf[MAXNAMELEN];
-  char last_buf[MAXNAMELEN] = "";
+  char last_buf[MAXNAMELEN];
   char kwname[MAXNAMELEN];
   char routine[32];
   char type[32];
@@ -256,6 +256,8 @@ main (int argc, char **argv)
   int cc;
   bool do_exit = FALSE;
 
+  last_buf[0] = '\0';
+  
   for (i = 0; ((size_t) i) < ARRAY_SIZE (names); ++i)
     {				/* Initialize length/name ordered list roots. */
       names[i].first = (name) &names[i];
@@ -267,7 +269,7 @@ main (int argc, char **argv)
   if (argc != 4)
     {
       fprintf (stderr, "Command form: fini input output-code output-include\n");
-      exit (1);
+      return (1);
     }
 
   input_name = argv[1];
@@ -278,21 +280,21 @@ main (int argc, char **argv)
   if (in == NULL)
     {
       fprintf (stderr, "Cannot open \"%s\"\n", input_name);
-      exit (1);
+      return (1);
     }
   out = fopen (output_name, "w");
   if (out == NULL)
     {
       fclose (in);
       fprintf (stderr, "Cannot open \"%s\"\n", output_name);
-      exit (1);
+      return (1);
     }
   incl = fopen (include_name, "w");
   if (incl == NULL)
     {
       fclose (in);
       fprintf (stderr, "Cannot open \"%s\"\n", include_name);
-      exit (1);
+      return (1);
     }
 
   /* Get past the initial block-style comment (man, this parsing code is just
@@ -316,7 +318,7 @@ main (int argc, char **argv)
       else
 	{
 	  assert ("EOF too soon!" == NULL);
-	  exit (1);
+	  return (1);
 	}
     }
 
@@ -365,7 +367,7 @@ main (int argc, char **argv)
 
       /* Make new name object to store name and its keyword. */
 
-      newname = (name) malloc (sizeof (*newname));
+      newname = (name) xmalloc (sizeof (*newname));
       newname->namelen = strlen (buf);
       newname->kwlen = strlen (kwname);
       total_length = newname->kwlen + fixlengths;
@@ -379,15 +381,9 @@ main (int argc, char **argv)
       for (i = 0; i < newname->namelen; ++i)
 	{
 	  cc = buf[i];
-	  if (ISALPHA (cc))
-	    {
-	      newname->name_uc[i] = toupper (cc);
-	      newname->name_lc[i] = tolower (cc);
-	      newname->name_ic[i] = cc;
-	    }
-	  else
-	    newname->name_uc[i] = newname->name_lc[i] = newname->name_ic[i]
-	      = cc;
+	  newname->name_uc[i] = TOUPPER (cc);
+	  newname->name_lc[i] = TOLOWER (cc);
+	  newname->name_ic[i] = cc;
 	}
       newname->name_uc[i] = newname->name_lc[i] = newname->name_ic[i] = '\0';
 
@@ -441,7 +437,7 @@ main (int argc, char **argv)
 #endif
 
   if (do_exit)
-    exit (1);
+    return (1);
 
   /* First output the #include file. */
 
@@ -624,7 +620,7 @@ typedef enum %s_ %s;\n\
     fclose (incl);
   if (in != stdin)
     fclose (in);
-  exit (0);
+  return (0);
 }
 
 void
