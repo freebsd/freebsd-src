@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.57.4.18 1996/08/11 03:05:16 rgrimes Exp $
+#	$Id: Makefile,v 1.57.4.19 1996/11/08 06:08:10 jkh Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include and MOST of /usr/lib
@@ -332,17 +332,13 @@ include-tools:
 
 build-tools:
 	@echo "--------------------------------------------------------------"
-	@echo " Rebuilding ${DESTDIR} C compiler, make, sgmlfmt, and zic(8)"
+	@echo " Rebuilding ${DESTDIR} C compiler, make, and zic(8)"
 	@echo "--------------------------------------------------------------"
 	@echo
 	cd ${.CURDIR}/gnu/usr.bin/cc && \
 		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
 	cd ${.CURDIR}/usr.bin/make && \
 		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
-	cd ${.CURDIR}/usr.bin/sgmlfmt && \
-		${MAKE} depend all install ${CLEANDIR} ${OBJDIR} 
-	cd ${.CURDIR}/share/sgml && \
-		${MAKE} depend all install ${CLEANDIR} ${OBJDIR} 
 	cd ${.CURDIR}/gnu/usr.bin/groff && \
 		${MAKE} depend all install ${CLEANDIR} ${OBJDIR} 
 	cd ${.CURDIR}/usr.sbin/zic && \
