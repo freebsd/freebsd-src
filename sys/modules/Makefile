@@ -72,6 +72,7 @@ SUBDIR=	accf_data \
 	mlx \
 	mpt \
 	msdosfs \
+	my \
 	nfsclient \
 	nfsserver \
 	nge \
