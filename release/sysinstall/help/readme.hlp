@@ -1,13 +1,13 @@
    -----------------------------------------
-       FreeBSD 2.2  ---  ALPHA Version                 ,        ,
+       FreeBSD 2.2  ---  BETA Version                 ,        ,
    -----------------------------------------          /(        )`
                                                       \ \___   / |
-Welcome to the 2.2 ALPHA release of FreeBSD!          /- _  `-/  '
+Welcome to the 2.2 BETA release of FreeBSD!           /- _  `-/  '
 This release preceeds our first full 2.2 release,    (/\/ \ \   /\
-which is scheduled for a late December / early       / /   | `    \
-January release.  Your testing of this release will  O O   ) /    |
-help to ensure that 2.2-RELEASE is of the highest    `-^--'`<     '
-quality we can make it, and is much appreciated.    (_.)  _  )   /
+which is scheduled for an early January release.     / /   | `    \
+Your testing of this BETA will greatly help to       O O   ) /    |
+ensure that 2.2-RELEASE is of the highest possible   `-^--'`<     '
+quality, and it is much appreciated.                (_.)  _  )   /
                                                      `.___/`    /
                                                        `-----' /
 Feedback or offers to help with anything  <----.     __ / __   \
@@ -15,7 +15,7 @@ you see in this release are most welcome  <----|====O)))==) \) /====
 and should be sent to one of the approp-  <----'    `--' `.__,' \
 riate mailing lists (see notes below).                 |        |
                                                         \       /       /\
-Please also note that ALPHA releases, as much      ______( (_  / \______/
+Please also note that BETA releases, as much       ______( (_  / \______/
 as we enjoy seeing them tested in serious        ,'  ,-----'   |
 situations, are not recommended for production   `--{__________)
 environments!

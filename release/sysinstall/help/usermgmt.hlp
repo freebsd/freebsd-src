@@ -53,6 +53,11 @@ additional password etc.  Except for the "wheel" case mentioned below,
 the additional group membership list should normally not contain the
 login group again.
 
+The user's password can also be set here, and should be chosen with
+care - 6 or more characters, intermixing punctuation and numerics, and
+*not* a word from the dictionary or related to the username is a good
+password choice.
+
 Some of the system's groups have a special meaning.  In particular,
 members of group "wheel" are the only people who are later allowed to
 become superuser using the command su(1).  So if you're going to add a
@@ -82,15 +87,3 @@ Finally, the shell is the user's initial command interpreter.  The
 default shell is /bin/sh, some users prefer the more historic
 /bin/csh.  Other, often more user-friendly and comfortable shells can
 be found in the ports and packages collection.
-
-
-Passwords
-=========
-
-Note that new users will be established with no allowable password, so
-they cannot login immediately.  Instead, someone with superuser
-privileges has to run the command ``passwd <user>'' (where <user> is
-to be replaced with the actual login name for this user) on behalf of
-the new user, so (s)he can enter his/her password.  Since the password
-won't be echoed on the screen, it must be entered twice.  This should
-never be done across a network, to prevent password-sniffing.
