@@ -453,7 +453,6 @@ set_proc_cmd (arg, from_tty)
 
 static CORE_ADDR sbr;
 static CORE_ADDR curpcb;
-static CORE_ADDR kstack;
 static int found_pcb;
 static int devmem;
 static int kfd;
@@ -473,9 +472,7 @@ kvm_open (efile, cfile, sfile, perm, errout)
      char *errout;		/* makes this kvm_open more compatible to the one in libkvm */
 {
   struct stat stb;
-  CORE_ADDR addr;
   int cfd;
-  struct i386tss cts;
 
   if ((cfd = open (cfile, perm, 0)) < 0)
     return (cfd);
@@ -492,14 +489,12 @@ kvm_open (efile, cfile, sfile, perm, errout)
   printf ("IdlePTD %x\n", sbr);
   curpcb = ksym_lookup ("curpcb") - KERNOFF;
   physrd (cfd, curpcb, (char*)&curpcb, sizeof curpcb);
-  physrd (cfd, ksym_lookup ("common_tss") - KERNOFF, (char*)&cts, sizeof cts);
-  kstack = cts.tss_ksp;
 
   found_pcb = 1; /* for vtophys */
   if (!devmem)
     read_pcb (cfd, ksym_lookup ("dumppcb") - KERNOFF);
   else
-    read_pcb (cfd, kvtophys (cfd, kstack));
+    read_pcb (cfd, kvtophys (cfd, curpcb));
 
   return (cfd);
 }
@@ -720,18 +715,6 @@ kvtophys (fd, addr)
   unsigned int pte;
   static CORE_ADDR PTD = -1;
   CORE_ADDR current_ptd;
-
-  /*
-   * If we're looking at the kernel stack,
-   * munge the address to refer to the user space mapping instead;
-   * that way we get the requested process's kstack, not the running one.
-   */
-   /*
-    * this breaks xlating user addresses from a crash dump so only
-    * do it for a "live" kernel.
-    */
-  if (devmem && addr >= kstack && addr < kstack + ctob (UPAGES))
-    addr = (addr - kstack) + curpcb;
 
   /*
    * We may no longer have a linear system page table...
