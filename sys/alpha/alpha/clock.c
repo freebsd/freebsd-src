@@ -269,7 +269,8 @@ getit(void)
 	int high, low;
 	int s;
 
-	s = splhigh();
+	s = save_intr();
+	disable_intr();
 
 	/* Select timer0 and latch counter value. */
 	outb(TIMER_MODE, TIMER_SEL0 | TIMER_LATCH);
@@ -277,7 +278,7 @@ getit(void)
 	low = inb(TIMER_CNTR0);
 	high = inb(TIMER_CNTR0);
 
-	splx(s);
+	restore_intr(s);
 	return ((high << 8) | low);
 }
 
@@ -370,7 +371,8 @@ set_timer_freq(u_int freq, int intr_freq)
 	int new_timer0_max_count;
 	int s;
 
-	s = splhigh();
+	s = save_intr();
+	disable_intr();
 	timer_freq = freq;
 	new_timer0_max_count = TIMER_DIV(intr_freq);
 	if (new_timer0_max_count != timer0_max_count) {
@@ -379,14 +381,15 @@ set_timer_freq(u_int freq, int intr_freq)
 		outb(TIMER_CNTR0, timer0_max_count & 0xff);
 		outb(TIMER_CNTR0, timer0_max_count >> 8);
 	}
-	splx(s);
+	restore_intr(s);
 }
 
 static void
 handleclock(void* arg)
 {
 	if (timecounter->tc_get_timecount == i8254_get_timecount) {
-		int s = splhigh();
+		int s = save_intr();
+		disable_intr();
 		if (i8254_ticked)
 			i8254_ticked = 0;
 		else {
@@ -394,7 +397,7 @@ handleclock(void* arg)
 			i8254_lastcount = 0;
 		}
 		clkintr_pending = 0;
-		splx(s);
+		restore_intr(s);
 	}
 
 	hardclock(arg);
@@ -566,7 +569,8 @@ i8254_get_timecount(struct timecounter *tc)
 	u_int high, low;
 	int s;
 
-	s = splhigh();
+	s = save_intr();
+	disable_intr();
 
 	/* Select timer0 and latch counter value. */
 	outb(TIMER_MODE, TIMER_SEL0 | TIMER_LATCH);
@@ -584,7 +588,7 @@ i8254_get_timecount(struct timecounter *tc)
 	i8254_lastcount = count;
 	count += i8254_offset;
 
-	splx(s);
+	restore_intr(s);
 	return (count);
 }
 
@@ -636,12 +640,13 @@ sysbeepstop(void *chan)
 int
 sysbeep(int pitch, int period)
 {
-	int x = splhigh();
+	int s = save_intr();
+	disable_intr();
 
 	if (acquire_timer2(TIMER_SQWAVE|TIMER_16BIT))
 		if (!beeping) {
 			/* Something else owns it. */
-			splx(x);
+			restore_intr(s);
 			return (-1); /* XXX Should be EBUSY, but nobody cares anyway. */
 		}
 
@@ -655,7 +660,7 @@ sysbeep(int pitch, int period)
 		beeping = period;
 		timeout(sysbeepstop, (void *)NULL, period);
 	}
-	splx(x);
+	restore_intr(s);
 	return (0);
 }
 
