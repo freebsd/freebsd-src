@@ -63,13 +63,13 @@
 
 /* The default root filesystem size */
 #ifdef __alpha__
-#define ROOT_DEFAULT_SIZE		60
+#define ROOT_DEFAULT_SIZE		70
 #else
-#define ROOT_DEFAULT_SIZE		40
+#define ROOT_DEFAULT_SIZE		50
 #endif
 
 /* The smallest swap partition we want to create by default */
-#define SWAP_MIN_SIZE			16
+#define SWAP_MIN_SIZE			32
 
 /* The smallest /usr partition we're willing to create by default */
 #define USR_MIN_SIZE			80
