@@ -205,6 +205,7 @@ static int xl_encap_90xB	__P((struct xl_softc *, struct xl_chain *,
 						struct mbuf * ));
 
 static void xl_rxeof		__P((struct xl_softc *));
+static int xl_rx_resync		__P((struct xl_softc *));
 static void xl_txeof		__P((struct xl_softc *));
 static void xl_txeof_90xB	__P((struct xl_softc *));
 static void xl_txeoc		__P((struct xl_softc *));
@@ -1676,6 +1677,28 @@ static int xl_newbuf(sc, c)
 	return(0);
 }
 
+static int xl_rx_resync(sc)
+	struct xl_softc		*sc;
+{
+	struct xl_chain_onefrag	*pos;
+	int			i;
+
+	pos = sc->xl_cdata.xl_rx_head;
+
+	for (i = 0; i < XL_RX_LIST_CNT; i++) {
+		if (pos->xl_ptr->xl_status)
+			break;
+		pos = pos->xl_next;
+	}
+
+	if (i == XL_RX_LIST_CNT)
+		return(0);
+
+	sc->xl_cdata.xl_rx_head = pos;
+
+	return(EAGAIN);
+}
+
 /*
  * A frame has been uploaded: pass the resulting mbuf chain up to
  * the higher level protocols.
@@ -1981,8 +2004,16 @@ static void xl_intr(arg)
 		CSR_WRITE_2(sc, XL_COMMAND,
 		    XL_CMD_INTR_ACK|(status & XL_INTRS));
 
-		if (status & XL_STAT_UP_COMPLETE)
+		if (status & XL_STAT_UP_COMPLETE) {
+			int			curpkts;
+
+			curpkts = ifp->if_ipackets;
 			xl_rxeof(sc);
+			if (curpkts == ifp->if_ipackets) {
+				while (xl_rx_resync(sc))
+					xl_rxeof(sc);
+			}
+		}
 
 		if (status & XL_STAT_DOWN_COMPLETE) {
 			if (sc->xl_type == XL_TYPE_905B)
