@@ -953,7 +953,7 @@ ufs_direnter(dvp, tvp, dirp, cnp, newdirbp)
 			bdwrite(bp);
 			error = 0;
 		} else {
-			error = bowrite(bp);
+			error = BUF_WRITE(bp);
 		}
 	}
 	dp->i_flag |= IN_CHANGE | IN_UPDATE;
@@ -1070,7 +1070,7 @@ out:
 			bdwrite(bp);
 			error = 0;
 		} else
-			error = bowrite(bp);
+			error = BUF_WRITE(bp);
 	}
 	dp->i_flag |= IN_CHANGE | IN_UPDATE;
 	/*
@@ -1120,7 +1120,7 @@ ufs_dirrewrite(dp, oip, newinum, newtype, isrmdir)
 			bdwrite(bp);
 			error = 0;
 		} else {
-			error = bowrite(bp);
+			error = BUF_WRITE(bp);
 		}
 	}
 	dp->i_flag |= IN_CHANGE | IN_UPDATE;
