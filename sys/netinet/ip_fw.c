@@ -942,28 +942,23 @@ ip_fw_chk(struct ip **pip, int hlen,
 				    goto bogusfrag;			\
 				ip = mtod(*m, struct ip *);		\
 				*pip = ip;				\
-				offset = (ip->ip_off & IP_OFFMASK);	\
 			    }						\
 			} while (0)
 
 	/*
 	 * Collect parameters into local variables for faster matching.
 	 */
+	proto = ip->ip_p;
+	src_ip = ip->ip_src;
+	dst_ip = ip->ip_dst;
 	offset = (ip->ip_off & IP_OFFMASK);
-	{
+	if (offset == 0) {
 	    struct tcphdr *tcp;
 	    struct udphdr *udp;
 
-	    dst_ip = ip->ip_dst ;
-	    src_ip = ip->ip_src ;
-	    proto = ip->ip_p ;
-	    /*
-	     * warning - if offset != 0, port values are bogus.
-	     * Not a problem for ipfw, but could be for dummynet.
-	     */
 	    switch (proto) {
 	    case IPPROTO_TCP :
-		PULLUP_TO(hlen + 14);
+		PULLUP_TO(hlen + sizeof(struct tcphdr));
 		tcp =(struct tcphdr *)((u_int32_t *)ip + ip->ip_hl);
 		dst_port = tcp->th_dport ;
 		src_port = tcp->th_sport ;
@@ -971,29 +966,29 @@ ip_fw_chk(struct ip **pip, int hlen,
 		break ;
 
 	    case IPPROTO_UDP :
-		PULLUP_TO(hlen + 4);
+		PULLUP_TO(hlen + sizeof(struct udphdr));
 		udp =(struct udphdr *)((u_int32_t *)ip + ip->ip_hl);
 		dst_port = udp->uh_dport ;
 		src_port = udp->uh_sport ;
 		break;
 
 	    case IPPROTO_ICMP:
-		PULLUP_TO(hlen + 2);
+		PULLUP_TO(hlen + 4);	/* type, code and checksum. */
 		flags = ((struct icmp *)
 			((u_int32_t *)ip + ip->ip_hl))->icmp_type ;
 		break ;
 
 	    default :
-		src_port = dst_port = 0 ;
+		break;
 	    }
-#undef PULLUP_TO
-	    last_pkt.src_ip = ntohl(src_ip.s_addr) ;
-	    last_pkt.dst_ip = ntohl(dst_ip.s_addr) ;
-	    last_pkt.proto = proto ;
-	    last_pkt.src_port = ntohs(src_port) ;
-	    last_pkt.dst_port = ntohs(dst_port) ;
-	    last_pkt.flags = flags ;
 	}
+#undef PULLUP_TO
+	last_pkt.src_ip = ntohl(src_ip.s_addr);
+	last_pkt.dst_ip = ntohl(dst_ip.s_addr);
+	last_pkt.proto = proto;
+	last_pkt.src_port = ntohs(src_port);
+	last_pkt.dst_port = ntohs(dst_port);
+	last_pkt.flags = flags;
 
 	if (*flow_id) {
 		/* Accept if passed first test */
