@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 24, 2004
+.Dd September 4, 2004
 .Dt SNC 4 i386
 .Os
 .Sh NAME
@@ -42,25 +42,30 @@ driver provides support for the
 .Tn Semiconductor
 .Tn SONIC
 Ethernet adapters.
-This currently supports the following card models:
+.Sh HARDWARE
+The
+.Nm
+driver supports the following cards:
 .Pp
-.Bl -item -compact
+.Bl -bullet -compact
 .It
 National Semiconductor DP83934AVQB
 .It
-NEC PC-9801N-15
+NEC PC-9801-83
 .It
 NEC PC-9801-84
 .It
-NEC PC-9801-83
+NEC PC-9801-103
 .It
 NEC PC-9801-104
 .It
-NEC PC-9801-103
+NEC PC-9801N-15
 .It
-NEC PC-9801N-J02R PCMCIA
+NEC PC-9801N-25
 .It
 NEC PC-9801N-J02 PCMCIA
+.It
+NEC PC-9801N-J02R PCMCIA
 .El
 .Pp
 The
@@ -79,13 +84,13 @@ card data structures and registers as 32 bit values
 makes code endianess independent.
 The
 .Tn SONIC
-is; however always in bigendian mode so it is necessary to
+is however always in big-endian mode so it is necessary to
 ensure that data structures shared
 between the
 .Tn CPU
 and the
 .Tn SONIC
-card are always in bigendian order.
+card are always in big-endian order.
 The
 .Nm
 driver supports the
@@ -94,24 +99,18 @@ C-Bus,
 and
 .Tn PnP
 buses.
-Support is also provided for legacy C-Bus.
-.Sh ERRORS
+Support is also provided for the legacy C-Bus.
+.Sh DIAGNOSTICS
 The following driver specific error messages
 may be reported:
-.Bl -tag -width Er
-.It Bq Er EIO
-May be returned if the device cannot allocate a port,
-memory resource, or
+.Bl -diag
+.It "snc%d: snc_nec16_register_irq: unsupported irq (%d)"
+The card returned an
 .Tn IRQ
-with the given resource ID.
-.It Bq Er ENOENT
-May be returned if the driver cannot assign memory, a port or an
-.Tn IRQ
-to the board.
-.It Bq Er ENXIO
-May be returned if the card supplied a
-.Tn PnP
-ID which did not match any of the known IDs.
+which is not supported by the driver.
+.It "snc%d: invalid packet length %d bytes"
+An attempt to transfer a data packet failed due to an
+invalid packet length.
 .El
 .Sh SEE ALSO
 .Xr card 4 ,
