@@ -200,7 +200,8 @@ vfs_mountroot_try(char *mountfrom)
 		printf("setrootbyname failed\n");
 
 	/* If the root device is a type "memory disk", mount RW */
-	if (rootdev != NODEV && devsw(rootdev) && (devsw(rootdev)->d_flags & D_MEMDISK))
+	if (rootdev != NODEV && devsw(rootdev) &&
+	    (devsw(rootdev)->d_flags & D_MEMDISK))
 		mp->mnt_flag &= ~MNT_RDONLY;
 
 	error = VFS_MOUNT(mp, NULL, NULL, NULL, curproc);
@@ -253,7 +254,7 @@ vfs_mountroot_ask(void)
 		if (name[0] == '?') {
 			printf("Possibly valid devices for 'ufs' root:\n");
 			for (i = 0; i < NUMCDEVSW; i++) {
-				dev = makebdev(i, 0);
+				dev = makedev(i, 0);
 				if (devsw(dev) != NULL)
 					printf(" \"%s\"", devsw(dev)->d_name);
 			}
@@ -311,7 +312,7 @@ static int
 setrootbyname(char *name)
 {
 	char *cp;
-	int bd, unit, slice, part;
+	int cd, unit, slice, part;
 	dev_t dev;
 
 	slice = 0;
@@ -333,8 +334,8 @@ setrootbyname(char *name)
 	}
 	unit = *cp - '0';
 	*cp++ = '\0';
-	for (bd = 0; bd < NUMCDEVSW; bd++) {
-		dev = makebdev(bd, 0);
+	for (cd = 0; cd < NUMCDEVSW; cd++) {
+		dev = makedev(cd, 0);
 		if (devsw(dev) != NULL &&
 		    strcmp(devsw(dev)->d_name, name) == 0)
 			goto gotit;
@@ -356,7 +357,7 @@ gotit:
 		printf("junk after name\n");
 		return (1);
 	}
-	rootdev = makebdev(bd, dkmakeminor(unit, slice, part));
+	rootdev = makedev(cd, dkmakeminor(unit, slice, part));
 	return 0;
 }
 
