@@ -44,13 +44,16 @@
 #define RC_RESUME_PATH	"/etc/rc.resume"
 
 static int	acpifd;
-
 static int
 acpi_init()
 {
 	acpifd = open(ACPIDEV, O_RDWR);
-	if (acpifd == -1)
+	if (acpifd == -1){
+		acpifd = open(ACPIDEV, O_RDONLY);
+	}
+	if (acpifd == -1){
 		err(EX_OSFILE, ACPIDEV);
+	}
 }
 
 static int
