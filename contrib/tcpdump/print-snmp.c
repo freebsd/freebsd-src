@@ -58,7 +58,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-snmp.c,v 1.50 2001/09/17 22:16:53 fenner Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-snmp.c,v 1.50.4.2 2002/07/20 23:33:08 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -688,13 +688,17 @@ asn1_print(struct be *elem)
 			
 			/*
 			 * first subitem encodes two items with 1st*OIDMUX+2nd
+			 * (see X.690:1997 clause 8.19 for the details)
 			 */
 			if (first < 0) {
+			        int s;
 				if (!nflag)
 					objp = mibroot;
 				first = 0;
-				OBJ_PRINT(o/OIDMUX, first);
-				o %= OIDMUX;
+				s = o / OIDMUX;
+				if (s > 2) s = 2;
+				OBJ_PRINT(s, first);
+				o -= s * OIDMUX;
 			}
 			OBJ_PRINT(o, first);
 			if (--first < 0)
@@ -875,16 +879,19 @@ static void smi_decode_oid(struct be *elem, unsigned int *oid,
 	    
 		/*
 		 * first subitem encodes two items with 1st*OIDMUX+2nd
+		 * (see X.690:1997 clause 8.19 for the details)
 		 */
 		if (first < 0) {
 		        first = 0;
 			if (*oidlen < oidsize) {
-			    oid[(*oidlen)++] = o/OIDMUX;
+			    oid[*oidlen] = o / OIDMUX;
+			    if (oid[*oidlen] > 2) oid[*oidlen] = 2;
 			}
-			o %= OIDMUX;
+			o -= oid[*oidlen] * OIDMUX;
+			if (*oidlen < oidsize) (*oidlen)++;
 		}
 		if (*oidlen < oidsize) {
-		    oid[(*oidlen)++] = o;
+			oid[(*oidlen)++] = o;
 		}
 		o = 0;
 	}
@@ -1530,8 +1537,9 @@ community_print(const u_char *np, u_int length, int version)
 		return;
 	}
 	/* default community */
-	if (strncmp((char *)elem.data.str, DEF_COMMUNITY,
-	    sizeof(DEF_COMMUNITY) - 1))
+	if (!(elem.asnlen == sizeof(DEF_COMMUNITY) - 1 &&
+	    strncmp((char *)elem.data.str, DEF_COMMUNITY,
+	            sizeof(DEF_COMMUNITY) - 1) == 0))
 		/* ! "public" */
 		printf("C=%.*s ", (int)elem.asnlen, elem.data.str);
 	length -= count;
