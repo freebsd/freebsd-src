@@ -487,7 +487,7 @@ lock_answer(int pid, netobj *netcookie, int result, int *pid_p, int version)
 			break;
 		case nlm4_denied:
 			if (pid_p == NULL)
-				ans.la_errno = EACCES;
+				ans.la_errno = EAGAIN;
 			else {
 				/* this is an answer to a nlm_test msg */
 				ans.la_set_getlk_pid = 1;
@@ -530,7 +530,7 @@ lock_answer(int pid, netobj *netcookie, int result, int *pid_p, int version)
 			break;
 		case nlm_denied:
 			if (pid_p == NULL)
-				ans.la_errno = EACCES;
+				ans.la_errno = EAGAIN;
 			else {
 				/* this is an answer to a nlm_test msg */
 				ans.la_set_getlk_pid = 1;
