@@ -79,6 +79,7 @@ typedef struct privdata *sc_p;
 /* Netgraph methods */
 static ng_constructor_t	ngt_constructor;
 static ng_rcvmsg_t	ngt_rcvmsg;
+static ng_close_t	ngt_close;
 static ng_shutdown_t	ngt_shutdown;
 static ng_newhook_t	ngt_newhook;
 static ng_rcvdata_t	ngt_rcvdata;
@@ -132,6 +133,7 @@ static struct ng_type ng_tee_typestruct = {
 	.name =		NG_TEE_NODE_TYPE,
 	.constructor =	ngt_constructor,
 	.rcvmsg =	ngt_rcvmsg,
+	.close =	ngt_close,
 	.shutdown =	ngt_shutdown,
 	.newhook =	ngt_newhook,
 	.rcvdata =	ngt_rcvdata,
@@ -358,15 +360,25 @@ ngt_rcvdata(hook_p hook, item_p item)
 }
 
 /*
+ * We are going to be shut down soon
+ *
+ * If we have both a left and right hook, then we probably want to extricate
+ * ourselves and leave the two peers still linked to each other. Otherwise we
+ * should just shut down as a normal node would.
+ */
+static int
+ngt_close(node_p node)
+{
+	const sc_p privdata = NG_NODE_PRIVATE(node);
+
+	if (privdata->left.hook && privdata->right.hook)
+		ng_bypass(privdata->left.hook, privdata->right.hook);
+
+	return (0);
+}
+
+/*
  * Shutdown processing
- *
- * This is tricky. If we have both a left and right hook, then we
- * probably want to extricate ourselves and leave the two peers
- * still linked to each other. Otherwise we should just shut down as
- * a normal node would.
- *
- * To keep the scope of info correct the routine to "extract" a node
- * from two links is in ng_base.c.
  */
 static int
 ngt_shutdown(node_p node)
