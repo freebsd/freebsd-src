@@ -79,10 +79,10 @@ struct harvest {
 };
 
 /* The reseed thread mutex */
-static mtx_t random_reseed_mtx;
+static struct mtx random_reseed_mtx;
 
 /* The entropy harvest mutex */
-static mtx_t random_harvest_mtx;
+static struct mtx random_harvest_mtx;
 
 /* <0 until the kthread starts, 0 for running */
 static int random_kthread_status = -1;

@@ -75,7 +75,7 @@ static struct kmemusage *kmemusage;
 static char *kmembase;
 static char *kmemlimit;
 
-mtx_t malloc_mtx;
+struct mtx malloc_mtx;
 
 u_int vm_kmem_size;
 

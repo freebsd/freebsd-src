@@ -99,8 +99,6 @@ struct mtx {
 #endif /* SMP_DEBUG */
 };
 
-typedef struct mtx mtx_t;
-
 /*
  * Filler for structs which need to remain the same size
  * whether or not SMP_DEBUG is turned on.
@@ -120,19 +118,19 @@ typedef struct mtxf {
 #define CURTHD	((u_int64_t)CURPROC)	/* Current thread ID */
 
 /* Prototypes */
-void	mtx_init(mtx_t *m, char *description, int flag);
-void	mtx_enter_hard(mtx_t *, int type, int ipl);
-void	mtx_exit_hard(mtx_t *, int type);
-void	mtx_destroy(mtx_t *m);
+void	mtx_init(struct mtx *m, char *description, int flag);
+void	mtx_enter_hard(struct mtx *, int type, int ipl);
+void	mtx_exit_hard(struct mtx *, int type);
+void	mtx_destroy(struct mtx *m);
 
 /*
  * Wrap the following functions with cpp macros so that filenames and line
  * numbers are embedded in the code correctly.
  */
 #if (defined(KLD_MODULE) || defined(_KERN_MUTEX_C_))
-void	_mtx_enter(mtx_t *mtxp, int type, const char *file, int line);
-int	_mtx_try_enter(mtx_t *mtxp, int type, const char *file, int line);
-void	_mtx_exit(mtx_t *mtxp, int type, const char *file, int line);
+void	_mtx_enter(struct mtx *mtxp, int type, const char *file, int line);
+int	_mtx_try_enter(struct mtx *mtxp, int type, const char *file, int line);
+void	_mtx_exit(struct mtx *mtxp, int type, const char *file, int line);
 #endif
 
 #define	mtx_enter(mtxp, type)						\
@@ -145,8 +143,8 @@ void	_mtx_exit(mtx_t *mtxp, int type, const char *file, int line);
 	_mtx_exit((mtxp), (type), __FILE__, __LINE__)
 
 /* Global locks */
-extern mtx_t sched_lock;
-extern mtx_t Giant;
+extern struct mtx sched_lock;
+extern struct mtx Giant;
 
 /*
  * Used to replace return with an exit Giant and return.
@@ -267,16 +265,16 @@ do {									\
 	    witness_restore(m, __CONCAT(n, __wf), __CONCAT(n, __wl));	\
 } while (0)
 
-void	witness_init(mtx_t *, int flag);
-void	witness_destroy(mtx_t *);
-void	witness_enter(mtx_t *, int, const char *, int);
-void	witness_try_enter(mtx_t *, int, const char *, int);
-void	witness_exit(mtx_t *, int, const char *, int);
+void	witness_init(struct mtx *, int flag);
+void	witness_destroy(struct mtx *);
+void	witness_enter(struct mtx *, int, const char *, int);
+void	witness_try_enter(struct mtx *, int, const char *, int);
+void	witness_exit(struct mtx *, int, const char *, int);
 void	witness_display(void(*)(const char *fmt, ...));
 void	witness_list(struct proc *);
-int	witness_sleep(int, mtx_t *, const char *, int);
-void	witness_save(mtx_t *, const char **, int *);
-void	witness_restore(mtx_t *, const char *, int);
+int	witness_sleep(int, struct mtx *, const char *, int);
+void	witness_save(struct mtx *, const char **, int *);
+void	witness_restore(struct mtx *, const char *, int);
 #else	/* WITNESS */
 #define WITNESS_ENTER(m, t, f, l)
 #define WITNESS_EXIT(m, t, f, l)
@@ -424,9 +422,9 @@ extern	char STR_mtx_try_enter_fmt[];
  * Note: since type is usually a constant much of this code is optimized out
  */
 _MTX_INLINE void
-_mtx_enter(mtx_t *mtxp, int type, const char *file, int line)
+_mtx_enter(struct mtx *mtxp, int type, const char *file, int line)
 {
-	mtx_t	*mpp = mtxp;
+	struct mtx	*mpp = mtxp;
 
 	/* bits only valid on mtx_exit() */
 	MPASS2(((type) & (MTX_NORECURSE | MTX_NOSWITCH)) == 0,
@@ -480,9 +478,9 @@ _mtx_enter(mtx_t *mtxp, int type, const char *file, int line)
  * XXX DOES NOT HANDLE RECURSION
  */
 _MTX_INLINE int
-_mtx_try_enter(mtx_t *mtxp, int type, const char *file, int line)
+_mtx_try_enter(struct mtx *mtxp, int type, const char *file, int line)
 {
-	mtx_t	*const mpp = mtxp;
+	struct mtx	*const mpp = mtxp;
 	int	rval;
 
 	rval = atomic_cmpset_64(&mpp->mtx_lock, MTX_UNOWNED, CURTHD);
@@ -502,9 +500,9 @@ _mtx_try_enter(mtx_t *mtxp, int type, const char *file, int line)
  * Release lock m
  */
 _MTX_INLINE void
-_mtx_exit(mtx_t *mtxp, int type, const char *file, int line)
+_mtx_exit(struct mtx *mtxp, int type, const char *file, int line)
 {
-	mtx_t	*const mpp = mtxp;
+	struct mtx	*const mpp = mtxp;
 
 	MPASS2(mtx_owned(mpp), STR_mtx_owned);
 	WITNESS_EXIT(mpp, type, file, line);
