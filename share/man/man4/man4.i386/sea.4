@@ -7,7 +7,7 @@
 .\"modification, are permitted provided redistributions must retain
 .\"the above copyright notice and this condition.
 .\"
-.\"	$Id: sea.4,v 1.6 1997/02/22 13:25:40 peter Exp $
+.\"	$Id: sea.4,v 1.7 1998/06/08 06:11:59 jkoshy Exp $
 .Dd December 25, 1994
 .Dt SEA 4 i386
 .Os FreeBSD
@@ -17,7 +17,7 @@
 Seagate ST01/ST02, Future Domain TMC-885, TMC-950 SCSI adapter driver
 .Sh SYNOPSIS
 With explicit memory and IRQ parameters:
-.Cd "controller sea0 at isa? bio irq 5 iomem 0xc8000 vector seaintr
+.Cd "controller sea0 at isa? bio irq 5 iomem 0xc8000"
 .Pp
 With automatic memory address detection and no IRQ:
 .Cd "controller sea0 at isa?

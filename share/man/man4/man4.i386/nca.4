@@ -6,7 +6,7 @@
 .\"modification, are permitted provided redistributions must retain
 .\"the above copyright notice and this condition.
 .\"
-.\"	$Id$
+.\"	$Id: nca.4,v 1.5 1997/02/22 13:25:35 peter Exp $
 .Dd January 9, 1995
 .Dt NCA 4 i386
 .Os FreeBSD
@@ -16,16 +16,16 @@
 Generic NCR-5380/NCR-53C400 SCSI adapter driver
 .Sh SYNOPSIS
 Trantor 130, with IRQ:
-.Cd "controller nca0 at isa? port 0x350 bio irq 5 vector ncaintr
+.Cd "controller nca0 at isa? port 0x350 bio irq 5"
 .Pp
 Trantor 130, without IRQ:
 .Cd "controller nca0 at isa? port 0x350
 .Pp
 ProAudioSpectrum-16, with IRQ:
-.Cd "controller nca0 at isa? port 0x1f88 bio irq 5 vector ncaintr
-.Cd "controller nca1 at isa? port 0x1f84 bio irq 5 vector ncaintr
-.Cd "controller nca2 at isa? port 0x1f8c bio irq 5 vector ncaintr
-.Cd "controller nca3 at isa? port 0x1e88 bio irq 5 vector ncaintr
+.Cd "controller nca0 at isa? port 0x1f88 bio irq 5"
+.Cd "controller nca1 at isa? port 0x1f84 bio irq 5"
+.Cd "controller nca2 at isa? port 0x1f8c bio irq 5"
+.Cd "controller nca3 at isa? port 0x1e88 bio irq 5"
 .Pp
 ProAudioSpectrum-16, without IRQ:
 .Cd "controller nca0 at isa? port 0x1f88
