@@ -40,6 +40,16 @@ miidevs.h			standard				   \
 	compile-with	"${AWK} -f $S/tools/miidevs2h.awk $S/dev/mii/miidevs" \
 	no-obj no-implicit-rule						   \
 	clean		"miidevs.h"
+pccarddevs.h			standard				   \
+	dependency	"$S/tools/pccarddevs2h.awk $S/dev/pccard/pccarddevs" \
+	compile-with	"${AWK} -f $S/tools/pccarddevs2h.awk $S/dev/pccard/pccarddevs" \
+	no-obj no-implicit-rule						   \
+	clean		"pccarddevs.h"
+usbdevs.h			standard				   \
+	dependency	"$S/tools/usbdevs2h.awk $S/dev/usb/usbdevs" \
+	compile-with	"${AWK} -f $S/tools/usbdevs2h.awk $S/dev/usb/usbdevs" \
+	no-obj no-implicit-rule						   \
+	clean		"usbdevs.h"
 kern/device_if.m		standard
 kern/bus_if.m			standard
 kern/clock_if.m			optional genclock

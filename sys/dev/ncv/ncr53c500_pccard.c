@@ -50,7 +50,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/device_port.h>
 
-#include <dev/pccard/pccarddevs.h>
+#include "pccarddevs.h"
 #include <dev/pccard/pccardvar.h>
 
 #include <cam/scsi/scsi_low.h>

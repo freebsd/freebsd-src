@@ -52,7 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/xe/if_xevar.h>
 
 #include <dev/pccard/pccardvar.h>
-#include <dev/pccard/pccarddevs.h>
+#include "pccarddevs.h"
 #include <dev/pccard/pccard_cis.h>
 #include "card_if.h"
 

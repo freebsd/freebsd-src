@@ -41,7 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/timepps.h>
 
 #include <dev/pccard/pccard_cis.h>
-#include <dev/pccard/pccarddevs.h>
+#include "pccarddevs.h"
 #include <dev/pccard/pccardreg.h>
 #include <dev/pccard/pccardvar.h>
 

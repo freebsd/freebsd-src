@@ -59,7 +59,7 @@
 
 #include <dev/pccard/pccardreg.h>
 #include <dev/pccard/pccardvar.h>
-#include <dev/pccard/pccarddevs.h>
+#include "pccarddevs.h"
 
 #include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
