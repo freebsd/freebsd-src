@@ -5,8 +5,18 @@ directly to him.  See end of file for further details.  For commonly
 done items, please see the end of the file.  Search for 'COMMON
 ITEMS:'
 
+20000205:
+	The xinstall problem has been corrected.
+
+20000204:
+	libipsec version number changed from 2 to 0.  The original
+	commit of Feb 3 incorrectly set this to 0.  Remove
+	/usr/lib/libipsec.so.2* before the buildworld and rebuild
+	anything that uses libipsec.so after you install the new
+	version.
+
 20000201:
-	The rcmd related fucntions have been aligned with other BSD
+	The rcmd related functions have been aligned with other BSD
 	implementations.  rlogind and rshd have been changed to use
 	the new API.  A make world is recommended to keep them in sync
 	with the libraries they use.
@@ -16,18 +26,12 @@ ITEMS:'
 
 20000129:
 	{set,get}flags have been added to the tree for rather dubious
-	reasons.  An unintended side effect of this is that you must
-	rebuild install before the rest of the world.  You need to
-	build it static install before you make world:
+	reasons.
 
-		cd src/usr.bin/xinstall
-		make depend all install NOSHARED=yes
-
-	If you encounter an error in installworld after doing a build
-	world, then do the following:
-		cd src/usr.bin/xinstall
-		make install
-	This issue may be resolved before 4.0 goes out.
+	IF AND ONLY IF installworld fails:
+		make -k -DNOFSCHG installworld
+		make installworld
+	This issue was resolved Feb 5, 2000.
 
 20000125:
 	rcmd_af() is added for multiple address family support.  rsh
@@ -577,7 +581,7 @@ COMMON ITEMS:
 		make depend all install clean
 		cd ../../usr.sbin/config
 		make depend all install clean
-		cd ../../../sys/i386/conf
+		cd ../../sys/i386/conf
 		config YOUR_KERNEL_HERE
 		cd ../../compile/YOUR_KERNEL_HERE
 		make depend && make
@@ -596,7 +600,11 @@ COMMON ITEMS:
 
 	To rebuild everything
 	---------------------
-	make world.
+	make world
+
+	To update from 3.x to 4.0 stable
+	--------------------------------
+	make world
 
 FORMAT:
 
