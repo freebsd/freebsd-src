@@ -81,9 +81,6 @@ static char *pidfilename = "/var/run/rtadvd.pid"; /* should be configurable */
 static char *mcastif;
 int sock;
 int rtsock = -1;
-#ifdef MIP6
-int mobileip6 = 0;
-#endif
 int accept_rr = 0;
 int dflag = 0, sflag = 0;
 
@@ -159,13 +156,7 @@ main(argc, argv)
 	openlog("rtadvd", LOG_NDELAY|LOG_PID, LOG_DAEMON);
 
 	/* get command line options and arguments */
-#ifdef MIP6
-#define OPTIONS "c:dDfM:mRs"
-#else
-#define OPTIONS "c:dDfM:Rs"
-#endif
-	while ((ch = getopt(argc, argv, OPTIONS)) != -1) {
-#undef OPTIONS
+	while ((ch = getopt(argc, argv, "c:dDfM:Rs")) != -1) {
 		switch (ch) {
 		case 'c':
 			conffile = optarg;
@@ -182,11 +173,6 @@ main(argc, argv)
 		case 'M':
 			mcastif = optarg;
 			break;
-#ifdef MIP6
-		case 'm':
-			mobileip6 = 1;
-			break;
-#endif
 		case 'R':
 			fprintf(stderr, "rtadvd: "
 				"the -R option is currently ignored.\n");
@@ -202,11 +188,7 @@ main(argc, argv)
 	argv += optind;
 	if (argc == 0) {
 		fprintf(stderr,
-#ifdef MIP6
-			"usage: rtadvd [-dDfMmRs] [-c conffile] "
-#else
 			"usage: rtadvd [-dDfMRs] [-c conffile] "
-#endif
 			"interfaces...\n");
 		exit(1);
 	}
