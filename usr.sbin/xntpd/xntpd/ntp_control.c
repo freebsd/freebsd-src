@@ -264,15 +264,8 @@ static	u_char def_clock_var[] = {
 /*
  * System and processor definitions.  These will change for the gizmo board.
  */
-#ifndef STR_SYSTEM
-#define	STR_SYSTEM	"UNIX"
-#endif
-#ifndef STR_PROCESSOR
-#define	STR_PROCESSOR	"unknown"
-#endif
-
-static char str_system[] = STR_SYSTEM;
-static char str_processor[] = STR_PROCESSOR;
+#include <sys/utsname.h>
+static struct utsname utsname;
 
 /*
  * Trap structures.  We only allow a few of these, and send
@@ -432,6 +425,8 @@ void
 init_control()
 {
 	int i;
+
+	uname(&utsname);
 
 	ctl_clr_stats();
 
@@ -1267,12 +1262,12 @@ ctl_putsys(varid)
 		ctl_putuint(sys_var[CS_LEAPWARNING].text, (U_LONG)leap_warning);
 		break;
 	case CS_PROCESSOR:
-		ctl_putstr(sys_var[CS_PROCESSOR].text, str_processor,
-		    sizeof(str_processor) - 1);
+		ctl_putstr(sys_var[CS_PROCESSOR].text, utsname.machine,
+		    strlen(utsname.machine));
 		break;
 	case CS_SYSTEM:
-		ctl_putstr(sys_var[CS_SYSTEM].text, str_system,
-		    sizeof(str_system) - 1);
+		ctl_putstr(sys_var[CS_SYSTEM].text, utsname.sysname,
+		    strlen(utsname.sysname));
 		break;
 	case CS_KEYID:
 		ctl_putuint(sys_var[CS_KEYID].text, (U_LONG)0);
