@@ -89,6 +89,8 @@ driver hooks for the 802.1Q VLAN technology in
 .Fx
 are
 .Xr bge 4 ,
+.Xr em 4 ,
+.Xr gx 4 ,
 .Xr nge 4 ,
 .Xr ti 4 ,
 and
@@ -135,11 +137,13 @@ natively.
 supports long frames for the
 .Nm
 natively.
+.It Xr ste 4
+supports long frames for the
+.Nm
+natively.
 .It Xr tl 4
 does support long frames.
 .It Xr tx 4
-does support long frames.
-.It Xr wx 4
 does support long frames.
 .It Xr xl 4
 supports long frames only if the card is built on a newer chip
@@ -148,8 +152,10 @@ supports long frames only if the card is built on a newer chip
 .Pp
 Note:
 Except for
+.Xr dc 4 ,
 .Xr fxp 4 ,
-.Xr sis 4
+.Xr sis 4 ,
+.Xr ste 4 ,
 and
 .Xr tx 4 ,
 none of the above drivers inform the
