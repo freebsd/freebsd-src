@@ -158,6 +158,7 @@ softclock(void *dummy)
 	struct bintime bt1, bt2;
 	struct timespec ts2;
 	static uint64_t maxdt = 36893488147419102LL;	/* 2 msec */
+	static timeout_t *lastfunc;
 #endif
 
 #ifndef MAX_SOFTCLOCK_STEPS
@@ -228,12 +229,17 @@ softclock(void *dummy)
 				binuptime(&bt2);
 				bintime_sub(&bt2, &bt1);
 				if (bt2.frac > maxdt) {
+					if (lastfunc != c_func ||
+					    bt2.frac > maxdt * 2) {
+						bintime2timespec(&bt2, &ts2);
+						printf(
+			"Expensive timeout(9) function: %p(%p) %jd.%09ld s\n",
+						    c_func, c_arg,
+						    (intmax_t)ts2.tv_sec,
+						    ts2.tv_nsec);
+					}
 					maxdt = bt2.frac;
-					bintime2timespec(&bt2, &ts2);
-					printf(
-			"Expensive timeout(9) function: %p(%p) %ld.%09ld s\n",
-					c_func, c_arg,
-					(long)ts2.tv_sec, ts2.tv_nsec);
+					lastfunc = c_func;
 				}
 #endif
 				if (!(c_flags & CALLOUT_MPSAFE))
