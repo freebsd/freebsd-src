@@ -32,6 +32,7 @@ BEGIN {
   extopt=0
   literal=0
   prenl=0
+  breakw=0
   line=""
 }
 
@@ -298,6 +299,13 @@ function add(str) {
       w=nwords
     } else if(match(words[w],"^El$")) {
       optlist=oldoptlist
+    } else if(match(words[w],"^Bk$")) {
+      if(match(words[w+1],"-words")) {
+	w++
+	breakw=1
+      }
+    } else if(match(words[w],"^Ek$")) {
+      breakw=0
     } else if(match(words[w],"^It$")&&optlist) {
       if(optlist==1)
 	add(".IP \\(bu")
@@ -306,7 +314,7 @@ function add(str) {
       else if(optlist==3) {
 	add(".TP")
 	prenl++
-	if(match(words[w+1],"^Pa|Ev$")) {
+	if(match(words[w+1],"^Pa$|^Ev$")) {
 	  add(".B")
 	  w++
 	}

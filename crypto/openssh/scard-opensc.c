@@ -35,7 +35,7 @@
 #include "key.h"
 #include "log.h"
 #include "xmalloc.h"
-#include "readpass.h"
+#include "misc.h"
 #include "scard.h"
 
 #if OPENSSL_VERSION_NUMBER < 0x00907000L && defined(CRYPTO_LOCK_ENGINE)

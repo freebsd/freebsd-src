@@ -51,6 +51,9 @@ static char *argv0;
 
 extern char *__progname;
 
+#define LOG_SYSLOG_VIS	(VIS_CSTYLE|VIS_NL|VIS_TAB|VIS_OCTAL)
+#define LOG_STDERR_VIS	(VIS_SAFE|VIS_OCTAL)
+
 /* textual representation of log-facilities/levels */
 
 static struct {
@@ -316,7 +319,8 @@ do_log(LogLevel level, const char *fmt, va_list args)
 	} else {
 		vsnprintf(msgbuf, sizeof(msgbuf), fmt, args);
 	}
-	strnvis(fmtbuf, msgbuf, sizeof(fmtbuf), VIS_SAFE|VIS_OCTAL);
+	strnvis(fmtbuf, msgbuf, sizeof(fmtbuf),
+	    log_on_stderr ? LOG_STDERR_VIS : LOG_SYSLOG_VIS);
 	if (log_on_stderr) {
 		snprintf(msgbuf, sizeof msgbuf, "%s\r\n", fmtbuf);
 		write(STDERR_FILENO, msgbuf, strlen(msgbuf));
