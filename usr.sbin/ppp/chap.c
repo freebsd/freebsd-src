@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: chap.c,v 1.28.2.13 1998/03/10 03:05:39 brian Exp $
+ * $Id: chap.c,v 1.28.2.14 1998/03/13 00:43:54 brian Exp $
  *
  *	TODO:
  */
@@ -236,7 +236,7 @@ RecvChapTalk(struct bundle *bundle, struct fsmheader *chp, struct mbuf *bp,
 	ChapOutput(physical, CHAP_SUCCESS, chp->id, "Welcome!!", 10);
         Physical_Login(physical, name);
 
-        if (LcpInfo.auth_iwait == 0)
+        if (dl->lcp.auth_iwait == 0)
           /*
            * Either I didn't need to authenticate, or I've already been
            * told that I got the answer right.
@@ -266,9 +266,9 @@ RecvChapResult(struct bundle *bundle, struct fsmheader *chp, struct mbuf *bp,
   len = ntohs(chp->length);
   LogPrintf(LogDEBUG, "RecvChapResult: length: %d\n", len);
   if (chp->code == CHAP_SUCCESS) {
-    if (LcpInfo.auth_iwait == PROTO_CHAP) {
-      LcpInfo.auth_iwait = 0;
-      if (LcpInfo.auth_ineed == 0)
+    if (dl->lcp.auth_iwait == PROTO_CHAP) {
+      dl->lcp.auth_iwait = 0;
+      if (dl->lcp.auth_ineed == 0)
         /*
          * We've succeeded in our ``login''
          * If we're not expecting  the peer to authenticate (or he already

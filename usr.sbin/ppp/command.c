@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131.2.34 1998/03/13 00:43:58 brian Exp $
+ * $Id: command.c,v 1.131.2.35 1998/03/13 00:44:41 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -452,11 +452,11 @@ static int
 ShowStopped(struct cmdargs const *arg)
 {
   prompt_Printf(&prompt, " Stopped Timer:  LCP: ");
-  if (!LcpInfo.fsm.StoppedTimer.load)
+  if (!arg->cx->lcp.fsm.StoppedTimer.load)
     prompt_Printf(&prompt, "Disabled");
   else
     prompt_Printf(&prompt, "%ld secs",
-                  LcpInfo.fsm.StoppedTimer.load / SECTICKS);
+                  arg->cx->lcp.fsm.StoppedTimer.load / SECTICKS);
 
   prompt_Printf(&prompt, ", CCP: ");
   if (!arg->cx->ccp.fsm.StoppedTimer.load)
@@ -577,7 +577,7 @@ static struct cmdtab const ShowCommands[] = {
   "Show Input filters", "show ifilter option .."},
   {"ipcp", NULL, ReportIpcpStatus, LOCAL_AUTH,
   "Show IPCP status", "show ipcp"},
-  {"lcp", NULL, ReportLcpStatus, LOCAL_AUTH | LOCAL_CX,
+  {"lcp", NULL, lcp_ReportStatus, LOCAL_AUTH | LOCAL_CX,
   "Show LCP status", "show lcp"},
   {"links", "link", bundle_ShowLinks, LOCAL_AUTH,
   "Show available link names", "show links"},
@@ -788,9 +788,9 @@ ShowCommand(struct cmdargs const *arg)
 static int
 TerminalCommand(struct cmdargs const *arg)
 {
-  if (LcpInfo.fsm.state > ST_CLOSED) {
+  if (arg->cx->lcp.fsm.state > ST_CLOSED) {
     prompt_Printf(&prompt, "LCP state is [%s]\n",
-                  StateNames[LcpInfo.fsm.state]);
+                  StateNames[arg->cx->lcp.fsm.state]);
     return 1;
   }
 
@@ -932,11 +932,11 @@ SetRedialTimeout(struct cmdargs const *arg)
 static int
 SetStoppedTimeout(struct cmdargs const *arg)
 {
-  LcpInfo.fsm.StoppedTimer.load = 0;
+  arg->cx->lcp.fsm.StoppedTimer.load = 0;
   arg->cx->ccp.fsm.StoppedTimer.load = 0;
   if (arg->argc <= 2) {
     if (arg->argc > 0) {
-      LcpInfo.fsm.StoppedTimer.load = atoi(arg->argv[0]) * SECTICKS;
+      arg->cx->lcp.fsm.StoppedTimer.load = atoi(arg->argv[0]) * SECTICKS;
       if (arg->argc > 1)
         arg->cx->ccp.fsm.StoppedTimer.load = atoi(arg->argv[1]) * SECTICKS;
     }

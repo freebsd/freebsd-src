@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.h,v 1.16.2.12 1998/02/27 01:22:35 brian Exp $
+ * $Id: lcp.h,v 1.16.2.13 1998/03/13 00:44:45 brian Exp $
  *
  *	TODO:
  */
@@ -71,8 +71,6 @@ struct lcp_opt {
 
 struct physical;
 
-extern struct lcp LcpInfo;
-
 #define fsm2lcp(fp) (fp->proto == PROTO_LCP ? (struct lcp *)fp : NULL)
 #define lcp2ccp(lcp) (&link2physical((lcp)->fsm.link)->dl->ccp)
 
@@ -80,8 +78,8 @@ extern void lcp_Init(struct lcp *, struct bundle *, struct physical *,
                      const struct fsm_parent *);
 extern void lcp_Setup(struct lcp *, int);
 
-extern void LcpSendProtoRej(u_char *, int);
+extern void lcp_SendProtoRej(struct lcp *, u_char *, int);
 extern int LcpPutConf(int, u_char *, const struct lcp_opt *, const char *,
                        const char *, ...);
-extern int ReportLcpStatus(struct cmdargs const *);
-extern void LcpInput(struct mbuf *);
+extern int lcp_ReportStatus(struct cmdargs const *);
+extern void LcpInput(struct lcp *, struct mbuf *);

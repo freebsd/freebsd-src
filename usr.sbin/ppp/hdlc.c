@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: hdlc.c,v 1.28.2.16 1998/03/13 00:44:03 brian Exp $
+ * $Id: hdlc.c,v 1.28.2.17 1998/03/13 00:44:44 brian Exp $
  *
  *	TODO:
  */
@@ -160,7 +160,7 @@ HdlcOutput(struct link *l, int pri, u_short proto, struct mbuf *bp)
   mhp = mballoc(4, MB_HDLCOUT);
   mhp->cnt = 0;
   cp = MBUF_CTOP(mhp);
-  if (proto == PROTO_LCP || LcpInfo.his_acfcomp == 0) {
+  if (proto == PROTO_LCP || p->dl->lcp.his_acfcomp == 0) {
     *cp++ = HDLC_ADDR;
     *cp++ = HDLC_UI;
     mhp->cnt += 2;
@@ -169,7 +169,7 @@ HdlcOutput(struct link *l, int pri, u_short proto, struct mbuf *bp)
   /*
    * If possible, compress protocol field.
    */
-  if (LcpInfo.his_protocomp && (proto & 0xff00) == 0) {
+  if (p->dl->lcp.his_protocomp && (proto & 0xff00) == 0) {
     *cp++ = proto;
     mhp->cnt++;
   } else {
@@ -192,7 +192,7 @@ HdlcOutput(struct link *l, int pri, u_short proto, struct mbuf *bp)
     /* Overwrite the entire packet */
     struct lqrdata lqr;
 
-    lqr.MagicNumber = LcpInfo.want_magic;
+    lqr.MagicNumber = p->dl->lcp.want_magic;
     lqr.LastOutLQRs = p->hdlc.lqm.lqr.peer.PeerOutLQRs;
     lqr.LastOutPackets = p->hdlc.lqm.lqr.peer.PeerOutPackets;
     lqr.LastOutOctets = p->hdlc.lqm.lqr.peer.PeerOutOctets;
@@ -369,18 +369,18 @@ DecodePacket(struct bundle *bundle, u_short proto, struct mbuf * bp,
              struct link *l)
 {
   struct physical *p = link2physical(l);
-  struct ccp *ccp = bundle2ccp(bundle, l->name);
+  struct datalink *dl = bundle2datalink(bundle, l->name);
   u_char *cp;
 
   LogPrintf(LogDEBUG, "DecodePacket: proto = 0x%04x\n", proto);
 
   /* decompress everything.  CCP needs uncompressed data too */
-  if ((bp = ccp_Decompress(ccp, &proto, bp)) == NULL)
+  if ((bp = ccp_Decompress(&dl->ccp, &proto, bp)) == NULL)
     return;
 
   switch (proto) {
   case PROTO_LCP:
-    LcpInput(bp);
+    LcpInput(&dl->lcp, bp);
     break;
   case PROTO_PAP:
     if (p)
@@ -420,7 +420,7 @@ DecodePacket(struct bundle *bundle, u_short proto, struct mbuf * bp,
     IpcpInput(bp);
     break;
   case PROTO_CCP:
-    CcpInput(ccp, bundle, bp);
+    CcpInput(&dl->ccp, bundle, bp);
     break;
   default:
     LogPrintf(LogPHASE, "Unknown protocol 0x%04x (%s)\n",
@@ -428,7 +428,9 @@ DecodePacket(struct bundle *bundle, u_short proto, struct mbuf * bp,
     bp->offset -= 2;
     bp->cnt += 2;
     cp = MBUF_CTOP(bp);
-    LcpSendProtoRej(cp, bp->cnt);
+    if (p)
+      lcp_SendProtoRej(&dl->lcp, cp, bp->cnt);
+    /* XXX: Eeek - how to we proto-reject something at the bundle level ? */
     p->hdlc.lqm.SaveInDiscards++;
     p->hdlc.stats.unknownproto++;
     pfree(bp);
@@ -467,7 +469,7 @@ HdlcInput(struct bundle *bundle, struct mbuf * bp, struct physical *physical)
   }
   cp = MBUF_CTOP(bp);
 
-  if (!LcpInfo.want_acfcomp) {
+  if (!physical->dl->lcp.want_acfcomp) {
     /*
      * We expect that packet is not compressed.
      */
@@ -499,7 +501,7 @@ HdlcInput(struct bundle *bundle, struct mbuf * bp, struct physical *physical)
     bp->offset += 2;
     bp->cnt -= 2;
   }
-  if (LcpInfo.want_protocomp) {
+  if (physical->dl->lcp.want_protocomp) {
     proto = 0;
     cp--;
     do {

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.1.2.19 1998/03/13 00:44:33 brian Exp $
+ *	$Id: datalink.c,v 1.1.2.20 1998/03/13 00:44:42 brian Exp $
  */
 
 #include <sys/param.h>
@@ -167,13 +167,13 @@ datalink_LoginDone(struct datalink *dl)
   } else {
     dl->dial_tries = -1;
 
-    lcp_Setup(&LcpInfo, dl->state == DATALINK_READY ? 0 : VarOpenMode);
+    lcp_Setup(&dl->lcp, dl->state == DATALINK_READY ? 0 : VarOpenMode);
     ccp_Setup(&dl->ccp);
 
     LogPrintf(LogPHASE, "%s: Entering LCP state\n", dl->name);
     dl->state = DATALINK_LCP;
-    FsmUp(&LcpInfo.fsm);
-    FsmOpen(&LcpInfo.fsm);
+    FsmUp(&dl->lcp.fsm);
+    FsmOpen(&dl->lcp.fsm);
   }
 }
 
@@ -371,10 +371,10 @@ static void
 datalink_LayerStart(void *v, struct fsm *fp)
 {
   /* The given FSM is about to start up ! */
-  if (fp == &LcpInfo.fsm) {
-    struct datalink *dl = (struct datalink *)v;
+  struct datalink *dl = (struct datalink *)v;
+
+  if (fp == &dl->lcp.fsm)
     (*dl->parent->LayerStart)(dl->parent->object, fp);
-  }
 }
 
 static void
@@ -383,18 +383,18 @@ datalink_LayerUp(void *v, struct fsm *fp)
   /* The given fsm is now up */
   struct datalink *dl = (struct datalink *)v;
 
-  if (fp == &LcpInfo.fsm) {
-    LcpInfo.auth_ineed = LcpInfo.want_auth;
-    LcpInfo.auth_iwait = LcpInfo.his_auth;
-    if (LcpInfo.his_auth || LcpInfo.want_auth) {
+  if (fp == &dl->lcp.fsm) {
+    dl->lcp.auth_ineed = dl->lcp.want_auth;
+    dl->lcp.auth_iwait = dl->lcp.his_auth;
+    if (dl->lcp.his_auth || dl->lcp.want_auth) {
       if (dl->bundle->phase == PHASE_DEAD ||
           dl->bundle->phase == PHASE_ESTABLISH)
         bundle_NewPhase(dl->bundle, PHASE_AUTHENTICATE);
       LogPrintf(LogPHASE, "%s: his = %s, mine = %s\n", dl->name,
-                Auth2Nam(LcpInfo.his_auth), Auth2Nam(LcpInfo.want_auth));
-      if (LcpInfo.his_auth == PROTO_PAP)
+                Auth2Nam(dl->lcp.his_auth), Auth2Nam(dl->lcp.want_auth));
+      if (dl->lcp.his_auth == PROTO_PAP)
         StartAuthChallenge(&dl->pap, dl->physical, SendPapChallenge);
-      if (LcpInfo.want_auth == PROTO_CHAP)
+      if (dl->lcp.want_auth == PROTO_CHAP)
         StartAuthChallenge(&dl->chap.auth, dl->physical, SendChapChallenge);
     } else
       datalink_AuthOk(dl);
@@ -407,14 +407,14 @@ datalink_AuthOk(struct datalink *dl)
   FsmUp(&dl->ccp.fsm);
   FsmOpen(&dl->ccp.fsm);
   dl->state = DATALINK_OPEN;
-  (*dl->parent->LayerUp)(dl->parent->object, &LcpInfo.fsm);
+  (*dl->parent->LayerUp)(dl->parent->object, &dl->lcp.fsm);
 }
 
 void
 datalink_AuthNotOk(struct datalink *dl)
 {
   dl->state = DATALINK_LCP;
-  FsmClose(&LcpInfo.fsm);
+  FsmClose(&dl->lcp.fsm);
 }
 
 static void
@@ -422,7 +422,8 @@ datalink_LayerDown(void *v, struct fsm *fp)
 {
   /* The given FSM has been told to come down */
   struct datalink *dl = (struct datalink *)v;
-  if (fp == &LcpInfo.fsm) {
+
+  if (fp == &dl->lcp.fsm) {
     switch (dl->state) {
       case DATALINK_OPEN:
         FsmDown(&dl->ccp.fsm);
@@ -444,7 +445,7 @@ datalink_LayerFinish(void *v, struct fsm *fp)
   /* The given fsm is now down */
   struct datalink *dl = (struct datalink *)v;
 
-  if (fp == &LcpInfo.fsm) {
+  if (fp == &dl->lcp.fsm) {
     (*dl->parent->LayerFinish)(dl->parent->object, fp);
     datalink_ComeDown(dl, 0);
   }
@@ -509,7 +510,7 @@ datalink_Create(const char *name, struct bundle *bundle,
   dl->fsm.LayerFinish = datalink_LayerFinish;
   dl->fsm.object = dl;
 
-  lcp_Init(&LcpInfo, dl->bundle, dl->physical, &dl->fsm);
+  lcp_Init(&dl->lcp, dl->bundle, dl->physical, &dl->fsm);
   ccp_Init(&dl->ccp, dl->bundle, &dl->physical->link, &dl->fsm);
 
   authinfo_Init(&dl->pap);
@@ -580,7 +581,7 @@ datalink_Close(struct datalink *dl, int stay)
 
     case DATALINK_AUTH:
     case DATALINK_LCP:
-      FsmClose(&LcpInfo.fsm);
+      FsmClose(&dl->lcp.fsm);
       if (stay) {
         dl->dial_tries = -1;
         dl->reconnect_tries = 0;
@@ -604,9 +605,9 @@ datalink_Down(struct datalink *dl, int stay)
 
     case DATALINK_AUTH:
     case DATALINK_LCP:
-      FsmDown(&LcpInfo.fsm);
+      FsmDown(&dl->lcp.fsm);
       if (stay)
-        FsmClose(&LcpInfo.fsm);
+        FsmClose(&dl->lcp.fsm);
       else
         FsmOpen(&dl->ccp.fsm);
       /* fall through */

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.22 1998/03/13 00:44:32 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.23 1998/03/13 00:44:38 brian Exp $
  */
 
 #include <sys/param.h>
@@ -238,10 +238,7 @@ bundle_LayerFinish(void *v, struct fsm *fp)
 
   struct bundle *bundle = (struct bundle *)v;
 
-  if (fp->proto == PROTO_LCP) {
-    FsmDown(&IpcpInfo.fsm);		/* You've lost your underlings */
-    FsmClose(&IpcpInfo.fsm);		/* ST_INITIAL please */
-  } else if (fp == &IpcpInfo.fsm) {
+  if (fp->proto == PROTO_IPCP) {
     struct datalink *dl;
 
     bundle_NewPhase(bundle, PHASE_TERMINATE);
@@ -249,6 +246,10 @@ bundle_LayerFinish(void *v, struct fsm *fp)
     for (dl = bundle->links; dl; dl = dl->next)
       datalink_Close(dl, 1);
   }
+
+  /* when either the LCP or IPCP is down, drop IPCP */
+  FsmDown(&IpcpInfo.fsm);
+  FsmClose(&IpcpInfo.fsm);		/* ST_INITIAL please */
 }
 
 int
@@ -640,6 +641,8 @@ bundle_Open(struct bundle *bundle, const char *name)
       if (name != NULL)
         break;
     }
+  if (bundle->phase == PHASE_DEAD)
+    bundle_NewPhase(bundle, PHASE_ESTABLISH);
 }
 
 struct datalink *
@@ -676,14 +679,10 @@ bundle2ccp(struct bundle *bundle, const char *name)
 struct lcp *
 bundle2lcp(struct bundle *bundle, const char *name)
 {
-#ifdef realcode
   struct datalink *dl = bundle2datalink(bundle, name);
   if (dl)
     return &dl->lcp;
   return NULL;
-#else
-  return &LcpInfo;
-#endif
 }
 
 struct authinfo *

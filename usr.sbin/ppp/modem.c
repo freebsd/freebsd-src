@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.77.2.32 1998/03/13 00:44:16 brian Exp $
+ * $Id: modem.c,v 1.77.2.33 1998/03/13 00:44:46 brian Exp $
  *
  *  TODO:
  */
@@ -988,7 +988,7 @@ modem_DescriptorRead(struct descriptor *d, struct bundle *bundle,
   LogPrintf(LogDEBUG, "descriptor2physical; %p -> %p\n", d, p);
 
   /* something to read from modem */
-  if (LcpInfo.fsm.state <= ST_CLOSED)
+  if (p->dl->lcp.fsm.state <= ST_CLOSED)
     nointr_usleep(10000);
 
   n = Physical_Read(p, rbuff, sizeof rbuff);
@@ -997,7 +997,7 @@ modem_DescriptorRead(struct descriptor *d, struct bundle *bundle,
   else
     LogDumpBuff(LogASYNC, "ReadFromModem", rbuff, n);
 
-  if (LcpInfo.fsm.state <= ST_CLOSED) {
+  if (p->dl->lcp.fsm.state <= ST_CLOSED) {
     /* In dedicated mode, we just discard input until LCP is started */
     if (!(mode & MODE_DEDICATED)) {
       cp = HdlcDetect(p, rbuff, n);

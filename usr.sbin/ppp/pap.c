@@ -18,7 +18,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: pap.c,v 1.20.2.14 1998/03/10 03:05:50 brian Exp $
+ * $Id: pap.c,v 1.20.2.15 1998/03/13 00:44:19 brian Exp $
  *
  *	TODO:
  */
@@ -157,10 +157,10 @@ PapInput(struct bundle *bundle, struct mbuf *bp, struct physical *physical)
 	cp = (u_char *) (php + 1);
 	if (PapValidate(bundle, cp, cp + *cp + 1, physical)) {
 	  SendPapCode(php->id, PAP_ACK, "Greetings!!", physical);
-	  LcpInfo.auth_ineed = 0;
+	  dl->lcp.auth_ineed = 0;
           Physical_Login(physical, cp + 1);
 
-          if (LcpInfo.auth_iwait == 0)
+          if (dl->lcp.auth_iwait == 0)
             /*
              * Either I didn't need to authenticate, or I've already been
              * told that I got the answer right.
@@ -178,9 +178,9 @@ PapInput(struct bundle *bundle, struct mbuf *bp, struct physical *physical)
 	len = *cp++;
 	cp[len] = 0;
 	LogPrintf(LogPHASE, "Received PAP_ACK (%s)\n", cp);
-	if (LcpInfo.auth_iwait == PROTO_PAP) {
-	  LcpInfo.auth_iwait = 0;
-	  if (LcpInfo.auth_ineed == 0)
+	if (dl->lcp.auth_iwait == PROTO_PAP) {
+	  dl->lcp.auth_iwait = 0;
+	  if (dl->lcp.auth_ineed == 0)
             /*
              * We've succeeded in our ``login''
              * If we're not expecting  the peer to authenticate (or he already

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.121.2.29 1998/03/01 01:07:46 brian Exp $
+ * $Id: main.c,v 1.121.2.30 1998/03/13 00:44:13 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -610,7 +610,7 @@ DoLoop(struct bundle *bundle)
        * Process on-demand dialup. Output packets are queued within tunnel
        * device until IPCP is opened.
        */
-      if (LcpInfo.fsm.state <= ST_CLOSED && (mode & MODE_AUTO) &&
+      if (bundle->phase == PHASE_DEAD && (mode & MODE_AUTO) &&
 	  (pri = PacketCheck(tun.data, n, FL_DIAL)) >= 0)
         bundle_Open(bundle, NULL);
 

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.55.2.25 1998/03/09 19:26:39 brian Exp $
+ * $Id: lcp.c,v 1.55.2.26 1998/03/13 00:44:08 brian Exp $
  *
  * TODO:
  *	o Limit data field length by MRU
@@ -69,6 +69,8 @@
 #include "descriptor.h"
 #include "physical.h"
 #include "prompt.h"
+#include "chat.h"
+#include "datalink.h"
 
 /* for received LQRs */
 struct lqrreq {
@@ -102,8 +104,6 @@ static struct fsm_callbacks lcp_Callbacks = {
   NullRecvResetAck
 };
 
-struct lcp LcpInfo;
-
 static const char *cftypes[] = {
   /* Check out the latest ``Assigned numbers'' rfc (rfc1700.txt) */
   "???",
@@ -135,22 +135,22 @@ static const char *cftypes[] = {
 #define NCFTYPES (sizeof cftypes/sizeof cftypes[0])
 
 int
-ReportLcpStatus(struct cmdargs const *arg)
+lcp_ReportStatus(struct cmdargs const *arg)
 {
-  prompt_Printf(&prompt, "%s [%s]\n", LcpInfo.fsm.name,
-                StateNames[LcpInfo.fsm.state]);
+  prompt_Printf(&prompt, "%s [%s]\n", arg->cx->lcp.fsm.name,
+                StateNames[arg->cx->lcp.fsm.state]);
   prompt_Printf(&prompt,
 	        " his side: MRU %d, ACCMAP %08lx, PROTOCOMP %d, ACFCOMP %d,\n"
 	        "           MAGIC %08lx, REJECT %04x\n",
-	        LcpInfo.his_mru, (u_long)LcpInfo.his_accmap,
-                LcpInfo.his_protocomp, LcpInfo.his_acfcomp,
-                (u_long)LcpInfo.his_magic, LcpInfo.his_reject);
+	        arg->cx->lcp.his_mru, (u_long)arg->cx->lcp.his_accmap,
+                arg->cx->lcp.his_protocomp, arg->cx->lcp.his_acfcomp,
+                (u_long)arg->cx->lcp.his_magic, arg->cx->lcp.his_reject);
   prompt_Printf(&prompt,
 	        " my  side: MRU %d, ACCMAP %08lx, PROTOCOMP %d, ACFCOMP %d,\n"
                 "           MAGIC %08lx, REJECT %04x\n",
-                LcpInfo.want_mru, (u_long)LcpInfo.want_accmap,
-                LcpInfo.want_protocomp, LcpInfo.want_acfcomp,
-                (u_long)LcpInfo.want_magic, LcpInfo.my_reject);
+                arg->cx->lcp.want_mru, (u_long)arg->cx->lcp.want_accmap,
+                arg->cx->lcp.want_protocomp, arg->cx->lcp.want_acfcomp,
+                (u_long)arg->cx->lcp.want_magic, arg->cx->lcp.my_reject);
   prompt_Printf(&prompt, "\nDefaults:   MRU = %d, ACCMAP = %08lx\t",
                 VarMRU, (u_long)VarAccmap);
   prompt_Printf(&prompt, "Open Mode: %s",
@@ -351,11 +351,11 @@ LcpSendConfigReq(struct fsm *fp)
 }
 
 void
-LcpSendProtoRej(u_char *option, int count)
+lcp_SendProtoRej(struct lcp *lcp, u_char *option, int count)
 {
   /* Don't understand `option' */
-  LogPrintf(LogLCP, "LcpSendProtoRej\n");
-  FsmOutput(&LcpInfo.fsm, CODE_PROTOREJ, LcpInfo.fsm.reqid, option, count);
+  LogPrintf(LogLCP, "lcp_SendProtoRej\n");
+  FsmOutput(&lcp->fsm, CODE_PROTOREJ, lcp->fsm.reqid, option, count);
 }
 
 static void
@@ -376,8 +376,10 @@ static void
 LcpLayerStart(struct fsm *fp)
 {
   /* We're about to start up ! */
+  struct lcp *lcp = fsm2lcp(fp);
+
   LogPrintf(LogLCP, "LcpLayerStart\n");
-  LcpInfo.LcpFailedMagic = 0;
+  lcp->LcpFailedMagic = 0;
 }
 
 static void
@@ -773,8 +775,8 @@ reqreject:
 }
 
 void
-LcpInput(struct mbuf * bp)
+LcpInput(struct lcp *lcp, struct mbuf * bp)
 {
   /* Got PROTO_LCP from link */
-  FsmInput(&LcpInfo.fsm, bp);
+  FsmInput(&lcp->fsm, bp);
 }

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lqr.c,v 1.22.2.9 1998/03/13 00:44:10 brian Exp $
+ * $Id: lqr.c,v 1.22.2.10 1998/03/13 00:44:56 brian Exp $
  *
  *	o LQR based on RFC1333
  *
@@ -127,7 +127,7 @@ SendLqrReport(void *v)
       LogPrintf(LogPHASE, "** Too many LQR packets lost **\n");
       LogPrintf(LogLQM, "LqrOutput: Too many LQR packets lost\n");
       hdlc->lqm.method = 0;	/* Prevent recursion via bundle_Close() */
-      bundle_Close(LcpInfo.fsm.bundle, NULL, 1);
+      bundle_Close(lcp->fsm.bundle, NULL, 1);
     } else {
       bp = mballoc(sizeof(struct lqrdata), MB_LQR);
       HdlcOutput(lcp->fsm.link, PRI_LINK, PROTO_LQR, bp);
@@ -141,7 +141,7 @@ SendLqrReport(void *v)
       LogPrintf(LogPHASE, "** Too many ECHO LQR packets lost **\n");
       LogPrintf(LogLQM, "LqrOutput: Too many ECHO LQR packets lost\n");
       hdlc->lqm.method = 0;	/* Prevent recursion via bundle_Close() */
-      bundle_Close(LcpInfo.fsm.bundle, NULL, 1);
+      bundle_Close(lcp->fsm.bundle, NULL, 1);
     } else
       SendEchoReq(lcp);
   }
@@ -161,15 +161,17 @@ LqrInput(struct physical *physical, struct mbuf *bp)
   else if (!Acceptable(ConfLqr)) {
     bp->offset -= 2;
     bp->cnt += 2;
-    LcpSendProtoRej(MBUF_CTOP(bp), bp->cnt);
+    lcp_SendProtoRej(physical->hdlc.lqm.owner, MBUF_CTOP(bp), bp->cnt);
   } else {
     struct lqrdata *lqr;
+    struct lcp *lcp;
     u_int32_t lastLQR;
 
     lqr = (struct lqrdata *)MBUF_CTOP(bp);
-    if (ntohl(lqr->MagicNumber) != LcpInfo.his_magic)
+    lcp = physical->hdlc.lqm.owner;
+    if (ntohl(lqr->MagicNumber) != physical->hdlc.lqm.owner->his_magic)
       LogPrintf(LogERROR, "LqrInput: magic %x != expecting %x\n",
-		ntohl(lqr->MagicNumber), LcpInfo.his_magic);
+		ntohl(lqr->MagicNumber), physical->hdlc.lqm.owner->his_magic);
     else {
       /*
        * Remember our PeerInLQRs, then convert byte order and save
@@ -188,7 +190,7 @@ LqrInput(struct physical *physical, struct mbuf *bp)
        * send our next one before the peers max timeout.
        */
       if (physical->hdlc.lqm.timer.load == 0 ||
-          lastLQR == physical->hdlc.lqm.lqr.peer.PeerInLQRs ||
+          (lastLQR && lastLQR == physical->hdlc.lqm.lqr.peer.PeerInLQRs) ||
           (physical->hdlc.lqm.lqr.peer_timeout && 
            physical->hdlc.lqm.timer.rest * 100 / SECTICKS >
            physical->hdlc.lqm.lqr.peer_timeout))
