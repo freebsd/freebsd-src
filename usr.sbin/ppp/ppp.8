@@ -4695,7 +4695,7 @@ is specified,
 will never idle out before the link has been up for at least that number
 of seconds.
 .It set urgent Xo
-.Op tcp|udp
+.Op tcp|udp|none
 .Oo Op +|- Ns
 .Ar port
 .Oc No ...
@@ -4734,6 +4734,12 @@ the current list is adjusted, otherwise the list is reassigned.
 prefixed with a plus or not prefixed at all are added to the list and
 .Ar port Ns No s
 prefixed with a minus are removed from the list.
+.Pp
+If
+.Dq none
+is specified, all priority port lists are disabled and even
+.Dv IPTOS_LOWDELAY
+packets are not prioritised.
 .It set vj slotcomp on|off
 This command tells
 .Nm

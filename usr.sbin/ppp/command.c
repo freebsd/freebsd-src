@@ -1855,9 +1855,11 @@ SetVariable(struct cmdargs const *arg)
 
   case VAR_URGENTPORTS:
     if (arg->argn == arg->argc) {
+      ipcp_SetUrgentTOS(&arg->bundle->ncp.ipcp);
       ipcp_ClearUrgentTcpPorts(&arg->bundle->ncp.ipcp);
       ipcp_ClearUrgentUdpPorts(&arg->bundle->ncp.ipcp);
     } else if (!strcasecmp(arg->argv[arg->argn], "udp")) {
+      ipcp_SetUrgentTOS(&arg->bundle->ncp.ipcp);
       if (arg->argn == arg->argc - 1)
         ipcp_ClearUrgentUdpPorts(&arg->bundle->ncp.ipcp);
       else for (f = arg->argn + 1; f < arg->argc; f++)
@@ -1871,7 +1873,13 @@ SetVariable(struct cmdargs const *arg)
             ipcp_ClearUrgentUdpPorts(&arg->bundle->ncp.ipcp);
           ipcp_AddUrgentUdpPort(&arg->bundle->ncp.ipcp, atoi(arg->argv[f]));
         }
+    } else if (arg->argn == arg->argc - 1 &&
+               !strcasecmp(arg->argv[arg->argn], "none")) {
+      ipcp_ClearUrgentTcpPorts(&arg->bundle->ncp.ipcp);
+      ipcp_ClearUrgentUdpPorts(&arg->bundle->ncp.ipcp);
+      ipcp_ClearUrgentTOS(&arg->bundle->ncp.ipcp);
     } else {
+      ipcp_SetUrgentTOS(&arg->bundle->ncp.ipcp);
       first = arg->argn;
       if (!strcasecmp(arg->argv[first], "tcp") && ++first == arg->argc)
         ipcp_ClearUrgentTcpPorts(&arg->bundle->ncp.ipcp);

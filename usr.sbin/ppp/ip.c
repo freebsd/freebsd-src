@@ -475,7 +475,7 @@ PacketCheck(struct bundle *bundle, char *cp, int nb, struct filter *filter)
 
   case IPPROTO_UDP:
     uh = (struct udphdr *) ptop;
-    if (pip->ip_tos == IPTOS_LOWDELAY)
+    if (pip->ip_tos == IPTOS_LOWDELAY && bundle->ncp.ipcp.cfg.urgent.tos)
       pri++;
 
     if ((ntohs(pip->ip_off) & IP_OFFMASK) == 0 &&
@@ -545,7 +545,7 @@ PacketCheck(struct bundle *bundle, char *cp, int nb, struct filter *filter)
 
   case IPPROTO_TCP:
     th = (struct tcphdr *) ptop;
-    if (pip->ip_tos == IPTOS_LOWDELAY)
+    if (pip->ip_tos == IPTOS_LOWDELAY && bundle->ncp.ipcp.cfg.urgent.tos)
       pri++;
 
     if ((ntohs(pip->ip_off) & IP_OFFMASK) == 0 &&
