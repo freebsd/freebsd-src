@@ -121,7 +121,7 @@
 #	ipl	ipfilter control devices (ipl, ipnat, ipstate, ipauth)
 #	kbd	keyboard devices
 #
-#	$Id: MAKEDEV,v 1.186 1999/02/05 22:54:37 mjacob Exp $
+#	$Id: MAKEDEV,v 1.187 1999/02/14 19:41:36 jkh Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:$PATH
@@ -789,8 +789,18 @@ ulpt*)
 	;;
 
 ugen*)
-	unit=`expr $i : 'ugen\(.*\)'`
-	mknod ugen$unit c 114 $unit
+	unit=`expr $i : 'ugen\([0-9][0-9]*\)'`
+	endpoint=`expr $i : 'ugen.*\.\([0-9][0-9]*\)'`
+	if [ "x$unit" = "x" ]; then
+		echo $i - Invalid unit number 
+	fi
+	if [ "x$endpoint" = "x" ]; then
+		minor=`expr $unit \* 16` 
+		mknod ugen$unit c 114 $minor
+	else
+		minor=`expr $unit \* 16 + $endpoint` 
+		mknod ugen$unit.$endpoint c 114 $minor
+	fi
 	;;
 
 lpt*)
