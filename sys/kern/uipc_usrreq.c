@@ -48,6 +48,7 @@
 #include <sys/protosw.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
+#include <sys/resourcevar.h>
 #include <sys/stat.h>
 #include <sys/sysctl.h>
 #include <sys/un.h>
@@ -216,6 +217,7 @@ uipc_rcvd(struct socket *so, int flags)
 {
 	struct unpcb *unp = sotounpcb(so);
 	struct socket *so2;
+	u_long newhiwat;
 
 	if (unp == 0)
 		return EINVAL;
@@ -236,7 +238,7 @@ uipc_rcvd(struct socket *so, int flags)
 		unp->unp_mbcnt = so->so_rcv.sb_mbcnt;
 		so2->so_snd.sb_hiwat += unp->unp_cc - so->so_rcv.sb_cc;
 		(void)chgsbsize(so2->so_cred->cr_uid,
-		    (rlim_t)unp->unp_cc - so->so_rcv.sb_cc);
+		    (rlim_t)unp->unp_cc - so->so_rcv.sb_cc, RLIM_INFINITY);
 		unp->unp_cc = so->so_rcv.sb_cc;
 		sowwakeup(so2);
 		break;
@@ -256,6 +258,7 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 	int error = 0;
 	struct unpcb *unp = sotounpcb(so);
 	struct socket *so2;
+	u_long newhiwat;
 
 	if (unp == 0) {
 		error = EINVAL;
@@ -344,7 +347,7 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 		so->so_snd.sb_hiwat -=
 		    so2->so_rcv.sb_cc - unp->unp_conn->unp_cc;
 		(void)chgsbsize(so->so_cred->cr_uid,
-		    (rlim_t)unp->unp_conn->unp_cc - so2->so_rcv.sb_cc);
+		    (rlim_t)unp->unp_conn->unp_cc - so2->so_rcv.sb_cc, RLIM_INFINITY);
 		unp->unp_conn->unp_cc = so2->so_rcv.sb_cc;
 		sorwakeup(so2);
 		m = 0;

@@ -420,7 +420,6 @@ sbreserve(sb, cc, so, p)
 	struct socket *so;
 	struct proc *p;
 {
-	rlim_t delta;
 
 	/*
 	 * p will only be NULL when we're in an interrupt
@@ -429,10 +428,10 @@ sbreserve(sb, cc, so, p)
 	if ((u_quad_t)cc > (u_quad_t)sb_max * MCLBYTES / (MSIZE + MCLBYTES))
 		return (0);
 	delta = (rlim_t)cc - sb->sb_hiwat;
-	if (p && delta >= 0 && chgsbsize(so->so_cred->cr_uid, 0) + delta >
-	    p->p_rlimit[RLIMIT_SBSIZE].rlim_cur)
+	if (p && !chgsbsize(so->so_cred->cr_uid, delta,
+		p->p_rlimit[RLIMIT_SBSIZE].rlim_cur)) {
 		return (0);
-	(void)chgsbsize(so->so_cred->cr_uid, delta);
+	}
 	sb->sb_hiwat = cc;
 	sb->sb_mbmax = min(cc * sb_efficiency, sb_max);
 	if (sb->sb_lowat > sb->sb_hiwat)
@@ -450,7 +449,7 @@ sbrelease(sb, so)
 {
 
 	sbflush(sb);
-	(void)chgsbsize(so->so_cred->cr_uid, -(rlim_t)sb->sb_hiwat);
+	(void)chgsbsize(so->so_cred->cr_uid, -(rlim_t)sb->sb_hiwat, RLIM_INFINITY);
 	sb->sb_hiwat = sb->sb_mbmax = 0;
 }
 
