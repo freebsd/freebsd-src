@@ -1137,7 +1137,7 @@ long
 get_random()
 {
 	static int	how = 0;
-	int	fd;
+	static int      fd;
 	long	rnd;
 
 	if (how == 0) {
