@@ -1,0 +1,429 @@
+.\" Copyright (c) 1998, Matthew Dillon.  Terms and conditions are those of
+.\" the BSD Copyright as specified in the file "/usr/src/COPYRIGHT" in
+.\" the FreeBSD source tree.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 21, 2002
+.Dt DEVELOPMENT 7
+.Os
+.Sh NAME
+.Nm development
+.Nd introduction to development with the FreeBSD codebase
+.Sh DESCRIPTION
+This manual page describes how an ordinary sysop,
+.Ux admin, or developer
+can, without any special permission, obtain, maintain, and modify the
+.Fx
+codebase as well as how to maintaining a master build which can
+then be exported to other machines in your network.
+This manual page
+is targeted to system operators, programmers, and developers.
+.Pp
+Please note that what is being described here is based on a complete
+FreeBSD environment, not just the FreeBSD kernel.
+The methods described
+here are as applicable to production installations as it is to development
+environments.
+You need a good 12-17GB of disk space on one machine to make this work
+conveniently.
+.Sh SETTING UP THE ENVIRONMENT ON THE MASTER SERVER
+Your master server should always run a stable, production version of the
+.Fx
+operating system.   This does not prevent you from doing -CURRENT
+builds or development.  The last thing you want to do is to run an
+unstable environment on your master server which could lead to a situation
+where you lose the environment and/or cannot recover from a mistake.
+.Pp
+Create a huge partition called /FreeBSD.
+8-12GB is recommended.
+This partition will contain nearly all the development environment,
+including the CVS tree, broken-out source, and possibly even object files.
+You are going to export this partition to your other machines via a 
+READ-ONLY NFS export so do not mix it with other more security-sensitive
+partitions.
+.Pp
+You have to make a choice in regards to
+.Pa /usr/obj .
+You can put
+.Pa /usr/obj
+in
+.Pa /FreeBSD
+or you can make
+.Pa /usr/obj
+its own partition.
+I recommend making it a separate partition for several reasons.  First,
+as a safety measure since this partition is written to a great deal.
+Second, because you typically do not have to back it up.
+Third, because it makes it far easier to mix and match the development
+environments which are described later in this document.
+I recommend a
+.Pa /usr/obj
+partition of at least 5GB.
+.Pp
+On the master server, use cvsup to automatically pull down and maintain
+the
+.Fx
+CVS archive once a day.  The first pull will take a long time,
+it is several gigabytes, but once you have it the daily syncs will be quite
+small.
+.Bd -literal -offset 4n
+mkdir /FreeBSD/FreeBSD-CVS
+rm -rf /home/ncvs
+ln -s /FreeBSD/FreeBSD-CVS /home/ncvs
+.Ed
+.Pp
+The cron job should look something like this (please randomize the time of
+day!).
+Note that you can use the cvsup file example directly from
+/usr/share/examples without modification by supplying appropriate arguments
+to cvsup.
+.Bd -literal -offset 4n
+33 6 * * *      /usr/local/bin/cvsup -g -r 20 -L 2 -h cvsup.freebsd.org /usr/share/examples/cvsup/cvs-supfile
+.Ed
+.Pp
+Run the cvsup manually the first time to pull down the archive.  It could take
+all day depending on how fast your connection is!
+You will run all cvsup and cvs operations as root and you need to set
+up a ~/.cvsrc (/root/.cvsrc) file, as shown below, for proper cvs operation.
+Using ~/.cvsrc to specify cvs defaults is an excellent way
+to "file and forget", but you should never forget that you put them in there.
+.Bd -literal -offset 4n
+# cvs -q
+diff -u
+update -Pd
+checkout -P
+.Ed
+.Pp
+Now use cvs to checkout a -STABLE source tree and a -CURRENT source tree,
+as well as ports and docs, to create your initial source environment. 
+Keeping the broken-out source and ports in /FreeBSD allows you to export
+it to other machines via read-only NFS.
+This also means you only need to edit/maintain files in one place and all
+your clients automatically pick up the changes.
+.Bd -literal -offset 4n
+mkdir /FreeBSD/FreeBSD-4.x
+mkdir /FreeBSD/FreeBSD-current
+
+cd /FreeBSD/FreeBSD-4.x
+cvs -d /home/ncvs checkout -rRELENG_4 src
+
+cd /FreeBSD/FreeBSD-current
+cvs -d /home/ncvs checkout src
+cvs -d /home/ncvs checkout ports
+cvs -d /home/ncvs checkout doc
+.Ed
+.Pp
+Now create a softlink for /usr/src and /usr/src2.
+On the main server I always point /usr/src at -STABLE and /usr/src2 at
+-CURRENT.  On client machines I usually do not have a /usr/src2 and I make
+/usr/src point at whatever version of FreeBSD the client box is intended to
+run.
+.Bd -literal -offset 4n
+cd /usr
+rm -rf src src2
+ln -s /FreeBSD/FreeBSD-4.x/src src	(could be -CURRENT on a client)
+ln -s /FreeBSD/FreeBSD-current/src src2	(MASTER SERVER ONLY)
+.Ed
+.Pp
+Now you have to make a choice for /usr/obj.
+Well, hopefully you made it already and chose the partition method.  If you
+chose poorly you probably intend to put it in /FreeBSD and, if so, this is
+what you want to do:
+.Bd -literal -offset 4n
+(ONLY IF YOU MADE A POOR CHOICE AND PUT /usr/obj in /FreeBSD!)
+mkdir /FreeBSD/obj
+cd /usr
+rm -rf obj
+ln -s /FreeBSD/obj obj
+.Ed
+.Pp
+Alternatively you may chose simply to leave /usr/obj in /usr.  If your
+/usr is large enough this will work, but I do not recommend it for 
+safety reasons (/usr/obj is constantly being modified, /usr is not).
+.Pp
+Note that exporting /usr/obj via read-only NFS to your other boxes will
+allow you to build on your main server and install from your other boxes.
+If you also want to do builds on some or all of the clients you can simply
+have /usr/obj be a local directory on those clients.
+You should never export /usr/obj read-write, it will lead to all sorts of
+problems and issues down the line and presents a security problem as well.
+It is far easier to do builds on the master server and then only do installs
+on the clients.
+.Pp
+I usually maintain my ports tree via CVS.
+It is sitting right there in the master CVS archive and I've even told you
+to check it out (see above).
+With some fancy softlinks you can make the ports tree available both on your
+master server and on all of your other machines.
+Note that the ports tree exists only on the HEAD cvs branch, so its always
+-CURRENT even on a -STABLE box.  This is what you do:
+.Bd -literal -offset 4n
+(THESE COMMANDS ON THE MASTER SERVER AND ON ALL CLIENTS)
+cd /usr
+rm -rf ports
+ln -s /FreeBSD/FreeBSD-current/ports ports
+
+cd /usr/ports   			(this pushes into the softlink)
+rm -rf distfiles			(ON MASTER SERVER ONLY)
+ln -s /usr/ports.distfiles distfiles	(ON MASTER SERVER ONLY)
+
+mkdir /usr/ports.distfiles
+mkdir /usr/ports.workdir
+.Ed
+.Pp
+Since /usr/ports is softlinked into what will be read-only on all of your
+clients, you have to tell the ports system to use a different working
+directory to hold ports builds.
+You want to add a line to your /etc/make.conf file on the master server
+and on all your clients:
+.Bd -literal -offset 4n
+WRKDIRPREFIX=/usr/ports.workdir
+.Ed
+.Pp
+You should try to make the directory you use for the ports working directory
+as well as the directory used to hold distfiles consistent across all of your
+machines.
+If there isn't enough room in /usr/ports.distfiles and /usr/ports.workdir I
+usually make those softlinks (since this is on /usr these are per-machine) to
+where the distfiles and working space really are.
+.Sh EXPORTING VIA NFS FROM THE MASTER SERVER
+The master server needs to export /FreeBSD and /usr/obj via NFS so all the
+rest of your machines can get at them.
+I strongly recommend using a read-only export for both security and safety.
+The environment I am describing in this manual page is designed primarily
+around read-only NFS exports.
+Your exports file on the master server should contain the following lines:
+.Bd -literal -offset 4n
+/FreeBSD -ro -alldirs -maproot=root: -network YOURLAN -mask YOURLANMASK
+/usr/obj -ro -alldirs -maproot=root: -network YOURLAN -mask YOURLANMASK
+.Ed
+.Pp
+Of course, NFS server operations must also be configured on that machine.
+This is typically done via your /etc/rc.conf:
+.Bd -literal -offset 4n
+nfs_server_enable="YES"
+nfs_server_flags="-u -t -n 4"
+.Ed
+.Sh THE CLIENT ENVIRONMENT
+All of your client machines can import the development/build environment
+directory simply by NFS mounting /FreeBSD and /usr/obj from the master
+server.
+A typical /etc/fstab entry on your client machines will be something like this:
+.Bd -literal -offset 4n
+masterserver:/FreeBSD     /FreeBSD        nfs     ro,bg    0       0
+masterserver:/usr/obj     /usr/obj        nfs     ro,bg    0       0
+.Ed
+.Pp
+And, of course, you should configure the client for NFS client operations
+via /etc/rc.conf.
+In particular, this will turn on nfsiod which will improve client-side NFS
+performance:
+.Bd -literal -offset 4n
+nfs_client_enable="YES"
+.Ed
+.Pp
+Each client should create softlinks for /usr/ports and /usr/src that point
+into the NFS-mounted environment.
+If a particular client is running -CURRENT, /usr/src
+should be a softlink to /FreeBSD/FreeBSD-current/src.
+If it is running -STABLE, /usr/src should be a softlink to
+/FreeBSD/FreeBSD-4.x/src.  I do not usually create a /usr/src2 softlink on
+clients, that is used as a convenient shortcut when working on the source
+code on the master server only and could create massive confusion (of the
+human variety) on a client.
+.Bd -literal -offset 4n
+(ON EACH CLIENT)
+cd /usr
+rm -rf ports src
+ln -s /FreeBSD/FreeBSD-current/ports ports
+ln -s /FreeBSD/FreeBSD-XXX/src src
+.Ed
+.Pp
+Don't forget to create the working directories so you can build ports, as
+previously described.
+If these are not good locations, make them softlinks to the correct location.
+Remember that /usr/ports/distfiles is exported by
+the master server and is therefore going to point to the same place
+(typically /usr/ports.distfiles) on every machine.
+.Bd -literal -offset 4n
+mkdir /usr/ports.distfiles
+mkdir /usr/ports.workdir
+.Ed
+.Sh BUILDING KERNELS
+Here is how you build a -STABLE kernel (on your main development box).
+If you want to create a custom kernel, cp GENERIC to YOURKERNEL and then
+edit it before configuring and building.
+The kernel configuration file lives in /usr/src/sys/i386/conf/KERNELNAME.
+.Bd -literal -offset 4n
+cd /usr/src
+make buildkernel KERNCONF=KERNELNAME
+.Ed
+.Pp
+.Sy WARNING!
+If you are familiar with the old config/cd/make method of building
+a -STABLE kernel, note that the config method will put the build 
+environment in /usr/src/sys/compile/KERNELNAME instead of in /usr/obj.
+.Pp
+Building a -CURRENT kernel
+.Bd -literal -offset 4n
+cd /usr/src2		(on the master server)
+make buildkernel KERNCONF=KERNELNAME
+.Ed
+.Sh INSTALLING KERNELS
+Installing a -STABLE kernel (typically done on a client.
+Only do this on your main development server if you want to install a new
+kernel for your main development server):
+.Bd -literal -offset 4n
+cd /usr/src
+make installkernel KERNCONF=KERNELNAME
+.Ed
+.Pp
+If you are using the older config/cd/make build mechanism for stable, you
+would install using:
+.Bd -literal -offset 4n
+cd /usr/src/sys/compile/KERNELNAME
+make install
+.Ed
+.Pp
+Installing a -CURRENT kernel (typically done only on a client)
+.Bd -literal -offset 4n
+(remember /usr/src is pointing to the client's specific environment)
+cd /usr/src
+make installkernel KERNCONF=KERNELNAME
+.Ed
+.Pp
+.Sh BUILDING THE WORLD
+This environment is designed such that you do all builds on the master server,
+and then install from each client.
+You can do builds on a client only if /usr/obj is local to that client.
+Building the world is easy:
+.Bd -literal -offset 4n
+cd /usr/src
+make buildworld
+.Ed
+.Pp
+If you are on the master server you are running in a -STABLE environment, but
+that does not prevent you from building the -CURRENT world.
+Just cd into the appropriate source directory and you are set.  Do not
+accidentally install it on your master server though!
+.Bd -literal -offset 4n
+cd /usr/src2
+make buildworld
+.Ed
+.Sh INSTALLING THE WORLD
+You can build on your main development server and install on clients.
+The main development server must export /FreeBSD and /usr/obj via
+read-only NFS to the clients.
+.Pp
+.Em NOTE!!!
+If /usr/obj is a softlink on the master server, it must also be the EXACT
+SAME softlink on each client.
+If /usr/obj is a directory in /usr or a mount point on the master server,
+then it must be (interchangeably) a directory in /usr or a mount point on
+each client.
+This is because the
+absolute paths are expected to be the same when building the world as when
+installing it, and you generally build it on your main development box
+and install it from a client.
+If you do not setup /usr/obj properly you will not be able to build on
+machine and install on another.
+.Bd -literal -offset 4n
+(ON THE CLIENT)
+(remember /usr/src is pointing to the client's specific environment)
+cd /usr/src
+make installworld
+.Ed
+.Pp
+.Sy WARNING!
+If builds work on the master server but installs do not work from the
+clients, for example you try to install and the client complains that
+the install tried to write into the read-only /usr/obj, then it is likely
+that the /etc/make.conf file on the client does not match the one on the
+master server closely enough and the install is trying to install something
+that was not built.
+.Sh DOING DEVELOPMENT ON A CLIENT (NOT JUST INSTALLING)
+Developers often want to run buildkernel's or buildworld's on client
+boxes simply to life-test the box.
+You do this in the same manner that you buildkernel and buildworld on your
+master server.
+All you have to do is make sure that /usr/obj is pointing to local storage.
+If you followed my advise and made /usr/obj its own partition on the master
+server,
+then it is typically going to be an NFS mount on the client.
+Simply unmounting /usr/obj will leave you with a /usr/obj that is a
+subdirectory in /usr which is typically local to the client.
+You can then do builds to your heart's content!
+.Sh MULTIPLE VERSIONS OF THE SOURCE TREE
+I have described how to maintain two versions of the source tree, a stable
+version in /FreeBSD/FreeBSD-4.x and a current version
+in /FreeBSD/FreeBSD-current.
+There is absolutely nothing preventing you
+from breaking out other versions of the source tree
+into /FreeBSD/XXX.
+In fact, my /FreeBSD partition also contains
+.Ox ,
+.Nx ,
+and various flavors of Linux.
+You may not necessarily be able to build non-FreeBSD operating systems on
+your master server, but being able
+to collect and manage source distributions from a central server is a very
+useful thing to be able to do and you can certainly export to machines
+which can build those other operating systems.
+.Sh UPDATING VIA CVS
+The advantage of using cvsup to maintain an updated copy of the CVS
+repository instead of using it to maintain source trees directly is that you
+can then pick and choose when you bring your source tree (or pieces of your
+source tree) up to date.
+By using a cron job to maintain an updated CVS repository, you can update
+your source tree at any time without any network cost as follows:
+.Bd -literal -offset 4n
+(on the main development server)
+cd /usr/src
+cvs -d /home/ncvs update
+cd /usr/src2
+cvs -d /home/ncvs update
+cd /usr/ports
+cvs -d /home/ncvs update
+.Ed
+.Pp
+It is that simple, and since you are exporting the whole lot to your
+clients, your clients have immediately visibility into the updated
+source.
+This is a good time to also remind you that most of the cvs operations
+you do will be done as root, and that certain options are
+required for CVS to operate properly on the
+.Fx
+repository.  For example,
+.Fl Pd
+is necessary when running "cvs update".
+These options are typically placed in your ~/.cvsrc (as already described)
+so you do not have to respecify them every time you run a CVS command.
+Maintaining the CVS repository also gives you far more flexibility
+in regards to breaking out multiple versions of the source tree.
+It is a good idea to give your /FreeBSD partition a lot of space (I recommend
+8-12GB) precisely for that reason.
+If you can make it 15GB I would do it.
+.Pp
+I generally do not cvs update via a cron job.
+This is because I generally want the source to not change out from under me
+when I am developing code.
+Instead I manually update the source every so often... when I feel it is
+a good time.
+My recommendation is to only keep the cvs repository synchronized via cron.
+.Sh SEE ALSO
+.Xr build 7 ,
+.Xr crontab 1 ,
+.Xr crontab 5 ,
+.Xr diskless 8 ,
+.Xr firewall 7 ,
+.Xr tuning 7
+.Sh HISTORY
+The
+.Nm
+manual page was originally written by
+.An Matthew Dillon Aq dillon@FreeBSD.org
+and first appeared
+in
+.Fx 5.0 ,
+December 2002.
