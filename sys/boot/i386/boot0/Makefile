@@ -23,13 +23,21 @@ BOOT_BOOT0_TICKS?=	0xb6
 # unless you are glutton for punishment.
 BOOT_BOOT0_ORG?=	0x600
 
+# Comm settings for boot0sio.  0xE3 => 9600 8-N-1
+# XXX: We should create a build-tool or something to convert BOOT_CONSOLE_SPEED
+# and BOOT_COMCONSOLE_PORT into the correct values to define on the build
+# command line
+BOOT_BOOT0_COMCONSOLE_SPEED?=	0xE3
+
 ${PROG}: ${PROG}.o
 	${LD} -N -e start -Ttext ${BOOT_BOOT0_ORG} -o ${PROG}.out ${PROG}.o
 	objcopy -S -O binary ${PROG}.out ${.TARGET}
 
 ${PROG}.o: ${PROG}.s
 	${AS} ${AFLAGS} --defsym FLAGS=${BOOT_BOOT0_FLAGS} \
-		--defsym TICKS=${BOOT_BOOT0_TICKS} ${.IMPSRC} -o ${.TARGET}
+		--defsym TICKS=${BOOT_BOOT0_TICKS} \
+		--defsym COMSPEED=${BOOT_BOOT0_COMCONSOLE_SPEED} \
+		${.IMPSRC} -o ${.TARGET}
 
 CLEANFILES+= ${PROG}.out ${PROG}.o
 
