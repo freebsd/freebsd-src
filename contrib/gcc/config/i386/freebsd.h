@@ -387,6 +387,14 @@ Boston, MA 02111-1307, USA.  */
 				  ? svr4_dbx_register_map[(n)]		\
 				  : dbx_register_map[(n)])
 
+/* The same functions are used to creating the DWARF2 debug info and C++
+   unwind info (except.c).  Regardless of the debug format requested, the
+   register numbers used in exception unwinding sections still have to be
+   DWARF compatible.  IMO the GCC folks may be abusing the DBX_REGISTER_NUMBER
+   macro to mean too much.  */
+#define DWARF_FRAME_REGNUM(n)	(TARGET_64BIT ? dbx64_register_map[n]	\
+				: svr4_dbx_register_map[(n)])
+
 /* tag end of file in elf mode */
 #undef  DBX_OUTPUT_MAIN_SOURCE_FILE_END
 #define DBX_OUTPUT_MAIN_SOURCE_FILE_END(FILE, FILENAME)			\
