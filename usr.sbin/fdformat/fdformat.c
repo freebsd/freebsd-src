@@ -38,14 +38,14 @@
  * Thu Jan 27 00:47:24 MSK 1994
  */
 
+#include <ctype.h>
+#include <err.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
-#include <fcntl.h>
 #include <strings.h>
-#include <ctype.h>
+#include <unistd.h>
 
-#include <errno.h>
 #include <machine/ioctl_fd.h>
 
 static void
@@ -78,10 +78,8 @@ format_track(int fd, int cyl, int secs, int head, int rate,
 		f.fd_formb_secno(i) = il[i+1];
 		f.fd_formb_secsize(i) = secsize;
 	}
-	if(ioctl(fd, FD_FORM, (caddr_t)&f) < 0) {
-		perror("\nfdformat: ioctl(FD_FORM)");
-		exit(1);
-	}
+	if(ioctl(fd, FD_FORM, (caddr_t)&f) < 0)
+		err(1, "ioctl(FD_FORM)");
 }
 
 static int
@@ -92,7 +90,7 @@ verify_track(int fd, int track, int tracksize)
 	int fdopts = -1, ofdopts, rv = 0;
 
 	if (ioctl(fd, FD_GOPTS, &fdopts) < 0)
-		perror("warning: ioctl(FD_GOPTS)");
+		warn("warning: ioctl(FD_GOPTS)");
 	else {
 		ofdopts = fdopts;
 		fdopts |= FDOPT_NORETRY;
@@ -107,10 +105,8 @@ verify_track(int fd, int track, int tracksize)
 	}
 	if (! buf)
 		buf = malloc (bufsz);
-	if (! buf) {
-		fprintf (stderr, "\nfdformat: out of memory\n");
-		exit (2);
-	}
+	if (! buf)
+		errx(2, "out of memory");
 	if (lseek (fd, (long) track*tracksize, 0) < 0)
 		rv = -1;
 	/* try twice reading it, without using the normal retrier */
@@ -141,25 +137,9 @@ makename(const char *arg, const char *suffix)
 static void
 usage (void)
 {
-	printf("Usage:\n\tfdformat [-q] [-n | -v] [-f #] [-c #] [-s #] [-h #]\n");
-	printf("\t\t [-r #] [-g #] [-i #] [-S #] [-F #] [-t #] devname\n");
-	printf("Options:\n");
-	printf("\t-q\tsupress any normal output, don't ask for confirmation\n");
-	printf("\t-n\tdon't verify floppy after formatting\n");
-	printf("\t-v\tdon't format, verify only\n");
-	printf("\t-f #\tspecify desired floppy capacity, in kilobytes;\n");
-	printf("\t\tvalid choices are 360, 720, 800, 820, 1200, 1440, 1480, 1720\n");
-	printf("\tdevname\tthe full name of floppy device or in short form fd0, fd1\n");
-	printf("Obscure options:\n");
-	printf("\t-c #\tspecify number of cylinders, 40 or 80\n");
-	printf("\t-s #\tspecify number of sectors per track, 9, 10, 15 or 18\n");
-	printf("\t-h #\tspecify number of floppy heads, 1 or 2\n");
-	printf("\t-r #\tspecify data rate, 250, 300 or 500 kbps\n");
-	printf("\t-g #\tspecify gap length\n");
-	printf("\t-i #\tspecify interleave factor\n");
-	printf("\t-S #\tspecify sector size, 0=128, 1=256, 2=512 bytes\n");
-	printf("\t-F #\tspecify fill byte\n");
-	printf("\t-t #\tnumber of steps per track\n");
+	fprintf(stderr, "%s\n%s\n",
+	"usage: fdformat [-q] [-n | -v] [-f #] [-c #] [-s #] [-h #]",
+	"                [-r #] [-g #] [-i #] [-S #] [-F #] [-t #] devname");
 	exit(2);
 }
 
@@ -257,8 +237,7 @@ main(int argc, char **argv)
 
 	switch(format) {
 	default:
-		fprintf(stderr, "fdformat: bad floppy size: %dK\n", format);
-		exit(2);
+		errx(2, "bad floppy size: %dK", format);
 	case -1:   suffix = "";      break;
 	case 360:  suffix = ".360";  break;
 	case 720:  suffix = ".720";  break;
@@ -272,15 +251,11 @@ main(int argc, char **argv)
 
 	devname = makename(argv[optind], suffix);
 
-	if((fd = open(devname, O_RDWR)) < 0) {
-		perror(devname);
-		exit(1);
-	}
+	if((fd = open(devname, O_RDWR)) < 0)
+		err(1, "%s", devname);
 
-	if(ioctl(fd, FD_GTYPE, &fdt) < 0) {
-		fprintf(stderr, "fdformat: not a floppy disk: %s\n", devname);
-		exit(1);
-	}
+	if(ioctl(fd, FD_GTYPE, &fdt) < 0)
+		errx(1, "not a floppy disk: %s", devname);
 
 	switch(rate) {
 	case -1:  break;
@@ -288,16 +263,13 @@ main(int argc, char **argv)
 	case 300: fdt.trans = FDC_300KBPS; break;
 	case 500: fdt.trans = FDC_500KBPS; break;
 	default:
-		fprintf(stderr, "fdformat: invalid transfer rate: %d\n", rate);
-		exit(2);
+		errx(2, "invalid transfer rate: %d", rate);
 	}
 
 	if (cyls >= 0)    fdt.tracks = cyls;
 	if (secs >= 0)    fdt.sectrac = secs;
-	if (fdt.sectrac > FD_MAX_NSEC) {
-		fprintf(stderr, "fdformat: too many sectors per track, max value is %d\n", FD_MAX_NSEC);
-		exit(2);
-	}
+	if (fdt.sectrac > FD_MAX_NSEC)
+		errx(2, "too many sectors per track, max value is %d", FD_MAX_NSEC);
 	if (heads >= 0)   fdt.heads = heads;
 	if (gaplen >= 0)  fdt.f_gap = gaplen;
 	if (secsize >= 0) fdt.secsize = secsize;
