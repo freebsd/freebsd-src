@@ -1,9 +1,7 @@
 /*
- * Copyright (C) 1995-2000 by Darren Reed.
+ * Copyright (C) 1995-2001 by Darren Reed.
  *
- * Redistribution and use in source and binary forms are permitted
- * provided that this notice is preserved and due credit is given
- * to the original author and the contributors.
+ * See the IPFILTER.LICENCE file for details on licencing.
  */
 #include <stdio.h>
 #include <ctype.h>
@@ -43,7 +41,7 @@
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)ipft_tx.c	1.7 6/5/96 (C) 1993 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ipft_tx.c,v 2.3.2.1 2001/01/10 06:19:53 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ipft_tx.c,v 2.3.2.4 2001/06/26 10:43:18 darrenr Exp $";
 #endif
 
 extern	int	opts;
@@ -223,12 +221,12 @@ int	*out;
 	bzero(ipopts, sizeof(ipopts));
 	ip->ip_hl = sizeof(*ip) >> 2;
 	ip->ip_v = IPVERSION;
-	for (i = 0, cps[0] = strtok(line, " \b\t\r\n"); cps[i] && i < 19; )
+	for (i = 0, cps[0] = strtok(line, " \b\t\r\n"); cps[i] && (i < 19); )
 		cps[++i] = strtok(NULL, " \b\t\r\n");
-	if (i < 2)
-		return 1;
 
 	cpp = cps;
+	if (!*cpp)
+		return 1;
 
 	c = **cpp;
 	if (!isalpha(c) || (tolower(c) != 'o' && tolower(c) != 'i')) {
@@ -237,12 +235,16 @@ int	*out;
 	}
 	*out = (tolower(c) == 'o') ? 1 : 0;
 	cpp++;
+	if (!*cpp)
+		return 1;
 
 	if (!strcasecmp(*cpp, "on")) {
 		cpp++;
 		if (!*cpp)
 			return 1;
 		*ifn = strdup(*cpp++);
+		if (!*cpp)
+			return 1;
 	}
 
 	c = **cpp;

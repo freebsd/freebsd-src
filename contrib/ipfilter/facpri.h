@@ -1,10 +1,8 @@
 /*
- * Copyright (C) 1999-2000 by Darren Reed.
+ * Copyright (C) 1999-2001 by Darren Reed.
  *
- * Redistribution and use in source and binary forms are permitted
- * provided that this notice is preserved and due credit is given
- * to the original author and the contributors.
- * $Id: facpri.h,v 1.3 2000/03/13 22:10:18 darrenr Exp $
+ * See the IPFILTER.LICENCE file for details on licencing.
+ * $Id: facpri.h,v 1.3.2.1 2001/06/26 10:43:11 darrenr Exp $
  */
 
 #ifndef	__FACPRI_H__

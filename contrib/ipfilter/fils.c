@@ -1,12 +1,16 @@
 /*
- * Copyright (C) 1993-2000 by Darren Reed.
+ * Copyright (C) 1993-2001 by Darren Reed.
  *
- * Redistribution and use in source and binary forms are permitted
- * provided that this notice is preserved and due credit is given
- * to the original author and the contributors.
+ * See the IPFILTER.LICENCE file for details on licencing.
  */
-#ifdef  __FreeBSD__
-# include <osreldate.h>
+#ifdef __FreeBSD__
+# ifndef __FreeBSD_cc_version
+#  include <osreldate.h>
+# else
+#  if __FreeBSD_cc_version < 430000
+#   include <osreldate.h>
+#  endif
+# endif
 #endif
 #include <stdio.h>
 #include <string.h>
@@ -25,10 +29,6 @@
 #include <fcntl.h>
 #include <stddef.h>
 #include <nlist.h>
-#ifdef STATETOP
-#include <ctype.h>
-#include <ncurses.h>
-#endif
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <netinet/in.h>
@@ -56,8 +56,17 @@
 #include "netinet/ip_state.h"
 #include "netinet/ip_auth.h"
 #ifdef STATETOP
-#include "netinet/ipl.h"
-#endif
+# include "netinet/ipl.h"
+# include <ctype.h>
+# if SOLARIS
+#  ifdef ERR
+#   undef ERR
+#  endif
+#  include <curses.h>
+# else /* SOLARIS */
+#  include <ncurses.h>
+# endif /* SOLARIS */
+#endif /* STATETOP */
 #include "kmem.h"
 #if defined(__NetBSD__) || (__OpenBSD__)
 # include <paths.h>
@@ -65,10 +74,11 @@
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)fils.c	1.21 4/20/96 (C) 1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)$Id: fils.c,v 2.21.2.7 2000/12/02 00:13:56 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: fils.c,v 2.21.2.17 2001/07/19 12:24:09 darrenr Exp $";
 #endif
 
 extern	char	*optarg;
+extern	int	optind;
 
 #define	PRINTF	(void)printf
 #define	FPRINTF	(void)fprintf
@@ -86,6 +96,7 @@ int	use_inet6 = 0;
 #ifdef STATETOP
 #define	STSTRSIZE 	80
 #define	STGROWSIZE	16
+#define	HOSTNMLEN	40
 
 #define	STSORT_PR	0
 #define	STSORT_PKTS	1
@@ -128,6 +139,9 @@ static	int	sort_pkts __P((const void *, const void *));
 static	int	sort_bytes __P((const void *, const void *));
 static	int	sort_ttl __P((const void *, const void *));
 #endif
+#if SOLARIS
+void showqiflist __P((char *));
+#endif
 
 static char *hostname(v, ip)
 int v;
@@ -160,7 +174,11 @@ char *name;
 #else
 	fprintf(stderr, "Usage: %s [-aAfhIinosv] [-d <device>]\n", name);
 #endif
-	fprintf(stderr, "       %s -t [-S source address] [-D destination address] [-P protocol] [-T refreshtime] [-C] [-d <device>]\n", name);
+	fprintf(stderr, "\t\t[-M corefile]");
+#if	SOLARIS
+	fprintf(stderr, " [-N symbol-list]");
+#endif
+	fprintf(stderr, "\n       %s -t [-S source address] [-D destination address] [-P protocol] [-T refreshtime] [-C] [-d <device>]\n", name);
 	exit(1);
 }
 
@@ -177,8 +195,11 @@ char *argv[];
 	ips_stat_t *ipsstp = &ipsst;
 	ipfrstat_t ifrst;
 	ipfrstat_t *ifrstp = &ifrst;
-	char	*name = NULL, *device = IPL_NAME;
-	int	c, fd;
+	char	*name = NULL, *device = IPL_NAME, *memf = NULL;
+#if SOLARIS
+	char	*kern = NULL;
+#endif
+	int	c, fd, myoptind;
 	struct protoent *proto;
 
 	int protocol = -1;		/* -1 = wild card for any protocol */
@@ -190,13 +211,50 @@ char *argv[];
 	saddr.s_addr = INADDR_ANY; 	/* default any source addr */ 
 	daddr.s_addr = INADDR_ANY; 	/* default any dest addr */
 
-	if (openkmem() == -1)
+	/*
+	 * Parse these two arguments now lest there be any buffer overflows
+	 * in the parsing of the rest.
+	 */
+	myoptind = optind;
+#if SOLARIS
+	while ((c = getopt(argc, argv, "6aACfghIilnoqstvd:D:M:N:P:S:T:")) != -1)
+#else
+	while ((c = getopt(argc, argv, "6aACfghIilnoqstvd:D:M:P:S:T:")) != -1)
+#endif
+		switch (c)
+		{
+		case 'M' :
+			memf = optarg;
+			break;
+#if SOLARIS
+		case 'N' :
+			kern = optarg;
+			break;
+#endif
+		}
+	optind = myoptind;
+
+#if SOLARIS
+	if (kern != NULL || memf != NULL)
+#else
+	if (memf != NULL)
+#endif
+	{
+		(void)setuid(getuid());
+		(void)setgid(getgid());
+	}
+
+	if (openkmem(memf) == -1)
 		exit(-1);
 
 	(void)setuid(getuid());
 	(void)setgid(getgid());
 
-	while ((c = getopt(argc, argv, "6aACfghIilnostvd:D:P:S:T:")) != -1)
+#if SOLARIS
+	while ((c = getopt(argc, argv, "6aACfghIilnoqstvd:D:M:N:P:S:T:")) != -1)
+#else
+	while ((c = getopt(argc, argv, "6aACfghIilnostvd:D:M:P:S:T:")) != -1)
+#endif
 	{
 		switch (c)
 		{
@@ -207,8 +265,7 @@ char *argv[];
 #endif
 		case 'a' :
 			opts |= OPT_ACCNT|OPT_SHOWLIST;
-			break;
-		case 'A' :
+			break; case 'A' :
 			device = IPAUTH_NAME;
 			opts |= OPT_AUTHSTATS;
 			break;
@@ -239,6 +296,10 @@ char *argv[];
 		case 'l' :
 			opts |= OPT_SHOWLIST;
 			break;
+		case 'M' :
+			break;
+		case 'N' :
+			break;
 		case 'n' :
 			opts |= OPT_SHOWLINENO;
 			break;
@@ -255,6 +316,12 @@ char *argv[];
 				exit(-2);
 			}
 			break;
+#if	SOLARIS
+		case 'q' :
+			showqiflist(kern);
+			exit(0);
+			break;
+#endif
 		case 's' :
 			opts |= OPT_IPSTATES;
 			break;
@@ -653,12 +720,51 @@ ips_stat_t *ipsp;
 		PRINTF("\tpkt_security & %x = %x, pkt_auth & %x = %x\n",
 			ips.is_secmsk, ips.is_sec, ips.is_authmsk,
 			ips.is_auth);
-		PRINTF("interfaces: in %s[%p] ",
+		PRINTF("\tinterfaces: in %s[%p] ",
 		       get_ifname(ips.is_ifpin), ips.is_ifpin);
 		PRINTF("out %s[%p]\n",
 		       get_ifname(ips.is_ifpout), ips.is_ifpout);
 	}
 }
+
+
+#if SOLARIS
+void showqiflist(kern)
+char *kern;
+{
+	struct nlist qifnlist[2] = {
+		{ "qif_head" },
+		{ NULL }
+	};
+	qif_t qif, *qf;
+
+	if (kern == NULL)
+		kern = "/dev/ksyms";
+
+	if (nlist(kern, qifnlist) == -1) {
+		fprintf(stderr, "nlist error\n");
+		return;
+	}
+
+	printf("List of interfaces bound by IPFilter:\n");
+	if (kmemcpy((char *)&qf, (u_long)qifnlist[0].n_value, sizeof(qf)))
+		return;
+	while (qf) {
+		if (kmemcpy((char *)&qif, (u_long)qf, sizeof(qif)))
+			break;
+		printf("\tName: %-8s Header Length: %2d SAP: %s (%04x)\n",
+			qif.qf_name, qif.qf_hl,
+#ifdef	IP6_DL_SAP
+			(qif.qf_sap == IP6_DL_SAP) ? "IPv6" : "IPv4"
+#else
+			"IPv4"
+#endif
+			, qif.qf_sap);
+		qf = qif.qf_next;
+	}
+}
+#endif
+
 
 #ifdef STATETOP
 static void topipstates(fd, saddr, daddr, sport, dport, protocol,
@@ -679,9 +785,10 @@ int topclosed;
 	ips_stat_t ipsst, *ipsstp = &ipsst;
 	statetop_t *tstable = NULL, *tp;
 	struct timeval selecttimeout; 
+	char hostnm[HOSTNMLEN];
 	struct protoent *proto;
 	fd_set readfd;
-	char c = '\0';
+	int c = 0;
 	time_t t;
 
 	/* open state device */
@@ -694,7 +801,10 @@ int topclosed;
   	initscr();
   	cbreak();
   	noecho();
-  	nodelay(stdscr, 1);
+
+	/* init hostname */
+	gethostname(hostnm, sizeof(hostnm) - 1);
+	hostnm[sizeof(hostnm) - 1] = '\0';
 
 	/* repeat until user aborts */
 	while ( 1 ) {
@@ -799,8 +909,8 @@ int topclosed;
 		attron(A_BOLD);
 		winx = 0;
 		move(winx,0);
-		sprintf(str1, "%s - state top", IPL_VERSION);
-		for(j = 0 ; j < (maxx - 8 - strlen(str1)) / 2; j++)
+		sprintf(str1, "%s - %s - state top", hostnm, IPL_VERSION);
+		for (j = 0 ; j < (maxx - 8 - strlen(str1)) / 2; j++)
 			printw(" ");
 		printw("%s", str1);
 		attroff(A_BOLD);
@@ -873,7 +983,9 @@ int topclosed;
 		if (reverse)
 			tp += tsentry;
 
-		for(i = 0; i <= tsentry; i++) {
+		if (tsentry > maxy - 6)
+			tsentry = maxy - 6;
+		for (i = 0; i <= tsentry; i++) {
 			/* print src/dest and port */
 			if ((tp->st_p == IPPROTO_TCP) ||
 			    (tp->st_p == IPPROTO_UDP)) {
@@ -938,22 +1050,25 @@ int topclosed;
 		select(1, &readfd, NULL, NULL, &selecttimeout);
 
 		/* if key pressed, read all waiting keys */
-		if (FD_ISSET(0, &readfd))
-			while ((c = wgetch(stdscr)) != ERR) {
-				if (tolower(c) == 'l') {
-					redraw = 1;
-				} else if (tolower(c) == 'q') {
-					nocbreak();
-					endwin();
-					exit(0);
-				} else if (tolower(c) == 'r') {
-					reverse = !reverse;
-				} else if (tolower(c) == 's') {
-					sorting++;
-					if (sorting > STSORT_MAX)
-						sorting = 0;
-				}
+		if (FD_ISSET(0, &readfd)) {
+			c = wgetch(stdscr);
+			if (c == ERR)
+				continue;
+
+			if (tolower(c) == 'l') {
+				redraw = 1;
+			} else if (tolower(c) == 'q') {
+				nocbreak();
+				endwin();
+				exit(0);
+			} else if (tolower(c) == 'r') {
+				reverse = !reverse;
+			} else if (tolower(c) == 's') {
+				sorting++;
+				if (sorting > STSORT_MAX)
+					sorting = 0;
 			}
+		}
 	} /* while */
 
 	close(sfd);
