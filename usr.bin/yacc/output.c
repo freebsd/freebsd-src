@@ -521,7 +521,7 @@ pack_table()
     base = NEW2(nvectors, short);
     pos = NEW2(nentries, short);
 
-    maxtable = 1000;
+    maxtable = 10000;
     table = NEW2(maxtable, short);
     check = NEW2(maxtable, short);
 
