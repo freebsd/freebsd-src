@@ -46,6 +46,7 @@ static char sccsid[] = "@(#)mkfs.c	8.3 (Berkeley) 2/3/94";
 #include <sys/disklabel.h>
 #include <sys/file.h>
 #include <sys/mman.h>
+#include <sys/ioctl.h>
 
 #ifndef STANDALONE
 #include <a.out.h>
@@ -121,6 +122,7 @@ struct dinode zino[MAXBSIZE / sizeof(struct dinode)];
 
 int	fsi, fso;
 daddr_t	alloc();
+static int charsperline();
 
 mkfs(pp, fsys, fi, fo)
 	struct partition *pp;
@@ -136,6 +138,8 @@ mkfs(pp, fsys, fi, fo)
 	time_t utime;
 	quad_t sizepb;
 	void started();
+	int width;
+	char tmpbuf[100];	/* XXX this will break in about 2,500 years */
 
 #ifndef STANDALONE
 	time(&utime);
@@ -619,14 +623,21 @@ next:
 	 * then print out indices of cylinder groups.
 	 */
 	if (!mfs)
-		printf("super-block backups (for fsck -b #) at:");
+		printf("super-block backups (for fsck -b #) at:\n");
+	i = 0;
+	width = charsperline();
 	for (cylno = 0; cylno < sblock.fs_ncg; cylno++) {
 		initcg(cylno, utime);
 		if (mfs)
 			continue;
-		if (cylno % 9 == 0)
+		j = sprintf(tmpbuf, " %d,",
+			fsbtodb(&sblock, cgsblock(&sblock, cylno)));
+		if (i+j >= width) {
 			printf("\n");
-		printf(" %d,", fsbtodb(&sblock, cgsblock(&sblock, cylno)));
+			i = 0;
+		}
+		i += j;
+		printf("%s", tmpbuf);
 		fflush(stdout);
 	}
 	if (!mfs)
@@ -1262,4 +1273,27 @@ setblock(fs, cp, h)
 #endif
 		return;
 	}
+}
+
+/*
+ * Determine the number of characters in a
+ * single line.
+ */
+
+static int
+charsperline()
+{
+	int columns;
+	char *cp;
+	struct winsize ws;
+	extern char *getenv();
+
+	columns = 0;
+	if (ioctl(0, TIOCGWINSZ, &ws) != -1)
+		columns = ws.ws_col;
+	if (columns == 0 && (cp = getenv("COLUMNS")))
+		columns = atoi(cp);
+	if (columns == 0)
+		columns = 80;	/* last resort */
+	return columns;
 }
