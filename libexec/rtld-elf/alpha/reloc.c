@@ -60,8 +60,7 @@ extern Elf_Dyn _DYNAMIC;
 
 /* Relocate a non-PLT object with addend. */
 static int
-reloc_non_plt_obj(Obj_Entry *obj_rtld, const Obj_Entry *obj,
-    const Elf_Rela *rela)
+reloc_non_plt_obj(Obj_Entry *obj_rtld, Obj_Entry *obj, const Elf_Rela *rela)
 {
 	Elf_Addr *where = (Elf_Addr *) (obj->relocbase + rela->r_offset);
 
