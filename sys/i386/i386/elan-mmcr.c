@@ -41,6 +41,7 @@
 #include <sys/malloc.h>
 #include <sys/sysctl.h>
 #include <sys/timepps.h>
+#include <sys/watchdog.h>
 
 #include <machine/md_var.h>
 
@@ -321,6 +322,67 @@ elan_mmap(dev_t dev, vm_offset_t offset, vm_offset_t *paddr, int nprot)
 }
 
 static int
+elan_watchdog(u_int spec)
+{
+	u_int u, v;
+	static u_int cur;
+
+	if (spec & ~__WD_LEGAL)
+		return (EINVAL);
+	switch (spec & (WD_ACTIVE|WD_PASSIVE)) {
+	case WD_ACTIVE:
+		u = spec & WD_INTERVAL;
+		if (u > 35)
+			return (EINVAL);
+		u = imax(u - 5, 24);
+		v = 2 << (u - 24);
+		v |= 0xc000;
+
+		/*
+		 * There is a bug in some silicon which prevents us from
+		 * writing to the WDTMRCTL register if the GP echo mode is
+		 * enabled.  GP echo mode on the other hand is desirable
+		 * for other reasons.  Save and restore the GP echo mode
+		 * around our hardware tom-foolery.
+		 */
+		u = elan_mmcr[0xc00 / 2];
+		elan_mmcr[0xc00 / 2] = 0;
+		if (v != cur) {
+			/* Clear the ENB bit */
+			elan_mmcr[0xcb0 / 2] = 0x3333;
+			elan_mmcr[0xcb0 / 2] = 0xcccc;
+			elan_mmcr[0xcb0 / 2] = 0;
+
+			/* Set new value */
+			elan_mmcr[0xcb0 / 2] = 0x3333;
+			elan_mmcr[0xcb0 / 2] = 0xcccc;
+			elan_mmcr[0xcb0 / 2] = v;
+			cur = v;
+		} else {
+			/* Just reset timer */
+			elan_mmcr[0xcb0 / 2] = 0xaaaa;
+			elan_mmcr[0xcb0 / 2] = 0x5555;
+		}
+		elan_mmcr[0xc00 / 2] = u;
+		return (0);
+	case WD_PASSIVE:
+		return (EOPNOTSUPP);
+	case 0:
+		u = elan_mmcr[0xc00 / 2];
+		elan_mmcr[0xc00 / 2] = 0;
+		elan_mmcr[0xcb0 / 2] = 0x3333;
+		elan_mmcr[0xcb0 / 2] = 0xcccc;
+		elan_mmcr[0xcb0 / 2] = 0x4080;
+		elan_mmcr[0xc00 / 2] = u;
+		cur = 0;
+		return (0);
+	default:
+		return (EINVAL);
+	}
+
+}
+
+static int
 elan_ioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct  thread *tdr)
 {
 	int error;
@@ -339,6 +401,9 @@ elan_ioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct  thread *tdr)
 	if (error != ENOTTY)
 		return (error);
 #endif /* ELAN_PPS */
+
+	if (cmd == WDIOCPATPAT)
+		return elan_watchdog(*((u_int*)arg));
 
 	/* Other future ioctl handling here */
 	return(error);
