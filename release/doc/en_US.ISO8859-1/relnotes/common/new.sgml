@@ -247,7 +247,8 @@
     <sect3>
       <title>Contributed Software</title>
 
-      <para></para>
+      <para><application>IPFilter</application> now supports
+      IPv6.</para>
 
     </sect3>
   </sect2>
@@ -358,6 +359,11 @@
 
     <sect3>
       <title>Contributed Software</title>
+
+      <para>The version of <application>IPFilter</application>
+      provided with &os; now includes the &man.ipfs.8; program, which
+      allows state information created for NAT entries and stateful
+      rules to be saved to disk and restored after a reboot.</para>
 
       <para><application>OpenSSH</application> has been updated to
       version 2.9, which adds two new programs, &man.sftp.1; and
