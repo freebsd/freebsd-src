@@ -741,6 +741,9 @@ newroute(argc, argv)
 		case ENOBUFS:
 			err = "routing table overflow";
 			break;
+		case EDQUOT: /* handle recursion avoidance in rt_setgate() */
+			err = "gateway uses the same route";
+			break;
 		default:
 			err = strerror(oerrno);
 			break;

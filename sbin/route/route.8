@@ -32,9 +32,9 @@
 .\"     @(#)route.8	8.3 (Berkeley) 3/19/94
 .\" $FreeBSD$
 .\"
-.Dd March 19, 1994
+.Dd June 8, 2001
 .Dt ROUTE 8
-.Os BSD 4.4
+.Os
 .Sh NAME
 .Nm route
 .Nd manually manipulate the routing tables
@@ -362,6 +362,12 @@ wasn't present in the tables.
 An add operation was attempted, but the system was
 low on resources and was unable to allocate memory
 to create the new entry.
+.It "gateway uses the same route"
+A
+.Cm change
+operation resulted in a route whose gateway uses the
+same route as the one being changed.
+The next-hop gateway should be reachable through a different route.
 .El
 .Pp
 The
