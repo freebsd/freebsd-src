@@ -224,7 +224,7 @@ devfs_getattr(ap)
 	vap->va_gid = de->de_gid;
 	vap->va_mode = de->de_mode;
 	if (vp->v_type == VLNK)
-		vap->va_size = de->de_dirent->d_namlen;
+		vap->va_size = strlen(de->de_symlink);
 	else if (vp->v_type == VDIR)
 		vap->va_size = vap->va_bytes = DEV_BSIZE;
 	else
