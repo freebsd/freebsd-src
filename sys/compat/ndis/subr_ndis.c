@@ -613,7 +613,11 @@ ndis_read_cfg(status, parm, cfg, key, type)
 	 * See if registry key is already in a list of known keys
 	 * included with the driver.
 	 */
+#if __FreeBSD_version < 502113
 	TAILQ_FOREACH(e, &sc->ndis_ctx, link) {
+#else
+	TAILQ_FOREACH(e, device_get_sysctl_ctx(sc->ndis_dev), link) {
+#endif
 		oidp = e->entry;
 		if (my_strcasecmp(oidp->oid_name, keystr) == 0) {
 			if (strcmp((char *)oidp->oid_arg1, "UNSET") == 0) {
@@ -709,7 +713,11 @@ ndis_write_cfg(status, cfg, key, parm)
 
 	/* See if the key already exists. */
 
+#if __FreeBSD_version < 502113
 	TAILQ_FOREACH(e, &sc->ndis_ctx, link) {
+#else
+	TAILQ_FOREACH(e, device_get_sysctl_ctx(sc->ndis_dev), link) {
+#endif
 		oidp = e->entry;
 		if (my_strcasecmp(oidp->oid_name, keystr) == 0) {
 			/* Found it, set the value. */
