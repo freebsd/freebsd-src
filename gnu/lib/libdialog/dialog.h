@@ -108,7 +108,7 @@ void end_dialog(void);
 
 /* Additions to libdialog */
 char *dialog_fselect(char *dir, char *fmask);
-int  dialog_dselect(void);
+int  dialog_dselect(char *dir, char *fmask);
 void dialog_notify(char *msg);
 int  dialog_mesgbox(unsigned char *title, unsigned char *prompt, int height, int width);
 void use_helpfile(char *helpfile);
