@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_xlreg.h,v 1.14 1998/08/23 21:30:17 wpaul Exp $
+ *	$Id: if_xlreg.h,v 1.12 1998/09/04 15:31:48 wpaul Exp $
  */
 
 #define XL_EE_READ	0x0080	/* read, 5 bit address */
@@ -636,7 +636,7 @@ struct xl_stats {
 #define TC_DEVICEID_CYCLONE_10BT_COMBO		0x9005
 #define TC_DEVICEID_CYCLONE_10_100BT		0x9055
 #define TC_DEVICEID_CYCLONE_10_100BT4		0x9056
-
+#define TC_DEVICEID_CYCLONE_10_100BT_SERV	0x9800
 
 /*
  * Texas Instruments PHY identifiers
