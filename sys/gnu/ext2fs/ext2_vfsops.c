@@ -854,6 +854,8 @@ loop:
 			goto loop;
 		if (VOP_ISLOCKED(vp))
 			continue;
+		if (vp->v_type == VNON) /* XXX why is this needed? (it is) */
+			continue;
 		ip = VTOI(vp);
 		if ((ip->i_flag &
 		    (IN_ACCESS | IN_CHANGE | IN_MODIFIED | IN_UPDATE)) == 0 &&
