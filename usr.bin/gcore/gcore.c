@@ -57,6 +57,7 @@ static const char rcsid[] =
  * contract BG 91-66 and contributed to Berkeley.
  */
 #include <sys/param.h>
+#include <sys/lock.h>
 #include <sys/time.h>
 #include <sys/stat.h>
 #include <sys/proc.h>
