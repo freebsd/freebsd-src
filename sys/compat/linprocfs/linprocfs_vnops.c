@@ -54,6 +54,7 @@
 #include <sys/fcntl.h>
 #include <sys/proc.h>
 #include <sys/signalvar.h>
+#include <sys/sx.h>
 #include <sys/vnode.h>
 #include <sys/mount.h>
 #include <sys/namei.h>

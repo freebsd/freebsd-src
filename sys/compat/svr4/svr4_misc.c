@@ -52,6 +52,7 @@
 #include <sys/mount.h>
 #include <sys/resource.h>
 #include <sys/resourcevar.h>
+#include <sys/sx.h>
 #include <sys/vnode.h>
 #include <sys/uio.h>
 #include <sys/user.h>
