@@ -1,4 +1,4 @@
-<!-- $Id: porting.sgml,v 1.29 1996/09/12 05:00:53 asami Exp $ -->
+<!-- $Id: porting.sgml,v 1.30 1996/10/04 22:54:09 wosch Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect1><heading>Porting an existing piece of free software<label id="porting"></heading>
@@ -13,7 +13,7 @@ otherwise know where to turn for it.  All ported software is organized
 into a carefully organized hierarchy know as ``the ports collection''.
 The collection enables a new user to get a quick and complete overview
 of what is available for FreeBSD in an easy-to-compile form.  It also
-saves considerable space by not actually containing the the majority
+saves considerable space by not actually containing the majority
 of the sources being ported, but merely those differences required for
 running under FreeBSD. 
 
@@ -157,7 +157,7 @@ The pattern is the year followed by the month.
  # Date created:	5 December 1994
  # Whom:		asami
  #
- # $Id: porting.sgml,v 1.29 1996/09/12 05:00:53 asami Exp $
+ # $Id: porting.sgml,v 1.30 1996/10/04 22:54:09 wosch Exp $
  #
  
  DISTNAME=	oneko-1.1b
@@ -410,7 +410,7 @@ ftp://freefall.FreeBSD.ORG/pub/FreeBSD/LOCAL_PORTS/
 	<p>If your port requires some additional `patches' that are
 	  available on the Internet, fetch them too and put them in
 	  <tt>&dollar;{DISTDIR}</tt>.  Do not worry if they come from
-	  site other than where you got the the main source tarball,
+	  site other than where you got the main source tarball,
 	  we have a way to handle these situations (see the
 	  description of <ref id="porting:patchfiles"
 	  name="<tt>&dollar;{PATCHFILES}</tt>"> below).
@@ -560,7 +560,7 @@ work/foozolix-1.0/
 	<heading>MASTER_SITES</heading>
 
 	<p>Record the directory part of the ftp/http-URL pointing at
-	  the the original tarball in <tt>&dollar;{MASTER_SITES}</tt>.
+	  the original tarball in <tt>&dollar;{MASTER_SITES}</tt>.
 	  Do not forget the trailing slash (<tt>/</tt>)!
 
  	<p>The make macros will try to use this specification for
@@ -1098,7 +1098,7 @@ lib/libtcl.so.7.3
   person who wrote this Makefile]
  # Whom:			Satoshi Asami <asami@FreeBSD.ORG>
  #
- # $Id: porting.sgml,v 1.29 1996/09/12 05:00:53 asami Exp $
+ # $Id: porting.sgml,v 1.30 1996/10/04 22:54:09 wosch Exp $
  [ ^^^^ do not worry about this, I know it says "porting.sgml"...it
   will be automatically filled in by CVS when it is committed to our
   repository]

@@ -1,4 +1,4 @@
-<!-- $Id: linuxemu.sgml,v 1.11 1996/08/28 00:43:59 asami Exp $ -->
+<!-- $Id: linuxemu.sgml,v 1.12 1996/10/04 22:54:07 wosch Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>Linux Emulation<label id="linuxemu"></heading>
@@ -38,7 +38,7 @@ Linux-emulation up will vary slightly:
 <sect1><heading>Installing Linux Emulation in 2.1-STABLE</heading>
 
 <p>The GENERIC kernel in 2.1-stable is not configured for linux
-compatibility so you you must reconfigure your kernel for it.  There
+compatibility so you must reconfigure your kernel for it.  There
 are two ways to do this: 1. linking the emulator statically in the
 kernel itself and 2. configuring your kernel to dynamically load the
 linux loadable kernel module (LKM).

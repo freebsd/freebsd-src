@@ -30,6 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)1.t	5.1 (Berkeley) 4/16/91
+.\"	$Id$
 .\"
 .NH
 Motivations for a New Virtual Memory System
@@ -156,7 +157,7 @@ be governed by the amount of physical memory.
 .PP
 Another effect of the current technology is that the latency and overhead
 associated with accessing the file system is considerably higher
-since the access must be be over the network
+since the access must be over the network
 rather than to a locally-attached disk.
 One use of the surplus memory would be to
 maintain a cache of recently used files;

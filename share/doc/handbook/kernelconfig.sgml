@@ -1,4 +1,4 @@
-<!-- $Id: kernelconfig.sgml,v 1.19 1996/09/11 16:11:51 jfieber Exp $ -->
+<!-- $Id: kernelconfig.sgml,v 1.20 1996/09/16 14:27:07 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 <!-- <!DOCTYPE linuxdoc PUBLIC '-//FreeBSD//DTD linuxdoc//EN'> -->
   <chapt><heading>Configuring the FreeBSD Kernel<label id="kernelconfig"></heading>
@@ -353,7 +353,7 @@
 	      the kernel.
 
 	      <quote><em/Note:/ The <tt>ipcs(1)</tt> command will
-		tell will list any processes using using each of
+		tell will list any processes using each of
 		these System V facilities.</quote>
 
 	  </descrip>

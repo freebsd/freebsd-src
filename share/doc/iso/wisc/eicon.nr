@@ -1,3 +1,5 @@
+.\"	$Id$
+.\"
 .sh 2 "X.25 Public Data Network Support"
 .pp
 This ARGO release includes support for an X.25 Public Data Network (PDN)
@@ -146,7 +148,7 @@ the remote DTE.
 This reply notifies CONS that the virtual circuit has been reset either
 by the DCE or by the remote DTE.
 .ip "\fIECN_ACK - 0x05\fR"
-This reply tells CONS that the associated ECN_SEND request has been been
+This reply tells CONS that the associated ECN_SEND request has been
 completed by the adapter.
 .sh 3 "NCB Commands"
 .lp

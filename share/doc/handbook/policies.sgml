@@ -1,4 +1,4 @@
-<!-- $Id: policies.sgml,v 1.2 1996/07/03 04:23:26 mpp Exp $ -->
+<!-- $Id: policies.sgml,v 1.3 1996/07/22 00:00:36 jraynard Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>Source Tree Guidelines and Policies
@@ -107,7 +107,7 @@ out major mistakes.
 branches, it is required that "official" patches from the vendor
 be applied to the original distributed sources and the result
 re-imported onto the vendor branch again.  Official patches should
-never be patched into the the FreeBSD checked out version and
+never be patched into the FreeBSD checked out version and
 "committed", as this destroys the vendor branch coherency and makes
 importing future versions rather difficult as there will be conflicts.
 

@@ -30,6 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)conclusions.ms	6.2 (Berkeley) 4/16/91
+.\"	$Id$
 .\"
 .ds RH Conclusions
 .NH
@@ -58,7 +59,7 @@ against the future value and expandability of newer technologies.
 Two important conclusions about storage systems in general
 can be drawn from these tests.
 The first is that buffering can be effective in smoothing
-the the effects of lower bus speeds and bus contention.
+the effects of lower bus speeds and bus contention.
 Even though the UDA50 is located on the relatively slow
 UNIBUS, its performance is similar to controllers located on
 the faster processor busses.

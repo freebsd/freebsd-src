@@ -1,4 +1,4 @@
-<!-- $Id: userppp.sgml,v 1.7 1996/05/16 23:18:28 mpp Exp $ -->
+<!-- $Id: userppp.sgml,v 1.8 1996/05/31 02:51:24 mpp Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect>Setting up user PPP<label id="userppp">
@@ -35,7 +35,7 @@
   In essence, this means that rather than running a PPP daemon, the ppp
   program can be run as and when desired. No PPP interface needs to be
   compiled into the kernel, as the program can use the generic tunnel
-  device to to get data into and out of the kernel.
+  device to get data into and out of the kernel.
 
   From here on out, user ppp will be referred to as simply as ppp unless a
   distinction need to be made be it and any other PPP client/server software.

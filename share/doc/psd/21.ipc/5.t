@@ -30,6 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)5.t	8.1 (Berkeley) 8/14/93
+.\"	$Id$
 .\"
 .\".ds RH "Advanced Topics
 .bp
@@ -1538,7 +1539,7 @@ on file descriptors 0 and 1, and may immediately perform
 any operations such as \fIread\fP, \fIwrite\fP, \fIsend\fP,
 or \fIrecv\fP.  Indeed, servers may use
 buffered I/O as provided by the ``stdio'' conventions, as
-long as as they remember to use \fIfflush\fP when appropriate.
+long as they remember to use \fIfflush\fP when appropriate.
 .PP
 One call which may be of interest to individuals writing
 servers under \fIinetd\fP is the \fIgetpeername\fP call,
