@@ -137,14 +137,14 @@ char   *use_it = _ncurses_copyright;
 	act.sa_flags = 0;
 	sigaction(SIGTSTP, &act, NULL);
 	act.sa_handler = cleanup;
-	sigemptyset(&act.sa_mask);
-	act.sa_flags = 0;
 	sigaction(SIGINT, &act, NULL);
 	sigaction(SIGTERM, &act, NULL);
-	signal(SIGWINCH, size_change);
 #if 0
 	sigaction(SIGSEGV, &act, NULL);
 #endif
+	act.sa_handler = size_change;
+	act.sa_flags = SA_RESTART;
+	sigaction(SIGWINCH, &act, NULL);	/* this must restart read() */
       	if ((stdscr = newwin(lines - stolen, columns, topstolen, 0)) == NULL)
   		return(NULL);
 
