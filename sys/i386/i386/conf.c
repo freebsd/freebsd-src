@@ -41,7 +41,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.36 1994/10/01 02:55:59 davidg Exp $
+ *	$Id: conf.c,v 1.37 1994/10/01 17:59:36 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -544,6 +544,16 @@ d_ioctl_t apmioctl;
 #define	apmioctl	(d_ioctl_t *)enxio
 #endif
 
+#ifdef IBCS2
+d_open_t sockopen;
+d_close_t sockclose;
+d_ioctl_t sockioctl;
+#else
+#define	sockopen	(d_open_t *)enxio
+#define	sockclose	(d_close_t *)enxio
+#define	sockioctl	(d_ioctl_t *)enxio
+#endif
+
 #include "ctx.h"
 #if NCTX > 0
 d_open_t ctxopen;
@@ -703,8 +713,11 @@ struct cdevsw	cdevsw[] =
 	{ ctxopen,	ctxclose,	ctxread,	ctxwrite,	/*40*/
 	  ctxioctl,	nostop,		nullreset,	NULL,	/* cortex framegrabber */
 	  seltrue,	nommap,		NULL },
-	/* character device 41 is reserved for local use */
-	{ (d_open_t *)enxio,	(d_close_t *)enxio,	(d_rdwr_t *)enxio, /*41*/
+	{ sockopen,	sockclose,	noread,		nowrite,	/*41*/
+	  sockioctl,	nostop,		nullreset,	NULL,	/* socksys */
+	  seltrue,	nommap,		NULL },
+	/* character device 42 is reserved for local use */
+	{ (d_open_t *)enxio,	(d_close_t *)enxio,	(d_rdwr_t *)enxio, /*42*/
 	  (d_rdwr_t *)enxio,	(d_ioctl_t *)enxio,	(d_stop_t *)enxio,
 	  (d_reset_t *)enxio,	NULL,			(d_select_t *)enxio,
 	  (d_mmap_t *)enxio,	NULL }
