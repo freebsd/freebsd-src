@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	5.1 (Berkeley) 6/25/90
-#	$Id: Makefile,v 1.17 1995/09/13 17:23:00 markm Exp $
+#	$Id: Makefile,v 1.18 1995/11/01 13:38:22 markm Exp $
 
 SUBDIR=	des include lib libexec usr.bin usr.sbin man
 
@@ -29,6 +29,7 @@ kprog:
 bootstrap:
 	( cd include; ${MAKE} ${MFLAGS} install )
 	( cd des; ${MAKE} ${MFLAGS} depend all install )
+	( cd lib; ${MAKE} ${MFLAGS} depend all install )
 	${MAKE} ${MFLAGS} cleandir
 	${MAKE} ${MFLAGS} obj
 	${MAKE} ${MFLAGS} depend all install kprog
