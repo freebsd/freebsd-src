@@ -167,7 +167,7 @@ then the Modular Crypt Format is used.  The
 .Fa digit
 represents which algorithm is used in encryption.  Following the token is
 the actual salt to use in the encryption.  The length of the salt is limited
-to 16 characters--because the length of the returned output is also limited
+to 8 characters--because the length of the returned output is also limited
 (_PASSWORD_LEN).  The salt must be terminated with the end of the string
 (NULL) or a dollar sign.  Any characters after the dollar sign are ignored.
 .Pp
