@@ -55,17 +55,25 @@ struct ar_softc {
     int32_t		magic_0;	/* ident for this array */
     int32_t		magic_1;	/* ident for this array */
     int			flags;
-#define AR_F_RAID0		0x0001	/* STRIPE */
-#define AR_F_RAID1		0x0002	/* MIRROR */
-#define AR_F_SPAN		0x0004	/* SPAN */
-#define AR_F_READY		0x0100
-#define AR_F_DEGRADED		0x0200
-#define AR_F_REBUILDING		0x0400
-#define AR_F_PROMISE_RAID	0x1000
-#define AR_F_HIGHPOINT_RAID	0x2000
-#define AR_F_FREEBSD_RAID	0x4000
-#define AR_F_TOGGLE		0x8000
-    
+#define AR_F_SPAN		0x00000001
+#define AR_F_RAID0		0x00000002
+#define AR_F_RAID1		0x00000004
+#define AR_F_RAID3		0x00000008
+#define AR_F_RAID5		0x00000010	
+
+#define AR_F_READY		0x00000100
+#define AR_F_DEGRADED		0x00000200
+#define AR_F_REBUILDING		0x00000400
+#define AR_F_TOGGLE		0x00000800
+
+#define AR_F_FREEBSD_RAID	0x00010000
+#define AR_F_PROMISE_RAID	0x00020000
+#define AR_F_HIGHPOINT_RAID	0x00040000
+#define AR_F_ADAPTEC_RAID	0x00080000
+#define AR_F_LSI_RAID		0x00100000
+#define AR_F_INTEL_RAID		0x00200000
+#define AR_F_QTEC_RAID		0x00400000
+
     int			total_disks;	/* number of disks in this array */
     int			generation;	/* generation of this array */
     struct ar_disk	disks[MAX_DISKS+1]; /* ptr to each disk in array */
@@ -92,11 +100,12 @@ struct ar_buf {
 #define AB_F_DONE		0x01
 };
 
+
 #define HPT_LBA			9
 
 struct highpoint_raid_conf {
     int8_t		filler1[32];
-    u_int32_t		magic;			/* 0x20 */
+    u_int32_t		magic;
 #define HPT_MAGIC_OK		0x5a7816f0
 #define HPT_MAGIC_BAD		0x5a7816fd
 
@@ -148,6 +157,66 @@ struct highpoint_raid_conf {
 } __packed;
 
 
+#define LSI_LBA(adp)	(adp->total_secs - 1)
+
+struct lsi_raid_conf {
+    u_int8_t		lsi_id[6];
+#define LSI_MAGIC	"$XIDE$"
+
+    u_int8_t		dummy_1;
+    u_int8_t		flags;
+    u_int8_t		version[2];
+    u_int8_t		config_entries;
+    u_int8_t		raid_count;
+    u_int8_t		total_disks;
+    u_int8_t		dummy_d;
+    u_int8_t		dummy_e;
+    u_int8_t		dummy_f;
+
+    union {
+	struct {
+	    u_int8_t	type;
+#define LSI_R_RAID0	0x01
+#define LSI_R_RAID1	0x02
+#define LSI_R_SPARE	0x08
+
+	    u_int8_t	dummy_1;
+	    u_int16_t	stripe_size;
+	    u_int8_t	raid_width;
+	    u_int8_t	disk_count;
+	    u_int8_t	config_offset;
+	    u_int8_t	dummy_7;
+	    u_int8_t	flags;
+#define LSI_R_DEGRADED	0x02
+
+	    u_int32_t	total_sectors;
+	    u_int8_t	filler[3];
+	} __packed raid;
+	struct {
+	    u_int8_t	device;
+#define LSI_D_MASTER	0x00
+#define LSI_D_SLAVE	0x01
+#define LSI_D_CHANNEL0	0x00
+#define LSI_D_CHANNEL1	0x10
+#define LSI_D_NONE	0xff
+
+	    u_int8_t	dummy_1;
+	    u_int32_t	disk_sectors;
+	    u_int8_t	disk_number;
+	    u_int8_t	raid_number;
+	    u_int8_t	flags;
+#define LSI_D_GONE	0x02
+
+	    u_int8_t	filler[7];
+	} __packed disk;
+    } configs[30];
+    u_int8_t		disk_number;
+    u_int8_t		raid_number;
+    u_int32_t		timestamp;
+    u_int8_t		filler[10];
+} __packed;
+
+
 #define PR_LBA(adp) \
 	(((adp->total_secs / (adp->heads * adp->sectors)) * \
 	  adp->heads * adp->sectors) - adp->sectors)
@@ -164,7 +233,7 @@ struct promise_raid_conf {
     u_int32_t		magic_2;
     u_int8_t		filler1[470];
     struct {
-	u_int32_t	integrity;		/* 0x200 */
+	u_int32_t	integrity;
 #define PR_I_VALID		0x00000080
 
 	u_int8_t	flags;
@@ -181,7 +250,7 @@ struct promise_raid_conf {
 	u_int8_t	channel;
 	u_int8_t	device;
 	u_int64_t	magic_0 __packed;
-	u_int32_t	disk_offset;		/* 0x210 */
+	u_int32_t	disk_offset;
 	u_int32_t	disk_sectors;
 	u_int32_t	rebuild_lba;
 	u_int16_t	generation;
@@ -201,7 +270,7 @@ struct promise_raid_conf {
 #define PR_T_RAID5		0x04
 #define PR_T_SPAN		0x08
 
-	u_int8_t	total_disks;		/* 0x220 */
+	u_int8_t	total_disks;
 	u_int8_t	stripe_shift;
 	u_int8_t	array_width;
 	u_int8_t	array_number;
@@ -210,7 +279,7 @@ struct promise_raid_conf {
 	u_int8_t	heads;
 	u_int8_t	sectors;
 	int64_t		magic_1 __packed;
-	struct {				/* 0x240 */
+	struct {
 	    u_int8_t	flags;
 	    u_int8_t	dummy_0;
 	    u_int8_t	channel;
