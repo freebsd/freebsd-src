@@ -21,6 +21,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 5.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20040814:
+	The RANDOM_IP_ID option has been replaced by the sysctl
+	net.inet.ip.random_id. If you had RANDOM_IP_ID in your kernel then
+	you may want to add "net.inet.ip.random_id=1" to /etc/sysctl.conf.
+
 20040807:
 	The size of 'struct ifnet' has changed due to the addition of the
 	if_carp placeholder.  All kernel modules implementing network
