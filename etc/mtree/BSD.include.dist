@@ -20,6 +20,8 @@
         ..
         iicbus
         ..
+        ofw
+        ..
         ppbus
         ..
         smbus
