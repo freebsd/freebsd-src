@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: filter.c,v 1.27 1999/01/28 01:56:31 brian Exp $
+ * $Id: filter.c,v 1.28 1999/05/08 11:06:33 brian Exp $
  *
  *	TODO: Shoud send ICMP error message when we discard packets.
  */
@@ -261,6 +261,29 @@ ParseUdpOrTcp(int argc, char const *const *argv, int proto,
   return 1;
 }
 
+static unsigned
+addrtype(const char *addr)
+{
+  if (!strncasecmp(addr, "MYADDR", 6) && (addr[6] == '\0' || addr[6] == '/'))
+    return T_MYADDR;
+  if (!strncasecmp(addr, "HISADDR", 7) && (addr[7] == '\0' || addr[7] == '/'))
+    return T_HISADDR;
+
+  return T_ADDR;
+}
+
+static const char *
+addrstr(struct in_addr addr, unsigned type)
+{
+  switch (type) {
+    case T_MYADDR:
+      return "MYADDR";
+    case T_HISADDR:
+      return "HISADDR";
+  }
+  return inet_ntoa(addr);
+}
+
 static int
 Parse(struct ipcp *ipcp, int argc, char const *const *argv,
       struct filterent *ofp)
@@ -326,19 +349,22 @@ Parse(struct ipcp *ipcp, int argc, char const *const *argv,
   if (proto == P_NONE) {
     if (!argc)
       log_Printf(LogWARN, "Parse: address/mask is expected.\n");
-    else if (ParseAddr(ipcp, *argv, &filterdata.saddr, &filterdata.smask,
-                       &filterdata.swidth)) {
+    else if (ParseAddr(ipcp, *argv, &filterdata.src.ipaddr,
+                       &filterdata.src.mask, &filterdata.src.width)) {
+      filterdata.srctype = addrtype(*argv);
       argc--;
       argv++;
       proto = filter_Nam2Proto(argc, argv);
       if (!argc)
         log_Printf(LogWARN, "Parse: address/mask is expected.\n");
       else if (proto == P_NONE) {
-	if (ParseAddr(ipcp, *argv, &filterdata.daddr, &filterdata.dmask,
-                      &filterdata.dwidth)) {
+	if (ParseAddr(ipcp, *argv, &filterdata.dst.ipaddr, &filterdata.dst.mask,
+                      &filterdata.dst.width)) {
+          filterdata.dsttype = addrtype(*argv);
 	  argc--;
 	  argv++;
-	}
+	} else
+          filterdata.dsttype = T_ADDR;
 	proto = filter_Nam2Proto(argc, argv);
 	if (argc && proto != P_NONE) {
 	  argc--;
@@ -372,10 +398,10 @@ Parse(struct ipcp *ipcp, int argc, char const *const *argv,
     break;
   }
 
-  log_Printf(LogDEBUG, "Parse: Src: %s\n", inet_ntoa(filterdata.saddr));
-  log_Printf(LogDEBUG, "Parse: Src mask: %s\n", inet_ntoa(filterdata.smask));
-  log_Printf(LogDEBUG, "Parse: Dst: %s\n", inet_ntoa(filterdata.daddr));
-  log_Printf(LogDEBUG, "Parse: Dst mask: %s\n", inet_ntoa(filterdata.dmask));
+  log_Printf(LogDEBUG, "Parse: Src: %s\n", inet_ntoa(filterdata.src.ipaddr));
+  log_Printf(LogDEBUG, "Parse: Src mask: %s\n", inet_ntoa(filterdata.src.mask));
+  log_Printf(LogDEBUG, "Parse: Dst: %s\n", inet_ntoa(filterdata.dst.ipaddr));
+  log_Printf(LogDEBUG, "Parse: Dst mask: %s\n", inet_ntoa(filterdata.dst.mask));
   log_Printf(LogDEBUG, "Parse: Proto = %d\n", proto);
 
   log_Printf(LogDEBUG, "Parse: src:  %s (%d)\n",
@@ -439,8 +465,10 @@ doShowFilter(struct filterent *fp, struct prompt *prompt)
         prompt_Printf(prompt, "port ");
       else
         prompt_Printf(prompt, "     ");
-      prompt_Printf(prompt, "%s/%d ", inet_ntoa(fp->saddr), fp->swidth);
-      prompt_Printf(prompt, "%s/%d ", inet_ntoa(fp->daddr), fp->dwidth);
+      prompt_Printf(prompt, "%s/%d ", addrstr(fp->src.ipaddr, fp->srctype),
+                    fp->src.width);
+      prompt_Printf(prompt, "%s/%d ", addrstr(fp->dst.ipaddr, fp->dsttype),
+                    fp->dst.width);
       if (fp->proto) {
 	prompt_Printf(prompt, "%s", filter_Proto2Nam(fp->proto));
 
@@ -547,4 +575,28 @@ filter_Nam2Op(const char *cp)
       break;
 
   return op;
+}
+
+void
+filter_AdjustAddr(struct filter *filter, struct in_addr *my_ip,
+                  struct in_addr *peer_ip)
+{
+  struct filterent *fp;
+  int n;
+
+  for (fp = filter->rule, n = 0; n < MAXFILTERS; fp++, n++)
+    if (fp->action != A_NONE) {
+      if (my_ip) {
+        if (fp->srctype == T_MYADDR)
+          fp->src.ipaddr = *my_ip;
+        if (fp->dsttype == T_MYADDR)
+          fp->dst.ipaddr = *my_ip;
+      }
+      if (peer_ip) {
+        if (fp->srctype == T_HISADDR)
+          fp->src.ipaddr = *peer_ip;
+        if (fp->dsttype == T_HISADDR)
+          fp->dst.ipaddr = *peer_ip;
+      }
+    }
 }

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ip.c,v 1.60 1999/05/09 20:02:19 brian Exp $
+ * $Id: ip.c,v 1.61 1999/05/14 09:35:51 brian Exp $
  *
  *	TODO:
  *		o Return ICMP message for filterd packet
@@ -113,7 +113,7 @@ FilterCheck(struct ip *pip, struct filter *filter)
     cproto = gotinfo = estab = syn = finrst = didname = 0;
     sport = dport = 0;
     for (n = 0; n < MAXFILTERS; n++) {
-      if (fp->action) {
+      if (fp->action != A_NONE) {
 	/* permit fragments on in and out filter */
         if (filter->fragok && (ntohs(pip->ip_off) & IP_OFFMASK) != 0)
 	  return (A_PERMIT);
@@ -122,10 +122,10 @@ FilterCheck(struct ip *pip, struct filter *filter)
           log_Printf(LogDEBUG, "%s filter:\n", filter->name);
         didname = 1;
 
-	if ((pip->ip_src.s_addr & fp->smask.s_addr) ==
-	    (fp->saddr.s_addr & fp->smask.s_addr) &&
-	    (pip->ip_dst.s_addr & fp->dmask.s_addr) ==
-	    (fp->daddr.s_addr & fp->dmask.s_addr)) {
+	if ((pip->ip_src.s_addr & fp->src.mask.s_addr) ==
+	    (fp->src.ipaddr.s_addr & fp->src.mask.s_addr) &&
+	    (pip->ip_dst.s_addr & fp->dst.mask.s_addr) ==
+	    (fp->dst.ipaddr.s_addr & fp->dst.mask.s_addr)) {
 	  if (fp->proto) {
 	    if (!gotinfo) {
 	      ptop = (char *) pip + (pip->ip_hl << 2);
