@@ -241,7 +241,7 @@ in_pcbbind(inp, nam, p)
 				}
 			}
 			if (prison &&
-			    prison_ip(p->p_ucred, 0, &sin->sin_addr.s_addr))
+			    prison_ip(p, 0, &sin->sin_addr.s_addr))
 				return (EADDRNOTAVAIL);
 			t = in_pcblookup_local(pcbinfo, sin->sin_addr,
 			    lport, prison ? 0 : wild);
