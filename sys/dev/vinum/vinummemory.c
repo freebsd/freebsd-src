@@ -41,7 +41,6 @@
 
 #ifdef VINUMDEBUG
 #undef longjmp						    /* this was defined as LongJmp */
-void longjmp(jmp_buf, int);				    /* the kernel doesn't define this */
 
 #include <dev/vinum/request.h>
 extern struct rqinfo rqinfo[];
