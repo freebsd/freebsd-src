@@ -297,19 +297,19 @@ thr_wake(struct thread *td, struct thr_wake_args *uap)
 	struct thread *tdsleeper, *ttd;
 
 	tdsleeper = ((struct thread *)uap->id);
-	PROC_LOCK(tdsleeper->td_proc);
-	FOREACH_THREAD_IN_PROC(tdsleeper->td_proc, ttd) {
+	PROC_LOCK(td->td_proc);
+	FOREACH_THREAD_IN_PROC(td->td_proc, ttd) {
 		if (ttd == tdsleeper)
 			break;
 	}
 	if (ttd == NULL) {
-		PROC_UNLOCK(tdsleeper->td_proc);
+		PROC_UNLOCK(td->td_proc);
 		return (ESRCH);
 	}
 	mtx_lock_spin(&sched_lock);
 	tdsleeper->td_flags |= TDF_THRWAKEUP;
 	mtx_unlock_spin(&sched_lock);
 	wakeup_one((void *)tdsleeper);
-	PROC_UNLOCK(tdsleeper->td_proc);
+	PROC_UNLOCK(td->td_proc);
 	return (0);
 }
