@@ -465,6 +465,7 @@ nfs_open(struct vop_open_args *ap)
 		np->n_directio_opens++;
 	}
 	np->ra_expect_lbn = 0;
+	vnode_create_vobject(vp, vattr.va_size, ap->a_td);
 	return (0);
 }
 
