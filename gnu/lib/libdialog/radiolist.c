@@ -452,26 +452,24 @@ draw:
 	    
 	case '\r':
 	case '\n':
-	    if (!button && result) {
-		if (ditems && ditems[button ? CANCEL_BUTTON : OK_BUTTON].fire) {
-		    int st;
-		    WINDOW *save;
+	    if (ditems && result && ditems[button ? CANCEL_BUTTON : OK_BUTTON].fire) {
+		int st;
+		WINDOW *save;
 
-		    save = dupwin(newscr);
-		    st = ditems[button ? CANCEL_BUTTON : OK_BUTTON].fire(&ditems[button ? CANCEL_BUTTON : OK_BUTTON]);
-		    if (st & DITEM_RESTORE) {
-			touchwin(save);
-			wrefresh(save);
-		    }
-		    delwin(save);
+		save = dupwin(newscr);
+		st = ditems[button ? CANCEL_BUTTON : OK_BUTTON].fire(&ditems[button ? CANCEL_BUTTON : OK_BUTTON]);
+		if (st & DITEM_RESTORE) {
+		    touchwin(save);
+		    wrefresh(save);
 		}
-		else {
-		    *result = '\0';
-		    for (i = 0; i < item_no; i++) {
-			if (status[i]) {
-			    strcpy(result, items[i*3]);
-			    break;
-			}
+		delwin(save);
+	    }
+	    else if (!ditems && result) {
+		*result = '\0';
+		for (i = 0; i < item_no; i++) {
+		    if (status[i]) {
+			strcpy(result, items[i*3]);
+			break;
 		    }
 		}
 	    }
