@@ -169,15 +169,16 @@ while [ $# -gt 0 ]; do
 	  echo "$USAGE" ; exit 1; 
 	fi
 	if [ -e "$2" -a ! -d "$2" ]; then
+	  PRETTY_NAME=`basename $2`
 	  if file $2 | grep "text" >/dev/null 2>/dev/null ; then
 	    ATTACHED_FILES="$ATTACHED_FILES
---- $2 begins here ---
+--- $PRETTY_NAME begins here ---
 `cat \"$2\"`
---- $2 ends here ---
+--- $PRETTY_NAME ends here ---
 "
 	  else
 	    ATTACHED_FILES="$ATTACHED_FILES
-`uuencode \"$2\" < \"$2\"`
+`uuencode \"$PRETTY_NAME\" < \"$2\"`
 "
 	  fi
 	  shift;
