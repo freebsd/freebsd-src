@@ -506,6 +506,7 @@ memory without difficulty.
 2.2. Ethernet cards
 -------------------
 
+Allied-Telesis AT1700 and RE2000 cards
 SMC Elite 16 WD8013 ethernet interface, and most other WD8003E,
 WD8003EBT, WD8003W, WD8013W, WD8003S, WD8003SBT and WD8013EBT
 based clones.  SMC Elite Ultra is also supported.
@@ -515,7 +516,7 @@ DEC EtherWORKS II NICs (DE200, DE201, DE202, and DE422)
 DEC DC21140 based NICs (SMC???? DE???)
 DEC FDDI (DEFPA/DEFEA) NICs
 
-Fujitsu MB86960A family of NICs
+Fujitsu FMV-181 and FMV-182
 
 Intel EtherExpress
 
@@ -733,4 +734,4 @@ mentioned, and we sincerely hope you enjoy this release of FreeBSD!
 
                         The FreeBSD Core Team
 
-$Id: RELNOTES,v 1.6 1995/06/06 02:15:16 jkh Exp $
+$Id: RELNOTES,v 1.7 1995/06/08 09:12:55 jkh Exp $
