@@ -246,7 +246,7 @@ sb_reset_dsp(struct sb_info *sb)
     	sb_wr(sb, SBDSP_RST, 0);
     	if (sb_get_byte(sb) != 0xAA) {
         	DEB(printf("sb_reset_dsp 0x%lx failed\n",
-			   rman_get_start(d->io_base)));
+			   rman_get_start(sb->io_base)));
 		return ENXIO;	/* Sorry */
     	}
     	return 0;

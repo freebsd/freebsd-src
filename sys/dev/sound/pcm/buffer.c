@@ -619,7 +619,7 @@ sndbuf_isadma(struct snd_dbuf *b, int go)
 	DEB(printf("buf 0x%p ISA DMA %s, channel %d\n",
 		b,
 		(go == PCMTRIG_START)? "started" : "stopped",
-		b->chan));
+		b->isadmachan));
 }
 
 int
