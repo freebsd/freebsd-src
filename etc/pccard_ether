@@ -27,7 +27,7 @@ stop_dhcp() {
 		fi
 
 		_aprefix=
-		for _if in _active_list ; do
+		for _if in ${_active_list} ; do
 			_test_if=`ifconfig ${_if} 2>&1`
 			case "$_test_if" in
 			"ifconfig: interface $_if does not exist")
