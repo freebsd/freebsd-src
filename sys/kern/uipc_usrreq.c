@@ -236,6 +236,8 @@ uipc_rcvd(struct socket *so, int flags)
 		so2->so_snd.sb_mbmax += unp->unp_mbcnt - so->so_rcv.sb_mbcnt;
 		unp->unp_mbcnt = so->so_rcv.sb_mbcnt;
 		so2->so_snd.sb_hiwat += unp->unp_cc - so->so_rcv.sb_cc;
+		(void)chgsbsize(so2->so_cred->cr_uid,
+		    (rlim_t)unp->unp_cc - so->so_rcv.sb_cc);
 		unp->unp_cc = so->so_rcv.sb_cc;
 		sowwakeup(so2);
 		break;
@@ -342,6 +344,8 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 		unp->unp_conn->unp_mbcnt = so2->so_rcv.sb_mbcnt;
 		so->so_snd.sb_hiwat -=
 		    so2->so_rcv.sb_cc - unp->unp_conn->unp_cc;
+		(void)chgsbsize(so->so_cred->cr_uid,
+		    (rlim_t)unp->unp_conn->unp_cc - so2->so_rcv.sb_cc);
 		unp->unp_conn->unp_cc = so2->so_rcv.sb_cc;
 		sorwakeup(so2);
 		m = 0;

@@ -158,6 +158,12 @@ sodealloc(so)
 {
 
 	so->so_gencnt = ++so_gencnt;
+	if (so->so_rcv.sb_hiwat)
+		(void)chgsbsize(so->so_cred->cr_uid,
+		    -(rlim_t)so->so_rcv.sb_hiwat);
+	if (so->so_snd.sb_hiwat)
+		(void)chgsbsize(so->so_cred->cr_uid,
+		    -(rlim_t)so->so_snd.sb_hiwat);
 	crfree(so->so_cred);
 	zfreei(so->so_zone, so);
 }
@@ -212,7 +218,7 @@ sofree(so)
 		so->so_state &= ~SS_INCOMP;
 		so->so_head = NULL;
 	}
-	sbrelease(&so->so_snd);
+	sbrelease(&so->so_snd, so);
 	sorflush(so);
 	sodealloc(so);
 }
@@ -922,7 +928,7 @@ sorflush(so)
 	splx(s);
 	if (pr->pr_flags & PR_RIGHTS && pr->pr_domain->dom_dispose)
 		(*pr->pr_domain->dom_dispose)(asb.sb_mb);
-	sbrelease(&asb);
+	sbrelease(&asb, so);
 }
 
 /*
@@ -1030,8 +1036,8 @@ sosetopt(so, sopt)
 			case SO_SNDBUF:
 			case SO_RCVBUF:
 				if (sbreserve(sopt->sopt_name == SO_SNDBUF ?
-					      &so->so_snd : &so->so_rcv,
-					      (u_long) optval) == 0) {
+				    &so->so_snd : &so->so_rcv, (u_long)optval,
+				    so, curproc) == 0) {
 					error = ENOBUFS;
 					goto bad;
 				}

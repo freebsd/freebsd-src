@@ -64,6 +64,7 @@ struct uidinfo {
 	LIST_ENTRY(uidinfo) ui_hash;
 	uid_t	ui_uid;
 	long	ui_proccnt;
+	rlim_t	ui_sbsize;
 };
 #define	UIHASH(uid)	(&uihashtbl[(uid) & uihash])
 static LIST_HEAD(uihashhead, uidinfo) *uihashtbl;
@@ -115,10 +116,10 @@ chgproccnt(uid, diff)
 			break;
 	if (uip) {
 		uip->ui_proccnt += diff;
-		if (uip->ui_proccnt > 0)
-			return (uip->ui_proccnt);
 		if (uip->ui_proccnt < 0)
 			panic("chgproccnt: procs < 0");
+		if (uip->ui_proccnt > 0 || uip->ui_sbsize > 0)
+			return (uip->ui_proccnt);
 		LIST_REMOVE(uip, ui_hash);
 		FREE(uip, M_PROC);
 		return (0);
@@ -132,6 +133,45 @@ chgproccnt(uid, diff)
 	LIST_INSERT_HEAD(uipp, uip, ui_hash);
 	uip->ui_uid = uid;
 	uip->ui_proccnt = diff;
+	uip->ui_sbsize = 0;
+	return (diff);
+}
+
+/*
+ * Change the total socket buffer size a user has used.
+ */
+rlim_t
+chgsbsize(uid, diff)
+	uid_t	uid;
+	rlim_t	diff;
+{
+	register struct uidinfo *uip;
+	register struct uihashhead *uipp;
+
+	uipp = UIHASH(uid);
+	for (uip = uipp->lh_first; uip != 0; uip = uip->ui_hash.le_next)
+		if (uip->ui_uid == uid)
+			break;
+	if (diff <= 0) {
+		if (diff == 0)
+			return (uip ? uip->ui_sbsize : 0);
+		KASSERT(uip != NULL, ("uidinfo (%d) gone", uid));
+	}
+	if (uip) {
+		uip->ui_sbsize += diff;
+		KASSERT(uip->ui_sbsize >= 0, ("ui_sbsize (%d) < 0", uid));
+		if (uip->ui_sbsize == 0 && uip->ui_proccnt == 0) {
+			LIST_REMOVE(uip, ui_hash);
+			FREE(uip, M_PROC);
+			return (0);
+		}
+		return (uip->ui_sbsize);
+	}
+	MALLOC(uip, struct uidinfo *, sizeof(*uip), M_PROC, M_WAITOK);
+	LIST_INSERT_HEAD(uipp, uip, ui_hash);
+	uip->ui_uid = uid;
+	uip->ui_proccnt = 0;
+	uip->ui_sbsize = diff;
 	return (diff);
 }
 
