@@ -371,6 +371,7 @@ vendor SVEC			-1	SVEC/Hawking Technology
 vendor SYNERGY21		-1	Synergy 21
 vendor TEAC			-1	TEAC
 vendor YEDATA			-1 	Y-E DATA
+vendor ZOOM			-1 	ZOOM
 
 product ACCTON EN2212		{ "ACCTON", "EN2212", NULL, NULL } Accton EN2212
 product AMBICOM AMB8002T	{ "AmbiCom&spInc", "AMB8002T", NULL, NULL } AmbiCom AMB8002T
