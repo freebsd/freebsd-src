@@ -1,15 +1,21 @@
-#	$Id: bsd.kern.mk,v 1.11 1998/12/14 21:03:27 archie Exp $
+#	$Id: bsd.kern.mk,v 1.12 1998/12/17 22:36:21 dfr Exp $
 
 #
 # Warning flags for compiling the kernel and components of the kernel.
 #
-CWARNFLAGS?=	-Wreturn-type -Wcomment -Wredundant-decls -Wimplicit \
-		-Wnested-externs -Wstrict-prototypes -Wmissing-prototypes \
-		-Wpointer-arith -Winline -Wuninitialized -Wformat -Wunused \
+#CWARNFLAGS?=	-Wreturn-type -Wcomment -Wredundant-decls -Wimplicit \
+#		-Wnested-externs -Wstrict-prototypes -Wmissing-prototypes \
+#		-Wpointer-arith -Winline -Wuninitialized -Wformat -Wunused \
+#		-fformat-extensions -ansi
+
+CWARNFLAGS?=    -Wall -Wredundant-decls -Wnested-externs -Wstrict-prototypes \
+                -Wmissing-prototypes -Wpointer-arith -Winline -Wcast-qual \
 		-fformat-extensions -ansi
+
+
 #
 # The following flags are next up for working on:
-#	-W -Wcast-qual -Wall
+#	-W	( note: -W may be included by -Wall )
 #
 # When working on removing warnings from code, the `-Werror' flag should be
 # of material assistance.
