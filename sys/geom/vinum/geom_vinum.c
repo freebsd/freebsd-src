@@ -319,8 +319,16 @@ gv_create(struct g_geom *gp, struct gctl_req *req)
 		d = g_malloc(sizeof(*d), M_WAITOK | M_ZERO);
 		bcopy(d2, d, sizeof(*d));
 
-		/* XXX */
+		/*
+		 * Make sure that the provider specified in the drive
+		 * specification is an active GEOM provider.
+		 */
 		pp = g_provider_by_name(d->device);
+		if (pp == NULL) {
+			gctl_error(req, "%s: drive not found", d->device);
+			g_free(d);
+			return (-1);
+		}
 		d->size = pp->mediasize - GV_DATA_START;
 		d->avail = d->size;
 
@@ -456,8 +464,17 @@ gv_create(struct g_geom *gp, struct gctl_req *req)
 	 */
 	LIST_FOREACH(d, &sc->drives, drive) {
 		if (d->geom == NULL) {
-			/* XXX */
+			/*
+			 * XXX if the provider disapears before we get a chance
+			 * to write the config out to the drive, should this
+			 * be handled any differently?
+			 */
 			pp = g_provider_by_name(d->device);
+			if (pp == NULL) {
+				printf("geom_vinum: %s: drive disapeared?\n",
+				    d->device);
+				continue;
+			}
 			cp = g_new_consumer(gp);
 			g_attach(cp, pp);
 			gv_save_config(cp, d, sc);
