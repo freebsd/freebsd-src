@@ -921,43 +921,43 @@ syscall(struct thread *td, trapframe_t *frame, u_int32_t insn)
 		td->td_retval[1] = 0;
 		error = (*callp->sy_call)(td, args);
 	}
-	  switch (error) {
-	  case 0: 
-		  frame->tf_r0 = td->td_retval[0];
-		  frame->tf_r1 = td->td_retval[1];
-		  
-		  frame->tf_spsr &= ~PSR_C_bit;   /* carry bit */
-		  break;
-		  
-	  case ERESTART:
-		  /*
- 		   * Reconstruct the pc to point at the swi.
-		   */
-		  frame->tf_pc -= INSN_SIZE;
-		  break;
-	  case EJUSTRETURN:                                       
-		  /* nothing to do */  
-		  break;
-	  default:
+	switch (error) {
+	case 0: 
+      		frame->tf_r0 = td->td_retval[0];
+		frame->tf_r1 = td->td_retval[1];
+		
+		frame->tf_spsr &= ~PSR_C_bit;   /* carry bit */
+		break;
+		
+	case ERESTART:
+		/*
+		 * Reconstruct the pc to point at the swi.
+		 */
+		frame->tf_pc -= INSN_SIZE;
+		break;
+	case EJUSTRETURN:                                       
+		/* nothing to do */  
+		break;
+	default:
 bad:
-		  frame->tf_r0 = error;
-		  frame->tf_spsr |= PSR_C_bit;    /* carry bit */
-		  break;
-	  }
-	  if (locked && (callp->sy_narg & SYF_MPSAFE) == 0)
-		  mtx_unlock(&Giant);
-	  
-	  
-	  userret(td, frame, sticks);
-	  CTR4(KTR_SYSC, "syscall exit thread %p pid %d proc %s code %d", td,
-	      td->td_proc->p_pid, td->td_proc->p_comm, code);
-
+		frame->tf_r0 = error;
+		frame->tf_spsr |= PSR_C_bit;    /* carry bit */
+		break;
+	}
+	if (locked && (callp->sy_narg & SYF_MPSAFE) == 0)
+		mtx_unlock(&Giant);
+	
+	
+	userret(td, frame, sticks);
+	CTR4(KTR_SYSC, "syscall exit thread %p pid %d proc %s code %d", td,
+	    td->td_proc->p_pid, td->td_proc->p_comm, code);
+	
 #ifdef KTRACE
-	  if (KTRPOINT(td, KTR_SYSRET))
-		  ktrsysret(code, error, td->td_retval[0]);
+      	if (KTRPOINT(td, KTR_SYSRET))
+		ktrsysret(code, error, td->td_retval[0]);
 #endif
-	  mtx_assert(&sched_lock, MA_NOTOWNED);
-	  mtx_assert(&Giant, MA_NOTOWNED);
+	mtx_assert(&sched_lock, MA_NOTOWNED);
+	mtx_assert(&Giant, MA_NOTOWNED);
 }
 
 void
