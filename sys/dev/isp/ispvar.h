@@ -371,6 +371,12 @@ typedef struct ispsoftc {
 	 */
 	u_int64_t		isp_intcnt;		/* total int count */
 	u_int64_t		isp_intbogus;		/* spurious int count */
+	u_int64_t		isp_intmboxc;		/* mbox completions */
+	u_int64_t		isp_intoasync;		/* other async */
+	u_int64_t		isp_rsltccmplt;		/* CMDs on result q */
+	u_int64_t		isp_fphccmplt;		/* CMDs via fastpost */
+	u_int16_t		isp_rscchiwater;
+	u_int16_t		isp_fpcchiwater;
 
 	/*
 	 * Volatile state
@@ -508,6 +514,7 @@ typedef struct ispsoftc {
 #define	ISP_HA_FC_2100		0x10
 #define	ISP_HA_FC_2200		0x20
 #define	ISP_HA_FC_2300		0x30
+#define	ISP_HA_FC_2312		0x40
 
 #define	IS_SCSI(isp)	(isp->isp_type & ISP_HA_SCSI)
 #define	IS_1240(isp)	(isp->isp_type == ISP_HA_SCSI_1240)
@@ -523,7 +530,9 @@ typedef struct ispsoftc {
 #define	IS_FC(isp)	((isp)->isp_type & ISP_HA_FC)
 #define	IS_2100(isp)	((isp)->isp_type == ISP_HA_FC_2100)
 #define	IS_2200(isp)	((isp)->isp_type == ISP_HA_FC_2200)
-#define	IS_2300(isp)	((isp)->isp_type >= ISP_HA_FC_2300)
+#define	IS_23XX(isp)	((isp)->isp_type >= ISP_HA_FC_2300)
+#define	IS_2300(isp)	((isp)->isp_type == ISP_HA_FC_2300)
+#define	IS_2312(isp)	((isp)->isp_type == ISP_HA_FC_2312)
 
 /*
  * DMA cookie macros

@@ -72,5 +72,32 @@ struct isp_fc_device {
 	u_int64_t	node_wwn;
 	u_int64_t	port_wwn;
 };
-
 #define	ISP_FC_GETDINFO	_IOWR(ISP_IOC, 4, struct isp_fc_device)
+
+/*
+ * Get/Clear Stats
+ */
+#define	ISP_STATS_VERSION	0
+typedef struct {
+	uint8_t		isp_stat_version;	
+	uint8_t		isp_type;		/* (ro) reflects chip type */
+	uint8_t		isp_revision;		/* (ro) reflects chip version */
+	uint8_t		unused1;
+	uint32_t	unused2;
+	/*
+	 * Statistics Counters
+	 */
+#define	ISP_NSTATS	16
+#define	ISP_INTCNT	0
+#define	ISP_INTBOGUS	1
+#define	ISP_INTMBOXC	2
+#define	ISP_INGOASYNC	3
+#define	ISP_RSLTCCMPLT	4
+#define	ISP_FPHCCMCPLT	5
+#define	ISP_RSCCHIWAT	6
+#define	ISP_FPCCHIWAT	7
+	uint64_t	isp_stats[ISP_NSTATS];
+} isp_stats_t;
+
+#define	ISP_GET_STATS	_IOR(ISP_IOC, 6, isp_stats_t)
+#define	ISP_CLR_STATS	_IO(ISP_IOC, 7)
