@@ -19,7 +19,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-
+#include <sys/reboot.h>
 #include <dialog.h>
 
 #include "sysinstall.h"
