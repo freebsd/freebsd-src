@@ -679,10 +679,10 @@ kinfo_vnodes(avnodes)
 	for (num = 0, mp = TAILQ_FIRST(&mountlist); ; mp = mp_next) {
 		KGET2(mp, &mount, sizeof(mount), "mount entry");
 		mp_next = TAILQ_NEXT(&mount, mnt_list);
-		for (vp = mount.mnt_vnodelist.lh_first;
+		for (vp = LIST_FIRST(&mount.mnt_vnodelist);
 		    vp != NULL; vp = vp_next) {
 			KGET2(vp, &vnode, sizeof(vnode), "vnode");
-			vp_next = vnode.v_mntvnodes.le_next;
+			vp_next = LIST_NEXT(&vnode, v_mntvnodes);
 			if ((bp + VPTRSZ + VNODESZ) > evbuf)
 				/* XXX - should realloc */
 				errx(1, "no more room for vnodes");
@@ -896,13 +896,13 @@ filemode()
 	 * structure, and then an array of file structs (whose addresses are
 	 * derivable from the previous entry).
 	 */
-	addr = ((struct filelist *)buf)->lh_first;
+	addr = LIST_FIRST((struct filelist *)buf);
 	fp = (struct file *)(buf + sizeof(struct filelist));
 	nfile = (len - sizeof(struct filelist)) / sizeof(struct file);
 
 	(void)printf("%d/%d open files\n", nfile, maxfile);
 	(void)printf("   LOC   TYPE    FLG     CNT  MSG    DATA    OFFSET\n");
-	for (; (char *)fp < buf + len; addr = fp->f_list.le_next, fp++) {
+	for (; (char *)fp < buf + len; addr = LIST_NEXT(fp, f_list), fp++) {
 		if ((unsigned)fp->f_type > DTYPE_SOCKET)
 			continue;
 		(void)printf("%8lx ", (u_long)(void *)addr);
