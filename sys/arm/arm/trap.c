@@ -95,6 +95,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/syscall.h>
 #include <sys/sysent.h>
 #include <sys/signalvar.h>
+#include <sys/ktr.h>
 #ifdef KTRACE
 #include <sys/uio.h>
 #include <sys/ktrace.h>
@@ -910,6 +911,8 @@ syscall(struct thread *td, trapframe_t *frame, u_int32_t insn)
 		ktrsyscall(code, nargs, args);
 #endif
 		
+	CTR4(KTR_SYSC, "syscall enter thread %p pid %d proc %s code %d", td,
+	    td->td_proc->p_pid, td->td_proc->p_comm, code);
 	if ((callp->sy_narg & SYF_MPSAFE) == 0)
 		mtx_lock(&Giant);
 	locked = 1;
@@ -946,6 +949,9 @@ bad:
 	  
 	  
 	  userret(td, frame, sticks);
+	  CTR4(KTR_SYSC, "syscall exit thread %p pid %d proc %s code %d", td,
+	      td->td_proc->p_pid, td->td_proc->p_comm, code);
+
 #ifdef KTRACE
 	  if (KTRPOINT(td, KTR_SYSRET))
 		  ktrsysret(code, error, td->td_retval[0]);
