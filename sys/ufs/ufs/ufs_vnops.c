@@ -337,7 +337,7 @@ ufs_access(ap)
 	int error;
 #ifdef UFS_ACL
 	struct acl *acl;
-	int len;
+	size_t len;
 #endif
 
 	/*
