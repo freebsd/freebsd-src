@@ -17,13 +17,14 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with GNU CC; see the file COPYING.  If not, write to
-the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
+the Free Software Foundation, 59 Temple Place - Suite 330,
+Boston, MA 02111-1307, USA.  */
 
 #undef TARGET_VERSION
 #define TARGET_VERSION fprintf (stderr, " (Alpha GNU/Linux for ECOFF)");
 
-#undef SUB_CPP_PREDEFINES
-#define SUB_CPP_PREDEFINES "-D__ECOFF__"
+#undef CPP_SUBTARGET_SPEC
+#define CPP_SUBTARGET_SPEC "-D__ECOFF__"
 
 #undef LINK_SPEC
 #define LINK_SPEC "-G 8 %{O*:-O3} %{!O*:-O1}"

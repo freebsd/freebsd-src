@@ -1,5 +1,5 @@
 /* Machine mode definitions for GNU C-Compiler; included by rtl.h and tree.h.
-   Copyright (C) 1991, 1993, 1994, 1996 Free Software Foundation, Inc.
+   Copyright (C) 1991, 1993, 1994, 1996, 1998 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -21,34 +21,8 @@ Boston, MA 02111-1307, USA.  */
 #ifndef HAVE_MACHINE_MODES
 #define HAVE_MACHINE_MODES
 
-#include "gansidecl.h"
-
 /* Strictly speaking, this isn't the proper place to include these definitions,
-   but this file is included by every GCC file.
-
-   Some systems define these in, e.g., param.h.  We undefine these names
-   here to avoid the warnings.  We prefer to use our definitions since we
-   know they are correct.  */
-
-#undef MIN
-#undef MAX
-
-#define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
-#define MAX(X,Y) ((X) > (Y) ? (X) : (Y))
-
-/* Find the largest host integer type and set its size and type.  */
-
-#ifndef HOST_BITS_PER_WIDE_INT
-
-#if HOST_BITS_PER_LONG > HOST_BITS_PER_INT
-#define HOST_BITS_PER_WIDE_INT HOST_BITS_PER_LONG
-#define HOST_WIDE_INT long
-#else
-#define HOST_BITS_PER_WIDE_INT HOST_BITS_PER_INT
-#define HOST_WIDE_INT int
-#endif
-
-#endif
+   but this file is included by every GCC file. */
 
 /* Provide a default way to print an address in hex via printf.  */
 
@@ -61,69 +35,6 @@ Boston, MA 02111-1307, USA.  */
      : sizeof (long) == sizeof (char *) ? "%lx" : "%llx")
 # endif
 #endif /* ! HOST_PTR_PRINTF */
-
-/* Provide defaults for the way to print a HOST_WIDE_INT
-   in various manners.  */
-
-#ifndef HOST_WIDE_INT_PRINT_DEC
-#if HOST_BITS_PER_WIDE_INT == HOST_BITS_PER_INT
-#define HOST_WIDE_INT_PRINT_DEC "%d"
-#else
-#if HOST_BITS_PER_WIDE_INT == HOST_BITS_PER_LONG
-#define HOST_WIDE_INT_PRINT_DEC "%ld"
-#else
-#define HOST_WIDE_INT_PRINT_DEC "%lld"
-#endif
-#endif
-#endif
-
-#ifndef HOST_WIDE_INT_PRINT_UNSIGNED
-#if HOST_BITS_PER_WIDE_INT == HOST_BITS_PER_INT
-#define HOST_WIDE_INT_PRINT_UNSIGNED "%u"
-#else
-#if HOST_BITS_PER_WIDE_INT == HOST_BITS_PER_LONG
-#define HOST_WIDE_INT_PRINT_UNSIGNED "%lu"
-#else
-#define HOST_WIDE_INT_PRINT_UNSIGNED "%llu"
-#endif
-#endif
-#endif
-
-#ifndef HOST_WIDE_INT_PRINT_HEX
-#if HOST_BITS_PER_WIDE_INT == HOST_BITS_PER_INT
-#define HOST_WIDE_INT_PRINT_HEX "0x%x"
-#else
-#if HOST_BITS_PER_WIDE_INT == HOST_BITS_PER_LONG
-#define HOST_WIDE_INT_PRINT_HEX "0x%lx"
-#else
-#define HOST_WIDE_INT_PRINT_HEX "0x%llx"
-#endif
-#endif
-#endif
-
-#ifndef HOST_WIDE_INT_PRINT_DOUBLE_HEX
-#if HOST_BITS_PER_WIDE_INT == 64
-#if HOST_BITS_PER_WIDE_INT == HOST_BITS_PER_INT
-#define HOST_WIDE_INT_PRINT_DOUBLE_HEX "0x%x%016x"
-#else
-#if HOST_BITS_PER_WIDE_INT == HOST_BITS_PER_LONG
-#define HOST_WIDE_INT_PRINT_DOUBLE_HEX "0x%lx%016lx"
-#else
-#define HOST_WIDE_INT_PRINT_DOUBLE_HEX "0x%llx%016llx"
-#endif
-#endif
-#else
-#if HOST_BITS_PER_WIDE_INT == HOST_BITS_PER_INT
-#define HOST_WIDE_INT_PRINT_DOUBLE_HEX "0x%x%08x"
-#else
-#if HOST_BITS_PER_WIDE_INT == HOST_BITS_PER_LONG
-#define HOST_WIDE_INT_PRINT_DOUBLE_HEX "0x%lx%08lx"
-#else
-#define HOST_WIDE_INT_PRINT_DOUBLE_HEX "0x%llx%08llx"
-#endif
-#endif
-#endif
-#endif
 
 /* Make an enum class that gives all the machine modes.  */
 
@@ -193,23 +104,38 @@ extern int mode_unit_size[];
 
 #define GET_MODE_BITSIZE(MODE)  (BITS_PER_UNIT * mode_size[(int) (MODE)])
 
+#ifdef HOST_WIDE_INT
+
 /* Get a bitmask containing 1 for all bits in a word
    that fit within mode MODE.  */
 
-#define GET_MODE_MASK(MODE)  \
-   ((GET_MODE_BITSIZE (MODE) >= HOST_BITS_PER_WIDE_INT)  \
-    ?(HOST_WIDE_INT) ~0 : (((HOST_WIDE_INT) 1 << GET_MODE_BITSIZE (MODE)) - 1))
+extern unsigned HOST_WIDE_INT mode_mask_array[];
+
+#define GET_MODE_MASK(MODE) mode_mask_array[(int) (MODE)]
+
+#endif /* HOST_WIDE_INT */
 
 /* Get the next wider natural mode (eg, QI -> HI -> SI -> DI -> TI).  */
 
-extern enum machine_mode mode_wider_mode[];
-#define GET_MODE_WIDER_MODE(MODE)	(mode_wider_mode[(int) (MODE)])
+extern unsigned char mode_wider_mode[];
+#define GET_MODE_WIDER_MODE(MODE)	((enum machine_mode)mode_wider_mode[(int) (MODE)])
 
 /* Return the mode for data of a given size SIZE and mode class CLASS.
    If LIMIT is nonzero, then don't use modes bigger than MAX_FIXED_MODE_SIZE.
    The value is BLKmode if no other mode is found.  */
 
 extern enum machine_mode mode_for_size PROTO((unsigned int, enum mode_class, int));
+
+/* Similar, but find the smallest mode for a given width.  */
+
+extern enum machine_mode smallest_mode_for_size  PROTO((unsigned int,
+                                                        enum mode_class));
+
+
+/* Return an integer mode of the exact same size as the input mode,
+   or BLKmode on failure.  */
+
+extern enum machine_mode int_mode_for_mode PROTO((enum machine_mode));
 
 /* Find the best mode to use to access a bit field.  */
 

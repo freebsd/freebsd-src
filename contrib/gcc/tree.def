@@ -1,6 +1,6 @@
 /* This file contains the definitions and documentation for the
    tree codes used in the GNU C compiler.
-   Copyright (C) 1987, 1988, 1993, 1995, 1997 Free Software Foundation, Inc.
+   Copyright (C) 1987, 1988, 1993, 1995, 1997, 1998 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -82,7 +82,7 @@ DEFTREECODE (TREE_VEC, "tree_vec", 'x', 2)
    outermost scope of a particular inlining of a function).
    BLOCK_ABSTRACT is non-zero if the block represents an abstract
    instance of a block (i.e. one which is nested within an abstract
-   instance of a inline function. */
+   instance of an inline function). */
 DEFTREECODE (BLOCK, "block", 'b', 0)
 
 /* Each data type is represented by a tree node whose code is one of
@@ -98,8 +98,14 @@ DEFTREECODE (BLOCK, "block", 'b', 0)
      points to the start of the chain.
    The TYPE_NONCOPIED_PARTS field is a list specifying which parts
      of an object of this type should *not* be copied by assignment.
-     The TREE_PURPOSE of each element is the offset of the part
-     and the TREE_VALUE is the size in bits of the part.
+     The TREE_VALUE of each is a FIELD_DECL that should not be
+     copied.  The TREE_PURPOSE is an initial value for that field when
+     an object of this type is initialized via an INIT_EXPR.  It may
+     be NULL if no special value is required.  Even the things in this
+     list are copied if the right-hand side of an assignment is known
+     to be a complete object (rather than being, perhaps, a subobject
+     of some other object.)  The determination of what constitutes a
+     complete object is done by fixed_type_p.
    The TYPE_NAME field contains info on the name used in the program
      for this type (for GDB symbol table output).  It is either a
      TYPE_DECL node, for types that are typedefs, or an IDENTIFIER_NODE
@@ -306,11 +312,10 @@ DEFTREECODE (STRING_CST, "string_cst", 'c', 3)
    DECL_RESULT holds a RESULT_DECL node for the value of a function,
     or it is 0 for a function that returns no value.
     (C functions returning void have zero here.)
-   DECL_RESULT_TYPE holds the type in which the result is actually
-    returned.  This is usually the same as the type of DECL_RESULT,
-    but (1) it may be a wider integer type and
-    (2) it remains valid, for the sake of inlining, even after the
-    function's compilation is done.
+    The TREE_TYPE field is the type in which the result is actually
+    returned.  This is usually the same as the return type of the
+    FUNCTION_DECL, but it may be a wider integer type because of
+    promotion.
    DECL_FUNCTION_CODE is a code number that is nonzero for
     built-in functions.  Its value is an enum built_in_function
     that says which built-in function it is.
@@ -359,8 +364,7 @@ DEFTREECODE (INDIRECT_REF, "indirect_ref", 'r', 1)
 DEFTREECODE (BUFFER_REF, "buffer_ref", 'r', 1)
 
 /* Array indexing in languages other than C.
-   Operand 0 is the array; operand 1 is a list of indices
-   stored as a chain of TREE_LIST nodes.  */
+   Operand 0 is the array; operand 1 is a (single) array index. */
 DEFTREECODE (ARRAY_REF, "array_ref", 'r', 2)
 
 /* Constructor: return an aggregate value made from specified components.
@@ -704,6 +708,27 @@ DEFTREECODE (POSTINCREMENT_EXPR, "postincrement_expr", 'e', 2)
    evaluated unless an exception is throw.  */
 DEFTREECODE (TRY_CATCH_EXPR, "try_catch_expr", 'e', 2)
 
+/* Evaluate the first operand.
+   The second operand is a a cleanup expression which is evaluated
+   before an exit (normal, exception, or jump out) from this expression.
+
+   Like a CLEANUP_POINT_EXPR/WITH_CLEANUP_EXPR combination, but those
+   always copy the cleanup expression where needed.  In contrast,
+   TRY_FINALLY_EXPR generates a jump to a cleanup subroutine.
+   (At least conceptually; the optimizer could inline the cleanup
+   subroutine in the same way it could inline normal subroutines.)
+   TRY_FINALLY_EXPR should be used when the cleanup is actual statements
+   in the source of the current function (which people might want to
+   set breakpoints in).  */
+DEFTREECODE (TRY_FINALLY_EXPR, "try_finally", 'e', 2)
+
+/* Used internally for cleanups in the implementation of TRY_FINALLY_EXPR.
+   (Specifically, it is created by expand_expr, not front-ends.)
+   Operand 0 is the rtx for the start of the subroutine we need to call.
+   Operand 1 is the rtx for a variable in which to store the address
+   of where the subroutine should return to.  */
+DEFTREECODE (GOTO_SUBROUTINE_EXPR, "goto_subroutine", 'e', 2)
+
 /* Pop the top element off the dynamic handler chain.  Used in
    conjunction with setjmp/longjmp based exception handling, see
    except.c for more details.  This is meant to be used only by the
@@ -723,7 +748,7 @@ DEFTREECODE (POPDCC_EXPR, "popdcc_expr", 's', 0)
    The type should be void and the value should be ignored.  */
 DEFTREECODE (LABEL_EXPR, "label_expr", 's', 1)
 
-/* GOTO.  Operand 0 is a LABEL_DECL node.
+/* GOTO.  Operand 0 is a LABEL_DECL node or an expression.
    The type should be void and the value should be ignored.  */
 DEFTREECODE (GOTO_EXPR, "goto_expr", 's', 1)
 
@@ -743,11 +768,28 @@ DEFTREECODE (EXIT_EXPR, "exit_expr", 's', 1)
    The type should be void and the value should be ignored.  */
 DEFTREECODE (LOOP_EXPR, "loop_expr", 's', 1)
 
-/* Used to represent a tree node, such as IDENTIFIER_NODE or an EXPR
-   node, adding several location information: a file name, a line
-   number and column number. It is expanded as the node it refers to
-   and can be considered a no-op "conversion" with an annotation.  */
-DEFTREECODE (EXPR_WITH_FILE_LOCATION, "expr_with_file_location", '1', 2)
+/* A labeled block. Operand 0 is the label that will be generated to
+   mark the end of the block.
+   Operand 1 is the labeled block body.  */
+DEFTREECODE (LABELED_BLOCK_EXPR, "labeled_block_expr", 'e', 2)
+
+/* Exit a labeled block, possibly returning a value.  Operand 0 is a
+   LABELED_BLOCK_EXPR to exit.  Operand 1 is the value to return. It
+   may be left null.  */
+DEFTREECODE (EXIT_BLOCK_EXPR, "exit_block_expr", 'e', 2)
+
+/* Annotates a tree node (usually an expression) with source location
+   information: a file name (EXPR_WFL_FILENAME);  a line number
+   (EXPR_WFL_LINENO); and column number (EXPR_WFL_COLNO).  It is
+   expanded as the contained node (EXPR_WFL_NODE);  a line note should
+   be emitted first if EXPR_WFL_EMIT_LINE_NOTE. */
+DEFTREECODE (EXPR_WITH_FILE_LOCATION, "expr_with_file_location", 'e', 2)
+
+/* Switch expression.
+   Operand 0 is the expression used to perform the branch,
+   Operand 1 contains the case values. The way they're organized is
+   front-end implementation defined. */
+DEFTREECODE (SWITCH_EXPR, "switch_expr", 'e', 2)
 /*
 Local variables:
 mode:c

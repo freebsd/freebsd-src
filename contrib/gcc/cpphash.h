@@ -1,12 +1,27 @@
+/* Part of CPP library.  (Macro hash table support.)
+   Copyright (C) 1997, 1998, 1999 Free Software Foundation, Inc.
+
+This program is free software; you can redistribute it and/or modify it
+under the terms of the GNU General Public License as published by the
+Free Software Foundation; either version 2, or (at your option) any
+later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+
 /* different kinds of things that can appear in the value field
-   of a hash node.  Actually, this may be useless now. */
-union hashval {
-  int ival;
-  char *cpval;
-  DEFINITION *defn;
-#if 0
-  KEYDEF *keydef;
-#endif
+   of a hash node. */
+union hashval
+{
+  const char *cpval;		/* some predefined macros */
+  DEFINITION *defn;		/* #define */
+  struct hashnode *aschain;	/* #assert */
 };
 
 struct hashnode {
@@ -30,11 +45,17 @@ typedef struct hashnode HASHNODE;
    the hashf () function.  Hashf () only exists for the sake of
    politeness, for use when speed isn't so important. */
 
-#define HASHSIZE 1403
-static HASHNODE *hashtab[HASHSIZE];
 #define HASHSTEP(old, c) ((old << 2) + c)
 #define MAKE_POS(v) (v & 0x7fffffff) /* make number positive */
 
-extern HASHNODE *install PARAMS ((U_CHAR *,int,enum node_type, int,char *,int));
-extern int hashf PARAMS ((const U_CHAR *, int, int));
-extern void delete_macro PARAMS ((HASHNODE *));
+extern HASHNODE *cpp_install	  PARAMS ((cpp_reader *, U_CHAR *, int,
+					   enum node_type, const char *, int));
+extern int hashf		  PARAMS ((const U_CHAR *, int, int));
+extern void delete_macro	  PARAMS ((HASHNODE *));
+
+extern MACRODEF create_definition PARAMS ((U_CHAR *, U_CHAR *,
+					   cpp_reader *, int));
+extern int compare_defs		  PARAMS ((cpp_reader *, DEFINITION *,
+					   DEFINITION *));
+extern void macroexpand		  PARAMS ((cpp_reader *, HASHNODE *));
+extern void dump_definition	  PARAMS ((cpp_reader *, MACRODEF));

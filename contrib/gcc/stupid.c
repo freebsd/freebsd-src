@@ -1,5 +1,5 @@
 /* Dummy data flow analysis for GNU compiler in nonoptimizing mode.
-   Copyright (C) 1987, 91, 94, 95, 96, 1997 Free Software Foundation, Inc.
+   Copyright (C) 1987, 91, 94-96, 1998 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -47,7 +47,10 @@ Boston, MA 02111-1307, USA.  */
 
 #include "rtl.h"
 #include "hard-reg-set.h"
+#include "basic-block.h"
 #include "regs.h"
+#include "insn-config.h"
+#include "reload.h"
 #include "flags.h"
 #include "toplev.h"
 
@@ -77,9 +80,21 @@ static int last_setjmp_suid;
 
 static int *reg_where_dead;
 
-/* Element N is suid of insn where life span of pseudo reg N begins.  */
+/* Likewise, but point to the insn_chain structure of the insn at which
+   the reg dies.  */
+static struct insn_chain **reg_where_dead_chain;
 
-static int *reg_where_born;
+/* Element N is suid of insn where life span of pseudo reg N begins.  */
+static int *reg_where_born_exact;
+
+/* Element N is 1 if the birth of pseudo reg N is due to a CLOBBER, 
+   0 otherwise.  */
+static int *reg_where_born_clobber;
+
+/* Return the suid of the insn where the register is born, or the suid
+   of the insn before if the birth is due to a CLOBBER.  */
+#define REG_WHERE_BORN(N) \
+  (reg_where_born_exact[(N)] - reg_where_born_clobber[(N)])
 
 /* Numbers of pseudo-regs to be allocated, highest priority first.  */
 
@@ -111,7 +126,43 @@ static HARD_REG_SET *after_insn_hard_regs;
 static int stupid_reg_compare	PROTO((const GENERIC_PTR,const GENERIC_PTR));
 static int stupid_find_reg	PROTO((int, enum reg_class, enum machine_mode,
 				       int, int, int));
-static void stupid_mark_refs	PROTO((rtx, rtx));
+static void stupid_mark_refs	PROTO((rtx, struct insn_chain *));
+static void find_clobbered_regs	PROTO((rtx, rtx));
+
+/* For communication between stupid_life_analysis and find_clobbered_regs.  */
+static struct insn_chain *current_chain;
+
+/* This function, called via note_stores, marks any hard registers that are
+   clobbered in an insn as being live in the live_after and live_before fields
+   of the appropriate insn_chain structure.  */
+
+static void
+find_clobbered_regs (reg, setter)
+     rtx reg, setter;
+{
+  int regno, nregs;
+  if (setter == 0 || GET_CODE (setter) != CLOBBER)
+    return;
+
+  if (GET_CODE (reg) == SUBREG)
+    reg = SUBREG_REG (reg);
+
+  if (GET_CODE (reg) != REG)
+    return;
+  regno = REGNO (reg);
+  if (regno >= FIRST_PSEUDO_REGISTER)
+    return;
+
+  if (GET_MODE (reg) == VOIDmode)
+    abort ();
+  else
+    nregs = HARD_REGNO_NREGS (regno, GET_MODE (reg));
+  while (nregs-- > 0)
+    {
+      SET_REGNO_REG_SET (current_chain->live_after, regno);
+      SET_REGNO_REG_SET (current_chain->live_before, regno++);
+    }
+}
 
 /* Stupid life analysis is for the case where only variables declared
    `register' go in registers.  For this case, we mark all
@@ -135,7 +186,7 @@ stupid_life_analysis (f, nregs, file)
 
   bzero (regs_ever_live, sizeof regs_ever_live);
 
-  regs_live = (char *) alloca (nregs);
+  regs_live = (char *) xmalloc (nregs);
 
   /* First find the last real insn, and count the number of insns,
      and assign insns their suids.  */
@@ -145,7 +196,7 @@ stupid_life_analysis (f, nregs, file)
       i = INSN_UID (insn);
 
   max_uid = i + 1;
-  uid_suid = (int *) alloca ((i + 1) * sizeof (int));
+  uid_suid = (int *) xmalloc ((i + 1) * sizeof (int));
 
   /* Compute the mapping from uids to suids.
      Suids are numbers assigned to insns, like uids,
@@ -168,19 +219,25 @@ stupid_life_analysis (f, nregs, file)
 
   /* Allocate tables to record info about regs.  */
 
-  reg_where_dead = (int *) alloca (nregs * sizeof (int));
+  reg_where_dead = (int *) xmalloc (nregs * sizeof (int));
   bzero ((char *) reg_where_dead, nregs * sizeof (int));
 
-  reg_where_born = (int *) alloca (nregs * sizeof (int));
-  bzero ((char *) reg_where_born, nregs * sizeof (int));
+  reg_where_born_exact = (int *) xmalloc (nregs * sizeof (int));
+  bzero ((char *) reg_where_born_exact, nregs * sizeof (int));
 
-  reg_order = (int *) alloca (nregs * sizeof (int));
+  reg_where_born_clobber = (int *) xmalloc (nregs * sizeof (int));
+  bzero ((char *) reg_where_born_clobber, nregs * sizeof (int));
+
+  reg_where_dead_chain = (struct insn_chain **) xmalloc (nregs * sizeof (struct insn_chain *));
+  bzero ((char *) reg_where_dead_chain, nregs * sizeof (struct insn_chain *));
+ 
+  reg_order = (int *) xmalloc (nregs * sizeof (int));
   bzero ((char *) reg_order, nregs * sizeof (int));
 
-  regs_change_size = (char *) alloca (nregs * sizeof (char));
+  regs_change_size = (char *) xmalloc (nregs * sizeof (char));
   bzero ((char *) regs_change_size, nregs * sizeof (char));
 
-  regs_crosses_setjmp = (char *) alloca (nregs * sizeof (char));
+  regs_crosses_setjmp = (char *) xmalloc (nregs * sizeof (char));
   bzero ((char *) regs_crosses_setjmp, nregs * sizeof (char));
 
   /* Allocate the reg_renumber array */
@@ -189,14 +246,15 @@ stupid_life_analysis (f, nregs, file)
     reg_renumber[i] = i;
 
   after_insn_hard_regs
-    = (HARD_REG_SET *) alloca (max_suid * sizeof (HARD_REG_SET));
+    = (HARD_REG_SET *) xmalloc (max_suid * sizeof (HARD_REG_SET));
 
   bzero ((char *) after_insn_hard_regs, max_suid * sizeof (HARD_REG_SET));
 
   /* Allocate and zero out many data structures
      that will record the data from lifetime analysis.  */
 
-  allocate_for_life_analysis ();
+  allocate_reg_life_data ();
+  allocate_bb_life_data ();
 
   for (i = 0; i < max_regno; i++)
     REG_N_DEATHS (i) = 1;
@@ -210,11 +268,15 @@ stupid_life_analysis (f, nregs, file)
      Also find where each hard register is live
      and record that info in after_insn_hard_regs.
      regs_live[I] is 1 if hard reg I is live
-     at the current point in the scan.  */
+     at the current point in the scan.  
+   
+     Build reload_insn_chain while we're walking the insns.  */
 
+  reload_insn_chain = 0;
   for (insn = last; insn; insn = PREV_INSN (insn))
     {
       register HARD_REG_SET *p = after_insn_hard_regs + INSN_SUID (insn);
+      struct insn_chain *chain;
 
       /* Copy the info in regs_live into the element of after_insn_hard_regs
 	 for the current position in the rtl code.  */
@@ -223,12 +285,27 @@ stupid_life_analysis (f, nregs, file)
 	if (regs_live[i])
 	  SET_HARD_REG_BIT (*p, i);
 
+      if (GET_CODE (insn) != NOTE && GET_CODE (insn) != BARRIER)
+	{
+	  chain = new_insn_chain ();
+	  if (reload_insn_chain)
+	    reload_insn_chain->prev = chain;
+	  chain->next = reload_insn_chain;
+	  chain->prev = 0;
+	  reload_insn_chain = chain;
+	  chain->block = 0;
+	  chain->insn = insn;
+	  for (i = 0; i < FIRST_PSEUDO_REGISTER; i++)
+	    if (regs_live[i])
+	      SET_REGNO_REG_SET (chain->live_before, i);
+	}
+
       /* Update which hard regs are currently live
 	 and also the birth and death suids of pseudo regs
 	 based on the pattern of this insn.  */
 
       if (GET_RTX_CLASS (GET_CODE (insn)) == 'i')
-	stupid_mark_refs (PATTERN (insn), insn);
+	stupid_mark_refs (PATTERN (insn), chain);
 
       if (GET_CODE (insn) == NOTE
 	  && NOTE_LINE_NUMBER (insn) == NOTE_INSN_SETJMP)
@@ -266,8 +343,23 @@ stupid_life_analysis (f, nregs, file)
 	  /* It is important that this be done after processing the insn's
 	     pattern because we want the function result register to still
 	     be live if it's also used to pass arguments.  */
-	  stupid_mark_refs (CALL_INSN_FUNCTION_USAGE (insn), insn);
+	  stupid_mark_refs (CALL_INSN_FUNCTION_USAGE (insn), chain);
 	}
+
+      if (GET_CODE (insn) != NOTE && GET_CODE (insn) != BARRIER)
+	{	  
+	  for (i = 0; i < FIRST_PSEUDO_REGISTER; i++)
+	    if (regs_live[i])
+	      SET_REGNO_REG_SET (chain->live_after, i);
+
+	  /* The regs_live array doesn't say anything about hard registers
+	     clobbered by this insn.  So we need an extra pass over the
+	     pattern.  */
+	  current_chain = chain;
+	  if (GET_RTX_CLASS (GET_CODE (insn)) == 'i')
+	    note_stores (PATTERN (insn), find_clobbered_regs);
+	}
+
       if (GET_CODE (insn) == JUMP_INSN && computed_jump_p (insn))
 	current_function_has_computed_jump = 1;
     }
@@ -289,8 +381,10 @@ stupid_life_analysis (f, nregs, file)
 
       /* Some regnos disappear from the rtl.  Ignore them to avoid crash. 
 	 Also don't allocate registers that cross a setjmp, or live across
-	 a call if this function receives a nonlocal goto.  */
+	 a call if this function receives a nonlocal goto.
+	 Also ignore registers we didn't see during the scan.  */
       if (regno_reg_rtx[r] == 0 || regs_crosses_setjmp[r]
+	  || (reg_where_born_exact[r] == 0 && reg_where_dead[r] == 0)
 	  || (REG_N_CALLS_CROSSED (r) > 0 
 	      && current_function_has_nonlocal_label))
 	continue;
@@ -300,7 +394,7 @@ stupid_life_analysis (f, nregs, file)
 	reg_renumber[r] = stupid_find_reg (REG_N_CALLS_CROSSED (r), 
 					   reg_preferred_class (r),
 					   PSEUDO_REGNO_MODE (r),
-					   reg_where_born[r],
+					   REG_WHERE_BORN (r),
 					   reg_where_dead[r],
 					   regs_change_size[r]);
 
@@ -309,13 +403,52 @@ stupid_life_analysis (f, nregs, file)
 	reg_renumber[r] = stupid_find_reg (REG_N_CALLS_CROSSED (r),
 					   reg_alternate_class (r),
 					   PSEUDO_REGNO_MODE (r),
-					   reg_where_born[r],
+					   REG_WHERE_BORN (r),
 					   reg_where_dead[r],
 					   regs_change_size[r]);
     }
 
+  /* Fill in the pseudo reg life information into the insn chain.  */
+  for (i = LAST_VIRTUAL_REGISTER + 1; i < max_regno; i++)
+    {
+      struct insn_chain *chain;
+      int regno;
+
+      regno = reg_renumber[i];
+      if (regno < 0)
+	continue;
+
+      chain = reg_where_dead_chain[i];
+      if (reg_where_dead[i] > INSN_SUID (chain->insn))
+	SET_REGNO_REG_SET (chain->live_after, i);
+
+      while (INSN_SUID (chain->insn) > reg_where_born_exact[i])
+	{
+	  SET_REGNO_REG_SET (chain->live_before, i);
+	  chain = chain->prev;
+	  if (!chain)
+	    break;
+	  SET_REGNO_REG_SET (chain->live_after, i);
+	}
+
+      if (INSN_SUID (chain->insn) == reg_where_born_exact[i]
+	  && reg_where_born_clobber[i])
+	SET_REGNO_REG_SET (chain->live_before, i);
+    }
+
   if (file)
     dump_flow_info (file);
+
+  free (regs_live);
+  free (uid_suid);
+  free (reg_where_dead);
+  free (reg_where_born_exact);
+  free (reg_where_born_clobber);
+  free (reg_where_dead_chain);
+  free (reg_order);
+  free (regs_change_size);
+  free (regs_crosses_setjmp);
+  free (after_insn_hard_regs);
 }
 
 /* Comparison function for qsort.
@@ -327,8 +460,8 @@ stupid_reg_compare (r1p, r2p)
      const GENERIC_PTR r2p;
 {
   register int r1 = *(int *)r1p, r2 = *(int *)r2p;
-  register int len1 = reg_where_dead[r1] - reg_where_born[r1];
-  register int len2 = reg_where_dead[r2] - reg_where_born[r2];
+  register int len1 = reg_where_dead[r1] - REG_WHERE_BORN (r1);
+  register int len2 = reg_where_dead[r2] - REG_WHERE_BORN (r2);
   int tem;
 
   tem = len2 - len1;
@@ -365,7 +498,7 @@ stupid_find_reg (call_preserved, class, mode,
      enum reg_class class;
      enum machine_mode mode;
      int born_insn, dead_insn;
-     int changes_size;
+     int changes_size ATTRIBUTE_UNUSED;
 {
   register int i, ins;
 #ifdef HARD_REG_SET
@@ -387,7 +520,7 @@ stupid_find_reg (call_preserved, class, mode,
 		     call_preserved ? call_used_reg_set : fixed_reg_set);
 
 #ifdef ELIMINABLE_REGS
-  for (i = 0; i < sizeof eliminables / sizeof eliminables[0]; i++)
+  for (i = 0; i < (int)(sizeof eliminables / sizeof eliminables[0]); i++)
     SET_HARD_REG_BIT (used, eliminables[i].from);
 #if HARD_FRAME_POINTER_REGNUM != FRAME_POINTER_REGNUM
   SET_HARD_REG_BIT (used, HARD_FRAME_POINTER_REGNUM);
@@ -461,12 +594,14 @@ stupid_find_reg (call_preserved, class, mode,
    INSN is the current insn, supplied so we can find its suid.  */
 
 static void
-stupid_mark_refs (x, insn)
-     rtx x, insn;
+stupid_mark_refs (x, chain)
+     rtx x;
+     struct insn_chain *chain;
 {
   register RTX_CODE code;
   register char *fmt;
   register int regno, i;
+  rtx insn = chain->insn;
 
   if (x == 0)
     return;
@@ -521,7 +656,11 @@ stupid_mark_refs (x, insn)
 		 the clobbering insn.  When setting, just after.  */
 	      int where_born = INSN_SUID (insn) - (code == CLOBBER);
 
-	      reg_where_born[regno] = where_born;
+	      reg_where_born_exact[regno] = INSN_SUID (insn);
+	      reg_where_born_clobber[regno] = (code == CLOBBER);
+
+	      if (reg_where_dead_chain[regno] == 0)
+		reg_where_dead_chain[regno] = chain;
 
 	      /* The reg must live at least one insn even
 		 in it is never again used--because it has to go
@@ -543,16 +682,18 @@ stupid_mark_refs (x, insn)
 	      if (last_setjmp_suid < reg_where_dead[regno])
 		regs_crosses_setjmp[regno] = 1;
 
-	      /* If this register is only used in this insn and is only
-		 set, mark it unused.  We have to do this even when not 
-		 optimizing so that MD patterns which count on this
-		 behavior (e.g., it not causing an output reload on
-		 an insn setting CC) will operate correctly.  */
+	      /* If this register is clobbered or it is only used in
+		 this insn and is only set, mark it unused.  We have
+		 to do this even when not optimizing so that MD patterns
+		 which count on this behavior (e.g., it not causing an
+		 output reload on an insn setting CC) will operate
+		 correctly.  */
 	      if (GET_CODE (SET_DEST (x)) == REG
-		  && REGNO_FIRST_UID (regno) == INSN_UID (insn)
-		  && REGNO_LAST_UID (regno) == INSN_UID (insn)
-		  && (code == CLOBBER || ! reg_mentioned_p (SET_DEST (x),
-							    SET_SRC (x))))
+		  && (code == CLOBBER
+		      || (REGNO_FIRST_UID (regno) == INSN_UID (insn)
+			  && REGNO_LAST_UID (regno) == INSN_UID (insn)
+			  && ! reg_mentioned_p (SET_DEST (x),
+						SET_SRC (x)))))
 		REG_NOTES (insn) = gen_rtx_EXPR_LIST (REG_UNUSED,
 						      SET_DEST (x),
 						      REG_NOTES (insn));
@@ -564,9 +705,9 @@ stupid_mark_refs (x, insn)
 	 If setting a SUBREG, we treat the entire reg as *used*.  */
       if (code == SET)
 	{
-	  stupid_mark_refs (SET_SRC (x), insn);
+	  stupid_mark_refs (SET_SRC (x), chain);
 	  if (GET_CODE (SET_DEST (x)) != REG)
-	    stupid_mark_refs (SET_DEST (x), insn);
+	    stupid_mark_refs (SET_DEST (x), chain);
 	}
       return;
     }
@@ -599,12 +740,14 @@ stupid_mark_refs (x, insn)
 	{
 	  /* Pseudo reg: record first use, last use and number of uses.  */
 
-	  reg_where_born[regno] = INSN_SUID (insn);
+	  reg_where_born_exact[regno] = INSN_SUID (insn);
+	  reg_where_born_clobber[regno] = 0;
 	  REG_N_REFS (regno)++;
 	  if (regs_live[regno] == 0)
 	    {
 	      regs_live[regno] = 1;
 	      reg_where_dead[regno] = INSN_SUID (insn);
+	      reg_where_dead_chain[regno] = chain;
 	    }
 	}
       return;
@@ -616,12 +759,12 @@ stupid_mark_refs (x, insn)
   for (i = GET_RTX_LENGTH (code) - 1; i >= 0; i--)
     {
       if (fmt[i] == 'e')
-	stupid_mark_refs (XEXP (x, i), insn);
+	stupid_mark_refs (XEXP (x, i), chain);
       if (fmt[i] == 'E')
 	{
 	  register int j;
 	  for (j = XVECLEN (x, i) - 1; j >= 0; j--)
-	    stupid_mark_refs (XVECEXP (x, i, j), insn);
+	    stupid_mark_refs (XVECEXP (x, i, j), chain);
 	}
     }
 }

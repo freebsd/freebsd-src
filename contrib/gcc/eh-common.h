@@ -1,5 +1,22 @@
-/* Copyright (C) 1997 Free Software Foundation, Inc.
-   This file is part of GNU CC.  */
+/* EH stuff
+   Copyright (C) 1997, 1998 Free Software Foundation, Inc.
+
+This file is part of GNU CC.
+
+This program is free software; you can redistribute it and/or modify it
+under the terms of the GNU General Public License as published by the
+Free Software Foundation; either version 2, or (at your option) any
+later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+
 
 /* This file contains the structures required for the language
    independant exception handling model. Both the static compiler and
@@ -15,8 +32,6 @@
    checking of runtime conditions. If the handler wasn't suppose to
    get the exception, it performs a re-throw. */
 
-#include "gansidecl.h"
-
 
 /* The handler_label field MUST be the first field in this structure. The 
    __throw()  library routine expects uses __eh_stub() from except.c, which
@@ -31,6 +46,8 @@ struct eh_context
   void **dynamic_handler_chain;
   /* This is language dependent part of the eh context. */
   void *info;
+  /* This is used to remember where we threw for re-throws */
+  void *table_index;  /* address of exception table entry to rethrow from */
 };
 
 #ifndef EH_TABLE_LOOKUP

@@ -1,6 +1,6 @@
 /* target.c -- Implementation File (module.c template V1.0)
    Copyright (C) 1995-1998 Free Software Foundation, Inc.
-   Contributed by James Craig Burley (burley@gnu.org).
+   Contributed by James Craig Burley.
 
 This file is part of GNU Fortran.
 
@@ -469,7 +469,7 @@ ffetarget_iszero_hollerith (ffetargetHollerith constant)
    data type info and the number of elements an array (1 for a scalar).	 */
 
 void
-ffetarget_layout (char *error_text UNUSED, ffetargetAlign *alignment,
+ffetarget_layout (const char *error_text UNUSED, ffetargetAlign *alignment,
 		  ffetargetAlign *modulo, ffetargetOffset *size,
 		  ffeinfoBasictype bt, ffeinfoKindtype kt,
 		  ffetargetCharacterSize charsize,

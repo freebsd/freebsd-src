@@ -1,5 +1,5 @@
 /* longlong.h -- definitions for mixed size 32/64 bit arithmetic.
-   Copyright (C) 1991, 92, 94, 95, 96, 1997 Free Software Foundation, Inc.
+   Copyright (C) 1991, 92, 94, 95, 96, 1997, 1998 Free Software Foundation, Inc.
 
    This definition file is free software; you can redistribute it
    and/or modify it under the terms of the GNU General Public
@@ -978,9 +978,11 @@ UDItype __umulsidi3 (USItype, USItype);
 	   : "%g1" __AND_CLOBBER_CC)
 #define UDIV_TIME 37
 #define count_leading_zeros(count, x) \
-  __asm__ ("scan %1,0,%0"						\
-	   : "=r" ((USItype) (x))					\
-	   : "r" ((USItype) (count)))
+  do {                                                                  \
+  __asm__ ("scan %1,1,%0"                                               \
+           : "=r" ((USItype) (count))                                   \
+           : "r" ((USItype) (x)));					\
+  } while (0)    
 #else
 /* SPARC without integer multiplication and divide instructions.
    (i.e. at least Sun4/20,40,60,65,75,110,260,280,330,360,380,470,490) */

@@ -1,5 +1,5 @@
 /* Read and manage MIPS symbol tables from object modules.
-   Copyright (C) 1991, 1994, 1995, 1997 Free Software Foundation, Inc.
+   Copyright (C) 1991, 1994, 1995, 1997, 1998, 1999 Free Software Foundation, Inc.
    Contributed by hartzell@boulder.colorado.edu,
    Rewritten by meissner@osf.org.
 
@@ -47,24 +47,9 @@ Boston, MA 02111-1307, USA.  */
 #define MIPS_UNMARK_STAB(code) ((code)-CODE_MASK)
 #endif
 
-#ifdef __STDC__
-typedef void *PTR_T;
-typedef const void *CPTR_T;
-#define __proto(x) x
-#else
-
-#if defined(_STDIO_H_) || defined(__STDIO_H__)		/* Ultrix 4.0, SGI */
-typedef void *PTR_T;
-typedef void *CPTR_T;
-
-#else
-typedef char *PTR_T;					/* Ultrix 3.1 */
-typedef char *CPTR_T;
-#endif
-
-#define __proto(x) ()
-#define const
-#endif
+#define __proto(x) PARAMS(x)
+typedef PTR PTR_T;
+typedef const PTR_T CPTR_T;
 
 #define uchar	unsigned char
 #define ushort	unsigned short
@@ -72,7 +57,28 @@ typedef char *CPTR_T;
 #define ulong	unsigned long
 
 
-/* Do to size_t being defined in sys/types.h and different
+static void
+fatal(s)
+  const char *s;
+{
+  fprintf(stderr, "%s\n", s);
+  exit(FATAL_EXIT_CODE);
+}
+
+/* Same as `malloc' but report error if no memory available.  */
+/* Do this before size_t is fiddled with so it matches the prototype
+   in libiberty.h . */
+PTR
+xmalloc (size)
+  size_t size;
+{
+  register PTR value = (PTR) malloc (size);
+  if (value == 0)
+    fatal ("Virtual memory exhausted.");
+  return value;
+}
+
+/* Due to size_t being defined in sys/types.h and different
    in stddef.h, we have to do this by hand.....  Note, these
    types are correct for MIPS based systems, and may not be
    correct for other systems.  */
@@ -263,17 +269,22 @@ void  print_file_desc	__proto((FDR *, int));
 void  print_symbol	__proto((SYMR *, int, char *, AUXU *, int, FDR *));
 void  print_aux		__proto((AUXU, int, int));
 void  emit_aggregate	__proto((char *, AUXU, AUXU, const char *, FDR *));
-char *st_to_string	__proto((st_t));
-char *sc_to_string	__proto((sc_t));
-char *glevel_to_string	__proto((glevel_t));
-char *lang_to_string	__proto((lang_t));
-char *type_to_string	__proto((AUXU *, int, FDR *));
+const char *st_to_string	__proto((st_t));
+const char *sc_to_string	__proto((sc_t));
+const char *glevel_to_string	__proto((glevel_t));
+const char *lang_to_string	__proto((lang_t));
+const char *type_to_string	__proto((AUXU *, int, FDR *));
 
 #ifndef __alpha
+# ifdef NEED_DECLARATION_MALLOC
 extern PTR_T	malloc	__proto((size_t));
+# endif
+# ifdef NEED_DECLARATION_CALLOC
 extern PTR_T	calloc	__proto((size_t, size_t));
+# endif
+# ifdef NEED_DECLARATION_REALLOC
 extern PTR_T	realloc	__proto((PTR_T, size_t));
-extern void	free	__proto((PTR_T));
+# endif
 #endif
 
 extern char *optarg;
@@ -325,7 +336,7 @@ read_seek (ptr, size, offset, context)
 
 /* Convert language code to string format.  */
 
-char *
+const char *
 lang_to_string (lang)
      lang_t lang;
 {
@@ -348,7 +359,7 @@ lang_to_string (lang)
 
 /* Convert storage class to string.  */
 
-char *
+const char *
 sc_to_string(storage_class)
      sc_t storage_class;
 {
@@ -386,7 +397,7 @@ sc_to_string(storage_class)
 
 /* Convert symbol type to string.  */
 
-char *
+const char *
 st_to_string(symbol_type)
      st_t symbol_type;
 {
@@ -427,7 +438,7 @@ st_to_string(symbol_type)
 
 /* Convert debug level to string.  */
 
-char *
+const char *
 glevel_to_string (g_level)
      glevel_t g_level;
 {
@@ -445,7 +456,7 @@ glevel_to_string (g_level)
 
 /* Convert the type information to string format.  */
 
-char *
+const char *
 type_to_string (aux_ptr, index, fdp)
      AUXU *aux_ptr;
      int index;
@@ -1014,7 +1025,7 @@ print_symbol (sym_ptr, number, strbase, aux_base, ifd, fdp)
 	       scope_ptr != (scope_t *) 0;
 	       scope_ptr = scope_ptr->prev)
 	    {
-	      char *class;
+	      const char *class;
 	      if (scope_ptr->st == st_Proc || scope_ptr->st == st_StaticProc)
 		class = "func.";
 	      else if (scope_ptr->st == st_File)
@@ -1046,7 +1057,7 @@ print_symbol (sym_ptr, number, strbase, aux_base, ifd, fdp)
   if (MIPS_IS_STAB(sym_ptr))
     {
       register int i = sizeof(stab_names) / sizeof(stab_names[0]);
-      char *stab_name = "stab";
+      const char *stab_name = "stab";
       short code = MIPS_UNMARK_STAB(sym_ptr->index);
       while (--i >= 0)
 	if (stab_names[i].code == code)
@@ -1147,8 +1158,10 @@ print_file_desc (fdp, number)
   aux_base = aux_symbols + fdp->iauxBase;
   used_base = aux_used + (aux_base - aux_symbols);
 
-  printf ("\nFile #%d, \"%s\"\n\n", number, str_base + fdp->rss);
-
+  printf ("\nFile #%d, \"%s\"\n\n",
+	  number,
+	  fdp->rss != issNil ? str_base + fdp->rss : "<unknown>");
+    
   printf ("    Name index  = %-10ld Readin      = %s\n",
 	  (long) fdp->rss, (fdp->fReadin) ? "Yes" : "No");
 
@@ -1264,7 +1277,7 @@ print_file_desc (fdp, number)
 	      (ulong) fdp->rfdBase);
 
       rfd_ptr = rfile_desc + fdp->rfdBase;
-      for (i = 0; i < fdp->crfd; i++)
+      for (i = 0; i < (ulong) fdp->crfd; i++)
 	{
 	  printf ("\t#%-5ld %11ld, 0x%08lx\n", i, *rfd_ptr, *rfd_ptr);
 	  rfd_ptr++;
@@ -1282,9 +1295,10 @@ print_file_desc (fdp, number)
       PDR *proc_ptr = &proc_desc[pdi];
       printf ("\n\tProcedure descriptor %d:\n", (pdi - fdp->ipdFirst));
 
-      printf ("\t    Name index   = %-11ld Name          = \"%s\"\n",
-	      (long) l_symbols[proc_ptr->isym + fdp->isymBase].iss,
-	      l_symbols[proc_ptr->isym + fdp->isymBase].iss + str_base);
+      if (l_symbols != 0)
+	printf ("\t    Name index   = %-11ld Name          = \"%s\"\n",
+		(long) l_symbols[proc_ptr->isym + fdp->isymBase].iss,
+		l_symbols[proc_ptr->isym + fdp->isymBase].iss + str_base);
 
       printf ("\t    .mask 0x%08lx,%-9ld .fmask 0x%08lx,%ld\n",
 	      (long) proc_ptr->regmask,
@@ -1589,24 +1603,4 @@ fancy_abort ()
 {
   fprintf (stderr, "mips-tdump internal error");
   exit (1);
-}
-
-void
-fatal(s)
-char *s;
-{
-  fprintf(stderr, "%s\n", s);
-  exit(1);
-}
-
-/* Same as `malloc' but report error if no memory available.  */
-
-PTR_T
-xmalloc (size)
-     unsigned size;
-{
-  register PTR_T value = malloc (size);
-  if (value == 0)
-    fatal ("Virtual memory exhausted.");
-  return value;
 }

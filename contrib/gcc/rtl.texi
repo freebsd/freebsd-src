@@ -1,4 +1,4 @@
-@c Copyright (C) 1988, 89, 92, 94, 97, 1998 Free Software Foundation, Inc.
+@c Copyright (C) 1988, 89, 92, 94, 97, 1998, 1999 Free Software Foundation, Inc.
 @c This is part of the GCC manual.
 @c For copying conditions, see the file gcc.texi.
 
@@ -20,6 +20,7 @@ form uses nested parentheses to indicate the pointers in the internal form.
 
 @menu
 * RTL Objects::       Expressions vs vectors vs strings vs integers.
+* RTL Classes::       Categories of RTL expresion objects, and their structure.
 * Accessors::         Macros to access expression operands or vector elts.
 * Flags::             Other flags in an RTL expression.
 * Machine Modes::     Describing the size and format of a datum.
@@ -39,7 +40,7 @@ form uses nested parentheses to indicate the pointers in the internal form.
 * Reading RTL::       Reading textual RTL from a file.
 @end menu
 
-@node RTL Objects, Accessors, RTL, RTL
+@node RTL Objects, RTL Classes, RTL, RTL
 @section RTL Object Types
 @cindex RTL object types
 
@@ -108,11 +109,68 @@ manual, they are shown as follows: @code{const_int}.
 In a few contexts a null pointer is valid where an expression is normally
 wanted.  The written form of this is @code{(nil)}.
 
-@node Accessors, Flags, RTL Objects, RTL
-@section Access to Operands
-@cindex accessors
-@cindex access to operands
-@cindex operand access
+@node RTL Classes, Accessors, RTL Objects, RTL
+@section RTL Classes and Formats
+@cindex RTL classes
+@cindex classes of RTX codes
+@cindex RTX codes, classes of
+@findex GET_RTX_CLASS
+
+The various expression codes are divided into several @dfn{classes},
+which are represented by single characters.  You can determine the class
+of an RTX code with the macro @code{GET_RTX_CLASS (@var{code})}.
+Currently, @file{rtx.def} defines these classes:
+
+@table @code
+@item o
+An RTX code that represents an actual object, such as a register
+(@code{REG}) or a memory location (@code{MEM}, @code{SYMBOL_REF}).
+Constants and basic transforms on objects (@code{ADDRESSOF},
+@code{HIGH}, @code{LO_SUM}) are also included.  Note that @code{SUBREG}
+and @code{STRICT_LOW_PART} are not in this class, but in class @code{x}.
+
+@item <
+An RTX code for a comparison, such as @code{NE} or @code{LT}.
+
+@item 1
+An RTX code for a unary arithmetic operation, such as @code{NEG},
+@code{NOT}, or @code{ABS}.  This category also includes value extension
+(sign or zero) and conversions between integer and floating point.
+
+@item c
+An RTX code for a commutative binary operation, such as @code{PLUS} or
+@code{AND}.  @code{NE} and @code{EQ} are comparisons, so they have class
+@code{<}.
+
+@item 2
+An RTX code for a non-commutative binary operation, such as @code{MINUS},
+@code{DIV}, or @code{ASHIFTRT}.
+
+@item b
+An RTX code for a bitfield operation.  Currently only
+@code{ZERO_EXTRACT} and @code{SIGN_EXTRACT}.  These have three inputs
+and are lvalues (so they can be used for insertion as well).  @xref{Bit
+Fields}.
+
+@item 3
+An RTX code for other three input operations.  Currently only
+@code{IF_THEN_ELSE}.
+
+@item i
+An RTX code for an entire instruction:  @code{INSN}, @code{JUMP_INSN}, and
+@code{CALL_INSN}. @xref{Insns}.
+
+@item m
+An RTX code for something that matches in insns, such as
+@code{MATCH_DUP}.  These only occur in machine descriptions.
+
+@item x
+All other RTX codes.  This category includes the remaining codes used
+only in machine descriptions (@code{DEFINE_*}, etc.).  It also includes
+all the codes describing side effects (@code{SET}, @code{USE},
+@code{CLOBBER}, etc.) and the non-insns that may appear on an insn
+chain, such as @code{NOTE}, @code{BARRIER}, and @code{CODE_LABEL}.
+@end table
 
 @cindex RTL format
 For each expression type @file{rtl.def} specifies the number of
@@ -120,7 +178,7 @@ contained objects and their kinds, with four possibilities: @samp{e} for
 expression (actually a pointer to an expression), @samp{i} for integer,
 @samp{w} for wide integer, @samp{s} for string, and @samp{E} for vector
 of expressions.  The sequence of letters for an expression code is
-called its @dfn{format}.  Thus, the format of @code{subreg} is
+called its @dfn{format}.  For example, the format of @code{subreg} is
 @samp{ei}.@refill
 
 @cindex RTL format characters
@@ -154,8 +212,8 @@ An omitted vector is effectively the same as a vector of no elements.
 special ways by small parts of the compiler.
 @end table
 
-There are macros to get the number of operands, the format, and the
-class of an expression code:
+There are macros to get the number of operands and the format
+of an expression code:
 
 @table @code
 @findex GET_RTX_LENGTH
@@ -165,53 +223,40 @@ Number of operands of an RTX of code @var{code}.
 @findex GET_RTX_FORMAT
 @item GET_RTX_FORMAT (@var{code})
 The format of an RTX of code @var{code}, as a C string.
+@end table
 
-@findex GET_RTX_CLASS
-@cindex classes of RTX codes
-@item GET_RTX_CLASS (@var{code})
-A single character representing the type of RTX operation that code
-@var{code} performs.
-
-The following classes are defined:
+Some classes of RTX codes always have the same format.  For example, it
+is safe to assume that all comparison operations have format @code{ee}.
 
 @table @code
-@item o
-An RTX code that represents an actual object, such as @code{reg} or
-@code{mem}.  @code{subreg} is not in this class.
+@item 1
+All codes of this class have format @code{e}.
 
 @item <
-An RTX code for a comparison.  The codes in this class are
-@code{NE}, @code{EQ}, @code{LE}, @code{LT}, @code{GE}, @code{GT},
-@code{LEU}, @code{LTU}, @code{GEU}, @code{GTU}.@refill
-
-@item 1
-An RTX code for a unary arithmetic operation, such as @code{neg}.
-
-@item c
-An RTX code for a commutative binary operation, other than @code{NE}
-and @code{EQ} (which have class @samp{<}).
-
-@item 2
-An RTX code for a noncommutative binary operation, such as @code{MINUS}.
+@itemx c
+@itemx 2
+All codes of these classes have format @code{ee}.
 
 @item b
-An RTX code for a bitfield operation, either @code{ZERO_EXTRACT} or
-@code{SIGN_EXTRACT}.
-
-@item 3
-An RTX code for other three input operations, such as @code{IF_THEN_ELSE}.
+@itemx 3
+All codes of these classes have format @code{eee}.
 
 @item i
-An RTX code for a machine insn (@code{INSN}, @code{JUMP_INSN}, and
-@code{CALL_INSN}).@refill
+All codes of this class have formats that begin with @code{iuueiee}.
+@xref{Insns}.  Note that not all RTL objects linked onto an insn chain
+are of class @code{i}.
 
-@item m
-An RTX code for something that matches in insns, such as @code{MATCH_DUP}.
+@item o
+@itemx m
+@itemx x
+You can make no assumptions about the format of these codes.
+@end table
 
-@item x
-All other RTX codes.
-@end table
-@end table
+@node Accessors, Flags, RTL Classes, RTL
+@section Access to Operands
+@cindex accessors
+@cindex access to operands
+@cindex operand access
 
 @findex XEXP
 @findex XINT
@@ -305,10 +350,24 @@ Stored in the @code{volatil} field and printed as @samp{/v}.
 @cindex @code{in_struct}, in @code{mem}
 @cindex @samp{/s} in RTL dump
 @item MEM_IN_STRUCT_P (@var{x})
-In @code{mem} expressions, nonzero for reference to an entire
-structure, union or array, or to a component of one.  Zero for
-references to a scalar variable or through a pointer to a scalar.
-Stored in the @code{in_struct} field and printed as @samp{/s}.
+In @code{mem} expressions, nonzero for reference to an entire structure,
+union or array, or to a component of one.  Zero for references to a
+scalar variable or through a pointer to a scalar.  Stored in the
+@code{in_struct} field and printed as @samp{/s}.  If both this flag and
+MEM_SCALAR_P are clear, then we don't know whether this MEM is in a
+structure or not.  Both flags should never be simultaneously set.
+
+@findex MEM_SCALAR_P
+@cindex @code{mem} and @samp{/f}
+@cindex @code{frame_related}, in@code{mem}
+@cindex @samp{/f} in RTL dump
+@item MEM_SCALAR_P (@var{x})
+In @code{mem} expressions, nonzero for reference to a scalar known not
+to be a member of a structure, union, or array.  Zero for such
+references and for indirections through pointers, even pointers pointing
+to scalar types.  If both this flag and MEM_STRUCT_P are clear, then we
+don't know whether this MEM is in a structure or not.  Both flags should
+never be simultaneously set.
 
 @findex MEM_ALIAS_SET
 @item MEM_ALIAS_SET (@var{x})
@@ -390,6 +449,13 @@ other functions or by aliasing.)  Stored in the
 @item RTX_INTEGRATED_P (@var{insn})
 Nonzero in an insn if it resulted from an in-line function call.
 Stored in the @code{integrated} field and printed as @samp{/i}.
+
+@findex RTX_FRAME_RELATED_P
+@item RTX_FRAME_RELATED_P (@var{x})
+Nonzero in an insn or expression which is part of a function
+prologue and sets the stack pointer, sets the frame pointer, or saves a 
+register. This flag is required for exception handling support
+on targets with RTL prologues.
 
 @findex SYMBOL_REF_USED
 @cindex @code{used}, in @code{symbol_ref}
@@ -2036,7 +2102,7 @@ and of @var{min} and @var{max} to @var{base}.  See rtl.def for details.@refill
 @cindex RTL predecrement
 @cindex RTL postdecrement
 
-Four special side-effect expression codes appear as memory addresses.
+Six special side-effect expression codes appear as memory addresses.
 
 @table @code
 @findex pre_dec
@@ -2071,6 +2137,38 @@ being decremented.
 @findex post_inc
 @item (post_inc:@var{m} @var{x})
 Similar, but specifies incrementing @var{x} instead of decrementing it.
+
+@findex post_modify
+@item (post_modify:@var{m} @var{x} @var{y})
+
+Represents the side effect of setting @var{x} to @var{y} and
+represents @var{x} before @var{x} is modified.  @var{x} must be a
+@code{reg} or @code{mem}, but most machines allow only a @code{reg}.
+@var{m} must be the machine mode for pointers on the machine in use.
+The amount @var{x} is decremented by is the length in bytes of the
+machine mode of the containing memory reference of which this expression
+serves as the address.  Note that this is not currently implemented.
+
+The expression @var{y} must be one of three forms:
+@table @code
+@code{(plus:@var{m} @var{x} @var{z})},
+@code{(minus:@var{m} @var{x} @var{z})}, or
+@code{(plus:@var{m} @var{x} @var{i})},
+@end table
+where @var{z} is an index register and @var{i} is a constant.
+
+Here is an example of its use:@refill
+
+@example
+(mem:SF (post_modify:SI (reg:SI 42) (plus (reg:SI 42) (reg:SI 48))))
+@end example
+
+This says to modify pseudo register 42 by adding the contents of pseudo
+register 48 to it, after the use of what ever 42 points to.
+
+@findex post_modify
+@item (pre_modify:@var{m} @var{x} @var{expr})
+Similar except side effects happen before the use.
 @end table
 
 These embedded side effect expressions must be used with care.  Instruction
@@ -2368,14 +2466,21 @@ Appears following each call to @code{setjmp} or a related function.
 These codes are printed symbolically when they appear in debugging dumps.
 @end table
 
+@cindex @code{TImode}, in @code{insn}
 @cindex @code{HImode}, in @code{insn}
 @cindex @code{QImode}, in @code{insn}
 The machine mode of an insn is normally @code{VOIDmode}, but some
-phases use the mode for various purposes; for example, the reload pass
-sets it to @code{HImode} if the insn needs reloading but not register
-elimination and @code{QImode} if both are required.  The common
-subexpression elimination pass sets the mode of an insn to @code{QImode}
-when it is the first insn in a block that has already been processed.
+phases use the mode for various purposes. 
+
+The common subexpression elimination pass sets the mode of an insn to
+@code{QImode} when it is the first insn in a block that has already
+been processed.
+
+The second Haifa scheduling pass, for targets that can multiple issue,
+sets the mode of an insn to @code{TImode} when it is believed that the
+instruction begins an issue group.  That is, when the instruction 
+cannot issue simultaneously with the previous.  This may be relied on
+by later passes, in particular machine-dependant reorg.
 
 Here is a table of the extra fields of @code{insn}, @code{jump_insn}
 and @code{call_insn} insns:
@@ -2625,10 +2730,16 @@ delete such sequences whose results are dead.
 A @code{REG_EQUAL} note will also usually be attached to this insn to 
 provide the expression being computed by the sequence.
 
+These notes will be deleted after reload, since they are no longer
+accurate or useful.
+
 @findex REG_LIBCALL
 @item REG_LIBCALL
 This is the inverse of @code{REG_RETVAL}: it is placed on the first
 insn of a multi-insn sequence, and it points to the last one.
+
+These notes are deleted after reload, since they are no longer useful or 
+accurate.
 
 @findex REG_CC_SETTER
 @findex REG_CC_USER
@@ -2682,6 +2793,12 @@ probability that the branch will be taken.
 These notes are found in JUMP insns after delayed branch scheduling
 has taken place.  They indicate both the direction and the likelyhood
 of the JUMP.  The format is a bitmask of ATTR_FLAG_* values.
+
+@findex REG_FRAME_RELATED_EXPR
+@item REG_FRAME_RELATED_EXPR
+This is used on an RTX_FRAME_RELATED_P insn wherein the attached expression
+is used in place of the actual insn pattern.  This is done in cases where
+the pattern is either complex or misleading.
 @end table
 
 For convenience, the machine mode in an @code{insn_list} or

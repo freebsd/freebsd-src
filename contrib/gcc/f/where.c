@@ -1,6 +1,6 @@
 /* where.c -- Implementation File (module.c template V1.0)
    Copyright (C) 1995 Free Software Foundation, Inc.
-   Contributed by James Craig Burley (burley@gnu.org).
+   Contributed by James Craig Burley.
 
 This file is part of GNU Fortran.
 
@@ -38,7 +38,7 @@ the Free Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 
 struct _ffewhere_line_ ffewhere_unknown_line_
 =
-{NULL, NULL, 0, 0, 0};
+{NULL, NULL, 0, 0, 0, {0}};
 
 /* Simple definitions and enumerations. */
 

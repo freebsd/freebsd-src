@@ -1,5 +1,5 @@
 /* Generate code to initialize optabs from machine description.
-   Copyright (C) 1993, 94-97, 1998 Free Software Foundation, Inc.
+   Copyright (C) 1993, 94-98, 1999 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -20,11 +20,6 @@ Boston, MA 02111-1307, USA.  */
 
 
 #include "hconfig.h"
-#ifdef __STDC__
-#include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
 #include "system.h"
 #include "rtl.h"
 #include "obstack.h"
@@ -35,9 +30,9 @@ struct obstack *rtl_obstack = &obstack;
 #define obstack_chunk_alloc xmalloc
 #define obstack_chunk_free free
 
-char *xmalloc PROTO((unsigned));
-static void fatal PVPROTO ((char *, ...)) ATTRIBUTE_PRINTF_1;
-void fancy_abort PROTO((void));
+void fatal PVPROTO ((const char *, ...))
+  ATTRIBUTE_PRINTF_1 ATTRIBUTE_NORETURN;
+void fancy_abort PROTO((void)) ATTRIBUTE_NORETURN;
 
 /* Many parts of GCC use arrays that are indexed by machine mode and
    contain the insn codes for pattern in the MD file that perform a given
@@ -68,7 +63,7 @@ void fancy_abort PROTO((void));
 /* The reason we use \% is to avoid sequences of the form %-capletter-%
    which SCCS treats as magic.  This gets warnings which you should ignore.  */
 
-char *optabs[] =
+const char *optabs[] =
 { "extendtab[(int) %B][(int) %A][0] = CODE_FOR_%(extend%a\%b2%)",
   "extendtab[(int) %B][(int) %A][1] = CODE_FOR_%(zero_extend%a\%b2%)",
   "fixtab[(int) %A][(int) %B][0] = CODE_FOR_%(fix%F\%a%I\%b2%)",
@@ -139,7 +134,7 @@ gen_insn (insn)
   int m1, m2, op;
   size_t pindex;
   int i;
-  char *np, *pp, *p, *q;
+  const char *np, *pp, *p, *q;
 
   /* Don't mention instructions whose names are the null string.
      They are in the machine description just to be recognized.  */
@@ -206,7 +201,7 @@ gen_insn (insn)
 		for (i = ((int) MAX_MACHINE_MODE) - 1; i >= 0; i--)
 		  {
 		    for (p = mode_name[i], q = np; *p; p++, q++)
-		      if (tolower (*p) != *q)
+		      if (tolower ((unsigned char)*p) != *q)
 			break;
 
 		    if (*p == 0
@@ -260,11 +255,11 @@ gen_insn (insn)
 	    break;
 	  case 'a':
 	    for (np = mode_name[m1]; *np; np++)
-	      printf ("%c", tolower (*np));
+	      printf ("%c", tolower ((unsigned char)*np));
 	    break;
 	  case 'b':
 	    for (np = mode_name[m2]; *np; np++)
-	      printf ("%c", tolower (*np));
+	      printf ("%c", tolower ((unsigned char)*np));
 	    break;
 	  case 'A':
 	    printf ("%smode", mode_name[m1]);
@@ -277,7 +272,7 @@ gen_insn (insn)
 	    break;
 	  case 'C':
 	    for (np = rtx_name[op]; *np; np++)
-	      printf ("%c", toupper (*np));
+	      printf ("%c", toupper ((unsigned char)*np));
 	    break;
 	  }
     }
@@ -285,11 +280,11 @@ gen_insn (insn)
   printf (";\n");
 }
 
-char *
+PTR
 xmalloc (size)
-     unsigned size;
+  size_t size;
 {
-  register char *val = (char *) malloc (size);
+  register PTR val = (PTR) malloc (size);
 
   if (val == 0)
     fatal ("virtual memory exhausted");
@@ -297,29 +292,33 @@ xmalloc (size)
   return val;
 }
 
-char *
-xrealloc (ptr, size)
-     char *ptr;
-     unsigned size;
+PTR
+xrealloc (old, size)
+  PTR old;
+  size_t size;
 {
-  char *result = (char *) realloc (ptr, size);
-  if (!result)
+  register PTR ptr;
+  if (old)
+    ptr = (PTR) realloc (old, size);
+  else
+    ptr = (PTR) malloc (size);
+  if (!ptr)
     fatal ("virtual memory exhausted");
-  return result;
+  return ptr;
 }
 
-static void
-fatal VPROTO ((char *format, ...))
+void
+fatal VPROTO ((const char *format, ...))
 {
-#ifndef __STDC__
-  char *format;
+#ifndef ANSI_PROTOTYPES
+  const char *format;
 #endif
   va_list ap;
 
   VA_START (ap, format);
 
-#ifndef __STDC__
-  format = va_arg (ap, char *);
+#ifndef ANSI_PROTOTYPES
+  format = va_arg (ap, const char *);
 #endif
 
   fprintf (stderr, "genopinit: ");

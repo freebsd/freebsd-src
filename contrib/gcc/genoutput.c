@@ -1,5 +1,5 @@
 /* Generate code from to output assembler insns as recognized from rtl.
-   Copyright (C) 1987, 88, 92, 94, 95, 97, 1998 Free Software Foundation, Inc.
+   Copyright (C) 1987, 88, 92, 94-95, 97-98, 1999 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -91,11 +91,6 @@ It would not make an case in output_insn_hairy because the template
 given in the entry is a constant (it does not start with `*').  */
 
 #include "hconfig.h"
-#ifdef __STDC__
-#include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
 #include "system.h"
 #include "rtl.h"
 #include "obstack.h"
@@ -112,12 +107,10 @@ struct obstack *rtl_obstack = &obstack;
 #define obstack_chunk_alloc xmalloc
 #define obstack_chunk_free free
 
-char *xmalloc PROTO((unsigned));
-static void fatal PVPROTO ((char *, ...)) ATTRIBUTE_PRINTF_1;
-void fancy_abort PROTO((void));
-static void error PVPROTO ((char *, ...)) ATTRIBUTE_PRINTF_1;
-static void mybcopy ();
-static void mybzero ();
+void fatal PVPROTO ((const char *, ...))
+  ATTRIBUTE_PRINTF_1 ATTRIBUTE_NORETURN;
+void fancy_abort PROTO((void)) ATTRIBUTE_NORETURN;
+static void error PVPROTO ((const char *, ...)) ATTRIBUTE_PRINTF_1;
 static int n_occurrences PROTO((int, char *));
 
 /* Define this so we can link with print-rtl.o to get debug_rtx function.  */
@@ -177,6 +170,7 @@ int have_constraints;
 
 static int have_error;
 
+static char * name_for_index PROTO((int));
 static void output_prologue PROTO((void));
 static void output_epilogue PROTO((void));
 static void scan_operands PROTO((rtx, int, int));
@@ -188,6 +182,29 @@ static void gen_expand PROTO((rtx));
 static void gen_split PROTO((rtx));
 static int n_occurrences PROTO((int, char *));
 
+static char *
+name_for_index (index)
+     int index;
+{
+  static char buf[100];
+
+  struct data *i, *last_named = NULL;
+  for (i = insn_data; i ; i = i->next)
+    {
+      if (i->index_number == index)
+	return i->name;
+      if (i->name)
+	last_named = i;
+    }
+
+  if (last_named)
+    sprintf(buf, "%s+%d", last_named->name, index - last_named->index_number);
+  else
+    sprintf(buf, "insn %d", index);
+
+  return buf;
+}
+
 static void
 output_prologue ()
 {
@@ -216,7 +233,7 @@ output_epilogue ()
 {
   register struct data *d;
 
-  printf ("\nchar * const insn_template[] =\n  {\n");
+  printf ("\nconst char * const insn_template[] =\n  {\n");
   for (d = insn_data; d; d = d->next)
     {
       if (d->template)
@@ -226,7 +243,7 @@ output_epilogue ()
     }
   printf ("  };\n");
 
-  printf ("\nchar *(*const insn_outfun[])() =\n  {\n");
+  printf ("\nconst char *(*const insn_outfun[])() =\n  {\n");
   for (d = insn_data; d; d = d->next)
     {
       if (d->outfun)
@@ -246,7 +263,7 @@ output_epilogue ()
     }
   printf ("  };\n");
 
-  printf ("\nchar *insn_name[] =\n  {\n");
+  printf ("\nconst char *insn_name[] =\n  {\n");
   {
     int offset = 0;
     int next;
@@ -287,7 +304,7 @@ output_epilogue ()
       }
   }
   printf ("  };\n");
-  printf ("char **insn_name_ptr = insn_name;\n");
+  printf ("const char **insn_name_ptr = insn_name;\n");
 
   printf ("\nconst int insn_n_operands[] =\n  {\n");
   for (d = insn_data; d; d = d->next)
@@ -301,7 +318,7 @@ output_epilogue ()
 
   if (have_constraints)
     {
-      printf ("\nchar *const insn_operand_constraint[][MAX_RECOG_OPERANDS] =\n  {\n");
+      printf ("\nconst char *const insn_operand_constraint[][MAX_RECOG_OPERANDS] =\n  {\n");
       for (d = insn_data; d; d = d->next)
 	{
 	  register int i;
@@ -420,7 +437,7 @@ static int max_opno;
 static int num_dups;
 static char *constraints[MAX_MAX_OPERANDS];
 static int op_n_alternatives[MAX_MAX_OPERANDS];
-static char *predicates[MAX_MAX_OPERANDS];
+static const char *predicates[MAX_MAX_OPERANDS];
 static char address_p[MAX_MAX_OPERANDS];
 static enum machine_mode modes[MAX_MAX_OPERANDS];
 static char strict_low[MAX_MAX_OPERANDS];
@@ -447,13 +464,13 @@ scan_operands (part, this_address_p, this_strict_low)
 	max_opno = opno;
       if (max_opno >= MAX_MAX_OPERANDS)
 	{
-	  error ("Too many operands (%d) in definition %d.\n",
-		 max_opno + 1, next_index_number);
+	  error ("Too many operands (%d) in definition %s.\n",
+		 max_opno + 1, name_for_index (next_index_number));
 	  return;
 	}
       if (seen[opno])
-	error ("Definition %d specified operand number %d more than once.\n",
-	       next_index_number, opno);
+	error ("Definition %s specified operand number %d more than once.\n",
+	       name_for_index (next_index_number), opno);
       seen[opno] = 1;
       modes[opno] = GET_MODE (part);
       strict_low[opno] = this_strict_low;
@@ -473,13 +490,13 @@ scan_operands (part, this_address_p, this_strict_low)
 	max_opno = opno;
       if (max_opno >= MAX_MAX_OPERANDS)
 	{
-	  error ("Too many operands (%d) in definition %d.\n",
-		 max_opno + 1, next_index_number);
+	  error ("Too many operands (%d) in definition %s.\n",
+		 max_opno + 1, name_for_index (next_index_number));
 	  return;
 	}
       if (seen[opno])
-	error ("Definition %d specified operand number %d more than once.\n",
-	       next_index_number, opno);
+	error ("Definition %s specified operand number %d more than once.\n",
+	       name_for_index (next_index_number), opno);
       seen[opno] = 1;
       modes[opno] = GET_MODE (part);
       strict_low[opno] = 0;
@@ -500,13 +517,13 @@ scan_operands (part, this_address_p, this_strict_low)
 	max_opno = opno;
       if (max_opno >= MAX_MAX_OPERANDS)
 	{
-	  error ("Too many operands (%d) in definition %d.\n",
-		 max_opno + 1, next_index_number);
+	  error ("Too many operands (%d) in definition %s.\n",
+		 max_opno + 1, name_for_index (next_index_number));
 	  return;
 	}
       if (seen[opno])
-	error ("Definition %d specified operand number %d more than once.\n",
-	       next_index_number, opno);
+	error ("Definition %s specified operand number %d more than once.\n",
+	       name_for_index (next_index_number), opno);
       seen[opno] = 1;
       modes[opno] = GET_MODE (part);
       strict_low[opno] = 0;
@@ -578,7 +595,7 @@ process_template (d, template)
   d->template = 0;
   d->outfun = 1;
 
-  printf ("\nstatic char *\n");
+  printf ("\nstatic const char *\n");
   printf ("output_%d (operands, insn)\n", d->code_number);
   printf ("     rtx *operands ATTRIBUTE_UNUSED;\n");
   printf ("     rtx insn ATTRIBUTE_UNUSED;\n");
@@ -591,7 +608,7 @@ process_template (d, template)
   if (template[0] == '@')
     {
 
-      printf ("  static /*const*/ char *const strings_%d[] = {\n",
+      printf ("  static const char *const strings_%d[] = {\n",
 	      d->code_number);
 
       for (i = 0, cp = &template[1]; *cp; )
@@ -651,8 +668,8 @@ validate_insn_alternatives (d)
 	if (n == 0)
 	  n = d->op_n_alternatives[start];
 	else if (n != d->op_n_alternatives[start])
-	  error ("wrong number of alternatives in operand %d of insn number %d",
-		 start, d->index_number);
+	  error ("wrong number of alternatives in operand %d of insn %s",
+		 start, name_for_index (d->index_number));
       }
   /* Record the insn's overall number of alternatives.  */
   d->n_alternatives = n;
@@ -689,13 +706,13 @@ gen_insn (insn)
   max_opno = -1;
   num_dups = 0;
 
-  mybzero (constraints, sizeof constraints);
-  mybzero (op_n_alternatives, sizeof op_n_alternatives);
-  mybzero (predicates, sizeof predicates);
-  mybzero (address_p, sizeof address_p);
-  mybzero (modes, sizeof modes);
-  mybzero (strict_low, sizeof strict_low);
-  mybzero (seen, sizeof seen);
+  memset (constraints, 0, sizeof constraints);
+  memset (op_n_alternatives, 0, sizeof op_n_alternatives);
+  memset (predicates, 0, sizeof predicates);
+  memset (address_p, 0, sizeof address_p);
+  memset (modes, 0, sizeof modes);
+  memset (strict_low, 0, sizeof strict_low);
+  memset (seen, 0, sizeof seen);
 
   for (i = 0; i < XVECLEN (insn, 1); i++)
     scan_operands (XVECEXP (insn, 1, i), 0, 0);
@@ -703,12 +720,12 @@ gen_insn (insn)
   d->n_operands = max_opno + 1;
   d->n_dups = num_dups;
 
-  mybcopy (constraints, d->constraints, sizeof constraints);
-  mybcopy (op_n_alternatives, d->op_n_alternatives, sizeof op_n_alternatives);
-  mybcopy (predicates, d->predicates, sizeof predicates);
-  mybcopy (address_p, d->address_p, sizeof address_p);
-  mybcopy (modes, d->modes, sizeof modes);
-  mybcopy (strict_low, d->strict_low, sizeof strict_low);
+  memcpy (d->constraints, constraints, sizeof constraints);
+  memcpy (d->op_n_alternatives, op_n_alternatives, sizeof op_n_alternatives);
+  memcpy (d->predicates, predicates, sizeof predicates);
+  memcpy (d->address_p, address_p, sizeof address_p);
+  memcpy (d->modes, modes, sizeof modes);
+  memcpy (d->strict_low, strict_low, sizeof strict_low);
 
   validate_insn_alternatives (d);
   process_template (d, XSTR (insn, 3));
@@ -740,13 +757,13 @@ gen_peephole (peep)
   end_of_insn_data = d;
 
   max_opno = -1;
-  mybzero (constraints, sizeof constraints);
-  mybzero (op_n_alternatives, sizeof op_n_alternatives);
-  mybzero (predicates, sizeof predicates);
-  mybzero (address_p, sizeof address_p);
-  mybzero (modes, sizeof modes);
-  mybzero (strict_low, sizeof strict_low);
-  mybzero (seen, sizeof seen);
+  memset (constraints, 0, sizeof constraints);
+  memset (op_n_alternatives, 0, sizeof op_n_alternatives);
+  memset (predicates, 0, sizeof predicates);
+  memset (address_p, 0, sizeof address_p);
+  memset (modes, 0, sizeof modes);
+  memset (strict_low, 0, sizeof strict_low);
+  memset (seen, 0, sizeof seen);
 
   /* Get the number of operands by scanning all the
      patterns of the peephole optimizer.
@@ -757,12 +774,12 @@ gen_peephole (peep)
   d->n_operands = max_opno + 1;
   d->n_dups = 0;
 
-  mybcopy (constraints, d->constraints, sizeof constraints);
-  mybcopy (op_n_alternatives, d->op_n_alternatives, sizeof op_n_alternatives);
-  mybzero (d->predicates, sizeof predicates);
-  mybzero (d->address_p, sizeof address_p);
-  mybzero (d->modes, sizeof modes);
-  mybzero (d->strict_low, sizeof strict_low);
+  memcpy (d->constraints, constraints, sizeof constraints);
+  memcpy (d->op_n_alternatives, op_n_alternatives, sizeof op_n_alternatives);
+  memset (d->predicates, 0, sizeof predicates);
+  memset (d->address_p, 0, sizeof address_p);
+  memset (d->modes, 0, sizeof modes);
+  memset (d->strict_low, 0, sizeof strict_low);
 
   validate_insn_alternatives (d);
   process_template (d, XSTR (peep, 2));
@@ -801,13 +818,13 @@ gen_expand (insn)
   /* Scan the operands to get the specified predicates and modes,
      since expand_binop needs to know them.  */
 
-  mybzero (constraints, sizeof constraints);
-  mybzero (op_n_alternatives, sizeof op_n_alternatives);
-  mybzero (predicates, sizeof predicates);
-  mybzero (address_p, sizeof address_p);
-  mybzero (modes, sizeof modes);
-  mybzero (strict_low, sizeof strict_low);
-  mybzero (seen, sizeof seen);
+  memset (constraints, 0, sizeof constraints);
+  memset (op_n_alternatives, 0, sizeof op_n_alternatives);
+  memset (predicates, 0, sizeof predicates);
+  memset (address_p, 0, sizeof address_p);
+  memset (modes, 0, sizeof modes);
+  memset (strict_low, 0, sizeof strict_low);
+  memset (seen, 0, sizeof seen);
 
   if (XVEC (insn, 1))
     for (i = 0; i < XVECLEN (insn, 1); i++)
@@ -816,12 +833,12 @@ gen_expand (insn)
   d->n_operands = max_opno + 1;
   d->n_dups = num_dups;
 
-  mybcopy (constraints, d->constraints, sizeof constraints);
-  mybcopy (op_n_alternatives, d->op_n_alternatives, sizeof op_n_alternatives);
-  mybcopy (predicates, d->predicates, sizeof predicates);
-  mybcopy (address_p, d->address_p, sizeof address_p);
-  mybcopy (modes, d->modes, sizeof modes);
-  mybcopy (strict_low, d->strict_low, sizeof strict_low);
+  memcpy (d->constraints, constraints, sizeof constraints);
+  memcpy (d->op_n_alternatives, op_n_alternatives, sizeof op_n_alternatives);
+  memcpy (d->predicates, predicates, sizeof predicates);
+  memcpy (d->address_p, address_p, sizeof address_p);
+  memcpy (d->modes, modes, sizeof modes);
+  memcpy (d->strict_low, strict_low, sizeof strict_low);
 
   d->template = 0;
   d->outfun = 0;
@@ -856,13 +873,13 @@ gen_split (split)
   max_opno = -1;
   num_dups = 0;
 
-  mybzero (constraints, sizeof constraints);
-  mybzero (op_n_alternatives, sizeof op_n_alternatives);
-  mybzero (predicates, sizeof predicates);
-  mybzero (address_p, sizeof address_p);
-  mybzero (modes, sizeof modes);
-  mybzero (strict_low, sizeof strict_low);
-  mybzero (seen, sizeof seen);
+  memset (constraints, 0, sizeof constraints);
+  memset (op_n_alternatives, 0, sizeof op_n_alternatives);
+  memset (predicates, 0, sizeof predicates);
+  memset (address_p, 0, sizeof address_p);
+  memset (modes, 0, sizeof modes);
+  memset (strict_low, 0, sizeof strict_low);
+  memset (seen, 0, sizeof seen);
 
   /* Get the number of operands by scanning all the
      patterns of the split patterns.
@@ -872,12 +889,12 @@ gen_split (split)
 
   d->n_operands = max_opno + 1;
 
-  mybzero (d->constraints, sizeof constraints);
-  mybzero (d->op_n_alternatives, sizeof op_n_alternatives);
-  mybzero (d->predicates, sizeof predicates);
-  mybzero (d->address_p, sizeof address_p);
-  mybzero (d->modes, sizeof modes);
-  mybzero (d->strict_low, sizeof strict_low);
+  memset (d->constraints, 0, sizeof constraints);
+  memset (d->op_n_alternatives, 0, sizeof op_n_alternatives);
+  memset (d->predicates, 0, sizeof predicates);
+  memset (d->address_p, 0, sizeof address_p);
+  memset (d->modes, 0, sizeof modes);
+  memset (d->strict_low, 0, sizeof strict_low);
 
   d->n_dups = 0;
   d->n_alternatives = 0;
@@ -885,59 +902,44 @@ gen_split (split)
   d->outfun = 0;
 }
 
-char *
+PTR
 xmalloc (size)
-     unsigned size;
+  size_t size;
 {
-  register char *val = (char *) malloc (size);
+  register PTR val = (PTR) malloc (size);
 
   if (val == 0)
     fatal ("virtual memory exhausted");
   return val;
 }
 
-char *
-xrealloc (ptr, size)
-     char *ptr;
-     unsigned size;
+PTR
+xrealloc (old, size)
+  PTR old;
+  size_t size;
 {
-  char *result = (char *) realloc (ptr, size);
-  if (!result)
+  register PTR ptr;
+  if (old)
+    ptr = (PTR) realloc (old, size);
+  else
+    ptr = (PTR) malloc (size);
+  if (!ptr)
     fatal ("virtual memory exhausted");
-  return result;
+  return ptr;
 }
 
-static void
-mybzero (b, length)
-     register char *b;
-     register unsigned length;
+void
+fatal VPROTO ((const char *format, ...))
 {
-  while (length-- > 0)
-    *b++ = 0;
-}
-
-static void
-mybcopy (b1, b2, length)
-     register char *b1;
-     register char *b2;
-     register unsigned length;
-{
-  while (length-- > 0)
-    *b2++ = *b1++;
-}
-
-static void
-fatal VPROTO ((char *format, ...))
-{
-#ifndef __STDC__
-  char *format;
+#ifndef ANSI_PROTOTYPES
+  const char *format;
 #endif
   va_list ap;
 
   VA_START (ap, format);
 
-#ifndef __STDC__
-  format = va_arg (ap, char *);
+#ifndef ANSI_PROTOTYPES
+  format = va_arg (ap, const char *);
 #endif
 
   fprintf (stderr, "genoutput: ");
@@ -957,17 +959,17 @@ fancy_abort ()
 }
 
 static void
-error VPROTO ((char *format, ...))
+error VPROTO ((const char *format, ...))
 {
-#ifndef __STDC__
-  char *format;
+#ifndef ANSI_PROTOTYPES
+  const char *format;
 #endif
   va_list ap;
 
   VA_START (ap, format);
 
-#ifndef __STDC__
-  format = va_arg (ap, char *);
+#ifndef ANSI_PROTOTYPES
+  format = va_arg (ap, const char *);
 #endif
 
   fprintf (stderr, "genoutput: ");

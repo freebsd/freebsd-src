@@ -1,6 +1,6 @@
 /* implic.c -- Implementation File (module.c template V1.0)
    Copyright (C) 1995 Free Software Foundation, Inc.
-   Contributed by James Craig Burley (burley@gnu.org).
+   Contributed by James Craig Burley.
 
 This file is part of GNU Fortran.
 
@@ -73,7 +73,7 @@ static struct _ffeimplic_ ffeimplic_table_['z' - 'A' + 1];
 
 /* Static functions (internal). */
 
-static ffeimplic_ ffeimplic_lookup_ (char c);
+static ffeimplic_ ffeimplic_lookup_ (unsigned char c);
 
 /* Internal macros. */
 
@@ -89,7 +89,7 @@ static ffeimplic_ ffeimplic_lookup_ (char c);
    data type.  */
 
 static ffeimplic_
-ffeimplic_lookup_ (char c)
+ffeimplic_lookup_ (unsigned char c)
 {
   /* NOTE: This is definitely ASCII-specific!!  */
   if (ISALPHA (c) || (c == '_'))
@@ -331,7 +331,7 @@ ffeimplic_none ()
 /* ffeimplic_peek_symbol_type -- Determine implicit type of a symbol
 
    ffesymbol s;
-   char *name;	// name for s in case it is NULL, or NULL if s never NULL
+   const char *name; // name for s in case it is NULL, or NULL if s never NULL
    if (ffeimplic_peek_symbol_type(s,name) == FFEINFO_basictypeCHARACTER)
        // is or will be a CHARACTER-typed name
 
@@ -348,7 +348,7 @@ ffeimplic_none ()
       needed anyway (as when ffecom calls it).	*/
 
 ffeinfoBasictype
-ffeimplic_peek_symbol_type (ffesymbol s, char *name)
+ffeimplic_peek_symbol_type (ffesymbol s, const char *name)
 {
   char c;
   ffeimplic_ imp;

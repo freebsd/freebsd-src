@@ -1,5 +1,5 @@
 /* Definitions for CPP library.
-   Copyright (C) 1995, 1996, 1997 Free Software Foundation, Inc.
+   Copyright (C) 1995, 1996, 1997, 1998, 1999 Free Software Foundation, Inc.
    Written by Per Bothner, 1994-95.
 
 This program is free software; you can redistribute it and/or modify it
@@ -19,14 +19,10 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  In other words, you are welcome to use, share and improve this program.
  You are forbidden to forbid anyone else to use, share and improve
  what you give them.   Help stamp out software-hoarding!  */
+#ifndef __GCC_CPPLIB__
+#define __GCC_CPPLIB__
 
 #include <sys/types.h>
-#include <sys/stat.h>
-#ifdef __STDC__
-#include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -73,26 +69,12 @@ enum cpp_token {
   CPP_POP
 };
 
-#ifndef PARAMS
-#define PARAMS(P) PROTO(P)
-#endif /* !PARAMS */
-
 typedef enum cpp_token (*parse_underflow_t) PARAMS((cpp_reader *));
 typedef int (*parse_cleanup_t) PARAMS((cpp_buffer *, cpp_reader *));
 
-/* A parse_marker indicates a previous position,
-   which we can backtrack to. */
-
-struct parse_marker {
-  cpp_buffer *buf;
-  struct parse_marker *next;
-  int position;
-};
-
-extern void parse_set_mark PARAMS ((struct parse_marker *, cpp_reader *));
-extern void parse_clear_mark PARAMS ((struct parse_marker *));
-extern void parse_goto_mark PARAMS((struct parse_marker *, cpp_reader *));
-extern void parse_move_mark PARAMS((struct parse_marker *, cpp_reader *));
+extern void parse_set_mark	PARAMS ((cpp_reader *));
+extern void parse_clear_mark	PARAMS ((cpp_reader *));
+extern void parse_goto_mark	PARAMS ((cpp_reader *));
 
 extern int cpp_handle_option PARAMS ((cpp_reader *, int, char **));
 extern int cpp_handle_options PARAMS ((cpp_reader *, int, char **));
@@ -103,42 +85,36 @@ extern enum cpp_token cpp_get_non_space_token PARAMS ((cpp_reader *));
 /* This frees resources used by PFILE. */
 extern void cpp_cleanup PARAMS ((cpp_reader *PFILE));
 
-/* Maintain and search list of included files, for #import.  */
-
-#define IMPORT_HASH_SIZE 31
-
-struct import_file {
-  char *name;
-  ino_t inode;
-  dev_t dev;
-  struct import_file *next;
-};
-
-/* If we have a huge buffer, may need to cache more recent counts */
-#define CPP_LINE_BASE(BUF) ((BUF)->buf + (BUF)->line_base)
-
-struct cpp_buffer {
-  unsigned char *buf;
-  unsigned char *cur;
+struct cpp_buffer
+{
+  unsigned char *cur;	 /* current position */
   unsigned char *rlimit; /* end of valid data */
+  unsigned char *buf;	 /* entire buffer */
   unsigned char *alimit; /* end of allocated buffer */
-  unsigned char *prev;  /* start of current token */
+  unsigned char *line_base; /* start of current line */
 
+  struct cpp_buffer *prev;
+
+  /* Real filename.  (Alias to ->ihash->fname, obsolete). */
   char *fname;
   /* Filename specified with #line command.  */
   char *nominal_fname;
+  /* Last filename specified with #line command.  */
+  char *last_nominal_fname;
+  /* Actual directory of this file, used only for "" includes */
+  struct file_name_list *actual_dir;
 
-  /* Record where in the search path this file was found.
-     For #include_next.  */
-  struct file_name_list *dir;
+  /* Pointer into the include hash table.  Used for include_next and
+     to record control macros. */
+  struct include_hash *ihash;
 
-  long line_base;
   long lineno; /* Line number at CPP_LINE_BASE. */
   long colno; /* Column number at CPP_LINE_BASE. */
+  long mark;  /* Saved position for lengthy backtrack. */
   parse_underflow_t underflow;
   parse_cleanup_t cleanup;
   void *data;
-  struct parse_marker *marks;
+  
   /* Value of if_stack at start of this file.
      Used to prohibit unmatched #endif (etc) in an include file.  */
   struct if_stack *if_stack;
@@ -148,20 +124,21 @@ struct cpp_buffer {
   char seen_eof;
 
   /* True if buffer contains escape sequences.
-     Currently there are three kinds:
-     "@-" means following identifier should not be macro-expanded.
-     "@ " means a token-separator.  This turns into " " in final output
+     Currently there are two kinds:
+     "\r-" means following identifier should not be macro-expanded.
+     "\r " means a token-separator.  This turns into " " in final output
           if not stringizing and needed to separate tokens; otherwise nothing.
-     "@@" means a normal '@'.
-     (An '@' inside a string stands for itself and is never an escape.) */
+     Any other two-character sequence beginning with \r is an error.
+
+     If this is NOT set, then \r is a one-character escape meaning backslash
+     newline.  This is guaranteed not to occur in the middle of a token.
+     The two interpretations of \r do not conflict, because the two-character
+     escapes are used only in macro buffers, and backslash-newline is removed
+     from macro expansion text in collect_expansion and/or macarg.  */
   char has_escapes;
 };
 
-struct cpp_pending;  /* Forward declaration - for C++. */
 struct file_name_map_list;
-
-typedef struct assertion_hashnode ASSERTION_HASHNODE;
-#define ASSERTION_HASHSIZE 37
 
 /* Maximum nesting of cpp_buffers.  We use a static limit, partly for
    efficiency, and partly to limit runaway recursion.  */
@@ -171,20 +148,21 @@ typedef struct assertion_hashnode ASSERTION_HASHNODE;
    Applying cpp_get_token repeatedly yields a stream of pre-processor
    tokens.  Usually, there is only one cpp_reader object active. */
 
-struct cpp_reader {
+struct cpp_reader
+{
   parse_underflow_t get_token;
   cpp_buffer *buffer;
-  cpp_buffer buffer_stack[CPP_STACK_MAX];
-
-  int errors;			/* Error counter for exit code */
-  void *data;
+  cpp_options *opts;
 
   /* A buffer used for both for cpp_get_token's output, and also internally. */
   unsigned char *token_buffer;
   /* Allocated size of token_buffer.  CPP_RESERVE allocates space.  */
-  int token_buffer_size;
+  unsigned int token_buffer_size;
   /* End of the written part of token_buffer. */
   unsigned char *limit;
+
+  /* Error counter for exit code */
+  int errors;
 
   /* Line where a newline was first seen in a string constant.  */
   int multiline_string_line;
@@ -192,20 +170,24 @@ struct cpp_reader {
   /* Current depth in #include directives that use <...>.  */
   int system_include_depth;
 
-  /* List of included files that contained #pragma once.  */
-  struct file_name_list *dont_repeat_files;
+  /* Current depth of buffer stack. */
+  int buffer_stack_depth;
 
-  /* List of other included files.
-     If ->control_macro if nonzero, the file had a #ifndef
-     around the entire contents, and ->control_macro gives the macro name.  */
-  struct file_name_list *all_include_files;
+  /* Hash table of macros and assertions.  See cpphash.c */
+#define HASHSIZE 1403
+  struct hashnode **hashtab;
+  
+  /* Hash table of other included files.  See cppfiles.c */
+#define ALL_INCLUDE_HASHSIZE 71
+  struct include_hash *all_include_files[ALL_INCLUDE_HASHSIZE];
+
+  /* Chain of `actual directory' file_name_list entries,
+     for "" inclusion. */
+  struct file_name_list *actual_dirs;
 
   /* Current maximum length of directory names in the search path
      for include files.  (Altered as we get more of them.)  */
-  int max_include_len;
-
-  /* Hash table of files already included with #include or #import.  */
-  struct import_file *import_hash_table[IMPORT_HASH_SIZE];
+  unsigned int max_include_len;
 
   struct if_stack *if_stack;
 
@@ -248,8 +230,6 @@ struct cpp_reader {
 
   struct tm *timebuf;
 
-  ASSERTION_HASHNODE *assertion_hashtab[ASSERTION_HASHSIZE];
-
   /* Buffer of -M output.  */
   char *deps_buffer;
 
@@ -262,9 +242,12 @@ struct cpp_reader {
   /* Number of bytes since the last newline.  */
   int deps_column;
 
-#ifdef __cplusplus
-  ~cpp_reader () { cpp_cleanup (this); }
-#endif
+  /* A buffer and a table, used only by read_and_prescan (in cppfiles.c)
+     which are allocated once per cpp_reader object to keep them off the
+     stack and avoid setup costs.  */
+  U_CHAR *input_buffer;
+  U_CHAR *input_speccase;
+  size_t input_buffer_len;
 };
 
 #define CPP_FATAL_LIMIT 1000
@@ -282,18 +265,18 @@ struct cpp_reader {
 #define CPP_OUT_BUFFER(PFILE) ((PFILE)->token_buffer)
 
 /* Number of characters currently in PFILE's output buffer. */
-#define CPP_WRITTEN(PFILE) ((PFILE)->limit - (PFILE)->token_buffer)
+#define CPP_WRITTEN(PFILE) ((size_t)((PFILE)->limit - (PFILE)->token_buffer))
 #define CPP_PWRITTEN(PFILE) ((PFILE)->limit)
 
 /* Make sure PFILE->token_buffer has space for at least N more characters. */
 #define CPP_RESERVE(PFILE, N) \
-  (CPP_WRITTEN (PFILE) + N > (PFILE)->token_buffer_size \
+  (CPP_WRITTEN (PFILE) + (size_t)(N) > (PFILE)->token_buffer_size \
    && (cpp_grow_buffer (PFILE, N), 0))
 
 /* Append string STR (of length N) to PFILE's output buffer.
    Assume there is enough space. */
 #define CPP_PUTS_Q(PFILE, STR, N) \
-  (bcopy (STR, (PFILE)->limit, (N)), (PFILE)->limit += (N))
+  (memcpy ((PFILE)->limit, STR, (N)), (PFILE)->limit += (N))
 /* Append string STR (of length N) to PFILE's output buffer.  Make space. */
 #define CPP_PUTS(PFILE, STR, N) CPP_RESERVE(PFILE, N), CPP_PUTS_Q(PFILE, STR,N)
 /* Append character CH to PFILE's output buffer.  Assume sufficient space. */
@@ -306,14 +289,36 @@ struct cpp_reader {
 #define CPP_ADJUST_WRITTEN(PFILE,DELTA) ((PFILE)->limit += (DELTA))
 #define CPP_SET_WRITTEN(PFILE,N) ((PFILE)->limit = (PFILE)->token_buffer + (N))
 
-#define CPP_OPTIONS(PFILE) ((cpp_options *) (PFILE)->data)
+/* Advance the current line by one. */
+#define CPP_BUMP_BUFFER_LINE(PBUF) ((PBUF)->lineno++,\
+				    (PBUF)->line_base = (PBUF)->cur)
+#define CPP_BUMP_LINE(PFILE) CPP_BUMP_BUFFER_LINE(CPP_BUFFER(PFILE))
 
+#define CPP_OPTIONS(PFILE) ((PFILE)->opts)
 #define CPP_BUFFER(PFILE) ((PFILE)->buffer)
-#define CPP_PREV_BUFFER(BUFFER) ((BUFFER)+1)
+#define CPP_PREV_BUFFER(BUFFER) ((BUFFER)->prev)
 /* The bottom of the buffer stack. */
-#define CPP_NULL_BUFFER(PFILE) (&(PFILE)->buffer_stack[CPP_STACK_MAX])
+#define CPP_NULL_BUFFER(PFILE) NULL
 
-/* Pointed to by cpp_reader::data. */
+/* The `pending' structure accumulates all the options that are not
+   actually processed until we hit cpp_start_read.  It consists of
+   several lists, one for each type of option.  We keep both head and
+   tail pointers for quick insertion. */
+struct cpp_pending
+{
+  struct pending_option *define_head, *define_tail;
+  struct pending_option *assert_head, *assert_tail;
+
+  struct file_name_list *quote_head, *quote_tail;
+  struct file_name_list *brack_head, *brack_tail;
+  struct file_name_list *systm_head, *systm_tail;
+  struct file_name_list *after_head, *after_tail;
+
+  struct pending_option *imacros_head, *imacros_tail;
+  struct pending_option *include_head, *include_tail;
+};
+
+/* Pointed to by cpp_reader.opts. */
 struct cpp_options {
   char *in_fname;
 
@@ -355,9 +360,9 @@ struct cpp_options {
 
   char put_out_comments;
 
-  /* Nonzero means don't process the ANSI trigraph sequences.  */
+  /* Nonzero means process the ANSI trigraph sequences.  */
 
-  char no_trigraphs;
+  char trigraphs;
 
   /* Nonzero means print the names of included files rather than
      the preprocessed output.  1 means just the #include "...",
@@ -443,34 +448,23 @@ struct cpp_options {
   /* Nonzero for the 1989 C Standard, including corrigenda and amendments.  */
   char c89;
 
+  /* Nonzero for the 199x C Standard, including corrigenda and amendments.  */
+  char c9x;
+  
   /* Nonzero means give all the error messages the ANSI standard requires.  */
   char pedantic;
 
   char done_initializing;
 
-  struct file_name_list *include;	/* First dir to search */
-  /* First dir to search for <file> */
-  /* This is the first element to use for #include <...>.
-     If it is 0, use the entire chain for such includes.  */
-  struct file_name_list *first_bracket_include;
-  /* This is the first element in the chain that corresponds to
-     a directory of system header files.  */
-  struct file_name_list *first_system_include;
-  struct file_name_list *last_include;	/* Last in chain */
+  /* Search paths for include files.  */
+  struct file_name_list *quote_include;	 /* First dir to search for "file" */
+  struct file_name_list *bracket_include;/* First dir to search for <file> */
 
-  /* Chain of include directories to put at the end of the other chain.  */
-  struct file_name_list *after_include;
-  struct file_name_list *last_after_include;	/* Last in chain */
-
-  /* Chain to put at the start of the system include files.  */
-  struct file_name_list *before_system;
-  struct file_name_list *last_before_system;	/* Last in chain */
-
-  /* Directory prefix that should replace `/usr' in the standard
-     include file directories.  */
+  /* Directory prefix that should replace `/usr/lib/gcc-lib/TARGET/VERSION'
+     in the standard include file directories.  */
   char *include_prefix;
+  int include_prefix_len;
 
-  char inhibit_predefs;
   char no_standard_includes;
   char no_standard_cplusplus_includes;
 
@@ -496,7 +490,7 @@ struct cpp_options {
      even if they are ifdefed out.  */
   int dump_includes;
 
-  /* Pending -D, -U and -A options, in reverse order. */
+  /* Pending options - -D, -U, -A, -I, -ixxx. */
   struct cpp_pending *pending;
 
   /* File name which deps are being written to.
@@ -512,6 +506,47 @@ struct cpp_options {
 #define CPP_C89(PFILE) (CPP_OPTIONS(PFILE)->c89)
 #define CPP_PEDANTIC(PFILE) (CPP_OPTIONS (PFILE)->pedantic)
 #define CPP_PRINT_DEPS(PFILE) (CPP_OPTIONS (PFILE)->print_deps)
+
+/* List of directories to look for include files in. */
+struct file_name_list
+{
+  struct file_name_list *next;
+  struct file_name_list *alloc; /* for the cache of
+				   current directory entries */
+  char *name;
+  unsigned int nlen;
+  /* We use these to tell if the directory mentioned here is a duplicate
+     of an earlier directory on the search path. */
+  ino_t ino;
+  dev_t dev;
+  /* If the following is nonzero, it is a C-language system include
+     directory.  */
+  int sysp;
+  /* Mapping of file names for this directory.
+     Only used on MS-DOS and related platforms. */
+  struct file_name_map *name_map;
+};
+#define ABSOLUTE_PATH ((struct file_name_list *)-1)
+
+/* This structure is used for the table of all includes.  It is
+   indexed by the `short name' (the name as it appeared in the
+   #include statement) which is stored in *nshort.  */
+struct include_hash
+{
+  struct include_hash *next;
+  /* Next file with the same short name but a
+     different (partial) pathname). */
+  struct include_hash *next_this_file;
+
+  /* Location of the file in the include search path.
+     Used for include_next */
+  struct file_name_list *foundhere;
+  char *name;		/* (partial) pathname of file */
+  char *nshort;		/* name of file as referenced in #include */
+  char *control_macro;	/* macro, if any, preventing reinclusion - see
+			   redundant_include_p */
+  char *buf, *limit;	/* for file content cache, not yet implemented */
+};
 
 /* Name under which this program was invoked.  */
 
@@ -551,16 +586,11 @@ enum node_type {
  T_BASE_FILE,	/* `__BASE_FILE__' */
  T_INCLUDE_LEVEL, /* `__INCLUDE_LEVEL__' */
  T_VERSION,	/* `__VERSION__' */
- T_SIZE_TYPE,   /* `__SIZE_TYPE__' */
- T_PTRDIFF_TYPE,   /* `__PTRDIFF_TYPE__' */
- T_WCHAR_TYPE,   /* `__WCHAR_TYPE__' */
- T_USER_LABEL_PREFIX_TYPE, /* `__USER_LABEL_PREFIX__' */
- T_REGISTER_PREFIX_TYPE,   /* `__REGISTER_PREFIX__' */
  T_TIME,	/* `__TIME__' */
- T_CONST,	/* Constant value, used by `__STDC__' */
+ T_STDC,	/* `__STDC__' */
+ T_CONST,	/* Constant string, used by `__SIZE_TYPE__' etc */
  T_MACRO,	/* macro defined by `#define' */
  T_DISABLED,	/* macro temporarily turned off for rescan */
- T_SPEC_DEFINED, /* special `defined' macro for use in #if statements */
  T_PCSTRING,	/* precompiled string (hashval is KEYDEF *) */
  T_UNUSED	/* Used for something not defined.  */
  };
@@ -625,7 +655,19 @@ struct definition {
   } args;
 };
 
-extern unsigned char is_idchar[256];
+/* These tables are not really `const', but they are only modified at
+   initialization time, in a separate translation unit from the rest
+   of the library.  We let the rest of the library think they are `const'
+   to get better code and some additional sanity checks.  */
+#ifndef FAKE_CONST
+#define FAKE_CONST const
+#endif
+extern FAKE_CONST unsigned char is_idstart[256];
+extern FAKE_CONST unsigned char is_idchar[256];
+extern FAKE_CONST unsigned char is_hor_space[256];
+extern FAKE_CONST unsigned char is_space[256];
+extern FAKE_CONST unsigned char trigraph_table[256];
+#undef FAKE_CONST
 
 /* Stack of conditionals currently in progress
    (including both successful and failing conditionals).  */
@@ -644,7 +686,10 @@ typedef struct if_stack IF_STACK_FRAME;
 
 extern void cpp_buf_line_and_col PARAMS((cpp_buffer *, long *, long *));
 extern cpp_buffer* cpp_file_buffer PARAMS((cpp_reader *));
-extern void cpp_define PARAMS ((cpp_reader*, unsigned char *));
+extern void cpp_define PARAMS ((cpp_reader *, unsigned char *));
+extern void cpp_assert PARAMS ((cpp_reader *, unsigned char *));
+extern void cpp_undef  PARAMS ((cpp_reader *, unsigned char *));
+extern void cpp_unassert PARAMS ((cpp_reader *, unsigned char *));
 
 extern void cpp_error PVPROTO ((cpp_reader *, const char *, ...))
   ATTRIBUTE_PRINTF_2;
@@ -653,6 +698,8 @@ extern void cpp_warning PVPROTO ((cpp_reader *, const char *, ...))
 extern void cpp_pedwarn PVPROTO ((cpp_reader *, const char *, ...))
   ATTRIBUTE_PRINTF_2;
 extern void cpp_error_with_line PVPROTO ((cpp_reader *, int, int, const char *, ...))
+  ATTRIBUTE_PRINTF_4;
+extern void cpp_warning_with_line PVPROTO ((cpp_reader *, int, int, const char *, ...))
   ATTRIBUTE_PRINTF_4;
 extern void cpp_pedwarn_with_line PVPROTO ((cpp_reader *, int, int, const char *, ...))
   ATTRIBUTE_PRINTF_4;
@@ -664,7 +711,7 @@ extern void cpp_perror_with_name PROTO ((cpp_reader *, const char *));
 extern void v_cpp_message PROTO ((cpp_reader *, int, const char *, va_list));
 
 extern void cpp_grow_buffer PARAMS ((cpp_reader *, long));
-extern int cpp_parse_escape PARAMS ((cpp_reader *, char **));
+extern HOST_WIDEST_INT cpp_parse_escape PARAMS ((cpp_reader *, char **, HOST_WIDEST_INT));
 extern cpp_buffer *cpp_push_buffer PARAMS ((cpp_reader *,
 					    unsigned char *, long));
 extern cpp_buffer *cpp_pop_buffer PARAMS ((cpp_reader *));
@@ -679,6 +726,16 @@ extern int scan_decls PARAMS ((cpp_reader *, int, char **));
 extern void skip_rest_of_line PARAMS ((cpp_reader *));
 extern void cpp_finish PARAMS ((cpp_reader *));
 
+extern void quote_string		PARAMS ((cpp_reader *, const char *));
+extern void cpp_expand_to_buffer	PARAMS ((cpp_reader *, U_CHAR *, int));
+extern void cpp_scan_buffer		PARAMS ((cpp_reader *));
+extern int check_macro_name		PARAMS ((cpp_reader *, U_CHAR *, int));
+
+/* Last arg to output_line_command.  */
+enum file_change_code {same_file, enter_file, leave_file};
+extern void output_line_command		PARAMS ((cpp_reader *,
+						 enum file_change_code));
+
 /* From cpperror.c */
 extern void cpp_fatal PVPROTO ((cpp_reader *, const char *, ...))
   ATTRIBUTE_PRINTF_2;
@@ -687,7 +744,27 @@ extern void cpp_message PVPROTO ((cpp_reader *, int, const char *, ...))
 extern void cpp_pfatal_with_name PROTO ((cpp_reader *, const char *));
 extern void cpp_file_line_for_message PROTO ((cpp_reader *, char *, int, int));
 extern void cpp_print_containing_files PROTO ((cpp_reader *));
+extern void cpp_notice PVPROTO ((const char *msgid, ...)) ATTRIBUTE_PRINTF_1;
 
+/* In cppfiles.c */
+extern void simplify_pathname		PROTO ((char *));
+extern void merge_include_chains	PROTO ((struct cpp_options *));
+extern int find_include_file		PROTO ((cpp_reader *, char *,
+						struct file_name_list *,
+						struct include_hash **,
+						int *));
+extern int finclude			PROTO ((cpp_reader *, int,
+					        struct include_hash *));
+extern void deps_output			PROTO ((cpp_reader *, char *, int));
+extern struct include_hash *include_hash PROTO ((cpp_reader *, char *, int));
+
+#ifndef INCLUDE_LEN_FUDGE
+#define INCLUDE_LEN_FUDGE 0
+#endif
+
+    
 #ifdef __cplusplus
 }
 #endif
+#endif /* __GCC_CPPLIB__ */
+

@@ -1,5 +1,5 @@
 /* Definitions for Intel 386 running SCO Unix System V.
-   Copyright (C) 1988, 1992, 1994, 1995 Free, 1996 Software Foundation, Inc.
+   Copyright (C) 1988, 92, 94, 95, 96, 1999  Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -31,7 +31,7 @@ Boston, MA 02111-1307, USA.  */
    So don't make TARGET_IEEE_FP default for SCO. */
 
 #undef TARGET_DEFAULT
-#define TARGET_DEFAULT 0201
+#define TARGET_DEFAULT (MASK_80387 | MASK_FLOAT_RETURNS)
 
 /* Let's guess that the SCO software FPU emulator can't handle
    80-bit XFmode insns, so don't generate them.  */

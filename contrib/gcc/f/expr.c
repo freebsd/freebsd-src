@@ -1,6 +1,6 @@
 /* expr.c -- Implementation File (module.c template V1.0)
    Copyright (C) 1995-1998 Free Software Foundation, Inc.
-   Contributed by James Craig Burley (burley@gnu.org).
+   Contributed by James Craig Burley.
 
 This file is part of GNU Fortran.
 
@@ -268,7 +268,7 @@ static void ffeexpr_update_impdo_sym_ (ffebld expr, ffesymbol dovar);
 static ffeexprContext ffeexpr_context_outer_ (ffeexprStack_ s);
 static ffeexprExpr_ ffeexpr_expr_new_ (void);
 static void ffeexpr_fulfill_call_ (ffebld *expr, ffelexToken t);
-static bool ffeexpr_isdigits_ (char *p);
+static bool ffeexpr_isdigits_ (const char *p);
 static ffelexHandler ffeexpr_token_first_lhs_ (ffelexToken t);
 static ffelexHandler ffeexpr_token_first_lhs_1_ (ffelexToken t);
 static ffelexHandler ffeexpr_token_first_rhs_ (ffelexToken t);
@@ -633,6 +633,10 @@ ffeexpr_collapse_convert (ffebld expr, ffelexToken t)
 	      break;
 	    }
 
+	  /* If conversion operation is not implemented, return original expr.  */
+	  if (error == FFEBAD_NOCANDO)
+	    return expr;
+
 	  expr = ffebld_new_conter_with_orig
 	    (ffebld_constant_new_integer1_val
 	     (ffebld_cu_val_integer1 (u)), expr);
@@ -821,6 +825,10 @@ ffeexpr_collapse_convert (ffebld expr, ffelexToken t)
 	      assert ("INTEGER2 bad type" == NULL);
 	      break;
 	    }
+
+	  /* If conversion operation is not implemented, return original expr.  */
+	  if (error == FFEBAD_NOCANDO)
+	    return expr;
 
 	  expr = ffebld_new_conter_with_orig
 	    (ffebld_constant_new_integer2_val
@@ -1011,6 +1019,10 @@ ffeexpr_collapse_convert (ffebld expr, ffelexToken t)
 	      break;
 	    }
 
+	  /* If conversion operation is not implemented, return original expr.  */
+	  if (error == FFEBAD_NOCANDO)
+	    return expr;
+
 	  expr = ffebld_new_conter_with_orig
 	    (ffebld_constant_new_integer3_val
 	     (ffebld_cu_val_integer3 (u)), expr);
@@ -1200,6 +1212,10 @@ ffeexpr_collapse_convert (ffebld expr, ffelexToken t)
 	      break;
 	    }
 
+	  /* If conversion operation is not implemented, return original expr.  */
+	  if (error == FFEBAD_NOCANDO)
+	    return expr;
+
 	  expr = ffebld_new_conter_with_orig
 	    (ffebld_constant_new_integer4_val
 	     (ffebld_cu_val_integer4 (u)), expr);
@@ -1317,6 +1333,10 @@ ffeexpr_collapse_convert (ffebld expr, ffelexToken t)
 	      break;
 	    }
 
+	  /* If conversion operation is not implemented, return original expr.  */
+	  if (error == FFEBAD_NOCANDO)
+	    return expr;
+
 	  expr = ffebld_new_conter_with_orig
 	    (ffebld_constant_new_logical1_val
 	     (ffebld_cu_val_logical1 (u)), expr);
@@ -1423,6 +1443,10 @@ ffeexpr_collapse_convert (ffebld expr, ffelexToken t)
 	      assert ("LOGICAL2 bad type" == NULL);
 	      break;
 	    }
+
+	  /* If conversion operation is not implemented, return original expr.  */
+	  if (error == FFEBAD_NOCANDO)
+	    return expr;
 
 	  expr = ffebld_new_conter_with_orig
 	    (ffebld_constant_new_logical2_val
@@ -1531,6 +1555,10 @@ ffeexpr_collapse_convert (ffebld expr, ffelexToken t)
 	      break;
 	    }
 
+	  /* If conversion operation is not implemented, return original expr.  */
+	  if (error == FFEBAD_NOCANDO)
+	    return expr;
+
 	  expr = ffebld_new_conter_with_orig
 	    (ffebld_constant_new_logical3_val
 	     (ffebld_cu_val_logical3 (u)), expr);
@@ -1637,6 +1665,10 @@ ffeexpr_collapse_convert (ffebld expr, ffelexToken t)
 	      assert ("LOGICAL4 bad type" == NULL);
 	      break;
 	    }
+
+	  /* If conversion operation is not implemented, return original expr.  */
+	  if (error == FFEBAD_NOCANDO)
+	    return expr;
 
 	  expr = ffebld_new_conter_with_orig
 	    (ffebld_constant_new_logical4_val
@@ -1796,6 +1828,10 @@ ffeexpr_collapse_convert (ffebld expr, ffelexToken t)
 	      break;
 	    }
 
+	  /* If conversion operation is not implemented, return original expr.  */
+	  if (error == FFEBAD_NOCANDO)
+	    return expr;
+
 	  expr = ffebld_new_conter_with_orig
 	    (ffebld_constant_new_real1_val
 	     (ffebld_cu_val_real1 (u)), expr);
@@ -1943,6 +1979,10 @@ ffeexpr_collapse_convert (ffebld expr, ffelexToken t)
 	      assert ("REAL2 bad type" == NULL);
 	      break;
 	    }
+
+	  /* If conversion operation is not implemented, return original expr.  */
+	  if (error == FFEBAD_NOCANDO)
+	    return expr;
 
 	  expr = ffebld_new_conter_with_orig
 	    (ffebld_constant_new_real2_val
@@ -2092,6 +2132,10 @@ ffeexpr_collapse_convert (ffebld expr, ffelexToken t)
 	      break;
 	    }
 
+	  /* If conversion operation is not implemented, return original expr.  */
+	  if (error == FFEBAD_NOCANDO)
+	    return expr;
+
 	  expr = ffebld_new_conter_with_orig
 	    (ffebld_constant_new_real3_val
 	     (ffebld_cu_val_real3 (u)), expr);
@@ -2239,6 +2283,10 @@ ffeexpr_collapse_convert (ffebld expr, ffelexToken t)
 	      assert ("REAL4 bad type" == NULL);
 	      break;
 	    }
+
+	  /* If conversion operation is not implemented, return original expr.  */
+	  if (error == FFEBAD_NOCANDO)
+	    return expr;
 
 	  expr = ffebld_new_conter_with_orig
 	    (ffebld_constant_new_real4_val
@@ -2398,6 +2446,10 @@ ffeexpr_collapse_convert (ffebld expr, ffelexToken t)
 	      break;
 	    }
 
+	  /* If conversion operation is not implemented, return original expr.  */
+	  if (error == FFEBAD_NOCANDO)
+	    return expr;
+
 	  expr = ffebld_new_conter_with_orig
 	    (ffebld_constant_new_complex1_val
 	     (ffebld_cu_val_complex1 (u)), expr);
@@ -2545,6 +2597,10 @@ ffeexpr_collapse_convert (ffebld expr, ffelexToken t)
 	      assert ("COMPLEX2 bad type" == NULL);
 	      break;
 	    }
+
+	  /* If conversion operation is not implemented, return original expr.  */
+	  if (error == FFEBAD_NOCANDO)
+	    return expr;
 
 	  expr = ffebld_new_conter_with_orig
 	    (ffebld_constant_new_complex2_val
@@ -2694,6 +2750,10 @@ ffeexpr_collapse_convert (ffebld expr, ffelexToken t)
 	      break;
 	    }
 
+	  /* If conversion operation is not implemented, return original expr.  */
+	  if (error == FFEBAD_NOCANDO)
+	    return expr;
+
 	  expr = ffebld_new_conter_with_orig
 	    (ffebld_constant_new_complex3_val
 	     (ffebld_cu_val_complex3 (u)), expr);
@@ -2841,6 +2901,10 @@ ffeexpr_collapse_convert (ffebld expr, ffelexToken t)
 	      assert ("COMPLEX4 bad type" == NULL);
 	      break;
 	    }
+
+	  /* If conversion operation is not implemented, return original expr.  */
+	  if (error == FFEBAD_NOCANDO)
+	    return expr;
 
 	  expr = ffebld_new_conter_with_orig
 	    (ffebld_constant_new_complex4_val
@@ -8520,7 +8584,7 @@ ffeexpr_context_outer_ (ffeexprStack_ s)
 static ffeexprPercent_
 ffeexpr_percent_ (ffelexToken t)
 {
-  char *p;
+  const char *p;
 
   switch (ffelex_token_length (t))
     {
@@ -9473,7 +9537,7 @@ ffeexpr_fulfill_call_ (ffebld *expr, ffelexToken t)
 /* Check whether rest of string is all decimal digits.  */
 
 static bool
-ffeexpr_isdigits_ (char *p)
+ffeexpr_isdigits_ (const char *p)
 {
   for (; *p != '\0'; ++p)
     if (! ISDIGIT (*p))
@@ -10314,7 +10378,7 @@ ffeexpr_reduced_concatenate_ (ffebld reduced, ffeexprExpr_ l, ffeexprExpr_ op,
       if ((lkd != FFEINFO_kindANY)
 	  && ffebad_start (FFEBAD_CONCAT_ARG_KIND))
 	{
-	  char *what;
+	  const char *what;
 
 	  if (lrk != 0)
 	    what = "an array";
@@ -10330,7 +10394,7 @@ ffeexpr_reduced_concatenate_ (ffebld reduced, ffeexprExpr_ l, ffeexprExpr_ op,
     {
       if (ffebad_start (FFEBAD_CONCAT_ARG_KIND))
 	{
-	  char *what;
+	  const char *what;
 
 	  if (rrk != 0)
 	    what = "an array";
@@ -11602,7 +11666,7 @@ static ffelexHandler
 ffeexpr_nil_real_ (ffelexToken t)
 {
   char d;
-  char *p;
+  const char *p;
 
   if (((ffelex_token_type (t) != FFELEX_typeNAME)
        && (ffelex_token_type (t) != FFELEX_typeNAMES))
@@ -11640,7 +11704,7 @@ static ffelexHandler
 ffeexpr_nil_number_ (ffelexToken t)
 {
   char d;
-  char *p;
+  const char *p;
 
   if (ffeexpr_hollerith_count_ > 0)
     ffelex_set_expecting_hollerith (0, '\0',
@@ -11715,7 +11779,7 @@ ffeexpr_nil_number_period_ (ffelexToken t)
 {
   ffelexHandler nexthandler;
   char d;
-  char *p;
+  const char *p;
 
   switch (ffelex_token_type (t))
     {
@@ -11772,7 +11836,7 @@ static ffelexHandler
 ffeexpr_nil_number_real_ (ffelexToken t)
 {
   char d;
-  char *p;
+  const char *p;
 
   if (((ffelex_token_type (t) != FFELEX_typeNAME)
        && (ffelex_token_type (t) != FFELEX_typeNAMES))
@@ -12203,6 +12267,48 @@ again:				/* :::::::::::::::::::: */
 
     case FFEEXPR_contextINDEX_:
     case FFEEXPR_contextSFUNCDEFINDEX_:
+      if ((error = (expr != NULL) && (ffeinfo_rank (info) != 0)))
+	break;
+      switch ((expr == NULL) ? FFEINFO_basictypeNONE
+	      : ffeinfo_basictype (info))
+	{
+	case FFEINFO_basictypeNONE:
+	  error = FALSE;
+	  break;
+
+	case FFEINFO_basictypeLOGICAL:
+	  expr = ffeexpr_convert (expr, ft, ft, FFEINFO_basictypeLOGICAL,
+	     FFEINFO_kindtypeLOGICALDEFAULT, 0, FFETARGET_charactersizeNONE,
+				  FFEEXPR_contextLET);
+	  /* Fall through. */
+	case FFEINFO_basictypeREAL:
+	case FFEINFO_basictypeCOMPLEX:
+	  if (ffe_is_pedantic ())
+	    {
+	      error = TRUE;
+	      break;
+	    }
+	  /* Fall through. */
+	case FFEINFO_basictypeHOLLERITH:
+	case FFEINFO_basictypeTYPELESS:
+	  error = FALSE;
+	  expr = ffeexpr_convert (expr, ft, ft, FFEINFO_basictypeINTEGER,
+	     FFEINFO_kindtypeINTEGERDEFAULT, 0, FFETARGET_charactersizeNONE,
+				  FFEEXPR_contextLET);
+	  break;
+
+	case FFEINFO_basictypeINTEGER:
+	  /* Specifically, allow INTEGER(KIND=2), aka INTEGER*8, through
+	     unmolested.  Leave it to downstream to handle kinds.  */
+	  break;
+
+	default:
+	  error = TRUE;
+	  break;
+	}
+      break;			/* expr==NULL ok for substring; element case
+				   caught by callback. */
+
     case FFEEXPR_contextRETURN:
       if ((error = (expr != NULL) && (ffeinfo_rank (info) != 0)))
 	break;
@@ -12239,8 +12345,7 @@ again:				/* :::::::::::::::::::: */
 	  error = TRUE;
 	  break;
 	}
-      break;			/* expr==NULL ok for substring; element case
-				   caught by callback. */
+      break;
 
     case FFEEXPR_contextDO:
       if ((error = (expr == NULL) || (ffeinfo_rank (info) != 0)))
@@ -12616,11 +12721,12 @@ again:				/* :::::::::::::::::::: */
       switch (ffeinfo_basictype (info))
 	{
 	case FFEINFO_basictypeLOGICAL:
-	  error = error && !ffe_is_ugly_logint ();
-	  if (!ffeexpr_stack_->is_rhs)
-	    break;		/* Don't convert lhs variable. */
+	  if (! ffe_is_ugly_logint ())
+	    error = TRUE;
+	  if (! ffeexpr_stack_->is_rhs)
+	    break;
 	  expr = ffeexpr_convert (expr, ft, ft, FFEINFO_basictypeINTEGER,
-				  ffeinfo_kindtype (ffebld_info (expr)), 0,
+				  ffeinfo_kindtype (info), 0,
 				  FFETARGET_charactersizeNONE,
 				  FFEEXPR_contextLET);
 	  break;
@@ -12664,18 +12770,21 @@ again:				/* :::::::::::::::::::: */
       switch (ffeinfo_basictype (info))
 	{
 	case FFEINFO_basictypeLOGICAL:
-	  error = error
-	    && (ffeinfo_kindtype (info) != FFEINFO_kindtypeLOGICALDEFAULT);
-	  if (!ffeexpr_stack_->is_rhs)
-	    break;		/* Don't convert lhs variable. */
+	  if (! ffeexpr_stack_->is_rhs)
+	    break;
 	  expr = ffeexpr_convert (expr, ft, ft, FFEINFO_basictypeINTEGER,
-	     FFEINFO_kindtypeINTEGERDEFAULT, 0, FFETARGET_charactersizeNONE,
+				  ffeinfo_kindtype (info), 0,
+				  FFETARGET_charactersizeNONE,
 				  FFEEXPR_contextLET);
-	  break;
-
+	  /* Fall through.  */
 	case FFEINFO_basictypeINTEGER:
-	  error = error &&
-	    (ffeinfo_kindtype (info) != FFEINFO_kindtypeINTEGERDEFAULT);
+	  if (ffeexpr_stack_->is_rhs
+	      && (ffeinfo_kindtype (ffebld_info (expr))
+		  != FFEINFO_kindtypeINTEGERDEFAULT))
+	    expr = ffeexpr_convert (expr, ft, ft, FFEINFO_basictypeINTEGER,
+				    FFEINFO_kindtypeINTEGERDEFAULT, 0,
+				    FFETARGET_charactersizeNONE,
+				    FFEEXPR_contextLET);
 	  break;
 
 	case FFEINFO_basictypeHOLLERITH:
@@ -12853,7 +12962,11 @@ again:				/* :::::::::::::::::::: */
 	      : ffeinfo_basictype (info))
 	{
 	case FFEINFO_basictypeINTEGER:
-	  error = FALSE;
+	  /* Maybe this should be supported someday, but, right now,
+	     g77 can't generate a call to libf2c to write to an
+	     integer other than the default size.  */
+	  error = ((! ffeexpr_stack_->is_rhs)
+		   && ffeinfo_kindtype (info) != FFEINFO_kindtypeINTEGERDEFAULT);
 	  break;
 
 	default:
@@ -13584,7 +13697,7 @@ static ffelexHandler
 ffeexpr_token_real_ (ffelexToken t)
 {
   char d;
-  char *p;
+  const char *p;
 
   if (((ffelex_token_type (t) != FFELEX_typeNAME)
        && (ffelex_token_type (t) != FFELEX_typeNAMES))
@@ -13741,7 +13854,7 @@ ffeexpr_token_number_ (ffelexToken t)
   ffeexprExpr_ e;
   ffeinfo ni;
   char d;
-  char *p;
+  const char *p;
 
   if (ffeexpr_hollerith_count_ > 0)
     ffelex_set_expecting_hollerith (0, '\0',
@@ -13897,7 +14010,7 @@ ffeexpr_token_number_period_ (ffelexToken t)
 {
   ffeexprExpr_ e;
   ffelexHandler nexthandler;
-  char *p;
+  const char *p;
   char d;
 
   switch (ffelex_token_type (t))
@@ -14015,7 +14128,7 @@ static ffelexHandler
 ffeexpr_token_number_real_ (ffelexToken t)
 {
   char d;
-  char *p;
+  const char *p;
 
   if (((ffelex_token_type (t) != FFELEX_typeNAME)
        && (ffelex_token_type (t) != FFELEX_typeNAMES))
@@ -18530,7 +18643,8 @@ ffeexpr_token_elements_ (ffelexToken ft, ffebld expr, ffelexToken t)
 	      ffeexpr_stack_->immediate = FALSE;
 	      break;
 	    }
-	  if (ffebld_op (expr) == FFEBLD_opCONTER)
+	  if (ffebld_op (expr) == FFEBLD_opCONTER
+	      && ffebld_kindtype (expr) == FFEINFO_kindtypeINTEGERDEFAULT)
 	    {
 	      val = ffebld_constant_integerdefault (ffebld_conter (expr));
 
@@ -18841,26 +18955,33 @@ ffeexpr_token_substring_1_ (ffelexToken ft, ffebld last, ffelexToken t)
   ffetargetIntegerDefault last_val;
   ffetargetCharacterSize size;
   ffetargetCharacterSize strop_size_max;
+  bool first_known;
 
   string = ffeexpr_stack_->exprstack;
   strop = string->u.operand;
   info = ffebld_info (strop);
 
-  if ((first == NULL) || (ffebld_op (first) == FFEBLD_opCONTER))
+  if (first == NULL
+      || (ffebld_op (first) == FFEBLD_opCONTER
+	  && ffebld_kindtype (first) == FFEINFO_kindtypeINTEGERDEFAULT))
     {				/* The starting point is known. */
       first_val = (first == NULL) ? 1
 	: ffebld_constant_integerdefault (ffebld_conter (first));
+      first_known = TRUE;
     }
   else
     {				/* Assume start of the entity. */
       first_val = 1;
+      first_known = FALSE;
     }
 
-  if ((last != NULL) && (ffebld_op (last) == FFEBLD_opCONTER))
+  if (last != NULL
+      && (ffebld_op (last) == FFEBLD_opCONTER
+	  && ffebld_kindtype (last) == FFEINFO_kindtypeINTEGERDEFAULT))
     {				/* The ending point is known. */
       last_val = ffebld_constant_integerdefault (ffebld_conter (last));
 
-      if ((first == NULL) || (ffebld_op (first) == FFEBLD_opCONTER))
+      if (first_known)
 	{			/* The beginning point is a constant. */
 	  if (first_val <= last_val)
 	    size = last_val - first_val + 1;
