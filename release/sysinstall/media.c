@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id$
+ * $Id: media.c,v 1.1 1995/04/27 18:05:10 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -47,6 +47,56 @@
  */
 int
 mediaSetCDROM(void)
+{
+    return 0;
+}
+
+/*
+ * Return 0 if we successfully found and set the installation type to
+ * be a floppy
+ */
+int
+mediaSetFloppy(void)
+{
+    return 0;
+}
+
+/*
+ * Return 0 if we successfully found and set the installation type to
+ * be a DOS partition.
+ */
+int
+mediaSetDOS(void)
+{
+    return 0;
+}
+
+/*
+ * Return 0 if we successfully found and set the installation type to
+ * be a tape drive.
+ */
+int
+mediaSetTape(void)
+{
+    return 0;
+}
+
+/*
+ * Return 0 if we successfully found and set the installation type to
+ * be an ftp server
+ */
+int
+mediaSetFTP(void)
+{
+    return 0;
+}
+
+/*
+ * Return 0 if we successfully found and set the installation type to
+ * be some sort of mounted filesystem (it's also mounted at this point)
+ */
+int
+mediaSetFS(void)
 {
     return 0;
 }
