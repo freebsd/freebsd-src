@@ -311,7 +311,8 @@ kqueue(struct proc *p, struct kqueue_args *uap)
 	TAILQ_INIT(&kq->kq_head);
 	fp->f_data = (caddr_t)kq;
 	p->p_retval[0] = fd;
-	fdp->fd_knlistsize = 0;		/* mark this fdesc as having a kq */
+	if (fdp->fd_knlistsize < 0)
+		fdp->fd_knlistsize = 0;		/* this process has a kq */
 	kq->kq_fdp = fdp;
 	return (error);
 }
