@@ -1,3 +1,4 @@
+/*#define CHASE_CHAIN*/
 /*
  * Copyright (c) 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998
  *	The Regents of the University of California.  All rights reserved.
@@ -20,12 +21,15 @@
  */
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: gencode.c,v 1.94 98/07/12 13:06:49 leres Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/libpcap/gencode.c,v 1.100 1999/12/08 19:54:03 mcr Exp $ (LBL)";
 #endif
 
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/time.h>
+#ifdef __NetBSD__
+#include <sys/param.h>
+#endif
 
 #if __STDC__
 struct mbuf;
@@ -52,6 +56,10 @@ struct rtentry;
 #include "gencode.h"
 #include "ppp.h"
 #include <pcap-namedb.h>
+#ifdef INET6
+#include <netdb.h>
+#include <sys/socket.h>
+#endif /*INET6*/
 
 #include "gnuc.h"
 #ifdef HAVE_OS_PROTO_H
@@ -135,15 +143,28 @@ static inline struct block *gen_true(void);
 static inline struct block *gen_false(void);
 static struct block *gen_linktype(int);
 static struct block *gen_hostop(bpf_u_int32, bpf_u_int32, int, int, u_int, u_int);
+#ifdef INET6
+static struct block *gen_hostop6(struct in6_addr *, struct in6_addr *, int, int, u_int, u_int);
+#endif
 static struct block *gen_ehostop(const u_char *, int);
 static struct block *gen_fhostop(const u_char *, int);
 static struct block *gen_dnhostop(bpf_u_int32, int, u_int);
 static struct block *gen_host(bpf_u_int32, bpf_u_int32, int, int);
+#ifdef INET6
+static struct block *gen_host6(struct in6_addr *, struct in6_addr *, int, int);
+#endif
 static struct block *gen_gateway(const u_char *, bpf_u_int32 **, int, int);
 static struct block *gen_ipfrag(void);
 static struct block *gen_portatom(int, bpf_int32);
+#ifdef INET6
+static struct block *gen_portatom6(int, bpf_int32);
+#endif
 struct block *gen_portop(int, int, int);
 static struct block *gen_port(int, int, int);
+#ifdef INET6
+struct block *gen_portop6(int, int, int);
+static struct block *gen_port6(int, int, int);
+#endif
 static int lookup_proto(const char *, int);
 static struct block *gen_proto(int, int, int);
 static struct slist *xfer_to_x(struct arth *);
@@ -157,8 +178,13 @@ newchunk(n)
 	struct chunk *cp;
 	int k, size;
 
+#ifndef __NetBSD__
 	/* XXX Round up to nearest long. */
 	n = (n + sizeof(long) - 1) & ~(sizeof(long) - 1);
+#else
+	/* XXX Round up to structure boundary. */
+	n = ALIGN(n);
+#endif
 
 	cp = &chunks[cur_chunk];
 	if (n > cp->n_left) {
@@ -246,6 +272,7 @@ syntax()
 
 static bpf_u_int32 netmask;
 static int snaplen;
+int no_optimize;
 
 int
 pcap_compile(pcap_t *p, struct bpf_program *program,
@@ -254,6 +281,7 @@ pcap_compile(pcap_t *p, struct bpf_program *program,
 	extern int n_errors;
 	int len;
 
+	no_optimize = 0;
 	n_errors = 0;
 	root = NULL;
 	bpf_pcap = p;
@@ -274,6 +302,54 @@ pcap_compile(pcap_t *p, struct bpf_program *program,
 
 	if (root == NULL)
 		root = gen_retblk(snaplen);
+
+	if (optimize && !no_optimize) {
+		bpf_optimize(&root);
+		if (root == NULL ||
+		    (root->s.code == (BPF_RET|BPF_K) && root->s.k == 0))
+			bpf_error("expression rejects all packets");
+	}
+	program->bf_insns = icode_to_fcode(root, &len);
+	program->bf_len = len;
+
+	freechunks();
+	return (0);
+}
+
+/*
+ * entry point for using the compiler with no pcap open
+ * pass in all the stuff that is needed explicitly instead.
+ */
+int
+pcap_compile_nopcap(int snaplen_arg, int linktype_arg,
+		    struct bpf_program *program,
+	     char *buf, int optimize, bpf_u_int32 mask)
+{
+	extern int n_errors;
+	int len;
+
+	n_errors = 0;
+	root = NULL;
+	bpf_pcap = NULL;
+	if (setjmp(top_ctx)) {
+		freechunks();
+		return (-1);
+	}
+
+	netmask = mask;
+
+	/* XXX needed? I don't grok the use of globals here. */
+	snaplen = snaplen_arg;
+
+	lex_init(buf ? buf : "");
+	init_linktype(linktype_arg);
+	(void)pcap_parse();
+
+	if (n_errors)
+		syntax();
+
+	if (root == NULL)
+		root = gen_retblk(snaplen_arg);
 
 	if (optimize) {
 		bpf_optimize(&root);
@@ -487,6 +563,7 @@ init_linktype(type)
 		return;
 
 	case DLT_PPP:
+	case DLT_CHDLC:
 		off_linktype = 2;
 		off_nl = 4;
 		return;
@@ -580,6 +657,10 @@ gen_linktype(proto)
 	case DLT_PPP:
 		if (proto == ETHERTYPE_IP)
 			proto = PPP_IP;			/* XXX was 0x21 */
+#ifdef INET6
+		else if (proto == ETHERTYPE_IPV6)
+			proto = PPP_IPV6;
+#endif
 		break;
 
 	case DLT_PPP_BSDOS:
@@ -592,6 +673,13 @@ gen_linktype(proto)
 			b0 = gen_cmp(off_linktype, BPF_H, PPP_VJNC);
 			gen_or(b1, b0);
 			return b0;
+
+#ifdef INET6
+		case ETHERTYPE_IPV6:
+			proto = PPP_IPV6;
+			/* more to go? */
+			break;
+#endif
 
 		case ETHERTYPE_DN:
 			proto = PPP_DECNET;
@@ -611,6 +699,10 @@ gen_linktype(proto)
 		/* XXX */
 		if (proto == ETHERTYPE_IP)
 			return (gen_cmp(0, BPF_W, (bpf_int32)htonl(AF_INET)));
+#ifdef INET6
+		else if (proto == ETHERTYPE_IPV6)
+			return (gen_cmp(0, BPF_W, (bpf_int32)htonl(AF_INET6)));
+#endif
 		else
 			return gen_false();
 	}
@@ -658,6 +750,60 @@ gen_hostop(addr, mask, dir, proto, src_off, dst_off)
 	gen_and(b0, b1);
 	return b1;
 }
+
+#ifdef INET6
+static struct block *
+gen_hostop6(addr, mask, dir, proto, src_off, dst_off)
+	struct in6_addr *addr;
+	struct in6_addr *mask;
+	int dir, proto;
+	u_int src_off, dst_off;
+{
+	struct block *b0, *b1;
+	u_int offset;
+	u_int32_t *a, *m;
+
+	switch (dir) {
+
+	case Q_SRC:
+		offset = src_off;
+		break;
+
+	case Q_DST:
+		offset = dst_off;
+		break;
+
+	case Q_AND:
+		b0 = gen_hostop6(addr, mask, Q_SRC, proto, src_off, dst_off);
+		b1 = gen_hostop6(addr, mask, Q_DST, proto, src_off, dst_off);
+		gen_and(b0, b1);
+		return b1;
+
+	case Q_OR:
+	case Q_DEFAULT:
+		b0 = gen_hostop6(addr, mask, Q_SRC, proto, src_off, dst_off);
+		b1 = gen_hostop6(addr, mask, Q_DST, proto, src_off, dst_off);
+		gen_or(b0, b1);
+		return b1;
+
+	default:
+		abort();
+	}
+	/* this order is important */
+	a = (u_int32_t *)addr;
+	m = (u_int32_t *)mask;
+	b1 = gen_mcmp(offset + 12, BPF_W, ntohl(a[3]), ntohl(m[3]));
+	b0 = gen_mcmp(offset + 8, BPF_W, ntohl(a[2]), ntohl(m[2]));
+	gen_and(b0, b1);
+	b0 = gen_mcmp(offset + 4, BPF_W, ntohl(a[1]), ntohl(m[1]));
+	gen_and(b0, b1);
+	b0 = gen_mcmp(offset + 0, BPF_W, ntohl(a[0]), ntohl(m[0]));
+	gen_and(b0, b1);
+	b0 = gen_linktype(proto);
+	gen_and(b0, b1);
+	return b1;
+}
+#endif /*INET6*/
 
 static struct block *
 gen_ehostop(eaddr, dir)
@@ -866,6 +1012,9 @@ gen_host(addr, mask, proto, dir)
 	case Q_IGRP:
 		bpf_error("'igrp' modifier applied to host");
 
+	case Q_PIM:
+		bpf_error("'pim' modifier applied to host");
+
 	case Q_ATALK:
 		bpf_error("ATALK host filtering not implemented");
 
@@ -884,11 +1033,105 @@ gen_host(addr, mask, proto, dir)
 	case Q_MOPRC:
 		bpf_error("MOPRC host filtering not implemented");
 
+#ifdef INET6
+	case Q_IPV6:
+		bpf_error("'ip6' modifier applied to ip host");
+
+	case Q_ICMPV6:
+		bpf_error("'icmp6' modifier applied to host");
+#endif /* INET6 */
+
+	case Q_AH:
+		bpf_error("'ah' modifier applied to host");
+
+	case Q_ESP:
+		bpf_error("'esp' modifier applied to host");
+
 	default:
 		abort();
 	}
 	/* NOTREACHED */
 }
+
+#ifdef INET6
+static struct block *
+gen_host6(addr, mask, proto, dir)
+	struct in6_addr *addr;
+	struct in6_addr *mask;
+	int proto;
+	int dir;
+{
+	struct block *b0, *b1;
+
+	switch (proto) {
+
+	case Q_DEFAULT:
+		return gen_host6(addr, mask, Q_IPV6, dir);
+
+	case Q_IP:
+		bpf_error("'ip' modifier applied to ip6 host");
+
+	case Q_RARP:
+		bpf_error("'rarp' modifier applied to ip6 host");
+
+	case Q_ARP:
+		bpf_error("'arp' modifier applied to ip6 host");
+
+	case Q_TCP:
+		bpf_error("'tcp' modifier applied to host");
+
+	case Q_UDP:
+		bpf_error("'udp' modifier applied to host");
+
+	case Q_ICMP:
+		bpf_error("'icmp' modifier applied to host");
+
+	case Q_IGMP:
+		bpf_error("'igmp' modifier applied to host");
+
+	case Q_IGRP:
+		bpf_error("'igrp' modifier applied to host");
+
+	case Q_PIM:
+		bpf_error("'pim' modifier applied to host");
+
+	case Q_ATALK:
+		bpf_error("ATALK host filtering not implemented");
+
+	case Q_DECNET:
+		bpf_error("'decnet' modifier applied to ip6 host");
+
+	case Q_SCA:
+		bpf_error("SCA host filtering not implemented");
+
+	case Q_LAT:
+		bpf_error("LAT host filtering not implemented");
+
+	case Q_MOPDL:
+		bpf_error("MOPDL host filtering not implemented");
+
+	case Q_MOPRC:
+		bpf_error("MOPRC host filtering not implemented");
+
+	case Q_IPV6:
+		return gen_hostop6(addr, mask, dir, ETHERTYPE_IPV6,
+				  off_nl + 8, off_nl + 24);
+
+	case Q_ICMPV6:
+		bpf_error("'icmp6' modifier applied to host");
+
+	case Q_AH:
+		bpf_error("'ah' modifier applied to host");
+
+	case Q_ESP:
+		bpf_error("'esp' modifier applied to host");
+
+	default:
+		abort();
+	}
+	/* NOTREACHED */
+}
+#endif /*INET6*/
 
 static struct block *
 gen_gateway(eaddr, alist, proto, dir)
@@ -938,36 +1181,47 @@ gen_proto_abbrev(proto)
 	switch (proto) {
 
 	case Q_TCP:
-		b0 = gen_linktype(ETHERTYPE_IP);
-		b1 = gen_cmp(off_nl + 9, BPF_B, (bpf_int32)IPPROTO_TCP);
-		gen_and(b0, b1);
+		b1 = gen_proto(IPPROTO_TCP, Q_IP, Q_DEFAULT);
+#ifdef INET6
+		b0 = gen_proto(IPPROTO_TCP, Q_IPV6, Q_DEFAULT);
+		gen_or(b0, b1);
+#endif
 		break;
 
 	case Q_UDP:
-		b0 =  gen_linktype(ETHERTYPE_IP);
-		b1 = gen_cmp(off_nl + 9, BPF_B, (bpf_int32)IPPROTO_UDP);
-		gen_and(b0, b1);
+		b1 = gen_proto(IPPROTO_UDP, Q_IP, Q_DEFAULT);
+#ifdef INET6
+		b0 = gen_proto(IPPROTO_UDP, Q_IPV6, Q_DEFAULT);
+		gen_or(b0, b1);
+#endif
 		break;
 
 	case Q_ICMP:
-		b0 =  gen_linktype(ETHERTYPE_IP);
-		b1 = gen_cmp(off_nl + 9, BPF_B, (bpf_int32)IPPROTO_ICMP);
-		gen_and(b0, b1);
+		b1 = gen_proto(IPPROTO_ICMP, Q_IP, Q_DEFAULT);
 		break;
 
 	case Q_IGMP:
-		b0 =  gen_linktype(ETHERTYPE_IP);
-		b1 = gen_cmp(off_nl + 9, BPF_B, (bpf_int32)2);
-		gen_and(b0, b1);
+		b1 = gen_proto(2, Q_IP, Q_DEFAULT);
 		break;
 
 #ifndef	IPPROTO_IGRP
 #define	IPPROTO_IGRP	9
 #endif
 	case Q_IGRP:
-		b0 =  gen_linktype(ETHERTYPE_IP);
-		b1 = gen_cmp(off_nl + 9, BPF_B, (long)IPPROTO_IGRP);
+		b1 = gen_proto(IPPROTO_IGRP, Q_IP, Q_DEFAULT);
 		gen_and(b0, b1);
+		break;
+
+#ifndef IPPROTO_PIM
+#define IPPROTO_PIM	103
+#endif
+
+	case Q_PIM:
+		b1 = gen_proto(IPPROTO_PIM, Q_IP, Q_DEFAULT);
+#ifdef INET6
+		b0 = gen_proto(IPPROTO_PIM, Q_IPV6, Q_DEFAULT);
+		gen_or(b0, b1);
+#endif
 		break;
 
 	case Q_IP:
@@ -1007,6 +1261,41 @@ gen_proto_abbrev(proto)
 
 	case Q_MOPRC:
 		b1 =  gen_linktype(ETHERTYPE_MOPRC);
+		break;
+
+#ifdef INET6
+	case Q_IPV6:
+		b1 = gen_linktype(ETHERTYPE_IPV6);
+		break;
+
+#ifndef IPPROTO_ICMPV6
+#define IPPROTO_ICMPV6	58
+#endif
+	case Q_ICMPV6:
+		b1 = gen_proto(IPPROTO_ICMPV6, Q_IPV6, Q_DEFAULT);
+		break;
+#endif /* INET6 */
+
+#ifndef IPPROTO_AH
+#define IPPROTO_AH	51
+#endif
+	case Q_AH:
+		b1 = gen_proto(IPPROTO_AH, Q_IP, Q_DEFAULT);
+#ifdef INET6
+		b0 = gen_proto(IPPROTO_AH, Q_IPV6, Q_DEFAULT);
+		gen_or(b0, b1);
+#endif
+		break;
+
+#ifndef IPPROTO_ESP
+#define IPPROTO_ESP	50
+#endif
+	case Q_ESP:
+		b1 = gen_proto(IPPROTO_ESP, Q_IP, Q_DEFAULT);
+#ifdef INET6
+		b0 = gen_proto(IPPROTO_ESP, Q_IPV6, Q_DEFAULT);
+		gen_or(b0, b1);
+#endif
 		break;
 
 	default:
@@ -1052,6 +1341,16 @@ gen_portatom(off, v)
 
 	return b;
 }
+
+#ifdef INET6
+static struct block *
+gen_portatom6(off, v)
+	int off;
+	bpf_int32 v;
+{
+	return gen_cmp(off_nl + 40 + off, BPF_H, v);
+}
+#endif/*INET6*/
 
 struct block *
 gen_portop(port, proto, dir)
@@ -1124,6 +1423,77 @@ gen_port(port, ip_proto, dir)
 	return b1;
 }
 
+#ifdef INET6
+struct block *
+gen_portop6(port, proto, dir)
+	int port, proto, dir;
+{
+	struct block *b0, *b1, *tmp;
+
+	/* ip proto 'proto' */
+	b0 = gen_cmp(off_nl + 6, BPF_B, (bpf_int32)proto);
+
+	switch (dir) {
+	case Q_SRC:
+		b1 = gen_portatom6(0, (bpf_int32)port);
+		break;
+
+	case Q_DST:
+		b1 = gen_portatom6(2, (bpf_int32)port);
+		break;
+
+	case Q_OR:
+	case Q_DEFAULT:
+		tmp = gen_portatom6(0, (bpf_int32)port);
+		b1 = gen_portatom6(2, (bpf_int32)port);
+		gen_or(tmp, b1);
+		break;
+
+	case Q_AND:
+		tmp = gen_portatom6(0, (bpf_int32)port);
+		b1 = gen_portatom6(2, (bpf_int32)port);
+		gen_and(tmp, b1);
+		break;
+
+	default:
+		abort();
+	}
+	gen_and(b0, b1);
+
+	return b1;
+}
+
+static struct block *
+gen_port6(port, ip_proto, dir)
+	int port;
+	int ip_proto;
+	int dir;
+{
+	struct block *b0, *b1, *tmp;
+
+	/* ether proto ip */
+	b0 =  gen_linktype(ETHERTYPE_IPV6);
+
+	switch (ip_proto) {
+	case IPPROTO_UDP:
+	case IPPROTO_TCP:
+		b1 = gen_portop6(port, ip_proto, dir);
+		break;
+
+	case PROTO_UNDEF:
+		tmp = gen_portop6(port, IPPROTO_TCP, dir);
+		b1 = gen_portop6(port, IPPROTO_UDP, dir);
+		gen_or(tmp, b1);
+		break;
+
+	default:
+		abort();
+	}
+	gen_and(b0, b1);
+	return b1;
+}
+#endif /* INET6 */
+
 static int
 lookup_proto(name, proto)
 	register const char *name;
@@ -1154,6 +1524,317 @@ lookup_proto(name, proto)
 	return v;
 }
 
+struct stmt *
+gen_joinsp(s, n)
+	struct stmt **s;
+	int n;
+{
+}
+
+struct block *
+gen_protochain(v, proto, dir)
+	int v;
+	int proto;
+	int dir;
+{
+#ifdef NO_PROTOCHAIN
+	return gen_proto(v, proto, dir);
+#else
+	struct block *b0, *b;
+	struct slist *s[100], *sp;
+	int fix2, fix3, fix4, fix5;
+	int ahcheck, again, end;
+	int i, max;
+	int reg1 = alloc_reg();
+	int reg2 = alloc_reg();
+
+	memset(s, 0, sizeof(s));
+	fix2 = fix3 = fix4 = fix5 = 0;
+
+	switch (proto) {
+	case Q_IP:
+	case Q_IPV6:
+		break;
+	case Q_DEFAULT:
+		b0 = gen_protochain(v, Q_IP, dir);
+		b = gen_protochain(v, Q_IPV6, dir);
+		gen_or(b0, b);
+		return b;
+	default:
+		bpf_error("bad protocol applied for 'protochain'");
+		/*NOTREACHED*/
+	}
+
+	no_optimize = 1; /*this code is not compatible with optimzer yet */
+
+	/*
+	 * s[0] is a dummy entry to protect other BPF insn from damaged
+	 * by s[fix] = foo with uninitialized variable "fix".  It is somewhat
+	 * hard to find interdependency made by jump table fixup.
+	 */
+	i = 0;
+	s[i] = new_stmt(0);	/*dummy*/
+	i++;
+
+	switch (proto) {
+	case Q_IP:
+		b0 = gen_linktype(ETHERTYPE_IP);
+
+		/* A = ip->ip_p */
+		s[i] = new_stmt(BPF_LD|BPF_ABS|BPF_B);
+		s[i]->s.k = off_nl + 9;
+		i++;
+		/* X = ip->ip_hl << 2 */
+		s[i] = new_stmt(BPF_LDX|BPF_MSH|BPF_B);
+		s[i]->s.k = off_nl;
+		i++;
+		break;
+#ifdef INET6
+	case Q_IPV6:
+		b0 = gen_linktype(ETHERTYPE_IPV6);
+
+		/* A = ip6->ip_nxt */
+		s[i] = new_stmt(BPF_LD|BPF_ABS|BPF_B);
+		s[i]->s.k = off_nl + 6;
+		i++;
+		/* X = sizeof(struct ip6_hdr) */
+		s[i] = new_stmt(BPF_LDX|BPF_IMM);
+		s[i]->s.k = 40;
+		i++;
+		break;
+#endif
+	default:
+		bpf_error("unsupported proto to gen_protochain");
+		/*NOTREACHED*/
+	}
+
+	/* again: if (A == v) goto end; else fall through; */
+	again = i;
+	s[i] = new_stmt(BPF_JMP|BPF_JEQ|BPF_K);
+	s[i]->s.k = v;
+	s[i]->s.jt = NULL;		/*later*/
+	s[i]->s.jf = NULL;		/*update in next stmt*/
+	fix5 = i;
+	i++;
+
+#ifndef IPPROTO_NONE
+#define IPPROTO_NONE	59
+#endif
+	/* if (A == IPPROTO_NONE) goto end */
+	s[i] = new_stmt(BPF_JMP|BPF_JEQ|BPF_K);
+	s[i]->s.jt = NULL;	/*later*/
+	s[i]->s.jf = NULL;	/*update in next stmt*/
+	s[i]->s.k = IPPROTO_NONE;
+	s[fix5]->s.jf = s[i];
+	fix2 = i;
+	i++;
+
+#ifdef INET6
+	if (proto == Q_IPV6) {
+		int v6start, v6end, v6advance, j;
+
+		v6start = i;
+		/* if (A == IPPROTO_HOPOPTS) goto v6advance */
+		s[i] = new_stmt(BPF_JMP|BPF_JEQ|BPF_K);
+		s[i]->s.jt = NULL;	/*later*/
+		s[i]->s.jf = NULL;	/*update in next stmt*/
+		s[i]->s.k = IPPROTO_HOPOPTS;
+		s[fix2]->s.jf = s[i];
+		i++;
+		/* if (A == IPPROTO_DSTOPTS) goto v6advance */
+		s[i - 1]->s.jf = s[i] = new_stmt(BPF_JMP|BPF_JEQ|BPF_K);
+		s[i]->s.jt = NULL;	/*later*/
+		s[i]->s.jf = NULL;	/*update in next stmt*/
+		s[i]->s.k = IPPROTO_DSTOPTS;
+		i++;
+		/* if (A == IPPROTO_ROUTING) goto v6advance */
+		s[i - 1]->s.jf = s[i] = new_stmt(BPF_JMP|BPF_JEQ|BPF_K);
+		s[i]->s.jt = NULL;	/*later*/
+		s[i]->s.jf = NULL;	/*update in next stmt*/
+		s[i]->s.k = IPPROTO_ROUTING;
+		i++;
+		/* if (A == IPPROTO_FRAGMENT) goto v6advance; else goto ahcheck; */
+		s[i - 1]->s.jf = s[i] = new_stmt(BPF_JMP|BPF_JEQ|BPF_K);
+		s[i]->s.jt = NULL;	/*later*/
+		s[i]->s.jf = NULL;	/*later*/
+		s[i]->s.k = IPPROTO_FRAGMENT;
+		fix3 = i;
+		v6end = i;
+		i++;
+
+		/* v6advance: */
+		v6advance = i;
+
+		/*
+		 * in short,
+		 * A = P[X + 1];
+		 * X = X + (P[X] + 1) * 8;
+		 */
+		/* A = X */
+		s[i] = new_stmt(BPF_MISC|BPF_TXA);
+		i++;
+		/* MEM[reg1] = A */
+		s[i] = new_stmt(BPF_ST);
+		s[i]->s.k = reg1;
+		i++;
+		/* A += 1 */
+		s[i] = new_stmt(BPF_ALU|BPF_ADD|BPF_K);
+		s[i]->s.k = 1;
+		i++;
+		/* X = A */
+		s[i] = new_stmt(BPF_MISC|BPF_TAX);
+		i++;
+		/* A = P[X + packet head]; */
+		s[i] = new_stmt(BPF_LD|BPF_IND|BPF_B);
+		s[i]->s.k = off_nl;
+		i++;
+		/* MEM[reg2] = A */
+		s[i] = new_stmt(BPF_ST);
+		s[i]->s.k = reg2;
+		i++;
+		/* X = MEM[reg1] */
+		s[i] = new_stmt(BPF_LDX|BPF_MEM);
+		s[i]->s.k = reg1;
+		i++;
+		/* A = P[X + packet head] */
+		s[i] = new_stmt(BPF_LD|BPF_IND|BPF_B);
+		s[i]->s.k = off_nl;
+		i++;
+		/* A += 1 */
+		s[i] = new_stmt(BPF_ALU|BPF_ADD|BPF_K);
+		s[i]->s.k = 1;
+		i++;
+		/* A *= 8 */
+		s[i] = new_stmt(BPF_ALU|BPF_MUL|BPF_K);
+		s[i]->s.k = 8;
+		i++;
+		/* X = A; */
+		s[i] = new_stmt(BPF_MISC|BPF_TAX);
+		i++;
+		/* A = MEM[reg2] */
+		s[i] = new_stmt(BPF_LD|BPF_MEM);
+		s[i]->s.k = reg2;
+		i++;
+
+		/* goto again; (must use BPF_JA for backward jump) */
+		s[i] = new_stmt(BPF_JMP|BPF_JA);
+		s[i]->s.k = again - i - 1;
+		s[i - 1]->s.jf = s[i];
+		i++;
+
+		/* fixup */
+		for (j = v6start; j <= v6end; j++)
+			s[j]->s.jt = s[v6advance];
+	} else
+#endif
+	{
+		/* nop */
+		s[i] = new_stmt(BPF_ALU|BPF_ADD|BPF_K);
+		s[i]->s.k = 0;
+		s[fix2]->s.jf = s[i];
+		i++;
+	}
+
+	/* ahcheck: */
+	ahcheck = i;
+	/* if (A == IPPROTO_AH) then fall through; else goto end; */
+	s[i] = new_stmt(BPF_JMP|BPF_JEQ|BPF_K);
+	s[i]->s.jt = NULL;	/*later*/
+	s[i]->s.jf = NULL;	/*later*/
+	s[i]->s.k = IPPROTO_AH;
+	if (fix3)
+		s[fix3]->s.jf = s[ahcheck];
+	fix4 = i;
+	i++;
+
+	/*
+	 * in short,
+	 * A = P[X + 1];
+	 * X = X + (P[X] + 2) * 4;
+	 */
+	/* A = X */
+	s[i - 1]->s.jt = s[i] = new_stmt(BPF_MISC|BPF_TXA);
+	i++;
+	/* MEM[reg1] = A */
+	s[i] = new_stmt(BPF_ST);
+	s[i]->s.k = reg1;
+	i++;
+	/* A += 1 */
+	s[i] = new_stmt(BPF_ALU|BPF_ADD|BPF_K);
+	s[i]->s.k = 1;
+	i++;
+	/* X = A */
+	s[i] = new_stmt(BPF_MISC|BPF_TAX);
+	i++;
+	/* A = P[X + packet head]; */
+	s[i] = new_stmt(BPF_LD|BPF_IND|BPF_B);
+	s[i]->s.k = off_nl;
+	i++;
+	/* MEM[reg2] = A */
+	s[i] = new_stmt(BPF_ST);
+	s[i]->s.k = reg2;
+	i++;
+	/* X = MEM[reg1] */
+	s[i] = new_stmt(BPF_LDX|BPF_MEM);
+	s[i]->s.k = reg1;
+	i++;
+	/* A = P[X + packet head] */
+	s[i] = new_stmt(BPF_LD|BPF_IND|BPF_B);
+	s[i]->s.k = off_nl;
+	i++;
+	/* A += 2 */
+	s[i] = new_stmt(BPF_ALU|BPF_ADD|BPF_K);
+	s[i]->s.k = 2;
+	i++;
+	/* A *= 4 */
+	s[i] = new_stmt(BPF_ALU|BPF_MUL|BPF_K);
+	s[i]->s.k = 4;
+	i++;
+	/* X = A; */
+	s[i] = new_stmt(BPF_MISC|BPF_TAX);
+	i++;
+	/* A = MEM[reg2] */
+	s[i] = new_stmt(BPF_LD|BPF_MEM);
+	s[i]->s.k = reg2;
+	i++;
+
+	/* goto again; (must use BPF_JA for backward jump) */
+	s[i] = new_stmt(BPF_JMP|BPF_JA);
+	s[i]->s.k = again - i - 1;
+	i++;
+
+	/* end: nop */
+	end = i;
+	s[i] = new_stmt(BPF_ALU|BPF_ADD|BPF_K);
+	s[i]->s.k = 0;
+	s[fix2]->s.jt = s[end];
+	s[fix4]->s.jf = s[end];
+	s[fix5]->s.jt = s[end];
+	i++;
+
+	/*
+	 * make slist chain
+	 */
+	max = i;
+	for (i = 0; i < max - 1; i++)
+		s[i]->next = s[i + 1];
+	s[max - 1]->next = NULL;
+
+	/*
+	 * emit final check
+	 */
+	b = new_block(JMP(BPF_JEQ));
+	b->stmts = s[1];	/*remember, s[0] is dummy*/
+	b->s.k = v;
+
+	free_reg(reg1);
+	free_reg(reg2);
+
+	gen_and(b0, b);
+	return b;
+#endif
+}
+
 static struct block *
 gen_proto(v, proto, dir)
 	int v;
@@ -1167,9 +1848,21 @@ gen_proto(v, proto, dir)
 
 	switch (proto) {
 	case Q_DEFAULT:
+#ifdef INET6
+		b0 = gen_proto(v, Q_IP, dir);
+		b1 = gen_proto(v, Q_IPV6, dir);
+		gen_or(b0, b1);
+		return b1;
+#else
+		/*FALLTHROUGH*/
+#endif
 	case Q_IP:
 		b0 = gen_linktype(ETHERTYPE_IP);
+#ifndef CHASE_CHAIN
 		b1 = gen_cmp(off_nl + 9, BPF_B, (bpf_int32)v);
+#else
+		b1 = gen_protochain(v, Q_IP);
+#endif
 		gen_and(b0, b1);
 		return b1;
 
@@ -1228,6 +1921,31 @@ gen_proto(v, proto, dir)
 		bpf_error("'igrp proto' is bogus");
 		/* NOTREACHED */
 
+	case Q_PIM:
+		bpf_error("'pim proto' is bogus");
+		/* NOTREACHED */
+
+#ifdef INET6
+	case Q_IPV6:
+		b0 = gen_linktype(ETHERTYPE_IPV6);
+#ifndef CHASE_CHAIN
+		b1 = gen_cmp(off_nl + 6, BPF_B, (bpf_int32)v);
+#else
+		b1 = gen_protochain(v, Q_IPV6);
+#endif
+		gen_and(b0, b1);
+		return b1;
+
+	case Q_ICMPV6:
+		bpf_error("'icmp6 proto' is bogus");
+#endif /* INET6 */
+
+	case Q_AH:
+		bpf_error("'ah proto' is bogus");
+
+	case Q_ESP:
+		bpf_error("'ah proto' is bogus");
+
 	default:
 		abort();
 		/* NOTREACHED */
@@ -1245,6 +1963,13 @@ gen_scode(name, q)
 	int tproto;
 	u_char *eaddr;
 	bpf_u_int32 mask, addr, **alist;
+#ifdef INET6
+	int tproto6;
+	struct sockaddr_in *sin;
+	struct sockaddr_in6 *sin6;
+	struct addrinfo *res, *res0;
+	struct in6_addr mask128;
+#endif /*INET6*/
 	struct block *b, *tmp;
 	int port, real_proto;
 
@@ -1294,6 +2019,7 @@ gen_scode(name, q)
 			 */
 			return (gen_host(dn_addr, 0, proto, dir));
 		} else {
+#ifndef INET6
 			alist = pcap_nametoaddr(name);
 			if (alist == NULL || *alist == NULL)
 				bpf_error("unknown host '%s'", name);
@@ -1308,6 +2034,41 @@ gen_scode(name, q)
 				b = tmp;
 			}
 			return b;
+#else
+			memset(&mask128, 0xff, sizeof(mask128));
+			res0 = res = pcap_nametoaddr(name);
+			if (res == NULL)
+				bpf_error("unknown host '%s'", name);
+			b = tmp = NULL;
+			tproto = tproto6 = proto;
+			if (off_linktype == -1 && tproto == Q_DEFAULT) {
+				tproto = Q_IP;
+				tproto6 = Q_IPV6;
+			}
+			while (res) {
+				switch (res->ai_family) {
+				case AF_INET:
+					sin = (struct sockaddr_in *)
+						res->ai_addr;
+					tmp = gen_host(ntohl(sin->sin_addr.s_addr),
+						0xffffffff, tproto, dir);
+					break;
+				case AF_INET6:
+					sin6 = (struct sockaddr_in6 *)
+						res->ai_addr;
+					tmp = gen_host6(&sin6->sin6_addr,
+						&mask128, tproto6, dir);
+					break;
+				}
+				if (b)
+					gen_or(b, tmp);
+				b = tmp;
+
+				res = res->ai_next;
+			}
+			freeaddrinfo(res0);
+			return b;
+#endif /*INET6*/
 		}
 
 	case Q_PORT:
@@ -1329,9 +2090,19 @@ gen_scode(name, q)
 				/* override PROTO_UNDEF */
 				real_proto = IPPROTO_TCP;
 		}
+#ifndef INET6
 		return gen_port(port, real_proto, dir);
+#else
+	    {
+		struct block *b;
+		b = gen_port(port, real_proto, dir);
+		gen_or(gen_port6(port, real_proto, dir), b);
+		return b;
+	    }
+#endif /* INET6 */
 
 	case Q_GATEWAY:
+#ifndef INET6
 		eaddr = pcap_ether_hostton(name);
 		if (eaddr == NULL)
 			bpf_error("unknown ether host: %s", name);
@@ -1340,6 +2111,9 @@ gen_scode(name, q)
 		if (alist == NULL || *alist == NULL)
 			bpf_error("unknown host '%s'", name);
 		return gen_gateway(eaddr, alist, proto, dir);
+#else
+		bpf_error("'gateway' not supported in this configuration");
+#endif /*INET6*/
 
 	case Q_PROTO:
 		real_proto = lookup_proto(name, proto);
@@ -1347,6 +2121,14 @@ gen_scode(name, q)
 			return gen_proto(real_proto, proto, dir);
 		else
 			bpf_error("unknown protocol: %s", name);
+
+	case Q_PROTOCHAIN:
+		real_proto = lookup_proto(name, proto);
+		if (real_proto >= 0)
+			return gen_protochain(real_proto, proto, dir);
+		else
+			bpf_error("unknown protocol: %s", name);
+
 
 	case Q_UNDEF:
 		syntax();
@@ -1450,7 +2232,16 @@ gen_ncode(s, v, q)
 		else
 			bpf_error("illegal qualifier of 'port'");
 
+#ifndef INET6
 		return gen_port((int)v, proto, dir);
+#else
+	    {
+		struct block *b;
+		b = gen_port((int)v, proto, dir);
+		gen_or(gen_port6((int)v, proto, dir), b);
+		return b;
+	    }
+#endif /* INET6 */
 
 	case Q_GATEWAY:
 		bpf_error("'gateway' requires a name");
@@ -1458,6 +2249,9 @@ gen_ncode(s, v, q)
 
 	case Q_PROTO:
 		return gen_proto((int)v, proto, dir);
+
+	case Q_PROTOCHAIN:
+		return gen_protochain((int)v, proto, dir);
 
 	case Q_UNDEF:
 		syntax();
@@ -1469,6 +2263,64 @@ gen_ncode(s, v, q)
 	}
 	/* NOTREACHED */
 }
+
+#ifdef INET6
+struct block *
+gen_mcode6(s1, s2, masklen, q)
+	register const char *s1, *s2;
+	register int masklen;
+	struct qual q;
+{
+	struct addrinfo *res;
+	struct in6_addr *addr;
+	struct in6_addr mask;
+	struct block *b;
+	u_int32_t *a, *m;
+
+	if (s2)
+		bpf_error("no mask %s supported", s2);
+
+	res = pcap_nametoaddr(s1);
+	if (!res)
+		bpf_error("invalid ip6 address %s", s1);
+	if (res->ai_next)
+		bpf_error("%s resolved to multiple address", s1);
+	addr = &((struct sockaddr_in6 *)res->ai_addr)->sin6_addr;
+
+	if (sizeof(mask) * 8 < masklen)
+		bpf_error("mask length must be <= %u", (unsigned int)(sizeof(mask) * 8));
+	memset(&mask, 0xff, masklen / 8);
+	if (masklen % 8) {
+		mask.s6_addr[masklen / 8] =
+			(0xff << (8 - masklen % 8)) & 0xff;
+	}
+
+	a = (u_int32_t *)addr;
+	m = (u_int32_t *)&mask;
+	if ((a[0] & ~m[0]) || (a[1] & ~m[1])
+	 || (a[2] & ~m[2]) || (a[3] & ~m[3])) {
+		bpf_error("non-network bits set in \"%s/%d\"", s1, masklen);
+	}
+
+	switch (q.addr) {
+
+	case Q_DEFAULT:
+	case Q_HOST:
+		if (masklen != 128)
+			bpf_error("Mask syntax for networks only");
+		/* FALLTHROUGH */
+
+	case Q_NET:
+		b = gen_host6(addr, &mask, q.proto, q.dir);
+		freeaddrinfo(res);
+		return b;
+
+	default:
+		bpf_error("invalid qualifier against IPv6 address");
+		/* NOTREACHED */
+	}
+}
+#endif /*INET6*/
 
 struct block *
 gen_ecode(eaddr, q)
@@ -1568,6 +2420,9 @@ gen_load(proto, index, size)
 	case Q_LAT:
 	case Q_MOPRC:
 	case Q_MOPDL:
+#ifdef INET6
+	case Q_IPV6:
+#endif
 		/* XXX Note that we assume a fixed link link header here. */
 		s = xfer_to_x(index);
 		tmp = new_stmt(BPF_LD|BPF_IND|size);
@@ -1586,6 +2441,7 @@ gen_load(proto, index, size)
 	case Q_ICMP:
 	case Q_IGMP:
 	case Q_IGRP:
+	case Q_PIM:
 		s = new_stmt(BPF_LDX|BPF_MSH|BPF_B);
 		s->s.k = off_nl;
 		sappend(s, xfer_to_a(index));
@@ -1598,8 +2454,16 @@ gen_load(proto, index, size)
 		gen_and(gen_proto_abbrev(proto), b = gen_ipfrag());
 		if (index->b)
 			gen_and(index->b, b);
+#ifdef INET6
+		gen_and(gen_proto_abbrev(Q_IP), b);
+#endif
 		index->b = b;
 		break;
+#ifdef INET6
+	case Q_ICMPV6:
+		bpf_error("IPv6 upper-layer protocol is not supported by proto[x]");
+		/*NOTREACHED*/
+#endif
 	}
 	index->regno = regno;
 	s = new_stmt(BPF_ST);
@@ -1921,6 +2785,14 @@ gen_multicast(proto)
 		b1->s.code = JMP(BPF_JGE);
 		gen_and(b0, b1);
 		return b1;
+
+#ifdef INET6
+	case Q_IPV6:
+		b0 = gen_linktype(ETHERTYPE_IPV6);
+		b1 = gen_cmp(off_nl + 24, BPF_B, (bpf_int32)255);
+		gen_and(b0, b1);
+		return b1;
+#endif /* INET6 */
 	}
 	bpf_error("only IP multicast filters supported on ethernet/FDDI");
 }
