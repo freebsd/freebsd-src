@@ -21,20 +21,21 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#ifndef lint
+static const char rcsid[] =
+  "$FreeBSD$";
+#endif /* not lint */
 
 #include <assert.h>
 #include <ctype.h>
+#include <err.h>
 #include <fcntl.h>
-#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <unistd.h>
 
-#include <sys/types.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 
@@ -81,7 +82,6 @@ static void dump_syms();
 
 static void dump_rtsyms();
 
-static void error(const char *, ...);
 static const char *rtsym_name(unsigned long);
 static const char *sym_name(unsigned long);
 
@@ -129,6 +129,7 @@ static unsigned char *rtsym_used;
 static unsigned long origin;	/* What values are relocated relative to */
 
 #ifdef STANDALONE
+int
 main(int argc, char *argv[])
 {
     int i;
@@ -151,23 +152,27 @@ dump_file(const char *fname)
     caddr_t objbase;
 
     if (stat(fname, &sb) == -1) {
-	error("Cannot stat \"%s\"", fname);
+	warnx("cannot stat \"%s\"", fname);
+	++error_count;
 	return;
     }
 
     if ((sb.st_mode & S_IFMT) != S_IFREG) {
-	error("\"%s\" is not a regular file", fname);
+	warnx("\"%s\" is not a regular file", fname);
+	++error_count;
 	return;
     }
 
     if ((fd = open(fname, O_RDONLY, 0)) == -1) {
-	error("Cannot open \"%s\"", fname);
+	warnx("cannot open \"%s\"", fname);
+	++error_count;
 	return;
     }
 
     objbase = mmap(0, sb.st_size, PROT_READ, MAP_SHARED, fd, 0);
     if (objbase == (caddr_t) -1) {
-	error("Cannot mmap \"%s\"", fname);
+	warnx("cannot mmap \"%s\"", fname);
+	++error_count;
 	close(fd);
 	return;
     }
@@ -177,7 +182,8 @@ dump_file(const char *fname)
     file_base = (const char *) objbase;	/* Makes address arithmetic easier */
 
     if (IS_ELF(*(Elf32_Ehdr*) file_base)) {
-	error("%s: this is an ELF program; use objdump to examine.", fname);
+	warnx("%s: this is an ELF program; use objdump to examine", fname);
+	++error_count;
 	munmap(objbase, sb.st_size);
 	close(fd);
 	return;
@@ -191,7 +197,8 @@ dump_file(const char *fname)
 	N_GETMAGIC_NET(*ex), N_GETMAGIC_NET(*ex));
 
     if (N_BADMAG(*ex)) {
-	error("%s: Bad magic number", fname);
+	warnx("%s: bad magic number", fname);
+	++error_count;
 	munmap(objbase, sb.st_size);
 	return;
     }
@@ -522,19 +529,6 @@ dump_syms()
 	dump_sym(&sym_base[i]);
 	printf(" %s\n", sym_name(i));
     }
-}
-
-static void
-error(const char *format, ...)
-{
-    va_list ap;
-
-    va_start(ap, format);
-    vfprintf(stderr, format, ap);
-    va_end(ap);
-    putc('\n', stderr);
-
-    ++error_count;
 }
 
 static const char *
