@@ -738,7 +738,7 @@ write_vc(ctp, buf, len)
 			}
 		}
 	} else {
-		for (cnt = len; cnt > 0; cnt -= i, buf += i) {
+		for (cnt = len; cnt > 0; cnt -= i, buf = (char *)buf + i) {
 			if ((i = _write(ct->ct_fd, buf, (size_t)cnt)) == -1) {
 				ct->ct_error.re_errno = errno;
 				ct->ct_error.re_status = RPC_CANTSEND;
