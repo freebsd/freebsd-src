@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_xl.c,v 1.21 1998/12/14 06:32:57 dillon Exp $
+ *	$Id: if_xl.c,v 1.22 1998/12/24 17:50:34 wpaul Exp $
  */
 
 /*
@@ -147,7 +147,7 @@
 
 #if !defined(lint)
 static const char rcsid[] =
-	"$Id: if_xl.c,v 1.21 1998/12/14 06:32:57 dillon Exp $";
+	"$Id: if_xl.c,v 1.22 1998/12/24 17:50:34 wpaul Exp $";
 #endif
 
 /*
@@ -1462,6 +1462,7 @@ xl_attach(config_id, unit)
 	ifp->if_watchdog = xl_watchdog;
 	ifp->if_init = xl_init;
 	ifp->if_baudrate = 10000000;
+	ifp->if_snd.ifq_maxlen = XL_TX_LIST_CNT - 1;
 
 	/*
 	 * Figure out the card type. 3c905B adapters have the
