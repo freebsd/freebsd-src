@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_subs.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_subs.c,v 1.9 1995/02/06 02:20:40 davidg Exp $
+ * $Id: nfs_subs.c,v 1.10 1995/02/15 03:40:00 davidg Exp $
  */
 
 /*
@@ -70,6 +70,8 @@
 #include <nfs/nfsrtt.h>
 
 #include <miscfs/specfs/specdev.h>
+
+#include <vm/vnode_pager.h>
 
 #include <netinet/in.h>
 #ifdef ISO
@@ -1173,7 +1175,6 @@ netaddr_match(family, haddr, nam)
 
 int
 nfsrv_vmio( struct vnode *vp) {
-	int rtval;
 	vm_object_t object;
 	vm_pager_t pager;
 
@@ -1182,7 +1183,7 @@ nfsrv_vmio( struct vnode *vp) {
 
 retry:
 	if( (vp->v_flag & VVMIO) == 0) {
-		pager = (vm_pager_t) vnode_pager_alloc(vp, 0, 0, 0);
+		pager = (vm_pager_t) vnode_pager_alloc((caddr_t) vp, 0, 0, 0);
 		object = (vm_object_t) vp->v_vmdata;
 		if( object->pager != pager)
 			panic("nfsrv_vmio: pager/object mismatch");
