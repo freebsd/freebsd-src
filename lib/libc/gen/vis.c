@@ -29,13 +29,13 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)vis.c	8.1 (Berkeley) 7/19/93";
 #endif /* LIBC_SCCS and not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <limits.h>
@@ -50,9 +50,9 @@ static char sccsid[] = "@(#)vis.c	8.1 (Berkeley) 7/19/93";
  */
 char *
 vis(dst, c, flag, nextc)
-	register char *dst;
+	char *dst;
 	int c, nextc;
-	register int flag;
+	int flag;
 {
 	c = (unsigned char)c;
 
@@ -71,7 +71,10 @@ vis(dst, c, flag, nextc)
 		}
 	}
 
-	if (isgraph(c) ||
+	if ((flag & VIS_GLOB) &&
+	    (c == '*' || c == '?' || c == '[' || c == '#'))
+		;
+	else if (isgraph(c) ||
 	   ((flag & VIS_SP) == 0 && c == ' ') ||
 	   ((flag & VIS_TAB) == 0 && c == '\t') ||
 	   ((flag & VIS_NL) == 0 && c == '\n') ||
@@ -97,11 +100,7 @@ vis(dst, c, flag, nextc)
 			*dst++ = '\\';
 			*dst++ = 'b';
 			goto done;
-#if __STDC__
 		case '\a':
-#else
-		case '\007':
-#endif
 			*dst++ = '\\';
 			*dst++ = 'a';
 			goto done;
@@ -131,7 +130,7 @@ vis(dst, c, flag, nextc)
 			goto done;
 		}
 	}
-	if (((c & 0177) == ' ') || (flag & VIS_OCTAL)) {
+	if (((c & 0177) == ' ') || isgraph(c) || (flag & VIS_OCTAL)) {
 		*dst++ = '\\';
 		*dst++ = ((u_char)c >> 6 & 07) + '0';
 		*dst++ = ((u_char)c >> 3 & 07) + '0';
@@ -163,7 +162,7 @@ done:
  * strvis, strvisx - visually encode characters from src into dst
  *
  *	Dst must be 4 times the size of src to account for possible
- *	expansion.  The length of dst, not including the trailing NULL,
+ *	expansion.  The length of dst, not including the trailing NUL,
  *	is returned.
  *
  *	Strvisx encodes exactly len bytes from src into dst.
@@ -171,11 +170,11 @@ done:
  */
 int
 strvis(dst, src, flag)
-	register char *dst;
-	register const char *src;
+	char *dst;
+	const char *src;
 	int flag;
 {
-	register char c;
+	char c;
 	char *start;
 
 	for (start = dst; (c = *src); )
@@ -186,9 +185,9 @@ strvis(dst, src, flag)
 
 int
 strvisx(dst, src, len, flag)
-	register char *dst;
-	register const char *src;
-	register size_t len;
+	char *dst;
+	const char *src;
+	size_t len;
 	int flag;
 {
 	int c;
