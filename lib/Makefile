@@ -57,7 +57,8 @@ _libm=		msun
 _libio=		libio
 .endif
 
-.if defined(RELEASEDIR) || !exists(${.CURDIR}/../kerberosIV) || \
+.if defined(RELEASEDIR) || \
+    (!exists(${.CURDIR}/../secure) && !exists(${.CURDIR}/../kerberosIV)) || \
     defined(NOCRYPT) || !defined(MAKE_KERBEROS4)
 _libtelnet=	libtelnet
 .endif
