@@ -135,7 +135,7 @@ scripts.
 All of the single letter options to
 .Nm
 have a corresponding name that can be used as an argument to the
-.Dq set
+.Xr set 1
 builtin (described later).  These names are provided next to the
 single letter option in the descriptions below.  Specifying a dash
 .Dq -
@@ -206,7 +206,7 @@ Read commands from standard input (set automatically
 if no file arguments are present).  This option has
 no effect when set after the shell has already started
 running (i.e. when set with the
-.Dq set
+.Xr set 1
 command).
 .It Fl T Li asynctraps
 When waiting for a child, execute traps immediately. If this option is
@@ -297,7 +297,7 @@ for     if      then    until   while
 .Ed
 .Ss Aliases
 An alias is a name and corresponding value set using the
-.Dq alias
+.Xr alias 1
 builtin command.  Whenever a reserved word may occur (see above),
 and after checking for reserved words, the shell
 checks the word to see if it matches an alias. If it does,
@@ -740,7 +740,7 @@ or a special character as explained below.
 A positional parameter is a parameter denoted by a number (n > 0).
 The shell sets these initially to the values of its command line
 arguments that follow the name of the shell script.  The
-.Dq set
+.Xr set 1
 builtin can also be used to set or reset them.
 .Ss Special Parameters
 A special parameter is a parameter denoted by one of the following
@@ -991,7 +991,7 @@ a pattern cannot match a string starting with a period
 unless the first character of the pattern is a period.
 The next section describes the patterns used for both
 Pathname Expansion and the
-.Dq case
+.Xr case 1
 command.
 .Ss Shell Patterns
 A pattern consists of normal characters, which match themselves,
