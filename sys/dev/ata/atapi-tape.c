@@ -72,7 +72,7 @@ static struct cdevsw ast_cdevsw = {
 	/* psize */	nopsize,
 	/* flags */	D_TAPE,
 	/* maxio */	0,
-	/* bmaj */	33
+	/* bmaj */	-1
 };
 
 static u_int32_t ast_total = 0;
