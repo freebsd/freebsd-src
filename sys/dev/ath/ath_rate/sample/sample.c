@@ -605,4 +605,5 @@ static moduledata_t sample_mod = {
 };
 DECLARE_MODULE(ath_rate, sample_mod, SI_SUB_DRIVERS, SI_ORDER_FIRST);
 MODULE_VERSION(ath_rate, 1);
+MODULE_DEPEND(ath_rate, ath_hal, 1, 1, 1);	/* Atheros HAL */
 MODULE_DEPEND(ath_rate, wlan, 1, 1, 1);
