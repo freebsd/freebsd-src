@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vnops.c	8.19 (Berkeley) 5/27/95
- * $Id: cd9660_vnops.c,v 1.37 1997/08/26 07:32:32 phk Exp $
+ * $Id: cd9660_vnops.c,v 1.38 1997/09/14 02:57:43 peter Exp $
  */
 
 #include <sys/param.h>
@@ -782,14 +782,14 @@ cd9660_readlink(ap)
 	if (uio->uio_segflg == UIO_SYSSPACE)
 		symname = uio->uio_iov->iov_base;
 	else
-		MALLOC(symname, char *, MAXPATHLEN, M_NAMEI, M_WAITOK);
+		symname = zalloc(namei_zone);
 	
 	/*
 	 * Ok, we just gathering a symbolic name in SL record.
 	 */
 	if (cd9660_rrip_getsymname(dirp, symname, &symlen, imp) == 0) {
 		if (uio->uio_segflg != UIO_SYSSPACE)
-			FREE(symname, M_NAMEI);
+			zfree(namei_zone, symname);
 		brelse(bp);
 		return (EINVAL);
 	}
@@ -803,7 +803,7 @@ cd9660_readlink(ap)
 	 */
 	if (uio->uio_segflg != UIO_SYSSPACE) {
 		error = uiomove(symname, symlen, uio);
-		FREE(symname, M_NAMEI);
+		zfree(namei_zone, symname);
 		return (error);
 	}
 	uio->uio_resid -= symlen;
@@ -824,7 +824,7 @@ cd9660_abortop(ap)
 	} */ *ap;
 {
 	if ((ap->a_cnp->cn_flags & (HASBUF | SAVESTART)) == HASBUF)
-		FREE(ap->a_cnp->cn_pnbuf, M_NAMEI);
+		zfree(namei_zone, ap->a_cnp->cn_pnbuf);
 	return (0);
 }
 

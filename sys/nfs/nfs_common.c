@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_subs.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_subs.c,v 1.41 1997/08/16 19:15:59 wollman Exp $
+ * $Id: nfs_subs.c,v 1.42 1997/09/10 19:52:26 phk Exp $
  */
 
 /*
@@ -1444,7 +1444,8 @@ nfs_namei(ndp, fhp, len, slp, nam, mdp, dposp, retdirp, p, kerbflag, pubflag)
 	struct componentname *cnp = &ndp->ni_cnd;
 
 	*retdirp = (struct vnode *)0;
-	MALLOC(cnp->cn_pnbuf, char *, len + 1, M_NAMEI, M_WAITOK);
+	cnp->cn_pnbuf = zalloc(namei_zone);
+
 	/*
 	 * Copy the name from the mbuf list to ndp->ni_pnbuf
 	 * and set the various ndp fields appropriately.
@@ -1506,7 +1507,7 @@ nfs_namei(ndp, fhp, len, slp, nam, mdp, dposp, retdirp, p, kerbflag, pubflag)
 		 * Oh joy. For WebNFS, handle those pesky '%' escapes,
 		 * and the 'native path' indicator.
 		 */
-		MALLOC(cp, char *, MAXPATHLEN, M_NAMEI, M_WAITOK);
+		cp = zalloc(namei_zone);
 		fromcp = cnp->cn_pnbuf;
 		tocp = cp;
 		if ((unsigned char)*fromcp >= WEBNFS_SPECCHAR_START) {
@@ -1524,7 +1525,7 @@ nfs_namei(ndp, fhp, len, slp, nam, mdp, dposp, retdirp, p, kerbflag, pubflag)
 			 */
 			default:
 				error = EIO;
-				FREE(cp, M_NAMEI);
+				zfree(namei_zone, cp);
 				goto out;
 			}
 		}
@@ -1540,14 +1541,14 @@ nfs_namei(ndp, fhp, len, slp, nam, mdp, dposp, retdirp, p, kerbflag, pubflag)
 					continue;
 				} else {
 					error = ENOENT;
-					FREE(cp, M_NAMEI);
+					zfree(namei_zone, cp);
 					goto out;
 				}
 			} else
 				*tocp++ = *fromcp++;
 		}
 		*tocp = '\0';
-		FREE(cnp->cn_pnbuf, M_NAMEI);
+		zfree(namei_zone, cnp->cn_pnbuf);
 		cnp->cn_pnbuf = cp;
 	}
 
@@ -1601,7 +1602,7 @@ nfs_namei(ndp, fhp, len, slp, nam, mdp, dposp, retdirp, p, kerbflag, pubflag)
 			break;
 		}
 		if (ndp->ni_pathlen > 1)
-			MALLOC(cp, char *, MAXPATHLEN, M_NAMEI, M_WAITOK);
+			cp = zalloc(namei_zone);
 		else
 			cp = cnp->cn_pnbuf;
 		aiov.iov_base = cp;
@@ -1617,7 +1618,7 @@ nfs_namei(ndp, fhp, len, slp, nam, mdp, dposp, retdirp, p, kerbflag, pubflag)
 		if (error) {
 		badlink:
 			if (ndp->ni_pathlen > 1)
-				FREE(cp, M_NAMEI);
+				zfree(namei_zone, cp);
 			break;
 		}
 		linklen = MAXPATHLEN - auio.uio_resid;
@@ -1631,7 +1632,7 @@ nfs_namei(ndp, fhp, len, slp, nam, mdp, dposp, retdirp, p, kerbflag, pubflag)
 		}
 		if (ndp->ni_pathlen > 1) {
 			bcopy(ndp->ni_next, cp + linklen, ndp->ni_pathlen);
-			FREE(cnp->cn_pnbuf, M_NAMEI);
+			zfree(namei_zone, cnp->cn_pnbuf);
 			cnp->cn_pnbuf = cp;
 		} else
 			cnp->cn_pnbuf[linklen] = '\0';
@@ -1649,7 +1650,7 @@ nfs_namei(ndp, fhp, len, slp, nam, mdp, dposp, retdirp, p, kerbflag, pubflag)
 	}
    }
 out:
-	FREE(cnp->cn_pnbuf, M_NAMEI);
+	zfree(namei_zone, cnp->cn_pnbuf);
 	return (error);
 }
 

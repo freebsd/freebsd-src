@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lock.h	8.12 (Berkeley) 5/19/95
- * $Id: lock.h,v 1.8 1997/08/18 02:06:30 dyson Exp $
+ * $Id: lock.h,v 1.9 1997/08/30 07:59:47 fsmp Exp $
  */
 
 #ifndef	_LOCK_H_
@@ -108,11 +108,12 @@ struct lock {
  * or passed in as arguments to the lock manager. The LK_REENABLE flag may be
  * set only at the release of a lock obtained by drain.
  */
-#define LK_EXTFLG_MASK	0x00000070	/* mask of external flags */
+#define LK_EXTFLG_MASK	0x01000070	/* mask of external flags */
 #define LK_NOWAIT	0x00000010	/* do not sleep to await lock */
 #define LK_SLEEPFAIL	0x00000020	/* sleep, then return failure */
 #define LK_CANRECURSE	0x00000040	/* allow recursive exclusive lock */
 #define LK_REENABLE	0x00000080	/* lock is be reenabled after drain */
+#define	LK_NOPAUSE	0x01000000	/* no spinloop */
 /*
  * Internal lock flags.
  *

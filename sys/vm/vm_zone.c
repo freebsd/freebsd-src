@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *	are met.
  *
- * $Id: vm_zone.c,v 1.5 1997/08/18 03:29:21 fsmp Exp $
+ * $Id: vm_zone.c,v 1.6 1997/09/01 03:17:32 bde Exp $
  */
 
 #include <sys/param.h>
@@ -79,13 +79,14 @@ zinitna(vm_zone_t z, vm_object_t obj, char *name, int size,
 	int totsize;
 
 	if ((z->zflags & ZONE_BOOT) == 0) {
-		z->zsize = size;
+		z->zsize = (size + 32 - 1) & ~(32 - 1);
 		simple_lock_init(&z->zlock);
 		z->zfreecnt = 0;
 		z->ztotal = 0;
 		z->zmax = 0;
 		z->zname = name;
 		z->znalloc = 0;
+		z->zitems = NULL;
 
 		if (zlist == 0) {
 			zlist = z;
@@ -183,8 +184,12 @@ zbootinit(vm_zone_t z, char *name, int size, void *item, int nitems) {
 	z->znalloc = 0;
 	simple_lock_init(&z->zlock);
 
+	z->zitems = NULL;
 	for (i = 0; i < nitems; i++) {
-		* (void **) item = z->zitems;
+		((void **) item)[0] = z->zitems;
+#if defined(DIAGNOSTIC)
+		((void **) item)[1] = (void *) ZENTRY_FREE;
+#endif
 		z->zitems = item;
 		(char *) item += z->zsize;
 	}
@@ -263,8 +268,11 @@ void *
 _zget(vm_zone_t z) {
 	int i;
 	vm_page_t m;
-	int nitems;
+	int nitems, nbytes;
 	void *item;
+
+	if (z == NULL)
+		panic("zget: null zone");
 
 	if (z->zflags & ZONE_INTERRUPT) {
 		item = (char *) z->zkva + z->zpagecount * PAGE_SIZE;
@@ -280,11 +288,26 @@ _zget(vm_zone_t z) {
 		}
 		nitems = (i * PAGE_SIZE) / z->zsize;
 	} else {
+		nbytes = z->zalloc * PAGE_SIZE;
 		/*
 		 * We can wait, so just do normal kernel map allocation
 		 */
-		item = (void *) kmem_alloc(kernel_map, z->zalloc * PAGE_SIZE);
-		nitems = (z->zalloc * PAGE_SIZE) / z->zsize;
+		item = (void *) kmem_alloc(kernel_map, nbytes);
+
+#if 0
+		if (z->zname)
+			printf("zalloc: %s, %d (0x%x --> 0x%x)\n",
+				z->zname, z->zalloc, item, (char *)item + nbytes);
+		else
+			printf("zalloc: XXX(%d), %d (0x%x --> 0x%x)\n",
+				z->zsize, z->zalloc, item, (char *)item + nbytes);
+
+		for(i=0;i<nbytes;i+=PAGE_SIZE) {
+			printf("(%x, %x)", (char *) item + i, pmap_kextract( (char *) item + i));
+		}
+		printf("\n");
+#endif
+		nitems = nbytes / z->zsize;
 	}
 	z->ztotal += nitems;
 
@@ -294,14 +317,22 @@ _zget(vm_zone_t z) {
 	if (nitems != 0) {
 		nitems -= 1;
 		for (i = 0; i < nitems; i++) {
-			* (void **) item = z->zitems;
+			((void **) item)[0] = z->zitems;
+#if defined(DIAGNOSTIC)
+			((void **) item)[1] = (void *) ZENTRY_FREE;
+#endif
 			z->zitems = item;
 			(char *) item += z->zsize;
 		}
 		z->zfreecnt += nitems;
 	} else if (z->zfreecnt > 0) {
 		item = z->zitems;
-		z->zitems = *(void **) item;
+		z->zitems = ((void **) item)[0];
+#if defined(DIAGNOSTIC)
+		if (((void **) item)[1] != (void *) ZENTRY_FREE)
+			zerror(ZONE_ERROR_NOTFREE);
+		((void **) item)[1] = 0;
+#endif
 		z->zfreecnt--;
 	} else {
 		item = NULL;
@@ -355,6 +386,29 @@ sysctl_vm_zone SYSCTL_HANDLER_ARGS
 	}
 	return (0);
 }
+
+#if defined(DIAGNOSTIC)
+void
+zerror(int error) {
+	char *msg;
+	switch (error) {
+case ZONE_ERROR_INVALID:
+		msg = "zone: invalid zone";
+		break;
+case ZONE_ERROR_NOTFREE:
+		msg = "zone: entry not free";
+		break;
+case ZONE_ERROR_ALREADYFREE:
+		msg = "zone: freeing free entry";
+		break;
+default:
+		msg = "zone: invalid error";
+		break;
+	}
+		
+	panic(msg);
+}
+#endif
 
 SYSCTL_OID(_kern, OID_AUTO, zone, CTLTYPE_STRING|CTLFLAG_RD, \
 	NULL, 0, sysctl_vm_zone, "A", "Zone Info");

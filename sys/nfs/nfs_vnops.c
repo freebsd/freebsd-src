@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.16 (Berkeley) 5/27/95
- * $Id: nfs_vnops.c,v 1.59 1997/09/10 21:27:40 phk Exp $
+ * $Id: nfs_vnops.c,v 1.60 1997/09/14 03:00:44 peter Exp $
  */
 
 
@@ -1302,7 +1302,7 @@ nfs_mknodrpc(dvp, vpp, cnp, vap)
 			cache_enter(dvp, newvp, cnp);
 		*vpp = newvp;
 	}
-	FREE(cnp->cn_pnbuf, M_NAMEI);
+	zfree(namei_zone, cnp->cn_pnbuf);
 	VTONFS(dvp)->n_flag |= NMODIFIED;
 	if (!wccflag)
 		VTONFS(dvp)->n_attrstamp = 0;
@@ -1437,7 +1437,7 @@ again:
 			cache_enter(dvp, newvp, cnp);
 		*ap->a_vpp = newvp;
 	}
-	FREE(cnp->cn_pnbuf, M_NAMEI);
+	zfree(namei_zone, cnp->cn_pnbuf);
 	VTONFS(dvp)->n_flag |= NMODIFIED;
 	if (!wccflag)
 		VTONFS(dvp)->n_attrstamp = 0;
@@ -1508,7 +1508,7 @@ nfs_remove(ap)
 			error = 0;
 	} else if (!np->n_sillyrename)
 		error = nfs_sillyrename(dvp, vp, cnp);
-	FREE(cnp->cn_pnbuf, M_NAMEI);
+	zfree(namei_zone, cnp->cn_pnbuf);
 	np->n_attrstamp = 0;
 	vput(dvp);
 	if (vp == dvp)
@@ -1743,7 +1743,7 @@ nfs_link(ap)
 		nfsm_wcc_data(tdvp, wccflag);
 	}
 	nfsm_reqdone;
-	FREE(cnp->cn_pnbuf, M_NAMEI);
+	zfree(namei_zone, cnp->cn_pnbuf);
 	VTONFS(tdvp)->n_flag |= NMODIFIED;
 	if (!attrflag)
 		VTONFS(vp)->n_attrstamp = 0;
@@ -1815,7 +1815,7 @@ nfs_symlink(ap)
 	nfsm_reqdone;
 	if (newvp)
 		vput(newvp);
-	FREE(cnp->cn_pnbuf, M_NAMEI);
+	zfree(namei_zone, cnp->cn_pnbuf);
 	VTONFS(dvp)->n_flag |= NMODIFIED;
 	if (!wccflag)
 		VTONFS(dvp)->n_attrstamp = 0;
@@ -1912,7 +1912,7 @@ nfs_mkdir(ap)
 			vrele(newvp);
 	} else
 		*ap->a_vpp = newvp;
-	FREE(cnp->cn_pnbuf, M_NAMEI);
+	zfree(namei_zone, cnp->cn_pnbuf);
 	vput(dvp);
 	return (error);
 }
@@ -1948,7 +1948,7 @@ nfs_rmdir(ap)
 	if (v3)
 		nfsm_wcc_data(dvp, wccflag);
 	nfsm_reqdone;
-	FREE(cnp->cn_pnbuf, M_NAMEI);
+	zfree(namei_zone, cnp->cn_pnbuf);
 	VTONFS(dvp)->n_flag |= NMODIFIED;
 	if (!wccflag)
 		VTONFS(dvp)->n_attrstamp = 0;
