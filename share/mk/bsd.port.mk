@@ -1,7 +1,7 @@
 #-*- mode: Fundamental; tab-width: 4; -*-
 # ex:ts=4
 #
-#	$Id$
+#	$Id: bsd.port.mk,v 1.284 1998/08/15 17:34:00 markm Exp $
 #	$NetBSD: $
 #
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
@@ -11,10 +11,13 @@
 
 # There are two different types of "maintainers" in the whole ports
 # framework concept.  Maintainers of the bsd.port*.mk files
-# are listed below in the ${OSNAME}_MAINTAINER entries (this file
+# are listed below in the ${OPSYS}_MAINTAINER entries (this file
 # is used by multiple *BSD flavors).  You should consult them directly
 # if you have any questions/suggestions regarding this file since only
 # they are allowed to modify the master copies in the CVS repository!
+
+FreeBSD_MAINTAINER=	asami@FreeBSD.ORG
+OpenBSD_MAINTAINER=	imp@OpenBSD.ORG
 
 # For each port, the MAINTAINER variable is what you should consult for
 # contact information on the person(s) to contact if you have questions/
@@ -22,28 +25,54 @@
 # is listed), a port is maintained by the subscribers of the ports@freebsd.org
 # mailing list, and any correspondece should be directed there.
 #
-FreeBSD_MAINTAINER=	asami@FreeBSD.ORG
-OpenBSD_MAINTAINER=	imp@OpenBSD.ORG
-
-# Supported Variables and their behaviors:
+# MAINTAINER	- The e-mail address of the contact person for this port
+#				  (default: ports@FreeBSD.ORG).
 #
-# Variables that typically apply to all ports:
+# These are meta-variables that are automatically set to the system
+# you are running on.
 # 
 # ARCH			- The architecture, as returned by "uname -m".
 # OPSYS			- Portability clause.  This is the operating system the
 #				  makefile is being used on.  Automatically set to
 #				  "FreeBSD," "NetBSD," or "OpenBSD" as appropriate.
 # OSREL			- The release version (numeric) of the operating system.
-# PORTSDIR		- The root of the ports tree.  Defaults:
-#					FreeBSD/OpenBSD: /usr/ports
-#					NetBSD:          /usr/opt
-# DISTDIR 		- Where to get gzip'd, tarballed copies of original sources
-#				  (default: ${PORTSDIR}/distfiles).
-# PREFIX		- Where to install things in general (default: /usr/local).
+#
+# These variables are used to identify your port.
+#
+# DISTNAME		- Name of port or distribution.
+# PKGNAME		- Name of the package file to create if the DISTNAME 
+#				  isn't really relevant for the port/package
+#				  (default: ${DISTNAME}).
+# CATEGORIES	- A list of descriptive categories into which this port falls.
+#
+# These variable describe how to fetch files required for building the port.
+#
+# DISTFILES		- Name(s) of archive file(s) containing distribution
+#				  (default: ${DISTNAME}${EXTRACT_SUFX}).  Set this to
+#				  an empty string if the port doesn't require it.
+# EXTRACT_SUFX	- Suffix for archive names (default: .tar.gz).  You
+#				  never have to set both DISTFILES and EXTRACT_SUFX.
 # MASTER_SITES	- Primary location(s) for distribution files if not found
 #				  locally.
+# PATCHFILES	- Name(s) of additional files that contain distribution
+#				  patches (default: none).  make will look for them at
+#				  PATCH_SITES (see below).  They will automatically be
+#				  uncompressed before patching if the names end with
+#				  ".gz" or ".Z".
 # PATCH_SITES	- Primary location(s) for distribution patch files
-#				  (see PATCHFILES below) if not found locally.
+#				  if not found locally.
+# DIST_SUBDIR	- Suffix to ${DISTDIR}.  If set, all ${DISTFILES} 
+#				  and ${PATCHFILES} will be put in this subdirectory of
+#				  ${DISTDIR} (see below).  Also they will be fetched in
+#				  this subdirectory from FreeBSD mirror sites.
+# ALLFILES		- All of ${DISTFILES} and ${PATCHFILES}.
+# IGNOREFILES	- If some of the ${ALLFILES} are not checksum-able, set
+#				  this variable to their names.
+# EXTRACT_ONLY	- If defined, a subset of ${DISTFILES} you want to
+#			  	  actually extract.
+#
+# These three variables are typically set in /etc/make.conf to indicate
+# the user's preferred location to fetch files from.
 #
 # MASTER_SITE_BACKUP - Backup location(s) for distribution files and patch
 #				  files if not found locally and ${MASTER_SITES}/${PATCH_SITES}
@@ -53,43 +82,107 @@ OpenBSD_MAINTAINER=	imp@OpenBSD.ORG
 #				  value.
 # MASTER_SITE_FREEBSD - If set, only use ${MASTER_SITE_BACKUP} for
 #				  MASTER_SITES.
+#
+# Set these if your port should not be built under certain circumstances.
+# These are string variables; you should set them to the reason why
+# they are necessary.
+#
+# RESTRICTED	- Port is restricted (e.g., contains cryptography, etc.).
+# NO_CDROM		- Port may not go on CDROM.
+# NO_PACKAGE	- Port should not be packaged but distfiles can be put on
+#				  ftp sites and CDROMs.
+# BROKEN		- Port is broken.
+#
+# This variable is a boolean, so you don't need to set it to the reason.
+#
+# IS_INTERACTIVE - Set this if your port needs to interact with the user
+#				  during a build.  User can then decide to skip this port by
+#				  setting ${BATCH}, or compiling only the interactive ports
+#				  by setting ${INTERACTIVE}.
+#
+# Use these if your port uses some of the common software packages.
+#
+# USE_GMAKE		- Says that the port uses gmake.
+# GMAKE			- Set to path of GNU make if not in $PATH (default: gmake).
+# USE_AUTOCONF	- Says that the port uses autoconf.  Implies GNU_CONFIGURE.
+# AUTOCONF		- Set to path of GNU autoconf if not in $PATH (default:
+#				  autoconf).
+# USE_PERL5		- Says that the port uses perl5 for building and running.
+# PERL_VERSION	- Full version of perl5 (see below for current value).
+# PERL_VER		- Short version of perl5 (see below for current value).
+# USE_IMAKE		- Says that the port uses imake.  Implies USE_X_PREFIX.
+# XMKMF			- Set to path of `xmkmf' if not in $PATH (default: xmkmf -a ).
+# NO_INSTALL_MANPAGES - For imake ports that don't like the install.man
+#						target.
+# USE_X_PREFIX	- Says that the port installs in ${X11BASE}.  Implies USE_XLIB.
+# USE_XLIB		- Says that the port uses X libraries.
+# USE_QT		- Says that the port uses the latest version of qt toolkit.
+#
+# Dependency checking.  Use these if your port requires another port
+# not in the list above.
+#
+# FETCH_DEPENDS - A list of "path:dir[:target]" tuples of other ports this
+#				  package depends in the "fetch" stage.  "path" is the
+#				  name of a file if it starts with a slash (/), an
+#				  executable otherwise.  make will test for the
+#				  existence (if it is a full pathname) or search for
+#				  it in your $PATH (if it is an executable) and go
+#				  into "dir" to do a "make all install" if it's not
+#				  found.  If the third field ("target") exists, it will
+#				  be used instead of ${DEPENDS_TARGET}.
+# BUILD_DEPENDS - A list of "path:dir[:target]" tuples of other ports this
+#				  package depends to build (between the "extract" and
+#				  "build" stages, inclusive).  The test done to
+#				  determine the existence of the dependency is the
+#				  same as FETCH_DEPENDS.  If the third field ("target")
+#				  exists, it will be used instead of ${DEPENDS_TARGET}.
+# RUN_DEPENDS	- A list of "path:dir[:target]" tuples of other ports this
+#				  package depends to run.  The test done to determine
+#				  the existence of the dependency is the same as
+#				  FETCH_DEPENDS.  This will be checked during the
+#				  "install" stage and the name of the dependency will
+#				  be put into the package as well.  If the third field
+#				  ("target") exists, it will be used instead of
+#				  ${DEPENDS_TARGET}.
+# LIB_DEPENDS	- A list of "lib:dir[:target]" tuples of other ports this
+#				  package depends on.  "lib" is the name of a shared library.
+#				  make will use "ldconfig -r" to search for the
+#				  library.  Note that lib can be any regular expression,
+#				  and you need two backslashes in front of dots (.) to
+#				  supress its special meaning (e.g., use
+#				  "foo\\.2\\.:${PORTSDIR}/utils/foo" to match "libfoo.2.*").
+#				  If the third field ("target") exists, it will be used
+#				  instead of ${DEPENDS_TARGET}.
+# DEPENDS		- A list of "dir[:target]" tuples of other ports this
+#				  package depends on being made first.  Use this only for
+#				  things that don't fall into the above four categories.
+#				  If the second field ("target") exists, it will be used
+#				  instead of ${DEPENDS_TARGET}.
+# DEPENDS_TARGET - The default target to execute when a port is calling a
+#				  dependency (default: "install").
+#
+# Various directory definitions and variables to control them.
+# You rarely need to redefine any of these except WRKSRC and NO_WRKSUBDIR.
+#
+# X11BASE		- Where X11 ports install things (default: /usr/X11R6).
+# LOCALBASE		- Where non-X11 ports install things (default: /usr/local).
+# PREFIX		- Where *this* port installs its files (default: ${X11BASE}
+#				  if USE_X_PREFIX is set, otherwise ${LOCALBASE}).
+# PORTSDIR		- The root of the ports tree.  Defaults:
+#					FreeBSD/OpenBSD: /usr/ports
+#					NetBSD:          /usr/opt
+# DISTDIR 		- Where to get gzip'd, tarballed copies of original sources
+#				  (default: ${PORTSDIR}/distfiles).
 # PACKAGES		- A top level directory where all packages go (rather than
 #				  going locally to each port). (default: ${PORTSDIR}/packages).
-# GMAKE			- Set to path of GNU make if not in $PATH (default: gmake).
-# AUTOCONF		- Set to path of GNU autoconf if not in $PATH (default: autoconf).
-# XMKMF			- Set to path of `xmkmf' if not in $PATH (default: xmkmf -a ).
-# MAINTAINER	- The e-mail address of the contact person for this port
-#				  (default: ports@FreeBSD.ORG).
-# CATEGORIES	- A list of descriptive categories into which this port falls.
-#
-# Variables that typically apply to an individual port.  Non-Boolean
-# variables without defaults are *mandatory*.
-#
 # WRKDIR 		- A temporary working directory that gets *clobbered* on clean
 #				  (default: ${.CURDIR}/work).
 # WRKSRC		- A subdirectory of ${WRKDIR} where the distribution actually
 #				  unpacks to.  (Default: ${WRKDIR}/${DISTNAME} unless
 #				  NO_WRKSUBDIR is set, in which case simply ${WRKDIR}).
-# DISTNAME		- Name of port or distribution.
-# DISTFILES		- Name(s) of archive file(s) containing distribution
-#				  (default: ${DISTNAME}${EXTRACT_SUFX}).
-# PATCHFILES	- Name(s) of additional files that contain distribution
-#				  patches (default: none).  make will look for them at
-#				  PATCH_SITES (see above).  They will automatically be
-#				  uncompressed before patching if the names end with
-#				  ".gz" or ".Z".
-# DIST_SUBDIR	- Suffix to ${DISTDIR}.  If set, all ${DISTFILES} 
-#				  and ${PATCHFILES} will be put in this subdirectory of
-#				  ${DISTDIR}.  Also they will be fetched in this subdirectory 
-#				  from FreeBSD mirror sites.
-# ALLFILES		- All of ${DISTFILES} and ${PATCHFILES}.
-# IGNOREFILES	- If some of the ${ALLFILES} are not checksum-able, set
-#				  this variable to their names.
-# PKGNAME		- Name of the package file to create if the DISTNAME 
-#				  isn't really relevant for the port/package
-#				  (default: ${DISTNAME}).
-# EXTRACT_ONLY	- If defined, a subset of ${DISTFILES} you want to
-#			  	  actually extract.
+# NO_WRKSUBDIR	- Assume port unpacks directly into ${WRKDIR}.
+# NO_WRKDIR		- There's no work directory at all; port does this someplace
+#				  else.
 # PATCHDIR 		- A directory containing any additional patches you made
 #				  to port this software to FreeBSD (default:
 #				  ${.CURDIR}/patches)
@@ -99,97 +192,6 @@ OpenBSD_MAINTAINER=	imp@OpenBSD.ORG
 #				  (default: ${.CURDIR}/files)
 # PKGDIR 		- A direction containing any package creation files.
 #				  (default: ${.CURDIR}/pkg)
-# PKG_DBDIR		- Where package installation is recorded (default: /var/db/pkg)
-# FORCE_PKG_REGISTER - If set, it will overwrite any existing package
-#				  registration information in ${PKG_DBDIR}/${PKGNAME}.
-# NO_MTREE		- If set, will not invoke mtree from bsd.port.mk from
-#				  the "install" target.
-# MTREE_FILE	- The name of the mtree file (default: /etc/mtree/BSD.x11.dist
-#				  if USE_X_PREFIX is set, /etc/mtree/BSD.local.dist
-#				  otherwise.)
-#
-# NO_BUILD		- Use a dummy (do-nothing) build target.
-# NO_CDROM		- Port may not go on CDROM.  Set this string to reason.
-# NO_DESCRIBE	- Use a dummy (do-nothing) describe target.
-# NO_EXTRACT	- Use a dummy (do-nothing) extract target.
-# NO_INSTALL	- Use a dummy (do-nothing) install target.
-# NO_PACKAGE	- Use a dummy (do-nothing) package target.
-# NO_LATEST_LINK - Do not install the "Latest" link for package.  Define this
-#				  if this port is a beta version of another stable port
-#				  which is also in the tree.
-# NO_PKG_REGISTER - Don't register a port install as a package.
-# NO_WRKSUBDIR	- Assume port unpacks directly into ${WRKDIR}.
-# NO_WRKDIR		- There's no work directory at all; port does this someplace
-#				  else.
-# NO_DEPENDS	- Don't verify build of dependencies.
-# BROKEN		- Port is broken.  Set this string to the reason why.
-# RESTRICTED	- Port is restricted.  Set this string to the reason why.
-# USE_GMAKE		- Says that the port uses gmake.
-# USE_AUTOCONF	- Says that the port uses autoconf.  Implies GNU_CONFIGURE.
-# USE_PERL5		- Says that the port uses perl5 for building and running.
-# USE_IMAKE		- Says that the port uses imake.  Implies USE_X_PREFIX.
-# USE_X_PREFIX	- Says that the port installs in ${X11BASE}.  Implies USE_XLIB.
-# USE_XLIB		- Says that the port uses X libraries.
-# NO_INSTALL_MANPAGES - For imake ports that don't like the install.man
-#						target.
-# HAS_CONFIGURE	- Says that the port has its own configure script.
-# GNU_CONFIGURE	- Set if you are using GNU configure (optional).
-# CONFIGURE_SCRIPT - Name of configure script, defaults to 'configure'.
-# CONFIGURE_ARGS - Pass these args to configure if ${HAS_CONFIGURE} is set.
-# CONFIGURE_ENV - Pass these env (shell-like) to configure if
-#				  ${HAS_CONFIGURE} is set.
-# SCRIPTS_ENV	- Additional environment vars passed to scripts in
-#                 ${SCRIPTDIR} executed by bsd.port.mk.
-# MAKE_ENV		- Additional environment vars passed to sub-make in build
-#				  stage.
-# IS_INTERACTIVE - Set this if your port needs to interact with the user
-#				  during a build.  User can then decide to skip this port by
-#				  setting ${BATCH}, or compiling only the interactive ports
-#				  by setting ${INTERACTIVE}.
-# FETCH_DEPENDS - A list of "path:dir" pairs of other ports this
-#				  package depends in the "fetch" stage.  "path" is the
-#				  name of a file if it starts with a slash (/), an
-#				  executable otherwise.  make will test for the
-#				  existence (if it is a full pathname) or search for
-#				  it in your $PATH (if it is an executable) and go
-#				  into "dir" to do a "make all install" if it's not
-#				  found.
-# BUILD_DEPENDS - A list of "path:dir" pairs of other ports this
-#				  package depends to build (between the "extract" and
-#				  "build" stages, inclusive).  The test done to
-#				  determine the existence of the dependency is the
-#				  same as FETCH_DEPENDS.
-# RUN_DEPENDS	- A list of "path:dir" pairs of other ports this
-#				  package depends to run.  The test done to determine
-#				  the existence of the dependency is the same as
-#				  FETCH_DEPENDS.  This will be checked during the
-#				  "install" stage and the name of the dependency will
-#				  be put into the package as well.
-# LIB_DEPENDS	- A list of "lib:dir" pairs of other ports this package
-#				  depends on.  "lib" is the name of a shared library.
-#				  make will use "ldconfig -r" to search for the
-#				  library.  Note that lib can be any regular expression,
-#				  and you need two backslashes in front of dots (.) to
-#				  supress its special meaning (e.g., use
-#				  "foo\\.2\\.:${PORTSDIR}/utils/foo" to match "libfoo.2.*").
-# DEPENDS		- A list of other ports this package depends on being
-#				  made first.  Use this for things that don't fall into
-#				  the above two categories.
-# EXTRACT_CMD	- Command for extracting archive (default: tar).
-# EXTRACT_SUFX	- Suffix for archive names (default: .tar.gz).
-# EXTRACT_BEFORE_ARGS -
-#				  Arguments to ${EXTRACT_CMD} before filename
-#				  (default: -xzf).
-# EXTRACT_AFTER_ARGS -
-#				  Arguments to ${EXTRACT_CMD} following filename
-#				  (default: none).
-#
-# FETCH_CMD		  - Full path to ftp/http fetch command if not in $PATH
-#				  (default: /usr/bin/fetch).
-# FETCH_BEFORE_ARGS -
-#				  Arguments to ${FETCH_CMD} before filename (default: none).
-# FETCH_AFTER_ARGS -
-#				  Arguments to ${FETCH_CMD} following filename (default: none).
 #
 # Motif support:
 #
@@ -205,15 +207,6 @@ OpenBSD_MAINTAINER=	imp@OpenBSD.ORG
 # MOTIF_ONLY	- If set, build Motif ports only.  (Not much use except for
 #				  building packages.)
 #
-# Variables to change if you want a special behavior:
-#
-# ECHO_MSG		- Used to print all the '===>' style prompts - override this
-#				  to turn them off (default: /bin/echo).
-# DEPENDS_TARGET - The target to execute when a port is calling a
-#				  dependency (default: "install").
-# PATCH_DEBUG	- If set, print out more information about the patches as
-#				  it attempts to apply them.
-#
 # Variables that serve as convenient "aliases" for your *-install targets.
 # Use these like: "${INSTALL_PROGRAM} ${WRKSRC}/prog ${PREFIX}/bin".
 #
@@ -222,15 +215,25 @@ OpenBSD_MAINTAINER=	imp@OpenBSD.ORG
 # INSTALL_DATA	- A command to install sharable data.
 # INSTALL_MAN	- A command to install manpages (doesn't compress).
 #
-# If your port doesn't automatically compress manpages, set the following.
-# Depending on the setting of NOMANCOMPRESS, the make rules will compress
-# the manpages for you.
+# Set the following to specify all manpages that your port installs.
+# These manpages will be automatically listed in ${PLIST}.  Depending
+# on the setting of NOMANCOMPRESS, the make rules will compress the
+# manpages for you.
 #
 # MAN<sect>		- A list of manpages, categorized by section.  For
 #				  example, if your port has "man/man1/foo.1" and
 #				  "man/mann/bar.n", set "MAN1=foo.1" and "MANN=bar.n".
 #				  The available sections chars are "123456789LN".
 # MANPREFIX		- The directory prefix for ${MAN<sect>} (default: ${PREFIX}).
+# MAN<sect>PREFIX - If manual pages of some sections install in different
+#				  locations than others, use these (default: ${MANPREFIX}).
+# MANCOMPRESSED - This variable can take values "yes", "no" or
+#				  "maybe".  "yes" means manpages are installed
+#				  compressed; "no" means they are not; "maybe" means
+#				  it changes depending on the value of
+#				  NOMANCOMPRESS.  The default is "yes" if USE_IMAKE
+#				  is set and NO_INSTALL_MANPAGES is not set, and
+#				  "no" otherwise.
 #
 # Default targets and their behaviors:
 #
@@ -264,6 +267,106 @@ OpenBSD_MAINTAINER=	imp@OpenBSD.ORG
 #
 # NEVER override the "regular" targets unless you want to open
 # a major can of worms.
+#
+# Set these variables if your port doesn't need some of the steps.
+# Note that there are no NO_PATCH or NO_CONFIGURE variables becuase
+# those steps are empty by default.  Also, NO_CHECKSUM is a user variable
+# and is not to be set in a port's Makefile.  See above for NO_PACKAGE.
+#
+# NO_EXTRACT	- Use a dummy (do-nothing) extract target.
+# NO_BUILD		- Use a dummy (do-nothing) build target.
+# NO_INSTALL	- Use a dummy (do-nothing) install target.
+#
+# Here are some variables used in various stages.
+#
+# For fetch:
+#
+# FETCH_CMD		  - Full path to ftp/http fetch command if not in $PATH
+#				  (default: /usr/bin/fetch).
+# FETCH_BEFORE_ARGS -
+#				  Arguments to ${FETCH_CMD} before filename (default: none).
+# FETCH_AFTER_ARGS -
+#				  Arguments to ${FETCH_CMD} following filename (default: none).
+#
+# For extract:
+#
+# EXTRACT_CMD	- Command for extracting archive (default: tar).
+# EXTRACT_BEFORE_ARGS -
+#				  Arguments to ${EXTRACT_CMD} before filename
+#				  (default: -xzf).
+# EXTRACT_AFTER_ARGS -
+#				  Arguments to ${EXTRACT_CMD} following filename
+#				  (default: none).
+#
+# For configure:
+#
+# HAS_CONFIGURE	- Says that the port has its own configure script.  The
+#				  configure stage will not do anything if this is not set.
+# GNU_CONFIGURE	- Set if you are using GNU configure (optional).  Implies
+#				  HAS_CONFIGURE.
+# CONFIGURE_SCRIPT - Name of configure script (defaults: configure).
+# CONFIGURE_ARGS - Pass these args to configure if ${HAS_CONFIGURE} is set.
+# CONFIGURE_ENV - Pass these env (shell-like) to configure if
+#				  ${HAS_CONFIGURE} is set.
+#
+# For build and install:
+#
+# MAKE_ENV		- Additional environment vars passed to sub-make in build
+#				  and install stages (default: see below).
+#
+# For install:
+#
+# NO_MTREE		- If set, will not invoke mtree from bsd.port.mk from
+#				  the "install" target.
+# MTREE_FILE	- The name of the mtree file (default: /etc/mtree/BSD.x11.dist
+#				  if USE_X_PREFIX is set, /etc/mtree/BSD.local.dist
+#				  otherwise.)
+# PLIST			- Name of the `packing list' file (default: ${PKGDIR}/PLIST).
+#				  Change this to ${WRKDIR}/PLIST or something if you
+#				  need to write to it.  (It is not a good idea for a port
+#				  to write to any file outside ${WRKDIR} during a normal
+#				  build.)
+# TMPPLIST		- Name of the `packing list' file after processing
+#				  (default: ${WRKDIR}/.PLIST.mktmp).
+# PLIST_SUB		- List of "variable=value" pair for substitution in ${PLIST}
+# 				  (default: see below).
+# 
+# Note that the install target will automatically add manpages (see
+# above) and also substitute special sequences of characters (delimited
+# by "%%") as defined in PLIST_SUB to generate ${TMPPLIST}.  For
+# instance, "OSREL=${OSREL}" in PLIST_SUB causes all occurrences of
+# "%%OSREL%%" in ${PLIST} to be substituted by the value of OSREL.
+# ${TMPPLIST} is generated between the do-install and post-install
+# stages.  If you are generating the packing list on-the-fly, make
+# sure it's generated by the end of do-install!
+#
+# For package:
+#
+# NO_LATEST_LINK - Do not install the "Latest" link for package.  Define this
+#				  if this port is a beta version of another stable port
+#				  which is also in the tree.
+#
+# This is used in all stages:
+#
+# SCRIPTS_ENV	- Additional environment vars passed to scripts in
+#                 ${SCRIPTDIR} executed by bsd.port.mk (default: see below).
+#
+# Finally, variables to change if you want a special behavior.  These
+# are for debugging purposes.  Don't set them in your Makefile.
+#
+# ECHO_MSG		- Used to print all the '===>' style prompts - override this
+#				  to turn them off (default: /bin/echo).
+# PATCH_DEBUG	- If set, print out more information about the patches as
+#				  it attempts to apply them.
+# PKG_DBDIR		- Where package installation is recorded (default: /var/db/pkg)
+# NO_PKG_REGISTER - Don't register a port install as a package.
+# FORCE_PKG_REGISTER - If set, it will overwrite any existing package
+#				  registration information in ${PKG_DBDIR}/${PKGNAME}.
+# NO_DEPENDS	- Don't verify build of dependencies.
+# NO_CHECKSUM	- Don't verify the checksum.  Typically used when
+#				  when you noticed the distfile you just fetched has
+#				  a different checksum and you intend to verify if
+#				  the port still works with it.
 
 # Get the architecture
 ARCH!=	uname -m
@@ -275,6 +378,9 @@ OPSYS!=	uname -s
 OSREL!=	uname -r | sed -e 's/[-(].*//'
 PLIST_SUB+=	OSREL=${OSREL}
 
+# If they exist, include Makefile.inc, then architecture/operating
+# system specific Makefiles, then local Makefile.local.
+
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
 .endif
@@ -285,6 +391,10 @@ PLIST_SUB+=	OSREL=${OSREL}
 .include "${.CURDIR}/Makefile.${OPSYS}"
 .elif exists(${.CURDIR}/Makefile.${ARCH})
 .include "${.CURDIR}/Makefile.${ARCH}"
+.endif
+
+.if exists(${.CURDIR}/Makefile.local)
+.include "${.CURDIR}/Makefile.local"
 .endif
 
 # These need to be absolute since we don't know how deep in the ports
@@ -352,8 +462,23 @@ PKGDIR?=		${.CURDIR}/pkg.${ARCH}
 PKGDIR?=		${.CURDIR}/pkg
 .endif
 
+.if defined(MANCOMPRESSED)
+.if ${MANCOMPRESSED} != yes && ${MANCOMPRESSED} != no && \
+	${MANCOMPRESSED} != maybe
+.BEGIN:
+	@${ECHO_MSG} "Error: Value of MANCOMPRESSED (is \"${MANCOMPRESSED}\") can only be \"yes\", \"no\" or \"maybe\"".
+	@${FALSE}
+.endif
+.endif
+
+.if defined(USE_IMAKE) && ${OPSYS} != OpenBSD && !defined(NO_INSTALL_MANPAGES)
+MANCOMPRESSED?=	yes
+.else
+MANCOMPRESSED?=	no
+.endif
+
 .if defined(USE_IMAKE)
-USE_X_PREFIX=		yes
+USE_X_PREFIX=	yes
 .endif
 .if defined(USE_X_PREFIX)
 USE_XLIB=		yes
@@ -424,7 +549,7 @@ MD5_FILE?=		${FILESDIR}/md5
 
 MAKE_FLAGS?=	-f
 MAKEFILE?=		Makefile
-MAKE_ENV+=		PREFIX=${PREFIX} LOCALBASE=${LOCALBASE} X11BASE=${X11BASE} MOTIFLIB="${MOTIFLIB}" CFLAGS="${CFLAGS}"
+MAKE_ENV+=		PREFIX=${PREFIX} LOCALBASE=${LOCALBASE} X11BASE=${X11BASE} MOTIFLIB="${MOTIFLIB}" CFLAGS="${CFLAGS}" LIBDIR="${LIBDIR}"
 
 .if exists(/usr/bin/fetch)
 FETCH_CMD?=		/usr/bin/fetch
@@ -507,9 +632,10 @@ SCRIPTS_ENV+=	${INSTALL_MACROS}
 COMMENT?=	${PKGDIR}/COMMENT
 DESCR?=		${PKGDIR}/DESCR
 PLIST?=		${PKGDIR}/PLIST
-TMPPLIST?=	${WRKDIR}/PLIST.mktmp
+TMPPLIST?=	${WRKDIR}/.PLIST.mktmp
 
 PKG_CMD?=		/usr/sbin/pkg_create
+PKG_DELETE?=	/usr/sbin/pkg_delete
 .if !defined(PKG_ARGS)
 PKG_ARGS=		-v -c ${COMMENT} -d ${DESCR} -f ${TMPPLIST} -p ${PREFIX} -P "`${MAKE} package-depends|sort -u`"
 .if exists(${PKGDIR}/INSTALL)
@@ -546,6 +672,7 @@ BASENAME?=	/usr/bin/basename
 CAT?=		/bin/cat
 CP?=		/bin/cp
 ECHO?=		/bin/echo
+EXPR?=		/bin/expr
 FALSE?=		/usr/bin/false
 GREP?=		/usr/bin/grep
 GUNZIP_CMD?=	/usr/bin/gunzip -f
@@ -562,6 +689,7 @@ SED?=		/usr/bin/sed
 SETENV?=	/usr/bin/env
 SH?=		/bin/sh
 TR?=		/usr/bin/tr
+TRUE?=		/usr/bin/true
 
 # Used to print all the '===>' style prompts - override this to turn them off.
 ECHO_MSG?=		${ECHO}
@@ -767,7 +895,7 @@ __MANPAGES:=	${_MANPAGES:S^${PREFIX}/^^:S/""//:S^//^/^g}
 __MANPAGES:=	${_MANPAGES:S^${PREFIX}/^^:S/""//:S^//^/^g:S/$/.gz/}
 .endif
 
-.if defined(_MANPAGES) && defined(MANCOMPRESSED)
+.if defined(_MANPAGES) && ${MANCOMPRESSED} == "yes"
 _MANPAGES:=	${_MANPAGES:S/$/.gz/}
 .endif
 
@@ -907,11 +1035,11 @@ checksum: fetch
 
 # Disable extract
 .if defined(NO_EXTRACT) && !target(extract)
-extract: checksum
+extract: fetch
 	@${TOUCH} ${TOUCH_FLAGS} ${EXTRACT_COOKIE}
 checksum: fetch
 	@${DO_NADA}
-makesum:
+makesum: fetch
 	@${DO_NADA}
 .endif
 
@@ -1120,25 +1248,23 @@ do-install:
 # Package
 
 .if !target(do-package)
-do-package:
-	@if [ -e ${PLIST} ]; then \
-		${ECHO_MSG} "===>  Building package for ${PKGNAME}"; \
+do-package: ${TMPPLIST}
+	@${ECHO_MSG} "===>  Building package for ${PKGNAME}"
+	@if [ -d ${PACKAGES} ]; then \
+		if [ ! -d ${PKGREPOSITORY} ]; then \
+			if ! ${MKDIR} ${PKGREPOSITORY}; then \
+				${ECHO_MSG} ">> Can't create directory ${PKGREPOSITORY}."; \
+				exit 1; \
+			fi; \
+		fi; \
+	fi
+	@if ${PKG_CMD} ${PKG_ARGS} ${PKGFILE}; then \
 		if [ -d ${PACKAGES} ]; then \
-			if [ ! -d ${PKGREPOSITORY} ]; then \
-				if ! ${MKDIR} ${PKGREPOSITORY}; then \
-					${ECHO_MSG} ">> Can't create directory ${PKGREPOSITORY}."; \
-					exit 1; \
-				fi; \
-			fi; \
+			${MAKE} ${.MAKEFLAGS} package-links; \
 		fi; \
-		if ${PKG_CMD} ${PKG_ARGS} ${PKGFILE}; then \
-			if [ -d ${PACKAGES} ]; then \
-				${MAKE} ${.MAKEFLAGS} package-links; \
-			fi; \
-		else \
-			${MAKE} ${.MAKEFLAGS} delete-package; \
-			exit 1; \
-		fi; \
+	else \
+		${MAKE} ${.MAKEFLAGS} delete-package; \
+		exit 1; \
 	fi
 .endif
 
@@ -1191,6 +1317,7 @@ _PORT_USE: .USE
 	@cd ${.CURDIR} && ${MAKE} ${.MAKEFLAGS} fetch-depends
 .endif
 .if make(real-extract)
+	@cd ${.CURDIR} && ${MAKE} checksum
 	@cd ${.CURDIR} && ${MAKE} ${.MAKEFLAGS} build-depends lib-depends misc-depends
 .endif
 .if make(real-install)
@@ -1229,36 +1356,23 @@ _PORT_USE: .USE
 	fi
 .endif
 .endif
-.if (make(real-install) || make(real-package)) && exists(${PLIST})
-	@>${TMPPLIST}
-.for man in ${__MANPAGES}
-	@${ECHO} ${man} >> ${TMPPLIST}
-.endfor
-	@${SED} ${_sedsubplist} ${PLIST} >> ${TMPPLIST}
-.endif
 	@cd ${.CURDIR} && ${MAKE} ${.MAKEFLAGS} ${.TARGET:S/^real-/pre-/}
 	@if [ -f ${SCRIPTDIR}/${.TARGET:S/^real-/pre-/} ]; then \
 		cd ${.CURDIR} && ${SETENV} ${SCRIPTS_ENV} ${SH} \
 			${SCRIPTDIR}/${.TARGET:S/^real-/pre-/}; \
 	fi
 	@cd ${.CURDIR} && ${MAKE} ${.MAKEFLAGS} ${.TARGET:S/^real-/do-/}
+# put here so ports can change the contents of ${TMPPLIST} if necessary
+.if make(real-install)
+	@cd ${.CURDIR} && ${MAKE} ${.MAKEFLAGS} generate-plist
+.endif
 	@cd ${.CURDIR} && ${MAKE} ${.MAKEFLAGS} ${.TARGET:S/^real-/post-/}
 	@if [ -f ${SCRIPTDIR}/${.TARGET:S/^real-/post-/} ]; then \
 		cd ${.CURDIR} && ${SETENV} ${SCRIPTS_ENV} ${SH} \
 			${SCRIPTDIR}/${.TARGET:S/^real-/post-/}; \
 	fi
 .if make(real-install) && defined(_MANPAGES)
-.if defined(MANCOMPRESSED) && defined(NOMANCOMPRESS)
-	@${ECHO_MSG} "===>   Uncompressing manual pages for ${PKGNAME}"
-.for manpage in ${_MANPAGES}
-	@${GUNZIP_CMD} ${manpage}
-.endfor
-.elif !defined(MANCOMPRESSED) && !defined(NOMANCOMPRESS)
-	@${ECHO_MSG} "===>   Compressing manual pages for ${PKGNAME}"
-.for manpage in ${_MANPAGES}
-	@${GZIP_CMD} ${manpage}
-.endfor
-.endif
+	@cd ${.CURDIR} && ${MAKE} ${.MAKEFLAGS} compress-man
 .endif
 .if make(real-install) && !defined(NO_PKG_REGISTER)
 	@cd ${.CURDIR} && ${MAKE} ${.MAKEFLAGS} fake-pkg
@@ -1284,40 +1398,46 @@ fetch:
 .endif
 
 .if !target(extract)
-extract: checksum ${EXTRACT_COOKIE}
+extract: ${EXTRACT_COOKIE}
 .endif
 
 .if !target(patch)
-patch: extract ${PATCH_COOKIE}
+patch: ${PATCH_COOKIE}
 .endif
 
 .if !target(configure)
-configure: patch ${CONFIGURE_COOKIE}
+configure: ${CONFIGURE_COOKIE}
 .endif
 
 .if !target(build)
-build: configure ${BUILD_COOKIE}
+build: ${BUILD_COOKIE}
 .endif
 
 .if !target(install)
-install: build ${INSTALL_COOKIE}
+install: ${INSTALL_COOKIE}
 .endif
 
 .if !target(package)
-package: install ${PACKAGE_COOKIE}
+package: ${PACKAGE_COOKIE}
 .endif
 
 ${EXTRACT_COOKIE}:
+	@cd ${.CURDIR} && ${MAKE} ${.MAKEFLAGS} fetch
 	@cd ${.CURDIR} && ${MAKE} ${.MAKEFLAGS} real-extract
 ${PATCH_COOKIE}:
+	@cd ${.CURDIR} && ${MAKE} ${.MAKEFLAGS} extract
 	@cd ${.CURDIR} && ${MAKE} ${.MAKEFLAGS} real-patch
 ${CONFIGURE_COOKIE}:
+	@cd ${.CURDIR} && ${MAKE} ${.MAKEFLAGS} patch
 	@cd ${.CURDIR} && ${MAKE} ${.MAKEFLAGS} real-configure
 ${BUILD_COOKIE}:
+	@cd ${.CURDIR} && ${MAKE} ${.MAKEFLAGS} configure
 	@cd ${.CURDIR} && ${MAKE} ${.MAKEFLAGS} real-build
 ${INSTALL_COOKIE}:
+	@cd ${.CURDIR} && ${MAKE} ${.MAKEFLAGS} build
 	@cd ${.CURDIR} && ${MAKE} ${.MAKEFLAGS} real-install
 ${PACKAGE_COOKIE}:
+	@cd ${.CURDIR} && ${MAKE} ${.MAKEFLAGS} install
 	@cd ${.CURDIR} && ${MAKE} ${.MAKEFLAGS} real-package
 
 # And call the macros
@@ -1378,7 +1498,7 @@ reinstall:
 .if !target(deinstall)
 deinstall:
 	@${ECHO_MSG} "===>  Deinstalling for ${PKGNAME}"
-	@pkg_delete -f ${PKGNAME}
+	@${PKG_DELETE} -f ${PKGNAME}
 	@${RM} -f ${INSTALL_COOKIE} ${PACKAGE_COOKIE}
 .endif
 
@@ -1489,7 +1609,7 @@ checksum: fetch
 				${ECHO_MSG} ">> Checksum for $$file is set to IGNORE in md5 file even though"; \
 				${ECHO_MSG} "   the file is not in the "'$$'"{IGNOREFILES} list."; \
 				OK="false"; \
-			elif expr "$$CKSUM2" : ".*$$CKSUM" > /dev/null; then \
+			elif ${EXPR} "$$CKSUM2" : ".*$$CKSUM" > /dev/null; then \
 				${ECHO_MSG} ">> Checksum OK for $$file."; \
 			else \
 				${ECHO_MSG} ">> Checksum mismatch for $$file."; \
@@ -1536,7 +1656,7 @@ package-depends:
 		if [ -d $$dir ]; then \
 			(cd $$dir ; ${MAKE} package-name package-depends); \
 		else \
-			${ECHO_MSG} "Warning: \"$$dir\" non-existent -- @pkgdep registration incomplete" >&2; \
+			${ECHO_MSG} "${PKGNAME}: \"$$dir\" non-existent -- dependency list incomplete" >&2; \
 		fi; \
 	done
 .endif
@@ -1586,13 +1706,13 @@ _DEPENDS_USE:	.USE
 	@for i in ${DEPENDS_TMP}; do \
 		prog=`${ECHO} $$i | ${SED} -e 's/:.*//'`; \
 		dir=`${ECHO} $$i | ${SED} -e 's/[^:]*://'`; \
-		if expr "$$dir" : '.*:' > /dev/null; then \
+		if ${EXPR} "$$dir" : '.*:' > /dev/null; then \
 			target=`${ECHO} $$dir | ${SED} -e 's/.*://'`; \
 			dir=`${ECHO} $$dir | ${SED} -e 's/:.*//'`; \
 		else \
 			target=${DEPENDS_TARGET}; \
 		fi; \
-		if expr "$$prog" : \\/ >/dev/null; then \
+		if ${EXPR} "$$prog" : \\/ >/dev/null; then \
 			if [ -e "$$prog" ]; then \
 				${ECHO_MSG} "===>   ${PKGNAME} depends on file: $$prog - found"; \
 				notfound=0; \
@@ -1634,13 +1754,13 @@ lib-depends:
 	@for i in ${LIB_DEPENDS}; do \
 		lib=`${ECHO} $$i | ${SED} -e 's/:.*//'`; \
 		dir=`${ECHO} $$i | ${SED} -e 's/[^:]*://'`; \
-		if expr "$$dir" : '.*:' > /dev/null; then \
+		if ${EXPR} "$$dir" : '.*:' > /dev/null; then \
 			target=`${ECHO} $$dir | ${SED} -e 's/.*://'`; \
 			dir=`${ECHO} $$dir | ${SED} -e 's/:.*//'`; \
 		else \
 			target=${DEPENDS_TARGET}; \
 		fi; \
-		if /sbin/ldconfig -r | ${GREP} -q -e "-l$$lib"; then \
+		if ${LDCONFIG} -r | ${GREP} -q -e "-l$$lib"; then \
 			${ECHO_MSG} "===>   ${PKGNAME} depends on shared library: $$lib - found"; \
 		else \
 			${ECHO_MSG} "===>   ${PKGNAME} depends on shared library: $$lib - not found"; \
@@ -1650,6 +1770,12 @@ lib-depends:
 			else \
 				(cd $$dir; ${MAKE} ${.MAKEFLAGS} $$target) ; \
 				${ECHO_MSG} "===>   Returning to build of ${PKGNAME}"; \
+				if ${LDCONFIG} -r | ${GREP} -q -e "-l$$lib"; then \
+					${TRUE}; \
+				else \
+					${ECHO_MSG} "Error: shared library \"$$lib\" does not exist"; \
+					${FALSE}; \
+				fi; \
 			fi; \
 		fi; \
 	done
@@ -1662,7 +1788,7 @@ misc-depends:
 .if defined(DEPENDS)
 .if !defined(NO_DEPENDS)
 	@for dir in ${DEPENDS}; do \
-		if expr "$$dir" : '.*:' > /dev/null; then \
+		if ${EXPR} "$$dir" : '.*:' > /dev/null; then \
 			target=`${ECHO} $$dir | ${SED} -e 's/.*://'`; \
 			dir=`${ECHO} $$dir | ${SED} -e 's/:.*//'`; \
 		else \
@@ -1706,7 +1832,11 @@ clean-depends:
 .if !target(depends-list)
 depends-list:
 	@for dir in `${ECHO} "${FETCH_DEPENDS} ${BUILD_DEPENDS} ${LIB_DEPENDS}" | ${TR} '\040' '\012' | ${SED} -e 's/^[^:]*://' -e 's/:.*//' | sort -u` `${ECHO} ${DEPENDS} | ${TR} '\040' '\012' | ${SED} -e 's/:.*//' | sort -u`; do \
-		(cd $$dir; ${MAKE} package-name depends-list); \
+		if [ -d $$dir ]; then \
+			(cd $$dir ; ${MAKE} package-name depends-list); \
+		else \
+			${ECHO_MSG} "${PKGNAME}: \"$$dir\" non-existent -- dependency list incomplete" >&2; \
+		fi; \
 	done
 .endif
 
@@ -1788,13 +1918,45 @@ print-package-depends:
 .endif
 .endif
 
+# Generate packing list.  Also tests to make sure all required package
+# files exist.
+
+.if !target(generate-plist)
+generate-plist:
+	@${ECHO_MSG} "===>   Generating temporary packing list"
+	@if [ ! -f ${PLIST} -o ! -f ${COMMENT} -o ! -f ${DESCR} ]; then ${ECHO} "** Missing package files for ${PKGNAME}."; exit 1; fi
+	@>${TMPPLIST}
+.for man in ${__MANPAGES}
+	@${ECHO} ${man} >> ${TMPPLIST}
+.endfor
+	@${SED} ${_sedsubplist} ${PLIST} >> ${TMPPLIST}
+.endif
+
+${TMPPLIST}:
+	@cd ${.CURDIR} && ${MAKE} generate-plist
+
+# Compress (or uncompress) manpages.
+.if !target(compress-man)
+compress-man:
+.if ${MANCOMPRESSED} == yes && defined(NOMANCOMPRESS)
+	@${ECHO_MSG} "===>   Uncompressing manual pages for ${PKGNAME}"
+.for manpage in ${_MANPAGES}
+	@${GUNZIP_CMD} ${manpage}
+.endfor
+.elif ${MANCOMPRESSED} == no && !defined(NOMANCOMPRESS)
+	@${ECHO_MSG} "===>   Compressing manual pages for ${PKGNAME}"
+.for manpage in ${_MANPAGES}
+	@${GZIP_CMD} ${manpage}
+.endfor
+.endif
+.endif
+
 # Fake installation of package so that user can pkg_delete it later.
 # Also, make sure that an installed port is recognized correctly in
 # accordance to the @pkgdep directive in the packing lists
 
 .if !target(fake-pkg)
 fake-pkg:
-	@if [ ! -f ${TMPPLIST} -o ! -f ${COMMENT} -o ! -f ${DESCR} ]; then ${ECHO} "** Missing package files for ${PKGNAME} - installation not recorded."; exit 1; fi
 	@if [ ! -d ${PKG_DBDIR} ]; then ${RM} -f ${PKG_DBDIR}; ${MKDIR} ${PKG_DBDIR}; fi
 .if defined(FORCE_PKG_REGISTER)
 	@${RM} -rf ${PKG_DBDIR}/${PKGNAME}
