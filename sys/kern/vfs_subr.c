@@ -3128,5 +3128,5 @@ privcheck:
 	}
 #endif
 
-	return (EACCES);
+	return ((acc_mode & VADMIN) ? EPERM : EACCES);
 }
