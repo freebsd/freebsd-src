@@ -1,4 +1,4 @@
-@(#)README	7.10
+@(#)README	7.11
 
 "What time is it?" -- Richard Deacon as The King
 "Any time you want it to be." -- Frank Baxter as The Scientist
@@ -33,8 +33,22 @@ Since POSIX frowns on correct leap second handling, the default behavior of
 the "zic" command (in the absence of a "-L" option) has been changed to omit
 leap second information from its output files.
 
-Be sure to read the comments in "Makefile" and make any changes
-needed to make things right for your system.
+Here is a recipe for acquiring, building, installing, and testing the
+tz distribution on a GNU/Linux or similar host.
+
+	mkdir tz
+	cd tz
+	wget 'ftp://elsie.nci.nih.gov/pub/tz*.tar.gz'
+	gzip -dc tzcode*.tar.gz | tar -xf -
+	gzip -dc tzdata*.tar.gz | tar -xf -
+
+Be sure to read the comments in "Makefile" and make any changes needed
+to make things right for your system, especially if you are using some
+platform other than GNU/Linux.  Then run the following commands,
+substituting your desired installation directory for "$HOME/tzdir":
+
+	make TOPDIR=$HOME/tzdir install
+	$HOME/tzdir/etc/zdump -v America/Los_Angeles
 
 To use the new functions, use a "-ltz" option when compiling or linking.
 
