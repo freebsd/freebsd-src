@@ -103,7 +103,7 @@ _mcount:								\n\
 	_c = intr_disable()
 #define MCOUNT_EXIT(s) \n\
 	intr_restore(_c)
-#define	MCOUNT_DECL(s)	critical_t c;
+#define	MCOUNT_DECL(s)	register_t c;
 #ifdef GUPROF
 struct gmonparam;
 
