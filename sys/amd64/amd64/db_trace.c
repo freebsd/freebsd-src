@@ -463,20 +463,6 @@ db_backtrace(struct thread *td, struct trapframe *tf,
 }
 
 void
-db_stack_trace_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count,
-    char *modif)
-{
-	struct thread *td;
-
-	td = (have_addr) ? kdb_thr_lookup(addr) : kdb_thread;
-	if (td == NULL) {
-		db_printf("Thread %ld not found\n", addr);
-		return;
-	}
-	db_trace_thread(td, count);
-}
-
-void
 db_trace_self(void)
 {
 	struct amd64_frame *frame;

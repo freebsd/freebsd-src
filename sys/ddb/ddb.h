@@ -128,7 +128,6 @@ db_cmdfcn_t	db_set_thread;
 db_cmdfcn_t	db_show_regs;
 db_cmdfcn_t	db_show_threads;
 db_cmdfcn_t	db_single_step_cmd;
-db_cmdfcn_t	db_stack_trace_cmd;
 db_cmdfcn_t	db_trace_until_call_cmd;
 db_cmdfcn_t	db_trace_until_matching_cmd;
 db_cmdfcn_t	db_watchpoint_cmd;

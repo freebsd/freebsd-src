@@ -86,7 +86,7 @@ void db_md_list_watchpoints(void);
 #define FR_RSP	(-2)
 #define FR_RFP	(-3)
 
-void
+static void
 db_stack_trace_cmd(addr, have_addr, count, modif)
 	db_expr_t       addr;
 	int             have_addr;
@@ -242,6 +242,7 @@ db_md_set_watchpoint(db_expr_t addr, db_expr_t size)
 {
 	return (0);
 }
+
 int
 db_trace_thread(struct thread *thr, int count)
 {
