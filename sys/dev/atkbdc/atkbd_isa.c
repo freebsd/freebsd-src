@@ -53,11 +53,13 @@ devclass_t	atkbd_devclass;
 
 static int	atkbdprobe(device_t dev);
 static int	atkbdattach(device_t dev);
+static int	atkbdresume(device_t dev);
 static void	atkbd_isa_intr(void *arg);
 
 static device_method_t atkbd_methods[] = {
 	DEVMETHOD(device_probe,		atkbdprobe),
 	DEVMETHOD(device_attach,	atkbdattach),
+	DEVMETHOD(device_resume,	atkbdresume),
 	{ 0, 0 }
 };
 
@@ -113,6 +115,18 @@ atkbdattach(device_t dev)
 	BUS_SETUP_INTR(device_get_parent(dev), dev, sc->intr, INTR_TYPE_TTY,
 		       atkbd_isa_intr, kbd, &sc->ih);
 
+	return 0;
+}
+
+static int
+atkbdresume(device_t dev)
+{
+	keyboard_t *kbd;
+
+	kbd = kbd_get_keyboard(kbd_find_keyboard(ATKBD_DRIVER_NAME,
+						 device_get_unit(dev)));
+	if (kbd)
+		(*kbdsw[kbd->kb_index]->clear_state)(kbd);
 	return 0;
 }
 
