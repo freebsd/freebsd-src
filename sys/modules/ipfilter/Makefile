@@ -10,7 +10,7 @@ SRCS=	mlfk_ipl.c ip_nat.c ip_frag.c ip_state.c ip_proxy.c ip_auth.c \
 CFLAGS+= -DUSE_INET6
 .endif
 CFLAGS+=  -I${.CURDIR}/../../contrib/ipfilter
-CFLAGS+= -DIPFILTER=1 -DIPFILTER_LKM -DIPFILTER_LOG -DPFIL_HOOKS
+CFLAGS+= -DIPFILTER=1 -DIPFILTER_LKM -DIPFILTER_LOG
 #
 # If you don't want log functionality remove -DIPFILTER_LOG
 #
