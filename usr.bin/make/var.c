@@ -139,9 +139,6 @@ GNode          *VAR_CMD;      /* variables defined on the command-line */
 static void VarDelete(void *);
 static char *VarGetPattern(GNode *, int, char **, int, int *, size_t *,
 			   VarPattern *);
-static char *VarModify(char *,
-		       Boolean (*)(const char *, Boolean, Buffer *, void *),
-		       void *);
 static int VarPrintVar(void *, void *);
 
 /*-
@@ -584,8 +581,7 @@ Var_Value(const char *name, GNode *ctxt, char **frp)
  *-----------------------------------------------------------------------
  */
 static char *
-VarModify(char *str, Boolean (*modProc)(const char *, Boolean, Buffer *, void *),
-    void *datum)
+VarModify(char *str, VarModifyProc *modProc, void *datum)
 {
     Buffer  	  *buf;	    	    /* Buffer for the new string */
     Boolean 	  addSpace; 	    /* TRUE if need to add a space to the
