@@ -12,6 +12,8 @@
  * Department of Chemical Engineering
  * The University of Texas at Austin
  * Austin, Texas  78712
+ *
+ * $FreeBSD$
  */
 
 #define MAN_MAIN
@@ -582,12 +584,12 @@ do_apropos (name)
   register int len;
   register char *command;
 
-  len = strlen (APROPOS) + strlen (name) + 2;
+  len = strlen (APROPOS) + strlen (name) + 4;
 
   if ((command = (char *) malloc(len)) == NULL)
     gripe_alloc (len, "command");
 
-  sprintf (command, "%s %s", APROPOS, name);
+  sprintf (command, "%s \"%s\"", APROPOS, name);
 
   (void) do_system_command (command);
 
@@ -604,12 +606,12 @@ do_whatis (name)
   register int len;
   register char *command;
 
-  len = strlen (WHATIS) + strlen (name) + 2;
+  len = strlen (WHATIS) + strlen (name) + 4;
 
   if ((command = (char *) malloc(len)) == NULL)
     gripe_alloc (len, "command");
 
-  sprintf (command, "%s %s", WHATIS, name);
+  sprintf (command, "%s \"%s\"", WHATIS, name);
 
   (void) do_system_command (command);
 
