@@ -1111,8 +1111,10 @@ rt_setgate(struct rtentry *rt, struct sockaddr *dst, struct sockaddr *gate)
 
 		arg.rnh = rnh;
 		arg.rt0 = rt;
-		/* XXX LOR here */
+		/* XXX workaround LOR */
+		RT_UNLOCK(rt);
 		RADIX_NODE_HEAD_LOCK(rnh);
+		RT_LOCK(rt);
 		rnh->rnh_walktree_from(rnh, rt_key(rt), rt_mask(rt),
 				       rt_fixchange, &arg);
 		RADIX_NODE_HEAD_UNLOCK(rnh);
