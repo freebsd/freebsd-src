@@ -117,7 +117,7 @@ The
 function is a variation on tsleep.
 The parameter
 .Ar mtx
-is a mutex, which will be exited before sleeping, and entered before
+is a mutex which will be released before sleeping and reacquired before
 .Fn msleep
 returns.
 If
@@ -126,7 +126,7 @@ includes the
 .Dv PDROP
 flag, the
 .Ar mtx
-parameter will not be entered before returning.
+parameter will not be reacquired before returning.
 The mutex is
 used to ensure that a condition can be checked atomically, and
 that the current process can be suspended without missing a
@@ -151,9 +151,9 @@ function appeared in
 The
 .Fn sleep
 function used to be the traditional form.
-It does not let you specify a timeout or a
+It did not let you specify a timeout or a
 .Ar wmesg ,
-hence it has been discontinued.
+hence it was discontinued.
 .Sh AUTHORS
 .An -nosplit
 This man page was written by
