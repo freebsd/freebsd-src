@@ -47,6 +47,7 @@ static const char rcsid[] =
 #include <db.h>
 #include <err.h>
 #include <fcntl.h>
+#include <langinfo.h>
 #include <paths.h>
 #include <pwd.h>
 #include <stdio.h>
@@ -104,9 +105,10 @@ lprint(pn)
 	register int cpr, len, maxlen;
 	struct tm *tp;
 	int oddfield;
-	char *tzn;
 	char t[80];
 
+	if (d_first < 0)
+		d_first = (*nl_langinfo(D_MD_ORDER) == 'd');
 	/*
 	 * long format --
 	 *	login name
@@ -172,10 +174,10 @@ lprint(pn)
 		switch (w->info) {
 		case LOGGEDIN:
 			tp = localtime(&w->loginat);
-			strftime(t, sizeof(t), "%c", tp);
-			tzn = tp->tm_zone;
-			cpr = printf("On since %.16s (%s) on %s",
-			    t, tzn, w->tty);
+			strftime(t, sizeof(t),
+			    d_first ? "%a %e %b %R (%Z)" : "%a %b %e %R (%Z)",
+			    tp);
+			cpr = printf("On since %s on %s", t, w->tty);
 			/*
 			 * idle time is tough; if have one, print a comma,
 			 * then spaces to pad out the device name, then the
@@ -206,15 +208,18 @@ lprint(pn)
 				break;
 			}
 			tp = localtime(&w->loginat);
-			strftime(t, sizeof(t), "%c", tp);
-			tzn = tp->tm_zone;
-			if (now - w->loginat > 86400 * 365 / 2)
-				cpr =
-				    printf("Last login %.16s %.4s (%s) on %s",
-				    t, t + 20, tzn, w->tty);
-			else
-				cpr = printf("Last login %.16s (%s) on %s",
-				    t, tzn, w->tty);
+			if (now - w->loginat > 86400 * 365 / 2) {
+				strftime(t, sizeof(t),
+					d_first ? "%a %e %b %R %Y (%Z)" :
+						   "%a %b %e %R %Y (%Z)",
+					tp);
+				} else {
+					strftime(t, sizeof(t),
+						d_first ? "%a %e %b %R (%Z)" :
+							  "%a %b %e %R (%Z)",
+						tp);
+			}
+			cpr = printf("Last login %s on %s", t, w->tty);
 			break;
 		}
 		if (*w->host) {
@@ -228,18 +233,24 @@ lprint(pn)
 		printf("No Mail.\n");
 	else if (pn->mailrecv > pn->mailread) {
 		tp = localtime(&pn->mailrecv);
-		strftime(t, sizeof(t), "%c", tp);
-		tzn = tp->tm_zone;
-		printf("New mail received %.16s %.4s (%s)\n", t, t + 20, tzn);
+		strftime(t, sizeof(t),
+			 d_first ? "%a %e %b %R %Y (%Z)" :
+				   "%a %b %e %R %Y (%Z)",
+			 tp);
+		printf("New mail received %s\n", t);
 		tp = localtime(&pn->mailread);
-		strftime(t, sizeof(t), "%c", tp);
-		tzn = tp->tm_zone;
-		printf("     Unread since %.16s %.4s (%s)\n", t, t + 20, tzn);
+		strftime(t, sizeof(t),
+			 d_first ? "%a %e %b %R %Y (%Z)" :
+				   "%a %b %e %R %Y (%Z)",
+			 tp);
+		printf("     Unread since %s\n", t);
 	} else {
 		tp = localtime(&pn->mailread);
-		strftime(t, sizeof(t), "%c", tp);
-		tzn = tp->tm_zone;
-		printf("Mail last read %.16s %.4s (%s)\n", t, t + 20, tzn);
+		strftime(t, sizeof(t),
+			 d_first ? "%a %e %b %R %Y (%Z)" :
+				   "%a %b %e %R %Y (%Z)",
+			 tp);
+		printf("Mail last read %s\n", t);
 	}
 }
 
