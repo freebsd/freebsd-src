@@ -2989,7 +2989,7 @@ nfs4_writebp(struct buf *bp, int force, struct thread *td)
 
 		if (oldflags & B_DELWRI) {
 			s = splbio();
-			reassignbuf(bp, bp->b_vp);
+			reassignbuf(bp);
 			splx(s);
 		}
 

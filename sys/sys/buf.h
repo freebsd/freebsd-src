@@ -521,7 +521,7 @@ void	bgetvp(struct vnode *, struct buf *);
 void	pbgetvp(struct vnode *, struct buf *);
 void	pbrelvp(struct buf *);
 int	allocbuf(struct buf *bp, int size);
-void	reassignbuf(struct buf *, struct vnode *);
+void	reassignbuf(struct buf *);
 struct	buf *trypbuf(int *);
 void	bwait(struct buf *, u_char, const char *);
 void	bdone(struct buf *);

@@ -1109,7 +1109,7 @@ bdirty(bp)
 
 	if ((bp->b_flags & B_DELWRI) == 0) {
 		bp->b_flags |= B_DONE | B_DELWRI;
-		reassignbuf(bp, bp->b_vp);
+		reassignbuf(bp);
 		atomic_add_int(&numdirtybuffers, 1);
 		bd_wakeup((lodirtybuffers + hidirtybuffers) / 2);
 	}
@@ -1136,7 +1136,7 @@ bundirty(bp)
 
 	if (bp->b_flags & B_DELWRI) {
 		bp->b_flags &= ~B_DELWRI;
-		reassignbuf(bp, bp->b_vp);
+		reassignbuf(bp);
 		atomic_subtract_int(&numdirtybuffers, 1);
 		numdirtywakeup(lodirtybuffers);
 	}
