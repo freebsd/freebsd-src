@@ -151,19 +151,19 @@ struct ch_softc {
 	 * The following information is obtained from the
 	 * element address assignment page.
 	 */
-	int		sc_firsts[4];	/* firsts, indexed by CHET_* */
-	int		sc_counts[4];	/* counts, indexed by CHET_* */
+	int		sc_firsts[CHET_MAX + 1];	/* firsts */
+	int		sc_counts[CHET_MAX + 1];	/* counts */
 
 	/*
 	 * The following mask defines the legal combinations
 	 * of elements for the MOVE MEDIUM command.
 	 */
-	u_int8_t	sc_movemask[4];
+	u_int8_t	sc_movemask[CHET_MAX + 1];
 
 	/*
 	 * As above, but for EXCHANGE MEDIUM.
 	 */
-	u_int8_t	sc_exchangemask[4];
+	u_int8_t	sc_exchangemask[CHET_MAX + 1];
 
 	/*
 	 * Quirks; see below.  XXX KDM not implemented yet
@@ -1478,9 +1478,9 @@ chgetparams(struct cam_periph *periph)
 
 	bzero(softc->sc_movemask, sizeof(softc->sc_movemask));
 	bzero(softc->sc_exchangemask, sizeof(softc->sc_exchangemask));
-	moves = &cap->move_from_mt;
-	exchanges = &cap->exchange_with_mt;
-	for (from = CHET_MT; from <= CHET_DT; ++from) {
+	moves = cap->move_from;
+	exchanges = cap->exchange_with;
+	for (from = CHET_MT; from <= CHET_MAX; ++from) {
 		softc->sc_movemask[from] = moves[from];
 		softc->sc_exchangemask[from] = exchanges[from];
 	}
