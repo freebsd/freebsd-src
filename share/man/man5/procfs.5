@@ -75,6 +75,10 @@ prefix,
 in which case that signal is delivered to the process
 (see
 .Xr sigaction 2 ) .
+.Pp
+The
+.Xr procctl 8
+utility can be used to clear tracepoints in a stuck process.
 .It Pa dbregs
 The debug registers as defined by
 .Dv "struct dbregs"
@@ -245,6 +249,7 @@ the process' current status
 .Xr sigaction 2 ,
 .Xr unmount 2 ,
 .Xr mount_procfs 8 ,
+.Xr procctl 8 ,
 .Xr pseudofs 9
 .Sh AUTHORS
 .An -nosplit
