@@ -40,7 +40,7 @@
 /*
  * Hooks for the ACPI CA debugging infrastructure
  */
-#define _COMPONENT	SYSTEM_CONTROL
+#define _COMPONENT	ACPI_BUTTON
 MODULE_NAME("BUTTON")
 
 struct acpi_button_softc {
@@ -103,7 +103,7 @@ acpi_button_attach(device_t dev)
     struct acpi_button_softc	*sc;
     ACPI_STATUS			status;
 
-    FUNCTION_TRACE(__FUNCTION__);
+    FUNCTION_TRACE(__func__);
 
     sc = device_get_softc(dev);
     sc->button_dev = dev;
@@ -123,7 +123,7 @@ acpi_button_notify_pressed_for_sleep(void *arg)
     struct acpi_button_softc	*sc;
     struct acpi_softc		*acpi_sc;
 
-    FUNCTION_TRACE(__FUNCTION__);
+    FUNCTION_TRACE(__func__);
 
     sc = (struct acpi_button_softc *)arg;
     acpi_sc = acpi_device_get_parent_softc(sc->button_dev);
@@ -150,7 +150,7 @@ acpi_button_notify_pressed_for_wakeup(void *arg)
     struct acpi_button_softc	*sc;
     struct acpi_softc		*acpi_sc;
 
-    FUNCTION_TRACE(__FUNCTION__);
+    FUNCTION_TRACE(__func__);
 
     sc = (struct acpi_button_softc *)arg;
     acpi_sc = acpi_device_get_parent_softc(sc->button_dev);
@@ -180,7 +180,7 @@ acpi_button_notify_handler(ACPI_HANDLE h, UINT32 notify, void *context)
 {
     struct acpi_button_softc	*sc = (struct acpi_button_softc *)context;
 
-    FUNCTION_TRACE_U32(__FUNCTION__, notify);
+    FUNCTION_TRACE_U32(__func__, notify);
 
     switch (notify) {
     case ACPI_NOTIFY_BUTTON_PRESSED_FOR_SLEEP:

@@ -44,6 +44,12 @@
 #include <dev/acpica/acpivar.h>
 #include <dev/acpica/acpiio.h>
 
+/*
+ * Hooks for the ACPI CA debugging infrastructure
+ */
+#define _COMPONENT	ACPI_BATTERY
+MODULE_NAME("BATTERY")
+
 static void	 acpi_cmbat_get_bst(void *);
 static void	 acpi_cmbat_get_bif(void *);
 static void	 acpi_cmbat_notify_handler(ACPI_HANDLE, UINT32, void *);

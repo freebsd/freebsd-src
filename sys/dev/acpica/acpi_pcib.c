@@ -42,8 +42,8 @@
 /*
  * Hooks for the ACPI CA debugging infrastructure
  */
-#define _COMPONENT	BUS_MANAGER
-MODULE_NAME("PCIB")
+#define _COMPONENT	ACPI_BUS_MANAGER
+MODULE_NAME("PCI")
 
 struct acpi_pcib_softc {
     device_t		ap_dev;
@@ -125,7 +125,7 @@ acpi_pcib_attach(device_t dev)
     ACPI_STATUS			status;
     int				result;
 
-    FUNCTION_TRACE(__FUNCTION__);
+    FUNCTION_TRACE(__func__);
 
     sc = device_get_softc(dev);
     sc->ap_dev = dev;

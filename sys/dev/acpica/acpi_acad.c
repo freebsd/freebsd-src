@@ -42,6 +42,11 @@
 #include <dev/acpica/acpivar.h>
 #include <dev/acpica/acpiio.h>
  
+/*
+ * Hooks for the ACPI CA debugging infrastructure
+ */
+#define _COMPONENT	ACPI_AC_ADAPTER
+MODULE_NAME("AC_ADAPTER")
 
 #define ACPI_DEVICE_CHECK_PNP		0x00
 #define ACPI_DEVICE_CHECK_EXISTENCE	0x01

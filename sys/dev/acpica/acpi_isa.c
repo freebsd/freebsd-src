@@ -46,7 +46,7 @@
 /*
  * Hooks for the ACPI CA debugging infrastructure
  */
-#define _COMPONENT	BUS_MANAGER
+#define _COMPONENT	ACPI_BUS_MANAGER
 MODULE_NAME("ISA")
 
 #define PNP_HEXTONUM(c) ((c) >= 'a'		\
@@ -142,7 +142,7 @@ acpi_isa_identify(driver_t *driver, device_t bus)
     ACPI_HANDLE		parent;
     ACPI_STATUS		status;
 
-    FUNCTION_TRACE(__FUNCTION__);
+    FUNCTION_TRACE(__func__);
 
     if (acpi_disabled("isa"))
 	return_VOID;
@@ -188,7 +188,7 @@ acpi_isa_identify_child(ACPI_HANDLE handle, UINT32 level, void *context, void **
     device_t		child, bus = (device_t)context;
     u_int32_t		devid;
 
-    FUNCTION_TRACE(__FUNCTION__);
+    FUNCTION_TRACE(__func__);
 
     /*
      * Skip this node if it's on the 'avoid' list.
@@ -260,7 +260,7 @@ acpi_isa_set_init(device_t dev, void **context)
 {
     struct acpi_isa_context	*cp;
 
-    FUNCTION_TRACE(__FUNCTION__);
+    FUNCTION_TRACE(__func__);
 
     cp = malloc(sizeof(*cp), M_DEVBUF, M_NOWAIT);
     bzero(cp, sizeof(*cp));
@@ -278,7 +278,7 @@ acpi_isa_set_done(device_t dev, void *context)
     device_t			parent;
     int				i, j;
 
-    FUNCTION_TRACE(__FUNCTION__);
+    FUNCTION_TRACE(__func__);
 
     if (cp == NULL)
 	return_VOID;

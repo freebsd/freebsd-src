@@ -57,7 +57,7 @@ MALLOC_DEFINE(M_ACPIDEV, "acpidev", "ACPI devices");
 /*
  * Hooks for the ACPI CA debugging infrastructure
  */
-#define _COMPONENT	BUS_MANAGER
+#define _COMPONENT	ACPI_BUS_MANAGER
 MODULE_NAME("ACPI")
 
 /*
@@ -88,6 +88,9 @@ static struct cdevsw acpi_cdevsw = {
 static const char* sleep_state_names[] = {
     "S0", "S1", "S2", "S3", "S4", "S4B", "S5" };
 
+/* this has to be static, as the softc is gone when we need it */
+static int acpi_off_state = ACPI_STATE_S5;
+
 static void	acpi_identify(driver_t *driver, device_t parent);
 static int	acpi_probe(device_t dev);
 static int	acpi_attach(device_t dev);
@@ -112,10 +115,6 @@ static void	acpi_shutdown_pre_sync(void *arg, int howto);
 static void	acpi_shutdown_final(void *arg, int howto);
 
 static void	acpi_enable_fixed_events(struct acpi_softc *sc);
-
-#ifdef ACPI_DEBUG
-static void	acpi_set_debugging(void);
-#endif
 
 static void	acpi_system_eventhandler_sleep(void *arg, int state);
 static void	acpi_system_eventhandler_wakeup(void *arg, int state);
@@ -173,7 +172,7 @@ acpi_identify(driver_t *driver, device_t parent)
     char			*debugpoint = getenv("debug.acpi.debugger");
 #endif
 
-    FUNCTION_TRACE(__FUNCTION__);
+    FUNCTION_TRACE(__func__);
 
     if(!cold){
 	    printf("Don't load this driver from userland!!\n");
@@ -185,13 +184,9 @@ acpi_identify(driver_t *driver, device_t parent)
      */
     if (device_find_child(parent, "acpi", 0) != NULL)
 	return_VOID;
-    
-#ifdef ACPI_DEBUG
-    acpi_set_debugging();
-#endif
 
     /*
-     * Start up ACPICA
+     * Start up the ACPI CA subsystem.
      */
 #ifdef ENABLE_DEBUGGER
     if (debugpoint && !strcmp(debugpoint, "init"))
@@ -230,7 +225,7 @@ acpi_probe(device_t dev)
     char		buf[20];
     int			error;
 
-    FUNCTION_TRACE(__FUNCTION__);
+    FUNCTION_TRACE(__func__);
 
     if ((error = AcpiGetTableHeader(ACPI_TABLE_XSDT, 1, &th)) != AE_OK) {
 	device_printf(dev, "couldn't get XSDT header: %s\n", acpi_strerror(error));
@@ -251,7 +246,7 @@ acpi_attach(device_t dev)
     char		*debugpoint = getenv("debug.acpi.debugger");
 #endif
 
-    FUNCTION_TRACE(__FUNCTION__);
+    FUNCTION_TRACE(__func__);
 
     sc = device_get_softc(dev);
     bzero(sc, sizeof(*sc));
@@ -266,21 +261,21 @@ acpi_attach(device_t dev)
      * Install the default address space handlers.
      */
     if ((error = AcpiInstallAddressSpaceHandler(ACPI_ROOT_OBJECT,
-						ADDRESS_SPACE_SYSTEM_MEMORY,
+						ACPI_ADR_SPACE_SYSTEM_MEMORY,
 						ACPI_DEFAULT_HANDLER,
 						NULL, NULL)) != AE_OK) {
 	device_printf(dev, "could not initialise SystemMemory handler: %s\n", acpi_strerror(error));
 	return_VALUE(ENXIO);
     }
     if ((error = AcpiInstallAddressSpaceHandler(ACPI_ROOT_OBJECT,
-						ADDRESS_SPACE_SYSTEM_IO,
+						ACPI_ADR_SPACE_SYSTEM_IO,
 						ACPI_DEFAULT_HANDLER,
 						NULL, NULL)) != AE_OK) {
 	device_printf(dev, "could not initialise SystemIO handler: %s\n", acpi_strerror(error));
 	return_VALUE(ENXIO);
     }
     if ((error = AcpiInstallAddressSpaceHandler(ACPI_ROOT_OBJECT,
-						ADDRESS_SPACE_PCI_CONFIG,
+						ACPI_ADR_SPACE_PCI_CONFIG,
 						ACPI_DEFAULT_HANDLER,
 						NULL, NULL)) != AE_OK) {
 	device_printf(dev, "could not initialise PciConfig handler: %s\n", acpi_strerror(error));
@@ -574,7 +569,7 @@ acpi_probe_children(device_t bus)
     static char		*scopes[] = {"\\_TZ_", "\\_SI", "\\_SB_", NULL};
     int			i;
 
-    FUNCTION_TRACE(__FUNCTION__);
+    FUNCTION_TRACE(__func__);
 
     /*
      * Create any static children by calling device identify methods.
@@ -622,7 +617,7 @@ acpi_probe_child(ACPI_HANDLE handle, UINT32 level, void *context, void **status)
     ACPI_OBJECT_TYPE	type;
     device_t		child, bus = (device_t)context;
 
-    FUNCTION_TRACE(__FUNCTION__);
+    FUNCTION_TRACE(__func__);
 
     /*
      * Skip this device if we think we'll have trouble with it.
@@ -673,7 +668,7 @@ acpi_shutdown_final(void *arg, int howto)
 
     if (howto & RB_POWEROFF) {
 	printf("Power system off using ACPI...\n");
-	if ((status = AcpiEnterSleepState(ACPI_STATE_S5)) != AE_OK) {
+	if ((status = AcpiEnterSleepState(acpi_off_state)) != AE_OK) {
 	    printf("ACPI power-off failed - %s\n", acpi_strerror(status));
 	} else {
 	    DELAY(1000000);
@@ -776,7 +771,7 @@ acpi_wakeup(UINT8 state)
 	ACPI_OBJECT		Objects[3]; /* package plus 2 number objects */
 	ACPI_BUFFER		ReturnBuffer;
 
-	FUNCTION_TRACE_U32(__FUNCTION__, state);
+	FUNCTION_TRACE_U32(__func__, state);
 
 	/* wait for the WAK_STS bit */
 	Count = 0;
@@ -862,7 +857,7 @@ acpi_SetSleepState(struct acpi_softc *sc, int state)
 {
     ACPI_STATUS	status = AE_OK;
 
-    FUNCTION_TRACE_U32(__FUNCTION__, state);
+    FUNCTION_TRACE_U32(__func__, state);
 
     switch (state) {
     case ACPI_STATE_S0:	/* XXX only for testing */
@@ -899,6 +894,9 @@ acpi_SetSleepState(struct acpi_softc *sc, int state)
 	acpi_enable_fixed_events(sc);
 	break;
 
+    case ACPI_STATE_S3:
+	acpi_off_state = ACPI_STATE_S3;
+	/* FALLTHROUGH */
     case ACPI_STATE_S5:
 	/*
 	 * Shut down cleanly and power off.  This will call us back through the
@@ -923,7 +921,7 @@ acpi_Enable(struct acpi_softc *sc)
     ACPI_STATUS	status;
     u_int32_t	flags;
 
-    FUNCTION_TRACE(__FUNCTION__);
+    FUNCTION_TRACE(__func__);
 
     flags = ACPI_NO_ADDRESS_SPACE_INIT | ACPI_NO_HARDWARE_INIT |
             ACPI_NO_DEVICE_INIT | ACPI_NO_OBJECT_INIT;
@@ -942,7 +940,7 @@ acpi_Disable(struct acpi_softc *sc)
 {
     ACPI_STATUS	status;
 
-    FUNCTION_TRACE(__FUNCTION__);
+    FUNCTION_TRACE(__func__);
 
     if (sc->acpi_enabled) {
 	status = AcpiDisable();
@@ -1008,7 +1006,7 @@ acpi_EvaluateInteger(ACPI_HANDLE handle, char *path, int *number)
 static void
 acpi_system_eventhandler_sleep(void *arg, int state)
 {
-    FUNCTION_TRACE_U32(__FUNCTION__, state);
+    FUNCTION_TRACE_U32(__func__, state);
 
     if (state >= ACPI_STATE_S0 && state <= ACPI_STATE_S5)
 	acpi_SetSleepState((struct acpi_softc *)arg, state);
@@ -1018,7 +1016,7 @@ acpi_system_eventhandler_sleep(void *arg, int state)
 static void
 acpi_system_eventhandler_wakeup(void *arg, int state)
 {
-    FUNCTION_TRACE_U32(__FUNCTION__, state);
+    FUNCTION_TRACE_U32(__func__, state);
 
     /* Well, what to do? :-) */
 
@@ -1033,7 +1031,7 @@ acpi_eventhandler_power_button_for_sleep(void *context)
 {
     struct acpi_softc	*sc = (struct acpi_softc *)context;
 
-    FUNCTION_TRACE(__FUNCTION__);
+    FUNCTION_TRACE(__func__);
 
     EVENTHANDLER_INVOKE(acpi_sleep_event, sc->acpi_power_button_sx);
 
@@ -1045,7 +1043,7 @@ acpi_eventhandler_power_button_for_wakeup(void *context)
 {
     struct acpi_softc	*sc = (struct acpi_softc *)context;
 
-    FUNCTION_TRACE(__FUNCTION__);
+    FUNCTION_TRACE(__func__);
 
     EVENTHANDLER_INVOKE(acpi_wakeup_event, sc->acpi_power_button_sx);
 
@@ -1057,7 +1055,7 @@ acpi_eventhandler_sleep_button_for_sleep(void *context)
 {
     struct acpi_softc	*sc = (struct acpi_softc *)context;
 
-    FUNCTION_TRACE(__FUNCTION__);
+    FUNCTION_TRACE(__func__);
 
     EVENTHANDLER_INVOKE(acpi_sleep_event, sc->acpi_sleep_button_sx);
 
@@ -1069,7 +1067,7 @@ acpi_eventhandler_sleep_button_for_wakeup(void *context)
 {
     struct acpi_softc	*sc = (struct acpi_softc *)context;
 
-    FUNCTION_TRACE(__FUNCTION__);
+    FUNCTION_TRACE(__func__);
 
     EVENTHANDLER_INVOKE(acpi_wakeup_event, sc->acpi_sleep_button_sx);
 
@@ -1448,7 +1446,7 @@ acpi_parse_debug(char *cp, struct debugtag *tag, UINT32 *flag)
 }
 
 static void
-acpi_set_debugging(void)
+acpi_set_debugging(void *junk)
 {
     char	*cp;
 
@@ -1461,4 +1459,5 @@ acpi_set_debugging(void)
 
     printf("ACPI debug layer 0x%x  debug level 0x%x\n", AcpiDbgLayer, AcpiDbgLevel);
 }
+SYSINIT(acpi_debugging, SI_SUB_TUNABLES, SI_ORDER_ANY, acpi_set_debugging, NULL);
 #endif

@@ -39,7 +39,7 @@
 /*
  * Hooks for the ACPI CA debugging infrastructure
  */
-#define _COMPONENT	THERMAL_CONTROL
+#define _COMPONENT	ACPI_THERMAL_ZONE
 MODULE_NAME("THERMAL")
 
 #define TZ_ZEROC	2732
@@ -76,7 +76,7 @@ static int
 acpi_tz_probe(device_t dev)
 {
 
-    FUNCTION_TRACE(__FUNCTION__);
+    FUNCTION_TRACE(__func__);
 
     if ((acpi_get_type(dev) == ACPI_TYPE_THERMAL) &&
 	!acpi_disabled("thermal")) {
@@ -92,7 +92,7 @@ acpi_tz_attach(device_t dev)
     struct acpi_tz_softc	*sc;
     ACPI_STATUS			status;
 
-    FUNCTION_TRACE(__FUNCTION__);
+    FUNCTION_TRACE(__func__);
 
     sc = device_get_softc(dev);
     sc->tz_dev = dev;
@@ -116,7 +116,7 @@ acpi_tz_check_tripping_point(void *context)
     ACPI_STATUS			status;
     int				tp;
 
-    FUNCTION_TRACE(__FUNCTION__);
+    FUNCTION_TRACE(__func__);
 
     sc = device_get_softc(dev);
     if ((status =  acpi_EvaluateInteger(sc->tz_handle, "_TMP", &tp)) != AE_OK) {
@@ -133,7 +133,7 @@ acpi_tz_check_tripping_point(void *context)
 static void
 acpi_tz_notify_handler(ACPI_HANDLE h, UINT32 notify, void *context)
 {
-    FUNCTION_TRACE(__FUNCTION__);
+    FUNCTION_TRACE(__func__);
 
     switch(notify){
     case ACPI_TZ_STATUS_CHANGE:

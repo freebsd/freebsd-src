@@ -44,7 +44,7 @@
 /*
  * Hooks for the ACPI CA debugging infrastructure
  */
-#define _COMPONENT	SYSTEM_CONTROL
+#define _COMPONENT	ACPI_BUTTON
 MODULE_NAME("LID")
 
 struct acpi_lid_softc {
@@ -92,7 +92,7 @@ acpi_lid_attach(device_t dev)
 {
     struct acpi_lid_softc	*sc;
 
-    FUNCTION_TRACE(__FUNCTION__);
+    FUNCTION_TRACE(__func__);
 
     sc = device_get_softc(dev);
     sc->lid_dev = dev;
@@ -111,7 +111,7 @@ acpi_lid_notify_status_changed(void *arg)
     struct acpi_lid_softc	*sc;
     struct acpi_softc		*acpi_sc;
 
-    FUNCTION_TRACE(__FUNCTION__);
+    FUNCTION_TRACE(__func__);
 
     sc = (struct acpi_lid_softc *)arg;
 
@@ -146,7 +146,7 @@ acpi_lid_notify_handler(ACPI_HANDLE h, UINT32 notify, void *context)
 {
     struct acpi_lid_softc	*sc = (struct acpi_lid_softc *)context;
 
-    FUNCTION_TRACE_U32(__FUNCTION__, notify);
+    FUNCTION_TRACE_U32(__func__, notify);
 
     switch (notify) {
     case ACPI_NOTIFY_STATUS_CHANGED:
