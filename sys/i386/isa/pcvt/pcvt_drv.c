@@ -43,6 +43,8 @@
  *
  * @(#)pcvt_drv.c, 3.20, Last Edit-Date: [Mon Apr 19 17:10:09 1999]
  *
+ * $FreeBSD$
+ *
  */
 
 /*---------------------------------------------------------------------------*
@@ -121,7 +123,6 @@ static	d_close_t	pcclose;
 static	d_read_t	pcread;
 static	d_write_t	pcwrite;
 static	d_ioctl_t	pcioctl;
-static	d_devtotty_t	pcdevtotty;
 static	d_mmap_t	pcmmap;
 
 #define	CDEV_MAJOR	12
@@ -133,8 +134,8 @@ static struct cdevsw pc_cdevsw = {
 	/* ioctl */	pcioctl,
 	/* stop */	nostop,
 	/* reset */	noreset,
-	/* devtotty */	pcdevtotty,
-	/* poll */	ttpoll,
+	/* devtotty */	nodevtotty,
+	/* poll */	ttypoll,
 	/* mmap */	pcmmap,
 	/* strategy */	nostrategy,
 	/* name */	"vt",
@@ -146,15 +147,6 @@ static struct cdevsw pc_cdevsw = {
 	/* maxio */	0,
 	/* bmaj */	-1
 };
-
-#if PCVT_FREEBSD > 205
-struct tty *
-pcdevtotty(Dev_t dev)
-{
-	return get_pccons(dev);
-}
-
-#endif /* PCVT_FREEBSD > 205 */
 
 #if PCVT_NETBSD > 100	/* NetBSD-current Feb 20 1995 */
 int
@@ -469,6 +461,8 @@ pcopen(Dev_t dev, int flag, int mode, struct proc *p)
 
   	if((tp = get_pccons(dev)) == NULL)
 		return ENXIO;
+
+	dev->si_tty = tp;
 
 #if PCVT_EMU_MOUSE
 	if(i == totalscreens)

@@ -58,6 +58,7 @@
 MALLOC_DEFINE(M_PTY, "ptys", "pty data structures");
 
 static void ptsstart __P((struct tty *tp));
+static void ptsstop __P((struct tty *tp, int rw));
 static void ptcwakeup __P((struct tty *tp, int flag));
 static void ptyinit __P((int n));
 
@@ -66,8 +67,6 @@ static	d_close_t	ptsclose;
 static	d_read_t	ptsread;
 static	d_write_t	ptswrite;
 static	d_ioctl_t	ptyioctl;
-static	d_stop_t	ptsstop;
-static	d_devtotty_t	ptydevtotty;
 static	d_open_t	ptcopen;
 static	d_close_t	ptcclose;
 static	d_read_t	ptcread;
@@ -81,10 +80,10 @@ static struct cdevsw pts_cdevsw = {
 	/* read */	ptsread,
 	/* write */	ptswrite,
 	/* ioctl */	ptyioctl,
-	/* stop */	ptsstop,
+	/* stop */	nostop,
 	/* reset */	noreset,
-	/* devtotty */	ptydevtotty,
-	/* poll */	ttpoll,
+	/* devtotty */	nodevtotty,
+	/* poll */	ttypoll,
 	/* mmap */	nommap,
 	/* strategy */	nostrategy,
 	/* name */	"pts",
@@ -106,7 +105,7 @@ static struct cdevsw ptc_cdevsw = {
 	/* ioctl */	ptyioctl,
 	/* stop */	nostop,
 	/* reset */	noreset,
-	/* devtotty */	ptydevtotty,
+	/* devtotty */	nodevtotty,
 	/* poll */	ptcpoll,
 	/* mmap */	nommap,
 	/* strategy */	nostrategy,
@@ -362,6 +361,7 @@ ptcopen(dev, flag, devtype, p)
 	if (tp->t_oproc)
 		return (EIO);
 	tp->t_oproc = ptsstart;
+	tp->t_stop = ptsstop;
 	(void)(*linesw[tp->t_line].l_modem)(tp, 1);
 	tp->t_lflag &= ~EXTPROC;
 	pti = dev->si_drv1;
@@ -645,16 +645,6 @@ block:
 		return (error);
 	}
 	goto again;
-}
-
-static	struct tty *
-ptydevtotty(dev)
-	dev_t		dev;
-{
-	if (minor(dev) & ~0xff)
-		return (NULL);
-
-	return dev->si_tty;
 }
 
 /*ARGSUSED*/

@@ -100,7 +100,6 @@ static u_char cn_phys_is_open;		/* nonzero if physical device is open */
 static d_close_t *cn_phys_close;	/* physical device close function */
 static d_open_t *cn_phys_open;		/* physical device open function */
 struct consdev *cn_tab;			/* physical console device info */
-static struct tty *cn_tp;		/* physical console tty struct */
 static dev_t condev_t;			/* represents the device private info */
 
 CONS_DRIVER(cons, NULL, NULL, NULL, NULL, NULL, NULL);
@@ -175,7 +174,6 @@ cninit_finish()
 	cdp->d_close = cnclose;
 	cn_phys_open = cdp->d_open;
 	cdp->d_open = cnopen;
-	cn_tp = (*cdp->d_devtotty)(cn_tab->cn_dev);
 	cn_dev_t = cn_tab->cn_dev;
 	cn_udev_t = dev2udev(cn_dev_t);
 }
@@ -196,7 +194,6 @@ cnuninit(void)
 	cn_phys_close = NULL;
 	cdp->d_open = cn_phys_open;
 	cn_phys_open = NULL;
-	cn_tp = NULL;
 	cn_dev_t = NODEV;
 	cn_udev_t = NOUDEV;
 }
@@ -281,6 +278,7 @@ cnopen(dev, flag, mode, p)
 			openflag = flag;
 			cn_is_open = 1;
 		}
+		dev->si_tty = physdev->si_tty;
 	}
 	return (retval);
 }
@@ -292,10 +290,12 @@ cnclose(dev, flag, mode, p)
 	struct proc *p;
 {
 	dev_t cndev;
+	struct tty *cn_tp;
 
 	if (cn_tab == NULL)
 		return (0);
 	cndev = cn_tab->cn_dev;
+	cn_tp = cndev->si_tty;
 	/*
 	 * act appropriatly depending on whether it's /dev/console
 	 * or the pysical device (e.g. /dev/sio) that's being closed.

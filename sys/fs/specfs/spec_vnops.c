@@ -46,6 +46,7 @@
 #include <sys/fcntl.h>
 #include <sys/disklabel.h>
 #include <sys/vmmeter.h>
+#include <sys/tty.h>
 
 #include <vm/vm.h>
 #include <vm/vm_prot.h>
@@ -167,15 +168,16 @@ spec_open(ap)
 	if (vp->v_mount && (vp->v_mount->mnt_flag & MNT_NODEV))
 		return (ENXIO);
 
+	dsw = devsw(dev);
+	if ( (dsw == NULL) || (dsw->d_open == NULL))
+		return ENXIO;
+
 	/* Make this field valid before any I/O in ->d_open */
 	if (!dev->si_iosize_max)
 		dev->si_iosize_max = DFLTPHYS;
 
 	switch (vp->v_type) {
 	case VCHR:
-		dsw = devsw(dev);
-		if ( (dsw == NULL) || (dsw->d_open == NULL))
-			return ENXIO;
 		if (ap->a_cred != FSCRED && (ap->a_mode & FWRITE)) {
 			/*
 			 * When running in very secure mode, do not allow
@@ -208,9 +210,6 @@ spec_open(ap)
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
 		break;
 	case VBLK:
-		dsw = devsw(dev);
-		if ( (dsw == NULL) || (dsw->d_open == NULL))
-			return ENXIO;
 		/*
 		 * When running in very secure mode, do not allow
 		 * opens for writing of any disk block devices.
@@ -230,8 +229,24 @@ spec_open(ap)
 		error = (*dsw->d_open)(dev, ap->a_mode, S_IFBLK, p);
 		break;
 	default:
-		error = 0;
+		error = ENXIO;
 		break;
+	}
+
+	if (error)
+		return (error);
+
+	if (dsw->d_flags & D_TTY) {
+		if (!dev->si_tty) {
+			printf("Warning:%s: no si_tty\n", devtoname(dev));
+		} else {
+			struct tty *tp;
+			tp = dev->si_tty;
+			if (!tp->t_stop) {
+				printf("Warning:%s: no t_stop, using nostop\n", devtoname(dev));
+				tp->t_stop = nostop;
+			}
+		}
 	}
 
 	if (vn_isdisk(vp)) {

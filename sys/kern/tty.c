@@ -422,12 +422,7 @@ parmrk:
 			if (CCEQ(cc[VSTOP], c)) {
 				if (!ISSET(tp->t_state, TS_TTSTOP)) {
 					SET(tp->t_state, TS_TTSTOP);
-#ifdef sun4c						/* XXX */
 					(*tp->t_stop)(tp, 0);
-#else
-					(*devsw(tp->t_dev)->d_stop)(tp,
-					   0);
-#endif
 					return (0);
 				}
 				if (!CCEQ(cc[VSTART], c))
@@ -999,11 +994,7 @@ ttioctl(tp, cmd, data, flag)
 		s = spltty();
 		if (!ISSET(tp->t_state, TS_TTSTOP)) {
 			SET(tp->t_state, TS_TTSTOP);
-#ifdef sun4c				/* XXX */
 			(*tp->t_stop)(tp, 0);
-#else
-			(*devsw(tp->t_dev)->d_stop)(tp, 0);
-#endif
 		}
 		splx(s);
 		break;
@@ -1062,14 +1053,16 @@ ttioctl(tp, cmd, data, flag)
 }
 
 int
-ttypoll(tp, events, p)
-	struct tty *tp;
+ttypoll(dev, events, p)
+	dev_t dev;
 	int events;
 	struct proc *p;
 {
 	int s;
 	int revents = 0;
+	struct tty *tp;
 
+	tp = dev->si_tty;
 	if (tp == NULL)	/* XXX used to return ENXIO, but that means true! */
 		return ((events & (POLLIN | POLLOUT | POLLRDNORM | POLLWRNORM))
 			| POLLHUP);
@@ -1091,19 +1084,6 @@ ttypoll(tp, events, p)
 	}
 	splx(s);
 	return (revents);
-}
-
-/*
- * This is a wrapper for compatibility with the select vector used by
- * cdevsw.  It relies on a proper xxxdevtotty routine.
- */
-int
-ttpoll(dev, events, p)
-	dev_t dev;
-	int events;
-	struct proc *p;
-{
-	return ttypoll((*devsw(dev)->d_devtotty)(dev), events, p);
 }
 
 /*
@@ -1192,11 +1172,7 @@ again:
 		FLUSHQ(&tp->t_outq);
 		CLR(tp->t_state, TS_TTSTOP);
 	}
-#ifdef sun4c						/* XXX */
 	(*tp->t_stop)(tp, rw);
-#else
-	(*devsw(tp->t_dev)->d_stop)(tp, rw);
-#endif
 	if (rw & FREAD) {
 		FLUSHQ(&tp->t_canq);
 		FLUSHQ(&tp->t_rawq);
@@ -1377,11 +1353,7 @@ ttymodem(tp, flag)
 		} else if (!ISSET(tp->t_state, TS_CAR_OFLOW)) {
 			SET(tp->t_state, TS_CAR_OFLOW);
 			SET(tp->t_state, TS_TTSTOP);
-#ifdef sun4c						/* XXX */
 			(*tp->t_stop)(tp, 0);
-#else
-			(*devsw(tp->t_dev)->d_stop)(tp, 0);
-#endif
 		}
 	} else if (flag == 0) {
 		/*
