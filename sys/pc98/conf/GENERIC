@@ -76,9 +76,9 @@ device		fd3	at fdc0 drive 3
 # IDE controller and disks
 device		wdc0	at isa? port IO_WD1 irq 9
 device		wd0	at wdc0 drive 0
-#device		wd1	at wdc0 drive 1
-#device		wd2	at wdc0 drive 2
-#device		wd3	at wdc0 drive 3
+device		wd1	at wdc0 drive 2
+device		wd2	at wdc0 drive 1
+device		wd3	at wdc0 drive 3
 
 # ATAPI devices on wdc
 device		wcd		#IDE CD-ROM
