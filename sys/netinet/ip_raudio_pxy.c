@@ -41,12 +41,13 @@ nat_t *nat;
 
 
 	KMALLOCS(aps->aps_data, void *, sizeof(raudio_t));
-	if (aps->aps_data != NULL) {
-		bzero(aps->aps_data, sizeof(raudio_t));
-		rap = aps->aps_data;
-		aps->aps_psiz = sizeof(raudio_t);
-		rap->rap_mode = RAP_M_TCP;	/* default is for TCP */
-	}
+	if (aps->aps_data == NULL)
+		return -1;
+
+	bzero(aps->aps_data, sizeof(raudio_t));
+	rap = aps->aps_data;
+	aps->aps_psiz = sizeof(raudio_t);
+	rap->rap_mode = RAP_M_TCP;	/* default is for TCP */
 	return 0;
 }
 
@@ -171,8 +172,8 @@ nat_t *nat;
 	raudio_t *rap = aps->aps_data;
 	struct in_addr swa, swb;
 	u_int a1, a2, a3, a4;
+	int off, dlen, slen;
 	u_short sp, dp;
-	int off, dlen;
 	fr_info_t fi;
 	tcp_seq seq;
 	nat_t *ipn;
@@ -261,9 +262,12 @@ nat_t *nat;
 
 	bcopy((char *)fin, (char *)&fi, sizeof(fi));
 	bzero((char *)tcp2, sizeof(*tcp2));
+	tcp2->th_off = 5;
 	fi.fin_dp = (char *)tcp2;
 	fi.fin_fr = &raudiofr;
 	tcp2->th_win = htons(8192);
+	slen = ip->ip_len;
+	ip->ip_len = fin->fin_hlen + sizeof(*tcp);
 
 	if (((rap->rap_mode & RAP_M_UDP_ROBUST) == RAP_M_UDP_ROBUST) &&
 	    (rap->rap_srport != 0)) {
@@ -274,8 +278,7 @@ nat_t *nat;
 		fi.fin_data[0] = dp;
 		fi.fin_data[1] = sp;
 		ipn = nat_new(nat->nat_ptr, ip, &fi, 
-			      IPN_UDP | (sp ? 0 : FI_W_SPORT),
-			      NAT_OUTBOUND);
+			      IPN_UDP | (sp ? 0 : FI_W_SPORT), NAT_OUTBOUND);
 		if (ipn != NULL) {
 			ipn->nat_age = fr_defnatage;
 			(void) fr_addstate(ip, &fi, sp ? 0 : FI_W_SPORT);
@@ -295,8 +298,9 @@ nat_t *nat;
 			(void) fr_addstate(ip, &fi, FI_W_DPORT);
 		}
 	}
-		
+
 	ip->ip_p = swp;
+	ip->ip_len = slen;
 	ip->ip_src = swa;
 	ip->ip_dst = swb;
 	return 0;

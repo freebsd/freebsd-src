@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1993-1998 by Darren Reed.
+ * Copyright (C) 1993-2000 by Darren Reed.
  *
  * Redistribution and use in source and binary forms are permitted
  * provided that this notice is preserved and due credit is given
@@ -43,6 +43,7 @@ typedef	struct	ipfrstat {
 #define	IPFR_CMPSZ	(4 + 4 + 2 + 1 + 1)
 
 extern	int	fr_ipfrttl;
+extern	int	fr_frag_lock;
 extern	ipfrstat_t	*ipfr_fragstats __P((void));
 extern	int	ipfr_newfrag __P((ip_t *, fr_info_t *, u_int));
 extern	int	ipfr_nat_newfrag __P((ip_t *, fr_info_t *, u_int, struct nat *));
@@ -50,6 +51,7 @@ extern	nat_t	*ipfr_nat_knownfrag __P((ip_t *, fr_info_t *));
 extern	frentry_t *ipfr_knownfrag __P((ip_t *, fr_info_t *));
 extern	void	ipfr_forget __P((void *));
 extern	void	ipfr_unload __P((void));
+extern	void	ipfr_fragexpire __P((void));
 
 #if     (BSD >= 199306) || SOLARIS || defined(__sgi)
 # if defined(SOLARIS2) && (SOLARIS2 < 7)
