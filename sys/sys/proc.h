@@ -945,6 +945,7 @@ void	upcall_unlink(struct kse_upcall *ku);
 void	upcall_remove(struct thread *td);
 void	upcall_stash(struct kse_upcall *ke);
 void	thread_sanity_check(struct thread *td, char *);
+void	thread_stopped(struct proc *);
 #endif	/* _KERNEL */
 
 #endif	/* !_SYS_PROC_H_ */
