@@ -188,6 +188,12 @@ int i;
 		if (!strncmp(id, capname, 2)) {
 		    T(("found match : %s", _nc_visbuf(tp->Strings[i])));
 		    /* setupterm forces cancelled strings to null */
+#ifdef FREEBSD_NATIVE
+		    if (*area && tp->Strings[i]) {
+			strcpy(*area, tp->Strings[i]);		
+			*area += strlen(tp->Strings[i]) + 1;
+		    }
+#endif
 		    returnPtr(tp->Strings[i]);
 		}
 	    }
