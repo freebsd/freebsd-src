@@ -31,17 +31,5 @@ cpu_critical_fork_exit(void)
 	struct thread *td;
 
 	td = curthread;
-	td->td_critnest = 1;
 	td->td_md.md_savecrit = ALPHA_PSL_IPL_0;
 }
-
-/*
- * cpu_thread_link() - thread linkup, initialize machine-dependant fields
- */
-void
-cpu_thread_link(struct thread *td)
-{
-
-	td->td_md.md_savecrit = 0;
-}
-
