@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	$Id: slice_device.c,v 1.4 1998/04/24 07:53:55 julian Exp $
+ *	$Id: slice_device.c,v 1.5 1998/05/06 22:14:34 julian Exp $
  */
 #define DIAGNOSTIC 1
 #include "opt_hw_wdog.h"
@@ -147,7 +147,7 @@ minor_to_slice(unsigned int minor)
 
 
 int
-slcdevioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc * p)
+slcdevioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc * p)
 {
 	sl_p            slice = minor_to_slice(minor(dev));
 	int             error = 0;
