@@ -122,10 +122,13 @@ do_uncompress()
 {
 	local	i
 	local	dir
+	local	workdir
 
+	workdir=`pwd`
 	while [ $# != 0 ] ; do
 		if [ -d $1 ] ; then
 			dir=$1
+			cd $dir
 			for i in $dir/* ; do
 				case $i in
 				*cat?)	;; # ignore cat directories
@@ -139,6 +142,7 @@ do_uncompress()
 					fi } ;;
 				esac
 			done
+			cd $workdir
 		else
 			echo "directory $1 not found" 1>&2
 		fi
@@ -211,11 +215,14 @@ do_compress()
 {
 	local	i
 	local	dir
+	local	workdir
 
+	workdir=`pwd`
 	while [ $# != 0 ] ; do
 		if [ -d $1 ] ; then
 			dir=$1
-			for i in $dir/* ; do
+			cd $dir
+			for i in * ; do
 				case $i in
 				*cat?)	;; # ignore cat directories
 				*)	{
@@ -228,6 +235,7 @@ do_compress()
 					fi } ;;
 				esac
 			done
+			cd $workdir
 		else
 			echo "directory $1 not found" 1>&2
 		fi
