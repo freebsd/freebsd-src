@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)startslip.1	8.1 (Berkeley) 6/5/93
-.\"	$Id: startslip.1,v 1.13 1997/02/22 14:33:20 peter Exp $
+.\"	$Id: startslip.1,v 1.10.2.1 1997/03/03 07:01:52 mpp Exp $
 .\"
 .Dd June 5, 1993
 .Dt STARTSLIP 1
@@ -151,11 +151,12 @@ Modem control is enabled by default.
 Specifies a script to run when a SLIP interface becomes connected.  This may
 contain ifconfig, route, and other appropriate commands.  The arguments that
 are passed to the script are "slX up".
-Default value is "/sbin/ifconfig".
+Default value is
+.Pa /sbin/ifconfig .
 Dial sequence number (see
 .Fl s )
 passed via
-.Dv LINE
+.Ev LINE
 environment variable.
 .It Fl D Ar downscript
 Specifies a script to run when a SLIP connection goes away.  The arguments that
