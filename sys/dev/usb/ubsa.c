@@ -92,7 +92,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/usb/ucomvar.h>
 
-#ifdef UBSA_DEBUG
+#ifdef USB_DEBUG
 Static int	ubsadebug = 0;
 SYSCTL_NODE(_hw_usb, OID_AUTO, ubsa, CTLFLAG_RW, 0, "USB ubsa");
 SYSCTL_INT(_hw_usb_ubsa, OID_AUTO, debug, CTLFLAG_RW,
