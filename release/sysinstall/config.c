@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.16.2.35 1995/11/04 17:16:36 jkh Exp $
+ * $Id: config.c,v 1.16.2.37 1995/11/05 02:22:46 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -449,7 +449,7 @@ configPackages(char *str)
 	index_menu(&top, &plist, &pos, &scroll);
 
 	if (plist.kids) {
-	    /* Now show the packling list menu */
+	    /* Now show the packing list menu */
 	    pos = scroll = 0;
 	    ret = index_menu(&plist, NULL, &pos, &scroll);
 	    if (ret == RET_DONE)
