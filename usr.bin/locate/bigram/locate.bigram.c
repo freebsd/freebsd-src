@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * 	$Id: locate.bigram.c,v 1.4 1996/08/22 18:46:11 wosch Exp $
+ * 	$Id: locate.bigram.c,v 1.5 1996/08/30 03:06:15 peter Exp $
  */
 
 #ifndef lint
@@ -76,19 +76,19 @@ main(void)
 			continue;
 
 		/* Squelch characters that would botch the decoding. */
-		for (cp = path; *cp != NULL; cp++) {
+		for (cp = path; *cp != '\0'; cp++) {
 			/* chop newline */
 			if (*cp == '\n')
-				*cp = NULL;
+				*cp = '\0';
 			/* range */
 			else if (*cp < ASCII_MIN || *cp > ASCII_MAX)
 				*cp = '?';
 		}
 
 		/* skip longest common prefix */
-		for (cp = path; *cp == *oldpath && *cp != NULL; cp++, oldpath++);
+		for (cp = path; *cp == *oldpath && *cp != '\0'; cp++, oldpath++);
 
-		while (*cp != NULL && *(cp+1) != NULL) {
+		while (*cp != '\0' && *(cp+1) != '\0') {
 			bigram[*cp][*(cp+1)]++;
 			cp += 2;
 		}
