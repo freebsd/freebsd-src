@@ -47,6 +47,7 @@ cap_get_proc(void)
 
 	error = __cap_get_proc(cap);
 	if (error) {
+		errno = error;
 		cap_free(cap);
 		return (NULL);
 	}
