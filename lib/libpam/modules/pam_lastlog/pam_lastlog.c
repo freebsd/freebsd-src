@@ -71,6 +71,7 @@ pam_sm_open_session(pam_handle_t *pamh, int flags,
 	struct passwd *pwd;
 	struct utmp utmp;
 	struct lastlog ll;
+	time_t t;
 	const char *rhost, *user, *tty;
 	off_t llpos;
 	int fd, pam_err;
@@ -109,13 +110,14 @@ pam_sm_open_session(pam_handle_t *pamh, int flags,
 		goto file_err;
 	if ((flags & PAM_SILENT) == 0) {
 		if (read(fd, &ll, sizeof ll) == sizeof ll && ll.ll_time != 0) {
+			t = ll.ll_time;
 			if (*ll.ll_host != '\0')
 				pam_info(pamh, "Last login: %.*s from %.*s",
-				    24 - 5, ctime(&ll.ll_time),
+				    24 - 5, ctime(&t),
 				    (int)sizeof(ll.ll_host), ll.ll_host);
 			else
 				pam_info(pamh, "Last login: %.*s on %.*s",
-				    24 - 5, ctime(&ll.ll_time),
+				    24 - 5, ctime(&t),
 				    (int)sizeof(ll.ll_line), ll.ll_line);
 		}
 		if (lseek(fd, llpos, L_SET) != llpos)
@@ -123,7 +125,7 @@ pam_sm_open_session(pam_handle_t *pamh, int flags,
 	}
 
 	bzero(&ll, sizeof(ll));
-	time(&ll.ll_time);
+	ll.ll_time = time(NULL);
 
 	/* note: does not need to be NUL-terminated */
 	strncpy(ll.ll_line, tty, sizeof(ll.ll_line));
@@ -140,7 +142,7 @@ pam_sm_open_session(pam_handle_t *pamh, int flags,
 	 * Record session in utmp(5) and wtmp(5).
 	 */
 	bzero(&utmp, sizeof(utmp));
-	time(&utmp.ut_time);
+	utmp.ut_time = time(NULL);
 	/* note: does not need to be NUL-terminated */
 	strncpy(utmp.ut_name, user, sizeof(utmp.ut_name));
 	if (rhost != NULL)
