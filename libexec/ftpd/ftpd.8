@@ -185,13 +185,17 @@ The inactivity timeout period is set to
 seconds (the default is 15 minutes).
 .It Fl U
 This option instructs ftpd to use data ports in the range of
-IP_PORTRANGE_DEFAULT instead of in the range of IP_PORTRANGE_HIGH.
+.Dv IP_PORTRANGE_DEFAULT
+instead of in the range of
+.Dv IP_PORTRANGE_HIGH .
 Such a change may be useful for some specific firewall configurations;
 see
 .Xr ip 4
 for more information.
 .Pp
-Note that option is a virtual no-op in FreeBSD 5.0 and above; both port
+Note that option is a virtual no-op in
+.Fx 5.0
+and above; both port
 ranges are indentical by default.
 .It Fl u
 The default file creation mode mask is set to
