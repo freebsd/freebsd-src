@@ -196,6 +196,7 @@ d_open_t  uscanneropen;
 d_close_t uscannerclose;
 d_read_t  uscannerread;
 d_write_t uscannerwrite;
+d_ioctl_t uscannerioctl;
 d_poll_t  uscannerpoll;
 
 #define USCANNER_CDEV_MAJOR	156
@@ -205,7 +206,7 @@ Static struct cdevsw uscanner_cdevsw = {
 	/* close */	uscannerclose,
 	/* read */	uscannerread,
 	/* write */	uscannerwrite,
-	/* ioctl */	noioctl,
+	/* ioctl */	uscannerioctl,
 	/* poll */	uscannerpoll,
 	/* mmap */	nommap,
 	/* strategy */	nostrategy,
