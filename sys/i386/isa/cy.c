@@ -1582,7 +1582,11 @@ terminate_tx_service:
 	/* ensure an edge for the next interrupt */
 	cy_outb(cy_iobase, CY_CLEAR_INTR, cy_align, 0);
 
+#if 0
 	schedsofttty();
+#else
+	panic("Fix the i386/isa/cy.c files call to schedsofttty()");
+#endif
 
 	COM_UNLOCK();
 }
