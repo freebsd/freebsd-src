@@ -18,7 +18,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: options.c,v 1.38 1997/04/30 05:55:54 paulus Exp $";
+static char rcsid[] = "$Id: options.c,v 1.39 1997/07/14 03:53:34 paulus Exp $";
 #endif
 
 #include <ctype.h>
@@ -1829,6 +1829,7 @@ setnetmask(argv)
 	return 0;
     }
 
+    netmask = mask;
     return (1);
 }
 
