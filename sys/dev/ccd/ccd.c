@@ -1,4 +1,4 @@
-/* $Id: ccd.c,v 1.24 1997/06/14 13:56:01 bde Exp $ */
+/* $Id: ccd.c,v 1.25 1997/10/11 07:35:25 phk Exp $ */
 
 /*	$NetBSD: ccd.c,v 1.22 1995/12/08 19:13:26 thorpej Exp $	*/
 
@@ -102,6 +102,7 @@
 #include <sys/namei.h>
 #include <sys/conf.h>
 #include <sys/stat.h>
+#include <sys/sysctl.h>
 #include <sys/disklabel.h>
 #include <ufs/ffs/fs.h> 
 #include <sys/device.h>
@@ -123,7 +124,9 @@
 #define CCDB_IO		0x04
 #define CCDB_LABEL	0x08
 #define CCDB_VNODE	0x10
-int ccddebug = CCDB_FOLLOW | CCDB_INIT | CCDB_IO | CCDB_LABEL | CCDB_VNODE;
+static int ccddebug = CCDB_FOLLOW | CCDB_INIT | CCDB_IO | CCDB_LABEL |
+    CCDB_VNODE;
+SYSCTL_INT(_debug, OID_AUTO, ccddebug, CTLFLAG_RW, &ccddebug, 0, "");
 #undef DEBUG
 #endif
 
@@ -164,14 +167,14 @@ struct ccdbuf {
 #define CCDLABELDEV(dev)	\
 	(makedev(major((dev)), dkmakeminor(ccdunit((dev)), 0, RAW_PART)))
 
-d_open_t ccdopen;
-d_close_t ccdclose;
-d_strategy_t ccdstrategy;
-d_ioctl_t ccdioctl;
-d_dump_t ccddump;
-d_psize_t ccdsize;
-d_read_t ccdread;
-d_write_t ccdwrite;
+static d_open_t ccdopen;
+static d_close_t ccdclose;
+static d_strategy_t ccdstrategy;
+static d_ioctl_t ccdioctl;
+static d_dump_t ccddump;
+static d_psize_t ccdsize;
+static d_read_t ccdread;
+static d_write_t ccdwrite;
 
 #define CDEV_MAJOR 74
 #define BDEV_MAJOR 21
@@ -188,7 +191,7 @@ static void	ccdattach __P((void *));
 PSEUDO_SET(ccdattach, ccd);
 
 /* called by biodone() at interrupt time */
-void	ccdiodone __P((struct ccdbuf *cbp));
+static	void ccdiodone __P((struct ccdbuf *cbp));
 
 static	void ccdstart __P((struct ccd_softc *, struct buf *));
 static	void ccdinterleave __P((struct ccd_softc *, int));
@@ -209,7 +212,7 @@ static	void printiinfo __P((struct ccdiinfo *));
 /* Non-private for the benefit of libkvm. */
 struct	ccd_softc *ccd_softc;
 struct	ccddevice *ccddevs;
-int	numccd = 0;
+static	int numccd = 0;
 
 static int ccd_devsw_installed = 0;
 
@@ -227,7 +230,7 @@ static int ccd_devsw_installed = 0;
  * to do is allocate enough space for devices to be configured later, and
  * add devsw entries.
  */
-void
+static void
 ccdattach(dummy)
 	void *dummy;
 {
@@ -597,7 +600,7 @@ ccdinterleave(cs, unit)
 }
 
 /* ARGSUSED */
-int
+static int
 ccdopen(dev, flags, fmt, p)
 	dev_t dev;
 	int flags, fmt;
@@ -658,7 +661,7 @@ ccdopen(dev, flags, fmt, p)
 }
 
 /* ARGSUSED */
-int
+static int
 ccdclose(dev, flags, fmt, p)
 	dev_t dev;
 	int flags, fmt;
@@ -699,7 +702,7 @@ ccdclose(dev, flags, fmt, p)
 	return (0);
 }
 
-void
+static void
 ccdstrategy(bp)
 	register struct buf *bp;
 {
@@ -809,7 +812,7 @@ ccdstart(cs, bp)
 /*
  * Build a component buffer header.
  */
-void
+static void
 ccdbuffer(cb, cs, bp, bn, addr, bcount)
 	register struct ccdbuf **cb;
 	register struct ccd_softc *cs;
@@ -967,7 +970,7 @@ ccdintr(cs, bp)
  * Mark the component as done and if all components are done,
  * take a ccd interrupt.
  */
-void
+static void
 ccdiodone(cbp)
 	struct ccdbuf *cbp;
 {
@@ -1023,7 +1026,7 @@ ccdiodone(cbp)
 	splx(s);
 }
 
-int
+static int
 ccdioctl(dev, cmd, data, flag, p)
 	dev_t dev;
 	int cmd;
@@ -1308,7 +1311,7 @@ ccdioctl(dev, cmd, data, flag, p)
 	return (0);
 }
 
-int
+static int
 ccdsize(dev)
 	dev_t dev;
 {
@@ -1335,7 +1338,7 @@ ccdsize(dev)
 	return (size);
 }
 
-int
+static int
 ccddump(dev)
 	dev_t dev;
 {
