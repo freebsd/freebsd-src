@@ -427,6 +427,11 @@ ulptopen(dev, flag, mode, p)
 			sc->sc_state = 0;
 			return (error);
 		}
+
+		if (sc->sc_dying) {
+			sc->sc_state = 0;
+			return (ENXIO);
+		}
 	}
 
 	err = usbd_open_pipe(sc->sc_iface, sc->sc_bulk, 0, &sc->sc_bulkpipe);
