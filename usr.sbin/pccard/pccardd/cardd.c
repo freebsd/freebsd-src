@@ -49,6 +49,8 @@ static void		 pr_cmd(struct cmd *);
 static void		 read_ether(struct slot *);
 static void		 read_ether_attr2(struct slot *sp);
 
+struct slot *slots;
+
 /*
  *	Dump configuration file data.
  */
@@ -105,7 +107,7 @@ readslots(void)
 {
 	char    name[128];
 	int     i, fd;
-	struct slot *slots, *sp;
+	struct slot *sp;
 
 	slots = NULL;
 	for (i = 0; i < MAXSLOT; i++) {
@@ -158,6 +160,7 @@ slot_change(struct slot *sp)
 	}
 	switch (state.state) {
 	case empty:
+	case inactive:
 	case noslot:
 		/* Debounce potentially incorrectly reported removals */
 		if (state.laststate == filled || state.laststate == suspend)
@@ -173,6 +176,8 @@ slot_change(struct slot *sp)
 		/* ignored */
 		break;
 	}
+	sp->state = state.state;
+	stat_changed(sp);
 }
 
 /*

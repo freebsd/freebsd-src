@@ -58,7 +58,7 @@
 /*
  *	Slot states for PIOCGSTATE
  */
-enum cardstate { noslot, empty, suspend, filled };
+enum cardstate { noslot, empty, suspend, filled, inactive };
 
 /*
  *	Descriptor structure for memory map.
