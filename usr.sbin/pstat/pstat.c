@@ -733,7 +733,8 @@ ttymode()
 {
 	struct tty *tty;
 	struct tty ttyb[1000];
-	int error, len, i;
+	int error;
+	size_t len, i;
 
 	(void)printf(hdr);
 	len = sizeof(ttyb);
