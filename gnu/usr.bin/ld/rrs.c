@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: rrs.c,v 1.7 1993/12/02 00:56:39 jkh Exp $
+ *	$Id: rrs.c,v 1.8 1993/12/02 09:32:26 ache Exp $
  */
 
 #include <sys/param.h>
@@ -1059,9 +1059,8 @@ write_rrs_text()
 	for (i = 0, shp = rrs_shobjs; shp; i++, shp = shp->next) {
 		char	*name = shp->entry->local_sym_name;
 
-		if (i >= number_of_shobjs)
-			fatal("internal error: # of link objects exceeds %d",
-				number_of_shobjs);
+		if (shp == NULL)
+			fatal("internal error: shp == NULL");
 
 		lo[i].lo_name = pos;
 		lo[i].lo_major = shp->entry->lib_major;
@@ -1076,11 +1075,10 @@ write_rrs_text()
 		pos += 1 + strlen(name);
 		lo[i].lo_next = (i == number_of_shobjs - 1) ? 0 :
 			(rrs_dyn2.ld_need + (i+1)*sizeof(struct link_object));
-	}
 
-	if (i < number_of_shobjs)
-		fatal("internal error: # of link objects less then expected %d",
-				number_of_shobjs);
+	}
+	if (shp != NULL)
+		fatal("internal error: shp != NULL");
 
 	md_swapout_link_object(lo, number_of_shobjs);
 	mywrite(lo, number_of_shobjs, sizeof(struct link_object), outdesc);

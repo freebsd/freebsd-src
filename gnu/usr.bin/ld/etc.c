@@ -1,5 +1,5 @@
 /*
- * $Id: etc.c,v 1.2 1993/11/09 04:18:52 paul Exp $
+ * $Id: etc.c,v 1.4 1993/12/02 00:56:33 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -72,7 +72,7 @@ fatal(fmt, va_alist)
 	(void)fprintf(stderr, "\n");
 	va_end(ap);
 
-	if (outdesc > 0)
+	if (outdesc >= 0)
 		unlink(output_filename);
 	exit(1);
 }
