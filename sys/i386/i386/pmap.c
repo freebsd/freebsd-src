@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.218 1999/01/09 21:41:22 dt Exp $
+ *	$Id: pmap.c,v 1.219 1999/01/12 00:17:53 eivind Exp $
  */
 
 /*
@@ -1992,12 +1992,15 @@ pmap_remove_all(pa)
 			if (pmap_track_modified(pv->pv_va))
 				ppv->pv_vm_page->dirty = VM_PAGE_BITS_ALL;
 		}
+#ifdef SMP
+		update_needed = 1;
+#else
 		if (!update_needed &&
 			((!curproc || (&curproc->p_vmspace->vm_pmap == pv->pv_pmap)) ||
 			(pv->pv_pmap == kernel_pmap))) {
 			update_needed = 1;
 		}
-
+#endif
 		TAILQ_REMOVE(&pv->pv_pmap->pm_pvlist, pv, pv_plist);
 		TAILQ_REMOVE(&ppv->pv_list, pv, pv_list);
 		ppv->pv_list_count--;
