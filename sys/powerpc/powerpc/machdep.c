@@ -112,12 +112,14 @@ static const char rcsid[] =
 #include <fs/procfs/procfs.h>
 #include <machine/sigframe.h>
 
+int physmem = 0;
 int cold = 1;
 
 struct mtx	sched_lock;
 struct mtx	Giant;
 
-struct user	*proc0paddr;
+struct user	*proc0uarea;
+vm_offset_t	proc0kstack;
 
 char		machine[] = "powerpc";
 SYSCTL_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD, machine, 0, "");
@@ -146,6 +148,16 @@ void		install_extint(void (*)(void));
 void		osendsig(sig_t, int, sigset_t *, u_long);
 #endif
 
+static int
+sysctl_hw_physmem(SYSCTL_HANDLER_ARGS)
+{
+	int error = sysctl_handle_int(oidp, 0, ctob(physmem), req);
+	return (error);
+}
+
+SYSCTL_PROC(_hw, HW_PHYSMEM, physmem, CTLTYPE_INT|CTLFLAG_RD,
+	0, 0, sysctl_hw_physmem, "IU", "");
+
 struct msgbuf	*msgbufp = 0;
 
 int		bootverbose = 0, Maxmem = 0;
@@ -154,6 +166,8 @@ long		dumplo;
 vm_offset_t	phys_avail[10];
 
 static int	chosen;
+
+static struct trapframe		proc0_tf;
 
 struct pmap	ofw_pmap;
 extern int	ofmsr;
@@ -334,8 +348,6 @@ extern		ddblow, ddbsize;
 extern		ipkdblow, ipkdbsize;
 #endif
 
-static struct globaldata	tmpglobal;
-
 void
 powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, char *args)
 {
@@ -382,6 +394,11 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, char *args)
 	 * This is here because mem_regions() call needs bat0 set up.
 	 */
 	mem_regions(&allmem, &availmem);
+
+	/* Calculate the physical memory in the machine */
+	for (mp = allmem; mp->size; mp++)
+		physmem += btoc(mp->size);
+
 	for (mp = allmem; mp->size; mp++) {
 		vm_offset_t	pa = mp->start & 0xf0000000;
 		vm_offset_t	end = mp->start + mp->size;
@@ -398,10 +415,33 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, char *args)
 	chosen = OF_finddevice("/chosen");
 	save_ofw_mapping();
 
-	proc0.p_addr = proc0paddr;
-	bzero(proc0.p_addr, sizeof *proc0.p_addr);
+	pmap_setavailmem(startkernel, endkernel);
 
-	LIST_INIT(&proc0.p_contested);
+	proc_linkup(&proc0);
+
+	proc0uarea = (struct user *)pmap_steal_memory(UAREA_PAGES * PAGE_SIZE);
+	proc0kstack = pmap_steal_memory(KSTACK_PAGES * PAGE_SIZE);
+	proc0.p_uarea = proc0uarea;
+	thread0 = &proc0.p_thread;
+	thread0->td_kstack = proc0kstack;
+	thread0->td_pcb = (struct pcb *)
+	    (thread0->td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
+
+	globalp = pmap_steal_memory(round_page(sizeof(struct globaldata)));
+
+	/*
+	 * XXX: Pass 0 as CPU id.  This is bad.  We need to work out
+	 * XXX: which CPU we are somehow.
+	 */
+	globaldata_init(globalp, 0, sizeof(struct globaldata));
+	__asm ("mtsprg 0, %0" :: "r"(globalp));
+
+	/* setup curproc so the mutexes work */
+
+	PCPU_SET(curthread, thread0);
+	PCPU_SET(spinlocks, NULL);
+
+	LIST_INIT(&thread0->td_contested);
 
 /* XXX: NetBSDism I _think_.  Not sure yet. */
 #if 0
@@ -549,25 +589,15 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, char *args)
 	/*
 	 * Initialize pmap module.
 	 */
-	pmap_bootstrap(startkernel, endkernel);
+	pmap_bootstrap();
 
 	restore_ofw_mapping();
 
-	/*
-	 * Setup the global data for the bootstrap cpu.
-	 */
-	globalp = (struct globaldata *) &tmpglobal;
-
-	/*
-	 * XXX: Pass 0 as CPU id.  This is bad.  We need to work out
-	 * XXX: which CPU we are somehow.
-	 */
-	globaldata_init(globalp, 0, sizeof(struct globaldata));
-	__asm ("mtsprg 0, %0" :: "r"(globalp));
-
 	PCPU_GET(next_asn) = 1;	/* 0 used for proc0 pmap */
-	PCPU_SET(curproc, &proc0);
-	PCPU_SET(spinlocks, NULL);
+
+	/* setup proc 0's pcb */
+	thread0->td_pcb->pcb_flags = 0; /* XXXKSE */
+	thread0->td_frame = &proc0_tf;
 }
 
 static int N_mapping;
@@ -695,7 +725,7 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 
 #ifdef COMPAT_43
 int
-osigreturn(struct proc *p, struct osigreturn_args *uap)
+osigreturn(struct thread *td, struct osigreturn_args *uap)
 {
 
 	/* XXX: To be done */
@@ -704,7 +734,7 @@ osigreturn(struct proc *p, struct osigreturn_args *uap)
 #endif
 
 int
-sigreturn(struct proc *p, struct sigreturn_args *uap)
+sigreturn(struct thread *td, struct sigreturn_args *uap)
 {
 
 	/* XXX: To be done */
@@ -730,13 +760,12 @@ cpu_halt(void)
  * Set set up registers on exec.
  */
 void
-setregs(struct proc *p, u_long entry, u_long stack, u_long ps_strings)
+setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
 {
 	struct trapframe	*tf;
 	struct ps_strings	arginfo;
 
-	tf = trapframe(p);
-
+	tf = trapframe(td);
 	bzero(tf, sizeof *tf);
 	tf->fixreg[1] = -roundup(-stack + 8, 16);
 
@@ -769,7 +798,7 @@ setregs(struct proc *p, u_long entry, u_long stack, u_long ps_strings)
 
 	tf->srr0 = entry;
 	tf->srr1 = PSL_MBO | PSL_USERSET | PSL_FE_DFLT;
-	p->p_addr->u_pcb.pcb_flags = 0;
+	td->td_pcb->pcb_flags = 0;
 }
 
 extern void	*extint, *extsize;
@@ -838,7 +867,7 @@ set_fpregs(struct proc *p, struct fpreg *fpregs)
 }
 
 int
-ptrace_set_pc(struct proc *p, unsigned long addr)
+ptrace_set_pc(struct thread *td, unsigned long addr)
 {
 
 	/* XXX: coming soon... */
@@ -846,7 +875,7 @@ ptrace_set_pc(struct proc *p, unsigned long addr)
 }
 
 int
-ptrace_single_step(struct proc *p)
+ptrace_single_step(struct thread *td)
 {
 
 	/* XXX: coming soon... */
@@ -854,7 +883,7 @@ ptrace_single_step(struct proc *p)
 }
 
 int
-ptrace_clear_single_step(struct proc *p)
+ptrace_clear_single_step(struct thread *td)
 {
 
 	/* XXX: coming soon... */

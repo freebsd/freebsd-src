@@ -95,7 +95,8 @@ extern vm_offset_t	phys_avail[];
 extern vm_offset_t	virtual_avail;
 extern vm_offset_t	virtual_end;
 
-void pmap_bootstrap __P((u_int kernelstart, u_int kernelend));
+void pmap_bootstrap __P((void));
+void pmap_setavailmem __P((u_int kernelstart, u_int kernelend));
 vm_offset_t pmap_steal_memory __P((vm_size_t));
 boolean_t ptemodify __P((struct vm_page *, u_int, u_int));
 int ptebits __P((struct vm_page *, int));

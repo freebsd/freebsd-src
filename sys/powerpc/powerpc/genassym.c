@@ -95,6 +95,7 @@ ASSYM(SFRAMELEN, roundup(sizeof(struct switchframe), 16));
 ASSYM(PCB_PMR, offsetof(struct pcb, pcb_pmreal));
 ASSYM(PCB_SP, offsetof(struct pcb, pcb_sp));
 ASSYM(PCB_SPL, offsetof(struct pcb, pcb_spl));
+ASSYM(PCB_ONFAULT, offsetof(struct pcb, pcb_onfault));
 
 ASSYM(TD_PROC, offsetof(struct thread, td_proc));
-ASSYM(TD_ADDR, offsetof(struct thread, td_addr));
+ASSYM(TD_PCB, offsetof(struct thread, td_pcb));

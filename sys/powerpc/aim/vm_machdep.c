@@ -119,8 +119,9 @@ vm_fault_quick(v, prot)
  * ready to run and return to user mode.
  */
 void
-cpu_fork(p1, p2, flags)
-	register struct proc *p1, *p2;
+cpu_fork(td1, p2, flags)
+	register struct thread *td1;
+	register struct proc *p2;
 	int flags;
 {
 	/* XXX: coming soon... */
@@ -133,8 +134,8 @@ cpu_fork(p1, p2, flags)
  * This is needed to make kernel threads stay in kernel mode.
  */
 void
-cpu_set_fork_handler(p, func, arg)
-	struct proc *p;
+cpu_set_fork_handler(td, func, arg)
+	struct thread *td;
 	void (*func) __P((void *));
 	void *arg;
 {
@@ -143,8 +144,8 @@ cpu_set_fork_handler(p, func, arg)
 	 * is really called like this:  func(arg, frame);
 	 */
 #if 0 /* XXX */
-	p->p_addr->u_pcb.pcb_context[0] = (u_long) func;
-	p->p_addr->u_pcb.pcb_context[2] = (u_long) arg;
+	td->p_addr->u_pcb.pcb_context[0] = (u_long) func;
+	td->p_addr->u_pcb.pcb_context[2] = (u_long) arg;
 #endif
 }
 
@@ -156,14 +157,14 @@ cpu_set_fork_handler(p, func, arg)
  * from proc0.
  */
 void
-cpu_exit(p)
-	register struct proc *p;
+cpu_exit(td)
+	register struct thread *td;
 {
 }
 
 void
-cpu_wait(p)
-	struct proc *p;
+cpu_wait(td)
+	struct proc *td;
 {
 }
 
@@ -180,13 +181,14 @@ cpu_throw(void)
  * Dump the machine specific header information at the start of a core dump.
  */
 int
-cpu_coredump(p, vp, cred)
-	struct proc *p;
+cpu_coredump(td, vp, cred)
+	struct thread *td;
 	struct vnode *vp;
 	struct ucred *cred;
 {
+	struct proc *p = td->td_proc;
 
-	return (vn_rdwr(UIO_WRITE, vp, (caddr_t) p->p_addr, ctob(UPAGES),
+	return (vn_rdwr(UIO_WRITE, vp, (caddr_t)p->p_uarea, ctob(UAREA_PAGES),
 	    (off_t)0, UIO_SYSSPACE, IO_UNIT, cred, (int *)NULL, p));
 }
 
