@@ -144,6 +144,14 @@ indicates:
 .Bl -tag -width Er
 .It Bq Er EBADF
 One of the descriptor sets specified an invalid descriptor.
+.It Bq Er EFAULT
+One of the arguments
+.Fa readfds ,
+.Fa writefds ,
+.Fa exceptfds ,
+or
+.Fa timeout
+points to an invalid address.
 .It Bq Er EINTR
 A signal was delivered before the time limit expired and
 before any of the selected events occurred.
