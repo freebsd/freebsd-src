@@ -127,4 +127,5 @@
 #define SGROWSIZ        (128*1024)
 #define MAXSLP		20
 
+#define VM_PROT_READ_IS_EXEC
 #endif	/* _MACHINE_VMPARAM_H_ */
