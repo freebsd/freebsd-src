@@ -6,15 +6,34 @@
  *  Stage 1. "Better than nothing".
  *  Stage 2. "Gee, it works!".
  *
- *  Based on sio driver by Bruce Evans and on Linux driver by Troy 
- *  De Jongh <troyd@digibd.com> or <troyd@skypoint.com> 
- *  which is under GNU General Public License version 2 so this driver 
- *  is forced to be under GPL 2 too.
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions, and the following disclaimer,
+ *    without modification, immediately at the beginning of the file.
+ * 2. Redistributions of binary code must retain the above copyright
+ *    notice, this list of conditions, and the following disclaimer,
+ *    without modification, in the accompanying documentation.
+ * 3. The name of the author may not be used to endorse or promote products
+ *    derived from this software without specific prior written permission.
  *
- *  Written by Serge Babkin,
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
+ * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ *  Written by Sergey Babkin,
  *      Joint Stock Commercial Bank "Chelindbank"
  *      (Chelyabinsk, Russia)
- *      babkin@hq.icb.chel.su
+ *      babkin@freebsd.org
  *
  *  Assorted hacks to make it more functional and working under 3.0-current.
  *  Fixed broken routines to prevent processes hanging on closed (thanks
@@ -25,6 +44,16 @@
  *  TIOCDCDTIMESTAMP.
  *  Sysctl debug flag is now a bitflag, to filter noise during debugging.
  *	David L. Nugent <davidn@blaze.net.au>
+ *
+ * There was a copyright confusion: I thought that having read the
+ * GLPed drivers makes me mentally contaminated but in fact it does
+ * not. Since the Linux driver by Troy De Jongh <troyd@digibd.com> or 
+ * <troyd@skypoint.com> was used unly to learn the Digi's interface,
+ * I've returned this driver to a BSD-style license. I tried to contact
+ * all the contributors and those who replied agreed with license
+ * change. If you did any contribution when the driver was GPLed and do 
+ * not agree with the BSD-style re-licensing please contact me.
+ *  -SB
  */
 
 #include "opt_compat.h"
