@@ -824,5 +824,6 @@ gv_kill_thread(struct gv_plex *p)
 		while (!(p->flags & GV_PLEX_THREAD_DEAD))
 			tsleep(p, PRIBIO, "gv_die", hz);
 		p->flags &= ~GV_PLEX_THREAD_ACTIVE;
+		mtx_destroy(&p->worklist_mtx);
 	}
 }
