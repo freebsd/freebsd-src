@@ -96,7 +96,7 @@ g_up_procbody(void)
 	}
 }
 
-struct kproc_desc g_up_kp = {
+static struct kproc_desc g_up_kp = {
 	"g_up",
 	g_up_procbody,
 	&g_up_proc,
@@ -119,7 +119,7 @@ g_down_procbody(void)
 	}
 }
 
-struct kproc_desc g_down_kp = {
+static struct kproc_desc g_down_kp = {
 	"g_down",
 	g_down_procbody,
 	&g_down_proc,
