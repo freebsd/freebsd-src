@@ -72,7 +72,7 @@ static void
 g_disk_init(struct g_class *mp __unused)
 {
 
-	mtx_init(&g_disk_done_mtx, "g_disk_done", MTX_DEF, 0);
+	mtx_init(&g_disk_done_mtx, "g_disk_done", NULL, MTX_DEF);
 }
 
 static void
