@@ -91,7 +91,7 @@ ata_pccard_match(device_t dev)
 static int
 ata_pccard_locknoop(struct ata_channel *ch, int type)
 {
-    return 1;
+    return ch->unit;
 }
 
 static void
