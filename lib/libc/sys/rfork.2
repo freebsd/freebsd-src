@@ -54,13 +54,16 @@ If set, the new process starts with a clean file descriptor table.
 Is mutually exclusive with
 .Dv RFFDG .
 .It RFMEM
-If set, the kernel will force sharing of the entire address space.
+If set, the kernel will force sharing of the entire address space,
+typically by sharing the hardawre page table directly.
 The child
-will then inherit all the shared segments the parent process owns.
-Other segment
-types will be unaffected.  Subsequent forks by the parent will then
-propagate the shared data and bss between children.  The stack segment
-is always split.  May be set only with
+will thus inherit and share all the segments the parent process owns,
+whether they are normally shareable or not.  The stack segment is
+not split (both the parent and child return on the same stack) and thus
+.Fn rfork
+with the RFMEM flag may not generally be called directly from a high level
+language.  For example, you may not call it directly from C.
+May be set only with
 .Dv RFPROC .
 .It RFSIGSHARE
 If set, the kernel will force sharing the sigacts structure between the
@@ -143,6 +146,18 @@ There is insufficient swap space for the new process.
 .Xr intro 2 ,
 .Xr minherit 2 ,
 .Xr vfork 2
+.Sh BUGS
+FreeBSD does not yet implement a native
+.Fn clone
+library call, and the current pthreads implementation does not use
+.Fn
+rfork
+with RFMEM.  A native port of the linux threads library,
+.Pa /usr/ports/devel/linuxthreads ,
+contains a working
+.Fn
+clone
+call that utilizes RFMEM.
 .Sh HISTORY
 The
 .Fn rfork
