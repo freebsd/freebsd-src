@@ -191,7 +191,6 @@ isp_attach(struct ispsoftc *isp)
 
 	if (isp->isp_role != ISP_ROLE_NONE) {
 		isp->isp_state = ISP_RUNSTATE;
-		ENABLE_INTS(isp);
 	}
 	if (isplist == NULL) {
 		isplist = isp;
@@ -296,6 +295,7 @@ isp_intr_enable(void *arg)
 		/*
 		 * It is apparently *not* safe to call tsleep yet.
 		 */
+		
 #if	0
 		isp->isp_osinfo.intsok = 1;
 #endif
@@ -588,6 +588,7 @@ isp_en_lun(struct ispsoftc *isp, union ccb *ccb)
 	}
 #endif
 
+#if	0	/* we don't need this */
 	/*
 	 * Check to see if we're enabling on fibre channel and
 	 * don't yet have a notion of who the heck we are (no
@@ -613,6 +614,7 @@ isp_en_lun(struct ispsoftc *isp, union ccb *ccb)
 			return;
 		}
 	}
+#endif
 
 
 	/*
@@ -1569,6 +1571,7 @@ isp_watchdog(void *arg)
 	XS_T *xs = arg;
 	struct ispsoftc *isp = XS_ISP(xs);
 	u_int32_t handle;
+	int iok;
 
 	/*
 	 * We've decided this command is dead. Make sure we're not trying
@@ -1576,6 +1579,8 @@ isp_watchdog(void *arg)
 	 * and seeing whether it's still alive.
 	 */
 	ISP_LOCK(isp);
+	iok = isp->isp_osinfo.intsok;
+	isp->isp_osinfo.intsok = 0;
 	handle = isp_find_handle(isp, xs);
 	if (handle) {
 		u_int16_t r;
@@ -1583,6 +1588,7 @@ isp_watchdog(void *arg)
 		if (XS_CMD_DONE_P(xs)) {
 			isp_prt(isp, ISP_LOGDEBUG1,
 			    "watchdog found done cmd (handle 0x%x)", handle);
+			isp->isp_osinfo.intsok = iok;
 			ISP_UNLOCK(isp);
 			return;
 		}
@@ -1590,6 +1596,7 @@ isp_watchdog(void *arg)
 		if (XS_CMD_WDOG_P(xs)) {
 			isp_prt(isp, ISP_LOGDEBUG2,
 			    "recursive watchdog (handle 0x%x)", handle);
+			isp->isp_osinfo.intsok = iok;
 			ISP_UNLOCK(isp);
 			return;
 		}
@@ -1629,6 +1636,7 @@ isp_watchdog(void *arg)
 			XS_CMD_C_WDOG(xs);
 			xs->ccb_h.timeout_ch = timeout(isp_watchdog, xs, hz);
 			if (isp_getrqentry(isp, &iptr, &optr, (void **) &mp)) {
+				isp->isp_osinfo.intsok = iok;
 				ISP_UNLOCK(isp);
 				return;
 			}
@@ -1644,6 +1652,7 @@ isp_watchdog(void *arg)
 	} else {
 		isp_prt(isp, ISP_LOGDEBUG2, "watchdog with no command");
 	}
+	isp->isp_osinfo.intsok = iok;
 	ISP_UNLOCK(isp);
 }
 
@@ -1651,21 +1660,23 @@ static void
 isp_kthread(void *arg)
 {
 	struct ispsoftc *isp = arg;
-	int wasfrozen, s;
+	int wasfrozen, s, iok;
 
 	s = splcam();
 	/*
-	 * This is as good a place as any to make sure we have intsok set.
-	 *
-	 * We basically really only need sleeping mailbox commands for
-	 * Fibre Channel.
+	 * We can't really do generic intsok because we can't, in RELENG_4,
+	 * know whether we're on an interrupt stack or not.
 	 */
-	isp->isp_osinfo.intsok = 1;
 	for (;;) {
 		isp_prt(isp, ISP_LOGDEBUG0, "kthread checking FC state");
+		iok = isp->isp_osinfo.intsok;
+		isp->isp_osinfo.intsok = 1;
 		while (isp_fc_runstate(isp, 2 * 1000000) != 0) {
+			isp->isp_osinfo.intsok = iok;
 			tsleep(isp_kthread, PRIBIO, "isp_fcthrd", hz);
+			isp->isp_osinfo.intsok = iok;
 		}
+		isp->isp_osinfo.intsok = iok;
 		wasfrozen = isp->isp_osinfo.simqfrozen & SIMQFRZ_LOOPDOWN;
 		isp->isp_osinfo.simqfrozen &= ~SIMQFRZ_LOOPDOWN;
 		if (wasfrozen && isp->isp_osinfo.simqfrozen == 0) {
