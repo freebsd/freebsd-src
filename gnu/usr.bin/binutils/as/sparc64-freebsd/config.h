@@ -149,7 +149,7 @@
 #define PACKAGE "gas"
 
 /* Version number of package */
-/* #define VERSION "2.11" */
+/* #define VERSION "2.12" */
 
 /* Define if defaulting to ELF on SCO 5. */
 /* #undef SCO_ELF */
@@ -157,17 +157,16 @@
 /* Using strict COFF? */
 /* #undef STRICTCOFF */
 
-/* Use ELF stabs for MIPS, not ECOFF stabs */
-/* #undef MIPS_STABS_ELF */
-
 /* Define if default target is PowerPC Solaris. */
 /* #undef TARGET_SOLARIS_COMMENT */
 
 /* Define as 1 if big endian. */
 /* #undef TARGET_BYTES_BIG_ENDIAN */
 
+/* Use ELF stabs for MIPS, not ECOFF stabs */
+/* #undef MIPS_STABS_ELF */
+
 /* Default architecture. */
-/* #undef DEFAULT_ARCH */
 #define DEFAULT_ARCH "v9-64"
 
 /* Using cgen code? */
@@ -216,7 +215,7 @@
 /* #undef USE_EMULATIONS */
 
 /* Supported emulations. */
-#define EMULATIONS 
+#define EMULATIONS
 
 /* Default emulation. */
 #define DEFAULT_EMULATION ""
@@ -228,7 +227,7 @@
 #define BFD_ASSEMBLER 1
 
 /* Target alias. */
-#define TARGET_ALIAS "sparc54-obrien-freebsd5.0"
+#define TARGET_ALIAS "sparc64-obrien-freebsd5.0"
 
 /* Canonical target. */
 #define TARGET_CANONICAL "sparc64-obrien-freebsd5.0"
