@@ -8,8 +8,8 @@
 	(If we didn't do this, then the file with the datestamp might
 	not be the one that received the last change in the document.)
 
-	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/errata/article.sgml,v 1.4.2.31 2002/10/19 09:45:52 ue Exp $
-	basiert auf: 1.1.2.87
+	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/errata/article.sgml,v 1.4.2.33 2002/11/16 12:50:15 ue Exp $
+	basiert auf: 1.1.2.90
 -->
 
 <!DOCTYPE ARTICLE PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
@@ -135,7 +135,38 @@
 ]]>
 
 <![ %release.type.snapshot [
-    <para>Zur Zeit gibt es keine Sicherheitshinweise.</para>
+    <para>Durch Puffer-&Uuml;berl&auml;ufe in kadmind(8) und k5admin
+      war es m&ouml;glich, den Administrations-Server zur
+      Ausf&uuml;rhung beliebiger Programme zu mi&szlig;brauchen.
+      Informationen, wie dieser Fehler umgangen bzw. behoben werden
+      kann, finden Sie im Sicherheitshinweis <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:40.kadmind.asc">FreeBSD-SA-02:40</ulink>.</para>
+
+    <para>Durch Fehler in &man.smrsh.8; konnten Benutzer die
+      Einschr&auml;nkugen auf bestimmte Programme umgehen.  Diese
+      Fehler wurden zwar schon in &os; &release.prev; behoben, da der
+      entsprechende Sicherheitshinweis (<ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:41.smrsh.asc">FreeBSD-SA-02:41</ulink>)
+      aber erst nach der Ver&ouml;ffentlichung dieser Version
+      herausgegeben wurde, wurde dieses Problem nicht in den Release
+      Notes erw&auml;hnt.</para>
+
+    <para>In &man.resolver.3; wurden Puffer-&Uuml;berl&auml;ufe
+      beseitigt, die zu Programm-Fehlern f&uuml;hren konnten.  Diese
+      &Auml;nderung wurde nicht in den Release Notes aufgef&uuml;hrt,
+      weil der entsprechende Sicherheitshinweis (<ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:42.resolv.asc">FreeBSD-SA-02:42</ulink>)
+      erst nach der Ver&ouml;ffentlichung dieser Version herausgegeben
+      wurde.</para>
+
+    <para>Die bei &os; &release.prev; mitgelieferte
+      <application>BIND</application>-Version enth&auml;lt mehrere
+      schwerwiegende Fehler, die die Sicherheit des Systems
+      beeintr&auml;chtigen k&ouml;nnen.  Weitergehende Informationen
+      und M&ouml;glichkeiten zur Umgehung bzw. Beseitigung der Fehler
+      finden Sie im Sicherheitshinweis <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:43.bind.asc">FreeBSD-SA-02:43</ulink>.</para>
+
 ]]>
   </sect1>
 
