@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.13 (Berkeley) 4/18/94
- * $Id: vfs_subr.c,v 1.58 1996/08/15 06:45:01 dyson Exp $
+ * $Id: vfs_subr.c,v 1.59 1996/08/21 21:55:21 dyson Exp $
  */
 
 /*
@@ -318,9 +318,9 @@ vattr_null(vap)
 	vap->va_mode = vap->va_nlink = vap->va_uid = vap->va_gid =
 	    vap->va_fsid = vap->va_fileid =
 	    vap->va_blocksize = vap->va_rdev =
-	    vap->va_atime.ts_sec = vap->va_atime.ts_nsec =
-	    vap->va_mtime.ts_sec = vap->va_mtime.ts_nsec =
-	    vap->va_ctime.ts_sec = vap->va_ctime.ts_nsec =
+	    vap->va_atime.tv_sec = vap->va_atime.tv_nsec =
+	    vap->va_mtime.tv_sec = vap->va_mtime.tv_nsec =
+	    vap->va_ctime.tv_sec = vap->va_ctime.tv_nsec =
 	    vap->va_flags = vap->va_gen = VNOVAL;
 	vap->va_vaflags = 0;
 }

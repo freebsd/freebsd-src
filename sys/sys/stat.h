@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)stat.h	8.12 (Berkeley) 6/16/95
- * $Id: stat.h,v 1.7 1996/02/24 11:19:43 hsu Exp $
+ * $Id: stat.h,v 1.7 1996/03/11 02:15:04 hsu Exp $
  */
 
 #ifndef _SYS_STAT_H_
@@ -98,9 +98,9 @@ struct stat {
 	int64_t	  st_qspare[2];
 };
 #ifndef _POSIX_SOURCE
-#define st_atime st_atimespec.ts_sec
-#define st_mtime st_mtimespec.ts_sec
-#define st_ctime st_ctimespec.ts_sec
+#define st_atime st_atimespec.tv_sec
+#define st_mtime st_mtimespec.tv_sec
+#define st_ctime st_ctimespec.tv_sec
 #endif
 
 #define	S_ISUID	0004000			/* set user id on execution */

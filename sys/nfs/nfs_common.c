@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_subs.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_subs.c,v 1.31 1996/07/16 10:19:44 dfr Exp $
+ * $Id: nfs_subs.c,v 1.32 1996/08/21 21:55:51 dyson Exp $
  */
 
 /*
@@ -1311,7 +1311,7 @@ nfs_loadattrcache(vpp, mdp, dposp, vaper)
 				*vpp = vp = nvp;
 			}
 		}
-		np->n_mtime = mtime.ts_sec;
+		np->n_mtime = mtime.tv_sec;
 	}
 	vap = &np->n_vattr;
 	vap->va_type = vtyp;
@@ -1341,8 +1341,8 @@ nfs_loadattrcache(vpp, mdp, dposp, vaper)
 		vap->va_fileid = fxdr_unsigned(long, fp->fa2_fileid);
 		fxdr_nfsv2time(&fp->fa2_atime, &vap->va_atime);
 		vap->va_flags = 0;
-		vap->va_ctime.ts_sec = fxdr_unsigned(long, fp->fa2_ctime.nfsv2_sec);
-		vap->va_ctime.ts_nsec = 0;
+		vap->va_ctime.tv_sec = fxdr_unsigned(long, fp->fa2_ctime.nfsv2_sec);
+		vap->va_ctime.tv_nsec = 0;
 		vap->va_gen = fxdr_unsigned(u_long, fp->fa2_ctime.nfsv2_usec);
 		vap->va_filerev = 0;
 	}

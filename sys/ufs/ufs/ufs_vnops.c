@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.10 (Berkeley) 4/1/94
- * $Id: ufs_vnops.c,v 1.39 1996/07/09 16:51:18 wollman Exp $
+ * $Id: ufs_vnops.c,v 1.40 1996/09/03 14:25:27 bde Exp $
  */
 
 #include "opt_quota.h"
@@ -417,7 +417,7 @@ ufs_setattr(ap)
 			return (error);
 	}
 	ip = VTOI(vp);
-	if (vap->va_atime.ts_sec != VNOVAL || vap->va_mtime.ts_sec != VNOVAL) {
+	if (vap->va_atime.tv_sec != VNOVAL || vap->va_mtime.tv_sec != VNOVAL) {
 		if (vp->v_mount->mnt_flag & MNT_RDONLY)
 			return (EROFS);
 		if (cred->cr_uid != ip->i_uid &&
@@ -425,14 +425,14 @@ ufs_setattr(ap)
 		    ((vap->va_vaflags & VA_UTIMES_NULL) == 0 ||
 		    (error = VOP_ACCESS(vp, VWRITE, cred, p))))
 			return (error);
-		if (vap->va_atime.ts_sec != VNOVAL)
+		if (vap->va_atime.tv_sec != VNOVAL)
 			ip->i_flag |= IN_ACCESS;
-		if (vap->va_mtime.ts_sec != VNOVAL)
+		if (vap->va_mtime.tv_sec != VNOVAL)
 			ip->i_flag |= IN_CHANGE | IN_UPDATE;
-		atimeval.tv_sec = vap->va_atime.ts_sec;
-		atimeval.tv_usec = vap->va_atime.ts_nsec / 1000;
-		mtimeval.tv_sec = vap->va_mtime.ts_sec;
-		mtimeval.tv_usec = vap->va_mtime.ts_nsec / 1000;
+		atimeval.tv_sec = vap->va_atime.tv_sec;
+		atimeval.tv_usec = vap->va_atime.tv_nsec / 1000;
+		mtimeval.tv_sec = vap->va_mtime.tv_sec;
+		mtimeval.tv_usec = vap->va_mtime.tv_nsec / 1000;
 		error = VOP_UPDATE(vp, &atimeval, &mtimeval, 1);
 		if (error)
 			return (error);
