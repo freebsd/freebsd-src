@@ -1,3 +1,7 @@
+2001-06-29  James Cownie <jcownie@etnus.com>
+
+	* dwarf2.h: Add DWARF 2.1 attribues.
+
 2001-06-11  Alan Modra  <amodra@bigpond.net.au>
 
 	Merge from mainline.

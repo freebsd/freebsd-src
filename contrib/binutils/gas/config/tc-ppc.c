@@ -2340,7 +2340,8 @@ static boolean ppc_stab_symbol;
 
 /* The .comm and .lcomm pseudo-ops for XCOFF.  XCOFF puts common
    symbols in the .bss segment as though they were local common
-   symbols, and uses a different smclas.  */
+   symbols, and uses a different smclas.  The native Aix 4.3.3 assember
+   aligns .comm and .lcomm to 4 bytes.  */
 
 static void
 ppc_comm (lcomm)
@@ -2382,7 +2383,7 @@ ppc_comm (lcomm)
     {
       /* The third argument to .comm is the alignment.  */
       if (*input_line_pointer != ',')
-	align = 3;
+	align = 2;
       else
 	{
 	  ++input_line_pointer;
@@ -2390,7 +2391,7 @@ ppc_comm (lcomm)
 	  if (align <= 0)
 	    {
 	      as_warn (_("ignoring bad alignment"));
-	      align = 3;
+	      align = 2;
 	    }
 	}
     }
@@ -2399,11 +2400,7 @@ ppc_comm (lcomm)
       char *lcomm_name;
       char lcomm_endc;
 
-      if (size <= 1)
-	align = 0;
-      else if (size <= 2)
-	align = 1;
-      else if (size <= 4)
+      if (size <= 4)
 	align = 2;
       else
 	align = 3;

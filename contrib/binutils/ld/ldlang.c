@@ -4766,9 +4766,12 @@ lang_leave_overlay (fill, memspec, phdrs, lma_memspec)
      const char *lma_memspec;
 {
   lang_memory_region_type *region;
+  lang_memory_region_type * default_region;
   lang_memory_region_type *lma_region;
   struct overlay_list *l;
   struct lang_nocrossref *nocrossref;
+
+  default_region = lang_memory_region_lookup ("*default*");
 
   if (memspec == NULL)
     region = NULL;
@@ -4789,8 +4792,15 @@ lang_leave_overlay (fill, memspec, phdrs, lma_memspec)
 
       if (fill != 0 && l->os->fill == 0)
 	l->os->fill = fill;
-      if (region != NULL && l->os->region == NULL)
+
+      /* Assign a region to the sections, if one has been specified.
+	 Override the assignment of the default section, but not
+	 other sections.  */
+      if (region != NULL &&
+	  (l->os->region == NULL ||
+	   l->os->region == default_region))
 	l->os->region = region;
+
       /* We only set lma_region for the first overlay section, as
 	 subsequent overlay sections will have load_base set relative
 	 to the first section.  Also, don't set lma_region if
@@ -4800,6 +4810,7 @@ lang_leave_overlay (fill, memspec, phdrs, lma_memspec)
       if (lma_region != NULL && l->os->lma_region == NULL
 	  && l->next == NULL && l->os->load_base == NULL)
 	l->os->lma_region = lma_region;
+
       if (phdrs != NULL && l->os->phdrs == NULL)
 	l->os->phdrs = phdrs;
 
