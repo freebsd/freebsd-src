@@ -546,40 +546,13 @@ msync(td, uap)
 	if ((flags & (MS_ASYNC|MS_INVALIDATE)) == (MS_ASYNC|MS_INVALIDATE))
 		return (EINVAL);
 
-	mtx_lock(&Giant);
-
 	map = &td->td_proc->p_vmspace->vm_map;
-
-	/*
-	 * XXX Gak!  If size is zero we are supposed to sync "all modified
-	 * pages with the region containing addr".  Unfortunately, we don't
-	 * really keep track of individual mmaps so we approximate by flushing
-	 * the range of the map entry containing addr. This can be incorrect
-	 * if the region splits or is coalesced with a neighbor.
-	 */
-	if (size == 0) {
-		vm_map_entry_t entry;
-
-		vm_map_lock_read(map);
-		rv = vm_map_lookup_entry(map, addr, &entry);
-		vm_map_unlock_read(map);
-		if (rv == FALSE) {
-			rv = -1;
-			goto done2;
-		}
-		addr = entry->start;
-		size = entry->end - entry->start;
-	}
 
 	/*
 	 * Clean the pages and interpret the return value.
 	 */
 	rv = vm_map_sync(map, addr, addr + size, (flags & MS_ASYNC) == 0,
 	    (flags & MS_INVALIDATE) != 0);
-
-done2:
-	mtx_unlock(&Giant);
-
 	switch (rv) {
 	case KERN_SUCCESS:
 		return (0);
