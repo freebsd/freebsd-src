@@ -111,8 +111,9 @@ SYSINIT(vm_limits, SI_SUB_VM_CONF, SI_ORDER_FIRST, vm_init_limits, &proc0)
 static void scheduler __P((void *));
 SYSINIT(scheduler, SI_SUB_RUN_SCHEDULER, SI_ORDER_FIRST, scheduler, NULL)
 
-
+#ifndef NO_SWAPPING
 static void swapout __P((struct proc *));
+#endif
 
 int
 kernacc(addr, len, rw)
@@ -123,7 +124,7 @@ kernacc(addr, len, rw)
 	vm_offset_t saddr, eaddr;
 	vm_prot_t prot;
 
-	KASSERT((rw & (~VM_PROT_ALL)) == 0,
+	KASSERT((rw & ~VM_PROT_ALL) == 0,
 	    ("illegal ``rw'' argument to kernacc (%x)\n", rw));
 	prot = rw;
 	saddr = trunc_page((vm_offset_t)addr);
@@ -146,7 +147,7 @@ useracc(addr, len, rw)
 
 	GIANT_REQUIRED;
 
-	KASSERT((rw & (~VM_PROT_ALL)) == 0,
+	KASSERT((rw & ~VM_PROT_ALL) == 0,
 	    ("illegal ``rw'' argument to useracc (%x)\n", rw));
 	prot = rw;
 	/*
@@ -337,9 +338,6 @@ vm_init_limits(udata)
 	p->p_rlimit[RLIMIT_RSS].rlim_max = RLIM_INFINITY;
 }
 
-/*
- * Must be called with the proc struc mutex held.
- */
 void
 faultin(p)
 	struct proc *p;
