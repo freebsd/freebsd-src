@@ -32,7 +32,7 @@
  */
 
 #include "push_locl.h"
-RCSID("$Id: push.c,v 1.43 2000/12/31 07:35:59 assar Exp $");
+RCSID("$Id: push.c,v 1.44 2001/02/20 01:44:47 assar Exp $");
 
 #ifdef KRB4
 static int use_v4 = -1;
@@ -714,7 +714,7 @@ main(int argc, char **argv)
     const char *host, *user, *filename = NULL;
     char *pobox = NULL;
 
-    set_progname (argv[0]);
+    setprogname (argv[0]);
 
 #ifdef KRB5
     {

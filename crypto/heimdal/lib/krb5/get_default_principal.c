@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,11 +33,22 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: get_default_principal.c,v 1.5 1999/12/02 17:05:09 joda Exp $");
+RCSID("$Id: get_default_principal.c,v 1.7 2001/05/14 06:14:46 assar Exp $");
 
 /*
  * Try to find out what's a reasonable default principal.
  */
+
+static const char*
+get_env_user(void)
+{
+    const char *user = getenv("USER");
+    if(user == NULL)
+	user = getenv("LOGNAME");
+    if(user == NULL)
+	user = getenv("USERNAME");
+    return user;
+}
 
 krb5_error_code
 krb5_get_default_principal (krb5_context context,
@@ -46,6 +57,7 @@ krb5_get_default_principal (krb5_context context,
     krb5_error_code ret;
     krb5_ccache id;
     const char *user;
+    uid_t uid;
 
     ret = krb5_cc_default (context, &id);
     if (ret == 0) {
@@ -55,13 +67,32 @@ krb5_get_default_principal (krb5_context context,
 	    return 0;
     }
 
-    user = get_default_username ();
-    if (user == NULL)
-	return ENOTTY;
-    if (getuid () == 0) {
-	ret = krb5_make_principal(context, princ, NULL, user, "root", NULL);
+
+    uid = getuid();    
+    if(uid == 0) {
+	user = getlogin();
+	if(user == NULL)
+	    user = get_env_user();
+	if(user != NULL && strcmp(user, "root") != 0)
+	    ret = krb5_make_principal(context, princ, NULL, user, "root", NULL);
+	else
+	    ret = krb5_make_principal(context, princ, NULL, "root", NULL);
     } else {
+	struct passwd *pw = getpwuid(uid);	
+	if(pw != NULL)
+	    user = pw->pw_name;
+	else {
+	    user = get_env_user();
+	    if(user == NULL)
+		user = getlogin();
+	}
+	if(user == NULL) {
+	    krb5_set_error_string(context,
+				  "unable to figure out current principal");
+	    return ENOTTY; /* XXX */
+	}
 	ret = krb5_make_principal(context, princ, NULL, user, NULL);
     }
+
     return ret;
 }

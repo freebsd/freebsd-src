@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: init_creds_pw.c,v 1.44 2000/07/24 03:46:40 assar Exp $");
+RCSID("$Id: init_creds_pw.c,v 1.47 2001/05/14 06:14:48 assar Exp $");
 
 static int
 get_config_time (krb5_context context,
@@ -175,13 +175,13 @@ print_expire (krb5_context context,
 			       7 * 24 * 60 * 60);
 
     for (i = 0; i < lr->len; ++i) {
-	if (lr->val[i].lr_type == 6
+	if (abs(lr->val[i].lr_type) == LR_PW_EXPTIME
 	    && lr->val[i].lr_value <= t) {
 	    char *p;
 	    time_t tmp = lr->val[i].lr_value;
 	    
 	    asprintf (&p, "Your password will expire at %s", ctime(&tmp));
-	    (*prompter) (context, data, p, 0, NULL);
+	    (*prompter) (context, data, NULL, p, 0, NULL);
 	    free (p);
 	    return;
 	}
@@ -193,7 +193,7 @@ print_expire (krb5_context context,
 	time_t t = *rep->enc_part.key_expiration;
 
 	asprintf (&p, "Your password/account will expire at %s", ctime(&t));
-	(*prompter) (context, data, p, 0, NULL);
+	(*prompter) (context, data, NULL, p, 0, NULL);
 	free (p);
     }
 }
@@ -213,6 +213,12 @@ get_init_creds_common(krb5_context context,
 {
     krb5_error_code ret;
     krb5_realm *client_realm;
+    krb5_get_init_creds_opt default_opt;
+
+    if (options == NULL) {
+	krb5_get_init_creds_opt_init (&default_opt);
+	options = &default_opt;
+    }
 
     ret = init_cred (context, cred, client, start_time,
 		     in_tkt_service, options);
@@ -246,8 +252,10 @@ get_init_creds_common(krb5_context context,
     if (options->flags & KRB5_GET_INIT_CREDS_OPT_ETYPE_LIST) {
 	*etypes = malloc((options->etype_list_length + 1)
 			* sizeof(krb5_enctype));
-	if (*etypes == NULL)
+	if (*etypes == NULL) {
+	    krb5_set_error_string(context, "malloc: out of memory");
 	    return ENOMEM;
+	}
 	memcpy (*etypes, options->etype_list,
 		options->etype_list_length * sizeof(krb5_enctype));
 	(*etypes)[options->etype_list_length] = ETYPE_NULL;
@@ -255,8 +263,10 @@ get_init_creds_common(krb5_context context,
     if (options->flags & KRB5_GET_INIT_CREDS_OPT_PREAUTH_LIST) {
 	*pre_auth_types = malloc((options->preauth_list_length + 1)
 				 * sizeof(krb5_preauthtype));
-	if (*pre_auth_types == NULL)
+	if (*pre_auth_types == NULL) {
+	    krb5_set_error_string(context, "malloc: out of memory");
 	    return ENOMEM;
+	}
 	memcpy (*pre_auth_types, options->preauth_list,
 		options->preauth_list_length * sizeof(krb5_preauthtype));
 	(*pre_auth_types)[options->preauth_list_length] = KRB5_PADATA_NONE;
@@ -278,7 +288,7 @@ change_password (krb5_context context,
 		 void *data,
 		 krb5_get_init_creds_opt *old_options)
 {
-    krb5_prompt prompt;
+    krb5_prompt prompts[2];
     krb5_error_code ret;
     krb5_creds cpw_cred;
     char buf1[BUFSIZ], buf2[BUFSIZ];
@@ -319,27 +329,31 @@ change_password (krb5_context context,
 	password_data.data   = buf1;
 	password_data.length = sizeof(buf1);
 
-	prompt.hidden = 1;
-	prompt.prompt = "New password: ";
-	prompt.reply  = &password_data;
-
-	ret = (*prompter) (context, data, "Changing password", 1, &prompt);
-	if (ret)
-	    goto out;
+	prompts[0].hidden = 1;
+	prompts[0].prompt = "New password: ";
+	prompts[0].reply  = &password_data;
+	prompts[0].type   = KRB5_PROMPT_TYPE_NEW_PASSWORD;
 
 	password_data.data   = buf2;
 	password_data.length = sizeof(buf2);
 
-	prompt.hidden = 1;
-	prompt.prompt = "Repeat new password: ";
-	prompt.reply  = &password_data;
+	prompts[1].hidden = 1;
+	prompts[1].prompt = "Repeat new password: ";
+	prompts[1].reply  = &password_data;
+	prompts[1].type   = KRB5_PROMPT_TYPE_NEW_PASSWORD_AGAIN;
 
-	ret = (*prompter) (context, data, "Changing password", 1, &prompt);
-	if (ret)
+	ret = (*prompter) (context, data, NULL, "Changing password",
+			   2, prompts);
+	if (ret) {
+	    memset (buf1, 0, sizeof(buf1));
+	    memset (buf2, 0, sizeof(buf2));
 	    goto out;
+	}
 
 	if (strcmp (buf1, buf2) == 0)
 	    break;
+	memset (buf1, 0, sizeof(buf1));
+	memset (buf2, 0, sizeof(buf2));
     }
     
     ret = krb5_change_password (context,
@@ -355,13 +369,15 @@ change_password (krb5_context context,
 	      (int)result_string.length,
 	      (char*)result_string.data);
 
-    ret = (*prompter) (context, data, p, 0, NULL);
+    ret = (*prompter) (context, data, NULL, p, 0, NULL);
     free (p);
     if (result_code == 0) {
 	strlcpy (newpw, buf1, newpw_sz);
 	ret = 0;
-    } else
+    } else {
+	krb5_set_error_string (context, "failed changing password");
 	ret = ENOTTY;
+    }
 
 out:
     memset (buf1, 0, sizeof(buf1));
@@ -412,12 +428,14 @@ krb5_get_init_creds_password(krb5_context context,
 	password_data.length = sizeof(buf);
 	prompt.hidden = 1;
 	prompt.reply  = &password_data;
+	prompt.type   = KRB5_PROMPT_TYPE_PASSWORD;
 
-	ret = (*prompter) (context, data, NULL, 1, &prompt);
+	ret = (*prompter) (context, data, NULL, NULL, 1, &prompt);
 	free (prompt.prompt);
 	if (ret) {
 	    memset (buf, 0, sizeof(buf));
 	    ret = KRB5_LIBOS_PWDINTR;
+	    krb5_clear_error_string (context);
 	    goto out;
 	}
 	password = password_data.data;
@@ -444,6 +462,8 @@ krb5_get_init_creds_password(krb5_context context,
 	    break;
 	case KRB5KDC_ERR_KEY_EXPIRED :
 	    /* try to avoid recursion */
+
+	    krb5_clear_error_string (context);
 
 	    if (in_tkt_service != NULL
 		&& strcmp (in_tkt_service, "kadmin/changepw") == 0)
@@ -522,6 +542,7 @@ krb5_get_init_creds_keytab(krb5_context context,
 
     a = malloc (sizeof(*a));
     if (a == NULL) {
+	krb5_set_error_string(context, "malloc: out of memory");
 	ret = ENOMEM;
 	goto out;
     }

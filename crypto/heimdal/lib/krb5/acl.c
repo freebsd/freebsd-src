@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 2000 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -34,7 +34,7 @@
 #include "krb5_locl.h"
 #include <fnmatch.h>
 
-RCSID("$Id: acl.c,v 1.1 2000/06/12 11:17:52 joda Exp $");
+RCSID("$Id: acl.c,v 1.2 2001/05/14 06:14:43 assar Exp $");
 
 struct acl_field {
     enum { acl_string, acl_fnmatch, acl_retval } type;
@@ -68,6 +68,7 @@ acl_parse_format(krb5_context context,
     for(p = format; *p != '\0'; p++) {
 	tmp = malloc(sizeof(*tmp));
 	if(tmp == NULL) {
+	    krb5_set_error_string(context, "malloc: out of memory");
 	    acl_free_list(acl);
 	    return ENOMEM;
 	}
@@ -133,6 +134,7 @@ krb5_acl_match_string(krb5_context context,
 		      ...)
 {
     krb5_error_code ret;
+    krb5_boolean found;
     struct acl_field *acl;
 
     va_list ap;
@@ -142,10 +144,14 @@ krb5_acl_match_string(krb5_context context,
     if(ret)
 	return ret;
 
-    ret = acl_match_acl(context, acl, acl_string);
-
+    found = acl_match_acl(context, acl, acl_string);
     acl_free_list(acl);
-    return ret ? 0 : EACCES;
+    if (found) {
+	return 0;
+    } else {
+	krb5_set_error_string(context, "ACL did not match");
+	return EACCES;
+    }
 }
 	       
 krb5_error_code
@@ -159,10 +165,16 @@ krb5_acl_match_file(krb5_context context,
     char buf[256];
     va_list ap;
     FILE *f;
+    krb5_boolean found;
 
     f = fopen(file, "r");
-    if(f == NULL)
-	return errno;
+    if(f == NULL) {
+	int save_errno = errno;
+
+	krb5_set_error_string(context, "open(%s): %s", file,
+			      strerror(save_errno));
+	return save_errno;
+    }
 
     va_start(ap, format);
     ret = acl_parse_format(context, &acl, format, ap);
@@ -172,18 +184,22 @@ krb5_acl_match_file(krb5_context context,
 	return ret;
     }
 
-    ret = EACCES; /* XXX */
+    found = FALSE;
     while(fgets(buf, sizeof(buf), f)) {
 	if(buf[0] == '#')
 	    continue;
 	if(acl_match_acl(context, acl, buf)) {
-	    ret = 0;
-	    goto out;
+	    found = TRUE;
+	    break;
 	}
     }
 
-  out:
     fclose(f);
     acl_free_list(acl);
-    return ret;
+    if (found) {
+	return 0;
+    } else {
+	krb5_set_error_string(context, "ACL did not match");
+	return EACCES;
+    }
 }

@@ -34,24 +34,28 @@
 #include "krb5_locl.h"
 #include <resolve.h>
 
-RCSID("$Id: krbhst.c,v 1.25 2001/01/19 04:30:54 assar Exp $");
+RCSID("$Id: krbhst.c,v 1.26 2001/05/14 06:14:49 assar Exp $");
 
 /*
  * assuming that `*res' contains `*count' strings, add a copy of `string'.
  */
 
 static int
-add_string(char ***res, int *count, const char *string)
+add_string(krb5_context context, char ***res, int *count, const char *string)
 {
     char **tmp = realloc(*res, (*count + 1) * sizeof(**res));
 
-    if(tmp == NULL)
+    if(tmp == NULL) {
+	krb5_set_error_string (context, "malloc: out of memory");
 	return ENOMEM;
+    }
     *res = tmp;
     if(string) {
 	tmp[*count] = strdup(string);
-	if(tmp[*count] == NULL)
+	if(tmp[*count] == NULL) {
+	    krb5_set_error_string (context, "malloc: out of memory");
 	    return ENOMEM;
+	}
     } else
 	tmp[*count] = NULL;
     (*count)++;
@@ -94,19 +98,21 @@ srv_find_realm(krb5_context context, char ***res, int *count,
 	    char **tmp;
 
 	    tmp = realloc(*res, (*count + 1) * sizeof(**res));
-	    if (tmp == NULL)
+	    if (tmp == NULL) {
+		krb5_set_error_string (context, "malloc: out of memory");
 		return ENOMEM;
+	    }
 	    *res = tmp;
 	    snprintf (buf, sizeof(buf),
 		      "%s/%s:%u",
 		      proto,
 		      rr->u.srv->target,
 		      rr->u.srv->port);
-	    ret = add_string(res, count, buf);
+	    ret = add_string(context, res, count, buf);
 	    if(ret)
 		return ret;
 	}else if(rr->type == T_TXT) {
-	    ret = add_string(res, count, rr->u.txt);
+	    ret = add_string(context, res, count, rr->u.txt);
 	    if(ret)
 		return ret;
 	}
@@ -151,13 +157,13 @@ get_krbhst (krb5_context context,
     if(count == 0) {
 	char buf[1024];
 	snprintf(buf, sizeof(buf), "kerberos.%s", *realm);
-	ret = add_string(&res, &count, buf);
+	ret = add_string(context, &res, &count, buf);
 	if(ret) {
 	    krb5_config_free_strings(res);
 	    return ret;
 	}
     }
-    add_string(&res, &count, NULL);
+    add_string(context, &res, &count, NULL);
     *hostlist = res;
     return 0;
 }

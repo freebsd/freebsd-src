@@ -31,7 +31,7 @@
  * SUCH DAMAGE. 
  */
 
-/* $Id: gssapi.h,v 1.20 2001/01/30 00:35:48 assar Exp $ */
+/* $Id: gssapi.h,v 1.21 2001/05/04 13:52:02 assar Exp $ */
 
 #ifndef GSSAPI_H_
 #define GSSAPI_H_
@@ -40,12 +40,6 @@
  * First, include stddef.h to get size_t defined.
  */
 #include <stddef.h>
-
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
-
-#include <sys/types.h>
 
 #include <krb5-types.h>
 

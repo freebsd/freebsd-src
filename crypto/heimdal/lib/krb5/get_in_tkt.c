@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: get_in_tkt.c,v 1.97 2000/08/18 06:47:54 assar Exp $");
+RCSID("$Id: get_in_tkt.c,v 1.100 2001/05/14 06:14:48 assar Exp $");
 
 krb5_error_code
 krb5_init_etype (krb5_context context,
@@ -61,6 +61,7 @@ krb5_init_etype (krb5_context context,
     *val = malloc(i * sizeof(int));
     if (i != 0 && *val == NULL) {
 	ret = ENOMEM;
+	krb5_set_error_string(context, "malloc: out of memory");
 	goto cleanup;
     }
     memmove (*val,
@@ -148,6 +149,7 @@ _krb5_extract_ticket(krb5_context context,
 	tmp = krb5_principal_compare (context, tmp_principal, creds->client);
 	if (!tmp) {
 	    krb5_free_principal (context, tmp_principal);
+	    krb5_clear_error_string (context);
 	    ret = KRB5KRB_AP_ERR_MODIFIED;
 	    goto out;
 	}
@@ -163,6 +165,7 @@ _krb5_extract_ticket(krb5_context context,
 	len = length_Ticket(&rep->kdc_rep.ticket);
 	buf = malloc(len);
 	if(buf == NULL) {
+	    krb5_set_error_string(context, "malloc: out of memory");
 	    ret = ENOMEM;
 	    goto out;
 	}
@@ -189,6 +192,7 @@ _krb5_extract_ticket(krb5_context context,
 	krb5_free_principal (context, tmp_principal);
 	if (!tmp) {
 	    ret = KRB5KRB_AP_ERR_MODIFIED;
+	    krb5_clear_error_string (context);
 	    goto out;
 	}
     }
@@ -213,6 +217,7 @@ _krb5_extract_ticket(krb5_context context,
 
     if (nonce != rep->enc_part.nonce) {
 	ret = KRB5KRB_AP_ERR_MODIFIED;
+	krb5_set_error_string(context, "malloc: out of memory");
 	goto out;
     }
 
@@ -238,11 +243,16 @@ _krb5_extract_ticket(krb5_context context,
     if (creds->times.starttime == 0
 	&& abs(tmp_time - sec_now) > context->max_skew) {
 	ret = KRB5KRB_AP_ERR_SKEW;
+	krb5_set_error_string (context,
+			       "time skew (%d) larger than max (%d)",
+			       abs(tmp_time - sec_now),
+			       (int)context->max_skew);
 	goto out;
     }
 
     if (creds->times.starttime != 0
 	&& tmp_time != creds->times.starttime) {
+	krb5_clear_error_string (context);
 	ret = KRB5KRB_AP_ERR_MODIFIED;
 	goto out;
     }
@@ -256,6 +266,7 @@ _krb5_extract_ticket(krb5_context context,
 
     if (creds->times.renew_till != 0
 	&& tmp_time > creds->times.renew_till) {
+	krb5_clear_error_string (context);
 	ret = KRB5KRB_AP_ERR_MODIFIED;
 	goto out;
     }
@@ -266,6 +277,7 @@ _krb5_extract_ticket(krb5_context context,
 
     if (creds->times.endtime != 0
 	&& rep->enc_part.endtime > creds->times.endtime) {
+	krb5_clear_error_string (context);
 	ret = KRB5KRB_AP_ERR_MODIFIED;
 	goto out;
     }
@@ -380,8 +392,10 @@ add_padata(krb5_context context,
 	    netypes++;
     }
     pa2 = realloc (md->val, (md->len + netypes) * sizeof(*md->val));
-    if (pa2 == NULL)
+    if (pa2 == NULL) {
+	krb5_set_error_string(context, "malloc: out of memory");
 	return ENOMEM;
+    }
     md->val = pa2;
 
     for (i = 0; i < netypes; ++i) {
@@ -426,11 +440,13 @@ init_as_req (krb5_context context,
     a->req_body.cname = malloc(sizeof(*a->req_body.cname));
     if (a->req_body.cname == NULL) {
 	ret = ENOMEM;
+	krb5_set_error_string(context, "malloc: out of memory");
 	goto fail;
     }
     a->req_body.sname = malloc(sizeof(*a->req_body.sname));
     if (a->req_body.sname == NULL) {
 	ret = ENOMEM;
+	krb5_set_error_string(context, "malloc: out of memory");
 	goto fail;
     }
     ret = krb5_principal2principalname (a->req_body.cname, creds->client);
@@ -447,6 +463,7 @@ init_as_req (krb5_context context,
 	a->req_body.from = malloc(sizeof(*a->req_body.from));
 	if (a->req_body.from == NULL) {
 	    ret = ENOMEM;
+	    krb5_set_error_string(context, "malloc: out of memory");
 	    goto fail;
 	}
 	*a->req_body.from = creds->times.starttime;
@@ -459,6 +476,7 @@ init_as_req (krb5_context context,
 	a->req_body.rtime = malloc(sizeof(*a->req_body.rtime));
 	if (a->req_body.rtime == NULL) {
 	    ret = ENOMEM;
+	    krb5_set_error_string(context, "malloc: out of memory");
 	    goto fail;
 	}
 	*a->req_body.rtime = creds->times.renew_till;
@@ -481,6 +499,7 @@ init_as_req (krb5_context context,
 	a->req_body.addresses = malloc(sizeof(*a->req_body.addresses));
 	if (a->req_body.addresses == NULL) {
 	    ret = ENOMEM;
+	    krb5_set_error_string(context, "malloc: out of memory");
 	    goto fail;
 	}
 
@@ -500,6 +519,7 @@ init_as_req (krb5_context context,
 	ALLOC(a->padata, 1);
 	if(a->padata == NULL) {
 	    ret = ENOMEM;
+	    krb5_set_error_string(context, "malloc: out of memory");
 	    goto fail;
 	}
 	for(i = 0; i < preauth->len; i++) {
@@ -511,6 +531,7 @@ init_as_req (krb5_context context,
 				       sizeof(*a->padata->val));
 		if(tmp == NULL) {
 		    ret = ENOMEM;
+		    krb5_set_error_string(context, "malloc: out of memory");
 		    goto fail;
 		}
 		a->padata->val = tmp;
@@ -542,6 +563,7 @@ init_as_req (krb5_context context,
 	ALLOC(a->padata, 1);
 	if (a->padata == NULL) {
 	    ret = ENOMEM;
+	    krb5_set_error_string(context, "malloc: out of memory");
 	    goto fail;
 	}
 	a->padata->len = 0;
@@ -559,6 +581,8 @@ init_as_req (krb5_context context,
 		   key_proc, keyseed, a->req_body.etype.val,
 		   a->req_body.etype.len, &salt);
     } else {
+	krb5_set_error_string (context, "pre-auth type %d not supported",
+			       *ptypes);
 	ret = KRB5_PREAUTH_BAD_TYPE;
 	goto fail;
     }
@@ -690,7 +714,7 @@ krb5_get_in_cred(krb5_context context,
 		ret = KRB5KRB_AP_ERR_V4_REPLY;
 	    krb5_data_free(&resp);
 	    if (ret2 == 0) {
-		ret = error.error_code;
+		ret = krb5_error_from_rd_error(context, &error, creds);
 		/* if no preauth was set and KDC requires it, give it
                    one more try */
 		if (!ptypes && !preauth
@@ -701,7 +725,7 @@ krb5_get_in_cred(krb5_context context,
 		    && set_ptypes(context, &error, &ptypes, &my_preauth)) {
 		    done = 0;
 		    preauth = my_preauth;
-		    free_KRB_ERROR(&error);
+		    krb5_free_error_contents(context, &error);
 		    continue;
 		}
 		if(ret_as_reply)

@@ -88,6 +88,12 @@
 /* Define if you have the <bsdsetjmp.h> header file. */
 #undef HAVE_BSDSETJMP_H
 
+/* Define if you have the `bswap16' function. */
+#undef HAVE_BSWAP16
+
+/* Define if you have the `bswap32' function. */
+#undef HAVE_BSWAP32
+
 /* Define if you have the <capability.h> header file. */
 #undef HAVE_CAPABILITY_H
 
@@ -256,6 +262,9 @@
 /* Define if you have the `getopt' function. */
 #undef HAVE_GETOPT
 
+/* Define if you have the `getprogname' function. */
+#undef HAVE_GETPROGNAME
+
 /* Define if you have the `getpwnam_r' function. */
 #undef HAVE_GETPWNAM_R
 
@@ -281,7 +290,7 @@
 #undef HAVE_GETUSERSHELL
 
 /* define if you have a glob() that groks GLOB_BRACE, GLOB_NOCHECK,
-   GLOB_QUOTE, and GLOB_TILDE */
+   GLOB_QUOTE, GLOB_TILDE, and GLOB_LIMIT */
 #undef HAVE_GLOB
 
 /* Define if you have the `grantpt' function. */
@@ -373,9 +382,6 @@
 
 /* Define if you have the `memmove' function. */
 #undef HAVE_MEMMOVE
-
-/* Define if you have the <memory.h> header file. */
-#undef HAVE_MEMORY_H
 
 /* Define if you have the `mkstemp' function. */
 #undef HAVE_MKSTEMP
@@ -554,6 +560,9 @@
 /* Define if you have the `setproctitle' function. */
 #undef HAVE_SETPROCTITLE
 
+/* Define if you have the `setprogname' function. */
+#undef HAVE_SETPROGNAME
+
 /* Define if you have the `setregid' function. */
 #undef HAVE_SETREGID
 
@@ -608,9 +617,6 @@
 /* Define if you have the <standards.h> header file. */
 #undef HAVE_STANDARDS_H
 
-/* Define if you have the <stdlib.h> header file. */
-#undef HAVE_STDLIB_H
-
 /* Define if you have the `strcasecmp' function. */
 #undef HAVE_STRCASECMP
 
@@ -622,12 +628,6 @@
 
 /* Define if you have the `strftime' function. */
 #undef HAVE_STRFTIME
-
-/* Define if you have the <strings.h> header file. */
-#undef HAVE_STRINGS_H
-
-/* Define if you have the <string.h> header file. */
-#undef HAVE_STRING_H
 
 /* Define if you have the `strlcat' function. */
 #undef HAVE_STRLCAT
@@ -751,6 +751,9 @@
 
 /* Define if you have the <sys/bitypes.h> header file. */
 #undef HAVE_SYS_BITYPES_H
+
+/* Define if you have the <sys/bswap.h> header file. */
+#undef HAVE_SYS_BSWAP_H
 
 /* Define if you have the <sys/capability.h> header file. */
 #undef HAVE_SYS_CAPABILITY_H
@@ -1294,4 +1297,8 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "\100(#)" msg }
 #  if BYTE_ORDER == BIG_ENDIAN
 #  define WORDS_BIGENDIAN 1
 #  endif
+#endif
+
+#ifdef ROKEN_RENAME
+#include "roken_rename.h"
 #endif

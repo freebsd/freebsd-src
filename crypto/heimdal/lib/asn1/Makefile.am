@@ -1,11 +1,11 @@
-# $Id: Makefile.am,v 1.59 2001/01/30 01:46:53 assar Exp $
+# $Id: Makefile.am,v 1.63 2001/05/16 23:49:27 assar Exp $
 
 include $(top_srcdir)/Makefile.am.common
 
 YFLAGS = -d
 
 lib_LTLIBRARIES = libasn1.la
-libasn1_la_LDFLAGS = -version-info 4:0:2
+libasn1_la_LDFLAGS = -version-info 5:0:0
 
 BUILT_SOURCES =			\
 	$(gen_files:.x=.c)	\
@@ -22,6 +22,7 @@ gen_files =					\
 	asn1_AuthorizationData.x		\
 	asn1_CKSUMTYPE.x			\
 	asn1_Checksum.x				\
+	asn1_ENCTYPE.x				\
 	asn1_ETYPE_INFO.x			\
 	asn1_ETYPE_INFO_ENTRY.x			\
 	asn1_EncAPRepPart.x			\
@@ -47,6 +48,7 @@ gen_files =					\
 	asn1_KerberosTime.x			\
 	asn1_KrbCredInfo.x			\
 	asn1_LastReq.x				\
+	asn1_LR_TYPE.x				\
 	asn1_MESSAGE_TYPE.x			\
 	asn1_METHOD_DATA.x			\
 	asn1_NAME_TYPE.x			\
@@ -68,17 +70,27 @@ noinst_PROGRAMS = asn1_compile asn1_print
 check_PROGRAMS = check-der
 TESTS = check-der
 
-asn1_compile_SOURCES = parse.y lex.l main.c hash.c symbol.c gen.c \
-	gen_encode.c gen_decode.c gen_free.c gen_length.c gen_copy.c \
-	gen_glue.c
+asn1_compile_SOURCES = 				\
+	gen.c					\
+	gen_copy.c				\
+	gen_decode.c				\
+	gen_encode.c				\
+	gen_free.c				\
+	gen_glue.c				\
+	gen_length.c				\
+	hash.c					\
+	lex.l					\
+	main.c					\
+	parse.y					\
+	symbol.c
 
-libasn1_la_SOURCES = \
-	der_get.c \
-	der_put.c \
-	der_free.c \
-	der_length.c \
-	der_copy.c \
-	timegm.c \
+libasn1_la_SOURCES =				\
+	der_get.c				\
+	der_put.c				\
+	der_free.c				\
+	der_length.c				\
+	der_copy.c				\
+	timegm.c				\
 	$(BUILT_SOURCES)
 
 asn1_compile_LDADD = \
@@ -93,20 +105,20 @@ asn1_print_LDADD = $(check_der_LDADD)
 
 TESTS = check-der
 
-CLEANFILES = lex.c parse.c parse.h asn1.h $(BUILT_SOURCES) \
+CLEANFILES = lex.c parse.c parse.h krb5_asn1.h $(BUILT_SOURCES) \
 	$(gen_files) asn1_files
 
-include_HEADERS = asn1.h asn1_err.h der.h
+include_HEADERS = krb5_asn1.h asn1_err.h der.h
 
 $(asn1_compile_OBJECTS): parse.h
 
-$(gen_files) asn1.h: asn1_files
+$(gen_files) krb5_asn1.h: asn1_files
 
 asn1_files: asn1_compile$(EXEEXT) $(srcdir)/k5.asn1
-	./asn1_compile$(EXEEXT) $(srcdir)/k5.asn1
+	./asn1_compile$(EXEEXT) $(srcdir)/k5.asn1 krb5_asn1
 
-$(libasn1_la_OBJECTS): asn1.h asn1_err.h
+$(libasn1_la_OBJECTS): krb5_asn1.h asn1_err.h
 
-$(asn1_print_OBJECTS): asn1.h
+$(asn1_print_OBJECTS): krb5_asn1.h
 
 EXTRA_DIST = asn1_err.et

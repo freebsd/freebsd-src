@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -31,7 +31,7 @@
  * SUCH DAMAGE. 
  */
 
-/* $Id: getarg.h,v 1.10 1999/12/02 16:58:46 joda Exp $ */
+/* $Id: getarg.h,v 1.11 2001/04/25 12:06:37 assar Exp $ */
 
 #ifndef __GETARG_H__
 #define __GETARG_H__
@@ -85,5 +85,7 @@ void arg_printusage (struct getargs *args,
 		     size_t num_args,
 		     const char *progname,
 		     const char *extra_string);
+
+void free_getarg_strings (getarg_strings *);
 
 #endif /* __GETARG_H__ */

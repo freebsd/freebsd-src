@@ -166,7 +166,6 @@ struct hostent  *gethostbyname(const char *);
 #endif
 
 #ifdef KRB4
-#include <des.h>
 #include <krb.h>
 #endif
 

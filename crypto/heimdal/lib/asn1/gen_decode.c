@@ -33,7 +33,7 @@
 
 #include "gen_locl.h"
 
-RCSID("$Id: gen_decode.c,v 1.15 2001/01/29 08:36:45 assar Exp $");
+RCSID("$Id: gen_decode.c,v 1.16 2001/02/10 18:14:38 assar Exp $");
 
 static void
 decode_primitive (const char *typename, const char *name)
@@ -281,7 +281,7 @@ generate_type_decode (const Symbol *s)
 	   s->gen_name, s->gen_name);
 
   fprintf (codefile, "#define FORW "
-	   "if(e) return e; "
+	   "if(e) goto fail; "
 	   "p += l; "
 	   "len -= l; "
 	   "ret += l\n\n");
@@ -308,13 +308,19 @@ generate_type_decode (const Symbol *s)
 	     "size_t ret = 0, reallen;\n"
 	     "size_t l;\n"
 	     "int i, e;\n\n");
-    fprintf(codefile, "i = 0;\n"); /* hack to avoid `unused variable' */
-    fprintf(codefile, "reallen = 0;\n"); /* hack to avoid `unused variable' */
+    fprintf (codefile, "memset(data, 0, sizeof(*data));\n");
+    fprintf (codefile, "i = 0;\n"); /* hack to avoid `unused variable' */
+    fprintf (codefile, "reallen = 0;\n"); /* hack to avoid `unused variable' */
 
     decode_type ("data", s->type);
     fprintf (codefile, 
 	     "if(size) *size = ret;\n"
 	     "return 0;\n");
+    fprintf (codefile,
+	     "fail:\n"
+	     "free_%s(data);\n"
+	     "return e;\n",
+	     s->gen_name);
     break;
   default:
     abort ();

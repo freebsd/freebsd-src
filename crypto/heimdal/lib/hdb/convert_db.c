@@ -41,7 +41,7 @@
 #include <getarg.h>
 #include <err.h>
 
-RCSID("$Id: convert_db.c,v 1.11 2001/01/25 12:45:01 assar Exp $");
+RCSID("$Id: convert_db.c,v 1.12 2001/02/20 01:44:53 assar Exp $");
 
 static krb5_error_code
 update_keytypes(krb5_context context, HDB *db, hdb_entry *entry, void *data)
@@ -136,7 +136,7 @@ main(int argc, char **argv)
     int optind = 0;
     int master_key_set = 0;
     
-    set_progname(argv[0]);
+    setprogname(argv[0]);
 
     if(getarg(args, num_args, argc, argv, &optind))
 	krb5_std_usage(1, args, num_args);

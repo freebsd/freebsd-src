@@ -1,0 +1,43 @@
+
+RXTELNET(1)                  UNIX Reference Manual                 RXTELNET(1)
+
+NNAAMMEE
+     rrxxtteellnneett - start a telnet and forward X-connections.
+
+SSYYNNOOPPSSIISS
+     rrxxtteellnneett [--ll _u_s_e_r_n_a_m_e] [--kk] [--tt _t_e_l_n_e_t___a_r_g_s] [--xx _x_t_e_r_m___a_r_g_s] [--ww
+              _t_e_r_m___e_m_u_l_a_t_o_r] [--nn] _h_o_s_t [_p_o_r_t]
+
+DDEESSCCRRIIPPTTIIOONN
+     The rrxxtteellnneett program starts a xxtteerrmm window with a telnet to host _h_o_s_t.
+     From this window you will also be able to run X clients that will be able
+     to connect securily to your X server. If _p_o_r_t is given, that port will be
+     used instead of the default.
+
+     The supported options are:
+
+     --ll      Log in on the remote host as user _u_s_e_r_n_a_m_e
+
+     --kk      Disables keep-alives
+
+     --tt      Send _t_e_l_n_e_t___a_r_g_s as arguments to tteellnneett
+
+     --xx      Send _x_t_e_r_m___a_r_g_s as arguments to xxtteerrmm
+
+     --ww      Use _t_e_r_m___e_m_u_l_a_t_o_r instead of xterm.
+
+     --nn      Do not start any terminal emulator.
+
+EEXXAAMMPPLLEE
+     To login from host _f_o_o (where your display is) to host _b_a_r, you might do
+     the following.
+
+     1.   On foo: rrxxtteellnneett _b_a_r
+
+     2.   You will get a new window with a tteellnneett to _b_a_r. In this window you
+          will be able to start X clients.
+
+SSEEEE AALLSSOO
+     rxterm(1),  tenletxr(1),  kx(1),  kxd(8),  telnet(1)
+
+ KTH_KRB                      September 27, 1996                             1

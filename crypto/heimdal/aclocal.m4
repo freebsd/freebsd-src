@@ -1,14 +1,15 @@
-dnl ./aclocal.m4 generated automatically by aclocal 1.4a
+# ./aclocal.m4 generated automatically by aclocal 1.4b
 
-dnl Copyright (C) 1994, 1995-9, 2000 Free Software Foundation, Inc.
-dnl This file is free software; the Free Software Foundation
-dnl gives unlimited permission to copy and/or distribute it,
-dnl with or without modifications, as long as this notice is preserved.
+# Copyright 1994, 1995, 1996, 1997, 1998, 1999, 2000
+# Free Software Foundation, Inc.
+# This file is free software; the Free Software Foundation
+# gives unlimited permission to copy and/or distribute it,
+# with or without modifications, as long as this notice is preserved.
 
-dnl This program is distributed in the hope that it will be useful,
-dnl but WITHOUT ANY WARRANTY, to the extent permitted by law; without
-dnl even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-dnl PARTICULAR PURPOSE.
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY, to the extent permitted by law; without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+# PARTICULAR PURPOSE.
 
 dnl $Id: acinclude.m4,v 1.15 1998/05/23 14:54:53 joda Exp $
 dnl
@@ -49,32 +50,40 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "\100(#)" msg }
 ])])
 # Like AC_CONFIG_HEADER, but automatically create stamp file.
 
-AC_DEFUN(AM_CONFIG_HEADER,
-[AC_PREREQ([2.12])
-AC_CONFIG_HEADER([$1])
-dnl When config.status generates a header, we must update the stamp-h file.
-dnl This file resides in the same directory as the config header
-dnl that is generated.  We must strip everything past the first ":",
-dnl and everything past the last "/".
-AC_OUTPUT_COMMANDS(changequote(<<,>>)dnl
-ifelse(patsubst(<<$1>>, <<[^ ]>>, <<>>), <<>>,
-<<test -z "<<$>>CONFIG_HEADERS" || echo timestamp > patsubst(<<$1>>, <<^\([^:]*/\)?.*>>, <<\1>>)stamp-h<<>>dnl>>,
-<<am_indx=1
-for am_file in <<$1>>; do
-  case " <<$>>CONFIG_HEADERS " in
-  *" <<$>>am_file "*<<)>>
-    echo timestamp > `echo <<$>>am_file | sed -e 's%:.*%%' -e 's%[^/]*$%%'`stamp-h$am_indx
-    ;;
-  esac
-  am_indx=`expr "<<$>>am_indx" + 1`
-done<<>>dnl>>)
-changequote([,]))])
+# serial 3
+
+# When config.status generates a header, we must update the stamp-h file.
+# This file resides in the same directory as the config header
+# that is generated.  We must strip everything past the first ":",
+# and everything past the last "/".
+
+AC_PREREQ([2.12])
+
+AC_DEFUN([AM_CONFIG_HEADER],
+[AC_CONFIG_HEADER([$1])
+  AC_OUTPUT_COMMANDS(
+   ifelse(patsubst([$1], [[^ ]], []),
+	  [],
+	  [test -z "$CONFIG_HEADERS" || echo timestamp >dnl
+	   patsubst([$1], [^\([^:]*/\)?.*], [\1])stamp-h]),
+  [am_indx=1
+  for am_file in $1; do
+    case " $CONFIG_HEADERS " in
+    *" $am_file "*)
+      echo timestamp > `echo $am_file | sed 's%:.*%%;s%[^/]*$%%'`stamp-h$am_indx
+      ;;
+    esac
+    am_indx=\`expr \$am_indx + 1\`
+  done])
+])
 
 # Do all the work for Automake.  This macro actually does too much --
 # some checks are only needed if your package does certain things.
 # But this isn't really a big deal.
 
-# serial 2
+# serial 3
+
+AC_PREREQ([2.13])
 
 # AC_PROVIDE_IFELSE(MACRO-NAME, IF-PROVIDED, IF-NOT-PROVIDED)
 # -----------------------------------------------------------
@@ -92,12 +101,11 @@ ifdef([AC_PROVIDE_IFELSE],
 
 # AM_INIT_AUTOMAKE(PACKAGE,VERSION, [NO-DEFINE])
 # ----------------------------------------------
-AC_DEFUN(AM_INIT_AUTOMAKE,
+AC_DEFUN([AM_INIT_AUTOMAKE],
 [dnl We require 2.13 because we rely on SHELL being computed by configure.
-AC_PREREQ([2.13])dnl
 AC_REQUIRE([AC_PROG_INSTALL])dnl
 # test to see if srcdir already configured
-if test "`CDPATH=: && cd $srcdir && pwd`" != "`pwd`" &&
+if test "`CDPATH=:; cd $srcdir && pwd`" != "`pwd`" &&
    test -f $srcdir/config.status; then
   AC_MSG_ERROR([source directory already configured; run "make distclean" there first])
 fi
@@ -121,8 +129,8 @@ AM_MISSING_PROG(AUTOHEADER, autoheader)
 AM_MISSING_PROG(MAKEINFO, makeinfo)
 AM_MISSING_PROG(AMTAR, tar)
 AM_MISSING_INSTALL_SH
-dnl We need awk for the "check" target.  The system "awk" is bad on
-dnl some platforms.
+# We need awk for the "check" target.  The system "awk" is bad on
+# some platforms.
 AC_REQUIRE([AC_PROG_AWK])dnl
 AC_REQUIRE([AC_PROG_MAKE_SET])dnl
 AC_REQUIRE([AM_DEP_TRACK])dnl
@@ -141,7 +149,7 @@ AC_PROVIDE_IFELSE([AC_PROG_CXX],
 # Check to make sure that the build environment is sane.
 #
 
-AC_DEFUN(AM_SANITY_CHECK,
+AC_DEFUN([AM_SANITY_CHECK],
 [AC_MSG_CHECKING([whether build environment is sane])
 # Just in case
 sleep 1
@@ -180,15 +188,15 @@ fi
 rm -f conftest*
 AC_MSG_RESULT(yes)])
 
-dnl AM_MISSING_PROG(NAME, PROGRAM)
-AC_DEFUN(AM_MISSING_PROG, [
+# AM_MISSING_PROG(NAME, PROGRAM)
+AC_DEFUN([AM_MISSING_PROG], [
 AC_REQUIRE([AM_MISSING_HAS_RUN])
 $1=${$1-"${am_missing_run}$2"}
 AC_SUBST($1)])
 
-dnl Like AM_MISSING_PROG, but only looks for install-sh.
-dnl AM_MISSING_INSTALL_SH()
-AC_DEFUN(AM_MISSING_INSTALL_SH, [
+# Like AM_MISSING_PROG, but only looks for install-sh.
+# AM_MISSING_INSTALL_SH()
+AC_DEFUN([AM_MISSING_INSTALL_SH], [
 AC_REQUIRE([AM_MISSING_HAS_RUN])
 if test -z "$install_sh"; then
    install_sh="$ac_aux_dir/install-sh"
@@ -200,13 +208,13 @@ if test -z "$install_sh"; then
 fi
 AC_SUBST(install_sh)])
 
-dnl AM_MISSING_HAS_RUN.
-dnl Define MISSING if not defined so far and test if it supports --run.
-dnl If it does, set am_missing_run to use it, otherwise, to nothing.
+# AM_MISSING_HAS_RUN.
+# Define MISSING if not defined so far and test if it supports --run.
+# If it does, set am_missing_run to use it, otherwise, to nothing.
 AC_DEFUN([AM_MISSING_HAS_RUN], [
 test x"${MISSING+set}" = xset || \
-  MISSING="\${SHELL} `CDPATH=: && cd $ac_aux_dir && pwd`/missing"
-dnl Use eval to expand $SHELL
+  MISSING="\${SHELL} `CDPATH=:; cd $ac_aux_dir && pwd`/missing"
+# Use eval to expand $SHELL
 if eval "$MISSING --run :"; then
   am_missing_run="$MISSING --run "
 else
@@ -216,14 +224,14 @@ else
 fi
 ])
 
-dnl See how the compiler implements dependency checking.
-dnl Usage:
-dnl AM_DEPENDENCIES(NAME)
-dnl NAME is "CC", "CXX" or "OBJC".
+# See how the compiler implements dependency checking.
+# Usage:
+# AM_DEPENDENCIES(NAME)
+# NAME is "CC", "CXX" or "OBJC".
 
-dnl We try a few techniques and use that to set a single cache variable.
+# We try a few techniques and use that to set a single cache variable.
 
-AC_DEFUN(AM_DEPENDENCIES,[
+AC_DEFUN([AM_DEPENDENCIES],[
 AC_REQUIRE([AM_SET_DEPDIR])
 AC_REQUIRE([AM_OUTPUT_DEPENDENCY_COMMANDS])
 ifelse([$1],CC,[
@@ -259,10 +267,13 @@ if test -z "$AMDEP"; then
       ;;
     none) break ;;
     esac
+    # We check with `-c' and `-o' for the sake of the "dashmstdout"
+    # mode.  It turns out that the SunPro C++ compiler does not properly
+    # handle `-M -o', and we need to detect this.
     if depmode="$depmode" \
        source=conftest.c object=conftest.o \
        depfile=conftest.Po tmpdepfile=conftest.TPo \
-       $SHELL $am_depcomp $depcc -c conftest.c 2>/dev/null &&
+       $SHELL $am_depcomp $depcc -c conftest.c -o conftest.o >/dev/null 2>&1 &&
        grep conftest.h conftest.Po > /dev/null 2>&1; then
       am_cv_[$1]_dependencies_compiler_type="$depmode"
       break
@@ -279,19 +290,22 @@ AC_MSG_RESULT($am_cv_[$1]_dependencies_compiler_type)
 AC_SUBST([$1]DEPMODE)
 ])
 
-dnl Choose a directory name for dependency files.
-dnl This macro is AC_REQUIREd in AM_DEPENDENCIES
+# Choose a directory name for dependency files.
+# This macro is AC_REQUIREd in AM_DEPENDENCIES
 
-AC_DEFUN(AM_SET_DEPDIR,[
+AC_DEFUN([AM_SET_DEPDIR],[
 if test -d .deps || mkdir .deps 2> /dev/null || test -d .deps; then
   DEPDIR=.deps
+  # We redirect because .deps might already exist and be populated.
+  # In this situation we don't want to see an error.
+  rmdir .deps > /dev/null 2>&1
 else
   DEPDIR=_deps
 fi
 AC_SUBST(DEPDIR)
 ])
 
-AC_DEFUN(AM_DEP_TRACK,[
+AC_DEFUN([AM_DEP_TRACK],[
 AC_ARG_ENABLE(dependency-tracking,
 [  --disable-dependency-tracking Speeds up one-time builds
   --enable-dependency-tracking  Do not reject slow dependency extractors])
@@ -316,16 +330,16 @@ subst(AMDEPBACKSLASH)
 popdef([subst])
 ])
 
-dnl Generate code to set up dependency tracking.
-dnl This macro should only be invoked once -- use via AC_REQUIRE.
-dnl Usage:
-dnl AM_OUTPUT_DEPENDENCY_COMMANDS
+# Generate code to set up dependency tracking.
+# This macro should only be invoked once -- use via AC_REQUIRE.
+# Usage:
+# AM_OUTPUT_DEPENDENCY_COMMANDS
 
-dnl
-dnl This code is only required when automatic dependency tracking
-dnl is enabled.  FIXME.  This creates each `.P' file that we will
-dnl need in order to bootstrap the dependency handling code.
-AC_DEFUN(AM_OUTPUT_DEPENDENCY_COMMANDS,[
+#
+# This code is only required when automatic dependency tracking
+# is enabled.  FIXME.  This creates each `.P' file that we will
+# need in order to bootstrap the dependency handling code.
+AC_DEFUN([AM_OUTPUT_DEPENDENCY_COMMANDS],[
 AC_OUTPUT_COMMANDS([
 test x"$AMDEP" != x"" ||
 for mf in $CONFIG_FILES; do
@@ -368,9 +382,9 @@ done
 ac_aux_dir="$ac_aux_dir"])])
 
 
-dnl AM_PROG_LEX
-dnl Look for flex, lex or missing, then run AC_PROG_LEX and AC_DECL_YYTEXT
-AC_DEFUN(AM_PROG_LEX,
+# AM_PROG_LEX
+# Look for flex, lex or missing, then run AC_PROG_LEX and AC_DECL_YYTEXT
+AC_DEFUN([AM_PROG_LEX],
 [AC_REQUIRE([AM_MISSING_HAS_RUN])
 AC_CHECK_PROGS(LEX, flex lex, [${am_missing_run}flex])
 AC_PROG_LEX
@@ -1371,7 +1385,7 @@ dnl AC_FIND_FUNC_NO_LIBS(func, libraries, includes, arguments, extra libs, extra
 AC_DEFUN(AC_FIND_FUNC_NO_LIBS, [
 AC_FIND_FUNC_NO_LIBS2([$1], ["" $2], [$3], [$4], [$5], [$6])])
 
-dnl $Id: roken-frag.m4,v 1.19 2000/12/15 14:29:54 assar Exp $
+dnl $Id: roken-frag.m4,v 1.21 2001/05/11 13:58:21 joda Exp $
 dnl
 dnl some code to get roken working
 dnl
@@ -1445,6 +1459,7 @@ AC_CHECK_HEADERS([\
 	rpcsvc/dbm.h				\
 	rpcsvc/ypclnt.h				\
 	shadow.h				\
+	sys/bswap.h				\
 	sys/ioctl.h				\
 	sys/param.h				\
 	sys/proc.h				\
@@ -1536,8 +1551,10 @@ AC_CHECK_FUNCS([				\
 	asprintf				\
 	cgetent					\
 	getconfattr				\
+	getprogname				\
 	getrlimit				\
 	getspnam				\
+	setprogname				\
 	strsvis					\
 	strunvis				\
 	strvis					\
@@ -1613,6 +1630,16 @@ AC_NEED_PROTO([
 #include <string.h>],
 vasnprintf)dnl
 fi
+
+AC_FIND_FUNC_NO_LIBS(bswap16,,
+[#ifdef HAVE_SYS_BSWAP_H
+#include <sys/bswap.h>
+#endif],0)
+
+AC_FIND_FUNC_NO_LIBS(bswap32,,
+[#ifdef HAVE_SYS_BSWAP_H
+#include <sys/bswap.h>
+#endif],0)
 
 AC_FIND_FUNC_NO_LIBS(pidfile,util,
 [#ifdef HAVE_UTIL_H
@@ -2066,7 +2093,7 @@ fi
 
 # Define a conditional.
 
-AC_DEFUN(AM_CONDITIONAL,
+AC_DEFUN([AM_CONDITIONAL],
 [AC_SUBST($1_TRUE)
 AC_SUBST($1_FALSE)
 if $2; then
@@ -2077,7 +2104,7 @@ else
   $1_FALSE=
 fi])
 
-dnl $Id: krb-ipv6.m4,v 1.9 2000/12/26 20:27:30 assar Exp $
+dnl $Id: krb-ipv6.m4,v 1.10 2001/03/26 03:28:03 assar Exp $
 dnl
 dnl test for IPv6
 dnl
@@ -2087,6 +2114,7 @@ AC_ARG_WITH(ipv6,
 if test "$withval" = "no"; then
 	ac_cv_lib_ipv6=no
 fi])
+save_CFLAGS="${CFLAGS}"
 AC_CACHE_VAL(ac_cv_lib_ipv6,
 [dnl check for different v6 implementations (by itojun)
 v6type=unknown
@@ -2197,6 +2225,8 @@ AC_MSG_CHECKING(for IPv6)
 AC_MSG_RESULT($ac_cv_lib_ipv6)
 if test "$ac_cv_lib_ipv6" = yes; then
   AC_DEFINE(HAVE_IPV6, 1, [Define if you have IPv6.])
+else
+  CFLAGS="${save_CFLAGS}"
 fi
 ])
 
@@ -2295,7 +2325,7 @@ undefine([foo])
 fi
 ])
 
-dnl $Id: broken-glob.m4,v 1.2 1999/03/01 09:52:15 joda Exp $
+dnl $Id: broken-glob.m4,v 1.3 2001/03/26 11:40:24 assar Exp $
 dnl
 dnl check for glob(3)
 dnl
@@ -2305,12 +2335,13 @@ ac_cv_func_glob_working=yes
 AC_TRY_LINK([
 #include <stdio.h>
 #include <glob.h>],[
-glob(NULL, GLOB_BRACE|GLOB_NOCHECK|GLOB_QUOTE|GLOB_TILDE, NULL, NULL);
+glob(NULL, GLOB_BRACE|GLOB_NOCHECK|GLOB_QUOTE|GLOB_TILDE|GLOB_LIMIT,
+NULL, NULL);
 ],:,ac_cv_func_glob_working=no,:))
 
 if test "$ac_cv_func_glob_working" = yes; then
 	AC_DEFINE(HAVE_GLOB, 1, [define if you have a glob() that groks 
-	GLOB_BRACE, GLOB_NOCHECK, GLOB_QUOTE, and GLOB_TILDE])
+	GLOB_BRACE, GLOB_NOCHECK, GLOB_QUOTE, GLOB_TILDE, and GLOB_LIMIT])
 fi
 if test "$ac_cv_func_glob_working" = yes; then
 AC_NEED_PROTO([#include <stdio.h>
@@ -2484,49 +2515,6 @@ AH_BOTTOM([#ifdef BROKEN_REALLOC
 #define realloc(X, Y) isoc_realloc((X), (Y))
 #define isoc_realloc(X, Y) ((X) ? realloc((X), (Y)) : malloc(Y))
 #endif])
-])
-
-dnl $Id: krb-func-getcwd-broken.m4,v 1.2 1999/03/01 13:03:32 joda Exp $
-dnl
-dnl
-dnl test for broken getcwd in (SunOS braindamage)
-dnl
-
-AC_DEFUN(AC_KRB_FUNC_GETCWD_BROKEN, [
-if test "$ac_cv_func_getcwd" = yes; then
-AC_MSG_CHECKING(if getcwd is broken)
-AC_CACHE_VAL(ac_cv_func_getcwd_broken, [
-ac_cv_func_getcwd_broken=no
-
-AC_TRY_RUN([
-#include <errno.h>
-char *getcwd(char*, int);
-
-void *popen(char *cmd, char *mode)
-{
-	errno = ENOTTY;
-	return 0;
-}
-
-int main()
-{
-	char *ret;
-	ret = getcwd(0, 1024);
-	if(ret == 0 && errno == ENOTTY)
-		return 0;
-	return 1;
-}
-], ac_cv_func_getcwd_broken=yes,:,:)
-])
-if test "$ac_cv_func_getcwd_broken" = yes; then
-	AC_DEFINE(BROKEN_GETCWD, 1, [Define if getcwd is broken (like in SunOS 4).])dnl
-	LIBOBJS="$LIBOBJS getcwd.o"
-	AC_SUBST(LIBOBJS)dnl
-	AC_MSG_RESULT($ac_cv_func_getcwd_broken)
-else
-	AC_MSG_RESULT([seems ok])
-fi
-fi
 ])
 
 dnl $Id: proto-compat.m4,v 1.3 1999/03/01 13:03:48 joda Exp $

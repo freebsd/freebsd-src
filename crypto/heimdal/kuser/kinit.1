@@ -1,4 +1,4 @@
-.\" $Id: kinit.1,v 1.8 2001/01/28 21:44:56 assar Exp $
+.\" $Id: kinit.1,v 1.11 2001/06/08 21:35:32 joda Exp $
 .\"
 .Dd May 29, 1998
 .Dt KINIT 1
@@ -12,38 +12,45 @@
 .Op Fl 4 | Fl -524init
 .Op Fl -afslog
 .Oo Fl c Ar cachename \*(Ba Xo
-.Fl -cache= Ns Ar cachename Oc
+.Fl -cache= Ns Ar cachename
 .Xc
+.Oc
 .Op Fl f | Fl -forwardable
 .Oo Fl t Ar keytabname \*(Ba Xo
-.Fl -keytab= Ns Ar keytabname Oc
+.Fl -keytab= Ns Ar keytabname
 .Xc
+.Oc
 .Oo Fl l Ar time \*(Ba Xo
-.Fl -lifetime= Ns Ar time Oc
+.Fl -lifetime= Ns Ar time
 .Xc
+.Oc
 .Op Fl p | Fl -proxiable
 .Op Fl R | Fl -renew
 .Op Fl -renewable
 .Oo Fl r Ar time \*(Ba Xo
-.Fl -renewable-life= Ns Ar time Oc
+.Fl -renewable-life= Ns Ar time
 .Xc
+.Oc
 .Oo Fl S Ar principal \*(Ba Xo
-.Fl -server= Ns Ar principal Oc
+.Fl -server= Ns Ar principal
 .Xc
+.Oc
 .Oo Fl s Ar time \*(Ba Xo
-.Fl -start-time= Ns Ar time Oc
+.Fl -start-time= Ns Ar time
 .Xc
+.Oc
 .Op Fl k | Fl -use-keytab
 .Op Fl v | Fl -validate
 .Oo Fl e Ar enctype \*(Ba Xo
-.Fl -enctypes= Ns Ar enctype Oc
+.Fl -enctypes= Ns Ar enctype
 .Xc
+.Oc
 .Op Fl -fcache-version= Ns Ar integer
 .Op Fl -no-addresses
 .Op Fl -anonymous
 .Op Fl -version
 .Op Fl -help
-.Op Ar principal
+.Op Ar principal Op Ar command
 .Sh DESCRIPTION
 .Nm
 is used to authenticate to the kerberos server as
@@ -184,6 +191,13 @@ options can be set to a default value from the
 .Dv appdefaults
 section in krb5.conf, see
 .Xr krb5_appdefault 3 .
+.Pp
+If  a
+.Ar command
+is given, 
+.Nm kinit
+will setup new credentials caches, and AFS PAG, and then run the given
+command. When it finishes the credentials will be removed.
 .Sh ENVIRONMENT
 .Bl -tag -width Ds
 .It Ev KRB5CCNAME

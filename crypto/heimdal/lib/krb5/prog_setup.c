@@ -35,7 +35,7 @@
 #include <getarg.h>
 #include <err.h>
 
-RCSID("$Id: prog_setup.c,v 1.8 2001/01/25 11:20:32 assar Exp $");
+RCSID("$Id: prog_setup.c,v 1.9 2001/02/20 01:44:54 assar Exp $");
 
 void
 krb5_std_usage(int code, struct getargs *args, int num_args)
@@ -55,7 +55,7 @@ krb5_program_setup(krb5_context *context, int argc, char **argv,
     if(usage == NULL)
 	usage = krb5_std_usage;
 
-    set_progname(argv[0]);
+    setprogname(argv[0]);
     ret = krb5_init_context(context);
     if (ret)
 	errx (1, "krb5_init_context failed: %d", ret);

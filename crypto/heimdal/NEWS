@@ -1,3 +1,28 @@
+Changes in release 0.3f
+
+ * change default keytab to ANY:FILE:/etc/krb5.keytab,krb4:/etc/srvtab,
+   the new keytab type that tries both of these in order (SRVTAB is
+   also an alias for krb4:)
+
+ * improve error reporting and error handling (error messages should
+   be more detailed and more useful)
+
+ * improve building with openssl
+
+ * add kadmin -K, rcp -F 
+
+ * fix two incorrect weak DES keys
+
+ * fix building of kaserver compat in KDC
+
+ * the API is closer to what MIT krb5 is using
+
+ * more compatible with windows 2000
+
+ * removed some memory leaks
+
+ * bug fixes
+
 Changes in release 0.3e
 
  * rcp program included

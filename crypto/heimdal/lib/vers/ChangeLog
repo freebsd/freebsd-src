@@ -1,3 +1,7 @@
+2001-04-21  Johan Danielsson  <joda@pdc.kth.se>
+
+	* print_version.c: 2001
+
 2001-01-31  Assar Westerlund  <assar@sics.se>
 
 	* Makefile.am: remove -static turning this into a convenience

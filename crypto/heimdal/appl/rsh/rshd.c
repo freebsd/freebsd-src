@@ -32,7 +32,10 @@
  */
 
 #include "rsh_locl.h"
-RCSID("$Id: rshd.c,v 1.39 2001/01/09 18:44:29 assar Exp $");
+RCSID("$Id: rshd.c,v 1.41 2001/02/20 01:44:48 assar Exp $");
+
+int
+login_access( struct passwd *user, char *from);
 
 enum auth_method auth_method;
 
@@ -72,6 +75,10 @@ krb5_ticket *user_ticket;
 
 static void
 syslog_and_die (const char *m, ...)
+    __attribute__ ((format (printf, 1, 2)));
+
+static void
+syslog_and_die (const char *m, ...)
 {
     va_list args;
 
@@ -80,6 +87,10 @@ syslog_and_die (const char *m, ...)
     va_end(args);
     exit (1);
 }
+
+static void
+fatal (int sock, const char *m, ...)
+    __attribute__ ((format (printf, 2, 3)));
 
 static void
 fatal (int sock, const char *m, ...)
@@ -586,7 +597,7 @@ doit (int do_kerberos, int check_rhosts)
     struct sockaddr *thataddr = (struct sockaddr *)&thataddr_ss;
     struct sockaddr_storage erraddr_ss;
     struct sockaddr *erraddr = (struct sockaddr *)&erraddr_ss;
-    socklen_t addrlen;
+    socklen_t thisaddr_len, thataddr_len;
     int port;
     int errsock = -1;
     char client_user[COMMAND_SZ], server_user[USERNAME_SZ];
@@ -594,12 +605,14 @@ doit (int do_kerberos, int check_rhosts)
     struct passwd *pwd;
     int s = STDIN_FILENO;
     char **env;
+    int ret;
+    char that_host[NI_MAXHOST];
 
-    addrlen = sizeof(thisaddr_ss);
-    if (getsockname (s, thisaddr, &addrlen) < 0)
+    thisaddr_len = sizeof(thisaddr_ss);
+    if (getsockname (s, thisaddr, &thisaddr_len) < 0)
 	syslog_and_die("getsockname: %m");
-    addrlen = sizeof(thataddr_ss);
-    if (getpeername (s, thataddr, &addrlen) < 0)
+    thataddr_len = sizeof(thataddr_ss);
+    if (getpeername (s, thataddr, &thataddr_len) < 0)
 	syslog_and_die ("getpeername: %m");
 
     if (!do_kerberos && !is_reserved(socket_get_port(thataddr)))
@@ -689,7 +702,7 @@ doit (int do_kerberos, int check_rhosts)
 	    syslog_and_die("recv_bsd_auth failed");
     }
 
-#if defined(DCE) && defined(AIX)
+#if defined(DCE) && defined(_AIX)
     esetenv("AUTHSTATE", "DCE", 1);
 #endif
 
@@ -702,6 +715,19 @@ doit (int do_kerberos, int check_rhosts)
 
     if (pwd->pw_uid != 0 && access (_PATH_NOLOGIN, F_OK) == 0)
 	fatal (s, "Login disabled.");
+
+
+    ret = getnameinfo_verified (thataddr, thataddr_len,
+				that_host, sizeof(that_host),
+				NULL, 0, 0);
+    if (ret)
+	fatal (s, "getnameinfo: %s", gai_strerror(ret));
+
+    if (login_access(pwd, that_host) == 0) {
+	syslog(LOG_NOTICE, "Kerberos rsh denied to %s from %s",
+	       server_user, that_host);
+	fatal(s, "Permission denied");
+    }
 
 #ifdef HAVE_GETSPNAM
     {
@@ -844,7 +870,7 @@ usage (int ret)
 			NULL,
 			"");
     else
-	syslog (LOG_ERR, "Usage: %s [-ikxlvPL] [-p port]", __progname);
+	syslog (LOG_ERR, "Usage: %s [-ikxlvPL] [-p port]", getprogname());
     exit (ret);
 }
 
@@ -855,7 +881,7 @@ main(int argc, char **argv)
     int optind = 0;
     int port = 0;
 
-    set_progname (argv[0]);
+    setprogname (argv[0]);
     roken_openlog ("rshd", LOG_ODELAY | LOG_PID, LOG_AUTH);
 
     if (getarg(args, sizeof(args) / sizeof(args[0]), argc, argv,

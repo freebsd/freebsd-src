@@ -33,7 +33,7 @@
 
 #include "kdc_locl.h"
 
-RCSID("$Id: 524.c,v 1.19 2001/01/30 01:44:07 assar Exp $");
+RCSID("$Id: 524.c,v 1.20 2001/05/14 06:17:47 assar Exp $");
 
 #ifdef KRB4
 
@@ -136,7 +136,7 @@ set_address (EncTicketPart *et,
     if (v4_addr == NULL)
 	return ENOMEM;
 
-    ret = krb5_sockaddr2address(addr, v4_addr);
+    ret = krb5_sockaddr2address(context, addr, v4_addr);
     if(ret) {
 	free (v4_addr);
 	kdc_log(0, "Failed to convert address (%s)", from);

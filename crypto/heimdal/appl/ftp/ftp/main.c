@@ -36,7 +36,7 @@
  */
 
 #include "ftp_locl.h"
-RCSID("$Id: main.c,v 1.30 2000/11/15 22:56:35 assar Exp $");
+RCSID("$Id: main.c,v 1.31 2001/02/20 01:44:43 assar Exp $");
 
 int
 main(int argc, char **argv)
@@ -46,7 +46,7 @@ main(int argc, char **argv)
 	char homedir[MaxPathLen];
 	struct servent *sp;
 
-	set_progname(argv[0]);
+	setprogname(argv[0]);
 
 	sp = getservbyname("ftp", "tcp");
 	if (sp == 0)
@@ -127,7 +127,7 @@ main(int argc, char **argv)
 		exit(0);
 	    signal(SIGINT, intr);
 	    signal(SIGPIPE, lostpeer);
-	    xargv[0] = (char*)__progname;
+	    xargv[0] = (char*)getprogname();
 	    xargv[1] = argv[0];
 	    xargv[2] = argv[1];
 	    xargv[3] = argv[2];
