@@ -637,7 +637,7 @@ ether_input(struct ifnet *ifp, struct ether_header *eh, struct mbuf *m)
 recvLocal:
 	/* Continue with upper layer processing */
 	ether_demux(ifp, eh, m);
-	/* First chunk of an mbuf contains good junk */
+	/* First chunk of an mbuf contains good entropy */
 	if (harvest.ethernet)
 		random_harvest(m, 16, 3, 0, RANDOM_NET);
 }
