@@ -43,7 +43,6 @@ IDTVEC(vec_name) ;							\
 	movq	%r13,TF_R13(%rsp) ;					\
 	movq	%r14,TF_R14(%rsp) ;					\
 	movq	%r15,TF_R15(%rsp) ;					\
-	FAKE_MCOUNT((12)*4(%rsp)) ;					\
 	call	critical_enter ;					\
 	movq	PCPU(CURTHREAD),%rbx ;					\
 	incl	TD_INTR_NESTING_LEVEL(%rbx) ;				\
@@ -55,7 +54,6 @@ IDTVEC(vec_name) ;							\
 	incq	(%rax) ;						\
 	decl	TD_INTR_NESTING_LEVEL(%rbx) ;				\
 	call	critical_exit ;						\
-	MEXITCOUNT ;							\
 	jmp	doreti
 
 /* 
@@ -98,11 +96,9 @@ IDTVEC(vec_name) ;							\
 	enable_icus ;							\
 	movq	PCPU(CURTHREAD),%rbx ;					\
 	incl	TD_INTR_NESTING_LEVEL(%rbx) ;				\
-	FAKE_MCOUNT(13*4(%rsp)) ;	/* XXX late to avoid double count */ \
 	movq	$irq_num, %rdi;	/* pass the IRQ */			\
 	call	sched_ithd ;						\
 	decl	TD_INTR_NESTING_LEVEL(%rbx) ;				\
-	MEXITCOUNT ;							\
 	/* We could usually avoid the following jmp by inlining some of */ \
 	/* doreti, but it's probably better to use less cache. */	\
 	jmp	doreti

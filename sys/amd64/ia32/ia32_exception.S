@@ -63,7 +63,5 @@ IDTVEC(int0x80_syscall)
 	movq	%r13,TF_R13(%rsp)
 	movq	%r14,TF_R14(%rsp)
 	movq	%r15,TF_R15(%rsp)
-	FAKE_MCOUNT(13*4(%rsp))
 	call	ia32_syscall
-	MEXITCOUNT
 	jmp	doreti
