@@ -45,13 +45,12 @@ static const char copyright[] =
 static char sccsid[] = "@(#)xargs.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: xargs.c,v 1.5 1997/08/27 06:26:23 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <err.h>
-#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -73,6 +72,7 @@ main(argc, argv, env)
 	register char *p, *bbp, *ebp, **bxp, **exp, **xp;
 	int cnt, indouble, insingle, nargs, nflag, nline, xflag;
 	char **av, *argp, **ep = env;
+	long arg_max;
 
 	/*
 	 * POSIX.2 limits the exec line length to ARG_MAX - 2K.  Running that
@@ -88,7 +88,9 @@ main(argc, argv, env)
 	 * probably not worthwhile.
 	 */
 	nargs = 5000;
-	nline = ARG_MAX - 4 * 1024;
+	if ((arg_max = sysconf(_SC_ARG_MAX)) == -1)
+		errx(1, "sysconf(_SC_ARG_MAX) failed");
+	nline = arg_max - 4 * 1024;
 	while (*ep) {
 		/* 1 byte for each '\0' */
 		nline -= strlen(*ep++) + 1 + sizeof(*ep);
