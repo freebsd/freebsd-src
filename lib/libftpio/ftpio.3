@@ -36,7 +36,6 @@
 .Nm ftpPut ,
 .Nm ftpBinary ,
 .Nm ftpPassive ,
-.Nm ftpRestart ,
 .Nm ftpGetURL ,
 .Nm ftpPutURL ,
 .Nd FTPIO User library
@@ -53,15 +52,13 @@
 .Ft size_t
 .Fn ftpGetSize "FILE *fp, char *file"
 .Ft FILE *
-.Fn ftpGet "FILE *fp, char *file"
+.Fn ftpGet "FILE *fp, char *file, int *seekto"
 .Ft FILE *
 .Fn ftpPut "FILE *fp, char *file"
 .Ft int
 .Fn ftpBinary "FILE *fp, int status"
 .Ft int
 .Fn ftpPassive "FILE *fp, int status"
-.Ft int
-.Fn ftpRestart "FILE *fp, int where"
 .Ft FILE *
 .Fn ftpGetURL "char *url, char *user, char *passwd"
 .Ft FILE *
@@ -79,10 +76,8 @@ and
 fields (if passed as 0,
 .Fa ftp_port
 defaults to the standard ftp port of 21).  If it is successful, a
-standard
-.Fa stream
-descriptor is returned which should be passed to subsequent FTP
-operations. On failure, NULL is returned and
+standard stream descriptor is returned which should be passed to
+subsequent FTP operations. On failure, NULL is returned and
 .Fn ftpErrno
 will return the error code returned by the foreign server.
 .Pp
@@ -101,9 +96,17 @@ attempts to retreive the file named by the
 argument (which is assumed to be relative to the FTP server's current directory,
 see
 .Fn ftpChdir )
-and returns a new
-.Fa stream
-pointer for the file or NULL on failure.
+and returns a new stream pointer for the file or NULL on failure.  If
+.Fa seekto
+is non-NULL, the contents of the integer it points to will be used
+as a restart point for the file, that is to say that the stream
+returned will point
+.Fa *seekto
+bytes into the file gotten (this is handy for restarting failed
+transfers efficiently).  If the seek operation succeeds, the value
+of
+.Fa *seekto
+will be zero'd.
 .Pp
 .Fn ftpGetModtime
 returns the last modification time of the file named by the
@@ -137,15 +140,6 @@ sets passive mode (for firewalls) for the current server connection named by
 to boolean value
 .Fa status .
 .Pp
-.Fn ftpRestart
-requests that if the remote server supports restart operations, the offset
-in bytes specified in
-.Fa where
-should be used in the next file get operation to resume transferring from
-that location.  This is handy for restarting long get operations which have
-aborted in the middle without re-transferring wasted bytes.  Returns the
-old seek value, if any.
-.Pp
 .Fn ftpGetURL
 attempts to retreive the file named by the supplied
 .Fa URL
@@ -168,11 +162,10 @@ and can be considered equivalent to the combined
 .Fn ftpChdir
 and
 .Fn ftpPut
-operations except that no server
-.Fa stream
-is ever returned - the connection to the server closes when
-the file has been completely written.  Use the lower-level routines
-if multiple puts are required as it will be far more efficient.
+operations except that no server stream is ever returned - the connection
+to the server closes when the file has been completely written.  Use the
+lower-level routines if multiple puts are required as it will be far more
+efficient.
 .Sh BUGS
 I'm sure you can get this thing's internal state machine confused if
 you really work at it, but so far it's proven itself pretty robust in
