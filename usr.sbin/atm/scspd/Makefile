@@ -23,7 +23,7 @@
 # Copies of this Software may be made, however, the above copyright
 # notice must be reproduced on all copies.
 #
-#	@(#) $Id: Makefile,v 1.1 1998/09/15 08:23:15 phk Exp $
+#	@(#) $Id: Makefile,v 1.2 1998/09/15 15:25:21 phk Exp $
 #
 #
 
@@ -36,7 +36,9 @@ SRCS=	scspd.c scsp_cafsm.c scsp_config.c scsp_config_lex.c \
 MAN8=	scspd.8
 
 CFLAGS+=	-I ${.CURDIR}/../../../sys -I ${.OBJDIR}
-LDADD+=		-latm
+LDADD+=		-latm -lmd
+DPADD+=		${LIBMD}
+
 YFLAGS=		-d
 
 .include <bsd.prog.mk>
