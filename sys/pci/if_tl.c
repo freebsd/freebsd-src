@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_tl.c,v 1.3 1998/05/21 17:05:32 jkh Exp $
+ *	$Id: if_tl.c,v 1.4 1998/05/22 15:32:22 wpaul Exp $
  */
 
 /*
@@ -240,7 +240,7 @@
 
 #ifndef lint
 static char rcsid[] =
-	"$Id: if_tl.c,v 1.3 1998/05/21 17:05:32 jkh Exp $";
+	"$Id: if_tl.c,v 1.4 1998/05/22 15:32:22 wpaul Exp $";
 #endif
 
 /*
@@ -1058,7 +1058,7 @@ static void tl_setmulti(sc)
 			if (h < 32)
 				hashes[0] |= (1 << h);
 			else
-				hashes[1] |= (1 << (h - 31));
+				hashes[1] |= (1 << (h - 32));
 		}
 	}
 
