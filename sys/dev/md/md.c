@@ -542,7 +542,6 @@ mdstart_swap(struct md_s *sc, struct bio *bp)
 		lastp = (bp->bio_offset + bp->bio_length - 1) / PAGE_SIZE;
 		lastend = (bp->bio_offset + bp->bio_length - 1) % PAGE_SIZE + 1;
 
-		mtx_lock(&Giant);
 		kva = kmem_alloc_nofault(kernel_map, PAGE_SIZE);
 
 		VM_OBJECT_LOCK(sc->object);
@@ -602,7 +601,6 @@ printf("wire_count %d busy %d flags %x hold_count %d act_count %d queue %d valid
 		vm_object_set_writeable_dirty(sc->object);
 		VM_OBJECT_UNLOCK(sc->object);
 		kmem_free(kernel_map, kva, sc->secsize);
-		mtx_unlock(&Giant);
 		return (0);
 	}
 }
@@ -618,13 +616,13 @@ md_kthread(void *arg)
 	curthread->td_base_pri = PRIBIO;
 
 	switch (sc->type) {
-	case MD_SWAP:
 	case MD_VNODE:
 		mtx_lock(&Giant);
 		hasgiant = 1;
 		break;
 	case MD_MALLOC:
 	case MD_PRELOAD:
+	case MD_SWAP:
 	default:
 		hasgiant = 0;
 		break;
