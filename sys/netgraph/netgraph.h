@@ -271,6 +271,7 @@ int	ng_wait_node(node_p node, char *msg);
 
 /* XXX stuck here till we get the correct stuff in libkern etc. */
 unsigned long strtoul(const char *nptr,const  char **endptr, int base);
+long strtoul(const char *nptr,const  char **endptr, int base);
 
 /*-
  * Copyright (c) 1982, 1988, 1991, 1993
