@@ -44,18 +44,13 @@
 
 
 #ifndef __NetBSD__
-#define USE_ISPPP
 #endif
 #include "i4bisppp.h"
-
-#ifndef USE_ISPPP
 
 #ifndef __NetBSD__
 #if NI4BISPPP == 0
 # error "You need to define `device sppp <N>' with options ISPPP"
 #endif
-#endif
-
 #endif
 
 #include <sys/param.h>
@@ -76,15 +71,7 @@
 
 #include <net/slcompress.h>
 
-#if defined(__FreeBSD__) || defined(__OpenBSD__)
-#ifndef USE_ISPPP
 #include <net/if_sppp.h>
-#else
-#include <machine/i4b_isppp.h>
-#endif /* USE_ISPPP */
-#else
-#include <net/if_sppp.h>
-#endif
 
 
 #if defined(__FreeBSD_version) &&  __FreeBSD_version >= 400008                
@@ -313,11 +300,7 @@ i4bispppattach()
 		sc->sc_if_un.scu_sp.pp_con = i4bisppp_negotiation_complete;
 		sc->sc_if_un.scu_sp.pp_chg = i4bisppp_state_changed;
 
-#ifndef USE_ISPPP
 		sppp_attach(&sc->sc_if);
-#else
-		isppp_attach(&sc->sc_if);
-#endif
 #if defined(__FreeBSD_version) && ((__FreeBSD_version >= 500009) || (410000 <= __FreeBSD_version && __FreeBSD_version < 500000))
 		/* do not call bpfattach in ether_ifattach */
 		ether_ifattach(&sc->sc_if, 0);
@@ -352,11 +335,7 @@ i4bisppp_ioctl(struct ifnet *ifp, IOCTL_CMD_T cmd, caddr_t data)
 
 	int error;
 
-#ifndef USE_ISPPP		
 	error = sppp_ioctl(&sc->sc_if, cmd, data);
-#else
-	error = isppp_ioctl(&sc->sc_if, cmd, data);
-#endif
 	if (error)
 		return error;
 
@@ -385,11 +364,7 @@ i4bisppp_start(struct ifnet *ifp)
 	/* int s; */
 	int unit = IFP2UNIT(ifp);
 
-#ifndef USE_ISPPP
 	if (sppp_isempty(ifp))
-#else
-	if (isppp_isempty(ifp))
-#endif
 		return;
 
 	if(sc->sc_state != ST_CONNECTED)
@@ -401,11 +376,7 @@ i4bisppp_start(struct ifnet *ifp)
 	 * splx(s);
 	 */
 
-#ifndef USE_ISPPP
 	while ((m = sppp_dequeue(&sc->sc_if)) != NULL)
-#else
-	while ((m = isppp_dequeue(&sc->sc_if)) != NULL)
-#endif
 	{
 
 #if NBPFILTER > 0 || NBPF > 0
@@ -659,17 +630,9 @@ i4bisppp_dialresponse(int unit, int status, cause_t cause)
 		
 		NDBGL4(L4_ISPDBG, "isp%d: clearing queues", unit);
 
-#ifndef USE_ISPPP
 		if(!(sppp_isempty(&sc->sc_if)))
-#else
-		if(!(isppp_isempty(&sc->sc_if)))
-#endif		
 		{
-#ifndef USE_ISPPP
 			while((m = sppp_dequeue(&sc->sc_if)) != NULL)
-#else
-			while((m = isppp_dequeue(&sc->sc_if)) != NULL)
-#endif
 				m_freem(m);
 		}
 	}
@@ -733,11 +696,7 @@ i4bisppp_rx_data_rdy(int unit)
 
 	s = splimp();
 
-#ifndef USE_ISPPP
 	sppp_input(&sc->sc_if, m);
-#else
-	isppp_input(&sc->sc_if, m);
-#endif
 
 	splx(s);
 }
