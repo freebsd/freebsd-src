@@ -507,9 +507,11 @@ remotemodtime(file, noisy)
 	const char *file;
 	int noisy;
 {
-	int overbose;
+	struct tm timebuf;
 	time_t rtime;
-	int ocode;
+	int len, month, ocode, overbose, y2kbug, year;
+	char *fmt;
+	char mtbuf[17];
 
 	overbose = verbose;
 	ocode = code;
@@ -517,21 +519,39 @@ remotemodtime(file, noisy)
 	if (debug == 0)
 		verbose = -1;
 	if (command("MDTM %s", file) == COMPLETE) {
-		struct tm timebuf;
-		int yy, mo, day, hour, min, sec;
-		sscanf(reply_string, "%*s %04d%02d%02d%02d%02d%02d", &yy, &mo,
-			&day, &hour, &min, &sec);
-		memset(&timebuf, 0, sizeof(timebuf));
-		timebuf.tm_sec = sec;
-		timebuf.tm_min = min;
-		timebuf.tm_hour = hour;
-		timebuf.tm_mday = day;
-		timebuf.tm_mon = mo - 1;
-		timebuf.tm_year = yy - 1900;
-		timebuf.tm_isdst = -1;
-		rtime = mktime(&timebuf);
+		/*
+		 * Parse the time string, which is expected to be 14
+		 * characters long.  Some broken servers send tm_year
+		 * formatted with "19%02d", which produces an incorrect
+		 * (but parsable) 15 characters for years >= 2000.
+		 * Scan for invalid trailing junk by accepting up to 16
+		 * characters.
+		 */
+		if (sscanf(reply_string, "%*s %16s", mtbuf) == 1) {
+			fmt = NULL;
+			len = strlen(mtbuf);
+			y2kbug = 0;
+			if (len == 15 && strncmp(mtbuf, "19", 2) == 0) {
+				fmt = "19%03d%02d%02d%02d%02d%02d";
+				y2kbug = 1;
+			} else if (len == 14)
+				fmt = "%04d%02d%02d%02d%02d%02d";
+			if (fmt != NULL)
+				memset(&timebuf, 0, sizeof(timebuf));
+				if (sscanf(mtbuf, fmt, &year, &month,
+				    &timebuf.tm_mday, &timebuf.tm_hour,
+				    &timebuf.tm_min, &timebuf.tm_sec) == 6) {
+					timebuf.tm_isdst = -1;
+					timebuf.tm_mon = month - 1;
+					if (y2kbug)
+						timebuf.tm_year = year;
+					else
+						timebuf.tm_year = year - 1900;
+					rtime = mktime(&timebuf);
+				}
+		}
 		if (rtime == -1 && (noisy || debug != 0))
-			printf("Can't convert %s to a time.\n", reply_string);
+			printf("Can't convert %s to a time.\n", mtbuf);
 		else
 			rtime += timebuf.tm_gmtoff;	/* conv. local -> GMT */
 	} else if (noisy && debug == 0)
