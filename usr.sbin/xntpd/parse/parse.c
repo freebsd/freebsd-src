@@ -642,7 +642,8 @@ parse_to_unixtime(clock, cvtrtc)
    */
   t =  (clock->year - 1970) * 365;
   t += (clock->year >> 2) - (1970 >> 2);
-  t -= clock->year / 400 - 1970 / 400;
+  t -= clock->year / 100 - 1970 / 100;
+  t += clock->year / 400 - 1970 / 400;
 
   				/* month */
   if (clock->month <= 0 || clock->month > 12)
