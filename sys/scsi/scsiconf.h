@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: scsiconf.h,v 1.8 1993/12/19 00:54:55 wollman Exp $
+ *	$Id: scsiconf.h,v 1.9 1994/03/23 09:15:55 davidg Exp $
  */
 #ifndef	SCSI_SCSICONF_H
 #define SCSI_SCSICONF_H 1
@@ -107,6 +107,48 @@ struct scsi_device
 /* 32*/	int32	spare[2];
 };
 
+#ifdef NEW_SCSICONF
+/*
+ * Define various devices that we know mis-behave in some way,
+ * and note how they are bad, so we can correct for them
+ */
+struct st_mode {
+/*  4*/	u_int32 blksiz;
+/*  6*/	u_int16 quirks;		/* same definitions as in XXX */
+/*  7*/	char    density;
+/*  8*/	char    spare[1];
+};
+
+typedef struct st_mode st_modes[4];
+
+/* define behaviour codes (quirks) */
+/* common to all SCSI devices */
+#define SCSI_Q_NO_SYNC		0x8000
+#define SCSI_Q_NO_FAST		0x4000
+#define SCSI_Q_NO_WIDE		0x2000
+
+/* tape specific ST_Q_* */
+#define ST_Q_NEEDS_PAGE_0	0x0001
+#define ST_Q_FORCE_FIXED_MODE	0x0002
+#define ST_Q_FORCE_VAR_MODE	0x0004
+#define ST_Q_SNS_HLP		0x0008	/* must do READ for good MODE SENSE */
+#define ST_Q_IGNORE_LOADS	0x0010
+#define ST_Q_BLKSIZ		0x0020	/* variable-block media_blksiz > 0 */
+#define ST_Q_CC_NOMSG		0x0040	/* no messages accepted in CC state */
+
+#define ST_Q_NO_SYNC		SCSI_Q_NO_SYNC
+#define ST_Q_NO_FAST		SCSI_Q_NO_FAST
+#define ST_Q_NO_WIDE		SCSI_Q_NO_WIDE
+
+/* disk specific SD_Q_* */
+#define SD_Q_NO_TAGS		0x0001
+
+#define SD_Q_NO_SYNC		SCSI_Q_NO_SYNC
+#define SD_Q_NO_FAST		SCSI_Q_NO_FAST
+#define SD_Q_NO_WIDE		SCSI_Q_NO_WIDE
+
+#endif
+
 /*
  * This structure describes the connection between an adapter driver and
  * a device driver, and is used by each to call services provided by
@@ -124,12 +166,12 @@ struct scsi_link
 /*  7*/	u_int8	opennings;		/* available operations */
 /*  8*/	u_int8	active;			/* operations in progress */
 /* 10*/	u_int16	flags;			/* flags that all devices have */
-/* 12*/	u_int8	spareb[2];		/* unused		*/
+/* 12*/	u_int16	quirks;			/* device specific quirks */
 /* 16*/	struct	scsi_adapter *adapter;	/* adapter entry points etc. */
 /* 20*/	struct	scsi_device *device;	/* device entry points etc. */
 /* 24*/	struct	scsi_xfer *active_xs;	/* operations under way */
 /* 28*/	void *	fordriver;		/* for private use by the driver */
-/* 32*/	u_int32	spare;
+/* 32*/	void *  devmodes;		/* device specific mode tables */
 };
 #define	SDEV_MEDIA_LOADED 	0x01	/* device figures are still valid */
 #define	SDEV_WAITING	 	0x02	/* a process is waiting for this */
@@ -244,6 +286,69 @@ void	lto3b __P((int val, u_char *bytes));
 int	_3btol __P((u_char *bytes));
 
 extern void sc_print_addr(struct scsi_link *);
+
+#ifdef NEW_SCSICONF
+/**********************************************************************
+			from the scsi2 spec
+                Value Tracks Density(bpi) Code Type  Reference     Note
+                0x1     9       800       NRZI  R    X3.22-1983    2
+                0x2     9      1600       PE    R    X3.39-1986    2
+                0x3     9      6250       GCR   R    X3.54-1986    2
+                0x5    4/9     8000       GCR   C    X3.136-1986   1
+                0x6     9      3200       PE    R    X3.157-1987   2
+                0x7     4      6400       IMFM  C    X3.116-1986   1
+                0x8     4      8000       GCR   CS   X3.158-1986   1
+                0x9    18     37871       GCR   C    X3B5/87-099   2
+                0xA    22      6667       MFM   C    X3B5/86-199   1
+                0xB     4      1600       PE    C    X3.56-1986    1
+                0xC    24     12690       GCR   C    HI-TC1        1,5
+                0xD    24     25380       GCR   C    HI-TC2        1,5
+                0xF    15     10000       GCR   C    QIC-120       1,5
+                0x10   18     10000       GCR   C    QIC-150       1,5
+                0x11   26     16000       GCR   C    QIC-320(525?) 1,5
+                0x12   30     51667       RLL   C    QIC-1350      1,5
+                0x13    1     61000       DDS   CS    X3B5/88-185A 4
+                0x14    1     43245       RLL   CS    X3.202-1991  4
+                0x15    1     45434       RLL   CS    ECMA TC17    4
+                0x16   48     10000       MFM   C     X3.193-1990  1
+                0x17   48     42500       MFM   C     X3B5/91-174  1
+
+                where Code means:
+                NRZI Non Return to Zero, change on ones
+                GCR  Group Code Recording
+                PE   Phase Encoded
+                IMFM Inverted Modified Frequency Modulation
+                MFM  Modified Frequency Modulation
+                DDS  Dat Data Storage
+                RLL  Run Length Encoding
+
+                where Type means:
+                R    Real-to-Real
+                C    Cartridge
+                CS   cassette
+
+                where Notes means:
+                1    Serial Recorded
+                2    Parallel Recorded
+                3    Old format know as QIC-11
+                4    Helical Scan
+                5    Not ANSI standard, rather industry standard.
+
+********************************************************************/
+
+#define	HALFINCH_800	0x01
+#define	HALFINCH_1600	0x02
+#define	HALFINCH_6250	0x03
+#define	QIC_11		0x04	/* from Archive 150S Theory of Op. XXX	*/
+#define QIC_24		0x05	/* may be bad, works for CIPHER ST150S XXX */
+#define QIC_120		0x0f
+#define QIC_150		0x10
+#define QIC_320		0x11
+#define QIC_525		0x11
+#define QIC_1320	0x12
+#define DDS		0x13
+#define DAT_1		0x13
+#endif /* NEW_SCSICONF */
 
 #endif /*SCSI_SCSICONF_H*/
 /* END OF FILE */
