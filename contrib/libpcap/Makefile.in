@@ -17,7 +17,7 @@
 #  WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
 #  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 #
-# @(#) $Header: Makefile.in,v 1.72 97/06/30 13:56:14 leres Exp $ (LBL)
+# @(#) $Header: /tcpdump/master/libpcap/Makefile.in,v 1.75 1999/10/30 05:33:45 itojun Exp $ (LBL)
 
 #
 # Various configurable paths (remember to edit Makefile.in, not Makefile)
@@ -102,6 +102,8 @@ scanner.c: $(srcdir)/scanner.l
 	$(LEX) -t $< > $$$$.$@; mv $$$$.$@ $@
 
 scanner.o: scanner.c tokdefs.h
+	$(CC) $(CFLAGS) -c scanner.c
+
 tokdefs.h: grammar.c
 grammar.c: $(srcdir)/grammar.y
 	@rm -f grammar.c tokdefs.h
@@ -114,9 +116,14 @@ grammar.o: grammar.c
 	$(CC) $(CFLAGS) -Dyylval=pcap_lval -c grammar.c
 
 version.o: version.c
+	$(CC) $(CFLAGS) -c version.c
+
 version.c: $(srcdir)/VERSION
 	@rm -f $@
 	sed -e 's/.*/char pcap_version[] = "&";/' $(srcdir)/VERSION > $@
+
+bpf_filter.o: $(srcdir)/bpf/net/bpf_filter.c
+	$(CC) $(CFLAGS) -c $(srcdir)/bpf/net/bpf_filter.c -o bpf_filter.o
 
 install: force
 	$(INSTALL) -m 444 -o bin -g bin libpcap.a $(DESTDIR)$(LIBDEST)/libpcap.a
@@ -127,7 +134,7 @@ install-incl: force
 	    $(DESTDIR)$(INCLDEST)/pcap.h
 	$(INSTALL) -m 444 -o bin -g bin $(srcdir)/pcap-namedb.h \
 	    $(DESTDIR)$(INCLDEST)/pcap-namedb.h
-	$(INSTALL) -m 444 -o bin -g bin $(srcdir)/net/bpf.h \
+	$(INSTALL) -m 444 -o bin -g bin $(srcdir)/bpf/net/bpf.h \
 	    $(DESTDIR)$(INCLDEST)/net/bpf.h
 
 install-man: force
@@ -139,7 +146,7 @@ clean:
 
 distclean:
 	rm -f $(CLEANFILES) Makefile config.cache config.log config.status \
-	    gnuc.h os-proto.h bpf_filter.c net
+	    gnuc.h os-proto.h net
 
 tags: $(TAGFILES)
 	ctags -wtd $(TAGFILES)
