@@ -18,7 +18,7 @@
 
   <para arch="ia64">More information on &os;/&arch; is contained on
     the
-    <ulink url="http://www.FreeBSD.org/platforms/ia64/index.html">&os;/&arch; 
+    <ulink url="&url.base;/platforms/ia64/index.html">&os;/&arch; 
     Project</ulink> page.</para>
 
 </sect1>
