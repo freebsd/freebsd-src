@@ -32,19 +32,23 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
-
+#if 0
 #ifndef lint
 static char sccsid[] = "@(#)parse.c	8.1 (Berkeley) 6/6/93";
 static const char rcsid[] =
   "$FreeBSD$";
 #endif /* not lint */
+#endif
 
 #include <stdio.h>
 #include "indent_globs.h"
 #include "indent_codes.h"
+#include "indent.h"
 
-parse(tk)
-    int         tk;		/* the code for the construct scanned */
+static void reduce(void);
+
+void
+parse(int tk) /* tk: the code for the construct scanned */
 {
     int         i;
 
@@ -145,7 +149,7 @@ parse(tk)
     case elselit:		/* scanned an else */
 
 	if (ps.p_stack[ps.tos] != ifhead)
-	    diag(1, "Unmatched 'else'");
+	    diag2(1, "Unmatched 'else'");
 	else {
 	    ps.ind_level = ps.il[ps.tos];	/* indentation for else should
 						 * be same as for if */
@@ -164,7 +168,7 @@ parse(tk)
 	    ps.p_stack[ps.tos] = stmt;
 	}
 	else
-	    diag(1, "Stmt nesting error.");
+	    diag2(1, "Stmt nesting error.");
 	break;
 
     case swstmt:		/* had switch (...) */
@@ -188,7 +192,7 @@ parse(tk)
 	break;
 
     default:			/* this is an error */
-	diag(1, "Unknown code to parser");
+	diag2(1, "Unknown code to parser");
 	return;
 
 
@@ -244,9 +248,9 @@ parse(tk)
 /*----------------------------------------------*\
 |   REDUCTION PHASE				    |
 \*----------------------------------------------*/
-reduce()
+static void
+reduce(void)
 {
-
     register int i;
 
     for (;;) {			/* keep looping until there is nothing left to
