@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: rc.network,v 1.32 1998/09/16 20:38:23 cracauer Exp $
+#	$Id: rc.network,v 1.33 1998/10/06 19:24:14 phk Exp $
 #	From: @(#)netstart	5.9 (Berkeley) 3/30/91
 
 # Note that almost all the user-configurable behavior is no longer in
@@ -71,7 +71,7 @@ network_pass1() {
     fi
 
     if [ $firewall_in_kernel = 0 -a "x$firewall_enable"  = "xYES" ] ; then
-	if modload /lkm/ipfw_mod.o; then
+	if kldload ipfw; then
 		firewall_in_kernel=1		# module loaded successfully
 		echo "Kernel firewall module loaded."
 	else
