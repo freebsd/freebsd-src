@@ -42,6 +42,93 @@
 
 #define PRVERB(x)	if (bootverbose) device_printf x
 
+struct pcic_pci_table
+{
+	u_int32_t	devid;
+	const char	*descr;
+	int		type;
+	u_int32_t	flags;
+	int		revision;
+} pcic_pci_devs[] = {
+	{ PCI_DEVICE_ID_PCIC_CLPD6729,
+	  "Cirrus Logic PD6729/6730 PC-Card Controller" },
+	{ PCI_DEVICE_ID_PCIC_CLPD6832,
+	  "Cirrus Logic PD6832 PCI-CardBus Bridge" },
+	{ PCI_DEVICE_ID_PCIC_CLPD6833,
+	  "Cirrus Logic PD6833 PCI-CardBus Bridge" },
+	{ PCI_DEVICE_ID_PCIC_OZ6729,
+	  "O2micro OZ6729 PC-Card Bridge" },
+	{ PCI_DEVICE_ID_PCIC_OZ6730,
+	  "O2micro OZ6730 PC-Card Bridge" },
+	{ PCI_DEVICE_ID_PCIC_OZ6832,
+	  "O2micro 6832/6833 PCI-Cardbus Bridge" },
+	{ PCI_DEVICE_ID_PCIC_OZ6860,
+	  "O2micro 6860/6836 PCI-Cardbus Bridge" },
+	{ PCI_DEVICE_ID_PCIC_OZ6872,
+	  "O2micro 6812/6872 PCI-Cardbus Bridge" },
+	{ PCI_DEVICE_ID_RICOH_RL5C465,
+	  "Ricoh RL5C465 PCI-CardBus Bridge" },
+	{ PCI_DEVICE_ID_RICOH_RL5C475,
+	  "Ricoh RL5C475 PCI-CardBus Bridge" },
+	{ PCI_DEVICE_ID_RICOH_RL5C476,
+	  "Ricoh RL5C476 PCI-CardBus Bridge" },
+	{ PCI_DEVICE_ID_RICOH_RL5C477,
+	  "Ricoh RL5C477 PCI-CardBus Bridge" },
+	{ PCI_DEVICE_ID_RICOH_RL5C478,
+	  "Ricoh RL5C478 PCI-CardBus Bridge" },
+	{ PCI_DEVICE_ID_PCIC_TI1031,
+	  "TI PCI-1031 PCI-PCMCIA Bridge" },
+	{ PCI_DEVICE_ID_PCIC_TI1130,
+	  "TI PCI-1130 PCI-CardBus Bridge" },
+	{ PCI_DEVICE_ID_PCIC_TI1131,
+	  "TI PCI-1131 PCI-CardBus Bridge" },
+	{ PCI_DEVICE_ID_PCIC_TI1211,
+	  "TI PCI-1211 PCI-CardBus Bridge" },
+	{ PCI_DEVICE_ID_PCIC_TI1220,
+	  "TI PCI-1220 PCI-CardBus Bridge" },
+	{ PCI_DEVICE_ID_PCIC_TI1221,
+	  "TI PCI-1221 PCI-CardBus Bridge" },
+	{ PCI_DEVICE_ID_PCIC_TI1225,
+	  "TI PCI-1225 PCI-CardBus Bridge" },
+	{ PCI_DEVICE_ID_PCIC_TI1250,
+	  "TI PCI-1250 PCI-CardBus Bridge" },
+	{ PCI_DEVICE_ID_PCIC_TI1251,
+	  "TI PCI-1251 PCI-CardBus Bridge" },
+	{ PCI_DEVICE_ID_PCIC_TI1251B,
+	  "TI PCI-1251B PCI-CardBus Bridge" },
+	{ PCI_DEVICE_ID_PCIC_TI1410,
+	  "TI PCI-1410 PCI-CardBus Bridge" },
+	{ PCI_DEVICE_ID_PCIC_TI1420,
+	  "TI PCI-1420 PCI-CardBus Bridge" },
+	{ PCI_DEVICE_ID_PCIC_TI1450,
+	  "TI PCI-1450 PCI-CardBus Bridge" },
+	{ PCI_DEVICE_ID_PCIC_TI1451,
+	  "TI PCI-1451 PCI-CardBus Bridge" },
+	{ PCI_DEVICE_ID_PCIC_TI4451,
+	  "TI PCI-4451 PCI-CardBus Bridge" },
+	{ PCI_DEVICE_ID_TOSHIBA_TOPIC95,
+	  "Toshiba ToPIC95 PCI-CardBus Bridge" },
+	{ PCI_DEVICE_ID_TOSHIBA_TOPIC97,
+	  "Toshiba ToPIC97 PCI-CardBus Bridge" },
+	{ PCI_DEVICE_ID_TOSHIBA_TOPIC100,
+	  "Toshiba ToPIC100 PCI-CardBus Bridge" },
+	{ 0, NULL, 0, 0 }
+};
+
+/*
+ * lookup inside the table
+ */
+static struct pcic_pci_table *
+pcic_pci_lookup(u_int32_t devid, struct pcic_pci_table *tbl)
+{
+while (tbl->devid) {
+		if (tbl->devid == devid)
+			return (tbl);
+		tbl++;
+	}
+	return (NULL);
+}
+
 /*
  * Set up the CL-PD6832 to look like a ISA based PCMCIA chip (a
  * PD672X).  This routine is called once per PCMCIA socket.
@@ -221,94 +308,16 @@ pcic_pci_probe(device_t dev)
 	u_int32_t device_id;
 	u_int8_t subclass;
 	u_int8_t progif;
-	char *desc;
+	struct pcic_pci_table *itm;
+	const char *desc;
 
 	device_id = pci_get_devid(dev);
 	desc = NULL;
 
-	switch (device_id) {
-	case PCI_DEVICE_ID_PCIC_CLPD6832:
-		desc = "Cirrus Logic PD6832 PCI-CardBus Bridge";
-		break;
-	case PCI_DEVICE_ID_PCIC_TI1130:
-		desc = "TI PCI-1130 PCI-CardBus Bridge";
-		break;
-	case PCI_DEVICE_ID_PCIC_TI1131:
-		desc = "TI PCI-1131 PCI-CardBus Bridge";
-		break;
-	case PCI_DEVICE_ID_PCIC_TI1211:
-		desc = "TI PCI-1211 PCI-CardBus Bridge";
-		break;
-	case PCI_DEVICE_ID_PCIC_TI1220:
-		desc = "TI PCI-1220 PCI-CardBus Bridge";
-		break;
-	case PCI_DEVICE_ID_PCIC_TI1221:
-		desc = "TI PCI-1221 PCI-CardBus Bridge";
-		break;
-	case PCI_DEVICE_ID_PCIC_TI1225:
-		desc = "TI PCI-1225 PCI-CardBus Bridge";
-		break;
-	case PCI_DEVICE_ID_PCIC_TI1250:
-		desc = "TI PCI-1250 PCI-CardBus Bridge";
-		break;
-	case PCI_DEVICE_ID_PCIC_TI1251:
-		desc = "TI PCI-1251 PCI-CardBus Bridge";
-		break;
-	case PCI_DEVICE_ID_PCIC_TI1251B:
-		desc = "TI PCI-1251B PCI-CardBus Bridge";
-		break;
-	case PCI_DEVICE_ID_PCIC_TI1410:
-		desc = "TI PCI-1410 PCI-CardBus Bridge";
-		break;
-	case PCI_DEVICE_ID_PCIC_TI1420:
-		desc = "TI PCI-1420 PCI-CardBus Bridge";
-		break;
-	case PCI_DEVICE_ID_PCIC_TI1450:
-		desc = "TI PCI-1450 PCI-CardBus Bridge";
-		break;
-	case PCI_DEVICE_ID_PCIC_TI1451:
-		desc = "TI PCI-1451 PCI-CardBus Bridge";
-		break;
-	case PCI_DEVICE_ID_TOSHIBA_TOPIC95:
-		desc = "Toshiba ToPIC95 PCI-CardBus Bridge";
-		break;
-	case PCI_DEVICE_ID_TOSHIBA_TOPIC97:
-		desc = "Toshiba ToPIC97 PCI-CardBus Bridge";
-		break;
-	case PCI_DEVICE_ID_TOSHIBA_TOPIC100:
-		desc = "Toshiba ToPIC100 PCI-CardBus Bridge";
-		break;
- 	case PCI_DEVICE_ID_RICOH_RL5C465:
-		desc = "Ricoh RL5C465 PCI-CardBus Bridge";
-		break;
-	case PCI_DEVICE_ID_RICOH_RL5C475:
-		desc = "Ricoh RL5C475 PCI-CardBus Bridge";
-		break;
-	case PCI_DEVICE_ID_RICOH_RL5C476:
-		desc = "Ricoh RL5C476 PCI-CardBus Bridge";
-		break;
-	case PCI_DEVICE_ID_RICOH_RL5C478:
-		desc = "Ricoh RL5C478 PCI-CardBus Bridge";
-		break;
-	case PCI_DEVICE_ID_PCIC_OZ6832:
-		desc = "O2micro 6832 PCI-Cardbus Bridge";
-		break;
-
-	/* 16bit PC-card bridges */
-	case PCI_DEVICE_ID_PCIC_CLPD6729:
-		desc = "Cirrus Logic PD6729/6730 PC-Card Controller";
-		break;
-	case PCI_DEVICE_ID_PCIC_OZ6729:
-		desc = "O2micro OZ6729 PC-Card Bridge";
-		break;
-	case PCI_DEVICE_ID_PCIC_OZ6730:
-		desc = "O2micro OZ6730 PC-Card Bridge";
-		break;
-	case PCI_DEVICE_ID_PCIC_TI1031:
-		desc = "TI PCI-1031 PCI-PCMCIA Bridge";
-		break;
-
-	default:
+	itm = pcic_pci_lookup(device_id, &pcic_pci_devs[0]);
+	if (itm != NULL)
+		desc = itm->descr;
+	if (desc == NULL) {
 		if (pci_get_class(dev) == PCIC_BRIDGE) {
 			subclass = pci_get_subclass(dev);
 			progif = pci_get_progif(dev);
@@ -317,14 +326,11 @@ pcic_pci_probe(device_t dev)
 			if (subclass == PCIS_BRIDGE_CARDBUS && progif == 0)
 				desc = "YENTA PCI-CARDBUS Bridge";
 		}
-		break;
 	}
-
 	if (desc == NULL)
 		return (ENXIO);
-	
 	device_set_desc(dev, desc);
-	return (0);	/* exact match */
+	return (0);
 }
 
 static void
