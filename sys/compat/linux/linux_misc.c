@@ -70,6 +70,11 @@
 #define BSD_TO_LINUX_SIGNAL(sig)	\
 	(((sig) <= LINUX_SIGTBLSZ) ? bsd_to_linux_signal[_SIG_IDX(sig)] : sig)
 
+struct linux_rlimit {
+	unsigned long rlim_cur;
+	unsigned long rlim_max;
+};
+
 static unsigned int linux_to_bsd_resource[LINUX_RLIM_NLIMITS] =
 { RLIMIT_CPU, RLIMIT_FSIZE, RLIMIT_DATA, RLIMIT_STACK,
   RLIMIT_CORE, RLIMIT_RSS, RLIMIT_NPROC, RLIMIT_NOFILE,
@@ -985,50 +990,66 @@ linux_getgroups(p, uap)
 
 int
 linux_setrlimit(p, uap)
-     struct proc *p;
-     struct linux_setrlimit_args *uap;
+	struct proc *p;
+	struct linux_setrlimit_args *uap;
 {
-    struct osetrlimit_args bsd;
+	struct __setrlimit_args bsd;
+	struct linux_rlimit rlim;
+	int error;
+	caddr_t sg = stackgap_init();
 
 #ifdef DEBUG
-    printf("Linux-emul(%ld): setrlimit(%d, %p)\n",
-	   (long)p->p_pid, uap->resource, (void *)uap->rlim);
+	printf("Linux-emul(%ld): setrlimit(%d, %p)\n", (long)p->p_pid,
+	    uap->resource, (void *)uap->rlim);
 #endif
 
-    if (uap->resource >= LINUX_RLIM_NLIMITS)
-	return EINVAL;
+	if (uap->resource >= LINUX_RLIM_NLIMITS)
+		return (EINVAL);
 
-    bsd.which = linux_to_bsd_resource[uap->resource];
+	bsd.which = linux_to_bsd_resource[uap->resource];
+	if (bsd.which == -1)
+		return (EINVAL);
 
-    if (bsd.which == -1)
-	return EINVAL;
+	error = copyin(uap->rlim, &rlim, sizeof(rlim));
+	if (error)
+		return (error);
 
-    bsd.rlp = uap->rlim;
-    return osetrlimit(p, &bsd);
+	bsd.rlp = stackgap_alloc(&sg, sizeof(struct rlimit));
+	bsd.rlp->rlim_cur = (rlim_t)rlim.rlim_cur;
+	bsd.rlp->rlim_max = (rlim_t)rlim.rlim_max;
+	return (setrlimit(p, &bsd));
 }
 
 int
 linux_getrlimit(p, uap)
-     struct proc *p;
-     struct linux_getrlimit_args *uap;
+	struct proc *p;
+	struct linux_getrlimit_args *uap;
 {
-    struct ogetrlimit_args bsd;
+	struct __getrlimit_args bsd;
+	struct linux_rlimit rlim;
+	int error;
+	caddr_t sg = stackgap_init();
 
 #ifdef DEBUG
-    printf("Linux-emul(%ld): getrlimit(%d, %p)\n",
-	   (long)p->p_pid, uap->resource, (void *)uap->rlim);
+	printf("Linux-emul(%ld): getrlimit(%d, %p)\n", (long)p->p_pid,
+	    uap->resource, (void *)uap->rlim);
 #endif
 
-    if (uap->resource >= LINUX_RLIM_NLIMITS)
-	return EINVAL;
+	if (uap->resource >= LINUX_RLIM_NLIMITS)
+		return (EINVAL);
 
-    bsd.which = linux_to_bsd_resource[uap->resource];
+	bsd.which = linux_to_bsd_resource[uap->resource];
+	if (bsd.which == -1)
+		return (EINVAL);
 
-    if (bsd.which == -1)
-	return EINVAL;
+	bsd.rlp = stackgap_alloc(&sg, sizeof(struct rlimit));
+	error = getrlimit(p, &bsd);
+	if (error)
+		return (error);
 
-    bsd.rlp = uap->rlim;
-    return ogetrlimit(p, &bsd);
+	rlim.rlim_cur = (unsigned long)bsd.rlp->rlim_cur;
+	rlim.rlim_max = (unsigned long)bsd.rlp->rlim_max;
+	return (copyout(&rlim, uap->rlim, sizeof(rlim)));
 }
 
 int
