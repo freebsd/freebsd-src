@@ -44,7 +44,7 @@ struct vnode;
 /* This structure describes the ext2fs specific mount structure data. */
 struct ext2mount {
 	struct	mount *um_mountp;		/* filesystem vfs structure */
-	struct cdev *um_dev;				/* device mounted */
+	struct	cdev *um_dev;			/* device mounted */
 	struct	vnode *um_devvp;		/* block device mounted vnode */
 
 	struct	ext2_sb_info *um_e2fs;		/* EXT2FS */
