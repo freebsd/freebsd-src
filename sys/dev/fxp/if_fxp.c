@@ -208,6 +208,7 @@ static void		fxp_miibus_writereg(device_t dev, int phy, int reg,
 static __inline void	fxp_lwcopy(volatile u_int32_t *src,
 			    volatile u_int32_t *dst);
 static __inline void 	fxp_scb_wait(struct fxp_softc *sc);
+static __inline void	fxp_scb_cmd(struct fxp_softc *sc, int cmd);
 static __inline void	fxp_dma_wait(volatile u_int16_t *status,
 			    struct fxp_softc *sc);
 
@@ -273,6 +274,17 @@ fxp_scb_wait(struct fxp_softc *sc)
 		    CSR_READ_1(sc, FXP_CSR_SCB_STATACK),
 		    CSR_READ_1(sc, FXP_CSR_SCB_RUSCUS),
 		    CSR_READ_2(sc, FXP_CSR_FLOWCONTROL));
+}
+
+static __inline void
+fxp_scb_cmd(struct fxp_softc *sc, int cmd)
+{
+
+	if (cmd == FXP_SCB_COMMAND_CU_RESUME && sc->cu_resume_bug) {
+		CSR_WRITE_1(sc, FXP_CSR_SCB_COMMAND, FXP_CB_COMMAND_NOP);
+		fxp_scb_wait(sc);
+	}
+	CSR_WRITE_1(sc, FXP_CSR_SCB_COMMAND, cmd);
 }
 
 static __inline void
@@ -468,6 +480,13 @@ fxp_attach(device_t dev)
 		sc->chip = FXP_CHIP_82557;
 
 	/*
+	 * Enable workarounds for certain chip revision deficiencies.
+	 */
+	i = pci_get_device(dev);
+	if (i == 0x2449 || (i > 0x1030 && i < 0x1039))
+		sc->flags |= FXP_FLAG_CU_RESUME_BUG;
+
+	/*
 	 * If we are not a 82557 chip, we can enable extended features.
 	 */
 	if (sc->chip != FXP_CHIP_82557) {
@@ -494,9 +513,10 @@ fxp_attach(device_t dev)
 	    sc->arpcom.ac_enaddr, ":",
 	    sc->flags & FXP_FLAG_SERIAL_MEDIA ? ", 10Mbps" : "");
 	if (bootverbose) {
-		device_printf(dev, "PCI IDs: %04x %04x %04x %04x\n",
+		device_printf(dev, "PCI IDs: %04x %04x %04x %04x %04x\n",
 		    pci_get_vendor(dev), pci_get_device(dev),
-		    pci_get_subvendor(dev), pci_get_subdevice(dev));
+		    pci_get_subvendor(dev), pci_get_subdevice(dev),
+		    pci_get_revid(dev));
 		device_printf(dev, "Chip Type: %d\n", sc->chip);
 	}
 
@@ -602,6 +622,9 @@ fxp_detach(device_t dev)
 {
 	struct fxp_softc *sc = device_get_softc(dev);
 	int s;
+
+	/* disable interrupts */
+	CSR_WRITE_1(sc, FXP_CSR_SCB_INTRCNTL, FXP_SCB_INTR_DISABLE);
 
 	s = splimp();
 
@@ -977,7 +1000,7 @@ tbdinit:
 	 */
 	if (txp != NULL) {
 		fxp_scb_wait(sc);
-		CSR_WRITE_1(sc, FXP_CSR_SCB_COMMAND, FXP_SCB_COMMAND_CU_RESUME);
+		fxp_scb_cmd(sc, FXP_SCB_COMMAND_CU_RESUME);
 	}
 }
 
@@ -990,7 +1013,6 @@ fxp_intr(void *xsc)
 	struct fxp_softc *sc = xsc;
 	struct ifnet *ifp = &sc->sc_if;
 	u_int8_t statack;
-
 
 	if (sc->suspended) {
 		return;
@@ -1105,8 +1127,7 @@ rcvloop:
 				CSR_WRITE_4(sc, FXP_CSR_SCB_GENERAL,
 				    vtophys(sc->rfa_headm->m_ext.ext_buf) +
 					RFA_ALIGNMENT_FUDGE);
-				CSR_WRITE_1(sc, FXP_CSR_SCB_COMMAND,
-				    FXP_SCB_COMMAND_RU_START);
+				fxp_scb_cmd(sc, FXP_SCB_COMMAND_RU_START);
 			}
 		}
 	}
@@ -1197,8 +1218,7 @@ fxp_tick(void *xsc)
 		/*
 		 * Start another stats dump.
 		 */
-		CSR_WRITE_1(sc, FXP_CSR_SCB_COMMAND,
-		    FXP_SCB_COMMAND_CU_DUMPRESET);
+		fxp_scb_cmd(sc, FXP_SCB_COMMAND_CU_DUMPRESET);
 	} else {
 		/*
 		 * A previous command is still waiting to be accepted.
@@ -1324,17 +1344,17 @@ fxp_init(void *xsc)
 	 * sets it up for regular linear addressing.
 	 */
 	CSR_WRITE_4(sc, FXP_CSR_SCB_GENERAL, 0);
-	CSR_WRITE_1(sc, FXP_CSR_SCB_COMMAND, FXP_SCB_COMMAND_CU_BASE);
+	fxp_scb_cmd(sc, FXP_SCB_COMMAND_CU_BASE);
 
 	fxp_scb_wait(sc);
-	CSR_WRITE_1(sc, FXP_CSR_SCB_COMMAND, FXP_SCB_COMMAND_RU_BASE);
+	fxp_scb_cmd(sc, FXP_SCB_COMMAND_RU_BASE);
 
 	/*
 	 * Initialize base of dump-stats buffer.
 	 */
 	fxp_scb_wait(sc);
 	CSR_WRITE_4(sc, FXP_CSR_SCB_GENERAL, vtophys(sc->fxp_stats));
-	CSR_WRITE_1(sc, FXP_CSR_SCB_COMMAND, FXP_SCB_COMMAND_CU_DUMP_ADR);
+	fxp_scb_cmd(sc, FXP_SCB_COMMAND_CU_DUMP_ADR);
 
 	/*
 	 * We temporarily use memory that contains the TxCB list to
@@ -1443,7 +1463,7 @@ fxp_init(void *xsc)
 	 */
 	fxp_scb_wait(sc);
 	CSR_WRITE_4(sc, FXP_CSR_SCB_GENERAL, vtophys(&cbp->cb_status));
-	CSR_WRITE_1(sc, FXP_CSR_SCB_COMMAND, FXP_SCB_COMMAND_CU_START);
+	fxp_scb_cmd(sc, FXP_SCB_COMMAND_CU_START);
 	/* ...and wait for it to complete. */
 	fxp_dma_wait(&cbp->cb_status, sc);
 
@@ -1463,7 +1483,7 @@ fxp_init(void *xsc)
 	 * Start the IAS (Individual Address Setup) command/DMA.
 	 */
 	fxp_scb_wait(sc);
-	CSR_WRITE_1(sc, FXP_CSR_SCB_COMMAND, FXP_SCB_COMMAND_CU_START);
+	fxp_scb_cmd(sc, FXP_SCB_COMMAND_CU_START);
 	/* ...and wait for it to complete. */
 	fxp_dma_wait(&cb_ias->cb_status, sc);
 
@@ -1493,7 +1513,7 @@ fxp_init(void *xsc)
 	sc->tx_queued = 1;
 
 	fxp_scb_wait(sc);
-	CSR_WRITE_1(sc, FXP_CSR_SCB_COMMAND, FXP_SCB_COMMAND_CU_START);
+	fxp_scb_cmd(sc, FXP_SCB_COMMAND_CU_START);
 
 	/*
 	 * Initialize receiver buffer area - RFA.
@@ -1501,7 +1521,7 @@ fxp_init(void *xsc)
 	fxp_scb_wait(sc);
 	CSR_WRITE_4(sc, FXP_CSR_SCB_GENERAL,
 	    vtophys(sc->rfa_headm->m_ext.ext_buf) + RFA_ALIGNMENT_FUDGE);
-	CSR_WRITE_1(sc, FXP_CSR_SCB_COMMAND, FXP_SCB_COMMAND_RU_START);
+	fxp_scb_cmd(sc, FXP_SCB_COMMAND_RU_START);
 
 	/*
 	 * Set current media.
@@ -1565,6 +1585,11 @@ fxp_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 	mii_pollstat(mii);
 	ifmr->ifm_active = mii->mii_media_active;
 	ifmr->ifm_status = mii->mii_media_status;
+
+	if (ifmr->ifm_status & IFM_10_T && sc->flags & FXP_FLAG_CU_RESUME_BUG)
+		sc->cu_resume_bug = 1;
+	else
+		sc->cu_resume_bug = 0;
 }
 
 /*
@@ -1820,7 +1845,7 @@ fxp_mc_setup(struct fxp_softc *sc)
 		 * Issue a resume in case the CU has just suspended.
 		 */
 		fxp_scb_wait(sc);
-		CSR_WRITE_1(sc, FXP_CSR_SCB_COMMAND, FXP_SCB_COMMAND_CU_RESUME);
+		fxp_scb_cmd(sc, FXP_SCB_COMMAND_CU_RESUME);
 		/*
 		 * Set a 5 second timer just in case we don't hear from the
 		 * card again.
@@ -1883,7 +1908,7 @@ fxp_mc_setup(struct fxp_softc *sc)
 	 */
 	fxp_scb_wait(sc);
 	CSR_WRITE_4(sc, FXP_CSR_SCB_GENERAL, vtophys(&mcsp->cb_status));
-	CSR_WRITE_1(sc, FXP_CSR_SCB_COMMAND, FXP_SCB_COMMAND_CU_START);
+	fxp_scb_cmd(sc, FXP_SCB_COMMAND_CU_START);
 
 	ifp->if_timer = 2;
 	return;
