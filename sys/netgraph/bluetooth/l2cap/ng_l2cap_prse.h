@@ -36,7 +36,7 @@
  ***************************************************************************/
 
 #ifndef _NETGRAPH_L2CAP_PRSE_H_
-#define _NETGRAPH_L2CAP_PRSE_H_ 1
+#define _NETGRAPH_L2CAP_PRSE_H_
 
 /* 
  * L2CAP node command list

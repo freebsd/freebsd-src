@@ -44,7 +44,7 @@
  */
 
 #ifndef _NETGRAPH_H4_H_
-#define _NETGRAPH_H4_H_ 1
+#define _NETGRAPH_H4_H_
 
 /*
  * H4 line discipline 

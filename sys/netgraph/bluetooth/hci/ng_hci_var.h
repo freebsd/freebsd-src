@@ -30,7 +30,7 @@
  */
 
 #ifndef _NETGRAPH_HCI_VAR_H_
-#define _NETGRAPH_HCI_VAR_H_ 1
+#define _NETGRAPH_HCI_VAR_H_
 
 /* MALLOC decalation */
 #ifdef NG_SEPARATE_MALLOC

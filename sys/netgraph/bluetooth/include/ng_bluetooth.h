@@ -30,7 +30,7 @@
  */
 
 #ifndef _NETGRAPH_BLUETOOTH_H_
-#define _NETGRAPH_BLUETOOTH_H_ 1
+#define _NETGRAPH_BLUETOOTH_H_
 
 /*
  * Version of the stack

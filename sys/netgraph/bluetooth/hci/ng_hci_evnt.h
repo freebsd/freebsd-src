@@ -30,7 +30,7 @@
  */
 
 #ifndef _NETGRAPH_HCI_EVNT_H_
-#define _NETGRAPH_HCI_EVNT_H_ 1
+#define _NETGRAPH_HCI_EVNT_H_
 
 /*
  * HCI events processing routines
