@@ -502,7 +502,8 @@ sink(int argc, char *argv[])
 	enum { YES, NO, DISPLAYED } wrerr;
 	BUF *bp;
 	off_t i, j, size;
-	int amt, count, exists, first, mask, mode, ofd, omode;
+	int amt, exists, first, mask, mode, ofd, omode;
+	size_t count;
 	int setimes, targisdir, wrerrno = 0;
 	char ch, *cp, *np, *targ, *why, *vect[1], buf[BUFSIZ], path[PATH_MAX];
 
