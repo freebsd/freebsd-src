@@ -208,7 +208,8 @@ udp_input(m, off, proto)
 	 * Save a copy of the IP header in case we want restore it
 	 * for sending an ICMP error message in response.
 	 */
-	save_ip = *ip;
+	if (!blackhole)
+		save_ip = *ip;
 
 	/*
 	 * Checksum extended UDP header and data.
