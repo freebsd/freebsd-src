@@ -393,7 +393,7 @@ options 	DIAGNOSTIC
 # run-time environment to reproduce unlikely or unusual (possibly normally
 # impossible) scenarios.
 #
-options		REGRESSION
+options 	REGRESSION
 
 #
 # RESTARTABLE_PANICS allows one to continue from a panic as if it were
@@ -623,11 +623,11 @@ options 	TCPDEBUG
 # option closes a minor information leak which allows remote
 # observers to determine the rate of packet generation on the
 # machine by watching the counter.
-options		RANDOM_IP_ID
+options 	RANDOM_IP_ID
 
 # Statically Link in accept filters
-options		ACCEPT_FILTER_DATA
-options		ACCEPT_FILTER_HTTP
+options 	ACCEPT_FILTER_DATA
+options 	ACCEPT_FILTER_HTTP
 
 # TCP_DROP_SYNFIN adds support for ignoring TCP packets with SYN+FIN. This
 # prevents nmap et al. from identifying the TCP/IP stack, but breaks support
@@ -713,7 +713,7 @@ options 	UNIONFS			#Union filesystem
 options 	NFS_ROOT		#NFS usable as root device
 # This code enables IFS, an FFS which exports inodes as the namespace.
 # You can find details in src/sys/ufs/ifs/README .
-options		IFS
+options 	IFS
 
 # Soft updates is a technique for improving file system speed and
 # making abrupt shutdown less risky.
@@ -723,8 +723,8 @@ options 	SOFTUPDATES
 # Extended attributes allow additional data to be associated with files,
 # and is used for ACLs, Capabilities, and MAC labels.
 # See src/sys/ufs/ufs/README.extattr for more information.
-options		UFS_EXTATTR
-options		UFS_EXTATTR_AUTOSTART
+options 	UFS_EXTATTR
+options 	UFS_EXTATTR_AUTOSTART
 
 # Access Control List support for UFS filesystems.  The current ACL
 # implementation requires extended attribute support, UFS_EXTATTR,
@@ -734,7 +734,7 @@ options 	UFS_ACL
 
 # Directory hashing improves the speed of operations on very large
 # directories at the expense of some memory.
-options		UFS_DIRHASH
+options 	UFS_DIRHASH
 
 # Make space in the kernel for a root filesystem on a md device.
 # Define to the number of kilobytes to reserve for the filesystem.
@@ -1001,7 +1001,7 @@ options 	SCSI_PT_DEFAULT_TIMEOUT="60"
 # as having SES capabilities, but this can then clot up attempts to build
 # build a topology with the SES device that's on the box these drives
 # are in....
-options		SES_ENABLE_PASSTHROUGH
+options 	SES_ENABLE_PASSTHROUGH
 
 
 #####################################################################
@@ -1269,8 +1269,8 @@ options 	SC_KERNEL_CONS_REV_ATTR="(FG_BLACK|BG_RED)"
 
 # The following options will let you change the default behaviour of
 # cut-n-paste feature
-options		SC_CUT_SPACES2TABS	# convert leading spaces into tabs
-options		SC_CUT_SEPCHARS="\x20"	# set of characters that delimit words
+options 	SC_CUT_SPACES2TABS	# convert leading spaces into tabs
+options 	SC_CUT_SEPCHARS="\x20"	# set of characters that delimit words
 					# (default is single space - "\x20")
 
 # If you have a two button mouse, you may want to add the following option
@@ -1344,7 +1344,7 @@ hint.npx.0.irq="13"
 # normally loaded automatically by the loader.
 #
 device		acpica
-options		ACPI_DEBUG
+options 	ACPI_DEBUG
 
 #
 # Optional devices:
@@ -1801,7 +1801,7 @@ hint.cx.0.port="0x240"
 hint.cx.0.irq="15"
 hint.cx.0.drq="7"
 device		ed
-#options	ED_NO_MIIBUS		# Disable ed miibus support
+#options 	ED_NO_MIIBUS		# Disable ed miibus support
 hint.ed.0.at="isa"
 hint.ed.0.port="0x280"
 hint.ed.0.irq="5"
@@ -2500,10 +2500,10 @@ options 	SIEMENS_ISURF2
 options 	ASUSCOM_IPAC
 #
 # Eicon Diehl DIVA 2.0 and 2.02
-options		EICON_DIVA
+options 	EICON_DIVA
 #
 # Compaq Microcom 610 ISDN card (Compaq series PSB2222I)
-options		COMPAQ_M610
+options 	COMPAQ_M610
 #
 # PCI bus Cards:
 # --------------
@@ -2625,7 +2625,7 @@ device		"i4bcapi"
 # ppc	ISA-bus parallel port interfaces.
 #
 
-options		PPC_PROBE_CHIPSET # Enable chipset specific detection
+options 	PPC_PROBE_CHIPSET # Enable chipset specific detection
 				  # (see flags in ppc(4))
 options 	DEBUG_1284	# IEEE1284 signaling protocol debug
 options 	PERIPH_1284	# Makes your computer act as a IEEE1284
@@ -2635,8 +2635,8 @@ options 	VP0_DEBUG	# ZIP/ZIP+ debug
 options 	LPT_DEBUG	# Printer driver debug
 options 	PPC_DEBUG	# Parallel chipset level debug
 options 	PLIP_DEBUG	# Parallel network IP interface debug
-options		PCFCLOCK_VERBOSE         # Verbose pcfclock driver
-options		PCFCLOCK_MAX_RETRIES=5   # Maximum read tries (default 10)
+options 	PCFCLOCK_VERBOSE         # Verbose pcfclock driver
+options 	PCFCLOCK_MAX_RETRIES=5   # Maximum read tries (default 10)
 
 device		ppc
 hint.ppc.0.at="isa"
@@ -2749,8 +2749,8 @@ options 	DEBUG_LINUX
 # Caveat:  At this time, `options KTRACE' is required for the svr4 emulator
 # (whether static or dynamic).  
 # 
-options		COMPAT_SVR4	# build emulator statically
-options		DEBUG_SVR4	# enable verbose debugging
+options 	COMPAT_SVR4	# build emulator statically
+options 	DEBUG_SVR4	# enable verbose debugging
 device		streams		# STREAMS network driver (required for svr4).
 
 
@@ -2896,8 +2896,8 @@ options 	CLUSTERDEBUG
 options 	DEBUG
 
 # PECOFF module (Win32 Execution Format)
-options		PECOFF_SUPPORT
-options		PECOFF_DEBUG
+options 	PECOFF_SUPPORT
+options 	PECOFF_DEBUG
 
 # Disable the 4 MByte PSE CPU feature.
 #options 	DISABLE_PSE
