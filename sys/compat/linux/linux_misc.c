@@ -74,12 +74,12 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_compat.h"
 
-#if !COMPAT_LINUX32
-#include <machine/../linux/linux.h>
-#include <machine/../linux/linux_proto.h>
-#else
+#ifdef COMPAT_LINUX32
 #include <machine/../linux32/linux.h>
 #include <machine/../linux32/linux32_proto.h>
+#else
+#include <machine/../linux/linux.h>
+#include <machine/../linux/linux_proto.h>
 #endif
 
 #include <compat/linux/linux_mib.h>
@@ -775,7 +775,7 @@ linux_newuname(struct thread *td, struct linux_newuname_args *args)
 	return (copyout(&utsname, args->buf, sizeof(utsname)));
 }
 
-#if defined(__i386__) || (defined(__amd64__) && COMPAT_LINUX32)
+#if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
 struct l_utimbuf {
 	l_time_t l_actime;
 	l_time_t l_modtime;
@@ -1199,20 +1199,20 @@ linux_old_getrlimit(struct thread *td, struct linux_old_getrlimit_args *args)
 	lim_rlimit(p, which, &bsd_rlim);
 	PROC_UNLOCK(p);
 
-#if !COMPAT_LINUX32
-	rlim.rlim_cur = (unsigned long)bsd_rlim.rlim_cur;
-	if (rlim.rlim_cur == ULONG_MAX)
-		rlim.rlim_cur = LONG_MAX;
-	rlim.rlim_max = (unsigned long)bsd_rlim.rlim_max;
-	if (rlim.rlim_max == ULONG_MAX)
-		rlim.rlim_max = LONG_MAX;
-#else
+#ifdef COMPAT_LINUX32
 	rlim.rlim_cur = (unsigned int)bsd_rlim.rlim_cur;
 	if (rlim.rlim_cur == UINT_MAX)
 		rlim.rlim_cur = INT_MAX;
 	rlim.rlim_max = (unsigned int)bsd_rlim.rlim_max;
 	if (rlim.rlim_max == UINT_MAX)
 		rlim.rlim_max = INT_MAX;
+#else
+	rlim.rlim_cur = (unsigned long)bsd_rlim.rlim_cur;
+	if (rlim.rlim_cur == ULONG_MAX)
+		rlim.rlim_cur = LONG_MAX;
+	rlim.rlim_max = (unsigned long)bsd_rlim.rlim_max;
+	if (rlim.rlim_max == ULONG_MAX)
+		rlim.rlim_max = LONG_MAX;
 #endif
 	return (copyout(&rlim, args->rlim, sizeof(rlim)));
 }

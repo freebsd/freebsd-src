@@ -41,14 +41,14 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_compat.h"
 
-#if !COMPAT_LINUX32
-#include <machine/../linux/linux.h>
-#include <machine/../linux/linux_proto.h>
-#include <machine/../linux/linux_ipc64.h>
-#else
+#ifdef COMPAT_LINUX32
 #include <machine/../linux32/linux.h>
 #include <machine/../linux32/linux32_proto.h>
 #include <machine/../linux32/linux32_ipc64.h>
+#else
+#include <machine/../linux/linux.h>
+#include <machine/../linux/linux_proto.h>
+#include <machine/../linux/linux_ipc64.h>
 #endif
 #include <compat/linux/linux_ipc.h>
 #include <compat/linux/linux_util.h>
@@ -154,7 +154,7 @@ struct l_msqid_ds {
 	l_pid_t			msg_lspid;	/* pid of last msgsnd */
 	l_pid_t			msg_lrpid;	/* last receive pid */
 }
-#if __amd64__ && COMPAT_LINUX32
+#if defined(__amd64__) && defined(COMPAT_LINUX32)
 __packed
 #endif
 ;
@@ -169,7 +169,7 @@ struct l_semid_ds {
 	l_uintptr_t		undo;
 	l_ushort		sem_nsems;
 }
-#if __amd64__ && COMPAT_LINUX32
+#if defined(__amd64__) && defined(COMPAT_LINUX32)
 __packed
 #endif
 ;
@@ -677,7 +677,7 @@ linux_shmat(struct thread *td, struct linux_shmat_args *args)
 	int shmflg;
     } */ bsd_args;
     int error;
-#if defined(__i386__) || (defined(__amd64__) && COMPAT_LINUX32)
+#if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
     l_uintptr_t addr;
 #endif
 
@@ -686,7 +686,7 @@ linux_shmat(struct thread *td, struct linux_shmat_args *args)
     bsd_args.shmflg = args->shmflg;
     if ((error = shmat(td, &bsd_args)))
 	return error;
-#if defined(__i386__) || (defined(__amd64__) && COMPAT_LINUX32)
+#if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
     addr = td->td_retval[0];
     if ((error = copyout(&addr, PTRIN(args->raddr), sizeof(addr))))
 	return error;
