@@ -35,4 +35,4 @@
 #   Cipher 3des
 #   Ciphers aes128-cbc,3des-cbc,blowfish-cbc,cast128-cbc,arcfour,aes192-cbc,aes256-cbc
 #   EscapeChar ~
-#   VersionAddendum FreeBSD-20020629
+#   VersionAddendum FreeBSD-20021029
