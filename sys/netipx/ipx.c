@@ -142,7 +142,6 @@ ipx_control(so, cmd, data, ifp, p)
 				ipx_ifaddr = oia;
 			ia = oia;
 			ifa = (struct ifaddr *)ia;
-			ifa->ifa_refcnt = 1;
 			TAILQ_INSERT_TAIL(&ifp->if_addrhead, ifa, ifa_link);
 			ia->ia_ifp = ifp;
 			ifa->ifa_addr = (struct sockaddr *)&ia->ia_addr;
