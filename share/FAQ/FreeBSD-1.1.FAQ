@@ -6,7 +6,7 @@
 Please mail all suggestions and additions to <FreeBSD-FAQ@FreeBSD.ORG>
 
 
-Revision: $Id: FreeBSD-1.1.FAQ,v 1.2 1994/10/03 03:48:37 gclarkii Exp $
+Revision: $Id: FreeBSD-1.1.FAQ,v 1.3 1994/10/03 04:28:03 gclarkii Exp $
 
 All entries are assumed to be relevant to both FreeBSD 1.1 and FreeBSD 1.1.5,
 unless otherwise noted.
@@ -41,14 +41,9 @@ trouble with and you just don't see it here, then please send mail to:
 
 Some of the instructions here will also refer to auxiliary utilities
 in the /usr/src/share/FAQ directory.  CDROM purchasers and net folks
-who've grabbed the FreeBSD 1.1 `srcdist' will have these files.  If
+who've grabbed the FreeBSD current `srcdist' will have these files.  If
 you don't have the source distribution, then you can either grab the
 whole thing from:
-
-        ftp.FreeBSD.ORG:pub/FreeBSD/FreeBSD-1.1
-
-Or you can grab only those files you're interested in straight out of
-the FreeBSD-current distribution in:
 
         ftp.FreeBSD.ORG:pub/FreeBSD/FreeBSD-current/src
 
@@ -116,6 +111,10 @@ commit:    	This list carries the commit messages for freefall.  Useful
 SCSI:      	Mailing list for SCSI developers. 
 current:   	This list is for persons wishing to run FreeBSD-current
                 and carries announcements and discussions on current.
+ports:          Discussion of "/usr/ports"
+hardware:       Types of hardware FreeBSD runs on
+security:       Security issues
+platforms:      Porting to non-Intel platforms
 
 Please see also the FreeBSD mailing list FAQ in:
 
