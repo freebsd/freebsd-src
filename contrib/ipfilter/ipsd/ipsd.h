@@ -1,9 +1,7 @@
 /*
  * (C)opyright 1995-1998 Darren Reed.
  *
- * Redistribution and use in source and binary forms are permitted
- * provided that this notice is preserved and due credit is given
- * to the original author and the contributors.
+ * See the IPFILTER.LICENCE file for details on licencing.
  *
  *   The author of this software makes no garuntee about the
  * performance of this package or its suitability to fulfill any purpose.

@@ -1,14 +1,8 @@
 /*
  * Copyright (C) 1995-1998 by Darren Reed.
  *
- * Redistribution and use in source and binary forms are permitted
- * provided that this notice is preserved and due credit is given
- * to the original author and the contributors.
+ * See the IPFILTER.LICENCE file for details on licencing.
  */
-#if !defined(lint)
-static const char sccsid[] = "@(#)ipsopt.c	1.2 1/11/96 (C)1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ipsopt.c,v 2.1 1999/08/04 17:31:07 darrenr Exp $";
-#endif
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -25,13 +19,9 @@ static const char rcsid[] = "@(#)$Id: ipsopt.c,v 2.1 1999/08/04 17:31:07 darrenr
 #include <arpa/inet.h>
 #include "ipsend.h"
 
-
-#ifndef	__P
-# ifdef	__STDC__
-#  define	__P(x)	x
-# else
-#  define	__P(x)	()
-# endif
+#if !defined(lint)
+static const char sccsid[] = "@(#)ipsopt.c	1.2 1/11/96 (C)1995 Darren Reed";
+static const char rcsid[] = "@(#)$Id: ipsopt.c,v 2.1.4.2 2001/07/15 22:00:14 darrenr Exp $";
 #endif
 
 

@@ -1,9 +1,7 @@
 /*
  * Copyright (C) 1995-1998 by Darren Reed.
  *
- * This code may be freely distributed as long as it retains this notice
- * and is not changed in any way.  The author accepts no responsibility
- * for the use of this software.  I hate legaleese, don't you ?
+ * See the IPFILTER.LICENCE file for details on licencing.
  *
  * @(#)linux.h	1.1 8/19/95
  */

@@ -1,13 +1,11 @@
 /*
  * larp.c (C) 1995-1998 Darren Reed
  *
- * Redistribution and use in source and binary forms are permitted
- * provided that this notice is preserved and due credit is given
- * to the original author and the contributors.
+ * See the IPFILTER.LICENCE file for details on licencing.
  */
 #if !defined(lint)
 static const char sccsid[] = "@(#)larp.c	1.1 8/19/95 (C)1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: larp.c,v 2.1 1999/08/04 17:31:10 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: larp.c,v 2.1.4.1 2001/06/26 10:43:22 darrenr Exp $";
 #endif
 #include <stdio.h>
 #include <errno.h>

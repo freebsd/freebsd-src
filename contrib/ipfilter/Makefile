@@ -1,11 +1,9 @@
 #
-# Copyright (C) 1993-2000 by Darren Reed.
+# Copyright (C) 1993-2001 by Darren Reed.
 #
-# Redistribution and use in source and binary forms are permitted
-# provided that this notice is preserved and due credit is given
-# to the original author and the contributors.
+# See the IPFILTER.LICENCE file for details on licencing.
 #
-# $Id: Makefile,v 2.11.2.6 2000/12/17 12:43:15 darrenr Exp $
+# $Id: Makefile,v 2.11.2.8 2001/06/26 10:43:10 darrenr Exp $
 #
 BINDEST=/usr/local/bin
 SBINDEST=/sbin
@@ -19,6 +17,7 @@ TOP=../..
 CFLAGS=-I$$(TOP)
 CPU=`uname -m`
 CPUDIR=`uname -s|sed -e 's@/@@g'`-`uname -r`-`uname -m`
+IPFILKERN=`/bin/ls -1tr /usr/src/sys/compile | grep -v .bak | tail -1`
 #
 # To enable this to work as a Loadable Kernel Module...
 #
@@ -262,7 +261,7 @@ install-sunos4: solaris
 	(cd SunOS4; $(MAKE) "CPU=$(CPU) TOP=.." install)
 
 install-sunos5: solaris
-	(cd SunOS5; $(MAKE) "CPU=$(CPU) TOP=.." install)
+	(cd SunOS5; $(MAKE) "CPUDIR=`uname -p`-`uname -r`" "CPU=$(CPU) TOP=.." install)
 
 install-irix: irix
 	(cd IRIX; smake install "CPU=$(CPU) TOP=.." $(DEST) $(MFLAGS))
