@@ -335,14 +335,14 @@ MALLOC_DECLARE(M_IFMADDR);
 #ifndef _KERNEL
 struct if_nameindex {
 	unsigned int	if_index;	/* 1, 2, ... */
-	char	*if_name;	/* null terminated name: "le0", ... */
+	char		*if_name;	/* null terminated name: "le0", ... */
 };
 
 __BEGIN_DECLS
-unsigned int if_nametoindex(const char *);
-char	*if_indextoname(unsigned int, char *);
-struct	 if_nameindex *if_nameindex(void);
-void	 if_freenameindex(struct if_nameindex *);
+void			 if_freenameindex(struct if_nameindex *);
+char			*if_indextoname(unsigned int, char *);
+struct if_nameindex	*if_nameindex(void);
+unsigned int		 if_nametoindex(const char *);
 __END_DECLS
 #endif
 
