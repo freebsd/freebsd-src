@@ -173,6 +173,8 @@ extern vm_object_t kmem_object;
 #define	VM_OBJECT_LOCK(object)		mtx_lock(&(object)->mtx)
 #define	VM_OBJECT_LOCK_ASSERT(object, type) \
 					mtx_assert(&(object)->mtx, (type))
+#define	VM_OBJECT_LOCK_INIT(object)	mtx_init(&(object)->mtx, "vm object", \
+					    NULL, MTX_DEF | MTX_DUPOK)
 #define	VM_OBJECT_LOCKED(object)	mtx_owned(&(object)->mtx)
 #define	VM_OBJECT_MTX(object)		(&(object)->mtx)
 #define	VM_OBJECT_UNLOCK(object)	mtx_unlock(&(object)->mtx)
