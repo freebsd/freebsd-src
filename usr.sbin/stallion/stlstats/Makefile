@@ -1,9 +1,9 @@
-# $Id: Makefile,v 1.3 1997/02/22 16:13:48 peter Exp $
+# $Id: Makefile,v 1.4 1997/03/13 04:21:38 davidn Exp $
 
 PROG=	stlstats
 MAN8=	stlstats.8
 
-LDADD=	-lncurses
-DPADD=	${LIBNCURSES}
+DPADD=	${LIBNCURSES} ${LIBMYTINFO}
+LDADD=	-lncurses -lmytinfo
 
 .include <bsd.prog.mk>
