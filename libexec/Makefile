@@ -2,10 +2,35 @@
 # $FreeBSD$
 
 # Present but disabled: kpasswdd
-SUBDIR=	atrun bootpd comsat fingerd ftpd getNAME getty \
-	makekey mknetid named-xfer pppoed rbootd revnetgroup rexecd \
-	rlogind rpc.rquotad rpc.rstatd rpc.rusersd rpc.rwalld \
-	rpc.sprayd rshd talkd tftpd uucpd xtend ypxfr
+SUBDIR=	atrun \
+	bootpd \
+	comsat \
+	fingerd \
+	ftpd \
+	getNAME \
+	getty \
+	makekey \
+	mknetid \
+	pppoed \
+	rbootd \
+	revnetgroup \
+	rexecd \
+	rlogind \
+	rpc.rquotad \
+	rpc.rstatd \
+	rpc.rusersd \
+	rpc.rwalld \
+	rpc.sprayd \
+	rshd \
+	talkd \
+	tftpd \
+	uucpd \
+	xtend \
+	ypxfr
+
+.if !defined(NO_BIND) && 0
+SUBDIR+=named-xfer
+.endif
 
 .if !defined(NO_SENDMAIL)
 SUBDIR+=mail.local smrsh

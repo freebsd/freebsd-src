@@ -33,9 +33,7 @@ SUBDIR=	apply \
 	cpp \
 	ctags \
 	cut \
-	dig \
 	dirname \
-	dnsquery \
 	du \
 	ee \
 	enigma \
@@ -62,7 +60,6 @@ SUBDIR=	apply \
 	gprof \
 	head \
 	hexdump \
-	host \
 	id \
 	indent \
 	ipcrm \
@@ -204,6 +201,12 @@ SUBDIR=	apply \
     !defined(MAKE_KERBEROS4)
 # Releases need both this non-crypt telnet and the crypt telnet.
 SUBDIR+=telnet
+.endif
+
+.if !defined(NO_BIND) && 0
+SUBDIR+=dig \
+	dnsquery \
+	host
 .endif
 
 .if ${MACHINE_ARCH} == "i386"
