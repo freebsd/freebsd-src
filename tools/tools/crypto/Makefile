@@ -13,5 +13,8 @@ cryptokeytest: cryptokeytest.c
 cryptostats: cryptostats.c
 	${CC} -o cryptostats cryptostats.c
 
+ubsecstats: ubsecstats.c
+	${CC} -o ubsecstats ubsecstats.c
+
 clean:
 	rm -f ${ALL} core a.out
