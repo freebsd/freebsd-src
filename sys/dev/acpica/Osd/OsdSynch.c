@@ -409,8 +409,8 @@ acpi_acquire_global_lock(uint32_t *lock)
 
 	do {
 		old = *lock;
-		new = (((old & ~GL_BIT_MASK) | GL_BIT_OWNED) |
-			((old >> 1) & GL_BIT_PENDING));
+		new = ((old & ~GL_BIT_MASK) | GL_BIT_OWNED) |
+			((old >> 1) & GL_BIT_PENDING);
 	} while (atomic_cmpset_acq_int(lock, old, new) == 0);
 
 	return ((new < GL_BIT_MASK) ? GL_ACQUIRED : GL_BUSY);
