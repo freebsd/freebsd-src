@@ -1379,6 +1379,12 @@ restart:
 			m_freem(ni->ni_rxfrag[0]);
 			ni->ni_rxfrag[0] = NULL;
 		}
+		/*
+		 * Special case ourself; we may be idle for extended periods
+		 * of time and regardless reclaiming our state is wrong.
+		 */
+		if (ni == ic->ic_bss)
+			continue;
 		ni->ni_inact--;
 		if (ni->ni_associd != 0) {
 			/*
