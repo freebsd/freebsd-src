@@ -37,7 +37,6 @@
 int
 cap_set_proc(cap_t cap_p)
 {
-	int	error;
 
 	return (__cap_set_proc(cap_p));
 }
