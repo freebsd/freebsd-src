@@ -367,7 +367,7 @@ boot0bs(const u_int8_t *bs)
         if (memcmp(bs + ident[i].off, ident[i].key, ident[i].len))
 	    return 0;
     return 1;
-};
+}
 
 /*
  * Adjust "and" and "or" masks for a -o option argument.

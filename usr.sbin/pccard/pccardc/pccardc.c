@@ -36,7 +36,7 @@ static const char rcsid[] =
 
 typedef int (*main_t)(int, char **);
 
-#define DECL(foo) int foo(int, char**);
+#define DECL(foo) int foo(int, char**)
 DECL(beep_main);
 DECL(dumpcis_main);
 DECL(dumpcisfile_main);

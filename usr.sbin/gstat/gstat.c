@@ -62,7 +62,7 @@ main(int argc, char **argv)
 	struct timespec tp, tq;
 	struct gmesh gmp;
 	struct gprovider *pp;
-	struct gconsumer *cp;;
+	struct gconsumer *cp;
 	struct gident *gid;
 	short cf, cb;
 	char *p;

@@ -20,7 +20,7 @@
  * Local function declarations
  */
 static void		fatal __P((char *fmt, ...)) __printflike(1, 2);
-static void		warn __P((char *fmt, ...)) __printflike(1, 2);;
+static void		warn __P((char *fmt, ...)) __printflike(1, 2);
 static void		yyerror __P((char *s));
 static char *		next_word __P((void));
 static int		yylex __P((void));
