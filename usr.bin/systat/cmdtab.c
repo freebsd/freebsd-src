@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)cmdtab.c	8.1 (Berkeley) 6/6/93";
 */
 static const char rcsid[] =
-	"$Id$";
+	"$Id: cmdtab.c,v 1.2 1997/09/24 02:43:37 wollman Exp $";
 #endif /* not lint */
 
 #include "systat.h"
@@ -65,6 +65,9 @@ struct	cmdtab cmdtab[] = {
 	{ "icmp",	showicmp,	fetchicmp,	labelicmp,
 	  initicmp,	openicmp,	closeicmp,	cmdmode,
 	  reseticmp,	CF_LOADAV },
+	{ "ip",		showip,		fetchip,	labelip,
+	  initip,	openip,		closeip,	cmdmode,
+	  resetip,	CF_LOADAV },
         { 0 }
 };
 struct  cmdtab *curcmd = &cmdtab[0];
