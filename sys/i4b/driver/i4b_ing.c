@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2000 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1999, 2001 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,9 @@
  *	i4b_ing.c - isdn4bsd B-channel to netgraph driver
  *	-------------------------------------------------
  *
- *	$Id: i4b_ing.c,v 1.10 2000/04/27 11:35:00 hm Exp $
- *
  * $FreeBSD$
  *
- *	last edit-date: [Thu Apr 27 13:33:18 2000]
+ *	last edit-date: [Tue Jan  1 10:43:58 2002]
  *
  *---------------------------------------------------------------------------*/ 
 
@@ -222,7 +220,7 @@ static struct ng_type typestruct = {
 	ng_ing_cmdlist
 };
 
-NETGRAPH_INIT(ing, &typestruct);
+NETGRAPH_INIT_ORDERED(ing, &typestruct, SI_SUB_DRIVERS, SI_ORDER_ANY);
 
 /*===========================================================================*
  *			DEVICE DRIVER ROUTINES
