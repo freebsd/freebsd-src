@@ -159,8 +159,12 @@ Fixup_Names(struct disk *d)
 		max = NDOSPART;
 #endif
 		for (j = 1; j <= max; j++) {
+#ifdef __ia64__
 			sprintf(c2->oname, "%s%c%d", c1->name,
 			    (c1->type == whole) ? 'p' : 's', j);
+#else
+			sprintf(c2->oname, "%ss%d", c1->name, j);
+#endif
 			for (c3 = c1->part; c3; c3 = c3->next)
 				if (c3 != c2 && !strcmp(c3->name, c2->oname))
 					goto match;
