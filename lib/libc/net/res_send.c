@@ -56,7 +56,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)res_send.c	8.1 (Berkeley) 6/4/93";
 static char orig_rcsid[] = "From: Id: res_send.c,v 8.12 1996/10/08 04:51:06 vixie Exp";
-static char rcsid[] = "$Id: res_send.c,v 1.13 1997/02/22 15:00:35 peter Exp $";
+static char rcsid[] = "$Id: res_send.c,v 1.14 1997/03/10 19:32:46 guido Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 /*
@@ -575,7 +575,11 @@ read_len:
 				timeout.tv_sec = 1;
 			timeout.tv_usec = 0;
 			if (s+1 > FD_SETSIZE) {
-				Perror(stderr, "res_send: too many files");
+#ifdef DEBUG
+				if (_res.options & RES_DEBUG)
+					fprintf(stderr,
+						"res_send: too many files\n");
+#endif
 				res_close();
 				goto next_ns;
 			}
