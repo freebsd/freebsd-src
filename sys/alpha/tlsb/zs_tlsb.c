@@ -97,7 +97,7 @@ void		zs_cnputc __P((dev_t, int));
 static void	zs_cnpollc __P((dev_t, int));
 
 struct consdev zs_cons = {
-	NULL, NULL, zs_cngetc, NULL, zs_cnputc,
+	NULL, NULL, NULL, zs_cngetc, NULL, zs_cnputc,
 	NULL, 0, CN_NORMAL,
 };
 
@@ -114,14 +114,11 @@ static device_method_t zs_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		zs_probe),
 	DEVMETHOD(device_attach,	zs_attach),
-
 	{ 0, 0 }
 };
 
 static driver_t zs_driver = {
-	"zs",
-	zs_methods,
-	sizeof(struct zs_softc),
+	"zs", zs_methods, sizeof (struct zs_softc),
 };
 
 static int
@@ -212,8 +209,6 @@ zs_putc(caddr_t base, int chan, int c)
     zs_put_data(base, chan, c);
 }
 
-extern struct consdev* cn_tab;
-
 int
 zs_cnattach(vm_offset_t base, vm_offset_t offset)
 {
@@ -240,11 +235,6 @@ zs_cnputc(dev_t dev, int c)
     int s = spltty();
     zs_putc(zs_console_addr, minor(dev), c);
     splx(s);
-}
-
-static void
-zs_cnpollc(dev_t dev, int onoff)
-{
 }
 
 
@@ -441,7 +431,6 @@ zsc_tlsb_attach(device_t dev)
 {
 	struct zsc_softc* sc = device_get_softc(dev);
 	device_t parent = device_get_parent(dev);
-	void *ih;
 
 	cdevsw_add(&zs_cdevsw);
 
