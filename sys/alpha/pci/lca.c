@@ -215,6 +215,10 @@ lca_init()
 	chipset = lca_chipset;
 }
 
+static void
+lca_machine_check(unsigned long mces, struct trapframe *framep,
+    unsigned long vector, unsigned long param);
+
 static int
 lca_probe(device_t dev)
 {
@@ -225,6 +229,8 @@ lca_probe(device_t dev)
 
 	isa_init_intr();
 	lca_init_sgmap();
+
+	platform.mcheck_handler = lca_machine_check;
 
 	device_add_child(dev, "pcib", 0);
 
@@ -247,6 +253,18 @@ lca_attach(device_t dev)
 
 	bus_generic_attach(dev);
 	return 0;
+}
+
+static void
+lca_machine_check(unsigned long mces, struct trapframe *framep,
+    unsigned long vector, unsigned long param)
+{
+	long stat0;
+
+	machine_check(mces, framep, vector, param);
+	/* clear error flags in IOC_STATUS0 register */
+	stat0 = REGVAL64(LCA_IOC_STAT0);
+	REGVAL64(LCA_IOC_STAT0) = stat0;
 }
 
 DRIVER_MODULE(lca, root, lca_driver, lca_devclass, 0, 0);
