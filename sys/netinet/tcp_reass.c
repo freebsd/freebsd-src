@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_input.c	8.12 (Berkeley) 5/24/95
- *	$Id: tcp_input.c,v 1.44 1996/04/27 18:19:10 ache Exp $
+ *	$Id: tcp_input.c,v 1.45 1996/05/02 05:31:12 fenner Exp $
  */
 
 #ifndef TUBA_INCLUDE
@@ -378,7 +378,7 @@ findpcb:
 	 */
 	if (inp == NULL) {
 		if (log_in_vain && tiflags & TH_SYN) {
-			char buf[4*sizeof "123."];
+			char buf[4*sizeof "123"];
 
 			strcpy(buf, inet_ntoa(ti->ti_dst));
 			log(LOG_INFO, "Connection attempt to TCP %s:%d"
