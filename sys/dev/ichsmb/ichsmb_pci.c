@@ -73,6 +73,7 @@ __FBSDID("$FreeBSD$");
 #define ID_82801CA			0x24838086
 #define ID_82801DC			0x24C38086
 #define ID_82801EB			0x24D38086
+#define ID_6300ESB			0x25a48086
 
 #define PCIS_SERIALBUS_SMBUS_PROGIF	0x00
 
@@ -137,6 +138,9 @@ ichsmb_pci_probe(device_t dev)
 	case ID_82801EB:
 		device_set_desc(dev, "Intel 82801EB (ICH5) SMBus controller");
 		break;
+	case ID_6300ESB:
+		device_set_desc(dev, "Intel 6300ESB (ICH) SMBus controller");
+		break;
 	default:
 		if (pci_get_class(dev) == PCIC_SERIALBUS
 		    && pci_get_subclass(dev) == PCIS_SERIALBUS_SMBUS
@@ -167,6 +171,9 @@ ichsmb_pci_attach(device_t dev)
 	sc->io_rid = ICH_SMB_BASE;
 	sc->io_res = bus_alloc_resource(dev, SYS_RES_IOPORT,
 	    &sc->io_rid, 0, ~0, 16, RF_ACTIVE);
+	if (sc->io_res == NULL)
+		sc->io_res = bus_alloc_resource(dev, SYS_RES_IOPORT,
+		    &sc->io_rid, 0, ~0, 32, RF_ACTIVE);
 	if (sc->io_res == NULL) {
 		log(LOG_ERR, "%s: can't map I/O\n", device_get_nameunit(dev));
 		error = ENXIO;
