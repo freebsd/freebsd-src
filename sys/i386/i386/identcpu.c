@@ -2,6 +2,8 @@
  * Copyright (c) 1992 Terrence R. Lambert.
  * Copyright (c) 1982, 1987, 1990 The Regents of the University of California.
  * Copyright (c) 1997 KATO Takenori.
+ * Copyright (c) 2001 Tamotsu Hattori.
+ * Copyright (c) 2001 Mitsuru IWASAKI.
  * All rights reserved.
  *
  * This code is derived from software contributed to Berkeley by
@@ -74,6 +76,8 @@ static void identifycyrix(void);
 static void print_AMD_features(u_int *regs);
 static void print_AMD_info(u_int amd_maxregs);
 static void print_AMD_assoc(int i);
+static void print_transmeta_info(void);
+static void setup_tmx86_longrun(void);
 static void do_cpuid(u_int ax, u_int *p);
 
 u_int	cyrix_did;		/* Device ID of Cyrix CPU */
@@ -487,8 +491,22 @@ printcpuinfo(void)
 		default:
 			strcat(cpu_model, "Unknown");
 		}
-	} else if (strcmp(cpu_vendor, "IBM") == 0)
+	} else if (strcmp(cpu_vendor, "IBM") == 0) {
 		strcpy(cpu_model, "Blue Lightning CPU");
+	} else if (strcmp(cpu_vendor, "GenuineTMx86") == 0 ||
+		   strcmp(cpu_vendor, "TransmetaCPU") == 0) {
+		do_cpuid(0x80000000, regs);
+		nreg = regs[0];
+		if (nreg >= 0x80000004) {
+			do_cpuid(0x80000002, regs);
+			memcpy(cpu_model, regs, sizeof regs);
+			do_cpuid(0x80000003, regs);
+			memcpy(cpu_model+16, regs, sizeof regs);
+			do_cpuid(0x80000004, regs);
+			memcpy(cpu_model+32, regs, sizeof regs);
+		}
+		cpu_model[64] = '\0';
+	}
 #endif
 
 	printf("%s (", cpu_model);
@@ -604,11 +622,20 @@ printcpuinfo(void)
 		printf("\n");
 
 #endif
+	if (strcmp(cpu_vendor, "GenuineTMx86") == 0 ||
+	    strcmp(cpu_vendor, "TransmetaCPU") == 0) {
+		setup_tmx86_longrun();
+	}
+
 	if (!bootverbose)
 		return;
 
 	if (strcmp(cpu_vendor, "AuthenticAMD") == 0)
 		print_AMD_info(nreg);
+	else if (strcmp(cpu_vendor, "GenuineTMx86") == 0 ||
+		 strcmp(cpu_vendor, "TransmetaCPU") == 0)
+		print_transmeta_info();
+
 #ifdef I686_CPU
 	/*
 	 * XXX - Do PPro CPUID level=2 stuff here?
@@ -1001,3 +1028,228 @@ print_AMD_features(u_int *regs)
 		"\0403DNow!"
 		);
 }
+
+/*
+ * Transmeta Crusoe LongRun Support by Tamotsu Hattori. 
+ */
+
+#define MSR_TMx86_LONGRUN		0x80868010
+#define MSR_TMx86_LONGRUN_FLAGS		0x80868011
+
+#define LONGRUN_MODE_MASK(x)		((x) & 0x000000007f)
+#define LONGRUN_MODE_RESERVED(x)	((x) & 0xffffff80)
+#define LONGRUN_MODE_WRITE(x, y)	(LONGRUN_MODE_RESERVED(x) | LONGRUN_MODE_MASK(y))
+
+#define LONGRUN_MODE_MINFREQUENCY	0x00
+#define LONGRUN_MODE_ECONOMY		0x01
+#define LONGRUN_MODE_PERFORMANCE	0x02
+#define LONGRUN_MODE_MAXFREQUENCY	0x03
+#define LONGRUN_MODE_UNKNOWN		0x04
+#define LONGRUN_MODE_MAX		0x04
+
+union msrinfo {
+	u_int64_t	msr;
+	u_int32_t	regs[2];
+};
+
+u_int32_t longrun_modes[LONGRUN_MODE_MAX][3] = {
+	/*  MSR low, MSR high, flags bit0 */
+	{	  0,	  0,		0},	/* LONGRUN_MODE_MINFREQUENCY */
+	{	  0,	100,		0},	/* LONGRUN_MODE_ECONOMY */
+	{	  0,	100,		1},	/* LONGRUN_MODE_PERFORMANCE */
+	{	100,	100,		1},	/* LONGRUN_MODE_MAXFREQUENCY */
+};
+
+static u_int 
+tmx86_get_longrun_mode(void)
+{
+	u_long		eflags;
+	union msrinfo	msrinfo;
+	u_int		low, high, flags, mode;
+
+	eflags = read_eflags();
+	disable_intr();
+
+	msrinfo.msr = rdmsr(MSR_TMx86_LONGRUN);
+	low = LONGRUN_MODE_MASK(msrinfo.regs[0]);
+	high = LONGRUN_MODE_MASK(msrinfo.regs[1]);
+	flags = rdmsr(MSR_TMx86_LONGRUN_FLAGS) & 0x01;
+
+	for (mode = 0; mode < LONGRUN_MODE_MAX; mode++) {
+		if (low   == longrun_modes[mode][0] &&
+		    high  == longrun_modes[mode][1] &&
+		    flags == longrun_modes[mode][2]) {
+			goto out;
+		}
+	}
+	mode = LONGRUN_MODE_UNKNOWN;
+out:
+	write_eflags(eflags);
+	return (mode);
+}
+
+static u_int 
+tmx86_get_longrun_status(u_int * frequency, u_int * voltage, u_int * percentage)
+{
+	u_long		eflags;
+	u_int		regs[4];
+
+	eflags = read_eflags();
+	disable_intr();
+
+	do_cpuid(0x80860007, regs);
+	*frequency = regs[0];
+	*voltage = regs[1];
+	*percentage = regs[2];
+
+	write_eflags(eflags);
+	return (1);
+}
+
+static u_int 
+tmx86_set_longrun_mode(u_int mode)
+{
+	u_long		eflags;
+	union msrinfo	msrinfo;
+
+	if (mode >= LONGRUN_MODE_UNKNOWN) {
+		return (0);
+	}
+
+	eflags = read_eflags();
+	disable_intr();
+
+	/* Write LongRun mode values to Model Specific Register. */
+	msrinfo.msr = rdmsr(MSR_TMx86_LONGRUN);
+	msrinfo.regs[0] = LONGRUN_MODE_WRITE(msrinfo.regs[0],
+					     longrun_modes[mode][0]);
+	msrinfo.regs[1] = LONGRUN_MODE_WRITE(msrinfo.regs[1],
+					     longrun_modes[mode][1]);
+	wrmsr(MSR_TMx86_LONGRUN, msrinfo.msr);
+
+	/* Write LongRun mode flags to Model Specific Register. */
+	msrinfo.msr = rdmsr(MSR_TMx86_LONGRUN_FLAGS);
+	msrinfo.regs[0] = (msrinfo.regs[0] & ~0x01) | longrun_modes[mode][2];
+	wrmsr(MSR_TMx86_LONGRUN_FLAGS, msrinfo.msr);
+
+	write_eflags(eflags);
+	return (1);
+}
+
+static u_int			 crusoe_longrun;
+static u_int			 crusoe_frequency;
+static u_int	 		 crusoe_voltage;
+static u_int	 		 crusoe_percentage;
+static struct sysctl_ctx_list	 crusoe_sysctl_ctx;
+static struct sysctl_oid	*crusoe_sysctl_tree;
+
+static int
+tmx86_longrun_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	u_int	mode;
+	int	error;
+
+	crusoe_longrun = tmx86_get_longrun_mode();
+	mode = crusoe_longrun;
+	error = sysctl_handle_int(oidp, &mode, 0, req);
+	if (error || !req->newptr) {
+		return (error);
+	}
+	if (mode >= LONGRUN_MODE_UNKNOWN) {
+		error = EINVAL;
+		return (error);
+	}
+	if (crusoe_longrun != mode) {
+		crusoe_longrun = mode;
+		tmx86_set_longrun_mode(crusoe_longrun);
+	}
+
+	return (error);
+}
+
+static int
+tmx86_status_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	u_int	val;
+	int	error;
+
+	tmx86_get_longrun_status(&crusoe_frequency,
+				 &crusoe_voltage, &crusoe_percentage);
+	val = *(u_int *)oidp->oid_arg1;
+	error = sysctl_handle_int(oidp, &val, 0, req);
+	return (error);
+}
+
+static void
+setup_tmx86_longrun(void)
+{
+	static int	done = 0;
+
+	if (done)
+		return;
+	done++;
+
+	sysctl_ctx_init(&crusoe_sysctl_ctx);
+	crusoe_sysctl_tree = SYSCTL_ADD_NODE(&crusoe_sysctl_ctx,
+				SYSCTL_STATIC_CHILDREN(_hw), OID_AUTO,
+				"crusoe", CTLFLAG_RD, 0,
+				"Transmeta Crusoe LongRun support");
+	SYSCTL_ADD_PROC(&crusoe_sysctl_ctx, SYSCTL_CHILDREN(crusoe_sysctl_tree),
+		OID_AUTO, "longrun", CTLTYPE_INT | CTLFLAG_RW,
+		&crusoe_longrun, 0, tmx86_longrun_sysctl, "I",
+		"LongRun mode [0-3]");
+	SYSCTL_ADD_PROC(&crusoe_sysctl_ctx, SYSCTL_CHILDREN(crusoe_sysctl_tree),
+		OID_AUTO, "frequency", CTLTYPE_INT | CTLFLAG_RD,
+		&crusoe_frequency, 0, tmx86_status_sysctl, "I",
+		"Current frequency (MHz)");
+	SYSCTL_ADD_PROC(&crusoe_sysctl_ctx, SYSCTL_CHILDREN(crusoe_sysctl_tree),
+		OID_AUTO, "voltage", CTLTYPE_INT | CTLFLAG_RD,
+		&crusoe_voltage, 0, tmx86_status_sysctl, "I",
+		"Current voltage (mV)");
+	SYSCTL_ADD_PROC(&crusoe_sysctl_ctx, SYSCTL_CHILDREN(crusoe_sysctl_tree),
+		OID_AUTO, "percentage", CTLTYPE_INT | CTLFLAG_RD,
+		&crusoe_percentage, 0, tmx86_status_sysctl, "I",
+		"Processing performance (%)");
+}
+
+static void
+print_transmeta_info()
+{
+	u_int regs[4], nreg = 0;
+
+	do_cpuid(0x80860000, regs);
+	nreg = regs[0];
+	if (nreg >= 0x80860001) {
+		do_cpuid(0x80860001, regs);
+		printf("  Processor revision %u.%u.%u.%u\n",
+		       (regs[1] >> 24) & 0xff,
+		       (regs[1] >> 16) & 0xff,
+		       (regs[1] >> 8) & 0xff,
+		       regs[1] & 0xff);
+	}
+	if (nreg >= 0x80860002) {
+		do_cpuid(0x80860002, regs);
+		printf("  Code Morphing Software revision %u.%u.%u-%u-%u\n",
+		       (regs[1] >> 24) & 0xff,
+		       (regs[1] >> 16) & 0xff,
+		       (regs[1] >> 8) & 0xff,
+		       regs[1] & 0xff,
+		       regs[2]);
+	}
+	if (nreg >= 0x80860006) {
+		char info[65];
+		do_cpuid(0x80860003, (u_int*) &info[0]);
+		do_cpuid(0x80860004, (u_int*) &info[16]);
+		do_cpuid(0x80860005, (u_int*) &info[32]);
+		do_cpuid(0x80860006, (u_int*) &info[48]);
+		info[64] = 0;
+		printf("  %s\n", info);
+	}
+
+	crusoe_longrun = tmx86_get_longrun_mode();
+	tmx86_get_longrun_status(&crusoe_frequency,
+				 &crusoe_voltage, &crusoe_percentage);
+	printf("  LongRun mode: %d  <%dMHz %dmV %d%%>\n", crusoe_longrun,
+	       crusoe_frequency, crusoe_voltage, crusoe_percentage);
+}
+
