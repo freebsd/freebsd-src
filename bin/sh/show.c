@@ -51,6 +51,7 @@ static const char rcsid[] =
 #if DEBUG == 2
 #include <errno.h>
 #endif
+#include <errno.h>
 
 #include "shell.h"
 #include "parser.h"
@@ -304,9 +305,9 @@ trputc(c)
 
 void
 #ifdef __STDC__
-trace(const char *fmt, ...)
+sh_trace(const char *fmt, ...)
 #else
-trace(va_alist)
+sh_trace(va_alist)
 	va_dcl
 #endif
 {
