@@ -35,13 +35,9 @@
  * SUCH DAMAGE.
  *
  *	from:@(#)syscons.c	1.3 940129
- *	$Id: syscons.c,v 1.32 1994/02/01 19:04:18 nate Exp $
+ *	$Id: syscons.c,v 1.33 1994/02/02 23:10:55 ache Exp $
  *
  */
-
-#if !defined(FADE_SAVER) && !defined(BLANK_SAVER) && !defined(STAR_SAVER) && !defined(SNAKE_SAVER)
-#define BLANK_SAVER
-#endif
 
 #if !defined(__FreeBSD__)
 #define FAT_CURSOR
@@ -187,6 +183,7 @@ static	int	 	delayed_next_scr;
 static	char		saved_console = -1;	/* saved console number	*/
 static	long		scrn_blank_time = 0;	/* screen saver timout value */
 static	int		scrn_blanked = 0;	/* screen saver active flag */
+static	int		scrn_saver = 0;		/* screen saver routine */
 static	long 		scrn_time_stamp;
 static  u_char		scr_map[256];
 extern	int hz;
@@ -214,7 +211,6 @@ int getchar(void);
 static void scinit(void);
 static void scput(u_char c);
 static u_int scgetc(int noblock);
-static void scrn_saver(int test);
 static struct tty *get_tty_ptr(dev_t dev);
 static scr_stat *get_scr_stat(dev_t dev);
 static int get_scr_num();
@@ -242,6 +238,27 @@ static void save_palette(void);
 static void load_palette(void);
 static void change_winsize(struct tty *tp, int x, int y);
 
+
+/* available screen savers */
+
+static void none_saver(int test);
+static void blank_saver(int test);
+static void fade_saver(int test);
+static void star_saver(int test);
+static void snake_saver(int test);
+
+static const struct {
+	char	*name;
+	void	(*routine)();
+} screen_savers[] = {
+	{ "none",	none_saver },	/* 0 */
+	{ "blank",	blank_saver },	/* 1 */
+	{ "fade",	fade_saver },	/* 2 */
+	{ "star",	star_saver },	/* 3 */
+	{ "snake",	snake_saver },	/* 4 */
+};
+#define SCRN_SAVER(arg)	(*screen_savers[scrn_saver].routine)(arg)
+#define NUM_SCRN_SAVERS	(sizeof(screen_savers) / sizeof(screen_savers[0]))
 
 /* OS specific stuff */
 
@@ -495,7 +512,7 @@ void scintr(int unit)
 	/* make screensaver happy */
 	scrn_time_stamp = time.tv_sec;
 	if (scrn_blanked)
-		scrn_saver(0);
+		SCRN_SAVER(0);
 
 	c = scgetc(1);
 
@@ -559,7 +576,27 @@ int pcioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	case CONS_BLANKTIME:	/* set screen saver timeout (0 = no saver) */
 		scrn_blank_time = *(int*)data;
 		return 0;
-
+	case CONS_SSAVER:	/* set screen saver */
+		{
+		register ssaver_t *sav = (ssaver_t *)data;
+		if (sav->num < 0 || sav->num >= NUM_SCRN_SAVERS)
+			return EIO;
+		SCRN_SAVER(0);
+		scrn_saver = sav->num;
+		scrn_blank_time = sav->time;
+		return 0;
+		}
+	case CONS_GSAVER:	/* get screen saver info */
+		{
+		register ssaver_t *sav = (ssaver_t *)data;
+		if (sav->num < 0)
+			sav->num = scrn_saver;
+		else if (sav->num >= NUM_SCRN_SAVERS)
+			return EIO;
+		sav->time = scrn_blank_time;
+		strcpy(sav->name, screen_savers[sav->num].name);
+		return 0;
+		}
 	case CONS_80x25TEXT:	/* set 80x25 text mode */
 		if (!crtc_vga)
 			return ENXIO;
@@ -1102,8 +1139,11 @@ int pccngetc(dev_t dev)
 	return(c);
 }
 
-#if defined(FADE_SAVER)
-static void scrn_saver(int test)
+static void none_saver(int test)
+{
+}
+
+static void fade_saver(int test)
 {
 	static int count = 0;
 	int i;
@@ -1132,9 +1172,9 @@ static void scrn_saver(int test)
 		load_palette();
 	}
 }
-#endif
 
-#if defined(BLANK_SAVER)
+static void blank_saver(int test)
+{
 	u_char val;
 	if (test) {
 		scrn_blanked = 1;
@@ -1146,18 +1186,15 @@ static void scrn_saver(int test)
   		outb(TSIDX, 0x01); val = inb(TSREG); 
 		outb(TSIDX, 0x01); outb(TSREG, val & 0xDF);
 	}
-#endif
+}
 
-#if defined(STAR_SAVER) || defined(SNAKE_SAVER)
 static u_long 	rand_next = 1;
 
 static int rand()
 {
 	return ((rand_next = rand_next * 1103515245 + 12345) & 0x7FFFFFFF);
 }
-#endif
 
-#if defined(STAR_SAVER)
 /*
  * Alternate saver that got its inspiration from a well known utility
  * package for an unfamous OS.
@@ -1165,7 +1202,7 @@ static int rand()
 
 #define NUM_STARS	50
 
-static void scrn_saver(int test)
+static void star_saver(int test)
 {
 	scr_stat	*scp = cur_console;
 	int		cell, i;
@@ -1211,14 +1248,9 @@ static void scrn_saver(int test)
 		}
 	}
 }
-#endif
 
-#if defined(SNAKE_SAVER)
-/*
- * alternative screen saver for cards that do not like blanking
- */
 
-static void scrn_saver(int test)
+static void snake_saver(int test)
 {
 	const char	saves[] = {"FreeBSD"};
 	static u_char	*savs[sizeof(saves)-1];
@@ -1276,7 +1308,6 @@ static void scrn_saver(int test)
 		}
 	}
 }
-#endif
 
 static void cursor_shape(int start, int end)
 {
@@ -1305,7 +1336,7 @@ static void cursor_pos(int force)
 	if (cur_console->status & UNKNOWN_MODE) 
 		return;
 	if (scrn_blank_time && (time.tv_sec > scrn_time_stamp+scrn_blank_time))
-		scrn_saver(1);
+		SCRN_SAVER(1);
 	pos = cur_console->crtat - cur_console->crt_base;
 	if (force || (!scrn_blanked && pos != cur_cursor_pos)) {
 		cur_cursor_pos = pos;
@@ -1860,7 +1891,7 @@ static void ansi_put(scr_stat *scp, u_char c)
 	if (scp == cur_console) {
 		scrn_time_stamp = time.tv_sec;
 		if (scrn_blanked)
-			scrn_saver(0);
+			SCRN_SAVER(0);
 	}
 	in_putc++;
 	if (scp->term.esc)
