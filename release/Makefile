@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.246.2.18 1996/12/14 22:50:25 jkh Exp $
+#	$Id: Makefile,v 1.246.2.19 1996/12/23 05:56:51 peter Exp $
 #
 # How to roll a release:
 #
@@ -14,7 +14,7 @@
 # otherwise the target 'release.8' and possibly others will fail.
 #
 # SET THIS !!!
-BUILDNAME=2.2-POST-ALPHA
+BUILDNAME=2.2-BETA
 #CHROOTDIR=/junk/release
 # If this is a RELEASE, then set
 RELEASETAG=RELENG_2_2
@@ -429,17 +429,6 @@ release.9:
 	touch release.9
 
 #
-# --==## Create the compat distributions ##==--
-#
-release.10:
-	@for i in compat1x compat20 compat21; do \
-		mkdir -p ${RD}/dists/$$i && ( cd ${RD}/dists/$$i && \
-		uudecode ${.CURDIR}/compat/$$i.tgz.uu && \
-		cp ${.CURDIR}/scripts/$${i}-install.sh install.sh && \
-		md5 * > CHECKSUM.MD5 ); \
-	done
-
-#
 # --==## Setup a suitable ftp-area ##==--
 #
 ftp.1:
@@ -505,7 +494,7 @@ doTARBALL:
 			  > ${RD}/dists/${TD}/$$tn.mtree ; else true; fi )
 
 doRELEASE:  release.1 release.2 release.3 release.4 release.5 release.6 \
-		release.7 release.8 release.9 release.10
+		release.7 release.8 release.9
 	cd ${.CURDIR} && ${MAKE} cdrom.1 ftp.1
 	@echo "Release done"
 
