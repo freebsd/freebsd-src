@@ -1,0 +1,43 @@
+# -*- text -*-
+
+			  AM-UTILS-6.0 MIRRORS
+
+Note: in case of any problems accessing the individual FTP sites, please
+contact their respective maintainers.  If you wish to be added to the
+official mirror list, please send mail to amd-dev@cs.columbia.edu with the
+full URL, maintainer's email, and geographical location.
+
+U.S.A:
+	New York (Primary Site):
+		ftp://shekel.mcl.cs.columbia.edu/pub/am-utils
+		Maintainer: ezk@cs.columbia.edu
+	Maryland:
+		ftp://ftp.cs.umn.edu/pub/AMD
+		Maintainer: dokas@cs.umn.edu
+	Virginia (Newport News):
+*		ftp://www.ferginc.com/pub/unix/am-utils
+		Maintainer: Branson.Matheson@FergInc.com
+
+Europe:
+	Germany:
+		ftp://ftp.fu-berlin.de/pub/unix/network/am-utils
+		Maintainer: ftp-adm@ftp.fu-berlin.de
+	Sweden:
+		ftp://ftp.sunet.se/pub/unix/admin/am-utils
+		Maintainer: archive@ftp.sunet.se
+	Sweden:
+		ftp://ftp.matematik.su.se/pub/mirrors/shekel.mcl.cs.columbia.edu/pub/am-utils
+		Maintainer: lifj@matematik.su.se
+	UK:
+		ftp://sunsite.org.uk/packages/am-utils
+		Maintainer: lmjm@icparc.ic.ac.uk
+
+Asia:
+	Japan:
+		ftp://ftp.u-aizu.ac.jp/pub/net/amd/am-utils
+		Maintainer: ftp-admin@u-aizu.ac.jp
+
+Australia:
+	Melbourne:
+		ftp://ftp.sage-au.org.au/pub/network/filesystem/am-utils
+		Maintainer: mirror@ftp.sage-au.org.au

@@ -1,0 +1,310 @@
+.\"
+.\" Copyright (c) 1997-1998 Erez Zadok
+.\" Copyright (c) 1989 Jan-Simon Pendry
+.\" Copyright (c) 1989 Imperial College of Science, Technology & Medicine
+.\" Copyright (c) 1989 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Jan-Simon Pendry at Imperial College, London.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgment:
+.\"      This product includes software developed by the University of
+.\"      California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id: hlfsd.8,v 1.2 1993/09/14 22:29:10 ezk Exp ezk $
+.\"
+.\" HLFSD was written at Columbia University Computer Science Department, by
+.\" Erez Zadok <ezk@cs.columbia.edu> and Alexander Dupuy <dupuy@smarts.com>
+.\" It is distributed under the same terms and conditions as AMD.
+.\"
+.TH HLFSD 8 "14 September 1993"
+.SH NAME
+hlfsd \- home-link file system daemon
+.SH SYNOPSIS
+.B hlfsd
+[
+.B \-fhnpvC
+] [
+.BI \-a " alt_dir"
+] [
+.BI \-c " cache-interval"
+] [
+.BI \-g " group"
+] [
+.BI \-i " reload-interval"
+] [
+.BI \-l " logfile"
+] [
+.BI \-o " mount-options"
+] [
+.BI \-x " log-options"
+] [
+.BI \-D " debug-options"
+] [
+.BI \-P " password-file"
+]
+[
+.I linkname
+.RI [ " subdir " ]
+]
+.SH DESCRIPTION
+.B Hlfsd
+is a daemon which implements a filesystem containing a symbolic link to
+subdirectory within a user's home directory, depending on the user
+which accessed that link.  It was primarily designed to redirect
+incoming mail to users' home directories, so that it can read from
+anywhere.
+.LP
+.B Hlfsd
+operates by mounting itself as an
+.SM NFS
+server for the directory containing
+.IR linkname ,
+which defaults to
+.BR /hlfs/home .
+Lookups within that directory are handled by
+.BR hlfsd ,
+which uses the password map to determine how to resolve the lookup.
+The directory will be created if it doesn't already exist.  The symbolic link will be to the accessing user's home directory, with
+.I subdir
+appended to it.  If not specified,
+.I subdir
+defaults to 
+.BR .hlfsdir .
+This directory will also be created if it does not already exist.
+.LP
+A SIGTERM sent to
+.B hlfsd
+will cause it to shutdown.  A SIGHUP will flush the internal
+caches, and reload the password map.  It will also close and
+reopen the log file, to enable the original log file to be
+removed or rotated.  A SIGUSR1 will cause it to dump its internal
+table of user IDs and home directories to the file
+.BR /usr/tmp/hlfsd.dump.XXXXXX .
+.SH OPTIONS
+.TP
+.BI \-a " alt_dir"
+Alternate directory.  The name of the directory to which
+the symbolic link returned by
+.B hlfsd
+will point, if it cannot access the home directory of the user.  This
+defaults to
+.BR /var/hlfs .
+This directory will be created  if it doesn't exist.  It is expected
+that either users will read these files, or the system administrators
+will run a script to resend this "lost mail" to its owner.
+.TP
+.BI \-c " cache-interval"
+Caching interval.
+.B Hlfsd
+will cache the validity of home directories for this interval, in
+seconds.  Entries which have been verified within the last
+.I cache-interval
+seconds will not be verified again, since the operation could
+be expensive, and the entries are most likely still valid.
+After the interval has expired,
+.B hlfsd
+will re-verify the validity of the user's home directory, and
+reset the cache time-counter.  The default value for
+.I cache-interval
+is 300 seconds (5 minutes).
+.TP
+.B \-f
+Force fast startup.  This option tells
+.B hlfsd
+to skip startup-time consistency checks such as existence of mount
+directory, alternate spool directory, symlink to be hidden under the
+mount directory, their permissions and validity.
+.TP
+.BI \-g " group"
+Set the special group HLFS_GID to
+.IR group .
+Programs such as
+.B from
+or
+.BR comsat ,
+which access the mailboxes of other users) must be setgid HLFS_GID to
+work properly.  The default group is "hlfs".  If no group is provided,
+and there is no group "hlfs", this feature is disabled.
+.TP
+.B \-h
+Help.  Print a brief help message, and exit.
+.TP
+.BI \-i " reload-interval"
+Map-reloading interval.  Each
+.I reload-interval
+seconds,
+.B hlfsd
+will reload the password map.
+.B Hlfsd
+needs the password map for the UIDs and home directory pathnames.
+.B Hlfsd
+schedules a SIGALRM to reload the password maps.  A SIGHUP sent to
+.B hlfsd
+will force it to reload the maps immediately.   The default
+value for
+.I reload-interval
+is 900 seconds (15 minutes.)
+.TP
+.BI \-l " logfile"
+Specify a log file to which
+.B hlfsd
+will record events.  If
+.I logfile
+is the string
+.B syslog
+then the log messages will be sent to the system log daemon by
+.IR syslog (3),
+using the LOG_DAEMON facility.
+This is also the default.
+.TP
+.B \-n
+No verify.
+.B Hlfsd
+will not verify the validity of the symbolic link it will be
+returning, or that the user's home directory contains
+sufficient disk-space for spooling.  This can speed up
+.B hlfsd
+at the cost of possibly returning symbolic links to home
+directories which are not currently accessible or are full.
+By default,
+.B hlfsd
+validates the symbolic-link in the background.
+The
+.B \-n
+option overrides the meaning of the
+.B \-c
+option, since no caching is necessary.
+.TP
+.BI \-o " mount-options"
+Mount options.  Mount options which
+.B hlfsd
+will use to mount itself on top of
+.I dirname.
+By default,
+.IR mount-options
+is set to "ro".  If the system supports symbolic-link caching, default
+options are set to "ro,nocache".
+.TP
+.B \-p
+Print PID.
+Outputs the process-id of
+.B hlfsd
+to standard output where it can be saved into a file.
+.TP
+.B \-v
+Version.  Displays version information to standard error.
+.TP
+.BI \-x " log-options"
+Specify run-time logging options.  The options are a comma separated
+list chosen from: fatal, error, user, warn, info, map, stats, all.
+.TP
+.BI \-C
+Force
+.B hlfsd
+to run on systems that cannot turn off the NFS attribute-cache.  Use of
+this option on those systems is discouraged, as it may result in loss
+or misdelivery of mail.  The option is ignored on systems that can turn
+off the attribute-cache.
+.TP
+.BI \-D " log-options"
+Select from a variety of debugging options.  Prefixing an
+option with the string
+.B no
+reverses the effect of that option.  Options are cumulative.
+The most useful option is
+.BR all .
+Since this option is only used for debugging other options are not
+documented here.  A fuller description is available in the program
+source.  A SIGUSR1 sent to
+.B hlfsd
+will cause it to dump its internal password map to the file
+.BR /usr/tmp/hlfsd.dump.XXXXXX .
+.TP
+.BI \-P " password-file"
+Read the user-name, user-id, and home directory information from the file
+.I password-file.
+Normally,
+.B hlfsd
+will use
+.IR getpwent (3)
+to read the password database.  This option allows you to override the
+default database, and is useful if you want to map users' mail files to a
+directory other than their home directory.  Only the username, uid, and
+home-directory fields of the file
+.I password-file
+are read and checked.  All other fields are ignored.  The file
+.I password-file
+must otherwise be compliant with Unix System 7 colon-delimited format
+.IR passwd (4).
+.SH FILES
+.PD 0
+.TP 5
+.B /hlfs
+directory under which
+.B hlfsd
+mounts itself and manages the symbolic link
+.BR home .
+.TP 5
+.B .hlfsdir
+default sub-directory in the user's home directory, to which the
+.B home
+symbolic link returned by
+.B hlfsd
+points.
+.TP 5
+.B /var/hlfs
+directory to which
+.B home
+symbolic link returned by
+.B hlfsd
+points if it is unable to verify the that
+user's home directory is accessible.
+.SH "SEE ALSO"
+.BR amd (8),
+.BR automount (8),
+.BR cron(8),
+.BR getgrent (3),
+.BR getpwent (3),
+.BR mail(1),
+.BR mnttab (4),
+.BR mount (8),
+.BR mtab (5),
+.BR passwd (4),
+.BR sendmail (8),
+.BR umount (8).
+.LP
+.IR "HLFSD: Delivering Email to Your $HOME" ,
+in
+.IR "Proc. LISA-VII, The 7th Usenix System Administration Conference" ,
+November 1993.
+.SH AUTHORS
+Erez Zadok <ezk@cs.columbia.edu>, Computer Science Department,
+Columbia University, New York City, New York, USA, and
+Alexander Dupuy <dupuy@smarts.com>, System Management ARTS,
+White Plains, New York, USA.

@@ -1,0 +1,3 @@
+@set UPDATED 22 April 1998
+@set EDITION 6.0a16
+@set VERSION 6.0a16
