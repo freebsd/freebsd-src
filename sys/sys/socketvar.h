@@ -296,7 +296,7 @@ int	soo_ioctl __P((struct file *fp, u_long cmd, caddr_t data,
 	    struct proc *p));
 int	soo_poll __P((struct file *fp, int events, struct ucred *cred,
 	    struct proc *p));
-int	soo_stat __P((struct socket *so, struct stat *ub));
+int	soo_stat __P((struct file *fp, struct stat *ub, struct proc *p));
 
 /*
  * From uipc_socket and friends
