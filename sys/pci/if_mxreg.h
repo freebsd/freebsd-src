@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_mxreg.h,v 1.16 1999/04/08 17:35:38 wpaul Exp $
+ *	$Id: if_mxreg.h,v 1.17 1999/05/06 15:04:00 wpaul Exp $
  */
 
 /*
@@ -93,7 +93,8 @@
 #define MX_BUSCTL_BUF_BIGENDIAN	0x00000080
 #define MX_BUSCTL_BURSTLEN	0x00003F00
 #define MX_BUSCTL_CACHEALIGN	0x0000C000
-#define MX_BUSCTL_XMITPOLL	0x00060000
+#define MX_BUSCTL_TXPOLL	0x000E0000
+#define MX_BUSCTL_MUSTBEONE	0x04000000
 
 #define MX_SKIPLEN_1LONG	0x00000004
 #define MX_SKIPLEN_2LONG	0x00000008
@@ -101,6 +102,7 @@
 #define MX_SKIPLEN_4LONG	0x00000020
 #define MX_SKIPLEN_5LONG	0x00000040
 
+#define MX_CACHEALIGN_NONE	0x00000000
 #define MX_CACHEALIGN_8LONG	0x00004000
 #define MX_CACHEALIGN_16LONG	0x00008000
 #define MX_CACHEALIGN_32LONG	0x0000C000
@@ -398,7 +400,7 @@ struct mx_desc {
 
 #define MX_MAXFRAGS		16
 #define MX_RX_LIST_CNT		64
-#define MX_TX_LIST_CNT		64
+#define MX_TX_LIST_CNT		128
 #define MX_MIN_FRAMELEN		60
 
 /*
@@ -415,8 +417,6 @@ struct mx_txdesc {
 #define MX_TXDATA(x)	x->mx_ptr->mx_frag[x->mx_lastdesc].mx_data
 
 #define MX_TXOWN(x)	x->mx_ptr->mx_frag[0].mx_status
-
-#define MX_UNSENT	0x12341234
 
 struct mx_list_data {
 	struct mx_desc		mx_rx_list[MX_RX_LIST_CNT];
@@ -490,7 +490,7 @@ struct mx_softc {
 	u_int8_t		mx_tx_pend;	/* TX pending */
 	u_int8_t		mx_want_auto;
 	u_int8_t		mx_autoneg;
-	u_int8_t		mx_singlebuf;
+	u_int8_t		mx_cachesize;
 	caddr_t			mx_ldata_ptr;
 	struct mx_list_data	*mx_ldata;
 	struct mx_chain_data	mx_cdata;
@@ -581,6 +581,7 @@ struct mx_softc {
 #define MX_PCI_STATUS		0x06
 #define MX_PCI_REVID		0x08
 #define MX_PCI_CLASSCODE	0x09
+#define MX_PCI_CACHELEN		0x0C
 #define MX_PCI_LATENCY_TIMER	0x0D
 #define MX_PCI_HEADER_TYPE	0x0E
 #define MX_PCI_LOIO		0x10

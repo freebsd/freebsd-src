@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_vrreg.h,v 1.10 1999/02/23 06:47:52 wpaul Exp $
+ *	$Id: if_vrreg.h,v 1.3 1999/02/23 15:38:24 wpaul Exp $
  */
 
 /*
@@ -335,7 +335,7 @@ struct vr_desc {
 
 #define VR_MAXFRAGS		16
 #define VR_RX_LIST_CNT		64
-#define VR_TX_LIST_CNT		64
+#define VR_TX_LIST_CNT		128
 #define VR_MIN_FRAMELEN		60
 #define VR_FRAMELEN		1536
 #define VR_RXLEN		1520
