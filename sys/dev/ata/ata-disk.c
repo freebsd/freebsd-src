@@ -250,11 +250,10 @@ ad_start(struct ata_device *atadev)
 
     /* convert LBA contents if this is an old non-LBA device */
     if (atadev->flags & ATA_D_USE_CHS) {
-	struct ata_params *param = atadev->param;
-	int sector = (bp->bio_pblkno % param->sectors) + 1;
-	int cylinder = bp->bio_pblkno / (param->sectors * param->heads);
+	int sector = (bp->bio_pblkno % adp->sectors) + 1;
+	int cylinder = bp->bio_pblkno / (adp->sectors * adp->heads);
 	int head = (bp->bio_pblkno %
-		    (param->sectors * param->heads)) / param->sectors;
+		    (adp->sectors * adp->heads)) / adp->sectors;
 
 	request->u.ata.lba =
 	    (sector & 0xff) | (cylinder & 0xffff) << 8 | (head & 0xf) << 24;
