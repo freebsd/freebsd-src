@@ -49,21 +49,21 @@ coda/coda_venus.c	optional vcoda
 coda/coda_vfsops.c	optional vcoda
 coda/coda_vnops.c	optional vcoda
 compat/linprocfs/linprocfs.c	 optional linprocfs
-contrib/dev/acpica/dbcmds.c	 optional acpica acpi_debug
-contrib/dev/acpica/dbdisasm.c	 optional acpica acpi_debug
-contrib/dev/acpica/dbdisply.c	 optional acpica acpi_debug
-contrib/dev/acpica/dbexec.c	 optional acpica acpi_debug
-contrib/dev/acpica/dbfileio.c	 optional acpica acpi_debug
-contrib/dev/acpica/dbhistry.c	 optional acpica acpi_debug
-contrib/dev/acpica/dbinput.c	 optional acpica acpi_debug
-contrib/dev/acpica/dbstats.c	 optional acpica acpi_debug
-contrib/dev/acpica/dbutils.c	 optional acpica acpi_debug
-contrib/dev/acpica/dbxface.c	 optional acpica acpi_debug
-contrib/dev/acpica/dsfield.c	 optional acpica
+contrib/dev/acpica/dbcmds.c	 optional acpica acpi_debug nowerror
+contrib/dev/acpica/dbdisasm.c	 optional acpica acpi_debug nowerror
+contrib/dev/acpica/dbdisply.c	 optional acpica acpi_debug nowerror
+contrib/dev/acpica/dbexec.c	 optional acpica acpi_debug nowerror
+contrib/dev/acpica/dbfileio.c	 optional acpica acpi_debug nowerror
+contrib/dev/acpica/dbhistry.c	 optional acpica acpi_debug nowerror
+contrib/dev/acpica/dbinput.c	 optional acpica acpi_debug nowerror
+contrib/dev/acpica/dbstats.c	 optional acpica acpi_debug nowerror
+contrib/dev/acpica/dbutils.c	 optional acpica acpi_debug nowerror
+contrib/dev/acpica/dbxface.c	 optional acpica acpi_debug nowerror
+contrib/dev/acpica/dsfield.c	 optional acpica nowerror
 contrib/dev/acpica/dsmethod.c	 optional acpica
 contrib/dev/acpica/dsmthdat.c	 optional acpica
 contrib/dev/acpica/dsobject.c	 optional acpica
-contrib/dev/acpica/dsopcode.c	 optional acpica
+contrib/dev/acpica/dsopcode.c	 optional acpica nowerror
 contrib/dev/acpica/dsutils.c	 optional acpica
 contrib/dev/acpica/dswexec.c	 optional acpica
 contrib/dev/acpica/dswload.c	 optional acpica
@@ -78,9 +78,9 @@ contrib/dev/acpica/evxface.c	 optional acpica
 contrib/dev/acpica/evxfevnt.c	 optional acpica
 contrib/dev/acpica/evxfregn.c	 optional acpica
 contrib/dev/acpica/exconfig.c	 optional acpica
-contrib/dev/acpica/exconvrt.c	 optional acpica
+contrib/dev/acpica/exconvrt.c	 optional acpica nowerror
 contrib/dev/acpica/excreate.c	 optional acpica
-contrib/dev/acpica/exdump.c	 optional acpica
+contrib/dev/acpica/exdump.c	 optional acpica nowerror
 contrib/dev/acpica/exfield.c	 optional acpica
 contrib/dev/acpica/exfldio.c	 optional acpica
 contrib/dev/acpica/exmisc.c	 optional acpica
@@ -89,34 +89,34 @@ contrib/dev/acpica/exnames.c	 optional acpica
 contrib/dev/acpica/exoparg1.c	 optional acpica
 contrib/dev/acpica/exoparg2.c	 optional acpica
 contrib/dev/acpica/exoparg3.c	 optional acpica
-contrib/dev/acpica/exoparg6.c	 optional acpica
+contrib/dev/acpica/exoparg6.c	 optional acpica nowerror
 contrib/dev/acpica/exprep.c	 optional acpica
 contrib/dev/acpica/exregion.c	 optional acpica
 contrib/dev/acpica/exresnte.c	 optional acpica
 contrib/dev/acpica/exresolv.c	 optional acpica
-contrib/dev/acpica/exresop.c	 optional acpica
+contrib/dev/acpica/exresop.c	 optional acpica nowerror
 contrib/dev/acpica/exstore.c	 optional acpica
 contrib/dev/acpica/exstoren.c	 optional acpica
 contrib/dev/acpica/exstorob.c	 optional acpica
 contrib/dev/acpica/exsystem.c	 optional acpica
 contrib/dev/acpica/exutils.c	 optional acpica
 contrib/dev/acpica/hwacpi.c	 optional acpica
-contrib/dev/acpica/hwgpe.c	 optional acpica
-contrib/dev/acpica/hwregs.c	 optional acpica
+contrib/dev/acpica/hwgpe.c	 optional acpica nowerror
+contrib/dev/acpica/hwregs.c	 optional acpica nowerror
 contrib/dev/acpica/hwsleep.c	 optional acpica
 contrib/dev/acpica/hwtimer.c	 optional acpica
 contrib/dev/acpica/nsaccess.c	 optional acpica
 contrib/dev/acpica/nsalloc.c	 optional acpica
-contrib/dev/acpica/nsdump.c	 optional acpica
+contrib/dev/acpica/nsdump.c	 optional acpica nowerror
 contrib/dev/acpica/nseval.c	 optional acpica
 contrib/dev/acpica/nsinit.c	 optional acpica
 contrib/dev/acpica/nsload.c	 optional acpica
-contrib/dev/acpica/nsnames.c	 optional acpica
+contrib/dev/acpica/nsnames.c	 optional acpica nowerror
 contrib/dev/acpica/nsobject.c	 optional acpica
 contrib/dev/acpica/nssearch.c	 optional acpica
 contrib/dev/acpica/nsutils.c	 optional acpica
 contrib/dev/acpica/nswalk.c	 optional acpica
-contrib/dev/acpica/nsxfname.c	 optional acpica
+contrib/dev/acpica/nsxfname.c	 optional acpica nowerror
 contrib/dev/acpica/nsxfobj.c	 optional acpica
 contrib/dev/acpica/psargs.c	 optional acpica
 contrib/dev/acpica/psfind.c	 optional acpica
@@ -130,7 +130,7 @@ contrib/dev/acpica/psxface.c	 optional acpica
 contrib/dev/acpica/rsaddr.c	 optional acpica
 contrib/dev/acpica/rscalc.c	 optional acpica
 contrib/dev/acpica/rscreate.c	 optional acpica
-contrib/dev/acpica/rsdump.c	 optional acpica
+contrib/dev/acpica/rsdump.c	 optional acpica nowerror
 contrib/dev/acpica/rsio.c	 optional acpica
 contrib/dev/acpica/rsirq.c	 optional acpica
 contrib/dev/acpica/rslist.c	 optional acpica
@@ -145,16 +145,16 @@ contrib/dev/acpica/tbutils.c	 optional acpica
 contrib/dev/acpica/tbxface.c	 optional acpica
 contrib/dev/acpica/tbxfroot.c	 optional acpica
 contrib/dev/acpica/utalloc.c	 optional acpica
-contrib/dev/acpica/utclib.c	 optional acpica
-contrib/dev/acpica/utcopy.c	 optional acpica
-contrib/dev/acpica/utdebug.c	 optional acpica
+contrib/dev/acpica/utclib.c	 optional acpica nowerror
+contrib/dev/acpica/utcopy.c	 optional acpica nowerror
+contrib/dev/acpica/utdebug.c	 optional acpica nowerror
 contrib/dev/acpica/utdelete.c	 optional acpica
 contrib/dev/acpica/uteval.c	 optional acpica
-contrib/dev/acpica/utglobal.c	 optional acpica
+contrib/dev/acpica/utglobal.c	 optional acpica nowerror
 contrib/dev/acpica/utinit.c	 optional acpica
 contrib/dev/acpica/utmath.c	 optional acpica
-contrib/dev/acpica/utmisc.c	 optional acpica
-contrib/dev/acpica/utobject.c	 optional acpica
+contrib/dev/acpica/utmisc.c	 optional acpica nowerror
+contrib/dev/acpica/utobject.c	 optional acpica nowerror
 contrib/dev/acpica/utxface.c	 optional acpica
 contrib/ipfilter/netinet/fil.c		optional ipfilter inet
 contrib/ipfilter/netinet/ip_auth.c	optional ipfilter inet
@@ -198,15 +198,15 @@ dev/aac/aac_disk.c	optional aac
 dev/aac/aac_pci.c	optional aac pci
 dev/acpica/acpi.c		optional acpica
 dev/acpica/acpica_support.c	optional acpica
-dev/acpica/acpi_acad.c		optional acpica
+dev/acpica/acpi_acad.c		optional acpica nowerror
 dev/acpica/acpi_battery.c	optional acpica
 dev/acpica/acpi_button.c	optional acpica
-dev/acpica/acpi_cmbat.c		optional acpica
+dev/acpica/acpi_cmbat.c		optional acpica nowerror
 dev/acpica/acpi_cpu.c		optional acpica
 dev/acpica/acpi_ec.c		optional acpica
 dev/acpica/acpi_lid.c		optional acpica
 dev/acpica/acpi_pcib.c		optional acpica pci
-dev/acpica/acpi_powerres.c	optional acpica
+dev/acpica/acpi_powerres.c	optional acpica nowerror
 dev/acpica/acpi_powerprofile.c	optional acpica
 dev/acpica/acpi_resource.c	optional acpica
 dev/acpica/acpi_thermal.c	optional acpica
