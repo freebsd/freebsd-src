@@ -53,12 +53,9 @@ extern int ip6_esp_randpad;
 struct inpcb;
 extern struct secpolicy *ipsec6_getpolicybypcb
 	__P((struct mbuf *, u_int, struct inpcb *, int *));
-extern struct secpolicy *ipsec6_getpolicybysock
-	__P((struct mbuf *, u_int, struct socket *, int *));
 extern struct secpolicy *ipsec6_getpolicybyaddr
 	__P((struct mbuf *, u_int, int, int *));
 
-extern int ipsec6_in_reject_so __P((struct mbuf *, struct socket *));
 extern int ipsec6_delete_pcbpolicy __P((struct inpcb *));
 extern int ipsec6_set_policy __P((struct inpcb *, int, caddr_t, size_t, int));
 extern int ipsec6_get_policy __P((struct inpcb *, caddr_t, size_t,

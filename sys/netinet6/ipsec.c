@@ -544,19 +544,6 @@ ipsec4_getpolicybypcb(m, dir, inp, error)
 	/* NOTREACHED */
 }
 
-struct secpolicy *
-ipsec4_getpolicybysock(m, dir, so, error)
-	struct mbuf *m;
-	u_int dir;
-	struct socket *so;
-	int *error;
-{
-
-	if (so == NULL)
-		panic("ipsec4_getpolicybysock: NULL pointer was passed.\n");
-	return (ipsec4_getpolicybypcb(m, dir, sotoinpcb(so), error));
-}
-
 /*
  * For FORWADING packet or OUTBOUND without a socket. Searching SPD for packet,
  * and return a pointer to SP.
@@ -765,19 +752,6 @@ ipsec6_getpolicybypcb(m, dir, inp, error)
 		return NULL;
 	}
 	/* NOTREACHED */
-}
-
-struct secpolicy *
-ipsec6_getpolicybysock(m, dir, so, error)
-	struct mbuf *m;
-	u_int dir;
-	struct socket *so;
-	int *error;
-{
-
-	if (so == NULL)
-		panic("ipsec6_getpolicybysock: NULL pointer was passed.\n");
-	return (ipsec6_getpolicybypcb(m, dir, sotoin6pcb(so), error));
 }
 
 /*
@@ -1870,16 +1844,6 @@ ipsec4_in_reject(m, inp)
 	return result;
 }
 
-int
-ipsec4_in_reject_so(m, so)
-	struct mbuf *m;
-	struct socket *so;
-{
-	if (so == NULL)
-		return ipsec4_in_reject(m, NULL);
-	return ipsec4_in_reject(m, sotoinpcb(so));
-}
-
 #ifdef INET6
 /*
  * Check AH/ESP integrity.
@@ -1918,16 +1882,6 @@ ipsec6_in_reject(m, in6p)
 	key_freesp(sp);
 
 	return result;
-}
-
-int
-ipsec6_in_reject_so(m, so)
-	struct mbuf *m;
-	struct socket *so;
-{
-	if (so == NULL)
-		return ipsec6_in_reject(m, NULL);
-	return ipsec6_in_reject(m, sotoin6pcb(so));
 }
 #endif
 

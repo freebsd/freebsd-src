@@ -336,12 +336,9 @@ extern int ipsec_invalpcbcacheall __P((void));
 struct inpcb;
 extern struct secpolicy *ipsec4_getpolicybypcb
 	__P((struct mbuf *, u_int, struct inpcb *, int *));
-extern struct secpolicy *ipsec4_getpolicybysock
-	__P((struct mbuf *, u_int, struct socket *, int *));
 extern struct secpolicy *ipsec4_getpolicybyaddr
 	__P((struct mbuf *, u_int, int, int *));
 
-struct inpcb;
 extern int ipsec_init_pcbpolicy __P((struct socket *, struct inpcbpolicy **));
 extern int ipsec_copy_pcbpolicy
 	__P((struct inpcbpolicy *, struct inpcbpolicy *));
@@ -351,7 +348,6 @@ extern int ipsec4_set_policy __P((struct inpcb *, int, caddr_t, size_t, int));
 extern int ipsec4_get_policy __P((struct inpcb *, caddr_t, size_t,
 	struct mbuf **));
 extern int ipsec4_delete_pcbpolicy __P((struct inpcb *));
-extern int ipsec4_in_reject_so __P((struct mbuf *, struct socket *));
 extern int ipsec4_in_reject __P((struct mbuf *, struct inpcb *));
 
 struct secas;
