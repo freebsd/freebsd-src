@@ -712,6 +712,7 @@ config(signo)
 			}
 			if (sp->s_port != sep->se_ctrladdr.sin_port) {
 				sep->se_ctrladdr.sin_family = AF_INET;
+				sep->se_ctrladdr.sin_addr = bind_address;
 				sep->se_ctrladdr.sin_port = sp->s_port;
 				if (sep->se_fd >= 0)
 					close_sep(sep);
