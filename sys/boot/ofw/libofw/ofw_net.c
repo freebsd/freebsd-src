@@ -188,10 +188,14 @@ ofwn_init(struct iodesc *desc, void *machdep_hint)
 	chosen = OF_finddevice("/chosen");
 	OF_getprop(chosen, "memory", &memory, sizeof(memory));
 	pathlen = OF_getprop(chosen, "bootpath", path, 64);
-	ch = index(path, ':');
-	*ch = '\0';
+	if ((ch = index(path, ':')) != NULL)
+		*ch = '\0';
 	netdev = OF_finddevice(path);
+#ifdef __sparc64__
+	if (OF_getprop(netdev, "mac-address", desc->myea, 6) == -1)
+#else
 	if (OF_getprop(netdev, "local-mac-address", desc->myea, 6) == -1)
+#endif
 		goto punt;
 
 	printf("boot: ethernet address: %s\n", ether_sprintf(desc->myea));
@@ -205,6 +209,7 @@ ofwn_init(struct iodesc *desc, void *machdep_hint)
 	printf("ofwn_init: OpenFirmware instance handle: %08x\n", netinstance);
 #endif
 
+#ifndef __sparc64__
 	if (OF_call_method("dma-alloc", netinstance, 1, 1, NULL, &dmabuf)
 	    < 0) {   
 		printf("Failed to allocate DMA buffer (got %08x).\n", dmabuf);
@@ -213,6 +218,7 @@ ofwn_init(struct iodesc *desc, void *machdep_hint)
 
 #if defined(NETIF_DEBUG)
 	printf("ofwn_init: allocated DMA buffer: %08x\n", dmabuf);
+#endif
 #endif
 
 	return;
