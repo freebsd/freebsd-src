@@ -127,9 +127,7 @@ __END_DECLS
  * Job queue item
  */
 
-#define AIOCBLIST_CANCELLED     0x1
 #define AIOCBLIST_RUNDOWN       0x4
-#define AIOCBLIST_ASYNCFREE     0x8
 #define AIOCBLIST_DONE          0x10
 
 struct aiocblist {
