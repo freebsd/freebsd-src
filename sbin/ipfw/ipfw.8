@@ -422,13 +422,19 @@ If the kernel was compiled with the
 .Dv IPFIREWALL_VERBOSE_LIMIT
 option, then by default logging will cease after the number
 of packets specified by the option are received for that
-particular chain entry.
+particular chain entry, and
+.Em net.inet.ip.fw.verbose_limit
+will be set to that number.
 However, if
 .Cm logamount Ar number
 is used, that
 .Ar number
-will be the default logging limit rather than
-.Dv IPFIREWALL_VERBOSE_LIMIT .
+will be the logging limit rather than
+.Em net.inet.ip.fw.verbose_limit ,
+where the value
+.Dq 0
+removes the logging limit.
+.Dv
 Logging may then be re-enabled by clearing the logging counter
 or the packet counter for that entry.
 .Pp
