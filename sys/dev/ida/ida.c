@@ -38,8 +38,6 @@
  *	i386/eisa/ida_eisa.c
  */
 
-#include <pci.h>
-
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
@@ -50,9 +48,7 @@
 #include <sys/devicestat.h>
 #include <sys/disk.h>
 
-#if NPCI > 0
 #include <machine/bus_memio.h>
-#endif
 #include <machine/bus_pio.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
