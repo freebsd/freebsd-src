@@ -452,6 +452,13 @@ probe_adapters(void)
     biosadapter[0].va_mode = 
 	biosadapter[0].va_initial_mode = biosadapter[0].va_initial_bios_mode;
 
+    if ((PC98_SYSTEM_PARAMETER(0x597) & 0x80) ||
+	(PC98_SYSTEM_PARAMETER(0x458) & 0x80)) {
+	gdc_FH = (inb(0x9a8) & 1) ? _31KHZ : _24KHZ;
+    } else {
+	gdc_FH = _24KHZ;
+    }
+
     gdc_get_info(&biosadapter[0], biosadapter[0].va_initial_mode, &info);
     initialize_gdc(T25_G400, info.vi_flags & V_INFO_GRAPHICS);
 
@@ -564,14 +571,19 @@ static void initialize_gdc(unsigned int mode, int isGraph)
     s_mode = 2*mode+gdc_clock;
     gdc_INFO = m_mode;
 
+    master_gdc_wait_vsync();
+
     if ((PC98_SYSTEM_PARAMETER(0x597) & 0x80) ||
 	(PC98_SYSTEM_PARAMETER(0x458) & 0x80)) {
-	hsync_clock = (inb(0x9a8) & 1) ? _31KHZ : _24KHZ;
+	if (PC98_SYSTEM_PARAMETER(0x481) & 0x08) {
+	    hsync_clock = (m_mode == _25L) ? _24KHZ : _31KHZ;
+	    outb(0x9a8, (hsync_clock == _31KHZ) ? 1 : 0);
+	} else {
+	    hsync_clock = gdc_FH;
+	}
     } else {
 	hsync_clock = _24KHZ;
     }
-
-    master_gdc_wait_vsync();
 
     if ((gdc_clock == _2_5MHZ) &&
 	(slave_param[hsync_clock][s_mode][GDC_LF] > 400)) {
