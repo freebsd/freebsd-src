@@ -30,81 +30,95 @@
 .Os
 .Sh NAME
 .Nm acpi_thermal
-.Nd ACPI Thermal Management support subsystem
+.Nd ACPI thermal management subsystem
 .Sh SYNOPSIS
 .Cd "device acpi"
 .Sh DESCRIPTION
 The
 .Nm
-driver provides ACPI thermal handling feature as part of the
-ACPI module.
-This module has the
+driver provides the thermal management features of the ACPI module.
+This driver has a
 .Xr sysctl 8
-interface and the
+interface and a
 .Xr devd 8
 notification interface.
-Sysctls export ACPI objects as is.
+The sysctls export properties of each ACPI thermal zone object.
+.Pp
+There can be multiple thermal zones in a system.
+For example, each CPU and the enclosure could all be separate thermal
+zones, each with its own setpoints and cooling devices.
+Thermal zones are numbered sequentially in the order they appear in
+the AML.
+.Pp
 The
 .Nm
-driver also activates active cooling system in accordance with appropriate
-ACPI object.
+driver also activates the active cooling system in according to
+each thermal zone's setpoints.
 .Sh SYSCTLS
 .Bl -tag -width indent
 .It Va hw.acpi.thermal.tz%d.active
-Current active system running state.
+Current active cooling system state.
+If this is non-negative, the appropriate _AC%d object is running.
+Set this value to the desired active cooling level to force
+the corresponding fan object to the appropriate level.
 .It Va hw.acpi.thermal.tz%d.thermal_flags
 Current thermal zone status.
 These are bit-masked values.
 .It Va hw.acpi.thermal.tz%d.temperature
-Current temperature.
+Current temperature for this zone.
 .It Va hw.acpi.thermal.tz%d._PSV
 Temperature to start passive cooling by throttling down CPU, etc.
 .It Va hw.acpi.thermal.tz%d._HOT
-Temperature to start critical suspend to disk.
+Temperature to start critical suspend to disk (S4).
 .It Va hw.acpi.thermal.tz%d._CRT
-Temperature to start critical shutdown.
+Temperature to start critical shutdown (S5).
 .It Va hw.acpi.thermal.tz%d._ACx
-Active cooling start values.
-The earlier value means the strengest
-active cooling temperature.
+Temperatures at which to switch to the corresponding active cooling
+level.
+For instance, values of "3200 3100" mean to switch on _AC0 at 3200K
+and _AC1 at 3100K.
+The lower the _ACx value, the higher the cooling power.
 .El
 .Pp
-All temperatures are represented in tenths of Kelvins.
+All temperatures are represented in tenths of a Kelvin.
 For example, 300.0K is represented by the integer 3000.
-To convert to Centigrades,
+To convert to units of Centigrade,
 the formula is
 .Li "(x - 2731.5) / 10" .
 .Sh NOTIFIES
-Notifies are passed as strings beginning with
-.Qq Li "!system=ACPI subsystem=Thermal" ,
-the thermal zone instance is distingushed by
-the ACPI object path in the
-.Qq Li type=
-argument.
-The notify value is passed in the
-.Qq Li notify=
-argument.
+Notifies are passed to userland via
+.Xr devd 8 .
+See
+.Pa /etc/devd.conf
+and
+.Xr devd.conf 5
+for examples.
+The
+.Nm
+driver sends events with the following attributes:
+.Pp
+.Bl -tag -width indent -compact
+.It system
+.Li "ACPI"
+.It subsystem
+.Li "Thermal"
+.It type
+The fully qualified thermal zone object path as in the ASL.
+.It notify
+An integer designating the event, specified below.
+.El
 .Pp
 .Bl -tag -width indent -compact
 .It Li 0x80
-Temperature change.
+Current temperature has changed.
 .It Li 0x81
-Trip point change.
+One or more trip points (_ACx, _PSV) have changed.
 .It Li 0x82
-Device Lists change.
+One or more device lists (_ALx, _PSL, _TZD) have changed.
 .El
 .Sh SEE ALSO
-.Xr acpi 4
-.Rs
-.%A "Compaq Computer Corporation"
-.%A "Intel Corporation"
-.%A "Microsoft Corporation"
-.%A "Phoenix Technologies Ltd."
-.%A "Toshiba Corporation"
-.%D August 25, 2003
-.%T "Advanced Configuration and Power Interface Specification"
-.%O http://acpi.info/spec.htm
-.Re
+.Xr acpi 4 ,
+.Xr acpidump 8
 .Sh AUTHORS
 .An -nosplit
 .An Michael Smith
