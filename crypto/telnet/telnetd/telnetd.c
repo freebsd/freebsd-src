@@ -112,7 +112,7 @@ int	registerd_host_only = 0;
 
 /*
  * Because of the way ptyibuf is used with streams messages, we need
- * ptyibuf+1 to be on a full-word boundary.  The following wierdness
+ * ptyibuf+1 to be on a full-word boundary.  The following weirdness
  * is simply to make that happen.
  */
 long	ptyibufbuf[BUFSIZ/sizeof(long)+1];
@@ -859,7 +859,7 @@ doit(who)
 			fatal(net, "Out of ptys");
 
 		if ((pty = open(lp, 2)) >= 0) {
-			strcpy(line,lp);
+			strlcpy(line,lp,sizeof(line));
 			line[5] = 't';
 			break;
 		}
@@ -1158,7 +1158,7 @@ telnet(f, p, host)
 		HN = Getstr("hn", &cp);
 		IM = Getstr("im", &cp);
 		if (HN && *HN)
-			(void) strcpy(host_name, HN);
+			(void) strlcpy(host_name, HN, sizeof(host_name));
 		if (IM == 0)
 			IM = "";
 	} else {
