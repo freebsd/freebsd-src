@@ -238,6 +238,13 @@ retry:
 	mtx_unlock(&Giant);	
 
 	/*
+	 * If this thread tickled GEOM, we need to wait for the giggling to
+	 * stop before we return to userland
+	 */
+	if (td->td_pflags & TDP_GEOM)
+		g_waitidle();
+
+	/*
 	 * Remove ourself from our leader's peer list and wake our leader.
 	 */
 	mtx_lock(&ppeers_lock);
