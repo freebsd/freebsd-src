@@ -30,11 +30,11 @@
 .Op Fl C Ar class
 .Op Fl SHB
 .Op Fl ea
-.Op Fl cdflmnstu Op val
+.Op Fl cdflmnstuv Op val
 .Nm
 .Op Fl C Ar class
 .Op Fl SHB
-.Op Fl cdflmnstu Op val
+.Op Fl cdflmnstuv Op val
 .Op Fl E
 .Op Ar name Ns = Ns Ar value ...
 .Op Ar command
@@ -42,11 +42,11 @@
 .Op Fl U Ar user
 .Op Fl SHB
 .Op Fl ea
-.Op Fl cdflmnstu Op val
+.Op Fl cdflmnstuv Op val
 .Nm
 .Op Fl U Ar user
 .Op Fl SHB
-.Op Fl cdflmnstu Op val
+.Op Fl cdflmnstuv Op val
 .Op Fl E
 .Op Ar name Ns = Ns Ar value ...
 .Op Ar command
@@ -229,6 +229,17 @@ allowed per UID can be viewed using the 'sysctl kern.maxprocperuid' command.
 The maximum number of processes that can be running simultaneously
 in the entire system is limited to the value given by
 the 'sysctl kern.maxproc' command.
+.It Fl v Op Ar limit
+Select or set the
+.Em virtualmem
+resource limit.
+This limit encompasses the entire VM space for the user process
+and is inclusive of text, data, bss, stack,
+.Xr brk 2 ,
+.Xr sbrk 2
+and
+.Xr mmap 2 Ns 'd
+space.
 .El
 .Pp
 Valid values for
