@@ -302,7 +302,7 @@ acl_name_to_id(acl_tag_t tag, char *name, uid_t *id)
 
 	case ACL_GROUP:
 		g = getgrnam(name);
-		if (g) {
+		if (!g) {
 			errno = EINVAL;
 			return (-1);
 		}
