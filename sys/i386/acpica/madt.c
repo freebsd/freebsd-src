@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/specialreg.h>
 
 #include "acpi.h"
+#include <contrib/dev/acpica/actables.h>
 #include <dev/acpica/acpivar.h>
 #include <dev/pci/pcivar.h>
 
@@ -158,6 +159,7 @@ madt_map_table(vm_paddr_t pa, int offset, const char *sig)
 {
 	ACPI_TABLE_HEADER *header;
 	vm_offset_t length;
+	void *table;
 
 	header = madt_map(pa, offset, sizeof(ACPI_TABLE_HEADER));
 	if (strncmp(header->Signature, sig, 4) != 0) {
@@ -166,7 +168,14 @@ madt_map_table(vm_paddr_t pa, int offset, const char *sig)
 	}
 	length = header->Length;
 	madt_unmap(header, sizeof(ACPI_TABLE_HEADER));
-	return (madt_map(pa, offset, length));
+	table = madt_map(pa, offset, length);
+	if (ACPI_FAILURE(AcpiTbVerifyTableChecksum(table))) {
+		if (bootverbose)
+			printf("MADT: Failed checksum for table %s\n", sig);
+		madt_unmap(table, length);
+		return (NULL);
+	}
+	return (table);
 }
 
 static void
@@ -216,6 +225,16 @@ madt_probe(void)
 	 * Page 0 is used to map in the headers of candidate ACPI tables.
 	 */
 	if (rsdp->Revision >= 2) {
+		/*
+		 * AcpiOsGetRootPointer only verifies the checksum for
+		 * the version 1.0 portion of the RSDP.  Version 2.0 has
+		 * an additional checksum that we verify first.
+		 */
+		if (AcpiTbChecksum(rsdp, ACPI_RSDP_XCHECKSUM_LENGTH) != 0) {
+			if (bootverbose)
+				printf("MADT: RSDP failed extended checksum\n");
+			return (ENXIO);
+		}
 		xsdt = madt_map_table(rsdp->XsdtPhysicalAddress, 1, XSDT_SIG);
 		if (xsdt == NULL) {
 			if (bootverbose)
@@ -252,6 +271,16 @@ madt_probe(void)
 		printf("MADT: Found table at 0x%jx\n",
 		    (uintmax_t)madt_physaddr);
 
+	/*
+	 * Verify that we can map the full table and that its checksum is
+	 * correct, etc.
+	 */
+	madt = madt_map_table(madt_physaddr, 0, APIC_SIG);
+	if (madt == NULL)
+		return (ENXIO);
+	madt_unmap_table(madt);
+	madt = NULL;
+
 	return (0);
 }
 
@@ -274,7 +303,6 @@ madt_probe_table(vm_paddr_t address)
 		printf("Table '%.4s' at 0x%jx\n", table->Signature,
 		    (uintmax_t)address);
 
-	/* XXX: Verify checksum? */
 	if (strncmp(table->Signature, APIC_SIG, 4) != 0) {
 		madt_unmap(table, sizeof(ACPI_TABLE_HEADER));
 		return (0);
