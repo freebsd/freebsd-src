@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *		John S. Dyson.
  *
- * $Id: vfs_bio.c,v 1.215 1999/06/22 01:39:53 mckusick Exp $
+ * $Id: vfs_bio.c,v 1.216 1999/06/26 02:46:06 mckusick Exp $
  */
 
 /*
@@ -56,17 +56,6 @@ static MALLOC_DEFINE(M_BIOBUF, "BIO buffer", "BIO buffer");
 
 struct	bio_ops bioops;		/* I/O operation notification */
 
-#if 0 	/* replaced bu sched_sync */
-static void vfs_update __P((void));
-static struct	proc *updateproc;
-static struct kproc_desc up_kp = {
-	"update",
-	vfs_update,
-	&updateproc
-};
-SYSINIT_KT(update, SI_SUB_KTHREAD_UPDATE, SI_ORDER_FIRST, kproc_start, &up_kp)
-#endif
-
 struct buf *buf;		/* buffer header pool */
 struct swqueue bswlist;
 
@@ -81,12 +70,6 @@ static void vfs_setdirty(struct buf *bp);
 static void vfs_vmio_release(struct buf *bp);
 static void flushdirtybuffers(int slpflag, int slptimeo);
 static int flushbufqueues(void);
-
-/*
- * Internal update daemon, process 3
- *	The variable vfs_update_wakeup allows for internal syncs.
- */
-int vfs_update_wakeup;
 
 /*
  * bogus page -- for I/O to/from partially complete buffers
@@ -2607,36 +2590,6 @@ biodone(register struct buf * bp)
 	}
 	splx(s);
 }
-
-#if 0	/* not with kirks code */
-static int vfs_update_interval = 30;
-
-static void
-vfs_update()
-{
-	while (1) {
-		tsleep(&vfs_update_wakeup, PUSER, "update",
-		    hz * vfs_update_interval);
-		vfs_update_wakeup = 0;
-		sync(curproc, NULL);
-	}
-}
-
-static int
-sysctl_kern_updateinterval SYSCTL_HANDLER_ARGS
-{
-	int error = sysctl_handle_int(oidp,
-		oidp->oid_arg1, oidp->oid_arg2, req);
-	if (!error)
-		wakeup(&vfs_update_wakeup);
-	return error;
-}
-
-SYSCTL_PROC(_kern, KERN_UPDATEINTERVAL, update, CTLTYPE_INT|CTLFLAG_RW,
-	&vfs_update_interval, 0, sysctl_kern_updateinterval, "I", "");
-
-#endif
-
 
 /*
  * This routine is called in lieu of iodone in the case of
