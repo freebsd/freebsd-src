@@ -978,6 +978,7 @@ static struct pci_ids pci_ids[] = {
 	{ 0x95211415, "Oxford Semiconductor PCI Dual Port Serial", 0x10 },
 	{ 0x7101135e, "SeaLevel Ultra 530.PCI Single Port Serial", 0x18 },
 	{ 0x0000151f, "SmartLink 5634PCV SurfRider", 0x10 },
+	{ 0x98459710, "Netmos Nm9845 PCI Bridge with Dual UART", 0x10 },
 	{ 0x00000000, NULL, 0 }
 };
 
