@@ -147,6 +147,14 @@
     <sect3 id="proc">
       <title>Hardware Support</title>
 
+      <para>A framework for flexible processor speed control has been
+	added.  It provides methods for various drivers to control CPU
+	power utilization by adjusting the processor speed.  More
+	details can be found in the &man.cpufreq.4; manual page.
+	Currently supported drivers include acpi_perf (ACPI CPU
+	performance states), icss (Intel SpeedStep for ICH), and
+	acpi_throttle (ACPI CPU throttling).</para>
+
       <para arch="i386,pc98">Support for the OLDCARD subsystem has
 	been removed.  The NEWCARD system is now used for all PCCARD
 	device support.</para>
@@ -154,7 +162,10 @@
       <sect4 id="mm">
 	<title>Multimedia Support</title>
 
-	<para></para>
+	<para>The &man.uaudio.4; driver now has some added
+	  functionality, including volume control on more inputs and
+	  recording capability on some devices.</para>
+
       </sect4>
 
       <sect4 id="net-if">
@@ -216,6 +227,10 @@
 
       <para>The &man.matcd.4; driver has been removed.</para>
 
+      <para>The default SCSI boot-time probe delay in the
+	<filename>GENERIC</filename> kernel has been reduced from
+	fifteen seconds to five seconds.</para>
+
       <para arch="pc98">The &man.wd.4; driver has been removed.  The
 	&man.ata.4; driver has been found to work well enough on the
 	pc98 platform that there is no need for the older &man.wd.4;
@@ -239,7 +254,9 @@
     <sect3>
       <title>Contributed Software</title>
 
-      <para></para>
+      <para><application>ACPI-CA</application> has been updated from
+	20040527 to 20041119. &merged;</para>
+
     </sect3>
   </sect2>
 
@@ -319,9 +336,12 @@
   <sect2 id="contrib">
     <title>Contributed Software</title>
 
-    <para>The timezone database has been updated from the
-      <application>tzdata2004e</application> release to the
-      <application>tzdata2004g</application> release. &merged;</para>
+    <para><application>FILE</application> has been updated from 4.10
+      to 4.12.</para>
+
+    <para><application>lukemftp</application> has been updated from a
+      26 April 2004 snapshot from OpenBSD's sources to a snapshot as
+      of 19 February 2005.</para>
 
     <para>A snapshot of <application>netcat</application> from OpenBSD
       as of 4 February 2005 has been added.  More information can be
@@ -335,6 +355,10 @@
 
     <para><application>sendmail</application> has been updated from
       version 8.13.1 to version 8.13.3. &merged;</para>
+
+    <para>The timezone database has been updated from the
+      <application>tzdata2004e</application> release to the
+      <application>tzdata2004g</application> release. &merged;</para>
 
   </sect2>
 
