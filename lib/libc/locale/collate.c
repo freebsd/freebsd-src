@@ -29,6 +29,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "namespace.h"
+#include <arpa/inet.h>
 #include <rune.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -58,6 +59,7 @@ __collate_load_tables(const char *encoding)
 {
 	FILE *fp;
 	int i, saverr, chains;
+	uint32_t u32;
 	char strbuf[STR_LEN], buf[PATH_MAX];
 	void *TMP_substitute_table, *TMP_char_pri_table, *TMP_chain_pri_table;
 	static char collate_encoding[ENCODING_LEN + 1];
@@ -106,13 +108,13 @@ __collate_load_tables(const char *encoding)
 		return (_LDP_ERROR);
 	}
 	if (chains) {
-		if (fread(strbuf, sizeof(strbuf), 1, fp) != 1) {
+		if (fread(&u32, sizeof(u32), 1, fp) != 1) {
 			saverr = errno;
 			(void)fclose(fp);
 			errno = saverr;
 			return (_LDP_ERROR);
 		}
-		if ((chains = atoi(strbuf)) < 1) {
+		if ((chains = (int)ntohl(u32)) < 1) {
 			(void)fclose(fp);
 			errno = EFTYPE;
 			return (_LDP_ERROR);
