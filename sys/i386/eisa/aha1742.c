@@ -14,7 +14,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aha1742.c,v 1.46 1996/01/04 21:10:39 wollman Exp $
+ *      $Id: aha1742.c,v 1.47 1996/01/07 19:20:59 gibbs Exp $
  */
 
 #include <sys/types.h>
@@ -656,6 +656,7 @@ ahb_bus_attach(ahb)
 	 */
 	ahb->sc_link.adapter_unit = ahb->unit;
 	ahb->sc_link.adapter_targ = ahb->our_id;
+	ahb->sc_link.adapter_softc = ahb;
 	ahb->sc_link.adapter = &ahb_switch;
 	ahb->sc_link.device = &ahb_dev;
 
