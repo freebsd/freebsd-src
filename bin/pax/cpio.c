@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 #include <sys/stat.h>
 #include <string.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -223,8 +224,8 @@ rd_ln_nm(ARCHD *arcn)
 		paxwarn(1, "Cpio link name length is invalid: %lu",
 		    arcn->sb.st_size);
 #		else
-		paxwarn(1, "Cpio link name length is invalid: %qu",
-		    arcn->sb.st_size);
+		paxwarn(1, "Cpio link name length is invalid: %ju",
+		    (uintmax_t)arcn->sb.st_size);
 #		endif
 		return(-1);
 	}
