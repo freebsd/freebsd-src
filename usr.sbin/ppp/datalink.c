@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.13 1998/06/25 22:33:17 brian Exp $
+ *	$Id: datalink.c,v 1.14 1998/06/27 14:18:04 brian Exp $
  */
 
 #include <sys/types.h>
@@ -460,7 +460,7 @@ datalink_GotAuthname(struct datalink *dl, const char *name, int len)
 void
 datalink_AuthOk(struct datalink *dl)
 {
-  ccp_SetOpenMode(&dl->physical->link.ccp);
+  int ccpok = ccp_SetOpenMode(&dl->physical->link.ccp);
 
   if (dl->physical->link.lcp.want_mrru && dl->physical->link.lcp.his_mrru) {
     /* we've authenticated in multilink mode ! */
@@ -491,8 +491,10 @@ datalink_AuthOk(struct datalink *dl)
     auth_Select(dl->bundle, dl->peer.authname, dl->physical);
   }
 
-  fsm_Up(&dl->physical->link.ccp.fsm);
-  fsm_Open(&dl->physical->link.ccp.fsm);
+  if (ccpok) {
+    fsm_Up(&dl->physical->link.ccp.fsm);
+    fsm_Open(&dl->physical->link.ccp.fsm);
+  }
   datalink_NewState(dl, DATALINK_OPEN);
   bundle_NewPhase(dl->bundle, PHASE_NETWORK);
   (*dl->parent->LayerUp)(dl->parent->object, &dl->physical->link.lcp.fsm);
