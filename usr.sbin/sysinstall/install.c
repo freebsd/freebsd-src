@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.181 1997/04/03 13:44:58 jkh Exp $
+ * $Id: install.c,v 1.182 1997/04/28 10:31:13 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -653,10 +653,12 @@ installCommit(dialogMenuItem *self)
     char *str;
     Boolean need_bin;
 
-    if (!Dists) {
+    if (!Dists)
+	distConfig(NULL);
+
+    if (!Dists)
 	if (!dmenuOpenSimple(&MenuDistributions, FALSE) && !Dists)
 	    return DITEM_FAILURE | DITEM_RESTORE;
-    }
 
     if (!mediaVerify())
 	return DITEM_FAILURE | DITEM_RESTORE;
