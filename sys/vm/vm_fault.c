@@ -203,7 +203,7 @@ vm_fault1(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
 {
 	vm_prot_t prot;
 	int result;
-	boolean_t wired;
+	boolean_t growstack, wired;
 	int map_generation;
 	vm_object_t next_object;
 	vm_page_t marray[VM_FAULT_READ];
@@ -215,6 +215,7 @@ vm_fault1(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
 
 	cnt.v_vm_faults++;
 	hardfault = 0;
+	growstack = TRUE;
 
 RetryFault:;
 
@@ -228,6 +229,14 @@ RetryFault:;
 		&fs.first_pindex, &prot, &wired)) != KERN_SUCCESS) {
 		if ((result != KERN_PROTECTION_FAILURE) ||
 			((fault_flags & VM_FAULT_WIRE_MASK) != VM_FAULT_USER_WIRE)) {
+			if (growstack && result == KERN_INVALID_ADDRESS &&
+			    map != kernel_map && curproc != NULL) {
+				result = vm_map_growstack(curproc, vaddr);
+				if (result != KERN_SUCCESS)
+					return (KERN_FAILURE);
+				growstack = FALSE;
+				goto RetryFault;
+			}
 			return result;
 		}
 
