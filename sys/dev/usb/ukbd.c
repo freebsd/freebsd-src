@@ -542,11 +542,11 @@ ukbd_intr(reqh, addr, status)
 	/* XXX shouldn't the keys be used? */
 	for (i = 0; i < nkeys; i++) {
 		c = ibuf[i];
-		printf("%c (%d) %s\n", 
+		printf("%c (%d) %s ", 
 		       ((c&0xff) < 32 || (c&0xff) > 126? '.':(c&0xff)), c,
 		       (c&RELEASE? "released":"pressed"));
 		if (ud->modifiers)
-			printf("0x%04x\n", ud->modifiers);
+			printf("mod = 0x%04x ", ud->modifiers);
                 for (i = 0; i < NKEYCODE; i++)
 			if (ud->keycode[i])
 				printf("%d ", ud->keycode[i]);
@@ -676,5 +676,5 @@ ukbd_cnattach(v)
 #endif /* NetBSD */
 
 #if defined(__FreeBSD__)
-DRIVER_MODULE(ukbd, usb, ukbd_driver, ukbd_devclass, usbd_driver_load, 0);
+DRIVER_MODULE(ukbd, uhub, ukbd_driver, ukbd_devclass, usbd_driver_load, 0);
 #endif

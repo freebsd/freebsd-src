@@ -981,5 +981,5 @@ ugen_detach(device_t self)
 	return 0;
 }
 
-DRIVER_MODULE(ugen, usb, ugen_driver, ugen_devclass, usbd_driver_load, 0);
+DRIVER_MODULE(ugen, uhub, ugen_driver, ugen_devclass, usbd_driver_load, 0);
 #endif
