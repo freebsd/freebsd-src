@@ -1630,7 +1630,7 @@ union_getwritemount(ap)
 			return (EOPNOTSUPP);
 		}
 		VI_UNLOCK(vp);
-		panic("union_getwritemount: missing upper layer");
+		return (EACCES);
 	}
 	return(VOP_GETWRITEMOUNT(uvp, ap->a_mpp));
 }
