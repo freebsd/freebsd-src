@@ -933,6 +933,7 @@ syscall(frame)
 	struct sysent *callp;
 	struct thread *td = curthread;
 	struct proc *p = td->td_proc;
+	register_t orig_tf_eflags;
 	u_int sticks;
 	int error;
 	int narg;
@@ -958,6 +959,7 @@ syscall(frame)
 	PROC_UNLOCK(p);
 	params = (caddr_t)frame.tf_esp + sizeof(int);
 	code = frame.tf_eax;
+	orig_tf_eflags = frame.tf_eflags;
 
 	if (p->p_sysent->sv_prepsyscall) {
 		/*
@@ -1065,7 +1067,7 @@ bad:
 	/*
 	 * Traced syscall.
 	 */
-	if ((frame.tf_eflags & PSL_T) && !(frame.tf_eflags & PSL_VM)) {
+	if ((orig_tf_eflags & PSL_T) && !(orig_tf_eflags & PSL_VM)) {
 		frame.tf_eflags &= ~PSL_T;
 		trapsignal(p, SIGTRAP, 0);
 	}
