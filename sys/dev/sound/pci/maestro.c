@@ -35,7 +35,7 @@
  * Zach Brown <zab@zabbo.net>.
  *
  * busdma()-ize and buffer size reduction were suggested by
- * Cameron Grant <gandalf@vilnya.demon.co.uk>.
+ * Cameron Grant <cg@freebsd.org>.
  * Also he showed me the way to use busdma() suite.
  *
  * Internal speaker problems on NEC VersaPro's and Dell Inspiron 7500
