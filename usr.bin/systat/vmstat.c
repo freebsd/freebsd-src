@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)vmstat.c	8.2 (Berkeley) 1/12/94";
 #endif
 static const char rcsid[] =
-	"$Id: vmstat.c,v 1.29 1998/10/08 09:56:10 obrien Exp $";
+	"$Id: vmstat.c,v 1.30 1998/12/27 08:15:37 obrien Exp $";
 #endif /* not lint */
 
 /*
@@ -93,6 +93,7 @@ struct statinfo cur, last, run;
 #define	oldnchtotal s1.nchstats
 
 static	enum state { BOOT, TIME, RUN } state = TIME;
+static	int want_fd = 0;
 
 static void allocinfo __P((struct Info *));
 static void copyinfo __P((struct Info *, struct Info *));
@@ -340,10 +341,8 @@ labelkre()
 	for (i = 0; i < num_devices && j < MAXDRIVES; i++)
 		if (dev_select[i].selected) {
 			char tmpstr[80];
-#ifndef WANT_FD
-			if (0==strcmp("fd", dev_select[i].device_name))
+			if (!want_fd && 0==strcmp("fd", dev_select[i].device_name))
 				continue;
-#endif
 			sprintf(tmpstr, "%s%d", dev_select[i].device_name,
 				dev_select[i].unit_number);
 			mvprintw(DISKROW, DISKCOL + 5 + 6 * j,
@@ -496,10 +495,8 @@ showkre()
 	for (i = 0, c = 0; i < num_devices && c < MAXDRIVES; i++)
 		if (dev_select[i].selected) {
 			char tmpstr[80];
-#ifndef WANT_FD
-			if (0==strcmp("fd", dev_select[i].device_name))
+			if (!want_fd && 0==strcmp("fd", dev_select[i].device_name))
 				continue;
-#endif
 			sprintf(tmpstr, "%s%d", dev_select[i].device_name,
 				dev_select[i].unit_number);
 			mvprintw(DISKROW, DISKCOL + 5 + 6 * c,
@@ -562,6 +559,10 @@ cmdkre(cmd, args)
 	}
 	if (prefix(cmd, "time")) {
 		state = TIME;
+		return (1);
+	}
+	if (prefix(cmd, "want_fd")) {
+		want_fd = !want_fd;
 		return (1);
 	}
 	if (prefix(cmd, "zero")) {
