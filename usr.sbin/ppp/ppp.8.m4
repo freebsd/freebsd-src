@@ -1396,8 +1396,23 @@ on ui-gate (the receiver) should contain the following:
 ppp-in:
  set timeout 0
  set ifaddr 10.0.4.1 10.0.4.2
- add 10.0.1.0/24 10.0.4.2
 .Ed
+.Pp
+and the entry in
+.Pa /etc/ppp/ppp.linkup
+should contain:
+.Bd -literal -offset indent
+ppp-in:
+ add 10.0.1.0/24 HISADDR
+.Ed
+.Pp
+It is necessary to put the 
+.Dq add
+command in
+.Pa ppp.linkup
+to ensure that the route is only added after
+.Nm
+has negotiated and assigned addresses to its interface.
 .Pp
 You may also want to enable PAP or CHAP for security.
 To enable PAP, add the following line:
@@ -1414,7 +1429,7 @@ MyAuthName MyAuthPasswd
 If
 .Ar MyAuthPasswd
 is a
-.Pq Dq * ,
+.Dq * ,
 the password is looked up in the
 .Xr passwd 5
 database.
@@ -1430,10 +1445,18 @@ ui-gate:
  set timeout 30
  set log Phase Chat Connect hdlc LCP IPCP CCP tun
  set ifaddr 10.0.4.2 10.0.4.1
- add 10.0.2.0/24 10.0.4.1
 .Ed
 .Pp
-Again, if you're enabling PAP, you'll also need:
+with the route setup in
+.Pa /etc/ppp/ppp.linkup :
+.Bd -literal -offset indent
+ui-gate:
+ add 10.0.2.0/24 HISADDR
+.Ed
+.Pp
+Again, if you're enabling PAP, you'll also need this in the
+.Pa /etc/ppp/ppp.conf
+profile:
 .Bd -literal -offset indent
  set authname MyAuthName
  set authkey MyAuthKey
@@ -1473,6 +1496,55 @@ When using UDP as a transport,
 will operate in synchronous mode.
 This is another gain as the incoming
 data does not have to be rearranged into packets.
+.Pp
+Care should be taken when adding a default route through a tunneled
+setup like this.
+It is quite common for the default route
+.Pq added in Pa /etc/ppp/ppp.linkup
+to end up routing the link's TCP connection through the tunnel,
+effectively garrotting the connection.
+To avoid this, make sure you add a static route for the benefit of
+the link:
+.Bd -literal -offset indent
+ui-gate:
+ set escape 0xff
+ set device ui-gate:ppp-in/tcp
+ add ui-gate x.x.x.x
+ .....
+.Ed
+.Pp
+where
+.Dq x.x.x.x
+is the IP number that your route to
+.Dq ui-gate
+would normally use.
+.Pp
+When routing your connection accross a public network such as the Internet,
+it is preferable to encrypt the data.
+This can be done with the help of the MPPE protocol, although currently this
+means that you will not be able to also compress the traffic as MPPE is
+implemented as a compression layer (thank Microsoft for this).
+To enable MPPE encryption, add the following lines to
+.Pa /etc/ppp/ppp.conf
+on the server:
+.Bd -literal -offset indent
+  enable MSCHAPv2
+  disable deflate pred1
+  deny deflate pred1
+.Ed
+.Pp
+ensuring that you've put the requisite entry in
+.Pa /etc/ppp/ppp.secret
+(MSCHAPv2 is challenge based, so
+.Xr passwd 5
+cannot be used)
+.Pp
+MSCHAPv2 and MPPE are accepted by default, so the client end should work
+without any additional changes (although ensure you have
+.Dq set authname
+and
+.Dq set authkey
+in your profile).
 .Pp
 .Sh NETWORK ADDRESS TRANSLATION (PACKET ALIASING)
 The
