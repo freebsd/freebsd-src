@@ -1,13 +1,13 @@
 :
-# $Id: fixit.profile,v 1.5 1997/02/22 14:10:25 peter Exp $
+# $Id: fixit.profile,v 1.6 1997/03/02 11:59:26 joerg Exp $
 
 export BLOCKSIZE=K
 export PS1="Fixit# "
 export EDITOR="/mnt2/stand/vi"
 export PAGER="/mnt2/stand/more"
 export SCSI_MODES="/mnt2/usr/share/misc/scsi_modes"
-# the root MFS doesn't have /dev/nrst0, pick a better default for mt(1)
-export TAPE=/mnt2/dev/nrst0
+# the root MFS doesn't have /dev/nrsa0, pick a better default for mt(1)
+export TAPE=/mnt2/dev/nrsa0
 
 alias ls="ls -F"
 alias ll="ls -l"
