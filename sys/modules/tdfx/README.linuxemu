@@ -1,0 +1,10 @@
+$FreeBSD$
+NOTIC TO USERS OF LINUX EMULATION CODE
+
+Due to some strange workings with the linuxulator, as of 21 Jun 200, this
+module won't load support for linux emulation, making it rather pointless,
+as there are no non-linux glide progs for freebsd yet. You can, however,
+compile both of them statically into the kernel using:
+device tdfx
+options COMPAT_LINUX
+options LINUX_TDFX
