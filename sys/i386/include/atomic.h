@@ -65,7 +65,7 @@
  */
 #if defined(KLD_MODULE)
 #define ATOMIC_ASM(NAME, TYPE, OP, V)			\
-	void atomic_##NAME##_##TYPE(volatile u_##TYPE *p, u_##TYPE v);
+void atomic_##NAME##_##TYPE(volatile u_##TYPE *p, u_##TYPE v);
 
 int atomic_cmpset_int(volatile u_int *dst, u_int exp, u_int src);
 
@@ -151,6 +151,9 @@ atomic_cmpset_int(volatile u_int *dst, u_int exp, u_int src)
 }
 #endif /* defined(I386_CPU) */
 
+#define atomic_cmpset_acq_int	atomic_cmpset_int
+#define atomic_cmpset_rel_int	atomic_cmpset_int
+    
 #else
 /* gcc <= 2.8 version */
 #define ATOMIC_ASM(NAME, TYPE, OP, V)			\
@@ -160,7 +163,9 @@ atomic_##NAME##_##TYPE(volatile u_##TYPE *p, u_##TYPE v)\
 	__asm __volatile(MPLOCKED OP			\
 			 : "=m" (*p)			\
 			 : "ir" (V));		 	\
-}
+}							\
+							\
+
 #endif
 #endif /* KLD_MODULE */
 
@@ -212,7 +217,67 @@ ATOMIC_ASM(subtract, long,  "subl %1,%0",  v)
 
 #endif
 
+#undef ATOMIC_ASM
+
 #ifndef WANT_FUNCTIONS
+#define ATOMIC_ACQ_REL(NAME, TYPE)			\
+static __inline void					\
+atomic_##NAME##_acq_##TYPE(volatile u_##TYPE *p, u_##TYPE v)\
+{							\
+	__asm __volatile("lock; addl $0,0(%esp)" : : : "memory");\
+	atomic_##NAME##_##TYPE(p, v);			\
+}							\
+							\
+static __inline void					\
+atomic_##NAME##_rel_##TYPE(volatile u_##TYPE *p, u_##TYPE v)\
+{							\
+	atomic_##NAME##_##TYPE(p, v);			\
+}
+
+ATOMIC_ACQ_REL(set,		char)
+ATOMIC_ACQ_REL(clear,		char)
+ATOMIC_ACQ_REL(add,		char)
+ATOMIC_ACQ_REL(subtract,	char)
+ATOMIC_ACQ_REL(set,		short)
+ATOMIC_ACQ_REL(clear,		short)
+ATOMIC_ACQ_REL(add,		short)
+ATOMIC_ACQ_REL(subtract,	short)
+ATOMIC_ACQ_REL(set,		int)
+ATOMIC_ACQ_REL(clear,		int)
+ATOMIC_ACQ_REL(add,		int)
+ATOMIC_ACQ_REL(subtract,	int)
+ATOMIC_ACQ_REL(set,		long)
+ATOMIC_ACQ_REL(clear,		long)
+ATOMIC_ACQ_REL(add,		long)
+ATOMIC_ACQ_REL(subtract,	long)
+
+#undef ATOMIC_ACQ_REL
+
+/*
+ * We assume that a = b will do atomic loads and stores.
+ */
+#define ATOMIC_STORE_LOAD(TYPE)				\
+static __inline u_##TYPE				\
+atomic_load_acq_##TYPE(volatile u_##TYPE *p)		\
+{							\
+	__asm __volatile("lock; addl $0,0(%esp)" : : : "memory");\
+	return (*p);					\
+}							\
+							\
+static __inline void					\
+atomic_store_rel_##TYPE(volatile u_##TYPE *p, u_##TYPE v)\
+{							\
+	*p = v;						\
+	__asm __volatile("" : : : "memory");		\
+}
+
+ATOMIC_STORE_LOAD(char)
+ATOMIC_STORE_LOAD(short)
+ATOMIC_STORE_LOAD(int)
+ATOMIC_STORE_LOAD(long)
+
+#undef ATOMIC_STORE_LOAD
+
 static __inline int
 atomic_cmpset_ptr(volatile void *dst, void *exp, void *src)
 {
@@ -220,6 +285,47 @@ atomic_cmpset_ptr(volatile void *dst, void *exp, void *src)
 	return (
 	    atomic_cmpset_int((volatile u_int *)dst, (u_int)exp, (u_int)src));
 }
+
+#define atomic_cmpset_acq_ptr	atomic_cmpset_ptr
+#define atomic_cmpset_rel_ptr	atomic_cmpset_ptr
+
+static __inline void *
+atomic_load_acq_ptr(volatile void *p)
+{
+	return (void *)atomic_load_acq_int((volatile u_int *)p);
+}
+
+static __inline void
+atomic_store_rel_ptr(volatile void *p, void *v)
+{
+	atomic_store_rel_int((volatile u_int *)p, (u_int)v);
+}
+
+#define ATOMIC_PTR(NAME)				\
+static __inline void					\
+atomic_##NAME##_ptr(volatile void *p, uintptr_t v)	\
+{							\
+	atomic_##NAME##_int((volatile u_int *)p, v);	\
+}							\
+							\
+static __inline void					\
+atomic_##NAME##_acq_ptr(volatile void *p, uintptr_t v)	\
+{							\
+	atomic_##NAME##_acq_int((volatile u_int *)p, v);\
+}							\
+							\
+static __inline void					\
+atomic_##NAME##_rel_ptr(volatile void *p, uintptr_t v)	\
+{							\
+	atomic_##NAME##_rel_int((volatile u_int *)p, v);\
+}
+
+ATOMIC_PTR(set)
+ATOMIC_PTR(clear)
+ATOMIC_PTR(add)
+ATOMIC_PTR(subtract)
+
+#undef ATOMIC_PTR
 
 static __inline u_int
 atomic_readandclear_int(volatile u_int *addr)
