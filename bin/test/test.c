@@ -45,7 +45,7 @@ static char const copyright[] =
 static char sccsid[] = "@(#)test.c	8.3 (Berkeley) 4/2/94";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: test.c,v 1.19 1998/05/18 06:51:59 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -393,6 +393,9 @@ permission:		if (fs->stat.st_uid == geteuid())
 		goto filetype;
 	case ISFIFO:
 		i = S_IFIFO;
+		goto filetype;
+	case ISSOCK:
+		i = S_IFSOCK;
 		goto filetype;
 filetype:	if ((fs->stat.st_mode & S_IFMT) == i && fs->rcode >= 0)
 true:			sp->u.num = 1;

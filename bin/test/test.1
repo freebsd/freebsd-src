@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)test.1	8.1 (Berkeley) 5/31/93
-.\"	$Id: test.1,v 1.5 1997/06/02 06:33:51 charnier Exp $
+.\"	$Id: test.1,v 1.6 1998/05/18 06:51:56 charnier Exp $
 .\"
 .Dd May 31, 1993
 .Dt TEST 1
@@ -99,6 +99,10 @@ True if
 .Ar file
 is a named pipe
 .Po Tn FIFO Pc .
+.It Fl S Ar file
+True if
+.Ar file
+is a socket. 
 .It Fl r Ar file
 True if
 .Ar file
