@@ -2500,7 +2500,6 @@ expand_keywords (rcs, ver, name, log, loglen, expand, buf, len, retbuf, retlen)
 			path = getfullCVSname(rcs->path, &old_path);
 		    else
 			path = last_component (rcs->path);
-	printf("path: `%s'\n", path);
 		    path = escape_keyword_value (path, &free_path);
 		    date = printable_date (ver->date);
 		    value = xmalloc (strlen (path)
