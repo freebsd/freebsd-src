@@ -80,14 +80,13 @@ str_end(void)
 
 /*-
  * str_concat --
- *	concatenate the two strings, inserting a space or slash between them,
- *	freeing them if requested.
+ *	concatenate the two strings, inserting a space or slash between them.
  *
  * returns --
  *	the resulting string in allocated space.
  */
 char *
-str_concat(char *s1, char *s2, int flags)
+str_concat(const char *s1, const char *s2, int flags)
 {
 	int len1, len2;
 	char *result;
@@ -114,11 +113,6 @@ str_concat(char *s1, char *s2, int flags)
 	/* copy second string plus EOS into place */
 	memcpy(result + len1, s2, len2 + 1);
 
-	/* free original strings */
-	if (flags & STR_DOFREE) {
-		free(s1);
-		free(s2);
-	}
 	return (result);
 }
 

@@ -239,12 +239,9 @@ typedef struct IFile {
  * final string should look. If STR_ADDSPACE is given, a space will be
  * placed between the two strings. If STR_ADDSLASH is given, a '/' will
  * be used instead of a space. If neither is given, no intervening characters
- * will be placed between the two strings in the final output. If the
- * STR_DOFREE bit is set, the two input strings will be freed before
- * Str_Concat returns.
+ * will be placed between the two strings in the final output.
  */
 #define	STR_ADDSPACE	0x01	/* add a space when Str_Concat'ing */
-#define	STR_DOFREE	0x02	/* free source strings after concatenation */
 #define	STR_ADDSLASH	0x04	/* add a slash when Str_Concat'ing */
 
 /*
