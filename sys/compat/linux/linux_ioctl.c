@@ -1516,37 +1516,3 @@ linux_ioctl_unregister_handler(struct linux_ioctl_handler *h)
 
 	return (EINVAL);
 }
-
-int
-linux_ioctl_register_handlers(struct linker_set *s)
-{
-	int error, i;
-
-	if (s == NULL)
-		return (EINVAL);
-
-	for (i = 0; i < s->ls_length; i++) {
-		error = linux_ioctl_register_handler(s->ls_items[i]);
-		if (error)
-			return (error);
-	}
-
-	return (0);
-}
-
-int
-linux_ioctl_unregister_handlers(struct linker_set *s)
-{
-	int error, i;
-
-	if (s == NULL)
-		return (EINVAL);
-
-	for (i = 0; i < s->ls_length; i++) {
-		error = linux_ioctl_unregister_handler(s->ls_items[i]);
-		if (error)
-			return (error);
-	}
-
-	return (0);
-}

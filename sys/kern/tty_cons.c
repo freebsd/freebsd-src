@@ -99,6 +99,7 @@ static d_open_t *cn_phys_open;		/* physical device open function */
        struct consdev *cn_tab;		/* physical console device info */
 
 CONS_DRIVER(cons, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+SET_DECLARE(cons_set, struct consdev);
 
 void
 cninit()
@@ -109,8 +110,8 @@ cninit()
 	 * Find the first console with the highest priority.
 	 */
 	best_cp = NULL;
-	list = (struct consdev **)cons_set.ls_items;
-	while ((cp = *list++) != NULL) {
+	SET_FOREACH(list, cons_set) {
+		cp = *list;
 		if (cp->cn_probe == NULL)
 			continue;
 		(*cp->cn_probe)(cp);

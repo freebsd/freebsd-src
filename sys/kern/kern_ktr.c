@@ -44,7 +44,6 @@
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/libkern.h>
-#include <sys/linker_set.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <machine/globals.h>

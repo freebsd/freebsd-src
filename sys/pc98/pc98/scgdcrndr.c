@@ -58,8 +58,6 @@ static vr_draw_border_t		gdc_grborder;
 
 static void			gdc_nop(scr_stat *scp, ...);
 
-static struct linker_set	gdc_set;
-
 static sc_rndr_sw_t txtrndrsw = {
 	gdc_txtclear,
 	gdc_txtborder,

@@ -108,6 +108,8 @@ static int	link_elf_search_symbol(linker_file_t, caddr_t value,
 
 static void	link_elf_unload_file(linker_file_t);
 static void	link_elf_unload_preload(linker_file_t);
+static int	link_elf_lookup_set(linker_file_t, const char *,
+				    void ***, void ***, int *);
 
 static kobj_method_t link_elf_methods[] = {
     KOBJMETHOD(linker_lookup_symbol,	link_elf_lookup_symbol),
@@ -117,6 +119,7 @@ static kobj_method_t link_elf_methods[] = {
     KOBJMETHOD(linker_load_file,	link_elf_load_file),
     KOBJMETHOD(linker_link_preload,	link_elf_link_preload),
     KOBJMETHOD(linker_link_preload_finish, link_elf_link_preload_finish),
+    KOBJMETHOD(linker_lookup_set,	link_elf_lookup_set),
     { 0, 0 }
 };
 
@@ -1074,4 +1077,62 @@ link_elf_search_symbol(linker_file_t lf, caddr_t value,
 	*sym = (c_linker_sym_t) best;
 
 	return 0;
+}
+
+/*
+ * Look up a linker set on an ELF system.
+ */
+static int
+link_elf_lookup_set(linker_file_t lf, const char *name,
+		    void ***startp, void ***stopp, int *countp)
+{
+	c_linker_sym_t sym;
+	linker_symval_t symval;
+	char *setsym;
+	void **start, **stop;
+	int len, error = 0, count;
+
+	len = strlen(name) + sizeof("__start_set_"); /* sizeof includes \0 */
+	setsym = malloc(len, M_LINKER, M_WAITOK);
+	if (setsym == NULL)
+		return ENOMEM;
+
+	/* get address of first entry */
+	snprintf(setsym, len, "%s%s", "__start_set_", name);
+	error = link_elf_lookup_symbol(lf, setsym, &sym);
+	if (error)
+		goto out;
+	link_elf_symbol_values(lf, sym, &symval);
+	if (symval.value == 0) {
+		error = ESRCH;
+		goto out;
+	}
+	start = (void **)symval.value;
+
+	/* get address of last entry */
+	snprintf(setsym, len, "%s%s", "__stop_set_", name);
+	error = link_elf_lookup_symbol(lf, setsym, &sym);
+	if (error)
+		goto out;
+	link_elf_symbol_values(lf, sym, &symval);
+	if (symval.value == 0) {
+		error = ESRCH;
+		goto out;
+	}
+	stop = (void **)symval.value;
+
+	/* and the number of entries */
+	count = stop - start;
+
+	/* and copy out */
+	if (startp)
+		*startp = start;
+	if (stopp)
+		*stopp = stop;
+	if (countp)
+		*countp = count;
+
+out:
+	free(setsym, M_LINKER);
+	return error;
 }

@@ -56,8 +56,6 @@
 static struct smb_connobj smb_vclist;
 static int smb_vcnext = 1;	/* next unique id for VC */
 
-extern struct linker_set sysctl_net_smb;
-
 SYSCTL_NODE(_net, OID_AUTO, smb, CTLFLAG_RW, NULL, "SMB protocol");
 
 MALLOC_DEFINE(M_SMBCONN, "SMB conn", "SMB connection");

@@ -367,34 +367,17 @@ sysctl_add_oid(struct sysctl_ctx_list *clist, struct sysctl_oid_list *parent,
 }
 
 /*
- * Bulk-register all the oids in a linker_set.
- */
-void sysctl_register_set(struct linker_set *lsp)
-{
-	int count = lsp->ls_length;
-	int i;
-	for (i = 0; i < count; i++)
-		sysctl_register_oid((struct sysctl_oid *) lsp->ls_items[i]);
-}
-
-void sysctl_unregister_set(struct linker_set *lsp)
-{
-	int count = lsp->ls_length;
-	int i;
-	for (i = 0; i < count; i++)
-		sysctl_unregister_oid((struct sysctl_oid *) lsp->ls_items[i]);
-}
-
-/*
  * Register the kernel's oids on startup.
  */
-extern struct linker_set sysctl_set;
+SET_DECLARE(sysctl_set, struct sysctl_oid);
 
 static void sysctl_register_all(void *arg)
 {
-	sysctl_register_set(&sysctl_set);
-}
+	struct sysctl_oid **oidp;
 
+	SET_FOREACH(oidp, sysctl_set)
+		sysctl_register_oid(*oidp);
+}
 SYSINIT(sysctl, SI_SUB_KMEM, SI_ORDER_ANY, sysctl_register_all, 0);
 
 /*
