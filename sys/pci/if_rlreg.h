@@ -793,6 +793,11 @@ struct rl_softc {
 #define COREGA_DEVICEID_FETHERIICBTXD			0xa11e
 
 /*
+ * Corega CG-LAPCIGT device ID
+ */
+#define COREGA_DEVICEID_CGLAPCIGT		0xc107
+
+/*
  * Peppercon vendor ID
  */
 #define PEPPERCON_VENDORID			0x1743
