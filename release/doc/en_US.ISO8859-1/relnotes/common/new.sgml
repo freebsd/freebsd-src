@@ -102,6 +102,10 @@
     <application>bzip2</application>-compressed kernels and
     modules.</para>
 
+    <para arch="i386">The &os; boot loader now supports a
+    <option>-p</option> flag to force the kernel will pause after each
+    line of output during the probing phase.</para>
+
     <para>Linux emulation now supports the kernel functionality
     required by the
     <port>emulators/linux_base-7</port> (RedHat 7.X emulation)
@@ -299,6 +303,9 @@
 
       <para>The &man.isp.4; driver now supports the Qlogic 2300 and
       2312 Optical Fibre Channel PCI cards.</para>
+
+      <para arch="i386">The ncv, nsp, and stg SCSI drivers can now be
+      built and loaded as modules.</para>
     </sect3>
 
     <sect3>
