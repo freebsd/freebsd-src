@@ -35,6 +35,7 @@
 #include <machine/utrap.h>
 #include <machine/sysarch.h>
 
+static int sparc_sigtramp_install(struct thread *td, char *args);
 static int sparc_utrap_install(struct thread *td, char *args);
 
 #ifndef	_SYS_SYSPROTO_H_
@@ -51,6 +52,9 @@ sysarch(struct thread *td, struct sysarch_args *uap)
 
 	error = 0;
 	switch (uap->op) {
+	case SPARC_SIGTRAMP_INSTALL:
+		error = sparc_sigtramp_install(td, uap->parms);
+		break;
 	case SPARC_UTRAP_INSTALL:
 		error = sparc_utrap_install(td, uap->parms);
 		break;
@@ -59,6 +63,24 @@ sysarch(struct thread *td, struct sysarch_args *uap)
 		break;
 	}
 	return (error);
+}
+
+static int
+sparc_sigtramp_install(struct thread *td, char *args)
+{
+	struct sparc_sigtramp_install_args sia;
+	struct proc *p;
+	int error;
+
+	p = td->td_proc;
+	if ((error = copyin(args, &sia, sizeof(sia))) != 0)
+		return (error);
+	if (sia.sia_old != NULL) {
+		if (suword(sia.sia_old, (long)p->p_md.md_sigtramp) != 0)
+			return (EFAULT);
+	}
+	p->p_md.md_sigtramp = sia.sia_new;
+	return (0);
 }
 
 static int
