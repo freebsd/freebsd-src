@@ -18,7 +18,7 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * @(#) $Header: md-i386.h,v 1.5 94/06/14 20:14:40 leres Exp $ (LBL)
+ * @(#) $Header: /home/ncvs/src/usr.sbin/tcpdump/tcpdump/md.h,v 1.2 1995/03/08 12:52:17 olah Exp $ (LBL)
  */
 
 #define TCPDUMP_ALIGN
@@ -27,7 +27,5 @@
 
 /* 32-bit data types */
 /* N.B.: this doesn't address printf()'s %d vs. %ld formats */
-typedef	long	int32;		/* signed 32-bit integer */
-#ifndef	AUTH_UNIX
-typedef	u_long	u_int32;	/* unsigned 32-bit integer */
-#endif
+typedef	int32_t	int32;		/* signed 32-bit integer */
+typedef	u_int32_t u_int32;	/* unsigned 32-bit integer */
