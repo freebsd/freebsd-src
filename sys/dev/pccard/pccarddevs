@@ -1,5 +1,5 @@
 $FreeBSD$
-/* $NetBSD: pcmciadevs,v 1.156 2001/12/29 15:00:45 pooka Exp $ */
+/* $NetBSD: pcmciadevs,v 1.159 2002/01/28 09:25:33 aymeric Exp $ */
 /* $OpenBSD: pcmciadevs,v 1.71 2001/10/28 19:21:37 mickey Exp $ */
 
 /*-
@@ -70,6 +70,7 @@ vendor SIMPLETECH		0x014d	Simple Technology
 vendor SYMBOL2			0x014d	Symbol
 vendor LUCENT			0x0156	Lucent Technologies
 vendor AIRONET			0x015f	Aironet Wireless Communications
+vendor ERICSSON			0x016b	Ericsson
 vendor PSION			0x016c	Psion
 vendor COMPAQ2			0x0183	Compaq
 vendor KINGSTON			0x0186	Kingston
@@ -92,6 +93,7 @@ vendor BONDWELL			0x3b01	Bondwell
 vendor LEXARMEDIA		0x4e01	Lexar Media
 vendor ARCHOS			0x5241	Archos
 vendor DUAL			0x890f	Dual
+vendor EDIMAX			0x890f	Edimax Technology Inc.
 vendor COMPEX			0x8a01	Compex Corporation
 vendor MELCO			0x8a01	Melco Corporation
 vendor ZONET			0x8a01	Zonet Technology Inc.
@@ -177,6 +179,9 @@ product DLINK_2 DMF560TX	0xc0ab D-Link DMF-650TX
 /* Dual */
 product DUAL NE2000		0x0100 Dual NE2000
 
+/* Edimax Products */
+product EDIMAX	EP4000A		0x0100 Edimax EP4000A
+
 /* ELSA Products */
 product ELSA MC2_IEEE		0x0001 AirLancer MC-2 IEEE
 product ELSA XI300_IEEE		0x0002 XI300 Wireless LAN
@@ -184,6 +189,9 @@ product ELSA XI800_IEEE		0x0004 XI800 CF Wireless LAN
 
 /* EMTAC */
 product EMTAC WLAN		0x0002	EMTAC A2424i 11Mbps WLAN Card
+
+/* Ericsson */
+product ERICSSON WIRELESSLAN	0x0001	DSSS Wireless LAN PC Card
 
 /* Farallon */
 product FARALLON SKYLINE	0x0a01 SkyLINE Wireless
