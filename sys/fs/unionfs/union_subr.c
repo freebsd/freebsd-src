@@ -1246,12 +1246,14 @@ union_dircache(vp, td)
 	int cnt;
 	struct vnode *nvp;
 	struct vnode **vpp;
-	struct vnode **dircache;
+	struct vnode **dircache, **newdircache;
 	struct union_node *un;
 	int error;
 
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
-	dircache = VTOUNION(vp)->un_dircache;
+	un = VTOUNION(vp);
+	dircache = un->un_dircache;
+	newdircache = NULL;
 
 	nvp = NULLVP;
 
@@ -1259,8 +1261,8 @@ union_dircache(vp, td)
 		cnt = 0;
 		union_dircache_r(vp, 0, &cnt);
 		cnt++;
-		dircache = malloc(cnt * sizeof(struct vnode *),
-				M_TEMP, M_WAITOK);
+		newdircache = dircache = malloc(cnt * sizeof(struct vnode *),
+						M_TEMP, M_WAITOK);
 		vpp = dircache;
 		union_dircache_r(vp, &vpp, &cnt);
 		*vpp = NULLVP;
@@ -1268,7 +1270,7 @@ union_dircache(vp, td)
 	} else {
 		vpp = dircache;
 		do {
-			if (*vpp++ == VTOUNION(vp)->un_uppervp)
+			if (*vpp++ == un->un_uppervp)
 				break;
 		} while (*vpp != NULLVP);
 	}
@@ -1284,11 +1286,21 @@ union_dircache(vp, td)
 	if (error)
 		goto out;
 
-	VTOUNION(vp)->un_dircache = 0;
-	un = VTOUNION(nvp);
-	un->un_dircache = dircache;
+	un->un_dircache = NULL;
+	VTOUNION(nvp)->un_dircache = dircache;
+	newdircache = NULL;
 
 out:
+	/*
+	 * If we allocated a new dircache and couldn't attach
+	 * it to a new vp, free the resources we allocated.
+	 */
+	if (newdircache) {
+		for (vpp = newdircache; *vpp != NULLVP; vpp++)
+			vrele(*vpp);
+		free(newdircache, M_TEMP);
+	}
+
 	VOP_UNLOCK(vp, 0, td);
 	return (nvp);
 }
