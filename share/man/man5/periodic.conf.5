@@ -34,7 +34,7 @@
 .Sh DESCRIPTION
 The file
 .Nm
-contains a description of how daily, weekly and montly system maintenance
+contains a description of how daily, weekly and monthly system maintenance
 jobs should run.
 It resides in the
 .Pa /etc/defaults
@@ -62,7 +62,7 @@ and is only used when an argument to
 is not an absolute directory name.
 .It Va dir Ns No _output
 .Pq Vt path No or Vt list
-What to do with the output of the scripts envoked from
+What to do with the output of the scripts executed from
 the directory
 .Ar dir .
 If this variable is set to an absolute path name, output is logged to
@@ -89,7 +89,7 @@ will rotate these files (if they exists) at the appropriate times.
 .Pq Vt bool
 These variables control whether
 .Xr periodic 8
-will mask the output of the envoked scripts based on their return code
+will mask the output of the executed scripts based on their return code
 (where
 .Ar dir
 is the base directory name in which each script resides).
@@ -279,7 +279,7 @@ file backed up and modifications to be displayed in your daily output.
 Set to
 .Dq YES
 if you want to run
-.Ic calendar -a
+.Nm calendar Fl a
 daily.
 .It Va daily_accounting_enable
 .Pq Vt bool
@@ -347,7 +347,7 @@ if you want to run
 (with the arguments supplied in
 .Va daily_status_disks_df_flags )
 and
-.Ic dump -W .
+.Nm dump Fl W .
 .It Va daily_status_disks_df_flags
 .Pq Vt str
 Set to the arguments for the
@@ -367,7 +367,7 @@ if you want to run
 Set to
 .Dq YES
 if you want to run
-.Ic netstat -i .
+.Nm netstat Fl i .
 .It Va daily_status_network_usedns
 .Pq Vt bool
 Set to
@@ -402,7 +402,7 @@ if you want to run
 Set to
 .Dq YES
 if you want to shorten the
-.Nm mailq
+.Xr mailq 1
 output when
 .Va daily_status_mailq_enable
 is set to
@@ -461,14 +461,14 @@ the previous day's values.
 .Pq Vt bool
 Set to
 .Dq YES
-to check for changes mounted filesystems to the previous day's values.
+to check for changes mounted file systems to the previous day's values.
 .It Va daily_status_security_noamd
 .Pq Vt bool
 Set to
 .Dq YES
 if you want to ignore
 .Xr amd 8
-mounts when comparing against yesterdays filesystem mounts in the
+mounts when comparing against yesterdays file system mounts in the
 .Va daily_status_security_chkmounts_enable
 check.
 .It Va daily_status_security_nomfs
@@ -477,7 +477,7 @@ Set to
 .Dq YES
 if you want to ignore
 .Xr mfs 8
-mounts when comparing against yesterdays filesystem mounts in the
+mounts when comparing against yesterdays file system mounts in the
 .Va daily_status_security_chkmounts_enable
 check.
 .It Va daily_status_security_chkuid0_enable
@@ -568,7 +568,7 @@ for yesterday's mail rejects.
 Set to
 .Dq YES
 if you want to summarise denied zone transfers (AXFR and IXFR)
-for the previious day.
+for the previous day.
 .It Va daily_status_named_usedns
 .Pq Vt bool
 Set to
@@ -628,7 +628,7 @@ Set to
 if you want to run
 .Pa /usr/libexec/locate.updatedb .
 This script is run using
-.Ic nice -5
+.Nm nice Fl 5
 as user
 .An nobody ,
 and generates the table used by the
@@ -670,6 +670,41 @@ Set to
 if you want to use
 .Xr pkg_version 1
 to list installed packages which are out of date.
+.It Va pkg_version
+.Pq Vt string
+When
+.Va weekly_status_pkg_enable
+is set to
+.Dq YES ,
+this variable specifies the program that is used to determine the out of
+date packages.
+If unset, the
+.Xr pkg_version 1
+program is used.
+As an example, this variable might be set to
+.Dq portversion
+if the portupgrade port has been installed.
+.It Va pkg_version_index
+.Pq Vt string
+This variable specifies the INDEX file from
+.Pa /usr/ports
+that should be used by
+.Xr pkg_version 1 .
+Because the dependency tree may be substantially different between versions of
+.Fx ,
+there may be more than one INDEX file in
+.Pa /usr/ports .
+.Pp
+Note, if the
+.Va pkg_version
+variable is set to
+.Dq portversion ,
+it will also be neccessary to arrange that the correct INDEX file is specified
+using environment variables and that
+.Dq pkg_version_index
+is cleared in
+.Pa /etc/periodic.conf
+.Pq pkg_version_index= .
 .It Va weekly_local
 .Pq Vt str
 Set to a list of extra scripts that should be run after all other
