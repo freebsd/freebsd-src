@@ -54,7 +54,6 @@
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/bus.h>
-#include <sys/proc.h>
 #include <sys/queue.h>
 #if defined(__FreeBSD__)
 #include <sys/bus.h>
@@ -79,24 +78,40 @@
 #define PCI_UHCI_VENDORID_VIA		0x1106
 
 #define PCI_UHCI_DEVICEID_PIIX3         0x70208086
-static const char *uhci_device_piix3	= "Intel 82371SB (PIIX3) USB controller";
-#define PCI_UHCI_DEVICEID_PIIX4         0x71128086
-#define PCI_UHCI_DEVICEID_PIIX4E        0x71128086    /* no separate stepping */
-static const char *uhci_device_piix4	= "Intel 82371AB/EB (PIIX4) USB controller";
-#define PCI_UHCI_DEVICEID_ICH		0x24128086
-static const char *uhci_device_ich	= "Intel 82801AA (ICH) USB controller";
-#define PCI_UHCI_DEVICEID_ICH0		0x24228086
-static const char *uhci_device_ich0 	= "Intel 82801AB (ICH0) USB controller";
-#define PCI_UHCI_DEVICEID_ICH2_A	0x24428086
-static const char *uhci_device_ich2_a	= "Intel 82801BA/BAM (ICH2) USB controller USB-A";
-#define PCI_UHCI_DEVICEID_ICH2_B	0x24448086
-static const char *uhci_device_ich2_b	= "Intel 82801BA/BAM (ICH2) USB controller USB-B";
-#define PCI_UHCI_DEVICEID_440MX		0x719a8086
-static const char *uhci_device_440mx 	= "Intel 82443MX USB controller";
-#define PCI_UHCI_DEVICEID_VT83C572	0x30381106
-static const char *uhci_device_vt83c572	= "VIA 83C572 USB controller";
+static const char *uhci_device_piix3 = "Intel 82371SB (PIIX3) USB controller";
 
-static const char *uhci_device_generic	= "UHCI (generic) USB controller";
+#define PCI_UHCI_DEVICEID_PIIX4         0x71128086
+#define PCI_UHCI_DEVICEID_PIIX4E        0x71128086	/* no separate stepping */
+static const char *uhci_device_piix4 = "Intel 82371AB/EB (PIIX4) USB controller";
+
+#define PCI_UHCI_DEVICEID_ICH		0x24128086
+static const char *uhci_device_ich = "Intel 82801AA (ICH) USB controller";
+
+#define PCI_UHCI_DEVICEID_ICH0		0x24228086
+static const char *uhci_device_ich0 = "Intel 82801AB (ICH0) USB controller";
+
+#define PCI_UHCI_DEVICEID_ICH2_A	0x24428086
+static const char *uhci_device_ich2_a = "Intel 82801BA/BAM (ICH2) USB controller USB-A";
+
+#define PCI_UHCI_DEVICEID_ICH2_B	0x24448086
+static const char *uhci_device_ich2_b = "Intel 82801BA/BAM (ICH2) USB controller USB-B";
+
+#define PCI_UHCI_DEVICEID_ICH3_A	0x24828086
+static const char *uhci_device_ich3_a = "Intel 82801CA/CAM (ICH3) USB controller USB-A";
+
+#define PCI_UHCI_DEVICEID_ICH3_B	0x24848086
+static const char *uhci_device_ich3_b = "Intel 82801CA/CAM (ICH3) USB controller USB-B";
+
+#define PCI_UHCI_DEVICEID_440MX		0x719a8086
+static const char *uhci_device_440mx = "Intel 82443MX USB controller";
+
+#define PCI_UHCI_DEVICEID_460GX		0x76028086
+static const char *uhci_device_460gx = "Intel 82372FB/82468GX USB controller";
+
+#define PCI_UHCI_DEVICEID_VT83C572	0x30381106
+static const char *uhci_device_vt83c572 = "VIA 83C572 USB controller";
+
+static const char *uhci_device_generic = "UHCI (generic) USB controller";
 
 #define PCI_UHCI_BASE_REG               0x20
 
@@ -149,25 +164,32 @@ uhci_pci_match(device_t self)
 		return (uhci_device_ich2_a);
 	} else if (device_id == PCI_UHCI_DEVICEID_ICH2_B) {
 		return (uhci_device_ich2_b);
+	} else if (device_id == PCI_UHCI_DEVICEID_ICH3_A) {
+		return (uhci_device_ich3_a);
+	} else if (device_id == PCI_UHCI_DEVICEID_ICH3_B) {
+		return (uhci_device_ich3_b);
 	} else if (device_id == PCI_UHCI_DEVICEID_440MX) {
 		return (uhci_device_440mx);
+	} else if (device_id == PCI_UHCI_DEVICEID_460GX) {
+		return (uhci_device_460gx);
 	} else if (device_id == PCI_UHCI_DEVICEID_VT83C572) {
 		return (uhci_device_vt83c572);
 	} else {
-		if (   pci_get_class(self)    == PCIC_SERIALBUS
+		if (pci_get_class(self) == PCIC_SERIALBUS
 		    && pci_get_subclass(self) == PCIS_SERIALBUS_USB
-		    && pci_get_progif(self)   == PCI_INTERFACE_UHCI) {
+		    && pci_get_progif(self) == PCI_INTERFACE_UHCI) {
 			return (uhci_device_generic);
 		}
 	}
 
-	return NULL;    /* dunno... */
+	return NULL;		/* dunno... */
 }
 
 static int
 uhci_pci_probe(device_t self)
 {
 	const char *desc = uhci_pci_match(self);
+
 	if (desc) {
 		device_set_desc(self, desc);
 		return 0;
@@ -185,12 +207,11 @@ uhci_pci_attach(device_t self)
 
 	rid = PCI_UHCI_BASE_REG;
 	sc->io_res = bus_alloc_resource(self, SYS_RES_IOPORT, &rid,
-				    0, ~0, 1, RF_ACTIVE);
+	    0, ~0, 1, RF_ACTIVE);
 	if (!sc->io_res) {
 		device_printf(self, "Could not map ports\n");
 		return ENXIO;
-        }
-
+	}
 	sc->iot = rman_get_bustag(sc->io_res);
 	sc->ioh = rman_get_bushandle(sc->io_res);
 
@@ -199,14 +220,13 @@ uhci_pci_attach(device_t self)
 
 	rid = 0;
 	sc->irq_res = bus_alloc_resource(self, SYS_RES_IRQ, &rid,
-					 0, ~0, 1,
-				     RF_SHAREABLE | RF_ACTIVE);
+	    0, ~0, 1,
+	    RF_SHAREABLE | RF_ACTIVE);
 	if (sc->irq_res == NULL) {
 		device_printf(self, "Could not allocate irq\n");
 		uhci_pci_detach(self);
 		return ENXIO;
 	}
-		
 	sc->sc_bus.bdev = device_add_child(self, "usb", -1);
 	if (!sc->sc_bus.bdev) {
 		device_printf(self, "Could not add USB device\n");
@@ -240,8 +260,20 @@ uhci_pci_attach(device_t self)
 		device_set_desc(sc->sc_bus.bdev, uhci_device_ich2_b);
 		sprintf(sc->sc_vendor, "Intel");
 		break;
+	case PCI_UHCI_DEVICEID_ICH3_A:
+		device_set_desc(sc->sc_bus.bdev, uhci_device_ich3_a);
+		sprintf(sc->sc_vendor, "Intel");
+		break;
+	case PCI_UHCI_DEVICEID_ICH3_B:
+		device_set_desc(sc->sc_bus.bdev, uhci_device_ich3_b);
+		sprintf(sc->sc_vendor, "Intel");
+		break;
 	case PCI_UHCI_DEVICEID_440MX:
 		device_set_desc(sc->sc_bus.bdev, uhci_device_440mx);
+		sprintf(sc->sc_vendor, "Intel");
+		break;
+	case PCI_UHCI_DEVICEID_460GX:
+		device_set_desc(sc->sc_bus.bdev, uhci_device_460gx);
 		sprintf(sc->sc_vendor, "Intel");
 		break;
 	case PCI_UHCI_DEVICEID_VT83C572:
@@ -250,12 +282,12 @@ uhci_pci_attach(device_t self)
 		break;
 	default:
 		device_printf(self, "(New UHCI DeviceId=0x%08x)\n",
-			      pci_get_devid(self));
+		    pci_get_devid(self));
 		device_set_desc(sc->sc_bus.bdev, uhci_device_generic);
 		sprintf(sc->sc_vendor, "(0x%08x)", pci_get_devid(self));
 	}
 
-	switch(pci_read_config(self, PCI_USBREV, 4) & PCI_USBREV_MASK) {
+	switch (pci_read_config(self, PCI_USBREV, 4) & PCI_USBREV_MASK) {
 	case PCI_USBREV_PRE_1_0:
 		sc->sc_bus.usbrev = USBREV_PRE_1_0;
 		break;
@@ -268,23 +300,23 @@ uhci_pci_attach(device_t self)
 	}
 
 	err = bus_setup_intr(self, sc->irq_res, INTR_TYPE_BIO,
-			     (driver_intr_t *) uhci_intr, sc, &sc->ih);
+	    (driver_intr_t *) uhci_intr, sc, &sc->ih);
 	if (err) {
 		device_printf(self, "Could not setup irq, %d\n", err);
 		sc->ih = NULL;
 		uhci_pci_detach(self);
 		return ENXIO;
 	}
-
-	/* Set the PIRQD enable bit and switch off all the others. We don't
-	 * want legacy support to interfere with us
-	 * XXX Does this also mean that the BIOS won't touch the keyboard
-	 * anymore if it is connected to the ports of the root hub?
+	/*
+	 * Set the PIRQD enable bit and switch off all the others. We don't
+	 * want legacy support to interfere with us XXX Does this also mean
+	 * that the BIOS won't touch the keyboard anymore if it is connected
+	 * to the ports of the root hub?
 	 */
 #ifdef UHCI_DEBUG
 	if (pci_read_config(self, PCI_LEGSUP, 4) != PCI_LEGSUP_USBPIRQDEN)
 		device_printf(self, "LegSup = 0x%08x\n",
-			      pci_read_config(self, PCI_LEGSUP, 4));
+		    pci_read_config(self, PCI_LEGSUP, 4));
 #endif
 	pci_write_config(self, PCI_LEGSUP, PCI_LEGSUP_USBPIRQDEN, 4);
 
@@ -297,8 +329,7 @@ uhci_pci_attach(device_t self)
 		uhci_pci_detach(self);
 		return EIO;
 	}
-
-	return 0;	/* success */
+	return 0;		/* success */
 }
 
 int
@@ -306,61 +337,63 @@ uhci_pci_detach(device_t self)
 {
 	uhci_softc_t *sc = device_get_softc(self);
 
-	/* XXX This function is not yet complete and should not be added
-	 *     method list.
+	/*
+	 * XXX This function is not yet complete and should not be added
+	 * method list.
 	 */
 #if 0
-	if uhci_init was successful
-		we should call something like uhci_deinit
+	if uhci_init
+		was successful
+		    we should call something like uhci_deinit
 #endif
 
-	/* disable interrupts that might have been switched on
-	 * in uhci_init.
+	/*
+	 * disable interrupts that might have been switched on in
+	 * uhci_init.
 	 */
 	if (sc->iot && sc->ioh)
-	bus_space_write_2(sc->iot, sc->ioh, UHCI_INTR, 0);
+		bus_space_write_2(sc->iot, sc->ioh, UHCI_INTR, 0);
 
 	if (sc->irq_res && sc->ih) {
 		int err = bus_teardown_intr(self, sc->irq_res, sc->ih);
-	if (err)
-		/* XXX or should we panic? */
+
+		if (err)
+			/* XXX or should we panic? */
 			device_printf(self, "Could not tear down irq, %d\n",
-			      err);
+			    err);
 		sc->ih = NULL;
 	}
-
 	if (sc->sc_bus.bdev) {
-	device_delete_child(self, sc->sc_bus.bdev);
+		device_delete_child(self, sc->sc_bus.bdev);
 		sc->sc_bus.bdev = NULL;
-}
+	}
 	if (sc->irq_res) {
 		bus_release_resource(self, SYS_RES_IRQ, 0, sc->irq_res);
 		sc->irq_res = NULL;
 	}
 	if (sc->io_res) {
 		bus_release_resource(self, SYS_RES_IOPORT, PCI_UHCI_BASE_REG,
-				     sc->io_res);
-	        sc->io_res = NULL;
+		    sc->io_res);
+		sc->io_res = NULL;
 		sc->iot = 0;
 		sc->ioh = 0;
 	}
-
 	return 0;
 }
 
 
 static device_method_t uhci_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		uhci_pci_probe),
-	DEVMETHOD(device_attach,	uhci_pci_attach),
-	DEVMETHOD(device_suspend,	uhci_pci_suspend),
-	DEVMETHOD(device_resume,	uhci_pci_resume),
-	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
+	DEVMETHOD(device_probe, uhci_pci_probe),
+	DEVMETHOD(device_attach, uhci_pci_attach),
+	DEVMETHOD(device_suspend, uhci_pci_suspend),
+	DEVMETHOD(device_resume, uhci_pci_resume),
+	DEVMETHOD(device_shutdown, bus_generic_shutdown),
 
 	/* Bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
+	DEVMETHOD(bus_print_child, bus_generic_print_child),
 
-	{ 0, 0 }
+	{0, 0}
 };
 
 static driver_t uhci_driver = {
