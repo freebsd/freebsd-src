@@ -1,6 +1,6 @@
 #ifndef lint
 static char *rcsid =
-    "@(#)$Header: /home/ncvs/src/usr.sbin/traceroute/traceroute.c,v 1.5 1996/03/13 08:04:29 pst Exp $ (LBL)";
+    "@(#)$Header: /home/ncvs/src/usr.sbin/traceroute/traceroute.c,v 1.6 1996/08/09 06:00:53 fenner Exp $ (LBL)";
 #endif
 
 /*
@@ -303,8 +303,10 @@ main(int argc, char **argv)
 	 */
 	pe = getprotobyname("icmp");
 	if (pe) {
-		s = socket(AF_INET, SOCK_RAW, pe->p_proto);
-		sockerrno = errno;
+		if ((s = socket(AF_INET, SOCK_RAW, pe->p_proto)) < 0)
+			sockerrno = errno;
+		else if ((sndsock = socket(AF_INET, SOCK_RAW, IPPROTO_RAW)) < 0)
+			sockerrno = errno;
 	}
 
 	setuid(getuid());
@@ -476,7 +478,8 @@ main(int argc, char **argv)
 		(void) setsockopt(s, SOL_SOCKET, SO_DONTROUTE,
 				  (char *)&on, sizeof(on));
 
-	if ((sndsock = socket(AF_INET, SOCK_RAW, IPPROTO_RAW)) < 0) {
+	if (sndsock < 0) {
+		errno = sockerrno;
 		perror("traceroute: raw socket");
 		exit(5);
 	}
