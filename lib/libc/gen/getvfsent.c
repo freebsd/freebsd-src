@@ -17,6 +17,8 @@
 #include <errno.h>
 #include <paths.h>
 
+#define _PATH_MODLOAD	"/sbin/modload"	/* XXX should be in header file */
+
 static struct vfsconf *_vfslist = 0;
 static struct vfsconf _vfsconf;
 static size_t _vfslistlen = 0;
@@ -171,7 +173,7 @@ vfspath(const char *name)
 	char *userdir = getenv("LKMDIR");
 	int i;
 
-	if(userdir) {
+	if(userdir && getuid() == geteuid() && getuid() == 0) {
 		vfs_lkmdirs[NLKMDIRS - 2] = userdir;
 	}
 
@@ -226,9 +228,7 @@ vfsload(const char *name)
 	}
 
 	status = -1;
-	if(getenv("TMPDIR")) {
-		status = chdir(getenv("TMPDIR"));
-	}
+	unsetenv("TMPDIR");
 	if(status) {
 		status = chdir(_PATH_VARTMP);
 	}
@@ -236,12 +236,12 @@ vfsload(const char *name)
 		status = chdir(_PATH_TMP);
 	}
 	if(status) {
-		exit(status ? errno : 0);
+		exit(errno);
 	}
 
 	snprintf(name_mod, sizeof name_mod, "%s%s", name, "_mod");
-	status = execlp("modload", "modload", "-e", name_mod, "-o", name_mod,
-			"-u", "-q", path, (const char *)0);
+	status = execl(_PATH_MODLOAD, "modload", "-e", name_mod, "-o",
+		       name_mod, "-u", "-q", path, (const char *)0);
 
 	exit(status ? errno : 0);
 }
