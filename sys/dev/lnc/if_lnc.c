@@ -548,12 +548,22 @@ lnc_rint(lnc_softc_t *sc)
 				head->m_pkthdr.len = pkt_len ;
 				eh = (struct ether_header *) head->m_data;
 
-				/* Skip over the ether header */
-				head->m_data += sizeof *eh;
-				head->m_len -= sizeof *eh;
-				head->m_pkthdr.len -= sizeof *eh;
+				/*
+				 * vmware ethernet hardware emulation loops
+				 * packets back to itself, violates IFF_SIMPLEX.
+				 * drop it if it is from myself.
+				 */
+				if (bcmp(eh->ether_shost,
+				      sc->arpcom.ac_enaddr, ETHER_ADDR_LEN) == 0) {
+					m_freem(head);
+				} else {
+					/* Skip over the ether header */
+					head->m_data += sizeof *eh;
+					head->m_len -= sizeof *eh;
+					head->m_pkthdr.len -= sizeof *eh;
 
-				ether_input(&sc->arpcom.ac_if, eh, head);
+					ether_input(&sc->arpcom.ac_if, eh, head);
+				}
 
 			} else {
 				int unit = sc->arpcom.ac_if.if_unit;
