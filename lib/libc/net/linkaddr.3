@@ -32,9 +32,10 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)linkaddr.3	8.1 (Berkeley) 7/28/93
+.\"     From: @(#)linkaddr.3	8.1 (Berkeley) 7/28/93
+.\"	$Id$
 .\"
-.Dd July 28, 1993
+.Dd June 17, 1996
 .Dt LINK_ADDR 3
 .Os BSD 4.4
 .Sh NAME
@@ -93,6 +94,11 @@ Thus
 .Li le0:8.0.9.13.d.30
 represents an ethernet address
 to be transmitted on the first Lance ethernet interface.
+.Pp
+The direct use of these functions is deprecated in favor of the
+.Xr addr2ascii 3
+interface; however, portable programs cannot rely on the latter as it is
+not yet widely implemented.
 .Sh RETURN VALUES
 .Fn link_ntoa
 always returns a null terminated string.
@@ -100,7 +106,8 @@ always returns a null terminated string.
 has no return value.
 (See
 .Sx BUGS . )
-.\" .Sh SEE ALSO
+.Sh SEE ALSO
+.Xr addr2ascii 3
 .\" .Xr iso 4
 .Sh HISTORY
 The
