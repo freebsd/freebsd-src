@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.59 1995/08/24 13:59:14 davidg Exp $
+ * $Id: vfs_bio.c,v 1.60 1995/08/28 09:18:53 julian Exp $
  */
 
 /*
@@ -73,6 +73,7 @@ void vm_hold_free_pages(struct buf * bp, vm_offset_t from, vm_offset_t to);
 void vm_hold_load_pages(struct buf * bp, vm_offset_t from, vm_offset_t to);
 void vfs_clean_pages(struct buf * bp);
 static void vfs_setdirty(struct buf *bp);
+static __inline struct buf * gbincore(struct vnode * vp, daddr_t blkno);
 
 int needsbuffer;
 
@@ -541,6 +542,29 @@ brelse(struct buf * bp)
 }
 
 /*
+ * Check to see if a block is currently memory resident.
+ */
+static __inline struct buf *
+gbincore(struct vnode * vp, daddr_t blkno)
+{
+	struct buf *bp;
+	struct bufhashhdr *bh;
+
+	bh = BUFHASH(vp, blkno);
+	bp = bh->lh_first;
+
+	/* Search hash chain */
+	while (bp != NULL) {
+		/* hit */
+		if (bp->b_vp == vp && bp->b_lblkno == blkno) {
+			break;
+		}
+		bp = bp->b_hash.le_next;
+	}
+	return (bp);
+}
+
+/*
  * this routine implements clustered async writes for
  * clearing out B_DELWRI buffers...  This is much better
  * than the old way of writing only one buffer at a time.
@@ -562,7 +586,7 @@ vfs_bio_awrite(struct buf * bp)
 		int maxcl = MAXPHYS / size;
 
 		for (i = 1; i < maxcl; i++) {
-			if ((bpa = incore(vp, lblkno + i)) &&
+			if ((bpa = gbincore(vp, lblkno + i)) &&
 			    ((bpa->b_flags & (B_BUSY | B_DELWRI | B_CLUSTEROK | B_INVAL)) ==
 			    (B_DELWRI | B_CLUSTEROK)) &&
 			    (bpa->b_bufsize == size)) {
@@ -716,14 +740,12 @@ incore(struct vnode * vp, daddr_t blkno)
 		/* hit */
 		if (bp->b_vp == vp && bp->b_lblkno == blkno &&
 		    (bp->b_flags & B_INVAL) == 0) {
-			splx(s);
-			return (bp);
+			break;
 		}
 		bp = bp->b_hash.le_next;
 	}
 	splx(s);
-
-	return (NULL);
+	return (bp);
 }
 
 /*
@@ -838,8 +860,8 @@ getblk(struct vnode * vp, daddr_t blkno, int size, int slpflag, int slptimeo)
 
 	s = splbio();
 loop:
-	if (bp = incore(vp, blkno)) {
-		if (bp->b_flags & B_BUSY) {
+	if (bp = gbincore(vp, blkno)) {
+		if (bp->b_flags & (B_BUSY|B_INVAL)) {
 			bp->b_flags |= B_WANTED;
 			if (!tsleep(bp, PRIBIO | slpflag, "getblk", slptimeo))
 				goto loop;
@@ -878,7 +900,7 @@ loop:
 		 * Normally the vnode is locked so this isn't a problem.
 		 * VBLK type I/O requests, however, don't lock the vnode.
 		 */
-		if (!VOP_ISLOCKED(vp) && incore(vp, blkno)) {
+		if (!VOP_ISLOCKED(vp) && gbincore(vp, blkno)) {
 			bp->b_flags |= B_INVAL;
 			brelse(bp);
 			goto loop;
@@ -940,7 +962,7 @@ allocbuf(struct buf * bp, int size)
 {
 
 	int s;
-	int newbsize;
+	int newbsize, mbsize;
 	int i;
 
 	if (!(bp->b_flags & B_BUSY))
@@ -950,6 +972,7 @@ allocbuf(struct buf * bp, int size)
 		/*
 		 * Just get anonymous memory from the kernel
 		 */
+		mbsize = ((size + DEV_BSIZE - 1) / DEV_BSIZE) * DEV_BSIZE;
 		newbsize = round_page(size);
 
 		if (newbsize < bp->b_bufsize) {
@@ -1218,8 +1241,7 @@ biodone(register struct buf * bp)
 			 * here in the read case.
 			 */
 			if ((bp->b_flags & B_READ) && !bogusflag && resid > 0) {
-				vm_page_set_valid(m, foff & (PAGE_SIZE-1), resid);
-				vm_page_set_clean(m, foff & (PAGE_SIZE-1), resid);
+				vm_page_set_validclean(m, foff & (PAGE_SIZE-1), resid);
 			}
 
 			/*
@@ -1285,10 +1307,10 @@ count_lock_queue()
 
 int vfs_update_interval = 30;
 
-static void
+void
 vfs_update()
 {
-	(void) spl0();		/* XXX redundant?  wrong place?*/
+	(void) spl0();
 	while (1) {
 		tsleep(&vfs_update_wakeup, PRIBIO, "update",
 		    hz * vfs_update_interval);
@@ -1365,13 +1387,13 @@ vfs_busy_pages(struct buf * bp, int clear_modify)
 
 			if (resid > iocount)
 				resid = iocount;
-			obj->paging_in_progress++;
-			m->busy++;
+			if ((bp->b_flags & B_CLUSTER) == 0) {
+				obj->paging_in_progress++;
+				m->busy++;
+			}
 			if (clear_modify) {
 				vm_page_protect(m, VM_PROT_READ);
-				vm_page_set_valid(m,
-					foff & (PAGE_SIZE-1), resid);
-				vm_page_set_clean(m,
+				vm_page_set_validclean(m,
 					foff & (PAGE_SIZE-1), resid);
 			} else if (bp->b_bcount >= PAGE_SIZE) {
 				if (m->valid && (bp->b_flags & B_CACHE) == 0) {
@@ -1407,9 +1429,7 @@ vfs_clean_pages(struct buf * bp)
 			if (resid > iocount)
 				resid = iocount;
 			if (resid > 0) {
-				vm_page_set_valid(m,
-					foff & (PAGE_SIZE-1), resid);
-				vm_page_set_clean(m,
+				vm_page_set_validclean(m,
 					foff & (PAGE_SIZE-1), resid);
 			}
 			foff += resid;
