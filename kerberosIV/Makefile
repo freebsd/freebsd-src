@@ -5,7 +5,7 @@ MAINTAINER=	markm@FreeBSD.org
 SUBDIR=	include lib libexec usr.bin usr.sbin
 
 # These are the programs which depend on Kerberos.
-KPROGS=	bin/rcp libexec/ftpd libexec/rlogind libexec/rshd \
+KPROGS=	bin/rcp lib/libpam libexec/ftpd libexec/rlogind libexec/rshd \
 	sbin/dump sbin/restore usr.bin/login usr.bin/passwd \
 	usr.bin/rlogin usr.bin/rsh usr.bin/su
 # kerberosIV'ed cvs is broken
