@@ -30,11 +30,14 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)bindresvport.c 1.8 88/02/08 SMI";*/
 /*static char *sccsid = "from: @(#)bindresvport.c	2.2 88/07/29 4.0 RPCSRC";*/
-static char *rcsid = "$Id: bindresvport.c,v 1.3 1995/10/22 14:51:11 phk Exp $";
+/*from: OpenBSD: bindresvport.c,v 1.7 1996/07/30 16:25:47 downsj Exp */
+static char *rcsid = "$Id: bindresvport.c,v 1.4 1996/06/10 00:49:15 jraynard Exp $";
 #endif
 
 /*
  * Copyright (c) 1987 by Sun Microsystems, Inc.
+ *
+ * Portions Copyright(C) 1996, Jason Downs.  All rights reserved.
  */
 
 #include <sys/types.h>
@@ -47,39 +50,60 @@ static char *rcsid = "$Id: bindresvport.c,v 1.3 1995/10/22 14:51:11 phk Exp $";
 /*
  * Bind a socket to a privileged IP port
  */
-int bindresvport(sd, sin)
+int
+bindresvport(sd, sin)
 	int sd;
 	struct sockaddr_in *sin;
 {
-	int res;
-	static short port;
+	int on, old, error;
 	struct sockaddr_in myaddr;
-	int i;
-
-#define STARTPORT 600
-#define ENDPORT (IPPORT_RESERVED - 1)
-#define NPORTS	(ENDPORT - STARTPORT + 1)
+	int sinlen = sizeof(struct sockaddr_in);
 
 	if (sin == (struct sockaddr_in *)0) {
 		sin = &myaddr;
-		bzero(sin, sizeof (*sin));
+		memset(sin, 0, sizeof(*sin));
+		sin->sin_len = sizeof(*sin);
 		sin->sin_family = AF_INET;
 	} else if (sin->sin_family != AF_INET) {
 		errno = EPFNOSUPPORT;
 		return (-1);
 	}
-	if (port == 0) {
-		port = (getpid() % NPORTS) + STARTPORT;
+
+	if (sin->sin_port == 0) {
+		int oldlen = sizeof(old);
+		error = getsockopt(sd, IPPROTO_IP, IP_PORTRANGE,
+				   &old, &oldlen);
+		if (error < 0)
+			return(error);
+
+		on = IP_PORTRANGE_LOW;
+		error = setsockopt(sd, IPPROTO_IP, IP_PORTRANGE,
+		           	   &on, sizeof(on));
+		if (error < 0)
+			return(error);
 	}
-	res = -1;
-	errno = EADDRINUSE;
-	for (i = 0; i < NPORTS && res < 0 && errno == EADDRINUSE; i++) {
-		sin->sin_port = htons(port++);
-		if (port > ENDPORT) {
-			port = STARTPORT;
+
+	error = bind(sd, (struct sockaddr *)sin, sizeof(*sin));
+
+	if (sin->sin_port == 0) {
+		int saved_errno = errno;
+
+		if (error) {
+			if (setsockopt(sd, IPPROTO_IP, IP_PORTRANGE,
+			    &old, sizeof(old)) < 0)
+				errno = saved_errno;
+			return (error);
 		}
-		res = bind(sd,
-		    (struct sockaddr *)sin, sizeof(struct sockaddr_in));
+
+		if (sin != &myaddr) {
+			int sinlen = sizeof(*sin);
+
+			/* Hmm, what did the kernel assign... */
+			if (getsockname(sd, (struct sockaddr *)sin,
+			    &sinlen) < 0)
+				errno = saved_errno;
+			return (error);
+		}
 	}
-	return (res);
+	return (error);
 }
