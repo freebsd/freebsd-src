@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_mmap.c 1.6 91/10/21$
  *
  *	@(#)vm_mmap.c	8.4 (Berkeley) 1/12/94
- * $Id: vm_mmap.c,v 1.31 1995/12/07 12:48:19 davidg Exp $
+ * $Id: vm_mmap.c,v 1.32 1995/12/11 04:58:17 dyson Exp $
  */
 
 /*
@@ -329,7 +329,7 @@ msync(p, uap, retval)
 
 	map = &p->p_vmspace->vm_map;
 	addr = (vm_offset_t) uap->addr;
-	size = (vm_size_t) uap->len;
+	size = round_page((vm_size_t) uap->len);
 	flags = uap->flags;
 
 	if (((int) addr & PAGE_MASK) || addr + size < addr ||
