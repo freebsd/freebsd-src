@@ -42,6 +42,7 @@ use vars qw(%SERVICES);
 MAIN:{
     my $line;
     my $service;
+    my $version;
     my $type;
     local *FILE;
     
@@ -56,10 +57,19 @@ MAIN:{
     }
 
     foreach $service (keys(%SERVICES)) {
+	$version = '$FreeBSD$';
+	if (sysopen(FILE, $service, O_RDONLY)) {
+		while (<FILE>) {
+			next unless (m/(\$FreeBSD$]+\$)/);
+			$version = $1;
+			last;
+		}
+		close(FILE);
+	}
 	sysopen(FILE, $service, O_RDWR|O_CREAT|O_TRUNC)
 	    or die("$service: $!\n");
 	print(FILE "#\n");
-	print(FILE "# \$FreeBSD\$\n");
+	print(FILE "# $version\n");
 	print(FILE "#\n");
 	print(FILE "# PAM configuration for the \"$service\" service\n");
 	print(FILE "#\n");
