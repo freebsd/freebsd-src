@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.c,v 1.17 1997/08/31 22:59:27 brian Exp $
+ * $Id: fsm.c,v 1.18 1997/09/10 21:33:32 brian Exp $
  *
  *  TODO:
  *		o Refer loglevel for log output
@@ -32,6 +32,7 @@
 #include "modem.h"
 #include "loadalias.h"
 #include "vars.h"
+#include "pred.h"
 
 void FsmSendConfigReq(struct fsm * fp);
 void FsmSendTerminateReq(struct fsm * fp);
