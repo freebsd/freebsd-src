@@ -1,3 +1,5 @@
+1.33 -> 1.34 Wed Aug 17 14:37:32 1994 (PUBLICLY AVAILABLE VERSION)
+	+ Back out sccsid string fix, it won't work on SunOS 4.1.
 1.32 -> 1.33 Wed Aug 17 09:31:41 1994 (PUBLICLY AVAILABLE VERSION)
 	+ Get back 5K of data space for the sccsid strings.
 	+ Fix bug where cG fix in version 1.31 broke cw cursor positioning
