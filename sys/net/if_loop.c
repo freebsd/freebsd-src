@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_loop.c	8.1 (Berkeley) 6/10/93
- * $Id: if_loop.c,v 1.32 1998/06/07 17:12:03 dfr Exp $
+ * $Id: if_loop.c,v 1.33 1998/06/12 03:48:09 julian Exp $
  */
 
 /*
@@ -169,7 +169,7 @@ if_simloop(ifp, m, dst, hlen)
 	register struct ifqueue *ifq = 0;
 
 	if ((m->m_flags & M_PKTHDR) == 0)
-		panic("%s: no HDR", __FUNCTION__);
+		panic("if_simloop: no HDR");
 	m->m_pkthdr.rcvif = ifp;
 #if NBPFILTER > 0
 	/* BPF write needs to be handled specially */
@@ -237,8 +237,7 @@ if_simloop(ifp, m, dst, hlen)
 		break;
 #endif NETATALK
 	default:
-		printf("%s: can't handle af=%d\n",
-		  __FUNCTION__, dst->sa_family);
+		printf("if_simloop: can't handle af=%d\n", dst->sa_family);
 		m_freem(m);
 		return (EAFNOSUPPORT);
 	}
