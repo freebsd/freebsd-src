@@ -30,6 +30,7 @@ SUBDIR=	adjkerntz \
 	fsirand \
 	gbde \
 	gconcat \
+	ggate \
 	${_gpt} \
 	growfs \
 	ifconfig \
