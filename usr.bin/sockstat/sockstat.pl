@@ -53,7 +53,7 @@ sub gather() {
     if (!defined($pid = open(PIPE, "-|"))) {
 	die("open(netstat): $!\n");
     } elsif ($pid == 0) {
-	exec("/usr/bin/netstat", "-Aan");
+	exec("/usr/bin/netstat", "-AanW");
 	die("exec(netstat): $!\n");
     }
     while ($line = <PIPE>) {
