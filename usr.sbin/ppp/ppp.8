@@ -4389,7 +4389,7 @@ If no provider is given, an empty value will be used.
 Refer to
 .Xr netgraph 4
 and
-.Xr ng_pppoe 8
+.Xr ng_pppoe 4
 for further details.
 .Pp
 If a
@@ -5587,7 +5587,7 @@ This socket is used to pass links between different instances of
 .Xr init 8 ,
 .Xr isdn 8 ,
 .Xr named 8 ,
-.Xr ng_pppoe 8 ,
+.Xr ng_pppoe 4 ,
 .Xr ping 8 ,
 .Xr pppctl 8 ,
 .Xr pppd 8 ,
