@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: defs.h,v 1.2 1995/02/26 12:17:25 amurai Exp $
+ * $Id: defs.h,v 1.3 1995/09/02 17:20:51 amurai Exp $
  *
  *	TODO:
  */
@@ -45,7 +45,7 @@
 #define MODEM_SPEED	B38400			/* tty speed */
 #define	SERVER_PORT	3000			/* Base server port no. */
 
-#define	REDIAL_PERIOD	30			/* Hold time to redial */
+#define	REDIAL_PERIOD	30			/* Default Hold time to redial */
 
 #define	CONFFILE 	"ppp.conf"
 #define	LINKFILE 	"ppp.linkup"
