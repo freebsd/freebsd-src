@@ -233,26 +233,22 @@ freeit:
 	m_freem(n);
 }
 
-static struct sockaddr_in icmpsrc = { sizeof (struct sockaddr_in), AF_INET };
-static struct sockaddr_in icmpdst = { sizeof (struct sockaddr_in), AF_INET };
-static struct sockaddr_in icmpgw = { sizeof (struct sockaddr_in), AF_INET };
-
 /*
  * Process a received ICMP message.
  */
 void
 icmp_input(m, off)
-	register struct mbuf *m;
+	struct mbuf *m;
 	int off;
 {
-	int hlen = off;
-	register struct icmp *icp;
-	register struct ip *ip = mtod(m, struct ip *);
-	int icmplen = ip->ip_len;
-	register int i;
+	struct icmp *icp;
 	struct in_ifaddr *ia;
+	struct ip *ip = mtod(m, struct ip *);
+	struct sockaddr_in icmpsrc, icmpdst, icmpgw;
+	int hlen = off;
+	int icmplen = ip->ip_len;
+	int i, code;
 	void (*ctlfunc)(int, struct sockaddr *, void *);
-	int code;
 
 	/*
 	 * Locate icmp structure in mbuf, and check
@@ -310,6 +306,18 @@ icmp_input(m, off)
 	 */
 	if (icp->icmp_type > ICMP_MAXTYPE)
 		goto raw;
+
+	/* Initialize */
+	bzero(&icmpsrc, sizeof(icmpsrc));
+	icmpsrc.sin_len = sizeof(struct sockaddr_in);
+	icmpsrc.sin_family = AF_INET;
+	bzero(&icmpdst, sizeof(icmpdst));
+	icmpdst.sin_len = sizeof(struct sockaddr_in);
+	icmpdst.sin_family = AF_INET;
+	bzero(&icmpgw, sizeof(icmpgw));
+	icmpgw.sin_len = sizeof(struct sockaddr_in);
+	icmpgw.sin_family = AF_INET;
+
 	icmpstat.icps_inhist[icp->icmp_type]++;
 	code = icp->icmp_code;
 	switch (icp->icmp_type) {
