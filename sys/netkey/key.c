@@ -97,6 +97,7 @@ Research Laboratory (NRL).
 
 #include <netinet/in.h>
 #include <netinet/in_var.h>
+#include <netinet/in_pcb.h>
 
 #ifdef INET6
 #include <netinet6/in6.h>
@@ -156,8 +157,6 @@ int maxkeyacquire = MAXKEYACQUIRE;
 u_long maxacquiretime = MAXACQUIRETIME;
 
 extern struct sockaddr key_addr;
-
-extern struct pr_usrreqs raw_usrreqs;
 
 #define ROUNDUP(a) \
 	((a) > 0 ? (1 + (((a) - 1) | (sizeof(long) - 1))) : sizeof(long))
@@ -2366,8 +2365,8 @@ flush:
 
 
 /*----------------------------------------------------------------------
- * key_usrreq():
- *      Handles PRU_* for pf_key sockets.
+ * key_*():
+ *      Handles protocol requests for pf_key sockets.
  ----------------------------------------------------------------------*/
 
 static int
@@ -2457,6 +2456,55 @@ key_detach(struct socket *so)
 
 }
 
+static int
+key_abort(struct socket *so)
+{
+  DPRINTF(IDL_EVENT,("Entering key_abort\n"));
+
+  return (raw_usrreqs.pru_abort)(so);
+}
+
+static int
+key_bind(struct socket *so, struct sockaddr *nam, struct proc *p)
+{
+  DPRINTF(IDL_EVENT,("Entering key_bind\n"));
+
+  return (raw_usrreqs.pru_bind)(so, nam, p);
+}
+
+static int
+key_connect(struct socket *so, struct sockaddr *nam, struct proc *p)
+{
+  DPRINTF(IDL_EVENT,("Entering key_connect\n"));
+
+  return (raw_usrreqs.pru_connect)(so, nam, p);
+}
+
+static int
+key_disconnect(struct socket *so)
+{
+  DPRINTF(IDL_EVENT,("Entering key_disconnect\n"));
+
+  return (raw_usrreqs.pru_disconnect)(so);
+}
+
+static int
+key_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
+	 struct mbuf *control, struct proc *p)
+{
+  DPRINTF(IDL_EVENT,("Entering key_send\n"));
+
+  return (raw_usrreqs.pru_send)(so, flags, m, nam, control, p);
+}
+
+static int
+key_shutdown(struct socket *so)
+{
+  DPRINTF(IDL_EVENT,("Entering key_shutdown\n"));
+
+  return (raw_usrreqs.pru_shutdown)(so);
+}
+
 /*----------------------------------------------------------------------
  * key_cbinit():
  *      Control block init routine for key socket
@@ -2479,22 +2527,20 @@ key_cbinit()
 extern struct domain keydomain;		/* or at least forward */
 
 struct pr_usrreqs key_usrreqs = {
-  raw_usrreqs.pru_abort, pru_accept_notsupp, key_attach, raw_usrreqs.pru_bind,
-  raw_usrreqs.pru_connect,
-  pru_connect2_notsupp, in_control, key_detach, raw_usrreqs.pru_disconnect,
+  key_abort, pru_accept_notsupp, key_attach, key_bind, key_connect,
+  pru_connect2_notsupp, in_control, key_detach, key_disconnect,
   pru_listen_notsupp, in_setpeeraddr, pru_rcvd_notsupp,
-  pru_rcvoob_notsupp, raw_usrreqs.pru_send, pru_sense_null,
-  raw_usrreqs.pru_shutdown, 
+  pru_rcvoob_notsupp, key_send, pru_sense_null, key_shutdown, 
   in_setsockaddr, sosend, soreceive, sopoll
 };
 
 
 struct protosw keysw[] = {
-{ SOCK_RAW,	&keydomain,	0,		PR_ATOMIC|PR_ADDR,
-  raw_input,	key_output,	raw_ctlinput,	0,
+{ SOCK_RAW,	&keydomain,	0,	PR_ATOMIC|PR_ADDR,
+  0,		key_output,	raw_ctlinput, 0,
   0,
   key_cbinit,	0,		0,		0,
-  key_usrreqs,
+  &key_usrreqs,
 },
 };
 
