@@ -142,6 +142,7 @@ struct aac_command
 
     void			(* cm_complete)(struct aac_command *cm);
     void			*cm_private;
+    struct callout_handle	timeout_handle;	/* timeout handle */
 };
 
 /*
