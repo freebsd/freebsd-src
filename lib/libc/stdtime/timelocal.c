@@ -238,7 +238,7 @@ set_from_buf(const char *p, int num_lines)
 	for (ap = (const char **) &_time_localebuf, i = 0;
 	    i < num_lines; ++ap, ++i)
 		*ap = p += strlen(p) + 1;
-	if (num_lines == LCTIME_SIZE_FULL)
+	if (num_lines >= LCTIME_SIZE_2)
 		return;
 	for (i = 0; i < 12; i++)
 		_time_localebuf.alt_month[i] = _time_localebuf.month[i];
