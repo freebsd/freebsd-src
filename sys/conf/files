@@ -387,7 +387,7 @@ ntfs/ntfs_vnops.c		optional ntfs
 ntfs/ntfs_subr.c		optional ntfs
 ntfs/ntfs_compr.c		optional ntfs
 ntfs/ntfs_ihash.c		optional ntfs
-net/bpf.c		optional bpfilter
+net/bpf.c		standard
 net/bpf_filter.c	optional bpfilter
 net/bridge.c		optional bridge
 net/bsd_comp.c		optional ppp_bsdcomp
