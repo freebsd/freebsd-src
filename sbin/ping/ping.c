@@ -1576,28 +1576,21 @@ fill(bp, patp)
 	}
 }
 
+#if defined(IPSEC) && defined(IPSEC_POLICY_IPSEC)
+#define	SECOPT		" [-P policy]"
+#else
+#define	SECOPT		""
+#endif
 static void
 usage()
 {
-	(void)fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n",
 
+	(void)fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n",
 "usage: ping [-AaDdfnoQqRrv] [-c count] [-i wait] [-l preload] [-M mask | time]",
-"            [-m ttl]"
-#ifdef IPSEC
-#ifdef IPSEC_POLICY_IPSEC
-" [-P policy]"
-#endif
-#endif
-" [-p pattern] [-S src_addr] [-s packetsize]",
+"            [-m ttl]" SECOPT " [-p pattern] [-S src_addr] [-s packetsize]",
 "            [-t timeout] [-z tos] host",
 "       ping [-AaDdfLnoQqRrv] [-c count] [-I iface] [-i wait] [-l preload]",
-"            [-M mask | time] [-m ttl]"
-#ifdef IPSEC
-#ifdef IPSEC_POLICY_IPSEC
-" [-P policy]"
-#endif
-#endif
-" [-p pattern] [-S src_addr]",
+"            [-M mask | time] [-m ttl]" SECOPT " [-p pattern] [-S src_addr]",
 "            [-s packetsize] [-T ttl] [-t timeout] [-z tos] mcast-group");
 	exit(EX_USAGE);
 }
