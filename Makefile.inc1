@@ -299,7 +299,7 @@ everything:
 installworld:
 	mkdir -p ${INSTALLTMP}
 	for prog in [ awk cat chflags chown date echo egrep find grep \
-	    install ln make makewhatis miniperl mtree mv perl rm sed sh sysctl \
+	    install ln make makewhatis mtree mv perl rm sed sh sysctl \
 	    test true uname wc zic; do \
 		cp `which $$prog` ${INSTALLTMP}; \
 	done
@@ -536,9 +536,13 @@ _libkrb5= kerberos5/lib/libroken kerberos5/lib/libasn1 kerberos5/lib/libhdb \
 	kerberos5/lib/libsl
 .endif
 
+.if !defined(NOPERL)
+_perl=	gnu/usr.bin/perl
+.endif
+
 build-tools:
 .for _tool in bin/sh ${_games} gnu/usr.bin/cc/cc_tools ${_fortran} \
-    ${_libroken4} ${_libkrb5} lib/libncurses ${_share}
+    ${_libroken4} ${_libkrb5} lib/libncurses ${_share} ${_perl}
 	cd ${.CURDIR}/${_tool}; ${MAKE} build-tools
 .endfor
 
