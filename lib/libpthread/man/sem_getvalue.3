@@ -69,9 +69,8 @@ points to an invalid semaphore.
 .Xr sem_wait 3
 .Sh STANDARDS
 .Fn sem_getvalue
-conforms to ISO/IEC 9945-1 ANSI/IEEE
-.Pq Dq Tn POSIX
-Std 1003.1 1996 Edition.
+conforms to
+.St -p1003.1-96 .
 .Pp
 The value of the semaphore is never negative, even if there are threads blocked
 on the semaphore.  POSIX is somewhat ambiguous in its wording with regard to
