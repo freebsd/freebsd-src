@@ -204,8 +204,8 @@ gre_input2(struct mbuf *m ,int hlen, u_char proto)
 		m_freem(m);
 		return (EINVAL);
 	}
+	/* Unlike NetBSD, in FreeBSD m_adj() adjusts m->m_pkthdr.len as well */
 	m_adj(m, hlen);
-	m->m_pkthdr.len -= hlen;
 
 	if (sc->sc_if.if_bpf) {
 		u_int32_t af = AF_INET;
