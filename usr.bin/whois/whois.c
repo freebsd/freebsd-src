@@ -63,6 +63,10 @@ main(argc, argv)
 	int s;
 	char *host;
 
+#ifdef	SOCKS
+	SOCKSinit(argv[0]);
+#endif
+
 	host = NICHOST;
 	while ((ch = getopt(argc, argv, "h:")) != EOF)
 		switch((char)ch) {
@@ -93,10 +97,6 @@ main(argc, argv)
 	}
 	bzero((caddr_t)&sin, sizeof (sin));
 	sin.sin_family = hp->h_addrtype;
-	if (bind(s, (struct sockaddr *)&sin, sizeof(sin)) < 0) {
-		perror("whois: bind");
-		exit(1);
-	}
 	bcopy(hp->h_addr, (char *)&sin.sin_addr, hp->h_length);
 	sp = getservbyname("whois", "tcp");
 	if (sp == NULL) {
