@@ -63,8 +63,8 @@ package_exists(char *name)
      */
     snprintf(fname, FILENAME_MAX, "/var/db/pkg/%s", name);
     status = access(fname, R_OK);
-    msgDebug("package check for %s returns %s.\n", name,
-	     status ? "failure" : "success");
+    if (isDebug())
+	msgDebug("package check for %s returns %s.\n", name, status ? "failure" : "success");
     return !status;
 }
 
