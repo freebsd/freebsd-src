@@ -1,4 +1,4 @@
-	$Id: syscalls.master,v 1.26 1996/02/23 18:20:44 peter Exp $
+	$Id: syscalls.master,v 1.27 1996/03/02 16:51:25 peter Exp $
 ;	from: @(#)syscalls.master	8.2 (Berkeley) 1/13/94
 ;
 ; System call name/number master file.
@@ -152,7 +152,7 @@
 ; XXX should be		{ int fcntl(int fd, int cmd, ...); }
 ; but we're not ready for varargs.
 ; XXX man page says `int arg' too.
-93	STD	BSD	{ int select(u_int nd, fd_set *in, fd_set *ou, \
+93	STD	BSD	{ int select(int nd, fd_set *in, fd_set *ou, \
 			    fd_set *ex, struct timeval *tv); }
 94	UNIMPL	BSD	setdopt
 95	STD	POSIX	{ int fsync(int fd); }
