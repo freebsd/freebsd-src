@@ -34,6 +34,10 @@
 
 #include "pas.h"
 
+extern int pcm_set_bits __P((int arg));
+extern int pcm_set_channels __P((int arg));
+extern int pcm_set_speed __P((int arg));
+
 #if !defined(EXCLUDE_PAS) && !defined(EXCLUDE_AUDIO)
 
 #define TRACE(WHAT)		/*
