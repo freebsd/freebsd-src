@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.c,v 1.30.2.1 1998/01/29 00:49:13 brian Exp $
+ * $Id: ccp.c,v 1.30.2.2 1998/01/29 20:45:13 brian Exp $
  *
  *	TODO:
  *		o Support other compression protocols
@@ -149,9 +149,9 @@ ccpstateInit(void)
 }
 
 void
-CcpInit(struct physical *physical)
+CcpInit(struct link *l)
 {
-  FsmInit(&CcpFsm, physical);
+  FsmInit(&CcpFsm, l);
   ccpstateInit();
   CcpFsm.maxconfig = 10;
 }
@@ -417,10 +417,10 @@ CcpResetInput(u_char id)
 }
 
 int
-CcpOutput(struct physical *physical, int pri, u_short proto, struct mbuf *m)
+CcpOutput(struct link *l, int pri, u_short proto, struct mbuf *m)
 {
   if (CcpInfo.out_init)
-    return (*algorithm[CcpInfo.out_algorithm]->o.Write)(physical, pri, proto, m);
+    return (*algorithm[CcpInfo.out_algorithm]->o.Write)(l, pri, proto, m);
   return 0;
 }
 

@@ -16,7 +16,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- *  $Id$
+ *  $Id: physical.c,v 1.1.2.1 1998/01/29 00:49:29 brian Exp $
  *
  */
 
@@ -44,6 +44,7 @@
 #include "hdlc.h"
 #include "timer.h"
 #include "throughput.h"
+#include "link.h"
 
 #define PHYSICAL_DEVICE
 #include "physical.h"
@@ -63,11 +64,6 @@ Physical_GetFD(struct physical *phys) {
 int
 Physical_IsATTY(struct physical *phys) {
    return isatty(phys->fd);
-}
-
-int
-Physical_IsActive(struct physical *phys) {
-   return phys->fd >= 0;
 }
 
 int

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: async.c,v 1.15 1998/01/21 02:15:08 brian Exp $
+ * $Id: async.c,v 1.15.2.1 1998/01/29 00:49:10 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -40,6 +40,8 @@
 #include "loadalias.h"
 #include "vars.h"
 #include "async.h"
+#include "throughput.h"
+#include "link.h"
 #include "physical.h"
 
 #define HDLCSIZE	(MAX_MRU*2+6)
@@ -98,7 +100,7 @@ HdlcPutByte(u_char **cp, u_char c, int proto)
 }
 
 void
-AsyncOutput(int pri, struct mbuf *bp, int proto, struct physical *physical)
+AsyncOutput(int pri, struct mbuf *bp, int proto, struct link *l)
 {
   struct async_state *hs = &AsyncState;
   u_char *cp, *sp, *ep;
@@ -128,8 +130,8 @@ AsyncOutput(int pri, struct mbuf *bp, int proto, struct physical *physical)
 
   cnt = cp - hs->xbuff;
   LogDumpBuff(LogASYNC, "WriteModem", hs->xbuff, cnt);
-  WriteModem(physical, pri, (char *) hs->xbuff, cnt);
-  ModemAddOutOctets(physical, cnt);
+  link_Write(l, pri, (char *)hs->xbuff, cnt);
+  link_AddOutOctets(l, cnt);
   pfree(bp);
 }
 
@@ -181,7 +183,8 @@ AsyncInput(u_char *buff, int cnt, struct physical *physical)
 {
   struct mbuf *bp;
 
-  ModemAddInOctets(physical, cnt);
+  link_AddInOctets(physical2link(physical), cnt);
+
   if (Physical_IsSync(physical)) {
     bp = mballoc(cnt, MB_ASYNC);
     memcpy(MBUF_CTOP(bp), buff, cnt);

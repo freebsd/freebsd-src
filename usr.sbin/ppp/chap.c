@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: chap.c,v 1.28.2.1 1998/01/29 00:49:13 brian Exp $
+ * $Id: chap.c,v 1.28.2.2 1998/01/30 01:33:44 brian Exp $
  *
  *	TODO:
  */
@@ -80,7 +80,7 @@ ChapOutput(struct physical *physical, u_int code, u_int id,
     memcpy(MBUF_CTOP(bp) + sizeof(struct fsmheader), ptr, count);
   LogDumpBp(LogDEBUG, "ChapOutput", bp);
   LogPrintf(LogLCP, "ChapOutput: %s\n", chapcodes[code]);
-  HdlcOutput(physical, PRI_LINK, PROTO_CHAP, bp);
+  HdlcOutput(physical2link(physical), PRI_LINK, PROTO_CHAP, bp);
 }
 
 

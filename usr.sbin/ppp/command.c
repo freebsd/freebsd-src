@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131.2.1 1998/01/29 00:49:15 brian Exp $
+ * $Id: command.c,v 1.131.2.2 1998/01/29 23:11:33 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -74,6 +74,7 @@
 #include "ip.h"
 #include "slcompress.h"
 #include "auth.h"
+#include "link.h"
 #include "physical.h"
 
 struct in_addr ifnetmask;
@@ -640,7 +641,7 @@ static struct cmdtab const ShowCommands[] = {
   "Show Preferred MTU", "show mtu"},
   {"ofilter", NULL, ShowOfilter, LOCAL_AUTH,
   "Show Output filters", "show ofilter option .."},
-  {"proto", NULL, ReportProtStatus, LOCAL_AUTH,
+  {"proto", NULL, ReportProtocolStatus, LOCAL_AUTH,
   "Show protocol summary", "show proto"},
   {"reconnect", NULL, ShowReconnect, LOCAL_AUTH,
   "Show reconnect timer", "show reconnect"},
@@ -1372,8 +1373,8 @@ SetVariable(struct cmdargs const *arg)
     break;
   case VAR_DEVICE:
     if (mode & MODE_INTER)
-      HangupModem(pppVars.physical, 0);
-    if (Physical_IsActive(pppVars.physical))
+      link_Close(physical2link(pppVars.physical), 0);
+    if (link_IsActive(physical2link(pppVars.physical)))
       LogPrintf(LogWARN,
 		"Cannot change device to \"%s\" when \"%s\" is open\n",
                 argp, Physical_GetDevice(pppVars.physical));

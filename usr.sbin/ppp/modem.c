@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.77 1998/01/29 00:42:05 brian Exp $
+ * $Id: modem.c,v 1.77.2.1 1998/01/29 00:49:26 brian Exp $
  *
  *  TODO:
  */
@@ -27,7 +27,6 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 
-#include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <paths.h>
@@ -66,6 +65,7 @@
 /* We're defining a physical device, and thus need the real
    headers. */
 #define PHYSICAL_DEVICE
+#include "link.h"
 #include "physical.h"
 
 
@@ -75,8 +75,25 @@
 #endif
 #endif
 
+static void ModemStartOutput(struct link *);
+static int ModemIsActive(struct link *);
+static void ModemHangup(struct link *, int);
+
 struct physical phys_modem = {
-   -1
+  {
+    PHYSICAL_LINK,
+    "modem",
+    sizeof(struct physical),
+    { 0 },                      /* throughput */
+    { 0 },                      /* timer */
+    { { 0 } },                  /* queues */
+    { 0 },                      /* proto_in */
+    { 0 },                      /* proto_out */
+    ModemStartOutput,
+    ModemIsActive,
+    ModemHangup
+  },
+  -1
 };
 
 /* XXX-ML this should probably change when we add support for other
@@ -84,45 +101,6 @@ struct physical phys_modem = {
 #define	Online	(modem->mbits & TIOCM_CD)
 
 static void CloseLogicalModem(struct physical *);
-
-void
-Enqueue(struct mqueue * queue, struct mbuf * bp)
-{
-  if (queue->last) {
-    queue->last->pnext = bp;
-    queue->last = bp;
-  } else
-    queue->last = queue->top = bp;
-  queue->qlen++;
-  LogPrintf(LogDEBUG, "Enqueue: len = %d\n", queue->qlen);
-}
-
-struct mbuf *
-Dequeue(struct mqueue *queue)
-{
-  struct mbuf *bp;
-
-  LogPrintf(LogDEBUG, "Dequeue: len = %d\n", queue->qlen);
-  bp = queue->top;
-  if (bp) {
-    queue->top = queue->top->pnext;
-    queue->qlen--;
-    if (queue->top == NULL) {
-      queue->last = queue->top;
-      if (queue->qlen)
-	LogPrintf(LogERROR, "Dequeue: Not zero (%d)!!!\n", queue->qlen);
-    }
-  }
-  return (bp);
-}
-
-void
-SequenceQueues(struct physical *phys)
-{
-  LogPrintf(LogDEBUG, "SequenceQueues\n");
-  while (phys->OutputQueues[PRI_NORMAL].qlen)
-    Enqueue(&phys->OutputQueues[PRI_LINK], Dequeue(&phys->OutputQueues[PRI_NORMAL]));
-}
 
 static struct speeds {
   int nspeed;
@@ -250,8 +228,8 @@ ModemTimeout(void *data)
   int ombits = modem->mbits;
   int change;
 
-  StopTimer(&modem->DeviceTimer);
-  StartTimer(&modem->DeviceTimer);
+  StopTimer(&modem->link.Timer);
+  StartTimer(&modem->link.Timer);
 
   if (modem->dev_is_modem) {
     if (modem->fd >= 0) {
@@ -297,7 +275,7 @@ StartModemTimer(struct physical *modem)
 {
   struct pppTimer *ModemTimer;
 
-  ModemTimer = &modem->DeviceTimer;
+  ModemTimer = &modem->link.Timer;
 
   StopTimer(ModemTimer);
   ModemTimer->state = TIMER_STOPPED;
@@ -463,7 +441,7 @@ UnlockModem(struct physical *modem)
 static void
 HaveModem(struct physical *modem)
 {
-  throughput_start(&modem->throughput);
+  throughput_start(&modem->link.throughput);
   modem->connect_count++;
   LogPrintf(LogPHASE, "Connected!\n");
 }
@@ -721,42 +699,32 @@ UnrawModem(struct physical *modem)
   }
 }
 
-void
-ModemAddInOctets(struct physical *modem, int n)
-{
-  throughput_addin(&modem->throughput, n);
-}
-
-void
-ModemAddOutOctets(struct physical *modem, int n)
-{
-  throughput_addout(&modem->throughput, n);
-}
-
 static void
 ClosePhysicalModem(struct physical *modem)
 {
   LogPrintf(LogDEBUG, "ClosePhysicalModem\n");
   close(modem->fd);
   modem->fd = -1;
-  throughput_log(&modem->throughput, LogPHASE, "Modem");
+  throughput_log(&modem->link.throughput, LogPHASE, "Modem");
 }
 
-void
-HangupModem(struct physical *modem, int flag)
+static void
+ModemHangup(struct link *l, int dedicated_force)
 {
   struct termios tio;
+  struct physical *modem = (struct physical *)l;
 
-  LogPrintf(LogDEBUG, "Hangup modem (%s)\n", modem >= 0 ? "open" : "closed");
+  LogPrintf(LogDEBUG, "Hangup modem (%s)\n",
+            modem->fd >= 0 ? "open" : "closed");
 
   if (modem->fd < 0)
     return;
 
-  StopTimer(&modem->DeviceTimer);
-  throughput_stop(&modem->throughput);
+  StopTimer(&modem->link.Timer);
+  throughput_stop(&modem->link.throughput);
 
   if (TermMode) {
-    LogPrintf(LogDEBUG, "HangupModem: Not in 'term' mode\n");
+    LogPrintf(LogDEBUG, "ModemHangup: Not in 'term' mode\n");
     return;
   }
 
@@ -781,8 +749,8 @@ HangupModem(struct physical *modem, int flag)
 
     strncpy(ScriptBuffer, VarHangupScript, sizeof ScriptBuffer - 1);
     ScriptBuffer[sizeof ScriptBuffer - 1] = '\0';
-    LogPrintf(LogDEBUG, "HangupModem: Script: %s\n", ScriptBuffer);
-    if (flag ||
+    LogPrintf(LogDEBUG, "ModemHangup: Script: %s\n", ScriptBuffer);
+    if (dedicated_force ||
 #ifdef notyet
 	!modem->is_dedicated
 #else
@@ -826,89 +794,25 @@ CloseLogicalModem(struct physical *modem)
   }
 }
 
-/*
- * Write to modem. Actualy, requested packets are queued, and goes out
- * to the line when ModemStartOutput() is called.
- */
-void
-WriteModem(struct physical *modem, int pri, const char *ptr, int count)
+static void
+ModemStartOutput(struct link *l)
 {
-  struct mbuf *bp;
-
-  assert(pri == PRI_NORMAL || pri == PRI_LINK);
-
-  bp = mballoc(count, MB_MODEM);
-  memcpy(MBUF_CTOP(bp), ptr, count);
-
-  /*
-   * Should be NORMAL and LINK only. All IP frames get here marked NORMAL.
-   */
-  Enqueue(&modem->OutputQueues[pri], bp);
-}
-
-void
-ModemOutput(struct physical *modem, int pri, struct mbuf * bp)
-{
-  struct mbuf *wp;
-  int len;
-
-  assert(pri == PRI_NORMAL || pri == PRI_LINK);
-
-  len = plength(bp);
-  wp = mballoc(len, MB_MODEM);
-  mbread(bp, MBUF_CTOP(wp), len);
-  Enqueue(&modem->OutputQueues[pri], wp);
-  ModemStartOutput(modem);
-}
-
-int
-ModemQlen(struct physical *phys)
-{
-  struct mqueue *queue;
-  int len = 0;
-  int i;
-
-  for (i = PRI_NORMAL; i <= PRI_LINK; i++) {
-    queue = &phys->OutputQueues[i];
-    len += queue->qlen;
-  }
-  return (len);
-
-}
-
-void
-ModemStartOutput(struct physical *modem)
-{
-  struct mqueue *queue;
+  struct physical *modem = (struct physical *)l;
   int nb, nw;
-  int i;
 
   if (modem->out == NULL) {
-	if (ModemQlen(modem) == 0)
-	  IpStartOutput(modem);
-    i = PRI_LINK;
-    for (queue = &modem->OutputQueues[PRI_LINK]; queue >= &modem->OutputQueues[0]; queue--) {
-      if (queue->top) {
-	modem->out = Dequeue(queue);
-	if (LogIsKept(LogDEBUG)) {
-	  if (i > PRI_NORMAL) {
-	    struct mqueue *q;
+    if (link_QueueLen(l) == 0)
+      IpStartOutput(l);
 
-	    q = &modem->OutputQueues[0];
-	    LogPrintf(LogDEBUG, "ModemStartOutput: Output from queue %d,"
-		      " normal has %d\n", i, q->qlen);
-	  }
-	  LogPrintf(LogDEBUG, "ModemStartOutput: Dequeued %d\n", i);
-	}
-	break;
-      }
-      i--;
-    }
+    modem->out = link_Dequeue(l);
   }
+
   if (modem->out) {
     nb = modem->out->cnt;
+/* Eh ?  Removed 980130
     if (nb > 1600)
       nb = 1600;
+*/
     nw = write(modem->fd, MBUF_CTOP(modem->out), nb);
     LogPrintf(LogDEBUG, "ModemStartOutput: wrote: %d(%d)\n", nw, nb);
     LogDumpBuff(LogDEBUG, "ModemStartOutput: modem write",
@@ -929,6 +833,12 @@ ModemStartOutput(struct physical *modem)
       }
     }
   }
+}
+
+static int
+ModemIsActive(struct link *l)
+{
+  return ((struct physical *)l)->fd >= 0;
 }
 
 int
@@ -961,7 +871,7 @@ DialModem(struct physical *modem)
     LogPrintf(LogWARN, "DialModem: dial failed.\n");
     excode = EX_NODIAL;
   }
-  HangupModem(modem, 0);
+  ModemHangup(&modem->link, 0);
   return (excode);
 }
 
@@ -1013,14 +923,21 @@ ShowModemStatus(struct cmdargs const *arg)
     else
       fprintf(VarTerm, "outq: ioctl probe failed: %s\n", strerror(errno));
 #endif
-  fprintf(VarTerm, "outqlen: %d\n", ModemQlen(modem));
+  fprintf(VarTerm, "outqlen: %d\n", link_QueueLen(&modem->link));
   fprintf(VarTerm, "DialScript  = %s\n", VarDialScript);
   fprintf(VarTerm, "LoginScript = %s\n", VarLoginScript);
   fprintf(VarTerm, "PhoneNumber(s) = %s\n", VarPhoneList);
 
   fprintf(VarTerm, "\n");
-  throughput_disp(&modem->throughput, VarTerm);
+  throughput_disp(&modem->link.throughput, VarTerm);
 
+  return 0;
+}
+
+int
+ReportProtocolStatus(struct cmdargs const *arg)
+{
+  link_ReportProtocolStatus(&phys_modem.link);
   return 0;
 }
 

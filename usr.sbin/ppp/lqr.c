@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lqr.c,v 1.22.2.1 1998/01/29 00:49:25 brian Exp $
+ * $Id: lqr.c,v 1.22.2.2 1998/01/30 01:33:46 brian Exp $
  *
  *	o LQR based on RFC1333
  *
@@ -37,6 +37,7 @@
 #include "timer.h"
 #include "fsm.h"
 #include "lcpproto.h"
+#include "physical.h"
 #include "lqr.h"
 #include "hdlc.h"
 #include "lcp.h"
@@ -128,7 +129,7 @@ SendLqrReport(void *v)
       LcpClose(&LcpFsm);
     } else {
       bp = mballoc(sizeof(struct lqrdata), MB_LQR);
-      HdlcOutput(physical, PRI_LINK, PROTO_LQR, bp);
+      HdlcOutput(physical2link(physical), PRI_LINK, PROTO_LQR, bp);
       lqrsendcnt++;
     }
   } else if (lqmmethod & LQM_ECHO) {
@@ -221,7 +222,7 @@ StartLqm(struct physical *physical)
     LqrTimer.state = TIMER_STOPPED;
     LqrTimer.load = period * SECTICKS / 100;
     LqrTimer.func = SendLqrReport;
-	LqrTimer.arg  = physical;
+    LqrTimer.arg = physical;
     SendLqrReport(physical);
     StartTimer(&LqrTimer);
     LogPrintf(LogLQM, "Will send LQR every %d.%d secs\n",

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: auth.c,v 1.27.2.1 1998/01/29 00:49:11 brian Exp $
+ * $Id: auth.c,v 1.27.2.2 1998/01/29 23:11:31 brian Exp $
  *
  *	TODO:
  *		o Implement check against with registered IP addresses.
@@ -43,6 +43,7 @@
 #include "auth.h"
 #include "chat.h"
 #include "systems.h"
+#include "physical.h"
 
 void
 LocalAuthInit()
@@ -128,7 +129,8 @@ AuthValidate(const char *fname, const char *system, const char *key,
 	CloseSecret(fp);
 	if (n > 2 && !UseHisaddr(vector[2], 1))
 	    return (0);
-	IpcpInit(physical);
+	IpcpInit(physical2link(physical));   /* XXX defer this - we may join an
+                                              * existing bundle ! */
 	if (n > 3)
 	  SetLabel(vector[3]);
 	return (1);		/* Valid */
@@ -166,7 +168,8 @@ AuthGetSecret(const char *fname, const char *system, int len, int setaddr,
 	memset(&IpcpInfo.DefHisAddress, '\0', sizeof IpcpInfo.DefHisAddress);
       if (n > 2 && setaddr)
 	if (UseHisaddr(vector[2], 1))
-          IpcpInit(physical);
+	  IpcpInit(physical2link(physical));   /* XXX defer this - we may join
+                                                * an existing bundle ! */
         else
           return NULL;
       if (n > 3)

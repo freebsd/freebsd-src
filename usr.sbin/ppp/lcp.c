@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.55.2.2 1998/01/29 23:11:38 brian Exp $
+ * $Id: lcp.c,v 1.55.2.3 1998/01/30 01:33:45 brian Exp $
  *
  * TODO:
  *	o Limit data field length by MRU
@@ -65,6 +65,7 @@
 #include "ip.h"
 #include "modem.h"
 #include "tun.h"
+#include "link.h"
 #include "physical.h"
 
 /* for received LQRs */
@@ -202,7 +203,7 @@ GenerateMagic(void)
 void
 LcpInit(struct physical *physical)
 {
-  FsmInit(&LcpFsm, physical);
+  FsmInit(&LcpFsm, physical2link(physical));
   HdlcInit();
   memset(&LcpInfo, '\0', sizeof LcpInfo);
   LcpInfo.want_mru = VarMRU;
@@ -310,14 +311,20 @@ do {								\
 #define PUTMSCHAP()  PUTCHAP(0x80)
   
 static void
-LcpSendConfigReq(struct fsm * fp)
+LcpSendConfigReq(struct fsm *fp)
 {
+  struct physical *p = link2physical(fp->link);
   u_char *cp;
   struct lcp_opt o;
 
+  if (!p) {
+    LogPrintf(LogERROR, "LcpSendConfigReq: Not a physical link !\n");
+    return;
+  }
+
   LogPrintf(LogLCP, "LcpSendConfigReq\n");
   cp = ReqBuff;
-  if (!Physical_IsSync(fp->physical)) {
+  if (!Physical_IsSync(p)) {
     if (LcpInfo.want_acfcomp && !REJECTED(&LcpInfo, TY_ACFCOMP))
       PUTN(TY_ACFCOMP);
 
@@ -377,10 +384,15 @@ LcpSendTerminateAck(struct fsm * fp)
 }
 
 static void
-LcpLayerStart(struct fsm * fp)
+LcpLayerStart(struct fsm *fp)
 {
+  struct physical *p = link2physical(fp->link);
+
   LogPrintf(LogLCP, "LcpLayerStart\n");
-  NewPhase(fp->physical, PHASE_ESTABLISH);
+  if (p)
+    NewPhase(p, PHASE_ESTABLISH);
+  else
+    LogPrintf(LogERROR, "LcpLayerStart: Not a physical link !\n");
 }
 
 static void
@@ -394,29 +406,38 @@ StopAllTimers(void)
 }
 
 static void
-LcpLayerFinish(struct fsm * fp)
+LcpLayerFinish(struct fsm *fp)
 {
+  struct physical *p = link2physical(fp->link);
+
   LogPrintf(LogLCP, "LcpLayerFinish\n");
-  HangupModem(fp->physical, 0);
+  link_Close(fp->link, 0);
   StopAllTimers();
   /* We're down at last.  Lets tell background and direct mode to get out */
-  NewPhase(fp->physical, PHASE_DEAD);
-  LcpInit(fp->physical);
-  IpcpInit(fp->physical);
-  CcpInit(fp->physical);
+  if (p) {
+    NewPhase(p, PHASE_DEAD);
+    LcpInit(p);
+  } else
+    LogPrintf(LogERROR, "LcpLayerFinish: Not a physical link !\n");
+  IpcpInit(fp->link);
+  CcpInit(fp->link);
   Prompt();
 }
 
 static void
-LcpLayerUp(struct fsm * fp)
+LcpLayerUp(struct fsm *fp)
 {
+  struct physical *p = link2physical(fp->link);
+
   LogPrintf(LogLCP, "LcpLayerUp\n");
-  tun_configure(LcpInfo.his_mru, ModemSpeed(fp->physical));
   SetLinkParams(&LcpInfo);
 
-  NewPhase(fp->physical, PHASE_AUTHENTICATE);
+  if (p) {
+    NewPhase(p, PHASE_AUTHENTICATE);
+    StartLqm(p);
+  } else
+    LogPrintf(LogERROR, "LcpLayerUp: Not a physical link !\n");
 
-  StartLqm(fp->physical);
   StopTimer(&LcpInfo.ReportTimer);
   LcpInfo.ReportTimer.state = TIMER_STOPPED;
   LcpInfo.ReportTimer.load = 60 * SECTICKS;
@@ -464,7 +485,13 @@ LcpOpen(int open_mode)
 void
 LcpClose(struct fsm *fp)
 {
-  NewPhase(fp->physical, PHASE_TERMINATE);
+  struct physical *p = link2physical(fp->link);
+
+  if (p)
+    NewPhase(p, PHASE_TERMINATE);
+  else
+    LogPrintf(LogERROR, "LcpClose: Not a physical link !\n");
+
   OsInterfaceDown(0);
   FsmClose(fp);
   LcpInfo.LcpFailedMagic = 0;

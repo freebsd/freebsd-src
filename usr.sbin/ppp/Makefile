@@ -1,9 +1,9 @@
-#	$Id: Makefile,v 1.36 1998/01/29 00:42:04 brian Exp $
+#	$Id: Makefile,v 1.36.2.1 1998/01/29 00:49:10 brian Exp $
 
 PROG=	ppp
 SRCS=	arp.c async.c auth.c ccp.c chap.c chat.c command.c deflate.c \
 	defs.c filter.c fsm.c hdlc.c id.c ip.c ipcp.c iplist.c lcp.c \
-	log.c lqr.c main.c mbuf.c modem.c os.c pap.c phase.c physical.c \
+	link.c log.c lqr.c main.c mbuf.c modem.c os.c pap.c phase.c physical.c \
 	pred.c route.c server.c sig.c slcompress.c systems.c throughput.c \
 	timer.c tun.c vars.c vjcomp.c
 CFLAGS+=-Wall -Wpointer-arith

@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: hdlc.h,v 1.14 1998/01/21 02:15:15 brian Exp $
+ * $Id: hdlc.h,v 1.14.2.1 1998/01/29 00:49:22 brian Exp $
  *
  *	TODO:
  */
@@ -54,15 +54,17 @@
 #define	PRI_NORMAL	0	/* Normal priority */
 #define	PRI_FAST	1	/* Fast (interractive) */
 #define	PRI_LINK	1	/* Urgent (LQR packets) */
+#define	PRI_MAX		1
 
 extern u_char EscMap[33];
 
 struct physical;
+struct link;
 
 extern void HdlcInit(void);
 extern void HdlcErrorCheck(void);
 extern void HdlcInput(struct mbuf *, struct physical *);
-extern void HdlcOutput(struct physical *, int, u_short, struct mbuf *bp);
+extern void HdlcOutput(struct link *, int, u_short, struct mbuf *bp);
 extern u_short HdlcFcs(u_short, u_char *, int);
 extern int ReportHdlcStatus(struct cmdargs const *);
 extern int ReportProtStatus(struct cmdargs const *);

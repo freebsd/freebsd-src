@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: mbuf.h,v 1.10 1997/12/03 10:23:50 brian Exp $
+ * $Id: mbuf.h,v 1.11 1998/01/21 02:15:21 brian Exp $
  *
  *	TODO:
  */
@@ -44,7 +44,7 @@ struct mqueue {
 #define MB_IPIN		4
 #define MB_ECHO		5
 #define MB_LQR		6
-#define MB_MODEM	7
+#define MB_LINK		7
 #define MB_VJCOMP	8
 #define	MB_LOG		9
 #define	MB_IPQ		10
@@ -58,3 +58,5 @@ extern void mbwrite(struct mbuf *, u_char *, int);
 extern struct mbuf *mbread(struct mbuf *, u_char *, int);
 extern void LogMemory(void);
 extern int ShowMemMap(struct cmdargs const *);
+extern void Enqueue(struct mqueue *, struct mbuf *);
+extern struct mbuf *Dequeue(struct mqueue *);

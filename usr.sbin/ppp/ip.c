@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ip.c,v 1.38.2.1 1998/01/29 00:49:22 brian Exp $
+ * $Id: ip.c,v 1.38.2.2 1998/01/29 23:11:35 brian Exp $
  *
  *	TODO:
  *		o Return ICMP message for filterd packet
@@ -516,7 +516,7 @@ IsIpEnqueued()
 #endif
 
 void
-IpStartOutput(struct physical *physical)
+IpStartOutput(struct link *l)
 {
   struct mqueue *queue;
   struct mbuf *bp;
@@ -529,7 +529,7 @@ IpStartOutput(struct physical *physical)
       bp = Dequeue(queue);
       if (bp) {
 	cnt = plength(bp);
-	SendPppFrame(physical, bp);
+	SendPppFrame(l, bp);
 	RestartIdleTimer();
         IpcpAddOutOctets(cnt);
 	break;

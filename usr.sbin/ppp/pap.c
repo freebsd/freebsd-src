@@ -18,7 +18,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: pap.c,v 1.20.2.1 1998/01/29 00:49:27 brian Exp $
+ * $Id: pap.c,v 1.20.2.2 1998/01/30 01:33:46 brian Exp $
  *
  *	TODO:
  */
@@ -84,7 +84,7 @@ SendPapChallenge(int papid, struct physical *physical)
   *cp++ = keylen;
   memcpy(cp, VarAuthKey, keylen);
 
-  HdlcOutput(physical, PRI_LINK, PROTO_PAP, bp);
+  HdlcOutput(physical2link(physical), PRI_LINK, PROTO_PAP, bp);
 }
 
 struct authinfo AuthPapInfo = {
@@ -110,7 +110,7 @@ SendPapCode(int id, int code, const char *message, struct physical *physical)
   *cp++ = mlen;
   memcpy(cp, message, mlen);
   LogPrintf(LogPHASE, "PapOutput: %s\n", papcodes[code]);
-  HdlcOutput(physical, PRI_LINK, PROTO_PAP, bp);
+  HdlcOutput(physical2link(physical), PRI_LINK, PROTO_PAP, bp);
 }
 
 /*

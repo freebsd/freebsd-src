@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: route.c,v 1.42 1998/01/21 02:15:26 brian Exp $
+ * $Id: route.c,v 1.42.2.1 1998/01/29 23:11:42 brian Exp $
  *
  */
 
@@ -51,6 +51,8 @@
 #include "iplist.h"
 #include "timer.h"
 #include "throughput.h"
+#include "hdlc.h"
+#include "link.h"
 #include "ipcp.h"
 #include "route.h"
 

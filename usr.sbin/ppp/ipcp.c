@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.50.2.1 1998/01/29 00:49:23 brian Exp $
+ * $Id: ipcp.c,v 1.50.2.2 1998/01/29 23:11:36 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
@@ -55,6 +55,8 @@
 #include "ip.h"
 #include "route.h"
 #include "filter.h"
+#include "hdlc.h"
+#include "link.h"
 #include "physical.h"
 
 struct compreq {
@@ -223,11 +225,11 @@ ShowInitVJ(struct cmdargs const *args)
 }
 
 void
-IpcpInit(struct physical *physical)
+IpcpInit(struct link *l)
 {
   if (iplist_isvalid(&IpcpInfo.DefHisChoice))
     iplist_setrandpos(&IpcpInfo.DefHisChoice);
-  FsmInit(&IpcpFsm, physical);
+  FsmInit(&IpcpFsm, l);
   IpcpInfo.his_compproto = 0;
   IpcpInfo.his_reject = IpcpInfo.my_reject = 0;
 
@@ -270,14 +272,15 @@ IpcpInitRestartCounter(struct fsm * fp)
 }
 
 static void
-IpcpSendConfigReq(struct fsm * fp)
+IpcpSendConfigReq(struct fsm *fp)
 {
+  struct physical *p = link2physical(fp->link);
   u_char *cp;
   struct lcp_opt o;
 
   cp = ReqBuff;
   LogPrintf(LogIPCP, "IpcpSendConfigReq\n");
-  if (!Physical_IsSync(fp->physical) || !REJECTED(&IpcpInfo, TY_IPADDR)) {
+  if ((p && !Physical_IsSync(p)) || !REJECTED(&IpcpInfo, TY_IPADDR)) {
     o.id = TY_IPADDR;
     o.len = 6;
     *(u_long *)o.data = IpcpInfo.want_ipaddr.s_addr;
@@ -327,7 +330,6 @@ IpcpLayerFinish(struct fsm * fp)
   LogPrintf(LogIPCP, "IpcpLayerFinish.\n");
   reconnect(RECON_FALSE);
   LcpClose(&LcpFsm);
-  NewPhase(fp->physical, PHASE_TERMINATE);
 }
 
 static void

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: hdlc.c,v 1.28.2.1 1998/01/29 00:49:21 brian Exp $
+ * $Id: hdlc.c,v 1.28.2.2 1998/01/29 23:11:34 brian Exp $
  *
  *	TODO:
  */
@@ -50,6 +50,7 @@
 #include "vars.h"
 #include "modem.h"
 #include "ccp.h"
+#include "link.h"
 #include "physical.h"
 
 static struct hdlcstat {
@@ -62,25 +63,6 @@ static struct hdlcstat {
 static int ifOutPackets;
 static int ifOutOctets;
 static int ifOutLQRs;
-
-static struct protostat {
-  u_short number;
-  const char *name;
-  u_long in_count;
-  u_long out_count;
-} ProtocolStat[] = {
-  { PROTO_IP, "IP" },
-  { PROTO_VJUNCOMP, "VJ_UNCOMP" },
-  { PROTO_VJCOMP, "VJ_COMP" },
-  { PROTO_COMPD, "COMPD" },
-  { PROTO_LCP, "LCP" },
-  { PROTO_IPCP, "IPCP" },
-  { PROTO_CCP, "CCP" },
-  { PROTO_PAP, "PAP" },
-  { PROTO_LQR, "LQR" },
-  { PROTO_CHAP, "CHAP" },
-  { 0, "Others" }
-};
 
 static u_short const fcstab[256] = {
    /* 00 */ 0x0000, 0x1189, 0x2312, 0x329b, 0x4624, 0x57ad, 0x6536, 0x74bf,
@@ -160,21 +142,32 @@ HdlcFcsBuf(u_short fcs, struct mbuf *m)
 }
 
 void
-HdlcOutput(struct physical *physical,
-		   int pri, u_short proto, struct mbuf * bp)
+HdlcOutput(struct link *l, int pri, u_short proto, struct mbuf *bp)
 {
+  struct physical *p = link2physical(l);
   struct mbuf *mhp, *mfcs;
-  struct protostat *statp;
   struct lqrdata *lqr;
   u_char *cp;
   u_short fcs;
 
   if ((proto & 0xfff1) == 0x21)		/* Network Layer protocol */
     if (CcpFsm.state == ST_OPENED)
-      if (CcpOutput(physical, pri, proto, bp))
+      if (CcpOutput(l, pri, proto, bp))
         return;
 
-  if (Physical_IsSync(physical))
+  if (!p) {
+    /*
+     * This is where we multiplex the data over our available physical
+     * links.  We don't frame our logical link data.  Instead we wait
+     * for the logical link implementation to chop our data up and pile
+     * it into the physical links by re-calling this function with the
+     * encapsulated fragments.
+     */
+    link_Output(l, pri, bp);
+    return;
+  }
+
+  if (Physical_IsSync(p))
     mfcs = NULL;
   else
     mfcs = mballoc(2, MB_HDLCOUT);
@@ -199,6 +192,7 @@ HdlcOutput(struct physical *physical,
     *cp = proto & 0377;
     mhp->cnt += 2;
   }
+
   mhp->next = bp;
   while (bp->next != NULL)
     bp = bp->next;
@@ -224,7 +218,8 @@ HdlcOutput(struct physical *physical,
     LqrDump("LqrOutput", lqr);
     LqrChangeOrder(lqr, (struct lqrdata *) (MBUF_CTOP(bp)));
   }
-  if (!Physical_IsSync(physical)) {
+
+  if (mfcs) {
     mfcs->cnt = 0;
     fcs = HdlcFcsBuf(INITFCS, mhp);
     fcs = ~fcs;
@@ -233,18 +228,16 @@ HdlcOutput(struct physical *physical,
     *cp++ = fcs >> 8;
     mfcs->cnt = 2;
   }
-  LogDumpBp(LogHDLC, "HdlcOutput", mhp);
-  for (statp = ProtocolStat; statp->number; statp++)
-    if (statp->number == proto)
-      break;
-  statp->out_count++;
 
+  LogDumpBp(LogHDLC, "HdlcOutput", mhp);
+
+  link_ProtocolRecord(l, proto, PROTO_OUT);
   LogPrintf(LogDEBUG, "HdlcOutput: proto = 0x%04x\n", proto);
 
-  if (Physical_IsSync(physical))
-    ModemOutput(physical, pri, mhp);
+  if (Physical_IsSync(p))
+    link_Output(l, pri, mhp);          /* Send it raw */
   else
-    AsyncOutput(pri, mhp, proto, physical);
+    AsyncOutput(pri, mhp, proto, l);
 }
 
 /* Check out the latest ``Assigned numbers'' rfc (rfc1700.txt) */
@@ -374,8 +367,9 @@ Protocol2Nam(u_short proto)
 }
 
 static void
-DecodePacket(u_short proto, struct mbuf * bp, struct physical *physical)
+DecodePacket(u_short proto, struct mbuf * bp, struct link *l)
 {
+  struct physical *p = link2physical(l);
   u_char *cp;
 
   LogPrintf(LogDEBUG, "DecodePacket: proto = 0x%04x\n", proto);
@@ -396,21 +390,35 @@ DecodePacket(u_short proto, struct mbuf * bp, struct physical *physical)
     LcpInput(bp);
     break;
   case PROTO_PAP:
-    PapInput(bp, physical);
+    if (p)
+      PapInput(bp, p);
+    else {
+      LogPrintf(LogERROR, "DecodePacket: PAP: Not a physical link !\n");
+      pfree(bp);
+    }
     break;
   case PROTO_LQR:
     HisLqrSave.SaveInLQRs++;
-    LqrInput(physical, bp);
+    if (p)
+      LqrInput(p, bp);
+    else {
+      LogPrintf(LogERROR, "DecodePacket: LQR: Not a physical link !\n");
+      pfree(bp);
+    }
     break;
   case PROTO_CHAP:
-    ChapInput(bp, physical);
+    if (p)
+      ChapInput(bp, p);
+    else {
+      LogPrintf(LogERROR, "DecodePacket: CHAP: Not a physical link !\n");
+      pfree(bp);
+    }
     break;
   case PROTO_VJUNCOMP:
   case PROTO_VJCOMP:
     bp = VjCompInput(bp, proto);
-    if (bp == NULL) {
+    if (bp == NULL)
       break;
-    }
     /* fall down */
   case PROTO_IP:
     IpInput(bp);
@@ -433,30 +441,6 @@ DecodePacket(u_short proto, struct mbuf * bp, struct physical *physical)
     pfree(bp);
     break;
   }
-}
-
-int
-ReportProtStatus(struct cmdargs const *arg)
-{
-  struct protostat *statp;
-  int cnt;
-
-  statp = ProtocolStat;
-  statp--;
-  cnt = 0;
-  fprintf(VarTerm, "    Protocol     in        out      Protocol      in       out\n");
-  do {
-    statp++;
-    fprintf(VarTerm, "   %-9s: %8lu, %8lu",
-	    statp->name, statp->in_count, statp->out_count);
-    if (++cnt == 2) {
-      fprintf(VarTerm, "\n");
-      cnt = 0;
-    }
-  } while (statp->number);
-  if (cnt)
-    fprintf(VarTerm, "\n");
-  return (0);
 }
 
 int
@@ -493,7 +477,6 @@ HdlcInput(struct mbuf * bp, struct physical *physical)
 {
   u_short fcs, proto;
   u_char *cp, addr, ctrl;
-  struct protostat *statp;
 
   LogDumpBp(LogHDLC, "HdlcInput:", bp);
   if (Physical_IsSync(physical))
@@ -570,11 +553,8 @@ HdlcInput(struct mbuf * bp, struct physical *physical)
     bp->cnt -= 2;
   }
 
-  for (statp = ProtocolStat; statp->number; statp++)
-    if (statp->number == proto)
-      break;
-  statp->in_count++;
+  link_ProtocolRecord(physical2link(physical), proto, PROTO_IN);
   HisLqrSave.SaveInPackets++;
 
-  DecodePacket(proto, bp, physical);
+  DecodePacket(proto, bp, physical2link(physical));
 }

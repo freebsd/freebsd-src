@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: mbuf.c,v 1.12 1997/12/28 02:56:42 brian Exp $
+ * $Id: mbuf.c,v 1.13 1998/01/21 02:15:21 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -172,4 +172,36 @@ LogMemory()
 	MemMap[1].count, MemMap[2].count, MemMap[3].count, MemMap[4].count);
   LogPrintf(LogDEBUG, "LogMemory:  5: %d  6: %d   7: %d   8: %d\n",
 	MemMap[5].count, MemMap[6].count, MemMap[7].count, MemMap[8].count);
+}
+
+struct mbuf *
+Dequeue(struct mqueue *q)
+{
+  struct mbuf *bp;
+  
+  LogPrintf(LogDEBUG, "Dequeue: len = %d\n", q->qlen);
+  bp = q->top;
+  if (bp) {
+    q->top = q->top->pnext;
+    q->qlen--;
+    if (q->top == NULL) {
+      q->last = q->top;
+      if (q->qlen)
+	LogPrintf(LogERROR, "Dequeue: Not zero (%d)!!!\n", q->qlen);
+    }
+  }
+
+  return bp;
+}
+
+void
+Enqueue(struct mqueue *queue, struct mbuf *bp)
+{
+  if (queue->last) {
+    queue->last->pnext = bp;
+    queue->last = bp;
+  } else
+    queue->last = queue->top = bp;
+  queue->qlen++;
+  LogPrintf(LogDEBUG, "Enqueue: len = %d\n", queue->qlen);
 }

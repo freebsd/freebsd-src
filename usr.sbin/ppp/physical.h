@@ -16,44 +16,41 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- *  $Id$
+ *  $Id: physical.h,v 1.1.2.1 1998/01/29 00:49:30 brian Exp $
  *
  */
 
-struct physical;
-
 #ifdef PHYSICAL_DEVICE
 struct physical {
-   int fd;						/* File descriptor for this device */
-   int mbits;					/* Current DCD status */
-   unsigned dev_is_modem : 1;	/* Is the device an actual modem?
-								   Faked for sync devices, though...
-								   (Possibly this should be
-								   dev_is_not_tcp?) XXX-ML */
+  struct link link;
+  int fd;                      /* File descriptor for this device */
+  int mbits;                   /* Current DCD status */
+  unsigned dev_is_modem : 1;   /* Is the device an actual modem?
+                                  Faked for sync devices, though...
+                                  (Possibly this should be
+                                  dev_is_not_tcp?) XXX-ML */
 
-   unsigned is_dedicated : 1;	/* Dedicated mode?  XXX-ML - not yet initialized */
-   unsigned is_direct : 1;		/* Direct mode?  XXX-ML - not yet initialized */
-   struct pppThroughput throughput;
-   struct mbuf *out;
-   int connect_count;
-   struct pppTimer DeviceTimer; /* Was ModemTimer */
+  unsigned is_dedicated : 1;   /* Dedicated mode?  XXX-ML - not yet initialized */
+  unsigned is_direct : 1;      /* Direct mode?  XXX-ML - not yet initialized */
+  struct mbuf *out;
+  int connect_count;
 
-
-   /* XXX Shouldn't be tied up to a specific number like this. -EE. */
-   struct mqueue OutputQueues[PRI_LINK + 1];
-
-   /* XXX-ML Most of the below is device specific, and probably do not
+  /* XXX-ML Most of the below is device specific, and probably do not
       belong in the generic physical struct. It comes from modem.c. */
-   unsigned rts_cts : 1;		/* Is rts/cts enabled? */
-   unsigned int parity;			/* What parity is enabled? (TTY flags) */
-   unsigned int speed;			/* Modem speed */
-   struct termios ios;			/* To be able to reset from raw mode */
+  unsigned rts_cts : 1;        /* Is rts/cts enabled? */
+  unsigned int parity;         /* What parity is enabled? (TTY flags) */
+  unsigned int speed;          /* Modem speed */
+  struct termios ios;          /* To be able to reset from raw mode */
 };
+#else
+struct physical;
 #endif
+
+#define physical2link(p) ((struct link *)p)
+#define link2physical(l) (l->type == PHYSICAL_LINK ? (struct physical *)l : 0)
 
 int Physical_GetFD(struct physical *);
 int Physical_IsATTY(struct physical *);
-int Physical_IsActive(struct physical *);
 int Physical_IsSync(struct physical *);
 int Physical_IsDedicated(struct physical *phys);
 int Physical_IsDirect(struct physical *phys);
@@ -68,8 +65,8 @@ Physical_SetSpeed(struct physical *phys, int speed);
    can solve that later. */
 void Physical_SetSync(struct physical *phys);
 
-int	/* Can this be set?  (Might not be a relevant attribute for this
-	   device, for instance) */
+int /* Can this be set?  (Might not be a relevant attribute for this
+       device, for instance) */
 Physical_SetRtsCts(struct physical *phys, int enable);
 
 void Physical_SetDedicated(struct physical *phys, int enable);

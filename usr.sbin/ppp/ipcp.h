@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.h,v 1.18.2.3 1998/01/30 01:28:35 brian Exp $
+ * $Id: ipcp.h,v 1.18.2.4 1998/01/30 01:32:55 brian Exp $
  *
  *	TODO:
  */
@@ -73,7 +73,7 @@ struct ipcpstate {
 extern struct ipcpstate IpcpInfo;
 extern struct fsm IpcpFsm;
 
-extern void IpcpInit(struct physical *physical);
+extern void IpcpInit(struct link *l);
 extern void IpcpDefAddress(void);
 extern void IpcpUp(void);
 extern void IpcpOpen(void);

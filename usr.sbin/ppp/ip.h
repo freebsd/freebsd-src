@@ -17,13 +17,11 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ip.h,v 1.8 1997/12/29 22:23:11 brian Exp $
+ * $Id: ip.h,v 1.8.2.1 1998/01/29 00:49:23 brian Exp $
  *
  */
 
-struct physical;
-
-extern void IpStartOutput(struct physical *);
+extern void IpStartOutput(struct link *);
 extern int  PacketCheck(char *, int, int);
 extern void IpEnqueue(int, char *, int);
 extern void IpInput(struct mbuf *);

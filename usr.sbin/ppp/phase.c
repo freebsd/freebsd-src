@@ -23,13 +23,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: phase.c,v 1.6.4.2 1998/01/29 23:11:41 brian Exp $
+ *	$Id: phase.c,v 1.6.4.3 1998/01/30 01:33:46 brian Exp $
  */
 
 #include <sys/param.h>
 #include <netinet/in.h>
 
 #include <stdio.h>
+#include <termios.h>
 
 #include "command.h"
 #include "mbuf.h"
@@ -43,11 +44,15 @@
 #include "defs.h"
 #include "iplist.h"
 #include "throughput.h"
+#include "hdlc.h"
+#include "link.h"
 #include "ipcp.h"
 #include "ccp.h"
 #include "main.h"
 #include "loadalias.h"
 #include "vars.h"
+#include "modem.h"
+#include "tun.h"
 #include "phase.h"
 
 int phase = 0;			/* Curent phase */
@@ -90,12 +95,15 @@ NewPhase(struct physical *physical, int new)
     } else
       NewPhase(physical, PHASE_NETWORK);
     break;
+
   case PHASE_NETWORK:
+    tun_configure(LcpInfo.his_mru, ModemSpeed(physical));
     IpcpUp();
     IpcpOpen();
     CcpUp();
     CcpOpen();
     break;
+
   case PHASE_DEAD:
     if (mode & MODE_DIRECT)
       Cleanup(EX_DEAD);

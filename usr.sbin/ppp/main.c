@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.121.2.1 1998/01/29 00:49:26 brian Exp $
+ * $Id: main.c,v 1.121.2.2 1998/01/29 23:11:39 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -75,6 +75,7 @@
 #include "pathnames.h"
 #include "tun.h"
 #include "route.h"
+#include "link.h"
 #include "physical.h"
 
 #ifndef O_NONBLOCK
@@ -183,8 +184,8 @@ Cleanup(int excode)
   DropClient(1);
   ServerClose();
   OsInterfaceDown(1);
-  HangupModem(pppVars.physical, 1); /* XXX must be expanded to
-				       take all modems */
+  link_Close(physical2link(pppVars.physical), 1); /* XXX gotta get a handle on
+                                                   * the logical link */
   nointr_sleep(1);
   DeleteIfRoutes(1);
   ID0unlink(pid_filename);
@@ -575,8 +576,8 @@ PacketMode(int delay)
   AsyncInit();
   VjInit(15);
   LcpInit(pppVars.physical);
-  IpcpInit(pppVars.physical);
-  CcpInit(pppVars.physical);
+  IpcpInit(physical2link(pppVars.physical));
+  CcpInit(physical2link(pppVars.physical));
   LcpUp();
 
   LcpOpen(delay);
@@ -773,7 +774,7 @@ DoLoop(void)
     LogPrintf(LogPHASE, "Packet mode enabled\n");
     PacketMode(VarOpenMode);
   } else if (mode & MODE_DEDICATED) {
-    if (!Physical_IsActive(pppVars.physical))
+    if (!link_IsActive(physical2link(pppVars.physical)))
       while (OpenModem(pppVars.physical) < 0)
 	nointr_sleep(VarReconnectTimer);
   }
@@ -885,13 +886,14 @@ DoLoop(void)
 	}
       }
     }
-    qlen = ModemQlen(pppVars.physical);
 
+    qlen = link_QueueLen(physical2link(pppVars.physical));
     if (qlen == 0) {
-      IpStartOutput(pppVars.physical);
-      qlen = ModemQlen(pppVars.physical);
+      IpStartOutput(physical2link(pppVars.physical));
+      qlen = link_QueueLen(physical2link(pppVars.physical));
     }
-    if (Physical_IsActive(pppVars.physical)) {
+
+    if (link_IsActive(physical2link(pppVars.physical))) {
       /* XXX-ML this should probably be abstracted */
       if (Physical_GetFD(pppVars.physical) + 1 > nfds)
 	nfds = Physical_GetFD(pppVars.physical) + 1;
@@ -1011,8 +1013,8 @@ DoLoop(void)
       ReadTty();
     if (Physical_FD_ISSET(pppVars.physical, &wfds)) {
       /* ready to write into modem */
-      ModemStartOutput(pppVars.physical);
-      if (!Physical_IsActive(pppVars.physical))
+      link_StartOutput(physical2link(pppVars.physical));
+      if (!link_IsActive(physical2link(pppVars.physical)))
         dial_up = 1;
     }
     if (Physical_FD_ISSET(pppVars.physical, &rfds)) {

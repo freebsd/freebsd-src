@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.c,v 1.27 1998/01/20 22:47:36 brian Exp $
+ * $Id: fsm.c,v 1.27.2.1 1998/01/29 00:49:19 brian Exp $
  *
  *  TODO:
  *		o Refer loglevel for log output
@@ -44,6 +44,8 @@
 #include "modem.h"
 #include "loadalias.h"
 #include "vars.h"
+#include "throughput.h"
+#include "link.h"
 #include "physical.h"
 
 u_char AckBuff[200];
@@ -74,21 +76,21 @@ StoppedTimeout(void *v)
               fp->name);
     StopTimer(&fp->OpenTimer);
   }
-  if (Physical_IsActive(fp->physical))
+  if (link_IsActive(fp->link))
     DownConnection();
   else
     FsmDown(fp);
 }
 
 void
-FsmInit(struct fsm * fp, struct physical *physical)
+FsmInit(struct fsm * fp, struct link *l)
 {
   LogPrintf(LogDEBUG, "FsmInit\n");
   fp->state = ST_INITIAL;
   fp->reqid = 1;
   fp->restart = 1;
   fp->maxconfig = 3;
-  fp->physical = physical;
+  fp->link = l;
 }
 
 static void
@@ -126,7 +128,7 @@ FsmOutput(struct fsm * fp, u_int code, u_int id, u_char * ptr, int count)
   if (count)
     memcpy(MBUF_CTOP(bp) + sizeof(struct fsmheader), ptr, count);
   LogDumpBp(LogDEBUG, "FsmOutput", bp);
-  HdlcOutput(fp->physical, PRI_LINK, fp->proto, bp);
+  HdlcOutput(fp->link, PRI_LINK, fp->proto, bp);
 }
 
 static void
@@ -655,8 +657,9 @@ FsmRecvCodeRej(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
 }
 
 static void
-FsmRecvProtoRej(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
+FsmRecvProtoRej(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
 {
+  struct physical *p = link2physical(fp->link);
   u_short *sp, proto;
 
   sp = (u_short *) MBUF_CTOP(bp);
@@ -665,7 +668,10 @@ FsmRecvProtoRej(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
 
   switch (proto) {
   case PROTO_LQR:
-    StopLqr(fp->physical, LQM_LQR);
+    if (p)
+      StopLqr(p, LQM_LQR);
+    else
+      LogPrintf(LogERROR, "FsmRecvProtoRej: Not a physical link !\n");
     break;
   case PROTO_CCP:
     fp = &CcpFsm;
@@ -758,7 +764,7 @@ FsmRecvResetReq(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
    * output queue.... dump 'em to the priority queue so that they arrive
    * at the peer before our ResetAck.
    */
-  SequenceQueues(fp->physical);
+  link_SequenceQueue(fp->link);
   LogPrintf(fp->LogLevel, "SendResetAck(%d)\n", lhp->id);
   FsmOutput(fp, CODE_RESETACK, lhp->id, NULL, 0);
   pfree(bp);
