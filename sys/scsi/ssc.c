@@ -49,7 +49,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *End copyright
- * $Id: ssc.c,v 1.2 1995/01/08 15:56:09 dufault Exp $
+ * $Id: ssc.c,v 1.3 1995/05/03 18:09:18 dufault Exp $
  */
 
 #include <sys/types.h>
@@ -112,9 +112,7 @@ int sscioctl(dev_t dev, int cmd, caddr_t data, int fflag, struct proc *p)
  * really is no good reason other than I'm not sure how you would use
  * them.
  */
-int sscstrategy(struct buf *bp) { return ENXIO; }
-int sscdump(dev_t dev) { return ENXIO; }
-int sscpsize(dev_t dev) { return ENXIO; }
+void sscstrategy(struct buf *bp) { }
 int sscread(dev_t dev, struct uio *uio, int ioflag) { return ENXIO; }
 int sscwrite(dev_t dev, struct uio *uio, int ioflag) { return ENXIO; }
 int sscselect(dev_t dev, int which, struct proc *p) { return ENXIO; }
