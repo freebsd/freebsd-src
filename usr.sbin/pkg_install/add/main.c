@@ -59,9 +59,14 @@ struct {
 	{ 460000, 460001, "/packages-4.6-release" },
 	{ 460002, 460099, "/packages-4.6.2-release" },
 	{ 470000, 470099, "/packages-4.7-release" },
+	{ 480000, 480099, "/packages-4.8-release" },
+	{ 490000, 490099, "/packages-4.9-release" },
+	{ 500000, 500099, "/packages-5.0-release" },
+	{ 501000, 501099, "/packages-5.1-release" },
+	{ 502000, 502099, "/packages-5.2-release" },
 	{ 300000, 399000, "/packages-3-stable" },
 	{ 400000, 499000, "/packages-4-stable" },
-	{ 510000, 599000, "/packages-5-stable" },
+	{ 502100, 599000, "/packages-5-current" },
 	{ 0, 9999999, "/packages-current" },
 	{ 0, 0, NULL }
 };
