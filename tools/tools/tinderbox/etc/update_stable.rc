@@ -1,4 +1,0 @@
-# $FreeBSD$
-branches	= RELENG_4
-platforms	= alpha, i386/i386, i386/pc98
-targets		= update

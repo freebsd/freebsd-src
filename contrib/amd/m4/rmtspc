@@ -1,6 +1,0 @@
-#!/bin/sh
-# remove trailing spaces from C code
-#set -x
-for i in $*; do
-    sed 's/[	 ]*$//g' < $i > $i.tmp_$$ && mv $i.tmp_$$ $i
-done

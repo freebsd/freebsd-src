@@ -1,5 +1,0 @@
-#-----------------------------------------------------------------------------
-# misctools:  file(1) magic for miscelanous UNIX tools.
-#
-0	string		%%!!		X-Post-It-Note text
-0	string          BEGIN:VCALENDAR         vCalendar calendar file

@@ -1,6 +1,0 @@
-./"sgttyb:"8t"ispeed"8t"ospeed"8t"erase"8t"kill"8t"flags"n8tbbC8tC8tx
-+/"tchars:"8t"intrc"8t"quitc"8t"startc"8t"stopc"8t"eofc"8t"brkc"
-+/8tC8tC8tC8tC8tC8tC
-+/"ltchars:suspc"8t"dsuspc"8t"rprntc"8t"flushc"8t"werasc"8t"lnextc"
-+/8tC8tC8tC8tC8tC8tC2+
-+/"lmode"16t"ldisc"16t"fflags"nXDX

@@ -1,6 +1,0 @@
-# configuration for picobsd build script.
-# it should only contain variable definitions -- it is sourced
-# by the shell much like rc.conf* files
-
-o_no_devfs="" # we have devfs.
-#fd_size="2880"

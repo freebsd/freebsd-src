@@ -1,7 +1,0 @@
-$ $Id: set15,v 1.1 1998/09/03 22:03:18 christos Exp $
-$ sh.func.c
-$set 15 
-1 %s: %s: non si può %s il limite%s\n
-2 eliminare
-3 modificare
-4 \040fisico

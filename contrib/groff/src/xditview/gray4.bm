@@ -1,4 +1,0 @@
-#define gray4_width 3
-#define gray4_height 3
-static char gray4_bits[] = {
-   0x00, 0x07, 0x02};

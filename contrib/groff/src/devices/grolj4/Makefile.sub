@@ -1,6 +1,0 @@
-PROG=grolj4$(EXEEXT)
-MAN1=grolj4.n
-XLIBS=$(LIBDRIVER) $(LIBGROFF)
-MLIB=$(LIBM)
-OBJS=lj4.$(OBJEXT)
-CCSRCS=$(srcdir)/lj4.cpp

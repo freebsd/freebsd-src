@@ -1,6 +1,0 @@
-PROG=grolbp$(EXEEXT)
-MAN1=grolbp.n
-XLIBS=$(LIBDRIVER) $(LIBGROFF)
-MLIB=$(LIBM)
-OBJS=lbp.$(OBJEXT)
-CCSRCS=$(srcdir)/lbp.cpp

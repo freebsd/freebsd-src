@@ -1,5 +1,0 @@
-document.write("<ul>\
-<li class='inline'><a href='confopt.html'>Server Options</a><br>\
-<li class='inline'><a href='authopt.html'>Authentication Options</a><br>\
-<li class='inline'><a href='monopt.html'>Monitoring Options</a><br>\
-</ul>")
