@@ -164,6 +164,17 @@ static struct acpi_asus_model acpi_asus_models[] = {
 		.lcd_set	= "\\Q10"
 	},
 	{
+		.name		= "M6N",
+		.mled_set	= "MLED",
+		.wled_set	= "WLED",
+		.lcd_set	= "\\_SB.PCI0.SBRG.EC0._Q10",
+		.lcd_get	= "\\_SB.BKLT",
+		.brn_set	= "SPLV",
+		.brn_get	= "GPLV",
+		.disp_set	= "SDSP",
+		.disp_get	= "\\SSTE"
+	},
+	{
 		.name		= "P30",
 		.wled_set	= "WLED",
 		.brn_up		= "\\_SB.PCI0.LPCB.EC0._Q68",
