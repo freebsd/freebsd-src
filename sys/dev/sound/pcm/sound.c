@@ -633,6 +633,7 @@ sndstat_prepare_pcm(struct sbuf *s, device_t dev, int verbose)
     	struct snddev_channel *sce;
 	struct pcm_channel *c;
 	struct pcm_feeder *f;
+	char *fsep;
     	int pc, rc, vc;
 
 	if (verbose < 1)
@@ -667,25 +668,38 @@ sndstat_prepare_pcm(struct sbuf *s, device_t dev, int verbose)
 			goto skipverbose;
 		SLIST_FOREACH(sce, &d->channels, link) {
 			c = sce->channel;
-			sbuf_printf(s, "\n\t%s[%s]: speed %d, format %08x, flags %08x",
-				c->parentchannel? c->parentchannel->name : "",
-				c->name, c->speed, c->format, c->flags);
+			sbuf_printf(s, "\n\t");
+
+			sbuf_printf(s, "%s[%s]: ", c->parentchannel? c->parentchannel->name : "", c->name);
+			sbuf_printf(s, "speed %d, format %08x, flags %08x", c->speed, c->format, c->flags);
 			if (c->pid != -1)
 				sbuf_printf(s, ", pid %d", c->pid);
 			sbuf_printf(s, "\n\t");
+			if (c->pid != -1 && c->bufhard != NULL && c->bufsoft != NULL) {
+				sbuf_printf(s, "interrupts %d, ", c->interrupts);
+				if (c->direction == PCMDIR_REC)
+					sbuf_printf(s, "overruns %d, hfree %d, sfree %d",
+						c->xruns, sndbuf_getfree(c->bufhard), sndbuf_getfree(c->bufsoft));
+				else
+					sbuf_printf(s, "underruns %d, hready %d, sready %d",
+						c->xruns, sndbuf_getready(c->bufhard), sndbuf_getready(c->bufsoft));
+				sbuf_printf(s, "\n\t");
+			}
+			fsep = (c->direction == PCMDIR_REC)? " -> " : " <- ";
+			sbuf_printf(s, "[hardware]%s", fsep);
 			f = c->feeder;
 			while (f) {
 				sbuf_printf(s, "%s", f->class->name);
 				if (f->desc->type == FEEDER_FMT)
-					sbuf_printf(s, "(%08x <- %08x)", f->desc->out, f->desc->in);
+					sbuf_printf(s, "(%08x%s%08x)", f->desc->out, fsep, f->desc->in);
 				if (f->desc->type == FEEDER_RATE)
-					sbuf_printf(s, "(%d <- %d)", FEEDER_GET(f, FEEDRATE_DST), FEEDER_GET(f, FEEDRATE_SRC));
+					sbuf_printf(s, "(%d%s%d)", FEEDER_GET(f, FEEDRATE_DST), fsep, FEEDER_GET(f, FEEDRATE_SRC));
 				if (f->desc->type == FEEDER_ROOT || f->desc->type == FEEDER_MIXER)
 					sbuf_printf(s, "(%08x)", f->desc->out);
-				if (f->source)
-					sbuf_printf(s, " <- ");
+				sbuf_printf(s, "%s", fsep);
 				f = f->source;
 			}
+			sbuf_printf(s, "[userland]");
 		}
 skipverbose:
 	} else

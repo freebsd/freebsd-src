@@ -54,6 +54,7 @@ struct pcm_channel {
 	u_int32_t blocks;
 
 	int direction;
+	unsigned int interrupts, xruns;
 	struct snd_dbuf *bufhard, *bufsoft;
 	struct snddev_info *parentsnddev;
 	struct pcm_channel *parentchannel;
