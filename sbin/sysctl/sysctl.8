@@ -178,13 +178,13 @@ privilege can change the value.
 .El
 .Sh EXAMPLES
 For example, to retrieve the maximum number of processes allowed
-in the system, one would use the follow request:
+in the system, one would use the following request:
 .Bd -literal -offset indent -compact
 sysctl kern.maxproc
 .Ed
 .Pp
 To set the maximum number of processes allowed
-per uid to 1000, one would use the follow request:
+per uid to 1000, one would use the following request:
 .Bd -literal -offset indent -compact
 sysctl -w kern.maxprocperuid=1000
 .Ed
