@@ -55,7 +55,7 @@ struct kobj_method {
 	const char	*name;		/* class name */		\
 	kobj_method_t	*methods;	/* method table */		\
 	size_t		size;		/* object size */		\
-	u_int		instances;	/* instance count */		\
+	u_int		refs;		/* reference count */		\
 	kobj_ops_t	ops		/* compiled method table */
 
 struct kobj_class {
