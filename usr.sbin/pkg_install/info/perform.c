@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.4 1993/09/04 05:06:43 jkh Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.6 1993/09/08 01:46:57 jkh Exp $";
 #endif
 
 /*
@@ -78,12 +78,23 @@ pkg_do(char *pkg)
 
     if (fexists(pkg)) {
 	char fname[FILENAME_MAX];
+	struct stat sb;
 
-	home = make_playpen(PlayPen);
 	if (pkg[0] == '/')
 	    strcpy(fname, pkg);
 	else
 	    sprintf(fname, "%s/%s", home, pkg);
+	/*
+	 * Apply a crude heuristic to see how much space the package will
+	 * take up once it's unpacked.  I've noticed that most packages
+	 * compress an average of 65%.
+	 */
+	if (stat(fname, &sb) == FAIL) {
+	    whinge("Can't stat package file '%s'.", fname);
+	    return 1;
+	}
+	sb.st_size *= 1.65;
+	home = make_playpen(PlayPen, sb.st_size);
 	if (unpack(fname, "+*")) {
 	    whinge("Error during unpacking, no info for '%s' available.", pkg);
 	    return 1;

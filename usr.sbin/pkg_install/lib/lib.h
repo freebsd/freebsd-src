@@ -1,4 +1,4 @@
-/* $Id: lib.h,v 1.8 1994/08/28 14:15:29 jkh Exp $ */
+/* $Id: lib.h,v 1.9 1994/09/29 13:19:42 jkh Exp $ */
 
 /*
  * FreeBSD install - a package for the installation and maintainance
@@ -99,7 +99,7 @@ typedef struct _pack Package;
 /* Misc */
 int		vsystem(const char *, ...);
 void		cleanup(int);
-char		*make_playpen(char *);
+char		*make_playpen(char *, size_t);
 void		leave_playpen(void);
 char		*where_playpen(void);
 
