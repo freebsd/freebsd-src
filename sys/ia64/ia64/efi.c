@@ -40,35 +40,6 @@ u_int64_t		ia64_efi_acpi20_table;
 extern u_int64_t ia64_call_efi_physical(u_int64_t, u_int64_t, u_int64_t,
 					u_int64_t, u_int64_t, u_int64_t);
 
-static EFI_STATUS fake_efi_proc(void);
-
-static EFI_RUNTIME_SERVICES fake_efi = {
-	{ EFI_RUNTIME_SERVICES_SIGNATURE,
-	  EFI_RUNTIME_SERVICES_REVISION,
-	  0, 0, 0 },
-
-	(EFI_GET_TIME)			fake_efi_proc,
-	(EFI_SET_TIME)			fake_efi_proc,
-	(EFI_GET_WAKEUP_TIME)		fake_efi_proc,
-	(EFI_SET_WAKEUP_TIME)		fake_efi_proc,
-	
-	(EFI_SET_VIRTUAL_ADDRESS_MAP)	fake_efi_proc,
-	(EFI_CONVERT_POINTER)		fake_efi_proc,
-
-	(EFI_GET_VARIABLE)		fake_efi_proc,
-	(EFI_GET_NEXT_VARIABLE_NAME)	fake_efi_proc,
-	(EFI_SET_VARIABLE)		fake_efi_proc,
-
-	(EFI_GET_NEXT_HIGH_MONO_COUNT)	fake_efi_proc,
-	(EFI_RESET_SYSTEM)		fake_efi_proc
-};
-
-static EFI_STATUS
-fake_efi_proc(void)
-{
-	return EFI_UNSUPPORTED;
-}
-
 void
 ia64_efi_init(void)
 {
@@ -78,13 +49,24 @@ ia64_efi_init(void)
 	EFI_MEMORY_DESCRIPTOR *md, *mdp;
 	int mdcount, i;
 	EFI_STATUS status;
-	
-	ia64_efi_runtime = &fake_efi;
 
 	if (!bootinfo.bi_systab) {
 		printf("No system table!\n");
 		return;
 	}
+
+	ia64_efi_systab = (EFI_SYSTEM_TABLE *)
+	    IA64_PHYS_TO_RR7(bootinfo.bi_systab);
+	rs = (EFI_RUNTIME_SERVICES *)
+	    IA64_PHYS_TO_RR7((u_int64_t)ia64_efi_systab->RuntimeServices);
+	if (!rs)
+		panic("No runtime services!");
+
+	ia64_efi_runtime = rs;
+	conf = (EFI_CONFIGURATION_TABLE *)
+	    IA64_PHYS_TO_RR7((u_int64_t)ia64_efi_systab->ConfigurationTable);
+	if (!conf)
+		panic("No configuration tables!");
 
 	mdcount = bootinfo.bi_memmap_size / bootinfo.bi_memdesc_size;
 	md = (EFI_MEMORY_DESCRIPTOR *) IA64_PHYS_TO_RR7(bootinfo.bi_memmap);
@@ -104,19 +86,9 @@ ia64_efi_init(void)
 		}
 	}
 
-	ia64_efi_systab = (EFI_SYSTEM_TABLE *)
-		IA64_PHYS_TO_RR7(bootinfo.bi_systab);
-
-	rs = (EFI_RUNTIME_SERVICES *)
-		IA64_PHYS_TO_RR7((u_int64_t) ia64_efi_systab->RuntimeServices);
-	ia64_efi_runtime = rs;
-
-	status = ia64_call_efi_physical
-	    ((u_int64_t) rs->SetVirtualAddressMap,
-	     bootinfo.bi_memmap_size,
-	     bootinfo.bi_memdesc_size,
-	     bootinfo.bi_memdesc_version,
-	     bootinfo.bi_memmap, 0);
+	status = ia64_call_efi_physical((u_int64_t)rs->SetVirtualAddressMap,
+	    bootinfo.bi_memmap_size, bootinfo.bi_memdesc_size,
+	    bootinfo.bi_memdesc_version, bootinfo.bi_memmap, 0);
 
 	if (EFI_ERROR(status)) {
 		/*
@@ -126,8 +98,6 @@ ia64_efi_init(void)
 		panic("Can't set firmware into virtual mode");
 	}
 
-	conf = (EFI_CONFIGURATION_TABLE *)
-		IA64_PHYS_TO_RR7((u_int64_t) ia64_efi_systab->ConfigurationTable);
 	for (i = 0; i < ia64_efi_systab->NumberOfTableEntries; i++) {
 		static EFI_GUID sal = SAL_SYSTEM_TABLE_GUID;
 		static EFI_GUID acpi = ACPI_TABLE_GUID;

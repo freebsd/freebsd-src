@@ -1,10 +1,12 @@
-/*-
+/*
+ * Copyright (c) 2003 Marcel Moolenaar
  * Copyright (c) 2001 Doug Rabson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
+ *
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
@@ -23,44 +25,41 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ * $FreeBSD$
  */
 
 #include <machine/asm.h>
-#include <assym.s>
 
-/*
- * Stub for running in simulation. Fakes the values from an SDV.
- */
-ENTRY(ski_fake_pal, 0)
-
-	mov	r8=-3			// default to return error
-
-	cmp.eq	p6,p0=PAL_PTCE_INFO,r28
+	.text
+ENTRY(PalProc, 0)
+	cmp.eq		p6,p0=6,r28		// PAL_PTCE_INFO
+(p6)	br.cond.dptk	pal_ptce_info
 	;;
-(p6)	mov	r8=0
-(p6)	mov	r9=0
-(p6)	movl	r10=0x100000001
-(p6)	mov	r11=0
+	cmp.eq		p6,p0=8,r28		// PAL_VM_SUMMARY
+(p6)	br.cond.dptk	pal_vm_summary
 	;;
-	cmp.eq	p6,p0=PAL_FREQ_RATIOS,r28
+	cmp.eq		p6,p0=14,r28		// PAL_FREQ_RATIOS
+(p6)	br.cond.dptk	pal_freq_ratios
 	;;
-(p6)	mov	r8=0
-(p6)	movl	r9=0xb00000002		// proc 11/1
-(p6)	movl	r10=0x100000001		// bus 1/1
-(p6)	movl	r11=0xb00000002		// itc 11/1
-	mov	r14=PAL_VM_SUMMARY
+	mov		r15=66			// EXIT
+	break.i		0x80000			// SSC
 	;;
-	cmp.eq	p6,p0=r14,r28
-	;; 
-(p6)	mov	r8=0
-(p6)	movl	r9=(8<<40)|(8<<32)
-(p6)	movl	r10=(18<<8)|(41<<0)
-(p6)	mov	r11=0
-	;;
-	tbit.nz	p6,p7=r28,8		// static or stacked?
-	;;
-(p6)	br.ret.sptk.few rp
-(p7)	br.cond.sptk.few rp
-
-END(ski_fake_pal)
+pal_ptce_info:
+	mov		r8=0
+	mov		r9=0			// base
+	movl		r10=0x0000000100000001	// loop counts (outer|inner)
+	mov		r11=0x0000000000000000	// loop strides (outer|inner)
+	br.sptk		b0
+pal_vm_summary:
+	mov		r8=0
+	movl		r9=(8<<40)|(8<<32)	// VM info 1
+	mov		r10=(18<<8)|(41<<0)	// VM info 2
+	mov		r11=0
+	br.sptk		b0
+pal_freq_ratios:
+	mov		r8=0
+	movl		r9=0x0000000B00000002	// processor ratio 11/2
+	movl		r10=0x0000000100000001	// bus ratio 1/1
+	movl		r11=0x0000000B00000002	// ITC ratio 11/2
+	br.sptk		b0
+END(PalProc)

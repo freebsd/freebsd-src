@@ -25,59 +25,45 @@
 machine		ia64
 cpu		ITANIUM
 ident		SKI
-maxusers	32
-
-#To statically compile in device wiring instead of /boot/device.hints
-#hints		"GENERIC.hints"
+maxusers	0
 
 makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
-makeoptions	NO_CPU_COPTFLAGS=true	#Ignore any x86 CPUTYPE
+makeoptions	NO_MODULES=yes		#Ignore any x86 CPUTYPE
 
-options 	SKI			#Support for HP simulator
-options         SCHED_4BSD              #4BSD scheduler
-options 	INET			#InterNETworking
-#options 	INET6			#IPv6 communications protocols
+options 	COMPAT_43		#Compatible with BSD 4.3 [KEEP THIS!]
+options 	COMPAT_FREEBSD4
+options 	DDB
 options 	FFS			#Berkeley Fast Filesystem
-options 	SOFTUPDATES		#Enable FFS soft updates support
+options 	INET			#InterNETworking
+options 	INET6			#IPv6 communications protocols
+options 	INVARIANTS
+options 	INVARIANT_SUPPORT
+options 	KTR
+options 	KTRACE			#ktrace(1) syscall trace support
+options 	KTR_COMPILE="(KTR_INTR|KTR_PROC)"
+options 	KTR_CPUMASK=0x3
+options 	KTR_ENTRIES=1024
+options 	KTR_MASK=0
+options 	KTR_VERBOSE
 options 	MD_ROOT			#MD is a potential root device
 options 	PROCFS			#Process filesystem (requires PSEUDOFS)
 options 	PSEUDOFS		#Pseudo-filesystem framework
-options 	COMPAT_43		#Compatible with BSD 4.3 [KEEP THIS!]
-options 	COMPAT_FREEBSD4
-options 	SCSI_DELAY=2000		#Delay (in ms) before probing SCSI 
-options 	KTRACE			#ktrace(1) syscall trace support
-options 	SYSVSHM			#SYSV-style shared memory
+options         SCHED_4BSD              #4BSD scheduler
+options 	SCSI_DELAY=500		#Delay (in ms) before probing SCSI 
+options 	SKI
+options 	SOFTUPDATES		#Enable FFS soft updates support
 options 	SYSVMSG			#SYSV-style message queues
 options 	SYSVSEM			#SYSV-style semaphores
-options 	_KPOSIX_PRIORITY_SCHEDULING #Posix P1003_1B real-time extensions
-options 	CONSPEED=115200
-options 	BREAK_TO_DEBUGGER	#a BREAK on a comconsole goes to
-
-# Debugging for use in -current
-options 	DDB
-options 	INVARIANTS
-options 	INVARIANT_SUPPORT
+options 	SYSVSHM			#SYSV-style shared memory
 options 	WITNESS
+options 	_KPOSIX_PRIORITY_SCHEDULING #Posix P1003_1B real-time extensions
 
-options 	KTR
-options 	KTR_ENTRIES=1024
-options 	KTR_COMPILE="(KTR_INTR|KTR_PROC)"
-options 	KTR_MASK=0
-options 	KTR_CPUMASK=0x3
-#options 	KTR_VERBOSE
-
-# Pseudo devices - the number indicates how many units to allocated.
-device		random		# Entropy device
-device		loop		# Network loopback
+device		acpi
+device		bpf		# Berkeley packet filter
 device		ether		# Ethernet support
-device		sl		# Kernel SLIP
-device		ppp		# Kernel PPP
-device		tun		# Packet tunnel.
-device		pty		# Pseudo-ttys (telnet etc)
+device		loop		# Network loopback
 device		md		# Memory "disks"
-device		gif		# IPv6 and IPv4 tunneling
-device		faith		# IPv6-to-IPv4 relaying/(translation)
-
-# The `bpf' device enables the Berkeley Packet Filter.
-# Be aware of the administrative consequences of enabling this!
-device		bpf		#Berkeley packet filter
+device		pci
+device		pty		# Pseudo-ttys (telnet etc)
+device		random		# Entropy device
+device		tun		# Packet tunnel.
