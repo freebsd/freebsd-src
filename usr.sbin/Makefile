@@ -19,7 +19,7 @@ SUBDIR=	ac \
 	${_boot0cfg} \
 	${_boot98cfg} \
 	bootparamd \
-	${_bsnmpd} \
+	bsnmpd \
 	${_btxld} \
 	burncd \
 	cdcontrol \
@@ -190,7 +190,6 @@ _sysinstall=	sysinstall
 
 .if !defined(NOATM)
 _atm=		atm
-_bsnmpd=	bsnmpd
 .endif
 
 .if !defined(NO_BIND)
