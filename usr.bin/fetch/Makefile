@@ -1,9 +1,9 @@
 PROG = fetch
-SRCS = main.c
+SRCS = file.c ftp.c http.c main.c util.c uri.c
 
-CFLAGS+=	-Wall
+CFLAGS+=	-Wall -Wwrite-strings -Wmissing-prototypes
 
-DPADD=  ${LIBFTPIO}
-LDADD=  -lftpio
+DPADD=  ${LIBFTPIO} ${LIBMD}
+LDADD=  -lftpio -lmd
 
 .include <bsd.prog.mk>
