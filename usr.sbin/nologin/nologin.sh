@@ -32,6 +32,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)nologin.sh	8.1 (Berkeley) 6/5/93
+#	$Id$
 #
 
 echo 'This account is currently not available.'
