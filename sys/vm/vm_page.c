@@ -1121,12 +1121,8 @@ vm_page_free_toq(vm_page_t m)
 	) {
 		struct vnode *vp = (struct vnode *)object->handle;
 
-		if (vp && VSHOULDFREE(vp)) {
-			if ((vp->v_flag & (VTBFREE|VDOOMED|VFREE)) == 0) {
-				TAILQ_INSERT_TAIL(&vnode_tobefree_list, vp, v_freelist);
-				vp->v_flag |= VTBFREE;
-			}
-		}
+		if (vp && VSHOULDFREE(vp))
+			vfree(vp);
 	}
 
 	/*

@@ -82,7 +82,6 @@ static MALLOC_DEFINE(M_NETADDR, "Export Host", "Export host address structure");
 
 static void	insmntque __P((struct vnode *vp, struct mount *mp));
 static void	vclean __P((struct vnode *vp, int flags, struct proc *p));
-static void	vfree __P((struct vnode *));
 static unsigned long	numvnodes;
 SYSCTL_INT(_debug, OID_AUTO, numvnodes, CTLFLAG_RD, &numvnodes, 0, "");
 
@@ -96,7 +95,6 @@ int vttoif_tab[9] = {
 };
 
 static TAILQ_HEAD(freelst, vnode) vnode_free_list;	/* vnode free list */
-struct tobefreelist vnode_tobefree_list;	/* vnode free list */
 
 static u_long wantfreevnodes = 25;
 SYSCTL_INT(_debug, OID_AUTO, wantfreevnodes, CTLFLAG_RW, &wantfreevnodes, 0, "");
@@ -179,7 +177,6 @@ vntblinit()
 	simple_lock_init(&mntid_slock);
 	simple_lock_init(&spechash_slock);
 	TAILQ_INIT(&vnode_free_list);
-	TAILQ_INIT(&vnode_tobefree_list);
 	simple_lock_init(&vnode_free_list_slock);
 	vnode_zone = zinit("VNODE", sizeof (struct vnode), 0, 0, 5);
 	/*
@@ -459,54 +456,31 @@ getnewvnode(tag, mp, vops, vpp)
 {
 	int s;
 	struct proc *p = curproc;	/* XXX */
-	struct vnode *vp, *tvp, *nvp;
+	struct vnode *vp = NULL;
 	vm_object_t object;
-	TAILQ_HEAD(freelst, vnode) vnode_tmp_list;
 
 	s = splbio();
 	simple_lock(&vnode_free_list_slock);
-	TAILQ_INIT(&vnode_tmp_list);
-
-	/*
-	 * First free vnodes on the pending-free list
-	 */
-	for (vp = TAILQ_FIRST(&vnode_tobefree_list); vp; vp = nvp) {
-		nvp = TAILQ_NEXT(vp, v_freelist);
-		TAILQ_REMOVE(&vnode_tobefree_list, vp, v_freelist);
-		if (vp->v_flag & VAGE) {
-			TAILQ_INSERT_HEAD(&vnode_free_list, vp, v_freelist);
-		} else {
-			TAILQ_INSERT_TAIL(&vnode_free_list, vp, v_freelist);
-		}
-		vp->v_flag &= ~(VTBFREE|VAGE);
-		vp->v_flag |= VFREE;
-		if (vp->v_usecount)
-			panic("tobe free vnode isn't");
-		freevnodes++;
-	}
 
 	/*
 	 * Attempt to reuse a vnode already on the free list, allocating
 	 * a new vnode if we can't find one or if we have not reached a
 	 * good minimum for good LRU performance.
 	 */
-	if (freevnodes < wantfreevnodes) {
-		vp = NULL;
-	} else if (numvnodes >= minvnodes) {
-		for (vp = TAILQ_FIRST(&vnode_free_list); vp; vp = nvp) {
-			nvp = TAILQ_NEXT(vp, v_freelist);
-			if (!simple_lock_try(&vp->v_interlock)) 
-				continue;
-			if (vp->v_usecount)
-				panic("free vnode isn't");
+	if (freevnodes >= wantfreevnodes && numvnodes >= minvnodes) {
+		int count;
 
-			if (VOP_GETVOBJECT(vp, &object) == 0 &&
-			    (object->resident_page_count || object->ref_count)) {
-				printf("object inconsistant state: RPC: %d, RC: %d\n",
-					object->resident_page_count, object->ref_count);
-				/* Don't recycle if it's caching some pages */
-				TAILQ_REMOVE(&vnode_free_list, vp, v_freelist);
-				TAILQ_INSERT_TAIL(&vnode_tmp_list, vp, v_freelist);
+		for (count = 0; count < freevnodes; count++) {
+			vp = TAILQ_FIRST(&vnode_free_list);
+			if (vp == NULL || vp->v_usecount)
+				panic("getnewvnode: free vnode isn't");
+
+			TAILQ_REMOVE(&vnode_free_list, vp, v_freelist);
+			if ((VOP_GETVOBJECT(vp, &object) == 0 &&
+			    (object->resident_page_count || object->ref_count)) ||
+			    !simple_lock_try(&vp->v_interlock)) {
+				TAILQ_INSERT_TAIL(&vnode_free_list, vp, v_freelist);
+				vp = NULL;
 				continue;
 			}
 			if (LIST_FIRST(&vp->v_cache_src)) {
@@ -523,6 +497,8 @@ getnewvnode(tag, mp, vops, vpp)
 					 */
 					if (cache_leaf_test(vp) < 0) {
 						simple_unlock(&vp->v_interlock);
+						TAILQ_INSERT_TAIL(&vnode_free_list, vp, v_freelist);
+						vp = NULL;
 						continue;
 					}
 				} else if (nameileafonly < 0 || 
@@ -535,6 +511,8 @@ getnewvnode(tag, mp, vops, vpp)
 					 * too quickly).
 					 */
 					simple_unlock(&vp->v_interlock);
+					TAILQ_INSERT_TAIL(&vnode_free_list, vp, v_freelist);
+					vp = NULL;
 					continue;
 				}
 			}
@@ -542,17 +520,9 @@ getnewvnode(tag, mp, vops, vpp)
 		}
 	}
 
-	for (tvp = TAILQ_FIRST(&vnode_tmp_list); tvp; tvp = nvp) {
-		nvp = TAILQ_NEXT(tvp, v_freelist);
-		TAILQ_REMOVE(&vnode_tmp_list, tvp, v_freelist);
-		TAILQ_INSERT_TAIL(&vnode_free_list, tvp, v_freelist);
-		simple_unlock(&tvp->v_interlock);
-	}
-
 	if (vp) {
 		vp->v_flag |= VDOOMED;
 		vp->v_flag &= ~VFREE;
-		TAILQ_REMOVE(&vnode_free_list, vp, v_freelist);
 		freevnodes--;
 		simple_unlock(&vnode_free_list_slock);
 		cache_purge(vp);
@@ -1922,8 +1892,8 @@ vgonel(vp, p)
 
 	/*
 	 * If it is on the freelist and not already at the head,
-	 * move it to the head of the list. The test of the back
-	 * pointer and the reference count of zero is because
+	 * move it to the head of the list. The test of the
+	 * VDOOMED flag and the reference count of zero is because
 	 * it will be removed from the free list by getnewvnode,
 	 * but will not have its reference count incremented until
 	 * after calling vgone. If the reference count were
@@ -1933,15 +1903,10 @@ vgonel(vp, p)
 	if (vp->v_usecount == 0 && !(vp->v_flag & VDOOMED)) {
 		s = splbio();
 		simple_lock(&vnode_free_list_slock);
-		if (vp->v_flag & VFREE) {
+		if (vp->v_flag & VFREE)
 			TAILQ_REMOVE(&vnode_free_list, vp, v_freelist);
-		} else if (vp->v_flag & VTBFREE) {
-			TAILQ_REMOVE(&vnode_tobefree_list, vp, v_freelist);
-			vp->v_flag &= ~VTBFREE;
+		else
 			freevnodes++;
-		} else {
-			freevnodes++;
-		}
 		vp->v_flag |= VFREE;
 		TAILQ_INSERT_HEAD(&vnode_free_list, vp, v_freelist);
 		simple_unlock(&vnode_free_list_slock);
@@ -2609,7 +2574,7 @@ vfs_object_create(vp, p, cred)
 	return (VOP_CREATEVOBJECT(vp, cred, p));
 }
 
-static void
+void
 vfree(vp)
 	struct vnode *vp;
 {
@@ -2617,10 +2582,7 @@ vfree(vp)
 
 	s = splbio();
 	simple_lock(&vnode_free_list_slock);
-	if (vp->v_flag & VTBFREE) {
-		TAILQ_REMOVE(&vnode_tobefree_list, vp, v_freelist);
-		vp->v_flag &= ~VTBFREE;
-	} 
+	KASSERT((vp->v_flag & VFREE) == 0, ("vnode already free"));
 	if (vp->v_flag & VAGE) {
 		TAILQ_INSERT_HEAD(&vnode_free_list, vp, v_freelist);
 	} else {
@@ -2641,13 +2603,9 @@ vbusy(vp)
 
 	s = splbio();
 	simple_lock(&vnode_free_list_slock);
-	if (vp->v_flag & VTBFREE) {
-		TAILQ_REMOVE(&vnode_tobefree_list, vp, v_freelist);
-		vp->v_flag &= ~VTBFREE;
-	} else {
-		TAILQ_REMOVE(&vnode_free_list, vp, v_freelist);
-		freevnodes--;
-	}
+	KASSERT((vp->v_flag & VFREE) != 0, ("vnode not free"));
+	TAILQ_REMOVE(&vnode_free_list, vp, v_freelist);
+	freevnodes--;
 	simple_unlock(&vnode_free_list_slock);
 	vp->v_flag &= ~(VFREE|VAGE);
 	splx(s);
