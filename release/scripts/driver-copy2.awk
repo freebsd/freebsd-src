@@ -30,7 +30,7 @@
 
 function usage()
 {
-	print "usage: driver-copy2.awk config_file src_ko_dir dst_ko_dir" > "/dev/stderr";
+	print "usage: driver-copy2.awk flop_num config_file src_ko_dir dst_ko_dir" > "/dev/stderr";
 	exit 1;
 }
 
@@ -62,12 +62,13 @@ function readconfig()
 }
 
 BEGIN {
-	if (ARGC != 4)
+	if (ARGC != 5)
 		usage();
 
-	config = ARGV[1];
-	srcdir = ARGV[2];
-	dstdir = ARGV[3];
+	fnum = ARGV[1];
+	config = ARGV[2];
+	srcdir = ARGV[3];
+	dstdir = ARGV[4];
 
 	readconfig();
 
@@ -77,20 +78,15 @@ BEGIN {
 		err(1, "cannot find %s directory", dstdir);
 
 	for (f in flp) {
-		if (flp[f] == 1) {
-			print f ": There's nothing to do with driver on first floppy." > "/dev/stderr";
-		} else if (flp[f] == 2) {
-			srcfile = srcdir "/" f ".ko";
-			dstfile = dstdir "/" f ".ko";
-			dscfile = dstdir "/" f ".dsc";
-			print "Copying " f ".ko to " dstdir > "/dev/stderr";
-			if (system("cp " srcfile " " dstfile) != 0)
-				exit 1;
-			printf "%s", dsc[f] > dscfile;
-			close(dscfile);
-		} else if (flp[f] == 3) {
-			# third driver floppy (not yet implemented)
-			err(1, "%s: 3rd driver floppy support is not implemented", f);
-		}
+		if (flp[f] != fnum)
+			continue;
+		srcfile = srcdir "/" f ".ko";
+		dstfile = dstdir "/" f ".ko";
+		dscfile = dstdir "/" f ".dsc";
+		print "Copying " f ".ko to " dstdir > "/dev/stderr";
+		if (system("cp " srcfile " " dstfile) != 0)
+			exit 1;
+		printf "%s", dsc[f] > dscfile;
+		close(dscfile);
 	}
 }
