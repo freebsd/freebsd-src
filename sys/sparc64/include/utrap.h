@@ -64,14 +64,37 @@
 #define	UT_TRAP_INSTRUCTION_31		33
 #define	UT_MAX				34
 
+#define	ST_SUNOS_SYSCALL		0
 #define	ST_BREAKPOINT			1
 #define	ST_DIVISION_BY_ZERO		2
+#define	ST_FLUSH_WINDOWS		3	/* XXX implement! */
 #define	ST_CLEAN_WINDOW			4
 #define	ST_RANGE_CHECK			5
 #define	ST_FIX_ALIGNMENT		6
 #define	ST_INTEGER_OVERFLOW		7
-#define	ST_SYSCALL			9
+/* 8 is 32-bit ABI syscall (old solaris syscall?) */
+#define	ST_BSD_SYSCALL			9
 #define	ST_FP_RESTORE			10
+/* 11-15 are available */
+/* 16 is linux 32 bit syscall (but supposed to be reserved, grr) */
+/* 17 is old linux 64 bit syscall (but supposed to be reserved, grr) */
+/* 16-31 are reserved for user applications (utraps) */
+#define	ST_GETCC			32	/* XXX implement! */
+#define	ST_SETCC			33	/* XXX implement! */
+#define	ST_GETPSR			34	/* XXX implement! */
+#define	ST_SETPSR			35	/* XXX implement! */
+/* 36-63 are available */
+#define	ST_SOLARIS_SYSCALL		64
+#define	ST_SYSCALL			65
+#define	ST_SYSCALL32			66
+/* 67 is reserved to OS source licensee */
+/* 68 is return from deferred trap (not supported) */
+/* 69-95 are reserved to SPARC international */
+/* 96-108 are available */
+/* 109 is linux 64 bit syscall */
+/* 110 is linux 64 bit getcontext (?) */
+/* 111 is linux 64 bit setcontext (?) */
+/* 112-255 are available */
 
 #define	UTH_NOCHANGE			(-1)
 
