@@ -36,7 +36,7 @@
 #
 #	@(#)newvers.sh	8.1 (Berkeley) 4/20/94
 
-LC_TIME=C; export LC_TIME
+LC_ALL=C; export LC_ALL
 u=${USER-root} h=`hostname` t=`date`
 #r=`head -n 6 $1 | tail -n 1 | awk -F: ' { print $1 } '`
 r=`awk -F: ' /^[0-9]\.[0-9]+:/ { print $1; exit }' $1`

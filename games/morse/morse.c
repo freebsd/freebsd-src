@@ -318,9 +318,9 @@ main(int argc, char **argv)
 	argc -= optind;
 	argv += optind;
 
-	if((p = getenv("LC_CTYPE")) ||
-	   (p = getenv("LC_ALL")) ||
-	   (p = getenv("LANG"))) {
+	if(((p = getenv("LC_ALL")) && *p) ||
+	   ((p = getenv("LC_CTYPE")) && *p) ||
+	   ((p = getenv("LANG")) && *p)) {
 		if(strlen(p) >= sizeof(".KOI8-R") &&
 		   strcasecmp(&p[strlen(p) + 1 - sizeof(".KOI8-R")], ".KOI8-R") == 0)
 			hightab = koi8rtab;
