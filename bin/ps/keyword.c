@@ -51,7 +51,6 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <utmp.h>
 
 #include "ps.h"
 
@@ -75,7 +74,7 @@ int	utime(), stime(), ixrss(), idrss(), isrss();
 #define	UIDLEN	5
 #define	PIDFMT	"d"
 #define	PIDLEN	5
-#define USERLEN UT_NAMESIZE
+#define USERLEN (MAXLOGNAME - 1)
 
 static VAR var[] = {
 	{"%cpu", "%CPU", NULL, 0, pcpu, NULL, 4, 0, CHAR, NULL, 0},
