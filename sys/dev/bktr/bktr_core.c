@@ -229,7 +229,6 @@
 
 #ifdef __FreeBSD__
 #include "bktr.h"
-#include "opt_bktr.h"
 #include "opt_devfs.h"
 #include "pci.h"
 #endif /* __FreeBSD__ */
