@@ -49,6 +49,16 @@ The following options are available:
 .Bl -tag -width indent
 .It Fl b
 Remove all ACL entries except for the three required entries.
+If the ACL contains a
+.Dq Li mask
+entry, the permissions of the
+.Dq Li group
+entry in the resulting ACL will be set to the permission
+associatd with both the
+.Dq Li group
+and
+.Dq Li mask
+entries of the current ACL.
 .It Fl d
 The operations apply to the default ACL entries instead of
 access ACL entries.  Currently only directories may have
@@ -89,9 +99,6 @@ from the access or default ACL of the specified files.
 .Pp
 The above options are evaluated in the order specified
 on the command-line.
-.Pp
-Multiple ACL entries specified on the command line are
-separated by commas.
 .Sh ACL ENTRIES
 An ACL entry contains three colon-separated fields:
 an ACL tag, an ACL qualifier, and discretionary access
@@ -192,6 +199,9 @@ ACL entries, file owning group,
 ACL entries, and
 .Dq Li other
 ACL entry.
+.Pp
+Multiple ACL entries specified on the command line are
+separated by commas.
 .Sh DIAGNOSTICS
 .Ex -std
 .Sh EXAMPLES
