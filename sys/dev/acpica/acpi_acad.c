@@ -137,7 +137,7 @@ acpi_acad_probe(device_t dev)
     if (acpi_get_type(dev) == ACPI_TYPE_DEVICE &&
 	acpi_MatchHid(dev, "ACPI0003")) {
 
-	device_set_desc(dev, "AC adapter");
+	device_set_desc(dev, "AC Adapter");
 	return (0);
     }
     return (ENXIO);

@@ -437,7 +437,7 @@ acpi_ec_probe(device_t dev)
      */
     magic = acpi_get_magic(dev);
     if (DEV_ECDT(dev)) {
-	snprintf(desc, sizeof(desc), "embedded controller: ECDT, GPE %#x, GLK",
+	snprintf(desc, sizeof(desc), "Embedded Controller: ECDT, GPE %#x, GLK",
 		 DEV_GET_GPEBIT(magic));
 	device_set_desc_copy(dev, desc);
 	ret = 0;
@@ -482,7 +482,7 @@ acpi_ec_probe(device_t dev)
 	 */
 	peer = devclass_get_device(acpi_ec_devclass, uid);
 	if (peer == NULL || !device_is_alive(peer)) {
-	    snprintf(desc, sizeof(desc), "embedded controller: GPE %#x%s",
+	    snprintf(desc, sizeof(desc), "Embedded Controller: GPE %#x%s",
 		     gpebit, glk != 0 ? ", GLK" : "");
 	    device_set_desc_copy(dev, desc);
 	    ret = 0;
