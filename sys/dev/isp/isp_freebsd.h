@@ -1,5 +1,5 @@
-/* $Id: isp_freebsd.h,v 1.9.2.1 1999/05/11 05:57:24 mjacob Exp $ */
-/* release_6_2_99 */
+/* $Id: isp_freebsd.h,v 1.9.2.2 1999/07/03 01:47:14 mjacob Exp $ */
+/* release_6_5_99 */
 /*
  * Qlogic ISP SCSI Host Adapter FreeBSD Wrapper Definitions (non CAM version)
  *---------------------------------------
@@ -65,7 +65,7 @@
 #define	ISP2100_FABRIC		1
 #define	ISP2100_SCRLEN		0x400
 #else
-#define	ISP2100_SCRLEN		0x1000
+#define	ISP2100_SCRLEN		0x100
 #endif
 #ifdef	SCSI_ISP_SCCLUN
 #define	ISP2100_SCCLUN	1

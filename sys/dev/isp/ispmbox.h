@@ -1,5 +1,5 @@
-/* $Id: ispmbox.h,v 1.4.2.1 1999/05/11 05:49:59 mjacob Exp $ */
-/* release_6_2_99 */
+/* $Id: ispmbox.h,v 1.4.2.2 1999/07/03 01:47:14 mjacob Exp $ */
+/* release_6_5_99 */
 /*
  * Mailbox and Queue Entry Definitions for for Qlogic ISP SCSI adapters.
  *
