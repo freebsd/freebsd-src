@@ -137,7 +137,8 @@ printstats(FILE *fd, const struct ieee80211_stats *stats)
 	STAT(crypto_nocipher,	"setkey failed 'cuz cipher module unavailable");
 	STAT(crypto_attachfail,	"setkey failed 'cuz cipher attach failed");
 	STAT(crypto_swfallback,	"crypto fell back to s/w implementation");
-	STAT(crypto_keyfail,	"setkey faied 'cuz driver key alloc failed");
+	STAT(crypto_keyfail,	"setkey failed 'cuz driver key alloc failed");
+	STAT(crypto_enmicfail,	"enmic failed (may be mbuf exhaustion)");
 	STAT(ibss_capmismatch,	"ibss merge faied 'cuz capabilities mismatch");
 	STAT(ibss_norate,	"ibss merge faied 'cuz rate set mismatch");
 	STAT(ps_unassoc,	"ps-poll received for unassociated station");
