@@ -20,20 +20,20 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/filio.h>
-#include <sys/ioctl_compat.h>	/* Oooh..We need O/NTTYDISC	 */
+#if defined(COMPAT_43) || defined(COMPAT_SUNOS)
+#include <sys/ioctl_compat.h>
+#endif
 #include <sys/proc.h>
 #include <sys/malloc.h>
 #include <sys/tty.h>
-#include <sys/fcntl.h>
 #include <sys/conf.h>
 #include <sys/poll.h>
-#include <sys/uio.h>
 #include <sys/kernel.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
-
 #include <sys/snoop.h>
+#include <sys/vnode.h>
 
 static	d_open_t	snpopen;
 static	d_close_t	snpclose;
@@ -144,9 +144,8 @@ snpread(dev, uio, flag)
 
 	do {
 		if (snp->snp_len == 0) {
-			if (snp->snp_flags & SNOOP_NBIO) {
-				return EWOULDBLOCK;
-			}
+			if (flag & IO_NDELAY)
+				return (EWOULDBLOCK);
 			snp->snp_flags |= SNOOP_RWAIT;
 			tsleep((caddr_t) snp, (PZERO + 1) | PCATCH, "snoopread", 0);
 		}
@@ -186,9 +185,7 @@ snpread(dev, uio, flag)
 }
 
 int
-snpinc(snp, c)
-        struct snoop    *snp;
-        char            c;
+snpinc(struct snoop *snp, char c)
 {
         char    buf[1];
 
@@ -453,10 +450,6 @@ snpioctl(dev, cmd, data, flags, p)
 		break;
 
 	case FIONBIO:
-		if (*(int *) data)
-			snp->snp_flags |= SNOOP_NBIO;
-		else
-			snp->snp_flags &= ~SNOOP_NBIO;
 		break;
 
 	case FIOASYNC:
