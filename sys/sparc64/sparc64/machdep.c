@@ -241,7 +241,7 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	cpu_impl = VER_IMPL(rdpr(ver));
 
 	/*
-	 * Initialize openfirmware (needed for console).
+	 * Initialize Open Firmware (needed for console).
 	 */
 	OF_init(vec);
 

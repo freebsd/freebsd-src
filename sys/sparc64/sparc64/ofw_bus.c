@@ -58,8 +58,8 @@
  */
 
 /*
- * OpenFirmware bus support code that is (hopefully) independent from the used
- * hardware.
+ * Open Firmware bus support code that is (hopefully) independent from the
+ * used hardware.
  * Maybe this should go into dev/ofw/; there may however be sparc specific
  * bits left.
  */

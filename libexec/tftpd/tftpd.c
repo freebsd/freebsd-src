@@ -451,7 +451,7 @@ again:
 				/*
 				 * Don't reject the request, just stop trying
 				 * to parse the option and get on with it.
-				 * Some Apple OpenFirmware versions have
+				 * Some Apple Open Firmware versions have
 				 * trailing garbage on the end of otherwise
 				 * valid requests.
 				 */

@@ -5,7 +5,7 @@
 SUBDIR+=		ficl
 .endif
 
-# Build OpenFirmware library.
+# Build Open Firmware library.
 .if ${MACHINE_ARCH} == "powerpc" || ${MACHINE_ARCH} == "sparc64"
 SUBDIR+=		ofw
 .endif

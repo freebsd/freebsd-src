@@ -689,7 +689,7 @@ pmap_bootstrap(vm_offset_t kernelstart, vm_offset_t kernelend)
 	pmap_vsid_bitmap[0] |= 1;
 
 	/*
-	 * Set up the OpenFirmware pmap and add it's mappings.
+	 * Set up the Open Firmware pmap and add it's mappings.
 	 */
 	pmap_pinit(&ofw_pmap);
 	ofw_pmap.pm_sr[KERNEL_SR] = KERNEL_SEGMENT;

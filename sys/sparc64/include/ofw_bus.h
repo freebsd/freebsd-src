@@ -32,8 +32,8 @@
 #define	ORIR_NOTFOUND	0xffffffff
 
 /*
- * Other than in OpenFirmware calls, the size of a bus cell seems to be always
- * the same.
+ * Other than in Open Firmware calls, the size of a bus cell seems to be
+ * always the same.
  */
 typedef u_int32_t pcell_t;
 
