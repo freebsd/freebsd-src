@@ -148,7 +148,9 @@ socow_setup(struct mbuf *m0, struct uio *uio)
 	/*
 	 * wire the page for I/O
 	 */
+	vm_page_lock_queues();
 	vm_page_wire(pp);
+	vm_page_unlock_queues();
 
 	/*
 	 * prevent the process from exiting on us.
