@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_fea.c,v 1.7 1996/07/31 21:38:44 thomas Exp $
+ * $Id: if_fea.c,v 1.1.1.1 1997/01/17 23:19:49 joerg Exp $
  */
 
 /*
@@ -39,9 +39,7 @@
 #include <sys/ioctl.h>
 #include <sys/errno.h>
 #include <sys/malloc.h>
-#if defined(__FreeBSD__)
-#include <sys/devconf.h>
-#elif defined(__bsdi__) || defined(__NetBSD__)
+#if defined(__bsdi__) || defined(__NetBSD__)
 #include <sys/device.h>
 #endif
 
@@ -176,7 +174,7 @@ pdq_eisa_devinit(
 }
 
 #if defined(__FreeBSD__)
-static int pdq_eisa_shutdown(struct kern_devconf *kdc, int force);
+static void pdq_eisa_shutdown(int howto, void *sc);
 static int pdq_eisa_probe(void);
 static int pdq_eisa_attach(struct eisa_device *ed);
 
@@ -188,23 +186,13 @@ static struct eisa_driver pdq_eisa_driver = {
 
 DATA_SET(eisadriver_set, pdq_eisa_driver);
 
-static struct kern_devconf kdc_pdq_eisa = {
-    0, 0, 0,			/* filled in by dev_attach */
-    "fea", 0, { MDDT_EISA, 0, "net" },
-    eisa_generic_externalize, 0, pdq_eisa_shutdown, EISA_EXTERNALLEN,
-    &kdc_eisa0,			/* parent */
-    0,				/* parentdata */
-    DC_BUSY,			/* host adapters are always ``in use'' */
-    "DEC DEFEA EISA FDDI Controller",
-    DC_CLS_NETIF
-};
 
 static const char *
 pdq_eisa_match(
     eisa_id_t type)
 {
     if ((type >> 8) == 0x10a330)
-	return kdc_pdq_eisa.kdc_description;
+	return ("DEC DEFEA EISA FDDI Controller");
     return NULL;
 }
 
@@ -223,7 +211,7 @@ pdq_eisa_probe(
 	pdq_eisa_subprobe(PDQ_BUS_EISA, iobase, &maddr, &msize, &irq);
 	eisa_add_mspace(ed, maddr, msize, RESVADDR_NONE);
 	eisa_add_intr(ed, irq);
-	eisa_registerdev(ed, &pdq_eisa_driver, &kdc_pdq_eisa);
+	eisa_registerdev(ed, &pdq_eisa_driver);
     }
     return count;
 }
@@ -308,20 +296,17 @@ pdq_eisa_attach(
 
     bcopy((caddr_t) sc->sc_pdq->pdq_hwaddr.lanaddr_bytes, sc->sc_ac.ac_enaddr, 6);
     pdq_ifattach(sc, pdq_eisa_ifwatchdog);
-
-    ed->kdc->kdc_state = DC_BUSY;	 /* host adapters always busy */
+    at_shutdown(pdq_eisa_shutdown, (void *) sc, SHUTDOWN_POST_SYNC);
 
     return 0;
 }
 
-static int
+static void
 pdq_eisa_shutdown(
-    struct kern_devconf *kdc,
-    int force)
+    int howto,
+    void *sc)
 {
-    pdq_hwreset(PDQ_EISA_UNIT_TO_SOFTC(kdc->kdc_unit)->sc_pdq);
-    (void) dev_detach(kdc);
-    return 0;
+    pdq_hwreset(((pdq_softc_t *)sc)->sc_pdq);
 }
 #endif /* __FreeBSD__ */
 
