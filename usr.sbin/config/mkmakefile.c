@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)mkmakefile.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: mkmakefile.c,v 1.41 1999/04/24 18:59:19 peter Exp $";
+	"$Id: mkmakefile.c,v 1.42 1999/05/09 17:23:37 phk Exp $";
 #endif /* not lint */
 
 /*
@@ -74,14 +74,12 @@ static struct file_list *fcur;
 
 static char *tail __P((char *));
 static void do_clean __P((FILE *));
-static void do_load __P((FILE *));
 static void do_rules __P((FILE *));
 static void do_sfiles __P((FILE *));
 static void do_mfiles __P((FILE *));
 static void do_cfiles __P((FILE *));
 static void do_objs __P((FILE *));
 static void do_before_depend __P((FILE *));
-static struct file_list *do_systemspec __P((FILE *, struct file_list *, int));
 static int opteq __P((char *, char *));
 static void read_files __P((void));
 
@@ -202,8 +200,6 @@ makefile()
 			do_sfiles(ofp);
 		else if (eq(line, "%RULES\n"))
 			do_rules(ofp);
-		else if (eq(line, "%LOAD\n"))
-			do_load(ofp);
 		else if (eq(line, "%CLEAN\n"))
 			do_clean(ofp);
 		else if (strncmp(line, "%VERSREQ=", sizeof("%VERSREQ=") - 1) == 0) {
@@ -551,10 +547,9 @@ static void
 do_objs(fp)
 	FILE *fp;
 {
-	register struct file_list *tp, *fl;
+	register struct file_list *tp;
 	register int lpos, len;
 	register char *cp, och, *sp;
-	char swapname[32];
 
 	fprintf(fp, "OBJS=");
 	lpos = 6;
@@ -562,13 +557,6 @@ do_objs(fp)
 		if (tp->f_type == INVISIBLE || tp->f_flags & NO_OBJ)
 			continue;
 		sp = tail(tp->f_fn);
-		for (fl = conf_list; fl; fl = fl->f_next) {
-			if (fl->f_type != SWAPSPEC)
-				continue;
-			(void) snprintf(swapname, sizeof(swapname), "swapkernel.c");
-			if (eq(sp, swapname))
-				goto cont;
-		}
 		cp = sp + (len = strlen(sp)) - 1;
 		och = *cp;
 		*cp = 'o';
@@ -579,8 +567,6 @@ do_objs(fp)
 		fprintf(fp, "%s ", sp);
 		lpos += len + 1;
 		*cp = och;
-cont:
-		;
 	}
 	if (lpos != 8)
 		putc('\n', fp);
@@ -590,9 +576,8 @@ static void
 do_cfiles(fp)
 	FILE *fp;
 {
-	register struct file_list *tp, *fl;
+	register struct file_list *tp;
 	register int lpos, len;
-	char swapname[32];
 
 	fputs("CFILES=", fp);
 	lpos = 8;
@@ -610,16 +595,6 @@ do_cfiles(fp)
 			else
 				fprintf(fp, "%s ", tp->f_fn);
 
-			lpos += len + 1;
-		}
-	for (fl = conf_list; fl; fl = fl->f_next)
-		if (fl->f_type == SYSTEMSPEC) {
-			(void) snprintf(swapname, sizeof(swapname), "swapkernel.c");
-			if ((len = 3 + strlen(swapname)) + lpos > 72) {
-				lpos = 8;
-				fputs("\\\n\t", fp);
-			}
-			fprintf(fp, "%s ", swapname);
 			lpos += len + 1;
 		}
 	if (lpos != 8)
@@ -764,26 +739,6 @@ do_rules(f)
 	}
 }
 
-/*
- * Create the load strings
- */
-static void
-do_load(f)
-	register FILE *f;
-{
-	register struct file_list *fl;
-	register int first;
-
-	fputs("\nall:", f);
-	for (fl = conf_list; fl; fl = fl->f_next)
-		if (fl->f_type == SYSTEMSPEC)
-			fprintf(f, " %s", fl->f_needs);
-	fputs("\n\n", f);
-	for (first = 1, fl = conf_list; fl; first = 0)
-		fl = fl->f_type == SYSTEMSPEC ?
-			do_systemspec(f, fl, first) : fl->f_next;
-}
-
 static void
 do_clean(fp)
 	FILE *fp;
@@ -805,26 +760,6 @@ do_clean(fp)
 		}
 	if (lpos != 8)
 		putc('\n', fp);
-}
-
-static struct file_list *
-do_systemspec(f, fl, first)
-	FILE *f;
-	register struct file_list *fl;
-	int first;
-{
-
-	fprintf(f, "KERNEL=\t%s\n", fl->f_needs);
-	fprintf(f, "${FULLKERNEL}: ${SYSTEM_DEP}");
-	if (first)
-		fprintf(f, " vers.o");
-	fprintf(f, "\n\t${SYSTEM_LD_HEAD}\n");
-	fprintf(f, "\t${SYSTEM_LD}\n", fl->f_fn);
-	fprintf(f, "\t${SYSTEM_LD_TAIL}\n\n");
-	for (fl = fl->f_next; fl; fl = fl->f_next)
-		if (fl->f_type != SWAPSPEC)
-			break;
-	return (fl);
 }
 
 char *
