@@ -35,13 +35,13 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1991, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)unstr.c	8.1 (Berkeley) 5/31/93";
+static const char sccsid[] = "@(#)unstr.c     8.1 (Berkeley) 5/31/93";
 #endif /* not lint */
 
 /*
@@ -57,15 +57,11 @@ static char sccsid[] = "@(#)unstr.c	8.1 (Berkeley) 5/31/93";
  *	Ken Arnold		Aug 13, 1978
  */
 
-# include	<machine/endian.h>
 # include	<sys/param.h>
-# include	"strfile.h"
 # include	<stdio.h>
 # include	<ctype.h>
-
-# ifndef MAXPATHLEN
-# define	MAXPATHLEN	1024
-# endif	/* MAXPATHLEN */
+# include       <string.h>
+# include	"strfile.h"
 
 char	*Infile,			/* name of input file */
 	Datafile[MAXPATHLEN],		/* name of data file */
@@ -73,10 +69,10 @@ char	*Infile,			/* name of input file */
 
 FILE	*Inf, *Dataf;
 
-char	*strcat(), *strcpy();
+void getargs(), order_unstr();
 
 /* ARGSUSED */
-main(ac, av)
+void main(ac, av)
 int	ac;
 char	**av;
 {
@@ -108,7 +104,7 @@ char	**av;
 	exit(0);
 }
 
-getargs(av)
+void getargs(av)
 register char	*av[];
 {
 	if (!*++av) {
@@ -120,12 +116,12 @@ register char	*av[];
 	(void) strcat(Datafile, ".dat");
 }
 
-order_unstr(tbl)
+void order_unstr(tbl)
 register STRFILE	*tbl;
 {
 	register int	i;
 	register char	*sp;
-	auto off_t	pos;
+	long            pos;
 	char		buf[BUFSIZ];
 
 	for (i = 0; i < tbl->str_numstr; i++) {
