@@ -16,7 +16,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- *  $Id: physical.c,v 1.1.2.30 1998/05/01 19:25:35 brian Exp $
+ *  $Id: physical.c,v 1.1.2.31 1998/05/10 22:20:14 brian Exp $
  *
  */
 
@@ -147,6 +147,33 @@ physical_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
       *n = p->fd + 1;
   }
 
+  return sets;
+}
+
+int
+physical_RemoveFromSet(struct physical *p, fd_set *r, fd_set *w, fd_set *e)
+{
+  int sets;
+
+  sets = 0;
+  if (p->fd >= 0) {
+    if (r && FD_ISSET(p->fd, r)) {
+      FD_CLR(p->fd, r);
+      log_Printf(LogTIMER, "%s: fdunset(r) %d\n", p->link.name, p->fd);
+      sets++;
+    }
+    if (e && FD_ISSET(p->fd, e)) {
+      FD_CLR(p->fd, e);
+      log_Printf(LogTIMER, "%s: fdunset(e) %d\n", p->link.name, p->fd);
+      sets++;
+    }
+    if (w && FD_ISSET(p->fd, w)) {
+      FD_CLR(p->fd, w);
+      log_Printf(LogTIMER, "%s: fdunset(w) %d\n", p->link.name, p->fd);
+      sets++;
+    }
+  }
+  
   return sets;
 }
 

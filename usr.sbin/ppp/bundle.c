@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.81 1998/05/10 22:20:06 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.82 1998/05/11 23:39:27 brian Exp $
  */
 
 #include <sys/types.h>
@@ -381,6 +381,13 @@ bundle_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
     result++;
   }
 
+  /*
+   * This *MUST* be called after the datalink UpdateSet()s as it
+   * might be ``holding'' one of the datalinks and wants to be
+   * able to de-select() from the descriptor set
+   */
+  descriptor_UpdateSet(&bundle->ncp.mp.server.desc, r, w, e, n);
+
   return result;
 }
 
@@ -408,6 +415,9 @@ bundle_DescriptorRead(struct descriptor *d, struct bundle *bundle,
 {
   struct datalink *dl;
   struct descriptor *desc;
+
+  if (descriptor_IsSet(&bundle->ncp.mp.server.desc, fdset))
+    descriptor_Read(&bundle->ncp.mp.server.desc, bundle, fdset);
 
   for (dl = bundle->links; dl; dl = dl->next)
     if (descriptor_IsSet(&dl->desc, fdset))
@@ -501,6 +511,10 @@ bundle_DescriptorWrite(struct descriptor *d, struct bundle *bundle,
 {
   struct datalink *dl;
   struct descriptor *desc;
+
+  /* This is not actually necessary as struct mpserver doesn't Write() */
+  if (descriptor_IsSet(&bundle->ncp.mp.server.desc, fdset))
+    descriptor_Write(&bundle->ncp.mp.server.desc, bundle, fdset);
 
   for (dl = bundle->links; dl; dl = dl->next)
     if (descriptor_IsSet(&dl->desc, fdset))
@@ -704,20 +718,24 @@ bundle_Destroy(struct bundle *bundle)
   struct datalink *dl;
   struct descriptor *desc, *ndesc;
 
-  /* In case we're dropping out with an exception :-O */
+  /*
+   * Clean up the interface.  We don't need to mp_Down(),
+   * ipcp_CleanInterface() and bundle_DownInterface() unless we're getting
+   * out under exceptional conditions such as a descriptor exception.
+   */
   mp_Down(&bundle->ncp.mp);
-
-  if (bundle->phys_type & PHYS_DEMAND) {
-    ipcp_CleanInterface(&bundle->ncp.ipcp);
-    bundle_DownInterface(bundle);
-  }
+  ipcp_CleanInterface(&bundle->ncp.ipcp);
+  bundle_DownInterface(bundle);
   
+  /* Again, these are all DATALINK_CLOSED unless we're abending */
   dl = bundle->links;
   while (dl)
     dl = datalink_Destroy(dl);
 
+  /* In case we never made PHASE_NETWORK */
   bundle_Notify(bundle, EX_ERRDEAD);
 
+  /* Finally, destroy our prompts */
   desc = bundle->desc.next;
   while (desc) {
     ndesc = desc->next;
@@ -858,8 +876,11 @@ bundle_LinkClosed(struct bundle *bundle, struct datalink *dl)
 {
   /*
    * Our datalink has closed.
-   * UpdateSet() will remove 1OFF and STDIN links.
+   * CleanDatalinks() (called from DoLoop()) will remove closed
+   * 1OFF and DIRECT links.
    * If it's the last data link, enter phase DEAD.
+   *
+   * NOTE: dl may not be in our list (bundle_SendDatalink()) !
    */
 
   struct datalink *odl;
@@ -871,13 +892,12 @@ bundle_LinkClosed(struct bundle *bundle, struct datalink *dl)
       other_links++;
 
   if (!other_links) {
-    if (dl->physical->type != PHYS_DEMAND)
-      bundle_DownInterface(bundle);
     if (bundle->ncp.ipcp.fsm.state > ST_CLOSED ||
         bundle->ncp.ipcp.fsm.state == ST_STARTING) {
       fsm_Down(&bundle->ncp.ipcp.fsm);
       fsm_Close(&bundle->ncp.ipcp.fsm);		/* ST_INITIAL please */
     }
+    bundle_DownInterface(bundle);
     bundle_NewPhase(bundle, PHASE_DEAD);
     bundle_DisplayPrompt(bundle);
   }
@@ -1313,6 +1333,9 @@ bundle_SendDatalink(struct datalink *dl, int s, struct sockaddr_un *sun)
       dl->next = NULL;
       break;
     }
+
+  bundle_GenPhysType(bundle);
+  bundle_LinkClosed(bundle, dl);
 
   /* Build our scatter/gather array */
   iov[0].iov_len = strlen(Version) + 1;

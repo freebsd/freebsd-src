@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp.c,v 1.1.2.27 1998/05/10 22:20:11 brian Exp $
+ *	$Id: mp.c,v 1.1.2.28 1998/05/15 18:21:09 brian Exp $
  */
 
 #include <sys/types.h>
@@ -842,11 +842,14 @@ mpserver_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
     if (!link_QueueLen(&s->send.dl->physical->link) &&
         !s->send.dl->physical->out) {
       /* Only send if we've transmitted all our data (i.e. the ConfigAck) */
+      datalink_RemoveFromSet(s->send.dl, r, w, e);
       bundle_SendDatalink(s->send.dl, s->fd, &s->socket);
       s->send.dl = NULL;
       close(s->fd);
       s->fd = -1;
-    }
+    } else
+      /* Never read from a datalink that's on death row ! */
+      datalink_RemoveFromSet(s->send.dl, r, NULL, NULL);
   } else if (r && s->fd >= 0) {
     if (*n < s->fd + 1)
       *n = s->fd + 1;

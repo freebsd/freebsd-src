@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.1.2.59 1998/05/11 23:39:29 brian Exp $
+ *	$Id: datalink.c,v 1.1.2.60 1998/05/15 18:21:02 brian Exp $
  */
 
 #include <sys/types.h>
@@ -301,13 +301,16 @@ datalink_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
     case DATALINK_LCP:
     case DATALINK_AUTH:
     case DATALINK_OPEN:
-      if (dl == dl->bundle->ncp.mp.server.send.dl)
-        /* Never read our descriptor if we're scheduled for transfer */
-        r = NULL;
       result = descriptor_UpdateSet(&dl->physical->desc, r, w, e, n);
       break;
   }
   return result;
+}
+
+int
+datalink_RemoveFromSet(struct datalink *dl, fd_set *r, fd_set *w, fd_set *e)
+{
+  return physical_RemoveFromSet(dl->physical, r, w, e);
 }
 
 static int
@@ -453,7 +456,7 @@ datalink_AuthOk(struct datalink *dl)
     /* we've authenticated in multilink mode ! */
     switch (mp_Up(&dl->bundle->ncp.mp, dl)) {
       case MP_LINKSENT:
-        /* We've handed the link off to another ppp ! */
+        /* We've handed the link off to another ppp (well, we will soon) ! */
         return;
       case MP_UP:
         /* First link in the bundle */

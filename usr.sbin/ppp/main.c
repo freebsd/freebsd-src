@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.121.2.58 1998/05/08 18:50:21 brian Exp $
+ * $Id: main.c,v 1.121.2.59 1998/05/10 22:20:09 brian Exp $
  *
  *	TODO:
  */
@@ -476,8 +476,6 @@ DoLoop(struct bundle *bundle, struct prompt *prompt)
 
     descriptor_UpdateSet(&bundle->desc, &rfds, &wfds, &efds, &nfds);
     descriptor_UpdateSet(&server.desc, &rfds, &wfds, &efds, &nfds);
-    descriptor_UpdateSet(&bundle->ncp.mp.server.desc, &rfds, &wfds,
-                         &efds, &nfds);
 
     if (bundle_IsDead(bundle))
       /* Don't select - we'll be here forever */
@@ -535,9 +533,6 @@ DoLoop(struct bundle *bundle, struct prompt *prompt)
 
     if (i <= nfds)
       break;
-
-    if (descriptor_IsSet(&bundle->ncp.mp.server.desc, &rfds))
-      descriptor_Read(&bundle->ncp.mp.server.desc, bundle, &rfds);
 
     if (descriptor_IsSet(&server.desc, &rfds))
       descriptor_Read(&server.desc, bundle, &rfds);
