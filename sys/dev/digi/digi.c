@@ -538,14 +538,12 @@ digi_init(struct digi_softc *sc)
 		device_printf(sc->dev, "%s, %d ports found\n", sc->name,
 		    sc->numports);
 
-	if (sc->ports)
+	if (sc->ports) {
+		for (i = 0; i < sc->numports; i++)
+			ttyrel(sc->ports[i].tp);
 		free(sc->ports, M_TTYS);
+	}
 	sc->ports = malloc(sizeof(struct digi_p) * sc->numports,
-	    M_TTYS, M_WAITOK | M_ZERO);
-
-	if (sc->ttys)
-		free(sc->ttys, M_TTYS);
-	sc->ttys = malloc(sizeof(struct tty) * sc->numports,
 	    M_TTYS, M_WAITOK | M_ZERO);
 
 	/*
@@ -567,7 +565,7 @@ digi_init(struct digi_softc *sc)
 		port->pnum = i;
 		port->sc = sc;
 		port->status = ENABLED;
-		port->tp = sc->ttys + i;
+		port->tp = ttymalloc(NULL);
 		port->bc = bc;
 
 		if (sc->model == PCXEVE) {
@@ -958,7 +956,7 @@ digiread(struct cdev *dev, struct uio *uio, int flag)
 
 	sc = (struct digi_softc *)devclass_get_softc(digi_devclass, unit);
 	KASSERT(sc, ("digi%d: softc not allocated in digiclose\n", unit));
-	tp = &sc->ttys[pnum];
+	tp = sc->ports[pnum].tp;
 
 	error = ttyld_read(tp, uio, flag);
 	DLOG(DIGIDB_READ, (sc->dev, "port %d: read() returns %d\n",
@@ -984,7 +982,7 @@ digiwrite(struct cdev *dev, struct uio *uio, int flag)
 
 	sc = (struct digi_softc *)devclass_get_softc(digi_devclass, unit);
 	KASSERT(sc, ("digi%d: softc not allocated in digiclose\n", unit));
-	tp = &sc->ttys[pnum];
+	tp = sc->ports[pnum].tp;
 
 	error = ttyld_write(tp, uio, flag);
 	DLOG(DIGIDB_WRITE, (sc->dev, "port %d: write() returns %d\n",
@@ -1829,7 +1827,7 @@ digi_inuse(struct digi_softc *sc)
 	int i;
 
 	for (i = 0; i < sc->numports; i++)
-		if (sc->ttys[i].t_state & TS_ISOPEN) {
+		if (sc->ports[i].tp->t_state & TS_ISOPEN) {
 			DLOG(DIGIDB_INIT, (sc->dev, "port%d: busy\n", i));
 			return (1);
 		} else if (sc->ports[i].wopeners || sc->ports[i].opencnt) {
@@ -1866,11 +1864,10 @@ digi_free_state(struct digi_softc *sc)
 #endif
 	if (sc->numports) {
 		KASSERT(sc->ports, ("digi%d: Lost my ports ?", sc->res.unit));
-		KASSERT(sc->ttys, ("digi%d: Lost my ttys ?", sc->res.unit));
+		for (i = 0; i < sc->numports; i++)
+			ttyrel(sc->ports[i].tp);
 		free(sc->ports, M_TTYS);
 		sc->ports = NULL;
-		free(sc->ttys, M_TTYS);
-		sc->ttys = NULL;
 		sc->numports = 0;
 	}
 

@@ -177,7 +177,6 @@ struct digi_softc {
 #endif
 
 	struct digi_p *ports;	/* pointer to array of port descriptors */
-	struct tty *ttys;	/* pointer to array of TTY structures */
 	volatile struct global_data *gdata;
 	u_char window;		/* saved window */
 	int win_size;
