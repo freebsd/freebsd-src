@@ -106,15 +106,13 @@ Any
 statements after the order statement are ignored.
 .Pp
 Lines in the specification file beginning with a
-.Em #
+.Ql #
 are
 treated as comments and are ignored.
 Blank lines are also
 ignored.
 .Pp
-.Bd -literal -offset indent
-charmap charmapfile
-.Ed
+.Dl "charmap charmapfile"
 .Pp
 .Ar Charmap
 defines where a mapping of the character
@@ -126,7 +124,8 @@ The format of
 is shown below.
 Symbol
 names are separated from their values by TAB or
-SPACE characters. Symbol-value can be specified in
+SPACE characters.
+Symbol-value can be specified in
 a hexadecimal (\ex\fI??\fR) or octal (\e\fI???\fR)
 representation, and can be only one character in length.
 .Pp
@@ -161,9 +160,7 @@ The
 .Ar substitute
 statement is optional.
 .Pp
-.Bd -literal -offset indent
-order order_list
-.Ed
+.Dl "order order_list"
 .Pp
 .Ar Order_list
 is a list of symbols, separated by semi colons, that defines the
