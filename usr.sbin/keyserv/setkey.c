@@ -27,7 +27,13 @@
  * Mountain View, California  94043
  */
 
-#pragma ident	"@(#)setkey.c	1.11	94/04/25 SMI"
+#ifndef lint
+#if 0
+static char sccsid[] = "@(#)setkey.c	1.11	94/04/25 SMI";
+#endif
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
 
 /*
  * Copyright (c) 1986 - 1991 by Sun Microsystems, Inc.
@@ -39,17 +45,17 @@
  * and use them to decrypt and encrypt DES keys.
  * Cache the common keys, so the expensive computation is avoided.
  */
+#include <mp.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #include <sys/types.h>
-#include <mp.h>
 #include <rpc/rpc.h>
 #include <rpc/key_prot.h>
 #include <rpc/des_crypt.h>
 #include <rpc/des.h>
 #include <sys/errno.h>
-#include <string.h>
 #include "keyserv.h"
 
 static MINT *MODULUS;
