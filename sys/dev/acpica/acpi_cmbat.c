@@ -320,9 +320,7 @@ acpi_cmbat_attach(device_t dev)
      * Install a system notify handler in addition to the device notify.
      * Toshiba notebook uses this alternate notify for its battery.
      */
-    AcpiInstallNotifyHandler(handle, ACPI_SYSTEM_NOTIFY,
-			     acpi_cmbat_notify_handler, dev);
-    AcpiInstallNotifyHandler(handle, ACPI_DEVICE_NOTIFY,
+    AcpiInstallNotifyHandler(handle, ACPI_ALL_NOTIFY,
 			     acpi_cmbat_notify_handler, dev);
 
     sc->bif_updating = sc->bst_updating = 0;
