@@ -2599,7 +2599,7 @@ ClearCommand(struct cmdargs const *arg)
       log_Printf(LogWARN, "A link must be specified for ``clear physical''\n");
       return 1;
     }
-    t = &cx->physical->link.throughput;
+    t = &cx->physical->link.stats.total;
   } else if (strcasecmp(arg->argv[arg->argn], "ipcp") == 0)
     t = &arg->bundle->ncp.ipcp.throughput;
   else
