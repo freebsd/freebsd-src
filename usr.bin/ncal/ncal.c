@@ -22,9 +22,13 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: ncal.c,v 1.3 1998/01/03 15:10:11 helbig Exp $	
  */
+
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
 #include <calendar.h>
 #include <err.h>
 #include <locale.h>
@@ -170,7 +174,7 @@ date   *sdate(int ndays, struct date * d);
 date   *sdateb(int ndays, struct date * d);
 int     sndays(struct date * d);
 int     sndaysb(struct date * d);
-void    usage(void);
+static void usage(void);
 int     weekdayb(int nd);
 
 int
@@ -331,14 +335,14 @@ main(int argc, char *argv[])
 	return (0);
 }
 
-void
+static void
 usage(void)
 {
 
-	fprintf(stderr,
-	    "usage: cal [-jy] [month[year]]\n"
-	    "usage: ncal [-Jjpwy] [-s country_code] [[month] year]\n"
-	    "usage: ncal [-Jeo] [year]\n");
+	fprintf(stderr, "%s\n%s\n%s\n",
+	    "usage: cal [-jy] [month[year]]",
+	    "       ncal [-Jjpwy] [-s country_code] [[month] year]",
+	    "       ncal [-Jeo] [year]");
 	exit(EX_USAGE);
 }
 

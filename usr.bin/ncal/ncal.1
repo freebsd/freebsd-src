@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: ncal.1,v 1.2 1997/12/19 21:41:21 helbig Exp $
+.\"	$Id: ncal.1,v 1.3 1998/01/03 15:10:11 helbig Exp $
 .\"
 .Dd December 16, 1997
 .Dt CAL 1
@@ -37,7 +37,7 @@
 .Op Oo Ar month Oc Ar \ year
 .Nm ncal
 .Op Fl jJpwy
-.Op Fl s Ar country code
+.Op Fl s Ar country_code
 .Op Oo Ar month Oc Ar \ year
 .Nm ncal
 .Op Fl Jeo
@@ -51,8 +51,9 @@ The new format is a little cramped but it makes a year fit
 on a 25x80 terminal.
 If arguments are not specified,
 the current month is displayed.
+.Pp
 The options are as follows:
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Fl J
 Display Julian Calendar, if combined with the
 .Fl e
@@ -70,10 +71,10 @@ Calendar as they are assumed by
 .Nm ncal .
 The country code as determined from the local environment is marked
 with an asterisk.
-.It Fl s Ar country-code
+.It Fl s Ar country_code
 Assume the switch from Julian to Gregorian Calendar at the date
 associated with the
-.Ar country-code .
+.Ar country_code .
 If not specified,
 .Nm ncal
 tries to guess the switch date from the local environment or
