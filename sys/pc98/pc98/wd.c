@@ -903,51 +903,41 @@ wdstart(int ctrlr)
 
 		du->dk_flags &= ~DKFL_MULTI;
 
-#ifdef B_FORMAT
-		if (bp->b_flags & B_FORMAT) {
-			command = WDCC_FORMAT;
-			count1 = lp->d_nsectors;
-			sector = lp->d_gap3 - 1;	/* + 1 later */
-		} else
-#endif
-
-		{
-			if (du->dk_flags & DKFL_SINGLE) {
-				command = (bp->b_flags & B_READ)
-					  ? WDCC_READ : WDCC_WRITE;
-				count1 = 1;
-				du->dk_currentiosize = 1;
-			} else {
-				if((du->dk_flags & DKFL_USEDMA) &&
-				   wddma[du->dk_interface].wdd_dmaverify(du->dk_dmacookie,
-				   	(void *)((int)bp->b_data + 
-					     du->dk_skip * DEV_BSIZE),
-					du->dk_bc,
-					bp->b_flags & B_READ)) {
-					du->dk_flags |= DKFL_DMA;
-					if( bp->b_flags & B_READ)
-						command = WDCC_READ_DMA;
-					else
-						command = WDCC_WRITE_DMA;
-					du->dk_currentiosize = count1;
-				} else if( (count1 > 1) && (du->dk_multi > 1)) {
-					du->dk_flags |= DKFL_MULTI;
-					if( bp->b_flags & B_READ) {
-						command = WDCC_READ_MULTI;
-					} else {
-						command = WDCC_WRITE_MULTI;
-					}
-					du->dk_currentiosize = du->dk_multi;
-					if( du->dk_currentiosize > count1)
-						du->dk_currentiosize = count1;
+		if (du->dk_flags & DKFL_SINGLE) {
+			command = (bp->b_flags & B_READ)
+				  ? WDCC_READ : WDCC_WRITE;
+			count1 = 1;
+			du->dk_currentiosize = 1;
+		} else {
+			if((du->dk_flags & DKFL_USEDMA) &&
+			   wddma[du->dk_interface].wdd_dmaverify(du->dk_dmacookie,
+				(void *)((int)bp->b_data + 
+				     du->dk_skip * DEV_BSIZE),
+				du->dk_bc,
+				bp->b_flags & B_READ)) {
+				du->dk_flags |= DKFL_DMA;
+				if( bp->b_flags & B_READ)
+					command = WDCC_READ_DMA;
+				else
+					command = WDCC_WRITE_DMA;
+				du->dk_currentiosize = count1;
+			} else if( (count1 > 1) && (du->dk_multi > 1)) {
+				du->dk_flags |= DKFL_MULTI;
+				if( bp->b_flags & B_READ) {
+					command = WDCC_READ_MULTI;
 				} else {
-					if( bp->b_flags & B_READ) {
-						command = WDCC_READ;
-					} else {
-						command = WDCC_WRITE;
-					}
-					du->dk_currentiosize = 1;
+					command = WDCC_WRITE_MULTI;
 				}
+				du->dk_currentiosize = du->dk_multi;
+				if( du->dk_currentiosize > count1)
+					du->dk_currentiosize = count1;
+			} else {
+				if( bp->b_flags & B_READ) {
+					command = WDCC_READ;
+				} else {
+					command = WDCC_WRITE;
+				}
+				du->dk_currentiosize = 1;
 			}
 		}
 
@@ -1180,13 +1170,6 @@ oops:
 			du->dk_flags |= DKFL_ERROR;
 			goto outt;
 		}
-#ifdef B_FORMAT
-		if (bp->b_flags & B_FORMAT) {
-			bp->b_error = EIO;
-			bp->b_flags |= B_ERROR;
-			goto done;
-		}
-#endif
 
 		if (du->dk_flags & DKFL_BADSCAN) {
 			bp->b_error = EIO;
@@ -1492,7 +1475,7 @@ wdopen(dev_t dev, int flags, int fmt, struct proc *p)
 
 /*
  * Implement operations other than read/write.
- * Called from wdstart or wdintr during opens and formats.
+ * Called from wdstart or wdintr during opens.
  * Uses finite-state-machine to track progress of operation in progress.
  * Returns 0 if operation still in progress, 1 if completed, 2 if error.
  */
@@ -2091,11 +2074,6 @@ wdioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 	int	lunit = dkunit(dev);
 	register struct disk *du;
 	int	error;
-#ifdef notyet
-	struct uio auio;
-	struct iovec aiov;
-	struct format_op *fop;
-#endif
 
 	du = wddrives[lunit];
 	wdsleep(du->dk_ctrlr, "wdioct");
@@ -2112,46 +2090,11 @@ wdioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 		else
 			du->dk_flags &= ~DKFL_BADSCAN;
 		return (0);
-#ifdef notyet
-	case DIOCWFORMAT:
-		if (!(flag & FWRITE))
-			return (EBADF);
-		fop = (struct format_op *)addr;
-		aiov.iov_base = fop->df_buf;
-		aiov.iov_len = fop->df_count;
-		auio.uio_iov = &aiov;
-		auio.uio_iovcnt = 1;
-		auio.uio_resid = fop->df_count;
-		auio.uio_segflg = 0;
-		auio.uio_offset = fop->df_startblk * du->dk_dd.d_secsize;
-#error /* XXX the 386BSD interface is different */
-		error = physio(wdformat, &rwdbuf[lunit], 0, dev, B_WRITE,
-			       minphys, &auio);
-		fop->df_count -= auio.uio_resid;
-		fop->df_reg[0] = du->dk_status;
-		fop->df_reg[1] = du->dk_error;
-		return (error);
-#endif
 
 	default:
 		return (ENOTTY);
 	}
 }
-
-#ifdef B_FORMAT
-int
-wdformat(struct buf *bp)
-{
-
-	bp->b_flags |= B_FORMAT;
-	BUF_STRATEGY(bp, 0);
-	/*
-	 * phk put this here, better that return(wdstrategy(bp));
-	 * XXX
-	 */
-	return -1;
-}
-#endif
 
 int
 wdsize(dev_t dev)
