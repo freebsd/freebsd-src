@@ -1,0 +1,265 @@
+<!-- $Id$ -->
+<!-- The FreeBSD Japanese Documentation Project -->
+<!-- Original revision: 1.14 -->
+
+    <chapt>
+      <heading>参考図書<label id="bibliography"></heading>
+
+      <p><em>訳: &a.nakai;<newline>12 October 1996.</em>
+
+      <p>FreeBSD オペレーティングシステムの個々の部分については
+	マニュアルページで定義のような説明がなされていますが, 
+	それらにはどうやってその部分どうしをつなぎあわせて
+	オペレーティングシステム全体を円滑に動作させるかを
+	説明していないという欠点がよく指摘されます. 
+	それを補うためには UNIX システム管理についてのよい本や, 
+	すぐれた利用者向けのマニュアルが欠かせません. 
+
+      <sect>
+	<heading>利用者向けのガイド</heading>
+
+	<p><itemize>
+	  <item>Computer Systems Research Group, UC Berkeley.
+	    <sl>4.4BSD User's Reference Manual</sl>.
+	    O'Reilly &amp; Associates, Inc., 1994.
+	    <newline>ISBN 1-56592-075-9</item>
+
+	  <item>Computer Systems Research Group, UC Berkeley.
+	    <sl>4.4BSD User's Supplementary Documents</sl>.
+	    O'Reilly &amp; Associates, Inc., 1994.
+	    <newline>ISBN 1-56592-076-7</item>
+
+         <item><sl>UNIX in a Nutshell</sl>.
+           O'Reilly &amp; Associates, Inc., 1990.
+           <newline>ISBN 093717520X</item>
+
+          <item><htmlurl url="http://www-wks.acs.ohio-state.edu/"
+               name="Ohio State University"> has written
+               a <htmlurl
+               url="http://www-wks.acs.ohio-state.edu/unix_course/unix.html"
+               name="UNIX Introductory Course"> which is available online
+               in HTML and postscript format.</item>
+	  </itemize>
+
+      <sect>
+	<heading>管理者向けのガイド</heading>
+
+	<p><itemize> 
+
+	    <item>Albitz, Paul and Liu, Cricket. <em>DNS and
+		BIND</em>.  O'Reilly &amp; Associates, Inc., 1993. 
+		<newline>ISBN 1-56592-010-4 </item>
+
+	    <item>Computer Systems Research Group, UC Berkeley.
+		<sl>4.4BSD System Manager's Manual</sl>.
+		O'Reilly &amp; Associates, Inc., 1994.  
+		<newline>ISBN 1-56592-080-5</item>
+
+	    <item>Costales, Brian, et al.
+		<em>Sendmail</em>. O'Reilly &amp;
+		Associates, Inc., 1993. <newline>ISBN 1-56592-056-2 </item>
+
+	    <item>Frisch, &AElig;leen. <em>Essential System
+	      Administration</em>.  O'Reilly &amp;
+	      Associates, Inc., 1993. <newline>ISBN 0-937175-80-3 </item>
+
+	    <item>Hunt, Craig. <em>TCP/IP Network Administration</em>.
+                O'Reilly &amp; Associates, Inc., 1992.  
+		<newline>ISBN 0-937175-82-X</item>
+
+           <item>Nemeth, Evi. <em>UNIX System Administration
+		Handbook</em>. 2nd ed. Prentice Hall, 1995. 
+		<newline>ISBN 0131510517</item>
+
+	  </itemize>
+
+
+
+      <sect>
+	<heading>プログラマ向けのガイド</heading>
+
+	<p><itemize> 
+
+	    <item>Asente, Paul. <em>X Window System
+		Toolkit</em>. Digital Press.  
+		<newline>ISBN 1-55558-051-3</item>
+
+	    <item>Computer Systems Research Group, UC Berkeley.
+		<sl>4.4BSD Programmer's Reference Manual</sl>.
+		O'Reilly &amp; Associates, Inc., 1994.  
+		<newline>ISBN 1-56592-078-3</item>
+
+	    <item>Computer Systems Research Group, UC Berkeley.
+		<sl>4.4BSD Programmer's Supplementary Documents</sl>.
+		O'Reilly &amp; Associates, Inc., 1994.  
+		<newline>ISBN 1-56592-079-1</item>
+
+	    <item>Ellis, Margaret A. and Stroustrup,
+		Bjarne. <em>The Annotated C++ Reference
+		Manual</em>. Addison-Wesley, 1990.  
+		<newline>ISBN 0-201-51459-1</item>
+
+	    <item>Harbison, Samuel P. and Steele, Guy
+               L. Jr. <em>C: A Reference Manual</em>.  4rd ed. Prentice
+               Hall, 1995.  <newline>ISBN 0-13-326224-3</item>
+
+           <item>Kernighan, Brian and Dennis M. Ritchie.
+               <em>The C Programming Language.</em>.
+               PTR Prentice Hall, 1988. 
+               <newline>ISBN 0-13-110362-9</item>
+
+	    <item>Plauger, P. J. <em>The Standard C
+		Library</em>. Prentice Hall, 1992.  
+		<newline>ISBN 0-13-131509-9</item>
+
+           <item>Stevens, W. Richard. <em>Advanced
+               Programming in the UNIX Environment</em>.
+               Reading, Mass. : Addison-Wesley, 1992
+               <newline>ISBN 0-201-56317-7</item>
+
+           <item>Stevens, W. Richard. <em>UNIX Network
+               Programming</em>. PTR Prentice Hall, 1990.  
+               <newline>ISBN 0-13-949876-1</item>
+
+	    <item>Wells, Bill.  "Writing Serial Drivers for UNIX".
+	      <em>Dr. Dobb's Journal</em>.  19(15), December
+	      1994. pp68-71, 97-99.</item>
+
+	  </itemize>
+
+      <sect>
+       <heading>オペレーティングシステム内部</heading>
+
+       <p><itemize>
+
+           <item>Jolitz, William.  "Porting UNIX to the
+             386". <em>Dr. Dobb's Journal</em>.  January
+             1991-July 1992.</item>
+
+           <item>Leffler, Samuel J., Marshall Kirk McKusick, 
+               Michael J Karels and John Quarterman <em>The Design and
+               Implementation of the 4.3BSD UNIX Operating
+               System</em>.  Reading, Mass. : Addison-Wesley, 1989.
+               <newline>ISBN 0-201-06196-1</item>
+
+           <item>Leffler, Samuel J., Marshall Kirk McKusick, 
+               <em>The Design and Implementation of the 4.3BSD
+               UNIX Operating System: Answer Book</em>.
+               Reading, Mass. : Addison-Wesley, 1991.
+               <newline>ISBN 0-201-54629-9</item>
+
+           <item>McKusick, Marshall Kirk, Keith Bostic, Michael J Karels,
+                and John Quarterman. <em>The Design and
+               Implementation of the 4.4BSD Operating
+               System</em>.  Reading, Mass. : Addison-Wesley, 1996.
+               <newline>ISBN 0-201-54979-4</item>
+
+           <item>Stevens, W. Richard. <em>TCP/IP Illustrated,
+               Volume 1: The Protocols</em>.
+               Reading, Mass. : Addison-Wesley, 1996.
+               <newline>ISBN 0-201-63346-9</item>
+
+           <item>Stevens, W. Richard. <em>TCP/IP Illustrated,
+               Volume 3: TCP for Transactions, HTTP, NNTP
+               and the UNIX Domain Protocols</em>.
+               Reading, Mass. : Addison-Wesley, 1996.
+               <newline>ISBN 0-201-63495-3</item>
+
+           <item>Wright, Gary R. and W. Richard Stevens.
+               <em>TCP/IP Illustrated, Volume 2:
+               The Implementation</em>.
+               Reading, Mass. : Addison-Wesley, 1995.
+               <newline>ISBN 0-201-63354-X</item>
+
+         </itemize>
+
+
+      <sect>
+       <heading>セキュリティの参考資料</heading>
+
+       <p><itemize>
+
+           <item>Cheswick, William R. and Steven M. Bellovin.
+               <em>Firewalls and Internal Security:
+               Repelling the Wily Hacker</em>.
+               Reading, Mass. : Addison-Wesley, 1995.
+               <newline>ISBN 1-201-63357-4 </item>
+
+           <item>Garfinkel, Simson and Gene Spafford.
+               <em>Practical UNIX Security</em>. 2nd Ed.
+               O'Reilly &amp; Associates, Inc., 1996. 
+               <newline>ISBN 1-56592-148-8 </item>
+
+         </itemize>
+
+      <sect>
+	<heading>ハードウェアの参考資料</heading>
+
+	<p><itemize>
+
+           <item>Anderson, Don and Tom Shanley.
+               <em>Pentium Processor System Architecture</em>.
+               2nd ed. Reading, Mass. : Addison-Wesley, 1995.
+               <newline>ISBN 0-201-40992-5</item>
+
+           <item>Ferraro, Richard F. <em>Programmer's Guide
+               to the EGA, VGA, and Super VGA Cards</em>.
+               3rd ed. Reading, Mass. : Addison-Wesley, 1995.
+               <newline>ISBN 0-201-62490-7</item>
+
+           <item>Shanley, Tom. <em>80486 System
+               Architecture</em>.  3rd ed. Reading, Mass. :
+               Addison-Wesley, 1995. <newline>ISBN
+               0-201-40994-1</item>
+
+           <item>Shanley, Tom. <em>ISA System
+		Architecture</em>.  3rd ed. Reading, Mass. :
+		Addison-Wesley, 1995.
+               <newline>ISBN 0-201-40996-8</item>
+
+           <item>Shanley, Tom. <em>PCI System
+		Architecture</em>.  3rd ed. Reading, Mass. :
+		Addison-Wesley, 1995. <newline>ISBN
+               0-201-40993-3</item>
+
+	    <item>Van Gilluwe, Frank. <em>The Undocumented PC</em>.
+		Reading, Mass: Addison-Wesley Pub. Co., 1994.
+		<newline>ISBN 0-201-62277-7</item>
+
+	  </itemize>
+
+      <sect>
+       <heading>UNIX の歴史</heading>
+
+       <p><itemize>
+
+           <item>Saulus, Peter H. <em>A quarter century of UNIX</em>.
+             Addison-Wesley Publishing Company, Inc., 1994.
+             <newline>ISBN 0-201-54777-5</item>
+          
+           <item>Simon Garfinkel, Daniel Weise, Steven Strassmann.
+             <em>The UNIX-HATERS Handbook</em>.
+             IDG Books Worldwide, Inc., 1994.
+             <newline>ISBN 1-56884-203-1</item>
+
+           <item>Don Libes, Sandy Ressler <em>Life with UNIX</em> - special
+             edition.  Prentice-Hall, Inc., 1989.
+             <newline>ISBN 0-13-536657-7</item>
+
+         </itemize>
+
+      <sect>
+	<heading>雑誌とジャーナル</heading>
+
+	<p><itemize>
+
+	    <item><em>The C/C++ Users Journal</em>.  R&amp;D Publications
+	      Inc. ISSN 1075-2838</item>
+
+           <item><em>Sys Admin - The Journal for UNIX System
+             Administrators</em> Miller Freeman, Inc., ISSN 1061-2688</item>
+
+	  </itemize>
+
+    </sect>
+
