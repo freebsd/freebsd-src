@@ -339,6 +339,7 @@ product CYPRESS FMRADIO		0x1002	FM Radio
 product DLINK DSB650C		0x4000	10Mbps ethernet adapter
 product DLINK DSB650TX		0x4002	10/100 ethernet adapter
 product DLINK DSB650TX_PNA	0x4003	1/10/100 ethernet adapter
+product DLINK DSB650		0xABC1	10/100 ethernet adapter
 
 /* Dallas Semiconductor products */
 product DALLAS J6502		0x4201	J-6502 speakers
