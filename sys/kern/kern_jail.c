@@ -39,6 +39,11 @@ SYSCTL_INT(_jail, OID_AUTO, socket_unixiproute_only, CTLFLAG_RW,
     &jail_socket_unixiproute_only, 0,
     "Processes in jail are limited to creating UNIX/IPv4/route sockets only");
 
+int	jail_sysvipc_allowed = 0;
+SYSCTL_INT(_jail, OID_AUTO, sysvipc_allowed, CTLFLAG_RW,
+    &jail_sysvipc_allowed, 0,
+    "Processes in jail can use System V IPC primitives");
+
 int
 jail(p, uap)
         struct proc *p;
