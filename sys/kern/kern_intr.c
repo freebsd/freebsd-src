@@ -170,14 +170,14 @@ sched_swi(struct intrhand *ih, int flag)
 		it->it_need = 1;
 		mtx_enter(&sched_lock, MTX_SPIN);
 		if (p->p_stat == SWAIT) { /* not on run queue */
-			CTR1(KTR_INTR, "sched_ithd: setrunqueue %d", p->p_pid);
+			CTR1(KTR_INTR, "sched_swi: setrunqueue %d", p->p_pid);
 /*			membar_lock(); */
 			p->p_stat = SRUN;
 			setrunqueue(p);
 			aston();
 		}
 		else {
-			CTR3(KTR_INTR, "sched_ithd %d: it_need %d, state %d",
+			CTR3(KTR_INTR, "sched_swi %d: it_need %d, state %d",
 				p->p_pid, it->it_need, p->p_stat );
 		}
 		mtx_exit(&sched_lock, MTX_SPIN);
@@ -235,6 +235,7 @@ sithd_loop(void *dummy)
 		 * lock.  This may take a while and it_need may get
 		 * set again, so we have to check it again.
 		 */
+		mtx_assert(&Giant, MA_NOTOWNED);
 		mtx_enter(&sched_lock, MTX_SPIN);
 		if (!it->it_need) {
 			p->p_stat = SWAIT; /* we're idle */
