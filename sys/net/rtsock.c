@@ -978,7 +978,7 @@ rt_dispatch(struct mbuf *m, const struct sockaddr *sa)
 		*family = sa ? sa->sa_family : 0;
 		m_tag_prepend(m, tag);
 	}
-	netisr_queue(NETISR_ROUTE, m);
+	netisr_queue(NETISR_ROUTE, m);	/* mbuf is free'd on failure. */
 }
 
 /*

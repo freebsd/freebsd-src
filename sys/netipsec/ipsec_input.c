@@ -447,13 +447,13 @@ ipsec4_common_input_cb(struct mbuf *m, struct secasvar *sav,
 	/*
 	 * Re-dispatch via software interrupt.
 	 */
-	if (!netisr_queue(NETISR_IP, m)) {
+	if ((error = netisr_queue(NETISR_IP, m))) {
 		IPSEC_ISTAT(sproto, espstat.esps_qfull, ahstat.ahs_qfull,
 			    ipcompstat.ipcomps_qfull);
 
 		DPRINTF(("%s: queue full; proto %u packet dropped\n",
 			__func__, sproto));
-		return ENOBUFS;
+		return error;
 	}
 	return 0;
 bad:

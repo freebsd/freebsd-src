@@ -715,7 +715,7 @@ sppp_input(struct ifnet *ifp, struct mbuf *m)
 		goto drop;
 
 	/* Check queue. */
-	if (! netisr_queue(isr, m)) {
+	if (netisr_queue(isr, m)) {	/* (0) on success. */
 		if (debug)
 			log(LOG_DEBUG, SPP_FMT "protocol queue overflow\n",
 				SPP_ARGS(ifp));
