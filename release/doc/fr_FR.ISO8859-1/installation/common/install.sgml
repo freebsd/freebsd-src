@@ -430,9 +430,10 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
 
       <important>
         <para>Fr&eacute;quemment, les disquettes sont
-        pr&eacute;formatt&eacute;s. De nombreux probl&egrave;mes rapport&eacute;s par
-        les utilisateurs &eacute;taient le r&eacute;sultat de mauvais
-        formattage de m&eacute;dia. Re-formatt&eacute;z vos disquettes avant
+        pr&eacute;formatt&eacute;s. De nombreux probl&egrave;mes
+        rapport&eacute;s par les utilisateurs &eacute;taient le
+        r&eacute;sultat de mauvais formattage de
+        m&eacute;dia. Re-formatt&eacute;z vos disquettes avant
         l'utilisation, juste pour en &ecirc;tre sur.</para>
       </important>
 
@@ -541,59 +542,63 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
     </sect3>
 
     <sect3 id="ftpnfs">
-      <title>Installing over a Network using FTP or NFS</title>
+      <title>Installation via le r&eacute;seau en utilisant FTP ou NFS</title>
 
-      <para>After making the boot floppies as described in the first
-      section, you can load the rest of the installation over a
-      network using one of 3 types of connections:  serial port,
-      parallel port, or Ethernet.</para>
+      <para>Apr&egrave;s avoir cr&eacute;er les disquettes de d&eacute;marrage
+      comme d&eacute;crit dans la premi&egrave;re section, vous pouvez
+      effectuer le reste de l'installation via un r&eacute;seau de trois
+      façons diff&eacute;rentes: par le port s&eacute;rie, par le port
+      parall&egrave;le, ou Ethernet.</para>
 
       <sect4>
-        <title>Serial Port</title>
+        <title>Par port s&eacute;rie</title>
 
-	<para>SLIP support is rather primitive, and is limited
-        primarily to hard-wired links, such as a serial cable running
-        between two computers.  The link must be hard-wired because
-        the SLIP installation doesn't currently offer a dialing
-        capability.  If you need to dial out with a modem or otherwise
-        dialog with the link before connecting to it, then I recommend
-        that the PPP utility be used instead.</para>
+	<para>Le support SLIP est primitif, et est limit&eacute; aux liens
+        directs, comme un cable s&eacute;rie reliant deux ordinateurs. Le
+        lien doit être direct car l'installation via SLIP ne
+        supporte pas encore la capacit&eacute; d'appel. Si vous devez
+        appeler via un modem ou un autre type de mat&eacute;riel sur ce
+        lien avant de vous connectez, je vous recommande d'utilisez
+        PPP &agrave; la place.</para>
 
-        <para>If you're using PPP, make sure that you have your
-        Internet Service Provider's IP address and DNS information
-        handy as you'll need to know it fairly early in the
-        installation process.  You may also need to know your own IP
-        address, though PPP supports dynamic address negotiation and
-        may be able to pick up this information directly from your ISP
-        if they support it.</para>
+        <para>Si vous utilisez PPP, assurez vous de disposer des
+        informations d'adresse IP du DNS, de votre fournisseur
+        d'acc&egrave;s Internet, &agrave; cot&eacute; de vous car vous en aurez
+        besoin tr&egrave;s tôt lors du processus d'installation. Vous
+        devez aussi connaitre votre adresse IP, car PPP supporte la
+        n&eacute;gociation dynamique d'adresse et peut r&eacute;cup&eacute;rer
+        cette information directement depuis votre ISP.</para>
 
-        <para>You will also need to know how to use the various <quote>AT
-        commands</quote> for dialing out with your particular brand of modem
-        as the PPP dialer provides only a very simple terminal
-        emulator.</para>
+        <para>Vous devez aussi savoir comment utiliser les
+        diff&eacute;rentes <quote>commandes AT</quote> pour dialoguer avec
+        certains modems, car le gestionnaire PPP ne fournit qu'un
+        simple &eacute;mulateur de terminal.</para>
       </sect4>
 
       <sect4>
-        <title>Parallel Port</title>
+        <title>Par port parall&egrave;le</title>
 
-	<para>If a hard-wired connection to another &os; or Linux
-        machine is available, you might also consider installing over
-        a <quote>laplink</quote> style parallel port cable.  The data rate over the
-        parallel port is much higher than what is typically possible
-        over a serial line (up to 50k/sec), thus resulting in a
-        quicker installation.  It's not typically necessary to use
-        <quote>real</quote> IP addresses when using a point-to-point parallel cable
-        in this way and you can generally just use RFC 1918 style
-        addresses for the ends of the link (e.g. <hostid
-        role="ipaddr">10.0.0.1</hostid>, <hostid role="ipaddr">10.0.0.2</hostid>,
-        etc).</para>
+	<para>Si une connexion directe &agrave; une autre machine &os; ou
+        Linux est disponible, vous pouvez installer via un port
+        parall&egrave;le. Le taux de transfert via un port parall&egrave;le
+        est bien plus important que via un port s&eacute;rie (jusqu'&agrave;
+        50k/sec), cela vous permettra d'installer &os; plus
+        rapidement. Il n'est pas forc&eacute;ment n&eacute;cessaire d'utiliser
+        une <quote>v&eacute;ritable</quote> adresse IP lors de
+        l'utilisation d'un cable parall&egrave;le pour une installation
+        point &agrave; point, car vous pouvez utiliser g&eacute;n&eacute;ralement
+        des adresses de style RFC1918 pour les extr&eacute;mit&eacute;s du
+        lien (e.g. <hostid
+        role="ipaddr">10.0.0.1</hostid>, <hostid
+        role="ipaddr">10.0.0.2</hostid>,etc).</para>
 
         <important>
-	  <para>If you use a Linux machine rather than a &os;
-          machine as your PLIP peer, you will also have to specify
-          <option>link0</option> in the TCP/IP setup screen's <quote>extra options for
-          ifconfig</quote> field in order to be compatible with Linux's
-          slightly different PLIP protocol.</para>
+	  <para>Si vous utilisez une machine Linux plutôt qu'une
+          machine &os; comme deuxi&egrave;me extr&eacute;mit&eacute; PLIP, vous
+          devez sp&eacute;cifier <option>link0</option> dans l'&eacute;cran de
+          configuration TCP/IP comme <quote>options suppl&eacute;mentaire
+          &agrave; ifconfig</quote>, pour fonctionner correctement avec le
+          protocole PLIP l&eacute;g&eacute;rement diff&eacute;rent de Linux.</para>
 	</important>
 
       </sect4>
@@ -601,68 +606,81 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
       <sect4>
         <title>Ethernet</title>
 
-	<para>&os; supports many common Ethernet cards; a table
-        of supported cards is
-        provided as part of the &os; Hardware Notes (see
-        <filename>HARDWARE.TXT</filename> in
-	the Documentation menu on the boot floppy or the top level
-        directory of the CDROM).  If you are using one of the
-        supported PCMCIA Ethernet cards, also be sure that it's
-        plugged in <emphasis>before</emphasis> the laptop is powered on.  &os; does
-        not, unfortunately, currently support <quote>hot insertion</quote> of
-        PCMCIA cards during installation.</para>
+	<para>&os; supporte la plupart des cartes Ethernet; une liste
+        des cartes support&eacute;es se trouve dans les notes de
+        compatibilit&eacute; mat&eacute;riel de &os; (voir
+        <filename>HARDWARE.TXT</filename> dans le menu
+        <quote>Documentation</quote> sur la disquette de d&eacute;marage
+        ou dans le r&eacute;pertoire principal sur le CDROM). Si vous
+        utilisez une carte PCMCIA Ethernet support&eacute;e, v&eacute;rifiez
+        de bien l'avoir ins&eacute;rer <emphasis>avant</emphasis> le
+        d&eacute;marrage de votre portable. &os; ne supporte pas encore
+        <quote>l'insertion &agrave; chaud</quote> de cartes PCMCIA pendant
+        l'installation.</para>
 
-        <para>You will also need to know your IP address on the
-        network, the <option>netmask</option> value for your subnet and the
-        name of your machine.  Your system administrator can tell you
-        which values are appropriate to your particular network setup.
-        If you will be referring to other hosts by name rather than IP
-        address, you'll also need a name server and possibly the
-        address of a gateway (if you're using PPP, it's your
-        provider's IP address) to use in talking to it.  If you want
-        to install by FTP via an HTTP proxy (see below), you will also
-        need the proxy's address.</para>
+        <para>Vous devez aussi connaître votre adresse IP sur le
+        r&eacute;seau, ainsi que la valeur du <option>netmask</option> et
+        le nom de votre machine. Votre administrateur syst&egrave;me peut
+        vous fournir les bonnes valeurs. Si vous d&eacute;sirez utiliser
+        des noms de machine &agrave; la place des adresses IP , vous devez
+        aussi disposer d'un serveur DNS, et potentiellement l'adresse
+        IP de la passerelle (si vous utilisez PPP, c'est l'adresse IP
+        de votre ISP) pour dialoguer avec lui. Si vous d&eacute;sirez
+        effectuer l'installation par FTP vi un proxy HTTP (voir
+        ci-apr&egrave;s), vous devez connaître l'adresse du
+        proxy.</para>
 
-        <para>If you do not know the answers to these questions then
-        you should really probably talk to your system administrator
-        <emphasis>first</emphasis> before trying this type of
-        installation.  Using a randomly chosen IP address or netmask
-        on a live network is almost guaranteed not to work, and will
-        probably result in a lecture from said system administrator.</para>
+        <para>Si vous ne connaissez pas les r&eacute;ponse &agrave; ces
+        diff&eacute;rentes questions, vous devez probablement demande &agrave;
+        votre administrateur syst&egrave;me avant de tester un de ces type
+        d'installation. Si vous utilisez une adresse IP ou une valeur
+        de netmask al&eacute;atoire sur un r&eacute;seau branch&eacute;, il se
+        peut que cela ne fonctionne pas, et r&eacute;sultera probablement
+        &agrave; un blame de la part de votre administrateur
+        syst&egrave;me.</para>
 
-        <para>Once you have a network connection of some sort working, the
-	installation can continue over NFS or FTP.</para>
+        <para>D&egrave;s que vous avez une connection r&eacute;seau
+        fonctionnelle, vous pouvez continuer l'installation via NFS ou
+        FTP.</para>
       </sect4>
 
       <sect4>
-        <title>NFS installation tips</title>
+        <title>Conseils d'installation NFS</title>
 
-        <para>NFS installation is fairly straight-forward: Simply copy
-        the &os; distribution files you want onto a server
-        somewhere and then point the NFS media selection at it.</para>
+        <para>L'installation via NFS est tr&egrave;s simple: copiez
+        simplement les fichiers des distributions de &os, dont vous
+        avez besoin quelque part sur un serveur, et faites pointer le
+        m&eacute;dia de selection NFS vers lui.</para>
 
-        <para>If this server supports only <quote>privileged port</quote> access (this is
-        generally the default for Sun and Linux workstations), you
-        will need to set this option in the Options menu before
-        installation can proceed.</para>
+        <para>Si le serveur ne support que l'acc&egrave;s via les
+        <quote>ports privil&eacute;gi&eacute;s</quote> (c'est
+        g&eacute;n&eacute;rallement le cas pour les stations de travail Sun ou
+        Linux), vous devez activer cette option dans le menu
+        <quote>Options</quote> avant de commencer l'installation.</para>
 
-        <para>If you have a poor quality Ethernet card which suffers from very
-        slow transfer rates, you may also wish to toggle the appropriate
-        Options flag.</para>
+        <para>Si vous disposez de cartes Ethernet de mauvaise
+        qualit&eacute;, qui souffrent de mauvais taux de transfert,
+        vous devez aussi activer le bon drapeau dans le menu
+        <quote>Options</quote>.</para>
 
-        <para>In order for NFS installation to work, the server must
-        also support <quote>subdir mounts</quote>, e.g. if your &os;
-        distribution directory lives on
-        <filename>wiggy:/usr/archive/stuff/FreeBSD</filename>, then
-        <hostid role="hostname">wiggy</hostid> will have to allow
-        the direct mounting of <filename>/usr/archive/stuff/FreeBSD</filename>, not just
-        <filename>/usr</filename> or <filename>/usr/archive/stuff</filename>.</para>
+        <para>Pour faire fonctionner votre installation via NFS, le
+        serveur doit aussi supporter le <quote>montage de
+        sous-r&eacute;pertoires</quote>, e.g. si votre r&eacute;pertoire de la
+        distribution de &os; r&eacute;side dans
+        <filename>wiggy:/usr/archive/stuff/FreeBSD</filename>, alors
+        <hostid role="hostname">wiggy</hostid> doit autoriser le
+        montage direct de
+        <filename>/usr/archive/stuff/FreeBSD</filename> et non pas
+        seulement <filename>/usr</filename> ou
+        <filename>/usr/archive/stuff</filename>.</para>
 
-        <para>In &os;'s <filename>/etc/exports</filename> file this is controlled by the
-        <option>-alldirs</option> option.  Other NFS servers may have different
-        conventions.  If you are getting <literal>Permission Denied</literal> messages
-        from the server then it's likely that you don't have this
-        properly enabled.</para>
+        <para>Dans le fichier <filename>/etc/exports</filename> de
+        &os; il faut positionner l'option
+        <option>-alldirs</option>. Pour d'autres serveurs NFS, il peut
+        y avoir d'autres options. Si vous obtenez des messages
+        <literal>Permission Denied</literal> du serveur, c'est souvent
+        du &agrave; un mauvais param&egrave;trage de cette
+        propri&eacute;t&eacute;.</para>
       </sect4>
 
       <sect4>
