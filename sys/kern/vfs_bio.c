@@ -84,6 +84,7 @@ static int vfs_bio_clcheck(struct vnode *vp, int size,
 		daddr_t lblkno, daddr_t blkno);
 static int flushbufqueues(void);
 static void buf_daemon(void);
+void bremfreel(struct buf * bp);
 
 int vmiodirenable = TRUE;
 SYSCTL_INT(_vfs, OID_AUTO, vmiodirenable, CTLFLAG_RW, &vmiodirenable, 0,
@@ -654,12 +655,19 @@ bfreekva(struct buf * bp)
 void
 bremfree(struct buf * bp)
 {
+	mtx_lock(&bqlock);
+	bremfreel(bp);
+	mtx_unlock(&bqlock);
+}
+
+void
+bremfreel(struct buf * bp)
+{
 	int s = splbio();
 	int old_qindex = bp->b_qindex;
 
 	GIANT_REQUIRED;
 
-	mtx_lock(&bqlock);
 	if (bp->b_qindex != QUEUE_NONE) {
 		KASSERT(BUF_REFCNT(bp) == 1, ("bremfree: bp %p not locked",bp));
 		TAILQ_REMOVE(&bufqueues[bp->b_qindex], bp, b_freelist);
@@ -686,7 +694,6 @@ bremfree(struct buf * bp)
 			break;
 		}
 	}
-	mtx_unlock(&bqlock);
 	splx(s);
 }
 
@@ -1865,9 +1872,8 @@ restart:
 
 		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT) != 0)
 			panic("getnewbuf: locked buf");
-		/* XXX bqlock needs to be held across bremfree() */
+		bremfreel(bp);
 		mtx_unlock(&bqlock);
-		bremfree(bp);
 
 		if (qindex == QUEUE_CLEAN) {
 			if (bp->b_flags & B_VMIO) {
@@ -2141,10 +2147,10 @@ flushbufqueues(void)
 		if ((bp->b_xflags & BX_BKGRDINPROG) != 0)
 			continue;
 		if (bp->b_flags & B_INVAL) {
-			if (BUF_LOCK(bp, LK_EXCLUSIVE) != 0)
+			if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT) != 0)
 				panic("flushbufqueues: locked buf");
+			bremfreel(bp);
 			mtx_unlock(&bqlock);
-			bremfree(bp);
 			brelse(bp);
 			return (1);
 		}
@@ -2176,10 +2182,10 @@ flushbufqueues(void)
 		if ((bp->b_xflags & BX_BKGRDINPROG) != 0)
 			continue;
 		if (bp->b_flags & B_INVAL) {
-			if (BUF_LOCK(bp, LK_EXCLUSIVE) != 0)
+			if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT) != 0)
 				panic("flushbufqueues: locked buf");
+			bremfreel(bp);
 			mtx_unlock(&bqlock);
-			bremfree(bp);
 			brelse(bp);
 			return (1);
 		}
