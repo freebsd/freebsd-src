@@ -204,6 +204,8 @@ main(int argc, char *argv[])
 	(void)snprintf(buf, sizeof(buf), "%s/%s.tmp", prefix, _MP_DB);
 	(void)snprintf(sbuf, sizeof(sbuf), "%s/%s.tmp", prefix, _SMP_DB);
 	if (username) {
+		int use_version;
+
 		(void)snprintf(buf2, sizeof(buf2), "%s/%s", prefix, _MP_DB);
 		(void)snprintf(sbuf2, sizeof(sbuf2), "%s/%s", prefix, _SMP_DB);
 
@@ -229,7 +231,14 @@ main(int argc, char *argv[])
 		pw_db = dbopen(_PATH_MP_DB, O_RDONLY, 0, DB_HASH, NULL);
 		if (!pw_db)
 			error(_MP_DB);
-		buf[0] = CURRENT_VERSION(_PW_KEYBYNAME);
+
+		key.data = verskey;
+		key.size = sizeof(verskey)-1;
+		if ((pw_db->get)(pw_db, &key, &data, 0) == 0)
+			use_version = *(unsigned char *)data.data;
+		else
+			use_version = 3;
+		buf[0] = _PW_VERSIONED(_PW_KEYBYNAME, use_version);
 		len = strlen(username);
 
 		/* Only check that username fits in buffer */
@@ -245,10 +254,10 @@ main(int argc, char *argv[])
 			while (*p++)
 				;
 
-			buf[0] = CURRENT_VERSION(_PW_KEYBYUID);
-			memmove(buf + 1, p, sizeof(int));
+			buf[0] = _PW_VERSIONED(_PW_KEYBYUID, use_version);
+			memmove(buf + 1, p, sizeof(store));
 			key.data = (u_char *)buf;
-			key.size = sizeof(int) + 1;
+			key.size = sizeof(store) + 1;
 
 			if ((pw_db->get)(pw_db, &key, &data, 0) == 0) {
 				/* First field of data.data holds pw_pwname */
@@ -313,16 +322,23 @@ main(int argc, char *argv[])
 	/* In order to transition this file into a machine-independent
 	 * form, we have to change the format of entries.  However, since
 	 * older binaries will still expect the old MD format entries, we 
-	 * create * those as usual and use versioned tags for the new entries.
+	 * create those as usual and use versioned tags for the new entries.
 	 */
-	key.data = verskey;
-	key.size = sizeof(verskey)-1;
-	data.data = &version;
-	data.size = 1;
-	if ((dp->put)(dp, &key, &data, 0) == -1)
-		error("put");
-	if ((dp->put)(sdp, &key, &data, 0) == -1)
-		error("put");
+	if (username == NULL) {
+		/* Do not add the VERSION tag when updating a single
+		 * user.  When operating on `old format' databases, this
+		 * would result in applications `seeing' only the updated
+		 * entries.
+		 */
+		key.data = verskey;
+		key.size = sizeof(verskey)-1;
+		data.data = &version;
+		data.size = 1;
+		if ((dp->put)(dp, &key, &data, 0) == -1)
+			error("put");
+		if ((dp->put)(sdp, &key, &data, 0) == -1)
+			error("put");
+	}
 	ypcnt = 1;
 	data.data = (u_char *)buf;
 	sdata.data = (u_char *)sbuf;
