@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: instdist.sh,v 1.21 1994/11/21 06:15:30 jkh Exp $
+# $Id: instdist.sh,v 1.22 1994/11/21 06:18:30 jkh Exp $
 
 if [ "$_INSTINST_SH_LOADED_" = "yes" ]; then
 	return 0
@@ -277,7 +277,7 @@ given the chance to load one or all of them.  Mandatory distributions\n\
 MUST be loaded!  Please also note that the secrdist is NOT FOR EXPORT\n\
 from the U.S.  Please don't endanger U.S. ftp sites by getting it\n\
 illegally, thanks!  When finished, select <Cancel>." \
--1 -1 10 \
+-1 -1 11 \
   "?diskfree"  "How much disk space do I have free?" \
   "bindist" "Binary base files (mandatory - $BINSIZE)" \
   "games" "Games and other frivolities (optional - $GAMESIZE)" \
@@ -288,6 +288,7 @@ illegally, thanks!  When finished, select <Cancel>." \
   "secrdist" "DES encryption code (and sources) (optional - $SECRSIZE)" \
   "compat1xdist" "FreeBSD 1.x binary compatability (optional - $COMPATSIZE)" \
   "packages" "Optional binary software distributions (user choice)" \
+  "XFree86-3.1" "The XFree86 3.1 (X11R6) distribution (optional - $X11SIZE)" \
      2> ${TMP}/menu.tmp.$$
 	retval=$?
 	media_distribution=`cat ${TMP}/menu.tmp.$$`
