@@ -40,6 +40,7 @@
 #include <sys/time.h>
 #include <sys/namei.h>
 #include <sys/unistd.h>
+#include <sys/kernel.h>
 #include <sys/vnode.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
