@@ -109,7 +109,8 @@ sigstring_to_signum(char *sig)
 		if (strncasecmp(sig, "sig", 3) == 0)
 			sig += 3;
 		for (n = 1; n < sys_nsig; n++)
-			if (sys_signame[n] && strcasecmp(sys_signame[n], sig) == 0)
+			if (sys_signame[n] &&
+			    strcasecmp(sys_signame[n], sig) == 0)
 				return (n);
 	}
 	return (-1);
@@ -413,8 +414,9 @@ dotrap(void)
 				gotsig[i] = 0;
 				if (trap[i]) {
 					/*
-					 * Ignore SIGCHLD to avoid infinite recursion
-					 * if the trap action does a fork.
+					 * Ignore SIGCHLD to avoid infinite
+					 * recursion if the trap action does
+					 * a fork.
 					 */
 					if (i == SIGCHLD)
 						ignore_sigchld++;
