@@ -107,7 +107,7 @@
 #	pci	PCI configuration-space access from user mode
 #	ipl	ipfilter control devices (ipl, ipnat, ipstate, ipauth)
 #
-#	$Id: MAKEDEV,v 1.163 1998/03/27 04:35:10 peter Exp $
+#	$Id: MAKEDEV,v 1.164 1998/07/02 07:39:01 des Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:$PATH
@@ -552,7 +552,7 @@ pty*)
 	case $class in
 	0|1|2|3|4|5|6|7)
 		umask 0
-		eval `echo $offset $name | awk ' { b=0+$1; n=0+$2 } END { \
+		eval `echo $offset $name | awk ' { b=0+$1; n=$2 } END { \
 			for (i = 0; i < 32; i++) {
 				c = substr("0123456789abcdefghijklmnopqrstuv", i + 1, 1); \
 				printf("mknod tty%s%s c 5 %d; \
