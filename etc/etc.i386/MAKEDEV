@@ -107,7 +107,7 @@
 #	pci	PCI configuration-space access from user mode
 #	ipl	ipfilter control devices (ipl, ipnat, ipstate, ipauth)
 #
-#	$Id: MAKEDEV,v 1.164 1998/07/02 07:39:01 des Exp $
+#	$Id: MAKEDEV,v 1.165 1998/07/03 15:43:20 des Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:$PATH
@@ -874,6 +874,58 @@ cuaD?)
 		mknod cuaiD$name c $major `expr $minor + 32 + 128`
 		mknod cualD$name c $major `expr $minor + 64 + 128`
 		chown uucp.dialer cua*D$name
+	done
+	umask 77
+	;;
+
+ttyM*)
+	portlist="0 1 2 3 4 5 6 7 8 9 a b c d e f"
+	modulelist="a b c d"
+	major=101
+	card=`expr $i : 'tty.*\(.\)$'`
+	for unit in $modulelist
+	do
+		moduleminor=`ttyminor $unit`
+		moduleminor=`expr $moduleminor % 10 \* 16`
+		modulename=$unit
+
+		for unit in $portlist
+		do
+			minor=`ttyminor $unit`
+			minor=`expr $card \* 65536 + $minor + $moduleminor`
+			name=$card$modulename$unit
+			rm -f tty*M$name
+			mknod ttyM$name c $major $minor
+			mknod ttyiM$name c $major `expr $minor + 64`
+			mknod ttylM$name c $major `expr $minor + 128`
+			chown root.wheel tty*M$name
+		done
+	done
+	;;
+
+cuaM?)
+	umask 7
+	portlist="0 1 2 3 4 5 6 7 8 9 a b c d e f"
+	modulelist="a b c d"
+	major=101
+	card=`expr $i : 'cua.*\(.\)$'`
+	for unit in $modulelist
+	do
+		moduleminor=`ttyminor $unit`
+		moduleminor=`expr $moduleminor % 10 \* 16`
+		modulename=$unit
+
+		for unit in $portlist
+		do
+			minor=`ttyminor $unit`
+			minor=`expr $card \* 65536 + $minor + $moduleminor`
+			name=$card$modulename$unit
+			rm -f cua*M$name
+			mknod cuaM$name c $major `expr $minor + 262144`
+			mknod cuaiM$name c $major `expr $minor + 64 + 262144`
+			mknod cualM$name c $major `expr $minor + 128 + 262144`
+			chown uucp.dialer cua*M$name
+		done
 	done
 	umask 77
 	;;
