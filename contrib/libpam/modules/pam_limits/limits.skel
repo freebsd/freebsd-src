@@ -26,6 +26,7 @@
 #        - nproc - max number of processes
 #        - as - address space limit
 #        - maxlogins - max number of logins for this user
+#        - priority - the priority to run user process with
 #
 #<domain>      <type>  <item>         <value>
 #

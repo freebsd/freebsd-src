@@ -1,4 +1,8 @@
-# Description of its configuration file (/etc/security/access.conf):
+# Description of its configuration file
+#
+# (The default config file is "/etc/security/access.conf". This
+#  default can be overridden with a module config argument
+#  'accessfile=<full-path>'):
 #
 # Login access control table.
 # 

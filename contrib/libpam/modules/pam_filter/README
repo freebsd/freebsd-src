@@ -1,5 +1,5 @@
 #
-# $Id: README,v 1.5 1996/12/01 02:53:08 morgan Exp $
+# $Id: README,v 1.1.1.1 2000/06/20 22:11:35 agmorgan Exp $
 #
 # This describes the behavior of this module with respect to the
 # /etc/pam.conf file.

@@ -1,5 +1,5 @@
 <!--
-   $Id: pam_radius.sgml,v 1.2 1997/02/15 18:25:44 morgan Exp $
+   $Id: pam_radius.sgml,v 1.2 2001/03/19 01:46:41 agmorgan Exp $
    
    This file was written by Cristian Gafton <gafton@redhat.com>
 -->
@@ -44,7 +44,7 @@ yes; this is a network module (independent of application).
 
 <p>
 This module is intended to provide the session service for users
-autheticated with a RADIUS server.  At the present stage, the only
+authenticated with a RADIUS server.  At the present stage, the only
 option supported is the use of the RADIUS server as an accounting
 server.
 
@@ -60,7 +60,7 @@ server.
 <tag><bf>Description:</bf></tag>
 
 This module is intended to provide the session service for users
-autheticated with a RADIUS server. At the present stage, the only
+authenticated with a RADIUS server. At the present stage, the only
 option supported is the use of the RADIUS server as an <em/accounting/
 server.  
 

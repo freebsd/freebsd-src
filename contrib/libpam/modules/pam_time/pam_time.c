@@ -1,25 +1,19 @@
 /* pam_time module */
 
 /*
- * $Id: pam_time.c,v 1.7 1997/02/15 17:32:21 morgan Exp $
+ * $Id: pam_time.c,v 1.3 2000/11/26 07:32:39 agmorgan Exp $
  *
- * Written by Andrew Morgan <morgan@parc.power.net> 1996/6/22
+ * Written by Andrew Morgan <morgan@linux.kernel.org> 1996/6/22
  * (File syntax and much other inspiration from the shadow package
  * shadow-960129)
- *
- * $Log: pam_time.c,v $
- * Revision 1.7  1997/02/15 17:32:21  morgan
- * time parsing more robust
- *
- * Revision 1.6  1997/01/04 20:43:15  morgan
- * fixed buffer underflow, reformatted to 4 spaces
- *
  */
 
 const static char rcsid[] =
-"$Id: pam_time.c,v 1.7 1997/02/15 17:32:21 morgan Exp $;\n"
+"$Id: pam_time.c,v 1.3 2000/11/26 07:32:39 agmorgan Exp $;\n"
 "\t\tVersion 0.22 for Linux-PAM\n"
-"Copyright (C) Andrew G. Morgan 1996 <morgan@parc.power.net>\n";
+"Copyright (C) Andrew G. Morgan 1996 <morgan@linux.kernel.org>\n";
+
+#include <security/_pam_aconf.h>
 
 #include <sys/file.h>
 #include <stdio.h>
@@ -34,7 +28,11 @@ const static char rcsid[] =
 #include <sys/stat.h>
 #include <fcntl.h>
 
-#define PAM_TIME_CONF          CONFILE /* from external define */
+#ifdef DEFAULT_CONF_FILE
+# define PAM_TIME_CONF         DEFAULT_CONF_FILE /* from external define */
+#else
+# define PAM_TIME_CONF         "/etc/security/time.conf"
+#endif
 #define PAM_TIME_BUFLEN        1000
 #define FIELD_SEPARATOR        ';'   /* this is new as of .02 */
 
@@ -124,6 +122,7 @@ static int read_field(int fd, char **buf, int *from, int *to)
 	    _log_err("error reading " PAM_TIME_CONF);
 	    return -1;
 	} else if (!i) {
+	    close(fd);
 	    fd = -1;          /* end of file reached */
 	} else
 	    *to += i;
@@ -167,6 +166,8 @@ static int read_field(int fd, char **buf, int *from, int *to)
 		if ((*buf)[i+1] == '\n') {
 		    shift_bytes(i + *buf, 2, *to - (i+2));
 		    *to -= 2;
+		} else {
+		    ++i;   /* we don't escape non-newline characters */
 		}
 		break;
 	    case '!':
@@ -248,7 +249,7 @@ static int logic_member(const char *string, int *at)
 
 	  default:
 	       if (isalpha(c) || c == '*' || isdigit(c) || c == '_'
-		    || c == '-' || c == '.') {
+		    || c == '-' || c == '.' || c == '/') {
 		    token = 1;
 	       } else if (token) {
 		    --to;

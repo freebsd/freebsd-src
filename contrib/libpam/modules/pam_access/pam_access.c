@@ -5,12 +5,27 @@
  * (I took login_access from logdaemon-5.6 and converted it to PAM
  * using parts of pam_time code.)
  *
+ ************************************************************************ 
+ * Copyright message from logdaemon-5.6 (original file name DISCLAIMER)
+ ************************************************************************ 
+ * Copyright 1995 by Wietse Venema. All rights reserved. Individual files 
+ * may be covered by other copyrights (as noted in the file itself.) 
+ * 
+ * This material was originally written and compiled by Wietse Venema at 
+ * Eindhoven University of Technology, The Netherlands, in 1990, 1991, 
+ * 1992, 1993, 1994 and 1995. 
+ * 
+ * Redistribution and use in source and binary forms are permitted 
+ * provided that this entire copyright notice is duplicated in all such 
+ * copies. 
+ * 
+ * This software is provided "as is" and without any expressed or implied 
+ * warranties, including, without limitation, the implied warranties of 
+ * merchantibility and fitness for any particular purpose. 
+ *************************************************************************
  */
 
-#ifdef linux
-# define _GNU_SOURCE
-# include <features.h>
-#endif
+#include <security/_pam_aconf.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -46,21 +61,6 @@ extern int gethostname(char *name, size_t len);
 #include <security/_pam_macros.h>
 #include <security/pam_modules.h>
 
-/* --- static functions for checking whether the user should be let in --- */
-
-static void _log_err(const char *format, ... )
-{
-    va_list args;
-
-    va_start(args, format);
-    openlog("pam_access", LOG_CONS|LOG_PID, LOG_AUTH);
-    vsyslog(LOG_ERR, format, args);
-    va_end(args);
-    closelog();
-}
-
-#define PAM_ACCESS_CONFIG CONFILE
-
 int strcasecmp(const char *s1, const char *s2);
 
 /* login_access.c from logdaemon-5.6 with several changes by A.Nogin: */
@@ -79,10 +79,16 @@ int strcasecmp(const char *s1, const char *s2);
 #define MAXHOSTNAMELEN 256
 #endif
 
+#ifdef DEFAULT_CONF_FILE
+# define PAM_ACCESS_CONFIG DEFAULT_CONF_FILE
+#else
+# define PAM_ACCESS_CONFIG "/etc/security/access.conf"
+#endif
+
  /* Delimiters for fields and for lists of users, ttys or hosts. */
 
-static char fs[] = ":";			/* field separator */
-static char sep[] = ", \t";		/* list-element separator */
+static const char fs[] = ":";			/* field separator */
+static const char sep[] = ", \t";		/* list-element separator */
 
  /* Constants to be used in assignments only, not in comparisons... */
 
@@ -96,7 +102,49 @@ static char sep[] = ", \t";		/* list-element separator */
 struct login_info {
     struct passwd *user;
     char   *from;
+    const char *config_file;
+    const char *service;
 };
+
+/* --- static functions for checking whether the user should be let in --- */
+
+static void _log_err(const char *format, ... )
+{
+    va_list args;
+
+    va_start(args, format);
+    openlog("pam_access", LOG_CONS|LOG_PID, LOG_AUTH);
+    vsyslog(LOG_ERR, format, args);
+    va_end(args);
+    closelog();
+}
+
+/* Parse module config arguments */
+
+static int parse_args(struct login_info *loginfo, int argc, const char **argv)
+{
+    int i;
+
+    for (i=0; i<argc; ++i) {
+	if (!strncmp("accessfile=", argv[i], 11)) {
+	    FILE *fp = fopen(11 + argv[i], "r");
+
+	    if (fp) {
+		loginfo->config_file = 11 + argv[i];
+		fclose(fp);
+	    } else {
+		_log_err("for service [%s] failed to open accessfile=[%s]"
+			 , loginfo->service, 11 + argv[i]);
+		return 0;
+	    }
+	    
+	} else {
+	    _log_err("unrecognized option [%s]", argv[i]);
+	}
+    }
+    
+    return 1;  /* OK */
+}
 
 typedef int match_func (char *, struct login_info *); 
 
@@ -108,23 +156,16 @@ static int string_match (char *, char *);
 
 /* login_access - match username/group and host/tty with access control file */
 
-static int login_access(struct passwd *user, char *from)
+static int login_access(struct login_info *item)
 {
-    struct login_info item;
     FILE   *fp;
     char    line[BUFSIZ];
-    char   *perm;			/* becomes permission field */
-    char   *users;			/* becomes list of login names */
-    char   *froms;			/* becomes list of terminals or hosts */
+    char   *perm;		/* becomes permission field */
+    char   *users;		/* becomes list of login names */
+    char   *froms;		/* becomes list of terminals or hosts */
     int     match = NO;
     int     end;
-    int     lineno = 0;			/* for diagnostics */
-
-    /*
-     * Bundle up the arguments to avoid unnecessary clumsiness lateron.
-     */
-    item.user = user;
-    item.from = from;
+    int     lineno = 0;		/* for diagnostics */
 
     /*
      * Process the table one line at a time and stop at the first match.
@@ -134,12 +175,12 @@ static int login_access(struct passwd *user, char *from)
      * non-existing table means no access control.
      */
 
-    if ((fp = fopen(PAM_ACCESS_CONFIG, "r"))!=NULL) {
+    if ((fp = fopen(item->config_file, "r"))!=NULL) {
 	while (!match && fgets(line, sizeof(line), fp)) {
 	    lineno++;
 	    if (line[end = strlen(line) - 1] != '\n') {
 		_log_err("%s: line %d: missing newline or line too long",
-		       PAM_ACCESS_CONFIG, lineno);
+		       item->config_file, lineno);
 		continue;
 	    }
 	    if (line[0] == '#')
@@ -153,19 +194,21 @@ static int login_access(struct passwd *user, char *from)
 		|| !(users = strtok((char *) 0, fs))
 		|| !(froms = strtok((char *) 0, fs))
 		|| strtok((char *) 0, fs)) {
-		_log_err("%s: line %d: bad field count", PAM_ACCESS_CONFIG, lineno);
+		_log_err("%s: line %d: bad field count",
+			 item->config_file, lineno);
 		continue;
 	    }
 	    if (perm[0] != '+' && perm[0] != '-') {
-		_log_err("%s: line %d: bad first field", PAM_ACCESS_CONFIG, lineno);
+		_log_err("%s: line %d: bad first field",
+			 item->config_file, lineno);
 		continue;
 	    }
-	    match = (list_match(froms, &item, from_match)
-		     && list_match(users, &item, user_match));
+	    match = (list_match(froms, item, from_match)
+		     && list_match(users, item, user_match));
 	}
 	(void) fclose(fp);
     } else if (errno != ENOENT) {
-	_log_err("cannot open %s: %m", PAM_ACCESS_CONFIG);
+	_log_err("cannot open %s: %m", item->config_file);
     }
     return (match == 0 || (line[0] == '+'));
 }
@@ -356,9 +399,16 @@ int strcasecmp(const char *s1, const char *s2)
 PAM_EXTERN int pam_sm_acct_mgmt(pam_handle_t *pamh,int flags,int argc
 		     ,const char **argv)
 {
-    const char *user=NULL;
+    struct login_info loginfo;
+    const char *user=NULL, *service=NULL;
     char *from=NULL;
     struct passwd *user_pw;
+
+    if ((pam_get_item(pamh, PAM_SERVICE, (const void **)&service)
+	!= PAM_SUCCESS) || (service == NULL) || (*service == ' ')) {
+	_log_err("cannot find the service name");
+	return PAM_ABORT;
+    }
 
     /* set username */
 
@@ -398,8 +448,27 @@ PAM_EXTERN int pam_sm_acct_mgmt(pam_handle_t *pamh,int flags,int argc
         }
 
     }
+
     if ((user_pw=getpwnam(user))==NULL) return (PAM_USER_UNKNOWN);
-    if (login_access(user_pw,from)) return (PAM_SUCCESS); else {
+
+    /*
+     * Bundle up the arguments to avoid unnecessary clumsiness later on.
+     */
+    loginfo.user = user_pw;
+    loginfo.from = from;
+    loginfo.service = service;
+    loginfo.config_file = PAM_ACCESS_CONFIG;
+
+    /* parse the argument list */
+
+    if (!parse_args(&loginfo, argc, argv)) {
+	_log_err("failed to parse the module arguments");
+	return PAM_ABORT;
+    }
+
+    if (login_access(&loginfo)) {
+	return (PAM_SUCCESS);
+    } else {
 	_log_err("access denied for user `%s' from `%s'",user,from);
 	return (PAM_PERM_DENIED);
     }

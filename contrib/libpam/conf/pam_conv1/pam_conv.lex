@@ -1,7 +1,7 @@
 
 %{
 /*
- * $Id: pam_conv.lex,v 1.1 1997/01/23 05:35:50 morgan Exp $
+ * $Id: pam_conv.lex,v 1.1.1.1 2000/06/20 22:10:45 agmorgan Exp $
  *
  * Copyright (c) Andrew G. Morgan 1997 <morgan@parc.power.net>
  *
@@ -10,7 +10,7 @@
  */
 
     const static char lexid[]=
-	"$Id: pam_conv.lex,v 1.1 1997/01/23 05:35:50 morgan Exp $\n"
+	"$Id: pam_conv.lex,v 1.1.1.1 2000/06/20 22:10:45 agmorgan Exp $\n"
 	"Copyright (c) Andrew G. Morgan 1997 <morgan@parc.power.net>\n";
 
     extern int current_line;

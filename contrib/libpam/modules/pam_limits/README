@@ -4,9 +4,10 @@ pam_limits module:
 
 THEORY OF OPERATION:
 
-First, make a root-only-readable file (/etc/limits by default or LIMITS_FILE
-defined Makefile) that describes the resource limits you wish to impose. No 
-limits are imposed on UID 0 accounts.
+First, make a root-only-readable file (/etc/security/limits.conf by
+default or INSTALLED_CONFILE defined Makefile) that describes the
+resource limits you wish to impose. No limits are imposed on UID 0
+accounts.
 
 Each line describes a limit for a user in the form:
 
@@ -18,9 +19,10 @@ Where:
 	- a group name, with @group syntax
 	- the wildcard *, for default entry
 
-<type> can have the two values:
-	- "soft" for enforcinf the soft limits
+<type> can have the three values:
+	- "soft" for enforcing the soft limits
 	- "hard" for enforcing hard limits
+        - "-" for enforcing both soft and hard limits
 
 <item> can be one of the following:
 	- core - limits the core file size (KB)
@@ -35,15 +37,18 @@ Where:
 	- as - address space limit
 	- maxlogins - max number of logins for this user
 	- maxsyslogins - max number of logins on the system
-		
-To completely disable limits for a user (or a group), a single dash (-)
-will do (Example: 'bin -', '@admin -'). Please remember that individual
-limits have priority over group limits, so if you impose no limits for admin
-group, but one of the members in this group have a limits line, the user
-will have its limits set according to this line.
+
+Note, if you specify a type of '-' but neglect to supply the item and
+value fields then the module will never enforce any limits on the
+specified user/group etc. .
+
+Please remember that individual limits have priority over group
+limits, so if you impose no limits for admin group, but one of the
+members in this group has a limits line, the user will have its limits
+set according to this line.
 
 Also, please note that all limit settings are set PER LOGIN.  They are
-not global, nor are they permanent (the session only)
+not global, nor are they permanent (they apply for the session only).
 
 In the LIMITS_FILE, the # character introduces a comment - the rest of the
 line is ignored.
@@ -67,6 +72,12 @@ ARGUMENTS RECOGNIZED:
 
     conf=/path/to/file	the limits configuration file if different from the
 			one set at compile time.
+
+    change_uid		change real uid to the user for who the limits
+    			are set up.  Use this option if you have problems
+			like login not forking a shell for user who has
+			no processes.  Be warned that something else
+			may break when you do this.
 
 MODULE SERVICES PROVIDED:
 	session            _open_session and _close_session (blank)

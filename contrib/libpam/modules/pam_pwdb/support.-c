@@ -1,18 +1,5 @@
 /* 
- * $Id: support.-c,v 1.7 1997/04/05 06:32:06 morgan Exp morgan $
- *
- * $Log: support.-c,v $
- * Revision 1.7  1997/04/05 06:32:06  morgan
- * new option and also deleted _readto
- *
- * Revision 1.6  1997/02/15 17:27:20  morgan
- * added helper binary to password checking
- *
- * Revision 1.5  1996/12/01 03:05:54  morgan
- * debugging with _pam_macros.h
- *
- * Revision 1.4  1996/11/10 21:06:07  morgan
- * pwdb conversion
+ * $Id: support.-c,v 1.3 2001/02/11 06:33:53 agmorgan Exp $
  *
  * Copyright information at end of file.
  */
@@ -91,8 +78,9 @@ typedef struct {
 #define UNIX_NODELAY             18     /* admin does not want a fail-delay */
 #define UNIX_UNIX                19     /* wish to use /etc/passwd for pwd */
 #define UNIX_BIGCRYPT            20     /* use DEC-C2 crypt()^x function */
+#define UNIX_LIKE_AUTH           21     /* need to auth for setcred to work */
 /* -------------- */
-#define UNIX_CTRLS_              21     /* number of ctrl arguments defined */
+#define UNIX_CTRLS_              22     /* number of ctrl arguments defined */
 
 
 static const UNIX_Ctrls unix_args[UNIX_CTRLS_] = {
@@ -118,8 +106,9 @@ static const UNIX_Ctrls unix_args[UNIX_CTRLS_] = {
 /* UNIX__SET_DB */	  {  NULL,            _ALL_ON_,            0100000 },
 /* UNIX_DEBUG */          { "debug",          _ALL_ON_,            0200000 },
 /* UNIX_NODELAY */        { "nodelay",        _ALL_ON_,            0400000 },
-/* UNIX_UNIX */	  	  { "unix",           _ALL_ON_^(050000),  01000000 },
+/* UNIX_UNIX */		  { "unix",           _ALL_ON_^(050000),  01000000 },
 /* UNIX_BIGCRYPT */	  { "bigcrypt",       _ALL_ON_^(020000),  02000000 },
+/* UNIX_LIKE_AUTH */	  { "likeauth",       _ALL_ON_,           04000000 },
 };
 
 #define UNIX_DEFAULTS  (unix_args[UNIX__NONULL].flag)
@@ -161,7 +150,7 @@ static int converse(pam_handle_t *pamh, int ctrl, int nargs
 		     , pam_strerror(pamh, retval));
 	}
 
-    } else {
+    } else if (retval != PAM_CONV_AGAIN) {
 	_log_err(LOG_ERR, "couldn't obtain coversation function [%s]"
 		 , pam_strerror(pamh, retval));
     }
@@ -322,13 +311,13 @@ static void _cleanup_failures(pam_handle_t *pamh, void *fl, int err)
 	if ( !quiet && !err ) {   /* under advisement from Sun,may go away */
 
 	    /* log the number of authentication failures */
-	    if ( failure->count != 0 ) {
+	    if ( failure->count > 1 ) {
 		(void) pam_get_item(pamh, PAM_SERVICE
 				    , (const void **)&service);
 		_log_err(LOG_NOTICE
-			 , "%d authentication failure%s; %s(uid=%d) -> "
+			 , "%d more authentication failure%s; %s(uid=%d) -> "
 			 "%s for %s service"
-			 , failure->count, failure->count==1 ? "":"s"
+			 , failure->count-1, failure->count==2 ? "":"s"
 			 , failure->name
 			 , failure->id
 			 , failure->user
@@ -356,7 +345,8 @@ static void _cleanup_failures(pam_handle_t *pamh, void *fl, int err)
 #include <sys/types.h>
 #include <sys/wait.h>
 
-static int pwdb_run_helper_binary(pam_handle_t *pamh, const char *passwd)
+static int pwdb_run_helper_binary(pam_handle_t *pamh, const char *passwd,
+				  const char *user)
 {
     int retval, child, fds[2];
 
@@ -370,7 +360,7 @@ static int pwdb_run_helper_binary(pam_handle_t *pamh, const char *passwd)
     /* fork */
     child = fork();
     if (child == 0) {
-	static char *args[] = { NULL, NULL };
+	static char *args[] = { NULL, NULL, NULL };
 	static char *envp[] = { NULL };
 
 	/* XXX - should really tidy up PAM here too */
@@ -382,6 +372,8 @@ static int pwdb_run_helper_binary(pam_handle_t *pamh, const char *passwd)
 
 	/* exec binary helper */
 	args[0] = x_strdup(CHKPWD_HELPER);
+	args[1] = x_strdup(user);
+
 	execve(CHKPWD_HELPER, args, envp);
 
 	/* should not get here: exit with error */
@@ -389,13 +381,14 @@ static int pwdb_run_helper_binary(pam_handle_t *pamh, const char *passwd)
 	exit(PWDB_SUCCESS+1);
     } else if (child > 0) {
 	/* wait for child */
-	close(fds[0]);
 	if (passwd != NULL) {            /* send the password to the child */
 	    write(fds[1], passwd, strlen(passwd)+1);
 	    passwd = NULL;
 	} else {
 	    write(fds[1], "", 1);                        /* blank password */
 	}
+	close(fds[0]);   /* we close this after the write because we want
+			    to avoid a possible SIGPIPE. */
 	close(fds[1]);
 	(void) waitpid(child, &retval, 0);  /* wait for helper to complete */
 	retval = (retval == PWDB_SUCCESS) ? PAM_SUCCESS:PAM_AUTH_ERR;
@@ -408,8 +401,8 @@ static int pwdb_run_helper_binary(pam_handle_t *pamh, const char *passwd)
     return retval;
 }
 
-static int _unix_verify_password(pam_handle_t *pamh, const char *name
-				 , const char *p, unsigned int ctrl)
+static int _unix_verify_password(pam_handle_t *pamh, const char *name,
+				 const char *p, unsigned int ctrl)
 {
     const struct pwdb *pw=NULL;
     const struct pwdb_entry *pwe=NULL;
@@ -418,6 +411,7 @@ static int _unix_verify_password(pam_handle_t *pamh, const char *name
     char *pp;
     char *data_name;
     int retval;
+    int verify_result;
 
     D(("called"));
 
@@ -474,7 +468,7 @@ static int _unix_verify_password(pam_handle_t *pamh, const char *name
 	if (geteuid()) {
 	    /* we are not root perhaps this is the reason? Run helper */
 	    D(("running helper binary"));
-	    retval = pwdb_run_helper_binary(pamh, p);
+	    retval = pwdb_run_helper_binary(pamh, p, name);
 	} else {
 	    retval = PAM_AUTHINFO_UNAVAIL;
 	    _log_err(LOG_ALERT, "get passwd; %s", pwdb_strerror(retval));
@@ -491,23 +485,6 @@ static int _unix_verify_password(pam_handle_t *pamh, const char *name
      * clear text...
      */
 
-    if ( ( !salt ) && ( !p ) ) {
-
-	/* the stored password is NULL */
-
-	(void) pwdb_entry_delete(&pwe);
-	(void) pwdb_delete(&pw);
-
-	if ( off(UNIX__NONULL, ctrl ) ) {    /* this means we've succeeded */
-	    return PAM_SUCCESS;
-	} else {
-	    return PAM_AUTH_ERR;
-	}
-    }
-
-    pp = _pam_md(p, salt);
-    p = NULL;                                /* no longer needed here */
-
     data_name = (char *) malloc(sizeof(FAIL_PREFIX)+strlen(name));
     if ( data_name == NULL ) {
 	_log_err(LOG_CRIT, "no memory for data-name");
@@ -515,9 +492,49 @@ static int _unix_verify_password(pam_handle_t *pamh, const char *name
     strcpy(data_name, FAIL_PREFIX);
     strcpy(data_name + sizeof(FAIL_PREFIX)-1, name);
 
-    /* the moment of truth -- do we agree with the password? */
+    if ( !( (salt && *salt) || (p && *p) ) ) {
 
-    if ( strcmp( pp, salt ) == 0 ) {
+	D(("two null passwords to compare"));
+
+	/* the stored password is NULL */
+        pp = NULL;
+	if ( off(UNIX__NONULL, ctrl ) ) {    /* this means we've succeeded */
+	    verify_result = PAM_SUCCESS;
+	} else {
+	    verify_result = PAM_AUTH_ERR;
+	}
+
+    } else if ( !( salt && p ) ) {
+
+	D(("one of the two to compare are NULL"));
+
+	pp = NULL;
+	verify_result = PAM_AUTH_ERR;
+
+    } else {
+
+        pp = _pam_md(p, salt);
+
+        /* the moment of truth -- do we agree with the password? */
+        D(("comparing state of pp[%s] and salt[%s]", pp, salt));
+
+	if ( strcmp( pp, salt ) == 0 ) {
+	    verify_result = PAM_SUCCESS;
+	} else {
+	    _pam_delete(pp);
+	    pp = _pam_md_compat(p, salt);
+	    if ( strcmp( pp, salt ) == 0 ) {
+		verify_result = PAM_SUCCESS;
+	    } else {
+		verify_result = PAM_AUTH_ERR;
+	    }
+	}
+
+        p = NULL;                                /* no longer needed here */
+
+    }
+
+    if ( verify_result == PAM_SUCCESS ) {
 
 	retval = PAM_SUCCESS;
 	if (data_name) {                     /* reset failures */
@@ -538,7 +555,11 @@ static int _unix_verify_password(pam_handle_t *pamh, const char *name
 
 	    if (new != NULL) {
 
-		/* any previous failures for this user ? */
+		new->user = x_strdup(name);
+		new->id = getuid();
+		new->name = x_strdup(getlogin() ? getlogin():"" );
+
+                /* any previous failures for this user ? */
 		pam_get_data(pamh, data_name, (const void **)&old );
 
 		if (old != NULL) {
@@ -547,11 +568,19 @@ static int _unix_verify_password(pam_handle_t *pamh, const char *name
 			retval = PAM_MAXTRIES;
 		    }
 		} else {
+                    const char *service=NULL;
+                    (void) pam_get_item(pamh, PAM_SERVICE
+                                        , (const void **)&service);
+                    _log_err(LOG_NOTICE
+                             , "authentication failure; %s(uid=%d) -> "
+                             "%s for %s service"
+                             , new->name
+                             , new->id
+                             , new->user
+                             , service == NULL ? "**unknown**":service
+                        );
 		    new->count = 1;
 		}
-		new->user = x_strdup(name);
-		new->id = getuid();
-		new->name = x_strdup(getlogin() ? getlogin():"" );
 
 		pam_set_data(pamh, data_name, new, _cleanup_failures);
 
@@ -567,6 +596,8 @@ static int _unix_verify_password(pam_handle_t *pamh, const char *name
     salt = NULL;
     _pam_delete(data_name);
     _pam_delete(pp);
+
+    D(("done [%d].", retval));
 
     return retval;
 }
@@ -596,8 +627,9 @@ static int _unix_get_user(pam_handle_t *pamh, unsigned int ctrl
      * alphanumeric character.
      */
 
-    if (!isalnum(**user)) {
-	if (on(UNIX_DEBUG,ctrl) || **user) {
+    if (*user == NULL || !isalnum(**user)) {
+	D(("bad username"));
+	if (on(UNIX_DEBUG,ctrl)) {
 	    _log_err(LOG_ERR, "bad username [%s]", *user);
 	}
 	return PAM_USER_UNKNOWN;
@@ -872,7 +904,7 @@ static int _pam_unix_approve_pass(pam_handle_t *pamh
 }
 
 /* ****************************************************************** *
- * Copyright (c) Andrew G. Morgan, <morgan@parc.power.net> 1996.
+ * Copyright (c) Andrew G. Morgan 1996-8.
  * Copyright (c) Alex O. Yuriev, 1996.
  * Copyright (c) Cristian Gafton 1996.
  *

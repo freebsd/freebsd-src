@@ -1,8 +1,7 @@
-
-/* Main coding by Elliot Lee <sopwith@redhat.com>, Red Hat Software. 
-   Copyright (C) 1996. */
-
 /*
+ * Main coding by Elliot Lee <sopwith@redhat.com>, Red Hat Software. 
+ * Copyright (C) 1996.
+ * Copyright (c) Jan Rêkorajski, 1999.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -16,13 +15,13 @@
  * 3. The name of the author may not be used to endorse or promote
  *    products derived from this software without specific prior
  *    written permission.
- * 
+ *
  * ALTERNATIVELY, this product may be distributed under the terms of
  * the GNU Public License, in which case the provisions of the GPL are
  * required INSTEAD OF the above restrictions.  (This clause is
  * necessary due to a potential bad interaction between the GPL and
  * the restrictions contained in a BSD-style copyright.)
- * 
+ *
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESS OR IMPLIED
  * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
  * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -36,778 +35,970 @@
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/*
-  How it works:
-     Gets in username (has to be done) from the calling program
-     Does authentication of user (only if we are not running as root)
-     Gets new password/checks for sanity
-     Sets it.
- */
-
-#define PAM_SM_PASSWORD
-
-/* #define DEBUG 1 */
+#include <security/_pam_aconf.h>
 
 #include <stdio.h>
-#include <sys/time.h>
-#define _BSD_SOURCE
-#define _SVID_SOURCE
-#include <errno.h>
-#define __USE_BSD
-#define _BSD_SOURCE
-#include <pwd.h>
-#include <sys/types.h>
-
-/* why not defined? */
-void setpwent(void);
-void endpwent(void);
-int chmod(const char *path, mode_t mode);
-struct passwd *fgetpwent(FILE *stream);
-int putpwent(const struct passwd *p, FILE *stream);
-
+#include <stdlib.h>
+#include <stdarg.h>
+#include <string.h>
+#include <malloc.h>
 #include <unistd.h>
-char *crypt(const char *key, const char *salt);
+#include <errno.h>
+#include <sys/types.h>
+#include <pwd.h>
+#include <syslog.h>
+#include <shadow.h>
+#include <time.h>		/* for time() */
+#include <fcntl.h>
+#include <ctype.h>
+#include <sys/time.h>
+#include <sys/stat.h>
+#include <rpc/rpc.h>
+#include <rpcsvc/yp_prot.h>
+#include <rpcsvc/ypclnt.h>
+
 #ifdef USE_CRACKLIB
 #include <crack.h>
 #endif
-#include <ctype.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <syslog.h>
-#include <string.h>
-#include <stdarg.h>
-#include <malloc.h>
+
 #include <security/_pam_macros.h>
 
-#ifndef LINUX    /* AGM added this as of 0.2 */
-#include <security/pam_appl.h>
-#endif           /* ditto */
+/* indicate the following groups are defined */
+
+#define PAM_SM_PASSWORD
+
 #include <security/pam_modules.h>
-#ifdef HAVE_SHADOW_H
-#include <shadow.h>
-#endif
 
-#define MAX_PASSWD_TRIES 3
-#define OLD_PASSWORD_PROMPT "Password: "
-#define NEW_PASSWORD_PROMPT "New password: "
-#define AGAIN_PASSWORD_PROMPT "New password (again): "
-#define PW_TMPFILE "/etc/npasswd"
-#define SH_TMPFILE "/etc/nshadow"
-#define CRACKLIB_DICTS "/usr/lib/cracklib_dict"
+#ifndef LINUX_PAM
+#include <security/pam_appl.h>
+#endif				/* LINUX_PAM */
 
-/* Various flags for the getpass routine to send back in... */
-#define PPW_EXPIRED 1
-#define PPW_EXPIRING 2
-#define PPW_WILLEXPIRE 4
-#define PPW_NOSUCHUSER 8
-#define PPW_SHADOW 16
-#define PPW_TOOEARLY 32
-#define PPW_ERROR 64
+#include "yppasswd.h"
+#include "md5.h"
+#include "support.h"
 
-#ifndef DO_TEST
-#define STATIC static
-#else
-#define STATIC
-#endif
-/* Sets a password for the specified user to the specified password
-   Returns flags PPW_*, or'd. */
-STATIC int _do_setpass(char *forwho, char *towhat, int flags);
-/* Gets a password for the specified user
-   Returns flags PPW_*, or'd. */
-STATIC int _do_getpass(char *forwho, char **theirpass);
-/* Checks whether the password entered is same as listed in the database
-   'entered' should not be crypt()'d or anything (it should be as the
-   user entered it...), 'listed' should be as it is listed in the
-   password database file */
-STATIC int _do_checkpass(const char *entered, char *listed);
-
-/* sends a one-way message to the user, either error or info... */
-STATIC int conv_sendmsg(struct pam_conv *aconv, const char *message, int style);
-/* sends a message and returns the results of the conversation */
-STATIC int conv_getitem(struct pam_conv *aconv, char *message, int style,
-			  char **result);
-
-PAM_EXTERN
-int pam_sm_chauthtok(	pam_handle_t *pamh, 
-			int flags,
-			int argc, 
-			const char **argv);
-
-static void _pam_log(int err, const char *format, ...)
-{
-    va_list args;
-
-    va_start(args, format);
-    openlog("PAM-unix_passwd", LOG_CONS|LOG_PID, LOG_AUTH);
-    vsyslog(err, format, args);
-    va_end(args);
-    closelog();
-}
-
-#ifdef NEED_LCKPWDF
-/* This is a hack, but until libc and glibc both include this function
- * by default (libc only includes it if nys is not being used, at the
- * moment, and glibc doesn't appear to have it at all) we need to have
- * it here, too.  :-(
- *
- * This should not become an official part of PAM.
- *
- * BEGIN_HACK
-*/
+#if !((__GLIBC__ == 2) && (__GLIBC_MINOR__ >= 1))
+extern int getrpcport(const char *host, unsigned long prognum,
+		      unsigned long versnum, unsigned int proto);
+#endif				/* GNU libc 2.1 */
 
 /*
- * lckpwdf.c -- prevent simultaneous updates of password files
- *
- * Before modifying any of the password files, call lckpwdf().  It may block
- * for up to 15 seconds trying to get the lock.  Return value is 0 on success
- * or -1 on failure.  When you are done, call ulckpwdf() to release the lock.
- * The lock is also released automatically when the process exits.  Only one
- * process at a time may hold the lock.
- *
- * These functions are supposed to be conformant with AT&T SVID Issue 3.
- *
- * Written by Marek Michalkiewicz <marekm@i17linuxb.ists.pwr.wroc.pl>,
- * public domain.
+ * PAM framework looks for these entry-points to pass control to the
+ * password changing module.
  */
 
-#include <fcntl.h>
-#include <signal.h>
+#ifdef NEED_LCKPWDF
+#include "./lckpwdf.-c"
+#endif
 
-#define LOCKFILE "/etc/.pwd.lock"
-#define TIMEOUT 15
+extern char *bigcrypt(const char *key, const char *salt);
 
-static int lockfd = -1;
+/*
+   How it works:
+   Gets in username (has to be done) from the calling program
+   Does authentication of user (only if we are not running as root)
+   Gets new password/checks for sanity
+   Sets it.
+ */
 
-static int
-set_close_on_exec(int fd)
+/* passwd/salt conversion macros */
+
+#define ascii_to_bin(c) ((c)>='a'?(c-59):(c)>='A'?((c)-53):(c)-'.')
+#define bin_to_ascii(c) ((c)>=38?((c)-38+'a'):(c)>=12?((c)-12+'A'):(c)+'.')
+
+/* data tokens */
+
+#define _UNIX_OLD_AUTHTOK	"-UN*X-OLD-PASS"
+#define _UNIX_NEW_AUTHTOK	"-UN*X-NEW-PASS"
+
+#define MAX_PASSWD_TRIES	3
+#define PW_TMPFILE		"/etc/npasswd"
+#define SH_TMPFILE		"/etc/nshadow"
+#define CRACKLIB_DICTS		"/usr/share/dict/cracklib_dict"
+#define OPW_TMPFILE		"/etc/security/nopasswd"
+#define OLD_PASSWORDS_FILE	"/etc/security/opasswd"
+
+/*
+ * i64c - convert an integer to a radix 64 character
+ */
+static int i64c(int i)
 {
-	int flags = fcntl(fd, F_GETFD, 0);
-	if (flags == -1)
-		return -1;
-	flags |= FD_CLOEXEC;
-	return fcntl(fd, F_SETFD, flags);
+	if (i < 0)
+		return ('.');
+	else if (i > 63)
+		return ('z');
+	if (i == 0)
+		return ('.');
+	if (i == 1)
+		return ('/');
+	if (i >= 2 && i <= 11)
+		return ('0' - 2 + i);
+	if (i >= 12 && i <= 37)
+		return ('A' - 12 + i);
+	if (i >= 38 && i <= 63)
+		return ('a' - 38 + i);
+	return ('\0');
 }
 
-static int
-do_lock(int fd)
+static char *crypt_md5_wrapper(const char *pass_new)
 {
-	struct flock fl;
+	/*
+	 * Code lifted from Marek Michalkiewicz's shadow suite. (CG)
+	 * removed use of static variables (AGM)
+	 */
 
-	memset(&fl, 0, sizeof fl);
-	fl.l_type = F_WRLCK;
-	fl.l_whence = SEEK_SET;
-	return fcntl(fd, F_SETLKW, &fl);
+	struct timeval tv;
+	MD5_CTX ctx;
+	unsigned char result[16];
+	char *cp = (char *) result;
+	unsigned char tmp[16];
+	int i;
+	char *x, *e = NULL;
+
+	GoodMD5Init(&ctx);
+	gettimeofday(&tv, (struct timezone *) 0);
+	GoodMD5Update(&ctx, (void *) &tv, sizeof tv);
+	i = getpid();
+	GoodMD5Update(&ctx, (void *) &i, sizeof i);
+	i = clock();
+	GoodMD5Update(&ctx, (void *) &i, sizeof i);
+	GoodMD5Update(&ctx, result, sizeof result);
+	GoodMD5Final(tmp, &ctx);
+	strcpy(cp, "$1$");	/* magic for the MD5 */
+	cp += strlen(cp);
+	for (i = 0; i < 8; i++)
+		*cp++ = i64c(tmp[i] & 077);
+	*cp = '\0';
+
+	/* no longer need cleartext */
+	e = Goodcrypt_md5(pass_new, (const char *) result);
+	x = x_strdup(e);	/* put e in malloc()ed memory */
+	_pam_overwrite(e);	/* clean up */
+
+	return x;
 }
 
-static void
-alarm_catch(int sig)
+static char *getNISserver(pam_handle_t *pamh)
 {
-/* does nothing, but fcntl F_SETLKW will fail with EINTR */
-}
+	char *master;
+	char *domainname;
+	int port, err;
 
-static int lckpwdf(void)
-{
-	struct sigaction act, oldact;
-	sigset_t set, oldset;
-
-	if (lockfd != -1)
-		return -1;
-
-	lockfd = open(LOCKFILE, O_CREAT | O_WRONLY, 0600);
-	if (lockfd == -1)
-		return -1;
-	if (set_close_on_exec(lockfd) == -1)
-		goto cleanup_fd;
-
-	memset(&act, 0, sizeof act);
-	act.sa_handler = alarm_catch;
-	act.sa_flags = 0;
-	sigfillset(&act.sa_mask);
-	if (sigaction(SIGALRM, &act, &oldact) == -1)
-		goto cleanup_fd;
-
-	sigemptyset(&set);
-	sigaddset(&set, SIGALRM);
-	if (sigprocmask(SIG_UNBLOCK, &set, &oldset) == -1)
-		goto cleanup_sig;
-
-	alarm(TIMEOUT);
-	if (do_lock(lockfd) == -1)
-		goto cleanup_alarm;
-	alarm(0);
-	sigprocmask(SIG_SETMASK, &oldset, NULL);
-	sigaction(SIGALRM, &oldact, NULL);
-	return 0;
-
-cleanup_alarm:
-	alarm(0);
-	sigprocmask(SIG_SETMASK, &oldset, NULL);
-cleanup_sig:
-	sigaction(SIGALRM, &oldact, NULL);
-cleanup_fd:
-	close(lockfd);
-	lockfd = -1;
-	return -1;
-}
-
-static int
-ulckpwdf(void)
-{
-	unlink(LOCKFILE);
-	if (lockfd == -1)
-		return -1;
-
-	if (close(lockfd) == -1) {
-		lockfd = -1;
-		return -1;
+	if ((err = yp_get_default_domain(&domainname)) != 0) {
+		_log_err(LOG_WARNING, pamh, "can't get local yp domain: %s\n",
+			 yperr_string(err));
+		return NULL;
 	}
-	lockfd = -1;
-	return 0;
+	if ((err = yp_master(domainname, "passwd.byname", &master)) != 0) {
+		_log_err(LOG_WARNING, pamh, "can't find the master ypserver: %s\n",
+			 yperr_string(err));
+		return NULL;
+	}
+	port = getrpcport(master, YPPASSWDPROG, YPPASSWDPROC_UPDATE, IPPROTO_UDP);
+	if (port == 0) {
+		_log_err(LOG_WARNING, pamh,
+		         "yppasswdd not running on NIS master host\n");
+		return NULL;
+	}
+	if (port >= IPPORT_RESERVED) {
+		_log_err(LOG_WARNING, pamh,
+		         "yppasswd daemon running on illegal port.\n");
+		return NULL;
+	}
+	return master;
 }
-/* END_HACK */
-#endif
 
-#define PAM_FAIL_CHECK if(retval != PAM_SUCCESS) { return retval; }
-
-PAM_EXTERN
-int pam_sm_chauthtok(pam_handle_t *pamh, int flags, int argc, const char **argv)
+static int check_old_password(const char *forwho, const char *newpass)
 {
-  char *usrname, *curpass, *newpass; /* pointers to the username,
-					current password, and new password */
+	static char buf[16384];
+	char *s_luser, *s_uid, *s_npas, *s_pas;
+	int retval = PAM_SUCCESS;
+	FILE *opwfile;
 
-  struct pam_conv *appconv; /* conversation with the app */
-  struct pam_message msg, *pmsg; /* Misc for conversations */
-  struct pam_response *resp;
+	opwfile = fopen(OLD_PASSWORDS_FILE, "r");
+	if (opwfile == NULL)
+		return PAM_AUTHTOK_ERR;
 
-  int retval=0; /* Gets the return values for all our function calls */
-  unsigned int pflags=0; /* Holds the flags from our getpass & setpass
-			 functions */
+	while (fgets(buf, 16380, opwfile)) {
+		if (!strncmp(buf, forwho, strlen(forwho))) {
+			buf[strlen(buf) - 1] = '\0';
+			s_luser = strtok(buf, ":,");
+			s_uid = strtok(NULL, ":,");
+			s_npas = strtok(NULL, ":,");
+			s_pas = strtok(NULL, ":,");
+			while (s_pas != NULL) {
+				if (!strcmp(Goodcrypt_md5(newpass, s_pas), s_pas)) {
+					retval = PAM_AUTHTOK_ERR;
+					break;
+				}
+				s_pas = strtok(NULL, ":,");
+			}
+			break;
+		}
+	}
+	fclose(opwfile);
 
-  const char *cmiscptr; /* Utility variables, used for different purposes at
-		    different times */
-  char *miscptr; /* Utility variables, used for different purposes at
-		    different times */
-  unsigned int miscint;
-  int fascist = 1; /* Be fascist by default.  If compiled with cracklib,
-                      call cracklib.  Otherwise just check length... */
+	return retval;
+}
 
-  char argbuf[256],argval[256];
-  int i;
+static int save_old_password(const char *forwho, const char *oldpass, int howmany)
+{
+	static char buf[16384];
+	static char nbuf[16384];
+	char *s_luser, *s_uid, *s_npas, *s_pas, *pass;
+	int retval = 0, npas;
+	FILE *pwfile, *opwfile;
+	int err = 0;
+	int oldmask;
+	int found = 0;
+	struct passwd *pwd = NULL;
 
+	if (howmany < 0)
+		return retval;
 
-  retval = pam_get_item(pamh,PAM_CONV,(const void **) &appconv);
-  PAM_FAIL_CHECK;
+	if (oldpass == NULL)
+		return retval;
 
-  retval = pam_get_item(pamh,PAM_USER,(const void **) &usrname);
-  PAM_FAIL_CHECK;
-  if(flags & PAM_PRELIM_CHECK) {
-    pflags = _do_getpass(usrname,&miscptr);
-    if(pflags & PPW_NOSUCHUSER)
-      return PAM_USER_UNKNOWN;
-    else if(pflags & ~(PPW_SHADOW|PPW_EXPIRING|PPW_WILLEXPIRE))
-      return PAM_AUTHTOK_ERR;
-    else
-      return PAM_SUCCESS;
-  } /* else... */
+	oldmask = umask(077);
+	pwfile = fopen(OPW_TMPFILE, "w");
+	umask(oldmask);
+	opwfile = fopen(OLD_PASSWORDS_FILE, "r");
+	if (pwfile == NULL || opwfile == NULL)
+		return PAM_AUTHTOK_ERR;
+	chown(OPW_TMPFILE, 0, 0);
+	chmod(OPW_TMPFILE, 0600);
+
+	while (fgets(buf, 16380, opwfile)) {
+		if (!strncmp(buf, forwho, strlen(forwho))) {
+			buf[strlen(buf) - 1] = '\0';
+			s_luser = strtok(buf, ":");
+			s_uid = strtok(NULL, ":");
+			s_npas = strtok(NULL, ":");
+			s_pas = strtok(NULL, ":");
+			npas = strtol(s_npas, NULL, 10) + 1;
+			while (npas > howmany) {
+				s_pas = strpbrk(s_pas, ",");
+				if (s_pas != NULL)
+					s_pas++;
+				npas--;
+			}
+			pass = crypt_md5_wrapper(oldpass);
+			if (s_pas == NULL)
+				sprintf(nbuf, "%s:%s:%d:%s\n", s_luser, s_uid, npas, pass);
+			else
+				sprintf(nbuf, "%s:%s:%d:%s,%s\n", s_luser, s_uid, npas, s_pas, pass);
+			if (fputs(nbuf, pwfile) < 0) {
+				retval = PAM_AUTHTOK_ERR;
+				err = 1;
+				break;
+			}
+			found = 1;
+		} else if (fputs(buf, pwfile) < 0) {
+			retval = PAM_AUTHTOK_ERR;
+			err = 1;
+			break;
+		}
+	}
+	fclose(opwfile);
+	if (!found) {
+		pwd = getpwnam(forwho);
+		if (pwd == NULL) {
+			retval = PAM_AUTHTOK_ERR;
+			err = 1;
+		} else {
+			pass = crypt_md5_wrapper(oldpass);
+			sprintf(nbuf, "%s:%d:1:%s\n", forwho, pwd->pw_uid, pass);
+			if (fputs(nbuf, pwfile) < 0) {
+				retval = PAM_AUTHTOK_ERR;
+				err = 1;
+			}
+		}
+	}
+	if (fclose(pwfile)) {
+		fprintf(stderr, "error writing entries to old passwords file: %s\n",
+			strerror(errno));
+		retval = PAM_AUTHTOK_ERR;
+		err = 1;
+	}
+	if (!err)
+		rename(OPW_TMPFILE, OLD_PASSWORDS_FILE);
+	else
+		unlink(OPW_TMPFILE);
+
+	return retval;
+}
+
+static int _update_passwd(const char *forwho, const char *towhat)
+{
+	struct passwd *tmpent = NULL;
+	FILE *pwfile, *opwfile;
+	int retval = 0;
+	int err = 0;
+	int oldmask;
+
+	oldmask = umask(077);
+	pwfile = fopen(PW_TMPFILE, "w");
+	umask(oldmask);
+	opwfile = fopen("/etc/passwd", "r");
+	if (pwfile == NULL || opwfile == NULL)
+		return PAM_AUTHTOK_ERR;
+	chown(PW_TMPFILE, 0, 0);
+	chmod(PW_TMPFILE, 0644);
+	tmpent = fgetpwent(opwfile);
+	while (tmpent) {
+		if (!strcmp(tmpent->pw_name, forwho)) {
+			tmpent->pw_passwd = towhat;
+		}
+		if (putpwent(tmpent, pwfile)) {
+			fprintf(stderr, "error writing entry to password file: %s\n",
+				strerror(errno));
+			err = 1;
+			retval = PAM_AUTHTOK_ERR;
+			break;
+		}
+		tmpent = fgetpwent(opwfile);
+	}
+	fclose(opwfile);
+
+	if (fclose(pwfile)) {
+		fprintf(stderr, "error writing entries to password file: %s\n",
+			strerror(errno));
+		retval = PAM_AUTHTOK_ERR;
+		err = 1;
+	}
+	if (!err)
+		rename(PW_TMPFILE, "/etc/passwd");
+	else
+		unlink(PW_TMPFILE);
+
+	return retval;
+}
+
+static int _update_shadow(const char *forwho, char *towhat)
+{
+	struct spwd *spwdent = NULL, *stmpent = NULL;
+	FILE *pwfile, *opwfile;
+	int retval = 0;
+	int err = 0;
+	int oldmask;
+
+	spwdent = getspnam(forwho);
+	if (spwdent == NULL)
+		return PAM_USER_UNKNOWN;
+	oldmask = umask(077);
+	pwfile = fopen(SH_TMPFILE, "w");
+	umask(oldmask);
+	opwfile = fopen("/etc/shadow", "r");
+	if (pwfile == NULL || opwfile == NULL)
+		return PAM_AUTHTOK_ERR;
+	chown(SH_TMPFILE, 0, 0);
+	chmod(SH_TMPFILE, 0600);
+	stmpent = fgetspent(opwfile);
+	while (stmpent) {
+		if (!strcmp(stmpent->sp_namp, forwho)) {
+			stmpent->sp_pwdp = towhat;
+			stmpent->sp_lstchg = time(NULL) / (60 * 60 * 24);
+
+			D(("Set password %s for %s", stmpent->sp_pwdp, forwho));
+		}
+		if (putspent(stmpent, pwfile)) {
+			fprintf(stderr, "error writing entry to shadow file: %s\n",
+				strerror(errno));
+			err = 1;
+			retval = PAM_AUTHTOK_ERR;
+			break;
+		}
+		stmpent = fgetspent(opwfile);
+	}
+	fclose(opwfile);
+
+	if (fclose(pwfile)) {
+		fprintf(stderr, "error writing entries to shadow file: %s\n",
+			strerror(errno));
+		retval = PAM_AUTHTOK_ERR;
+		err = 1;
+	}
+	if (!err)
+		rename(SH_TMPFILE, "/etc/shadow");
+	else
+		unlink(SH_TMPFILE);
+
+	return retval;
+}
+
+static int _do_setpass(pam_handle_t* pamh, const char *forwho, char *fromwhat,
+		       char *towhat, unsigned int ctrl, int remember)
+{
+	struct passwd *pwd = NULL;
+	int retval = 0;
+
+	D(("called"));
+
+	setpwent();
+	pwd = getpwnam(forwho);
+	endpwent();
+
+	if (pwd == NULL)
+		return PAM_AUTHTOK_ERR;
+
+	if (on(UNIX_NIS, ctrl)) {
+		struct timeval timeout;
+		struct yppasswd yppwd;
+		CLIENT *clnt;
+		char *master;
+		int status;
+		int err = 0;
+
+		/* Make RPC call to NIS server */
+		if ((master = getNISserver(pamh)) == NULL)
+			return PAM_TRY_AGAIN;
+
+		/* Initialize password information */
+		yppwd.newpw.pw_passwd = pwd->pw_passwd;
+		yppwd.newpw.pw_name = pwd->pw_name;
+		yppwd.newpw.pw_uid = pwd->pw_uid;
+		yppwd.newpw.pw_gid = pwd->pw_gid;
+		yppwd.newpw.pw_gecos = pwd->pw_gecos;
+		yppwd.newpw.pw_dir = pwd->pw_dir;
+		yppwd.newpw.pw_shell = pwd->pw_shell;
+		yppwd.oldpass = fromwhat;
+		yppwd.newpw.pw_passwd = towhat;
+
+		D(("Set password %s for %s", yppwd.newpw.pw_passwd, forwho));
+
+		/* The yppasswd.x file said `unix authentication required',
+		 * so I added it. This is the only reason it is in here.
+		 * My yppasswdd doesn't use it, but maybe some others out there
+		 * do.                                        --okir
+		 */
+		clnt = clnt_create(master, YPPASSWDPROG, YPPASSWDVERS, "udp");
+		clnt->cl_auth = authunix_create_default();
+		memset((char *) &status, '\0', sizeof(status));
+		timeout.tv_sec = 25;
+		timeout.tv_usec = 0;
+		err = clnt_call(clnt, YPPASSWDPROC_UPDATE,
+				(xdrproc_t) xdr_yppasswd, (char *) &yppwd,
+				(xdrproc_t) xdr_int, (char *) &status,
+				timeout);
+
+		if (err) {
+			clnt_perrno(err);
+			retval = PAM_TRY_AGAIN;
+		} else if (status) {
+			fprintf(stderr, "Error while changing NIS password.\n");
+			retval = PAM_TRY_AGAIN;
+		}
+		printf("\nThe password has%s been changed on %s.\n",
+		       (err || status) ? " not" : "", master);
+
+		auth_destroy(clnt->cl_auth);
+		clnt_destroy(clnt);
+		if ((err || status) != 0) {
+			retval = PAM_TRY_AGAIN;
+		}
 #ifdef DEBUG
-  fprintf(stderr,"Got username of %s\n",usrname);
+		sleep(5);
 #endif
-  if((usrname == NULL) || (strlen(usrname) < 1)) {
-    /* The app is supposed to get us the username! */
-    retval = PAM_USER_UNKNOWN;
-    PAM_FAIL_CHECK;
-  }
+		return retval;
+	}
+	/* first, save old password */
+	if (save_old_password(forwho, fromwhat, remember)) {
+		return PAM_AUTHTOK_ERR;
+	}
+	if (on(UNIX_SHADOW, ctrl) || (strcmp(pwd->pw_passwd, "x") == 0)) {
+		retval = _update_shadow(forwho, towhat);
+		if (retval == PAM_SUCCESS)
+			retval = _update_passwd(forwho, "x");
+	} else {
+		retval = _update_passwd(forwho, towhat);
+	}
 
-  for(i=0; i < argc; i++) {
-     {
-	 char *tmp = x_strdup(argv[i]);
-	 strncpy(argbuf,strtok(tmp ,"="),255);
-	 strncpy(argval,strtok(NULL,"="),255);
-	 free(tmp);
-     }
+	return retval;
+}
 
-     /* For PC functionality use "strict" -- historically "fascist" */
-     if(!strcmp(argbuf,"strict") || !strcmp(argbuf, "fascist"))
+static int _unix_verify_shadow(const char *user, unsigned int ctrl)
+{
+	struct passwd *pwd = NULL;	/* Password and shadow password */
+	struct spwd *spwdent = NULL;	/* file entries for the user */
+	time_t curdays;
+	int retval = PAM_SUCCESS;
 
-       if(!strcmp(argval,"true"))
-         fascist = 1;
-       else if(!strcmp(argval,"false"))
-         fascist = 0;
-       else
-         return PAM_SERVICE_ERR;
-     else {
-       _pam_log(LOG_ERR,"Unknown option: %s",argbuf);
-       return PAM_SERVICE_ERR;
-     }
-  }
+	/* UNIX passwords area */
+	setpwent();
+	pwd = getpwnam(user);	/* Get password file entry... */
+	endpwent();
+	if (pwd == NULL)
+		return PAM_AUTHINFO_UNAVAIL;	/* We don't need to do the rest... */
 
+	if (strcmp(pwd->pw_passwd, "x") == 0) {
+		/* ...and shadow password file entry for this user, if shadowing
+		   is enabled */
+		setspent();
+		spwdent = getspnam(user);
+		endspent();
 
-  /* Now we have all the initial information we need from the app to
-     set things up (we assume that getting the username succeeded...) */
-  retval = pam_get_item(pamh,PAM_OLDAUTHTOK,(const void **) &curpass);
-  PAM_FAIL_CHECK;
-  if(getuid()) { /* If this is being run by root, we don't need to get their
-		    old password.
-		    note */
-    /* If we haven't been given a password yet, prompt for one... */
-    miscint=0;
-    while((curpass == NULL) && (miscint++ < MAX_PASSWD_TRIES)) {
-      pflags = _do_getpass(usrname,&miscptr);
-      if(pflags & PPW_NOSUCHUSER)
-	return PAM_USER_UNKNOWN; /* If the user that was passed in doesn't
-				    exist, say so and exit (app passes in
-				    username) */
-    
-      /* Get the password from the user... */
-      pmsg          = &msg;
-    
-      msg.msg_style = PAM_PROMPT_ECHO_OFF;
-      msg.msg = OLD_PASSWORD_PROMPT;
-      resp = NULL;
+		if (spwdent == NULL)
+			return PAM_AUTHINFO_UNAVAIL;
+	} else {
+		if (strcmp(pwd->pw_passwd,"*NP*") == 0) { /* NIS+ */                 
+			uid_t save_uid;
 
-      retval = appconv->conv(1, (const struct pam_message **) &pmsg,
-			     &resp, appconv->appdata_ptr);
-      
-      PAM_FAIL_CHECK;
-      curpass = resp->resp;
-      free (resp);
-      if(_do_checkpass(curpass?curpass:"",miscptr)) {
-        int abortme = 0;
+			save_uid = geteuid();
+			seteuid (pwd->pw_uid);
+			spwdent = getspnam( user );
+			seteuid (save_uid);
 
-        /* password is incorrect... */
-        if (curpass && curpass[0] == '\0') {
-          /* ...and it was zero-length; user wishes to abort change */
-          abortme = 1;
-        }
-        if (curpass) { free (curpass); }
-        curpass = NULL;
-        if (abortme) {
-	  conv_sendmsg(appconv,"Password change aborted.",PAM_ERROR_MSG);
-	  return PAM_AUTHTOK_ERR;
-        }
-      }
-    }
+			if (spwdent == NULL)
+				return PAM_AUTHINFO_UNAVAIL;
+		} else
+			spwdent = NULL;
+	}
 
-    if(curpass == NULL)
-      return PAM_AUTH_ERR; /* They didn't seem to enter the right password
-			      for three tries - error */
-    pam_set_item(pamh, PAM_OLDAUTHTOK, (void *)curpass);
-  } else {
-#ifdef DEBUG
-    fprintf(stderr,"I am ROOT!\n");
-#endif
-    pflags = _do_getpass(usrname,&curpass);
-    if(curpass == NULL)
-      curpass = x_strdup("");
-  }
-  if(pflags & PPW_TOOEARLY) {
-    conv_sendmsg(appconv,"You must wait longer to change your password",
-		 PAM_ERROR_MSG);
-    return PAM_AUTHTOK_ERR;
-  }
-  if(pflags & PPW_WILLEXPIRE)
-    conv_sendmsg(appconv,"Your password is about to expire",PAM_TEXT_INFO);
-  else if(pflags & PPW_EXPIRED)
-    return PAM_ACCT_EXPIRED; /* If their account has expired, we can't auth
-				them to change their password */
-  if(!(pflags & PPW_EXPIRING) && (flags & PAM_CHANGE_EXPIRED_AUTHTOK))
-    return PAM_SUCCESS;
-  /* If we haven't been given a password yet, prompt for one... */
-  miscint=0;
-  pam_get_item(pamh,PAM_AUTHTOK,(const void **)&newpass);
-  cmiscptr = NULL;
-  while((newpass == NULL) && (miscint++ < MAX_PASSWD_TRIES)) {
+	if (spwdent != NULL) {
+		/* We have the user's information, now let's check if their account
+		   has expired (60 * 60 * 24 = number of seconds in a day) */
 
-    /* Get the password from the user... */
-    pmsg          = &msg;
-    
-    msg.msg_style = PAM_PROMPT_ECHO_OFF;
-    msg.msg = NEW_PASSWORD_PROMPT;
-    resp = NULL;
+		if (off(UNIX__IAMROOT, ctrl)) {
+			/* Get the current number of days since 1970 */
+			curdays = time(NULL) / (60 * 60 * 24);
+			if ((curdays < (spwdent->sp_lstchg + spwdent->sp_min))
+			    && (spwdent->sp_min != -1))
+				retval = PAM_AUTHTOK_ERR;
+			else if ((curdays > (spwdent->sp_lstchg + spwdent->sp_max + spwdent->sp_inact))
+				 && (spwdent->sp_max != -1) && (spwdent->sp_inact != -1)
+				 && (spwdent->sp_lstchg != 0))
+				/*
+				 * Their password change has been put off too long,
+				 */
+				retval = PAM_ACCT_EXPIRED;
+			else if ((curdays > spwdent->sp_expire) && (spwdent->sp_expire != -1)
+				 && (spwdent->sp_lstchg != 0))
+				/*
+				 * OR their account has just plain expired
+				 */
+				retval = PAM_ACCT_EXPIRED;
+		}
+	}
+	return retval;
+}
 
-    retval = appconv->conv(1, (const struct pam_message **) &pmsg,
-			     &resp, appconv->appdata_ptr);
-      
-    PAM_FAIL_CHECK;
-    newpass = resp->resp;
-    free (resp);
+static int _pam_unix_approve_pass(pam_handle_t * pamh
+				  ,unsigned int ctrl
+				  ,const char *pass_old
+				  ,const char *pass_new)
+{
+	const char *user;
+	const char *remark = NULL;
+	int retval = PAM_SUCCESS;
 
-#ifdef DEBUG
-    if(newpass)
-      fprintf(stderr,"Got password of %s\n",newpass);
-    else
-      fprintf(stderr,"No new password...\n");
-#endif
-    if (newpass[0] == '\0') { free (newpass); newpass = (char *) 0; }
-    cmiscptr=NULL;
-    if(newpass) {
+	D(("&new=%p, &old=%p", pass_old, pass_new));
+	D(("new=[%s]", pass_new));
+	D(("old=[%s]", pass_old));
+
+	if (pass_new == NULL || (pass_old && !strcmp(pass_old, pass_new))) {
+		if (on(UNIX_DEBUG, ctrl)) {
+			_log_err(LOG_DEBUG, pamh, "bad authentication token");
+		}
+		_make_remark(pamh, ctrl, PAM_ERROR_MSG, pass_new == NULL ?
+			  "No password supplied" : "Password unchanged");
+		return PAM_AUTHTOK_ERR;
+	}
+	/*
+	 * if one wanted to hardwire authentication token strength
+	 * checking this would be the place - AGM
+	 */
+
+	retval = pam_get_item(pamh, PAM_USER, (const void **) &user);
+	if (retval != PAM_SUCCESS) {
+		if (on(UNIX_DEBUG, ctrl)) {
+			_log_err(LOG_ERR, pamh, "Can not get username");
+			return PAM_AUTHTOK_ERR;
+		}
+	}
+	if (off(UNIX__IAMROOT, ctrl)) {
 #ifdef USE_CRACKLIB
-      if(fascist && getuid()) 
-        cmiscptr = FascistCheck(newpass,CRACKLIB_DICTS);
+		remark = FascistCheck(pass_new, CRACKLIB_DICTS);
+		D(("called cracklib [%s]", remark));
 #else
-      if(fascist && getuid() && strlen(newpass) < 6)
-	cmiscptr = "You must choose a longer password";
+		if (strlen(pass_new) < 6)
+			remark = "You must choose a longer password";
+		D(("lenth check [%s]", remark));
 #endif
-      if(curpass)
-	if(!strcmp(curpass,newpass)) {
-	  cmiscptr="You must choose a new password.";
-	  newpass=NULL;
+		if (on(UNIX_REMEMBER_PASSWD, ctrl))
+			if ((retval = check_old_password(user, pass_new)) != PAM_SUCCESS)
+				remark = "Password has been already used. Choose another.";
 	}
-    } else {
-      /* We want to abort the password change */
-	conv_sendmsg(appconv,"Password change aborted",PAM_ERROR_MSG);
-      return PAM_AUTHTOK_ERR;
-    }
-    if(!cmiscptr) {
-      /* We ask them to enter their password again... */
-      /* Get the password from the user... */
-      pmsg          = &msg;
-    
-      msg.msg_style = PAM_PROMPT_ECHO_OFF;
-      msg.msg = AGAIN_PASSWORD_PROMPT;
-      resp = NULL;
-
-      retval = appconv->conv(1, (const struct pam_message **) &pmsg,
-			     &resp, appconv->appdata_ptr);
-      
-      PAM_FAIL_CHECK;
-      miscptr = resp->resp;
-      free (resp);
-      if (miscptr[0] == '\0') { free (miscptr); miscptr = (char *) 0; }
-      if(!miscptr) { /* Aborting password change... */
-	conv_sendmsg(appconv,"Password change aborted",PAM_ERROR_MSG);
-	return PAM_AUTHTOK_ERR;
-      }
-      if(!strcmp(newpass,miscptr)) {
-         miscptr=NULL;
-	 break;
-      }
-      conv_sendmsg(appconv,"You must enter the same password twice.",
-		     PAM_ERROR_MSG);
-      miscptr=NULL;
-      newpass=NULL;
-    }
-    else {
-      conv_sendmsg(appconv,cmiscptr,PAM_ERROR_MSG);
-      newpass = NULL;
-    }
-  }
-  if(cmiscptr) {
-    /* conv_sendmsg(appconv,cmiscptr,PAM_ERROR_MSG); */
-    return PAM_AUTHTOK_ERR;
-  } else if(newpass == NULL)
-    return PAM_AUTHTOK_ERR; /* They didn't seem to enter the right password
-			      for three tries - error */
-#ifdef DEBUG
-	printf("Changing password for sure!\n");
-#endif  
-  /* From now on, we are bound and determined to get their password
-     changed :-) */
-  pam_set_item(pamh, PAM_AUTHTOK, (void *)newpass);
-  retval = _do_setpass(usrname,newpass,pflags);
-#ifdef DEBUG
-    fprintf(stderr,"retval was %d\n",retval);
-#endif
-  if(retval & ~PPW_SHADOW) {
-    conv_sendmsg(appconv,"Error: Password NOT changed",PAM_ERROR_MSG);
-    return PAM_AUTHTOK_ERR;
-  } else {
-    conv_sendmsg(appconv,"Password changed",PAM_TEXT_INFO);
-    return PAM_SUCCESS;
-  }
+	if (remark) {
+		_make_remark(pamh, ctrl, PAM_ERROR_MSG, remark);
+		retval = PAM_AUTHTOK_ERR;
+	}
+	return retval;
 }
 
-/* _do_checkpass() returns 0 on success, non-0 on failure */
-STATIC int _do_checkpass(const char *entered, char *listed)
+
+PAM_EXTERN int pam_sm_chauthtok(pam_handle_t * pamh, int flags,
+				int argc, const char **argv)
 {
-  char salt[3];
-  if ((strlen(listed) == 0) &&(strlen(entered) == 0)) {
-    /* no password in database; no password entered */
-    return (0);
-  }
-  salt[0]=listed[0]; salt[1]=listed[1]; salt[2]='\0';
-  return strcmp(crypt(entered,salt),listed);
-}
+	unsigned int ctrl, lctrl;
+	int retval, i;
+	int remember = -1;
 
-STATIC char mksalt(int seed) {
-  int num = seed % 64;
+	/* <DO NOT free() THESE> */
+	const char *user;
+	char *pass_old, *pass_new;
+	/* </DO NOT free() THESE> */
 
-  if (num < 26)
-    return 'a' + num;
-  else if (num < 52)
-    return 'A' + (num - 26);
-  else if (num < 62)
-    return '0' + (num - 52);
-  else if (num == 63)
-    return '.';
-  else
-    return '/';
-}
+	D(("called."));
 
-STATIC int _do_setpass(char *forwho, char *towhat,int flags)
-{
-  struct passwd *pwd=NULL, *tmpent=NULL;
-  FILE *pwfile,*opwfile;
-  char thesalt[3];
-  int retval=0;
-  struct timeval time1;
-  int err = 0;
-#ifdef HAVE_SHADOW_H
-  struct spwd *spwdent=NULL, *stmpent=NULL;
-#endif
-  if(flags & PPW_SHADOW) { retval |= PPW_SHADOW; }
-  gettimeofday(&time1, NULL);
-  srand(time1.tv_usec);
-  thesalt[0]=mksalt(rand());
-  thesalt[1]=mksalt(rand());
-  thesalt[2]='\0';
-  
-  /* lock the entire password subsystem */
 #ifdef USE_LCKPWDF
-  lckpwdf();
+	/* our current locking system requires that we lock the
+	   entire password database.  This avoids both livelock
+	   and deadlock. */
+	/* These values for the number of attempts and the sleep time
+	   are, of course, completely arbitrary.
+	   My reading of the PAM docs is that, once pam_chauthtok() has been
+	   called with PAM_UPDATE_AUTHTOK, we are obliged to take any
+	   reasonable steps to make sure the token is updated; so retrying
+	   for 1/10 sec. isn't overdoing it.
+	   The other possibility is to call lckpwdf() on the first
+	   pam_chauthtok() pass, and hold the lock until released in the
+	   second pass--but is this guaranteed to work? -SRL */
+	i=0;
+	while((retval = lckpwdf()) != 0 && i < 100) {
+		usleep(1000);
+	}
+	if(retval != 0) {
+		return PAM_AUTHTOK_LOCK_BUSY;
+	}
 #endif
-  setpwent();
-  pwd = getpwnam(forwho);
-#ifdef DEBUG
-  printf("Got %p, for %s (salt %s)\n",pwd,
-	 forwho,thesalt);
-#endif
-  if(pwd == NULL)
-    return PPW_NOSUCHUSER;
-  endpwent();
+	ctrl = _set_ctrl(pamh, flags, &remember, argc, argv);
 
-#ifdef HAVE_SHADOW_H
-  if(flags & PPW_SHADOW) {
-    spwdent = getspnam(forwho);
-    if(spwdent == NULL)
-      return PPW_NOSUCHUSER;
-    spwdent->sp_pwdp = towhat;
-    spwdent->sp_lstchg = time(NULL)/(60*60*24);
-    pwfile = fopen(SH_TMPFILE,"w");
-    opwfile = fopen("/etc/shadow","r");
-    if(pwfile == NULL || opwfile == NULL)
-      return PPW_ERROR;
-    chown(SH_TMPFILE,0,0);
-    chmod(SH_TMPFILE,0600);
-    stmpent=fgetspent(opwfile);
-    while(stmpent) {
-      if(!strcmp(stmpent->sp_namp,forwho)) {
-	stmpent->sp_pwdp = crypt(towhat,thesalt);
-	stmpent->sp_lstchg = time(NULL)/(60*60*24);
-#ifdef DEBUG
-	fprintf(stderr,"Set password %s for %s\n",stmpent->sp_pwdp,
-		forwho);
-#endif
-      }
-      if (putspent(stmpent,pwfile)) {
-	fprintf(stderr, "error writing entry to shadow file: %s\n",
-		strerror(errno));
-	err = 1;
-        retval = PPW_ERROR;
-	break;
-      }
-      stmpent=fgetspent(opwfile);
-    }
-    fclose(opwfile);
-
-    if (fclose(pwfile)) {
-	fprintf(stderr, "error writing entries to shadow file: %s\n",
-		strerror(errno));
-	retval = PPW_ERROR;
-	err = 1;
-    }
-
-    if (!err)
-      rename(SH_TMPFILE,"/etc/shadow");
-    else
-      unlink(SH_TMPFILE);
-  } else {
-    pwd->pw_passwd = towhat;
-    pwfile = fopen(PW_TMPFILE,"w");
-    opwfile = fopen("/etc/passwd","r");
-    if(pwfile == NULL || opwfile == NULL)
-      return PPW_ERROR;
-    chown(PW_TMPFILE,0,0);
-    chmod(PW_TMPFILE,0644);
-    tmpent=fgetpwent(opwfile);
-    while(tmpent) {
-      if(!strcmp(tmpent->pw_name,forwho)) {
-	tmpent->pw_passwd = crypt(towhat,thesalt);
-      }
-      if (putpwent(tmpent,pwfile)) {
-	fprintf(stderr, "error writing entry to password file: %s\n",
-		strerror(errno));
-	err = 1;
-        retval = PPW_ERROR;
-	break;
-      }
-      tmpent=fgetpwent(opwfile);
-    }
-    fclose(opwfile);
-
-    if (fclose(pwfile)) {
-	fprintf(stderr, "error writing entries to password file: %s\n",
-		strerror(errno));
-	retval = PPW_ERROR;
-	err = 1;
-    }
-
-    if (!err)
-	rename(PW_TMPFILE,"/etc/passwd");
-    else
-	unlink(PW_TMPFILE);
-  }
-#else
-  pwd->pw_passwd = towhat;
-  pwfile = fopen(PW_TMPFILE,"w");
-  opwfile = fopen("/etc/passwd","r");
-  if(pwfile == NULL || opwfile == NULL)
-    return PPW_ERROR;
-  chown(PW_TMPFILE,0,0);
-  chmod(PW_TMPFILE,0644);
-  tmpent=fgetpwent(opwfile);
-  while(tmpent) {
-    if(!strcmp(tmpent->pw_name,forwho)) {
-      tmpent->pw_passwd = crypt(towhat,thesalt);
-    }
-    if (putpwent(tmpent,pwfile)) {
-	fprintf(stderr, "error writing entry to shadow file: %s\n",
-		strerror(errno));
-	err = 1;
-        retval = PPW_ERROR;
-	break;
-    }
-    tmpent=fgetpwent(opwfile);
-  }
-  fclose(opwfile);
-
-  if (fclose(pwfile)) {
-      fprintf(stderr, "error writing entries to password file: %s\n",
-	      strerror(errno));
-      retval = PPW_ERROR;
-      err = 1;
-  }
-
-  if (!err)
-    rename(PW_TMPFILE,"/etc/passwd");
-  else
-    unlink(PW_TMPFILE);
-#endif
-  /* unlock the entire password subsystem */
+	/*
+	 * First get the name of a user
+	 */
+	retval = pam_get_user(pamh, &user, "Username: ");
+	if (retval == PAM_SUCCESS) {
+		/*
+		 * Various libraries at various times have had bugs related to
+		 * '+' or '-' as the first character of a user name. Don't take
+		 * any chances here. Require that the username starts with an
+		 * alphanumeric character.
+		 */
+		if (user == NULL || !isalnum(*user)) {
+			_log_err(LOG_ERR, pamh, "bad username [%s]", user);
 #ifdef USE_LCKPWDF
-  ulckpwdf();
+			ulckpwdf();
 #endif
-  return retval;
-}
-
-STATIC int _do_getpass(char *forwho, char **theirpass)
-{
-  struct passwd *pwd=NULL;   /* Password and shadow password */
-#ifdef HAVE_SHADOW_H
-  struct spwd *spwdent=NULL; /* file entries for the user */
-  time_t curdays;
+			return PAM_USER_UNKNOWN;
+		}
+		if (retval == PAM_SUCCESS && on(UNIX_DEBUG, ctrl))
+			_log_err(LOG_DEBUG, pamh, "username [%s] obtained",
+			         user);
+	} else {
+		if (on(UNIX_DEBUG, ctrl))
+			_log_err(LOG_DEBUG, pamh,
+			         "password - could not identify user");
+#ifdef USE_LCKPWDF
+		ulckpwdf();
 #endif
-  int retval=0;
-  /* UNIX passwords area */
-  setpwent();
-  pwd = getpwnam(forwho); /* Get password file entry... */
-  endpwent();
-  if(pwd == NULL)
-    return PPW_NOSUCHUSER; /* We don't need to do the rest... */
-#ifdef HAVE_SHADOW_H
-  if(!strcmp(pwd->pw_passwd,"x")) {
-    /* ...and shadow password file entry for this user, if shadowing
-       is enabled */
-    retval |= PPW_SHADOW;
-    setspent();
-    spwdent = getspnam(forwho);
-    endspent();
-    if(spwdent == NULL) 
-      return PPW_NOSUCHUSER;
-    *theirpass = x_strdup(spwdent->sp_pwdp);
+		return retval;
+	}
 
-    /* We have the user's information, now let's check if their account
-     has expired (60 * 60 * 24 = number of seconds in a day) */
+	D(("Got username of %s", user));
 
-    /* Get the current number of days since 1970 */
-    curdays = time(NULL)/(60*60*24);
-    if((curdays < (spwdent->sp_lstchg + spwdent->sp_min))
-	&& (spwdent->sp_min != -1))
-      retval |= PPW_TOOEARLY;
-    else if((curdays
-	    > (spwdent->sp_lstchg + spwdent->sp_max + spwdent->sp_inact))
-	&& (spwdent->sp_max != -1) && (spwdent->sp_inact != -1))
-      /* Their password change has been put off too long,
-	 OR their account has just plain expired */
-      retval |= PPW_EXPIRED;
-    else if((curdays > (spwdent->sp_lstchg + spwdent->sp_max))
-	&& (spwdent->sp_max != -1))
-      /* Their passwd needs to be changed */
-      retval |= PPW_EXPIRING;
-    else if((curdays > (spwdent->sp_lstchg
-                        + spwdent->sp_max - spwdent->sp_warn))
-            && (spwdent->sp_max != -1) && (spwdent->sp_warn != -1))
-      retval |= PPW_WILLEXPIRE;
-/*    if(spwdent->sp_lstchg < 0)
-      retval &= ~(PPW_WILLEXPIRE | PPW_EXPIRING | PPW_EXPIRED);
-    if(spwdent->sp_max < 0)
-      retval &= ~(PPW_EXPIRING | PPW_EXPIRED); */
-  } else {
-    *theirpass = (char *)x_strdup(pwd->pw_passwd);
-  }
+	/*
+	 * This is not an AUTH module!
+	 */
+	if (on(UNIX__NONULL, ctrl))
+		set(UNIX__NULLOK, ctrl);
 
-#else
-  *theirpass = (char *) x_strdup(pwd->pw_passwd);
+	if (on(UNIX__PRELIM, ctrl)) {
+		/*
+		 * obtain and verify the current password (OLDAUTHTOK) for
+		 * the user.
+		 */
+		char *Announce;
+
+		D(("prelim check"));
+
+		if (_unix_blankpasswd(ctrl, user)) {
+#ifdef USE_LCKPWDF
+			ulckpwdf();
+#endif
+			return PAM_SUCCESS;
+		} else if (off(UNIX__IAMROOT, ctrl)) {
+
+			/* instruct user what is happening */
+#define greeting "Changing password for "
+			Announce = (char *) malloc(sizeof(greeting) + strlen(user));
+			if (Announce == NULL) {
+				_log_err(LOG_CRIT, pamh,
+				         "password - out of memory");
+#ifdef USE_LCKPWDF
+				ulckpwdf();
+#endif
+				return PAM_BUF_ERR;
+			}
+			(void) strcpy(Announce, greeting);
+			(void) strcpy(Announce + sizeof(greeting) - 1, user);
+#undef greeting
+
+			lctrl = ctrl;
+			set(UNIX__OLD_PASSWD, lctrl);
+			retval = _unix_read_password(pamh, lctrl
+						     ,Announce
+					     ,"(current) UNIX password: "
+						     ,NULL
+						     ,_UNIX_OLD_AUTHTOK
+					     ,(const char **) &pass_old);
+			free(Announce);
+
+			if (retval != PAM_SUCCESS) {
+				_log_err(LOG_NOTICE, pamh
+				 ,"password - (old) token not obtained");
+#ifdef USE_LCKPWDF
+				ulckpwdf();
+#endif
+				return retval;
+			}
+			/* verify that this is the password for this user */
+
+			retval = _unix_verify_password(pamh, user, pass_old, ctrl);
+		} else {
+			D(("process run by root so do nothing this time around"));
+			pass_old = NULL;
+			retval = PAM_SUCCESS;	/* root doesn't have too */
+		}
+
+		if (retval != PAM_SUCCESS) {
+			D(("Authentication failed"));
+			pass_old = NULL;
+#ifdef USE_LCKPWDF
+			ulckpwdf();
+#endif
+			return retval;
+		}
+		retval = pam_set_item(pamh, PAM_OLDAUTHTOK, (const void *) pass_old);
+		pass_old = NULL;
+		if (retval != PAM_SUCCESS) {
+			_log_err(LOG_CRIT, pamh,
+			         "failed to set PAM_OLDAUTHTOK");
+		}
+		retval = _unix_verify_shadow(user, ctrl);
+		if (retval == PAM_AUTHTOK_ERR) {
+			if (off(UNIX__IAMROOT, ctrl))
+				_make_remark(pamh, ctrl, PAM_ERROR_MSG,
+					    "You must wait longer to change your password");
+			else
+				retval = PAM_SUCCESS;
+		}
+	} else if (on(UNIX__UPDATE, ctrl)) {
+		/*
+		 * tpass is used below to store the _pam_md() return; it
+		 * should be _pam_delete()'d.
+		 */
+
+		char *tpass = NULL;
+		int retry = 0;
+
+		/*
+		 * obtain the proposed password
+		 */
+
+		D(("do update"));
+
+		/*
+		 * get the old token back. NULL was ok only if root [at this
+		 * point we assume that this has already been enforced on a
+		 * previous call to this function].
+		 */
+
+		if (off(UNIX_NOT_SET_PASS, ctrl)) {
+			retval = pam_get_item(pamh, PAM_OLDAUTHTOK
+					      ,(const void **) &pass_old);
+		} else {
+			retval = pam_get_data(pamh, _UNIX_OLD_AUTHTOK
+					      ,(const void **) &pass_old);
+			if (retval == PAM_NO_MODULE_DATA) {
+				retval = PAM_SUCCESS;
+				pass_old = NULL;
+			}
+		}
+		D(("pass_old [%s]", pass_old));
+
+		if (retval != PAM_SUCCESS) {
+			_log_err(LOG_NOTICE, pamh, "user not authenticated");
+#ifdef USE_LCKPWDF
+			ulckpwdf();
+#endif
+			return retval;
+		}
+		retval = _unix_verify_shadow(user, ctrl);
+		if (retval != PAM_SUCCESS) {
+			_log_err(LOG_NOTICE, pamh, "user not authenticated 2");
+#ifdef USE_LCKPWDF
+			ulckpwdf();
+#endif
+			return retval;
+		}
+		D(("get new password now"));
+
+		lctrl = ctrl;
+
+		if (on(UNIX_USE_AUTHTOK, lctrl)) {
+			set(UNIX_USE_FIRST_PASS, lctrl);
+		}
+		retry = 0;
+		retval = PAM_AUTHTOK_ERR;
+		while ((retval != PAM_SUCCESS) && (retry++ < MAX_PASSWD_TRIES)) {
+			/*
+			 * use_authtok is to force the use of a previously entered
+			 * password -- needed for pluggable password strength checking
+			 */
+
+			retval = _unix_read_password(pamh, lctrl
+						     ,NULL
+					     ,"Enter new UNIX password: "
+					    ,"Retype new UNIX password: "
+						     ,_UNIX_NEW_AUTHTOK
+					     ,(const char **) &pass_new);
+
+			if (retval != PAM_SUCCESS) {
+				if (on(UNIX_DEBUG, ctrl)) {
+					_log_err(LOG_ALERT, pamh
+						 ,"password - new password not obtained");
+				}
+				pass_old = NULL;	/* tidy up */
+#ifdef USE_LCKPWDF
+				ulckpwdf();
+#endif
+				return retval;
+			}
+			D(("returned to _unix_chauthtok"));
+
+			/*
+			 * At this point we know who the user is and what they
+			 * propose as their new password. Verify that the new
+			 * password is acceptable.
+			 */
+
+			if (pass_new[0] == '\0') {	/* "\0" password = NULL */
+				pass_new = NULL;
+			}
+			retval = _pam_unix_approve_pass(pamh, ctrl, pass_old, pass_new);
+		}
+
+		if (retval != PAM_SUCCESS) {
+			_log_err(LOG_NOTICE, pamh,
+			         "new password not acceptable");
+			_pam_overwrite(pass_new);
+			_pam_overwrite(pass_old);
+			pass_new = pass_old = NULL;	/* tidy up */
+#ifdef USE_LCKPWDF
+			ulckpwdf();
+#endif
+			return retval;
+		}
+		/*
+		 * By reaching here we have approved the passwords and must now
+		 * rebuild the password database file.
+		 */
+
+		/*
+		 * First we encrypt the new password.
+		 */
+
+		if (on(UNIX_MD5_PASS, ctrl)) {
+			tpass = crypt_md5_wrapper(pass_new);
+		} else {
+			/*
+			 * Salt manipulation is stolen from Rick Faith's passwd
+			 * program.  Sorry Rick :) -- alex
+			 */
+
+			time_t tm;
+			char salt[3];
+
+			time(&tm);
+			salt[0] = bin_to_ascii(tm & 0x3f);
+			salt[1] = bin_to_ascii((tm >> 6) & 0x3f);
+			salt[2] = '\0';
+
+			if (off(UNIX_BIGCRYPT, ctrl) && strlen(pass_new) > 8) {
+				/* 
+				 * to avoid using the _extensions_ of the bigcrypt()
+				 * function we truncate the newly entered password
+				 */
+				char *temp = malloc(9);
+				char *e;
+
+				if (temp == NULL) {
+					_log_err(LOG_CRIT, pamh,
+					         "out of memory for password");
+					_pam_overwrite(pass_new);
+					_pam_overwrite(pass_old);
+					pass_new = pass_old = NULL;	/* tidy up */
+#ifdef USE_LCKPWDF
+					ulckpwdf();
+#endif
+					return PAM_BUF_ERR;
+				}
+				/* copy first 8 bytes of password */
+				strncpy(temp, pass_new, 8);
+				temp[8] = '\0';
+
+				/* no longer need cleartext */
+				e = bigcrypt(temp, salt);
+				tpass = x_strdup(e);
+
+				_pam_overwrite(e);
+				_pam_delete(temp);	/* tidy up */
+			} else {
+				char *e;
+
+				/* no longer need cleartext */
+				e = bigcrypt(pass_new, salt);
+				tpass = x_strdup(e);
+
+				_pam_overwrite(e);
+			}
+		}
+
+		D(("password processed"));
+
+		/* update the password database(s) -- race conditions..? */
+
+		retval = _do_setpass(pamh, user, pass_old, tpass, ctrl,
+		                     remember);
+		_pam_overwrite(pass_new);
+		_pam_overwrite(pass_old);
+		_pam_delete(tpass);
+		pass_old = pass_new = NULL;
+	} else {		/* something has broken with the module */
+		_log_err(LOG_ALERT, pamh,
+		         "password received unknown request");
+		retval = PAM_ABORT;
+	}
+
+	D(("retval was %d", retval));
+
+#ifdef USE_LCKPWDF
+	ulckpwdf();
+#endif
+	return retval;
+}
+
+
+/* static module data */
+#ifdef PAM_STATIC
+struct pam_module _pam_unix_passwd_modstruct = {
+    "pam_unix_passwd",
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    pam_sm_chauthtok,
+};
 #endif
 
-  return retval;
-}
-
-STATIC int conv_sendmsg(struct pam_conv *aconv, const char *message, int style)
-{
-  struct pam_message msg,*pmsg;
-  struct pam_response *resp;
-  int retval;
-
-  /* Get the password from the user... */
-  pmsg          = &msg;
-
-  msg.msg_style = style;
-  msg.msg = message;
-  resp = NULL;
-  
-  retval = aconv->conv(1, (const struct pam_message **) &pmsg,
-		       &resp, aconv->appdata_ptr);
-  if (resp) {
-      _pam_drop_reply(resp, 1);
-  }
-  return retval;
-}
-
-
-STATIC int conv_getitem(struct pam_conv *aconv, char *message, int style,
-			  char **result)
-{
-  struct pam_message msg,*pmsg;
-  struct pam_response *resp;
-  int retval;
-
-  D(("called."));
-
-  /* Get the password from the user... */
-  pmsg          = &msg;
-  msg.msg_style = style;
-  msg.msg = message;
-  resp = NULL;
-  
-  retval = aconv->conv(1, (const struct pam_message **) &pmsg,
-		       &resp, aconv->appdata_ptr);
-  if(retval != PAM_SUCCESS)
-    return retval;
-  if(resp != NULL) {
-    *result = resp->resp; free(resp);
-    return PAM_SUCCESS;
-  }
-  else
-    return PAM_SERVICE_ERR;
-}

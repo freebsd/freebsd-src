@@ -1,7 +1,7 @@
 <!--
-   $Id: pam_mail.sgml,v 1.2 1997/02/15 18:25:44 morgan Exp $
+   $Id: pam_lastlog.sgml,v 1.2 2001/02/17 01:55:38 agmorgan Exp $
    
-   This file was written by Andrew G. Morgan <morgan@parc.power.net>
+   This file was written by Andrew G. Morgan <morgan@kernel.org>
 -->
 
 <sect1>The last login module
@@ -15,7 +15,7 @@
 <tt/pam_lastlog/
 
 <tag><bf>Author:</bf></tag>
-Andrew G. Morgan &lt;morgan@parc.power.net&gt;
+Andrew G. Morgan &lt;morgan@kernel.org&gt;
 
 <tag><bf>Maintainer:</bf></tag>
 Author
@@ -30,7 +30,7 @@ auth
 <tag><bf>Clean code base:</bf></tag>
 
 <tag><bf>System dependencies:</bf></tag>
-uses information contained in the <tt>/var/log/wtmp</tt> file.
+uses information contained in the <tt>/var/log/lastlog</tt> file.
 
 <tag><bf>Network aware:</bf></tag>
 
@@ -39,14 +39,14 @@ uses information contained in the <tt>/var/log/wtmp</tt> file.
 <sect2>Overview of module
 
 <p>
-This session module maintains the <tt>/var/log/wtmp</tt> file.  Adding
+This session module maintains the <tt>/var/log/lastlog</tt> file.  Adding
 an open entry when called via the <tt>pam_open_seesion()</tt> function
 and completing it when <tt>pam_close_session()</tt> is called.  This
 module can also display a line of information about the last login of
 the user.  If an application already performs these tasks, it is not
 necessary to use this module.
 
-<sect2>Authentication component
+<sect2>Session component
 
 <p>
 <descrip>
@@ -61,7 +61,7 @@ necessary to use this module.
 This module can be used to provide a ``Last login on ...''
 message. when the user logs into the system from what ever application
 uses the PAM libraries.  In addition, the module maintains the
-<tt>/var/log/wtmp</tt> file.
+<tt>/var/log/lastlog</tt> file.
 
 <p>
 The behavior of this module can be modified with one of the following
@@ -85,10 +85,10 @@ attempt.
 
 <item><tt/silent/
 - neglect to inform the user about any previous login: just update
-the <tt>/var/log/wtmp</tt> file.
+the <tt>/var/log/lastlog</tt> file.
 
 <item><tt/never/
-- if the <tt>/var/log/wtmp</tt> file does not contain any old entries
+- if the <tt>/var/log/lastlog</tt> file does not contain any old entries
 for the user, indicate that the user has never previously logged in
 with a ``welcome..." message.
 
@@ -98,13 +98,13 @@ with a ``welcome..." message.
 
 This module can be used to indicate that the user has new mail when
 they <em/login/ to the system. Here is a sample entry for your
-<tt>/etc/pam.conf</tt> file:
+<tt>/etc/pam.d/XXX</tt> file:
 <tscreen>
 <verb>
 #
-# do we have any mail?
+# When were we last here?
 #
-login	session	 optional	pam_lastlog.so
+session	 optional	pam_lastlog.so
 </verb>
 </tscreen>
 

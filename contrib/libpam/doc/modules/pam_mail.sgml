@@ -1,7 +1,7 @@
 <!--
-   $Id: pam_mail.sgml,v 1.2 1997/02/15 18:25:44 morgan Exp $
+   $Id: pam_mail.sgml,v 1.3 2001/03/19 01:46:41 agmorgan Exp $
    
-   This file was written by Andrew G. Morgan <morgan@parc.power.net>
+   This file was written by Andrew G. Morgan <morgan@linux.kernel.org>
 -->
 
 <sect1>The mail module
@@ -15,13 +15,14 @@
 <tt/pam_mail/
 
 <tag><bf>Author:</bf></tag>
-Andrew G. Morgan &lt;morgan@parc.power.net&gt;
+Andrew G. Morgan &lt;morgan@linux.kernel.org&gt;
 
 <tag><bf>Maintainer:</bf></tag>
 Author
 
 <tag><bf>Management groups provided:</bf></tag>
-auth
+Authentication (credential)
+Session (open)
 
 <tag><bf>Cryptographically sensitive:</bf></tag>
 	
@@ -42,14 +43,15 @@ Default mail directory <tt>/var/spool/mail/</tt>
 This module looks at the user's mail directory and indicates
 whether the user has any mail in it.
 
-<sect2>Authentication component
+<sect2>Session component
 
 <p>
 <descrip>
 
 <tag><bf>Recognized arguments:</bf></tag>
-<tt/debug/; <tt/dir=/<em/direcory-name/; <tt/nopen/; <tt/close/;
-<tt/noenv/; <tt/empty/
+<tt/debug/; <tt/dir=/<em/directory-name/; <tt/nopen/; <tt/close/;
+<tt/noenv/; <tt/empty/; <tt/hash=/<em/hashcount/; <tt/standard/;
+<tt/quiet/;
 
 <tag><bf>Description:</bf></tag>
 
@@ -58,12 +60,6 @@ can be plugged into any application that has credential hooks. It gives a
 single message indicating the <em/newness/ of any mail it finds in the
 user's mail folder. This module also sets the <bf/Linux-PAM/
 environment variable, <tt/MAIL/, to the user's mail directory.
-
-<p>
-Although the module supplies functions for the authentication
-management group of functions, it cannot be used to authenticate a
-user; its authentication function instructs <tt/libpam/ to simply
-ignore it when authenticating the user.
 
 <p>
 The behavior of this module can be modified with one of the following
@@ -97,6 +93,17 @@ the user's credentials are revoked.
 - indicate that the user's mail directory is empty if this is found to
 be the case.
 
+<item><tt/hash=/<em/hashcount/
+- mail directory hash depth.  For example, a <em/hashcount/ of 2 would
+make the mailfile be <tt>/var/spool/mail/u/s/user</tt>.
+
+<item><tt/standard/
+- old style "You have..." format which doesn't show the mail spool being used.
+  this also implies "empty"
+
+<item><tt/quiet/
+- only report when there is new mail.
+
 </itemize>
 
 <tag><bf>Examples/suggested usage:</bf></tag>
@@ -109,15 +116,26 @@ they <em/login/ to the system. Here is a sample entry for your
 #
 # do we have any mail?
 #
-login	auth	 optional	pam_mail.so
+login	session	 optional	pam_mail.so
 </verb>
 </tscreen>
+
+<p>
+Note, if the mail spool file (be it <tt>/var/spool/mail/$USER</tt> or
+a pathname given with the <tt>dir=</tt> parameter) is a directory then
+<tt>pam_mail</tt> assumes it is in the <it>Qmail Maildir</it> format.
 
 <p>
 Note, some applications may perform this function themselves. In such
 cases, this module is not necessary.
 
 </descrip>
+
+<sect2>Authentication component
+
+<p>
+Then authentication companent works the same as the session component,
+except that everything is done during the <tt>pam_setcred()</tt> phase.
 
 <!--
 End of sgml insert for this module.

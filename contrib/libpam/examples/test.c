@@ -1,16 +1,5 @@
 /*
- * $Log: test.c,v $
- * Revision 1.3  1996/03/10 00:14:20  morgan
- * made lines less than 80 chars long.
- *
- * Revision 1.2  1996/03/09 09:16:26  morgan
- * changed the header file that it includes.
- *
- * Revision 1.1  1996/03/09 09:13:34  morgan
- * Initial revision
- */
-
-/* Marc Ewing (marc@redhat.com) - original test code 
+ * Marc Ewing (marc@redhat.com) - original test code 
  * Alexander O. Yuriev (alex@bach.cis.temple.edu)
  * Andrew Morgan (morgan@physics.ucla.edu)
  */

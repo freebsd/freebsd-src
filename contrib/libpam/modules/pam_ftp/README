@@ -1,20 +1,18 @@
-# $Id: README,v 1.1 1996/12/01 03:17:57 morgan Exp $
-#
+This is the README for pam_ftp
+------------------------------
 
-This module is an authentication module that does not authenticate.
-Instead it always returns PAM_IGNORE, indicating that it does not want
-to affect the authentication process.
-
-Its purpose is to log a message to the syslog indicating the
-pam_item's available at the time it was invoked. It is a diagnostic
-tool.
+This module is an authentication module that does simple ftp
+authentication.
 
 Recognized arguments:
 
-	none
+	"debug"		print debug messages
+	"users="	comma separated list of users which
+			could login only with email adress
+	"ignore"	allow invalid email adresses
 
-module services provided:
+Options for:
+auth:	for authentication it provides pam_authenticate() and
+	pam_setcred() hooks.
 
-	auth		_authetication and _setcred (blank)
-
-Andrew Morgan
+Thorsten Kukuk <kukuk@suse.de>, 17. June 1999

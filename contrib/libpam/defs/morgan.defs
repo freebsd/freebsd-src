@@ -21,6 +21,7 @@ LD_D=gcc -shared -Xlinker -x
 LD_L=$(LD) -x -shared 
 USESONAME=yes
 SOSWITCH=-soname
+LINKLIBS=-lc
 NEEDSONAME=no
 LDCONFIG=/sbin/ldconfig
 AR=ar -cr

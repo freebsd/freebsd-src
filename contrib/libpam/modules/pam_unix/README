@@ -1,39 +1,39 @@
-This is the README for pam_unix in Linux-PAM-0.53.
+This is the README for pam_unix in Linux-PAM-0.67.
 --------------------------------------------------
 
-pam_unix comes as four separate modules:
+pam_unix now comes as one module pam_unix.so.
 
+The following links are left for compatibility with old versions:
 pam_unix_auth:		authentication module providing
-		pam_authenticate() and pam_setcred() hooks
-
-	NO options are recognized. Credential facilities are trivial
-	(function simply returns)
-
+			pam_authenticate() and pam_setcred() hooks
 pam_unix_sess:		session module, providing session logging
-
-	"debug" and "trace" arguments are accepted, which indicate the
-	logging-level for syslog.
-
-		"debug" ->	LOG_DEBUG    [ also default ]
-		"trace" ->	LOG_AUTHPRIV
-
 pam_unix_acct:		account management, providing shadow account
-		managment features, password aging etc..
-
-	NO options are recognized. Account managment trivial without
-	shadow active.
-
+			managment features, password aging etc..
 pam_unix_passwd:	password updating facilities providing
-		cracklib password strength checking facilities.
+			cracklib password strength checking facilities.
 
-	if compiled, the default behavior is to check passwords
-	strictly using CrackLib. This behavior can be turned off
-	with the argument
-
-		"strict=false"
+The following options are recognized:
+	debug		-	log more debugging info
+	audit		-	a little more extreme than debug
+	use_first_pass	-	don 't prompt the user for passwords
+				take them from PAM_ items instead
+	try_first_pass	-	don 't prompt the user for the passwords
+				unless PAM_(OLD)AUTHTOK is unset
+	use_authtok	-	like try_first_pass, but * fail * if the new
+				PAM_AUTHTOK has not been previously set.
+				(intended for stacking password modules only)
+	not_set_pass	-	don 't set the PAM_ items with the passwords
+				used by this module.
+	shadow		-	try to maintian a shadow based system.
+	md5		-	when a user changes their password next,
+				encrypt it with the md5 algorithm.
+	bigcrypt	-	when a user changes their password next,
+				excrypt it with the DEC C2 - algorithm(0).
+	nodelay		-	used to prevent failed authentication
+				resulting in a delay of about 1 second.
+	nis		-	use NIS RPC for setting new password
+	remember=X	-	remember X old passwords, they are kept in
+				/etc/security/opasswd in MD5 crypted form
 
 	invalid arguments are logged to syslog.
 
-------------------------------
-- Andrew 1996/11/9
-------------------------------

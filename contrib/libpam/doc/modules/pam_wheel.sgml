@@ -1,5 +1,5 @@
 <!--
-   $Id: pam_wheel.sgml,v 1.3 1997/02/15 18:25:44 morgan Exp morgan $
+   $Id: pam_wheel.sgml,v 1.1.1.1 2000/06/20 22:11:05 agmorgan Exp $
    
    This file was written by Andrew G. Morgan <morgan@parc.power.net>
 	from notes provided by Cristian Gafton.
@@ -56,10 +56,11 @@ Only permit root access to members of the wheel (<tt/gid=0/) group.
 
 <tag><bf>Description:</bf></tag>
 
-This module is used to enforce the so-called wheel group. By default,
-it permits root access to the system if the applicant user is a member
-of the <tt/wheel/ group (better described as the group with group-id
-<tt/0/).
+This module is used to enforce the so-called <em/wheel/ group. By
+default, it permits root access to the system if the applicant user is
+a member of the <tt/wheel/ group (first, the module checks for the
+existence of a '<tt/wheel/' group. Otherwise the module defines the
+group with group-id <tt/0/ to be the <em/wheel/ group).
 
 <p>
 The action of the module may be modified from this default by one or
@@ -70,7 +71,7 @@ more of the following flags in the <tt>/etc/pam.conf</tt> file.
 Supply more debugging information to <tt/syslog(3)/.
 
 <item>
-<tt/use_id/ -
+<tt/use_uid/ -
 This option modifies the behavior of the module by using the current
 <tt/uid/ of the process and not the <tt/getlogin(3)/ name of the user.
 This option is useful for being able to jump from one account to

@@ -1,11 +1,7 @@
 #ifndef MD5_H
 #define MD5_H
 
-#ifdef __alpha
 typedef unsigned int uint32;
-#else
-typedef unsigned long uint32;
-#endif
 
 struct MD5Context {
     uint32 buf[4];
@@ -13,13 +9,17 @@ struct MD5Context {
     unsigned char in[64];
 };
 
-void MD5Init(struct MD5Context *);
-void MD5Update(struct MD5Context *, unsigned const char *, unsigned);
-void MD5Final(unsigned char digest[16], struct MD5Context *);
-void MD5Transform(uint32 buf[4], uint32 const in[16]);
-int i64c(int i);
+void GoodMD5Init(struct MD5Context *);
+void GoodMD5Update(struct MD5Context *, unsigned const char *, unsigned);
+void GoodMD5Final(unsigned char digest[16], struct MD5Context *);
+void GoodMD5Transform(uint32 buf[4], uint32 const in[16]);
+void BrokenMD5Init(struct MD5Context *);
+void BrokenMD5Update(struct MD5Context *, unsigned const char *, unsigned);
+void BrokenMD5Final(unsigned char digest[16], struct MD5Context *);
+void BrokenMD5Transform(uint32 buf[4], uint32 const in[16]);
 
-char *crypt_md5(const char *pw, const char *salt);
+char *Goodcrypt_md5(const char *pw, const char *salt);
+char *Brokencrypt_md5(const char *pw, const char *salt);
 
 /*
 * This is needed to make RSAREF happy on some MS-DOS compilers.

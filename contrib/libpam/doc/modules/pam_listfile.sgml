@@ -1,5 +1,5 @@
 <!--
-   $Id: pam_listfile.sgml,v 1.3 1997/02/15 18:25:44 morgan Exp $
+   $Id: pam_listfile.sgml,v 1.2 2001/03/19 01:46:41 agmorgan Exp $
    
    This file was written by Michael K. Johnson <johnsonm@redhat.com>
 -->
@@ -111,8 +111,8 @@ Note, users listed in <tt>/etc/ftpusers</tt> file are
 (counterintuitively) <bf/not/ allowed access to the ftp service.
 
 <p>
-To allow login access only for certain users, you can use an
-pam.conf entry like this:
+To allow login access only for certain users, you can use a
+<tt/pam.conf/ entry like this:
 <tscreen>
 <verb>
 #

@@ -25,7 +25,7 @@ struct cfns {
 
 #define N_MDS 1
 const static struct cfns cfn_list[N_MDS] = {
-    { "$1$", 3, crypt_md5 },
+    { "$1$", 3, Goodcrypt_md5 },
 };
 
 static char *_pam_md(const char *key, const char *salt)
@@ -53,3 +53,21 @@ static char *_pam_md(const char *key, const char *salt)
     return x;                           /* this must be deleted elsewhere */
 }
 
+#ifndef PWDB_NO_MD_COMPAT
+static char *_pam_md_compat(const char *key, const char *salt)
+{
+    char *x,*e=NULL;
+
+    D(("called with key='%s', salt='%s'", key, salt));
+
+    if ( !strncmp("$1$", salt, 3) ) {
+        e = Brokencrypt_md5(key, salt);
+        x = x_strdup(e);                    /* put e in malloc()ed memory */
+        _pam_overwrite(e);                                    /* clean up */
+    } else {
+        x = x_strdup("*");
+    }
+
+    return x;                           /* this must be deleted elsewhere */
+}
+#endif /* PWDB_NO_MD_COMPAT */

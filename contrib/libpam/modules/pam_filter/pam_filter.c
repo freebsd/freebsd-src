@@ -1,23 +1,11 @@
 /*
- * $Id: pam_filter.c,v 1.9 1997/02/15 19:07:49 morgan Exp morgan $
- *
- * $Log: pam_filter.c,v $
- * Revision 1.9  1997/02/15 19:07:49  morgan
- * fixed email
- *
- * Revision 1.8  1996/11/10 20:59:23  morgan
- * gcc warning removed
- *
- * Revision 1.7  1996/07/08 00:01:17  morgan
- * set the PAM_TTY item now
- *
- * Revision 1.6  1996/06/02 08:08:19  morgan
- * completely re-written
- *
+ * $Id: pam_filter.c,v 1.2 2000/11/19 23:54:03 agmorgan Exp $
  *
  * written by Andrew Morgan <morgan@transmeta.com> with much help from
  * Richard Stevens' UNIX Network Programming book.
  */
+
+#include <security/_pam_aconf.h>
 
 #include <stdlib.h>
 #include <syslog.h>

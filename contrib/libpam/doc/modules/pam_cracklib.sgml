@@ -1,5 +1,5 @@
 <!--
-   $Id: pam_cracklib.sgml,v 1.2 1997/02/15 18:25:44 morgan Exp morgan $
+   $Id: pam_cracklib.sgml,v 1.3 2000/12/04 15:23:15 baggins Exp $
    
    This file was written by Andrew G. Morgan <morgan@parc.power.net>
    long password amendments are from Philip W. Dalrymple III <pwd@mdtsoft.com>
@@ -48,10 +48,6 @@ Requires the system library <tt/libcrack/ and a system dictionary:
 <p>
 This module can be plugged into the <tt/password/ stack of a given
 application to provide some plug-in strength-checking for passwords.
-(XXX - note this does not necessarily work with the pam_unix module,
-although it is known to work with the pam_pwdb replacement for the
-unix module -- see example and pam_pwdb write up for more
-information).
 
 <p>
 This module works in the following manner: it first calls the
@@ -70,22 +66,34 @@ Is the new password the the old one with only a change of case?
 
 <item> <bf/Similar/ -
 
-Is the new password too much like the old one?  This is controlled
-by one argument, <tt/difok/ which is a number of characters that if
-different between the old and new are enough to accept the new
+Is the new password too much like the old one?  This is primarily
+controlled by one argument, <tt/difok/ which is a number of characters
+that if different between the old and new are enough to accept the new
 password, this defaults to 10 or 1/2 the size of the new password
 whichever is smaller.
 
-<item <bf/Simple/ -
+To avoid the lockup associated with trying to change a long and
+complicated password, <tt/difignore/ is available. This argument can
+be used to specify the minimum length a new password needs to be
+before the <tt/difok/ value is ignored. The default value for
+<tt/difignore/ is 23.
+
+
+<item> <bf/Simple/ -
 
 Is the new password too small?  This is controlled by 5 arguments
 <tt/minlen/, <tt/dcredit/, <tt/ucredit/, <tt/lcredit/, and
 <tt/ocredit/. See the section on the arguments for the details of how
 these work and there defaults.
 
-<item <bf/Rotated/ -
+<item> <bf/Rotated/ -
 
 Is the new password a rotated version of the old password?
+
+<item> <bf/Already used/ -
+
+Was the password used in the past?  Previously used passwords are to
+be found in /etc/security/opasswd.
 
 </itemize>
 
@@ -113,6 +121,7 @@ share most of these characters with the old password.
 
 <tt/debug/; <tt/type=XXX/; <tt/retry=N/; <tt/difok=N/; <tt/minlen=N/;
 <tt/dcredit=N/; <tt/ucredit=N/; <tt/lcredit=N/; <tt/ocredit=N/;
+<tt/use_authtok/;
 
 <tag><bf>Description:</bf></tag>
 
@@ -204,13 +213,15 @@ character will count +1 towards meeting the current <tt/minlen/ value.
 The default for <tt/ocredit/ is 1 which is the recommended value for
 <tt/minlen/ less than 10.
 
+<item> <tt/use_authtok/ -
+
+This argument is used to <em/force/ the module to not prompt the user
+for a new password but use the one provided by the previously stacked
+<tt/password/ module.
+
 </itemize>
 
 <tag><bf>Examples/suggested usage:</bf></tag>
-
-(At the time of writing, this module can only be stacked before the
-<tt/pam_pwdb/ module. Cracklib strength checking may be compiled by
-default into the <tt/pam_unix/ module.)
 
 <p>
 For an example of the use of this module, we show how it may be

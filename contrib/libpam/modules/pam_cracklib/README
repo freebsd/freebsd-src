@@ -13,9 +13,25 @@ RECOGNIZED ARGUMENTS:
 	retry=N		Prompt user at most N times before returning with
 			error. Default N=1.
 
+	difok=N         How many characters can be the same in the new
+			password relative to the old
+	difignore=N	How many characters long should the password be
+			before we ignore difok.
+
+	minlen=N	The minimum simplicity count for a good password.
+
+	dcredit=N
+	ucredit=N
+	lcredit=N
+	ocredit=N 	Weight, digits, upper, lower, other characters with
+			count N. Use these values to compute the
+			'unsimplicity' of the password.
+
+	use_authtok	Get the proposed password from PAM_AUTHTOK
+
 MODULE SERVICES PROVIDED:
 	passwd		chauthtok
 
 AUTHOR:
-	Cristian Gafton <gafton@sorosis.ro>
+	Cristian Gafton <gafton@redhat.com>
 

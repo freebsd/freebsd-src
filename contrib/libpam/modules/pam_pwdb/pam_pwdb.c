@@ -1,5 +1,5 @@
 /*
- * $Id: pam_pwdb.c,v 1.3 1997/01/04 20:38:33 morgan Exp morgan $
+ * $Id: pam_pwdb.c,v 1.3 2000/11/19 23:54:04 agmorgan Exp $
  *
  * This is the single file that will be compiled for pam_unix.
  * it includes each of the modules that have beed defined in the .-c
@@ -13,37 +13,14 @@
  * See the end of this file for Copyright information.
  */
 
-/*
- * $Log: pam_pwdb.c,v $
- * Revision 1.3  1997/01/04 20:38:33  morgan
- * this is not the unix module!
- *
- * Revision 1.2  1996/12/01 03:03:43  morgan
- * debugging code uses _pam_malloc
- *
- * Revision 1.1  1996/11/10 21:21:24  morgan
- * Initial revision
- *
- * Revision 1.3  1996/09/05 06:44:33  morgan
- * more debugging, fixed static structure name
- *
- * Revision 1.2  1996/09/01 01:05:12  morgan
- * Cristian Gafton's patches.
- *
- * Revision 1.1  1996/08/29 13:22:19  morgan
- * Initial revision
- *
- */
-
 static const char rcsid[] =
-"$Id: pam_pwdb.c,v 1.3 1997/01/04 20:38:33 morgan Exp morgan $\n"
+"$Id: pam_pwdb.c,v 1.3 2000/11/19 23:54:04 agmorgan Exp $\n"
 " - PWDB Pluggable Authentication module. <morgan@linux.kernel.org>"
 ;
 
-#ifdef linux
-# define _GNU_SOURCE
-# include <features.h>
-#endif
+/* #define DEBUG */
+
+#include <security/_pam_aconf.h>
 
 #include <sys/types.h>
 #include <stdarg.h>
@@ -56,9 +33,6 @@ static const char rcsid[] =
 #include <fcntl.h>
 #include <ctype.h>
 
-#define _SVID_SOURCE
-#define __USE_BSD
-#define _BSD_COMPAT
 #include <sys/time.h>
 #include <unistd.h>
 
@@ -100,6 +74,13 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags
     retval = _unix_auth( pamh, ctrl );
     pwdb_end();
 
+    if ( on(UNIX_LIKE_AUTH, ctrl) ) {
+	D(("recording return code for next time [%d]", retval));
+	pam_set_data(pamh, "pwdb_setcred_return", (void *) retval, NULL);
+    }
+
+    D(("done. [%s]", pam_strerror(pamh, retval)));
+
     return retval;
 }
 
@@ -113,8 +94,16 @@ PAM_EXTERN int pam_sm_setcred(pam_handle_t *pamh, int flags
 
     pwdb_start();
     ctrl = set_ctrl(flags, argc, argv);
-    retval = _unix_set_credentials(pamh, ctrl) ;
+    retval = _unix_set_credentials(pamh, ctrl);
     pwdb_end();
+
+    if ( on(UNIX_LIKE_AUTH, ctrl) ) {
+	int *pretval = &retval;
+
+	D(("recovering return code from auth call"));
+	pam_get_data(pamh, "pwdb_setcred_return", (const void **) pretval);
+	D(("recovered data indicates that old retval was %d", retval));
+    }
 
     return retval;
 }
@@ -202,6 +191,8 @@ PAM_EXTERN int pam_sm_chauthtok(pam_handle_t *pamh, int flags,
     ctrl = set_ctrl(flags, argc, argv);
     retval = _unix_chauthtok(pamh, ctrl);
     pwdb_end();
+
+    D(("done."));
 
     return retval;
 }

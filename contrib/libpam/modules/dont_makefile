@@ -1,4 +1,6 @@
 #########################################################################
+# $Id: dont_makefile,v 1.2 2000/11/19 23:54:03 agmorgan Exp $
+#########################################################################
 # This is a makefile that does nothing. It is designed to be included
 # by module Makefile-s when they are not compatable with the local
 # system
@@ -7,7 +9,7 @@
 all:
 	@echo "This module will not be compiled on this system"
 
-extraclean: clean
+remove: clean
 
 install: clean
 

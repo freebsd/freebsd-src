@@ -1,12 +1,17 @@
+/*
+ * $Id: pam_radius.h,v 1.2 2000/11/19 23:54:05 agmorgan Exp $
+ */
 
 #ifndef PAM_RADIUS_H
 #define PAM_RADIUS_H
 
-#define _GNU_SOURCE
-#include <features.h>
+#include <security/_pam_aconf.h>
 
 #include <stdio.h>
+
+#ifndef __USE_POSIX2
 #define __USE_POSIX2
+#endif /* __USE_POSIX2 */
 
 #include <stdlib.h>
 

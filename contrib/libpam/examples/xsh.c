@@ -1,22 +1,8 @@
 /*
- * $Id: xsh.c,v 1.4 1996/11/10 21:09:45 morgan Exp morgan $
- *
- * $Log: xsh.c,v $
- * Revision 1.4  1996/11/10 21:09:45  morgan
- * no gcc warnings
- *
- * Revision 1.3  1996/07/07 23:53:36  morgan
- * added support for non standard pam_fail_delay
- *
- * Revision 1.2  1996/05/02 04:44:48  morgan
- * moved conversaation to a libmisc routine.
- *
- * Revision 1.1  1996/04/07 08:18:55  morgan
- * Initial revision
- *
+ * $Id: xsh.c,v 1.3 2001/02/05 06:50:41 agmorgan Exp $
  */
 
-/* Andrew Morgan (morgan@parc.power.net) -- an example application
+/* Andrew Morgan (morgan@kernel.org) -- an example application
  * that invokes a shell, based on blank.c */
 
 #include <stdio.h>
@@ -44,22 +30,28 @@ static struct pam_conv conv = {
 
 /* ------- the application itself -------- */
 
-void main(int argc, char **argv, char **envp)
+int main(int argc, char **argv)
 {
      pam_handle_t *pamh=NULL;
-     char *username=NULL;
+     const char *username=NULL;
+     const char *service="xsh";
      int retcode;
 
-     /* did the user call with a username as an argument ? */
+     /* did the user call with a username as an argument ?
+      * did they also */
 
-     if (argc > 2) {
-	  fprintf(stderr,"usage: %s [username]\n",argv[0]);
-     } else if (argc == 2) {
+     if (argc > 3) {
+	  fprintf(stderr,"usage: %s [username [service-name]]\n",argv[0]);
+     }
+     if (argc >= 2) {
 	  username = argv[1];
-     } 
+     }
+     if (argc == 3) {
+	 service = argv[2];
+     }
 
      /* initialize the Linux-PAM library */
-     retcode = pam_start("xsh", username, &conv, &pamh);
+     retcode = pam_start(service, username, &conv, &pamh);
      bail_out(pamh,1,retcode,"pam_start");
 
      /* to avoid using goto we abuse a loop here */
@@ -111,7 +103,10 @@ void main(int argc, char **argv, char **envp)
 	       break;
 	  }
 
-	  fprintf(stderr,"The user has been authenticated and `logged in'\n");
+	  pam_get_item(pamh, PAM_USER, (const void **) &username);
+	  fprintf(stderr,
+		  "The user [%s] has been authenticated and `logged in'\n",
+		  username);
 
 	  /* this is always a really bad thing for security! */
 	  system("/bin/sh");
@@ -127,6 +122,15 @@ void main(int argc, char **argv, char **envp)
 	       break;
 	  }
 	  
+	  /* `0' could be as above */
+	  retcode = pam_setcred(pamh, PAM_DELETE_CRED);
+	  bail_out(pamh,0,retcode,"pam_setcred");
+	  if (retcode != PAM_SUCCESS) {
+	       fprintf(stderr,"%s: problem deleting user credentials\n"
+		       ,argv[0]);
+	       break;
+	  }
+
 	  break;                      /* don't go on for ever! */
      }
 

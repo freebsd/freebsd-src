@@ -1,16 +1,13 @@
 /*
- * $Id: upperLOWER.c,v 1.1 1996/06/02 08:17:02 morgan Exp $
+ * $Id: upperLOWER.c,v 1.2 2000/11/19 23:54:03 agmorgan Exp $
  *
  * This is a sample filter program, for use with pam_filter (a module
  * provided with Linux-PAM). This filter simply transposes upper and
  * lower case letters, it is intended for demonstration purposes and
  * it serves no purpose other than to annoy the user...
- *
- * $Log: upperLOWER.c,v $
- * Revision 1.1  1996/06/02 08:17:02  morgan
- * Initial revision
- *
  */
+
+#include <security/_pam_aconf.h>
 
 #include <stdio.h>
 #include <syslog.h>
@@ -52,7 +49,9 @@ static void do_transpose(char *buffer,int len)
      }
 }
 
-int main(int argc, char **argv, char **envp) 
+extern char **environ;
+
+int main(int argc, char **argv) 
 {
      char buffer[BUFSIZ];
      fd_set readers;
@@ -64,8 +63,8 @@ int main(int argc, char **argv, char **envp)
 	  int i;
 
 	  fprintf(stderr,"environment :[\r\n");
-	  for (i=0; envp[i]; ++i) {
-	       fprintf(stderr,"-> %s\r\n",envp[i]);
+	  for (i=0; environ[i]; ++i) {
+	       fprintf(stderr,"-> %s\r\n",environ[i]);
 	  }
 	  fprintf(stderr,"]: end\r\n");
      }

@@ -1,9 +1,8 @@
-/* 
- * $Header: /home/morgan/pam/Linux-PAM-0.53/modules/pam_unix/RCS/pam_unix_sess.c,v 1.1 1996/11/09 19:44:35 morgan Exp $
- */
-
 /*
+ * $Id: pam_unix_sess.c,v 1.3 2000/12/20 05:15:05 vorlon Exp $
+ *
  * Copyright Alexander O. Yuriev, 1996.  All rights reserved.
+ * Copyright Jan Rêkorajski, 1999.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -37,145 +36,106 @@
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* 
- * $Log: pam_unix_sess.c,v $
- * Revision 1.1  1996/11/09 19:44:35  morgan
- * Initial revision
- *
- * Revision 1.4  1996/05/21 03:55:17  morgan
- * added "const" to definition of rcsid[]
- *
- * Revision 1.3  1996/04/23 16:32:28  alex
- * nothing really got changed.
- *
- * Revision 1.2  1996/04/19 03:23:33  alex
- * session code implemented. account management moved into pam_unix_acct.c
- *
- */
- 
-#include <stdlib.h>
+#include <security/_pam_aconf.h>
+
 #include <stdio.h>
-#include <string.h>
-#include <pwd.h>
-
-#ifndef LINUX    /* AGM added this as of 0.2 */
-
-	#include <security/pam_appl.h>
-
-#endif           /* ditto */
-
-#include <security/pam_modules.h>
-#include <syslog.h>
+#include <stdlib.h>
+#include <stdarg.h>
 #include <unistd.h>
-#ifndef LOG_AUTHPRIV
-#define LOG_AUTHPRIV LOG_AUTH
+#include <syslog.h>
+#include <fcntl.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+
+/* indicate the following groups are defined */
+
+#define PAM_SM_SESSION
+
+#include <security/_pam_macros.h>
+#include <security/pam_modules.h>
+
+#ifndef LINUX_PAM
+#include <security/pam_appl.h>
+#endif				/* LINUX_PAM */
+
+#include "support.h"
+
+/*
+ * PAM framework looks for these entry-points to pass control to the
+ * session module.
+ */
+
+PAM_EXTERN int pam_sm_open_session(pam_handle_t * pamh, int flags,
+				   int argc, const char **argv)
+{
+	char *user_name, *service;
+	unsigned int ctrl;
+	int retval;
+
+	D(("called."));
+
+	ctrl = _set_ctrl(pamh, flags, NULL, argc, argv);
+
+	retval = pam_get_item(pamh, PAM_USER, (void *) &user_name);
+	if (user_name == NULL || retval != PAM_SUCCESS) {
+		_log_err(LOG_CRIT, pamh,
+		         "open_session - error recovering username");
+		return PAM_SESSION_ERR;		/* How did we get authenticated with
+						   no username?! */
+	}
+	retval = pam_get_item(pamh, PAM_SERVICE, (void *) &service);
+	if (service == NULL || retval != PAM_SUCCESS) {
+		_log_err(LOG_CRIT, pamh,
+		         "open_session - error recovering service");
+		return PAM_SESSION_ERR;
+	}
+	_log_err(LOG_INFO, pamh, "session opened for user %s by %s(uid=%d)"
+		 ,user_name
+		 ,PAM_getlogin() == NULL ? "" : PAM_getlogin(), getuid());
+
+	return PAM_SUCCESS;
+}
+
+PAM_EXTERN int pam_sm_close_session(pam_handle_t * pamh, int flags,
+				    int argc, const char **argv)
+{
+	char *user_name, *service;
+	unsigned int ctrl;
+	int retval;
+
+	D(("called."));
+
+	ctrl = _set_ctrl(pamh, flags, NULL, argc, argv);
+
+	retval = pam_get_item(pamh, PAM_USER, (void *) &user_name);
+	if (user_name == NULL || retval != PAM_SUCCESS) {
+		_log_err(LOG_CRIT, pamh,
+		         "close_session - error recovering username");
+		return PAM_SESSION_ERR;		/* How did we get authenticated with
+						   no username?! */
+	}
+	retval = pam_get_item(pamh, PAM_SERVICE, (void *) &service);
+	if (service == NULL || retval != PAM_SUCCESS) {
+		_log_err(LOG_CRIT, pamh,
+		         "close_session - error recovering service");
+		return PAM_SESSION_ERR;
+	}
+	_log_err(LOG_INFO, pamh, "session closed for user %s"
+		 ,user_name);
+
+	return PAM_SUCCESS;
+}
+
+/* static module data */
+#ifdef PAM_STATIC
+struct pam_module _pam_unix_session_modstruct = {
+    "pam_unix_session",
+    NULL,
+    NULL,
+    NULL,
+    pam_sm_open_session,
+    pam_sm_close_session,
+    NULL,
+};
 #endif
-
-static const char rcsid[] = "$Id: pam_unix_sess.c,v 1.1 1996/11/09 19:44:35 morgan Exp $ pam_unix session management. alex@bach.cis.temple.edu";
-
-/* Define internal functions */
-
-static	int _get_log_level(	pam_handle_t *pamh,
-				int flags,
-				int argc,
-				const char **argv	);
-				
-int _pam_unix_open_session(	pam_handle_t *pamh,
-				int flags,
-				int argc,
-				const char **argv	);
-
-int _pam_unix_close_session(	pam_handle_t *pamh,
-				int flags,
-				int argc,
-				const char **argv	);
-
-/* Implementation */
-
-static	int _get_log_level(	pam_handle_t *pamh,
-				int flags,
-				int argc,
-				const char **argv	)
-{
-	int	i = argc;
-	int	log_level = LOG_DEBUG;
-				
-	while ( i-- ) 
-		{
-			if ( strcmp( *argv, "debug" ) == 0 )
-					log_level = LOG_DEBUG;
-			else if ( strcmp ( *argv, "trace" ) == 0 )
-					log_level = LOG_AUTHPRIV;
-			argv++;			
-            	}
-
-	return	log_level;         
-}
-
-int _pam_unix_open_session(	pam_handle_t *pamh,
-				int flags,
-				int argc,
-				const char **argv	)
-{
-	int	log_level;
-	char	*user_name, *service;
- 	
-	
-	log_level = _get_log_level( pamh, flags, argc, argv );
-
-	pam_get_item( pamh, PAM_USER, (void*) &user_name );
-	if ( !user_name )
-		return	PAM_CONV_ERR; /* How did we get authenticated with
-					no username?! */
-	
-	pam_get_item( pamh, PAM_SERVICE, (void*) &service );
-	if ( !service )
-		return	PAM_CONV_ERR;
-		
-	syslog ( log_level, 
-		"pam_unix authentication session started, user %s, service %s\n",
-		user_name, service );
-		
-	return PAM_SUCCESS;
-}
-
-int _pam_unix_close_session(	pam_handle_t *pamh,
-				int flags,
-				int argc,
-				const char **argv	)
-{
-	int	log_level;
-	char	*user_name, *service;
- 	
-	log_level = _get_log_level( pamh, flags, argc, argv );
-
-	pam_get_item( pamh, PAM_USER, (void*) &user_name );
-	if ( !user_name )
-		return	PAM_CONV_ERR; /* How did we get authenticated with
-					no username?! */
-	
-	pam_get_item( pamh, PAM_SERVICE, (void*) &service );
-	if ( !service )
-		return	PAM_CONV_ERR;
-		
-	syslog ( log_level, 
-		"pam_unix authentication session finished, user %s, service %s\n",
-		user_name, service );
-		
-	return PAM_SUCCESS;
-}
-
-int pam_sm_open_session(	pam_handle_t *pamh, 
-				int flags,
-				int argc, 
-				const char **argv	)
-{
-    return _pam_unix_open_session( pamh, flags, argc, argv ) ;
-}
-
-int pam_sm_close_session(pam_handle_t *pamh, int flags,
-			 int argc, const char **argv)
-{
-    return _pam_unix_close_session( pamh, flags, argc, argv ) ;
-}
 

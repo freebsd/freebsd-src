@@ -1,6 +1,55 @@
-$Id: CHANGELOG,v 1.1 1996/11/09 19:42:41 morgan Exp $
+$Id: CHANGELOG,v 1.1.1.1 2000/06/20 22:12:01 agmorgan Exp $
 
-$Log: CHANGELOG,v $
-Revision 1.1  1996/11/09 19:42:41  morgan
-Initial revision
+* Mon Aug 16 1999 Jan Rêkorajski <baggins@pld.org.pl>
+- fixed reentrancy problems
+
+* Sun Jul  4 21:03:42 PDT 1999
+
+- temporarily removed the crypt16 stuff. I'm really paranoid about
+  crypto stuff and exporting it, and there are a few too many 's-box'
+  references in the code for my liking..
+ 
+* Wed Jun 30 1999 Steve Langasek <vorlon@netexpress.net>
+- further NIS+ fixes
+
+* Sun Jun 27 1999 Steve Langasek <vorlon@netexpress.net>
+- fix to uid-handling code for NIS+
+
+* Sat Jun 26 1999 Jan Rêkorajski <baggins@mimuw.edu.pl>
+- merged MD5 fix and early failure syslog
+  by Andrey Vladimirovich Savochkin <saw@msu.ru>
+- minor fixes
+- added signal handler to unix_chkpwd
+
+* Fri Jun 25 1999 Stephen Langasek <vorlon@netexpress.net>
+- reorganized the code to let it build as separate C files
+
+* Sun Jun 20 1999 Jan Rêkorajski <baggins@mimuw.edu.pl>
+- fixes in pam_unix_auth, it incorrectly saved and restored return
+  value when likeauth option was used
+
+* Tue Jun 15 1999 Jan Rêkorajski <baggins@mimuw.edu.pl>
+- added NIS+ support
+
+* Mon Jun 14 1999 Jan Rêkorajski <baggins@mimuw.edu.pl>
+- total rewrite based on pam_pwdb module, now there is ONE pam_unix.so
+  module, it accepts the same options as pam_pwdb - all of them correctly ;)
+  (pam_pwdb dosn't understand what DISALLOW_NULL_AUTHTOK means)
+
+* Tue Apr 20 1999 Jan Rêkorajski <baggins@mimuw.edu.pl>
+- Arghhh, pam_unix_passwd was not updating /etc/shadow when used with
+  pam_cracklib.
+
+* Mon Apr 19 1999 Jan Rêkorajski <baggins@mimuw.edu.pl>
+- added "remember=XXX" option that means 'remember XXX old passwords'
+  Old passwords are stored in /etc/security/opasswd, there can be
+  maximum of 400 passwords per user.
+
+* Sat Mar 27 1999 Jan Rêkorajski <baggins@mimuw.edu.pl>
+- added crypt16 to pam_unix_auth and pam_unix_passwd (check only, this algorithm
+  is too lame to use it in real life)
+
+* Sun Mar 21 1999 Jan Rêkorajski <baggins@mimuw.edu.pl>
+- pam_unix_auth now correctly behave when user has NULL AUTHTOK 
+- pam_unix_auth returns PAM_PERM_DENIED when seteuid fails
 

@@ -1,7 +1,7 @@
 <!--
-   $Id: pam_ftp.sgml,v 1.1 1996/11/30 20:59:32 morgan Exp $
+   $Id: pam_ftp.sgml,v 1.2 2001/03/19 01:46:41 agmorgan Exp $
    
-   This file was written by Andrew G. Morgan <morgan@parc.power.net>
+   This file was written by Andrew G. Morgan <morgan@linux.kernel.org>
 -->
 
 <sect1>Anonymous access module
@@ -15,7 +15,7 @@
 <tt/pam_ftp.so/
 
 <tag><bf>Author:</bf></tag>
-Andrew G. Morgan &lt;morgan@parc.power.net&gt;
+Andrew G. Morgan &lt;morgan@linux.kernel.org&gt;
 
 <tag><bf>Maintainer:</bf></tag>
 Author.
@@ -56,7 +56,7 @@ mode of access.
 
 This module intercepts the user's name and password. If the name is
 ``<tt/ftp/'' or ``<tt/anonymous/'', the user's password is broken up
-at the `<tt/@/' delimiter into a <tt/PAM_RUSER/ and a <tt/PAM_RHOST/
+at the `<tt/&commat;/' delimiter into a <tt/PAM_RUSER/ and a <tt/PAM_RHOST/
 part; these pam-items being set accordingly. The username is set to
 ``<tt/ftp/''.  In this case the module succeeds.  Alternatively, the
 module sets the <tt/PAM_AUTHTOK/ item with the entered password and

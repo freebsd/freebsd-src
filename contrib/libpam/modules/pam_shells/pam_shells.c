@@ -1,4 +1,4 @@
-/* pam_securetty module */
+/* pam_shells module */
 
 #define SHELL_FILE "/etc/shells"
 
@@ -7,6 +7,8 @@
  * August 5, 1996.
  * This code shamelessly ripped from the pam_securetty module.
  */
+
+#define _BSD_SOURCE
 
 #include <pwd.h>
 #include <stdarg.h>
@@ -71,21 +73,21 @@ int pam_sm_authenticate(pam_handle_t *pamh,int flags,int argc
      userShell = pw->pw_shell;
 
      if(stat(SHELL_FILE,&sb)) {
-	_pam_log(LOG_ERR, SHELL_FILE, " cannot be stat'd (it probably does "
-			"not exist)");
+	_pam_log(LOG_ERR,
+	        "%s cannot be stat'd (it probably does not exist)", SHELL_FILE);
 	return PAM_AUTH_ERR;		/* must have /etc/shells */
      }
 
      if((sb.st_mode & S_IWOTH) || !S_ISREG(sb.st_mode)) {
-       _pam_log(LOG_ERR,
-		SHELL_FILE " is either world writable or not a normal file");
-       return PAM_AUTH_ERR;
+	_pam_log(LOG_ERR,
+	        "%s is either world writable or not a normal file", SHELL_FILE);
+	return PAM_AUTH_ERR;
      }
 
      shellFile = fopen(SHELL_FILE,"r");
      if(shellFile == NULL) { /* Check that we opened it successfully */
-       _pam_log(LOG_ERR,
-		"Error opening " SHELL_FILE);
+	_pam_log(LOG_ERR,
+	        "Error opening %s", SHELL_FILE);
        return PAM_SERVICE_ERR;
      }
      /* There should be no more errors from here on */

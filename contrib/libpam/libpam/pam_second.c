@@ -2,9 +2,8 @@
  * pam_second.c -- PAM secondary authentication
  * (based on XSSO draft spec of March 1997)
  *
- * $Id$
+ * $Id: pam_second.c,v 1.2 2000/12/04 19:02:34 baggins Exp $
  *
- * $Log$
  */
 
 #include <stdio.h>

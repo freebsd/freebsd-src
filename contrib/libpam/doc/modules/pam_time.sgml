@@ -1,5 +1,5 @@
 <!--
-   $Id: pam_time.sgml,v 1.2 1997/02/15 18:25:44 morgan Exp $
+   $Id: pam_time.sgml,v 1.2 2001/03/19 01:46:41 agmorgan Exp $
    
    This file was written by Andrew G. Morgan <morgan@parc.power.net>
 -->
@@ -142,7 +142,7 @@ Some examples of rules that can be placed in the
 <tt>/etc/security/time.conf</tt> configuration file are the following:
 <descrip>
 
-<tag><tt>login ; tty* &amp ; !ttyp* ; !root ; !Al0000-2400</tt></tag>
+<tag><tt>login ; tty* &amp; !ttyp* ; !root ; !Al0000-2400</tt></tag>
 all users except for <tt/root/ are denied access to console-login at
 all times.
 

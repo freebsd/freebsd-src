@@ -1,39 +1,16 @@
 /*
- * $Id: pam_listfile.c,v 1.6 1997/04/05 06:38:35 morgan Exp $
- *
- * $Log: pam_listfile.c,v $
- * Revision 1.6  1997/04/05 06:38:35  morgan
- * reformat mostly
- *
- * Revision 1.5  1997/02/15 17:29:41  morgan
- * removed fixed length buffer in logging
- *
- * Revision 1.4  1997/01/04 20:32:10  morgan
- * ammendments for pam_listfile handling
- *
- * Revision 1.3  1996/11/10 21:02:08  morgan
- * compiles with .53
- *
- * Revision 1.2  1996/09/05 06:22:58  morgan
- * Michael's patches
+ * $Id: pam_listfile.c,v 1.2 2000/11/19 23:54:04 agmorgan Exp $
  *
  */
 
 /*
- * by Elliot Lee <sopwith@redhat.com>, Red Hat Software.
- * July 25, 1996.
- * This code shamelessly ripped from the pam_rootok module.
+ * by Elliot Lee <sopwith@redhat.com>, Red Hat Software. July 25, 1996.
+ * log refused access error christopher mccrory <chrismcc@netus.com> 1998/7/11
+ *
+ * This code began life as the pam_rootok module.
  */
 
-#ifdef linux
-# define _SVID_SOURCE
-# define _BSD_SOURCE
-# define __USE_BSD
-# define __USE_SVID
-# define __USE_MISC
-# define _GNU_SOURCE
-# include <features.h>
-#endif
+#include <security/_pam_aconf.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -64,15 +41,15 @@
 
 /* some syslogging */
 
+#define LOCAL_LOG_PREFIX "PAM-listfile: "
+
 static void _pam_log(int err, const char *format, ...)
 {
     va_list args;
-
+ 
     va_start(args, format);
-    openlog("PAM-listfile", LOG_CONS|LOG_PID, LOG_AUTH);
-    vsyslog(err, format, args);
+    vsyslog(LOG_AUTH | err, format, args);
     va_end(args);
-    closelog();
 }
 
 /* checks if a user is on a list of members */
@@ -223,36 +200,41 @@ int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **ar
 		    strncpy(apply_val,myval,sizeof(apply_val)-1);
 		}
 	    } else {
-		_pam_log(LOG_ERR,"Unknown option: %s",mybuf);
+		_pam_log(LOG_ERR,LOCAL_LOG_PREFIX "Unknown option: %s",mybuf);
 		return onerr;
 	    }
     }
 
     if(!citem) {
-	_pam_log(LOG_ERR,"Unknown item or item not specified");
+	_pam_log(LOG_ERR,
+		 LOCAL_LOG_PREFIX "Unknown item or item not specified");
 	return onerr;
     } else if(!ifname) {
-	_pam_log(LOG_ERR,"List filename not specified");
+	_pam_log(LOG_ERR,LOCAL_LOG_PREFIX "List filename not specified");
 	return onerr;
     } else if(sense == 2) {
-	_pam_log(LOG_ERR,"Unknown sense or sense not specified");
+	_pam_log(LOG_ERR,
+		 LOCAL_LOG_PREFIX "Unknown sense or sense not specified");
 	return onerr;
     } else if(
 	      (apply_type==APPLY_TYPE_NONE) || 
 	      ((apply_type!=APPLY_TYPE_NULL) && (*apply_val=='\0'))
               ) {
-	_pam_log(LOG_ERR,"Invalid usage for apply= parameter");
+	_pam_log(LOG_ERR,
+		 LOCAL_LOG_PREFIX "Invalid usage for apply= parameter");
 	return onerr;
     }
      
     /* Check if it makes sense to use the apply= parameter */
     if (apply_type != APPLY_TYPE_NULL) {
 	if((citem==PAM_USER) || (citem==PAM_RUSER)) {
-	    _pam_log(LOG_WARNING,"Non-sense use for apply= parameter");
+	    _pam_log(LOG_WARNING,
+		     LOCAL_LOG_PREFIX "Non-sense use for apply= parameter");
 	    apply_type=APPLY_TYPE_NULL;
 	}
 	if(extitem && (extitem==EI_GROUP)) {
-	    _pam_log(LOG_WARNING,"Non-sense use for apply= parameter");
+	    _pam_log(LOG_WARNING,
+		     LOCAL_LOG_PREFIX "Non-sense use for apply= parameter");
 	    apply_type=APPLY_TYPE_NULL;
 	}
     }
@@ -269,7 +251,8 @@ int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **ar
 		if(strcmp(user_name, apply_val)) {
 		    /* Does not apply to this user */
 #ifdef DEBUG
-		    _pam_log(LOG_DEBUG,"don't apply: apply=%s, user=%s",
+		    _pam_log(LOG_DEBUG,
+			     LOCAL_LOG_PREFIX "don't apply: apply=%s, user=%s",
 			     apply_val,user_name);
 #endif /* DEBUG */
 		    return PAM_IGNORE;
@@ -278,7 +261,9 @@ int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **ar
 		if(!is_on_group(user_name,apply_val)) {
 		    /* Not a member of apply= group */
 #ifdef DEBUG
-		    _pam_log(LOG_DEBUG,"don't apply: %s not a member of group %s",
+		    _pam_log(LOG_DEBUG,
+			     LOCAL_LOG_PREFIX
+			     "don't apply: %s not a member of group %s",
 			     user_name,apply_val);
 #endif /* DEBUG */
 		    return PAM_IGNORE;
@@ -331,18 +316,21 @@ int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **ar
 		endpwent();
 		break;
 	    default:
-		_pam_log(LOG_ERR,"Internal weirdness, unknown extended item %d",
+		_pam_log(LOG_ERR,
+			 LOCAL_LOG_PREFIX
+			 "Internal weirdness, unknown extended item %d",
 			 extitem);
 		return onerr;
 	}
     }
 #ifdef DEBUG
-    _pam_log(LOG_INFO,"Got file = %s, item = %d, value = %s, sense = %d",
+    _pam_log(LOG_INFO,
+	     LOCAL_LOG_PREFIX
+	     "Got file = %s, item = %d, value = %s, sense = %d",
 	     ifname, citem, citemp, sense);
 #endif
     if(lstat(ifname,&fileinfo)) {
-	_pam_log(LOG_ERR,
-		 "Couldn't open %s",ifname);
+	_pam_log(LOG_ERR,LOCAL_LOG_PREFIX "Couldn't open %s",ifname);
 	return onerr;
     }
 
@@ -350,7 +338,7 @@ int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **ar
        || !S_ISREG(fileinfo.st_mode)) {
 	/* If the file is world writable or is not a
 	   normal file, return error */
-	_pam_log(LOG_ERR,
+	_pam_log(LOG_ERR,LOCAL_LOG_PREFIX 
 		 "%s is either world writable or not a normal file",
 		 ifname);
 	return PAM_AUTH_ERR;
@@ -360,7 +348,7 @@ int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **ar
     if(inf == NULL) { /* Check that we opened it successfully */
 	if (onerr == PAM_SERVICE_ERR) {
 	    /* Only report if it's an error... */
-	    _pam_log(LOG_ERR, "Error opening %s", ifname);
+	    _pam_log(LOG_ERR,LOCAL_LOG_PREFIX  "Error opening %s", ifname);
 	}
 	return onerr;
     }
@@ -394,19 +382,24 @@ int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **ar
     }
     fclose(inf);
     free(ifname);
-    if(retval) {
+    if ((sense && retval) || (!sense && !retval)) {
 #ifdef DEBUG
-	syslog(LOG_INFO,"Returning %d, retval = %d",
-	       sense?PAM_AUTH_ERR:PAM_SUCCESS, retval);
+	_pam_log(LOG_INFO, LOCAL_LOG_PREFIX
+		 "Returning PAM_SUCCESS, retval = %d", retval);
 #endif
-	return sense?PAM_SUCCESS:PAM_AUTH_ERR;
+	return PAM_SUCCESS;
     }
     else {
+	const char *service, *user_name;
 #ifdef DEBUG
-	syslog(LOG_INFO,"Returning %d, retval = %d",
-	       sense?PAM_SUCCESS:PAM_AUTH_ERR, retval);
+	_pam_log(LOG_INFO,LOCAL_LOG_PREFIX
+		 "Returning PAM_AUTH_ERR, retval = %d", retval);
 #endif
-	return sense?PAM_AUTH_ERR:PAM_SUCCESS;
+	(void) pam_get_item(pamh, PAM_SERVICE, (const void **)&service);
+	(void) pam_get_user(pamh, &user_name, NULL);
+	_pam_log(LOG_ALERT,LOCAL_LOG_PREFIX "Refused user %s for service %s",
+		 user_name, service);
+	return PAM_AUTH_ERR;
     }
 }
 

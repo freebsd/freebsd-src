@@ -1,29 +1,7 @@
-/* $Id: pam_unix_passwd.-c,v 1.6 1997/04/05 06:31:06 morgan Exp morgan $ */
-
-/*
- * $Log: pam_unix_passwd.-c,v $
- * Revision 1.6  1997/04/05 06:31:06  morgan
- * mostly a reformat.
- *
- * Revision 1.5  1996/12/01 03:05:54  morgan
- * debugging with _pam_macros.h
- *
- * Revision 1.4  1996/11/10 21:04:51  morgan
- * pwdb conversion
- *
- * Revision 1.3  1996/09/05 06:48:15  morgan
- * A lot has changed. I'd recommend you study the diff.
- *
- * Revision 1.2  1996/09/01 16:33:27  morgan
- * Cristian Gafton's changes
- *
- * Revision 1.1  1996/08/29 13:21:27  morgan
- * Initial revision
- *
- */
+/* $Id: pam_unix_passwd.-c,v 1.2 2000/12/04 19:02:34 baggins Exp $ */
 
 static const char rcsid_pass[] =
-"$Id: pam_unix_passwd.-c,v 1.6 1997/04/05 06:31:06 morgan Exp morgan $\n"
+"$Id: pam_unix_passwd.-c,v 1.2 2000/12/04 19:02:34 baggins Exp $\n"
 " - PAM_PWDB password module <morgan@parc.power.net>"
 ;
 
@@ -40,6 +18,28 @@ static const char rcsid_pass[] =
 #define _UNIX_NEW_AUTHTOK  "-UN*X-NEW-PASS"
 
 /* Implementation */
+
+/*
+ * i64c - convert an integer to a radix 64 character
+ */
+static int i64c(int i)
+{
+    if (i < 0)
+        return ('.');
+    else if (i > 63)
+        return ('z');
+    if (i == 0)
+        return ('.');
+    if (i == 1)
+        return ('/');
+    if (i >= 2 && i <= 11)
+        return ('0' - 2 + i);
+    if (i >= 12 && i <= 37)
+        return ('A' - 12 + i);
+    if (i >= 38 && i <= 63)
+        return ('a' - 38 + i);
+    return ('\0');
+}
 
 /*
  * FUNCTION: _pam_unix_chauthtok() 
@@ -259,15 +259,15 @@ static int _unix_chauthtok(pam_handle_t *pamh, unsigned int ctrl)
 	    unsigned char tmp[16];
 	    int i;
 
-	    MD5Init(&ctx);
+	    GoodMD5Init(&ctx);
 	    gettimeofday(&tv, (struct timezone *) 0);
-	    MD5Update(&ctx, (void *) &tv, sizeof tv);
+	    GoodMD5Update(&ctx, (void *) &tv, sizeof tv);
 	    i = getpid();
-	    MD5Update(&ctx, (void *) &i, sizeof i);
+	    GoodMD5Update(&ctx, (void *) &i, sizeof i);
 	    i = clock();
-	    MD5Update(&ctx, (void *) &i, sizeof i);
-	    MD5Update(&ctx, result, sizeof result);
-	    MD5Final(tmp, &ctx);
+	    GoodMD5Update(&ctx, (void *) &i, sizeof i);
+	    GoodMD5Update(&ctx, result, sizeof result);
+	    GoodMD5Final(tmp, &ctx);
 	    strcpy(cp, "$1$");  /* magic for the MD5 */
 	    cp += strlen(cp);
 	    for (i = 0; i < 8; i++)
