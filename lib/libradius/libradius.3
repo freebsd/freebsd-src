@@ -55,6 +55,8 @@
 .Ft int
 .Fn rad_get_attr "struct rad_handle *h" "const void **data" "size_t *len"
 .Ft int
+.Fn rad_get_vendor_attr "u_int32_t *vendor" "const void **data" "size_t *len"
+.Ft int
 .Fn rad_init_send_request "struct rad_handle *h" "int *fd" "struct timeval *tv"
 .Ft int
 .Fn rad_put_addr "struct rad_handle *h" "int type" "struct in_addr addr"
@@ -64,6 +66,14 @@
 .Fn rad_put_int "struct rad_handle *h" "int type" "u_int32_t value"
 .Ft int
 .Fn rad_put_string "struct rad_handle *h" "int type" "const char *str"
+.Ft int
+.Fn rad_put_vendor_addr "struct rad_handle *h" "int vendor" "int type" "struct in_addr addr"
+.Ft int
+.Fn rad_put_vendor_attr "struct rad_handle *h" "int vendor" "int type" "const void *data" "size_t len"
+.Ft int
+.Fn rad_put_vendor_int "struct rad_handle *h" "int vendor" "int type" "u_int32_t value"
+.Ft int
+.Fn rad_put_vendor_string "struct rad_handle *h" "int vendor" "int type" "const char *str"
 .Ft int
 .Fn rad_send_request "struct rad_handle *h"
 .Ft const char *
@@ -183,6 +193,14 @@ Each accepts a
 parameter identifying the attribute, and a value which may be
 an Internet address, an integer, or a NUL-terminated string,
 respectively.
+Alternatively,
+.Fn rad_put_vendor_addr ,
+.Fn rad_put_vendor_int
+or
+.Fn rad_put_vendor_string
+may be used to specify vendor specific attributes.  Vendor specific
+definitions may be found in
+.In radlib_vs.h
 .Pp
 The library also provides a function
 .Fn rad_put_attr
@@ -277,6 +295,22 @@ returns 0.
 If an error such as a malformed attribute is detected, -1 is
 returned.
 .Pp
+If
+.Fn rad_get_attr
+returns
+.Dv RAD_VENDOR_SPECIFIC ,
+.Fn rad_get_vendor_attr
+may be called to determine the vendor.
+The vendor specific RADIUS attribute type is returned.
+The reference parameters
+.Va data
+and
+.Va len
+.Pq as returned from Fn rad_get_attr
+are passed to
+.Fn rad_get_vendor_attr ,
+and are adjusted to point to the vendor specific attribute data.
+.Pp
 The common types of attributes can be decoded using
 .Fn rad_cvt_addr ,
 .Fn rad_cvt_int ,
@@ -284,7 +318,9 @@ and
 .Fn rad_cvt_string .
 These functions accept a pointer to the attribute data, which should
 have been obtained using
-.Fn rad_get_attr .
+.Fn rad_get_attr
+and optionally
+.Fn rad_get_vendor_attr .
 In the case of
 .Fn rad_cvt_string ,
 the length
