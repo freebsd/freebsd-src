@@ -133,12 +133,8 @@
 #include <net/if_mib.h>
 #include <net/bpf.h>
 
-#include <dev/pccard/pccardvar.h>
-#include "card_if.h"
-
 #include <dev/xe/if_xereg.h>
 #include <dev/xe/if_xevar.h>
-
 
 /*
  * MII command structure
@@ -165,11 +161,6 @@ struct xe_mii_frame {
 /*
  * Prototypes start here
  */
-static int	 xe_probe		(device_t dev);
-static int	 xe_attach		(device_t dev);
-static int	 xe_detach		(device_t dev);
-static int	 xe_activate		(device_t dev);
-static void	 xe_deactivate		(device_t dev);
 static void      xe_init		(void *xscp);
 static void      xe_start		(struct ifnet *ifp);
 static int       xe_ioctl		(struct ifnet *ifp, u_long command, caddr_t data);
@@ -215,280 +206,11 @@ static void      xe_mii_dump		(struct xe_softc *scp);
 #endif
 
 /*
- * Fixing for RealPort cards - they need a little furtling to get the
- * ethernet working
- */
-static int
-xe_cem56fix(device_t dev)
-{
-  struct xe_softc *sc = (struct xe_softc *) device_get_softc(dev);
-  bus_space_tag_t bst;
-  bus_space_handle_t bsh;
-  struct resource *r;
-  int rid;
-  int ioport;
-
-#ifdef XE_DEBUG
-  device_printf(dev, "Hacking your Realport, master\n");
-#endif
- 
-#if XE_DEBUG > 1
-  device_printf(dev, "Realport port 0x%0lx, size 0x%0lx\n",
-      bus_get_resource_start(dev, SYS_RES_IOPORT, sc->port_rid),
-      bus_get_resource_count(dev, SYS_RES_IOPORT, sc->port_rid));
-#endif
-
-  rid = 0;
-  r = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid, 0, ~0, 4 << 10, RF_ACTIVE);
-  if (!r) {
-#if XE_DEBUG > 0
-    device_printf(dev, "Can't map in attribute memory\n");
-#endif
-    return -1;
-  }
-
-  bsh = rman_get_bushandle(r);
-  bst = rman_get_bustag(r);
-
-  CARD_SET_RES_FLAGS(device_get_parent(dev), dev, SYS_RES_MEMORY, rid,
-      PCCARD_A_MEM_ATTR);
-
-  bus_space_write_1(bst, bsh, DINGO_ECOR, DINGO_ECOR_IRQ_LEVEL |
-					  DINGO_ECOR_INT_ENABLE |
-					  DINGO_ECOR_IOB_ENABLE |
-               				  DINGO_ECOR_ETH_ENABLE);
-  ioport = bus_get_resource_start(dev, SYS_RES_IOPORT, sc->port_rid);
-  bus_space_write_1(bst, bsh, DINGO_EBAR0, ioport & 0xff);
-  bus_space_write_1(bst, bsh, DINGO_EBAR1, (ioport >> 8) & 0xff);
-
-  bus_space_write_1(bst, bsh, DINGO_DCOR0, DINGO_DCOR0_SF_INT);
-  bus_space_write_1(bst, bsh, DINGO_DCOR1, DINGO_DCOR1_INT_LEVEL |
-  					   DINGO_DCOR1_EEDIO);
-  bus_space_write_1(bst, bsh, DINGO_DCOR2, 0x00);
-  bus_space_write_1(bst, bsh, DINGO_DCOR3, 0x00);
-  bus_space_write_1(bst, bsh, DINGO_DCOR4, 0x00);
-
-  bus_release_resource(dev, SYS_RES_MEMORY, rid, r);
-
-  /* success! */
-  return 0;
-}
-	
-/*
- * PCMCIA probe routine.
- * Probe and identify the device.  Called by the slot manager when the card is 
- * inserted or the machine wakes up from suspend mode.  Assmes that the slot
- * structure has been initialised already.
- */
-static int
-xe_probe(device_t dev)
-{
-  struct xe_softc *scp = (struct xe_softc *) device_get_softc(dev);
-  bus_space_tag_t bst;
-  bus_space_handle_t bsh;
-  int buf;
-  u_char ver_str[CISTPL_BUFSIZE>>1];
-  off_t offs;
-  int success, rc = 0, i;
-  int rid;
-  struct resource *r;
-
-  success = 0;
-
-#ifdef XE_DEBUG
-  device_printf(dev, "xe: Probing\n");
-#endif
-
-  /* Map in the CIS */
-  rid = 0;
-  r = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid, 0, ~0, 4 << 10, RF_ACTIVE);
-  if (!r) {
-#ifdef XE_DEBUG
-    device_printf(dev, "Can't map in cis\n");
-#endif
-    return ENOMEM;
-  }
-  bsh = rman_get_bushandle(r);
-  bst = rman_get_bustag(r);
-  buf = 0;
-
-  CARD_SET_RES_FLAGS(device_get_parent(dev), dev, SYS_RES_MEMORY, rid,
-      PCCARD_A_MEM_ATTR);
-
-  /* Grep through CIS looking for relevant tuples */
-  offs = 0;
-  do {
-    u_int16_t vendor;
-    u_int8_t rev, media, prod;
-
-    switch (CISTPL_TYPE(buf)) {
-
-    case 0x15:	/* Grab version string (needed to ID some weird CE2's) */
-#if XE_DEBUG > 1
-      device_printf(dev, "Got version string (0x15)\n");
-#endif
-      for (i = 0; i < CISTPL_LEN(buf); ver_str[i] = CISTPL_DATA(buf, i++));
-      ver_str[i] = '\0';
-      ver_str[(CISTPL_BUFSIZE>>1) - 1] = CISTPL_LEN(buf);
-      success++;
-      break;
-
-    case 0x20:	/* Figure out what type of card we have */
-#if XE_DEBUG > 1
-      device_printf(dev, "Got card ID (0x20)\n");
-#endif
-      vendor = CISTPL_DATA(buf, 0) + (CISTPL_DATA(buf, 1) << 8);
-      rev = CISTPL_DATA(buf, 2);
-      media = CISTPL_DATA(buf, 3);
-      prod = CISTPL_DATA(buf, 4);
-
-      switch (vendor) {	/* Get vendor ID */
-      case 0x0105:
-        scp->vendor = "Xircom"; break;
-      case 0x0138:
-      case 0x0183:
-	scp->vendor = "Compaq"; break;
-      case 0x0089:
-	scp->vendor = "Intel"; break;
-      default:
-	scp->vendor = "Unknown";
-      }
-
-      if (!((prod & 0x40) && (media & 0x01))) {
-#if XE_DEBUG > 1
-	device_printf(dev, "Not a PCMCIA Ethernet card!\n");
-#endif
-	rc = ENODEV;		/* Not a PCMCIA Ethernet device */
-      } else {
-	if (media & 0x10) {	/* Ethernet/modem cards */
-#if XE_DEBUG > 1
-	  device_printf(dev, "Card is Ethernet/modem combo\n");
-#endif
-	  scp->modem = 1;
-	  switch (prod & 0x0f) {
-	  case 1:
-	    scp->card_type = "CEM"; break;
-	  case 2:
-	    scp->ce2 = 1;
-	    scp->card_type = "CEM2"; break;
-	  case 3:
-	    scp->ce2 = 1;
-	    scp->card_type = "CEM3"; break;
-	  case 4:
-	    scp->ce2 = 1;
-	    scp->card_type = "CEM33"; break;
-	  case 5:
-	    scp->mohawk = 1;
-	    scp->card_type = "CEM56M"; break;
-	  case 6:
-	  case 7:		/* Some kind of RealPort card */
-	    scp->mohawk = 1;
-	    scp->dingo = 1;
-	    scp->card_type = "CEM56"; break;
-	  default:
-	    rc = ENODEV;
-	  }
-	} else {		/* Ethernet-only cards */
-#if XE_DEBUG > 1
-	  device_printf(dev, "Card is Ethernet only\n");
-#endif
-	  switch (prod & 0x0f) {
-	  case 1:
-	    scp->card_type = "CE"; break;
-	  case 2:
-	    scp->ce2 = 1;
-	    scp->card_type = "CE2"; break;
-	  case 3:
-	    scp->mohawk = 1;
-	    scp->card_type = "CE3"; break;
-	  default:
-	    rc = ENODEV;
-	  }
-	}
-      }
-      success++;
-      break;
-
-    case 0x22:	/* Get MAC address */
-      if ((CISTPL_LEN(buf) == 8) &&
-	  (CISTPL_DATA(buf, 0) == 0x04) &&
-	  (CISTPL_DATA(buf, 1) == ETHER_ADDR_LEN)) {
-#if XE_DEBUG > 1
-	device_printf(dev, "Got MAC address (0x22)\n");
-#endif
-	for (i = 0; i < ETHER_ADDR_LEN; i++)
-          scp->arpcom.ac_enaddr[i] = CISTPL_DATA(buf, i+2);
-      }
-      success++;
-      break;
-    default:
-      break;
-    }
-
-    if (CISTPL_TYPE(buf) == 0xff)
-      break;
-    /* Skip to next tuple */
-    buf += ((CISTPL_LEN(buf) + 2) << 1);
-
-  } while (1);
-
-  /* unmap the cis */
-  bus_release_resource(dev, SYS_RES_MEMORY, rid, r);
-
-  /* Die now if something went wrong above */
-  if (success < 3)
-    return ENXIO;
-  if (rc != 0)
-    return (rc);
-
-  /* Check for certain strange CE2's that look like CE's */
-  if (strcmp(scp->card_type, "CE") == 0) {
-    u_char *str = ver_str;
-#if XE_DEBUG > 1
-    device_printf(dev, "Checking for weird CE2 string\n");
-#endif
-    str += strlen(str) + 1;			/* Skip forward to 3rd version string */
-    str += strlen(str) + 1;
-    str += strlen(str) + 1;
-    for (i = 0; i < strlen(str) - 2; i++) {
-      if (bcmp(&str[i], "CE2", 3) ==0) {	/* Look for "CE2" string */
-	scp->card_type = "CE2";
-      }
-    }
-  }
-
-  /* Reject unsupported cards */
-  if (strcmp(scp->card_type, "CE") == 0 || strcmp(scp->card_type, "CEM") == 0) {
-    device_printf(dev, "Sorry, your %s card is not supported :(\n",
-     scp->card_type);
-    return ENODEV;
-  }
-
-  /* Success */
-  return 0;
-}
-
-/*
- * The device entry is being removed, probably because someone ejected the
- * card.  The interface should have been brought down manually before calling
- * this function; if not you may well lose packets.  In any case, I shut down
- * the card and the interface, and hope for the best.
- */
-static int
-xe_detach(device_t dev) {
-  struct xe_softc *sc = device_get_softc(dev);
-
-  sc->arpcom.ac_if.if_flags &= ~IFF_RUNNING; 
-  ether_ifdetach(&sc->arpcom.ac_if, ETHER_BPF_SUPPORTED);
-  xe_deactivate(dev);
-  return 0;
-}
-
-/*
  * Attach a device.
  */
-static int
-xe_attach (device_t dev) {
+int
+xe_attach (device_t dev)
+{
   struct xe_softc *scp = device_get_softc(dev);
   int err;
 
@@ -496,20 +218,10 @@ xe_attach (device_t dev) {
   device_printf(dev, "attach\n");
 #endif
 
-  if ((err = xe_activate(dev)) != 0)
-    return (err);
-
   /* Fill in some private data */
   scp->ifp = &scp->arpcom.ac_if;
   scp->ifm = &scp->ifmedia;
   scp->autoneg_status = 0;
-
-  /* Hack RealPorts into submission */
-  if (scp->dingo && xe_cem56fix(dev) < 0) {
-    device_printf(dev, "Unable to fix your RealPort\n");
-    xe_deactivate(dev);
-    return ENODEV;
-  }
 
   /* Hopefully safe to read this here */
   XE_SELECT_PAGE(4);
@@ -2233,22 +1945,3 @@ xe_deactivate(device_t dev)
 	sc->irq_res = 0;
 	return;
 }
-
-static device_method_t xe_pccard_methods[] = {
-	/* Device interface */
-	DEVMETHOD(device_probe,		xe_probe),
-	DEVMETHOD(device_attach,	xe_attach),
-	DEVMETHOD(device_detach,	xe_detach),
-
-	{ 0, 0 }
-};
-
-static driver_t xe_pccard_driver = {
-	"xe",
-	xe_pccard_methods,
-	sizeof(struct xe_softc),
-};
-
-devclass_t xe_devclass;
-
-DRIVER_MODULE(xe, pccard, xe_pccard_driver, xe_devclass, 0, 0);
