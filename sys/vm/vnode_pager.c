@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.23 1995/02/21 01:22:48 davidg Exp $
+ *	$Id: vnode_pager.c,v 1.24 1995/02/22 09:15:35 davidg Exp $
  */
 
 /*
@@ -517,7 +517,7 @@ vnode_pager_addr(vp, address, run)
 	if (err || (block == -1))
 		rtaddress = -1;
 	else {
-		rtaddress = block * DEV_BSIZE + voffset;
+		rtaddress = block + voffset / DEV_BSIZE;
 		if( run) {
 			*run += 1;
 			*run *= bsize/PAGE_SIZE;
@@ -622,7 +622,7 @@ vnode_pager_input_smlfs(vnp, m)
 			if (bp->b_wcred != NOCRED)
 				crhold(bp->b_wcred);
 			bp->b_un.b_addr = (caddr_t) kva + i * bsize;
-			bp->b_blkno = fileaddr / DEV_BSIZE;
+			bp->b_blkno = fileaddr;
 			pbgetvp(dp, bp);
 			bp->b_bcount = bsize;
 			bp->b_bufsize = bsize;
@@ -912,7 +912,7 @@ vnode_pager_input(vnp, m, count, reqpage)
 		crhold(bp->b_rcred);
 	if (bp->b_wcred != NOCRED)
 		crhold(bp->b_wcred);
-	bp->b_blkno = firstaddr / DEV_BSIZE;
+	bp->b_blkno = firstaddr;
 	pbgetvp(dp, bp);
 	bp->b_bcount = size;
 	bp->b_bufsize = size;
@@ -938,7 +938,7 @@ vnode_pager_input(vnp, m, count, reqpage)
 			crhold(bpa->b_rcred);
 		if (bpa->b_wcred != NOCRED)
 			crhold(bpa->b_wcred);
-		bpa->b_blkno = (firstaddr + count * PAGE_SIZE) / DEV_BSIZE;
+		bpa->b_blkno = firstaddr + count * (PAGE_SIZE / DEV_BSIZE);
 		pbgetvp(dp, bpa);
 		bpa->b_bcount = sizea;
 		bpa->b_bufsize = counta * PAGE_SIZE;
@@ -1105,7 +1105,7 @@ vnode_pager_output_smlfs(vnp, m)
 			if (bp->b_wcred != NOCRED)
 				crhold(bp->b_wcred);
 			bp->b_un.b_addr = (caddr_t) kva + i * bsize;
-			bp->b_blkno = fileaddr / DEV_BSIZE;
+			bp->b_blkno = fileaddr;
 			pbgetvp(dp, bp);
 			++dp->v_numoutput;
 			/* for NFS */
@@ -1270,7 +1270,7 @@ retryoutput:
 		crhold(bp->b_rcred);
 	if (bp->b_wcred != NOCRED)
 		crhold(bp->b_wcred);
-	bp->b_blkno = reqaddr / DEV_BSIZE;
+	bp->b_blkno = reqaddr;
 	pbgetvp(dp, bp);
 	++dp->v_numoutput;
 
