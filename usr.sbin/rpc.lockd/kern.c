@@ -80,8 +80,11 @@ int	unlock_request(LOCKD_MSG *);
 #define lockd_seteuid(uid)	(1)
 #endif
 
-#define d_calls 0
-#define d_args 0
+#define d_calls (debug_level > 1)
+#define d_args (debug_level > 2)
+
+#define from_addr(sockaddr) \
+	(inet_ntoa((sockaddr)->sin_addr))
 
 void
 client_cleanup(sig, code)
@@ -451,9 +454,10 @@ lock_answer(int pid, netobj *netcookie, int result, int *pid_p, int version)
 	}
 
 	if (d_calls)
-		syslog(LOG_DEBUG, "lock answer: pid %lu: %s",
-		    ans.la_msg_ident.pid, version == NLM_VERS4 ?
-		    show_4state(result) : show_state(result));
+		syslog(LOG_DEBUG, "lock answer: pid %lu: %s %d",
+		    ans.la_msg_ident.pid,
+		    version == NLM_VERS4 ? "nlmv4" : "nlmv3",
+		    result);
 
 	ans.la_set_getlk_pid = 0;
 	if (version == NLM_VERS4)
