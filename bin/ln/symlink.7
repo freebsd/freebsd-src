@@ -47,13 +47,13 @@ it is a reference to the object underlying the original file name.
 Changes to a file are independent of the name used to reference the
 file.
 Hard links may not refer to directories and may not reference files
-on different filesystems.
+on different file systems.
 A symbolic link contains the name of the file to which it is linked,
 i.e. it is a pointer to another name, and not to an underlying object.
 For this reason, symbolic links may reference directories and may span
-filesystems.
+file systems.
 .Pp
-Because a symbolic link and its referenced object coexist in the filesystem
+Because a symbolic link and its referenced object coexist in the file system
 name space, confusion can arise in distinguishing between the link itself
 and the referenced object.
 Historically, commands and system calls have adopted their own link

@@ -42,7 +42,7 @@
  * Constants and data structures used to implement group and password file
  * caches. Traditional passwd/group cache routines perform quite poorly with
  * archives. The chances of hitting a valid lookup with an archive is quite a
- * bit worse than with files already resident on the filesystem. These misses
+ * bit worse than with files already resident on the file system. These misses
  * create a MAJOR performance cost. To address this problem, these routines
  * cache both hits and misses.
  *

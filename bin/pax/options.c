@@ -341,7 +341,7 @@ pax_options(int argc, char **argv)
 			break;
 		case 't':
 			/*
-			 * preserve access time on filesystem nodes we read
+			 * preserve access time on file system nodes we read
 			 */
 			tflag = 1;
 			flg |= TF;
@@ -483,7 +483,7 @@ pax_options(int argc, char **argv)
 			break;
 		case 'X':
 			/*
-			 * do not pass over mount points in the filesystem
+			 * do not pass over mount points in the file system
 			 */
 			Xflag = 1;
 			flg |= CXF;
@@ -774,7 +774,7 @@ tar_options(int argc, char **argv)
 			break;
 		case 'X':
 			/*
-			 * do not pass over mount points in the filesystem
+			 * do not pass over mount points in the file system
 			 */
 			Xflag = 1;
 			break;

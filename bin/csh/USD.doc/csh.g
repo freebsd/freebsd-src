@@ -1181,7 +1181,7 @@ file resides.
 which begin with the character `/' are interpreted relative
 to the
 .I root
-directory in the filesystem.
+directory in the file system.
 Other 
 .I pathnames 
 are interpreted relative to the current directory

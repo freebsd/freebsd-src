@@ -138,7 +138,7 @@ char	*tempbase;		/* basename of tempfile to use for mkstemp(3) */
  *	of times to correct, or try to correct forever.
  * 1.4	Sparse files (lseek holes) stored on the archive (but stored with blocks
  *	of all zeros will be restored with holes appropriate for the target
- *	filesystem
+ *	file system
  * 1.5	The user is notified whenever something is found during archive
  *	read operations which violates spec (but the read will continue).
  * 1.6	Multiple archive volumes can be read and may span over different
@@ -162,11 +162,11 @@ char	*tempbase;		/* basename of tempfile to use for mkstemp(3) */
  *	archive and pax the specific format specifications.
  * 2.3	Blocking size and format is rigidly enforced on writes.
  * 2.4	Formats which may exhibit header overflow problems (they have fields
- *	too small for large filesystems, such as inode number storage), use
+ *	too small for large file systems, such as inode number storage), use
  *	routines designed to repair this problem. These techniques still
  *	conform to both pax and format specifications, but no longer truncate
  *	these fields. This removes any restrictions on using these archive
- *	formats on large filesystems.
+ *	formats on large file systems.
  * 2.5	Multiple archive volumes can be written and may span over different
  *	archive devices
  * 2.6	A archive volume record limit allows the user to specify the number
@@ -192,7 +192,7 @@ char	*tempbase;		/* basename of tempfile to use for mkstemp(3) */
  * 3	COPY ENHANCEMENTS
  * 3.1	Sparse files (lseek holes) can be copied without expanding the holes
  *	into zero filled blocks. The file copy is created with holes which are
- *	appropriate for the target filesystem
+ *	appropriate for the target file system
  * 3.2	Access time as well as modification time on copied file trees can be
  *	preserved with the appropriate -p options.
  * 3.3	Access time reset with the -t applies to all file nodes (including

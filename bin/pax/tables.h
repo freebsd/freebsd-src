@@ -56,7 +56,7 @@
 
 /*
  * file hard link structure (hashed by dev/ino and chained) used to find the
- * hard links in a filesystem or with some archive formats (cpio)
+ * hard links in a file system or with some archive formats (cpio)
  */
 typedef struct hrdlnk {
 	char		*name;	/* name of first file seen with this ino/dev */
