@@ -147,7 +147,18 @@ ufs_bmaparray(vp, bn, bnp, ap, nump, runp, runb)
 	num = *nump;
 	if (num == 0) {
 		*bnp = blkptrtodb(ump, ip->i_db[bn]);
-		if (*bnp == 0) {
+		/*
+		 * Since this is FFS independent code, we are out of
+		 * scope for the definitions of BLK_NOCOPY and
+		 * BLK_SNAP, but we do know that they will fall in
+		 * the range 1..um_seqinc, so we use that test and
+		 * return a request for a zeroed out buffer if attempts
+		 * are made to read a BLK_NOCOPY or BLK_SNAP block.
+		 */
+		if ((ip->i_flags & SF_SNAPSHOT) &&
+		    ip->i_db[bn] > 0 && ip->i_db[bn] < ump->um_seqinc) {
+			*bnp = -1;
+		} else if (*bnp == 0) {
 			if (ip->i_flags & SF_SNAPSHOT)
 				*bnp = blkptrtodb(ump, bn * ump->um_seqinc);
 			else
@@ -230,6 +241,17 @@ ufs_bmaparray(vp, bn, bnp, ap, nump, runp, runb)
 	if (bp)
 		bqrelse(bp);
 
+	/*
+	 * Since this is FFS independent code, we are out of scope for the
+	 * definitions of BLK_NOCOPY and BLK_SNAP, but we do know that they
+	 * will fall in the range 1..um_seqinc, so we use that test and
+	 * return a request for a zeroed out buffer if attempts are made
+	 * to read a BLK_NOCOPY or BLK_SNAP block.
+	 */
+	if ((ip->i_flags & SF_SNAPSHOT) && daddr > 0 && daddr < ump->um_seqinc){
+		*bnp = -1;
+		return (0);
+	}
 	*bnp = blkptrtodb(ump, daddr);
 	if (*bnp == 0) {
 		if (ip->i_flags & SF_SNAPSHOT)

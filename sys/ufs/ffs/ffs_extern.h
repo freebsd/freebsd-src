@@ -116,6 +116,7 @@ extern vop_t **ffs_fifoop_p;
 void	softdep_initialize __P((void));
 int	softdep_mount __P((struct vnode *, struct mount *, struct fs *,
 	    struct ucred *));
+int	softdep_flushworklist __P((struct mount *, int *, struct proc *));
 int	softdep_flushfiles __P((struct mount *, int, struct proc *));
 void	softdep_update_inodeblock __P((struct inode *, struct buf *, int));
 void	softdep_load_inodeblock __P((struct inode *));
