@@ -1,4 +1,4 @@
-.\" Copyright (C) 1997 by Joerg Wunsch, Dresden
+.\" Copyright (C) 1997, 2001 by Joerg Wunsch, Dresden
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 11, 1997
+.Dd December 27, 2001
 .Os
 .Dt SPPPCONTROL 8
 .Sh NAME
@@ -164,6 +164,10 @@ through approximately 800 seconds.)  This is the default, and will not
 be explicitly displayed in
 .Ql list
 mode.
+.It Ar enable-vj
+Enable negotiation of Van Jacobsen header compression.  (Enabled by default.)
+.It Ar disable-vj
+Disable negotiation of Van Jacobsen header compression.
 .El
 .Sh EXAMPLES
 .Bd -literal
@@ -171,6 +175,7 @@ mode.
 bppp0:	phase=dead
 	myauthproto=chap myauthname="uriah"
 	hisauthproto=chap hisauthname="ifb-gw" norechallenge
+	enable-vj
 .Ed
 .Pp
 Display the settings for bppp0.  The interface is currently in
