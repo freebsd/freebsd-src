@@ -398,6 +398,14 @@ vn_stat(vp, sb, p)
 	error = VOP_GETATTR(vp, vap, p->p_ucred, p);
 	if (error)
 		return (error);
+
+	/*
+	 * Zero the spare stat fields
+	 */
+	sb->st_lspare = 0;
+	sb->st_qspare[0] = 0;
+	sb->st_qspare[1] = 0;
+
 	/*
 	 * Copy from vattr table
 	 */
