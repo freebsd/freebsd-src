@@ -279,7 +279,10 @@ add_cache(host, netid, taddr, uaddr)
 
 /*
  * This routine will return a client handle that is connected to the
- * rpcbind. Returns NULL on error and free's everything.
+ * rpcbind. If targaddr is non-NULL, the "universal address" of the
+ * host will be stored in *targaddr; the caller is responsible for
+ * freeing this string.
+ * On error, returns NULL and free's everything.
  */
 static CLIENT *
 getclnthandle(host, nconf, targaddr)
@@ -308,7 +311,7 @@ getclnthandle(host, nconf, targaddr)
 		    (rpcprog_t)RPCBPROG, (rpcvers_t)RPCBVERS4, 0, 0);
 		if (client != NULL) {
 			if (targaddr)
-				*targaddr = ad_cache->ac_uaddr;
+				*targaddr = strdup(ad_cache->ac_uaddr);
 			rwlock_unlock(&rpcbaddr_cache_lock);
 			return (client);
 		}
