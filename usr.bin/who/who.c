@@ -285,7 +285,7 @@ ttywidth(void)
 		    *ep != '\0')
 			warnx("invalid COLUMNS environment variable ignored");
 		else
-			return ((int)cols);
+			return (width);
 	}
 	if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) != -1)
 		return (ws.ws_col);
