@@ -175,6 +175,7 @@ dev/fb/fb.c			optional	vga
 dev/fb/splash.c			optional	splash
 dev/fb/vga.c			optional	vga
 dev/fdc/fdc.c			optional	fdc
+dev/fdc/fdc_isa.c		optional	fdc isa
 dev/kbd/atkbd.c			optional	atkbd
 dev/kbd/atkbdc.c		optional	atkbdc
 dev/kbd/kbd.c			optional	atkbd
