@@ -351,7 +351,7 @@ drive_compressor(struct archive *a, struct private_data *state, int finishing)
 				    state->compressed + ret,
 				    state->compressed_buffer_size - ret);
 			}
-
+			a->raw_position += ret;
 			state->stream.next_out
 			    = state->compressed +
 			    state->compressed_buffer_size - ret;
