@@ -70,7 +70,6 @@
 
 #include "config.h"
 
-static struct	device cur;
 static struct	device *curp = 0;
 
 struct  device *dtab;
@@ -110,7 +109,7 @@ Many_specs:
 
 Spec:
 	Device_spec SEMICOLON
-	      = { newdev(&cur); } |
+		|
 	Config_spec SEMICOLON
 		|
 	SEMICOLON
@@ -160,14 +159,7 @@ System_spec:
 System_id:
 	Save_id
 	      = {
-		struct opt *op = (struct opt *)malloc(sizeof (struct opt));
-		memset(op, 0, sizeof(*op));
-		op->op_name = ns("KERNEL");
-		op->op_ownfile = 0;
-		op->op_next = mkopt;
-		op->op_value = $1;
-		op->op_line = yyline + 1;
-		mkopt = op;
+		newopt(ns("KERNEL"), $1);
 	      };
 
 System_parameter_list:
@@ -184,30 +176,15 @@ Opt_list:
 Option:
 	Save_id
 	      = {
-		struct opt *op = (struct opt *)malloc(sizeof (struct opt));
 		char *s;
-		memset(op, 0, sizeof(*op));
-		op->op_name = $1;
-		op->op_next = opt;
-		op->op_value = 0;
-		/*
-		 * op->op_line is 1-based; yyline is 0-based but is now 1
-		 * larger than when `Save_id' was lexed.
-		 */
-		op->op_line = yyline;
-		opt = op;
-		if ((s = strchr(op->op_name, '=')))
+
+		newopt($1, NULL);
+		if ((s = strchr($1, '=')))
 			errx(1, "line %d: The `=' in options should not be quoted", yyline);
 	      } |
 	Save_id EQUALS Opt_value
 	      = {
-		struct opt *op = (struct opt *)malloc(sizeof (struct opt));
-		memset(op, 0, sizeof(*op));
-		op->op_name = $1;
-		op->op_next = opt;
-		op->op_value = $3;
-		op->op_line = yyline + 1;
-		opt = op;
+		newopt($1, $3);
 	      } ;
 
 Opt_value:
@@ -238,10 +215,8 @@ Mkoption:
 		struct opt *op = (struct opt *)malloc(sizeof (struct opt));
 		memset(op, 0, sizeof(*op));
 		op->op_name = $1;
-		op->op_ownfile = 0;	/* for now */
-		op->op_next = mkopt;
 		op->op_value = $3;
-		op->op_line = yyline + 1;
+		op->op_next = mkopt;
 		mkopt = op;
 	      } ;
 
@@ -253,30 +228,16 @@ Dev:
 Device_spec:
 	DEVICE Dev
 	      = {
-		struct opt *op = (struct opt *)malloc(sizeof (struct opt));
-		memset(op, 0, sizeof(*op));
-		op->op_name = devopt($2);
-		op->op_next = opt;
-		op->op_value = ns("1");
-		op->op_line = yyline;
-		opt = op;
+		newopt(devopt($2), ns("1"));
 		/* and the device part */
-		cur.d_name = $2;
-		cur.d_count = UNKNOWN;
+		newdev($2, UNKNOWN);
 		} |
 	DEVICE Dev NUMBER
 	      = {
-		struct opt *op = (struct opt *)malloc(sizeof (struct opt));
-		memset(op, 0, sizeof(*op));
-		op->op_name = devopt($2);
-		op->op_next = opt;
-		op->op_value = ns("1");
-		op->op_line = yyline;
-		opt = op;
+		newopt(devopt($2), ns("1"));
 		/* and the device part */
-		cur.d_name = $2;
-		cur.d_count = $3;
-		if (cur.d_count == 0)
+		newdev($2, $3);
+		if ($3 == 0)
 			errx(1, "line %d: devices with zero units are not likely to be correct", yyline);
 		} ;
 
@@ -293,19 +254,32 @@ yyerror(const char *s)
  * add a device to the list of devices
  */
 static void
-newdev(struct device *dp)
+newdev(char *name, int count)
 {
 	struct device *np;
 
 	np = (struct device *) malloc(sizeof *np);
 	memset(np, 0, sizeof(*np));
-	*np = *dp;
-	np->d_name = dp->d_name;
-	np->d_count = dp->d_count;
+	np->d_name = name;
+	np->d_count = count;
 	np->d_next = 0;
 	if (curp == 0)
 		dtab = np;
 	else
 		curp->d_next = np;
 	curp = np;
+}
+
+static void
+newopt(char *name, char *value)
+{
+	struct opt *op;
+
+	op = (struct opt *)malloc(sizeof (struct opt));
+	memset(op, 0, sizeof(*op));
+	op->op_name = name;
+	op->op_ownfile = 0;
+	op->op_value = value;
+	op->op_next = opt;
+	opt = op;
 }
