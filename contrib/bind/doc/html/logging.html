@@ -172,6 +172,8 @@ used is described in the next section, The <CODE>category</CODE> phrase.
 
     channel default_debug {
         file "named.run";     # write to named.run in the working directory
+                              # Note: stderr is used instead of "named.run"
+                              # if the server is started with the "-f" option.
         severity dynamic;     # log at the server's current debug level
     };
 
@@ -340,7 +342,7 @@ Messages arising from response checking, such as
 
 <HR>
 <ADDRESS>
-Last Updated: $Id: logging.html,v 1.6 1998/03/21 01:03:13 halley Exp $
+Last Updated: $Id: logging.html,v 1.7 1998/04/23 19:58:35 halley Exp $
 </ADDRESS>
 </BODY>
 </HTML>

@@ -1,6 +1,6 @@
 /*
  *	from ns.h	4.33 (Berkeley) 8/23/90
- *	$Id: ns_glob.h,v 8.34 1998/03/20 01:18:07 halley Exp $
+ *	$Id: ns_glob.h,v 8.35 1998/05/05 19:44:20 halley Exp $
  */
 
 /* Copyright (c) 1986
@@ -315,3 +315,5 @@ DECL	char *			user_name		INIT(NULL);
 DECL	gid_t			group_id;
 DECL	char *			group_name		INIT(NULL);
 DECL	char *			chroot_dir		INIT(NULL);
+
+DECL	int			loading			INIT(0);
