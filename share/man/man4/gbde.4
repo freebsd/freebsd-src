@@ -39,7 +39,9 @@
 .Nd Geom Based Disk Encryption
 .Sh SYNOPSIS
 .Cd "options GEOM_BDE"
-.Sh NOTICE
+.Sh DESCRIPTION
+.Bf -symbolic
+NOTICE:
 Please be aware that this code has not yet received much review
 and analysis by qualified cryptographers and therefore should be considered
 a slightly suspect experimental facility.
@@ -47,10 +49,10 @@ a slightly suspect experimental facility.
 We cannot at this point guarantee that the on-disk format will not change
 in response to reviews or bug-fixes, so potential users are advised to
 be prepared that
-.Xr dump 8 /
-.Xr restore 8
+.Xr dump 8 Ns / Ns Xr restore 8
 based migrations may be called for in the future.
-.Sh DESCRIPTION
+.Ef
+.Pp
 The objective of this facility is to provide a high degree of
 denial of access to the contents of a
 .Dq cold
