@@ -188,15 +188,13 @@ add_pax_attr_w(struct archive_string *as, const char *key, const wchar_t *wval)
 {
 	int	utf8len;
 	const wchar_t *wp;
-	int wc;
+	unsigned long wc;
 	char *utf8_value, *p;
 
 	utf8len = 0;
 	for (wp = wval; *wp != L'\0'; ) {
 		wc = *wp++;
-		if (wc <= 0) {
-			/* Ignore negative values. */
-		} else if (wc <= 0x7f)
+		if (wc <= 0x7f)
 			utf8len++;
 		else if (wc <= 0x7ff)
 			utf8len += 2;
@@ -206,16 +204,15 @@ add_pax_attr_w(struct archive_string *as, const char *key, const wchar_t *wval)
 			utf8len += 4;
 		else if (wc <= 0x3ffffff)
 			utf8len += 5;
-		else
+		else if (wc <= 0x7fffffff)
 			utf8len += 6;
+		/* Ignore larger values; UTF-8 can't encode them. */
 	}
 
 	utf8_value = malloc(utf8len + 1);
 	for (wp = wval, p = utf8_value; *wp != L'\0'; ) {
 		wc = *wp++;
-		if (wc <= 0) {
-			/* Ignore negative values. */
-		} else if (wc <= 0x7f) {
+		if (wc <= 0x7f) {
 			*p++ = (char)wc;
 		} else if (wc <= 0x7ff) {
 			p[0] = 0xc0 | ((wc >> 6) & 0x1f);
@@ -248,6 +245,7 @@ add_pax_attr_w(struct archive_string *as, const char *key, const wchar_t *wval)
 			p[4] = 0x80 | (wc & 0x3f);
 			p += 6;
 		}
+		/* Ignore larger values; UTF-8 can't encode them. */
 	}
 	*p = '\0';
 	add_pax_attr(as, key, utf8_value);
