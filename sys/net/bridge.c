@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2000 Luigi Rizzo
+ * Copyright (c) 1998-2001 Luigi Rizzo
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -180,9 +180,11 @@ bdg_promisc_off(int clear_used)
 	    ret = ifpromisc(ifp, 0);
 	    splx(s);
 	    ifp2sc[ifp->if_index].flags &= ~(IFF_BDG_PROMISC|IFF_MUTE) ;
-	    if (clear_used)
+	    if (clear_used) {
 		ifp2sc[ifp->if_index].flags &= ~(IFF_USED) ;
-	    printf(">> now %s%d promisc ON if_flags 0x%x bdg_flags 0x%x\n",
+		bdg_stats.s[ifp->if_index].name[0] = '\0';
+	    }
+	    printf(">> now %s%d promisc OFF if_flags 0x%x bdg_flags 0x%x\n",
 		    ifp->if_name, ifp->if_unit,
 		    ifp->if_flags, ifp2sc[ifp->if_index].flags);
 	}
@@ -285,14 +287,16 @@ parse_bdg_cfg()
 	    if (!strncmp(beg, buf, l)) { /* XXX not correct for >10 if! */
 		b->cluster_id = htons(cluster) ;
 		b->flags |= IFF_USED ;
-		sprintf(bdg_stats.s[ifp->if_index].name+l,
-			":%d", cluster);
+		sprintf(bdg_stats.s[ifp->if_index].name,
+			"%s%d:%d", ifp->if_name, ifp->if_unit, cluster);
 
 		DDB(printf("--++  found %s\n",
 		    bdg_stats.s[ifp->if_index].name);)
 		break ;
 	    }
 	}
+	if (*p == '\0')
+	    break ;
     }
 }
 
@@ -696,10 +700,13 @@ bdg_forward(struct mbuf **m0, struct ether_header *const eh, struct ifnet *dst)
 	 */
 	if (canfree == 0 ) {
 	    /*
-	     * Need to make a copy (and for good measure, make sure that
-	     * the header is contiguous). The original is still in *m0
+	     * Need to make a copy. The original is still in *m0.
+	     * Make sure that, in the copy, the first mbuf contains
+	     * both the ethernet and the ip header. The reason is,
+	     * some code up in the stack treats the IP header as rw so
+	     * we do not want to share it into a cluster.
 	     */
-	    int needed = min(MHLEN, max_protohdr) ;
+	    int needed = min(MHLEN, 14+max_protohdr) ;
 	    needed = min(needed, (*m0)->m_len ) ;
 
 	    m = m_copypacket( (*m0), M_DONTWAIT);
@@ -707,7 +714,8 @@ bdg_forward(struct mbuf **m0, struct ether_header *const eh, struct ifnet *dst)
 	        printf("-- bdg: m_copypacket failed.\n") ;
 		return ENOBUFS ;
 	    }
-	    if (m->m_len < needed && (m = m_pullup(m, needed)) == NULL) {
+	    m = m_pullup(m, needed) ;
+	    if (m == NULL) {
 		printf("-- bdg: pullup failed.\n") ;
 		return ENOBUFS ;
 	    }
@@ -798,11 +806,12 @@ forward:
      * but better than having packets corrupt!
      */
     if (canfree == 0 ) {
-	int needed = min(MHLEN, max_protohdr) ;
+	int needed = min(MHLEN, 14+ max_protohdr) ;
 	needed = min(needed, (*m0)->m_len ) ;
 
-	if ((*m0)->m_len < needed && (*m0 = m_pullup(*m0, needed)) == NULL) {
-	    printf("-- bdg: pullup failed.\n") ;
+	*m0 = m_pullup(*m0, needed) ;
+	if ( *m0 == NULL) {
+	    printf("-- bdg: pullup(2) failed.\n") ;
 	    return ENOBUFS ;
 	}
     }
@@ -812,9 +821,9 @@ forward:
 		m = *m0 ;
 		*m0 = NULL ; /* original is gone */
 	    } else
-		m = m_dup(*m0, M_DONTWAIT); /* XXX m_copypacket should work */
+		m = m_copypacket(*m0, M_DONTWAIT);
 	    if (m == NULL) {
-		printf("bdg_forward: sorry, m_dup failed!\n");
+		printf("bdg_forward: sorry, m_copypacket failed!\n");
 		return ENOBUFS ; /* the original is still there... */
 	    }
 	    /*
