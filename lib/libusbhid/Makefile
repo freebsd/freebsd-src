@@ -4,17 +4,19 @@
 MAINTAINER=	n_hibma@FreeBSD.ORG
 
 LIB=	usb
-MAN=	usb.3
+MAN=	usbhid.3
 
 SHLIB_MAJOR= 0
 SHLIB_MINOR= 0
 
-MLINKS=	usb.3 libusb.3 usb.3 hid_get_report_desc.3 \
-	usb.3 hid_dispose_report_desc.3 \
-	usb.3 hid_start_parse.3 usb.3 hid_end_parse.3 \
-	usb.3 hid_get_item.3 usb.3 hid_report_size.3 usb.3 hid_locate.3 \
-	usb.3 hid_usage_page.3 usb.3 hid_usage_in_page.3 usb.3 hid_init.3 \
-	usb.3 hid_get_data.3 usb.3 hid_set_data.3
+MLINKS=	usbhid.3 libusbhid.3 usbhid.3 hid_get_report_desc.3 \
+	usbhid.3 hid_dispose_report_desc.3 \
+	usbhid.3 hid_start_parse.3 usbhid.3 hid_end_parse.3 \
+	usbhid.3 hid_get_item.3 usbhid.3 hid_report_size.3 \
+	usbhid.3 hid_locate.3 \
+	usbhid.3 hid_usage_page.3 usbhid.3 hid_usage_in_page.3 \
+	usbhid.3 hid_init.3 \
+	usbhid.3 hid_get_data.3 usbhid.3 hid_set_data.3
 
 SRCS=	descr.c parse.c usage.c data.c
 
