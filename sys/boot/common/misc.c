@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: misc.c,v 1.3 1998/09/19 01:31:28 msmith Exp $
+ *	$Id: misc.c,v 1.4 1998/09/26 10:51:38 dfr Exp $
  */
 
 #include <string.h>
@@ -42,15 +42,19 @@ unargv(int argc, char *argv[])
     char	*cp;
 
     for (hlong = 0, i = 0, hlong = 0; i < argc; i++)
-	hlong += strlen(argv[i]) + 1;
+	hlong += strlen(argv[i]) + 2;
 
     if(hlong == 0)
 	return(NULL);
 
     cp = malloc(hlong);
     cp[0] = 0;
-    for (i = 0; i < argc; i++)
+    for (i = 0; i < argc; i++) {
 	strcat(cp, argv[i]);
+	if (i < (argc - 1))
+	  strcat(cp, " ");
+    }
+	  
     return(cp);
 }
 
