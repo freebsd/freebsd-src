@@ -28,7 +28,7 @@ DISTRIBUTION=	krb
 .endif
 
 # Do we have to provide an implementation for libskey.so?
-.if ${OBJFORMAT} != elf
+.if ${OBJFORMAT} != elf || ${MACHINE_ARCH} == "alpha"
 LDADD+= -lmd
 DPADD+= ${LIBMD}
 .endif
