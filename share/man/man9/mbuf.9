@@ -194,8 +194,10 @@ flag bits are defined as follows:
 #define	M_PROTO3	0x0040	/* protocol-specific */
 #define	M_PROTO4	0x0080	/* protocol-specific */
 #define	M_PROTO5	0x0100	/* protocol-specific */
+#define	M_PROTO6	0x4000	/* protocol-specific (avoid M_BCAST conflict) */
+#define	M_FREELIST	0x8000	/* mbuf is on the free list */
 
-/* mbuf pkthdr flags, also in m_flags */
+/* mbuf pkthdr flags (also stored in m_flags) */
 #define	M_BCAST		0x0200	/* send/received as link-level broadcast */
 #define	M_MCAST		0x0400	/* send/received as link-level multicast */
 #define	M_FRAG		0x0800	/* packet is fragment of larger packet */
