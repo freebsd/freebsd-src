@@ -59,8 +59,8 @@ struct reg {
  * Register set accessible via /proc/$pid/fpregs.
  */
 struct fpreg {
-	u_int	fr_regs[64];
-	u_long	fr_fsr;
+	u_int	fr_regs[64];	/* our view is 64 32-bit registers */
+	u_long	fr_fsr;		/* %fsr */
 	u_long	fr_fprs;
 };
 
