@@ -49,7 +49,7 @@ static long lineno = 0;
 static void
 warning(char *cptr, const char *msg)
 {
-    warnx("%s on line %ld\n%s", msg, lineno, curline);
+    warnx("%s on line %ld\n%s", msg, lineno, (curline == NULL ? "" : curline) );
     if (cptr) {
 	char	*tptr;
 	for (tptr = curline; tptr < cptr; ++tptr) putc(' ', stderr);
@@ -558,6 +558,9 @@ MCWriteCat(int fd)
     mcHead.minorVer = MCMinorVer;
     mcHead.flags = MCGetByteOrder();
     mcHead.firstSet = 0;	/* We'll be back to set this in a minute */
+
+    if (cat == NULL)
+	error(NULL, "cannot write empty catalog set");
 
     for (cnt = 0, set = cat->first; set; set = set->next) ++cnt;
     mcHead.numSets = cnt;
