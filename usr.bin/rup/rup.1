@@ -45,7 +45,7 @@
 .Sh DESCRIPTION
 .Nm Rup
 displays a summary of the current system status of a particular
-.Em host 
+.Ar host 
 or all hosts on the local network.
 The output shows the current time of day, how long the system has
 been up,
@@ -58,7 +58,8 @@ The
 daemon must be running on the remote host for this command to
 work.
 .Nm Rup
-uses an RPC protocol defined in /usr/include/rpcsvc/rstat.x.
+uses an RPC protocol defined in
+.Pa /usr/include/rpcsvc/rstat.x .
 .Sh EXAMPLE
 .Bd -unfilled -offset indent -compact
 example% rup otherhost
