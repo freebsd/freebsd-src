@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_shutdown.c	8.3 (Berkeley) 1/21/94
- * $Id: kern_shutdown.c,v 1.24 1997/09/05 08:54:55 peter Exp $
+ * $Id: kern_shutdown.c,v 1.25 1997/11/06 19:29:13 phk Exp $
  */
 
 #include "opt_ddb.h"
@@ -45,9 +45,9 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/buf.h>
 #include <sys/reboot.h>
 #include <sys/proc.h>
-#include <sys/vnode.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/mount.h>
@@ -118,8 +118,8 @@ typedef struct shutdown_list_element {
 static sle_p shutdown_list1;
 static sle_p shutdown_list2;
 
-
-static void dumpsys(void);
+static void boot __P((int)) __dead2;
+static void dumpsys __P((void));
 
 #ifndef _SYS_SYSPROTO_H_
 struct reboot_args {
@@ -168,7 +168,7 @@ static struct pcb dumppcb;
  * this used to be in machdep.c but I'll be dammned if I could see
  * anything machine dependant in it.
  */
-void
+static void
 boot(howto)
 	int howto;
 {
