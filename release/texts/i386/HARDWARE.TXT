@@ -495,6 +495,14 @@ ADMtek Inc. AN986-based USB ethernet NICs including the following:
   Billionton USB100
   Melco Inc. LU-ATX
 
+Kawasaki LSI KU5KUSB101B-based USB ethernet NICs including
+the following:
+  LinkSys USB10T
+  Entrega NET-USB-E45
+  Peracom USB Ethernet Adapter
+  3Com 3c19250
+  ADS Technologies USB-10BT
+
 ASIX Electronics AX88140A PCI NICs, including the following:
   Alfa Inc. GFC2204
   CNet Pro110B
