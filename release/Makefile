@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.406 1998/10/08 07:12:37 jkh Exp $
+#	$Id: Makefile,v 1.407 1998/10/08 09:06:16 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -716,6 +716,10 @@ doMFSKERN:
 	@mkdir  ${RD}/boot.${FSIMAGE}
 	@mv ${RD}/kernels/BOOTMFS ${RD}/kernels/BOOTMFS.${FSIMAGE}
 	@cp ${RD}/kernels/BOOTMFS.${FSIMAGE} ${RD}/boot.${FSIMAGE}/kernel
+	@mkdir -p ${RD}/boot.${FSIMAGE}/boot
+.if exists(/boot/loader)
+	@cp /boot/* ${RD}/boot.${FSIMAGE}/boot
+.endif
 .if defined(BOOT_CONFIG)
 	@echo "${BOOT_CONFIG}" >${RD}/boot.${FSIMAGE}/boot.config
 .endif
