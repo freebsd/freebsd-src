@@ -44,22 +44,20 @@ __FBSDID("$FreeBSD$");
 #include <rune.h>
 
 size_t
-mbstowcs(pwcs, s, n)
-	wchar_t * __restrict pwcs;
-	const char * __restrict s;
-	size_t n;
+mbstowcs(wchar_t * __restrict pwcs, const char * __restrict s, size_t n)
 {
-	char const *e;
-	int cnt = 0;
+	const char *e;
+	int cnt;
 	rune_t r;
 
-	if (!s) {
+	if (s == NULL) {
 		errno = EINVAL;
 		return (-1);
 	}
 
 	if (pwcs == NULL) {
 		/* Convert and count only, do not store. */
+		cnt = 0;
 		while ((r = sgetrune(s, MB_LEN_MAX, &e)) != _INVALID_RUNE &&
 		    r != 0) {
 			s = e;
@@ -72,13 +70,14 @@ mbstowcs(pwcs, s, n)
 	}
 
 	/* Convert, store and count characters. */
+	cnt = 0;
 	while (n-- > 0) {
 		*pwcs = sgetrune(s, MB_LEN_MAX, &e);
 		if (*pwcs == _INVALID_RUNE) {
 			errno = EILSEQ;
 			return (-1);
 		}
-		if (*pwcs++ == 0)
+		if (*pwcs++ == L'\0')
 			break;
 		s = e;
 		++cnt;
