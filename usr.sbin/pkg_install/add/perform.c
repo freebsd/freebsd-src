@@ -267,8 +267,12 @@ pkg_do(char *pkg)
 
 	    if (!Fake) {
 		if (!isURL(pkg) && !getenv("PKG_ADD_BASE")) {
-		    /* XXX: need to handle .tgz also */
-		    snprintf(path, FILENAME_MAX, "%s/%s.tbz", getenv("_TOP"), p->name);
+		    const char *ext;
+
+		    ext = strrchr(pkg_fullname, '.');
+		    if (ext == NULL)
+			ext = ".tbz";
+		    snprintf(path, FILENAME_MAX, "%s/%s%s", getenv("_TOP"), p->name, ext);
 		    if (fexists(path))
 			cp = path;
 		    else
