@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-PROG=		lookbib
+PROG_CXX=	lookbib
 SRCS=		lookbib.cc
 DPADD=		${LIBBIB} ${LIBGROFF} ${LIBM}
 LDADD=		${LIBBIB} ${LIBGROFF} -lm

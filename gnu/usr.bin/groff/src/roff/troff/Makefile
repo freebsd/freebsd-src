@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-PROG=		troff
+PROG_CXX=	troff
 SRCS=		env.cc node.cc input.cc div.cc symbol.cc dictionary.cc reg.cc \
 		number.cc majorminor.cc
 DPADD=		${LIBGROFF} ${LIBM}

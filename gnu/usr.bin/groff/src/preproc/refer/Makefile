@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-PROG=		refer
+PROG_CXX=	refer
 SRCS=		command.cc label.cc ref.cc refer.cc token.cc
 CFLAGS+=	-I${DIST_DIR}
 DPADD=		${LIBBIB} ${LIBGROFF} ${LIBM}

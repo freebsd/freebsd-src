@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-PROG=		lkbib
+PROG_CXX=	lkbib
 SRCS=		lkbib.cc
 DPADD=		${LIBBIB} ${LIBGROFF} ${LIBM}
 LDADD=		${LIBBIB} ${LIBGROFF} -lm

@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-PROG=		pre-grohtml
+PROG_CXX=	pre-grohtml
 SRCS=		pre-html.cc pushbackbuffer.cc
 DPADD=		${LIBGROFF}
 LDADD=		${LIBGROFF}
