@@ -18,6 +18,7 @@ set `df /` ; dev="/dev/$8"
 echo "Reading /etc from ${dev}..."
 mount -o rdonly ${dev} /mnt
 cd /mnt/etc ; cp -Rp . /etc/
+cp -Rp /mnt/root /
 cd /etc
 gzip -df *.gz
 pwd_mkdb -p ./master.passwd
