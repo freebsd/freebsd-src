@@ -33,7 +33,7 @@
  */
 
 struct cardbus_devinfo {
-	struct resource_list resources;
-	pcicfgregs cfg;
-	struct pci_conf conf;
+	struct		resource_list resources;
+	pcicfgregs	cfg;
+	struct		pci_conf conf;
 };
