@@ -556,7 +556,7 @@ nodisks:
 		   "For any option you do not wish to configure, simply select\n"
 		   "No.\n\n"
 		   "If you wish to re-enter this utility after the system is up, you\n"
-		   "may do so by typing: /stand/sysinstall.");
+		   "may do so by typing: /usr/sbin/sysinstall.");
     }
     if (mediaDevice->type != DEVICE_TYPE_FTP && mediaDevice->type != DEVICE_TYPE_NFS) {
 	if (!msgYesNo("Would you like to configure any Ethernet or SLIP/PPP network devices?")) {
