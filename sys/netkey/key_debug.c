@@ -61,6 +61,15 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #endif /* !_KERNEL */
 
+struct typestr {
+	const char	*string;
+	u_int		type;
+};
+#define TYPESTR(x)	{ "SADB_" #x, SADB_ ## x }
+
+static const char *kdebug_typestr(u_int, const struct typestr *);
+static const char *kdebug_sadb_msg_typestr(u_int);
+static const char *kdebug_sadb_ext_typestr(u_int);
 static void kdebug_sadb_prop(struct sadb_ext *);
 static void kdebug_sadb_identity(struct sadb_ext *);
 static void kdebug_sadb_supported(struct sadb_ext *);
@@ -78,6 +87,88 @@ static void kdebug_secreplay(struct secreplay *);
 #define panic(param)	{ printf(param); exit(-1); }
 #endif
 
+static const char *
+kdebug_typestr(type, list)
+	u_int type;
+	const struct typestr *list;
+{
+	static char buf[32];
+
+	while (list->string != NULL) {
+		if (type == list->type)
+			return (list->string);
+		list++;
+	}
+	snprintf(buf, sizeof(buf), "%u", type);
+
+	return (buf);
+}
+
+static const char *
+kdebug_sadb_msg_typestr(type)
+	u_int type;
+{
+	static const struct typestr list[] = {
+		TYPESTR(RESERVED),
+		TYPESTR(GETSPI),
+		TYPESTR(UPDATE),
+		TYPESTR(ADD),
+		TYPESTR(DELETE),
+		TYPESTR(GET),
+		TYPESTR(ACQUIRE),
+		TYPESTR(REGISTER),
+		TYPESTR(EXPIRE),
+		TYPESTR(FLUSH),
+		TYPESTR(DUMP),
+		TYPESTR(X_PROMISC),
+		TYPESTR(X_PCHANGE),
+		TYPESTR(X_SPDUPDATE),
+		TYPESTR(X_SPDADD),
+		TYPESTR(X_SPDDELETE),
+		TYPESTR(X_SPDGET),
+		TYPESTR(X_SPDACQUIRE),
+		TYPESTR(X_SPDDUMP),
+		TYPESTR(X_SPDFLUSH),
+		TYPESTR(X_SPDSETIDX),
+		TYPESTR(X_SPDEXPIRE),
+		TYPESTR(X_SPDDELETE2),
+		{ NULL }
+	};
+
+	return kdebug_typestr(type, list);
+}
+
+static const char *
+kdebug_sadb_ext_typestr(type)
+	u_int type;
+{
+	static const struct typestr list[] = {
+		TYPESTR(EXT_RESERVED),
+		TYPESTR(EXT_SA),
+		TYPESTR(EXT_LIFETIME_CURRENT),
+		TYPESTR(EXT_LIFETIME_HARD),
+		TYPESTR(EXT_LIFETIME_SOFT),
+		TYPESTR(EXT_ADDRESS_SRC),
+		TYPESTR(EXT_ADDRESS_DST),
+		TYPESTR(EXT_ADDRESS_PROXY),
+		TYPESTR(EXT_KEY_AUTH),
+		TYPESTR(EXT_KEY_ENCRYPT),
+		TYPESTR(EXT_IDENTITY_SRC),
+		TYPESTR(EXT_IDENTITY_DST),
+		TYPESTR(EXT_SENSITIVITY),
+		TYPESTR(EXT_PROPOSAL),
+		TYPESTR(EXT_SUPPORTED_AUTH),
+		TYPESTR(EXT_SUPPORTED_ENCRYPT),
+		TYPESTR(EXT_SPIRANGE),
+		TYPESTR(X_EXT_KMPRIVATE),
+		TYPESTR(X_EXT_POLICY),
+		TYPESTR(X_EXT_SA2),
+		{ NULL }
+	};
+
+	return kdebug_typestr(type, list);
+}
+
 /* NOTE: host byte order */
 
 /* %%%: about struct sadb_msg */
@@ -92,8 +183,9 @@ kdebug_sadb(base)
 	if (base == NULL)
 		panic("kdebug_sadb: NULL pointer was passed.");
 
-	printf("sadb_msg{ version=%u type=%u errno=%u satype=%u\n",
-	    base->sadb_msg_version, base->sadb_msg_type,
+	printf("sadb_msg{ version=%u type=%s errno=%u satype=%u\n",
+	    base->sadb_msg_version,
+	    kdebug_sadb_msg_typestr(base->sadb_msg_type),
 	    base->sadb_msg_errno, base->sadb_msg_satype);
 	printf("  len=%u reserved=%u seq=%u pid=%u\n",
 	    base->sadb_msg_len, base->sadb_msg_reserved,
@@ -103,8 +195,9 @@ kdebug_sadb(base)
 	ext = (struct sadb_ext *)((caddr_t)base + sizeof(struct sadb_msg));
 
 	while (tlen > 0) {
-		printf("sadb_ext{ len=%u type=%u }\n",
-		    ext->sadb_ext_len, ext->sadb_ext_type);
+		printf("sadb_ext{ len=%u type=%s }\n",
+		    ext->sadb_ext_len,
+		    kdebug_sadb_ext_typestr(ext->sadb_ext_type));
 
 		if (ext->sadb_ext_len == 0) {
 			printf("kdebug_sadb: invalid ext_len=0 was passed.\n");
