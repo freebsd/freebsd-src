@@ -524,6 +524,55 @@ om_cmp(const void *a, const void *b)
 		return (0);
 }
 
+static vm_size_t
+pmap_tunable_physmem(void)
+{
+	char *cp;
+	vm_size_t retval;
+
+	retval = 0;
+
+        if ((cp = getenv("hw.physmem")) != NULL) {
+                u_int64_t allowmem, sanity;
+                char *ep;
+
+		sanity = allowmem = strtouq(cp, &ep, 0);
+		if ((ep != cp) && (*ep != 0)) {
+			switch(*ep) {
+			case 'g':
+			case 'G':
+				/*
+				 * Can't have more than 4G of RAM
+				 */
+				if (allowmem > 4) {
+					printf("Invalid memory size '%s'\n",
+					       cp);
+					return (0);
+				}
+				allowmem <<= 10;
+			case 'm':
+			case 'M':
+				allowmem <<= 10;
+			case 'k':
+			case 'K':
+				allowmem <<= 10;
+				break;
+			default:
+				allowmem = sanity = 0;
+			}
+			if (allowmem < sanity)
+				allowmem = 0;
+		}
+		if (allowmem == 0)
+			printf("Ignoring invalid memory size of '%s'\n", cp);
+		else
+			retval = allowmem;
+		freeenv(cp);
+	}
+
+	return (retval);
+}
+
 void
 pmap_bootstrap(vm_offset_t kernelstart, vm_offset_t kernelend)
 {
@@ -532,7 +581,7 @@ pmap_bootstrap(vm_offset_t kernelstart, vm_offset_t kernelend)
 	int		sz;
 	int		i, j;
 	int		ofw_mappings;
-	vm_size_t	size, physsz;
+	vm_size_t	size, physsz, hwphyssz;
 	vm_offset_t	pa, va, off;
 	u_int		batl, batu;
 
@@ -630,10 +679,22 @@ pmap_bootstrap(vm_offset_t kernelstart, vm_offset_t kernelend)
 	qsort(regions, regions_sz, sizeof(*regions), mr_cmp);
 	phys_avail_count = 0;
 	physsz = 0;
+	hwphyssz = pmap_tunable_physmem();
 	for (i = 0, j = 0; i < regions_sz; i++, j += 2) {
 		CTR3(KTR_PMAP, "region: %#x - %#x (%#x)", regions[i].mr_start,
 		    regions[i].mr_start + regions[i].mr_size,
 		    regions[i].mr_size);
+		if (hwphyssz != 0 &&
+		    (physsz + regions[i].mr_size) >= hwphyssz) {
+			if (physsz < hwphyssz) {
+				phys_avail[j] = regions[i].mr_start;
+				phys_avail[j + 1] = regions[i].mr_start +
+				    hwphyssz - physsz;
+				physsz = hwphyssz;
+				phys_avail_count++;
+			}
+			break;
+		}
 		phys_avail[j] = regions[i].mr_start;
 		phys_avail[j + 1] = regions[i].mr_start + regions[i].mr_size;
 		phys_avail_count++;
