@@ -127,12 +127,11 @@ SYSCTL_INT(_net_inet_ip, IPCTL_KEEPFAITH, keepfaith, CTLFLAG_RW,
 /*
  * XXX - Setting ip_checkinterface mostly implements the receive side of
  * the Strong ES model described in RFC 1122, but since the routing table
- * and transmit implementation do not implement the Strong ES model, so
+ * and transmit implementation do not implement the Strong ES model,
  * setting this to 1 results in an odd hybrid.
  *
- * XXX - ip_checkinterface currently must be disabled if you use
- * ipnat to translate the destination address to another to another
- * local interface.
+ * XXX - ip_checkinterface currently must be disabled if you use ipnat
+ * to translate the destination address to another local interface.
  *
  * XXX - ip_checkinterface must be disabled if you add IP aliases
  * to the loopback interface instead of the interface where the
@@ -541,7 +540,7 @@ pass:
          * XXX - Checking also should be disabled if the destination
 	 * address is ipnat'ed to a different interface.
 	 *
-	 * XXX - Checking is incompatible will break IP aliases added
+	 * XXX - Checking is incompatible with IP aliases added
 	 * to the loopback interface instead of the interface where
 	 * the packets are received.
 	 */
