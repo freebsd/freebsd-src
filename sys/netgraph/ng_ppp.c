@@ -1180,6 +1180,8 @@ ng_ppp_get_packet(node_p node, struct mbuf **mp, meta_p *metap)
 		FREE(qent, M_NETGRAPH);
 		priv->qlen--;
 	}
+	priv->bundleStats.recvFrames++;
+	priv->bundleStats.recvOctets += m->m_pkthdr.len;
 	*mp = m;
 }
 
