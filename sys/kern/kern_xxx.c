@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_xxx.c	8.2 (Berkeley) 11/14/93
- * $Id: kern_xxx.c,v 1.17 1995/11/12 06:43:03 bde Exp $
+ * $Id: kern_xxx.c,v 1.18 1995/11/12 07:04:30 bde Exp $
  */
 
 #include <sys/param.h>
@@ -280,6 +280,7 @@ getdomainname(p, uap, retval)
         struct getdomainname_args *uap;
         int *retval;
 {
+	int domainnamelen = strlen(domainname) + 1;
 	if ((u_int)uap->len > domainnamelen + 1)
 		uap->len = domainnamelen + 1;
 	return (copyout((caddr_t)domainname, (caddr_t)uap->domainname, uap->len));
@@ -299,7 +300,7 @@ setdomainname(p, uap, retval)
         struct setdomainname_args *uap;
         int *retval;
 {
-        int error;
+        int error, domainnamelen;
 
         if ((error = suser(p->p_ucred, &p->p_acflag)))
                 return (error);
