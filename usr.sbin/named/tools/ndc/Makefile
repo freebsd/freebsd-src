@@ -1,22 +1,25 @@
-#	@(#)Makefile	5.1 (Berkeley) 5/28/90
-
-MAN8=	named.reload.8
-CLEANFILES+=named.reload
+MAN8=	ndc.8
+CLEANFILES+=ndc
 
 PIDDIR=/var/run
 INDOT=
+PS=ps
+IOT=IOT
 DESTSBIN=${DESTDIR}${BINDIR}
 
 beforeinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 555 \
-	    named.reload ${DESTDIR}${BINDIR}
+	    ndc ${DESTDIR}${BINDIR}
 
-all: named.reload
+all: ndc
 
-named.reload: named.reload.sh Makefile
+ndc: ndc.sh Makefile
 	sed -e "s|%DESTSBIN%|${DESTSBIN}|" \
 	    -e "s|%INDOT%|${INDOT}|" \
-	    < ${.CURDIR}/named.reload.sh > named.reload
+	    -e "s|%PIDDIR%|${PIDDIR}|" \
+	    -e "s|%PS%|${PS}|" \
+	    -e "s|%IOT%|${IOT}|" \
+	    < ${.CURDIR}/ndc.sh > ndc
 
 .include "${.CURDIR}/../../../Makefile.inc"
 .include <bsd.prog.mk>
