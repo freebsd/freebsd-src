@@ -264,10 +264,11 @@ pap_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
       key[klen] = '\0';
 
 #ifndef NORADIUS
-      if (*bundle->radius.cfg.file)
-        radius_Authenticate(&bundle->radius, authp, authp->in.name,
-                            key, strlen(key), NULL, 0);
-      else
+      if (*bundle->radius.cfg.file) {
+        if (!radius_Authenticate(&bundle->radius, authp, authp->in.name,
+                                 key, strlen(key), NULL, 0, NULL, 0))
+          pap_Failure(authp);
+      } else
 #endif
       if (auth_Validate(bundle, authp->in.name, key, p))
         pap_Success(authp);
