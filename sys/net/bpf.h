@@ -37,7 +37,7 @@
  *
  *      @(#)bpf.h	8.1 (Berkeley) 6/10/93
  *
- * $Id: bpf.h,v 1.3 1994/08/21 05:11:38 paul Exp $
+ * $Id: bpf.h,v 1.4 1995/05/30 08:07:52 rgrimes Exp $
  */
 
 #ifndef _NET_BPF_H_
@@ -110,6 +110,8 @@ struct bpf_version {
 #define BIOCGSTATS	_IOR(B,111, struct bpf_stat)
 #define BIOCIMMEDIATE	_IOW(B,112, u_int)
 #define BIOCVERSION	_IOR(B,113, struct bpf_version)
+#define BIOCGRSIG	_IOR(B,114, u_int)
+#define BIOCSRSIG	_IOW(B,115, u_int)
 #else
 #define	BIOCGBLEN	_IOR('B',102, u_int)
 #define	BIOCSBLEN	_IOWR('B',102, u_int)
@@ -124,6 +126,8 @@ struct bpf_version {
 #define BIOCGSTATS	_IOR('B',111, struct bpf_stat)
 #define BIOCIMMEDIATE	_IOW('B',112, u_int)
 #define BIOCVERSION	_IOR('B',113, struct bpf_version)
+#define BIOCGRSIG	_IOR('B',114, u_int)
+#define BIOCSRSIG	_IOW('B',115, u_int)
 #endif
 
 /*
