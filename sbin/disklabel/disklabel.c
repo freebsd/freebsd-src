@@ -32,26 +32,26 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *		$Id$
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1987, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)disklabel.c	8.2 (Berkeley) 1/7/94";
 /* from static char sccsid[] = "@(#)disklabel.c	1.2 (Symmetric) 11/28/85"; */
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
-#include <sys/signal.h>
 #include <sys/errno.h>
 #include <sys/file.h>
-#include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
 #define DKTYPENAMES
@@ -121,7 +121,6 @@ char	*dkname;
 char	*specname;
 char	tmpfil[] = _PATH_TMP;
 
-extern	int errno;
 char	namebuf[BBSIZE], *np = namebuf;
 struct	disklabel lab;
 struct	disklabel *readlabel(), *makebootarea();
@@ -155,8 +154,6 @@ main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	extern char *optarg;
-	extern int optind;
 	register struct disklabel *lp;
 	FILE *t;
 	int ch, f, flag, error = 0;
@@ -251,6 +248,9 @@ main(argc, argv)
 
 	switch(op) {
 
+	case UNSPEC:
+		break;
+
 	case EDIT:
 		if (argc != 1)
 			usage();
@@ -344,10 +344,8 @@ makelabel(type, name, lp)
 		dp = getvirginlabel();
 	else
 		dp = getdiskbyname(type);
-	if (dp == NULL) {
-		fprintf(stderr, "%s: unknown disk type\n", type);
-		exit(1);
-	}
+	if (dp == NULL)
+		errx(1, "%s: unknown disk type", type);
 	*lp = *dp;
 #if NUMBOOT > 0
 	/*
@@ -419,9 +417,9 @@ writelabel(f, boot, lp)
 		 */
 		flag = 1;
 		if (ioctl(f, DIOCWLABEL, &flag) < 0)
-			perror("ioctl DIOCWLABEL");
+			warn("ioctl DIOCWLABEL");
 		if (write(f, boot, lp->d_bbsize) != lp->d_bbsize) {
-			perror("write");
+			warn("write");
 			return (1);
 		}
 #if NUMBOOT > 0
@@ -429,7 +427,7 @@ writelabel(f, boot, lp)
 		 * Output the remainder of the disklabel
 		 */
 		if (bootbuf && write(f, bootbuf, bootsize) != bootsize) {
-			perror("write");
+			warn("write");
 			return(1);
 		}
 #endif
@@ -447,12 +445,8 @@ writelabel(f, boot, lp)
 		for (i = 1; i < 11 && i < lp->d_nsectors; i += 2) {
 			(void)lseek(f, (off_t)((alt + i) * lp->d_secsize),
 			    SEEK_SET);
-			if (write(f, boot, lp->d_secsize) < lp->d_secsize) {
-				int oerrno = errno;
-				fprintf(stderr, "alternate label %d ", i/2);
-				errno = oerrno;
-				perror("write");
-			}
+			if (write(f, boot, lp->d_secsize) < lp->d_secsize)
+				warn("alternate label %d write", i/2);
 		}
 	}
 #endif
@@ -463,35 +457,29 @@ void
 l_perror(s)
 	char *s;
 {
-	int saverrno = errno;
-
-	fprintf(stderr, "disklabel: %s: ", s);
-
-	switch (saverrno) {
+	switch (errno) {
 
 	case ESRCH:
-		fprintf(stderr, "No disk label on disk;\n");
-		fprintf(stderr,
-		    "use \"disklabel -r\" to install initial label\n");
+		warnx("%s: no disk label on disk;\n"
+		      "use \"disklabel -r\" to install initial label", s);
 		break;
 
 	case EINVAL:
-		fprintf(stderr, "Label magic number or checksum is wrong!\n");
-		fprintf(stderr, "(disklabel or kernel is out of date?)\n");
+		warnx("%s: label magic number or checksum is wrong!\n"
+		      "(disklabel or kernel is out of date?)", s);
 		break;
 
 	case EBUSY:
-		fprintf(stderr, "Open partition would move or shrink\n");
+		warnx("%s: open partition would move or shrink", s);
 		break;
 
 	case EXDEV:
-		fprintf(stderr,
-	"Labeled partition or 'a' partition must start at beginning of disk\n");
+		warnx(
+  "%s: labeled partition or 'a' partition must start at beginning of disk", s);
 		break;
 
 	default:
-		errno = saverrno;
-		perror((char *)NULL);
+		warn((char *)NULL);
 		break;
 	}
 }
@@ -518,10 +506,7 @@ readlabel(f)
 		if (lp > (struct disklabel *)(bootarea+BBSIZE-sizeof(*lp)) ||
 		    lp->d_magic != DISKMAGIC || lp->d_magic2 != DISKMAGIC ||
 		    dkcksum(lp) != 0) {
-			fprintf(stderr,
-	"Bad pack magic number (label is damaged, or pack is unlabeled)\n");
-			/* lp = (struct disklabel *)(bootarea + LABELOFFSET); */
-			exit (1);
+     errx(1, "bad pack magic number (label is damaged, or pack is unlabeled)");
 		}
 	} else {
 		lp = &lab;
@@ -690,11 +675,8 @@ makebootarea(boot, dp, f)
 	 * reserved for the label.
 	 */
 	for (p = (char *)lp; p < (char *)lp + sizeof(struct disklabel); p++)
-		if (*p) {
-			fprintf(stderr,
-			    "Bootstrap doesn't leave room for disk label\n");
-			exit(2);
-		}
+		if (*p)
+			errx(2, "bootstrap doesn't leave room for disk label");
 	return (lp);
 }
 
@@ -808,7 +790,7 @@ edit(lp, f)
 
 	if ((fd = mkstemp(tmpfil)) == -1 ||
 	    (fp = fdopen(fd, "w")) == NULL) {
-		fprintf(stderr, "%s: Can't create\n", tmpfil);
+		warnx("can't create %s", tmpfil);
 		return (1);
 	}
 	display(fp, lp);
@@ -818,8 +800,7 @@ edit(lp, f)
 			break;
 		fp = fopen(tmpfil, "r");
 		if (fp == NULL) {
-			fprintf(stderr, "%s: Can't reopen for reading\n",
-				tmpfil);
+			warnx("can't reopen %s for reading", tmpfil);
 			break;
 		}
 		bzero((char *)&label, sizeof(label));
@@ -856,11 +837,11 @@ editit()
 		extern int errno;
 
 		if (errno == EPROCLIM) {
-			fprintf(stderr, "You have too many processes\n");
+			warnx("you have too many processes");
 			return(0);
 		}
 		if (errno != EAGAIN) {
-			perror("fork");
+			warn("fork");
 			return(0);
 		}
 		sleep(1);
@@ -874,8 +855,7 @@ editit()
 		if ((ed = getenv("EDITOR")) == (char *)0)
 			ed = DEFEDITOR;
 		execlp(ed, ed, tmpfil, 0);
-		perror(ed);
-		exit(1);
+		err(1, "%s", ed);
 	}
 	while ((xpid = wait(&stat)) >= 0)
 		if (xpid == pid)
@@ -1387,10 +1367,8 @@ setbootflag(lp)
 			}
 		}
 	}
-	if (errors) {
-		fprintf(stderr, "Cannot install boot program\n");
-		exit(4);
-	}
+	if (errors)
+		errx(4, "cannot install boot program");
 }
 
 /*VARARGS1*/

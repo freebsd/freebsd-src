@@ -13,7 +13,7 @@
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
 .\" 3. All advertising materials mentioning features or use of this software
-.\"    must display the following acknowledgement:
+.\"    must display the following acknowledgment:
 .\"	This product includes software developed by the University of
 .\"	California, Berkeley and its contributors.
 .\" 4. Neither the name of the University nor the names of its contributors
@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)disklabel.8	8.2 (Berkeley) 4/19/94
-.\"	$Id: disklabel.8,v 1.6 1997/02/22 14:32:12 peter Exp $
+.\"	$Id: disklabel.8,v 1.7 1997/06/23 04:02:17 steve Exp $
 .\"
 .Dd April 19, 1994
 .Dt DISKLABEL 8
@@ -96,7 +96,7 @@ to change the drive identification,
 the disk partitions on the drive,
 or to replace a damaged label.
 On some systems,
-.Nm disklabel
+.Nm
 can be used to install bootstrap code as well.
 There are several forms of the command that read (display), install or edit
 the label on a disk.
@@ -134,8 +134,8 @@ The second form of the command, with the
 .Fl w
 flag, is used to write a standard label on the designated drive.
 The required arguments to
-.Nm disklabel
-are the drive to be labelled (e.g. sd0), and
+.Nm
+are the drive to be labeled (e.g. sd0), and
 the drive type as described in the
 .Xr disktab 5
 file.
@@ -199,7 +199,7 @@ was specified.
 With the
 .Fl R
 flag,
-.Nm disklabel
+.Nm
 is capable of restoring a disk label that was formatted
 in a prior operation and saved in an ascii file.
 The prototype file used to create the label should be in the same format
@@ -216,13 +216,13 @@ is specified and will be unaffected otherwise.
 The
 .Fl NW
 flags for
-.Nm disklabel
+.Nm
 explicitly disallow and
 allow, respectively, writing of the pack label area on the selected disk.
 .Pp
 The final three forms of
-.Nm disklabel
-are used to install boostrap code on machines where the bootstrap is part
+.Nm
+are used to install bootstrap code on machines where the bootstrap is part
 of the label.
 The bootstrap code is comprised of one or two boot programs depending on
 the machine.
@@ -349,7 +349,7 @@ allocated for it by some filesystems.
 As a result, it may not be possible to have filesystems on some partitions
 of a ``bootable'' disk.
 When installing bootstrap code,
-.Nm disklabel
+.Nm
 checks for these cases.
 If the installed boot code would overlap a partition of type FS_UNUSED
 it is marked as type FS_BOOT.
@@ -357,11 +357,11 @@ The
 .Xr newfs 8
 utility will disallow creation of filesystems on FS_BOOT partitions.
 Conversely, if a partition has a type other than FS_UNUSED or FS_BOOT,
-.Nm disklabel
+.Nm
 will not install bootstrap code that overlaps it.
 .Sh BUGS
 When a disk name is given without a full pathname,
-the constructed device name uses the ``a'' partition on the tahoe,
+the constructed device name uses the ``a'' partition on the Tahoe,
 the ``c'' partition on all others.
 .Pp
 For the i386 architecture, the primary bootstrap sector contains
