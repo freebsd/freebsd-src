@@ -425,8 +425,8 @@
 			    const struct sched_param *param); }
 333	STD	POSIX	{ int linux_sched_getscheduler (pid_t pid); }
 334	NOPROTO	POSIX	{ int sched_yield (void); }
-335	NOPROTO	POSIX	{ int sched_get_priority_max (int policy); }
-336	NOPROTO	POSIX	{ int sched_get_priority_min (int policy); }
+335	STD	POSIX	{ int linux_sched_get_priority_max (int policy); }
+336	STD	POSIX	{ int linux_sched_get_priority_min (int policy); }
 337	NOPROTO	POSIX	{ int sched_rr_get_interval (pid_t pid, \
 			    struct timespec *interval); }
 338	UNIMPL	LINUX	afs_syscall
