@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ftpd.c,v 1.25.2.1 1996/11/21 16:35:50 phk Exp $
+ *	$Id: ftpd.c,v 1.25.2.2 1996/12/03 10:34:42 phk Exp $
  */
 
 #if 0
@@ -1644,6 +1644,11 @@ void
 dologout(status)
 	int status;
 {
+	/*
+	 * Prevent reception of SIGURG from resulting in a resumption
+	 * back to the main program loop.
+	 */
+	transflag = 0;
 
 	if (logged_in) {
 		(void) seteuid((uid_t)0);
