@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id$
+ *	$Id: db_variables.h,v 1.7 1997/02/22 09:28:32 peter Exp $
  */
 
 /*
@@ -50,8 +50,6 @@ struct db_variable {
 };
 #define	FCN_NULL	((db_varfcn_t *)0)
 
-extern struct db_variable	db_vars[];	/* debugger variables */
-extern struct db_variable	*db_evars;
 extern struct db_variable	db_regs[];	/* machine registers */
 extern struct db_variable	*db_eregs;
 
