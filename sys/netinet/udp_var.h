@@ -92,12 +92,11 @@ struct	udpstat {
 extern struct	inpcbhead udb;
 extern struct	inpcbinfo udbinfo;
 extern struct	udpstat udpstat;
+extern struct	pr_usrreqs udp_usrreqs;
 
 void	 udp_ctlinput __P((int, struct sockaddr *, void *));
 void	 udp_init __P((void));
 void	 udp_input __P((struct mbuf *, int));
-int	 udp_usrreq __P((struct socket *,
-	    int, struct mbuf *, struct mbuf *, struct mbuf *));
 #endif
 
 #endif
