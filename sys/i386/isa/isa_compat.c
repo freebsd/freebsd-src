@@ -185,7 +185,7 @@ isa_compat_probe(device_t dev)
 		dvp->id_msize = 0;
 	}
 	dvp->id_unit = device_get_unit(dev);
-	dvp->id_flags = isa_get_flags(dev);
+	dvp->id_flags = device_get_flags(dev);
 	dvp->id_enabled = device_is_enabled(dev);	/* XXX unused */
 	dvp->id_device = dev;
 
