@@ -1,7 +1,7 @@
 # Makefile for uucico
-# $Id: Makefile,v 1.5 1994/05/31 05:46:32 ache Exp $
+# $Id: Makefile,v 1.6 1994/05/31 15:55:43 ache Exp $
 
-BINDIR=		$(sbindir)
+BINDIR=         $(libxdir)
 BINOWN=		$(owner)
 BINMODE=        4555
 
