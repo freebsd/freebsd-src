@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_ti.c,v 1.114 1999/07/05 19:20:31 wpaul Exp $
+ *	$Id: if_ti.c,v 1.8 1999/07/05 20:19:41 wpaul Exp $
  */
 
 /*
@@ -78,7 +78,7 @@
  * - Andrew Gallatin for providing FreeBSD/Alpha support.
  */
 
-#include "bpfilter.h"
+#include "bpf.h"
 #include "vlan.h"
 
 #include <sys/param.h>
@@ -96,7 +96,7 @@
 #include <net/if_dl.h>
 #include <net/if_media.h>
 
-#if NBPFILTER > 0
+#if NBPF > 0
 #include <net/bpf.h>
 #endif
 
@@ -128,7 +128,7 @@
 
 #if !defined(lint)
 static const char rcsid[] =
-	"$Id: if_ti.c,v 1.114 1999/07/05 19:20:31 wpaul Exp $";
+	"$Id: if_ti.c,v 1.8 1999/07/05 20:19:41 wpaul Exp $";
 #endif
 
 /*
@@ -1680,7 +1680,7 @@ ti_attach(config_id, unit)
 	if_attach(ifp);
 	ether_ifattach(ifp);
 
-#if NBPFILTER > 0
+#if NBPF > 0
 	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
 #endif
 
@@ -1785,7 +1785,7 @@ static void ti_rxeof(sc)
 		eh = mtod(m, struct ether_header *);
 		m->m_pkthdr.rcvif = ifp;
 
-#if NBPFILTER > 0
+#if NBPF > 0
 		/*
 	 	 * Handle BPF listeners. Let the BPF user see the packet, but
 	 	 * don't pass it up to the ether_input() layer unless it's
@@ -2070,7 +2070,7 @@ static void ti_start(ifp)
 		 * If there's a BPF listener, bounce a copy of this frame
 		 * to him.
 		 */
-#if NBPFILTER > 0
+#if NBPF > 0
 		if (ifp->if_bpf)
 			bpf_mtap(ifp, m_head);
 #endif

@@ -27,7 +27,7 @@
  */
 
 /*
- * $Id: if_cs.c,v 1.9 1999/01/28 01:59:53 dillon Exp $
+ * $Id: if_cs.c,v 1.10 1999/04/16 21:22:20 peter Exp $
  *
  * Device driver for Crystal Semiconductor CS8920 based ethernet
  *   adapters. By Maxim Bolotin and Oleg Sharoiko, 27-April-1997
@@ -35,7 +35,7 @@
 
 /* #define	 CS_DEBUG */
 #include "cs.h"
-#include "bpfilter.h"
+#include "bpf.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -52,7 +52,7 @@
 #include <net/if_media.h>
 #include <net/ethernet.h>
 
-#if NBPFILTER > 0
+#if NBPF > 0
 #include <net/bpf.h>
 #endif
 
@@ -620,7 +620,7 @@ cs_attach(struct cs_softc *sc, int unit, int flags)
 		printf(CS_NAME"%d: ethernet address %6D\n",
 		       ifp->if_unit, sc->arpcom.ac_enaddr, ":");
 
-#if NBPFILTER > 0
+#if NBPF > 0
 	bpfattach(ifp, DLT_EN10MB, sizeof (struct ether_header));
 #endif
 	return 1;
@@ -777,7 +777,7 @@ cs_get_packet(struct cs_softc *sc)
 
 	eh = mtod(m, struct ether_header *);
 
-#if NBPFILTER > 0
+#if NBPF > 0
 	if (ifp->if_bpf)
 		bpf_mtap(ifp, m);
 #endif
@@ -950,7 +950,7 @@ cs_start(struct ifnet *ifp)
 
 			cs_write_mbufs(sc, m);
 
-#if NBPFILTER > 0
+#if NBPF > 0
 			if (ifp->if_bpf) {
 				bpf_mtap(ifp, m);
 			}

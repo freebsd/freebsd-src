@@ -37,10 +37,10 @@
  *
  *      @(#)bpf.c	8.2 (Berkeley) 3/28/94
  *
- * $Id: bpf.c,v 1.50 1999/05/30 16:53:04 phk Exp $
+ * $Id: bpf.c,v 1.51 1999/05/31 11:28:08 phk Exp $
  */
 
-#include "bpfilter.h"
+#include "bpf.h"
 
 #ifndef __GNUC__
 #define inline
@@ -84,7 +84,7 @@
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
 
-#if NBPFILTER > 0
+#if NBPF > 0
 
 /*
  * Older BSDs don't have kernel malloc.
@@ -114,7 +114,7 @@ SYSCTL_INT(_debug, OID_AUTO, bpf_bufsize, CTLFLAG_RW,
  *  bpf_dtab holds the descriptors, indexed by minor device #
  */
 static struct bpf_if	*bpf_iflist;
-static struct bpf_d	bpf_dtab[NBPFILTER];
+static struct bpf_d	bpf_dtab[NBPF];
 static int		bpf_dtab_init;
 
 static int	bpf_allocbufs __P((struct bpf_d *));
@@ -366,7 +366,7 @@ bpfopen(dev, flags, fmt, p)
 	if (p->p_prison)
 		return (EPERM);
 
-	if (minor(dev) >= NBPFILTER)
+	if (minor(dev) >= NBPF)
 		return (ENXIO);
 	/*
 	 * Each minor can be opened by only one process.  If the requested
@@ -1286,7 +1286,7 @@ bpfattach(ifp, dlt, hdrlen)
 	 * Mark all the descriptors free if this hasn't been done.
 	 */
 	if (!bpf_dtab_init) {
-		for (i = 0; i < NBPFILTER; ++i)
+		for (i = 0; i < NBPF; ++i)
 			D_MARKFREE(&bpf_dtab[i]);
 		bpf_dtab_init = 1;
 	}
@@ -1296,7 +1296,7 @@ bpfattach(ifp, dlt, hdrlen)
 }
 
 #ifdef DEVFS
-static	void *bpf_devfs_token[NBPFILTER];
+static	void *bpf_devfs_token[NBPF];
 #endif
 
 static	int bpf_devsw_installed;
@@ -1315,7 +1315,7 @@ bpf_drvinit(unused)
 		bpf_devsw_installed = 1;
 #ifdef DEVFS
 
-		for ( i = 0 ; i < NBPFILTER ; i++ ) {
+		for ( i = 0 ; i < NBPF ; i++ ) {
 			bpf_devfs_token[i] =
 				devfs_add_devswf(&bpf_cdevsw, i, DV_CHR, 0, 0, 
 						 0600, "bpf%d", i);
@@ -1326,7 +1326,7 @@ bpf_drvinit(unused)
 
 SYSINIT(bpfdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,bpf_drvinit,NULL)
 
-#else /* !BPFILTER */
+#else /* !BPF */
 /*
  * NOP stubs to allow bpf-using drivers to load and function.
  *

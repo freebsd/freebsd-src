@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ex.c,v 1.14 1999/01/28 01:59:53 dillon Exp $
+ *	$Id: if_ex.c,v 1.15 1999/05/02 22:01:24 peter Exp $
  */
 
 /*
@@ -37,7 +37,7 @@
 
 #include "ex.h"
 #if NEX > 0
-#include "bpfilter.h"
+#include "bpf.h"
 #include "opt_inet.h"
 #include "opt_ipx.h"
 
@@ -65,7 +65,7 @@
 #include <netns/ns_if.h>
 #endif
 
-#if NBPFILTER > 0
+#if NBPF > 0
 #include <net/bpf.h>
 #endif
 
@@ -294,7 +294,7 @@ int ex_attach(struct isa_device *dev)
 	/*
 	 * If BPF is in the kernel, call the attach for it
 	 */
-#if NBPFILTER > 0
+#if NBPF > 0
 	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
 #endif
 	DODEBUG(Start_End, printf("ex_attach%d: finish\n", unit););
@@ -520,7 +520,7 @@ void ex_start(struct ifnet *ifp)
       sc->tx_last = dest;
       sc->tx_tail = next;
       
-#if NBPFILTER > 0
+#if NBPF > 0
       if (ifp->if_bpf != NULL)
 	bpf_mtap(ifp, opkt);
 #endif
@@ -727,7 +727,7 @@ void ex_rx_intr(int unit)
 	  } /* QQQ */
 	  }
 #endif
-#if NBPFILTER > 0
+#if NBPF > 0
 	if (ifp->if_bpf != NULL) {
 		bpf_mtap(ifp, ipkt);
 

@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_rdp.c,v 1.2 1998/12/21 18:11:10 joerg Exp $
+ *	$Id: if_rdp.c,v 1.3 1999/01/12 00:36:31 eivind Exp $
  */
 
 /*
@@ -62,7 +62,7 @@
  */
 
 #include "rdp.h"
-#include "bpfilter.h"
+#include "bpf.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -89,7 +89,7 @@
 #include <netns/ns_if.h>
 #endif
 
-#if NBPFILTER > 0
+#if NBPF > 0
 #include <net/bpf.h>
 #endif
 
@@ -629,7 +629,7 @@ rdp_attach(struct isa_device *isa_dev)
 	/*
 	 * If BPF is in the kernel, call the attach for it
 	 */
-#if NBPFILTER > 0
+#if NBPF > 0
 	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
 #endif
 	return 1;
@@ -814,7 +814,7 @@ outloop:
 	/*
 	 * Tap off here if there is a bpf listener.
 	 */
-#if NBPFILTER > 0
+#if NBPF > 0
 	if (ifp->if_bpf) {
 		bpf_mtap(ifp, m);
 	}
@@ -862,7 +862,7 @@ rdp_ioctl(struct ifnet *ifp, IOCTL_CMD_T command, caddr_t data)
 			}
 		}
 
-#if NBPFILTER > 0
+#if NBPF > 0
 		/*
 		 * Promiscuous flag may have changed, propagage this
 		 * to the NIC.
@@ -1164,7 +1164,7 @@ rdp_get_packet(struct rdp_softc *sc, unsigned len)
 	outb(sc->baseaddr + lpt_control, Ctrl_SelData);
 	WrNib(sc, CMR1, CMR1_RDPAC);
 
-#if NBPFILTER > 0
+#if NBPF > 0
 
 	/*
 	 * Check if there's a BPF listener on this interface. If so, hand off

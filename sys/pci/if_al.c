@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_al.c,v 1.4 1999/05/26 22:56:22 wpaul Exp $
+ *	$Id: if_al.c,v 1.5 1999/07/02 04:17:12 peter Exp $
  */
 
 /*
@@ -49,7 +49,7 @@
  * has physical address and multicast address registers.
  */
 
-#include "bpfilter.h"
+#include "bpf.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -65,7 +65,7 @@
 #include <net/if_dl.h>
 #include <net/if_media.h>
 
-#if NBPFILTER > 0
+#if NBPF > 0
 #include <net/bpf.h>
 #endif
 
@@ -90,7 +90,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_al.c,v 1.4 1999/05/26 22:56:22 wpaul Exp $";
+	"$Id: if_al.c,v 1.5 1999/07/02 04:17:12 peter Exp $";
 #endif
 
 /*
@@ -1066,7 +1066,7 @@ al_attach(config_id, unit)
 	if_attach(ifp);
 	ether_ifattach(ifp);
 
-#if NBPFILTER > 0
+#if NBPF > 0
 	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
 #endif
 	at_shutdown(al_shutdown, sc, SHUTDOWN_POST_SYNC);
@@ -1300,7 +1300,7 @@ static void al_rxeof(sc)
 
 		ifp->if_ipackets++;
 		eh = mtod(m, struct ether_header *);
-#if NBPFILTER > 0
+#if NBPF > 0
 		/*
 		 * Handle BPF listeners. Let the BPF user see the packet, but
 		 * don't pass it up to the ether_input() layer unless it's
@@ -1625,7 +1625,7 @@ static void al_start(ifp)
 		/* Pack the data into the descriptor. */
 		al_encap(sc, cur_tx, m_head);
 
-#if NBPFILTER > 0
+#if NBPF > 0
 		/*
 		 * If there's a BPF listener, bounce a copy of this frame
 		 * to him.

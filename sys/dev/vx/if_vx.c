@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_vx.c,v 1.19 1999/01/12 02:09:31 eivind Exp $
+ * $Id: if_vx.c,v 1.20 1999/01/27 20:09:20 dillon Exp $
  *
  */
 
@@ -62,7 +62,7 @@
 #define NVX 4
 #endif
 
-#include "bpfilter.h"
+#include "bpf.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -76,7 +76,7 @@
 #include <net/ethernet.h>
 #include <net/if_arp.h>
 
-#if NBPFILTER > 0
+#if NBPF > 0
 #include <net/bpf.h>
 #endif
 
@@ -216,7 +216,7 @@ vxattach(sc)
     if_attach(ifp);
     ether_ifattach(ifp);
 
-#if NBPFILTER > 0
+#if NBPF > 0
     bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
 #endif
 
@@ -496,7 +496,7 @@ startagain:
     outw(BASE + VX_COMMAND, SET_TX_START_THRESH |
 	((len / 4 + sc->tx_start_thresh) >> 2));
 
-#if NBPFILTER > 0
+#if NBPF > 0
     if (sc->arpcom.ac_if.if_bpf) {
 	bpf_mtap(&sc->arpcom.ac_if, m0);
     }
@@ -745,7 +745,7 @@ again:
     /* We assume the header fit entirely in one mbuf. */
     eh = mtod(m, struct ether_header *);
 
-#if NBPFILTER > 0
+#if NBPF > 0
     /*
      * Check if there's a BPF listener on this interface.
      * If so, hand off the raw packet to BPF.

@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pdq_ifsubr.c,v 1.6 1998/01/08 23:40:28 eivind Exp $
+ * $Id: pdq_ifsubr.c,v 1.7 1998/02/20 13:11:45 bde Exp $
  *
  */
 
@@ -45,8 +45,8 @@
 #include <net/if.h>
 #include <net/if_dl.h>
 
-#include "bpfilter.h"
-#if NBPFILTER > 0
+#include "bpf.h"
+#if NBPF > 0
 #include <net/bpf.h>
 #endif
 
@@ -186,7 +186,7 @@ pdq_os_receive_pdu(
     struct fddi_header *fh = mtod(m, struct fddi_header *);
 
     sc->sc_if.if_ipackets++;
-#if NBPFILTER > 0
+#if NBPF > 0
     if (sc->sc_bpf != NULL)
 	PDQ_BPF_MTAP(sc, m);
     if ((fh->fddi_fc & (FDDIFC_L|FDDIFC_F)) != FDDIFC_LLC_ASYNC) {
@@ -222,7 +222,7 @@ pdq_os_transmit_done(
     struct mbuf *m)
 {
     pdq_softc_t *sc = (pdq_softc_t *) pdq->pdq_os_ctx;
-#if NBPFILTER > 0
+#if NBPF > 0
     if (sc->sc_bpf != NULL)
 	PDQ_BPF_MTAP(sc, m);
 #endif
@@ -384,7 +384,7 @@ pdq_ifattach(
   
     if_attach(ifp);
     fddi_ifattach(ifp);
-#if NBPFILTER > 0
+#if NBPF > 0
     PDQ_BPFATTACH(sc, DLT_FDDI, sizeof(struct fddi_header));
 #endif
 }

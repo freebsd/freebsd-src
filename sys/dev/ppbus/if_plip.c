@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  *
  *	From Id: lpt.c,v 1.55.2.1 1996/11/12 09:08:38 phk Exp
- *	$Id: if_plip.c,v 1.11 1999/02/14 11:59:59 nsouch Exp $
+ *	$Id: if_plip.c,v 1.12 1999/02/14 16:19:16 nsouch Exp $
  */
 
 /*
@@ -93,8 +93,8 @@
 #include <netinet/in.h>
 #include <netinet/in_var.h>
 
-#include "bpfilter.h"
-#if NBPFILTER > 0
+#include "bpf.h"
+#if NBPF > 0
 #include <net/bpf.h>
 #endif
 
@@ -256,7 +256,7 @@ lpattach (struct ppb_device *dev)
 	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
 	if_attach(ifp);
 
-#if NBPFILTER > 0
+#if NBPF > 0
 	bpfattach(ifp, DLT_NULL, sizeof(u_int32_t));
 #endif
 
@@ -446,7 +446,7 @@ clpinbyte (int spin, struct ppb_device *dev)
 	return (ctrecvl[cl] | ctrecvh[c]);
 }
 
-#if NBPFILTER > 0
+#if NBPF > 0
 static void
 lptap(struct ifnet *ifp, struct mbuf *m)
 {
@@ -525,7 +525,7 @@ lpintr (int unit)
 	    sc->sc_if.if_ibytes += len;
 	    top = m_devget(sc->sc_ifbuf + CLPIPHDRLEN, len, 0, &sc->sc_if, 0);
 	    if (top) {
-#if NBPFILTER > 0
+#if NBPF > 0
 		if (sc->sc_if.if_bpf)
 		    lptap(&sc->sc_if, top);
 #endif
@@ -578,7 +578,7 @@ lpintr (int unit)
 	    sc->sc_if.if_ibytes += len;
 	    top = m_devget(sc->sc_ifbuf + LPIPHDRLEN, len, 0, &sc->sc_if, 0);
 	    if (top) {
-#if NBPFILTER > 0
+#if NBPF > 0
 		if (sc->sc_if.if_bpf)
 		    lptap(&sc->sc_if, top);
 #endif
@@ -715,7 +715,7 @@ lpoutput (struct ifnet *ifp, struct mbuf *m,
 	} else {
 		ifp->if_opackets++;
 		ifp->if_obytes += m->m_pkthdr.len;
-#if NBPFILTER > 0
+#if NBPF > 0
 		if (ifp->if_bpf)
 		    lptap(ifp, m);
 #endif
@@ -762,7 +762,7 @@ lpoutput (struct ifnet *ifp, struct mbuf *m,
     } else {
 	ifp->if_opackets++;
 	ifp->if_obytes += m->m_pkthdr.len;
-#if NBPFILTER > 0
+#if NBPF > 0
 	if (ifp->if_bpf)
 	    lptap(ifp, m);
 #endif

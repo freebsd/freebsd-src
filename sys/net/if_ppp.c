@@ -69,7 +69,7 @@
  * Paul Mackerras (paulus@cs.anu.edu.au).
  */
 
-/* $Id: if_ppp.c,v 1.59 1998/06/20 16:28:01 peter Exp $ */
+/* $Id: if_ppp.c,v 1.60 1999/04/27 11:17:00 phk Exp $ */
 /* from if_sl.c,v 1.11 84/10/04 12:54:47 rick Exp */
 /* from NetBSD: if_ppp.c,v 1.15.2.2 1994/07/28 05:17:58 cgd Exp */
 
@@ -112,12 +112,12 @@
 #include <netipx/ipx_if.h>
 #endif
 
-#include "bpfilter.h"
-#if NBPFILTER > 0
+#include "bpf.h"
+#if NBPF > 0
 #include <net/bpf.h>
 #endif
 
-#if defined(PPP_FILTER) && NBPFILTER == 0
+#if defined(PPP_FILTER) && NBPF == 0
 #error "PPP_FILTER requires bpf"
 #endif
 
@@ -221,7 +221,7 @@ pppattach(dummy)
 	sc->sc_fastq.ifq_maxlen = IFQ_MAXLEN;
 	sc->sc_rawq.ifq_maxlen = IFQ_MAXLEN;
 	if_attach(&sc->sc_if);
-#if NBPFILTER > 0
+#if NBPF > 0
 	bpfattach(&sc->sc_if, DLT_PPP, PPP_HDRLEN);
 #endif
     }
@@ -828,7 +828,7 @@ pppoutput(ifp, m0, dst, rtp)
 #endif /* PPP_FILTER */
     }
 
-#if NBPFILTER > 0
+#if NBPF > 0
     /*
      * See if bpf wants to look at the packet.
      */
@@ -1463,7 +1463,7 @@ ppp_inproc(sc, m)
 #endif /* PPP_FILTER */
     }
 
-#if NBPFILTER > 0
+#if NBPF > 0
     /* See if bpf wants to look at the packet. */
     if (sc->sc_if.if_bpf)
 	bpf_mtap(&sc->sc_if, m);

@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_ax.c,v 1.9 1999/05/09 17:06:48 peter Exp $
+ *	$Id: if_ax.c,v 1.10 1999/07/02 04:17:12 peter Exp $
  */
 
 /*
@@ -49,7 +49,7 @@
  * the registers.
  */
 
-#include "bpfilter.h"
+#include "bpf.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -65,7 +65,7 @@
 #include <net/if_dl.h>
 #include <net/if_media.h>
 
-#if NBPFILTER > 0
+#if NBPF > 0
 #include <net/bpf.h>
 #endif
 
@@ -87,7 +87,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_ax.c,v 1.9 1999/05/09 17:06:48 peter Exp $";
+	"$Id: if_ax.c,v 1.10 1999/07/02 04:17:12 peter Exp $";
 #endif
 
 /*
@@ -1308,7 +1308,7 @@ ax_attach(config_id, unit)
 	if_attach(ifp);
 	ether_ifattach(ifp);
 
-#if NBPFILTER > 0
+#if NBPF > 0
 	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
 #endif
 	at_shutdown(ax_shutdown, sc, SHUTDOWN_POST_SYNC);
@@ -1542,7 +1542,7 @@ static void ax_rxeof(sc)
 
 		ifp->if_ipackets++;
 		eh = mtod(m, struct ether_header *);
-#if NBPFILTER > 0
+#if NBPF > 0
 		/*
 		 * Handle BPF listeners. Let the BPF user see the packet, but
 		 * don't pass it up to the ether_input() layer unless it's
@@ -1866,7 +1866,7 @@ static void ax_start(ifp)
 		if (cur_tx != start_tx)
 			AX_TXOWN(cur_tx) = AX_TXSTAT_OWN;
 
-#if NBPFILTER > 0
+#if NBPF > 0
 		/*
 		 * If there's a BPF listener, bounce a copy of this frame
 		 * to him.

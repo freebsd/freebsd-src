@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_ar.c,v 1.25 1999/03/30 13:28:22 phk Exp $
+ * $Id: if_ar.c,v 1.26 1999/05/06 18:58:04 peter Exp $
  */
 
 /*
@@ -49,7 +49,7 @@
  */
 
 #include "ar.h"
-#include "bpfilter.h"
+#include "bpf.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -61,7 +61,7 @@
 #include <net/if.h>
 #include <net/if_sppp.h>
 
-#if NBPFILTER > 0
+#if NBPF > 0
 #include <net/bpf.h>
 #endif
 
@@ -357,7 +357,7 @@ arattach(struct isa_device *id)
 		sppp_attach((struct ifnet *)&sc->ifsppp);
 		if_attach(ifp);
 
-#if NBPFILTER > 0
+#if NBPF > 0
 		bpfattach(ifp, DLT_PPP, PPP_HEADER_LEN);
 #endif
 	}
@@ -537,7 +537,7 @@ top_arstart:
 		txdata += AR_BUF_SIZ;
 		i++;
 
-#if NBPFILTER > 0
+#if NBPF > 0
 		if(ifp->if_bpf)
 			bpf_mtap(ifp, mtx);
 #endif
@@ -1299,7 +1299,7 @@ ar_get_packets(struct ar_softc *sc)
 				}
 			}
 			ar_copy_rxbuf(m, sc, len);
-#if NBPFILTER > 0
+#if NBPF > 0
 			if(sc->ifsppp.pp_if.if_bpf)
 				bpf_mtap(&sc->ifsppp.pp_if, m);
 #endif

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)if_loop.c	8.1 (Berkeley) 6/10/93
- *	$Id: if_disc.c,v 1.20 1998/06/07 17:12:03 dfr Exp $
+ *	$Id: if_disc.c,v 1.21 1998/12/14 01:59:16 eivind Exp $
  */
 
 /*
@@ -51,7 +51,7 @@
 #include <net/route.h>
 #include <net/bpf.h>
 
-#include "bpfilter.h"
+#include "bpf.h"
 #include "opt_inet.h"
 
 #ifdef TINY_DSMTU
@@ -85,7 +85,7 @@ discattach(dummy)
 	ifp->if_hdrlen = 0;
 	ifp->if_addrlen = 0;
 	if_attach(ifp);
-#if NBPFILTER > 0
+#if NBPF > 0
 	bpfattach(ifp, DLT_NULL, sizeof(u_int));
 #endif
 }
@@ -99,7 +99,7 @@ discoutput(ifp, m, dst, rt)
 {
 	if ((m->m_flags & M_PKTHDR) == 0)
 		panic("discoutput no HDR");
-#if NBPFILTER > 0
+#if NBPF > 0
 	/* BPF write needs to be handled specially */
 	if (dst->sa_family == AF_UNSPEC) {
 		dst->sa_family = *(mtod(m, int *));
