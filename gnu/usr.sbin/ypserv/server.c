@@ -24,7 +24,7 @@
 ** Ported to FreeBSD and hacked all to pieces
 ** by Bill Paul <wpaul@ctr.columbia.edu>
 **
-**	$Id: server.c,v 1.6 1995/05/30 05:05:35 rgrimes Exp $
+**	$Id: server.c,v 1.7 1995/07/02 18:48:21 wpaul Exp $
 **
 */
 
@@ -86,7 +86,8 @@ extern int errno;
 
 int debug_flag = 0;
 int dns_flag   = 0;
-
+int children   = 0;
+int forked     = 0;
 
 void verr(fmt, ap)
     const char *fmt;
@@ -310,6 +311,7 @@ static DB *open_database(const char *domain,
 
 #define F_ALL   0x01
 #define F_NEXT  0x02
+#define F_YPALL 0x08
 
 /*
 ** Get a record from a DB database.
@@ -338,10 +340,13 @@ int read_database(DB *dbp,
 	/*
 	** This crap would be unnecessary if R_CURSOR actually worked.
 	*/
-	    (dbp->seq)(dbp,&ckey,&dummyval,R_FIRST);
-	    while(strncmp((char *)ikey->data,ckey.data,(int)ikey->size) ||
-			ikey->size != ckey.size)
-		(dbp->seq)(dbp,&ckey,&dummyval,R_NEXT);
+	    if (flags < F_YPALL)
+	    {
+		(dbp->seq)(dbp,&ckey,&dummyval,R_FIRST);
+		while(strncmp((char *)ikey->data,ckey.data,(int)ikey->size) ||
+		    ikey->size != ckey.size)
+		    (dbp->seq)(dbp,&ckey,&dummyval,R_NEXT);
+	    }
 	    if ((dbp->seq)(dbp,&ckey,&dummyval,R_NEXT))
 		ckey.data = NULL;
 		free(dummyval.data);
@@ -523,12 +528,20 @@ ypresp_val *ypproc_match_2_svc(ypreq_key *key,
     ** Do the jive thing if we didn't find the host in the YP map
     ** and we have enabled the magic DNS lookup stuff.
     **
-    ** XXX Perhaps this should be done in a sub-process for performance
-    **     reasons. Later.
+    ** DNS lookups are handled in a subprocess so that the server
+    ** doesn't block while waiting for requests to complete.
     */
     if (result.stat != YP_TRUE && strstr(key->map, "hosts") && dns_flag)
     {
 	char *cp = NULL;
+
+	if (children < MAX_CHILDREN && fork())
+	{
+	    children++;
+	    return NULL;
+	}
+	else
+	    forked++;
 
 	key->key.keydat_val[key->key.keydat_len] = '\0';
 
@@ -788,13 +801,14 @@ static void print_ypmap_parms(const struct ypmap_parms *pp)
 
 
 /*
-** Clean up after ypxfr child processes signal their termination.
+** Clean up after child processes signal their termination.
 */
 void reapchild(sig)
 int sig;
 {
     int st;
 
+    children--;
     wait3(&st, WNOHANG, NULL);
 }
 
@@ -865,7 +879,6 @@ ypresp_xfr *ypproc_xfr_2_svc(ypreq_xfr *xfr,
 	    result.xfrstat = YPXFR_XFRERR;
 	default:
 	{
-	    signal(SIGCHLD, reapchild);
 	    result.xfrstat = YPXFR_SUCC;
 	    break;
 	}
@@ -926,7 +939,7 @@ static int ypall_encode(ypresp_key_val *val,
     dkey.data = val->key.keydat_val;
     dkey.size = val->key.keydat_len;
 
-    val->stat = read_database((DB *) data, &dkey, &okey, &dval, F_NEXT);
+    val->stat = read_database((DB *) data, &dkey, &okey, &dval, F_NEXT | F_YPALL);
 
     if (val->stat == YP_TRUE)
     {
@@ -969,6 +982,14 @@ ypresp_all *ypproc_all_2_svc(ypreq_nokey *nokey,
 
 	return NULL;
     }
+
+    if (children < MAX_CHILDREN && fork())
+    {
+	children++;
+	return NULL;
+    }
+    else
+	forked++;
 
     __xdr_ypall_cb.u.encode = NULL;
     __xdr_ypall_cb.u.close  = NULL;
