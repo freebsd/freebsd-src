@@ -168,7 +168,7 @@ expr(const char *expbuf)
  * query : lor | lor '?' query ':' query
  */
 static int
-query()
+query(void)
 {
 	int result, true_val, false_val;
 
@@ -190,7 +190,7 @@ query()
  * lor : land { '||' land }
  */
 static int
-lor()
+lor(void)
 {
 	int c, vl, vr;
 
@@ -210,7 +210,7 @@ lor()
  * land : not { '&&' not }
  */
 static int
-land()
+land(void)
 {
 	int c, vl, vr;
 
@@ -230,7 +230,7 @@ land()
  * not : eqrel | '!' not
  */
 static int
-not()
+not(void)
 {
 	int val, c;
 
@@ -250,7 +250,7 @@ not()
  * eqrel : shift { eqrelop shift }
  */
 static int
-eqrel()
+eqrel(void)
 {
 	int vl, vr, op;
 
@@ -288,7 +288,7 @@ eqrel()
  * shift : primary { shop primary }
  */
 static int
-shift()
+shift(void)
 {
 	int vl, vr, c;
 
@@ -312,7 +312,7 @@ shift()
  * primary : term { addop term }
  */
 static int
-primary()
+primary(void)
 {
 	int c, vl, vr;
 
@@ -334,7 +334,7 @@ primary()
  * <term> := <exp> { <mulop> <exp> }
  */
 static int
-term()
+term(void)
 {
 	int c, vl, vr;
 
@@ -368,7 +368,7 @@ term()
  * <term> := <unary> { <expop> <unary> }
  */
 static int
-exp()
+exp(void)
 {
 	int c, vl, vr, n;
 
@@ -397,7 +397,7 @@ exp()
  * unary : factor | unop unary
  */
 static int
-unary()
+unary(void)
 {
 	int val, c;
 
@@ -422,7 +422,7 @@ unary()
  * factor : constant | '(' query ')'
  */
 static int
-factor()
+factor(void)
 {
 	int val;
 
@@ -442,7 +442,7 @@ factor()
  * Note: constant() handles multi-byte constants
  */
 static int
-constant()
+constant(void)
 {
 	int i;
 	int value;
@@ -503,7 +503,7 @@ constant()
  * num : digit | num digit
  */
 static int
-num()
+num(void)
 {
 	int rval, c, base;
 	int ndig;
@@ -561,7 +561,7 @@ bad_digit:
  * eqrel : '=' | '==' | '!=' | '<' | '>' | '<=' | '>='
  */
 static int
-geteqrel()
+geteqrel(void)
 {
 	int c1, c2;
 
@@ -605,7 +605,7 @@ geteqrel()
  * Skip over any white space and return terminating char.
  */
 static int
-skipws()
+skipws(void)
 {
 	int c;
 

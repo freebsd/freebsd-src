@@ -324,7 +324,7 @@ do_look_ahead(int t, const char *token)
  * macro - the work horse..
  */
 static void
-macro()
+macro(void)
 {
 	char token[MAXTOK+1];
 	int t, l;
@@ -566,7 +566,7 @@ inspect(int c, char *tp)
  * within keywrds block.
  */
 static void
-initkwds()
+initkwds(void)
 {
 	size_t i;
 	unsigned int h;
@@ -635,7 +635,7 @@ dump_stack(struct position *t, int lev)
 
 
 static void 
-enlarge_stack()
+enlarge_stack(void)
 {
 	STACKMAX *= 2;
 	mstack = realloc(mstack, sizeof(stae) * STACKMAX);
