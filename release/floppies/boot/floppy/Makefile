@@ -1,5 +1,5 @@
 
-#	$Id: Makefile,v 1.6 1997/07/16 12:24:23 julian Exp $
+#	$Id: Makefile,v 1.6 1997/07/22 02:51:00 julian Exp $
 # If this is a RELEASE, then set
 
 # Things which without too much trouble can be considered variables
@@ -13,8 +13,8 @@ SCRIPTDIR=${.CURDIR}/../../bin
 MNT=			/mnt
 
 # other floppy parameters.
-FSSIZE=			1200
-FSLABEL=		fd1200
+FSSIZE=			1440
+FSLABEL=		fd1440
 FSINODE=		4300
 
 NEWFSARGS=		-c 80 -b 4096 -f 512 -i 4000 -m 0 -t 0 -u 0 \
