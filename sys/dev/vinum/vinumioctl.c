@@ -301,6 +301,14 @@ vinumioctl(dev_t dev,
 	    *(int *) data = daemon_options;
 	    return 0;
 
+	case VINUM_CHECKPARITY:				    /* check RAID-5 parity */
+	    parityops((struct vinum_ioctl_msg *) data, checkparity);
+	    return 0;
+
+	case VINUM_REBUILDPARITY:			    /* rebuild RAID-5 parity */
+	    parityops((struct vinum_ioctl_msg *) data, rebuildparity);
+	    return 0;
+
 	default:
 	    /* FALLTHROUGH */
 	}
