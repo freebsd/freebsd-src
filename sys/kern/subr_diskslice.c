@@ -125,12 +125,6 @@ clone_label(lp)
 }
 
 dev_t
-dkmodpart(dev_t dev, int part)
-{
-	return (makedev(major(dev), (minor(dev) & ~7) | part));
-}
-
-dev_t
 dkmodslice(dev_t dev, int slice)
 {
 	return (makedev(major(dev), (minor(dev) & ~0x1f0000) | (slice << 16)));
