@@ -1,4 +1,4 @@
-<!-- $Id$ -->
+<!-- $Id: development.sgml,v 1.7 1996/11/05 11:44:48 asami Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>The FreeBSD development model<label id="development"></heading>
@@ -10,14 +10,12 @@ FreeBSD being literally built from the contributions of hundreds of
 people around the world, as can be seen from our <ref id="contrib"
 name="list of contributors">. We are constantly on the lookout for
 new developers and ideas, and those interested in becoming more
-closely involved with the project need simply contact us at our
-<htmlurl url="mailto:hackers@freebsd.org" name="hackers@freebsd.org">
-mailing list.  Those who prefer to work more independently are also
+closely involved with the project need simply contact us at the
+&a.hackers;.  Those who prefer to work more independently are also
 accommodated, and they are free to use our FTP facilities at <htmlurl
 url="ftp://ftp.freebsd.org/pub/FreeBSD/incoming"
 name="ftp.freebsd.org"> to distribute their own patches or work-in-progress
-sources.  Our <htmlurl url="mailto:announce@freebsd.org"
-name="announcements mailing list"> is also available to those wishing
+sources.  The &a.announce; is also available to those wishing
 to make other FreeBSD users aware of major areas of work.
 
 Useful things to know about the FreeBSD project and its development process,
@@ -82,8 +80,7 @@ FreeBSD against their better judgement! <tt>;)</tt></item>
 <p>Last, but definitely not least, the largest group of developers are
 the users themselves who provide feedback and bug-fixes to us on an
 almost constant basis.  The primary way of keeping in touch with FreeBSD's
-more non-centralized development is to subscribe to the
-<htmlurl url="hackers@freebsd.org" name="-hackers"> mailing list
+more non-centralized development is to subscribe to the &a.hackers;
 (see <ref id="eresources:mail" name="mailing list info">) where such
 things are discussed.
 

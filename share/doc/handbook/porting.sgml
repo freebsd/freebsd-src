@@ -1,4 +1,4 @@
-<!-- $Id: porting.sgml,v 1.31 1996/10/05 18:36:19 wosch Exp $ -->
+<!-- $Id: porting.sgml,v 1.34 1996/11/05 09:42:59 max Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect1><heading>Porting an existing piece of free software<label id="porting"></heading>
@@ -157,7 +157,7 @@ The pattern is the year followed by the month.
  # Date created:	5 December 1994
  # Whom:		asami
  #
- # $Id: porting.sgml,v 1.31 1996/10/05 18:36:19 wosch Exp $
+ # $Id: porting.sgml,v 1.34 1996/11/05 09:42:59 max Exp $
  #
  
  DISTNAME=	oneko-1.1b
@@ -417,7 +417,7 @@ ftp://freefall.FreeBSD.ORG/pub/FreeBSD/LOCAL_PORTS/
 	  site other than where you got the main source tarball,
 	  we have a way to handle these situations (see the
 	  description of <ref id="porting:patchfiles"
-	  name="<tt>&dollar;{PATCHFILES}</tt>"> below).
+	  name="&dollar;{PATCHFILES}"> below).
 
       <sect3>
 	<heading>Modifying the port</heading>
@@ -623,6 +623,10 @@ work/foozolix-1.0/
 	<heading>MAINTAINER</heading>
 
 	<p>Set your mail-address here.  Please. <tt>:)</tt>
+
+	<p>For detailed description of the responsibility of maintainers,
+	  refer to <ref id="policies:maintainer"
+	  name="MAINTAINER on Makefiles"> section.
 
       <sect3>
 	<heading>Dependencies</heading>
@@ -922,9 +926,9 @@ FETCH_DEPENDS=   ncftp2:${PORTSDIR}/net/ncftp2
 
       <sect3>
 	<heading>INSTALL_* macros</heading>
-	<p>Do use the macros provided in bsd.port.mk to ensure correct 
-	  modes and ownership of files in your own *-install targets.
-	  They are:
+	<p>Do use the macros provided in <tt>bsd.port.mk</tt> to
+	  ensure correct modes and ownership of files in your own
+	  *-install targets.  They are:
 
 	<itemize>
 	  <item><tt>${INSTALL_PROGRAM}</tt> is a command to install
@@ -1145,7 +1149,7 @@ lib/libtcl.so.7.3
   person who wrote this Makefile]
  # Whom:			Satoshi Asami <asami@FreeBSD.ORG>
  #
- # $Id: porting.sgml,v 1.31 1996/10/05 18:36:19 wosch Exp $
+ # $Id: porting.sgml,v 1.34 1996/11/05 09:42:59 max Exp $
  [ ^^^^ do not worry about this, I know it says "porting.sgml"...it
   will be automatically filled in by CVS when it is committed to our
   repository]
