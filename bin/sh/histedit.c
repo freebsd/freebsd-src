@@ -183,6 +183,7 @@ histcmd(int argc, char **argv)
 	struct jmploc *volatile savehandler;
 	char editfile[PATH_MAX];
 	FILE *efp;
+	int oldhistnum;
 #ifdef __GNUC__
 	/* Avoid longjmp clobbering */
 	(void) &editor;
@@ -361,7 +362,15 @@ histcmd(int argc, char **argv)
 					 *  XXX what about recursive and
 					 *  relative histnums.
 					 */
+					oldhistnum = he.num;
 					history(hist, &he, H_ENTER, s);
+					/*
+					 * XXX H_ENTER moves the internal
+					 * cursor, set it back to the current
+					 * entry.
+					 */
+					retval = history(hist, &he,
+					    H_NEXT_EVENT, oldhistnum);
 				}
 			} else
 				fputs(s, efp);
