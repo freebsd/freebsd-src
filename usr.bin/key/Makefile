@@ -5,6 +5,8 @@ PROG=	key
 SRCS=	skey.c
 MAN1=   key.1
 
+CFLAGS+= -D_SKEY_INTERNAL
+
 DPADD=	${LIBSKEY} ${LIBMD}
 LDADD=	-lskey -lmd
 
