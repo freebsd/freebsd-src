@@ -237,7 +237,7 @@
       <title>Hardware Support</title>
 
       <para arch="i386,amd64">The acpi_snc driver,
-	which supports Sony Notebook Controller on various
+	which supports the Sony Notebook Controller on various
 	Sony laptops has been added.</para>
 
       <para arch="sparc64">The &man.auxio.4; driver has been to drive
@@ -549,8 +549,8 @@
       variants. &merged;</para>
 
     <para>The <filename>libxpg4</filename> library has been removed
-      because all of the functionality was merged into
-      <filename>libc</filename> for a long time.
+      because all of its functionality was long ago merged into
+      <filename>libc</filename>.
       All binaries linked with <filename>libxpg4</filename>
       must be recompiled or use &man.libmap.conf.5;.
       Note that the &os; base system has no such binaries.</para>
@@ -573,7 +573,7 @@
       has been added. &merged;</para>
 
     <para>A separate directory has been added for &man.named.8;
-      dynamic zones which is owned by the bind user
+      dynamic zones which is owned by the <username>bind</username> user
       (for creation of the zone journal file).
       For more detail, see an example dynamic zone in the sample
       &man.named.conf.5;.  &merged;</para>
@@ -646,9 +646,9 @@
       interface has been removed.</para>
 
     <para>The &man.strftime.3; function now supports some GNU extensions
-      such as <literal>-</literal>(no padding),
-      <literal>_</literal>(use space as padding),
-      and <literal>0</literal>(zero padding).</para>
+      such as <literal>-</literal> (no padding),
+      <literal>_</literal> (use space as padding),
+      and <literal>0</literal> (zero padding).</para>
 
     <para>The &man.syslog.3; function is now thread-safe. &merged;</para>
 
@@ -713,7 +713,7 @@ ifconfig_net0="inet 10.0.0.1/16"</programlisting>
 moused_ums0_flags="-z 4"
 moused_ums0_port="/dev/ums0"</programlisting>
 
-      <para>&man.rc.conf.5; now supports <varname>tmpmfs_flags</varname>
+      <para>&man.rc.conf.5; now supports the <varname>tmpmfs_flags</varname>
 	and <varname>varmfs_flags</varname> variables.
 	These can be used to pass extra options to the &man.mdmfs.8; utility,
 	to customize the finer details of the &man.md.4; file system creation,
