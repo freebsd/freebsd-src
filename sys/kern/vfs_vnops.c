@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_vnops.c	8.2 (Berkeley) 1/21/94
- * $Id: vfs_vnops.c,v 1.7 1995/01/09 16:04:55 davidg Exp $
+ * $Id: vfs_vnops.c,v 1.8 1995/02/14 06:31:13 phk Exp $
  */
 
 #include <sys/param.h>
@@ -217,7 +217,7 @@ vn_writechk(vp)
 	 * the vnode, try to free it up once.  If
 	 * we fail, we can't allow writing.
 	 */
-	if ((vp->v_flag & VTEXT) && !vnode_pager_uncache(vp))
+	if (vp->v_flag & VTEXT)
 		return (ETXTBSY);
 	return (0);
 }
