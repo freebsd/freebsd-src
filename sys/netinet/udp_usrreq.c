@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)udp_usrreq.c	8.6 (Berkeley) 5/23/95
- *	$Id: udp_usrreq.c,v 1.51 1999/05/03 23:57:32 billf Exp $
+ *	$Id: udp_usrreq.c,v 1.52 1999/06/19 18:43:33 green Exp $
  */
 
 #include <sys/param.h>
@@ -39,6 +39,7 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/proc.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
@@ -450,6 +451,37 @@ udp_pcblist SYSCTL_HANDLER_ARGS
 
 SYSCTL_PROC(_net_inet_udp, UDPCTL_PCBLIST, pcblist, CTLFLAG_RD, 0, 0,
 	    udp_pcblist, "S,xinpcb", "List of active UDP sockets");
+
+static int
+udp_getcred SYSCTL_HANDLER_ARGS
+{
+	struct sockaddr_in addrs[2];
+	struct inpcb *inp;
+	int error, s;
+
+	error = suser(req->p);
+	if (error)
+		return (error);
+	error = SYSCTL_IN(req, addrs, sizeof(addrs));
+	if (error)
+		return (error);
+	s = splnet();
+	inp = in_pcblookup_hash(&udbinfo, addrs[1].sin_addr, addrs[1].sin_port,
+	    addrs[0].sin_addr, addrs[0].sin_port, 1);
+	if (inp == NULL || inp->inp_socket == NULL ||
+	    inp->inp_socket->so_cred == NULL) {
+		error = ENOENT;
+		goto out;
+	}
+	error = SYSCTL_OUT(req, inp->inp_socket->so_cred->pc_ucred,
+	    sizeof(struct ucred));
+out:
+	splx(s);
+	return (error);
+}
+
+SYSCTL_PROC(_net_inet_udp, OID_AUTO, getcred, CTLTYPE_OPAQUE|CTLFLAG_RW,
+    0, 0, udp_getcred, "S,ucred", "Get the ucred of a UDP connection");
 
 static int
 udp_output(inp, m, addr, control, p)
