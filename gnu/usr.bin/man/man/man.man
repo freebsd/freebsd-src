@@ -19,7 +19,7 @@
 .Nd format and display the on-line manual pages
 .Sh SYNOPSIS
 .Nm man
-.Op Fl adfhktw
+.Op Fl adfhkotw
 .Op Fl m Ar system
 .Op Fl p Ar string
 .Op Fl M Ar path
@@ -83,6 +83,14 @@ Equivalent to
 .It Fl m Ar system
 Specify an alternate set of man pages to search based on the system
 name given.
+.It Fl o
+Use original, non-localized manpages. By default, man searches
+for localized subdirectories of each manpath component, subdirectory
+name is determined by the
+.Ev LANG
+or
+.Ev LC_CTYPE
+environment variables.
 .It Fl p Ar string
 Specify the sequence of preprocessors to run before nroff or troff.
 Not all installations will have a full set of preprocessors.
