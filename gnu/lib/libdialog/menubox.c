@@ -129,7 +129,7 @@ int dialog_menu(unsigned char *title, unsigned char *prompt, int height, int wid
 
   /* Print the menu */
   for (i = 0; i < max_choice; i++)
-    print_item(menu, items[i*2], items[i*2 + 1], i, i == choice);
+    print_item(menu, items[(scroll+i)*2], items[(scroll+i)*2 + 1], i, i == choice);
   wnoutrefresh(menu);
   print_arrows(dialog, scroll, menu_height, item_no, box_x, box_y, tag_x, cur_x, cur_y);
 
