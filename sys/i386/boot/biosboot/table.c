@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:36:43  rpd
- *	$Id: table.c,v 1.11 1996/07/05 19:55:05 julian Exp $
+ *	$Id: table.c,v 1.12 1996/07/12 05:25:47 bde Exp $
  */
 
 /*
@@ -137,6 +137,4 @@ struct pseudo_desc Idtr_real = { 0x400 - 1, 0x0, 0x0 };
  * fragmentation.
  */
 char *devs[] = { "wd", "dk", "fd", "wt", "sd", 0 };
-char dflname[] = "/kernel";
-char *name = dflname;
 unsigned long tw_chars = 0x5C2D2F7C;	/* "\-/|" */
