@@ -1093,6 +1093,7 @@ ext2_fhtovp(mp, fhp, vpp)
 		return (ESTALE);
 	}
 	*vpp = nvp;
+	vnode_create_vobject(*vpp, 0, curthread);
 	return (0);
 }
 
