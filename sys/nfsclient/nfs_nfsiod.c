@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_syscalls.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_syscalls.c,v 1.8 1995/10/29 15:33:11 phk Exp $
+ * $Id: nfs_syscalls.c,v 1.9 1995/11/14 05:16:37 bde Exp $
  */
 
 #include <sys/param.h>
@@ -73,10 +73,11 @@
 #include <nfs/nqnfs.h>
 #include <nfs/nfsrtt.h>
 
-void	nfsrv_zapsock	__P((struct nfssvc_sock *));
-
 /* Global defs. */
-extern int (*nfsrv3_procs[NFS_NPROCS])();
+extern int (*nfsrv3_procs[NFS_NPROCS]) __P((struct nfsrv_descript *nd,
+					    struct nfssvc_sock *slp,
+					    struct proc *procp,
+					    struct mbuf **mreqp));
 extern struct proc *nfs_iodwant[NFS_MAXASYNCDAEMON];
 extern int nfs_numasync;
 extern time_t nqnfsstarttime;
@@ -91,14 +92,20 @@ int nfsd_waiting = 0;
 static int notstarted = 1;
 static int modify_flag = 0;
 static struct nfsdrt nfsdrt;
-void nfsrv_cleancache(), nfsrv_rcv(), nfsrv_wakenfsd(), nfs_sndunlock();
-static void nfsd_rt();
-void nfsrv_slpderef();
+
+extern void	nfsrv_cleancache __P((void));
+extern void	nfsrv_rcv __P((struct socket *so, caddr_t arg, int waitflag));
+extern void	nfsrv_wakenfsd __P((struct nfssvc_sock *slp));
+extern void	nfsrv_zapsock __P((struct nfssvc_sock *slp));
 
 #define	TRUE	1
 #define	FALSE	0
 
 static int nfs_asyncdaemon[NFS_MAXASYNCDAEMON];
+
+static void	nfsd_rt __P((int sotype, struct nfsrv_descript *nd,
+			     int cacherep));
+
 /*
  * NFS server system calls
  * getfh() lives here too, but maybe should move to kern/vfs_syscalls.c
