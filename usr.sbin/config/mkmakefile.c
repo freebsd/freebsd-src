@@ -225,6 +225,13 @@ makefile(void)
 	ofp = fopen(path("hints.c.new"), "w");
 	if (ofp == NULL)
 		err(1, "%s", path("hints.c.new"));
+	if (hintmode == 0) {
+		snprintf(line, sizeof(line), "%s.hints", PREFIX);
+		ifp = fopen(line, "r");
+		if (ifp)
+			hintmode = 2;
+	}
+	fprintf(ofp, "int hintmode = %d;\n", hintmode);
 	fprintf(ofp, "char static_hints[] = {\n");
 	if (ifp) {
 		while (fgets(line, BUFSIZ, ifp) != 0) {
