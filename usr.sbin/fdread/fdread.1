@@ -158,7 +158,7 @@ option.
 .It Pa /dev/fd0
 Default device to read from.
 .El
-.Sh DIAGNOSTICS
+.Sh EXIT STATUS
 The
 .Nm
 utility sets the exit value according to
@@ -166,7 +166,7 @@ utility sets the exit value according to
 In recovery mode, the exit value will be set to
 .Dv EX_IOERR
 if any error occurred during processing (even in quiet mode).
-.Pp
+.Sh DIAGNOSTICS
 Unless running in quiet mode, upon encountering an error, the status
 of the floppy disc controller (FDC) will be printed out, both in
 hexadecimal form, followed by a textual description that translates

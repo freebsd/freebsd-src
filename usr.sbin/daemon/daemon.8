@@ -58,7 +58,7 @@ Note, that the file will be created shortly before the process is
 actually executed, and will remain after the process exits (although
 it will be removed if the execution fails).
 .El
-.Sh DIAGNOSTICS
+.Sh EXIT STATUS
 The
 .Nm
 utility exits 1 if an error is returned by the
@@ -67,6 +67,7 @@ library routine, 2 if the
 .Ar pidfile
 is requested, but cannot be opened,
 otherwise 0.
+.Sh DIAGNOSTICS
 If the command cannot be executed, an error message is displayed on
 standard error unless the
 .Fl f
