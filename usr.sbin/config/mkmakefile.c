@@ -394,8 +394,11 @@ next:
 	}
 nextparam:
 	next_word(fp, wd);
-	if (wd == 0)
+	if (wd == 0) {
+		if (isdup)
+			goto next;
 		goto doneparam;
+	}
 	if (eq(wd, "no-obj")) {
 		no_obj++;
 		goto nextparam;
