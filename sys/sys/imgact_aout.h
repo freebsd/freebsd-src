@@ -34,7 +34,7 @@
 #define	_IMGACT_AOUT_H_
 
 #define N_GETMAGIC(ex) \
-	( (ex).a_midmag & 0xffff )
+	( le32toh((ex).a_midmag) & 0xffff )
 #define N_GETMID(ex) \
 	( (N_GETMAGIC_NET(ex) == ZMAGIC) ? N_GETMID_NET(ex) : \
 	((ex).a_midmag >> 16) & 0x03ff )
@@ -42,8 +42,9 @@
 	( (N_GETMAGIC_NET(ex) == ZMAGIC) ? N_GETFLAG_NET(ex) : \
 	((ex).a_midmag >> 26) & 0x3f )
 #define N_SETMAGIC(ex,mag,mid,flag) \
-	( (ex).a_midmag = (((flag) & 0x3f) <<26) | (((mid) & 0x03ff) << 16) | \
-	((mag) & 0xffff) )
+	( (ex).a_midmag = htole32((((flag) & 0x3f) <<26) | \
+	(((mid) & 0x03ff) << 16) | \
+	((mag) & 0xffff)) )
 
 #define N_GETMAGIC_NET(ex) \
 	(ntohl((ex).a_midmag) & 0xffff)
@@ -58,7 +59,7 @@
 #define N_ALIGN(ex,x) \
 	(N_GETMAGIC(ex) == ZMAGIC || N_GETMAGIC(ex) == QMAGIC || \
 	 N_GETMAGIC_NET(ex) == ZMAGIC || N_GETMAGIC_NET(ex) == QMAGIC ? \
-	 ((x) + __LDPGSZ - 1) & ~(unsigned long)(__LDPGSZ - 1) : (x))
+	 ((x) + __LDPGSZ - 1) & ~(uint32_t)(__LDPGSZ - 1) : (x))
 
 /* Valid magic number check. */
 #define	N_BADMAG(ex) \
@@ -75,11 +76,12 @@
 #define N_TXTADDR(ex) \
 	((N_GETMAGIC(ex) == OMAGIC || N_GETMAGIC(ex) == NMAGIC || \
 	N_GETMAGIC(ex) == ZMAGIC) ? \
-	((ex).a_entry < (ex).a_text ? 0 : (ex).a_entry & ~__LDPGSZ) : __LDPGSZ)
+	(le32toh((ex).a_entry) < le32toh((ex).a_text) ? 0 : \
+	le32toh((ex).a_entry) & ~__LDPGSZ) : __LDPGSZ)
 
 /* Address of the bottom of the data segment. */
 #define N_DATADDR(ex) \
-	N_ALIGN(ex, N_TXTADDR(ex) + (ex).a_text)
+	N_ALIGN(ex, N_TXTADDR(ex) + le32toh((ex).a_text))
 
 /* Text segment offset. */
 #define	N_TXTOFF(ex) \
@@ -88,18 +90,18 @@
 
 /* Data segment offset. */
 #define	N_DATOFF(ex) \
-	N_ALIGN(ex, N_TXTOFF(ex) + (ex).a_text)
+	N_ALIGN(ex, N_TXTOFF(ex) + le32toh((ex).a_text))
 
 /* Relocation table offset. */
 #define N_RELOFF(ex) \
-	N_ALIGN(ex, N_DATOFF(ex) + (ex).a_data)
+	N_ALIGN(ex, N_DATOFF(ex) + le32toh((ex).a_data))
 
 /* Symbol table offset. */
 #define N_SYMOFF(ex) \
-	(N_RELOFF(ex) + (ex).a_trsize + (ex).a_drsize)
+	(N_RELOFF(ex) + le32toh((ex).a_trsize) + le32toh((ex).a_drsize))
 
 /* String table offset. */
-#define	N_STROFF(ex) 	(N_SYMOFF(ex) + (ex).a_syms)
+#define	N_STROFF(ex) 	(N_SYMOFF(ex) + le32toh((ex).a_syms))
 
 /*
  * Header prepended to each a.out file.
@@ -108,14 +110,14 @@
  */
 
 struct exec {
-     unsigned long	a_midmag;	/* flags<<26 | mid<<16 | magic */
-     unsigned long	a_text;		/* text segment size */
-     unsigned long	a_data;		/* initialized data size */
-     unsigned long	a_bss;		/* uninitialized data size */
-     unsigned long	a_syms;		/* symbol table size */
-     unsigned long	a_entry;	/* entry point */
-     unsigned long	a_trsize;	/* text relocation size */
-     unsigned long	a_drsize;	/* data relocation size */
+     uint32_t	a_midmag;	/* flags<<26 | mid<<16 | magic */
+     uint32_t	a_text;		/* text segment size */
+     uint32_t	a_data;		/* initialized data size */
+     uint32_t	a_bss;		/* uninitialized data size */
+     uint32_t	a_syms;		/* symbol table size */
+     uint32_t	a_entry;	/* entry point */
+     uint32_t	a_trsize;	/* text relocation size */
+     uint32_t	a_drsize;	/* data relocation size */
 };
 #define a_magic a_midmag /* XXX Hack to work with current kern_execve.c */
 

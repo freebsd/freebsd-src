@@ -30,9 +30,11 @@ static const char rcsid[] =
 #endif /* not lint */
 
 #include <sys/param.h>
+#include <sys/endian.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
 
+#include <a.out.h>
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -44,8 +46,6 @@ static const char rcsid[] =
 
 #include "btx.h"
 #include "elfh.h"
-#include "endian.h"
-#include "i386_a.out.h"
 
 #define BTX_PATH		"/sys/boot/i386/btx"
 
@@ -261,9 +261,9 @@ btxld(const char *iname)
 	    break;
 	case I_BTX:
 	    btxle = btx;
-	    btxle.btx_pgctl = HTOLE16(btxle.btx_pgctl);
-	    btxle.btx_textsz = HTOLE16(btxle.btx_textsz);
-	    btxle.btx_entry = HTOLE32(btxle.btx_entry);
+	    btxle.btx_pgctl = htole16(btxle.btx_pgctl);
+	    btxle.btx_textsz = htole16(btxle.btx_textsz);
+	    btxle.btx_entry = htole32(btxle.btx_entry);
 	    writex(fdo, &btxle, sizeof(btxle));
 	    copy(fdi[i], fdo, btx.btx_textsz - sizeof(btx),
 		 sizeof(btx));
@@ -305,9 +305,9 @@ getbtx(int fd, struct btx_hdr * btx)
 	btx->btx_magic[1] != BTX_MAG1 ||
 	btx->btx_magic[2] != BTX_MAG2)
 	errx(1, "%s: Not a BTX kernel", fname);
-    btx->btx_pgctl = LE16TOH(btx->btx_pgctl);
-    btx->btx_textsz = LE16TOH(btx->btx_textsz);
-    btx->btx_entry = LE32TOH(btx->btx_entry);
+    btx->btx_pgctl = le16toh(btx->btx_pgctl);
+    btx->btx_textsz = le16toh(btx->btx_textsz);
+    btx->btx_entry = le32toh(btx->btx_entry);
 }
 
 /*
@@ -317,7 +317,7 @@ static void
 gethdr(int fd, struct hdr *hdr)
 {
     struct stat sb;
-    const struct i386_exec *ex;
+    const struct exec *ex;
     const Elf32_Ehdr *ee;
     const Elf32_Phdr *ep;
     void *p;
@@ -336,20 +336,20 @@ gethdr(int fd, struct hdr *hdr)
 	switch (fmt) {
 	case F_AOUT:
 	    ex = p;
-	    if (hdr->size >= sizeof(struct i386_exec) && !I386_N_BADMAG(*ex)) {
+	    if (hdr->size >= sizeof(struct exec) && !N_BADMAG(*ex)) {
 		hdr->fmt = fmt;
-		x = I386_N_GETMAGIC(*ex);
+		x = N_GETMAGIC(*ex);
 		if (x == OMAGIC || x == NMAGIC) {
 		    if (x == NMAGIC)
 			Warn(fname, "Treating %s NMAGIC as OMAGIC",
 			     fmtlist[fmt]);
 		    hdr->flags |= IMPURE;
 		}
-		hdr->text = LE32TOH(ex->a_text);
-		hdr->data = LE32TOH(ex->a_data);
-		hdr->bss = LE32TOH(ex->a_bss);
-		hdr->entry = LE32TOH(ex->a_entry);
-		if (LE32TOH(ex->a_entry) >= BTX_PGSIZE)
+		hdr->text = le32toh(ex->a_text);
+		hdr->data = le32toh(ex->a_data);
+		hdr->bss = le32toh(ex->a_bss);
+		hdr->entry = le32toh(ex->a_entry);
+		if (le32toh(ex->a_entry) >= BTX_PGSIZE)
 		    hdr->org = BTX_PGSIZE;
 	    }
 	    break;
@@ -357,21 +357,21 @@ gethdr(int fd, struct hdr *hdr)
 	    ee = p;
 	    if (hdr->size >= sizeof(Elf32_Ehdr) && IS_ELF(*ee)) {
 		hdr->fmt = fmt;
-		for (n = i = 0; i < LE16TOH(ee->e_phnum); i++) {
-		    ep = (void *)((uint8_t *)p + LE32TOH(ee->e_phoff) +
-				  LE16TOH(ee->e_phentsize) * i);
-		    if (LE32TOH(ep->p_type) == PT_LOAD)
+		for (n = i = 0; i < le16toh(ee->e_phnum); i++) {
+		    ep = (void *)((uint8_t *)p + le32toh(ee->e_phoff) +
+				  le16toh(ee->e_phentsize) * i);
+		    if (le32toh(ep->p_type) == PT_LOAD)
 			switch (n++) {
 			case 0:
-			    hdr->text = LE32TOH(ep->p_filesz);
-			    hdr->org = LE32TOH(ep->p_paddr);
-			    if (LE32TOH(ep->p_flags) & PF_W)
+			    hdr->text = le32toh(ep->p_filesz);
+			    hdr->org = le32toh(ep->p_paddr);
+			    if (le32toh(ep->p_flags) & PF_W)
 				hdr->flags |= IMPURE;
 			    break;
 			case 1:
-			    hdr->data = LE32TOH(ep->p_filesz);
-			    hdr->bss = LE32TOH(ep->p_memsz) -
-				LE32TOH(ep->p_filesz);
+			    hdr->data = le32toh(ep->p_filesz);
+			    hdr->bss = le32toh(ep->p_memsz) -
+				le32toh(ep->p_filesz);
 			    break;
 			case 2:
 			    Warn(fname,
@@ -379,7 +379,7 @@ gethdr(int fd, struct hdr *hdr)
 				 fmtlist[fmt]);
 			}
 		}
-		hdr->entry = LE32TOH(ee->e_entry);
+		hdr->entry = le32toh(ee->e_entry);
 	    }
 	}
     if (munmap(p, hdr->size))
@@ -392,33 +392,33 @@ gethdr(int fd, struct hdr *hdr)
 static void
 puthdr(int fd, struct hdr *hdr)
 {
-    struct i386_exec ex;
+    struct exec ex;
     struct elfh eh;
 
     switch (hdr->fmt) {
     case F_AOUT:
 	memset(&ex, 0, sizeof(ex));
-	I386_N_SETMAGIC(ex, ZMAGIC, MID_ZERO, 0);
-	hdr->text = I386_N_ALIGN(ex, hdr->text);
-	ex.a_text = HTOLE32(hdr->text);
-	hdr->data = I386_N_ALIGN(ex, hdr->data);
-	ex.a_data = HTOLE32(hdr->data);
-	ex.a_entry = HTOLE32(hdr->entry);
+	N_SETMAGIC(ex, ZMAGIC, MID_ZERO, 0);
+	hdr->text = N_ALIGN(ex, hdr->text);
+	ex.a_text = htole32(hdr->text);
+	hdr->data = N_ALIGN(ex, hdr->data);
+	ex.a_data = htole32(hdr->data);
+	ex.a_entry = htole32(hdr->entry);
 	writex(fd, &ex, sizeof(ex));
-	hdr->size = I386_N_ALIGN(ex, sizeof(ex));
+	hdr->size = N_ALIGN(ex, sizeof(ex));
 	seekx(fd, hdr->size);
 	break;
     case F_ELF:
 	eh = elfhdr;
-	eh.e.e_entry = HTOLE32(hdr->entry);
-	eh.p[0].p_vaddr = eh.p[0].p_paddr = HTOLE32(hdr->org);
-	eh.p[0].p_filesz = eh.p[0].p_memsz = HTOLE32(hdr->text);
-	eh.p[1].p_offset = HTOLE32(LE32TOH(eh.p[0].p_offset) +
-	    LE32TOH(eh.p[0].p_filesz));
+	eh.e.e_entry = htole32(hdr->entry);
+	eh.p[0].p_vaddr = eh.p[0].p_paddr = htole32(hdr->org);
+	eh.p[0].p_filesz = eh.p[0].p_memsz = htole32(hdr->text);
+	eh.p[1].p_offset = htole32(le32toh(eh.p[0].p_offset) +
+	    le32toh(eh.p[0].p_filesz));
 	eh.p[1].p_vaddr = eh.p[1].p_paddr =
-	    HTOLE32(align(LE32TOH(eh.p[0].p_paddr) + LE32TOH(eh.p[0].p_memsz),
+	    htole32(align(le32toh(eh.p[0].p_paddr) + le32toh(eh.p[0].p_memsz),
 	    4));
-	eh.p[1].p_filesz = eh.p[1].p_memsz = HTOLE32(hdr->data);
+	eh.p[1].p_filesz = eh.p[1].p_memsz = htole32(hdr->data);
 	eh.sh[2].sh_addr = eh.p[0].p_vaddr;
 	eh.sh[2].sh_offset = eh.p[0].p_offset;
 	eh.sh[2].sh_size = eh.p[0].p_filesz;
