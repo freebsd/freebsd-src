@@ -44,6 +44,10 @@
 
 #include <dev/vx/if_vxreg.h>
 
+#ifndef COMPAT_OLDPCI
+#error "The vx driver requires the old pci compatability shims."
+#endif
+
 static void vx_pci_shutdown(void *, int);
 static const char *vx_pci_probe(pcici_t, pcidi_t);
 static void vx_pci_attach(pcici_t, int unit);
