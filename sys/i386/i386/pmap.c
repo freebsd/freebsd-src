@@ -369,7 +369,7 @@ pmap_bootstrap(firstaddr, loadaddr)
 		PTD[i] = 0;
 
 	pgeflag = 0;
-#if !defined(SMP) || defined(ENABLE_PG_G)
+#if /* !defined(SMP) || */ defined(ENABLE_PG_G)
 	if (cpu_feature & CPUID_PGE)
 		pgeflag = PG_G;
 #endif
