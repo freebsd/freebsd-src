@@ -282,6 +282,36 @@ ieee80211_key_update_end(struct ieee80211com *ic)
 	ic->ic_crypto.cs_key_update_end(ic);
 }
 
+/*
+ * XXX these need to be here for IEEE80211_F_DATAPAD
+ */
+
+/*
+ * Return the space occupied by the 802.11 header and any
+ * padding required by the driver.  This works for a
+ * management or data frame.
+ */
+static __inline int
+ieee80211_hdrspace(struct ieee80211com *ic, const void *data)
+{
+	int size = ieee80211_hdrsize(data);
+	if (ic->ic_flags & IEEE80211_F_DATAPAD)
+		size = roundup(size, sizeof(u_int32_t));
+	return size;
+}
+
+/*
+ * Like ieee80211_hdrspace, but handles any type of frame.
+ */
+static __inline int
+ieee80211_anyhdrspace(struct ieee80211com *ic, const void *data)
+{
+	int size = ieee80211_anyhdrsize(data);
+	if (ic->ic_flags & IEEE80211_F_DATAPAD)
+		size = roundup(size, sizeof(u_int32_t));
+	return size;
+}
+
 #define	IEEE80211_MSG_DEBUG	0x40000000	/* IFF_DEBUG equivalent */
 #define	IEEE80211_MSG_DUMPPKTS	0x20000000	/* IFF_LINK2 equivalant */
 #define	IEEE80211_MSG_CRYPTO	0x10000000	/* crypto work */
