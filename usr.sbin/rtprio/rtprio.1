@@ -28,7 +28,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: rtprio.1,v 1.6.2.3 1997/10/14 06:40:09 charnier Exp $
+.\"	$Id: rtprio.1,v 1.6.2.4 1998/03/09 13:52:33 jkh Exp $
 .\"
 .Dd July 23, 1994
 .Dt RTPRIO 1
@@ -108,8 +108,7 @@ highest priority
 .Ar Pid
 of 0 means "the current process".
 .Pp
-Only root is allowed to set realtime priorities. Non-root processes may
-set idle priority levels for the current process only.
+Only root is allowed to set realtime or idle priority for a process.
 .Sh RETURN VALUE
 If
 .Nm
