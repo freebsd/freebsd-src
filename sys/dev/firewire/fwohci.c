@@ -62,8 +62,10 @@
 #include <machine/resource.h>
 #include <sys/rman.h>
 
-#include <machine/cpufunc.h>            /* for rdtsc proto for clock.h below */
-#include <machine/clock.h>
+#if __FreeBSD_version < 500000
+#include <machine/clock.h>		/* for DELAY() */
+#endif
+
 #include <pci/pcivar.h>
 #include <pci/pcireg.h>
 
