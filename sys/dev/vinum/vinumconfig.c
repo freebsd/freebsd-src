@@ -585,18 +585,13 @@ get_empty_sd(void)
 void
 free_drive(struct drive *drive)
 {
-    if ((drive->state > drive_referenced)		    /* real drive */
-    ||(drive->flags & VF_OPEN)) {			    /* how can it be open without a state? */
-	LOCKDRIVE(drive);
-	if (drive->flags & VF_OPEN) {			    /* it's open, */
-	    close_locked_drive(drive);			    /* close it */
-	    drive->state = drive_down;			    /* and note the fact */
-	}
-	if (drive->freelist)
-	    Free(drive->freelist);
-	bzero(drive, sizeof(struct drive));		    /* this also sets drive_unallocated */
-	unlockdrive(drive);
-    }
+    LOCKDRIVE(drive);
+    if (drive->flags & VF_OPEN)				    /* it's open, */
+	close_locked_drive(drive);			    /* close it */
+    if (drive->freelist)
+	Free(drive->freelist);
+    bzero(drive, sizeof(struct drive));			    /* this also sets drive_unallocated */
+    unlockdrive(drive);
 }
 
 /*
