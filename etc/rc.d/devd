@@ -1,0 +1,17 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: devd
+# REQUIRE: devfs
+# KEYWORD: FreeBSD
+
+. /etc/rc.subr
+
+name="devd"
+rcvar=`set_rcvar`
+command="/sbin/devd"
+
+load_rc_config $name
+run_rc_command "$1"
