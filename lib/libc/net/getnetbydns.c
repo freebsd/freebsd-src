@@ -70,6 +70,7 @@ static char rcsid[] = "$FreeBSD$";
 #include <arpa/nameser.h>
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <netdb.h>
 #include <resolv.h>
 #include <ctype.h>
@@ -85,11 +86,7 @@ extern int h_errno;
 #define BYNAME 1
 #define	MAXALIASES	35
 
-#if PACKETSZ > 1024
-#define	MAXPACKET	PACKETSZ
-#else
-#define	MAXPACKET	1024
-#endif
+#define MAXPACKET	(64*1024)
 
 typedef union {
 	HEADER	hdr;
@@ -226,7 +223,7 @@ _getnetbydnsaddr(net, net_type)
 {
 	unsigned int netbr[4];
 	int nn, anslen;
-	querybuf buf;
+	querybuf *buf;
 	char qbuf[MAXDNAME];
 	unsigned long net2;
 	struct netent *net_entry;
@@ -252,21 +249,28 @@ _getnetbydnsaddr(net, net_type)
 		    netbr[1], netbr[0]);
 		break;
 	}
-	anslen = res_query(qbuf, C_IN, T_PTR, (u_char *)&buf, sizeof(buf));
+	if ((buf = malloc(sizeof(*buf))) == NULL) {
+		h_errno = NETDB_INTERNAL;
+		return (NULL);
+	}
+	anslen = res_query(qbuf, C_IN, T_PTR, (u_char *)buf, sizeof(*buf));
 	if (anslen < 0) {
+		free(buf);
 #ifdef DEBUG
 		if (_res.options & RES_DEBUG)
 			printf("res_search failed\n");
 #endif
 		return (NULL);
-	} else if (anslen > sizeof(buf)) {
+	} else if (anslen > sizeof(*buf)) {
+		free(buf);
 #ifdef DEBUG
 		if (_res.options & RES_DEBUG)
 			printf("res_search static buffer too small\n");
 #endif
 		return (NULL);
 	}
-	net_entry = getnetanswer(&buf, anslen, BYADDR);
+	net_entry = getnetanswer(buf, anslen, BYADDR);
+	free(buf);
 	if (net_entry) {
 		unsigned u_net = net;	/* maybe net should be unsigned ? */
 
@@ -284,30 +288,39 @@ _getnetbydnsname(net)
 	register const char *net;
 {
 	int anslen;
-	querybuf buf;
+	querybuf *buf;
 	char qbuf[MAXDNAME];
+	struct netent *net_entry;
 
 	if ((_res.options & RES_INIT) == 0 && res_init() == -1) {
 		h_errno = NETDB_INTERNAL;
 		return (NULL);
 	}
+	if ((buf = malloc(sizeof(*buf))) == NULL) {
+		h_errno = NETDB_INTERNAL;
+		return (NULL);
+	}
 	strncpy(qbuf, net, sizeof(qbuf) - 1);
 	qbuf[sizeof(qbuf) - 1] = '\0';
-	anslen = res_search(qbuf, C_IN, T_PTR, (u_char *)&buf, sizeof(buf));
+	anslen = res_search(qbuf, C_IN, T_PTR, (u_char *)buf, sizeof(*buf));
 	if (anslen < 0) {
+		free(buf);
 #ifdef DEBUG
 		if (_res.options & RES_DEBUG)
 			printf("res_search failed\n");
 #endif
 		return (NULL);
-	} else if (anslen > sizeof(buf)) {
+	} else if (anslen > sizeof(*buf)) {
+		free(buf);
 #ifdef DEBUG
 		if (_res.options & RES_DEBUG)
 			printf("res_search static buffer too small\n");
 #endif
 		return (NULL);
 	}
-	return getnetanswer(&buf, anslen, BYNAME);
+	net_entry = getnetanswer(buf, anslen, BYNAME);
+	free(buf);
+	return net_entry;
 }
 
 void
