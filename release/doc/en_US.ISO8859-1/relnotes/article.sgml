@@ -116,6 +116,15 @@
     <para>The loader tunable <varname>debug.mpsafevm</varname> has been
       has been enabled by default.</para>
 
+    <para>A number of bugs have been fixed in the ULE
+      scheduler. &merged;</para>
+
+    <para>Fine-grained locking to allow much of the VFS stack to run
+      without the Giant lock has been added.  It is currently enabled
+      by the loader tunable (and sysctl variable)
+      <varname>debug.mpsafevfs</varname>, which currently defaults to
+      <literal>0</literal> (disabled).</para>
+
     <!-- Above this line, sort kernel changes by manpage/keyword-->
 
     <sect3 id="boot">
@@ -158,8 +167,16 @@
 	  the kernel configuration when using the &man.ath.4;
 	  driver.</para>
 
+	<para arch="amd64">The &man.ndis.4; device driver wrapper now
+	  supports &windows;/x86-64 binaries on amd64
+	  systems. &merged;</para>
+
 	<para>The &man.sf.4; driver now has support for device polling
 	  and &man.altq.4;. &merged;</para>
+
+	<para>The &man.sk.4; driver now has support for &man.altq.4;.
+	  This driver also now supports jumbo frames on Yukon-based
+	  interfaces. &merged;</para>
 
 	<para>Support for 802.11 devices in the &man.wlan.4; has been
 	  greatly overhauled.  In addition to architectural changes,
@@ -204,6 +221,12 @@
 	pc98 platform that there is no need for the older &man.wd.4;
 	driver.</para>
 
+      <para>Information about newly-mounted cd9660 file systems (such
+	as the presence of Rockridge extensions) is now only printed
+	if the kernel was booted in verbose mode.  This change was
+	made to reduce the amount of (generally unnecessary) kernel
+	log messages.</para>
+
     </sect3>
 
     <sect3 id="fs">
@@ -222,6 +245,10 @@
 
   <sect2 id="userland">
     <title>Userland Changes</title>
+
+    <para>The &man.burncd.8; utility now allows commands (such as
+      <command>eject</command>) to take place after fixating a
+      disk.</para>
 
     <para>The <literal>create</literal> command of the &man.gpt.8;
       utility now supports a <option>-f</option> command-line flag to
@@ -249,6 +276,39 @@
       flag to generate a calendar for a specified month in the current
       year. &merged;</para>
 
+    <para>The &man.mknod.8; utility has been marked deprecated.
+      Device nodes have been managed by the &man.devfs.5; device file
+      system since &os; 5.0.</para>
+
+    <para>For years, &os; has used <filename>Makefile</filename>
+      variables of the form
+      <varname>NO<replaceable>FOO</replaceable></varname> and
+      <varname>NO_<replaceable>FOO</replaceable></varname>.  For
+      consistency, those variables using the former naming convention
+      have been converted to the
+      <varname>NO_<replaceable>FOO</replaceable></varname> form.  The
+      file <filename>/usr/share/mk/bsd.compat.mk</filename> has a
+      complete list of these variables; it also implements some
+      temporary backward compatability for the old names.</para>
+
+    <para>The &man.ppp.8; program now implements an
+      <option>echo</option> parameter, which allows LCP ECHOs to be
+      enabled independently of LQR reports.  Older versions of
+      &man.ppp.8; would revert to LCP ECHO mode on negotiation
+      failure.  It is now necessary to specify <command>enable
+      echo</command> to get this behaviour. &merged;</para>
+
+    <para>The &man.tcpdrop.8; command, which closes a selected TCP
+      connection, has been added.  It was obtained from
+      OpenBSD.</para>
+
+    <para>&man.whois.1; now supports
+      a <option>-k</option> flag
+      for querying <hostid role="fqdn">whois.krnic.net</hostid>
+      (the National Internet Development Agency of Korea)
+      which hold details of IP address allocations within
+      Korea. &merged;</para>
+
     <sect3 id="rc-scripts">
       <title><filename>/etc/rc.d</filename> Scripts</title>
 
@@ -264,7 +324,8 @@
       <application>tzdata2004g</application> release. &merged;</para>
 
     <para>A snapshot of <application>netcat</application> from OpenBSD
-      as of 4 February 2005 has been added. &merged;</para>
+      as of 4 February 2005 has been added.  More information can be
+      found in the &man.nc.1; manual page. &merged;</para>
 
     <para><application>OpenPAM</application> has been updated from the
       Eelgrass release to the Feterita release.</para>
