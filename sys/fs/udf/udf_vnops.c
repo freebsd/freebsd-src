@@ -546,7 +546,7 @@ udf_readdir(struct vop_readdir_args *a)
 	struct fileid_desc *fid;
 	struct udf_uiodir uiodir;
 	u_long *cookies = NULL;
-	uint8_t *data;
+	uint8_t *data, *buf;
 	int ncookies;
 	int error = 0, offset, off, size, de_size, fid_size, fsize;
 	int total_fid_size = 0, frag_size = 0, fid_fragment = 0;
@@ -611,19 +611,24 @@ udf_readdir(struct vop_readdir_args *a)
 		 */
 		if (off + fid_size > size ||
 		    off + fid->l_iu + fid->l_fi + fid_size > size) {
-			struct fileid_desc *fid_buf;
-			uint8_t *buf;
 
 			/* Copy what we have of the fid into a buffer */
 			frag_size = size - off;
-			MALLOC(buf, uint8_t*, max(frag_size, fid_size),
-			    M_UDFFID, M_NOWAIT | M_ZERO);
-			if (buf == NULL)
-				panic("No memory?");
+			if (frag_size >= udfmp->bsize) {
+				printf("udf: invalid FID fragment\n");
+				break;
+			}
+
+			/*
+			 * File ID descriptors can only be at most one
+			 * logical sector in size.
+			 */
+			MALLOC(buf, uint8_t*, udfmp->bsize, M_UDFFID,
+			     M_WAITOK | M_ZERO);
 			bcopy(fid, buf, frag_size);
 
 			/* Reduce all of the casting magic */
-			fid_buf = (struct fileid_desc*)buf;
+			fid = (struct fileid_desc*)buf;
 
 			if (bp != NULL)
 				brelse(bp);
@@ -646,26 +651,18 @@ udf_readdir(struct vop_readdir_args *a)
 
 			/*
 			 * Now that we have enough of the fid to work with,
-			 * allocate a new fid, copy the fragment into it,
-			 * and copy the rest of the fid from the new
+			 * copy in the rest of the fid from the new
 			 * allocation.
 			 */
-			total_fid_size = fid_size + fid_buf->l_iu +
-			    fid_buf->l_fi;
-			MALLOC(fid, struct fileid_desc *, total_fid_size,
-			    M_UDFFID, M_NOWAIT | M_ZERO);
-			if (fid == NULL) {
-				if (bp != NULL)
-					brelse(bp);
-				error = ENOMEM;
+			total_fid_size = fid_size + fid->l_iu + fid->l_fi;
+			if (total_fid_size > udfmp->bsize) {
+				printf("udf: invalid FID\n");
 				break;
 			}
-			bcopy(fid_buf, fid, frag_size);
-			bcopy(data, &((uint8_t*)(fid))[frag_size],
+			bcopy(data, &buf[frag_size],
 			    total_fid_size - frag_size);
 
 			fid_fragment = 1;
-			FREE(buf, M_UDFFID);
 		} else {
 			total_fid_size = fid->l_iu + fid->l_fi + fid_size;
 		}
@@ -677,7 +674,7 @@ udf_readdir(struct vop_readdir_args *a)
 		}
 
 		/* Is this a deleted file? */
-		if (fid->file_char & 0x4)
+		if (fid->file_char & UDF_FILE_CHAR_DEL)
 			goto update_offset;
 
 		if (fid->l_iu != 0) {
@@ -685,7 +682,7 @@ udf_readdir(struct vop_readdir_args *a)
 			goto update_offset;
 		}
 
-		if ((fid->l_fi == 0) && (fid->file_char & 0x08)) {
+		if ((fid->l_fi == 0) && (fid->file_char & UDF_FILE_CHAR_PAR)) {
 			/* Do up the '.' and '..' entries.  Dummy values are
 			 * used for the cookies since the offset here is
 			 * usually zero, and NFS doesn't like that value
@@ -704,8 +701,8 @@ udf_readdir(struct vop_readdir_args *a)
 			dir.d_namlen = udf_transname(&fid->data[fid->l_iu],
 			    &dir.d_name[0], fid->l_fi);
 			dir.d_fileno = udf_getid(&fid->icb);
-			dir.d_type = (fid->file_char & 0x02) ? DT_DIR :
-			    DT_UNKNOWN;
+			dir.d_type = (fid->file_char & UDF_FILE_CHAR_DIR) ?
+			    DT_DIR : DT_UNKNOWN;
 			dir.d_reclen = GENERIC_DIRSIZ(&dir);
 			uiodir.dirent = &dir;
 			error = udf_uiodir(&uiodir, dir.d_reclen, uio, off);
@@ -847,10 +844,10 @@ udf_lookup(struct vop_cachedlookup_args *a)
 	char *nameptr;
 	long namelen;
 	ino_t id = 0;
-	uint8_t *data;
+	uint8_t *data, *buf;
 	int offset, off, error, size;
 	int numdirpasses, fid_size, fsize, icb_len;
-	int total_fid_size = 0, fid_fragment = 0;
+	int total_fid_size = 0, fid_fragment = 0, frag_size = 0;
 
 	dvp = a->a_dvp;
 	node = VTON(dvp);
@@ -900,20 +897,24 @@ lookloop:
 		 */
 		if (off + fid_size > size ||
 		    off + fid_size + fid->l_iu + fid->l_fi > size) {
-			struct fileid_desc *fid_buf;
-			uint8_t *buf;
-			int frag_size = 0;
 
-			/* Copy what we have of the fid into a buffer */
 			frag_size = size - off;
-			MALLOC(buf, uint8_t*, max(frag_size, fid_size),
-			    M_UDFFID, M_NOWAIT | M_ZERO);
-			if (buf == NULL)
-				panic("No memory?");
+			if (frag_size >= udfmp->bsize) {
+				printf("udf: invalid FID fragment\n");
+				break;
+			}
+
+			/*
+			 * File ID descriptors can only be at most one
+			 * logical sector in size.
+			 * Copy what we have of the fid into a buffer
+			 */
+			MALLOC(buf, uint8_t*, udfmp->bsize, M_UDFFID,
+			     M_WAITOK | M_ZERO);
 			bcopy(fid, buf, frag_size);
 
 			/* Reduce all of the casting magic */
-			fid_buf = (struct fileid_desc*)buf;
+			fid = (struct fileid_desc*)buf;
 
 			if (bp != NULL)
 				brelse(bp);
@@ -936,26 +937,19 @@ lookloop:
 
 			/*
 			 * Now that we have enough of the fid to work with,
-			 * allocate a new fid, copy the fragment into it,
-			 * and copy the rest of the fid from the new
+			 * copy the rest of the fid from the new
 			 * allocation.
 			 */
-			total_fid_size = fid_size + fid_buf->l_iu +
-			    fid_buf->l_fi;
-			MALLOC(fid, struct fileid_desc *, total_fid_size,
-			    M_UDFFID, M_NOWAIT | M_ZERO);
-			if (fid == NULL) {
-				if (bp != NULL)
-					brelse(bp);
-				return (ENOMEM);
+			total_fid_size = fid_size + fid->l_iu + fid->l_fi;
+			if (total_fid_size > udfmp->bsize) {
+				printf("udf: invalid FID\n");
+				break;
 			}
-			bcopy(fid_buf, fid, frag_size);
-			bcopy(data, &((uint8_t*)(fid))[frag_size],
+			bcopy(data, &buf[frag_size],
 			    total_fid_size - frag_size);
 
 			off = (total_fid_size - frag_size + 3) & ~0x03;
 			fid_fragment = 1;
-			FREE(buf, M_UDFFID);
 		} else {
 			/*
 			 * Update the offset here to avoid looking at this fid
@@ -970,10 +964,10 @@ lookloop:
 			goto continue_lookup;
 
 		/* Is this a deleted file? */
-		if (fid->file_char & 0x4)
+		if (fid->file_char & UDF_FILE_CHAR_DEL)
 			goto continue_lookup;
 
-		if ((fid->l_fi == 0) && (fid->file_char & 0x08)) {
+		if ((fid->l_fi == 0) && (fid->file_char & UDF_FILE_CHAR_PAR)) {
 			if (flags & ISDOTDOT) {
 				id = udf_getid(&fid->icb);
 				break;
