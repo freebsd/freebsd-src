@@ -153,9 +153,6 @@ __FBSDID("$FreeBSD$");
 
 #define TODO	panic("%s: not implemented", __func__);
 
-#define	PMAP_LOCK(pm)
-#define	PMAP_UNLOCK(pm)
-
 #define	TLBIE(va)	__asm __volatile("tlbie %0" :: "r"(va))
 #define	TLBSYNC()	__asm __volatile("tlbsync");
 #define	SYNC()		__asm __volatile("sync");
@@ -745,6 +742,7 @@ pmap_bootstrap(vm_offset_t kernelstart, vm_offset_t kernelend)
 	/*
 	 * Initialize the kernel pmap (which is statically allocated).
 	 */
+	PMAP_LOCK_INIT(kernel_pmap);
 	for (i = 0; i < 16; i++) {
 		kernel_pmap->pm_sr[i] = EMPTY_SEGMENT;
 	}
@@ -841,6 +839,7 @@ pmap_change_wiring(pmap_t pm, vm_offset_t va, boolean_t wired)
 {
 	struct	pvo_entry *pvo;
 
+	PMAP_LOCK(pm);
 	pvo = pmap_pvo_find_va(pm, va & ~ADDR_POFF, NULL);
 
 	if (pvo != NULL) {
@@ -854,6 +853,7 @@ pmap_change_wiring(pmap_t pm, vm_offset_t va, boolean_t wired)
 			pvo->pvo_vaddr &= ~PVO_WIRED;
 		}
 	}
+	PMAP_UNLOCK(pm);
 }
 
 void
@@ -967,6 +967,10 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		pvo_flags = PVO_MANAGED;
 		was_exec = 0;
 	}
+	if (pmap_bootstrapped) {
+		vm_page_lock_queues();
+		PMAP_LOCK(pmap);
+	}
 
 	/*
 	 * If this is a managed page, and it's the first reference to the page,
@@ -1022,9 +1026,13 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		if (pg != NULL)
 			pmap_attr_save(pg, PTE_EXEC);
 	}
+	if (pmap_bootstrapped)
+		vm_page_unlock_queues();
 
 	/* XXX syncicache always until problems are sorted */
 	pmap_syncicache(VM_PAGE_TO_PHYS(m), PAGE_SIZE);
+	if (pmap_bootstrapped)
+		PMAP_UNLOCK(pmap);
 }
 
 vm_page_t
@@ -1041,14 +1049,16 @@ vm_paddr_t
 pmap_extract(pmap_t pm, vm_offset_t va)
 {
 	struct	pvo_entry *pvo;
+	vm_paddr_t pa;
 
+	PMAP_LOCK(pm);
 	pvo = pmap_pvo_find_va(pm, va & ~ADDR_POFF, NULL);
-
-	if (pvo != NULL) {
-		return ((pvo->pvo_pte.pte_lo & PTE_RPGN) | (va & ADDR_POFF));
-	}
-
-	return (0);
+	if (pvo == NULL)
+		pa = 0;
+	else
+		pa = (pvo->pvo_pte.pte_lo & PTE_RPGN) | (va & ADDR_POFF);
+	PMAP_UNLOCK(pm);
+	return (pa);
 }
 
 /*
@@ -1064,15 +1074,17 @@ pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
         
 	m = NULL;
 	mtx_lock(&Giant);
+	vm_page_lock_queues();
+	PMAP_LOCK(pmap);
 	pvo = pmap_pvo_find_va(pmap, va & ~ADDR_POFF, NULL);
 	if (pvo != NULL && (pvo->pvo_pte.pte_hi & PTE_VALID) &&
 	    ((pvo->pvo_pte.pte_lo & PTE_PP) == PTE_RW ||
 	     (prot & VM_PROT_WRITE) == 0)) {
 		m = PHYS_TO_VM_PAGE(pvo->pvo_pte.pte_lo & PTE_RPGN);
-		vm_page_lock_queues();
 		vm_page_hold(m);
-		vm_page_unlock_queues();
 	}
+	vm_page_unlock_queues();
+	PMAP_UNLOCK(pmap);
 	mtx_unlock(&Giant);
 	return (m);
 }
@@ -1221,6 +1233,7 @@ vm_offset_t
 pmap_kextract(vm_offset_t va)
 {
 	struct		pvo_entry *pvo;
+	vm_paddr_t pa;
 
 #ifdef UMA_MD_SMALL_ALLOC
 	/*
@@ -1231,13 +1244,12 @@ pmap_kextract(vm_offset_t va)
 	}
 #endif
 
+	PMAP_LOCK(kernel_pmap);
 	pvo = pmap_pvo_find_va(kernel_pmap, va & ~ADDR_POFF, NULL);
 	KASSERT(pvo != NULL, ("pmap_kextract: no addr found"));
-	if (pvo == NULL) {
-		return (0);
-	}
-
-	return ((pvo->pvo_pte.pte_lo & PTE_RPGN) | (va & ADDR_POFF));
+	pa = (pvo->pvo_pte.pte_lo & PTE_RPGN) | (va & ADDR_POFF);
+	PMAP_UNLOCK(kernel_pmap);
+	return (pa);
 }
 
 /*
@@ -1300,6 +1312,7 @@ pmap_page_protect(vm_page_t m, vm_prot_t prot)
 	struct	pvo_head *pvo_head;
 	struct	pvo_entry *pvo, *next_pvo;
 	struct	pte *pt;
+	pmap_t	pmap;
 
 	/*
 	 * Since the routine only downgrades protection, if the
@@ -1314,12 +1327,15 @@ pmap_page_protect(vm_page_t m, vm_prot_t prot)
 	for (pvo = LIST_FIRST(pvo_head); pvo != NULL; pvo = next_pvo) {
 		next_pvo = LIST_NEXT(pvo, pvo_vlink);
 		PMAP_PVO_CHECK(pvo);	/* sanity check */
+		pmap = pvo->pvo_pmap;
+		PMAP_LOCK(pmap);
 
 		/*
 		 * Downgrading to no mapping at all, we just remove the entry.
 		 */
 		if ((prot & VM_PROT_READ) == 0) {
 			pmap_pvo_remove(pvo, -1);
+			PMAP_UNLOCK(pmap);
 			continue;
 		}
 
@@ -1335,6 +1351,7 @@ pmap_page_protect(vm_page_t m, vm_prot_t prot)
 		 * table.
 		 */
 		if ((pvo->pvo_pte.pte_lo & PTE_PP) == PTE_BR) {
+			PMAP_UNLOCK(pmap);
 			PMAP_PVO_CHECK(pvo);
 			continue;
 		}
@@ -1348,6 +1365,7 @@ pmap_page_protect(vm_page_t m, vm_prot_t prot)
 		pvo->pvo_pte.pte_lo |= PTE_BR;
 		if (pt != NULL)
 			pmap_pte_change(pt, &pvo->pvo_pte, pvo->pvo_vaddr);
+		PMAP_UNLOCK(pmap);
 		PMAP_PVO_CHECK(pvo);	/* sanity check */
 	}
 
@@ -1394,6 +1412,7 @@ pmap_pinit(pmap_t pmap)
 	u_int	entropy;
 
 	KASSERT((int)pmap < VM_MIN_KERNEL_ADDRESS, ("pmap_pinit: virt pmap"));
+	PMAP_LOCK_INIT(pmap);
 
 	entropy = 0;
 	__asm __volatile("mftb %0" : "=r"(entropy));
@@ -1475,6 +1494,7 @@ pmap_protect(pmap_t pm, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 
 	mtx_lock(&Giant);
 	vm_page_lock_queues();
+	PMAP_LOCK(pm);
 	for (; sva < eva; sva += PAGE_SIZE) {
 		pvo = pmap_pvo_find_va(pm, sva, &pteidx);
 		if (pvo == NULL)
@@ -1501,6 +1521,7 @@ pmap_protect(pmap_t pm, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 			pmap_pte_change(pt, &pvo->pvo_pte, pvo->pvo_vaddr);
 	}
 	vm_page_unlock_queues();
+	PMAP_UNLOCK(pm);
 	mtx_unlock(&Giant);
 }
 
@@ -1553,6 +1574,7 @@ pmap_release(pmap_t pmap)
         mask = 1 << (idx % VSID_NBPW);
         idx /= VSID_NBPW;
         pmap_vsid_bitmap[idx] &= ~mask;
+	PMAP_LOCK_DESTROY(pmap);
 }
 
 /*
@@ -1565,6 +1587,7 @@ pmap_remove(pmap_t pm, vm_offset_t sva, vm_offset_t eva)
 	int	pteidx;
 
 	vm_page_lock_queues();
+	PMAP_LOCK(pm);
 	for (; sva < eva; sva += PAGE_SIZE) {
 		pvo = pmap_pvo_find_va(pm, sva, &pteidx);
 		if (pvo != NULL) {
@@ -1572,6 +1595,7 @@ pmap_remove(pmap_t pm, vm_offset_t sva, vm_offset_t eva)
 		}
 	}
 	vm_page_unlock_queues();
+	PMAP_UNLOCK(pm);
 }
 
 /*
@@ -1583,6 +1607,7 @@ pmap_remove_all(vm_page_t m)
 {
 	struct  pvo_head *pvo_head;
 	struct	pvo_entry *pvo, *next_pvo;
+	pmap_t	pmap;
 
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 
@@ -1591,7 +1616,10 @@ pmap_remove_all(vm_page_t m)
 		next_pvo = LIST_NEXT(pvo, pvo_vlink);
 
 		PMAP_PVO_CHECK(pvo);	/* sanity check */
+		pmap = pvo->pvo_pmap;
+		PMAP_LOCK(pmap);
 		pmap_pvo_remove(pvo, -1);
+		PMAP_UNLOCK(pmap);
 	}
 	vm_page_flag_clear(m, PG_WRITEABLE);
 }
