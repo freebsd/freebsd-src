@@ -1,3 +1,6 @@
+/*	$Id: pathnames.h,v 1.3 1997/12/13 20:38:20 pst Exp $	*/
+/*	$NetBSD: pathnames.h,v 1.7 1997/01/09 20:19:40 tls Exp $	*/
+
 /*
  * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -35,5 +38,4 @@
 
 #include <paths.h>
 
-#undef _PATH_TMP
-#define	_PATH_TMP	"/tmp/ftpXXXXXX"
+#define	TMPFILE		"ftpXXXXXX"
