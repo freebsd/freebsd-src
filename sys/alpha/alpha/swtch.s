@@ -1,4 +1,4 @@
-/* $Id: swtch.s,v 1.2 1998/06/11 11:51:26 dfr Exp $ */
+/* $Id: swtch.s,v 1.3 1998/06/27 15:37:43 dfr Exp $ */
 /* $NetBSD: locore.s,v 1.47 1998/03/22 07:26:32 thorpej Exp $ */
 
 /*
@@ -83,7 +83,7 @@ Lsavectx1: LDGP(pv)
 /**************************************************************************/
 
 IMPORT(whichqs, 4)
-IMPORT(want_resched, 8)
+IMPORT(want_resched, 4)
 IMPORT(Lev1map, 8)
 
 /*
@@ -220,6 +220,11 @@ Lcs6:
 	mov	s3, a0				/* swap the context */
 	SWITCH_CONTEXT
 
+	/* XXX remove after implementing ASNs */
+	ldiq	a0, -2				/* TBIA */
+	call_pal PAL_OSF1_tbi
+	call_pal PAL_imb
+	
 Lcs7:
 	
 	/*
@@ -229,7 +234,7 @@ Lcs7:
 	 * in which case curproc would be NULL.
 	 */
 	stq	s2, curproc			/* curproc = p */
-	stq	zero, want_resched		/* we've rescheduled */
+	stl	zero, want_resched		/* we've rescheduled */
 
 	/*
 	 * Now running on the new u struct.
@@ -265,6 +270,11 @@ Lcs7:
  * pointer to the executing process's proc structure.
  */
 LEAF(switch_trampoline, 0)
+	ldq	a0, curproc
+	ldiq	a1, P_SWITCHTIME
+	addq	a0, a1, a0
+	CALL(microuptime)
+
 	mov	s0, pv
 	mov	s1, ra
 	mov	s2, a0
@@ -278,8 +288,8 @@ LEAF(switch_trampoline, 0)
  * exception_return: return from trap, exception, or syscall
  */
 
-IMPORT(ipending, 8)
-IMPORT(astpending, 8)
+IMPORT(ipending, 4)
+IMPORT(astpending, 4)
 
 LEAF(exception_return, 1)			/* XXX should be NESTED */
 	br	pv, Ler1
@@ -290,7 +300,7 @@ Ler1:	LDGP(pv)
 	bne	t0, Lrestoreregs		/* != 0: can't do AST or SIR */
 
 	/* see if we can do an SIR */
-	ldq	t1, ipending			/* SIR pending? */
+	ldl	t1, ipending			/* SIR pending? */
 	beq	t1, Lchkast			/* no, try an AST*/
 
 	/* We've got a SIR. */
@@ -303,7 +313,7 @@ Lchkast:
 	and	s1, ALPHA_PSL_USERMODE, t0	/* are we returning to user? */
 	beq	t0, Lrestoreregs		/* no: just return */
 
-	ldq	t2, astpending			/* AST pending? */
+	ldl	t2, astpending			/* AST pending? */
 	beq	t2, Lsetfpenable		/* no: return & deal with FP */
 
 	/* We've got an AST.  Handle it. */

@@ -1,4 +1,4 @@
-/* $Id: param.h,v 1.3 1998/06/10 10:55:15 dfr Exp $ */
+/* $Id: param.h,v 1.4 1998/06/14 13:45:13 dfr Exp $ */
 /* From: NetBSD: param.h,v 1.20 1997/09/19 13:52:53 leo Exp */
 
 /*
@@ -159,8 +159,6 @@
 
 #define	alpha_btop(x)		((unsigned long)(x) >> PAGE_SHIFT)
 #define	alpha_ptob(x)		((unsigned long)(x) << PAGE_SHIFT)
-
-#include <machine/intr.h>
 
 #ifdef _KERNEL
 #ifndef _LOCORE
