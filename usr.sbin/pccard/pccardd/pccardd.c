@@ -197,6 +197,9 @@ main(int argc, char *argv[])
 		case 's':
 			sock = optarg;
 			break;
+		case 'x':
+			probeonly = 1;
+			break;
 		case 'z':
 			delay = 1;
 			break;
