@@ -1,4 +1,4 @@
-#	$Id: options.i386,v 1.81 1998/06/30 08:40:32 jmg Exp $
+#	$Id: options.i386,v 1.82 1998/06/30 14:43:03 bde Exp $
 
 BOUNCEPAGES		opt_bounce.h
 DISABLE_PSE
@@ -123,3 +123,6 @@ PCVT_VT220KEYB		opt_pcvt.h
 GUS_DMA2		opt_sound.h
 GUS_DMA			opt_sound.h
 GUS_IRQ			opt_sound.h
+
+# Video spigot
+SPIGOT_UNSECURE		opt_spigot.h

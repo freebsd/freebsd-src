@@ -52,6 +52,7 @@ error "Can only have 1 spigot configured."
 #endif
 
 #include	"opt_devfs.h"
+#include	"opt_spigot.h"
 
 #include	<sys/param.h>
 #include	<sys/systm.h>

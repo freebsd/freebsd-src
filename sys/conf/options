@@ -1,4 +1,4 @@
-#	$Id: options,v 1.88 1998/07/12 01:48:14 bde Exp $
+#	$Id: options,v 1.89 1998/08/05 00:54:36 eivind Exp $
 #
 #        On the handling of kernel options   
 # 
@@ -258,6 +258,13 @@ NFS_DEBUG		opt_nfs.h
 
 # give bktr an opt_bktr.h file
 OVERRIDE_TUNER		opt_bktr.h
+
+# meteor opt_meteor.h
+METEOR_ALLOC_PAGES	opt_meteor.h
+METEOR_TEST_VIDEO	opt_meteor.h
+METEOR_SYSTEM_DEFAULT	opt_meteor.h
+METEOR_DEALLOC_PAGES	opt_meteor.h
+METEOR_DEALLOC_ABOVE	opt_meteor.h
 
 # Include tweaks for running under the SimOS machine simulator.
 SIMOS			opt_simos.h
