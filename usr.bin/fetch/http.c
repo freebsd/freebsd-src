@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: http.c,v 1.3 1997/02/05 19:59:14 wollman Exp $
+ *	$Id: http.c,v 1.4 1997/02/11 20:46:05 wollman Exp $
  */
 
 #include <sys/types.h>
@@ -357,6 +357,44 @@ http_redirect(struct fetch_state *fs, char *new, int permanent)
 }
 
 /*
+ * Read HTML-formatted data from remote and display it on stderr.
+ * This is extremely incomplete, as all it does is delete anything
+ * between angle brackets.  However, this is usually good enough for
+ * error messages.
+ */
+static void
+html_display(FILE *remote)
+{
+	char *line;
+	int linelen;
+	int inbracket = 0;
+
+
+	while ((line = fgetln(remote, &linelen)) != 0) {
+		char *end = line + linelen;
+		char *p;
+		int content = 0;
+
+		for (p = line; p < end; p++) {
+			if (*p == '<' && !inbracket) {
+				fwrite(line, 1, (p - line),
+					stderr);
+				inbracket = 1;
+			}
+			if (!inbracket && !content &&
+				*p != '\n' && *p != '\r')
+				content = 1;
+			if (*p == '>' && inbracket) {
+				line = p + 1;
+				inbracket = 0;
+			}
+		}
+		if (content && line < end)
+			fwrite(line, 1, (end - line), stderr);
+	}
+}
+
+/*
  * Get a file using HTTP.  We will try to implement HTTP/1.1 eventually.
  * This subroutine makes heavy use of the 4.4-Lite standard I/O library,
  * in particular the `fgetln' which allows us to slurp an entire `line'
@@ -379,6 +417,7 @@ http_retrieve(struct fetch_state *fs)
 	const char *env;
 	int timo;
 	char *line, *new_location;
+	char *errstr = 0;
 	size_t linelen, readresult, writeresult;
 	off_t total_length, restart_from;
 	time_t last_modified, when_to_retry;
@@ -567,7 +606,7 @@ got100reply:
 	 * to suck the entire file.  (It had better be, since
 	 * we used it to grab the first line.)
 	 */
-	if (linelen < 5 || strncasecmp(line, "http/", 5) != 0) {
+	if (linelen < 5 || strncasecmp(line, "http", 4) != 0) {
 		if (to_stdout)
 			local = fopen("/dev/stdout", "w");
 		else
@@ -630,8 +669,9 @@ got100reply:
 		break;
 	case 301:		/* Resource has moved permanently */
 		if (!fs->fs_auto_retry)
-			goto spewerror;
-		redirection = 301;
+			errstr = safe_strdup(line);
+		else
+			redirection = 301;
 		break;
 	case 302:		/* Resource has moved temporarily */
 		/*
@@ -646,37 +686,30 @@ got100reply:
 			unsetup_sigalrm();
 			return 0;
 		}
-		goto spewerror;
+		errstr = safe_strdup(line);
+		break;
 	case 401:		/* Unauthorized */
 		if (https->http_authentication)
-			goto spewerror;
-		autherror = 401;
+			errstr = safe_strdup(line);
+		else
+			autherror = 401;
 		break;
 	case 407:		/* Proxy Authentication Required */
 		if (https->http_proxy_authentication)
-			goto spewerror;
-		autherror = 407;
+			errstr = safe_strdup(line);
+		else
+			autherror = 407;
 		break;
 	case 503:		/* Service Unavailable */
 		if (!fs->fs_auto_retry)
-			goto spewerror;
-
-		retrying = 503;
+			errstr = safe_strdup(line);
+		else
+			retrying = 503;
 		break;
 
 	default:
-spewerror:
-		warnx("%s: %s: HTTP server returned error code %d", 
-		      fs->fs_outputfile, https->http_hostname, status);
-		if (fs->fs_verbose > 1) {
-			fputs(line, stderr);
-			fputc('\n', stderr);
-			while ((line = fgetln(remote, &linelen)) != 0)
-				fwrite(line, 1, linelen, stderr);
-		}
-		fclose(remote);
-		unsetup_sigalrm();
-		return EX_UNAVAILABLE;
+		errstr = safe_strdup(line);
+		break;
 	}
 
 	total_length = -1;	/* -1 means ``don't know'' */
@@ -801,7 +834,6 @@ doretry:
 	if (autherror == 407 && https->http_proxy_authentication)
 		goto doretry;
 	if (autherror) {
-		line = (char *)"HTTP/1.1 401 Unauthorized";
 		goto spewerror;
 	}
 
@@ -809,8 +841,7 @@ doretry:
 		int howlong;
 
 		if (when_to_retry == -1) {
-			/* This assignment is OK because all we do is print. */
-			line = (char *)"HTTP/1.1 503 Service Unavailable";
+			errstr = safe_strdup("HTTP/1.1 503 Service Unavailable");
 			goto spewerror;
 		}
 		howlong = when_to_retry - time(0);
@@ -822,6 +853,21 @@ doretry:
 		fs->fs_status = "waiting to retry";
 		sleep(howlong);
 		goto doretry;
+	}
+
+	if (errstr != 0) {
+spewerror:
+		warnx("%s: %s: HTTP server returned error code %d", 
+		      fs->fs_outputfile, https->http_hostname, status);
+		if (fs->fs_verbose > 1) {
+			fputs(errstr, stderr);
+			fputc('\n', stderr);
+			html_display(remote);
+		}
+		free(errstr);
+		fclose(remote);
+		unsetup_sigalrm();
+		return EX_UNAVAILABLE;
 	}
 		
 	if (redirection && new_location) {
@@ -855,9 +901,9 @@ doretry:
 	 * output until EOF.
 	 */
 	if (to_stdout)
-		local = fopen("/dev/stdout", "w");
+		local = fopen("/dev/stdout", restarting ? "a" : "w");
 	else
-		local = fopen(fs->fs_outputfile, "w");
+		local = fopen(fs->fs_outputfile, restarting ? "a" : "w");
 	if (local == 0) {
 		warn("%s: fopen", fs->fs_outputfile);
 		fclose(remote);
@@ -935,6 +981,8 @@ cantauth:
 /*
  * The format of the response line for an HTTP request is:
  *	HTTP/V.vv{WS}999{WS}Explanatory text for humans to read\r\n
+ * Old pre-HTTP/1.0 servers can return
+ *	HTTP{WS}999{WS}Explanatory text for humans to read\r\n
  * Where {WS} represents whitespace (spaces and/or tabs) and 999
  * is a machine-interprable result code.  We return the integer value
  * of that result code, or the impossible value `0' if we are unable to
@@ -946,15 +994,11 @@ http_first_line(const char *line)
 	char *ep;
 	unsigned long ul;
 
-	if (strncasecmp(line, "http/", 5) != 0)
+	if (strncasecmp(line, "http", 4) != 0)
 		return 0;
 
-	line += 5;
-	while (*line && isdigit(*line))	/* skip major version number */
-		line++;
-	if (*line++ != '.')	/* skip period */
-		return 0;
-	while (*line && isdigit(*line))	/* skip minor version number */
+	line += 4;
+	while (*line && !isspace(*line)) /* skip non-whitespace */
 		line++;
 	while (*line && isspace(*line))	/* skip first whitespace */
 		line++;
@@ -1263,7 +1307,7 @@ parse_http_content_range(char *orig, off_t *restart_from, off_t *total_length)
 	u_quad_t first, last, total;
 	char *ep;
 
-	if (strcasecmp(orig, "bytes") != 0) {
+	if (strncasecmp(orig, "bytes", 5) != 0) {
 		warnx("unknown Content-Range unit: `%s'", orig);
 		return EX_PROTOCOL;
 	}
