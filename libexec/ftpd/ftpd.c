@@ -386,7 +386,7 @@ main(int argc, char *argv[], char **envp)
 			break;
 
 		case 'v':
-			ftpdebug = 1;
+			ftpdebug++;
 			break;
 
 		default:
