@@ -3,7 +3,7 @@
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  */
-#ifdef __sgi
+#if defined(__sgi) && (IRIX > 602)
 # include <sys/ptimers.h>
 #endif
 #include <sys/errno.h>
@@ -298,9 +298,15 @@ ip_t *ip;
 	cv_signal(&ipfauthwait);
 #else
 # if defined(BSD) && !defined(sparc) && (BSD >= 199306)
+<<<<<<< ip_auth.c
 	if (!fin->fin_out) {
 		ip->ip_len = htons(ip->ip_len);
 		ip->ip_off = htons(ip->ip_off);
+=======
+	if (fin->fin_out == 0) {
+		ip->ip_len = htons(ip->ip_len);
+		ip->ip_off = htons(ip->ip_off);
+>>>>>>> 1.1.1.11
 	}
 # endif
 	fr_authpkts[i] = m;
@@ -310,7 +316,7 @@ ip_t *ip;
 }
 
 
-int fr_auth_ioctl(data, mode, cmd, fr, frptr)
+int fr_auth_ioctl(data, mode, cmd)
 caddr_t data;
 int mode;
 #if defined(__NetBSD__) || defined(__OpenBSD__) || (__FreeBSD_version >= 300003)
@@ -318,19 +324,21 @@ u_long cmd;
 #else
 int cmd;
 #endif
-frentry_t *fr, **frptr;
 {
 	mb_t *m;
 #if defined(_KERNEL) && !SOLARIS
 	int s;
 #endif
 	frauth_t auth, *au = &auth, *fra;
-	frauthent_t *fae, **faep;
 	int i, error = 0;
 
 	switch (cmd)
 	{
 	case SIOCSTLCK :
+		if (!(mode & FWRITE)) {
+			error = EPERM;
+			break;
+		}
 		error = fr_lock(data, &fr_auth_lock);
 		break;
 	case SIOCINIFR :
@@ -343,45 +351,8 @@ frentry_t *fr, **frptr;
 		break;
 	case SIOCRMAFR :
 	case SIOCADAFR :
-		for (faep = &fae_list; (fae = *faep); )
-			if (&fae->fae_fr == fr)
-				break;
-			else
-				faep = &fae->fae_next;
-		if (cmd == SIOCRMAFR) {
-			if (!fr || !frptr)
-				error = EINVAL;
-			else if (!fae)
-				error = ESRCH;
-			else {
-				WRITE_ENTER(&ipf_auth);
-				SPL_NET(s);
-				*faep = fae->fae_next;
-				*frptr = fr->fr_next;
-				SPL_X(s);
-				RWLOCK_EXIT(&ipf_auth);
-				KFREE(fae);
-			}
-		} else if (fr && frptr) {
-			KMALLOC(fae, frauthent_t *);
-			if (fae != NULL) {
-				bcopy((char *)fr, (char *)&fae->fae_fr,
-				      sizeof(*fr));
-				WRITE_ENTER(&ipf_auth);
-				SPL_NET(s);
-				fae->fae_age = fr_defaultauthage;
-				fae->fae_fr.fr_hits = 0;
-				fae->fae_fr.fr_next = *frptr;
-				*frptr = &fae->fae_fr;
-				fae->fae_next = *faep;
-				*faep = fae;
-				ipauth = &fae_list->fae_fr;
-				SPL_X(s);
-				RWLOCK_EXIT(&ipf_auth);
-			} else
-				error = ENOMEM;
-		} else
-			error = EINVAL;
+		/* These commands go via request to fr_preauthcmd */
+		error = EINVAL;
 		break;
 	case SIOCATHST:
 		fr_authstats.fas_faelist = fae_list;
@@ -628,4 +599,67 @@ void fr_authexpire()
 	}
 	RWLOCK_EXIT(&ipf_auth);
 	SPL_X(s);
+}
+
+int fr_preauthcmd(cmd, fr, frptr)
+#if defined(__NetBSD__) || defined(__OpenBSD__) || \
+	(_BSDI_VERSION >= 199701) || (__FreeBSD_version >= 300000)
+u_long cmd;
+#else
+int cmd;
+#endif                 
+frentry_t *fr, **frptr;
+{
+	frauthent_t *fae, **faep;
+	int error = 0;
+#if defined(KERNEL) && !SOLARIS
+	int s;
+#endif
+
+	if ((cmd != SIOCADAFR) && (cmd != SIOCRMAFR)) {
+		/* Should not happen */
+		printf("fr_preauthcmd called with bad cmd 0x%lx", (u_long)cmd);
+		return EIO;
+	}
+	
+	for (faep = &fae_list; (fae = *faep); )
+		if (&fae->fae_fr == fr)
+			break;
+		else
+			faep = &fae->fae_next;
+	if (cmd == SIOCRMAFR) {
+		if (!fr || !frptr)
+			error = EINVAL;
+		else if (!fae)
+			error = ESRCH;
+		else {
+			WRITE_ENTER(&ipf_auth);
+			SPL_NET(s);
+			*faep = fae->fae_next;
+			*frptr = fr->fr_next;
+			SPL_X(s);
+			RWLOCK_EXIT(&ipf_auth);
+			KFREE(fae);
+		}
+	} else if (fr && frptr) {
+		KMALLOC(fae, frauthent_t *);
+		if (fae != NULL) {
+			bcopy((char *)fr, (char *)&fae->fae_fr,
+			      sizeof(*fr));
+			WRITE_ENTER(&ipf_auth);
+			SPL_NET(s);
+			fae->fae_age = fr_defaultauthage;
+			fae->fae_fr.fr_hits = 0;
+			fae->fae_fr.fr_next = *frptr;
+			*frptr = &fae->fae_fr;
+			fae->fae_next = *faep;
+			*faep = fae;
+			ipauth = &fae_list->fae_fr;
+			SPL_X(s);
+			RWLOCK_EXIT(&ipf_auth);
+		} else
+			error = ENOMEM;
+	} else
+		error = EINVAL;
+	return error;
 }
