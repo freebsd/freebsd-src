@@ -327,6 +327,7 @@ pci/ncr.c		optional ncr device-driver
 pci/pci.c		optional pci device-driver
 pci/pcisupport.c	optional pci
 pci/tek390.c		optional amd device-driver
+pci/wdc_p.c		optional wdc device-driver
 scsi/cd.c		optional cd
 scsi/ch.c		optional ch
 scsi/od.c		optional od
