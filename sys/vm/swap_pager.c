@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.82 1998/01/22 17:30:32 dyson Exp $
+ * $Id: swap_pager.c,v 1.83 1998/01/31 11:56:29 dyson Exp $
  */
 
 /*
@@ -1595,7 +1595,8 @@ swap_pager_finish(spc)
 		for (i = 0; i < spc->spc_count; i++) {
 			pmap_clear_modify(VM_PAGE_TO_PHYS(spc->spc_m[i]));
 			spc->spc_m[i]->dirty = 0;
-			if (((spc->spc_m[i]->flags & PG_WANTED) || pmap_ts_referenced(VM_PAGE_TO_PHYS(spc->spc_m[i]))))
+			if ((spc->spc_m[i]->queue != PQ_ACTIVE) &&
+			   ((spc->spc_m[i]->flags & PG_WANTED) || pmap_ts_referenced(VM_PAGE_TO_PHYS(spc->spc_m[i]))))
 				vm_page_activate(spc->spc_m[i]);
 		}
 	}
