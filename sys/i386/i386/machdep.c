@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.22 1993/12/19 00:50:03 wollman Exp $
+ *	$Id: machdep.c,v 1.23 1993/12/22 13:12:04 davidg Exp $
  */
 
 #include "npx.h"
@@ -418,7 +418,6 @@ sendsig(catcher, sig, mask, code)
 
 	regs = p->p_regs;
         oonstack = ps->ps_onstack;
-	frmtrap = curpcb->pcb_flags & FM_TRAP;
 	/*
 	 * Allocate and validate space for the signal handler
 	 * context. Note that if the stack is in P0 space, the
@@ -431,12 +430,8 @@ sendsig(catcher, sig, mask, code)
 				- sizeof(struct sigframe));
                 ps->ps_onstack = 1;
 	} else {
-		if (frmtrap)
-			fp = (struct sigframe *)(regs[tESP]
-				- sizeof(struct sigframe));
-		else
-			fp = (struct sigframe *)(regs[sESP]
-				- sizeof(struct sigframe));
+		fp = (struct sigframe *)(regs[tESP]
+			- sizeof(struct sigframe));
 	}
 
 	if (useracc((caddr_t)fp, sizeof (struct sigframe), B_WRITE) == 0) {
@@ -463,35 +458,21 @@ sendsig(catcher, sig, mask, code)
 	fp->sf_handler = catcher;
 
 	/* save scratch registers */
-	if(frmtrap) {
-		fp->sf_eax = regs[tEAX];
-		fp->sf_edx = regs[tEDX];
-		fp->sf_ecx = regs[tECX];
-	} else {
-		fp->sf_eax = regs[sEAX];
-		fp->sf_edx = regs[sEDX];
-		fp->sf_ecx = regs[sECX];
-	}
+	fp->sf_eax = regs[tEAX];
+	fp->sf_edx = regs[tEDX];
+	fp->sf_ecx = regs[tECX];
+
 	/*
 	 * Build the signal context to be used by sigreturn.
 	 */
 	fp->sf_sc.sc_onstack = oonstack;
 	fp->sf_sc.sc_mask = mask;
-	if(frmtrap) {
-		fp->sf_sc.sc_sp = regs[tESP];
-		fp->sf_sc.sc_fp = regs[tEBP];
-		fp->sf_sc.sc_pc = regs[tEIP];
-		fp->sf_sc.sc_ps = regs[tEFLAGS];
-		regs[tESP] = (int)fp;
-		regs[tEIP] = (int)((struct pcb *)kstack)->pcb_sigc;
-	} else {
-		fp->sf_sc.sc_sp = regs[sESP];
-		fp->sf_sc.sc_fp = regs[sEBP];
-		fp->sf_sc.sc_pc = regs[sEIP];
-		fp->sf_sc.sc_ps = regs[sEFLAGS];
-		regs[sESP] = (int)fp;
-		regs[sEIP] = (int)((struct pcb *)kstack)->pcb_sigc;
-	}
+	fp->sf_sc.sc_sp = regs[tESP];
+	fp->sf_sc.sc_fp = regs[tEBP];
+	fp->sf_sc.sc_pc = regs[tEIP];
+	fp->sf_sc.sc_ps = regs[tEFLAGS];
+	regs[tESP] = (int)fp;
+	regs[tEIP] = (int)((struct pcb *)kstack)->pcb_sigc;
 }
 
 /*
@@ -519,7 +500,7 @@ sigreturn(p, uap, retval)
 	register int *regs = p->p_regs;
 
 	/*
-	 * (XXX old comment) regs[sESP] points to the return address.
+	 * (XXX old comment) regs[tESP] points to the return address.
 	 * The user scp pointer is above that.
 	 * The return address is faked in the signal trampoline code
 	 * for consistency.
@@ -532,9 +513,9 @@ sigreturn(p, uap, retval)
 		return(EINVAL);
 
 	/* restore scratch registers */
-	regs[sEAX] = fp->sf_eax ;
-	regs[sEDX] = fp->sf_edx ;
-	regs[sECX] = fp->sf_ecx ;
+	regs[tEAX] = fp->sf_eax ;
+	regs[tEDX] = fp->sf_edx ;
+	regs[tECX] = fp->sf_ecx ;
 
 	if (useracc((caddr_t)scp, sizeof (*scp), 0) == 0)
 		return(EINVAL);
@@ -546,10 +527,10 @@ sigreturn(p, uap, retval)
         p->p_sigacts->ps_onstack = scp->sc_onstack & 01;
 	p->p_sigmask = scp->sc_mask &~
 	    (sigmask(SIGKILL)|sigmask(SIGCONT)|sigmask(SIGSTOP));
-	regs[sEBP] = scp->sc_fp;
-	regs[sESP] = scp->sc_sp;
-	regs[sEIP] = scp->sc_pc;
-	regs[sEFLAGS] = scp->sc_ps;
+	regs[tEBP] = scp->sc_fp;
+	regs[tESP] = scp->sc_sp;
+	regs[tEIP] = scp->sc_pc;
+	regs[tEFLAGS] = scp->sc_ps;
 	return(EJUSTRETURN);
 }
 
@@ -762,13 +743,18 @@ initcpu()
  * Clear registers on exec
  */
 void
-setregs(p, entry)
+setregs(p, entry, stack)
 	struct proc *p;
 	u_long entry;
+	u_long stack;
 {
-
-	p->p_regs[sEBP] = 0;	/* bottom of the fp chain */
-	p->p_regs[sEIP] = entry;
+	p->p_regs[tEBP] = 0;	/* bottom of the fp chain */
+	p->p_regs[tEIP] = entry;
+	p->p_regs[tESP] = stack;
+	p->p_regs[tSS] = _udatasel;
+	p->p_regs[tDS] = _udatasel;
+	p->p_regs[tES] = _udatasel;
+	p->p_regs[tCS] = _ucodesel;
 
 	p->p_addr->u_pcb.pcb_flags = 0;	/* no fp at all */
 	load_cr0(rcr0() | CR0_TS);	/* start emulating */
@@ -1153,7 +1139,7 @@ init386(first)
 	x = (int) &IDTVEC(syscall);
 	gdp->gd_looffset = x++;
 	gdp->gd_selector = GSEL(GCODE_SEL,SEL_KPL);
-	gdp->gd_stkcpy = 0;
+	gdp->gd_stkcpy = 1;	/* Leaves room for eflags like a trap */
 	gdp->gd_type = SDT_SYS386CGT;
 	gdp->gd_dpl = SEL_UPL;
 	gdp->gd_p = 1;
@@ -1268,35 +1254,24 @@ _remque(element)
 
 int
 ptrace_set_pc (struct proc *p, unsigned int addr) {
-	struct pcb *pcb;
 	void *regs = (char*)p->p_addr +
 		((char*) p->p_regs - (char*) kstack);
 
-	pcb = &p->p_addr->u_pcb;
-	if (pcb->pcb_flags & FM_TRAP)
-		((struct trapframe *)regs)->tf_eip = addr;
-	else
-		((struct syscframe *)regs)->sf_eip = addr;
+	((struct trapframe *)regs)->tf_eip = addr;
 	return 0;
 }
 
 int
 ptrace_single_step (struct proc *p) {
-	struct pcb *pcb;
 	void *regs = (char*)p->p_addr +
 		((char*) p->p_regs - (char*) kstack);
 
-	pcb = &p->p_addr->u_pcb;
-	if (pcb->pcb_flags & FM_TRAP)
-		((struct trapframe *)regs)->tf_eflags |= PSL_T;
-	else
-		((struct syscframe *)regs)->sf_eflags |= PSL_T;
+	((struct trapframe *)regs)->tf_eflags |= PSL_T;
 	return 0;
 }
 
 /*
- * Copy the registers to user-space.  This is tedious because
- * we essentially duplicate code for trapframe and syscframe. *sigh*
+ * Copy the registers to user-space.
  */
 
 int
@@ -1325,50 +1300,24 @@ int
 fill_regs(struct proc *p, struct regs *regs) {
 	int error;
 	struct trapframe *tp;
-	struct syscframe *sp;
-	struct pcb *pcb;
 	void *ptr = (char*)p->p_addr +
 		((char*) p->p_regs - (char*) kstack);
 
-	pcb = &p->p_addr->u_pcb;
-	if (pcb->pcb_flags & FM_TRAP) {
-		tp = ptr;
-		regs->r_es = tp->tf_es;
-		regs->r_ds = tp->tf_ds;
-		regs->r_edi = tp->tf_edi;
-		regs->r_esi = tp->tf_esi;
-		regs->r_ebp = tp->tf_ebp;
-		regs->r_ebx = tp->tf_ebx;
-		regs->r_edx = tp->tf_edx;
-		regs->r_ecx = tp->tf_ecx;
-		regs->r_eax = tp->tf_eax;
-		regs->r_eip = tp->tf_eip;
-		regs->r_cs = tp->tf_cs;
-		regs->r_eflags = tp->tf_eflags;
-		regs->r_esp = tp->tf_esp;
-		regs->r_ss = tp->tf_ss;
-	} else {
-		sp = ptr;
-		/*
-		 * No sf_es or sf_ds... dunno why.
-		 */
-		/*
-		 * regs.r_es = sp->sf_es;
-		 * regs.r_ds = sp->sf_ds;
-		 */
-		regs->r_edi = sp->sf_edi;
-		regs->r_esi = sp->sf_esi;
-		regs->r_ebp = sp->sf_ebp;
-		regs->r_ebx = sp->sf_ebx;
-		regs->r_edx = sp->sf_edx;
-		regs->r_ecx = sp->sf_ecx;
-		regs->r_eax = sp->sf_eax;
-		regs->r_eip = sp->sf_eip;
-		regs->r_cs = sp->sf_cs;
-		regs->r_eflags = sp->sf_eflags;
-		regs->r_esp = sp->sf_esp;
-		regs->r_ss = sp->sf_ss;
-	}
+	tp = ptr;
+	regs->r_es = tp->tf_es;
+	regs->r_ds = tp->tf_ds;
+	regs->r_edi = tp->tf_edi;
+	regs->r_esi = tp->tf_esi;
+	regs->r_ebp = tp->tf_ebp;
+	regs->r_ebx = tp->tf_ebx;
+	regs->r_edx = tp->tf_edx;
+	regs->r_ecx = tp->tf_ecx;
+	regs->r_eax = tp->tf_eax;
+	regs->r_eip = tp->tf_eip;
+	regs->r_cs = tp->tf_cs;
+	regs->r_eflags = tp->tf_eflags;
+	regs->r_esp = tp->tf_esp;
+	regs->r_ss = tp->tf_ss;
 	return 0;
 }
 
@@ -1376,121 +1325,26 @@ int
 set_regs (struct proc *p, struct regs *regs) {
 	int error;
 	struct trapframe *tp;
-	struct syscframe *sp;
-	struct pcb *pcb;
 	void *ptr = (char*)p->p_addr +
 		((char*) p->p_regs - (char*) kstack);
 
-	pcb = &p->p_addr->u_pcb;
-	if (pcb->pcb_flags & FM_TRAP) {
-		tp = ptr;
-		tp->tf_es = regs->r_es;
-		tp->tf_ds = regs->r_ds;
-		tp->tf_edi = regs->r_edi;
-		tp->tf_esi = regs->r_esi;
-		tp->tf_ebp = regs->r_ebp;
-		tp->tf_ebx = regs->r_ebx;
-		tp->tf_edx = regs->r_edx;
-		tp->tf_ecx = regs->r_ecx;
-		tp->tf_eax = regs->r_eax;
-		tp->tf_eip = regs->r_eip;
-		tp->tf_cs = regs->r_cs;
-		tp->tf_eflags = regs->r_eflags;
-		tp->tf_esp = regs->r_esp;
-		tp->tf_ss = regs->r_ss;
-	} else {
-		sp = ptr;
-		/*
-		 * No sf_es or sf_ds members, dunno why...
-		 */
-		/*
-		 * sp->sf_es = regs.r_es;
-		 * sp->sf_ds = regs.r_ds;
-		 */
-		sp->sf_edi = regs->r_edi;
-		sp->sf_esi = regs->r_esi;
-		sp->sf_ebp = regs->r_ebp;
-		sp->sf_ebx = regs->r_ebx;
-		sp->sf_edx = regs->r_edx;
-		sp->sf_ecx = regs->r_ecx;
-		sp->sf_eax = regs->r_eax;
-		sp->sf_eip = regs->r_eip;
-		sp->sf_cs = regs->r_cs;
-		sp->sf_eflags = regs->r_eflags;
-		sp->sf_esp = regs->r_esp;
-		sp->sf_ss = regs->r_ss;
-	}
+	tp = ptr;
+	tp->tf_es = regs->r_es;
+	tp->tf_ds = regs->r_ds;
+	tp->tf_edi = regs->r_edi;
+	tp->tf_esi = regs->r_esi;
+	tp->tf_ebp = regs->r_ebp;
+	tp->tf_ebx = regs->r_ebx;
+	tp->tf_edx = regs->r_edx;
+	tp->tf_ecx = regs->r_ecx;
+	tp->tf_eax = regs->r_eax;
+	tp->tf_eip = regs->r_eip;
+	tp->tf_cs = regs->r_cs;
+	tp->tf_eflags = regs->r_eflags;
+	tp->tf_esp = regs->r_esp;
+	tp->tf_ss = regs->r_ss;
 	return 0;
 }
-
-#ifdef SLOW_OLD_COPYSTRS
-vmunaccess() {}
-
-#if 0		/* assembler versions now in locore.s */
-/*
- * Below written in C to allow access to debugging code
- */
-copyinstr(fromaddr, toaddr, maxlength, lencopied) u_int *lencopied, maxlength;
-	void *toaddr, *fromaddr; {
-	int c,tally;
-
-	tally = 0;
-	while (maxlength--) {
-		c = fubyte(fromaddr++);
-		if (c == -1) {
-			if(lencopied) *lencopied = tally;
-			return(EFAULT);
-		}
-		tally++;
-		*(char *)toaddr++ = (char) c;
-		if (c == 0){
-			if(lencopied) *lencopied = (u_int)tally;
-			return(0);
-		}
-	}
-	if(lencopied) *lencopied = (u_int)tally;
-	return(ENAMETOOLONG);
-}
-
-copyoutstr(fromaddr, toaddr, maxlength, lencopied) u_int *lencopied, maxlength;
-	void *fromaddr, *toaddr; {
-	int c;
-	int tally;
-
-	tally = 0;
-	while (maxlength--) {
-		c = subyte(toaddr++, *(char *)fromaddr);
-		if (c == -1) return(EFAULT);
-		tally++;
-		if (*(char *)fromaddr++ == 0){
-			if(lencopied) *lencopied = tally;
-			return(0);
-		}
-	}
-	if(lencopied) *lencopied = tally;
-	return(ENAMETOOLONG);
-}
-
-#endif /* SLOW_OLD_COPYSTRS */
-
-copystr(fromaddr, toaddr, maxlength, lencopied) u_int *lencopied, maxlength;
-	void *fromaddr, *toaddr; {
-	u_int tally;
-
-	tally = 0;
-	while (maxlength--) {
-		*(u_char *)toaddr = *(u_char *)fromaddr++;
-		tally++;
-		if (*(u_char *)toaddr++ == 0) {
-			if(lencopied) *lencopied = tally;
-			return(0);
-		}
-	}
-	if(lencopied) *lencopied = tally;
-	return(ENAMETOOLONG);
-}
-
-#endif
 
 #include "ddb.h"
 #if NDDB <= 0

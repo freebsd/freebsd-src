@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_trace.c,v 1.2 1993/10/16 14:14:56 rgrimes Exp $
+ *	$Id: db_trace.c,v 1.3 1993/12/19 00:50:01 wollman Exp $
  */
 
 #include "param.h"
@@ -73,8 +73,10 @@ struct i386_frame {
 
 #define	TRAP		1
 #define	INTERRUPT	2
+#define	SYSCALL		3
 
 db_addr_t	db_trap_symbol_value = 0;
+db_addr_t	db_syscall_symbol_value = 0;
 db_addr_t	db_kdintr_symbol_value = 0;
 boolean_t	db_trace_symbols_found = FALSE;
 
@@ -86,6 +88,8 @@ db_find_trace_symbols()
 	    db_trap_symbol_value = (db_addr_t) value;
 	if (db_value_of_name("_kdintr", &value))
 	    db_kdintr_symbol_value = (db_addr_t) value;
+	if (db_value_of_name("_syscall", &value))
+	    db_syscall_symbol_value = (db_addr_t) value;
 	db_trace_symbols_found = TRUE;
 }
 
@@ -135,26 +139,43 @@ db_nextframe(fp, ip, argp, is_trap)
 {
 	struct i386_saved_state *saved_regs;
 
-	if (is_trap == 0) {
+	switch (is_trap) {
+	case 0:
 	    *ip = (db_addr_t)
 			db_get_value((int) &(*fp)->f_retaddr, 4, FALSE);
 	    *fp = (struct i386_frame *)
 			db_get_value((int) &(*fp)->f_frame, 4, FALSE);
-	} else {
+	    break;
+	case TRAP:
+	default:
 	    /*
 	     * We know that trap() has 1 argument and we know that
 	     * it is an (int *).
 	     */
+#if 0
 	    saved_regs = (struct i386_saved_state *)
 			db_get_value((int)argp, 4, FALSE);
+#endif
+	    saved_regs = (struct i386_saved_state *)argp;
 	    db_printf("--- trap (number %d) ---\n",
 		      saved_regs->tf_trapno & 0xffff);
 	    db_printsym(saved_regs->tf_eip, DB_STGY_XTRN);
 	    db_printf(":\n");
 	    *fp = (struct i386_frame *)saved_regs->tf_ebp;
 	    *ip = (db_addr_t)saved_regs->tf_eip;
-	}
+	    break;
 
+	case SYSCALL: {
+	    struct trapframe	*saved_regs = (struct trapframe *)argp;
+
+	    db_printf("--- syscall (number %d) ---\n", saved_regs->tf_eax);
+	    db_printsym(saved_regs->tf_eip, DB_STGY_XTRN);
+	    db_printf(":\n");
+	    *fp = (struct i386_frame *)saved_regs->tf_ebp;
+	    *ip = (db_addr_t)saved_regs->tf_eip;
+	    }
+	    break;
+	}
 }
 
 void
@@ -171,8 +192,10 @@ db_stack_trace_cmd(addr, have_addr, count, modif)
 	boolean_t	kernel_only = TRUE;
 	boolean_t	trace_thread = FALSE;
 
+#if 0
 	if (!db_trace_symbols_found)
 	    db_find_trace_symbols();
+#endif
 
 	{
 	    register char *cp = modif;
@@ -203,37 +226,83 @@ db_stack_trace_cmd(addr, have_addr, count, modif)
 
 	lastframe = 0;
 	while (count-- && frame != 0) {
-	    register int narg;
+	    int		narg;
 	    char *	name;
 	    db_expr_t	offset;
+	    db_sym_t	sym;
+#define MAXNARG	16
+	    char	*argnames[MAXNARG], **argnp = NULL;
 
-	    if (INKERNEL((int)frame) && callpc == db_trap_symbol_value) {
+	    sym = db_search_symbol(callpc, DB_STGY_ANY, &offset);
+	    db_symbol_values(sym, &name, NULL);
+
+	    if (lastframe == 0 && sym == NULL) {
+		/* Symbol not found, peek at code */
+		int	instr = db_get_value(callpc, 4, FALSE);
+
+		offset = 1;
+		if ((instr & 0x00ffffff) == 0x00e58955 ||
+				/* enter: pushl %ebp, movl %esp, %ebp */
+			(instr & 0x0000ffff) == 0x0000e589
+				/* enter+1: movl %esp, %ebp */	) {
+			offset = 0;
+		}
+	    }
+#define STRCMP(s1,s2) ((s1) && (s2) && strcmp((s1), (s2)) == 0)
+	    if (INKERNEL((int)frame) && STRCMP(name, "_trap")) {
 		narg = 1;
 		is_trap = TRAP;
 	    }
 	    else
-	    if (INKERNEL((int)frame) && callpc == db_kdintr_symbol_value) {
+	    if (INKERNEL((int)frame) && STRCMP(name, "_kdintr")) {
 		is_trap = INTERRUPT;
 		narg = 0;
 	    }
+	    else
+	    if (INKERNEL((int)frame) && STRCMP(name, "_syscall")) {
+		is_trap = SYSCALL;
+		narg = 0;
+	    }
+#undef STRCMP
 	    else {
 		is_trap = 0;
-		narg = db_numargs(frame);
+		narg = MAXNARG;
+		if (db_sym_numargs(sym, &narg, argnames)) {
+			argnp = argnames;
+		} else {
+			narg = db_numargs(frame);
+		}
 	    }
 
-	    db_find_sym_and_offset(callpc, &name, &offset);
 	    db_printf("%s(", name);
 
-	    argp = &frame->f_arg0;
+	    if (lastframe == 0 && offset == 0 && !have_addr) {
+		/*
+		 * We have a breakpoint before the frame is set up
+		 * Use %esp instead
+		 */
+		argp = &((struct i386_frame *)(ddb_regs.tf_esp-4))->f_arg0;
+	    } else
+		argp = &frame->f_arg0;
+
 	    while (narg) {
+		if (argnp)
+			db_printf("%s=", *argnp++);
 		db_printf("%x", db_get_value((int)argp, 4, FALSE));
 		argp++;
 		if (--narg != 0)
 		    db_printf(",");
 	    }
 	    db_printf(") at ");
-	    db_printsym(callpc, DB_STGY_XTRN);
+	    db_printsym(callpc, DB_STGY_PROC);
 	    db_printf("\n");
+
+	    if (lastframe == 0 && offset == 0 && !have_addr) {
+		/* Frame really belongs to next callpc */
+		lastframe = (struct i386_frame *)(ddb_regs.tf_esp-4);
+		callpc = (db_addr_t)db_get_value((int)&lastframe->f_retaddr, 4, FALSE);
+		continue;
+	    }
 
 	    lastframe = frame;
 	    db_nextframe(&frame, &callpc, &frame->f_arg0, is_trap);
@@ -257,7 +326,7 @@ db_stack_trace_cmd(addr, have_addr, count, modif)
 	    else {
 		/* in user */
 		if (frame <= lastframe) {
-		    db_printf("Bad frame pointer: 0x%x\n", frame);
+		    db_printf("Bad user frame pointer: 0x%x\n", frame);
 		    break;
 		}
 	    }
