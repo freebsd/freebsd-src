@@ -11,8 +11,8 @@ CFLAGS+=-I${.CURDIR}/../../sys/contrib/ipfilter
 CFLAGS+=-I${.CURDIR}/../../contrib/ipfilter
 WARNS=	0
 
-DPADD=	${LIBNCURSES}
-LDADD=	-lncurses
+DPADD=	${LIBNCURSES} ${LIBKVM}
+LDADD=	-lncurses -lkvm
 
 MAINTAINER=	guido@freebsd.org
 
