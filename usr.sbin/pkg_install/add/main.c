@@ -1,5 +1,5 @@
 #ifndef lint
-static char *rcsid = "$Id: main.c,v 1.7 1995/05/30 03:49:53 rgrimes Exp $";
+static char *rcsid = "$Id: main.c,v 1.7.4.1 1995/10/09 11:16:18 jkh Exp $";
 #endif
 
 /*
@@ -38,8 +38,7 @@ char	*Owner		= NULL;
 char	*Group		= NULL;
 char	*PkgName	= NULL;
 char	*Directory	= NULL;
-char	PlayPen[FILENAME_MAX];
-char	*Home		= NULL;
+char	FirstPen[FILENAME_MAX];
 add_mode_t AddMode	= NORMAL;
 
 int
@@ -78,7 +77,7 @@ main(int argc, char **argv)
 	    break;
 
 	case 't':
-	    strcpy(PlayPen, optarg);
+	    strcpy(FirstPen, optarg);
 	    break;
 
 	case 'S':
