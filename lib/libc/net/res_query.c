@@ -193,7 +193,6 @@ res_search(name, class, type, answer, anslen)
 	int anslen;		/* size of answer */
 {
 	const char *cp, * const *domain;
-	HEADER *hp = (HEADER *) answer;
 	u_int dots;
 	int trailing_dot, ret, saved_herrno;
 	int got_nodata = 0, got_servfail = 0, tried_as_is = 0;
@@ -277,8 +276,8 @@ res_search(name, class, type, answer, anslen)
 				 * This can occur due to a server failure
 				 * (that is, all listed servers have failed),
 				 * or all listed servers have timed out.
-				 * hp->rcode may not be set to SERVFAIL in the
-				 * case of a timeout.
+				 * ((HEADER *)answer)->rcode may not be set
+				 * to SERVFAIL in the case of a timeout.
 				 *
 				 * Either way we must terminate the search
 				 * and return TRY_AGAIN in order to avoid
