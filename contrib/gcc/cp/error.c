@@ -935,6 +935,25 @@ dump_decl (t, flags)
       break;
 
     case OVERLOAD:
+      if (OVL_CHAIN (t))
+	{
+	  t = OVL_CURRENT (t);
+	  if (DECL_CLASS_SCOPE_P (t))
+	    {
+	      dump_type (DECL_CONTEXT (t), flags);
+	      output_add_string (scratch_buffer, "::");
+	    }
+	  else if (DECL_CONTEXT (t))
+	    {
+	      dump_decl (DECL_CONTEXT (t), flags);
+	      output_add_string (scratch_buffer, "::");
+	    }
+	  dump_decl (DECL_NAME (t), flags);
+	  break;
+	}
+      
+      /* If there's only one function, just treat it like an ordinary
+	 FUNCTION_DECL.  */
       t = OVL_CURRENT (t);
       /* Fall through.  */
 
@@ -1424,6 +1443,9 @@ dump_expr (t, flags)
      tree t;
      int flags;
 {
+   if (t == 0)
+      return;
+   
   switch (TREE_CODE (t))
     {
     case VAR_DECL:
@@ -1473,7 +1495,11 @@ dump_expr (t, flags)
 	else if (type == char_type_node)
 	  {
 	    output_add_character (scratch_buffer, '\'');
-	    dump_char (tree_low_cst (t, 0));
+	    if (host_integerp (t, TREE_UNSIGNED (type)))
+	      dump_char (tree_low_cst (t, TREE_UNSIGNED (type)));
+	    else
+	      output_printf (scratch_buffer, "\\x%x",
+			     (unsigned int) TREE_INT_CST_LOW (t));
 	    output_add_character (scratch_buffer, '\'');
 	  }
 	else

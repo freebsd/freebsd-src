@@ -6016,6 +6016,11 @@ make_extraction (mode, inner, pos, pos_rtx, len,
 		final_word += (GET_MODE_SIZE (inner_mode)
 			       - GET_MODE_SIZE (tmode)) % UNITS_PER_WORD;
 
+	      /* Avoid creating invalid subregs, for example when
+		 simplifying (x>>32)&255. */
+	      if (final_word >= GET_MODE_SIZE (inner_mode))
+		return NULL_RTX;
+
 	      new = gen_rtx_SUBREG (tmode, inner, final_word);
 	    }
 	  else
@@ -6852,10 +6857,10 @@ force_to_mode (x, mode, mask, reg, just_select)
 	  return force_to_mode (x, mode, mask, reg, next_select);
 	}
 
-      /* Similarly, if C contains every bit in the mask, then we may
+      /* Similarly, if C contains every bit in the fuller_mask, then we may
 	 replace with (not Y).  */
       if (GET_CODE (XEXP (x, 0)) == CONST_INT
-	  && ((INTVAL (XEXP (x, 0)) | (HOST_WIDE_INT) mask)
+	  && ((INTVAL (XEXP (x, 0)) | (HOST_WIDE_INT) fuller_mask)
 	      == INTVAL (XEXP (x, 0))))
 	{
 	  x = simplify_gen_unary (NOT, GET_MODE (x),
