@@ -283,6 +283,7 @@ void
 sofree(so)
 	struct socket *so;
 {
+	struct socket *head;
 	int s;
 
 	KASSERT(so->so_count == 0, ("socket %p so_count not 0", so));
@@ -290,7 +291,7 @@ sofree(so)
 	if (so->so_pcb || (so->so_state & SS_NOFDREF) == 0)
 		return;
 	if (so->so_head != NULL) {
-		struct socket *head = so->so_head;
+		head = so->so_head;
 		if (so->so_state & SS_INCOMP) {
 			TAILQ_REMOVE(&head->so_incomp, so, so_list);
 			head->so_incqlen--;
