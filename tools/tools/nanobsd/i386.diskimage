@@ -30,6 +30,8 @@ MD=`mdconfig -a -t vnode -f ${TMPFILE0} -x ${SC} -y ${HD}`
 rm -f ${TMPFILE0}
 (
 sl=`expr "(" ${SECTS} - ${SC} - ${DATASLICE} ")" / 2`
+cyl=`expr ${SECTS} / ${SC} / ${HD}`
+echo g c${cyl} h${HD} s${SC}
 echo p 1 165 ${SC} $sl
 echo p 2 165 `expr ${SC} + $sl` $sl
 echo p 3 165 `expr ${SC} + $sl + $sl` ${DATASLICE}
