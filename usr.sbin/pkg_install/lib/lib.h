@@ -122,8 +122,8 @@ typedef struct _plist *PackingList;
 
 struct _pack {
     struct _plist *head, *tail;
-    char *name;
-    char *origin;
+    const char *name;
+    const char *origin;
     int fmtver_maj, fmtver_mnr;
 };
 typedef struct _pack Package;

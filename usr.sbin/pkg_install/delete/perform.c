@@ -125,6 +125,7 @@ pkg_do(char *pkg)
     char *deporigin, **depnames, home[FILENAME_MAX];
     PackingList p;
     int i, len;
+    int isinstalled;
     /* support for separate pre/post install scripts */
     int new_m = 0;
     const char *pre_script = DEINSTALL_FNAME;
@@ -141,17 +142,32 @@ pkg_do(char *pkg)
     if (Plist.head)
 	free_plist(&Plist);
 
-    if (!isinstalledpkg(pkg)) {
+    sprintf(LogDir, "%s/%s", LOG_DIR, pkg);
+
+    isinstalled = isinstalledpkg(pkg);
+    if (isinstalled == 0) {
 	warnx("no such package '%s' installed", pkg);
 	return 1;
+    } else if (isinstalled < 0) {
+	warnx("the package info for package '%s' is corrupt%s",
+	      pkg, Force ? " (but I'll delete it anyway)" : " (use -f to force removal)");
+	if (!Force)
+	    return 1;
+    	if (!Fake) {
+	    if (vsystem("%s -rf %s", REMOVE_CMD, LogDir)) {
+    		warnx("couldn't remove log entry in %s, deinstall failed", LogDir);
+	    } else {
+    		warnx("couldn't completely deinstall package '%s',\n"
+		      "only the log entry in %s was removed", pkg, LogDir);
+	    }
+	}
+	return 0;
     }
 
     if (!getcwd(home, FILENAME_MAX)) {
 	cleanup(0);
 	errx(2, "%s: unable to get current working directory!", __func__);
     }
-
-    sprintf(LogDir, "%s/%s", LOG_DIR, pkg);
 
     if (chdir(LogDir) == FAIL) {
 	warnx("unable to change directory to %s! deinstall failed", LogDir);
@@ -247,6 +263,30 @@ pkg_do(char *pkg)
 	}
     }
 
+    for (p = Plist.head; p ; p = p->next) {
+	if (p->type != PLIST_PKGDEP)
+	    continue;
+	deporigin = (p->next->type == PLIST_DEPORIGIN) ? p->next->name :
+							 NULL;
+	if (Verbose) {
+	    printf("Trying to remove dependency on package '%s'", p->name);
+	    if (deporigin != NULL)
+		printf(" with '%s' origin", deporigin);
+	    printf(".\n");
+	}
+	if (!Fake) {
+	    depnames = (deporigin != NULL) ? matchbyorigin(deporigin, NULL) :
+					     NULL;
+	    if (depnames == NULL) {
+		depnames = alloca(sizeof(*depnames) * 2);
+		depnames[0] = p->name;
+		depnames[1] = NULL;
+	    }
+	    for (i = 0; depnames[i] != NULL; i++)
+		undepend(depnames[i], pkg);
+	}
+    }
+
     if (chdir(home) == FAIL) {
 	cleanup(0);
 	errx(2, "%s: unable to return to working directory %s!", __func__,
@@ -291,30 +331,6 @@ pkg_do(char *pkg)
 	    warnx("couldn't remove log entry in %s, deinstall failed", LogDir);
 	    if (!Force)
 		return 1;
-	}
-    }
-
-    for (p = Plist.head; p ; p = p->next) {
-	if (p->type != PLIST_PKGDEP)
-	    continue;
-	deporigin = (p->next->type == PLIST_DEPORIGIN) ? p->next->name :
-							 NULL;
-	if (Verbose) {
-	    printf("Trying to remove dependency on package '%s'", p->name);
-	    if (deporigin != NULL)
-		printf(" with '%s' origin", deporigin);
-	    printf(".\n");
-	}
-	if (!Fake) {
-	    depnames = (deporigin != NULL) ? matchbyorigin(deporigin, NULL) :
-					     NULL;
-	    if (depnames == NULL) {
-		depnames = alloca(sizeof(*depnames) * 2);
-		depnames[0] = p->name;
-		depnames[1] = NULL;
-	    }
-	    for (i = 0; depnames[i] != NULL; i++)
-		undepend(depnames[i], pkg);
 	}
     }
     return 0;
