@@ -763,6 +763,8 @@ uhci_dumpregs(uhci_softc_t *sc)
 void
 uhci_dump_td(uhci_soft_td_t *p)
 {
+	char sbuf[128], sbuf2[128];
+
 	DPRINTFN(-1,("TD(%p) at %08lx = link=0x%08lx status=0x%08lx "
 		     "token=0x%08lx buffer=0x%08lx\n",
 		     p, (long)p->physaddr,
@@ -770,13 +772,16 @@ uhci_dump_td(uhci_soft_td_t *p)
 		     (long)le32toh(p->td.td_status),
 		     (long)le32toh(p->td.td_token),
 		     (long)le32toh(p->td.td_buffer)));
-	DPRINTFN(-1,("  %b %b,errcnt=%d,actlen=%d pid=%02x,addr=%d,endpt=%d,"
-		     "D=%d,maxlen=%d\n",
-		     (int)le32toh(p->td.td_link),
-		     "\20\1T\2Q\3VF",
-		     (int)le32toh(p->td.td_status),
-		     "\20\22BITSTUFF\23CRCTO\24NAK\25BABBLE\26DBUFFER\27"
-		     "STALLED\30ACTIVE\31IOC\32ISO\33LS\36SPD",
+
+	bitmask_snprintf((int)le32toh(p->td.td_link), "\20\1T\2Q\3VF",
+			 sbuf, sizeof(sbuf));
+	bitmask_snprintf((int)le32toh(p->td.td_status),
+			 "\20\22BITSTUFF\23CRCTO\24NAK\25BABBLE\26DBUFFER\27"
+			 "STALLED\30ACTIVE\31IOC\32ISO\33LS\36SPD",
+			 sbuf2, sizeof(sbuf2));
+
+	DPRINTFN(-1,("  %s %s,errcnt=%d,actlen=%d pid=%02x,addr=%d,endpt=%d,"
+		     "D=%d,maxlen=%d\n", sbuf, sbuf2,
 		     UHCI_TD_GET_ERRCNT(le32toh(p->td.td_status)),
 		     UHCI_TD_GET_ACTLEN(le32toh(p->td.td_status)),
 		     UHCI_TD_GET_PID(le32toh(p->td.td_token)),
