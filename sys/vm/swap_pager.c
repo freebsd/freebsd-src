@@ -64,7 +64,7 @@
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
  *
- * $Id: swap_pager.c,v 1.118 1999/05/06 20:00:33 phk Exp $
+ * $Id: swap_pager.c,v 1.119 1999/06/26 02:46:46 mckusick Exp $
  */
 
 #include <sys/param.h>
@@ -1158,6 +1158,7 @@ swap_pager_getpages(object, m, count, reqpage)
 	 * NOTE: b_blkno is destroyed by the call to VOP_STRATEGY
 	 */
 
+	BUF_KERNPROC(bp);
 	VOP_STRATEGY(bp->b_vp, bp);
 
 	/*
