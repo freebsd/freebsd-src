@@ -61,8 +61,6 @@ struct sockaddr;
 static int	hpfs_mountfs(register struct vnode *, struct mount *, 
 				  struct thread *);
 
-static vfs_init_t       hpfs_init;
-static vfs_uninit_t     hpfs_uninit;
 static vfs_fhtovp_t     hpfs_fhtovp;
 static vfs_vget_t       hpfs_vget;
 static vfs_cmount_t     hpfs_cmount;
@@ -71,24 +69,6 @@ static vfs_root_t       hpfs_root;
 static vfs_statfs_t     hpfs_statfs;
 static vfs_unmount_t    hpfs_unmount;
 static vfs_vptofh_t     hpfs_vptofh;
-
-static int
-hpfs_init (
-	struct vfsconf *vcp )
-{
-	dprintf(("hpfs_init():\n"));
-	
-	hpfs_hphashinit();
-	return 0;
-}
-
-static int
-hpfs_uninit (vfsp)
-	struct vfsconf *vfsp;
-{
-	hpfs_hphashdestroy();
-	return 0;;
-}
 
 static int
 hpfs_cmount ( 
@@ -484,16 +464,15 @@ hpfs_vget(
 
 	dprintf(("hpfs_vget(0x%x): ",ino));
 
+	error = vfs_hash_get(mp, ino, flags, curthread, vpp);
+	if (error)
+		return (error);
+	if (*vpp != NULL)
+		return (0);
+
 	*vpp = NULL;
 	hp = NULL;
 	vp = NULL;
-
-	if ((error = hpfs_hphashvget(hpmp->hpm_dev, ino, flags, vpp, td)) != 0)
-		return (error);
-	if (*vpp != NULL) {
-		dprintf(("hashed\n"));
-		return (0);
-	}
 
 	/*
 	 * We have to lock node creation for a while,
@@ -536,30 +515,32 @@ hpfs_vget(
 	hp->h_gid = hpmp->hpm_uid;
 	hp->h_mode = hpmp->hpm_mode;
 	hp->h_devvp = hpmp->hpm_devvp;
-	VREF(hp->h_devvp);
 
-	error = vn_lock(vp, LK_EXCLUSIVE, td);
-	if (error) {
+	/*
+	 * Exclusively lock the vnode before adding to hash. Note, that we
+	 * must not release nor downgrade the lock (despite flags argument
+	 * says) till it is fully initialized.
+	 */
+	lockmgr(vp->v_vnlock, LK_EXCLUSIVE, (struct mtx *)0, td);
+
+	/*
+	 * Atomicaly (in terms of vfs_hash operations) check the hash for
+	 * duplicate of vnode being created and add it to the hash. If a
+	 * duplicate vnode was found, it will be vget()ed from hash for us.
+	 */
+	if ((error = vfs_hash_insert(vp, ino, flags, curthread, vpp)) != 0) {
 		vput(vp);
+		*vpp = NULL;
 		return (error);
 	}
 
-	do {
-		if ((error =
-		     hpfs_hphashvget(hpmp->hpm_dev, ino, flags, vpp, td))) {
-			vput(vp);
-			return (error);
-		}
-		if (*vpp != NULL) {
-			dprintf(("hashed2\n"));
-			vput(vp);
-			return (0);
-		}
-	} while(lockmgr(&hpfs_hphash_lock,LK_EXCLUSIVE|LK_SLEEPFAIL,NULL,NULL));
+	/* We lost the race, then throw away our vnode and return existing */
+	if (*vpp != NULL) {
+		vput(vp);
+		return (0);
+	}
 
-	hpfs_hphashins(hp);
-
-	lockmgr(&hpfs_hphash_lock, LK_RELEASE, NULL, NULL);
+	VREF(hp->h_devvp);
 
 	error = bread(hpmp->hpm_devvp, ino, FNODESIZE, NOCRED, &bp);
 	if (error) {
@@ -586,12 +567,10 @@ hpfs_vget(
 
 static struct vfsops hpfs_vfsops = {
 	.vfs_fhtovp =		hpfs_fhtovp,
-	.vfs_init =		hpfs_init,
 	.vfs_cmount =		hpfs_cmount,
 	.vfs_mount =		hpfs_mount,
 	.vfs_root =		hpfs_root,
 	.vfs_statfs =		hpfs_statfs,
-	.vfs_uninit =		hpfs_uninit,
 	.vfs_unmount =		hpfs_unmount,
 	.vfs_vget =		hpfs_vget,
 	.vfs_vptofh =		hpfs_vptofh,

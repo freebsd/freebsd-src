@@ -30,6 +30,7 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
+#include <sys/conf.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -599,7 +600,7 @@ hpfs_reclaim(ap)
 
 	dprintf(("hpfs_reclaim(0x%x0): \n", hp->h_no));
 
-	hpfs_hphashrem(hp);
+	vfs_hash_remove(vp);
 
 	/* Purge old data structures associated with the inode. */
 	if (hp->h_devvp) {
