@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aic7xxx.c,v 1.29.2.27 1997/02/12 18:39:01 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.29.2.28 1997/02/14 03:09:50 davidg Exp $
  */
 /*
  * TODO:
@@ -1530,10 +1530,17 @@ ahc_handle_scsiint(ahc, intstat)
 						scb = NULL;
 						printerror = 0;
 					} else if (scb->flags & SCB_ABORT) {
+						struct hardware_scb *hscb;
+						u_int8_t tag;
+
+						hscb = scb->hscb;
+						tag = SCB_LIST_NULL;
+						if (hscb->control & TAG_ENB)
+							tag = scb->hscb->tag;
 						ahc_reset_device(ahc,
 								 target,
 								 channel,
-								 scb->hscb->tag,
+								 tag,
 								 XS_TIMEOUT);
 						ahc_run_done_queue(ahc);
 						scb = NULL;
@@ -1553,6 +1560,7 @@ ahc_handle_scsiint(ahc, intstat)
 			if (scb != NULL) {
 				scb->xs->error = XS_DRIVER_STUFFUP;
 				sc_print_addr(scb->xs->sc_link);
+				untimeout(ahc_timeout, (caddr_t)scb);
 				ahc_done(ahc, scb);
 				scb = NULL;
 			} else
@@ -2297,7 +2305,7 @@ ahc_scsi_cmd(xs)
 	if (ahc->discenable & mask) {
 		hscb->control |= DISCENB;
 		if (ahc->tagenable & mask)
-			hscb->control |= TAG_ENB;
+			hscb->control |= MSG_SIMPLE_Q_TAG;
 		if (ahc->orderedtag & mask) {
 			/* XXX this should be handled by the upper SCSI layer */
 			printf("Ordered Tag sent\n");
@@ -2458,12 +2466,7 @@ ahc_run_waiting_queue(ahc)
 {
 	struct scb *scb;
 
-	/*
-	 * On aic78X0 chips, we rely on Auto Access Pause (AAP)
-	 * instead of doing an explicit pause/unpause.
-	 */
-	if ((ahc->type & AHC_AIC78X0) == 0)
-		pause_sequencer(ahc);
+	pause_sequencer(ahc);
 
 	while ((scb = ahc->waiting_scbs.stqh_first) != NULL) {
 
@@ -2484,8 +2487,7 @@ ahc_run_waiting_queue(ahc)
 			 */
 			ahc->curqincnt++;
 	}
-	if ((ahc->type & AHC_AIC78X0) == 0)
-		unpause_sequencer(ahc, /*Unpause always*/FALSE);
+	unpause_sequencer(ahc, /*Unpause always*/FALSE);
 }
 
 /*
@@ -2724,8 +2726,7 @@ ahc_timeout(arg)
 			 */
 			panic("%s: Timed-out command times out "
 				"again\n", ahc_name(ahc));
-		} else if ((scb->flags & (SCB_ABORTED | SCB_DEVICE_RESET
-					  | SCB_SENTORDEREDTAG)) == 0) {
+		} else if ((scb->flags & SCB_RECOVERY_SCB) == 0) {
 			/*
 			 * This is not the SCB that started this timeout
 			 * processing.  Give this scb another lifetime so
@@ -2792,7 +2793,7 @@ ahc_timeout(arg)
 	/* Decide our course of action */
 
 	channel = (scb->hscb->tcl & SELBUSB) ? 'B': 'A';	
-	if (scb->flags & SCB_ABORTED) {
+	if (scb->flags & SCB_RECOVERY_SCB) {
 		/*
 		 * Been down this road before.
 		 * Do a full bus reset.
@@ -2814,7 +2815,7 @@ ahc_timeout(arg)
 		mask = (0x01 << (scb->xs->sc_link->target
 			 	 | (IS_SCSIBUS_B(ahc, scb->xs->sc_link) ?
 				    SELBUSB : 0)));
-		scb->flags |= SCB_SENTORDEREDTAG;
+		scb->flags |= SCB_SENTORDEREDTAG|SCB_RECOVERY_SCB;
 		ahc->orderedtag |= mask;
 		timeout(ahc_timeout, (caddr_t)scb, (1 * hz));
 		unpause_sequencer(ahc, /*unpause_always*/TRUE);
@@ -2851,7 +2852,7 @@ ahc_timeout(arg)
 			ahc_outb(ahc, SCSISIGO, bus_state|ATNO);
 			sc_print_addr(active_scb->xs->sc_link);
 			printf("abort message in message buffer\n");
-			active_scb->flags |= SCB_ABORTED;
+			active_scb->flags |= SCB_ABORT|SCB_RECOVERY_SCB;
 			if (active_scb != scb) {
 				untimeout(ahc_timeout, 
 					  (caddr_t)active_scb);
@@ -2860,7 +2861,7 @@ ahc_timeout(arg)
 					(scb->xs->timeout * hz) / 1000);
 			}
 			timeout(ahc_timeout, (caddr_t)active_scb,
-				(100 * hz) / 1000);
+				(200 * hz) / 1000);
 			unpause_sequencer(ahc, /*unpause_always*/TRUE);
 		} else {
 			u_int8_t hscb_index;
@@ -2876,12 +2877,11 @@ ahc_timeout(arg)
 					disconnected = TRUE;
 			}
 
-			scb->flags |= SCB_ABORTED;
 			if (disconnected) {
 				/* Simply set the ABORT_SCB control bit */
 				scb->hscb->control |= ABORT_SCB|MK_MESSAGE;
 				scb->hscb->control &= ~DISCONNECTED;;
-				scb->flags |= SCB_ABORT;
+				scb->flags |= SCB_ABORT|SCB_RECOVERY_SCB;
 				if (hscb_index != SCB_LIST_NULL) {
 					u_int8_t scb_control;
 
@@ -3170,7 +3170,7 @@ ahc_abort_wscb (ahc, scbp, scbpos, prev, xs_error)
 	 */
 	ahc_outb(ahc, SCBPTR, curscb);
 	scbp->flags = SCB_ABORTED|SCB_QUEUED_FOR_DONE;
-	scbp->xs->error |= xs_error;
+	scbp->xs->error = xs_error;
 	untimeout(ahc_timeout, (caddr_t)scbp);
 	return next;
 }
