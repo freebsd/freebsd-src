@@ -77,7 +77,7 @@ DEFS = @DEFS@
 RANLIB = @RANLIB@
 
 CC       = @CC@
-CFLAGS = -g
+CFLAGS = @CFLAGS@
 CPPFLAGS=
 
 YACC = @YACC@

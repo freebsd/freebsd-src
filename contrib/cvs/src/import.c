@@ -20,8 +20,6 @@
 #include "savecwd.h"
 #include <assert.h>
 
-#define	FILE_HOLDER	".#cvsxxx"
-
 static char *get_comment PROTO((char *user));
 static int add_rev PROTO((char *message, RCSNode *rcs, char *vfile,
 			  char *vers));
@@ -655,39 +653,15 @@ add_rev (message, rcs, vfile, vers)
 	RCS_rewrite (rcs, NULL, NULL);
     }
     tocvsPath = wrap_tocvs_process_file (vfile);
-    if (tocvsPath == NULL)
-    {
-	/* We play with hard links rather than passing -u to ci to avoid
-	   expanding RCS keywords (see test 106.5 in sanity.sh).  */
-	if (link_file (vfile, FILE_HOLDER) < 0)
-	{
-	    if (errno == EEXIST)
-	    {
-		(void) unlink_file (FILE_HOLDER);
-		(void) link_file (vfile, FILE_HOLDER);
-	    }
-	    else
-	    {
-		ierrno = errno;
-		fperror (logfp, 0, ierrno,
-			 "ERROR: cannot create link to %s", vfile);
-		error (0, ierrno, "ERROR: cannot create link to %s", vfile);
-		return (1);
-	    }
-	}
-    }
 
     status = RCS_checkin (rcs, tocvsPath == NULL ? vfile : tocvsPath,
 			  message, vbranch,
-			  (RCS_FLAGS_QUIET
+			  (RCS_FLAGS_QUIET | RCS_FLAGS_KEEPFILE
 			   | (use_file_modtime ? RCS_FLAGS_MODTIME : 0)));
     ierrno = errno;
 
-    if (tocvsPath == NULL)
-	rename_file (FILE_HOLDER, vfile);
-    else
-	if (unlink_file_dir (tocvsPath) < 0)
-		error (0, errno, "cannot remove %s", tocvsPath);
+    if ((tocvsPath != NULL) && (unlink_file_dir (tocvsPath) < 0))
+	error (0, errno, "cannot remove %s", tocvsPath);
 
     if (status)
     {

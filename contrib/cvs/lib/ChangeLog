@@ -1,3 +1,7 @@
+Tue Mar 24 16:08:00 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* Makefile.in (CFLAGS): Set to @CFLAGS@, not -g.
+
 1998-02-20  Jim Kingdon  <kingdon@harvey.cyclic.com>
 
 	* regex.c: Partial merge with version from emacs 20.2.  Brings

@@ -41,96 +41,6 @@ List *hardlist;		/* Record hardlink information for working files */
 char *working_dir;	/* The top-level working directory, used for
 			   constructing full pathnames. */
 
-/* For check_link_proc: list all of the files named in an inode list. */
-static int
-list_files_proc (node, vstrp)
-    Node *node;
-    void *vstrp;
-{
-    char **strp, *file;
-    int len;
-
-    /* Get the file's basename.  This is because -- VERY IMPORTANT --
-       the `hardlinks' field is presently defined only to include links
-       within a directory.  So the hardlinks field might be `foo' or
-       `mumble grump flink', but not `foo bar com/baz' or `wham ../bam
-       ../thank/you'.  Someday it would be nice to extend this to
-       permit cross-directory links, but the issues involved are
-       hideous. */
-
-    file = strrchr (node->key, '/');
-    if (file)
-	++file;
-    else
-	file = node->key;
-
-    /* Is it safe to cast vstrp to (char **) here, and then play with
-       the contents?  I think so, since vstrp will have started out
-       a char ** to begin with, so we should not have alignment bugs. */
-    strp = (char **) vstrp;
-    len = (*strp == NULL ? 0 : strlen (*strp));
-    *strp = (char *) xrealloc (*strp, len + strlen (file) + 2);
-    if (*strp == NULL)
-    {
-	error (0, errno, "could not allocate memory");
-	return 1;
-    }
-    if (sprintf (*strp + len, "%s ", file) < 0)
-    {
-	error (0, errno, "could not compile file list");
-	return 1;
-    }
-
-    return 0;
-}    
-
-/* Set the link field of each hardlink_info node to `data', which is a
-   list of linked files. */
-static int
-set_hardlink_field_proc (node, data)
-    Node *node;
-    void *data;
-{
-    struct hardlink_info *hlinfo = (struct hardlink_info *) node->data;
-    hlinfo->links = xstrdup ((char *) data);
-
-    return 0;
-}
-
-/* For each file being checked in, compile a list of the files linked
-   to it, and cache the list in the file's hardlink_info field. */
-int
-cache_hardlinks_proc (node, data)
-    Node *node;
-    void *data;
-{
-    List *inode_links;
-    char *p, *linked_files = NULL;
-    int err;
-
-    inode_links = (List *) node->data;
-
-    /* inode->data is a list of hardlink_info structures: all the
-       files linked to this inode.  We compile a string of each file
-       named in this list, in alphabetical order, separated by spaces.
-       Then store this string in the `links' field of each
-       hardlink_info structure, so that RCS_checkin can easily add
-       it to the `hardlinks' field of a new delta node. */
-
-    sortlist (inode_links, fsortcmp);
-    err = walklist (inode_links, list_files_proc, &linked_files);
-    if (err)
-	return err;
-
-    /* Trim trailing whitespace. */
-    p = linked_files + strlen(linked_files) - 1;
-    while (p > linked_files && isspace (*p))
-	*p-- = '\0';
-
-    err = walklist (inode_links, set_hardlink_field_proc, linked_files);
-    return err;
-}
-
 /* Return a pointer to FILEPATH's node in the hardlist.  This means
    looking up its inode, retrieving the list of files linked to that
    inode, and then looking up FILE in that list.  If the file doesn't
@@ -237,26 +147,28 @@ update_hardlink_info (file)
     hlinfo = (struct hardlink_info *) n->data;
     hlinfo->status = T_UPTODATE;
     hlinfo->checked_out = 1;
-    hlinfo->links = NULL;
 }
 
-/* Return a string listing all the files known to be linked to FILE in
+/* Return a List with all the files known to be linked to FILE in
    the working directory.  Used by special_file_mismatch, to determine
-   whether it is safe to merge two files. */
-char *
-list_files_linked_to (file)
-    const char *file;
+   whether it is safe to merge two files.
+
+   FIXME: What is the memory allocation for the return value?  We seem
+   to sometimes allocate a new list (getlist() call below) and sometimes
+   return an existing list (where we return n->data).  */
+List *
+list_linked_files_on_disk (file)
+    char *file;
 {
-    char *inodestr, *filelist, *path;
+    char *inodestr, *path;
     struct stat sb;
     Node *n;
-    int err;
 
     /* If hardlist is NULL, we have not been doing an operation that
        would permit us to know anything about the file's hardlinks
-       (cvs update, cvs commit, etc).  Return an empty string. */
+       (cvs update, cvs commit, etc).  Return an empty list. */
     if (hardlist == NULL)
-	return xstrdup ("");
+	return getlist();
 
     /* Get the full pathname of file (assuming the working directory) */
     if (file[0] == '/')
@@ -288,11 +200,107 @@ list_files_linked_to (file)
     n = findnode (hardlist, inodestr);
     sortlist ((List *) n->data, fsortcmp);
 
-    filelist = NULL;
-    err = walklist ((List *) n->data, list_files_proc, &filelist);
-    if (err)
-	error (1, 0, "cannot get list of hardlinks for %s", file);
-
     free (inodestr);
-    return filelist;
+    return (List *) n->data;
 }
+
+/* Compare the files in the `key' fields of two lists, returning 1 if
+   the lists are equivalent and 0 otherwise.
+
+   Only the basenames of each file are compared. This is an awful hack
+   that exists because list_linked_files_on_disk returns full paths
+   and the `hardlinks' structure of a RCSVers node contains only
+   basenames.  That in turn is a result of the awful hack that only
+   basenames are stored in the RCS file.  If anyone ever solves the
+   problem of correctly managing cross-directory hardlinks, this
+   function (along with most functions in this file) must be fixed. */
+						      
+int
+compare_linkage_lists (links1, links2)
+    List *links1;
+    List *links2;
+{
+    Node *n1, *n2;
+    char *p1, *p2;
+
+    sortlist (links1, fsortcmp);
+    sortlist (links2, fsortcmp);
+
+    n1 = links1->list->next;
+    n2 = links2->list->next;
+
+    while (n1 != links1->list && n2 != links2->list)
+    {
+	/* Get the basenames of both files. */
+	p1 = strrchr (n1->key, '/');
+	if (p1 == NULL)
+	    p1 = n1->key;
+	else
+	    ++p1;
+
+	p2 = strrchr (n2->key, '/');
+	if (p2 == NULL)
+	    p2 = n2->key;
+	else
+	    ++p2;
+
+	/* Compare the files' basenames. */
+	if (strcmp (p1, p2) != 0)
+	    return 0;
+
+	n1 = n1->next;
+	n2 = n2->next;
+    }
+
+    /* At this point we should be at the end of both lists; if not,
+       one file has more links than the other, and return 1. */
+    return (n1 == links1->list && n2 == links2->list);
+}
+
+/* Find a checked-out file in a list of filenames.  Used by RCS_checkout
+   when checking out a new hardlinked file, to decide whether this file
+   can be linked to any others that already exist.  The return value
+   is not currently used. */
+
+int
+find_checkedout_proc (node, data)
+    Node *node;
+    void *data;
+{
+    Node **uptodate = (Node **) data;
+    Node *link;
+    char *dir = xgetwd();
+    char *path;
+    struct hardlink_info *hlinfo;
+
+    /* If we have already found a file, don't do anything. */
+    if (*uptodate != NULL)
+	return 0;
+
+    /* Look at this file in the hardlist and see whether the checked_out
+       field is 1, meaning that it has been checked out during this CVS run. */
+    path = (char *)
+	xmalloc (sizeof(char) * (strlen (dir) + strlen (node->key) + 2));
+    sprintf (path, "%s/%s", dir, node->key);
+    link = lookup_file_by_inode (path);
+    free (path);
+    free (dir);
+
+    if (link == NULL)
+    {
+	/* We haven't seen this file -- maybe it hasn't been checked
+	   out yet at all. */
+	return 0;
+    }
+
+    hlinfo = (struct hardlink_info *) link->data;
+    if (hlinfo->checked_out)
+    {
+	/* This file has been checked out recently, so it's safe to
+           link to it. */
+	*uptodate = link;
+    }
+
+    return 0;
+}
+

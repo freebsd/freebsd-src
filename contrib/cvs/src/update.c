@@ -530,7 +530,6 @@ get_linkinfo_proc (callerdat, finfo)
 
     hlinfo->status = (Ctype) 0;	/* is this dumb? */
     hlinfo->checked_out = 0;
-    hlinfo->links = NULL;
 
     linkp->data = (char *) hlinfo;
 
@@ -1639,8 +1638,6 @@ patch_file (finfo, vers_ts, docheckout, file_info, checksum)
     {
 	char *diff_options;
 
-	/* FIXME: It might be better to come up with a diff library
-           which can be shared with the diffutils.  */
 	/* If the client does not support the Rcs-diff command, we
            send a context diff, and the client must invoke patch.
            That approach was problematical for various reasons.  The
@@ -1649,8 +1646,10 @@ patch_file (finfo, vers_ts, docheckout, file_info, checksum)
            program.  */
 	if (! rcs_diff_patches)
 	{
-	    /* We use -c, not -u, because we have no way of knowing
-	       which DIFF is in use.  */
+	    /* We use -c, not -u, because that is what CVS has
+	       traditionally used.  Kind of a moot point, now that
+	       Rcs-diff is preferred, so there is no point in making
+	       the compatibility issues worse.  */
 	    diff_options = "-c";
 	}
 	else
@@ -1922,14 +1921,21 @@ merge_file (finfo, vers)
 
     if (strcmp (vers->options, "-V4") == 0)
 	vers->options[0] = '\0';
-    (void) time (&last_register_time);
+
+    /* This file is the result of a merge, which means that it has
+       been modified.  We use a special timestamp string which will
+       not compare equal to any actual timestamp.  */
     {
 	char *cp = 0;
 
 	if (status)
+	{
+	    (void) time (&last_register_time);
 	    cp = time_stamp (finfo->file);
-	Register (finfo->entries, finfo->file, vers->vn_rcs, vers->ts_rcs, vers->options,
-		  vers->tag, vers->date, cp);
+	}
+	Register (finfo->entries, finfo->file, vers->vn_rcs,
+		  "Result of merge", vers->options, vers->tag,
+		  vers->date, cp);
 	if (cp)
 	    free (cp);
     }
@@ -2428,25 +2434,27 @@ join_file (finfo, vers)
     free (rev1);
     free (rev2);
 
-#ifdef SERVER_SUPPORT
-    /*
-     * If we're in server mode, then we need to re-register the file
-     * even if there were no conflicts (status == 0).
-     * This tells server_updated() to send the modified file back to
-     * the client.
-     */
-    if (status == 1 || (status == 0 && server_active))
-#else
-    if (status == 1)
-#endif
+    /* The file has changed, but if we just checked it out it may
+       still have the same timestamp it did when it was first
+       registered above in checkout_file.  We register it again with a
+       dummy timestamp to make sure that later runs of CVS will
+       recognize that it has changed.
+
+       We don't actually need to register again if we called
+       RCS_checkout above, and we aren't running as the server.
+       However, that is not the normal case, and calling Register
+       again won't cost much in that case.  */
     {
 	char *cp = 0;
 
 	if (status)
+	{
+	    (void) time (&last_register_time);
 	    cp = time_stamp (finfo->file);
-	Register (finfo->entries, finfo->file,
-		  vers->vn_rcs, vers->ts_rcs, vers->options,
-		  vers->tag, vers->date, cp);
+	}
+	Register (finfo->entries, finfo->file, vers->vn_rcs,
+		  "Result of merge", vers->options, vers->tag,
+		  vers->date, cp);
 	if (cp)
 	    free(cp);
     }
@@ -2494,8 +2502,8 @@ special_file_mismatch (finfo, rev1, rev2)
     dev_t rev1_dev, rev2_dev;
     char *rev1_symlink = NULL;
     char *rev2_symlink = NULL;
-    char *rev1_hardlinks = NULL;
-    char *rev2_hardlinks = NULL;
+    List *rev1_hardlinks;
+    List *rev2_hardlinks;
     int check_uids, check_gids, check_modes;
     int result;
 
@@ -2533,7 +2541,7 @@ special_file_mismatch (finfo, rev1, rev2)
 	    if (S_ISBLK (rev1_mode) || S_ISCHR (rev1_mode))
 		rev1_dev = sb.st_rdev;
 	}
-	rev1_hardlinks = list_files_linked_to (finfo->file);
+	rev1_hardlinks = list_linked_files_on_disk (finfo->file);
     }
     else
     {
@@ -2584,11 +2592,9 @@ special_file_mismatch (finfo, rev1, rev2)
 			   finfo->file, rev1, ftype);
 	    }
 
-	    n = findnode (vp->other_delta, "hardlinks");
-	    if (n == NULL)
-		rev1_hardlinks = xstrdup ("");
-	    else
-		rev1_hardlinks = xstrdup (n->data);
+	    rev1_hardlinks = vp->hardlinks;
+	    if (rev1_hardlinks == NULL)
+		rev1_hardlinks = getlist();
 	}
     }
 
@@ -2608,7 +2614,7 @@ special_file_mismatch (finfo, rev1, rev2)
 	    if (S_ISBLK (rev2_mode) || S_ISCHR (rev2_mode))
 		rev2_dev = sb.st_rdev;
 	}
-	rev2_hardlinks = list_files_linked_to (finfo->file);
+	rev2_hardlinks = list_linked_files_on_disk (finfo->file);
     }
     else
     {
@@ -2659,11 +2665,9 @@ special_file_mismatch (finfo, rev1, rev2)
 			   finfo->file, rev2, ftype);
 	    }
 
-	    n = findnode (vp->other_delta, "hardlinks");
-	    if (n == NULL)
-		rev2_hardlinks = xstrdup ("");
-	    else
-		rev2_hardlinks = xstrdup (n->data);
+	    rev2_hardlinks = vp->hardlinks;
+	    if (rev2_hardlinks == NULL)
+		rev2_hardlinks = getlist();
 	}
     }
 
@@ -2744,7 +2748,7 @@ special_file_mismatch (finfo, rev1, rev2)
 	}
 
 	/* Compare hard links. */
-	if (strcmp (rev1_hardlinks, rev2_hardlinks) != 0)
+	if (compare_linkage_lists (rev1_hardlinks, rev2_hardlinks) == 0)
 	{
 	    error (0, 0, "%s: hard linkage of %s and %s do not match",
 		   finfo->file,
@@ -2759,9 +2763,9 @@ special_file_mismatch (finfo, rev1, rev2)
     if (rev2_symlink != NULL)
 	free (rev2_symlink);
     if (rev1_hardlinks != NULL)
-	free (rev1_hardlinks);
+	dellist (&rev1_hardlinks);
     if (rev2_hardlinks != NULL)
-	free (rev2_hardlinks);
+	dellist (&rev2_hardlinks);
 
     return result;
 #else

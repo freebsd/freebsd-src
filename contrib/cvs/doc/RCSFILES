@@ -24,12 +24,33 @@ several other output formats.  If you just want some source code to
 look at, the part of CVS which applies these is RCS_deltas in
 src/rcs.c.
 
-The first time I read rcsfile.5 I didn't really notice the part about
-the order of the revisions.  This order _is_ important and CVS relies
-on it.  It is documented but it would be clearer if the example in
-rcsfile.5 also showed the order of the revisions (and the "next" and
-"branch" fields and anything else where it would be useful to have an
-example of how a revision tree is represented in an RCS file).
+The rcsfile.5 documentation only _very_ briefly touches on the order
+of the revisions.  The order _is_ important and CVS relies on it.
+Here is an example of what I was able to find, based on the join3
+sanity.sh testcase (and the behavior I am documenting here seems to be
+the same for RCS 5.7 and CVS 1.9.27):
+
+    1.1 ----------------->  1.2
+     \---> 1.1.2.1           \---> 1.2.2.1
+
+Here is how this shows up in the RCS file (omitting irrelevant parts):
+
+  admin:  head 1.2;
+  deltas:
+    1.2 branches 1.2.2.1; next 1.1;
+    1.1 branches 1.1.2.1; next;
+    1.1.2.1 branches; next;
+    1.2.2.1 branches; next;
+  deltatexts:
+    1.2
+    1.2.2.1
+    1.1
+    1.1.2.1
+
+Yes, the order seems to differ between the deltas and the deltatexts.
+I have no idea how much of this should actually be considered part of
+the RCS file format, and how much programs reading it should expect to
+encounter any order.
 
 The rcsfile.5 grammar shows the {num} after "next" as optional; if it
 is omitted then there is no next delta node (for example 1.1 or the
@@ -61,6 +82,38 @@ rules.
                 Cygnus about 1992.  These were for CVS, and predated
                 the current CVS death support, which uses a state "dead"
                 rather than a "dead" newphrase.
+
+CVS does use newphrases to implement the `PreservePermissions'
+extension introduced in CVS 1.9.26.  The following new keywords are
+defined when PreservePermissions=yes:
+
+   owner
+   group
+   permissions
+   special
+   symlink
+   hardlinks
+
+The contents of the `owner' and `group' field should be a numeric uid
+and a numeric gid, respectively, representing the user and group who
+own the file.  The `permissions' field contains an octal integer,
+representing the permissions that should be applied to the file.  The
+`special' field contains two words; the first must be either `block'
+or `character', and the second is the file's device number.  The
+`symlink' field should be present only in files which are symbolic
+links to other files, and absent on all regular files.  The
+`hardlinks' field contains a list of filenames to which the current
+file is linked, in alphabetical order.  Because files often contain
+characters special to RCS, like `.' and sometimes even contain spaces
+or eight-bit characters, the filenames in the hardlinks field will
+usually be enclosed in RCS strings.  For example:
+
+	hardlinks	README @install.txt@ @Installation Notes@;
+
+The hardlinks field should always include the name of the current
+file.  That is, in the repository file README,v, any hardlinks fields
+in the delta nodes should include `README'; CVS will not operate
+properly if this is not done.
 
 The rules regarding keyword expansion are not documented along with
 the rest of the RCS file format; they are documented in the co(1)

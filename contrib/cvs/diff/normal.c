@@ -1,5 +1,5 @@
 /* Normal-format output routines for GNU DIFF.
-   Copyright (C) 1988, 1989, 1993 Free Software Foundation, Inc.
+   Copyright (C) 1988, 1989, 1993, 1998 Free Software Foundation, Inc.
 
 This file is part of GNU DIFF.
 
@@ -52,9 +52,9 @@ print_normal_hunk (hunk)
 
   /* Print out the line number header for this hunk */
   print_number_range (',', &files[0], first0, last0);
-  fprintf (outfile, "%c", change_letter (inserts, deletes));
+  printf_output ("%c", change_letter (inserts, deletes));
   print_number_range (',', &files[1], first1, last1);
-  fprintf (outfile, "\n");
+  printf_output ("\n");
 
   /* Print the lines that the first file has.  */
   if (deletes)
@@ -62,7 +62,7 @@ print_normal_hunk (hunk)
       print_1_line ("<", &files[0].linbuf[i]);
 
   if (inserts && deletes)
-    fprintf (outfile, "---\n");
+    printf_output ("---\n");
 
   /* Print the lines that the second file has.  */
   if (inserts)
