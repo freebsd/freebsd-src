@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: smp.h,v 1.5 1997/05/03 18:05:31 fsmp Exp $
+ * $Id: smp.h,v 1.6 1997/05/05 22:56:37 fsmp Exp $
  *
  */
 
@@ -16,6 +16,10 @@
 #ifdef KERNEL
 
 #include "opt_smp.h"
+
+#if defined(SMP) && !defined(APIC_IO)
+# error APIC_IO required for SMP, add "options APIC_IO" to your config file.
+#endif /* SMP && NCPU */
 
 #if defined(SMP) && !defined(NCPU)
 # define NCPU			2
