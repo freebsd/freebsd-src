@@ -186,6 +186,10 @@ device		ex0	at isa? port? irq?
 # NOTE: This removes the isa attachment so that the pccard unit numbers
 # come out right.
 device		ep0
+# WaveLAN/IEEE 802.1 wireless NICs. Note: the WaveLAN/IEEE really
+# exists only as a PCMCIA device, so there is no ISA attatement needed
+# and resources will always be dynamically assigned by the pccard code.
+device		wi0
 # The probe order of these is presently determined by i386/isa/isa_compat.c.
 device		ie0	at isa? port 0x300 irq 10 iomem 0xd0000
 device		fe0	at isa? port 0x300 irq ?

@@ -59,9 +59,14 @@ struct wi_counters {
 struct wi_softc	{
 	struct arpcom		arpcom;
 	struct ifmedia		ifmedia;
+	device_t		dev;
 	int			wi_unit;
+	struct resource *	iobase;
+	struct resource *	irq;
 	bus_space_handle_t	wi_bhandle;
 	bus_space_tag_t		wi_btag;
+	void *			wi_intrhand;
+	int			wi_io_addr;    
 	int			wi_tx_data_id;
 	int			wi_tx_mgmt_id;
 	int			wi_gone;
@@ -81,6 +86,11 @@ struct wi_softc	{
 	char			wi_ibss_name[32];
 	u_int8_t		wi_txbuf[1536];
 	struct wi_counters	wi_stats;
+#ifdef WICACHE
+	int			wi_sigitems;
+	struct wi_sigcache	wi_sigcache[MAXWICACHE];
+	int			wi_nextitem;
+#endif
 	struct callout_handle	wi_stat_ch;
 };
 
@@ -99,8 +109,8 @@ struct wi_softc	{
 /* Default TX rate: 2Mbps, auto fallback */
 #define WI_DEFAULT_TX_RATE	3
 
-/* Default network name: ANY */
-#define WI_DEFAULT_NETNAME	"ANY"
+/* Default network name: empty string implies any */
+#define WI_DEFAULT_NETNAME	""
 
 #define WI_DEFAULT_AP_DENSITY	1
 
