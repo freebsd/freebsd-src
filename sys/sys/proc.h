@@ -127,7 +127,7 @@ struct	pargs {
  *      b - created at fork, never chagnes 
  *      c - locked by proc mtx
  *      d - locked by allproc_lock lock
- *      e - locked by proc tree lock
+ *      e - locked by proctree_lock lock
  *      f - session mtx
  *      g - process group mtx
  *      h - callout_lock mtx
@@ -138,6 +138,16 @@ struct	pargs {
  *      l - the attaching proc or attaching proc parent
  *      m - Giant
  *      n - not locked, lazy
+ *
+ * If the locking identifier is followed by a plus '+', then the specified
+ * member follows these special rules:
+ *      - It is only written to by the current process.
+ *      - It can be read by the current process and other processes.
+ * Thus, the locking rules for it are slightly different, and allow us to
+ * optimize the case where a process reads its own such value:
+ *	- Writes to this member are locked.
+ *	- Reads of this value by other processes are locked.
+ *	- Reads of this value by the current process need not be locked.
  */
 struct	proc {
 	TAILQ_ENTRY(proc) p_procq;	/* (j) Run/mutex queue. */
@@ -145,11 +155,11 @@ struct	proc {
 	LIST_ENTRY(proc) p_list;	/* (d) List of all processes. */
 
 	/* substructures: */
-	struct	pcred *p_cred;		/* (c) Process owner's identity. */
+	struct	pcred *p_cred;		/* (c+) Process owner's identity. */
 	struct	filedesc *p_fd;		/* (b) Ptr to open files structure. */
 	struct	pstats *p_stats;	/* (b) Accounting/statistics (CPU). */
 	struct	plimit *p_limit;	/* (m) Process limits. */
-	struct	vm_object *p_upages_obj;/* (c) Upages object. */
+	struct	vm_object *p_upages_obj;/* (a) Upages object. */
 	struct	procsig *p_procsig;	/* (c) Signal actions, state (CPU). */
 #define	p_sigacts	p_procsig->ps_sigacts
 #define	p_sigignore	p_procsig->ps_sigignore
@@ -160,7 +170,7 @@ struct	proc {
 
 	int	p_flag;			/* (c) P_* flags. */
 	int	p_sflag;		/* (j) PS_* flags. */
-	int	p_intr_nesting_level;	/* (n) Interrupt recursion. */
+	int	p_intr_nesting_level;	/* (k) Interrupt recursion. */
 	char	p_stat;			/* (j) S* process status. */
 	char	p_pad1[3];
 
