@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.12 1996/01/11 05:58:59 peter Exp $
+ * $Id: command.c,v 1.13 1996/01/11 17:48:41 phk Exp $
  *
  */
 #include <sys/types.h>
@@ -215,7 +215,7 @@ static char StrOption[] = "option ..";
 static char StrRemote[] = "[remote]";
 char StrNull[] = "";
 
-struct cmdtab Commands[] = {
+struct cmdtab const Commands[] = {
   { "accept",  NULL,    AcceptCommand,	LOCAL_AUTH,
   	"accept option request",	StrOption},
   { "add",     NULL,	AddCommand,	LOCAL_AUTH,
@@ -354,7 +354,7 @@ static int ShowRedial()
 
 extern int ShowIfilter(), ShowOfilter(), ShowDfilter(), ShowAfilter();
 
-struct cmdtab ShowCommands[] = {
+struct cmdtab const ShowCommands[] = {
   { "afilter",  NULL,     ShowAfilter,		LOCAL_AUTH,
 	"Show keep Alive filters", StrOption},
   { "auth",     NULL,     ShowAuthKey,		LOCAL_AUTH,
@@ -866,7 +866,7 @@ static char StrValue[] = "value";
 
 extern int SetIfilter(), SetOfilter(), SetDfilter(), SetAfilter();
 
-struct cmdtab SetCommands[] = {
+struct cmdtab const SetCommands[] = {
   { "accmap",   NULL,	  SetVariable,		LOCAL_AUTH,
 	"Set accmap value", "hex-value", (void *)VAR_ACCMAP},
   { "afilter",  NULL,     SetAfilter, 		LOCAL_AUTH,
