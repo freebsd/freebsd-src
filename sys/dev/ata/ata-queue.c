@@ -393,7 +393,8 @@ ata_completed(void *context, int dummy)
 		   "\2NO_MEDIA\1ILLEGAL_LENGTH");
 	}
 
-	if (request->error & ATA_E_MASK)
+	if ((request->u.atapi.sense_key ?
+	     request->u.atapi.sense_key : request->error) & ATA_E_MASK)
 	    request->result = EIO;
     }
 
@@ -499,7 +500,7 @@ ata_cmd2str(struct ata_request *request)
     static char buffer[20];
 
     if (request->flags & ATA_R_ATAPI) {
-	switch (request->u.atapi.sense_cmd ?
+	switch (request->u.atapi.sense_key ?
 		request->u.atapi.sense_cmd : request->u.atapi.ccb[0]) {
 	case 0x00: return ("TEST_UNIT_READY");
 	case 0x01: return ("REZERO");
