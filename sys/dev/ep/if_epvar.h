@@ -76,6 +76,7 @@ struct ep_softc {
 
 int		ep_alloc	(device_t);
 void		ep_free		(device_t);
+int		ep_detach	(device_t);
 void		ep_get_media	(struct ep_softc *);
 int		ep_attach	(struct ep_softc *);
 void		ep_intr		(void *);

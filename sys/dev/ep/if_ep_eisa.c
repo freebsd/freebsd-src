@@ -250,6 +250,7 @@ static device_method_t ep_eisa_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		ep_eisa_probe),
 	DEVMETHOD(device_attach,	ep_eisa_attach),
+	DEVMETHOD(device_detach,	ep_detach),
 
 	{ 0, 0 }
 };
