@@ -1291,9 +1291,9 @@ _mutex_lock_backout(pthread_t pthread)
 	/* _thread_kern_sig_defer();*/
 
 	/* XXX - Necessary to obey lock order */
-	THR_LOCK(&pthread->lock);
+	UMTX_LOCK(&pthread->lock);
 	mutex = pthread->data.mutex;
-	THR_UNLOCK(&pthread->lock);
+	UMTX_UNLOCK(&pthread->lock);
 
 	_SPINLOCK(&mutex->lock);
 
