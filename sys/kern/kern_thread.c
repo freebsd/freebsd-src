@@ -282,13 +282,13 @@ thread_fini(void *mem, int size)
  * Initialize type-stable parts of a ksegrp (when newly created).
  */
 static int
-ksegrp_init(void *mem, int size, int flags)
+ksegrp_ctor(void *mem, int size, void *arg, int flags)
 {
 	struct ksegrp	*kg;
 
 	kg = (struct ksegrp *)mem;
+	bzero(mem, size);
 	kg->kg_sched = (struct kg_sched *)&kg[1];
-	/* sched_newksegrp(kg); */
 	return (0);
 }
 
@@ -369,7 +369,7 @@ threadinit(void)
 	tid_zone = uma_zcreate("TID", sizeof(struct tid_bitmap_part),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_CACHE, 0);
 	ksegrp_zone = uma_zcreate("KSEGRP", sched_sizeof_ksegrp(),
-	    NULL, NULL, ksegrp_init, NULL,
+	    ksegrp_ctor, NULL, NULL, NULL,
 	    UMA_ALIGN_CACHE, 0);
 	kseinit();	/* set up kse specific stuff  e.g. upcall zone*/
 }
