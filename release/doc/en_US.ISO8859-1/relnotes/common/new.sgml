@@ -787,6 +787,20 @@
 
       <para>&man.pkg.delete.1; now supports a <option>-r</option>
       option for recursive package removal.</para>
+
+      <para>Version 4.2.0 of <application>XFree86</application> was
+      released just a few days before the shipping date for &os;
+      4.5-RELEASE.  As a result, the &os; team did not have time to
+      test and evaluate the new version for inclusion in the release.
+      Therefore, &os; 4.5-RELEASE includes the older 4.1.0 version of the
+      <application>XFree86</application> package.  Installing a
+      newer version of <application>XFree86</application> can be done
+      using an up-to-date (post-release) copy of the &os; Ports Collection;
+      instructions for doing so can be found in the <ulink
+      url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/ports-using.html">Using
+      the Ports Collection</ulink> section of the <ulink
+      url="http://www.FreeBSD.org/handbook/">FreeBSD
+      Handbook</ulink>.</para>
     </sect3>
   </sect2>
 </sect1>
