@@ -29,7 +29,7 @@
 	build.
 
         $FreeBSD$
-        Original revision: 1.75
+        Original revision: 1.76
 -->
 
 <sect1>
@@ -2095,6 +2095,9 @@
     <para arch="i386">PCI ベースのマルチポートシリアルボード (&man.puc.4;
       ドライバ)
       <itemizedlist>
+        <listitem>
+	  <para>Avlab Technology, PCI IO 2S</para>
+	</listitem>
         <listitem>
 	  <para>Moxa Industio CP-114</para>
 	</listitem>
