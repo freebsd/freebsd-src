@@ -554,7 +554,10 @@
 .    as doc-header-string "\|.\|.\|.
 .  \}
 .  tl \*[doc-caption-font]\*[doc-header-string]\f[]\*[doc-caption-font2]\*[doc-volume]\f[]\*[doc-caption-font]\*[doc-header-string]\f[]
-.  sp \n[doc-header-space]u
+.  ie !\n[cR] \
+.    sp \n[doc-header-space]u
+.  el \
+.    sp 1v
 .  ev
 .  ns
 ..
@@ -665,7 +668,7 @@
 .\" NS width register `Nd' set above
 .
 .de Nd
-.  nop \- \$*
+.  nop \[em] \$*
 ..
 .
 .
