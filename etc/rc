@@ -130,8 +130,24 @@ autoboot)
 		exit 1
 		;;
 	8)
-		echo 'Automatic file system check failed... help!'
-		exit 1
+		case ${fsck_y_enable} in
+		[Yy][Ee][Ss])
+			echo 'File system preen failed, trying fsck -y . . .'
+			fsck -y
+			case $? in
+			0)
+				;;
+			*)
+			echo 'Automatic file system check failed . . . help!'
+				exit 1
+				;;
+			esac
+			;;
+		*)
+			echo 'Automatic file system check failed . . . help!'
+			exit 1
+			;;
+		esac
 		;;
 	12)
 		echo 'Reboot interrupted'
