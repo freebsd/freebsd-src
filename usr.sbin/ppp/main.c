@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.22.2.38 1997/09/19 09:42:02 brian Exp $
+ * $Id: main.c,v 1.22.2.39 1997/09/21 20:27:46 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -448,27 +448,6 @@ main(int argc, char **argv)
       } else if (mode & MODE_BACKGROUND)
 	close(BGFiledes[0]);
     }
-    snprintf(pid_filename, sizeof(pid_filename), "%stun%d.pid",
-	     _PATH_VARRUN, tunno);
-    (void) unlink(pid_filename);
-
-    if ((lockfile = fopen(pid_filename, "w")) != NULL) {
-      fprintf(lockfile, "%d\n", (int) getpid());
-      fclose(lockfile);
-    } else
-      LogPrintf(LogALERT, "Warning: Can't create %s: %s\n",
-		pid_filename, strerror(errno));
-
-    snprintf(if_filename, sizeof if_filename, "%s%s.if",
-	     _PATH_VARRUN, VarBaseDevice);
-    (void) unlink(if_filename);
-
-    if ((lockfile = fopen(if_filename, "w")) != NULL) {
-      fprintf(lockfile, "tun%d\n", tunno);
-      fclose(lockfile);
-    } else
-      LogPrintf(LogALERT, "Warning: Can't create %s: %s\n",
-		if_filename, strerror(errno));
 
     VarTerm = 0;		/* We know it's currently stdout */
     close(1);
@@ -488,6 +467,18 @@ main(int argc, char **argv)
     TtyInit(0);
     TtyCommandMode(1);
   }
+
+  snprintf(pid_filename, sizeof(pid_filename), "%stun%d.pid",
+           _PATH_VARRUN, tunno);
+  (void) unlink(pid_filename);
+
+  if ((lockfile = fopen(pid_filename, "w")) != NULL) {
+    fprintf(lockfile, "%d\n", (int) getpid());
+    fclose(lockfile);
+  } else
+    LogPrintf(LogALERT, "Warning: Can't create %s: %s\n",
+              pid_filename, strerror(errno));
+
   LogPrintf(LogPHASE, "PPP Started.\n");
 
 
