@@ -642,27 +642,32 @@ fdc_alloc_resources(struct fdc_data *fdc)
 	 * have a different method of programming the transfer speed which
 	 * doesn't require the control register, but it's mighty bogus as the
 	 * chip still responds to the address for the control register.
-	 * This hack is truely evil as we use the 6th port in a 4-port chunk.
 	 */
-	/* 0x3f2-0x3f5 */
-	if (bus_get_resource_count(dev, SYS_RES_IOPORT, 0) == 4 &&
-	    bus_get_resource_count(dev, SYS_RES_IOPORT, 1) == 0) {
-		fdc->port_off = -2;
-		ispnp = 0;	/* hack, don't reserve second port chunk */
-	}
-	/* 0x3f0-0x3f5 */
-	if (bus_get_resource_count(dev, SYS_RES_IOPORT, 0) == 6 &&
-	    bus_get_resource_count(dev, SYS_RES_IOPORT, 1) == 0) {
-		ispnp = 0;	/* hack, don't reserve second port chunk */
-	}
 	if (ispnp) {
-		if (bus_get_resource_count(dev, SYS_RES_IOPORT, 0) == 4)
+		int cntport0;
+		int cntport1;
+		u_long ctlstart;
+		u_long ctlend;
+
+		cntport0 = bus_get_resource_count(dev, SYS_RES_IOPORT, 0);
+		cntport1 = bus_get_resource_count(dev, SYS_RES_IOPORT, 1);
+		ctlstart = 0ul;
+		ctlend = ~0ul;
+		if (cntport0 == 4)
 			fdc->port_off = -2;
+		if (cntport1 == 0) {
+			/* GRRR, request a specific port */
+			ctlstart = rman_get_start(fdc->res_ioport) +
+			    fdc->port_off + 7;	/* usually 0x3f7 */
+			ctlend = ctlstart;
+			if (bootverbose)
+				device_printf(dev, "added missing ctrl port\n");
+		}
 		fdc->flags |= FDC_ISPNP;
 		fdc->rid_ctl = 1;
 		fdc->res_ctl = bus_alloc_resource(dev, SYS_RES_IOPORT,
-						  &fdc->rid_ctl, 0ul, ~0ul, 
-						  1, RF_ACTIVE);
+						  &fdc->rid_ctl, ctlstart,
+						  ctlend, 1, RF_ACTIVE);
 		if (fdc->res_ctl == 0) {
 			device_printf(dev, "cannot reserve I/O port range 2\n");
 			return ENXIO;
