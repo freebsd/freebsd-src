@@ -423,8 +423,9 @@ ipx_usr_abort(so)
 	s = splnet();
 	ipx_pcbdetach(ipxp);
 	splx(s);
-	sotryfree(so);
 	soisdisconnected(so);
+	SOCK_LOCK(so);
+	sotryfree(so);
 	return (0);
 }
 

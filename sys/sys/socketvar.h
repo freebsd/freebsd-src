@@ -57,7 +57,7 @@ typedef	u_quad_t so_gen_t;
  * (g) used only as a sleep/wakeup address, no value.
  */
 struct socket {
-	int	so_count;		/* reference count */
+	int	so_count;		/* (b) reference count */
 	short	so_type;		/* (a) generic type, see socket.h */
 	short	so_options;		/* from socket call, see socket.h */
 	short	so_linger;		/* time to linger while closing */
@@ -316,19 +316,26 @@ struct xsocket {
  * the structure.
  */
 #define	soref(so) do {							\
+	SOCK_LOCK_ASSERT(so);						\
 	++(so)->so_count;						\
 } while (0)
 
 #define	sorele(so) do {							\
+	SOCK_LOCK_ASSERT(so);						\
 	if ((so)->so_count <= 0)					\
 		panic("sorele");					\
 	if (--(so)->so_count == 0)					\
 		sofree(so);						\
+	else								\
+		SOCK_UNLOCK(so);					\
 } while (0)
 
 #define	sotryfree(so) do {						\
+	SOCK_LOCK_ASSERT(so);						\
 	if ((so)->so_count == 0)					\
 		sofree(so);						\
+	else								\
+		SOCK_UNLOCK(so);					\
 } while(0)
 
 #define	sorwakeup(so) do {						\
