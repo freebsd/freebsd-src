@@ -122,7 +122,7 @@ Separate drivers for the SoundBlaster 8 and Soundblaster 16 now
 replace an older, unified driver.
 
 A driver for the ESS Maestro-3/Allegro has been added, however due to
-licensing restrictions, it cannot compiled into the kernel.  To use
+licensing restrictions, it cannot be compiled into the kernel.  To use
 this driver, add the following line to /boot/loader.conf:
 
 	maestro3_load="YES"
@@ -216,10 +216,10 @@ A number of programs that use temporary files now do so more securely.
 A bug in ICMP that could cause an attacker to disrupt TCP and UDP
 "sessions" has been corrected.
 
-A bug in timed(8), which caused it to crash if send certain malformed
+A bug in timed(8), which caused it to crash if sent certain malformed
 packets, has been corrected (see security advisory FreeBSD-SA-01:28).
 
-A bug in rwhod(8), which caused it to crash if send certain malformed
+A bug in rwhod(8), which caused it to crash if sent certain malformed
 packets, has been corrected (see security advisory FreeBSD-SA-01:29).
 
 To prevent some forms of DOS attacks, glob(3) allows specification of
