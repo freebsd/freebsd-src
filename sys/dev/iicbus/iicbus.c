@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: iicbus.c,v 1.1.1.1 1998/09/03 20:51:50 nsouch Exp $
+ *	$Id: iicbus.c,v 1.2 1998/10/31 11:31:07 nsouch Exp $
  *
  */
 
@@ -65,7 +65,7 @@ struct iicbus_device {
 #define PCF_MASTER_ADDRESS	0xaa
 #define FIRST_SLAVE_ADDR	0x2
 
-#define MAXSLAVE 256
+#define LAST_SLAVE_ADDR		255
 
 #define IICBUS_UNKNOWN_CLASS	0
 #define IICBUS_DEVICE_CLASS	1
@@ -127,8 +127,7 @@ iicbus_probe(device_t dev)
 	return (0);
 }
 
-#define MAXADDR	256
-static int iicdev_found[MAXADDR];
+static int iicdev_found[LAST_SLAVE_ADDR+1];
 
 static int 
 iic_probe_device(device_t dev, u_char addr)
@@ -169,7 +168,7 @@ iicbus_attach(device_t dev)
 	printf("Probing for devices on iicbus%d:", device_get_unit(dev));
 
 	/* probe any devices */
-	for (addr = FIRST_SLAVE_ADDR; addr < MAXADDR; addr++) {
+	for (addr = FIRST_SLAVE_ADDR; addr <= LAST_SLAVE_ADDR; addr++) {
 		if (iic_probe_device(dev, (u_char)addr)) {
 			printf(" <%x>", addr);
 		}
@@ -178,7 +177,6 @@ iicbus_attach(device_t dev)
 
 	/* attach known devices */
 	for (iicdev = iicbus_children; iicdev->iicd_name; iicdev++) {
-		/* probe devices, not drivers */
 		switch (iicdev->iicd_class) {
 		case IICBUS_DEVICE_CLASS:
 			if (iic_probe_device(dev, iicdev->iicd_addr))
@@ -186,7 +184,9 @@ iicbus_attach(device_t dev)
 			break;
 
 		case IICBUS_DRIVER_CLASS:
-			iicdev->iicd_alive = 1;
+			/* check if the devclass exists */
+    			if (!devclass_find(iicdev->iicd_name))
+				iicdev->iicd_alive = 1;
 			break;
 
 		default:
@@ -278,3 +278,4 @@ iicbus_write_ivar(device_t bus, device_t dev, int index, u_long val)
 DRIVER_MODULE(iicbus, pcf, iicbus_driver, iicbus_devclass, 0, 0);
 DRIVER_MODULE(iicbus, iicbb, iicbus_driver, iicbus_devclass, 0, 0);
 DRIVER_MODULE(iicbus, bti2c, iicbus_driver, iicbus_devclass, 0, 0);
+DRIVER_MODULE(iicbus, smbtx, iicbus_driver, iicbus_devclass, 0, 0);
