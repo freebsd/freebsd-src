@@ -306,6 +306,7 @@ static void	logerror(const char *);
 static void	logmsg(int, const char *, const char *, int);
 static void	log_deadchild(pid_t, int, const char *);
 static void	markit(void);
+static int	skip_message(const char *, const char *, int);
 static void	printline(const char *, char *);
 static void	printsys(char *);
 static int	p_open(const char *, pid_t *);
@@ -754,6 +755,50 @@ printsys(char *p)
 static time_t	now;
 
 /*
+ * Match a program or host name against a specification.
+ * Return a non-0 value if the message must be ignored
+ * based on the specification.
+ */
+static int
+skip_message(const char *name, const char *spec, int checkcase) {
+	const char *s;
+	char prev, next;
+	int exclude = 0;
+	/* Behaviour on explicit match */
+
+	if (spec == NULL)
+		return 0;
+	switch (*spec) {
+	case '-':
+		exclude = 1;
+		/*FALLTHROUGH*/
+	case '+':
+		spec++;
+		break;
+	default:
+		break;
+	}
+	if (checkcase)
+		s = strstr (spec, name);
+	else
+		s = strcasestr (spec, name);
+
+	if (s != NULL) {
+		prev = (s == spec ? ',' : *(s - 1));
+		next = *(s + strlen (name));
+
+		if (prev == ',' && (next == '\0' || next == ','))
+			/* Explicit match: skip iff the spec is an
+			   exclusive one. */
+			return exclude;
+	}
+
+	/* No explicit match for this name: skip the message iff
+	   the spec is an inclusive one. */
+	return !exclude;
+}
+
+/*
  * Log a message to the appropriate log files, users, etc. based on
  * the priority.
  */
@@ -840,34 +885,12 @@ logmsg(int pri, const char *msg, const char *from, int flags)
 			continue;
 
 		/* skip messages with the incorrect hostname */
-		if (f->f_host)
-			switch (f->f_host[0]) {
-			case '+':
-				if (strcasecmp(from, f->f_host + 1) != 0)
-					continue;
-				break;
-			case '-':
-				if (strcasecmp(from, f->f_host + 1) == 0)
-					continue;
-				break;
-			}
+		if (skip_message(from, f->f_host, 0))
+			continue;
 
 		/* skip messages with the incorrect program name */
-		if (f->f_program)
-			switch (f->f_program[0]) {
-			case '+':
-				if (strcmp(prog, f->f_program + 1) != 0)
-					continue;
-				break;
-			case '-':
-				if (strcmp(prog, f->f_program + 1) == 0)
-					continue;
-				break;
-			default:
-				if (strcmp(prog, f->f_program) != 0)
-					continue;
-				break;
-			}
+		if (skip_message(prog, f->f_program, 1))
+			continue;
 
 		/* skip message to console if it has already been printed */
 		if (f->f_type == F_CONSOLE && (flags & IGN_CONS))
@@ -1082,7 +1105,7 @@ fprintlog(struct filed *f, int flags, const char *msg)
 				/* case ENOBUFS: */
 				/* case ECONNREFUSED: */
 				default:
-					dprintf("removing entry\n", e);
+					dprintf("removing entry\n");
 					(void)close(f->f_file);
 					f->f_type = F_UNUSED;
 					break;
@@ -1309,7 +1332,12 @@ static void
 logerror(const char *type)
 {
 	char buf[512];
+	static int recursed = 0;
 
+	/* If there's an error while trying to log an error, give up. */
+	if (recursed)
+		return;
+	recursed++;
 	if (errno)
 		(void)snprintf(buf,
 		    sizeof buf, "syslogd: %s: %s", type, strerror(errno));
@@ -1318,6 +1346,7 @@ logerror(const char *type)
 	errno = 0;
 	dprintf("%s\n", buf);
 	logmsg(LOG_SYSLOG|LOG_ERR, buf, LocalHostName, ADDDATE);
+	recursed--;
 }
 
 static void
@@ -1466,7 +1495,8 @@ init(int signo)
 			if (*p == '@')
 				p = LocalHostName;
 			for (i = 1; i < MAXHOSTNAMELEN - 1; i++) {
-				if (!isalnum(*p) && *p != '.' && *p != '-')
+				if (!isalnum(*p) && *p != '.' && *p != '-'
+                                    && *p != ',')
 					break;
 				host[i] = *p++;
 			}

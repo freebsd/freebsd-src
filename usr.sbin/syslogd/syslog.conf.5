@@ -196,6 +196,15 @@ or
 .Ql !-prog
 specification will match any message but the ones from that
 program.
+Multiple programs may be listed, separated by commas:
+.Ql !prog1,prog2
+matches messages from either program, while
+.Ql !-prog1,prog2
+matches all messages but those from
+.Ql prog1
+or
+.Ql prog2 .
+.Pp
 A
 .Em hostname
 specification of the form
@@ -215,6 +224,9 @@ from any host but the one specified.
 If the hostname is given as
 .Ql @ ,
 the local hostname will be used.
+As for program specifications, multiple comma-seprarated
+values may be specified for hostname specifications.
+.Pp
 A
 .Em program
 or
