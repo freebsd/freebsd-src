@@ -497,6 +497,7 @@ again:
 	    (unsigned) RANGEOF(struct ksegrp, kg_startcopy, kg_endcopy));
 #undef RANGEOF
 
+	td2->td_tid = p2->p_pid;
 	td2->td_sigstk = td->td_sigstk;
 
 	/* Set up the thread as an active thread (as if runnable). */
