@@ -76,6 +76,7 @@ static int		pci_add_map(device_t pcib, int b, int s, int f, int reg,
 static void		pci_add_resources(device_t pcib, device_t dev);
 static int		pci_probe(device_t dev);
 static int		pci_attach(device_t dev);
+static void		pci_load_vendor_data(void);
 static int		pci_describe_parse_line(char **ptr, int *vendor, 
 						int *device, char **desc);
 static char		*pci_describe_device(device_t dev);
@@ -840,28 +841,21 @@ pci_attach(device_t dev)
 
 	pci_add_children(dev, busno, sizeof(struct pci_devinfo));
 
-	pci_load_vendor_data();
 	return (bus_generic_attach(dev));
 }
 
-void
+static void
 pci_load_vendor_data(void)
 {
 	caddr_t vendordata, info;
-	static int once;
 
-	if (!once) {
-		make_dev(&pcicdev, 0, UID_ROOT, GID_WHEEL, 0644, "pci");
-		if ((vendordata = preload_search_by_type("pci_vendor_data"))
-		    != NULL) {
-			info = preload_search_info(vendordata, MODINFO_ADDR);
-			pci_vendordata = *(char **)info;
-			info = preload_search_info(vendordata, MODINFO_SIZE);
-			pci_vendordata_size = *(size_t *)info;
-			/* terminate the database */
-			pci_vendordata[pci_vendordata_size] = '\n';
-		}
-		once++;
+	if ((vendordata = preload_search_by_type("pci_vendor_data")) != NULL) {
+		info = preload_search_info(vendordata, MODINFO_ADDR);
+		pci_vendordata = *(char **)info;
+		info = preload_search_info(vendordata, MODINFO_SIZE);
+		pci_vendordata_size = *(size_t *)info;
+		/* terminate the database */
+		pci_vendordata[pci_vendordata_size] = '\n';
 	}
 }
 
@@ -1396,13 +1390,19 @@ pci_write_config_method(device_t dev, device_t child, int reg,
 static int
 pci_modevent(module_t mod, int what, void *arg)
 {
+	static dev_t pci_cdev;
+
 	switch (what) {
 	case MOD_LOAD:
 		STAILQ_INIT(&pci_devq);
 		pci_generation = 0;
+		pci_cdev = make_dev(&pcicdev, 0, UID_ROOT, GID_WHEEL, 0644,
+		    "pci");
+		pci_load_vendor_data();
 		break;
 
 	case MOD_UNLOAD:
+		destroy_dev(pci_cdev);
 		break;
 	}
 
