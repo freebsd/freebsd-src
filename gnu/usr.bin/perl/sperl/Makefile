@@ -2,6 +2,7 @@
 # 
 
 PROG= suidperl 
+LINKS= ${BINDIR}/suidperl ${BINDIR}/sperl4.036
 
 SRCS+= array.c cmd.c cons.c consarg.c 
 SRCS+= doarg.c doio.c dolist.c dump.c
