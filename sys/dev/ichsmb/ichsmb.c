@@ -104,7 +104,7 @@ ichsmb_probe(device_t dev)
 		    device_get_nameunit(dev), DRIVER_SMBUS);
 		return (ENXIO);
 	}
-	return (0);
+	return (BUS_PROBE_DEFAULT);
 }
 
 /*

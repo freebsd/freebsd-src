@@ -212,7 +212,7 @@ ixgb_probe(device_t dev)
 				ixgb_strings[ent->index],
 				ixgb_driver_version);
 			device_set_desc_copy(dev, adapter_name);
-			return (0);
+			return (BUS_PROBE_DEFAULT);
 		}
 		ent++;
 	}

@@ -168,14 +168,14 @@ iir_pci_probe(device_t dev)
     if (pci_get_vendor(dev) == INTEL_VENDOR_ID &&
         pci_get_device(dev) == INTEL_DEVICE_ID_IIR) {
         device_set_desc(dev, "Intel Integrated RAID Controller");
-        return (0);
+        return (BUS_PROBE_DEFAULT);
     }
     if (pci_get_vendor(dev) == GDT_VENDOR_ID &&
         ((pci_get_device(dev) >= GDT_DEVICE_ID_MIN &&
         pci_get_device(dev) <= GDT_DEVICE_ID_MAX) ||
         pci_get_device(dev) == GDT_DEVICE_ID_NEWRX)) {
         device_set_desc(dev, "ICP Disk Array Controller");
-        return (0);
+        return (BUS_PROBE_DEFAULT);
     }
     return (ENXIO);
 }
