@@ -143,7 +143,7 @@ intr_init1()
 		intr_vectors[i].iv_pri = PIL_LOW;
 		intr_vectors[i].iv_vec = i;
 	}
-	intr_handlers[PIL_LOW] = intr_dequeue;
+	intr_handlers[PIL_LOW] = intr_fast;
 }
 
 void
@@ -211,7 +211,7 @@ inthand_add(const char *name, int vec, void (*handler)(void *), void *arg,
 	    ithread_priority(flags), flags, cookiep);
 	
 	if ((flags & INTR_FAST) == 0 || errcode) {
-		intr_setup(PIL_ITHREAD, intr_dequeue, vec, sched_ithd, iv);
+		intr_setup(PIL_ITHREAD, intr_fast, vec, sched_ithd, iv);
 		errcode = 0;
 	}
 
@@ -219,7 +219,7 @@ inthand_add(const char *name, int vec, void (*handler)(void *), void *arg,
 		return (errcode);
 	
 	if (flags & INTR_FAST)
-		intr_setup(PIL_FAST, intr_dequeue, vec, handler, arg);
+		intr_setup(PIL_FAST, intr_fast, vec, handler, arg);
 
 	intr_stray_count[vec] = 0;
 	/* XXX: name is not yet used. */
@@ -241,10 +241,10 @@ inthand_remove(int vec, void *cookie)
 		iv = &intr_vectors[vec];
 		mtx_lock_spin(&intr_table_lock);
 		if (iv->iv_ithd == NULL) {
-			intr_setup(PIL_ITHREAD, intr_dequeue, vec,
+			intr_setup(PIL_ITHREAD, intr_fast, vec,
 			    intr_stray_vector, iv);
 		} else {
-			intr_setup(PIL_LOW, intr_dequeue, vec, sched_ithd, iv);
+			intr_setup(PIL_LOW, intr_fast, vec, sched_ithd, iv);
 		}
 		mtx_unlock_spin(&intr_table_lock);
 	}
