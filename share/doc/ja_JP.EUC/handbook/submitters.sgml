@@ -1,6 +1,6 @@
-<!-- $Id: submitters.sgml,v 1.1.1.1 1996/11/15 05:14:43 asami Exp $ -->
+<!-- $Id: submitters.sgml,v 1.2 1996/12/12 23:27:56 max Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.34 -->
+<!-- Original revision: 1.39 -->
 
 <chapt><heading>FreeBSD への貢献<label id="submitters"></heading>
 
@@ -292,15 +292,27 @@ Timer2, Timer0 そしてスピーカサービスを考慮する必要があります.
       メーリングリストに参加すると良いでしょう. 情報については <ref
       id="eresources:mail" name="メーリングリスト"> を参照してください.
 
-      <item>実際のバグ報告は <tt>send-pr(1)</tt> プログラムを使用して
-      提出してください. これは色々な項目について質問してきます.
-      単に <tt>&lt;&gt;</tt> の辺りで, そこで示されているものの
-      代わりにあなた固有の情報を入力するだけです. あなたはバグ報告の確
-      認とトラッキング番号を受け取るはずです. このトラッキング番号を覚
-      えておいて, 後々の連絡に使用してください. もしタイムリに (あなた
-      の電子メール接続形態にもよりますが, 3日から1週間) 確認を受けとれ
-      ないとか, 何らかの理由で <tt>send-pr(1)</tt> コマンドが使用でき
-      ない場合には, &a.bugs へメールを送ってバグ報告を提出してください.
+      <item>実際のバグ報告は send-pr(1) プログラムか <htmlurl 
+      url="http://www.freebsd.org/send-pr.html" name="WEB ベースの 
+      send-pr"> を使用して提出してください. これは色々な項目についての
+      問い合わせをします. send-pr(1) プログラムの場合は, 単に 
+      <tt>&lt;&gt;</tt> で囲まれて表示されているものをあなた固有の情報
+      に置き換えて入力します. WEB ベースのインタフェースの場合は,
+      そこで表示されているオプションメニューから適切な項目を選択し
+      必要項目を埋めるだけです.
+
+      <p>あなたはバグ報告の確認とトラッキング番号をメールで受け取る
+      はずです. このトラッキング番号を覚えておき後々の連絡に使用して,
+      他の人がその問題の詳細を素早く見つけられるようにしてください.
+      また, <htmlurl url="mailto:bug-followup@freebsd.org" 
+      name="bug-followup@freebsd.org"> にサブジェクト行に PR# を付けた
+      メールを送って, より詳しい情報を既存のバグ報告に追加することも
+      できます.
+
+      もしタイムリに (あなたの電子メール接続形態にもよりますが, 3日から
+      1週間) 確認を受けとれないとか, 何らかの理由で <tt>send-pr(1)</tt> 
+      コマンドが使用できない場合には, &a.bugs へメールを送ってバグ報告を
+      提出してください.
 
 </itemize>
 
@@ -364,6 +376,10 @@ diff -c -r olddir newdir
    プに届きます. このグループもまた<em>とても忙しい</em> ことに注意し
    て, hackers への投稿が本当に実際的でない場合に, コアチームの彼らに
    メールを送るだけにしてください.
+
+   コーディングスタイルに関する情報は <tt>man 9 intro</tt> および 
+   <tt>man 9 style</tt> を参照してください. コードを提出する前には,
+   少なくともこの情報を意識しておいてくださるようお願いします.
 
 <sect1><heading>新たなコードやメジャーな付加価値の高いパッケージ</heading>
 
@@ -431,7 +447,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
 
-       $Id: submitters.sgml,v 1.1.1.1 1996/11/15 05:14:43 asami Exp $
+       &dollar;Id&dollar;
 </verb></tscreen>
 便宜をはかるため, このテキストのコピーは次の場所に置いてあります. 
 <tt>/usr/share/examples/etc/bsd-style-copyright</tt>. 
