@@ -34,6 +34,13 @@
 #ifndef _NETNCP_NCP_SOCK_H_
 #define _NETNCP_NCP_SOCK_H_
 
+struct ncp_conn;
+struct mbuf;
+struct ncp_rq;
+struct proc;
+struct socket;
+struct timeval;
+
 int  ncp_sock_connect_ipx(struct ncp_conn *);
 int  ncp_sock_connect_in(struct ncp_conn *);
 int  ncp_sock_recv(struct socket *so, struct mbuf **mp, int *rlen);

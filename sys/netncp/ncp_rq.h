@@ -160,6 +160,8 @@ void ncp_sign_init(const char *logindata, char *sign_root);
 
 #define	ncp_add_byte(conn,x) (conn)->packet[(conn)->rqsize++]=x
 
+struct ncp_buf;
+
 __BEGIN_DECLS
 
 void ncp_init_request(struct ncp_buf *);

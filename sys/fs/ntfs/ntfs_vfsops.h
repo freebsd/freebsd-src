@@ -34,6 +34,11 @@
 				/* fnode */
 #define	VG_EXT		0x0004	/* This is not main record */
 
+struct mount;
+struct ntfsmount;
+struct proc;
+struct vnode;
+
 int ntfs_vgetex(struct mount *, ino_t, u_int32_t, char *, u_long, u_long,
 		struct proc *, struct vnode **);
 int ntfs_calccfree(struct ntfsmount *, cn_t *);
