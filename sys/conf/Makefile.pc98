@@ -3,7 +3,7 @@
 # Makefile.i386 -- with config changes.
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.pc98,v 1.2 1996/07/23 07:45:48 asami Exp $
+#	$Id: Makefile.pc98,v 1.3 1996/08/30 10:42:49 asami Exp $
 #
 # Makefile for FreeBSD
 #
@@ -31,7 +31,7 @@ I386=	${S}/i386
 
 CWARNFLAGS?=	-W -Wreturn-type -Wcomment -Wredundant-decls -Wimplicit \
 		-Wnested-externs -Wstrict-prototypes -Wmissing-prototypes \
-		-Winline -Wunused
+		-Winline -Wunused -Wpointer-arith
 #
 # The following flags are next up for working on:
 #	-Wall
@@ -172,7 +172,7 @@ install:
 	install -c -m 555 -o root -g wheel -fschg kernel /
 
 ioconf.o: ioconf.c $S/sys/param.h $S/sys/buf.h \
-    ${PC98}/pc98/pc98_device.h ${PC98}/pc98/pc98.h ${PC98}/pc98/icu.h
+    ${I386}/isa/isa_device.h ${PC98}/pc98/pc98.h ${PC98}/pc98/icu.h
 	${CC} -c ${CFLAGS} ioconf.c
 
 param.c: $S/conf/param.c

@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: devconf.h,v 1.12 1995/11/20 12:41:31 phk Exp $
+ *	$Id: devconf.h,v 1.13 1996/06/14 11:01:03 asami Exp $
  */
 /*
  * devconf.h - machine-dependent device configuration table
@@ -36,7 +36,7 @@
 #define PARENTNAMELEN	32
 
 #ifdef PC98
-enum machdep_devtype { MDDT_CPU, MDDT_PC98, MDDT_PCI, MDDT_SCSI,
+enum machdep_devtype { MDDT_CPU, MDDT_ISA, MDDT_PCI, MDDT_SCSI,
 	       MDDT_DISK, MDDT_BUS, NDEVTYPES };
 #else
 enum machdep_devtype { MDDT_CPU, MDDT_ISA, MDDT_EISA, MDDT_PCI, MDDT_SCSI,
@@ -80,12 +80,8 @@ struct machdep_devconf {
 
 #define dc_devtype dc_md.mddc_devtype
 #define dc_flags dc_md.mddc_flags
-#ifdef PC98
-#define kdc_pc98 kdc_parentdata
-#else
 #define kdc_isa kdc_parentdata
 #define kdc_eisa kdc_parentdata
-#endif
 #define kdc_scsi kdc_parentdata
 
 #define CPU_EXTERNALLEN (0)

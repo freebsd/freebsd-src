@@ -43,7 +43,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.3 1996/07/30 18:55:58 asami Exp $
+ *	$Id: fd.c,v 1.4 1996/08/31 15:06:42 asami Exp $
  *
  */
 
@@ -73,7 +73,7 @@
 #include <sys/dkstat.h>
 #ifdef PC98
 #include <pc98/pc98/pc98.h>
-#include <pc98/pc98/pc98_device.h>
+#include <i386/isa/isa_device.h>
 #include <pc98/pc98/fdreg.h>
 #include <pc98/pc98/fdc.h>
 #else
@@ -117,13 +117,8 @@ static struct kern_devconf kdc_fd[NFD] = { {
 
 struct kern_devconf kdc_fdc[NFDC] = { {
 	0, 0, 0,		/* filled in by kern_devconf.c */
-#ifdef PC98
-	"fdc", 0, { MDDT_PC98, 0, "bio" },
-	pc98_generic_externalize, 0, fdc_goaway, PC98_EXTERNALLEN,
-#else
 	"fdc", 0, { MDDT_ISA, 0, "bio" },
 	isa_generic_externalize, 0, fdc_goaway, ISA_EXTERNALLEN,
-#endif
 	0,			/* parent */
 	0,			/* parentdata */
 	DC_UNCONFIGURED,	/* state */
@@ -152,11 +147,7 @@ fdc_registerdev(struct isa_device *dvp)
 		kdc_fdc[unit] = kdc_fdc[0];
 
 	kdc_fdc[unit].kdc_unit = unit;
-#ifdef PC98
-	kdc_fdc[unit].kdc_parent = &kdc_nec0;
-#else
 	kdc_fdc[unit].kdc_parent = &kdc_isa0;
-#endif
 	kdc_fdc[unit].kdc_parentdata = dvp;
 	dev_attach(&kdc_fdc[unit]);
 }
@@ -772,8 +763,8 @@ fdattach(struct isa_device *dev)
 		printf(" [dma is changed to #%d]", fdc->dmachan);
 	}
 	/* Acquire the DMA channel forever, The driver will do the rest */
-	pc98_dma_acquire(fdc->dmachan);
-	pc98_dmainit(fdc->dmachan, 128 << 3 /* XXX max secsize */);
+	isa_dma_acquire(fdc->dmachan);
+	isa_dmainit(fdc->dmachan, 128 << 3 /* XXX max secsize */);
 	fdc->state = DEVIDLE;
 	fdc_reset(fdc);
 #else
@@ -788,11 +779,7 @@ fdattach(struct isa_device *dev)
 	TAILQ_INIT(&fdc->head);
 
 	/* check for each floppy drive */
-#ifdef PC98
-	for (fdup = pc98_biotab_fdc; fdup->id_driver != 0; fdup++) {
-#else
 	for (fdup = isa_biotab_fdc; fdup->id_driver != 0; fdup++) {
-#endif
 		if (fdup->id_iobase != dev->id_iobase)
 			continue;
 		fdu = fdup->id_unit;
@@ -1869,11 +1856,7 @@ fdstate(fdcu_t fdcu, fdc_p fdc)
 #ifdef EPSON_NRDISK
 		if (fdu != nrdu) {
 #endif /* EPSON_NRDISK */
-#ifdef PC98
-		pc98_dmastart(bp->b_flags, bp->b_un.b_addr+fd->skip,
-#else
 		isa_dmastart(bp->b_flags, bp->b_un.b_addr+fd->skip,
-#endif
 			format ? bp->b_bcount : fdblk, fdc->dmachan);
 		blknum = (unsigned long)bp->b_blkno*DEV_BSIZE/fdblk
 			+ fd->skip/fdblk;
@@ -2003,11 +1986,7 @@ fdstate(fdcu_t fdcu, fdc_p fdc)
 #ifdef EPSON_NRDISK
 		if (fdu != nrdu) {
 #endif /* EPSON_NRDISK */
-#ifdef PC98
-		pc98_dmadone(bp->b_flags, bp->b_un.b_addr+fd->skip,
-#else
 		isa_dmadone(bp->b_flags, bp->b_un.b_addr+fd->skip,
-#endif
 			    format ? bp->b_bcount : fdblk, fdc->dmachan);
 #ifdef EPSON_NRDISK
 		}

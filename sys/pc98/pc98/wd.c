@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.4 1996/08/30 10:43:11 asami Exp $
+ *	$Id: wd.c,v 1.5 1996/08/31 15:07:25 asami Exp $
  */
 
 /* TODO:
@@ -87,7 +87,7 @@
 #include <machine/md_var.h>
 #ifdef PC98
 #include <pc98/pc98/pc98.h>
-#include <pc98/pc98/pc98_device.h>
+#include <i386/isa/isa_device.h>
 #include <pc98/pc98/wdreg.h>
 #else
 #include <i386/i386/cons.h>
@@ -148,15 +148,9 @@ static struct kern_devconf kdc_wd[NWD] = { {
 
 static struct kern_devconf kdc_wdc[NWDC] = { {
 	0, 0, 0,		/* filled in by kern_devconf.c */
-#ifdef PC98
-	"wdc", 0, { MDDT_PC98, 0 },
-	pc98_generic_externalize, 0, wdc_goaway, PC98_EXTERNALLEN,
-	&kdc_nec0,		/* parent */
-#else
 	"wdc", 0, { MDDT_ISA, 0 },
 	isa_generic_externalize, 0, wdc_goaway, ISA_EXTERNALLEN,
 	&kdc_isa0,		/* parent */
-#endif
 	0,			/* parentdata */
 	DC_UNCONFIGURED,	/* state */
 #ifdef PC98
@@ -529,7 +523,7 @@ wdattach(struct isa_device *dvp)
 	kdc_wdc[dvp->id_unit].kdc_state = DC_UNKNOWN; /* XXX */
 	TAILQ_INIT( &wdtab[dvp->id_unit].controller_queue);
 
-	for (wdup = pc98_biotab_wdc; wdup->id_driver != 0; wdup++) {
+	for (wdup = isa_biotab_wdc; wdup->id_driver != 0; wdup++) {
 		if (!old_epson_note) {
 			if (wdup->id_iobase != dvp->id_iobase)
 				continue;

@@ -24,7 +24,7 @@
 #include <vm/pmap.h>
 
 #include <pc98/pc98/pc98.h>
-#include <pc98/pc98/pc98_device.h>
+#include <i386/isa/isa_device.h>
 #include <pc98/pc98/icu.h>
 #include <pc98/pc98/ic/i8237.h>
 #include <pc98/pc98/scsireg.h>
@@ -209,9 +209,9 @@ struct isa_driver sbicdriver = {
 
 static struct kern_devconf kdc_sbic[NSBIC] = { {
 	0, 0, 0,		/* filled in by dev_attach */
-	"sbic", 0, { MDDT_PC98, 0, "bio" },
-	pc98_generic_externalize, 0, 0, PC98_EXTERNALLEN,
-	&kdc_nec0,		/* parent */
+	"sbic", 0, { MDDT_ISA, 0, "bio" },
+	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
+	&kdc_isa0,		/* parent */
 	0,			/* parentdata */
 	DC_UNCONFIGURED,	/* always start out here in probe */
 	"55 compatible SCSI board host adapter",
@@ -235,7 +235,7 @@ static int sbicunit = 0;
 /*
  * Check if the device can be found at the port given
  * and if so, set it up ready for further work
- * as an argument, takes the pc98_device structure from
+ * as an argument, takes the isa_device structure from
  * autoconf.c
  */
 static int
@@ -869,7 +869,7 @@ sbic_request_sense(struct sbic_data *sbic, struct sbic_ccb *ccb)
 	chan = sbic->sbic_dma;
 	len = ccb->sense_len;
 #ifndef ALLWAYS_BOUNCE
-	if(pc98_dmarangecheck((caddr_t)ccb->sense_addr,len)) {
+	if(isa_dmarangecheck((caddr_t)ccb->sense_addr,len)) {
 		ccb->sense_addr = (int)(sbic_bounce);
 		ccb->flags |= CCB_BOUNCE;
 	}

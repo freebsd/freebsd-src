@@ -40,7 +40,8 @@
 #include <vm/vm_pager.h>
 #include <vm/vm_extern.h>
 
-#include <pc98/pc98/pc98_device.h>
+#include <pc98/pc98/pc98.h>
+#include <i386/isa/isa_device.h>
 
 extern int Maxmem;
 extern int Maxmem_under16M;

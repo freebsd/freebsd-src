@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: pcaudio.c,v 1.2 1996/07/23 07:46:29 asami Exp $
+ *	$Id: pcaudio.c,v 1.3 1996/08/31 15:07:08 asami Exp $
  */
 
 #include "pca.h"
@@ -46,7 +46,7 @@
 
 #ifdef PC98
 #include <pc98/pc98/pc98.h>
-#include <pc98/pc98/pc98_device.h>
+#include <i386/isa/isa_device.h>
 #include <pc98/pc98/timerreg.h>
 
 #include <pc98/pc98/sound/ulaw.h>
@@ -298,15 +298,9 @@ pcaprobe(struct isa_device *dvp)
 
 static struct kern_devconf kdc_pca[NPCA] = { {
 	0, 0, 0,		/* filled in by dev_attach */
-#ifdef PC98
-	"pca", 0, { MDDT_PC98, 0, "tty" },
-	pc98_generic_externalize, 0, 0, PC98_EXTERNALLEN,
-	&kdc_nec0,		/* parent */
-#else
 	"pca", 0, { MDDT_ISA, 0, "tty" },
 	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
 	&kdc_isa0,		/* parent */
-#endif
 	0,			/* parentdata */
 	DC_UNKNOWN,		/* not supported */
 	"PC speaker audio driver"
@@ -319,11 +313,7 @@ pca_registerdev(struct isa_device *id)
 	if(id->id_unit)
 		kdc_pca[id->id_unit] = kdc_pca[0];
 	kdc_pca[id->id_unit].kdc_unit = id->id_unit;
-#ifdef PC98
-	kdc_pca[id->id_unit].kdc_pc98 = id;
-#else
 	kdc_pca[id->id_unit].kdc_isa = id;
-#endif
 	dev_attach(&kdc_pca[id->id_unit]);
 }
 

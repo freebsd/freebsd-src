@@ -708,11 +708,7 @@ DMAbuf_start_dma (int dev, unsigned long physaddr, int count, int dma_mode)
 
 #if defined(__FreeBSD__)
 
-#ifdef PC98
-      pc98_dmastart (B_RAW | ((dma_mode == DMA_MODE_READ) ? B_READ : B_WRITE),
-#else
       isa_dmastart (B_RAW | ((dma_mode == DMA_MODE_READ) ? B_READ : B_WRITE),
-#endif
 		    (caddr_t)dmap->raw_buf_phys[0],
 		    dmap->bytes_in_use,
 		    chan);
@@ -759,11 +755,7 @@ DMAbuf_start_dma (int dev, unsigned long physaddr, int count, int dma_mode)
       RESTORE_INTR (flags);
 #else
 #if defined(__FreeBSD__)
-#ifdef PC98
-      pc98_dmastart ((dma_mode == DMA_MODE_READ) ? B_READ : B_WRITE,
-#else
       isa_dmastart ((dma_mode == DMA_MODE_READ) ? B_READ : B_WRITE,
-#endif
 		    (caddr_t)physaddr,
 		    count,
 		    chan);
@@ -842,11 +834,7 @@ DMAbuf_outputintr (int dev, int event_type)
       dmap->flags &= ~DMA_ACTIVE;
 
 #ifdef __FreeBSD__
-#ifdef PC98
-      pc98_dmadone(0, 0, 0, audio_devs[dev]->dmachan);
-#else
       isa_dmadone(0, 0, 0, audio_devs[dev]->dmachan);
-#endif
 #endif
 
       if (dmap->qlen)
@@ -891,11 +879,7 @@ DMAbuf_inputintr (int dev)
 #endif /* SVR42 */
  
 #ifdef __FreeBSD__
-#ifdef PC98
-      pc98_dmadone(0, 0, 0, audio_devs[dev]->dmachan);
-#else
       isa_dmadone(0, 0, 0, audio_devs[dev]->dmachan);
-#endif
 #endif
 
   if (dmap->qlen == (dmap->nbufs - 1))

@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.1.1.1 1996/06/14 10:04:42 asami Exp $
+ *	$Id: vm_machdep.c,v 1.2 1996/07/23 07:46:03 asami Exp $
  */
 
 #include "npx.h"
@@ -68,7 +68,6 @@
 
 #ifdef PC98
 #include <pc98/pc98/pc98.h>
-#include <pc98/pc98/pc98_device.h>
 #else
 #include <i386/isa/isa.h>
 #endif

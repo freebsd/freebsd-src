@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.2 1996/07/23 07:46:38 asami Exp $
+ *	$Id: sio.c,v 1.3 1996/08/31 15:07:20 asami Exp $
  */
 
 #include "opt_comconsole.h"
@@ -140,7 +140,7 @@
 #ifdef PC98
 #include <pc98/pc98/pc98.h>
 #include <pc98/pc98/icu.h>
-#include <pc98/pc98/pc98_device.h>
+#include <i386/isa/isa_device.h>
 #include <pc98/pc98/sioreg.h>
 #include <pc98/pc98/ic/i8251.h>
 #include <pc98/pc98/ic/ns16550.h>
@@ -597,15 +597,9 @@ static	struct speedtab comspeedtab[] = {
 
 static struct kern_devconf kdc_sio[NSIO] = { {
 	0, 0, 0,		/* filled in by dev_attach */
-#ifdef PC98
-	driver_name, 0, { MDDT_PC98, 0, "tty" },
-	pc98_generic_externalize, 0, 0, PC98_EXTERNALLEN,
-	&kdc_nec0,		/* parent */
-#else
 	driver_name, 0, { MDDT_ISA, 0, "tty" },
 	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
 	&kdc_isa0,		/* parent */
-#endif
 	0,			/* parentdata */
 	DC_UNCONFIGURED,	/* state */
 	"Serial port",
@@ -748,22 +742,14 @@ sioregisterdev(id)
 /*
  *	If already registered, don't try to re-register.
  */
-#ifdef PC98
-	if (kdc_sio[unit].kdc_pc98)
-#else
 	if (kdc_sio[unit].kdc_isa)
-#endif
 		return;
 	if (unit != 0)
 		kdc_sio[unit] = kdc_sio[0];
 	kdc_sio[unit].kdc_state = DC_UNCONFIGURED;
 	kdc_sio[unit].kdc_description = "Serial port";
 	kdc_sio[unit].kdc_unit = unit;
-#ifdef PC98
-	kdc_sio[unit].kdc_pc98 = id;
-#else
 	kdc_sio[unit].kdc_isa = id;
-#endif
 	dev_attach(&kdc_sio[unit]);
 }
 
@@ -797,11 +783,7 @@ sioprobe(dev)
 		 * from any used port that shares the interrupt vector.
 		 * XXX the gate enable is elsewhere for some multiports.
 		 */
-#ifdef PC98
-		for (xdev = pc98_devtab_tty; xdev->id_driver != NULL; xdev++)
-#else
 		for (xdev = isa_devtab_tty; xdev->id_driver != NULL; xdev++)
-#endif
 			if (xdev->id_driver == &siodriver && xdev->id_enabled)
 #ifdef PC98
 				if (IS_PC98IN(xdev->id_iobase))
@@ -849,7 +831,7 @@ sioprobe(dev)
 			COM_INT_DISABLE
 			tmp = ( inb( iod.ctrl ) & ~(IEN_Rx|IEN_TxEMP|IEN_Tx));
 			outb( iod.ctrl, tmp|IEN_TxEMP );
-			ret = pc98_irq_pending(dev) ? 4 : 0;
+			ret = isa_irq_pending(dev) ? 4 : 0;
 			outb( iod.ctrl, tmp );
 			COM_INT_ENABLE
 			break;
@@ -879,11 +861,7 @@ sioprobe(dev)
 	mcr_image = MCR_IENABLE;
 #ifdef COM_MULTIPORT
 	if (COM_ISMULTIPORT(dev)) {
-#ifdef PC98
-		idev = find_pc98dev(pc98_devtab_tty, &siodriver,
-#else
 		idev = find_isadev(isa_devtab_tty, &siodriver,
-#endif
 				   COM_MPMASTER(dev));
 		if (idev == NULL) {
 			printf("sio%d: master device %d not configured\n",
@@ -1001,20 +979,11 @@ sioprobe(dev)
 	failures[2] = inb(iobase + com_mcr) - mcr_image;
 	DELAY(10000);		/* Some internal modems need this time */
 	if (idev->id_irq != 0)
-#ifdef PC98
-		failures[3] = pc98_irq_pending(idev) ? 0 : 1;
-#else
 		failures[3] = isa_irq_pending(idev) ? 0 : 1;
-#endif
 	failures[4] = (inb(iobase + com_iir) & IIR_IMASK) - IIR_TXRDY;
 	DELAY(1000);		/* XXX */
-#ifdef PC98
-	if (idev->id_irq != 0)
-		failures[5] = pc98_irq_pending(idev) ? 1 : 0;
-#else
 	if (idev->id_irq != 0)
 		failures[5] = isa_irq_pending(idev) ? 1	: 0;
-#endif
 	failures[6] = (inb(iobase + com_iir) & IIR_IMASK) - IIR_NOPEND;
 
 	/*
@@ -1030,13 +999,8 @@ sioprobe(dev)
 	outb(iobase + com_cfcr, CFCR_8BITS);	/* dummy to avoid bus echo */
 	failures[7] = inb(iobase + com_ier);
 	DELAY(1000);		/* XXX */
-#ifdef PC98
-	if (idev->id_irq != 0)
-		failures[8] = pc98_irq_pending(idev) ? 1 : 0;
-#else
 	if (idev->id_irq != 0)
 		failures[8] = isa_irq_pending(idev) ? 1	: 0;
-#endif
 	failures[9] = (inb(iobase + com_iir) & IIR_IMASK) - IIR_NOPEND;
 
 	enable_intr();
@@ -1384,11 +1348,7 @@ determined_type: ;
 		if (unit == COM_MPMASTER(isdp))
 			printf(" master");
 		printf(")");
-#ifdef PC98
-		com->no_irq = find_pc98dev(pc98_devtab_tty, &siodriver,
-#else
 		com->no_irq = find_isadev(isa_devtab_tty, &siodriver,
-#endif
 					  COM_MPMASTER(isdp))->id_irq == 0;
 	 }
 #endif /* COM_MULTIPORT */
