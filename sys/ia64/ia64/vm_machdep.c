@@ -304,7 +304,8 @@ cpu_exit(p)
 
 	(void) splhigh();
 	mtx_enter(&sched_lock, MTX_SPIN);
-	mtx_exit(&Giant, MTX_DEF);
+	mtx_exit(&Giant, MTX_DEF | MTX_NOSWITCH);
+	mtx_assert(&Giant, MA_NOTOWNED);
 	cnt.v_swtch++;
 	cpu_switch();
 	panic("cpu_exit");
