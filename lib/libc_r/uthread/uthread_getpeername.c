@@ -38,7 +38,7 @@
 #include "pthread_private.h"
 
 int
-getpeername(int fd, struct sockaddr * peer, int *paddrlen)
+getpeername(int fd, struct sockaddr * peer, socklen_t *paddrlen)
 {
 	int             ret;
 

@@ -38,7 +38,7 @@
 #include "pthread_private.h"
 
 int
-getsockopt(int fd, int level, int optname, void *optval, int *optlen)
+getsockopt(int fd, int level, int optname, void *optval, socklen_t *optlen)
 {
 	int             ret;
 

@@ -54,15 +54,42 @@ communication will take place; this selects the protocol family
 which should be used.
 These families are defined in the include file
 .Ao Pa sys/socket.h Ac .
-The currently understood formats are
+The currently understood formats are:
 .Pp
 .Bd -literal -offset indent -compact
-PF_LOCAL	(Host-internal protocols, formerly called PF_UNIX),
-PF_INET		(ARPA Internet protocols),
-PF_ISO		(ISO protocols),
-PF_CCITT	(ITU-T protocols, like X.25),
-PF_NS		(Xerox Network Systems protocols), and
-.\"PF_IMPLINK	(IMP \*(lqhost at IMP\*(rq link layer).
+PF_LOCAL	Host-internal protocols, formerly called PF_UNIX,
+PF_UNIX		Host-internal protocols, depreciated, use PF_LOCAL,
+PF_INET		Internet version 4 protocols,
+PF_IMPLINK	ARPAnet IMP addresses,
+PF_PUP		PUP protocols, like BSP,
+PF_CHAOS	MIT CHAOS protocols,
+PF_NS		Xerox Network Systems protocols,
+PF_ISO		ISO protocols,
+PF_OSI		Open Systems Interconnection protocols,
+PF_ECMA		European Computer Manufacturers,
+PF_DATAKIT	Datakit protocols,
+PF_CCITT	ITU-T protocols, like X.25,
+PF_SNA		IBM SNA,
+PF_DECnet	DECnet,
+PF_DLI		DEC Direct Data Link Interface protocol,
+PF_LAT		LAT protocol,
+PF_HYLINK	NSC Hyperchannel,
+PF_APPLETALK	AppleTalk protocols,
+PF_ROUTE	Internal Routing protocol,
+PF_LINK		Link layer interface,
+PF_XTP		eXpress Transfer Protocol,
+PF_COIP		Connection-Oriented IP, aka ST II,
+PF_CNT		Computer Network Technology,
+PF_SIP		Simple Internet Protocol,
+PF_IPX		Novell Intenet Packet eXchange protocol,
+PF_RTIP		Help Identify RTIP packets,
+PF_PIP		Help Identify PIP packets,
+PF_ISDN		Integrated Services Digital Network,
+PF_KEY		Internal key-management function,
+PF_INET6	Internet version 6 protocols,
+PF_NATM		Native ATM access,
+PF_ATM		ATM,
+PF_NETGRAPH	Netgraph sockets
 .Ed
 .Pp
 The socket has the indicated
@@ -71,11 +98,11 @@ which specifies the semantics of communication.  Currently
 defined types are:
 .Pp
 .Bd -literal -offset indent -compact
-SOCK_STREAM
-SOCK_DGRAM
-SOCK_RAW
-SOCK_SEQPACKET
-SOCK_RDM
+SOCK_STREAM	Stream socket,
+SOCK_DGRAM	Datagram socket,
+SOCK_RAW	Raw-protocol interface,
+SOCK_RDM	Sequenced packet stream,
+SOCK_SEQPACKET	Reliably-delivered packet
 .Ed
 .Pp
 A

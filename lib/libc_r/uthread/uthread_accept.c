@@ -41,7 +41,7 @@
 #include "pthread_private.h"
 
 int
-accept(int fd, struct sockaddr * name, int *namelen)
+accept(int fd, struct sockaddr * name, socklen_t *namelen)
 {
 	int             ret;
 
