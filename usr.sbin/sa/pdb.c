@@ -38,6 +38,7 @@ static const char rcsid[] =
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 #include "extern.h"
@@ -309,7 +310,7 @@ check_junk(cip)
 	char *cp;
 	size_t len;
 
-	fprintf(stderr, "%s (%qu) -- ", cip->ci_comm, cip->ci_calls);
+	fprintf(stderr, "%s (%ju) -- ", cip->ci_comm, (uintmax_t)cip->ci_calls);
 	cp = fgetln(stdin, &len);
 
 	return (cp && (cp[0] == 'y' || cp[0] == 'Y')) ? 1 : 0;
@@ -343,7 +344,7 @@ print_ci(cip, totalcip)
 	} else
 		uflow = 0;
 
-	printf("%8qu ", cip->ci_calls);
+	printf("%8ju ", (uintmax_t)cip->ci_calls);
 	if (cflag) {
 		if (cip != totalcip)
 			printf(" %4.2f%%  ",
@@ -410,12 +411,12 @@ print_ci(cip, totalcip)
 	}
 
 	if (Dflag)
-		printf("%10qutio ", cip->ci_io);
+		printf("%10jutio ", (uintmax_t)cip->ci_io);
 	else
 		printf("%8.0favio ", cip->ci_io / c);
 
 	if (Kflag)
-		printf("%10quk*sec ", cip->ci_mem);
+		printf("%10juk*sec ", (uintmax_t)cip->ci_mem);
 	else
 		printf("%8.0fk ", cip->ci_mem / t);
 
