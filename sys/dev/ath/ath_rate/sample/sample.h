@@ -186,7 +186,6 @@ static unsigned calc_usecs_unicast_packet(struct ath_softc *sc,
 				int length, 
 				int rix, int short_retries, int long_retries) {
 	const HAL_RATE_TABLE *rt = sc->sc_currates;
-
 	
 	/* pg 205 ieee.802.11.pdf */
 	unsigned t_slot = 20;
@@ -197,16 +196,16 @@ static unsigned calc_usecs_unicast_packet(struct ath_softc *sc,
 	int x = 0;
 	int cw = WIFI_CW_MIN;
 	int cix = rt->info[rix].controlRate;
-	KASSERT(rt != NULL, ("no rate table, mode %u", sc->sc_curmode));
+	int rts = 0;
+	int cts = 0;
 	
+	KASSERT(rt != NULL, ("no rate table, mode %u", sc->sc_curmode));
+
 	if (rt->info[rix].phy == IEEE80211_T_OFDM) {
 		t_slot = 9;
 		t_sifs = 9;
 		t_difs = 28;
 	}
-
-	int rts = 0;
-	int cts = 0;
 
 	if ((ic->ic_flags & IEEE80211_F_USEPROT) &&
 	    rt->info[rix].phy == IEEE80211_T_OFDM) {
