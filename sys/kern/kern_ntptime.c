@@ -194,27 +194,20 @@ static long pps_errcnt;			/* calibration errors */
 
 static void ntp_init(void);
 static void hardupdate(long offset);
+static void ntp_gettime1(struct ntptimeval *ntvp);
 
-/*
- * ntp_gettime() - NTP user application interface
- *
- * See the timex.h header file for synopsis and API description. Note
- * that the TAI offset is returned in the ntvtimeval.tai structure
- * member.
- */
-static int
-ntp_sysctl(SYSCTL_HANDLER_ARGS)
+static void
+ntp_gettime1(struct ntptimeval *ntvp)
 {
-	struct ntptimeval ntv;	/* temporary structure */
 	struct timespec atv;	/* nanosecond time */
 
 	nanotime(&atv);
-	ntv.time.tv_sec = atv.tv_sec;
-	ntv.time.tv_nsec = atv.tv_nsec;
-	ntv.maxerror = time_maxerror;
-	ntv.esterror = time_esterror;
-	ntv.tai = time_tai;
-	ntv.time_state = time_state;
+	ntvp->time.tv_sec = atv.tv_sec;
+	ntvp->time.tv_nsec = atv.tv_nsec;
+	ntvp->maxerror = time_maxerror;
+	ntvp->esterror = time_esterror;
+	ntvp->tai = time_tai;
+	ntvp->time_state = time_state;
 
 	/*
 	 * Status word error decode. If any of these conditions occur,
@@ -245,8 +238,40 @@ ntp_sysctl(SYSCTL_HANDLER_ARGS)
 	 */
 	    (time_status & STA_PPSFREQ &&
 	    time_status & (STA_PPSWANDER | STA_PPSERROR)))
-		ntv.time_state = TIME_ERROR;
-	return (sysctl_handle_opaque(oidp, &ntv, sizeof ntv, req));
+		ntvp->time_state = TIME_ERROR;
+}
+
+#ifndef _SYS_SYSPROTO_H_
+struct ntp_gettime_args {
+	struct ntptimeval *ntvp;
+};
+#endif
+/* ARGSUSED */
+int
+ntp_gettime(struct thread *td, struct ntp_gettime_args *uap)
+{	
+	struct ntptimeval ntv;
+
+	ntp_gettime1(&ntv);
+
+	return (copyout(&ntv, uap->ntvp, sizeof(ntv)));
+}
+
+/*
+ * ntp_gettime() - NTP user application interface
+ *
+ * See the timex.h header file for synopsis and API description. Note
+ * that the TAI offset is returned in the ntvtimeval.tai structure
+ * member.
+ */
+static int
+ntp_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	struct ntptimeval ntv;	/* temporary structure */
+
+	ntp_gettime1(&ntv);
+
+	return (sysctl_handle_opaque(oidp, &ntv, sizeof(ntv), req));
 }
 
 SYSCTL_NODE(_kern, OID_AUTO, ntp_pll, CTLFLAG_RW, 0, "");
