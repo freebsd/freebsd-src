@@ -182,6 +182,7 @@ struct ath_softc {
 	HAL_CHANNEL		sc_curchan;	/* current h/w channel */
 	u_int8_t		sc_rixmap[256];	/* IEEE to h/w rate table ix */
 	u_int8_t		sc_hwmap[32];	/* h/w rate ix to IEEE table */
+	u_int8_t		sc_hwflags[32];	/* " " " to radiotap flags */
 	u_int8_t		sc_protrix;	/* protection rate index */
 	u_int			sc_txantenna;	/* tx antenna (fixed or auto) */
 	HAL_INT			sc_imask;	/* interrupt mask copy */
@@ -199,10 +200,13 @@ struct ath_softc {
 	} u_tx_rt;
 	int			sc_tx_th_len;
 	union {
-		struct ath_rx_radiotap_header th;
+		struct {
+			struct ath_rx_radiotap_header th;
+			struct ieee80211_qosframe wh;
+		} u;
 		u_int8_t	pad[64];
 	} u_rx_rt;
-	int			sc_rx_th_len;
+	int			sc_rx_rt_len;
 
 	struct task		sc_fataltask;	/* fatal int processing */
 
@@ -244,7 +248,9 @@ struct ath_softc {
 };
 #define	sc_if			sc_arp.ac_if
 #define	sc_tx_th		u_tx_rt.th
-#define	sc_rx_th		u_rx_rt.th
+#define	sc_rx			u_rx_rt.u
+#define	sc_rx_th		sc_rx.th
+#define	sc_rx_wh		sc_rx.wh
 
 #define	ATH_LOCK_INIT(_sc) \
 	mtx_init(&(_sc)->sc_mtx, device_get_nameunit((_sc)->sc_dev), \
