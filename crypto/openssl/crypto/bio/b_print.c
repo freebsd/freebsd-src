@@ -716,12 +716,13 @@ doapr_outch(
     if (buffer) {
 	while (*currlen >= *maxlen) {
 	    if (*buffer == NULL) {
-		assert(*sbuffer != NULL);
 		if (*maxlen == 0)
 		    *maxlen = 1024;
 		*buffer = OPENSSL_malloc(*maxlen);
-		if (*currlen > 0)
+		if (*currlen > 0) {
+		    assert(*sbuffer != NULL);
 		    memcpy(*buffer, *sbuffer, *currlen);
+		}
 		*sbuffer = NULL;
 	    } else {
 		*maxlen += 1024;
@@ -761,7 +762,9 @@ int BIO_vprintf (BIO *bio, const char *format, va_list args)
 	{
 	int ret;
 	size_t retlen;
-	MS_STATIC char hugebuf[1024*10];
+	char hugebuf[1024*2];	/* Was previously 10k, which is unreasonable
+				   in small-stack environments, like threads
+				   or DOS programs. */
 	char *hugebufp = hugebuf;
 	size_t hugebufsize = sizeof(hugebuf);
 	char *dynbuf = NULL;

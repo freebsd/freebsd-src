@@ -414,7 +414,10 @@ int MAIN(int argc, char **argv)
 		p7 = PKCS7_encrypt(encerts, in, cipher, flags);
 	} else if(operation == SMIME_SIGN) {
 		p7 = PKCS7_sign(signer, key, other, in, flags);
-		BIO_reset(in);
+		if (BIO_reset(in) != 0 && (flags & PKCS7_DETACHED)) {
+		  BIO_printf(bio_err, "Can't rewind input file\n");
+		  goto end;
+		}
 	} else {
 		if(informat == FORMAT_SMIME) 
 			p7 = SMIME_read_PKCS7(in, &indata);
@@ -454,9 +457,9 @@ int MAIN(int argc, char **argv)
 	} else if(operation == SMIME_VERIFY) {
 		STACK_OF(X509) *signers;
 		if(PKCS7_verify(p7, other, store, indata, out, flags)) {
-			BIO_printf(bio_err, "Verification Successful\n");
+			BIO_printf(bio_err, "Verification successful\n");
 		} else {
-			BIO_printf(bio_err, "Verification Failure\n");
+			BIO_printf(bio_err, "Verification failure\n");
 			goto end;
 		}
 		signers = PKCS7_get0_signers(p7, other, flags);
