@@ -18,7 +18,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
+ *    must display the following acknowledgment:
  *	This product includes software developed by the University of
  *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
@@ -806,7 +806,7 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 			 * whether or not to leave the page activated is up in
 			 * the air, but we should put the page on a page queue
 			 * somewhere. (it already is in the object). Result:
-			 * It appears that emperical results show that
+			 * It appears that empirical results show that
 			 * deactivating pages is best.
 			 */
 
