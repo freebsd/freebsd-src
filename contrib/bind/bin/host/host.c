@@ -1,5 +1,5 @@
 #ifndef lint
-static const char rcsid[] = "$Id: host.c,v 8.36 2000/01/25 00:20:21 cyarnell Exp $";
+static const char rcsid[] = "$Id: host.c,v 8.37 2000/07/11 07:06:14 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -1043,7 +1043,7 @@ pr_rr(const u_char *cp, const u_char *msg, FILE *file, int filter) {
 		cp += sizeof(u_short);
 		cp = (u_char *)pr_cdname(cp, msg, name, sizeof(name));
 		if (doprint)
-			fprintf(file,"%s",name);
+			fprintf(file, " %s", name);
 		break;
 
 	case ns_t_naptr:

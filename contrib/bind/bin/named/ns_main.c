@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static const char sccsid[] = "@(#)ns_main.c	4.55 (Berkeley) 7/1/91";
-static const char rcsid[] = "$Id: ns_main.c,v 8.125 2000/04/21 06:54:08 vixie Exp $";
+static const char rcsid[] = "$Id: ns_main.c,v 8.126 2000/07/20 22:50:39 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -163,8 +163,9 @@ static	u_int16_t               nsid_state2;
 static	int                     nsid_algorithm;
 
 typedef void (*handler)(void);
-static	int			needs = 0;
+static	int			needs = 0, needs_exit = 0;
 static	handler			handlers[main_need_num];
+static	void			need_waitfunc(evContext, void *, const void *);
 
 static	struct qstream		*sq_add(void);
 static	int			opensocket_d(interface *),
@@ -196,7 +197,7 @@ static void			stream_send(evContext, void *, int,
 static int			only_digits(const char *);
 
 static void			init_needs(void),
-				handle_need(void);
+				handle_needs(void);
 
 #ifndef HAVE_CUSTOM
 static void			custom_init(void),
@@ -525,21 +526,16 @@ main(int argc, char *argv[], char *envp[]) {
 	ns_notice(ns_log_default, "Ready to answer queries.");
 	gettime(&tt);
 	prime_cache();
-	while (!main_needs_exit) {
+	while (!needs_exit) {
 		evEvent event;
 
 		ns_debug(ns_log_default, 15, "main loop");
-		if (needs != 0) {
-			/* Drain outstanding events; handlers ~block~. */
-			while (evGetNext(ev, &event, EV_POLL) != -1)
-				INSIST_ERR(evDispatch(ev, event) != -1);
-			INSIST_ERR(errno == EINTR || errno == EWOULDBLOCK);
-			handle_need();
-		} else if (evGetNext(ev, &event, EV_WAIT) != -1) {
+		if (needs != 0)
+			handle_needs();
+		else if (evGetNext(ev, &event, EV_WAIT) != -1)
 			INSIST_ERR(evDispatch(ev, event) != -1);
-		} else {
+		else
 			INSIST_ERR(errno == EINTR);
-		}
 	}
 	ns_info(ns_log_default, "named shutting down");
 #ifdef BIND_UPDATE
@@ -2551,11 +2547,6 @@ deallocate_everything(void) {
 }
 	
 static void
-ns_exit(void) {
-	main_needs_exit++;
-}
-
-static void
 ns_restart(void) {
 	ns_info(ns_log_default, "named restarting");
 #ifdef BIND_UPDATE
@@ -2639,7 +2630,7 @@ init_needs(void) {
 	handlers[main_need_zoneload] = loadxfer;
 	handlers[main_need_dump] = doadump;
 	handlers[main_need_statsdump] = ns_stats;
-	handlers[main_need_exit] = ns_exit;
+	handlers[main_need_exit] = wild;
 	handlers[main_need_qrylog] = toggle_qrylog;
 	handlers[main_need_debug] = use_desired_debug;
 	handlers[main_need_restart] = ns_restart;
@@ -2648,20 +2639,32 @@ init_needs(void) {
 }
 
 static void
-handle_need(void) {
-	int need;
+handle_needs(void) {
+	int need, queued = 0;
 
-	ns_debug(ns_log_default, 15, "handle_need()");
+	ns_debug(ns_log_default, 15, "handle_needs()");
+	block_signals();
 	for (need = 0; need < main_need_num; need++)
 		if ((needs & (1 << need)) != 0) {
-			/* Turn off flag first, handlers ~turn~ it back on. */
-			block_signals();
-			needs &= ~(1 << need);
-			unblock_signals();
-			(handlers[need])();
-			return;
+			INSIST_ERR(evWaitFor(ev, handle_needs, need_waitfunc,
+					     handlers[need], NULL) != -1);
+			queued++;
 		}
-	ns_panic(ns_log_default, 1, "handle_need() found no needs", NULL);
+	needs = 0;
+	unblock_signals();
+	ns_debug(ns_log_default, 15, "handle_needs(): queued %d", queued);
+	if (queued != 0) {
+		INSIST_ERR(evDo(ev, handle_needs) != -1);
+		return;
+	}
+	ns_panic(ns_log_default, 1, "ns_handle_needs: queued == 0", NULL);
+}
+
+static void
+need_waitfunc(evContext ctx, void *uap, const void *tag) {
+	handler hand = (handler) uap;
+
+	(*hand)();
 }
 
 void
@@ -2675,6 +2678,8 @@ ns_need(enum need need) {
 void
 ns_need_unsafe(enum need need) {
 	needs |= (1 << need);
+	if (need == main_need_exit)
+		needs_exit = 1;
 }
 
 void

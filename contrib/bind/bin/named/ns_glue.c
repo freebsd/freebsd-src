@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(SABER)
-static const char rcsid[] = "$Id: ns_glue.c,v 8.16 2000/04/21 06:50:18 vixie Exp $";
+static const char rcsid[] = "$Id: ns_glue.c,v 8.17 2000/07/17 07:36:52 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -252,6 +252,7 @@ void
 gettime(struct timeval *ttp) {
 	if (gettimeofday(ttp, NULL) < 0)
 		ns_error(ns_log_default, "gettimeofday: %s", strerror(errno));
+	INSIST(ttp->tv_usec >= 0 && ttp->tv_usec < 1000000);
 }
 
 /*

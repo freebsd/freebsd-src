@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(SABER)
-static const char rcsid[] = "$Id: nsupdate.c,v 8.23 2000/02/04 07:51:04 vixie Exp $";
+static const char rcsid[] = "$Id: nsupdate.c,v 8.24 2000/07/11 06:32:01 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -168,8 +168,6 @@ main(argc, argv)
 	char *keyfile=NULL, *keyname=NULL, *p, *pp;
 	int file_major, file_minor, alg;
 
-
-
 	progname = argv[0];
 
 	while ((c = getopt(argc, argv, "dsvk:n:")) != -1) {
@@ -196,7 +194,7 @@ main(argc, argv)
 			*colon='\0';
 			break;
 		}
-		 case 'n':
+		case 'n':
 			keyname=optarg;
 			break;
 		default:
