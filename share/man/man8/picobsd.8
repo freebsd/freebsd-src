@@ -21,7 +21,7 @@ single image file from some media such as CDROM, flash memory, or through
 .Xr etherboot .
 .Pp
 .Nm picobsd
-has been originally created to build simple standalone systems
+was originally created to build simple standalone systems
 such as firewalls or bridges, but because of the ability to
 cross-build images with different source trees than the one
 in the server, it can be extremely useful to developers to
@@ -39,8 +39,8 @@ It then updates the memory
 filesystem with files from the boot media (if present),
 and executes a specialized version of
 .Pa /etc/rc .
-The boot media (floppy etc.) is
-required for loading only, and typically used as readonly.
+he boot media (floppy, etc.) is
+required for loading only, and typically used readonly.
 After the boot phase, the system runs entirely from ram.
 .Pp
 The following options are available (but also check the
@@ -53,10 +53,10 @@ Use the source tree at
 .Ar SRC_PATH
 instead the one at
 .Ar /usr/src .
-Can be useful for cross-building floppy images.
-When using this option, you must also create initialize the subtree at
+This can be useful for cross-building floppy images.
+When using this option, you must also create and initialize the subtree at
 .Ar SRC_PATH/../usr
-with the correct include files, libraries and tools (such as the
+with the correct include files, libraries, and tools (such as the
 .Xr config 8
 program) that are necessary for the cross-build (see the
 .Fl -init
@@ -75,48 +75,52 @@ in the release build scripts which might go away with time).
 .It Fl -init
 When used together with the
 .Fl -src
-option, it initializes the
+option, this initializes the
 .Ar SRC_PATH/../usr
 subtree as necessary to subsequently build picobsd images.
 .Pp
 .It Fl -modules
-Also build kernel modules. They are not stored on the floppy
+Also build kernel modules. These are not stored on the floppy
 image but are left available in the build directory.
 .Pp
 .It Fl n
-Make the script non interactive. Do not show the initial menu, and
-proceed in the build process without requiring user input.
+Make the script non-interactive. Do not show the initial menu, and
+proceed to the build process without requiring user input.
 .Pp
 .It Fl v
-Make the script verbose, showing the various commands to execute and
-waiting for user input before each of them. Useful when debugging.
+Make the script verbose, showing
+commands to be executed and waiting for user
+input before executing each of them. Useful when debugging.
 .Pp
 .It Fl -all_in_mfs
-Puts the entire content of the filesystem in the memory filesystem
-image which is contained in the kernel. This is the default behaviour,
-and is extremely useful as the kernel itself can be loaded using
+Puts the entire content of the filesystem in the
+memory filesystem image which is contained in the
+kernel. This is the default behaviour, and is
+extremely useful as the kernel itself can be loaded,
+using
 .Xr etherboot
 or
-.Xr pxeboot
-to have a fully functional system.
+.Xr pxeboot ,
+as a fully functional system
 .Pp
 .It Fl -no_all_in_mfs
-Leaves files contained into the
+Leaves files contained in the
 .Ar floppy.tree
-on the floppy image, so they can be loaded separately from the kernel
-(and updated individually to customize the floppy image).
+on the floppy image, so they can be loaded separately
+from the kernel (and updated individually to
+customize the floppy image).
 .Pp
 .It Fl -floppy_size Ar size
-Set the size of the floppy image. Values other than 1440 can
-be used for images that are burned into a CDROM.
+Set the size of the floppy image. Values other
+than 1440 can be used for images that are burned
+into a CDROM.
 .Pp
 .It Fl c
 .It Fl clean
 Clean the product of previous builds.
-.Xr etherboot
 .El
 .Sh ENVIRONMENT
-As a result of the extreme size limitations, the
+As a result of extreme size limitations, the
 .Nm
 environment differs from the normal
 .Fx
@@ -150,8 +154,7 @@ directory.  The
 .Nm
 build process has changed slightly over time, in order to cope
 with the unavoidable increase of code size, which requires more and more
-tricks to cram as much as possible on
-to the floppies.
+tricks to cram as much as possible onto the floppies.
 Starting from
 .Fx 4.3 ,
 the supported build script is
@@ -166,7 +169,7 @@ functional and fitting in the 1.44MB floppy despite the unavoidable
 increases in the size of the kernel and its applications:
 .Bl -hang -width "install  "
 .It bridge
-is a configuration suitable for bridges, routers and firewalls
+configuration suitable for bridges, routers and firewalls.
 .El
 .Pp
 The following configurations are also present but for reference
@@ -174,22 +177,21 @@ only. Many of them are irrimediably out of date and no effort
 is done to keep them in good shape:
 .Bl -hang -width "install  "
 .It dial
-is a configuration suitable for dial-out (ppp) networking.
-.It install
-is a configuration suitable for software installation.
+configuration suitable for dial-out (ppp) networking.
 .It isp
-is a configuration suitable for dial-in (ppp) networking.
+configuration suitable for dial-in (ppp) networking.
 .It net
-is a configuration suitable for general networking.
+configuration suitable for general networking.
 .It router
-is a configuration suitable for use as a router.  This particular configuration
+configuration suitable for use as a router.  This particular configuration
 aims to work on minimal hardware.
 .El
 .Pp
-These configurations serve only as examples to build your own.
-Not all of them have been tested, and you might need small tweaks
-to the configuration files to make them work or even fit into
-the available disk space as code size increases.
+These configurations serve only as examples for
+your own modification. Not all of them have been tested,
+and you might need small tweaks to the configuration
+files to make them work or even fit into the
+available disk space as code size increases.
 .Pp
 You can define your own floppy type, by creating a directory
 with a name of your choice (e.g. FOO) which contains
@@ -218,8 +220,8 @@ option:
 options MD_ROOT_SIZE=4200      # same as def_sz
 .Ed
 .Pp
-to inform the script on the size of the memory filesystem and
-a few other information on how to build the image.
+This informs the script of the size of the memory filesystem and
+provides a few other details on how to build the image.
 .Pp
 .It Pa crunch.conf
 crunchgen configuration (required). See the
@@ -230,13 +232,13 @@ manpage for the syntax.
 shell variables, sourced by the
 .Pa picobsd
 script (optional). The most important variables here are
-.Pa MY_DEVS
-which should be set to the list of device which should be
-created in the
+.Pa MY_DEVS ,
+(not used in CURRENT where we have DEVFS),
+which should be set to the list of devices to be created in the
 .Pa /dev
 directory of the image (it is really the argument passed to
 .Pa MAKEDEV ,
-so you can refer to that manpage for the names), and the
+so refer to that manpage for the names), and the
 .Pa fd_size
 which can override the default size (in kilobytes) of the image.
 By default,
@@ -246,9 +248,9 @@ which produces an image suitable for a standard floppy.
 If you plan to store the image on a CDROM (e.g. using
 the El Torito floppy emulation), you can set
 .Pa fd_size=2880 .
-Same if you are planning to dump the image onto a hard disk
-(either in a partition or on the whole disk), in which case you
-are not even restricted to use one of the standard floppy sizes.
+If you are planning to dump the image onto a hard disk
+(either in a partition or on the whole disk), you
+are not restricted to one of the standard floppy sizes.
 Using a large image size per se does not waste RAM at runtime,
 because only the files that are actually loaded from the image
 contribute to the memory usage.
@@ -270,7 +272,7 @@ script.
 Sample configurations can be found in
 .Pa /usr/src/release/picobsd/ Ns ${type} Ns /
 .Sh USING ALTERNATE SOURCE TREES
-The build script can be instructed use an alternate source tree
+The build script can be instructed to use an alternate source tree
 using the
 .Fl -src Ar SRC_PATH
 option.
@@ -303,7 +305,7 @@ a new image can be produced by simply running
 .Ed
 .Pp
 whereas if the change affects include files or libraries
-you first need to update them e.g. by running first
+you first need to update them, e.g. by running first
 .Bd -literal -offset indent
   picobsd --src FOO/src --init  # this is needed only once
 .Ed
@@ -320,7 +322,7 @@ is run from a floppy disk, where it can be installed with a simple
   dd if=picobsd.bin of=/dev/rfd0
 .Ed
 .Pp
-and the floppy is ready to run.
+and the floppy is ready to boot.
 .Pp
 .Ss Hard disk install
 The same process can be used to store the image on a hard disk
@@ -332,20 +334,21 @@ The same process can be used to store the image on a hard disk
 .Ed
 .Pp
 The first form will install the image on the entire disk, and it
-should work in the same way as from a floppy.
+should work in the same way as for a floppy.
 .Pp
-The second form will install the
+The second form will install the image
 on slice number 3 (which should be large enough to store the
-content of the image). However the process will only have success if the
+content of the image). However, the process will only have success if the
 partition does not contain a valid disklabel, otherwise the kernel will
 likely prevent overwriting the label. In this case you can use the
 third form, replacing NN with the actual start of the partition
-(as you can tell from
+(which you can determine using
 .Nm fdisk
 ).
-Note that after saving the image to the slice, it will not be
-recognised yet, you have to use the disklabel command to
-properly initialize the label (don't ask why!).
+Note that after saving the image to the slice, it will not yet be
+recognised. You have to use the
+.Nm disklabel
+command to properly initialize the label (don't ask why!).
 One way to do this is
 .Bd -literal -offset indent
   disklabel -w ad0s2 auto
@@ -415,7 +418,7 @@ ethernet.
 .Pp
 After booting,
 .Nm
-loads the root filesystem from memory file system, starts
+loads the root filesystem from the memory file system, starts
 .Pa /sbin/init ,
 and passes control to a first startup script,
 .Pa /etc/rc .
@@ -431,9 +434,9 @@ After this phase the boot device is no longer used, unless the
 user specifically does it.
 .Pp
 After this, control is transferred to a second script,
-.Pa /etc/rc1 ,
-(can be overridden from the boot device).
-This one tries to associate a hostname to the system by using
+.Pa /etc/rc1
+(which can be overridden from the boot device).
+This script tries to associate a hostname to the system by using
 the MAC address of the first ethernet interface as a key, and
 .Pa /etc/hosts
 as a lookup table.
@@ -445,9 +448,9 @@ variables which have been pre-set in
 You can use the
 .Pa $hostname
 variable to create different configurations from the same file.
-.Pa
 After taking control back,
-.Pa /etc/rc1 completes the initializations, and as part of this
+.Pa /etc/rc1
+completes the initializations, and as part of this
 it configures network interfaces and optionally calls the
 firewall configuration script,
 .Pa /etc/rc.firewall ,
@@ -455,11 +458,11 @@ where the user can store his own firewall configuration.
 .Pp
 Note that by default
 .Nm
-runs entirely off main memory, and has no swap space, unless you
+runs entirely from main memory, and has no swap space, unless you
 explicitly request it.
 The boot device is also not used anymore after
 .Pa /etc/rc1
-takes control, again unless you explicitly request it.
+takes control, again, unless you explicitly request it.
 .Pp
 .Pp
 .Sh CONFIGURING a PicoBSD system
@@ -489,8 +492,8 @@ a mapping between Ethernet (MAC) addresses and hostnames, as follows:
 where the line containing "#ethertable" marks the start of the table.
 .Pp
 If the MAC address is not found, the script will prompt you to
-enter a hostname and IP address for the system, and these
-informations will be stored in the
+enter a hostname and IP address for the system, and this
+information will be stored in the
 .Pa /etc/hosts
 file (in memory) so you can simply store them on disk later.
 .Pp
@@ -502,7 +505,7 @@ avoid the request.
 .It Pa /etc/rc.conf
 This file contains a number of variables which control the
 operation of the system, such as interface configuration,
-router setup, network service startup, etc. .
+router setup, network service startup, etc.
 For the exact list and meaning of these variables see
 .Pa /etc/rc.conf.defaults .
 .Pp
@@ -512,7 +515,7 @@ overwrite the content of some files in
 This option is available at the moment for
 .Pa /etc/host.conf
 and
-.Pa /etc/resolv.conf
+.Pa /etc/resolv.conf ,
 whose content is generally very short and suitable for this
 type of updating.
 In case you use these variables, remember to use newlines
@@ -524,7 +527,7 @@ hosts
 bind"
 .Ed
 .Pp
-Although not mandatory in this file you should only set the
+Although not mandatory, in this file you should only set the
 variables indicated in
 .Pa /etc/rc.conf.defaults ,
 and avoid starting services which depend on having the network running.
@@ -555,7 +558,7 @@ contains the name assigned to the host.
 There is a small script called
 .Nm update
 which can be used to edit and/or save to disk a copy of the files
-that you have modified after booting.
+you have modified after booting.
 The script takes one or more absolute pathnames, runs the
 editor on the files passed as arguments, and then saves a
 compressed copy of the files on the disk (mounting and
@@ -564,8 +567,8 @@ unmounting the latter around the operation).
 If invoked without arguments,
 .Nm update
 edits and saves
-.Pa rc.conf
-.Pa rc.firewall
+.Pa rc.conf ,
+.Pa rc.firewall ,
 and
 .Pa master.passwd .
 .Pp
@@ -579,7 +582,8 @@ already exists on disk (e.g. as a result of a previous update).
 .Sh SEE ALSO
 .Xr crunchgen 1 ,
 .Xr swapon 8 ,
-.Xr vnconfig 8
+.Xr vnconfig 8 ,
+.Xr mdconfig 8 .
 .Sh AUTHORS
 .An -nosplit
 .An Andrzej Bialecki Aq abial@FreeBSD.org ,
