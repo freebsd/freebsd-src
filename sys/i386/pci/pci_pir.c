@@ -732,7 +732,7 @@ pcireg_cfgopen(void)
 		devmax = 32;
 
 		outl(CONF1_ADDR_PORT, CONF1_ENABLE_CHK);
-		outb(CONF1_ADDR_PORT + 3, 0);
+		DELAY(1);
 		mode1res = inl(CONF1_ADDR_PORT);
 		outl(CONF1_ADDR_PORT, oldval1);
 
