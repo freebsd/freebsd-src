@@ -2012,7 +2012,7 @@ ParseSkipLine(int skip, int keep_newline)
     char *line;
     int c, lastc;
     size_t lineLength = 0;
-    Buffer buf;
+    Buffer *buf;
 
     buf = Buf_Init(MAKE_BSIZE);
 
@@ -2083,7 +2083,7 @@ ParseSkipLine(int skip, int keep_newline)
 static char *
 ParseReadLine(void)
 {
-    Buffer  	  buf;	    	/* Buffer for current line */
+    Buffer  	  *buf;	    	/* Buffer for current line */
     int		  c;	      	/* the current character */
     int		  lastc;    	/* The most-recent character */
     Boolean	  semiNL;     	/* treat semi-colons as newlines */
