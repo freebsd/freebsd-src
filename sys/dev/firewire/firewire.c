@@ -520,7 +520,6 @@ firewire_attach( device_t dev )
 #else
 	sc->dev[i] = d;
 #endif
-	printf("%s: firewire bus attach\n", device_get_nameunit(sc->fc->dev));
 	sc->fc->timeouthandle = timeout((timeout_t *)sc->fc->timeout, (void *)sc->fc, hz * 10);
 
 	/* Locate our children */
@@ -1069,7 +1068,8 @@ fw_phy_config(struct firewire_comm *fc, int root_node, int gap_count)
 /* XXX Dangerous, how to pass PHY packet to device driver */
 	fp->mode.common.tcode |= FWTCODE_PHY;
 
-	printf("send phy_config root_node=%d gap_count=%d\n",
+	if (firewire_debug)
+		printf("send phy_config root_node=%d gap_count=%d\n",
 						root_node, gap_count);
 	fw_asyreq(fc, -1, xfer);
 }
@@ -1341,7 +1341,9 @@ loop:
 			TAILQ_INSERT_BEFORE(tfwdev, fwdev, link);
 		}
 
-		printf("%s:Discover new %s device ID:%08x%08x\n", device_get_nameunit(fc->dev), linkspeed[fwdev->speed], fc->ongoeui.hi, fc->ongoeui.lo);
+		device_printf(fc->dev, "New %s device ID:%08x%08x\n",
+			linkspeed[fwdev->speed],
+			fc->ongoeui.hi, fc->ongoeui.lo);
 
 		fc->ongodev = fwdev;
 		fc->ongoaddr = CSRROMOFF;
@@ -1389,7 +1391,8 @@ loop:
 done:
 	/* fw_attach_devs */
 	fc->status = FWBUSEXPDONE;
-	printf("bus_explore done\n");
+	if (firewire_debug)
+		printf("bus_explore done\n");
 	fw_attach_dev(fc);
 	return;
 
@@ -1638,11 +1641,12 @@ fw_attach_dev(struct firewire_comm *fc)
 				continue;
 			fwdev->maxrec = (fwdev->csrrom[2] >> 12) & 0xf;
 
+			device_printf(fc->dev, "Device ");
 			switch(fwdev->spec){
 			case CSRVAL_ANSIT10:
 				switch(fwdev->ver){
 				case CSRVAL_T10SBP2:
-					printf("Device SBP-II");
+					printf("SBP-II");
 					break;
 				default:
 					break;
@@ -1651,38 +1655,39 @@ fw_attach_dev(struct firewire_comm *fc)
 			case CSRVAL_1394TA:
 				switch(fwdev->ver){
 				case CSR_PROTAVC:
-					printf("Device AV/C");
+					printf("AV/C");
 					break;
 				case CSR_PROTCAL:
-					printf("Device CAL");
+					printf("CAL");
 					break;
 				case CSR_PROTEHS:
-					printf("Device EHS");
+					printf("EHS");
 					break;
 				case CSR_PROTHAVI:
-					printf("Device HAVi");
+					printf("HAVi");
 					break;
 				case CSR_PROTCAM104:
-					printf("Device 1394 Cam 1.04");
+					printf("1394 Cam 1.04");
 					break;
 				case CSR_PROTCAM120:
-					printf("Device 1394 Cam 1.20");
+					printf("1394 Cam 1.20");
 					break;
 				case CSR_PROTCAM130:
-					printf("Device 1394 Cam 1.30");
+					printf("1394 Cam 1.30");
 					break;
 				case CSR_PROTDPP:
-					printf("Device 1394 Direct print");
+					printf("1394 Direct print");
 					break;
 				case CSR_PROTIICP:
-					printf("Device Industrial & Instrument");
+					printf("Industrial & Instrument");
 					break;
 				default:
-					printf("Device unkwon 1394TA");
+					printf("unknown 1394TA");
 					break;
 				}
 				break;
 			default:
+				printf("unknown spec");
 				break;
 			}
 			fwdev->status = FWDEVATTACHED;

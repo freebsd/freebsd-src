@@ -183,7 +183,8 @@ fwohci_pci_attach(device_t self)
 	cache_line = DEF_CACHE_LINE;
 	pci_write_config(self, PCIR_CACHELNSZ, cache_line, 1);
 #endif
-	printf("cache size %d.\n", (int) cache_line);
+	if (bootverbose)
+		device_printf(self, "cache size %d.\n", (int) cache_line);
 /**/
 	rid = PCI_CBMEM;
 	sc->bsr = bus_alloc_resource(self, SYS_RES_MEMORY, &rid,
