@@ -1,15 +1,15 @@
 # $FreeBSD$
 
-.PATH:	${.CURDIR}/../shared
+.PATH: ${.CURDIR}/../shared
 
-BINDIR=	/sbin
 PROG=	ggatel
-SRCS=	ggatel.c ggate.c
 MAN=	ggatel.8
+SRCS=	ggatel.c ggate.c
+
+CFLAGS+= -DLIBGEOM
+CFLAGS+= -I${.CURDIR}/../shared
+
 DPADD=	${LIBGEOM} ${LIBSBUF} ${LIBBSDXML}
 LDADD=	-lgeom -lsbuf -lbsdxml
-WARNS=	6
-CFLAGS+=-I${.CURDIR}/../shared
-CFLAGS+=-DLIBGEOM
 
 .include <bsd.prog.mk>
