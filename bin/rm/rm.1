@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)rm.1	8.5 (Berkeley) 12/5/94
-.\"	$Id: rm.1,v 1.7 1997/02/22 14:05:26 peter Exp $
+.\"	$Id: rm.1,v 1.8 1997/04/08 20:27:48 mpp Exp $
 .\"
 .Dd December 5, 1994
 .Dt RM 1
@@ -136,6 +136,13 @@ with a dash
 .Pq Sq - .
 For example:
 .Dl rm -- -filename
+The same behavior can be obtained by using an absolute or relative
+path reference.  For example:
+.Dl rm /home/user/-filename
+.Dl rm ./-filename
+This is useful for commands that do not use
+.Xr getopt 3
+to parse the command line arguments.
 .Sh SEE ALSO
 .Xr rmdir 1 ,
 .Xr undelete 2 ,
