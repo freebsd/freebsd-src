@@ -2292,6 +2292,8 @@ device		ulpt
 device		umass
 # USB mouse
 device		ums
+# Diamond Rio 500 Mp3 player
+device		urio
 #
 # ADMtek USB ethernet. Supports the LinkSys USB100TX,
 # the Billionton USB100, the Melco LU-ATX, the D-Link DSB-650TX
@@ -2323,6 +2325,7 @@ options 	UKBD_DEBUG
 options 	ULPT_DEBUG
 options 	UMASS_DEBUG
 options 	UMS_DEBUG
+options 	URIO_DEBUG
 
 # options for ukbd:
 options 	UKBD_DFLT_KEYMAP	# specify the built-in keymap
