@@ -117,7 +117,7 @@ write_device_resources(FILE *fp, struct device *dp)
 	fprintf(fp, "\t{ \"msize\",\tRES_INT,\t{ 0x%x }},\n", dp->d_msize);
 	count++;
     }
-    if (dp->d_drq > 0) {
+    if (dp->d_drq >= 0) {
 	fprintf(fp, "\t{ \"drq\",\tRES_INT,\t{ %d }},\n", dp->d_drq);
 	count++;
     }
