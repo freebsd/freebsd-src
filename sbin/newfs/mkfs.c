@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)mkfs.c	8.11 (Berkeley) 5/3/95";
 #endif
 static const char rcsid[] =
-	"$Id: mkfs.c,v 1.26 1998/08/27 07:38:33 dfr Exp $";
+	"$Id: mkfs.c,v 1.27 1999/02/09 17:19:18 dillon Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -686,8 +686,9 @@ next:
 		initcg(cylno, utime);
 		if (mfs)
 			continue;
-		j = sprintf(tmpbuf, " %ld,",
-		    fsbtodb(&sblock, cgsblock(&sblock, cylno)));
+		j = sprintf(tmpbuf, " %ld%s",
+		    fsbtodb(&sblock, cgsblock(&sblock, cylno)),
+		    cylno < (sblock.fs_ncg-1) ? "," : "" );
 		if (i + j >= width) {
 			printf("\n");
 			i = 0;
