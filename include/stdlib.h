@@ -68,11 +68,13 @@ typedef struct {
 	long rem;		/* remainder */
 } ldiv_t;
 
+#if !defined(_ANSI_SOURCE) && !defined(_POSIX_SOURCE)
 #ifdef __LONG_LONG_SUPPORTED
 typedef struct {
 	long long quot;
 	long long rem;
 } lldiv_t;
+#endif
 #endif
 
 #ifndef NULL
@@ -94,8 +96,10 @@ int	 atexit __P((void (*)(void)));
 double	 atof __P((const char *));
 int	 atoi __P((const char *));
 long	 atol __P((const char *));
+#ifdef __LONG_LONG_SUPPORTED
 long long
-	atoll __P((const char *));
+	 atoll __P((const char *));
+#endif
 void	*bsearch __P((const void *, const void *, size_t,
 	    size_t, int (*)(const void *, const void *)));
 void	*calloc __P((size_t, size_t));
@@ -113,12 +117,8 @@ void	*realloc __P((void *, size_t));
 void	 srand __P((unsigned));
 double	 strtod __P((const char *, char **));
 long	 strtol __P((const char *, char **, int));
-long long	 
-	 strtoll __P((const char *, char **, int));
 unsigned long
 	 strtoul __P((const char *, char **, int));
-unsigned long long
-	 strtoull __P((const char *, char **, int));
 int	 system __P((const char *));
 
 int	 mblen __P((const char *, size_t));
@@ -126,12 +126,6 @@ size_t	 mbstowcs __P((wchar_t *, const char *, size_t));
 int	 wctomb __P((char *, wchar_t));
 int	 mbtowc __P((wchar_t *, const char *, size_t));
 size_t	 wcstombs __P((char *, const wchar_t *, size_t));
-
-#ifdef __LONG_LONG_SUPPORTED
-long long
-	 llabs __P((long long)) __pure2;
-lldiv_t	 lldiv __P((long long, long long)) __pure2;
-#endif
 
 #if !defined(_ANSI_SOURCE) && !defined(_POSIX_SOURCE)
 extern char *_malloc_options;
@@ -173,12 +167,17 @@ int	 daemon __P((int, int));
 char	*devname __P((int, int));
 int	 getloadavg __P((double [], int));
 const char *
-	getprogname __P((void));
+	 getprogname __P((void));
 
 char	*group_from_gid __P((unsigned long, int));
 int	 heapsort __P((void *, size_t, size_t,
 	    int (*)(const void *, const void *)));
 char	*initstate __P((unsigned long, char *, long));
+#ifdef __LONG_LONG_SUPPORTED
+long long
+	 llabs __P((long long)) __pure2;
+lldiv_t	 lldiv __P((long long, long long)) __pure2;
+#endif
 int	 mergesort __P((void *, size_t, size_t,
 	    int (*)(const void *, const void *)));
 int	 radixsort __P((const unsigned char **, int, const unsigned char *,
@@ -191,16 +190,22 @@ void    *reallocf __P((void *, size_t));
 char	*realpath __P((const char *, char resolved_path[]));
 void	 setprogname __P((const char *));
 char	*setstate __P((char *));
-void	 srandom __P((unsigned long));
 void	 sranddev __P((void));
+void	 srandom __P((unsigned long));
 void	 srandomdev __P((void));
-char	*user_from_uid __P((unsigned long, int));
-#ifndef __STRICT_ANSI__
+#ifdef __LONG_LONG_SUPPORTED
+long long	 
+	 strtoll __P((const char *, char **, int));
+#endif
 __int64_t	 strtoq __P((const char *, char **, int));
+#ifdef __LONG_LONG_SUPPORTED
+unsigned long long
+	 strtoull __P((const char *, char **, int));
+#endif
 __uint64_t
 	 strtouq __P((const char *, char **, int));
-#endif
 void	 unsetenv __P((const char *));
+char	*user_from_uid __P((unsigned long, int));
 #endif /* !_ANSI_SOURCE && !_POSIX_SOURCE */
 __END_DECLS
 
