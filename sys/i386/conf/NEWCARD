@@ -1,14 +1,9 @@
 #
 # NEWCARD -- efforts at porting newconfig pccard/cardbus code to newbus
 #
-# ***************
-# *** WARNING ***
-# ***************
-#
-# USE THIS CODE AT YOUR OWN RISK.  IT IS EXPERIMENTAL AND WILL LIKELY NOT
-# EVEN COMPILE FOR A WHILE.  YOU HAVE BEEN WARNED. -- imp
-#
-# CURRENT STATUS OF CODE: NOT WORKING.
+# This is a new implementation of pccard and cardbus support.  It works
+# for many folks right now.  Some folks still have issues.  The support
+# around the edges isn't as complete as the previous pccard system.
 #
 # For more information on this file, please read the handbook section on
 # Kernel Configuration Files:
