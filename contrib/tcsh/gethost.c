@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/gethost.c,v 1.7 1997/10/28 22:34:19 christos Exp $ */
+/* $Header: /src/pub/tcsh/gethost.c,v 1.8 2002/03/08 17:36:46 christos Exp $ */
 /*
  * gethost.c: Create version file from prototype
  */
@@ -14,11 +14,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -36,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: gethost.c,v 1.7 1997/10/28 22:34:19 christos Exp $")
+RCSID("$Id: gethost.c,v 1.8 2002/03/08 17:36:46 christos Exp $")
 
 #ifdef SCO
 # define perror __perror
