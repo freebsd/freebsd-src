@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.116 1995/03/03 07:42:10 jkh Exp $
+# $Id: bsd.port.mk,v 1.117 1995/03/19 12:49:06 ats Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -258,6 +258,8 @@ fetch:
 pre-configure:
 	@${DO_NADA}
 configure:
+	@${DO_NADA}
+package:
 	@${DO_NADA}
 .endif
 
