@@ -1012,7 +1012,7 @@ bpf_setif(d, ifr)
  * Return true iff the specific operation will not block indefinitely.
  * Otherwise, return false but make a note that a selwakeup() must be done.
  */
-int
+static int
 bpfpoll(dev, events, td)
 	register dev_t dev;
 	int events;

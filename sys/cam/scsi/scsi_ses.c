@@ -191,7 +191,7 @@ static struct cdevsw ses_cdevsw =
 	/* flags */	0,
 };
 
-void
+static void
 sesinit(void)
 {
 	cam_status status;
@@ -1642,7 +1642,7 @@ static char *safte_2little = "Too Little Data Returned (%d) at line %d\n";
 	}
 
 
-int
+static int
 safte_softc_init(ses_softc_t *ssc, int doinit)
 {
 	int err, i, r;
@@ -1719,7 +1719,7 @@ safte_softc_init(ses_softc_t *ssc, int doinit)
 	return (0);
 }
 
-int
+static int
 safte_init_enc(ses_softc_t *ssc)
 {
 	int err;
@@ -1734,13 +1734,13 @@ safte_init_enc(ses_softc_t *ssc)
 	return (err);
 }
 
-int
+static int
 safte_get_encstat(ses_softc_t *ssc, int slpflg)
 {
 	return (safte_rdstat(ssc, slpflg));
 }
 
-int
+static int
 safte_set_encstat(ses_softc_t *ssc, uint8_t encstat, int slpflg)
 {
 	struct scfg *cc = ssc->ses_private;
@@ -1764,7 +1764,7 @@ safte_set_encstat(ses_softc_t *ssc, uint8_t encstat, int slpflg)
 	return (wrbuf16(ssc, SAFTE_WT_GLOBAL, cc->flag1, cc->flag2, 0, slpflg));
 }
 
-int
+static int
 safte_get_objstat(ses_softc_t *ssc, ses_objstat *obp, int slpflg)
 {
 	int i = (int)obp->obj_id;
@@ -1783,7 +1783,7 @@ safte_get_objstat(ses_softc_t *ssc, ses_objstat *obp, int slpflg)
 }
 
 
-int
+static int
 safte_set_objstat(ses_softc_t *ssc, ses_objstat *obp, int slp)
 {
 	int idx, err;

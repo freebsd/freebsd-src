@@ -489,7 +489,7 @@ atapi_poll(struct cam_sim *sim)
     printf("atapi_poll called!\n");
 }
 
-int 
+static int 
 atapi_cb(struct atapi_request *req)
 {
     struct atapi_hcb *hcb = (struct atapi_hcb *) req->driver;

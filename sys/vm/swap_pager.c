@@ -1979,7 +1979,7 @@ vm_pager_chain_iodone(struct buf *nbp)
  *	I/O completes, the parent buffer will be B_SIGNAL'd.  Errors are
  *	automatically propagated to the parent
  */
-struct buf *
+static struct buf *
 getchainbuf(struct bio *bp, struct vnode *vp, int flags)
 {
 	struct buf *nbp;
@@ -2007,7 +2007,7 @@ getchainbuf(struct bio *bp, struct vnode *vp, int flags)
 	return (nbp);
 }
 
-void
+static void
 flushchainbuf(struct buf *nbp)
 {
 	GIANT_REQUIRED;

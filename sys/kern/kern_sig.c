@@ -1018,7 +1018,7 @@ done2:
  * Common code for kill process group/broadcast kill.
  * cp is calling process.
  */
-int
+static int
 killpg1(td, sig, pgid, all)
 	register struct thread *td;
 	int sig, pgid, all;

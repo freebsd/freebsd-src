@@ -1475,7 +1475,7 @@ ip_rtaddr(dst, rt)
  * Save incoming source route for use in replies,
  * to be picked up later by ip_srcroute if the receiver is interested.
  */
-void
+static void
 save_rte(option, dst)
 	u_char *option;
 	struct in_addr dst;

@@ -1054,7 +1054,7 @@ lge_rxeof(sc, cnt)
 	return;
 }
 
-void
+static void
 lge_rxeoc(sc)
 	struct lge_softc	*sc;
 {

@@ -78,7 +78,7 @@ static int cd9660_strategy(struct vop_strategy_args *);
 /*
  * Setattr call. Only allowed for block and character special devices.
  */
-int
+static int
 cd9660_setattr(ap)
 	struct vop_setattr_args /* {
 		struct vnodeop_desc *a_desc;
@@ -335,7 +335,7 @@ struct isoreaddir {
 	int ncookies;
 };
 
-int
+static int
 iso_uiodir(idp,dp,off)
 	struct isoreaddir *idp;
 	struct dirent *dp;
@@ -367,7 +367,7 @@ iso_uiodir(idp,dp,off)
 	return (0);
 }
 
-int
+static int
 iso_shipdir(idp)
 	struct isoreaddir *idp;
 {

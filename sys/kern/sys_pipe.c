@@ -1154,7 +1154,7 @@ pipe_write(fp, uio, active_cred, flags, td)
 /*
  * we implement a very minimal set of ioctls for compatibility with sockets.
  */
-int
+static int
 pipe_ioctl(fp, cmd, data, active_cred, td)
 	struct file *fp;
 	u_long cmd;
@@ -1216,7 +1216,7 @@ pipe_ioctl(fp, cmd, data, active_cred, td)
 	return (ENOTTY);
 }
 
-int
+static int
 pipe_poll(fp, events, active_cred, td)
 	struct file *fp;
 	int events;

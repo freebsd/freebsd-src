@@ -1654,7 +1654,7 @@ SYSINIT(syncer, SI_SUB_KTHREAD_UPDATE, SI_ORDER_FIRST, kproc_start, &up_kp)
 /*
  * System filesystem synchronizer daemon.
  */
-void
+static void
 sched_sync(void)
 {
 	struct synclist *slp;

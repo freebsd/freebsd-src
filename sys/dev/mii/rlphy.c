@@ -250,7 +250,7 @@ rlphy_service(sc, mii, cmd)
 	return (0);
 }
 
-void
+static void
 rlphy_status(phy)
 	struct mii_softc *phy;
 {

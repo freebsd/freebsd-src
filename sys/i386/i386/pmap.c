@@ -466,7 +466,7 @@ pmap_set_opt(void)
 	}
 }
 
-void *
+static void *
 pmap_allocf(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 {
 	*flags = UMA_SLAB_PRIV;

@@ -69,7 +69,7 @@ static int	db_inputchar(int c);
 static void	db_putnchars(int c, int count);
 static void	db_putstring(char *s, int count);
 
-void
+static void
 db_putstring(s, count)
 	char	*s;
 	int	count;
@@ -78,7 +78,7 @@ db_putstring(s, count)
 	    cnputc(*s++);
 }
 
-void
+static void
 db_putnchars(c, count)
 	int	c;
 	int	count;
@@ -92,7 +92,7 @@ db_putnchars(c, count)
  */
 #define	DEL_FWD		0
 #define	DEL_BWD		1
-void
+static void
 db_delete(n, bwd)
 	int	n;
 	int	bwd;
@@ -113,7 +113,7 @@ db_delete(n, bwd)
 }
 
 /* returns TRUE at end-of-line */
-int
+static int
 db_inputchar(c)
 	int	c;
 {
@@ -290,7 +290,7 @@ db_inputchar(c)
 	return (0);
 }
 
-int
+static int
 cnmaygetc()
 {
 	return (-1);

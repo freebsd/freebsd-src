@@ -159,7 +159,7 @@ pnaphy_attach(dev)
 	return(0);
 }
 
-int
+static int
 pnaphy_service(sc, mii, cmd)
 	struct mii_softc *sc;
 	struct mii_data *mii;

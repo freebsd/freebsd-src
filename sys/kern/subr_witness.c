@@ -1117,7 +1117,7 @@ isitmydescendant(struct witness *parent, struct witness *child)
 	return (0);
 }
 
-void
+static void
 witness_levelall (void)
 {
 	struct witness_list *list;
