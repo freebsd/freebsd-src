@@ -5,6 +5,14 @@ directly to him.  See end of file for further details.  For commonly
 done items, please see the end of the file.  Search for 'COMMON
 ITEMS:'
 
+20010617:
+	It appears that soft updates are working again.
+
+20010614:
+	Peter ripped out the linkerset support.  You must, as always,
+	rerun config after you cvsup if you are using the traditional
+	kernel building methods.
+
 20010613:
 	Two items that have been biting people:
 
@@ -15,6 +23,16 @@ ITEMS:'
 
 	SOFTUPDATES seem to be broken since the middle of May or so.  Do not
 	use them in current.  Resolution unknown.
+
+20010612:
+	After Peter's commits to the hints code, people have been noticing
+	that certain devices are attached (or try to) twice.  This is due
+	to having both static hints as well as a /boot/device.hints.  To
+	work around this issue, please use only one or the other mechanism
+	until this bug is fixed.
+
+20010610:
+	Locale names have changed to match other systems better.
 
 20010604:
 	pccard support for pci cards has been committed.  You must change
