@@ -41,6 +41,8 @@
  * Support for file system extended attribute: UFS-specific support functions.
  */
 
+#include "opt_ufs.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -64,8 +66,6 @@
 #include <ufs/ufs/inode.h>
 #include <ufs/ufs/ufs_extern.h>
 
-#include "opt_ufs.h"
-
 #ifdef UFS_EXTATTR
 
 #define	MIN(a,b) (((a)<(b))?(a):(b))
@@ -77,24 +77,26 @@ SYSCTL_INT(_debug, OID_AUTO, ufs_extattr_sync, CTLFLAG_RW, &ufs_extattr_sync,
     0, "");
 
 static int	ufs_extattr_valid_attrname(int attrnamespace,
-    const char *attrname);
+		    const char *attrname);
 static int	ufs_extattr_credcheck(struct vnode *vp,
-    struct ufs_extattr_list_entry *uele, struct ucred *cred,
-    struct thread *td, int access);
+		    struct ufs_extattr_list_entry *uele, struct ucred *cred,
+		    struct thread *td, int access);
 static int	ufs_extattr_enable_with_open(struct ufsmount *ump,
-    struct vnode *vp, int attrnamespace, const char *attrname,
-    struct thread *td);
+		    struct vnode *vp, int attrnamespace, const char *attrname,
+		    struct thread *td);
 static int	ufs_extattr_enable(struct ufsmount *ump, int attrnamespace,
-    const char *attrname, struct vnode *backing_vnode, struct thread *td);
+		    const char *attrname, struct vnode *backing_vnode,
+		    struct thread *td);
 static int	ufs_extattr_disable(struct ufsmount *ump, int attrnamespace,
-    const char *attrname, struct thread *td);
+		    const char *attrname, struct thread *td);
 static int	ufs_extattr_get(struct vnode *vp, int attrnamespace,
-    const char *name, struct uio *uio, size_t *size, struct ucred *cred,
-    struct thread *td);
+		    const char *name, struct uio *uio, size_t *size,
+		    struct ucred *cred, struct thread *td);
 static int	ufs_extattr_set(struct vnode *vp, int attrnamespace,
-    const char *name, struct uio *uio, struct ucred *cred, struct thread *td);
+		    const char *name, struct uio *uio, struct ucred *cred,
+		    struct thread *td);
 static int	ufs_extattr_rm(struct vnode *vp, int attrnamespace,
-    const char *name, struct ucred *cred, struct thread *td);
+		    const char *name, struct ucred *cred, struct thread *td);
 
 /*
  * Per-FS attribute lock protecting attribute operations.
@@ -432,12 +434,6 @@ ufs_extattr_iterate_directory(struct ufsmount *ump, struct vnode *dvp,
 			} else if (attr_vp == dvp) {
 				vrele(attr_vp);
 			} else if (attr_vp->v_type != VREG) {
-/*
- * Eventually, this will be uncommented, but in the mean time, the ".."
- * entry causes unnecessary console warnings.
-				printf("ufs_extattr_iterate_directory: "
-				    "%s not VREG\n", dp->d_name);
-*/
 				vput(attr_vp);
 			} else {
 				error = ufs_extattr_enable_with_open(ump,
