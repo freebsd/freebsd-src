@@ -1184,7 +1184,8 @@ thread_user_enter(struct proc *p, struct thread *td)
 	 * possibility that we could do this lazily (in sleep()),
 	 * but for now do it every time.
 	 */
-	if ((ke = td->td_kse->ke_mailbox)) {
+	ke = td->td_kse;
+	if (ke->ke_mailbox != NULL) {
 #if 0
 		td->td_mailbox = (void *)fuword((caddr_t)ke->ke_mailbox
 		    + offsetof(struct kse_mailbox, km_curthread));
