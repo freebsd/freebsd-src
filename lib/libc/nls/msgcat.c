@@ -96,8 +96,10 @@ catopen(name, type)
 	    strchr(lang, '/') != NULL)
 		lang = "C";
 
-	if ((plang = cptr1 = strdup(lang)) == NULL)
+	if ((plang = cptr1 = strdup(lang)) == NULL) {
+		errno = ENOMEM;
 		return (NLERR);
+	}
 	if ((cptr = strchr(cptr1, '@')) != NULL)
 		*cptr = '\0';
 	pter = pcode = "";
@@ -118,9 +120,8 @@ catopen(name, type)
 		nlspath = _DEFAULT_NLS_PATH;
 
 	if ((base = cptr = strdup(nlspath)) == NULL) {
-		saverr = errno;
 		free(plang);
-		errno = saverr;
+		errno = ENOMEM;
 		return (NLERR);
 	}
 
