@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)telnetd.8	8.3 (Berkeley) 3/1/94
-.\"	$Id: telnetd.8,v 1.5 1996/10/06 17:59:20 wosch Exp $
+.\"	$Id: telnetd.8,v 1.5.2.1 1997/02/05 06:02:38 pst Exp $
 .\"
 .Dd March 1, 1994
 .Dt TELNETD 8
@@ -49,13 +49,13 @@ protocol server
 .Op Fl X Ar authtype
 .Op Fl a Ar authmode
 .Op Fl edebug
-.Op Fl P Ar loginprog
+.Op Fl p Ar loginprog
 .Op Fl r Ns Ar lowpty-highpty
 .Op Fl u Ar len
 .Op Fl debug Op Ar port
 .Sh DESCRIPTION
 The
-.Nm telnetd
+.Nm
 command is a server which supports the
 .Tn DARPA
 standard
@@ -69,45 +69,45 @@ for requests to connect to the
 port as indicated by the
 .Pa /etc/services
 file (see
-.Xr services 5 ) .
+.Xr services 5 ).
 The
 .Fl debug
 option may be used to start up
-.Nm telnetd
+.Nm
 manually, instead of through
 .Xr inetd 8 .
 If started up this way, 
 .Ar port
 may be specified to run
-.Nm telnetd
+.Nm
 on an alternate
 .Tn TCP
 port number.
 .Pp
 The
-.Nm telnetd
+.Nm
 command accepts the following options:
-.Bl -tag -width "-a authmode"
+.Bl -tag -width indent
 .It Fl a Ar authmode
 This option may be used for specifying what mode should
 be used for authentication.
 Note that this option is only useful if
-.Nm telnetd
+.Nm
 has been compiled with support for the
 .Dv AUTHENTICATION
 option.
 There are several valid values for
-.Ar authmode:
+.Ar authmode :
 .Bl -tag -width debug
-.It debug
-Turns on authentication debugging code.
-.It user
+.It Cm debug
+Turn on authentication debugging code.
+.It Cm user
 Only allow connections when the remote user
 can provide valid authentication information
 to identify the remote user,
 and is allowed access to the specified account
 without providing a password.
-.It valid
+.It Cm valid
 Only allow connections when the remote user
 can provide valid authentication information
 to identify the remote user.
@@ -116,14 +116,14 @@ The
 command will provide any additional user verification
 needed if the remote user is not allowed automatic
 access to the specified account.
-.It other
+.It Cm other
 Only allow connections that supply some authentication information.
 This option is currently not supported
 by any of the existing authentication mechanisms,
 and is thus the same as specifying
 .Fl a
 .Cm valid .
-.It none
+.It Cm none
 This is the default state.
 Authentication information is not required.
 If no or insufficient authentication information
@@ -131,15 +131,15 @@ is provided, then the
 .Xr login 1
 program will provide the necessary user
 verification.
-.It off
-This disables the authentication code.
+.It Cm off
+Disable the authentication code.
 All user verification will happen through the
 .Xr login 1
 program.
 .El
 .It Fl B
-Specifies bftp server mode.  In this mode,
-.Nm telnetd
+Specify bftp server mode.  In this mode,
+.Nm
 causes login to start a
 .Xr bftp 1
 session rather than the user's
@@ -151,51 +151,51 @@ port.
 .It Fl D Ar debugmode
 This option may be used for debugging purposes.
 This allows
-.Nm telnetd
+.Nm
 to print out debugging information
 to the connection, allowing the user to see what
-.Nm telnetd
+.Nm
 is doing.
 There are several possible values for 
-.Ar debugmode:
+.Ar debugmode :
 .Bl -tag -width exercise
 .It Cm options
-Prints information about the negotiation of
+Print information about the negotiation of
 .Tn TELNET
 options.
 .It Cm report
-Prints the 
+Print the 
 .Cm options
 information, plus some additional information
 about what processing is going on.
 .It Cm netdata
-Displays the data stream received by
-.Nm telnetd.
+Display the data stream received by
+.Nm Ns .
 .It Cm ptydata
-Displays data written to the pty.
+Display data written to the pty.
 .It Cm exercise
 Has not been implemented yet.
 .El
 .It Fl debug
-Enables debugging on each socket created by
-.Nm telnetd
+Enable debugging on each socket created by
+.Nm
 (see
 .Dv SO_DEBUG
 in
 .Xr socket 2 ) .
 .It Fl edebug
 If
-.Nm telnetd
+.Nm
 has been compiled with support for data encryption, then the
 .Fl edebug
 option may be used to enable encryption debugging code.
-.It Fl P Ar loginprog
-Specifies an alternate
+.It Fl p Ar loginprog
+Specify an alternate
 .Xr login 1
 command to run to complete the login.  The alternate command must
 understand the same command arguments as the standard login.
 .It Fl h
-Disables the printing of host-specific information before
+Disable the printing of host-specific information before
 login has been completed.
 .It Fl I Ar initid
 This option is only applicable to
@@ -211,7 +211,7 @@ is
 .Dv fe.
 .It Fl k
 This option is only useful if
-.Nm telnetd
+.Nm
 has been compiled with both linemode and kludge linemode
 support.  If the
 .Fl k
@@ -219,7 +219,7 @@ option is specified, then if the remote client does not
 support the
 .Dv LINEMODE
 option, then
-.Nm telnetd
+.Nm
 will operate in character at a time mode.
 It will still support kludge linemode, but will only
 go into kludge linemode if the remote client requests
@@ -238,7 +238,7 @@ in response to a
 .Dv DO TIMING-MARK)
 for kludge linemode support.
 .It Fl l
-Specifies line mode.  Tries to force clients to use line-
+Specify line mode. Try to force clients to use line-
 at-a-time mode.
 If the
 .Dv LINEMODE
@@ -248,7 +248,7 @@ into kludge linemode.
 Disable
 .Dv TCP
 keep-alives.  Normally
-.Nm telnetd
+.Nm
 enables the
 .Tn TCP
 keep-alive mechanism to probe connections that
@@ -258,7 +258,7 @@ from machines that have crashed or can no longer
 be reached may be cleaned up.
 .It Fl r Ar lowpty-highpty
 This option is only enabled when
-.Nm telnetd
+.Nm
 is compiled for
 .Dv UNICOS.
 It specifies an inclusive range of pseudo-terminal devices to
@@ -274,14 +274,14 @@ may be omitted to allow changing
 either end of the search range.  If
 .Ar lowpty
 is omitted, the - character is still required so that
-.Nm telnetd
+.Nm
 can differentiate
 .Ar highpty
 from
 .Ar lowpty .
 .It Fl s
 This option is only enabled if
-.Nm telnetd
+.Nm
 is compiled with support for
 .Tn SecurID
 cards.
@@ -317,7 +317,7 @@ should be put into the
 file.
 .It Fl U
 This option causes
-.Nm telnetd
+.Nm
 to refuse connections from addresses that
 cannot be mapped back into a symbolic name
 via the
@@ -325,14 +325,14 @@ via the
 routine.
 .It Fl X Ar authtype
 This option is only valid if
-.Nm telnetd
+.Nm
 has been built with support for the authentication option.
 It disables the use of
 .Ar authtype
 authentication, and
 can be used to temporarily disable
 a specific authentication type without having to recompile
-.Nm telnetd .
+.Nm Ns .
 .El
 .Pp
 .Nm Telnetd
@@ -354,7 +354,7 @@ between the remote client and the login process.
 When a
 .Tn TELNET
 session is started up, 
-.Nm telnetd
+.Nm
 sends
 .Tn TELNET
 options to the client side indicating
@@ -403,25 +403,25 @@ current state of terminal echoing.
 When terminal echo is not desired, a
 .Dv WILL ECHO
 is sent to indicate that
-.Tn telnetd
+.Nm
 will take care of echoing any data that needs to be
 echoed to the terminal, and then nothing is echoed.
 When terminal echo is desired, a
 .Dv WONT ECHO
 is sent to indicate that
-.Tn telnetd
+.Nm
 will not be doing any terminal echoing, so the
 client should do any terminal echoing that is needed.
 .It "WILL BINARY"
-Indicates that the client is willing to send a
+Indicate that the client is willing to send a
 8 bits of data, rather than the normal 7 bits
 of the Network Virtual Terminal.
 .It "WILL SGA"
-Indicates that it will not be sending
+Indicate that it will not be sending
 .Dv IAC GA,
 go ahead, commands.
 .It "WILL STATUS"
-Indicates a willingness to send the client, upon
+Indicate a willingness to send the client, upon
 request, of the current status of all
 .Tn TELNET
 options.
@@ -441,7 +441,7 @@ is sent in response, and the
 session is shut down.
 .It "WILL ENCRYPT"
 Only sent if
-.Nm telnetd
+.Nm
 is compiled with support for data encryption, and
 indicates a willingness to decrypt
 the data stream.
@@ -454,7 +454,7 @@ options:
 .Bl -tag -width "DO AUTHENTICATION"
 .It "DO BINARY"
 Sent to indicate that
-.Tn telnetd
+.Nm
 is willing to receive an 8 bit data stream.
 .It "DO LFLOW"
 Requests that the client handle flow control
@@ -470,38 +470,38 @@ is received, a
 .Dv DONT ECHO
 will be sent in response.
 .It "DO TERMINAL-TYPE"
-Indicates a desire to be able to request the
+Indicate a desire to be able to request the
 name of the type of terminal that is attached
 to the client side of the connection.
 .It "DO SGA"
-Indicates that it does not need to receive
+Indicate that it does not need to receive
 .Dv IAC GA,
 the go ahead command.
 .It "DO NAWS"
 Requests that the client inform the server when
 the window (display) size changes.
 .It "DO TERMINAL-SPEED"
-Indicates a desire to be able to request information
+Indicate a desire to be able to request information
 about the speed of the serial line to which
 the client is attached.
 .It "DO XDISPLOC"
-Indicates a desire to be able to request the name
+Indicate a desire to be able to request the name
 of the X Window System display that is associated with
 the telnet client.
 .It "DO NEW-ENVIRON"
-Indicates a desire to be able to request environment
+Indicate a desire to be able to request environment
 variable information, as described in RFC 1572.
 .It "DO ENVIRON"
-Indicates a desire to be able to request environment
+Indicate a desire to be able to request environment
 variable information, as described in RFC 1408.
 .It "DO LINEMODE"
 Only sent if
-.Nm telnetd
+.Nm
 is compiled with support for linemode, and
 requests that the client do line by line processing.
 .It "DO TIMING-MARK"
 Only sent if
-.Nm telnetd
+.Nm
 is compiled with support for both linemode and
 kludge linemode, and the client responded with
 .Dv WONT LINEMODE.
@@ -514,28 +514,27 @@ Note that the
 option can be used to disable this.
 .It "DO AUTHENTICATION"
 Only sent if
-.Nm telnetd
+.Nm
 is compiled with support for authentication, and
 indicates a willingness to receive authentication
 information for automatic login.
 .It "DO ENCRYPT"
 Only sent if
-.Nm telnetd
+.Nm
 is compiled with support for data encryption, and
 indicates a willingness to decrypt
 the data stream.
 .Sh ENVIRONMENT
 .Sh FILES
-.Pa /etc/services
-.br
-.Pa /etc/inittab
+.Bl -tag -width /usr/ucb/bftp -compact
+.It Pa /etc/services
+.It Pa /etc/inittab
 (UNICOS systems only)
-.br
-.Pa /etc/iptos
+.It Pa /etc/iptos
 (if supported)
-.br
-.Pa /usr/ucb/bftp
+.It Pa /usr/ucb/bftp
 (if supported)
+.El
 .Sh "SEE ALSO"
 .Xr bftp 1 ,
 .Xr login 1 ,
@@ -593,7 +592,7 @@ commands are only partially implemented.
 .Pp
 Because of bugs in the original 4.2 BSD
 .Xr telnet 1 ,
-.Nm telnetd
+.Nm
 performs some dubious protocol exchanges to try to discover if the remote
 client is, in fact, a 4.2 BSD
 .Xr telnet 1 .
