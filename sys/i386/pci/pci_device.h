@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pci_device.h,v 2.1 94/09/16 08:01:36 wolf Rel $
+**  $Id: pci_device.h,v 1.5 1994/09/28 16:34:10 se Exp $
 **
 **  #define   for pci based device drivers
 **
@@ -75,6 +75,7 @@ struct pci_device {
 	pcidi_t		pd_device_id;	/* device pci id */
 	const char *	pd_name;	/* for future loadable drivers */
 	int		pd_flags;
+	int		pd_npresent;	/* for future loadable drivers */
 };
 
 #define PDF_LOADABLE	0x01
