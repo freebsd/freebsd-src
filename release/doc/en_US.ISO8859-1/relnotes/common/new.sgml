@@ -192,8 +192,14 @@
   <sect2 id="contrib">
     <title>Contributed Software</title>
 
+    <para><application>groff</application> has been updated from
+      1.18.1 to 1.19.</para>
+
     <para><application>sendmail</application> has been updated to
       version 8.12.9.</para>
+
+    <para><application>texinfo</application> has been updated from 4.5
+      to 4.6.</para>
 
     <para>The timezone database has been updated from
       <filename>tzdata2002d</filename> to
