@@ -256,13 +256,16 @@ pipeline() {
 	union node *n1, *pipenode, *notnode;
 	struct nodelist *lp, *prev;
 	int negate = 0;
+	int savecheckkwd = checkkwd;
 
 	TRACE(("pipeline: entered\n"));
+	checkkwd = 2;
 	while (readtoken() == TNOT) {
 		TRACE(("pipeline: TNOT recognized\n"));
 		negate = !negate;
 	}
 	tokpushback++;
+	checkkwd = savecheckkwd;
 	n1 = command();
 	if (readtoken() == TPIPE) {
 		pipenode = (union node *)stalloc(sizeof (struct npipe));
