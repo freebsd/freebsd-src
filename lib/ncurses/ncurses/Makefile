@@ -253,12 +253,14 @@ beforeinstall:	${HEADERS}
 	rm -f ${DESTDIR}/usr/include/ncurses.h
 	ln -s curses.h ${DESTDIR}/usr/include/ncurses.h
 
+.if !defined(NOHTML)
 afterinstall:
 .for file in ${DOCS}
 	cd ${.CURDIR}/../../contrib/ncurses/misc ; \
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${file} \
 		${DESTDIR}${DOCSDIR}
 .endfor
+.endif
 
 # Generated source
 namehdr nameftr codeftr ${NAMESRC} ${CODESRC}: MKnames.awk Caps

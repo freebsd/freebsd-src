@@ -142,7 +142,6 @@ TMPPATH=	${STRICTTMPPATH}:${PATH}
 # Common environment for bootstrap related stages
 BOOTSTRAPENV=	MAKEOBJDIRPREFIX=${WORLDTMP} \
 		DESTDIR=${WORLDTMP} \
-		INSTALL="sh ${.CURDIR}/tools/install.sh" \
 		MACHINE_ARCH=${BUILD_ARCH} \
 		TOOLS_PREFIX=${WORLDTMP} \
 		PATH=${TMPPATH}
@@ -156,24 +155,22 @@ CROSSENV=	MAKEOBJDIRPREFIX=${OBJTREE} \
 
 # bootstrap-tool stage
 BMAKEENV=	${BOOTSTRAPENV}
-BMAKE=		${BMAKEENV} ${MAKE} -f Makefile.inc1 -DNOMAN -DNOINFO
+BMAKE=		${BMAKEENV} ${MAKE} -f Makefile.inc1 -DNOMAN -DNOINFO -DNOHTML
 
 # build-tool stage
 TMAKEENV=	MAKEOBJDIRPREFIX=${OBJTREE} \
-		INSTALL="sh ${.CURDIR}/tools/install.sh" \
 		PATH=${TMPPATH}
 TMAKE=		${TMAKEENV} ${MAKE} -f Makefile.inc1
 
 # cross-tool stage
 XMAKEENV=	${BOOTSTRAPENV} \
 		TARGET_ARCH=${MACHINE_ARCH}
-XMAKE=		${XMAKEENV} ${MAKE} -f Makefile.inc1 -DNOMAN -DNOINFO \
+XMAKE=		${XMAKEENV} ${MAKE} -f Makefile.inc1 -DNOMAN -DNOINFO -DNOHTML \
 		-DNO_FORTRAN -DNO_GDB
 
 # world stage
 WMAKEENV=	${CROSSENV} \
 		DESTDIR=${WORLDTMP} \
-		INSTALL="sh ${.CURDIR}/tools/install.sh" \
 		PATH=${TMPPATH}
 WMAKE=		${WMAKEENV} ${MAKE} -f Makefile.inc1
 
@@ -253,7 +250,7 @@ buildworld:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 4: building libraries"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}; ${WMAKE} -DNOINFO -DNOMAN libraries
+	cd ${.CURDIR}; ${WMAKE} -DNOHTML -DNOINFO -DNOMAN libraries
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 4: make dependencies"
