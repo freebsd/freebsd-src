@@ -41,8 +41,8 @@
 
 #include <geom/geom_disk.h>
 
-#include <pci/pcireg.h>
-#include <pci/pcivar.h>
+#include <dev/pci/pcireg.h>
+#include <dev/pci/pcivar.h>
 
 #include <dev/mlx/mlx_compat.h>
 #include <dev/mlx/mlxio.h>

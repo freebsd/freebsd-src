@@ -51,8 +51,8 @@
 #include <dev/rp/rpreg.h>
 #include <dev/rp/rpvar.h>
 
-#include <pci/pcireg.h>
-#include <pci/pcivar.h>
+#include <dev/pci/pcireg.h>
+#include <dev/pci/pcivar.h>
 
 /* PCI IDs  */
 #define RP_VENDOR_ID		0x11FE
