@@ -178,7 +178,7 @@ setsockopt(s, IPPROTO_IPV6, IPV6_MULTICAST_LOOP, &loop, sizeof(loop));
 .Pp
 This option
 improves performance for applications that may have no more than one
-instance on a single host (such as a router demon), by eliminating
+instance on a single host (such as a router daemon), by eliminating
 the overhead of receiving their own transmissions.
 It should generally not be used by applications for which there
 may be more than one instance on a single host (such as a conferencing
