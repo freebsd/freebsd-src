@@ -1561,14 +1561,14 @@ pmap_growkernel(vm_offset_t addr)
 		if (!pmap_pte_v(pte)) {
 			int pindex = NKLEV3MAPS + pmap_lev1_index(kernel_vm_end) - K1SEGLEV1I;
 
-			nkpg = vm_page_alloc(kptobj, pindex, VM_ALLOC_SYSTEM);
+			nkpg = vm_page_alloc(kptobj, pindex,
+			    VM_ALLOC_INTERRUPT | VM_ALLOC_WIRED);
 			if (!nkpg)
 				panic("pmap_growkernel: no memory to grow kernel");
 			printf("pmap_growkernel: growing to %lx\n", addr);
 			printf("pmap_growkernel: adding new level2 page table\n");
 
 			nklev2++;
-			vm_page_wire(nkpg);
 			pmap_zero_page(nkpg);
 
 			pa = VM_PAGE_TO_PHYS(nkpg);
@@ -1596,13 +1596,12 @@ pmap_growkernel(vm_offset_t addr)
 		/*
 		 * This index is bogus, but out of the way
 		 */
-		nkpg = vm_page_alloc(kptobj, nklev3, VM_ALLOC_SYSTEM);
+		nkpg = vm_page_alloc(kptobj, nklev3,
+		    VM_ALLOC_INTERRUPT | VM_ALLOC_WIRED);
 		if (!nkpg)
 			panic("pmap_growkernel: no memory to grow kernel");
 
 		nklev3++;
-
-		vm_page_wire(nkpg);
 		pmap_zero_page(nkpg);
 		pa = VM_PAGE_TO_PHYS(nkpg);
 		newlev2 = pmap_phys_to_pte(pa) | PG_V | PG_ASM | PG_KRE | PG_KWE;

@@ -307,11 +307,15 @@ extern struct mtx vm_page_queue_mtx;
 #define VM_PAGE_BITS_ALL 0xffff
 #endif
 
+/* page allocation classes: */
 #define VM_ALLOC_NORMAL		0
 #define VM_ALLOC_INTERRUPT	1
 #define VM_ALLOC_SYSTEM		2
+#define	VM_ALLOC_CLASS_MASK	3
+/* page allocation flags: */
+#define	VM_ALLOC_WIRED		0x20	/* vm_page_alloc() only */
 #define	VM_ALLOC_ZERO		0x40
-#define	VM_ALLOC_RETRY		0x80
+#define	VM_ALLOC_RETRY		0x80	/* vm_page_grab() only */
 
 void vm_page_flag_set(vm_page_t m, unsigned short bits);
 void vm_page_flag_clear(vm_page_t m, unsigned short bits);

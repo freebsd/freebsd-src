@@ -834,19 +834,17 @@ vm_page_select_free(vm_object_t object, vm_pindex_t pindex, boolean_t prefer_zer
  *	the page cache in this case.
  */
 vm_page_t
-vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int page_req)
+vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 {
 	vm_page_t m = NULL;
-	boolean_t prefer_zero;
-	int s;
+	int page_req, s;
 
 	GIANT_REQUIRED;
 
 	KASSERT(!vm_page_lookup(object, pindex),
 		("vm_page_alloc: page already allocated"));
 
-	prefer_zero = (page_req & VM_ALLOC_ZERO) != 0 ? TRUE : FALSE;
-	page_req &= ~VM_ALLOC_ZERO;
+	page_req = req & VM_ALLOC_CLASS_MASK;
 
 	/*
 	 * The pager is allowed to eat deeper into the free page list.
@@ -863,7 +861,8 @@ loop:
 		 * Allocate from the free queue if there are plenty of pages
 		 * in it.
 		 */
-		m = vm_page_select_free(object, pindex, prefer_zero);
+		m = vm_page_select_free(object, pindex,
+					(req & VM_ALLOC_ZERO) != 0);
 	} else if (
 	    (page_req == VM_ALLOC_SYSTEM && 
 	     cnt.v_cache_count == 0 && 
@@ -934,7 +933,11 @@ loop:
 	} else {
 		m->flags = PG_BUSY;
 	}
-	m->wire_count = 0;
+	if (req & VM_ALLOC_WIRED) {
+		cnt.v_wire_count++;
+		m->wire_count = 1;
+	} else
+		m->wire_count = 0;
 	m->hold_count = 0;
 	m->act_count = 0;
 	m->busy = 0;
@@ -1241,9 +1244,7 @@ vm_page_wire(vm_page_t m)
 	 * it is already off the queues).
 	 */
 	s = splvm();
-#ifndef	__alpha__
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
-#endif
 	if (m->wire_count == 0) {
 		if ((m->flags & PG_UNMANAGED) == 0)
 			vm_pageq_remove(m);
