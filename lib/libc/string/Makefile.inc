@@ -18,7 +18,9 @@ MISRCS+=bcmp.c bcopy.c bzero.c ffs.c index.c memccpy.c memchr.c memcmp.c \
 
 
 # machine-dependent string sources
+.if exists(${.CURDIR}/../libc/${MACHINE_ARCH}/string/Makefile.inc)
 .include "${.CURDIR}/../libc/${MACHINE_ARCH}/string/Makefile.inc"
+.endif
 
 .if ${LIB} == "c"
 MAN+=	bcmp.3 bcopy.3 bstring.3 bzero.3 ffs.3 index.3 memccpy.3 memchr.3 \

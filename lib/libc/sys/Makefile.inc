@@ -13,7 +13,9 @@
 # MDASM names override the default syscall names in MIASM.
 # NOASM will prevent the default syscall code from being generated.
 #
+.if exists(${.CURDIR}/../libc/${MACHINE_ARCH}/sys/Makefile.inc)
 .include "${.CURDIR}/../libc/${MACHINE_ARCH}/sys/Makefile.inc"
+.endif
 
 # Sources common to both syscall interfaces:
 SRCS+=	ftruncate.c lseek.c mmap.c pread.c pwrite.c truncate.c __error.c
