@@ -139,6 +139,11 @@
       has been fixed.  More information can be found in security advisory
       <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:14.arp.asc">FreeBSD-SA-03:14</ulink>.</para>
 
+    <para>Several errors in the <application>OpenSSH</application> PAM
+      challenge/authentication subsystem have been fixed.  The impacts
+      of these bugs vary; details can be found in security advisory
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:15.openssh.asc">FreeBSD-SA-03:15</ulink>.</para>
+
     <para>A bug in the &man.readv.2; system call, which could potentially
       cause a system crash or privilege escalation has been fixed.
       More information can be found in security advisory
@@ -307,6 +312,10 @@
 
     <para>&man.ipfw.8; now supports a <option>-n</option> flag
       to test the syntax of commands without actually changing anything.</para>
+
+    <para>The &man.mount.msdos.8; utility now supports a
+      <option>-M</option> option to specify the maximum file
+      permissions for directories in the file system.</para>
 
     <para>&man.systat.1; now includes displays for IPv6 and ICMPv6
       traffic.</para>
