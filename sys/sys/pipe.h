@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: pipe.h,v 1.3 1996/02/04 19:56:14 dyson Exp $
+ * $Id: pipe.h,v 1.4 1996/05/01 04:18:20 bde Exp $
  */
 
 #ifndef _SYS_PIPE_H_
@@ -78,7 +78,6 @@ struct pipemapping {
 /*
  * Bits in pipe_state.
  */
-#define PIPE_NBIO	0x001	/* Non-blocking I/O. */
 #define PIPE_ASYNC	0x004	/* Async? I/O. */
 #define PIPE_WANTR	0x008	/* Reader wants some characters. */
 #define PIPE_WANTW	0x010	/* Writer wants space to put characters. */
