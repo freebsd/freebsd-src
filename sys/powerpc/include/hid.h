@@ -42,15 +42,15 @@
 #define HID0_ECLK	0x02000000  /* CLK_OUT clock type selection */
 #define HID0_PAR	0x01000000  /* Disable precharge of ARTRY */
 #define HID0_STEN	0x01000000  /* Software table search enable (7450) */
-#define HID0_HBATEN	0x00800000  /* High BAT enable (7457) */
+#define HID0_HBATEN	0x00800000  /* High BAT enable (74[45][578])  */
 #define HID0_DOZE	0x00800000  /* Enable doze mode */
 #define HID0_NAP	0x00400000  /* Enable nap mode */
 #define HID0_SLEEP	0x00200000  /* Enable sleep mode */
 #define HID0_DPM	0x00100000  /* Enable Dynamic power management */
 #define HID0_RISEG	0x00080000  /* Read I-SEG */
-#define HID0_BHTCLR	0x00080000  /* Clear branch history table (7450) */
+#define HID0_BHTCLR	0x00040000  /* Clear branch history table (7450) */
 #define HID0_EIEC	0x00040000  /* Enable internal error checking */
-#define HID0_XAEN	0x00040000  /* Enable eXtended Addressing (7450) */
+#define HID0_XAEN	0x00020000  /* Enable eXtended Addressing (7450) */
 #define HID0_NHR	0x00010000  /* Not hard reset */
 #define HID0_ICE	0x00008000  /* Enable i-cache */
 #define HID0_DCE	0x00004000  /* Enable d-cache */
@@ -61,10 +61,13 @@
 #define HID0_SPD	0x00000200  /* Disable speculative cache access */
 #define HID0_XBSEN	0x00000100  /* Extended BAT block-size enable (7457) */
 #define HID0_IFEM	0x00000100  /* Enable M-bit for I-fetch */
+#define HID0_XBSEN	0x00000100  /* Extended BAT block size enable (7455+)*/
 #define HID0_SGE	0x00000080  /* Enable store gathering */
 #define HID0_DCFA	0x00000040  /* Data cache flush assist */
 #define HID0_BTIC	0x00000020  /* Enable BTIC */
+#define HID0_LRSTK      0x00000010  /* Link register stack enable (7450) */
 #define HID0_ABE	0x00000008  /* Enable address broadcast */
+#define HID0_FOLD       0x00000008  /* Branch folding enable (7450) */
 #define HID0_BHT	0x00000004  /* Enable branch history table */
 #define HID0_NOPTI	0x00000001  /* No-op the dcbt(st) */
 
