@@ -65,6 +65,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
+#include <vm/uma.h>
 
 #include <compat/ndis/pe_var.h>
 #include <compat/ndis/ntoskrnl_var.h>
@@ -186,6 +187,7 @@ static kspin_lock ntoskrnl_global;
 static kspin_lock ntoskrnl_cancellock;
 static int ntoskrnl_kth = 0;
 static struct nt_objref_head ntoskrnl_reflist;
+static uma_zone_t mdl_zone;
 
 int
 ntoskrnl_libinit()
@@ -204,6 +206,22 @@ ntoskrnl_libinit()
 		patch++;
 	}
 
+	/*
+	 * MDLs are supposed to be variable size (they describe
+	 * buffers containing some number of pages, but we don't
+	 * know ahead of time how many pages that will be). But
+	 * always allocating them off the heap is very slow. As
+	 * a compromize, we create an MDL UMA zone big enough to
+	 * handle any buffer requiring up to 16 pages, and we
+	 * use those for any MDLs for buffers of 16 pages or less
+	 * in size. For buffers larger than that (which we assume
+	 * will be few and far between, we allocate the MDLs off
+	 * the heap.
+	 */
+
+	mdl_zone = uma_zcreate("Windows MDL", MDL_ZONE_SIZE,
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
+
 	return(0);
 }
 
@@ -218,6 +236,8 @@ ntoskrnl_libfini()
 		windrv_unwrap(patch->ipt_wrap);
 		patch++;
 	}
+
+	uma_zdestroy(mdl_zone);
 
 	return(0);
 }
@@ -1726,14 +1746,29 @@ IoAllocateMdl(vaddr, len, secondarybuf, chargequota, iopkt)
 	irp			*iopkt;
 {
 	mdl			*m;
+	int			zone = 0;
 
-	m = ExAllocatePoolWithTag(NonPagedPool,
-	    MmSizeOfMdl(vaddr, len), 0);
+	if (MmSizeOfMdl(vaddr, len) > MDL_ZONE_SIZE)
+		m = ExAllocatePoolWithTag(NonPagedPool,
+		    MmSizeOfMdl(vaddr, len), 0);
+	else {
+		m = uma_zalloc(mdl_zone, M_NOWAIT | M_ZERO);
+		zone++;
+	}
 
 	if (m == NULL)
 		return (NULL);
 
 	MmInitializeMdl(m, vaddr, len);
+
+	/*
+	 * MmInitializMdl() clears the flags field, so we
+	 * have to set this here. If the MDL came from the
+	 * MDL UMA zone, tag it so we can release it to
+	 * the right place later.
+	 */
+	if (zone)
+		m->mdl_flags = MDL_ZONE_ALLOCED;
 
 	if (iopkt != NULL) {
 		if (secondarybuf == TRUE) {
@@ -1759,7 +1794,10 @@ IoFreeMdl(m)
 	if (m == NULL)
 		return;
 
-	free (m, M_DEVBUF);
+	if (m->mdl_flags & MDL_ZONE_ALLOCED)
+		uma_zfree(mdl_zone, m);
+	else
+		ExFreePool(m);
 
         return;
 }
