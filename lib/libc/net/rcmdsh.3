@@ -40,9 +40,16 @@
 .Nm rcmdsh
 .Nd return a stream to a remote command without superuser
 .Sh SYNOPSIS
-.Fd #include <unistd.h>
+.In unistd.h
 .Ft int
-.Fn rcmdsh "char **ahost" "int inport" "const char *locuser" "const char *remuser" "const char *cmd" "char *rshprog"
+.Fo rcmdsh
+.Fa "char **ahost"
+.Fa "int inport"
+.Fa "const char *locuser"
+.Fa "const char *remuser"
+.Fa "const char *cmd"
+.Fa "const char *rshprog"
+.Fc
 .Sh DESCRIPTION
 The
 .Fn rcmdsh
@@ -53,7 +60,8 @@ on reserved port numbers using
 .Xr rshd 8
 or the value of
 .Fa rshprog
-(if non-null).
+(if
+.No non- Ns Dv NULL ) .
 .Pp
 The
 .Fn rcmdsh
@@ -68,27 +76,28 @@ Otherwise
 is set to the standard name of the host
 and a connection is established to a server
 residing at the well-known Internet port
-.Li shell/tcp
+.Dq Li shell/tcp
 (or whatever port is used by
-.Fa rshprog
-).  The parameter
+.Fa rshprog ) .
+The parameter
 .Fa inport
 is ignored; it is only included to provide an interface similar to
 .Xr rcmd 3 .
 .Pp
 If the connection succeeds,
 a socket in the
-.Tn UNIX
+.Ux
 domain of type
 .Dv SOCK_STREAM
 is returned to the caller, and given to the remote
-command as stdin and stdout, and stderr.
-.Sh DIAGNOSTICS
+command as stdin, stdout, and stderr.
+.Sh RETURN VALUES
 The
 .Fn rcmdsh
 function
 returns a valid socket descriptor on success.
-It returns \-1 on error and prints a diagnostic message on the standard error.
+Otherwise, \-1 is returned
+and a diagnostic message is printed on the standard error.
 .Sh SEE ALSO
 .Xr rsh 1 ,
 .Xr socketpair 2 ,
@@ -97,9 +106,11 @@ It returns \-1 on error and prints a diagnostic message on the standard error.
 .Sh BUGS
 If
 .Xr rsh 1
-gets an error a file descriptor is still returned instead of \-1.
+encounters an error, a file descriptor is still returned instead of \-1.
 .Sh HISTORY
 The
 .Fn rcmdsh
 function first appeared in
-.Ox 2.0 .
+.Ox 2.0 ,
+and made its way into
+.Fx 5.0 .
