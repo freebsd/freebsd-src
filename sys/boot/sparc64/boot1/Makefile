@@ -17,6 +17,8 @@ boot1.elf: _start.o boot1.o
 boot1.aout: boot1.elf
 	elf2aout -o ${.TARGET} ${.ALLSRC}
 
+boot1.o:	${.CURDIR}/../../common/ufsread.c
+
 # Construct boot1. disklabel expects it to contain zeroed-out space for the
 # label, and to be of the correct size.
 boot1: boot1.aout
