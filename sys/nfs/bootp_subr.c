@@ -834,11 +834,23 @@ bootpc_init(void)
   call.xid = txdr_unsigned(xid);
   bcopy(LLADDR(sdl),&call.chaddr,sdl->sdl_alen);
   
-  call.vend[0]=99;
-  call.vend[1]=130;
-  call.vend[2]=83;
-  call.vend[3]=99;
-  call.vend[4]=255;
+  j = 0;
+  call.vend[j++]=99;
+  call.vend[j++]=130;
+  call.vend[j++]=83;
+  call.vend[j++]=99;
+
+  /*
+   * We send an RFC 1533 "Maximum DHCP Message Size" option, saying we
+   * can do 1200 bytes.  If we don't ISC DHCPD will limit the answer to
+   * 64 bytes and root/swap and similar will be dropped.
+   */
+  call.vend[j++]=57;
+  call.vend[j++]=2;
+  call.vend[j++]=(1200) % 256;
+  call.vend[j++]=(1200) / 256;
+
+  call.vend[j++]=255;
   
   call.secs = 0;
   call.flags = htons(0x8000); /* We need an broadcast answer */
