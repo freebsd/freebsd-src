@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: rtld.c,v 1.32 1996/01/13 00:15:25 jdp Exp $
+ *	$Id: rtld.c,v 1.33 1996/04/20 18:29:50 jdp Exp $
  */
 
 #include <sys/param.h>
@@ -88,6 +88,8 @@ struct somap_private {
 	struct so_map	*spd_parent;
 	struct so_list	*spd_children;
 	struct so_map	*spd_prev;
+	dev_t		spd_dev;
+	ino_t		spd_ino;
 	int		spd_refcount;
 	int		spd_flags;
 #define RTLD_MAIN	0x01
@@ -491,16 +493,40 @@ map_object(path, sodp, parent)
 	struct so_map	*parent;
 {
 	struct so_map	*smp;
+	struct stat	statbuf;
 
 	if(path == NULL)	/* Special case for the main program itself */
 		smp = link_map_head;
 	else {
-		/* Check whether the shared object is already mapped */
+		/*
+		 * Check whether the shared object is already mapped.
+		 * We check first for an exact match by pathname.  That
+		 * will detect the usual case.  If no match is found by
+		 * pathname, then stat the file, and check for a match by
+		 * device and inode.  That will detect the less common case
+		 * involving multiple links to the same library.
+		 */
 		for(smp = link_map_head;  smp != NULL;  smp = smp->som_next) {
 			if(!(LM_PRIVATE(smp)->spd_flags & (RTLD_MAIN|RTLD_RTLD))
 			&& smp->som_path != NULL
 			&& strcmp(smp->som_path, path) == 0)
 				break;
+		}
+		if(smp == NULL) {  /* Check for a match by device and inode */
+			if (stat(path, &statbuf) == -1) {
+				generror ("cannot stat \"%s\" : %s",
+					path, strerror(errno));
+				return NULL;
+			}
+			for (smp = link_map_head;  smp != NULL;
+			     smp = smp->som_next) {
+				struct somap_private *smpp = LM_PRIVATE(smp);
+
+				if (!(smpp->spd_flags & (RTLD_MAIN | RTLD_RTLD))
+				&& smpp->spd_ino == statbuf.st_ino
+				&& smpp->spd_dev == statbuf.st_dev)
+					break;
+			}
 		}
 	}
 
@@ -589,6 +615,14 @@ map_object(path, sodp, parent)
 		smpp->a_text = hdr.a_text;
 		smpp->a_data = hdr.a_data;
 		smpp->a_bss = hdr.a_bss;
+
+		/*
+		 * Save the device and inode, so we can detect multiple links
+		 * to the same library.  Note, if we reach this point, then
+		 * statbuf is guaranteed to have been filled in.
+		 */
+		smpp->spd_dev = statbuf.st_dev;
+		smpp->spd_ino = statbuf.st_ino;
 	}
 
 	LM_PRIVATE(smp)->spd_refcount++;
