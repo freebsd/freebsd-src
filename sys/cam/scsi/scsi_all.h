@@ -27,30 +27,11 @@
 #include <sys/cdefs.h>
 
 #ifdef _KERNEL
-#include "opt_scsi.h"
 /*
  * This is the number of seconds we wait for devices to settle after a SCSI
  * bus reset.
  */
-#ifndef SCSI_DELAY
-#define SCSI_DELAY 2000
-#endif
-/*
- * If someone sets this to 0, we assume that they want the minimum
- * allowable bus settle delay.  All devices need _some_ sort of bus settle
- * delay, so we'll set it to a minimum value of 100ms.
- */
-#if (SCSI_DELAY == 0)
-#undef SCSI_DELAY
-#define SCSI_DELAY 100
-#endif
-
-/*
- * Make sure the user isn't using seconds instead of milliseconds.
- */
-#if (SCSI_DELAY < 100)
-#error "SCSI_DELAY is in milliseconds, not seconds!  Please use a larger value"
-#endif
+extern int scsi_delay;
 #endif /* _KERNEL */
 
 /*
