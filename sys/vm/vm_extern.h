@@ -86,8 +86,6 @@ void vsunlock(void *, size_t);
 void vm_object_print(/* db_expr_t */ long, boolean_t, /* db_expr_t */ long,
 			  char *);
 int vm_fault_quick(caddr_t v, int prot);
-void vm_proc_new(struct proc *p);
-void vm_proc_dispose(struct proc *p);
 void vm_thread_dispose(struct thread *td);
 void vm_thread_dispose_altkstack(struct thread *td);
 void vm_thread_new(struct thread *td, int pages);

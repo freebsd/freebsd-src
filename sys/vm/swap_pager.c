@@ -2211,9 +2211,6 @@ found:
 	/*
 	 * Page in the contents of the device and close it.
 	 */
-#ifndef NO_SWAPPING
-       	vm_proc_swapin_all(sp);
-#endif /* !NO_SWAPPING */
 	swap_pager_swapoff(sp);
 
 	sp->sw_close(td, sp);

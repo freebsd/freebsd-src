@@ -97,12 +97,6 @@ extern void pagedaemon_wakeup(void);
 extern void vm_wait(void);
 extern void vm_waitpfault(void);
 
-/* XXX This is probably misplaced. */
-#ifndef NO_SWAPPING
-struct swdevt;
-void vm_proc_swapin_all(struct swdevt *);
-#endif	/* !NO_SWAPPING */
-
 #ifdef _KERNEL
 int vm_pageout_flush(vm_page_t *, int, int);
 #endif
