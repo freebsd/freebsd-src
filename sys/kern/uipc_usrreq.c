@@ -1047,7 +1047,7 @@ unp_externalize(control, controlp)
 			fdp = (int *)
 			    CMSG_DATA(mtod(*controlp, struct cmsghdr *));
 			for (i = 0; i < newfds; i++) {
-				if (fdalloc(td, &f))
+				if (fdalloc(td, 0, &f))
 					panic("unp_externalize fdalloc failed");
 				fp = *rp++;
 				td->td_proc->p_fd->fd_ofiles[f] = fp;

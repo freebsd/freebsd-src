@@ -147,7 +147,7 @@ int	dupfdopen(struct thread *td, struct filedesc *fdp, int indx, int dfd,
 int	falloc(struct thread *p, struct file **resultfp, int *resultfd);
 void	fdused(struct filedesc *fdp, int fd);
 void	fdunused(struct filedesc *fdp, int fd);
-int	fdalloc(struct thread *p, int *result);
+int	fdalloc(struct thread *p, int minfd, int *result);
 int	fdavail(struct thread *td, int n);
 void	fdcloseexec(struct thread *td);
 int	fdcheckstd(struct thread *td);
