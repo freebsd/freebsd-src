@@ -63,6 +63,7 @@ ithread_priority(flags)
 {
 	int pri;
 
+	flags &= ~INTR_MPSAFE;
 	switch (flags) {
 	case INTR_TYPE_TTY:             /* keyboard or parallel port */
 		pri = PI_TTYLOW;
