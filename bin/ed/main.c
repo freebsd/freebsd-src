@@ -27,9 +27,11 @@
  */
 
 #ifndef lint
+#if 0
 static const char copyright[] =
 "@(#) Copyright (c) 1993 Andrew Moore, Talke Studio. \n\
  All rights reserved.\n";
+#endif
 #endif /* not lint */
 
 #include <sys/cdefs.h>
