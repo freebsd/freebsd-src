@@ -85,9 +85,6 @@ distribution:
 .if !defined(NO_SENDMAIL)
 	( cd ${.CURDIR}/sendmail; ${MAKE} distribution );
 .endif
-.if !defined(NOUUCP)
-	( cd ${.CURDIR}/../gnu/libexec/uucp/sample; ${MAKE} install )
-.endif
 .if exists(${.CURDIR}/../crypto) && !defined(NO_OPENSSH)
 	(cd ${.CURDIR}; ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 ${SSH} \
 	    ${DESTDIR}/etc/ssh )

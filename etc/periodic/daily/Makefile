@@ -22,9 +22,5 @@ BIN=    100.clean-disks \
 	470.status-named \
 	500.queuerun \
 	999.local
-.if !defined(NOUUCP)
-BIN+=	340.uucp \
-	410.status-uucp
-.endif
 
 .include <bsd.prog.mk>
