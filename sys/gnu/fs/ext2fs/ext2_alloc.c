@@ -349,7 +349,7 @@ return ENOSPC;
 		ip->i_flag |= IN_CHANGE | IN_UPDATE;
 		if (!doasyncfree) {
 			gettime(&tv);
-			VOP_UPDATE(vp, &tv, &tv, MNT_WAIT);
+			UFS_UPDATE(vp, &tv, &tv, MNT_WAIT);
 		}
 	}
 	if (ssize < len)

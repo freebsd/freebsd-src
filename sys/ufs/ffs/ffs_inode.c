@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_inode.c	8.13 (Berkeley) 4/21/95
- * $Id: ffs_inode.c,v 1.27 1997/09/02 20:06:44 bde Exp $
+ * $Id: ffs_inode.c,v 1.28 1997/10/16 10:49:28 phk Exp $
  */
 
 #include "opt_quota.h"
@@ -50,6 +50,7 @@
 #include <vm/vm_extern.h>
 
 #include <ufs/ufs/quota.h>
+#include <ufs/ufs/ufsmount.h>
 #include <ufs/ufs/inode.h>
 
 #include <ufs/ffs/fs.h>
@@ -68,13 +69,11 @@ static int ffs_indirtrunc __P((struct inode *, ufs_daddr_t, ufs_daddr_t,
  * write of the inode to complete.
  */
 int
-ffs_update(ap)
-	struct vop_update_args /* {
-		struct vnode *a_vp;
-		struct timeval *a_access;
-		struct timeval *a_modify;
-		int a_waitfor;
-	} */ *ap;
+ffs_update(vp, access, modify, waitfor)
+	struct vnode *vp;
+	struct timeval *access;
+	struct timeval *modify;
+	int waitfor;
 {
 	register struct fs *fs;
 	struct buf *bp;
@@ -82,8 +81,8 @@ ffs_update(ap)
 	int error;
 	time_t tv_sec;
 
-	ip = VTOI(ap->a_vp);
-	if (ap->a_vp->v_mount->mnt_flag & MNT_RDONLY) {
+	ip = VTOI(vp);
+	if (vp->v_mount->mnt_flag & MNT_RDONLY) {
 		ip->i_flag &=
 		    ~(IN_ACCESS | IN_CHANGE | IN_MODIFIED | IN_UPDATE);
 		return (0);
@@ -106,10 +105,10 @@ ffs_update(ap)
 	tv_sec = time.tv_sec;
 	if (ip->i_flag & IN_ACCESS)
 		ip->i_atime =
-		    (ap->a_access == &time ? tv_sec : ap->a_access->tv_sec);
+		    (access == &time ? tv_sec : access->tv_sec);
 	if (ip->i_flag & IN_UPDATE) {
 		ip->i_mtime =
-		    (ap->a_modify == &time ? tv_sec : ap->a_modify->tv_sec);
+		    (modify == &time ? tv_sec : modify->tv_sec);
 		ip->i_modrev++;
 	}
 	if (ip->i_flag & IN_CHANGE)
@@ -132,7 +131,7 @@ ffs_update(ap)
 	}
 	*((struct dinode *)bp->b_data +
 	    ino_to_fsbo(fs, ip->i_number)) = ip->i_din;
-	if (ap->a_waitfor && (ap->a_vp->v_mount->mnt_flag & MNT_ASYNC) == 0)
+	if (waitfor && (vp->v_mount->mnt_flag & MNT_ASYNC) == 0)
 		return (bwrite(bp));
 	else {
 		bp->b_flags |= B_CLUSTEROK;
@@ -186,11 +185,11 @@ ffs_truncate(vp, length, flags, cred, p)
 		bzero((char *)&oip->i_shortlink, (u_int)oip->i_size);
 		oip->i_size = 0;
 		oip->i_flag |= IN_CHANGE | IN_UPDATE;
-		return (VOP_UPDATE(ovp, &tv, &tv, 1));
+		return (UFS_UPDATE(ovp, &tv, &tv, 1));
 	}
 	if (oip->i_size == length) {
 		oip->i_flag |= IN_CHANGE | IN_UPDATE;
-		return (VOP_UPDATE(ovp, &tv, &tv, 0));
+		return (UFS_UPDATE(ovp, &tv, &tv, 0));
 	}
 #ifdef QUOTA
 	error = getinoquota(oip);
@@ -222,7 +221,7 @@ ffs_truncate(vp, length, flags, cred, p)
 		else
 			bawrite(bp);
 		oip->i_flag |= IN_CHANGE | IN_UPDATE;
-		return (VOP_UPDATE(ovp, &tv, &tv, 1));
+		return (UFS_UPDATE(ovp, &tv, &tv, 1));
 	}
 	/*
 	 * Shorten the size of the file. If the file is not being
@@ -280,7 +279,7 @@ ffs_truncate(vp, length, flags, cred, p)
 	for (i = NDADDR - 1; i > lastblock; i--)
 		oip->i_db[i] = 0;
 	oip->i_flag |= IN_CHANGE | IN_UPDATE;
-	error = VOP_UPDATE(ovp, &tv, &tv, ((length > 0) ? 0 : 1));
+	error = UFS_UPDATE(ovp, &tv, &tv, ((length > 0) ? 0 : 1));
 	if (error)
 		allerror = error;
 	/*

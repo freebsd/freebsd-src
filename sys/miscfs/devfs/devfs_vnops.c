@@ -1,7 +1,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vnops.c,v 1.43 1997/10/15 13:23:01 phk Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vnops.c,v 1.44 1997/10/16 10:48:12 phk Exp $
  *
  * symlinks can wait 'til later.
  */
@@ -342,34 +342,6 @@ DBPRINT(("mknod\n"));
 		break;
 	}
 	return error;
-}
-#endif /* notyet */
-
-static int
-devfs_open(struct vop_open_args *ap)
-        /*struct vop_open_args  {
-                struct vnode *a_vp;
-                int  a_mode;
-                struct ucred *a_cred;
-                struct proc *a_p;
-        } */
-{
-DBPRINT(("open\n"));
-	return 0;
-}
-
-#ifdef notyet
-static int
-devfs_close( struct vop_close_args *ap)
-        /*struct vop_close_args  {
-                struct vnode *a_vp;
-                int  a_fflag;
-                struct ucred *a_cred;
-                struct proc *a_p;
-        } */ 
-{
-DBPRINT(("close\n"));
-	return 0;
 }
 #endif /* notyet */
 
@@ -763,47 +735,7 @@ DBPRINT(("select\n"));
 	return 1;		/* filesystems never block? */
 }
 
-static int
-devfs_mmap(struct vop_mmap_args *ap)
-        /*struct vop_mmap_args  {
-                struct vnode *a_vp;
-                int  a_fflags;
-                struct ucred *a_cred;
-                struct proc *a_p;
-        } */
-{
-DBPRINT(("mmap\n"));
-	return EINVAL;
-}
 
-/*
- *  Flush the blocks of a file to disk.
- */
-static int
-devfs_fsync(struct vop_fsync_args *ap)
-        /*struct vop_fsync_args {
-                struct vnode *a_vp;
-                struct ucred *a_cred;
-                int  a_waitfor;
-                struct proc *a_p;
-        } */ 
-{
-DBPRINT(("fsync\n"));
-	return(0);
-}
-
-static int
-devfs_seek(struct vop_seek_args *ap)
-        /*struct vop_seek_args  {
-                struct vnode *a_vp;
-                off_t  a_oldoff;
-                off_t  a_newoff;
-                struct ucred *a_cred;
-        } */
-{
-DBPRINT(("seek\n"));
-	return 0;
-}
 #endif /* notyet */
 
 static int
@@ -1525,44 +1457,6 @@ DBPRINT(("reclaim\n"));
 }
 
 /*
- * Return POSIX pathconf information applicable to special devices.
- */
-static int
-devfs_pathconf(struct vop_pathconf_args *ap)
-        /*struct vop_pathconf_args {
-                struct vnode *a_vp;
-                int a_name;
-                int *a_retval;
-        } */
-{
-
-        switch (ap->a_name) {
-        case _PC_LINK_MAX:
-                *ap->a_retval = LINK_MAX;
-                return (0);
-        case _PC_MAX_CANON:
-                *ap->a_retval = MAX_CANON;
-                return (0);
-        case _PC_MAX_INPUT:
-                *ap->a_retval = MAX_INPUT;
-                return (0);
-        case _PC_PIPE_BUF:
-                *ap->a_retval = PIPE_BUF;
-                return (0);
-        case _PC_CHOWN_RESTRICTED:
-                *ap->a_retval = 1;
-                return (0);
-        case _PC_VDISABLE:
-                *ap->a_retval = _POSIX_VDISABLE;
-                return (0);
-        default:
-                return (EINVAL);
-        }
-        /* NOTREACHED */
-}
-
-
-/*
  * Print out the contents of a /devfs vnode.
  */
 static int
@@ -1629,19 +1523,15 @@ devfs_dropvnode(dn_p dnp)
 vop_t **devfs_vnodeop_p;
 static struct vnodeopv_entry_desc devfs_vnodeop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) vn_default_error },
-	{ &vop_abortop_desc,		(vop_t *) nullop },
 	{ &vop_access_desc,		(vop_t *) devfs_access },
 	{ &vop_bmap_desc,		(vop_t *) devfs_badop },
-	{ &vop_close_desc,		(vop_t *) nullop },
-	{ &vop_fsync_desc,		(vop_t *) nullop },
 	{ &vop_getattr_desc,		(vop_t *) devfs_getattr },
 	{ &vop_inactive_desc,		(vop_t *) devfs_inactive },
 	{ &vop_islocked_desc,		(vop_t *) vop_noislocked },
 	{ &vop_link_desc,		(vop_t *) devfs_link },
 	{ &vop_lock_desc,		(vop_t *) vop_nolock },
 	{ &vop_lookup_desc,		(vop_t *) devfs_lookup },
-	{ &vop_open_desc,		(vop_t *) devfs_open },
-	{ &vop_pathconf_desc,		(vop_t *) devfs_pathconf },
+	{ &vop_pathconf_desc,		(vop_t *) vop_stdpathconf },
 	{ &vop_print_desc,		(vop_t *) devfs_print },
 	{ &vop_read_desc,		(vop_t *) devfs_read },
 	{ &vop_readdir_desc,		(vop_t *) devfs_readdir },
@@ -1649,7 +1539,6 @@ static struct vnodeopv_entry_desc devfs_vnodeop_entries[] = {
 	{ &vop_reclaim_desc,		(vop_t *) devfs_reclaim },
 	{ &vop_remove_desc,		(vop_t *) devfs_remove },
 	{ &vop_rename_desc,		(vop_t *) devfs_rename },
-	{ &vop_seek_desc,		(vop_t *) nullop },
 	{ &vop_setattr_desc,		(vop_t *) devfs_setattr },
 	{ &vop_symlink_desc,		(vop_t *) devfs_symlink },
 	{ &vop_unlock_desc,		(vop_t *) vop_nounlock },

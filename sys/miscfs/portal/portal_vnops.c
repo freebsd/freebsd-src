@@ -35,7 +35,7 @@
  *
  *	@(#)portal_vnops.c	8.14 (Berkeley) 5/21/95
  *
- * $Id: portal_vnops.c,v 1.23 1997/10/15 10:04:34 phk Exp $
+ * $Id: portal_vnops.c,v 1.24 1997/10/16 10:48:35 phk Exp $
  */
 
 /*
@@ -73,7 +73,6 @@ static int	portal_getattr __P((struct vop_getattr_args *ap));
 static int	portal_inactive __P((struct vop_inactive_args *ap));
 static int	portal_lookup __P((struct vop_lookup_args *ap));
 static int	portal_open __P((struct vop_open_args *ap));
-static int	portal_pathconf __P((struct vop_pathconf_args *ap));
 static int	portal_print __P((struct vop_print_args *ap));
 static int	portal_readdir __P((struct vop_readdir_args *ap));
 static int	portal_reclaim __P((struct vop_reclaim_args *ap));
@@ -559,42 +558,6 @@ portal_reclaim(ap)
 	return (0);
 }
 
-/*
- * Return POSIX pathconf information applicable to special devices.
- */
-static int
-portal_pathconf(ap)
-	struct vop_pathconf_args /* {
-		struct vnode *a_vp;
-		int a_name;
-		int *a_retval;
-	} */ *ap;
-{
-
-	switch (ap->a_name) {
-	case _PC_LINK_MAX:
-		*ap->a_retval = LINK_MAX;
-		return (0);
-	case _PC_MAX_CANON:
-		*ap->a_retval = MAX_CANON;
-		return (0);
-	case _PC_MAX_INPUT:
-		*ap->a_retval = MAX_INPUT;
-		return (0);
-	case _PC_PIPE_BUF:
-		*ap->a_retval = PIPE_BUF;
-		return (0);
-	case _PC_CHOWN_RESTRICTED:
-		*ap->a_retval = 1;
-		return (0);
-	case _PC_VDISABLE:
-		*ap->a_retval = _POSIX_VDISABLE;
-		return (0);
-	default:
-		return (EINVAL);
-	}
-	/* NOTREACHED */
-}
 
 /*
  * Print out the contents of a Portal vnode.
@@ -638,19 +601,16 @@ static struct vnodeopv_entry_desc portal_vnodeop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) vn_default_error },
 	{ &vop_access_desc,		(vop_t *) nullop },
 	{ &vop_bmap_desc,		(vop_t *) portal_badop },
-	{ &vop_close_desc,		(vop_t *) nullop },
-	{ &vop_fsync_desc,		(vop_t *) nullop },
 	{ &vop_getattr_desc,		(vop_t *) portal_getattr },
 	{ &vop_inactive_desc,		(vop_t *) portal_inactive },
 	{ &vop_islocked_desc,		(vop_t *) vop_noislocked },
 	{ &vop_lock_desc,		(vop_t *) vop_nolock },
 	{ &vop_lookup_desc,		(vop_t *) portal_lookup },
 	{ &vop_open_desc,		(vop_t *) portal_open },
-	{ &vop_pathconf_desc,		(vop_t *) portal_pathconf },
+	{ &vop_pathconf_desc,		(vop_t *) vop_stdpathconf },
 	{ &vop_print_desc,		(vop_t *) portal_print },
 	{ &vop_readdir_desc,		(vop_t *) portal_readdir },
 	{ &vop_reclaim_desc,		(vop_t *) portal_reclaim },
-	{ &vop_seek_desc,		(vop_t *) nullop },
 	{ &vop_setattr_desc,		(vop_t *) portal_setattr },
 	{ &vop_unlock_desc,		(vop_t *) vop_nounlock },
 	{ NULL, NULL }

@@ -623,6 +623,7 @@ ext2_mountfs(devvp, mp, p)
 	ump->um_malloctype = M_EXT2NODE;
 	ump->um_blkatoff = ext2_blkatoff;
 	ump->um_truncate = ext2_truncate;
+	ump->um_update = ext2_update;
 	ump->um_valloc = ext2_valloc;
 	ump->um_vfree = ext2_vfree;
 	/* I don't know whether this is the right strategy. Note that

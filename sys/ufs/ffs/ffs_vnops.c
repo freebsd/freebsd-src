@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vnops.c	8.15 (Berkeley) 5/14/95
- * $Id: ffs_vnops.c,v 1.34 1997/10/15 13:23:47 phk Exp $
+ * $Id: ffs_vnops.c,v 1.35 1997/10/16 10:49:35 phk Exp $
  */
 
 #include <sys/param.h>
@@ -77,7 +77,6 @@ static struct vnodeopv_entry_desc ffs_vnodeop_entries[] = {
 	{ &vop_getpages_desc,		(vop_t *) ffs_getpages },
 	{ &vop_read_desc,		(vop_t *) ffs_read },
 	{ &vop_reallocblks_desc,	(vop_t *) ffs_reallocblks },
-	{ &vop_update_desc,		(vop_t *) ffs_update },
 	{ &vop_write_desc,		(vop_t *) ffs_write },
 	{ NULL, NULL }
 };
@@ -88,7 +87,6 @@ vop_t **ffs_specop_p;
 static struct vnodeopv_entry_desc ffs_specop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) ufs_vnoperatespec },
 	{ &vop_fsync_desc,		(vop_t *) ffs_fsync },
-	{ &vop_update_desc,		(vop_t *) ffs_update },
 	{ NULL, NULL }
 };
 static struct vnodeopv_desc ffs_specop_opv_desc =
@@ -98,7 +96,6 @@ vop_t **ffs_fifoop_p;
 static struct vnodeopv_entry_desc ffs_fifoop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) ufs_vnoperatefifo },
 	{ &vop_fsync_desc,		(vop_t *) ffs_fsync },
-	{ &vop_update_desc,		(vop_t *) ffs_update },
 	{ NULL, NULL }
 };
 static struct vnodeopv_desc ffs_fifoop_opv_desc =
@@ -187,6 +184,6 @@ loop:
 	}
 
 	gettime(&tv);
-	return (VOP_UPDATE(ap->a_vp, &tv, &tv, ap->a_waitfor == MNT_WAIT));
+	return (UFS_UPDATE(ap->a_vp, &tv, &tv, ap->a_waitfor == MNT_WAIT));
 }
 

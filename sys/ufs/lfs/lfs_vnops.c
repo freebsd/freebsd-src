@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_vnops.c	8.13 (Berkeley) 6/10/95
- * $Id: lfs_vnops.c,v 1.27 1997/10/15 13:23:52 phk Exp $
+ * $Id: lfs_vnops.c,v 1.28 1997/10/16 10:49:53 phk Exp $
  */
 
 #include <sys/param.h>
@@ -79,7 +79,6 @@ static struct vnodeopv_entry_desc lfs_vnodeop_entries[] = {
 	{ &vop_fsync_desc,		(vop_t *) lfs_fsync },
 	{ &vop_getattr_desc,		(vop_t *) lfs_getattr },
 	{ &vop_read_desc,		(vop_t *) lfs_read },
-	{ &vop_update_desc,		(vop_t *) lfs_update },
 	{ &vop_write_desc,		(vop_t *) lfs_write },
 	{ &vop_lookup_desc,		(vop_t *) ufs_lookup },
 	{ NULL, NULL }
@@ -92,7 +91,6 @@ static struct vnodeopv_entry_desc lfs_specop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) ufs_vnoperatespec },
 	{ &vop_bwrite_desc,		(vop_t *) lfs_bwrite },
 	{ &vop_getattr_desc,		(vop_t *) lfs_getattr },
-	{ &vop_update_desc,		(vop_t *) lfs_update },
 	{ NULL, NULL }
 };
 static struct vnodeopv_desc lfs_specop_opv_desc =
@@ -103,7 +101,6 @@ static struct vnodeopv_entry_desc lfs_fifoop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) ufs_vnoperatefifo },
 	{ &vop_bwrite_desc,		(vop_t *) lfs_bwrite },
 	{ &vop_getattr_desc,		(vop_t *) lfs_getattr },
-	{ &vop_update_desc,		(vop_t *) lfs_update },
 	{ NULL, NULL }
 };
 static struct vnodeopv_desc lfs_fifoop_opv_desc =
@@ -134,7 +131,7 @@ lfs_fsync(ap)
 	int error;
 
 	gettime(&tv);
-	error = (VOP_UPDATE(ap->a_vp, &tv, &tv,
+	error = (UFS_UPDATE(ap->a_vp, &tv, &tv,
 	    ap->a_waitfor == MNT_WAIT ? LFS_SYNC : 0));
 	if(ap->a_waitfor == MNT_WAIT && ap->a_vp->v_dirtyblkhd.lh_first != NULL)
 	       panic("lfs_fsync: dirty bufs");

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spec_vnops.c	8.14 (Berkeley) 5/21/95
- * $Id: spec_vnops.c,v 1.46 1997/10/15 13:23:18 phk Exp $
+ * $Id: spec_vnops.c,v 1.47 1997/10/16 10:48:46 phk Exp $
  */
 
 #include <sys/param.h>
@@ -73,7 +73,6 @@ static int	spec_poll __P((struct vop_poll_args *));
 static int	spec_inactive __P((struct  vop_inactive_args *));
 static int	spec_fsync __P((struct  vop_fsync_args *));
 static int	spec_bmap __P((struct vop_bmap_args *));
-static int	spec_pathconf __P((struct vop_pathconf_args *));
 static int	spec_advlock __P((struct vop_advlock_args *));  
 static int	spec_getpages __P((struct vop_getpages_args *));
 
@@ -98,9 +97,8 @@ static struct vnodeopv_entry_desc spec_vnodeop_entries[] = {
 	{ &vop_lookup_desc,		(vop_t *) spec_lookup },
 	{ &vop_mkdir_desc,		(vop_t *) spec_badop },
 	{ &vop_mknod_desc,		(vop_t *) spec_badop },
-	{ &vop_mmap_desc,		(vop_t *) spec_badop },
 	{ &vop_open_desc,		(vop_t *) spec_open },
-	{ &vop_pathconf_desc,		(vop_t *) spec_pathconf },
+	{ &vop_pathconf_desc,		(vop_t *) vop_stdpathconf },
 	{ &vop_poll_desc,		(vop_t *) spec_poll },
 	{ &vop_print_desc,		(vop_t *) spec_print },
 	{ &vop_read_desc,		(vop_t *) spec_read },
@@ -111,12 +109,10 @@ static struct vnodeopv_entry_desc spec_vnodeop_entries[] = {
 	{ &vop_remove_desc,		(vop_t *) spec_badop },
 	{ &vop_rename_desc,		(vop_t *) spec_badop },
 	{ &vop_rmdir_desc,		(vop_t *) spec_badop },
-	{ &vop_seek_desc,		(vop_t *) spec_badop },
 	{ &vop_setattr_desc,		(vop_t *) spec_ebadf },
 	{ &vop_strategy_desc,		(vop_t *) spec_strategy },
 	{ &vop_symlink_desc,		(vop_t *) spec_badop },
 	{ &vop_unlock_desc,		(vop_t *) vop_nounlock },
-	{ &vop_update_desc,		(vop_t *) nullop },
 	{ &vop_write_desc,		(vop_t *) spec_write },
 	{ NULL, NULL }
 };
@@ -473,7 +469,7 @@ spec_poll(ap)
 		dev = ap->a_vp->v_rdev;
 		return (*cdevsw[major(dev)]->d_poll)(dev, ap->a_events, ap->a_p);
 	default:
-		return (vn_defaultop((struct vop_generic_args *)ap));
+		return (vop_defaultop((struct vop_generic_args *)ap));
 
 	}
 }
@@ -683,43 +679,6 @@ spec_print(ap)
 	printf("tag VT_NON, dev %d, %d\n", major(ap->a_vp->v_rdev),
 		minor(ap->a_vp->v_rdev));
 	return (0);
-}
-
-/*
- * Return POSIX pathconf information applicable to special devices.
- */
-static int
-spec_pathconf(ap)
-	struct vop_pathconf_args /* {
-		struct vnode *a_vp;
-		int a_name;
-		int *a_retval;
-	} */ *ap;
-{
-
-	switch (ap->a_name) {
-	case _PC_LINK_MAX:
-		*ap->a_retval = LINK_MAX;
-		return (0);
-	case _PC_MAX_CANON:
-		*ap->a_retval = MAX_CANON;
-		return (0);
-	case _PC_MAX_INPUT:
-		*ap->a_retval = MAX_INPUT;
-		return (0);
-	case _PC_PIPE_BUF:
-		*ap->a_retval = PIPE_BUF;
-		return (0);
-	case _PC_CHOWN_RESTRICTED:
-		*ap->a_retval = 1;
-		return (0);
-	case _PC_VDISABLE:
-		*ap->a_retval = _POSIX_VDISABLE;
-		return (0);
-	default:
-		return (EINVAL);
-	}
-	/* NOTREACHED */
 }
 
 /*

@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_vnops.c	8.32 (Berkeley) 6/23/95
- * $Id: union_vnops.c,v 1.43 1997/10/15 09:21:32 phk Exp $
+ * $Id: union_vnops.c,v 1.44 1997/10/15 10:04:54 phk Exp $
  */
 
 #include <sys/param.h>
@@ -94,7 +94,6 @@ static int	union_remove __P((struct vop_remove_args *ap));
 static int	union_rename __P((struct vop_rename_args *ap));
 static int	union_revoke __P((struct vop_revoke_args *ap));
 static int	union_rmdir __P((struct vop_rmdir_args *ap));
-static int	union_seek __P((struct vop_seek_args *ap));
 static int	union_poll __P((struct vop_poll_args *ap));
 static int	union_setattr __P((struct vop_setattr_args *ap));
 static int	union_strategy __P((struct vop_strategy_args *ap));
@@ -1035,21 +1034,6 @@ union_fsync(ap)
 }
 
 static int
-union_seek(ap)
-	struct vop_seek_args /* {
-		struct vnode *a_vp;
-		off_t  a_oldoff;
-		off_t  a_newoff;
-		struct ucred *a_cred;
-	} */ *ap;
-{
-	register struct vnode *ovp = OTHERVP(ap->a_vp);
-
-	ap->a_vp = ovp;
-	return (VCALL(ovp, VOFFSET(vop_seek), ap));
-}
-
-static int
 union_remove(ap)
 	struct vop_remove_args /* {
 		struct vnode *a_dvp;
@@ -1786,7 +1770,6 @@ static struct vnodeopv_entry_desc union_vnodeop_entries[] = {
 	{ &vop_rename_desc,		(vop_t *) union_rename },
 	{ &vop_revoke_desc,		(vop_t *) union_revoke },
 	{ &vop_rmdir_desc,		(vop_t *) union_rmdir },
-	{ &vop_seek_desc,		(vop_t *) union_seek },
 	{ &vop_setattr_desc,		(vop_t *) union_setattr },
 	{ &vop_strategy_desc,		(vop_t *) union_strategy },
 	{ &vop_symlink_desc,		(vop_t *) union_symlink },
