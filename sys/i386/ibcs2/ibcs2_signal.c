@@ -265,11 +265,15 @@ ibcs2_sigsys(p, uap)
 
 	case IBCS2_SIGHOLD_MASK:
 		{
-			struct osigprocmask_args sa;
+			sigset_t mask;
+			struct sigprocmask_args sa;
 
+			SIGEMPTYSET(mask);
+			SIGADDSET(mask, signum);
 			SCARG(&sa, how) = SIG_BLOCK;
-			SCARG(&sa, mask) = sigmask(signum);
-			return osigprocmask(p, &sa);
+			SCARG(&sa, set) = &mask;
+			SCARG(&sa, oset) = NULL;
+			return sigprocmask(p, &sa);
 		}
 		
 	case IBCS2_SIGNAL_MASK:
@@ -327,11 +331,15 @@ ibcs2_sigsys(p, uap)
 		
 	case IBCS2_SIGRELSE_MASK:
 		{
-			struct osigprocmask_args sa;
+			sigset_t mask;
+			struct sigprocmask_args sa;
 
+			SIGEMPTYSET(mask);
+			SIGADDSET(mask, signum);
 			SCARG(&sa, how) = SIG_UNBLOCK;
-			SCARG(&sa, mask) = sigmask(signum);
-			return osigprocmask(p, &sa);
+			SCARG(&sa, set) = &mask;
+			SCARG(&sa, oset) = NULL;
+			return sigprocmask(p, &sa);
 		}
 		
 	case IBCS2_SIGIGNORE_MASK:
@@ -358,12 +366,13 @@ ibcs2_sigsys(p, uap)
 		
 	case IBCS2_SIGPAUSE_MASK:
 		{
-			osigset_t mask;
-			struct osigsuspend_args sa;
+			sigset_t mask;
+			struct sigsuspend_args sa;
 
-			SIG2OSIG(p->p_sigmask, mask);
-			SCARG(&sa, mask) = mask &~ sigmask(signum);
-			return osigsuspend(p, &sa);
+			mask = p->p_sigmask;
+			SIGDELSET(mask, signum);
+			SCARG(&sa, sigmask) = &mask;
+			return sigsuspend(p, &sa);
 		}
 		
 	default:
@@ -445,17 +454,15 @@ ibcs2_sigsuspend(p, uap)
 {
 	ibcs2_sigset_t sss;
 	sigset_t bss;
-	osigset_t mask;
-	struct osigsuspend_args sa;
+	struct sigsuspend_args sa;
 	int error;
 
 	if ((error = copyin(SCARG(uap, mask), &sss, sizeof(sss))) != 0)
 		return error;
 
 	ibcs2_to_bsd_sigset(&sss, &bss);
-	SIG2OSIG(bss, mask);
-	SCARG(&sa, mask) = mask;
-	return osigsuspend(p, &sa);
+	SCARG(&sa, sigmask) = &bss;
+	return sigsuspend(p, &sa);
 }
 
 int
@@ -463,12 +470,12 @@ ibcs2_pause(p, uap)
 	register struct proc *p;
 	struct ibcs2_pause_args *uap;
 {
-	struct osigsuspend_args bsa;
-	osigset_t mask;
+	sigset_t mask;
+	struct sigsuspend_args sa;
 
-	SIG2OSIG(p->p_sigmask, mask);
-	SCARG(&bsa, mask) = mask;
-	return osigsuspend(p, &bsa);
+	mask = p->p_sigmask;
+	SCARG(&sa, sigmask) = &mask;
+	return sigsuspend(p, &sa);
 }
 
 int
