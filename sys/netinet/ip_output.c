@@ -2178,6 +2178,14 @@ ip_mloopback(ifp, m, dst, hlen)
 	if (copym != NULL && (copym->m_flags & M_EXT || copym->m_len < hlen))
 		copym = m_pullup(copym, hlen);
 	if (copym != NULL) {
+		/* If needed, compute the checksum and mark it as valid. */
+		if (copym->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
+			in_delayed_cksum(copym);
+			copym->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA;
+			copym->m_pkthdr.csum_flags |=
+			    CSUM_DATA_VALID | CSUM_PSEUDO_HDR;
+			copym->m_pkthdr.csum_data = 0xffff;
+		}
 		/*
 		 * We don't bother to fragment if the IP length is greater
 		 * than the interface's MTU.  Can this possibly matter?
@@ -2214,14 +2222,6 @@ ip_mloopback(ifp, m, dst, hlen)
 		copym->m_pkthdr.rcvif = ifp;
 		ip_input(copym);
 #else
-		/* If needed, compute the checksum and mark it as valid. */
-		if (copym->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
-			in_delayed_cksum(copym);
-			copym->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA;
-			copym->m_pkthdr.csum_flags |=
-			    CSUM_DATA_VALID | CSUM_PSEUDO_HDR;
-			copym->m_pkthdr.csum_data = 0xffff;
-		}
 		if_simloop(ifp, copym, dst->sin_family, 0);
 #endif
 	}
