@@ -77,7 +77,6 @@ struct ktr_request {
 		struct	ktr_psig ktr_psig;
 		struct	ktr_csw ktr_csw;
 	} ktr_data;
-	int	ktr_synchronous;
 	STAILQ_ENTRY(ktr_request) ktr_list;
 };
 
@@ -237,7 +236,6 @@ ktr_getrequest(int type)
 		req->ktr_cred = crhold(td->td_ucred);
 		req->ktr_header.ktr_buffer = NULL;
 		req->ktr_header.ktr_len = 0;
-		req->ktr_synchronous = 0;
 	} else {
 		pm = print_message;
 		print_message = 0;
@@ -256,19 +254,6 @@ ktr_submitrequest(struct ktr_request *req)
 	mtx_lock(&ktrace_mtx);
 	STAILQ_INSERT_TAIL(&ktr_todo, req, ktr_list);
 	sema_post(&ktrace_sema);
-	if (req->ktr_synchronous) {
-		/*
-		 * For a synchronous request, we wait for the ktrace thread
-		 * to get to our item in the todo list and wake us up.  Then
-		 * we write the request out ourselves and wake the ktrace
-		 * thread back up.
-		 */
-		msleep(req, &ktrace_mtx, curthread->td_priority, "ktrsync", 0);
-		mtx_unlock(&ktrace_mtx);
-		ktr_writerequest(req);
-		mtx_lock(&ktrace_mtx);
-		wakeup(req);
-	}
 	mtx_unlock(&ktrace_mtx);
 	curthread->td_inktrace = 0;
 }
@@ -306,24 +291,17 @@ ktr_loop(void *dummy)
 		req = STAILQ_FIRST(&ktr_todo);
 		STAILQ_REMOVE_HEAD(&ktr_todo, ktr_list);
 		KASSERT(req != NULL, ("got a NULL request"));
-		if (req->ktr_synchronous) {
-			wakeup(req);
-			msleep(req, &ktrace_mtx, curthread->td_priority,
-			    "ktrwait", 0);
-			mtx_unlock(&ktrace_mtx);
-		} else {
-			mtx_unlock(&ktrace_mtx);
-			/*
-			 * It is not enough just to pass the cached cred
-			 * to the VOP's in ktr_writerequest().  Some VFS
-			 * operations use curthread->td_ucred, so we need
-			 * to modify our thread's credentials as well.
-			 * Evil.
-			 */
-			td->td_ucred = req->ktr_cred;
-			ktr_writerequest(req);
-			td->td_ucred = cred;
-		}
+		mtx_unlock(&ktrace_mtx);
+		/*
+		 * It is not enough just to pass the cached cred
+		 * to the VOP's in ktr_writerequest().  Some VFS
+		 * operations use curthread->td_ucred, so we need
+		 * to modify our thread's credentials as well.
+		 * Evil.
+		 */
+		td->td_ucred = req->ktr_cred;
+		ktr_writerequest(req);
+		td->td_ucred = cred;
 		ktr_freerequest(req);
 	}
 }
