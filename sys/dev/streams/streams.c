@@ -188,6 +188,7 @@ static moduledata_t streams_mod = {
 	0
 };
 DECLARE_MODULE(streams, streams_mod, SI_SUB_DRIVERS, SI_ORDER_ANY);
+MODULE_VERSION(streams, 1);
 
 /*
  * We only need open() and close() routines.  open() calls socreate()
