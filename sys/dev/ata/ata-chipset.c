@@ -833,6 +833,9 @@ ata_intel_ident(device_t dev)
      { ATA_I6300ESB,   0, 0, 0x00, ATA_UDMA5, "Intel 6300ESB" },
      { ATA_I6300ESB_S1,0, 0, 0x00, ATA_SA150, "Intel 6300ESB" },
      { ATA_I6300ESB_R1,0, 0, 0x00, ATA_SA150, "Intel 6300ESB" },
+     { ATA_I82801FB,   0, 0, 0x00, ATA_UDMA5, "Intel ICH6" },
+     { ATA_I82801FB_S1,0, 0, 0x00, ATA_SA150, "Intel ICH6" },
+     { ATA_I82801FB_R1,0, 0, 0x00, ATA_SA150, "Intel ICH6" },
      { 0, 0, 0, 0, 0, 0}};
     char buffer[64]; 
 
