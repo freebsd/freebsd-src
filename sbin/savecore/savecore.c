@@ -88,6 +88,10 @@ __FBSDID("$FreeBSD$");
 /* The size of the buffer used for I/O. */
 #define	BUFFERSIZE	(1024*1024)
 
+#define	STATUS_BAD	0
+#define	STATUS_GOOD	1
+#define	STATUS_UNKNOWN	2
+
 static int checkfor, compress, clear, force, keep, verbose;	/* flags */
 static int nfound, nsaved, nerr;			/* statistics */
 
@@ -95,25 +99,39 @@ extern FILE *zopen(const char *, const char *);
 
 static void
 printheader(FILE *f, const struct kerneldumpheader *h, const char *device,
-    int bounds)
+    int bounds, const int status)
 {
 	uint64_t dumplen;
 	time_t t;
+	const char *stat_str;
 
-	fprintf(f, "Good dump found on device %s\n", device);
+	fprintf(f, "Dump header from device %s\n", device);
 	fprintf(f, "  Architecture: %s\n", h->architecture);
-	fprintf(f, "  Architecture version: %d\n",
-	    dtoh32(h->architectureversion));
+	fprintf(f, "  Architecture Version: %u\n", h->architectureversion);
 	dumplen = dtoh64(h->dumplength);
-	fprintf(f, "  Dump length: %lldB (%lld MB)\n", (long long)dumplen,
+	fprintf(f, "  Dump Length: %lldB (%lld MB)\n", (long long)dumplen,
 	    (long long)(dumplen >> 20));
 	fprintf(f, "  Blocksize: %d\n", dtoh32(h->blocksize));
 	t = dtoh64(h->dumptime);
 	fprintf(f, "  Dumptime: %s", ctime(&t));
 	fprintf(f, "  Hostname: %s\n", h->hostname);
-	fprintf(f, "  Versionstring: %s", h->versionstring);
-	fprintf(f, "  Panicstring: %s\n", h->panicstring);
+	fprintf(f, "  Magic: %s\n", h->magic);
+	fprintf(f, "  Version String: %s", h->versionstring);
+	fprintf(f, "  Panic String: %s\n", h->panicstring);
+	fprintf(f, "  Dump Parity: %u\n", h->parity);
 	fprintf(f, "  Bounds: %d\n", bounds);
+
+	switch(status) {
+	case STATUS_BAD:
+		stat_str = "bad";
+		break;
+	case STATUS_GOOD:
+		stat_str = "good";
+		break;
+	default:
+		stat_str = "unknown";
+	}
+	fprintf(f, "  Dump Status: %s\n", stat_str);
 	fflush(f);
 }
 
@@ -212,14 +230,16 @@ DoFile(char *savedir, const char *device)
 	struct kerneldumpheader kdhf, kdhl;
 	off_t mediasize, dumpsize, firsthd, lasthd, dmpcnt;
 	FILE *info, *fp;
-	int fd, fdinfo, error, wl;
-	int nr, nw, hs, he;
-	int bounds;
-	u_int sectorsize;
 	mode_t oumask;
+	int fd, fdinfo, error, wl;
+	int nr, nw, hs, he = 0;
+	int bounds, status;
+	u_int sectorsize;
 
+	bounds = getbounds();
 	dmpcnt = 0;
 	mediasize = 0;
+	status = STATUS_UNKNOWN;
 
 	if (buf == NULL) {
 		buf = malloc(BUFFERSIZE);
@@ -266,6 +286,7 @@ DoFile(char *savedir, const char *device)
 			printf("magic mismatch on last dump header on %s\n",
 			    device);
 
+		status = STATUS_BAD;
 		if (force == 0)
 			goto closefd;
 
@@ -284,7 +305,10 @@ DoFile(char *savedir, const char *device)
 		syslog(LOG_ERR,
 		    "unknown version (%d) in last dump header on %s",
 		    dtoh32(kdhl.version), device);
-		goto closefd;
+
+		status = STATUS_BAD;
+		if (force == 0)
+			goto closefd;
 	}
 
 	nfound++;
@@ -295,7 +319,9 @@ DoFile(char *savedir, const char *device)
 		syslog(LOG_ERR,
 		    "parity error on last dump header on %s", device);
 		nerr++;
-		goto closefd;
+		status = STATUS_BAD;
+		if (force == 0)
+			goto closefd;
 	}
 	dumpsize = dtoh64(kdhl.dumplength);
 	firsthd = lasthd - dumpsize - sizeof kdhf;
@@ -308,11 +334,25 @@ DoFile(char *savedir, const char *device)
 		nerr++;
 		goto closefd;
 	}
+
+	if (verbose >= 2) {
+		printf("First dump headers:\n");
+		printheader(stdout, &kdhf, device, bounds, -1);
+
+		printf("\nLast dump headers:\n");
+		printheader(stdout, &kdhl, device, bounds, -1);
+		printf("\n");
+	}
+
 	if (memcmp(&kdhl, &kdhf, sizeof kdhl)) {
 		syslog(LOG_ERR,
 		    "first and last dump headers disagree on %s", device);
 		nerr++;
-		goto closefd;
+		status = STATUS_BAD;
+		if (force == 0)
+			goto closefd;
+	} else {
+		status = STATUS_GOOD;
 	}
 
 	if (checkfor) {
@@ -333,12 +373,10 @@ DoFile(char *savedir, const char *device)
 		goto closefd;
 	}
 
-	bounds = getbounds();
-
 	sprintf(buf, "info.%d", bounds);
 
 	/*
-	 * Create or overwrite any existing files.
+	 * Create or overwrite any existing dump header files.
 	 */
 	fdinfo = open(buf, O_WRONLY | O_CREAT | O_TRUNC, 0600);
 	if (fdinfo < 0) {
@@ -365,9 +403,9 @@ DoFile(char *savedir, const char *device)
 	info = fdopen(fdinfo, "w");
 
 	if (verbose)
-		printheader(stdout, &kdhl, device, bounds);
+		printheader(stdout, &kdhl, device, bounds, status);
 
-	printheader(info, &kdhl, device, bounds);
+	printheader(info, &kdhl, device, bounds, status);
 	fclose(info);
 
 	syslog(LOG_NOTICE, "writing %score to %s",
@@ -391,39 +429,41 @@ DoFile(char *savedir, const char *device)
 			nw = fwrite(buf, 1, wl, fp);
 		} else {
 			for (nw = 0; nw < nr; nw = he) {
-			    /* find a contiguous block of zeroes */
-			    for (hs = nw; hs < nr; hs += BLOCKSIZE) {
-				for (he = hs; he < nr && buf[he] == 0; ++he)
-				    /* nothing */ ;
-				/* is the hole long enough to matter? */
-				if (he >= hs + BLOCKSIZE)
-				    break;
-			    }
+				/* find a contiguous block of zeroes */
+				for (hs = nw; hs < nr; hs += BLOCKSIZE) {
+					for (he = hs; he < nr && buf[he] == 0;
+					    ++he)
+						/* nothing */ ;
+					/* is the hole long enough to matter? */
+					if (he >= hs + BLOCKSIZE)
+						break;
+				}
 			
-			    /* back down to a block boundary */
-			    he &= BLOCKMASK;
+				/* back down to a block boundary */
+				he &= BLOCKMASK;
 
-			    /*
-			     * 1) Don't go beyond the end of the buffer.
-			     * 2) If the end of the buffer is less than
-			     *    BLOCKSIZE bytes away, we're at the end
-			     *    of the file, so just grab what's left.
-			     */
-			    if (hs + BLOCKSIZE > nr)
-				hs = he = nr;
-			
-			    /*
-			     * At this point, we have a partial ordering:
-			     *     nw <= hs <= he <= nr
-			     * If hs > nw, buf[nw..hs] contains non-zero data.
-			     * If he > hs, buf[hs..he] is all zeroes.
-			     */
-			    if (hs > nw)
-				if (fwrite(buf + nw, hs - nw, 1, fp) != 1)
-				    break;
-			    if (he > hs)
-				if (fseeko(fp, he - hs, SEEK_CUR) == -1)
-				    break;
+				/*
+				 * 1) Don't go beyond the end of the buffer.
+				 * 2) If the end of the buffer is less than
+				 *    BLOCKSIZE bytes away, we're at the end
+				 *    of the file, so just grab what's left.
+				 */
+				if (hs + BLOCKSIZE > nr)
+					hs = he = nr;
+
+				/*
+				 * At this point, we have a partial ordering:
+				 *     nw <= hs <= he <= nr
+				 * If hs > nw, buf[nw..hs] contains non-zero data.
+				 * If he > hs, buf[hs..he] is all zeroes.
+				 */
+				if (hs > nw)
+					if (fwrite(buf + nw, hs - nw, 1, fp)
+					    != 1)
+					break;
+				if (he > hs)
+					if (fseeko(fp, he - hs, SEEK_CUR) == -1)
+						break;
 			}
 		}
 		if (nw != wl) {
@@ -478,17 +518,22 @@ closefd:
 static void
 usage(void)
 {
-	fprintf(stderr,
-	    "usage: savecore [-Cv|-cfkvz] [directory [device...]]\n");
+	fprintf(stderr, "%s\n%s\n%s\n",
+	    "usage: savecore -c",
+	    "       savecore -C [-v] [directory device]",
+	    "       savecore [-fkvz] [directory [device ...]]");
 	exit (1);
 }
 
 int
 main(int argc, char **argv)
 {
-	int i, ch, error;
-	struct fstab *fsp;
 	char *savedir;
+	struct fstab *fsp;
+	int i, ch, error;
+
+	checkfor = compress = clear = force = keep = verbose = 0;
+	nfound = nsaved = nerr = 0;
 
 	openlog("savecore", LOG_PERROR, LOG_DAEMON);
 
@@ -509,7 +554,7 @@ main(int argc, char **argv)
 			keep = 1;
 			break;
 		case 'v':
-			verbose = 1;
+			verbose++;
 			break;
 		case 'f':
 			force = 1;
