@@ -118,7 +118,7 @@ END(setjmp)
 LEAF(longjmp, 2)
 	LDGP(pv)
 	stq	a1, (( 0 + 4) * 8)(a0)		/* save return value */
-	PCALL(osigreturn)			/* use sigreturn to return */
+	PCALL(sigreturn)			/* use sigreturn to return */
 
 botch:
 	CALL(longjmperror)
