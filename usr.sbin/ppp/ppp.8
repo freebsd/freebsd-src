@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.161 1999/03/18 21:53:56 brian Exp $
+.\" $Id: ppp.8,v 1.162 1999/03/19 01:42:45 brian Exp $
 .Dd 20 September 1995
 .nr XX \w'\fC00'
 .Os FreeBSD
@@ -816,7 +816,7 @@ command in
 .Pq for example, Dq set server +3000 mypasswd
 and connecting to the diagnostic port as follows:
 .Bd -literal -offset indent
-.No # pppctl 3000	(assuming tun0)
+# pppctl 3000	(assuming tun0)
 Password:
 PPP ON awfulhak> show who
 tcp (127.0.0.1:1028) *
@@ -1146,11 +1146,10 @@ You must then configure the
 .Pa /etc/ppp/ppp.secret
 file.  This file contains one line per possible client, each line
 containing up to five fields:
-.Bd -literal -offset indent
-.Ar name Ar key Xo
-.Op Ar hisaddr Op Ar label Op Ar callback-number
-.Xc
-.Ed
+.Pp
+.Ar name Ar key Oo
+.Ar hisaddr Op Ar label Op Ar callback-number
+.Oc
 .Pp
 The
 .Ar name
