@@ -52,7 +52,6 @@ struct taskqueue {
 	const char		*tq_name;
 	taskqueue_enqueue_fn	tq_enqueue;
 	void			*tq_context;
-	int			tq_draining;
 	struct mtx		tq_mutex;
 };
 
@@ -82,7 +81,6 @@ taskqueue_create(const char *name, int mflags,
 	queue->tq_name = name;
 	queue->tq_enqueue = enqueue;
 	queue->tq_context = context;
-	queue->tq_draining = 0;
 	mtx_init(&queue->tq_mutex, "taskqueue", NULL, MTX_DEF);
 
 	mtx_lock(&taskqueue_queues_mutex);
@@ -96,17 +94,12 @@ void
 taskqueue_free(struct taskqueue *queue)
 {
 
-	mtx_lock(&queue->tq_mutex);
-	KASSERT(queue->tq_draining == 0, ("free'ing a draining taskqueue"));
-	queue->tq_draining = 1;
-	mtx_unlock(&queue->tq_mutex);
-
-	taskqueue_run(queue);
-
 	mtx_lock(&taskqueue_queues_mutex);
 	STAILQ_REMOVE(&taskqueue_queues, queue, taskqueue, tq_link);
 	mtx_unlock(&taskqueue_queues_mutex);
 
+	mtx_lock(&queue->tq_mutex);
+	taskqueue_run(queue);
 	mtx_destroy(&queue->tq_mutex);
 	free(queue, M_TASKQUEUE);
 }
@@ -121,12 +114,11 @@ taskqueue_find(const char *name)
 
 	mtx_lock(&taskqueue_queues_mutex);
 	STAILQ_FOREACH(queue, &taskqueue_queues, tq_link) {
-		mtx_lock(&queue->tq_mutex);
 		if (strcmp(queue->tq_name, name) == 0) {
+			mtx_lock(&queue->tq_mutex);
 			mtx_unlock(&taskqueue_queues_mutex);
 			return queue;
 		}
-		mtx_unlock(&queue->tq_mutex);
 	}
 	mtx_unlock(&taskqueue_queues_mutex);
 	return NULL;
@@ -139,14 +131,6 @@ taskqueue_enqueue(struct taskqueue *queue, struct task *task)
 	struct task *prev;
 
 	mtx_lock(&queue->tq_mutex);
-
-	/*
-	 * Don't allow new tasks on a queue which is being freed.
-	 */
-	if (queue->tq_draining) {
-		mtx_unlock(&queue->tq_mutex);
-		return EPIPE;
-	}
 
 	/*
 	 * Count multiple enqueues.
@@ -189,9 +173,11 @@ void
 taskqueue_run(struct taskqueue *queue)
 {
 	struct task *task;
-	int pending;
+	int owned, pending;
 
-	mtx_lock(&queue->tq_mutex);
+	owned = mtx_owned(&queue->tq_mutex);
+	if (!owned)
+		mtx_lock(&queue->tq_mutex);
 	while (STAILQ_FIRST(&queue->tq_queue)) {
 		/*
 		 * Carefully remove the first task from the queue and
@@ -207,7 +193,13 @@ taskqueue_run(struct taskqueue *queue)
 
 		mtx_lock(&queue->tq_mutex);
 	}
-	mtx_unlock(&queue->tq_mutex);
+
+	/*
+	 * For compatibility, unlock on return if the queue was not locked
+	 * on entry, although this opens a race window.
+	 */
+	if (!owned)
+		mtx_unlock(&queue->tq_mutex);
 }
 
 static void
@@ -235,21 +227,21 @@ taskqueue_swi_giant_run(void *dummy)
 }
 
 static void
-taskqueue_thread_loop(void *arg)
+taskqueue_thread_loop(void *dummy)
 {
+
+	mtx_lock(&taskqueue_thread->tq_mutex);
 	for (;;) {
-		mtx_lock(&taskqueue_thread->tq_mutex);
-		while (STAILQ_EMPTY(&taskqueue_thread->tq_queue))
-			msleep(taskqueue_thread, &taskqueue_thread->tq_mutex,
-			    PWAIT, "-", 0); 
-		mtx_unlock(&taskqueue_thread->tq_mutex);
 		taskqueue_run(taskqueue_thread);
+		msleep(taskqueue_thread, &taskqueue_thread->tq_mutex, PWAIT,
+		    "-", 0); 
 	}
 }
 
 static void
 taskqueue_thread_enqueue(void *context)
 {
+
 	mtx_assert(&taskqueue_thread->tq_mutex, MA_OWNED);
 	wakeup(taskqueue_thread);
 }
@@ -273,14 +265,6 @@ taskqueue_enqueue_fast(struct taskqueue *queue, struct task *task)
 	struct task *prev;
 
 	mtx_lock_spin(&queue->tq_mutex);
-
-	/*
-	 * Don't allow new tasks on a queue which is being freed.
-	 */
-	if (queue->tq_draining) {
-		mtx_unlock_spin(&queue->tq_mutex);
-		return EPIPE;
-	}
 
 	/*
 	 * Count multiple enqueues.
@@ -362,8 +346,9 @@ taskqueue_fast_run(void *dummy)
 static void
 taskqueue_define_fast(void *arg)
 {
-	taskqueue_fast = malloc(sizeof(struct taskqueue),
-		M_TASKQUEUE, M_NOWAIT | M_ZERO);
+
+	taskqueue_fast = malloc(sizeof(struct taskqueue), M_TASKQUEUE,
+	    M_NOWAIT | M_ZERO);
 	if (!taskqueue_fast) {
 		printf("%s: Unable to allocate fast task queue!\n", __func__);
 		return;
@@ -382,4 +367,4 @@ taskqueue_define_fast(void *arg)
 		NULL, SWI_TQ_FAST, 0, &taskqueue_fast_ih);
 }
 SYSINIT(taskqueue_fast, SI_SUB_CONFIGURE, SI_ORDER_SECOND,
-	taskqueue_define_fast, NULL);
+    taskqueue_define_fast, NULL);
