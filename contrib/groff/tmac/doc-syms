@@ -567,6 +567,8 @@
 .as doc-str-St--p1003.1g-2000  " (\*[Lq]\)\*[Px]\*[doc-str-St].1\*[Rq])
 .ds doc-str-St--p1003.1-2001   \*[doc-Tn-font-size]\%IEEE\*[doc-str-St] Std 1003.1-2001
 .as doc-str-St--p1003.1-2001   " (\*[Lq]\)\*[Px]\*[doc-str-St].1\*[Rq])
+.ds doc-str-St--p1003.1-2004   \*[doc-Tn-font-size]\%IEEE\*[doc-str-St] Std 1003.1-2004
+.as doc-str-St--p1003.1-2004   " (\*[Lq]\)\*[Px]\*[doc-str-St].1\*[Rq])
 .
 .\" POSIX Part 2: Shell and Utilities
 .ds doc-str-St--p1003.2        \*[doc-Tn-font-size]\%IEEE\*[doc-str-St] Std 1003.2
@@ -671,6 +673,7 @@
 .\" NS local variable:
 .\" NS   doc-reg-Lb
 .\" NS   doc-str-Lb
+.\" NS   doc-str-Lb1
 .\" NS   doc-str-Lb-XXX
 .\" NS
 .\" NS width register `Lb' defined in doc-common
@@ -697,10 +700,10 @@
 .ds doc-str-Lb-libpcap     Packet Capture Library (libpcap, \-lpcap)
 .ds doc-str-Lb-libpci      PCI Bus Access Library (libpci, \-lpci)
 .ds doc-str-Lb-libpmc      Performance Counters Library (libpmc, \-lpmc)
-.ds doc-str-Lb-libposix    \*[Px] Compatibility Library (libposix, \-lposix)
-.ds doc-str-Lb-libpthread  POSIX Threads Library (libpthread, \-lpthread)
+.ds doc-str-Lb-libposix    \*[Px] \*[doc-str-Lb]Compatibility Library (libposix, \-lposix)
+.ds doc-str-Lb-libpthread  \*[Px] \*[doc-str-Lb]Threads Library (libpthread, \-lpthread)
 .ds doc-str-Lb-libresolv   DNS Resolver Library (libresolv, \-lresolv)
-.ds doc-str-Lb-librt       POSIX Real-time Library (librt, \-lrt)
+.ds doc-str-Lb-librt       \*[Px] \*[doc-str-Lb]Real-time Library (librt, \-lrt)
 .ds doc-str-Lb-libtermcap  Termcap Access Library (libtermcap, \-ltermcap)
 .ds doc-str-Lb-libusbhid   USB Human Interface Devices Library (libusbhid, \-lusbhid)
 .ds doc-str-Lb-libutil     System Utilities Library (libutil, \-lutil)
@@ -722,16 +725,20 @@
 .
 .  nr doc-arg-ptr +1
 .  ie (\n[doc-arg-limit] >= \n[doc-arg-ptr]) \{\
+.    nr doc-curr-font \n[.f]
+.    nr doc-curr-size \n[.ps]
+.    ds doc-str-Lb \f[\n[doc-curr-font]]\s[\n[doc-curr-size]u]
+.
 .    ie d doc-str-Lb-\*[doc-arg\n[doc-arg-ptr]] \
-.      ds doc-str-Lb "\*[doc-str-Lb-\*[doc-arg\n[doc-arg-ptr]]]
+.      ds doc-str-Lb1 "\*[doc-str-Lb-\*[doc-arg\n[doc-arg-ptr]]]
 .    el \{\
 .      tmc "mdoc warning: .Lb: no description for library
 .      tm1 " `\*[doc-arg\n[doc-arg-ptr]]' available (#\n[.c])
-.      ds doc-str-Lb library \*[Lq]\*[doc-arg\n[doc-arg-ptr]]\*[Rq]
+.      ds doc-str-Lb1 library \*[Lq]\*[doc-arg\n[doc-arg-ptr]]\*[Rq]
 .    \}
 .
 .    \" replacing argument with result
-.    ds doc-arg\n[doc-arg-ptr] "\*[doc-str-Lb]
+.    ds doc-arg\n[doc-arg-ptr] "\*[doc-str-Lb1]
 .
 .    if \n[doc-in-library-section] \
 .      br

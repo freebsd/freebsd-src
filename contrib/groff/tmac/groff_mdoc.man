@@ -46,7 +46,7 @@
 .\" for an already extremely slow package.
 .\"
 .
-.Dd February 27, 2003
+.Dd July 8, 2004
 .Os
 .Dt GROFF_MDOC 7
 .
@@ -770,11 +770,13 @@ By default, the following architecture keywords are defined:
 .
 \# we use `No' to avoid hyphenation
 .Bd -ragged -offset indent
-.No alpha , amiga , arc , arm26 , arm32 , atari , bebox , cobalt , evbsh3 ,
-.No hp300 , hpcmips , i386 , luna68k , m68k , mac68k , macppc , mips ,
-.No mmeye , mvme68k , news68k , newsmips , next68k , ofppc , pc532 , pmax ,
-.No powerpc , prep , sgimips , sh3 , sparc , sparc64 , sun3 , tahoe , vax ,
-.No x68k
+.No alpha , acorn26 , acorn32 , algor , amd64 , amiga , arc , arm26 ,
+.No arm32 , atari , bebox , cats , cesfic , cobalt , dreamcast , evbarm ,
+.No evbmips , evbppc , evbsh3 , hp300 , hp700 , hpcmips , i386 , luna68k ,
+.No m68k , mac68k , macppc , mips , mmeye , mvme68k , mvmeppc , netwinder ,
+.No news68k , newsmips , next68k , ofppc , pc532 , pmax , pmppc , powerpc ,
+.No prep , sandpoint , sgimips , sh3 , shark , sparc , sparc64 , sun3 ,
+.No tahoe , vax , x68k , x86_64
 .Ed
 .Pp
 .
@@ -862,11 +864,13 @@ the release ID.
 3, 4, 4.1, 4.2, 4.3, 4.3t, 4.3T, 4.3r, 4.3R, 4.4
 .It NetBSD
 0.8, 0.8a, 0.9, 0.9a, 1.0, 1.0a, 1.1, 1.2, 1.2a, 1.2b, 1.2c, 1.2d, 1.2e,
-1.3, 1.3a, 1.4, 1.5, 1.6
+1.3, 1.3a, 1.4, 1.4.1, 1.4.2, 1.4.3, 1.5, 1.5.1, 1.5.2, 1.5.3, 1.6, 1.6.1,
+1.6.2, 2.0, 2.1
 .It FreeBSD
 1.0, 1.1, 1.1.5, 1.1.5.1, 2.0, 2.0.5, 2.1, 2.1.5, 2.1.6, 2.1.7, 2.2, 2.2.1,
 2.2.2, 2.2.5, 2.2.6, 2.2.7, 2.2.8, 3.0, 3.1, 3.2, 3.3, 3.4, 3.5, 4.0, 4.1,
-4.2, 4.3, 4.4, 4.5, 5.0
+4.1.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.6.2, 4.7, 4.8, 4.9, 4.10, 5.0, 5.1, 5.2,
+5.2.1, 5.3
 .El
 .Ed
 .Pp
@@ -1657,10 +1661,14 @@ and their results are:
 .
 .Pp
 .Bl -tag -width ".Li libossaudio" -compact -offset indent
+.It Li libarm
+.Lb libarm
 .It Li libarm32
 .Lb libarm32
 .It Li libc
 .Lb libc
+.It Li libcdk
+.Lb libcdk
 .It Li libcompat
 .Lb libcompat
 .It Li libcrypt
@@ -1669,26 +1677,52 @@ and their results are:
 .Lb libcurses
 .It Li libedit
 .Lb libedit
+.It Li libedit
+.Lb libedit
+.It Li libevent
+.Lb libevent
+.It Li libform
+.Lb libform
 .It Li libi386
 .Lb libi386
+.It Li libintl
+.Lb libintl
 .It Li libipsec
 .Lb libipsec
 .It Li libkvm
 .Lb libkvm
 .It Li libm
 .Lb libm
+.It Li libm68k
+.Lb libm68k
+.It Li libmagic
+.Lb libmagic
 .It Li libmenu
 .Lb libmenu
 .It Li libossaudio
 .Lb libossaudio
+.It Li libpcap
+.Lb libpcap
+.It Li libpci
+.Lb libpci
+.It Li libpmc
+.Lb libpmc
 .It Li libposix
 .Lb libposix
+.It Li libpthread
+.Lb libpthread
 .It Li libresolv
 .Lb libresolv
+.It Li librt
+.Lb librt
 .It Li libtermcap
 .Lb libtermcap
+.It Li libusbhid
+.Lb libusbhid
 .It Li libutil
 .Lb libutil
+.It Li libx86_64
+.Lb libx86_64
 .It Li libz
 .Lb libz
 .El
@@ -1897,6 +1931,8 @@ are:
 .St -ansiC-89
 .It Li -isoC
 .St -isoC
+.It Li -isoC-90
+.St -isoC-90
 .It Li -isoC-99
 .St -isoC-99
 .El
@@ -1926,6 +1962,10 @@ Part 1: System API
 .St -p1003.1g-2000
 .It Li -p1003.1i-95
 .St -p1003.1i-95
+.It Li -p1003.1-2001
+.St -p1003.1-2001
+.It Li -p1003.1-2004
+.St -p1003.1-2004
 .El
 .Pp
 .
