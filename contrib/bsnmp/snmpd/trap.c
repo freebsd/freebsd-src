@@ -30,7 +30,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Begemot: bsnmp/snmpd/trap.c,v 1.6 2003/12/03 10:08:47 hbb Exp $
+ * $Begemot: bsnmp/snmpd/trap.c,v 1.7 2004/04/13 14:58:46 novo Exp $
  *
  * TrapSinkTable
  */
@@ -202,21 +202,10 @@ trapsink_unmodify(struct trapsink *t, struct trapsink_dep *tdep)
 	return (SNMP_ERR_NOERROR);
 }
 
-static void
-trapsink_finish(struct snmp_context *ctx __unused, int fail, void *arg)
-{
-	struct trapsink *t = arg;
-
-	if (!fail)
-		trapsink_free(t);
-}
-
 static int
-trapsink_destroy(struct snmp_context *ctx, struct trapsink *t,
+trapsink_destroy(struct snmp_context *ctx __unused, struct trapsink *t,
     struct trapsink_dep *tdep)
 {
-	if (snmp_set_atfinish(ctx, trapsink_finish, t))
-		return (SNMP_ERR_RES_UNAVAIL);
 	t->status = TRAPSINK_DESTROY;
 	tdep->rb_status = t->status;
 	tdep->rb |= TDEP_DESTROY;
@@ -276,6 +265,12 @@ trapsink_dep(struct snmp_context *ctx, struct snmp_dependency *dep,
 			return (trapsink_unmodify(t, tdep));
 		if(tdep->rb & TDEP_DESTROY)
 			return (trapsink_undestroy(t, tdep));
+		return (SNMP_ERR_NOERROR);
+
+	  case SNMP_DEPOP_FINISH:
+		if ((tdep->rb & TDEP_DESTROY) && t != NULL &&
+		    ctx->code == SNMP_RET_OK)
+			trapsink_free(t);
 		return (SNMP_ERR_NOERROR);
 	}
 	abort();
