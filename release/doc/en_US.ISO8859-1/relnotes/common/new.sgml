@@ -366,7 +366,9 @@
     display information about locally-mounted filesystems.</para>
 
     <para>&man.whois.1; now directs queries for IP addresses to
-    ARIN.</para>
+    ARIN.  If a query to ARIN references APNIC or RIPE, the
+    appropriate server will also be queried, provided that the
+    <option>-Q</option> option is not specified.</para>
 
     <para>The <option>-T</option> to &man.dump.8; no longer swallows
     an extra argument.</para>
