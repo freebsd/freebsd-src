@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2002 Doug Rabson
  * Copyright (c) 1994-1995 Søren Schmidt
  * All rights reserved.
  *
@@ -918,50 +919,102 @@ linux_personality(struct thread *td, struct linux_personality_args *args)
 	return 0;
 }
 
-/*
- * Wrappers for get/setitimer for debugging..
- */
+struct l_itimerval {
+	l_timeval it_interval;
+	l_timeval it_value;
+};
+
 int
-linux_setitimer(struct thread *td, struct linux_setitimer_args *args)
+linux_setitimer(struct thread *td, struct linux_setitimer_args *uap)
 {
-	struct setitimer_args bsa;
-	struct itimerval foo;
 	int error;
+	caddr_t sg;
+	struct l_itimerval *lp, *lop, ls;
+	struct itimerval *p = NULL, *op = NULL, s;
 
 #ifdef DEBUG
 	if (ldebug(setitimer))
 		printf(ARGS(setitimer, "%p, %p"),
 		    (void *)args->itv, (void *)args->oitv);
 #endif
-	bsa.which = args->which;
-	bsa.itv = (struct itimerval *)args->itv;
-	bsa.oitv = (struct itimerval *)args->oitv;
-	if (args->itv) {
-	    if ((error = copyin(args->itv, &foo, sizeof(foo))))
-		return error;
+	lp = uap->itv;
+	if (lp != NULL) {
+		sg = stackgap_init();
+		p = stackgap_alloc(&sg, sizeof(struct itimerval));
+		uap->itv = (struct l_itimerval *)p;
+		error = copyin(lp, &ls, sizeof(ls));
+		if (error != 0)
+			return (error);
+		s.it_interval.tv_sec = ls.it_interval.tv_sec;
+		s.it_interval.tv_usec = ls.it_interval.tv_usec;
+		s.it_value.tv_sec = ls.it_value.tv_sec;
+		s.it_value.tv_usec = ls.it_value.tv_usec;
+		error = copyout(&s, p, sizeof(s));
+		if (error != 0)
+			return (error);
 #ifdef DEBUG
-	    if (ldebug(setitimer)) {
-		printf("setitimer: value: sec: %ld, usec: %ld\n",
-		    foo.it_value.tv_sec, foo.it_value.tv_usec);
-		printf("setitimer: interval: sec: %ld, usec: %ld\n",
-		    foo.it_interval.tv_sec, foo.it_interval.tv_usec);
-	    }
+		if (ldebug(setitimer)) {
+			printf("setitimer: value: sec: %ld, usec: %ld\n",
+			    s.it_value.tv_sec, s.it_value.tv_usec);
+			printf("setitimer: interval: sec: %ld, usec: %ld\n",
+			    s.it_interval.tv_sec, s.it_interval.tv_usec);
+		}
 #endif
 	}
-	return setitimer(td, &bsa);
+	lop = uap->oitv;
+	if (lop != NULL) {
+		sg = stackgap_init();
+		op = stackgap_alloc(&sg, sizeof(struct itimerval));
+		uap->oitv = (struct l_itimerval *)op;
+	}
+	error = setitimer(td, (struct setitimer_args *) uap);
+	if (error != 0)
+		return (error);
+	if (lop != NULL) {
+		error = copyin(op, &s, sizeof(s));
+		if (error != 0)
+			return (error);
+		ls.it_interval.tv_sec = s.it_interval.tv_sec;
+		ls.it_interval.tv_usec = s.it_interval.tv_usec;
+		ls.it_value.tv_sec = s.it_value.tv_sec;
+		ls.it_value.tv_usec = s.it_value.tv_usec;
+		error = copyout(&ls, lop, sizeof(ls));
+	}
+	return (error);
 }
 
 int
-linux_getitimer(struct thread *td, struct linux_getitimer_args *args)
+linux_getitimer(struct thread *td, struct linux_getitimer_args *uap)
 {
-	struct getitimer_args bsa;
+	int error;
+	caddr_t sg;
+	struct l_itimerval *lp, ls;
+	struct itimerval *p = NULL, s;
+
 #ifdef DEBUG
 	if (ldebug(getitimer))
 		printf(ARGS(getitimer, "%p"), (void *)args->itv);
 #endif
-	bsa.which = args->which;
-	bsa.itv = (struct itimerval *)args->itv;
-	return getitimer(td, &bsa);
+	lp = uap->itv;
+	if (lp != NULL) {
+		sg = stackgap_init();
+		p = stackgap_alloc(&sg, sizeof(struct itimerval));
+		uap->itv = (struct l_itimerval *)p;
+	}
+	error = getitimer(td, (struct getitimer_args *) uap);
+	if (error != 0)
+		return (error);
+	if (lp != NULL) {
+		error = copyin(p, &s, sizeof(s));
+		if (error != 0)
+			return (error);
+		ls.it_interval.tv_sec = s.it_interval.tv_sec;
+		ls.it_interval.tv_usec = s.it_interval.tv_usec;
+		ls.it_value.tv_sec = s.it_value.tv_sec;
+		ls.it_value.tv_usec = s.it_value.tv_usec;
+		error = copyout(&ls, lp, sizeof(ls));
+	}
+	return (error);
 }
 
 #ifndef __alpha__
