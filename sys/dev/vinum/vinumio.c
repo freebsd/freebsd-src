@@ -559,10 +559,9 @@ format_config(char *config, int len)
 		drivename = "*invalid*";
 	    snprintf(s,
 		configend - s,
-		"sd name %s drive %s plex %s len %llus driveoffset %llus state %s",
+		"sd name %s drive %s len %llus driveoffset %llus state %s",
 		sd->name,
 		drivename,
-		vinum_conf.plex[sd->plexno].name,
 		(unsigned long long) sd->sectors,
 		(unsigned long long) sd->driveoffset,
 		sd_state(sd->state));
@@ -571,7 +570,8 @@ format_config(char *config, int len)
 	    if (sd->plexno >= 0)
 		snprintf(s,
 		    configend - s,
-		    " plexoffset %llds",
+		    " plex %s plexoffset %llds",
+		    vinum_conf.plex[sd->plexno].name,
 		    (long long) sd->plexoffset);
 	    else
 		snprintf(s, configend - s, " detached");
