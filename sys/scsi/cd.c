@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: cd.c,v 1.72 1996/07/23 21:52:18 phk Exp $
+ *      $Id: cd.c,v 1.73 1996/09/06 23:09:06 phk Exp $
  */
 
 #include "opt_bounce.h"
@@ -200,7 +200,7 @@ cdattach(struct scsi_link *sc_link)
 	if (sc_link->quirks & CD_Q_NO_TOUCH) {
 		dp->disksize = 0;
 	} else {
-		cd_get_parms(unit, SCSI_NOSLEEP | SCSI_NOMASK);
+		cd_get_parms(unit, SCSI_NOSLEEP | SCSI_NOMASK | SCSI_SILENT);
 	}
 	if (dp->disksize) {
 		printf("cd present [%ld x %ld byte records]",
