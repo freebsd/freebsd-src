@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: camcontrol.c,v 1.2 1998/10/02 21:00:38 ken Exp $
+ *	$Id: camcontrol.c,v 1.3 1998/10/03 19:15:53 ken Exp $
  */
 
 #include <sys/ioctl.h>
@@ -447,11 +447,6 @@ scsistart(struct cam_device *device, int startstop, int loadeject,
 {
 	union ccb *ccb;
 	int error = 0;
-
-	if ((startstop < 0) || (startstop > 1)) {
-		warnx("SCSI start/stop argument must be 0 or 1");
-		return(1);
-	}
 
 	ccb = cam_getccb(device);
 
