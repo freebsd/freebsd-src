@@ -360,6 +360,7 @@ union mcluster {
 #define	MCLFREE1(p) do {						\
 	union mcluster *_mp = (union mcluster *)(p);			\
 									\
+	KASSERT(mclrefcnt[mtocl(_mp)] > 0, ("freeing free cluster"));	\
 	if (--mclrefcnt[mtocl(_mp)] == 0) {				\
 		_mp->mcl_next = mclfree;				\
 		mclfree = _mp;						\
@@ -394,6 +395,7 @@ union mcluster {
 #define	MFREE(m, n) MBUFLOCK(						\
 	struct mbuf *_mm = (m);						\
 									\
+	KASSERT(_mm->m_type != MT_FREE, ("freeing free mbuf"));		\
 	mbstat.m_mtypes[_mm->m_type]--;					\
 	if (_mm->m_flags & M_EXT)					\
 		MEXTFREE1(m);						\
@@ -465,11 +467,6 @@ union mcluster {
 	int _mplen = (plen);						\
 	int __mhow = (how);						\
 									\
-	if (_mm == NULL) {						\
-		MGET(_mm, __mhow, MT_DATA);				\
-		if (_mm == NULL)					\
-			break;						\
-	}								\
 	if (M_LEADINGSPACE(_mm) >= _mplen) {				\
 		_mm->m_data -= _mplen;					\
 		_mm->m_len += _mplen;					\
