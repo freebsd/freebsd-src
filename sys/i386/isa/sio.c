@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.150 1996/11/30 14:51:04 bde Exp $
+ *	$Id: sio.c,v 1.151 1996/11/30 15:03:05 bde Exp $
  */
 
 #include "opt_comconsole.h"
@@ -285,6 +285,7 @@ static	int	espattach	__P((struct isa_device *isdp, struct com_s *com,
 				     Port_t esp_port));
 #endif
 static	int	sioattach	__P((struct isa_device *dev));
+static	timeout_t siobusycheck;
 static	timeout_t siodtrwakeup;
 static	void	comhardclose	__P((struct com_s *com));
 static	void	siointr1	__P((struct com_s *com));
@@ -1274,6 +1275,35 @@ siowrite(dev, uio, flag)
 }
 
 static void
+siobusycheck(chan)
+	void	*chan;
+{
+	struct com_s	*com;
+	int		s;
+
+	com = (struct com_s *)chan;
+
+	/*
+	 * Clear TS_BUSY if low-level output is complete.
+	 * spl locking is sufficient because siointr1() does not set CS_BUSY.
+	 * If siointr() clears CS_BUSY after we look at it, then we'll get
+	 * called again.  Reading the line status port outside of siointr1()
+	 * is safe because CS_BUSY is clear so there are no output interrupts
+	 * to lose.
+	 */
+	s = spltty();
+	if (com->state & CS_BUSY)
+		;		/* False alarm. */
+	else if ((inb(com->line_status_port) & (LSR_TSRE | LSR_TXRDY))
+	    == (LSR_TSRE | LSR_TXRDY)) {
+		com->tp->t_state &= ~TS_BUSY;
+		ttwwakeup(com->tp);
+	} else
+		timeout(siobusycheck, com, hz / 100);
+	splx(s);
+}
+
+static void
 siodtrwakeup(chan)
 	void	*chan;
 {
@@ -1753,9 +1783,9 @@ repeat:
 			disable_intr();
 			com_events -= LOTS_OF_EVENTS;
 			com->state &= ~CS_ODONE;
-			if (!(com->state & CS_BUSY))
-				com->tp->t_state &= ~TS_BUSY;
 			enable_intr();
+			if (!(com->state & CS_BUSY))
+				timeout(siobusycheck, com, hz / 100);
 			(*linesw[tp->t_line].l_start)(tp);
 		}
 		if (incc <= 0 || !(tp->t_state & TS_ISOPEN) ||
