@@ -115,6 +115,7 @@ link_aout_init(void* arg)
 	linker_kernel_file->address = (caddr_t) 0xf0100000;
 	linker_kernel_file->size = -0xf0100000;
 	linker_current_file = linker_kernel_file;
+	linker_kernel_file->flags |= LINKER_FILE_LINKED;
     }
 #endif
 }
@@ -171,6 +172,7 @@ link_aout_load_module(const char* filename, linker_file_t* result)
 	linker_file_unload(lf);
 	return(error);
     }
+    lf->flags |= LINKER_FILE_LINKED;
     *result = lf;
     return(0);
 }
@@ -253,6 +255,7 @@ link_aout_load_file(const char* filename, linker_file_t* result)
 	goto out;
     }
 
+    lf->flags |= LINKER_FILE_LINKED;
     *result = lf;
 
 out:
