@@ -78,6 +78,8 @@ static struct cdevsw apm_cdevsw = {
 	.d_maj =	CDEV_MAJOR,
 };
 
+static int intr_model = ACPI_INTR_PIC;
+
 static int
 acpi_capm_convert_battstate(struct  acpi_battinfo *battp)
 {
@@ -314,8 +316,14 @@ acpi_machdep_init(device_t dev)
 
 	acpi_install_wakeup_handler(sc);
 
-#ifdef SMP
-	acpi_SetIntrModel(ACPI_INTR_APIC);
-#endif
+	if (intr_model != ACPI_INTR_PIC)
+		acpi_SetIntrModel(intr_model);
 	return (0);
+}
+
+void
+acpi_SetDefaultIntrModel(int model)
+{
+
+	intr_model = model;
 }
