@@ -249,11 +249,11 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 	/* we could set PIO mode timings, but we assume the BIOS did that */
 	break;
 
-    case 0x05711106:	/* VIA Apollo 82c571 / 82c586 / 82c686 */
+    case 0x05711106:	/* VIA Apollo 82C571 / 82C586 / 82C686 */
 	devno = (scp->unit << 1) + ((device == ATA_MASTER) ? 0 : 1);
 
-	/* UDMA4 mode only on rev 6 (VT82C686) hardware */
-	if (udmamode >= 4 && pci_read_config(scp->dev, 0x08, 1) == 0x06) {
+	/* UDMA4 mode only on VT82C686 hardware */
+	if (udmamode >= 4 && ata_find_dev(scp->dev, 0x06861106)) {
 	    int8_t byte = pci_read_config(scp->dev, 0x53 - devno, 1);
 
 	    /* enable UDMA transfer modes setting by SETFEATURES cmd */
@@ -271,8 +271,10 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 	    pci_write_config(scp->dev, 0x53 - devno, byte, 1);
 	}
 
-	/* UDMA2 mode only on rev 1 and up (VT82C586, VT82C686) hardware */
-	if (udmamode >= 2 && pci_read_config(scp->dev, 0x08, 1) >= 0x01) {
+	/* UDMA2 mode only on rev 1 and better 82C586 & 82C586 chips */
+	if (udmamode >= 2 && pci_read_config(scp->dev, 0x08, 1) >= 0x01 &&
+	    (ata_find_dev(scp->dev, 0x05861106) || 
+	     ata_find_dev(scp->dev, 0x06861106))) {
 	    int8_t byte = pci_read_config(scp->dev, 0x53 - devno, 1);
 
 	    /* enable UDMA transfer modes setting by SETFEATURES cmd */
@@ -289,7 +291,7 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 	    	    struct ata_params *ap = ((struct ad_softc *)
 		      	(scp->dev_softc[(device==ATA_MASTER)?0:1]))->ata_parm;
 
-		    if ((pci_read_config(scp->dev, 0x08, 1) == 0x06) &&
+		    if (ata_find_dev(scp->dev, 0x06861106) &&
 			(ap->udmamodes & 0x10) && !ap->cblid) {
 			pci_write_config(scp->dev, 0x53 - devno, 
 				     	 (byte & 0x1c) | 0x42, 1);
@@ -476,10 +478,12 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 	    break;
 
 	/* well, we have no support for this, but try anyways */
-	if (((wdmamode >= 2 && apiomode >= 4) || udmamode >= 2) &&
-	    (inb(scp->bmaddr + ATA_BMSTAT_PORT) & 
+	if ((wdmamode >= 2 && apiomode >= 4) && scp->bmaddr) {
+#if MAYBE_NOT
+	&& (inb(scp->bmaddr + ATA_BMSTAT_PORT) & 
 		((device == ATA_MASTER) ? 
 		 ATA_BMSTAT_DMA_MASTER : ATA_BMSTAT_DMA_SLAVE))) {
+#endif
 	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
 				ATA_WDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
 	    if (bootverbose)

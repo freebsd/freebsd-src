@@ -196,3 +196,4 @@ int8_t *ata_mode2str(int32_t);
 void bswap(int8_t *, int32_t);
 void btrim(int8_t *, int32_t);
 void bpack(int8_t *, int8_t *, int32_t);
+int32_t ata_find_dev(device_t, int32_t);
