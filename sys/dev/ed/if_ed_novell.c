@@ -64,13 +64,13 @@ static int ed_probe_gwether(device_t);
 /*
  * Probe and vendor-specific initialization routine for NE1000/2000 boards
  */
-int
+static int
 ed_probe_Novell_generic(device_t dev, int flags)
 {
 	struct ed_softc *sc = device_get_softc(dev);
-	u_int   memsize, n;
+	u_int   memsize;
 	int	error;
-	u_char  romdata[16], tmp;
+	u_char  tmp;
 	static char test_pattern[32] = "THIS is A memory TEST pattern";
 	char    test_buffer[32];
 
@@ -192,16 +192,6 @@ ed_probe_Novell_generic(device_t dev, int flags)
 	sc->rec_page_stop = sc->tx_page_start + memsize / ED_PAGE_SIZE;
 
 	sc->mem_ring = sc->mem_start + sc->txb_cnt * ED_PAGE_SIZE * ED_TXBUF_SIZE;
-
-	ed_pio_readmem(sc, 0, romdata, 16);
-	for (n = 0; n < ETHER_ADDR_LEN; n++)
-		sc->arpcom.ac_enaddr[n] = romdata[n * (sc->isa16bit + 1)];
-
-	if ((ED_FLAGS_GETTYPE(flags) == ED_FLAGS_GWETHER) &&
-	    (sc->arpcom.ac_enaddr[2] == 0x86)) {
-		sc->type_str = "Gateway AT";
-	}
-
 	/* clear any pending interrupts that might have occurred above */
 	ed_nic_outb(sc, ED_P0_ISR, 0xff);
 
@@ -289,4 +279,19 @@ ed_probe_gwether(device_t dev)
 	sc->mem_end = (caddr_t)(uintptr_t) (msize + mstart);
 	sc->tx_page_start = mstart / ED_PAGE_SIZE;
 	return 0;
+}
+
+void
+ed_Novell_read_mac(struct ed_softc *sc)
+{
+	int n;
+	uint8_t romdata[16];
+
+	/*
+	 * Pull the MAC address out of the roms that are on the isa
+	 * version of these cards.
+	 */
+	ed_pio_readmem(sc, 0, romdata, 16);
+	for (n = 0; n < ETHER_ADDR_LEN; n++)
+		sc->arpcom.ac_enaddr[n] = romdata[n * (sc->isa16bit + 1)];
 }
