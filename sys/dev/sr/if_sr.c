@@ -223,8 +223,6 @@ int	etc0vals[] = {
 devclass_t sr_devclass;
 #ifndef NETGRAPH
 MODULE_DEPEND(if_sr, sppp, 1, 1, 1);
-#else
-MODULE_DEPEND(ng_sync_sr, netgraph, 1, 1, 1);
 #endif
 
 static void	srintr(void *arg);
@@ -262,7 +260,6 @@ static void	sr_modemck(struct sr_softc *x);
 
 #ifdef NETGRAPH
 static	void	ngsr_watchdog_frame(void * arg);
-static	void	ngsr_init(void* ignored);
 
 static ng_constructor_t	ngsr_constructor;
 static ng_rcvmsg_t	ngsr_rcvmsg;
@@ -284,8 +281,7 @@ static struct ng_type typestruct = {
 	.rcvdata =	ngsr_rcvdata,
 	.disconnect =	ngsr_disconnect,
 };
-
-static int	ngsr_done_init = 0;
+NETGRAPH_INIT(sync_sr, &typestruct);
 #endif /* NETGRAPH */
 
 /*
@@ -432,10 +428,6 @@ sr_attach(device_t device)
 
 		bpfattach(ifp, DLT_PPP, PPP_HEADER_LEN);
 #else	/* NETGRAPH */
-		/*
-		 * we have found a node, make sure our 'type' is availabe.
-		 */
-		if (ngsr_done_init == 0) ngsr_init(NULL);
 		if (ng_make_node_common(&typestruct, &sc->node) != 0)
 			goto errexit;
 		sprintf(sc->nodename, "%s%d", NG_SR_NODE_TYPE, sc->unit);
@@ -2943,18 +2935,6 @@ ngsr_disconnect(hook_p hook)
 		sc->debug_hook = NULL;
 	}
 	return (0);
-}
-
-/*
- * called during bootup
- * or LKM loading to put this type into the list of known modules
- */
-static void
-ngsr_init(void *ignored)
-{
-	if (ng_newtype(&typestruct))
-		printf("ngsr install failed\n");
-	ngsr_done_init = 1;
 }
 #endif /* NETGRAPH */
 
