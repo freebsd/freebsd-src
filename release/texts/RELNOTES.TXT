@@ -72,7 +72,7 @@ WaveLAN/IEEE 802.11 and the Cabletron RoamAbout.  Both 2Mbps and
 Driver support has been added for PCI fast ethernet cards based
 on the ADMtek Inc. AL981 Comet chipset. [MERGED]
 
-Support has been added for the Rise MP6 processor. [MERGED]
+Support has been added for the Rise mP6 processor. [MERGED]
 
 1.2. SECURITY FIXES
 -------------------
