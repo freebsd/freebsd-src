@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.56 1996/03/23 00:25:54 jkh Exp $ -->
+<!-- $Id: contrib.sgml,v 1.57 1996/03/25 04:34:20 asami Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>FreeBSD contributor list<label id="contrib"></heading>
@@ -213,6 +213,7 @@
 	  <item>Matt Thomas &lt;thomas@lkg.dec.com&gt;
 	  <item>Michael Elbel &lt;me@freebsd.org&gt;
 	  <item>Michael Smith &lt;msmith@atrad.adelaide.edu.au&gt;
+	  <item>Mike Peck &lt;mike@binghamton.edu&gt;
 	  <item>MITA Yoshio &lt;mita@iis.u-tokyo.ac.jp&gt;
 	  <item>NIIMI Satoshi &lt;sa2c@and.or.jp&gt;
 	  <item>Nobuhiro Yasutomi &lt;nobu@psrc.isac.co.jp&gt;
