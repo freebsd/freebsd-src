@@ -325,7 +325,7 @@ ds_initcd(void *devinfo)
 		DELAY(500000);
 	}
 
-	return ds_cdbusy(sc, 0);
+	return ds_cdbusy(sc, 0)? 0 : 1;
 }
 
 static u_int32_t

@@ -255,7 +255,7 @@ nm_initcd(void *devinfo)
 	nm_wr(sc, 0x6cc, 0x87, 1);
 	nm_wr(sc, 0x6cc, 0x80, 1);
 	nm_wr(sc, 0x6cc, 0x00, 1);
-	return 0;
+	return 1;
 }
 
 static u_int32_t
