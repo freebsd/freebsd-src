@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.4 1997/10/02 17:10:56 markm Exp $
+#	$Id: Makefile,v 1.5 1997/10/02 22:59:48 jkh Exp $
 
 SUBDIR=	include lib libexec usr.bin usr.sbin
 
@@ -8,9 +8,9 @@ CODAI=	${MAKE} ${MFLAGS} cleandir; \
 	${MAKE} ${MFLAGS} obj; \
 	${MAKE} ${MFLAGS} depend all install
 
-CODAD=	${MAKE} ${MFLAGS} MAKE_EBONES=yes cleandir; \
-	${MAKE} ${MFLAGS} MAKE_EBONES=yes obj; \
-	${MAKE} ${MFLAGS} MAKE_EBONES=yes depend all distribute
+CODAD=	${MAKE} ${MFLAGS} MAKE_KERBEROS4=yes cleandir; \
+	${MAKE} ${MFLAGS} MAKE_KERBEROS4=yes obj; \
+	${MAKE} ${MFLAGS} MAKE_KERBEROS4=yes depend all distribute
 
 # These are the programs which depend on kerberos
 kprog:
