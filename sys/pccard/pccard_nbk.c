@@ -59,13 +59,10 @@
 
 #include <sys/bus.h>
 #include <machine/bus.h>
-#include <sys/rman.h>
 #include <machine/resource.h>
 
-#include <i386/isa/isa_device.h>
 #include <pccard/cardinfo.h>
 #include <pccard/slot.h>
-#include <pccard/pccard_nbk.h>
 
 #include <dev/pccard/pccardvar.h>
 #include <net/ethernet.h>

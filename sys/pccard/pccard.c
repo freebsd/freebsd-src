@@ -41,15 +41,10 @@
 #include <sys/select.h>
 #include <sys/sysctl.h>
 #include <sys/conf.h>
-#include <sys/module.h>
 #include <sys/uio.h>
 #include <sys/poll.h>
 #include <sys/bus.h>
 #include <machine/bus.h>
-
-#include <i386/isa/isa_device.h>
-#include <i386/isa/icu.h>
-#include <i386/isa/intr_machdep.h>
 
 #include <pccard/cardinfo.h>
 #include <pccard/driver.h>
@@ -282,7 +277,7 @@ inserted(void *arg)
 	 *	Enable 5V to the card so that the CIS can be read.
 	 */
 	slt->pwr.vcc = 50;
-	slt->pwr.vpp = 0;
+	slt->pwr.vpp = 50;
 
 	/*
 	 * Disable any pending timeouts for this slot, and explicitly
