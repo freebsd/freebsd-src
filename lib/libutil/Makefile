@@ -26,7 +26,8 @@ MLINKS+=login_times.3 parse_lt.3 login_times.3 in_ltm.3 \
 	login_times.3 in_lts.3
 MLINKS+=login_ok.3 auth_ttyok.3 login_ok.3 auth_hostok.3 \
 	login_ok.3 auth_timeok.3
-MLINKS+=uucplock.3 uu_lock.3 uucplock.3 uu_unlock.3 uucplock.3 uu_lockerr.3
+MLINKS+=uucplock.3 uu_lock.3 uucplock.3 uu_lock_txfr.3 \
+	uucplock.3 uu_unlock.3 uucplock.3 uu_lockerr.3
 
 beforeinstall:
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/libutil.h \
