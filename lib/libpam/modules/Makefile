@@ -25,9 +25,11 @@
 #	$FreeBSD$
 
 SUBDIR+=	pam_cleartext_pass_ok
+SUBDIR+=	pam_deny
 .if defined(MAKE_KERBEROS4)
 SUBDIR+=	pam_kerberosIV
 .endif
+SUBDIR+=	pam_permit
 SUBDIR+=	pam_radius
 SUBDIR+=	pam_skey
 SUBDIR+=	pam_tacplus
