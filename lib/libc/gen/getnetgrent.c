@@ -82,6 +82,13 @@ static char sccsid[] = "@(#)getnetgrent.c	8.2 (Berkeley) 4/27/95";
  *   netgroup entries, we use just those local entries and ignore
  *   NIS (this is the original, pre-NIS behavior).
  */
+/*
+ * NIS+ servers in YP emulation mode suport only the netgroup map
+ * (they have no netgroup.byhost and netgroup.byuser 'reverse' maps)
+ * so we need this for compatibility.
+ */
+#define CHARITABLE
+
 #include <rpc/rpc.h>
 #include <rpcsvc/yp_prot.h>
 #include <rpcsvc/ypclnt.h>
