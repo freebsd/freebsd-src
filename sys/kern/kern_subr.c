@@ -104,12 +104,11 @@ vm_pgmoveco(mapa, srcobj,  kaddr, uaddr)
 		return(EFAULT);
 	}
 	if ((user_pg = vm_page_lookup(uobject, upindex)) != NULL) {
-		vm_page_lock_queues();
-		if (!vm_page_sleep_if_busy(user_pg, 1, "vm_pgmoveco"))
-			vm_page_unlock_queues();
-		pmap_remove(map->pmap, uaddr, uaddr+PAGE_SIZE);
-		vm_page_lock_queues();
+		do
+			vm_page_lock_queues();
+		while (vm_page_sleep_if_busy(user_pg, 1, "vm_pgmoveco"));
 		vm_page_busy(user_pg);
+		pmap_remove_all(user_pg);
 		vm_page_free(user_pg);
 		vm_page_unlock_queues();
 	}
