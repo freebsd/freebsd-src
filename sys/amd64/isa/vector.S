@@ -1,6 +1,6 @@
 /*
  *	from: vector.s, 386BSD 0.1 unknown origin
- *	$Id: vector.s,v 1.18 1996/03/31 03:31:29 bde Exp $
+ *	$Id: vector.s,v 1.19 1996/04/11 21:18:47 bde Exp $
  */
 
 #include "opt_auto_eoi.h"
@@ -98,10 +98,10 @@
  * loading segregs.
  */
 
-#define	FAST_INTR(irq_num, enable_icus) \
+#define	FAST_INTR(irq_num, vec_name, enable_icus) \
 	.text ; \
 	SUPERALIGN_TEXT ; \
-IDTVEC(fastintr/**/irq_num) ; \
+IDTVEC(vec_name) ; \
 	pushl	%eax ;		/* save only call-used registers */ \
 	pushl	%ecx ; \
 	pushl	%edx ; \
@@ -153,12 +153,12 @@ IDTVEC(fastintr/**/irq_num) ; \
 	MEXITCOUNT ; \
 	jmp	_doreti
 
-#define	INTR(irq_num, icu, enable_icus, reg) \
+#define	INTR(irq_num, vec_name, icu, enable_icus, reg) \
 	.text ; \
 	SUPERALIGN_TEXT ; \
-IDTVEC(intr/**/irq_num) ; \
-	pushl	$0 ;		/* dumby error code */ \
-	pushl	$0 ;		/* dumby trap type */ \
+IDTVEC(vec_name) ; \
+	pushl	$0 ;		/* dummy error code */ \
+	pushl	$0 ;		/* dummy trap type */ \
 	pushal ; \
 	pushl	%ds ;		/* save our data and extra segments ... */ \
 	pushl	%es ; \
@@ -175,7 +175,7 @@ IDTVEC(intr/**/irq_num) ; \
 	testb	$IRQ_BIT(irq_num),%reg ; \
 	jne	2f ; \
 	incb	_intr_nesting_level ; \
-Xresume/**/irq_num: ; \
+__CONCAT(Xresume,irq_num): ; \
 	FAKE_MCOUNT(12*4(%esp)) ;	/* XXX late to avoid double count */ \
 	movl	_intr_countp + (irq_num) * 4,%eax ; \
 	incl	(%eax) ; \
@@ -208,38 +208,38 @@ Xresume/**/irq_num: ; \
 	iret
 
 MCOUNT_LABEL(bintr)
-	FAST_INTR(0, ENABLE_ICU1)
-	FAST_INTR(1, ENABLE_ICU1)
-	FAST_INTR(2, ENABLE_ICU1)
-	FAST_INTR(3, ENABLE_ICU1)
-	FAST_INTR(4, ENABLE_ICU1)
-	FAST_INTR(5, ENABLE_ICU1)
-	FAST_INTR(6, ENABLE_ICU1)
-	FAST_INTR(7, ENABLE_ICU1)
-	FAST_INTR(8, ENABLE_ICU1_AND_2)
-	FAST_INTR(9, ENABLE_ICU1_AND_2)
-	FAST_INTR(10, ENABLE_ICU1_AND_2)
-	FAST_INTR(11, ENABLE_ICU1_AND_2)
-	FAST_INTR(12, ENABLE_ICU1_AND_2)
-	FAST_INTR(13, ENABLE_ICU1_AND_2)
-	FAST_INTR(14, ENABLE_ICU1_AND_2)
-	FAST_INTR(15, ENABLE_ICU1_AND_2)
-	INTR(0, IO_ICU1, ENABLE_ICU1, al)
-	INTR(1, IO_ICU1, ENABLE_ICU1, al)
-	INTR(2, IO_ICU1, ENABLE_ICU1, al)
-	INTR(3, IO_ICU1, ENABLE_ICU1, al)
-	INTR(4, IO_ICU1, ENABLE_ICU1, al)
-	INTR(5, IO_ICU1, ENABLE_ICU1, al)
-	INTR(6, IO_ICU1, ENABLE_ICU1, al)
-	INTR(7, IO_ICU1, ENABLE_ICU1, al)
-	INTR(8, IO_ICU2, ENABLE_ICU1_AND_2, ah)
-	INTR(9, IO_ICU2, ENABLE_ICU1_AND_2, ah)
-	INTR(10, IO_ICU2, ENABLE_ICU1_AND_2, ah)
-	INTR(11, IO_ICU2, ENABLE_ICU1_AND_2, ah)
-	INTR(12, IO_ICU2, ENABLE_ICU1_AND_2, ah)
-	INTR(13, IO_ICU2, ENABLE_ICU1_AND_2, ah)
-	INTR(14, IO_ICU2, ENABLE_ICU1_AND_2, ah)
-	INTR(15, IO_ICU2, ENABLE_ICU1_AND_2, ah)
+	FAST_INTR(0,fastintr0, ENABLE_ICU1)
+	FAST_INTR(1,fastintr1, ENABLE_ICU1)
+	FAST_INTR(2,fastintr2, ENABLE_ICU1)
+	FAST_INTR(3,fastintr3, ENABLE_ICU1)
+	FAST_INTR(4,fastintr4, ENABLE_ICU1)
+	FAST_INTR(5,fastintr5, ENABLE_ICU1)
+	FAST_INTR(6,fastintr6, ENABLE_ICU1)
+	FAST_INTR(7,fastintr7, ENABLE_ICU1)
+	FAST_INTR(8,fastintr8, ENABLE_ICU1_AND_2)
+	FAST_INTR(9,fastintr9, ENABLE_ICU1_AND_2)
+	FAST_INTR(10,fastintr10, ENABLE_ICU1_AND_2)
+	FAST_INTR(11,fastintr11, ENABLE_ICU1_AND_2)
+	FAST_INTR(12,fastintr12, ENABLE_ICU1_AND_2)
+	FAST_INTR(13,fastintr13, ENABLE_ICU1_AND_2)
+	FAST_INTR(14,fastintr14, ENABLE_ICU1_AND_2)
+	FAST_INTR(15,fastintr15, ENABLE_ICU1_AND_2)
+	INTR(0,intr0, IO_ICU1, ENABLE_ICU1, al)
+	INTR(1,intr1, IO_ICU1, ENABLE_ICU1, al)
+	INTR(2,intr2, IO_ICU1, ENABLE_ICU1, al)
+	INTR(3,intr3, IO_ICU1, ENABLE_ICU1, al)
+	INTR(4,intr4, IO_ICU1, ENABLE_ICU1, al)
+	INTR(5,intr5, IO_ICU1, ENABLE_ICU1, al)
+	INTR(6,intr6, IO_ICU1, ENABLE_ICU1, al)
+	INTR(7,intr7, IO_ICU1, ENABLE_ICU1, al)
+	INTR(8,intr8, IO_ICU2, ENABLE_ICU1_AND_2, ah)
+	INTR(9,intr9, IO_ICU2, ENABLE_ICU1_AND_2, ah)
+	INTR(10,intr10, IO_ICU2, ENABLE_ICU1_AND_2, ah)
+	INTR(11,intr11, IO_ICU2, ENABLE_ICU1_AND_2, ah)
+	INTR(12,intr12, IO_ICU2, ENABLE_ICU1_AND_2, ah)
+	INTR(13,intr13, IO_ICU2, ENABLE_ICU1_AND_2, ah)
+	INTR(14,intr14, IO_ICU2, ENABLE_ICU1_AND_2, ah)
+	INTR(15,intr15, IO_ICU2, ENABLE_ICU1_AND_2, ah)
 MCOUNT_LABEL(eintr)
 
 	.data
