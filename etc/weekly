@@ -80,4 +80,4 @@ makewhatis "${MANPATH}"
 
 #echo ""
 #echo "Reformatting manual pages:"
-#catman  "${MANPATH}"
+#echo catman  "${MANPATH}" | su man
