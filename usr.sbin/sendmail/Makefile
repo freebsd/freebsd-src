@@ -1,55 +1,49 @@
-#       @(#)Makefile	8.15 (Berkeley) 9/21/96
+#	@(#)Makefile	8.8 (Berkeley) 3/28/97
 
-VER=	XX
-SUBDIR= src mailstats makemap praliases smrsh cf/cf
-FTPDIR=	mastodon:/disks/barad-dur/ftp/sendmail/.
-DISTFILES=sendmail.${VER}.tar.Z sendmail.${VER}.tar.gz \
-	RELEASE_NOTES FAQ KNOWNBUGS
-FILES=	Files.base Files.cf Files.misc Files.xdoc
+SMDIR=	${.CURDIR}/../../contrib/sendmail/src
+.PATH:	${SMDIR}
 
-tar: sccs-check compile-world run-pax
+PROG=	sendmail
 
-sccs-check:
-	sccs check
-	(cd src; sccs check)
-	(cd mail.local; sccs check)
-	(cd mailstats; sccs check)
-	(cd makemap; sccs check)
-	(cd praliases; sccs check)
-	(cd smrsh; sccs check)
-	(cd doc/op; sccs check)
-	(cd doc/intro; sccs check)
-	(cd doc/usenix; sccs check)
-	(cd cf; sccs check)
-	(cd cf/m4; sccs check)
-	(cd cf/mailer; sccs check)
-	(cd cf/feature; sccs check)
-	(cd cf/cf; sccs check)
-	(cd cf/ostype; sccs check)
-	(cd cf/domain; sccs check)
+# Define the database format to use for aliases et al.
+DBMDEF=	-DNEWDB
 
-compile-world:
-	(cd src; sh makesendmail)
-	(cd mail.local; ${MAKE})
-	(cd mailstats; ${MAKE})
-	(cd makemap; ${MAKE})
-	(cd praliases; ${MAKE})
-	(cd smrsh; ${MAKE})
-	(cd doc; PRINTER=ps ${MAKE})
-	(cd doc; chmod 444 op/op.ps intro/intro.ps usenix/usenix.ps)
-	(cd cf/cf; ${MAKE})
+# If you don't want NIS alias/map support, comment out this line
+NIS=	-DNIS
 
-run-pax: Files.base Files.cf Files.misc Files.xdoc
-	chmod +x src/makesendmail
-	pax -w -x tar -L \
-		-s ",cf/domain/unspecified-domain,sendmail-${VER}/cf/domain/berkeley-only,p" \
-		-s ",^,sendmail-${VER}/," \
-		-f sendmail.${VER}.tar \
-		`cat ${FILES} | grep -v ^#`
-	gzip -c sendmail.${VER}.tar > sendmail.${VER}.tar.gz
-	compress sendmail.${VER}.tar
+# Map extensions
+MAPS=	-DMAP_REGEX
 
-ftp: sendmail.${VER}.tar.Z
-	rcp ${DISTFILES} ${FTPDIR}
+# If you want tcp wrapper support, uncomment the following two lines
+#TCPWRAPPERSBASEDIR=	/usr/local
+#TCPWRAPPERS=		-DTCPWRAPPERS -I${TCPWRAPPERSBASEDIR}/include
 
-.include <bsd.subdir.mk>
+CFLAGS+=-I${SMDIR} ${DBMDEF} ${NIS} ${TCPWRAPPERS} ${MAPS}
+
+SRCS=	alias.c arpadate.c clock.c collect.c conf.c convtime.c daemon.c \
+	deliver.c domain.c envelope.c err.c headers.c macro.c main.c \
+	map.c mci.c mime.c parseaddr.c queue.c readcf.c recipient.c \
+	safefile.c savemail.c snprintf.c srvrsmtp.c stab.c stats.c \
+	sysexits.c trace.c udb.c usersmtp.c util.c version.c
+DPADD=	${LIBUTIL}
+LDADD=	-lutil
+.if defined(TCPWRAPPERS)
+LDADD+=	-L${TCPWRAPPERSBASEDIR}/lib -lwrap
+.endif
+MAN1=	mailq.1 newaliases.1
+MAN5=	aliases.5
+MAN8=	sendmail.8 
+LINKS=	${BINDIR}/sendmail /usr/bin/newaliases \
+	${BINDIR}/sendmail /usr/bin/mailq \
+	${BINDIR}/sendmail /usr/bin/hoststat \
+	${BINDIR}/sendmail ${BINDIR}/purgestat
+BINOWN=	root
+BINMODE=4555
+
+beforeinstall:
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 /dev/null \
+	    ${DESTDIR}/var/log/sendmail.st
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${SMDIR}/sendmail.hf \
+	    ${DESTDIR}/usr/share/misc
+
+.include <bsd.prog.mk>
