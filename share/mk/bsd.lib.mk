@@ -70,7 +70,7 @@ STRIP?=	-s
 	@${LD} -O ${.TARGET} -x -r ${.TARGET}
 
 .s.o:
-	${CC} -x asssembler-with-cpp ${CFLAGS:M-[ID]*} ${AINC} -c \
+	${CC} -x assembler-with-cpp ${CFLAGS:M-[ID]*} ${AINC} -c \
 	    ${.IMPSRC} -o ${.TARGET}
 	@${LD} -O ${.TARGET} -x -r ${.TARGET}
 
