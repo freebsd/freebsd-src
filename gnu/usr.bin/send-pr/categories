@@ -1,6 +1,7 @@
-docs
-kern
 bin
-i386
 conf
+docs
 gnu
+i386
+kern
+misc
