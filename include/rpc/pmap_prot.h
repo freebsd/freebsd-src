@@ -28,7 +28,7 @@
  *
  *	from: @(#)pmap_prot.h 1.14 88/02/08 SMI
  *	from: @(#)pmap_prot.h	2.1 88/07/29 4.0 RPCSRC
- *	$Id$
+ *	$Id: pmap_prot.h,v 1.6 1997/02/23 09:17:23 peter Exp $
  */
 
 /*
@@ -71,6 +71,8 @@
 #ifndef _RPC_PMAPPROT_H
 #define _RPC_PMAPPROT_H
 #include <sys/cdefs.h>
+#include <rpc/types.h>
+#include <rpc/xdr.h>
 
 #define PMAPPORT		((u_short)111)
 #define PMAPPROG		((u_long)100000)

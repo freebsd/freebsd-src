@@ -50,7 +50,7 @@
  *
  *	@(#)inet.h	8.1 (Berkeley) 6/2/93
  *	From: inet.h,v 8.6 1996/08/08 06:54:29 vixie Exp
- *	$Id$
+ *	$Id: inet.h,v 1.7 1997/02/23 09:17:19 peter Exp $
  */
 
 #ifndef _ARPA_INET_H_
@@ -61,7 +61,7 @@
 #include <sys/types.h>
 #include <sys/cdefs.h>
 
-struct in_addr;
+#include <netinet/in.h>
 
 __BEGIN_DECLS
 int		 ascii2addr __P((int, const char *, void *));
