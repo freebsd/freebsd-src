@@ -532,6 +532,8 @@ WRITE(ap)
 			bp->b_flags |= B_DIRECT;
 		if (ioflag & IO_NOWDRAIN)
 			bp->b_flags |= B_NOWDRAIN;
+		if ((ioflag & (IO_SYNC|IO_INVAL)) == (IO_SYNC|IO_INVAL))
+			bp->b_flags |= B_NOCACHE;
 
 		if (uio->uio_offset + xfersize > ip->i_size) {
 			ip->i_size = uio->uio_offset + xfersize;
