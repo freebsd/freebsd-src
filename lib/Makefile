@@ -42,14 +42,6 @@ _csu=csu/${MACHINE_ARCH}
 _csu=csu
 .endif
 
-# libc_r is obsolete on ia64.
-.if ${MACHINE_ARCH} != "ia64" && ${MACHINE_ARCH} != "powerpc" && \
-	${MACHINE_ARCH} != "arm"
-.if !defined(NOLIBC_R)
-_libc_r=	libc_r
-.endif
-.endif
-
 .if !defined(NOATM)
 _libatm=	libatm
 _libngatm=	libngatm
@@ -57,17 +49,6 @@ _libngatm=	libngatm
 
 .if !defined(NO_BIND)
 _libbind=	libbind
-.endif
-
-.if !defined(NO_SENDMAIL)
-_libmilter=	libmilter
-_libsm=		libsm
-_libsmdb=	libsmdb
-_libsmutil=	libsmutil
-.endif
-
-.if !defined(NO_USB)
-_libusbhid=	libusbhid
 .endif
 
 .if ${MACHINE_ARCH} == "i386"
@@ -81,9 +62,32 @@ _libsmb=	libsmb
 _libvgl=	libvgl
 .endif
 
+# libc_r is obsolete on ia64.
+.if ${MACHINE_ARCH} != "ia64" && ${MACHINE_ARCH} != "powerpc" && \
+	${MACHINE_ARCH} != "arm"
+.if !defined(NOLIBC_R)
+_libc_r=	libc_r
+.endif
+.endif
+
+.if ${MACHINE_ARCH} != "arm"
+_libdisk=	libdisk
+.endif
+
 .if ${MACHINE_ARCH} == "alpha"
 _libio=		libio
 _compat=	compat
+.endif
+
+.if !defined(NO_SENDMAIL)
+_libmilter=	libmilter
+_libsm=		libsm
+_libsmdb=	libsmdb
+_libsmutil=	libsmutil
+.endif
+
+.if !defined(NOCRYPT) && !defined(NO_OPENSSL)
+_libmp=		libmp
 .endif
 
 .if ${MACHINE_ARCH} == "amd64"
@@ -103,12 +107,8 @@ _libthr=	libthr
 .endif
 .endif
 
-.if ${MACHINE_ARCH} != "arm"
-_libdisk=	libdisk
-.endif
-
-.if !defined(NOCRYPT) && !defined(NO_OPENSSL)
-_libmp=		libmp
+.if !defined(NO_USB)
+_libusbhid=	libusbhid
 .endif
 
 .if !defined(NO_YP_LIBC)
