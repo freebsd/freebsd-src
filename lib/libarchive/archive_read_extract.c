@@ -827,14 +827,28 @@ set_perm(struct archive *a, struct archive_entry *entry, int mode, int flags)
 			mode &= ~ S_ISGID;
 	}
 
+	/*
+	 * Ensure we change permissions on the object we extracted,
+	 * and not any incidental symlink that might have gotten in
+	 * the way.
+	 */
+	if (!S_ISLNK(archive_entry_mode(entry))) {
+		if (chmod(name, mode) != 0) {
+			archive_set_error(a, errno, "Can't set permissions");
+			return (ARCHIVE_WARN);
+		}
+	} else {
 #ifdef HAVE_LCHMOD
-	if (lchmod(name, mode) != 0) {
-#else
-	if ((archive_entry_mode(entry) & S_IFMT) != S_IFLNK &&
-	    chmod(name, mode) != 0) {
+		/*
+		 * If lchmod() isn't supported, it's no big deal.
+		 * Permissions on symlinks are actually ignored on
+		 * most platforms.
+		 */
+		if (lchmod(name, mode) != 0) {
+			archive_set_error(a, errno, "Can't set permissions");
+			return (ARCHIVE_WARN);
+		}
 #endif
-		archive_set_error(a, errno, "Can't set permissions");
-		return (ARCHIVE_WARN);
 	}
 
 	if (flags & ARCHIVE_EXTRACT_ACL) {
