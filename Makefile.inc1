@@ -343,6 +343,8 @@ WMAKE_TGTS+=	_includes _libraries _depend everything
 buildworld: ${WMAKE_TGTS}
 .ORDER: ${WMAKE_TGTS}
 
+toolchain: ${WMAKE_TGTS:N_depend:Neverything}
+
 #
 # Use this to add checks to installworld/installkernel targets.
 #
