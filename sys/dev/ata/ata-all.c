@@ -483,8 +483,10 @@ ata_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag, struct threa
 	break;
 
     case ATAREINIT:
-	if (!device || !(ch = device_get_softc(device)))
-	    return ENXIO;
+	if (!device || !(ch = device_get_softc(device))) {
+	    error = ENXIO;
+	    break;
+	}
 	error = ata_reinit(ch);
 	ata_start(ch);
 	break;
