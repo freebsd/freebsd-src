@@ -39,24 +39,15 @@
  *	@(#)ffs_extern.h	8.3 (Berkeley) 4/16/94
  */
 
-struct buf;
-struct fid;
-struct fs;
+#ifndef _SYS_GNU_EXT2FS_EXT2_EXTERN_H_
+#define	_SYS_GNU_EXT2FS_EXT2_EXTERN_H_
+
+struct dinode;
+struct ext2_inode;
 struct inode;
 struct mount;
-struct nameidata;
-struct proc;
-struct statfs;
-struct timeval;
-struct ucred;
-struct uio;
 struct vnode;
-struct mbuf;
-struct dinode;
-struct ext2_group_desc;
-struct ext2_inode;
 
-__BEGIN_DECLS
 int	ext2_alloc __P((struct inode *,
 	    daddr_t, daddr_t, int, struct ucred *, daddr_t *));
 int	ext2_balloc __P((struct inode *,
@@ -105,16 +96,18 @@ void	mark_buffer_dirty __P((struct buf *bh));
 int	bwrite();		/* FFS needs a bwrite routine.  XXX */
 #endif
 
-/* this macros allows some of the ufs code to distinguish between
- * an EXT2 and a non-ext2(FFS/LFS) vnode.
+/*
+ * This macro allows the ufs code to distinguish between an EXT2 and a
+ * non-ext2(FFS/LFS) vnode.
  */
 #define  IS_EXT2_VNODE(vp) (vp->v_mount->mnt_stat.f_type == MOUNT_EXT2FS)
 
 #ifdef DIAGNOSTIC
 void	ext2_checkoverlap __P((struct buf *, struct inode *));
 #endif
-__END_DECLS
 
 extern vop_t **ext2_vnodeop_p;
 extern vop_t **ext2_specop_p;
 extern vop_t **ext2_fifoop_p;
+
+#endif /* !_SYS_GNU_EXT2FS_EXT2_EXTERN_H_ */
