@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.i386,v 1.63 1994/11/18 09:08:01 gibbs Exp $
+#	$Id: files.i386,v 1.64 1994/12/03 00:17:55 wollman Exp $
 #
 i386/apm/apm.c			optional	apm	device-driver
 i386/apm/apm_setup.s		optional	apm
@@ -51,11 +51,15 @@ i386/isa/aic6360.c              optional        aic     device-driver
 i386/isa/b004.c			optional	bqu	device-driver
 i386/isa/bt742a.c		optional	bt	device-driver
 i386/isa/clock.c		standard
+i386/isa/cronyx.c		optional	cx	device-driver
 i386/isa/ctx.c			optional	ctx	device-driver
+i386/isa/cx.c			optional	cx	device-driver
+i386/isa/diskslice_machdep.c	optional	diskslice
 i386/isa/fd.c			optional	fd	device-driver
 i386/isa/ft.c			optional	ft	device-driver
 i386/isa/elink.c		optional	ie	device-driver
 i386/isa/elink.c		optional	ep	device-driver
+i386/isa/if_cx.c		optional	cx	device-driver
 i386/isa/if_ed.c		optional	ed	device-driver
 i386/isa/if_el.c		optional	el	device-driver
 i386/isa/if_ep.c		optional	ep	device-driver
@@ -71,6 +75,7 @@ i386/isa/mcd.c			optional	mcd	device-driver
 i386/isa/mse.c			optional	mse	device-driver
 i386/isa/npx.c			optional	npx	device-driver
 i386/isa/pas.c			optional	pas	device-driver
+i386/isa/readMBR.c		standard	
 i386/isa/syscons.c		optional	sc	device-driver
 i386/isa/pcaudio.c		optional	pca	device-driver
 i386/isa/psm.c			optional	psm	device-driver
@@ -114,7 +119,6 @@ i386/isa/sound/vat_audio.c	optional	vat_audio
 i386/isa/spkr.c			optional	speaker
 i386/isa/tw.c			optional	tw	device-driver
 i386/isa/ultra14f.c		optional	uha	device-driver
-i386/isa/readMBR.c		standard	
 i386/isa/wd.c			optional	wd	device-driver
 i386/isa/wt.c			optional	wt	device-driver
 i386/isa/pcvt/pcvt_drv.c	optional	vt	device-driver
@@ -123,9 +127,6 @@ i386/isa/pcvt/pcvt_out.c	optional	vt	device-driver
 i386/isa/pcvt/pcvt_kbd.c	optional	vt	device-driver
 i386/isa/pcvt/pcvt_vtf.c	optional	vt	device-driver
 i386/isa/pcvt/pcvt_ext.c	optional	vt	device-driver
-i386/isa/cronyx.c		optional	cx	device-driver
-i386/isa/cx.c			optional	cx	device-driver
-i386/isa/if_cx.c		optional	cx	device-driver
 i386/pci/if_de.c		optional	de	device-driver
 i386/pci/ncr.c			optional	ncr	device-driver
 i386/pci/pci.c			optional	pci	device-driver
