@@ -130,7 +130,7 @@ ieee80211_mgmt_output(struct ifnet *ifp, struct ieee80211_node *ni,
 
 	IF_ENQUEUE(&ic->ic_mgtq, m);
 	ifp->if_timer = 1;
-	(*ifp->if_start)(ifp);
+	if_start(ifp);
 	return 0;
 }
 
