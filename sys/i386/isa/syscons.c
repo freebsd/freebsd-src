@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.232 1997/09/14 03:19:27 peter Exp $
+ *  $Id: syscons.c,v 1.233 1997/09/26 15:27:55 itojun Exp $
  */
 
 #include "sc.h"
@@ -1408,13 +1408,19 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
     case KDSKBMODE:     	/* set keyboard mode */
 	switch (*data) {
 	case K_RAW: 		/* switch to RAW scancode mode */
+	    scp->status &= ~KBD_CODE_MODE;
 	    scp->status |= KBD_RAW_MODE;
+	    return 0;
+
+	case K_CODE: 		/* switch to CODE mode */
+	    scp->status &= ~KBD_RAW_MODE;
+	    scp->status |= KBD_CODE_MODE;
 	    return 0;
 
 	case K_XLATE:   	/* switch to XLT ascii mode */
 	    if (scp == cur_console && scp->status & KBD_RAW_MODE)
 		shfts = ctls = alts = agrs = metas = 0;
-	    scp->status &= ~KBD_RAW_MODE;
+	    scp->status &= ~(KBD_RAW_MODE | KBD_CODE_MODE);
 	    return 0;
 	default:
 	    return EINVAL;
@@ -1422,7 +1428,8 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	/* NOT REACHED */
 
     case KDGKBMODE:     	/* get keyboard mode */
-	*data = (scp->status & KBD_RAW_MODE) ? K_RAW : K_XLATE;
+	*data = (scp->status & KBD_RAW_MODE) ? K_RAW : 
+		((scp->status & KBD_CODE_MODE) ? K_CODE : K_XLATE);
 	return 0;
 
     case KDMKTONE:      	/* sound the bell */
@@ -1992,7 +1999,8 @@ exchange_scr(void)
 	set_destructive_cursor(new_scp);
     if ((old_scp->status & UNKNOWN_MODE) && crtc_vga)
 	load_palette(palette);
-    if (old_scp->status & KBD_RAW_MODE || new_scp->status & KBD_RAW_MODE)
+    if (old_scp->status & KBD_RAW_MODE || new_scp->status & KBD_RAW_MODE ||
+        old_scp->status & KBD_CODE_MODE || new_scp->status & KBD_CODE_MODE)
 	shfts = ctls = alts = agrs = metas = 0;
     update_leds(new_scp->status);
     delayed_next_scr = FALSE;
@@ -3025,6 +3033,9 @@ next_code:
 	keycode = 0x68;
 	break;
     }
+
+    if (cur_console->status & KBD_CODE_MODE)
+	return (keycode | (scancode & 0x80));
 
     /* if scroll-lock pressed allow history browsing */
     if (cur_console->history && cur_console->status & SLKED) {
