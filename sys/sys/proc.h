@@ -640,7 +640,7 @@ struct proc {
 #define	P_EXEC		0x04000	/* Process called exec. */
 #define	P_THREADED	0x08000	/* Process is using threads. */
 #define	P_CONTINUED	0x10000	/* Proc has continued from a stopped state. */
-#define	P_PROTECTED	0x20000	/* Do not kill on memory overcommit. */
+#define	P_PROTECTED	0x100000 /* Do not kill on memory overcommit. */
 
 /* flags that control how threads may be suspended for some reason */
 #define	P_STOPPED_SIG		0x20000	/* Stopped due to SIGSTOP/SIGTSTP */
@@ -654,7 +654,6 @@ struct proc {
 #define	P_SHOULDSTOP(p)		((p)->p_flag & P_STOPPED)
 
 /* Should be moved to machine-dependent areas. */
-#define	P_UNUSED100000	0x100000
 #define	P_COWINPROGRESS	0x400000 /* Snapshot copy-on-write in progress. */
 
 #define	P_JAILED	0x1000000 /* Process is in jail. */
