@@ -99,9 +99,11 @@ If not empty, password is encoded with
 Perhaps you're missing what
 .Em can
 be done with this scheme that falls apart
-with most other schemes.  With each user in his/her own group the user can
-safely run with a umask of 002 and have files created in their home directory
-and not worry about others being able to read them.
+with most other schemes.
+With each user in his/her own group the user can
+safely run with a umask of 002 instead of the usual 022
+and create files in their home directory
+without worrying about others being able to change them.
 .Pp
 For a shared area you create a separate uid/gid (like cvs or ncvs on freefall),
 you place each person that should be able to access this area into that new
