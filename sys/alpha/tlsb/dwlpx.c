@@ -63,7 +63,9 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/bus.h>
 #include <machine/bus.h>
 #include <machine/md_var.h>
@@ -344,7 +346,7 @@ dwlpx_enadis_intr(int vector, int intpin, int onoff)
 {
 	unsigned long paddr;
 	u_int32_t val;
-	int device, ionode, hose, hpc, s;
+	int device, ionode, hose, hpc;
 
 	ionode = DWLPX_MVEC_IONODE(vector);
 	hose = DWLPX_MVEC_HOSE(vector);
@@ -363,16 +365,15 @@ dwlpx_enadis_intr(int vector, int intpin, int onoff)
 		device -= 8;
 	}
 	intpin <<= (device << 2);
+	mtx_lock_spin(&icu_lock);
 	val = imaskcache[ionode][hose][hpc];
 	if (onoff)
 		val |= intpin;
 	else
 		val &= ~intpin;
 	imaskcache[ionode][hose][hpc] = val;
-	s = splhigh();
 	REGVAL(PCIA_IMASK(hpc) + paddr) = val;
-	alpha_mb();
-	splx(s);
+	mtx_unlock_spin(&icu_lock);
 }
 
 static int

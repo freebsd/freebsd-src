@@ -7,8 +7,6 @@
 #include <machine/apic.h>
 #include <machine/smp.h>
 
-#include "i386/isa/intr_machdep.h"
-
 /* convert an absolute IRQ# into a bitmask */
 #define IRQ_BIT(irq_num)	(1 << (irq_num))
 
@@ -67,7 +65,7 @@ IDTVEC(vec_name) ;							\
 #define REDIRIDX(irq_num) CNAME(int_to_apicintpin) + 16 * (irq_num) + 12
 	
 #define MASK_IRQ(irq_num)						\
-	IMASK_LOCK ;				/* into critical reg */	\
+	ICU_LOCK ;				/* into critical reg */	\
 	testl	$IRQ_BIT(irq_num), apic_imen ;				\
 	jne	7f ;			/* masked, don't mask */	\
 	orl	$IRQ_BIT(irq_num), apic_imen ;	/* set the mask bit */	\
@@ -78,7 +76,7 @@ IDTVEC(vec_name) ;							\
 	orl	$IOART_INTMASK, %eax ;		/* set the mask */	\
 	movl	%eax, IOAPIC_WINDOW(%ecx) ;	/* new value */		\
 7: ;						/* already masked */	\
-	IMASK_UNLOCK
+	ICU_UNLOCK
 /*
  * Test to see whether we are handling an edge or level triggered INT.
  *  Level-triggered INTs must still be masked as we don't clear the source,
@@ -113,7 +111,7 @@ IDTVEC(vec_name) ;							\
  * Test to see if the source is currently masked, clear if so.
  */
 #define UNMASK_IRQ(irq_num)					\
-	IMASK_LOCK ;				/* into critical reg */	\
+	ICU_LOCK ;				/* into critical reg */	\
 	testl	$IRQ_BIT(irq_num), _apic_imen ;				\
 	je	7f ;			/* bit clear, not masked */	\
 	andl	$~IRQ_BIT(irq_num), _apic_imen ;/* clear mask bit */	\
@@ -124,7 +122,7 @@ IDTVEC(vec_name) ;							\
 	andl	$~IOART_INTMASK, %eax ;		/* clear the mask */	\
 	movl	%eax, IOAPIC_WINDOW(%ecx) ;	/* new value */		\
 7: ;						/* already unmasked */	\
-	IMASK_UNLOCK
+	ICU_UNLOCK
 
 /* 
  * Slow, threaded interrupts.
