@@ -148,30 +148,20 @@ main(int argc, char **argv)
 	Flags = SHOW_COMMENT | SHOW_DESC | SHOW_REQBY;
 
     /* Get all the remaining package names, if any */
-    while (*argv)
-    {
-        if( (pkgs_split = rindex(*argv, (int) '/')) != NULL )
-        {
-            while( !isalpha(*(pkgs_split+1)) )
-            {
-                *pkgs_split = '\0';
-                if ( (pkgs_split = rindex(*argv, (int) '/')) == NULL)
-                    pkgs_split = *argv;
-            }
-            if(pkgs_split != NULL)
-            {
-                if (*pkgs_split == '/')
-                    pkgs_split++;
-                *pkgs = pkgs_split;
-                pkgs++;
-            }
-        }
-        else
-        {
-            *pkgs = *argv;
-            pkgs++;
-        }
-        argv++;
+    while (*argv) {
+	while ((pkgs_split = rindex(*argv, (int)'/')) != NULL) {
+	    *pkgs_split++ = '\0';
+	    /*
+	     * If character after the '/' is alphanumeric, then we've found the
+	     * package name.  Otherwise we've come across a trailing '/' and
+	     * need to continue our quest.
+	     */
+	    if (isalpha(*pkgs_split)) {
+		*argv = pkgs_split;
+		break;
+	    }
+	}
+	*pkgs++ = *argv++;
     }
 
     /* If no packages, yelp */
