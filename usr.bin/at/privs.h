@@ -21,6 +21,8 @@
  * THEORY OF LIABILITY, WETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #ifndef _PRIVS_H
@@ -37,7 +39,7 @@
 /* Relinquish privileges temporarily for a setuid or setgid program
  * with the option of getting them back later.  This is done by swapping
  * the real and effective userid BSD style.  Call RELINQUISH_PRIVS once
- * at the beginning of the main program.  This will cause all operatons
+ * at the beginning of the main program.  This will cause all operations
  * to be executed with the real userid.  When you need the privileges
  * of the setuid/setgid invocation, call PRIV_START; when you no longer
  * need it, call PRIV_END.  Note that it is an error to call PRIV_START
@@ -59,7 +61,7 @@
  * It is NOT safe to call exec(), system() or popen() with a user-
  * supplied program (i.e. without carefully checking PATH and any
  * library load paths) with relinquished privileges; the called program
- * can aquire them just as easily.  Set both effective and real userid
+ * can acquire them just as easily.  Set both effective and real userid
  * to the real userid before calling any of them.
  */
 

@@ -23,8 +23,14 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef lint
+static const char rcsid[] =
+  "$FreeBSD$";
+#endif /* not lint */
+
 /* System Headers */
 
+#include <err.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -35,11 +41,6 @@
 #include "panic.h"
 #include "at.h"
 
-/* File scope variables */
-
-static const char rcsid[] =
-  "$FreeBSD$";
-
 /* External variables */
 
 /* Global functions */
@@ -49,11 +50,10 @@ panic(char *a)
 {
 /* Something fatal has happened, print error message and exit.
  */
-	fprintf(stderr,"%s: %s\n",namep,a);
 	if (fcreated)
 		unlink(atfile);
 
-	exit (EXIT_FAILURE);
+	errx(EXIT_FAILURE, "%s", a);
 }
 
 void
@@ -61,11 +61,13 @@ perr(char *a)
 {
 /* Some operating system error; print error message and exit.
  */
-	perror(a);
+	int serrno = errno;
+
 	if (fcreated)
 		unlink(atfile);
 
-	exit(EXIT_FAILURE);
+	errno = serrno;
+	err(EXIT_FAILURE, "%s", a);
 }
 
 void

@@ -2,7 +2,7 @@
  *  parsetime.c - parse time for at(1)
  *  Copyright (C) 1993, 1994  Thomas Koenig
  *
- *  modifications for english-language times
+ *  modifications for English-language times
  *  Copyright (C) 1993  David Parsons
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,10 +33,15 @@
  *                                   \PLUS NUMBER MINUTES|HOURS|DAYS|WEEKS/
  */
 
+#ifndef lint
+static const char rcsid[] =
+  "$FreeBSD$";
+#endif /* not lint */
+
 /* System Headers */
 
-
 #include <sys/types.h>
+#include <ctype.h>
 #include <err.h>
 #include <errno.h>
 #include <stdio.h>
@@ -44,7 +49,6 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
-#include <ctype.h>
 #ifndef __FreeBSD__
 #include <getopt.h>
 #endif
@@ -143,12 +147,9 @@ static char *sct;	/* scanner - next char pointer in current argument */
 static int need;	/* scanner - need to advance to next argument */
 
 static char *sc_token;	/* scanner - token buffer */
-static size_t sc_len;   /* scanner - lenght of token buffer */
+static size_t sc_len;   /* scanner - length of token buffer */
 static int sc_tokid;	/* scanner - token id */
 static int sc_tokplur;	/* scanner - is token plural? */
-
-static const char rcsid[] =
-  "$FreeBSD$";
 
 /* Local functions */
 
@@ -516,7 +517,7 @@ month(struct tm *tm)
 		    token();
 		}
 
-		/* flip months and days for european timing
+		/* flip months and days for European timing
 		 */
 		if (sep == DOT) {
 		    int x = mday;
@@ -605,7 +606,7 @@ parsetime(int argc, char **argv)
 	    runtime.tm_hour = hr;
 	    runtime.tm_min = 0;
 	    token();
-	    /* fall through to month setting */
+	    /* FALLTHROUGH to month setting */
     default:
 	    month(&runtime);
 	    break;
@@ -625,7 +626,7 @@ parsetime(int argc, char **argv)
 	panic("garbled time");
 
     if (nowtimer > runtimer)
-	panic("Trying to travel back in time");
+	panic("trying to travel back in time");
 
     return runtimer;
 } /* parsetime */
