@@ -4705,7 +4705,7 @@ softdep_update_inodeblock(ip, bp, waitfor)
 	ibp = inodedep->id_buf;
 	ibp = getdirtybuf(&ibp, NULL, MNT_WAIT);
 	FREE_LOCK(&lk);
-	if (ibp && (error = BUF_WRITE(ibp)) != 0)
+	if (ibp && (error = bwrite(ibp)) != 0)
 		softdep_error("softdep_update_inodeblock: bwrite", error);
 	if ((inodedep->id_state & DEPCOMPLETE) == 0)
 		panic("softdep_update_inodeblock: update failed");
@@ -4862,7 +4862,7 @@ softdep_fsync(vp)
 		error = bread(pvp, lbn, blksize(fs, VTOI(pvp), lbn), td->td_ucred,
 		    &bp);
 		if (error == 0)
-			error = BUF_WRITE(bp);
+			error = bwrite(bp);
 		else
 			brelse(bp);
 		vput(pvp);
@@ -5026,7 +5026,7 @@ loop:
 			FREE_LOCK(&lk);
 			if (waitfor == MNT_NOWAIT) {
 				bawrite(nbp);
-			} else if ((error = BUF_WRITE(nbp)) != 0) {
+			} else if ((error = bwrite(nbp)) != 0) {
 				break;
 			}
 			ACQUIRE_LOCK(&lk);
@@ -5043,7 +5043,7 @@ loop:
 			FREE_LOCK(&lk);
 			if (waitfor == MNT_NOWAIT) {
 				bawrite(nbp);
-			} else if ((error = BUF_WRITE(nbp)) != 0) {
+			} else if ((error = bwrite(nbp)) != 0) {
 				break;
 			}
 			ACQUIRE_LOCK(&lk);
@@ -5060,7 +5060,7 @@ loop:
 				if (nbp == NULL)
 					goto restart;
 				FREE_LOCK(&lk);
-				if ((error = BUF_WRITE(nbp)) != 0) {
+				if ((error = bwrite(nbp)) != 0) {
 					break;
 				}
 				ACQUIRE_LOCK(&lk);
@@ -5112,7 +5112,7 @@ loop:
 			FREE_LOCK(&lk);
 			if (waitfor == MNT_NOWAIT) {
 				bawrite(nbp);
-			} else if ((error = BUF_WRITE(nbp)) != 0) {
+			} else if ((error = bwrite(nbp)) != 0) {
 				break;
 			}
 			ACQUIRE_LOCK(&lk);
@@ -5133,7 +5133,7 @@ loop:
 			FREE_LOCK(&lk);
 			if (waitfor == MNT_NOWAIT) {
 				bawrite(nbp);
-			} else if ((error = BUF_WRITE(nbp)) != 0) {
+			} else if ((error = bwrite(nbp)) != 0) {
 				break;
 			}
 			ACQUIRE_LOCK(&lk);
@@ -5286,7 +5286,7 @@ flush_deplist(listhead, waitfor, errorp)
 		FREE_LOCK(&lk);
 		if (waitfor == MNT_NOWAIT) {
 			bawrite(bp);
-		} else if ((*errorp = BUF_WRITE(bp)) != 0) {
+		} else if ((*errorp = bwrite(bp)) != 0) {
 			ACQUIRE_LOCK(&lk);
 			return (1);
 		}
@@ -5395,7 +5395,7 @@ flush_pagedep_deps(pvp, mp, diraddhdp)
 			bp = inodedep->id_buf;
 			bp = getdirtybuf(&bp, NULL, MNT_WAIT);
 			FREE_LOCK(&lk);
-			if (bp && (error = BUF_WRITE(bp)) != 0)
+			if (bp && (error = bwrite(bp)) != 0)
 				break;
 			ACQUIRE_LOCK(&lk);
 			if (dap != LIST_FIRST(diraddhdp))
@@ -5412,7 +5412,7 @@ flush_pagedep_deps(pvp, mp, diraddhdp)
 			brelse(bp);
 			break;
 		}
-		if ((error = BUF_WRITE(bp)) != 0)
+		if ((error = bwrite(bp)) != 0)
 			break;
 		ACQUIRE_LOCK(&lk);
 		/*
