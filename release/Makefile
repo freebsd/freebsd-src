@@ -341,7 +341,7 @@ release rerelease:
 .if exists(${CHROOTDIR})
 # The first command will fail on a handful of files that have their schg
 # flags set.  But it greatly speeds up the next two commands.
-	# NB: clear any vestigal devfs mount, just in case
+	# NB: clear any vestigial devfs mount, just in case
 	-umount ${CHROOTDIR}/dev > /dev/null 2>&1
 	-rm -rf ${CHROOTDIR} 2>/dev/null
 	-chflags -R noschg ${CHROOTDIR}/.
