@@ -57,7 +57,9 @@ static struct cdevsw dsp_cdevsw = {
 	/* flags */	0,
 };
 
+#ifdef USING_DEVFS
 static eventhandler_tag dsp_ehtag;
+#endif
 
 static struct snddev_info *
 dsp_get_info(dev_t dev)
@@ -139,9 +141,11 @@ dsp_open(dev_t i_dev, int flags, int mode, struct proc *p)
 {
 	struct pcm_channel *rdch, *wrch;
 	struct snddev_info *d;
+	intrmask_t s;
 	u_int32_t fmt;
 	int devtype;
 
+	s = spltty();
 	d = dsp_get_info(i_dev);
 	devtype = PCMDEV(i_dev);
 
@@ -172,6 +176,7 @@ dsp_open(dev_t i_dev, int flags, int mode, struct proc *p)
 	if ((d->flags & SD_F_SIMPLEX) && (i_dev->si_drv1 || i_dev->si_drv2)) {
 		/* simplex device, already open, exit */
 		snd_mtxunlock(d->lock);
+		splx(s);
 		return EBUSY;
 	}
 
@@ -187,12 +192,14 @@ dsp_open(dev_t i_dev, int flags, int mode, struct proc *p)
 			if (!rdch) {
 				/* no channel available, exit */
 				snd_mtxunlock(d->lock);
+				splx(s);
 				return EBUSY;
 			}
 			/* got a channel, already locked for us */
 		} else {
 			/* already open for read, exit */
 			snd_mtxunlock(d->lock);
+			splx(s);
 			return EBUSY;
 		}
 	}
@@ -210,6 +217,7 @@ dsp_open(dev_t i_dev, int flags, int mode, struct proc *p)
 				}
 				/* exit */
 				snd_mtxunlock(d->lock);
+				splx(s);
 				return EBUSY;
 			}
 			/* got a channel, already locked for us */
@@ -221,6 +229,7 @@ dsp_open(dev_t i_dev, int flags, int mode, struct proc *p)
 			}
 			/* exit */
 			snd_mtxunlock(d->lock);
+			splx(s);
 			return EBUSY;
 		}
 	}
@@ -253,6 +262,7 @@ dsp_open(dev_t i_dev, int flags, int mode, struct proc *p)
 		}
 	 	CHN_UNLOCK(wrch);
 	}
+	splx(s);
 	return 0;
 }
 
@@ -261,8 +271,10 @@ dsp_close(dev_t i_dev, int flags, int mode, struct proc *p)
 {
 	struct pcm_channel *rdch, *wrch;
 	struct snddev_info *d;
+	intrmask_t s;
 	int exit;
 
+	s = spltty();
 	d = dsp_get_info(i_dev);
 	snd_mtxlock(d->lock);
 	rdch = i_dev->si_drv1;
@@ -287,6 +299,7 @@ dsp_close(dev_t i_dev, int flags, int mode, struct proc *p)
 	}
 	if (exit) {
 		snd_mtxunlock(d->lock);
+		splx(s);
 		return 0;
 	}
 
@@ -314,6 +327,7 @@ dsp_close(dev_t i_dev, int flags, int mode, struct proc *p)
 		pcm_chnrelease(wrch);
 	}
 
+	splx(s);
 	return 0;
 }
 
@@ -321,8 +335,10 @@ static int
 dsp_read(dev_t i_dev, struct uio *buf, int flag)
 {
 	struct pcm_channel *rdch, *wrch;
+	intrmask_t s;
 	int ret;
 
+	s = spltty();
 	getchns(i_dev, &rdch, &wrch, SD_F_PRIO_RD);
 
 	KASSERT(rdch, ("dsp_read: nonexistant channel"));
@@ -330,6 +346,7 @@ dsp_read(dev_t i_dev, struct uio *buf, int flag)
 
 	if (rdch->flags & (CHN_F_MAPPED | CHN_F_DEAD)) {
 		relchns(i_dev, rdch, wrch, SD_F_PRIO_RD);
+		splx(s);
 		return EINVAL;
 	}
 	if (!(rdch->flags & CHN_F_RUNNING))
@@ -337,6 +354,7 @@ dsp_read(dev_t i_dev, struct uio *buf, int flag)
 	ret = chn_read(rdch, buf);
 	relchns(i_dev, rdch, wrch, SD_F_PRIO_RD);
 
+	splx(s);
 	return ret;
 }
 
@@ -344,8 +362,10 @@ static int
 dsp_write(dev_t i_dev, struct uio *buf, int flag)
 {
 	struct pcm_channel *rdch, *wrch;
+	intrmask_t s;
 	int ret;
 
+	s = spltty();
 	getchns(i_dev, &rdch, &wrch, SD_F_PRIO_WR);
 
 	KASSERT(wrch, ("dsp_write: nonexistant channel"));
@@ -353,6 +373,7 @@ dsp_write(dev_t i_dev, struct uio *buf, int flag)
 
 	if (wrch->flags & (CHN_F_MAPPED | CHN_F_DEAD)) {
 		relchns(i_dev, rdch, wrch, SD_F_PRIO_WR);
+		splx(s);
 		return EINVAL;
 	}
 	if (!(wrch->flags & CHN_F_RUNNING))
@@ -360,6 +381,7 @@ dsp_write(dev_t i_dev, struct uio *buf, int flag)
 	ret = chn_write(wrch, buf);
 	relchns(i_dev, rdch, wrch, SD_F_PRIO_WR);
 
+	splx(s);
 	return ret;
 }
 
@@ -368,9 +390,9 @@ dsp_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc *p)
 {
     	struct pcm_channel *wrch, *rdch;
 	struct snddev_info *d;
+	intrmask_t s;
 	int kill;
     	int ret = 0, *arg_i = (int *)arg, tmp;
-    	u_long s;
 
 	/*
 	 * this is an evil hack to allow broken apps to perform mixer ioctls
@@ -384,6 +406,7 @@ dsp_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc *p)
 		return mixer_ioctl(pdev, cmd, arg, mode, p);
 	}
 
+    	s = spltty();
 	d = dsp_get_info(i_dev);
 	getchns(i_dev, &rdch, &wrch, 0);
 
@@ -394,6 +417,7 @@ dsp_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc *p)
 		kill |= 2;
 	if (kill == 3) {
 		relchns(i_dev, rdch, wrch, 0);
+		splx(s);
 		return EINVAL;
 	}
 	if (kill & 1)
@@ -405,7 +429,6 @@ dsp_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc *p)
      	 * all routines are called with int. blocked. Make sure that
      	 * ints are re-enabled when calling slow or blocking functions!
      	 */
-    	s = spltty();
     	switch(cmd) {
 #ifdef OLDPCM_IOCTL
     	/*
@@ -902,9 +925,11 @@ dsp_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc *p)
 static int
 dsp_poll(dev_t i_dev, int events, struct proc *p)
 {
-	int ret, e;
 	struct pcm_channel *wrch = NULL, *rdch = NULL;
+	intrmask_t s;
+	int ret, e;
 
+	s = spltty();
 	ret = 0;
 	getchns(i_dev, &rdch, &wrch, SD_F_PRIO_RD | SD_F_PRIO_WR);
 
@@ -920,6 +945,7 @@ dsp_poll(dev_t i_dev, int events, struct proc *p)
 	}
 	relchns(i_dev, rdch, wrch, SD_F_PRIO_RD | SD_F_PRIO_WR);
 
+	splx(s);
 	return ret;
 }
 
@@ -927,11 +953,13 @@ static int
 dsp_mmap(dev_t i_dev, vm_offset_t offset, int nprot)
 {
 	struct pcm_channel *wrch = NULL, *rdch = NULL, *c;
+	intrmask_t s;
 	int ret;
 
 	if (nprot & PROT_EXEC)
 		return -1;
 
+	s = spltty();
 	getchns(i_dev, &rdch, &wrch, SD_F_PRIO_RD | SD_F_PRIO_WR);
 #if 0
 	/*
@@ -939,18 +967,21 @@ dsp_mmap(dev_t i_dev, vm_offset_t offset, int nprot)
 	 * our vm system doesn't allow this, so force write buffer
 	 */
 
-	if (wrch && (nprot & PROT_WRITE))
+	if (wrch && (nprot & PROT_WRITE)) {
 		c = wrch;
-	else if (rdch && (nprot & PROT_READ))
+	} else if (rdch && (nprot & PROT_READ)) {
 		c = rdch;
-	else
+	} else {
+		splx(s);
 		return -1;
+	}
 #else
 	c = wrch;
 #endif
 
 	if (c == NULL) {
 		relchns(i_dev, rdch, wrch, SD_F_PRIO_RD | SD_F_PRIO_WR);
+		splx(s);
 		return -1;
 	}
 
@@ -958,6 +989,7 @@ dsp_mmap(dev_t i_dev, vm_offset_t offset, int nprot)
 	ret = atop(vtophys(((char *)sndbuf_getbuf(c->bufsoft)) + offset));
 	relchns(i_dev, rdch, wrch, SD_F_PRIO_RD | SD_F_PRIO_WR);
 
+	splx(s);
 	return ret;
 }
 
@@ -989,6 +1021,7 @@ dsp_unregister(int unit, int channel)
 	return 0;
 }
 
+#ifdef USING_DEVFS
 static void
 dsp_clone(void *arg, char *name, int namelen, dev_t *dev)
 {
@@ -1056,5 +1089,6 @@ dsp_sysuninit(void *p)
 
 SYSINIT(dsp_sysinit, SI_SUB_DRIVERS, SI_ORDER_MIDDLE, dsp_sysinit, NULL);
 SYSUNINIT(dsp_sysuninit, SI_SUB_DRIVERS, SI_ORDER_MIDDLE, dsp_sysuninit, NULL);
+#endif
 
 

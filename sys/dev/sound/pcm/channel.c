@@ -105,7 +105,11 @@ chn_sleep(struct pcm_channel *c, char *str, int timeout)
 	int ret;
 
 	CHN_LOCKASSERT(c);
+#ifdef USING_MUTEX
 	ret = msleep(bs, c->lock, PRIBIO | PCATCH, str, timeout);
+#else
+	ret = tsleep(bs, PRIBIO | PCATCH, str, timeout);
+#endif
 
 	return ret;
 }
