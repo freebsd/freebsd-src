@@ -1436,6 +1436,8 @@ ffs_close_ea(struct vnode *vp, int commit, struct ucred *cred, struct thread *td
 	dp = ip->i_din2;
 	error = ip->i_ea_error;
 	if (commit && error == 0) {
+		if (cred == NOCRED)
+			cred =  vp->v_mount->mnt_cred;
 		liovec.iov_base = ip->i_ea_area;
 		liovec.iov_len = ip->i_ea_len;
 		luio.uio_iov = &liovec;
