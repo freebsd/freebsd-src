@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /* $NetBSD: db_instruction.h,v 1.4 1997/09/16 22:53:32 thorpej Exp $ */
 
 /* 
@@ -25,6 +24,8 @@
  * 
  * any improvements or extensions that they make and grant Carnegie Mellon
  * the rights to redistribute these changes.
+ *
+ * $FreeBSD$
  */
 
 /*
