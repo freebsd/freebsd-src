@@ -18,6 +18,5 @@ afterinstall:
 
 beforedepend: eqn.cc
 
-.include "../../../usr.bin/Makefile.inc"
 .include "../Makefile.cfg"
 .include <bsd.prog.mk>
