@@ -467,6 +467,7 @@ struct kse_upcall {
 	struct kse_mailbox	*ku_mailbox;	/* userland mailbox address. */
 	stack_t			ku_stack;	/* userland upcall stack. */
 	void			*ku_func;	/* userland upcall function. */
+	unsigned int		ku_mflags;	/* cached upcall mailbox flags */
 };
 
 #define	KUF_DOUPCALL	0x00001		/* Do upcall now, don't wait */
