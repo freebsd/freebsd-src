@@ -35,9 +35,17 @@
 #
 
 if [ $# -eq 0 ]; then
-	echo 'usage: shar file ...'
-	exit 1
+	echo 'usage: shar file ...' 1>&2
+	exit 64			# EX_USAGE
 fi
+
+for i
+do
+	if [ ! \( -d $i -o -r $i \) ]; then
+		echo "$i inaccessible or not exist" 1>&2
+		exit 66		# EX_NOINPUT
+	fi
+done
 
 cat << EOF
 # This is a shell archive.  Save it in a file, remove anything before
@@ -64,7 +72,7 @@ do
 	else
 		echo "echo x - $i"
 		echo "sed 's/^X//' >$i << 'END-of-$i'"
-		sed 's/^/X/' $i
+		sed 's/^/X/' $i || exit
 		echo "END-of-$i"
 	fi
 done
