@@ -53,7 +53,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/unistd.h>
 #include <sys/vnode.h>
 #include <sys/ktrace.h>
-#include <sys/sema.h>
 #include <sys/sx.h>
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
@@ -107,7 +106,7 @@ SYSCTL_UINT(_kern_ktrace, OID_AUTO, genio_size, CTLFLAG_RW, &ktr_geniosize,
 
 static int print_message = 1;
 struct mtx ktrace_mtx;
-static struct sema ktrace_sema;
+static struct cv ktrace_cv;
 
 static void ktrace_init(void *dummy);
 static int sysctl_kern_ktrace_request_pool(SYSCTL_HANDLER_ARGS);
@@ -128,7 +127,7 @@ ktrace_init(void *dummy)
 	int i;
 
 	mtx_init(&ktrace_mtx, "ktrace", NULL, MTX_DEF | MTX_QUIET);
-	sema_init(&ktrace_sema, 0, "ktrace");
+	cv_init(&ktrace_cv, "ktrace");
 	STAILQ_INIT(&ktr_todo);
 	STAILQ_INIT(&ktr_free);
 	for (i = 0; i < ktr_requestpool; i++) {
@@ -262,8 +261,8 @@ ktr_submitrequest(struct ktr_request *req)
 
 	mtx_lock(&ktrace_mtx);
 	STAILQ_INSERT_TAIL(&ktr_todo, req, ktr_list);
+	cv_signal(&ktrace_cv);
 	mtx_unlock(&ktrace_mtx);
-	sema_post(&ktrace_sema);
 	curthread->td_pflags &= ~TDP_INKTRACE;
 }
 
@@ -295,8 +294,9 @@ ktr_loop(void *dummy)
 	td = curthread;
 	cred = td->td_ucred;
 	for (;;) {
-		sema_wait(&ktrace_sema);
 		mtx_lock(&ktrace_mtx);
+		while (STAILQ_EMPTY(&ktr_todo))
+			cv_wait(&ktrace_cv, &ktrace_mtx);
 		req = STAILQ_FIRST(&ktr_todo);
 		STAILQ_REMOVE_HEAD(&ktr_todo, ktr_list);
 		KASSERT(req != NULL, ("got a NULL request"));
