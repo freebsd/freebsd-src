@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: ctm_pass3.c,v 1.12 1996/02/05 16:06:53 phk Exp $
+ * $Id: ctm_pass3.c,v 1.13 1996/04/29 21:02:32 phk Exp $
  *
  */
 
@@ -39,8 +39,9 @@ Pass3(FILE *fd)
     FILE *ed=0;
     struct stat st;
     char md5_1[33];
+    int match=0;
     struct timeval times[2];
-
+    struct CTM_Filter *filter = NULL;
     if(Verbose>3)
 	printf("Pass3 -- Applying the CTM-patch\n");
     MD5Init (&ctx);
@@ -153,7 +154,27 @@ Pass3(FILE *fd)
 	j = strlen(name)-1;
 	if(name[j] == '/') name[j] = '\0';
 
-	fprintf(stderr,"> %s %s\n",sp->Key,name);
+	/*
+	 * If a filter list is specified, run thru the filter list and
+	 * match `name' against filters.  If the name matches, set the
+	 * required action to that specified in the filter.
+	 * The default action if no filterlist is given is to match
+	 * everything.  
+	 */
+
+	match = (FilterList ? !(FilterList->Action) : CTM_FILTER_ENABLE);
+	for (filter = FilterList; filter; filter = filter->Next) {
+	    if (0 == regexec(&filter->CompiledRegex, name,
+		0, 0, 0)) {
+		match = filter->Action;
+	    }
+	}
+
+	if (CTM_FILTER_DISABLE == match) /* skip file if disabled */
+		continue;
+
+	if (Verbose > 0)
+		fprintf(stderr,"> %s %s\n",sp->Key,name);
 	if(!strcmp(sp->Key,"FM") || !strcmp(sp->Key, "FS")) {
 	    i = open(name,O_WRONLY|O_CREAT|O_TRUNC,0666);
 	    if(i < 0) {
@@ -228,7 +249,11 @@ Pass3(FILE *fd)
 	    continue;
 	}
 	if(!strcmp(sp->Key,"FR")) {
-	    if (0 != unlink(name)) {
+	    if (KeepIt) { 
+		if (Verbose > 1) 
+			printf("<%s> not removed\n", name);
+	    }
+	    else if (0 != unlink(name)) {
 		fprintf(stderr,"<%s> unlink failed\n",name);
 		if (!Force)
 		    WRONG
@@ -240,8 +265,14 @@ Pass3(FILE *fd)
 	     * We cannot use rmdir() because we do not get the directories
 	     * in '-depth' order (cvs-cur.0018.gz for examples)
 	     */
-	    sprintf(buf,"rm -rf %s",name);
-	    system(buf);
+	    if (KeepIt) {
+		if (Verbose > 1) {
+			printf("<%s> not removed\n", name);
+		}
+	    } else {
+		    sprintf(buf,"rm -rf %s",name);
+		    system(buf);
+	    }
 	    continue;
 	}
 	WRONG

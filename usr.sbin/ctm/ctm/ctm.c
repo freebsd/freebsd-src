@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: ctm.c,v 1.12 1996/02/05 16:06:46 phk Exp $
+ * $Id: ctm.c,v 1.13 1996/04/29 21:02:28 phk Exp $
  *
  * This is the client program of 'CTM'.  It will apply a CTM-patch to a
  * collection of files.
@@ -14,7 +14,6 @@
  * Options we'd like to see:
  *
  * -a 			Attempt best effort.
- * -B <file>		Backup to tar-file.
  * -d <int>		Debug TBD.
  * -m <mail-addr>	Email me instead.
  * -r <name>		Reconstruct file.
@@ -22,16 +21,21 @@
  *
  * Options we have:
  * -b <dir>		Base-dir
+ * -B <file>		Backup to tar-file.
+ * -t 			Tar command (default as in TARCMD).
  * -c			Check it out, don't do anything.
  * -F      		Force
- * -p			Less paranoid.
- * -P			Paranoid.
  * -q 			Tell us less.
  * -T <tmpdir>.		Temporary files.
  * -u			Set all file modification times to the timestamp
  * -v 			Tell us more.
  * -V <level>		Tell us more level = number of -v
+ * -k			Keep files and directories that would have been removed.
+ * -l			List actions.
  *
+ * Options we don't actually use:
+ * -p			Less paranoid.
+ * -P			Paranoid.
  */
 
 #define EXTERN /* */
@@ -44,35 +48,82 @@ extern int Proc(char *, unsigned applied);
 int
 main(int argc, char **argv)
 {
-    int stat=0;
+    int stat=0, err=0;
     int c;
     extern int optopt,optind;
     extern char * optarg;
     unsigned applied = 0;
     FILE *statfile;
+    struct CTM_Filter *nfilter = NULL;	/* new filter */
     u_char * basedir;
 
     basedir = NULL;
     Verbose = 1;
     Paranoid = 1;
     SetTime = 0;
+    KeepIt = 0;
+    ListIt = 0;
+    BackupFile = NULL;
+    TarCmd = TARCMD;
+    LastFilter = FilterList = NULL;
     setbuf(stderr,0);
     setbuf(stdout,0);
 
-    while((c=getopt(argc,argv,"ab:B:cd:Fm:pPqr:R:T:uV:v")) != -1) {
+    while((c=getopt(argc,argv,"ab:B:cd:e:Fklm:pPqr:R:t:T:uV:vx:")) != -1) {
 	switch (c) {
 	    case 'b': basedir = optarg;	break; /* Base Directory */
+	    case 'B': BackupFile = optarg;	break;
 	    case 'c': CheckIt++;	break; /* Only check it */
+	    case 'F': Force = 1;	break; 
+	    case 'k': KeepIt++;		break; /* Don't do removes */
+	    case 'l': ListIt++;		break; /* Only list actions and files */
 	    case 'p': Paranoid--;	break; /* Less Paranoid */
 	    case 'P': Paranoid++;	break; /* More Paranoid */
 	    case 'q': Verbose--;	break; /* Quiet */
-	    case 'v': Verbose++;	break; /* Verbose */
-	    case 'T': TmpDir = optarg;	break;
-	    case 'F': Force = 1;	break;
+	    case 't': TarCmd = optarg;	break; /* archiver command */
+	    case 'T': TmpDir = optarg;	break; /* set temporary directory */
 	    case 'u': SetTime++;	break; /* Set timestamp on files */
+	    case 'v': Verbose++;	break; /* Verbose */
 	    case 'V': sscanf(optarg,"%d", &c); /* Verbose */
 		      Verbose += c;
 		      break;
+	    case 'e':				/* filter expressions */
+	    case 'x':
+		if (NULL == (nfilter =  Malloc(sizeof(struct CTM_Filter)))) {
+			fprintf(stderr, 
+				"Out of memory for expressions: \"%s\"\n",
+			  	optarg);
+			 stat++;
+			break;
+		}
+
+		(void) memset(nfilter, 0, sizeof(struct CTM_Filter));
+
+		if (0 != (err = 
+			regcomp(&nfilter->CompiledRegex, optarg, REG_NOSUB))) {
+
+			char errmsg[128];
+
+			regerror(err, &nfilter->CompiledRegex, errmsg, 
+				sizeof(errmsg));
+			fprintf(stderr, "Regular expression: \"%s\"\n", errmsg);
+			stat++;
+			break;
+		}
+
+		/* note whether the filter enables or disables on match */
+		nfilter->Action = 
+			(('e' == c) ? CTM_FILTER_ENABLE : CTM_FILTER_DISABLE);
+
+		/* link in the expression into the list */
+	        nfilter->Next = NULL;
+		if (NULL == FilterList) {
+		  LastFilter = FilterList = nfilter; /* init head and tail */
+		} else {    /* place at tail */
+		  LastFilter->Next = nfilter;
+		  LastFilter = nfilter;	
+		}
+		break;
 	    case ':':
 		fprintf(stderr,"Option '%c' requires an argument.\n",optopt);
 		stat++;
@@ -110,26 +161,37 @@ main(int argc, char **argv)
     }
     strcat(Buffer, CTM_STATUS);
 
-    if((statfile = fopen(Buffer, "r")) == NULL)
-	fprintf(stderr, "Warning: %s not found.\n", Buffer);
-    else {
-	fscanf(statfile, "%*s %u", &applied);
-	fclose(statfile);
-    }
+    if(ListIt) 
+	applied = 0;
+    else
+	if((statfile = fopen(Buffer, "r")) == NULL) {
+	    if (Verbose > 0)
+	    	fprintf(stderr, "Warning: %s not found.\n", Buffer);
+	} else {
+	    fscanf(statfile, "%*s %u", &applied);
+	    fclose(statfile);
+	}
 
     if(!argc)
 	stat |= Proc("-", applied);
 
     while(argc-- && stat == Exit_Done) {
 	stat |= Proc(*argv++, applied);
-	stat &= ~Exit_Version;
+	stat &= ~(Exit_Version | Exit_NoMatch);
     }
 
     if(stat == Exit_Done)
 	stat = Exit_OK;
 
-    if(Verbose)
+    if(Verbose > 0)
 	fprintf(stderr,"Exit(%d)\n",stat);
+
+    if (FilterList)
+	for (nfilter = FilterList; nfilter; ) {
+	    struct CTM_Filter *tmp = nfilter->Next;
+	    Free(nfilter);
+	    nfilter = tmp;
+	}
     return stat;
 }
 
@@ -176,7 +238,8 @@ Proc(char *filename, unsigned applied)
 	    return Exit_Broke;
 	}
 	unlink(fn);
-	fprintf(stderr,"Writing tmp-file \"%s\"\n",fn);
+	if (Verbose > 0)
+	    fprintf(stderr,"Writing tmp-file \"%s\"\n",fn);
 	while(EOF != (i=getc(f)))
 	    if(EOF == putc(i,f2)) {
 		fclose(f2);
@@ -191,6 +254,11 @@ Proc(char *filename, unsigned applied)
 
     if((i=Pass1(f, applied)))
 	goto exit_and_close;
+
+    if(ListIt) {
+	i = Exit_Done;
+	goto exit_and_close;
+    }
 
     if(!p) {
         rewind(f);
@@ -216,9 +284,24 @@ Proc(char *filename, unsigned applied)
     }
 
     if(CheckIt) {
-        fprintf(stderr,"All checks out ok.\n");
+	if (Verbose > 0) 
+	    fprintf(stderr,"All checks out ok.\n");
 	i = Exit_Done;
 	goto exit_and_close;
+    }
+   
+    /* backup files if requested */
+    if(BackupFile) {
+
+	i = PassB(f);
+
+	if(!p) {
+	    rewind(f);
+	} else {
+	    pclose(f);
+	    f = popen(p,"r");
+	    if(!f) { perror(p); return Exit_Broke; }
+	}
     }
 
     i=Pass3(f);
@@ -232,6 +315,8 @@ exit_and_close:
     if(i)
 	return i;
 
-    fprintf(stderr,"All done ok\n");
+    if (Verbose > 0)
+	fprintf(stderr,"All done ok\n");
+
     return Exit_Done;
 }
