@@ -482,7 +482,6 @@ USB_ATTACH(kue)
 	ifp->if_mtu = ETHERMTU;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = kue_ioctl;
-	ifp->if_output = ether_output;
 	ifp->if_start = kue_start;
 	ifp->if_watchdog = kue_watchdog;
 	ifp->if_init = kue_init;

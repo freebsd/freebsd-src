@@ -990,7 +990,6 @@ my_attach(device_t dev)
 	ifp->if_mtu = ETHERMTU;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = my_ioctl;
-	ifp->if_output = ether_output;
 	ifp->if_start = my_start;
 	ifp->if_watchdog = my_watchdog;
 	ifp->if_init = my_init;

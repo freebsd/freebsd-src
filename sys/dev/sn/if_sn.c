@@ -203,7 +203,6 @@ sn_attach(device_t dev)
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_mtu = ETHERMTU;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
-	ifp->if_output = ether_output;
 	ifp->if_start = snstart;
 	ifp->if_ioctl = snioctl;
 	ifp->if_watchdog = snwatchdog;

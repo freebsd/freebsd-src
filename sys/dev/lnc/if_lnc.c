@@ -877,7 +877,6 @@ lnc_attach_common(device_t dev)
 	    device_get_unit(dev));
 	sc->arpcom.ac_if.if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	sc->arpcom.ac_if.if_timer = 0;
-	sc->arpcom.ac_if.if_output = ether_output;
 	sc->arpcom.ac_if.if_start = lnc_start;
 	sc->arpcom.ac_if.if_ioctl = lnc_ioctl;
 	sc->arpcom.ac_if.if_watchdog = lnc_watchdog;

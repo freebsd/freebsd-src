@@ -2358,7 +2358,6 @@ bge_attach(dev)
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = bge_ioctl;
-	ifp->if_output = ether_output;
 	ifp->if_start = bge_start;
 	ifp->if_watchdog = bge_watchdog;
 	ifp->if_init = bge_init;

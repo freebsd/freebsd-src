@@ -740,7 +740,6 @@ fe_attach (device_t dev)
 	 */
  	sc->sc_if.if_softc    = sc;
 	if_initname(&sc->sc_if, device_get_name(dev), device_get_unit(dev));
-	sc->sc_if.if_output   = ether_output;
 	sc->sc_if.if_start    = fe_start;
 	sc->sc_if.if_ioctl    = fe_ioctl;
 	sc->sc_if.if_watchdog = fe_watchdog;
