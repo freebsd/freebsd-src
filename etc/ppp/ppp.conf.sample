@@ -4,7 +4,7 @@
 #
 #	  Originally written by Toshiharu OHNO
 #
-# $Id: ppp.conf.sample,v 1.26 1997/12/27 07:22:10 brian Exp $
+# $Id: ppp.conf.sample,v 1.27 1997/12/30 23:34:35 brian Exp $
 #
 #################################################################
 
@@ -116,13 +116,10 @@ examples:
 #
 # When in -auto, -ddial, -direct or -background mode, ppp can accept
 # control instructions from the ``pppctl'' program.  First, you must
-# set up your control socket.  It's safest to use a UNIX domain socket
-# and to keep these sockets in one place:
-#    # mkdir /var/ppp
-#    # chmod 1777 /var/ppp
-# then create your socket there:
+# set up your control socket.  It's safest to use a UNIX domain socket,
+# and watch the permissions:
 #
-    set server /var/ppp/internet 0660
+    set server /var/tmp/internet 0177
 #
 # Although a TCP port may be used if you want to allow control
 # connections from other machines:
@@ -314,7 +311,7 @@ loop:
  set escape 0xff
  set ifaddr 127.0.0.2 127.0.0.3
  set openmode passive
- set server /tmp/loop ""
+ set server /var/tmp/loop "" 0177
  
 loop-in:
  set timeout 0
