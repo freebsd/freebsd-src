@@ -34,86 +34,89 @@
 #include <errno.h>
 #include <sys/param.h>
 #include <pthread.h>
+#include <stdlib.h>
 #include "thr_private.h"
 
+__weak_reference(_pthread_getschedparam, pthread_getschedparam);
 __weak_reference(_pthread_setschedparam, pthread_setschedparam);
+
+int
+_pthread_getschedparam(pthread_t pthread, int *policy, 
+    struct sched_param *param)
+{
+	if (param == NULL || policy == NULL)
+		return (EINVAL);
+	if (_find_thread(pthread) == ESRCH)
+		return (ESRCH);
+	param->sched_priority = pthread->base_priority;
+	*policy = pthread->attr.sched_policy;
+	return(0);
+}
 
 int
 _pthread_setschedparam(pthread_t pthread, int policy, 
 	const struct sched_param *param)
 {
-#if 0
-	int old_prio = 0;
-	int in_readyq = 0;
-#endif
-	int ret = 0;
+	struct pthread_mutex *mtx;
+	int old_prio;
 
+	mtx = NULL;
+	old_prio = 0;
 	if ((param == NULL) || (policy < SCHED_FIFO) || (policy > SCHED_RR))
 		return (EINVAL);
-
 	if ((param->sched_priority < PTHREAD_MIN_PRIORITY) ||
 	    (param->sched_priority > PTHREAD_MAX_PRIORITY))
 		return (ENOTSUP);
+	if (_find_thread(pthread) != 0)
+		return (ESRCH);
 
-#if 0 /* XXX pthread priorities don't work anyways */
-	/* Find the thread in the list of active threads: */
-	if ((ret = _find_thread(pthread)) == 0) {
-		GIANT_LOCK(curthread);
+	/*
+	 * If the pthread is waiting on a mutex grab it now. Doing it now
+	 * even though we do not need it immediately greatly simplifies the
+	 * LOR avoidance code.
+	 */
+	do {
+		_thread_critical_enter(pthread);
+		if (pthread->state == PS_MUTEX_WAIT) {
+			mtx = pthread->data.mutex;
+			if (_spintrylock(&mtx->lock) == EBUSY)
+				_thread_critical_exit(pthread);
+			else
+				break;
+		} else {
+			break;
+		}
+	} while (1);
 
-		if (param->sched_priority !=
-		    PTHREAD_BASE_PRIORITY(pthread->base_priority)) {
-			/*
-			 * Remove the thread from its current priority
-			 * queue before any adjustments are made to its
-			 * active priority:
-			 */
-			old_prio = pthread->active_priority;
-#if 0	/* XXXTHR */
-			if ((pthread->flags & PTHREAD_FLAGS_IN_PRIOQ) != 0) {
-				in_readyq = 1;
-				PTHREAD_PRIOQ_REMOVE(pthread);
-			}
-#endif
-
-			/* Set the thread base priority: */
-			pthread->base_priority &=
-			    (PTHREAD_SIGNAL_PRIORITY | PTHREAD_RT_PRIORITY);
-			pthread->base_priority = param->sched_priority;
-
-			/* Recalculate the active priority: */
-			pthread->active_priority = MAX(pthread->base_priority,
-			    pthread->inherited_priority);
-#if 0
-			if (in_readyq) {
-				if ((pthread->priority_mutex_count > 0) &&
-				    (old_prio > pthread->active_priority)) {
-					/*
-					 * POSIX states that if the priority is
-					 * being lowered, the thread must be
-					 * inserted at the head of the queue for
-					 * its priority if it owns any priority
-					 * protection or inheritence mutexes.
-					 */
-					PTHREAD_PRIOQ_INSERT_HEAD(pthread);
-				}
-				else
-					PTHREAD_PRIOQ_INSERT_TAIL(pthread);
-			}
-#endif
-
-			/*
-			 * Check for any mutex priority adjustments.  This
-			 * includes checking for a priority mutex on which
-			 * this thread is waiting.
-			 */
-			_mutex_notify_priochange(pthread);
+	PTHREAD_ASSERT(pthread->active_priority >= pthread->inherited_priority,
+	    "active priority cannot be less than inherited priority");
+	old_prio = pthread->base_priority;
+	pthread->base_priority = param->sched_priority;
+	if (param->sched_priority <= pthread->active_priority) {
+		/*
+		 * Active priority is affected only if it was the
+		 * base priority and the new base priority is lower.
+		 */
+		if (pthread->active_priority == old_prio &&
+		    pthread->active_priority != pthread->inherited_priority) {
+			pthread->active_priority = param->sched_priority;
+			readjust_priorities(pthread, mtx);
 		}
 
-		/* Set the scheduling policy: */
-		pthread->attr.sched_policy = policy;
+	} else {
+		/*
+		 * New base priority is greater than active priority. This
+		 * only affects threads that are holding priority inheritance
+		 * mutexes this thread is waiting on and its position in the
+		 * queue.
+		 */
+		pthread->active_priority = param->sched_priority;
+		readjust_priorities(pthread, mtx);
 
-		GIANT_UNLOCK(curthread);
 	}
-#endif /* XXX pthread priorities don't work anyways */
-	return(ret);
+	pthread->attr.sched_policy = policy;
+	_thread_critical_exit(pthread);
+	if (mtx != NULL)
+		_SPINUNLOCK(&mtx->lock);
+	return(0);
 }
