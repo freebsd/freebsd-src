@@ -61,8 +61,8 @@ static device_t	acpi_dev;
 #include <i386/bios/apm.h>
 #endif
 
-u_int32_t acpi_no_reset_video = 0;
-TUNABLE_INT("hw.acpi.no_reset_video", &acpi_no_reset_video);
+u_int32_t acpi_reset_video = 1;
+TUNABLE_INT("hw.acpi.reset_video", &acpi_reset_video);
 
 static struct apm_softc	apm_softc;
 
@@ -333,9 +333,10 @@ acpi_machdep_init(device_t dev)
 	if (intr_model != ACPI_INTR_PIC)
 		acpi_SetIntrModel(intr_model);
 
-	SYSCTL_ADD_UINT(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
-            OID_AUTO, "no_reset_video", CTLFLAG_RD | CTLFLAG_RW, &acpi_no_reset_video, 0,
-	    "Disable calling the VESA reset BIOS vector on the resume path");
+	SYSCTL_ADD_UINT(&sc->acpi_sysctl_ctx,
+	    SYSCTL_CHILDREN(sc->acpi_sysctl_tree), OID_AUTO,
+	    "reset_video", CTLFLAG_RD | CTLFLAG_RW, &acpi_reset_video, 0,
+	    "Call the VESA reset BIOS vector on the resume path");
 
 	return (0);
 }
