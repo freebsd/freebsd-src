@@ -16,16 +16,16 @@ TYPE=	real
 #TYPE=	fake
 
 # Try to find these in the build tree
-.if exists(../strfile/strfile)
-STRFILE=../strfile/strfile
-.else
+.if exists(/usr/games/strfile)
 STRFILE=/usr/games/strfile
+.else
+STRFILE=../strfile/strfile
 .endif
 
-.if exists(../../caesar/caesar)
-CAESAR=../../caesar/caesar
-.else
+.if exists(/usr/games/caesar)
 CAESAR=/usr/games/caesar
+.else
+CAESAR=../../caesar/caesar
 .endif
 
 CLEANFILES+=${BLDS}
