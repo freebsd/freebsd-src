@@ -63,7 +63,8 @@ __FBSDID("$FreeBSD$");
  * Shell command parser.
  */
 
-#define EOFMARKLEN 79
+#define	EOFMARKLEN	79
+#define	PROMPTLEN	128
 
 /* values returned by readtoken */
 #include "token.h"
@@ -1562,14 +1563,100 @@ setprompt(int which)
 char *
 getprompt(void *unused __unused)
 {
+	static char ps[PROMPTLEN];
+	char *fmt;
+	int i, j, trim;
+
+	/*
+	 * Select prompt format.
+	 */
 	switch (whichprompt) {
 	case 0:
-		return "";
+		fmt = "";
+		break;
 	case 1:
-		return ps1val();
+		fmt = ps1val();
+		break;
 	case 2:
-		return ps2val();
+		fmt = ps2val();
+		break;
 	default:
 		return "<internal prompt error>";
 	}
+
+	/*
+	 * Format prompt string.
+	 */
+	for (i = 0; (i < 127) && (*fmt != '\0'); i++, fmt++)
+		if (*fmt == '\\')
+			switch (*++fmt) {
+
+				/*
+				 * Hostname.
+				 *
+				 * \h specifies just the local hostname,
+				 * \H specifies fully-qualified hostname.
+				 */
+			case 'h':
+			case 'H':
+				ps[i] == '\0';
+				gethostname(&ps[i], PROMPTLEN - i);
+				/* Skip to end of hostname. */
+				trim = (*fmt == 'h') ? '.' : '\0';
+				while ((ps[i+1] != '\0') && (ps[i+1] != trim))
+					i++;
+				break;
+
+				/*
+				 * Working directory.
+				 *
+				 * \W specifies just the final component,
+				 * \w specifies the entire path.
+				 */
+			case 'W':
+			case 'w':
+				ps[i] == '\0';
+				getcwd(&ps[i], PROMPTLEN - i);
+				if (*fmt == 'W') {
+					/* Final path component only. */
+					trim = 1;
+					for (j = i; ps[j] != '\0'; j++)
+					  if (ps[j] == '/')
+						trim = j + 1;
+					memmove(&ps[i], &ps[trim],
+					    j - trim + 1);
+				}
+				/* Skip to end of path. */
+				while (ps[i + 1] != '\0')
+					i++;
+				break;
+
+				/*
+				 * Superuser status.
+				 *
+				 * '$' for normal users, '#' for root.
+				 */
+			case '$':
+				ps[i] = (geteuid() != 0) ? '$' : '#';
+				break;
+
+				/*
+				 * A literal \.
+				 */
+			case '\\':
+				ps[i] = '\\';
+				break;
+
+				/*
+				 * Emit unrecognized formats verbatim.
+				 */
+			default:
+				ps[i++] = '\\';
+				ps[i] = *fmt;
+				break;
+			}
+		else
+			ps[i] = *fmt;
+	ps[i] = '\0';
+	return (ps);
 }
