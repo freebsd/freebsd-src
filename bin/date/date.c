@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: date.c,v 1.18 1997/09/30 20:06:15 joerg Exp $
+ *	$Id: date.c,v 1.19 1997/10/01 05:24:08 danny Exp $
  */
 
 #ifndef lint
@@ -281,7 +281,7 @@ static void
 usage()
 {
 	(void)fprintf(stderr, "%s\n%s\n",
-	    "usage: date [-nu] [-d dst] [-r seconds] [-t west] [+format]",
+	    "usage: date [-nsu] [-d dst] [-r seconds] [-t west] [+format]",
 	    "            [-v [+|-]val[ymwdHM]] ... [-f fmt date | [[[[yy]mm]dd]HH]MM[.ss]]");
 	exit(1);
 }
