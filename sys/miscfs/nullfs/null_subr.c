@@ -35,7 +35,7 @@
  *
  *	@(#)null_subr.c	8.7 (Berkeley) 5/14/95
  *
- * $Id$
+ * $Id: null_subr.c,v 1.9 1997/02/22 09:40:21 peter Exp $
  */
 
 #include <sys/param.h>
@@ -122,7 +122,7 @@ loop:
 		}
 	}
 
-	return NULL;
+	return NULLVP;
 }
 
 
@@ -263,7 +263,7 @@ null_checkvp(vp, fil, lno)
 		panic("null_checkvp");
 	};
 #endif
-	if (a->null_lowervp == NULL) {
+	if (a->null_lowervp == NULLVP) {
 		/* Should never happen */
 		int i; u_long *p;
 		printf("vp = %x, ZERO ptr\n", vp);

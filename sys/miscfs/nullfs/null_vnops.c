@@ -37,11 +37,11 @@
  *
  * Ancestors:
  *	@(#)lofs_vnops.c	1.2 (Berkeley) 6/18/92
- *	$Id: null_vnops.c,v 1.15 1997/02/12 18:06:08 mpp Exp $
+ *	$Id: null_vnops.c,v 1.16 1997/02/22 09:40:22 peter Exp $
  *	...and...
  *	@(#)null_vnodeops.c 1.20 92/07/07 UCLA Ficus project
  *
- * $Id$
+ * $Id: null_vnops.c,v 1.16 1997/02/22 09:40:22 peter Exp $
  */
 
 /*
@@ -273,9 +273,9 @@ null_bypass(ap)
 		 * are of our type.  Check for and don't map any
 		 * that aren't.  (We must always map first vp or vclean fails.)
 		 */
-		if (i && (*this_vp_p == NULL ||
+		if (i && (*this_vp_p == NULLVP ||
 		    (*this_vp_p)->v_op != null_vnodeop_p)) {
-			old_vps[i] = NULL;
+			old_vps[i] = NULLVP;
 		} else {
 			old_vps[i] = *this_vp_p;
 			*(vps_p[i]) = NULLVPTOLOWERVP(*this_vp_p);
@@ -384,7 +384,7 @@ null_lookup(ap)
 		unlockargs.a_p = p;
 		vop_nounlock(&unlockargs);
 	}
-	if (vp != NULL && VOP_ISLOCKED(vp)) {
+	if (vp != NULLVP && VOP_ISLOCKED(vp)) {
 		lockargs.a_vp = vp;
 		lockargs.a_flags = LK_SHARED;
 		lockargs.a_p = p;
@@ -568,7 +568,7 @@ null_reclaim(ap)
 	 * so we can't call VOPs on ourself.
 	 */
 	/* After this assignment, this node will not be re-used. */
-	xp->null_lowervp = NULL;
+	xp->null_lowervp = NULLVP;
 	LIST_REMOVE(xp, null_hash);
 	FREE(vp->v_data, M_TEMP);
 	vp->v_data = NULL;
