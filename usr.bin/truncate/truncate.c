@@ -58,15 +58,15 @@ main(int argc, char **argv)
 	char   *fname, *rname;
 
 	rsize = tsize = 0;
-	rname = NULL;
 	error = 0;
+	rname = NULL;
 	while ((ch = getopt(argc, argv, "cr:s:")) != -1)
 		switch (ch) {
 		case 'c':
-			no_create++;
+			no_create = 1;
 			break;
 		case 'r':
-			do_refer++;
+			do_refer = 1;
 			rname = optarg;
 			break;
 		case 's':
@@ -74,8 +74,8 @@ main(int argc, char **argv)
 				errx(EXIT_FAILURE,
 				    "invalid size argument `%s'", optarg);
 			if (*optarg == '+' || *optarg == '-')
-				do_relative++;
-			got_size++;
+				do_relative = 1;
+			got_size = 1;
 			break;
 		default:
 			usage();
@@ -90,18 +90,16 @@ main(int argc, char **argv)
 	 * do_relative implies got_size, do_relative and do_refer are
 	 * also mutually exclusive.  See usage() for allowed invocations.
 	 */
-	if (!(do_refer || got_size) || (do_refer && got_size) || argc < 1)
+	if (do_refer + got_size != 1 || argc < 1)
 		usage();
 	if (do_refer) {
 		if (stat(rname, &sb) == -1)
 			err(EXIT_FAILURE, "%s", rname);
 		tsize = sb.st_size;
-	} else if (got_size) {
-		if (do_relative)
-			rsize = sz;
-		else
-			tsize = sz;
-	}
+	} else if (do_relative)
+		rsize = sz;
+	else
+		tsize = sz;
 
 	if (no_create)
 		oflags = O_WRONLY;
