@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: $
+ * $Id: fbreg.h,v 1.1 1999/01/09 02:44:49 yokota Exp $
  */
 
 #ifndef _DEV_FB_FBREG_H_
@@ -35,9 +35,9 @@
 
 /* some macros */
 #ifdef __i386__
-#define bcopy_toio(s, d, c)	generic_bcopy(s, d, c)
-#define bcopy_fromio(s, d, c)	generic_bcopy(s, d, c)
-#define bzero_io(d, c)		generic_bzero(d, c)
+#define bcopy_toio(s, d, c)	generic_bcopy((void *)(s), (void *)(d), c)
+#define bcopy_fromio(s, d, c)	generic_bcopy((void *)(s), (void *)(d), c)
+#define bzero_io(d, c)		generic_bzero((void *)(d), c)
 void generic_bcopy(const void *s, void *d, size_t c);
 void generic_bzero(void *d, size_t c);
 #else /* !__i386__ */

@@ -12,10 +12,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS OR
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
  * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
- * IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
  * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
  * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
@@ -23,78 +23,52 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: atkbd_isa.c,v 1.1 1999/01/09 02:44:40 yokota Exp $
+ * $Id:$
  */
 
-#include "atkbd.h"
-#include "opt_kbd.h"
+#include "sc.h"
+#include "opt_syscons.h"
 
-#if NATKBD > 0
+#if NSC > 0
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/conf.h>
-#include <sys/tty.h>
 
-#include <dev/kbd/kbdreg.h>
-#include <dev/kbd/atkbdreg.h>
+#include <machine/console.h>
+#include <machine/apm_bios.h>
 
-#include <i386/isa/isa.h>
+#include <dev/syscons/syscons.h>
+
 #include <i386/isa/isa_device.h>
 
-static int		atkbdprobe(struct isa_device *dev);
-static int		atkbdattach(struct isa_device *dev);
-static ointhand2_t	atkbd_isa_intr;
+static int	scprobe(struct isa_device *dev);
+static int	scattach(struct isa_device *dev);
 
-struct isa_driver atkbddriver = {
-	atkbdprobe,
-	atkbdattach,
-	ATKBD_DRIVER_NAME,
-	0,
+struct isa_driver scdriver = {
+	scprobe,
+	scattach,
+	"sc",
+	1
 };
 
 static int
-atkbdprobe(struct isa_device *dev)
+scprobe(struct isa_device *dev)
 {
-	atkbd_softc_t *sc;
 	int error;
 
-	sc = atkbd_get_softc(dev->id_unit);
-	if (sc == NULL)
-		return 0;
-
-	/* try to find a keyboard */
-	error = atkbd_probe_unit(dev->id_unit, sc, dev->id_iobase,
-				 dev->id_irq, dev->id_flags);
-	if (error)
-		return 0;
-
-	/* declare our interrupt handler */
-	dev->id_ointr = atkbd_isa_intr;
-
-	return -1;
+	error = sc_probe_unit(dev->id_unit, dev->id_flags);
+	return ((error == 0) ? -1 : 0);
 }
 
 static int
-atkbdattach(struct isa_device *dev)
+scattach(struct isa_device *dev)
 {
-	atkbd_softc_t *sc;
+	int error;
 
-	sc = atkbd_get_softc(dev->id_unit);
-	if (sc == NULL)
-		return 0;
-
-	return ((atkbd_attach_unit(dev->id_unit, sc)) ? 0 : 1);
+	error = sc_attach_unit(dev->id_unit, dev->id_flags);
+	return ((error == 0) ? 0 : 1);
 }
 
-static void
-atkbd_isa_intr(int unit)
-{
-	keyboard_t *kbd;
-
-	kbd = atkbd_get_softc(unit)->kbd;
-	(*kbdsw[kbd->kb_index]->intr)(kbd);
-}
-
-#endif /* NATKBD > 0 */
+#endif /* NSC > 0 */
