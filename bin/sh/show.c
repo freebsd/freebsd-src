@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: show.c,v 1.7 1997/02/22 13:58:45 peter Exp $
  */
 
 #ifndef lint
@@ -41,7 +41,7 @@ static char const sccsid[] = "@(#)show.c	8.3 (Berkeley) 5/4/95";
 #endif /* not lint */
 
 #include <stdio.h>
-#if __STDC__
+#ifdef __STDC__
 #include <stdarg.h>
 #else
 #include <varargs.h>
@@ -298,7 +298,7 @@ trputc(c)
 
 
 void
-#if __STDC__
+#ifdef __STDC__
 trace(const char *fmt, ...)
 #else
 trace(va_alist)
@@ -306,7 +306,7 @@ trace(va_alist)
 #endif
 {
 	va_list va;
-#if __STDC__
+#ifdef __STDC__
 	va_start(va, fmt);
 #else
 	char *fmt;
@@ -338,7 +338,7 @@ static void
 trstring(s)
 	char *s;
 {
-	register char *p;
+	char *p;
 	char c;
 
 	if (tracefile == NULL)

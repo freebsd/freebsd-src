@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: cd.c,v 1.14 1997/02/22 13:58:22 peter Exp $
  */
 
 #ifndef lint
@@ -155,7 +155,7 @@ docd(dest, print)
 STATIC char *
 getcomponent()
 {
-	register char *p;
+	char *p;
 	char *start;
 
 	if ((p = cdcomppath) == NULL)

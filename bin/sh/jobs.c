@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: jobs.c,v 1.12 1997/02/22 13:58:29 peter Exp $
  */
 
 #ifndef lint
@@ -56,7 +56,7 @@ static char const sccsid[] = "@(#)jobs.c	8.5 (Berkeley) 5/4/95";
 
 #include "shell.h"
 #if JOBS
-#ifdef OLD_TTY_DRIVER
+#if OLD_TTY_DRIVER
 #include "sgtty.h"
 #else
 #include <termios.h>
@@ -440,7 +440,7 @@ getjob(name)
 	char *name;
 	{
 	int jobno;
-	register struct job *jp;
+	struct job *jp;
 	int pid;
 	int i;
 
@@ -464,7 +464,7 @@ currentjob:
 			goto currentjob;
 #endif
 		} else {
-			register struct job *found = NULL;
+			struct job *found = NULL;
 			for (jp = jobtab, i = njobs ; --i >= 0 ; jp++) {
 				if (jp->used && jp->nprocs > 0
 				 && prefix(name + 1, jp->ps[0].cmd)) {
@@ -686,7 +686,7 @@ forkshell(jp, n, mode)
 
 int
 waitforjob(jp)
-	register struct job *jp;
+	struct job *jp;
 	{
 #if JOBS
 	int mypgrp = getpgrp();
@@ -907,8 +907,8 @@ int job_warning = 0;
 int
 stoppedjobs()
 {
-	register int jobno;
-	register struct job *jp;
+	int jobno;
+	struct job *jp;
 
 	if (job_warning)
 		return (0);
@@ -1080,8 +1080,8 @@ STATIC void
 cmdputs(s)
 	char *s;
 	{
-	register char *p, *q;
-	register char c;
+	char *p, *q;
+	char c;
 	int subtype = 0;
 
 	if (cmdnleft <= 0)

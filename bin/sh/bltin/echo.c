@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)echo.c	8.2 (Berkeley) 5/4/95
- *	$Id$
+ *	$Id: echo.c,v 1.7 1997/02/22 13:58:59 peter Exp $
  */
 
 /*
@@ -52,9 +52,9 @@ main(argc, argv)
 	int argc;
 	char **argv;
 {
-	register char **ap;
-	register char *p;
-	register char c;
+	char **ap;
+	char *p;
+	char c;
 	int count;
 	int nflag = 0;
 #ifndef eflag
