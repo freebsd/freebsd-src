@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_domain.c	8.2 (Berkeley) 10/18/93
- *	$Id: uipc_domain.c,v 1.18 1997/09/16 11:43:36 bde Exp $
+ *	$Id: uipc_domain.c,v 1.19 1998/05/15 20:11:29 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -52,7 +52,7 @@
  * want to call a registration function rather than being handled here
  * in domaininit().  Probably this will look like:
  *
- * SYSINIT(unique, SI_SUB_PROTO_DOMAI, SI_ORDER_ANY, domain_add, xxx)
+ * SYSINIT(unique, SI_SUB_PROTO_DOMAIN, SI_ORDER_ANY, domain_add, xxx)
  *
  * Where 'xxx' is replaced by the address of a parameter struct to be
  * passed to the doamin_add() function.
@@ -71,21 +71,64 @@ static void	pfslowtimo __P((void *));
 
 struct domain *domains;
 
-#define	ADDDOMAIN(x)	{ \
-	__CONCAT(x,domain.dom_next) = domains; \
-	domains = &__CONCAT(x,domain); \
+/*
+ * Add a new protocol domain to the list of supported domains
+ * Note: you cant unload it again because  a socket may be using it.
+ * XXX can't fail at this time.
+ */
+static int
+net_init_domain(struct domain *dp)
+{
+	register struct protosw *pr;
+	int	s;
+
+	s = splnet();
+	if (dp->dom_init)
+		(*dp->dom_init)();
+	for (pr = dp->dom_protosw; pr < dp->dom_protoswNPROTOSW; pr++){
+		if (pr->pr_usrreqs == 0)
+			panic("domaininit: %ssw[%d] has no usrreqs!",
+			      dp->dom_name, 
+			      (int)(pr - dp->dom_protosw));
+		if (pr->pr_init)
+			(*pr->pr_init)();
+	}
+	/*
+	 * update global informatio about maximums
+	 */
+	max_hdr = max_linkhdr + max_protohdr;
+	max_datalen = MHLEN - max_hdr;
+	splx(s);
+	return (0);
+}
+
+/*
+ * Add a new protocol domain to the list of supported domains
+ * Note: you cant unload it again because  a socket may be using it.
+ * XXX can't fail at this time.
+ */
+int
+net_add_domain(struct domain *dp)
+{
+	int	s, error;
+
+	s = splnet();
+	dp->dom_next = domains;
+	domains = dp;
+	splx(s);
+	error = net_init_domain(dp);
+	max_hdr = max_linkhdr + max_protohdr;
+	max_datalen = MHLEN - max_hdr;
+	return (error);
 }
 
 extern struct linker_set domain_set;
 
 /* ARGSUSED*/
 static void
-domaininit(dummy)
-	void *dummy;
+domaininit(void *dummy)
 {
 	register struct domain *dp, **dpp;
-	register struct protosw *pr;
-
 	/*
 	 * Before we do any setup, make sure to initialize the
 	 * zone allocator we get struct sockets from.  The obvious
@@ -101,33 +144,33 @@ domaininit(dummy)
 	socket_zone = zinit("socket", sizeof(struct socket), maxsockets,
 			    ZONE_INTERRUPT, 0);
 
+	if (max_linkhdr < 16)		/* XXX */
+		max_linkhdr = 16;
+
 	/*
 	 * NB - local domain is always present.
 	 */
-	ADDDOMAIN(local);
+	net_add_domain(&localdomain);
 
+	/* 
+	 * gather up as many protocols as we have statically linked.
+	 * XXX we need to do this because when we ask the routing
+	 * protocol to initialise it will want to examine all 
+	 * installed protocols. This needs fixing before protocols
+	 * that use the standard routing can become modules.
+	 */
 	for (dpp = (struct domain **)domain_set.ls_items; *dpp; dpp++) {
 		(**dpp).dom_next = domains;
 		domains = *dpp;
 	}
 
-	for (dp = domains; dp; dp = dp->dom_next) {
-		if (dp->dom_init)
-			(*dp->dom_init)();
-		for (pr = dp->dom_protosw; pr < dp->dom_protoswNPROTOSW; pr++){
-			if (pr->pr_usrreqs == 0)
-				panic("domaininit: %ssw[%d] has no usrreqs!",
-				      dp->dom_name, 
-				      (int)(pr - dp->dom_protosw));
-			if (pr->pr_init)
-				(*pr->pr_init)();
-		}
-	}
+	/*
+	 * Now ask them all to init (XXX including the routing domain,
+	 * see above)
+	 */
+	for (dp = domains; dp; dp = dp->dom_next)
+		net_init_domain(dp);
 
-	if (max_linkhdr < 16)		/* XXX */
-		max_linkhdr = 16;
-	max_hdr = max_linkhdr + max_protohdr;
-	max_datalen = MHLEN - max_hdr;
 	timeout(pffasttimo, (void *)0, 1);
 	timeout(pfslowtimo, (void *)0, 1);
 }
