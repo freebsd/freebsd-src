@@ -40,7 +40,7 @@ static char copyright[] =
 #ifndef lint
 /* from: @(#)inetd.c	8.4 (Berkeley) 4/13/94"; */
 static char inetd_c_rcsid[] =
-	"$Id: inetd.c,v 1.13 1996/08/09 22:20:24 julian Exp $";
+	"$Id: inetd.c,v 1.14 1996/10/28 23:02:38 joerg Exp $";
 #endif /* not lint */
 
 /*
@@ -354,7 +354,7 @@ main(argc, argv, envp)
 #define	DUMMYSIZE	100
 		char dummy[DUMMYSIZE];
 
-		(void)memset(dummy, 'x', sizeof(DUMMYSIZE) - 1);
+		(void)memset(dummy, 'x', DUMMYSIZE - 1);
 		dummy[DUMMYSIZE - 1] = '\0';
 		(void)setenv("inetd_dummy", dummy, 1);
 	}
