@@ -39,7 +39,7 @@
   s&eacute;curit&eacute; applicables au syst&egrave;me de base qui ont &eacute;t&eacute;
   d&eacute;couverts depuis la derni&egrave;re version. Ces notes
   contiennent &eacute;galement quelques br&egrave;ves remarques sur la
-  mise &agrgave; jour.</para>
+  mise &agrave; jour.</para>
   </abstract>
 </articleinfo>
 
@@ -49,11 +49,11 @@
   &release.current; sur plate-forme &arch.print;. Il d&eacute;crit les
   nouvelles fonctions de &os; qui ont &eacute;t&eacute;
   ajout&eacute;es, modifi&eacute;es ou retir&eacute;es dans &os;. Il
-  contient &eacute;galement quelques notes sur la mise &agrgave; jour
+  contient &eacute;galement quelques notes sur la mise &agrave; jour
   depuis la version	pr&eacute;c&eacute;dente de &os;.</para>
 <![ %release.type.snapshot [
 
-<para>La distribution snapshot &agrgave; laquelle s'applique ces notes
+<para>La distribution snapshot &agrave; laquelle s'applique ces notes
 de version repr&eacute;sente une &eacute;tape sur la branche de
 d&eacute;veloppement &release.branch; entre &release.prev; et la
 future	&release.next;. Quelques distributions binaires
@@ -107,13 +107,13 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
   la version &release.prev;. Il s'agit typiquement de nouveaux
   gestionnaires de p&eacute;riph&eacute;riques ou du support de
   mat&eacute;riels, de nouvelles commandes ou options, de corrections
-  de bugs majeurs, ou de mise &agrgave; jour de logiciels. Les avis de
+  de bugs majeurs, ou de mise &agrave; jour de logiciels. Les avis de
   s&eacute;curit&eacute; pour le syst&egrave;me de base
   d&eacute;couverts apr&egrave;s la &release.prev; sont
   &eacute;galements mentionn&eacute;s.</para>
 
   <para>De nombreux changements suppl&eacute;mentaires apport&eacute;s
-  &agrgave; &os; ne sont pas mentionn&eacute;s ici par faute de
+  &agrave; &os; ne sont pas mentionn&eacute;s ici par faute de
   place. Par exemple, la documentation a &eacute;t&eacute;
   corrig&eacute;e et am&eacute;lior&eacute;e, des bugs mineurs ont
   &eacute;t&eacute; corrig&eacute;s, du code potentiellement dangereux
@@ -131,7 +131,7 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
 
     <para>&man.acct.2; a &eacute;t&eacute; modifi&eacute; pour ouvrir
     le fichier d'accounting en mode ajout, comme cela &man.accton.8;
-    peut &ecirce;tre utilis&eacute; pour activer l'accounting dans un
+    peut &ecirc;tre utilis&eacute; pour activer l'accounting dans un
     fichier en mode ajout.&merged;</para>
 
     <para arch="i386" role="historic">Le gestionnaire de
@@ -195,7 +195,7 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
     PC/Xem.</para>
 
     <para>Un nouvel appel syst&egrave;me &man.eaccess.2; a
-    &eacute;t&eacute; ajout&eacute;, similaire &agrgave;
+    &eacute;t&eacute; ajout&eacute;, similaire &agrave;
     &man.access.2; except&eacute; qu'il utilise les identit&eacute;s
     effective au lieu des identit&eacute;s r&eacute;elles.</para> 
 
@@ -524,7 +524,7 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
     pr&eacute;c&eacute;der un <maketarget>buildkernel</maketarget> par
     un <maketarget>buildworld</maketarget>. (Un
     <maketarget>buildworld</maketarget> est n&eacute;cessaire pour la
-    mise &agrgave; jour lors des version majeures, ou de la mise
+    mise &agrave; jour lors des version majeures, ou de la mise
     &agrave; jour de <application>binutil</application> et lors de
     changements dans &man.config.8;.) &merged;</para>
 
@@ -714,7 +714,7 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
       l'activer. &merged;</para>
 
       <para arch="sparc64">La plateforme UltraSPARC est maintenant
-      support&eacute;e par &os. Les machines suivantes sont
+      support&eacute;e par &os;. Les machines suivantes sont
       support&eacute;e jusqu'&agrave; un certain niveau: Ultra
       1/2/5/10/30/60, Enterprise 220R/420R, Netra T1 AC200/DC200,
       Netra T 105, et Blade 100. Le multi-processeur est
@@ -804,7 +804,7 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
       d&eacute;plac&eacute;s dans le r&eacute;pertoire
       <filename>/boot/kernel</filename>, pour permettre de les
       manipuler ensemble de façon plus simple. Le gestionnaire de
-      d&eacute;marrage a &eacute;t&eacute; mise &agrgave; jour pour
+      d&eacute;marrage a &eacute;t&eacute; mise &agrave; jour pour
       refl&eacute;ter ce changement.</para>
 
 
@@ -837,7 +837,7 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
       sont support&eacute;s sous l'&eacute;mulation. &merged;</para>
 
       <para arch="i386,pc98" role="historic">Le support
-      g&eacute;n&eacute;rique pour les r&eacute;seaux &agrgave; jetons
+      g&eacute;n&eacute;rique pour les r&eacute;seaux &agrave; jetons
       de type ARCNET a &eacute;t&eacute;
       ajout&eacute;. &merged;</para>
 
@@ -857,7 +857,7 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
       ARCNET. &merged;</para>
 
       <para>Le gestionnaire de p&eacute;riph&eacute;riques &man.dc.4; supporte 
-      d&eacute;sormais les cartes &agrgave; base de composants Xircom 3201 et 
+      d&eacute;sormais les cartes &agrave; base de composants Xircom 3201 et 
       Conexant LANfinity RS7112.</para>
 
       <para role="historic">Le gestionnaire de
@@ -866,8 +866,8 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
 
       <para role="historic">Le gestionnaire de
       p&eacute;riph&eacute;riques &man.de.4; effectue maintenant une
-      arbitration &agrgave; base de "round-robin" entre les
-      r&eacute;ceptions et les transmissions du 21143 &agrgave; la
+      arbitration &agrave; base de "round-robin" entre les
+      r&eacute;ceptions et les transmissions du 21143 &agrave; la
       place de donner la priorit&eacute; a l'unit&eacute; de
       reception. Cela permet de gagner 10&ndash;15% de performances
       lors des gros transferts. &merged;</para>
@@ -880,7 +880,7 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
       Linksys PCCARD support&eacute;s via le gestionnaire de
       p&eacute;riph&eacute;riques &man.ed.4; n&eacute;cessite
       maintenant l'ajout du drapeau <literal>0x80000</literal>
-      &agrgave; la ligne de configuration de &man.pccard.conf.5;. Ce
+      &agrave; la ligne de configuration de &man.pccard.conf.5;. Ce
       drapeau n'est pas  optionnel. Les cartes Linksys ne serait pas
       reconnues sans lui. &merged;</para>
 
@@ -932,7 +932,7 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
       p&eacute;riph&eacute;riques &man.fxp.4; contient maintenant un
       correctif pour la violation de protocole PCI caus&eacute; sur
       certains syst&egrave;mes bas&eacute;s sur des composants Intel
-      ICH2/ICH2-M. Le correctif consiste &agrgave; l&eacute;criture
+      ICH2/ICH2-M. Le correctif consiste &agrave; l&eacute;criture
       dans l'EEPROM de l'interface a d&eacute;sactiver pour le mode
       "Dynamic Standby"; une fois l'EEPROM modifi&eacute;e, le
       syst&egrave;me doit etre red&eacute;marr&eacute; pour que les
@@ -1147,7 +1147,7 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
       La variable  sysctl <varname>kern.polling.enable</varname>
       activera ensuite le mode d'interrogation; la variable sysctl
       <varname>kern.polling.user_frac</varname> indiquant le
-      pourcentage de temps CPU &agrgave; reserver dans le mode
+      pourcentage de temps CPU &agrave; reserver dans le mode
       utilisateur. Les gestionnaires supportant cette
       fonctionnalit&eacute; sont  &man.dc.4;, &man.fxp.4;, et
       &man.sis.4;. Plus de d&eacute;tails peuvent etre trouv&eacute; a
@@ -1220,7 +1220,7 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
       pr&eacute;sence de bits ECN dans les segments
       TCP. &merged;</para>
 
-      <para>Un nouveau noeud netgraph &man.ng.eth.4; permet au paquets
+      <para>Un nouveau noeud netgraph &man.ng.etf.4; permet au paquets
       de type Ethernet d'etre filtr&eacute;s sur diff&eacute;rents
       crit&egrave;res sur les "ethertype".</para>
 
@@ -1249,7 +1249,7 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
       <varname>net.inet.ip.check_interface</varname>, activ&eacute;e
       par d&eacute;faut, permet de v&eacute;rifier que le paquet
       arrivant sur une interface a une addresse correspondante
-      &agrgave; l'addresse de destination du paquet. &merged;</para>
+      &agrave; l'addresse de destination du paquet. &merged;</para>
 
       <para>Une nouvelle variable sysctl
       <varname>net.link.ether.inet.log_arp_wrong_iface</varname> a
@@ -1308,7 +1308,7 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
       controll&eacute;e par les  variables sysctl
       <varname>net.inet.tcp.sendspace</varname> et 
       <varname>net.inet.tcp.recvspace</varname>, a &eacute;t&eacute;
-      augment&eacute;e respectivement &agrgave; 32K et
+      augment&eacute;e respectivement &agrave; 32K et
       64K. Pr&eacute;cedemment cette valeur
       &eacute;tait de 16K pour chaque tampon. Pour essayer d'&eacute;viter 
       l'augmentation de la congestion, la valeur par d&eacute;faut de 
@@ -1413,7 +1413,7 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
       corrig&eacute; pour les syst&egrave;mes utilisant les puces VIA 82C686B Southbridge,
       qui entrainait une corruption des donn&eacute;es. &merged;</para>
 
-      <para>Les erreurs de r&eacute;cup&eacute;ration CAM ont &eacute;t&eacute; mises &agrgave; jour.</para>
+      <para>Les erreurs de r&eacute;cup&eacute;ration CAM ont &eacute;t&eacute; mises &agrave; jour.</para>
 
       <para>Le gestionnaire de p&eacute;riph&eacute;riques &man.cd.4; supporte maintenant
       les &eacute;critures. Cela permet d'&eacute;crire sur les DVD-RAM, PD et 
@@ -1613,7 +1613,7 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
       <para>Les syst&egrave;mes de fichiers r&eacute;seaux (comme NFS et smbfs) list&eacute;s
       dans le fichier <filename>/etc/fstab</filename> peuvent 
       maintenant etre mont&eacute;s au moment de l'initialisation du syst&egrave;me;
-      le montage est alors suspendu jusqu'&agrgave; l'initialisation finale
+      le montage est alors suspendu jusqu'&agrave; l'initialisation finale
       du r&eacute;seau.</para>
 
     </sect3>
@@ -1683,7 +1683,7 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
       <programlisting>snd_maestro3_load="YES"</programlisting>
 
       <para>Le gestionnaire de p&eacute;riph&eacute;riques &man.bktr.4; a &eacute;t&eacute; mis
-      &agrgave; jour en version 2.18. Cette mise &agrgave; jour fournit de nombreuses
+      &agrave; jour en version 2.18. Cette mise &agrave; jour fournit de nombreuses
       nouvelles fonctionnalit&eacute;s. De nouveaux types de tuner ont &eacute;t&eacute;
       jout&eacute;s et des am&eacute;liorations dans les modules KLD et l'allocation
       m&eacute;moire ont &eacute;t&eacute; effectu&eacute;s. Des bogues dans &man.devfs.5;
@@ -1711,7 +1711,7 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
 
       <para>Le language de commande inspir&eacute; sur Forth
       (<application>FICL</application>) du gestionnaire de 
-      d&eacute;marrage a &eacute;t&eacute; mis &agrgave; jour en version 2.05.</para>
+      d&eacute;marrage a &eacute;t&eacute; mis &agrave; jour en version 2.05.</para>
 
       <para>Le supporte pour la configuration avanc&eacute;e de gestion
       d'&eacute;nergie  (ACPI), un standard multi-constructeurs sur 
@@ -1735,10 +1735,10 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
       <sect4 arch="i386">
         <title>isdn4bsd</title>
 
-	<para><application>isdn4bsd</application> a &eacute;t&eacute; mis &agrgave; jour 
+	<para><application>isdn4bsd</application> a &eacute;t&eacute; mis &agrave; jour 
 	en version 1.0.1. Ceci <emphasis>oblige</emphasis> les
 	 utilisateurs du gestionnaire de p&eacute;riph&eacute;riques 
-	 &man.i4bisppp.4; (PPP noyau sur ISDN) &agrgave; utiliser 
+	 &man.i4bisppp.4; (PPP noyau sur ISDN) &agrave; utiliser 
 	 &man.ispppcontrol.8; au lieu de &man.spppcontrol.8; pour
 	 configurer et controler leurs interfaces r&eacute;seaux. &merged;</para>
 
@@ -1871,7 +1871,7 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
 
     <para>Le binaire &man.ssh.1; n'est plus SUID root par d&eacute;faut. &merged;</para>
 
-    <para>Diff&eacute;rentes corrections ont &eacute;t&eacute; apport&eacute;es &agrgave; l'impl&eacute;mentation
+    <para>Diff&eacute;rentes corrections ont &eacute;t&eacute; apport&eacute;es &agrave; l'impl&eacute;mentation
     de Kerberos IV relatives a des variables d'environnements, un
     possible d&eacute;passent de tampon, et l'&eacute;crasement de fichiers de 
     tickets. &merged;</para>
@@ -1933,10 +1933,10 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
      FreeBSD-SA-01:29). &merged;</para>
 
     <para>Un trou de s&eacute;curit&eacute; dans les impl&eacute;mentations FFS et EXT2FS de &os;
-    permettant &agrgave; des utilisateurs l'acc&egrave;s a des donn&eacute;es non autoris&eacute;es, a &eacute;t&eacute;
+    permettant &agrave; des utilisateurs l'acc&egrave;s a des donn&eacute;es non autoris&eacute;es, a &eacute;t&eacute;
     corrig&eacute;. (voir l'avis de s&eacute;curit&eacute; FreeBSD-SA-01:30). &merged;</para>
 
-    <para>Un vuln&eacute;rabilit&eacute;, exploitable &agrgave; distance, de &man.ntpd.8; a 
+    <para>Un vuln&eacute;rabilit&eacute;, exploitable &agrave; distance, de &man.ntpd.8; a 
     &eacute;t&eacute; r&eacute;gl&eacute;e(voir l'avis de s&eacute;curit&eacute; FreeBSD-SA-01:31). &merged;</para>
 
     <para>Un trou de s&eacute;curit&eacute; dans le m&eacute;canisme de "cache" des fragments IP
@@ -1957,7 +1957,7 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
 
     <para>Un vuln&eacute;rabilit&eacute; dans les routines &man.fts.3; (utilis&eacute;s par
     des applications pour parcourir de façon r&eacute;cursive un syst&egrave;me de fichier)
-    permet &agrgave; un programme de lire des fichiers en dehors de la hi&eacute;rarchie
+    permet &agrave; un programme de lire des fichiers en dehors de la hi&eacute;rarchie
     de r&eacute;pertoire autoris&eacute;. Ce bogue a &eacute;t&eacute; corrig&eacute; voir l'avis de s&eacute;curit&eacute;
     FreeBSD-SA-01:40). &merged;</para>
 
@@ -1976,10 +1976,10 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
     binary.  This flaw has been corrected (see security advisory
     FreeBSD-SA-01:42). &merged;</para>
 
-    <para>Un d&eacute;passement de buffer &agrgave; distance dans &man.tcpdump.1; a &eacute;t&eacute; 
+    <para>Un d&eacute;passement de buffer &agrave; distance dans &man.tcpdump.1; a &eacute;t&eacute; 
     corrig&eacute; (voir l'avis de s&eacute;curit&eacute; FreeBSD-SA-01:48). &merged;</para>
 
-    <para>Un d&eacute;passement de buffer &agrgave; distance dans &man.telnetd.8; a &eacute;t&eacute;
+    <para>Un d&eacute;passement de buffer &agrave; distance dans &man.telnetd.8; a &eacute;t&eacute;
     corrig&eacute; (voir l'avis de s&eacute;curit&eacute; FreeBSD-SA-01:49). &merged;</para>
 
     <para>Les nouvelles variables sysctl 
@@ -1997,7 +1997,7 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
     de <filename>inetd.conf</filename>. &merged;</para>
 
     <para>Un bogue dans l'impl&eacute;mentation des r&egrave;gles de &man.ipfw.8;
-    comportant <literal>me</literal> sur les liens point &agrgave; point a 
+    comportant <literal>me</literal> sur les liens point &agrave; point a 
     &eacute;t&eacute; corrig&eacute;. Les r&egrave;gles de filtrage comportant <literal>me</literal> 
     matchaient l'adresse IP distante a la place de l'adresse IP
     local (voyez l'avis de s&eacute;curit&eacute; FreeBSD-SA-01:53). &merged;</para>
@@ -2077,7 +2077,7 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
     <filename>/etc/apmd.conf</filename> pour la syntaxe. &merged;</para>
 
     <para>&man.arp.8; affiche maintenant le nom de l'interface correspondante 
-    &agrgave; chaque entr&eacute;e ARP. &merged</para>
+    &agrave; chaque entr&eacute;e ARP. &merged</para>
 
     <para>&man.arp.8; affiche maintenant <literal>[fddi]</literal> ou
     <literal>[atm]</literal> pour les adresses d'interfaces de ce type.</para>
@@ -2153,7 +2153,7 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
     permettant, dans le cas d'une sequence de controle inconnue, de ne pas
     en tenir compte. &merged;</para>
 
-    <para>La distribution <filename>compat3x</filename> a &eacute;t&eacute; mise &agrgave; jour
+    <para>La distribution <filename>compat3x</filename> a &eacute;t&eacute; mise &agrave; jour
     pour inclure les librairies pr&eacute;sentes dans &os; 3.5.1-RELEASE. 
     &merged;</para>
 
@@ -2162,7 +2162,7 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
 
     <para>&man.config.8; convertit maintenant plus de "warnings" qui devaient 
     etre des erreurs en des erreurs fatales avec un code de sortie. Cela 
-    permet &agrgave; <literal>make buildkernel</literal>  de ne plus les ignorer
+    permet &agrave; <literal>make buildkernel</literal>  de ne plus les ignorer
     et de g&eacute;n&eacute;rer un noyau boggu&eacute; dans le cas d'une compilation 
     automatique.&merged;</para>
 
@@ -2194,7 +2194,7 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
 
     <para>&man.du.1; dispose maintenant d'une option <option>-I</option> 
     permettant d'ignorer les fichiers et les sous-r&eacute;pertoires correspondant 
-    &agrgave; un masque sp&eacute;cifi&eacute;. &merged;</para>
+    &agrave; un masque sp&eacute;cifi&eacute;. &merged;</para>
 
     <para>&man.dump.8; supporte maintenant l'h&eacute;ritage du drapeau
     <literal>nodump</literal> a travers une hi&eacute;rarchie. &merged;</para>
@@ -2283,9 +2283,9 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
     pass&eacute; en mode multi-utilisateur, avec l'option <option>-B</option>
     pour v&eacute;rifier tous les autres syst&egrave;mes de fichiers pouvant 
     &ecirc;tre v&eacute;rifi&eacute; en arri&egrave;re plan.
-    Contrairement &agrgave; la v&eacute;rification en avant-plan, la v&eacute;rification en
+    Contrairement &agrave; la v&eacute;rification en avant-plan, la v&eacute;rification en
     arri&egrave;re plan est d&eacute;marr&eacute; de façon asynchrone, cela permet
-    donc de permettre &agrgave; d'autres processus syst&egrave;me de d&eacute;marrer
+    donc de permettre &agrave; d'autres processus syst&egrave;me de d&eacute;marrer
     pendant que les syst&egrave;mes de fichiers sont v&eacute;rifi&eacute;s. L'activation
     de cette fonctionnalit&eacute; est controll&eacute;e par la variable 
     <varname>background_fsck</varname> du fichier &man.rc.conf.5;.</para>
@@ -2345,7 +2345,7 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
 
     <para>Les scripts &man.ibcs2.8;, &man.linux.8;, &man.osf1.8;, et 
     &man.svr4.8;, qui chargeaient les modules d'&eacute;mulation, ont &eacute;t&eacute; retir&eacute;s. Le
-    syst&egrave;me de module actuel charge maintenant les modules n&eacute;cessaires &agrgave;
+    syst&egrave;me de module actuel charge maintenant les modules n&eacute;cessaires &agrave;
     la demande en v&eacute;rifiant les d&eacute;pendances.</para>
 
     <para>&man.indent.1;  dispose de nouvelles options de formattage. &merged;</para>
@@ -2383,7 +2383,7 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
     du d&eacute;marrage &man.rc.conf.5;&merged;</para>
 
     <para>&man.ipfstat.8; supporte maintenant l'option <option>-t</option> pour
-    lui permettre un affichage  &agrgave; la &man.top.1;. &merged;</para>
+    lui permettre un affichage  &agrave; la &man.top.1;. &merged;</para>
 
     <para>&man.ipfw.8; n'affiche plus les r&egrave;gles dynamiques sauf si on lui passe
     l'option <option>-d</option>. L'option <option>-e</option> permet d'afficher
@@ -2542,7 +2542,7 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
 
     <para>La nouvelle variable <varname>CPUTYPE</varname> dans
     <filename>make.conf</filename> permet de controler les optimisations
-    sp&eacute;cifiques &agrgave; certains processeurs dans diff&eacute;rentes parties du code, 
+    sp&eacute;cifiques &agrave; certains processeurs dans diff&eacute;rentes parties du code, 
     comme dans <application>OpenSSL</application>. &merged;</para>
 
     <para>L'infrastructure de <filename>Makefile</filename> de &os; supporte
@@ -2556,7 +2556,7 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
     (les pages de manuel cach&eacute;es pour leur lecture r&eacute;p&eacute;t&eacute;es). 
     Comme r&eacute;sultat &man.man.1; ne peut plus cr&eacute;er des pages de manuels
     cach&eacute;es pour un utilisateur. Il peut continuer a le faire si l'utilisateur
-    &agrgave; la possibilit&eacute; d'&eacute;crire dans le r&eacute;pertoire des catpages (
+    &agrave; la possibilit&eacute; d'&eacute;crire dans le r&eacute;pertoire des catpages (
     par ex une page de manuel lui appartenant) ou si l'utilisateur le lancant est 
     <username>root</username>.</para>
 
@@ -2574,7 +2574,7 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
     controler l'acc&eacute;l&eacute;ration de la souris. &merged;</para>
 
     <para>&man.mtree.8; peut utiliser un fichier comportant la liste des
-    r&eacute;pertoires &agrgave; exclure lorsqu'il cr&eacute;e ou v&eacute;rifie les prototypes. 
+    r&eacute;pertoires &agrave; exclure lorsqu'il cr&eacute;e ou v&eacute;rifie les prototypes. 
     Cela permet d'utiliser plus facilement &man.mtree.8; comme outil
     de d&eacute;tection d'intrusion syst&egrave;me.&merged;</para>
 
@@ -2594,7 +2594,7 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
     et en sortie par adresse pour chaque interface. &merged;</para>
 
     <para>&man.netstat.1; dispose maintenant du param&egrave;tre de ligne de commande
-     <option>-z</option> permettant la remise &agrgave; z&eacute;ro des statistiques. &merged;</para>
+     <option>-z</option> permettant la remise &agrave; z&eacute;ro des statistiques. &merged;</para>
 
     <para>&man.netstat.1; dispose maintenant du param&egrave;tre de ligne de commande
      <option>-S</option> permettant d'afficher les adresse en format num&eacute;rique tout
@@ -2611,7 +2611,7 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
     calcul&eacute; pour etre &eacute;gal au nombre maximum donn&eacute; par les
     param&egrave;tres du syst&egrave;me de fichiers courant. Ce nombre peut etre 
     forc&eacute; via l'option <option>-c</option>. De base, la valeur par d&eacute;faut a &eacute;t&eacute;
-    fix&eacute;e &agrgave; 16. Cela augmente les performances de &man.fsck.8; tout en 
+    fix&eacute;e &agrave; 16. Cela augmente les performances de &man.fsck.8; tout en 
     r&eacute;duisant la fragmentation. &merged;</para>
 
     <para><anchor id="newfs-block-frag-sizes">La taille des blocs et des fragments
@@ -2646,7 +2646,7 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
     le fichier <filename>/etc/pam.d/README</filename> pour plus de d&eacute;tails.</para> 
 
     <para>&man.passwd.1; et &man.pw.8; s&eacute;lectionnent l'algorithme de
-    hashage &agrgave; la vol&eacute;e. Voyez l'attribut <literal>passwd_format</literal>
+    hashage &agrave; la vol&eacute;e. Voyez l'attribut <literal>passwd_format</literal>
     dans <filename>/etc/login.conf</filename>. &merged;</para>
 
     <para>&man.pax.1; a reçu diff&eacute;rentes am&eacute;liorations, comme la 
@@ -2720,12 +2720,12 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
     supportant IPv6. &merged;</para>
 
     <para>L'appel syst&egrave;me &man.rfork.thread.3; a &eacute;t&eacute; ajout&eacute; comme
-    fonction d'aide &agrgave; &man.rfork.2;. Cela permet d'utiliser cette
+    fonction d'aide &agrave; &man.rfork.2;. Cela permet d'utiliser cette
     fonction sans impl&eacute;menter des m&eacute;canismes complexes de swap de 
     stack. &merged;</para>
 
     <para>L'option <option>-v</option> de &man.rm.1; affiche maintenant
-    l'ensemble du r&eacute;pertoire ou se trouve le fichier &agrgave; effacer.</para>
+    l'ensemble du r&eacute;pertoire ou se trouve le fichier &agrave; effacer.</para>
 
     <para>&man.route.8; est maintenat plus verbeux lors du changement de routes
     indirectes, dans le cas ou la passerelle de la route modifi&eacute;e est
@@ -2763,7 +2763,7 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
     et non am&eacute;ricains. &merged;</para>
 
     <para>&man.rtld.1; affiche maintenant le nom de tous les objets n&eacute;cessaires
-    &agrgave; charger lorsque la variable d'environnement
+    &agrave; charger lorsque la variable d'environnement
     <varname>LD_TRACE_LOADED_OBJECTS_ALL</varname> est d&eacute;finie.</para>
 
     <para>&man.savecore.8; dispose de l'option <option>-k</option> 
@@ -2800,7 +2800,7 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
 
     <para>&man.sockstat.1; dispose de l'option <option>-c</option> et
     <option>-l</option> permettant repectivement de lister les sockets 
-    connect&eacute;es et &agrgave; l'&eacute;coute. &merged;</para>
+    connect&eacute;es et &agrave; l'&eacute;coute. &merged;</para>
 
     <para>&man.split.1; peut maintenant couper les fichiers de plus de 
     2GB. &merged;</para>
@@ -2842,11 +2842,11 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
     <para>&man.sysctl.8; dispose maintenant de l'option <option>-e</option>
     pour s&eacute;parer les noms des variables et leur valeur par
     <literal>=</literal> plutot que <literal>:</literal>. Cette option
-    est tr&egrave;s pratique pour renvoyer des valeurs &agrgave; 
+    est tr&egrave;s pratique pour renvoyer des valeurs &agrave; 
     &man.sysctl.8;. &merged;</para>
 
     <para>&man.sysinstall.8; pr&eacute;serve maintenant proprement
-    <filename>/etc/mail</filename> lors d'une mise &agrgave; jour via
+    <filename>/etc/mail</filename> lors d'une mise &agrave; jour via
     les binaires. &merged;</para>
 
     <para>La taille par d&eacute;faut de la partition principale dans 
@@ -2874,9 +2874,9 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
     Soft Updates sur tous les syst&egrave;mes de fichiers qu'il cr&eacute;e, 
     except&eacute; pour le syst&egrave;me de fichiers racine. &merged;</para>
 
-    <para>&man.sysinstall.8; a reçu des mises &agrgave; jour sur le mode
+    <para>&man.sysinstall.8; a reçu des mises &agrave; jour sur le mode
     <quote>auto</quote> de partitionnement qui permet de donner des
-    valeurs plus raisonnables &agrgave; la taille des partitions qu'il cr&eacute;e;
+    valeurs plus raisonnables &agrave; la taille des partitions qu'il cr&eacute;e;
     ces partitions automatiquement taill&eacute;es peuvent r&eacute;-utiliser
     l'espace qui devient disponible lorsque d'autres partitions sont 
     effac&eacute;es. &merged;</para>
@@ -2892,7 +2892,7 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
 
     <para>&man.syslogd.8; dispose de la possibilit&eacute; de s'attacher
     sur une adresse sp&eacute;cifique (plutot que d'utiliser toutes celles
-    disponibles) grace &agrgave; l'option <option>-b</option>. &merged;</para>
+    disponibles) grace &agrave; l'option <option>-b</option>. &merged;</para>
 
     <para>&man.syslogd.8; dispose de l'option <option>-c</option> pour 
     d&eacute;sactiver la compression des lignes r&eacute;p&eacute;titives. &merged;</para>
@@ -2933,7 +2933,7 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
      <envar>TMPDIR</envar>, si elle est positionn&eacute;e, pour sp&eacute;cifi&eacute;
      l'emplacement des fichiers temporaires. &merged;</para>
 
-    <para>&man.tip.1; a &eacute;t&eacute; mis &agrgave; jour depuis
+    <para>&man.tip.1; a &eacute;t&eacute; mis &agrave; jour depuis
     <application>OpenBSD</application>, et dispose de la possibilit&eacute; 
     d'etre utilis&eacute; comme &man.cu.1;.</para>
 
@@ -2946,7 +2946,7 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
     <para>L'utilitaire &man.truncate.1;, permettant de r&eacute;duire ou 
     d'augmenter la taille d'un fichier, a &eacute;t&eacute; ajout&eacute;. &merged;</para>
 
-    <para>Le support Ukrainian a &eacute;t&eacute; ajout&eacute; &agrgave; la console
+    <para>Le support Ukrainian a &eacute;t&eacute; ajout&eacute; &agrave; la console
      &os;. &merged;</para>
 
     <para><application>UUCP</application> a &eacute;t&eacute; retir&eacute; du syst&egrave;me
@@ -2954,7 +2954,7 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
     dans <filename role="package">net/freebsd-uucp</filename>.</para>
 
     <para>&man.units.1; a reçu diff&eacute;rentes corrections de bogues 
-    et mise &agrgave; jour. &merged;</para>
+    et mise &agrave; jour. &merged;</para>
 
     <para>&man.usbdevs.8; dispose de l'option de ligne de commande
      <option>-d</option> pour afficher le gestionnaire de p&eacute;riph&eacute;rique 
@@ -2967,7 +2967,7 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
     permettant de selectionnerune g&eacute;om&eacute;trie personnelle de text dans le
     mode texte <literal>VESA_800x600</literal>. &merged;</para>
 
-    <para>&man.vidcontrol.1;  permet maintenant &agrgave; l'utilisateur
+    <para>&man.vidcontrol.1;  permet maintenant &agrave; l'utilisateur
     d'oublier de sp&eacute;cifier la taille des fontes lors de leur chargement,
     et il dispose aussi d'une meilleur gestion des erreurs. &merged;</para>
 
@@ -2991,13 +2991,13 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
      utilisateurs d'un groupe donn&eacute;. &merged;</para>
 
     <para>&man.watch.8; dispose de l'option <option>-f</option> permettant
-    de sp&eacute;cifier le p&eacute;riph&eacute;rique &man.snp.4; &agrgave; utiliser.</para>
+    de sp&eacute;cifier le p&eacute;riph&eacute;rique &man.snp.4; &agrave; utiliser.</para>
 
     <para>&man.which.1; est maintenant un programme C plutot qu'un script
     Perl.</para>
 
     <para>&man.whois.1; interroge maintenant directement l'ARIN pour
-    les demandes d'adresses IP. Si la requ&egrave;te &agrgave; l'ARIN
+    les demandes d'adresses IP. Si la requ&egrave;te &agrave; l'ARIN
     r&eacute;f&eacute;rence l'APNIC ou le RIPE, le serveur apropri&eacute;
     est appel&eacute;, dans le cas ou l'option <option>-Q</option>
     n'est pas sp&eacute;cifi&eacute;e. &merged;</para>
@@ -3009,10 +3009,10 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
 
 
     <para>&man.xargs.1; dispose de l'option <option>-I</option>
-      <replaceable>replstr</replaceable> permettant de demander &agrgave;
-      l'utilisateur les donn&eacute;es &agrgave; ins&eacute;r&eacute;es depuis
-      l'entr&eacute;e standard &agrgave; certains points, plutot que de prendre
-      ces donn&eacute;es &agrgave; la fin des arguments</para>
+      <replaceable>replstr</replaceable> permettant de demander &agrave;
+      l'utilisateur les donn&eacute;es &agrave; ins&eacute;r&eacute;es depuis
+      l'entr&eacute;e standard &agrave; certains points, plutot que de prendre
+      ces donn&eacute;es &agrave; la fin des arguments</para>
 
     <para>La chaine de compilation utilise maintenant le code
     d'initialisation fourni par le compilateur C/C++ de la FSF.
@@ -3021,16 +3021,16 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
     avec les sources publiques de la FSF. &merged;</para>
 
     <para>La Libraire des threads a recu un certain nombre de mises
-    &agrgave; jour dans la gestion des signaux, des corrections de bogues,
+    &agrave; jour dans la gestion des signaux, des corrections de bogues,
     et des am&eacute;liorations de la performance. Le support
-    des thread dans &man.gdb.1; a &eacute;t&eacute; mis &agrgave; jour en 
+    des thread dans &man.gdb.1; a &eacute;t&eacute; mis &agrave; jour en 
     cons&eacute;quence. &merged;</para>
 
     <para>Diff&eacute;rents ajouts ont &eacute;t&eacute; effectu&eacute;s dans le support
     international: &os; dispose maintenant d'un support total des 
     cat&eacute;gories <literal>LC_MONETARY</literal>, 
     <literal>LC_NUMERIC</literal>, et <literal>LC_MESSAGES</literal>.
-    Un certain nombre d'applications ont &eacute;t&eacute; mises &agrgave; jour
+    Un certain nombre d'applications ont &eacute;t&eacute; mises &agrave; jour
     pour supporter ces ajouts.</para>
 
     <para>Les noms locaux ont &eacute;t&eacute; chang&eacute;s pour augementer la 
@@ -3547,22 +3547,22 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
   <title>Mise a jour depuis une version pr&eacute;cedente de  &os;</title>
 
 
-       <para>Si vous effectuez une mise &agrgave; jour depuis une version
+       <para>Si vous effectuez une mise &agrave; jour depuis une version
         ant&eacute;rieure de &os;, vous avez g&eacute;n&eacute;ralement 3 options
         :</para>
 
     <itemizedlist>
       <listitem>
-      <para>Utiliser l'option de mise &agrgave; jour binaire de &man.sysinstall.8;.Cette
+      <para>Utiliser l'option de mise &agrave; jour binaire de &man.sysinstall.8;.Cette
             option est sans doute la plus rapide mais elle suppose
             que votre installation de &os; n'utilise aucune
             option sp&eacute;ciale de compilation.</para>
           </listitem>
           <listitem>
             <para>Faire une r&eacute;installation compl&egrave;te de &os;.
-            Techniquement, ce n'est pas une m&eacute;thode de mis &agrgave; jour
+            Techniquement, ce n'est pas une m&eacute;thode de mis &agrave; jour
             et, dans tous les cas, elle est moins pratique qu'une
-            mise &agrgave; jour binaire dans le sens ou elle n&eacute;cessite de
+            mise &agrave; jour binaire dans le sens ou elle n&eacute;cessite de
             sauvegarder et de restaurer manuellement le contenu du
             r&eacute;pertoire <filename>/etc</filename>. Cependant,
             cela peut &ecirc;tre utile si vous d&eacute;sirez (ou si vous devez)
@@ -3571,18 +3571,18 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
           <listitem>
             <para>A partir du code source du r&eacute;pertoire <filename>/usr/src</filename>.
 	    Cette option est plus souple mais demande plus d'espace disque, plus de temps et
-            plus de comp&eacute;tences techniques. Faire une mise &agrgave; jour
+            plus de comp&eacute;tences techniques. Faire une mise &agrave; jour
             depuis une tr&egrave;s ancienne version de &os; peut &ecirc;tre
             probl&eacute;matique; dans de tels cas, il est g&eacute;n&eacute;ralement
-            plus efficace de r&eacute;aliser une mise &agrgave; jour binaire ou
+            plus efficace de r&eacute;aliser une mise &agrave; jour binaire ou
             une r&eacute;installation compl&egrave;te.</para>
           </listitem>
     </itemizedlist>
 
         <para>Veuillez lire le fichier <filename>INSTALL.TXT</filename>
 	 pour plus d'informations, de
-        pr&eacute;f&eacute;rence <emphasis>avant</emphasis> de commencer une mise &agrgave; jour.
-        Si vous effectuez une mise &agrgave; jour depuis les sources,
+        pr&eacute;f&eacute;rence <emphasis>avant</emphasis> de commencer une mise &agrave; jour.
+        Si vous effectuez une mise &agrave; jour depuis les sources,
         veuillez &eacute;galement consulter le fichier
 	 <filename>/usr/src/UPDATING</filename>.</para>
 
@@ -3595,7 +3595,7 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
        </para>
 
         <important>
-            <para><emphasis>Important:</emphasis> La mise &agrgave; jour de &os; devrait,
+            <para><emphasis>Important:</emphasis> La mise &agrave; jour de &os; devrait,
             bien &eacute;videmment, &ecirc;tre r&eacute;alis&eacute;e uniquement apr&egrave;s avoir
             effectu&eacute; une sauvegarde de <emphasis>toutes</emphasis> 
 	    les donn&eacute;es et des fichiers de configuration.</para>
