@@ -76,7 +76,9 @@ void	enable_K6_2_wt_alloc(void);
 void panicifcpuunsupported(void);
 
 static void identifycyrix(void);
+#if defined(I486_CPU) || defined(I586_CPU) || defined(I686_CPU)
 static void print_AMD_features(u_int *regs);
+#endif
 static void print_AMD_info(u_int amd_maxregs);
 static void print_AMD_assoc(int i);
 static void print_transmeta_info(void);
@@ -119,7 +121,10 @@ int has_f00f_bug = 0;
 void
 printcpuinfo(void)
 {
-	u_int regs[4], nreg = 0;
+#if defined(I486_CPU) || defined(I586_CPU) || defined(I686_CPU)
+	u_int regs[4];
+#endif
+	u_int nreg = 0;
 	cpu_class = i386_cpus[cpu].cpu_class;
 	printf("CPU: ");
 	strncpy(cpu_model, i386_cpus[cpu].cpu_name, sizeof cpu_model);
@@ -980,6 +985,7 @@ print_AMD_info(u_int amd_maxregs)
 	}
 }
 
+#if defined(I486_CPU) || defined(I586_CPU) || defined(I686_CPU)
 static void
 print_AMD_features(u_int *regs)
 {
@@ -1024,6 +1030,7 @@ print_AMD_features(u_int *regs)
 		"\0403DNow!"
 		);
 }
+#endif
 
 /*
  * Transmeta Crusoe LongRun Support by Tamotsu Hattori. 
