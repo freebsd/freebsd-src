@@ -2313,9 +2313,10 @@ linux_ioctl(struct thread *td, struct linux_ioctl_args *args)
 	TAILQ_FOREACH(he, &handlers, list) {
 		if (cmd >= he->low && cmd <= he->high) {
 			error = (*he->func)(td, args);
-			if (error != ENOIOCTL)
+			if (error != ENOIOCTL) {
 				fdrop(fp, td);
 				return (error);
+			}
 		}
 	}
 	fdrop(fp, td);
