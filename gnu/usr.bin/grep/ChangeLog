@@ -1,3 +1,70 @@
+2000-03-08  Alain Magloire
+
+	* configure.in: version 2.4.2
+
+2000-03-07  Paul Eggert
+
+	* Make intl subdirectory match fileutils, tar, etc.;
+	see intl/ChangeLog for details.
+
+	* src/getpagesize.h: Reformat to match latest fileutils.
+
+	* src/savedir.c (savedir): Work even if directory size is
+	negative; this can happen with some NFS screwups.
+
+2000-03-03  Jim Meyering
+
+	* regex.m4: Make sure re_compile_pattern accepts patterns like `{1'.
+
+2000-03-02  Alain Magloire
+
+	* 2.4.1 Release
+
+2000-02-25  Paul Eggert
+
+	* configure.in (LIBOBJS): Work around automake 1.4 bug:
+	regex.c wasn't being passed through ansi2knr on pre-ANSI hosts.
+	(ac_use_included_regex): Fix typo in warning.
+	* src/Makefile.am (EXTRA_DIST): Remove regex.c, as the LIBOBJS
+	workaround means that automake now puts regex.c into DIST_COMMON.
+
+2000-02-25  Alain Magloire
+
+	* po/*.po: update of the PO files.
+
+2000-02-22  Eli Zaretskii
+
+	* doc/grep.1:  Two small glitches(typos).
+
+2000-02-18  Eli Zaretskii
+
+	* djgpp/config.site (prefix, INSTALL): Use /dev/env/DJDIR instead
+	of ${DJDIR}, so that the produced Makefile's work on any DJGPP
+	installation.
+
+2000-01-30 Alain Magloire
+
+	* doc/grep.1:  corrected typo.
+	Noted by Ruslan Ermilob.
+
+2000-01-30 Alain Magloire
+
+	* vms/Makefile.am: added config_vms.h to EXTRA_DIST.
+	* vms/config_vms.h: New File, contains macros specific to VMS and
+	avoid namespace collision with operating system supplied C library.
+	* vms/make.com: Better compiler auto-detection; information for builds
+	on pre-OpenVMS 7.x systems; general overhaul.
+	* src/getpagesize.h: Reinstate support for different pagesizes on
+	VAX and Alpha. Work around problem with DEC C compiler.
+	* src/vms_fab.c: Cast to some assigments; fixed typo argcp vs. argp.
+	* src/vms_fab.h: Added new include files to avoid warnings about
+	undefined function prototypes.
+	Those patches were provided by Martin P.J. Zinser (zinser@decus.de).
+
+2000-01-30  Paul Eggert
+
+        * src/grep.c (main): Update copyright notice.
+
 2000-01-28  Alain Magloire
 
 	* src/grep.c (usage):  The example "%s -i 'hello.*world' could
@@ -6,14 +73,14 @@
 
 	* configure.in: Reenable, jm_INCLUDE_REGEX() since we now
 	track GNU lib C.
-	* src/Makefile.am: EXTRA_DIST new macros with regex.c regex.h. 
+	* src/Makefile.am: EXTRA_DIST new macros with regex.c regex.h.
 	Requested By Ulrich Drepper.
-  
+
 2000-01-25  Paul Eggert
 
 	* src/grep.c (grep): If the final byte of an input file is not
 	a newline, grep now silently supplies one.
-	* doc/grep.texi, NEWS: Likewise.  
+	* doc/grep.texi, NEWS: Likewise.
 
 2000-01-25  Paul Eggert
 
@@ -120,6 +187,10 @@
 	* savedir.c (savedir): Don't store past the end of an array if
 	name_size is zero and the directory is empty.
 	Reported by Dima Barsky <dima@pwd.hp.com>.
+
+1999-12-03  Alain Magloire
+
+	* 2.4 Release.
 
 1999-11-18  Paul Eggert
 

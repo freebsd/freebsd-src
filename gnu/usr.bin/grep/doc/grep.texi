@@ -35,7 +35,7 @@ Published by the Free Software Foundation,
 59 Temple Place - Suite 330
 Boston, MA 02111-1307, USA
 
-Copyright 1999 Free Software Foundation, Inc.
+Copyright 2000 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -68,7 +68,7 @@ by the Foundation.
 
 @page
 @vskip 0pt plus 1filll
-Copyright @copyright{} 1999 Free Software Foundation, Inc.
+Copyright @copyright{} 2000 Free Software Foundation, Inc.
 
 @sp 2
 Published by the Free Software Foundation, @*
