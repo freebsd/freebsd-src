@@ -185,6 +185,7 @@ netisr_unregister(int num)
 	ni->ni_handler = NULL;
 	if (ni->ni_queue != NULL)
 		IF_DRAIN(ni->ni_queue);
+	ni->ni_queue = NULL;
 }
 
 struct isrstat {
