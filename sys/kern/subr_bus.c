@@ -98,6 +98,9 @@ static void device_register_oids(device_t dev);
 static void device_unregister_oids(device_t dev);
 #endif
 
+extern char static_hints[];
+static int hints_loaded;
+
 kobj_method_t null_methods[] = {
     { 0, 0 }
 };
@@ -1279,11 +1282,64 @@ resource_match_string(int i, const char *resname, const char *value)
 }
 
 static int
+resource_find_hard(const char *cp, const char *name, int unit,
+		   const char *resname, struct config_resource **result)
+{
+	static char match[100];
+	int matchlen;
+	char *op;
+	long val;
+
+	snprintf(match, sizeof(match), "hint.%s.%d.%s=", name, unit, resname);
+	matchlen = strlen(match);
+	while (cp) {
+		if (strncmp(match, cp, matchlen) == 0)
+			break;
+		while (*cp != '\0')
+			cp++;
+		cp++;
+		if (*cp == '\0') {
+			cp = NULL;
+			break;
+		}
+	}
+	if (cp)
+		cp += matchlen;		/* skip over name and '=' */
+	else
+		return ENOENT;
+	val = strtol(cp, &op, 0);
+	if (*cp != '\0' && *op == '\0') {
+		(*result)->type = RES_INT;
+		(*result)->u.intval = val;
+	} else {
+		(*result)->type = RES_STRING;
+		(*result)->u.stringval = cp;
+	}
+	return 0;
+}
+
+static int
 resource_find(const char *name, int unit, const char *resname, 
 	      struct config_resource **result)
 {
 	int i, j;
 	struct config_resource *res;
+
+	if (!hints_loaded) {
+		/* First specific, then generic. Dynamic over static. */
+		i = resource_find_hard(kern_envp, name, unit, resname, result);
+		if (i == 0)
+			return 0;
+		i = resource_find_hard(static_hints, name, unit, resname,
+				       result);
+		if (i == 0)
+			return 0;
+		i = resource_find_hard(kern_envp, name, -1, resname, result);
+		if (i == 0)
+			return 0;
+		i = resource_find_hard(static_hints, name, -1, resname, result);
+		return i;
+	}
 
 	/*
 	 * First check specific instances, then generic.
@@ -1303,9 +1359,7 @@ resource_find(const char *name, int unit, const char *resname,
 	for (i = 0; i < devtab_count; i++) {
 		if (devtab[i].unit >= 0)
 			continue;
-		/* XXX should this `&& devtab[i].unit == unit' be here? */
-		/* XXX if so, then the generic match does nothing */
-		if (!strcmp(devtab[i].name, name) && devtab[i].unit == unit) {
+		if (!strcmp(devtab[i].name, name)) {
 			res = devtab[i].resources;
 			for (j = 0; j < devtab[i].resource_count; j++, res++)
 				if (!strcmp(res->name, resname)) {
@@ -1562,7 +1616,6 @@ hint_load(char *cp)
 	}
 }
 
-extern char static_hints[];
 
 static void
 hints_load(void *dummy __unused)
@@ -1587,6 +1640,7 @@ hints_load(void *dummy __unused)
 		if (*cp == 0)
 			break;
 	}
+	hints_loaded++;
 }
 SYSINIT(cfghints, SI_SUB_KMEM, SI_ORDER_ANY + 60, hints_load, 0)
 
