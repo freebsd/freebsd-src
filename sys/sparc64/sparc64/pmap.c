@@ -412,7 +412,8 @@ pmap_bootstrap(vm_offset_t ekva)
 	 * Initialize the kernel pmap (which is statically allocated).
 	 */
 	pm = kernel_pmap;
-	pm->pm_context = TLB_CTX_KERNEL;
+	for (i = 0; i < MAXCPU; i++)
+		pm->pm_context[i] = TLB_CTX_KERNEL;
 	pm->pm_active = ~0;
 	pm->pm_count = 1;
 	TAILQ_INIT(&pm->pm_pvlist);
@@ -604,7 +605,8 @@ pmap_cache_enter(vm_page_t m, vm_offset_t va)
 		if ((tp = tsb_tte_lookup(pv->pv_pmap, pv->pv_va)) != NULL) {
 			atomic_clear_long(&tp->tte_data, TD_CV);
 			tlb_page_demap(TLB_DTLB | TLB_ITLB,
-			    pv->pv_pmap->pm_context, pv->pv_va);
+			    pv->pv_pmap->pm_context[PCPU_GET(cpuid)],
+			    pv->pv_va);
 		}
 	}
 	pa = VM_PAGE_TO_PHYS(m);
@@ -1057,7 +1059,7 @@ void
 pmap_pinit0(pmap_t pm)
 {
 
-	pm->pm_context = pmap_context_alloc();
+	pm->pm_context[PCPU_GET(cpuid)] = pmap_context_alloc();
 	pm->pm_active = 0;
 	pm->pm_count = 1;
 	pm->pm_tsb = NULL;
@@ -1108,7 +1110,7 @@ pmap_pinit(pmap_t pm)
 	pmap_qenter((vm_offset_t)pm->pm_tsb, ma, TSB_PAGES);
 
 	pm->pm_active = 0;
-	pm->pm_context = pmap_context_alloc();
+	pm->pm_context[PCPU_GET(cpuid)] = pmap_context_alloc();
 	pm->pm_count = 1;
 	TAILQ_INIT(&pm->pm_pvlist);
 	bzero(&pm->pm_stats, sizeof(pm->pm_stats));
@@ -1131,8 +1133,8 @@ pmap_release(pmap_t pm)
 	vm_object_t obj;
 	vm_page_t m;
 
-	CTR2(KTR_PMAP, "pmap_release: ctx=%#x tsb=%p", pm->pm_context,
-	    pm->pm_tsb);
+	CTR2(KTR_PMAP, "pmap_release: ctx=%#x tsb=%p",
+	    pm->pm_context[PCPU_GET(cpuid)], pm->pm_tsb);
 	obj = pm->pm_tsb_obj;
 	KASSERT(obj->ref_count == 1, ("pmap_release: tsbobj ref count != 1"));
 	KASSERT(TAILQ_EMPTY(&pm->pm_pvlist),
@@ -1140,7 +1142,7 @@ pmap_release(pmap_t pm)
 	KASSERT(pmap_resident_count(pm) == 0,
 	    ("pmap_release: resident pages %ld != 0",
 	    pmap_resident_count(pm)));
-	pmap_context_destroy(pm->pm_context);
+	pmap_context_destroy(pm->pm_context[PCPU_GET(cpuid)]);
 	TAILQ_FOREACH(m, &obj->memq, listq) {
 		if (vm_page_sleep_busy(m, FALSE, "pmaprl"))
 			continue;
@@ -1241,12 +1243,12 @@ pmap_remove(pmap_t pm, vm_offset_t start, vm_offset_t end)
 	vm_offset_t va;
 
 	CTR3(KTR_PMAP, "pmap_remove: ctx=%#lx start=%#lx end=%#lx",
-	    pm->pm_context, start, end);
+	    pm->pm_context[PCPU_GET(cpuid)], start, end);
 	if (PMAP_REMOVE_DONE(pm))
 		return;
 	if (end - start > PMAP_TSB_THRESH) {
 		tsb_foreach(pm, NULL, start, end, pmap_remove_tte);
-		tlb_context_demap(pm->pm_context);
+		tlb_context_demap(pm->pm_context[PCPU_GET(cpuid)]);
 	} else {
 		for (va = start; va < end; va += PAGE_SIZE) {
 			if ((tp = tsb_tte_lookup(pm, va)) != NULL) {
@@ -1254,7 +1256,8 @@ pmap_remove(pmap_t pm, vm_offset_t start, vm_offset_t end)
 					break;
 			}
 		}
-		tlb_range_demap(pm->pm_context, start, end - 1);
+		tlb_range_demap(pm->pm_context[PCPU_GET(cpuid)],
+		    start, end - 1);
 	}
 }
 
@@ -1294,7 +1297,7 @@ pmap_protect(pmap_t pm, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 	struct tte *tp;
 
 	CTR4(KTR_PMAP, "pmap_protect: ctx=%#lx sva=%#lx eva=%#lx prot=%#lx",
-	    pm->pm_context, sva, eva, prot);
+	    pm->pm_context[PCPU_GET(cpuid)], sva, eva, prot);
 
 	KASSERT(pm == &curproc->p_vmspace->vm_pmap || pm == kernel_pmap,
 	    ("pmap_protect: non current pmap"));
@@ -1309,13 +1312,13 @@ pmap_protect(pmap_t pm, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 
 	if (eva - sva > PMAP_TSB_THRESH) {
 		tsb_foreach(pm, NULL, sva, eva, pmap_protect_tte);
-		tlb_context_demap(pm->pm_context);
+		tlb_context_demap(pm->pm_context[PCPU_GET(cpuid)]);
 	} else {
 		for (va = sva; va < eva; va += PAGE_SIZE) {
 			if ((tp = tsb_tte_lookup(pm, va)) != NULL)
 				pmap_protect_tte(pm, NULL, tp, va);
 		}
-		tlb_range_demap(pm->pm_context, sva, eva - 1);
+		tlb_range_demap(pm->pm_context[PCPU_GET(cpuid)], sva, eva - 1);
 	}
 }
 
@@ -1337,7 +1340,7 @@ pmap_enter(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	pa = VM_PAGE_TO_PHYS(m);
 	CTR6(KTR_PMAP,
 	    "pmap_enter: ctx=%p m=%p va=%#lx pa=%#lx prot=%#x wired=%d",
-	    pm->pm_context, m, va, pa, prot, wired);
+	    pm->pm_context[PCPU_GET(cpuid)], m, va, pa, prot, wired);
 
 	tte.tte_vpn = TV_VPN(va);
 	tte.tte_data = TD_V | TD_8K | TD_PA(pa) | TD_CP;
@@ -1385,7 +1388,8 @@ pmap_enter(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 					if (pmap_track_modified(pm, va))
 						vm_page_dirty(m);
 				}
-				tlb_tte_demap(otte, pm->pm_context);
+				tlb_tte_demap(otte,
+				    pm->pm_context[PCPU_GET(cpuid)]);
 			}
 		} else {
 			CTR0(KTR_PMAP, "pmap_enter: replace");
@@ -1416,7 +1420,7 @@ pmap_enter(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 				if (pmap_cache_enter(m, va) != 0)
 					tte.tte_data |= TD_CV;
 			}
-			tlb_tte_demap(otte, pm->pm_context);
+			tlb_tte_demap(otte, pm->pm_context[PCPU_GET(cpuid)]);
 		}
 	} else {
 		CTR0(KTR_PMAP, "pmap_enter: new");
@@ -1449,7 +1453,7 @@ pmap_enter(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		if ((prot & VM_PROT_WRITE) != 0)
 			tte.tte_data |= TD_W;
 	}
-	if (pm->pm_context == TLB_CTX_KERNEL)
+	if (pm->pm_context[PCPU_GET(cpuid)] == TLB_CTX_KERNEL)
 		tte.tte_data |= TD_P;
 	if (prot & VM_PROT_WRITE)
 		tte.tte_data |= TD_SW;
@@ -1538,14 +1542,16 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr,
 	if (dst_addr != src_addr)
 		return;
 	if (len > PMAP_TSB_THRESH) {
-		tsb_foreach(src_pmap, dst_pmap, src_addr, src_addr + len, pmap_copy_tte);
-		tlb_context_demap(dst_pmap->pm_context);
+		tsb_foreach(src_pmap, dst_pmap, src_addr, src_addr + len,
+		    pmap_copy_tte);
+		tlb_context_demap(dst_pmap->pm_context[PCPU_GET(cpuid)]);
 	} else {
 		for (va = src_addr; va < src_addr + len; va += PAGE_SIZE) {
 			if ((tp = tsb_tte_lookup(src_pmap, va)) != NULL)
 				pmap_copy_tte(src_pmap, dst_pmap, tp, va);
 		}
-		tlb_range_demap(dst_pmap->pm_context, src_addr, src_addr + len - 1);
+		tlb_range_demap(dst_pmap->pm_context[PCPU_GET(cpuid)],
+		    src_addr, src_addr + len - 1);
 	}
 }
 
@@ -1649,7 +1655,7 @@ pmap_remove_pages(pmap_t pm, vm_offset_t sva, vm_offset_t eva)
 			vm_page_flag_clear(m, PG_MAPPED | PG_WRITEABLE);
 		pv_free(pv);
 	}
-	tlb_context_demap(pm->pm_context);
+	tlb_context_demap(pm->pm_context[PCPU_GET(cpuid)]);
 }
 
 /*
@@ -1733,7 +1739,7 @@ pmap_activate(struct thread *td)
 	 * not issue any loads while we have interrupts disable below.
 	 */
 	pm = &td->td_proc->p_vmspace->vm_pmap;
-	context = pm->pm_context;
+	context = pm->pm_context[PCPU_GET(cpuid)];
 	tsb = (vm_offset_t)pm->pm_tsb;
 
 	KASSERT(context != 0, ("pmap_activate: activating nucleus context"));

@@ -118,7 +118,7 @@ tsb_tte_lookup(pmap_t pm, vm_offset_t va)
 		va = trunc_page(va);
 		bucket = tsb_vtobucket(pm, va);
 		CTR3(KTR_TSB, "tsb_tte_lookup: ctx=%#lx va=%#lx bucket=%p",
-		    pm->pm_context, va, bucket);
+		    pm->pm_context[PCPU_GET(cpuid)], va, bucket);
 		for (i = 0; i < TSB_BUCKET_SIZE; i++) {
 			if (tte_match(bucket[i], va)) {
 				tp = &bucket[i];
@@ -130,7 +130,7 @@ tsb_tte_lookup(pmap_t pm, vm_offset_t va)
 		}
 	}
 	CTR2(KTR_TSB, "tsb_tte_lookup: miss ctx=%#lx va=%#lx",
-	    pm->pm_context, va);
+	    pm->pm_context[PCPU_GET(cpuid)], va);
 	return (NULL);
 }
 
@@ -155,7 +155,7 @@ tsb_tte_enter(pmap_t pm, vm_page_t m, vm_offset_t va, struct tte tte)
 	TSB_STATS_INC(tsb_nenter_u);
 	bucket = tsb_vtobucket(pm, va);
 	CTR4(KTR_TSB, "tsb_tte_enter: ctx=%#lx va=%#lx data=%#lx bucket=%p",
-	    pm->pm_context, va, tte.tte_data, bucket);
+	    pm->pm_context[PCPU_GET(cpuid)], va, tte.tte_data, bucket);
 
 	tp = NULL;
 	rtp = NULL;
@@ -189,7 +189,7 @@ tsb_tte_enter(pmap_t pm, vm_page_t m, vm_offset_t va, struct tte tte)
 			pmap_cache_remove(om, ova);
 			pv_remove(pm, om, ova);
 		}
-		tlb_tte_demap(*tp, pm->pm_context);
+		tlb_tte_demap(*tp, pm->pm_context[PCPU_GET(cpuid)]);
 	}
 
 	*tp = tte;
