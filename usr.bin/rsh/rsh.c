@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "From: @(#)rsh.c	8.3 (Berkeley) 4/6/94";
 #endif
 static char rcsid[] =
-	"$Id: rsh.c,v 1.11 1997/03/29 04:31:59 imp Exp $";
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -63,13 +63,14 @@ static char rcsid[] =
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <varargs.h>
+#include <err.h>
 
 #include "pathnames.h"
 
 #ifdef KERBEROS
 #include <des.h>
-#include <kerberosIV/krb.h>
+#include <krb.h>
+#include "krb.h"
 
 CREDENTIALS cred;
 Key_schedule schedule;
@@ -107,7 +108,7 @@ main(argc, argv)
 	host = user = NULL;
 
 	/* if called as something other than "rsh", use it as the host name */
-	if (p = strrchr(argv[0], '/'))
+	if ((p = strrchr(argv[0], '/')))
 		++p;
 	else
 		p = argv[0];
@@ -240,7 +241,7 @@ try_connect:
 		if (doencrypt) {
 			rem = krcmd_mutual(&host, sp->s_port, user, args,
 			    &rfd2, dest_realm, &cred, schedule);
-			des_set_key_krb(&cred.session, schedule);
+			des_set_key(&cred.session, schedule);
 		} else
 #endif
 			rem = krcmd(&host, sp->s_port, user, args, &rfd2,
@@ -347,7 +348,7 @@ rewrite:
 #ifdef KERBEROS
 #ifdef CRYPT
 		if (doencrypt)
-			wc = des_write(rem, bp, cc);
+			wc = des_enc_write(rem, bp, cc, schedule, &cred.session);
 		else
 #endif
 #endif
@@ -394,7 +395,7 @@ done:
 #ifdef KERBEROS
 #ifdef CRYPT
 			if (doencrypt)
-				cc = des_read(rfd2, buf, sizeof buf);
+				cc = des_enc_read(rfd2, buf, sizeof buf, schedule, &cred.session);
 			else
 #endif
 #endif
@@ -410,7 +411,7 @@ done:
 #ifdef KERBEROS
 #ifdef CRYPT
 			if (doencrypt)
-				cc = des_read(rem, buf, sizeof buf);
+				cc = des_enc_read(rem, buf, sizeof buf, schedule, &cred.session);
 			else
 #endif
 #endif
@@ -434,7 +435,7 @@ sendsig(sig)
 #ifdef KERBEROS
 #ifdef CRYPT
 	if (doencrypt)
-		(void)des_write(rfd2, &signo, 1);
+		(void)des_enc_write(rfd2, &signo, 1, schedule, &cred.session);
 	else
 #endif
 #endif
