@@ -82,6 +82,10 @@ main(argc, argv)
 {
 	extern char **environ;
 	struct passwd *pwd;
+#ifdef WHEELSU
+	char *targetpass;
+	int iswheelsu;
+#endif /* WHEELSU */
 	char *p, **g, *user, *shell, *username, *cleanenv[20], *nargv[4], **np;
 	struct group *gr;
 	uid_t ruid;
@@ -91,6 +95,9 @@ main(argc, argv)
 
 	np = &nargv[3];
 	*np-- = NULL;
+#ifdef WHEELSU
+	iswheelsu =
+#endif /* WHEELSU */
 	asme = asthem = fastlogin = 0;
 	while ((ch = getopt(argc, argv, ARGSTR)) != EOF)
 		switch((char)ch) {
@@ -148,9 +155,12 @@ main(argc, argv)
 	/* get target login information, default to root */
 	user = *argv ? *argv : "root";
 	if ((pwd = getpwnam(user)) == NULL) {
-		fprintf(stderr, "su: unknown login %s\n", user);
-		exit(1);
+		errx(1, "unknown login: %s", user);
 	}
+
+#ifdef WHEELSU
+	targetpass = strdup(pwd->pw_passwd);
+#endif /* WHEELSU */
 
 	if (ruid) {
 #ifdef KERBEROS
@@ -164,15 +174,30 @@ main(argc, argv)
 					errx(1,
 			    "you are not in the correct group to su %s.",
 					    user);
-				if (strcmp(username, *g) == 0)
+				if (strcmp(username, *g) == 0) {
+#ifdef WHEELSU
+					iswheelsu = 1;
+#endif /* WHEELSU */
 					break;
-		}
+				}
+			}
 		/* if target requires a password, verify it */
 		if (*pwd->pw_passwd) {
 #ifdef	SKEY
+#ifdef WHEELSU
+			if (iswheelsu) {
+				pwd = getpwnam(username);
+			}
+#endif /* WHEELSU */
 			p = skey_getpass("Password:", pwd, 1);
-			if (strcmp(pwd->pw_passwd,
-				   skey_crypt(p, pwd->pw_passwd, pwd, 1))) {
+			if (!(!strcmp(pwd->pw_passwd,
+				      skey_crypt(p, pwd->pw_passwd, pwd, 1))
+#ifdef WHEELSU
+			      || (iswheelsu && !strcmp(targetpass, 
+						       crypt(p, 
+							     targetpass)))
+#endif /* WHEELSU */
+			      )) {
 #else
 			p = getpass("Password:");
 			if (strcmp(pwd->pw_passwd, crypt(p, pwd->pw_passwd))) {
@@ -183,6 +208,11 @@ main(argc, argv)
 					user, ontty());
 				exit(1);
 			}
+#ifdef WHEELSU
+			if (iswheelsu) {
+				pwd = getpwnam(user);
+			}
+#endif /* WHEELSU */
 		}
 	    }
 	}
