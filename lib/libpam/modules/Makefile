@@ -38,7 +38,7 @@ SUBDIR+=	pam_permit
 SUBDIR+=	pam_radius
 SUBDIR+=	pam_rootok
 SUBDIR+=	pam_securetty
-.if !defined(NOCRYPT) && !defined(NO_OPENSSL)
+.if !defined(NOCRYPT) && !defined(NO_OPENSSL) && !defined(NO_OPENSSH)
 SUBDIR+=	pam_ssh
 .endif
 SUBDIR+=	pam_tacplus
