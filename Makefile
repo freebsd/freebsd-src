@@ -172,7 +172,7 @@ kernel: buildkernel installkernel
 #
 upgrade_checks:
 	@cd ${.CURDIR}; \
-		if ! make -m ${.CURDIR}/share/mk test > /dev/null 2>&1; then \
+		if ! make -m ${.CURDIR}/share/mk -Dnotdef test >/dev/null 2>&1; then \
 			make make; \
 		fi
 	@cd ${.CURDIR}; \
@@ -183,9 +183,15 @@ upgrade_checks:
 
 #
 # A simple test target used as part of the test to see if make supports
-# the -m argument.
+# the -m argument.  Also test that make will only evaluate a conditional
+# as far as is necessary to determine its value.
 #
 test:
+.if defined(notdef)
+.undef notdef
+.if defined(notdef) && ${notdef:U}
+.endif
+.endif
 
 #
 # Upgrade the installed make to the current version using the installed
