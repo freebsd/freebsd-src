@@ -220,13 +220,12 @@ main(int argc, char *argv[])
 			}
 			break;
 		case 0:
-			if (is_shlib) {
-				if (dlopen(*argv, RTLD_TRACE))
-					_exit(0);	/* libc.so */
-				warnx("%s: %s", *argv, dlerror());
-			} else {
+			if (is_shlib == 0) {
 				execl(*argv, *argv, (char *)NULL);
 				warn("%s", *argv);
+			} else {
+				dlopen(*argv, RTLD_TRACE);
+				warnx("%s: %s", *argv, dlerror());
 			}
 			_exit(1);
 		}
