@@ -554,7 +554,7 @@ options (argc, argv)
 	  break;
 
 	case 'o':		/* Generate old archive */
-	  if (f_gnudump || f_dironly )
+	  if (f_gnudump || f_dironly)
 	    goto badopt;
 	  f_oldarch++;
 	  break;
