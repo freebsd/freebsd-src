@@ -235,8 +235,11 @@ int
 ac97_setextmode(struct ac97_info *codec, u_int16_t mode)
 {
 	mode &= AC97_EXTCAPS;
-	if ((mode & ~codec->extcaps) != 0)
+	if ((mode & ~codec->extcaps) != 0) {
+		device_printf(codec->dev, "ac97 invalid mode set 0x%04x\n", 
+			      mode);
 		return -1;
+	}
 	snd_mtxlock(codec->lock);
 	wrcd(codec, AC97_REGEXT_STAT, mode);
 	codec->extstat = rdcd(codec, AC97_REGEXT_STAT) & AC97_EXTCAPS;
