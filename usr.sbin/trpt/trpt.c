@@ -200,7 +200,7 @@ main(argc, argv)
 	qsort(tcp_pcbs, npcbs, sizeof(caddr_t), numeric);
 	if (jflag) {
 		for (i = 0;;) {
-			printf("%x", (int)tcp_pcbs[i]);
+			printf("%x", tcp_pcbs[i]);
 			if (++i == npcbs)
 				break;
 			fputs(", ", stdout);
