@@ -307,9 +307,9 @@ smb_maperror(int eclass, int eno)
 }
 
 static int
-smb_copy_iconv(struct mbchain *mbp, c_caddr_t src, caddr_t dst, int len)
+smb_copy_iconv(struct mbchain *mbp, c_caddr_t src, caddr_t dst, size_t len)
 {
-	int outlen = len;
+	size_t outlen = len;
 
 	return iconv_conv((struct iconv_drv*)mbp->mb_udata, &src, &len, &dst, &outlen);
 }
