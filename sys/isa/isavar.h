@@ -54,6 +54,9 @@ typedef void isa_config_cb(void *arg, struct isa_config *config, int enable);
 #define	ISA_NIRQ	2
 #define	ISA_NDRQ	2
 
+#define ISADMA_READ	0x00100000
+#define ISADMA_WRITE	0
+#define ISADMA_RAW	0x00080000
 /*
  * Plug and play cards can support a range of resource
  * configurations. This structure is used by the isapnp parser to
