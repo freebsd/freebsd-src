@@ -306,14 +306,13 @@ nglmi_startup(sc_p sc)
 	sc->handle = timeout(LMI_ticker, sc, hz);
 }
 
-#define META_PAD 16
 static void
 nglmi_inquire(sc_p sc, int full)
 {
 	struct mbuf *m;
+	struct ng_tag_prio *ptag;
 	char   *cptr, *start;
 	int     error;
-	meta_p  meta = NULL;
 
 	if (sc->lmi_channel == NULL)
 		return;
@@ -323,17 +322,18 @@ nglmi_inquire(sc_p sc, int full)
 		return;
 	}
 	m->m_pkthdr.rcvif = NULL;
-	/* Allocate a meta struct (and leave some slop for options to be
-	 * added by other modules). */
-	MALLOC(meta, meta_p, sizeof(*meta) + META_PAD, M_NETGRAPH_META, M_NOWAIT);
-	if (meta != NULL) {	/* if it failed, well, it was optional anyhow */
-		meta->used_len = (u_short) sizeof(struct ng_meta);
-		meta->allocated_len
-		    = (u_short) sizeof(struct ng_meta) + META_PAD;
-		meta->flags = 0;
-		meta->priority = NG_LMI_LMI_PRIORITY;
-		meta->discardability = -1;
+
+	/* Attach a tag to packet, marking it of link level state priority, so
+	 * that device driver would put it in the beginning of queue */
+
+	ptag = (struct ng_tag_prio *)m_tag_alloc(NGM_GENERIC_COOKIE, NG_TAG_PRIO,
+	    (sizeof(struct ng_tag_prio) - sizeof(struct m_tag)), M_NOWAIT);
+	if (ptag != NULL) {	/* if it failed, well, it was optional anyhow */
+		ptag->priority = NG_PRIO_LINKSTATE;
+		ptag->discardability = -1;
+		m_tag_prepend(m, &ptag->tag);
 	}
+
 	m->m_data += 4;		/* leave some room for a header */
 	cptr = start = mtod(m, char *);
 	/* add in the header for an LMI inquiry. */
@@ -371,7 +371,7 @@ nglmi_inquire(sc_p sc, int full)
 
 	/* Send it */
 	m->m_len = m->m_pkthdr.len = cptr - start;
-	NG_SEND_DATA(error, sc->lmi_channel, m, meta);
+	NG_SEND_DATA_ONLY(error, sc->lmi_channel, m);
 
 	/* If we've been sending requests for long enough, and there has
 	 * been no response, then mark as DOWN, any DLCIs that are UP. */

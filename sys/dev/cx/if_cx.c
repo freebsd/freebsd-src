@@ -2705,7 +2705,7 @@ static int ng_cx_rcvdata (hook_p hook, item_p item)
 {
 	drv_t *d = NG_NODE_PRIVATE (NG_HOOK_NODE(hook));
 	struct mbuf *m;
-	meta_p meta;
+	struct ng_tag_prio *ptag;
 #else
 static int ng_cx_rcvdata (hook_p hook, struct mbuf *m, meta_p meta)
 {
@@ -2716,18 +2716,23 @@ static int ng_cx_rcvdata (hook_p hook, struct mbuf *m, meta_p meta)
 
 #if __FreeBSD_version >= 500000
 	NGI_GET_M (item, m);
-	NGI_GET_META (item, meta);
 	NG_FREE_ITEM (item);
 	if (! NG_HOOK_PRIVATE (hook) || ! d) {
 		NG_FREE_M (m);
-		NG_FREE_META (meta);
 #else
 	if (! hook->private || ! d) {
 		NG_FREE_DATA (m,meta);
 #endif
 		return ENETDOWN;
 	}
-	q = (meta && meta->priority > 0) ? &d->hi_queue : &d->lo_queue;
+
+	/* Check for high priority data */
+	if ((ptag = (struct ng_tag_prio *)m_tag_locate(m, NGM_GENERIC_COOKIE,
+	    NG_TAG_PRIO, NULL)) != NULL && (ptag->priority > NG_PRIO_CUTOFF) )
+		q = &d->hi_queue;
+	else
+		q = &d->lo_queue;
+
 	s = splhigh ();
 #if __FreeBSD_version >= 500000
 	IF_LOCK (q);
@@ -2736,7 +2741,6 @@ static int ng_cx_rcvdata (hook_p hook, struct mbuf *m, meta_p meta)
 		IF_UNLOCK (q);
 		splx (s);
 		NG_FREE_M (m);
-		NG_FREE_META (meta);
 		return ENOBUFS;
 	}
 	_IF_ENQUEUE (q, m);

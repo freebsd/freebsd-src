@@ -94,7 +94,13 @@ enum {
 	NGM_KSOCKET_GETOPT,
 };
 
-/* Meta information ID's */
-#define NG_KSOCKET_META_SOCKADDR	1	/* data is struct sockaddr */
+/* Structure for sockaddr tag */
+struct sa_tag {
+	struct m_tag	tag;
+	struct sockaddr	sa;
+};
+
+/* Tag information ID's */
+#define NG_KSOCKET_TAG_SOCKADDR	1	/* data is struct sockaddr */
 
 #endif /* _NETGRAPH_NG_KSOCKET_H_ */
