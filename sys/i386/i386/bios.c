@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: bios.c,v 1.16 1999/08/17 07:10:29 msmith Exp $
+ *      $Id: bios.c,v 1.17 1999/08/18 02:19:52 msmith Exp $
  */
 
 /*
@@ -287,13 +287,6 @@ set_bios_selectors(struct bios_segments *seg, int flags)
     }
 }
 
-/*
- * for pointers, we don't know how much space is supposed to be allocated,
- * so we assume a minimum size of 256 bytes.  If more than this is needed,
- * then this can be revisited, such as adding a length specifier.
- */
-#define	ASSUMED_ARGSIZE		256
-
 extern int vm86pa;
 
 /*
@@ -329,7 +322,7 @@ bios16(struct bios_args *args, char *fmt, ...)
 	case 'p':			/* 32-bit pointer */
 	    i = va_arg(ap, u_int);
 	    arg_start = min(arg_start, i);
-	    arg_end = max(arg_end, i + ASSUMED_ARGSIZE);
+	    arg_end = max(arg_end, i);
 	    flags |= BIOSARGS_FLAG;
 	    stack -= 4;
 	    break;
@@ -361,7 +354,7 @@ bios16(struct bios_args *args, char *fmt, ...)
 	if (arg_end - arg_start > ctob(16))
 	    return (EACCES);
 	args->seg.args.base = arg_start;
-	args->seg.args.limit = arg_end - arg_start;
+	args->seg.args.limit = 0xffff;
     }
 
     args->seg.code32.base = (u_int)&bios16_call & PG_FRAME;
