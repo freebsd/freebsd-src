@@ -258,7 +258,7 @@ _libpthread_init(struct pthread *curthread)
 	_kse_init();
 
 	/* Initialize the initial kse and kseg. */
-	_kse_initial = _kse_alloc(NULL, _thread_scope_system);
+	_kse_initial = _kse_alloc(NULL, _thread_scope_system > 0);
 	if (_kse_initial == NULL)
 		PANIC("Can't allocate initial kse.");
 	_kse_initial->k_kseg = _kseg_alloc(NULL);
@@ -469,6 +469,8 @@ init_private(void)
 #else
 	if (getenv("LIBPTHREAD_SYSTEM_SCOPE") != NULL)
 		_thread_scope_system = 1;
+	else if (getenv("LIBPTHREAD_PROCESS_SCOPE") != NULL)
+		_thread_scope_system = -1;
 #endif
 
 	/*

@@ -75,8 +75,8 @@ __FBSDID("$FreeBSD$");
  * same number of KSEs and KSE groups as threads. Once these levels are
  * reached, any extra KSE and KSE groups will be free()'d.
  */
-#define	MAX_CACHED_KSES		((_thread_scope_system == 0) ? 50 : 100)
-#define	MAX_CACHED_KSEGS	((_thread_scope_system == 0) ? 50 : 100)
+#define	MAX_CACHED_KSES		((_thread_scope_system <= 0) ? 50 : 100)
+#define	MAX_CACHED_KSEGS	((_thread_scope_system <= 0) ? 50 : 100)
 
 #define	KSE_SET_MBOX(kse, thrd) \
 	(kse)->k_kcb->kcb_kmbx.km_curthread = &(thrd)->tcb->tcb_tmbx
@@ -407,7 +407,7 @@ _kse_setthreaded(int threaded)
 		 */
 		_kse_initial->k_flags |= KF_STARTED;
 
-		if (_thread_scope_system == 0) {
+		if (_thread_scope_system <= 0) {
 			_thr_initial->attr.flags &= ~PTHREAD_SCOPE_SYSTEM;
 			_kse_initial->k_kseg->kg_flags &= ~KGF_SINGLE_THREAD;
 			_kse_initial->k_kcb->kcb_kmbx.km_curthread = NULL;
@@ -439,7 +439,7 @@ _kse_setthreaded(int threaded)
 			_kse_initial->k_kcb->kcb_kmbx.km_lwp;
 		_thread_activated = 1;
 
-		if (_thread_scope_system == 0) {
+		if (_thread_scope_system <= 0) {
 			/* Set current thread to initial thread */
 			_tcb_set(_kse_initial->k_kcb, _thr_initial->tcb);
 			KSE_SET_MBOX(_kse_initial, _thr_initial);
