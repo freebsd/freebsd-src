@@ -30,26 +30,26 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 14, 2004
+.Dd September 5, 2004
 .Dt ED 4
 .Os
 .Sh NAME
 .Nm ed
-.Nd ethernet device driver
+.Nd Ethernet device driver
 .Sh SYNOPSIS
 .Cd "device miibus"
 .Cd "device ed"
 .Sh DESCRIPTION
 The
 .Nm
-driver provides support for 8 and 16bit ethernet cards that are based on
+driver provides support for 8 and 16bit Ethernet cards that are based on
 the National Semiconductor DS8390 and similar NICs manufactured by other companies.
 .Pp
 The
 .Nm
 driver uses a unique multi-buffering mechanism to achieve high transmit performance.
 When using 16bit ISA cards, as high as 97% of the theoretical maximum performance of
-the IEEE 802.3 CSMA ethernet is possible.
+the IEEE 802.3 CSMA Ethernet is possible.
 .Pp
 In addition to the standard port and IRQ specifications, the
 .Nm
@@ -86,7 +86,7 @@ faster than a machine on the other end can handle (as evidenced by severe packet
 lossage).
 Some
 .No ( non- Ns Fx
-:-)) machines have terrible ethernet performance
+:-)) machines have terrible Ethernet performance
 and simply can't cope with 1100K+ data rates.
 Use of this flag also provides
 one more packet worth of receiver buffering, and on 8bit cards, this may help
@@ -105,22 +105,148 @@ driver supports the following Ethernet NICs:
 .Pp
 .Bl -bullet -compact
 .It
-3Com 3c503
+3Com 3c503 Etherlink II
 .It
-Digital Equipment EtherWorks DE305
+AR-P500 Ethernet
 .It
-HP PC Lan+
+Accton EN1644 (old model), EN1646 (old model), EN2203 (old model) (110pin)
+(flags 0xd00000)
 .It
-Novell NE1000/NE2000 and compatible
+Accton EN2212/EN2216/UE2216
+.It
+Allied Telesis CentreCOM LA100-PCM_V2
+.It
+Allied Telesis LA-98 (flags 0x000000) (PC-98)
+.It
+Allied Telesis SIC-98, SIC-98NOTE (110pin), SIU-98 (flags 0x600000) (PC-98)
+.It
+Allied Telesis SIU-98-D (flags 0x610000) (PC-98)
+.It
+AmbiCom 10BaseT card
+.It
+Bay Networks NETGEAR FA410TXC Fast Ethernet
+.It
+CNet BC40 adapter
+.It
+Compex Net-A adapter
+.It
+Contec C-NET(98), RT-1007(98), C-NET(9N) (110pin) (flags 0xa00000) (PC-98)
+.It
+Contec C-NET(98)E-A, C-NET(98)L-A, C-NET(98)P (flags 0x300000) (PC-98)
+.It
+Corega Ether98-T (flags 0x000000) (PC-98)
+.It
+Corega Ether PCC-T/EtherII PCC-T/FEther PCC-TXF/PCC-TXD
+.It
+CyQ've ELA-010
+.It
+DEC EtherWorks DE305
+.It
+Danpex EN-6200P2
+.It
+D-Link DE-298, DE-298P (flags 0x500000) (PC-98)
+.It
+D-Link DE-650/660
+.It
+D-Link IC-CARD/IC-CARD+ Ethernet
+.It
+ELECOM LD-98P (flags 0x500000) (PC-98)
+.It
+ELECOM LD-BDN, LD-NW801G (flags 0x200000) (PC-98)
+.It
+ELECOM Laneed LD-CDL/TX, LD-CDF, LD-CDS, LD-10/100CD, LD-CDWA (DP83902A)
+.It
+HP PC Lan+ 27247B and 27252A
+.It
+IBM Creditcard Ethernet I/II
+.It
+ICM AD-ET2-T, DT-ET-25, DT-ET-T5, IF-2766ET, IF-2771ET, NB-ET-T (110pin)
+(flags 0x500000) (PC-98)
+.It
+I-O DATA LA/T-98, LA/T-98SB, LA2/T-98, ET/T-98 (flags 0x900000) (PC-98)
+.It
+I-O DATA ET2/T-PCI
+.It
+I-O DATA PCLATE
+.It
+Kansai KLA-98C/T (flags 0x900000) (PC-98)
+.It
+Kingston KNE-PC2, KNE-PCM/x Ethernet
+.It
+Linksys EC2T/PCMPC100/PCM100, PCMLM56
+.It
+Linksys EtherFast 10/100 PC Card, Combo PCMCIA Ethernet Card (PCMPC100 V2)
+.It
+Logitec LAN-98T (flags 0xb00000) (PC-98)
+.It
+MACNICA Ethernet ME1 for JEIDA
+.It
+MACNICA ME98 (flags 0x900000) (PC-98)
+.It
+MACNICA NE2098 (flags 0x400000) (PC-98)
+.It
+MELCO EGY-98 (flags 0x300000) (PC-98)
+.It
+MELCO LGH-98, LGY-98, LGY-98-N (110pin), IND-SP, IND-SS (flags 0x400000) (PC-98)
+.It
+MELCO LGY-PCI-TR
+.It
+MELCO LPC-T/LPC2-T/LPC2-CLT/LPC2-TX/LPC3-TX/LPC3-CLX
+.It
+NDC Ethernet Instant-Link
+.It
+NEC PC-9801-77, PC-9801-78 (flags 0x910000) (PC-98)
+.It
+NEC PC-9801-107, PC-9801-108 (flags 0x800000) (PC-98)
+.It
+National Semiconductor InfoMover NE4100
+.It
+NetGear FA-410TX
+.It
+NetVin 5000
+.It
+Network Everywhere Ethernet 10BaseT PC Card
+.It
+Networld 98X3 (flags 0xd00000) (PC-98)
+.It
+Networld EC-98X, EP-98X (flags 0xd10000) (PC-98)
+.It
+Novell NE1000/NE2000/NE2100
+.It
+PLANEX ENW-8300-T
+.It
+PLANEX EN-2298-C (flags 0x200000) (PC-98)
+.It
+PLANEX EN-2298P-T, EN-2298-T (flags 0x500000) (PC-98)
+.It
+PLANEX FNW-3600-T
 .It
 RealTek 8029
 .It
-SMC Ultra
+SMC Elite 16 WD8013
 .It
-Western Digital and SMC 80x3 series
+SMC Elite Ultra
+.It
+SMC EtherEZ98 (flags 0x000000) (PC-98)
+.It
+SMC WD8003E/WD8003EBT/WD8003S/WD8003SBT/WD8003W/WD8013EBT/WD8013W and clones
+.It
+Socket LP-E
+.It
+Surecom EtherPerfect EP-427
+.It
+Surecom NE-34
+.It
+TDK LAK-CD031, Grey Cell GCS2000 Ethernet Card
+.It
+Telecom Device SuperSocket RE450T
+.It
+VIA VT86C926
+.It
+Winbond W89C940
 .El
 .Pp
-ISA, PCI and PC Card devices are supported.
+C-Bus, ISA, PCI and PC Card devices are supported.
 .Sh DIAGNOSTICS
 .Bl -diag
 .It "ed%d: kernel configured irq %d doesn't match board configured irq %d."
@@ -132,7 +258,7 @@ When the card was probed at system boot time, the
 driver found that it could not clear the card's shared memory.
 This is most commonly
 caused by a BIOS extension ROM being configured in the same address space as the
-ethernet card's shared memory.
+Ethernet card's shared memory.
 Either find the offending card and change its BIOS
 ROM to be at an address that doesn't conflict, or change the
 .Cd iomem
@@ -203,7 +329,7 @@ The
 driver is a bit too aggressive about resetting the card whenever any bad
 packets are received.
 As a result, it may throw out some good packets which
-have been received but not yet transfered from the card to main memory.
+have been received but not yet transferred from the card to main memory.
 .Sh SEE ALSO
 .Xr arp 4 ,
 .Xr miibus 4 ,
