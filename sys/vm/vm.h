@@ -127,7 +127,7 @@ struct kva_md_info {
 };
 
 extern struct kva_md_info	kmi;
-extern void vm_ksubmap_init(struct kva_md_info *kmi);
+extern void vm_ksubmap_init(struct kva_md_info *);
 
 #endif				/* VM_H */
 
