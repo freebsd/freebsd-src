@@ -43,7 +43,6 @@ If the port start address isn't found, the card will be searched for in the
 I/O address range 0x200 - 0x3a0.  If the IRQ isn't specified, it will be
 read from the EEPROM on the card.  For correct operation on newer
 cards the Plug-N-Play support should be disabled.
-.Pp
 .Sh DIAGNOSTICS
 .Bl -diag
 .It "ex%d: Intel EtherExpress Pro/10, address %6D, connector %s"
@@ -55,10 +54,8 @@ interrupt than the one specified in the kernel configuration file.
 .It "ex%d: invalid IRQ."
 The device probe detected an invalid IRQ setting.
 .El
-.Pp
 .Sh BUGS
 Currently the driver does not support multicast.
-.Pp
 .Sh SEE ALSO
 .Xr arp 4 ,
 .Xr netintro 4 ,

@@ -133,7 +133,6 @@ call providing only the control information,
 or by calling
 .Xr setsockopt 2 .
 .Sh IMPLEMENTATION NOTES
-.Pp
 In the non-threaded library
 .Fn accept
 is implemented as the
@@ -157,7 +156,6 @@ Before returning,
 .Fn accept
 unlocks
 .Fa s .
-.Pp
 .Sh RETURN VALUES
 The call returns \-1 on error.  If it succeeds, it returns a non-negative
 integer that is a descriptor for the accepted socket.
