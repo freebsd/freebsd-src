@@ -242,11 +242,12 @@ callout_handle_init(struct callout_handle *handle)
  * callout_deactivate() - marks the callout as having been serviced
  */
 void
-callout_reset(c, to_ticks, ftn, arg)
+_callout_reset(c, to_ticks, ftn, arg, flags)
 	struct	callout *c;
 	int	to_ticks;
 	void	(*ftn) __P((void *));
 	void	*arg;
+	int	flags;
 {
 	int	s;
 
@@ -264,7 +265,8 @@ callout_reset(c, to_ticks, ftn, arg)
 		to_ticks = 1;
 
 	c->c_arg = arg;
-	c->c_flags |= (CALLOUT_ACTIVE | CALLOUT_PENDING);
+	c->c_flags |= (CALLOUT_ACTIVE | CALLOUT_PENDING |
+	    (flags & CALLOUT_MPSAFE));
 	c->c_func = ftn;
 	c->c_time = ticks + to_ticks;
 	TAILQ_INSERT_TAIL(&callwheel[c->c_time & callwheelmask], 
