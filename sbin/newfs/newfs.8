@@ -36,7 +36,7 @@
 .Nd construct a new UFS1/UFS2 file system
 .Sh SYNOPSIS
 .Nm
-.Op Fl NUl
+.Op Fl NUln
 .Op Fl L Ar volname
 .Op Fl O Ar filesystem-type
 .Op Fl S Ar sector-size
@@ -159,6 +159,20 @@ currently 8%.
 See
 .Xr tunefs 8
 for more details on how to set this option.
+.It Fl n
+Do not create a .snap directory on the new filesystem.
+The resulting filesystem will not support snapshot generation, so
+.Xr dump 8
+in live mode and background
+.Xr fsck 8
+will not function properly.
+The traditional
+.Xr fsck 8
+and offline
+.Xr dump 8
+will work on the filesystem.
+This option is intended primarily for memory or vnode filesystems that
+do not require dump or fsck support.
 .It Fl o Ar optimization
 .Cm ( space
 or
@@ -219,6 +233,7 @@ on file systems that contain many small files.
 .Xr fs 5 ,
 .Xr bsdlabel 8 ,
 .Xr camcontrol 8 ,
+.Xr dump 8 ,
 .Xr dumpfs 8 ,
 .Xr fsck 8 ,
 .Xr mount 8 ,

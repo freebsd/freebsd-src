@@ -336,23 +336,34 @@ main(int argc, char *argv[])
 		} else {
 			char snapname[BUFSIZ], snapcmd[BUFSIZ];
 
-			snprintf(snapname, sizeof snapname,
-			    "%s/.snap/dump_snapshot", mntpt);
-			snprintf(snapcmd, sizeof snapcmd, "%s %s %s",
-			    _PATH_MKSNAP_FFS, mntpt, snapname);
-			unlink(snapname);
-			if (system(snapcmd) != 0)
-				errx(X_STARTUP, "Cannot create %s: %s\n",
-				    snapname, strerror(errno));
-			if ((diskfd = open(snapname, O_RDONLY)) < 0) {
+			snprintf(snapname, sizeof snapname, "%s/.snap", mntpt);
+			if ((stat(snapname, &sb) < 0) || !S_ISDIR(sb.st_mode)) {
+				msg("WARNING: %s %s\n",
+				    "-L requested but snapshot location",
+				    snapname);
+				msg("         %s: %s\n",
+				    "is not a directory",
+				    "dump downgraded, -L ignored");
+				snapdump = 0;
+			} else {
+				snprintf(snapname, sizeof snapname,
+				    "%s/.snap/dump_snapshot", mntpt);
+				snprintf(snapcmd, sizeof snapcmd, "%s %s %s",
+				    _PATH_MKSNAP_FFS, mntpt, snapname);
 				unlink(snapname);
-				errx(X_STARTUP, "Cannot open %s: %s\n",
-				    snapname, strerror(errno));
+				if (system(snapcmd) != 0)
+					errx(X_STARTUP, "Cannot create %s: %s\n",
+					    snapname, strerror(errno));
+				if ((diskfd = open(snapname, O_RDONLY)) < 0) {
+					unlink(snapname);
+					errx(X_STARTUP, "Cannot open %s: %s\n",
+					    snapname, strerror(errno));
+				}
+				unlink(snapname);
+				if (fstat(diskfd, &sb) != 0)
+					err(X_STARTUP, "%s: stat", snapname);
+				spcl.c_date = _time_to_time64(sb.st_mtime);
 			}
-			unlink(snapname);
-			if (fstat(diskfd, &sb) != 0)
-				err(X_STARTUP, "%s: stat", snapname);
-			spcl.c_date = _time_to_time64(sb.st_mtime);
 		}
 	} else if (snapdump != 0) {
 		msg("WARNING: Cannot use -L on an unmounted filesystem.\n");
