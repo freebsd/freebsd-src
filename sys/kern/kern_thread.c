@@ -1198,17 +1198,7 @@ thread_exit(void)
 	 * all this stuff.
 	 */
 	if (p->p_numthreads > 1) {
-		/*
-		 * Unlink this thread from its proc and the kseg.
-		 * In keeping with the other structs we probably should
-		 * have a thread_unlink() that does some of this but it
-		 * would only be called from here (I think) so it would
-		 * be a waste. (might be useful for proc_fini() as well.)
- 		 */
-		TAILQ_REMOVE(&p->p_threads, td, td_plist);
-		p->p_numthreads--;
-		TAILQ_REMOVE(&kg->kg_threads, td, td_kglist);
-		kg->kg_numthreads--;
+		thread_unlink(td);
 		if (p->p_maxthrwaits)
 			wakeup(&p->p_numthreads);
 		/*
@@ -1314,6 +1304,19 @@ thread_link(struct thread *td, struct ksegrp *kg)
 	p->p_numthreads++;
 	kg->kg_numthreads++;
 }
+
+void
+thread_unlink(struct thread *td)
+{      
+	struct proc *p = td->td_proc;
+	struct ksegrp *kg = td->td_ksegrp;
+   
+	TAILQ_REMOVE(&p->p_threads, td, td_plist);
+	p->p_numthreads--;
+	TAILQ_REMOVE(&kg->kg_threads, td, td_kglist);
+	kg->kg_numthreads--;
+	/* could clear a few other things here */
+} 
 
 /*
  * Purge a ksegrp resource. When a ksegrp is preparing to
