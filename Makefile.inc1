@@ -77,6 +77,9 @@ SUBDIR+= ${_DIR}
 SUBDIR=		${SUBDIR_OVERRIDE}
 .endif
 
+.if defined(NOCLEAN)
+NO_CLEAN=	${NOCLEAN}
+.endif
 .if defined(NO_CLEANDIR)
 CLEANDIR=	clean cleandepend
 .else
