@@ -90,18 +90,18 @@ perfmon_init(void)
 	switch(cpu_class) {
 	case CPUCLASS_586:
 		perfmon_cpuok = 1;
-		msr_ctl[0] = 0x11;
-		msr_ctl[1] = 0x11;
-		msr_pmc[0] = 0x12;
-		msr_pmc[1] = 0x13;
+		msr_ctl[0] = MSR_P5_CESR;
+		msr_ctl[1] = MSR_P5_CESR;
+		msr_pmc[0] = MSR_P5_CTR0;
+		msr_pmc[1] = MSR_P5_CTR1;
 		writectl = writectl5;
 		break;
 	case CPUCLASS_686:
 		perfmon_cpuok = 1;
-		msr_ctl[0] = 0x186;
-		msr_ctl[1] = 0x187;
-		msr_pmc[0] = 0xc1;
-		msr_pmc[1] = 0xc2;
+		msr_ctl[0] = MSR_EVNTSEL0;
+		msr_ctl[1] = MSR_EVNTSEL1;
+		msr_pmc[0] = MSR_PERFCTR0;
+		msr_pmc[1] = MSR_PERFCTR1;
 		writectl = writectl6;
 		break;
 
