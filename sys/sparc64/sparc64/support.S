@@ -476,30 +476,6 @@ ENTRY(fubyte)
 END(fubyte)
 
 /*
- * int fusword(const void *base)
- */
-ENTRY(fusword)
-#if KTR_COMPILE & KTR_CT1
-	CATR(KTR_CT1, "fusword: base=%#lx", %g1, %g2, %g3, 7, 8, 9)
-	stx	%o0, [%g1 + KTR_PARM1]
-9:
-#endif
-	FU_BYTES(lduwa, 2, .Lfsfault)
-END(fusword)
-
-/*
- * int fuswintr(const void *base)
- */
-ENTRY(fuswintr)
-#if KTR_COMPILE & KTR_CT1
-	CATR(KTR_CT1, "fuswintr: base=%#lx", %g1, %g2, %g3, 7, 8, 9)
-	stx	%o0, [%g1 + KTR_PARM1]
-9:
-#endif
-	FU_BYTES(lduwa, 2, fsbail)
-END(fuswintr)
-
-/*
  * long fuword(const void *base)
  */
 ENTRY(fuword)
@@ -512,7 +488,43 @@ ENTRY(fuword)
 END(fuword)
 
 /*
- * u_int64_t fuword64(const void *base)
+ * int fuswintr(const void *base)
+ */
+ENTRY(fuswintr)
+#if KTR_COMPILE & KTR_CT1
+	CATR(KTR_CT1, "fuswintr: base=%#lx", %g1, %g2, %g3, 7, 8, 9)
+	stx	%o0, [%g1 + KTR_PARM1]
+9:
+#endif
+	FU_BYTES(lduha, 2, fsbail)
+END(fuswintr)
+
+/*
+ * int16_t fuword16(const void *base)
+ */
+ENTRY(fuword16)
+#if KTR_COMPILE & KTR_CT1
+	CATR(KTR_CT1, "fuword16: base=%#lx", %g1, %g2, %g3, 7, 8, 9)
+	stx	%o0, [%g1 + KTR_PARM1]
+9:
+#endif
+	FU_BYTES(lduha, 2, .Lfsfault)
+END(fuword16)
+
+/*
+ * int32_t fuword32(const void *base)
+ */
+ENTRY(fuword32)
+#if KTR_COMPILE & KTR_CT1
+	CATR(KTR_CT1, "fuword32: base=%#lx", %g1, %g2, %g3, 7, 8, 9)
+	stx	%o0, [%g1 + KTR_PARM1]
+9:
+#endif
+	FU_BYTES(lduwa, 4, .Lfsfault)
+END(fuword32)
+
+/*
+ * int64_t fuword64(const void *base)
  */
 ENTRY(fuword64)
 #if KTR_COMPILE & KTR_CT1
@@ -536,16 +548,16 @@ ENTRY(subyte)
 END(subyte)
 
 /*
- * int susword(const void *base, int word)
+ * int suword(const void *base, long word)
  */
-ENTRY(susword)
+ENTRY(suword)
 #if KTR_COMPILE & KTR_CT1
-	CATR(KTR_CT1, "susword: base=%#lx", %g1, %g2, %g3, 7, 8, 9)
+	CATR(KTR_CT1, "suword: base=%#lx", %g1, %g2, %g3, 7, 8, 9)
 	stx	%o0, [%g1 + KTR_PARM1]
 9:
 #endif
-	SU_BYTES(stwa, 2, .Lfsfault)
-END(susword)
+	SU_BYTES(stxa, 8, .Lfsfault)
+END(suword)
 
 /*
  * int suswintr(const void *base, int word)
@@ -560,19 +572,31 @@ ENTRY(suswintr)
 END(suswintr)
 
 /*
- * int suword(const void *base, long word)
+ * int suword16(const void *base, int16_t word)
  */
-ENTRY(suword)
+ENTRY(suword16)
 #if KTR_COMPILE & KTR_CT1
-	CATR(KTR_CT1, "suword: base=%#lx", %g1, %g2, %g3, 7, 8, 9)
+	CATR(KTR_CT1, "suword16: base=%#lx", %g1, %g2, %g3, 7, 8, 9)
 	stx	%o0, [%g1 + KTR_PARM1]
 9:
 #endif
-	SU_BYTES(stxa, 8, .Lfsfault)
-END(suword)
+	SU_BYTES(stha, 2, .Lfsfault)
+END(suword16)
 
 /*
- * int suword64(const void *base, u_int64_t word)
+ * int suword32(const void *base, int32_t word)
+ */
+ENTRY(suword32)
+#if KTR_COMPILE & KTR_CT1
+	CATR(KTR_CT1, "suword32: base=%#lx", %g1, %g2, %g3, 7, 8, 9)
+	stx	%o0, [%g1 + KTR_PARM1]
+9:
+#endif
+	SU_BYTES(stwa, 4, .Lfsfault)
+END(suword32)
+
+/*
+ * int suword64(const void *base, int64_t word)
  */
 ENTRY(suword64)
 #if KTR_COMPILE & KTR_CT1
