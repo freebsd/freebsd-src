@@ -3,7 +3,7 @@ OUTPUT_FORMAT("elf64-sparc", "elf64-sparc",
 	      "elf64-sparc")
 OUTPUT_ARCH(sparc:v9)
 ENTRY(_start)
- SEARCH_DIR(/home/jake/sparc64-unknown-elf/lib);
+SEARCH_DIR(/usr/lib);
 /* Do we need any of these for elf?
    __DYNAMIC = 0;    */
 SECTIONS
