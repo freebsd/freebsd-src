@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.89 1994/12/28 04:17:54 ache Exp $
+# $Id: bsd.port.mk,v 1.90 1995/01/01 20:06:20 ache Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -276,6 +276,15 @@ patch:
 .endif
 
 # More standard targets start here.
+
+.if !target(describe)
+describe:
+	@if [ -f ${PKGDIR}/COMMENT ]; then \
+		echo "${.CURDIR}/${DISTNAME}:	`cat ${PKGDIR}/COMMENT`"; \
+	else \
+		echo "${.CURDIR}/${DISTNAME}:	** No Description"; \
+	fi
+.endif
 
 .if !target(reinstall)
 reinstall: pre-reinstall install
