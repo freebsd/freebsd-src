@@ -4,7 +4,7 @@
 .PATH: ${.CURDIR}/${MACHINE}/gen ${.CURDIR}/gen
 
 SRCS+=	alarm.c assert.c clock.c closedir.c confstr.c crypt.c ctermid.c \
-	ctime.c daemon.c devname.c difftime.c disklabel.c err.c errlst.c \
+	daemon.c devname.c disklabel.c err.c errlst.c \
 	exec.c fnmatch.c frexp.c fstab.c fts.c getbsize.c getcap.c getcwd.c \
 	getdomainname.c getgrent.c getgrouplist.c gethostname.c getloadavg.c \
 	getlogin.c getmntinfo.c getnetgrent.c getosreldate.c getpagesize.c \
@@ -30,7 +30,7 @@ errlst.o errlst.po:
 .endif
 
 MAN3+=	gen/alarm.3 gen/clock.3 gen/confstr.3 gen/crypt.3 gen/ctermid.3 \
-	gen/ctime.3 gen/daemon.3 gen/devname.3 gen/directory.3 gen/err.3 \
+	gen/daemon.3 gen/devname.3 gen/directory.3 gen/err.3 \
 	gen/exec.3 gen/fnmatch.3 gen/frexp.3 gen/fts.3 gen/getbsize.3 \
 	gen/getcap.3 gen/getcwd.3 gen/getdiskbyname.3 gen/getfsent.3 \
 	gen/getgrent.3 gen/getgrouplist.3 gen/gethostname.3 gen/getloadavg.3 \
@@ -46,8 +46,6 @@ MAN3+=	gen/alarm.3 gen/clock.3 gen/confstr.3 gen/crypt.3 gen/ctermid.3 \
 	gen/uname.3 gen/unvis.3 gen/usleep.3 gen/utime.3 gen/valloc.3 gen/vis.3
 
 MLINKS+=crypt.3 encrypt.3 crypt.3 setkey.3
-MLINKS+=ctime.3 asctime.3 ctime.3 difftime.3 ctime.3 gmtime.3 \
-	ctime.3 localtime.3 ctime.3 mktime.3
 MLINKS+=directory.3 closedir.3 directory.3 dirfd.3 directory.3 opendir.3 \
 	directory.3 readdir.3 directory.3 rewinddir.3 directory.3 seekdir.3 \
 	directory.3 telldir.3

@@ -2,6 +2,16 @@
 
 #define PRIVATE_H
 
+/* Stuff moved from Makefile.inc to reduce clutter */
+#ifndef TM_GMTOFF
+#define TM_GMTOFF	tm_gmtoff
+#define TM_ZONE		tm_zone
+#define STD_INSPIRED	1
+#define PCTS		1
+#define HAVE_LONG_DOUBLE 1
+#define TZDIR		"/usr/share/zoneinfo"
+#endif /* ndef TM_GMTOFF */
+
 /*
 ** This header is for use ONLY with the time conversion code.
 ** There is no guarantee that it will remain unchanged,
