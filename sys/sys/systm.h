@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)systm.h	8.4 (Berkeley) 2/23/94
- * $Id: systm.h,v 1.31 1996/01/15 10:28:44 phk Exp $
+ * $Id: systm.h,v 1.32 1996/01/15 22:41:03 phk Exp $
  */
 
 #ifndef _SYS_SYSTM_H_
@@ -130,21 +130,20 @@ extern void	(*bzero) __P((void *buf, size_t len));
 
 void	*memcpy __P((void *to, const void *from, size_t len));
 
-int	copystr __P((void *kfaddr, void *kdaddr, u_int len, u_int *done));
-int	copyinstr __P((void *udaddr, void *kaddr, u_int len, u_int *done));
-int	copyoutstr __P((void *kaddr, void *udaddr, u_int len, u_int *done));
-int	copyin __P((const void *udaddr, void *kaddr, u_int len));
-int	copyout __P((const void *kaddr, void *udaddr, u_int len));
+int	copystr __P((const void *kfaddr, void *kdaddr, size_t len,
+		size_t *lencopied));
+int	copyinstr __P((const void *udaddr, void *kaddr, size_t len,
+		size_t *lencopied));
+int	copyin __P((const void *udaddr, void *kaddr, size_t len));
+int	copyout __P((const void *kaddr, void *udaddr, size_t len));
 
-int	fubyte __P((void *base));
-int	fuibyte __P((void *base));
+int	fubyte __P((const void *base));
+int	fuibyte __P((const void *base));
 int	subyte __P((void *base, int byte));
 int	suibyte __P((void *base, int byte));
-int	fuword __P((void *base));
-int	fuiword __P((void *base));
+int	fuword __P((const void *base));
 int	suword __P((void *base, int word));
 int	susword __P((void *base, int word));
-int	suiword __P((void *base, int word));
 
 int	hzto __P((struct timeval *tv));
 void	realitexpire __P((void *));
