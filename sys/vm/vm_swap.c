@@ -183,6 +183,9 @@ struct swapon_args {
 };
 #endif
 
+/* 
+ * MPSAFE
+ */
 /* ARGSUSED */
 int
 swapon(p, uap)
@@ -194,21 +197,25 @@ swapon(p, uap)
 	struct nameidata nd;
 	int error;
 
+	mtx_lock(&Giant);
+
 	error = suser(p);
 	if (error)
-		return (error);
+		goto done2;
 
 	/*
 	 * Swap metadata may not fit in the KVM if we have physical
 	 * memory of >1GB.
 	 */
-	if (swap_zone == NULL)
-		return (ENOMEM);
+	if (swap_zone == NULL) {
+		error = ENOMEM;
+		goto done2;
+	}
 
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, uap->name, p);
 	error = namei(&nd);
 	if (error)
-		return (error);
+		goto done2;
 
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vp = nd.ni_vp;
@@ -226,7 +233,8 @@ swapon(p, uap)
 
 	if (error)
 		vrele(vp);
-
+done2:
+	mtx_unlock(&Giant);
 	return (error);
 }
 
