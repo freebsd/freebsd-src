@@ -42,7 +42,7 @@ static const char copyright[] =
 static const char sccsid[] = "@(#)rshd.c	8.2 (Berkeley) 4/6/94";
 #endif
 static const char rcsid[] =
-	"$Id: rshd.c,v 1.22 1998/12/01 23:27:24 dg Exp $";
+	"$Id: rshd.c,v 1.23 1998/12/16 07:20:45 peter Exp $";
 #endif /* not lint */
 
 /*
@@ -67,6 +67,7 @@ static const char rcsid[] =
 
 #include <errno.h>
 #include <fcntl.h>
+#include <libutil.h>
 #include <paths.h>
 #include <pwd.h>
 #include <signal.h>
@@ -207,13 +208,12 @@ doit(fromp)
 	struct sockaddr_in *fromp;
 {
 	extern char *__rcmd_errstr;	/* syslog hook from libc/net/rcmd.c. */
-	struct hostent *hp;
 	struct passwd *pwd;
 	u_short port;
 	fd_set ready, readfrom;
 	int cc, nfd, pv[2], pid, s;
 	int one = 1;
-	char *hostname, *errorstr;
+	char *errorstr;
 	char *cp, sig, buf[BUFSIZ];
 	char cmdbuf[NCARGS+1], locuser[16], remuser[16];
 	char fromhost[2 * MAXHOSTNAMELEN + 1];
@@ -350,36 +350,8 @@ doit(fromp)
 	errorstr = NULL;
 	strncpy(fromhost, inet_ntoa(fromp->sin_addr),
 		sizeof(fromhost) - 1);
-	hostname = fromhost;
-	hp = gethostbyaddr((char *)&fromp->sin_addr, sizeof (struct in_addr),
-		fromp->sin_family);
-	if (hp) {
-		/*
-		 * OK, it looks like a DNS name is attached.. Lets see if
-		 * it looks like we can use it.  If it doesn't check out,
-		 * ditch it and use the IP address for logging instead.
-		 * Note that iruserok() does it's own hostname checking!!
-		 */
-		strncpy(fromhost, hp->h_name, sizeof(fromhost) - 1);
-		fromhost[sizeof(fromhost) - 1] = 0;
-		hp = gethostbyname(fromhost);
-		if (hp == NULL) {
-			strncpy(fromhost, inet_ntoa(fromp->sin_addr),
-				sizeof(fromhost) - 1);
-		} else for (; ; hp->h_addr_list++) {
-			if (hp->h_addr_list[0] == NULL) {
-				/* End of list - ditch it */
-				strncpy(fromhost, inet_ntoa(fromp->sin_addr),
-					sizeof(fromhost) - 1);
-				break;
-			}
-			if (!bcmp(hp->h_addr_list[0],
-			    (caddr_t)&fromp->sin_addr,
-			    sizeof(fromp->sin_addr)))
-				break;		/* OK! */
-		}
-	}
-	fromhost[sizeof(fromhost) - 1] = 0;
+	realhostname(fromhost, sizeof fromhost - 1, &fromp->sin_addr);
+	fromhost[sizeof(fromhost) - 1] = '\0';
 
 #ifdef	KERBEROS
 	if (use_kerberos) {
@@ -426,7 +398,7 @@ doit(fromp)
 	if (pwd == NULL) {
 		syslog(LOG_INFO|LOG_AUTH,
 		    "%s@%s as %s: unknown login. cmd='%.80s'",
-		    remuser, hostname, locuser, cmdbuf);
+		    remuser, fromhost, locuser, cmdbuf);
 		if (errorstr == NULL)
 			errorstr = "Login incorrect.\n";
 		goto fail;
@@ -440,7 +412,7 @@ doit(fromp)
 		    login_getcapbool(lc, "requirehome", !!pwd->pw_uid)) {
 			syslog(LOG_INFO|LOG_AUTH,
 			"%s@%s as %s: no home directory. cmd='%.80s'",
-			remuser, hostname, locuser, cmdbuf);
+			remuser, fromhost, locuser, cmdbuf);
 			error("No remote home directory.\n");
 			exit(0);
 		}
@@ -449,7 +421,7 @@ doit(fromp)
 #ifdef notdef
 		syslog(LOG_INFO|LOG_AUTH,
 		    "%s@%s as %s: no home directory. cmd='%.80s'",
-		    remuser, hostname, locuser, cmdbuf);
+		    remuser, fromhost, locuser, cmdbuf);
 		error("No remote directory.\n");
 		exit(1);
 #endif
@@ -479,16 +451,16 @@ doit(fromp)
 			if (__rcmd_errstr)
 				syslog(LOG_INFO|LOG_AUTH,
 			    "%s@%s as %s: permission denied (%s). cmd='%.80s'",
-				    remuser, hostname, locuser, __rcmd_errstr,
+				    remuser, fromhost, locuser, __rcmd_errstr,
 				    cmdbuf);
 			else
 				syslog(LOG_INFO|LOG_AUTH,
 			    "%s@%s as %s: permission denied. cmd='%.80s'",
-				    remuser, hostname, locuser, cmdbuf);
+				    remuser, fromhost, locuser, cmdbuf);
 fail:
 			if (errorstr == NULL)
 				errorstr = "Login incorrect.\n";
-			error(errorstr, hostname);
+			error(errorstr, fromhost);
 			exit(1);
 		}
 
@@ -506,7 +478,7 @@ fail:
 		if (!auth_hostok(lc, fromhost, remote_ip)) {
 			syslog(LOG_INFO|LOG_AUTH,
 			    "%s@%s as %s: permission denied (%s). cmd='%.80s'",
-			    remuser, hostname, locuser, __rcmd_errstr,
+			    remuser, fromhost, locuser, __rcmd_errstr,
 			    cmdbuf);
 			error("Login incorrect.\n");
 			exit(1);
@@ -729,11 +701,11 @@ fail:
 		    syslog(LOG_INFO|LOG_AUTH,
 			"Kerberos shell from %s.%s@%s on %s as %s, cmd='%.80s'",
 			kdata->pname, kdata->pinst, kdata->prealm,
-			hostname, locuser, cmdbuf);
+			fromhost, locuser, cmdbuf);
 		else
 #endif
 		    syslog(LOG_INFO|LOG_AUTH, "%s@%s as %s: cmd='%.80s'",
-			remuser, hostname, locuser, cmdbuf);
+			remuser, fromhost, locuser, cmdbuf);
 	}
 	execl(pwd->pw_shell, cp, "-c", cmdbuf, 0);
 	perror(pwd->pw_shell);
