@@ -43,7 +43,7 @@
  *	from: wd.c,v 1.55 1994/10/22 01:57:12 phk Exp $
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	$Id: subr_diskslice.c,v 1.49 1998/07/20 12:37:59 bde Exp $
+ *	$Id: subr_diskslice.c,v 1.50 1998/07/20 13:39:44 bde Exp $
  */
 
 #include "opt_devfs.h"
@@ -412,12 +412,10 @@ dsioctl(dname, dev, cmd, data, flags, sspp, strat, setgeom)
 			return (EINVAL);
 		if (!*(int *)data)
 			for (slice = 0; slice < ssp->dss_nslices; slice++) {
-				u_char	openmask1;
-
-				openmask1 = ssp->dss_slices[slice].ds_openmask;
-				if (openmask1
+				openmask = ssp->dss_slices[slice].ds_openmask;
+				if (openmask
 				    && (slice != WHOLE_DISK_SLICE
-					|| openmask1 & ~(1 << RAW_PART)))
+					|| openmask & ~(1 << RAW_PART)))
 					return (EBUSY);
 			}
 
