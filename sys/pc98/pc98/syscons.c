@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.116 1999/04/18 14:42:18 kato Exp $
+ *  $Id: syscons.c,v 1.117 1999/04/27 11:18:04 phk Exp $
  */
 
 #include "sc.h"
@@ -370,7 +370,6 @@ static device_method_t sc_methods[] = {
 static driver_t sc_driver = {
 	"sc",
 	sc_methods,
-	DRIVER_TYPE_TTY,
 	1,                          /* XXX */
 };
 
