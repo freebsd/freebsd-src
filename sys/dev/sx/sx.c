@@ -71,7 +71,6 @@ static int sx_modem(struct sx_softc *, struct sx_port *, enum sx_mctl, int);
 static void sx_write_enable(struct sx_port *, int);
 static void sx_start(struct tty *);
 static void sx_stop(struct tty *, int);
-static void sx_disc_optim(struct tty *tp, struct termios *t,struct sx_port *pp);
 static void sxhardclose(struct sx_port *pp);
 static void sxdtrwakeup(void *chan);
 static void sx_shutdown_chan(struct sx_port *);
@@ -476,7 +475,7 @@ open_top:
 	}
 
 	error = ttyld_open(tp, dev);
-	sx_disc_optim(tp, &tp->t_termios, pp);
+	pp->sp_hotchar = ttyldoptim(tp);
 	if (tp->t_state & TS_ISOPEN && DEV_IS_CALLOUT(mynor))
 		pp->sp_active_out = TRUE;
 
@@ -805,7 +804,7 @@ sxioctl(
 	}
 
 	error = ttyioctl(dev, cmd, data, flag, p);
-	sx_disc_optim(tp, &tp->t_termios, pp);
+	pp->sp_hotchar = ttyldoptim(tp);
 	if (error != ENOTTY)
 		goto out;
 
@@ -1920,31 +1919,6 @@ sx_stop(
 	 */
 	splx(s);
 }
-
-static void
-sx_disc_optim(
-	struct tty *tp,
-	struct termios *t,
-	struct sx_port *pp)
-{
-	/*
-	 * If we're in "raw" mode, we can bypass ttyinput().
-	 */
-	if (!(t->c_iflag & (ICRNL | IGNCR | IMAXBEL | INLCR | ISTRIP | IXON)) &&
-	    (!(t->c_iflag & BRKINT) || (t->c_iflag & IGNBRK)) &&
-	    (!(t->c_iflag & PARMRK) ||
-	     (t->c_iflag & (IGNPAR | IGNBRK)) == (IGNPAR | IGNBRK)) &&
-	    !(t->c_lflag & (ECHO | ICANON | IEXTEN | ISIG | PENDIN)) &&
-	    linesw[tp->t_line].l_rint == ttyinput)
-		tp->t_state |= TS_CAN_BYPASS_L_RINT;
-	else
-		tp->t_state &= ~TS_CAN_BYPASS_L_RINT;
-	pp->sp_hotchar = linesw[tp->t_line].l_hotchar;
-	DPRINT((pp, DBG_OPTIM, "sx_disc_optim:  bypass %s, hotchar %x\n",
-		(tp->t_state & TS_CAN_BYPASS_L_RINT) ? "yes" : "no",
-		pp->sp_hotchar));
-}
-
 
 #ifdef	SX_DEBUG
 

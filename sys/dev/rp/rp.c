@@ -616,7 +616,6 @@ static	int	rpparam(struct tty *, struct termios *);
 static	void	rpstart(struct tty *);
 static	void	rpstop(struct tty *, int);
 static	void	rphardclose	(struct rp_port *);
-static	void	rp_disc_optim	(struct tty *tp, struct termios *t);
 
 static void rp_do_receive(struct rp_port *rp, struct tty *tp,
 			CHANNEL_t *cp, unsigned int ChanStatus)
@@ -1089,7 +1088,7 @@ open_top:
 	}
 	error = ttyld_open(tp, dev);
 
-	rp_disc_optim(tp, &tp->t_termios);
+	ttyldoptim(tp);
 	if(tp->t_state & TS_ISOPEN && IS_CALLOUT(dev))
 		rp->active_out = TRUE;
 
@@ -1131,7 +1130,7 @@ rpclose(dev, flag, mode, td)
 
 	oldspl = spltty();
 	ttyld_close(tp, flag);
-	rp_disc_optim(tp, &tp->t_termios);
+	ttyldoptim(tp);
 	rphardclose(rp);
 
 	tp->t_state &= ~TS_BUSY;
@@ -1321,7 +1320,7 @@ rpioctl(dev, cmd, data, flag, td)
 	t = &tp->t_termios;
 
 	error = ttyioctl(dev, cmd, data, flag, td);
-	rp_disc_optim(tp, &tp->t_termios);
+	ttyldoptim(tp);
 	if(error != ENOTTY)
 		return(error);
 	oldspl = spltty();
@@ -1543,7 +1542,7 @@ rpparam(tp, t)
 	} else {
 		sDisRTSFlowCtl(cp);
 	}
-	rp_disc_optim(tp, t);
+	ttyldoptim(tp);
 
 	if((cflag & CLOCAL) || (sGetChanStatusLo(cp) & CD_ACT)) {
 		tp->t_state |= TS_CARR_ON;
@@ -1560,22 +1559,6 @@ rpparam(tp, t)
 	splx(oldspl);
 
 	return(0);
-}
-
-static void
-rp_disc_optim(tp, t)
-struct	tty	*tp;
-struct	termios *t;
-{
-	if(!(t->c_iflag & (ICRNL | IGNCR | IMAXBEL | INLCR | ISTRIP | IXON))
-		&&(!(t->c_iflag & BRKINT) || (t->c_iflag & IGNBRK))
-		&&(!(t->c_iflag & PARMRK)
-		  ||(t->c_iflag & (IGNPAR | IGNBRK)) == (IGNPAR | IGNBRK))
-		&& !(t->c_lflag & (ECHO | ICANON | IEXTEN | ISIG | PENDIN))
-		&& linesw[tp->t_line].l_rint == ttyinput)
-		tp->t_state |= TS_CAN_BYPASS_L_RINT;
-	else
-		tp->t_state &= ~TS_CAN_BYPASS_L_RINT;
 }
 
 static void

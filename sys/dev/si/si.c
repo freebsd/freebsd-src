@@ -99,7 +99,6 @@ static int si_Sioctl(dev_t, u_long, caddr_t, int, struct thread *);
 static void si_start(struct tty *);
 static void si_stop(struct tty *, int);
 static timeout_t si_lstart;
-static void si_disc_optim(struct tty *tp, struct termios *t,struct si_port *pp);
 static void sihardclose(struct si_port *pp);
 static void sidtrwakeup(void *chan);
 
@@ -741,7 +740,7 @@ open_top:
 	}
 
 	error = ttyld_open(tp, dev);
-	si_disc_optim(tp, &tp->t_termios, pp);
+	pp->sp_hotchar = ttyldoptim(tp);
 	if (tp->t_state & TS_ISOPEN && IS_CALLOUT(mynor))
 		pp->sp_active_out = TRUE;
 
@@ -1017,7 +1016,7 @@ siioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 	}
 
 	error = ttyioctl(dev, cmd, data, flag, td);
-	si_disc_optim(tp, &tp->t_termios, pp);
+	pp->sp_hotchar = ttyldoptim(tp);
 	if (error != ENOTTY)
 		goto out;
 
@@ -2073,29 +2072,6 @@ si_command(struct si_port *pp, int cmd, int waitflag)
 		}
 	}
 	splx(oldspl);
-}
-
-static void
-si_disc_optim(struct tty *tp, struct termios *t, struct si_port *pp)
-{
-	/*
-	 * XXX can skip a lot more cases if Smarts.  Maybe
-	 * (IGNCR | ISTRIP | IXON) in c_iflag.  But perhaps we
-	 * shouldn't skip if (TS_CNTTB | TS_LNCH) is set in t_state.
-	 */
-	if (!(t->c_iflag & (ICRNL | IGNCR | IMAXBEL | INLCR | ISTRIP | IXON)) &&
-	    (!(t->c_iflag & BRKINT) || (t->c_iflag & IGNBRK)) &&
-	    (!(t->c_iflag & PARMRK) ||
-	     (t->c_iflag & (IGNPAR | IGNBRK)) == (IGNPAR | IGNBRK)) &&
-	    !(t->c_lflag & (ECHO | ICANON | IEXTEN | ISIG | PENDIN)) &&
-	    linesw[tp->t_line].l_rint == ttyinput)
-		tp->t_state |= TS_CAN_BYPASS_L_RINT;
-	else
-		tp->t_state &= ~TS_CAN_BYPASS_L_RINT;
-	pp->sp_hotchar = linesw[tp->t_line].l_hotchar;
-	DPRINT((pp, DBG_OPTIM, "bypass: %s, hotchar: %x\n",
-		(tp->t_state & TS_CAN_BYPASS_L_RINT) ? "on" : "off",
-		pp->sp_hotchar));
 }
 
 
