@@ -1,5 +1,5 @@
 /* $FreeBSD$ */
-/* $Id: isp_freebsd_cam.h,v 1.1 1998/09/15 08:42:55 gibbs Exp $ */
+/* $Id: isp_freebsd_cam.h,v 1.2 1998/09/15 09:59:37 gibbs Exp $ */
 /*
  * Qlogic ISP SCSI Host Adapter FreeBSD Wrapper Definitions (CAM version)
  *---------------------------------------
@@ -111,8 +111,8 @@ struct isposinfo {
 #define	XS_RESID(ccb)		(ccb)->resid
 #define	XS_XFRLEN(ccb)		(ccb)->dxfer_len
 #define	XS_CDBLEN(ccb)		(ccb)->cdb_len
-#define	XS_CDBP(ccb)		((ccb)->ccb_h.flags & CAM_CDB_POINTER)? \
-	(ccb)->cdb_io.cdb_ptr : (ccb)->cdb_io.cdb_bytes
+#define	XS_CDBP(ccb)		(((ccb)->ccb_h.flags & CAM_CDB_POINTER)? \
+	(ccb)->cdb_io.cdb_ptr : (ccb)->cdb_io.cdb_bytes)
 #define	XS_STS(ccb)		(ccb)->scsi_status
 #define	XS_TIME(ccb)		(ccb)->ccb_h.timeout
 #define	XS_SNSP(ccb)		(&(ccb)->sense_data)
