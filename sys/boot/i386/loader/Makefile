@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.9 1998/10/01 09:57:09 jkh Exp $
+# $Id: Makefile,v 1.10 1998/10/07 02:39:32 msmith Exp $
 
 BASE=		loader
 PROG=		${BASE}
@@ -61,7 +61,7 @@ ${BASE}: ${BASE}.bin ${BTXLDR} ${BTXKERN}
 		${BASE}.bin
 
 ${BASE}.bin: ${OBJS} ${LIBI386} vers.o setdef0.o setdef1.o
-	${LD} ${LDFLAGS} -o ${.TARGET} ${BTXCRT} setdef0.o ${OBJS} vers.o setdef1.o \
+	${CC} ${LDFLAGS} -o ${.TARGET} ${BTXCRT} setdef0.o ${OBJS} vers.o setdef1.o \
 		${LIBSTAND} ${LIBI386} ${LIBSTAND}
 
 setdef0.o:	setdefs.h
