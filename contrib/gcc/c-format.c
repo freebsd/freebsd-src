@@ -29,31 +29,8 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 #include "c-common.h"
 #include "intl.h"
 #include "diagnostic.h"
-
+#include "langhooks.h"
 
-/* Command line options and their associated flags.  */
-
-/* Warn about format/argument anomalies in calls to formatted I/O functions
-   (*printf, *scanf, strftime, strfmon, etc.).  */
-
-int warn_format;
-
-/* Warn about Y2K problems with strftime formats.  */
-
-int warn_format_y2k;
-
-/* Warn about excess arguments to formats.  */
-
-int warn_format_extra_args;
-
-/* Warn about non-literal format arguments.  */
-
-int warn_format_nonliteral;
-
-/* Warn about possible security problems with calls to format functions.  */
-
-int warn_format_security;
-
 /* Set format warning options according to a -Wformat=n option.  */
 
 void
@@ -63,11 +40,15 @@ set_Wformat (setting)
   warn_format = setting;
   warn_format_y2k = setting;
   warn_format_extra_args = setting;
+  warn_format_zero_length = setting;
   if (setting != 1)
     {
       warn_format_nonliteral = setting;
       warn_format_security = setting;
     }
+  /* Make sure not to disable -Wnonnull if -Wformat=0 is specified.  */
+  if (setting)
+    warn_nonnull = setting;
 }
 
 
@@ -308,7 +289,7 @@ decode_format_attr (args, info, validated_p)
 
 /* Check a call to a format function against a parameter list.  */
 
-/* The meaningfully distinct length modifiers for format checking recognised
+/* The meaningfully distinct length modifiers for format checking recognized
    by GCC.  */
 enum format_lengths
 {
@@ -351,7 +332,7 @@ enum format_std_version
 				 ? "ISO C++"			\
 				 : ((FEATURE_VER) == STD_EXT	\
 				    ? "ISO C"			\
-				    : "ISO C89"))
+				    : "ISO C90"))
 /* Adjust a C standard version, which may be STD_C9L, to account for
    -Wno-long-long.  Returns other standard versions unchanged.  */
 #define ADJ_STD(VER)		((int)((VER) == STD_C9L			      \
@@ -461,7 +442,7 @@ typedef struct
   /* The flag character in question (0 for end of array).  */
   const int flag_char;
   /* Zero if this entry describes the flag character in general, or a
-     non-zero character that may be found in flags2 if it describes the
+     nonzero character that may be found in flags2 if it describes the
      flag when used with certain formats only.  If the latter, only
      the first such entry found that applies to the current conversion
      specifier is used; the values of `name' and `long_name' it supplies
@@ -491,11 +472,11 @@ typedef struct
   const int flag_char1;
   /* The second flag character.  */
   const int flag_char2;
-  /* Non-zero if the message should say that the first flag is ignored with
+  /* Nonzero if the message should say that the first flag is ignored with
      the second, zero if the combination should simply be objected to.  */
   const int ignored;
   /* Zero if this entry applies whenever this flag combination occurs,
-     a non-zero character from flags2 if it only applies in some
+     a nonzero character from flags2 if it only applies in some
      circumstances (e.g. 'i' for printf formats ignoring 0 with precision).  */
   const int predicate;
 } format_flag_pair;
@@ -713,7 +694,6 @@ static const format_flag_pair strfmon_flag_pairs[] =
 
 #define T_I	&integer_type_node
 #define T89_I	{ STD_C89, NULL, T_I }
-#define T99_I	{ STD_C99, NULL, T_I }
 #define T_L	&long_integer_type_node
 #define T89_L	{ STD_C89, NULL, T_L }
 #define T_LL	&long_long_integer_type_node
@@ -723,7 +703,6 @@ static const format_flag_pair strfmon_flag_pairs[] =
 #define T89_S	{ STD_C89, NULL, T_S }
 #define T_UI	&unsigned_type_node
 #define T89_UI	{ STD_C89, NULL, T_UI }
-#define T99_UI	{ STD_C99, NULL, T_UI }
 #define T_UL	&long_unsigned_type_node
 #define T89_UL	{ STD_C89, NULL, T_UL }
 #define T_ULL	&long_long_unsigned_type_node
@@ -917,10 +896,16 @@ typedef struct
   int number_other;
 } format_check_results;
 
+typedef struct
+{
+  format_check_results *res;
+  function_format_info *info;
+  tree params;
+  int *status;
+} format_check_context;
+
 static void check_format_info	PARAMS ((int *, function_format_info *, tree));
-static void check_format_info_recurse PARAMS ((int *, format_check_results *,
-					       function_format_info *, tree,
-					       tree, unsigned HOST_WIDE_INT));
+static void check_format_arg	PARAMS ((void *, tree, unsigned HOST_WIDE_INT));
 static void check_format_info_main PARAMS ((int *, format_check_results *,
 					    function_format_info *,
 					    const char *, int, tree,
@@ -1033,7 +1018,7 @@ check_function_format (status, attrs, params)
 static void
 status_warning VPARAMS ((int *status, const char *msgid, ...))
 {
-  diagnostic_context dc;
+  diagnostic_info diagnostic ;
 
   VA_OPEN (ap, msgid);
   VA_FIXEDARG (ap, int *, status);
@@ -1044,9 +1029,9 @@ status_warning VPARAMS ((int *status, const char *msgid, ...))
   else
     {
       /* This duplicates the warning function behavior.  */
-      set_diagnostic_context
-	(&dc, msgid, &ap, input_filename, lineno, /* warn = */ 1);
-      report_diagnostic (&dc);
+      diagnostic_set_info (&diagnostic, _(msgid), &ap, input_filename, lineno,
+                           DK_WARNING);
+      report_diagnostic (&diagnostic);
     }
 
   VA_CLOSE (ap);
@@ -1311,6 +1296,7 @@ check_format_info (status, info, params)
      function_format_info *info;
      tree params;
 {
+  format_check_context format_ctx;
   unsigned HOST_WIDE_INT arg_num;
   tree format_tree;
   format_check_results res;
@@ -1337,7 +1323,13 @@ check_format_info (status, info, params)
   res.number_unterminated = 0;
   res.number_other = 0;
 
-  check_format_info_recurse (status, &res, info, format_tree, params, arg_num);
+  format_ctx.res = &res;
+  format_ctx.info = info;
+  format_ctx.params = params;
+  format_ctx.status = status;
+
+  check_function_arguments_recurse (check_format_arg, &format_ctx,
+				    format_tree, arg_num);
 
   if (res.number_non_literal > 0)
     {
@@ -1383,8 +1375,9 @@ check_format_info (status, info, params)
       && res.number_other == 0 && warn_format_extra_args)
     status_warning (status, "unused arguments in $-style format");
   if (res.number_empty > 0 && res.number_non_literal == 0
-      && res.number_other == 0)
-    status_warning (status, "zero-length format string");
+      && res.number_other == 0 && warn_format_zero_length)
+    status_warning (status, "zero-length %s format string",
+		    format_types[info->format_type].name);
 
   if (res.number_wide > 0)
     status_warning (status, "format is a wide character string");
@@ -1393,101 +1386,28 @@ check_format_info (status, info, params)
     status_warning (status, "unterminated format string");
 }
 
-
-/* Recursively check a call to a format function.  FORMAT_TREE is the
-   format parameter, which may be a conditional expression in which
-   both halves should be checked.  ARG_NUM is the number of the
-   format argument; PARAMS points just after it in the argument list.  */
+/* Callback from check_function_arguments_recurse to check a
+   format string.  FORMAT_TREE is the format parameter.  ARG_NUM
+   is the number of the format argument.  CTX points to a
+   format_check_context.  */
 
 static void
-check_format_info_recurse (status, res, info, format_tree, params, arg_num)
-     int *status;
-     format_check_results *res;
-     function_format_info *info;
+check_format_arg (ctx, format_tree, arg_num)
+     void *ctx;
      tree format_tree;
-     tree params;
      unsigned HOST_WIDE_INT arg_num;
 {
+  format_check_context *format_ctx = ctx;
+  format_check_results *res = format_ctx->res;
+  function_format_info *info = format_ctx->info;
+  tree params = format_ctx->params;
+  int *status = format_ctx->status;
+
   int format_length;
   HOST_WIDE_INT offset;
   const char *format_chars;
   tree array_size = 0;
   tree array_init;
-
-  if (TREE_CODE (format_tree) == NOP_EXPR)
-    {
-      /* Strip coercion.  */
-      check_format_info_recurse (status, res, info,
-				 TREE_OPERAND (format_tree, 0), params,
-				 arg_num);
-      return;
-    }
-
-  if (TREE_CODE (format_tree) == CALL_EXPR)
-    {
-      tree type = TREE_TYPE (TREE_TYPE (TREE_OPERAND (format_tree, 0)));
-      tree attrs;
-      bool found_format_arg = false;
-
-      /* See if this is a call to a known internationalization function
-	 that modifies the format arg.  Such a function may have multiple
-	 format_arg attributes (for example, ngettext).  */
-
-      for (attrs = TYPE_ATTRIBUTES (type);
-	   attrs;
-	   attrs = TREE_CHAIN (attrs))
-	if (is_attribute_p ("format_arg", TREE_PURPOSE (attrs)))
-	  {
-	    tree inner_args;
-	    tree format_num_expr;
-	    int format_num;
-	    int i;
-
-	    /* Extract the argument number, which was previously checked
-	       to be valid.  */
-	    format_num_expr = TREE_VALUE (TREE_VALUE (attrs));
-	    while (TREE_CODE (format_num_expr) == NOP_EXPR
-		   || TREE_CODE (format_num_expr) == CONVERT_EXPR
-		   || TREE_CODE (format_num_expr) == NON_LVALUE_EXPR)
-	      format_num_expr = TREE_OPERAND (format_num_expr, 0);
-
-	    if (TREE_CODE (format_num_expr) != INTEGER_CST
-		|| TREE_INT_CST_HIGH (format_num_expr) != 0)
-	      abort ();
-
-	    format_num = TREE_INT_CST_LOW (format_num_expr);
-
-	    for (inner_args = TREE_OPERAND (format_tree, 1), i = 1;
-		 inner_args != 0;
-		 inner_args = TREE_CHAIN (inner_args), i++)
-	      if (i == format_num)
-		{
-		  check_format_info_recurse (status, res, info,
-					     TREE_VALUE (inner_args), params,
-					     arg_num);
-		  found_format_arg = true;
-		  break;
-		}
-	  }
-
-      /* If we found a format_arg attribute and did a recursive check,
-	 we are done with checking this format string.  Otherwise, we
-	 continue and this will count as a non-literal format string.  */
-      if (found_format_arg)
-	return;
-    }
-
-  if (TREE_CODE (format_tree) == COND_EXPR)
-    {
-      /* Check both halves of the conditional expression.  */
-      check_format_info_recurse (status, res, info,
-				 TREE_OPERAND (format_tree, 1), params,
-				 arg_num);
-      check_format_info_recurse (status, res, info,
-				 TREE_OPERAND (format_tree, 2), params,
-				 arg_num);
-      return;
-    }
 
   if (integer_zerop (format_tree))
     {
@@ -1774,11 +1694,6 @@ check_format_info_main (status, res, info, format_chars, format_length,
 	      /* "...a field width...may be indicated by an asterisk.
 		 In this case, an int argument supplies the field width..."  */
 	      ++format_chars;
-	      if (params == 0)
-		{
-		  status_warning (status, "too few arguments for format");
-		  return;
-		}
 	      if (has_operand_number != 0)
 		{
 		  int opnum;
@@ -1798,6 +1713,11 @@ check_format_info_main (status, res, info, format_chars, format_length,
 		}
 	      if (info->first_arg_num != 0)
 		{
+		  if (params == 0)
+		    {
+		      status_warning (status, "too few arguments for format");
+		      return;
+		    }
 		  cur_param = TREE_VALUE (params);
 		  if (has_operand_number <= 0)
 		    {
@@ -2332,7 +2252,6 @@ check_format_types (status, types)
       tree cur_type;
       tree orig_cur_type;
       tree wanted_type;
-      tree promoted_type;
       int arg_num;
       int i;
       int char_type_flag;
@@ -2351,11 +2270,7 @@ check_format_types (status, types)
 	abort ();
 
       if (types->pointer_count == 0)
-	{
-	  promoted_type = simple_type_promotes_to (wanted_type);
-	  if (promoted_type != NULL_TREE)
-	    wanted_type = promoted_type;
-	}
+	wanted_type = (*lang_hooks.types.type_promotes_to) (wanted_type);
 
       STRIP_NOPS (cur_param);
 
@@ -2460,8 +2375,8 @@ check_format_types (status, types)
 	  && TREE_CODE (cur_type) == INTEGER_TYPE
 	  && (! pedantic || i == 0 || (i == 1 && char_type_flag))
 	  && (TREE_UNSIGNED (wanted_type)
-	      ? wanted_type == unsigned_type (cur_type)
-	      : wanted_type == signed_type (cur_type)))
+	      ? wanted_type == c_common_unsigned_type (cur_type)
+	      : wanted_type == c_common_signed_type (cur_type)))
 	continue;
       /* Likewise, "signed char", "unsigned char" and "char" are
 	 equivalent but the above test won't consider them equivalent.  */
