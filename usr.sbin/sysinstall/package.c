@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: package.c,v 1.2 1995/10/16 15:14:21 jkh Exp $
+ * $Id: package.c,v 1.3 1995/10/18 00:12:38 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -77,7 +77,7 @@ package_extract(Device *dev, char *name)
     if (fd >= 0) {
 	pid_t tpid;
 
-	msgNotify("Fetching %s from %s\n", path, dev->name);
+	msgNotify("Fetching %s from %s", path, dev->name);
 	pen[0] = '\0';
 	if ((where = make_playpen(pen, 0)) != NULL) {
 	    if (isDebug())
@@ -93,7 +93,6 @@ package_extract(Device *dev, char *name)
 	    else {
 		int pstat;
 		
-		close(fd);
 		tpid = waitpid(tpid, &pstat, 0);
 		if (vsystem("(pwd; cat +CONTENTS) | pkg_add %s-S",
 			    !strcmp(variable_get(CPIO_VERBOSITY_LEVEL), "high") ? "-v " : ""))
@@ -101,6 +100,7 @@ package_extract(Device *dev, char *name)
 			       "Please check debugging screen for possible further details.", path);
 		else
 		    ret = RET_SUCCESS;
+		close(fd);
 	    }
 	    if (chdir(where) == -1)
 		msgFatal("Unable to get back to where I was before, Jojo!\n(That was: %s)\n", where);
