@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.178 1998/12/25 21:57:06 jkh Exp $
+ * $Id: menus.c,v 1.179 1999/01/06 13:55:12 peter Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -1064,11 +1064,18 @@ DMenu MenuInstallCustom = {
     "Press F1 to read the installation guide",
     "install",
     { { "1 Options",		"View/Set various installation options", NULL, optionsEditor },
+#ifdef __alpha__
+      { "2 Label",		"Label disk partitions",		NULL, diskLabelEditor },
+      { "3 Distributions",	"Select distribution(s) to extract",	NULL, dmenuSubmenu, NULL, &MenuDistributions },
+      { "4 Media",		"Choose the installation media type",	NULL, dmenuSubmenu, NULL, &MenuMedia },
+      { "5 Commit",		"Perform any pending Partition/Label/Extract actions", NULL, installCustomCommit },
+#else
       { "2 Partition",		"Allocate disk space for FreeBSD",	NULL, diskPartitionEditor },
       { "3 Label",		"Label allocated disk partitions",	NULL, diskLabelEditor },
       { "4 Distributions",	"Select distribution(s) to extract",	NULL, dmenuSubmenu, NULL, &MenuDistributions },
       { "5 Media",		"Choose the installation media type",	NULL, dmenuSubmenu, NULL, &MenuMedia },
       { "6 Commit",		"Perform any pending Partition/Label/Extract actions", NULL, installCustomCommit },
+#endif
       { "0 Exit",		"Exit this menu (returning to previous)", NULL,	dmenuExit },
       { NULL } },
 };
