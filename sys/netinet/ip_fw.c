@@ -11,7 +11,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.21 1995/07/23 05:36:29 davidg Exp $
+ *	$Id: ip_fw.c,v 1.14.4.1 1995/07/23 05:43:47 davidg Exp $
  */
 
 /*
@@ -153,7 +153,7 @@ ip_fw_chk(m, ip, rif, chain)
 		dprintf1("TCP ");
 		src_port = ntohs(tcp->th_sport);
 		dst_port = ntohs(tcp->th_dport);
-		if (tcp->th_flags & TH_SYN)
+		if ((tcp->th_flags & TH_SYN) && !(tcp->th_flags & TH_ACK))
 			notcpsyn = 0;	/* We *DO* have SYN ,value FALSE */
 		prt = IP_FW_F_TCP;
 		break;
