@@ -76,6 +76,7 @@ extern uid_t	uid, euid;		/* real and effective user id's */
 
 static	void	alarmhandler(int _signo);
 static	void	do_unlink(char *_file);
+static int	 isowner(char *_owner, char *_file, const char *_cfhost);
 
 void
 rmjob(const char *printer)
@@ -233,8 +234,9 @@ do_unlink(char *file)
 int
 chk(char *file)
 {
-	register int *r, n;
-	register char **u, *cp;
+	int *r, jnum;
+	char **u;
+	const char *cfhost;
 	FILE *cfp;
 
 	/*
@@ -243,7 +245,8 @@ chk(char *file)
 	if (strlen(file) < 7 || file[0] != 'c' || file[1] != 'f')
 		return(0);
 
-	if (all && (from_host == local_host || !strcmp(from_host, file+6)))
+	jnum = calc_jobnum(file, &cfhost);
+	if (all && (from_host == local_host || !strcmp(from_host, cfhost)))
 		return(1);
 
 	/*
@@ -262,20 +265,18 @@ chk(char *file)
 		return(0);
 
 	if (users == 0 && requests == 0)
-		return(!strcmp(file, current) && isowner(line+1, file));
+		return(!strcmp(file, current) && isowner(line+1, file, cfhost));
 	/*
 	 * Check the request list
 	 */
-	for (n = 0, cp = file+3; isdigit(*cp); )
-		n = n * 10 + (*cp++ - '0');
 	for (r = requ; r < &requ[requests]; r++)
-		if (*r == n && isowner(line+1, file))
+		if (*r == jnum && isowner(line+1, file, cfhost))
 			return(1);
 	/*
 	 * Check to see if it's in the user list
 	 */
 	for (u = user; u < &user[users]; u++)
-		if (!strcmp(*u, line+1) && isowner(line+1, file))
+		if (!strcmp(*u, line+1) && isowner(line+1, file, cfhost))
 			return(1);
 	return(0);
 }
@@ -286,13 +287,13 @@ chk(char *file)
  * files sent from the remote machine to be removed.
  * Normal users can only remove the file from where it was sent.
  */
-int
-isowner(char *owner, char *file)
+static int
+isowner(char *owner, char *file, const char *cfhost)
 {
 	if (!strcmp(person, root) && (from_host == local_host ||
-	    !strcmp(from_host, file+6)))
+	    !strcmp(from_host, cfhost)))
 		return (1);
-	if (!strcmp(person, owner) && !strcmp(from_host, file+6))
+	if (!strcmp(person, owner) && !strcmp(from_host, cfhost))
 		return (1);
 	if (from_host != local_host)
 		printf("%s: ", local_host);
