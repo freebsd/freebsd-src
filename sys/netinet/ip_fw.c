@@ -1784,7 +1784,7 @@ zero_entry(struct ip_fw *frwl, int log_only)
 	    }
 	if (!cleared)	/* we did not find any matching rules */
 	    return (EINVAL);
-	msg = log_only ? "Entry %d logging count reset.\n" :
+	msg = log_only ? "ipfw: Entry %d logging count reset.\n" :
 			"ipfw: Entry %d cleared.\n";
     }
     if (fw_verbose)
