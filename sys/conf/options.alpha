@@ -1,4 +1,4 @@
-#	$Id: options.alpha,v 1.5 1998/08/20 08:27:10 dfr Exp $
+#	$Id: options.alpha,v 1.6 1998/08/21 23:43:15 gpalmer Exp $
 
 EV5			opt_global.h
 EV4			opt_global.h
@@ -18,11 +18,6 @@ CMD640			opt_wd.h
 
 SHOW_BUSYBUFS
 PANIC_REBOOT_WAIT_TIME	opt_panic.h
-
-AHC_TAGENABLE		opt_aic7xxx.h
-AHC_SCBPAGING_ENABLE	opt_aic7xxx.h
-AHC_ALLOW_MEMIO		opt_aic7xxx.h
-AHC_SHARE_SCBS		opt_aic7xxx.h
 
 SC_SPLASH_SCREEN	opt_syscons.h
 MAXCONS			opt_syscons.h
