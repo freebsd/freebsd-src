@@ -1,4 +1,4 @@
-/*  $Id: dist.h,v 1.29.2.4 1999/05/10 09:28:12 jkh Exp $  */
+/*  $Id: dist.h,v 1.29.2.5 1999/05/14 07:16:30 jkh Exp $  */
 
 #ifndef _DIST_H_INCLUDE
 #define _DIST_H_INCLUDE
@@ -21,7 +21,7 @@
 #define DIST_DES		0x04000
 #define DIST_CATPAGES		0x08000
 #define DIST_PORTS		0x10000
-#define DIST_ALL		0xFFFFF
+#define DIST_ALL		0x1FFFF
 
 /* Canned distribution sets */
 #define _DIST_DEVELOPER \
