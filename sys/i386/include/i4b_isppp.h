@@ -75,7 +75,7 @@ struct sipcp {
 	int	compress_cid;	/* Comp-Slot-Id */
 };
 
-#define AUTHNAMELEN	32
+#define AUTHNAMELEN	42
 #define AUTHKEYLEN	16
 
 struct sauth {
