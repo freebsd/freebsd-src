@@ -95,6 +95,9 @@ int	ipport_lastauto  = IPPORT_USERRESERVED;		/* 5000 */
 int	ipport_hifirstauto = IPPORT_HIFIRSTAUTO;	/* 49152 */
 int	ipport_hilastauto  = IPPORT_HILASTAUTO;		/* 65535 */
 
+/* Shall we allocate ephemeral ports in random order? */
+int	ipport_randomized = 1;
+
 #define RANGECHK(var, min, max) \
 	if ((var) < (min)) { (var) = (min); } \
 	else if ((var) > (max)) { (var) = (max); }
@@ -131,6 +134,8 @@ SYSCTL_PROC(_net_inet_ip_portrange, OID_AUTO, hifirst, CTLTYPE_INT|CTLFLAG_RW,
 	   &ipport_hifirstauto, 0, &sysctl_net_ipport_check, "I", "");
 SYSCTL_PROC(_net_inet_ip_portrange, OID_AUTO, hilast, CTLTYPE_INT|CTLFLAG_RW,
 	   &ipport_hilastauto, 0, &sysctl_net_ipport_check, "I", "");
+SYSCTL_INT(_net_inet_ip_portrange, OID_AUTO, randomized, CTLFLAG_RW,
+	   &ipport_randomized, 0, "");
 
 /*
  * in_pcb.c: manage the Protocol Control Blocks.
@@ -325,6 +330,9 @@ in_pcbbind(inp, nam, p)
 			/*
 			 * counting down
 			 */
+			if (ipport_randomized)
+				*lastport = first -
+					    (arc4random() % (first - last));
 			count = first - last;
 
 			do {
@@ -342,6 +350,9 @@ in_pcbbind(inp, nam, p)
 			/*
 			 * counting up
 			 */
+			if (ipport_randomized)
+				*lastport = first +
+					    (arc4random() % (last - first));
 			count = last - first;
 
 			do {
