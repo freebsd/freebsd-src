@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *		John S. Dyson.
  *
- * $Id: vfs_bio.c,v 1.172 1998/08/25 14:41:42 phk Exp $
+ * $Id: vfs_bio.c,v 1.173 1998/08/28 20:07:13 luoqi Exp $
  */
 
 /*
@@ -644,7 +644,7 @@ brelse(struct buf * bp)
 
 		for (i = 0; i < bp->b_npages; i++) {
 			m = bp->b_pages[i];
-			PAGE_CLEAR_FLAG(m, PG_ZERO);
+			vm_page_flag_clear(m, PG_ZERO);
 			if (m == bogus_page) {
 
 				obj = (vm_object_t) vp->v_object;
@@ -831,9 +831,9 @@ vfs_vmio_release(bp)
 						vm_page_cache(m);
 					else
 						vm_page_deactivate(m);
-					PAGE_CLEAR_FLAG(m, PG_ZERO);
+					vm_page_flag_clear(m, PG_ZERO);
 				} else if (m->hold_count == 0) {
-					PAGE_SET_FLAG(m, PG_BUSY);
+					vm_page_busy(m);
 					vm_page_protect(m, VM_PROT_NONE);
 					vm_page_free(m);
 				}
@@ -843,7 +843,7 @@ vfs_vmio_release(bp)
 				 * act_count.
 				 */
 				m->act_count = 0;
-				PAGE_CLEAR_FLAG(m, PG_ZERO);
+				vm_page_flag_clear(m, PG_ZERO);
 			}
 		}
 	}
@@ -1353,7 +1353,7 @@ vfs_setdirty(struct buf *bp) {
 		 * by users through the VM system.
 		 */
 		for (i = 0; i < bp->b_npages; i++) {
-			PAGE_CLEAR_FLAG(bp->b_pages[i], PG_ZERO);
+			vm_page_flag_clear(bp->b_pages[i], PG_ZERO);
 			vm_page_test_dirty(bp->b_pages[i]);
 		}
 
@@ -1785,13 +1785,13 @@ allocbuf(struct buf * bp, int size)
 						}
 
 						vm_page_wire(m);
-						PAGE_CLEAR_FLAG(m, PG_BUSY);
+						vm_page_flag_clear(m, PG_BUSY);
 						bp->b_flags &= ~B_CACHE;
 
 					} else if (m->flags & PG_BUSY) {
 						s = splvm();
 						if (m->flags & PG_BUSY) {
-							PAGE_SET_FLAG(m, PG_WANTED);
+							vm_page_flag_set(m, PG_WANTED);
 							tsleep(m, PVM, "pgtblk", 0);
 						}
 						splx(s);
@@ -1808,7 +1808,7 @@ allocbuf(struct buf * bp, int size)
 							bytesinpage = newbsize - toff;
 						if (bp->b_flags & B_CACHE)
 							vfs_buf_set_valid(bp, off, toff, bytesinpage, m);
-						PAGE_CLEAR_FLAG(m, PG_ZERO);
+						vm_page_flag_clear(m, PG_ZERO);
 						vm_page_wire(m);
 					}
 					bp->b_pages[pageindex] = m;
@@ -1990,7 +1990,7 @@ biodone(register struct buf * bp)
 			if ((bp->b_flags & B_READ) && !bogusflag && resid > 0) {
 				vfs_page_set_valid(bp, foff, i, m);
 			}
-			PAGE_CLEAR_FLAG(m, PG_ZERO);
+			vm_page_flag_clear(m, PG_ZERO);
 
 			/*
 			 * when debugging new filesystems or buffer I/O methods, this
@@ -2020,7 +2020,7 @@ biodone(register struct buf * bp)
 #endif
 				panic("biodone: page busy < 0\n");
 			}
-			PAGE_BWAKEUP(m);
+			vm_page_io_finish(m);
 			vm_object_pip_subtract(obj, 1);
 			foff += resid;
 			iosize -= resid;
@@ -2122,8 +2122,8 @@ vfs_unbusy_pages(struct buf * bp)
 				pmap_qenter(trunc_page(bp->b_data), bp->b_pages, bp->b_npages);
 			}
 			vm_object_pip_subtract(obj, 1);
-			PAGE_CLEAR_FLAG(m, PG_ZERO);
-			PAGE_BWAKEUP(m);
+			vm_page_flag_clear(m, PG_ZERO);
+			vm_page_io_finish(m);
 		}
 		if (obj->paging_in_progress == 0 &&
 		    (obj->flags & OBJ_PIPWNT)) {
@@ -2244,10 +2244,10 @@ retry:
 		for (i = 0; i < bp->b_npages; i++, foff += PAGE_SIZE) {
 			vm_page_t m = bp->b_pages[i];
 
-			PAGE_CLEAR_FLAG(m, PG_ZERO);
+			vm_page_flag_clear(m, PG_ZERO);
 			if ((bp->b_flags & B_CLUSTER) == 0) {
 				vm_object_pip_add(obj, 1);
-				PAGE_BUSY(m);
+				vm_page_io_start(m);
 			}
 
 			vm_page_protect(m, VM_PROT_NONE);
@@ -2323,7 +2323,7 @@ vfs_bio_clrbuf(struct buf *bp) {
 				}
 			}
 			bp->b_pages[i]->valid = VM_PAGE_BITS_ALL;
-			PAGE_CLEAR_FLAG(bp->b_pages[i], PG_ZERO);
+			vm_page_flag_clear(bp->b_pages[i], PG_ZERO);
 		}
 		bp->b_resid = 0;
 	} else {
@@ -2361,10 +2361,10 @@ tryagain:
 		}
 		vm_page_wire(p);
 		p->valid = VM_PAGE_BITS_ALL;
-		PAGE_CLEAR_FLAG(p, PG_ZERO);
+		vm_page_flag_clear(p, PG_ZERO);
 		pmap_kenter(pg, VM_PAGE_TO_PHYS(p));
 		bp->b_pages[index] = p;
-		PAGE_WAKEUP(p);
+		vm_page_wakeup(p);
 	}
 	bp->b_npages = index;
 }
@@ -2391,7 +2391,7 @@ vm_hold_free_pages(struct buf * bp, vm_offset_t from, vm_offset_t to)
 #endif
 			bp->b_pages[index] = NULL;
 			pmap_kremove(pg);
-			PAGE_SET_FLAG(p, PG_BUSY);
+			vm_page_busy(p);
 			vm_page_unwire(p);
 			vm_page_free(p);
 		}
