@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: pmap.h,v 1.15 1996/09/08 20:44:31 dyson Exp $
+ * $Id: pmap.h,v 1.16 1996/10/15 03:16:43 dyson Exp $
  */
 
 /*
@@ -100,7 +100,6 @@ vm_offset_t	 pmap_extract __P((pmap_t, vm_offset_t));
 void		 pmap_growkernel __P((vm_offset_t));
 void		 pmap_init __P((vm_offset_t, vm_offset_t));
 boolean_t	 pmap_is_modified __P((vm_offset_t pa));
-boolean_t	 pmap_is_referenced __P((vm_offset_t pa));
 boolean_t	 pmap_ts_referenced __P((vm_offset_t pa));
 void		 pmap_kenter __P((vm_offset_t, vm_offset_t));
 void		 pmap_kremove __P((vm_offset_t));
