@@ -108,6 +108,7 @@ struct sc_info {
 	int			regid, irqid;
 	void 			*ih;
 
+	int			spdif_enabled;
 	struct sc_chinfo 	pch, rch;
 };
 
@@ -399,15 +400,19 @@ cmichan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 
 	r = cmpci_rate_to_regvalue(speed);
 	if (ch->dir == PCMDIR_PLAY) {
-		if (speed < 44100) /* disable if req before rate change */
+		if (speed < 44100) {
+			/* disable if req before rate change */
 			cmi_spdif_speed(ch->parent, speed);
+		}
 		cmi_partial_wr4(ch->parent,
 				CMPCI_REG_FUNC_1,
 				CMPCI_REG_DAC_FS_SHIFT,
 				CMPCI_REG_DAC_FS_MASK,
 				r);
-		if (speed >= 44100) /* enable if req after rate change */
+		if (speed >= 44100 && ch->parent->spdif_enabled) {
+			/* enable if req after rate change */
 			cmi_spdif_speed(ch->parent, speed);
+		}
 		rsp = cmi_rd(ch->parent, CMPCI_REG_FUNC_1, 4);
 		rsp >>= CMPCI_REG_DAC_FS_SHIFT;
 		rsp &= 	CMPCI_REG_DAC_FS_MASK;
@@ -700,6 +705,24 @@ cmimix_setrecsrc(struct snd_mixer *m, u_int32_t src)
 	return src;
 }
 
+/* Optional SPDIF support. */
+
+static int
+cmi_initsys(struct sc_info* sc)
+{
+#ifdef SND_DYNSYSCTL
+	struct snddev_info* d = device_get_softc(sc->dev);
+
+	SYSCTL_ADD_INT(&d->sysctl_tree, 
+		       SYSCTL_CHILDREN(d->sysctl_tree_top),
+		       OID_AUTO, "spdif_enabled", CTLFLAG_RW, 
+		       &sc->spdif_enabled, 0, 
+		       "SPDIF output enabled at 44.1 and 48 kHz");
+#endif /* SND_DYNSYSCTL */
+	return 0;
+}
+
+/* ------------------------------------------------------------------------- */
 static kobj_method_t cmi_mixer_methods[] = {
 	KOBJMETHOD(mixer_init,	cmimix_init),
 	KOBJMETHOD(mixer_set,	cmimix_set),
@@ -808,6 +831,7 @@ cmi_attach(device_t dev)
 	pci_write_config(dev, PCIR_COMMAND, data, 2);
 	data = pci_read_config(dev, PCIR_COMMAND, 2);
 
+	sc->dev = dev;
 	sc->regid = PCIR_MAPS;
 	sc->reg = bus_alloc_resource(dev, SYS_RES_IOPORT, &sc->regid,
 				      0, BUS_SPACE_UNRESTRICTED, 1, RF_ACTIVE);
@@ -854,6 +878,8 @@ cmi_attach(device_t dev)
 	snprintf(status, SND_STATUSLEN, "at io 0x%lx irq %ld",
 		 rman_get_start(sc->reg), rman_get_start(sc->irq));
 	pcm_setstatus(dev, status);
+
+	cmi_initsys(sc);
 
 	DEB(printf("cmi_attach: succeeded\n"));
 	return 0;
