@@ -324,12 +324,8 @@ int	unit2minor(int _unit);
 void	setconf(void);
 dev_t	getdiskbyname(char *_name);
 
-/* This is type of the function DEVFS uses to hook into the kernel with */
-typedef void devfs_create_t(dev_t dev);
-typedef void devfs_destroy_t(dev_t dev);
-
-extern devfs_create_t *devfs_create_hook;
-extern devfs_destroy_t *devfs_destroy_hook;
+void devfs_create(dev_t dev);
+void devfs_destroy(dev_t dev);
 
 #define		UID_ROOT	0
 #define		UID_BIN		3
