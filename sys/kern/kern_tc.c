@@ -1,74 +1,24 @@
-/*-
- * Copyright (c) 1997, 1998 Poul-Henning Kamp <phk@FreeBSD.org>
- * Copyright (c) 1982, 1986, 1991, 1993
- *	The Regents of the University of California.  All rights reserved.
- * (c) UNIX System Laboratories, Inc.
- * All or some portions of this file are derived from material licensed
- * to the University of California by American Telephone and Telegraph
- * Co. or Unix System Laboratories, Inc. and are reproduced herein with
- * the permission of UNIX System Laboratories, Inc.
+/*
+ * ----------------------------------------------------------------------------
+ * "THE BEER-WARE LICENSE" (Revision 42):
+ * <phk@FreeBSD.ORG> wrote this file.  As long as you retain this notice you
+ * can do whatever you want with this stuff. If we meet some day, and you think
+ * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
+ * ----------------------------------------------------------------------------
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
- *
- *	@(#)kern_clock.c	8.5 (Berkeley) 1/21/94
  * $FreeBSD$
  */
 
 #include "opt_ntp.h"
 
 #include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/dkstat.h>
-#include <sys/callout.h>
-#include <sys/kernel.h>
-#include <sys/proc.h>
+#include <sys/timetc.h>
 #include <sys/malloc.h>
-#include <sys/resourcevar.h>
-#include <sys/signalvar.h>
+#include <sys/kernel.h>
+#include <sys/sysctl.h>
+#include <sys/systm.h>
 #include <sys/timex.h>
 #include <sys/timepps.h>
-#include <vm/vm.h>
-#include <sys/lock.h>
-#include <vm/pmap.h>
-#include <vm/vm_map.h>
-#include <sys/sysctl.h>
-
-#include <machine/cpu.h>
-#include <machine/limits.h>
-
-#ifdef GPROF
-#include <sys/gmon.h>
-#endif
-
-#if defined(SMP) && defined(BETTER_CLOCK)
-#include <machine/smp.h>
-#endif
 
 /*
  * Number of timecounters used to implement stable storage
@@ -80,24 +30,8 @@
 static MALLOC_DEFINE(M_TIMECOUNTER, "timecounter", 
 	"Timecounter stable storage");
 
-static void initclocks __P((void *dummy));
-SYSINIT(clocks, SI_SUB_CLOCKS, SI_ORDER_FIRST, initclocks, NULL)
-
-static void tco_forward __P((int force));
 static void tco_setscales __P((struct timecounter *tc));
 static __inline unsigned tco_delta __P((struct timecounter *tc));
-
-/* Some of these don't belong here, but it's easiest to concentrate them. */
-#if defined(SMP) && defined(BETTER_CLOCK)
-long cp_time[CPUSTATES];
-#else
-static long cp_time[CPUSTATES];
-#endif
-
-long tk_cancc;
-long tk_nin;
-long tk_nout;
-long tk_rawcc;
 
 time_t time_second;
 
@@ -105,12 +39,24 @@ struct	timeval boottime;
 SYSCTL_STRUCT(_kern, KERN_BOOTTIME, boottime, CTLFLAG_RD,
     &boottime, timeval, "System boottime");
 
-/*
- * Which update policy to use.
- *   0 - every tick, bad hardware may fail with "calcru negative..."
- *   1 - more resistent to the above hardware, but less efficient.
- */
-static int tco_method;
+SYSCTL_NODE(_kern, OID_AUTO, timecounter, CTLFLAG_RW, 0, "");
+
+static unsigned nmicrotime;
+static unsigned nnanotime;
+static unsigned ngetmicrotime;
+static unsigned ngetnanotime;
+static unsigned nmicrouptime;
+static unsigned nnanouptime;
+static unsigned ngetmicrouptime;
+static unsigned ngetnanouptime;
+SYSCTL_INT(_kern_timecounter, OID_AUTO, nmicrotime, CTLFLAG_RD, &nmicrotime, 0, "");
+SYSCTL_INT(_kern_timecounter, OID_AUTO, nnanotime, CTLFLAG_RD, &nnanotime, 0, "");
+SYSCTL_INT(_kern_timecounter, OID_AUTO, nmicrouptime, CTLFLAG_RD, &nmicrouptime, 0, "");
+SYSCTL_INT(_kern_timecounter, OID_AUTO, nnanouptime, CTLFLAG_RD, &nnanouptime, 0, "");
+SYSCTL_INT(_kern_timecounter, OID_AUTO, ngetmicrotime, CTLFLAG_RD, &ngetmicrotime, 0, "");
+SYSCTL_INT(_kern_timecounter, OID_AUTO, ngetnanotime, CTLFLAG_RD, &ngetnanotime, 0, "");
+SYSCTL_INT(_kern_timecounter, OID_AUTO, ngetmicrouptime, CTLFLAG_RD, &ngetmicrouptime, 0, "");
+SYSCTL_INT(_kern_timecounter, OID_AUTO, ngetnanouptime, CTLFLAG_RD, &ngetnanouptime, 0, "");
 
 /*
  * Implement a dummy timecounter which we can use until we get a real one
@@ -122,6 +68,7 @@ static unsigned
 dummy_get_timecount(struct timecounter *tc)
 {
 	static unsigned now;
+
 	return (++now);
 }
 
@@ -134,355 +81,6 @@ static struct timecounter dummy_timecounter = {
 };
 
 struct timecounter *timecounter = &dummy_timecounter;
-
-/*
- * Clock handling routines.
- *
- * This code is written to operate with two timers that run independently of
- * each other.
- *
- * The main timer, running hz times per second, is used to trigger interval
- * timers, timeouts and rescheduling as needed.
- *
- * The second timer handles kernel and user profiling,
- * and does resource use estimation.  If the second timer is programmable,
- * it is randomized to avoid aliasing between the two clocks.  For example,
- * the randomization prevents an adversary from always giving up the cpu
- * just before its quantum expires.  Otherwise, it would never accumulate
- * cpu ticks.  The mean frequency of the second timer is stathz.
- *
- * If no second timer exists, stathz will be zero; in this case we drive
- * profiling and statistics off the main clock.  This WILL NOT be accurate;
- * do not do it unless absolutely necessary.
- *
- * The statistics clock may (or may not) be run at a higher rate while
- * profiling.  This profile clock runs at profhz.  We require that profhz
- * be an integral multiple of stathz.
- *
- * If the statistics clock is running fast, it must be divided by the ratio
- * profhz/stathz for statistics.  (For profiling, every tick counts.)
- *
- * Time-of-day is maintained using a "timecounter", which may or may
- * not be related to the hardware generating the above mentioned
- * interrupts.
- */
-
-int	stathz;
-int	profhz;
-static int profprocs;
-int	ticks;
-static int psdiv, pscnt;		/* prof => stat divider */
-int	psratio;			/* ratio: prof / stat */
-
-/*
- * Initialize clock frequencies and start both clocks running.
- */
-/* ARGSUSED*/
-static void
-initclocks(dummy)
-	void *dummy;
-{
-	register int i;
-
-	/*
-	 * Set divisors to 1 (normal case) and let the machine-specific
-	 * code do its bit.
-	 */
-	psdiv = pscnt = 1;
-	cpu_initclocks();
-
-	/*
-	 * Compute profhz/stathz, and fix profhz if needed.
-	 */
-	i = stathz ? stathz : hz;
-	if (profhz == 0)
-		profhz = i;
-	psratio = profhz / i;
-}
-
-/*
- * The real-time timer, interrupting hz times per second.
- */
-void
-hardclock(frame)
-	register struct clockframe *frame;
-{
-	register struct proc *p;
-
-	p = curproc;
-	if (p) {
-		register struct pstats *pstats;
-
-		/*
-		 * Run current process's virtual and profile time, as needed.
-		 */
-		pstats = p->p_stats;
-		if (CLKF_USERMODE(frame) &&
-		    timevalisset(&pstats->p_timer[ITIMER_VIRTUAL].it_value) &&
-		    itimerdecr(&pstats->p_timer[ITIMER_VIRTUAL], tick) == 0)
-			psignal(p, SIGVTALRM);
-		if (timevalisset(&pstats->p_timer[ITIMER_PROF].it_value) &&
-		    itimerdecr(&pstats->p_timer[ITIMER_PROF], tick) == 0)
-			psignal(p, SIGPROF);
-	}
-
-#if defined(SMP) && defined(BETTER_CLOCK)
-	forward_hardclock(pscnt);
-#endif
-
-	/*
-	 * If no separate statistics clock is available, run it from here.
-	 */
-	if (stathz == 0)
-		statclock(frame);
-
-	tco_forward(0);
-	ticks++;
-
-	/*
-	 * Process callouts at a very low cpu priority, so we don't keep the
-	 * relatively high clock interrupt priority any longer than necessary.
-	 */
-	if (TAILQ_FIRST(&callwheel[ticks & callwheelmask]) != NULL) {
-		if (CLKF_BASEPRI(frame)) {
-			/*
-			 * Save the overhead of a software interrupt;
-			 * it will happen as soon as we return, so do it now.
-			 */
-			(void)splsoftclock();
-			softclock();
-		} else
-			setsoftclock();
-	} else if (softticks + 1 == ticks)
-		++softticks;
-}
-
-/*
- * Compute number of ticks in the specified amount of time.
- */
-int
-tvtohz(tv)
-	struct timeval *tv;
-{
-	register unsigned long ticks;
-	register long sec, usec;
-
-	/*
-	 * If the number of usecs in the whole seconds part of the time
-	 * difference fits in a long, then the total number of usecs will
-	 * fit in an unsigned long.  Compute the total and convert it to
-	 * ticks, rounding up and adding 1 to allow for the current tick
-	 * to expire.  Rounding also depends on unsigned long arithmetic
-	 * to avoid overflow.
-	 *
-	 * Otherwise, if the number of ticks in the whole seconds part of
-	 * the time difference fits in a long, then convert the parts to
-	 * ticks separately and add, using similar rounding methods and
-	 * overflow avoidance.  This method would work in the previous
-	 * case but it is slightly slower and assumes that hz is integral.
-	 *
-	 * Otherwise, round the time difference down to the maximum
-	 * representable value.
-	 *
-	 * If ints have 32 bits, then the maximum value for any timeout in
-	 * 10ms ticks is 248 days.
-	 */
-	sec = tv->tv_sec;
-	usec = tv->tv_usec;
-	if (usec < 0) {
-		sec--;
-		usec += 1000000;
-	}
-	if (sec < 0) {
-#ifdef DIAGNOSTIC
-		if (usec > 0) {
-			sec++;
-			usec -= 1000000;
-		}
-		printf("tvotohz: negative time difference %ld sec %ld usec\n",
-		       sec, usec);
-#endif
-		ticks = 1;
-	} else if (sec <= LONG_MAX / 1000000)
-		ticks = (sec * 1000000 + (unsigned long)usec + (tick - 1))
-			/ tick + 1;
-	else if (sec <= LONG_MAX / hz)
-		ticks = sec * hz
-			+ ((unsigned long)usec + (tick - 1)) / tick + 1;
-	else
-		ticks = LONG_MAX;
-	if (ticks > INT_MAX)
-		ticks = INT_MAX;
-	return ((int)ticks);
-}
-
-/*
- * Start profiling on a process.
- *
- * Kernel profiling passes proc0 which never exits and hence
- * keeps the profile clock running constantly.
- */
-void
-startprofclock(p)
-	register struct proc *p;
-{
-	int s;
-
-	if ((p->p_flag & P_PROFIL) == 0) {
-		p->p_flag |= P_PROFIL;
-		if (++profprocs == 1 && stathz != 0) {
-			s = splstatclock();
-			psdiv = pscnt = psratio;
-			setstatclockrate(profhz);
-			splx(s);
-		}
-	}
-}
-
-/*
- * Stop profiling on a process.
- */
-void
-stopprofclock(p)
-	register struct proc *p;
-{
-	int s;
-
-	if (p->p_flag & P_PROFIL) {
-		p->p_flag &= ~P_PROFIL;
-		if (--profprocs == 0 && stathz != 0) {
-			s = splstatclock();
-			psdiv = pscnt = 1;
-			setstatclockrate(stathz);
-			splx(s);
-		}
-	}
-}
-
-/*
- * Statistics clock.  Grab profile sample, and if divider reaches 0,
- * do process and kernel statistics.  Most of the statistics are only
- * used by user-level statistics programs.  The main exceptions are
- * p->p_uticks, p->p_sticks, p->p_iticks, and p->p_estcpu.
- */
-void
-statclock(frame)
-	register struct clockframe *frame;
-{
-#ifdef GPROF
-	register struct gmonparam *g;
-	int i;
-#endif
-	register struct proc *p;
-	struct pstats *pstats;
-	long rss;
-	struct rusage *ru;
-	struct vmspace *vm;
-
-	if (curproc != NULL && CLKF_USERMODE(frame)) {
-		/*
-		 * Came from user mode; CPU was in user state.
-		 * If this process is being profiled, record the tick.
-		 */
-		p = curproc;
-		if (p->p_flag & P_PROFIL)
-			addupc_intr(p, CLKF_PC(frame), 1);
-#if defined(SMP) && defined(BETTER_CLOCK)
-		if (stathz != 0)
-			forward_statclock(pscnt);
-#endif
-		if (--pscnt > 0)
-			return;
-		/*
-		 * Charge the time as appropriate.
-		 */
-		p->p_uticks++;
-		if (p->p_nice > NZERO)
-			cp_time[CP_NICE]++;
-		else
-			cp_time[CP_USER]++;
-	} else {
-#ifdef GPROF
-		/*
-		 * Kernel statistics are just like addupc_intr, only easier.
-		 */
-		g = &_gmonparam;
-		if (g->state == GMON_PROF_ON) {
-			i = CLKF_PC(frame) - g->lowpc;
-			if (i < g->textsize) {
-				i /= HISTFRACTION * sizeof(*g->kcount);
-				g->kcount[i]++;
-			}
-		}
-#endif
-#if defined(SMP) && defined(BETTER_CLOCK)
-		if (stathz != 0)
-			forward_statclock(pscnt);
-#endif
-		if (--pscnt > 0)
-			return;
-		/*
-		 * Came from kernel mode, so we were:
-		 * - handling an interrupt,
-		 * - doing syscall or trap work on behalf of the current
-		 *   user process, or
-		 * - spinning in the idle loop.
-		 * Whichever it is, charge the time as appropriate.
-		 * Note that we charge interrupts to the current process,
-		 * regardless of whether they are ``for'' that process,
-		 * so that we know how much of its real time was spent
-		 * in ``non-process'' (i.e., interrupt) work.
-		 */
-		p = curproc;
-		if (CLKF_INTR(frame)) {
-			if (p != NULL)
-				p->p_iticks++;
-			cp_time[CP_INTR]++;
-		} else if (p != NULL) {
-			p->p_sticks++;
-			cp_time[CP_SYS]++;
-		} else
-			cp_time[CP_IDLE]++;
-	}
-	pscnt = psdiv;
-
-	if (p != NULL) {
-		schedclock(p);
-
-		/* Update resource usage integrals and maximums. */
-		if ((pstats = p->p_stats) != NULL &&
-		    (ru = &pstats->p_ru) != NULL &&
-		    (vm = p->p_vmspace) != NULL) {
-			ru->ru_ixrss += pgtok(vm->vm_tsize);
-			ru->ru_idrss += pgtok(vm->vm_dsize);
-			ru->ru_isrss += pgtok(vm->vm_ssize);
-			rss = pgtok(vmspace_resident_count(vm));
-			if (ru->ru_maxrss < rss)
-				ru->ru_maxrss = rss;
-		}
-	}
-}
-
-/*
- * Return information about system clocks.
- */
-static int
-sysctl_kern_clockrate SYSCTL_HANDLER_ARGS
-{
-	struct clockinfo clkinfo;
-	/*
-	 * Construct clockinfo structure.
-	 */
-	clkinfo.hz = hz;
-	clkinfo.tick = tick;
-	clkinfo.tickadj = tickadj;
-	clkinfo.profhz = profhz;
-	clkinfo.stathz = stathz ? stathz : hz;
-	return (sysctl_handle_opaque(oidp, &clkinfo, sizeof clkinfo, req));
-}
-
-SYSCTL_PROC(_kern, KERN_CLOCKRATE, clockrate, CTLTYPE_STRUCT|CTLFLAG_RD,
-	0, 0, sysctl_kern_clockrate, "S,clockinfo","");
 
 static __inline unsigned
 tco_delta(struct timecounter *tc)
@@ -508,12 +106,9 @@ getmicrotime(struct timeval *tvp)
 {
 	struct timecounter *tc;
 
-	if (!tco_method) {
-		tc = timecounter;
-		*tvp = tc->tc_microtime;
-	} else {
-		microtime(tvp);
-	}
+	ngetmicrotime++;
+	tc = timecounter;
+	*tvp = tc->tc_microtime;
 }
 
 void
@@ -521,12 +116,9 @@ getnanotime(struct timespec *tsp)
 {
 	struct timecounter *tc;
 
-	if (!tco_method) {
-		tc = timecounter;
-		*tsp = tc->tc_nanotime;
-	} else {
-		nanotime(tsp);
-	}
+	ngetnanotime++;
+	tc = timecounter;
+	*tsp = tc->tc_nanotime;
 }
 
 void
@@ -534,6 +126,7 @@ microtime(struct timeval *tv)
 {
 	struct timecounter *tc;
 
+	nmicrotime++;
 	tc = timecounter;
 	tv->tv_sec = tc->tc_offset_sec;
 	tv->tv_usec = tc->tc_offset_micro;
@@ -553,6 +146,7 @@ nanotime(struct timespec *ts)
 	u_int64_t delta;
 	struct timecounter *tc;
 
+	nnanotime++;
 	tc = timecounter;
 	ts->tv_sec = tc->tc_offset_sec;
 	count = tco_delta(tc);
@@ -574,13 +168,10 @@ getmicrouptime(struct timeval *tvp)
 {
 	struct timecounter *tc;
 
-	if (!tco_method) {
-		tc = timecounter;
-		tvp->tv_sec = tc->tc_offset_sec;
-		tvp->tv_usec = tc->tc_offset_micro;
-	} else {
-		microuptime(tvp);
-	}
+	ngetmicrouptime++;
+	tc = timecounter;
+	tvp->tv_sec = tc->tc_offset_sec;
+	tvp->tv_usec = tc->tc_offset_micro;
 }
 
 void
@@ -588,13 +179,10 @@ getnanouptime(struct timespec *tsp)
 {
 	struct timecounter *tc;
 
-	if (!tco_method) {
-		tc = timecounter;
-		tsp->tv_sec = tc->tc_offset_sec;
-		tsp->tv_nsec = tc->tc_offset_nano >> 32;
-	} else {
-		nanouptime(tsp);
-	}
+	ngetnanouptime++;
+	tc = timecounter;
+	tsp->tv_sec = tc->tc_offset_sec;
+	tsp->tv_nsec = tc->tc_offset_nano >> 32;
 }
 
 void
@@ -602,6 +190,7 @@ microuptime(struct timeval *tv)
 {
 	struct timecounter *tc;
 
+	nmicrouptime++;
 	tc = timecounter;
 	tv->tv_sec = tc->tc_offset_sec;
 	tv->tv_usec = tc->tc_offset_micro;
@@ -619,6 +208,7 @@ nanouptime(struct timespec *ts)
 	u_int64_t delta;
 	struct timecounter *tc;
 
+	nnanouptime++;
 	tc = timecounter;
 	ts->tv_sec = tc->tc_offset_sec;
 	count = tco_delta(tc);
@@ -647,13 +237,13 @@ tco_setscales(struct timecounter *tc)
 }
 
 void
-update_timecounter(struct timecounter *tc)
+tc_update(struct timecounter *tc)
 {
 	tco_setscales(tc);
 }
 
 void
-init_timecounter(struct timecounter *tc)
+tc_init(struct timecounter *tc)
 {
 	struct timespec ts1;
 	struct timecounter *t1, *t2, *t3;
@@ -696,7 +286,7 @@ init_timecounter(struct timecounter *tc)
 }
 
 void
-set_timecounter(struct timespec *ts)
+tc_setclock(struct timespec *ts)
 {
 	struct timespec ts2;
 
@@ -708,7 +298,7 @@ set_timecounter(struct timespec *ts)
 		boottime.tv_sec--;
 	}
 	/* fiddle all the little crinkly bits around the fiords... */
-	tco_forward(1);
+	tc_windup();
 }
 
 static void
@@ -754,8 +344,8 @@ sync_other_counter(void)
 	return (tc);
 }
 
-static void
-tco_forward(int force)
+void
+tc_windup(void)
 {
 	struct timecounter *tc, *tco;
 	struct timeval tvt;
@@ -792,11 +382,7 @@ tco_forward(int force)
 		tc->tc_offset_sec++;
 		ntp_update_second(tc);	/* XXX only needed if xntpd runs */
 		tco_setscales(tc);
-		force++;
 	}
-
-	if (tco_method && !force)
-		return;
 
 	tc->tc_offset_micro = (tc->tc_offset_nano / 1000) >> 32;
 
@@ -814,15 +400,6 @@ tco_forward(int force)
 
 	timecounter = tc;
 }
-
-SYSCTL_NODE(_kern, OID_AUTO, timecounter, CTLFLAG_RW, 0, "");
-
-SYSCTL_INT(_kern_timecounter, OID_AUTO, method, CTLFLAG_RW, &tco_method, 0,
-    "This variable determines the method used for updating timecounters. "
-    "If the default algorithm (0) fails with \"calcru negative...\" messages "
-    "try the alternate algorithm (1) which handles bad hardware better."
-
-);
 
 static int
 sysctl_kern_timecounter_hardware SYSCTL_HANDLER_ARGS

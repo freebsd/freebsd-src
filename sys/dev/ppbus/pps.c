@@ -21,6 +21,7 @@
 #include <sys/module.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
+#include <sys/timetc.h>
 #include <sys/timepps.h>
 #include <sys/malloc.h>
 #include <machine/bus.h>

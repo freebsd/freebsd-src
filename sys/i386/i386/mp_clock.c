@@ -39,7 +39,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/time.h>
+#include <sys/timetc.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 #include <sys/bus.h>
@@ -75,7 +75,7 @@ sysctl_machdep_piix_freq SYSCTL_HANDLER_ARGS
 	if (error == 0 && req->newptr != NULL) {
 		piix_freq = freq;
 		piix_timecounter.tc_frequency = piix_freq;
-		update_timecounter(&piix_timecounter);
+		tc_update(&piix_timecounter);
 	}
 	return (error);
 }
@@ -111,7 +111,7 @@ piix_probe (device_t dev)
 		d = pci_read_config(dev, 0x40, 4);
 		piix_timecounter_address = (d & 0xffc0) + 8;
 		piix_timecounter.tc_frequency = piix_freq;
-		init_timecounter(&piix_timecounter);
+		tc_init(&piix_timecounter);
 		return (ENXIO);
 	};
 	return (ENXIO);

@@ -28,6 +28,7 @@
 #include <sys/kernel.h>
 #include <sys/uio.h>
 #include <sys/malloc.h>
+#include <sys/timetc.h>
 
 #include <i386/isa/isa_device.h>
 #endif /* _KERNEL */
@@ -291,7 +292,7 @@ loranattach(struct isa_device *isdp)
 	 
 	init_tgc();
 
-	init_timecounter(&loran_timecounter);
+	tc_init(&loran_timecounter);
 
 	TAILQ_INIT(&working);
 	for (i = 0; i < NLORAN + 1; i++) {
