@@ -60,6 +60,7 @@
  */
 #define ALT_VENDORID			0x12AE
 #define ALT_DEVICEID_ACENIC		0x0001
+#define ALT_DEVICEID_ACENIC_COPPER	0x0002
 
 /*
  * 3Com 3c985 PCI vendor/device ID.
@@ -134,8 +135,8 @@
  * Firmware revision that we want.
  */
 #define TI_FIRMWARE_MAJOR		0xc
-#define TI_FIRMWARE_MINOR		0x3
-#define TI_FIRMWARE_FIX			0x15
+#define TI_FIRMWARE_MINOR		0x4
+#define TI_FIRMWARE_FIX			0xd
 
 /*
  * Miscelaneous Local Control register.
@@ -1033,7 +1034,7 @@ struct ti_event_desc {
 
 #define TI_SSLOTS	256
 #define TI_MSLOTS	256
-#define TI_JSLOTS	256
+#define TI_JSLOTS	384
 
 #define TI_JRAWLEN (TI_JUMBO_FRAMELEN + ETHER_ALIGN + sizeof(u_int64_t))
 #define TI_JLEN (TI_JRAWLEN + (sizeof(u_int64_t) - \
@@ -1122,6 +1123,7 @@ struct ti_softc {
 	struct ifmedia		ifmedia;	/* media info */
 	u_int8_t		ti_unit;	/* interface number */
 	u_int8_t		ti_hwrev;	/* Tigon rev (1 or 2) */
+	u_int8_t		ti_copper;	/* 1000baseTX card */
 	u_int8_t		ti_linkstat;	/* Link state */
 	struct ti_ring_data	*ti_rdata;	/* rings */
 	struct ti_chain_data	ti_cdata;	/* mbufs */
