@@ -90,9 +90,8 @@ struct file_list {
 #define	SYSTEMSPEC	5
 #define	SWAPSPEC	6
 #define COMPDEVICE	7
-#define COMPSPEC	8
-#define NODEPEND	9
-#define LOCAL		10
+#define NODEPEND	8
+#define LOCAL		9
 #define DEVDONE		0x80000000
 #define TYPEMASK	0x7fffffff
 
@@ -104,18 +103,10 @@ struct file_list {
 #define NO_OBJ		4
 #define BEFORE_DEPEND	8
 
-struct	idlst {
-	char	*id;
-	struct	idlst *id_next;
-};
-
 struct device {
 	int	d_type;			/* CONTROLLER, DEVICE, bus adaptor */
 	struct	device *d_conn;		/* what it is connected to */
 	char	*d_name;		/* name of device (e.g. rk11) */
-	struct	idlst *d_vec;		/* interrupt vectors */
-	int	d_pri;			/* interrupt priority */
-	int	d_addr;			/* address of csr */
 	int	d_unit;			/* unit number */
 	int	d_drive;		/* drive number */
 	int	d_target;		/* target number */
@@ -129,7 +120,6 @@ struct device {
 	int	d_disabled;		/* nonzero to skip probe/attach */
 	char	*d_port;		/* io port base manifest constant */
 	int	d_portn;	/* io port base (if number not manifest) */
-	char	*d_mask;		/* interrupt mask */
 	int	d_maddr;		/* io memory base */
 	int	d_msize;		/* io memory size */
 	int	d_drq;			/* DMA request  */
