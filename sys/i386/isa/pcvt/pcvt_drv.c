@@ -90,13 +90,19 @@
 static void *pcvt_devfs_token[MAXCONS];
 #endif /*DEVFS*/
 
+#if PCVT_FREEBSD >= 200
+#include <machine/stdarg.h>
+#else
+#include "machine/stdarg.h"
+#endif
+
 extern int getchar __P((void));
 
 #if PCVT_NETBSD
 	extern u_short *Crtat;
 #endif /* PCVT_NETBSD */
 
-unsigned	__debug = 0; /*0xffe */;
+unsigned	__debug = 0; /*0xffe */
 static		__color;
 static		nrow;
 
@@ -143,6 +149,11 @@ pcprobe(struct isa_device *dev)
 #endif /* PCVT_NETBSD > 9 */
 #endif /* PCVT_NETBSD > 100 */
 {
+#ifdef _I386_ISA_KBDIO_H_
+	kbdc = kbdc_open(IO_KBD);
+	reset_keyboard = 1;		/* it's now safe to do kbd reset */
+#endif /* _I386_ISA_KBDIO_H_ */
+
 	kbd_code_init();
 
 #if PCVT_NETBSD > 9
@@ -771,7 +782,8 @@ int pcvt_kbd_rptr = 0;
 short pcvt_kbd_count= 0;
 static u_char pcvt_timeout_scheduled = 0;
 
-static	void	pcvt_timeout (void *arg)
+static void
+pcvt_timeout(void *arg)
 {
 	u_char *cp;
 
@@ -829,6 +841,10 @@ pcrint(int unit)
 	int	s;
 # endif
 
+# ifdef _I386_ISA_KBDIO_H_
+	int	c;
+# endif
+
 #else /* !PCVT_KBD_FIFO */
 	u_char	*cp;
 #endif /* PCVT_KBD_FIFO */
@@ -844,6 +860,7 @@ pcrint(int unit)
 		return;
 	}
 
+# ifndef _I386_ISA_KBDIO_H_
 	while (inb(CONTROLLER_CTRL) & STATUS_OUTPBF)	/* check 8042 buffer */
 	{
 		ret = 1;				/* got something */
@@ -851,6 +868,12 @@ pcrint(int unit)
 		PCVT_KBD_DELAY();			/* 7 us delay */
 
 		dt = inb(CONTROLLER_DATA);		/* get it 8042 data */
+# else 
+	while ((c = read_kbd_data_no_wait(kbdc)) != -1)
+	{
+		ret = 1;				/* got something */
+		dt = c;
+# endif /* _I386_ISA_KBDIO_H_ */
 
 		if (pcvt_kbd_count >= PCVT_KBD_FIFO_SZ)	/* fifo overflow ? */
 		{
@@ -875,7 +898,7 @@ pcrint(int unit)
 		{
 			PCVT_DISABLE_INTR ();
 			pcvt_timeout_scheduled = 1;	/* flag active */
-			timeout((TIMEOUT_FUNC_T)pcvt_timeout, (caddr_t) 0, 1); /* fire off */
+			timeout(pcvt_timeout, NULL, hz / 100);	/* fire off */
 			PCVT_ENABLE_INTR ();
 		}
 	}
@@ -1068,6 +1091,23 @@ int
 pccnprobe(struct consdev *cp)
 {
 	struct isa_device *dvp;
+
+#ifdef _I386_ISA_KBDIO_H_
+	kbdc = kbdc_open(IO_KBD);
+	/*
+	 * Don't reset the keyboard via `kbdio' just yet.
+	 * The system clock has not been calibrated...
+	 */
+	reset_keyboard = 0;
+#if PCVT_SCANSET == 2
+	/*
+	 * Turn off scancode translation early so that UserConfig 
+	 * and DDB can read the keyboard.
+	 */
+	empty_both_buffers(kbdc, 10);
+	set_controller_command_byte(kbdc, KBD_TRANSLATION, 0);
+#endif /* PCVT_SCANSET == 2 */
+#endif /* _I386_ISA_KBDIO_H_ */
 
 	/*
 	 * Take control if we are the highest priority enabled display device.
@@ -1350,7 +1390,7 @@ vgapelinit(void)
 #if defined XSERVER && !PCVT_USL_VT_COMPAT
 /*----------------------------------------------------------------------*
  *	initialize for X mode
- *	i.e.: grant current process (the X server) all IO priviledges,
+ *	i.e.: grant current process (the X server) all IO privileges,
  *	and mark in static variable so other hooks can test for it,
  *	save all loaded fonts and screen pages to pageable buffers;
  *	if parameter `on' is false, the same procedure is done reverse.
@@ -1370,7 +1410,7 @@ pcvt_xmode_set(int on, struct proc *p)
 	struct syscframe *fp;
 #endif /* PCVT_NETBSD > 9 */
 
-	int i;
+	int error, i;
 
 	/* X will only run on VGA and Hercules adaptors */
 
@@ -1386,12 +1426,15 @@ pcvt_xmode_set(int on, struct proc *p)
 	if(on)
 	{
 		/*
-		 * Test whether the calling process has super-user priviledges.
+		 * Test whether the calling process has super-user privileges
+		 * and we're in insecure mode.
 		 * This prevents us from granting the potential security hole
-		 * `IO priv' to any process (effective uid is checked).
+		 * `IO priv' to insufficiently privileged processes.
 		 */
-
-		if(suser(p->p_ucred, &p->p_acflag) != 0)
+		error = suser(p->p_ucred, &p->p_acflag);
+		if (error != 0)
+			return (error);
+		if (securelevel > 0)
 			return (EPERM);
 
 		if(pcvt_xmode)
@@ -1437,6 +1480,8 @@ pcvt_xmode_set(int on, struct proc *p)
 
 		vsp->Crtat = vsp->Memory;	/* operate in memory now */
 
+#ifndef _I386_ISA_KBDIO_H_
+
 #if PCVT_SCANSET == 2
 		/* put keyboard to return ancient PC scan codes */
 		kbc_8042cmd(CONTR_WRITE);
@@ -1448,6 +1493,16 @@ pcvt_xmode_set(int on, struct proc *p)
 		 (COMMAND_INHOVR|COMMAND_SYSFLG|COMMAND_IRQEN|COMMAND_PCSCAN));
 #endif /* PCVT_USEKBDSEC */
 #endif /* PCVT_SCANSET == 2 */
+
+#else /* _I386_ISA_KBDIO_H_ */
+
+#if PCVT_SCANSET == 2
+		/* put keyboard to return ancient PC scan codes */
+		set_controller_command_byte(kbdc, 
+			KBD_TRANSLATION, KBD_TRANSLATION); 
+#endif /* PCVT_SCANSET == 2 */
+
+#endif /* !_I386_ISA_KBDIO_H_ */
 
 #if PCVT_NETBSD > 9
 		fp->tf_eflags |= PSL_IOPL;
@@ -1484,6 +1539,8 @@ pcvt_xmode_set(int on, struct proc *p)
 			pcvt_set_scrnsv_tmo(saved_scrnsv_tmo);
 #endif /* PCVT_SCREENSAVER */
 
+#ifndef _I386_ISA_KBDIO_H_
+
 #if PCVT_SCANSET == 2
 		kbc_8042cmd(CONTR_WRITE);
 #if PCVT_USEKBDSEC		/* security enabled */
@@ -1494,6 +1551,14 @@ pcvt_xmode_set(int on, struct proc *p)
 		 (COMMAND_INHOVR|COMMAND_SYSFLG|COMMAND_IRQEN));
 #endif /* PCVT_USEKBDSEC */
 #endif /* PCVT_SCANSET == 2 */
+
+#else /* _I386_ISA_KBDIO_H_ */
+
+#if PCVT_SCANSET == 2
+		set_controller_command_byte(kbdc, KBD_TRANSLATION, 0);
+#endif /* PCVT_SCANSET == 2 */
+
+#endif /* !_I386_ISA_KBDIO_H_ */
 
 		if(adaptor_type == MDA_ADAPTOR)
 		{
