@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  *
  *	$Author_Id: if_xe.c,v 1.19 1999/04/15 22:15:53 scott Exp $
- *	$Id: if_xe.c,v 1.19 1999/04/15 22:15:53 scott Exp $
+ *	$FreeBSD$
  */
 
 /*
@@ -133,7 +133,7 @@
 
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
-#include <dev/pccard/if_xereg.h>
+#include <i386/isa/if_xereg.h>
 #include <machine/clock.h>
 #if NAPM > 0
 #include <machine/apm_bios.h>
