@@ -291,7 +291,7 @@ struct cmdtab const Commands[] = {
   { "close",   NULL,    CloseCommand,	LOCAL_AUTH,
 	"Close connection",		"close"},
   { "delete",  NULL,    DeleteCommand,	LOCAL_AUTH,
-	"delete route",                 "delete ALL | dest gateway [mask]"},
+	"delete route",                 "delete ALL | dest [gateway [mask]]"},
   { "deny",    NULL,    DenyCommand,	LOCAL_AUTH,
   	"Deny option request",		"deny option .."},
   { "dial",    "call",  DialCommand,	LOCAL_AUTH,
@@ -1316,22 +1316,25 @@ char **argv;
 {
   struct in_addr dest, gateway, netmask;
 
-  if (argc >= 2) {
-    dest = GetIpAddr(argv[0]);
-    if (strcasecmp(argv[1], "HISADDR") == 0)
-      gateway = IpcpInfo.his_ipaddr;
-    else
-      gateway = GetIpAddr(argv[1]);
-    netmask.s_addr = 0;
-    if (argc == 3) {
-      if (inet_aton(argv[2], &netmask) == 0) {
-	LogPrintf(LogWARN, "Bad netmask value.\n");
-	return -1;
-      }
-    }
-    OsSetRoute(RTM_DELETE, dest, gateway, netmask);
-  } else if (argc == 1 && strcasecmp(argv[0], "all") == 0) {
+  if (argc == 1 && strcasecmp(argv[0], "all") == 0)
     DeleteIfRoutes(0);
+  else if (argc > 0 && argc < 4) {
+    dest = GetIpAddr(argv[0]);
+    netmask.s_addr = INADDR_ANY;
+    if (argc > 1) {
+      if (strcasecmp(argv[1], "HISADDR") == 0)
+        gateway = IpcpInfo.his_ipaddr;
+      else
+        gateway = GetIpAddr(argv[1]);
+      if (argc == 3) {
+        if (inet_aton(argv[2], &netmask) == 0) {
+	  LogPrintf(LogWARN, "Bad netmask value.\n");
+	  return -1;
+        }
+      }
+    } else
+      gateway.s_addr = INADDR_ANY;
+    OsSetRoute(RTM_DELETE, dest, gateway, netmask);
   } else
     return -1;
 
