@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mbuf.h	8.5 (Berkeley) 2/19/95
- * $Id: mbuf.h,v 1.15 1996/05/08 19:38:27 wollman Exp $
+ * $Id: mbuf.h,v 1.16 1996/05/10 19:28:53 wollman Exp $
  */
 
 #ifndef _SYS_MBUF_H_
@@ -89,6 +89,8 @@ struct m_ext {
 	void	(*ext_free)		/* free routine if not the usual */
 		__P((caddr_t, u_int));
 	u_int	ext_size;		/* size of buffer, for ext_free */
+	void	(*ext_ref)		/* add a reference to the ext object */
+		__P((caddr_t, u_int));
 };
 
 struct mbuf {
@@ -247,6 +249,8 @@ union mcluster {
 	  if ((m)->m_ext.ext_buf != NULL) { \
 		(m)->m_data = (m)->m_ext.ext_buf; \
 		(m)->m_flags |= M_EXT; \
+		(m)->m_ext.ext_free = NULL;  \
+		(m)->m_ext.ext_ref = NULL;  \
 		(m)->m_ext.ext_size = MCLBYTES;  \
 	  } \
 	}
@@ -265,9 +269,9 @@ union mcluster {
  * Free a single mbuf and associated external storage.
  * Place the successor, if any, in n.
  */
-#ifdef notyet
 #define	MFREE(m, n) \
-	{ MBUFLOCK(mbstat.m_mtypes[(m)->m_type]--;) \
+	MBUFLOCK(  \
+	  mbstat.m_mtypes[(m)->m_type]--; \
 	  if ((m)->m_flags & M_EXT) { \
 		if ((m)->m_ext.ext_free) \
 			(*((m)->m_ext.ext_free))((m)->m_ext.ext_buf, \
@@ -275,9 +279,10 @@ union mcluster {
 		else { \
 			char *p = (m)->m_ext.ext_buf; \
 			if (--mclrefcnt[mtocl(p)] == 0) { \
-			((union mcluster *)(p))->mcl_next = mclfree; \
-			mclfree = (union mcluster *)(p); \
-			mbstat.m_clfree++; \
+				((union mcluster *)(p))->mcl_next = mclfree; \
+				mclfree = (union mcluster *)(p); \
+				mbstat.m_clfree++; \
+			} \
 		} \
 	  } \
 	  (n) = (m)->m_next; \
@@ -285,26 +290,7 @@ union mcluster {
 	  mbstat.m_mtypes[MT_FREE]++; \
 	  (m)->m_next = mmbfree; \
 	  mmbfree = (m); \
-	}
-#else /* notyet */
-#define	MFREE(m, nn) \
-	MBUFLOCK ( \
-		mbstat.m_mtypes[(m)->m_type]--; \
-		if ((m)->m_flags & M_EXT) { \
-			char *p = (m)->m_ext.ext_buf; \
-			if (--mclrefcnt[mtocl(p)] == 0) { \
-				((union mcluster *)(p))->mcl_next = mclfree; \
-				mclfree = (union mcluster *)(p); \
-				mbstat.m_clfree++; \
-			} \
-		} \
-		(nn) = (m)->m_next; \
-		(m)->m_type = MT_FREE; \
-		mbstat.m_mtypes[MT_FREE]++; \
-		(m)->m_next = mmbfree; \
-		mmbfree = (m); \
 	)
-#endif
 
 /*
  * Copy mbuf pkthdr from from to to.
