@@ -9,7 +9,7 @@
 # Kerberos services are for Kerberos v4, and are unofficial.  Sites running
 # v5 should uncomment v5 entries and comment v4 entries.
 #
-#	$Id: services,v 1.31 1997/02/23 09:20:53 peter Exp $
+#	$Id: services,v 1.32 1997/04/01 06:22:22 pst Exp $
 #	From: @(#)services	5.8 (Berkeley) 5/9/91
 #
 # WELL KNOWN PORT NUMBERS
@@ -807,6 +807,7 @@ qrh		752/udp
 rrh		753/tcp
 rrh		753/udp
 krb_prop	754/tcp		# kerberos server propogation
+krb5_prop	754/tcp		# kerberos (v5) server propogation
 #PROBLEMS!========================================================
 tell		754/tcp	    #send
 #PROBLEMS!========================================================
