@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aic7xxx_asm.c,v 1.17 1997/04/10 19:13:07 gibbs Exp $
+ *      $Id: aicasm.c,v 1.18 1997/06/27 19:38:45 gibbs Exp $
  */
 #include <sys/types.h>
 #include <sys/mman.h>
@@ -39,8 +39,8 @@
 #include <sysexits.h>
 #include <unistd.h>
 
-#include "aic7xxx_asm.h"
-#include "symbol.h"
+#include "aicasm.h"
+#include "aicasm_symbol.h"
 #include "sequencer.h"
 
 static void usage __P((void));

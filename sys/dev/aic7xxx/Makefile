@@ -1,19 +1,23 @@
-#	$Id: Makefile,v 1.1 1997/03/16 07:08:10 gibbs Exp $
+#	$Id: Makefile,v 1.2 1997/04/03 05:56:00 gibbs Exp $
 
-PROG=	aic7xxx_asm
+PROG=	aicasm
 
-CSRCS=	aic7xxx_asm.c symbol.c
-GENSRCS=	gram.c scan.c
+CSRCS=	aicasm.c aicasm_symbol.c
+GENSRCS= aicasm_gram.c aicasm_scan.c
 
-GENHDRS=	y.tab.h token.h
-# Hack so non root users you can build kernels
-BINOWN!= id -u -n
-BINGRP!= id -g -n
+GENHDRS=	y.tab.h
 
 SRCS=	${GENSRCS} ${CSRCS}
-CLEANFILES+=	${GENSRCS} ${GENHDRS} y.output
+CLEANFILES+= ${GENSRCS} ${GENHDRS} y.output
 DPADD+=	${LIBL}
 LDADD+=	-ll
+
+# Correct path for kernel builds
+# Don't rely on the kernel's .depend file
+.ifdef MAKESRCPATH
+.PATH: ${MAKESRCPATH}
+DEPENDFILE=
+.endif
 
 CFLAGS+= -I.
 NOMAN=	noman

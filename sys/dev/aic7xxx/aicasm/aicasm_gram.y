@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: gram.y,v 1.1 1997/03/16 07:08:16 gibbs Exp $
+ *      $Id: aicasm_gram.y,v 1.2 1997/06/27 19:38:49 gibbs Exp $
  */
 
 #include <stdio.h>
@@ -40,8 +40,8 @@
 #include <sys/types.h>
 #include <sys/queue.h>
 
-#include "aic7xxx_asm.h"
-#include "symbol.h"
+#include "aicasm.h"
+#include "aicasm_symbol.h"
 #include "sequencer.h"
 
 int yylineno;

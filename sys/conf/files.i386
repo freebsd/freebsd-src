@@ -1,23 +1,23 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.i386,v 1.172 1997/08/28 12:18:08 jkh Exp $
+#	$Id: files.i386,v 1.173 1997/08/28 14:36:42 jlemon Exp $
 #
-aic7xxx_asm			optional	ahc	device-driver	   \
+aicasm				optional	ahc	device-driver	   \
 	dependency 	"$S/dev/aic7xxx/*.[chyl]"			   \
-	compile-with	"cd $S/dev/aic7xxx; make obj; make BINDIR=${.CURDIR} all install" \
+	compile-with	"make -f $S/dev/aic7xxx/Makefile MAKESRCPATH=$S/dev/aic7xxx" \
 	no-obj no-implicit-rule						   \
-	clean		"aic7xxx_asm"
+	clean		"aicasm"
 #
 # The long compile-with and dependency lines are required because of
 # limitations in config: backslash-newline doesn't work in strings, and
 # dependency lines other than the first are silently ignored.
 #
 aic7xxx_{seq,reg}.h		optional	ahc	device-driver	   \
-	compile-with	"./aic7xxx_asm ${INCLUDES} -o aic7xxx_seq.h -r aic7xxx_reg.h $S/dev/aic7xxx/aic7xxx.seq"   \
+	compile-with	"./aicasm ${INCLUDES} -o aic7xxx_seq.h -r aic7xxx_reg.h $S/dev/aic7xxx/aic7xxx.seq"   \
 	no-obj no-implicit-rule before-depend				   \
 	clean		"aic7xxx_seq.h aic7xxx_reg.h"			   \
-	dependency	"$S/dev/aic7xxx/aic7xxx.{reg,seq} $S/scsi/scsi_message.h aic7xxx_asm"
+	dependency	"$S/dev/aic7xxx/aic7xxx.{reg,seq} $S/scsi/scsi_message.h aicasm"
 #
 linux_genassym			optional	compat_linux		   \
 	dependency 	"$S/i386/linux/linux_genassym.c $S/i386/linux/linux.h" \
