@@ -152,6 +152,9 @@ _pthread_cond_destroy(pthread_cond_t *cond)
 		/* Unlock the condition variable structure: */
 		THR_LOCK_RELEASE(curthread, &cv->c_lock);
 
+		/* Free the cond lock structure: */
+		_lock_destroy(&cv->c_lock);
+
 		/*
 		 * Free the memory allocated for the condition
 		 * variable structure:
