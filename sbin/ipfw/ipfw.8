@@ -14,11 +14,11 @@
 .Nd IP firewall and traffic shaper control program
 .Sh SYNOPSIS
 .Nm
-.Op Fl q
+.Op Fl cq
 .Cm add
 .Ar rule
 .Nm
-.Op Fl adeftNS
+.Op Fl acdeftNS
 .Brq Cm list | show
 .Op Ar number ...
 .Nm
@@ -219,6 +219,10 @@ While listing, show counter values.
 The
 .Cm show
 command just implies this option.
+.It Fl c
+When entering or showing rules, print them in compact form,
+i.e. without the optional "ip from any to any" string
+when this does not carry any additional information.
 .It Fl d
 While listing, show dynamic rules in addition to static ones.
 .It Fl e
@@ -372,7 +376,12 @@ to match a MAC header when
 .Nm
 is called from
 .Cm ip_input()
-) the rule will simply not match. It is thus responsibility of
+) the match pattern will not match. However, a
+.Cm not
+operator in front of such patterns will cause the pattern to
+.Em always
+match on those packets, which might cause undesired results.
+It is thus responsibility of
 the programmer, if necessary, to write a suitable ruleset to
 differentiate among the possible places.
 .Cm skipto
@@ -648,12 +657,12 @@ specific source and destination addresses or ports,
 protocol options, incoming or outgoing interfaces, etc.)
 that the packet must match in order to be recognised.
 In general, the patterns are connected by (implicit)
-.Em and
-connectives -- i.e. all must match in order for the
+.Cm and
+operators -- i.e. all must match in order for the
 rule to match.
 Individual patterns can be prefixed by the
-.Em not
-keyword to reverse the result of the match, as in
+.Cm not
+operator to reverse the result of the match, as in
 .Pp
 .Dl "ipfw add 100 allow ip from not 1.2.3.4 to any"
 .Pp
@@ -661,15 +670,16 @@ Additionally, sets of alternative match patterns (
 .Em or-blocks
 ) can be constructed by putting the patterns in
 lists enclosed between parentheses ( ) or braces { }, and
-using
+using the
 .Cm or
-connectives as follows:
+operator as follows:
 .Pp
 .Dl "ipfw add 100 allow ip from { x or not y or z } to any"
 .Pp
 Only one level of parentheses is allowed.
 Beware that most shells have special meanings for parentheses
-or braces, so it is advisable to put a \\ in front of them.
+or braces, so it is advisable to put a backslash \\ in front of them
+to prevent such interpretations.
 .Pp
 The body of a rule must in general include a source and destination
 addres specifier.
@@ -678,35 +688,36 @@ The keyword
 can be used in various places to specify that the content of
 a required field is irrelevant.
 .Pp
-The rule body format is one of the following:
+The rule body has the following format:
 .Bd -ragged -offset indent
-.Ar proto
-.Cm from Ar src
-.Cm to Ar dst
+.Op Ar proto Cm from Ar src Cm to Ar dst
 .Op Ar options
-.Pp
-.Cm MAC Ar dst-mac src-mac Op Cm not
-.Ar mac-type Op Ar options
 .Ed
 .Pp
-where the second format allows you to specify MAC header fields
-instead of IPv4 header fields.
-Note that in practice both formats are equivalent, because the
+The first part (protocol from src to dst) is for backward
+compatibility with
+.Nm ipfw1 .
+In
+.Nm ipfw2
+any match pattern (including MAC headers, IPv4 protocols,
+addresses and ports) can be specified in the
 .Ar options
-let you specify match patterns for all IP and MAC header fields.
+section.
 .Pp
 Rule fields have the following meaning:
 .Bl -tag -width indent
-.It Ar proto
-An IPv4 protocol specified by number or name (for a complete
-list see
+.It Ar proto : protocol | Cm { Ar protocol Cm or ... }
+An IPv4 protocol (or an
+.Em or-block
+with multiple protocols) specified by number or name
+(for a complete list see
 .Pa /etc/protocols ) .
 The
 .Cm ip
 or
 .Cm all
 keywords mean any protocol will match.
-.It Ar src No and Ar dst : ip-address | { ip-address Cm or ... } Op Ar ports
+.It Ar src No and Ar dst : ip-address | Cm { Ar ip-address Cm or ... } Op Ar ports
 A single
 .Ar ip-address
 , or an
@@ -786,7 +797,9 @@ A backslash
 .Pq Ql \e
 can be used to escape the dash
 .Pq Ql -
-character in a service name:
+character in a service name (from a shell, the backslash must be
+typed twice to avoid that the shell itself uses it as an escape
+character).
 .Pp
 .Dl "ipfw add count tcp from any ftp\e\e-data-ftp to any"
 .Pp
@@ -796,28 +809,6 @@ specifications.
 See the
 .Cm frag
 option for details on matching fragmented packets.
-.It Ar dst-mac, src-mac
-Destination and source MAC addresses, specified as
-groups of hex digits separated by commas, and optionally
-followed by a mask indicating how many bits are significant:
-.Pp
-.Dl "ipfw add allow MAC 10:20:30:40:50:60/30 any any
-.Pp
-Note that the order of MAC addresses (destination first,
-source second) is
-the same as on the wire, but the opposite of the one used for
-IP addresses.
-.It Ar mac-type
-The value of the Ethernet Type field, specified in the same way as
-.Cm port numbers
-(i.e. one or more comma-separated single values or ranges).
-You can use symbolic names for known values such as
-.Em vlan , ipv4, ipv6 .
-The values can be enter as decimal or hexadecimal, but they
-are always printed as hexadecimal (unless the
-.Cm -N
-option is used, in which case symbolic resolution will be
-attempted).
 .El
 .Ss RULE OPTIONS (MATCH PATTERNS)
 Additional match patterns can be used within
@@ -974,12 +965,36 @@ One or more
 of source and destination addresses and ports can be
 specified.
 .It Cm { MAC | mac } Ar dst-mac src-mac
-Match packets with a given dst-mac and src-mac addresses, specified
-in one of the forms described earlier.
+Match packets with a given
+.Ar dst-mac
+and
+Ar src-mac
+addresses, specified as the
+.Cm any
+keyword (matching any MAC address), or six groups of hex digits
+separated by commas,
+and optionally followed by a mask indicating how many bits are
+significant, as in
+.Pp
+.Dl "MAC 10:20:30:40:50:60/33 any"
+.Pp
+Note that the order of MAC addresses (destination first,
+source second) is
+the same as on the wire, but the opposite of the one used for
+IP addresses.
 .It Cm mac-type Ar mac-type
-Matches packets whose
-.Ar mac-type
+Matches packets whose Ethernet Type field
 corresponds to one of those specified as argument.
+.Ar mac-type
+is specified in the same way as
+.Cm port numbers
+(i.e. one or more comma-separated single values or ranges).
+You can use symbolic names for known values such as
+.Em vlan , ipv4, ipv6 .
+Values can be enter as decimal or hexadecimal (if prefixed by 0x),
+and they are always printed as hexadecimal (unless the
+.Cm -N
+option is used, in which case symbolic resolution will be attempted).
 .It Cm proto Ar protocol
 Matches packets with the corresponding IPv4 protocol.
 .It Cm recv | xmit | via Brq Ar ifX | Ar if Ns Cm * | Ar ipno | Ar any
@@ -1614,8 +1629,17 @@ To achieve the same behaviour as
 .Nm ipfw1
 you can use the following as the very first rule in your ruleset:
 .Pp
-.Dl "ipfw add 1 allow MAC any any not ip"
+.Dl "ipfw add 1 allow layer2 not mac-type ip"
 .Pp
+The
+.Cm layer2
+options might seem redundant, but it is necessary -- packets
+passed to the firewall from layer3 will not have a MAC header,
+so the
+.Cm mac-type ip
+pattern will always fail on them, and the
+.Cm not
+operator will make this rule into a pass-all.
 .It Address sets
 .Nm ipfw1
 does not supports address sets (those in the form
@@ -1684,11 +1708,16 @@ has no effect there.
 .It Options
 The following options are not supported in
 .Nm ipfw1
+.Pp
+.Cm dst-ip, dst-port, layer2, mac, mac-type, src-ip, src-port.
+.Pp
+Additionally, the following options are not supported in
+.Nm ipfw1
 (RELENG_4)
 rules:
 .Pp
-.Cm layer2, ipid, iplen, ipprecedence, iptos, ipttl,
-.Cm ipversion, tcpack, tcpseq, tcpwin .
+.Cm ipid, iplen, ipprecedence, iptos, ipttl,
+.Cm ipversion, .Cm tcpack, tcpseq, tcpwin .
 .It Dummynet options
 The following option for
 .Nm dummynet
