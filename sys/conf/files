@@ -1123,7 +1123,7 @@ netipsec/xform_ah.c	optional fast_ipsec
 netipsec/xform_esp.c	optional fast_ipsec
 netipsec/xform_ipcomp.c	optional fast_ipsec
 netipsec/xform_ipip.c	optional fast_ipsec
-netipsec/xform_tcp.c	optional fast_ipsec
+netipsec/xform_tcp.c	optional fast_ipsec tcp_signature
 netipx/ipx.c		optional ipx
 netipx/ipx_cksum.c	optional ipx
 netipx/ipx_input.c	optional ipx
