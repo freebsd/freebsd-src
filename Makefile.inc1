@@ -877,7 +877,6 @@ build-tools:
 		${_netboot}
 	cd ${.CURDIR}/$d; ${MAKE} ${BTMAKEFLAGS} build-tools
 .endfor
-	cd ${.CURDIR}/usr.bin/tn3270/tools; ${MAKE} ${BTMAKEFLAGS} all
 
 #
 # Build aout versions of things that provide legacy support when all the
