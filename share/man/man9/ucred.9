@@ -143,6 +143,16 @@ structure.
 .Fn crshared
 returns 0 if the credential has a reference count greater than 1;
 otherwise, 1 is returned.
+.Sh USAGE NOTES
+In general in a system call, 
+you should always use the 
+.Vt ucred
+associated with the 
+thread doing the work rather than that of the process attached to it,
+As that associated with the thread is guaranteed to be safely accessed
+under SMP, and will remain stable for the duration of the call, even
+in the face of a multithreaded application changing the process credentials
+from another thread.
 .Sh SEE ALSO
 .Xr uihold 9
 .Sh AUTHORS
