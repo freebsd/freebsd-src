@@ -57,7 +57,7 @@
 static g_access_t g_disk_access;
 
 struct g_class g_disk_class = {
-	"DISK-class",
+	"DISK",
 	NULL,
 	NULL,
 	G_CLASS_INITSTUFF

@@ -57,7 +57,7 @@
 #include <geom/geom_slice.h>
 #include <machine/endian.h>
 
-#define PC98_CLASS_NAME "PC98-class"
+#define PC98_CLASS_NAME "PC98"
 
 struct g_pc98_softc {
 	int foo;
