@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.30 1994/08/24 11:52:21 sos Exp $
+ *	$Id: trap.c,v 1.31 1994/08/27 16:14:13 davidg Exp $
  */
 
 /*
@@ -630,7 +630,7 @@ syscall(frame)
  	if (p->p_sysent->sv_mask)
  		code = code & p->p_sysent->sv_mask;
  
- 	if (code < 0 || code >= p->p_sysent->sv_size)
+ 	if (code >= p->p_sysent->sv_size)
  		callp = &p->p_sysent->sv_table[0];
   	else
  		callp = &p->p_sysent->sv_table[code];
